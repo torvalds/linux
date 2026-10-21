@@ -894,7 +894,7 @@ static bool cfg80211_allowed_random_address(struct wireless_dev *wdev,
 
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  struct wireless_dev *wdev,
-			  struct cfg80211_mgmt_tx_params *params, u64 *cookie)
+			  struct cfg80211_mgmt_tx_params *params, u64 cookie)
 {
 	const struct ieee80211_mgmt *mgmt;
 	u16 stype;

@@ -20,8 +20,9 @@ static int jumbo_frm(struct stmmac_tx_queue *tx_q, struct sk_buff *skb,
 	unsigned int nopaged_len = skb_headlen(skb);
 	struct stmmac_priv *priv = tx_q->priv_data;
 	unsigned int entry = tx_q->cur_tx;
-	unsigned int bmax, len, des2;
+	unsigned int bmax, len;
 	struct dma_desc *desc;
+	dma_addr_t des2;
 
 	if (priv->extend_desc)
 		desc = (struct dma_desc *)(tx_q->dma_etx + entry);
@@ -39,7 +40,7 @@ static int jumbo_frm(struct stmmac_tx_queue *tx_q, struct sk_buff *skb,
 
 		des2 = dma_map_single(priv->device, skb->data, bmax,
 				      DMA_TO_DEVICE);
-		desc->des2 = cpu_to_le32(des2);
+		desc->des2 = cpu_to_le32(lower_32_bits(des2));
 		if (dma_mapping_error(priv->device, des2))
 			return -1;
 
@@ -47,7 +48,7 @@ static int jumbo_frm(struct stmmac_tx_queue *tx_q, struct sk_buff *skb,
 		tx_q->tx_skbuff_dma[entry].len = bmax;
 		tx_q->tx_skbuff_dma[entry].is_jumbo = true;
 
-		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
+		desc->des3 = cpu_to_le32(lower_32_bits(des2) + BUF_SIZE_4KiB);
 		stmmac_prepare_tx_desc(priv, desc, 1, bmax, csum,
 				STMMAC_RING_MODE, 0, false, skb->len);
 		tx_q->tx_skbuff[entry] = NULL;
@@ -60,27 +61,27 @@ static int jumbo_frm(struct stmmac_tx_queue *tx_q, struct sk_buff *skb,
 
 		des2 = dma_map_single(priv->device, skb->data + bmax, len,
 				      DMA_TO_DEVICE);
-		desc->des2 = cpu_to_le32(des2);
+		desc->des2 = cpu_to_le32(lower_32_bits(des2));
 		if (dma_mapping_error(priv->device, des2))
 			return -1;
 		tx_q->tx_skbuff_dma[entry].buf = des2;
 		tx_q->tx_skbuff_dma[entry].len = len;
 		tx_q->tx_skbuff_dma[entry].is_jumbo = true;
 
-		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
+		desc->des3 = cpu_to_le32(lower_32_bits(des2) + BUF_SIZE_4KiB);
 		stmmac_prepare_tx_desc(priv, desc, 0, len, csum,
 				STMMAC_RING_MODE, 1, !skb_is_nonlinear(skb),
 				skb->len);
 	} else {
 		des2 = dma_map_single(priv->device, skb->data,
 				      nopaged_len, DMA_TO_DEVICE);
-		desc->des2 = cpu_to_le32(des2);
+		desc->des2 = cpu_to_le32(lower_32_bits(des2));
 		if (dma_mapping_error(priv->device, des2))
 			return -1;
 		tx_q->tx_skbuff_dma[entry].buf = des2;
 		tx_q->tx_skbuff_dma[entry].len = nopaged_len;
 		tx_q->tx_skbuff_dma[entry].is_jumbo = true;
-		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
+		desc->des3 = cpu_to_le32(lower_32_bits(des2) + BUF_SIZE_4KiB);
 		stmmac_prepare_tx_desc(priv, desc, 1, nopaged_len, csum,
 				STMMAC_RING_MODE, 0, !skb_is_nonlinear(skb),
 				skb->len);

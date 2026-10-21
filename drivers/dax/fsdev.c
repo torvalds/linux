@@ -45,15 +45,13 @@ static void fsdev_write_dax(void *addr, struct page *page,
 }
 
 static long __fsdev_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
-			long nr_pages, enum dax_access_mode mode, void **kaddr,
-			unsigned long *pfn)
+		long nr_pages, enum dax_access_mode mode, void **kaddr,
+		unsigned long *pfn)
 {
 	struct dev_dax *dev_dax = dax_get_private(dax_dev);
 	size_t size = nr_pages << PAGE_SHIFT;
 	size_t offset = pgoff << PAGE_SHIFT;
-	void *virt_addr = dev_dax->virt_addr + offset;
 	phys_addr_t phys;
-	unsigned long local_pfn;
 
 	phys = dax_pgoff_to_phys(dev_dax, pgoff, size);
 	if (phys == -1) {
@@ -63,11 +61,10 @@ static long __fsdev_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 	}
 
 	if (kaddr)
-		*kaddr = virt_addr;
+		*kaddr = __va(phys);
 
-	local_pfn = PHYS_PFN(phys);
 	if (pfn)
-		*pfn = local_pfn;
+		*pfn = PHYS_PFN(phys);
 
 	/*
 	 * Use cached_size which was computed at probe time. The size cannot
@@ -83,7 +80,8 @@ static int fsdev_dax_zero_page_range(struct dax_device *dax_dev,
 	long rc;
 
 	WARN_ONCE(nr_pages > 1, "%s: nr_pages > 1\n", __func__);
-	rc = __fsdev_dax_direct_access(dax_dev, pgoff, 1, DAX_ACCESS, &kaddr, NULL);
+	rc = __fsdev_dax_direct_access(dax_dev, pgoff, 1, DAX_ACCESS,
+				       &kaddr, NULL);
 	if (rc < 0)
 		return rc;
 	fsdev_write_dax(kaddr, ZERO_PAGE(0), 0, PAGE_SIZE);
@@ -91,15 +89,15 @@ static int fsdev_dax_zero_page_range(struct dax_device *dax_dev,
 }
 
 static long fsdev_dax_direct_access(struct dax_device *dax_dev,
-		  pgoff_t pgoff, long nr_pages, enum dax_access_mode mode,
-		  void **kaddr, unsigned long *pfn)
+		pgoff_t pgoff, long nr_pages, enum dax_access_mode mode,
+		void **kaddr, unsigned long *pfn)
 {
 	return __fsdev_dax_direct_access(dax_dev, pgoff, nr_pages, mode,
 					 kaddr, pfn);
 }
 
-static size_t fsdev_dax_recovery_write(struct dax_device *dax_dev, pgoff_t pgoff,
-		void *addr, size_t bytes, struct iov_iter *i)
+static size_t fsdev_dax_recovery_write(struct dax_device *dax_dev,
+		pgoff_t pgoff, void *addr, size_t bytes, struct iov_iter *i)
 {
 	return _copy_from_iter_flushcache(addr, bytes, i);
 }
@@ -127,6 +125,23 @@ static void fsdev_clear_ops(void *data)
 	dax_set_ops(dev_dax->dax_dev, NULL);
 }
 
+static void fsdev_clear_pgmap_ops(void *data)
+{
+	struct dev_pagemap *pgmap = data;
+
+	/*
+	 * fsdev installs pgmap->ops and ->owner at probe. For a static device
+	 * the pgmap is shared and long-lived (owned by the dax bus), so
+	 * leaving fsdev's ops behind on unbind would let a later
+	 * memory_failure -- after rebind to another driver, or after this
+	 * module is unloaded -- dispatch through a stale or freed
+	 * ->memory_failure handler. Clear them so the pgmap carries no fsdev
+	 * state once we are unbound.
+	 */
+	pgmap->ops = NULL;
+	pgmap->owner = NULL;
+}
+
 /*
  * Page map operations for FS-DAX mode
  * Similar to fsdax_pagemap_ops in drivers/nvdimm/pmem.c
@@ -135,11 +150,26 @@ static void fsdev_clear_ops(void *data)
  * The core mm code in free_zone_device_folio() handles the wake_up_var()
  * directly for this memory type.
  */
+static u64 fsdev_pfn_to_offset(struct dev_dax *dev_dax, unsigned long pfn)
+{
+	phys_addr_t phys = PFN_PHYS(pfn);
+	u64 offset = 0;
+
+	for (int i = 0; i < dev_dax->nr_range; i++) {
+		struct range *range = &dev_dax->ranges[i].range;
+
+		if (phys >= range->start && phys <= range->end)
+			return offset + (phys - range->start);
+		offset += range_len(range);
+	}
+	return -1ULL;
+}
+
 static int fsdev_pagemap_memory_failure(struct dev_pagemap *pgmap,
 		unsigned long pfn, unsigned long nr_pages, int mf_flags)
 {
 	struct dev_dax *dev_dax = pgmap->owner;
-	u64 offset = PFN_PHYS(pfn) - dev_dax->ranges[0].range.start;
+	u64 offset = fsdev_pfn_to_offset(dev_dax, pfn);
 	u64 len = nr_pages << PAGE_SHIFT;
 
 	return dax_holder_notify_failure(dev_dax->dax_dev, offset,
@@ -204,6 +234,48 @@ static const struct file_operations fsdev_fops = {
 	.release = fsdev_release,
 };
 
+/*
+ * Acquire the dev_pagemap for probe: the static (pre-populated) one if
+ * present, or a devm-allocated one for the dynamic case. Note that
+ * dev_dax->pgmap is not set here; fsdev_dax_probe() sets it only once
+ * probe succeeds, so a failed probe never leaves a dangling pointer
+ * to a devres-freed pgmap.
+ */
+static struct dev_pagemap *fsdev_acquire_pgmap(struct dev_dax *dev_dax)
+{
+	struct device *dev = &dev_dax->dev;
+	struct dev_pagemap *pgmap;
+	size_t pgmap_size;
+
+	if (static_dev_dax(dev_dax)) {
+		if (dev_dax->nr_range > 1) {
+			dev_warn(dev,
+				 "static pgmap / multi-range device conflict\n");
+			return ERR_PTR(-EINVAL);
+		}
+
+		pgmap = dev_dax->pgmap;
+		pgmap->vmemmap_shift = 0;
+		return pgmap;
+	}
+
+	if (dev_dax->pgmap) {
+		dev_warn(dev, "dynamic-dax with pre-populated page map\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pgmap_size = struct_size(pgmap, ranges, dev_dax->nr_range - 1);
+	pgmap = devm_kzalloc(dev, pgmap_size, GFP_KERNEL);
+	if (!pgmap)
+		return ERR_PTR(-ENOMEM);
+
+	pgmap->nr_range = dev_dax->nr_range;
+	for (int i = 0; i < dev_dax->nr_range; i++)
+		pgmap->ranges[i] = dev_dax->ranges[i].range;
+
+	return pgmap;
+}
+
 static int fsdev_dax_probe(struct dev_dax *dev_dax)
 {
 	struct dax_device *dax_dev = dev_dax->dax_dev;
@@ -215,35 +287,9 @@ static int fsdev_dax_probe(struct dev_dax *dev_dax)
 	void *addr;
 	int rc, i;
 
-	if (static_dev_dax(dev_dax)) {
-		if (dev_dax->nr_range > 1) {
-			dev_warn(dev, "static pgmap / multi-range device conflict\n");
-			return -EINVAL;
-		}
-
-		pgmap = dev_dax->pgmap;
-	} else {
-		size_t pgmap_size;
-
-		if (dev_dax->pgmap) {
-			dev_warn(dev, "dynamic-dax with pre-populated page map\n");
-			return -EINVAL;
-		}
-
-		pgmap_size = struct_size(pgmap, ranges, dev_dax->nr_range - 1);
-		pgmap = devm_kzalloc(dev, pgmap_size, GFP_KERNEL);
-		if (!pgmap)
-			return -ENOMEM;
-
-		pgmap->nr_range = dev_dax->nr_range;
-		dev_dax->pgmap = pgmap;
-
-		for (i = 0; i < dev_dax->nr_range; i++) {
-			struct range *range = &dev_dax->ranges[i].range;
-
-			pgmap->ranges[i] = *range;
-		}
-	}
+	pgmap = fsdev_acquire_pgmap(dev_dax);
+	if (IS_ERR(pgmap))
+		return PTR_ERR(pgmap);
 
 	for (i = 0; i < dev_dax->nr_range; i++) {
 		struct range *range = &dev_dax->ranges[i].range;
@@ -275,6 +321,11 @@ static int fsdev_dax_probe(struct dev_dax *dev_dax)
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
 
+	/* Drop fsdev's pgmap->ops/owner on unbind so no stale ops survive. */
+	rc = devm_add_action_or_reset(dev, fsdev_clear_pgmap_ops, pgmap);
+	if (rc)
+		return rc;
+
 	/*
 	 * Clear any stale compound folio state left over from a previous
 	 * driver (e.g., device_dax with vmemmap_shift). Also register this
@@ -290,15 +341,18 @@ static int fsdev_dax_probe(struct dev_dax *dev_dax)
 	/* Detect whether the data is at a non-zero offset into the memory */
 	if (pgmap->range.start != dev_dax->ranges[0].range.start) {
 		u64 phys = dev_dax->ranges[0].range.start;
-		u64 pgmap_phys = dev_dax->pgmap[0].range.start;
+		u64 pgmap_phys = pgmap[0].range.start;
 
-		if (!WARN_ON(pgmap_phys > phys))
-			data_offset = phys - pgmap_phys;
+		if (pgmap_phys > phys) {
+			dev_err(dev, "pgmap start %#llx exceeds data start %#llx\n",
+				pgmap_phys, phys);
+			return -EINVAL;
+		}
+		data_offset = phys - pgmap_phys;
 
 		pr_debug("%s: offset detected phys=%llx pgmap_phys=%llx offset=%llx\n",
 		       __func__, phys, pgmap_phys, data_offset);
 	}
-	dev_dax->virt_addr = addr + data_offset;
 
 	inode = dax_inode(dax_dev);
 	cdev = inode->i_cdev;
@@ -323,7 +377,13 @@ static int fsdev_dax_probe(struct dev_dax *dev_dax)
 		return rc;
 
 	run_dax(dax_dev);
-	return devm_add_action_or_reset(dev, fsdev_kill, dev_dax);
+	rc = devm_add_action_or_reset(dev, fsdev_kill, dev_dax);
+	if (rc)
+		return rc;
+
+	/* Probe can no longer fail; expose the pgmap via dev_dax */
+	dev_dax->pgmap = pgmap;
+	return 0;
 }
 
 static struct dax_device_driver fsdev_dax_driver = {

@@ -35,7 +35,7 @@ static bool hyp_trace_buffer_loaded(struct hyp_trace_buffer *trace_buffer)
 void *tracing_reserve_entry(unsigned long length)
 {
 	return simple_ring_buffer_reserve(this_cpu_ptr(trace_buffer.simple_rbs), length,
-					  trace_clock());
+					  trace_hyp_clock());
 }
 
 void tracing_commit_entry(void)
@@ -290,7 +290,7 @@ void __tracing_update_clock(u32 mult, u32 shift, u64 epoch_ns, u64 epoch_cyc)
 	}
 
 	/* ...we can now override the old one and swap. */
-	trace_clock_update(mult, shift, epoch_ns, epoch_cyc);
+	trace_hyp_clock_update(mult, shift, epoch_ns, epoch_cyc);
 }
 
 int __tracing_reset(unsigned int cpu)

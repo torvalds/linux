@@ -1,6 +1,6 @@
 [
     {
-        "BriefDescription": "Counts the number of request that were not accepted into the L2Q because the L2Q is FULL.",
+        "BriefDescription": "Counts the number of requests that were not accepted into the L2Q because the L2Q is FULL.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x31",
         "EventName": "CORE_REJECT_L2Q.ANY",
@@ -629,6 +629,15 @@
         "EventName": "MEM_BOUND_STALLS_LOAD.LLC_MISS_LOCALMEM",
         "SampleAfterValue": "1000003",
         "UMask": "0x50",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to a demand load miss which missed all the caches, a snoop was required, and hits in other core or module on the same die. Another core provides the data with a FWD, NO_FWD, or HITM. If the core has access to an L3 cache, an LLC miss refers to an L3 cache miss, otherwise it is an L2 cache miss.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.LLC_MISS_OTHERMOD",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
         "Unit": "cpu_atom"
     },
     {

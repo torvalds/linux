@@ -42,7 +42,7 @@ static int test__openat_syscall_event(struct test_suite *test __maybe_unused,
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		err = TEST_SKIP;
-		goto out_evsel_delete;
+		goto out_evsel_put;
 	}
 
 	for (i = 0; i < nr_openat_calls; ++i) {
@@ -64,8 +64,8 @@ static int test__openat_syscall_event(struct test_suite *test __maybe_unused,
 	err = TEST_OK;
 out_close_fd:
 	perf_evsel__close_fd(&evsel->core);
-out_evsel_delete:
-	evsel__delete(evsel);
+out_evsel_put:
+	evsel__put(evsel);
 out_thread_map_delete:
 	perf_thread_map__put(threads);
 	return err;

@@ -655,6 +655,7 @@ void cdns_pcie_ep_disable(struct cdns_pcie_ep *ep)
 	struct device *dev = ep->pcie.dev;
 	struct pci_epc *epc = to_pci_epc(dev);
 
+	cdns_pcie_debugfs_deinit(&ep->pcie);
 	pci_epc_deinit_notify(epc);
 	pci_epc_mem_free_addr(epc, ep->irq_phys_addr, ep->irq_cpu_addr,
 			      SZ_128K);
@@ -760,6 +761,8 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 	spin_lock_init(&ep->lock);
 
 	pci_epc_init_notify(epc);
+
+	cdns_pcie_debugfs_init(pcie);
 
 	return 0;
 

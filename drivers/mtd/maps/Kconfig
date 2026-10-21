@@ -101,7 +101,6 @@ config MTD_PHYSMAP_IXP4XX
 	depends on MTD_PHYSMAP_OF
 	depends on ARM
 	select MTD_COMPLEX_MAPPINGS
-	select MTD_CFI_BE_BYTE_SWAP if CPU_BIG_ENDIAN
 	default ARCH_IXP4XX
 	help
 	  This provides some extra DT physmap parsing for the Intel IXP4xx

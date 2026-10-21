@@ -27,8 +27,6 @@
 #include "dce/dce_11_0_d.h"
 #include "dce/dce_11_0_sh_mask.h"
 /* TODO: this needs to be looked at, used by Stella's workaround*/
-#include "gmc/gmc_8_2_d.h"
-#include "gmc/gmc_8_2_sh_mask.h"
 
 #include "include/logger_interface.h"
 #include "inc/dce_calcs.h"

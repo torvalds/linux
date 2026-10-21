@@ -25,6 +25,11 @@ int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const __le16 *name, u32 len,
 
 	static_assert(sizeof(wchar_t) == sizeof(__le16));
 
+	if (buf_len <= 0)
+		return -EINVAL;
+
+	buf_len -= 1;
+
 	if (!nls) {
 		/* UTF-16 -> UTF-8 */
 		ret = utf16s_to_utf8s((wchar_t *)name, len, UTF16_LITTLE_ENDIAN,
@@ -179,7 +184,7 @@ int ntfs_nls_to_utf16(struct ntfs_sb_info *sbi, const u8 *name, u32 name_len,
 		      struct cpu_str *uni, u32 max_ulen,
 		      enum utf16_endian endian)
 {
-	int ret, slen;
+	int ret, slen, i;
 	const u8 *end;
 	struct nls_table *nls = sbi->options->nls;
 	u16 *uname = uni->name;
@@ -189,50 +194,83 @@ int ntfs_nls_to_utf16(struct ntfs_sb_info *sbi, const u8 *name, u32 name_len,
 	if (!nls) {
 		/* utf8 -> utf16 */
 		ret = _utf8s_to_utf16s(name, name_len, endian, uname, max_ulen);
-		uni->len = ret;
-		return ret;
-	}
+	} else {
+		for (ret = 0, end = name + name_len; name < end;
+		     ret++, name += slen) {
+			if (ret >= max_ulen)
+				return -ENAMETOOLONG;
 
-	for (ret = 0, end = name + name_len; name < end; ret++, name += slen) {
-		if (ret >= max_ulen)
-			return -ENAMETOOLONG;
-
-		slen = nls->char2uni(name, end - name, uname + ret);
-		if (!slen)
-			return -EINVAL;
-		if (slen < 0)
-			return slen;
-	}
+			slen = nls->char2uni(name, end - name, uname + ret);
+			if (!slen)
+				return -EINVAL;
+			if (slen < 0)
+				return slen;
+		}
 
 #ifdef __BIG_ENDIAN
-	if (endian == UTF16_LITTLE_ENDIAN) {
-		int i = ret;
+		if (endian == UTF16_LITTLE_ENDIAN) {
+			i = ret;
 
-		while (i--) {
-			__cpu_to_le16s(uname);
-			uname++;
+			while (i--) {
+				__cpu_to_le16s(uname);
+				uname++;
+			}
 		}
-	}
 #else
-	if (endian == UTF16_BIG_ENDIAN) {
-		int i = ret;
+		if (endian == UTF16_BIG_ENDIAN) {
+			i = ret;
 
-		while (i--) {
-			__cpu_to_be16s(uname);
-			uname++;
+			while (i--) {
+				__cpu_to_be16s(uname);
+				uname++;
+			}
 		}
-	}
 #endif
+	}
 
 	uni->len = ret;
+	uni->ads_len = 0;
+	if (ret > 0 && sbi->options->ads) {
+		uname = uni->name;
+		/* Find delimiter in range [1 : ret-2). */
+		for (i = 1; i + 1 < ret; i++) {
+			if (uname[i] == ':') {
+				uni->ads_len = ret - i - 1;
+				uni->len = i;
+				uname[i] = 0;
+				ret = i;
+
+				uname += i + 1;
+				i = uni->ads_len;
+				/* Return ADS name as little endian. Always */
+#ifdef __BIG_ENDIAN
+				if (endian == UTF16_LITTLE_ENDIAN) {
+					while (i--) {
+						__cpu_to_le16s(uname);
+						uname++;
+					}
+				}
+#else
+				if (endian == UTF16_BIG_ENDIAN) {
+					while (i--) {
+						__cpu_to_be16s(uname);
+						uname++;
+					}
+				}
+#endif
+				break;
+			}
+		}
+	}
+
 	return ret;
 }
 
 /*
  * dir_search_u - Helper function.
  */
-struct inode *dir_search_u(struct inode *dir, const struct cpu_str *uni,
-			   struct ntfs_fnd *fnd)
+struct inode *dir_search_flags(struct inode *dir, const struct cpu_str *uni,
+			       struct ntfs_fnd *fnd, u32 flags)
 {
 	int err = 0;
 	struct super_block *sb = dir->i_sb;
@@ -262,7 +300,7 @@ struct inode *dir_search_u(struct inode *dir, const struct cpu_str *uni,
 		goto out;
 	}
 
-	inode = ntfs_iget5(sb, &e->ref, uni);
+	inode = ntfs_iget5_flags(sb, &e->ref, uni, flags);
 	if (!IS_ERR(inode) && is_bad_inode(inode)) {
 		iput(inode);
 		err = -EINVAL;
@@ -273,6 +311,12 @@ out:
 	return err == -ENOENT ? NULL : err ? ERR_PTR(err) : inode;
 }
 
+static inline bool de_fname_fits(const struct NTFS_DE *e, u32 e_size,
+				 const struct ATTR_FILE_NAME *fname)
+{
+	return sizeof(struct NTFS_DE) + fname_full_size(fname) <= e_size;
+}
+
 /*
  * returns false if 'ctx' if full
  */
@@ -281,7 +325,7 @@ static inline bool ntfs_dir_emit(struct ntfs_sb_info *sbi,
 				 u8 *name, struct dir_context *ctx)
 {
 	const struct ATTR_FILE_NAME *fname;
-	unsigned long ino;
+	u64 ino;
 	int name_len;
 	u32 dt_type;
 
@@ -305,15 +349,13 @@ static inline bool ntfs_dir_emit(struct ntfs_sb_info *sbi,
 	if (sbi->options->nohidden && (fname->dup.fa & FILE_ATTRIBUTE_HIDDEN))
 		return true;
 
-	if (sizeof(struct NTFS_DE) +
-	    offsetof(struct ATTR_FILE_NAME, name) +
-	    fname->name_len * sizeof(short) > le16_to_cpu(e->size))
+	if (!de_fname_fits(e, le16_to_cpu(e->size), fname))
 		return true;
 
 	name_len = ntfs_utf16_to_nls(sbi, fname->name, fname->name_len, name,
 				     PATH_MAX);
 	if (name_len <= 0) {
-		ntfs_warn(sbi->sb, "failed to convert name for inode %lx.",
+		ntfs_warn(sbi->sb, "failed to convert name for inode %llx.",
 			  ino);
 		return true;
 	}
@@ -576,6 +618,23 @@ out:
 	return err;
 }
 
+/*
+ * Return fname when @e passes the same checks as ntfs_dir_emit() before
+ * exposing an entry (valid key, non-DOS, fname fits in e->size).
+ */
+static inline const struct ATTR_FILE_NAME *
+de_countable_fname(const struct NTFS_DE *e, u32 e_size)
+{
+	const struct ATTR_FILE_NAME *fname;
+
+	fname = de_get_fname(e);
+	if (!fname || fname->type == FILE_NAME_DOS ||
+	    !de_fname_fits(e, e_size, fname))
+		return NULL;
+
+	return fname;
+}
+
 static int ntfs_dir_count(struct inode *dir, bool *is_empty, size_t *dirs,
 			  size_t *files)
 {
@@ -615,11 +674,8 @@ static int ntfs_dir_count(struct inode *dir, bool *is_empty, size_t *dirs,
 			if (de_is_last(e))
 				break;
 
-			fname = de_get_fname(e);
+			fname = de_countable_fname(e, e_size);
 			if (!fname)
-				continue;
-
-			if (fname->type == FILE_NAME_DOS)
 				continue;
 
 			if (is_empty) {

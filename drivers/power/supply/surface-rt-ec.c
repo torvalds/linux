@@ -337,7 +337,7 @@ static int srt_ec_probe(struct i2c_client *client)
 	ret = devm_request_threaded_irq(dev, client->irq, NULL, srt_psy_detect_irq,
 					IRQF_ONESHOT, client->name, srt);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "failed to request interrupt\n");
+		return ret;
 
 	ret = devm_delayed_work_autocancel(dev, &srt->poll_work, srt_bat_poll_work);
 	if (ret < 0)

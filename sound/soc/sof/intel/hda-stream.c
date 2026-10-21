@@ -198,13 +198,18 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 
 	mask = (1 << hstream->index);
 
+	/* Reset the spib_addr before disabling SPIB */
+	if (!enable)
+		sof_io_write(sdev, hstream->spib_addr, 0);
+
 	/* enable/disable SPIB for the stream */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_SPIB_BAR,
 				SOF_HDA_ADSP_REG_CL_SPBFIFO_SPBFCCTL, mask,
 				enable << hstream->index);
 
 	/* set the SPIB value */
-	sof_io_write(sdev, hstream->spib_addr, size);
+	if (enable)
+		sof_io_write(sdev, hstream->spib_addr, size);
 
 	return 0;
 }
@@ -607,6 +612,9 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 		kfree(stream_name);
 		return ret;
 	}
+
+	/* Host DMA is not running */
+	hstream->running = false;
 
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 				sd_offset + SOF_HDA_ADSP_REG_SD_STS,
@@ -1323,16 +1331,18 @@ out_put:
 EXPORT_SYMBOL_NS(hda_data_stream_prepare, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_data_stream_cleanup(struct device *dev, struct snd_dma_buffer *dmab,
-			    bool persistent_buffer, struct hdac_ext_stream *hext_stream, bool pair)
+			    bool persistent_buffer, struct hdac_ext_stream *hext_stream,
+			    bool is_iccmax, bool pair)
 {
 	struct snd_sof_dev *sdev =  dev_get_drvdata(dev);
 	struct hdac_stream *hstream = hdac_stream(hext_stream);
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 	int ret = 0;
 
-	if (hstream->direction == SNDRV_PCM_STREAM_PLAYBACK)
+	if (!is_iccmax)
 		ret = hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_DISABLE, 0);
-	else
+
+	if (hstream->direction == SNDRV_PCM_STREAM_CAPTURE)
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
 					SOF_HDA_SD_CTL_DMA_START, 0);
 

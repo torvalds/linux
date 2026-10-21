@@ -77,9 +77,9 @@ static inline void reset_hung_task_detector(void) { }
  * detectors are 'suspended' while 'watchdog_thresh' is equal zero.
  */
 #define WATCHDOG_HARDLOCKUP_ENABLED_BIT  0
-#define WATCHDOG_SOFTOCKUP_ENABLED_BIT   1
+#define WATCHDOG_SOFTLOCKUP_ENABLED_BIT  1
 #define WATCHDOG_HARDLOCKUP_ENABLED     (1 << WATCHDOG_HARDLOCKUP_ENABLED_BIT)
-#define WATCHDOG_SOFTOCKUP_ENABLED      (1 << WATCHDOG_SOFTOCKUP_ENABLED_BIT)
+#define WATCHDOG_SOFTLOCKUP_ENABLED     (1 << WATCHDOG_SOFTLOCKUP_ENABLED_BIT)
 
 #if defined(CONFIG_HARDLOCKUP_DETECTOR)
 extern void hardlockup_detector_disable(void);

@@ -59,6 +59,9 @@ struct sev_device {
 
 	bool snp_initialized;
 
+	struct kobject *sev_kobj;
+	struct kobject *verify_mit;
+
 	struct sev_user_data_status sev_plat_status;
 
 	struct sev_user_data_snp_status snp_plat_status;

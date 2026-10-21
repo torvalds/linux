@@ -278,7 +278,7 @@ int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 	next = Add2Ptr(attr, asize);
 	aoff = PtrOffset(rec, attr);
 	rsize = le32_to_cpu(attr->res.data_size);
-	is_data = attr->type == ATTR_DATA && !attr->name_len;
+	is_data = attr->type == ATTR_DATA;
 
 	/* len - how many clusters required to store 'rsize' bytes */
 	if (is_attr_compressed(attr)) {
@@ -433,6 +433,7 @@ int attr_set_size_ex(struct ntfs_inode *ni, enum ATTR_TYPE type,
 		     struct ATTRIB **ret, bool no_da)
 {
 	int err = 0;
+	struct ntfs_inode *nb = ni->base;
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	u8 cluster_bits = sbi->cluster_bits;
 	bool is_mft = ni->mi.rno == MFT_REC_MFT && type == ATTR_DATA &&
@@ -703,8 +704,8 @@ pack_runs:
 			goto again;
 		}
 
-		if (!ni->attr_list.size) {
-			err = ni_create_attr_list(ni);
+		if (!nb->attr_list.size) {
+			err = ni_create_attr_list(nb);
 			/* In case of error layout of records is not changed. */
 			if (err)
 				goto undo_2;
@@ -877,8 +878,7 @@ ok1:
 	if (ret)
 		*ret = attr_b;
 
-	if (((type == ATTR_DATA && !name_len) ||
-	     (type == ATTR_ALLOC && name == I30_NAME))) {
+	if ((type == ATTR_DATA || (type == ATTR_ALLOC && name == I30_NAME))) {
 		/* Update inode_set_bytes. */
 		if (attr_b->non_res &&
 		    inode_get_bytes(&ni->vfs_inode) != new_alloc) {
@@ -1001,7 +1001,6 @@ int attr_data_get_block_locked(struct ntfs_inode *ni, CLST vcn, CLST clen,
 	struct ATTRIB *attr, *attr_b;
 	struct ATTR_LIST_ENTRY *le, *le_b;
 	struct mft_inode *mi, *mi_b;
-	struct page *page;
 	CLST hint, svcn, to_alloc, evcn1, next_svcn, asize, end, vcn0;
 	CLST alloc, evcn;
 	unsigned fr;
@@ -1026,7 +1025,8 @@ again:
 	step = 0;
 
 	le_b = NULL;
-	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL, &mi_b);
+	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, ni->file.ads.name,
+			      ni->file.ads.len, NULL, &mi_b);
 	if (!attr_b) {
 		err = -ENOENT;
 		goto out;
@@ -1036,11 +1036,15 @@ again:
 		u32 data_size = le32_to_cpu(attr_b->res.data_size);
 		*lcn = RESIDENT_LCN;
 		*len = data_size;
-		if (res && data_size) {
-			page = alloc_page(GFP_KERNEL);
-			if (!page) {
-				err = -ENOMEM;
-			} else {
+		if (res) {
+			*res = NULL;
+			if (data_size) {
+				struct page *page = alloc_page(GFP_KERNEL);
+				if (!page) {
+					err = -ENOMEM;
+					goto out;
+				}
+
 				*res = page_address(page);
 				memcpy(*res, resident_data(attr_b), data_size);
 			}
@@ -1067,7 +1071,8 @@ again:
 	mi = mi_b;
 
 	if (le_b && (vcn < svcn || evcn1 <= vcn)) {
-		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn,
+		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA,
+				    ni->file.ads.name, ni->file.ads.len, &vcn,
 				    &mi);
 		if (!attr) {
 			err = -EINVAL;
@@ -1140,8 +1145,9 @@ again:
 		if (vcn < svcn || evcn1 <= vcn) {
 			struct ATTRIB *attr2;
 			/* Load runs for truncated vcn. */
-			attr2 = ni_find_attr(ni, attr_b, &le_b, ATTR_DATA, NULL,
-					     0, &vcn, &mi);
+			attr2 = ni_find_attr(ni, attr_b, &le_b, ATTR_DATA,
+					     ni->file.ads.name,
+					     ni->file.ads.len, &vcn, &mi);
 			if (!attr2) {
 				err = -EINVAL;
 				goto out;
@@ -1155,8 +1161,9 @@ again:
 		if (vcn0 < svcn || evcn1 <= vcn0) {
 			struct ATTRIB *attr2;
 
-			attr2 = ni_find_attr(ni, attr_b, &le_b, ATTR_DATA, NULL,
-					     0, &vcn0, &mi);
+			attr2 = ni_find_attr(ni, attr_b, &le_b, ATTR_DATA,
+					     ni->file.ads.name,
+					     ni->file.ads.len, &vcn0, &mi);
 			if (!attr2) {
 				err = -EINVAL;
 				goto out;
@@ -1269,8 +1276,9 @@ repack:
 				goto undo1;
 			/* Layout of records is changed. */
 			le_b = NULL;
-			attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL,
-					      0, NULL, &mi_b);
+			attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA,
+					      ni->file.ads.name,
+					      ni->file.ads.len, NULL, &mi_b);
 			if (!attr_b) {
 				err = -ENOENT;
 				goto out;
@@ -1300,7 +1308,8 @@ repack:
 	svcn = evcn1;
 
 	/* Estimate next attribute. */
-	attr = ni_find_attr(ni, attr, &le, ATTR_DATA, NULL, 0, &svcn, &mi);
+	attr = ni_find_attr(ni, attr, &le, ATTR_DATA, ni->file.ads.name,
+			    ni->file.ads.len, &svcn, &mi);
 
 	if (!attr) {
 		/* Insert new attribute segment. */
@@ -1333,7 +1342,8 @@ repack:
 			goto out;
 		}
 
-		attr = mi_find_attr(ni, mi, NULL, ATTR_DATA, NULL, 0, &le->id);
+		attr = mi_find_attr(ni, mi, NULL, ATTR_DATA, ni->file.ads.name,
+				    ni->file.ads.len, &le->id);
 		if (!attr) {
 			err = -EINVAL;
 			goto out;
@@ -1362,9 +1372,10 @@ repack:
 
 ins_ext:
 	if (evcn1 > next_svcn) {
-		err = ni_insert_nonresident(ni, ATTR_DATA, NULL, 0, run,
-					    next_svcn, evcn1 - next_svcn,
-					    attr_b->flags, &attr, &mi, NULL);
+		err = ni_insert_nonresident(ni, ATTR_DATA, ni->file.ads.name,
+					    ni->file.ads.len, run, next_svcn,
+					    evcn1 - next_svcn, attr_b->flags,
+					    &attr, &mi, NULL);
 		if (err)
 			goto out;
 	}
@@ -1398,7 +1409,8 @@ int attr_data_write_resident(struct ntfs_inode *ni, struct folio *folio)
 	struct ATTRIB *attr;
 	u32 data_size;
 
-	attr = ni_find_attr(ni, NULL, NULL, ATTR_DATA, NULL, 0, NULL, &mi);
+	attr = ni_find_attr(ni, NULL, NULL, ATTR_DATA, ni->file.ads.name,
+			    ni->file.ads.len, NULL, &mi);
 	if (!attr)
 		return -EINVAL;
 
@@ -1515,7 +1527,7 @@ int attr_wof_frame_info(struct ntfs_inode *ni, struct ATTRIB *attr,
 	u8 bytes_per_off;
 	char *addr;
 	struct folio *folio;
-	int i, err;
+	int i, err = 0;
 	__le32 *off32;
 	__le64 *off64;
 
@@ -1775,7 +1787,8 @@ int attr_allocate_frame(struct ntfs_inode *ni, CLST frame, size_t compr_size,
 	u64 total_size, valid_size, data_size;
 
 	le_b = NULL;
-	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL, &mi_b);
+	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, ni->file.ads.name,
+			      ni->file.ads.len, NULL, &mi_b);
 	if (!attr_b)
 		return -ENOENT;
 
@@ -1798,7 +1811,8 @@ int attr_allocate_frame(struct ntfs_inode *ni, CLST frame, size_t compr_size,
 		goto out;
 	} else {
 		le = le_b;
-		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn,
+		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA,
+				    ni->file.ads.name, ni->file.ads.len, &vcn,
 				    &mi);
 		if (!attr) {
 			err = -EINVAL;
@@ -1885,8 +1899,9 @@ repack:
 				goto out;
 			/* Layout of records is changed. */
 			le_b = NULL;
-			attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL,
-					      0, NULL, &mi_b);
+			attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA,
+					      ni->file.ads.name,
+					      ni->file.ads.len, NULL, &mi_b);
 			if (!attr_b) {
 				err = -ENOENT;
 				goto out;
@@ -1902,7 +1917,8 @@ repack:
 	svcn = evcn1;
 
 	/* Estimate next attribute. */
-	attr = ni_find_attr(ni, attr, &le, ATTR_DATA, NULL, 0, &svcn, &mi);
+	attr = ni_find_attr(ni, attr, &le, ATTR_DATA, ni->file.ads.name,
+			    ni->file.ads.len, &svcn, &mi);
 
 	if (attr) {
 		CLST alloc = bytes_to_cluster(
@@ -1931,7 +1947,8 @@ repack:
 				goto out;
 			}
 
-			attr = mi_find_attr(ni, mi, NULL, ATTR_DATA, NULL, 0,
+			attr = mi_find_attr(ni, mi, NULL, ATTR_DATA,
+					    ni->file.ads.name, ni->file.ads.len,
 					    &le->id);
 			if (!attr) {
 				err = -EINVAL;
@@ -1962,9 +1979,10 @@ repack:
 	}
 ins_ext:
 	if (evcn1 > next_svcn) {
-		err = ni_insert_nonresident(ni, ATTR_DATA, NULL, 0, run,
-					    next_svcn, evcn1 - next_svcn,
-					    attr_b->flags, &attr, &mi, NULL);
+		err = ni_insert_nonresident(ni, ATTR_DATA, ni->file.ads.name,
+					    ni->file.ads.len, run, next_svcn,
+					    evcn1 - next_svcn, attr_b->flags,
+					    &attr, &mi, NULL);
 		if (err)
 			goto out;
 	}
@@ -2007,7 +2025,8 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 		return 0;
 
 	le_b = NULL;
-	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL, &mi_b);
+	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, ni->file.ads.name,
+			      ni->file.ads.len, NULL, &mi_b);
 	if (!attr_b)
 		return -ENOENT;
 
@@ -2037,7 +2056,8 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 
 		/* Simple truncate file at 'vbo'. */
 		truncate_setsize(&ni->vfs_inode, vbo);
-		err = attr_set_size(ni, ATTR_DATA, NULL, 0, &ni->file.run, vbo,
+		err = attr_set_size(ni, ATTR_DATA, ni->file.ads.name,
+				    ni->file.ads.len, &ni->file.run, vbo,
 				    &valid_size, true);
 
 		if (!err && valid_size < ni->i_valid)
@@ -2061,7 +2081,8 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 			/*
 			 * The requested range is full in delayed clusters.
 			 */
-			err = attr_set_size_ex(ni, ATTR_DATA, NULL, 0, run,
+			err = attr_set_size_ex(ni, ATTR_DATA, ni->file.ads.name,
+					       ni->file.ads.len, run,
 					       i_size - bytes, NULL, false,
 					       NULL, true);
 			goto out;
@@ -2074,7 +2095,8 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 
 		/* Layout of records maybe changed. */
 		le_b = NULL;
-		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL,
+		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA,
+				      ni->file.ads.name, ni->file.ads.len, NULL,
 				      &mi_b);
 		if (!attr_b || !attr_b->non_res) {
 			err = -ENOENT;
@@ -2105,7 +2127,8 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 	}
 
 	le = le_b;
-	attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn, &mi);
+	attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, ni->file.ads.name,
+			    ni->file.ads.len, &vcn, &mi);
 	if (!attr) {
 		err = -EINVAL;
 		goto out;
@@ -2169,7 +2192,8 @@ check_seg:
 			next_svcn = le64_to_cpu(attr->nres.evcn) + 1;
 			if (next_svcn + eat + done < evcn1) {
 				err = ni_insert_nonresident(
-					ni, ATTR_DATA, NULL, 0, run, next_svcn,
+					ni, ATTR_DATA, ni->file.ads.name,
+					ni->file.ads.len, run, next_svcn,
 					evcn1 - eat - next_svcn, a_flags, &attr,
 					&mi, &le);
 				if (err)
@@ -2209,7 +2233,8 @@ check_seg:
 
 				/* Look for required attribute. */
 				attr = mi_find_attr(ni, mi, NULL, ATTR_DATA,
-						    NULL, 0, &le->id);
+						    ni->file.ads.name,
+						    ni->file.ads.len, &le->id);
 				if (!attr) {
 					err = -EINVAL;
 					goto out;
@@ -2232,7 +2257,8 @@ next_attr:
 
 	if (!attr_b) {
 		le_b = NULL;
-		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL,
+		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA,
+				      ni->file.ads.name, ni->file.ads.len, NULL,
 				      &mi_b);
 		if (!attr_b) {
 			err = -ENOENT;
@@ -2293,7 +2319,8 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 		return 0;
 
 	le_b = NULL;
-	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL, &mi_b);
+	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, ni->file.ads.name,
+			      ni->file.ads.len, NULL, &mi_b);
 	if (!attr_b)
 		return -ENOENT;
 
@@ -2364,7 +2391,8 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 		goto bad_inode;
 	} else {
 		le = le_b;
-		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn,
+		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA,
+				    ni->file.ads.name, ni->file.ads.len, &vcn,
 				    &mi);
 		if (!attr) {
 			err = -EINVAL;
@@ -2416,10 +2444,10 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 		next_svcn = le64_to_cpu(attr->nres.evcn) + 1;
 		if (next_svcn < evcn1) {
 			/* Insert new attribute segment. */
-			err = ni_insert_nonresident(ni, ATTR_DATA, NULL, 0, run,
-						    next_svcn,
-						    evcn1 - next_svcn, a_flags,
-						    &attr, &mi, &le);
+			err = ni_insert_nonresident(
+				ni, ATTR_DATA, ni->file.ads.name,
+				ni->file.ads.len, run, next_svcn,
+				evcn1 - next_svcn, a_flags, &attr, &mi, &le);
 			if (err)
 				goto undo_punch;
 
@@ -2454,7 +2482,8 @@ done:
 		goto out;
 
 	if (!attr_b) {
-		attr_b = ni_find_attr(ni, NULL, NULL, ATTR_DATA, NULL, 0, NULL,
+		attr_b = ni_find_attr(ni, NULL, NULL, ATTR_DATA,
+				      ni->file.ads.name, ni->file.ads.len, NULL,
 				      &mi_b);
 		if (!attr_b) {
 			err = -EINVAL;
@@ -2512,7 +2541,8 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 		return 0;
 
 	le_b = NULL;
-	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL, &mi_b);
+	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, ni->file.ads.name,
+			      ni->file.ads.len, NULL, &mi_b);
 	if (!attr_b)
 		return -ENOENT;
 
@@ -2559,11 +2589,13 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 	down_write(&ni->file.run_lock);
 
 	if (!attr_b->non_res) {
-		err = attr_set_size(ni, ATTR_DATA, NULL, 0, run,
-				    data_size + bytes, NULL, false);
+		err = attr_set_size(ni, ATTR_DATA, ni->file.ads.name,
+				    ni->file.ads.len, run, data_size + bytes,
+				    NULL, false);
 
 		le_b = NULL;
-		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL,
+		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA,
+				      ni->file.ads.name, ni->file.ads.len, NULL,
 				      &mi_b);
 		if (!attr_b) {
 			err = -EINVAL;
@@ -2604,7 +2636,8 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 		goto bad_inode;
 	} else {
 		le = le_b;
-		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn,
+		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA,
+				    ni->file.ads.name, ni->file.ads.len, &vcn,
 				    &mi);
 		if (!attr) {
 			err = -EINVAL;
@@ -2647,12 +2680,14 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 	}
 
 	if (next_svcn < evcn1 + len) {
-		err = ni_insert_nonresident(ni, ATTR_DATA, NULL, 0, run,
-					    next_svcn, evcn1 + len - next_svcn,
-					    a_flags, NULL, NULL, NULL);
+		err = ni_insert_nonresident(ni, ATTR_DATA, ni->file.ads.name,
+					    ni->file.ads.len, run, next_svcn,
+					    evcn1 + len - next_svcn, a_flags,
+					    NULL, NULL, NULL);
 
 		le_b = NULL;
-		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL,
+		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA,
+				      ni->file.ads.name, ni->file.ads.len, NULL,
 				      &mi_b);
 		if (!attr_b) {
 			err = -EINVAL;
@@ -2709,7 +2744,8 @@ undo_insert_range:
 		goto bad_inode;
 	} else {
 		le = le_b;
-		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn,
+		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA,
+				    ni->file.ads.name, ni->file.ads.len, &vcn,
 				    &mi);
 		if (!attr) {
 			goto bad_inode;
@@ -2754,7 +2790,8 @@ int attr_force_nonresident(struct ntfs_inode *ni)
 	struct ATTR_LIST_ENTRY *le = NULL;
 	struct mft_inode *mi;
 
-	attr = ni_find_attr(ni, NULL, &le, ATTR_DATA, NULL, 0, NULL, &mi);
+	attr = ni_find_attr(ni, NULL, &le, ATTR_DATA, ni->file.ads.name,
+			    ni->file.ads.len, NULL, &mi);
 	if (!attr) {
 		_ntfs_bad_inode(&ni->vfs_inode);
 		return -ENOENT;

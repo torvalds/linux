@@ -196,7 +196,7 @@ static int powerpc_vpadtl_sample(struct powerpc_vpadtl_entry *record,
 	sample.cpumode = PERF_RECORD_MISC_KERNEL;
 	sample.time = save;
 	sample.raw_data = record;
-	sample.raw_size = sizeof(record);
+	sample.raw_size = sizeof(*record);
 	event.sample.header.type = PERF_RECORD_SAMPLE;
 	event.sample.header.misc = sample.cpumode;
 	event.sample.header.size = sizeof(struct perf_event_header);

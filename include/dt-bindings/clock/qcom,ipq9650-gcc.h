@@ -169,4 +169,9 @@
 #define GPLL2							160
 #define GPLL2_OUT_MAIN						161
 #define GPLL4							162
+#define GCC_REFGEN_CORE_CLK_SRC					163
+#define GCC_REFGEN_PCIE_CORE_CLK				164
+#define GCC_REFGEN_PCIE_HCLK					165
+#define GCC_REFGEN_CMN_UPHY_HCLK				166
+#define GCC_REFGEN_CMN_UPHY_CORE_CLK				167
 #endif

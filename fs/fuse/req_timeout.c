@@ -128,18 +128,12 @@ static void set_request_timeout(struct fuse_chan *fch, unsigned int timeout)
 
 void fuse_init_server_timeout(struct fuse_chan *fch, unsigned int timeout)
 {
-	if (!timeout && !fuse_max_req_timeout && !fuse_default_req_timeout)
-		return;
-
 	if (!timeout)
 		timeout = fuse_default_req_timeout;
 
-	if (fuse_max_req_timeout) {
-		if (timeout)
-			timeout = min(fuse_max_req_timeout, timeout);
-		else
-			timeout = fuse_max_req_timeout;
-	}
+	timeout = min_not_zero(timeout, fuse_max_req_timeout);
+	if (!timeout)
+		return;
 
 	timeout = max(FUSE_TIMEOUT_TIMER_FREQ, timeout);
 

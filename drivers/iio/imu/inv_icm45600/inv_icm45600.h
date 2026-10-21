@@ -190,7 +190,7 @@ struct inv_icm45600_sensor_state {
 #define INV_ICM45600_REG_IREG_ADDR			0x7C
 #define INV_ICM45600_REG_IREG_DATA			0x7E
 
-/* Direct acces registers */
+/* Direct access registers */
 #define INV_ICM45600_REG_MISC2				0x007F
 #define INV_ICM45600_MISC2_SOFT_RESET			BIT(1)
 

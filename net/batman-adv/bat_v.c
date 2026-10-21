@@ -41,6 +41,13 @@
 #include "netlink.h"
 #include "originator.h"
 
+/**
+ * batadv_v_iface_activate() - finalise the activation of a hard interface
+ * @hard_iface: interface to activate
+ *
+ * Reuse the currently selected primary interface to seed the ELP packet.
+ * Immediately activate the interface.
+ */
 static void batadv_v_iface_activate(struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->mesh_iface);
@@ -61,6 +68,16 @@ static void batadv_v_iface_activate(struct batadv_hard_iface *hard_iface)
 		hard_iface->if_status = BATADV_IF_ACTIVE;
 }
 
+/**
+ * batadv_v_iface_enable() - enable the B.A.T.M.A.N. V protocol on an
+ *  interface
+ * @hard_iface: interface to enable
+ *
+ * Enable the ELP and OGM components for @hard_iface. On error, the partially
+ * enabled state is rolled back before returning.
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 static int batadv_v_iface_enable(struct batadv_hard_iface *hard_iface)
 {
 	int ret;
@@ -76,12 +93,21 @@ static int batadv_v_iface_enable(struct batadv_hard_iface *hard_iface)
 	return ret;
 }
 
+/**
+ * batadv_v_iface_disable() - disable the B.A.T.M.A.N. V protocol on an
+ *  interface
+ * @hard_iface: interface to disable
+ */
 static void batadv_v_iface_disable(struct batadv_hard_iface *hard_iface)
 {
 	batadv_v_ogm_iface_disable(hard_iface);
 	batadv_v_elp_iface_disable(hard_iface);
 }
 
+/**
+ * batadv_v_primary_iface_set() - apply primary interface state
+ * @hard_iface: interface which just became the primary
+ */
 static void batadv_v_primary_iface_set(struct batadv_hard_iface *hard_iface)
 {
 	batadv_v_elp_primary_iface_set(hard_iface);
@@ -109,6 +135,11 @@ out:
 	batadv_hardif_put(primary_if);
 }
 
+/**
+ * batadv_v_hardif_neigh_init() - initialise the B.A.T.M.A.N. V state of a
+ *  hard interface neighbour
+ * @hardif_neigh: hard interface neighbour to initialise
+ */
 static void
 batadv_v_hardif_neigh_init(struct batadv_hardif_neigh_node *hardif_neigh)
 {
@@ -128,9 +159,9 @@ static int
 batadv_v_neigh_dump_neigh(struct sk_buff *msg, u32 portid, u32 seq,
 			  struct batadv_hardif_neigh_node *hardif_neigh)
 {
-	void *hdr;
 	unsigned int last_seen_msecs;
 	u32 throughput;
+	void *hdr;
 
 	last_seen_msecs = jiffies_to_msecs(jiffies - hardif_neigh->last_seen);
 	throughput = ewma_throughput_read(&hardif_neigh->bat_v.throughput);
@@ -211,12 +242,12 @@ batadv_v_neigh_dump(struct sk_buff *msg, struct netlink_callback *cb,
 		    struct batadv_priv *bat_priv,
 		    struct batadv_hard_iface *single_hardif)
 {
-	struct batadv_hard_iface *hard_iface;
-	struct list_head *iter;
-	int i_hardif = 0;
-	int i_hardif_s = cb->args[0];
-	int idx = cb->args[1];
 	int portid = NETLINK_CB(cb->skb).portid;
+	struct batadv_hard_iface *hard_iface;
+	int i_hardif_s = cb->args[0];
+	struct list_head *iter;
+	int idx = cb->args[1];
+	int i_hardif = 0;
 
 	rcu_read_lock();
 	if (single_hardif) {
@@ -421,11 +452,11 @@ batadv_v_orig_dump(struct sk_buff *msg, struct netlink_callback *cb,
 		   struct batadv_hard_iface *if_outgoing)
 {
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
-	struct hlist_head *head;
+	int portid = NETLINK_CB(cb->skb).portid;
 	int bucket = cb->args[0];
+	struct hlist_head *head;
 	int idx = cb->args[1];
 	int sub = cb->args[2];
-	int portid = NETLINK_CB(cb->skb).portid;
 
 	while (bucket < hash->size) {
 		head = &hash->table[bucket];
@@ -444,12 +475,23 @@ batadv_v_orig_dump(struct sk_buff *msg, struct netlink_callback *cb,
 	cb->args[2] = sub;
 }
 
+/**
+ * batadv_v_neigh_cmp() - compare two B.A.T.M.A.N. V neighbours by throughput
+ * @neigh1: first neighbour to compare
+ * @if_outgoing1: outgoing interface to use for @neigh1
+ * @neigh2: second neighbour to compare
+ * @if_outgoing2: outgoing interface to use for @neigh2
+ *
+ * Return: a positive value if @neigh1 is better, a negative value if @neigh2
+ *  is better and 0 if both have equal throughput
+ */
 static int batadv_v_neigh_cmp(struct batadv_neigh_node *neigh1,
 			      struct batadv_hard_iface *if_outgoing1,
 			      struct batadv_neigh_node *neigh2,
 			      struct batadv_hard_iface *if_outgoing2)
 {
-	struct batadv_neigh_ifinfo *ifinfo1, *ifinfo2;
+	struct batadv_neigh_ifinfo *ifinfo1;
+	struct batadv_neigh_ifinfo *ifinfo2;
 	int ret = 0;
 
 	ifinfo1 = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
@@ -469,14 +511,26 @@ err_ifinfo1:
 	return ret;
 }
 
+/**
+ * batadv_v_neigh_is_sob() - check whether two B.A.T.M.A.N. V neighbours have
+ *  a similar or better throughput
+ * @neigh1: first neighbour to compare
+ * @if_outgoing1: outgoing interface to use for @neigh1
+ * @neigh2: second neighbour to compare
+ * @if_outgoing2: outgoing interface to use for @neigh2
+ *
+ * Return: true if the throughput of @neigh2 is at least 3/4 of the
+ *  @neigh1 throughput
+ */
 static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *neigh1,
 				  struct batadv_hard_iface *if_outgoing1,
 				  struct batadv_neigh_node *neigh2,
 				  struct batadv_hard_iface *if_outgoing2)
 {
-	struct batadv_neigh_ifinfo *ifinfo1, *ifinfo2;
-	u32 threshold;
+	struct batadv_neigh_ifinfo *ifinfo1;
+	struct batadv_neigh_ifinfo *ifinfo2;
 	bool ret = false;
+	u32 threshold;
 
 	ifinfo1 = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
 	if (!ifinfo1)
@@ -558,8 +612,10 @@ out:
 static struct batadv_gw_node *
 batadv_v_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 {
-	struct batadv_gw_node *gw_node, *curr_gw = NULL;
-	u32 max_bw = 0, bw;
+	struct batadv_gw_node *curr_gw = NULL;
+	struct batadv_gw_node *gw_node;
+	u32 max_bw = 0;
+	u32 bw;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.gateway_list, list) {
@@ -598,9 +654,12 @@ static bool batadv_v_gw_is_eligible(struct batadv_priv *bat_priv,
 				    struct batadv_orig_node *curr_gw_orig,
 				    struct batadv_orig_node *orig_node)
 {
-	struct batadv_gw_node *curr_gw, *orig_gw = NULL;
-	u32 gw_throughput, orig_throughput, threshold;
+	struct batadv_gw_node *orig_gw = NULL;
+	struct batadv_gw_node *curr_gw;
+	u32 orig_throughput;
+	u32 gw_throughput;
 	bool ret = false;
+	u32 threshold;
 
 	threshold = READ_ONCE(bat_priv->gw.sel_class);
 
@@ -656,8 +715,8 @@ static int batadv_v_gw_dump_entry(struct sk_buff *msg, u32 portid,
 				  struct batadv_gw_node *gw_node)
 {
 	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
-	struct batadv_neigh_node *router;
 	struct batadv_gw_node *curr_gw = NULL;
+	struct batadv_neigh_node *router;
 	int ret = 0;
 	void *hdr;
 
@@ -887,4 +946,13 @@ elp_unregister:
 	batadv_recv_handler_unregister(BATADV_ELP);
 
 	return ret;
+}
+
+/**
+ * batadv_v_deinit() - B.A.T.M.A.N. V deinitialization function
+ */
+void batadv_v_deinit(void)
+{
+	batadv_recv_handler_unregister(BATADV_OGM2);
+	batadv_recv_handler_unregister(BATADV_ELP);
 }

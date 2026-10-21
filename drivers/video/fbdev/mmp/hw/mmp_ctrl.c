@@ -505,8 +505,6 @@ static int mmphw_probe(struct platform_device *pdev)
 	ret = devm_request_irq(ctrl->dev, ctrl->irq, ctrl_handle_irq,
 		IRQF_SHARED, "lcd_controller", ctrl);
 	if (ret < 0) {
-		dev_err(ctrl->dev, "%s unable to request IRQ %d\n",
-				__func__, ctrl->irq);
 		ret = -ENXIO;
 		goto failed;
 	}

@@ -29,7 +29,7 @@ static bool are_matching_configurations(struct uds_configuration *saved_config,
 					struct index_geometry *saved_geometry,
 					struct uds_configuration *user)
 {
-	struct index_geometry *geometry = user->geometry;
+	const struct index_geometry *geometry = &user->geometry;
 	bool result = true;
 
 	if (saved_geometry->record_pages_per_chapter != geometry->record_pages_per_chapter) {
@@ -141,8 +141,8 @@ int uds_validate_config_contents(struct buffered_reader *reader,
 		return UDS_CORRUPT_DATA;
 
 	if (is_version(INDEX_CONFIG_VERSION_6_02, version_buffer)) {
-		user_config->geometry->remapped_virtual = 0;
-		user_config->geometry->remapped_physical = 0;
+		user_config->geometry.remapped_virtual = 0;
+		user_config->geometry.remapped_physical = 0;
 	} else {
 		u8 remapping[sizeof(u64) + sizeof(u64)];
 
@@ -153,9 +153,9 @@ int uds_validate_config_contents(struct buffered_reader *reader,
 
 		offset = 0;
 		decode_u64_le(remapping, &offset,
-			      &user_config->geometry->remapped_virtual);
+			      &user_config->geometry.remapped_virtual);
 		decode_u64_le(remapping, &offset,
-			      &user_config->geometry->remapped_physical);
+			      &user_config->geometry.remapped_physical);
 	}
 
 	if (!are_matching_configurations(&config, &geometry, user_config)) {
@@ -175,7 +175,7 @@ int uds_write_config_contents(struct buffered_writer *writer,
 			      struct uds_configuration *config, u32 version)
 {
 	int result;
-	struct index_geometry *geometry = config->geometry;
+	const struct index_geometry *geometry = &config->geometry;
 	u8 buffer[sizeof(struct uds_configuration_8_02)];
 	size_t offset = 0;
 
@@ -329,13 +329,10 @@ int uds_make_configuration(const struct uds_parameters *params,
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = uds_make_index_geometry(DEFAULT_BYTES_PER_PAGE, record_pages_per_chapter,
-					 chapters_per_volume, sparse_chapters_per_volume,
-					 0, 0, &config->geometry);
-	if (result != UDS_SUCCESS) {
-		uds_free_configuration(config);
-		return result;
-	}
+	config->geometry =
+		uds_init_index_geometry(DEFAULT_BYTES_PER_PAGE, record_pages_per_chapter,
+					chapters_per_volume, sparse_chapters_per_volume,
+					0, 0);
 
 	config->zone_count = normalize_zone_count(params->zone_count);
 	config->read_threads = normalize_read_threads(params->read_threads);
@@ -355,22 +352,21 @@ int uds_make_configuration(const struct uds_parameters *params,
 void uds_free_configuration(struct uds_configuration *config)
 {
 	if (config != NULL) {
-		uds_free_index_geometry(config->geometry);
 		vdo_free(config);
 	}
 }
 
 void uds_log_configuration(struct uds_configuration *config)
 {
-	struct index_geometry *geometry = config->geometry;
+	const struct index_geometry geometry = config->geometry;
 
 	vdo_log_debug("Configuration:");
-	vdo_log_debug("  Record pages per chapter:   %10u", geometry->record_pages_per_chapter);
-	vdo_log_debug("  Chapters per volume:        %10u", geometry->chapters_per_volume);
-	vdo_log_debug("  Sparse chapters per volume: %10u", geometry->sparse_chapters_per_volume);
+	vdo_log_debug("  Record pages per chapter:   %10u", geometry.record_pages_per_chapter);
+	vdo_log_debug("  Chapters per volume:        %10u", geometry.chapters_per_volume);
+	vdo_log_debug("  Sparse chapters per volume: %10u", geometry.sparse_chapters_per_volume);
 	vdo_log_debug("  Cache size (chapters):      %10u", config->cache_chapters);
 	vdo_log_debug("  Volume index mean delta:    %10u", config->volume_index_mean_delta);
-	vdo_log_debug("  Bytes per page:             %10zu", geometry->bytes_per_page);
+	vdo_log_debug("  Bytes per page:             %10zu", geometry.bytes_per_page);
 	vdo_log_debug("  Sparse sample rate:         %10u", config->sparse_sample_rate);
 	vdo_log_debug("  Nonce:                      %llu", (unsigned long long) config->nonce);
 }

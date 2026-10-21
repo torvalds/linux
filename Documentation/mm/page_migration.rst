@@ -110,13 +110,13 @@ Steps:
 6. The refcount of the page is examined and we back out if references remain.
    Otherwise, we know that we are the only one referencing this page.
 
-7. The radix tree is checked and if it does not contain the pointer to this
-   page then we back out because someone else modified the radix tree.
+7. The page cache tree is checked and if it does not contain the pointer to this
+   page then we back out because someone else modified the page cache tree.
 
 8. The new page is prepped with some settings from the old page so that
    accesses to the new page will discover a page with the correct settings.
 
-9. The radix tree is changed to point to the new page.
+9. The page cache tree is changed to point to the new page.
 
 10. The reference count of the old page is dropped because the address space
     reference is gone. A reference to the new page is established because

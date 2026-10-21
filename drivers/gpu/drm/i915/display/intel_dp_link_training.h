@@ -8,10 +8,14 @@
 
 #include <drm/display/drm_dp_helper.h>
 
+#include "intel_dp_link_caps.h"
+
 struct intel_atomic_state;
 struct intel_connector;
 struct intel_crtc_state;
 struct intel_dp;
+struct intel_dp_link_training;
+struct intel_encoder;
 
 int intel_dp_read_dprx_caps(struct intel_dp *intel_dp, u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 int intel_dp_init_lttpr_and_dprx_caps(struct intel_dp *intel_dp);
@@ -54,6 +58,48 @@ static inline u8 intel_dp_training_pattern_symbol(u8 pattern)
 void intel_dp_128b132b_sdp_crc16(struct intel_dp *intel_dp,
 				 const struct intel_crtc_state *crtc_state);
 
+bool intel_dp_link_params_valid(struct intel_dp *intel_dp, int link_rate,
+				u8 lane_count);
+
+bool intel_dp_link_training_get_force_retrain(struct intel_dp_link_training *link_training);
+
+void intel_dp_link_check(struct intel_encoder *encoder);
+void intel_dp_check_link_state(struct intel_dp *intel_dp);
+
 void intel_dp_link_training_debugfs_add(struct intel_connector *connector);
+
+void intel_dp_link_training_reset(struct intel_dp_link_training *link_training);
+
+struct intel_dp_link_training *intel_dp_link_training_init(struct intel_dp *intel_dp);
+void intel_dp_link_training_cleanup(struct intel_dp_link_training *link_training);
+
+#if IS_ENABLED(CONFIG_KUNIT)
+
+int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
+					    const struct intel_crtc_state *crtc_state);
+
+#define INTEL_DP_LINK_TRAINING_TEST_OPS_MEMBERS(__X) \
+	__X(get_fallback_values,	intel_dp_get_link_train_fallback_values)
+
+#define __DECLARE_MEMBER(__name, __fn) \
+	typeof(__fn) *__name;
+
+#define INTEL_DP_LINK_TRAINING_TEST_OPS_DECLARE \
+	INTEL_DP_LINK_TRAINING_TEST_OPS_MEMBERS(__DECLARE_MEMBER)
+
+struct intel_dp_link_training_test_ops {
+	INTEL_DP_LINK_TRAINING_TEST_OPS_DECLARE
+};
+
+#undef INTEL_DP_LINK_TRAINING_TEST_OPS_DECLARE
+#undef __DECLARE_MEMBER
+
+#ifdef I915
+extern const struct intel_dp_link_training_test_ops i915_display_dp_link_training_test_ops;
+#else
+extern const struct intel_dp_link_training_test_ops intel_display_dp_link_training_test_ops;
+#endif	/* I915 */
+
+#endif	/* CONFIG_KUNIT */
 
 #endif /* __INTEL_DP_LINK_TRAINING_H__ */

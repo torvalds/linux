@@ -52,23 +52,12 @@ mt7915_sys_recovery_set(struct file *file, const char __user *user_buf,
 	struct mt7915_phy *phy = file->private_data;
 	struct mt7915_dev *dev = phy->dev;
 	bool band = phy->mt76->band_idx;
-	char buf[16];
 	int ret = 0;
 	u16 val;
 
-	if (count >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(buf, user_buf, count))
-		return -EFAULT;
-
-	if (count && buf[count - 1] == '\n')
-		buf[count - 1] = '\0';
-	else
-		buf[count] = '\0';
-
-	if (kstrtou16(buf, 0, &val))
-		return -EINVAL;
+	ret = kstrtou16_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
 
 	switch (val) {
 	/*

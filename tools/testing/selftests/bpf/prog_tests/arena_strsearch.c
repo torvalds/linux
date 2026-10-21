@@ -23,7 +23,7 @@ static void test_arena_str(void)
 	arena_strsearch__destroy(skel);
 }
 
-void test_arena_strsearch(void)
+void serial_test_arena_strsearch(void)
 {
 	if (test__start_subtest("arena_strsearch"))
 		test_arena_str();

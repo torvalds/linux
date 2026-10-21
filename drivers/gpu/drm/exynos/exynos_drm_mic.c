@@ -21,6 +21,7 @@
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_print.h>
@@ -228,7 +229,8 @@ static void mic_set_reg_on(struct exynos_mic *mic, bool enable)
 	writel(reg, mic->reg + MIC_OP);
 }
 
-static void mic_post_disable(struct drm_bridge *bridge)
+static void mic_post_disable(struct drm_bridge *bridge,
+			     struct drm_atomic_commit *commit)
 {
 	struct exynos_mic *mic = bridge->driver_private;
 
@@ -257,7 +259,8 @@ static void mic_mode_set(struct drm_bridge *bridge,
 	mutex_unlock(&mic_mutex);
 }
 
-static void mic_pre_enable(struct drm_bridge *bridge)
+static void mic_pre_enable(struct drm_bridge *bridge,
+			   struct drm_atomic_commit *commit)
 {
 	struct exynos_mic *mic = bridge->driver_private;
 	int ret;
@@ -295,9 +298,12 @@ unlock:
 }
 
 static const struct drm_bridge_funcs mic_bridge_funcs = {
-	.post_disable = mic_post_disable,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_post_disable = mic_post_disable,
 	.mode_set = mic_mode_set,
-	.pre_enable = mic_pre_enable,
+	.atomic_pre_enable = mic_pre_enable,
 };
 
 static int exynos_mic_bind(struct device *dev, struct device *master,

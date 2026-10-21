@@ -371,6 +371,38 @@ static const struct dmi_system_id power_limits[] = {
 	},
 	{
 		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "FA401KM"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				.nv_dynamic_boost_max = 15,
+				.nv_dynamic_boost_min = 5,
+				.nv_temp_target_max = 87,
+				.nv_temp_target_min = 75,
+				.nv_tgp_max = 95,
+				.nv_tgp_min = 55,
+				.ppt_pl1_spl_max = 80,
+				.ppt_pl1_spl_min = 15,
+				.ppt_pl2_sppt_max = 80,
+				.ppt_pl2_sppt_min = 35,
+				.ppt_pl3_fppt_max = 80,
+				.ppt_pl3_fppt_min = 35,
+			},
+			.dc_data = &(struct power_limits) {
+				.nv_temp_target_max = 87,
+				.nv_temp_target_min = 75,
+				.ppt_pl1_spl_max = 35,
+				.ppt_pl1_spl_min = 25,
+				.ppt_pl2_sppt_max = 44,
+				.ppt_pl2_sppt_min = 31,
+				.ppt_pl3_fppt_max = 65,
+				.ppt_pl3_fppt_min = 45,
+			},
+			.requires_fan_curve = true,
+		},
+	},
+	{
+		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "FA401UM"),
 		},
 		.driver_data = &(struct power_data) {
@@ -756,6 +788,40 @@ static const struct dmi_system_id power_limits[] = {
 	},
 	{
 		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "FA608WV"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				.nv_dynamic_boost_max = 25,
+				.nv_dynamic_boost_min = 5,
+				.nv_temp_target_max = 87,
+				.nv_temp_target_min = 75,
+				.nv_tgp_max = 115,
+				.nv_tgp_min = 55,
+				.ppt_pl1_spl_max = 90,
+				.ppt_pl1_spl_min = 15,
+				.ppt_pl2_sppt_max = 90,
+				.ppt_pl2_sppt_min = 35,
+				.ppt_pl3_fppt_max = 90,
+				.ppt_pl3_fppt_min = 35,
+			},
+			.dc_data = &(struct power_limits) {
+				.nv_temp_target_max = 87,
+				.nv_temp_target_min = 75,
+				.ppt_pl1_spl_def = 45,
+				.ppt_pl1_spl_max = 65,
+				.ppt_pl1_spl_min = 15,
+				.ppt_pl2_sppt_def = 54,
+				.ppt_pl2_sppt_max = 65,
+				.ppt_pl2_sppt_min = 35,
+				.ppt_pl3_fppt_max = 65,
+				.ppt_pl3_fppt_min = 35,
+			},
+			.requires_fan_curve = true,
+		},
+	},
+	{
+		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "FA617NS"),
 		},
 		.driver_data = &(struct power_data) {
@@ -905,6 +971,32 @@ static const struct dmi_system_id power_limits[] = {
 				.ppt_pl1_spl_max = 45,
 				.ppt_pl2_sppt_min = 35,
 				.ppt_pl2_sppt_max = 60,
+			},
+			.requires_fan_curve = true,
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "FX517ZR"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				.ppt_pl1_spl_min = 28,
+				.ppt_pl1_spl_max = 85,
+				.ppt_pl2_sppt_min = 28,
+				.ppt_pl2_sppt_max = 135,
+				.nv_dynamic_boost_min = 5,
+				.nv_dynamic_boost_max = 25,
+				.nv_temp_target_min = 75,
+				.nv_temp_target_max = 87,
+			},
+			.dc_data = &(struct power_limits) {
+				.ppt_pl1_spl_min = 25,
+				.ppt_pl1_spl_max = 45,
+				.ppt_pl2_sppt_min = 35,
+				.ppt_pl2_sppt_max = 60,
+				.nv_temp_target_min = 75,
+				.nv_temp_target_max = 87,
 			},
 			.requires_fan_curve = true,
 		},
@@ -2081,6 +2173,35 @@ static const struct dmi_system_id power_limits[] = {
 	},
 	{
 		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "G635LX"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				.ppt_pl1_spl_min = 28,
+				.ppt_pl1_spl_def = 140,
+				.ppt_pl1_spl_max = 175,
+				.ppt_pl2_sppt_min = 28,
+				.ppt_pl2_sppt_max = 175,
+				.nv_dynamic_boost_min = 5,
+				.nv_dynamic_boost_max = 25,
+				.nv_temp_target_min = 75,
+				.nv_temp_target_max = 87,
+				.nv_tgp_min = 80,
+				.nv_tgp_max = 150,
+			},
+			.dc_data = &(struct power_limits) {
+				.ppt_pl1_spl_min = 25,
+				.ppt_pl1_spl_max = 55,
+				.ppt_pl2_sppt_min = 25,
+				.ppt_pl2_sppt_max = 70,
+				.nv_temp_target_min = 75,
+				.nv_temp_target_max = 87,
+			},
+			.requires_fan_curve = true,
+		},
+	},
+	{
+		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "G713PV"),
 		},
 		.driver_data = &(struct power_data) {
@@ -2319,6 +2440,35 @@ static const struct dmi_system_id power_limits[] = {
 				.ppt_pl3_fppt_max = 65,
 				.nv_temp_target_min = 75,
 				.nv_temp_target_max = 87,
+			},
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "HN7306EA"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				.ppt_pl1_spl_min = 35,
+				.ppt_pl1_spl_def = 60,
+				.ppt_pl1_spl_max = 85,
+				.ppt_pl2_sppt_min = 40,
+				.ppt_pl2_sppt_def = 70,
+				.ppt_pl2_sppt_max = 95,
+				.ppt_pl3_fppt_min = 50,
+				.ppt_pl3_fppt_def = 85,
+				.ppt_pl3_fppt_max = 115,
+			},
+			.dc_data = &(struct power_limits) {
+				.ppt_pl1_spl_min = 35,
+				.ppt_pl1_spl_def = 45,
+				.ppt_pl1_spl_max = 60,
+				.ppt_pl2_sppt_min = 40,
+				.ppt_pl2_sppt_def = 55,
+				.ppt_pl2_sppt_max = 70,
+				.ppt_pl3_fppt_min = 50,
+				.ppt_pl3_fppt_def = 65,
+				.ppt_pl3_fppt_max = 85,
 			},
 		},
 	},

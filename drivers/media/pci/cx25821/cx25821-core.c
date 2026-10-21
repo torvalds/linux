@@ -1347,16 +1347,10 @@ static void cx25821_finidev(struct pci_dev *pci_dev)
 static const struct pci_device_id cx25821_pci_tbl[] = {
 	{
 		/* CX25821 Athena */
-		.vendor = 0x14f1,
-		.device = 0x8210,
-		.subvendor = 0x14f1,
-		.subdevice = 0x0920,
+		PCI_DEVICE_SUB(0x14f1, 0x8210, 0x14f1, 0x0920),
 	}, {
 		/* CX25821 No Brand */
-		.vendor = 0x14f1,
-		.device = 0x8210,
-		.subvendor = 0x0000,
-		.subdevice = 0x0000,
+		PCI_DEVICE_SUB(0x14f1, 0x8210, 0x0000, 0x0000),
 	}, {
 		/* --- end of list --- */
 	}

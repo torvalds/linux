@@ -432,7 +432,6 @@ enum icvs_state {
  * @freq_ctrl: (future) frequency control pointer
  * @pads: Local media pads (sink/source)
  * @nr_of_lanes: Active CSI-2 lane count
- * @link_freq: Current link frequency (Hz)
  * @ipu_link: PM runtime device link (IPU consumer, CVS supplier)
  * @res: Resource capability (light/full)
  * @caps: Reported device protocol capabilities
@@ -458,7 +457,6 @@ struct icvs {
 	struct v4l2_ctrl *freq_ctrl;
 	struct media_pad pads[ICVS_CSI_NUM_PADS];
 	u32 nr_of_lanes;
-	u64 link_freq;
 	struct device_link *ipu_link;
 	enum icvs_resources res;
 	struct icvs_dev_capabilities caps;

@@ -111,6 +111,8 @@
 	DPTUN_REG(DP_ALLOCATED_BW) | \
 	DPTUN_REG(DP_TUNNELING_MAX_LINK_RATE) | \
 	DPTUN_REG(DP_TUNNELING_MAX_LANE_COUNT) | \
+	DPTUN_REG(DP_TUNNELING_MAIN_LINK_CHANNEL_CODING) | \
+	DPTUN_REG(DP_TUNNELING_128B132B_LINK_RATE) | \
 	DPTUN_REG(DP_DPTX_BW_ALLOCATION_MODE_CONTROL))
 
 static const DECLARE_BITMAP(dptun_info_regs, 64) = {
@@ -140,11 +142,14 @@ struct drm_dp_tunnel {
 	int estimated_bw;
 	int allocated_bw;
 
+	u8 dprx_128b132b_rates;
 	int max_dprx_rate;
 	u8 max_dprx_lane_count;
 
 	u8 adapter_id;
 
+	bool dprx_128b132b_support:1;
+	bool dprx_128b132b_lane0_mapping_support:1;
 	bool bw_alloc_supported:1;
 	bool bw_alloc_enabled:1;
 	bool has_io_error:1;
@@ -260,9 +265,46 @@ static int tunnel_reg_bw_granularity(const struct drm_dp_tunnel_regs *regs)
 	return (250000 << gr) / 8;
 }
 
+static bool tunnel_reg_dprx_128b132b_support(const struct drm_dp_tunnel_regs *regs)
+{
+	return tunnel_reg(regs, DP_TUNNELING_MAIN_LINK_CHANNEL_CODING) & DP_128B132B_DP_SUPPORTED;
+}
+
+static bool tunnel_reg_dprx_128b132b_lane0_mapping_support(const struct drm_dp_tunnel_regs *regs)
+{
+	return tunnel_reg(regs, DP_TUNNELING_128B132B_LINK_RATE) &
+	       DP_TUNNELING_128B132B_LL_LANE0_MAPPING_SUPPORT;
+}
+
+static u8 tunnel_reg_dprx_128b132b_rates(const struct drm_dp_tunnel_regs *regs)
+{
+	if (!tunnel_reg_dprx_128b132b_support(regs))
+		return 0;
+
+	return tunnel_reg(regs, DP_TUNNELING_128B132B_LINK_RATE) &
+	       DP_TUNNELING_128B132B_LINK_RATE_MASK;
+}
+
+static u8 max_128b132b_rate(u8 rates)
+{
+	if (rates & DP_TUNNELING_20GBPS_PER_LANE_SUPPORT)
+		return DP_TUNNELING_20GBPS_PER_LANE_SUPPORT;
+	else if (rates & DP_TUNNELING_13_5GBPS_PER_LANE_SUPPORT)
+		return DP_TUNNELING_13_5GBPS_PER_LANE_SUPPORT;
+	else if (rates & DP_TUNNELING_10GBPS_PER_LANE_SUPPORT)
+		return DP_TUNNELING_10GBPS_PER_LANE_SUPPORT;
+
+	WARN_ON(rates);
+
+	return 0;
+}
+
 static int tunnel_reg_max_dprx_rate(const struct drm_dp_tunnel_regs *regs)
 {
-	u8 bw_code = tunnel_reg(regs, DP_TUNNELING_MAX_LINK_RATE);
+	u8 bw_code = max_128b132b_rate(tunnel_reg_dprx_128b132b_rates(regs));
+
+	if (!bw_code)
+		bw_code = tunnel_reg(regs, DP_TUNNELING_MAX_LINK_RATE);
 
 	return drm_dp_bw_code_to_link_rate(bw_code);
 }
@@ -705,6 +747,23 @@ read_and_verify_tunnel_regs(struct drm_dp_tunnel *tunnel,
 static bool update_dprx_caps(struct drm_dp_tunnel *tunnel, const struct drm_dp_tunnel_regs *regs)
 {
 	bool changed = false;
+
+	if (tunnel_reg_dprx_128b132b_support(regs) != tunnel->dprx_128b132b_support) {
+		tunnel->dprx_128b132b_support = tunnel_reg_dprx_128b132b_support(regs);
+		changed = true;
+	}
+
+	if (tunnel_reg_dprx_128b132b_lane0_mapping_support(regs) !=
+	    tunnel->dprx_128b132b_lane0_mapping_support) {
+		tunnel->dprx_128b132b_lane0_mapping_support =
+			tunnel_reg_dprx_128b132b_lane0_mapping_support(regs);
+		changed = true;
+	}
+
+	if (tunnel_reg_dprx_128b132b_rates(regs) != tunnel->dprx_128b132b_rates) {
+		tunnel->dprx_128b132b_rates = tunnel_reg_dprx_128b132b_rates(regs);
+		changed = true;
+	}
 
 	if (tunnel_reg_max_dprx_rate(regs) != tunnel->max_dprx_rate) {
 		tunnel->max_dprx_rate = tunnel_reg_max_dprx_rate(regs);
@@ -1330,6 +1389,61 @@ int drm_dp_tunnel_handle_irq(struct drm_dp_tunnel_mgr *mgr, struct drm_dp_aux *a
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_tunnel_handle_irq);
+
+/**
+ * drm_dp_tunnel_128b132b_supported - Query if 128b132b is supported by the tunnel's DPRX
+ * @tunnel: Tunnel object
+ *
+ * The function is used to query if 128b132b is supported by the DPRX connected
+ * to @tunnel.
+ *
+ * Returns %true if 128b132b is supported by the DPRX.
+ */
+bool drm_dp_tunnel_128b132b_supported(const struct drm_dp_tunnel *tunnel)
+{
+	return tunnel->dprx_128b132b_support;
+}
+EXPORT_SYMBOL(drm_dp_tunnel_128b132b_supported);
+
+/**
+ * drm_dp_tunnel_128b132b_lane0_mapping_supported - Check 128b/132b lane 0 mapping support
+ * @tunnel: Tunnel object
+ *
+ * Check whether the DP-out adapter always maps lane 0 as expected by the
+ * DPRX on a tunneled 128b/132b link. If the function returns %true, one- and
+ * two-lane configurations with UHBR link rates can always be used. If it
+ * returns %false, using one or two lanes with UHBR link rates may cause a
+ * lane-count conversion failure in the DPRX, requiring corrective action by
+ * the source during link training. See DP Standard v2.1b, section
+ * 3.5.2.16.3, 128b/132b DPRX Lane Count Conversion Failure Indication and
+ * Corrective Action.
+ *
+ * A four-lane configuration can always be used, provided that the DPRX
+ * supports it, regardless of the function's return value.
+ *
+ * Returns %true if the DP-out adapter supports the 128b/132b lane 0 mapping.
+ */
+bool drm_dp_tunnel_128b132b_lane0_mapping_supported(const struct drm_dp_tunnel *tunnel)
+{
+	return tunnel->dprx_128b132b_lane0_mapping_support;
+}
+EXPORT_SYMBOL(drm_dp_tunnel_128b132b_lane0_mapping_supported);
+
+/**
+ * drm_dp_tunnel_128b132b_dprx_rates - Query the supported 128b132b rates of the tunnel's DPRX
+ * @tunnel: Tunnel object
+ *
+ * The function is used to query the supported 128b132b rates of the DPRX connected
+ * to @tunnel. Note that the related DP_128B132B_SUPPROTED_LINK_RATES DPCD
+ * register will indicate no supported 128B132B rates for a tunneled DPRX.
+ *
+ * Returns the mask of supported 128b132b rates.
+ */
+u8 drm_dp_tunnel_128b132b_dprx_rates(const struct drm_dp_tunnel *tunnel)
+{
+	return tunnel->dprx_128b132b_rates;
+}
+EXPORT_SYMBOL(drm_dp_tunnel_128b132b_dprx_rates);
 
 /**
  * drm_dp_tunnel_max_dprx_rate - Query the maximum rate of the tunnel's DPRX

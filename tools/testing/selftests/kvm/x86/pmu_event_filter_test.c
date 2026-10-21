@@ -62,7 +62,7 @@ struct {
 
 /*
  * If we encounter a #GP during the guest PMU sanity check, then the guest
- * PMU is not functional. Inform the hypervisor via GUEST_SYNC(0).
+ * PMU is not functional. Inform the hypervisor via GUEST_SYNC(-EFAULT).
  */
 static void guest_gp_handler(struct ex_regs *regs)
 {
@@ -73,7 +73,7 @@ static void guest_gp_handler(struct ex_regs *regs)
  * Check that we can write a new value to the given MSR and read it back.
  * The caller should provide a non-empty set of bits that are safe to flip.
  *
- * Return on success. GUEST_SYNC(0) on error.
+ * Return on success, GUEST_SYNC(-EIO) on error.
  */
 static void check_msr(u32 msr, u64 bits_to_flip)
 {

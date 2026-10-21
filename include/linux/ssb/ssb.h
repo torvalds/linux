@@ -671,4 +671,6 @@ int ssb_pcibios_plat_dev_init(struct pci_dev *dev);
 int ssb_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
 #endif /* CONFIG_SSB_EMBEDDED */
 
+extern const struct software_node ssb_gpio_swnode;
+
 #endif /* LINUX_SSB_H_ */

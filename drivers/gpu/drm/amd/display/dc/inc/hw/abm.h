@@ -66,6 +66,9 @@ struct abm_funcs {
 			unsigned int option,
 			unsigned int panel_inst,
 			unsigned int pwrseq_inst);
+	bool (*set_abm_event)(struct abm *abm, unsigned int full_screen, unsigned int trans_info,
+			unsigned int hdr_mode, unsigned int scaling_enable, unsigned int scaling_strength_map,
+			unsigned int panel_inst);
 };
 
 #endif

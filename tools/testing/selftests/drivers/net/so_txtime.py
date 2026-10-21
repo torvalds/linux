@@ -12,6 +12,7 @@ import time
 from lib.py import ksft_exit, ksft_run, ksft_variants
 from lib.py import KsftNamedVariant, KsftSkipEx
 from lib.py import NetDrvEpEnv, bkg, cmd, defer, tc
+from lib.py import CmdExitFailure
 
 
 def test_so_txtime(cfg, clockid, ipver, args_tx, args_rx, expect_success):
@@ -27,7 +28,7 @@ def test_so_txtime(cfg, clockid, ipver, args_tx, args_rx, expect_success):
     cmd_addr = f"-S {cfg.addr_v[ipver]} -D {cfg.remote_addr_v[ipver]}"
     cmd_args = f"-{ipver} -c {clockid} -t {tstart} {cmd_addr}"
     cmd_rx = f"{cfg.bin_remote} {cmd_args} {args_rx} -r"
-    cmd_tx = f"{cfg.bin_local} {cmd_args} {args_tx}"
+    cmd_tx = f"{cfg.bin_local} -m 100 {cmd_args} {args_tx}"
 
     expect_fail = not expect_success
     if slow_machine:
@@ -45,7 +46,11 @@ def _qdisc_setup(ifname, qdisc, optargs=""):
     """
     orig = tc(f"qdisc show dev {ifname} root", json=True)[0].get("kind", None)
     defer(tc, f"qdisc replace dev {ifname} root {orig}")
-    tc(f"qdisc replace dev {ifname} root {qdisc} {optargs}")
+    try:
+        tc(f"qdisc del dev {ifname} root")
+    except CmdExitFailure:
+        pass
+    tc(f"qdisc replace dev {ifname} root handle 1: {qdisc} {optargs}")
 
 
 def _test_variants_fq():
@@ -96,10 +101,20 @@ def _test_variants_etf():
 def test_so_txtime_etf(cfg, ipver, args_tx, args_rx, expect_fail):
     """Run all variants of etf tests."""
     cfg.require_ipver(ipver)
+
+    # root qdisc for background traffic (e.g., bkg())
+    _qdisc_setup(cfg.ifname, "prio")
+
+    # leaf ETF qdisc only for intended packets
     try:
-        _qdisc_setup(cfg.ifname, "etf", "clockid CLOCK_TAI delta 400000")
+        etf_args = "clockid CLOCK_TAI delta 400000"
+        tc(f"qdisc add dev {cfg.ifname} parent 1:1 handle 10: etf {etf_args}")
     except Exception as e:
         raise KsftSkipEx("tc does not support qdisc etf. skipping") from e
+
+    # redirect mark 100 to leaf
+    filter_args = "protocol all handle 100 fw flowid 1:1"
+    tc(f"filter add dev {cfg.ifname} parent 1: {filter_args}")
 
     test_so_txtime(cfg, "tai", ipver, args_tx, args_rx, expect_fail)
 

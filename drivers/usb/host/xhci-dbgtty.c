@@ -628,8 +628,8 @@ int dbc_tty_init(void)
 	dbc_tty_driver = tty_alloc_driver(64, TTY_DRIVER_REAL_RAW |
 					  TTY_DRIVER_DYNAMIC_DEV);
 	if (IS_ERR(dbc_tty_driver)) {
-		idr_destroy(&dbc_tty_minors);
-		return PTR_ERR(dbc_tty_driver);
+		ret = PTR_ERR(dbc_tty_driver);
+		goto fail;
 	}
 
 	dbc_tty_driver->driver_name = "dbc_serial";
@@ -649,20 +649,27 @@ int dbc_tty_init(void)
 	ret = tty_register_driver(dbc_tty_driver);
 	if (ret) {
 		pr_err("Can't register dbc tty driver\n");
-		tty_driver_kref_put(dbc_tty_driver);
-		idr_destroy(&dbc_tty_minors);
+		goto fail_put;
 	}
+
+	return ret;
+
+fail_put:
+	tty_driver_kref_put(dbc_tty_driver);
+fail:
+	idr_destroy(&dbc_tty_minors);
+	dbc_tty_driver = NULL;
 
 	return ret;
 }
 
 void dbc_tty_exit(void)
 {
-	if (dbc_tty_driver) {
-		tty_unregister_driver(dbc_tty_driver);
-		tty_driver_kref_put(dbc_tty_driver);
-		dbc_tty_driver = NULL;
-	}
+	if (IS_ERR_OR_NULL(dbc_tty_driver))
+		return;
 
+	tty_unregister_driver(dbc_tty_driver);
+	tty_driver_kref_put(dbc_tty_driver);
 	idr_destroy(&dbc_tty_minors);
+	dbc_tty_driver = NULL;
 }

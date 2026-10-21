@@ -7,14 +7,17 @@
 
 #include <kunit/test.h>
 #include <linux/types.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_colorop.h>
 #include <drm/drm_property.h>
 #include <uapi/drm/drm_mode.h>
 
 #include "dc.h"
+#include "amdgpu.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_color.h"
+#include "amdgpu_dm_kunit_test_helpers.h"
 
 /* ---- Tests for amdgpu_dm_fixpt_from_s3132 ---- */
 
@@ -1159,19 +1162,19 @@ static void dm_test_verify_lut_sizes_invalid_degamma_valid_gamma(struct kunit *t
  */
 static void dm_test_atomic_lut3d_zero_size(struct kunit *test)
 {
-	struct dc_3dlut *lut;
+	struct dc_plane_cm *cm;
 	u32 initialized;
 
-	lut = kunit_kzalloc(test, sizeof(*lut), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, lut);
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
 
 	/* Pre-set initialized so we can confirm it is cleared */
-	lut->state.bits.initialized = 1;
+	cm->lut3d_func.state.bits.initialized = 1;
 
-	amdgpu_dm_atomic_lut3d(NULL, 0, lut);
+	amdgpu_dm_atomic_lut3d(NULL, 0, cm);
 
 	/* Copy bit-field: typeof cannot be applied to a bit-field */
-	initialized = lut->state.bits.initialized;
+	initialized = cm->lut3d_func.state.bits.initialized;
 	KUNIT_EXPECT_EQ(test, initialized, 0U);
 }
 
@@ -1183,22 +1186,22 @@ static void dm_test_atomic_lut3d_nonzero_state_bits(struct kunit *test)
 {
 	const uint32_t lut3d_size = 5;
 	struct drm_color_lut *lut_data;
-	struct dc_3dlut *lut;
+	struct dc_plane_cm *cm;
 	u32 initialized;
 
 	lut_data = kunit_kcalloc(test, lut3d_size, sizeof(*lut_data), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, lut_data);
 
-	lut = kunit_kzalloc(test, sizeof(*lut), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, lut);
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
 
-	amdgpu_dm_atomic_lut3d(lut_data, lut3d_size, lut);
+	amdgpu_dm_atomic_lut3d(lut_data, lut3d_size, cm);
 
 	/* Copy bit-field: typeof cannot be applied to a bit-field */
-	initialized = lut->state.bits.initialized;
+	initialized = cm->lut3d_func.state.bits.initialized;
 	KUNIT_EXPECT_EQ(test, initialized, 1U);
-	KUNIT_EXPECT_FALSE(test, lut->lut_3d.use_tetrahedral_9);
-	KUNIT_EXPECT_TRUE(test, lut->lut_3d.use_12bits);
+	KUNIT_EXPECT_FALSE(test, cm->lut3d_func.lut_3d.use_tetrahedral_9);
+	KUNIT_EXPECT_TRUE(test, cm->lut3d_func.lut_3d.use_12bits);
 }
 
 /**
@@ -1209,29 +1212,29 @@ static void dm_test_atomic_lut3d_data_forwarded(struct kunit *test)
 {
 	const uint32_t lut3d_size = 5;
 	struct drm_color_lut *lut_data;
-	struct dc_3dlut *lut;
+	struct dc_plane_cm *cm;
 
 	lut_data = kunit_kcalloc(test, lut3d_size, sizeof(*lut_data), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, lut_data);
 
-	lut = kunit_kzalloc(test, sizeof(*lut), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, lut);
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
 
 	lut_data[0].red   = 0xFFFF;
 	lut_data[0].green = 0x8000;
 	lut_data[0].blue  = 0x4000;
 
-	amdgpu_dm_atomic_lut3d(lut_data, lut3d_size, lut);
+	amdgpu_dm_atomic_lut3d(lut_data, lut3d_size, cm);
 
 	/*
 	 * use_tetrahedral_9 == false → data goes into tetrahedral_17.
 	 * lut[0] maps to lut0[0] (first element of the first group).
 	 */
-	KUNIT_EXPECT_EQ(test, lut->lut_3d.tetrahedral_17.lut0[0].red,
+	KUNIT_EXPECT_EQ(test, cm->lut3d_func.lut_3d.tetrahedral_17.lut0[0].red,
 			drm_color_lut_extract(0xFFFF, MAX_COLOR_3DLUT_BITDEPTH));
-	KUNIT_EXPECT_EQ(test, lut->lut_3d.tetrahedral_17.lut0[0].green,
+	KUNIT_EXPECT_EQ(test, cm->lut3d_func.lut_3d.tetrahedral_17.lut0[0].green,
 			drm_color_lut_extract(0x8000, MAX_COLOR_3DLUT_BITDEPTH));
-	KUNIT_EXPECT_EQ(test, lut->lut_3d.tetrahedral_17.lut0[0].blue,
+	KUNIT_EXPECT_EQ(test, cm->lut3d_func.lut_3d.tetrahedral_17.lut0[0].blue,
 			drm_color_lut_extract(0x4000, MAX_COLOR_3DLUT_BITDEPTH));
 }
 
@@ -1373,6 +1376,146 @@ static void dm_test_set_tf_distributed_points_pq(struct kunit *test)
 }
 
 /**
+ * dm_test_set_legacy_tf_identity - Legacy identity LUT uses the sRGB ROM path
+ * @test: KUnit test context
+ */
+static void dm_test_set_legacy_tf_identity(struct kunit *test)
+{
+	struct drm_color_lut *lut;
+	struct dc_transfer_func *tf;
+	int i;
+
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+	lut = kunit_kcalloc(test, MAX_COLOR_LEGACY_LUT_ENTRIES, sizeof(*lut), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, lut);
+
+	for (i = 0; i < MAX_COLOR_LEGACY_LUT_ENTRIES; i++) {
+		u16 value = i * MAX_DRM_LUT_VALUE / (MAX_COLOR_LEGACY_LUT_ENTRIES - 1);
+
+		lut[i].red = value;
+		lut[i].green = value;
+		lut[i].blue = value;
+	}
+
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+
+	KUNIT_EXPECT_EQ(test,
+			__set_legacy_tf(tf, lut, MAX_COLOR_LEGACY_LUT_ENTRIES, true),
+			0);
+}
+
+/**
+ * dm_test_set_output_tf_linear - Linear output without a LUT calculates degamma
+ * @test: KUnit test context
+ */
+static void dm_test_set_output_tf_linear(struct kunit *test)
+{
+	struct dc_transfer_func *tf;
+
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_LINEAR;
+
+	KUNIT_EXPECT_EQ(test, __set_output_tf(tf, NULL, 0, false), 0);
+}
+
+/**
+ * dm_test_set_output_tf_32_srgb_rom - sRGB output uses the no-LUT ROM path
+ * @test: KUnit test context
+ */
+static void dm_test_set_output_tf_32_srgb_rom(struct kunit *test)
+{
+	struct dc_transfer_func *tf;
+
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+
+	KUNIT_EXPECT_EQ(test, __set_output_tf_32(tf, NULL, 0, true), 0);
+}
+
+/**
+ * dm_test_set_input_tf_srgb - Predefined sRGB input needs no generated curve
+ * @test: KUnit test context
+ */
+static void dm_test_set_input_tf_srgb(struct kunit *test)
+{
+	struct dc_transfer_func *tf;
+
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+
+	KUNIT_EXPECT_EQ(test, __set_input_tf(NULL, tf, NULL, 0), 0);
+}
+
+/**
+ * dm_test_set_input_tf_32_srgb - 32-bit input wrapper accepts predefined sRGB
+ * @test: KUnit test context
+ */
+static void dm_test_set_input_tf_32_srgb(struct kunit *test)
+{
+	struct dc_transfer_func *tf;
+
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+
+	KUNIT_EXPECT_EQ(test, __set_input_tf_32(NULL, tf, NULL, 0), 0);
+}
+
+/**
+ * dm_test_set_transfer_funcs_with_luts - LUT-backed transfer functions succeed
+ * @test: KUnit test context
+ */
+static void dm_test_set_transfer_funcs_with_luts(struct kunit *test)
+{
+	struct drm_color_lut32 *lut32;
+	struct drm_color_lut *lut;
+	struct dc_transfer_func *tf;
+
+	lut = kunit_kcalloc(test, MAX_COLOR_LUT_ENTRIES, sizeof(*lut), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, lut);
+	lut32 = kunit_kcalloc(test, MAX_COLOR_LUT_ENTRIES, sizeof(*lut32), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, lut32);
+	tf = kunit_kzalloc(test, sizeof(*tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tf);
+
+	tf->type = TF_TYPE_DISTRIBUTED_POINTS;
+	tf->tf = TRANSFER_FUNCTION_LINEAR;
+	KUNIT_EXPECT_EQ(test,
+			__set_output_tf(tf, lut, MAX_COLOR_LUT_ENTRIES, false),
+			0);
+
+	memset(tf, 0, sizeof(*tf));
+	tf->type = TF_TYPE_DISTRIBUTED_POINTS;
+	tf->tf = TRANSFER_FUNCTION_LINEAR;
+	KUNIT_EXPECT_EQ(test,
+			__set_output_tf_32(tf, lut32, MAX_COLOR_LUT_ENTRIES, false),
+			0);
+
+	memset(tf, 0, sizeof(*tf));
+	tf->type = TF_TYPE_DISTRIBUTED_POINTS;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+	KUNIT_EXPECT_EQ(test,
+			__set_input_tf(NULL, tf, lut, MAX_COLOR_LUT_ENTRIES),
+			0);
+
+	memset(tf, 0, sizeof(*tf));
+	tf->type = TF_TYPE_DISTRIBUTED_POINTS;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+	KUNIT_EXPECT_EQ(test,
+			__set_input_tf_32(NULL, tf, lut32, MAX_COLOR_LUT_ENTRIES),
+			0);
+}
+
+/**
  * dm_test_set_atomic_regamma_bypass - No LUT and linear TF: must take bypass path
  * @test: KUnit test context
  */
@@ -1393,24 +1536,41 @@ static void dm_test_set_atomic_regamma_bypass(struct kunit *test)
 }
 
 /**
+ * dm_test_set_atomic_regamma_srgb - Non-linear TF enables generated regamma
+ * @test: KUnit test context
+ */
+static void dm_test_set_atomic_regamma_srgb(struct kunit *test)
+{
+	struct dc_transfer_func *out_tf;
+
+	out_tf = kunit_kzalloc(test, sizeof(*out_tf), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, out_tf);
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_set_atomic_regamma(out_tf, NULL, 0, true, TRANSFER_FUNCTION_SRGB),
+			0);
+	KUNIT_EXPECT_EQ(test, (int)out_tf->type, (int)TF_TYPE_DISTRIBUTED_POINTS);
+}
+
+/**
  * dm_test_atomic_shaper_lut_bypass - No LUT and linear TF: must take bypass path
  * @test: KUnit test context
  */
 static void dm_test_atomic_shaper_lut_bypass(struct kunit *test)
 {
-	struct dc_transfer_func *func_shaper;
+	struct dc_plane_cm *cm;
 
-	func_shaper = kunit_kzalloc(test, sizeof(*func_shaper), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, func_shaper);
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
 
 	/* size=0 and tf=LINEAR: must take the bypass branch */
 	KUNIT_EXPECT_EQ(test,
 		amdgpu_dm_atomic_shaper_lut(NULL, false,
 					    TRANSFER_FUNCTION_LINEAR,
-					    0, func_shaper),
+					    0, cm),
 		0);
-	KUNIT_EXPECT_EQ(test, (int)func_shaper->type, (int)TF_TYPE_BYPASS);
-	KUNIT_EXPECT_EQ(test, (int)func_shaper->tf, (int)TRANSFER_FUNCTION_LINEAR);
+	KUNIT_EXPECT_EQ(test, (int)cm->shaper_func.type, (int)TF_TYPE_BYPASS);
+	KUNIT_EXPECT_EQ(test, (int)cm->shaper_func.tf, (int)TRANSFER_FUNCTION_LINEAR);
 }
 
 /**
@@ -1419,19 +1579,41 @@ static void dm_test_atomic_shaper_lut_bypass(struct kunit *test)
  */
 static void dm_test_atomic_blend_lut_bypass(struct kunit *test)
 {
-	struct dc_transfer_func *func_blend;
+	struct dc_plane_cm *cm;
 
-	func_blend = kunit_kzalloc(test, sizeof(*func_blend), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, func_blend);
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
 
 	/* size=0 and tf=LINEAR: must take the bypass branch */
 	KUNIT_EXPECT_EQ(test,
 		amdgpu_dm_atomic_blend_lut(NULL, false,
 					   TRANSFER_FUNCTION_LINEAR,
-					   0, func_blend),
+					   0, cm),
 		0);
-	KUNIT_EXPECT_EQ(test, (int)func_blend->type, (int)TF_TYPE_BYPASS);
-	KUNIT_EXPECT_EQ(test, (int)func_blend->tf, (int)TRANSFER_FUNCTION_LINEAR);
+	KUNIT_EXPECT_EQ(test, (int)cm->blend_func.type, (int)TF_TYPE_BYPASS);
+	KUNIT_EXPECT_EQ(test, (int)cm->blend_func.tf, (int)TRANSFER_FUNCTION_LINEAR);
+}
+
+/**
+ * dm_test_atomic_shaper_blend_srgb - Non-linear TFs enable shaper and blend
+ * @test: KUnit test context
+ */
+static void dm_test_atomic_shaper_blend_srgb(struct kunit *test)
+{
+	struct dc_plane_cm *cm;
+
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_atomic_shaper_lut(NULL, true, TRANSFER_FUNCTION_SRGB, 0, cm),
+			0);
+	KUNIT_EXPECT_TRUE(test, cm->flags.bits.shaper_enable);
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_atomic_blend_lut(NULL, false, TRANSFER_FUNCTION_SRGB, 0, cm),
+			0);
+	KUNIT_EXPECT_TRUE(test, cm->flags.bits.blend_enable);
 }
 
 /* ---- Tests for __set_colorop_in_tf_1d_curve ---- */
@@ -1527,6 +1709,1175 @@ static void dm_test_set_colorop_in_tf_1d_curve_bypass(struct kunit *test)
 		(int)TRANSFER_FUNCTION_LINEAR);
 }
 
+/* ---- Tests for amdgpu_dm_init_color_mod ---- */
+
+/**
+ * dm_test_init_color_mod - Smoke test: must initialize x-points without crashing
+ * @test: KUnit test context
+ */
+static void dm_test_init_color_mod(struct kunit *test)
+{
+	amdgpu_dm_init_color_mod();
+	KUNIT_SUCCEED(test);
+}
+
+/* ---- Tests for amdgpu_dm_verify_lut3d_size ---- */
+
+/**
+ * dm_test_verify_lut3d_alloc_plane - Allocate a dm_plane_state for lut3d tests
+ * @test: KUnit test context
+ *
+ * Returns: a drm_plane_state pointer embedded in a zeroed dm_plane_state.
+ */
+static struct drm_plane_state *
+dm_test_verify_lut3d_alloc_plane(struct kunit *test)
+{
+	struct dm_plane_state *dm_plane_state;
+
+	dm_plane_state = kunit_kzalloc(test, sizeof(*dm_plane_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_plane_state);
+
+	return &dm_plane_state->base;
+}
+
+/**
+ * dm_test_verify_lut3d_alloc_adev - Allocate adev with a DC and given 3D LUT cap
+ * @test: KUnit test context
+ * @has_3dlut: value to program into caps.color.dpp.hw_3d_lut
+ *
+ * Returns: an amdgpu_device with adev->dm.dc allocated.
+ */
+static struct amdgpu_device *
+dm_test_verify_lut3d_alloc_adev(struct kunit *test, bool has_3dlut)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+
+	adev->dm.dc = kunit_kzalloc(test, sizeof(*adev->dm.dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev->dm.dc);
+	adev->dm.dc->caps.color.dpp.hw_3d_lut = has_3dlut;
+
+	return adev;
+}
+
+/**
+ * dm_test_verify_lut3d_no_luts - No shaper/3D LUT blobs: must succeed
+ * @test: KUnit test context
+ */
+static void dm_test_verify_lut3d_no_luts(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_verify_lut3d_alloc_adev(test, false);
+	struct drm_plane_state *plane_state = dm_test_verify_lut3d_alloc_plane(test);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_verify_lut3d_size(adev, plane_state), 0);
+}
+
+/**
+ * dm_test_verify_lut3d_bad_shaper - Shaper LUT with wrong size: must return -EINVAL
+ * @test: KUnit test context
+ */
+static void dm_test_verify_lut3d_bad_shaper(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_verify_lut3d_alloc_adev(test, true);
+	struct drm_plane_state *plane_state = dm_test_verify_lut3d_alloc_plane(test);
+	struct dm_plane_state *dm_plane_state = to_dm_plane_state(plane_state);
+
+	/* has_3dlut => expected shaper size is MAX_COLOR_LUT_ENTRIES */
+	dm_plane_state->shaper_lut = dm_test_make_lut_blob(test, 128);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_verify_lut3d_size(adev, plane_state), -EINVAL);
+}
+
+/**
+ * dm_test_verify_lut3d_bad_lut3d - 3D LUT with wrong size: must return -EINVAL
+ * @test: KUnit test context
+ */
+static void dm_test_verify_lut3d_bad_lut3d(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_verify_lut3d_alloc_adev(test, true);
+	struct drm_plane_state *plane_state = dm_test_verify_lut3d_alloc_plane(test);
+	struct dm_plane_state *dm_plane_state = to_dm_plane_state(plane_state);
+
+	/* Valid shaper, but wrong 3D LUT size */
+	dm_plane_state->shaper_lut = dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+	dm_plane_state->lut3d = dm_test_make_lut_blob(test, 128);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_verify_lut3d_size(adev, plane_state), -EINVAL);
+}
+
+/**
+ * dm_test_verify_lut3d_valid - Correct shaper and 3D LUT sizes: must succeed
+ * @test: KUnit test context
+ */
+static void dm_test_verify_lut3d_valid(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_verify_lut3d_alloc_adev(test, true);
+	struct drm_plane_state *plane_state = dm_test_verify_lut3d_alloc_plane(test);
+	struct dm_plane_state *dm_plane_state = to_dm_plane_state(plane_state);
+	const uint32_t lut3d_entries =
+		MAX_COLOR_3DLUT_SIZE * MAX_COLOR_3DLUT_SIZE * MAX_COLOR_3DLUT_SIZE;
+
+	dm_plane_state->shaper_lut = dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+	dm_plane_state->lut3d = dm_test_make_lut_blob(test, lut3d_entries);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_verify_lut3d_size(adev, plane_state), 0);
+}
+
+/* ---- Tests for plane colorop helpers ---- */
+
+/**
+ * struct dm_test_colorop_fixture - shared state for plane colorop walk tests
+ * @adev: backing amdgpu device (provides a real DRM device)
+ * @state: fabricated atomic state with a single colorop slot
+ * @colorop: the colorop under test
+ * @colorop_state: the new state attached to @colorop
+ * @plane_state: plane state whose ->state points at @state
+ * @dc_plane_state: DC plane state written by the helpers
+ */
+struct dm_test_colorop_fixture {
+	struct amdgpu_device *adev;
+	struct drm_atomic_commit *state;
+	struct drm_colorop *colorop;
+	struct drm_colorop_state *colorop_state;
+	struct drm_plane_state *plane_state;
+	struct dc_plane_state *dc_plane_state;
+};
+
+/**
+ * dm_test_colorop_setup - build a single-colorop atomic state fixture
+ * @test: KUnit test context
+ * @type: colorop type to assign
+ *
+ * Fabricates a minimal drm_atomic_commit with one colorop slot so that
+ * for_each_new_colorop_in_state() finds exactly the colorop under test.
+ *
+ * Returns: a populated fixture (by value).
+ */
+static struct dm_test_colorop_fixture
+dm_test_colorop_setup(struct kunit *test, enum drm_colorop_type type)
+{
+	struct dm_test_colorop_fixture f = {0};
+	struct __drm_colorops_state *colorops;
+	struct dm_plane_state *dm_plane_state;
+
+	f.adev = dm_kunit_alloc_adev(test);
+	f.adev->ddev.mode_config.num_colorop = 1;
+
+	f.colorop = kunit_kzalloc(test, sizeof(*f.colorop), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.colorop);
+	f.colorop->dev = &f.adev->ddev;
+	f.colorop->type = type;
+
+	f.colorop_state = kunit_kzalloc(test, sizeof(*f.colorop_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.colorop_state);
+	f.colorop_state->colorop = f.colorop;
+
+	colorops = kunit_kcalloc(test, 1, sizeof(*colorops), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, colorops);
+	colorops[0].ptr = f.colorop;
+	colorops[0].new_state = f.colorop_state;
+
+	f.state = kunit_kzalloc(test, sizeof(*f.state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.state);
+	f.state->dev = &f.adev->ddev;
+	f.state->colorops = colorops;
+
+	dm_plane_state = kunit_kzalloc(test, sizeof(*dm_plane_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_plane_state);
+	f.plane_state = &dm_plane_state->base;
+	f.plane_state->state = f.state;
+
+	f.dc_plane_state = kunit_kzalloc(test, sizeof(*f.dc_plane_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.dc_plane_state);
+
+	return f;
+}
+
+/**
+ * dm_test_colorop_multiplier_applied - Multiplier colorop programs hdr_mult
+ * @test: KUnit test context
+ */
+static void dm_test_colorop_multiplier_applied(struct kunit *test)
+{
+	struct dm_test_colorop_fixture f =
+		dm_test_colorop_setup(test, DRM_COLOROP_MULTIPLIER);
+
+	/* 1.0 in S31.32 sign-magnitude */
+	f.colorop_state->multiplier = 1ULL << 32;
+
+	KUNIT_EXPECT_EQ(test,
+		__set_dm_plane_colorop_multiplier(f.plane_state, f.dc_plane_state, f.colorop),
+		0);
+	KUNIT_EXPECT_EQ(test, f.dc_plane_state->hdr_mult.value, (long long)(1ULL << 32));
+}
+
+/**
+ * dm_test_colorop_multiplier_no_match - Non-multiplier colorop leaves hdr_mult untouched
+ * @test: KUnit test context
+ */
+static void dm_test_colorop_multiplier_no_match(struct kunit *test)
+{
+	struct dm_test_colorop_fixture f =
+		dm_test_colorop_setup(test, DRM_COLOROP_1D_CURVE);
+
+	f.colorop_state->multiplier = 1ULL << 32;
+
+	KUNIT_EXPECT_EQ(test,
+			__set_dm_plane_colorop_multiplier(f.plane_state, f.dc_plane_state, f.colorop),
+			0);
+	KUNIT_EXPECT_EQ(test, f.dc_plane_state->hdr_mult.value, 0LL);
+}
+
+/**
+ * dm_test_colorop_3x4_matrix_applied - CTM 3x4 colorop enables gamut remap
+ * @test: KUnit test context
+ */
+static void dm_test_colorop_3x4_matrix_applied(struct kunit *test)
+{
+	struct dm_test_colorop_fixture f =
+		dm_test_colorop_setup(test, DRM_COLOROP_CTM_3X4);
+	struct drm_property_blob *blob;
+	struct drm_color_ctm_3x4 *ctm;
+
+	ctm = kunit_kzalloc(test, sizeof(*ctm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctm);
+	ctm->matrix[0] = 1ULL << 32; /* identity diagonal */
+	ctm->matrix[5] = 1ULL << 32;
+	ctm->matrix[10] = 1ULL << 32;
+
+	blob = kunit_kzalloc(test, sizeof(*blob), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob);
+	blob->data = ctm;
+	blob->length = sizeof(struct drm_color_ctm_3x4);
+	f.colorop_state->data = blob;
+
+	KUNIT_EXPECT_EQ(test,
+			__set_dm_plane_colorop_3x4_matrix(f.plane_state, f.dc_plane_state, f.colorop),
+			0);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->gamut_remap_matrix.enable_remap);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->input_csc_color_matrix.enable_adjustment);
+}
+
+/**
+ * dm_test_colorop_3x4_matrix_bad_length - Wrong blob length: must return -EINVAL
+ * @test: KUnit test context
+ */
+static void dm_test_colorop_3x4_matrix_bad_length(struct kunit *test)
+{
+	struct dm_test_colorop_fixture f =
+		dm_test_colorop_setup(test, DRM_COLOROP_CTM_3X4);
+	struct drm_property_blob *blob;
+
+	blob = kunit_kzalloc(test, sizeof(*blob), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob);
+	blob->data = kunit_kzalloc(test, 8, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob->data);
+	blob->length = 7; /* not sizeof(struct drm_color_ctm_3x4) */
+	f.colorop_state->data = blob;
+
+	KUNIT_EXPECT_EQ(test,
+			__set_dm_plane_colorop_3x4_matrix(f.plane_state, f.dc_plane_state, f.colorop),
+			-EINVAL);
+}
+
+/**
+ * dm_test_colorop_degamma_predefined - Degamma 1D curve programs predefined TF
+ * @test: KUnit test context
+ */
+static void dm_test_colorop_degamma_predefined(struct kunit *test)
+{
+	struct dm_test_colorop_fixture f =
+		dm_test_colorop_setup(test, DRM_COLOROP_1D_CURVE);
+
+	/* SRGB_EOTF is part of amdgpu_dm_supported_degam_tfs */
+	f.colorop_state->curve_1d_type = DRM_COLOROP_1D_CURVE_SRGB_EOTF;
+	f.colorop_state->bypass = false;
+
+	KUNIT_EXPECT_EQ(test,
+			__set_dm_plane_colorop_degamma(f.plane_state, f.dc_plane_state, f.colorop),
+			0);
+	KUNIT_EXPECT_EQ(test,
+			(int)f.dc_plane_state->in_transfer_func.type,
+			(int)TF_TYPE_PREDEFINED);
+	KUNIT_EXPECT_EQ(test,
+			(int)f.dc_plane_state->in_transfer_func.tf,
+			(int)TRANSFER_FUNCTION_SRGB);
+}
+
+/**
+ * dm_test_colorop_degamma_no_match - Unsupported degamma curve: must return -EINVAL
+ * @test: KUnit test context
+ */
+static void dm_test_colorop_degamma_no_match(struct kunit *test)
+{
+	struct dm_test_colorop_fixture f =
+		dm_test_colorop_setup(test, DRM_COLOROP_1D_CURVE);
+
+	/* SRGB_INV_EOTF is a shaper TF, not in amdgpu_dm_supported_degam_tfs */
+	f.colorop_state->curve_1d_type = DRM_COLOROP_1D_CURVE_SRGB_INV_EOTF;
+
+	KUNIT_EXPECT_EQ(test,
+			__set_dm_plane_colorop_degamma(f.plane_state, f.dc_plane_state, f.colorop),
+			-EINVAL);
+}
+
+/* ---- Tests for CRTC and plane color management update paths ---- */
+
+/**
+ * struct dm_test_color_update_fixture - minimal color update fixture
+ * @adev: backing amdgpu device
+ * @state: DRM atomic state with @adev's DRM device
+ * @crtc_state: DM CRTC state under test
+ * @stream: DC stream referenced by @crtc_state
+ * @dm_plane_state: DM plane state under test
+ * @plane: DRM plane referenced by @dm_plane_state
+ * @dc_plane_state: DC plane state under test
+ */
+struct dm_test_color_update_fixture {
+	struct amdgpu_device *adev;
+	struct drm_atomic_commit *state;
+	struct dm_crtc_state *crtc_state;
+	struct dc_stream_state *stream;
+	struct dm_plane_state *dm_plane_state;
+	struct drm_plane *plane;
+	struct dc_plane_state *dc_plane_state;
+};
+
+/**
+ * dm_test_color_update_setup - allocate a minimal color update fixture
+ * @test: KUnit test context
+ *
+ * Returns: a populated fixture with all large DC/DRM state heap-allocated.
+ */
+static struct dm_test_color_update_fixture
+dm_test_color_update_setup(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = {0};
+
+	f.adev = dm_kunit_alloc_adev(test);
+	f.adev->dm.dc = kunit_kzalloc(test, sizeof(*f.adev->dm.dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.adev->dm.dc);
+
+	f.state = kunit_kzalloc(test, sizeof(*f.state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.state);
+	f.state->dev = &f.adev->ddev;
+
+	f.stream = kunit_kzalloc(test, sizeof(*f.stream), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.stream);
+
+	f.crtc_state = kunit_kzalloc(test, sizeof(*f.crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.crtc_state);
+	f.crtc_state->base.state = f.state;
+	f.crtc_state->stream = f.stream;
+
+	f.plane = kunit_kzalloc(test, sizeof(*f.plane), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.plane);
+	f.plane->dev = &f.adev->ddev;
+
+	f.dm_plane_state = kunit_kzalloc(test, sizeof(*f.dm_plane_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.dm_plane_state);
+	f.dm_plane_state->base.state = f.state;
+	f.dm_plane_state->base.plane = f.plane;
+
+	f.dc_plane_state = kunit_kzalloc(test, sizeof(*f.dc_plane_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f.dc_plane_state);
+
+	return f;
+}
+
+/**
+ * dm_test_make_ctm_blob - Allocate a fake drm_property_blob for CTM data
+ * @test: KUnit test context
+ * @data: CTM data pointer
+ * @size: CTM data size in bytes
+ *
+ * Returns: a fake property blob pointing at @data.
+ */
+static struct drm_property_blob *
+dm_test_make_ctm_blob(struct kunit *test, void *data, size_t size)
+{
+	struct drm_property_blob *blob;
+
+	blob = kunit_kzalloc(test, sizeof(*blob), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob);
+	blob->data = data;
+	blob->length = size;
+
+	return blob;
+}
+
+/**
+ * dm_test_check_crtc_color_mgmt_no_luts - No CRTC LUTs check succeeds
+ * @test: KUnit test context
+ */
+static void dm_test_check_crtc_color_mgmt_no_luts(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.crtc_state->cm_has_degamma = true;
+	f.crtc_state->cm_is_degamma_srgb = true;
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_check_crtc_color_mgmt(f.crtc_state, true), 0);
+	KUNIT_EXPECT_FALSE(test, f.crtc_state->cm_has_degamma);
+	KUNIT_EXPECT_FALSE(test, f.crtc_state->cm_is_degamma_srgb);
+}
+
+/**
+ * dm_test_check_crtc_color_mgmt_legacy_regamma - Legacy LUT uses sRGB regamma
+ * @test: KUnit test context
+ */
+static void dm_test_check_crtc_color_mgmt_legacy_regamma(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.crtc_state->base.gamma_lut = dm_test_make_lut_blob(test, MAX_COLOR_LEGACY_LUT_ENTRIES);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_check_crtc_color_mgmt(f.crtc_state, true), 0);
+	KUNIT_EXPECT_TRUE(test, f.crtc_state->cm_is_degamma_srgb);
+}
+
+/**
+ * dm_test_check_crtc_color_mgmt_degamma - Atomic degamma is mapped to the plane
+ * @test: KUnit test context
+ */
+static void dm_test_check_crtc_color_mgmt_degamma(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.crtc_state->base.degamma_lut =
+		dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_check_crtc_color_mgmt(f.crtc_state, true), 0);
+	KUNIT_EXPECT_TRUE(test, f.crtc_state->cm_has_degamma);
+	KUNIT_EXPECT_FALSE(test, f.crtc_state->cm_is_degamma_srgb);
+}
+
+/**
+ * dm_test_update_crtc_color_mgmt_no_ctm - No CRTC CTM leaves remap bypassed
+ * @test: KUnit test context
+ */
+static void dm_test_update_crtc_color_mgmt_no_ctm(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.stream->gamut_remap_matrix.enable_remap = true;
+	f.stream->csc_color_matrix.enable_adjustment = true;
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_update_crtc_color_mgmt(f.crtc_state), 0);
+	KUNIT_EXPECT_FALSE(test, f.stream->gamut_remap_matrix.enable_remap);
+	KUNIT_EXPECT_FALSE(test, f.stream->csc_color_matrix.enable_adjustment);
+}
+
+/**
+ * dm_test_update_crtc_color_mgmt_ctm - CRTC CTM enables stream gamut remap
+ * @test: KUnit test context
+ */
+static void dm_test_update_crtc_color_mgmt_ctm(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_color_ctm *ctm;
+
+	ctm = kunit_kzalloc(test, sizeof(*ctm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctm);
+	ctm->matrix[0] = 1ULL << 32;
+	ctm->matrix[4] = 1ULL << 32;
+	ctm->matrix[8] = 1ULL << 32;
+	f.crtc_state->base.ctm = dm_test_make_ctm_blob(test, ctm, sizeof(*ctm));
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_update_crtc_color_mgmt(f.crtc_state), 0);
+	KUNIT_EXPECT_TRUE(test, f.stream->gamut_remap_matrix.enable_remap);
+	KUNIT_EXPECT_FALSE(test, f.stream->csc_color_matrix.enable_adjustment);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_bad_lut3d - Bad 3D LUT size fails early
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_bad_lut3d(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->lut3d = dm_test_make_lut_blob(test, 128);
+
+	KUNIT_EXPECT_EQ(test,
+		amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base,
+						  f.dc_plane_state),
+		-EINVAL);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_fallback_defaults - Legacy fallback default path
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_fallback_defaults(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_EQ(test, f.dc_plane_state->hdr_mult.value, 0LL);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->gamut_remap_matrix.enable_remap);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_maps_crtc_degamma - CRTC implicit degamma path
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_maps_crtc_degamma(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.crtc_state->cm_is_degamma_srgb = true;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_EQ(test,
+			(int)f.dc_plane_state->in_transfer_func.type,
+			(int)TF_TYPE_PREDEFINED);
+	KUNIT_EXPECT_EQ(test,
+			(int)f.dc_plane_state->in_transfer_func.tf,
+			(int)TRANSFER_FUNCTION_SRGB);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_maps_crtc_degamma_lut - CRTC LUT maps to plane degamma
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_maps_crtc_degamma_lut(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	int ret;
+
+	f.crtc_state->cm_has_degamma = true;
+	f.crtc_state->cm_is_degamma_srgb = true;
+	f.crtc_state->base.degamma_lut =
+		dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->in_transfer_func.type,
+			(int)TF_TYPE_DISTRIBUTED_POINTS);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->in_transfer_func.tf,
+			(int)TRANSFER_FUNCTION_SRGB);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_maps_bt709_degamma - Video uses BT.709 degamma
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_maps_bt709_degamma(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	int ret;
+
+	f.crtc_state->cm_is_degamma_srgb = true;
+	f.dc_plane_state->format = SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr;
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->in_transfer_func.tf,
+			(int)TRANSFER_FUNCTION_BT709);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_plane_degamma_lut - Non-linear plane LUT succeeds
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_plane_degamma_lut(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	struct drm_color_lut *lut;
+	int ret;
+
+	f.dm_plane_state->degamma_lut =
+		dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+	lut = f.dm_plane_state->degamma_lut->data;
+	lut[0].red = MAX_DRM_LUT_VALUE;
+	lut[0].green = MAX_DRM_LUT_VALUE;
+	lut[0].blue = MAX_DRM_LUT_VALUE;
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->in_transfer_func.type,
+			(int)TF_TYPE_DISTRIBUTED_POINTS);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_rejects_dual_degamma - Reject two degamma stages
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_rejects_dual_degamma(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	struct drm_crtc *crtc;
+	int ret;
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+	crtc->dev = &f.adev->ddev;
+	f.crtc_state->base.crtc = crtc;
+	f.crtc_state->cm_has_degamma = true;
+	f.dm_plane_state->degamma_tf = AMDGPU_TRANSFER_FUNCTION_SRGB_EOTF;
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_uses_color_caps - DC context provides color caps
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_uses_color_caps(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct dc_context *ctx;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+	ctx->dc = f.adev->dm.dc;
+	f.dc_plane_state->ctx = ctx;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_legacy_luts - Legacy shaper and blend LUTs succeed
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_legacy_luts(struct kunit *test)
+{
+	const u32 lut3d_entries =
+		MAX_COLOR_3DLUT_SIZE * MAX_COLOR_3DLUT_SIZE * MAX_COLOR_3DLUT_SIZE;
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	int ret;
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->shaper_lut =
+		dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+	f.dm_plane_state->lut3d = dm_test_make_lut_blob(test, lut3d_entries);
+	f.dm_plane_state->blend_lut =
+		dm_test_make_lut_blob(test, MAX_COLOR_LUT_ENTRIES);
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_plane_ctm - Plane CTM maps to gamut remap
+ * @test: KUnit test context
+ *
+ * When the plane has a CTM blob, the update path programs the DPP gamut
+ * remap matrix and enables remapping (and disables the input CSC).
+ */
+static void dm_test_update_plane_color_mgmt_plane_ctm(struct kunit *test)
+{
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_color_ctm_3x4 *ctm;
+
+	ctm = kunit_kzalloc(test, sizeof(*ctm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctm);
+	/* Identity-ish entries; values are irrelevant to the branch taken. */
+	ctm->matrix[0] = 0x100000000ULL;
+	ctm->matrix[5] = 0x100000000ULL;
+	ctm->matrix[10] = 0x100000000ULL;
+
+	f.dm_plane_state->ctm = dm_test_make_ctm_blob(test, ctm, sizeof(*ctm));
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->gamut_remap_matrix.enable_remap);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->input_csc_color_matrix.enable_adjustment);
+}
+
+/**
+ * dm_test_colorop_pipeline_add - append one colorop to a fabricated pipeline
+ * @test: KUnit test context
+ * @f: color update fixture that owns the atomic state
+ * @index: colorop array index to populate
+ * @type: colorop type
+ * @curve_1d_type: 1D curve type for DRM_COLOROP_1D_CURVE states
+ * @bypass: bypass flag for the new colorop state
+ *
+ * Returns: the newly allocated colorop.
+ */
+static struct drm_colorop *
+dm_test_colorop_pipeline_add(struct kunit *test,
+			     struct dm_test_color_update_fixture *f,
+			     int index, enum drm_colorop_type type,
+			     enum drm_colorop_curve_1d_type curve_1d_type,
+			     bool bypass)
+{
+	struct drm_colorop_state *colorop_state;
+	struct drm_colorop *colorop;
+
+	colorop = kunit_kzalloc(test, sizeof(*colorop), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, colorop);
+	colorop->dev = &f->adev->ddev;
+	colorop->type = type;
+	colorop->size = MAX_COLOR_LUT_ENTRIES;
+
+	colorop_state = kunit_kzalloc(test, sizeof(*colorop_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, colorop_state);
+	colorop_state->colorop = colorop;
+	colorop_state->curve_1d_type = curve_1d_type;
+	colorop_state->bypass = bypass;
+
+	f->state->colorops[index].ptr = colorop;
+	f->state->colorops[index].new_state = colorop_state;
+
+	return colorop;
+}
+
+/**
+ * dm_test_colorop_pipeline_setup - build a linked colorop pipeline prefix
+ * @test: KUnit test context
+ * @f: color update fixture that owns the atomic state
+ * @types: colorop types to create
+ * @curves: curve type for each colorop state
+ * @bypass: bypass flag for each colorop state
+ * @count: number of colorops to create
+ *
+ * Returns: the first colorop in the linked pipeline.
+ */
+static struct drm_colorop *
+dm_test_colorop_pipeline_setup(struct kunit *test,
+			       struct dm_test_color_update_fixture *f,
+			       const enum drm_colorop_type *types,
+			       const enum drm_colorop_curve_1d_type *curves,
+			       const bool *bypass,
+			       int count)
+{
+	struct drm_colorop **colorops;
+	int i;
+
+	f->state->colorops = kunit_kcalloc(test, count, sizeof(*f->state->colorops),
+					   GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, f->state->colorops);
+	f->adev->ddev.mode_config.num_colorop = count;
+
+	colorops = kunit_kcalloc(test, count, sizeof(*colorops), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, colorops);
+
+	for (i = 0; i < count; i++)
+		colorops[i] = dm_test_colorop_pipeline_add(test, f, i, types[i], curves[i], bypass[i]);
+
+	for (i = 0; i < count - 1; i++)
+		colorops[i]->next = colorops[i + 1];
+
+	return colorops[0];
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_bypass_pipeline - bypassed pipeline succeeds
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_bypass_pipeline(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_INV_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = {
+		true, true, true, true, true, true, true, true,
+	};
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass, ARRAY_SIZE(types));
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_missing_multiplier - missing second op falls back
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_missing_multiplier(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = { DRM_COLOROP_1D_CURVE };
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = { true };
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass, ARRAY_SIZE(types));
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_missing_3x4 - missing third op falls back
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_missing_3x4(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = { true, true };
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass, ARRAY_SIZE(types));
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base, f.dc_plane_state),
+			0);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_truncated - truncated pipelines fall back
+ * @test: KUnit test context
+ *
+ * Covers each pipeline exit after the 3x4 matrix while all present colorops
+ * remain bypassed, avoiding the floating-point color calculation paths.
+ */
+static void dm_test_update_plane_color_mgmt_colorop_truncated(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_INV_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = {
+		true, true, true, true, true, true, true,
+	};
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct dc_plane_state *dc_plane_state = f.dc_plane_state;
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	struct dm_crtc_state *crtc_state = f.crtc_state;
+	int count, ret;
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+
+	for (count = 3; count <= ARRAY_SIZE(types); count++) {
+		f.dm_plane_state->base.color_pipeline =
+			dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass, count);
+		memset(f.dc_plane_state, 0, sizeof(*f.dc_plane_state));
+
+		ret = amdgpu_dm_update_plane_color_mgmt(crtc_state, plane_state, dc_plane_state);
+		KUNIT_EXPECT_EQ_MSG(test, ret, 0, "pipeline length %d should fall back", count);
+		KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+		KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+		KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+	}
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_no_3dlut_hw - no 3D LUT skips 3D ops
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_no_3dlut_hw(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = {
+		true, true, true, true, true, false, true, true,
+	};
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass,
+					       ARRAY_SIZE(types));
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = false;
+
+	KUNIT_EXPECT_EQ(test,
+		amdgpu_dm_update_plane_color_mgmt(f.crtc_state, &f.dm_plane_state->base,
+						  f.dc_plane_state),
+		0);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_shaper - enabled shaper TF and LUT succeed
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_shaper(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_INV_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = {
+		true, true, true, false, false, true, true, true,
+	};
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_colorop_state *shaper_lut_state;
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	struct drm_property_blob *blob;
+	int ret;
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass,
+					       ARRAY_SIZE(types));
+	shaper_lut_state = f.state->colorops[4].new_state;
+	blob = kunit_kzalloc(test, sizeof(*blob), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob);
+	blob->length = MAX_COLOR_LUT_ENTRIES * sizeof(struct drm_color_lut32);
+	blob->data = kunit_kzalloc(test, blob->length, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob->data);
+	shaper_lut_state->data = blob;
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->cm.flags.bits.shaper_enable);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->cm.shaper_func.type,
+			(int)TF_TYPE_DISTRIBUTED_POINTS);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_3dlut - enabled 3D LUT succeeds
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_3dlut(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_INV_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = {
+		true, true, true, true, true, false, true, true,
+	};
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_colorop_state *lut3d_state;
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	struct drm_property_blob *blob;
+	int ret;
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass,
+					       ARRAY_SIZE(types));
+	lut3d_state = f.state->colorops[5].new_state;
+	blob = kunit_kzalloc(test, sizeof(*blob), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob);
+	blob->length = 5 * sizeof(struct drm_color_lut32);
+	blob->data = kunit_kzalloc(test, blob->length, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob->data);
+	lut3d_state->data = blob;
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->cm.shaper_func.type,
+			(int)TF_TYPE_DISTRIBUTED_POINTS);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->cm.shaper_func.tf,
+			(int)TRANSFER_FUNCTION_LINEAR);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_3dlut_no_data - empty 3D LUT falls back
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_3dlut_no_data(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_INV_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = {
+		true, true, true, true, true, false, true, true,
+	};
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	int ret;
+
+	f.adev->dm.dc->caps.color.dpp.hw_3d_lut = true;
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass,
+					       ARRAY_SIZE(types));
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_FALSE(test, f.dc_plane_state->cm.flags.bits.lut3d_enable);
+}
+
+/**
+ * dm_test_update_plane_color_mgmt_colorop_blend - enabled blend TF and LUT succeed
+ * @test: KUnit test context
+ */
+static void dm_test_update_plane_color_mgmt_colorop_blend(struct kunit *test)
+{
+	static const enum drm_colorop_type types[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+	static const enum drm_colorop_curve_1d_type curves[] = {
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+		DRM_COLOROP_1D_CURVE_SRGB_EOTF,
+	};
+	static const bool bypass[] = { true, true, true, false, false };
+	struct dm_test_color_update_fixture f = dm_test_color_update_setup(test);
+	struct drm_colorop_state *blend_lut_state;
+	struct drm_plane_state *plane_state = &f.dm_plane_state->base;
+	struct drm_property_blob *blob;
+	int ret;
+
+	f.dm_plane_state->base.color_pipeline =
+		dm_test_colorop_pipeline_setup(test, &f, types, curves, bypass,
+					       ARRAY_SIZE(types));
+	blend_lut_state = f.state->colorops[4].new_state;
+	blob = kunit_kzalloc(test, sizeof(*blob), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob);
+	blob->length = MAX_COLOR_LUT_ENTRIES * sizeof(struct drm_color_lut32);
+	blob->data = kunit_kzalloc(test, blob->length, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, blob->data);
+	blend_lut_state->data = blob;
+
+	ret = amdgpu_dm_update_plane_color_mgmt(f.crtc_state, plane_state,
+						f.dc_plane_state);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_TRUE(test, f.dc_plane_state->cm.flags.bits.blend_enable);
+	KUNIT_EXPECT_EQ(test, (int)f.dc_plane_state->cm.blend_func.type,
+			(int)TF_TYPE_DISTRIBUTED_POINTS);
+}
+
 static struct kunit_case dm_color_test_cases[] = {
 	/* amdgpu_dm_fixpt_from_s3132 */
 	KUNIT_CASE(dm_test_fixpt_from_s3132_zero),
@@ -1614,16 +2965,66 @@ static struct kunit_case dm_color_test_cases[] = {
 	/* __set_tf_distributed_points */
 	KUNIT_CASE(dm_test_set_tf_distributed_points_srgb),
 	KUNIT_CASE(dm_test_set_tf_distributed_points_pq),
+	/* Transfer-function calculation helpers */
+	KUNIT_CASE(dm_test_set_legacy_tf_identity),
+	KUNIT_CASE(dm_test_set_output_tf_linear),
+	KUNIT_CASE(dm_test_set_output_tf_32_srgb_rom),
+	KUNIT_CASE(dm_test_set_input_tf_srgb),
+	KUNIT_CASE(dm_test_set_input_tf_32_srgb),
+	KUNIT_CASE(dm_test_set_transfer_funcs_with_luts),
 	/* amdgpu_dm_set_atomic_regamma */
 	KUNIT_CASE(dm_test_set_atomic_regamma_bypass),
+	KUNIT_CASE(dm_test_set_atomic_regamma_srgb),
 	/* amdgpu_dm_atomic_shaper_lut */
 	KUNIT_CASE(dm_test_atomic_shaper_lut_bypass),
 	/* amdgpu_dm_atomic_blend_lut */
 	KUNIT_CASE(dm_test_atomic_blend_lut_bypass),
+	KUNIT_CASE(dm_test_atomic_shaper_blend_srgb),
 	/* __set_colorop_in_tf_1d_curve */
 	KUNIT_CASE(dm_test_set_colorop_in_tf_1d_curve_invalid_type),
 	KUNIT_CASE(dm_test_set_colorop_in_tf_1d_curve_unsupported_curve),
 	KUNIT_CASE(dm_test_set_colorop_in_tf_1d_curve_bypass),
+	/* amdgpu_dm_init_color_mod */
+	KUNIT_CASE(dm_test_init_color_mod),
+	/* amdgpu_dm_verify_lut3d_size */
+	KUNIT_CASE(dm_test_verify_lut3d_no_luts),
+	KUNIT_CASE(dm_test_verify_lut3d_bad_shaper),
+	KUNIT_CASE(dm_test_verify_lut3d_bad_lut3d),
+	KUNIT_CASE(dm_test_verify_lut3d_valid),
+	/* __set_dm_plane_colorop_multiplier */
+	KUNIT_CASE(dm_test_colorop_multiplier_applied),
+	KUNIT_CASE(dm_test_colorop_multiplier_no_match),
+	/* __set_dm_plane_colorop_3x4_matrix */
+	KUNIT_CASE(dm_test_colorop_3x4_matrix_applied),
+	KUNIT_CASE(dm_test_colorop_3x4_matrix_bad_length),
+	/* __set_dm_plane_colorop_degamma */
+	KUNIT_CASE(dm_test_colorop_degamma_predefined),
+	KUNIT_CASE(dm_test_colorop_degamma_no_match),
+	/* CRTC and plane color management update paths */
+	KUNIT_CASE(dm_test_check_crtc_color_mgmt_no_luts),
+	KUNIT_CASE(dm_test_check_crtc_color_mgmt_legacy_regamma),
+	KUNIT_CASE(dm_test_check_crtc_color_mgmt_degamma),
+	KUNIT_CASE(dm_test_update_crtc_color_mgmt_no_ctm),
+	KUNIT_CASE(dm_test_update_crtc_color_mgmt_ctm),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_bad_lut3d),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_fallback_defaults),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_maps_crtc_degamma),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_maps_crtc_degamma_lut),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_maps_bt709_degamma),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_plane_degamma_lut),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_rejects_dual_degamma),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_uses_color_caps),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_legacy_luts),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_plane_ctm),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_bypass_pipeline),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_missing_multiplier),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_missing_3x4),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_truncated),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_no_3dlut_hw),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_shaper),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_3dlut),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_3dlut_no_data),
+	KUNIT_CASE(dm_test_update_plane_color_mgmt_colorop_blend),
 	{}
 };
 

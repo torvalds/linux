@@ -21,20 +21,6 @@ union inet_addr {
 	struct in6_addr	in6;
 };
 
-/*
- * Maximum payload netpoll's preallocated skb pool can carry. Keep this in
- * sync with the buffer size used by refill_skbs() in net/core/netpoll.c;
- * callers (e.g. netconsole) use it to detect requests the pool can never
- * satisfy and avoid dequeuing a pooled skb that would later trip
- * skb_over_panic() in skb_put().
- */
-#define MAX_UDP_CHUNK	1460
-#define MAX_SKB_SIZE						\
-	(sizeof(struct ethhdr) +				\
-	 sizeof(struct iphdr) +					\
-	 sizeof(struct udphdr) +				\
-	 MAX_UDP_CHUNK)
-
 struct netpoll {
 	struct net_device *dev;
 	netdevice_tracker dev_tracker;
@@ -46,13 +32,6 @@ struct netpoll {
 	char dev_name[IFNAMSIZ];
 	u8 dev_mac[ETH_ALEN];
 	const char *name;
-
-	union inet_addr local_ip, remote_ip;
-	bool ipv6;
-	u16 local_port, remote_port;
-	u8 remote_mac[ETH_ALEN];
-	struct sk_buff_head skb_pool;
-	struct work_struct refill_wq;
 };
 
 #define np_info(np, fmt, ...)				\
@@ -84,12 +63,12 @@ static inline void netpoll_poll_enable(struct net_device *dev) { return; }
 #endif
 
 int __netpoll_setup(struct netpoll *np, struct net_device *ndev);
-int netpoll_setup(struct netpoll *np);
 void __netpoll_free(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
 void do_netpoll_cleanup(struct netpoll *np);
 netdev_tx_t netpoll_send_skb(struct netpoll *np, struct sk_buff *skb);
 void netpoll_zap_completion_queue(void);
+unsigned int netpoll_get_carrier_timeout(void);
 
 #ifdef CONFIG_NETPOLL
 static inline void *netpoll_poll_lock(struct napi_struct *napi)

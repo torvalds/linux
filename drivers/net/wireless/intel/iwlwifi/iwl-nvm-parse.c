@@ -225,6 +225,18 @@ enum iwl_reg_capa_flags_v5 {
 	REG_CAPA_V5_11BN_DISABLED		= BIT(17),
 }; /* GEO_CHANNEL_CAPABILITIES_API_S_VER_4, 5 */
 
+/**
+ * enum iwl_reg_capa_flags_v6 - global capability flags,
+ *	applicable from MCC response version 10 onwards.
+ * Response v6 includes all members of iwl_reg_capa_flags_v5; only v6-specific
+ * additions are listed here.
+ * @REG_CAPA_V6_EHT_PUNCTURING_ENABLED: EHT puncturing is enabled for this
+ *	regulatory domain.
+ */
+enum iwl_reg_capa_flags_v6 {
+	REG_CAPA_V6_EHT_PUNCTURING_ENABLED	= BIT(18),
+}; /* GEO_CHANNEL_CAPABILITIES_API_S_VER_6 */
+
 /*
 * API v2 for reg_capa_flags is relevant from version 6 and onwards of the
 * MCC update command response.
@@ -235,6 +247,11 @@ enum iwl_reg_capa_flags_v5 {
  * MCC update command response.
  */
 #define REG_CAPA_V4_RESP_VER	8
+
+/* API v6 for reg_capa_flags is relevant from version 10 and onwards of the
+ * MCC update command response.
+ */
+#define REG_CAPA_V6_RESP_VER	10
 
 static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 					       int chan, u32 flags)
@@ -697,7 +714,8 @@ static const struct ieee80211_sband_iftype_data iwl_iftype_cap[] = {
 			.mac.mac_cap = {
 				[0] = IEEE80211_UHR_MAC_CAP0_NPCA_SUPP |
 				      IEEE80211_UHR_MAC_CAP0_DPS_SUPP,
-				[1] = IEEE80211_UHR_MAC_CAP1_DUO_SUPP,
+				[1] = IEEE80211_UHR_MAC_CAP1_DUO_SUPP |
+				      IEEE80211_UHR_MAC_CAP1_DBE_SUPP,
 			},
 		},
 	},
@@ -1687,6 +1705,13 @@ static struct iwl_reg_capa iwl_get_reg_capa(u32 flags, u8 resp_ver)
 {
 	struct iwl_reg_capa reg_capa = {};
 
+	if (resp_ver >= REG_CAPA_V6_RESP_VER) {
+		if (flags & REG_CAPA_V6_EHT_PUNCTURING_ENABLED)
+			reg_capa.puncturing_status = IWL_PUNCTURING_STATUS_ENABLED;
+		else
+			reg_capa.puncturing_status = IWL_PUNCTURING_STATUS_DISABLED;
+	}
+
 	if (resp_ver >= REG_CAPA_V4_RESP_VER) {
 		reg_capa.allow_40mhz = true;
 		reg_capa.allow_80mhz = flags & REG_CAPA_V5_80MHZ_ALLOWED;
@@ -1713,7 +1738,8 @@ static struct iwl_reg_capa iwl_get_reg_capa(u32 flags, u8 resp_ver)
 struct ieee80211_regdomain *
 iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 		       int num_of_ch, __le32 *channels, u16 fw_mcc,
-		       u16 geo_info, u32 cap, u8 resp_ver)
+		       u16 geo_info, u32 cap, u8 resp_ver,
+		       enum iwl_puncturing_status *puncturing_status)
 {
 	const struct iwl_rf_cfg *cfg = trans->cfg;
 	struct device *dev = trans->dev;
@@ -1775,6 +1801,9 @@ iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 
 	/* parse regulatory capability flags */
 	reg_capa = iwl_get_reg_capa(cap, resp_ver);
+
+	if (puncturing_status)
+		*puncturing_status = reg_capa.puncturing_status;
 
 	for (ch_idx = 0; ch_idx < num_of_ch; ch_idx++) {
 		enum nl80211_band band =

@@ -1237,6 +1237,26 @@ ieee80211_chandef_max_power(struct cfg80211_chan_def *chandef)
 }
 
 /**
+ * cfg80211_chandef_s1g_pri_width - return S1G primary width in MHz
+ *
+ * An S1G interface may have a primary channel width of either 1
+ * or 2MHz depending on whether chandef::s1g_primary_2mhz is set.
+ *
+ * Note: There is _always_ a 1MHz primary subchannel, regardless
+ * of the primary width. So chandef::chan always points to this
+ * 1MHz primary channel.
+ *
+ * @chandef: the chandef to use
+ *
+ * Returns: width in MHz of the S1G primary channel in use
+ */
+static inline int
+cfg80211_chandef_s1g_pri_width(struct cfg80211_chan_def *chandef)
+{
+	return chandef->s1g_primary_2mhz ? 2 : 1;
+}
+
+/**
  * cfg80211_any_usable_channels - check for usable channels
  * @wiphy: the wiphy to check for
  * @band_mask: which bands to check on
@@ -2803,7 +2823,7 @@ struct mesh_setup {
 	u8 path_metric;
 	u8 auth_id;
 	const u8 *ie;
-	u8 ie_len;
+	size_t ie_len;
 	bool is_authenticated;
 	bool is_secure;
 	bool user_mpm;
@@ -3722,6 +3742,7 @@ enum wiphy_params_flags {
 /* The per TXQ device queue limit in airtime */
 #define IEEE80211_DEFAULT_AQL_TXQ_LIMIT_L	5000
 #define IEEE80211_DEFAULT_AQL_TXQ_LIMIT_H	12000
+#define IEEE80211_DEFAULT_AQL_TXQ_LIMIT_MC	50000
 
 /* The per interface airtime threshold to switch to lower queue limit */
 #define IEEE80211_AQL_THRESHOLD			24000
@@ -5086,8 +5107,9 @@ struct mgmt_frame_regs {
  * @tdls_mgmt: Transmit a TDLS management frame.
  * @tdls_oper: Perform a high-level TDLS operation (e.g. TDLS link setup).
  *
- * @probe_client: probe an associated client, must return a cookie that it
- *	later passes to cfg80211_probe_status().
+ * @probe_peer: probe a connected peer (AP: STA MAC required; STA: no MAC),
+ *	must use the @cookie as provided which is later passed to
+ *	cfg80211_probe_status().
  *
  * @set_noack_map: Set the NoAck Map for the TIDs.
  *
@@ -5198,7 +5220,8 @@ struct mgmt_frame_regs {
  *     user space
  *
  * @tx_control_port: TX a control port frame (EAPoL).  The noencrypt parameter
- *	tells the driver that the frame should not be encrypted.
+ *	tells the driver that the frame should not be encrypted. A @cookie
+ *	value of 0 means the caller does not want TX status reporting.
  *
  * @get_ftm_responder_stats: Retrieve FTM responder statistics, if available.
  *	Statistics should be cumulative, currently no way to reset is provided.
@@ -5435,14 +5458,14 @@ struct cfg80211_ops {
 				     struct wireless_dev *wdev,
 				     struct ieee80211_channel *chan,
 				     unsigned int duration,
-				     u64 *cookie, const u8 *rx_addr);
+				     u64 cookie, const u8 *rx_addr);
 	int	(*cancel_remain_on_channel)(struct wiphy *wiphy,
 					    struct wireless_dev *wdev,
 					    u64 cookie);
 
 	int	(*mgmt_tx)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			   struct cfg80211_mgmt_tx_params *params,
-			   u64 *cookie);
+			   u64 cookie);
 	int	(*mgmt_tx_cancel_wait)(struct wiphy *wiphy,
 				       struct wireless_dev *wdev,
 				       u64 cookie);
@@ -5488,8 +5511,8 @@ struct cfg80211_ops {
 	int	(*tdls_oper)(struct wiphy *wiphy, struct net_device *dev,
 			     const u8 *peer, enum nl80211_tdls_operation oper);
 
-	int	(*probe_client)(struct wiphy *wiphy, struct net_device *dev,
-				const u8 *peer, u64 *cookie);
+	int	(*probe_peer)(struct wiphy *wiphy, struct net_device *dev,
+			      const u8 *peer, u64 cookie);
 
 	int	(*set_noack_map)(struct wiphy *wiphy,
 				  struct net_device *dev,
@@ -5587,7 +5610,7 @@ struct cfg80211_ops {
 				   const u8 *buf, size_t len,
 				   const u8 *dest, const __be16 proto,
 				   const bool noencrypt, int link_id,
-				   u64 *cookie);
+				   u64 cookie);
 
 	int	(*get_ftm_responder_stats)(struct wiphy *wiphy,
 				struct net_device *dev,
@@ -5690,7 +5713,6 @@ struct cfg80211_ops {
  *	set this flag to update channels on beacon hints.
  * @WIPHY_FLAG_SUPPORTS_NSTR_NONPRIMARY: support connection to non-primary link
  *	of an NSTR mobile AP MLD.
- * @WIPHY_FLAG_DISABLE_WEXT: disable wireless extensions for this device
  */
 enum wiphy_flags {
 	WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK		= BIT(0),
@@ -5702,7 +5724,7 @@ enum wiphy_flags {
 	WIPHY_FLAG_4ADDR_STATION		= BIT(6),
 	WIPHY_FLAG_CONTROL_PORT_PROTOCOL	= BIT(7),
 	WIPHY_FLAG_IBSS_RSN			= BIT(8),
-	WIPHY_FLAG_DISABLE_WEXT			= BIT(9),
+	/* reuse bit 9 */
 	WIPHY_FLAG_MESH_AUTH			= BIT(10),
 	WIPHY_FLAG_SUPPORTS_EXT_KCK_32          = BIT(11),
 	WIPHY_FLAG_SUPPORTS_NSTR_NONPRIMARY	= BIT(12),
@@ -8405,6 +8427,8 @@ cfg80211_inform_bss(struct wiphy *wiphy,
  * @bss_type: type of BSS, see &enum ieee80211_bss_type
  * @privacy: privacy filter, see &enum ieee80211_privacy
  * @use_for: indicates which use is intended
+ * @extack: (optional) extack that is filled with the reason when no
+ *	usable entry was found; may be %NULL
  *
  * Return: Reference-counted BSS on success. %NULL on error.
  */
@@ -8414,7 +8438,8 @@ struct cfg80211_bss *__cfg80211_get_bss(struct wiphy *wiphy,
 					const u8 *ssid, size_t ssid_len,
 					enum ieee80211_bss_type bss_type,
 					enum ieee80211_privacy privacy,
-					u32 use_for);
+					u32 use_for,
+					struct netlink_ext_ack *extack);
 
 /**
  * cfg80211_get_bss - get a BSS reference
@@ -8438,7 +8463,7 @@ cfg80211_get_bss(struct wiphy *wiphy, struct ieee80211_channel *channel,
 {
 	return __cfg80211_get_bss(wiphy, channel, bssid, ssid, ssid_len,
 				  bss_type, privacy,
-				  NL80211_BSS_USE_FOR_NORMAL);
+				  NL80211_BSS_USE_FOR_NORMAL, NULL);
 }
 
 static inline struct cfg80211_bss *
@@ -9846,15 +9871,17 @@ bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev, const u8 *addr,
 /**
  * cfg80211_probe_status - notify userspace about probe status
  * @dev: the device the probe was sent on
- * @addr: the address of the peer
- * @cookie: the cookie filled in @probe_client previously
+ * @peer: The peer MAC address (or MLD address for MLO) or %NULL if not
+ *	applicable (e.g. for STA/P2P-client)
+ * @cookie: the cookie filled in @probe_peer previously
+ * @link_id: The link ID on which the probe was sent (or -1 for non-MLO)
  * @acked: indicates whether probe was acked or not
  * @ack_signal: signal strength (in dBm) of the ACK frame.
  * @is_valid_ack_signal: indicates the ack_signal is valid or not.
  * @gfp: allocation flags
  */
-void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
-			   u64 cookie, bool acked, s32 ack_signal,
+void cfg80211_probe_status(struct net_device *dev, const u8 *peer, u64 cookie,
+			   int link_id, bool acked, s32 ack_signal,
 			   bool is_valid_ack_signal, gfp_t gfp);
 
 /**

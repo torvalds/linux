@@ -473,10 +473,23 @@ void drm_gem_shmem_vunmap_locked(struct drm_gem_shmem_object *shmem,
 }
 EXPORT_SYMBOL_GPL(drm_gem_shmem_vunmap_locked);
 
-static int
-drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
-				 struct drm_device *dev, size_t size,
-				 uint32_t *handle)
+/**
+ * drm_gem_shmem_create_with_handle - Allocate an object with the given size and
+ *	returns a GEM handle
+ * @file_priv: DRM file structure to create the dumb buffer for
+ * @dev: DRM device
+ * @size: Size of the object to allocate
+ * @handle: Returns the GEM handle on success
+ *
+ * Allocates an shmem GEM buffer using drm_gem_shmem_create() and returns
+ * a GEM handle to it.
+ *
+ * Returns:
+ * Zero on success, or an error code otherwise.
+ */
+int drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
+				     struct drm_device *dev, size_t size,
+				     uint32_t *handle)
 {
 	struct drm_gem_shmem_object *shmem;
 	int ret;
@@ -495,6 +508,7 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(drm_gem_shmem_create_with_handle);
 
 /* Update madvise status, returns true if not purged, else
  * false or -errno.
@@ -757,7 +771,7 @@ int drm_gem_shmem_mmap(struct drm_gem_shmem_object *shmem, struct vm_area_struct
 		return ret;
 	}
 
-	if (is_cow_mapping(vma->vm_flags))
+	if (vma_is_cow_mapping(vma))
 		return -EINVAL;
 
 	dma_resv_lock(shmem->base.resv, NULL);
@@ -768,7 +782,7 @@ int drm_gem_shmem_mmap(struct drm_gem_shmem_object *shmem, struct vm_area_struct
 		return ret;
 
 	vm_flags_set(vma, VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP);
-	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+	vma->vm_page_prot = vma_get_page_prot(vma);
 	if (shmem->map_wc)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 

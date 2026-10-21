@@ -180,14 +180,14 @@ const struct arch *arch__find(uint16_t e_machine, uint32_t e_flags, const char *
 	if (!tmp)
 		return NULL;
 
+	archs = tmp;
+
 	result = arch_new_fn[e_machine](&key, cpuid);
 	if (!result) {
-		pr_err("%s: failed to initialize %s (%u) arch priv area\n",
-			__func__, result->name, e_machine);
-		free(tmp);
+		pr_err("%s: failed to initialize %u arch priv area\n",
+			__func__, e_machine);
 		return NULL;
 	}
-	archs = tmp;
 	archs[num_archs++] = result;
 	qsort(archs, num_archs, sizeof(*archs), arch__cmp);
 	return result;

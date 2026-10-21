@@ -2679,7 +2679,7 @@ static const struct drm_bridge_funcs anx7625_bridge_funcs = {
 	.atomic_disable = anx7625_bridge_atomic_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.detect = anx7625_bridge_detect,
 	.edid_read = anx7625_bridge_edid_read,
 	.hpd_enable = anx7625_bridge_hpd_enable,
@@ -2993,8 +2993,8 @@ static void anx7625_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id anx7625_id[] = {
-	{ "anx7625" },
-	{}
+	{ .name = "anx7625" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, anx7625_id);

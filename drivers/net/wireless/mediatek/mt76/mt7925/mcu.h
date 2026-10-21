@@ -175,6 +175,27 @@ enum connac3_mcu_cipher_type {
 	CONNAC3_CIPHER_GCMP_256 = 12,
 };
 
+enum DMASHDL_GROUP_IDX {
+	DMASHDL_GROUP_0 = 0,
+	DMASHDL_GROUP_1,
+	DMASHDL_GROUP_2,
+	DMASHDL_GROUP_3,
+	DMASHDL_GROUP_4,
+	DMASHDL_GROUP_5,
+	DMASHDL_GROUP_6,
+	DMASHDL_GROUP_7,
+	DMASHDL_GROUP_8,
+	DMASHDL_GROUP_9,
+	DMASHDL_GROUP_10,
+	DMASHDL_GROUP_11,
+	DMASHDL_GROUP_12,
+	DMASHDL_GROUP_13,
+	DMASHDL_GROUP_14,
+	DMASHDL_GROUP_15,
+	DMASHDL_GROUP_NUM,
+	DMASHDL_LITE_GROUP_NUM = 64
+};
+
 struct mt7925_mcu_scan_chinfo_event {
 	u8 nr_chan;
 	u8 alpha2[3];
@@ -587,6 +608,9 @@ struct mt7925_wow_pattern_tlv {
 	u8 rsv[4];
 };
 
+#define MT7925_WOW_PATTERN_TLV_V2_SIZE	\
+	(offsetof(struct mt7925_wow_pattern_tlv, rsv) + 3)
+
 struct roc_acquire_tlv {
 	__le16 tag;
 	__le16 len;
@@ -674,6 +698,25 @@ mt7925_mcu_get_cipher(int cipher)
 		return CONNAC3_CIPHER_NONE;
 	}
 }
+
+static inline bool
+mt7925_mcu_tlv_valid(struct tlv *tlv, u32 rem)
+{
+	u16 len;
+
+	if (rem < sizeof(*tlv))
+		return false;
+
+	len = le16_to_cpu(tlv->len);
+
+	/* a length below the header size would not advance the cursor */
+	return len >= sizeof(*tlv) && len <= rem;
+}
+
+#define mt7925_for_each_tlv(tlv, rem)					\
+	for (; mt7925_mcu_tlv_valid(tlv, rem);				\
+	     (rem) -= le16_to_cpu((tlv)->len),				\
+	     (tlv) = (struct tlv *)((u8 *)(tlv) + le16_to_cpu((tlv)->len)))
 
 int mt7925_mcu_set_dbdc(struct mt76_phy *phy, bool enable);
 int mt7925_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,

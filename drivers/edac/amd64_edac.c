@@ -4173,6 +4173,8 @@ static int __init amd64_edac_init(void)
 		goto err_pci;
 	}
 
+	request_module_nowait("amd_atl");
+
 	/* register stuff with EDAC MCE */
 	if (boot_cpu_data.x86 >= 0x17) {
 		amd_register_ecc_decoder(decode_umc_error);

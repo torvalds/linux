@@ -125,8 +125,8 @@ struct ap_tapq_hwinfo {
 			unsigned int nd	   :  8; /* nr of domains */
 			unsigned int	   :  4;
 			unsigned int ml	   :  4; /* apxl ml */
-			unsigned int	   :  4;
-			unsigned int qd	   :  4; /* queue depth */
+			unsigned int	   :  3;
+			unsigned int qd	   :  5; /* queue depth */
 		};
 	};
 };

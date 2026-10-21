@@ -493,6 +493,10 @@
 #define regSDMA_RLC0_MIDCMD_DATA10_BASE_IDX                                                             0
 #define regSDMA_RLC0_MIDCMD_CNTL                                                                        0x017b
 #define regSDMA_RLC0_MIDCMD_CNTL_BASE_IDX                                                               0
+#define regSDMA_RLC0_UTILIZATION_LO                                                                     0x017c
+#define regSDMA_RLC0_UTILIZATION_LO_BASE_IDX                                                            0
+#define regSDMA_RLC0_UTILIZATION_HI                                                                     0x017d
+#define regSDMA_RLC0_UTILIZATION_HI_BASE_IDX                                                            0
 #define regSDMA_RLC1_RB_CNTL                                                                            0x0188
 #define regSDMA_RLC1_RB_CNTL_BASE_IDX                                                                   0
 #define regSDMA_RLC1_RB_BASE                                                                            0x0189

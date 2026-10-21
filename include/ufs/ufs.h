@@ -25,6 +25,11 @@ static_assert(sizeof(struct utp_upiu_query) == 20);
 
 #define GENERAL_UPIU_REQUEST_SIZE (sizeof(struct utp_upiu_req))
 #define QUERY_DESC_MAX_SIZE       255
+/*
+ * Max aggregated read data segment: the devman response area
+ * (ALIGNED_DEVMAN_RSP_SIZE) minus the fixed UPIU header it follows.
+ */
+#define QUERY_AGGREGATED_MAX_SIZE (4096 - GENERAL_UPIU_REQUEST_SIZE)
 #define QUERY_DESC_MIN_SIZE       2
 #define QUERY_DESC_HDR_SIZE       2
 #define QUERY_OSF_SIZE            (GENERAL_UPIU_REQUEST_SIZE - \
@@ -464,6 +469,7 @@ enum query_opcode {
 	UPIU_QUERY_OPCODE_SET_FLAG	= 0x6,
 	UPIU_QUERY_OPCODE_CLEAR_FLAG	= 0x7,
 	UPIU_QUERY_OPCODE_TOGGLE_FLAG	= 0x8,
+	UPIU_QUERY_OPCODE_AGGREGATED_READ = 0x9,
 };
 
 /* bRefClkFreq attribute values */

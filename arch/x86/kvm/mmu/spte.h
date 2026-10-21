@@ -357,17 +357,6 @@ static inline bool is_last_spte(u64 pte, int level)
 	return (level == PG_LEVEL_4K) || is_large_pte(pte);
 }
 
-static inline bool is_executable_pte(u64 spte)
-{
-	/*
-	 * For now, return true if either the XS or XU bit is set
-	 * This function is only used for fast_page_fault,
-	 * which never processes shadow EPT, and regular page
-	 * tables always have XS==XU.
-	 */
-	return (spte & (shadow_xs_mask | shadow_xu_mask | shadow_nx_mask)) != shadow_nx_mask;
-}
-
 static inline kvm_pfn_t spte_to_pfn(u64 pte)
 {
 	return (pte & SPTE_BASE_ADDR_MASK) >> PAGE_SHIFT;
@@ -378,33 +367,33 @@ static inline bool is_accessed_spte(u64 spte)
 	return spte & shadow_accessed_mask;
 }
 
-static inline u64 get_rsvd_bits(struct rsvd_bits_validate *rsvd_check, u64 pte,
+static inline u64 get_rsvd_bits(struct kvm_page_format *fmt, u64 pte,
 				int level)
 {
 	int bit7 = (pte >> 7) & 1;
 
-	return rsvd_check->rsvd_bits_mask[bit7][level-1];
+	return fmt->rsvd_bits_mask[bit7][level-1];
 }
 
-static inline bool __is_rsvd_bits_set(struct rsvd_bits_validate *rsvd_check,
+static inline bool __is_rsvd_bits_set(struct kvm_page_format *fmt,
 				      u64 pte, int level)
 {
-	return pte & get_rsvd_bits(rsvd_check, pte, level);
+	return pte & get_rsvd_bits(fmt, pte, level);
 }
 
-static inline bool __is_bad_mt_xwr(struct rsvd_bits_validate *rsvd_check,
+static inline bool __is_bad_mt_xwr(struct kvm_page_format *fmt,
 				   u64 pte)
 {
 	if (pte & VMX_EPT_USER_EXECUTABLE_MASK)
 		pte |= VMX_EPT_EXECUTABLE_MASK;
-	return rsvd_check->bad_mt_xwr & BIT_ULL(pte & 0x3f);
+	return fmt->bad_mt_xwr & BIT_ULL(pte & 0x3f);
 }
 
-static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
+static __always_inline bool is_rsvd_spte(struct kvm_page_format *fmt,
 					 u64 spte, int level)
 {
-	return __is_bad_mt_xwr(rsvd_check, spte) ||
-	       __is_rsvd_bits_set(rsvd_check, spte, level);
+	return __is_bad_mt_xwr(fmt, spte) ||
+	       __is_rsvd_bits_set(fmt, spte, level);
 }
 
 /*
@@ -496,20 +485,40 @@ static inline bool is_mmu_writable_spte(u64 spte)
 }
 
 /*
- * Returns true if the access indicated by @fault is allowed by the existing
- * SPTE protections.  Note, the caller is responsible for checking that the
- * SPTE is a shadow-present, leaf SPTE (either before or after).
+ * Returns true if the access indicated by @fault is forbidden by the existing
+ * SPTE protections.
  */
-static inline bool is_access_allowed(struct kvm_page_fault *fault, u64 spte)
+static inline bool spte_permission_fault(struct kvm_mmu *mmu, u64 spte,
+					 struct kvm_page_fault *fault)
 {
-	if (fault->exec)
-		return is_executable_pte(spte);
+	unsigned pfec, pte_access;
 
-	if (fault->write)
-		return is_writable_pte(spte);
+	if (!is_shadow_present_pte(spte))
+		return true;
 
-	/* Fault was on Read access */
-	return spte & PT_PRESENT_MASK;
+	BUILD_BUG_ON(PT_PRESENT_MASK != ACC_READ_MASK);
+	BUILD_BUG_ON(PT_WRITABLE_MASK != ACC_WRITE_MASK);
+	BUILD_BUG_ON(VMX_EPT_READABLE_MASK != ACC_READ_MASK);
+	BUILD_BUG_ON(VMX_EPT_WRITABLE_MASK != ACC_WRITE_MASK);
+
+	/* strip nested paging fault error codes */
+	pte_access = spte & (PT_PRESENT_MASK | PT_WRITABLE_MASK);
+	if (shadow_nx_mask) {
+		pte_access |= spte & shadow_user_mask ? ACC_USER_MASK : 0;
+		pte_access |= spte & shadow_nx_mask ? 0 : ACC_EXEC_MASK;
+	} else {
+		pte_access |= spte & shadow_xs_mask ? ACC_EXEC_MASK : 0;
+		pte_access |= spte & shadow_xu_mask ? ACC_USER_EXEC_MASK : 0;
+	}
+
+	/*
+	 * RSVD is handled elsewhere, and is used for SMAP in the context
+	 * of accessing fmt.permissions[].  SPTEs never use PK or SS, as
+	 * they are not supported for shadow paging and irrelevant for TDP.
+	 */
+	pfec = fault->error_code & (
+		PFERR_WRITE_MASK | PFERR_USER_MASK | PFERR_FETCH_MASK);
+	return (mmu->fmt.permissions[pfec >> 1] >> pte_access) & 1;
 }
 
 /*

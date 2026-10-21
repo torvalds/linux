@@ -331,6 +331,15 @@ static void smack_log_callback(struct audit_buffer *ab, void *a)
 		audit_log_format(ab, " labels_differ");
 	else
 		audit_log_format(ab, " requested=%s", sad->request);
+
+	if (sad->subj_tsk) {
+		char comm[TASK_COMM_LEN];
+
+		audit_log_format(ab, " subj_pid=%d subj_comm=",
+			task_tgid_nr(sad->subj_tsk));
+		audit_log_untrustedstring(ab,
+			get_task_comm(comm, sad->subj_tsk));
+	}
 }
 
 /**

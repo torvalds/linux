@@ -424,7 +424,8 @@ section above) has the following data format for 'integrity' target.
 
  target_attributes := <target_name> "," <target_version> "," <dev_name> "," <start>
                       <tag_size> "," <mode> "," [<meta_device> ","] [<block_size> ","] <recalculate> ","
-                      <allow_discards> "," <fix_padding> "," <fix_hmac> "," <legacy_recalculate> ","
+                      <allow_discards> "," <allow_discards_keyed> "," <fix_padding> "," <fix_hmac> ","
+                      <legacy_recalculate> ","
                       <journal_sectors> "," <interleave_sectors> "," <buffer_sectors> ";"
 
  target_name := "target_name=integrity"
@@ -438,6 +439,7 @@ section above) has the following data format for 'integrity' target.
  block_size := "block_size=" <N>
  recalculate := "recalculate=" <yes_no>
  allow_discards := "allow_discards=" <yes_no>
+ allow_discards_keyed := "allow_discards_keyed=" <yes_no>
  fix_padding := "fix_padding=" <yes_no>
  fix_hmac := "fix_hmac=" <yes_no>
  legacy_recalculate := "legacy_recalculate=" <yes_no>
@@ -455,7 +457,8 @@ section above) has the following data format for 'integrity' target.
  dm_version=4.45.0;
  name=integrity1,uuid=,major=253,minor=1,minor_count=1,num_targets=1;
  target_index=0,target_begin=0,target_len=7856,target_name=integrity,target_version=1.10.0,
- dev_name=253:0,start=0,tag_size=32,mode=J,recalculate=n,allow_discards=n,fix_padding=n,
+ dev_name=253:0,start=0,tag_size=32,mode=J,recalculate=n,allow_discards=n,
+ allow_discards_keyed=n,fix_padding=n,
  fix_hmac=n,legacy_recalculate=n,journal_sectors=88,interleave_sectors=32768,buffer_sectors=128;
 
 

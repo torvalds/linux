@@ -49,6 +49,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/leds.h>
 #include <asm/io.h>
 #include <asm/reboot.h>
@@ -157,18 +158,27 @@ static inline void tx4927_pci_setup(void) {}
 static inline void tx4937_pci_setup(void) {}
 #endif /* CONFIG_PCI */
 
+/* TX4927-SIO DTR on (PIO[15]) */
+GPIO_LOOKUP_SINGLE(sio_gpio_table, NULL, "TXx9", 15, "sio-dtr",
+		   GPIO_ACTIVE_HIGH);
+
 static void __init rbtx4927_gpio_init(void)
 {
-	/* TX4927-SIO DTR on (PIO[15]) */
-	gpio_request(15, "sio-dtr");
-	gpio_direction_output(15, 1);
+	struct gpio_desc *d;
+
+	gpiod_add_lookup_table(&sio_gpio_table);
+	d = gpiod_get(NULL, "sio-dtr", GPIOD_OUT_HIGH);
+	if (IS_ERR(d))
+		pr_err("Unable to get sio-dtr GPIO descriptor\n");
+	else
+		gpiod_put(d);
 
 	tx4927_sio_init(0, 0);
 }
 
 static void __init rbtx4927_arch_init(void)
 {
-	txx9_gpio_init(TX4927_PIO_REG & 0xfffffffffULL, 0, TX4927_NUM_PIO);
+	txx9_gpio_init(TX4927_PIO_REG & 0xfffffffffULL, TX4927_NUM_PIO);
 
 	rbtx4927_gpio_init();
 
@@ -177,7 +187,7 @@ static void __init rbtx4927_arch_init(void)
 
 static void __init rbtx4937_arch_init(void)
 {
-	txx9_gpio_init(TX4938_PIO_REG & 0xfffffffffULL, 0, TX4938_NUM_PIO);
+	txx9_gpio_init(TX4938_PIO_REG & 0xfffffffffULL, TX4938_NUM_PIO);
 
 	rbtx4927_gpio_init();
 
@@ -317,11 +327,19 @@ static void __init rbtx4927_mtd_init(void)
 		tx4927_mtd_init(i);
 }
 
+static struct gpiod_lookup_table rbtx4927_gpioled_table = {
+	.table = {
+		GPIO_LOOKUP_IDX("TXx9", 0, NULL, 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 1, NULL, 1, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static void __init rbtx4927_gpioled_init(void)
 {
 	static const struct gpio_led leds[] = {
-		{ .name = "gpioled:green:0", .gpio = 0, .active_low = 1, },
-		{ .name = "gpioled:green:1", .gpio = 1, .active_low = 1, },
+		{ .name = "gpioled:green:0", },
+		{ .name = "gpioled:green:1", },
 	};
 	static struct gpio_led_platform_data pdata = {
 		.num_leds = ARRAY_SIZE(leds),
@@ -332,8 +350,13 @@ static void __init rbtx4927_gpioled_init(void)
 	if (!pdev)
 		return;
 	pdev->dev.platform_data = &pdata;
-	if (platform_device_add(pdev))
+	if (platform_device_add(pdev)) {
 		platform_device_put(pdev);
+		return;
+	}
+
+	rbtx4927_gpioled_table.dev_id = dev_name(&pdev->dev);
+	gpiod_add_lookup_table(&rbtx4927_gpioled_table);
 }
 
 static void __init rbtx4927_device_init(void)
@@ -350,7 +373,7 @@ static void __init rbtx4927_device_init(void)
 		tx4938_aclc_init();
 	}
 	platform_device_register_simple("txx9aclc-generic", -1, NULL, 0);
-	txx9_iocled_init(RBTX4927_LED_ADDR - IO_BASE, -1, 3, 1, "green", NULL);
+	txx9_iocled_init(RBTX4927_LED_ADDR - IO_BASE, 3, "green", NULL);
 	rbtx4927_gpioled_init();
 }
 

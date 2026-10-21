@@ -22,9 +22,11 @@ use kernel::{
 
 use crate::{
     driver::Bar0,
-    fb::hal::FbHal,
+    fb::{
+        hal::FbHal,
+        regs, //
+    },
     num::usize_into_u32,
-    regs, //
 };
 
 struct Gb100;
@@ -78,6 +80,7 @@ fn write_sysmem_flush_page_gb100(bar: Bar0<'_>, addr: Bounded<u64, 52>) {
     );
 }
 
+// This PMU reservation size is r570-specific.
 pub(super) const fn pmu_reserved_size_gb100() -> u32 {
     usize_into_u32::<{ const_align_up(SZ_8M + SZ_16M + SZ_4K, Alignment::new::<SZ_128K>()).unwrap() }>(
     )
@@ -108,9 +111,9 @@ impl FbHal for Gb100 {
         pmu_reserved_size_gb100()
     }
 
-    fn non_wpr_heap_size(&self) -> u32 {
+    fn non_wpr_heap_size(&self) -> u64 {
         // Non-WPR heap for GB10x (see Open RM: kgspGetNonWprHeapSize, GB100/GB102).
-        u32::SZ_2M
+        u64::SZ_2M
     }
 
     fn frts_size(&self) -> u64 {

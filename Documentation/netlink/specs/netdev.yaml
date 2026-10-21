@@ -7,6 +7,14 @@ doc: >-
 
 definitions:
   -
+    type: const
+    name: page-size
+    # Dummy value, codegen needs a number. The real value comes from
+    # the PAGE_SIZE macro in the header below.
+    value: 0
+    header: asm/page.h
+    scope: kernel
+  -
     type: flags
     name: xdp-act
     render-max: true
@@ -598,6 +606,16 @@ attribute-sets:
         type: u32
         checks:
           min: 1
+      -
+        name: rx-page-size
+        doc: |
+          Size in bytes of each device page the NIC writes into from the bound
+          dmabuf. Must be a power of two and >= PAGE_SIZE; defaults to
+          PAGE_SIZE.
+        type: u32
+        checks:
+          min: page-size
+          max: u32-max
 
 operations:
   list:
@@ -812,6 +830,7 @@ operations:
             - ifindex
             - fd
             - queues
+            - rx-page-size
         reply:
           attributes:
             - id

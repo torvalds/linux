@@ -72,14 +72,15 @@ __naked void bpf_map_ptr_write_rejected(void)
 
 /*
  * struct bpf_map starts with the SHA256 hash sha[32] at offset 0 (a readable
- * byte array), the u32 excl field at offset 32, and the ops pointer at offset
- * 40. Reading a u32 at offset 41 reaches into the middle of the ops pointer,
- * i.e. a partial pointer access, which is rejected.
+ * byte array), followed by the ops pointer at offset 32 and the inner_map_meta
+ * pointer at offset 40. Reading a u32 at offset 41 reaches into the middle of
+ * the inner_map_meta pointer, i.e. a partial pointer access, which is
+ * rejected.
  */
 SEC("socket")
 __description("bpf_map_ptr: read non-existent field rejected")
 __failure
-__msg("cannot access ptr member ops with moff 40 in struct bpf_map with off 41 size 4")
+__msg("cannot access ptr member inner_map_meta with moff 40 in struct bpf_map with off 41 size 4")
 __failure_unpriv
 __msg_unpriv("access is allowed only to CAP_PERFMON and CAP_SYS_ADMIN")
 __flag(BPF_F_ANY_ALIGNMENT)
@@ -97,23 +98,23 @@ __naked void read_non_existent_field_rejected(void)
 }
 
 /*
- * The u32 excl field spans offsets 32..35 (mend 36). Reading a u32 at offset
- * 33 starts inside excl but extends past its end, which the verifier rejects
+ * The sha byte array spans offsets 0..31 (mend 32). Reading a u32 at offset
+ * 30 starts inside sha but extends past its end, which the verifier rejects
  * as an out-of-bounds scalar access.
  */
 SEC("socket")
-__description("bpf_map_ptr: read beyond excl field rejected")
+__description("bpf_map_ptr: read beyond sha field rejected")
 __failure
-__msg("access beyond the end of member excl (mend:36) in struct bpf_map with off 33 size 4")
+__msg("access beyond the end of member sha (mend:32) in struct bpf_map with off 30 size 4")
 __failure_unpriv
 __msg_unpriv("access is allowed only to CAP_PERFMON and CAP_SYS_ADMIN")
 __flag(BPF_F_ANY_ALIGNMENT)
-__naked void read_beyond_excl_field_rejected(void)
+__naked void read_beyond_sha_field_rejected(void)
 {
 	asm volatile ("					\
 	r6 = 0;						\
 	r1 = %[map_array_48b] ll;			\
-	r6 = *(u32*)(r1 + 33);				\
+	r6 = *(u32*)(r1 + 30);				\
 	r0 = 1;						\
 	exit;						\
 "	:
@@ -131,7 +132,7 @@ __naked void ptr_read_ops_field_accepted(void)
 	asm volatile ("					\
 	r6 = 0;						\
 	r1 = %[map_array_48b] ll;			\
-	r6 = *(u64*)(r1 + 40);				\
+	r6 = *(u64*)(r1 + 32);				\
 	r0 = 1;						\
 	exit;						\
 "	:

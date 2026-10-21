@@ -2461,7 +2461,15 @@ static int wm2200_runtime_resume(struct device *dev)
 	}
 
 	regcache_cache_only(wm2200->regmap, false);
-	regcache_sync(wm2200->regmap);
+	ret = regcache_sync(wm2200->regmap);
+	if (ret) {
+		regcache_cache_only(wm2200->regmap, true);
+		regcache_mark_dirty(wm2200->regmap);
+		gpiod_set_value_cansleep(wm2200->ldo_ena, 0);
+		regulator_bulk_disable(ARRAY_SIZE(wm2200->core_supplies),
+				       wm2200->core_supplies);
+		return ret;
+	}
 
 	return 0;
 }

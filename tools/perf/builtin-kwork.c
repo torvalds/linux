@@ -1814,7 +1814,7 @@ static int perf_kwork__check_config(struct perf_kwork *kwork,
 		}
 	}
 
-	list_for_each_entry(evsel, &session->evlist->core.entries, core.node) {
+	list_for_each_entry(evsel, &evlist__core(session->evlist)->entries, core.node) {
 		if (kwork->show_callchain && !evsel__has_callchain(evsel)) {
 			pr_debug("Samples do not have callchains\n");
 			kwork->show_callchain = 0;
@@ -1864,9 +1864,9 @@ static int perf_kwork__read_events(struct perf_kwork *kwork)
 		goto out_delete;
 	}
 
-	kwork->nr_events      = session->evlist->stats.nr_events[0];
-	kwork->nr_lost_events = session->evlist->stats.total_lost;
-	kwork->nr_lost_chunks = session->evlist->stats.nr_events[PERF_RECORD_LOST];
+	kwork->nr_events      = evlist__stats(session->evlist)->nr_events[0];
+	kwork->nr_lost_events = evlist__stats(session->evlist)->total_lost;
+	kwork->nr_lost_chunks = evlist__stats(session->evlist)->nr_events[PERF_RECORD_LOST];
 
 out_delete:
 	perf_session__delete(session);

@@ -115,6 +115,10 @@ struct ring_desc {
 #define REG_CAPS_VERSION_MASK		GENMASK(23, 16)
 #define REG_CAPS_VERSION_2		0x40
 
+/* Host Interface Reset - resets TX/RX rings and E2E flow control counters */
+#define REG_HOST_INTERFACE_RESET	0x39858
+#define REG_HOST_INTERFACE_RESET_RST	BIT(0)
+
 #define REG_DMA_MISC			0x39864
 #define REG_DMA_MISC_INT_AUTO_CLEAR     BIT(2)
 #define REG_DMA_MISC_DISABLE_AUTO_CLEAR	BIT(17)

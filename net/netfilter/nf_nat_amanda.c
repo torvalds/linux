@@ -26,6 +26,7 @@ static struct nf_conntrack_nat_helper nat_helper_amanda =
 	NF_CT_NAT_HELPER_INIT(NAT_HELPER_NAME);
 
 static unsigned int help(struct sk_buff *skb,
+			 struct nf_conn *ct,
 			 enum ip_conntrack_info ctinfo,
 			 unsigned int protoff,
 			 unsigned int matchoff,
@@ -46,15 +47,15 @@ static unsigned int help(struct sk_buff *skb,
 	/* Try to get same port: if not, try to change it. */
 	port = nf_nat_exp_find_port(exp, ntohs(exp->saved_proto.tcp.port));
 	if (port == 0) {
-		nf_ct_helper_log(skb, exp->master, "all ports in use");
+		nf_ct_helper_log(skb, ct, "all ports in use");
 		return NF_DROP;
 	}
 
 	snprintf(buffer, sizeof(buffer), "%u", port);
-	if (!nf_nat_mangle_udp_packet(skb, exp->master, ctinfo,
+	if (!nf_nat_mangle_udp_packet(skb, ct, ctinfo,
 				      protoff, matchoff, matchlen,
 				      buffer, strlen(buffer))) {
-		nf_ct_helper_log(skb, exp->master, "cannot mangle packet");
+		nf_ct_helper_log(skb, ct, "cannot mangle packet");
 		nf_ct_unexpect_related(exp);
 		return NF_DROP;
 	}

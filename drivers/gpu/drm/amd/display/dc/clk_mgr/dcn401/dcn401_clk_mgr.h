@@ -102,6 +102,7 @@ struct dcn401_clk_mgr {
 	struct clk_mgr_internal base;
 
 	struct dcn401_clk_mgr_block_sequence block_sequence[DCN401_CLK_MGR_MAX_SEQUENCE_SIZE];
+	unsigned int num_block_sequence_steps;
 };
 
 void dcn401_init_clocks(struct clk_mgr *clk_mgr_base);
@@ -113,5 +114,13 @@ struct clk_mgr_internal *dcn401_clk_mgr_construct(struct dc_context *ctx,
 void dcn401_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr);
 
 unsigned int dcn401_get_max_clock_khz(struct clk_mgr *clk_mgr_base, enum clk_type clk_type);
+
+struct block_sequence_state;
+
+void dcn401_build_clock_update_for_bls(
+		struct clk_mgr *clk_mgr_base,
+		struct dc_state *context,
+		bool safe_to_lower,
+		struct block_sequence_state *seq_state);
 
 #endif /* __DCN401_CLK_MGR_H_ */

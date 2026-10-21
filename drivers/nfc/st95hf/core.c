@@ -450,19 +450,19 @@ static int st95hf_select_protocol(struct st95hf_context *stcontext, int type)
 static void st95hf_send_st95enable_negativepulse(struct st95hf_context *st95con)
 {
 	/* First make irq_in pin high */
-	gpiod_set_value(st95con->enable_gpiod, HIGH);
+	gpiod_set_value_cansleep(st95con->enable_gpiod, HIGH);
 
 	/* wait for 1 milisecond */
 	usleep_range(1000, 2000);
 
 	/* Make irq_in pin low */
-	gpiod_set_value(st95con->enable_gpiod, LOW);
+	gpiod_set_value_cansleep(st95con->enable_gpiod, LOW);
 
 	/* wait for minimum interrupt pulse to make st95 active */
 	usleep_range(1000, 2000);
 
 	/* At end make it high */
-	gpiod_set_value(st95con->enable_gpiod, HIGH);
+	gpiod_set_value_cansleep(st95con->enable_gpiod, HIGH);
 }
 
 /*
@@ -1049,14 +1049,14 @@ static const struct nfc_digital_ops st95hf_nfc_digital_ops = {
 };
 
 static const struct spi_device_id st95hf_id[] = {
-	{ "st95hf", 0 },
-	{}
+	{ .name = "st95hf" },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, st95hf_id);
 
-static const struct of_device_id st95hf_spi_of_match[] __maybe_unused = {
+static const struct of_device_id st95hf_spi_of_match[] = {
 	{ .compatible = "st,st95hf" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, st95hf_spi_of_match);
 

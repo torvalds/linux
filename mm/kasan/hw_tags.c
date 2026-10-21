@@ -61,7 +61,7 @@ DEFINE_STATIC_KEY_FALSE(kasan_flag_vmalloc);
 EXPORT_SYMBOL_GPL(kasan_flag_vmalloc);
 
 /* Whether to check write accesses only. */
-static bool kasan_flag_write_only = false;
+static bool kasan_flag_write_only;
 
 #define PAGE_ALLOC_SAMPLE_DEFAULT	1
 #define PAGE_ALLOC_SAMPLE_ORDER_DEFAULT	3

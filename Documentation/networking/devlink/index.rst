@@ -31,10 +31,10 @@ sure to respect following rules:
 
  - Lock ordering should be maintained. If driver needs to take instance
    lock of both nested and parent instances at the same time, devlink
-   instance lock of the parent instance should be taken first, only then
-   instance lock of the nested instance could be taken.
- - Driver should use object-specific helpers to setup the nested relationship
-   before registering the nested devlink instance:
+   instance lock of the nested instance should be taken first, only then
+   instance lock of the parent instance could be taken.
+ - Driver should use object-specific helpers to setup the
+   nested relationship:
 
    - ``devl_nested_devlink_set()`` - called to setup devlink -> nested
      devlink relationship (could be used for multiple nested instances).
@@ -87,6 +87,7 @@ parameters, info versions, and other features it supports.
    ice
    ionic
    iosm
+   ixd
    ixgbe
    kvaser_pciefd
    kvaser_usb

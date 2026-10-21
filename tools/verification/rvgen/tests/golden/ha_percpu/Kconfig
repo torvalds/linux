@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_HA_PERCPU
+	depends on RV
+	# XXX: add dependencies if there
+	select HA_MON_EVENTS_IMPLICIT
+	bool "ha_percpu monitor"
+	help
+	  auto-generated

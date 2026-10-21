@@ -50,8 +50,6 @@ struct nf_nat_pptp {
 	__be16 pac_call_id;			/* NAT'ed PAC call id */
 };
 
-#define PPTP_CONTROL_PORT	1723
-
 #define PPTP_PACKET_CONTROL	1
 #define PPTP_PACKET_MGMT	2
 

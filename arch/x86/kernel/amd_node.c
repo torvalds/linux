@@ -38,7 +38,6 @@ static struct pci_dev **amd_roots;
 
 /* Protect the PCI config register pairs used for SMN. */
 static DEFINE_MUTEX(smn_mutex);
-static bool smn_exclusive;
 
 #define SMN_INDEX_OFFSET	0x60
 #define SMN_DATA_OFFSET		0x64
@@ -91,11 +90,16 @@ static int __amd_smn_rw(u8 i_off, u8 d_off, u16 node, u32 address, u32 *value, b
 	if (node >= amd_num_nodes())
 		return err;
 
-	root = amd_roots[node];
-	if (!root)
+	/*
+	 * Uninitialized amd_roots indicates pci_request_config_region_exclusive()
+	 * didn't run or failed and thus the kernel cannot rely on having
+	 * exclusive access to SMN registers so prevent that.
+	 */
+	if (!amd_roots)
 		return err;
 
-	if (!smn_exclusive)
+	root = amd_roots[node];
+	if (!root)
 		return err;
 
 	guard(mutex)(&smn_mutex);
@@ -247,7 +251,7 @@ __setup("amd_smn_debugfs_enable", amd_smn_enable_dfs);
 static int __init amd_smn_init(void)
 {
 	u16 count, num_roots, roots_per_node, node, num_nodes;
-	struct pci_dev *root;
+	struct pci_dev *root __free(pci_dev_put) = NULL;
 
 	if (!cpu_feature_enabled(X86_FEATURE_ZEN))
 		return 0;
@@ -258,7 +262,6 @@ static int __init amd_smn_init(void)
 		return 0;
 
 	num_roots = 0;
-	root = NULL;
 	while ((root = get_next_root(root))) {
 		pci_dbg(root, "Reserving PCI config space\n");
 
@@ -287,17 +290,21 @@ static int __init amd_smn_init(void)
 		return -ENOMEM;
 
 	roots_per_node = num_roots / num_nodes;
+	if (!roots_per_node) {
+		if (!cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
+			pr_warn(FW_BUG "Error detecting roots per node.\n");
+		roots_per_node = 1;
+	}
 
 	count = 0;
 	node = 0;
-	root = NULL;
 	while (node < num_nodes && (root = get_next_root(root))) {
 		/* Use one root for each node and skip the rest. */
 		if (count++ % roots_per_node)
 			continue;
 
 		pci_dbg(root, "is root for AMD node %u\n", node);
-		amd_roots[node++] = root;
+		amd_roots[node++] = pci_dev_get(root);
 	}
 
 	if (enable_dfs) {
@@ -307,8 +314,6 @@ static int __init amd_smn_init(void)
 		debugfs_create_file("address",	0600, debugfs_dir, NULL, &smn_address_fops);
 		debugfs_create_file("value",	0600, debugfs_dir, NULL, &smn_value_fops);
 	}
-
-	smn_exclusive = true;
 
 	return 0;
 }

@@ -474,6 +474,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 			         op->downcall.trailer_size, iter)) {
 		gossip_err("%s: failed to copy trailer.\n", __func__);
 		vfree(op->downcall.trailer_buf);
+		op->downcall.trailer_buf = NULL;
 		goto Efault;
 	}
 

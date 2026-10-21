@@ -68,7 +68,7 @@ MODULE_DEVICE_TABLE(usb, lpvo_table);
  *	(about twice the log volume of [1])
  * To switch debug level:
  *         At module loading:  modprobe lpvo_usb_gpib debug={0,1,2}
- *         On the fly: echo {0,1,2} > /sys/modules/lpvo_usb_gpib/parameters/debug
+ *         On the fly: echo {0,1,2} > /sys/module/lpvo_usb_gpib/parameters/debug
  */
 
 static int debug;
@@ -1811,14 +1811,9 @@ static ssize_t lpvo_write(struct file *file, const char __user *user_buffer,
 
 	dev = file->private_data;
 
-	buf = kmalloc(count, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, user_buffer, count)) {
-		kfree(buf);
-		return -EFAULT;
-	}
+	buf = memdup_user(user_buffer, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	rv = lpvo_do_write(dev, buf, count);
 	kfree(buf);

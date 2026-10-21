@@ -949,7 +949,7 @@ static int cpsw_set_cbs(struct net_device *ndev,
 	 * limited first and for compliance with CPDMA rate limited channels
 	 * that also used in bacward order. FIFO0 cannot be rate limited.
 	 */
-	fifo = cpsw_tc_to_fifo(tc, ndev->num_tc);
+	fifo = cpsw_tc_to_fifo(tc, netdev_get_num_tc(ndev));
 	if (!fifo) {
 		dev_err(priv->dev, "Last tc%d can't be rate limited", tc);
 		return -EINVAL;

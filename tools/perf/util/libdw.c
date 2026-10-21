@@ -82,13 +82,39 @@ struct libdw_a2l_cb_args {
 static int libdw_a2l_cb(Dwarf_Die *die, void *_args)
 {
 	struct libdw_a2l_cb_args *args  = _args;
-	struct symbol *inline_sym = new_inline_sym(args->dso, args->sym, die_name(die));
 	const char *call_fname = die_get_call_file(die);
 	int call_lineno = die_get_call_lineno(die);
 	char *call_srcline = srcline__unknown;
+	struct symbol *inline_sym;
 
-	if (!inline_sym)
-		goto abort_enomem;
+	if (dwarf_tag(die) == DW_TAG_subprogram && args->sym) {
+		/*
+		 * cu_walk_functions_at() opens the walk with the
+		 * containing DW_TAG_subprogram DIE (the non-inlined outer
+		 * function). That's just the base symbol -- use it
+		 * directly. Avoids a fragile name-vs-name compare in
+		 * new_inline_sym() that misfires when GCC IPA passes
+		 * (.isra/.constprop/.part/.cold) rename the ELF symbol
+		 * while DWARF keeps the pre-clone linkage name, which
+		 * left the outer frame spuriously tagged "(inlined)".
+		 */
+		inline_sym = args->sym;
+	} else {
+		/*
+		 * Prefer DW_AT_linkage_name so C++ inline frames keep
+		 * their namespace/class qualification. new_inline_sym()
+		 * runs the name through dso__demangle_sym(), so the
+		 * mangled linkage name is turned back into
+		 * "Namespace::Class::method". Fall back to DW_AT_name
+		 * (unqualified) when no linkage name is present, e.g.
+		 * for C code or extern "C" functions.
+		 */
+		const char *funcname = die_get_linkage_name(die) ?: die_name(die);
+
+		inline_sym = new_inline_sym(args->dso, args->sym, funcname);
+		if (!inline_sym)
+			goto abort_enomem;
+	}
 
 	/* Assign caller information to the parent. */
 	if (call_fname)

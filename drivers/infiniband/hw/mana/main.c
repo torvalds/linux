@@ -90,16 +90,41 @@ int mana_ib_cfg_vport(struct mana_ib_dev *dev, u32 port, struct mana_ib_pd *pd,
 	return err;
 }
 
+static int mana_gd_destroy_pd(struct mana_ib_dev *mdev, u64 pd_handle)
+{
+	struct gdma_destroy_pd_resp resp = {};
+	struct gdma_destroy_pd_req req = {};
+
+	mana_gd_init_req_hdr(&req.hdr, GDMA_DESTROY_PD, sizeof(req),
+			     sizeof(resp));
+
+	req.pd_handle = pd_handle;
+
+	return mana_gd_send_request(mdev_to_gc(mdev), sizeof(req), &req, sizeof(resp), &resp);
+}
+
 int mana_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct mana_ib_pd *pd = container_of(ibpd, struct mana_ib_pd, ibpd);
+	struct mana_ib_alloc_pd_resp ucmd_resp = {};
 	struct ib_device *ibdev = ibpd->device;
 	struct gdma_create_pd_resp resp = {};
 	struct gdma_create_pd_req req = {};
+	struct mana_ib_alloc_pd ucmd;
 	enum gdma_pd_flags flags = 0;
 	struct mana_ib_dev *dev;
 	struct gdma_context *gc;
 	int err;
+
+	if (udata && udata->inlen) {
+		err = ib_copy_validate_udata_in_cm(udata, ucmd, reserved,
+						   MANA_IB_PD_SHORT_PDN);
+		if (err)
+			return err;
+
+		if (ucmd.comp_mask & MANA_IB_PD_SHORT_PDN)
+			flags |= GDMA_PD_FLAG_SHORT_PDN;
+	}
 
 	dev = container_of(ibdev, struct mana_ib_dev, ib_dev);
 	gc = mdev_to_gc(dev);
@@ -117,32 +142,41 @@ int mana_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 
 	pd->pd_handle = resp.pd_handle;
 	pd->pdn = resp.pd_id;
-	ibdev_dbg(&dev->ib_dev, "pd_handle 0x%llx pd_id %d\n",
-		  pd->pd_handle, pd->pdn);
-
 	mutex_init(&pd->vport_mutex);
 	pd->vport_use_count = 0;
+
+	if (udata) {
+		ucmd_resp.pdn = pd->pdn;
+		err = ib_respond_udata(udata, ucmd_resp);
+		if (err)
+			goto destroy_pd;
+	}
+
 	return 0;
+
+destroy_pd:
+	mana_gd_destroy_pd(dev, pd->pd_handle);
+
+	return err;
 }
 
 int mana_ib_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct mana_ib_pd *pd = container_of(ibpd, struct mana_ib_pd, ibpd);
 	struct ib_device *ibdev = ibpd->device;
-	struct gdma_destory_pd_resp resp = {};
-	struct gdma_destroy_pd_req req = {};
 	struct mana_ib_dev *dev;
-	struct gdma_context *gc;
+	int err;
+
+	err = ib_no_udata_io(udata);
+	if (err)
+		return err;
 
 	dev = container_of(ibdev, struct mana_ib_dev, ib_dev);
-	gc = mdev_to_gc(dev);
+	err = mana_gd_destroy_pd(dev, pd->pd_handle);
+	if (err)
+		return err;
 
-	mana_gd_init_req_hdr(&req.hdr, GDMA_DESTROY_PD, sizeof(req),
-			     sizeof(resp));
-
-	req.pd_handle = pd->pd_handle;
-
-	return mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	return 0;
 }
 
 static int mana_gd_destroy_doorbell_page(struct gdma_context *gc,
@@ -192,25 +226,30 @@ int mana_ib_alloc_ucontext(struct ib_ucontext *ibcontext,
 {
 	struct mana_ib_ucontext *ucontext =
 		container_of(ibcontext, struct mana_ib_ucontext, ibucontext);
+	struct mana_ib_alloc_ucontext_resp ucmd_resp = {};
 	struct ib_device *ibdev = ibcontext->device;
 	struct mana_ib_dev *mdev;
 	struct gdma_context *gc;
 	int doorbell_page;
 	int ret;
 
+	ret = ib_is_udata_in_empty(udata);
+	if (ret)
+		return ret;
+
 	mdev = container_of(ibdev, struct mana_ib_dev, ib_dev);
 	gc = mdev_to_gc(mdev);
 
 	/* Allocate a doorbell page index */
 	ret = mana_gd_allocate_doorbell_page(gc, &doorbell_page);
-	if (ret) {
-		ibdev_dbg(ibdev, "Failed to allocate doorbell page %d\n", ret);
+	if (ret)
 		return ret;
-	}
-
-	ibdev_dbg(ibdev, "Doorbell page allocated %d\n", doorbell_page);
 
 	ucontext->doorbell = doorbell_page;
+	ucmd_resp.comp_mask = MANA_IB_UCNTX_ALLOC_PDN_SUPPORT;
+	ret = ib_respond_udata(udata, ucmd_resp);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -575,11 +614,10 @@ int mana_ib_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
 	struct pci_dev *pdev = to_pci_dev(mdev_to_gc(dev)->dev);
 	int err;
 
-	err = ib_is_udata_in_empty(uhw);
+	err = ib_no_udata_io(uhw);
 	if (err)
 		return err;
 
-	memset(props, 0, sizeof(*props));
 	props->vendor_id = pdev->vendor;
 	props->vendor_part_id = dev->gdma_dev->dev_id.type;
 	props->max_mr_size = MANA_IB_MAX_MR_SIZE;
@@ -605,7 +643,7 @@ int mana_ib_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
 	if (!mana_ib_is_rnic(dev))
 		props->raw_packet_caps = IB_RAW_PACKET_CAP_IP_CSUM;
 
-	return ib_respond_empty_udata(uhw);
+	return 0;
 }
 
 int mana_ib_query_port(struct ib_device *ibdev, u32 port,
@@ -1034,16 +1072,55 @@ int mana_ib_gd_create_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp,
 	return 0;
 }
 
-int mana_ib_gd_destroy_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
+int mana_ib_gd_create_uc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp,
+			    struct ib_qp_init_attr *attr, u32 doorbell, u64 flags)
 {
-	struct mana_rnic_destroy_rc_qp_resp resp = {0};
-	struct mana_rnic_destroy_rc_qp_req req = {0};
+	struct mana_ib_cq *send_cq = container_of(qp->ibqp.send_cq, struct mana_ib_cq, ibcq);
+	struct mana_ib_cq *recv_cq = container_of(qp->ibqp.recv_cq, struct mana_ib_cq, ibcq);
+	struct mana_ib_pd *pd = container_of(qp->ibqp.pd, struct mana_ib_pd, ibpd);
 	struct gdma_context *gc = mdev_to_gc(mdev);
+	struct mana_rnic_create_uc_qp_resp resp = {};
+	struct mana_rnic_create_uc_qp_req req = {};
+	int err, i;
 
-	mana_gd_init_req_hdr(&req.hdr, MANA_IB_DESTROY_RC_QP, sizeof(req), sizeof(resp));
+	mana_gd_init_req_hdr(&req.hdr, MANA_IB_CREATE_UC_QP, sizeof(req), sizeof(resp));
 	req.hdr.dev_id = mdev->gdma_dev->dev_id;
 	req.adapter = mdev->adapter_handle;
-	req.rc_qp_handle = qp->qp_handle;
+	req.pd_handle = pd->pd_handle;
+	req.send_cq_handle = send_cq->cq_handle;
+	req.recv_cq_handle = recv_cq->cq_handle;
+	for (i = 0; i < MANA_UC_QUEUE_TYPE_MAX; i++)
+		req.dma_region[i] = qp->uc_qp.queues[i].gdma_region;
+	req.doorbell_page = doorbell;
+	req.max_send_wr = attr->cap.max_send_wr;
+	req.max_recv_wr = attr->cap.max_recv_wr;
+	req.max_send_sge = attr->cap.max_send_sge;
+	req.max_recv_sge = attr->cap.max_recv_sge;
+	req.flags = flags;
+
+	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	if (err)
+		return err;
+
+	qp->qp_handle = resp.qp_handle;
+	for (i = 0; i < MANA_UC_QUEUE_TYPE_MAX; i++) {
+		qp->uc_qp.queues[i].id = resp.queue_ids[i];
+		/* The GDMA regions are now owned by the RNIC QP handle */
+		qp->uc_qp.queues[i].gdma_region = GDMA_INVALID_DMA_REGION;
+	}
+	return 0;
+}
+
+int mana_ib_gd_destroy_rnic_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
+{
+	struct mana_rnic_destroy_rnic_qp_resp resp = {0};
+	struct mana_rnic_destroy_rnic_qp_req req = {0};
+	struct gdma_context *gc = mdev_to_gc(mdev);
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_IB_DESTROY_RNIC_QP, sizeof(req), sizeof(resp));
+	req.hdr.dev_id = mdev->gdma_dev->dev_id;
+	req.adapter = mdev->adapter_handle;
+	req.qp_handle = qp->qp_handle;
 
 	return mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
 }

@@ -23,7 +23,8 @@ allOf:
     then:
       properties:
         compatible:
-          const: aspeed,ast2500-vuart
+          contains:
+            const: aspeed,ast2500-vuart
   - if:
       properties:
         compatible:
@@ -188,6 +189,11 @@ properties:
               - loongson,ls2k2000-uart
           - const: loongson,ls2k1500-uart
           - const: ns16550a
+      - items:
+          - enum:
+              - aspeed,ast2600-vuart
+              - aspeed,ast2700-vuart
+          - const: aspeed,ast2500-vuart
 
   reg:
     maxItems: 1

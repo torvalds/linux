@@ -40,6 +40,8 @@
 #define GLHMC_VFPDINV(_i)	(0x00528300 + ((_i) * 4)) /* _i=0...31 */
 #define GLPE_CRITERR		0x00534000
 #define GLINT_RATE(_INT)	(0x0015A000 + ((_INT) * 4)) /* _i=0...2047 */ /* Reset Source: CORER */
+#define PFHMC_ERRORINFO		0x00520400
+#define PFHMC_ERRORDATA		0x00520500
 
 #define ICRDMA_DB_ADDR_OFFSET		(8 * 1024 * 1024 - 64 * 1024)
 

@@ -1174,12 +1174,6 @@ static unsigned long rp1_varsrc_recalc_rate(struct clk_hw *hw,
 	return clock->cached_rate;
 }
 
-static int rp1_varsrc_determine_rate(struct clk_hw *hw,
-				     struct clk_rate_request *req)
-{
-	return 0;
-}
-
 static const struct clk_ops rp1_pll_core_ops = {
 	.is_prepared = rp1_pll_core_is_on,
 	.prepare = rp1_pll_core_on,
@@ -1227,7 +1221,7 @@ static const struct clk_ops rp1_clk_ops = {
 static const struct clk_ops rp1_varsrc_ops = {
 	.set_rate = rp1_varsrc_set_rate,
 	.recalc_rate = rp1_varsrc_recalc_rate,
-	.determine_rate = rp1_varsrc_determine_rate,
+	.determine_rate = clk_determine_rate_noop,
 };
 
 static struct clk_hw *rp1_register_pll(struct rp1_clockman *clockman,

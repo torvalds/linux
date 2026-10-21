@@ -37,8 +37,11 @@ struct seq_ump_client {
 	struct snd_ump_endpoint *ump;	/* assigned endpoint */
 	int seq_client;			/* sequencer client id */
 	int opened[2];			/* current opens for each direction */
-	rwlock_t output_lock;		/* protects out_rfile output access */
 	struct snd_rawmidi_file out_rfile; /* rawmidi for output */
+	/* RCU-protected shadow of out_rfile.output for the delivery hot path;
+	 * out_rfile itself is only touched by open/close under open_mutex
+	 */
+	struct snd_rawmidi_substream __rcu *out_substream;
 	struct seq_ump_input_buffer input; /* input parser context */
 	void *ump_info[SNDRV_UMP_MAX_BLOCKS + 1]; /* shadow of seq client ump_info */
 	struct work_struct group_notify_work; /* FB change notification */
@@ -89,8 +92,8 @@ static int seq_ump_process_event(struct snd_seq_event *ev, int direct,
 	unsigned char type;
 	int len;
 
-	guard(read_lock_irqsave)(&client->output_lock);
-	substream = client->out_rfile.output;
+	guard(rcu)();
+	substream = rcu_dereference(client->out_substream);
 	if (!substream)
 		return -ENODEV;
 	if (!snd_seq_ev_is_ump(ev))
@@ -108,19 +111,22 @@ static int seq_ump_process_event(struct snd_seq_event *ev, int direct,
 static int seq_ump_client_open(struct seq_ump_client *client, int dir)
 {
 	struct snd_ump_endpoint *ump = client->ump;
-	struct snd_rawmidi_file rfile = {};
 	int err;
 
 	guard(mutex)(&ump->open_mutex);
 	if (dir == STR_OUT && !client->opened[dir]) {
+		/* out_rfile is only accessed under open_mutex; the delivery
+		 * path reads out_substream via RCU, so open into out_rfile
+		 * directly and publish the substream afterwards
+		 */
 		err = snd_rawmidi_kernel_open(&ump->core, 0,
 					      SNDRV_RAWMIDI_LFLG_OUTPUT |
 					      SNDRV_RAWMIDI_LFLG_APPEND,
-					      &rfile);
+					      &client->out_rfile);
 		if (err < 0)
 			return err;
-		scoped_guard(write_lock_irqsave, &client->output_lock)
-			client->out_rfile = rfile;
+		rcu_assign_pointer(client->out_substream,
+				   client->out_rfile.output);
 	}
 	client->opened[dir]++;
 	return 0;
@@ -130,17 +136,18 @@ static int seq_ump_client_open(struct seq_ump_client *client, int dir)
 static int seq_ump_client_close(struct seq_ump_client *client, int dir)
 {
 	struct snd_ump_endpoint *ump = client->ump;
-	struct snd_rawmidi_file rfile = {};
 
 	guard(mutex)(&ump->open_mutex);
 	if (!--client->opened[dir]) {
-		if (dir == STR_OUT) {
-			scoped_guard(write_lock_irqsave, &client->output_lock) {
-				rfile = client->out_rfile;
-				client->out_rfile = (struct snd_rawmidi_file){};
-			}
-			if (rfile.rmidi)
-				snd_rawmidi_kernel_release(&rfile);
+		if (dir == STR_OUT && client->out_rfile.rmidi) {
+			rcu_assign_pointer(client->out_substream, NULL);
+			/* wait for a grace period so that no reader in the
+			 * delivery path is still writing to the substream
+			 * before it is released
+			 */
+			synchronize_rcu();
+			snd_rawmidi_kernel_release(&client->out_rfile);
+			client->out_rfile = (struct snd_rawmidi_file){};
 		}
 	}
 	return 0;
@@ -480,7 +487,6 @@ static int snd_seq_ump_probe(struct snd_seq_device *dev)
 
 	INIT_WORK(&client->group_notify_work, handle_group_notify);
 	client->ump = ump;
-	rwlock_init(&client->output_lock);
 
 	client->seq_client =
 		snd_seq_create_kernel_client(card, ump->core.device,

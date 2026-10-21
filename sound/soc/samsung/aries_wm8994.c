@@ -658,6 +658,7 @@ static int aries_audio_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	of_node_get(aries_dai[0].cpus->of_node);
 	aries_dai[0].platforms->of_node = aries_dai[0].cpus->of_node;
 
 	/* Set CPU of_node for BT DAI */
@@ -700,3 +701,4 @@ module_platform_driver(aries_audio_driver);
 MODULE_DESCRIPTION("ALSA SoC ARIES WM8994");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:aries-audio-wm8994");
+MODULE_IMPORT_NS("IIO_CONSUMER");

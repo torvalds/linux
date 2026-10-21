@@ -293,6 +293,7 @@ static const struct of_device_id mt8127_pctrl_match[] = {
 	{ .compatible = "mediatek,mt8127-pinctrl", .data = &mt8127_pinctrl_data },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mt8127_pctrl_match);
 
 static struct platform_driver mtk_pinctrl_driver = {
 	.probe = mtk_pctrl_common_probe,
@@ -307,3 +308,7 @@ static int __init mtk_pinctrl_init(void)
 	return platform_driver_register(&mtk_pinctrl_driver);
 }
 arch_initcall(mtk_pinctrl_init);
+
+MODULE_DESCRIPTION("MediaTek MT8127 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("MTK_PINCTRL");

@@ -62,6 +62,7 @@ static DEFINE_IDA(hci_index_ida);
 /* Get HCI device by index.
  * Device is held on return. */
 static struct hci_dev *__hci_dev_get(int index, int *srcu_index)
+	__context_unsafe(/* conditional locking */)
 {
 	struct hci_dev *hdev = NULL, *d;
 
@@ -89,11 +90,13 @@ struct hci_dev *hci_dev_get(int index)
 }
 
 static struct hci_dev *hci_dev_get_srcu(int index, int *srcu_index)
+	__context_unsafe(/* conditional locking vs return */)
 {
 	return __hci_dev_get(index, srcu_index);
 }
 
 static void hci_dev_put_srcu(struct hci_dev *hdev, int srcu_index)
+	__context_unsafe(/* conditional locking vs return */)
 {
 	srcu_read_unlock(&hdev->srcu, srcu_index);
 	hci_dev_put(hdev);
@@ -2629,10 +2632,10 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (error)
 		BT_WARN("register suspend notifier failed error:%d\n", error);
 
-	queue_work(hdev->req_workqueue, &hdev->power_on);
-
 	idr_init(&hdev->adv_monitors_idr);
 	msft_register(hdev);
+
+	queue_work(hdev->req_workqueue, &hdev->power_on);
 
 	return id;
 
@@ -2670,6 +2673,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	disable_work_sync(&hdev->error_reset);
 	disable_delayed_work_sync(&hdev->cmd_timer);
 	disable_delayed_work_sync(&hdev->ncmd_timer);
+	hci_devcd_shutdown(hdev);
 
 	hci_cmd_sync_clear(hdev);
 
@@ -2849,9 +2853,9 @@ int hci_resume_dev(struct hci_dev *hdev)
 EXPORT_SYMBOL(hci_resume_dev);
 
 /* Reset HCI device */
-int hci_reset_dev(struct hci_dev *hdev)
+int __hci_reset_dev(struct hci_dev *hdev, u8 hw_err_code)
 {
-	static const u8 hw_err[] = { HCI_EV_HARDWARE_ERROR, 0x01, 0x00 };
+	const u8 hw_err[] = { HCI_EV_HARDWARE_ERROR, 0x01, hw_err_code };
 	struct sk_buff *skb;
 
 	skb = bt_skb_alloc(3, GFP_ATOMIC);
@@ -2866,7 +2870,7 @@ int hci_reset_dev(struct hci_dev *hdev)
 	/* Send Hardware Error to upper stack */
 	return hci_recv_frame(hdev, skb);
 }
-EXPORT_SYMBOL(hci_reset_dev);
+EXPORT_SYMBOL(__hci_reset_dev);
 
 static u8 hci_dev_classify_pkt_type(struct hci_dev *hdev, struct sk_buff *skb)
 {
@@ -2901,10 +2905,9 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		if (hci_conn_num(hdev, CIS_LINK) ||
 		    hci_conn_num(hdev, BIS_LINK) ||
 			hci_conn_num(hdev, PA_LINK)) {
-			__u16 handle = __le16_to_cpu(hci_acl_hdr(skb)->handle);
 			__u8 type;
 
-			type = hci_conn_lookup_type(hdev, hci_handle(handle));
+			type = hci_conn_lookup_type(hdev, hci_acl_handle(skb));
 			if (type == CIS_LINK || type == BIS_LINK ||
 			    type == PA_LINK)
 				hci_skb_pkt_type(skb) = HCI_ISODATA_PKT;
@@ -3234,6 +3237,17 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 	bt_dev_dbg(hdev, "chan %p queued %d", chan, skb_queue_len(queue));
 }
 
+/* Queue hdev->tx_work, unless hdev->workqueue is being drained by
+ * hci_dev_close_sync(), which would otherwise WARN and drop the work.
+ */
+static void hci_sched_tx(struct hci_dev *hdev)
+{
+	rcu_read_lock();
+	if (!hci_dev_test_flag(hdev, HCI_CMD_DRAIN_WORKQUEUE))
+		queue_work(hdev->workqueue, &hdev->tx_work);
+	rcu_read_unlock();
+}
+
 void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags)
 {
 	struct hci_dev *hdev = chan->conn->hdev;
@@ -3242,7 +3256,7 @@ void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags)
 
 	hci_queue_acl(chan, &chan->data_q, skb, flags);
 
-	queue_work(hdev->workqueue, &hdev->tx_work);
+	hci_sched_tx(hdev);
 }
 
 /* Send SCO data */
@@ -3267,7 +3281,7 @@ void hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
 	bt_dev_dbg(hdev, "hcon %p queued %d", conn,
 		   skb_queue_len(&conn->data_q));
 
-	queue_work(hdev->workqueue, &hdev->tx_work);
+	hci_sched_tx(hdev);
 }
 
 /* Send ISO data */
@@ -3338,7 +3352,7 @@ void hci_send_iso(struct hci_conn *conn, struct sk_buff *skb)
 
 	hci_queue_iso(conn, &conn->data_q, skb);
 
-	queue_work(hdev->workqueue, &hdev->tx_work);
+	hci_sched_tx(hdev);
 }
 
 /* ---- HCI TX task (outgoing data) ---- */
@@ -4091,7 +4105,7 @@ static int hci_send_cmd_sync(struct hci_dev *hdev, struct sk_buff *skb)
 	if (READ_ONCE(hdev->req_status) == HCI_REQ_PEND &&
 	    !hci_dev_test_and_set_flag(hdev, HCI_CMD_PENDING)) {
 		kfree_skb(hdev->req_skb);
-		hdev->req_skb = skb_clone(hdev->sent_cmd, GFP_KERNEL);
+		hdev->req_skb = skb_get(hdev->sent_cmd);
 	}
 
 	return err;

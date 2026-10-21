@@ -14,6 +14,7 @@
 #include "tcp_ca_incompl_cong_ops.skel.h"
 #include "tcp_ca_unsupp_cong_op.skel.h"
 #include "tcp_ca_kfunc.skel.h"
+#include "tcp_ca_untrusted_btf_write.skel.h"
 #include "bpf_cc_cubic.skel.h"
 
 static const unsigned int total_bytes = 10 * 1024 * 1024;
@@ -579,6 +580,15 @@ static void test_tcp_ca_kfunc(void)
 	tcp_ca_kfunc__destroy(skel);
 }
 
+static void test_untrusted_btf_write(void)
+{
+	struct tcp_ca_untrusted_btf_write *skel;
+
+	skel = tcp_ca_untrusted_btf_write__open_and_load();
+	ASSERT_ERR_PTR(skel, "tcp_ca_untrusted_btf_write__open_and_load");
+	tcp_ca_untrusted_btf_write__destroy(skel);
+}
+
 static void test_cc_cubic(void)
 {
 	struct cb_opts cb_opts = {
@@ -637,6 +647,8 @@ void test_bpf_tcp_ca(void)
 		test_link_replace();
 	if (test__start_subtest("tcp_ca_kfunc"))
 		test_tcp_ca_kfunc();
+	if (test__start_subtest("untrusted_btf_write"))
+		test_untrusted_btf_write();
 	if (test__start_subtest("cc_cubic"))
 		test_cc_cubic();
 	if (test__start_subtest("dctcp_autoattach_map"))

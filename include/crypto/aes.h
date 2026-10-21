@@ -259,7 +259,7 @@ int aes_p8_set_decrypt_key(const u8 *userKey, const int bits,
 void aes_p8_encrypt(const u8 *in, u8 *out, const struct p8_aes_key *key);
 void aes_p8_decrypt(const u8 *in, u8 *out, const struct p8_aes_key *key);
 void aes_p8_cbc_encrypt(const u8 *in, u8 *out, size_t len,
-			const struct p8_aes_key *key, u8 *iv, const int enc);
+			const struct p8_aes_key *key, u8 *iv, bool enc);
 void aes_p8_ctr32_encrypt_blocks(const u8 *in, u8 *out, size_t len,
 				 const struct p8_aes_key *key, const u8 *iv);
 void aes_p8_xts_encrypt(const u8 *in, u8 *out, size_t len,

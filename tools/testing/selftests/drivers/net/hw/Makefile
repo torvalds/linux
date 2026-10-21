@@ -19,7 +19,7 @@ TEST_GEN_FILES := \
 
 TEST_PROGS = \
 	csum.py \
-	devlink_port_split.py \
+	devlink_rate_cross_esw.py \
 	devlink_rate_tc_bw.py \
 	devmem.py \
 	ethtool.sh \
@@ -52,6 +52,10 @@ TEST_PROGS = \
 	xdp_metadata.py \
 	xsk_reconfig.py \
 	#
+
+TEST_PROGS_EXTENDED := \
+	devlink_port_split.py \
+# end of TEST_PROGS_EXTENDED
 
 TEST_FILES := \
 	devmem_lib.py \

@@ -34,6 +34,11 @@
 #include <linux/net.h>
 #include <net/sock.h>
 
+static const struct af_alg_allowlist_entry aead_allowlist[] = {
+	{ "ccm(aes)" }, /* bluez */
+	{},
+};
+
 static inline bool aead_sufficient_data(struct sock *sk)
 {
 	struct alg_sock *ask = alg_sk(sk);
@@ -344,6 +349,12 @@ static struct proto_ops algif_aead_ops_nokey = {
 
 static void *aead_bind(const char *name)
 {
+	int err;
+
+	err = af_alg_check_restriction(name, aead_allowlist);
+	if (err)
+		return ERR_PTR(err);
+
 	return crypto_alloc_aead(name, 0, AF_ALG_CRYPTOAPI_MASK);
 }
 

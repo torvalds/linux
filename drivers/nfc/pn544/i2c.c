@@ -47,14 +47,12 @@ static const struct i2c_device_id pn544_hci_i2c_id_table[] = {
 	{ .name = "pn544" },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(i2c, pn544_hci_i2c_id_table);
 
-static const struct acpi_device_id pn544_hci_i2c_acpi_match[] __maybe_unused = {
-	{"NXP5440", 0},
-	{}
+static const struct acpi_device_id pn544_hci_i2c_acpi_match[] = {
+	{ .id = "NXP5440" },
+	{ }
 };
-
 MODULE_DEVICE_TABLE(acpi, pn544_hci_i2c_acpi_match);
 
 #define PN544_HCI_I2C_DRIVER_NAME "pn544_hci_i2c"
@@ -939,9 +937,9 @@ static void pn544_hci_i2c_remove(struct i2c_client *client)
 		pn544_hci_i2c_disable(phy);
 }
 
-static const struct of_device_id of_pn544_i2c_match[] __maybe_unused = {
-	{ .compatible = "nxp,pn544-i2c", },
-	{},
+static const struct of_device_id of_pn544_i2c_match[] = {
+	{ .compatible = "nxp,pn544-i2c" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_pn544_i2c_match);
 

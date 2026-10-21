@@ -120,7 +120,7 @@ static int query_capability(struct pfru_update_cap_info *cap_hdr,
 			    struct pfru_device *pfru_dev)
 {
 	acpi_handle handle = ACPI_HANDLE(pfru_dev->parent_dev);
-	union acpi_object *out_obj;
+	union acpi_object *out_obj, *elem;
 	int ret = -EINVAL;
 
 	out_obj = acpi_evaluate_dsm_typed(handle, &pfru_guid,
@@ -150,7 +150,9 @@ static int query_capability(struct pfru_update_cap_info *cap_hdr,
 		goto free_acpi_buffer;
 	}
 
-	cap_hdr->status = out_obj->package.elements[CAP_STATUS_IDX].integer.value;
+	elem = out_obj->package.elements;
+
+	cap_hdr->status = elem[CAP_STATUS_IDX].integer.value;
 	if (cap_hdr->status != DSM_SUCCEED) {
 		ret = -EBUSY;
 		dev_dbg(pfru_dev->parent_dev, "Query cap Error Status:%d\n",
@@ -158,29 +160,30 @@ static int query_capability(struct pfru_update_cap_info *cap_hdr,
 		goto free_acpi_buffer;
 	}
 
-	cap_hdr->update_cap = out_obj->package.elements[CAP_UPDATE_IDX].integer.value;
+	if (elem[CAP_CODE_TYPE_IDX].buffer.length > sizeof(cap_hdr->code_type) ||
+	    elem[CAP_DRV_TYPE_IDX].buffer.length > sizeof(cap_hdr->drv_type) ||
+	    elem[CAP_PLAT_ID_IDX].buffer.length > sizeof(cap_hdr->platform_id) ||
+	    elem[CAP_OEM_ID_IDX].buffer.length > sizeof(cap_hdr->oem_id))
+		goto free_acpi_buffer;
+
+	cap_hdr->update_cap = elem[CAP_UPDATE_IDX].integer.value;
 	memcpy(&cap_hdr->code_type,
-	       out_obj->package.elements[CAP_CODE_TYPE_IDX].buffer.pointer,
-	       out_obj->package.elements[CAP_CODE_TYPE_IDX].buffer.length);
-	cap_hdr->fw_version =
-		out_obj->package.elements[CAP_FW_VER_IDX].integer.value;
-	cap_hdr->code_rt_version =
-		out_obj->package.elements[CAP_CODE_RT_VER_IDX].integer.value;
+	       elem[CAP_CODE_TYPE_IDX].buffer.pointer,
+	       elem[CAP_CODE_TYPE_IDX].buffer.length);
+	cap_hdr->fw_version = elem[CAP_FW_VER_IDX].integer.value;
+	cap_hdr->code_rt_version = elem[CAP_CODE_RT_VER_IDX].integer.value;
 	memcpy(&cap_hdr->drv_type,
-	       out_obj->package.elements[CAP_DRV_TYPE_IDX].buffer.pointer,
-	       out_obj->package.elements[CAP_DRV_TYPE_IDX].buffer.length);
-	cap_hdr->drv_rt_version =
-		out_obj->package.elements[CAP_DRV_RT_VER_IDX].integer.value;
-	cap_hdr->drv_svn =
-		out_obj->package.elements[CAP_DRV_SVN_IDX].integer.value;
+	       elem[CAP_DRV_TYPE_IDX].buffer.pointer,
+	       elem[CAP_DRV_TYPE_IDX].buffer.length);
+	cap_hdr->drv_rt_version = elem[CAP_DRV_RT_VER_IDX].integer.value;
+	cap_hdr->drv_svn = elem[CAP_DRV_SVN_IDX].integer.value;
 	memcpy(&cap_hdr->platform_id,
-	       out_obj->package.elements[CAP_PLAT_ID_IDX].buffer.pointer,
-	       out_obj->package.elements[CAP_PLAT_ID_IDX].buffer.length);
+	       elem[CAP_PLAT_ID_IDX].buffer.pointer,
+	       elem[CAP_PLAT_ID_IDX].buffer.length);
 	memcpy(&cap_hdr->oem_id,
-	       out_obj->package.elements[CAP_OEM_ID_IDX].buffer.pointer,
-	       out_obj->package.elements[CAP_OEM_ID_IDX].buffer.length);
-	cap_hdr->oem_info_len =
-		out_obj->package.elements[CAP_OEM_INFO_IDX].buffer.length;
+	       elem[CAP_OEM_ID_IDX].buffer.pointer,
+	       elem[CAP_OEM_ID_IDX].buffer.length);
+	cap_hdr->oem_info_len = elem[CAP_OEM_INFO_IDX].buffer.length;
 
 	ret = 0;
 

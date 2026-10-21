@@ -198,7 +198,7 @@ static int can_transceiver_phy_probe(struct platform_device *pdev)
 
 		if (drvdata->flags & CAN_TRANSCEIVER_SILENT_PRESENT) {
 			silent_gpio = devm_gpiod_get_index_optional(dev, "silent", i,
-								    GPIOD_OUT_LOW);
+								    GPIOD_OUT_HIGH);
 			if (IS_ERR(silent_gpio))
 				return PTR_ERR(silent_gpio);
 			can_transceiver_phy->silent_gpio = silent_gpio;

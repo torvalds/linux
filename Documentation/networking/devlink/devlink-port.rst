@@ -107,6 +107,15 @@ doesn't have the eswitch. Local controller (identified by controller number = 0)
 has the eswitch. The Devlink instance on the local controller has eswitch
 devlink ports for both the controllers.
 
+A non-zero controller number may also be used for ports that are not external.
+For example, a SmartNIC may have additional local PCI physical functions
+that are managed by the eswitch but are not on an external host. These
+ports use a non-zero controller number to distinguish them from the eswitch
+manager's own functions, while the external flag remains unset.
+
+The ``phys_port_name`` includes the controller prefix (``c<controller_num>``)
+whenever the controller number is non-zero, regardless of the external flag.
+
 Function configuration
 ======================
 
@@ -420,6 +429,8 @@ API allows to configure following rate object's parameters:
   Parent node name. Parent node rate limits are considered as additional limits
   to all node children limits. ``tx_max`` is an upper limit for children.
   ``tx_share`` is a total bandwidth distributed among children.
+  If the device supports cross-function scheduling, the parent can be from a
+  different function of the same underlying device.
 
 ``tc_bw``
   Allow users to set the bandwidth allocation per traffic class on rate

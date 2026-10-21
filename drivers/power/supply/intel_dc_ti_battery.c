@@ -389,3 +389,4 @@ MODULE_ALIAS("platform:" DEV_NAME);
 MODULE_AUTHOR("Hans de Goede <hansg@kernel.org>");
 MODULE_DESCRIPTION("Intel Dollar Cove (TI) battery driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

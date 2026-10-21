@@ -33,7 +33,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 				if (err) {
 					pr_debug("Failure to parse cache event '%s' possibly as PMUs don't support it",
 						name);
-					evlist__delete(evlist);
+					evlist__put(evlist);
 					continue;
 				}
 				evlist__for_each_entry(evlist, evsel) {
@@ -42,7 +42,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 						ret = TEST_FAIL;
 					}
 				}
-				evlist__delete(evlist);
+				evlist__put(evlist);
 			}
 		}
 	}
@@ -66,7 +66,7 @@ static int perf_evsel__name_array_test(const char *const names[], int nr_names)
 		if (err) {
 			pr_debug("failed to parse event '%s', err %d\n",
 				 names[i], err);
-			evlist__delete(evlist);
+			evlist__put(evlist);
 			ret = TEST_FAIL;
 			continue;
 		}
@@ -76,7 +76,7 @@ static int perf_evsel__name_array_test(const char *const names[], int nr_names)
 				ret = TEST_FAIL;
 			}
 		}
-		evlist__delete(evlist);
+		evlist__put(evlist);
 	}
 	return ret;
 }

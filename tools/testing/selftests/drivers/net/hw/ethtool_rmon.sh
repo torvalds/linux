@@ -65,6 +65,8 @@ bucket_test()
 	run_on "$iface" \
 		"$MZ" "$iface" -q -c "$num_tx" -p "$len" -a own -b bcast -d 10us
 
+	hw_stats_settle "$iface"
+
 	after=$(run_on "$iface" ethtool --json -S "$iface" --groups rmon | \
 		jq -r ".[0].rmon[\"${set}-pktsNtoM\"][$bucket].val")
 

@@ -105,6 +105,26 @@ required:
   - compatible
   - reg
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,apq8064-imem
+              - qcom,msm8226-imem
+              - qcom,msm8974-imem
+    then:
+      properties:
+        reboot-mode:
+          patternProperties:
+            # Negative look-ahead to disallow unsupported modes. The '$' has to be
+            # part of lookahead group to work, instead of trailing outside of ().
+            "^mode-(?!(bootloader$|normal$|recovery$))": false
+    else:
+      properties:
+        reboot-mode: false
+
 additionalProperties: false
 
 examples:

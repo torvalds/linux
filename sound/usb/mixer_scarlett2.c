@@ -1403,6 +1403,7 @@ struct scarlett2_data {
 	struct usb_mixer_interface *mixer;
 	struct mutex usb_mutex; /* prevent sending concurrent USB requests */
 	struct completion cmd_done;
+	struct urb *urb;        /* notification endpoint */
 	struct mutex data_mutex; /* lock access to this data */
 	u8 running;
 	u8 hwdep_in_use;
@@ -2602,9 +2603,9 @@ static int scarlett2_usb_rx(struct usb_device *dev, int interface,
 }
 
 /* Send a proprietary format request to the Scarlett interface */
-static int scarlett2_usb(
-	struct usb_mixer_interface *mixer, u32 cmd,
-	void *req_data, u16 req_size, void *resp_data, u16 resp_size)
+static int scarlett2_usb_nopm(struct usb_mixer_interface *mixer, u32 cmd,
+			      void *req_data, u16 req_size,
+			      void *resp_data, u16 resp_size)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	struct usb_device *dev = mixer->chip->dev;
@@ -2710,6 +2711,18 @@ retry:
 		memcpy(resp_data, resp->data, resp_size);
 
 	return err;
+}
+
+static int scarlett2_usb(struct usb_mixer_interface *mixer, u32 cmd,
+			 void *req_data, u16 req_size,
+			 void *resp_data, u16 resp_size)
+{
+	CLASS(snd_usb_lock, pm)(mixer->chip);
+	if (pm.err < 0)
+		return -EIO;
+
+	return scarlett2_usb_nopm(mixer, cmd, req_data, req_size,
+				  resp_data, resp_size);
 }
 
 /* Send a USB message to get data; result placed in *buf */
@@ -3019,9 +3032,21 @@ static int scarlett2_usb_set_config_buf(
 /* Send SCARLETT2_USB_DATA_CMD SCARLETT2_USB_CONFIG_SAVE */
 static void scarlett2_config_save(struct usb_mixer_interface *mixer)
 {
-	int err;
+	__le32 req = cpu_to_le32(SCARLETT2_USB_CONFIG_SAVE);
+	int err = scarlett2_usb(mixer, SCARLETT2_USB_DATA_CMD,
+				&req, sizeof(req), NULL, 0);
 
-	err = scarlett2_usb_activate_config(mixer, SCARLETT2_USB_CONFIG_SAVE);
+	if (err < 0)
+		usb_audio_err(mixer->chip, "config save failed: %d\n", err);
+}
+
+/* The USB suspend callback must not acquire another PM reference. */
+static void scarlett2_config_save_nopm(struct usb_mixer_interface *mixer)
+{
+	__le32 req = cpu_to_le32(SCARLETT2_USB_CONFIG_SAVE);
+	int err = scarlett2_usb_nopm(mixer, SCARLETT2_USB_DATA_CMD,
+				     &req, sizeof(req), NULL, 0);
+
 	if (err < 0)
 		usb_audio_err(mixer->chip, "config save failed: %d\n", err);
 }
@@ -8565,13 +8590,70 @@ requeue:
 	}
 }
 
-/*** Cleanup/Suspend Callbacks ***/
+/*** Notification URB and Cleanup/Suspend Callbacks ***/
+
+/* Submit a URB to receive notifications from the device */
+static int scarlett2_init_notify(struct usb_mixer_interface *mixer)
+{
+	struct usb_device *dev = mixer->chip->dev;
+	struct scarlett2_data *private = mixer->private_data;
+	unsigned int pipe = usb_rcvintpipe(dev, private->bEndpointAddress);
+	void *transfer_buffer;
+	int err;
+
+	/* Already set up */
+	if (private->urb)
+		return 0;
+
+	if (usb_pipe_type_check(dev, pipe))
+		return -EINVAL;
+
+	private->urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!private->urb)
+		return -ENOMEM;
+
+	transfer_buffer = kmalloc(private->wMaxPacketSize, GFP_KERNEL);
+	if (!transfer_buffer) {
+		usb_free_urb(private->urb);
+		private->urb = NULL;
+		return -ENOMEM;
+	}
+
+	usb_fill_int_urb(private->urb, dev, pipe,
+			 transfer_buffer, private->wMaxPacketSize,
+			 scarlett2_notify, mixer, private->bInterval);
+
+	reinit_completion(&private->cmd_done);
+
+	err = usb_submit_urb(private->urb, GFP_KERNEL);
+	if (err) {
+		kfree(transfer_buffer);
+		usb_free_urb(private->urb);
+		private->urb = NULL;
+	}
+
+	return err;
+}
+
+static void scarlett2_cleanup_urb(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	if (!private->urb)
+		return;
+
+	usb_kill_urb(private->urb);
+	kfree(private->urb->transfer_buffer);
+	usb_free_urb(private->urb);
+	private->urb = NULL;
+}
 
 static void scarlett2_private_free(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 
 	cancel_delayed_work_sync(&private->work);
+	scarlett2_cleanup_urb(mixer);
 	kfree(private);
 	mixer->private_data = NULL;
 }
@@ -8581,7 +8663,9 @@ static void scarlett2_private_suspend(struct usb_mixer_interface *mixer)
 	struct scarlett2_data *private = mixer->private_data;
 
 	if (cancel_delayed_work_sync(&private->work))
-		scarlett2_config_save(private->mixer);
+		scarlett2_config_save_nopm(private->mixer);
+
+	scarlett2_cleanup_urb(mixer);
 }
 
 /*** Initialisation ***/
@@ -8701,11 +8785,13 @@ static int scarlett2_init_private(struct usb_mixer_interface *mixer,
 
 	mutex_init(&private->usb_mutex);
 	mutex_init(&private->data_mutex);
+	init_completion(&private->cmd_done);
 	INIT_DELAYED_WORK(&private->work, scarlett2_config_save_work);
 
 	mixer->private_data = private;
 	mixer->private_free = scarlett2_private_free;
 	mixer->private_suspend = scarlett2_private_suspend;
+	mixer->private_resume = scarlett2_init_notify;
 
 	private->info = entry->info;
 
@@ -8720,40 +8806,6 @@ static int scarlett2_init_private(struct usb_mixer_interface *mixer,
 	private->mixer = mixer;
 
 	return scarlett2_find_fc_interface(mixer->chip->dev, private);
-}
-
-/* Submit a URB to receive notifications from the device */
-static int scarlett2_init_notify(struct usb_mixer_interface *mixer)
-{
-	struct usb_device *dev = mixer->chip->dev;
-	struct scarlett2_data *private = mixer->private_data;
-	unsigned int pipe = usb_rcvintpipe(dev, private->bEndpointAddress);
-	void *transfer_buffer;
-
-	if (mixer->urb) {
-		usb_audio_err(mixer->chip,
-			      "%s: mixer urb already in use!\n", __func__);
-		return 0;
-	}
-
-	if (usb_pipe_type_check(dev, pipe))
-		return -EINVAL;
-
-	mixer->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!mixer->urb)
-		return -ENOMEM;
-
-	transfer_buffer = kmalloc(private->wMaxPacketSize, GFP_KERNEL);
-	if (!transfer_buffer)
-		return -ENOMEM;
-
-	usb_fill_int_urb(mixer->urb, dev, pipe,
-			 transfer_buffer, private->wMaxPacketSize,
-			 scarlett2_notify, mixer, private->bInterval);
-
-	init_completion(&private->cmd_done);
-
-	return usb_submit_urb(mixer->urb, GFP_KERNEL);
 }
 
 /* Cargo cult proprietary initialisation sequence */

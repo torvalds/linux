@@ -155,6 +155,7 @@ netdev_tx_t hbg_net_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	buffer->skb = skb;
 	buffer->skb_len = skb->len;
 	if (unlikely(hbg_dma_map(buffer))) {
+		buffer->skb = NULL;
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -553,7 +554,7 @@ static int hbg_ring_page_pool_init(struct hbg_priv *priv, struct hbg_ring *ring)
 		.nid = dev_to_node(&priv->pdev->dev),
 		.dev = &priv->pdev->dev,
 		.napi = &ring->napi,
-		.dma_dir = DMA_FROM_DEVICE,
+		.dma_dir = DMA_BIDIRECTIONAL,
 		.offset = 0,
 		.max_len = hbg_get_page_size(ring),
 	};

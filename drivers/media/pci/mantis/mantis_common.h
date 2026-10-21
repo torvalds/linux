@@ -58,11 +58,9 @@
 #define TERRATEC		0x153b
 
 #define MAKE_ENTRY(__subven, __subdev, __configptr, __rc) {		\
-		.vendor		= TWINHAN_TECHNOLOGIES,			\
-		.device		= MANTIS,				\
-		.subvendor	= (__subven),				\
-		.subdevice	= (__subdev),				\
-		.driver_data	= (unsigned long)			\
+		PCI_DEVICE_SUB(TWINHAN_TECHNOLOGIES, MANTIS,		\
+			       (__subven), (__subdev)),			\
+		.driver_data = (unsigned long)				\
 			&(struct mantis_pci_drvdata){__configptr, __rc}	\
 }
 

@@ -38,7 +38,7 @@ static void ltl_atoms_init(struct task_struct *task, struct ltl_monitor *mon, bo
 static void handle_page_fault(void *data, unsigned long address, struct pt_regs *regs,
 			      unsigned long error_code)
 {
-	ltl_atom_pulse(current, LTL_PAGEFAULT, true);
+	ltl_atom_pulse(rv_get_current(), LTL_PAGEFAULT, true);
 }
 
 static int enable_pagefault(void)
@@ -63,7 +63,7 @@ static void disable_pagefault(void)
 	ltl_monitor_destroy();
 }
 
-static struct rv_monitor rv_pagefault = {
+static struct rv_monitor rv_this = {
 	.name = "pagefault",
 	.description = "Monitor that RT tasks do not raise page faults",
 	.enable = enable_pagefault,
@@ -72,12 +72,12 @@ static struct rv_monitor rv_pagefault = {
 
 static int __init register_pagefault(void)
 {
-	return rv_register_monitor(&rv_pagefault, &rv_rtapp);
+	return rv_register_monitor(&rv_this, &rv_rtapp);
 }
 
 static void __exit unregister_pagefault(void)
 {
-	rv_unregister_monitor(&rv_pagefault);
+	rv_unregister_monitor(&rv_this);
 }
 
 module_init(register_pagefault);
@@ -86,3 +86,15 @@ module_exit(unregister_pagefault);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Nam Cao <namcao@linutronix.de>");
 MODULE_DESCRIPTION("pagefault: Monitor that RT tasks do not raise page faults");
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#include <kunit/visibility.h>
+#include "pagefault_kunit.h"
+
+const struct rv_pagefault_ops rv_pagefault_ops = {
+	.mon = RV_MON_OPS_INIT(),
+	.handle_page_fault = handle_page_fault,
+	.handle_task_newtask = handle_task_newtask,
+};
+EXPORT_SYMBOL_IF_KUNIT(rv_pagefault_ops);
+#endif

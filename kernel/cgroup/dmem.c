@@ -17,6 +17,13 @@
 #include <linux/refcount.h>
 #include <linux/rculist.h>
 #include <linux/slab.h>
+#include <linux/srcu.h>
+
+/* Maximum reclaim attempts before giving up when lowering dmem.max. */
+#define DMEM_MAX_RECLAIM_RETRIES 16
+
+/* SRCU domain serialising reclaim callbacks against region unregistration. */
+DEFINE_STATIC_SRCU(dmemcg_srcu);
 
 struct dmem_cgroup_region {
 	/**
@@ -48,9 +55,18 @@ struct dmem_cgroup_region {
 
 	/**
 	 * @unregistered: Whether the region is unregistered by its caller.
-	 * No new pools should be added to the region afterwards.
+	 * No new pools should be added to the region afterwards, and no new
+	 * reclaim callbacks should be invoked.
 	 */
 	bool unregistered;
+
+	/**
+	 * @ops: Optional driver operations for this region.
+	 */
+	const struct dmem_cgroup_ops *ops;
+
+	/** @reclaim_priv: Private data passed to @ops->reclaim. */
+	void *reclaim_priv;
 };
 
 struct dmemcg_state {
@@ -145,21 +161,52 @@ static void free_cg_pool(struct dmem_cgroup_pool_state *pool)
 }
 
 static void
-set_resource_min(struct dmem_cgroup_pool_state *pool, u64 val)
+set_resource_min(struct dmem_cgroup_pool_state *pool, u64 val, bool nonblock)
 {
 	page_counter_set_min(&pool->cnt, val);
 }
 
 static void
-set_resource_low(struct dmem_cgroup_pool_state *pool, u64 val)
+set_resource_low(struct dmem_cgroup_pool_state *pool, u64 val, bool nonblock)
 {
 	page_counter_set_low(&pool->cnt, val);
 }
 
 static void
-set_resource_max(struct dmem_cgroup_pool_state *pool, u64 val)
+set_resource_max(struct dmem_cgroup_pool_state *pool, u64 val, bool nonblock)
 {
-	page_counter_set_max(&pool->cnt, val);
+	struct dmem_cgroup_region *region = pool->region;
+	unsigned long limit = (unsigned long)val;
+
+	/* Apply the new limit immediately so concurrent allocations are throttled. */
+	xchg(&pool->cnt.max, limit);
+
+	if (nonblock)
+		return;
+
+	int srcu_idx = srcu_read_lock(&dmemcg_srcu);
+
+	if (!READ_ONCE(region->unregistered) && region->ops && region->ops->reclaim) {
+		for (int retries = DMEM_MAX_RECLAIM_RETRIES; ; ) {
+			u64 usage = page_counter_read(&pool->cnt);
+			int ret;
+
+			if (usage <= limit)
+				break;
+
+			if (signal_pending(current))
+				break;
+
+			ret = region->ops->reclaim(pool, usage - limit, region->reclaim_priv);
+
+			/* -ENOSPC means no progress; other errors are fatal. */
+			if (ret && (ret != -ENOSPC || !retries--))
+				break;
+
+			cond_resched();
+		}
+	}
+	srcu_read_unlock(&dmemcg_srcu, srcu_idx);
 }
 
 static u64 get_resource_low(struct dmem_cgroup_pool_state *pool)
@@ -182,11 +229,17 @@ static u64 get_resource_current(struct dmem_cgroup_pool_state *pool)
 	return pool ? page_counter_read(&pool->cnt) : 0;
 }
 
+static u64 get_resource_peak(struct dmem_cgroup_pool_state *pool)
+{
+	return pool ? READ_ONCE(pool->cnt.watermark) : 0;
+}
+
 static void reset_all_resource_limits(struct dmem_cgroup_pool_state *rpool)
 {
-	set_resource_min(rpool, 0);
-	set_resource_low(rpool, 0);
-	set_resource_max(rpool, PAGE_COUNTER_MAX);
+	set_resource_min(rpool, 0, false);
+	set_resource_low(rpool, 0, false);
+	/* nonblock: raising to max makes reclaim a no-op; sleeping is forbidden here. */
+	set_resource_max(rpool, PAGE_COUNTER_MAX, true);
 }
 
 static void dmemcs_offline(struct cgroup_subsys_state *css)
@@ -463,7 +516,10 @@ static void dmemcg_free_region(struct kref *ref)
  * dmem_cgroup_unregister_region() - Unregister a previously registered region.
  * @region: The region to unregister.
  *
- * This function undoes dmem_cgroup_register_region.
+ * This function undoes dmem_cgroup_register_region.  It drains any
+ * in-flight reclaim callbacks before returning, so the caller may safely
+ * free the resources pointed to by the @reclaim_priv that was passed at
+ * registration time.
  */
 void dmem_cgroup_unregister_region(struct dmem_cgroup_region *region)
 {
@@ -488,8 +544,10 @@ void dmem_cgroup_unregister_region(struct dmem_cgroup_region *region)
 	 * no new pools should be added to the dead region
 	 * by get_cg_pool_unlocked.
 	 */
-	region->unregistered = true;
+	WRITE_ONCE(region->unregistered, true);
 	spin_unlock(&dmemcg_lock);
+
+	synchronize_srcu(&dmemcg_srcu);
 
 	kref_put(&region->ref, dmemcg_free_region);
 }
@@ -497,7 +555,7 @@ EXPORT_SYMBOL_GPL(dmem_cgroup_unregister_region);
 
 /**
  * dmem_cgroup_register_region() - Register a regions for dev cgroup.
- * @size: Size of region to register, in bytes.
+ * @init: Initialization parameters for the region.
  * @fmt: Region parameters to register
  *
  * This function registers a node in the dmem cgroup with the
@@ -506,13 +564,15 @@ EXPORT_SYMBOL_GPL(dmem_cgroup_unregister_region);
  *
  * Return: NULL or a struct on success, PTR_ERR on failure.
  */
-struct dmem_cgroup_region *dmem_cgroup_register_region(u64 size, const char *fmt, ...)
+struct dmem_cgroup_region *
+dmem_cgroup_register_region(const struct dmem_cgroup_init *init,
+			    const char *fmt, ...)
 {
 	struct dmem_cgroup_region *ret;
 	char *region_name;
 	va_list ap;
 
-	if (!size)
+	if (!init || !init->size)
 		return NULL;
 
 	va_start(ap, fmt);
@@ -529,7 +589,9 @@ struct dmem_cgroup_region *dmem_cgroup_register_region(u64 size, const char *fmt
 
 	INIT_LIST_HEAD(&ret->pools);
 	ret->name = region_name;
-	ret->size = size;
+	ret->size = init->size;
+	ret->ops = init->ops;
+	ret->reclaim_priv = init->reclaim_priv;
 	kref_init(&ret->ref);
 
 	spin_lock(&dmemcg_lock);
@@ -695,6 +757,110 @@ err:
 }
 EXPORT_SYMBOL_GPL(dmem_cgroup_try_charge);
 
+/**
+ * dmem_cgroup_below_min() - Tests whether current usage is within min limit.
+ *
+ * @root: Root of the subtree to calculate protection for, or NULL to calculate global protection.
+ * @test: The pool to test the usage/min limit of.
+ *
+ * Return: true if usage is below min and the cgroup is protected, false otherwise.
+ */
+bool dmem_cgroup_below_min(struct dmem_cgroup_pool_state *root,
+			   struct dmem_cgroup_pool_state *test)
+{
+	if (root == test || !pool_parent(test))
+		return false;
+
+	if (!root) {
+		for (root = test; pool_parent(root); root = pool_parent(root))
+			{}
+	}
+
+	/*
+	 * In mem_cgroup_below_min(), the memcg pendant, this call is missing.
+	 * mem_cgroup_below_min() gets called during traversal of the cgroup tree, where
+	 * protection is already calculated as part of the traversal. dmem cgroup eviction
+	 * does not traverse the cgroup tree, so we need to recalculate effective protection
+	 * here.
+	 */
+	dmem_cgroup_calculate_protection(root, test);
+	return page_counter_read(&test->cnt) <= READ_ONCE(test->cnt.emin);
+}
+EXPORT_SYMBOL_GPL(dmem_cgroup_below_min);
+
+/**
+ * dmem_cgroup_below_low() - Tests whether current usage is within low limit.
+ *
+ * @root: Root of the subtree to calculate protection for, or NULL to calculate global protection.
+ * @test: The pool to test the usage/low limit of.
+ *
+ * Return: true if usage is below low and the cgroup is protected, false otherwise.
+ */
+bool dmem_cgroup_below_low(struct dmem_cgroup_pool_state *root,
+			   struct dmem_cgroup_pool_state *test)
+{
+	if (root == test || !pool_parent(test))
+		return false;
+
+	if (!root) {
+		for (root = test; pool_parent(root); root = pool_parent(root))
+			{}
+	}
+
+	/*
+	 * In mem_cgroup_below_low(), the memcg pendant, this call is missing.
+	 * mem_cgroup_below_low() gets called during traversal of the cgroup tree, where
+	 * protection is already calculated as part of the traversal. dmem cgroup eviction
+	 * does not traverse the cgroup tree, so we need to recalculate effective protection
+	 * here.
+	 */
+	dmem_cgroup_calculate_protection(root, test);
+	return page_counter_read(&test->cnt) <= READ_ONCE(test->cnt.elow);
+}
+EXPORT_SYMBOL_GPL(dmem_cgroup_below_low);
+
+/**
+ * dmem_cgroup_get_common_ancestor(): Find the first common ancestor of two pools.
+ * @a: First pool to find the common ancestor of.
+ * @b: First pool to find the common ancestor of.
+ *
+ * Return: The first pool that is a parent of both @a and @b, or NULL if either @a or @b are NULL,
+ * or if such a pool does not exist. A reference to the returned pool is grabbed and must be
+ * released by the caller when it is done using the pool.
+ */
+struct dmem_cgroup_pool_state *dmem_cgroup_get_common_ancestor(struct dmem_cgroup_pool_state *a,
+							       struct dmem_cgroup_pool_state *b)
+{
+	struct cgroup *ancestor_cgroup;
+	struct cgroup_subsys_state *ancestor_css;
+	struct dmemcg_state *ancestor_dmemcs = NULL;
+	struct dmem_cgroup_pool_state *pool = NULL;
+
+	if (!a || !b)
+		return NULL;
+
+	ancestor_cgroup = cgroup_common_ancestor(a->cs->css.cgroup, b->cs->css.cgroup);
+	if (!ancestor_cgroup)
+		return NULL;
+
+	rcu_read_lock();
+	ancestor_css = cgroup_e_css(ancestor_cgroup, &dmem_cgrp_subsys);
+	if (css_tryget(ancestor_css))
+		ancestor_dmemcs = css_to_dmemcs(ancestor_css);
+	rcu_read_unlock();
+
+	if (ancestor_dmemcs) {
+		pool = get_cg_pool_unlocked(css_to_dmemcs(ancestor_css),
+					    a->region);
+		if (WARN_ON(IS_ERR(pool))) {
+			pool = NULL;
+			css_put(ancestor_css);
+		}
+	}
+	return pool;
+}
+EXPORT_SYMBOL_GPL(dmem_cgroup_get_common_ancestor);
+
 static int dmem_cgroup_region_capacity_show(struct seq_file *sf, void *v)
 {
 	struct dmem_cgroup_region *region;
@@ -726,60 +892,42 @@ static int dmemcg_parse_limit(char *options, u64 *new_limit)
 
 static ssize_t dmemcg_limit_write(struct kernfs_open_file *of,
 				 char *buf, size_t nbytes, loff_t off,
-				 void (*apply)(struct dmem_cgroup_pool_state *, u64))
+				 void (*apply)(struct dmem_cgroup_pool_state *, u64, bool))
 {
 	struct dmemcg_state *dmemcs = css_to_dmemcs(of_css(of));
-	int err = 0;
+	struct dmem_cgroup_pool_state *pool;
+	struct dmem_cgroup_region *region;
+	bool nonblock = of->file->f_flags & O_NONBLOCK;
+	char *region_name;
+	u64 new_limit;
+	int err;
 
-	while (buf && !err) {
-		struct dmem_cgroup_pool_state *pool = NULL;
-		char *options, *region_name;
-		struct dmem_cgroup_region *region;
-		u64 new_limit;
+	buf = strstrip(buf);
+	region_name = strsep(&buf, " \t");
+	if (!buf || !region_name[0])
+		return -EINVAL;
 
-		options = buf;
-		buf = strchr(buf, '\n');
-		if (buf)
-			*buf++ = '\0';
+	rcu_read_lock();
+	region = dmemcg_get_region_by_name(region_name);
+	rcu_read_unlock();
+	if (!region)
+		return -EINVAL;
 
-		options = strstrip(options);
+	err = dmemcg_parse_limit(buf, &new_limit);
+	if (err < 0)
+		goto out_put;
 
-		/* eat empty lines */
-		if (!options[0])
-			continue;
-
-		region_name = strsep(&options, " \t");
-		if (!region_name[0])
-			continue;
-
-		if (!options || !*options)
-			return -EINVAL;
-
-		rcu_read_lock();
-		region = dmemcg_get_region_by_name(region_name);
-		rcu_read_unlock();
-
-		if (!region)
-			return -EINVAL;
-
-		err = dmemcg_parse_limit(options, &new_limit);
-		if (err < 0)
-			goto out_put;
-
-		pool = get_cg_pool_unlocked(dmemcs, region);
-		if (IS_ERR(pool)) {
-			err = PTR_ERR(pool);
-			goto out_put;
-		}
-
-		/* And commit */
-		apply(pool, new_limit);
-		dmemcg_pool_put(pool);
-
-out_put:
-		kref_put(&region->ref, dmemcg_free_region);
+	pool = get_cg_pool_unlocked(dmemcs, region);
+	if (IS_ERR(pool)) {
+		err = PTR_ERR(pool);
+		goto out_put;
 	}
 
+	apply(pool, new_limit, nonblock);
+	dmemcg_pool_put(pool);
+
+out_put:
+	kref_put(&region->ref, dmemcg_free_region);
 
 	return err ?: nbytes;
 }
@@ -806,6 +954,11 @@ static int dmemcg_limit_show(struct seq_file *sf, void *v,
 	rcu_read_unlock();
 
 	return 0;
+}
+
+static int dmem_cgroup_region_peak_show(struct seq_file *sf, void *v)
+{
+	return dmemcg_limit_show(sf, v, get_resource_peak);
 }
 
 static int dmem_cgroup_region_current_show(struct seq_file *sf, void *v)
@@ -855,6 +1008,11 @@ static struct cftype files[] = {
 	{
 		.name = "current",
 		.seq_show = dmem_cgroup_region_current_show,
+	},
+	{
+		.name = "peak",
+		.seq_show = dmem_cgroup_region_peak_show,
+		.flags = CFTYPE_NOT_ON_ROOT,
 	},
 	{
 		.name = "min",

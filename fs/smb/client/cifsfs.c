@@ -1413,8 +1413,19 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	 */
 	lock_two_nondirectories(target_inode, src_inode);
 
-	if (len == 0)
-		len = src_inode->i_size - off;
+	if (len == 0) {
+		loff_t src_size = i_size_read(src_inode);
+
+		if (off > src_size) {
+			rc = -EINVAL;
+			goto unlock;
+		}
+		len = src_size - off;
+		if (!len) {
+			rc = 0;
+			goto unlock;
+		}
+	}
 
 	cifs_dbg(FYI, "clone range\n");
 
@@ -1466,11 +1477,7 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	if (target_tcon->ses->server->ops->duplicate_extents) {
 		rc = target_tcon->ses->server->ops->duplicate_extents(xid,
 			smb_file_src, smb_file_target, off, len, destoff);
-		if (rc == 0 && new_size > i_size) {
-			truncate_setsize(target_inode, new_size);
-			fscache_resize_cookie(cifs_inode_cookie(target_inode),
-					      new_size);
-		} else if (rc == -EOPNOTSUPP) {
+		if (rc == -EOPNOTSUPP) {
 			/*
 			 * copy_file_range syscall man page indicates EINVAL
 			 * is returned e.g when "fd_in and fd_out refer to the

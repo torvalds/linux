@@ -17,9 +17,12 @@
 #include <linux/sched/task.h>
 #include <linux/slab.h>
 #include <linux/task_work.h>
+#include <uapi/linux/landlock.h>
 
 #include "cred.h"
 #include "tsync.h"
+
+#include <trace/events/landlock.h>
 
 /*
  * Shared state between multiple threads which are enforcing Landlock rulesets
@@ -78,6 +81,8 @@ struct tsync_work {
  */
 static void restrict_one_thread(struct tsync_shared_context *ctx)
 {
+	const struct landlock_domain *new_dom =
+		landlock_cred(ctx->new_cred)->domain;
 	int err;
 	struct cred *cred = NULL;
 
@@ -145,6 +150,18 @@ static void restrict_one_thread(struct tsync_shared_context *ctx)
 		task_set_no_new_privs(current);
 
 	commit_creds(cred);
+
+	/*
+	 * Emitted strictly after commit_creds() and before the out: label, so
+	 * it fires only for a thread now enforcing new_dom, and every
+	 * non-concluding (complete == false) event happens-before the
+	 * operation's single concluding one.  Skipped on the flags-only path,
+	 * where old_cred and new_cred carry the same domain.  A sibling never
+	 * concludes the operation and its enforcement is always process-wide.
+	 */
+	if (new_dom != landlock_cred(ctx->old_cred)->domain)
+		trace_landlock_enforce_domain(new_dom, false, true,
+					      task_no_new_privs(current));
 
 out:
 	/* Notify the calling thread once all threads are done */
@@ -466,7 +483,8 @@ static void cancel_tsync_works(const struct tsync_works *works,
  * restrict_sibling_threads - enables a Landlock policy for all sibling threads
  */
 int landlock_restrict_sibling_threads(const struct cred *old_cred,
-				      const struct cred *new_cred)
+				      const struct cred *new_cred,
+				      const u32 restrict_flags)
 {
 	int err;
 	struct tsync_shared_context shared_ctx;
@@ -481,7 +499,9 @@ int landlock_restrict_sibling_threads(const struct cred *old_cred,
 	init_completion(&shared_ctx.all_finished);
 	shared_ctx.old_cred = old_cred;
 	shared_ctx.new_cred = new_cred;
-	shared_ctx.set_no_new_privs = task_no_new_privs(current);
+	shared_ctx.set_no_new_privs =
+		(restrict_flags & LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS) ||
+		task_no_new_privs(current);
 
 	/*
 	 * Serialize concurrent TSYNC operations to prevent deadlocks when

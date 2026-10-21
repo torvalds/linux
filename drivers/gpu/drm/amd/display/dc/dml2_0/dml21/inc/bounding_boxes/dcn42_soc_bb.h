@@ -205,7 +205,6 @@ static const struct dml2_soc_bb dml2_socbb_dcn42 = {
 	.xtalclk_mhz = 24,
 	.pcie_refclk_mhz = 100,
 	.dchub_refclk_mhz = 50,
-	.mall_allocated_for_dcn_mbytes = 0,
 	.max_outstanding_reqs = 256,
 	.fabric_datapath_to_dcn_data_return_bytes = 32,
 	.return_bus_width_bytes = 64,
@@ -216,11 +215,6 @@ static const struct dml2_soc_bb dml2_socbb_dcn42 = {
 	.phy_downspread_percent = 0.38,
 	.dcn_downspread_percent = 0.38,
 	.dispclk_dppclk_vco_speed_mhz = 3000,
-	.do_urgent_latency_adjustment = 0,
-	.mem_word_bytes = 32,
-	.num_dcc_mcaches = 8,
-	.mcache_size_bytes = 2048,
-	.mcache_line_size_bytes = 32,
 	.max_fclk_for_uclk_dpm_khz = 2200 * 1000,
 };
 

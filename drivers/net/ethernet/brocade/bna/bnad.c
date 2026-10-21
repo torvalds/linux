@@ -3006,7 +3006,6 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	txqent->hdr.wi.reserved = 0;
 	txqent->hdr.wi.num_vectors = vectors;
 
-	head_unmap->skb = skb;
 	head_unmap->nvecs = 0;
 
 	/* Program the vectors */
@@ -3018,6 +3017,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		BNAD_UPDATE_CTR(bnad, tx_skb_map_failed);
 		return NETDEV_TX_OK;
 	}
+	head_unmap->skb = skb;
 	BNA_SET_DMA_ADDR(dma_addr, &txqent->vector[0].host_addr);
 	txqent->vector[0].length = htons(len);
 	dma_unmap_addr_set(&unmap->vectors[0], dma_addr, dma_addr);

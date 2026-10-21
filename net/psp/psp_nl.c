@@ -533,7 +533,8 @@ int psp_nl_dev_assoc_doit(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	/* Check if device is already associated with a PSP device */
-	if (cmpxchg(&assoc_dev->psp_dev, NULL, RCU_INITIALIZER(psd))) {
+	if (unrcu_pointer(cmpxchg(&assoc_dev->psp_dev, NULL,
+				  RCU_INITIALIZER(psd)))) {
 		NL_SET_ERR_MSG(info->extack,
 			       "Device already associated with a PSP device");
 		err = -EBUSY;

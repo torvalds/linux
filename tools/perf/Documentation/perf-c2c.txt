@@ -365,6 +365,77 @@ TUI OUTPUT
 The TUI output provides interactive interface to navigate
 through cachelines list and to display offset details.
 
+Pressing the 'TAB' key in the cacheline view switches to the function
+view.  The function view shows a three-level hierarchy of the symbolized
+entries retained in the cacheline view, organized around functions rather
+than cachelines.  Levels 1 and 2 normally show function names, while level 3
+shows cacheline addresses.  Lower levels are indented beneath their parents.
+Verbose mode also includes code addresses in function rows, and code addresses
+remain available in the per-cacheline detail view ('d').
+
+The function view requires `iaddr` in the cacheline coalescing fields.  If
+`--coalesce` omits it, TAB reports that the view is unavailable rather than
+attributing already-coalesced samples to an arbitrary function.
+
+  Level 1: the read-side function, sorted by Cycles % (estimated load
+           cycles: HITM, peer-snoop and other-load cycles)
+  Level 2: the functions sampled writing the shared lines read by the
+           level-1 function, sorted by store count.  This can be the same
+           function when it has both read and write samples
+  Level 3: the specific cachelines shared by the reader/writer pair
+
+The Cycles % value is the function's share of event-provided load
+latency/weight estimates from cacheline-detail entries retained in the
+current view.  It can include non-HITM and non-peer loads coalesced into
+entries that pass the C2C filter, so it is not a pure contention-cycle
+percentage.  The share is relative to the functions and entries retained
+for the current report and is not comparable across recordings or different
+`--coalesce` settings.
+
+The store count on a level-1 row is the number of sampled stores by writers
+shown in the function view into the cachelines that function reads, including
+stores from the same function.  It decomposes into the level-2 writer rows;
+each level-2 count in turn decomposes into that writer's stores on its level-3
+cachelines.  A level-3 count is therefore not the cacheline's total store
+count.  The level-1 value is not the number of stores made by the reader and
+is not additive across level-1 rows: two functions reading the same line each
+carry the stores into that line.
+
+Each function aggregates all of its code addresses into a single entry,
+and a level-2 writer aggregates all of its shared cachelines, so a
+reader/writer pair is a single row with its total shown -- there is no
+need to sum a writer's traffic across cachelines by hand.
+
+In the function view the 'd' key opens the detail view of the selected
+level-3 cacheline, 'e'/'+' expands or collapses the current entry, and 'TAB',
+'ESC', 'q' or Ctrl-C returns to the cacheline view.
+
+For example, with the first two read-side functions collapsed and
+dequeue_pushable_task expanded to show the functions writing the lines it
+reads -- two of which are further expanded to their individual cachelines:
+
+  Shared Data Functions Table     (19 entries, sorted on Cycles %)
+     Cycles    Store
+          %    count  Function / Contending function / Cacheline
+  ----------------------------------------------------------------------
+  +  35.67%      876  + [k] cpupri_set
+  +  24.31%      424  + [k] pull_rt_task
+  -  16.53%      555  - [k] dequeue_pushable_task
+                 145    - [k] pull_rt_task
+                 145        0xff2d0082809da080
+                 139    - [k] enqueue_pushable_task
+                  70        0xff2d00a2071f9640
+                  69        0xff2d0082809da000
+
+Here dequeue_pushable_task pays 16.53% of the estimated read-side load-cycle
+cost.  Its store count decomposes into its level-2 writers, and each writer's
+count decomposes into its level-3 cachelines: pull_rt_task's 145 stores fall
+on a single line, while enqueue_pushable_task's 139 stores split across two
+lines (70 and 69).  A writer can be the same function as the reader when it
+has both read and write samples; after cacheline coalescing and
+function-level grouping, the view cannot distinguish same-thread accesses
+from different threads running the same function.
+
 For details please refer to the help window by pressing '?' key.
 
 CREDITS

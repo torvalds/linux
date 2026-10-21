@@ -46,6 +46,8 @@ void set_ddc_transaction_type(
 		struct ddc_service *ddc,
 		enum ddc_transaction_type type);
 
+uint8_t link_get_ddc_aux_inst(const struct dc_link *link);
+
 uint32_t link_get_aux_defer_delay(struct ddc_service *ddc);
 
 bool link_is_in_aux_transaction_mode(struct ddc_service *ddc);

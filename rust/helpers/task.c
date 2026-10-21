@@ -28,11 +28,6 @@ __rust_helper kuid_t rust_helper_task_uid(struct task_struct *task)
 	return task_uid(task);
 }
 
-__rust_helper kuid_t rust_helper_task_euid(struct task_struct *task)
-{
-	return task_euid(task);
-}
-
 #ifndef CONFIG_USER_NS
 __rust_helper uid_t rust_helper_from_kuid(struct user_namespace *to, kuid_t uid)
 {

@@ -67,7 +67,6 @@ struct rcu_tasks_percpu {
  * @gp_start: Most recent grace-period start in jiffies.
  * @tasks_gp_seq: Number of grace periods completed since boot in upper bits.
  * @n_ipis: Number of IPIs sent to encourage grace periods to end.
- * @n_ipis_fails: Number of IPI-send failures.
  * @kthread_ptr: This flavor's grace-period/callback-invocation kthread.
  * @lazy_jiffies: Number of jiffies to allow callbacks to be lazy.
  * @pregp_func: This flavor's pre-grace-period function (optional).
@@ -102,7 +101,6 @@ struct rcu_tasks {
 	unsigned long gp_start;
 	unsigned long tasks_gp_seq;
 	unsigned long n_ipis;
-	unsigned long n_ipis_fails;
 	struct task_struct *kthread_ptr;
 	unsigned long lazy_jiffies;
 	rcu_tasks_gp_func_t gp_func;
@@ -157,8 +155,8 @@ static struct rcu_tasks rt_name =							\
 #ifdef CONFIG_TASKS_RCU
 
 /* Report delay of scan exiting tasklist in rcu_tasks_postscan(). */
-static void tasks_rcu_exit_srcu_stall(struct timer_list *unused);
-static DEFINE_TIMER(tasks_rcu_exit_srcu_stall_timer, tasks_rcu_exit_srcu_stall);
+static void tasks_rcu_exit_stall(struct timer_list *unused);
+static DEFINE_TIMER(tasks_rcu_exit_stall_timer, tasks_rcu_exit_stall);
 #endif
 
 /* Control stall timeouts.  Disable with <= 0, otherwise jiffies till stall. */
@@ -397,7 +395,11 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 		raw_spin_unlock_irqrestore(&rtp->cbs_gbl_lock, flags);
 	}
 	rcu_read_unlock();
-	/* We can't create the thread unless interrupts are enabled. */
+	// We can't create the kthread with interrupts disabled because a
+	// scheduler spinlock might be held, so kthread creation is deferred
+	// until core_initcall() time.  Similarly, wakeups are deferred using
+	// irq_work in order to avoid potential scheduler-lock-deadlock
+	// lockdep splats.
 	if (needwake && READ_ONCE(rtp->kthread_ptr))
 		irq_work_queue(&rtpcp->rtp_irq_work);
 }
@@ -481,8 +483,8 @@ static int rcu_tasks_need_gpcb(struct rcu_tasks *rtp)
 			if (cpu > 0)
 				ncbsnz += n;
 		}
-		rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
-		(void)rcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
+		srcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
+		(void)srcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
 		if (rtpcp->urgent_gp > 0 && rcu_segcblist_pend_cbs(&rtpcp->cblist)) {
 			if (rtp->lazy_jiffies)
 				rtpcp->urgent_gp--;
@@ -565,7 +567,7 @@ static void rcu_tasks_invoke_cbs(struct rcu_tasks *rtp, struct rcu_tasks_percpu 
 	if (rcu_segcblist_empty(&rtpcp->cblist))
 		return;
 	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
-	rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
+	srcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
 	rcu_segcblist_extract_done_cbs(&rtpcp->cblist, &rcl);
 	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 	len = rcl.len;
@@ -578,7 +580,7 @@ static void rcu_tasks_invoke_cbs(struct rcu_tasks *rtp, struct rcu_tasks_percpu 
 	}
 	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
 	rcu_segcblist_add_len(&rtpcp->cblist, -len);
-	(void)rcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
+	(void)srcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
 	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 }
 
@@ -683,7 +685,6 @@ static void __init rcu_spawn_tasks_kthread_generic(struct rcu_tasks *rtp)
 	t = kthread_run(rcu_tasks_kthread, rtp, "%s_kthread", rtp->kname);
 	if (WARN_ONCE(IS_ERR(t), "%s: Could not start %s grace-period kthread, OOM is now expected behavior\n", __func__, rtp->name))
 		return;
-	smp_mb(); /* Ensure others see full kthread. */
 }
 
 #ifndef CONFIG_TINY_RCU
@@ -722,6 +723,7 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 	bool havecbs = false;
 	bool haveurgent = false;
 	bool haveurgentcbs = false;
+	bool havependtimer = false;
 
 	for_each_possible_cpu(cpu) {
 		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
@@ -732,19 +734,22 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 			haveurgent = true;
 		if (!data_race(rcu_segcblist_empty(&rtpcp->cblist)) && data_race(rtpcp->urgent_gp))
 			haveurgentcbs = true;
-		if (havecbs && haveurgent && haveurgentcbs)
+		if (data_race(timer_pending(&rtpcp->lazy_timer)))
+			havependtimer = true;
+		if (havecbs && haveurgent && haveurgentcbs && havependtimer)
 			break;
 	}
-	pr_info("%s: %s(%d) since %lu g:%lu i:%lu/%lu %c%c%c%c l:%lu %s\n",
+	pr_info("%s: %s(%d) since %lu g:%lu i:%lu %c%c%c%c%c l:%lu %s\n",
 		rtp->kname,
 		tasks_gp_state_getname(rtp), data_race(rtp->gp_state),
 		jiffies - data_race(rtp->gp_jiffies),
 		data_race(rcu_seq_current(&rtp->tasks_gp_seq)),
-		data_race(rtp->n_ipis_fails), data_race(rtp->n_ipis),
+		data_race(rtp->n_ipis),
 		".k"[!!data_race(rtp->kthread_ptr)],
 		".C"[havecbs],
 		".u"[haveurgent],
 		".U"[haveurgentcbs],
+		".P"[havependtimer],
 		rtp->lazy_jiffies,
 		s);
 }
@@ -1027,8 +1032,8 @@ static void rcu_tasks_postscan(struct list_head *hop)
 	int rtsi = READ_ONCE(rcu_task_stall_info);
 
 	if (!IS_ENABLED(CONFIG_TINY_RCU)) {
-		tasks_rcu_exit_srcu_stall_timer.expires = jiffies + rtsi;
-		add_timer(&tasks_rcu_exit_srcu_stall_timer);
+		tasks_rcu_exit_stall_timer.expires = jiffies + rtsi;
+		add_timer(&tasks_rcu_exit_stall_timer);
 	}
 
 	/*
@@ -1081,7 +1086,7 @@ static void rcu_tasks_postscan(struct list_head *hop)
 	}
 
 	if (!IS_ENABLED(CONFIG_TINY_RCU))
-		timer_delete_sync(&tasks_rcu_exit_srcu_stall_timer);
+		timer_delete_sync(&tasks_rcu_exit_stall_timer);
 }
 
 /* See if tasks are still holding out, complain if so. */
@@ -1153,7 +1158,7 @@ static void rcu_tasks_postgp(struct rcu_tasks *rtp)
 	synchronize_rcu();
 }
 
-static void tasks_rcu_exit_srcu_stall(struct timer_list *unused)
+static void tasks_rcu_exit_stall(struct timer_list *unused)
 {
 #ifndef CONFIG_TINY_RCU
 	int rtsi;
@@ -1163,8 +1168,8 @@ static void tasks_rcu_exit_srcu_stall(struct timer_list *unused)
 		__func__, rcu_tasks.kname, rcu_tasks.tasks_gp_seq,
 		tasks_gp_state_getname(&rcu_tasks), jiffies - rcu_tasks.gp_jiffies);
 	pr_info("Please check any exiting tasks stuck between calls to exit_tasks_rcu_start() and exit_tasks_rcu_finish()\n");
-	tasks_rcu_exit_srcu_stall_timer.expires = jiffies + rtsi;
-	add_timer(&tasks_rcu_exit_srcu_stall_timer);
+	tasks_rcu_exit_stall_timer.expires = jiffies + rtsi;
+	add_timer(&tasks_rcu_exit_stall_timer);
 #endif // #ifndef CONFIG_TINY_RCU
 }
 
@@ -1174,7 +1179,7 @@ static void tasks_rcu_exit_srcu_stall(struct timer_list *unused)
  * @func: actual callback function to be invoked after the grace period
  *
  * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
+ * period elapses, in other words after all currently executing rcu-tasks
  * read-side critical sections have completed. call_rcu_tasks() assumes
  * that the read-side critical sections end at a voluntary context
  * switch (not a preemption!), cond_resched_tasks_rcu_qs(), entry into idle,
@@ -1360,8 +1365,8 @@ DEFINE_RCU_TASKS(rcu_tasks_rude, rcu_tasks_rude_wait_gp, call_rcu_tasks_rude,
  * @func: actual callback function to be invoked after the grace period
  *
  * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_tasks_rude()
+ * period elapses, in other words after all currently executing rude
+ * rcu-tasks read-side critical sections have completed. call_rcu_tasks_rude()
  * assumes that the read-side critical sections end at context switch,
  * cond_resched_tasks_rcu_qs(), or transition to usermode execution (as
  * usermode execution is schedulable). As such, there are no read-side
@@ -1385,7 +1390,7 @@ static void call_rcu_tasks_rude(struct rcu_head *rhp, rcu_callback_t func)
  *
  * Control will return to the caller some time after a rude rcu-tasks
  * grace period has elapsed, in other words after all currently
- * executing rcu-tasks read-side critical sections have elapsed.  These
+ * executing rude rcu-tasks read-side critical sections have elapsed. These
  * read-side critical sections are delimited by calls to schedule(),
  * cond_resched_tasks_rcu_qs(), userspace execution (which is a schedulable
  * context), and (in theory, anyway) cond_resched().
@@ -1455,6 +1460,7 @@ struct rcu_tasks_test_desc {
 	const char *name;
 	bool notrun;
 	unsigned long runstart;
+	void (*gp_dbg)(void);
 };
 
 static struct rcu_tasks_test_desc tests[] = {
@@ -1462,6 +1468,8 @@ static struct rcu_tasks_test_desc tests[] = {
 		.name = "call_rcu_tasks()",
 		/* If not defined, the test is skipped. */
 		.notrun = IS_ENABLED(CONFIG_TASKS_RCU),
+		/* Dump rcu tasks status, if test failed. */
+		.gp_dbg = show_rcu_tasks_classic_gp_kthread
 	},
 	{
 		.name = "call_rcu_tasks_trace()",
@@ -1521,6 +1529,8 @@ static int rcu_tasks_verify_self_tests(void)
 		while (tests[i].notrun) {		// still hanging.
 			if (time_after(jiffies, tests[i].runstart + bst)) {
 				pr_err("%s has failed boot-time tests.\n", tests[i].name);
+				if (tests[i].gp_dbg)
+					tests[i].gp_dbg();
 				ret = -1;
 				break;
 			}
@@ -1605,5 +1615,11 @@ static inline void rcu_tasks_bootup_oddness(void) {}
 
 DEFINE_SRCU_FAST(rcu_tasks_trace_srcu_struct);
 EXPORT_SYMBOL_GPL(rcu_tasks_trace_srcu_struct);
+
+unsigned long rcu_tasks_trace_batches_completed(void)
+{
+	return srcu_batches_completed(&rcu_tasks_trace_srcu_struct);
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_trace_batches_completed);
 
 #endif /* #else #ifdef CONFIG_TASKS_TRACE_RCU */

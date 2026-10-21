@@ -111,14 +111,14 @@ struct xe_ggtt_pt_ops {
 struct xe_ggtt {
 	/** @tile: Back pointer to tile where this GGTT belongs */
 	struct xe_tile *tile;
-        /** @start: Start offset of GGTT */
+	/** @start: Start offset of GGTT */
 	u64 start;
 	/** @size: Total usable size of this GGTT */
 	u64 size;
-
 	/**
-	 * @flags: Flags for this GGTT
+	 * @flags: Flags for this GGTT.
 	 * Acceptable flags:
+	 *
 	 * - %XE_GGTT_FLAGS_64K - if PTE size is 64K. Otherwise, regular is 4K.
 	 * - %XE_GGTT_FLAGS_ONLINE - is GGTT online, protected by ggtt->lock
 	 *   after init
@@ -129,7 +129,7 @@ struct xe_ggtt {
 	/** @lock: Mutex lock to protect GGTT data */
 	struct mutex lock;
 	/**
-	 *  @gsm: The iomem pointer to the actual location of the translation
+	 * @gsm: The iomem pointer to the actual location of the translation
 	 * table located in the GSM for easy PTE manipulation
 	 */
 	u64 __iomem *gsm;

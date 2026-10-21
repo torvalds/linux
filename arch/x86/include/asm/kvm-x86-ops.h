@@ -63,11 +63,12 @@ KVM_X86_OP_OPTIONAL(flush_remote_tlbs_range)
 #endif
 KVM_X86_OP(flush_tlb_gva)
 KVM_X86_OP(flush_tlb_guest)
-KVM_X86_OP(vcpu_pre_run)
+KVM_X86_OP_OPTIONAL_RET0(vcpu_needs_initialization)
 KVM_X86_OP(vcpu_run)
 KVM_X86_OP(handle_exit)
 KVM_X86_OP(skip_emulated_instruction)
 KVM_X86_OP_OPTIONAL(update_emulated_instruction)
+KVM_X86_OP_OPTIONAL_RET0(unhandleable_emulation_required)
 KVM_X86_OP(set_interrupt_shadow)
 KVM_X86_OP(get_interrupt_shadow)
 KVM_X86_OP(patch_hypercall)
@@ -110,7 +111,7 @@ KVM_X86_OP(handle_exit_irqoff)
 KVM_X86_OP_OPTIONAL(update_cpu_dirty_logging)
 KVM_X86_OP_OPTIONAL(vcpu_blocking)
 KVM_X86_OP_OPTIONAL(vcpu_unblocking)
-KVM_X86_OP_OPTIONAL(pi_update_irte)
+KVM_X86_OP(pi_update_irte)
 KVM_X86_OP_OPTIONAL(pi_start_bypass)
 KVM_X86_OP_OPTIONAL(apicv_pre_state_restore)
 KVM_X86_OP_OPTIONAL(apicv_post_state_restore)
@@ -134,6 +135,7 @@ KVM_X86_OP_OPTIONAL(mem_enc_unregister_region)
 KVM_X86_OP_OPTIONAL(vm_copy_enc_context_from)
 KVM_X86_OP_OPTIONAL(vm_move_enc_context_from)
 KVM_X86_OP_OPTIONAL(guest_memory_reclaimed)
+KVM_X86_OP_OPTIONAL(reload_vmsa)
 KVM_X86_OP(get_feature_msr)
 KVM_X86_OP(check_emulate_instruction)
 KVM_X86_OP(apic_init_signal_blocked)
@@ -145,9 +147,16 @@ KVM_X86_OP(vcpu_deliver_sipi_vector)
 KVM_X86_OP_OPTIONAL_RET0(vcpu_get_apicv_inhibit_reasons);
 KVM_X86_OP_OPTIONAL(get_untagged_addr)
 KVM_X86_OP_OPTIONAL(alloc_apic_backing_page)
-KVM_X86_OP_OPTIONAL_RET0(gmem_prepare)
+#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_CONVERT
+KVM_X86_OP_OPTIONAL_RET0(gmem_make_private)
+#endif
+#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_RECLAIM
+KVM_X86_OP_OPTIONAL(gmem_make_shared)
+#endif
+#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_INVALIDATE
+KVM_X86_OP_OPTIONAL(gmem_invalidate_range)
+#endif
 KVM_X86_OP_OPTIONAL_RET0(gmem_max_mapping_level)
-KVM_X86_OP_OPTIONAL(gmem_invalidate)
 #endif
 
 #undef KVM_X86_OP

@@ -313,5 +313,5 @@ int ppe_rss_hash_config_set(struct ppe_device *ppe_dev, int mode,
 			    struct ppe_rss_hash_cfg hash_cfg);
 int ppe_ring_queue_map_set(struct ppe_device *ppe_dev,
 			   int ring_id,
-			   u32 *queue_map);
+			   const u32 *queue_map);
 #endif

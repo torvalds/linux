@@ -224,7 +224,7 @@ phys_addr_t DOMAIN_NS(iova_to_phys)(struct iommu_domain *domain,
 
 	ret = make_range(common_from_iommu(iommu_table), &range, iova, 1);
 	if (ret)
-		return ret;
+		return 0;
 
 	ret = pt_walk_range(&range, __iova_to_phys, &res);
 	/* PHYS_ADDR_MAX would be a better error code */

@@ -115,6 +115,10 @@ bool rtnl_net_is_locked(struct net *net);
 
 bool lockdep_rtnl_net_is_held(struct net *net);
 
+void rtnl_net_queue_work(struct net *net);
+void rtnl_net_flush_workqueue(void);
+void rtnl_net_work_func(struct work_struct *work);
+
 #define rcu_dereference_rtnl_net(net, p)				\
 	rcu_dereference_check(p, lockdep_rtnl_net_is_held(net))
 #define rtnl_net_dereference(net, p)					\
@@ -148,6 +152,10 @@ static inline int rtnl_net_lock_killable(struct net *net)
 static inline void ASSERT_RTNL_NET(struct net *net)
 {
 	ASSERT_RTNL();
+}
+
+static inline void rtnl_net_flush_workqueue(void)
+{
 }
 
 #define rcu_dereference_rtnl_net(net, p)		\

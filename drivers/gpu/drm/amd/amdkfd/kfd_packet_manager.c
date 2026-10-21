@@ -269,9 +269,19 @@ build_runlist_ib:
 	}
 	pm->is_over_subscription = !!is_over_subscription;
 
-	for (i = 0; i < alloc_size_bytes / sizeof(uint32_t); i++)
-		pr_debug("0x%2X ", rl_buffer[i]);
-	pr_debug("\n");
+	pr_debug("Runlist dump:");
+	for (i = 0; i < alloc_size_bytes / sizeof(uint32_t); i += 8) {
+		char buf[128];
+		int j, len = 0;
+
+		/* Dump 8 entries per line with an index for each line */
+		len += scnprintf(buf + len, sizeof(buf) - len, "%4u:", i);
+
+		for (j = 0; j < 8 && (i + j) < alloc_size_bytes / sizeof(uint32_t); j++)
+			len += scnprintf(buf + len, sizeof(buf) - len, " 0x%08x", rl_buffer[i + j]);
+
+		pr_debug("%s\n", buf);
+	}
 
 	return retval;
 }

@@ -13,6 +13,7 @@
 #include "session.h"
 #include "data.h"
 #include "dso.h"
+#include "pmu.h"
 #include "pmus.h"
 
 #include <internal/lib.h>  /* page_size */

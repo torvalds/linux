@@ -51,6 +51,7 @@ struct seg6_lwt {
 	struct dst_cache cache_input;
 	struct dst_cache cache_output;
 	struct in6_addr tunsrc;
+	u32 table;
 	struct seg6_iptunnel_encap tuninfo[];
 };
 
@@ -68,6 +69,7 @@ seg6_encap_lwtunnel(struct lwtunnel_state *lwt)
 static const struct nla_policy seg6_iptunnel_policy[SEG6_IPTUNNEL_MAX + 1] = {
 	[SEG6_IPTUNNEL_SRH]	= { .type = NLA_BINARY },
 	[SEG6_IPTUNNEL_SRC]	= NLA_POLICY_EXACT_LEN(sizeof(struct in6_addr)),
+	[SEG6_IPTUNNEL_TABLE]	= { .type = NLA_U32 },
 };
 
 static int nla_put_srh(struct sk_buff *skb, int attrtype,
@@ -479,6 +481,73 @@ int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 }
 EXPORT_SYMBOL_GPL(seg6_do_srh_inline);
 
+/* look up a route in a specific FIB table.
+ * Returns a refcounted dst, or NULL if the table does not exist.
+ */
+static struct dst_entry *seg6_table_lookup(struct net *net,
+					   struct sk_buff *skb,
+					   struct flowi6 *fl6, u32 tbl_id)
+{
+	struct fib6_table *table;
+	struct rt6_info *rt;
+
+	table = fib6_get_table(net, tbl_id);
+	if (!table)
+		return NULL;
+
+	rt = ip6_pol_route(net, table, 0, fl6, skb, RT6_LOOKUP_F_HAS_SADDR);
+	return &rt->dst;
+}
+
+static void seg6_init_flowi6(struct sk_buff *skb, struct ipv6hdr *hdr,
+			     struct flowi6 *fl6)
+{
+	memset(fl6, 0, sizeof(*fl6));
+
+	fl6->daddr = hdr->daddr;
+	fl6->saddr = hdr->saddr;
+	fl6->flowlabel = ip6_flowinfo(hdr);
+	fl6->flowi6_mark = skb->mark;
+	fl6->flowi6_proto = hdr->nexthdr;
+}
+
+/* look up the route for the first SID on the input path and set it on the skb.
+ * Returns the refcounted dst, or NULL if a reference could not be safely taken.
+ */
+static struct dst_entry *seg6_input_route(struct net *net,
+					  struct sk_buff *skb,
+					  struct seg6_lwt *slwt)
+{
+	u32 table = slwt->table;
+
+	if (table) {
+		struct ipv6hdr *hdr = ipv6_hdr(skb);
+		struct dst_entry *dst;
+		struct flowi6 fl6;
+
+		seg6_init_flowi6(skb, hdr, &fl6);
+		fl6.flowi6_iif = skb->dev->ifindex;
+
+		dst = seg6_table_lookup(net, skb, &fl6, table);
+		if (!dst) {
+			dst = &net->ipv6.ip6_blk_hole_entry->dst;
+			dst_hold(dst);
+		}
+
+		skb_dst_drop(skb);
+		skb_dst_set(skb, dst);
+	} else {
+		ip6_route_input(skb);
+
+		/* ip6_route_input() sets a NOREF dst; force a refcount on it
+		 * before caching or further use.
+		 */
+		skb_dst_force(skb);
+	}
+
+	return skb_dst(skb);
+}
+
 static int seg6_input_finish(struct net *net, struct sock *sk,
 			     struct sk_buff *skb)
 {
@@ -513,15 +582,9 @@ static int seg6_input_core(struct net *net, struct sock *sk,
 		goto drop;
 	}
 
-	if (!dst) {
-		ip6_route_input(skb);
-
-		/* ip6_route_input() sets a NOREF dst; force a refcount on it
-		 * before caching or further use.
-		 */
-		skb_dst_force(skb);
-		dst = skb_dst(skb);
-		if (unlikely(!dst)) {
+	if (unlikely(!dst)) {
+		dst = seg6_input_route(net, skb, slwt);
+		if (!dst) {
 			err = -ENETUNREACH;
 			goto drop;
 		}
@@ -578,6 +641,29 @@ static int seg6_input(struct sk_buff *skb)
 	return seg6_input_core(dev_net(skb->dev), NULL, skb);
 }
 
+/* look up the route for the first SID on the output path. Always returns a
+ * refcounted dst.
+ */
+static struct dst_entry *seg6_output_dst_lookup(struct net *net,
+						struct sk_buff *skb,
+						struct flowi6 *fl6,
+						struct seg6_lwt *slwt)
+{
+	struct dst_entry *dst;
+
+	if (slwt->table) {
+		dst = seg6_table_lookup(net, skb, fl6, slwt->table);
+		if (!dst) {
+			dst = &net->ipv6.ip6_blk_hole_entry->dst;
+			dst_hold(dst);
+		}
+	} else {
+		dst = ip6_route_output(net, NULL, fl6);
+	}
+
+	return dst;
+}
+
 static int seg6_output_core(struct net *net, struct sock *sk,
 			    struct sk_buff *skb)
 {
@@ -600,14 +686,9 @@ static int seg6_output_core(struct net *net, struct sock *sk,
 		struct ipv6hdr *hdr = ipv6_hdr(skb);
 		struct flowi6 fl6;
 
-		memset(&fl6, 0, sizeof(fl6));
-		fl6.daddr = hdr->daddr;
-		fl6.saddr = hdr->saddr;
-		fl6.flowlabel = ip6_flowinfo(hdr);
-		fl6.flowi6_mark = skb->mark;
-		fl6.flowi6_proto = hdr->nexthdr;
+		seg6_init_flowi6(skb, hdr, &fl6);
 
-		dst = ip6_route_output(net, NULL, &fl6);
+		dst = seg6_output_dst_lookup(net, skb, &fl6, slwt);
 		if (dst->error) {
 			err = dst->error;
 			goto drop;
@@ -752,6 +833,15 @@ static int seg6_build_state(struct net *net, struct nlattr *nla,
 		}
 	}
 
+	if (tb[SEG6_IPTUNNEL_TABLE]) {
+		slwt->table = nla_get_u32(tb[SEG6_IPTUNNEL_TABLE]);
+		if (!slwt->table) {
+			NL_SET_ERR_MSG(extack, "invalid lookup table");
+			err = -EINVAL;
+			goto err_destroy_output;
+		}
+	}
+
 	newts->type = LWTUNNEL_ENCAP_SEG6;
 	newts->flags |= LWTUNNEL_STATE_INPUT_REDIRECT;
 
@@ -795,6 +885,10 @@ static int seg6_fill_encap_info(struct sk_buff *skb,
 	    nla_put_in6_addr(skb, SEG6_IPTUNNEL_SRC, &slwt->tunsrc))
 		return -EMSGSIZE;
 
+	if (slwt->table &&
+	    nla_put_u32(skb, SEG6_IPTUNNEL_TABLE, slwt->table))
+		return -EMSGSIZE;
+
 	return 0;
 }
 
@@ -808,6 +902,9 @@ static int seg6_encap_nlsize(struct lwtunnel_state *lwtstate)
 
 	if (!ipv6_addr_any(&slwt->tunsrc))
 		nlsize += nla_total_size(sizeof(slwt->tunsrc));
+
+	if (slwt->table)
+		nlsize += nla_total_size(sizeof(u32));
 
 	return nlsize;
 }
@@ -824,6 +921,9 @@ static int seg6_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
 		return 1;
 
 	if (!ipv6_addr_equal(&a_slwt->tunsrc, &b_slwt->tunsrc))
+		return 1;
+
+	if (a_slwt->table != b_slwt->table)
 		return 1;
 
 	return memcmp(a_hdr, b_hdr, len);

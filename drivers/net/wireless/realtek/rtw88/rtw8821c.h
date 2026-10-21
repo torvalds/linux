@@ -139,7 +139,8 @@ extern const struct rtw_chip_info rtw8821c_hw_spec;
 #define WLAN_DRV_EARLY_INT	0x04
 #define WLAN_BCN_DMA_TIME	0x02
 
-#define WLAN_RX_FILTER0		0x0FFFFFFF
+#define WLAN_RX_FILTER0		0xFFFF
+#define WLAN_RX_FILTER1		0x0FFF
 #define WLAN_RX_FILTER2		0xFFFF
 #define WLAN_RCR_CFG		0xE400220E
 #define WLAN_RXPKT_MAX_SZ	12288

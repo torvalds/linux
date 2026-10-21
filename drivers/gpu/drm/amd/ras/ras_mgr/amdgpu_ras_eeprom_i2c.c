@@ -26,7 +26,7 @@
 #include "amdgpu_ras_eeprom.h"
 #include "amdgpu_ras_mgr.h"
 #include "amdgpu_ras_eeprom_i2c.h"
-#include "ras_eeprom.h"
+#include "eeprom.h"
 
 /* These are memory addresses as would be seen by one or more EEPROM
  * chips strung on the I2C bus, usually by manipulating pins 1-3 of a
@@ -67,7 +67,7 @@ static int ras_eeprom_i2c_config(struct ras_core_context *ras_core)
 	struct ras_eeprom_control *control = &ras_core->ras_eeprom;
 	u8 i2c_addr;
 
-	if (amdgpu_atomfirmware_ras_rom_addr(adev, &i2c_addr)) {
+	if (adev->bios && amdgpu_atomfirmware_ras_rom_addr(adev, &i2c_addr)) {
 		/* The address given by VBIOS is an 8-bit, wire-format
 		 * address, i.e. the most significant byte.
 		 *

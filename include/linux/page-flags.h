@@ -879,20 +879,6 @@ FOLIO_FLAG_FALSE(partially_mapped)
 
 #define PG_head_mask ((1UL << PG_head))
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-/*
- * PageTransCompound returns true for both transparent huge pages
- * and hugetlbfs pages, so it should only be called when it's known
- * that hugetlbfs pages aren't involved.
- */
-static inline int PageTransCompound(const struct page *page)
-{
-	return PageCompound(page);
-}
-#else
-TESTPAGEFLAG_FALSE(TransCompound, transcompound)
-#endif
-
 #if defined(CONFIG_MEMORY_FAILURE) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
 /*
  * PageHasHWPoisoned indicates that at least one subpage is hwpoisoned in the

@@ -1032,6 +1032,13 @@ static inline void __max_slice_update(struct sched_entity *se, struct rb_node *n
 	}
 }
 
+static inline void min_vruntime_copy(struct sched_entity *new, struct sched_entity *old)
+{
+	new->min_vruntime = old->min_vruntime;
+	new->min_slice = old->min_slice;
+	new->max_slice = old->max_slice;
+}
+
 /*
  * se->min_vruntime = min(se->vruntime, {left,right}->min_vruntime)
  */
@@ -1059,8 +1066,9 @@ static inline bool min_vruntime_update(struct sched_entity *se, bool exit)
 	       se->max_slice == old_max_slice;
 }
 
-RB_DECLARE_CALLBACKS(static, min_vruntime_cb, struct sched_entity,
-		     run_node, min_vruntime, min_vruntime_update);
+
+RB_DECLARE_CALLBACKS_MULTI(static, min_vruntime_cb, struct sched_entity,
+		     run_node, min_vruntime_copy, min_vruntime_update);
 
 /*
  * Enqueue an entity into the rb-tree:
@@ -1073,6 +1081,8 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	sum_w_vruntime_add(cfs_rq, se);
 	se->min_vruntime = se->vruntime;
 	se->min_slice = se->slice;
+	se->max_slice = se->slice;
+
 	rb_add_augmented_cached(&se->run_node, &cfs_rq->tasks_timeline,
 				__entity_less, &min_vruntime_cb);
 }
@@ -1404,7 +1414,6 @@ static s64 update_se(struct rq *rq, struct sched_entity *se)
 
 	se->exec_start = now;
 	if (entity_is_task(se)) {
-		struct task_struct *donor = task_of(se);
 		struct task_struct *running = rq->curr;
 		/*
 		 * If se is a task, we account the time against the running
@@ -1417,8 +1426,7 @@ static s64 update_se(struct rq *rq, struct sched_entity *se)
 		account_group_exec_runtime(running, delta_exec);
 		account_mm_sched(rq, running, delta_exec);
 
-		/* cgroup time is always accounted against the donor */
-		cgroup_account_cputime(donor, delta_exec);
+		cgroup_account_cputime(running, delta_exec);
 	} else {
 		/* If not task, account the time against donor se  */
 		se->sum_exec_runtime += delta_exec;
@@ -4934,7 +4942,12 @@ static int tg_cpus(struct task_group *tg)
 			nr = cpuset_num_cpus(cgrp);
 	}
 
-	return nr;
+	/*
+	 * An empty cpuset would propagate a 0 shares_max into
+	 * __calc_smp_shares(), where clamp() yields hi when hi < lo and so
+	 * defeats the MIN_SHARES floor. Match tg_tasks(), which floors at 1.
+	 */
+	return max(nr, 1);
 }
 
 static inline int tg_tasks(struct task_group *tg)
@@ -6973,14 +6986,14 @@ static int tg_throttle_down(struct task_group *tg, void *data)
 static bool throttle_cfs_rq(struct cfs_rq *cfs_rq)
 {
 	struct cfs_bandwidth *cfs_b = tg_cfs_bandwidth(cfs_rq->tg);
-	struct sched_entity *curr = cfs_rq->curr;
+	struct sched_entity *curr = cfs_rq->h_curr;
 	struct rq *rq = rq_of(cfs_rq);
 
 	scoped_guard(raw_spinlock, &cfs_b->lock) {
 		u64 target_runtime = 1;
 
 		/*
-		 * If cfs_rq->curr is still runnable, we are here from an
+		 * If cfs_rq->h_curr is still runnable, we are here from an
 		 * update_curr(). Request sysctl_sched_cfs_bandwidth_slice
 		 * worth of bandwidth to continue running.
 		 *
@@ -7187,7 +7200,7 @@ static bool distribute_cfs_runtime(struct cfs_bandwidth *cfs_b)
 		if (!list_empty(&cfs_rq->throttled_csd_list))
 			continue;
 
-		if (cfs_rq->curr) {
+		if (cfs_rq->h_curr) {
 			update_rq_clock(rq);
 			update_curr(cfs_rq);
 		}
@@ -7248,7 +7261,7 @@ static bool distribute_cfs_runtime(struct cfs_bandwidth *cfs_b)
  * period the timer is deactivated until scheduling resumes; cfs_b->idle is
  * used to track this state.
  */
-static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
+static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun, unsigned long flags)
 	__must_hold(&cfs_b->lock)
 {
 	int throttled;
@@ -7283,10 +7296,10 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 	 * This check is repeated as we release cfs_b->lock while we unthrottle.
 	 */
 	while (throttled && cfs_b->runtime > 0) {
-		raw_spin_unlock_irq_enable(&cfs_b->lock);
+		raw_spin_unlock_irqrestore(&cfs_b->lock, flags);
 		/* we can't nest cfs_b->lock while distributing bandwidth */
 		throttled = distribute_cfs_runtime(cfs_b);
-		raw_spin_lock_irq_disable(&cfs_b->lock);
+		raw_spin_lock_irqsave(&cfs_b->lock, flags);
 	}
 
 	/*
@@ -7394,7 +7407,7 @@ static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 static void do_sched_cfs_slack_timer(struct cfs_bandwidth *cfs_b)
 {
 	/* confirm we're still not at a refresh boundary */
-	scoped_guard(raw_spinlock_irq, &cfs_b->lock) {
+	scoped_guard(raw_spinlock_irqsave, &cfs_b->lock) {
 		u64 runtime = 0, slice = sched_cfs_bandwidth_slice();
 
 		cfs_b->slack_started = false;
@@ -7479,14 +7492,14 @@ static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 	int idle = 0;
 	int count = 0;
 
-	guard(raw_spinlock_irq)(&cfs_b->lock);
+	CLASS(raw_spinlock_irqsave, cfsb_guard)(&cfs_b->lock);
 
 	for (;;) {
 		overrun = hrtimer_forward_now(timer, cfs_b->period);
 		if (!overrun)
 			break;
 
-		idle = do_sched_cfs_period_timer(cfs_b, overrun);
+		idle = do_sched_cfs_period_timer(cfs_b, overrun, cfsb_guard.flags);
 
 		if (++count > 3) {
 			u64 new, old = ktime_to_ns(cfs_b->period);
@@ -10052,7 +10065,7 @@ again:
 
 	/* Might not have done put_prev_entity() */
 	if (cfs_rq->curr && cfs_rq->curr->on_rq)
-		update_curr(cfs_rq);
+		update_curr_eevdf(cfs_rq);
 
 	se = pick_next_entity(rq, true);
 	if (!se)
@@ -10155,7 +10168,7 @@ static void yield_task_fair(struct rq *rq)
 	/*
 	 * Update run-time statistics of the 'current'.
 	 */
-	update_curr(cfs_rq);
+	update_curr_eevdf(cfs_rq);
 	/*
 	 * Tell update_rq_clock() that we've just updated,
 	 * so we don't do microscopic update in schedule()
@@ -10686,17 +10699,40 @@ static enum llc_mig can_migrate_llc(int src_cpu, int dst_cpu,
 	return mig_llc;
 }
 
+static inline bool task_misfits_asym_cpu(struct lb_env *env, struct task_struct *p)
+{
+	/*
+	 * On asymmetric CPU capacity domains, do not let cache-aware
+	 * balancing pull the task onto a destination CPU that cannot
+	 * accommodate it. Doing so would turn the task into a misfit on
+	 * the destination, trading a cache-locality gain for a capacity
+	 * loss. If the task already does not fit its source CPU, the move
+	 * cannot make things worse, so let the LLC preference decide.
+	 */
+	if ((env->sd->flags & SD_ASYM_CPUCAPACITY) && p &&
+	    !task_fits_cpu(p, env->dst_cpu) &&
+	    task_fits_cpu(p, env->src_cpu))
+		return true;
+
+	return false;
+}
+
 /*
  * Check if task p can migrate from source LLC to
  * destination LLC in terms of cache aware load balance.
  */
-static enum llc_mig can_migrate_llc_task(int src_cpu, int dst_cpu,
+static enum llc_mig can_migrate_llc_task(struct lb_env *env,
 					 struct task_struct *p)
 {
 	struct mm_struct *mm;
 	bool to_pref;
-	int cpu;
+	int cpu, src_cpu, dst_cpu;
 
+	if (task_misfits_asym_cpu(env, p))
+		return mig_forbid;
+
+	src_cpu = env->src_cpu;
+	dst_cpu = env->dst_cpu;
 	mm = p->mm;
 	if (!mm)
 		return mig_unrestricted;
@@ -10753,6 +10789,14 @@ alb_break_llc(struct lb_env *env)
 		unsigned long util = 0;
 		struct task_struct *cur;
 
+		/*
+		 * Migrating misfit tasks from current CPU
+		 * to CPU with a better fit.
+		 * Prioritize that over LLC preference.
+		 */
+		if (env->migration_type == migrate_misfit)
+			return false;
+
 		if (env->src_rq->nr_running <= 1)
 			return true;
 
@@ -10760,7 +10804,8 @@ alb_break_llc(struct lb_env *env)
 		if (cur && cur->sched_class == &fair_sched_class)
 			util = task_util(cur);
 
-		if (can_migrate_llc(env->src_cpu, env->dst_cpu,
+		if (task_misfits_asym_cpu(env, cur) ||
+		    can_migrate_llc(env->src_cpu, env->dst_cpu,
 				    util, false) == mig_forbid)
 			return true;
 	}
@@ -10800,8 +10845,7 @@ static bool migrate_degrades_llc(struct task_struct *p, struct lb_env *env)
 	    READ_ONCE(p->preferred_llc) != llc_id(env->dst_cpu))
 		return true;
 
-	if (can_migrate_llc_task(env->src_cpu,
-				 env->dst_cpu, p) != mig_forbid)
+	if (can_migrate_llc_task(env, p) != mig_forbid)
 		return false;
 
 	return true;
@@ -11862,6 +11906,15 @@ static inline bool llc_balance(struct lb_env *env, struct sg_lb_stats *sgs,
 		return false;
 
 	if (env->sd->flags & SD_SHARE_LLC)
+		return false;
+
+	/*
+	 * On asymmetric domains, group_misfit_task_load
+	 * should be prioritized to move tasks to CPU that fit them
+	 * over aggregating tasks to their preferred LLC.
+	 */
+	if ((env->sd->flags & SD_ASYM_CPUCAPACITY) &&
+	    sgs->group_misfit_task_load)
 		return false;
 
 	/*

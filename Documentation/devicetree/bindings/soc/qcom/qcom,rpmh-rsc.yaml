@@ -23,7 +23,7 @@ description: |
   with a few variations that are captured by the properties here.
 
   A TCS may be triggered from Linux or triggered by the F/W after all the CPUs
-  have powered off to facilitate idle power saving. TCS could be classified as::
+  have powered off to facilitate idle power saving. TCS could be classified as:
     ACTIVE  - Triggered by Linux
     SLEEP   - Triggered by F/W
     WAKE    - Triggered by F/W
@@ -76,7 +76,7 @@ properties:
     items:
       items:
         - description: |
-            TCS type::
+            TCS type:
              - ACTIVE_TCS
              - SLEEP_TCS
              - WAKE_TCS
@@ -152,7 +152,7 @@ examples:
   - |
     // For a TCS whose RSC base address is 0x179C0000 and is at a DRV id of
     // 2, the register offsets for DRV2 start at 0D00, the register
-    // calculations are like this::
+    // calculations are like this:
     // DRV0: 0x179C0000
     // DRV2: 0x179C0000 + 0x10000 = 0x179D0000
     // DRV2: 0x179C0000 + 0x10000 * 2 = 0x179E0000
@@ -182,7 +182,7 @@ examples:
   - |
     // For a TCS whose RSC base address is 0xAF20000 and is at DRV id of 0, the
     // register offsets for DRV0 start at 01C00, the register calculations are
-    // like this::
+    // like this:
     // DRV0: 0xAF20000
     // TCS-OFFSET: 0x1C00
     #include <dt-bindings/interrupt-controller/arm-gic.h>

@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 #include <linux/stat.h>
 #include <linux/uidgid.h>
+#include <linux/unaligned.h>
 #include "fs_context.h"
 #include "cifsglob.h"
 #include "../common/smbfsctl.h"
@@ -23,7 +24,7 @@
 
 static inline dev_t reparse_mkdev(void *ptr)
 {
-	u64 v = le64_to_cpu(*(__le64 *)ptr);
+	u64 v = get_unaligned_le64(ptr);
 
 	return MKDEV(v & 0xffffffff, v >> 32);
 }
@@ -31,7 +32,7 @@ static inline dev_t reparse_mkdev(void *ptr)
 static inline kuid_t wsl_make_kuid(struct cifs_sb_info *cifs_sb,
 				   void *ptr)
 {
-	u32 uid = le32_to_cpu(*(__le32 *)ptr);
+	u32 uid = get_unaligned_le32(ptr);
 
 	if (cifs_sb_flags(cifs_sb) & CIFS_MOUNT_OVERR_UID)
 		return cifs_sb->ctx->linux_uid;
@@ -41,7 +42,7 @@ static inline kuid_t wsl_make_kuid(struct cifs_sb_info *cifs_sb,
 static inline kgid_t wsl_make_kgid(struct cifs_sb_info *cifs_sb,
 				   void *ptr)
 {
-	u32 gid = le32_to_cpu(*(__le32 *)ptr);
+	u32 gid = get_unaligned_le32(ptr);
 
 	if (cifs_sb_flags(cifs_sb) & CIFS_MOUNT_OVERR_GID)
 		return cifs_sb->ctx->linux_gid;
@@ -98,15 +99,21 @@ static inline bool reparse_inode_match(struct inode *inode,
 		timespec64_equal(&ctime, &fattr->cf_ctime);
 }
 
+static inline u32 cifs_open_data_attrs(const struct cifs_open_info_data *data)
+{
+	if (data->contains_posix_file_info)
+		return le32_to_cpu(data->posix_fi.DosAttributes);
+
+	return le32_to_cpu(data->fi.Attributes);
+}
+
 static inline bool cifs_open_data_reparse(struct cifs_open_info_data *data)
 {
-	u32 attrs;
-	bool ret;
+	u32 attrs = cifs_open_data_attrs(data);
 
 	if (data->contains_posix_file_info) {
 		struct smb311_posix_qinfo *fi = &data->posix_fi;
 
-		attrs = le32_to_cpu(fi->DosAttributes);
 		if (data->reparse_point) {
 			attrs |= ATTR_REPARSE_POINT;
 			fi->DosAttributes = cpu_to_le32(attrs);
@@ -115,16 +122,13 @@ static inline bool cifs_open_data_reparse(struct cifs_open_info_data *data)
 	} else {
 		struct smb2_file_all_info *fi = &data->fi;
 
-		attrs = le32_to_cpu(fi->Attributes);
 		if (data->reparse_point) {
 			attrs |= ATTR_REPARSE_POINT;
 			fi->Attributes = cpu_to_le32(attrs);
 		}
 	}
 
-	ret = attrs & ATTR_REPARSE_POINT;
-
-	return ret;
+	return attrs & ATTR_REPARSE_POINT;
 }
 
 bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,

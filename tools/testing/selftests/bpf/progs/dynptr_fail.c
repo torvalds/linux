@@ -1112,7 +1112,7 @@ int dynptr_overwrite_ref(void *ctx)
 
 /* Reject writes to dynptr slot from bpf_dynptr_read */
 SEC("?raw_tp")
-__failure __msg("potential write to dynptr at off=-16")
+__failure __msg("cannot overwrite referenced dynptr")
 int dynptr_read_into_slot(void *ctx)
 {
 	union {
@@ -1558,7 +1558,7 @@ int BPF_PROG(skb_invalid_ctx_fexit, void *skb)
 
 /* Reject writes to dynptr slot for uninit arg */
 SEC("?raw_tp")
-__failure __msg("potential write to dynptr at off=-16")
+__failure __msg("cannot overwrite referenced dynptr")
 int uninit_write_into_slot(void *ctx)
 {
 	struct {
@@ -1589,7 +1589,8 @@ int xdp_invalid_ctx(void *ctx)
 __u32 hdr_size = sizeof(struct ethhdr);
 /* Can't pass in variable-sized len to bpf_dynptr_slice */
 SEC("?tc")
-__failure __msg("unbounded memory access")
+__failure __msg("must be a known constant")
+__msg("requires this memory size to be a verifier-known constant")
 int dynptr_slice_var_len1(struct __sk_buff *skb)
 {
 	struct bpf_dynptr ptr;
@@ -1609,6 +1610,7 @@ int dynptr_slice_var_len1(struct __sk_buff *skb)
 /* Can't pass in variable-sized len to bpf_dynptr_slice */
 SEC("?tc")
 __failure __msg("must be a known constant")
+__msg("requires this memory size to be a verifier-known constant")
 int dynptr_slice_var_len2(struct __sk_buff *skb)
 {
 	char buffer[sizeof(struct ethhdr)] = {};

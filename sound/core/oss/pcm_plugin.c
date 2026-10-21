@@ -272,13 +272,13 @@ static int snd_pcm_plug_formats(const struct snd_mask *mask,
 		       SNDRV_PCM_FMTBIT_U24_3BE | SNDRV_PCM_FMTBIT_S24_3BE |
 		       SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_S32_LE |
 		       SNDRV_PCM_FMTBIT_U32_BE | SNDRV_PCM_FMTBIT_S32_BE);
-	snd_mask_set(&formats, (__force int)SNDRV_PCM_FORMAT_MU_LAW);
+	snd_mask_set(&formats, SNDRV_PCM_FORMAT_MU_LAW);
 	
 	if (formats.bits[0] & lower_32_bits(linfmts))
 		formats.bits[0] |= lower_32_bits(linfmts);
 	if (formats.bits[1] & upper_32_bits(linfmts))
 		formats.bits[1] |= upper_32_bits(linfmts);
-	return snd_mask_test(&formats, (__force int)format);
+	return snd_mask_test(&formats, format);
 }
 
 static const snd_pcm_format_t preferred_formats[] = {
@@ -307,20 +307,20 @@ snd_pcm_format_t snd_pcm_plug_slave_format(snd_pcm_format_t format,
 {
 	int i;
 
-	if (snd_mask_test(format_mask, (__force int)format))
+	if (snd_mask_test(format_mask, format))
 		return format;
 	if (!snd_pcm_plug_formats(format_mask, format))
-		return (__force snd_pcm_format_t)-EINVAL;
+		return -EINVAL;
 	if (snd_pcm_format_linear(format)) {
 		unsigned int width = snd_pcm_format_width(format);
 		int unsignd = snd_pcm_format_unsigned(format) > 0;
 		int big = snd_pcm_format_big_endian(format) > 0;
 		unsigned int badness, best = -1;
-		snd_pcm_format_t best_format = (__force snd_pcm_format_t)-1;
+		snd_pcm_format_t best_format = -1;
 		for (i = 0; i < ARRAY_SIZE(preferred_formats); i++) {
 			snd_pcm_format_t f = preferred_formats[i];
 			unsigned int w;
-			if (!snd_mask_test(format_mask, (__force int)f))
+			if (!snd_mask_test(format_mask, f))
 				continue;
 			w = snd_pcm_format_width(f);
 			if (w >= width)
@@ -334,21 +334,21 @@ snd_pcm_format_t snd_pcm_plug_slave_format(snd_pcm_format_t format,
 				best = badness;
 			}
 		}
-		if ((__force int)best_format >= 0)
+		if (best_format >= 0)
 			return best_format;
 		else
-			return (__force snd_pcm_format_t)-EINVAL;
+			return -EINVAL;
 	} else {
 		switch (format) {
 		case SNDRV_PCM_FORMAT_MU_LAW:
 			for (i = 0; i < ARRAY_SIZE(preferred_formats); ++i) {
 				snd_pcm_format_t format1 = preferred_formats[i];
-				if (snd_mask_test(format_mask, (__force int)format1))
+				if (snd_mask_test(format_mask, format1))
 					return format1;
 			}
 			fallthrough;
 		default:
-			return (__force snd_pcm_format_t)-EINVAL;
+			return -EINVAL;
 		}
 	}
 }

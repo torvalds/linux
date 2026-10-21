@@ -1442,6 +1442,10 @@ struct vp_ctrl_entry_24xx {
 	uint8_t reserved_5[24];
 };
 
+/* vp_idx_map is a 128-bit (16-byte) bitmap selecting target VPs. */
+#define VP_CTRL_IDX_MAP_BITS \
+	(sizeof_field(struct vp_ctrl_entry_24xx, vp_idx_map) * 8)
+
 /*
  * Modify Virtual Port Configuration IOCB
  */
@@ -1538,7 +1542,7 @@ struct vp_rpt_id_entry_24xx {
 #define TOPO_N2N   0x4
 #define TOPO_F     0x6
 
-			uint16_t fip_flags;
+			__le16 fip_flags;
 			uint8_t rsv2[12];
 
 			uint8_t ls_rjt_vendor;
@@ -1548,13 +1552,13 @@ struct vp_rpt_id_entry_24xx {
 
 			uint8_t port_name[8];
 			uint8_t node_name[8];
-			uint16_t bbcr;
+			__le16 bbcr;
 			uint8_t reserved_5[6];
 		} f1;
 		struct _f2 { /* format 2: N2N direct connect */
 			uint8_t vpstat1_subcode;
 			uint8_t flags;
-			uint16_t fip_flags;
+			__le16 fip_flags;
 			uint8_t rsv2[12];
 
 			uint8_t ls_rjt_vendor;
@@ -1564,7 +1568,7 @@ struct vp_rpt_id_entry_24xx {
 
 			uint8_t port_name[8];
 			uint8_t node_name[8];
-			uint16_t bbcr;
+			__le16 bbcr;
 			uint8_t reserved_5[2];
 			uint8_t remote_nport_id[4];
 		} f2;
@@ -1676,6 +1680,8 @@ struct qla_flt_location {
 #define FLT_REG_VPD_SEC_27XX_2	0xD8
 #define FLT_REG_VPD_SEC_27XX_3	0xDA
 #define FLT_REG_NVME_PARAMS_27XX	0x21
+#define FLT_REG_FMB_PRI		0xDF
+#define FLT_REG_FMB_SEC		0x124
 
 /* 28xx */
 #define FLT_REG_AUX_IMG_PRI_28XX	0x125
@@ -1694,6 +1700,10 @@ struct qla_flt_location {
 #define FLT_REG_PEP_SEC_28XX		0xF1
 #define FLT_REG_NVME_PARAMS_PRI_28XX	0x14E
 #define FLT_REG_NVME_PARAMS_SEC_28XX	0x179
+
+/* 29xx */
+#define FLT_REG_MINI_FLT		0x201
+#define FLT_REG_FW_DUMP_TMPLT		0x1A0
 
 struct qla_flt_region {
 	__le16	code;
@@ -1715,6 +1725,56 @@ struct qla_flt_header {
 #define FLT_REGION_SIZE		16
 #define FLT_MAX_REGIONS		0xFF
 #define FLT_REGIONS_SIZE	(FLT_REGION_SIZE * FLT_MAX_REGIONS)
+
+/* 29xx */
+#define FLT_HDR_VERSION		0x2
+
+struct qla_flt_region_header {
+	__le32	signature;
+	__le32	version;
+	__le32	length;
+	__le32	checksum;
+	__le16	region_count;
+	__le16	region_size;
+	__le32	segment_size;
+	__le32	res3;
+	__le32	res4;
+	__le32	res5;
+	__le32	res6;
+	__le32	res7;
+	__le32	res8;
+	__le32	res9;
+	__le32	res10;
+	__le32	res11;
+	__le32	res12;
+};
+
+struct qla_flt_region_data {
+	__le16	region_code;
+	__le16	reserved;
+	__le32	attribute;
+	__le32	image_length;
+	__le32	mbi_offset;
+	__le32	version;
+	__le32	card_type;
+	__le32	chip_revision;
+	__le32	res4;
+	__le32	res5;
+	__le32	res6;
+	__le32	res7;
+	__le32	res8;
+	__le32	res9;
+	__le32	res10;
+	__le32	res11;
+	__le32	res12;
+};
+
+struct qla_flash_layout {
+	struct qla_flt_region_header flt_header;
+	struct qla_flt_region_data region[];
+};
+
+#define FLT_DATA_MAX_REGIONS	0xFF
 
 /* Flash NPIV Configuration Table ********************************************/
 
@@ -2056,7 +2116,7 @@ struct nvram_81xx {
 	 * BIT 7    = SCM Disabled if BIT is set (1)
 	 * BIT 8-15 = Unused
 	 */
-	uint16_t enhanced_features;
+	__le16	enhanced_features;
 
 	uint16_t reserved_24[4];
 
@@ -2283,5 +2343,79 @@ struct qla_fcp_prio_cfg {
 #define FA_FLASH_LAYOUT_ADDR_28	(0x11000/4)
 
 #define NVRAM_DUAL_FCP_NVME_FLAG_OFFSET	0x196
+
+struct qla_fmb_version {
+	uint8_t major;
+	uint8_t minor;
+	uint8_t sub;
+	uint8_t build;
+};
+
+struct qla_fmb_upd_time {
+	__le16   year;
+	uint8_t  month;
+	uint8_t  day;
+
+	uint8_t  hour;
+	uint8_t  minute;
+	uint8_t  second;
+	uint8_t  reserved;
+};
+
+struct qla_flash_memo_block {
+	__le32   signature;	/* "FMBS" */
+#define QLFC_FMB_SIG	cpu_to_le32(0x53424D46)
+	__le32   length;
+	__le32   version;
+#define QLFC_FMB_VERSION 3
+	__le32   checksum;
+	struct qla_fmb_version ffv_ver;
+	struct qla_fmb_version mbi_ver;
+	struct {
+		__le16   year;
+		uint8_t  month;
+		uint8_t  day;
+		uint8_t  reserve[4];
+	} bld_time;
+	uint8_t tool_id[4];
+	struct qla_fmb_upd_time upd_time;
+	struct qla_fmb_version  tool_version;
+};
+
+#define TIM_DEST_ADDR	0xffffffff
+#define CHUNK_SIZE	0x10000
+
+#define TIM	0
+#define ARR1	1
+#define ARR2	2
+#define ARR3	3
+#define ARR4	4
+
+#define LD_FL_HEADER_SIGNATURE	0x46434F50
+#define LD_FL_HEADER_VERSION	0x01
+#define LD_FL_HEADER_SIZE	(0x14 * 4)
+
+struct fcop_header {
+	uint32_t signature;
+	uint32_t header_length;
+	uint32_t header_version;
+	uint32_t segment_size;
+	uint32_t tim_length;
+	uint32_t fc_major_version;
+	uint32_t fc_minor_version;
+	uint32_t fc_subminor_version;
+	uint32_t array1_length;
+	uint32_t array1_destination_addr;
+	uint32_t array2_length;
+	uint32_t array2_destination_addr;
+	uint32_t array3_length;
+	uint32_t array4_length;
+	uint32_t attribute;
+	uint32_t extended_attribute;
+	uint32_t reserved0;
+	uint32_t reserved1;
+	uint32_t reserved2;
+	uint32_t image_checksum;
+};
 
 #endif

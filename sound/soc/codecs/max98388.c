@@ -863,10 +863,16 @@ static int max98388_suspend(struct device *dev)
 static int max98388_resume(struct device *dev)
 {
 	struct max98388_priv *max98388 = dev_get_drvdata(dev);
+	int ret;
 
 	regcache_cache_only(max98388->regmap, false);
 	max98388_reset(max98388, dev);
-	regcache_sync(max98388->regmap);
+	ret = regcache_sync(max98388->regmap);
+	if (ret) {
+		regcache_cache_only(max98388->regmap, true);
+		regcache_mark_dirty(max98388->regmap);
+		return ret;
+	}
 
 	return 0;
 }

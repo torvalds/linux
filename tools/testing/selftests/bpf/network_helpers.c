@@ -111,7 +111,7 @@ int start_server_addr(int type, const struct sockaddr_storage *addr, socklen_t a
 	if (settimeo(fd, opts->timeout_ms))
 		goto error_close;
 
-	if (type == SOCK_STREAM &&
+	if ((type & SOCK_TYPE_MASK) == SOCK_STREAM &&
 	    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on))) {
 		log_err("Failed to enable SO_REUSEADDR");
 		goto error_close;
@@ -128,7 +128,7 @@ int start_server_addr(int type, const struct sockaddr_storage *addr, socklen_t a
 		goto error_close;
 	}
 
-	if (type == SOCK_STREAM) {
+	if ((type & SOCK_TYPE_MASK) == SOCK_STREAM) {
 		if (listen(fd, opts->backlog ? MAX(opts->backlog, 0) : 1) < 0) {
 			log_err("Failed to listed on socket");
 			goto error_close;
@@ -424,7 +424,8 @@ int make_sockaddr(int family, const char *addr_str, __u16 port,
 			*len = sizeof(*sin6);
 		return 0;
 	} else if (family == AF_UNIX) {
-		/* Note that we always use abstract unix sockets to avoid having
+		/*
+		 * Note that we always use abstract unix sockets to avoid having
 		 * to clean up leftover files.
 		 */
 		struct sockaddr_un *sun = (void *)addr;
@@ -865,7 +866,8 @@ static bool is_ethernet(const u_char *packet)
 	memcpy(&arphdr_type, packet + 8, 2);
 	arphdr_type = ntohs(arphdr_type);
 
-	/* Except the following cases, the protocol type contains the
+	/*
+	 * Except the following cases, the protocol type contains the
 	 * Ethernet protocol type for the packet.
 	 *
 	 * https://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL2.html
@@ -1033,19 +1035,22 @@ static void *traffic_monitor_thread(void *arg)
 		if (!packet)
 			continue;
 
-		/* According to the man page of pcap_dump(), first argument
+		/*
+		 * According to the man page of pcap_dump(), first argument
 		 * is the pcap_dumper_t pointer even it's argument type is
 		 * u_char *.
 		 */
 		pcap_dump((u_char *)dumper, &header, packet);
 
-		/* Not sure what other types of packets look like. Here, we
+		/*
+		 * Not sure what other types of packets look like. Here, we
 		 * parse only Ethernet and compatible packets.
 		 */
 		if (!is_ethernet(packet))
 			continue;
 
-		/* Skip SLL2 header
+		/*
+		 * Skip SLL2 header
 		 * https://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL2.html
 		 *
 		 * Although the document doesn't mention that, the payload
@@ -1079,7 +1084,8 @@ static void *traffic_monitor_thread(void *arg)
 	return NULL;
 }
 
-/* Prepare the pcap handle to capture packets.
+/*
+ * Prepare the pcap handle to capture packets.
  *
  * This pcap is non-blocking and immediate mode is enabled to receive
  * captured packets as soon as possible.  The snaplen is set to 1024 bytes
@@ -1150,7 +1156,8 @@ static void encode_test_name(char *buf, size_t len, const char *test_name, const
 
 #define PCAP_DIR "/tmp/tmon_pcap"
 
-/* Start to monitor the network traffic in the given network namespace.
+/*
+ * Start to monitor the network traffic in the given network namespace.
  *
  * netns: the name of the network namespace to monitor. If NULL, the
  *        current network namespace is monitored.
@@ -1255,7 +1262,8 @@ static void traffic_monitor_release(struct tmonitor_ctx *ctx)
 	free(ctx);
 }
 
-/* Stop the network traffic monitor.
+/*
+ * Stop the network traffic monitor.
  *
  * ctx: the context returned by traffic_monitor_start()
  */

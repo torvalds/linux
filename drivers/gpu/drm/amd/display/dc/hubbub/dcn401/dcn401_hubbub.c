@@ -1250,7 +1250,8 @@ static const struct hubbub_funcs hubbub4_01_funcs = {
 	.program_compbuf_segments = dcn401_program_compbuf_segments,
 	.wait_for_det_update = dcn401_wait_for_det_update,
 	.program_arbiter = dcn401_program_arbiter,
-	.hubbub_read_reg_state = hubbub3_read_reg_state
+	.hubbub_read_reg_state = hubbub3_read_reg_state,
+	.get_mall_en = hubbub32_get_mall_en
 };
 
 void hubbub401_construct(struct dcn20_hubbub *hubbub2,

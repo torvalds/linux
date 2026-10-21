@@ -5,8 +5,6 @@
 #include "vmx.h"
 #include "svm_util.h"
 
-#define L2_GUEST_STACK_SIZE 256
-
 /*
  * Arbitrary, never shoved into KVM/hardware, just need to avoid conflict with
  * the "real" exceptions used, #SS/#GP/#DF (12/13/8).
@@ -91,9 +89,8 @@ static void svm_run_l2(struct svm_test_data *svm, void *l2_code, int vector,
 static void l1_svm_code(struct svm_test_data *svm)
 {
 	struct vmcb_control_area *ctrl = &svm->vmcb->control;
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 
-	generic_svm_setup(svm, NULL, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, NULL);
 	svm->vmcb->save.idtr.limit = 0;
 	ctrl->intercept |= BIT_ULL(INTERCEPT_SHUTDOWN);
 
@@ -128,13 +125,11 @@ static void vmx_run_l2(void *l2_code, int vector, u32 error_code)
 
 static void l1_vmx_code(struct vmx_pages *vmx)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
-
 	GUEST_ASSERT_EQ(prepare_for_vmx_operation(vmx), true);
 
 	GUEST_ASSERT_EQ(load_vmcs(vmx), true);
 
-	prepare_vmcs(vmx, NULL, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	prepare_vmcs(vmx, NULL);
 	GUEST_ASSERT_EQ(vmwrite(GUEST_IDTR_LIMIT, 0), 0);
 
 	/*

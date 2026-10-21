@@ -27,9 +27,10 @@ properties:
   compatible:
     enum:
       - st,vd55g1
+      - st,vd55g4
       - st,vd65g4
     description:
-      VD55G1 is the monochrome variant, while VD65G4 is the color one.
+      VD55G1 and VD55G4 are monochrome variants, while VD65G4 is a color one.
 
   reg:
     maxItems: 1

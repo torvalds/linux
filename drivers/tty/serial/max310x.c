@@ -16,7 +16,6 @@
 #include <linux/device.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
-#include <linux/kconfig.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -1400,30 +1399,18 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 
 	dev_dbg(dev, "Reference clock set to %i Hz\n", uartclk);
 
+	/*
+	 * Set up each port's state before registering the gpiochip,
+	 * since the gpiochip callbacks will read s->p[i].regmap as
+	 * soon as gpiolib exposes the controller.
+	 */
 	for (i = 0; i < devtype->nr; i++) {
-		unsigned int line;
-
-		line = find_first_zero_bit(max310x_lines, MAX310X_UART_NRMAX);
-		if (line == MAX310X_UART_NRMAX) {
-			ret = -ERANGE;
-			goto out_uart;
-		}
-
-		/* Initialize port data */
-		s->p[i].port.line	= line;
 		s->p[i].port.dev	= dev;
 		s->p[i].port.irq	= irq;
 		s->p[i].port.type	= PORT_MAX310X;
 		s->p[i].port.fifosize	= MAX310X_FIFO_SIZE;
 		s->p[i].port.flags	= UPF_FIXED_TYPE | UPF_LOW_LATENCY;
-		s->p[i].port.iotype	= UPIO_PORT;
-		s->p[i].port.iobase	= i;
-		/*
-		 * Use all ones as membase to make sure uart_configure_port() in
-		 * serial_core.c does not abort for SPI/I2C devices where the
-		 * membase address is not applicable.
-		 */
-		s->p[i].port.membase	= (void __iomem *)~0;
+		s->p[i].port.iotype	= UPIO_BUS;
 		s->p[i].port.uartclk	= uartclk;
 		s->p[i].port.rs485_config = max310x_rs485_config;
 		s->p[i].port.rs485_supported = max310x_rs485_supported;
@@ -1440,20 +1427,16 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 		INIT_WORK(&s->p[i].md_work, max310x_md_proc);
 		/* Initialize queue for changing RS485 mode */
 		INIT_WORK(&s->p[i].rs_work, max310x_rs_proc);
-
-		/* Register port */
-		ret = uart_add_one_port(&max310x_uart, &s->p[i].port);
-		if (ret)
-			goto out_uart;
-
-		set_bit(line, max310x_lines);
-
-		/* Go to suspend mode */
-		max310x_power(&s->p[i].port, 0);
 	}
 
 #ifdef CONFIG_GPIOLIB
-	/* Setup GPIO controller */
+	/*
+	 * Register the GPIO controller before adding the UART ports so
+	 * that consumers referencing the chip's own GPIOs from device
+	 * tree (for example rs485-term-gpios = <&max310x ...>) can
+	 * resolve them at uart_add_one_port() time instead of receiving
+	 * -EPROBE_DEFER from their own provider.
+	 */
 	s->gpio.owner		= THIS_MODULE;
 	s->gpio.parent		= dev;
 	s->gpio.label		= devtype->name;
@@ -1470,6 +1453,64 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 	if (ret)
 		goto out_uart;
 #endif
+
+	for (i = 0; i < devtype->nr; i++) {
+		struct fwnode_handle *saved_fwnode = dev_fwnode(dev);
+		struct device_node *port_np = NULL;
+		struct device_node *child;
+		unsigned int line;
+
+		line = find_first_zero_bit(max310x_lines, MAX310X_UART_NRMAX);
+		if (line == MAX310X_UART_NRMAX) {
+			ret = -ERANGE;
+			goto out_uart;
+		}
+		s->p[i].port.line = line;
+
+		/* Locate the matching "serial@i" DT subnode, if any. */
+		for_each_available_child_of_node(dev->of_node, child) {
+			u32 reg;
+
+			if (!of_node_name_eq(child, "serial"))
+				continue;
+			if (of_property_read_u32(child, "reg", &reg))
+				continue;
+			if (reg == i) {
+				port_np = child;
+				break;
+			}
+		}
+
+		/*
+		 * Temporarily retarget dev's fwnode to the per-port subnode
+		 * so uart_get_rs485_mode() picks up the per-port properties.
+		 * For single-port variants, fall back to the chip's own
+		 * fwnode so legacy DTs that declare rs485 properties at the
+		 * top level keep working.
+		 */
+		if (port_np) {
+			device_set_node(dev, of_fwnode_handle(port_np));
+			ret = uart_get_rs485_mode(&s->p[i].port);
+			device_set_node(dev, saved_fwnode);
+			of_node_put(port_np);
+			if (ret)
+				goto out_uart;
+		} else if (devtype->nr == 1) {
+			ret = uart_get_rs485_mode(&s->p[i].port);
+			if (ret)
+				goto out_uart;
+		}
+
+		/* Register port */
+		ret = uart_add_one_port(&max310x_uart, &s->p[i].port);
+		if (ret)
+			goto out_uart;
+
+		set_bit(line, max310x_lines);
+
+		/* Go to suspend mode */
+		max310x_power(&s->p[i].port, 0);
+	}
 
 	/* Setup interrupt */
 	ret = devm_request_threaded_irq(dev, irq, NULL, max310x_ist,

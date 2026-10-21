@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/microchip,pic32mzda-rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip PIC32 Real Time Clock and Calendar
+
+maintainers:
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+
+description: |
+  The Microchip PIC32 Real Time Clock and Calendar (RTCC) keeps time in hours,
+  minutes, seconds, and one half second. It also provides a calendar with
+  weekday, date, month, and year, along with a configurable alarm.
+
+allOf:
+  - $ref: rtc.yaml#
+
+properties:
+  compatible:
+    const: microchip,pic32mzda-rtc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    rtc@1f8c0000 {
+        compatible = "microchip,pic32mzda-rtc";
+        reg = <0x1f8c0000 0x60>;
+        interrupts = <166 IRQ_TYPE_EDGE_RISING>;
+        clocks = <&PBCLK6>;
+    };

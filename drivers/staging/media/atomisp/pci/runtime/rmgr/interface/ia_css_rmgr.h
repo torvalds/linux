@@ -17,12 +17,12 @@
 #define STORAGE_CLASS_RMGR_C static inline
 #endif				/* __INLINE_RMGR__ */
 
-/**
+/*
  * @brief Initialize resource manager (host/common)
  */
 int ia_css_rmgr_init(void);
 
-/**
+/*
  * @brief Uninitialize resource manager (host/common)
  */
 void ia_css_rmgr_uninit(void);

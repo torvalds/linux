@@ -58,7 +58,7 @@ struct GUID {
  */
 struct cpu_str {
 	u8 len;
-	u8 unused;
+	u8 ads_len;
 	u16 name[];
 };
 
@@ -170,6 +170,7 @@ extern const __le16 SDH_NAME[4];
 extern const __le16 SO_NAME[2];
 extern const __le16 SQ_NAME[2];
 extern const __le16 SR_NAME[2];
+extern const __le16 QUERY_STREAMS[13];
 
 extern const __le16 BAD_NAME[4];
 extern const __le16 SDS_NAME[4];

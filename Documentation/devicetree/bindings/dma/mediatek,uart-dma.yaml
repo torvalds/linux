@@ -40,6 +40,7 @@ properties:
       - items:
           - enum:
               - mediatek,mt6991-uart-dma
+              - mediatek,mt8189-uart-dma
               - mediatek,mt8196-uart-dma
           - const: mediatek,mt6985-uart-dma
       - enum:

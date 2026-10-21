@@ -321,6 +321,9 @@ static long wx_ptp_do_aux_work(struct ptp_clock_info *ptp)
 	struct wx *wx = container_of(ptp, struct wx, ptp_caps);
 	int ts_done;
 
+	if (!test_bit(WX_STATE_PTP_RUNNING, wx->state))
+		return HZ;
+
 	ts_done = wx_ptp_tx_hwtstamp_work(wx);
 
 	wx_ptp_overflow_check(wx);
@@ -555,12 +558,10 @@ static int wx_ptp_set_timestamp_mode(struct wx *wx,
 {
 	u32 tsync_tx_ctl = WX_TSC_1588_CTL_ENABLED;
 	u32 tsync_rx_ctl = WX_PSR_1588_CTL_ENABLED;
-	DECLARE_BITMAP(flags, WX_PF_FLAGS_NBITS);
 	u32 tsync_rx_mtrl = PTP_EV_PORT << 16;
+	bool rx_tstamp = false;
 	bool is_l2 = false;
 	u32 regval;
-
-	memcpy(flags, wx->flags, sizeof(wx->flags));
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
@@ -576,20 +577,16 @@ static int wx_ptp_set_timestamp_mode(struct wx *wx,
 	case HWTSTAMP_FILTER_NONE:
 		tsync_rx_ctl = 0;
 		tsync_rx_mtrl = 0;
-		clear_bit(WX_FLAG_RX_HWTSTAMP_ENABLED, flags);
-		clear_bit(WX_FLAG_RX_HWTSTAMP_IN_REGISTER, flags);
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 		tsync_rx_ctl |= WX_PSR_1588_CTL_TYPE_L4_V1;
 		tsync_rx_mtrl |= WX_PSR_1588_MSG_V1_SYNC;
-		set_bit(WX_FLAG_RX_HWTSTAMP_ENABLED, flags);
-		set_bit(WX_FLAG_RX_HWTSTAMP_IN_REGISTER, flags);
+		rx_tstamp = true;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 		tsync_rx_ctl |= WX_PSR_1588_CTL_TYPE_L4_V1;
 		tsync_rx_mtrl |= WX_PSR_1588_MSG_V1_DELAY_REQ;
-		set_bit(WX_FLAG_RX_HWTSTAMP_ENABLED, flags);
-		set_bit(WX_FLAG_RX_HWTSTAMP_IN_REGISTER, flags);
+		rx_tstamp = true;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
@@ -602,9 +599,8 @@ static int wx_ptp_set_timestamp_mode(struct wx *wx,
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		tsync_rx_ctl |= WX_PSR_1588_CTL_TYPE_EVENT_V2;
 		is_l2 = true;
+		rx_tstamp = true;
 		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
-		set_bit(WX_FLAG_RX_HWTSTAMP_ENABLED, flags);
-		set_bit(WX_FLAG_RX_HWTSTAMP_IN_REGISTER, flags);
 		break;
 	default:
 		/* register PSR_1588_MSG must be set in order to do V1 packets,
@@ -643,7 +639,8 @@ static int wx_ptp_set_timestamp_mode(struct wx *wx,
 	WX_WRITE_FLUSH(wx);
 
 	/* configure adapter flags only when HW is actually configured */
-	memcpy(wx->flags, flags, sizeof(wx->flags));
+	assign_bit(WX_FLAG_RX_HWTSTAMP_ENABLED, wx->flags, rx_tstamp);
+	assign_bit(WX_FLAG_RX_HWTSTAMP_IN_REGISTER, wx->flags, rx_tstamp);
 
 	/* clear TX/RX timestamp state, just to be sure */
 	wx_ptp_clear_tx_timestamp(wx);
@@ -841,6 +838,30 @@ void wx_ptp_stop(struct wx *wx)
 	}
 }
 EXPORT_SYMBOL(wx_ptp_stop);
+
+void wx_ptp_quiesce(struct wx *wx)
+{
+	if (!test_and_clear_bit(WX_STATE_PTP_RUNNING, wx->state))
+		return;
+
+	clear_bit(WX_FLAG_PTP_PPS_ENABLED, wx->flags);
+
+	if (wx->ptp_clock)
+		ptp_cancel_worker_sync(wx->ptp_clock);
+
+	if (wx->ptp_tx_skb) {
+		dev_kfree_skb_any(wx->ptp_tx_skb);
+		wx->ptp_tx_skb = NULL;
+	}
+	clear_bit_unlock(WX_STATE_PTP_TX_IN_PROGRESS, wx->state);
+
+	if (wx->ptp_clock) {
+		ptp_clock_unregister(wx->ptp_clock);
+		wx->ptp_clock = NULL;
+		dev_info(&wx->pdev->dev, "removed PHC on %s\n", wx->netdev->name);
+	}
+}
+EXPORT_SYMBOL(wx_ptp_quiesce);
 
 /**
  * wx_ptp_rx_hwtstamp - utility function which checks for RX time stamp

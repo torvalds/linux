@@ -261,8 +261,6 @@ const struct msm_format *msm_framebuffer_format(struct drm_framebuffer *fb);
 struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_format_info *info,
 		const struct drm_mode_fb_cmd2 *mode_cmd);
-struct drm_framebuffer * msm_alloc_stolen_fb(struct drm_device *dev,
-		int w, int h, int p, uint32_t format);
 
 #ifdef CONFIG_DRM_MSM_KMS_FBDEV
 int msm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
@@ -356,8 +354,6 @@ void __exit msm_dp_unregister(void);
 int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
 			 struct drm_encoder *encoder, bool yuv_supported);
 void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp_display);
-bool msm_dp_is_yuv_420_enabled(const struct msm_dp *dp_display,
-			       const struct drm_display_mode *mode);
 bool msm_dp_needs_periph_flush(const struct msm_dp *dp_display,
 			       const struct drm_display_mode *mode);
 bool msm_dp_wide_bus_available(const struct msm_dp *dp_display);
@@ -380,12 +376,6 @@ static inline int msm_dp_modeset_init(struct msm_dp *dp_display,
 
 static inline void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp_display)
 {
-}
-
-static inline bool msm_dp_is_yuv_420_enabled(const struct msm_dp *dp_display,
-					     const struct drm_display_mode *mode)
-{
-	return false;
 }
 
 static inline bool msm_dp_needs_periph_flush(const struct msm_dp *dp_display,
@@ -502,13 +492,6 @@ void msm_hrtimer_work_init(struct msm_hrtimer_work *work,
 
 #define DBG(fmt, ...) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)
-
-static inline int align_pitch(int width, int bpp)
-{
-	int bytespp = (bpp + 7) / 8;
-	/* adreno needs pitch aligned to 32 pixels: */
-	return bytespp * ALIGN(width, 32);
-}
 
 /* for the generated headers: */
 #define INVALID_IDX(idx) ({BUG(); 0;})

@@ -1163,7 +1163,7 @@ static u16 cxgb_select_queue(struct net_device *dev, struct sk_buff *skb,
 	}
 #endif /* CONFIG_CHELSIO_T4_DCB */
 
-	if (dev->num_tc) {
+	if (netdev_get_num_tc(dev)) {
 		struct port_info *pi = netdev2pinfo(dev);
 		u8 ver, proto;
 

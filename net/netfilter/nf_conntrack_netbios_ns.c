@@ -21,7 +21,6 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 
 #define HELPER_NAME	"netbios-ns"
-#define NMBD_PORT	137
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_DESCRIPTION("NetBIOS name service broadcast connection tracking helper");
@@ -54,7 +53,6 @@ static int __init nf_conntrack_netbios_ns_init(void)
 	exp_policy.timeout = timeout;
 
 	nf_ct_helper_init(&helper, AF_INET, IPPROTO_UDP, HELPER_NAME,
-			  NMBD_PORT, NMBD_PORT, NMBD_PORT,
 			  &exp_policy, 0, netbios_ns_help, NULL, THIS_MODULE);
 
 	return nf_conntrack_helper_register(&helper, &helper_ptr);

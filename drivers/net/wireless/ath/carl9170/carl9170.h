@@ -381,6 +381,7 @@ struct ar9170 {
 	unsigned int tx_ack_failures;
 	unsigned int tx_fcs_errors;
 	unsigned int rx_dropped;
+	unsigned int rx_phy_errors;
 
 	/* EEPROM */
 	struct ar9170_eeprom eeprom;

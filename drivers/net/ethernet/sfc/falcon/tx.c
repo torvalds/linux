@@ -435,15 +435,19 @@ int ef4_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 
-	if (num_tc == net_dev->num_tc)
+	if (num_tc == netdev_get_num_tc(net_dev))
 		return 0;
 
 	for (tc = 0; tc < num_tc; tc++) {
-		net_dev->tc_to_txq[tc].offset = tc * efx->n_tx_channels;
-		net_dev->tc_to_txq[tc].count = efx->n_tx_channels;
+		struct netdev_tc_txq res = {
+			.offset = tc * efx->n_tx_channels,
+			.count = efx->n_tx_channels,
+		};
+
+		WRITE_ONCE(net_dev->tc_to_txq[tc].combined, res.combined);
 	}
 
-	if (num_tc > net_dev->num_tc) {
+	if (num_tc > netdev_get_num_tc(net_dev)) {
 		/* Initialise high-priority queues as necessary */
 		ef4_for_each_channel(channel, efx) {
 			ef4_for_each_possible_channel_tx_queue(tx_queue,
@@ -462,7 +466,7 @@ int ef4_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 		}
 	} else {
 		/* Reduce number of classes before number of queues */
-		net_dev->num_tc = num_tc;
+		WRITE_ONCE(net_dev->num_tc, num_tc);
 	}
 
 	rc = netif_set_real_num_tx_queues(net_dev,
@@ -477,7 +481,7 @@ int ef4_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	 * it to ef4_fini_channels().
 	 */
 
-	net_dev->num_tc = num_tc;
+	WRITE_ONCE(net_dev->num_tc, num_tc);
 	return 0;
 }
 

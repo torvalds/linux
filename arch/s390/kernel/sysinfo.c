@@ -325,6 +325,7 @@ int unregister_service_level(struct service_level *slr)
 EXPORT_SYMBOL(unregister_service_level);
 
 static void *service_level_start(struct seq_file *m, loff_t *pos)
+__acquires_shared(service_level_sem)
 {
 	down_read(&service_level_sem);
 	return seq_list_start(&service_level_list, *pos);
@@ -336,6 +337,7 @@ static void *service_level_next(struct seq_file *m, void *p, loff_t *pos)
 }
 
 static void service_level_stop(struct seq_file *m, void *p)
+__releases_shared(service_level_sem)
 {
 	up_read(&service_level_sem);
 }

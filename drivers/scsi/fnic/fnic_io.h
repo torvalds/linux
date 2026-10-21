@@ -6,12 +6,18 @@
 #ifndef _FNIC_IO_H_
 #define _FNIC_IO_H_
 
+#include <scsi/fc/fc_fs.h>
 #include <scsi/fc/fc_fcp.h>
 #include "fnic_fdls.h"
+#include "fcpio.h"
+#include <linux/nvme-fc-driver.h>
 
 #define FNIC_DFLT_SG_DESC_CNT  32
 #define FNIC_MAX_SG_DESC_CNT        256     /* Maximum descriptors per sgl */
 #define FNIC_SG_DESC_ALIGN          16      /* Descriptor address alignment */
+
+#define NVME_STAT_ERROR 0x2
+#define NVME_STAT_TASK_SET_FULL 0x3
 
 struct host_sg_desc {
 	__le64 addr;
@@ -39,6 +45,7 @@ enum fnic_ioreq_state {
 	FNIC_IOREQ_ABTS_PENDING,
 	FNIC_IOREQ_ABTS_COMPLETE,
 	FNIC_IOREQ_CMD_COMPLETE,
+	FNIC_IOREQ_RESET_TERM,
 };
 
 struct fnic_io_req {
@@ -50,12 +57,27 @@ struct fnic_io_req {
 	dma_addr_t sgl_list_pa;	/* dma address for sgl list */
 	u16 sgl_cnt;
 	u8 sgl_type; /* device DMA descriptor list type */
+	u8 sgl_mapped:1; /* set when sgl_list_pa is a valid DMA mapping */
 	u8 io_completed:1; /* set to 1 when fw completes IO */
 	u32 port_id; /* remote port DID */
 	unsigned long start_time; /* in jiffies */
+	u32 tag;
+	enum fnic_ioreq_state cmd_state;
+	u32 cmd_flags;
+	u32 abts_state;
 	struct completion *abts_done; /* completion for abts */
 	struct completion *dr_done; /* completion for device reset */
-	unsigned int tag;
 	struct scsi_cmnd *sc; /* midlayer's cmd pointer */
+
+	struct vnic_wq_copy *wq;
+	struct llist_node nvfnic_io_cmpl;
+	struct nvmefc_fcp_req *fcp_req;
+	void (*done)(struct fnic_io_req *io_req);
+	unsigned long waitq_start_time;	/* in jiffies */
+
+	struct timer_list admin_io_timer;
+	uint32_t status;
+	struct fnic_tag_t *tag_data;
+	struct fnic_io_event_s io_evt;
 };
 #endif /* _FNIC_IO_H_ */

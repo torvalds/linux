@@ -375,6 +375,130 @@ void dml21_handle_phantom_streams_planes(const struct dc *dc, struct dc_state *c
 		dml2_map_dc_pipes(dml_ctx, context, NULL, &dml_ctx->v21.dml_to_dc_pipe_mapping, dc->current_state);
 }
 
+static uint32_t calc_svp_size_64kb(uint32_t total_size_bytes)
+{
+	return (total_size_bytes + 0xFFFF) >> 16;
+}
+
+static unsigned int dml21_build_fams2_stream_programming_v3(const struct dc *dc,
+		struct dc_state *context,
+		struct dml2_context *dml_ctx)
+{
+	int dml_stream_idx, dc_stream_idx, dc_plane_idx, svp_idx;
+	unsigned int dc_pipe_idx;
+	unsigned int num_fams2_streams = 0;
+	unsigned int svp_size_64kb[2] = {0};
+	struct pipe_ctx *pipe;
+
+	for (dc_stream_idx = 0; dc_stream_idx < context->stream_count; dc_stream_idx++) {
+		enum fams2_stream_type type = 0;
+
+		union dmub_cmd_fams2_config *static_base_state = &context->bw_ctx.bw.dcn.fams2_stream_base_params[num_fams2_streams];
+		struct dmub_fams2_cmd_alternate_stream_static_state *alternate_static_state;
+
+		struct dc_stream_state *stream = context->streams[dc_stream_idx];
+
+		if (context->stream_status[dc_stream_idx].plane_count == 0 ||
+				dml_ctx->config.svp_pstate.callbacks.get_stream_subvp_type(context, stream) == SUBVP_PHANTOM) {
+			/* can ignore blanked or phantom streams */
+			continue;
+		}
+
+		dml_stream_idx = dml21_helper_find_dml_pipe_idx_by_stream_id(dml_ctx, stream->stream_id);
+		if (dml_stream_idx < 0) {
+			ASSERT(dml_stream_idx >= 0);
+			continue;
+		}
+
+		/* copy static state from PMO */
+		memcpy(static_base_state,
+				&dml_ctx->v21.mode_programming.programming->stream_programming[dml_stream_idx].fams2_base_params,
+				sizeof(union dmub_cmd_fams2_config));
+
+		memcpy(&context->bw_ctx.bw.dcn.fams2_stream_sub_params_v2[num_fams2_streams],
+				&dml_ctx->v21.mode_programming.programming->stream_programming[dml_stream_idx].fams2_sub_params_v2,
+				sizeof(union dmub_fams2_stream_static_sub_state_v2));
+
+		type = static_base_state->stream_v1.base.type;
+
+		/* get information from context */
+		ASSERT(context->stream_status[dc_stream_idx].plane_count >= 0 &&
+				context->stream_status[dc_stream_idx].plane_count <= 0xFF);
+		ASSERT(context->stream_status[dc_stream_idx].primary_otg_inst >= 0 &&
+				context->stream_status[dc_stream_idx].primary_otg_inst <= 0xFF);
+		static_base_state->stream_v1.base.num_planes = (uint8_t)context->stream_status[dc_stream_idx].plane_count;
+		static_base_state->stream_v1.base.otg_inst = (uint8_t)context->stream_status[dc_stream_idx].primary_otg_inst;
+
+		/* populate pipe masks for planes */
+		for (dc_plane_idx = 0; dc_plane_idx < context->stream_status[dc_stream_idx].plane_count; dc_plane_idx++) {
+			for (dc_pipe_idx = 0; dc_pipe_idx < dc->res_pool->pipe_count; dc_pipe_idx++) {
+				if (context->res_ctx.pipe_ctx[dc_pipe_idx].stream &&
+						context->res_ctx.pipe_ctx[dc_pipe_idx].stream->stream_id == stream->stream_id &&
+						context->res_ctx.pipe_ctx[dc_pipe_idx].plane_state == context->stream_status[dc_stream_idx].plane_states[dc_plane_idx]) {
+					static_base_state->stream_v1.base.pipe_mask |= (1 << dc_pipe_idx);
+					static_base_state->stream_v1.base.plane_pipe_masks[dc_plane_idx] |= (1 << dc_pipe_idx);
+				}
+			}
+		}
+
+		/* get per method programming */
+		switch (type) {
+		case FAMS2_STREAM_TYPE_VBLANK:
+		case FAMS2_STREAM_TYPE_VACTIVE:
+		case FAMS2_STREAM_TYPE_DRR:
+			break;
+		case FAMS2_STREAM_TYPE_ALTERNATE:
+			alternate_static_state = &context->bw_ctx.bw.dcn.fams2_stream_sub_params_v2[num_fams2_streams].alternate;
+
+			for (dc_plane_idx = 0; dc_plane_idx < context->stream_status[dc_stream_idx].plane_count; dc_plane_idx++) {
+				for (dc_pipe_idx = 0; dc_pipe_idx < dc->res_pool->pipe_count; dc_pipe_idx++) {
+					pipe = &context->res_ctx.pipe_ctx[dc_pipe_idx];
+					if (pipe->plane_state != context->stream_status[dc_stream_idx].plane_states[dc_plane_idx])
+						continue;
+					// TODO: Mapping between plane_idx within stream_res and plane_idx within alternate_stream_static_state
+					// should be matching, but it's better to have an explicit map / check (future improvement)
+					ASSERT(pipe->plane_res.scl_data.viewport.height >= 0 && pipe->plane_res.scl_data.viewport.height <= 0xFFFF);
+					ASSERT(pipe->plane_res.scl_data.viewport.width >= 0 && pipe->plane_res.scl_data.viewport.width <= 0xFFFF);
+					ASSERT(pipe->plane_res.scl_data.viewport.x >= 0 && pipe->plane_res.scl_data.viewport.x <= 0xFFFF);
+					ASSERT(pipe->plane_res.scl_data.viewport.y >= 0 && pipe->plane_res.scl_data.viewport.y <= 0xFFFF);
+					alternate_static_state->pipe_viewports[dc_pipe_idx].luma.height = (uint16_t)pipe->plane_res.scl_data.viewport.height;
+					alternate_static_state->pipe_viewports[dc_pipe_idx].luma.width = (uint16_t)pipe->plane_res.scl_data.viewport.width;
+					alternate_static_state->pipe_viewports[dc_pipe_idx].luma.x = (uint16_t)pipe->plane_res.scl_data.viewport.x;
+					alternate_static_state->pipe_viewports[dc_pipe_idx].luma.y = (uint16_t)pipe->plane_res.scl_data.viewport.y;
+					if (alternate_static_state->config[dc_plane_idx].bits.is_multi_planar) {
+						ASSERT(pipe->plane_res.scl_data.viewport_c.height >= 0 && pipe->plane_res.scl_data.viewport_c.height <= 0xFFFF);
+						ASSERT(pipe->plane_res.scl_data.viewport_c.width >= 0 && pipe->plane_res.scl_data.viewport_c.width <= 0xFFFF);
+						ASSERT(pipe->plane_res.scl_data.viewport_c.x >= 0 && pipe->plane_res.scl_data.viewport_c.x <= 0xFFFF);
+						ASSERT(pipe->plane_res.scl_data.viewport_c.y >= 0 && pipe->plane_res.scl_data.viewport_c.y <= 0xFFFF);
+						alternate_static_state->pipe_viewports[dc_pipe_idx].chroma.height = (uint16_t)pipe->plane_res.scl_data.viewport_c.height;
+						alternate_static_state->pipe_viewports[dc_pipe_idx].chroma.width = (uint16_t)pipe->plane_res.scl_data.viewport_c.width;
+						alternate_static_state->pipe_viewports[dc_pipe_idx].chroma.x = (uint16_t)pipe->plane_res.scl_data.viewport_c.x;
+						alternate_static_state->pipe_viewports[dc_pipe_idx].chroma.y = (uint16_t)pipe->plane_res.scl_data.viewport_c.y;
+					}
+					for (svp_idx = 0; svp_idx < 2; svp_idx++) {
+						alternate_static_state->pipe_copy_addr_47_16[svp_idx][dc_pipe_idx] =
+								dml_ctx->config.alt_ch_cfg.region_base_addr_47_16[svp_idx] + svp_size_64kb[svp_idx];
+						svp_size_64kb[svp_idx] += calc_svp_size_64kb(alternate_static_state->pipe_copy_max_size[svp_idx][dc_plane_idx]);
+						if (alternate_static_state->config[dc_plane_idx].bits.is_multi_planar) {
+							alternate_static_state->pipe_copy_addr_47_16_c[svp_idx][dc_pipe_idx] =
+									dml_ctx->config.alt_ch_cfg.region_base_addr_47_16[svp_idx] + svp_size_64kb[svp_idx];
+							svp_size_64kb[svp_idx] += calc_svp_size_64kb(alternate_static_state->pipe_copy_max_size_c[svp_idx][dc_plane_idx]);
+						}
+					}
+				}
+			}
+			break;
+		case FAMS2_STREAM_TYPE_SUBVP:
+		default:
+			ASSERT(false);
+			break;
+		}
+
+		num_fams2_streams++;
+	}
+
+	return num_fams2_streams;
+}
 
 static unsigned int dml21_build_fams2_stream_programming_v2(const struct dc *dc,
 		struct dc_state *context,
@@ -509,7 +633,9 @@ void dml21_build_fams2_programming(const struct dc *dc,
 
 	if (dml_ctx->v21.mode_programming.programming->fams2_required ||
 			dml_ctx->v21.mode_programming.programming->legacy_pstate_info_for_dmu) {
-		if (dc->debug.fams_version.major == 2) {
+		if (dc->debug.fams_version.major == 3) {
+			num_fams2_streams = dml21_build_fams2_stream_programming_v3(dc, context, dml_ctx);
+		} else if (dc->debug.fams_version.major == 2) {
 			num_fams2_streams = dml21_build_fams2_stream_programming_v2(dc, context, dml_ctx);
 		}
 	}
@@ -525,9 +651,27 @@ void dml21_build_fams2_programming(const struct dc *dc,
 
 	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching =
 			(context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable != 0);
+	context->bw_ctx.bw.dcn.clk.alt_ch_pstate_switch = dc_state_is_alt_in_use(dc, context);
 }
 
 bool dml21_is_plane1_enabled(enum dml2_source_format_class source_format)
 {
 	return source_format >= dml2_420_8 && source_format <= dml2_rgbe_alpha;
+}
+
+void dml21_program_dc_mcif_arb_params(struct dml2_context *dml_ctx,
+		struct dc_state *context,
+		struct dml2_per_stream_programming *stream_prog,
+		unsigned int wb_index,
+		unsigned int dwb_inst)
+{
+	/* DC struct contains global reg for every WB instance */
+	memcpy(&context->bw_ctx.bw.dcn.bw_writeback.mcif_wb_arb[dwb_inst].dcn4x.global_regs,
+			&dml_ctx->v21.mode_programming.programming->mcif_global_regs,
+			sizeof(struct dml2_mcif_global_register_set));
+
+	/* copy per-DWB pipe registers */
+	memcpy(&context->bw_ctx.bw.dcn.bw_writeback.mcif_wb_arb[dwb_inst].dcn4x.inst_regs,
+			stream_prog->mcif_regs[wb_index],
+			sizeof(struct dml2_mcif_per_pipe_register_set));
 }

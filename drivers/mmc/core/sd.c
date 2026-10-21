@@ -1379,14 +1379,9 @@ out:
 
 static int sd_enable_cache(struct mmc_card *card)
 {
-	u8 *reg_buf;
 	int err;
 
 	card->ext_perf.feature_enabled &= ~SD_EXT_PERF_CACHE;
-
-	reg_buf = kzalloc(512, GFP_KERNEL);
-	if (!reg_buf)
-		return -ENOMEM;
 
 	/*
 	 * Set Cache Enable at bit 0 in the performance enhancement register at
@@ -1397,7 +1392,7 @@ static int sd_enable_cache(struct mmc_card *card)
 	if (err) {
 		pr_warn("%s: error %d writing Cache Enable bit\n",
 			mmc_hostname(card->host), err);
-		goto out;
+		return err;
 	}
 
 	err = mmc_poll_for_busy(card, SD_WRITE_EXTR_SINGLE_TIMEOUT_MS, false,
@@ -1405,8 +1400,6 @@ static int sd_enable_cache(struct mmc_card *card)
 	if (!err)
 		card->ext_perf.feature_enabled |= SD_EXT_PERF_CACHE;
 
-out:
-	kfree(reg_buf);
 	return err;
 }
 

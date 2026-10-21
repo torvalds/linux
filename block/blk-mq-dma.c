@@ -44,7 +44,7 @@ static bool blk_map_iter_next(struct request *req, struct blk_map_iter *iter,
 	 * one could be merged into it.  This typically happens when moving to
 	 * the next bio, but some callers also don't pack bvecs tight.
 	 */
-	while (!iter->iter.bi_size || !iter->iter.bi_bvec_done) {
+	while (!iter->iter.bi_size || !iter->iter.bi_offset) {
 		struct bio_vec next;
 
 		if (!__blk_map_iter_next(iter))

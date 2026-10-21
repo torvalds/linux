@@ -16,11 +16,11 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
@@ -391,6 +391,10 @@ static void sun4i_tv_enable(struct drm_encoder *encoder,
 			   SUN4I_TVE_EN_ENABLE);
 }
 
+static const struct drm_encoder_funcs sun4i_tv_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 static const struct drm_encoder_helper_funcs sun4i_tv_helper_funcs = {
 	.atomic_disable	= sun4i_tv_disable,
 	.atomic_enable	= sun4i_tv_enable,
@@ -474,8 +478,8 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 
 	drm_encoder_helper_add(&tv->encoder,
 			       &sun4i_tv_helper_funcs);
-	ret = drm_simple_encoder_init(drm, &tv->encoder,
-				      DRM_MODE_ENCODER_TVDAC);
+	ret = drm_encoder_init(drm, &tv->encoder, &sun4i_tv_funcs,
+			       DRM_MODE_ENCODER_TVDAC, NULL);
 	if (ret) {
 		dev_err(dev, "Couldn't initialise the TV encoder\n");
 		goto err_disable_clk;

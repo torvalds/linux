@@ -1963,6 +1963,7 @@ struct rtw_sar {
 
 struct rtw_hal {
 	u32 rcr;
+	u16 rxfltmap1;
 
 	u32 chip_version;
 	u8 cut_version;

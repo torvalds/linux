@@ -9,6 +9,8 @@
 
 #include <linux/serdev.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
+#include <linux/pwrseq/consumer.h>
 #include <linux/skbuff.h>
 #include <linux/unaligned.h>
 #include <linux/firmware.h>
@@ -211,6 +213,7 @@ struct btnxpuart_dev {
 
 	struct ps_data psdata;
 	struct btnxpuart_data *nxp_data;
+	struct pwrseq_desc *pwrseq;
 	struct reset_control *pdn;
 	struct hci_uart hu;
 };
@@ -1331,19 +1334,7 @@ static int nxp_check_boot_sign(struct btnxpuart_dev *nxpdev)
 
 static int nxp_set_ind_reset(struct hci_dev *hdev, void *data)
 {
-	static const u8 ir_hw_err[] = { HCI_EV_HARDWARE_ERROR,
-					0x01, BTNXPUART_IR_HW_ERR };
-	struct sk_buff *skb;
-
-	skb = bt_skb_alloc(3, GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
-
-	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
-	skb_put_data(skb, ir_hw_err, 3);
-
-	/* Inject Hardware Error to upper stack */
-	return hci_recv_frame(hdev, skb);
+	return __hci_reset_dev(hdev, BTNXPUART_IR_HW_ERR);
 }
 
 /* Firmware dump */
@@ -1368,11 +1359,20 @@ static int nxp_process_fw_dump(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_acl_hdr *acl_hdr = (struct hci_acl_hdr *)skb_pull_data(skb,
 									  sizeof(*acl_hdr));
-	struct nxp_fw_dump_hdr *fw_dump_hdr = (struct nxp_fw_dump_hdr *)skb->data;
+	struct nxp_fw_dump_hdr *fw_dump_hdr;
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
-	__u16 seq_num = __le16_to_cpu(fw_dump_hdr->seq_num);
-	__u16 buf_len = __le16_to_cpu(fw_dump_hdr->buf_len);
+	__u16 seq_num;
+	__u16 buf_len;
 	int err;
+
+	fw_dump_hdr = skb_pull_data(skb, sizeof(*fw_dump_hdr));
+	if (!fw_dump_hdr) {
+		bt_dev_warn(hdev, "FW dump: invalid or corrupt fw dump chunk");
+		goto free_skb;
+	}
+
+	seq_num = __le16_to_cpu(fw_dump_hdr->seq_num);
+	buf_len = __le16_to_cpu(fw_dump_hdr->buf_len);
 
 	if (seq_num == 0x0001) {
 		if (test_and_set_bit(BTNXPUART_FW_DUMP_IN_PROGRESS, &nxpdev->tx_state)) {
@@ -1818,6 +1818,28 @@ static void nxp_coredump_notify(struct hci_dev *hdev, int state)
 	kobject_uevent_env(&serdev->dev.kobj, KOBJ_CHANGE, envp);
 }
 
+/*
+ * Check if the remote M.2 connector device linked via OF graph is present
+ * and available. This is used to determine whether the pwrseq path should
+ * be taken. When the remote connector node is disabled (e.g., by a DT
+ * overlay switching from PCIe WiFi to SDIO WiFi), the pwrseq path is
+ * skipped, allowing the BT driver to use a direct bluetooth child node
+ * instead.
+ */
+static bool nxp_m2_connector_is_available(struct device *dev)
+{
+	struct device_node *ep __free(device_node) =
+		of_graph_get_next_endpoint(dev_of_node(dev), NULL);
+
+	if (!ep)
+		return false;
+
+	struct device_node *remote __free(device_node) =
+		of_graph_get_remote_port_parent(ep);
+
+	return remote && of_device_is_available(remote);
+}
+
 static int nxp_serdev_probe(struct serdev_device *serdev)
 {
 	struct hci_dev *hdev;
@@ -1872,11 +1894,26 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 		return err;
 	}
 
+	if (nxp_m2_connector_is_available(&serdev->ctrl->dev)) {
+		struct pwrseq_desc *pwrseq;
+
+		pwrseq = pwrseq_get(&serdev->ctrl->dev, "uart");
+		if (IS_ERR(pwrseq))
+			return dev_err_probe(&serdev->dev, PTR_ERR(pwrseq),
+					     "failed to get pwrseq\n");
+
+		nxpdev->pwrseq = pwrseq;
+		err = pwrseq_enable(pwrseq);
+		if (err)
+			goto err_pwrseq_put;
+	}
+
 	/* Initialize and register HCI device */
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		dev_err(&serdev->dev, "Can't allocate HCI device\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_pwrseq_put;
 	}
 
 	reset_control_deassert(nxpdev->pdn);
@@ -1907,23 +1944,31 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 	if (bacmp(&ba, BDADDR_ANY))
 		hci_set_quirk(hdev, HCI_QUIRK_USE_BDADDR_PROPERTY);
 
-	if (hci_register_dev(hdev) < 0) {
+	err = hci_register_dev(hdev);
+	if (err < 0) {
 		dev_err(&serdev->dev, "Can't register HCI device\n");
 		goto probe_fail;
 	}
 
-	if (ps_setup(hdev))
-		goto probe_fail;
+	if (ps_setup(hdev)) {
+		err = -ENODEV;
+		goto probe_fail_unregister;
+	}
 
 	hci_devcd_register(hdev, nxp_coredump, nxp_coredump_hdr,
 			   nxp_coredump_notify);
 
 	return 0;
 
+probe_fail_unregister:
+	hci_unregister_dev(hdev);
 probe_fail:
 	reset_control_assert(nxpdev->pdn);
 	hci_free_dev(hdev);
-	return -ENODEV;
+err_pwrseq_put:
+	if (nxpdev->pwrseq)
+		pwrseq_put(nxpdev->pwrseq);
+	return err;
 }
 
 static void nxp_serdev_remove(struct serdev_device *serdev)
@@ -1950,6 +1995,8 @@ static void nxp_serdev_remove(struct serdev_device *serdev)
 	ps_cleanup(nxpdev);
 	hci_unregister_dev(hdev);
 	reset_control_assert(nxpdev->pdn);
+	if (nxpdev->pwrseq)
+		pwrseq_put(nxpdev->pwrseq);
 	hci_free_dev(hdev);
 }
 

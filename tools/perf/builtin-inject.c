@@ -726,8 +726,11 @@ static int perf_event__repipe_common_mmap(const struct perf_tool *tool,
 		}
 
 		if (dso && !dso__hit(dso)) {
-			if (!sample->evsel)
+			if (!sample->evsel) {
 				sample->evsel = evlist__event2evsel(inject->session->evlist, event);
+				if (sample->evsel)
+					evsel__get(sample->evsel);
+			}
 
 			if (sample->evsel) {
 				dso__set_hit(dso);
@@ -1520,7 +1523,7 @@ static int synthesize_id_index(struct perf_inject *inject, size_t new_cnt)
 	struct perf_session *session = inject->session;
 	struct evlist *evlist = session->evlist;
 	struct machine *machine = &session->machines.host;
-	size_t from = evlist->core.nr_entries - new_cnt;
+	size_t from = evlist__nr_entries(evlist) - new_cnt;
 
 	return __perf_event__synthesize_id_index(&inject->tool, perf_event__repipe,
 						 evlist, machine, from);
@@ -2055,7 +2058,7 @@ static int host__finished_init(const struct perf_tool *tool, struct perf_session
 	if (ret)
 		return ret;
 
-	ret = synthesize_id_index(inject, gs->session->evlist->core.nr_entries);
+	ret = synthesize_id_index(inject, evlist__nr_entries(gs->session->evlist));
 	if (ret) {
 		pr_err("Failed to synthesize id_index\n");
 		return ret;

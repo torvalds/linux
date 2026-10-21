@@ -46,11 +46,13 @@
 
 int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
 			      struct amdgpu_sa_manager *sa_manager,
-			      unsigned int size, u32 suballoc_align, u32 domain)
+			      unsigned int size, gfp_t gfp_flags)
 {
 	int r;
 
-	r = amdgpu_bo_create_kernel(adev, size, AMDGPU_GPU_PAGE_SIZE, domain,
+	sa_manager->gfp_flags = gfp_flags;
+	r = amdgpu_bo_create_kernel(adev, size, AMDGPU_GPU_PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_GTT,
 				    &sa_manager->bo, &sa_manager->gpu_addr,
 				    &sa_manager->cpu_ptr);
 	if (r) {
@@ -59,7 +61,8 @@ int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
 	}
 
 	memset(sa_manager->cpu_ptr, 0, size);
-	drm_suballoc_manager_init(&sa_manager->base, size, suballoc_align);
+	drm_suballoc_manager_init(&sa_manager->base, size, 256);
+
 	return r;
 }
 
@@ -73,7 +76,8 @@ void amdgpu_sa_bo_manager_fini(struct amdgpu_device *adev,
 
 	drm_suballoc_manager_fini(&sa_manager->base);
 
-	amdgpu_bo_free_kernel(&sa_manager->bo, &sa_manager->gpu_addr, &sa_manager->cpu_ptr);
+	amdgpu_bo_free_kernel(&sa_manager->bo, &sa_manager->gpu_addr,
+			      &sa_manager->cpu_ptr);
 }
 
 int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
@@ -81,7 +85,8 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 		     unsigned int size)
 {
 	struct drm_suballoc *sa = drm_suballoc_new(&sa_manager->base, size,
-						   GFP_KERNEL, false, 0);
+						   sa_manager->gfp_flags,
+						   false, 0);
 
 	if (IS_ERR(sa)) {
 		*sa_bo = NULL;
@@ -110,6 +115,7 @@ void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 {
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	drm_suballoc_dump_debug_info(&sa_manager->base, &p, sa_manager->gpu_addr);
+	drm_suballoc_dump_debug_info(&sa_manager->base, &p,
+				     sa_manager->gpu_addr);
 }
 #endif

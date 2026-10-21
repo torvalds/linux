@@ -26,8 +26,6 @@
 #include <linux/mmc/sd.h>
 #include <linux/sched.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/clk.h>
 #include <linux/bitops.h>
 #include <linux/of_dma.h>
@@ -264,6 +262,7 @@ static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 	u32 len, dir_slave;
 	struct dma_async_tx_descriptor *desc = NULL;
 	struct dma_chan *dma_chan;
+	long timeout;
 
 	if (host->data_len == data->bytes_xfered)
 		return;
@@ -296,11 +295,17 @@ static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 		dma_async_issue_pending(dma_chan);
 	}
 
-	wait_for_completion_interruptible_timeout(&host->dma_complete,
-						  host->timeout);
+	timeout = wait_for_completion_interruptible_timeout(&host->dma_complete,
+							    host->timeout);
+	if (timeout <= 0) {
+		dmaengine_terminate_sync(dma_chan);
+		data->error = timeout ?: -ETIMEDOUT;
+		goto unmap;
+	}
 
 	data->bytes_xfered = host->data_len;
 
+unmap:
 	dma_unmap_sg(dma_chan->device->dev,
 		     data->sg, data->sg_len,
 		     mmc_get_dma_dir(data));
@@ -548,8 +553,7 @@ static const struct mmc_host_ops moxart_ops = {
 static int moxart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct resource res_mmc;
+	struct resource *res_mmc;
 	struct mmc_host *mmc;
 	struct moxart_host *host = NULL;
 	struct dma_slave_config cfg;
@@ -558,29 +562,23 @@ static int moxart_probe(struct platform_device *pdev)
 	int irq, ret;
 	u32 i;
 
+	reg_mmc = devm_platform_get_and_ioremap_resource(pdev, 0, &res_mmc);
+	if (IS_ERR(reg_mmc))
+		return PTR_ERR(reg_mmc);
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
 	mmc = devm_mmc_alloc_host(dev, sizeof(*host));
 	if (!mmc) {
 		dev_err(dev, "devm_mmc_alloc_host failed\n");
 		return -ENOMEM;
 	}
 
-	ret = of_address_to_resource(node, 0, &res_mmc);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "of_address_to_resource failed\n");
-
-	irq = irq_of_parse_and_map(node, 0);
-	if (irq <= 0)
-		return dev_err_probe(dev, -EINVAL,
-				     "irq_of_parse_and_map failed\n");
-
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
-
-	reg_mmc = devm_ioremap_resource(dev, &res_mmc);
-	if (IS_ERR(reg_mmc))
-		return PTR_ERR(reg_mmc);
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
@@ -589,7 +587,7 @@ static int moxart_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 	host->base = reg_mmc;
-	host->reg_phys = res_mmc.start;
+	host->reg_phys = res_mmc->start;
 	host->timeout = msecs_to_jiffies(1000);
 	host->sysclk = clk_get_rate(clk);
 	host->fifo_width = readl(host->base + REG_FEATURE) << 2;

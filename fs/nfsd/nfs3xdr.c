@@ -987,7 +987,7 @@ compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
 	dparent = cd->fh.fh_dentry;
 	exp  = cd->fh.fh_export;
 
-	if (isdotent(name, namlen)) {
+	if (name_is_dot_dotdot(name, namlen)) {
 		if (namlen == 2) {
 			dchild = dget_parent(dparent);
 			/*

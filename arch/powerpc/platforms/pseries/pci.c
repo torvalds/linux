@@ -132,11 +132,14 @@ static int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 
 	/* First integer stores max config */
 	max_config_vfs = of_read_number(&max_vfs[0], 1);
-	if (max_config_vfs < num_vfs || num_vfs > MAX_VFS_FOR_MAP_PE) {
-		dev_err(&pdev->dev,
-			"Num VFs %x > %x Configurable VFs\n",
-			num_vfs, (num_vfs > MAX_VFS_FOR_MAP_PE) ?
-			MAX_VFS_FOR_MAP_PE : max_config_vfs);
+	if (max_config_vfs < num_vfs) {
+		dev_err(&pdev->dev, "Num VFs %x > %x Configurable VFs\n",
+			num_vfs, max_config_vfs);
+		return -EINVAL;
+	}
+	if (num_vfs > MAX_VFS_FOR_MAP_PE) {
+		dev_err(&pdev->dev, "Num VFs %x > %x PE mapping limit\n",
+			num_vfs, MAX_VFS_FOR_MAP_PE);
 		return -EINVAL;
 	}
 

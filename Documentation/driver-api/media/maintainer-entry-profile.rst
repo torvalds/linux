@@ -432,6 +432,10 @@ The Media Driver Maintainers responsible for specific areas are:
 
     - Qualcomm drivers
 
+  - Ricardo Ribalda <ribalda@chromium.org>
+
+    - Media-CI
+
 Submit Checklist Addendum
 -------------------------
 

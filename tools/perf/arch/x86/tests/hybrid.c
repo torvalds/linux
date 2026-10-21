@@ -26,7 +26,7 @@ static int test__hybrid_hw_event_with_pmu(struct evlist *evlist)
 {
 	struct evsel *evsel = evlist__first(evlist);
 
-	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist__nr_entries(evlist));
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong hybrid type", test_hybrid_type(evsel, PERF_TYPE_RAW));
 	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_HW_CPU_CYCLES));
@@ -38,7 +38,7 @@ static int test__hybrid_hw_group_event(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	evsel = leader = evlist__first(evlist);
-	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist__nr_entries(evlist));
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong hybrid type", test_hybrid_type(evsel, PERF_TYPE_RAW));
 	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_HW_CPU_CYCLES));
@@ -57,7 +57,7 @@ static int test__hybrid_sw_hw_group_event(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	evsel = leader = evlist__first(evlist);
-	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist__nr_entries(evlist));
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_SOFTWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
 
@@ -74,7 +74,7 @@ static int test__hybrid_hw_sw_group_event(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	evsel = leader = evlist__first(evlist);
-	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist__nr_entries(evlist));
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong hybrid type", test_hybrid_type(evsel, PERF_TYPE_RAW));
 	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_HW_CPU_CYCLES));
@@ -91,7 +91,7 @@ static int test__hybrid_group_modifier1(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	evsel = leader = evlist__first(evlist);
-	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist__nr_entries(evlist));
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong hybrid type", test_hybrid_type(evsel, PERF_TYPE_RAW));
 	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_HW_CPU_CYCLES));
@@ -113,7 +113,7 @@ static int test__hybrid_raw1(struct evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	perf_evlist__for_each_evsel(&evlist->core, evsel) {
+	perf_evlist__for_each_evsel(evlist__core(evlist), evsel) {
 		struct perf_pmu *pmu = perf_pmus__find_by_type(evsel->attr.type);
 
 		TEST_ASSERT_VAL("missing pmu", pmu);
@@ -127,7 +127,7 @@ static int test__hybrid_raw2(struct evlist *evlist)
 {
 	struct evsel *evsel = evlist__first(evlist);
 
-	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist__nr_entries(evlist));
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config", test_config(evsel, 0x1a));
 	return TEST_OK;
@@ -137,7 +137,7 @@ static int test__hybrid_cache_event(struct evlist *evlist)
 {
 	struct evsel *evsel = evlist__first(evlist);
 
-	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist__nr_entries(evlist));
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HW_CACHE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config", 0x2 == (evsel->core.attr.config & 0xffffffff));
 	return TEST_OK;
@@ -148,7 +148,7 @@ static int test__checkevent_pmu(struct evlist *evlist)
 
 	struct evsel *evsel = evlist__first(evlist);
 
-	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist__nr_entries(evlist));
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config",    10 == evsel->core.attr.config);
 	TEST_ASSERT_VAL("wrong config1",    1 == evsel->core.attr.config1);
@@ -168,7 +168,7 @@ static int test__hybrid_hw_group_event_2(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	evsel = leader = evlist__first(evlist);
-	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist__nr_entries(evlist));
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong hybrid type", test_hybrid_type(evsel, PERF_TYPE_RAW));
 	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_HW_CPU_CYCLES));
@@ -268,7 +268,7 @@ static int test_event(const struct evlist_test *e)
 		ret = e->check(evlist);
 	}
 	parse_events_error__exit(&err);
-	evlist__delete(evlist);
+	evlist__put(evlist);
 
 	return ret;
 }

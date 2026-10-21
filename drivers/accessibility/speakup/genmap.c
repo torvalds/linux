@@ -71,7 +71,6 @@ main(int argc, char *argv[])
 
 	open_input(NULL, argv[1]);
 	while (fgets(buffer, sizeof(buffer), infile)) {
-		lc++;
 		value = shift_state = 0;
 
 		cp = strtok(buffer, delims);
@@ -153,7 +152,7 @@ main(int argc, char *argv[])
 			continue;
 		printf("\n\t%d,", lc);
 		for (i = 0; i < max_states; i++)
-			printf(" %d,", (unsigned int)kp[i]);
+			printf(" %u,", (unsigned int)kp[i]);
 	}
 	printf("\n\t0, %d\n", map_ver);
 

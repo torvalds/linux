@@ -769,7 +769,7 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 
 	/*
 	 * sync canceling the work after removing it from the req_list
-	 * guarentees no work is running and none will be started.
+	 * guarantees no work is running and none will be started.
 	 */
 	cancel_delayed_work_sync(&found->work);
 	kfree(found);

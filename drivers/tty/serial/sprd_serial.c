@@ -741,11 +741,8 @@ static int sprd_startup(struct uart_port *port)
 
 	ret = devm_request_irq(port->dev, port->irq, sprd_handle_irq,
 			       IRQF_SHARED, sp->name, port);
-	if (ret) {
-		dev_err(port->dev, "fail to request serial irq %d, ret=%d\n",
-			port->irq, ret);
+	if (ret)
 		return ret;
-	}
 	fc = serial_in(port, SPRD_CTL1);
 	fc |= RX_TOUT_THLD_DEF | RX_HFC_THLD_DEF;
 	serial_out(port, SPRD_CTL1, fc);

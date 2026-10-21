@@ -67,7 +67,7 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 {
 	struct syscon_reboot_context *ctx;
 	struct device *dev = &pdev->dev;
-	int priority;
+	u32 priority;
 	int err;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
@@ -81,7 +81,7 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 			return PTR_ERR(ctx->map);
 	}
 
-	if (of_property_read_s32(pdev->dev.of_node, "priority", &priority))
+	if (of_property_read_u32(pdev->dev.of_node, "priority", &priority))
 		priority = 192;
 
 	ctx->rd = of_device_get_match_data(dev);

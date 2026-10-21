@@ -17,11 +17,16 @@
 
 #define RT1320_DEV_ID 0x6981
 #define RT1321_DEV_ID 0x7045
+#define RT1321_DEV_HV_VA0_ID 0x6997
+#define RT1321_DEV_HV_VA1_ID 0x7071
 
 /* imp-defined registers */
 #define RT1320_DEV_VERSION_ID_1 0xc404
 #define RT1320_DEV_ID_1 0xc405
 #define RT1320_DEV_ID_0 0xc406
+
+#define RT1320_HV_DEV_ID_0 0xf622
+#define RT1320_HV_DEV_ID_1 0xf623
 
 #define RT1320_POWER_STATE 0xc560
 
@@ -94,6 +99,12 @@ enum rt1320_version_id {
 	RT1320_VC,
 };
 
+enum rt1321_version_id {
+	RT1321_VA0,
+	RT1321_VA1,
+	RT1321_VA2,
+};
+
 #define RT1320_VER_B_ID 0x07392238
 #define RT1320_VAB_MCU_PATCH "realtek/rt1320/rt1320-patch-code-vab.bin"
 #define RT1320_VC_MCU_PATCH "realtek/rt1320/rt1320-patch-code-vc.bin"
@@ -121,6 +132,7 @@ struct rt1320_datafixpoint {
 	int invrs;
 };
 
+/* FW parameter id 1300 */
 typedef struct FwPara_HwSwGain {
 	unsigned int SwAdvGain;
 	unsigned int SwBasGain;
@@ -161,6 +173,13 @@ enum rt1320_rw_type {
 	RT1320_BRA_READ = 1,
 	RT1320_PARAM_WRITE = 2,
 	RT1320_PARAM_READ = 3,
+};
+
+enum {
+	RT1320_CLK_FREQ_19_2_MHZ = 1,
+	RT1320_CLK_FREQ_24MHZ = 2,
+	RT1320_CLK_FREQ_24_576MHZ = 3,
+	RT1320_CLK_FREQ_22_5792MHZ = 4,
 };
 
 struct rt1320_sdw_priv {

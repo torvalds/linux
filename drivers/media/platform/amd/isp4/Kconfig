@@ -5,6 +5,7 @@ config VIDEO_AMD_ISP4_CAPTURE
 	depends on DRM_AMDGPU && DRM_AMD_ISP
 	depends on HAS_DMA
 	depends on VIDEO_DEV
+	select MEDIA_CONTROLLER
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
 	select VIDEOBUF2_V4L2

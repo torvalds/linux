@@ -474,7 +474,7 @@ static int hisi_uncore_mark_related_cpus(struct hisi_uncore_freq *uncore,
 		return -EINVAL;
 
 	len = rc;
-	u32 *num __free(kfree) = kcalloc(len, sizeof(*num), GFP_KERNEL);
+	u32 *num __free(kfree) = kzalloc_objs(*num, len);
 	if (!num)
 		return -ENOMEM;
 
@@ -540,7 +540,7 @@ static ssize_t related_cpus_show(struct device *dev,
 {
 	struct hisi_uncore_freq *uncore = dev_get_drvdata(dev->parent);
 
-	return cpumap_print_to_pagebuf(true, buf, &uncore->related_cpus);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&uncore->related_cpus));
 }
 
 static DEVICE_ATTR_RO(related_cpus);

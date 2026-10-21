@@ -61,8 +61,8 @@ and, in general case, something like::
 
 should suffice.
 
-1) Load Module
-==============
+Load Module
+===========
 
 ::
 
@@ -73,8 +73,8 @@ This creates 4 devices: /dev/zram{0,1,2,3}
 num_devices parameter is optional and tells zram how many devices should be
 pre-created. Default: 1.
 
-2) Select compression algorithm
-===============================
+Select compression algorithm
+============================
 
 Using comp_algorithm device attribute one can see available and
 currently selected (shown in square brackets) compression algorithms,
@@ -93,8 +93,8 @@ Examples::
 For the time being, the `comp_algorithm` content shows only compression
 algorithms that are supported by zram.
 
-3) Set compression algorithm parameters: Optional
-=================================================
+Set compression algorithm parameters: Optional
+==============================================
 
 Compression algorithms may support specific parameters which can be
 tweaked for particular dataset. ZRAM has an `algorithm_params` device
@@ -109,13 +109,40 @@ path to the `dict` along with other parameters::
 	#pass path to pre-trained zstd dictionary
 	echo "algo=zstd dict=/etc/dictionary" > /sys/block/zram0/algorithm_params
 
-	#same, but using algorithm priority
-	echo "priority=1 dict=/etc/dictionary" > \
-		/sys/block/zram0/algorithm_params
-
 	#pass path to pre-trained zstd dictionary and compression level
 	echo "algo=zstd level=8 dict=/etc/dictionary" > \
 		/sys/block/zram0/algorithm_params
+
+	#same, but using algorithm priority
+	echo "algo=zstd priority=1" > /sys/block/zram0/recomp_algorithm
+	echo "priority=1 dict=/etc/dictionary" > \
+		/sys/block/zram0/algorithm_params
+
+Each write to `algorithm_params` replaces the entire set of parameters of
+the corresponding algorithm, parameters that are not listed in the write
+are reset to their default values.  Configure all of the parameters of an
+algorithm in one write::
+
+	#WRONG: the second write resets level back to its default value
+	echo "algo=zstd level=8" > /sys/block/zram0/algorithm_params
+	echo "algo=zstd dict=/etc/dictionary" > /sys/block/zram0/algorithm_params
+
+	#RIGHT
+	echo "algo=zstd level=8 dict=/etc/dictionary" > \
+		/sys/block/zram0/algorithm_params
+
+Select the compression algorithm before configuring its parameters.  The
+parameters of one algorithm are not necessarily valid for another one, so
+changing the algorithm of a particular priority resets that priority's
+parameters::
+
+	#WRONG: comp_algorithm write resets the previously configured level
+	echo "level=8" > /sys/block/zram0/algorithm_params
+	echo zstd > /sys/block/zram0/comp_algorithm
+
+	#RIGHT
+	echo zstd > /sys/block/zram0/comp_algorithm
+	echo "algo=zstd level=8" > /sys/block/zram0/algorithm_params
 
 Parameters are algorithm specific: not all algorithms support pre-trained
 dictionaries, not all algorithms support `level`. Furthermore, for certain
@@ -124,8 +151,13 @@ better the compression ratio, it even can take negatives values for some
 algorithms), for other algorithms `level` is acceleration level (the higher
 the value the lower the compression ratio).
 
-4) Set Disksize
-===============
+Parameters are handed over to the compression algorithm when the device is
+initialised, hence invalid parameters (or parameters that the selected
+algorithm does not support) are reported by the `disksize` write, and not
+by the `algorithm_params` write that has configured them.
+
+Set Disksize
+============
 
 Set disk size by writing the value to sysfs node 'disksize'.
 The value can be either in bytes or you can use mem suffixes.
@@ -144,8 +176,8 @@ There is little point creating a zram of greater than twice the size of memory
 since we expect a 2:1 compression ratio. Note that zram uses about 0.1% of the
 size of the disk when not in use so a huge zram is wasteful.
 
-5) Set memory limit: Optional
-=============================
+Set memory limit: Optional
+==========================
 
 Set memory limit by writing the value to sysfs node 'mem_limit'.
 The value can be either in bytes or you can use mem suffixes.
@@ -163,8 +195,8 @@ Examples::
 	# To disable memory limit
 	echo 0 > /sys/block/zram0/mem_limit
 
-6) Activate
-===========
+Activate
+========
 
 ::
 
@@ -174,8 +206,8 @@ Examples::
 	mkfs.ext4 /dev/zram1
 	mount /dev/zram1 /tmp
 
-7) Add/remove zram devices
-==========================
+Add/remove zram devices
+=======================
 
 zram provides a control interface, which enables dynamic (on-demand) device
 addition and removal.
@@ -194,8 +226,8 @@ execute::
 
 	echo X > /sys/class/zram-control/hot_remove
 
-8) Stats
-========
+Stats
+=====
 
 Per-device statistics are exported as various nodes under /sys/block/zram<id>/
 
@@ -296,16 +328,16 @@ a single line of text and contains the following stats separated by whitespace:
 		Unit: 4K bytes
  ============== =============================================================
 
-9) Deactivate
-==============
+Deactivate
+==========
 
 ::
 
 	swapoff /dev/zram0
 	umount /dev/zram1
 
-10) Reset
-=========
+Reset
+=====
 
 	Write any positive value to 'reset' sysfs node::
 

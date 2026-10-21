@@ -942,13 +942,6 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	#endif
 };
 
-enum odm_rf_content {
-	odm_radioa_txt = 0x1000,
-	odm_radiob_txt = 0x1001,
-	odm_radioc_txt = 0x1002,
-	odm_radiod_txt = 0x1003
-};
-
 enum ODM_BB_Config_Type {
 	CONFIG_BB_PHY_REG,
 	CONFIG_BB_AGC_TAB,

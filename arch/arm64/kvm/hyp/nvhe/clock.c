@@ -30,7 +30,7 @@ static u64 __clock_mult_uint128(u64 cyc, u32 mult, u32 shift)
 }
 
 /* Does not guarantee no reader on the modified bank. */
-void trace_clock_update(u32 mult, u32 shift, u64 epoch_ns, u64 epoch_cyc)
+void trace_hyp_clock_update(u32 mult, u32 shift, u64 epoch_ns, u64 epoch_cyc)
 {
 	struct clock_data *clock = &trace_clock_data;
 	u64 bank = clock->cur ^ 1;
@@ -48,7 +48,7 @@ void trace_clock_update(u32 mult, u32 shift, u64 epoch_ns, u64 epoch_cyc)
 }
 
 /* Use untrusted host data */
-u64 trace_clock(void)
+u64 trace_hyp_clock(void)
 {
 	struct clock_data *clock = &trace_clock_data;
 	u64 bank = smp_load_acquire(&clock->cur);

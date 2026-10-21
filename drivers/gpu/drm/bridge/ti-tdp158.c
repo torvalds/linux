@@ -60,7 +60,7 @@ static const struct drm_bridge_funcs tdp158_bridge_funcs = {
 	.atomic_disable = tdp158_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 };
 
 static int tdp158_probe(struct i2c_client *client)

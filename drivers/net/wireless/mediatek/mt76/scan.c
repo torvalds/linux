@@ -11,15 +11,24 @@ static void mt76_scan_complete(struct mt76_dev *dev, bool abort)
 		.aborted = abort,
 	};
 
+	lockdep_assert_held(&dev->mutex);
+
 	if (!phy)
 		return;
 
 	clear_bit(MT76_SCANNING, &phy->state);
 
-	if (dev->scan.chan && phy->main_chandef.chan && phy->offchannel &&
+	/* Re-program the operating channel even when the scan never left it:
+	 * any channel set during the scan ran with MT76_SCANNING held, which
+	 * left DFS radar detection disabled
+	 */
+	if (phy->main_chandef.chan &&
 	    !test_bit(MT76_MCU_RESET, &dev->phy.state)) {
-		mt76_set_channel(phy, &phy->main_chandef, false);
-		mt76_offchannel_notify(phy, false);
+		bool offchannel = phy->offchannel;
+
+		__mt76_set_channel(phy, &phy->main_chandef, false);
+		if (offchannel)
+			mt76_offchannel_notify(phy, false);
 	}
 	mt76_put_vif_phy_link(phy, dev->scan.vif, dev->scan.mlink);
 	memset(&dev->scan, 0, sizeof(dev->scan));
@@ -34,7 +43,10 @@ void mt76_abort_scan(struct mt76_dev *dev)
 	spin_unlock_bh(&dev->scan_lock);
 
 	cancel_delayed_work_sync(&dev->scan_work);
+
+	mutex_lock(&dev->mutex);
 	mt76_scan_complete(dev, true);
+	mutex_unlock(&dev->mutex);
 }
 EXPORT_SYMBOL_GPL(mt76_abort_scan);
 
@@ -48,6 +60,7 @@ mt76_scan_send_probe(struct mt76_dev *dev, struct cfg80211_ssid *ssid)
 	struct mt76_phy *phy = dev->scan.phy;
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
+	u8 link_id;
 
 	skb = ieee80211_probereq_get(phy->hw, vif->addr, ssid->ssid,
 				     ssid->ssid_len, req->ie_len);
@@ -76,6 +89,10 @@ mt76_scan_send_probe(struct mt76_dev *dev, struct cfg80211_ssid *ssid)
 	if (req->no_cck)
 		info->flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 	info->control.flags |= IEEE80211_TX_CTRL_DONT_USE_RATE_MASK;
+
+	link_id = mvif->wcid ? mvif->wcid->link_id : IEEE80211_LINK_UNSPECIFIED;
+	info->control.flags &= ~IEEE80211_TX_CTRL_MLO_LINK;
+	info->control.flags |= u32_encode_bits(link_id, IEEE80211_TX_CTRL_MLO_LINK);
 
 	mt76_tx(phy, NULL, mvif->wcid, skb);
 
@@ -127,7 +144,9 @@ void mt76_scan_work(struct work_struct *work)
 		goto probe;
 
 	if (dev->scan.chan_idx >= req->n_channels) {
+		mutex_lock(&dev->mutex);
 		mt76_scan_complete(dev, false);
+		mutex_unlock(&dev->mutex);
 		return;
 	}
 
@@ -206,6 +225,7 @@ int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	dev->scan.vif = vif;
 	dev->scan.phy = phy;
 	dev->scan.mlink = mlink;
+	set_bit(MT76_SCANNING, &phy->state);
 	ieee80211_queue_delayed_work(dev->phy.hw, &dev->scan_work, 0);
 
 out:

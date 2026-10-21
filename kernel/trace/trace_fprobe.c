@@ -238,13 +238,10 @@ static bool trace_fprobe_is_busy(struct dyn_event *ev)
 static bool trace_fprobe_match_command_head(struct trace_fprobe *tf,
 					    int argc, const char **argv)
 {
-	char buf[MAX_ARGSTR_LEN + 1];
-
 	if (!argc)
 		return true;
 
-	snprintf(buf, sizeof(buf), "%s", trace_fprobe_symbol(tf));
-	if (strcmp(buf, argv[0]))
+	if (strcmp(trace_fprobe_symbol(tf), argv[0]))
 		return false;
 	argc--; argv++;
 
@@ -474,7 +471,6 @@ static int fentry_perf_func(struct trace_fprobe *tf, unsigned long entry_ip,
 	regs = ftrace_fill_perf_regs(fregs, regs);
 
 	entry->ip = entry_ip;
-	memset(&entry[1], 0, dsize);
 	store_trace_args(&entry[1], &tf->tp, fregs, NULL, sizeof(*entry), dsize);
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
 			      head, NULL);
@@ -764,7 +760,7 @@ static int unregister_fprobe_event(struct trace_fprobe *tf)
 	return trace_probe_unregister_event_call(&tf->tp);
 }
 
-static int __regsiter_tracepoint_fprobe(struct trace_fprobe *tf)
+static int __register_tracepoint_fprobe(struct trace_fprobe *tf)
 {
 	struct tracepoint_user *tuser __free(tuser_put) = NULL;
 	struct module *mod __free(module_put) = NULL;
@@ -836,7 +832,7 @@ static int __register_trace_fprobe(struct trace_fprobe *tf)
 	tf->fp.flags &= ~FPROBE_FL_DISABLED;
 
 	if (trace_fprobe_is_tracepoint(tf))
-		return __regsiter_tracepoint_fprobe(tf);
+		return __register_tracepoint_fprobe(tf);
 
 	/* TODO: handle filter, nofilter or symbol list */
 	return register_fprobe(&tf->fp, tf->symbol, NULL);
@@ -1448,6 +1444,8 @@ static int trace_fprobe_show(struct seq_file *m, struct dyn_event *ev)
 	for (i = 0; i < tf->tp.nr_args; i++)
 		seq_printf(m, " %s=%s", tf->tp.args[i].name, tf->tp.args[i].comm);
 	seq_putc(m, '\n');
+
+	trace_probe_dump_args(m, &tf->tp);
 
 	return 0;
 }

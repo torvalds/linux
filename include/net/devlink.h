@@ -36,7 +36,7 @@ struct devlink_port_phys_attrs {
  * struct devlink_port_pci_pf_attrs - devlink port's PCI PF attributes
  * @controller: Associated controller number
  * @pf: associated PCI function number for the devlink port instance
- * @external: when set, indicates if a port is for an external controller
+ * @external: when set, indicates if a port is for an external host controller.
  */
 struct devlink_port_pci_pf_attrs {
 	u32 controller;
@@ -50,7 +50,7 @@ struct devlink_port_pci_pf_attrs {
  * @pf: associated PCI function number for the devlink port instance
  * @vf: associated PCI VF number of a PF for the devlink port instance;
  *	VF number starts from 0 for the first PCI virtual function
- * @external: when set, indicates if a port is for an external controller
+ * @external: when set, indicates if a port is for an external host controller.
  */
 struct devlink_port_pci_vf_attrs {
 	u32 controller;
@@ -64,7 +64,7 @@ struct devlink_port_pci_vf_attrs {
  * @controller: Associated controller number
  * @sf: associated SF number of a PF for the devlink port instance
  * @pf: associated PCI function number for the devlink port instance
- * @external: when set, indicates if a port is for an external controller
+ * @external: when set, indicates if a port is for an external host controller.
  */
 struct devlink_port_pci_sf_attrs {
 	u32 controller;
@@ -554,6 +554,7 @@ enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_TOTAL_VFS,
 	DEVLINK_PARAM_GENERIC_ID_NUM_DOORBELLS,
 	DEVLINK_PARAM_GENERIC_ID_MAX_MAC_PER_VF,
+	DEVLINK_PARAM_GENERIC_ID_MAX_SFS,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
@@ -626,6 +627,9 @@ enum devlink_param_generic_id {
 
 #define DEVLINK_PARAM_GENERIC_MAX_MAC_PER_VF_NAME "max_mac_per_vf"
 #define DEVLINK_PARAM_GENERIC_MAX_MAC_PER_VF_TYPE DEVLINK_PARAM_TYPE_U32
+
+#define DEVLINK_PARAM_GENERIC_MAX_SFS_NAME "max_sfs"
+#define DEVLINK_PARAM_GENERIC_MAX_SFS_TYPE DEVLINK_PARAM_TYPE_U32
 
 #define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
 {									\
@@ -1594,6 +1598,15 @@ struct devlink_ops {
 				    struct devlink_rate *parent,
 				    void *priv_child, void *priv_parent,
 				    struct netlink_ext_ack *extack);
+	/* Indicates if cross-device rate nodes are supported.
+	 * This also requires a shared common ancestor object all devices that
+	 * could share rate nodes are nested in.
+	 * If enabled, rate operations may be called on an instance with only
+	 * the common ancestor lock held and *without that instance lock held*.
+	 * It is the driver's responsibility to ensure proper serialization
+	 * with other operations.
+	 */
+	bool supported_cross_device_rate_nodes;
 	/**
 	 * selftests_check() - queries if selftest is supported
 	 * @devlink: devlink instance

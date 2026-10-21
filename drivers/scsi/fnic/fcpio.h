@@ -21,6 +21,18 @@
 #define FCPIO_HOST_SEQ_ID_RANGE_START       0x80
 #define FCPIO_HOST_SEQ_ID_RANGE_END         0xff
 
+struct fnic_nvme_io_event {
+	struct list_head links;
+	struct work_struct io_work;
+	void *arg1;
+};
+
+struct fnic_io_event_s {
+	struct list_head links;
+	struct work_struct io_work;
+	void *arg1;
+};
+
 /*
  * Command entry type
  */
@@ -33,6 +45,9 @@ enum fcpio_type {
 	FCPIO_ICMND_CMPL,
 	FCPIO_ITMF,
 	FCPIO_ITMF_CMPL,
+	FCPIO_NVME_CMD,
+	FCPIO_NVME_ERSP_HW_CMPL,
+	FCPIO_NVME_ERSP_FW_CMPL,
 
 	/*
 	 * Target request types
@@ -179,9 +194,21 @@ fcpio_header_dec(struct fcpio_header *hdr,
 	*tag = hdr->tag;
 }
 
+#define NVME_CMD_SZ 96
 #define CDB_16      16
 #define CDB_32      32
 #define LUN_ADDRESS 8
+
+struct fcpio_nvme_cmnd {
+	uint8_t d_id[3];
+	u_int8_t flags;		/* command flags */
+	u_int32_t sgl_cnt;	/* scatter-gather list count */
+	u_int64_t sgl_addr;	/* scatter-gather list addr */
+	u_int16_t cmd_len;
+	u_int16_t _resvd1;	/* reserved: should be 0 */
+	u_int32_t data_len;	/* length of data expected */
+	u_int8_t nvme_cmnd[NVME_CMD_SZ];	/* NVME command */
+};
 
 /*
  * fcpio_icmnd_16: host -> firmware request
@@ -458,6 +485,7 @@ struct fcpio_host_req {
 		/*
 		 * Initiator host requests
 		 */
+		struct fcpio_nvme_cmnd              nvcmnd;
 		struct fcpio_icmnd_16               icmnd_16;
 		struct fcpio_icmnd_32               icmnd_32;
 		struct fcpio_itmf                   itmf;
@@ -480,6 +508,12 @@ struct fcpio_host_req {
 		struct fcpio_lunmap_req             lunmap_req;
 		struct fcpio_flogi_fip_reg          flogi_fip_reg;
 	} u;
+};
+
+struct fcpio_nvme_cmpl {
+	uint8_t resp_size;
+	uint8_t resvd[3];
+	uint8_t resp_bytes[32];
 };
 
 /*
@@ -682,6 +716,7 @@ struct fcpio_fw_req {
 		 * Initiator firmware responses
 		 */
 		struct fcpio_icmnd_cmpl         icmnd_cmpl;
+		struct fcpio_nvme_cmpl          nvme_cmpl;
 		struct fcpio_itmf_cmpl          itmf_cmpl;
 
 		/*

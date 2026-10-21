@@ -21,6 +21,7 @@ int cn20k_rvu_mbox_init(struct rvu *rvu, int type, int num);
 int cn20k_rvu_get_mbox_regions(struct rvu *rvu, void **mbox_addr,
 			       int num, int type, unsigned long *pf_bmap);
 void cn20k_free_mbox_memory(struct rvu *rvu);
+void cn20k_free_mbox_memory_type(struct rvu *rvu, int type);
 int cn20k_register_afpf_mbox_intr(struct rvu *rvu);
 int cn20k_register_afvf_mbox_intr(struct rvu *rvu, int pf_vec_start);
 void cn20k_rvu_enable_mbox_intr(struct rvu *rvu);

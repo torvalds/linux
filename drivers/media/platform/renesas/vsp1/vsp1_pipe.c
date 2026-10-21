@@ -391,16 +391,15 @@ void vsp1_adjust_color_space(u32 code, u32 *colorspace, u8 *xfer_func,
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_entity *entity;
-	unsigned int i;
 
 	if (pipe->brx) {
 		struct vsp1_brx *brx = to_brx(&pipe->brx->subdev);
 
-		for (i = 0; i < ARRAY_SIZE(brx->inputs); ++i)
+		for (unsigned int i = 0; i < ARRAY_SIZE(brx->inputs); ++i)
 			brx->inputs[i].rpf = NULL;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(pipe->inputs); ++i)
+	for (unsigned int i = 0; i < ARRAY_SIZE(pipe->inputs); ++i)
 		pipe->inputs[i] = NULL;
 
 	pipe->output = NULL;

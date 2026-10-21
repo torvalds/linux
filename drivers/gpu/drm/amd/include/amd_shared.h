@@ -439,10 +439,7 @@ enum amd_dpm_forced_level;
  * @complete: handles IP specific changes after resume
  * @is_idle: returns current IP block idle status
  * @wait_for_idle: poll for idle
- * @check_soft_reset: check soft reset the IP block
- * @pre_soft_reset: pre soft reset the IP block
  * @soft_reset: soft reset the IP block
- * @post_soft_reset: post soft reset the IP block
  * @set_clockgating_state: enable/disable cg for the IP block
  * @set_powergating_state: enable/disable pg for the IP block
  * @get_clockgating_state: get current clockgating status
@@ -471,10 +468,7 @@ struct amd_ip_funcs {
 	void (*complete)(struct amdgpu_ip_block *ip_block);
 	bool (*is_idle)(struct amdgpu_ip_block *ip_block);
 	int (*wait_for_idle)(struct amdgpu_ip_block *ip_block);
-	bool (*check_soft_reset)(struct amdgpu_ip_block *ip_block);
-	int (*pre_soft_reset)(struct amdgpu_ip_block *ip_block);
 	int (*soft_reset)(struct amdgpu_ip_block *ip_block);
-	int (*post_soft_reset)(struct amdgpu_ip_block *ip_block);
 	int (*set_clockgating_state)(struct amdgpu_ip_block *ip_block,
 				     enum amd_clockgating_state state);
 	int (*set_powergating_state)(struct amdgpu_ip_block *ip_block,

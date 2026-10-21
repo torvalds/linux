@@ -50,6 +50,7 @@ config VIDEO_TI_VIP
         select VIDEO_TI_VPDMA
         select VIDEO_TI_SC
         select VIDEO_TI_CSC
+        select V4L2_FWNODE
         help
         Driver support for VIP module on certain TI SoC's
         VIP = Video Input Port.

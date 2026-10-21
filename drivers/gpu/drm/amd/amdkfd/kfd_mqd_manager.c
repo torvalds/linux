@@ -315,3 +315,19 @@ bool kfd_check_hiq_mqd_doorbell_id(struct kfd_node *node, uint32_t doorbell_id,
 
 	return false;
 }
+
+bool mqd_on_vram(struct amdgpu_device *adev)
+{
+	if (adev->apu_prefer_gtt)
+		return false;
+
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	case IP_VERSION(9, 4, 2):
+	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
+		return true;
+	default:
+		return false;
+	}
+}

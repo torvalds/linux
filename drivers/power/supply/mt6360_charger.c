@@ -721,8 +721,7 @@ static int mt6360_chg_irq_register(struct platform_device *pdev)
 						irq_descs[i].name,
 						platform_get_drvdata(pdev));
 		if (ret < 0)
-			return dev_err_probe(&pdev->dev, ret, "Failed to request %s irq\n",
-					     irq_descs[i].name);
+			return ret;
 	}
 
 	return 0;

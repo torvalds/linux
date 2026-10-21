@@ -167,8 +167,8 @@ struct uffd_desc *uffd_setup_demand_paging(int uffd_mode, useconds_t delay,
 		uffd_desc->reader_args[i].handler = handler;
 		uffd_desc->reader_args[i].pipe = pipes[0];
 
-		pthread_create(&uffd_desc->readers[i], NULL, uffd_handler_thread_fn,
-			       &uffd_desc->reader_args[i]);
+		kvm_pthread_create(&uffd_desc->readers[i], NULL, uffd_handler_thread_fn,
+				   &uffd_desc->reader_args[i]);
 
 		PER_VCPU_DEBUG("Created uffd thread %i for HVA range [%p, %p)\n",
 			       i, hva, hva + len);
@@ -187,8 +187,7 @@ void uffd_stop_demand_paging(struct uffd_desc *uffd)
 			    "Unable to write to pipefd %i for uffd_desc %p", i, uffd);
 
 	for (i = 0; i < uffd->num_readers; ++i)
-		TEST_ASSERT(!pthread_join(uffd->readers[i], NULL),
-			    "Pthread_join failed on reader %i for uffd_desc %p", i, uffd);
+		kvm_pthread_join(uffd->readers[i], NULL);
 
 	close(uffd->uffd);
 

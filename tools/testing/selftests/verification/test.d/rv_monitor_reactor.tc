@@ -64,5 +64,5 @@ done
 
 monitor=$(ls /sys/kernel/tracing/rv/monitors -1 | head -n 1)
 test -f "monitors/$monitor/reactors"
-! echo non_existent_reactor > "monitors/$monitor/reactors"
-! grep -q "\\[non_existent_reactor\\]" "monitors/$monitor/reactors"
+! echo non_existent_reactor > "monitors/$monitor/reactors" || false
+! grep -q "\\[non_existent_reactor\\]" "monitors/$monitor/reactors" || false

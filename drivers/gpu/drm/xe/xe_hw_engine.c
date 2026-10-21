@@ -337,39 +337,41 @@ static bool xe_rtp_cfeg_wmtp_disabled(const struct xe_device *xe,
 	return xe_mmio_read32(&hwe->gt->mmio, XEHP_FUSE4) & CFEG_WMTP_DISABLE;
 }
 
+static u32 blit_cctl_val(struct xe_gt *gt, struct xe_hw_engine *hwe)
+{
+	return REG_FIELD_PREP(BLIT_CCTL_DST_MOCS_MASK, gt->mocs.uc_index) |
+		REG_FIELD_PREP(BLIT_CCTL_SRC_MOCS_MASK, gt->mocs.uc_index);
+}
+
+static const struct xe_rtp_table_sr lrc_setup = XE_RTP_TABLE_SR(
+	/*
+	 * Some blitter commands do not have a field for MOCS, those
+	 * commands will use MOCS index pointed by BLIT_CCTL.
+	 * BLIT_CCTL registers are needed to be programmed to un-cached.
+	 */
+	{ XE_RTP_NAME("BLIT_CCTL_default_MOCS"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1274),
+		       ENGINE_CLASS(COPY)),
+	  XE_RTP_ACTIONS(FIELD_SET_FUNC(BLIT_CCTL(0),
+					BLIT_CCTL_DST_MOCS_MASK |
+					BLIT_CCTL_SRC_MOCS_MASK,
+					blit_cctl_val,
+					XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	/* Disable WMTP if HW doesn't support it */
+	{ XE_RTP_NAME("DISABLE_WMTP_ON_UNSUPPORTED_HW"),
+	  XE_RTP_RULES(FUNC(xe_rtp_cfeg_wmtp_disabled)),
+	  XE_RTP_ACTIONS(FIELD_SET(CS_CHICKEN1(0),
+				   PREEMPT_GPGPU_LEVEL_MASK,
+				   PREEMPT_GPGPU_THREAD_GROUP_LEVEL)),
+	  XE_RTP_ENTRY_FLAG(FOREACH_ENGINE)
+	},
+);
+
 static void
 hw_engine_setup_default_lrc_state(struct xe_hw_engine *hwe)
 {
-	struct xe_gt *gt = hwe->gt;
-	const u8 mocs_write_idx = gt->mocs.uc_index;
-	const u8 mocs_read_idx = gt->mocs.uc_index;
-	u32 blit_cctl_val = REG_FIELD_PREP(BLIT_CCTL_DST_MOCS_MASK, mocs_write_idx) |
-			    REG_FIELD_PREP(BLIT_CCTL_SRC_MOCS_MASK, mocs_read_idx);
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
-	const struct xe_rtp_table_sr lrc_setup = XE_RTP_TABLE_SR(
-		/*
-		 * Some blitter commands do not have a field for MOCS, those
-		 * commands will use MOCS index pointed by BLIT_CCTL.
-		 * BLIT_CCTL registers are needed to be programmed to un-cached.
-		 */
-		{ XE_RTP_NAME("BLIT_CCTL_default_MOCS"),
-		  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1274),
-			       ENGINE_CLASS(COPY)),
-		  XE_RTP_ACTIONS(FIELD_SET(BLIT_CCTL(0),
-				 BLIT_CCTL_DST_MOCS_MASK |
-				 BLIT_CCTL_SRC_MOCS_MASK,
-				 blit_cctl_val,
-				 XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		/* Disable WMTP if HW doesn't support it */
-		{ XE_RTP_NAME("DISABLE_WMTP_ON_UNSUPPORTED_HW"),
-		  XE_RTP_RULES(FUNC(xe_rtp_cfeg_wmtp_disabled)),
-		  XE_RTP_ACTIONS(FIELD_SET(CS_CHICKEN1(0),
-					   PREEMPT_GPGPU_LEVEL_MASK,
-					   PREEMPT_GPGPU_THREAD_GROUP_LEVEL)),
-		  XE_RTP_ENTRY_FLAG(FOREACH_ENGINE)
-		},
-	);
 
 	xe_rtp_process_to_sr(&ctx, &lrc_setup, &hwe->reg_lrc, true);
 }
@@ -385,86 +387,92 @@ void xe_hw_engine_setup_reg_lrc(struct xe_hw_engine *hwe)
 	xe_tuning_process_lrc(hwe);
 }
 
+/*
+ * RING_CMD_CCTL specifies the default MOCS entry that will be
+ * used by the command streamer when executing commands that
+ * don't have a way to explicitly specify a MOCS setting.
+ * The default should usually reference whichever MOCS entry
+ * corresponds to uncached behavior, although use of a WB cached
+ * entry is recommended by the spec in certain circumstances on
+ * specific platforms.
+ * Bspec: 72161
+ */
+static u32 ring_cmd_cctl_val(struct xe_gt *gt, struct xe_hw_engine *hwe)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	u8 mocs_read_idx = gt->mocs.uc_index;
+
+	if (hwe->class == XE_ENGINE_CLASS_COMPUTE && IS_DGFX(xe) &&
+	    (GRAPHICS_VER(xe) >= 20 || xe->info.platform == XE_PVC))
+		mocs_read_idx = gt->mocs.wb_index;
+
+	return REG_FIELD_PREP(CMD_CCTL_WRITE_OVERRIDE_MASK, gt->mocs.uc_index) |
+		REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, mocs_read_idx);
+}
+
+static const struct xe_rtp_table_sr engine_sr = XE_RTP_TABLE_SR(
+	{ XE_RTP_NAME("RING_CMD_CCTL_default_MOCS"),
+	  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
+	  XE_RTP_ACTIONS(FIELD_SET_FUNC(RING_CMD_CCTL(0),
+					CMD_CCTL_WRITE_OVERRIDE_MASK |
+					CMD_CCTL_READ_OVERRIDE_MASK,
+					ring_cmd_cctl_val,
+					XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	{ XE_RTP_NAME("Disable HW status page updates for interrupts"),
+	  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
+	  XE_RTP_ACTIONS(SET(RING_HWSTAM(0), ~0x0,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	{ XE_RTP_NAME("Disable engine 'legacy' mode"),
+	  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
+	  XE_RTP_ACTIONS(SET(GFX_MODE(0), GFX_DISABLE_LEGACY_MODE,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	/*
+	 * To allow the GSC engine to go idle on MTL we need to enable
+	 * idle messaging and set the hysteresis value (we use 0xA=5us
+	 * as recommended in spec). On platforms after MTL this is
+	 * enabled by default.
+	 */
+	{ XE_RTP_NAME("MTL GSCCS IDLE MSG enable"),
+	  XE_RTP_RULES(MEDIA_VERSION(1300), ENGINE_CLASS(OTHER)),
+	  XE_RTP_ACTIONS(CLR(RING_PSMI_CTL(0),
+			     IDLE_MSG_DISABLE,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)),
+			 FIELD_SET(RING_PWRCTX_MAXCNT(0),
+				   IDLE_WAIT_TIME,
+				   0xA,
+				   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	/* Enable Priority Mem Read */
+	{ XE_RTP_NAME("Priority_Mem_Read"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, XE_RTP_END_VERSION_UNDEFINED)),
+	  XE_RTP_ACTIONS(SET(CSFE_CHICKEN1(0), CS_PRIORITY_MEM_READ,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	{ XE_RTP_NAME("Enable CCS Engine(s)"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1255, XE_RTP_END_VERSION_UNDEFINED),
+		       FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(RCU_MODE, RCU_MODE_CCS_ENABLE))
+	},
+	/* Use Fixed slice CCS mode */
+	{ XE_RTP_NAME("RCU_MODE_FIXED_SLICE_CCS_MODE"),
+	  XE_RTP_RULES(FUNC(xe_hw_engine_match_fixed_cslice_mode)),
+	  XE_RTP_ACTIONS(FIELD_SET(RCU_MODE, RCU_MODE_FIXED_SLICE_CCS_MODE,
+				   RCU_MODE_FIXED_SLICE_CCS_MODE))
+	},
+	{ XE_RTP_NAME("Enable MSI-X interrupt support"),
+	  XE_RTP_RULES(FUNC(xe_rtp_match_has_msix)),
+	  XE_RTP_ACTIONS(SET(GFX_MODE(0), GFX_MSIX_INTERRUPT_ENABLE,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+);
+
 static void
 hw_engine_setup_default_state(struct xe_hw_engine *hwe)
 {
-	struct xe_gt *gt = hwe->gt;
-	struct xe_device *xe = gt_to_xe(gt);
-	/*
-	 * RING_CMD_CCTL specifies the default MOCS entry that will be
-	 * used by the command streamer when executing commands that
-	 * don't have a way to explicitly specify a MOCS setting.
-	 * The default should usually reference whichever MOCS entry
-	 * corresponds to uncached behavior, although use of a WB cached
-	 * entry is recommended by the spec in certain circumstances on
-	 * specific platforms.
-	 * Bspec: 72161
-	 */
-	const u8 mocs_write_idx = gt->mocs.uc_index;
-	const u8 mocs_read_idx = hwe->class == XE_ENGINE_CLASS_COMPUTE && IS_DGFX(xe) &&
-				 (GRAPHICS_VER(xe) >= 20 || xe->info.platform == XE_PVC) ?
-				 gt->mocs.wb_index : gt->mocs.uc_index;
-	u32 ring_cmd_cctl_val = REG_FIELD_PREP(CMD_CCTL_WRITE_OVERRIDE_MASK, mocs_write_idx) |
-				REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, mocs_read_idx);
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
-	const struct xe_rtp_table_sr engine_sr = XE_RTP_TABLE_SR(
-		{ XE_RTP_NAME("RING_CMD_CCTL_default_MOCS"),
-		  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
-		  XE_RTP_ACTIONS(FIELD_SET(RING_CMD_CCTL(0),
-					   CMD_CCTL_WRITE_OVERRIDE_MASK |
-					   CMD_CCTL_READ_OVERRIDE_MASK,
-					   ring_cmd_cctl_val,
-					   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		{ XE_RTP_NAME("Disable HW status page updates for interrupts"),
-		  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
-		  XE_RTP_ACTIONS(SET(RING_HWSTAM(0), ~0x0,
-				     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		{ XE_RTP_NAME("Disable engine 'legacy' mode"),
-		  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
-		  XE_RTP_ACTIONS(SET(GFX_MODE(0), GFX_DISABLE_LEGACY_MODE,
-				     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		/*
-		 * To allow the GSC engine to go idle on MTL we need to enable
-		 * idle messaging and set the hysteresis value (we use 0xA=5us
-		 * as recommended in spec). On platforms after MTL this is
-		 * enabled by default.
-		 */
-		{ XE_RTP_NAME("MTL GSCCS IDLE MSG enable"),
-		  XE_RTP_RULES(MEDIA_VERSION(1300), ENGINE_CLASS(OTHER)),
-		  XE_RTP_ACTIONS(CLR(RING_PSMI_CTL(0),
-				     IDLE_MSG_DISABLE,
-				     XE_RTP_ACTION_FLAG(ENGINE_BASE)),
-				 FIELD_SET(RING_PWRCTX_MAXCNT(0),
-					   IDLE_WAIT_TIME,
-					   0xA,
-					   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		/* Enable Priority Mem Read */
-		{ XE_RTP_NAME("Priority_Mem_Read"),
-		  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, XE_RTP_END_VERSION_UNDEFINED)),
-		  XE_RTP_ACTIONS(SET(CSFE_CHICKEN1(0), CS_PRIORITY_MEM_READ,
-				     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		{ XE_RTP_NAME("Enable CCS Engine(s)"),
-		  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1255, XE_RTP_END_VERSION_UNDEFINED),
-			       FUNC(xe_rtp_match_first_render_or_compute)),
-		  XE_RTP_ACTIONS(SET(RCU_MODE, RCU_MODE_CCS_ENABLE))
-		},
-		/* Use Fixed slice CCS mode */
-		{ XE_RTP_NAME("RCU_MODE_FIXED_SLICE_CCS_MODE"),
-		  XE_RTP_RULES(FUNC(xe_hw_engine_match_fixed_cslice_mode)),
-		  XE_RTP_ACTIONS(FIELD_SET(RCU_MODE, RCU_MODE_FIXED_SLICE_CCS_MODE,
-					   RCU_MODE_FIXED_SLICE_CCS_MODE))
-		},
-		{ XE_RTP_NAME("Enable MSI-X interrupt support"),
-		  XE_RTP_RULES(FUNC(xe_rtp_match_has_msix)),
-		  XE_RTP_ACTIONS(SET(GFX_MODE(0), GFX_MSIX_INTERRUPT_ENABLE,
-				     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-	);
 
 	xe_rtp_process_to_sr(&ctx, &engine_sr, &hwe->reg_sr, false);
 }
@@ -639,10 +647,6 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 			xe_hw_engine_enable_ring(hwe);
 	}
 
-	/* We reserve the highest BCS instance for USM */
-	if (xe->info.has_usm && hwe->class == XE_ENGINE_CLASS_COPY)
-		gt->usm.reserved_bcs_instance = hwe->instance;
-
 	/* Ensure IDLEDLY is lower than MAXCNT */
 	adjust_idledly(hwe);
 
@@ -654,20 +658,80 @@ err_name:
 	return err;
 }
 
-static void hw_engine_setup_logical_mapping(struct xe_gt *gt)
+static int hw_engine_setup_logical_and_paging_mapping(struct xe_gt *gt)
 {
+	struct xe_device *xe = gt_to_xe(gt);
+	unsigned int num_copy_engines = 0, num_paging_engines = 0;
+	unsigned int reserved_logical_bcs_start;
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
 	int class;
+
+	for_each_hw_engine(hwe, gt, id)
+		if (hwe->class == XE_ENGINE_CLASS_COPY)
+			num_copy_engines++;
+
+	if (num_copy_engines && xe->info.has_usm)
+		num_paging_engines = 1;
+
+	if (IS_SRIOV_VF(xe)) {
+		u32 vf_num_paging_engines;
+
+		/*
+		 * PF could in theory reserve multiple paging engines, which
+		 * internally the submission/scheduling backend can load balance
+		 * from. Not something we currently expect, but we are at the
+		 * mercy of the PF, so we just need try our best to mirror the
+		 * paging configuration.
+		 */
+		vf_num_paging_engines = xe_gt_sriov_vf_paging_engines(gt);
+		if (vf_num_paging_engines) {
+			/* This should only be non-zero on NVL-S+ */
+			if (xe_gt_WARN_ON(gt, xe->info.platform < XE_NOVALAKE_S))
+				return -EINVAL;
+
+			num_paging_engines = vf_num_paging_engines;
+		}
+	}
+
+	if (xe_gt_WARN_ON(gt, num_paging_engines > num_copy_engines))
+		return -EINVAL;
+
+	/*
+	 * On PF, we just reserve the highest BCS instance for USM.
+	 *
+	 * Note: This is now a requirement going forward. The PF must ALWAYS
+	 * reserve BCS instances in top-down order, that way the VF has a chance
+	 * of discovering the physical BCS instance mappings for paging engines,
+	 * in conjunction with vf_num_paging_engines. In some places we might
+	 * only have the physical instance, and from hw pov there is no such
+	 * thing as a paging engine. For example, the page fault descriptor,
+	 * which comes directly from the hw, will use the physical engine
+	 * instance.
+	 */
+	reserved_logical_bcs_start = num_copy_engines - num_paging_engines;
 
 	/* FIXME: Doing a simple logical mapping that works for most hardware */
 	for (class = 0; class < XE_ENGINE_CLASS_MAX; ++class) {
-		struct xe_hw_engine *hwe;
-		enum xe_hw_engine_id id;
 		int logical_instance = 0;
 
-		for_each_hw_engine(hwe, gt, id)
-			if (hwe->class == class)
+		for_each_hw_engine(hwe, gt, id) {
+			if (hwe->class == class) {
 				hwe->logical_instance = logical_instance++;
+
+				if (class == XE_ENGINE_CLASS_COPY &&
+				    hwe->logical_instance >=
+					    reserved_logical_bcs_start) {
+					if (!gt->usm.paging_hwe0)
+						gt->usm.paging_hwe0 = hwe;
+					gt->usm.paging_logical_mask |=
+						BIT(hwe->logical_instance);
+				}
+			}
+		}
 	}
+
+	return 0;
 }
 
 static void read_media_fuses(struct xe_gt *gt)
@@ -886,7 +950,10 @@ int xe_hw_engines_init(struct xe_gt *gt)
 			return err;
 	}
 
-	hw_engine_setup_logical_mapping(gt);
+	err = hw_engine_setup_logical_and_paging_mapping(gt);
+	if (err)
+		return err;
+
 	err = xe_hw_engine_setup_groups(gt);
 	if (err)
 		return err;
@@ -1035,8 +1102,7 @@ bool xe_hw_engine_is_reserved(struct xe_hw_engine *hwe)
 	    hwe->logical_instance >= gt->ccs_mode)
 		return true;
 
-	return xe->info.has_usm && hwe->class == XE_ENGINE_CLASS_COPY &&
-		hwe->instance == gt->usm.reserved_bcs_instance;
+	return xe_gt_is_usm_hwe(gt, hwe);
 }
 
 const char *xe_hw_engine_class_to_str(enum xe_engine_class class)

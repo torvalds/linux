@@ -15,11 +15,6 @@ import time
 import json
 import math
 
-import drgn
-from drgn import container_of
-from drgn.helpers.linux.list import list_for_each_entry,list_empty
-from drgn.helpers.linux.radixtree import radix_tree_for_each,radix_tree_lookup
-
 import argparse
 parser = argparse.ArgumentParser(description=desc,
                                  formatter_class=argparse.RawTextHelpFormatter)
@@ -33,6 +28,11 @@ parser.add_argument('--interval', '-i', metavar='SECONDS', type=float, default=1
 parser.add_argument('--json', action='store_true',
                     help='Output in json')
 args = parser.parse_args()
+
+import drgn
+from drgn import container_of
+from drgn.helpers.linux.list import list_for_each_entry,list_empty
+from drgn.helpers.linux.radixtree import radix_tree_for_each,radix_tree_lookup
 
 def err(s):
     print(s, file=sys.stderr, flush=True)

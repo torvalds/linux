@@ -329,16 +329,6 @@ static void PHY_StoreTxPowerByRateNew(struct adapter *padapter,	u32 RfPath,
 	}
 }
 
-static void PHY_StoreTxPowerByRateOld(
-	struct adapter *padapter, u32	RegAddr, u32 BitMask, u32 Data
-)
-{
-	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
-	u8	index = PHY_GetRateSectionIndexOfTxPowerByRate(padapter, RegAddr, BitMask);
-
-	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][index] = Data;
-}
-
 void PHY_InitTxPowerByRate(struct adapter *padapter)
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
@@ -362,9 +352,6 @@ void PHY_StoreTxPowerByRate(
 
 	if (pDM_Odm->PhyRegPgVersion > 0)
 		PHY_StoreTxPowerByRateNew(padapter, RfPath, RegAddr, BitMask, Data);
-	else if (pDM_Odm->PhyRegPgVersion == 0) {
-		PHY_StoreTxPowerByRateOld(padapter, RegAddr, BitMask, Data);
-	}
 }
 
 static void
@@ -459,7 +446,7 @@ u8 PHY_GetTxPowerIndexBase(
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
 	u8 txPower = 0;
-	u8 chnlIdx = (Channel-1);
+	u8 chnlIdx = (Channel - 1);
 
 	if (!HAL_IsLegalChannel(padapter, Channel))
 		chnlIdx = 0;

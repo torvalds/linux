@@ -404,6 +404,7 @@ static void setup_fg_nodes(struct hdac_device *codec)
  */
 int snd_hdac_refresh_widgets(struct hdac_device *codec)
 {
+	hda_nid_t fg = codec->afg ? codec->afg : codec->mfg;
 	hda_nid_t start_nid;
 	int nums, err = 0;
 
@@ -412,10 +413,10 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec)
 	 * widgets array.
 	 */
 	guard(mutex)(&codec->widget_lock);
-	nums = snd_hdac_get_sub_nodes(codec, codec->afg, &start_nid);
+	nums = snd_hdac_get_sub_nodes(codec, fg, &start_nid);
 	if (!start_nid || nums <= 0 || nums >= 0xff) {
 		dev_err(&codec->dev, "cannot read sub nodes for FG 0x%02x\n",
-			codec->afg);
+			fg);
 		return -EINVAL;
 	}
 
@@ -663,6 +664,7 @@ static const struct hda_vendor_id hda_vendor_ids[] = {
 	{ 0x1af4, "QEMU" },
 	{ 0x1fa8, "Senarytech" },
 	{ 0x434d, "C-Media" },
+	{ 0x4c54, "Lisuan" },
 	{ 0x8086, "Intel" },
 	{ 0x8384, "SigmaTel" },
 	{} /* terminator */
@@ -765,7 +767,7 @@ unsigned int snd_hdac_stream_format_bits(snd_pcm_format_t format, snd_pcm_subfor
 
 	params_set_format(&params, snd_hdac_format_normalize(format));
 	snd_mask_set(hw_param_mask(&params, SNDRV_PCM_HW_PARAM_SUBFORMAT),
-		     (__force unsigned int)subformat);
+		     subformat);
 
 	bits = snd_pcm_hw_params_bits(&params);
 	if (maxbits)

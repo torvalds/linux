@@ -42,6 +42,7 @@
 #include "dmub_dcn401.h"
 #include "dmub_dcn42.h"
 #include "dmub_dcn42b.h"
+#include "dmub_dcn60.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -96,7 +97,7 @@ static inline uint32_t dmub_align(uint32_t val, uint32_t factor)
 	return (val + factor - 1) / factor * factor;
 }
 
-void dmub_flush_buffer_mem(const struct dmub_fb *fb)
+void dmub_srv_flush_buffer_mem(struct dmub_srv *dmub, const struct dmub_fb *fb)
 {
 	const uint8_t *base = (const uint8_t *)fb->cpu_addr;
 	uint8_t buf[64];
@@ -114,6 +115,8 @@ void dmub_flush_buffer_mem(const struct dmub_fb *fb)
 	/* Read anything leftover into the buffer. */
 	if (end < fb->size)
 		dmub_memcpy(buf, base + pos, fb->size - end);
+
+	(void)dmub;
 }
 
 static const struct dmub_fw_meta_info *
@@ -526,6 +529,57 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->enable_reg_inbox0_rsp_int = dmub_dcn401_enable_reg_inbox0_rsp_int;
 		funcs->enable_reg_outbox0_rdy_int = dmub_dcn401_enable_reg_outbox0_rdy_int;
 		break;
+	case DMUB_ASIC_DCN60:
+		dmub->regs_dcn60 = &dmub_srv_dcn60_regs;
+		funcs->configure_dmub_in_system_memory = dmub_dcn60_configure_dmub_in_system_memory;
+		funcs->send_inbox0_cmd = dmub_dcn60_send_inbox0_cmd;
+		funcs->clear_inbox0_ack_register = dmub_dcn60_clear_inbox0_ack_register;
+		funcs->read_inbox0_ack_register = dmub_dcn60_read_inbox0_ack_register;
+		funcs->reset = dmub_dcn60_reset;
+		funcs->reset_release = dmub_dcn60_reset_release;
+		funcs->backdoor_load = dmub_dcn60_backdoor_load;
+		funcs->backdoor_load_zfb_mode = dmub_dcn60_backdoor_load_zfb_mode;
+		funcs->setup_windows = dmub_dcn60_setup_windows;
+		funcs->setup_mailbox = dmub_dcn60_setup_mailbox;
+		funcs->get_inbox1_wptr = dmub_dcn60_get_inbox1_wptr;
+		funcs->get_inbox1_rptr = dmub_dcn60_get_inbox1_rptr;
+		funcs->set_inbox1_wptr = dmub_dcn60_set_inbox1_wptr;
+		funcs->setup_out_mailbox = dmub_dcn60_setup_out_mailbox;
+		funcs->get_outbox1_wptr = dmub_dcn60_get_outbox1_wptr;
+		funcs->set_outbox1_rptr = dmub_dcn60_set_outbox1_rptr;
+		funcs->is_supported = dmub_dcn60_is_supported;
+		funcs->is_hw_init = dmub_dcn60_is_hw_init;
+		funcs->set_gpint = dmub_dcn60_set_gpint;
+		funcs->is_gpint_acked = dmub_dcn60_is_gpint_acked;
+		funcs->get_gpint_response = dmub_dcn60_get_gpint_response;
+		funcs->get_gpint_dataout = dmub_dcn60_get_gpint_dataout;
+		funcs->get_fw_status = dmub_dcn60_get_fw_boot_status;
+		funcs->enable_dmub_boot_options = dmub_dcn60_enable_dmub_boot_options;
+		funcs->skip_dmub_panel_power_sequence = dmub_dcn60_skip_dmub_panel_power_sequence;
+		//outbox0 call stacks
+		funcs->setup_outbox0 = dmub_dcn60_setup_outbox0;
+		funcs->get_outbox0_wptr = dmub_dcn60_get_outbox0_wptr;
+		funcs->set_outbox0_rptr = dmub_dcn60_set_outbox0_rptr;
+
+		funcs->get_current_time = dmub_dcn60_get_current_time;
+		funcs->get_diagnostic_data = dmub_dcn60_get_diagnostic_data;
+
+		funcs->send_reg_inbox0_cmd_msg = dmub_dcn60_send_reg_inbox0_cmd_msg;
+		funcs->read_reg_inbox0_rsp_int_status = dmub_dcn60_read_reg_inbox0_rsp_int_status;
+		funcs->read_reg_inbox0_cmd_rsp = dmub_dcn60_read_reg_inbox0_cmd_rsp;
+		funcs->write_reg_inbox0_rsp_int_ack = dmub_dcn60_write_reg_inbox0_rsp_int_ack;
+		funcs->clear_reg_inbox0_rsp_int_ack = dmub_dcn60_clear_reg_inbox0_rsp_int_ack;
+		funcs->enable_reg_inbox0_rsp_int = dmub_dcn60_enable_reg_inbox0_rsp_int;
+		default_inbox_type = DMUB_CMD_INTERFACE_FB; // still default to FB for now
+
+		funcs->write_reg_outbox0_rdy_int_ack = dmub_dcn60_write_reg_outbox0_rdy_int_ack;
+		funcs->read_reg_outbox0_msg = dmub_dcn60_read_reg_outbox0_msg;
+		funcs->write_reg_outbox0_rsp = dmub_dcn60_write_reg_outbox0_rsp;
+		funcs->read_reg_outbox0_rdy_int_status = dmub_dcn60_read_reg_outbox0_rdy_int_status;
+		funcs->read_reg_outbox0_rsp_int_status = dmub_dcn60_read_reg_outbox0_rsp_int_status;
+		funcs->enable_reg_inbox0_rsp_int = dmub_dcn60_enable_reg_inbox0_rsp_int;
+		funcs->enable_reg_outbox0_rdy_int = dmub_dcn60_enable_reg_outbox0_rdy_int;
+		break;
 	default:
 		return false;
 	}
@@ -748,30 +802,37 @@ enum dmub_status dmub_srv_is_hw_init(struct dmub_srv *dmub, bool *is_hw_init)
 enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 				  const struct dmub_srv_hw_params *params)
 {
-	struct dmub_fb *inst_fb = params->fb[DMUB_WINDOW_0_INST_CONST];
-	struct dmub_fb *stack_fb = params->fb[DMUB_WINDOW_1_STACK];
-	struct dmub_fb *data_fb = params->fb[DMUB_WINDOW_2_BSS_DATA];
-	struct dmub_fb *bios_fb = params->fb[DMUB_WINDOW_3_VBIOS];
-	struct dmub_fb *mail_fb = params->fb[DMUB_WINDOW_4_MAILBOX];
-	struct dmub_fb *tracebuff_fb = params->fb[DMUB_WINDOW_5_TRACEBUFF];
-	struct dmub_fb *fw_state_fb = params->fb[DMUB_WINDOW_6_FW_STATE];
-	struct dmub_fb *shared_state_fb = params->fb[DMUB_WINDOW_SHARED_STATE];
+	struct dmub_fb *inst_fb;
+	struct dmub_fb *stack_fb;
+	struct dmub_fb *data_fb;
+	struct dmub_fb *bios_fb;
+	struct dmub_fb *mail_fb;
+	struct dmub_fb *tracebuff_fb;
+	struct dmub_fb *fw_state_fb;
+	struct dmub_fb *shared_state_fb;
 
 	struct dmub_rb_init_params rb_params, outbox0_rb_params;
 	struct dmub_window cw0, cw1, cw2, cw3, cw4, cw5, cw6, region6;
 	struct dmub_region inbox1, outbox1, outbox0;
 
-	uint32_t i;
-
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
 
-	for (i = 0; i < DMUB_WINDOW_TOTAL; ++i) {
-		if (!params->fb[i]) {
-			ASSERT(0);
-			return DMUB_STATUS_INVALID;
-		}
+	if (!params->fb_info || params->fb_info->num_fb < DMUB_WINDOW_TOTAL) {
+		ASSERT(0);
+		return DMUB_STATUS_INVALID;
 	}
+
+	inst_fb = &params->fb_info->fb[DMUB_WINDOW_0_INST_CONST];
+	stack_fb = &params->fb_info->fb[DMUB_WINDOW_1_STACK];
+	data_fb = &params->fb_info->fb[DMUB_WINDOW_2_BSS_DATA];
+	bios_fb = &params->fb_info->fb[DMUB_WINDOW_3_VBIOS];
+	mail_fb = &params->fb_info->fb[DMUB_WINDOW_4_MAILBOX];
+	tracebuff_fb = &params->fb_info->fb[DMUB_WINDOW_5_TRACEBUFF];
+	fw_state_fb = &params->fb_info->fb[DMUB_WINDOW_6_FW_STATE];
+	shared_state_fb = &params->fb_info->fb[DMUB_WINDOW_SHARED_STATE];
+
+	dmub->fb_info = params->fb_info;
 
 	memcpy(&dmub->soc_fb_info, &params->soc_fb_info, sizeof(params->soc_fb_info));
 	dmub->psp_version = params->psp_version;
@@ -800,7 +861,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		 * flushed yet. This only occurs in backdoor loading.
 		 */
 		if (params->mem_access_type == DMUB_MEMORY_ACCESS_CPU)
-			dmub_flush_buffer_mem(inst_fb);
+			dmub_srv_flush_buffer_mem(dmub, inst_fb);
 
 		if (params->fw_in_system_memory && dmub->hw_funcs.backdoor_load_zfb_mode)
 			dmub->hw_funcs.backdoor_load_zfb_mode(dmub, &cw0, &cw1);
@@ -851,10 +912,10 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 
 	dmub->shared_state = shared_state_fb->cpu_addr;
 
-	dmub->scratch_mem_fb = *params->fb[DMUB_WINDOW_7_SCRATCH_MEM];
-	dmub->ib_mem_gart = *params->fb[DMUB_WINDOW_IB_MEM];
+	dmub->scratch_mem_fb = params->fb_info->fb[DMUB_WINDOW_7_SCRATCH_MEM];
+	dmub->ib_mem_gart = params->fb_info->fb[DMUB_WINDOW_IB_MEM];
 
-	dmub->cursor_offload_fb = *params->fb[DMUB_WINDOW_CURSOR_OFFLOAD];
+	dmub->cursor_offload_fb = params->fb_info->fb[DMUB_WINDOW_CURSOR_OFFLOAD];
 	dmub->cursor_offload_v1 = (struct dmub_cursor_offload_v1 *)dmub->cursor_offload_fb.cpu_addr;
 
 	if (dmub->hw_funcs.setup_windows)
@@ -1014,13 +1075,14 @@ enum dmub_status dmub_srv_wait_for_hw_pwr_up(struct dmub_srv *dmub,
 enum dmub_status dmub_srv_wait_for_auto_load(struct dmub_srv *dmub,
 					     uint32_t timeout_us)
 {
+	const uint32_t delay_us = 100;
 	uint32_t i;
 	bool hw_on = true;
 
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
 
-	for (i = 0; i <= timeout_us; i += 100) {
+	for (i = 0; i <= timeout_us; i += delay_us) {
 		union dmub_fw_boot_status status = dmub->hw_funcs.get_fw_status(dmub);
 
 		if (dmub->hw_funcs.is_hw_powered_up)
@@ -1029,7 +1091,7 @@ enum dmub_status dmub_srv_wait_for_auto_load(struct dmub_srv *dmub,
 		if (status.bits.dal_fw && status.bits.mailbox_rdy && hw_on)
 			return DMUB_STATUS_OK;
 
-		udelay(100);
+		udelay(delay_us);
 	}
 
 	return DMUB_STATUS_TIMEOUT;
@@ -1258,6 +1320,7 @@ bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub)
 	if (!dmub || !dmub->hw_funcs.get_diagnostic_data)
 		return false;
 	dmub->hw_funcs.get_diagnostic_data(dmub);
+
 	return true;
 }
 

@@ -136,7 +136,6 @@ void noinstr arch_cpu_idle(void)
 	/* Wait for external, I/O or machine check interrupt. */
 	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT |
 		   PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-	clear_cpu_flag(CIF_NOHZ_DELAY);
 	set_cpu_flag(CIF_ENABLED_WAIT);
 	if (smp_cpu_mtid)
 		stcctm(MT_DIAG, smp_cpu_mtid, (u64 *)&idle->mt_cycles_enter);

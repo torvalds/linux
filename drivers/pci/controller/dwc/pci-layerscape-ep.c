@@ -147,7 +147,7 @@ ls_pcie_ep_get_features(struct dw_pcie_ep *ep)
 	return pcie->ls_epc;
 }
 
-static void ls_pcie_ep_init(struct dw_pcie_ep *ep)
+static int ls_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct ls_pcie_ep *pcie = to_ls_pcie_ep(pci);
@@ -155,10 +155,12 @@ static void ls_pcie_ep_init(struct dw_pcie_ep *ep)
 
 	ep_func = dw_pcie_ep_get_func_from_ep(ep, 0);
 	if (!ep_func)
-		return;
+		return -ENODEV;
 
 	pcie->ls_epc->msi_capable = ep_func->msi_cap ? true : false;
 	pcie->ls_epc->msix_capable = ep_func->msix_cap ? true : false;
+
+	return 0;
 }
 
 static int ls_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,

@@ -186,10 +186,8 @@ static int airoha_trng_probe(struct platform_device *pdev)
 	airoha_trng_irq_mask(trng);
 	ret = devm_request_irq(&pdev->dev, irq, airoha_trng_irq, 0,
 			       pdev->name, (void *)trng);
-	if (ret) {
-		dev_err(dev, "Can't get interrupt working.\n");
+	if (ret)
 		return ret;
-	}
 
 	init_completion(&trng->rng_op_done);
 

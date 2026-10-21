@@ -473,8 +473,8 @@ int perf_time__parse_for_ranges_reltime(const char *time_str,
 		return -ENOMEM;
 
 	if (has_percent || reltime) {
-		if (session->evlist->first_sample_time == 0 &&
-		    session->evlist->last_sample_time == 0) {
+		if (evlist__first_sample_time(session->evlist) == 0 &&
+		    evlist__last_sample_time(session->evlist) == 0) {
 			pr_err("HINT: no first/last sample time found in perf data.\n"
 			       "Please use latest perf binary to execute 'perf record'\n"
 			       "(if '--buildid-all' is enabled, please set '--timestamp-boundary').\n");
@@ -486,8 +486,8 @@ int perf_time__parse_for_ranges_reltime(const char *time_str,
 		num = perf_time__percent_parse_str(
 				ptime_range, size,
 				time_str,
-				session->evlist->first_sample_time,
-				session->evlist->last_sample_time);
+				evlist__first_sample_time(session->evlist),
+				evlist__last_sample_time(session->evlist));
 	} else {
 		num = perf_time__parse_strs(ptime_range, time_str, size);
 	}
@@ -499,8 +499,8 @@ int perf_time__parse_for_ranges_reltime(const char *time_str,
 		int i;
 
 		for (i = 0; i < num; i++) {
-			ptime_range[i].start += session->evlist->first_sample_time;
-			ptime_range[i].end += session->evlist->first_sample_time;
+			ptime_range[i].start += evlist__first_sample_time(session->evlist);
+			ptime_range[i].end += evlist__first_sample_time(session->evlist);
 		}
 	}
 

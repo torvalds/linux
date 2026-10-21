@@ -27,6 +27,14 @@
 
 #include "irq_types.h" /* DAL irq definitions */
 
+struct amdgpu_device;
+struct amdgpu_crtc;
+struct amdgpu_display_manager;
+struct dc_sink;
+struct hpd_rx_irq_offload_work_queue;
+struct work_struct;
+enum dmub_notification_type;
+
 /*
  * Display Manager IRQ-related interfaces (for use by DAL).
  */
@@ -81,6 +89,34 @@ void amdgpu_dm_irq_unregister_interrupt(struct amdgpu_device *adev,
 					enum dc_irq_source irq_source,
 					void *ih_index);
 
+/**
+ * amdgpu_dm_irq_set - enable or disable a DC interrupt source.
+ *
+ * @adev: AMD DRM device
+ * @src: DC interrupt source to toggle
+ * @enable: true to enable the source, false to disable it
+ *
+ * DM-wide replacement for dc_interrupt_set(). As locking is DM's
+ * responsibility, this is a thin wrapper serializes the underlying
+ * read-modify-write against the other interrupt sources sharing HW control
+ * registers with @src, so DM must never call dc_interrupt_set() directly.
+ *
+ * Returns: true if the source was toggled.
+ */
+bool amdgpu_dm_irq_set(struct amdgpu_device *adev, enum dc_irq_source src,
+		       bool enable);
+
+/**
+ * amdgpu_dm_irq_ack - acknowledge a DC interrupt source.
+ *
+ * @adev: AMD DRM device
+ * @src: DC interrupt source to acknowledge
+ *
+ * DM-wide replacement for dc_interrupt_ack(), serialized the same way as
+ * amdgpu_dm_irq_set().
+ */
+void amdgpu_dm_irq_ack(struct amdgpu_device *adev, enum dc_irq_source src);
+
 void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev);
 
 void amdgpu_dm_outbox_init(struct amdgpu_device *adev);
@@ -100,5 +136,81 @@ void amdgpu_dm_irq_suspend(struct amdgpu_device *adev);
  */
 void amdgpu_dm_irq_resume_early(struct amdgpu_device *adev);
 void amdgpu_dm_irq_resume_late(struct amdgpu_device *adev);
+
+/* HPD handling */
+struct hpd_rx_irq_offload_work_queue *amdgpu_dm_hpd_rx_irq_create_workqueue(struct amdgpu_device *adev);
+void amdgpu_dm_hpd_rx_irq_work_suspend(struct amdgpu_display_manager *dm);
+int amdgpu_dm_register_hpd_handlers(struct amdgpu_device *adev);
+void amdgpu_dm_hdmi_hpd_debounce_work(struct work_struct *work);
+
+/* IRQ handlers */
+struct amdgpu_crtc *amdgpu_dm_get_crtc_by_otg_inst(struct amdgpu_device *adev,
+						    int otg_inst);
+int amdgpu_dm_dce110_register_irq_handlers(struct amdgpu_device *adev);
+int amdgpu_dm_dcn10_register_irq_handlers(struct amdgpu_device *adev);
+int amdgpu_dm_register_outbox_irq_handlers(struct amdgpu_device *adev);
+
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+struct amdgpu_irq_src;
+struct amdgpu_iv_entry;
+enum amdgpu_interrupt_state;
+
+enum dc_irq_source amdgpu_dm_hpd_to_dal_irq_source(unsigned int type);
+bool are_sinks_equal(const struct dc_sink *sink1, const struct dc_sink *sink2);
+const char *dmub_notification_type_str(enum dmub_notification_type e);
+int amdgpu_dm_set_hpd_irq_state(struct amdgpu_device *adev,
+				struct amdgpu_irq_src *source,
+				unsigned int type,
+				enum amdgpu_interrupt_state state);
+int amdgpu_dm_set_dmub_outbox_irq_state(struct amdgpu_device *adev,
+					struct amdgpu_irq_src *source,
+					unsigned int crtc_id,
+					enum amdgpu_interrupt_state state);
+int amdgpu_dm_set_dmub_trace_irq_state(struct amdgpu_device *adev,
+				       struct amdgpu_irq_src *source,
+				       unsigned int type,
+				       enum amdgpu_interrupt_state state);
+int amdgpu_dm_set_pflip_irq_state(struct amdgpu_device *adev,
+				  struct amdgpu_irq_src *source,
+				  unsigned int crtc_id,
+				  enum amdgpu_interrupt_state state);
+int amdgpu_dm_set_crtc_irq_state(struct amdgpu_device *adev,
+				 struct amdgpu_irq_src *source,
+				 unsigned int crtc_id,
+				 enum amdgpu_interrupt_state state);
+int amdgpu_dm_set_vline0_irq_state(struct amdgpu_device *adev,
+				   struct amdgpu_irq_src *source,
+				   unsigned int crtc_id,
+				   enum amdgpu_interrupt_state state);
+int amdgpu_dm_set_vupdate_irq_state(struct amdgpu_device *adev,
+				    struct amdgpu_irq_src *source,
+				    unsigned int crtc_id,
+				    enum amdgpu_interrupt_state state);
+void amdgpu_dm_irq_schedule_work(struct amdgpu_device *adev,
+				 enum dc_irq_source irq_source);
+void amdgpu_dm_irq_immediate_work(struct amdgpu_device *adev,
+				  enum dc_irq_source irq_source);
+void dm_handle_hpd_rx_offload_work(struct work_struct *work);
+void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector,
+			   enum dc_detect_reason reason);
+void handle_hpd_irq(void *param);
+void schedule_hpd_rx_offload_work(struct amdgpu_device *adev,
+				  struct hpd_rx_irq_offload_work_queue *offload_wq,
+				  union hpd_irq_data hpd_irq_data);
+void handle_hpd_rx_irq(void *param);
+void dmub_hpd_callback(struct amdgpu_device *adev,
+		       struct dmub_notification *notify);
+void dmub_hpd_sense_callback(struct amdgpu_device *adev,
+			     struct dmub_notification *notify);
+void dm_pflip_high_irq(void *interrupt_params);
+void dm_vupdate_high_irq(void *interrupt_params);
+void dm_crtc_high_irq(void *interrupt_params);
+void dm_handle_hpd_work(struct work_struct *work);
+void dm_dmub_outbox1_low_irq(void *interrupt_params);
+int amdgpu_dm_irq_handler(struct amdgpu_device *adev,
+			  struct amdgpu_irq_src *source,
+			  struct amdgpu_iv_entry *entry);
+void dm_handle_vmin_vmax_update(struct work_struct *offload_work);
+#endif
 
 #endif /* __AMDGPU_DM_IRQ_H__ */

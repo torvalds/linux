@@ -11,13 +11,13 @@
 #include <linux/array_size.h>
 #include <linux/cleanup.h>
 #include <linux/debugfs.h>
+#include <linux/dev_printk.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
-#include <linux/string.h>
 #include <asm/amd/node.h>
 #include "pmf.h"
 
@@ -25,6 +25,13 @@
 #define AMD_PMF_REGISTER_MESSAGE	0xA18
 #define AMD_PMF_REGISTER_RESPONSE	0xA78
 #define AMD_PMF_REGISTER_ARGUMENT	0xA58
+
+/* PMF-SMU communication registers for 1AH_M80H */
+#define AMD_PMF_REGISTER_MESSAGE_V2	0xA04
+#define AMD_PMF_REGISTER_RESPONSE_V2	0xA08
+#define AMD_PMF_REGISTER_ARGUMENT0_V2	0xA0C
+#define AMD_PMF_REGISTER_ARGUMENT1_V2	0xAAC
+#define AMD_PMF_REGISTER_ARGUMENT2_V2	0xAB0
 
 /* Base address of SMU for mapping physical address to virtual address */
 #define AMD_PMF_MAPPING_SIZE		0x01000
@@ -48,7 +55,7 @@
 #define DELAY_MAX_US	3000
 
 /* override Metrics Table sample size time (in ms) */
-static int metrics_table_loop_ms = 1000;
+int metrics_table_loop_ms = 1000;
 module_param(metrics_table_loop_ms, int, 0644);
 MODULE_PARM_DESC(metrics_table_loop_ms, "Metrics Table sample size time (default = 1000ms)");
 
@@ -61,7 +68,15 @@ static bool smart_pc_support = true;
 module_param(smart_pc_support, bool, 0444);
 MODULE_PARM_DESC(smart_pc_support, "Smart PC Support (default = true)");
 
-static struct device *pmf_device;
+static bool amd_pmf_supports_accumulator_metrics(struct amd_pmf_dev *pdev)
+{
+	switch (pdev->cpu_id) {
+	case PCI_DEVICE_ID_AMD_1AH_M80H_ROOT:
+		return true;
+	default:
+		return false;
+	}
+}
 
 static int amd_pmf_pwr_src_notify_call(struct notifier_block *nb, unsigned long event, void *data)
 {
@@ -131,37 +146,6 @@ int amd_pmf_get_power_source(void)
 		return POWER_SOURCE_DC;
 }
 
-static void amd_pmf_get_metrics(struct work_struct *work)
-{
-	struct amd_pmf_dev *dev = container_of(work, struct amd_pmf_dev, work_buffer.work);
-	ktime_t time_elapsed_ms;
-	int socket_power;
-
-	guard(mutex)(&dev->update_mutex);
-
-	/* Transfer table contents */
-	memset(dev->buf, 0, sizeof(dev->m_table));
-	amd_pmf_send_cmd(dev, SET_TRANSFER_TABLE, SET_CMD, METRICS_TABLE_ID, NULL);
-	memcpy(&dev->m_table, dev->buf, sizeof(dev->m_table));
-
-	time_elapsed_ms = ktime_to_ms(ktime_get()) - dev->start_time;
-	/* Calculate the avg SoC power consumption */
-	socket_power = dev->m_table.apu_power + dev->m_table.dgpu_power;
-
-	if (dev->amt_enabled) {
-		/* Apply the Auto Mode transition */
-		amd_pmf_trans_automode(dev, socket_power, time_elapsed_ms);
-	}
-
-	if (dev->cnqf_enabled) {
-		/* Apply the CnQF transition */
-		amd_pmf_trans_cnqf(dev, socket_power, time_elapsed_ms);
-	}
-
-	dev->start_time = ktime_to_ms(ktime_get());
-	schedule_delayed_work(&dev->work_buffer, msecs_to_jiffies(metrics_table_loop_ms));
-}
-
 static inline u32 amd_pmf_reg_read(struct amd_pmf_dev *dev, int reg_offset)
 {
 	return ioread32(dev->regbase + reg_offset);
@@ -176,13 +160,19 @@ static void __maybe_unused amd_pmf_dump_registers(struct amd_pmf_dev *dev)
 {
 	u32 value;
 
-	value = amd_pmf_reg_read(dev, AMD_PMF_REGISTER_RESPONSE);
+	value = amd_pmf_reg_read(dev, dev->smu_regs->resp_reg);
 	dev_dbg(dev->dev, "AMD_PMF_REGISTER_RESPONSE:%x\n", value);
 
-	value = amd_pmf_reg_read(dev, AMD_PMF_REGISTER_ARGUMENT);
+	value = amd_pmf_reg_read(dev, dev->smu_regs->arg_reg[0]);
 	dev_dbg(dev->dev, "AMD_PMF_REGISTER_ARGUMENT:%d\n", value);
+	if (amd_pmf_supports_accumulator_metrics(dev)) {
+		value = amd_pmf_reg_read(dev, dev->smu_regs->arg_reg[1]);
+		dev_dbg(dev->dev, "AMD_PMF_REGISTER_ARGUMENT1:%d\n", value);
+		value = amd_pmf_reg_read(dev, dev->smu_regs->arg_reg[2]);
+		dev_dbg(dev->dev, "AMD_PMF_REGISTER_ARGUMENT2:%d\n", value);
+	}
 
-	value = amd_pmf_reg_read(dev, AMD_PMF_REGISTER_MESSAGE);
+	value = amd_pmf_reg_read(dev, dev->smu_regs->msg_reg);
 	dev_dbg(dev->dev, "AMD_PMF_REGISTER_MESSAGE:%x\n", value);
 }
 
@@ -208,7 +198,7 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 	guard(mutex)(&dev->lock);
 
 	/* Wait until we get a valid response */
-	rc = readx_poll_timeout(ioread32, dev->regbase + AMD_PMF_REGISTER_RESPONSE,
+	rc = readx_poll_timeout(ioread32, dev->regbase + dev->smu_regs->resp_reg,
 				val, val != 0, PMF_MSG_DELAY_MIN_US,
 				PMF_MSG_DELAY_MIN_US * RESPONSE_REGISTER_LOOP_MAX);
 	if (rc) {
@@ -217,16 +207,16 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 	}
 
 	/* Write zero to response register */
-	amd_pmf_reg_write(dev, AMD_PMF_REGISTER_RESPONSE, 0);
+	amd_pmf_reg_write(dev, dev->smu_regs->resp_reg, 0);
 
 	/* Write argument into argument register */
-	amd_pmf_reg_write(dev, AMD_PMF_REGISTER_ARGUMENT, arg);
+	amd_pmf_reg_write(dev, dev->smu_regs->arg_reg[0], arg);
 
 	/* Write message ID to message ID register */
-	amd_pmf_reg_write(dev, AMD_PMF_REGISTER_MESSAGE, message);
+	amd_pmf_reg_write(dev, dev->smu_regs->msg_reg, message);
 
 	/* Wait until we get a valid response */
-	rc = readx_poll_timeout(ioread32, dev->regbase + AMD_PMF_REGISTER_RESPONSE,
+	rc = readx_poll_timeout(ioread32, dev->regbase + dev->smu_regs->resp_reg,
 				val, val != 0, PMF_MSG_DELAY_MIN_US,
 				PMF_MSG_DELAY_MIN_US * RESPONSE_REGISTER_LOOP_MAX);
 	if (rc) {
@@ -239,7 +229,14 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 		if (get) {
 			/* PMFW may take longer time to return back the data */
 			usleep_range(DELAY_MIN_US, 10 * DELAY_MAX_US);
-			*data = amd_pmf_reg_read(dev, AMD_PMF_REGISTER_ARGUMENT);
+			*data = amd_pmf_reg_read(dev, dev->smu_regs->arg_reg[0]);
+			if (amd_pmf_supports_accumulator_metrics(dev) &&
+			    message == GET_1AH_M80H_METRICS_TABLE_DRAM_ADDR) {
+				dev->dram_addr.hi = amd_pmf_reg_read(dev,
+								     dev->smu_regs->arg_reg[1]);
+				dev->dram_addr.size = amd_pmf_reg_read(dev,
+								       dev->smu_regs->arg_reg[2]);
+			}
 		}
 		break;
 	case AMD_PMF_RESULT_CMD_REJECT_BUSY:
@@ -262,132 +259,32 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 	return rc;
 }
 
-static const struct pci_device_id pmf_pci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_RMB) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_PS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_1AH_M20H_ROOT) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_1AH_M60H_ROOT) },
-	{ }
+/* RMB, PS, 1AH_M20H and 1AH_M60H share the same v1 SMU mailbox registers */
+static const struct amd_pmf_smu_regs amd_pmf_smu_regs_v1 = {
+	.msg_reg	= AMD_PMF_REGISTER_MESSAGE,
+	.resp_reg	= AMD_PMF_REGISTER_RESPONSE,
+	.arg_reg	= { AMD_PMF_REGISTER_ARGUMENT, 0, 0 },
 };
 
-int amd_pmf_set_dram_addr(struct amd_pmf_dev *dev, bool alloc_buffer)
-{
-	u64 phys_addr;
-	u32 hi, low;
+/* 1AH_M80H uses an extended mailbox with three argument registers */
+static const struct amd_pmf_smu_regs amd_pmf_smu_regs_v2 = {
+	.msg_reg	= AMD_PMF_REGISTER_MESSAGE_V2,
+	.resp_reg	= AMD_PMF_REGISTER_RESPONSE_V2,
+	.arg_reg	= {
+		AMD_PMF_REGISTER_ARGUMENT0_V2,
+		AMD_PMF_REGISTER_ARGUMENT1_V2,
+		AMD_PMF_REGISTER_ARGUMENT2_V2,
+	},
+};
 
-	/* Get Metrics Table Address */
-	if (alloc_buffer) {
-		switch (dev->cpu_id) {
-		case AMD_CPU_ID_PS:
-		case AMD_CPU_ID_RMB:
-			dev->mtable_size = sizeof(dev->m_table);
-			break;
-		case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
-		case PCI_DEVICE_ID_AMD_1AH_M60H_ROOT:
-			dev->mtable_size = sizeof(dev->m_table_v2);
-			break;
-		default:
-			dev_err(dev->dev, "Invalid CPU id: 0x%x", dev->cpu_id);
-		}
-
-		dev->buf = devm_kzalloc(dev->dev, dev->mtable_size, GFP_KERNEL);
-		if (!dev->buf)
-			return -ENOMEM;
-	}
-
-	phys_addr = virt_to_phys(dev->buf);
-	hi = phys_addr >> 32;
-	low = phys_addr & GENMASK(31, 0);
-
-	amd_pmf_send_cmd(dev, SET_DRAM_ADDR_HIGH, SET_CMD, hi, NULL);
-	amd_pmf_send_cmd(dev, SET_DRAM_ADDR_LOW, SET_CMD, low, NULL);
-
-	return 0;
-}
-
-int amd_pmf_init_metrics_table(struct amd_pmf_dev *dev)
-{
-	int ret;
-
-	INIT_DELAYED_WORK(&dev->work_buffer, amd_pmf_get_metrics);
-
-	ret = amd_pmf_set_dram_addr(dev, true);
-	if (ret)
-		return ret;
-
-	/*
-	 * Start collecting the metrics data after a small delay
-	 * or else, we might end up getting stale values from PMFW.
-	 */
-	schedule_delayed_work(&dev->work_buffer, msecs_to_jiffies(metrics_table_loop_ms * 3));
-
-	return 0;
-}
-
-static int is_npu_metrics_supported(struct amd_pmf_dev *pdev)
-{
-	switch (pdev->cpu_id) {
-	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
-	case PCI_DEVICE_ID_AMD_1AH_M60H_ROOT:
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static int amd_pmf_get_smu_metrics(struct amd_pmf_dev *dev, struct amd_pmf_npu_metrics *data)
-{
-	int ret, i;
-
-	guard(mutex)(&dev->metrics_mutex);
-
-	ret = is_npu_metrics_supported(dev);
-	if (ret)
-		return ret;
-
-	ret = amd_pmf_set_dram_addr(dev, true);
-	if (ret)
-		return ret;
-
-	memset(dev->buf, 0, dev->mtable_size);
-
-	/* Send SMU command to get NPU metrics */
-	ret = amd_pmf_send_cmd(dev, SET_TRANSFER_TABLE, SET_CMD, METRICS_TABLE_ID, NULL);
-	if (ret) {
-		dev_err(dev->dev, "SMU command failed to get NPU metrics: %d\n", ret);
-		return ret;
-	}
-
-	memcpy(&dev->m_table_v2, dev->buf, dev->mtable_size);
-
-	data->npuclk_freq = dev->m_table_v2.npuclk_freq;
-	for (i = 0; i < ARRAY_SIZE(data->npu_busy); i++)
-		data->npu_busy[i] = dev->m_table_v2.npu_busy[i];
-	data->npu_power = dev->m_table_v2.npu_power;
-	data->mpnpuclk_freq = dev->m_table_v2.mpnpuclk_freq;
-	data->npu_reads = dev->m_table_v2.npu_reads;
-	data->npu_writes = dev->m_table_v2.npu_writes;
-
-	return 0;
-}
-
-int amd_pmf_get_npu_data(struct amd_pmf_npu_metrics *info)
-{
-	struct amd_pmf_dev *pdev;
-
-	if (!info)
-		return -EINVAL;
-
-	if (!pmf_device)
-		return -ENODEV;
-
-	pdev = dev_get_drvdata(pmf_device);
-	if (!pdev)
-		return -ENODEV;
-
-	return amd_pmf_get_smu_metrics(pdev, info);
-}
-EXPORT_SYMBOL_NS_GPL(amd_pmf_get_npu_data, "AMD_PMF");
+static const struct pci_device_id pmf_pci_ids[] = {
+	{ PCI_DEVICE_DATA(AMD, CPU_ID_RMB,    &amd_pmf_smu_regs_v1) },
+	{ PCI_DEVICE_DATA(AMD, CPU_ID_PS,     &amd_pmf_smu_regs_v1) },
+	{ PCI_DEVICE_DATA(AMD, 1AH_M20H_ROOT, &amd_pmf_smu_regs_v1) },
+	{ PCI_DEVICE_DATA(AMD, 1AH_M60H_ROOT, &amd_pmf_smu_regs_v1) },
+	{ PCI_DEVICE_DATA(AMD, 1AH_M80H_ROOT, &amd_pmf_smu_regs_v2) },
+	{ }
+};
 
 static int amd_pmf_reinit_ta(struct amd_pmf_dev *pdev)
 {
@@ -536,6 +433,19 @@ static void amd_pmf_deinit_features(struct amd_pmf_dev *dev)
 	}
 }
 
+static int amd_pmf_get_smu_mb_offset(struct amd_pmf_dev *pdev, struct pci_dev *rdev)
+{
+	const struct pci_device_id *id;
+
+	id = pci_match_id(pmf_pci_ids, rdev);
+	if (!id)
+		return -ENODEV;
+
+	pdev->smu_regs = (const struct amd_pmf_smu_regs *)id->driver_data;
+
+	return 0;
+}
+
 static const struct acpi_device_id amd_pmf_acpi_ids[] = {
 	{"AMDI0100", 0x100},
 	{"AMDI0102", 0},
@@ -543,6 +453,7 @@ static const struct acpi_device_id amd_pmf_acpi_ids[] = {
 	{"AMDI0105", 0},
 	{"AMDI0107", 0},
 	{"AMDI0108", 0},
+	{"AMDI0109", 0},
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, amd_pmf_acpi_ids);
@@ -624,6 +535,17 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	/* Populate smu_regs with SoC-specific SMU mailbox register offsets */
+	err = amd_pmf_get_smu_mb_offset(dev, rdev);
+	if (err)
+		return err;
+
+	if (amd_pmf_supports_accumulator_metrics(dev)) {
+		err = amd_pmf_get_tbl_dram_addr(dev);
+		if (err)
+			return err;
+	}
+
 	apmf_acpi_init(dev);
 	platform_set_drvdata(pdev, dev);
 	amd_pmf_dbgfs_register(dev);
@@ -632,7 +554,11 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	if (is_apmf_func_supported(dev, APMF_FUNC_SBIOS_HEARTBEAT_V2))
 		amd_pmf_notify_sbios_heartbeat_event_v2(dev, ON_LOAD);
 
-	pmf_device = dev->dev;
+	amd_pmf_set_device(dev->dev);
+
+	err = amd_pmf_cdev_register(dev);
+	if (err)
+		dev_warn(dev->dev, "failed to register util interface: %d\n", err);
 
 	dev_info(dev->dev, "registered PMF device successfully\n");
 
@@ -643,6 +569,7 @@ static void amd_pmf_remove(struct platform_device *pdev)
 {
 	struct amd_pmf_dev *dev = platform_get_drvdata(pdev);
 
+	amd_pmf_cdev_unregister();
 	amd_pmf_deinit_features(dev);
 	if (is_apmf_func_supported(dev, APMF_FUNC_SBIOS_HEARTBEAT_V2))
 		amd_pmf_notify_sbios_heartbeat_event_v2(dev, ON_UNLOAD);

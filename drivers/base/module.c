@@ -42,7 +42,7 @@ int module_add_driver(struct module *mod, const struct device_driver *drv)
 	if (mod)
 		mk = &mod->mkobj;
 	else if (drv->mod_name) {
-		/* Lookup or create built-in module entry in /sys/modules */
+		/* Lookup or create built-in module entry in /sys/module */
 		mk = lookup_or_create_module_kobject(drv->mod_name);
 		if (mk) {
 			/* remember our module structure */

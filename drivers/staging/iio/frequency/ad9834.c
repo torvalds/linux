@@ -314,21 +314,21 @@ static IIO_DEVICE_ATTR(out_altvoltage0_out1_wavetype_available, 0444,
  * see dds.h for further information
  */
 
-static IIO_DEV_ATTR_FREQ(0, 0, 0200, NULL, ad9834_write, AD9834_REG_FREQ0);
-static IIO_DEV_ATTR_FREQ(0, 1, 0200, NULL, ad9834_write, AD9834_REG_FREQ1);
-static IIO_DEV_ATTR_FREQSYMBOL(0, 0200, NULL, ad9834_write, AD9834_FSEL);
+static IIO_DEV_ATTR_FREQ(0200, 0, 0, NULL, ad9834_write, AD9834_REG_FREQ0);
+static IIO_DEV_ATTR_FREQ(0200, 0, 1, NULL, ad9834_write, AD9834_REG_FREQ1);
+static IIO_DEV_ATTR_FREQSYMBOL(0200, 0, NULL, ad9834_write, AD9834_FSEL);
 static IIO_CONST_ATTR_FREQ_SCALE(0, "1"); /* 1Hz */
 
-static IIO_DEV_ATTR_PHASE(0, 0, 0200, NULL, ad9834_write, AD9834_REG_PHASE0);
-static IIO_DEV_ATTR_PHASE(0, 1, 0200, NULL, ad9834_write, AD9834_REG_PHASE1);
-static IIO_DEV_ATTR_PHASESYMBOL(0, 0200, NULL, ad9834_write, AD9834_PSEL);
+static IIO_DEV_ATTR_PHASE(0200, 0, 0, NULL, ad9834_write, AD9834_REG_PHASE0);
+static IIO_DEV_ATTR_PHASE(0200, 0, 1, NULL, ad9834_write, AD9834_REG_PHASE1);
+static IIO_DEV_ATTR_PHASESYMBOL(0200, 0, NULL, ad9834_write, AD9834_PSEL);
 static IIO_CONST_ATTR_PHASE_SCALE(0, "0.0015339808"); /* 2PI/2^12 rad*/
 
-static IIO_DEV_ATTR_PINCONTROL_EN(0, 0200, NULL, ad9834_write, AD9834_PIN_SW);
-static IIO_DEV_ATTR_OUT_ENABLE(0, 0200, NULL, ad9834_write, AD9834_RESET);
-static IIO_DEV_ATTR_OUTY_ENABLE(0, 1, 0200, NULL, ad9834_write, AD9834_OPBITEN);
-static IIO_DEV_ATTR_OUT_WAVETYPE(0, 0, ad9834_store_wavetype, 0);
-static IIO_DEV_ATTR_OUT_WAVETYPE(0, 1, ad9834_store_wavetype, 1);
+static IIO_DEV_ATTR_PINCONTROL_EN(0200, 0, NULL, ad9834_write, AD9834_PIN_SW);
+static IIO_DEV_ATTR_OUT_ENABLE(0200, 0, NULL, ad9834_write, AD9834_RESET);
+static IIO_DEV_ATTR_OUTY_ENABLE(0200, 0, 1, NULL, ad9834_write, AD9834_OPBITEN);
+static IIO_DEV_ATTR_OUT_WAVETYPE(0200, 0, 0, ad9834_store_wavetype, 0);
+static IIO_DEV_ATTR_OUT_WAVETYPE(0200, 0, 1, ad9834_store_wavetype, 1);
 
 static struct attribute *ad9834_attributes[] = {
 	&iio_dev_attr_out_altvoltage0_frequency0.dev_attr.attr,
@@ -464,10 +464,10 @@ static int ad9834_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad9834_id[] = {
-	{"ad9833", ID_AD9833},
-	{"ad9834", ID_AD9834},
-	{"ad9837", ID_AD9837},
-	{"ad9838", ID_AD9838},
+	{ .name = "ad9833", .driver_data = ID_AD9833 },
+	{ .name = "ad9834", .driver_data = ID_AD9834 },
+	{ .name = "ad9837", .driver_data = ID_AD9837 },
+	{ .name = "ad9838", .driver_data = ID_AD9838 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad9834_id);

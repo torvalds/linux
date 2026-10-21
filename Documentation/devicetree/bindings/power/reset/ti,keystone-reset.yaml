@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/reset/ti,keystone-reset.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI Keystone SoC Reset Controller
+
+maintainers:
+  - Andrew Davis <afd@ti.com>
+
+description:
+  This is intended to allow SoC reset in case of software reset of selected
+  watchdogs. The Keystone SoCs can contain up to 4 watchdog timers to reset
+  SoC. Each watchdog timer event input is connected to the Reset Mux block. The
+  Reset Mux block can be configured to cause reset or not. Additionally soft or
+  hard reset can be configured.
+
+properties:
+  compatible:
+    const: ti,keystone-reset
+
+  reg:
+    maxItems: 1
+
+  ti,syscon-pll:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      The phandle to syscon used to access pll controller registers and the
+      offset to use reset control registers.
+    items:
+      - items:
+          - description: phandle to pll controller syscon
+          - description: offset within pll controller register space
+
+  ti,syscon-dev:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      The phandle to syscon used to access device state control registers and
+      the offset in order to use mux block registers for all watchdogs.
+    items:
+      - items:
+          - description: phandle to device state control syscon
+          - description: offset within device state control register
+
+  ti,soft-reset:
+    type: boolean
+    description:
+      Boolean option indicating soft reset. By default hard reset is used.
+
+  ti,wdt-list:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      WDT list that can cause SoC reset. It's not related to WDT driver, it's
+      just needed to enable a SoC related reset that's triggered by one of
+      WDTs. The list is in format- <0>, <2>; It can be in random order and
+      begins from 0 to 3, as keystone can contain up to 4 SoC reset watchdogs
+      and can be in random order.
+    minItems: 1
+    maxItems: 4
+    items:
+      minimum: 0
+      maximum: 3
+
+required:
+  - compatible
+  - reg
+  - ti,syscon-pll
+  - ti,syscon-dev
+
+additionalProperties: false
+
+examples:
+  - |
+    reset-controller@328 {
+        compatible = "ti,keystone-reset";
+        reg = <0x328 0x10>;
+        ti,syscon-pll = <&pllctrl 0xe4>;
+        ti,syscon-dev = <&devctrl 0x328>;
+        ti,wdt-list = <0>;
+    };

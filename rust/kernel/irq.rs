@@ -8,7 +8,7 @@
 //! The current abstractions handle IRQ requests and handlers, i.e.: it allows
 //! drivers to register a handler for a given IRQ line.
 //!
-//! C header: [`include/linux/device.h`](srctree/include/linux/interrupt.h)
+//! C header: [`include/linux/interrupt.h`](srctree/include/linux/interrupt.h)
 
 /// Flags to be used when registering IRQ handlers.
 mod flags;

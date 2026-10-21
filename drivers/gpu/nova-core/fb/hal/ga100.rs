@@ -9,8 +9,10 @@ use kernel::{
 
 use crate::{
     driver::Bar0,
-    fb::hal::FbHal,
-    regs, //
+    fb::{
+        hal::FbHal,
+        regs, //
+    },
 };
 
 use super::tu102::FLUSH_SYSMEM_ADDR_SHIFT;
@@ -41,7 +43,7 @@ pub(super) fn write_sysmem_flush_page_ga100(bar: Bar0<'_>, addr: u64) {
 }
 
 pub(super) fn display_enabled_ga100(bar: Bar0<'_>) -> bool {
-    !bar.read(regs::ga100::NV_FUSE_STATUS_OPT_DISPLAY)
+    !bar.read(crate::regs::ga100::NV_FUSE_STATUS_OPT_DISPLAY)
         .display_disabled()
 }
 
@@ -72,7 +74,7 @@ impl FbHal for Ga100 {
         super::tu102::pmu_reserved_size_tu102()
     }
 
-    fn non_wpr_heap_size(&self) -> u32 {
+    fn non_wpr_heap_size(&self) -> u64 {
         super::tu102::non_wpr_heap_size_tu102()
     }
 

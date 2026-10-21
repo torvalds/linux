@@ -3124,11 +3124,12 @@ sub process {
 				}
 			}
 
-			# Assisted-by uses AGENT_NAME:MODEL_VERSION format, not email
+			# Assisted-by uses a free-form value (e.g. "LLM"), not an
+			# email address, so skip the email format checks below.
 			if ($sign_off =~ /^Assisted-by:/i) {
-				if ($email !~ /^\S+:\S+/) {
+				if ($email =~ /^\s*$/) {
 					WARN("BAD_SIGN_OFF",
-					     "Assisted-by expects 'AGENT_NAME:MODEL_VERSION [TOOL1] [TOOL2]' format\n" . $herecurr);
+					     "Assisted-by requires a value\n" . $herecurr);
 				}
 				next;
 			}
@@ -3781,6 +3782,12 @@ sub process {
 			my $vp_file = $dt_path . "vendor-prefixes.yaml";
 
 			foreach my $compat (@compats) {
+				# Skip ID-based PCI and USB compatible patterns.
+				# DT validation will check them properly.
+				next if $compat =~ /^pciclass,/;
+				next if $compat =~ /^pci[a-f0-9]{2,4},/;
+				next if $compat =~ /^usb(if)?[a-f0-9]{1,4},/;
+
 				my $compat2 = $compat;
 				$compat2 =~ s/\,[a-zA-Z0-9]*\-/\,<\.\*>\-/;
 				my $compat3 = $compat;
@@ -4148,6 +4155,7 @@ sub process {
 		      $line =~ /^\+[a-z_]*init/ ||
 		      $line =~ /^\+\s*(?:static\s+)?[A-Z_]*ATTR/ ||
 		      $line =~ /^\+\s*DECLARE/ ||
+		      $line =~ /^\+\s*NOKPROBE_SYMBOL/ ||
 		      $line =~ /^\+\s*builtin_[\w_]*driver/ ||
 		      $line =~ /^\+\s*__setup/)) {
 			if (CHK("LINE_SPACING",

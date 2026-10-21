@@ -988,8 +988,10 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 	do_div(sample_period, count);
 	tstamp = data->timestamp - (count - 1) * sample_period;
 
-	if (samples && count > samples)
-		count = samples;
+	if (samples)
+		count = min3(count, samples, BMC150_ACCEL_FIFO_LENGTH);
+	else
+		count = min(count, BMC150_ACCEL_FIFO_LENGTH);
 
 	count = min_t(u8, count, BMC150_ACCEL_FIFO_LENGTH);
 

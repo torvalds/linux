@@ -126,7 +126,8 @@ static inline void fnic_queue_wq_copy_desc_itmf(struct vnic_wq_copy *wq,
 	desc->u.itmf.tm_req = tm_req;       /* SCSI Task Management request */
 	desc->u.itmf.t_tag = tm_id;         /* tag of fcpio to be aborted */
 	desc->u.itmf._resvd = 0;
-	memcpy(desc->u.itmf.lun, lun, LUN_ADDRESS);  /* LUN address */
+	if (lun)
+		memcpy(desc->u.itmf.lun, lun, LUN_ADDRESS);  /* LUN address */
 	desc->u.itmf._resvd1 = 0;
 	hton24(desc->u.itmf.d_id, d_id);    /* FC vNIC only: Target D_ID */
 	desc->u.itmf.r_a_tov = r_a_tov;     /* FC vNIC only: R_A_TOV in msec */
@@ -222,6 +223,35 @@ static inline void fnic_queue_rq_desc(struct vnic_rq *rq,
 	vnic_rq_post(rq, os_buf, 0, dma_addr, len);
 }
 
+static inline void fnic_queue_wq_copy_desc_nvme_io(struct vnic_wq_copy *wq,
+						   u32 req_id,
+						   u8 spl_flags,
+						   u32 sgl_cnt,
+						   u64 sgl_addr,
+						   u8 flags, u8 *nvme_cmd_iu,
+						   u16 cmd_len,
+						   u32 data_len,
+						   u32 d_id, u32 mss,
+						   u32 ratov, u32 edtov)
+{
+	struct fcpio_host_req *desc = vnic_wq_copy_next_desc(wq);
+
+	desc->hdr.type = FCPIO_NVME_CMD; /* enum fcpio_type */
+	desc->hdr.status = 0; /* header status entry */
+	desc->hdr._resvd = 0; /* reserved */
+	desc->hdr.tag.u.req_id = req_id; /* id for this request */
+	desc->u.nvcmnd.sgl_cnt = sgl_cnt; /* scatter-gather list count */
+	desc->u.nvcmnd.sgl_addr = sgl_addr; /* scatter-gather list addr */
+	desc->u.nvcmnd._resvd1 = 0; /* reserved: should be 0 */
+	desc->u.nvcmnd.flags = flags; /* command flags */
+	memset(desc->u.nvcmnd.nvme_cmnd, 0, NVME_CMD_SZ);
+	memcpy(desc->u.nvcmnd.nvme_cmnd, nvme_cmd_iu, cmd_len); /* SCSI CDB */
+	desc->u.nvcmnd.cmd_len = cmd_len;
+	desc->u.nvcmnd.data_len = data_len; /* length of data expected */
+	hton24(desc->u.nvcmnd.d_id, d_id); /* FC vNIC only: Target D_ID */
+
+	vnic_wq_copy_post(wq);
+}
 
 struct fnic;
 

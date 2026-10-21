@@ -19,7 +19,6 @@
 #define MADE_PROGRESS	0x04	/* Made progress cleaning up a stream or the folio set */
 #define BUFFERED	0x08	/* The pagecache needs cleaning up */
 #define NEED_RETRY	0x10	/* A front op requests retrying */
-#define COPY_TO_CACHE	0x40	/* Need to copy subrequest to cache */
 #define ABANDON_SREQ	0x80	/* Need to abandon untransferred part of subrequest */
 
 /*
@@ -32,6 +31,30 @@ static void netfs_clear_unread(struct netfs_io_subrequest *subreq)
 	iov_iter_zero(iov_iter_count(&subreq->io_iter), &subreq->io_iter);
 	if (subreq->start + subreq->transferred >= subreq->rreq->i_size)
 		__set_bit(NETFS_SREQ_HIT_EOF, &subreq->flags);
+}
+
+/*
+ * Cancel the copy-to-cache mark on a folio.
+ */
+void netfs_cancel_copy_to_cache(struct netfs_io_request *rreq, struct folio *folio)
+{
+	if (!test_bit(NETFS_RREQ_USE_PGPRIV2, &rreq->flags)) {
+		if (folio_get_private(folio) == NETFS_FOLIO_COPY_TO_CACHE) {
+			folio_detach_private(folio);
+			trace_netfs_folio(folio, netfs_folio_trace_cancel_copy);
+		} else if (netfs_folio_group(folio) == NETFS_FOLIO_COPY_TO_CACHE)  {
+			struct netfs_folio *finfo = netfs_folio_info(folio);
+
+			finfo->netfs_group = NULL;
+			trace_netfs_folio(folio, netfs_folio_trace_cancel_copy);
+		}
+	} else {
+		// TODO: Use of PG_private_2 is deprecated.
+		if (folio_test_private_2(folio)) {
+			folio_end_private_2(folio);
+			trace_netfs_folio(folio, netfs_folio_trace_cancel_copy);
+		}
+	}
 }
 
 /*
@@ -48,37 +71,37 @@ static void netfs_unlock_read_folio(struct netfs_io_request *rreq,
 
 	if (unlikely(folio_pos(folio) < rreq->abandon_to)) {
 		trace_netfs_folio(folio, netfs_folio_trace_abandon);
+		netfs_cancel_copy_to_cache(rreq, folio);
 		goto just_unlock;
 	}
 
 	flush_dcache_folio(folio);
 	folio_mark_uptodate(folio);
 
-	if (!test_bit(NETFS_RREQ_USE_PGPRIV2, &rreq->flags)) {
-		finfo = netfs_folio_info(folio);
-		if (finfo) {
-			trace_netfs_folio(folio, netfs_folio_trace_filled_gaps);
-			if (finfo->netfs_group)
-				folio_change_private(folio, finfo->netfs_group);
-			else
-				folio_detach_private(folio);
-			kfree(finfo);
-		}
+	if (unlikely(test_bit(NETFS_RREQ_CANCEL_CACHING, &rreq->flags)))
+		netfs_cancel_copy_to_cache(rreq, folio);
 
-		if (test_bit(NETFS_RREQ_FOLIO_COPY_TO_CACHE, &rreq->flags)) {
-			if (!WARN_ON_ONCE(folio_get_private(folio) != NULL)) {
-				trace_netfs_folio(folio, netfs_folio_trace_copy_to_cache);
-				folio_attach_private(folio, NETFS_FOLIO_COPY_TO_CACHE);
-				folio_mark_dirty(folio);
-			}
+	if (!test_bit(NETFS_RREQ_USE_PGPRIV2, &rreq->flags)) {
+		if (netfs_folio_group(folio) == NETFS_FOLIO_COPY_TO_CACHE)  {
+			trace_netfs_folio(folio, netfs_folio_trace_sched_copy);
+			folio_mark_dirty(folio);
 		} else {
+			finfo = netfs_folio_info(folio);
+			if (finfo) {
+				trace_netfs_folio(folio, netfs_folio_trace_filled_gaps);
+				if (finfo->netfs_group)
+					folio_change_private(folio, finfo->netfs_group);
+				else
+					folio_detach_private(folio);
+				kfree(finfo);
+			}
 			trace_netfs_folio(folio, netfs_folio_trace_read_done);
 		}
 
 		folioq_clear(folioq, slot);
 	} else {
 		// TODO: Use of PG_private_2 is deprecated.
-		if (test_bit(NETFS_RREQ_FOLIO_COPY_TO_CACHE, &rreq->flags))
+		if (folio_test_private_2(folio))
 			netfs_pgpriv2_copy_to_cache(rreq, folio);
 	}
 
@@ -92,6 +115,35 @@ just_unlock:
 	}
 
 	folioq_clear(folioq, slot);
+}
+
+/*
+ * Determine how much to gather before unlocking more folios.
+ */
+void netfs_read_set_unlock_at(struct netfs_io_request *rreq)
+{
+	struct folio_queue *folioq = rreq->buffer.tail;
+	unsigned int slot = rreq->buffer.first_tail_slot;
+	size_t cleaned_to = rreq->cleaned_to - rreq->start;
+	size_t progress_at = cleaned_to;
+	size_t minimum = 256 * 1024;
+
+	while (progress_at < rreq->len) {
+		if (slot >= folioq_count(folioq)) {
+			folioq = folioq->next;
+			if (!folioq)
+				break;
+			slot = 0;
+		}
+
+		progress_at += folioq_folio_size(folioq, slot);
+		if (progress_at - cleaned_to >= minimum)
+			break;
+		slot++;
+	}
+
+	WRITE_ONCE(rreq->progress_at, progress_at);
+	trace_netfs_read_progress_at(rreq);
 }
 
 /*
@@ -112,20 +164,23 @@ static void netfs_read_unlock_folios(struct netfs_io_request *rreq,
 	if (slot >= folioq_nr_slots(folioq)) {
 		folioq = rolling_buffer_delete_spent(&rreq->buffer);
 		if (!folioq) {
-			rreq->front_folio_order = 0;
+			WRITE_ONCE(rreq->progress_at, rreq->len);
 			return;
 		}
 		slot = 0;
 	}
 
+	/* We have to wait for readahead refs to have been released before we
+	 * can unlock any folios as the ref-dropper walks i_pages and the only
+	 * thing preventing these folios from being removed is the folio lock.
+	 */
+	if (test_bit(NETFS_RREQ_NEED_PUT_RA_REFS, &rreq->flags))
+		netfs_wait_for_put_ra_refs(rreq);
+
 	for (;;) {
 		struct folio *folio;
 		unsigned long long fpos, fend;
-		unsigned int order;
 		size_t fsize;
-
-		if (*notes & COPY_TO_CACHE)
-			set_bit(NETFS_RREQ_FOLIO_COPY_TO_CACHE, &rreq->flags);
 
 		folio = folioq_folio(folioq, slot);
 		if (WARN_ONCE(!folio_test_locked(folio),
@@ -133,9 +188,7 @@ static void netfs_read_unlock_folios(struct netfs_io_request *rreq,
 			      rreq->debug_id, folio->index))
 			trace_netfs_folio(folio, netfs_folio_trace_not_locked);
 
-		order = folioq_folio_order(folioq, slot);
-		rreq->front_folio_order = order;
-		fsize = PAGE_SIZE << order;
+		fsize = folioq_folio_size(folioq, slot);
 		fpos = folio_pos(folio);
 		fend = fpos + fsize;
 
@@ -148,8 +201,6 @@ static void netfs_read_unlock_folios(struct netfs_io_request *rreq,
 		netfs_unlock_read_folio(rreq, folioq, slot);
 		WRITE_ONCE(rreq->cleaned_to, fpos + fsize);
 		*notes |= MADE_PROGRESS;
-
-		clear_bit(NETFS_RREQ_FOLIO_COPY_TO_CACHE, &rreq->flags);
 
 		/* Clean up the head folioq.  If we clear an entire folioq, then
 		 * we can get rid of it provided it's not also the tail folioq
@@ -172,6 +223,8 @@ static void netfs_read_unlock_folios(struct netfs_io_request *rreq,
 	rreq->buffer.tail = folioq;
 done:
 	rreq->buffer.first_tail_slot = slot;
+
+	netfs_read_set_unlock_at(rreq);
 }
 
 /*
@@ -232,7 +285,7 @@ reassess:
 		 * subreqs.
 		 */
 		if (notes & BUFFERED) {
-			size_t fsize = PAGE_SIZE << rreq->front_folio_order;
+			uoff_t unlock_at = rreq->start + rreq->progress_at;
 
 			/* Clear the tail of a short read. */
 			if (!(notes & HIT_PENDING) &&
@@ -248,16 +301,13 @@ reassess:
 			stream->collected_to = front->start + transferred;
 			rreq->collected_to = stream->collected_to;
 
-			if (test_bit(NETFS_SREQ_COPY_TO_CACHE, &front->flags))
-				notes |= COPY_TO_CACHE;
-
 			if (test_bit(NETFS_SREQ_FAILED, &front->flags)) {
 				rreq->abandon_to = front->start + front->len;
 				front->transferred = front->len;
 				transferred = front->len;
 				trace_netfs_rreq(rreq, netfs_rreq_trace_set_abandon);
 			}
-			if (front->start + transferred >= rreq->cleaned_to + fsize ||
+			if (front->start + transferred >= unlock_at ||
 			    test_bit(NETFS_SREQ_HIT_EOF, &front->flags))
 				netfs_read_unlock_folios(rreq, &notes);
 		} else {
@@ -477,20 +527,22 @@ void netfs_read_collection_worker(struct work_struct *work)
 void netfs_read_subreq_progress(struct netfs_io_subrequest *subreq)
 {
 	struct netfs_io_request *rreq = subreq->rreq;
-	struct netfs_io_stream *stream = &rreq->io_streams[0];
-	size_t fsize = PAGE_SIZE << rreq->front_folio_order;
-
-	trace_netfs_sreq(subreq, netfs_sreq_trace_progress);
+	struct netfs_io_stream *stream = &rreq->io_streams[subreq->stream_nr];
+	size_t progress_at = READ_ONCE(rreq->progress_at);
+	uoff_t update_at = rreq->start + progress_at;
+	uoff_t transferred_to = subreq->start + subreq->transferred;
 
 	/* If we are at the head of the queue, wake up the collector,
 	 * getting a ref to it if we were the ones to do so.
 	 */
-	if (subreq->start + subreq->transferred > rreq->cleaned_to + fsize &&
+	if (progress_at < rreq->len &&
+	    transferred_to >= update_at &&
 	    (rreq->origin == NETFS_READAHEAD ||
 	     rreq->origin == NETFS_READPAGE ||
 	     rreq->origin == NETFS_READ_FOR_WRITE) &&
 	    list_is_first(&subreq->rreq_link, &stream->subrequests)
 	    ) {
+		trace_netfs_sreq(subreq, netfs_sreq_trace_progress);
 		__set_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags);
 		netfs_wake_collector(rreq);
 	}

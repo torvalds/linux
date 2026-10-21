@@ -858,9 +858,7 @@ static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(fsact, 0x1131, 0x5f61),
 	MAKE_EXTENSION_PCI(omicom, 0x14c4, 0x1020),
 	MAKE_EXTENSION_PCI(sylt, 0x1131, 0x4f52),
-	{
-		.vendor    = 0,
-	}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, pci_tbl);

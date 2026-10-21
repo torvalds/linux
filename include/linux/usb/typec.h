@@ -337,6 +337,7 @@ void typec_unregister_cable(struct typec_cable *cable);
 struct typec_cable *typec_cable_get(struct typec_port *port);
 void typec_cable_put(struct typec_cable *cable);
 int typec_cable_is_active(struct typec_cable *cable);
+bool typec_cable_altmode_unsupported(struct typec_altmode *alt);
 
 struct typec_plug *typec_register_plug(struct typec_cable *cable,
 				       struct typec_plug_desc *desc);

@@ -163,7 +163,6 @@ enum {
 #define SetDuration(pbuf, dur) \
 	(*(__le16 *)((size_t)(pbuf) + 2) = cpu_to_le16(0xffff & (dur)))
 
-
 #define SetPriority(pbuf, tid)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16(tid & 0xf))
 
@@ -192,12 +191,15 @@ enum {
 static inline unsigned char *rtl8723bs_get_ra(unsigned char *pframe)
 {
 	unsigned char *ra;
+
 	ra = GetAddr1Ptr(pframe);
 	return ra;
 }
+
 static inline unsigned char *get_ta(unsigned char *pframe)
 {
 	unsigned char *ta;
+
 	ta = GetAddr2Ptr(pframe);
 	return ta;
 }
@@ -224,7 +226,6 @@ static inline unsigned char *get_da(unsigned char *pframe)
 
 	return da;
 }
-
 
 static inline unsigned char *get_sa(unsigned char *pframe)
 {
@@ -272,11 +273,11 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 	return sa;
 }
 
-
 static inline int IsFrameTypeCtrl(unsigned char *pframe)
 {
 	return GetFrameType(pframe) == WIFI_CTRL_TYPE;
 }
+
 /*-----------------------------------------------------------------------------
 			Below is for the security related definition
 ------------------------------------------------------------------------------*/
@@ -329,21 +330,20 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
  */
 struct ieee80211_ht_addt_info {
 	unsigned char control_chan;
-	unsigned char 	ht_param;
-	__le16	operation_mode;
-	__le16	stbc_param;
-	unsigned char 	basic_set[16];
+	unsigned char ht_param;
+	__le16 operation_mode;
+	__le16 stbc_param;
+	unsigned char basic_set[16];
 } __packed;
-
 
 struct HT_caps_element {
 	union {
 		struct {
-			__le16	HT_caps_info;
+			__le16 HT_caps_info;
 			unsigned char AMPDU_para;
 			unsigned char MCS_rate[16];
-			__le16	HT_ext_caps;
-			__le16	Beamforming_caps;
+			__le16 HT_ext_caps;
+			__le16 Beamforming_caps;
 			unsigned char ASEL_caps;
 		} HT_cap_element;
 		unsigned char HT_cap[26];
@@ -357,22 +357,22 @@ struct HT_info_element {
 } __packed;
 
 struct AC_param {
-	unsigned char 	ACI_AIFSN;
-	unsigned char 	CW;
-	__le16	TXOP_limit;
+	unsigned char ACI_AIFSN;
+	unsigned char CW;
+	__le16 TXOP_limit;
 } __packed;
 
 struct WMM_para_element {
-	unsigned char 	QoS_info;
-	unsigned char 	reserved;
-	struct AC_param	ac_param[4];
+	unsigned char QoS_info;
+	unsigned char reserved;
+	struct AC_param ac_param[4];
 } __packed;
 
 struct ADDBA_request {
-	unsigned char 	dialog_token;
-	__le16	BA_para_set;
-	__le16	BA_timeout_value;
-	__le16	BA_starting_seqctrl;
+	unsigned char dialog_token;
+	__le16 BA_para_set;
+	__le16 BA_timeout_value;
+	__le16 BA_starting_seqctrl;
 } __packed;
 
 /* 802.11n HT capabilities masks */
@@ -396,47 +396,6 @@ struct ADDBA_request {
 /* 	===============WPS Section =============== */
 /* 	WPS attribute ID */
 #define WPS_ATTR_SELECTED_REGISTRAR	0x1041
-
-/* 	=====================P2P Section ===================== */
-enum p2p_role {
-	P2P_ROLE_DISABLE = 0,
-	P2P_ROLE_DEVICE = 1,
-	P2P_ROLE_CLIENT = 2,
-	P2P_ROLE_GO = 3
-};
-
-enum p2p_state {
-	P2P_STATE_NONE = 0,							/* 	P2P disable */
-	P2P_STATE_IDLE = 1,								/* 	P2P had enabled and do nothing */
-	P2P_STATE_LISTEN = 2,							/* 	In pure listen state */
-	P2P_STATE_SCAN = 3,							/* 	In scan phase */
-	P2P_STATE_FIND_PHASE_LISTEN = 4,				/* 	In the listen state of find phase */
-	P2P_STATE_FIND_PHASE_SEARCH = 5,				/* 	In the search state of find phase */
-	P2P_STATE_TX_PROVISION_DIS_REQ = 6,			/* 	In P2P provisioning discovery */
-	P2P_STATE_RX_PROVISION_DIS_RSP = 7,
-	P2P_STATE_RX_PROVISION_DIS_REQ = 8,
-	P2P_STATE_GONEGO_ING = 9,						/* 	Doing the group owner negotiation handshake */
-	P2P_STATE_GONEGO_OK = 10,						/* 	finish the group negotiation handshake with success */
-	P2P_STATE_GONEGO_FAIL = 11,					/* 	finish the group negotiation handshake with failure */
-	P2P_STATE_RECV_INVITE_REQ_MATCH = 12,		/* 	receiving the P2P Invitation request and match with the profile. */
-	P2P_STATE_PROVISIONING_ING = 13,				/* 	Doing the P2P WPS */
-	P2P_STATE_PROVISIONING_DONE = 14,			/* 	Finish the P2P WPS */
-	P2P_STATE_TX_INVITE_REQ = 15,					/* 	Transmit the P2P Invitation request */
-	P2P_STATE_RX_INVITE_RESP_OK = 16,				/* 	Receiving the P2P Invitation response */
-	P2P_STATE_RECV_INVITE_REQ_DISMATCH = 17,	/* 	receiving the P2P Invitation request and mismatch with the profile. */
-	P2P_STATE_RECV_INVITE_REQ_GO = 18,			/* 	receiving the P2P Invitation request and this wifi is GO. */
-	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,			/* 	receiving the P2P Invitation request to join an existing P2P Group. */
-	P2P_STATE_RX_INVITE_RESP_FAIL = 20,			/* 	recveing the P2P Invitation response with failure */
-	P2P_STATE_RX_INFOR_NOREADY = 21,			/*  receiving p2p negotiation response with information is not available */
-	P2P_STATE_TX_INFOR_NOREADY = 22,			/*  sending p2p negotiation response with information is not available */
-};
-
-enum p2p_wpsinfo {
-	P2P_NO_WPSINFO						= 0,
-	P2P_GOT_WPSINFO_PEER_DISPLAY_PIN	= 1,
-	P2P_GOT_WPSINFO_SELF_DISPLAY_PIN	= 2,
-	P2P_GOT_WPSINFO_PBC					= 3,
-};
 
 #define IP_MCAST_MAC(mac)		((mac[0] == 0x01) && (mac[1] == 0x00) && (mac[2] == 0x5e))
 #define ICMPV6_MCAST_MAC(mac)	((mac[0] == 0x33) && (mac[1] == 0x33) && (mac[2] != 0xff))

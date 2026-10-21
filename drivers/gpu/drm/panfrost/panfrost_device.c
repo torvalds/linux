@@ -218,7 +218,6 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	int err;
 
 	mutex_init(&pfdev->sched_lock);
-	INIT_LIST_HEAD(&pfdev->scheduled_jobs);
 	INIT_LIST_HEAD(&pfdev->as_lru_list);
 
 	spin_lock_init(&pfdev->as_lock);

@@ -43,7 +43,7 @@ int s5p_mfc_alloc_priv_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
 
 	if (dev->mem_virt) {
 		start = bitmap_find_next_zero_area(dev->mem_bitmap, bits, 0, count, align);
-		if (start > bits)
+		if (start >= bits)
 			goto no_mem;
 
 		bitmap_set(dev->mem_bitmap, start, count);

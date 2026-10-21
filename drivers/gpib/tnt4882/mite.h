@@ -45,12 +45,12 @@ struct mite_struct {
 
 extern struct mite_struct *mite_devices;
 
-extern inline unsigned int mite_irq(struct mite_struct *mite)
+static inline unsigned int mite_irq(struct mite_struct *mite)
 {
 	return mite->pcidev->irq;
 };
 
-extern inline unsigned int mite_device_id(struct mite_struct *mite)
+static inline unsigned int mite_device_id(struct mite_struct *mite)
 {
 	return mite->pcidev->device;
 };

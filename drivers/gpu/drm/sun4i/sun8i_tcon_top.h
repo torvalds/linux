@@ -14,6 +14,10 @@
 #define TCON_TOP_PORT_SEL_REG		0x1C
 #define TCON_TOP_PORT_DE0_MSK			GENMASK(1, 0)
 #define TCON_TOP_PORT_DE1_MSK			GENMASK(5, 4)
+#define TCON_TOP_PORT_TCON_NUM			4
+
+#define TCON_TOP_MIXER0_OUT_PORT		1
+#define TCON_TOP_MIXER1_OUT_PORT		3
 
 #define TCON_TOP_GATE_SRC_REG		0x20
 #define TCON_TOP_HDMI_SRC_MSK			GENMASK(29, 28)
@@ -28,6 +32,8 @@ struct sun8i_tcon_top {
 	struct clk_hw_onecell_data	*clk_data;
 	void __iomem			*regs;
 	struct reset_control		*rst;
+
+	unsigned int			tcon_map;
 
 	/*
 	 * spinlock is used to synchronize access to same

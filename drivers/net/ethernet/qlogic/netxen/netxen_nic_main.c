@@ -3447,13 +3447,24 @@ static struct pci_driver netxen_driver = {
 
 static int __init netxen_init_module(void)
 {
+	int ret;
+
 	printk(KERN_INFO "%s\n", netxen_nic_driver_string);
 
 #ifdef CONFIG_INET
 	register_netdevice_notifier(&netxen_netdev_cb);
 	register_inetaddr_notifier(&netxen_inetaddr_cb);
 #endif
-	return pci_register_driver(&netxen_driver);
+
+	ret = pci_register_driver(&netxen_driver);
+#ifdef CONFIG_INET
+	if (ret) {
+		unregister_inetaddr_notifier(&netxen_inetaddr_cb);
+		unregister_netdevice_notifier(&netxen_netdev_cb);
+	}
+#endif
+
+	return ret;
 }
 
 module_init(netxen_init_module);

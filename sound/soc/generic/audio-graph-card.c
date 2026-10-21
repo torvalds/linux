@@ -579,11 +579,11 @@ int audio_graph_parse_of(struct simple_util_priv *priv, struct device *dev)
 		goto end;
 	}
 
-	ret = simple_util_parse_widgets(card, NULL);
+	ret = simple_util_parse_widgets(priv, NULL);
 	if (ret < 0)
 		goto end;
 
-	ret = simple_util_parse_routing(card, NULL);
+	ret = simple_util_parse_routing(priv, NULL);
 	if (ret < 0)
 		goto end;
 
@@ -594,6 +594,7 @@ int audio_graph_parse_of(struct simple_util_priv *priv, struct device *dev)
 	if (ret < 0)
 		goto err;
 
+	/* Card name should be set after graph_for_each_link() */
 	ret = simple_util_parse_card_name(priv, NULL);
 	if (ret < 0)
 		goto err;
@@ -603,14 +604,13 @@ int audio_graph_parse_of(struct simple_util_priv *priv, struct device *dev)
 	simple_util_debug_info(priv);
 
 	ret = devm_snd_soc_register_card(dev, card);
-	if (ret < 0)
-		goto err;
-
-	return 0;
 err:
-	simple_util_clean_reference(card);
+	if (ret < 0) {
+		simple_util_clean_reference(priv);
+		return dev_err_probe(dev, ret, "parse error\n");
+	}
 end:
-	return dev_err_probe(dev, ret, "parse error\n");
+	return graph_ret(priv, ret);
 }
 EXPORT_SYMBOL_GPL(audio_graph_parse_of);
 

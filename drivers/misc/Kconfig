@@ -57,28 +57,6 @@ config DUMMY_IRQ
 	  The sole purpose of this module is to help with debugging of systems on
 	  which spurious IRQs would happen on disabled IRQ vector.
 
-config IBM_ASM
-	tristate "Device driver for IBM RSA service processor"
-	depends on X86 && PCI && INPUT
-	depends on SERIAL_8250 || SERIAL_8250=n
-	help
-	  This option enables device driver support for in-band access to the
-	  IBM RSA (Condor) service processor in eServer xSeries systems.
-	  The ibmasm device driver allows user space application to access
-	  ASM (Advanced Systems Management) functions on the service
-	  processor. The driver is meant to be used in conjunction with
-	  a user space API.
-	  The ibmasm driver also enables the OS to use the UART on the
-	  service processor board as a regular serial port. To make use of
-	  this feature serial driver support (CONFIG_SERIAL_8250) must be
-	  enabled.
-
-	  WARNING: This software may not be supported or function
-	  correctly on your IBM server. Please consult the IBM ServerProven
-	  website <https://www-03.ibm.com/systems/info/x86servers/serverproven/compat/us/>
-	  for information on the specific driver level and support statement
-	  for your IBM server.
-
 config IBMVMC
 	tristate "IBM Virtual Management Channel support"
 	depends on PPC_PSERIES
@@ -184,19 +162,6 @@ config ENCLOSURE_SERVICES
 	  contain storage devices).  You also need either a host
 	  driver (SCSI/ATA) which supports enclosures
 	  or a SCSI enclosure device (SES) to use these services.
-
-config SGI_XP
-	tristate "Support communication between SGI SSIs"
-	depends on NET
-	depends on X86_UV && SMP
-	depends on X86_64 || BROKEN
-	select SGI_GRU if X86_64 && SMP
-	help
-	  An SGI machine can be divided into multiple Single System
-	  Images which act independently of each other and have
-	  hardware based memory protection from the others.  Enabling
-	  this feature will allow for direct communication between SSIs
-	  based on a network adapter and DMA messaging.
 
 config SMPRO_ERRMON
 	tristate "Ampere Computing SMPro error monitor driver"
@@ -309,27 +274,6 @@ config QCOM_FASTRPC
 	  make remote method invocations across processor boundary to
 	  applications DSP processor. Say M if you want to enable this
 	  module.
-
-config SGI_GRU
-	tristate "SGI GRU driver"
-	depends on X86_UV && SMP
-	select MMU_NOTIFIER
-	help
-	  The GRU is a hardware resource located in the system chipset. The GRU
-	  contains memory that can be mmapped into the user address space.
-	  This memory is used to communicate with the GRU to perform functions
-	  such as load/store, scatter/gather, bcopy, AMOs, etc.  The GRU is
-	  directly accessed by user instructions using user virtual addresses.
-	  GRU instructions (ex., bcopy) use user virtual addresses for operands.
-
-	  If you are not running on a SGI UV system, say N.
-
-config SGI_GRU_DEBUG
-	bool  "SGI GRU driver debug"
-	depends on SGI_GRU
-	help
-	  This option enables additional debugging code for the SGI GRU driver.
-	  If you are unsure, say N.
 
 config APDS9802ALS
 	tristate "Medfield Avago APDS9802 ALS Sensor module"
@@ -494,16 +438,6 @@ config MISC_RTSX
 	tristate
 	default MISC_RTSX_PCI || MISC_RTSX_USB
 
-config HISI_HIKEY_USB
-	tristate "USB GPIO Hub on HiSilicon Hikey 960/970 Platform"
-	depends on (OF && GPIOLIB) || COMPILE_TEST
-	depends on USB_ROLE_SWITCH
-	help
-	  If you say yes here this adds support for the on-board USB GPIO hub
-	  found on HiKey 960/970 boards, which is necessary to support
-	  switching between the dual-role USB-C port and the USB-A host ports
-	  using only one USB controller.
-
 config OPEN_DICE
 	tristate "Open Profile for DICE driver"
 	depends on OF_RESERVED_MEM
@@ -651,4 +585,5 @@ source "drivers/misc/mchp_pci1xxxx/Kconfig"
 source "drivers/misc/keba/Kconfig"
 source "drivers/misc/amd-sbi/Kconfig"
 source "drivers/misc/rp1/Kconfig"
+source "drivers/misc/issei/Kconfig"
 endmenu

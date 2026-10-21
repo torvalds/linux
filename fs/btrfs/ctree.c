@@ -1460,6 +1460,7 @@ static noinline void unlock_up(struct btrfs_path *path, int level,
  */
 static int
 read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
+		      struct btrfs_eb_prealloc *pa,
 		      struct extent_buffer **eb_ret, int slot,
 		      const struct btrfs_key *key)
 {
@@ -1546,7 +1547,8 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	if (p->reada != READA_NONE)
 		reada_for_search(fs_info, p, parent_level, slot, key->objectid);
 
-	tmp = btrfs_find_create_tree_block(fs_info, blocknr, check.owner_root, check.level);
+	tmp = btrfs_find_create_tree_block(fs_info, pa, blocknr,
+					   check.owner_root, check.level);
 	if (IS_ERR(tmp)) {
 		ret = PTR_ERR(tmp);
 		tmp = NULL;
@@ -2004,6 +2006,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	u8 lowest_level = 0;
 	int min_write_lock_level;
 	int prev_cmp;
+	struct btrfs_eb_prealloc pa = { .supports_nowait = true };
 
 	if (!root)
 		return -EINVAL;
@@ -2058,6 +2061,11 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	}
 
 again:
+	if (pa.needs_prealloc) {
+		ret = btrfs_init_eb_prealloc(fs_info, &pa, false);
+		if (ret)
+			goto done;
+	}
 	prev_cmp = -1;
 	b = btrfs_search_slot_get_root(root, p, write_lock_level);
 	if (IS_ERR(b)) {
@@ -2187,7 +2195,7 @@ cow_done:
 			goto done;
 		}
 
-		ret2 = read_block_for_search(root, p, &b, slot, key);
+		ret2 = read_block_for_search(root, p, &pa, &b, slot, key);
 		if (ret2 == -EAGAIN && !p->nowait) {
 			trace_btrfs_search_slot_restart(root, level, "read_block");
 			goto again;
@@ -2234,6 +2242,8 @@ done:
 			ret = ret2;
 	}
 
+	btrfs_free_eb_prealloc(&pa);
+
 	return ret;
 }
 ALLOW_ERROR_INJECTION(btrfs_search_slot, ERRNO);
@@ -2259,6 +2269,7 @@ int btrfs_search_old_slot(struct btrfs_root *root, const struct btrfs_key *key,
 	int level;
 	int lowest_unlock = 1;
 	u8 lowest_level = 0;
+	struct btrfs_eb_prealloc pa = { .supports_nowait = true };
 
 	lowest_level = p->lowest_level;
 	WARN_ON(p->nodes[0] != NULL);
@@ -2270,6 +2281,11 @@ int btrfs_search_old_slot(struct btrfs_root *root, const struct btrfs_key *key,
 	}
 
 again:
+	if (pa.needs_prealloc) {
+		ret = btrfs_init_eb_prealloc(fs_info, &pa, false);
+		if (ret)
+			goto done;
+	}
 	b = btrfs_get_old_root(root, time_seq);
 	if (unlikely(!b)) {
 		ret = -EIO;
@@ -2316,7 +2332,7 @@ again:
 			goto done;
 		}
 
-		ret2 = read_block_for_search(root, p, &b, slot, key);
+		ret2 = read_block_for_search(root, p, &pa, &b, slot, key);
 		if (ret2 == -EAGAIN && !p->nowait)
 			goto again;
 		if (ret2) {
@@ -2338,6 +2354,8 @@ again:
 done:
 	if (ret < 0)
 		btrfs_release_path(p);
+
+	btrfs_free_eb_prealloc(&pa);
 
 	return ret;
 }
@@ -4780,6 +4798,7 @@ int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,
 	struct extent_buffer *next;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key key;
+	struct btrfs_eb_prealloc pa = { .supports_nowait = true };
 	bool need_commit_sem = false;
 	u32 nritems;
 	int ret;
@@ -4798,6 +4817,11 @@ int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,
 
 	btrfs_item_key_to_cpu(path->nodes[0], &key, nritems - 1);
 again:
+	if (pa.needs_prealloc) {
+		ret = btrfs_init_eb_prealloc(fs_info, &pa, false);
+		if (ret)
+			goto done;
+	}
 	level = 1;
 	next = NULL;
 	btrfs_release_path(path);
@@ -4880,7 +4904,7 @@ again:
 		}
 
 		next = c;
-		ret = read_block_for_search(root, path, &next, slot, &key);
+		ret = read_block_for_search(root, path, &pa, &next, slot, &key);
 		if (ret == -EAGAIN && !path->nowait)
 			goto again;
 
@@ -4923,7 +4947,7 @@ again:
 		if (!level)
 			break;
 
-		ret = read_block_for_search(root, path, &next, 0, &key);
+		ret = read_block_for_search(root, path, &pa, &next, 0, &key);
 		if (ret == -EAGAIN && !path->nowait)
 			goto again;
 
@@ -4955,6 +4979,8 @@ done:
 		if (ret2)
 			ret = ret2;
 	}
+
+	btrfs_free_eb_prealloc(&pa);
 
 	return ret;
 }

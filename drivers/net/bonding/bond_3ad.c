@@ -760,14 +760,14 @@ static int __agg_usable_ports(struct aggregator *agg)
 	return valid;
 }
 
-static int __agg_active_ports(struct aggregator *agg)
+static int __agg_active_ports(const struct aggregator *agg)
 {
-	struct port *port;
+	const struct port *port;
 	int active = 0;
 
 	for (port = agg->lag_ports; port;
 	     port = port->next_port_in_aggregator) {
-		if (port->is_enabled)
+		if (READ_ONCE(port->is_enabled))
 			active++;
 	}
 
@@ -2801,11 +2801,11 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 	 * some of he adaptors(ce1000.lan) report.
 	 */
 	if (link == BOND_LINK_UP) {
-		port->is_enabled = true;
+		WRITE_ONCE(port->is_enabled, true);
 		ad_update_actor_keys(port, false);
 	} else {
 		/* link has failed */
-		port->is_enabled = false;
+		WRITE_ONCE(port->is_enabled, false);
 		ad_update_actor_keys(port, true);
 	}
 	agg = __get_first_agg(port);
@@ -2878,16 +2878,20 @@ out:
  * Returns:   0 on success
  *          < 0 on error
  */
-int __bond_3ad_get_active_agg_info(struct bonding *bond,
+int __bond_3ad_get_active_agg_info(const struct bonding *bond,
 				   struct ad_info *ad_info)
 {
-	struct aggregator *aggregator = NULL, *tmp;
+	const struct aggregator *aggregator = NULL, *tmp;
+	struct ad_slave_info *ad_slave_info;
+	const struct port *port;
 	struct list_head *iter;
 	struct slave *slave;
-	struct port *port;
 
 	bond_for_each_slave_rcu(bond, slave, iter) {
-		port = &(SLAVE_AD_INFO(slave)->port);
+		ad_slave_info = SLAVE_AD_INFO(slave);
+		if (!ad_slave_info)
+			continue;
+		port = &ad_slave_info->port;
 		tmp = rcu_dereference(port->aggregator);
 		if (tmp && tmp->is_active) {
 			aggregator = tmp;
@@ -2907,7 +2911,7 @@ int __bond_3ad_get_active_agg_info(struct bonding *bond,
 	return 0;
 }
 
-int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
+int bond_3ad_get_active_agg_info(const struct bonding *bond, struct ad_info *ad_info)
 {
 	int ret;
 

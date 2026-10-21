@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
 #include "atmel-i2c.h"
@@ -31,10 +32,14 @@ static void atmel_sha204a_rng_done(struct atmel_i2c_work_data *work_data,
 	struct atmel_i2c_client_priv *i2c_priv = work_data->ctx;
 	struct hwrng *rng = areq;
 
-	if (status)
+	if (status) {
 		dev_warn_ratelimited(&i2c_priv->client->dev,
 				     "i2c transaction failed (%d)\n",
 				     status);
+		kfree_sensitive(work_data);
+		atomic_dec(&i2c_priv->tfm_count);
+		return;
+	}
 
 	rng->priv = (unsigned long)work_data;
 	atomic_dec(&i2c_priv->tfm_count);
@@ -91,12 +96,15 @@ static int atmel_sha204a_rng_read(struct hwrng *rng, void *data, size_t max,
 
 	ret = atmel_i2c_send_receive(i2c_priv->client, &cmd);
 	if (ret)
-		return ret;
+		goto out;
 
 	max = min(RANDOM_RSP_SIZE - CMD_OVERHEAD_SIZE, max);
 	memcpy(data, &cmd.data[RSP_DATA_IDX], max);
+	ret = max;
 
-	return max;
+out:
+	memzero_explicit(&cmd, sizeof(cmd));
+	return ret;
 }
 
 static int atmel_sha204a_otp_read(struct i2c_client *client, u16 addr, u8 *otp)
@@ -205,7 +213,7 @@ static void atmel_sha204a_remove(struct i2c_client *client)
 	devm_hwrng_unregister(&client->dev, &i2c_priv->hwrng);
 	atmel_i2c_flush_queue();
 
-	kfree((void *)i2c_priv->hwrng.priv);
+	kfree_sensitive((void *)i2c_priv->hwrng.priv);
 }
 
 static const struct of_device_id atmel_sha204a_dt_ids[] = {

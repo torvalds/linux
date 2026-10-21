@@ -33,14 +33,22 @@ int ext4_inode_journal_mode(struct inode *inode)
 static handle_t *ext4_get_nojournal(void)
 {
 	handle_t *handle = current->journal_info;
-	unsigned long ref_cnt = (unsigned long)handle;
 
-	BUG_ON(ref_cnt >= EXT4_NOJOURNAL_MAX_REF_COUNT);
+	BUG_ON(handle && !handle->h_invalid);
 
-	ref_cnt++;
-	handle = (handle_t *)ref_cnt;
-
-	current->journal_info = handle;
+	if (!handle) {
+		handle = jbd2_alloc_handle(GFP_NOFS);
+		if (!handle)
+			return ERR_PTR(-ENOMEM);
+		handle->h_invalid = 1;
+		/*
+		 * This is done by start_this_handle() if journalling
+		 * is enabled.
+		 */
+		handle->saved_alloc_context = memalloc_nofs_save();
+		current->journal_info = handle;
+	}
+	handle->h_ref++;
 	return handle;
 }
 
@@ -48,14 +56,14 @@ static handle_t *ext4_get_nojournal(void)
 /* Decrement the non-pointer handle value */
 static void ext4_put_nojournal(handle_t *handle)
 {
-	unsigned long ref_cnt = (unsigned long)handle;
+	BUG_ON(handle->h_ref == 0);
 
-	BUG_ON(ref_cnt == 0);
-
-	ref_cnt--;
-	handle = (handle_t *)ref_cnt;
-
-	current->journal_info = handle;
+	handle->h_ref--;
+	if (handle->h_ref == 0) {
+		memalloc_nofs_restore(handle->saved_alloc_context);
+		jbd2_free_handle(handle);
+		current->journal_info = NULL;
+	}
 }
 
 /*

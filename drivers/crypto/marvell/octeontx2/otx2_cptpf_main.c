@@ -430,11 +430,8 @@ static int cptpf_register_afpf_mbox_intr(struct otx2_cptpf_dev *cptpf)
 	/* Register AF-PF mailbox interrupt handler */
 	ret = devm_request_irq(dev, irq, otx2_cptpf_afpf_mbox_intr, 0,
 			       "CPTAFPF Mbox", cptpf);
-	if (ret) {
-		dev_err(dev,
-			"IRQ registration failed for PFAF mbox irq\n");
+	if (ret)
 		return ret;
-	}
 	/* Clear interrupt if any, to avoid spurious interrupts */
 	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0, RVU_PF_INT, 0x1ULL);
 	/* Enable AF-PF interrupt */

@@ -11,7 +11,7 @@ maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
-  The device is controlled through two pins:: FL_EN and EN_SET. The pins when,
+  The device is controlled through two pins: FL_EN and EN_SET. The pins when,
   asserted high, enable flash strobe and movie mode (max 1/2 of flash current)
   respectively. In order to add a capability of selecting the strobe signal
   source (e.g. CPU or camera sensor) there is an additional switch required,
@@ -39,11 +39,11 @@ properties:
       flash-max-microamp:
         description: |
           Maximum flash LED supply current can be calculated using following
-          formula:: I = 1A * 162 kOhm / Rset.
+          formula: I = 1A * 162 kOhm / Rset.
 
       flash-max-timeout-us:
         description: |
-          Maximum flash timeout can be calculated using following formula::
+          Maximum flash timeout can be calculated using following formula:
             T = 8.82 * 10^9 * Ct.
 
     required:

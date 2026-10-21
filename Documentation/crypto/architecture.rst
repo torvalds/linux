@@ -95,7 +95,7 @@ additional templates may enclose other templates, such as
 
 ::
 
-        template1(template2(single block cipher)))
+        template1(template2(single block cipher))
 
 
 The kernel crypto API may provide multiple implementations of a template

@@ -2129,6 +2129,13 @@ static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
 		of_property_read_bool(np, "gpmc,time-para-granularity");
 }
 
+static int gpmc_child_is_nand(struct device_node *child)
+{
+	/* This has to match drivers/mtd/nand/raw/omap2.c's omap_nand_ids[] */
+	return of_device_is_compatible(child, "ti,omap2-nand") ||
+		of_device_is_compatible(child, "ti,am64-nand");
+}
+
 /**
  * gpmc_probe_generic_child - configures the gpmc for a child device
  * @pdev:	pointer to gpmc platform device
@@ -2220,7 +2227,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		goto err;
 	}
 
-	if (of_match_node(omap_nand_ids, child)) {
+	if (gpmc_child_is_nand(child)) {
 		/* NAND specific setup */
 		val = 8;
 		of_property_read_u32(child, "nand-bus-width", &val);

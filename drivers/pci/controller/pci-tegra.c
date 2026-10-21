@@ -1356,8 +1356,7 @@ static int tegra_pcie_port_get_phys(struct tegra_pcie_port *port)
 	for (i = 0; i < port->lanes; i++) {
 		phy = devm_of_phy_optional_get_index(dev, port->np, "pcie", i);
 		if (IS_ERR(phy)) {
-			dev_err(dev, "failed to get PHY#%u: %ld\n", i,
-				PTR_ERR(phy));
+			dev_err(dev, "failed to get PHY#%u: %pe\n", i, phy);
 			return PTR_ERR(phy);
 		}
 

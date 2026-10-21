@@ -17,7 +17,21 @@ virtual org
 virtual context
 virtual patch
 
-@rmax depends on !patch@
+@max_candidate disable not_int1, not_int2, neg_if_exp@
+expression E1, E2, E3, E4;
+binary operator cmp = {>, >=};
+@@
+
+	E1 cmp E2 ? E3 : E4
+
+@min_candidate disable not_int1, not_int2, neg_if_exp@
+expression E1, E2, E3, E4;
+binary operator cmp = {<, <=};
+@@
+
+	E1 cmp E2 ? E3 : E4
+
+@rmax depends on !patch && max_candidate disable not_int1, not_int2, neg_if_exp@
 identifier func;
 expression x, y;
 binary operator cmp = {>, >=};
@@ -27,11 +41,23 @@ position p;
 func(...)
 {
 	<...
-*	((x) cmp@p (y) ? (x) : (y))
+*	(x) cmp@p (y) ? (x) : (y)
 	...>
 }
 
-@rmaxif depends on !patch@
+@maxif_candidate disable not_int1, not_int2, neg_if@
+expression x, y;
+expression max_val;
+binary operator cmp = {>, >=};
+@@
+
+if ((x) cmp (y)) {
+        max_val = (x);
+} else {
+        max_val = (y);
+}
+
+@rmaxif depends on !patch && maxif_candidate disable not_int1, not_int2, neg_if@
 identifier func;
 expression x, y;
 expression max_val;
@@ -51,7 +77,7 @@ func(...)
 }
 
 // Ignore errcode returns.
-@errcode@
+@errcode depends on min_candidate disable not_int1, not_int2, neg_if_exp@
 position p;
 identifier func;
 expression x;
@@ -65,7 +91,7 @@ func(...)
 	...>
 }
 
-@rmin depends on !patch@
+@rmin depends on !patch && min_candidate disable not_int1, not_int2, neg_if_exp@
 identifier func;
 expression x, y;
 binary operator cmp = {<, <=};
@@ -75,11 +101,23 @@ position p != errcode.p;
 func(...)
 {
 	<...
-*	((x) cmp@p (y) ? (x) : (y))
+*	(x) cmp@p (y) ? (x) : (y)
 	...>
 }
 
-@rminif depends on !patch@
+@minif_candidate disable not_int1, not_int2, neg_if@
+expression x, y;
+expression min_val;
+binary operator cmp = {<, <=};
+@@
+
+if ((x) cmp (y)) {
+        min_val = (x);
+} else {
+        min_val = (y);
+}
+
+@rminif depends on !patch && minif_candidate disable not_int1, not_int2, neg_if@
 identifier func;
 expression x, y;
 expression min_val;
@@ -98,7 +136,7 @@ func(...)
 	...>
 }
 
-@pmax depends on patch@
+@pmax depends on patch && max_candidate disable not_int1, not_int2, neg_if_exp@
 identifier func;
 expression x, y;
 binary operator cmp = {>=, >};
@@ -112,7 +150,7 @@ func(...)
 	...>
 }
 
-@pmaxif depends on patch@
+@pmaxif depends on patch && maxif_candidate disable not_int1, not_int2, neg_if@
 identifier func;
 expression x, y;
 expression max_val;
@@ -131,7 +169,7 @@ func(...)
 	...>
 }
 
-@pmin depends on patch@
+@pmin depends on patch && min_candidate disable not_int1, not_int2, neg_if_exp@
 identifier func;
 expression x, y;
 binary operator cmp = {<=, <};
@@ -146,7 +184,7 @@ func(...)
 	...>
 }
 
-@pminif depends on patch@
+@pminif depends on patch && minif_candidate disable not_int1, not_int2, neg_if@
 identifier func;
 expression x, y;
 expression min_val;

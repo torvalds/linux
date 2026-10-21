@@ -56,6 +56,17 @@ tc_stats_get()
 	tc_rule_handle_stats_get "dev dummy1 egress" 101 ".packets" "-n $ns1"
 }
 
+nh_stats_get_port()
+{
+	ip -n "$ns1" -s -j nexthop show id 20 | \
+		jq ".[][\"group_stats\"][][\"packets\"]"
+}
+
+tc_stats_get_port()
+{
+	tc_rule_handle_stats_get "dev dummy1 egress" 102 ".packets" "-n $ns1"
+}
+
 basic_tx_common()
 {
 	local af_str=$1; shift
@@ -89,6 +100,31 @@ basic_tx_common()
 
 	busywait "$BUSYWAIT_TIMEOUT" until_counter_is "== 1" tc_stats_get > /dev/null
 	check_err $? "tc filter stats did not increase"
+
+	# Add a second FDB nexthop group whose nexthop carries a per-nexthop
+	# destination port (NHA_DST_PORT) that differs from the VXLAN device
+	# default. Matching outer traffic must egress with that port, so a
+	# separate flower filter keyed on the new port catches it.
+	run_cmd "tc -n $ns1 filter add dev dummy1 egress proto $proto \
+		pref 1 handle 102 flower ip_proto udp dst_ip $remote_addr \
+		dst_port 4790 action pass"
+
+	run_cmd "ip -n $ns1 nexthop add id 2 via $remote_addr fdb dst_port 4790"
+	run_cmd "ip -n $ns1 nexthop add id 20 group 2 fdb"
+
+	run_cmd "bridge -n $ns1 fdb add 00:11:22:33:44:66 dev vx0 \
+		self static nhid 20"
+
+	run_cmd "ip netns exec $ns1 mausezahn vx0 -a own \
+		-b 00:11:22:33:44:66 -c 1 -q"
+
+	busywait "$BUSYWAIT_TIMEOUT" until_counter_is "== 1" \
+		nh_stats_get_port > /dev/null
+	check_err $? "FDB nexthop group stats did not increase (with port)"
+
+	busywait "$BUSYWAIT_TIMEOUT" until_counter_is "== 1" \
+		tc_stats_get_port > /dev/null
+	check_err $? "tc filter stats did not increase (with port)"
 
 	log_test "VXLAN FDB nexthop: $af_str basic Tx"
 }
@@ -210,8 +246,8 @@ require_command arping
 require_command ndisc6
 require_command jq
 
-if ! ip nexthop help 2>&1 | grep -q "stats"; then
-	echo "SKIP: iproute2 ip too old, missing nexthop stats support"
+if ! ip nexthop help 2>&1 | grep -q "dst_port"; then
+	echo "SKIP: iproute2 ip too old, missing nexthop dst_port support"
 	exit "$ksft_skip"
 fi
 

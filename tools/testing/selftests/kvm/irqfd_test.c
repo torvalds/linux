@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
 
 	close(__eventfd);
 
-	pthread_create(&racing_thread, NULL, secondary_irqfd_juggler, vm2);
+	kvm_pthread_create(&racing_thread, NULL, secondary_irqfd_juggler, vm2);
 
 	for (i = 0; i < 10000; i++) {
 		WRITE_ONCE(__eventfd, kvm_new_eventfd());
@@ -139,5 +139,5 @@ int main(int argc, char *argv[])
 	}
 
 	WRITE_ONCE(done, true);
-	pthread_join(racing_thread, NULL);
+	kvm_pthread_join(racing_thread, NULL);
 }

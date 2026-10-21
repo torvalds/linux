@@ -48,29 +48,16 @@ match_packet(const struct sk_buff *skb,
 	const struct xt_sctp_flag_info *flag_info = info->flag_info;
 	int flag_count = info->flag_count;
 
-#ifdef DEBUG
-	int i = 0;
-#endif
-
 	if (chunk_match_type == SCTP_CHUNK_MATCH_ALL)
 		SCTP_CHUNKMAP_COPY(chunkmapcopy, info->chunkmap);
 
 	do {
 		sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch);
 		if (sch == NULL || sch->length == 0) {
-			pr_debug("Dropping invalid SCTP packet.\n");
 			*hotdrop = true;
 			return false;
 		}
-#ifdef DEBUG
-		pr_debug("Chunk num: %d\toffset: %d\ttype: %d\tlength: %d"
-			 "\tflags: %x\n",
-			 ++i, offset, sch->type, htons(sch->length),
-			 sch->flags);
-#endif
 		offset += SCTP_PAD4(ntohs(sch->length));
-
-		pr_debug("skb->len: %d\toffset: %d\n", skb->len, offset);
 
 		if (SCTP_CHUNKMAP_IS_SET(info->chunkmap, sch->type)) {
 			switch (chunk_match_type) {
@@ -121,18 +108,14 @@ sctp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	const struct sctphdr *sh;
 	struct sctphdr _sh;
 
-	if (par->fragoff != 0) {
-		pr_debug("Dropping non-first fragment.. FIXME\n");
+	if (par->fragoff != 0)
 		return false;
-	}
 
 	sh = skb_header_pointer(skb, par->thoff, sizeof(_sh), &_sh);
 	if (sh == NULL) {
-		pr_debug("Dropping evil TCP offset=0 tinygram.\n");
 		par->hotdrop = true;
 		return false;
 	}
-	pr_debug("spt: %d\tdpt: %d\n", ntohs(sh->source), ntohs(sh->dest));
 
 	return  SCCHECK(ntohs(sh->source) >= info->spts[0]
 			&& ntohs(sh->source) <= info->spts[1],

@@ -639,7 +639,7 @@ qed_dcbx_get_operational_params(struct qed_hwfn *p_hwfn,
 	flags = p_hwfn->p_dcbx_info->operational.flags;
 
 	/* If DCBx version is non zero, then negotiation
-	 * was successfuly performed
+	 * was successfully performed
 	 */
 	p_operational = &params->operational;
 	enabled = !!(QED_MFW_GET_FIELD(flags, DCBX_CONFIG_VERSION) !=

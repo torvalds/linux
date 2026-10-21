@@ -78,3 +78,28 @@ Description:
 
 		Reading this file returns the profile names with the currently active one in
 		brackets.
+
+What:		/sys/bus/platform/devices/INOU0000:XX/ac_auto_boot
+Date:		March 2026
+KernelVersion:	7.1
+Contact:	Armin Wolf <W_Armin@gmx.de>
+Description:
+		Allows userspace applications to configure if the device should boot automatically
+		when being connected to a power source. Writing "1"/"0" into this file
+		enables/disables this functionality. Enabling both AC auto boot and USB powershare
+		at the same time is not supported.
+
+		Reading this file returns the current status of the AC auto boot functionality.
+
+What:		/sys/bus/platform/devices/INOU0000:XX/usb_powershare_high
+Date:		March 2026
+KernelVersion:	7.1
+Contact:	Armin Wolf <W_Armin@gmx.de>
+Description:
+		Allows userspace applications to configure if the device should continue to provide
+		power via the USB ports when hibernating or powered off. Might also increase the
+		power budget available to USB ports on some devices. Writing "1"/"0" into this
+		file enables/disables this functionality. Enabling both USB powershare and AC auto
+		boot at the same time is not supported.
+
+		Reading this file returns the current status of the USB powershare functionality.

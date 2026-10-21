@@ -72,6 +72,19 @@ struct rt_firmware_hdr {
 #define DRIVER_EARLY_INT_TIME_8723B  0x05
 #define BCN_DMA_ATIME_INT_TIME_8723B 0x02
 
+/* REG_TBTT_PROHIBIT (0x0540) - TBTT prohibit hold/setup in 32us units */
+#define TBTT_PROHIBIT_SETUP_8723B 0x04
+#define TBTT_PROHIBIT_HOLD_8723B  0x64
+#define TBTT_PROHIBIT_TIME_8723B \
+	((TBTT_PROHIBIT_HOLD_8723B << 8) | TBTT_PROHIBIT_SETUP_8723B)
+
+/* REG_BCNTCFG (0x0510) - beacon AIFS, CWmin, CWmax (EDCA-like layout) */
+#define BCN_AIFS_8723B   0x0F
+#define BCN_CW_MIN_8723B 0x06
+#define BCN_CW_MAX_8723B 0x06
+#define BCNTCFG_8723B \
+	((BCN_CW_MAX_8723B << 12) | (BCN_CW_MIN_8723B << 8) | BCN_AIFS_8723B)
+
 /* for 8723B */
 /* TX 32K, RX 16K, Page size 128B for TX, 8B for RX */
 #define PAGE_SIZE_TX_8723B 128
@@ -180,11 +193,6 @@ enum { /* tag_Package_Definition */
 	PACKAGE_TFBGA79
 };
 
-#define INCLUDE_MULTI_FUNC_BT(_Adapter)  \
-	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
-#define INCLUDE_MULTI_FUNC_GPS(_Adapter) \
-	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_GPS)
-
 /*  rtl8723a_hal_init.c */
 s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw);
 void rtl8723b_FirmwareSelfReset(struct adapter *padapter);
@@ -203,12 +211,8 @@ void Hal_EfuseParseTxPowerInfo_8723B(struct adapter *padapter, u8 *PROMContent,
 				     bool AutoLoadFail);
 void Hal_EfuseParseBTCoexistInfo_8723B(struct adapter *padapter, u8 *hwinfo,
 				       bool AutoLoadFail);
-void Hal_EfuseParseEEPROMVer_8723B(struct adapter *padapter, u8 *hwinfo,
-				   bool AutoLoadFail);
 void Hal_EfuseParseChnlPlan_8723B(struct adapter *padapter, u8 *hwinfo,
 				  bool AutoLoadFail);
-void Hal_EfuseParseCustomerID_8723B(struct adapter *padapter, u8 *hwinfo,
-				    bool AutoLoadFail);
 void Hal_EfuseParseXtal_8723B(struct adapter *padapter, u8 *hwinfo,
 			      bool AutoLoadFail);
 void Hal_EfuseParseThermalMeter_8723B(struct adapter *padapter, u8 *hwinfo,

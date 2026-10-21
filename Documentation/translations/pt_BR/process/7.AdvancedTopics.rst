@@ -1,0 +1,201 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Tópicos avançados
+=================
+
+Neste ponto, esperamos que você já tenha uma boa noção de como funciona o
+processo de desenvolvimento. No entanto, ainda há mais a aprender! Esta seção
+cobrirá uma série de tópicos que podem ser úteis para desenvolvedores que
+desejam se tornar parte regular do processo de desenvolvimento do kernel Linux.
+
+Gerenciamento de patches com o git
+----------------------------------
+
+O uso de controle de versão distribuído para o kernel começou no início de
+2002, quando Linus começou a testar o aplicativo proprietário BitKeeper.
+Embora o BitKeeper fosse controverso, a abordagem de gerenciamento de versão
+de software que ele incorporava certamente não era. O controle de versão
+distribuído permitiu uma aceleração imediata do projeto de desenvolvimento do
+kernel. Atualmente, existem várias alternativas gratuitas ao BitKeeper. Para o
+bem ou para o mal, o projeto do kernel adotou o git como sua ferramenta de
+escolha.
+
+Gerenciar patches com o git pode facilitar muito a vida do desenvolvedor,
+especialmente à medida que o volume desses patches cresce. O git também tem suas
+pontas soltas e apresenta certos riscos; é uma ferramenta jovem e poderosa que
+ainda está sendo refinada por seus desenvolvedores. Este documento não tentará
+ensinar o leitor a usar o git; isso seria material suficiente para um documento
+longo por si só. Em vez disso, o foco aqui será em como o git se encaixa
+especificamente no processo de desenvolvimento do kernel. Os desenvolvedores
+que desejam se atualizar com o git encontrarão mais informações em:
+
+	https://git-scm.com/
+
+	https://www.kernel.org/pub/software/scm/git/docs/user-manual.html
+
+e em vários tutoriais encontrados na web.
+
+A primeira ordem do dia é ler os sites acima e obter uma compreensão sólida de
+como o git funciona antes de tentar usá-lo para disponibilizar patches para
+outros. Um desenvolvedor que utiliza o git deve ser capaz de obter uma cópia do
+repositório principal, explorar o histórico de revisões, comitar alterações na
+árvore, usar branches, etc. A compreensão das ferramentas do git para a
+reescrita de histórico (como o rebase) também é útil. O git vem com sua própria
+terminologia e conceitos; um novo usuário do git deve saber sobre refs, remote
+branches, o index, fast-forward merges, pushes e pulls, detached HEADs, etc.
+Tudo isso pode ser um pouco intimidante no início, mas os conceitos não são tão
+difíceis de entender com um pouco de estudo.
+
+Usar o git para gerar patches para submissão por e-mail pode ser um bom exercício
+enquanto você se atualiza.
+
+Quando estiver pronto para começar a disponibilizar árvores git para que outros
+possam examinar, você, logicamente, precisará de um servidor a partir do qual um
+pull possa ser feito. Configurar um servidor desse tipo com o git-daemon é
+relativamente simples se você tiver um sistema acessível à internet. Caso
+contrário, sites de hospedagem públicos e gratuitos (o GitHub, por exemplo)
+estão começando a surgir na rede. Desenvolvedores estabelecidos podem obter uma
+conta no kernel.org, mas estas não são fáceis de conseguir; consulte
+https://kernel.org/faq/ para mais informações.
+
+O fluxo de trabalho normal do git envolve o uso de muitas branches. Cada linha
+de desenvolvimento pode ser separada em uma "topic branch" distinta e mantida de
+forma independente. Branches no git são baratas, não há razão para não fazer um
+uso livre delas. E, em qualquer caso, você não deve fazer o seu desenvolvimento
+em nenhuma branch a partir da qual pretenda pedir para que outros deem pull.
+Branches disponíveis publicamente devem ser criadas com cuidado; mescle patches
+de branches de desenvolvimento quando eles estiverem em sua forma final e prontos
+para seguir em frente — não antes.
+
+O git fornece algumas ferramentas poderosas que podem permitir que você
+reescreva o seu histórico de desenvolvimento. Um patch inconveniente (um que
+quebre o bisection, por exemplo, ou que tenha algum outro tipo de bug óbvio)
+pode ser corrigido localmente ou feito desaparecer completamente do histórico.
+Uma série de patches pode ser reescrita como se tivesse sido escrita no topo da
+linha principal de hoje, mesmo que você esteja trabalhando nela há meses. As
+alterações podem ser movidas de forma transparente de uma branch para outra. E
+assim por diante. O uso criterioso da capacidade do git de revisar o histórico
+pode ajudar na criação de conjuntos de patches limpos e com menos problemas.
+
+O uso excessivo dessa capacidade pode levar a outros problemas, no entanto, além
+de uma simples obsessão pela criação do histórico de projeto perfeito. Reescrever
+o histórico reescreverá as alterações contidas nele, transformando uma árvore do
+kernel testada (assim se espera) em uma não testada. Mas, além disso, os
+desenvolvedores não podem colaborar facilmente se não tiverem uma visão
+compartilhada do histórico do projeto; se você reescrever o histórico que outros
+desenvolvedores já deram pull em seus repositórios, tornará a vida deles muito
+mais difícil. Portanto, uma regra prática simples se aplica aqui: o histórico
+que foi exportado para terceiros deve ser visto geralmente como imutável dali em
+diante.
+
+Sendo assim, uma vez que você faz o push de um conjunto de alterações para o seu
+servidor disponível publicamente, essas alterações não devem ser reescritas. O
+git tentará aplicar essa regra se você tentar dar push em alterações que não
+resultem em um fast-forward merge (ou seja, alterações que não compartilham o
+mesmo histórico). É possível anular essa verificação, e pode haver momentos em
+que seja necessário reescrever uma árvore exportada. Mover changesets entre
+árvores para evitar conflitos na linux-next é um exemplo. No entanto, tais ações
+devem ser raras. Esta é uma das razões pelas quais o desenvolvimento deve ser
+feito em branches privadas (que podem ser reescritas, se necessário) e apenas
+movido para branches públicas quando estiver em um estado razoavelmente avançado.
+
+À medida que a linha principal (ou outra árvore na qual um conjunto de
+alterações se baseia) avança, é tentador fazer o merge com essa árvore para
+permanecer na vanguarda. Para uma branch privada, o rebasing pode ser uma maneira
+fácil de acompanhar outra árvore, mas o rebasing não é uma opção uma vez que uma
+árvore é exportada para o mundo. Quando isso acontece, um merge completo deve
+ser feito. Fazer merges ocasionalmente faz todo o sentido, mas merges excessivamente
+frequentes podem poluir o histórico desnecessariamente. A técnica sugerida neste
+caso é fazer merges raramente, e geralmente apenas em release points específicos
+(como um lançamento -rc da linha principal). Se você estiver inseguro sobre
+mudanças específicas, sempre poderá realizar merges de teste em uma branch
+privada. A ferramenta "rerere" do git pode ser útil nessas situações; ela se
+lembra de como os conflitos de merge foram resolvidos para que você não precise
+fazer o mesmo trabalho duas vezes.
+
+Uma das maiores reclamações recorrentes sobre ferramentas como o git é esta: o
+movimento em massa de patches de um repositório para outro torna fácil a
+inclusão de mudanças desaconselháveis que entram na linha principal abaixo do
+radar de revisão. Os desenvolvedores do kernel costumam ficar descontentes quando
+veem esse tipo de coisa acontecer; disponibilizar uma árvore git com patches não
+revisados ou fora do tópico pode afetar a sua capacidade de ter suas árvores
+puxadas no futuro. Citando Linus:
+
+::
+
+    Você pode me enviar patches, mas para eu puxar um patch git de você, eu
+    preciso saber que você sabe o que está fazendo, e preciso ser capaz de
+    confiar nas coisas *sem* ter que ir lá e verificar cada mudança
+    individualmente à mão.
+
+(https://lwn.net/Articles/224135/).
+
+Para evitar esse tipo de situação, certifique-se de que todos os patches
+dentro de uma determinada branch permaneçam estritamente alinhados ao tópico
+associado; uma branch de "correções de drivers" não deveria fazer alterações no
+código central de gerenciamento de memória. E, acima de tudo, não use uma árvore
+git para burlar o processo de revisão. Publique ocasionalmente um resumo da
+árvore na lista de discussão relevante e, quando for o momento certo, solicite
+que a árvore seja incluída na linux-next.
+
+Se e quando outros começarem a enviar patches para inclusão em sua árvore, não
+se esqueça de revisá-los. Certifique-se também de manter as informações corretas
+de autoria; a ferramenta "am" do git faz o melhor que pode a esse respeito, mas
+você pode ter que adicionar uma linha "From:" ao patch se ele tiver sido
+retransmitido a você por terceiros.
+
+Ao solicitar um pull, certifique-se de fornecer todas as informações
+relevantes: onde está a sua árvore, qual branch deve ser puxada e quais
+alterações resultarão do pull. O comando git request-pull pode ser útil a esse
+respeito; ele formatará a solicitação da maneira que outros desenvolvedores
+esperam e também verificará se você se lembrou de dar push nessas alterações
+para o servidor público.
+
+
+Revisão de patches
+------------------
+
+Alguns leitores certamente objetarão a inclusão desta seção em "tópicos
+avançados" sob o argumento de que mesmo desenvolvedores iniciantes do kernel
+deveriam estar revisando patches. É certamente verdade que não há melhor maneira
+de aprender a programar no ambiente do kernel do que examinando o código
+postado por outros. Além disso, revisores estão sempre em falta; ao examinar o
+código, você pode fazer uma contribuição significativa para o processo como um
+todo.
+
+Revisar código pode ser uma perspectiva intimidadora, especialmente para um novo
+desenvolvedor do kernel que pode se sentir nervoso em questionar — em público —
+um código que foi postado por aqueles com mais experiência. No entanto, mesmo o
+código escrito pelos desenvolvedores mais experientes pode ser aprimorado. Talvez
+o melhor conselho para revisores (todos os revisores) seja este: formule os
+comentários de revisão como perguntas em vez de críticas. Perguntar "como o lock
+é liberado neste caminho?" sempre funcionará melhor do que afirmar "o bloqueio
+aqui está errado."
+
+Outra técnica útil em caso de desacordo é pedir que outros se manifestem. Se uma
+discussão chegar a um impasse após algumas trocas de mensagens, peça a opinião
+de outros revisores ou mantenedores. Frequentemente, aqueles que concordam com
+um revisor permanecem em silêncio, a menos que sejam solicitados. A opinião de
+múltiplas pessoas carrega exponencialmente mais peso.
+
+Diferentes desenvolvedores revisarão o código sob diferentes pontos de vista.
+Alguns estão preocupados principalmente com o estilo de codificação e se as
+linhas de código possuem espaços em branco no final (trailing white space).
+Outros se concentrarão principalmente em saber se a alteração implementada pelo
+patch como um todo é algo bom para o kernel ou não. Ainda assim, outros buscarão
+por bloqueios problemáticos, uso excessivo de pilha (stack usage), possíveis
+problemas de segurança, duplicação de código encontrado em outros lugares,
+documentação adequada, efeitos adversos no desempenho, alterações na ABI do
+espaço do usuário (user-space ABI), etc. Todos os tipos de revisão, se levarem a
+um código melhor entrando no kernel, são bem-vindos e valem a pena.
+
+Não há exigência estrita para o uso de tags específicas como ``Reviewed-by``. Na
+verdade, revisões em texto simples são mais informativas e incentivadas mesmo
+quando uma tag é fornecida, por exemplo: "Analisei os aspectos A, B e C deste
+envio e tudo me parece correto." Alguma forma de mensagem de revisão ou resposta
+é obviamente necessária, caso contrário, os mantenedores não saberão que o
+revisor sequer examinou o patch!
+
+Por último, mas não menos importante, a revisão de patches pode se tornar um
+processo negativo, focado em apontar problemas. Por favor, reserve um elogio de
+vez em quando, particularmente para os novatos!

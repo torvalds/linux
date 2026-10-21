@@ -71,10 +71,9 @@ void hold_module_trace_bprintk_format(const char **start, const char **end)
 		fmt = NULL;
 		tb_fmt = kmalloc_obj(*tb_fmt);
 		if (tb_fmt) {
-			fmt = kmalloc(strlen(*iter) + 1, GFP_KERNEL);
+			fmt = kstrdup(*iter, GFP_KERNEL);
 			if (fmt) {
 				list_add_tail(&tb_fmt->list, &trace_bprintk_fmt_list);
-				strcpy(fmt, *iter);
 				tb_fmt->fmt = fmt;
 			} else
 				kfree(tb_fmt);

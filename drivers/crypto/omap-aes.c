@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
@@ -952,64 +951,7 @@ static const struct of_device_id omap_aes_of_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_aes_of_match);
-
-static int omap_aes_get_res_of(struct omap_aes_dev *dd,
-		struct device *dev, struct resource *res)
-{
-	struct device_node *node = dev->of_node;
-	int err = 0;
-
-	dd->pdata = of_device_get_match_data(dev);
-	if (!dd->pdata) {
-		dev_err(dev, "no compatible OF match\n");
-		err = -EINVAL;
-		goto err;
-	}
-
-	err = of_address_to_resource(node, 0, res);
-	if (err < 0) {
-		dev_err(dev, "can't translate OF node address\n");
-		err = -EINVAL;
-		goto err;
-	}
-
-err:
-	return err;
-}
-#else
-static const struct of_device_id omap_aes_of_match[] = {
-	{},
-};
-
-static int omap_aes_get_res_of(struct omap_aes_dev *dd,
-		struct device *dev, struct resource *res)
-{
-	return -EINVAL;
-}
 #endif
-
-static int omap_aes_get_res_pdev(struct omap_aes_dev *dd,
-		struct platform_device *pdev, struct resource *res)
-{
-	struct device *dev = &pdev->dev;
-	struct resource *r;
-	int err = 0;
-
-	/* Get the base address */
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(dev, "no MEM resource info\n");
-		err = -ENODEV;
-		goto err;
-	}
-	memcpy(res, r, sizeof(*res));
-
-	/* Only OMAP2/3 can be non-DT */
-	dd->pdata = &omap_aes_pdata_omap2;
-
-err:
-	return err;
-}
 
 static ssize_t fallback_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -1109,9 +1051,14 @@ static int omap_aes_probe(struct platform_device *pdev)
 	struct omap_aes_dev *dd;
 	struct skcipher_engine_alg *algp;
 	struct aead_engine_alg *aalg;
-	struct resource res;
+	struct resource *res;
+	void __iomem *io_base;
 	int err = -ENOMEM, i, j, irq = -1;
 	u32 reg;
+
+	io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(io_base))
+		return PTR_ERR(io_base);
 
 	dd = devm_kzalloc(dev, sizeof(struct omap_aes_dev), GFP_KERNEL);
 	if (dd == NULL) {
@@ -1123,17 +1070,12 @@ static int omap_aes_probe(struct platform_device *pdev)
 
 	aead_init_queue(&dd->aead_queue, OMAP_AES_QUEUE_LENGTH);
 
-	err = (dev->of_node) ? omap_aes_get_res_of(dd, dev, &res) :
-			       omap_aes_get_res_pdev(dd, pdev, &res);
-	if (err)
-		goto err_res;
+	dd->pdata = device_get_match_data(dev);
+	if (!dd->pdata)
+		dd->pdata = &omap_aes_pdata_omap2;
 
-	dd->io_base = devm_ioremap_resource(dev, &res);
-	if (IS_ERR(dd->io_base)) {
-		err = PTR_ERR(dd->io_base);
-		goto err_res;
-	}
-	dd->phys_base = res.start;
+	dd->io_base = io_base;
+	dd->phys_base = res->start;
 
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
@@ -1172,10 +1114,8 @@ static int omap_aes_probe(struct platform_device *pdev)
 
 		err = devm_request_irq(dev, irq, omap_aes_irq, 0,
 				dev_name(dev), dd);
-		if (err) {
-			dev_err(dev, "Unable to grab omap-aes IRQ\n");
+		if (err)
 			goto err_irq;
-		}
 	}
 
 	spin_lock_init(&dd->lock);
@@ -1244,8 +1184,6 @@ err_irq:
 	cancel_work_sync(&dd->done_task);
 err_pm_disable:
 	pm_runtime_disable(dev);
-err_res:
-	dd = NULL;
 err_data:
 	dev_err(dev, "initialization failed.\n");
 	return err;
@@ -1294,7 +1232,7 @@ static struct platform_driver omap_aes_driver = {
 	.driver	= {
 		.name	= "omap-aes",
 		.pm	= &omap_aes_pm_ops,
-		.of_match_table	= omap_aes_of_match,
+		.of_match_table	= of_match_ptr(omap_aes_of_match),
 		.dev_groups = omap_aes_groups,
 	},
 };

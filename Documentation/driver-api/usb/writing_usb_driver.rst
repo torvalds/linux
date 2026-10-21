@@ -322,7 +322,4 @@ http://linux-hotplug.sourceforge.net/
 linux-usb Mailing List Archives:
 https://lore.kernel.org/linux-usb/
 
-Programming Guide for Linux USB Device Drivers:
-https://lmu.web.psi.ch/docu/manuals/software_manuals/linux_sl/usb_linux_programming_guide.pdf
-
 USB Home Page: https://www.usb.org

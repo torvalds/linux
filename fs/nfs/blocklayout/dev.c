@@ -86,15 +86,17 @@ bl_free_device(struct pnfs_block_dev *dev)
 {
 	bl_unregister_dev(dev);
 
-	if (dev->nr_children) {
+	if (dev->children) {
 		int i;
 
 		for (i = 0; i < dev->nr_children; i++)
 			bl_free_device(&dev->children[i]);
 		kfree(dev->children);
-	} else {
-		if (dev->bdev_file)
-			fput(dev->bdev_file);
+		dev->children = NULL;
+		dev->nr_children = 0;
+	} else if (dev->bdev_file) {
+		fput(dev->bdev_file);
+		dev->bdev_file = NULL;
 	}
 }
 
@@ -444,6 +446,7 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 
 out_blkdev_put:
 	fput(d->bdev_file);
+	d->bdev_file = NULL;
 	return error;
 }
 
@@ -479,8 +482,11 @@ bl_parse_concat(struct nfs_server *server, struct pnfs_block_dev *d,
 	for (i = 0; i < v->concat.volumes_count; i++) {
 		ret = bl_parse_deviceid(server, &d->children[i],
 				volumes, v->concat.volumes[i], gfp_mask);
-		if (ret)
+		if (ret) {
+			bl_free_device(&d->children[i]);
+			bl_free_device(d);
 			return ret;
+		}
 
 		d->nr_children++;
 		d->children[i].start += len;
@@ -508,8 +514,11 @@ bl_parse_stripe(struct nfs_server *server, struct pnfs_block_dev *d,
 	for (i = 0; i < v->stripe.volumes_count; i++) {
 		ret = bl_parse_deviceid(server, &d->children[i],
 				volumes, v->stripe.volumes[i], gfp_mask);
-		if (ret)
+		if (ret) {
+			bl_free_device(&d->children[i]);
+			bl_free_device(d);
 			return ret;
+		}
 
 		d->nr_children++;
 		len += d->children[i].len;

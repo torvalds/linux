@@ -9,7 +9,7 @@
  * vendor/device ID to help differentiate devices.
  */
 static const struct pci_device_id ocxl_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x062B), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x062B) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, ocxl_pci_tbl);

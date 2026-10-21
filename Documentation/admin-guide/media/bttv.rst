@@ -1239,7 +1239,7 @@ Models:
 - Galaxis DVB Card C CI
 - Galaxis DVB Card S
 - Galaxis DVB Card C
-- Galaxis plug.in S [neuer Name: Galaxis DVB Card S CI
+- Galaxis plug.in S [new Name: Galaxis DVB Card S CI]
 
 Hauppauge
 ~~~~~~~~~

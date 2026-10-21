@@ -137,6 +137,12 @@ struct enic_port_profile {
 	u8 mac_addr[ETH_ALEN];
 };
 
+enum enic_vf_link_state {
+	ENIC_VF_LINK_STATE_UNKNOWN,
+	ENIC_VF_LINK_STATE_DOWN,
+	ENIC_VF_LINK_STATE_UP,
+};
+
 /* enic_rfs_fltr_node - rfs filter node in hash table
  *	@@keys: IPv4 5 tuple
  *	@flow_id: flow_id of clsf filter provided by kernel
@@ -256,10 +262,10 @@ struct enic {
 	struct enic_rx_coal rx_coalesce_setting;
 	u32 rx_coalesce_usecs;
 	u32 tx_coalesce_usecs;
-#ifdef CONFIG_PCI_IOV
 	u16 num_vfs;
-#endif
 	enum enic_vf_type vf_type;
+	bool vf_registered;
+	u32 pf_cap_version;
 	unsigned int enable_count;
 	spinlock_t enic_api_lock;
 	bool enic_api_busy;
@@ -292,10 +298,52 @@ struct enic {
 
 	/* Admin channel resources for SR-IOV MBOX */
 	bool has_admin_channel;
+	/* true only while the admin WQ/RQ/CQ are allocated and enabled; gates
+	 * enic_admin_channel_close() so it is a no-op after a failed (re)open
+	 * left the resources freed.
+	 */
+	bool admin_chan_up;
+	/* set on send timeout; cleared on channel re-open */
+	bool mbox_send_disabled;
 	struct vnic_wq admin_wq;
 	struct vnic_rq admin_rq;
 	struct vnic_cq admin_cq[2];
 	struct vnic_intr admin_intr;
+	struct delayed_work admin_poll_work;
+	unsigned int admin_intr_index;
+	struct work_struct link_notify_work;
+	struct work_struct admin_msg_work;
+	spinlock_t admin_msg_lock;	/* protects admin_msg_list */
+	struct list_head admin_msg_list;
+	unsigned int admin_msg_count;	/* current depth of admin_msg_list */
+	void (*admin_rq_handler)(struct enic *enic, void *buf,
+				 unsigned int len);
+	/* The PF is authoritative for a V2 VF's carrier.  Keep the last
+	 * notification across an ordinary netdev close/open and serialize it
+	 * against the open/stop carrier transition.
+	 */
+	spinlock_t vf_link_state_lock;
+	enum enic_vf_link_state vf_link_state;
+	bool vf_link_running;
+
+	/* MBOX protocol state — mbox_lock serializes admin WQ sends */
+	struct mutex mbox_lock;
+	u64 mbox_msg_num;
+	/* MBOX request-reply state.  Existing request callers allow only one
+	 * request in flight.  The state lock arbitrates reply acceptance against
+	 * timeout invalidation, while mbox_comp publishes the accepted result to
+	 * the requester.
+	 */
+	struct completion mbox_comp;
+	spinlock_t mbox_state_lock;	/* protects expected reply state */
+	u64 mbox_expected_msg_num;
+	u8 mbox_expected_reply;
+	bool mbox_initialized;
+
+	/* PF: per-VF MBOX state, allocated when SRIOV V2 is enabled */
+	struct enic_vf_state {
+		bool registered;
+	} *vf_state;
 };
 
 static inline struct net_device *vnic_get_netdev(struct vnic_dev *vdev)
@@ -417,6 +465,7 @@ void enic_reset_addr_lists(struct enic *enic);
 int enic_sriov_enabled(struct enic *enic);
 int enic_is_valid_vf(struct enic *enic, int vf);
 int enic_is_dynamic(struct enic *enic);
+int enic_is_sriov_vf_v2(struct enic *enic);
 void enic_set_ethtool_ops(struct net_device *netdev);
 int __enic_set_rsskey(struct enic *enic);
 void enic_ext_cq(struct enic *enic);

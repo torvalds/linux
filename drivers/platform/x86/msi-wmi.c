@@ -46,6 +46,12 @@ enum msi_scancodes {
 	WIND_KEY_WLAN		= 0x5f,	/* Fn+F11 Wi-Fi toggle */
 	WIND_KEY_TURBO,			/* Fn+F10 turbo mode toggle */
 	WIND_KEY_ECO		= 0x69,	/* Fn+F10 ECO mode toggle */
+	/* MSI Claw keys */
+	CLAW_KEY_VOLUMEDOWN	= 0x21,
+	CLAW_KEY_CENTER		= 0x29,	/* MSI M-Center main menu */
+	CLAW_KEY_QUICK_LONG	= 0x2a,	/* MSI M-Center quick access long hold */
+	CLAW_KEY_VOLUMEUP	= 0x32,
+	CLAW_KEY_QUICK_SHORT	= 0x58,	/* MSI M-Center quick access short press */
 };
 static struct key_entry msi_wmi_keymap[] = {
 	{ KE_KEY, MSI_KEY_BRIGHTNESSUP,		{KEY_BRIGHTNESSUP} },
@@ -68,6 +74,15 @@ static struct key_entry msi_wmi_keymap[] = {
 	/* These are MSI Wind keys that should be handled via WMI */
 	{ KE_KEY, WIND_KEY_TURBO,		{KEY_PROG1} },
 	{ KE_KEY, WIND_KEY_ECO,			{KEY_PROG2} },
+
+	/* These are MSI Claw keys, used for MSI M-Center in Windows */
+	{ KE_KEY, CLAW_KEY_CENTER,		{KEY_F15} },
+
+	/* These MSI Claw keys work without WMI. Ignore them to avoid double keycodes */
+	{ KE_IGNORE, CLAW_KEY_QUICK_SHORT },
+	{ KE_IGNORE, CLAW_KEY_QUICK_LONG },
+	{ KE_IGNORE, CLAW_KEY_VOLUMEUP },
+	{ KE_IGNORE, CLAW_KEY_VOLUMEDOWN },
 
 	{ KE_END, 0 }
 };
@@ -172,44 +187,62 @@ static const struct backlight_ops msi_backlight_ops = {
 
 static void msi_wmi_notify(union acpi_object *obj, void *context)
 {
-	struct key_entry *key;
+	struct key_entry *key = NULL;
+	int eventcode = 0;
 
-	if (obj && obj->type == ACPI_TYPE_INTEGER) {
-		int eventcode = obj->integer.value;
+	if (!obj)
+		return;
+
+	switch (obj->type) {
+	case ACPI_TYPE_INTEGER:
+		eventcode = obj->integer.value;
 		pr_debug("Eventcode: 0x%x\n", eventcode);
-		key = sparse_keymap_entry_from_scancode(msi_wmi_input_dev,
-				eventcode);
-		if (!key) {
-			pr_info("Unknown key pressed - %x\n", eventcode);
+		break;
+	case ACPI_TYPE_BUFFER:
+		/* Field returns u8[2] here, but is u32 by spec. Allow "oversized" buffers. */
+		if (obj->buffer.length < 2)
+			return;
+
+		/* pointer[0] is key ID, pointer[1] is active state. We don't get release
+		 * events, so ignore the active state and treat as autorelease.
+		 */
+		eventcode = obj->buffer.pointer[0];
+		pr_debug("Eventcode: 0x%x\n", eventcode);
+		break;
+	default:
+		pr_info("Unknown event received\n");
+		return;
+	}
+
+	key = sparse_keymap_entry_from_scancode(msi_wmi_input_dev, eventcode);
+
+	if (!key) {
+		pr_info("Unknown key pressed - 0x%x\n", eventcode);
+		return;
+	}
+
+	if (event_wmi->quirk_last_pressed) {
+		ktime_t cur = ktime_get_real();
+		ktime_t diff = ktime_sub(cur, last_pressed);
+		/* Ignore event if any event happened in a 50 ms
+		 * timeframe -> Key press may result in 10-20 GPEs
+		 */
+		if (ktime_to_us(diff) < 1000 * 50) {
+			pr_debug("Suppressed key event 0x%X - Last press was %lld us ago\n",
+				 key->code, ktime_to_us(diff));
 			return;
 		}
+		last_pressed = cur;
+	}
 
-		if (event_wmi->quirk_last_pressed) {
-			ktime_t cur = ktime_get_real();
-			ktime_t diff = ktime_sub(cur, last_pressed);
-			/* Ignore event if any event happened in a 50 ms
-			   timeframe -> Key press may result in 10-20 GPEs */
-			if (ktime_to_us(diff) < 1000 * 50) {
-				pr_debug("Suppressed key event 0x%X - "
-					 "Last press was %lld us ago\n",
-					 key->code, ktime_to_us(diff));
-				return;
-			}
-			last_pressed = cur;
-		}
+	/* Brightness is served via acpi video driver */
+	if (key->type == KE_KEY &&
+	    (backlight || (key->code == MSI_KEY_BRIGHTNESSUP ||
+			   key->code == MSI_KEY_BRIGHTNESSDOWN)))
+		return;
 
-		if (key->type == KE_KEY &&
-		/* Brightness is served via acpi video driver */
-		(backlight ||
-		(key->code != MSI_KEY_BRIGHTNESSUP &&
-		key->code != MSI_KEY_BRIGHTNESSDOWN))) {
-			pr_debug("Send key: 0x%X - Input layer keycode: %d\n",
-				 key->code, key->keycode);
-			sparse_keymap_report_entry(msi_wmi_input_dev, key, 1,
-						   true);
-		}
-	} else
-		pr_info("Unknown event received\n");
+	pr_debug("Send key: 0x%X - Input layer keycode: %d\n", key->code, key->keycode);
+	sparse_keymap_report_entry(msi_wmi_input_dev, key, 1, true);
 }
 
 static int __init msi_wmi_backlight_setup(void)

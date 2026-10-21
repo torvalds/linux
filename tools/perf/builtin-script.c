@@ -2174,6 +2174,7 @@ static int script_find_metrics(const struct pmu_metric *pm,
 	struct evsel *metric_evsel;
 	int ret = metricgroup__parse_groups(metric_evlist,
 					/*pmu=*/"all",
+					/*cputype_filter=*/false,
 					pm->metric_name,
 					/*metric_no_group=*/false,
 					/*metric_no_merge=*/false,
@@ -2229,9 +2230,10 @@ static int script_find_metrics(const struct pmu_metric *pm,
 	evlist__for_each_entry(metric_evlist, metric_evsel) {
 		struct evsel *script_evsel =
 			map_metric_evsel_to_script_evsel(script_evlist, metric_evsel);
-		struct metric_event *metric_me = metricgroup__lookup(&metric_evlist->metric_events,
-								     metric_evsel,
-								     /*create=*/false);
+		struct metric_event *metric_me =
+			metricgroup__lookup(evlist__metric_events(metric_evlist),
+					    metric_evsel,
+					    /*create=*/false);
 
 		if (script_evsel->metric_id == NULL) {
 			script_evsel->metric_id = metric_evsel->metric_id;
@@ -2251,7 +2253,7 @@ static int script_find_metrics(const struct pmu_metric *pm,
 		if (metric_me) {
 			struct metric_expr *expr;
 			struct metric_event *script_me =
-				metricgroup__lookup(&script_evlist->metric_events,
+				metricgroup__lookup(evlist__metric_events(script_evlist),
 						    script_evsel,
 						    /*create=*/true);
 
@@ -2274,8 +2276,8 @@ static int script_find_metrics(const struct pmu_metric *pm,
 	}
 	pr_debug("Found metric '%s' whose evsels match those of in the perf data\n",
 		 pm->metric_name);
-	evlist__delete(metric_evlist);
 out:
+	evlist__put(metric_evlist);
 	return 0;
 }
 
@@ -2321,7 +2323,7 @@ static void perf_sample__fprint_metric(struct thread *thread,
 			assert(stat_config.aggr_mode == AGGR_GLOBAL);
 			stat_config.aggr_get_id = script_aggr_cpu_id_get;
 			stat_config.aggr_map =
-				cpu_aggr_map__new(evsel->evlist->core.user_requested_cpus,
+				cpu_aggr_map__new(evlist__core(evsel->evlist)->user_requested_cpus,
 						  aggr_cpu_id__global, /*data=*/NULL,
 						  /*needs_sort=*/false);
 		}
@@ -3909,7 +3911,7 @@ static int set_maps(struct perf_script *script)
 	if (WARN_ONCE(script->allocated, "stats double allocation\n"))
 		return -EINVAL;
 
-	perf_evlist__set_maps(&evlist->core, script->cpus, script->threads);
+	perf_evlist__set_maps(evlist__core(evlist), script->cpus, script->threads);
 
 	if (evlist__alloc_stats(&stat_config, evlist, /*alloc_raw=*/true))
 		return -ENOMEM;

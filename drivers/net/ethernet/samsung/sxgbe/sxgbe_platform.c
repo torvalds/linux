@@ -82,7 +82,6 @@ static int sxgbe_platform_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	struct sxgbe_priv_data *priv = NULL;
 	struct sxgbe_plat_data *plat_dat = NULL;
-	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct device_node *node = dev->of_node;
 
 	/* Get memory resource */
@@ -158,7 +157,7 @@ err_tx_irq_unmap:
 		irq_dispose_mapping(priv->txq[i]->irq_no);
 	irq_dispose_mapping(priv->irq);
 err_drv_remove:
-	sxgbe_drv_remove(ndev);
+	sxgbe_drv_remove(priv->dev);
 err_out:
 	return -ENODEV;
 }

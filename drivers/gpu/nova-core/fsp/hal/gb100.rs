@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
+use kernel::sizes::SizeConstants;
+
 use crate::{
     driver::Bar0,
     fsp::hal::FspHal, //
@@ -16,6 +18,10 @@ impl FspHal for Gb100 {
 
     fn cot_version(&self) -> u16 {
         2
+    }
+
+    fn fb_end_reserved_size(&self) -> u64 {
+        u64::SZ_2M + u64::SZ_128K
     }
 }
 

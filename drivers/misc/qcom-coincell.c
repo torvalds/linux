@@ -124,8 +124,8 @@ static int qcom_coincell_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id qcom_coincell_match_table[] = {
-	{ .compatible = "qcom,pm8941-coincell", },
-	{}
+	{ .compatible = "qcom,pm8941-coincell" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, qcom_coincell_match_table);

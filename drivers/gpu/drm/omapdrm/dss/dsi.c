@@ -35,6 +35,7 @@
 #include <linux/component.h>
 #include <linux/sys_soc.h>
 
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
@@ -455,14 +456,9 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 		timer_delete(&dsi->te_timer);
 #endif
 
-	/* make a copy and unlock, so that isrs can unregister
-	 * themselves */
-	memcpy(&dsi->isr_tables_copy, &dsi->isr_tables,
-		sizeof(dsi->isr_tables));
+	dsi_handle_isrs(&dsi->isr_tables, irqstatus, vcstatus, ciostatus);
 
 	spin_unlock(&dsi->irq_lock);
-
-	dsi_handle_isrs(&dsi->isr_tables_copy, irqstatus, vcstatus, ciostatus);
 
 	dsi_handle_irq_errors(dsi, irqstatus, vcstatus, ciostatus);
 
@@ -4654,7 +4650,8 @@ static void dsi_bridge_mode_set(struct drm_bridge *bridge,
 	dsi_set_config(&dsi->output, adjusted_mode);
 }
 
-static void dsi_bridge_enable(struct drm_bridge *bridge)
+static void dsi_bridge_enable(struct drm_bridge *bridge,
+			      struct drm_atomic_commit *commit)
 {
 	struct dsi_data *dsi = drm_bridge_to_dsi(bridge);
 	struct omap_dss_device *dssdev = &dsi->output;
@@ -4673,7 +4670,8 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 	dsi_bus_unlock(dsi);
 }
 
-static void dsi_bridge_disable(struct drm_bridge *bridge)
+static void dsi_bridge_disable(struct drm_bridge *bridge,
+			       struct drm_atomic_commit *commit)
 {
 	struct dsi_data *dsi = drm_bridge_to_dsi(bridge);
 	struct omap_dss_device *dssdev = &dsi->output;
@@ -4692,11 +4690,14 @@ static void dsi_bridge_disable(struct drm_bridge *bridge)
 }
 
 static const struct drm_bridge_funcs dsi_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = dsi_bridge_attach,
 	.mode_valid = dsi_bridge_mode_valid,
 	.mode_set = dsi_bridge_mode_set,
-	.enable = dsi_bridge_enable,
-	.disable = dsi_bridge_disable,
+	.atomic_enable = dsi_bridge_enable,
+	.atomic_disable = dsi_bridge_disable,
 };
 
 static void dsi_bridge_init(struct dsi_data *dsi)

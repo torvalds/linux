@@ -1670,7 +1670,7 @@ static inline int virtqueue_add_packed(struct vring_virtqueue *vq,
 	struct scatterlist *sg;
 	unsigned int i, n, c, descs_used, err_idx, len;
 	__le16 head_flags, flags;
-	u16 head, id, prev, curr, avail_used_flags;
+	u16 head, id, prev, curr, avail_used_flags, unpub_flags;
 	int err;
 
 	START_USE(vq);
@@ -1798,15 +1798,30 @@ unmap_release:
 	curr = vq->free_head;
 
 	vq->packed.avail_used_flags = avail_used_flags;
+	unpub_flags = avail_used_flags ^ (1 << VRING_PACKED_DESC_F_AVAIL |
+					  1 << VRING_PACKED_DESC_F_USED);
 
 	for (n = 0; n < total_sg; n++) {
 		if (i == err_idx)
 			break;
+		/*
+		 * The mapping loop made every descriptor but the head
+		 * available. Stamp the previous wrap counter's AVAIL and USED
+		 * bits on those, so that a later and shorter chain at this head
+		 * does not leave one of them available beyond its own last
+		 * descriptor. Marking them used instead would hand
+		 * is_used_desc_packed() a completion we never made.
+		 */
+		if (i != head)
+			desc[i].flags = cpu_to_le16(unpub_flags);
 		vring_unmap_extra_packed(vq, &vq->packed.desc_extra[curr]);
 		curr = vq->packed.desc_extra[curr].next;
 		i++;
-		if (i >= vq->packed.vring.num)
+		if (i >= vq->packed.vring.num) {
 			i = 0;
+			unpub_flags ^= 1 << VRING_PACKED_DESC_F_AVAIL |
+				       1 << VRING_PACKED_DESC_F_USED;
+		}
 	}
 
 	END_USE(vq);
@@ -1828,7 +1843,7 @@ static inline int virtqueue_add_packed_in_order(struct vring_virtqueue *vq,
 	struct scatterlist *sg;
 	unsigned int i, n, sg_count, err_idx, total_in_len = 0;
 	__le16 head_flags, flags;
-	u16 head, avail_used_flags;
+	u16 head, avail_used_flags, unpub_flags;
 	bool avail_wrap_counter;
 	int err;
 
@@ -1955,14 +1970,29 @@ unmap_release:
 	i = head;
 	vq->packed.avail_used_flags = avail_used_flags;
 	vq->packed.avail_wrap_counter = avail_wrap_counter;
+	unpub_flags = avail_used_flags ^ (1 << VRING_PACKED_DESC_F_AVAIL |
+					  1 << VRING_PACKED_DESC_F_USED);
 
 	for (n = 0; n < total_sg; n++) {
 		if (i == err_idx)
 			break;
+		/*
+		 * The mapping loop made every descriptor but the head
+		 * available. Stamp the previous wrap counter's AVAIL and USED
+		 * bits on those, so that a later and shorter chain at this head
+		 * does not leave one of them available beyond its own last
+		 * descriptor. Marking them used instead would hand
+		 * is_used_desc_packed() a completion we never made.
+		 */
+		if (i != head)
+			desc[i].flags = cpu_to_le16(unpub_flags);
 		vring_unmap_extra_packed(vq, &vq->packed.desc_extra[i]);
 		i++;
-		if (i >= vq->packed.vring.num)
+		if (i >= vq->packed.vring.num) {
 			i = 0;
+			unpub_flags ^= 1 << VRING_PACKED_DESC_F_AVAIL |
+				       1 << VRING_PACKED_DESC_F_USED;
+		}
 	}
 
 	END_USE(vq);
@@ -3232,6 +3262,14 @@ EXPORT_SYMBOL_GPL(virtqueue_enable_cb);
 bool virtqueue_enable_cb_delayed(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
+
+	/*
+	 * When the device is broken there is no point in polling used->idx,
+	 * the backend will never update it. Return true to let callers
+	 * exit their cleanup loops instead of spinning forever.
+	 */
+	if (unlikely(vq->broken))
+		return true;
 
 	if (vq->event_triggered)
 		data_race(vq->event_triggered = false);

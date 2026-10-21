@@ -57,7 +57,7 @@ static void guest_code(void *test_data)
 		struct svm_test_data *svm = test_data;
 		struct vmcb *vmcb = svm->vmcb;
 
-		generic_svm_setup(svm, NULL, NULL);
+		generic_svm_setup(svm, NULL);
 		vmcb->save.idtr.limit = 0;
 		vmcb->save.rip = (u64)l2_guest_code;
 
@@ -69,7 +69,7 @@ static void guest_code(void *test_data)
 		GUEST_ASSERT(prepare_for_vmx_operation(test_data));
 		GUEST_ASSERT(load_vmcs(test_data));
 
-		prepare_vmcs(test_data, NULL, NULL);
+		prepare_vmcs(test_data, NULL);
 		GUEST_ASSERT(!vmwrite(GUEST_IDTR_LIMIT, 0));
 		GUEST_ASSERT(!vmwrite(GUEST_RIP, (u64)l2_guest_code));
 		GUEST_ASSERT(!vmwrite(EXCEPTION_BITMAP, 0));

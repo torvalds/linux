@@ -15,3 +15,4 @@ the required changes compared to a non-PREEMPT_RT configuration.
    differences
    hardware
    architecture-porting
+   kernel-configuration

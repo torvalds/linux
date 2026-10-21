@@ -117,7 +117,7 @@ static ssize_t imc_pmu_cpumask_get_attr(struct device *dev,
 		return 0;
 	}
 
-	return cpumap_print_to_pagebuf(true, buf, active_mask);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(active_mask));
 }
 
 static DEVICE_ATTR(cpumask, S_IRUGO, imc_pmu_cpumask_get_attr, NULL);

@@ -241,10 +241,8 @@ bool cfg80211_supported_cipher_suite(struct wiphy *wiphy, u32 cipher)
 	return false;
 }
 
-static bool
-cfg80211_igtk_cipher_supported(struct cfg80211_registered_device *rdev)
+static bool cfg80211_igtk_cipher_supported(struct wiphy *wiphy)
 {
-	struct wiphy *wiphy = &rdev->wiphy;
 	int i;
 
 	for (i = 0; i < wiphy->n_cipher_suites; i++) {
@@ -260,27 +258,86 @@ cfg80211_igtk_cipher_supported(struct cfg80211_registered_device *rdev)
 	return false;
 }
 
-bool cfg80211_valid_key_idx(struct cfg80211_registered_device *rdev,
-			    int key_idx, bool pairwise)
+bool cfg80211_valid_key_idx(struct wireless_dev *wdev,
+			    int key_idx, bool pairwise,
+			    const u8 *mac_addr)
 {
-	int max_key_idx;
-
-	if (pairwise)
-		max_key_idx = 3;
-	else if (wiphy_ext_feature_isset(&rdev->wiphy,
-					 NL80211_EXT_FEATURE_BEACON_PROTECTION) ||
-		 wiphy_ext_feature_isset(&rdev->wiphy,
-					 NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT))
-		max_key_idx = 7;
-	else if (cfg80211_igtk_cipher_supported(rdev))
-		max_key_idx = 5;
-	else
-		max_key_idx = 3;
-
-	if (key_idx < 0 || key_idx > max_key_idx)
+	if (WARN_ON(!wdev))
 		return false;
 
-	return true;
+	if (key_idx < 0)
+		return false;
+
+	/*
+	 * Can't differentiate ciphers here so allow 0..3.
+	 * Pairwise keys must be for a station (MAC address given).
+	 */
+	if (pairwise) {
+		if (!mac_addr)
+			return false;
+
+		return key_idx < 4;
+	}
+
+	/*
+	 * For group keys, mac_addr==NULL means setting a group key
+	 * for TX, which is only supported on some interface types,
+	 * except for STATION/P2P_CLIENT, where it's setting the RX
+	 * key with the current AP (for legacy reasons.)
+	 *
+	 * Apart from that exception, a non-NULL mac_addr means RX
+	 * key being set.
+	 */
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_ADHOC:
+		if (!(wdev->wiphy->flags & WIPHY_FLAG_IBSS_RSN))
+			return false;
+		fallthrough;
+	case NL80211_IFTYPE_MESH_POINT:
+		/* no support for IGTK/BIGTK (yet?) */
+		return key_idx < 4;
+	case NL80211_IFTYPE_NAN_DATA:
+		/* these always need to support per-STA GTK */
+		return key_idx < 4;
+	case NL80211_IFTYPE_NAN:
+		/* no data */
+		if (key_idx < 4)
+			return false;
+		/* NAN reused this flag */
+		if (wiphy_ext_feature_isset(wdev->wiphy,
+					    NL80211_EXT_FEATURE_BEACON_PROTECTION))
+			return key_idx <= 7;
+		return key_idx <= 5;
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+		/* see note about exception above */
+		if (mac_addr)
+			return false;
+		/* BIGTK support implies IGTK support */
+		if (wiphy_ext_feature_isset(wdev->wiphy,
+					    NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT))
+			return key_idx <= 7;
+		fallthrough;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+		/* no RX with [B]IGTK */
+		if (mac_addr)
+			return false;
+		if (wiphy_ext_feature_isset(wdev->wiphy,
+					    NL80211_EXT_FEATURE_BEACON_PROTECTION))
+			return key_idx <= 7;
+		fallthrough;
+	case NL80211_IFTYPE_AP_VLAN:
+		/* no RX with GTK */
+		if (mac_addr)
+			return false;
+		if (cfg80211_igtk_cipher_supported(wdev->wiphy))
+			return key_idx <= 5;
+		return key_idx <= 3;
+	default:
+		return false;
+	}
 }
 
 int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
@@ -288,13 +345,7 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   struct key_params *params, int key_idx,
 				   bool pairwise, const u8 *mac_addr)
 {
-	if (!cfg80211_valid_key_idx(rdev, key_idx, pairwise))
-		return -EINVAL;
-
-	if (!pairwise && mac_addr && !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
-		return -EINVAL;
-
-	if (pairwise && !mac_addr)
+	if (!cfg80211_valid_key_idx(wdev, key_idx, pairwise, mac_addr))
 		return -EINVAL;
 
 	switch (params->cipher) {
@@ -988,12 +1039,30 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 	}
 
 	switch (skb->protocol) {
-	case htons(ETH_P_IP):
-		dscp = ipv4_get_dsfield(ip_hdr(skb)) & 0xfc;
+	case htons(ETH_P_IP): {
+		const struct iphdr *iph;
+		struct iphdr _iph;
+
+		iph = skb_header_pointer(skb, sizeof(struct ethhdr),
+					 sizeof(*iph), &_iph);
+		if (!iph)
+			return 0;
+
+		dscp = ipv4_get_dsfield(iph) & 0xfc;
 		break;
-	case htons(ETH_P_IPV6):
-		dscp = ipv6_get_dsfield(ipv6_hdr(skb)) & 0xfc;
+	}
+	case htons(ETH_P_IPV6): {
+		const struct ipv6hdr *ip6h;
+		struct ipv6hdr _ip6h;
+
+		ip6h = skb_header_pointer(skb, sizeof(struct ethhdr),
+					  sizeof(*ip6h), &_ip6h);
+		if (!ip6h)
+			return 0;
+
+		dscp = ipv6_get_dsfield(ip6h) & 0xfc;
 		break;
+	}
 	case htons(ETH_P_MPLS_UC):
 	case htons(ETH_P_MPLS_MC): {
 		struct mpls_label mpls_tmp, *mpls;
@@ -1166,8 +1235,7 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 						!ev->dc.locally_generated);
 			break;
 		case EVENT_IBSS_JOINED:
-			__cfg80211_ibss_joined(wdev->netdev, ev->ij.bssid,
-					       ev->ij.channel);
+			__cfg80211_ibss_joined(wdev->netdev, ev->ij.bss);
 			break;
 		case EVENT_STOPPED:
 			/*
@@ -2426,14 +2494,13 @@ static void cfg80211_calculate_bi_data(struct wiphy *wiphy, u32 new_beacon_int,
 		if (wdev->valid_links)
 			continue;
 
+		wdev_bi = cfg80211_wdev_bi(wdev);
+		if (!wdev_bi)
+			continue;
+
 		/* skip wdevs not active on the given wiphy radio */
 		if (radio_idx >= 0 &&
 		    !(rdev_get_radio_mask(rdev, wdev->netdev) & BIT(radio_idx)))
-			continue;
-
-		wdev_bi = cfg80211_wdev_bi(wdev);
-
-		if (!wdev_bi)
 			continue;
 
 		if (!*beacon_int_gcd) {

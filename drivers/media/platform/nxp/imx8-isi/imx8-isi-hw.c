@@ -11,8 +11,6 @@
 #include "imx8-isi-core.h"
 #include "imx8-isi-regs.h"
 
-#define	ISI_DOWNSCALE_THRESHOLD		0x4000
-
 static inline u32 mxc_isi_read(struct mxc_isi_pipe *pipe, u32 reg)
 {
 	return readl(pipe->regs + reg);
@@ -118,8 +116,7 @@ static u32 mxc_isi_channel_scaling_ratio(unsigned int from, unsigned int to,
 	 * output (input / scale_factor) rounds up to exactly the desired
 	 * output.
 	 */
-	return min_t(u32, DIV_ROUND_UP(from * 0x1000, to * *dec),
-		     ISI_DOWNSCALE_THRESHOLD);
+	return DIV_ROUND_UP(from * 0x1000, to * *dec);
 }
 
 static void mxc_isi_channel_set_scaling(struct mxc_isi_pipe *pipe,
@@ -308,6 +305,7 @@ static void mxc_isi_channel_set_panic_threshold(struct mxc_isi_pipe *pipe)
 
 static void mxc_isi_channel_set_control(struct mxc_isi_pipe *pipe,
 					enum mxc_isi_input_id input,
+					unsigned int vc,
 					bool bypass)
 {
 	u32 val;
@@ -318,6 +316,10 @@ static void mxc_isi_channel_set_control(struct mxc_isi_pipe *pipe,
 	val &= ~(CHNL_CTRL_CHNL_BYPASS | CHNL_CTRL_CHAIN_BUF_MASK |
 		 CHNL_CTRL_SRC_TYPE_MASK | CHNL_CTRL_MIPI_VC_ID_MASK |
 		 CHNL_CTRL_SRC_INPUT_MASK);
+
+	/* Clear the VC_ID_1 bit on platforms supporting more than 4 VCs. */
+	if (pipe->isi->pdata->num_vc > 4)
+		val &= ~CHNL_CTRL_VC_ID_1_MASK;
 
 	/*
 	 * If no scaling or color space conversion is needed, bypass the
@@ -345,7 +347,14 @@ static void mxc_isi_channel_set_control(struct mxc_isi_pipe *pipe,
 	} else {
 		val |= CHNL_CTRL_SRC_TYPE(CHNL_CTRL_SRC_TYPE_DEVICE);
 		val |= CHNL_CTRL_SRC_INPUT(input);
-		val |= CHNL_CTRL_MIPI_VC_ID(0); /* FIXME: For CSI-2 only */
+		val |= CHNL_CTRL_MIPI_VC_ID(vc); /* FIXME: For CSI-2 only */
+
+		/*
+		 * On platforms with more than 4 VCs (i.MX95), the VC ID is
+		 * split across VC_ID_0 (bits 7:6) and VC_ID_1 (bit 16).
+		 */
+		if (pipe->isi->pdata->num_vc > 4)
+			val |= CHNL_CTRL_VC_ID_1(vc >> 2);
 	}
 
 	mxc_isi_write(pipe, CHNL_CTRL, val);
@@ -355,6 +364,7 @@ static void mxc_isi_channel_set_control(struct mxc_isi_pipe *pipe,
 
 void mxc_isi_channel_config(struct mxc_isi_pipe *pipe,
 			    enum mxc_isi_input_id input,
+			    unsigned int vc,
 			    const struct v4l2_area *in_size,
 			    const struct v4l2_area *scale,
 			    const struct v4l2_rect *crop,
@@ -381,7 +391,7 @@ void mxc_isi_channel_config(struct mxc_isi_pipe *pipe,
 	mxc_isi_channel_set_panic_threshold(pipe);
 
 	/* Channel control */
-	mxc_isi_channel_set_control(pipe, input, csc_bypass && scaler_bypass);
+	mxc_isi_channel_set_control(pipe, input, vc, csc_bypass && scaler_bypass);
 }
 
 void mxc_isi_channel_set_input_format(struct mxc_isi_pipe *pipe,

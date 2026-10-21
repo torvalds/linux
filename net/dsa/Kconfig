@@ -98,6 +98,12 @@ config NET_DSA_TAG_EDSA
 	  Say Y or M if you want to enable support for tagging frames for the
 	  Marvell switches which use EtherType DSA headers.
 
+config NET_DSA_TAG_MT7628
+	tristate "Tag driver for the MT7628 embedded switch"
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  switch embedded in the MT7628 SoC.
+
 config NET_DSA_TAG_MTK
 	tristate "Tag driver for Mediatek switches"
 	help

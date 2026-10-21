@@ -21,30 +21,6 @@
 /* The total header size for SMB2 read and write */
 #define SMB2_READWRITE_PDU_HEADER_SIZE (48 + sizeof(struct smb2_hdr))
 
-/* See MS-SMB2 2.2.43 */
-struct smb2_rdma_transform {
-	__le16 RdmaDescriptorOffset;
-	__le16 RdmaDescriptorLength;
-	__le32 Channel; /* for values see channel description in smb2 read above */
-	__le16 TransformCount;
-	__le16 Reserved1;
-	__le32 Reserved2;
-} __packed;
-
-/* TransformType */
-#define SMB2_RDMA_TRANSFORM_TYPE_ENCRYPTION	0x0001
-#define SMB2_RDMA_TRANSFORM_TYPE_SIGNING	0x0002
-
-struct smb2_rdma_crypto_transform {
-	__le16	TransformType;
-	__le16	SignatureLength;
-	__le16	NonceLength;
-	__u16	Reserved;
-	__u8	Signature[]; /* variable length */
-	/* u8 Nonce[] */
-	/* followed by padding */
-} __packed;
-
 /*
  *	Definitions for SMB2 Protocol Data Units (network frames)
  *

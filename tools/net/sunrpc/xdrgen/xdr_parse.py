@@ -63,6 +63,22 @@ def get_xdr_enum_validation() -> bool:
     return enum_validation
 
 
+def format_source_caret(line_text: str, column: int) -> list[str]:
+    """Render an offending source line with a caret beneath a column.
+
+    Args:
+        line_text: The raw source line containing the error
+        column: 1-based column of the offending token within line_text
+
+    Returns:
+        Output lines for the diagnostic: a blank separator, the source
+        line with tabs expanded, and a caret aligned under the column.
+    """
+    expanded = line_text.expandtabs()
+    caret = len(line_text[: column - 1].expandtabs())
+    return ["", f"    {expanded}", f"    {' ' * caret}^"]
+
+
 def make_error_handler(source: str, filename: str) -> Callable[[UnexpectedInput], bool]:
     """Create an error handler that reports the first parse error and aborts.
 
@@ -110,10 +126,7 @@ def make_error_handler(source: str, filename: str) -> Callable[[UnexpectedInput]
             msg_parts.append(str(e).split("\n")[0])
 
         # Show the offending line with a caret pointing to the error
-        msg_parts.append("")
-        msg_parts.append(f"    {line_text}")
-        prefix = line_text[: column - 1].expandtabs()
-        msg_parts.append(f"    {' ' * len(prefix)}^")
+        msg_parts.extend(format_source_caret(line_text, column))
 
         sys.stderr.write("\n".join(msg_parts) + "\n")
         raise XdrParseError()
@@ -151,10 +164,27 @@ def handle_transform_error(e: VisitError, source: str, filename: str) -> None:
 
     # Show the offending line with a caret pointing to the error
     if line_text:
-        msg_parts.append("")
-        msg_parts.append(f"    {line_text}")
-        prefix = line_text[: column - 1].expandtabs()
-        msg_parts.append(f"    {' ' * len(prefix)}^")
+        msg_parts.extend(format_source_caret(line_text, column))
+
+    sys.stderr.write("\n".join(msg_parts) + "\n")
+
+
+def handle_semantic_error(e, source: str, filename: str) -> None:
+    """Report a semantic error (e.g., a duplicate name) with context.
+
+    Args:
+        e: The XdrSemanticError carrying message and source position
+        source: The XDR source text being parsed
+        filename: The name of the file being parsed
+    """
+    lines = source.splitlines()
+    line_num = getattr(e, "line", 0)
+    column = getattr(e, "column", 0)
+    line_text = lines[line_num - 1] if 0 < line_num <= len(lines) else ""
+
+    msg_parts = [f"{filename}:{line_num}:{column}: semantic error", e.message]
+    if line_text:
+        msg_parts.extend(format_source_caret(line_text, column))
 
     sys.stderr.write("\n".join(msg_parts) + "\n")
 

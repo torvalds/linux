@@ -150,7 +150,7 @@ static void pmu_event_read(struct perf_event *event)
 static ssize_t
 get_attr_cpumask(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return cpumap_print_to_pagebuf(true, buf, &cpu_mask);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&cpu_mask));
 }
 
 static DEVICE_ATTR(cpumask, S_IRUGO, get_attr_cpumask, NULL);

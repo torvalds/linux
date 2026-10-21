@@ -6,6 +6,7 @@
  */
 
 #include <linux/trace_clock.h>
+#include <linux/cpumask.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -123,6 +124,13 @@ static int preemptirq_delay_run(void *data)
 		return -ENOMEM;
 
 	if (cpu_affinity > -1) {
+		unsigned int cpu = cpu_affinity;
+
+		if (cpu >= nr_cpu_ids || !cpu_possible(cpu)) {
+			pr_err("cpu_affinity:%d, invalid CPU\n", cpu_affinity);
+			goto out;
+		}
+
 		cpumask_clear(cpu_mask);
 		cpumask_set_cpu(cpu_affinity, cpu_mask);
 		if (set_cpus_allowed_ptr(current, cpu_mask))
@@ -132,6 +140,7 @@ static int preemptirq_delay_run(void *data)
 	for (i = 0; i < s; i++)
 		(testfuncs[i])(i);
 
+out:
 	complete(&done);
 
 	set_current_state(TASK_INTERRUPTIBLE);

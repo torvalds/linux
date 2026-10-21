@@ -692,8 +692,7 @@ int nvme_auth_derive_tls_psk(int hmac_id, const u8 *psk, size_t psk_len,
 			     const char *psk_digest, u8 **ret_psk)
 {
 	static const u8 default_salt[NVME_AUTH_MAX_DIGEST_SIZE];
-	static const char label[] = "tls13 nvme-tls-psk";
-	const size_t label_len = sizeof(label) - 1;
+	static const char label[18] = "tls13 nvme-tls-psk";
 	u8 prk[NVME_AUTH_MAX_DIGEST_SIZE];
 	size_t hash_len, ctx_len;
 	u8 *hmac_data = NULL, *tls_key;
@@ -729,7 +728,7 @@ int nvme_auth_derive_tls_psk(int hmac_id, const u8 *psk, size_t psk_len,
 	 */
 
 	hmac_data = kmalloc(/* output length */ 2 +
-			    /* label */ 1 + label_len +
+			    /* label */ 1 + sizeof(label) +
 			    /* context (max) */ 1 + 3 + 1 + strlen(psk_digest) +
 			    /* counter */ 1,
 			    GFP_KERNEL);
@@ -743,10 +742,10 @@ int nvme_auth_derive_tls_psk(int hmac_id, const u8 *psk, size_t psk_len,
 	hmac_data[i++] = hash_len;
 
 	/* label */
-	static_assert(label_len <= 255);
-	hmac_data[i] = label_len;
-	memcpy(&hmac_data[i + 1], label, label_len);
-	i += 1 + label_len;
+	static_assert(sizeof(label) <= 255);
+	hmac_data[i] = sizeof(label);
+	memcpy(&hmac_data[i + 1], label, sizeof(label));
+	i += 1 + sizeof(label);
 
 	/* context */
 	ctx_len = sprintf(&hmac_data[i + 1], "%02d %s", hmac_id, psk_digest);

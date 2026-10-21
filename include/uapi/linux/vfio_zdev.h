@@ -32,6 +32,8 @@ struct vfio_device_info_cap_zpci_base {
 	/* End of version 1 */
 	__u32 fh;		/* PCI function handle */
 	/* End of version 2 */
+	__u32 ccdf_err_length;	/* PCI CCDF length */
+	/* End of version 3 */
 };
 
 /**

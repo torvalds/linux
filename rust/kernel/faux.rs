@@ -9,14 +9,62 @@
 use crate::{
     bindings,
     device,
-    prelude::*, //
+    prelude::*,
+    types::Opaque, //
 };
-use core::ptr::{
-    addr_of_mut,
-    null,
-    null_mut,
-    NonNull, //
+use core::{
+    marker::PhantomData,
+    ptr::{
+        null,
+        null_mut,
+        NonNull, //
+    },
 };
+
+/// A faux device.
+///
+/// A faux device is a virtual device backed by the faux bus, primarily used for scenarios where a
+/// real hardware device is not available or for testing.
+///
+/// # Invariants
+///
+/// The underlying `struct faux_device` is valid.
+#[repr(transparent)]
+pub struct Device<Ctx: device::DeviceContext = device::Normal>(
+    Opaque<bindings::faux_device>,
+    PhantomData<Ctx>,
+);
+
+impl<Ctx: device::DeviceContext> Device<Ctx> {
+    #[inline]
+    fn as_raw(&self) -> *mut bindings::faux_device {
+        self.0.get()
+    }
+
+    /// # Safety
+    ///
+    /// `ptr` must be a valid pointer to a `struct faux_device`.
+    #[inline]
+    unsafe fn from_raw<'a>(ptr: *mut bindings::faux_device) -> &'a Self {
+        // SAFETY: `Device` is a transparent wrapper of `Opaque<bindings::faux_device>`.
+        unsafe { &*ptr.cast() }
+    }
+}
+
+impl<Ctx: device::DeviceContext> AsRef<device::Device<Ctx>> for Device<Ctx> {
+    #[inline]
+    fn as_ref(&self) -> &device::Device<Ctx> {
+        // SAFETY: By the type invariant of `Self`, `self.as_raw()` is a pointer to a valid
+        // `struct faux_device`. `dev` points to a valid `struct device`.
+        unsafe { device::Device::from_raw(&raw mut (*self.as_raw()).dev) }
+    }
+}
+
+// SAFETY: `faux::Device` is a transparent wrapper of `struct faux_device`.
+// The offset is guaranteed to point to a valid device field inside `faux::Device`.
+unsafe impl<Ctx: device::DeviceContext> device::AsBusDevice<Ctx> for Device<Ctx> {
+    const OFFSET: usize = core::mem::offset_of!(bindings::faux_device, dev);
+}
 
 /// The registration of a faux device.
 ///
@@ -25,7 +73,8 @@ use core::ptr::{
 ///
 /// # Invariants
 ///
-/// `self.0` always holds a valid pointer to an initialized and registered [`struct faux_device`].
+/// - `self.0` always holds a valid pointer to an initialized and registered [`struct faux_device`].
+/// - This object is proof that the object described by this `Registration` is bound to a device.
 ///
 /// [`struct faux_device`]: srctree/include/linux/device/faux.h
 pub struct Registration(NonNull<bindings::faux_device>);
@@ -59,11 +108,19 @@ impl Registration {
     }
 }
 
-impl AsRef<device::Device> for Registration {
-    fn as_ref(&self) -> &device::Device {
-        // SAFETY: The underlying `device` in `faux_device` is guaranteed by the C API to be
-        // a valid initialized `device`.
-        unsafe { device::Device::from_raw(addr_of_mut!((*self.as_raw()).dev)) }
+impl AsRef<Device<device::Bound>> for Registration {
+    #[inline]
+    fn as_ref(&self) -> &Device<device::Bound> {
+        // SAFETY:
+        // - The underlying `struct faux_device` is guaranteed by the C API to be a valid
+        //   initialized `device`.
+        // - `faux_match()` always returns 1, and probe runs synchronously
+        //   (PROBE_FORCE_SYNCHRONOUS).
+        // - `suppress_bind_attrs = true` on faux_driver prevents userspace-triggered unbind via
+        //   sysfs.
+        // - `mem::forget(Registration)` is not a problem; if the `Registration` is leaked, the faux
+        //   device stays bound forever.
+        unsafe { Device::from_raw(self.as_raw()) }
     }
 }
 

@@ -803,7 +803,7 @@ void sd_int_hdl(struct adapter *adapter)
 	struct hal_com_data *hal;
 
 	if (
-		(adapter->bDriverStopped) || (adapter->bSurpriseRemoved)
+		(adapter->driver_stopped) || (adapter->bSurpriseRemoved)
 	)
 		return;
 

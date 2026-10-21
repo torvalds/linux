@@ -17,6 +17,9 @@
 
 #define NFS_BITMASK_SZ		3
 
+/* aux_flags in nfs_fattr */
+#define NFS_AUX_UNCACHEABLE_FILE_DATA	BIT(0)
+
 struct nfs4_string {
 	unsigned int len;
 	char *data;
@@ -68,6 +71,7 @@ struct nfs_fattr {
 	struct timespec64	mtime;
 	struct timespec64	ctime;
 	struct timespec64	btime;
+	__u32			aux_flags;	/* NFSv4 auxiliary flags bitfield */
 	__u64			change_attr;	/* NFSv4 change attribute */
 	__u64			pre_change_attr;/* pre-op NFSv4 change attribute */
 	__u64			pre_size;	/* pre_op_attr.size	  */
@@ -108,6 +112,7 @@ struct nfs_fattr {
 #define NFS_ATTR_FATTR_GROUP_NAME	BIT_ULL(24)
 #define NFS_ATTR_FATTR_V4_SECURITY_LABEL BIT_ULL(25)
 #define NFS_ATTR_FATTR_BTIME		BIT_ULL(26)
+#define NFS_ATTR_FATTR_UNCACHEABLE_FILE_DATA	BIT_ULL(27)
 
 #define NFS_ATTR_FATTR (NFS_ATTR_FATTR_TYPE \
 		| NFS_ATTR_FATTR_MODE \
@@ -129,7 +134,8 @@ struct nfs_fattr {
 #define NFS_ATTR_FATTR_V4 (NFS_ATTR_FATTR \
 		| NFS_ATTR_FATTR_SPACE_USED \
 		| NFS_ATTR_FATTR_BTIME \
-		| NFS_ATTR_FATTR_V4_SECURITY_LABEL)
+		| NFS_ATTR_FATTR_V4_SECURITY_LABEL \
+		| NFS_ATTR_FATTR_UNCACHEABLE_FILE_DATA)
 
 /*
  * Maximal number of supported layout drivers.
@@ -354,7 +360,7 @@ struct nfs4_layoutreturn {
 	struct nfs4_xdr_opaque_data ld_private;
 };
 
-#define PNFS_LAYOUTSTATS_MAXSIZE 256
+#define PNFS_LAYOUTSTATS_MAXSIZE 384
 
 struct nfs42_layoutstat_args;
 struct nfs42_layoutstat_devinfo;

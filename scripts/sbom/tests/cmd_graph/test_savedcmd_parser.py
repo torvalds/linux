@@ -19,6 +19,31 @@ class TestSavedCmdParser(unittest.TestCase):
         errors = sbom_logging._error_logger._message_counts # type: ignore
         self.assertEqual(errors, {})
 
+    # Error handling tests
+    def test_malformed_shell_quoting(self):
+        command = 'gcc "unterminated'
+        with patch.object(sbom_logging, "warning") as warning:
+            parsed = parse_inputs_from_commands(command, fail_on_unknown_build_command=False)
+
+        self.assertEqual(parsed, [])
+        warning.assert_called_once_with(
+            "Skipped parsing command {single_command} because of command parsing error: {error_message}",
+            single_command=command,
+            error_message="No closing quotation",
+        )
+
+    def test_missing_positional_argument(self):
+        command = "objcopy"
+        with patch.object(sbom_logging, "warning") as warning:
+            parsed = parse_inputs_from_commands(command, fail_on_unknown_build_command=False)
+
+        self.assertEqual(parsed, [])
+        warning.assert_called_once_with(
+            "Skipped parsing command {single_command} because of command parsing error: {error_message}",
+            single_command=command,
+            error_message="list index out of range",
+        )
+
     # Compound command tests
     def test_dd_cat(self):
         cmd = "(dd if=arch/x86/boot/setup.bin bs=4k conv=sync status=none; cat arch/x86/boot/vmlinux.bin) >arch/x86/boot/bzImage"

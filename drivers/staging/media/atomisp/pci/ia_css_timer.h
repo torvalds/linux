@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/**
+/*
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
 
@@ -42,7 +42,10 @@ struct ia_css_time_meas {
 	clock_value_t	end_timer_value;	/** measured time in ticks */
 };
 
-/**@brief SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT checks to ensure correct alignment for struct ia_css_clock_tick. */
+/*
+ * @brief SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT checks to ensure correct alignment
+ * for struct ia_css_clock_tick.
+ */
 #define SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT sizeof(clock_value_t)
 /* @brief checks to ensure correct alignment for ia_css_time_meas. */
 #define SIZE_OF_IA_CSS_TIME_MEAS_STRUCT (sizeof(clock_value_t) \

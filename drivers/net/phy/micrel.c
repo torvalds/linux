@@ -1161,6 +1161,65 @@ static int ksz9031_set_loopback(struct phy_device *phydev, bool enable,
 				     5000, 500000, true);
 }
 
+/* KSZ9131-specific sequence to enable loopback, registers are undocumented
+ * in the datasheet but mentionned in the local loopback mode configuration
+ * steps.
+ *
+ * Without taking these steps, the PHY appears to disable its RXC while in
+ * loopback mode, which may be needed by some MACs such as stmmac.
+ */
+static int ksz9131_loopback_enable(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_write_mmd(phydev, 0x1c, 0x15, 0xeeee);
+	if (ret)
+		return ret;
+
+	ret = phy_write_mmd(phydev, 0x1c, 0x16, 0xeeee);
+	if (ret)
+		return ret;
+
+	ret = phy_write_mmd(phydev, 0x1c, 0x18, 0xeeee);
+	if (ret)
+		return ret;
+
+	return phy_write_mmd(phydev, 0x1c, 0x1b, 0xeeee);
+}
+
+/* KSZ9131 datasheet doesn't state how to deal with the MMD 0x1c registers
+ * when disabling loopback.
+ *
+ * Set them back to their measured initial state when disabling loopback, and
+ * ignore errors while doing so.
+ */
+static void ksz9131_loopback_disable(struct phy_device *phydev)
+{
+	phy_write_mmd(phydev, 0x1c, 0x15, 0x6eff);
+	phy_write_mmd(phydev, 0x1c, 0x16, 0xe6ff);
+	phy_write_mmd(phydev, 0x1c, 0x18, 0x43ff);
+	phy_write_mmd(phydev, 0x1c, 0x1b, 0x07ff);
+}
+
+static int ksz9131_set_loopback(struct phy_device *phydev, bool enable,
+				int speed)
+{
+	int ret;
+
+	if (enable) {
+		ret = ksz9131_loopback_enable(phydev);
+		if (ret)
+			return ret;
+	}
+
+	ret = ksz9031_set_loopback(phydev, enable, speed);
+
+	if (ret || !enable)
+		ksz9131_loopback_disable(phydev);
+
+	return ret;
+}
+
 static int ksz9031_of_load_skew_values(struct phy_device *phydev,
 				       const struct device_node *of_node,
 				       u16 reg, size_t field_sz,
@@ -6993,6 +7052,7 @@ static struct phy_driver ksphy_driver[] = {
 	.cable_test_start	= ksz9x31_cable_test_start,
 	.cable_test_get_status	= ksz9x31_cable_test_get_status,
 	.get_features	= ksz9477_get_features,
+	.set_loopback	= ksz9131_set_loopback,
 }, {
 	PHY_ID_MATCH_MODEL(PHY_ID_KSZ8873MLL),
 	.name		= "Micrel KSZ8873MLL Switch",

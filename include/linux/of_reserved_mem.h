@@ -40,6 +40,8 @@ int of_reserved_mem_device_init_by_name(struct device *dev,
 					const char *name);
 void of_reserved_mem_device_release(struct device *dev);
 
+int devm_of_reserved_mem_device_init(struct device *dev);
+
 struct reserved_mem *of_reserved_mem_lookup(struct device_node *np);
 int of_reserved_mem_region_to_resource(const struct device_node *np,
 				       unsigned int idx, struct resource *res);
@@ -67,6 +69,11 @@ static inline int of_reserved_mem_device_init_by_name(struct device *dev,
 }
 
 static inline void of_reserved_mem_device_release(struct device *pdev) { }
+
+static inline int devm_of_reserved_mem_device_init(struct device *dev)
+{
+	return -EOPNOTSUPP;
+}
 
 static inline struct reserved_mem *of_reserved_mem_lookup(struct device_node *np)
 {

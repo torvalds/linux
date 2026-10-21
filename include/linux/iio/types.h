@@ -7,6 +7,9 @@
 #ifndef _IIO_TYPES_H_
 #define _IIO_TYPES_H_
 
+#include <linux/types.h>
+#include <linux/wordpart.h>
+
 #include <uapi/linux/iio/types.h>
 
 enum iio_event_info {
@@ -33,6 +36,24 @@ enum iio_event_info {
 #define IIO_VAL_FRACTIONAL 10
 #define IIO_VAL_FRACTIONAL_LOG2 11
 #define IIO_VAL_CHAR 12
+
+#define IIO_VAL_DECIMAL64_BASE		32
+#define IIO_VAL_DECIMAL64_MILLI		(IIO_VAL_DECIMAL64_BASE + 3)
+#define IIO_VAL_DECIMAL64_MICRO		(IIO_VAL_DECIMAL64_BASE + 6)
+#define IIO_VAL_DECIMAL64_NANO		(IIO_VAL_DECIMAL64_BASE + 9)
+#define IIO_VAL_DECIMAL64_PICO		(IIO_VAL_DECIMAL64_BASE + 12)
+#define IIO_VAL_DECIMAL64_FEMTO		(IIO_VAL_DECIMAL64_BASE + 15)
+
+static inline s64 iio_val_s64_compose(s32 val0, s32 val1)
+{
+	return (s64)(((u64)val1 << 32) | (u32)val0);
+}
+
+static inline void iio_val_s64_decompose(s64 dec64, s32 *val0, s32 *val1)
+{
+	*val0 = lower_32_bits(dec64);
+	*val1 = upper_32_bits(dec64);
+}
 
 enum iio_available_type {
 	IIO_AVAIL_LIST,

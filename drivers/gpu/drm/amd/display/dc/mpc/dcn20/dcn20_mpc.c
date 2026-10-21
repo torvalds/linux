@@ -380,7 +380,6 @@ static void mpc20_program_ogam_pwl(
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
 
 	PERF_TRACE();
-	REG_SEQ_START();
 
 	for (i = 0 ; i < num; i++) {
 		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].red_reg);
@@ -395,9 +394,6 @@ static void mpc20_program_ogam_pwl(
 				MPCC_OGAM_LUT_DATA, rgb[i].delta_blue_reg);
 	}
 
-	REG_SEQ_SUBMIT();
-	PERF_TRACE();
-	REG_SEQ_WAIT_DONE();
 	PERF_TRACE();
 }
 

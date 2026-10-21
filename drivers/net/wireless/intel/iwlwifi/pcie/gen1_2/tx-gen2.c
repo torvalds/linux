@@ -773,6 +773,8 @@ int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	tfd = iwl_txq_gen2_build_tfd(trans, txq, dev_cmd, skb, out_meta);
 	if (!tfd) {
+		txq->entries[idx].skb = NULL;
+		txq->entries[idx].cmd = NULL;
 		spin_unlock(&txq->lock);
 		return -1;
 	}

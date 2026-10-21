@@ -72,9 +72,9 @@ struct sk_buff *net_test_get_skb(struct net_device *ndev, u8 id,
 	} else {
 		uhdr->source = htons(attr->sport);
 		uhdr->dest = htons(attr->dport);
-		uhdr->len = htons(sizeof(*shdr) + sizeof(*uhdr) + attr->size);
+		udp_set_len_short(uhdr, sizeof(*shdr) + sizeof(*uhdr) + attr->size);
 		if (attr->max_size)
-			uhdr->len = htons(attr->max_size -
+			udp_set_len_short(uhdr, attr->max_size -
 					  (sizeof(*ihdr) + sizeof(*ehdr)));
 		uhdr->check = 0;
 	}

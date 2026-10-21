@@ -108,6 +108,9 @@ Description:
 			# NSFS_MAGIC
 			dont_measure fsmagic=0x6e736673
 			dont_appraise fsmagic=0x6e736673
+			# CONFIGFS_MAGIC
+			dont_measure fsmagic=0x62656570
+			dont_appraise fsmagic=0x62656570
 
 			measure func=BPRM_CHECK
 			measure func=FILE_MMAP mask=MAY_EXEC

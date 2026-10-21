@@ -1,22 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! Provide implementation and test of the `ForLt` trait and macro.
+//! Provide implementation and test of the [`trait@ForLt`] and [`trait@CovariantForLt`] traits and
+//! macros.
 //!
-//! This module is hidden and user should just use `ForLt!` directly.
+//! This module is hidden and users should just use [`ForLt!`](macro@ForLt) /
+//! [`CovariantForLt!`](macro@CovariantForLt) directly.
 
 use core::marker::PhantomData;
 
 /// Representation of types generic over a lifetime.
 ///
-/// The type must be covariant over the generic lifetime, i.e. the lifetime parameter
-/// can be soundly shortened.
-///
-/// The lifetime involved must be covariant.
-///
 /// # Macro
 ///
-/// It is not recommended to implement this trait directly. `ForLt!` macro is provided to obtain a
-/// type that implements this trait.
+/// It is not recommended to implement this trait directly. [`ForLt!`](macro@ForLt) macro is
+/// provided to obtain a type that implements this trait.
 ///
 /// The full syntax is
 ///
@@ -49,16 +46,65 @@ use core::marker::PhantomData;
 /// ForLt!(u32) // Equivalent to `ForLt!(for<'a> u32)`.
 /// # >();
 /// ```
+pub trait ForLt {
+    /// The type parameterized by the lifetime.
+    type Of<'a>: 'a;
+}
+pub use macros::ForLt;
+
+/// [`trait@ForLt`] subtrait for types that are covariant over their lifetime parameter.
+///
+/// Provides a safe [`cast_ref`](CovariantForLt::cast_ref) method for types that are proven to be
+/// covariant. The `CovariantForLt!` macro syntax is the same as `ForLt!`.
+///
+/// # Macro
+///
+/// It is not recommended to implement this trait directly.
+/// [`CovariantForLt!`](macro@CovariantForLt) macro is provided to obtain a type that implements
+/// this trait.
+///
+/// The full syntax is
+///
+/// ```
+/// # use kernel::types::CovariantForLt;
+/// # fn expect_lt<F: CovariantForLt>() {}
+/// # struct TypeThatUse<'a>(&'a ());
+/// # expect_lt::<
+/// CovariantForLt!(for<'a> TypeThatUse<'a>)
+/// # >();
+/// ```
+///
+/// which gives a type so that
+/// `<CovariantForLt!(for<'a> TypeThatUse<'a>) as CovariantForLt>::Of<'b>`
+/// is `TypeThatUse<'b>`.
+///
+/// You may also use a short-hand syntax which works similar to lifetime elision.
+/// The macro also accepts types that do not involve a lifetime at all.
+///
+/// ```
+/// # use kernel::types::CovariantForLt;
+/// # fn expect_lt<F: CovariantForLt>() {}
+/// # struct TypeThatUse<'a>(&'a ());
+/// # expect_lt::<
+/// CovariantForLt!(TypeThatUse<'_>) // Equivalent to `CovariantForLt!(for<'a> TypeThatUse<'a>)`.
+/// # >();
+/// # expect_lt::<
+/// CovariantForLt!(&u32) // Equivalent to `CovariantForLt!(for<'a> &'a u32)`.
+/// # >();
+/// # expect_lt::<
+/// CovariantForLt!(u32) // Equivalent to `CovariantForLt!(for<'a> u32)`.
+/// # >();
+/// ```
 ///
 /// The macro will attempt to prove that the type is indeed covariant over the lifetime supplied.
 /// When it cannot be syntactically proven, it will emit checks to ask the Rust compiler to prove
 /// it.
 ///
 /// ```ignore,compile_fail
-/// # use kernel::types::ForLt;
-/// # fn expect_lt<F: ForLt>() {}
+/// # use kernel::types::CovariantForLt;
+/// # fn expect_lt<F: CovariantForLt>() {}
 /// # expect_lt::<
-/// ForLt!(fn(&u32)) // Contravariant, will fail compilation.
+/// CovariantForLt!(fn(&u32)) // Contravariant, will fail compilation.
 /// # >();
 /// ```
 ///
@@ -67,26 +113,23 @@ use core::marker::PhantomData;
 /// the generic parameter but is in a separate item.
 ///
 /// ```
-/// # use kernel::types::ForLt;
-/// fn expect_lt<F: ForLt>() {}
+/// # use kernel::types::CovariantForLt;
+/// fn expect_lt<F: CovariantForLt>() {}
 /// # #[allow(clippy::unnecessary_safety_comment, reason = "false positive")]
 /// fn generic_fn<T: 'static>() {
 ///     // Syntactically proven by the macro
-///     expect_lt::<ForLt!(&T)>();
+///     expect_lt::<CovariantForLt!(&T)>();
 ///     // Syntactically proven by the macro
-///     expect_lt::<ForLt!(&KBox<T>)>();
+///     expect_lt::<CovariantForLt!(&KBox<T>)>();
 ///     // Cannot be syntactically proven, need to check covariance of `KBox`
-///     // expect_lt::<ForLt!(&KBox<&T>)>();
+///     // expect_lt::<CovariantForLt!(&KBox<&T>)>();
 /// }
 /// ```
 ///
 /// # Safety
 ///
 /// `Self::Of<'a>` must be covariant over the lifetime `'a`.
-pub unsafe trait ForLt {
-    /// The type parameterized by the lifetime.
-    type Of<'a>: 'a;
-
+pub unsafe trait CovariantForLt: ForLt {
     /// Cast a reference to a shorter lifetime.
     #[inline(always)]
     fn cast_ref<'r, 'short: 'r, 'long: 'short>(long: &'r Self::Of<'long>) -> &'r Self::Of<'short> {
@@ -94,29 +137,33 @@ pub unsafe trait ForLt {
         unsafe { core::mem::transmute(long) }
     }
 }
-pub use macros::ForLt;
+pub use macros::CovariantForLt;
 
 /// This is intended to be an "unsafe-to-refer-to" type.
 ///
-/// Must only be used by the `ForLt!` macro.
+/// Must only be used by the [`ForLt!`](macro@ForLt) / [`CovariantForLt!`](macro@CovariantForLt)
+/// macros.
 ///
 /// `T` is the magic `dyn for<'a> WithLt<'a, TypeThatUse<'a>>` generated by macro.
 ///
 /// `WF` is a type that the macro can use to assert some specific type is well-formed.
 ///
 /// `N` is to provide the macro a place to emit arbitrary items, in case it needs to prove
-/// additional properties.
+/// additional properties. [`ForLt!`](macro@ForLt) emits `N = 0`;
+/// [`CovariantForLt!`](macro@CovariantForLt) emits `N = 1` after a covariance proof.
 #[doc(hidden)]
 pub struct UnsafeForLtImpl<T: ?Sized, WF, const N: usize>(PhantomData<(WF, T)>);
 
-// This is a helper trait for implementation `ForLt` to be able to use HRTB.
+// This is a helper trait for implementation of `ForLt` / `CovariantForLt` to be able to use HRTB.
 #[doc(hidden)]
 pub trait WithLt<'a> {
     type Of: 'a;
 }
 
-// SAFETY: In `ForLt!` macro, a covariance proof is generated when naming `UnsafeForLtImpl`
-// and it will fail to evaluate if the type is not covariant.
-unsafe impl<T: ?Sized + for<'a> WithLt<'a>, WF> ForLt for UnsafeForLtImpl<T, WF, 0> {
+impl<T: ?Sized + for<'a> WithLt<'a>, WF, const N: usize> ForLt for UnsafeForLtImpl<T, WF, N> {
     type Of<'a> = <T as WithLt<'a>>::Of;
 }
+
+// SAFETY: In `CovariantForLt!` macro, a covariance proof is generated in the `N` const generic
+// and it will fail to evaluate if the type is not covariant. Only `N = 1` gets this impl.
+unsafe impl<T: ?Sized + for<'a> WithLt<'a>, WF> CovariantForLt for UnsafeForLtImpl<T, WF, 1> {}

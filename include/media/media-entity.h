@@ -1387,6 +1387,7 @@ void media_remove_intf_links(struct media_interface *intf);
  * @entity: entity where the @operation will be called
  * @operation: type of the operation. Should be the name of a member of
  *	struct &media_entity_operations.
+ * @args: arguments for the operation.
  *
  * This helper function will check if @operation is not %NULL. On such case,
  * it will issue a call to @operation\(@entity, @args\).

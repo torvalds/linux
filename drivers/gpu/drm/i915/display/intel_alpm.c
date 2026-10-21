@@ -291,7 +291,9 @@ void intel_alpm_lobf_compute_config_late(struct intel_dp *intel_dp,
 	if (!crtc_state->has_lobf)
 		return;
 
-	if (!intel_alpm_lobf_is_window1_sufficient(crtc_state)) {
+	if (crtc_state->has_psr ||
+	    !intel_vrr_is_fixed_rr(crtc_state) ||
+	    !intel_alpm_lobf_is_window1_sufficient(crtc_state)) {
 		crtc_state->has_lobf = false;
 		return;
 	}
@@ -343,11 +345,7 @@ void intel_alpm_lobf_compute_config(struct intel_dp *intel_dp,
 	if (!intel_dp->as_sdp_supported)
 		return;
 
-	if (crtc_state->has_psr)
-		return;
-
-	if (!intel_vrr_always_use_vrr_tg(display) ||
-	    !intel_vrr_is_fixed_rr(crtc_state))
+	if (!intel_vrr_always_use_vrr_tg(display))
 		return;
 
 	if (!(intel_alpm_aux_wake_supported(intel_dp) ||
@@ -406,6 +404,11 @@ static void lnl_alpm_configure(struct intel_dp *intel_dp,
 				pr_alpm_ctl |= PR_ALPM_CTL_ALLOW_LINK_OFF_BETWEEN_AS_SDP_AND_SU;
 			if (crtc_state->disable_as_sdp_when_pr_active)
 				pr_alpm_ctl |= PR_ALPM_CTL_AS_SDP_TRANSMISSION_IN_ACTIVE_DISABLE;
+
+			if (intel_display_power_dc3co_allowed(display))
+				pr_alpm_ctl |= PR_ALPM_CTL_USE_DC3CO_IDLE_PROTOCOL;
+			else
+				pr_alpm_ctl &= ~PR_ALPM_CTL_USE_DC3CO_IDLE_PROTOCOL;
 
 			intel_de_write(display, PR_ALPM_CTL(display, cpu_transcoder),
 				       pr_alpm_ctl);

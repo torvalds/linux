@@ -43,14 +43,13 @@ static inline void vsp1_clu_write(struct vsp1_clu *clu,
 static int clu_set_table(struct vsp1_clu *clu, struct v4l2_ctrl *ctrl)
 {
 	struct vsp1_dl_body *dlb;
-	unsigned int i;
 
 	dlb = vsp1_dl_body_get(clu->pool);
 	if (!dlb)
 		return -ENOMEM;
 
 	vsp1_dl_body_write(dlb, VI6_CLU_ADDR, 0);
-	for (i = 0; i < CLU_SIZE; ++i)
+	for (unsigned int i = 0; i < CLU_SIZE; ++i)
 		vsp1_dl_body_write(dlb, VI6_CLU_DATA, ctrl->p_new.p_u32[i]);
 
 	scoped_guard(spinlock_irq, &clu->lock) {

@@ -11,11 +11,18 @@
 
 static const char *device_bdf;
 
-#define ASSERT_NO_MSI(_eventfd) do {			\
-	u64 __value;					\
-							\
-	ASSERT_EQ(-1, read(_eventfd, &__value, 8));	\
-	ASSERT_EQ(EAGAIN, errno);			\
+#define fcntl_set_msi_nonblock(_self) do {				\
+	if (_self->device->driver.ops->send_msi)			\
+		fcntl_set_nonblock(_self->msi_fd);			\
+} while (0)
+
+#define ASSERT_NO_MSI(_self) do {					\
+	u64 __value;							\
+									\
+	if (!_self->device->driver.ops->send_msi)			\
+		break;							\
+	ASSERT_EQ(-1, read(_self->msi_fd, &__value, 8));		\
+	ASSERT_EQ(EAGAIN, errno);					\
 } while (0)
 
 static void region_setup(struct iommu *iommu,
@@ -89,12 +96,12 @@ FIXTURE_SETUP(vfio_pci_driver_test)
 	self->msi_fd = self->device->msi_eventfds[driver->msi];
 
 	/*
-	 * Use the maximum size supported by the device for memcpy operations,
-	 * slimmed down to fit into the memcpy region (divided by 2 so src and
-	 * dst regions do not overlap).
+	 * Use 4x the driver's max_memcpy_size to exercise the chunking
+	 * logic in vfio_pci_driver_memcpy(). Cap to half the memcpy
+	 * region so src and dst do not overlap.
 	 */
-	self->size = self->device->driver.max_memcpy_size;
-	self->size = min(self->size, self->memcpy_region.size / 2);
+	self->size = min_t(u64, driver->max_memcpy_size * 4,
+			   self->memcpy_region.size / 2);
 
 	self->src = self->memcpy_region.vaddr;
 	self->dst = self->src + self->size;
@@ -129,7 +136,7 @@ TEST_F(vfio_pci_driver_test, init_remove)
 
 TEST_F(vfio_pci_driver_test, memcpy_success)
 {
-	fcntl_set_nonblock(self->msi_fd);
+	fcntl_set_msi_nonblock(self);
 
 	memset(self->src, 'x', self->size);
 	memset(self->dst, 'y', self->size);
@@ -140,12 +147,12 @@ TEST_F(vfio_pci_driver_test, memcpy_success)
 					    self->size));
 
 	ASSERT_EQ(0, memcmp(self->src, self->dst, self->size));
-	ASSERT_NO_MSI(self->msi_fd);
+	ASSERT_NO_MSI(self);
 }
 
 TEST_F(vfio_pci_driver_test, memcpy_from_unmapped_iova)
 {
-	fcntl_set_nonblock(self->msi_fd);
+	fcntl_set_msi_nonblock(self);
 
 	/*
 	 * Ignore the return value since not all devices will detect and report
@@ -154,12 +161,12 @@ TEST_F(vfio_pci_driver_test, memcpy_from_unmapped_iova)
 	vfio_pci_driver_memcpy(self->device, self->unmapped_iova,
 			       self->dst_iova, self->size);
 
-	ASSERT_NO_MSI(self->msi_fd);
+	ASSERT_NO_MSI(self);
 }
 
 TEST_F(vfio_pci_driver_test, memcpy_to_unmapped_iova)
 {
-	fcntl_set_nonblock(self->msi_fd);
+	fcntl_set_msi_nonblock(self);
 
 	/*
 	 * Ignore the return value since not all devices will detect and report
@@ -168,12 +175,15 @@ TEST_F(vfio_pci_driver_test, memcpy_to_unmapped_iova)
 	vfio_pci_driver_memcpy(self->device, self->src_iova,
 			       self->unmapped_iova, self->size);
 
-	ASSERT_NO_MSI(self->msi_fd);
+	ASSERT_NO_MSI(self);
 }
 
 TEST_F(vfio_pci_driver_test, send_msi)
 {
 	u64 value;
+
+	if (!self->device->driver.ops->send_msi)
+		SKIP(return, "Driver does not support send_msi()\n");
 
 	vfio_pci_driver_send_msi(self->device);
 	ASSERT_EQ(8, read(self->msi_fd, &value, 8));
@@ -201,6 +211,9 @@ TEST_F(vfio_pci_driver_test, mix_and_match)
 				       self->dst_iova,
 				       self->size);
 
+		if (!self->device->driver.ops->send_msi)
+			continue;
+
 		vfio_pci_driver_send_msi(self->device);
 		ASSERT_EQ(8, read(self->msi_fd, &value, 8));
 		ASSERT_EQ(1, value);
@@ -211,9 +224,10 @@ TEST_F_TIMEOUT(vfio_pci_driver_test, memcpy_storm, 60)
 {
 	struct vfio_pci_driver *driver = &self->device->driver;
 	u64 total_size;
+	u64 size;
 	u64 count;
 
-	fcntl_set_nonblock(self->msi_fd);
+	fcntl_set_msi_nonblock(self);
 
 	/*
 	 * Perform up to 250GiB worth of DMA reads and writes across several
@@ -221,16 +235,17 @@ TEST_F_TIMEOUT(vfio_pci_driver_test, memcpy_storm, 60)
 	 * will take too long.
 	 */
 	total_size = 250UL * SZ_1G;
-	count = min(total_size / self->size, driver->max_memcpy_count);
+	size = min(driver->max_memcpy_size, self->memcpy_region.size / 2);
+	count = min(total_size / size, driver->max_memcpy_count);
 
-	printf("Kicking off %lu memcpys of size 0x%lx\n", count, self->size);
+	printf("Kicking off %lu memcpys of size 0x%lx\n", count, size);
 	vfio_pci_driver_memcpy_start(self->device,
 				     self->src_iova,
 				     self->dst_iova,
-				     self->size, count);
+				     size, count);
 
 	ASSERT_EQ(0, vfio_pci_driver_memcpy_wait(self->device));
-	ASSERT_NO_MSI(self->msi_fd);
+	ASSERT_NO_MSI(self);
 }
 
 static bool device_has_selftests_driver(const char *bdf)

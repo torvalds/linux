@@ -1605,6 +1605,10 @@ static u64 **arm_spe__alloc_metadata(struct perf_record_auxtrace_info *info,
 	hdr_sz = ptr[ARM_SPE_HEADER_SIZE];
 	*nr_cpu = ptr[ARM_SPE_CPUS_NUM];
 
+	/* nr_cpu is used as a divisor below */
+	if (*nr_cpu <= 0)
+		return NULL;
+
 	metadata = calloc(*nr_cpu, sizeof(*metadata));
 	if (!metadata)
 		return NULL;

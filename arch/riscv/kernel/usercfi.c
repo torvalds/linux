@@ -110,7 +110,7 @@ void set_indir_lp_lock(struct task_struct *task, bool lock)
 }
 /*
  * The shadow stack only stores the return address and not any variables
- * this should be more than sufficient for most applications.
+ * 512M should be more than sufficient for most applications.
  * Else PAGE_ALIGN it and return back
  */
 static unsigned long calc_shstk_size(unsigned long size)
@@ -118,7 +118,7 @@ static unsigned long calc_shstk_size(unsigned long size)
 	if (size)
 		return PAGE_ALIGN(size);
 
-	return PAGE_ALIGN(min(rlimit(RLIMIT_STACK) / 2, SZ_2G));
+	return PAGE_ALIGN(min(rlimit(RLIMIT_STACK) / 8, SZ_512M));
 }
 
 /*
@@ -525,9 +525,8 @@ static int __init setup_global_riscv_enable(char *str)
 
 	if (riscv_nousercfi)
 		pr_info("RISC-V user CFI disabled via cmdline - shadow stack status : %s, landing pad status : %s\n",
-			(riscv_nousercfi & CMDLINE_DISABLE_RISCV_USERCFI_BCFI) ? "disabled" :
-			"enabled", (riscv_nousercfi & CMDLINE_DISABLE_RISCV_USERCFI_FCFI) ?
-			"disabled" : "enabled");
+			str_disabled_enabled(riscv_nousercfi & CMDLINE_DISABLE_RISCV_USERCFI_BCFI),
+			str_disabled_enabled(riscv_nousercfi & CMDLINE_DISABLE_RISCV_USERCFI_FCFI));
 
 	return 1;
 }

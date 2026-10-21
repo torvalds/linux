@@ -85,7 +85,8 @@
 #define DALSMC_MSG_DispIPS2Exit                 0x11 ///< Display IPS2 exit
 
 #define DALSMC_MSG_QueryIPS2Support             0x12 ///< Return 1: support; else not supported
-#define DALSMC_Message_Count                    0x13 ///< Total number of VBIS and DAL messages
+#define DALSMC_MSG_DfCstateDisable              0x13 ///< DCN DF C-state vote (PMFW FWDEV-193711): param 0 = Allow, 1 = Disable
+#define DALSMC_Message_Count                    0x14 ///< Total number of VBIS and DAL messages
 /** @}*/
 
 
@@ -427,4 +428,30 @@ void dcn42_smu_set_dtbclk(struct clk_mgr_internal *clk_mgr, bool enable)
 			DALSMC_MSG_SetDtbClk,
 			enable);
 	smu_print("%s: smu_set_dtbclk = %d\n", __func__, enable ? 1 : 0);
+}
+
+/*
+ * Vote DCN's DF C-state policy to PMFW. param: 0 = Allow, 1 = Disable.
+ * Returns true only when PMFW acknowledged the vote (or there is no SMU to
+ * talk to, in which case there is no DF arbiter to satisfy). On a non-OK
+ * response the caller must NOT update its cached cstate_allow so the next
+ * transition retries
+ */
+bool dcn42_smu_set_df_cstate_disable(struct clk_mgr_internal *clk_mgr, bool disable)
+{
+	int retv;
+
+	if (!clk_mgr->smu_present)
+		return true;
+
+	retv = dcn42_smu_send_msg_with_param(
+			clk_mgr,
+			DALSMC_MSG_DfCstateDisable,
+			disable ? 1 : 0);
+
+	smu_print("%s: DfCstateDisable param = %d, return = %d\n",
+		__func__, disable ? 1 : 0, retv);
+
+	/* dcn42_smu_send_msg_with_param() returns -1 on a non-OK PMFW response. */
+	return retv != -1;
 }

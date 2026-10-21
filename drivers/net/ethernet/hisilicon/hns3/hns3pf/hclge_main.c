@@ -3524,6 +3524,122 @@ static int hclge_set_vf_link_state(struct hnae3_handle *handle, int vf,
 	return ret;
 }
 
+static int hclge_set_pfc_storm_para(struct hclge_dev *hdev,
+				    struct hnae3_pfc_storm_para *para)
+{
+	struct hclge_pfc_storm_para_cmd *para_cmd;
+	struct hclge_desc desc;
+	int ret;
+
+	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3)
+		return -EOPNOTSUPP;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_PAUSE_STORM_PARA,
+				   false);
+	para_cmd = (struct hclge_pfc_storm_para_cmd *)desc.data;
+	para_cmd->dir = cpu_to_le32(para->dir);
+	para_cmd->enable = cpu_to_le32(para->enable);
+	para_cmd->period_ms = cpu_to_le32(para->period_ms);
+	para_cmd->times = cpu_to_le32(para->times);
+	para_cmd->recovery_period_ms = cpu_to_le32(para->recovery_period_ms);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"failed to set pfc storm para, ret = %d\n", ret);
+	return ret;
+}
+
+static int hclge_get_pfc_storm_para(struct hclge_dev *hdev,
+				    struct hnae3_pfc_storm_para *para)
+{
+	struct hclge_pfc_storm_para_cmd *para_cmd;
+	struct hclge_desc desc;
+	int ret;
+
+	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3)
+		return -EOPNOTSUPP;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_PAUSE_STORM_PARA, true);
+	para_cmd = (struct hclge_pfc_storm_para_cmd *)desc.data;
+	para_cmd->dir = cpu_to_le32(para->dir);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get pfc storm para, ret = %d\n", ret);
+		return ret;
+	}
+
+	para->enable = le32_to_cpu(para_cmd->enable);
+	para->period_ms = le32_to_cpu(para_cmd->period_ms);
+	para->times = le32_to_cpu(para_cmd->times);
+	para->recovery_period_ms = le32_to_cpu(para_cmd->recovery_period_ms);
+
+	return 0;
+}
+
+static int hclge_enable_pfc_storm_prevent(struct hclge_dev *hdev,
+					  int dir, bool enable)
+{
+	struct hnae3_pfc_storm_para para = {0};
+	int ret;
+
+	para.dir = dir;
+	ret = hclge_get_pfc_storm_para(hdev, &para);
+	if (ret)
+		return ret;
+
+	para.enable = enable;
+	return hclge_set_pfc_storm_para(hdev, &para);
+}
+
+static int hclge_set_pfc_prevention_tout(struct hnae3_handle *h, u16 times)
+{
+	struct hclge_vport *vport = hclge_get_vport(h);
+	struct hclge_dev *hdev = vport->back;
+	struct hnae3_pfc_storm_para para;
+	int ret;
+
+	if (times > HCLGE_MAX_PFC_PREVENTION_TOUT) {
+		dev_err(&hdev->pdev->dev,
+			"times %u should be no more than %u!\n",
+			times, HCLGE_MAX_PFC_PREVENTION_TOUT);
+		return -EINVAL;
+	}
+
+	para.dir = HCLGE_DIR_TX;
+	ret = hclge_get_pfc_storm_para(hdev, &para);
+	if (ret)
+		return ret;
+
+	para.enable = times ? 1 : 0;
+	para.times = (u32)times;
+	ret = hclge_set_pfc_storm_para(hdev, &para);
+	if (ret)
+		return ret;
+
+	hdev->pfc_prevention_tout = times;
+
+	return 0;
+}
+
+static int hclge_get_pfc_prevention_tout(struct hnae3_handle *h, u16 *times)
+{
+	struct hclge_vport *vport = hclge_get_vport(h);
+	struct hclge_dev *hdev = vport->back;
+	struct hnae3_pfc_storm_para para;
+	int ret;
+
+	para.dir = HCLGE_DIR_TX;
+	ret = hclge_get_pfc_storm_para(hdev, &para);
+	if (ret)
+		return ret;
+
+	*times = para.enable ? (u16)para.times : 0;
+
+	return 0;
+}
+
 static void hclge_set_reset_pending(struct hclge_dev *hdev,
 				    enum hnae3_reset_type reset_type)
 {
@@ -4315,6 +4431,26 @@ static int hclge_reset_prepare(struct hclge_dev *hdev)
 		return ret;
 
 	return hclge_reset_prepare_wait(hdev);
+}
+
+static void hclge_restore_pfc_storm_prevention_tout(struct hclge_dev *hdev)
+{
+	struct hnae3_handle *handle = &hdev->vport[0].nic;
+	int ret;
+
+	ret = hclge_enable_pfc_storm_prevent(hdev, HCLGE_DIR_RX, false);
+	if (ret == -EOPNOTSUPP)
+		return;
+	else if (ret)
+		dev_warn(&hdev->pdev->dev,
+			 "failed to disable rx pfc storm prevent, ret = %d\n",
+			 ret);
+
+	ret = hclge_set_pfc_prevention_tout(handle, hdev->pfc_prevention_tout);
+	if (ret)
+		dev_warn(&hdev->pdev->dev,
+			 "failed to set tx pfc storm prevent, ret = %d\n",
+			 ret);
 }
 
 static int hclge_reset_rebuild(struct hclge_dev *hdev)
@@ -9278,6 +9414,32 @@ static int hclge_init_wol(struct hclge_dev *hdev)
 	return hclge_update_wol(hdev);
 }
 
+static void hclge_init_pfc_prevention_tout(struct hclge_dev *hdev)
+{
+	struct hnae3_handle *handle = &hdev->vport[0].nic;
+	u16 times;
+	int ret;
+
+	ret = hclge_enable_pfc_storm_prevent(hdev, HCLGE_DIR_RX, false);
+	if (ret == -EOPNOTSUPP)
+		return;
+	else if (ret)
+		dev_warn(&hdev->pdev->dev,
+			 "failed to disable rx pfc storm prevent, ret = %d\n",
+			 ret);
+
+	ret = hclge_get_pfc_prevention_tout(handle, &times);
+	if (ret) {
+		dev_warn(&hdev->pdev->dev,
+			 "failed to get tx pfc prevention timeout, ret = %d\n",
+			 ret);
+		times = HCLGE_DEFAULT_PFC_PREVENTION_TOUT;
+	}
+
+	hdev->pfc_prevention_tout = times;
+	hdev->pfc_prevention_tout_default = times;
+}
+
 static void hclge_get_wol(struct hnae3_handle *handle,
 			  struct ethtool_wolinfo *wol)
 {
@@ -9542,6 +9704,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	if (ret)
 		dev_warn(&pdev->dev,
 			 "failed to wake on lan init, ret = %d\n", ret);
+
+	hclge_init_pfc_prevention_tout(hdev);
 
 	ret = hclge_devlink_init(hdev);
 	if (ret)
@@ -9942,6 +10106,8 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		dev_warn(&pdev->dev,
 			 "failed to update wol config, ret = %d\n", ret);
 
+	hclge_restore_pfc_storm_prevention_tout(hdev);
+
 	dev_info(&pdev->dev, "Reset done, %s driver initialization finished.\n",
 		 HCLGE_DRIVER_NAME);
 
@@ -9972,6 +10138,10 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_config_mac_tnl_int(hdev, false);
 	hclge_config_nic_hw_error(hdev, false);
 	hclge_config_rocee_ras_interrupt(hdev, false);
+
+	/* Restore hw default values for the next initialization */
+	hclge_set_pfc_prevention_tout(&hdev->vport->nic,
+				      hdev->pfc_prevention_tout_default);
 
 	hclge_comm_cmd_uninit(hdev->ae_dev, &hdev->hw.hw);
 	hclge_misc_irq_uninit(hdev);
@@ -10535,6 +10705,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_wol = hclge_set_wol,
 	.hwtstamp_get = hclge_ptp_get_cfg,
 	.hwtstamp_set = hclge_ptp_set_cfg,
+	.set_pfc_prevention_tout = hclge_set_pfc_prevention_tout,
+	.get_pfc_prevention_tout = hclge_get_pfc_prevention_tout,
 };
 
 static struct hnae3_ae_algo ae_algo = {

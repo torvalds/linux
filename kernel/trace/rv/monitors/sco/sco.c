@@ -83,3 +83,16 @@ module_exit(unregister_sco);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Gabriele Monaco <gmonaco@redhat.com>");
 MODULE_DESCRIPTION("sco: scheduling context operations.");
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#include <kunit/visibility.h>
+#include "sco_kunit.h"
+
+const struct rv_sco_ops rv_sco_ops = {
+	.mon = RV_MON_OPS_INIT(),
+	.handle_sched_set_state = handle_sched_set_state,
+	.handle_schedule_entry = handle_schedule_entry,
+	.handle_schedule_exit = handle_schedule_exit,
+};
+EXPORT_SYMBOL_IF_KUNIT(rv_sco_ops);
+#endif

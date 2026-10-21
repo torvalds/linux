@@ -179,7 +179,7 @@ struct sof_ipc_compound_hdr {
 	uint32_t count;		/**< count of 0 means end of compound sequence */
 }  __packed;
 
-/**
+/*
  * OOPS header architecture specific data.
  */
 struct sof_ipc_dsp_oops_arch_hdr {
@@ -187,7 +187,7 @@ struct sof_ipc_dsp_oops_arch_hdr {
 	uint32_t totalsize;	/* Total size of oops message */
 }  __packed;
 
-/**
+/*
  * OOPS header platform specific data.
  */
 struct sof_ipc_dsp_oops_plat_hdr {

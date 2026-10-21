@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/types.h>
+#include <linux/iopoll.h>
 
 #include <drm/drm_drv.h>
 #include <generated/xe_wa_oob.h>
@@ -20,6 +21,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_topology.h"
 #include "xe_macros.h"
+#include "xe_mmio.h"
 #include "xe_observation.h"
 #include "xe_pm.h"
 #include "xe_trace.h"
@@ -27,8 +29,16 @@
 
 #include "regs/xe_eu_stall_regs.h"
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_regs.h"
 
 #define POLL_PERIOD_MS	5
+#define FW_WA_WAIT_TIMEOUT_US	10000
+
+#define SWF_EUSTALL_MASK	REG_GENMASK(6, 5)
+#define REQ_EUSTALL_ENABLE	REG_BIT(5)
+#define ACK_EUSTALL_ENABLE	REG_GENMASK(6, 5)
+#define REQ_EUSTALL_DISABLE	REG_BIT(6)
+#define ACK_EUSTALL_DISABLE	0
 
 static size_t per_xecore_buf_size = SZ_512K;
 
@@ -682,7 +692,7 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 	struct per_xecore_buf *xecore_buf;
 	struct xe_gt *gt = stream->gt;
 	u16 group, instance;
-	int xecore;
+	int xecore, ret = 0;
 
 	/* Take runtime pm ref and forcewake to disable RC6 */
 	xe_pm_runtime_get(gt_to_xe(gt));
@@ -693,6 +703,18 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 		return -ETIMEDOUT;
 	}
 
+	if (XE_GT_WA(gt, 14027054324)) {
+		/* Request the firmware to apply the workaround and wait for an ACK */
+		xe_mmio_write32(&gt->mmio, SWF_SCRATCHPAD(0), REQ_EUSTALL_ENABLE);
+		ret = xe_mmio_wait32(&gt->mmio, SWF_SCRATCHPAD(0), SWF_EUSTALL_MASK,
+				     ACK_EUSTALL_ENABLE, FW_WA_WAIT_TIMEOUT_US, NULL, false);
+		if (ret) {
+			xe_gt_err(gt, "Timeout polling for EU stall enable ACK from firmware\n");
+			xe_force_wake_put(gt_to_fw(gt), stream->fw_ref);
+			xe_pm_runtime_put(gt_to_xe(gt));
+			return ret;
+		}
+	}
 	if (XE_GT_WA(gt, 22016596838))
 		xe_gt_mcr_multicast_write(gt, ROW_CHICKEN2,
 					  REG_MASKED_FIELD_ENABLE(DISABLE_DOP_GATING));
@@ -730,7 +752,7 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 	reg_value |= XEHPC_EUSTALL_BASE_ENABLE_SAMPLING;
 	xe_gt_mcr_multicast_write(gt, XEHPC_EUSTALL_BASE, reg_value);
 
-	return 0;
+	return ret;
 }
 
 static void eu_stall_data_buf_poll_work_fn(struct work_struct *work)
@@ -840,6 +862,7 @@ static int xe_eu_stall_enable_locked(struct xe_eu_stall_data_stream *stream)
 static int xe_eu_stall_disable_locked(struct xe_eu_stall_data_stream *stream)
 {
 	struct xe_gt *gt = stream->gt;
+	int ret = 0;
 
 	if (!stream->enabled)
 		return 0;
@@ -853,11 +876,19 @@ static int xe_eu_stall_disable_locked(struct xe_eu_stall_data_stream *stream)
 	if (XE_GT_WA(gt, 22016596838))
 		xe_gt_mcr_multicast_write(gt, ROW_CHICKEN2,
 					  REG_MASKED_FIELD_DISABLE(DISABLE_DOP_GATING));
+	if (XE_GT_WA(gt, 14027054324)) {
+		/* Request the firmware to revert the workaround and wait for an ACK */
+		xe_mmio_write32(&gt->mmio, SWF_SCRATCHPAD(0), REQ_EUSTALL_DISABLE);
+		ret = xe_mmio_wait32(&gt->mmio, SWF_SCRATCHPAD(0), SWF_EUSTALL_MASK,
+				     ACK_EUSTALL_DISABLE, FW_WA_WAIT_TIMEOUT_US, NULL, false);
+		if (ret)
+			xe_gt_err(gt, "Timeout polling for EU stall disable ACK from firmware\n");
+	}
 
 	xe_force_wake_put(gt_to_fw(gt), stream->fw_ref);
 	xe_pm_runtime_put(gt_to_xe(gt));
 
-	return 0;
+	return ret;
 }
 
 static long xe_eu_stall_stream_ioctl_locked(struct xe_eu_stall_data_stream *stream,
@@ -985,9 +1016,10 @@ int xe_eu_stall_stream_open(struct drm_device *dev, u64 data, struct drm_file *f
 		return -ENODEV;
 	}
 
-	if (xe_observation_paranoid && !perfmon_capable()) {
+	ret = xe_observation_paranoid_check();
+	if (ret) {
 		drm_dbg(&xe->drm,  "Insufficient privileges for EU stall monitoring\n");
-		return -EACCES;
+		return ret;
 	}
 
 	/* Initialize and set default values */

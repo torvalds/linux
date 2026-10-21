@@ -148,7 +148,6 @@ ipvs_mt(const struct sk_buff *skb, struct xt_action_param *par)
 out_put_cp:
 	__ip_vs_conn_put(cp);
 out:
-	pr_debug("match=%d\n", match);
 	return match;
 }
 

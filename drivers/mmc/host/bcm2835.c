@@ -188,7 +188,7 @@ struct bcm2835_host {
 	u32			drain_words;
 	struct page		*drain_page;
 	u32			drain_offset;
-	bool			use_dma;
+	struct device		*dma_dev;
 };
 
 static void bcm2835_dumpcmd(struct bcm2835_host *host, struct mmc_command *cmd,
@@ -494,8 +494,7 @@ void bcm2835_prepare_dma(struct bcm2835_host *host, struct mmc_data *data)
 				     &host->dma_cfg_rx :
 				     &host->dma_cfg_tx);
 
-	sg_len = dma_map_sg(dma_chan->device->dev, data->sg, data->sg_len,
-			    dir_data);
+	sg_len = dma_map_sg(host->dma_dev, data->sg, data->sg_len, dir_data);
 	if (!sg_len)
 		return;
 
@@ -503,8 +502,7 @@ void bcm2835_prepare_dma(struct bcm2835_host *host, struct mmc_data *data)
 				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
 	if (!desc) {
-		dma_unmap_sg(dma_chan->device->dev, data->sg, data->sg_len,
-			     dir_data);
+		dma_unmap_sg(host->dma_dev, data->sg, data->sg_len, dir_data);
 		return;
 	}
 
@@ -1057,7 +1055,7 @@ static void bcm2835_dma_complete_work(struct work_struct *work)
 	data = host->data;
 
 	if (host->dma_chan) {
-		dma_unmap_sg(host->dma_chan->device->dev,
+		dma_unmap_sg(host->dma_dev,
 			     data->sg, data->sg_len,
 			     host->dma_dir);
 
@@ -1201,7 +1199,7 @@ static void bcm2835_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		return;
 	}
 
-	if (host->use_dma && mrq->data && (mrq->data->blocks > PIO_THRESHOLD))
+	if (host->dma_dev && mrq->data && (mrq->data->blocks > PIO_THRESHOLD))
 		bcm2835_prepare_dma(host, mrq->data);
 
 	host->use_sbc = !!mrq->sbc && host->mrq->data &&
@@ -1281,10 +1279,7 @@ static int bcm2835_add_host(struct bcm2835_host *host)
 
 	if (!host->dma_chan_rxtx) {
 		dev_warn(dev, "unable to initialise DMA channel. Falling back to PIO\n");
-		host->use_dma = false;
 	} else {
-		host->use_dma = true;
-
 		host->dma_cfg_tx.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		host->dma_cfg_tx.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		host->dma_cfg_tx.direction = DMA_MEM_TO_DEV;
@@ -1297,15 +1292,21 @@ static int bcm2835_add_host(struct bcm2835_host *host)
 		host->dma_cfg_rx.src_addr = host->phys_addr + SDDATA;
 		host->dma_cfg_rx.dst_addr = 0;
 
-		if (dmaengine_slave_config(host->dma_chan_rxtx,
-					   &host->dma_cfg_tx) != 0 ||
-		    dmaengine_slave_config(host->dma_chan_rxtx,
-					   &host->dma_cfg_rx) != 0)
-			host->use_dma = false;
+		if (!dmaengine_slave_config(host->dma_chan_rxtx,
+					   &host->dma_cfg_tx) &&
+		    !dmaengine_slave_config(host->dma_chan_rxtx,
+					   &host->dma_cfg_rx)) {
+			host->dma_dev =
+				dmaengine_get_dma_device(host->dma_chan_rxtx);
+		}
 	}
 
 	mmc->max_segs = 128;
-	mmc->max_req_size = min_t(size_t, 524288, dma_max_mapping_size(dev));
+	mmc->max_req_size = 524288;
+	if (host->dma_dev) {
+		mmc->max_req_size = min_t(size_t, mmc->max_req_size,
+				dma_max_mapping_size(host->dma_dev));
+	}
 	mmc->max_seg_size = mmc->max_req_size;
 	mmc->max_blk_size = 1024;
 	mmc->max_blk_count =  65535;
@@ -1336,10 +1337,10 @@ static int bcm2835_add_host(struct bcm2835_host *host)
 	}
 
 	pio_limit_string[0] = '\0';
-	if (host->use_dma && (PIO_THRESHOLD > 0))
+	if (host->dma_dev && (PIO_THRESHOLD > 0))
 		sprintf(pio_limit_string, " (>%d)", PIO_THRESHOLD);
 	dev_info(dev, "loaded - DMA %s%s\n",
-		 host->use_dma ? "enabled" : "disabled", pio_limit_string);
+		 host->dma_dev ? "enabled" : "disabled", pio_limit_string);
 
 	return 0;
 }

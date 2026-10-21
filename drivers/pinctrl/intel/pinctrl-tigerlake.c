@@ -329,6 +329,34 @@ static const struct pinctrl_pin_desc tgllp_pins[] = {
 	PINCTRL_PIN(276, "SPI0_CLK_LOOPBK"),
 };
 
+static const unsigned int tgllp_i2c0_pins[] = { 5, 6 };
+static const unsigned int tgllp_i2c1_pins[] = { 7, 8 };
+static const unsigned int tgllp_pwm0_pins[] = { 99 };
+static const unsigned int tgllp_uart1_pins[] = { 85, 86, 87, 88 };
+static const unsigned int tgllp_ssp2_pins[] = { 108, 109, 110, 111 };
+
+static const struct intel_pingroup tgllp_groups[] = {
+	PIN_GROUP("i2c0_grp", tgllp_i2c0_pins, 2),
+	PIN_GROUP("i2c1_grp", tgllp_i2c1_pins, 2),
+	PIN_GROUP("pwm0_grp", tgllp_pwm0_pins, 2),
+	PIN_GROUP("uart1_grp", tgllp_uart1_pins, 2),
+	PIN_GROUP("ssp2_grp", tgllp_ssp2_pins, 7),
+};
+
+static const char * const tgllp_i2c0_groups[] = { "i2c0_grp" };
+static const char * const tgllp_i2c1_groups[] = { "i2c1_grp" };
+static const char * const tgllp_pwm0_groups[] = { "pwm0_grp" };
+static const char * const tgllp_uart1_groups[] = { "uart1_grp" };
+static const char * const tgllp_ssp2_groups[] = { "ssp2_grp" };
+
+static const struct intel_function tgllp_functions[] = {
+	FUNCTION("i2c0", tgllp_i2c0_groups),
+	FUNCTION("i2c1", tgllp_i2c1_groups),
+	FUNCTION("pwm0", tgllp_pwm0_groups),
+	FUNCTION("uart1", tgllp_uart1_groups),
+	FUNCTION("ssp2", tgllp_ssp2_groups),
+};
+
 static const struct intel_padgroup tgllp_community0_gpps[] = {
 	INTEL_GPP(0, 0, 25, 0),				/* GPP_B */
 	INTEL_GPP(1, 26, 41, 32),			/* GPP_T */
@@ -366,6 +394,10 @@ static const struct intel_community tgllp_communities[] = {
 static const struct intel_pinctrl_soc_data tgllp_soc_data = {
 	.pins = tgllp_pins,
 	.npins = ARRAY_SIZE(tgllp_pins),
+	.groups = tgllp_groups,
+	.ngroups = ARRAY_SIZE(tgllp_groups),
+	.functions = tgllp_functions,
+	.nfunctions = ARRAY_SIZE(tgllp_functions),
 	.communities = tgllp_communities,
 	.ncommunities = ARRAY_SIZE(tgllp_communities),
 };

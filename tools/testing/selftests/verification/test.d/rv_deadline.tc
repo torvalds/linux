@@ -1,0 +1,23 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+# description: Test deadline monitors trigger no reaction
+# requires: available_reactors deadline:monitor printk:reactor stress-ng:program
+
+load() { # returns true if there was a reaction
+	local lines_before
+	lines_before=$(dmesg | wc -l)
+	stress-ng --cpu 2 --sched deadline --sched-period 100000000 \
+		--sched-deadline 100000000 --sched-runtime 20000000 -t 5 &
+	stress-ng --cpu 2 --sched rr --sched-prio 50 --cyclic 1 \
+		--cyclic-policy rr --cyclic-prio 50 -t 5 &
+	wait
+	dmesg | tail -n +$((lines_before + 1)) | grep -q "rv: monitor [a-z]\+ does not allow event"
+}
+
+echo 1 > monitors/deadline/enable
+echo printk > monitors/deadline/reactors
+
+! load || false
+
+echo nop > monitors/deadline/reactors
+echo 0 > monitors/deadline/enable

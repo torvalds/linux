@@ -50,7 +50,7 @@ EXPORT_SYMBOL_GPL(vhost_iotlb_map_free);
  * @perm: access permission of this range
  * @opaque: the opaque pointer for the new mapping
  *
- * Returns an error last is smaller than start or memory allocation
+ * Returns an error if last is smaller than start or memory allocation
  * fails
  */
 int vhost_iotlb_add_range_ctx(struct vhost_iotlb *iotlb,
@@ -162,11 +162,11 @@ void vhost_iotlb_init(struct vhost_iotlb *iotlb, unsigned int limit,
 EXPORT_SYMBOL_GPL(vhost_iotlb_init);
 
 /**
- * vhost_iotlb_alloc - add a new vhost IOTLB
+ * vhost_iotlb_alloc - allocate a new vhost IOTLB
  * @limit: maximum number of IOTLB entries
  * @flags: VHOST_IOTLB_FLAG_XXX
  *
- * Returns an error is memory allocation fails
+ * Returns NULL if memory allocation fails
  */
 struct vhost_iotlb *vhost_iotlb_alloc(unsigned int limit, unsigned int flags)
 {

@@ -46,7 +46,7 @@ static const struct of_device_id st_uvis25_spi_of_match[] = {
 MODULE_DEVICE_TABLE(of, st_uvis25_spi_of_match);
 
 static const struct spi_device_id st_uvis25_spi_id_table[] = {
-	{ ST_UVIS25_DEV_NAME },
+	{ .name = ST_UVIS25_DEV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, st_uvis25_spi_id_table);

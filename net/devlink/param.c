@@ -117,6 +117,11 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_MAX_MAC_PER_VF_NAME,
 		.type = DEVLINK_PARAM_GENERIC_MAX_MAC_PER_VF_TYPE,
 	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_MAX_SFS,
+		.name = DEVLINK_PARAM_GENERIC_MAX_SFS_NAME,
+		.type = DEVLINK_PARAM_GENERIC_MAX_SFS_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
@@ -325,13 +330,12 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 	int err;
 	int i;
 
-	default_value = kcalloc(DEVLINK_PARAM_CMODE_MAX + 1,
-				sizeof(*default_value), GFP_KERNEL);
+	default_value = kzalloc_objs(*default_value,
+				     DEVLINK_PARAM_CMODE_MAX + 1);
 	if (!default_value)
 		return -ENOMEM;
 
-	param_value = kcalloc(DEVLINK_PARAM_CMODE_MAX + 1,
-			      sizeof(*param_value), GFP_KERNEL);
+	param_value = kzalloc_objs(*param_value, DEVLINK_PARAM_CMODE_MAX + 1);
 	if (!param_value) {
 		kfree(default_value);
 		return -ENOMEM;
@@ -627,7 +631,7 @@ devlink_param_get_from_info(struct xarray *params, struct genl_info *info)
 int devlink_nl_param_get_doit(struct sk_buff *skb,
 			      struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_param_item *param_item;
 	struct sk_buff *msg;
 	int err;
@@ -728,7 +732,7 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 
 int devlink_nl_param_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 
 	return __devlink_nl_cmd_param_set_doit(devlink, 0, &devlink->params,
 					       info, DEVLINK_CMD_PARAM_NEW);

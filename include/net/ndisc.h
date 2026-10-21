@@ -430,6 +430,8 @@ void ndisc_update(const struct net_device *dev, struct neighbour *neigh,
 		  const u8 *lladdr, u8 new, u32 flags, u8 icmp6_type,
 		  struct ndisc_options *ndopts);
 
+int ndisc_check_ns_na(struct sk_buff *skb);
+
 /*
  *	IGMP
  */

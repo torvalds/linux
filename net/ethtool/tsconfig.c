@@ -359,8 +359,10 @@ static int ethnl_set_tsconfig(struct ethnl_req_info *req_base,
 		if (ret < 0)
 			goto err_free_hwprov;
 
-		/* Select only one tx type at a time */
-		if (ffs(req_tx_type) != fls(req_tx_type)) {
+		/* Select exactly one tx type at a time */
+		if (hweight32(req_tx_type) != 1) {
+			NL_SET_BAD_ATTR(info->extack,
+					tb[ETHTOOL_A_TSCONFIG_TX_TYPES]);
 			ret = -EINVAL;
 			goto err_free_hwprov;
 		}
@@ -380,8 +382,10 @@ static int ethnl_set_tsconfig(struct ethnl_req_info *req_base,
 		if (ret < 0)
 			goto err_free_hwprov;
 
-		/* Select only one rx filter at a time */
-		if (ffs(req_rx_filter) != fls(req_rx_filter)) {
+		/* Select exactly one rx filter at a time */
+		if (hweight32(req_rx_filter) != 1) {
+			NL_SET_BAD_ATTR(info->extack,
+					tb[ETHTOOL_A_TSCONFIG_RX_FILTERS]);
 			ret = -EINVAL;
 			goto err_free_hwprov;
 		}

@@ -29,7 +29,7 @@ position kok, vok;
   } else {
     ...
     E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|
-          vzalloc_node\|vmalloc_exec\|vmalloc_32\|
+          vzalloc_node\|vmalloc_32\|
           vmalloc_32_user\|__vmalloc\|__vmalloc_node_range\|
           __vmalloc_node\)(...)@vok
     ...
@@ -42,7 +42,7 @@ position kok, vok;
   if (E == NULL) {
     ...
     E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|
-          vzalloc_node\|vmalloc_exec\|vmalloc_32\|
+          vzalloc_node\|vmalloc_32\|
           vmalloc_32_user\|__vmalloc\|__vmalloc_node_range\|
           __vmalloc_node\)(...)@vok
     ...
@@ -68,7 +68,7 @@ position f != free.fok;
 * E = \(kmalloc\|kzalloc\|krealloc\|kcalloc\|kmalloc_node\|
 *       kzalloc_node\|kmalloc_array\|kmalloc_array_node\|
 *       kcalloc_node\)(...)@a
-  ... when != if (...) { ... E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|vzalloc_node\|vmalloc_exec\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|__vmalloc_node_range\|__vmalloc_node\)(...); ... }
+  ... when != if (...) { ... E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|vzalloc_node\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|__vmalloc_node_range\|__vmalloc_node\)(...); ... }
       when != is_vmalloc_addr(E)
       when any
 * \(vfree\|vfree_atomic\|kvfree\)(E)@f
@@ -82,7 +82,7 @@ position f != free.fok;
   E = \(kmalloc\|kzalloc\|krealloc\|kcalloc\|kmalloc_node\|
         kzalloc_node\|kmalloc_array\|kmalloc_array_node\|
         kcalloc_node\)(...)@a
-  ... when != if (...) { ... E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|vzalloc_node\|vmalloc_exec\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|__vmalloc_node_range\|__vmalloc_node\)(...); ... }
+  ... when != if (...) { ... E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|vzalloc_node\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|__vmalloc_node_range\|__vmalloc_node\)(...); ... }
       when != is_vmalloc_addr(E)
       when any
 - \(vfree\|vfree_atomic\|kvfree\)(E)@f
@@ -95,7 +95,7 @@ position f != free.fok;
 @@
 
 * E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|vzalloc_node\|
-*       vmalloc_exec\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|
+*       vmalloc_32\|vmalloc_32_user\|__vmalloc\|
 *       __vmalloc_node_range\|__vmalloc_node\)(...)@a
   ... when != is_vmalloc_addr(E)
       when any
@@ -108,7 +108,7 @@ position f != free.fok;
 @@
 
   E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|vzalloc_node\|
-        vmalloc_exec\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|
+        vmalloc_32\|vmalloc_32_user\|__vmalloc\|
         __vmalloc_node_range\|__vmalloc_node\)(...)@a
   ... when != is_vmalloc_addr(E)
       when any

@@ -15,12 +15,25 @@
 #include "dp.h"
 #include "core.h"
 
+static const struct ath12k_ahb_desc ath12k_wifi7_ahb_desc[] = {
+	[ATH12K_HW_IPQ5332_HW10] = {
+		.hw_rev = ATH12K_HW_IPQ5332_HW10,
+		.auth_enabled = true,
+		.ops = &ath12k_ahb_hif_ops,
+	},
+	[ATH12K_HW_IPQ5424_HW10] = {
+		.hw_rev = ATH12K_HW_IPQ5424_HW10,
+		.auth_enabled = false,
+		.ops = &ath12k_ahb_hif_ops,
+	},
+};
+
 static const struct of_device_id ath12k_wifi7_ahb_of_match[] = {
 	{ .compatible = "qcom,ipq5332-wifi",
-	  .data = (void *)ATH12K_HW_IPQ5332_HW10,
+	  .data = (void *)&ath12k_wifi7_ahb_desc[ATH12K_HW_IPQ5332_HW10],
 	},
 	{ .compatible = "qcom,ipq5424-wifi",
-	  .data = (void *)ATH12K_HW_IPQ5424_HW10,
+	  .data = (void *)&ath12k_wifi7_ahb_desc[ATH12K_HW_IPQ5424_HW10],
 	},
 	{ }
 };
@@ -29,30 +42,24 @@ MODULE_DEVICE_TABLE(of, ath12k_wifi7_ahb_of_match);
 
 static int ath12k_wifi7_ahb_probe(struct platform_device *pdev)
 {
+	const struct ath12k_ahb_desc *desc;
 	struct ath12k_ahb *ab_ahb;
-	enum ath12k_hw_rev hw_rev;
 	struct ath12k_base *ab;
 	int ret;
 
 	ab = platform_get_drvdata(pdev);
 	ab_ahb = ath12k_ab_to_ahb(ab);
-
-	hw_rev = (enum ath12k_hw_rev)(kernel_ulong_t)of_device_get_match_data(&pdev->dev);
-	switch (hw_rev) {
-	case ATH12K_HW_IPQ5332_HW10:
-		ab_ahb->userpd_id = ATH12K_IPQ5332_USERPD_ID;
-		ab_ahb->scm_auth_enabled = true;
-		break;
-	case ATH12K_HW_IPQ5424_HW10:
-		ab_ahb->userpd_id = ATH12K_IPQ5332_USERPD_ID;
-		ab_ahb->scm_auth_enabled = false;
-		break;
-	default:
+	desc = of_device_get_match_data(&pdev->dev);
+	if (!desc)
 		return -EOPNOTSUPP;
-	}
 
 	ab->target_mem_mode = ATH12K_QMI_MEMORY_MODE_DEFAULT;
-	ab->hw_rev = hw_rev;
+	ab->hw_rev = desc->hw_rev;
+	ab->hif.ops = desc->ops;
+	ab_ahb->scm_auth_enabled = desc->auth_enabled;
+	ab_ahb->userpd_id = ATH12K_AHB_USERPD_ID_0;
+	if (!ab_ahb->userpd_id)
+		return -EOPNOTSUPP;
 
 	ret = ath12k_wifi7_hw_init(ab);
 	if (ret) {

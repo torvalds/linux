@@ -67,6 +67,7 @@ unsigned int dcn42_convert_wck_ratio(uint8_t wck_ratio);
 extern struct dcn42_ss_info_table dcn42_ss_info_table;
 void dcn42_build_watermark_ranges(struct clk_bw_params *bw_params, struct dcn42_watermarks *table);
 void dcn42_enable_pme_wa(struct clk_mgr *clk_mgr_base);
+void dcn42_notify_cstate_disable(struct clk_mgr *clk_mgr_base, bool disable);
 void dcn42_notify_wm_ranges(struct clk_mgr *clk_mgr_base);
 void dcn42_set_low_power_state(struct clk_mgr *clk_mgr_base);
 void dcn42_exit_low_power_state(struct clk_mgr *clk_mgr_base);
@@ -83,4 +84,5 @@ void dcn42_get_dpm_table_from_smu(struct clk_mgr_internal *clk_mgr, struct dcn42
 void dcn42_get_smu_clocks(struct clk_mgr_internal *clk_mgr_int);
 void dcn42_update_clocks_fpga(struct clk_mgr *clk_mgr, struct dc_state *context, bool safe_to_lower);
 int dcn42_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base);
+void dcn42_request_dtbclk(struct clk_mgr *clk_mgr_base, bool enable);
 #endif //__DCN42_CLK_MGR_H__

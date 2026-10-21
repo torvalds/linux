@@ -752,7 +752,8 @@ static void hdmi_debugfs_init(struct sti_hdmi *hdmi, struct drm_minor *minor)
 				 minor->debugfs_root, minor);
 }
 
-static void sti_hdmi_disable(struct drm_bridge *bridge)
+static void sti_hdmi_disable(struct drm_bridge *bridge,
+			     struct drm_atomic_commit *commit)
 {
 	struct sti_hdmi *hdmi = drm_bridge_to_sti_hdmi(bridge);
 
@@ -884,7 +885,8 @@ static int hdmi_audio_configure(struct sti_hdmi *hdmi)
 	return hdmi_audio_infoframe_config(hdmi);
 }
 
-static void sti_hdmi_pre_enable(struct drm_bridge *bridge)
+static void sti_hdmi_pre_enable(struct drm_bridge *bridge,
+				struct drm_atomic_commit *commit)
 {
 	struct sti_hdmi *hdmi = drm_bridge_to_sti_hdmi(bridge);
 
@@ -964,16 +966,20 @@ static void sti_hdmi_set_mode(struct drm_bridge *bridge,
 	}
 }
 
-static void sti_hdmi_bridge_nope(struct drm_bridge *bridge)
+static void sti_hdmi_bridge_nope(struct drm_bridge *bridge,
+				 struct drm_atomic_commit *commit)
 {
 	/* do nothing */
 }
 
 static const struct drm_bridge_funcs sti_hdmi_bridge_funcs = {
-	.pre_enable = sti_hdmi_pre_enable,
-	.enable = sti_hdmi_bridge_nope,
-	.disable = sti_hdmi_disable,
-	.post_disable = sti_hdmi_bridge_nope,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_pre_enable = sti_hdmi_pre_enable,
+	.atomic_enable = sti_hdmi_bridge_nope,
+	.atomic_disable = sti_hdmi_disable,
+	.atomic_post_disable = sti_hdmi_bridge_nope,
 	.mode_set = sti_hdmi_set_mode,
 };
 

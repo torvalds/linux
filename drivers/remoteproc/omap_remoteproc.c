@@ -1140,7 +1140,7 @@ static int omap_rproc_get_boot_data(struct platform_device *pdev,
 	if (!data)
 		return -ENODEV;
 
-	if (!of_property_read_bool(np, "ti,bootreg"))
+	if (!of_property_present(np, "ti,bootreg"))
 		return 0;
 
 	oproc->boot_data = devm_kzalloc(&pdev->dev, sizeof(*oproc->boot_data),

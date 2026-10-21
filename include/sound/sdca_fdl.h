@@ -83,6 +83,10 @@ static inline int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt)
 	return 0;
 }
 
+static inline void sdca_fdl_free_state(struct sdca_interrupt *interrupt)
+{
+}
+
 static inline int sdca_fdl_process(struct sdca_interrupt *interrupt)
 {
 	return 0;

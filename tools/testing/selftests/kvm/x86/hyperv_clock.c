@@ -56,7 +56,7 @@ static inline void check_tsc_msr_rdtsc(void)
 	tsc_freq = rdmsr(HV_X64_MSR_TSC_FREQUENCY);
 	GUEST_ASSERT(tsc_freq > 0);
 
-	/* For increased accuracy, take mean rdtsc() before and afrer rdmsr() */
+	/* For increased accuracy, take mean rdtsc() before and after rdmsr() */
 	r1 = rdtsc();
 	t1 = rdmsr(HV_X64_MSR_TIME_REF_COUNT);
 	r1 = (r1 + rdtsc()) / 2;
@@ -181,7 +181,7 @@ static void host_check_tsc_msr_rdtsc(struct kvm_vcpu *vcpu)
 	tsc_freq = vcpu_get_msr(vcpu, HV_X64_MSR_TSC_FREQUENCY);
 	TEST_ASSERT(tsc_freq > 0, "TSC frequency must be nonzero");
 
-	/* For increased accuracy, take mean rdtsc() before and afrer ioctl */
+	/* For increased accuracy, take mean rdtsc() before and after ioctl */
 	r1 = rdtsc();
 	t1 = vcpu_get_msr(vcpu, HV_X64_MSR_TIME_REF_COUNT);
 	r1 = (r1 + rdtsc()) / 2;

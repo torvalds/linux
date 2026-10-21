@@ -25,6 +25,7 @@
 #include <linux/component.h>
 #include <linux/sys_soc.h>
 
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 
 #include "omapdss.h"
@@ -614,14 +615,16 @@ static void venc_bridge_mode_set(struct drm_bridge *bridge,
 	dispc_set_tv_pclk(venc->dss->dispc, 13500000);
 }
 
-static void venc_bridge_enable(struct drm_bridge *bridge)
+static void venc_bridge_enable(struct drm_bridge *bridge,
+			       struct drm_atomic_commit *commit)
 {
 	struct venc_device *venc = drm_bridge_to_venc(bridge);
 
 	venc_power_on(venc);
 }
 
-static void venc_bridge_disable(struct drm_bridge *bridge)
+static void venc_bridge_disable(struct drm_bridge *bridge,
+				struct drm_atomic_commit *commit)
 {
 	struct venc_device *venc = drm_bridge_to_venc(bridge);
 
@@ -653,12 +656,15 @@ static int venc_bridge_get_modes(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs venc_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = venc_bridge_attach,
 	.mode_valid = venc_bridge_mode_valid,
 	.mode_fixup = venc_bridge_mode_fixup,
 	.mode_set = venc_bridge_mode_set,
-	.enable = venc_bridge_enable,
-	.disable = venc_bridge_disable,
+	.atomic_enable = venc_bridge_enable,
+	.atomic_disable = venc_bridge_disable,
 	.get_modes = venc_bridge_get_modes,
 };
 

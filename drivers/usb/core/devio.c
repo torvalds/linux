@@ -1113,7 +1113,6 @@ static int usbdev_release(struct inode *inode, struct file *file)
 	if (!ps->suspend_allowed)
 		usb_autosuspend_device(dev);
 	usb_unlock_device(dev);
-	usb_put_dev(dev);
 	put_pid(ps->disc_pid);
 	put_cred(ps->cred);
 
@@ -1122,6 +1121,7 @@ static int usbdev_release(struct inode *inode, struct file *file)
 		free_async(as);
 		as = async_getcompleted(ps);
 	}
+	usb_put_dev(dev);
 
 	kfree(ps);
 	return 0;
@@ -2329,6 +2329,13 @@ static int proc_ioctl(struct usb_dev_state *ps, struct usbdevfs_ioctl *ctl)
 	if (!connected(ps))
 		return -ENODEV;
 
+	if (ps->dev->state != USB_STATE_CONFIGURED)
+		return -EHOSTUNREACH;
+
+	intf = usb_ifnum_to_if(ps->dev, ctl->ifno);
+	if (!intf)
+		return -EINVAL;
+
 	/* alloc buffer */
 	size = _IOC_SIZE(ctl->ioctl_code);
 	if (size > 0) {
@@ -2345,11 +2352,7 @@ static int proc_ioctl(struct usb_dev_state *ps, struct usbdevfs_ioctl *ctl)
 		}
 	}
 
-	if (ps->dev->state != USB_STATE_CONFIGURED)
-		retval = -EHOSTUNREACH;
-	else if (!(intf = usb_ifnum_to_if(ps->dev, ctl->ifno)))
-		retval = -EINVAL;
-	else switch (ctl->ioctl_code) {
+	switch (ctl->ioctl_code) {
 
 	/* disconnect kernel driver from interface */
 	case USBDEVFS_DISCONNECT:

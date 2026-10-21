@@ -157,7 +157,8 @@ static int aspeed_intc1_irq_domain_activate(struct irq_domain *domain,
 					intc1->ranges.nranges,
 					intc1->ranges.ranges, &resolved);
 	if (rc < 0) {
-		if (!fwnode_device_is_compatible(intc1->upstream->fwnode, "riscv,aplic")) {
+		if (!of_device_is_compatible(to_of_node(intc1->upstream->fwnode),
+					     "riscv,aplic")) {
 			dev_warn(intc1->dev,
 				 "Failed to resolve interrupt route for hwirq %lu in domain %s\n",
 				 data->hwirq, domain->name);

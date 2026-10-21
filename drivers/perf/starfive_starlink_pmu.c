@@ -130,7 +130,7 @@ cpumask_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct starlink_pmu *starlink_pmu = to_starlink_pmu(dev_get_drvdata(dev));
 
-	return cpumap_print_to_pagebuf(true, buf, &starlink_pmu->cpumask);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&starlink_pmu->cpumask));
 }
 
 static DEVICE_ATTR_RO(cpumask);

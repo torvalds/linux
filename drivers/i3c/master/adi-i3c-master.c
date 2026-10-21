@@ -246,6 +246,7 @@ static void adi_i3c_master_end_xfer_locked(struct adi_i3c_master *master,
 		if (cmd->cmd0 & REG_CMD_FIFO_0_RNW) {
 			rx_len = min_t(u32, REG_CMDR_FIFO_XFER_BYTES(cmdr), cmd->rx_len);
 			adi_i3c_master_rd_from_rx_fifo(master, cmd->rx_buf, rx_len);
+			cmd->rx_len = rx_len;
 		}
 		cmd->error = REG_CMDR_FIFO_ERROR(cmdr);
 	}
@@ -360,6 +361,8 @@ static int adi_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 		adi_i3c_master_unqueue_xfer(master, xfer);
 
 	cmd->err = adi_i3c_cmd_get_err(&xfer->cmds[0]);
+	if (!xfer->ret && cmd->rnw)
+		cmd->dests[0].payload.actual_len = ccmd->rx_len;
 
 	return xfer->ret;
 }
@@ -929,6 +932,7 @@ static const struct of_device_id adi_i3c_master_of_match[] = {
 	{ .compatible = "adi,i3c-master-v1" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, adi_i3c_master_of_match);
 
 static int adi_i3c_master_probe(struct platform_device *pdev)
 {
@@ -964,17 +968,9 @@ static int adi_i3c_master_probe(struct platform_device *pdev)
 	writel(0x00, master->regs + REG_ENABLE);
 	writel(0x00, master->regs + REG_IRQ_MASK);
 
-	ret = devm_request_irq(&pdev->dev, irq, adi_i3c_master_irq, 0,
-			       dev_name(&pdev->dev), master);
-	if (ret)
-		return ret;
-
 	platform_set_drvdata(pdev, master);
 
 	master->free_rr_slots = GENMASK(ADI_MAX_DEVS, 1);
-
-	writel(REG_IRQ_PENDING_CMDR, master->regs + REG_IRQ_MASK);
-
 	spin_lock_init(&master->ibi.lock);
 	master->ibi.num_slots = 15;
 	master->ibi.slots = devm_kcalloc(&pdev->dev, master->ibi.num_slots,
@@ -985,6 +981,13 @@ static int adi_i3c_master_probe(struct platform_device *pdev)
 
 	spin_lock_init(&master->xferqueue.lock);
 	INIT_LIST_HEAD(&master->xferqueue.list);
+
+	ret = devm_request_irq(&pdev->dev, irq, adi_i3c_master_irq, 0,
+			       dev_name(&pdev->dev), master);
+	if (ret)
+		return ret;
+
+	writel(REG_IRQ_PENDING_CMDR, master->regs + REG_IRQ_MASK);
 
 	return i3c_master_register(&master->base, &pdev->dev,
 				   &adi_i3c_master_ops, false);

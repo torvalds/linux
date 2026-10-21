@@ -238,8 +238,8 @@ static const struct serdev_device_ops pn532_serdev_ops = {
 };
 
 static const struct of_device_id pn532_uart_of_match[] = {
-	{ .compatible = "nxp,pn532", },
-	{},
+	{ .compatible = "nxp,pn532" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, pn532_uart_of_match);
 

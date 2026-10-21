@@ -602,9 +602,9 @@ static void smc_wr_init_sge(struct smc_link *lnk)
 
 	/* With SMC-Rv2 there can be messages larger than SMC_WR_TX_SIZE.
 	 * Each ib_recv_wr gets 2 sges, the second one is a spillover buffer
-	 * and the same buffer for all sges. When a larger message arrived then
-	 * the content of the first small sge is copied to the beginning of
-	 * the larger spillover buffer, allowing easy data mapping.
+	 * and the same buffer for all sges. The spillover sge starts at
+	 * SMC_WR_TX_SIZE, so the leading bytes of that buffer are never
+	 * written.
 	 */
 	for (i = 0; i < lnk->wr_rx_cnt; i++) {
 		int x = i * lnk->wr_rx_sge_cnt;

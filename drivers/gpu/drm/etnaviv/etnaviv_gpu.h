@@ -204,6 +204,12 @@ static inline u32 gpu_read_power(struct etnaviv_gpu *gpu, u32 reg)
 	return readl(gpu->mmio + gpu_fix_power_address(gpu, reg));
 }
 
+static inline void gpu_write_power_sync(struct etnaviv_gpu *gpu, u32 reg, u32 data)
+{
+	gpu_write_power(gpu, reg, data);
+	gpu_read_power(gpu, reg);
+}
+
 int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value);
 
 int etnaviv_gpu_init(struct etnaviv_gpu *gpu);

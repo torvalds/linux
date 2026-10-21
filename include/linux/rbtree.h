@@ -500,7 +500,7 @@ rb_find_first(const void *key, const struct rb_root *tree,
 /**
  * rb_next_match() - find the next @key in @tree
  * @key: key to match
- * @tree: tree to search
+ * @node: tree to search
  * @cmp: operator defining node order
  *
  * Returns the next node matching @key, or NULL.

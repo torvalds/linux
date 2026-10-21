@@ -281,7 +281,7 @@ static int mei_lb_check_response_v2(const struct device *dev, ssize_t bytes,
 			bytes, sizeof(rsp->rheader));
 		return -ENOMSG;
 	}
-	if (rsp->rheader.header.command_id != MEI_LB2_CMD) {
+	if (rsp->rheader.header.command_id != cpu_to_le32(MEI_LB2_CMD)) {
 		dev_err(dev, "Mismatch command: 0x%x instead of 0x%x\n",
 			rsp->rheader.header.command_id, MEI_LB2_CMD);
 		return -EPROTO;
@@ -327,7 +327,7 @@ static int mei_lb_push_payload_v2(struct device *dev, struct mei_cl_device *clde
 		if (sent_data + chunk_size == payload_size)
 			last_chunk = MEI_LB2_FLAG_LST_CHUNK;
 
-		req->header.command_id = MEI_LB2_CMD;
+		req->header.command_id = cpu_to_le32(MEI_LB2_CMD);
 		req->type = cpu_to_le32(type);
 		req->flags = cpu_to_le32(flags | first_chunk | last_chunk);
 		req->reserved = 0;

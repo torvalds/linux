@@ -10,10 +10,17 @@
 #include <asm/amd/hsmp.h>
 
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/io.h>
+#include <linux/mutex.h>
+#include <linux/nospec.h>
+#include <linux/rwsem.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/uaccess.h>
 
 #include "hsmp.h"
 
@@ -39,6 +46,17 @@
 #define CHECK_GET_BIT		BIT(31)
 
 static struct hsmp_plat_device hsmp_pdev;
+
+/*
+ * Gates the AMD HSMP data plane against socket bring-up and teardown.
+ *
+ * hsmp_send_message() takes it for read, so open /dev/hsmp fds and hwmon reads
+ * run concurrently. Probe and remove take it for write: probe brings sockets
+ * up (running the mailbox handshake via hsmp_send_message_locked()) and remove
+ * tears them down, both excluding and draining the data plane.
+ */
+DECLARE_RWSEM(hsmp_sock_rwsem);
+EXPORT_SYMBOL_NS_GPL(hsmp_sock_rwsem, "AMD_HSMP");
 
 /*
  * Send a message to the HSMP port via PCI-e config space registers
@@ -182,28 +200,32 @@ static int validate_message(struct hsmp_message *msg)
 		return -EINVAL;
 
 	/*
-	 * Some older HSMP SET messages are updated to add GET in the same message.
-	 * In these messages, GET returns the current value and SET also returns
-	 * the successfully set value. To support this GET and SET in same message
-	 * while maintaining backward compatibility for the HSMP users,
-	 * hsmp_msg_desc_table[] indicates only maximum allowed response_sz.
+	 * As the HSMP protocol evolves, newer platforms may define more
+	 * response arguments for existing messages.  Use an upper-bound
+	 * check so that older userspace callers requesting fewer response
+	 * words than what the current hsmp_msg_desc_table[] defines are
+	 * still accepted, while rejecting requests that exceed the
+	 * hardware capability.
 	 */
-	if (hsmp_msg_desc_table[msg->msg_id].type == HSMP_SET_GET) {
-		if (msg->response_sz > hsmp_msg_desc_table[msg->msg_id].response_sz)
-			return -EINVAL;
-	} else {
-		/* only HSMP_SET or HSMP_GET messages go through this strict check */
-		if (msg->response_sz != hsmp_msg_desc_table[msg->msg_id].response_sz)
-			return -EINVAL;
-	}
+	if (msg->response_sz > hsmp_msg_desc_table[msg->msg_id].response_sz)
+		return -EINVAL;
+
 	return 0;
 }
 
-int hsmp_send_message(struct hsmp_message *msg)
+/*
+ * Core message send. The caller must hold hsmp_sock_rwsem: the data plane
+ * takes it for read so many messages run concurrently, while the probe-time
+ * senders run under the write lock taken by probe. Holding it here serializes
+ * every message against socket teardown, which also holds it for write.
+ */
+static int hsmp_send_message_locked(struct hsmp_message *msg)
 {
 	struct hsmp_socket *sock;
 	unsigned int sock_ind;
 	int ret;
+
+	lockdep_assert_held(&hsmp_sock_rwsem);
 
 	if (!msg)
 		return -EINVAL;
@@ -223,6 +245,20 @@ int hsmp_send_message(struct hsmp_message *msg)
 	sock_ind = array_index_nospec(msg->sock_ind, hsmp_pdev.num_sockets);
 	sock = &hsmp_pdev.sock[sock_ind];
 
+	/*
+	 * A slot exists for every possible socket, but it is only usable once
+	 * that socket has actually been probed.  Reject messages aimed at a
+	 * socket that was never brought up or is still in bring-up, so we never
+	 * operate on a zero-initialized semaphore or an unmapped mailbox.  A
+	 * non-NULL dev also guarantees virt_base_addr, the mailbox offsets and
+	 * the semaphore are visible.
+	 *
+	 * Held under hsmp_sock_rwsem; pairs with smp_store_release(&sock->dev)
+	 * in hsmp_parse_acpi_table().
+	 */
+	if (!smp_load_acquire(&sock->dev))
+		return -ENODEV;
+
 	ret = down_interruptible(&sock->hsmp_sem);
 	if (ret < 0)
 		return ret;
@@ -232,6 +268,19 @@ int hsmp_send_message(struct hsmp_message *msg)
 	up(&sock->hsmp_sem);
 
 	return ret;
+}
+
+int hsmp_send_message(struct hsmp_message *msg)
+{
+	/*
+	 * Data-plane entry point: open /dev/hsmp fds and hwmon sysfs reads issue
+	 * messages from here. Take hsmp_sock_rwsem for read so messages run
+	 * concurrently with each other but are drained and kept out while
+	 * probe/remove hold it for write to tear a socket down.
+	 */
+	guard(rwsem_read)(&hsmp_sock_rwsem);
+
+	return hsmp_send_message_locked(msg);
 }
 EXPORT_SYMBOL_NS_GPL(hsmp_send_message, "AMD_HSMP");
 
@@ -273,7 +322,7 @@ int hsmp_test(u16 sock_ind, u32 value)
 	msg.args[0]	= value;
 	msg.sock_ind	= sock_ind;
 
-	ret = hsmp_send_message(&msg);
+	ret = hsmp_send_message_locked(&msg);
 	if (ret)
 		return ret;
 
@@ -301,7 +350,7 @@ static bool is_get_msg(struct hsmp_message *msg)
 	return false;
 }
 
-long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
+static long hsmp_ioctl_msg(struct file *fp, unsigned long arg)
 {
 	int __user *arguser = (int  __user *)arg;
 	struct hsmp_message msg = { 0 };
@@ -370,10 +419,138 @@ long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-ssize_t hsmp_metric_tbl_read(struct hsmp_socket *sock, char *buf, size_t size)
+static ssize_t hsmp_metric_tbl_read_locked(struct hsmp_socket *sock, char *buf,
+					   size_t size);
+
+/*
+ * Fetch the firmware metric (telemetry) table for the requested socket and
+ * copy it to the userspace buffer described by the request.
+ *
+ * The metric table size is variable across HSMP protocol versions and on
+ * Family 1Ah Model 50h-5Fh exceeds PAGE_SIZE.  The request carries the buffer
+ * size, which may be anything up to the size firmware reported for this
+ * socket's table.
+ */
+static long hsmp_ioctl_get_telemetry(struct file *fp, unsigned long arg)
+{
+	void *kbuf __free(kvfree) = NULL;
+	void __user *arguser = (void __user *)arg;
+	struct hsmp_telemetry_data req;
+	struct hsmp_socket *sock;
+	void __user *user_buf;
+	size_t tbl_size;
+	unsigned int sock_ind;
+	int ret;
+
+	/* Telemetry data is read-only; require read access on the fd. */
+	if (!(fp->f_mode & FMODE_READ))
+		return -EPERM;
+
+	if (copy_from_user(&req, arguser, sizeof(req)))
+		return -EFAULT;
+
+	/*
+	 * Reserved fields must be zero so future kernels can safely
+	 * repurpose them without breaking already-deployed userspace.
+	 */
+	if (req.reserved)
+		return -EINVAL;
+
+	user_buf = u64_to_user_ptr(req.buf);
+
+	/*
+	 * /dev/hsmp is a singleton character device that outlives an individual
+	 * socket unbind, so an ioctl on an already-open fd can run concurrently
+	 * with socket teardown.  Hold hsmp_sock_rwsem for read across the socket
+	 * lookup, the checks on its metric-table state and the read itself:
+	 * probe and remove take the same lock for write, so they cannot free the
+	 * socket array, unmap the table or destroy the per-socket mutex while
+	 * this runs.
+	 *
+	 * The lock is dropped before the copy_to_user() below.  Faulting in the
+	 * destination can block indefinitely on a userfaultfd-backed buffer,
+	 * which would leave a socket unbind waiting for the write lock.
+	 */
+	scoped_guard(rwsem_read, &hsmp_sock_rwsem) {
+		if (!hsmp_pdev.sock || req.sock_ind >= hsmp_pdev.num_sockets)
+			return -ENODEV;
+
+		/*
+		 * Sanitize the user-controlled socket index against speculative
+		 * execution.  The bounds check above retires the out-of-range
+		 * case with -ENODEV, but a mispredicted branch can still let the
+		 * CPU speculatively use sock_ind as an index into
+		 * hsmp_pdev.sock[] and pull arbitrary kernel memory into the
+		 * cache (Spectre v1, CVE-2017-5753).  array_index_nospec() turns
+		 * the bounds check into a data-flow clamp so the speculative
+		 * load is in-range too.
+		 */
+		sock_ind = array_index_nospec(req.sock_ind, hsmp_pdev.num_sockets);
+		sock = &hsmp_pdev.sock[sock_ind];
+		if (!sock->metric_tbl_addr)
+			return -ENODEV;
+
+		tbl_size = sock->metric_tbl_size;
+		if (!tbl_size)
+			return -ENODEV;
+
+		/*
+		 * A request shorter than the firmware table is served with the
+		 * leading @size bytes of the snapshot, so userspace built
+		 * against an older table layout keeps working on firmware that
+		 * grew the table.  Asking for more than firmware provides is
+		 * rejected rather than short-written, so a caller can never
+		 * mistake a partial copy for a full one.
+		 */
+		if (!req.size || req.size > tbl_size)
+			return -EINVAL;
+
+		/*
+		 * The bounce buffer is overwritten in full by memcpy_fromio()
+		 * inside hsmp_metric_tbl_read_locked(); use kvmalloc() to avoid
+		 * the zeroing cost of kvzalloc() on the ~13 KB allocation done
+		 * on every ioctl call.
+		 */
+		kbuf = kvmalloc(tbl_size, GFP_KERNEL);
+		if (!kbuf)
+			return -ENOMEM;
+
+		ret = hsmp_metric_tbl_read_locked(sock, kbuf, tbl_size);
+	}
+
+	if (ret < 0)
+		return ret;
+
+	if (copy_to_user(user_buf, kbuf, req.size))
+		return -EFAULT;
+
+	return 0;
+}
+
+long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case HSMP_IOCTL_CMD:
+		return hsmp_ioctl_msg(fp, arg);
+	case HSMP_IOCTL_GET_TELEMETRY_DATA:
+		return hsmp_ioctl_get_telemetry(fp, arg);
+	default:
+		return -ENOTTY;
+	}
+}
+
+/*
+ * Caller must hold hsmp_sock_rwsem. It keeps @sock, its metric-table mapping
+ * and its metric_read_lock alive: probe and remove take the same lock for
+ * write while they bring sockets up and tear them down.
+ */
+static ssize_t hsmp_metric_tbl_read_locked(struct hsmp_socket *sock, char *buf,
+					   size_t size)
 {
 	struct hsmp_message msg = { 0 };
 	int ret;
+
+	lockdep_assert_held(&hsmp_sock_rwsem);
 
 	if (!sock || !buf)
 		return -EINVAL;
@@ -383,8 +560,7 @@ ssize_t hsmp_metric_tbl_read(struct hsmp_socket *sock, char *buf, size_t size)
 		return -ENOMEM;
 	}
 
-	/* Do not support lseek(), also don't allow more than the size of metric table */
-	if (size != sizeof(struct hsmp_metric_table)) {
+	if (size != sock->metric_tbl_size) {
 		dev_err(sock->dev, "Wrong buffer size\n");
 		return -EINVAL;
 	}
@@ -392,27 +568,77 @@ ssize_t hsmp_metric_tbl_read(struct hsmp_socket *sock, char *buf, size_t size)
 	msg.msg_id	= HSMP_GET_METRIC_TABLE;
 	msg.sock_ind	= sock->sock_ind;
 
-	ret = hsmp_send_message(&msg);
+	/*
+	 * HSMP_GET_METRIC_TABLE makes firmware refill this socket's shared
+	 * metric DRAM region, which is then copied out below.  Hold the
+	 * per-socket lock across the fill-and-copy so concurrent readers of the
+	 * same socket cannot return a torn snapshot.
+	 */
+	guard(mutex)(&sock->metric_read_lock);
+
+	ret = hsmp_send_message_locked(&msg);
 	if (ret)
 		return ret;
 	memcpy_fromio(buf, sock->metric_tbl_addr, size);
 
 	return size;
 }
+
+ssize_t hsmp_metric_tbl_read(struct hsmp_socket *sock, char *buf, size_t size)
+{
+	guard(rwsem_read)(&hsmp_sock_rwsem);
+
+	return hsmp_metric_tbl_read_locked(sock, buf, size);
+}
 EXPORT_SYMBOL_NS_GPL(hsmp_metric_tbl_read, "AMD_HSMP");
+
+void hsmp_init_metric_read_locks(struct hsmp_plat_device *pdev)
+{
+	u16 i;
+
+	for (i = 0; i < pdev->num_sockets; i++)
+		mutex_init(&pdev->sock[i].metric_read_lock);
+}
+EXPORT_SYMBOL_NS_GPL(hsmp_init_metric_read_locks, "AMD_HSMP");
+
+void hsmp_destroy_metric_read_locks(struct hsmp_plat_device *pdev)
+{
+	u16 i;
+
+	for (i = 0; i < pdev->num_sockets; i++)
+		mutex_destroy(&pdev->sock[i].metric_read_lock);
+}
+EXPORT_SYMBOL_NS_GPL(hsmp_destroy_metric_read_locks, "AMD_HSMP");
+
+void hsmp_unmap_metric_tbls(struct hsmp_plat_device *pdev)
+{
+	struct hsmp_socket *sock;
+	u16 i;
+
+	for (i = 0; i < pdev->num_sockets; i++) {
+		sock = &pdev->sock[i];
+		if (sock->metric_tbl_addr) {
+			iounmap(sock->metric_tbl_addr);
+			sock->metric_tbl_addr = NULL;
+		}
+		sock->metric_tbl_size = 0;
+	}
+}
+EXPORT_SYMBOL_NS_GPL(hsmp_unmap_metric_tbls, "AMD_HSMP");
 
 int hsmp_get_tbl_dram_base(u16 sock_ind)
 {
 	struct hsmp_socket *sock = &hsmp_pdev.sock[sock_ind];
 	struct hsmp_message msg = { 0 };
 	phys_addr_t dram_addr;
+	size_t tbl_size;
 	int ret;
 
 	msg.sock_ind	= sock_ind;
 	msg.response_sz	= hsmp_msg_desc_table[HSMP_GET_METRIC_TABLE_DRAM_ADDR].response_sz;
 	msg.msg_id	= HSMP_GET_METRIC_TABLE_DRAM_ADDR;
 
-	ret = hsmp_send_message(&msg);
+	ret = hsmp_send_message_locked(&msg);
 	if (ret)
 		return ret;
 
@@ -425,12 +651,33 @@ int hsmp_get_tbl_dram_base(u16 sock_ind)
 		dev_err(sock->dev, "Invalid DRAM address for metric table\n");
 		return -ENOMEM;
 	}
-	sock->metric_tbl_addr = devm_ioremap(sock->dev, dram_addr,
-					     sizeof(struct hsmp_metric_table));
+	/*
+	 * The ACPI socket array is shared across sockets and outlives a
+	 * per-socket unbind, so metric_tbl_addr may hold a mapping from an
+	 * earlier bind of this socket. Unmap it before remapping so an
+	 * unbind/rebind cycle does not leak a metric-table mapping. This runs
+	 * during probe before the metric sysfs attribute is exposed, so no
+	 * reader can be using it.
+	 */
+	if (sock->metric_tbl_addr) {
+		iounmap(sock->metric_tbl_addr);
+		sock->metric_tbl_addr = NULL;
+	}
+	sock->metric_tbl_size = 0;
+
+	/* SMU returns table size from Family 1Ah Model 50h and forward */
+	if (msg.args[2])
+		tbl_size = msg.args[2];
+	else
+		tbl_size = sizeof(struct hsmp_metric_table);
+
+	sock->metric_tbl_addr = ioremap(dram_addr, tbl_size);
 	if (!sock->metric_tbl_addr) {
 		dev_err(sock->dev, "Failed to ioremap metric table addr\n");
 		return -ENOMEM;
 	}
+	sock->metric_tbl_size = tbl_size;
+
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(hsmp_get_tbl_dram_base, "AMD_HSMP");
@@ -444,7 +691,7 @@ int hsmp_cache_proto_ver(u16 sock_ind)
 	msg.sock_ind	= sock_ind;
 	msg.response_sz = hsmp_msg_desc_table[HSMP_GET_PROTO_VER].response_sz;
 
-	ret = hsmp_send_message(&msg);
+	ret = hsmp_send_message_locked(&msg);
 	if (!ret)
 		hsmp_pdev.proto_ver = msg.args[0];
 
@@ -463,6 +710,14 @@ int hsmp_misc_register(struct device *dev)
 	hsmp_pdev.mdev.name	= HSMP_CDEV_NAME;
 	hsmp_pdev.mdev.minor	= MISC_DYNAMIC_MINOR;
 	hsmp_pdev.mdev.fops	= &hsmp_fops;
+	/*
+	 * The caller chooses the parent. The platform driver has a single
+	 * device whose lifetime matches /dev/hsmp and parents it there. The
+	 * ACPI driver passes NULL: its /dev/hsmp is a singleton shared by
+	 * per-socket devices that can be unbound individually and out of order,
+	 * so parenting it to one would leave it attached to an already-removed
+	 * device.
+	 */
 	hsmp_pdev.mdev.parent	= dev;
 	hsmp_pdev.mdev.nodename	= HSMP_DEVNODE_NAME;
 	hsmp_pdev.mdev.mode	= 0644;
@@ -474,6 +729,7 @@ EXPORT_SYMBOL_NS_GPL(hsmp_misc_register, "AMD_HSMP");
 void hsmp_misc_deregister(void)
 {
 	misc_deregister(&hsmp_pdev.mdev);
+	hsmp_pdev.mdev.this_device = NULL;
 }
 EXPORT_SYMBOL_NS_GPL(hsmp_misc_deregister, "AMD_HSMP");
 

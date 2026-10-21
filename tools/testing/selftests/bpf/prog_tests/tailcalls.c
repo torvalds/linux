@@ -12,6 +12,9 @@
 #include "tailcall_cgrp_storage_no_storage.skel.h"
 #include "tailcall_cgrp_storage.skel.h"
 #include "tailcall_sleepable.skel.h"
+#include "tailcall_callback.skel.h"
+#include "tailcall_bpf2bpf2.skel.h"
+#include "tailcall_bpf2bpf_fexit.skel.h"
 
 /* test_tailcall_1 checks basic functionality by patching multiple locations
  * in a single program for a single tail call slot with nop->jmp, jmp->nop
@@ -1901,6 +1904,55 @@ out:
 	tailcall_sleepable__destroy(skel);
 }
 
+static void test_tailcall_callback(void)
+{
+	RUN_TESTS(tailcall_callback);
+}
+
+static void test_tailcall_bpf2bpf_fexit_links(void)
+{
+	struct tailcall_bpf2bpf_fexit *skel1 = NULL, *skel2 = NULL;
+	struct tailcall_bpf2bpf2 *skel_tc;
+	int err, prog_fd;
+
+	skel_tc = tailcall_bpf2bpf2__open_and_load();
+	if (!ASSERT_OK_PTR(skel_tc, "tailcall_bpf2bpf2__open_and_load"))
+		return;
+
+	skel1 = tailcall_bpf2bpf_fexit__open();
+	if (!ASSERT_OK_PTR(skel1, "tailcall_bpf2bpf_fexit__open"))
+		goto out;
+
+	prog_fd = bpf_program__fd(skel_tc->progs.classifier_0);
+	err = bpf_program__set_attach_target(skel1->progs.fexit, prog_fd, "subprog_tail");
+	if (!ASSERT_OK(err, "bpf_program__set_attach_target"))
+		goto out;
+
+	err = tailcall_bpf2bpf_fexit__load(skel1);
+	if (!ASSERT_OK(err, "tailcall_bpf2bpf_fexit__load"))
+		goto out;
+
+	skel1->links.fexit = bpf_program__attach_trace(skel1->progs.fexit);
+	if (!ASSERT_OK_PTR(skel1->links.fexit, "bpf_program__attach_trace"))
+		goto out;
+
+	skel2 = tailcall_bpf2bpf_fexit__open();
+	if (!ASSERT_OK_PTR(skel2, "tailcall_bpf2bpf_fexit__open"))
+		goto out;
+
+	err = bpf_program__set_attach_target(skel2->progs.fexit, prog_fd, "subprog_tail");
+	if (!ASSERT_OK(err, "bpf_program__set_attach_target"))
+		goto out;
+
+	err = tailcall_bpf2bpf_fexit__load(skel2);
+	ASSERT_OK(err, "tailcall_bpf2bpf_fexit__load");
+
+out:
+	tailcall_bpf2bpf_fexit__destroy(skel1);
+	tailcall_bpf2bpf_fexit__destroy(skel2);
+	tailcall_bpf2bpf2__destroy(skel_tc);
+}
+
 void test_tailcalls(void)
 {
 	if (test__start_subtest("tailcall_1"))
@@ -1967,4 +2019,7 @@ void test_tailcalls(void)
 		test_tailcall_cgrp_storage_no_storage_leaf();
 	if (test__start_subtest("tailcall_cgrp_storage_no_storage_bridge"))
 		test_tailcall_cgrp_storage_no_storage_bridge();
+	test_tailcall_callback();
+	if (test__start_subtest("tailcall_bpf2bpf_fexit_links"))
+		test_tailcall_bpf2bpf_fexit_links();
 }

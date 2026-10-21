@@ -128,6 +128,10 @@ struct stratix10_svc_chan;
  * @COMMAND_RSU_DCMF_STATUS: query firmware for the DCMF status
  * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
  *
+ * @COMMAND_RSU_GET_DEVICE_INFO: query firmware for QSPI device info;
+ * return status is SVC_STATUS_OK, SVC_STATUS_ERROR, or SVC_STATUS_NO_SUPPORT
+ * (unsupported command / firmware compatibility path in the service layer).
+ *
  * @COMMAND_RSU_GET_SPT_TABLE: query firmware for SPT table
  * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
  *
@@ -174,6 +178,7 @@ enum stratix10_svc_command_code {
 	COMMAND_RSU_MAX_RETRY,
 	COMMAND_RSU_DCMF_VERSION,
 	COMMAND_RSU_DCMF_STATUS,
+	COMMAND_RSU_GET_DEVICE_INFO,
 	COMMAND_FIRMWARE_VERSION,
 	COMMAND_RSU_GET_SPT_TABLE,
 	/* for FCS */
@@ -224,7 +229,12 @@ struct stratix10_svc_command_config_type {
 /**
  * struct stratix10_svc_cb_data - callback data structure from service layer
  * @status: the status of sent command
- * @kaddr1: address of 1st completed data block
+ * @kaddr1: address of 1st completed data block, or command-specific payload.
+ *	For COMMAND_RSU_GET_DEVICE_INFO on SVC_STATUS_OK or SVC_STATUS_ERROR,
+ *	points to struct arm_smccc_1_2_regs filled by the SMC/HVC return
+ *	registers (a0 status, a1-a4 packed device words per
+ *	INTEL_SIP_SMC_RSU_GET_DEVICE_INFO).  On SVC_STATUS_NO_SUPPORT (older
+ *	firmware that does not handle this command), kaddr1 is NULL.
  * @kaddr2: address of 2nd completed data block
  * @kaddr3: address of 3rd completed data block
  */

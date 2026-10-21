@@ -136,6 +136,10 @@ typedef void devlink_rel_notify_cb_t(struct devlink *devlink, u32 obj_index);
 typedef void devlink_rel_cleanup_cb_t(struct devlink *devlink, u32 obj_index,
 				      u32 rel_index);
 
+/* Returns the locked+referenced nested-in instance or NULL. */
+struct devlink *__must_check
+devlink_nested_in_get_lock(struct devlink *devlink);
+
 void devlink_rel_nested_in_clear(u32 rel_index);
 int devlink_rel_nested_in_add(u32 *rel_index, u32 devlink_index,
 			      u32 obj_index, devlink_rel_notify_cb_t *notify_cb,
@@ -147,6 +151,20 @@ int devlink_rel_devlink_handle_put(struct sk_buff *msg, struct devlink *devlink,
 				   bool *msg_updated);
 
 /* Netlink */
+struct devlink_nl_ctx {
+	struct devlink *devlink;
+	struct devlink_port *devlink_port;
+	struct devlink *parent_devlink;
+};
+
+static inline struct devlink_nl_ctx *
+devlink_nl_ctx(struct genl_info *info)
+{
+	BUILD_BUG_ON(sizeof(struct devlink_nl_ctx) >
+		     sizeof_field(struct genl_info, ctx));
+	return (struct devlink_nl_ctx *)info->ctx;
+}
+
 enum devlink_multicast_groups {
 	DEVLINK_MCGRP_CONFIG,
 };
@@ -180,6 +198,8 @@ typedef int devlink_nl_dump_one_func_t(struct sk_buff *msg,
 struct devlink *
 devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs,
 			    bool dev_lock);
+struct devlink *
+devlink_get_parent_from_attrs_lock(struct net *net, struct nlattr **attrs);
 
 int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
 		      devlink_nl_dump_one_func_t *dump_one);

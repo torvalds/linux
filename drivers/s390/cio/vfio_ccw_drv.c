@@ -35,6 +35,7 @@ debug_info_t *vfio_ccw_debug_trace_id;
  * Helpers
  */
 int vfio_ccw_sch_quiesce(struct subchannel *sch)
+	__must_hold(&sch->lock)
 {
 	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
 	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);

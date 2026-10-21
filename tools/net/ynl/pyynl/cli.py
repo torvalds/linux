@@ -17,9 +17,7 @@ import textwrap
 # pylint: disable=no-name-in-module,wrong-import-position
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import YnlFamily, Netlink, NlError, SpecFamily, SpecException, YnlException
-
-SYS_SCHEMA_DIR='/usr/share/ynl'
-RELATIVE_SCHEMA_DIR='../../../../Documentation/netlink'
+from lib import list_families
 
 # pylint: disable=too-few-public-methods,too-many-locals
 class Colors:
@@ -47,30 +45,6 @@ def color(text, modifiers):
 def term_width():
     """ Get terminal width in columns (80 if stdout is not a terminal) """
     return shutil.get_terminal_size().columns
-
-def schema_dir():
-    """
-    Return the effective schema directory, preferring in-tree before
-    system schema directory.
-    """
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    schema_dir_ = os.path.abspath(f"{script_dir}/{RELATIVE_SCHEMA_DIR}")
-    if not os.path.isdir(schema_dir_):
-        schema_dir_ = SYS_SCHEMA_DIR
-    if not os.path.isdir(schema_dir_):
-        raise YnlException(f"Schema directory {schema_dir_} does not exist")
-    return schema_dir_
-
-def spec_dir():
-    """
-    Return the effective spec directory, relative to the effective
-    schema directory.
-    """
-    spec_dir_ = schema_dir() + '/specs'
-    if not os.path.isdir(spec_dir_):
-        raise YnlException(f"Spec directory {spec_dir_} does not exist")
-    return spec_dir_
-
 
 class YnlEncoder(json.JSONEncoder):
     """A custom encoder for emitting JSON with ynl-specific instance types"""
@@ -272,9 +246,8 @@ def main():
             pprint.pprint(msg, width=term_width(), compact=True)
 
     if args.list_families:
-        for filename in sorted(os.listdir(spec_dir())):
-            if filename.endswith('.yaml'):
-                print(filename.removesuffix('.yaml'))
+        for family in list_families():
+            print(family)
         return
 
     if args.no_schema:
@@ -284,28 +257,23 @@ def main():
     if args.json_text:
         attrs = json.loads(args.json_text)
 
-    if args.family:
-        spec = f"{spec_dir()}/{args.family}.yaml"
-    else:
-        spec = args.spec
-    if not os.path.isfile(spec):
-        raise YnlException(f"Spec file {spec} does not exist")
+    if args.spec and not os.path.isfile(args.spec):
+        raise YnlException(f"Spec file {args.spec} does not exist")
 
+    # Spec/YnlFamily will raise if both or neither spec and family are given
     if args.validate:
+        # Force validation even for installed specs (schema=True), unless the
+        # user explicitly picked a schema or opted out with --no-schema.
+        schema = True if args.schema is None else args.schema
         try:
-            SpecFamily(spec, args.schema)
+            SpecFamily(args.spec, schema_path=schema, family=args.family)
         except SpecException as error:
             print(error)
             sys.exit(1)
         return
 
-    if args.family: # set behaviour when using installed specs
-        if args.schema is None and spec.startswith(SYS_SCHEMA_DIR):
-            args.schema = '' # disable schema validation when installed
-        if args.process_unknown is None:
-            args.process_unknown = True
-
-    ynl = YnlFamily(spec, args.schema, args.process_unknown,
+    ynl = YnlFamily(args.spec, schema=args.schema, family=args.family,
+                    process_unknown=args.process_unknown,
                     recv_size=args.dbg_small_recv)
     if args.dbg_small_recv:
         ynl.set_recv_dbg(True)

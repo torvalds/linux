@@ -14,45 +14,54 @@ enum {
 	NVME_IOCTL_PARTITION	= (1 << 1),
 };
 
-static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
-		unsigned int flags, bool open_for_write)
+static bool nvme_admin_cmd_allowed(struct nvme_ctrl *ctrl,
+				   struct nvme_command *c)
 {
-	u32 effects;
-
-	/*
-	 * Do not allow unprivileged passthrough on partitions, as that allows an
-	 * escape from the containment of the partition.
-	 */
-	if (flags & NVME_IOCTL_PARTITION)
-		goto admin;
-
-	/*
-	 * Do not allow unprivileged processes to send vendor specific or fabrics
-	 * commands as we can't be sure about their effects.
-	 */
-	if (c->common.opcode >= nvme_cmd_vendor_start ||
-	    c->common.opcode == nvme_fabrics_command)
-		goto admin;
-
 	/*
 	 * Do not allow unprivileged passthrough of admin commands except
 	 * for a subset of identify commands that contain information required
 	 * to form proper I/O commands in userspace and do not expose any
 	 * potentially sensitive information.
 	 */
-	if (!ns) {
-		if (c->common.opcode == nvme_admin_identify) {
-			switch (c->identify.cns) {
-			case NVME_ID_CNS_NS:
-			case NVME_ID_CNS_CS_NS:
-			case NVME_ID_CNS_NS_CS_INDEP:
-			case NVME_ID_CNS_CS_CTRL:
-			case NVME_ID_CNS_CTRL:
-				return true;
-			}
+	switch (c->common.opcode) {
+	case nvme_admin_identify:
+		switch (c->identify.cns) {
+		case NVME_ID_CNS_NS:
+		case NVME_ID_CNS_CS_NS:
+		case NVME_ID_CNS_NS_CS_INDEP:
+		case NVME_ID_CNS_CS_CTRL:
+		case NVME_ID_CNS_CTRL:
+			return true;
 		}
-		goto admin;
+		break;
+	case nvme_admin_set_features:
+		/*
+		 * Reject Set Features that change controller state the driver
+		 * manages itself; setting them behind the driver's back from
+		 * userspace leaves it unable to react correctly. Keep Alive is
+		 * only armed for fabrics - on other transports it has no
+		 * reserved tag and harms idle power states.
+		 */
+		switch (le32_to_cpu(c->features.fid) & 0xff) {
+		case NVME_FEAT_KATO:
+			if (ctrl->ops->flags & NVME_F_FABRICS)
+				break;
+			fallthrough;
+		case NVME_FEAT_HOST_BEHAVIOR:
+		case NVME_FEAT_HOST_MEM_BUF:
+		case NVME_FEAT_NUM_QUEUES:
+		case NVME_FEAT_AUTO_PST:
+			return false;
+		}
+		break;
 	}
+	return capable(CAP_SYS_ADMIN);
+}
+
+static bool nvme_ns_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
+				bool open_for_write)
+{
+	u32 effects;
 
 	/*
 	 * Check if the controller provides a Commands Supported and Effects log
@@ -61,7 +70,7 @@ static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 	 */
 	effects = nvme_command_effects(ns->ctrl, ns, c->common.opcode);
 	if (!(effects & NVME_CMD_EFFECTS_CSUPP))
-		goto admin;
+		return capable(CAP_SYS_ADMIN);
 
 	/*
 	 * Don't allow passthrough for command that have intrusive (or unknown)
@@ -70,7 +79,7 @@ static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 	if (effects & ~(NVME_CMD_EFFECTS_CSUPP | NVME_CMD_EFFECTS_LBCC |
 			NVME_CMD_EFFECTS_UUID_SEL |
 			NVME_CMD_EFFECTS_SCOPE_MASK))
-		goto admin;
+		return capable(CAP_SYS_ADMIN);
 
 	/*
 	 * Only allow I/O commands that transfer data to the controller or that
@@ -79,11 +88,34 @@ static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 	 */
 	if ((nvme_is_write(c) || (effects & NVME_CMD_EFFECTS_LBCC)) &&
 	    !open_for_write)
-		goto admin;
+		return capable(CAP_SYS_ADMIN);
 
 	return true;
-admin:
-	return capable(CAP_SYS_ADMIN);
+}
+
+static bool nvme_cmd_allowed(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
+			     struct nvme_command *c, unsigned int flags,
+			     bool open_for_write)
+{
+	/*
+	 * Do not allow unprivileged passthrough on partitions, as that
+	 * allows an escape from the containment of the partition.
+	 */
+	if (flags & NVME_IOCTL_PARTITION)
+		return capable(CAP_SYS_ADMIN);
+
+	/*
+	 * Do not allow unprivileged processes to send vendor specific or
+	 * fabrics commands as we can't be sure about their effects.
+	 */
+	if (c->common.opcode >= nvme_cmd_vendor_start ||
+	    c->common.opcode == nvme_fabrics_command)
+		return capable(CAP_SYS_ADMIN);
+
+	if (!ns)
+		return nvme_admin_cmd_allowed(ctrl, c);
+
+	return nvme_ns_cmd_allowed(ns, c, open_for_write);
 }
 
 /*
@@ -202,7 +234,8 @@ out_free_req:
 	return ret;
 }
 
-static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
+static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio,
+		unsigned int flags, bool open_for_write)
 {
 	struct nvme_user_io io;
 	struct nvme_command c;
@@ -260,6 +293,9 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.lbat = cpu_to_le16(io.apptag);
 	c.rw.lbatm = cpu_to_le16(io.appmask);
 
+	if (!nvme_cmd_allowed(ns->ctrl, ns, &c, flags, open_for_write))
+		return -EACCES;
+
 	return nvme_submit_user_cmd(ns->queue, &c, io.addr, length, metadata,
 			meta_len, NULL, 0, 0);
 }
@@ -307,7 +343,7 @@ static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	c.common.cdw14 = cpu_to_le32(cmd.cdw14);
 	c.common.cdw15 = cpu_to_le32(cmd.cdw15);
 
-	if (!nvme_cmd_allowed(ns, &c, 0, open_for_write))
+	if (!nvme_cmd_allowed(ctrl, ns, &c, 0, open_for_write))
 		return -EACCES;
 
 	if (cmd.timeout_ms)
@@ -354,7 +390,7 @@ static int nvme_user_cmd64(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	c.common.cdw14 = cpu_to_le32(cmd.cdw14);
 	c.common.cdw15 = cpu_to_le32(cmd.cdw15);
 
-	if (!nvme_cmd_allowed(ns, &c, flags, open_for_write))
+	if (!nvme_cmd_allowed(ctrl, ns, &c, flags, open_for_write))
 		return -EACCES;
 
 	if (cmd.timeout_ms)
@@ -449,6 +485,7 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	const struct nvme_uring_cmd *cmd = io_uring_sqe128_cmd(ioucmd->sqe,
 							       struct nvme_uring_cmd);
 	struct request_queue *q = ns ? ns->queue : ctrl->admin_q;
+	bool open_for_write = ioucmd->file->f_mode & FMODE_WRITE;
 	struct nvme_uring_data d;
 	struct nvme_command c;
 	struct iov_iter iter;
@@ -479,7 +516,7 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	c.common.cdw14 = cpu_to_le32(READ_ONCE(cmd->cdw14));
 	c.common.cdw15 = cpu_to_le32(READ_ONCE(cmd->cdw15));
 
-	if (!nvme_cmd_allowed(ns, &c, 0, ioucmd->file->f_mode & FMODE_WRITE))
+	if (!nvme_cmd_allowed(ctrl, ns, &c, 0, open_for_write))
 		return -EACCES;
 
 	d.metadata = READ_ONCE(cmd->metadata);
@@ -595,7 +632,7 @@ static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
 	case NVME_IOCTL_SUBMIT_IO32:
 #endif
 	case NVME_IOCTL_SUBMIT_IO:
-		return nvme_submit_io(ns, argp);
+		return nvme_submit_io(ns, argp, flags, open_for_write);
 	case NVME_IOCTL_IO64_CMD_VEC:
 		flags |= NVME_IOCTL_VEC;
 		fallthrough;
@@ -692,14 +729,14 @@ int nvme_ns_chr_uring_cmd_iopoll(struct io_uring_cmd *ioucmd,
 static int nvme_ns_head_ctrl_ioctl(struct nvme_ns *ns, unsigned int cmd,
 		void __user *argp, struct nvme_ns_head *head, int srcu_idx,
 		bool open_for_write)
-	__releases(&head->srcu)
+	__releases_shared(&head->srcu)
 {
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	int ret;
 
 	nvme_get_ctrl(ns->ctrl);
 	srcu_read_unlock(&head->srcu, srcu_idx);
-	ret = nvme_ctrl_ioctl(ns->ctrl, cmd, argp, open_for_write);
+	ret = nvme_ctrl_ioctl(ctrl, cmd, argp, open_for_write);
 
 	nvme_put_ctrl(ctrl);
 	return ret;

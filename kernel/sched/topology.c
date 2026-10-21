@@ -271,7 +271,7 @@ void rebuild_sched_domains_energy(void)
 	mutex_unlock(&sched_energy_mutex);
 }
 
-#ifdef CONFIG_PROC_SYSCTL
+#ifdef CONFIG_SYSCTL
 static int sched_energy_aware_handler(const struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -317,7 +317,7 @@ static int __init sched_energy_aware_sysctl_init(void)
 }
 
 late_initcall(sched_energy_aware_sysctl_init);
-#endif /* CONFIG_PROC_SYSCTL */
+#endif /* CONFIG_SYSCTL */
 
 static void free_pd(struct perf_domain *pd)
 {

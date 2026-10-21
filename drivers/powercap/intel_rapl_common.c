@@ -32,6 +32,9 @@
 
 #define ENERGY_STATUS_MASK		GENMASK(31, 0)
 
+/* Width of the RAPL energy counters, see the *_ENERGY_STATUS_MASK defines */
+#define RAPL_CNTR_WIDTH			32
+
 #define POWER_UNIT_OFFSET		0x00
 #define POWER_UNIT_MASK			GENMASK(3, 0)
 
@@ -1227,6 +1230,7 @@ static u64 rapl_event_update(struct perf_event *event)
 	struct rapl_package_pmu_data *data = event_to_pmu_data(event);
 	u64 prev_raw_count, new_raw_count;
 	s64 delta, sdelta;
+	int shift = 64 - RAPL_CNTR_WIDTH;
 
 	/*
 	 * Follow the generic code to drain hwc->prev_count.
@@ -1243,8 +1247,13 @@ static u64 rapl_event_update(struct perf_event *event)
 	 * Now we have the new raw value and have updated the prev
 	 * timestamp already. We can now calculate the elapsed delta
 	 * (event-)time and add that to the generic event.
+	 *
+	 * Careful, the counter is narrower than u64 and is not
+	 * sign-extended above its physical width.  Shift both values up
+	 * so that the subtraction wraps, then shift the result back down.
 	 */
-	delta = new_raw_count - prev_raw_count;
+	delta = (new_raw_count << shift) - (prev_raw_count << shift);
+	delta >>= shift;
 
 	/*
 	 * Scale delta to smallest unit (2^-32)
@@ -1652,7 +1661,9 @@ void rapl_package_remove_pmu_locked(struct rapl_package *rp)
 			return;
 	}
 
-	perf_pmu_unregister(&rapl_pmu.pmu);
+	if (rapl_pmu.registered)
+		perf_pmu_unregister(&rapl_pmu.pmu);
+
 	memset(&rapl_pmu, 0, sizeof(struct rapl_pmu));
 }
 EXPORT_SYMBOL_NS_GPL(rapl_package_remove_pmu_locked, "INTEL_RAPL");

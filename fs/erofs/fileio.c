@@ -194,3 +194,24 @@ const struct address_space_operations erofs_fileio_aops = {
 	.read_folio = erofs_fileio_read_folio,
 	.readahead = erofs_fileio_readahead,
 };
+
+int erofs_read_meta_folio(struct file *file, struct folio *folio)
+{
+	struct erofs_fileio io = {
+		.dev = { .m_pa = folio_pos(folio), },
+	};
+	struct inode *inode = folio_inode(folio);
+	int err;
+
+	err = erofs_map_dev(inode->i_sb, &io.dev);
+	if (err)
+		return err;
+
+	io.rq = erofs_fileio_rq_alloc(&io.dev);
+	io.rq->bio.bi_iter.bi_sector =
+		(io.dev.m_dif->fsoff + io.dev.m_pa) >> 9;
+	erofs_onlinefolio_init(folio);
+	bio_add_folio_nofail(&io.rq->bio, folio, folio_size(folio), 0);
+	erofs_fileio_rq_submit(io.rq);
+	return 0;
+}

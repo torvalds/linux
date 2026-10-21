@@ -372,3 +372,4 @@ module_platform_driver(vf50_touch_driver);
 MODULE_AUTHOR("Sanchayan Maity");
 MODULE_DESCRIPTION("Colibri VF50 Touchscreen driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

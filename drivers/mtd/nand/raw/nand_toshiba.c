@@ -287,7 +287,9 @@ static int toshiba_nand_init(struct nand_chip *chip)
 	if (!strncmp("TC58NVG0S3E", chip->parameters.model,
 		     sizeof("TC58NVG0S3E") - 1))
 		tc58nvg0s3e_init(chip);
-	if ((!strncmp("TH58NVG2S3HBAI4", chip->parameters.model,
+	if ((!strncmp("TC58NVG1S3H", chip->parameters.model,
+		      sizeof("TC58NVG1S3H") - 1)) ||
+	    (!strncmp("TH58NVG2S3HBAI4", chip->parameters.model,
 		     sizeof("TH58NVG2S3HBAI4") - 1)) ||
 	    (!strncmp("TH58NVG3S0HBAI4", chip->parameters.model,
 		     sizeof("TH58NVG3S0HBAI4") - 1)))

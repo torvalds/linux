@@ -369,9 +369,6 @@ static int adc_tm5_get_temp(struct thermal_zone_device *tz, int *temp)
 	if (ret < 0)
 		return ret;
 
-	if (ret != IIO_VAL_INT)
-		return -EINVAL;
-
 	return 0;
 }
 
@@ -1069,3 +1066,4 @@ module_platform_driver(adc_tm5_driver);
 
 MODULE_DESCRIPTION("SPMI PMIC Thermal Monitor ADC driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("IIO_CONSUMER");

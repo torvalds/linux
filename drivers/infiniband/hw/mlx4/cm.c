@@ -40,6 +40,7 @@
 #include "mlx4_ib.h"
 
 #define CM_CLEANUP_CACHE_TIMEOUT  (30 * HZ)
+#define CM_RTU_TIMEOUT		  (60 * HZ)
 
 struct id_map_entry {
 	struct rb_node node;
@@ -48,6 +49,7 @@ struct id_map_entry {
 	u32 pv_cm_id;
 	int slave_id;
 	int scheduled_delete;
+	bool rtu_timeout;
 	struct mlx4_ib_dev *dev;
 
 	struct list_head list;
@@ -184,6 +186,10 @@ static void id_map_ent_timeout(struct work_struct *work)
 	struct rb_root *sl_id_map = &sriov->sl_id_map;
 
 	spin_lock(&sriov->id_map_lock);
+	if (!ent->scheduled_delete) {
+		spin_unlock(&sriov->id_map_lock);
+		return;
+	}
 	if (!xa_erase(&sriov->pv_id_table, ent->pv_cm_id))
 		goto out;
 	found_ent = id_map_find_by_sl_id(&dev->ib_dev, ent->slave_id, ent->sl_cm_id);
@@ -228,8 +234,12 @@ static void sl_id_map_add(struct ib_device *ibdev, struct id_map_entry *new)
 	rb_insert_color(&new->node, sl_id_map);
 }
 
+static void schedule_delayed(struct ib_device *ibdev, struct id_map_entry *id,
+			     unsigned long timeout, bool rtu_timeout);
+
 static struct id_map_entry *
-id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
+id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id,
+	     u32 *pv_cm_id)
 {
 	int ret;
 	struct id_map_entry *ent;
@@ -242,6 +252,7 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 	ent->sl_cm_id = sl_cm_id;
 	ent->slave_id = slave_id;
 	ent->scheduled_delete = 0;
+	ent->rtu_timeout = false;
 	ent->dev = to_mdev(ibdev);
 	INIT_DELAYED_WORK(&ent->timeout, id_map_ent_timeout);
 
@@ -251,6 +262,8 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 		spin_lock(&sriov->id_map_lock);
 		sl_id_map_add(ibdev, ent);
 		list_add_tail(&ent->list, &sriov->cm_list);
+		*pv_cm_id = ent->pv_cm_id;
+		schedule_delayed(ibdev, ent, CM_RTU_TIMEOUT, true);
 		spin_unlock(&sriov->id_map_lock);
 		return ent;
 	}
@@ -267,42 +280,41 @@ id_map_get(struct ib_device *ibdev, int *pv_cm_id, int slave_id, int sl_cm_id)
 	struct id_map_entry *ent;
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 
-	spin_lock(&sriov->id_map_lock);
+	lockdep_assert_held(&sriov->id_map_lock);
 	if (*pv_cm_id == -1) {
 		ent = id_map_find_by_sl_id(ibdev, slave_id, sl_cm_id);
 		if (ent)
 			*pv_cm_id = (int) ent->pv_cm_id;
 	} else
 		ent = xa_load(&sriov->pv_id_table, *pv_cm_id);
-	spin_unlock(&sriov->id_map_lock);
 
 	return ent;
 }
 
-static void schedule_delayed(struct ib_device *ibdev, struct id_map_entry *id)
+static void schedule_delayed(struct ib_device *ibdev, struct id_map_entry *id,
+			     unsigned long timeout, bool rtu_timeout)
 {
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 	unsigned long flags;
 
-	spin_lock(&sriov->id_map_lock);
+	lockdep_assert_held(&sriov->id_map_lock);
 	spin_lock_irqsave(&sriov->going_down_lock, flags);
 	/*make sure that there is no schedule inside the scheduled work.*/
-	if (!sriov->is_going_down && !id->scheduled_delete) {
+	if (!sriov->is_going_down || id->scheduled_delete) {
 		id->scheduled_delete = 1;
-		queue_delayed_work(cm_wq, &id->timeout, CM_CLEANUP_CACHE_TIMEOUT);
-	} else if (id->scheduled_delete) {
-		/* Adjust timeout if already scheduled */
-		mod_delayed_work(cm_wq, &id->timeout, CM_CLEANUP_CACHE_TIMEOUT);
+		id->rtu_timeout = rtu_timeout;
+		mod_delayed_work(cm_wq, &id->timeout, timeout);
 	}
 	spin_unlock_irqrestore(&sriov->going_down_lock, flags);
-	spin_unlock(&sriov->id_map_lock);
 }
 
 #define REJ_REASON(m) be16_to_cpu(((struct cm_generic_msg *)(m))->rej_reason)
 int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id,
 		struct ib_mad *mad)
 {
+	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 	struct id_map_entry *id;
+	u32 pv_cm_id_to_set = 0;
 	u32 sl_cm_id;
 	int pv_cm_id = -1;
 
@@ -312,21 +324,62 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 	    mad->mad_hdr.attr_id == CM_SIDR_REQ_ATTR_ID ||
 	    (mad->mad_hdr.attr_id == CM_REJ_ATTR_ID && REJ_REASON(mad) == IB_CM_REJ_TIMEOUT)) {
 		sl_cm_id = get_local_comm_id(mad);
+		spin_lock(&sriov->id_map_lock);
 		id = id_map_get(ibdev, &pv_cm_id, slave_id, sl_cm_id);
+		if (id) {
+			pv_cm_id_to_set = id->pv_cm_id;
+			if (mad->mad_hdr.attr_id == CM_REJ_ATTR_ID)
+				schedule_delayed(ibdev, id,
+						 CM_CLEANUP_CACHE_TIMEOUT,
+						 false);
+		}
+		spin_unlock(&sriov->id_map_lock);
 		if (id)
 			goto cont;
-		id = id_map_alloc(ibdev, slave_id, sl_cm_id);
+		if (mad->mad_hdr.attr_id == CM_REJ_ATTR_ID)
+			return 0;
+		id = id_map_alloc(ibdev, slave_id, sl_cm_id,
+				  &pv_cm_id_to_set);
 		if (IS_ERR(id)) {
 			mlx4_ib_warn(ibdev, "%s: id{slave: %d, sl_cm_id: 0x%x} Failed to id_map_alloc\n",
 				__func__, slave_id, sl_cm_id);
 			return PTR_ERR(id);
 		}
-	} else if (mad->mad_hdr.attr_id == CM_REJ_ATTR_ID ||
-		   mad->mad_hdr.attr_id == CM_SIDR_REP_ATTR_ID) {
+	} else if (mad->mad_hdr.attr_id == CM_REJ_ATTR_ID) {
+		sl_cm_id = get_local_comm_id(mad);
+		spin_lock(&sriov->id_map_lock);
+		id = id_map_get(ibdev, &pv_cm_id, slave_id, sl_cm_id);
+		if (id) {
+			pv_cm_id_to_set = id->pv_cm_id;
+			schedule_delayed(ibdev, id, CM_CLEANUP_CACHE_TIMEOUT,
+					 false);
+		}
+		spin_unlock(&sriov->id_map_lock);
+		if (!id)
+			return 0;
+	} else if (mad->mad_hdr.attr_id == CM_SIDR_REP_ATTR_ID) {
 		return 0;
 	} else {
 		sl_cm_id = get_local_comm_id(mad);
+		spin_lock(&sriov->id_map_lock);
 		id = id_map_get(ibdev, &pv_cm_id, slave_id, sl_cm_id);
+		if (id) {
+			if (mad->mad_hdr.attr_id == CM_RTU_ATTR_ID &&
+			    id->rtu_timeout) {
+				id->rtu_timeout = false;
+				if (cancel_delayed_work(&id->timeout))
+					id->scheduled_delete = 0;
+				else
+					id = NULL;
+			}
+			if (id)
+				pv_cm_id_to_set = id->pv_cm_id;
+			if (id && mad->mad_hdr.attr_id == CM_DREQ_ATTR_ID)
+				schedule_delayed(ibdev, id,
+						 CM_CLEANUP_CACHE_TIMEOUT,
+						 false);
+		}
+		spin_unlock(&sriov->id_map_lock);
 	}
 
 	if (!id) {
@@ -336,10 +389,7 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 	}
 
 cont:
-	set_local_comm_id(mad, id->pv_cm_id);
-
-	if (mad->mad_hdr.attr_id == CM_DREQ_ATTR_ID)
-		schedule_delayed(ibdev, id);
+	set_local_comm_id(mad, pv_cm_id_to_set);
 	return 0;
 }
 
@@ -429,7 +479,10 @@ int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 	u32 rem_pv_cm_id = get_local_comm_id(mad);
 	u32 pv_cm_id;
+	u32 sl_cm_id = 0;
 	struct id_map_entry *id;
+	int pv_cm_id_int;
+	int slave_id = 0;
 	int sts;
 
 	if (mad->mad_hdr.attr_id == CM_REQ_ATTR_ID ||
@@ -457,7 +510,28 @@ int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
 	}
 
 	pv_cm_id = get_remote_comm_id(mad);
-	id = id_map_get(ibdev, (int *)&pv_cm_id, -1, -1);
+	pv_cm_id_int = pv_cm_id;
+	spin_lock(&sriov->id_map_lock);
+	id = id_map_get(ibdev, &pv_cm_id_int, -1, -1);
+	if (id) {
+		if (mad->mad_hdr.attr_id == CM_RTU_ATTR_ID &&
+		    id->rtu_timeout) {
+			id->rtu_timeout = false;
+			if (cancel_delayed_work(&id->timeout))
+				id->scheduled_delete = 0;
+			else
+				id = NULL;
+		}
+		if (id && slave)
+			slave_id = id->slave_id;
+		if (id)
+			sl_cm_id = id->sl_cm_id;
+		if (id && (mad->mad_hdr.attr_id == CM_DREQ_ATTR_ID ||
+			   mad->mad_hdr.attr_id == CM_REJ_ATTR_ID))
+			schedule_delayed(ibdev, id,
+					 CM_CLEANUP_CACHE_TIMEOUT, false);
+	}
+	spin_unlock(&sriov->id_map_lock);
 
 	if (!id) {
 		if (mad->mad_hdr.attr_id == CM_REJ_ATTR_ID &&
@@ -472,12 +546,8 @@ int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
 	}
 
 	if (slave)
-		*slave = id->slave_id;
-	set_remote_comm_id(mad, id->sl_cm_id);
-
-	if (mad->mad_hdr.attr_id == CM_DREQ_ATTR_ID ||
-	    mad->mad_hdr.attr_id == CM_REJ_ATTR_ID)
-		schedule_delayed(ibdev, id);
+		*slave = slave_id;
+	set_remote_comm_id(mad, sl_cm_id);
 
 	return 0;
 }

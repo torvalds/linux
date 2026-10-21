@@ -1203,9 +1203,16 @@ static void ite_close(struct rc_dev *rcdev)
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
+enum ite_model_type {
+	ITE8704,
+	ITE8713,
+	ITE8708,
+	ITE8709,
+};
+
 /* supported models and their parameters */
 static const struct ite_dev_params ite_dev_descs[] = {
-	{	/* 0: ITE8704 */
+	[ITE8704] = {
 	       .model = "ITE8704 CIR transceiver",
 	       .io_region_size = IT87_IOREG_LENGTH,
 	       .io_rsrc_no = 0,
@@ -1224,7 +1231,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	       .init_hardware = it87_init_hardware,
 	       .set_carrier_params = it87_set_carrier_params,
 	       },
-	{	/* 1: ITE8713 */
+	[ITE8713] = {
 	       .model = "ITE8713 CIR transceiver",
 	       .io_region_size = IT87_IOREG_LENGTH,
 	       .io_rsrc_no = 0,
@@ -1243,7 +1250,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	       .init_hardware = it87_init_hardware,
 	       .set_carrier_params = it87_set_carrier_params,
 	       },
-	{	/* 2: ITE8708 */
+	[ITE8708] = {
 	       .model = "ITE8708 CIR transceiver",
 	       .io_region_size = IT8708_IOREG_LENGTH,
 	       .io_rsrc_no = 0,
@@ -1263,7 +1270,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	       .init_hardware = it8708_init_hardware,
 	       .set_carrier_params = it8708_set_carrier_params,
 	       },
-	{	/* 3: ITE8709 */
+	[ITE8709] = {
 	       .model = "ITE8709 CIR transceiver",
 	       .io_region_size = IT8709_IOREG_LENGTH,
 	       .io_rsrc_no = 2,
@@ -1286,11 +1293,11 @@ static const struct ite_dev_params ite_dev_descs[] = {
 };
 
 static const struct pnp_device_id ite_ids[] = {
-	{"ITE8704", 0},		/* Default model */
-	{"ITE8713", 1},		/* CIR found in EEEBox 1501U */
-	{"ITE8708", 2},		/* Bridged IT8512 */
-	{"ITE8709", 3},		/* SRAM-Bridged IT8512 */
-	{"", 0},
+	{ .id = "ITE8704", .driver_data = ITE8704 },		/* Default model */
+	{ .id = "ITE8713", .driver_data = ITE8713 },		/* CIR found in EEEBox 1501U */
+	{ .id = "ITE8708", .driver_data = ITE8708 },		/* Bridged IT8512 */
+	{ .id = "ITE8709", .driver_data = ITE8709 },		/* SRAM-Bridged IT8512 */
+	{ }
 };
 
 /* allocate memory, probe hardware, and initialize everything */
@@ -1301,7 +1308,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	struct ite_dev *itdev = NULL;
 	struct rc_dev *rdev = NULL;
 	int ret = -ENOMEM;
-	int model_no;
+	enum ite_model_type model_no;
 	int io_rsrc_no;
 
 	itdev = kzalloc_obj(struct ite_dev);
@@ -1317,7 +1324,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	ret = -ENODEV;
 
 	/* get the model number */
-	model_no = (int)dev_id->driver_data;
+	model_no = dev_id->driver_data;
 	dev_dbg(&pdev->dev, "Auto-detected model: %s\n",
 		ite_dev_descs[model_no].model);
 

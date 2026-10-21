@@ -190,7 +190,6 @@
         "EventName": "BR_INST_RETIRED.COND_TAKEN_FWD",
         "PublicDescription": "Counts taken forward conditional branch instructions retired. Available PDIST counters: 0,1",
         "SampleAfterValue": "400009",
-        "UMask": "0x102",
         "Unit": "cpu_core"
     },
     {
@@ -325,6 +324,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of taken branch instructions retired",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.TAKEN",
+        "SampleAfterValue": "200003",
+        "UMask": "0x80",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the total number of mispredicted branch instructions retired for all branch types.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc5",
@@ -446,7 +454,7 @@
         "EventName": "BR_MISP_RETIRED.COND_TAKEN_BWD_COST",
         "PublicDescription": "number of branch instructions retired that were mispredicted and taken backward. This precise event may be used to get the misprediction cost via the Retire_Latency field of PEBS. It fires on the instruction that immediately follows the mispredicted branch. Available PDIST counters: 0,1",
         "SampleAfterValue": "400009",
-        "UMask": "0x8001",
+        "UMask": "0x41",
         "Unit": "cpu_core"
     },
     {
@@ -475,7 +483,7 @@
         "EventName": "BR_MISP_RETIRED.COND_TAKEN_FWD_COST",
         "PublicDescription": "number of branch instructions retired that were mispredicted and taken forward. This precise event may be used to get the misprediction cost via the Retire_Latency field of PEBS. It fires on the instruction that immediately follows the mispredicted branch. Available PDIST counters: 0,1",
         "SampleAfterValue": "400009",
-        "UMask": "0x8002",
+        "UMask": "0x140",
         "Unit": "cpu_core"
     },
     {
@@ -575,11 +583,11 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Non PEBS",
+        "BriefDescription": "This event counts the number of mispredicted ret instructions retired.",
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.RET",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted return instructions retired. Available PDIST counters: 0,1",
+        "PublicDescription": "This event counts the number of mispredicted ret instructions retired. Available PDIST counters: 0,1",
         "SampleAfterValue": "100007",
         "UMask": "0x8",
         "Unit": "cpu_core"
@@ -965,7 +973,7 @@
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.REP_ITERATION",
-        "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Note the number of iterations is implementation-dependent. Available PDIST counters: 0,1",
+        "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Note: Since the number of iterations within a REP instruction can be significantly affected by fast strings, this event may vary run to run and not match the architectural number of iterations (specified by RCX) Available PDIST counters: 0,1",
         "SampleAfterValue": "2000003",
         "UMask": "0x8",
         "Unit": "cpu_core"
@@ -1371,6 +1379,15 @@
         "EventName": "MACHINE_CLEARS.DISAMBIGUATION_FAST",
         "SampleAfterValue": "20003",
         "UMask": "0x88",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts number of virtual trap actually taken (e.g. highest priority event during retirement). It can count virtual trap from FPC port 0 or port 1 (x87/SSE) equally in a single counter.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.FPC_VIRTUAL_TRAP",
+        "SampleAfterValue": "20003",
+        "UMask": "0x40",
         "Unit": "cpu_atom"
     },
     {

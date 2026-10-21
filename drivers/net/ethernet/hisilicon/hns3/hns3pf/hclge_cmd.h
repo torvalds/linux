@@ -890,6 +890,15 @@ struct hclge_query_wol_supported_cmd {
 	u8 rsv[20];
 };
 
+struct hclge_pfc_storm_para_cmd {
+	__le32 dir;
+	__le32 enable;
+	__le32 period_ms;
+	__le32 times;
+	__le32 recovery_period_ms;
+	__le32 rsv;
+};
+
 struct hclge_hw;
 int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num);
 #endif

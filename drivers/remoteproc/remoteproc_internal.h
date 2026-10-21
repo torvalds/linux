@@ -14,6 +14,9 @@
 
 #include <linux/irqreturn.h>
 #include <linux/firmware.h>
+#ifdef CONFIG_HAS_IOMEM
+#include <linux/io.h>
+#endif
 
 struct rproc;
 
@@ -121,6 +124,57 @@ struct rproc_mem_entry *
 rproc_find_carveout_by_name(struct rproc *rproc, const char *name, ...);
 void rproc_add_rvdev(struct rproc *rproc, struct rproc_vdev *rvdev);
 void rproc_remove_rvdev(struct rproc_vdev *rvdev);
+
+#ifdef CONFIG_HAS_IOMEM
+static inline int rproc_mem_entry_ioremap_wc(struct rproc *rproc,
+					     struct rproc_mem_entry *mem)
+{
+	void __iomem *va;
+
+	va = ioremap_wc(mem->dma, mem->len);
+	if (!va) {
+		dev_err(&rproc->dev, "Unable to map memory region: %pa+%zx\n",
+			&mem->dma, mem->len);
+		return -ENOMEM;
+	}
+
+	mem->va = (__force void *)va;
+	mem->is_iomem = true;
+
+	return 0;
+}
+
+static inline int rproc_mem_entry_iounmap(struct rproc *rproc,
+					  struct rproc_mem_entry *mem)
+{
+	iounmap((__force __iomem void *)mem->va);
+
+	return 0;
+}
+#else
+static inline int rproc_mem_entry_ioremap_wc(struct rproc *rproc,
+					     struct rproc_mem_entry *mem)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int rproc_mem_entry_iounmap(struct rproc *rproc,
+					  struct rproc_mem_entry *mem)
+{
+	return 0;
+}
+#endif
+
+#define rproc_elf_load_rsc_table_optional(rproc, fw, dev_func, fmt, ...)	\
+	({									\
+		int ret = rproc_elf_load_rsc_table(rproc, fw);			\
+		if (ret == -EINVAL) {						\
+			dev_func(&rproc->dev, fmt, ##__VA_ARGS__);		\
+			return 0;						\
+		} else {							\
+			return ret;						\
+		}								\
+	})
 
 static inline int rproc_prepare_device(struct rproc *rproc)
 {

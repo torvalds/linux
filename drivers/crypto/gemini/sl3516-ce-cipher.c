@@ -56,10 +56,6 @@ static bool sl3516_ce_need_fallback(struct skcipher_request *areq)
 			ce->fallback_mod16++;
 			return true;
 		}
-		if ((sg_dma_len(sg) % 16) != 0) {
-			ce->fallback_mod16++;
-			return true;
-		}
 		if (!IS_ALIGNED(sg->offset, 16)) {
 			ce->fallback_align16++;
 			return true;
@@ -69,10 +65,6 @@ static bool sl3516_ce_need_fallback(struct skcipher_request *areq)
 	sg = areq->dst;
 	while (sg) {
 		if ((sg->length % 16) != 0) {
-			ce->fallback_mod16++;
-			return true;
-		}
-		if ((sg_dma_len(sg) % 16) != 0) {
 			ce->fallback_mod16++;
 			return true;
 		}

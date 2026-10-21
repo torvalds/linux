@@ -991,7 +991,7 @@ static const struct of_device_id ltc2688_of_id[] = {
 MODULE_DEVICE_TABLE(of, ltc2688_of_id);
 
 static const struct spi_device_id ltc2688_id[] = {
-	{ "ltc2688" },
+	{ .name = "ltc2688" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ltc2688_id);

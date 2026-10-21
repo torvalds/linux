@@ -602,7 +602,7 @@ static void dwc3_qcom_run_stop_notifier(struct dwc3 *dwc, bool is_on)
 	pm_runtime_mark_last_busy(qcom->dev);
 }
 
-struct dwc3_glue_ops dwc3_qcom_glue_ops = {
+static struct dwc3_glue_ops dwc3_qcom_glue_ops = {
 	.pre_set_role	= dwc3_qcom_set_role_notifier,
 	.pre_run_stop	= dwc3_qcom_run_stop_notifier,
 };

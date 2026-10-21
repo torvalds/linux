@@ -211,8 +211,31 @@ static int tcan4x5x_write_fifo(struct m_can_classdev *cdev,
 	return regmap_bulk_write(priv->regmap, TCAN4X5X_MRAM_START + addr_offset, val, val_count);
 }
 
-static int tcan4x5x_power_enable(struct regulator *reg, int enable)
+static int tcan4x5x_power_enable(struct tcan4x5x_priv *priv, int enable)
 {
+	struct regulator *reg = priv->power;
+
+	/*
+	 * Put the device into sleep mode if the RST pin is available,
+	 * since a wake-up event, RST pin toggle, or power cycle are the only
+	 * ways to exit sleep mode.
+	 * Redundant if the regulator is exclusive to this device, but that
+	 * can't be determined here.
+	 *
+	 * Datasheet: TCAN4550, section "8.4.3 Sleep Mode"
+	 * https://www.ti.com/lit/gpn/tcan4550
+	 */
+	if (priv->reset_gpio && !enable) {
+		int ret;
+
+		ret = regmap_update_bits(priv->regmap, TCAN4X5X_CONFIG,
+					 TCAN4X5X_MODE_SEL_MASK,
+					 TCAN4X5X_MODE_SLEEP);
+		if (ret)
+			dev_err(&priv->spi->dev, "Setting sleep mode failed %pe\n",
+				ERR_PTR(ret));
+	}
+
 	if (IS_ERR_OR_NULL(reg))
 		return 0;
 
@@ -476,7 +499,7 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 		goto out_m_can_class_free_dev;
 	}
 
-	ret = tcan4x5x_power_enable(priv->power, 1);
+	ret = tcan4x5x_power_enable(priv, 1);
 	if (ret) {
 		dev_err(&spi->dev, "Enabling regulator failed %pe\n",
 			ERR_PTR(ret));
@@ -531,7 +554,7 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 	return 0;
 
 out_power:
-	tcan4x5x_power_enable(priv->power, 0);
+	tcan4x5x_power_enable(priv, 0);
  out_m_can_class_free_dev:
 	m_can_class_free_dev(mcan_class->net);
 	return ret;
@@ -543,7 +566,7 @@ static void tcan4x5x_can_remove(struct spi_device *spi)
 
 	m_can_class_unregister(&priv->cdev);
 
-	tcan4x5x_power_enable(priv->power, 0);
+	tcan4x5x_power_enable(priv, 0);
 
 	m_can_class_free_dev(priv->cdev.net);
 }

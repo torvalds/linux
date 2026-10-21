@@ -302,7 +302,7 @@ nla_put_failure:
 int devlink_nl_trap_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_trap_item *trap_item;
 	struct sk_buff *msg;
 	int err;
@@ -412,7 +412,7 @@ static int devlink_trap_action_set(struct devlink *devlink,
 int devlink_nl_trap_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_trap_item *trap_item;
 
 	if (list_empty(&devlink->trap_list))
@@ -511,7 +511,7 @@ nla_put_failure:
 int devlink_nl_trap_group_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_trap_group_item *group_item;
 	struct sk_buff *msg;
 	int err;
@@ -682,7 +682,7 @@ static int devlink_trap_group_set(struct devlink *devlink,
 int devlink_nl_trap_group_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_trap_group_item *group_item;
 	bool modified = false;
 	int err;
@@ -804,7 +804,7 @@ int devlink_nl_trap_policer_get_doit(struct sk_buff *skb,
 {
 	struct devlink_trap_policer_item *policer_item;
 	struct netlink_ext_ack *extack = info->extack;
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct sk_buff *msg;
 	int err;
 
@@ -924,7 +924,7 @@ int devlink_nl_trap_policer_set_doit(struct sk_buff *skb,
 {
 	struct devlink_trap_policer_item *policer_item;
 	struct netlink_ext_ack *extack = info->extack;
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 
 	if (list_empty(&devlink->trap_policer_list))
 		return -EOPNOTSUPP;

@@ -333,7 +333,7 @@ static const struct snd_soc_dapm_route wm8940_dapm_routes[] = {
 	{"ADC", NULL, "Boost Mixer"},
 };
 
-#define wm8940_reset(c) snd_soc_component_write(c, WM8940_SOFTRESET, 0);
+#define wm8940_reset(c) snd_soc_component_write(c, WM8940_SOFTRESET, 0)
 
 static int wm8940_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			      unsigned int fmt)

@@ -193,6 +193,7 @@ static void scf_torture_stats_print(void)
 		scfs.n_single += scf_stats_p[i].n_single;
 		scfs.n_single_ofl += scf_stats_p[i].n_single_ofl;
 		scfs.n_single_rpc += scf_stats_p[i].n_single_rpc;
+		scfs.n_single_rpc_ofl += scf_stats_p[i].n_single_rpc_ofl;
 		scfs.n_single_wait += scf_stats_p[i].n_single_wait;
 		scfs.n_single_wait_ofl += scf_stats_p[i].n_single_wait_ofl;
 		scfs.n_many += scf_stats_p[i].n_many;
@@ -491,7 +492,7 @@ static int scftorture_invoker(void *arg)
 		  "%s: Wanted CPU %d, running on %d, nr_cpu_ids = %d\n",
 		  __func__, scfp->cpu, curcpu, nr_cpu_ids);
 
-	if (!atomic_dec_return(&n_started))
+	if (atomic_dec_return(&n_started))
 		while (atomic_read_acquire(&n_started)) {
 			if (torture_must_stop()) {
 				VERBOSE_SCFTORTOUT("scftorture_invoker %d ended before starting", scfp->cpu);

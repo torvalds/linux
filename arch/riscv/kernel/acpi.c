@@ -353,3 +353,8 @@ int acpi_get_cpu_uid(unsigned int cpu, u32 *uid)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_get_cpu_uid);
+
+void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)
+{
+	memblock_mark_nomap(addr, size);
+}

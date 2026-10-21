@@ -80,26 +80,26 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    dss: dss@2540000 {
-            compatible = "ti,k2g-dss";
-            reg =   <0x02540000 0x400>,
-                    <0x02550000 0x1000>,
-                    <0x02557000 0x1000>,
-                    <0x0255a800 0x100>,
-                    <0x0255ac00 0x100>;
-            reg-names = "cfg", "common", "vid1", "ovr1", "vp1";
-            clocks =        <&k2g_clks 0x2 0>,
-                            <&k2g_clks 0x2 1>;
-            clock-names = "fck", "vp1";
-            interrupts = <GIC_SPI 247 IRQ_TYPE_EDGE_RISING>;
+    dss@2540000 {
+        compatible = "ti,k2g-dss";
+        reg = <0x02540000 0x400>,
+              <0x02550000 0x1000>,
+              <0x02557000 0x1000>,
+              <0x0255a800 0x100>,
+              <0x0255ac00 0x100>;
+        reg-names = "cfg", "common", "vid1", "ovr1", "vp1";
+        clocks = <&k2g_clks 0x2 0>,
+                 <&k2g_clks 0x2 1>;
+        clock-names = "fck", "vp1";
+        interrupts = <GIC_SPI 247 IRQ_TYPE_EDGE_RISING>;
 
-            power-domains = <&k2g_pds 0x2>;
+        power-domains = <&k2g_pds 0x2>;
 
-            max-memory-bandwidth = <230000000>;
+        max-memory-bandwidth = <230000000>;
 
-            port {
-                    dpi_out: endpoint {
-                            remote-endpoint = <&sii9022_in>;
-                    };
+        port {
+            dpi_out: endpoint {
+                remote-endpoint = <&sii9022_in>;
             };
+        };
     };

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
+use core::ops::Range;
+
 use kernel::{
     device,
     pci,
@@ -13,7 +15,8 @@ use kernel::{
 
 use crate::{
     gpu::Chipset,
-    gsp::GSP_PAGE_SIZE, //
+    gsp::GSP_PAGE_SIZE,
+    num::IntoSafeCast, //
 };
 
 use super::bindings;
@@ -27,7 +30,6 @@ static_assert!(size_of::<GspSetSystemInfo>() < GSP_PAGE_SIZE);
 
 impl GspSetSystemInfo {
     /// Returns an in-place initializer for the `GspSetSystemInfo` command.
-    #[allow(non_snake_case)]
     pub(crate) fn init<'a>(
         dev: &'a pci::Device<device::Bound>,
         chipset: Chipset,
@@ -99,7 +101,6 @@ pub(crate) struct PackedRegistryTable {
 }
 
 impl PackedRegistryTable {
-    #[allow(non_snake_case)]
     pub(crate) fn init(num_entries: u32, size: u32) -> impl Init<Self> {
         type InnerPackedRegistryTable = bindings::PACKED_REGISTRY_TABLE;
         let init_inner = init!(InnerPackedRegistryTable {
@@ -128,6 +129,41 @@ impl GspStaticConfigInfo {
     /// Returns a bytes array containing the (hopefully) zero-terminated name of this GPU.
     pub(crate) fn gpu_name_str(&self) -> [u8; 64] {
         self.0.gpuNameString
+    }
+
+    /// Returns an iterator over valid FB regions from GSP firmware data.
+    fn fb_regions(
+        &self,
+    ) -> impl Iterator<Item = &bindings::NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO> {
+        let fb_info = &self.0.fbRegionInfoParams;
+        fb_info
+            .fbRegion
+            .iter()
+            .take(fb_info.numFBRegions.into_safe_cast())
+            .filter(|reg| reg.limit >= reg.base)
+    }
+
+    /// Iterates over usable FB regions from GSP firmware data.
+    ///
+    /// Each yielded region is a [`Range<u64>`] suitable for driver memory allocation.
+    /// Usable regions are those that satisfy all the following properties:
+    /// - Are not reserved for firmware internal use.
+    /// - Are not protected (hardware-enforced access restrictions).
+    /// - Support compression (can use GPU memory compression for bandwidth).
+    /// - Support ISO (isochronous memory for display requiring guaranteed bandwidth).
+    pub(crate) fn usable_fb_regions(&self) -> impl Iterator<Item = Range<u64>> + '_ {
+        self.fb_regions().filter_map(|reg| {
+            // Filter: not reserved, not protected, supports compression and ISO.
+            if reg.reserved == 0
+                && reg.bProtected == 0
+                && reg.supportCompressed != 0
+                && reg.supportISO != 0
+            {
+                reg.limit.checked_add(1).map(|end| reg.base..end)
+            } else {
+                None
+            }
+        })
     }
 }
 

@@ -115,33 +115,41 @@ impl<E: FalconEngine> Ga102<E> {
 }
 
 impl<E: FalconEngine> FalconHal<E> for Ga102<E> {
-    fn select_core(&self, _falcon: &Falcon<E>, bar: Bar0<'_>) -> Result {
-        select_core_ga102::<E>(bar)
+    fn select_core(&self, falcon: &Falcon<'_, E>) -> Result {
+        select_core_ga102::<E>(falcon.bar)
     }
 
     fn signature_reg_fuse_version(
         &self,
-        falcon: &Falcon<E>,
-        bar: Bar0<'_>,
+        falcon: &Falcon<'_, E>,
         engine_id_mask: u16,
         ucode_id: u8,
     ) -> Result<u32> {
-        signature_reg_fuse_version_ga102(&falcon.dev, bar, engine_id_mask, ucode_id)
+        signature_reg_fuse_version_ga102(falcon.dev, falcon.bar, engine_id_mask, ucode_id)
     }
 
-    fn program_brom(&self, _falcon: &Falcon<E>, bar: Bar0<'_>, params: &FalconBromParams) {
-        program_brom_ga102::<E>(bar, params);
+    fn program_brom(&self, falcon: &Falcon<'_, E>, params: &FalconBromParams) {
+        program_brom_ga102::<E>(falcon.bar, params);
     }
 
-    fn is_riscv_active(&self, bar: Bar0<'_>) -> bool {
-        bar.read(regs::NV_PRISCV_RISCV_CPUCTL::of::<E>())
+    fn is_riscv_active(&self, falcon: &Falcon<'_, E>) -> bool {
+        falcon
+            .bar
+            .read(regs::NV_PRISCV_RISCV_CPUCTL::of::<E>())
             .active_stat()
     }
 
-    fn reset_wait_mem_scrubbing(&self, bar: Bar0<'_>) -> Result {
+    fn is_riscv_halted(&self, falcon: &Falcon<'_, E>) -> Result<bool> {
+        Ok(falcon
+            .bar
+            .read(regs::NV_PRISCV_RISCV_CPUCTL::of::<E>())
+            .halted())
+    }
+
+    fn reset_wait_mem_scrubbing(&self, falcon: &Falcon<'_, E>) -> Result {
         // TIMEOUT: memory scrubbing should complete in less than 20ms.
         read_poll_timeout(
-            || Ok(bar.read(regs::NV_PFALCON_FALCON_HWCFG2::of::<E>())),
+            || Ok(falcon.bar.read(regs::NV_PFALCON_FALCON_HWCFG2::of::<E>())),
             |r| r.mem_scrubbing_done(),
             Delta::ZERO,
             Delta::from_millis(20),
@@ -149,7 +157,9 @@ impl<E: FalconEngine> FalconHal<E> for Ga102<E> {
         .map(|_| ())
     }
 
-    fn reset_eng(&self, bar: Bar0<'_>) -> Result {
+    fn reset_eng(&self, falcon: &Falcon<'_, E>) -> Result {
+        let bar = falcon.bar;
+
         let _ = bar.read(regs::NV_PFALCON_FALCON_HWCFG2::of::<E>());
 
         // According to OpenRM's `kflcnPreResetWait_GA102` documentation, HW sometimes does not set
@@ -162,7 +172,7 @@ impl<E: FalconEngine> FalconHal<E> for Ga102<E> {
         );
 
         regs::NV_PFALCON_FALCON_ENGINE::reset_engine::<E>(bar);
-        self.reset_wait_mem_scrubbing(bar)?;
+        self.reset_wait_mem_scrubbing(falcon)?;
 
         Ok(())
     }

@@ -172,25 +172,45 @@ def _test_pass(cfg, bpf_info, msg_sz):
     ksft_eq(stats[XDPStats.RX.value], stats[XDPStats.PASS.value], "RX and PASS stats mismatch")
 
 
-def test_xdp_native_pass_sb(cfg):
+_ipvers = [
+    KsftNamedVariant("ipv4", "4"),
+    KsftNamedVariant("ipv6", "6"),
+]
+
+
+def _set_ipver_defer_restore(cfg, ipver):
+    old_ipver = cfg.addr_ipver
+    cfg.set_ipver(ipver)
+    defer(cfg.set_ipver, old_ipver)
+
+
+@ksft_variants(_ipvers)
+def test_xdp_native_pass_sb(cfg, ipver):
     """
     Tests the XDP_PASS action for single buffer case.
 
     Args:
         cfg: Configuration object containing network settings.
+        ipver: IP version to use ("4" or "6").
     """
+    _set_ipver_defer_restore(cfg, ipver)
+
     bpf_info = BPFProgInfo("xdp_prog", "xdp_native.bpf.o", "xdp", 1500)
 
     _test_pass(cfg, bpf_info, 256)
 
 
-def test_xdp_native_pass_mb(cfg):
+@ksft_variants(_ipvers)
+def test_xdp_native_pass_mb(cfg, ipver):
     """
     Tests the XDP_PASS action for a multi-buff size.
 
     Args:
         cfg: Configuration object containing network settings.
+        ipver: IP version to use ("4" or "6").
     """
+    _set_ipver_defer_restore(cfg, ipver)
+
     bpf_info = BPFProgInfo("xdp_prog_frags", "xdp_native.bpf.o", "xdp.frags", 9000)
 
     _test_pass(cfg, bpf_info, 8000)
@@ -219,25 +239,33 @@ def _test_drop(cfg, bpf_info, msg_sz):
     ksft_eq(stats[XDPStats.RX.value], stats[XDPStats.DROP.value], "RX and DROP stats mismatch")
 
 
-def test_xdp_native_drop_sb(cfg):
+@ksft_variants(_ipvers)
+def test_xdp_native_drop_sb(cfg, ipver):
     """
     Tests the XDP_DROP action for a signle-buff case.
 
     Args:
         cfg: Configuration object containing network settings.
+        ipver: IP version to use ("4" or "6").
     """
+    _set_ipver_defer_restore(cfg, ipver)
+
     bpf_info = BPFProgInfo("xdp_prog", "xdp_native.bpf.o", "xdp", 1500)
 
     _test_drop(cfg, bpf_info, 256)
 
 
-def test_xdp_native_drop_mb(cfg):
+@ksft_variants(_ipvers)
+def test_xdp_native_drop_mb(cfg, ipver):
     """
     Tests the XDP_DROP action for a multi-buff case.
 
     Args:
         cfg: Configuration object containing network settings.
+        ipver: IP version to use ("4" or "6").
     """
+    _set_ipver_defer_restore(cfg, ipver)
+
     bpf_info = BPFProgInfo("xdp_prog_frags", "xdp_native.bpf.o", "xdp.frags", 9000)
 
     _test_drop(cfg, bpf_info, 8000)
@@ -287,13 +315,17 @@ def _test_xdp_native_tx(cfg, bpf_info, payload_lens):
         ksft_eq(stats[XDPStats.TX.value], expected_pkts, "TX stats mismatch")
 
 
-def test_xdp_native_tx_sb(cfg):
+@ksft_variants(_ipvers)
+def test_xdp_native_tx_sb(cfg, ipver):
     """
     Tests the XDP_TX action for a single-buff case.
 
     Args:
         cfg: Configuration object containing network settings.
+        ipver: IP version to use ("4" or "6").
     """
+    _set_ipver_defer_restore(cfg, ipver)
+
     bpf_info = BPFProgInfo("xdp_prog", "xdp_native.bpf.o", "xdp", 1500)
 
     # Ensure there's enough room for an ETH / IP / UDP header
@@ -302,13 +334,17 @@ def test_xdp_native_tx_sb(cfg):
     _test_xdp_native_tx(cfg, bpf_info, [0, 1500 // 2, 1500 - pkt_hdr_len])
 
 
-def test_xdp_native_tx_mb(cfg):
+@ksft_variants(_ipvers)
+def test_xdp_native_tx_mb(cfg, ipver):
     """
     Tests the XDP_TX action for a multi-buff case.
 
     Args:
         cfg: Configuration object containing network settings.
+        ipver: IP version to use ("4" or "6").
     """
+    _set_ipver_defer_restore(cfg, ipver)
+
     bpf_info = BPFProgInfo("xdp_prog_frags", "xdp_native.bpf.o",
                            "xdp.frags", 9000)
     # The first packet ensures we exercise the fragmented code path.
@@ -447,13 +483,17 @@ def _test_xdp_native_tail_adjst(cfg, pkt_sz_lst, offset_lst):
     return {"status": "pass"}
 
 
-def test_xdp_native_adjst_tail_grow_data(cfg):
+@ksft_variants(_ipvers)
+def test_xdp_native_adjst_tail_grow_data(cfg, ipver):
     """
     Tests the XDP tail adjustment by growing packet data.
 
     Args:
         cfg: Configuration object containing network settings.
+        ipver: IP version to use ("4" or "6").
     """
+    _set_ipver_defer_restore(cfg, ipver)
+
     pkt_sz_lst = [512, 1024, 2048]
     offset_lst = [1, 16, 32, 64, 128, 256]
     res = _test_xdp_native_tail_adjst(
@@ -465,13 +505,17 @@ def test_xdp_native_adjst_tail_grow_data(cfg):
     _validate_res(res, offset_lst, pkt_sz_lst)
 
 
-def test_xdp_native_adjst_tail_shrnk_data(cfg):
+@ksft_variants(_ipvers)
+def test_xdp_native_adjst_tail_shrnk_data(cfg, ipver):
     """
     Tests the XDP tail adjustment by shrinking packet data.
 
     Args:
         cfg: Configuration object containing network settings.
+        ipver: IP version to use ("4" or "6").
     """
+    _set_ipver_defer_restore(cfg, ipver)
+
     pkt_sz_lst = [512, 1024, 2048]
     offset_lst = [-16, -32, -64, -128, -256]
     res = _test_xdp_native_tail_adjst(
@@ -535,7 +579,7 @@ def _test_xdp_native_head_adjst(cfg, prog, pkt_sz_lst, offset_lst):
             # after we eat into it. We send large-enough packets, but if HDS
             # is enabled head will only contain headers. Don't try to eat
             # more than 28 bytes (UDPv4 + eth hdr left: (14 + 20 + 8) - 14)
-            l2_cut_off = 28 if cfg.addr_ipver == 4 else 48
+            l2_cut_off = 28 if cfg.addr_ipver == "4" else 48
             if pkt_sz > hds_thresh and offset > l2_cut_off:
                 ksft_pr(
                 f"Failed run: pkt_sz ({pkt_sz}) > HDS threshold ({hds_thresh}) and "
@@ -579,18 +623,22 @@ def _test_xdp_native_head_adjst(cfg, prog, pkt_sz_lst, offset_lst):
     return {"status": "pass"}
 
 
-def test_xdp_native_adjst_head_grow_data(cfg):
+@ksft_variants(_ipvers)
+def test_xdp_native_adjst_head_grow_data(cfg, ipver):
     """
     Tests the XDP headroom growth support.
 
     Args:
         cfg: Configuration object containing network settings.
+        ipver: IP version to use ("4" or "6").
 
     This function sets up the packet size and offset lists, then calls the
     _test_xdp_native_head_adjst_mb function to perform the actual test. The
     test is passed if the headroom is successfully extended for given packet
     sizes and offsets.
     """
+    _set_ipver_defer_restore(cfg, ipver)
+
     pkt_sz_lst = [512, 1024, 2048]
 
     # Negative values result in headroom shrinking, resulting in growing of payload
@@ -600,18 +648,22 @@ def test_xdp_native_adjst_head_grow_data(cfg):
     _validate_res(res, offset_lst, pkt_sz_lst)
 
 
-def test_xdp_native_adjst_head_shrnk_data(cfg):
+@ksft_variants(_ipvers)
+def test_xdp_native_adjst_head_shrnk_data(cfg, ipver):
     """
     Tests the XDP headroom shrinking support.
 
     Args:
         cfg: Configuration object containing network settings.
+        ipver: IP version to use ("4" or "6").
 
     This function sets up the packet size and offset lists, then calls the
     _test_xdp_native_head_adjst_mb function to perform the actual test. The
     test is passed if the headroom is successfully shrunk for given packet
     sizes and offsets.
     """
+    _set_ipver_defer_restore(cfg, ipver)
+
     pkt_sz_lst = [512, 1024, 2048]
 
     # Positive values result in headroom growing, resulting in shrinking of payload
@@ -621,12 +673,19 @@ def test_xdp_native_adjst_head_shrnk_data(cfg):
     _validate_res(res, offset_lst, pkt_sz_lst)
 
 
-@ksft_variants([
-    KsftNamedVariant("pass", XDPAction.PASS),
-    KsftNamedVariant("drop", XDPAction.DROP),
-    KsftNamedVariant("tx", XDPAction.TX),
-])
-def test_xdp_native_qstats(cfg, act):
+def _qstats_variants():
+    actions = [
+        ("pass", XDPAction.PASS),
+        ("drop", XDPAction.DROP),
+        ("tx", XDPAction.TX),
+    ]
+    for ipver in ["4", "6"]:
+        for name, act in actions:
+            yield KsftNamedVariant(f"{name}_ipv{ipver}", act, ipver)
+
+
+@ksft_variants(_qstats_variants())
+def test_xdp_native_qstats(cfg, act, ipver):
     """
     Send 1000 messages. Expect XDP action specified in @act.
     Make sure the packets were counted to interface level qstats
@@ -634,6 +693,7 @@ def test_xdp_native_qstats(cfg, act):
     """
 
     cfg.require_cmd("socat")
+    _set_ipver_defer_restore(cfg, ipver)
 
     bpf_info = BPFProgInfo("xdp_prog", "xdp_native.bpf.o", "xdp", 1500)
     prog_info = _load_xdp_prog(cfg, bpf_info)

@@ -75,17 +75,23 @@ void fuse_chan_set_initialized(struct fuse_chan *fch, struct fuse_chan_param *pa
 		fch->minor = param->minor;
 		fch->max_write = param->max_write;
 		fch->max_pages = param->max_pages;
+
+		if (param->io_uring_enabled)
+			fuse_uring_conn_init(fch);
 	}
 
-	/* Make sure stores before this are seen on another CPU */
-	smp_wmb();
-	fch->initialized = 1;
+	/* Pairs with smp_load_acquire() readers of fch->initialized */
+	smp_store_release(&fch->initialized, 1);
 	wake_up_all(&fch->blocked_waitq);
 }
 
 static bool fuse_block_alloc(struct fuse_chan *fch, bool for_background)
 {
-	return !fch->initialized || (for_background && fch->blocked) ||
+	/* Pairs with smp_store_release() in fuse_chan_set_initialized() */
+	if (!smp_load_acquire(&fch->initialized))
+		return true;
+
+	return (for_background && fch->blocked) ||
 	       (fch->io_uring && fch->connected && !fuse_uring_ready(fch));
 }
 
@@ -119,9 +125,6 @@ static struct fuse_req *fuse_get_req(struct fuse_chan *fch, bool for_background)
 				(TASK_KILLABLE | TASK_FREEZABLE)))
 			goto out;
 	}
-
-	/* Matches smp_wmb() in fuse_chan_set_initialized() */
-	smp_rmb();
 
 	err = -ENOTCONN;
 	if (!fch->connected)
@@ -210,10 +213,13 @@ EXPORT_SYMBOL_GPL(fuse_req_hash);
 /*
  * A new request is available, wake fiq->waitq
  */
-static void fuse_dev_wake_and_unlock(struct fuse_iqueue *fiq)
+static void fuse_dev_wake_and_unlock(struct fuse_iqueue *fiq, bool sync)
 __releases(fiq->lock)
 {
-	wake_up(&fiq->waitq);
+	if (sync)
+		wake_up_sync(&fiq->waitq);
+	else
+		wake_up(&fiq->waitq);
 	kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 	spin_unlock(&fiq->lock);
 }
@@ -230,7 +236,7 @@ void fuse_dev_queue_forget(struct fuse_iqueue *fiq,
 	if (fiq->connected) {
 		fiq->forget_list_tail->next = forget;
 		fiq->forget_list_tail = forget;
-		fuse_dev_wake_and_unlock(fiq);
+		fuse_dev_wake_and_unlock(fiq, false);
 	} else {
 		kfree(forget);
 		spin_unlock(&fiq->lock);
@@ -240,7 +246,8 @@ void fuse_dev_queue_forget(struct fuse_iqueue *fiq,
 void fuse_dev_queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
 	spin_lock(&fiq->lock);
-	if (list_empty(&req->intr_entry)) {
+	/* Repeat FR_SENT test after obtaining the lock to prevent race with fuse_resend() */
+	if (list_empty(&req->intr_entry) && test_bit(FR_SENT, &req->flags)) {
 		list_add_tail(&req->intr_entry, &fiq->interrupts);
 		/*
 		 * Pairs with smp_mb() implied by test_and_set_bit()
@@ -251,7 +258,7 @@ void fuse_dev_queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
 			list_del_init(&req->intr_entry);
 			spin_unlock(&fiq->lock);
 		} else  {
-			fuse_dev_wake_and_unlock(fiq);
+			fuse_dev_wake_and_unlock(fiq, false);
 		}
 	} else {
 		spin_unlock(&fiq->lock);
@@ -281,11 +288,13 @@ EXPORT_SYMBOL_GPL(fuse_request_assign_unique);
 
 static void fuse_dev_queue_req(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
+	bool sync = test_and_clear_bit(FR_SYNC_WAKEUP, &req->flags);
+
 	spin_lock(&fiq->lock);
 	if (fiq->connected) {
 		fuse_request_assign_unique_locked(fiq, req);
 		list_add_tail(&req->list, &fiq->pending);
-		fuse_dev_wake_and_unlock(fiq);
+		fuse_dev_wake_and_unlock(fiq, sync);
 	} else {
 		spin_unlock(&fiq->lock);
 		req->out.h.error = -ENOTCONN;
@@ -397,7 +406,8 @@ void fuse_chan_max_background_set(struct fuse_chan *fch, unsigned int val)
 	fch->max_background = val;
 	fch->blocked = fch->num_background >= fch->max_background;
 	if (!fch->blocked)
-		wake_up(&fch->blocked_waitq);
+		wake_up_nr(&fch->blocked_waitq,
+			   fch->max_background - fch->num_background);
 	spin_unlock(&fch->bg_lock);
 }
 
@@ -409,11 +419,6 @@ unsigned int fuse_chan_num_waiting(struct fuse_chan *fch)
 void fuse_chan_set_fc(struct fuse_chan *fch, struct fuse_conn *fc)
 {
 	fch->conn = fc;
-}
-
-void fuse_chan_io_uring_enable(struct fuse_chan *fch)
-{
-	fch->io_uring = 1;
 }
 
 void fuse_pqueue_init(struct fuse_pqueue *fpq)
@@ -725,7 +730,7 @@ static void request_wait_answer(struct fuse_req *req)
 
 		if (req->args->abort_on_kill) {
 			fuse_chan_abort(fch, false);
-			return;
+			goto wait_for_finish;
 		}
 
 		if (test_bit(FR_URING, &req->flags))
@@ -736,6 +741,7 @@ static void request_wait_answer(struct fuse_req *req)
 			return;
 	}
 
+wait_for_finish:
 	/*
 	 * Either request is already in userspace, or it was forced.
 	 * Wait it out.
@@ -752,6 +758,11 @@ static void __fuse_request_send(struct fuse_req *req)
 	/* acquire extra reference, since request is still needed after
 	   fuse_request_end() */
 	__fuse_get_request(req);
+	/*
+	 * This is a synchronous request: the caller will block waiting for
+	 * the answer. Hint the scheduler via wake_up_sync().
+	 */
+	set_bit(FR_SYNC_WAKEUP, &req->flags);
 	fuse_send_one(fiq, req);
 
 	request_wait_answer(req);
@@ -1249,11 +1260,25 @@ int fuse_copy_folio(struct fuse_copy_state *cs, struct folio **foliop,
 
 	if (folio) {
 		size = folio_size(folio);
-		if (zeroing && count < size)
-			folio_zero_range(folio, 0, size);
+		if (zeroing && count < size) {
+			/*
+			 * When the copy is skipped the folio already holds the
+			 * payload, so only the bytes outside [offset, offset +
+			 * count) may be zeroed.
+			 *
+			 * Otherwise, the whole folio is cleared first so that a
+			 * failed copy leaves zeros rather than stale folio
+			 * contents.
+			 */
+			if (cs->skip_folio_copy)
+				folio_zero_segments(folio, 0, offset,
+						    offset + count, size);
+			else
+				folio_zero_range(folio, 0, size);
+		}
 	}
 
-	while (count) {
+	while (!cs->skip_folio_copy && count) {
 		if (cs->write && cs->pipebufs && folio) {
 			/*
 			 * Can't control lifetime of pipe buffers, so always
@@ -1346,6 +1371,10 @@ int fuse_copy_args(struct fuse_copy_state *cs, unsigned numargs,
 	for (i = 0; !err && i < numargs; i++)  {
 		struct fuse_arg *arg = &args[i];
 		if (i == numargs - 1 && argpages)
+			/*
+			 * if cs->skip_folio_copy is set, this just does any
+			 * needed zeroing. No copying is involved.
+			 */
 			err = fuse_copy_folios(cs, arg->size, zeroing);
 		else
 			err = fuse_copy_one(cs, arg->value, arg->size);
@@ -1760,7 +1789,7 @@ out:
 void fuse_chan_resend(struct fuse_chan *fch)
 {
 	struct fuse_dev *fud;
-	struct fuse_req *req, *next;
+	struct fuse_req *req;
 	struct fuse_iqueue *fiq = &fch->iq;
 	LIST_HEAD(to_queue);
 	unsigned int i;
@@ -1775,24 +1804,20 @@ void fuse_chan_resend(struct fuse_chan *fch)
 		struct fuse_pqueue *fpq = &fud->pq;
 
 		spin_lock(&fpq->lock);
-		for (i = 0; i < FUSE_PQ_HASH_SIZE; i++)
-			list_splice_tail_init(&fpq->processing[i], &to_queue);
+		for (i = 0; i < FUSE_PQ_HASH_SIZE; i++) {
+			struct list_head *this_queue = &fpq->processing[i];
+
+			list_for_each_entry(req, this_queue, list)
+				clear_bit(FR_SENT, &req->flags);
+			list_splice_tail_init(this_queue, &to_queue);
+		}
 		spin_unlock(&fpq->lock);
 	}
 	spin_unlock(&fch->lock);
 
-	list_for_each_entry_safe(req, next, &to_queue, list) {
-		set_bit(FR_PENDING, &req->flags);
-		clear_bit(FR_SENT, &req->flags);
-		/* mark the request as resend request */
-		req->in.h.unique |= FUSE_UNIQUE_RESEND;
-	}
-
 	spin_lock(&fiq->lock);
 	if (!fiq->connected) {
 		spin_unlock(&fiq->lock);
-		list_for_each_entry(req, &to_queue, list)
-			clear_bit(FR_PENDING, &req->flags);
 		fuse_dev_end_requests(&to_queue);
 		return;
 	}
@@ -1801,12 +1826,16 @@ void fuse_chan_resend(struct fuse_chan *fch)
 	 * intr_entry on fiq->interrupts after the request is re-queued.
 	 */
 	list_for_each_entry(req, &to_queue, list) {
+		set_bit(FR_PENDING, &req->flags);
+		/* mark the request as resend request */
+		req->in.h.unique |= FUSE_UNIQUE_RESEND;
+
 		if (test_bit(FR_INTERRUPTED, &req->flags))
 			list_del_init(&req->intr_entry);
 	}
 	/* iq and pq requests are both oldest to newest */
 	list_splice(&to_queue, &fiq->pending);
-	fuse_dev_wake_and_unlock(fiq);
+	fuse_dev_wake_and_unlock(fiq, false);
 }
 
 /* Look up request on processing list by unique ID */
@@ -1888,7 +1917,8 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 		 * initialized and connected state
 		 */
 		err = -EINVAL;
-		if (!fch->initialized || !fch->connected)
+		/* Pairs with smp_store_release() in fuse_chan_set_initialized() */
+		if (!smp_load_acquire(&fch->initialized) || !fch->connected)
 			goto copy_finish;
 
 		/* Don't try to move folios (yet) */

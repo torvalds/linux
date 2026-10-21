@@ -113,8 +113,10 @@ KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@gentwo.org>
 Description:
-		The cpu_slabs file is read-only and displays how many cpu slabs
-		are active and their NUMA locality.
+		The cpu_slabs file is read-only. It is deprecated and always
+		reads "0" since the removal of per-cpu slabs in Linux 7.0. It
+		previously displayed how many cpu slabs were active and their
+		NUMA locality. The file is kept for backwards compatibility.
 
 What:		/sys/kernel/slab/<cache>/cpuslab_flush
 Date:		April 2009
@@ -509,12 +511,16 @@ What:		/sys/kernel/slab/<cache>/slabs_cpu_partial
 Date:		Aug 2011
 Contact:	Christoph Lameter <cl@gentwo.org>
 Description:
-		This read-only file shows the number of partialli allocated
-		frozen slabs.
+		This read-only file is deprecated and always reads "0(0)" since
+		the removal of per-cpu partial slabs in Linux 7.0. It previously
+		showed the number of partially allocated frozen slabs. The file
+		is kept for backwards compatibility.
 
 What:		/sys/kernel/slab/<cache>/cpu_partial
 Date:		Aug 2011
 Contact:	Christoph Lameter <cl@gentwo.org>
 Description:
-		This read-only file shows the number of per cpu partial
-		pages to keep around.
+		This file is deprecated and always reads "0" since the removal of
+		per-cpu partial slabs in Linux 7.0. It previously showed the
+		number of per-cpu partial pages to keep around. The file is kept
+		for backwards compatibility.

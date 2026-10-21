@@ -1470,7 +1470,7 @@ static int nsp32_show_info(struct seq_file *m, struct Scsi_Host *host)
 		   (nsp32_read2(base, INDEX_REG) >> 8) & 0xff);
 
 	mode_reg = nsp32_index_read1(base, CHIP_MODE);
-	model    = data->pci_devid->driver_data;
+	model    = data->model;
 
 #ifdef CONFIG_PM
 	seq_printf(m, "Power Management:      %s\n",
@@ -2907,8 +2907,8 @@ static int nsp32_eh_host_reset(struct scsi_cmnd *SCpnt)
  */
 static int nsp32_getprom_param(nsp32_hw_data *data)
 {
-	int vendor = data->pci_devid->vendor;
-	int device = data->pci_devid->device;
+	int vendor = data->Pci->vendor;
+	int device = data->Pci->device;
 	int ret, i;
 	int __maybe_unused val;
 
@@ -3340,7 +3340,7 @@ static int nsp32_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	data->Pci	  = pdev;
-	data->pci_devid   = id;
+	data->model       = id->driver_data;
 	data->IrqNumber   = pdev->irq;
 	data->BaseAddress = pci_resource_start(pdev, 0);
 	data->NumAddress  = pci_resource_len  (pdev, 0);

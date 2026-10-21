@@ -38,7 +38,6 @@ MODULE_ALIAS("ip_set_hash:net,iface");
 #define HTYPE		hash_netiface
 #define IP_SET_HASH_WITH_NETS
 #define IP_SET_HASH_WITH_MULTI
-#define IP_SET_HASH_WITH_NET0
 
 #define STRSCPY(a, b)	strscpy(a, b, IFNAMSIZ)
 

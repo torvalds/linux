@@ -486,9 +486,32 @@ int handle_exit(struct kvm_vcpu *vcpu, int exception_index)
 	}
 }
 
+static void handle_exit_pkvm_state(struct kvm_vcpu *vcpu, int exception_index)
+{
+	int exception_code = ARM_EXCEPTION_CODE(exception_index);
+
+	if (!is_protected_kvm_enabled() || kvm_vm_is_protected(vcpu->kvm))
+		return;
+
+	/*
+	 * Sync the context back when the host will read (trap) or write
+	 * (SError) it. Preempt-off here, so the loaded hyp vCPU is stable.
+	 */
+	if (exception_code == ARM_EXCEPTION_TRAP ||
+	    exception_code == ARM_EXCEPTION_EL1_SERROR ||
+	    ARM_SERROR_PENDING(exception_index)) {
+		kvm_call_hyp_nvhe(__pkvm_vcpu_sync_state);
+		vcpu_set_flag(vcpu, PKVM_HOST_STATE_DIRTY);
+	} else {
+		vcpu_clear_flag(vcpu, PKVM_HOST_STATE_DIRTY);
+	}
+}
+
 /* For exit types that need handling before we can be preempted */
 void handle_exit_early(struct kvm_vcpu *vcpu, int exception_index)
 {
+	handle_exit_pkvm_state(vcpu, exception_index);
+
 	if (ARM_SERROR_PENDING(exception_index)) {
 		if (this_cpu_has_cap(ARM64_HAS_RAS_EXTN)) {
 			u64 disr = kvm_vcpu_get_disr(vcpu);
@@ -507,10 +530,20 @@ void handle_exit_early(struct kvm_vcpu *vcpu, int exception_index)
 		kvm_handle_guest_serror(vcpu, kvm_vcpu_get_esr(vcpu));
 }
 
+static bool nvhe_hyp_panic_host_s2_disabled(void)
+{
+	return !is_protected_kvm_enabled() ||
+	       IS_ENABLED(CONFIG_PKVM_DISABLE_STAGE2_ON_PANIC);
+}
+
 static void print_nvhe_hyp_panic(const char *name, u64 panic_addr)
 {
-	kvm_err("nVHE hyp %s at: [<%016llx>] %pB!\n", name, panic_addr,
-		(void *)(panic_addr + kaslr_offset()));
+	/* Kallsyms might not be mapped in the host stage-2 */
+	if (nvhe_hyp_panic_host_s2_disabled())
+		kvm_err("nVHE hyp %s at: [<%016llx>] %pB!\n", name, panic_addr,
+			(void *)(panic_addr + kaslr_offset()));
+	else
+		kvm_err("nVHE hyp %s at: %016llx!\n", name, panic_addr);
 }
 
 static void kvm_nvhe_report_cfi_failure(u64 panic_addr)
@@ -538,8 +571,7 @@ void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr,
 		unsigned int line = 0;
 
 		/* All hyp bugs, including warnings, are treated as fatal. */
-		if (!is_protected_kvm_enabled() ||
-		    IS_ENABLED(CONFIG_PKVM_DISABLE_STAGE2_ON_PANIC)) {
+		if (nvhe_hyp_panic_host_s2_disabled()) {
 			struct bug_entry *bug = find_bug(elr_in_kimg);
 
 			if (bug)

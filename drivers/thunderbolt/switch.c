@@ -682,7 +682,16 @@ int tb_port_disable(struct tb_port *port)
 	return __tb_port_enable(port, false);
 }
 
-static int tb_port_reset(struct tb_port *port)
+/**
+ * tb_port_reset() - Reset the port
+ * @port: Port to reset
+ *
+ * Resets @port. For USB4 ports this issues a USB4 port reset and for
+ * legacy ports the link controller port is reset.
+ *
+ * Return: %0 on success, negative errno otherwise.
+ */
+int tb_port_reset(struct tb_port *port)
 {
 	if (tb_switch_is_usb4(port->sw))
 		return port->cap_usb4 ? usb4_port_reset(port) : 0;

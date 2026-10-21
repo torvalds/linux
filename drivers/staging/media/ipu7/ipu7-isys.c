@@ -233,6 +233,7 @@ static int isys_notifier_init(struct ipu7_isys *isys)
 
 err_parse:
 		fwnode_handle_put(ep);
+		v4l2_async_nf_cleanup(&isys->notifier);
 		return ret;
 	}
 
@@ -773,6 +774,7 @@ static int isys_probe(struct auxiliary_device *auxdev,
 	return 0;
 
 out_cleanup:
+	isys_notifier_cleanup(isys);
 	isys_unregister_devices(isys);
 out_cleanup_fw:
 	ipu7_fw_isys_release(isys);

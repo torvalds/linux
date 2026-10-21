@@ -1085,7 +1085,7 @@ static void rp1_pctl_pin_dbg_show(struct pinctrl_dev *pctldev,
 
 	seq_printf(s, "function %s (%s) in %s; irq %d (%s)",
 		   rp1_func_names[fsel].name, rp1_func_names[func].name,
-		   value ? "hi" : "lo",
+		   str_hi_lo(value),
 		   irq, irq_type_names[pin->irq_type]);
 }
 

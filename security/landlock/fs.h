@@ -11,6 +11,7 @@
 #define _SECURITY_LANDLOCK_FS_H
 
 #include <linux/build_bug.h>
+#include <linux/cleanup.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/rcupdate.h>
@@ -19,6 +20,8 @@
 #include "cred.h"
 #include "ruleset.h"
 #include "setup.h"
+
+DEFINE_FREE(__putname, char *, if (_T) __putname(_T))
 
 /**
  * struct landlock_inode_security - Inode security blob
@@ -57,7 +60,7 @@ struct landlock_file_security {
 	 */
 	access_mask_t allowed_access;
 
-#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
 	/**
 	 * @deny_masks: Domain layer levels that deny an optional access (see
 	 * _LANDLOCK_ACCESS_FS_OPTIONAL).
@@ -75,7 +78,7 @@ struct landlock_file_security {
 	 * LANDLOCK_SCOPE_SIGNAL.
 	 */
 	u8 fown_layer;
-#endif /* CONFIG_AUDIT */
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 
 	/**
 	 * @fown_subject: Landlock credential of the task that set the PID that
@@ -97,7 +100,7 @@ struct landlock_file_security {
 	struct pid *fown_tg;
 };
 
-#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
 
 /* Makes sure all layers can be identified. */
 /* clang-format off */
@@ -113,7 +116,7 @@ static_assert(BITS_PER_TYPE(typeof_member(struct landlock_file_security,
 					  quiet_optional_accesses)) >=
 	      HWEIGHT(_LANDLOCK_ACCESS_FS_OPTIONAL));
 
-#endif /* CONFIG_AUDIT */
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 
 /**
  * struct landlock_superblock_security - Superblock security blob
@@ -152,5 +155,34 @@ __init void landlock_add_fs_hooks(void);
 int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 			    const struct path *const path,
 			    access_mask_t access_hierarchy, const u32 flags);
+
+/**
+ * resolve_path_for_trace - Resolve a path for tracepoint display
+ *
+ * @path: The path to resolve.
+ * @buf: A buffer of at least PATH_MAX bytes for the resolved path.
+ *
+ * Uses d_absolute_path() to produce a namespace-independent absolute path,
+ * unlike d_path() which resolves relative to the process's chroot.  This
+ * ensures trace output is deterministic regardless of the tracer's mount
+ * namespace.
+ *
+ * Return: A pointer into @buf with the resolved path, or an error string
+ * ("<too_long>", "<unreachable>").
+ */
+static inline const char *resolve_path_for_trace(const struct path *path,
+						 char *buf)
+{
+	const char *p;
+
+	p = d_absolute_path(path, buf, PATH_MAX);
+	if (!IS_ERR_OR_NULL(p))
+		return p;
+
+	if (PTR_ERR(p) == -ENAMETOOLONG)
+		return "<too_long>";
+
+	return "<unreachable>";
+}
 
 #endif /* _SECURITY_LANDLOCK_FS_H */

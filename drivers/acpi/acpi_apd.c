@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/platform_data/clk-fch.h>
 #include <linux/platform_device.h>
+#include <linux/units.h>
 
 #include "internal.h"
 
@@ -110,17 +111,17 @@ static int fch_misc_setup(struct apd_private_data *pdata)
 
 static const struct apd_device_desc cz_i2c_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 133000000,
+	.fixed_clk_rate = 133 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc wt_i2c_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 150000000,
+	.fixed_clk_rate = 150 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc wt_i3c_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 125000000,
+	.fixed_clk_rate = 125 * HZ_PER_MHZ,
 };
 
 static struct property_entry uart_properties[] = {
@@ -132,7 +133,7 @@ static struct property_entry uart_properties[] = {
 
 static const struct apd_device_desc cz_uart_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 48000000,
+	.fixed_clk_rate = 48 * HZ_PER_MHZ,
 	.properties = uart_properties,
 };
 
@@ -144,52 +145,57 @@ static const struct apd_device_desc fch_misc_desc = {
 #ifdef CONFIG_ARM64
 static const struct apd_device_desc xgene_i2c_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 100000000,
+	.fixed_clk_rate = 100 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc vulcan_spi_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 133000000,
+	.fixed_clk_rate = 133 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc hip07_i2c_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 200000000,
+	.fixed_clk_rate = 200 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc hip08_i2c_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 250000000,
+	.fixed_clk_rate = 250 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc hip08_lite_i2c_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 125000000,
+	.fixed_clk_rate = 125 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc thunderx2_i2c_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 125000000,
+	.fixed_clk_rate = 125 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc nxp_i2c_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 350000000,
+	.fixed_clk_rate = 350 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc hip08_spi_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 250000000,
+	.fixed_clk_rate = 250 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc leca_spi_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 400000000,
+	.fixed_clk_rate = 400 * HZ_PER_MHZ,
 };
 
 static const struct apd_device_desc leca_i2c_desc = {
 	.setup = acpi_apd_setup,
-	.fixed_clk_rate = 250000000,
+	.fixed_clk_rate = 250 * HZ_PER_MHZ,
+};
+
+static const struct apd_device_desc hjmc_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 200 * HZ_PER_MHZ,
 };
 
 #endif /* CONFIG_ARM64 */
@@ -262,6 +268,7 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 	{ "HISI02A2", APD_ADDR(hip08_i2c_desc) },
 	{ "HISI02A3", APD_ADDR(hip08_lite_i2c_desc) },
 	{ "HISI0173", APD_ADDR(hip08_spi_desc) },
+	{ "HJMC3001", APD_ADDR(hjmc_i2c_desc) },
 	{ "LECA0002", APD_ADDR(leca_spi_desc) },
 	{ "LECA0003", APD_ADDR(leca_i2c_desc) },
 	{ "NXP0001", APD_ADDR(nxp_i2c_desc) },

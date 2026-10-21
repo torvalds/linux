@@ -30,11 +30,10 @@ indicates the position of the write pointer of the zone.
 
 When resetting a sequential zone, its backing file size is truncated to zero.
 Conversely, for a zone finish operation, the backing file is truncated to the
-zone size. With this, the maximum capacity of a zloop zoned block device created
-can be larger configured to be larger than the storage space available on the
-backing file system. Of course, for such configuration, writing more data than
-the storage space available on the backing file system will result in write
-errors.
+zone capacity. With this, a zloop zoned block device can be configured with a
+larger capacity than the storage space available on the backing file system. Of
+course, for such configuration, writing more data than the storage space
+available on the backing file system will result in write errors.
 
 The zoned loop block device driver implements a complete zone transition state
 machine. That is, zones can be empty, implicitly opened, explicitly opened,
@@ -71,8 +70,10 @@ follows.
 ===================   =========================================================
 id                    Device number (the X in /dev/zloopX).
                       Default: automatically assigned.
-capacity_mb           Device total capacity in MiB. This is always rounded up
-                      to the nearest higher multiple of the zone size.
+capacity_mb           Device total capacity in MiB. A smaller last zone is not
+                      supported, so a capacity value that is not a multiple of
+                      the zone size is rounded down to the closest multiple of
+                      the zone size.
                       Default: 16384 MiB (16 GiB).
 zone_size_mb          Device zone size in MiB. Default: 256 MiB.
 zone_capacity_mb      Device zone capacity (must always be equal to or lower

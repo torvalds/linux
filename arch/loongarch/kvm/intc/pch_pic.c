@@ -78,6 +78,9 @@ int pch_msi_set_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e, int
 		return dmsintc_set_irq(kvm, msg_addr, e->msi.data, level);
 	}
 
+	if (e->msi.data >= EIOINTC_IRQS)
+		return -EINVAL;
+
 	eiointc_set_irq(kvm->arch.eiointc, e->msi.data, level);
 
 	return 0;
@@ -151,12 +154,12 @@ static int kvm_pch_pic_read(struct kvm_vcpu *vcpu,
 	struct loongarch_pch_pic *s = vcpu->kvm->arch.pch_pic;
 
 	if (!s) {
-		kvm_err("%s: pch pic irqchip not valid!\n", __func__);
+		kvm_pr_unimpl("%s: pch pic irqchip not valid!\n", __func__);
 		return ret;
 	}
 
 	if (addr & (len - 1)) {
-		kvm_err("%s: pch pic not aligned addr %llx len %d\n", __func__, addr, len);
+		kvm_pr_unimpl("%s: pch pic not aligned addr %llx len %d\n", __func__, addr, len);
 		return ret;
 	}
 
@@ -250,12 +253,12 @@ static int kvm_pch_pic_write(struct kvm_vcpu *vcpu,
 	struct loongarch_pch_pic *s = vcpu->kvm->arch.pch_pic;
 
 	if (!s) {
-		kvm_err("%s: pch pic irqchip not valid!\n", __func__);
+		kvm_pr_unimpl("%s: pch pic irqchip not valid!\n", __func__);
 		return ret;
 	}
 
 	if (addr & (len - 1)) {
-		kvm_err("%s: pch pic not aligned addr %llx len %d\n", __func__, addr, len);
+		kvm_pr_unimpl("%s: pch pic not aligned addr %llx len %d\n", __func__, addr, len);
 		return ret;
 	}
 
@@ -390,13 +393,13 @@ static int kvm_pch_pic_set_attr(struct kvm_device *dev,
 				return -EFAULT;
 
 			if (!dev->kvm->arch.pch_pic) {
-				kvm_err("%s: please create pch_pic irqchip first!\n", __func__);
+				kvm_pr_unimpl("%s: pch_pic irqchip not created\n", __func__);
 				return -ENODEV;
 			}
 
 			return kvm_pch_pic_init(dev, addr);
 		default:
-			kvm_err("%s: unknown group (%d) attr (%lld)\n", __func__, attr->group,
+			kvm_pr_unimpl("%s: unknown group (%d) attr (%lld)\n", __func__, attr->group,
 					attr->attr);
 			return -EINVAL;
 		}
@@ -499,4 +502,9 @@ static struct kvm_device_ops kvm_pch_pic_dev_ops = {
 int kvm_loongarch_register_pch_pic_device(void)
 {
 	return kvm_register_device_ops(&kvm_pch_pic_dev_ops, KVM_DEV_TYPE_LOONGARCH_PCHPIC);
+}
+
+void kvm_loongarch_unregister_pch_pic_device(void)
+{
+	kvm_unregister_device_ops(KVM_DEV_TYPE_LOONGARCH_PCHPIC);
 }

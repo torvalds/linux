@@ -69,7 +69,7 @@ int pvrdma_query_device(struct ib_device *ibdev,
 	struct pvrdma_dev *dev = to_vdev(ibdev);
 	int err;
 
-	err = ib_is_udata_in_empty(uhw);
+	err = ib_no_udata_io(uhw);
 	if (err)
 		return err;
 
@@ -116,7 +116,7 @@ int pvrdma_query_device(struct ib_device *ibdev,
 	props->device_cap_flags |= IB_DEVICE_PORT_ACTIVE_EVENT |
 				   IB_DEVICE_RC_RNR_NAK_GEN;
 
-	return ib_respond_empty_udata(uhw);
+	return 0;
 }
 
 /**

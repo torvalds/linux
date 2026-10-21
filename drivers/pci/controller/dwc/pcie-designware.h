@@ -474,8 +474,8 @@ struct dw_pcie_rp {
 };
 
 struct dw_pcie_ep_ops {
-	void	(*pre_init)(struct dw_pcie_ep *ep);
-	void	(*init)(struct dw_pcie_ep *ep);
+	int	(*pre_init)(struct dw_pcie_ep *ep);
+	int	(*init)(struct dw_pcie_ep *ep);
 	int	(*raise_irq)(struct dw_pcie_ep *ep, u8 func_no,
 			     unsigned int type, u16 interrupt_num);
 	const struct pci_epc_features* (*get_features)(struct dw_pcie_ep *ep);
@@ -518,6 +518,7 @@ struct dw_pcie_ep {
 
 	/* MSI outbound iATU state */
 	bool			msi_iatu_mapped;
+	size_t			msi_iatu_mapped_offset;
 	u64			msi_msg_addr;
 	size_t			msi_map_size;
 };

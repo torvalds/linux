@@ -1429,6 +1429,77 @@ int typec_cable_is_active(struct typec_cable *cable)
 }
 EXPORT_SYMBOL_GPL(typec_cable_is_active);
 
+enum typec_cable_altmode_support {
+	CABLE_SUPPORT_UNKNOWN,
+	CABLE_SUPPORTED,
+	CABLE_NOT_SUPPORTED,
+};
+
+static enum typec_cable_altmode_support
+typec_cable_check_altmode_support(struct typec_cable *cable,
+				  struct typec_altmode *alt)
+{
+	struct typec_altmode *plug;
+	u32 speed;
+
+	/*
+	 * Check if the cable has an e-marker, supports modal operation, and the
+	 * SOP' altmode nodes are created.
+	 */
+	plug = typec_altmode_get_plug(alt, TYPEC_PLUG_SOP_P);
+	if (plug) {
+		typec_altmode_put_plug(plug);
+		return CABLE_SUPPORTED;
+	}
+
+	/* The identity is not specified */
+	if (!cable->identity)
+		return CABLE_SUPPORT_UNKNOWN;
+
+	/* Non-e-marked cable */
+	if (!cable->identity->id_header)
+		return CABLE_NOT_SUPPORTED;
+
+	switch (PD_IDH_PTYPE(cable->identity->id_header)) {
+	case IDH_PTYPE_PCABLE:
+		speed = VDO_TYPEC_CABLE_SPEED(cable->identity->vdo[0]);
+		if (speed == CABLE_USB2_ONLY)
+			return CABLE_NOT_SUPPORTED;
+		return CABLE_SUPPORTED;
+	case IDH_PTYPE_ACABLE:
+		/*
+		 * Active cables must establish an SOP' communication
+		 * node. Since that check failed at the beginning of
+		 * this function, this active cable does not support
+		 * this specific altmode.
+		 */
+		return CABLE_NOT_SUPPORTED;
+	}
+
+	return CABLE_SUPPORT_UNKNOWN;
+}
+
+/**
+ * typec_cable_altmode_unsupported - Check if a cable restricts altmode
+ * @alt: The Alternate Mode to evaluate
+ *
+ * Returns true if the connected cable is incapable of handling the altmode.
+ */
+bool typec_cable_altmode_unsupported(struct typec_altmode *alt)
+{
+	enum typec_cable_altmode_support support = CABLE_SUPPORT_UNKNOWN;
+	struct typec_cable *cable;
+
+	cable = typec_cable_get(typec_altmode2port(alt));
+	if (cable) {
+		support = typec_cable_check_altmode_support(cable, alt);
+		typec_cable_put(cable);
+	}
+
+	return support == CABLE_NOT_SUPPORTED;
+}
+EXPORT_SYMBOL_GPL(typec_cable_altmode_unsupported);
+
 /**
  * typec_cable_set_identity - Report result from Discover Identity command
  * @cable: The cable updated identity values

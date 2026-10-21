@@ -284,7 +284,6 @@ static int atmel_tdes_write_ctrl(struct atmel_tdes_dev *dd)
 
 static int atmel_tdes_crypt_pdc_stop(struct atmel_tdes_dev *dd)
 {
-	int err = 0;
 	size_t count;
 
 	atmel_tdes_write(dd, TDES_PTCR, TDES_PTCR_TXTDIS|TDES_PTCR_RXTDIS);
@@ -296,24 +295,23 @@ static int atmel_tdes_crypt_pdc_stop(struct atmel_tdes_dev *dd)
 		dma_sync_single_for_cpu(dd->dev, dd->dma_addr_out,
 					dd->dma_size, DMA_FROM_DEVICE);
 
-		/* copy data */
 		count = atmel_tdes_sg_copy(&dd->out_sg, &dd->out_offset,
 				dd->buf_out, dd->buflen, dd->dma_size, 1);
 		if (count != dd->dma_size) {
-			err = -EINVAL;
 			dev_dbg(dd->dev, "not all data converted: %zu\n", count);
+			return -EINVAL;
 		}
 	}
 
-	return err;
+	return 0;
 }
 
 static int atmel_tdes_buff_init(struct atmel_tdes_dev *dd)
 {
 	int err = -ENOMEM;
 
-	dd->buf_in = (void *)__get_free_pages(GFP_KERNEL, 0);
-	dd->buf_out = (void *)__get_free_pages(GFP_KERNEL, 0);
+	dd->buf_in = (void *)__get_free_page(GFP_KERNEL);
+	dd->buf_out = (void *)__get_free_page(GFP_KERNEL);
 	dd->buflen = PAGE_SIZE;
 	dd->buflen &= ~(DES_BLOCK_SIZE - 1);
 
@@ -450,26 +448,19 @@ static int atmel_tdes_crypt_dma(struct atmel_tdes_dev *dd,
 
 static int atmel_tdes_crypt_start(struct atmel_tdes_dev *dd)
 {
-	int err, fast = 0, in, out;
+	bool fast;
+	int err;
 	size_t count;
 	dma_addr_t addr_in, addr_out;
 
-	if ((!dd->in_offset) && (!dd->out_offset)) {
-		/* check for alignment */
-		in = IS_ALIGNED((u32)dd->in_sg->offset, sizeof(u32)) &&
-			IS_ALIGNED(dd->in_sg->length, dd->ctx->block_size);
-		out = IS_ALIGNED((u32)dd->out_sg->offset, sizeof(u32)) &&
-			IS_ALIGNED(dd->out_sg->length, dd->ctx->block_size);
-		fast = in && out;
+	fast = !dd->in_offset && !dd->out_offset &&
+		dd->in_sg->length == dd->out_sg->length &&
+		IS_ALIGNED(dd->in_sg->offset, sizeof(u32)) &&
+		IS_ALIGNED(dd->out_sg->offset, sizeof(u32)) &&
+		IS_ALIGNED(dd->in_sg->length, dd->ctx->block_size);
 
-		if (sg_dma_len(dd->in_sg) != sg_dma_len(dd->out_sg))
-			fast = 0;
-	}
-
-
-	if (fast)  {
-		count = min_t(size_t, dd->total, sg_dma_len(dd->in_sg));
-		count = min_t(size_t, count, sg_dma_len(dd->out_sg));
+	if (fast) {
+		count = min(dd->total, dd->in_sg->length);
 
 		err = dma_map_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
 		if (!err) {
@@ -609,28 +600,25 @@ static int atmel_tdes_handle_queue(struct atmel_tdes_dev *dd,
 
 static int atmel_tdes_crypt_dma_stop(struct atmel_tdes_dev *dd)
 {
-	int err = -EINVAL;
 	size_t count;
 
-	if (dd->flags & TDES_FLAGS_DMA) {
-		err = 0;
-		if  (dd->flags & TDES_FLAGS_FAST) {
-			dma_unmap_sg(dd->dev, dd->out_sg, 1, DMA_FROM_DEVICE);
-			dma_unmap_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
-		} else {
-			dma_sync_single_for_cpu(dd->dev, dd->dma_addr_out,
-						dd->dma_size, DMA_FROM_DEVICE);
+	if  (dd->flags & TDES_FLAGS_FAST) {
+		dma_unmap_sg(dd->dev, dd->out_sg, 1, DMA_FROM_DEVICE);
+		dma_unmap_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
+	} else {
+		dma_sync_single_for_cpu(dd->dev, dd->dma_addr_out, dd->dma_size,
+					DMA_FROM_DEVICE);
 
-			/* copy data */
-			count = atmel_tdes_sg_copy(&dd->out_sg, &dd->out_offset,
-				dd->buf_out, dd->buflen, dd->dma_size, 1);
-			if (count != dd->dma_size) {
-				err = -EINVAL;
-				dev_dbg(dd->dev, "not all data converted: %zu\n", count);
-			}
+		count = atmel_tdes_sg_copy(&dd->out_sg, &dd->out_offset,
+					   dd->buf_out, dd->buflen,
+					   dd->dma_size, 1);
+		if (count != dd->dma_size) {
+			dev_dbg(dd->dev, "not all data converted: %zu\n", count);
+			return -EINVAL;
 		}
 	}
-	return err;
+
+	return 0;
 }
 
 static int atmel_tdes_crypt(struct skcipher_request *req, unsigned long mode)
@@ -979,10 +967,8 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, tdes_dd->irq, atmel_tdes_irq,
 			       IRQF_SHARED, "atmel-tdes", tdes_dd);
-	if (err) {
-		dev_err(dev, "unable to request tdes irq.\n");
+	if (err)
 		goto err_tasklet_kill;
-	}
 
 	/* Initializing the clock */
 	tdes_dd->iclk = devm_clk_get(&pdev->dev, "tdes_clk");

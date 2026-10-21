@@ -7,6 +7,7 @@
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  */
 
+#include <linux/rwsem.h>
 #include <linux/wait.h>
 #include <linux/nospec.h>
 #include <sound/asound.h>
@@ -166,6 +167,8 @@ snd_ctl_find_id_mixer(struct snd_card *card, const char *name)
 }
 
 int snd_ctl_create(struct snd_card *card);
+
+extern struct rw_semaphore snd_ioctl_rwsem;
 
 int snd_ctl_register_ioctl(snd_kctl_ioctl_func_t fcn);
 int snd_ctl_unregister_ioctl(snd_kctl_ioctl_func_t fcn);

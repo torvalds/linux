@@ -224,8 +224,8 @@ static const struct of_device_id ltc1660_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, ltc1660_dt_ids);
 
 static const struct spi_device_id ltc1660_id[] = {
-	{"ltc1660", ID_LTC1660},
-	{"ltc1665", ID_LTC1665},
+	{ .name = "ltc1660", .driver_data = ID_LTC1660 },
+	{ .name = "ltc1665", .driver_data = ID_LTC1665 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ltc1660_id);

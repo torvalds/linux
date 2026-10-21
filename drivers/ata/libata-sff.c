@@ -1114,8 +1114,14 @@ fsm_start:
 
 			if (ap->hsm_task_state == HSM_ST_LAST &&
 			    (!(qc->tf.flags & ATA_TFLAG_WRITE))) {
-				/* all data read */
-				status = ata_wait_idle(ap);
+				status = ata_sff_busy_wait(ap,
+						ATA_BUSY | ATA_DRQ, 10);
+				if (status != 0xff &&
+				    (status & (ATA_BUSY | ATA_DRQ))) {
+					qc->tf.flags |= ATA_TFLAG_POLLING;
+					ata_sff_queue_pio_task(link, 0);
+					return 0;
+				}
 				goto fsm_start;
 			}
 		}
@@ -1213,7 +1219,7 @@ static void ata_sff_pio_task(struct work_struct *work)
 		container_of(work, struct ata_port, sff_pio_task.work);
 	struct ata_link *link = ap->sff_pio_task_link;
 	struct ata_queued_cmd *qc;
-	u8 status;
+	u8 status, wait_mask;
 	int poll_next;
 
 	spin_lock_irq(ap->lock);
@@ -1229,6 +1235,10 @@ static void ata_sff_pio_task(struct work_struct *work)
 fsm_start:
 	WARN_ON_ONCE(ap->hsm_task_state == HSM_ST_IDLE);
 
+	wait_mask = ATA_BUSY;
+	if (ap->hsm_task_state == HSM_ST_LAST)
+		wait_mask |= ATA_DRQ;
+
 	/*
 	 * This is purely heuristic.  This is a fast path.
 	 * Sometimes when we enter, BSY will be cleared in
@@ -1236,14 +1246,14 @@ fsm_start:
 	 * or something.  Snooze for a couple msecs, then
 	 * chk-status again.  If still busy, queue delayed work.
 	 */
-	status = ata_sff_busy_wait(ap, ATA_BUSY, 5);
-	if (status & ATA_BUSY) {
+	status = ata_sff_busy_wait(ap, wait_mask, 5);
+	if (status & wait_mask) {
 		spin_unlock_irq(ap->lock);
 		ata_msleep(ap, 2);
 		spin_lock_irq(ap->lock);
 
-		status = ata_sff_busy_wait(ap, ATA_BUSY, 10);
-		if (status & ATA_BUSY) {
+		status = ata_sff_busy_wait(ap, wait_mask, 10);
+		if (status & wait_mask) {
 			ata_sff_queue_pio_task(link, ATA_SHORT_PAUSE);
 			goto out_unlock;
 		}

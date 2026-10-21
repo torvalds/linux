@@ -28,7 +28,8 @@ static enum scx_test_status setup(void **ctx)
 static enum scx_test_status run(void *ctx)
 {
 	struct prog_run *skel = ctx;
-	struct bpf_link *link;
+	struct bpf_link *link = NULL;
+	enum scx_test_status status = SCX_TEST_PASS;
 	int prog_fd, err = 0;
 
 	prog_fd = bpf_program__fd(skel->progs.prog_run_syscall);
@@ -42,23 +43,40 @@ static enum scx_test_status run(void *ctx)
 	link = bpf_map__attach_struct_ops(skel->maps.prog_run_ops);
 	if (!link) {
 		SCX_ERR("Failed to attach scheduler");
-		close(prog_fd);
-		return SCX_TEST_FAIL;
+		status = SCX_TEST_FAIL;
+		goto out;
 	}
 
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
-	SCX_EQ(err, 0);
+	if (err) {
+		SCX_ERR("BPF_PROG_RUN failed (%d)", err);
+		status = SCX_TEST_FAIL;
+		goto out;
+	}
 
 	/* Assumes uei.kind is written last */
 	while (skel->data->uei.kind == EXIT_KIND(SCX_EXIT_NONE))
 		sched_yield();
 
-	SCX_EQ(skel->data->uei.kind, EXIT_KIND(SCX_EXIT_UNREG_BPF));
-	SCX_EQ(skel->data->uei.exit_code, 0xdeadbeef);
-	close(prog_fd);
-	bpf_link__destroy(link);
+	if (skel->data->uei.kind != EXIT_KIND(SCX_EXIT_UNREG_BPF)) {
+		SCX_ERR("Unexpected exit kind: %llu",
+			(unsigned long long)skel->data->uei.kind);
+		status = SCX_TEST_FAIL;
+		goto out;
+	}
+	if (skel->data->uei.exit_code != 0xdeadbeef) {
+		SCX_ERR("Unexpected exit code: %lld",
+			(long long)skel->data->uei.exit_code);
+		status = SCX_TEST_FAIL;
+		goto out;
+	}
 
-	return SCX_TEST_PASS;
+out:
+	close(prog_fd);
+	if (link)
+		bpf_link__destroy(link);
+
+	return status;
 }
 
 static void cleanup(void *ctx)

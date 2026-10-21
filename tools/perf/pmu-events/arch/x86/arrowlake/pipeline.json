@@ -209,7 +209,6 @@
         "EventName": "BR_INST_RETIRED.COND_TAKEN_FWD",
         "PublicDescription": "Counts taken forward conditional branch instructions retired. Available PDIST counters: 0,1",
         "SampleAfterValue": "400009",
-        "UMask": "0x102",
         "Unit": "cpu_core"
     },
     {
@@ -608,7 +607,7 @@
         "EventName": "BR_MISP_RETIRED.COND_TAKEN_BWD_COST",
         "PublicDescription": "number of branch instructions retired that were mispredicted and taken backward. This precise event may be used to get the misprediction cost via the Retire_Latency field of PEBS. It fires on the instruction that immediately follows the mispredicted branch. Available PDIST counters: 0,1",
         "SampleAfterValue": "400009",
-        "UMask": "0x8001",
+        "UMask": "0x41",
         "Unit": "cpu_core"
     },
     {
@@ -637,7 +636,7 @@
         "EventName": "BR_MISP_RETIRED.COND_TAKEN_FWD_COST",
         "PublicDescription": "number of branch instructions retired that were mispredicted and taken forward. This precise event may be used to get the misprediction cost via the Retire_Latency field of PEBS. It fires on the instruction that immediately follows the mispredicted branch. Available PDIST counters: 0,1",
         "SampleAfterValue": "400009",
-        "UMask": "0x8002",
+        "UMask": "0x140",
         "Unit": "cpu_core"
     },
     {
@@ -773,11 +772,11 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Non PEBS",
+        "BriefDescription": "This event counts the number of mispredicted ret instructions retired.",
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.RET",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted return instructions retired. Available PDIST counters: 0,1",
+        "PublicDescription": "This event counts the number of mispredicted ret instructions retired. Available PDIST counters: 0,1",
         "SampleAfterValue": "100007",
         "UMask": "0x8",
         "Unit": "cpu_core"
@@ -1239,7 +1238,7 @@
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.REP_ITERATION",
-        "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Note the number of iterations is implementation-dependent. Available PDIST counters: 0,1",
+        "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Note: Since the number of iterations within a REP instruction can be significantly affected by fast strings, this event may vary run to run and not match the architectural number of iterations (specified by RCX) Available PDIST counters: 0,1",
         "SampleAfterValue": "2000003",
         "UMask": "0x8",
         "Unit": "cpu_core"
@@ -1327,6 +1326,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of uops executed on all Integer ports.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.ALL",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xff",
+        "Unit": "cpu_lowpower"
+    },
+    {
         "BriefDescription": "Counts the number of uops executed on a load port.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb3",
@@ -1335,6 +1343,16 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x1",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on a load port.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.LD",
+        "PublicDescription": "Counts the number of uops executed on a load port.  This event counts for integer uops even if the destination is FP/vector",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_lowpower"
     },
     {
         "BriefDescription": "Counts the number of uops executed on integer port 0.",
@@ -1346,6 +1364,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of uops executed on integer port 0.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.P0",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_lowpower"
+    },
+    {
         "BriefDescription": "Counts the number of uops executed on integer port 1.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb3",
@@ -1353,6 +1380,15 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x10",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on integer port 1.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.P1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10",
+        "Unit": "cpu_lowpower"
     },
     {
         "BriefDescription": "Counts the number of uops executed on integer port 2.",
@@ -1364,6 +1400,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of uops executed on integer port 2.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.P2",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x20",
+        "Unit": "cpu_lowpower"
+    },
+    {
         "BriefDescription": "Counts the number of uops executed on integer port 3.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb3",
@@ -1373,6 +1418,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of uops executed on integer port 3.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.P3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40",
+        "Unit": "cpu_lowpower"
+    },
+    {
         "BriefDescription": "Counts the number of uops executed on integer port  0,1, 2, 3.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb3",
@@ -1380,6 +1434,15 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x78",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on integer port  0,1, 2, 3.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.PRIMARY",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x78",
+        "Unit": "cpu_lowpower"
     },
     {
         "BriefDescription": "Counts the number of uops executed on a Store address port.",
@@ -1392,6 +1455,16 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of uops executed on a Store address port.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.STA",
+        "PublicDescription": "Counts the number of uops executed on a Store address port. This event counts integer uops even if the data source is FP/vector",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_lowpower"
+    },
+    {
         "BriefDescription": "Counts the number of uops executed on an integer store data and jump port.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb3",
@@ -1399,6 +1472,15 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x4",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on an integer store data and jump port.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.STD_JMP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
+        "Unit": "cpu_lowpower"
     },
     {
         "BriefDescription": "Number of vector integer instructions retired of 128-bit vector-width.",
@@ -1692,6 +1774,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of machine clears that flush the pipeline and restart the machine without the use of microcode.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.FAST",
+        "SampleAfterValue": "20003",
+        "UMask": "0x10",
+        "Unit": "cpu_lowpower"
+    },
+    {
         "BriefDescription": "Counts number of virtual trap actually taken (e.g. highest priority event during retirement). It can count virtual trap from FPC port 0 or port 1 (x87/SSE) equally in a single counter.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc3",
@@ -1699,6 +1790,15 @@
         "SampleAfterValue": "20003",
         "UMask": "0x40",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of virtual traps taken.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.FPC_VIRTUAL_TRAP",
+        "SampleAfterValue": "20003",
+        "UMask": "0x40",
+        "Unit": "cpu_lowpower"
     },
     {
         "BriefDescription": "Counts the number of nukes due to memory renaming",
@@ -2016,6 +2116,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of issue slots not consumed due to a color request for an FCW or MXCSR control register when all 4 colors (copies) are already in use.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x75",
+        "EventName": "SERIALIZATION.COLOR_STALLS",
+        "SampleAfterValue": "200003",
+        "UMask": "0x8",
+        "Unit": "cpu_lowpower"
+    },
+    {
         "BriefDescription": "Counts the number of issue slots where no uop could issue due to an IQ scoreboard that stalls allocation until a specified older uop retires or (in the case of jump scoreboard) executes. Commonly executed instructions with IQ scoreboards include LFENCE and MFENCE.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x75",
@@ -2033,6 +2142,16 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x2",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots not consumed by the backend due to a micro-sequencer (MS) scoreboard, which stalls the front-end from issuing from the UROM until a specified older uop retires.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x75",
+        "EventName": "SERIALIZATION.NON_C01_MS_SCB",
+        "PublicDescription": "Counts the number of issue slots not consumed by the backend due to a micro-sequencer (MS) scoreboard, which stalls the front-end from issuing from the UROM until a specified older uop retires. The most commonly executed instruction with an MS scoreboard is PAUSE.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2",
+        "Unit": "cpu_lowpower"
     },
     {
         "BriefDescription": "This event counts a subset of the Topdown Slots event that were not consumed by the back-end pipeline due to lack of back-end resources, as a result of memory subsystem delays, execution units limitations, or other conditions.",

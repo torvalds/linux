@@ -85,7 +85,6 @@ typedef struct pegasus {
 	unsigned		features;
 	u32			msg_enable;
 	u32			wolopts;
-	int			dev_index;
 	int			intr_interval;
 	struct tasklet_struct	rx_tl;
 	struct delayed_work	carrier_check;
@@ -102,8 +101,6 @@ typedef struct pegasus {
 
 struct usb_eth_dev {
 	char	*name;
-	__u16	vendor;
-	__u16	device;
 	__u32	private; /* LSB is gpio reset value */
 };
 

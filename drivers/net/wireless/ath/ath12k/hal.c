@@ -828,8 +828,8 @@ void *ath12k_hal_encode_tlv64_hdr(void *tlv, u64 tag, u64 len)
 {
 	struct hal_tlv_64_hdr *tlv64 = tlv;
 
-	tlv64->tl = le64_encode_bits(tag, HAL_TLV_HDR_TAG) |
-		    le64_encode_bits(len, HAL_TLV_HDR_LEN);
+	tlv64->tl = le64_encode_bits(tag, HAL_TLV_64_HDR_TAG) |
+		    le64_encode_bits(len, HAL_TLV_64_HDR_LEN);
 
 	return tlv64->value;
 }
@@ -846,26 +846,44 @@ void *ath12k_hal_encode_tlv32_hdr(void *tlv, u64 tag, u64 len)
 }
 EXPORT_SYMBOL(ath12k_hal_encode_tlv32_hdr);
 
-u16 ath12k_hal_decode_tlv64_hdr(void *tlv, void **desc)
+void *ath12k_hal_decode_tlv64_hdr(void *tlv, u16 *tag, u16 *len, u16 *usrid)
 {
 	struct hal_tlv_64_hdr *tlv64 = tlv;
-	u16 tag;
 
-	tag = le64_get_bits(tlv64->tl, HAL_SRNG_TLV_HDR_TAG);
-	*desc = tlv64->value;
+	if (tag)
+		*tag = le64_get_bits(tlv64->tl, HAL_TLV_64_HDR_TAG);
+	if (len)
+		*len = le64_get_bits(tlv64->tl, HAL_TLV_64_HDR_LEN);
+	if (usrid)
+		*usrid = le64_get_bits(tlv64->tl, HAL_TLV_64_USR_ID);
 
-	return tag;
+	return tlv64->value;
 }
 EXPORT_SYMBOL(ath12k_hal_decode_tlv64_hdr);
 
-u16 ath12k_hal_decode_tlv32_hdr(void *tlv, void **desc)
+void *ath12k_hal_decode_tlv32_hdr(void *tlv, u16 *tag, u16 *len, u16 *usrid)
 {
 	struct hal_tlv_hdr *tlv32 = tlv;
-	u16 tag;
 
-	tag = le32_get_bits(tlv32->tl, HAL_SRNG_TLV_HDR_TAG);
-	*desc = tlv32->value;
+	if (tag)
+		*tag = le32_get_bits(tlv32->tl, HAL_TLV_HDR_TAG);
+	if (len)
+		*len = le32_get_bits(tlv32->tl, HAL_TLV_HDR_LEN);
+	if (usrid)
+		*usrid = le32_get_bits(tlv32->tl, HAL_TLV_USR_ID);
 
-	return tag;
+	return tlv32->value;
 }
 EXPORT_SYMBOL(ath12k_hal_decode_tlv32_hdr);
+
+u32 ath12k_hal_get_tlv64_hdr_align(void)
+{
+	return HAL_TLV_64_ALIGN;
+}
+EXPORT_SYMBOL(ath12k_hal_get_tlv64_hdr_align);
+
+u32 ath12k_hal_get_tlv32_hdr_align(void)
+{
+	return HAL_TLV_ALIGN;
+}
+EXPORT_SYMBOL(ath12k_hal_get_tlv32_hdr_align);

@@ -177,10 +177,17 @@ static int exfat_write_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 
 	if (ei->valid_size < end) {
 		ei->valid_size = end;
-		if (ei->zeroed_size < end)
-			ei->zeroed_size = end;
 		dirtied = true;
 	}
+
+	/*
+	 * IOMAP_F_ZERO_TAIL zeroes the remainder of the last block. Track that
+	 * block as zeroed so later valid_size extensions do not zero it again.
+	 */
+	if (iomap->flags & IOMAP_F_ZERO_TAIL)
+		end = round_up(end, i_blocksize(inode));
+	if (ei->zeroed_size < end)
+		ei->zeroed_size = end;
 
 	if (dirtied || iomap->flags & IOMAP_F_SIZE_CHANGED)
 		mark_inode_dirty(inode);

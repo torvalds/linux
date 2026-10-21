@@ -196,40 +196,30 @@ static int dell_wmi_ddv_query_integer(struct wmi_device *wdev, enum dell_ddv_met
 static int dell_wmi_ddv_query_buffer(struct wmi_device *wdev, enum dell_ddv_method method,
 				     u32 arg, struct dell_wmi_buffer **result)
 {
-	struct dell_wmi_buffer *buffer;
 	struct wmi_buffer output;
 	size_t buffer_size;
 	int ret;
 
-	ret = dell_wmi_ddv_query(wdev, method, arg, &output, sizeof(*buffer));
+	ret = dell_wmi_ddv_query(wdev, method, arg, &output, sizeof(struct dell_wmi_buffer));
 	if (ret < 0)
 		return ret;
 
-	buffer = output.data;
-	if (!le32_to_cpu(buffer->raw_size)) {
-		ret = -ENODATA;
+	struct dell_wmi_buffer *buffer __free(kfree) = output.data;
 
-		goto err_free;
-	}
+	if (!le32_to_cpu(buffer->raw_size))
+		return -ENODATA;
 
 	buffer_size = struct_size(buffer, raw_data, le32_to_cpu(buffer->raw_size));
 	if (buffer_size > output.length) {
 		dev_warn(&wdev->dev,
 			 FW_WARN "Dell WMI buffer size (%zu) exceeds WMI buffer size (%zu)\n",
 			 buffer_size, output.length);
-		ret = -EMSGSIZE;
-
-		goto err_free;
+		return -EMSGSIZE;
 	}
 
-	*result = buffer;
+	*result = no_free_ptr(buffer);
 
 	return 0;
-
-err_free:
-	kfree(output.data);
-
-	return ret;
 }
 
 static ssize_t dell_wmi_ddv_query_string(struct wmi_device *wdev, enum dell_ddv_method method,

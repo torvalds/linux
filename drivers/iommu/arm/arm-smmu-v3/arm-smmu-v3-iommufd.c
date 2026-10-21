@@ -33,6 +33,9 @@ void *arm_smmu_hw_info(struct device *dev, u32 *length,
 	info->iidr = readl_relaxed(master->smmu->base + ARM_SMMU_IIDR);
 	info->aidr = readl_relaxed(master->smmu->base + ARM_SMMU_AIDR);
 
+	if (arm_smmu_erratum_repeat_tlbi_cfgi())
+		info->flags |= IOMMU_HW_INFO_ARM_SMMUV3_ERRATA_REPEAT_TLBI_CFGI;
+
 	*length = sizeof(*info);
 	*type = IOMMU_HW_INFO_TYPE_ARM_SMMUV3;
 
@@ -400,8 +403,8 @@ int arm_vsmmu_cache_invalidate(struct iommufd_viommu *viommu,
 			continue;
 
 		/* FIXME always uses the main cmdq rather than trying to group by type */
-		ret = arm_smmu_cmdq_issue_cmdlist(smmu, &smmu->cmdq, &last->cmd,
-						  cur - last, true);
+		ret = __arm_smmu_cmdq_issue_cmdlist(smmu, &smmu->cmdq, &last->cmd,
+						    cur - last, true);
 		if (ret) {
 			cur--;
 			goto out;

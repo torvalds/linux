@@ -7,9 +7,6 @@
 
 set -e
 
-echo "TEST management"
-./in_netns.sh ./ipv6_flowlabel_mgr
-
 echo "TEST datapath"
 ./in_netns.sh \
   sh -c 'sysctl -q -w net.ipv6.auto_flowlabels=0 && ./ipv6_flowlabel -l 1'

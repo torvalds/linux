@@ -263,7 +263,7 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 
 	pr_debug("ibdev %p\n", ibdev);
 
-	err = ib_is_udata_in_empty(uhw);
+	err = ib_no_udata_io(uhw);
 	if (err)
 		return err;
 
@@ -300,7 +300,7 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 	props->max_fast_reg_page_list_len =
 		t4_max_fr_depth(dev->rdev.lldi.ulptx_memwrite_dsgl && use_dsgl);
 
-	return ib_respond_empty_udata(uhw);
+	return 0;
 }
 
 static int c4iw_query_port(struct ib_device *ibdev, u32 port,

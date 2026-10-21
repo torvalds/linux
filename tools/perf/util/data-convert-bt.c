@@ -1362,7 +1362,7 @@ static void cleanup_events(struct perf_session *session)
 		zfree(&evsel->priv);
 	}
 
-	evlist__delete(evlist);
+	evlist__put(evlist);
 	session->evlist = NULL;
 }
 

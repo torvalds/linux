@@ -1806,6 +1806,30 @@ void kgd2kfd_teardown_processes(struct amdgpu_device *adev)
 		cond_resched();
 }
 
+int kgd2kfd_reset_mes_queue(struct kfd_dev *kfd, uint32_t node_id,
+			    int queue_type, int pipe, int queue,
+			    unsigned int db)
+{
+	struct kfd_node *node;
+	int ret;
+
+	if (!kfd->init_complete)
+		return 0;
+
+	if (node_id >= kfd->num_nodes) {
+		dev_warn(kfd->adev->dev, "Invalid node ID: %u exceeds %u\n",
+			 node_id, kfd->num_nodes - 1);
+		return -EINVAL;
+	}
+	node = kfd->nodes[node_id];
+
+	ret = kfd_reset_queue_mes(node->dqm, queue_type, pipe, queue, db);
+	if (ret)
+		dev_err(kfd_device, "Error resetting queue\n");
+
+	return ret;
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 /* This function will send a package to HIQ to hang the HWS

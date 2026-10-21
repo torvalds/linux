@@ -880,8 +880,8 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	if (!symbol_type__filter(type))
 		return 0;
 
-	/* Ignore mapping symbols in kallsyms */
-	if (is_ignored_kernel_symbol(name))
+	/* Ignore mapping and livepatch symbols in kallsyms */
+	if (is_ignored_kernel_symbol(name) || is_livepatch_symbol(name))
 		return 0;
 
 	/*
@@ -1947,7 +1947,16 @@ int dso__load(struct dso *dso, struct map *map)
 		if (next_slot) {
 			ss_pos++;
 
-			if (dso__binary_type(dso) == DSO_BINARY_TYPE__NOT_FOUND)
+			/*
+			 * The binary type is used to find the file containing
+			 * the executed instructions, so prefer the types that
+			 * refer to the actual object over debug-only files such
+			 * as DSO_BINARY_TYPE__DEBUGLINK.
+			 */
+			if (dso__binary_type(dso) == DSO_BINARY_TYPE__NOT_FOUND ||
+			    symtab_type == DSO_BINARY_TYPE__BUILD_ID_CACHE ||
+			    (symtab_type == DSO_BINARY_TYPE__SYSTEM_PATH_DSO &&
+			     dso__binary_type(dso) != DSO_BINARY_TYPE__BUILD_ID_CACHE))
 				dso__set_binary_type(dso, symtab_type);
 
 			if (syms_ss && runtime_ss)
@@ -2452,8 +2461,7 @@ static bool symbol__read_kptr_restrict(void)
 {
 	bool value = false;
 	FILE *fp = fopen("/proc/sys/kernel/kptr_restrict", "r");
-	bool used_root;
-	bool cap_syslog = perf_cap__capable(CAP_SYSLOG, &used_root);
+	bool cap_syslog = perf_cap__capable(CAP_SYSLOG);
 
 	if (fp != NULL) {
 		char line[8];

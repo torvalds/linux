@@ -4,6 +4,13 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 1);
+	__type(key, long long);
+	__type(value, long long);
+} map_hash_8b SEC(".maps");
+
 /* Check that precision marks propagate through scalar IDs.
  * Registers r{0,1,2} have the same scalar ID.
  * Range information is propagated for scalars sharing same ID.
@@ -373,13 +380,14 @@ SEC("socket")
 __success __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
 /*
- * check that r0 and r5 have different IDs after 'if',
- * collect_linked_regs() can't tie more than 5 registers for a single insn.
+ * check that r5 is unlinked after 'if', collect_linked_regs() can't tie
+ * more than 5 registers for a single insn and the register compared by
+ * the jump is not exempt from that.
  */
-__msg("7: (25) if r0 > 0x7 goto pc+0         ; R0=scalar(id=1")
+__msg("7: (25) if r5 > 0x7 goto pc+0         ; R5=scalar(smin=")
 __msg("12: (bf) r5 = r5                      ; R5=scalar(id=2")
 /* check that r{0-4} are marked precise after 'if' */
-__msg("frame0: regs=r0 stack= before 7: (25) if r0 > 0x7 goto pc+0")
+__msg("frame0: regs=r0 stack= before 7: (25) if r5 > 0x7 goto pc+0")
 __msg("frame0: parent state regs=r0,r1,r2,r3,r4 stack=:")
 __naked void linked_regs_too_many_regs(void)
 {
@@ -393,8 +401,8 @@ __naked void linked_regs_too_many_regs(void)
 	"r3 = r0;"
 	"r4 = r0;"
 	"r5 = r0;"
-	/* propagate range for r{0-5} */
-	"if r0 > 7 goto +0;"
+	/* r{0-4} fill the record, r5 does not fit and is unlinked */
+	"if r5 > 7 goto +0;"
 	/* keep r{1-4} live */
 	"r1 = r1;"
 	"r2 = r2;"
@@ -912,6 +920,55 @@ __naked void linked_regs_and_subreg_def(void)
 	"exit;"
 	:
 	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
+/*
+ * A scalar is spilled to the stack and then filled twice: once via a
+ * sign-extending load (BPF_MEMSX) into r4 and once via a zero-extending
+ * load (BPF_MEM) into r5. coerce_reg_to_size_sx() gives r4 a different
+ * value than the spilled/zero-extended siblings, so r4 must not keep the
+ * shared scalar id. Otherwise the later 'if r5 == 0x80000000' refines r4
+ * through sync_linked_regs() to a known 0x80000000, while at runtime r4
+ * is the sign-extended 0xffffffff80000000. The test turns that discrepancy
+ * into an out-of-bounds map value access (r4 >> 63 is believed 0 but is 1
+ * at runtime), which must be rejected.
+ */
+SEC("socket")
+__failure __msg("R0 max value is outside of the allowed memory range")
+__naked void ldsx_fill_scalar_id_not_shared(void)
+{
+	asm volatile ("					\
+	r1 = 0;						\
+	*(u64*)(r10 - 8) = r1;				\
+	r2 = r10;					\
+	r2 += -8;					\
+	r1 = %[map_hash_8b] ll;				\
+	call %[bpf_map_lookup_elem];			\
+	if r0 == 0 goto l0_%=;				\
+	/* r7 = unknown u32, keep only bit 31 */	\
+	r7 = *(u32*)(r0 + 0);				\
+	r2 = 0x80000000 ll;				\
+	r7 &= r2;					\
+	/* link r6 and r7 via a fresh scalar id */	\
+	r6 = r7;					\
+	/* spill r7 (u32) to the stack */		\
+	*(u32*)(r10 - 8) = r7;				\
+	/* sign-extending fill: must drop the id */	\
+	r4 = *(s32*)(r10 - 8);				\
+	/* zero-extending fill: keeps the id */		\
+	r5 = *(u32*)(r10 - 8);				\
+	/* r5 becomes known 0x80000000 on fall-through */\
+	if r5 != r2 goto l0_%=;				\
+	/* verifier believes r4 == 0 here, runtime is 1 */\
+	r4 >>= 63;					\
+	r0 += r4;					\
+	r0 = *(u8*)(r0 + 7);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_8b)
 	: __clobber_all);
 }
 

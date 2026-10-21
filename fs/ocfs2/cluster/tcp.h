@@ -89,6 +89,7 @@ int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 			   o2net_post_msg_handler_func *post_func,
 			   struct list_head *unreg_list);
 void o2net_unregister_handler_list(struct list_head *list);
+void o2net_unregister_and_flush_handler_list(struct list_head *list);
 
 void o2net_fill_node_map(unsigned long *map, unsigned bytes);
 
@@ -96,6 +97,7 @@ struct o2nm_node;
 int o2net_register_hb_callbacks(void);
 void o2net_unregister_hb_callbacks(void);
 int o2net_start_listening(struct o2nm_node *node);
+void o2net_complete_start_listening(struct o2nm_node *node);
 void o2net_stop_listening(struct o2nm_node *node);
 void o2net_disconnect_node(struct o2nm_node *node);
 int o2net_num_connected_peers(void);

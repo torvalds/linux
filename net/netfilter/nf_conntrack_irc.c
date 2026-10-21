@@ -21,9 +21,6 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <linux/netfilter/nf_conntrack_irc.h>
 
-#define MAX_PORTS 8
-static unsigned short ports[MAX_PORTS];
-static unsigned int ports_c;
 static unsigned int max_dcc_channels = 8;
 static unsigned int dcc_timeout __read_mostly = 300;
 /* This is slow, but it's simple. --RR */
@@ -42,8 +39,6 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ip_conntrack_irc");
 MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
-module_param_array(ports, ushort, &ports_c, 0400);
-MODULE_PARM_DESC(ports, "port numbers of IRC servers");
 module_param(max_dcc_channels, uint, 0400);
 MODULE_PARM_DESC(max_dcc_channels, "max number of expected DCC channels per "
 				   "IRC session");
@@ -236,7 +231,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 
 			nf_nat_irc = rcu_dereference(nf_nat_irc_hook);
 			if (nf_nat_irc && ct->status & IPS_NAT_MASK)
-				ret = nf_nat_irc(skb, ctinfo, protoff,
+				ret = nf_nat_irc(skb, ct, ctinfo, protoff,
 						 addr_beg_p - ib_ptr,
 						 addr_end_p - addr_beg_p,
 						 exp);
@@ -254,13 +249,13 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	return ret;
 }
 
-static struct nf_conntrack_helper irc[MAX_PORTS] __read_mostly;
-static struct nf_conntrack_helper *irc_ptr[MAX_PORTS] __read_mostly;
+static struct nf_conntrack_helper irc __read_mostly;
+static struct nf_conntrack_helper *irc_ptr __read_mostly;
 static struct nf_conntrack_expect_policy irc_exp_policy;
 
 static int __init nf_conntrack_irc_init(void)
 {
-	int i, ret;
+	int ret;
 
 	nf_conntrack_helper_deprecated(HELPER_NAME);
 
@@ -282,17 +277,11 @@ static int __init nf_conntrack_irc_init(void)
 	if (!irc_buffer)
 		return -ENOMEM;
 
-	/* If no port given, default to standard irc port */
-	if (ports_c == 0)
-		ports[ports_c++] = IRC_PORT;
+	nf_ct_helper_init(&irc, AF_INET, IPPROTO_TCP, HELPER_NAME,
+			  &irc_exp_policy,
+			  0, help, NULL, THIS_MODULE);
 
-	for (i = 0; i < ports_c; i++) {
-		nf_ct_helper_init(&irc[i], AF_INET, IPPROTO_TCP, HELPER_NAME,
-				  IRC_PORT, ports[i], i, &irc_exp_policy,
-				  0, help, NULL, THIS_MODULE);
-	}
-
-	ret = nf_conntrack_helpers_register(&irc[0], ports_c, irc_ptr);
+	ret = nf_conntrack_helper_register(&irc, &irc_ptr);
 	if (ret) {
 		pr_err("failed to register helpers\n");
 		kfree(irc_buffer);
@@ -304,7 +293,7 @@ static int __init nf_conntrack_irc_init(void)
 
 static void __exit nf_conntrack_irc_fini(void)
 {
-	nf_conntrack_helpers_unregister(irc_ptr, ports_c);
+	nf_conntrack_helper_unregister(irc_ptr);
 	kfree(irc_buffer);
 }
 

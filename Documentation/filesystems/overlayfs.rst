@@ -123,8 +123,7 @@ At mount time, the two directories given as mount options "lowerdir" and
   mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,\
   workdir=/work /merged
 
-The "workdir" needs to be an empty directory on the same filesystem
-as upperdir.
+The "workdir" needs to be a directory on the same filesystem as upperdir.
 
 Then whenever a lookup is requested in such a merged directory, the
 lookup is performed in each actual directory and the combined result

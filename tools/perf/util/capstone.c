@@ -24,6 +24,13 @@
 #include "symbol.h"
 #include "thread.h"
 
+#if CS_VERSION_MAJOR < 5
+#define CS_ARCH_RISCV    15
+#define CS_MODE_RISCV32  1
+#define CS_MODE_RISCV64  2
+#define CS_MODE_RISCVC   4
+#endif
+
 #ifdef LIBCAPSTONE_DLOPEN
 static void *perf_cs_dll_handle(void)
 {
@@ -302,6 +309,7 @@ static void print_capstone_detail(struct cs_insn *insn, char *buf, size_t len,
 	for (i = 0; i < insn->detail->x86.op_count; i++) {
 		struct cs_x86_op *op = &insn->detail->x86.operands[i];
 		u64 orig_addr;
+		struct map *found_map = NULL;
 
 		if (op->type != X86_OP_MEM)
 			continue;
@@ -317,19 +325,22 @@ static void print_capstone_detail(struct cs_insn *insn, char *buf, size_t len,
 		if (dso__kernel(map__dso(map))) {
 			/*
 			 * The kernel maps can be split into sections, let's
-			 * find the map first and the search the symbol.
+			 * find the map first and then search the symbol.
 			 */
-			map = maps__find(map__kmaps(map), addr);
-			if (map == NULL)
+			found_map = maps__find(map__kmaps(map), addr);
+			if (found_map == NULL)
 				continue;
+			map = found_map;
 		}
 
 		/* convert it to map-relative address for search */
 		addr = map__map_ip(map, addr);
 
 		sym = map__find_symbol(map, addr);
-		if (sym == NULL)
+		if (sym == NULL) {
+			map__put(found_map);
 			continue;
+		}
 
 		if (addr == sym->start) {
 			scnprintf(buf, len, "\t# %"PRIx64" <%s>",
@@ -338,6 +349,7 @@ static void print_capstone_detail(struct cs_insn *insn, char *buf, size_t len,
 			scnprintf(buf, len, "\t# %"PRIx64" <%s+%#"PRIx64">",
 				  orig_addr, sym->name, addr - sym->start);
 		}
+		map__put(found_map);
 		break;
 	}
 }
@@ -380,7 +392,7 @@ int symbol__disassemble_capstone(const char *filename, struct symbol *sym,
 	char disasm_buf[512];
 	struct disasm_line *dl;
 	bool disassembler_style = false;
-	uint16_t e_machine;
+	uint16_t e_machine = EM_NONE;
 	bool is_big_endian = false;
 
 	if (args->options->objdump_path)
@@ -411,9 +423,22 @@ int symbol__disassemble_capstone(const char *filename, struct symbol *sym,
 	    !strcmp(args->options->disassembler_style, "att"))
 		disassembler_style = true;
 
-	e_machine = thread__e_machine_endian(args->ms->thread,
-					     /*machine=*/NULL,
-					     /*e_flags=*/NULL, &is_big_endian);
+	if (args->ms->thread) {
+		e_machine = thread__e_machine_endian(args->ms->thread,
+						     /*machine=*/NULL,
+						     /*e_flags=*/NULL, &is_big_endian);
+	} else if (dso) {
+		struct maps *kmaps = (map && dso__kernel(dso)) ? map__kmaps(map) : NULL;
+		struct machine *kmap_machine = kmaps ? maps__machine(kmaps) : NULL;
+
+		e_machine = dso__e_machine_endian(dso, kmap_machine, /*e_flags=*/NULL,
+						  &is_big_endian);
+	}
+	if (!e_machine || e_machine == EM_NONE) {
+		e_machine = thread__e_machine_endian(NULL,
+						     /*machine=*/NULL,
+						     /*e_flags=*/NULL, &is_big_endian);
+	}
 	if (capstone_init(e_machine, &handle, is_64bit, is_big_endian, disassembler_style) < 0)
 		goto err;
 
@@ -506,7 +531,7 @@ int symbol__disassemble_capstone_powerpc(const char *filename __maybe_unused,
 	struct disasm_line *dl;
 	u32 *line;
 	bool disassembler_style = false;
-	uint16_t e_machine;
+	uint16_t e_machine = EM_NONE;
 	bool is_big_endian = false;
 
 	if (args->options->objdump_path)
@@ -526,9 +551,22 @@ int symbol__disassemble_capstone_powerpc(const char *filename __maybe_unused,
 	    !strcmp(args->options->disassembler_style, "att"))
 		disassembler_style = true;
 
-	e_machine = thread__e_machine_endian(args->ms->thread,
-					     /*machine=*/NULL,
-					     /*e_flags=*/NULL, &is_big_endian);
+	if (args->ms->thread) {
+		e_machine = thread__e_machine_endian(args->ms->thread,
+						     /*machine=*/NULL,
+						     /*e_flags=*/NULL, &is_big_endian);
+	} else if (dso) {
+		struct maps *kmaps = (map && dso__kernel(dso)) ? map__kmaps(map) : NULL;
+		struct machine *kmap_machine = kmaps ? maps__machine(kmaps) : NULL;
+
+		e_machine = dso__e_machine_endian(dso, kmap_machine, /*e_flags=*/NULL,
+						  &is_big_endian);
+	}
+	if (!e_machine || e_machine == EM_NONE) {
+		e_machine = thread__e_machine_endian(NULL,
+						     /*machine=*/NULL,
+						     /*e_flags=*/NULL, &is_big_endian);
+	}
 	if (capstone_init(e_machine, &handle, is_64bit, is_big_endian, disassembler_style) < 0)
 		goto err;
 

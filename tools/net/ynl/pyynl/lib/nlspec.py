@@ -12,6 +12,8 @@ import importlib
 import os
 import yaml as pyyaml
 
+from .specdir import find_spec, SYS_SCHEMA_DIR
+
 
 class SpecException(Exception):
     """Netlink spec exception.
@@ -444,7 +446,23 @@ class SpecFamily(SpecElement):
     except AttributeError:
         _yaml_loader = pyyaml.SafeLoader
 
-    def __init__(self, spec_path, schema_path=None, exclude_ops=None):
+    def __init__(self, spec_path=None, schema_path=None, exclude_ops=None,
+                 family=None):
+        # schema_path selects how the spec is validated:
+        #   None  -- no preference: validate against the default schema,
+        #            but trust (skip) installed specs selected by family=
+        #   True  -- always validate against the default schema
+        #   path  -- validate against this schema
+        #   ''    -- do not validate
+        if (spec_path is None) == (family is None):
+            raise ValueError("Specify exactly one of spec path or family name")
+        if family is not None:
+            spec_path = find_spec(family)
+            # Installed specs are assumed correct, so skip schema validation
+            # to save cycles unless the caller asked to validate.
+            if schema_path is None and spec_path.startswith(SYS_SCHEMA_DIR):
+                schema_path = ''
+
         with open(spec_path, "r", encoding='utf-8') as stream:
             prefix = '# SPDX-License-Identifier: '
             first = stream.readline().strip()
@@ -465,7 +483,7 @@ class SpecFamily(SpecElement):
         self.proto = self.yaml.get('protocol', 'genetlink')
         self.msg_id_model = self.yaml['operations'].get('enum-model', 'unified')
 
-        if schema_path is None:
+        if schema_path is None or schema_path is True:
             schema_path = os.path.dirname(os.path.dirname(spec_path)) + f'/{self.proto}.yaml'
         if schema_path:
             with open(schema_path, "r", encoding='utf-8') as stream:

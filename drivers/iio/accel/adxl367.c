@@ -1486,7 +1486,7 @@ int adxl367_probe(struct device *dev, const struct adxl367_ops *ops,
 					adxl367_irq_handler, IRQF_ONESHOT,
 					indio_dev->name, indio_dev);
 	if (ret)
-		return dev_err_probe(st->dev, ret, "Failed to request irq\n");
+		return ret;
 
 	return devm_iio_device_register(dev, indio_dev);
 }

@@ -471,7 +471,7 @@ update the core ranking and set the cpu's priority.
 Kernel Parameters
 -----------------
 
-``amd-pstate`` peferred core`` has two states: enable and disable.
+``amd-pstate`` preferred core has two states: enable and disable.
 Enable/disable states can be chosen by different kernel parameters.
 Default enable ``amd-pstate`` preferred core.
 

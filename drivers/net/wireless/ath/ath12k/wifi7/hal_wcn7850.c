@@ -756,6 +756,15 @@ int ath12k_hal_srng_create_config_wcn7850(struct ath12k_hal *hal)
 	return 0;
 }
 
+static u16 ath12k_hal_reo_status_dec_tlv_hdr_wcn7850(void *tlv, void **desc)
+{
+	u16 tag;
+
+	*desc = ath12k_hal_decode_tlv64_hdr(tlv, &tag, NULL, NULL);
+
+	return tag;
+}
+
 const struct ath12k_hal_tcl_to_wbm_rbm_map
 ath12k_hal_tcl_to_wbm_rbm_map_wcn7850[DP_TCL_NUM_RING_MAX] = {
 	{
@@ -821,5 +830,7 @@ const struct hal_ops hal_wcn7850_ops = {
 	.rx_msdu_list_get = ath12k_wifi7_hal_rx_msdu_list_get,
 	.rx_reo_ent_buf_paddr_get = ath12k_wifi7_hal_rx_reo_ent_buf_paddr_get,
 	.reo_cmd_enc_tlv_hdr = ath12k_hal_encode_tlv64_hdr,
-	.reo_status_dec_tlv_hdr = ath12k_hal_decode_tlv64_hdr,
+	.reo_status_dec_tlv_hdr = ath12k_hal_reo_status_dec_tlv_hdr_wcn7850,
+	.mon_rx_status_dec_tlv_hdr = ath12k_hal_decode_tlv64_hdr,
+	.get_tlv_hdr_align = ath12k_hal_get_tlv64_hdr_align,
 };

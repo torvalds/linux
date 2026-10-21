@@ -315,6 +315,14 @@ static int tcf_sample_offload_act_setup(struct tc_action *act, void *entry_data,
 	return 0;
 }
 
+static size_t tcf_sample_get_fill_size(const struct tc_action *act)
+{
+	return nla_total_size(sizeof(struct tc_sample)) /* TCA_SAMPLE_PARMS */
+		+ nla_total_size(sizeof(u32)) /* TCA_SAMPLE_RATE */
+		+ nla_total_size(sizeof(u32)) /* TCA_SAMPLE_TRUNC_SIZE */
+		+ nla_total_size(sizeof(u32)); /* TCA_SAMPLE_PSAMPLE_GROUP */
+}
+
 static struct tc_action_ops act_sample_ops = {
 	.kind	  = "sample",
 	.id	  = TCA_ID_SAMPLE,
@@ -324,6 +332,7 @@ static struct tc_action_ops act_sample_ops = {
 	.dump	  = tcf_sample_dump,
 	.init	  = tcf_sample_init,
 	.cleanup  = tcf_sample_cleanup,
+	.get_fill_size = tcf_sample_get_fill_size,
 	.get_psample_group = tcf_sample_get_group,
 	.offload_act_setup    = tcf_sample_offload_act_setup,
 	.size	  = sizeof(struct tcf_sample),

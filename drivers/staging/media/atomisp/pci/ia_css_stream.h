@@ -13,7 +13,7 @@
 #include "ia_css_types.h"
 #include "ia_css_stream_public.h"
 
-/**
+/*
  * structure to hold all internal stream related information
  */
 struct ia_css_stream {

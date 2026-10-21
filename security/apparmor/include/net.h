@@ -86,7 +86,7 @@ extern struct aa_sfs_entry aa_sfs_entry_network[];
 extern struct aa_sfs_entry aa_sfs_entry_networkv9[];
 
 int aa_do_perms(struct aa_profile *profile, struct aa_policydb *policy,
-		aa_state_t state, u32 request, struct aa_perms *p,
+		aa_state_t state, u32 request, const struct aa_perms *p,
 		struct apparmor_audit_data *ad);
 /* passing in state returned by XXX_mediates_AF() */
 aa_state_t aa_match_to_prot(struct aa_policydb *policy, aa_state_t state,
@@ -102,13 +102,14 @@ int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
 static inline int aa_profile_af_sk_perm(struct aa_profile *profile,
 					struct apparmor_audit_data *ad,
 					u32 request,
-					struct sock *sk)
+					const struct sock *sk)
 {
 	return aa_profile_af_perm(profile, ad, request, sk->sk_family,
 				  sk->sk_type, sk->sk_protocol);
 }
-int aa_sk_perm(const char *op, u32 request, struct sock *sk);
-
+int aa_sk_perm(const char *op, u32 request, const struct sock *sk);
+int aa_label_sk_perm(const struct cred *subj_cred, struct aa_label *label,
+		     const char *op, u32 request, const struct sock *sk);
 int aa_sock_file_perm(const struct cred *subj_cred, struct aa_label *label,
 		      const char *op, u32 request,
 		      struct file *file);

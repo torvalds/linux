@@ -14,9 +14,13 @@
 #include "security.h"
 
 #ifdef CONFIG_IMA
+void __init selinux_ima_config_len_init(void);
 extern void selinux_ima_measure_state(void);
 extern void selinux_ima_measure_state_locked(void);
 #else
+static inline void selinux_ima_config_len_init(void)
+{
+}
 static inline void selinux_ima_measure_state(void)
 {
 }

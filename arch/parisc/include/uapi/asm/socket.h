@@ -147,6 +147,8 @@
 #define SO_INQ			0x4052
 #define SCM_INQ			SO_INQ
 
+#define SO_RIGHTS_NOTRUNC	0x4053
+
 #if !defined(__KERNEL__)
 
 #if __BITS_PER_LONG == 64

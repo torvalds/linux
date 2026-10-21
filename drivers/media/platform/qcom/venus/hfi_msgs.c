@@ -690,7 +690,7 @@ struct hfi_done_handler {
 	u32 pkt;
 	u32 pkt_sz;
 	u32 pkt_sz2;
-	void (*done)(struct venus_core *, struct venus_inst *, void *);
+	void (*done)(struct venus_core *core, struct venus_inst *inst, void *packet);
 	bool is_sys_pkt;
 };
 

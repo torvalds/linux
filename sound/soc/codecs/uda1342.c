@@ -308,9 +308,16 @@ static int uda1342_suspend(struct device *dev)
 static int uda1342_resume(struct device *dev)
 {
 	struct uda1342_priv *uda1342 = dev_get_drvdata(dev);
+	int ret;
 
+	regcache_cache_only(uda1342->regmap, false);
 	regcache_mark_dirty(uda1342->regmap);
-	regcache_sync(uda1342->regmap);
+	ret = regcache_sync(uda1342->regmap);
+	if (ret) {
+		regcache_cache_only(uda1342->regmap, true);
+		regcache_mark_dirty(uda1342->regmap);
+		return ret;
+	}
 
 	return 0;
 }

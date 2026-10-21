@@ -781,7 +781,6 @@ static int decide_core(struct venus_inst *inst)
 	unsigned long max_freq = ULONG_MAX;
 	struct device *dev = core->dev;
 	struct dev_pm_opp *opp;
-	int ret = 0;
 
 	if (legacy_binding) {
 		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
@@ -829,11 +828,7 @@ static int decide_core(struct venus_inst *inst)
 	}
 
 done:
-	ret = hfi_session_set_property(inst, ptype, &cu);
-	if (ret)
-		return ret;
-
-	return ret;
+	return hfi_session_set_property(inst, ptype, &cu);
 }
 
 static int acquire_core(struct venus_inst *inst)

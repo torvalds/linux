@@ -202,6 +202,21 @@ struct file_zero_data_information {
 	__le64	BeyondFinalZero;
 } __packed;
 
+struct file_level_trim_range {
+	__le64	Offset;
+	__le64	Length;
+} __packed;
+
+struct file_level_trim {
+	__le32	Key;
+	__le32	NumRanges;
+	struct file_level_trim_range Ranges[];
+} __packed;
+
+struct file_level_trim_output {
+	__le32	NumRangesProcessed;
+} __packed;
+
 /*
  * This level 18, although with struct with same name is different from cifs
  * level 0x107. Level 0x107 has an extra u64 between AccessFlags and

@@ -167,7 +167,9 @@ struct intel_display_overlay_interface {
 
 struct intel_display_panic_interface {
 	struct intel_panic *(*alloc)(void);
-	int (*setup)(struct intel_panic *panic, struct drm_scanout_buffer *sb);
+	int (*setup)(struct intel_panic *panic, struct drm_scanout_buffer *sb,
+		     struct drm_gem_object *obj,
+		     unsigned int (*tiling)(unsigned int x, unsigned int y, unsigned int width));
 	void (*finish)(struct intel_panic *panic);
 };
 

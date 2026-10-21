@@ -275,8 +275,8 @@ config PINCTRL_GEMINI
 
 config PINCTRL_GENERIC_MUX
 	tristate "Generic Pinctrl driver by using multiplexer"
-	depends on MULTIPLEXER
 	depends on OF
+	select MULTIPLEXER
 	select PINMUX
 	select GENERIC_PINCTRL
 	help
@@ -488,6 +488,7 @@ config PINCTRL_PIC32
 	depends on MACH_PIC32 || COMPILE_TEST
 	select PINMUX
 	select GENERIC_PINCONF
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	help
 	  This is the pin controller and gpio driver for Microchip PIC32
@@ -564,6 +565,7 @@ config PINCTRL_STMFX
 	depends on I2C
 	depends on HAS_IOMEM
 	select GENERIC_PINCONF
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select MFD_STMFX
 	help
@@ -575,7 +577,7 @@ config PINCTRL_STMFX
 
 config PINCTRL_SX150X
 	tristate "Semtech SX150x I2C GPIO expander pinctrl driver"
-	depends on I2C=y
+	depends on I2C
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF

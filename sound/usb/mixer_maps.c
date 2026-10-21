@@ -505,6 +505,41 @@ static const struct usbmix_connector_map gigabyte_b450_connector_map[] = {
 	{}
 };
 
+/* Audient iD14 MkI and MkII: FU 12 sits on the monitor mixer branch but is
+ * traced through to the Speaker output terminal, so it is named "Speaker
+ * Playback Volume".  On MkII it controls only 4 of 6 playback channels.  MkI
+ * testing found asymmetric attenuation within the main stereo pair.  Userspace
+ * adopts this control as the stream's hardware volume, causing imbalance below
+ * 0 dB.  Give it a non-standard name so that userspace no longer treats it as
+ * the stream master, while keeping the monitor gain reachable.
+ */
+static const struct usbmix_name_map audient_id14_map[] = {
+	{ 12, "Monitor Mix Playback" },	/* FU, partial coverage */
+	{}
+};
+
+/*
+ * Audient iD24: feature unit 12 ("Speaker Playback Volume") sits in the
+ * monitor-mixer branch and does not apply volume to all of its channels;
+ * when userspace adopts it as the master playback volume, the left main
+ * output stays at 0 dB while the right one is attenuated, producing a
+ * stereo imbalance.  Rename it so that it is not picked up as the
+ * stream's master volume control.
+ */
+static const struct usbmix_name_map audient_id24_map[] = {
+	{ 12, "Monitor Mix Playback" },	/* FU, partial channel coverage */
+	{}
+};
+
+/*
+ * The GC553Pro returns no data for GET_CUR on its advertised mute control.
+ * SET_CUR succeeds but does not mute capture, so skip the control entirely.
+ */
+static const struct usbmix_name_map avermedia_gc553pro_map[] = {
+	{ 3, NULL, UAC_FU_MUTE },
+	{}
+};
+
 /*
  * Control map entries
  */
@@ -552,6 +587,10 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.selector_map = c400_selectors,
 	},
 	{
+		.id = USB_ID(0x07ca, 0x1553),
+		.map = avermedia_gc553pro_map,
+	},
+	{
 		.id = USB_ID(0x08bb, 0x2702),
 		.map = linex_map,
 	},
@@ -587,6 +626,21 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		/* MAYA44 USB+ */
 		.id = USB_ID(0x2573, 0x0008),
 		.map = maya44_map,
+	},
+	{
+		/* Audient iD14 MkI */
+		.id = USB_ID(0x2708, 0x0002),
+		.map = audient_id14_map,
+	},
+	{
+		/* Audient iD14 MkII */
+		.id = USB_ID(0x2708, 0x0008),
+		.map = audient_id14_map,
+	},
+	{
+		/* Audient iD24 */
+		.id = USB_ID(0x2708, 0x000d),
+		.map = audient_id24_map,
 	},
 	{
 		/* KEF X300A */

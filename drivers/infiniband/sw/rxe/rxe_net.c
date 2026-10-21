@@ -242,7 +242,7 @@ static int rxe_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	pkt->port_num = 1;
 	pkt->hdr = (u8 *)(udph + 1);
 	pkt->mask = RXE_GRH_MASK;
-	pkt->paylen = be16_to_cpu(udph->len) - sizeof(*udph);
+	pkt->paylen = udp_get_len_short(udph) - sizeof(*udph);
 
 	/* remove udp header */
 	skb_pull(skb, sizeof(struct udphdr));
@@ -305,7 +305,7 @@ static void prepare_udp_hdr(struct sk_buff *skb, __be16 src_port,
 
 	udph->dest = dst_port;
 	udph->source = src_port;
-	udph->len = htons(skb->len);
+	udp_set_len_short(udph, skb->len);
 	udph->check = 0;
 }
 

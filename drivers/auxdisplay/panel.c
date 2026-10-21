@@ -1450,43 +1450,6 @@ static struct logical_input *panel_bind_key(const char *name, const char *press,
 	return key;
 }
 
-#if 0
-/* tries to bind a callback function to the signal name <name>. The function
- * <press_fct> will be called with the <press_data> arg when the signal is
- * activated, and so on for <release_fct>/<release_data>
- * Returns the pointer to the new signal if ok, NULL if the signal could not
- * be bound.
- */
-static struct logical_input *panel_bind_callback(char *name,
-						 void (*press_fct)(int),
-						 int press_data,
-						 void (*release_fct)(int),
-						 int release_data)
-{
-	struct logical_input *callback;
-
-	callback = kmalloc(sizeof(*callback), GFP_KERNEL);
-	if (!callback)
-		return NULL;
-
-	memset(callback, 0, sizeof(struct logical_input));
-	if (!input_name2mask(name, &callback->mask, &callback->value,
-			     &scan_mask_i, &scan_mask_o))
-		return NULL;
-
-	callback->type = INPUT_TYPE_STD;
-	callback->state = INPUT_ST_LOW;
-	callback->rise_time = 1;
-	callback->fall_time = 1;
-	callback->u.std.press_fct = press_fct;
-	callback->u.std.press_data = press_data;
-	callback->u.std.release_fct = release_fct;
-	callback->u.std.release_data = release_data;
-	list_add(&callback->list, &logical_inputs);
-	return callback;
-}
-#endif
-
 static void keypad_init(void)
 {
 	int keynum;

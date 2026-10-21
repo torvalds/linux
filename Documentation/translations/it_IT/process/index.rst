@@ -63,6 +63,7 @@ della comunità del kernel (e oltre).
 .. toctree::
    :maxdepth: 1
 
+   license-rules
    code-of-conduct
    kernel-enforcement-statement
    kernel-driver-statement
@@ -78,6 +79,11 @@ con riguardo. I documenti che seguono descrivono le nostre politiche riguardo al
 trattamento di alcune classi particolari di bachi: le regressioni e i problemi
 di sicurezza.
 
+.. toctree::
+   :maxdepth: 1
+
+   security-bugs
+
 Informazioni per i manutentori
 ------------------------------
 
@@ -86,6 +92,7 @@ Come trovare le persone che accetteranno le vostre modifiche.
 .. toctree::
    :maxdepth: 1
 
+   maintainer-handbooks
    maintainers
 
 Altri documenti
@@ -98,6 +105,7 @@ degli sviluppatori:
    :maxdepth: 1
 
    kernel-docs
+   deprecated
 
 .. only::  subproject and html
 

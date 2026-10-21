@@ -167,6 +167,11 @@ static inline struct efa_ah *to_eah(struct ib_ah *ibah)
 	return container_of(ibah, struct efa_ah, ibah);
 }
 
+static inline struct efa_comp_cntr *to_ecc(struct ib_comp_cntr *ibcc)
+{
+	return container_of(ibcc, struct efa_comp_cntr, ibcc);
+}
+
 static inline struct efa_user_mmap_entry *
 to_emmap(struct rdma_user_mmap_entry *rdma_entry)
 {
@@ -222,7 +227,6 @@ int efa_query_device(struct ib_device *ibdev,
 
 	dev_attr = &dev->dev_attr;
 
-	memset(props, 0, sizeof(*props));
 	props->max_mr_size = dev_attr->max_mr_pages * PAGE_SIZE;
 	props->page_size_cap = dev_attr->page_size_cap;
 	props->vendor_id = dev->pdev->vendor;
@@ -264,6 +268,12 @@ int efa_query_device(struct ib_device *ibdev,
 
 		if (EFA_DEV_CAP(dev, UNSOLICITED_WRITE_RECV))
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_UNSOLICITED_WRITE_RECV;
+
+		if (EFA_DEV_CAP(dev, EVENT_COUNTERS))
+			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_COMP_CNTR;
+
+		if (EFA_DEV_CAP(dev, SQ_64_BIT_REQ_ID))
+			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_SQ_64_BIT_REQ_ID;
 
 		if (dev->neqs)
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_CQ_NOTIFICATIONS;
@@ -712,6 +722,9 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 	if (EFA_DEV_CAP(dev, UNSOLICITED_WRITE_RECV))
 		supported_efa_flags |= EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV;
 
+	if (EFA_DEV_CAP(dev, SQ_64_BIT_REQ_ID))
+		supported_efa_flags |= EFA_CREATE_QP_WITH_SQ_64_BIT_REQ_ID;
+
 	if (cmd.flags & ~supported_efa_flags) {
 		ibdev_dbg(&dev->ibdev, "Unsupported EFA QP create flags[%#x], supported[%#x]\n",
 			  cmd.flags, supported_efa_flags);
@@ -770,6 +783,9 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 
 	if (cmd.flags & EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV)
 		create_qp_params.unsolicited_write_recv = true;
+
+	if (cmd.flags & EFA_CREATE_QP_WITH_SQ_64_BIT_REQ_ID)
+		create_qp_params.sq_64_bit_req_id = true;
 
 	err = efa_com_create_qp(&dev->edev, &create_qp_params,
 				&create_qp_resp);
@@ -1205,6 +1221,7 @@ int efa_create_user_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	params.entry_size_in_bytes = cmd.cq_entry_size;
 	params.num_sub_cqs = cmd.num_sub_cqs;
 	params.set_src_addr = set_src_addr;
+	params.sq_comp_64_bit_req_id = !!(cmd.flags & EFA_CREATE_CQ_WITH_SQ_COMP_64_BIT_REQ_ID);
 	if (cmd.flags & EFA_CREATE_CQ_WITH_COMPLETION_CHANNEL) {
 		cq->eq = efa_vec2eq(dev, attr->comp_vector);
 		params.eqn = cq->eq->eeq.eqn;
@@ -1345,9 +1362,11 @@ static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 
 		chunk_list->chunks[i].length = EFA_CHUNK_USED_SIZE;
 	}
-	chunk_list->chunks[chunk_list_size - 1].length =
-		((page_cnt % EFA_PTRS_PER_CHUNK) * EFA_CHUNK_PAYLOAD_PTR_SIZE) +
-			EFA_CHUNK_PTR_SIZE;
+
+	if (page_cnt % EFA_PTRS_PER_CHUNK != 0)
+		chunk_list->chunks[chunk_list_size - 1].length =
+			((page_cnt % EFA_PTRS_PER_CHUNK) * EFA_CHUNK_PAYLOAD_PTR_SIZE) +
+				EFA_CHUNK_PTR_SIZE;
 
 	/* fill the dma addresses of sg list pages to chunks: */
 	chunk_idx = 0;
@@ -1359,9 +1378,12 @@ static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 			rdma_block_iter_dma_address(&biter);
 
 		if (payload_idx == EFA_PTRS_PER_CHUNK) {
-			chunk_idx++;
-			cur_chunk_buf = chunk_list->chunks[chunk_idx].buf;
 			payload_idx = 0;
+			chunk_idx++;
+			if (chunk_idx >= chunk_list_size)
+				break;
+
+			cur_chunk_buf = chunk_list->chunks[chunk_idx].buf;
 		}
 	}
 
@@ -2054,10 +2076,11 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 
 static int efa_ah_destroy(struct efa_dev *dev, struct efa_ah *ah)
 {
-	struct efa_com_destroy_ah_params params = {
-		.ah = ah->ah,
-		.pdn = to_epd(ah->ibah.pd)->pdn,
-	};
+	struct efa_com_destroy_ah_params params = {};
+
+	params.ah = ah->ah;
+	memcpy(params.gid, ah->id, sizeof(params.gid));
+	params.pdn = to_epd(ah->ibah.pd)->pdn;
 
 	return efa_com_destroy_ah(&dev->edev, &params);
 }
@@ -2260,6 +2283,220 @@ enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,
 	return IB_LINK_LAYER_UNSPECIFIED;
 }
 
+int efa_query_comp_cntr_caps(struct ib_device *ibdev,
+			     struct ib_comp_cntr_caps *caps,
+			     struct uverbs_attr_bundle *attrs)
+{
+	struct efa_dev *dev = to_edev(ibdev);
+	u32 dev_ops = dev->dev_attr.supported_event_counter_qp_events;
+
+	caps->max_counters = dev->dev_attr.max_event_counters / 2;
+	caps->max_value = dev->dev_attr.event_counter_max_val;
+
+	caps->supported_qp_attach_ops = 0;
+	if (EFA_GET(&dev_ops, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_SEND_COMP) &&
+	    EFA_GET(&dev_ops, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_SEND_COMP_ERR))
+		caps->supported_qp_attach_ops |= IB_QP_ATTACH_COMP_CNTR_OP_SEND;
+	if (EFA_GET(&dev_ops, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_RECV_COMP) &&
+	    EFA_GET(&dev_ops, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_RECV_COMP_ERR))
+		caps->supported_qp_attach_ops |= IB_QP_ATTACH_COMP_CNTR_OP_RECV;
+	if (EFA_GET(&dev_ops, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_READ_COMP) &&
+	    EFA_GET(&dev_ops, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_READ_COMP_ERR))
+		caps->supported_qp_attach_ops |= IB_QP_ATTACH_COMP_CNTR_OP_RDMA_READ;
+	if (EFA_GET(&dev_ops, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_WRITE_COMP) &&
+	    EFA_GET(&dev_ops, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_WRITE_COMP_ERR))
+		caps->supported_qp_attach_ops |= IB_QP_ATTACH_COMP_CNTR_OP_RDMA_WRITE;
+	if (EFA_GET(&dev_ops, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_REMOTE_READ_COMP))
+		caps->supported_qp_attach_ops |= IB_QP_ATTACH_COMP_CNTR_OP_REMOTE_RDMA_READ;
+	if (EFA_GET(&dev_ops, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_REMOTE_WRITE_COMP))
+		caps->supported_qp_attach_ops |= IB_QP_ATTACH_COMP_CNTR_OP_REMOTE_RDMA_WRITE;
+
+	return 0;
+}
+
+static int efa_create_event_counter(struct efa_dev *dev, u16 uarn, dma_addr_t addr, u32 *handle)
+{
+	struct efa_com_create_event_counter_params params = {};
+	struct efa_com_create_event_counter_result result;
+	int err;
+
+	params.uarn = uarn;
+	params.dma_addr = addr;
+
+	err = efa_com_create_event_counter(&dev->edev, &params, &result);
+	if (err)
+		return err;
+
+	*handle = result.cntr_handle;
+	return 0;
+}
+
+static int efa_destroy_event_counter(struct efa_dev *dev, u32 handle)
+{
+	struct efa_com_destroy_event_counter_params params = {
+		.cntr_handle = handle,
+	};
+
+	return efa_com_destroy_event_counter(&dev->edev, &params);
+}
+
+int efa_create_comp_cntr(struct ib_comp_cntr *ibcc, struct uverbs_attr_bundle *attrs)
+{
+	struct efa_dev *dev = to_edev(ibcc->device);
+	struct efa_comp_cntr *cc = to_ecc(ibcc);
+	struct efa_ucontext *ucontext;
+	struct ib_umem *comp_umem;
+	struct ib_umem *err_umem;
+	dma_addr_t comp_addr;
+	dma_addr_t err_addr;
+	int err;
+
+	ucontext = rdma_udata_to_drv_context(&attrs->driver_udata, struct efa_ucontext,
+					     ibucontext);
+
+	comp_umem = ib_umem_get_attr(ibcc->device, attrs, EFA_IB_ATTR_CREATE_COMP_CNTR_COMP_BUFFER,
+				     sizeof(u64), IB_ACCESS_LOCAL_WRITE);
+	if (IS_ERR(comp_umem))
+		return PTR_ERR(comp_umem);
+
+	err_umem = ib_umem_get_attr(ibcc->device, attrs, EFA_IB_ATTR_CREATE_COMP_CNTR_ERR_BUFFER,
+				    sizeof(u64), IB_ACCESS_LOCAL_WRITE);
+	if (IS_ERR(err_umem)) {
+		err = PTR_ERR(err_umem);
+		goto err_comp_umem;
+	}
+
+	comp_addr = ib_umem_start_dma_addr(comp_umem);
+	err_addr = ib_umem_start_dma_addr(err_umem);
+
+	if (!IS_ALIGNED(comp_addr, sizeof(u64)) || !IS_ALIGNED(err_addr, sizeof(u64))) {
+		ibdev_dbg(&dev->ibdev, "Completion Counter memory is unaligned\n");
+		err = -EINVAL;
+		goto err_err_umem;
+	}
+
+	err = efa_create_event_counter(dev, ucontext->uarn, comp_addr, &cc->comp_handle);
+	if (err) {
+		ibdev_dbg(&dev->ibdev, "Failed to create comp event counter [%d]\n", err);
+		goto err_err_umem;
+	}
+
+	err = efa_create_event_counter(dev, ucontext->uarn, err_addr, &cc->err_handle);
+	if (err) {
+		ibdev_dbg(&dev->ibdev, "Failed to create err event counter [%d]\n", err);
+		goto err_destroy_comp_event_cntr;
+	}
+
+	cc->comp_umem = comp_umem;
+	cc->err_umem = err_umem;
+
+	return 0;
+
+err_destroy_comp_event_cntr:
+	efa_destroy_event_counter(dev, cc->comp_handle);
+err_err_umem:
+	ib_umem_release(err_umem);
+err_comp_umem:
+	ib_umem_release(comp_umem);
+	return err;
+}
+
+int efa_destroy_comp_cntr(struct ib_comp_cntr *ibcc)
+{
+	struct efa_dev *dev = to_edev(ibcc->device);
+	struct efa_comp_cntr *cc = to_ecc(ibcc);
+
+	efa_destroy_event_counter(dev, cc->comp_handle);
+	efa_destroy_event_counter(dev, cc->err_handle);
+
+	ib_umem_release(cc->comp_umem);
+	ib_umem_release(cc->err_umem);
+	return 0;
+}
+
+int efa_modify_comp_cntr(struct ib_comp_cntr *ibcc, enum ib_comp_cntr_entry entry,
+			 enum ib_comp_cntr_modify_op op, u64 value)
+{
+	struct efa_com_modify_event_counter_params params = {};
+	struct efa_comp_cntr *cc = to_ecc(ibcc);
+
+	params.cntr_handle = entry == IB_COMP_CNTR_ENTRY_ERR ? cc->err_handle : cc->comp_handle;
+	params.operation = op == IB_COMP_CNTR_MODIFY_OP_SET ?
+			   EFA_ADMIN_EVENT_COUNTER_MODIFY_SET : EFA_ADMIN_EVENT_COUNTER_MODIFY_ADD;
+	params.value = value;
+
+	return efa_com_modify_event_counter(&to_edev(ibcc->device)->edev, &params);
+}
+
+static u32 efa_comp_cntr_op_to_comp_events(u32 op_mask)
+{
+	u32 events = 0;
+
+	if (op_mask & IB_QP_ATTACH_COMP_CNTR_OP_SEND)
+		EFA_SET(&events, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_SEND_COMP, 1);
+	if (op_mask & IB_QP_ATTACH_COMP_CNTR_OP_RECV)
+		EFA_SET(&events, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_RECV_COMP, 1);
+	if (op_mask & IB_QP_ATTACH_COMP_CNTR_OP_RDMA_READ)
+		EFA_SET(&events, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_READ_COMP, 1);
+	if (op_mask & IB_QP_ATTACH_COMP_CNTR_OP_REMOTE_RDMA_READ)
+		EFA_SET(&events, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_REMOTE_READ_COMP, 1);
+	if (op_mask & IB_QP_ATTACH_COMP_CNTR_OP_RDMA_WRITE)
+		EFA_SET(&events, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_WRITE_COMP, 1);
+	if (op_mask & IB_QP_ATTACH_COMP_CNTR_OP_REMOTE_RDMA_WRITE)
+		EFA_SET(&events, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_REMOTE_WRITE_COMP, 1);
+
+	return events;
+}
+
+static u32 efa_comp_cntr_op_to_err_events(u32 op_mask)
+{
+	u32 events = 0;
+
+	if (op_mask & IB_QP_ATTACH_COMP_CNTR_OP_SEND)
+		EFA_SET(&events, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_SEND_COMP_ERR, 1);
+	if (op_mask & IB_QP_ATTACH_COMP_CNTR_OP_RECV)
+		EFA_SET(&events, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_RECV_COMP_ERR, 1);
+	if (op_mask & IB_QP_ATTACH_COMP_CNTR_OP_RDMA_READ)
+		EFA_SET(&events, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_READ_COMP_ERR, 1);
+	if (op_mask & IB_QP_ATTACH_COMP_CNTR_OP_RDMA_WRITE)
+		EFA_SET(&events, EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS_WRITE_COMP_ERR, 1);
+
+	return events;
+}
+
+int efa_qp_attach_comp_cntr(struct ib_qp *ibqp, struct ib_comp_cntr *ibcc,
+			    struct ib_qp_attach_comp_cntr_attr *attr)
+{
+	struct efa_com_detach_event_counter_params detach_params = {};
+	struct efa_com_attach_event_counter_params params = {};
+	struct efa_dev *dev = to_edev(ibqp->device);
+	struct efa_comp_cntr *cc = to_ecc(ibcc);
+	struct efa_qp *qp = to_eqp(ibqp);
+	int err;
+
+	params.cntr_handle = cc->comp_handle;
+	params.qp_handle = qp->qp_handle;
+	params.events = efa_comp_cntr_op_to_comp_events(attr->op_mask);
+
+	err = efa_com_attach_event_counter(&dev->edev, &params);
+	if (err)
+		return err;
+
+	params.cntr_handle = cc->err_handle;
+	params.events = efa_comp_cntr_op_to_err_events(attr->op_mask);
+
+	err = efa_com_attach_event_counter(&dev->edev, &params);
+	if (err) {
+		detach_params.cntr_handle = cc->comp_handle;
+		detach_params.qp_handle = qp->qp_handle;
+		detach_params.events = efa_comp_cntr_op_to_comp_events(attr->op_mask);
+		efa_com_detach_event_counter(&dev->edev, &detach_params);
+		return err;
+	}
+
+	return 0;
+}
+
 DECLARE_UVERBS_NAMED_METHOD(EFA_IB_METHOD_MR_QUERY,
 			    UVERBS_ATTR_IDR(EFA_IB_ATTR_QUERY_MR_HANDLE,
 					    UVERBS_OBJECT_MR,
@@ -2282,8 +2519,23 @@ ADD_UVERBS_METHODS(efa_mr,
 		   UVERBS_OBJECT_MR,
 		   &UVERBS_METHOD(EFA_IB_METHOD_MR_QUERY));
 
+ADD_UVERBS_ATTRIBUTES_SIMPLE(
+	efa_comp_cntr_create,
+	UVERBS_OBJECT_COMP_CNTR,
+	UVERBS_METHOD_COMP_CNTR_CREATE,
+	UVERBS_ATTR_PTR_IN(
+		EFA_IB_ATTR_CREATE_COMP_CNTR_COMP_BUFFER,
+		UVERBS_ATTR_STRUCT(struct ib_uverbs_buffer_desc, length),
+		UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(
+		EFA_IB_ATTR_CREATE_COMP_CNTR_ERR_BUFFER,
+		UVERBS_ATTR_STRUCT(struct ib_uverbs_buffer_desc, length),
+		UA_MANDATORY));
+
 const struct uapi_definition efa_uapi_defs[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_MR,
 				&efa_mr),
+	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_COMP_CNTR,
+				&efa_comp_cntr_create),
 	{},
 };

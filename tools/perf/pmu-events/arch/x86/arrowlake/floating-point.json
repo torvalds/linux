@@ -511,6 +511,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of uops executed on all floating point ports.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb2",
+        "EventName": "FP_VINT_UOPS_EXECUTED.ALL",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xf",
+        "Unit": "cpu_lowpower"
+    },
+    {
         "BriefDescription": "Counts the number of uops executed on floating point and vector integer port 0.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb2",
@@ -518,6 +527,15 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x2",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on floating point and vector integer port 0.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb2",
+        "EventName": "FP_VINT_UOPS_EXECUTED.P0",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_lowpower"
     },
     {
         "BriefDescription": "Counts the number of uops executed on floating point and vector integer port 1.",
@@ -529,6 +547,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of uops executed on floating point and vector integer port 1.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb2",
+        "EventName": "FP_VINT_UOPS_EXECUTED.P1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
+        "Unit": "cpu_lowpower"
+    },
+    {
         "BriefDescription": "Counts the number of uops executed on floating point and vector integer port 2.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb2",
@@ -536,6 +563,15 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x8",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on floating point and vector integer port 2.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb2",
+        "EventName": "FP_VINT_UOPS_EXECUTED.P2",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_lowpower"
     },
     {
         "BriefDescription": "Counts the number of uops executed on floating point and vector integer port 3.",
@@ -554,6 +590,15 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x1e",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on floating point and vector integer port 0, 1, 2.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb2",
+        "EventName": "FP_VINT_UOPS_EXECUTED.PRIMARY",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xe",
+        "Unit": "cpu_lowpower"
     },
     {
         "BriefDescription": "Counts the number of uops executed on floating point and vector integer store data port.",

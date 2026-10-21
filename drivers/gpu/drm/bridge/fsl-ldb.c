@@ -289,7 +289,7 @@ static const struct drm_bridge_funcs funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_get_input_bus_fmts = fsl_ldb_atomic_get_input_bus_fmts,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.mode_valid = fsl_ldb_mode_valid,
 };
 
@@ -348,6 +348,7 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 		fsl_ldb->use_termination_resistor = true;
 
 	fsl_ldb->panel_bridge = devm_drm_panel_bridge_add(dev, panel);
+	drm_panel_put(panel);
 	if (IS_ERR(fsl_ldb->panel_bridge))
 		return PTR_ERR(fsl_ldb->panel_bridge);
 

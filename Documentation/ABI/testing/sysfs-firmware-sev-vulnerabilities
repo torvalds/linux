@@ -1,0 +1,19 @@
+What:		/sys/firmware/sev/vulnerabilities/supported_mitigations
+Date:		June 2026
+Contact:	linux-crypto@vger.kernel.org
+Description:
+		Read-only interface that reports the vector of SEV-SNP
+		firmware vulnerability mitigations supported by the firmware.
+
+What:		/sys/firmware/sev/vulnerabilities/verified_mitigations
+Date:		June 2026
+Contact:	linux-crypto@vger.kernel.org
+Description:
+		Read/write interface that reports the vector of SEV-SNP
+		firmware vulnerability mitigations already verified by the
+		firmware. Writing a vector value requests the firmware to
+		VERIFY the corresponding mitigation bit(s).
+
+		The list of supported mitigations and the meaning of each
+		vector bit are both platform- and bug-specific and are
+		published as part of the AMD Security Bulletin.

@@ -15,6 +15,7 @@
 struct block_device;
 struct super_block;
 struct extent_buffer;
+struct btrfs_eb_prealloc;
 struct btrfs_device;
 struct btrfs_fs_devices;
 struct btrfs_fs_info;
@@ -48,6 +49,7 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 				      struct btrfs_tree_parent_check *check);
 struct extent_buffer *btrfs_find_create_tree_block(
 						struct btrfs_fs_info *fs_info,
+						struct btrfs_eb_prealloc *pa,
 						u64 bytenr, u64 owner_root,
 						int level);
 int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info);

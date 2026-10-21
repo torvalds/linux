@@ -30,6 +30,18 @@ description: |
 
 allOf:
   - $ref: dai-common.yaml#
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: everest,es8316
+    then:
+      properties:
+        avdd-supply: false
+        cpvdd-supply: false
+        dvdd-supply: false
+        pvdd-supply: false
 
 properties:
   compatible:
@@ -48,6 +60,18 @@ properties:
   clock-names:
     items:
       - const: mclk
+
+  avdd-supply:
+    description: Regulator providing the analog supply, from 2.0 V to 3.6 V
+
+  cpvdd-supply:
+    description: Regulator providing the charge pump supply, from 1.6 V to 2.0 V
+
+  dvdd-supply:
+    description: Regulator providing the digital core supply, from 1.6 V to 3.6 V
+
+  pvdd-supply:
+    description: Regulator providing the digital I/O supply, from 1.6 V to 3.6 V
 
   interrupts:
     maxItems: 1
@@ -77,6 +101,10 @@ examples:
         reg = <0x11>;
         clocks = <&clks 10>;
         clock-names = "mclk";
+        avdd-supply = <&reg_3p3v>;
+        cpvdd-supply = <&reg_1p8v>;
+        dvdd-supply = <&reg_1p8v>;
+        pvdd-supply = <&reg_1p8v>;
         #sound-dai-cells = <0>;
       };
     };

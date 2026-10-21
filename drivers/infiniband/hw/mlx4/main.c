@@ -471,8 +471,6 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	if (err)
 		goto out;
 
-	memset(props, 0, sizeof *props);
-
 	have_ib_ports = num_ib_ports(dev->dev);
 
 	props->fw_ver = dev->dev->caps.fw_ver;

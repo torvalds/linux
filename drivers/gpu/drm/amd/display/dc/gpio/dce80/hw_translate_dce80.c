@@ -35,7 +35,10 @@
 
 #include "dce/dce_8_0_d.h"
 #include "dce/dce_8_0_sh_mask.h"
-#include "smu/smu_7_0_1_d.h"
+
+#ifndef mmGPIOPAD_A
+#define mmGPIOPAD_A 0x0183
+#endif
 
 /*
  * @brief

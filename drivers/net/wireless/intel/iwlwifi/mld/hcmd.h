@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #ifndef __iwl_mld_hcmd_h__
 #define __iwl_mld_hcmd_h__
@@ -42,7 +42,12 @@ __iwl_mld_send_cmd_with_flags_pdu(struct iwl_mld *mld, u32 id,
 
 #define _iwl_mld_send_cmd_with_flags_pdu(mld, id, flags, data, len,	\
 					 ignored...)			\
-	__iwl_mld_send_cmd_with_flags_pdu(mld, id, flags, data, len)
+	({								\
+		BUILD_BUG_ON(__builtin_constant_p(len) &&		\
+			     (u16)(len) > IWL_MAX_CMD_PAYLOAD_SIZE);	\
+		__iwl_mld_send_cmd_with_flags_pdu(mld, id, flags,	\
+						  data, len);		\
+	})
 #define iwl_mld_send_cmd_with_flags_pdu(mld, id, flags, data, len...)	\
 	_iwl_mld_send_cmd_with_flags_pdu(mld, id, flags, data, ##len,	\
 					 sizeof(*(data)))

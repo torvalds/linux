@@ -1829,7 +1829,7 @@ int annotated_data_type__update_samples(struct annotated_data_type *adt,
 		return 0;
 
 	if (adt->histograms == NULL) {
-		int nr = evsel->evlist->core.nr_entries;
+		int nr = evlist__nr_entries(evsel->evlist);
 
 		if (alloc_data_type_histograms(adt, nr) < 0)
 			return -1;

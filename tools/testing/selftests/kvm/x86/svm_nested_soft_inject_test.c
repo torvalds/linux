@@ -78,17 +78,13 @@ static void l2_guest_code_nmi(void)
 
 static void l1_guest_code(struct svm_test_data *svm, u64 is_nmi, u64 idt_alt)
 {
-	#define L2_GUEST_STACK_SIZE 64
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	struct vmcb *vmcb = svm->vmcb;
 
 	if (is_nmi)
 		x2apic_enable();
 
 	/* Prepare for L2 execution. */
-	generic_svm_setup(svm,
-			  is_nmi ? l2_guest_code_nmi : l2_guest_code_int,
-			  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, is_nmi ? l2_guest_code_nmi : l2_guest_code_int);
 
 	vmcb->control.intercept_exceptions |= BIT(PF_VECTOR) | BIT(UD_VECTOR);
 	vmcb->control.intercept |= BIT(INTERCEPT_NMI) | BIT(INTERCEPT_HLT);

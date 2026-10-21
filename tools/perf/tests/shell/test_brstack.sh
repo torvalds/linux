@@ -110,20 +110,29 @@ test_trap_eret_branches() {
 		return
 	fi
 	start_err=$err
-	err=0
-	perf record -o $TMPDIR/perf.data --branch-filter any,save_type,u,k -- \
-		perf test -w traploop 1000 > "$TMPDIR/record.txt" 2>&1
-	perf script -i $TMPDIR/perf.data --fields brstacksym | \
-		tr ' ' '\n' > $TMPDIR/perf.script
+	local ret=1
+	for loops in 1000 10000 100000; do
+		err=0
+		perf record -o $TMPDIR/perf.data --branch-filter any,save_type,u,k -- \
+			perf test -w traploop $loops > "$TMPDIR/record.txt" 2>&1
+		perf script -i $TMPDIR/perf.data --fields brstacksym | \
+			tr ' ' '\n' > $TMPDIR/perf.script
 
-	# BRBINF<n>.TYPE == TRAP are mapped to PERF_BR_IRQ by the BRBE driver
-	check_branches "^trap_bench\+[^ ]+/[^ ]/IRQ/"
-	check_branches "^[^ ]+/trap_bench\+[^ ]+/ERET/"
-	if [ $err -eq 0 ]; then
+		# BRBINF<n>.TYPE == TRAP are mapped to PERF_BR_IRQ by the BRBE driver
+		check_branches "^trap_bench\+[^ ]+/[^ ]/IRQ/"
+		check_branches "^[^ ]+/trap_bench\+[^ ]+/ERET/"
+		if [ $err -eq 0 ]; then
+			ret=0
+			break
+		fi
+	done
+
+	if [ $ret -eq 0 ]; then
 		echo "Testing trap & eret branches [Passed]"
 		err=$start_err
 	else
 		echo "Testing trap & eret branches [Failed]"
+		err=1
 	fi
 }
 
@@ -135,32 +144,40 @@ test_kernel_branches() {
 		return
 	fi
 	start_err=$err
-	err=0
-	perf record -o $TMPDIR/perf.data --branch-filter any,k -- \
-		perf bench syscall basic --loop 1000 > "$TMPDIR/record.txt" 2>&1
-	perf script -i $TMPDIR/perf.data --fields brstack | \
-		tr ' ' '\n' > $TMPDIR/perf.script
+	local ret=1
+	for loops in 1000 10000 100000; do
+		err=0
+		perf record -o $TMPDIR/perf.data --branch-filter any,k -- \
+			perf bench syscall basic --loop $loops > "$TMPDIR/record.txt" 2>&1
+		perf script -i $TMPDIR/perf.data --fields brstack | \
+			tr ' ' '\n' > $TMPDIR/perf.script
 
-	# Example of branch entries:
-	#       "0xffffffff93bda241/0xffffffff93bda20f/M/-/-/..."
-	# Source addresses come first in user or kernel code. Next is the target
-	# address that must be in the kernel.
+		# Example of branch entries:
+		#       "0xffffffff93bda241/0xffffffff93bda20f/M/-/-/..."
+		# Source addresses come first in user or kernel code. Next is the target
+		# address that must be in the kernel.
 
-	# Look for source addresses with top bit set
-	if ! grep -q -E -m1 "^0x[89a-f][0-9a-f]{15}" $TMPDIR/perf.script; then
-		echo "Testing kernel branch sampling [Failed kernel branches missing]"
-		err=1
-	fi
-	# Look for no target addresses without top bit set
-	if grep -q -E -m1 "^0x[0-9a-f]{0,16}/0x[0-7][0-9a-f]{1,15}/" $TMPDIR/perf.script; then
-		echo "Testing kernel branch sampling [Failed user branches found]"
-		err=1
-	fi
-	if [ $err -eq 0 ]; then
+		# Look for source addresses with top bit set
+		if ! grep -q -E -m1 "^0x[89a-f][0-9a-f]{15}" $TMPDIR/perf.script; then
+			err=1
+		fi
+		# Look for no target addresses without top bit set
+		if grep -q -E -m1 "^0x[0-9a-f]{0,16}/0x[0-7][0-9a-f]{1,15}/" \
+			$TMPDIR/perf.script; then
+			err=1
+		fi
+		if [ $err -eq 0 ]; then
+			ret=0
+			break
+		fi
+	done
+
+	if [ $ret -eq 0 ]; then
 		echo "Testing kernel branch sampling [Passed]"
 		err=$start_err
 	else
 		echo "Testing kernel branch sampling [Failed]"
+		err=1
 	fi
 }
 
@@ -206,20 +223,28 @@ test_syscall() {
 		return
 	fi
 	start_err=$err
-	err=0
-	perf record -o $TMPDIR/perf.data --branch-filter \
-		any_call,save_type,u,k -c 10007 -- \
-		perf bench syscall basic --loop 8000  > "$TMPDIR/record.txt" 2>&1
-	perf script -i $TMPDIR/perf.data --fields brstacksym | \
-		tr ' ' '\n' > $TMPDIR/perf.script
+	local ret=1
+	for loops in 8000 30000 100000; do
+		err=0
+		perf record -o $TMPDIR/perf.data --branch-filter \
+			any_call,save_type,u,k -c 10007 -- \
+			perf bench syscall basic --loop $loops  > "$TMPDIR/record.txt" 2>&1
+		perf script -i $TMPDIR/perf.data --fields brstacksym | \
+			tr ' ' '\n' > $TMPDIR/perf.script
 
-	check_branches "getppid[^ ]*/SYSCALL/"
+		check_branches "getppid[^ ]*/SYSCALL/"
+		if [ $err -eq 0 ]; then
+			ret=0
+			break
+		fi
+	done
 
-	if [ $err -eq 0 ]; then
+	if [ $ret -eq 0 ]; then
 		echo "Testing syscalls [Passed]"
 		err=$start_err
 	else
 		echo "Testing syscalls [Failed]"
+		err=1
 	fi
 }
 set -e

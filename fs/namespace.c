@@ -5999,7 +5999,7 @@ SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
 			return -EPERM;
 	}
 
-	ks = kmalloc(sizeof(*ks), GFP_KERNEL_ACCOUNT);
+	ks = kmalloc_obj(*ks, GFP_KERNEL_ACCOUNT);
 	if (!ks)
 		return -ENOMEM;
 

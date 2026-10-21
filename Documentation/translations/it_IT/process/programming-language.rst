@@ -8,8 +8,8 @@
 Linguaggio di programmazione
 ============================
 
-Il kernel è scritto nel linguaggio di programmazione C [it-c-language]_.
-Più precisamente, il kernel viene compilato con ``gcc`` [it-gcc]_ usando
+Il kernel Linux è scritto nel linguaggio di programmazione C [it-c-language]_.
+Più precisamente, viene compilato con ``gcc`` [it-gcc]_ usando
 l'opzione ``-std=gnu11`` [it-gcc-c-dialect-options]_: il dialetto GNU
 dello standard ISO C11.
 Linux supporta anche ``clang`` [it-clang]_, leggete la documentazione
@@ -42,7 +42,7 @@ Per maggiori informazioni consultate il file d'intestazione
 Rust
 ----
 
-Il kernel supporta sperimentalmente il linguaggio di programmazione Rust
+Il kernel supporta il linguaggio di programmazione Rust
 [it-rust-language]_ abilitando l'opzione di configurazione ``CONFIG_RUST``. Il
 codice verrà compilato usando ``rustc`` [it-rustc]_ con l'opzione
 ``--edition=2021`` [it-rust-editions]_. Le edizioni Rust sono un modo per

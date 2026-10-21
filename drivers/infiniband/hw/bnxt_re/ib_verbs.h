@@ -70,6 +70,8 @@ struct bnxt_re_ah {
 	struct bnxt_qplib_ah	qplib_ah;
 };
 
+struct bnxt_re_user_mmap_entry;
+
 struct bnxt_re_srq {
 	struct ib_srq		ib_srq;
 	struct bnxt_re_dev	*rdev;
@@ -78,7 +80,7 @@ struct bnxt_re_srq {
 	struct ib_umem		*umem;
 	spinlock_t		lock;		/* protect srq */
 	void			*uctx_srq_page;
-	struct hlist_node       hash_entry;
+	struct bnxt_re_user_mmap_entry *toggle_entry;
 };
 
 struct bnxt_re_qp {
@@ -113,7 +115,7 @@ struct bnxt_re_cq {
 	struct ib_umem		*resize_umem;
 	int			resize_cqe;
 	void			*uctx_cq_page;
-	struct hlist_node	hash_entry;
+	struct bnxt_re_user_mmap_entry *toggle_entry;
 };
 
 struct bnxt_re_mr {
@@ -147,6 +149,8 @@ struct bnxt_re_ucontext {
 	void			*shpg;
 	spinlock_t		sh_lock;	/* protect shpg */
 	struct rdma_user_mmap_entry *shpage_mmap;
+	struct xarray		cq_xa;  /* cqid → ib_uobject, per-context toggle page lookup */
+	struct xarray		srq_xa; /* srqid → ib_uobject, per-context toggle page lookup */
 	u64 cmask;
 };
 

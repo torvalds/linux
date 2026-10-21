@@ -9,18 +9,18 @@
 
 static void rtw_hal_init_opmode(struct adapter *padapter)
 {
-	enum ndis_802_11_network_infrastructure networkType = Ndis802_11InfrastructureMax;
+	enum nl80211_iftype networkType = NL80211_IFTYPE_UNSPECIFIED;
 	struct  mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	signed int fw_state;
 
 	fw_state = get_fwstate(pmlmepriv);
 
 	if (fw_state & WIFI_ADHOC_STATE)
-		networkType = Ndis802_11IBSS;
+		networkType = NL80211_IFTYPE_ADHOC;
 	else if (fw_state & WIFI_STATION_STATE)
-		networkType = Ndis802_11Infrastructure;
+		networkType = NL80211_IFTYPE_STATION;
 	else if (fw_state & WIFI_AP_STATE)
-		networkType = Ndis802_11APMode;
+		networkType = NL80211_IFTYPE_AP;
 	else
 		return;
 
@@ -170,9 +170,8 @@ void rtw_hal_update_ra_mask(struct sta_info *psta, u8 rssi_level)
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		add_ratid(padapter, psta, rssi_level);
-	else {
+	else
 		UpdateHalRAMask8723B(padapter, psta->mac_id, rssi_level);
-	}
 }
 
 void rtw_hal_add_ra_tid(struct adapter *padapter, u32 bitmap, u8 *arg, u8 rssi_level)
@@ -216,9 +215,8 @@ void rtw_hal_dm_watchdog(struct adapter *padapter)
 
 void rtw_hal_dm_watchdog_in_lps(struct adapter *padapter)
 {
-	if (adapter_to_pwrctl(padapter)->fw_current_in_ps_mode) {
+	if (adapter_to_pwrctl(padapter)->fw_current_in_ps_mode)
 		rtl8723b_HalDmWatchDog_in_LPS(padapter); /* this function caller is in interrupt context */
-	}
 }
 
 void beacon_timing_control(struct adapter *padapter)

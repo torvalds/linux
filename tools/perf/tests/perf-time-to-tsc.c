@@ -99,7 +99,7 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 	evlist = evlist__new();
 	CHECK_NOT_NULL__(evlist);
 
-	perf_evlist__set_maps(&evlist->core, cpus, threads);
+	perf_evlist__set_maps(evlist__core(evlist), cpus, threads);
 
 	CHECK__(parse_event(evlist, "cpu-cycles:u"));
 
@@ -121,9 +121,9 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 		goto out_err;
 	}
 
-	CHECK__(evlist__mmap(evlist, UINT_MAX));
+	CHECK__(evlist__do_mmap(evlist, UINT_MAX));
 
-	pc = evlist->mmap[0].core.base;
+	pc = evlist__mmap(evlist)[0].core.base;
 	ret = perf_read_tsc_conversion(pc, &tc);
 	if (ret) {
 		if (ret == -EOPNOTSUPP) {
@@ -145,8 +145,8 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 
 	evlist__disable(evlist);
 
-	for (i = 0; i < evlist->core.nr_mmaps; i++) {
-		md = &evlist->mmap[i];
+	for (i = 0; i < evlist__core(evlist)->nr_mmaps; i++) {
+		md = &evlist__mmap(evlist)[i];
 		if (perf_mmap__read_init(&md->core) < 0)
 			continue;
 
@@ -201,7 +201,7 @@ next_event:
 	err = TEST_OK;
 
 out_err:
-	evlist__delete(evlist);
+	evlist__put(evlist);
 	perf_cpu_map__put(cpus);
 	perf_thread_map__put(threads);
 	return err;

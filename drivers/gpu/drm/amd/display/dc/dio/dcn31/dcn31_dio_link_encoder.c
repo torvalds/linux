@@ -516,6 +516,8 @@ void dcn31_link_encoder_construct_minimal(
 	struct dc_context *ctx,
 	const struct encoder_feature_support *enc_features,
 	const struct dcn10_link_enc_registers *link_regs,
+	const struct dcn10_link_enc_shift *link_shift,
+	const struct dcn10_link_enc_mask *link_mask,
 	enum engine_id eng_id)
 {
 	struct dcn10_link_encoder *enc10 = &enc20->enc10;
@@ -529,6 +531,8 @@ void dcn31_link_encoder_construct_minimal(
 	enc10->base.features = *enc_features;
 	enc10->base.transmitter = TRANSMITTER_UNKNOWN;
 	enc10->link_regs = link_regs;
+	enc10->link_shift = link_shift;
+	enc10->link_mask = link_mask;
 
 	enc10->base.output_signals =
 		SIGNAL_TYPE_DISPLAY_PORT |

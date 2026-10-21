@@ -809,9 +809,9 @@ static const struct snd_kcontrol_new snd_cx88_alc_switch = {
  */
 
 static const struct pci_device_id cx88_audio_pci_tbl[] = {
-	{0x14f1, 0x8801, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x14f1, 0x8811, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0, }
+	{ PCI_DEVICE(0x14f1, 0x8801) },
+	{ PCI_DEVICE(0x14f1, 0x8811) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, cx88_audio_pci_tbl);
 

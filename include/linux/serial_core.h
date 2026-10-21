@@ -437,6 +437,7 @@ enum uart_iotype {
 	UPIO_TSI	= SERIAL_IO_TSI,	/* Tsi108/109 type IO */
 	UPIO_MEM32BE	= SERIAL_IO_MEM32BE,	/* 32b big endian */
 	UPIO_MEM16	= SERIAL_IO_MEM16,	/* 16b little endian */
+	UPIO_BUS	= SERIAL_IO_BUS,	/* Serial bus I/O access (ex: SPI, I2C) */
 };
 
 struct uart_port {
@@ -459,10 +460,13 @@ struct uart_port {
 					       unsigned int baud,
 					       unsigned int quot,
 					       unsigned int quot_frac);
+	int			(*get_rxtrig)(struct uart_port *port);
+	int			(*set_rxtrig)(struct uart_port *port, unsigned char bytes);
 	int			(*startup)(struct uart_port *port);
 	void			(*shutdown)(struct uart_port *port);
 	void			(*throttle)(struct uart_port *port);
 	void			(*unthrottle)(struct uart_port *port);
+	void			(*break_ctl)(struct uart_port *port, int break_state);
 	int			(*handle_irq)(struct uart_port *);
 	void			(*pm)(struct uart_port *, unsigned int state,
 				      unsigned int old);
@@ -1338,4 +1342,9 @@ static inline int uart_handle_break(struct uart_port *port)
 					 !((cflag) & CLOCAL))
 
 int uart_get_rs485_mode(struct uart_port *port);
+
+void uart_get_ioinfos(struct uart_port *port, char *buf, size_t size);
+bool uart_iotype_mmio(enum uart_iotype iotype);
+bool uart_iotype_io(enum uart_iotype iotype);
+
 #endif /* LINUX_SERIAL_CORE_H */

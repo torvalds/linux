@@ -853,6 +853,7 @@ static int
 ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	       u8 *bytes)
 {
+	enum libie_aq_err read_aq_err = LIBIE_AQ_RC_OK;
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 	struct ice_hw *hw = &pf->hw;
 	struct device *dev;
@@ -869,24 +870,15 @@ ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = ice_acquire_nvm(hw, ICE_RES_READ);
+	ret = ice_read_flat_nvm(hw, eeprom->offset, &eeprom->len, buf,
+				false, &read_aq_err);
 	if (ret) {
-		dev_err(dev, "ice_acquire_nvm failed, err %d aq_err %s\n",
-			ret, libie_aq_str(hw->adminq.sq_last_status));
+		dev_err(dev, "ice_read_flat_nvm failed, err %d aq_err %s\n",
+			ret, libie_aq_str(read_aq_err));
 		goto out;
 	}
 
-	ret = ice_read_flat_nvm(hw, eeprom->offset, &eeprom->len, buf,
-				false);
-	if (ret) {
-		dev_err(dev, "ice_read_flat_nvm failed, err %d aq_err %s\n",
-			ret, libie_aq_str(hw->adminq.sq_last_status));
-		goto release;
-	}
-
 	memcpy(bytes, buf, eeprom->len);
-release:
-	ice_release_nvm(hw);
 out:
 	kfree(buf);
 	return ret;

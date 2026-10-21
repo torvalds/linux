@@ -1657,6 +1657,7 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 u8 iwl_mvm_rate_idx_to_fw_idx(const struct iwl_fw *fw, int rate_idx);
 u8 iwl_mvm_mac80211_ac_to_ucode_ac(enum ieee80211_ac_numbers ac);
 bool iwl_mvm_is_nic_ack_enabled(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm);
 
 static inline void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 {
@@ -1672,14 +1673,24 @@ u32 iwl_mvm_get_systime(struct iwl_mvm *mvm);
 /* Tx / Host Commands */
 int iwl_mvm_send_cmd(struct iwl_mvm *mvm,
 		     struct iwl_host_cmd *cmd);
-int iwl_mvm_send_cmd_pdu(struct iwl_mvm *mvm, u32 id,
-			 u32 flags, u16 len, const void *data);
+int _iwl_mvm_send_cmd_pdu(struct iwl_mvm *mvm, u32 id,
+			  u32 flags, u16 len, const void *data);
+#define iwl_mvm_send_cmd_pdu(mvm, id, flags, len, data) ({		\
+	BUILD_BUG_ON(__builtin_constant_p(len) &&			\
+		     (u16)(len) > IWL_MAX_CMD_PAYLOAD_SIZE);		\
+	_iwl_mvm_send_cmd_pdu(mvm, id, flags, len, data);		\
+})
 int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm,
 			    struct iwl_host_cmd *cmd,
 			    u32 *status);
-int iwl_mvm_send_cmd_pdu_status(struct iwl_mvm *mvm, u32 id,
-				u16 len, const void *data,
-				u32 *status);
+int _iwl_mvm_send_cmd_pdu_status(struct iwl_mvm *mvm, u32 id,
+				 u16 len, const void *data,
+				 u32 *status);
+#define iwl_mvm_send_cmd_pdu_status(mvm, id, len, data, status) ({	\
+	BUILD_BUG_ON(__builtin_constant_p(len) &&			\
+		     (u16)(len) > IWL_MAX_CMD_PAYLOAD_SIZE);		\
+	_iwl_mvm_send_cmd_pdu_status(mvm, id, len, data, status);	\
+})
 int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 		       struct ieee80211_sta *sta);
 int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb);
@@ -2392,14 +2403,12 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     bool sync,
 				     const void *data, u32 size);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
-struct ieee80211_vif *iwl_mvm_get_vif_by_macid(struct iwl_mvm *mvm, u32 macid);
 bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);
 
 #define MVM_TCM_PERIOD_MSEC 500
 #define MVM_TCM_PERIOD (HZ * MVM_TCM_PERIOD_MSEC / 1000)
 #define MVM_LL_PERIOD (10 * HZ)
 void iwl_mvm_tcm_work(struct work_struct *work);
-void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm);
 void iwl_mvm_pause_tcm(struct iwl_mvm *mvm, bool with_cancel);
 void iwl_mvm_resume_tcm(struct iwl_mvm *mvm);
 void iwl_mvm_tcm_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);

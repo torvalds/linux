@@ -330,13 +330,13 @@ static void ad5449_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad5449_spi_ids[] = {
-	{ "ad5415", ID_AD5449 },
-	{ "ad5426", ID_AD5426 },
-	{ "ad5429", ID_AD5429 },
-	{ "ad5432", ID_AD5432 },
-	{ "ad5439", ID_AD5439 },
-	{ "ad5443", ID_AD5443 },
-	{ "ad5449", ID_AD5449 },
+	{ .name = "ad5415", .driver_data = ID_AD5449 },
+	{ .name = "ad5426", .driver_data = ID_AD5426 },
+	{ .name = "ad5429", .driver_data = ID_AD5429 },
+	{ .name = "ad5432", .driver_data = ID_AD5432 },
+	{ .name = "ad5439", .driver_data = ID_AD5439 },
+	{ .name = "ad5443", .driver_data = ID_AD5443 },
+	{ .name = "ad5449", .driver_data = ID_AD5449 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5449_spi_ids);

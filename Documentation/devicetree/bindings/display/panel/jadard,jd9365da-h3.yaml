@@ -19,6 +19,7 @@ properties:
           - anbernic,rg-ds-display-bottom
           - anbernic,rg-ds-display-top
           - chongzhou,cz101b4001
+          - dcltek,dt300250
           - kingdisplay,kd101ne3-40ti
           - melfas,lmfbx101117480
           - radxa,display-10hd-ad001

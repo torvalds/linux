@@ -2204,7 +2204,7 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 					IRQF_ONESHOT,
 					pdev->name, i2c_dev);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Failed to request irq event\n");
+		return ret;
 
 	if (!i2c_dev->setup.single_it_line) {
 		irq_error = platform_get_irq(pdev, 1);
@@ -2217,7 +2217,7 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 						IRQF_ONESHOT,
 						pdev->name, i2c_dev);
 		if (ret)
-			return dev_err_probe(&pdev->dev, ret, "Failed to request irq error\n");
+			return ret;
 	}
 
 	ret = stm32f7_i2c_setup_timing(i2c_dev, &i2c_dev->setup);

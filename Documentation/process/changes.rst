@@ -147,11 +147,6 @@ Since Linux 5.2, if CONFIG_DEBUG_INFO_BTF is selected, the build system
 generates BTF (BPF Type Format) from DWARF in vmlinux, a bit later from kernel
 modules as well.  This requires pahole v1.22 or later.
 
-Since Linux 7.0, kfuncs annotated with KF_IMPLICIT_ARGS require pahole v1.26
-or later.  Without it, such kfuncs will have incorrect BTF prototypes in
-vmlinux, causing BPF programs to fail to load with a "func_proto incompatible
-with vmlinux" error.  Many sched_ext kfuncs are affected.
-
 It is found in the 'dwarves' or 'pahole' distro packages or from
 https://fedorapeople.org/~acme/dwarves/.
 

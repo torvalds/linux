@@ -1,8 +1,5 @@
 .. include:: ../disclaimer-ita.rst
 
-.. note:: Per leggere la documentazione originale in inglese:
-	  :ref:`Documentation/doc-guide/index.rst <doc_guide>`
-
 .. _it_sphinxdoc:
 
 =============================================
@@ -36,7 +33,7 @@ Installazione Sphinx
 ====================
 
 I marcatori ReST utilizzati nei file in Documentation/ sono pensati per essere
-processati da ``Sphinx`` nella versione 1.7 o superiore.
+processati da ``Sphinx`` nella versione 3.4.3 o superiore.
 
 Esiste uno script che verifica i requisiti Sphinx. Per ulteriori dettagli
 consultate :ref:`it_sphinx-pre-install`.
@@ -52,24 +49,14 @@ vi raccomandiamo di installare Sphinx dentro ad un ambiente virtuale usando
 ``virtualenv-3`` o ``virtualenv`` a seconda di come Python 3 è stato
 pacchettizzato dalla vostra distribuzione.
 
-.. note::
+Riassumendo, se volete installare l'ultima versione di Sphinx, dovete
+eseguire::
 
-   #) Viene raccomandato l'uso del tema RTD per la documentazione in HTML.
-      A seconda della versione di Sphinx, potrebbe essere necessaria
-      l'installazione tramite il comando ``pip install sphinx_rtd_theme``.
+       $ virtualenv sphinx_latest
+       $ . sphinx_latest/bin/activate
+       (sphinx_latest) $ pip install -r Documentation/sphinx/requirements.txt
 
-   #) Alcune pagine ReST contengono delle formule matematiche. A causa del
-      modo in cui Sphinx funziona, queste espressioni sono scritte
-      utilizzando LaTeX. Per una corretta interpretazione, è necessario aver
-      installato texlive con i pacchetti amdfonts e amsmath.
-
-Riassumendo, se volete installare la versione 2.4.4 di Sphinx dovete eseguire::
-
-       $ virtualenv sphinx_2.4.4
-       $ . sphinx_2.4.4/bin/activate
-       (sphinx_2.4.4) $ pip install -r Documentation/sphinx/requirements.txt
-
-Dopo aver eseguito ``. sphinx_2.4.4/bin/activate``, il prompt cambierà per
+Dopo aver eseguito ``. sphinx_latest/bin/activate``, il prompt cambierà per
 indicare che state usando il nuovo ambiente. Se aprite un nuova sessione,
 prima di generare la documentazione, dovrete rieseguire questo comando per
 rientrare nell'ambiente virtuale.
@@ -98,6 +85,27 @@ Per la generazione di PDF e LaTeX, avrete bisogno anche del pacchetto
 Per alcune distribuzioni Linux potrebbe essere necessario installare
 anche una serie di pacchetti ``texlive`` in modo da fornire il supporto
 minimo per il funzionamento di ``XeLaTeX``.
+
+Espressioni matematiche in HTML
+-------------------------------
+
+Alcune pagine ReST contengono delle formule matematiche. Per come funziona
+Sphinx, queste espressioni sono scritte utilizzando la notazione LaTeX. Esistono
+due opzioni per far si che Sphinx rappresenti le espressioni matematiche
+nell'output HTML. La prima è un'estensione chiamata `imgmath`_ che converte le
+espressioni matematiche in immagini e le integra nelle pagine HTML. L'altra è
+un'estensione chiamata `mathjax`_ che delega la rappresentazione delle formule
+matematiche ai browser web capaci di eseguire JavaScript. La prima era l'unica
+opzione per la documentazione del kernel precedente alla versione 6.1 e richiede
+diversi pacchetti texlive, fra cui amsfonts e amsmath.
+
+A partire dalla versione 6.1 del kernel, le pagine HTML con espressioni
+matematiche possono essere generate senza dover installare alcun pacchetto
+texlive. Per maggiori informazioni consultate `Scelta della libreria per le
+formule matematiche`_.
+
+.. _imgmath: https://www.sphinx-doc.org/en/master/usage/extensions/math.html#module-sphinx.ext.imgmath
+.. _mathjax: https://www.sphinx-doc.org/en/master/usage/extensions/math.html#module-sphinx.ext.mathjax
 
 .. _it_sphinx-pre-install:
 
@@ -136,6 +144,30 @@ Questo script ha i seguenti parametri:
 	Utilizza l'ambiente predefinito dal sistema operativo invece che
 	l'ambiente virtuale per Python;
 
+Installare la versione minima di Sphinx
+---------------------------------------
+
+Quando si modifica il sistema di generazione di Sphinx, è importante
+assicurarsi che la versione minima sia ancora supportata. Al giorno d'oggi,
+sta diventando sempre più difficile farlo sulle distribuzioni moderne, dato
+che non è possibile installarla con Python 3.13 e versioni successive.
+
+Potete verificare la versione minima di Python supportata, così come
+definita in Documentation/process/changes.rst, creando un venv con quella
+versione e installando i requisiti minimi con::
+
+	/usr/bin/python3.9 -m venv sphinx_min
+	. sphinx_min/bin/activate
+	pip install -r Documentation/sphinx/min_requirements.txt
+
+Un test più completo può essere eseguito utilizzando:
+
+	tools/docs/test_doc_build.py
+
+Questo script crea un venv Python per ogni versione supportata, generando
+facoltativamente la documentazione per un intervallo di versioni di
+Sphinx.
+
 
 Generazione della documentazione Sphinx
 =======================================
@@ -143,39 +175,82 @@ Generazione della documentazione Sphinx
 Per generare la documentazione in formato HTML o PDF si eseguono i rispettivi
 comandi ``make htmldocs`` o ``make pdfdocs``. Esistono anche altri formati
 in cui è possibile generare la documentazione; per maggiori informazioni
-potere eseguire il comando ``make help``.
+potete eseguire il comando ``make help``.
 La documentazione così generata sarà disponibile nella sottocartella
 ``Documentation/output``.
 
 Ovviamente, per generare la documentazione, Sphinx (``sphinx-build``)
-dev'essere installato. Se disponibile, il tema *Read the Docs* per Sphinx
-verrà utilizzato per ottenere una documentazione HTML più gradevole.
-Per la documentazione in formato PDF, invece, avrete bisogno di ``XeLaTeX`
-e di ``convert(1)`` disponibile in ImageMagick
-(https://www.imagemagick.org). \ [#ink]_
-Tipicamente, tutti questi pacchetti sono disponibili e pacchettizzati nelle
-distribuzioni Linux.
+dev'essere installato. Per la documentazione in formato PDF, invece,
+avrete bisogno di ``XeLaTeX`` e di ``convert(1)`` disponibile in
+ImageMagick (https://www.imagemagick.org).\ [#ink]_ Tutti questi pacchetti
+sono ampiamente disponibili e pacchettizzati nelle distribuzioni.
 
 Per poter passare ulteriori opzioni a Sphinx potete utilizzare la variabile
-make ``SPHINXOPTS``. Per esempio, se volete che Sphinx sia più verboso durante
-la generazione potete usare il seguente comando ``make SPHINXOPTS=-v htmldocs``.
+make ``SPHINXOPTS``. Per esempio, se volete che Sphinx sia più prolisso
+durante la generazione potete usare il comando
+``make SPHINXOPTS=-v htmldocs``.
 
-Potete anche personalizzare l'ouptut html passando un livello aggiuntivo
+Potete anche personalizzare l'output html passando un livello aggiuntivo
 DOCS_CSS usando la rispettiva variabile d'ambiente ``DOCS_CSS``.
 
-La variable make ``SPHINXDIRS`` è utile quando si vuole generare solo una parte
-della documentazione. Per esempio, si possono generare solo di documenti in
-``Documentation/doc-guide`` eseguendo ``make SPHINXDIRS=doc-guide htmldocs``. La
-sezione dedicata alla documentazione di ``make help`` vi mostrerà quali sotto
-cartelle potete specificare.
+Il tema di base per generare la documentazione HTML viene è "Alabaster"; questo
+tema è distribuito assieme a Sphinx e non necessita di un'installazione
+separata. Il tema di Sphinx può essere sostituito usando la variabile make
+``DOCS_THEME``.
+
+.. note::
+
+   Alcuni potrebbero preferire il tema RTD per l'output in HTML. A seconda
+   della versione di Sphinx, dev'essere installato separatamente, con il
+   comando ``pip install sphinx_rtd_theme``.
+
+Esiste un'altra variabile make, ``SPHINXDIRS``, utile quando si vuole
+generare, a scopo di test, solo una parte della documentazione. Per
+esempio, potete generare i documenti in ``Documentation/doc-guide``
+eseguendo ``make SPHINXDIRS=doc-guide htmldocs``. La sezione dedicata alla
+documentazione di ``make help`` vi mostrerà l'elenco delle sottocartelle
+che potete specificare.
 
 Potete eliminare la documentazione generata tramite il comando
 ``make cleandocs``.
 
-.. [#ink] Avere installato anche ``inkscape(1)`` dal progetto Inkscape ()
-          potrebbe aumentare la qualità delle immagini che verranno integrate
-          nel documento PDF, specialmente per quando si usando rilasci del
-          kernel uguali o superiori a 5.18
+.. [#ink] Avere installato anche ``inkscape(1)`` dal progetto Inkscape
+	  (https://inkscape.org) potrebbe aumentare la qualità delle
+	  immagini integrate nei documenti PDF, specialmente per i rilasci
+	  del kernel dalla versione 5.18 in poi.
+
+Scelta della libreria per le formule matematiche
+------------------------------------------------
+
+A partire dalla versione 6.1 del kernel, mathjax funge da libreria di
+ripiego per le formule matematiche nell'output HTML.\ [#sph1_8]_
+
+La libreria matematica viene scelta in base ai comandi disponibili, come
+mostrato di seguito:
+
+.. table:: Scelta della libreria matematica per l'HTML
+
+    ======== ================= ================
+    Libreria Comandi richiesti Formato immagine
+    ======== ================= ================
+    imgmath  latex, dvipng     PNG (raster)
+    mathjax
+    ======== ================= ================
+
+La scelta può essere sovrascritta impostando la variabile d'ambiente
+``SPHINX_IMGMATH`` come mostrato di seguito:
+
+.. table:: Effetto dell'impostazione di ``SPHINX_IMGMATH``
+
+    ====================== ========
+    Impostazione           Libreria
+    ====================== ========
+    ``SPHINX_IMGMATH=yes`` imgmath
+    ``SPHINX_IMGMATH=no``  mathjax
+    ====================== ========
+
+.. [#sph1_8] La libreria di ripiego richiede Sphinx >=1.8.
+
 
 Scrivere la documentazione
 ==========================
@@ -289,8 +364,19 @@ incrociato quando questa ha una voce nell'indice.  Se trovate degli usi di
 ``c:func:`` nella documentazione del kernel, sentitevi liberi di rimuoverli.
 
 
+Tabelle
+-------
+
+Il formato reStructuredText offre diverse opzioni per la sintassi delle tabelle.
+Lo stile del kernel per le tabelle preferisce la sintassi delle *tabelle
+semplici* o delle *tabelle a griglia*. Per maggiori dettagli consultate il
+`manuale di riferimento reStructuredText per la sintassi delle tabelle`_.
+
+.. _manuale di riferimento reStructuredText per la sintassi delle tabelle:
+   https://docutils.sourceforge.io/docs/user/rst/quickref.html#tables
+
 Tabelle a liste
----------------
+~~~~~~~~~~~~~~~
 
 Il formato ``list-table`` può essere utile per tutte quelle tabelle che non
 possono essere facilmente scritte usando il formato ASCII-art di Sphinx. Però,
@@ -403,6 +489,16 @@ percorso al documento.
 
 Per informazioni riguardo ai riferimenti incrociati ai commenti
 kernel-doc per funzioni o tipi, consultate
+Documentation/translations/it_IT/doc-guide/kernel-doc.rst.
+
+Riferimenti ai commit
+~~~~~~~~~~~~~~~~~~~~~
+
+I riferimenti ai commit di git vengono trasformati automaticamente in
+collegamenti ipertestuali quando sono scritti in uno di questi formati::
+
+    commit 72bf4f1767f0
+    commit 72bf4f1767f0 ("net: do not leave an empty skb in write queue")
 
 .. _it_sphinx_kfigure:
 

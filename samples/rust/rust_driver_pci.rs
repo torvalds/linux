@@ -74,7 +74,6 @@ struct SampleDriver;
 
 kernel::pci_device_table!(
     PCI_TABLE,
-    MODULE_PCI_TABLE,
     <SampleDriver as pci::Driver>::IdInfo,
     [(
         pci::DeviceId::from_id(pci::Vendor::REDHAT, 0x5),
@@ -144,7 +143,7 @@ impl pci::Driver for SampleDriver {
 
     fn probe<'bound>(
         pdev: &'bound pci::Device<Core<'_>>,
-        info: &'bound Self::IdInfo,
+        info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
         let vendor = pdev.vendor_id();
         dev_dbg!(
@@ -153,6 +152,7 @@ impl pci::Driver for SampleDriver {
             vendor,
             pdev.device_id()
         );
+        let info = info.ok_or(ENODEV)?;
 
         pdev.enable_device_mem()?;
         pdev.set_master();

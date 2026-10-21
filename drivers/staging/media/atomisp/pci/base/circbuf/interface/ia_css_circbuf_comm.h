@@ -24,7 +24,7 @@
  * Portable Data structures
  *
  ****************************************************************/
-/**
+/*
  * @brief Data structure for the circular descriptor.
  */
 typedef struct ia_css_circbuf_desc_s ia_css_circbuf_desc_t;
@@ -40,7 +40,7 @@ struct ia_css_circbuf_desc_s {
 
 static_assert(sizeof(struct ia_css_circbuf_desc_s) == SIZE_OF_IA_CSS_CIRCBUF_DESC_S_STRUCT);
 
-/**
+/*
  * @brief Data structure for the circular buffer element.
  */
 typedef struct ia_css_circbuf_elem_s ia_css_circbuf_elem_t;

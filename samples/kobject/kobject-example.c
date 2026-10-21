@@ -25,13 +25,13 @@ static int bar;
 /*
  * The "foo" file where a static variable is read from and written to.
  */
-static ssize_t foo_show(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t foo_show(struct kobject *kobj, const struct kobj_attribute *attr,
 			char *buf)
 {
 	return sysfs_emit(buf, "%d\n", foo);
 }
 
-static ssize_t foo_store(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t foo_store(struct kobject *kobj, const struct kobj_attribute *attr,
 			 const char *buf, size_t count)
 {
 	int ret;
@@ -44,14 +44,14 @@ static ssize_t foo_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 /* Sysfs attributes cannot be world-writable. */
-static struct kobj_attribute foo_attribute =
-	__ATTR(foo, 0664, foo_show, foo_store);
+static const struct kobj_attribute foo_attribute =
+	__KOBJ_ATTR(foo, 0664, foo_show, foo_store);
 
 /*
  * More complex function where we determine which variable is being accessed by
  * looking at the attribute for the "baz" and "bar" files.
  */
-static ssize_t b_show(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t b_show(struct kobject *kobj, const struct kobj_attribute *attr,
 		      char *buf)
 {
 	int var;
@@ -63,7 +63,7 @@ static ssize_t b_show(struct kobject *kobj, struct kobj_attribute *attr,
 	return sysfs_emit(buf, "%d\n", var);
 }
 
-static ssize_t b_store(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t b_store(struct kobject *kobj, const struct kobj_attribute *attr,
 		       const char *buf, size_t count)
 {
 	int var, ret;
@@ -79,17 +79,17 @@ static ssize_t b_store(struct kobject *kobj, struct kobj_attribute *attr,
 	return count;
 }
 
-static struct kobj_attribute baz_attribute =
-	__ATTR(baz, 0664, b_show, b_store);
-static struct kobj_attribute bar_attribute =
-	__ATTR(bar, 0664, b_show, b_store);
+static const struct kobj_attribute baz_attribute =
+	__KOBJ_ATTR(baz, 0664, b_show, b_store);
+static const struct kobj_attribute bar_attribute =
+	__KOBJ_ATTR(bar, 0664, b_show, b_store);
 
 
 /*
  * Create a group of attributes so that we can create and destroy them all
  * at once.
  */
-static struct attribute *attrs[] = {
+static const struct attribute *const attrs[] = {
 	&foo_attribute.attr,
 	&baz_attribute.attr,
 	&bar_attribute.attr,
@@ -103,7 +103,7 @@ static struct attribute *attrs[] = {
  * attribute group.
  */
 static const struct attribute_group attr_group = {
-	.attrs = attrs,
+	.attrs_const = attrs,
 };
 
 static struct kobject *example_kobj;

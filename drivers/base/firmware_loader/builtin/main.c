@@ -53,6 +53,8 @@ bool firmware_request_builtin(struct firmware *fw, const char *name)
 
 	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++) {
 		if (strcmp(name, b_fw->name) == 0) {
+			if (b_fw->size == 0)
+				return false;
 			fw->size = b_fw->size;
 			fw->data = b_fw->data;
 			return true;

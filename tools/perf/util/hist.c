@@ -3056,6 +3056,7 @@ static void hists_evsel__exit(struct evsel *evsel)
 	struct perf_hpp_list_node *node, *tmp;
 
 	hists__delete_all_entries(hists);
+	zfree(&hists->symbol_filter_str);
 	zfree(&hists->mem_stat_types);
 	zfree(&hists->mem_stat_total);
 

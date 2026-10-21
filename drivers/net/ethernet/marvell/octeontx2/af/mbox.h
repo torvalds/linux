@@ -309,6 +309,8 @@ M(NPC_MCAM_GET_DFT_RL_IDXS, 0x601e, npc_get_dft_rl_idxs,	\
 M(NPC_MCAM_GET_NPC_PFL_INFO, 0x601f, npc_get_pfl_info,		\
 					msg_req,		\
 					npc_get_pfl_info_rsp)	\
+M(NPC_MCAM_READ_DEFAULT_RULE, 0x6021, npc_read_default_rule, msg_req,	\
+					npc_mcam_read_base_rule_rsp)	\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc,				\
 				 nix_lf_alloc_req, nix_lf_alloc_rsp)	\
@@ -362,6 +364,7 @@ M(NIX_CPT_BP_ENABLE,    0x8020, nix_cpt_bp_enable, nix_bp_cfg_req,	    \
 				nix_bp_cfg_rsp)				    \
 M(NIX_CPT_BP_DISABLE,   0x8021, nix_cpt_bp_disable, nix_bp_cfg_req,	    \
 				msg_rsp)				\
+M(NIX_RX_SW_SYNC,	0x8022, nix_rx_sw_sync, msg_req, msg_rsp)		\
 M(NIX_READ_INLINE_IPSEC_CFG, 0x8023, nix_read_inline_ipsec_cfg,		\
 				msg_req, nix_inline_ipsec_cfg)		\
 M(NIX_MCAST_GRP_CREATE,	0x802b, nix_mcast_grp_create, nix_mcast_grp_create_req,	\
@@ -803,6 +806,7 @@ struct npc_set_pkind {
 			 */
 	u8 var_len_off_mask; /* Mask for length with in offset */
 	u8 shift_dir; /* shift direction to get length of the header at var_len_off */
+	u8 skip_size; /* l2 size to skip */
 };
 
 /* NPA mbox message formats */
@@ -951,6 +955,7 @@ enum nix_af_status {
 	NIX_AF_ERR_INVALID_MCAST_GRP	= -436,
 	NIX_AF_ERR_INVALID_MCAST_DEL_REQ = -437,
 	NIX_AF_ERR_NON_CONTIG_MCE_LIST = -438,
+	NIX_AF_ERR_RX_SW_SYNC_FAIL	= -439,
 };
 
 /* For NIX RX vtag action  */
@@ -1262,11 +1267,13 @@ struct nix_rss_flowkey_cfg {
 #define NIX_FLOW_KEY_TYPE_INNR_UDP      BIT(15)
 #define NIX_FLOW_KEY_TYPE_INNR_SCTP     BIT(16)
 #define NIX_FLOW_KEY_TYPE_INNR_ETH_DMAC BIT(17)
+#define NIX_FLOW_KEY_TYPE_CH_LEN_90B    BIT(18)
 #define NIX_FLOW_KEY_TYPE_CUSTOM0	BIT(19)
 #define NIX_FLOW_KEY_TYPE_VLAN		BIT(20)
 #define NIX_FLOW_KEY_TYPE_IPV4_PROTO	BIT(21)
 #define NIX_FLOW_KEY_TYPE_AH		BIT(22)
 #define NIX_FLOW_KEY_TYPE_ESP		BIT(23)
+#define NIX_FLOW_KEY_TYPE_ROCEV2	BIT(24)
 #define NIX_FLOW_KEY_TYPE_L4_DST_ONLY BIT(28)
 #define NIX_FLOW_KEY_TYPE_L4_SRC_ONLY BIT(29)
 #define NIX_FLOW_KEY_TYPE_L3_DST_ONLY BIT(30)
@@ -1461,7 +1468,7 @@ struct nix_inline_ipsec_lf_cfg {
 
 struct nix_hw_info {
 	struct mbox_msghdr hdr;
-	u16 rsvs16;
+	u16 vwqe_delay;
 	u16 max_mtu;
 	u16 min_mtu;
 	u32 rpm_dwrr_mtu;

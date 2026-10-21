@@ -138,11 +138,78 @@ struct kset_uevent_ops {
 
 struct kobj_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
-			 const char *buf, size_t count);
+	__SYSFS_FUNCTION_ALTERNATIVE(
+		ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
+		ssize_t (*show_const)(struct kobject *kobj, const struct kobj_attribute *attr,
+				      char *buf);
+	);
+	__SYSFS_FUNCTION_ALTERNATIVE(
+		ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
+				 const char *buf, size_t count);
+		ssize_t (*store_const)(struct kobject *kobj, const struct kobj_attribute *attr,
+				       const char *buf, size_t count);
+	);
 };
+
+typedef ssize_t __kobj_show_handler_const(struct kobject *kobj, const struct kobj_attribute *attr,
+					  char *buf);
+typedef ssize_t __kobj_store_handler_const(struct kobject *kobj, const struct kobj_attribute *attr,
+					   const char *buf, size_t count);
+
+#ifdef CONFIG_CFI
+
+#define __KOBJ_ATTR_SHOW_STORE(_show, _store)						\
+	.show		= _Generic(_show,						\
+			  __kobj_show_handler_const * : NULL,				\
+			  default : _show						\
+	),										\
+	.show_const	= _Generic(_show,						\
+			  __kobj_show_handler_const * : _show,				\
+			  default : NULL						\
+	),										\
+	.store		= _Generic(_store,						\
+			  __kobj_store_handler_const * : NULL,				\
+			  default : _store						\
+	),										\
+	.store_const	= _Generic(_store,						\
+			  __kobj_store_handler_const * : _store,			\
+			  default : NULL \
+	),
+
+#else
+
+#define __KOBJ_ATTR_SHOW_STORE(_show, _store)						\
+	.show		= _Generic(_show,						\
+			  __kobj_show_handler_const * : (void *)_show,			\
+			  default : _show						\
+	),										\
+	.store		= _Generic(_store,						\
+			  __kobj_store_handler_const * : (void *)_store,		\
+			  default : _store						\
+	),										\
+
+#endif
+
+#define __KOBJ_ATTR(_name, _mode, _show, _store) {			\
+	.attr	= { .name = __stringify(_name),				\
+		    .mode = VERIFY_OCTAL_PERMISSIONS(_mode) },		\
+	__KOBJ_ATTR_SHOW_STORE(_show, _store)				\
+}
+
+#define __KOBJ_ATTR_RO_MODE(_name, _mode)				\
+	__KOBJ_ATTR(_name, _mode, _name##_show, NULL)
+
+#define __KOBJ_ATTR_RO(_name)						\
+	__KOBJ_ATTR_RO_MODE(_name, 0444)
+
+#define __KOBJ_ATTR_RW_MODE(_name, _mode)				\
+	__KOBJ_ATTR(_name, _mode, _name##_show, _name##_store)
+
+#define __KOBJ_ATTR_WO(_name)						\
+	__KOBJ_ATTR(_name, 0200, NULL, _name##_store)
+
+#define __KOBJ_ATTR_RW(_name)						\
+	__KOBJ_ATTR(_name, 0644, _name##_show, _name##_store)
 
 extern const struct sysfs_ops kobj_sysfs_ops;
 

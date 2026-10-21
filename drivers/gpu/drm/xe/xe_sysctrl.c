@@ -85,7 +85,6 @@ int xe_sysctrl_init(struct xe_device *xe)
 		return ret;
 
 	xe->soc_remapper.set_sysctrl_region(xe, SYSCTRL_MAILBOX_INDEX);
-	xe_sysctrl_mailbox_init(sc);
 	INIT_WORK(&sc->work, xe_sysctrl_work);
 
 	return devm_add_action_or_reset(xe->drm.dev, sysctrl_fini, xe);
@@ -114,12 +113,10 @@ void xe_sysctrl_irq_handler(struct xe_device *xe, u32 master_ctl)
  * @xe: xe device instance
  *
  * Invoked during system resume (S3/S4 to S0) and runtime resume from D3cold.
- * Restores SoC remapper configuration and reinitializes mailbox interface.
+ * Restores SoC remapper configuration.
  */
 void xe_sysctrl_pm_resume(struct xe_device *xe)
 {
-	struct xe_sysctrl *sc = &xe->sc;
-
 	if (!xe->info.has_soc_remapper_sysctrl)
 		return;
 
@@ -127,6 +124,4 @@ void xe_sysctrl_pm_resume(struct xe_device *xe)
 		return;
 
 	xe->soc_remapper.set_sysctrl_region(xe, SYSCTRL_MAILBOX_INDEX);
-
-	xe_sysctrl_mailbox_init(sc);
 }

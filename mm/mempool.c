@@ -16,10 +16,27 @@
 #include <linux/export.h>
 #include <linux/mempool.h>
 #include <linux/writeback.h>
+#include <linux/static_key.h>
+#include <linux/init.h>
 #include "slab.h"
 
 static DECLARE_FAULT_ATTR(fail_mempool_alloc);
 static DECLARE_FAULT_ATTR(fail_mempool_alloc_bulk);
+
+/*
+ * Debugging support for mempool using static key.
+ *
+ * This allows enabling mempool debug at boot time via:
+ *   mempool_debug
+ */
+static DEFINE_STATIC_KEY_FALSE(mempool_debug_enabled);
+
+static int __init mempool_debug_setup(char *str)
+{
+	static_branch_enable(&mempool_debug_enabled);
+	return 1;
+}
+__setup("mempool_debug", mempool_debug_setup);
 
 static int __init mempool_faul_inject_init(void)
 {
@@ -37,7 +54,6 @@ static int __init mempool_faul_inject_init(void)
 }
 late_initcall(mempool_faul_inject_init);
 
-#ifdef CONFIG_SLUB_DEBUG_ON
 static void poison_error(struct mempool *pool, void *element, size_t size,
 			 size_t byte)
 {
@@ -140,14 +156,6 @@ static void poison_element(struct mempool *pool, void *element)
 #endif
 	}
 }
-#else /* CONFIG_SLUB_DEBUG_ON */
-static inline void check_element(struct mempool *pool, void *element)
-{
-}
-static inline void poison_element(struct mempool *pool, void *element)
-{
-}
-#endif /* CONFIG_SLUB_DEBUG_ON */
 
 static __always_inline bool kasan_poison_element(struct mempool *pool,
 		void *element)
@@ -175,7 +183,10 @@ static void kasan_unpoison_element(struct mempool *pool, void *element)
 static __always_inline void add_element(struct mempool *pool, void *element)
 {
 	BUG_ON(pool->min_nr != 0 && pool->curr_nr >= pool->min_nr);
-	poison_element(pool, element);
+
+	if (static_branch_unlikely(&mempool_debug_enabled))
+		poison_element(pool, element);
+
 	if (kasan_poison_element(pool, element))
 		pool->elements[pool->curr_nr++] = element;
 }
@@ -186,7 +197,9 @@ static void *remove_element(struct mempool *pool)
 
 	BUG_ON(pool->curr_nr < 0);
 	kasan_unpoison_element(pool, element);
-	check_element(pool, element);
+
+	if (static_branch_unlikely(&mempool_debug_enabled))
+		check_element(pool, element);
 	return element;
 }
 

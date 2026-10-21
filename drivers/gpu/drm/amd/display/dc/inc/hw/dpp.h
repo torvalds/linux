@@ -375,6 +375,13 @@ struct dpp_funcs {
 	bool (*dpp_cm_hist_read)(
 		struct dpp *dpp_base,
 		struct cm_hist *cm_hist);
+	void (*dpp_set_pregam_state)(
+			struct dpp *dpp_base,
+			enum dc_transfer_func_predefined tr,
+			enum dc_scaling_linearity scaling);
+	void (*dpp_program_upsp)(
+			struct dpp *dpp_base,
+			const struct dscl_prog_data *dscl_prog_data);
 };
 
 

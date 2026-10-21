@@ -139,9 +139,7 @@ int catpt_dsp_send_msg(struct catpt_dev *cdev, struct catpt_ipc_msg request,
 
 int catpt_first_boot_firmware(struct catpt_dev *cdev);
 int catpt_boot_firmware(struct catpt_dev *cdev, bool restore);
-int catpt_store_streams_context(struct catpt_dev *cdev, struct dma_chan *chan);
-int catpt_store_module_states(struct catpt_dev *cdev, struct dma_chan *chan);
-int catpt_store_memdumps(struct catpt_dev *cdev, struct dma_chan *chan);
+int catpt_store_firmware_context(struct catpt_dev *cdev);
 int catpt_coredump(struct catpt_dev *cdev);
 
 #include <sound/memalloc.h>

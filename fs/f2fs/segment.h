@@ -43,6 +43,7 @@ static inline void sanity_check_seg_type(struct f2fs_sb_info *sbi,
 
 #define MAIN_SEGS(sbi)	(SM_I(sbi)->main_segments)
 #define MAIN_SECS(sbi)	((sbi)->total_sections)
+#define has_unpinned_area(sbi)	((sbi)->pinned_area_max_secno < MAIN_SECS(sbi))
 
 #define TOTAL_SEGS(sbi)							\
 	(SM_I(sbi) ? SM_I(sbi)->segment_count : 				\
@@ -796,20 +797,6 @@ F2FS_IPU_POLICY(F2FS_IPU_ASYNC);
 F2FS_IPU_POLICY(F2FS_IPU_NOCACHE);
 F2FS_IPU_POLICY(F2FS_IPU_HONOR_OPU_WRITE);
 
-static inline unsigned int curseg_segno(struct f2fs_sb_info *sbi,
-		int type)
-{
-	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	return curseg->segno;
-}
-
-static inline unsigned char curseg_alloc_type(struct f2fs_sb_info *sbi,
-		int type)
-{
-	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	return curseg->alloc_type;
-}
-
 static inline bool valid_main_segno(struct f2fs_sb_info *sbi,
 		unsigned int segno)
 {
@@ -954,10 +941,32 @@ static inline block_t sum_blk_addr(struct f2fs_sb_info *sbi, int base, int type)
 				- (base + 1) + type;
 }
 
+static inline bool f2fs_dev_is_reserving(struct f2fs_sb_info *sbi, int devi)
+{
+	if (!f2fs_sb_has_device_alias(sbi))
+		return false;
+	return FDEV(devi).is_reserving;
+}
+
+static inline bool f2fs_dev_is_alloc_blocked(struct f2fs_sb_info *sbi,
+					int devi, bool pinning)
+{
+	if (!f2fs_sb_has_device_alias(sbi))
+		return false;
+	return (pinning && FDEV(devi).has_alias) || FDEV(devi).is_reserving;
+}
+
 static inline bool sec_usage_check(struct f2fs_sb_info *sbi, unsigned int secno)
 {
 	if (is_cursec(sbi, secno) || (sbi->cur_victim_sec == secno))
 		return true;
+	if (f2fs_sb_has_device_alias(sbi)) {
+		block_t start_blk = START_BLOCK(sbi, GET_SEG_FROM_SEC(sbi, secno));
+		int devi = f2fs_target_device_index(sbi, start_blk);
+
+		if (f2fs_dev_is_reserving(sbi, devi))
+			return true;
+	}
 	return false;
 }
 

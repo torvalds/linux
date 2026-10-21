@@ -990,7 +990,6 @@ static int ad9523_probe(struct spi_device *spi)
 	if (IS_ERR(st->sync_gpio))
 		return PTR_ERR(st->sync_gpio);
 
-	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
 	st->pdata = pdata;
 
@@ -1009,7 +1008,7 @@ static int ad9523_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad9523_id[] = {
-	{"ad9523-1", 9523},
+	{ .name = "ad9523-1" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad9523_id);

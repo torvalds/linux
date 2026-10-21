@@ -159,7 +159,7 @@ static ssize_t ddr_perf_cpumask_show(struct device *dev,
 {
 	struct ddr_pmu *pmu = dev_get_drvdata(dev);
 
-	return cpumap_print_to_pagebuf(true, buf, cpumask_of(pmu->cpu));
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask_of(pmu->cpu)));
 }
 
 static struct device_attribute ddr_perf_cpumask_attr =

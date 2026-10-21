@@ -1904,7 +1904,7 @@ static int __init ad74115_register_driver(struct spi_driver *spi)
 }
 
 static const struct spi_device_id ad74115_spi_id[] = {
-	{ "ad74115h" },
+	{ .name = "ad74115h" },
 	{ }
 };
 

@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/w1/ti,hdq.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments OMAP HDQ One Wire Bus Master Controller
+
+maintainers:
+  - Eduard Bostina <egbostina@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,omap3-1w
+      - ti,am4372-hdq
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: fck
+
+  ti,hwmods:
+    description: Name of the hwmod associated to the hdq
+    $ref: /schemas/types.yaml#/definitions/string
+    const: hdq1w
+
+  ti,mode:
+    description: |
+      Operation mode. "hdq" for HDQ mode, "1w" for One-Wire mode.
+      If not specified, HDQ mode is implied.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - hdq
+      - 1w
+    default: hdq
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    onewire@0 {
+        compatible = "ti,am4372-hdq";
+        reg = <0x0 0x1000>;
+        interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&func_12m_clk>;
+        clock-names = "fck";
+    };
+  - |
+    onewire@480b2000 {
+        compatible = "ti,omap3-1w";
+        reg = <0x480b2000 0x1000>;
+        interrupts = <58>;
+        ti,hwmods = "hdq1w";
+        ti,mode = "hdq";
+    };

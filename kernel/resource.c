@@ -1859,7 +1859,7 @@ int iomem_map_sanity_check(resource_size_t addr, unsigned long size)
 		if (p->flags & IORESOURCE_BUSY)
 			continue;
 
-		pr_warn("resource sanity check: requesting [mem %pa-%pa], which spans more than %s %pR\n",
+		pr_debug("resource sanity check: requesting [mem %pa-%pa], which spans more than %s %pR\n",
 			&addr, &end, p->name, p);
 		err = -1;
 		break;

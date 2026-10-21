@@ -119,6 +119,7 @@ query_engine_cycles(struct xe_device *xe,
 	struct drm_xe_engine_class_instance *eci;
 	struct drm_xe_query_engine_cycles resp;
 	size_t size = sizeof(resp);
+	enum xe_force_wake_domains fw_domain;
 	__ktime_func_t cpu_clock;
 	struct xe_hw_engine *hwe;
 	struct xe_gt *gt;
@@ -154,8 +155,10 @@ query_engine_cycles(struct xe_device *xe,
 	if (!hwe)
 		return -EINVAL;
 
-	xe_with_force_wake(fw_ref, gt_to_fw(gt), XE_FORCEWAKE_ALL) {
-		if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FORCEWAKE_ALL))
+	fw_domain = xe_hw_engine_to_fw_domain(hwe);
+
+	xe_with_force_wake(fw_ref, gt_to_fw(gt), fw_domain) {
+		if (!xe_force_wake_ref_has_domain(fw_ref.domains, fw_domain))
 			return -EIO;
 
 		hwe_read_timestamp(hwe, &resp.engine_cycles, &resp.cpu_timestamp,

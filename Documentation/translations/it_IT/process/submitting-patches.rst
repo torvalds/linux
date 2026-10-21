@@ -28,7 +28,7 @@ renderà la vostra vita di sviluppatore del kernel molto più semplice.
 
 I sorgenti di alcuni sottosistemi e manutentori contengono più informazioni
 riguardo al loro modo di lavorare ed aspettative. Consultate
-:ref:`Documentation/translations/it_IT/process/maintainer-handbooks.rst <it_maintainer_handbooks_main>`
+Documentation/translations/it_IT/process/maintainer-handbooks.rst
 
 Ottenere i sorgenti attuali
 ---------------------------
@@ -162,8 +162,8 @@ proibiti.
 
 Se la vostra patch corregge un baco in un commit specifico, per esempio avete
 trovato un problema usando ``git bisect``, per favore usate l'etichetta
-'Fixes:' indicando i primi 12 caratteri dell'identificativo SHA-1 seguiti
-dalla riga riassuntiva.  Per esempio::
+'Fixes:' indicando almeno i primi 12 caratteri dell'identificativo SHA-1
+seguiti dalla riga riassuntiva.  Per esempio::
 
 	Fixes: e21d2170f366 ("video: remove unnecessary platform_set_drvdata()")
 
@@ -444,12 +444,11 @@ delle patch che vengono inviate per e-mail.
 La firma è una semplice riga alla fine della descrizione della patch che
 certifica che l'avete scritta voi o che avete il diritto di pubblicarla
 come patch open-source.  Le regole sono abbastanza semplici: se potete
-certificare quanto segue:
+certificare quanto segue::
 
-Il certificato d'origine dello sviluppatore 1.1
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        Il certificato d'origine dello sviluppatore 1.1
 
-Contribuendo a questo progetto, io certifico che:
+        Contribuendo a questo progetto, io certifico che:
 
         (a) Il contributo è stato creato interamente, o in parte, da me e che
             ho il diritto di inviarlo in accordo con la licenza open-source
@@ -505,27 +504,48 @@ della patch ma desidera firmare e mettere agli atti la loro approvazione,
 allora queste persone possono chiedere di aggiungere al changelog della patch
 una riga Acked-by:.
 
-Acked-by: viene spesso utilizzato dai manutentori del sottosistema in oggetto
-quando quello stesso manutentore non ha contribuito né trasmesso la patch.
+Acked-by: è pensata per essere usata da coloro che sono responsabili, o
+comunque coinvolti, con il codice interessato in un modo o nell'altro. Più
+comunemente, dal manutentore, quando quello stesso manutentore non ha
+contribuito né trasmesso la patch.
+
+Acked-by: può anche essere usata da altre parti interessate, come persone con
+conoscenza specifica dell'argomento (per esempio l'autore originale del
+codice modificato), revisori lato spazio-utente per una patch che tocca la
+uAPI del kernel, o utenti chiave di una funzionalità.  Opzionalmente, in
+questi casi, può essere utile aggiungere un "# Suffisso" per chiarirne il
+significato::
+
+	Acked-by: The Stakeholder <stakeholder@example.org> # Come utente primario
 
 Acked-by: non è formale come Signed-off-by:.  Questo indica che la persona ha
 revisionato la patch e l'ha trovata accettabile.  Per cui, a volte, chi
 integra le patch convertirà un "sì, mi sembra che vada bene" in un Acked-by:
 (ma tenete presente che solitamente è meglio chiedere esplicitamente).
 
+Acked-by: è anche meno formale di Reviewed-by:.  Per esempio, un manutentore
+potrebbe usarla per indicare che è d'accordo con l'integrazione della patch,
+pur non avendola revisionata con lo stesso livello d'approfondimento che
+avrebbe richiesto un Reviewed-by:.  Allo stesso modo, un utente chiave
+potrebbe non aver effettuato una revisione tecnica della patch, ma potrebbe
+comunque essere soddisfatto dell'approccio generale, della funzionalità o
+dell'interfaccia rivolta all'utente.
+
 Acked-by: non indica l'accettazione di un'intera patch.  Per esempio, quando
 una patch ha effetti su diversi sottosistemi e ha un Acked-by: da un
 manutentore di uno di questi, significa che il manutentore accetta quella
 parte di codice relativa al sottosistema che mantiene.  Qui dovremmo essere
 giudiziosi.  Quando si hanno dei dubbi si dovrebbe far riferimento alla
-discussione originale negli archivi della lista di discussione.
+discussione originale negli archivi della lista di discussione.  Anche in
+questo caso si può usare un "# Suffisso" per chiarire.
 
 Se una persona ha avuto l'opportunità di commentare la patch, ma non lo ha
-fatto, potete aggiungere l'etichetta ``Cc:`` alla patch.  Questa è l'unica
-etichetta che può essere aggiunta senza che la persona in questione faccia
-alcunché - ma dovrebbe indicare che la persona ha ricevuto una copia della
-patch.  Questa etichetta documenta che terzi potenzialmente interessati sono
-stati inclusi nella discussione.
+fatto, potete aggiungere l'etichetta ``Cc:`` alla patch.  Questa etichetta
+documenta che terzi potenzialmente interessati sono stati inclusi nella
+discussione.  Da notare che questa è una delle sole tre etichette che
+potreste poter usare senza il permesso esplicito della persona nominata (per
+i dettagli, vedere più avanti "Etichettare le persone richiede un
+permesso").
 
 Co-developed-by: indica che la patch è stata cosviluppata da diversi
 sviluppatori; viene usato per assegnare più autori (in aggiunta a quello
@@ -569,13 +589,14 @@ Utilizzare Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: e Fixes:
 
 L'etichetta Reported-by da credito alle persone che trovano e riportano i bachi
 e si spera che questo possa ispirarli ad aiutarci nuovamente in futuro.
-Rammentate che se il baco è stato riportato in privato, dovrete chiedere il
-permesso prima di poter utilizzare l'etichetta Reported-by. Questa etichetta va
-usata per i bachi, dunque non usatela per richieste di nuove funzionalità.
-Questa etichetta dovrebbe essere seguita da quella Closes: con un indirizzo al
-rapporto, a meno che questo non sia disponibile sul web. L'etichetta Link: può
-essere usata in alternativa a Closes: se la patch corregge solo in parte il
-problema riportato nel rapporto.
+Questa etichetta va usata per i bachi, dunque non usatela per richieste di
+nuove funzionalità. Questa etichetta dovrebbe essere seguita da quella Closes:
+con un indirizzo al rapporto, a meno che questo non sia disponibile sul web.
+L'etichetta Link: può essere usata in alternativa a Closes: se la patch
+corregge solo in parte il problema riportato nel rapporto. Da notare che
+l'etichetta Reported-by è una delle sole tre etichette che potreste poter
+usare senza il permesso esplicito della persona nominata (per i dettagli,
+vedere più avanti "Etichettare le persone richiede un permesso").
 
 L'etichetta Tested-by: indica che la patch è stata verificata con successo
 (su un qualche sistema) dalla persona citata.  Questa etichetta informa i
@@ -584,12 +605,11 @@ persone che possano verificare il codice in futuro, e garantisce che queste
 stesse persone ricevano credito per il loro lavoro.
 
 Reviewed-by:, invece, indica che la patch è stata revisionata ed è stata
-considerata accettabile in accordo con la dichiarazione dei revisori:
+considerata accettabile in accordo con la dichiarazione dei revisori::
 
-Dichiarazione di svista dei revisori
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+	Dichiarazione di svista dei revisori
 
-Offrendo la mia etichetta Reviewed-by, dichiaro quanto segue:
+	Offrendo la mia etichetta Reviewed-by, dichiaro quanto segue:
 
 	 (a) Ho effettuato una revisione tecnica di questa patch per valutarne
 	     l'adeguatezza ai fini dell'inclusione nel ramo principale del
@@ -611,8 +631,9 @@ Offrendo la mia etichetta Reviewed-by, dichiaro quanto segue:
 
 L'etichetta Reviewed-by è la dichiarazione di un parere sulla bontà di
 una modifica che si ritiene appropriata e senza alcun problema tecnico
-importante.  Qualsiasi revisore interessato (quelli che lo hanno fatto)
-possono offrire il proprio Reviewed-by per la patch.  Questa etichetta serve
+importante.  Qualsiasi revisore interessato (che lo abbia fatto e che sia
+una persona dall'identità nota) può offrire il proprio Reviewed-by per la
+patch.  Questa etichetta serve
 a dare credito ai revisori e a informare i manutentori sul livello di revisione
 che è stato fatto sulla patch.  L'etichetta Reviewed-by, quando fornita da
 revisori conosciuti per la loro conoscenza sulla materia in oggetto e per la
@@ -623,27 +644,62 @@ Quando si riceve una email sulla lista di discussione da un tester o
 un revisore, le etichette Tested-by o Reviewed-by devono essere
 aggiunte dall'autore quando invierà nuovamente la patch. Tuttavia, se
 la patch è cambiata in modo significativo, queste etichette potrebbero
-non avere più senso e quindi andrebbero rimosse. Solitamente si tiene traccia
-della rimozione nel changelog della patch (subito dopo il separatore '---').
+non avere più senso e quindi andrebbero rimosse. Solitamente si tiene
+traccia della rimozione di un'etichetta Acked-by, Tested-by o Reviewed-by
+nel changelog della patch, con una spiegazione, (subito dopo il
+separatore '---').
 
 L'etichetta Suggested-by: indica che l'idea della patch è stata suggerita
-dalla persona nominata e le da credito. Tenete a mente che questa etichetta
-non dovrebbe essere aggiunta senza un permesso esplicito, specialmente se
-l'idea non è stata pubblicata in un forum pubblico.  Detto ciò, dando credito
-a chi ci fornisce delle idee, si spera di poterli ispirare ad aiutarci
-nuovamente in futuro.
+dalla persona nominata e le da credito: se diamo diligentemente credito a
+chi ci fornisce delle idee, si spera di poterli ispirare ad aiutarci
+nuovamente in futuro. Da notare che questa è una delle sole tre etichette
+che potreste poter usare senza il permesso esplicito della persona
+nominata (per i dettagli, vedere più avanti "Etichettare le persone
+richiede un permesso").
 
-L'etichetta Fixes: indica che la patch corregge un problema in un commit
-precedente.  Serve a chiarire l'origine di un baco, il che aiuta la revisione
-del baco stesso.  Questa etichetta è di aiuto anche per i manutentori dei
-kernel stabili al fine di capire quale kernel deve ricevere la correzione.
-Questo è il modo suggerito per indicare che un baco è stato corretto nella
-patch. Per maggiori dettagli leggete :ref:`it_describe_changes`
+L'etichetta Fixes: indica che la patch corregge un baco in un commit
+precedente.  Serve a rendere facile determinare dove abbia avuto origine
+un problema, il che può aiutare la revisione di una correzione.  Questa
+etichetta è di aiuto anche per i manutentori dei kernel stabili al fine
+di capire quale kernel deve ricevere la correzione.  Questo è il modo
+suggerito per indicare che un baco è stato corretto nella patch. Per
+maggiori dettagli leggete :ref:`it_describe_changes`
 
 Da notare che aggiungere un tag "Fixes:" non esime dalle regole
 previste per i kernel stabili, e nemmeno dalla necessità di aggiungere
 in copia conoscenza stable@vger.kernel.org su tutte le patch per
 suddetti kernel.
+
+Infine, sebbene fornire le etichette sia gradito e generalmente molto
+apprezzato, tenete presente che i firmatari (cioè chi sottomette e i
+manutentori) potrebbero usare la propria discrezione nell'applicare le
+etichette proposte.
+
+.. _it_tagging_people:
+
+Etichettare le persone richiede un permesso
+--------------------------------------------
+
+State attenti ad aggiungere le suddette etichette alla vostra patch: tutte,
+tranne Cc:, Reported-by: e Suggested-by:, richiedono il permesso esplicito
+della persona nominata.  Per queste tre è sufficiente un permesso implicito,
+se la persona ha contribuito al kernel Linux usando quel nome e quell'indirizzo
+email secondo gli archivi di lore o la cronologia dei commit -- e, nel caso di
+Reported-by: e Suggested-by:, se la segnalazione o il suggerimento sono
+avvenuti pubblicamente.  Da notare che bugzilla.kernel.org è, in questo senso,
+un luogo pubblico, ma gli indirizzi email usati lì sono privati; quindi non
+esponeteli nelle etichette, a meno che la persona non li abbia già usati in
+contributi precedenti.
+
+Usare Assisted-by:
+-------------------
+
+Se avete usato un qualsiasi tipo di strumento di assistenza avanzata alla
+scrittura del codice per la creazione della vostra patch, dovete darne atto
+aggiungendo un'etichetta Assisted-by.  Non farlo può ostacolare
+l'accettazione del vostro lavoro.  Fate riferimento a
+Documentation/process/coding-assistants.rst per i dettagli su come dare
+atto dell'uso di assistenti alla scrittura del codice.
 
 .. _it_the_canonical_patch_format:
 
@@ -655,6 +711,9 @@ Notate che se state usando un repositorio ``git`` per salvare le vostre patch
 potere usare il comando ``git format-patch`` per ottenere patch nel formato
 appropriato.  Lo strumento non crea il testo necessario, per cui, leggete
 le seguenti istruzioni.
+
+Oggetto
+^^^^^^^
 
 L'oggetto di una patch canonica è la riga::
 
@@ -729,6 +788,9 @@ Un paio di esempi di oggetti::
     Subject: [PATCH v2] sub/sys: Condensed patch summary
     Subject: [PATCH v2 M/N] sub/sys: Condensed patch summary
 
+Riga From
+^^^^^^^^^
+
 La riga ``from`` dev'essere la prima nel corpo del messaggio ed è nel
 formato:
 
@@ -738,6 +800,15 @@ La riga ``from`` indica chi verrà accreditato nel changelog permanente come
 l'autore della patch.  Se la riga ``from`` è mancante, allora per determinare
 l'autore da inserire nel changelog verrà usata la riga ``From``
 nell'intestazione dell'email.
+
+L'autore può indicare la propria affiliazione o lo sponsor del lavoro
+aggiungendo il nome di un'organizzazione alle righe ``from`` e ``SoB``,
+per esempio:
+
+	From: Patch Author (Azienda) <author@example.com>
+
+Corpo della spiegazione
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Il corpo della spiegazione verrà incluso nel changelog permanente, per cui
 deve aver senso per un lettore esperto che è ha dimenticato i dettagli della
@@ -754,6 +825,33 @@ includere proprio _tutto_ quello che è uscito dal compilatore;
 aggiungete solo quello che è necessario per far si che la vostra patch
 venga trovata.  Come nella ``summary phrase``, è importante essere sia
 brevi che descrittivi.
+
+.. _it_backtraces:
+
+Aggiungere i *backtrace* nei messaggi di commit
+""""""""""""""""""""""""""""""""""""""""""""""""
+
+I *backtrace* aiutano a documentare la sequenza di chiamate a funzione
+che portano ad un problema. Tuttavia, non tutti i *backtrace* sono
+davvero utili. Per esempio, le sequenze iniziali di avvio sono uniche
+e ovvie. Copiare integralmente l'output di ``dmesg`` aggiunge tante
+informazioni che distraggono dal vero problema (per esempio, i
+marcatori temporali, la lista dei moduli, la lista dei registri, lo
+stato dello stack).
+
+Quindi, per rendere utile un *backtrace* dovreste eliminare le
+informazioni inutili, cosicché ci si possa focalizzare sul
+problema. Ecco un esempio di un *backtrace* essenziale::
+
+  unchecked MSR access error: WRMSR to 0xd51 (tried to write 0x0000000000000064)
+  at rIP: 0xffffffffae059994 (native_write_msr+0x4/0x20)
+  Call Trace:
+  mba_wrmsr
+  update_domains
+  rdtgroup_mkdir
+
+Commento
+^^^^^^^^
 
 La linea di demarcazione ``---`` serve essenzialmente a segnare dove finisce
 il messaggio di changelog.
@@ -778,7 +876,10 @@ versione di una patch non sono parte del *chagelog* che viene incluso
 in git. Queste sono informazioni utili solo ai revisori. Se venissero
 messe sopra la riga, qualcuno dovrà fare del lavoro manuale per
 rimuoverle; cosa che invece viene fatta automaticamente quando vengono
-messe correttamente oltre la riga.::
+messe correttamente oltre la riga. Se disponibili, si consiglia di
+aggiungere anche i collegamenti alle versioni precedenti della patch
+(per esempio, un collegamento all'archivio di lore.kernel.org) per
+aiutare i revisori::
 
   <commit message>
   ...
@@ -787,34 +888,13 @@ messe correttamente oltre la riga.::
   V2 -> V3: Removed redundant helper function
   V1 -> V2: Cleaned up coding style and addressed review comments
 
+  v2: https://lore.kernel.org/bar
+  v1: https://lore.kernel.org/foo
+
   path/to/file | 5+++--
   ...
 
 Maggiori dettagli sul formato delle patch nei riferimenti qui di seguito.
-
-.. _it_backtraces:
-
-Aggiungere i *backtrace* nei messaggi di commit
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-I *backtrace* aiutano a documentare la sequenza di chiamate a funzione
-che portano ad un problema. Tuttavia, non tutti i *backtrace* sono
-davvero utili. Per esempio, le sequenze iniziali di avvio sono uniche
-e ovvie. Copiare integralmente l'output di ``dmesg`` aggiunge tante
-informazioni che distraggono dal vero problema (per esempio, i
-marcatori temporali, la lista dei moduli, la lista dei registri, lo
-stato dello stack).
-
-Quindi, per rendere utile un *backtrace* dovreste eliminare le
-informazioni inutili, cosicché ci si possa focalizzare sul
-problema. Ecco un esempio di un *backtrace* essenziale::
-
-  unchecked MSR access error: WRMSR to 0xd51 (tried to write 0x0000000000000064)
-  at rIP: 0xffffffffae059994 (native_write_msr+0x4/0x20)
-  Call Trace:
-  mba_wrmsr
-  update_domains
-  rdtgroup_mkdir
 
 .. _it_explicit_in_reply_to:
 

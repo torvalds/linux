@@ -136,28 +136,30 @@ static struct mbox_chan *bcm2835_mbox_index_xlate(struct mbox_controller *mbox,
 static int bcm2835_mbox_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	void __iomem *regs;
 	int ret = 0;
+	int irq;
 	struct bcm2835_mbox *mbox;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
 	if (mbox == NULL)
 		return -ENOMEM;
+
 	spin_lock_init(&mbox->lock);
+	mbox->regs = regs;
 
-	ret = devm_request_irq(dev, irq_of_parse_and_map(dev->of_node, 0),
-			       bcm2835_mbox_irq, IRQF_NO_SUSPEND, dev_name(dev),
-			       mbox);
-	if (ret) {
-		dev_err(dev, "Failed to register a mailbox IRQ handler: %d\n",
-			ret);
-		return -ENODEV;
-	}
-
-	mbox->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(mbox->regs)) {
-		ret = PTR_ERR(mbox->regs);
+	ret = devm_request_irq(dev, irq, bcm2835_mbox_irq,
+			IRQF_NO_SUSPEND, dev_name(dev), mbox);
+	if (ret)
 		return ret;
-	}
 
 	mbox->controller.txdone_poll = true;
 	mbox->controller.txpoll_period = 5;
@@ -170,14 +172,7 @@ static int bcm2835_mbox_probe(struct platform_device *pdev)
 	if (!mbox->controller.chans)
 		return -ENOMEM;
 
-	ret = devm_mbox_controller_register(dev, &mbox->controller);
-	if (ret)
-		return ret;
-
-	platform_set_drvdata(pdev, mbox);
-	dev_info(dev, "mailbox enabled\n");
-
-	return ret;
+	return devm_mbox_controller_register(dev, &mbox->controller);
 }
 
 static const struct of_device_id bcm2835_mbox_of_match[] = {

@@ -641,7 +641,7 @@ static int extent_fiemap(struct btrfs_inode *inode,
 	u64 prev_extent_end;
 	u64 range_start;
 	u64 range_end;
-	const u64 sectorsize = inode->root->fs_info->sectorsize;
+	const u32 sectorsize = inode->root->fs_info->sectorsize;
 	bool stopped = false;
 	int ret;
 
@@ -660,7 +660,7 @@ restart:
 	range_end = round_up(start + len, sectorsize);
 	prev_extent_end = range_start;
 
-	btrfs_lock_extent(&inode->io_tree, range_start, range_end, &cached_state);
+	btrfs_lock_extent(&inode->io_tree, range_start, range_end - 1, &cached_state);
 
 	ret = fiemap_find_last_extent_offset(inode, path, &last_extent_end);
 	if (ret < 0)
@@ -840,7 +840,7 @@ check_eof_delalloc:
 	}
 
 out_unlock:
-	btrfs_unlock_extent(&inode->io_tree, range_start, range_end, &cached_state);
+	btrfs_unlock_extent(&inode->io_tree, range_start, range_end - 1, &cached_state);
 
 	if (ret == BTRFS_FIEMAP_FLUSH_CACHE) {
 		btrfs_release_path(path);

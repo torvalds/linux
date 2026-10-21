@@ -404,7 +404,8 @@ static inline int test_prepare_def_key(struct tcp_ao_add *ao,
 
 extern int test_get_one_ao(int sk, struct tcp_ao_getsockopt *out,
 			   void *addr, size_t addr_sz,
-			   uint8_t prefix, uint8_t sndid, uint8_t rcvid);
+			   uint8_t prefix, uint8_t sndid, uint8_t rcvid,
+			   uint8_t keyflags, int ifindex);
 extern int test_get_ao_info(int sk, struct tcp_ao_info_opt *out);
 extern int test_set_ao_info(int sk, struct tcp_ao_info_opt *in);
 extern int test_cmp_getsockopt_setsockopt(const struct tcp_ao_add *a,
@@ -418,7 +419,8 @@ static inline int test_verify_socket_key(int sk, struct tcp_ao_add *key)
 	int err;
 
 	err = test_get_one_ao(sk, &key2, &key->addr, sizeof(key->addr),
-			      key->prefix, key->sndid, key->rcvid);
+			      key->prefix, key->sndid, key->rcvid,
+			      key->keyflags, key->ifindex);
 	if (err)
 		return err;
 

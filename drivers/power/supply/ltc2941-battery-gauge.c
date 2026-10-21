@@ -463,7 +463,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client)
 
 	/* r_sense can be negative, when sense+ is connected to the battery
 	 * instead of the sense-. This results in reversed measurements. */
-	ret = of_property_read_u32(np, "lltc,resistor-sense", &r_sense);
+	ret = of_property_read_s32(np, "lltc,resistor-sense", &r_sense);
 	if (ret < 0)
 		return dev_err_probe(&client->dev, ret,
 			"Could not find lltc,resistor-sense in devicetree\n");

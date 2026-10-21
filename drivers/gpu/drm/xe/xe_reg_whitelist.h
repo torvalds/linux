@@ -14,6 +14,10 @@ struct xe_hw_engine;
 struct xe_reg_sr;
 struct xe_reg_sr_entry;
 
+#if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
+extern const struct xe_rtp_table_sr register_whitelist;
+#endif
+
 void xe_reg_whitelist_process_engine(struct xe_hw_engine *hwe);
 
 void xe_reg_whitelist_oa_regs(struct xe_gt *gt);

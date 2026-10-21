@@ -21,6 +21,8 @@ struct ethosu_job {
 	u8 region_cnt;
 	u32 sram_size;
 
+	struct ethosu_perfmon *perfmon;
+
 	/* Fence to be signaled by drm-sched once its done with the job */
 	struct dma_fence *inference_done_fence;
 

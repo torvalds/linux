@@ -6,13 +6,15 @@
 #ifndef INV_ICM42600_H_
 #define INV_ICM42600_H_
 
-#include <linux/bits.h>
 #include <linux/bitfield.h>
-#include <linux/regmap.h>
+#include <linux/bits.h>
 #include <linux/mutex.h>
-#include <linux/regulator/consumer.h>
 #include <linux/pm.h>
+#include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
+
 #include <linux/iio/iio.h>
+
 #include <linux/iio/common/inv_sensors_timestamp.h>
 
 #include "inv_icm42600_buffer.h"
@@ -354,6 +356,8 @@ struct inv_icm42600_sensor_state {
 		cpu_to_le16((_wm) & GENMASK(11, 0))
 /* FIFO is 2048 bytes, let 12 samples for reading latency */
 #define INV_ICM42600_FIFO_WATERMARK_MAX			(2048 - 12 * 16)
+/* INV_ICM42600_FIFO_WATERMARK_MAX / 8 = 232 */
+#define INV_ICM42600_FIFO_WATERMARK_MAX_SAMPLES		232
 
 #define INV_ICM42600_REG_INT_CONFIG1			0x0064
 #define INV_ICM42600_INT_CONFIG1_TPULSE_DURATION	BIT(6)

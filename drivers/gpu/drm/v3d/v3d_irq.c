@@ -90,9 +90,12 @@ v3d_irq_signal_fence(struct v3d_dev *v3d, enum v3d_queue q,
 		     void (*trace_irq)(struct drm_device *, uint64_t))
 {
 	struct v3d_queue_state *queue = &v3d->queue[q];
-	struct v3d_fence *fence = to_v3d_fence(queue->active_job->irq_fence);
+	struct v3d_job *job = queue->active_job;
+	struct v3d_fence *fence = to_v3d_fence(job->irq_fence);
 
-	v3d_job_update_stats(queue->active_job);
+	v3d_perfmon_stop(v3d, job->perfmon, true);
+
+	v3d_job_update_stats(job);
 	trace_irq(&v3d->drm, fence->seqno);
 
 	queue->active_job = NULL;

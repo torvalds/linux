@@ -96,10 +96,26 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HUBP_DCN401)
 
 ###############################################################################
 
+HUBP_DCN50 = dcn50_hubp.o
+
+AMD_DAL_HUBP_DCN50 = $(addprefix $(AMDDALPATH)/dc/hubp/dcn50/,$(HUBP_DCN50))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_HUBP_DCN50)
+
+###############################################################################
+
 HUBP_DCN42 = dcn42_hubp.o
 
 AMD_DAL_HUBP_DCN42 = $(addprefix $(AMDDALPATH)/dc/hubp/dcn42/,$(HUBP_DCN42))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_HUBP_DCN42)
+
+###############################################################################
+
+HUBP_DCN60 = dcn60_hubp.o
+
+AMD_DAL_HUBP_DCN60 = $(addprefix $(AMDDALPATH)/dc/hubp/dcn60/,$(HUBP_DCN60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_HUBP_DCN60)
 
 endif

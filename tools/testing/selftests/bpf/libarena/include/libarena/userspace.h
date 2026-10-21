@@ -115,7 +115,7 @@ static inline int libarena_asan_init(int arena_asan_init_fd,
 {
 	LIBBPF_OPTS(bpf_test_run_opts, opts);
 	struct asan_init_args args;
-	u64 globals_pages;
+	u64 globals_pages = 0;
 	int ret;
 
 	ret = libarena_get_globals_pages(arena_asan_init_fd,

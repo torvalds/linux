@@ -16,7 +16,7 @@
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
 
-#include <linux/mfd/dbx500-prcmu.h>
+#include <linux/mfd/db8500-prcmu.h>
 
 #define WATCHDOG_TIMEOUT 600 /* 10 minutes */
 
@@ -37,24 +37,24 @@ MODULE_PARM_DESC(nowayout,
 
 static int db8500_wdt_start(struct watchdog_device *wdd)
 {
-	return prcmu_enable_a9wdog(PRCMU_WDOG_ALL);
+	return db8500_prcmu_enable_a9wdog(PRCMU_WDOG_ALL);
 }
 
 static int db8500_wdt_stop(struct watchdog_device *wdd)
 {
-	return prcmu_disable_a9wdog(PRCMU_WDOG_ALL);
+	return db8500_prcmu_disable_a9wdog(PRCMU_WDOG_ALL);
 }
 
 static int db8500_wdt_keepalive(struct watchdog_device *wdd)
 {
-	return prcmu_kick_a9wdog(PRCMU_WDOG_ALL);
+	return db8500_prcmu_kick_a9wdog(PRCMU_WDOG_ALL);
 }
 
 static int db8500_wdt_set_timeout(struct watchdog_device *wdd,
 				 unsigned int timeout)
 {
 	db8500_wdt_stop(wdd);
-	prcmu_load_a9wdog(PRCMU_WDOG_ALL, timeout * 1000);
+	db8500_prcmu_load_a9wdog(PRCMU_WDOG_ALL, timeout * 1000);
 	db8500_wdt_start(wdd);
 
 	return 0;
@@ -91,10 +91,10 @@ static int db8500_wdt_probe(struct platform_device *pdev)
 	watchdog_set_nowayout(&db8500_wdt, nowayout);
 
 	/* disable auto off on sleep */
-	prcmu_config_a9wdog(PRCMU_WDOG_CPU1, false);
+	db8500_prcmu_config_a9wdog(PRCMU_WDOG_CPU1, false);
 
 	/* set HW initial value */
-	prcmu_load_a9wdog(PRCMU_WDOG_ALL, timeout * 1000);
+	db8500_prcmu_load_a9wdog(PRCMU_WDOG_ALL, timeout * 1000);
 
 	ret = devm_watchdog_register_device(dev, &db8500_wdt);
 	if (ret)
@@ -110,9 +110,9 @@ static int db8500_wdt_suspend(struct platform_device *pdev,
 {
 	if (watchdog_active(&db8500_wdt)) {
 		db8500_wdt_stop(&db8500_wdt);
-		prcmu_config_a9wdog(PRCMU_WDOG_CPU1, true);
+		db8500_prcmu_config_a9wdog(PRCMU_WDOG_CPU1, true);
 
-		prcmu_load_a9wdog(PRCMU_WDOG_ALL, timeout * 1000);
+		db8500_prcmu_load_a9wdog(PRCMU_WDOG_ALL, timeout * 1000);
 		db8500_wdt_start(&db8500_wdt);
 	}
 	return 0;
@@ -122,9 +122,9 @@ static int db8500_wdt_resume(struct platform_device *pdev)
 {
 	if (watchdog_active(&db8500_wdt)) {
 		db8500_wdt_stop(&db8500_wdt);
-		prcmu_config_a9wdog(PRCMU_WDOG_CPU1, false);
+		db8500_prcmu_config_a9wdog(PRCMU_WDOG_CPU1, false);
 
-		prcmu_load_a9wdog(PRCMU_WDOG_ALL, timeout * 1000);
+		db8500_prcmu_load_a9wdog(PRCMU_WDOG_ALL, timeout * 1000);
 		db8500_wdt_start(&db8500_wdt);
 	}
 	return 0;

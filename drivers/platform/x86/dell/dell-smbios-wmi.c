@@ -6,21 +6,20 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/fs.h>
-#include <linux/list.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <linux/uaccess.h>
 #include <linux/wmi.h>
 #include <uapi/linux/wmi.h>
 #include "dell-smbios.h"
 #include "dell-wmi-descriptor.h"
 
-static DEFINE_MUTEX(call_mutex);
-static DEFINE_MUTEX(list_mutex);
 static int wmi_supported;
 
 struct misc_bios_flags_structure {
@@ -32,21 +31,16 @@ struct misc_bios_flags_structure {
 #define DELL_WMI_SMBIOS_GUID "A80593CE-A997-11DA-B012-B622A1EF5492"
 
 struct wmi_smbios_priv {
+	struct mutex call_lock; /* Protects the content of the SMBIOS buffer */
 	struct dell_wmi_smbios_buffer *buf;
-	struct list_head list;
 	struct wmi_device *wdev;
 	struct device *child;
 	u64 req_buf_size;
 	struct miscdevice char_dev;
 };
-static LIST_HEAD(wmi_list);
 
-static inline struct wmi_smbios_priv *get_first_smbios_priv(void)
-{
-	return list_first_entry_or_null(&wmi_list,
-					struct wmi_smbios_priv,
-					list);
-}
+static DECLARE_RWSEM(chardev_lock);	/* Protects chardev_priv */
+static struct wmi_smbios_priv *chardev_priv;
 
 static int run_smbios_call(struct wmi_device *wdev)
 {
@@ -80,50 +74,36 @@ static int run_smbios_call(struct wmi_device *wdev)
 	return 0;
 }
 
-static int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
+static int dell_smbios_wmi_call(struct device *dev, struct calling_interface_buffer *buffer)
 {
-	struct wmi_smbios_priv *priv;
+	struct wmi_smbios_priv *priv = dev_get_drvdata(dev);
 	size_t difference;
 	size_t size;
 	int ret;
 
-	mutex_lock(&call_mutex);
-	priv = get_first_smbios_priv();
-	if (!priv) {
-		ret = -ENODEV;
-		goto out_wmi_call;
-	}
-
 	size = sizeof(struct calling_interface_buffer);
 	difference = priv->req_buf_size - sizeof(u64) - size;
+
+	guard(mutex)(&priv->call_lock);
 
 	memset(&priv->buf->ext, 0, difference);
 	memcpy(&priv->buf->std, buffer, size);
 	ret = run_smbios_call(priv->wdev);
 	memcpy(buffer, &priv->buf->std, size);
-out_wmi_call:
-	mutex_unlock(&call_mutex);
 
 	return ret;
-}
-
-static int dell_smbios_wmi_open(struct inode *inode, struct file *filp)
-{
-	struct wmi_smbios_priv *priv;
-
-	priv = container_of(filp->private_data, struct wmi_smbios_priv, char_dev);
-	filp->private_data = priv;
-
-	return nonseekable_open(inode, filp);
 }
 
 static ssize_t dell_smbios_wmi_read(struct file *filp, char __user *buffer, size_t length,
 				    loff_t *offset)
 {
-	struct wmi_smbios_priv *priv = filp->private_data;
+	guard(rwsem_read)(&chardev_lock);
 
-	return simple_read_from_buffer(buffer, length, offset, &priv->req_buf_size,
-				       sizeof(priv->req_buf_size));
+	if (!chardev_priv)
+		return -ENODEV;
+
+	return simple_read_from_buffer(buffer, length, offset, &chardev_priv->req_buf_size,
+				       sizeof(chardev_priv->req_buf_size));
 }
 
 static long dell_smbios_wmi_do_ioctl(struct wmi_smbios_priv *priv,
@@ -167,22 +147,22 @@ static long dell_smbios_wmi_do_ioctl(struct wmi_smbios_priv *priv,
 static long dell_smbios_wmi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct dell_wmi_smbios_buffer __user *input = (struct dell_wmi_smbios_buffer __user *)arg;
-	struct wmi_smbios_priv *priv = filp->private_data;
-	long ret;
 
 	if (cmd != DELL_WMI_SMBIOS_CMD)
 		return -ENOIOCTLCMD;
 
-	mutex_lock(&call_mutex);
-	ret = dell_smbios_wmi_do_ioctl(priv, input);
-	mutex_unlock(&call_mutex);
+	guard(rwsem_read)(&chardev_lock);
 
-	return ret;
+	if (!chardev_priv)
+		return -ENODEV;
+
+	guard(mutex)(&chardev_priv->call_lock);
+
+	return dell_smbios_wmi_do_ioctl(chardev_priv, input);
 }
 
 static const struct file_operations dell_smbios_wmi_fops = {
 	.owner		= THIS_MODULE,
-	.open		= dell_smbios_wmi_open,
 	.read		= dell_smbios_wmi_read,
 	.unlocked_ioctl	= dell_smbios_wmi_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -195,9 +175,28 @@ static void dell_smbios_wmi_unregister_chardev(void *data)
 	misc_deregister(char_dev);
 }
 
+static void dell_smbios_wmi_clear_chardev(void *data)
+{
+	guard(rwsem_write)(&chardev_lock);
+
+	chardev_priv = NULL;
+}
+
 static int dell_smbios_wmi_register_chardev(struct wmi_smbios_priv *priv)
 {
 	int ret;
+
+	scoped_guard(rwsem_write, &chardev_lock) {
+		/* We can only have a single chardev at a time */
+		if (chardev_priv)
+			return -EBUSY;
+
+		chardev_priv = priv;
+	}
+
+	ret = devm_add_action_or_reset(&priv->wdev->dev, dell_smbios_wmi_clear_chardev, NULL);
+	if (ret < 0)
+		return ret;
 
 	priv->char_dev.minor = MISC_DYNAMIC_MINOR;
 	priv->char_dev.name = "wmi/dell-smbios";
@@ -254,31 +253,20 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 	if (!priv->buf)
 		return -ENOMEM;
 
+	ret = devm_mutex_init(&wdev->dev, &priv->call_lock);
+	if (ret)
+		return ret;
+
 	ret = dell_smbios_wmi_register_chardev(priv);
 	if (ret)
 		return ret;
 
-	ret = dell_smbios_register_device(&wdev->dev, 1, &dell_smbios_wmi_call);
-	if (ret)
-		return ret;
-
-	mutex_lock(&list_mutex);
-	list_add_tail(&priv->list, &wmi_list);
-	mutex_unlock(&list_mutex);
-
-	return 0;
+	return dell_smbios_register_device(&wdev->dev, 1, &dell_smbios_wmi_call);
 }
 
 static void dell_smbios_wmi_remove(struct wmi_device *wdev)
 {
-	struct wmi_smbios_priv *priv = dev_get_drvdata(&wdev->dev);
-
-	mutex_lock(&call_mutex);
-	mutex_lock(&list_mutex);
-	list_del(&priv->list);
-	mutex_unlock(&list_mutex);
 	dell_smbios_unregister_device(&wdev->dev);
-	mutex_unlock(&call_mutex);
 }
 
 static const struct wmi_device_id dell_smbios_wmi_id_table[] = {
@@ -316,6 +304,7 @@ static struct wmi_driver dell_smbios_wmi_driver = {
 	.probe = dell_smbios_wmi_probe,
 	.remove = dell_smbios_wmi_remove,
 	.id_table = dell_smbios_wmi_id_table,
+	.no_singleton = true,
 };
 
 int init_dell_smbios_wmi(void)

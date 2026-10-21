@@ -113,6 +113,18 @@ void kvm_get_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
 void kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
 void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu,
 			   ulong *ioapic_handled_vectors);
+
+static inline int __kvm_irq_line_state(unsigned long *irq_state,
+				       int irq_source_id, int level)
+{
+	/* Logical OR for level trig interrupt */
+	if (level)
+		__set_bit(irq_source_id, irq_state);
+	else
+		__clear_bit(irq_source_id, irq_state);
+
+	return !!(*irq_state);
+}
 #endif /* CONFIG_KVM_IOAPIC */
 
 static inline int ioapic_in_kernel(struct kvm *kvm)

@@ -8,6 +8,8 @@
  * NAT funded by Astaro.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/if.h>
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
@@ -51,11 +53,11 @@ static int redirect_tg4_check(const struct xt_tgchk_param *par)
 	const struct nf_nat_ipv4_multi_range_compat *mr = par->targinfo;
 
 	if (mr->range[0].flags & NF_NAT_RANGE_MAP_IPS) {
-		pr_debug("bad MAP_IPS.\n");
+		pr_info_ratelimited("bad MAP_IPS.\n");
 		return -EINVAL;
 	}
 	if (mr->rangesize != 1) {
-		pr_debug("bad rangesize %u.\n", mr->rangesize);
+		pr_info_ratelimited("bad rangesize %u.\n", mr->rangesize);
 		return -EINVAL;
 	}
 	return nf_ct_netns_get(par->net, par->family);

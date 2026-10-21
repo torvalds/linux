@@ -23,7 +23,6 @@ struct txx9_pio_reg {
 	__u32 maskext;
 };
 
-int txx9_gpio_init(unsigned long baseaddr,
-		   unsigned int base, unsigned int num);
+int txx9_gpio_init(unsigned long baseaddr, unsigned int num);
 
 #endif /* __ASM_TXX9PIO_H */

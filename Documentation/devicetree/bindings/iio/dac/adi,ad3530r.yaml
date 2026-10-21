@@ -10,15 +10,17 @@ maintainers:
   - Kim Seer Paller <kimseer.paller@analog.com>
 
 description: |
-  The AD3530/AD3530R (8-channel) and AD3531/AD3531R (4-channel) are low-power,
-  16-bit, buffered voltage output digital-to-analog converters (DACs) with
-  software-programmable gain controls, providing full-scale output spans of 2.5V
-  or 5V for reference voltages of 2.5V. These devices operate from a single 2.7V
-  to 5.5V supply and are guaranteed monotonic by design. The "R" variants
-  include a 2.5V, 5ppm/°C internal reference, which is disabled by default.
+  The AD3530/AD3530R (8-channel), AD3531/AD3531R (4-channel), and AD3532/AD3532R
+  (16-channel) are low-power, 16-bit, buffered voltage output digital-to-analog
+  converters (DACs) with software-programmable gain controls, providing
+  full-scale output spans of 2.5V or 5V for reference voltages of 2.5V. These
+  devices operate from a single 2.7V to 5.5V supply and are guaranteed monotonic
+  by design. The "R" variants include a 2.5V, 5ppm/°C internal reference, which
+  is disabled by default.
   Datasheet can be found here:
   https://www.analog.com/media/en/technical-documentation/data-sheets/ad3530_ad530r.pdf
   https://www.analog.com/media/en/technical-documentation/data-sheets/ad3531-ad3531r.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/ad3532r.pdf
 
 properties:
   compatible:
@@ -27,6 +29,8 @@ properties:
       - adi,ad3530r
       - adi,ad3531
       - adi,ad3531r
+      - adi,ad3532
+      - adi,ad3532r
 
   reg:
     maxItems: 1

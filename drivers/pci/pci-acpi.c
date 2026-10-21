@@ -1636,8 +1636,8 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 
 	cfg = pci_ecam_create(dev, &cfgres, bus_res, ecam_ops);
 	if (IS_ERR(cfg)) {
-		dev_err(dev, "%04x:%pR error %ld mapping ECAM\n", seg, bus_res,
-			PTR_ERR(cfg));
+		dev_err(dev, "%04x:%pR error %pe mapping ECAM\n", seg, bus_res,
+			cfg);
 		return NULL;
 	}
 

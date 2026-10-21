@@ -58,6 +58,8 @@
 #define SMUIO_GFX_MISC_CNTL__SMU_GFX_cold_vs_gfxoff_MASK	0x00000001L
 #define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS_MASK		0x00000006L
 
+static int vangogh_init_ppt_limits(struct smu_context *smu);
+
 static const struct smu_feature_bits vangogh_dpm_features = {
 	.bits = {
 		SMU_FEATURE_BIT_INIT(FEATURE_CCLK_DPM_BIT),
@@ -2243,6 +2245,10 @@ static int vangogh_post_smu_init(struct smu_context *smu)
 	if (adev->in_s0ix)
 		return 0;
 
+	ret = vangogh_init_ppt_limits(smu);
+	if (ret)
+		return ret;
+
 	/* allow message will be sent after enable message on Vangogh*/
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT) &&
 			(adev->pg_flags & AMD_PG_SUPPORT_GFX_PG)) {
@@ -2322,91 +2328,75 @@ static u32 vangogh_get_gfxoff_status(struct smu_context *smu)
 	return gfxoff_status;
 }
 
-static int vangogh_get_power_limit(struct smu_context *smu,
-				   uint32_t *current_power_limit,
-				   uint32_t *default_power_limit,
-				   uint32_t *max_power_limit,
-				   uint32_t *min_power_limit)
+static int vangogh_get_ppt_limit(struct smu_context *smu,
+				 enum smu_ppt_limit_type limit_type,
+				 uint32_t *ppt_limit)
 {
-	struct smu_11_5_power_context *power_context = smu->smu_power.power_context;
-	uint32_t ppt_limit;
-	int ret = 0;
+	enum smu_message_type msg;
+	uint32_t raw_limit;
+	int ret;
 
 	if (smu->adev->pm.fw_version < 0x43f1e00)
-		return ret;
-
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetSlowPPTLimit, &ppt_limit);
-	if (ret) {
-		dev_err(smu->adev->dev, "Get slow PPT limit failed!\n");
-		return ret;
-	}
-	/* convert from milliwatt to watt */
-	if (current_power_limit)
-		*current_power_limit = ppt_limit / 1000;
-	if (default_power_limit)
-		*default_power_limit = ppt_limit / 1000;
-	if (max_power_limit)
-		*max_power_limit = 29;
-	if (min_power_limit)
-		*min_power_limit = 0;
-
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetFastPPTLimit, &ppt_limit);
-	if (ret) {
-		dev_err(smu->adev->dev, "Get fast PPT limit failed!\n");
-		return ret;
-	}
-	/* convert from milliwatt to watt */
-	power_context->current_fast_ppt_limit =
-			power_context->default_fast_ppt_limit = ppt_limit / 1000;
-	power_context->max_fast_ppt_limit = 30;
-
-	return ret;
-}
-
-static int vangogh_get_ppt_limit(struct smu_context *smu,
-				 uint32_t *ppt_limit,
-				 enum smu_ppt_limit_type type,
-				 enum smu_ppt_limit_level level)
-{
-	struct smu_11_5_power_context *power_context = smu->smu_power.power_context;
-
-	if (!power_context)
 		return -EOPNOTSUPP;
 
-	if (type == SMU_FAST_PPT_LIMIT) {
-		switch (level) {
-		case SMU_PPT_LIMIT_MAX:
-			*ppt_limit = power_context->max_fast_ppt_limit;
-			break;
-		case SMU_PPT_LIMIT_CURRENT:
-			*ppt_limit = power_context->current_fast_ppt_limit;
-			break;
-		case SMU_PPT_LIMIT_DEFAULT:
-			*ppt_limit = power_context->default_fast_ppt_limit;
-			break;
-		default:
-			break;
+	msg = limit_type == SMU_PPT_LIMIT_PPT1 ?
+		SMU_MSG_GetFastPPTLimit : SMU_MSG_GetSlowPPTLimit;
+	ret = smu_cmn_send_smc_msg(smu, msg, &raw_limit);
+	if (ret) {
+		dev_err(smu->adev->dev, "Get PPT%d limit failed!\n",
+			limit_type);
+		return ret;
+	}
+
+	*ppt_limit = raw_limit / 1000;
+
+	return 0;
+}
+
+static int vangogh_init_ppt_limits(struct smu_context *smu)
+{
+	struct smu_ppt_limit_range *range;
+	uint32_t default_limit;
+	int i, j, ret;
+
+	if (smu->adev->pm.fw_version < 0x43f1e00)
+		return 0;
+
+	for (i = SMU_PPT_LIMIT_PPT0; i < SMU_LIMIT_TYPE_COUNT; i++) {
+		if (smu->ppt_limits.supported_mask & BIT(i))
+			continue;
+
+		ret = vangogh_get_ppt_limit(smu, i, &default_limit);
+		if (ret)
+			return ret;
+
+		for (j = SMU_POWER_SOURCE_AC; j < SMU_POWER_SOURCE_COUNT; j++) {
+			range = &smu->ppt_limits.range[j][i];
+			range->default_value = default_limit;
+			range->min = 0;
+			range->max = i == SMU_PPT_LIMIT_PPT1 ? 30 : 29;
+			range->od_min = range->min;
+			range->od_max = range->max;
 		}
+		smu->ppt_limits.supported_mask |= BIT(i);
 	}
 
 	return 0;
 }
 
-static int vangogh_set_power_limit(struct smu_context *smu,
-				   enum smu_ppt_limit_type limit_type,
-				   uint32_t ppt_limit)
+static int vangogh_set_ppt_limit(struct smu_context *smu,
+				 enum smu_ppt_limit_type limit_type,
+				 uint32_t ppt_limit)
 {
-	struct smu_11_5_power_context *power_context =
-			smu->smu_power.power_context;
 	int ret = 0;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
-		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
+		dev_err(smu->adev->dev, "Setting new PPT limit is not supported!\n");
 		return -EOPNOTSUPP;
 	}
 
 	switch (limit_type) {
-	case SMU_DEFAULT_PPT_LIMIT:
+	case SMU_SLOW_PPT_LIMIT:
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 				SMU_MSG_SetSlowPPTLimit,
 				ppt_limit * 1000, /* convert from watt to milliwatt */
@@ -2414,16 +2404,8 @@ static int vangogh_set_power_limit(struct smu_context *smu,
 		if (ret)
 			return ret;
 
-		smu->current_power_limit = ppt_limit;
 		break;
 	case SMU_FAST_PPT_LIMIT:
-		if (ppt_limit > power_context->max_fast_ppt_limit) {
-			dev_err(smu->adev->dev,
-				"New power limit (%d) is over the max allowed %d\n",
-				ppt_limit, power_context->max_fast_ppt_limit);
-			return ret;
-		}
-
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 				SMU_MSG_SetFastPPTLimit,
 				ppt_limit * 1000, /* convert from watt to milliwatt */
@@ -2431,7 +2413,6 @@ static int vangogh_set_power_limit(struct smu_context *smu,
 		if (ret)
 			return ret;
 
-		power_context->current_fast_ppt_limit = ppt_limit;
 		break;
 	default:
 		return -EINVAL;
@@ -2577,8 +2558,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.get_gfx_off_residency = vangogh_get_gfxoff_residency,
 	.set_gfx_off_residency = vangogh_set_gfxoff_residency,
 	.get_ppt_limit = vangogh_get_ppt_limit,
-	.get_power_limit = vangogh_get_power_limit,
-	.set_power_limit = vangogh_set_power_limit,
+	.set_ppt_limit = vangogh_set_ppt_limit,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
 };
 

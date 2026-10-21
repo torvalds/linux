@@ -593,7 +593,7 @@ static int smi240_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id smi240_spi_id[] = {
-	{ "smi240" },
+	{ .name = "smi240" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, smi240_spi_id);

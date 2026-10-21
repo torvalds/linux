@@ -128,10 +128,13 @@ Rust 测试中常用的断言宏是来自 Rust 标准库（ ``core`` ）中的 `
 
 这些测试通过 ``kunit_tests`` 过程宏引入，该宏将测试套件的名称作为参数。
 
+每个测试套件都应该由 ``rust/kernel/Kconfig.test`` 中的 Kconfig 选项保护。
+
 例如，假设想要测试前面文档测试示例中的函数 ``f``，我们可以在定义该函数的同一文件中编写：
 
 .. code-block:: rust
 
+	#[cfg(CONFIG_RUST_MYMOD_KUNIT_TEST)]
 	#[kunit_tests(rust_kernel_mymod)]
 	mod tests {
 	    use super::*;
@@ -158,6 +161,7 @@ Rust 测试中常用的断言宏是来自 Rust 标准库（ ``core`` ）中的 `
 
 .. code-block:: rust
 
+	#[cfg(CONFIG_RUST_MYMOD_KUNIT_TEST)]
 	#[kunit_tests(rust_kernel_mymod)]
 	mod tests {
 	    use super::*;

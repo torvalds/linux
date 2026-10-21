@@ -35,6 +35,28 @@ int tc_src(struct __sk_buff *skb)
 }
 
 SEC("tc")
+int tc_dst_ing(struct __sk_buff *skb)
+{
+	if (!skb->mark) {
+		skb->mark = 0x1;
+		return bpf_redirect_peer(IFINDEX_SRC, BPF_F_EGRESS);
+	}
+
+	return bpf_redirect(IFINDEX_DST, 0);
+}
+
+SEC("tc")
+int tc_src_ing(struct __sk_buff *skb)
+{
+	if (!skb->mark) {
+		skb->mark = 0x1;
+		return bpf_redirect_peer(IFINDEX_DST, BPF_F_EGRESS);
+	}
+
+	return bpf_redirect(IFINDEX_SRC, 0);
+}
+
+SEC("tc")
 int tc_dst_l3(struct __sk_buff *skb)
 {
 	return bpf_redirect(IFINDEX_SRC, 0);

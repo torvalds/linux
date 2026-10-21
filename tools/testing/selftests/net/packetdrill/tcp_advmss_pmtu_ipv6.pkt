@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Test that IPv6 advertised MSS in SYN-ACK is derived from the configured
+// interface MTU (1520 -> MSS 1460), not the ICMPv6-learned Path MTU.
+
+--ip_version=ipv6
+
+`./defaults.sh
+ethtool -K tun0 tso off
+`
+
+//
+// Connection 1: Learn PMTU exception (MTU 1280 -> MSS 1220)
+//
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 65535 <mss 1460,sackOK,nop,nop,nop,wscale 8>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 257
+   +0 accept(3, ..., ...) = 4
+
+// Send a full 1460-byte segment
+   +0 write(4, ..., 1460) = 1460
+   +0 > P. 1:1461(1460) ack 1
+
+// ICMPv6 Packet Too Big arrives indicating next-hop MTU 1280
+   +0 < icmp packet_too_big mtu 1280 [1:1461(1460)]
+
+// Local host retransmits using the learned MTU 1280 (MSS = 1280 - 40 - 20 = 1220)
+   +0 > . 1:1221(1220) ack 1
+   +0 > P. 1221:1461(240) ack 1
+   +0 < R 1:1(0) ack 1461 win 0
+
+// Close connection 1 and listener
+   +0 close(4) = 0
+   +0 close(3) = 0
+
+//
+// Connection 2: New connection from the same peer
+//
+   +0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 65535 <mss 1460,sackOK,nop,nop,nop,wscale 8>
+
+// Verify: SYN-ACK MUST advertise configured MSS 1460, NOT the learned PMTU MSS 1220
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+   +0 < . 1:1(0) ack 1 win 257
+   +0 accept(3, ..., ...) = 4
+
+// Verify: Outgoing transmit MSS is still constrained by the learned PMTU 1280
+   +0 write(4, ..., 1460) = 1460
+   +0 > . 1:1221(1220) ack 1
+   +0 > P. 1221:1461(240) ack 1
+   +0 < . 1:1(0) ack 1461 win 257
+
+// Clean up
+   +0 close(4) = 0
+   +0 > F. 1461:1461(0) ack 1
+   +0 < F. 1:1(0) ack 1462 win 257
+   +0 > . 1462:1462(0) ack 2
+   +0 close(3) = 0

@@ -7,6 +7,8 @@
 
 #include "regs/xe_reg_defs.h"
 
+#define SWF_SCRATCHPAD(_idx)			XE_REG(0x4f000 + (_idx) * 4)
+
 #define SOC_BASE				0x280000
 
 #define GU_CNTL_PROTECTED			XE_REG(0x10100C)

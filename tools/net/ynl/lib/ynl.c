@@ -889,6 +889,9 @@ static int ynl_ntf_parse(struct ynl_sock *ys, const struct nlmsghdr *nlh)
 		return YNL_PARSE_CB_ERROR;
 
 	rsp = calloc(1, info->alloc_sz);
+	if (!rsp)
+		return YNL_PARSE_CB_ERROR;
+
 	rsp->free = info->free;
 	yarg.data = rsp->data;
 	yarg.rsp_policy = info->policy;

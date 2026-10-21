@@ -12,7 +12,7 @@
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
-#include <linux/mfd/dbx500-prcmu.h>
+#include <linux/mfd/db8500-prcmu.h>
 #include <linux/platform_data/arm-ux500-pm.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -81,7 +81,7 @@ static void __init ux500_init_irq(void)
 	struct resource r;
 
 	irqchip_init();
-	prcmu_early_init();
+	db8500_prcmu_early_init();
 	np = of_find_compatible_node(NULL, NULL, "stericsson,db8500-prcmu");
 	of_address_to_resource(np, 0, &r);
 	of_node_put(np);
@@ -101,7 +101,7 @@ static void ux500_restart(enum reboot_mode mode, const char *cmd)
 	local_irq_disable();
 	local_fiq_disable();
 
-	prcmu_system_reset(0);
+	db8500_prcmu_system_reset(0);
 }
 
 static const struct of_device_id u8500_local_bus_nodes[] = {

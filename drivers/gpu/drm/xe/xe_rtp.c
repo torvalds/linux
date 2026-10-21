@@ -227,17 +227,23 @@ static bool rule_matches(const struct xe_device *xe,
 
 static void rtp_add_sr_entry(const struct xe_rtp_action *action,
 			     struct xe_gt *gt,
+			     struct xe_hw_engine *hwe,
 			     u32 mmio_base,
 			     struct xe_reg_sr *sr)
 {
 	struct xe_reg_sr_entry sr_entry = {
 		.reg = action->reg,
 		.clr_bits = action->clr_bits,
-		.set_bits = action->set_bits,
 		.read_mask = action->read_mask,
 	};
 
+	if (action->use_func)
+		sr_entry.set_bits = action->set_func(gt, hwe);
+	else
+		sr_entry.set_bits = action->set_bits;
+
 	sr_entry.reg.addr += mmio_base;
+
 	xe_reg_sr_add(sr, &sr_entry, gt);
 }
 
@@ -259,7 +265,7 @@ static bool rtp_process_one_sr(const struct xe_rtp_entry_sr *entry,
 		else
 			mmio_base = 0;
 
-		rtp_add_sr_entry(action, gt, mmio_base, sr);
+		rtp_add_sr_entry(action, gt, hwe, mmio_base, sr);
 	}
 
 	return true;

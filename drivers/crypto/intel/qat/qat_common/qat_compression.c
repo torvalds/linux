@@ -2,6 +2,7 @@
 /* Copyright(c) 2022 Intel Corporation */
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "adf_transport.h"
@@ -144,7 +145,7 @@ static int qat_compression_create_instances(struct adf_accel_dev *accel_dev)
 	int i;
 
 	INIT_LIST_HEAD(&accel_dev->compression_list);
-	strscpy(key, ADF_NUM_DC, sizeof(key));
+	strscpy(key, ADF_NUM_DC);
 	ret = adf_cfg_get_param_value(accel_dev, SEC, key, val);
 	if (ret)
 		return ret;

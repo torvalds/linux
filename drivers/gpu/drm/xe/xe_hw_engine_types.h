@@ -114,7 +114,12 @@ struct xe_hw_engine {
 	enum xe_engine_class class;
 	/** @instance: physical instance of this hw engine */
 	u16 instance;
-	/** @logical_instance: logical instance of this hw engine */
+	/**
+	 * @logical_instance: logical instance of this hw engine.
+	 *
+	 * Note: For GuC usage, always use xe_hwe_guc_logical_instance().
+	 * For GuC usage, we should no longer use the raw logical instance.
+	 */
 	u16 logical_instance;
 	/** @irq_offset: IRQ offset of this hw engine */
 	u16 irq_offset;

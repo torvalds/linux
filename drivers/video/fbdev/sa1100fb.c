@@ -1167,10 +1167,8 @@ static int sa1100fb_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, irq, sa1100fb_handle_irq, 0,
 			       "LCD", fbi);
-	if (ret) {
-		dev_err(&pdev->dev, "request_irq failed: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	fbi->shannon_lcden = gpiod_get_optional(&pdev->dev, "shannon-lcden",
 						GPIOD_OUT_LOW);

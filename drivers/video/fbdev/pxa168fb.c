@@ -725,7 +725,6 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, pxa168fb_handle_irq,
 			       IRQF_SHARED, info->fix.id, fbi);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "unable to request IRQ\n");
 		ret = -ENXIO;
 		goto failed_free_cmap;
 	}

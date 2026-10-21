@@ -223,7 +223,7 @@ bad_req:
 			goto prq_advance;
 		}
 
-		if (unlikely(req->pm_req && (req->rd_req | req->wr_req))) {
+		if (unlikely(req->pm_req && (req->rd_req || req->wr_req))) {
 			pr_err("IOMMU: %s: Page request in Privilege Mode\n",
 			       iommu->name);
 			goto bad_req;

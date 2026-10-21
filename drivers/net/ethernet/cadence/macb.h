@@ -184,12 +184,6 @@
 #define GEM_DCFG8		0x029C /* Design Config 8 */
 #define GEM_DCFG10		0x02A4 /* Design Config 10 */
 #define GEM_DCFG12		0x02AC /* Design Config 12 */
-#define GEM_ENST_START_TIME_Q0	0x0800 /* ENST Q0 start time */
-#define GEM_ENST_START_TIME_Q1	0x0804 /* ENST Q1 start time */
-#define GEM_ENST_ON_TIME_Q0	0x0820 /* ENST Q0 on time */
-#define GEM_ENST_ON_TIME_Q1	0x0824 /* ENST Q1 on time */
-#define GEM_ENST_OFF_TIME_Q0	0x0840 /* ENST Q0 off time */
-#define GEM_ENST_OFF_TIME_Q1	0x0844 /* ENST Q1 off time */
 #define GEM_ENST_CONTROL	0x0880 /* ENST control register */
 #define GEM_USX_CONTROL		0x0A80 /* High speed PCS control register */
 #define GEM_USX_STATUS		0x0A88 /* High speed PCS status register */
@@ -974,6 +968,8 @@ struct macb_dma_desc_ptp {
  *       of the frame
  * @mapping: DMA address of the skb's fragment buffer
  * @size: size of the DMA mapped buffer
+ * @fcs_len: FCS bytes appended in software, 0 or ETH_FCS_LEN, only
+ *           set for the last buffer of the frame
  * @mapped_as_page: true when buffer was mapped with skb_frag_dma_map(),
  *                  false when buffer was mapped with dma_map_single()
  */
@@ -981,6 +977,7 @@ struct macb_tx_skb {
 	struct sk_buff		*skb;
 	dma_addr_t		mapping;
 	size_t			size;
+	u8			fcs_len;
 	bool			mapped_as_page;
 };
 
@@ -1207,11 +1204,11 @@ struct macb_or_gem_ops {
 
 /* MACB-PTP interface: adapt to platform needs. */
 struct macb_ptp_info {
-	void (*ptp_init)(struct net_device *ndev);
-	void (*ptp_remove)(struct net_device *ndev);
+	void (*ptp_init)(struct net_device *netdev);
+	void (*ptp_remove)(struct net_device *netdev);
 	s32 (*get_ptp_max_adj)(void);
 	unsigned int (*get_tsu_rate)(struct macb *bp);
-	int (*get_ts_info)(struct net_device *dev,
+	int (*get_ts_info)(struct net_device *netdev,
 			   struct kernel_ethtool_ts_info *info);
 	int (*get_hwtst)(struct net_device *netdev,
 			 struct kernel_hwtstamp_config *tstamp_config);
@@ -1326,7 +1323,7 @@ struct macb {
 	struct clk		*tx_clk;
 	struct clk		*rx_clk;
 	struct clk		*tsu_clk;
-	struct net_device	*dev;
+	struct net_device	*netdev;
 	/* Protects hw_stats and ethtool_stats */
 	spinlock_t		stats_lock;
 	union {
@@ -1406,8 +1403,8 @@ enum macb_bd_control {
 	TSTAMP_ALL_FRAMES,
 };
 
-void gem_ptp_init(struct net_device *ndev);
-void gem_ptp_remove(struct net_device *ndev);
+void gem_ptp_init(struct net_device *netdev);
+void gem_ptp_remove(struct net_device *netdev);
 void gem_ptp_txstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc);
 void gem_ptp_rxstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc);
 static inline void gem_ptp_do_txstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc)
@@ -1426,14 +1423,14 @@ static inline void gem_ptp_do_rxstamp(struct macb *bp, struct sk_buff *skb, stru
 	gem_ptp_rxstamp(bp, skb, desc);
 }
 
-int gem_get_hwtst(struct net_device *dev,
+int gem_get_hwtst(struct net_device *netdev,
 		  struct kernel_hwtstamp_config *tstamp_config);
-int gem_set_hwtst(struct net_device *dev,
+int gem_set_hwtst(struct net_device *netdev,
 		  struct kernel_hwtstamp_config *tstamp_config,
 		  struct netlink_ext_ack *extack);
 #else
-static inline void gem_ptp_init(struct net_device *ndev) { }
-static inline void gem_ptp_remove(struct net_device *ndev) { }
+static inline void gem_ptp_init(struct net_device *netdev) { }
+static inline void gem_ptp_remove(struct net_device *netdev) { }
 
 static inline void gem_ptp_do_txstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc) { }
 static inline void gem_ptp_do_rxstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc) { }

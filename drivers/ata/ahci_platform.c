@@ -87,9 +87,9 @@ static const struct of_device_id ahci_of_match[] = {
 MODULE_DEVICE_TABLE(of, ahci_of_match);
 
 static const struct acpi_device_id ahci_acpi_match[] = {
-	{ "APMC0D33", (unsigned long)&ahci_port_info_nolpm },
+	{ .id = "APMC0D33", .driver_data = (unsigned long)&ahci_port_info_nolpm },
 	{ ACPI_DEVICE_CLASS(PCI_CLASS_STORAGE_SATA_AHCI, 0xffffff) },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ahci_acpi_match);
 

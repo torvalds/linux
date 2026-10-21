@@ -19,6 +19,7 @@ properties:
       - items:
           - enum:
               - axiado,ax3000-i3c
+              - axiado,ax3005-i3c
           - const: cdns,i3c-master
 
   reg:

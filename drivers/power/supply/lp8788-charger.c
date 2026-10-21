@@ -710,8 +710,8 @@ static void lp8788_charger_remove(struct platform_device *pdev)
 {
 	struct lp8788_charger *pchg = platform_get_drvdata(pdev);
 
-	flush_work(&pchg->charger_work);
 	lp8788_irq_unregister(pdev, pchg);
+	cancel_work_sync(&pchg->charger_work);
 }
 
 static struct platform_driver lp8788_charger_driver = {
@@ -727,3 +727,4 @@ MODULE_DESCRIPTION("TI LP8788 Charger Driver");
 MODULE_AUTHOR("Milo Kim");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:lp8788-charger");
+MODULE_IMPORT_NS("IIO_CONSUMER");

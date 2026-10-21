@@ -148,7 +148,10 @@ void bpf_dispatcher_change_prog(struct bpf_dispatcher *d, struct bpf_prog *from,
 		d->image = bpf_prog_pack_alloc(PAGE_SIZE, bpf_jit_fill_hole_with_zero, false);
 		if (!d->image)
 			goto out;
-		d->rw_image = bpf_jit_alloc_exec(PAGE_SIZE);
+		/* d->rw_image doesn't need to be in module memory range, so we
+		 * can use vzalloc.
+		 */
+		d->rw_image = vzalloc(PAGE_SIZE);
 		if (!d->rw_image) {
 			bpf_prog_pack_free(d->image, PAGE_SIZE);
 			d->image = NULL;

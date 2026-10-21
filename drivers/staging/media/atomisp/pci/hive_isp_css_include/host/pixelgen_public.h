@@ -12,7 +12,7 @@
  * Native command interface (NCI).
  *
  *****************************************************/
-/**
+/*
  * @brief Get the pixelgen state.
  * Get the state of the pixelgen regiester-set.
  *
@@ -22,7 +22,7 @@
 STORAGE_CLASS_PIXELGEN_H void pixelgen_ctrl_get_state(
     const pixelgen_ID_t ID,
     pixelgen_ctrl_state_t *state);
-/**
+/*
  * @brief Dump the pixelgen state.
  * Dump the state of the pixelgen regiester-set.
  *
@@ -39,7 +39,7 @@ STORAGE_CLASS_PIXELGEN_H void pixelgen_ctrl_dump_state(
  * Device level interface (DLI).
  *
  *****************************************************/
-/**
+/*
  * @brief Load the register value.
  * Load the value of the register of the pixelgen
  *
@@ -51,7 +51,7 @@ STORAGE_CLASS_PIXELGEN_H void pixelgen_ctrl_dump_state(
 STORAGE_CLASS_PIXELGEN_H hrt_data pixelgen_ctrl_reg_load(
     const pixelgen_ID_t ID,
     const hrt_address reg);
-/**
+/*
  * @brief Store a value to the register.
  * Store a value to the registe of the pixelgen
  *

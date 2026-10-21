@@ -13,8 +13,18 @@ struct drm_printer;
 
 const char *xe_guc_klv_key_to_string(u16 key);
 
+void xe_guc_klv_print_one(u16 key, u16 len, const u32 *value, struct drm_printer *p);
 void xe_guc_klv_print(const u32 *klvs, u32 num_dwords, struct drm_printer *p);
 int xe_guc_klv_count(const u32 *klvs, u32 num_dwords);
+
+u32 *xe_guc_klv_encode_u32(u32 *klvs, u32 avail, u16 key, u32 value);
+u32 *xe_guc_klv_encode_u64(u32 *klvs, u32 avail, u16 key, u64 value);
+u32 *xe_guc_klv_encode_string(u32 *klvs, u32 avail, u16 key, const char *s);
+u32 *xe_guc_klv_encode_object(u32 *klvs, u32 avail, u16 key, const void *obj,
+			      u32 *(*encoder)(u32 *klvs, u32 avail, const void *obj));
+
+int xe_guc_klv_parser(const u32 *klvs, u32 num_dwords, void *obj,
+		      int (*decoder)(void *obj, u16 key, u16 len, const u32 *value));
 
 /**
  * PREP_GUC_KLV - Prepare KLV header value based on provided key and len.

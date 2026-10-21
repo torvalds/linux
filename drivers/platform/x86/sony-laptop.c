@@ -1264,7 +1264,7 @@ static void sony_nc_notify(acpi_handle ah, u32 event, void *data)
 		ev_type = HOTKEY;
 		sony_laptop_report_input_event(real_ev);
 	}
-	acpi_bus_generate_netlink_event(sony_nc_acpi_device->pnp.device_class,
+	acpi_bus_generate_netlink_event("sony/hotkey",
 			dev_name(&sony_nc_acpi_device->dev), ev_type, real_ev);
 }
 
@@ -3157,8 +3157,6 @@ static int sony_nc_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	sony_nc_acpi_device = device;
-	strscpy(acpi_device_class(device), "sony/hotkey");
-
 	sony_nc_acpi_handle = device->handle;
 
 	/* read device status */
@@ -4523,7 +4521,6 @@ static int sony_pic_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	spic_dev.acpi_dev = device;
-	strscpy(acpi_device_class(device), "sony/hotkey");
 	sony_pic_detect_device_type(&spic_dev);
 	mutex_init(&spic_dev.lock);
 

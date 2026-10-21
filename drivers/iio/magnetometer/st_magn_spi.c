@@ -87,12 +87,12 @@ static int st_magn_spi_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id st_magn_id_table[] = {
-	{ LIS3MDL_MAGN_DEV_NAME },
-	{ LSM303AGR_MAGN_DEV_NAME },
-	{ LIS2MDL_MAGN_DEV_NAME },
-	{ LSM9DS1_MAGN_DEV_NAME },
-	{ IIS2MDC_MAGN_DEV_NAME },
-	{ LSM303C_MAGN_DEV_NAME },
+	{ .name = LIS3MDL_MAGN_DEV_NAME },
+	{ .name = LSM303AGR_MAGN_DEV_NAME },
+	{ .name = LIS2MDL_MAGN_DEV_NAME },
+	{ .name = LSM9DS1_MAGN_DEV_NAME },
+	{ .name = IIS2MDC_MAGN_DEV_NAME },
+	{ .name = LSM303C_MAGN_DEV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, st_magn_id_table);

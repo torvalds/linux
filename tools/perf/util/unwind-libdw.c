@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <assert.h>
 #include <linux/compiler.h>
 #include <elfutils/libdw.h>
 #include <elfutils/libdwfl.h>
@@ -173,14 +174,30 @@ static int entry(u64 ip, struct unwind_info *ui)
 	return 0;
 }
 
-static pid_t next_thread(Dwfl *dwfl, void *arg, void **thread_argp)
+static pid_t next_thread(Dwfl *dwfl __maybe_unused, void *arg, void **thread_argp)
 {
+	struct dwfl_ui_thread_info *dwfl_ui_ti = arg;
+
 	/* We want only single thread to be processed. */
 	if (*thread_argp != NULL)
 		return 0;
 
+	assert(dwfl_ui_ti->ui != NULL);
 	*thread_argp = arg;
-	return dwfl_pid(dwfl);
+	return thread__tid(dwfl_ui_ti->ui->thread);
+}
+
+static bool get_thread(Dwfl *dwfl __maybe_unused, pid_t tid, void *arg,
+		       void **thread_argp)
+{
+	struct dwfl_ui_thread_info *dwfl_ui_ti = arg;
+
+	assert(dwfl_ui_ti->ui != NULL);
+	if (tid != thread__tid(dwfl_ui_ti->ui->thread))
+		return false;
+
+	*thread_argp = arg;
+	return true;
 }
 
 static int access_dso_mem(struct unwind_info *ui, Dwarf_Addr addr,
@@ -306,6 +323,7 @@ static bool libdw_set_initial_registers(Dwfl_Thread *thread, void *arg)
 
 static const Dwfl_Thread_Callbacks callbacks = {
 	.next_thread           = next_thread,
+	.get_thread            = get_thread,
 	.memory_read           = memory_read,
 	.set_initial_registers = libdw_set_initial_registers,
 };
@@ -400,7 +418,7 @@ int libdw__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (err)
 		goto out;
 
-	dwfl_attach_state(dwfl, /*elf=*/NULL, thread__tid(thread), &callbacks,
+	dwfl_attach_state(dwfl, /*elf=*/NULL, thread__pid(thread), &callbacks,
 			  /* Dwfl thread function argument*/dwfl_ui_ti);
 	// Ignore thread already attached error.
 

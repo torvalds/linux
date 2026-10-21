@@ -477,25 +477,22 @@ static int jh7110_pwmdac_probe(struct platform_device *pdev)
 					      &jh7110_pwmdac_component,
 					      &jh7110_pwmdac_dai, 1);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "failed to register dai\n");
+		return ret;
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "failed to register pcm\n");
+		return ret;
 
 	pm_runtime_enable(dev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		ret = jh7110_pwmdac_runtime_resume(&pdev->dev);
-		if (ret)
-			goto err_pm_disable;
+		if (ret) {
+			pm_runtime_disable(&pdev->dev);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err_pm_disable:
-	pm_runtime_disable(&pdev->dev);
-
-	return ret;
 }
 
 static void jh7110_pwmdac_remove(struct platform_device *pdev)

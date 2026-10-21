@@ -13,14 +13,14 @@ maintainers:
 
 description: |
   For samsung,s5pv210-mipi-video-phy compatible PHYs the second cell in the
-  PHY specifier identifies the PHY and its meaning is as follows::
+  PHY specifier identifies the PHY and its meaning is as follows:
     0 - MIPI CSIS 0,
     1 - MIPI DSIM 0,
     2 - MIPI CSIS 1,
     3 - MIPI DSIM 1.
 
   samsung,exynos5420-mipi-video-phy and samsung,exynos5433-mipi-video-phy
-  support additional fifth PHY::
+  support additional fifth PHY:
     4 - MIPI CSIS 2.
 
 properties:

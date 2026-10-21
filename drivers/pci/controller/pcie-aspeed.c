@@ -725,10 +725,10 @@ static int aspeed_pcie_init_irq_domain(struct aspeed_pcie *pcie)
 {
 	int ret;
 
-	pcie->intx_domain = irq_domain_add_linear(pcie->dev->of_node,
-						  PCI_NUM_INTX,
-						  &aspeed_intx_domain_ops,
-						  pcie);
+	pcie->intx_domain = irq_domain_create_linear(dev_fwnode(pcie->dev),
+						     PCI_NUM_INTX,
+						     &aspeed_intx_domain_ops,
+						     pcie);
 	if (!pcie->intx_domain) {
 		ret = dev_err_probe(pcie->dev, -ENOMEM,
 				    "failed to get INTx IRQ domain\n");

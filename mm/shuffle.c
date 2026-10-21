@@ -7,6 +7,7 @@
 #include <linux/random.h>
 #include <linux/moduleparam.h>
 #include "internal.h"
+#include "page_alloc.h"
 #include "shuffle.h"
 
 DEFINE_STATIC_KEY_FALSE(page_alloc_shuffle_key);

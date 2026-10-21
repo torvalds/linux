@@ -30,6 +30,7 @@ properties:
           - qcom,kaanapali-ipcc
           - qcom,maili-ipcc
           - qcom,milos-ipcc
+          - qcom,nord-ipcc
           - qcom,qcs8300-ipcc
           - qcom,qdu1000-ipcc
           - qcom,sa8255p-ipcc

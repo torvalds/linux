@@ -1,0 +1,103 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: BTF typecast and percpu access syntax validation
+# requires: dynamic_events "this_cpu_read(<fetcharg>)":README "[(structname[,field])]<argname>[->field[->field|.field...]]":README
+
+KPROBES=
+FPROBES=
+
+if grep -qF "p[:[<group>/][<event>]] <place> [<args>]" README ; then
+  KPROBES=yes
+fi
+if grep -qF "f[:[<group>/][<event>]] <func-name>[%return] [<args>]" README ; then
+  FPROBES=yes
+fi
+
+if [ -z "$KPROBES" -a -z "$FPROBES" ] ; then
+  exit_unsupported
+fi
+
+echo 0 > events/enable
+echo > dynamic_events
+
+# Load trace-events-sample module if available to have per-CPU counter structure defined
+if ! lsmod | grep -q trace_events_sample; then
+  modprobe trace-events-sample || exit_unresolved
+fi
+
+if [ "$FPROBES" ] ; then
+  # 1. Test basic typecast on fprobe
+  echo 'f:fpevent1 vfs_read name=(file)file->f_path.dentry->d_name.name:string' >> dynamic_events
+  # 2. Test parenthesized typecast target on fprobe
+  echo 'f:fpevent2 vfs_read name=(file)(file)->f_path.dentry->d_name.name:string' >> dynamic_events
+  # 3. Test nested typecasts on fprobe
+  echo 'f:fpevent3 vfs_read name=(dentry)((file)file->f_path.dentry)->d_name.name:string' >> dynamic_events
+  # 4. Test container_of-style typecast with field option on fprobe
+  echo 'f:fpevent4 vfs_read name=(file,f_path)file->f_mode' >> dynamic_events
+  # 5. Test typecast on return value on fprobe
+  echo 'f:fpevent5 vfs_read%return name=(file)$retval->f_path.dentry->d_name.name:string' >> dynamic_events
+  # 6. Test $current variable support on fprobe
+  echo 'f:fpevent6 vfs_read pid=$current->pid' >> dynamic_events
+  echo 'f:fpevent7 vfs_read pid=(task_struct)$current->pid' >> dynamic_events
+  echo 'f:fpevent8 vfs_read pid=(task_struct,group_leader)$current->pid' >> dynamic_events
+
+  # Test this_cpu_read and this_cpu_ptr on fprobe
+  echo 'f:fpevent9 sample_timer_cb name=(foo_timer_data,timer)t->name:string count=this_cpu_read((foo_timer_data,timer)t->counter)' >> dynamic_events
+  echo 'f:fpevent10 sample_timer_cb ptr=this_cpu_ptr((foo_timer_data,timer)t->counter)' >> dynamic_events
+fi
+
+if [ "$KPROBES" ] ; then
+  # 7. Test basic typecast on kprobe
+  echo 'p:kpevent1 vfs_read name=(file)file->f_path.dentry->d_name.name:string' >> dynamic_events
+  # 8. Test parenthesized typecast target on kprobe
+  echo 'p:kpevent2 vfs_read name=(file)(file)->f_path.dentry->d_name.name:string' >> dynamic_events
+  # 9. Test nested typecasts on kprobe
+  echo 'p:kpevent3 vfs_read name=(dentry)((file)file->f_path.dentry)->d_name.name:string' >> dynamic_events
+  # 10. Test container_of-style typecast with field option on kprobe
+  echo 'p:kpevent4 vfs_read name=(file,f_path)file->f_mode' >> dynamic_events
+  # 11. Test typecast on return value on kretprobe
+  echo 'r:kpevent5 vfs_read name=(file)$retval->f_path.dentry->d_name.name:string' >> dynamic_events
+  # 12. Test $current variable support on kprobe
+  echo 'p:kpevent6 vfs_read pid=$current->pid' >> dynamic_events
+  echo 'p:kpevent7 vfs_read pid=(task_struct)$current->pid' >> dynamic_events
+  echo 'p:kpevent8 vfs_read pid=(task_struct,group_leader)$current->pid' >> dynamic_events
+
+  # Test this_cpu_read and this_cpu_ptr on kprobe
+  echo 'p:kpevent9 sample_timer_cb name=(foo_timer_data,timer)t->name:string count=this_cpu_read((foo_timer_data,timer)t->counter)' >> dynamic_events
+  echo 'p:kpevent10 sample_timer_cb ptr=this_cpu_ptr((foo_timer_data,timer)t->counter)' >> dynamic_events
+fi
+
+# Verify the events exist in dynamic_events
+if [ "$FPROBES" ] ; then
+  grep -q "fpevent1 " dynamic_events
+  grep -q "fpevent2 " dynamic_events
+  grep -q "fpevent3 " dynamic_events
+  grep -q "fpevent4 " dynamic_events
+  grep -q "fpevent5 " dynamic_events
+  grep -q "fpevent6 " dynamic_events
+  grep -q "fpevent7 " dynamic_events
+  grep -q "fpevent8 " dynamic_events
+  if lsmod | grep -q trace_events_sample; then
+    grep -q "fpevent9 " dynamic_events
+    grep -q "fpevent10 " dynamic_events
+  fi
+fi
+
+if [ "$KPROBES" ] ; then
+  grep -q "kpevent1 " dynamic_events
+  grep -q "kpevent2 " dynamic_events
+  grep -q "kpevent3 " dynamic_events
+  grep -q "kpevent4 " dynamic_events
+  grep -q "kpevent5 " dynamic_events
+  grep -q "kpevent6 " dynamic_events
+  grep -q "kpevent7 " dynamic_events
+  grep -q "kpevent8 " dynamic_events
+  if lsmod | grep -q trace_events_sample; then
+    grep -q "kpevent9 " dynamic_events
+    grep -q "kpevent10 " dynamic_events
+  fi
+fi
+
+# Clean up
+echo > dynamic_events
+clear_trace

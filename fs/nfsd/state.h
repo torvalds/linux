@@ -36,9 +36,12 @@
 #define _NFSD4_STATE_H
 
 #include <crypto/md5.h>
+
+#include <linux/filelock.h>
 #include <linux/idr.h>
 #include <linux/refcount.h>
 #include <linux/sunrpc/svc_xprt.h>
+
 #include "nfsfh.h"
 #include "nfsd.h"
 
@@ -59,7 +62,6 @@ typedef struct {
 
 typedef struct {
 	stateid_t		cs_stid;
-#define NFS4_COPY_STID 1
 #define NFS4_COPYNOTIFY_STID 2
 	unsigned char		cs_type;
 	refcount_t		cs_count;
@@ -98,9 +100,9 @@ struct nfsd4_callback {
 };
 
 struct nfsd4_callback_ops {
-	void (*prepare)(struct nfsd4_callback *);
-	int (*done)(struct nfsd4_callback *, struct rpc_task *);
-	void (*release)(struct nfsd4_callback *);
+	bool (*prepare)(struct nfsd4_callback *cb);
+	int (*done)(struct nfsd4_callback *cb, struct rpc_task *task);
+	void (*release)(struct nfsd4_callback *cb);
 	uint32_t opcode;
 };
 
@@ -121,6 +123,7 @@ struct nfs4_stid {
 #define SC_TYPE_LOCK		BIT(1)
 #define SC_TYPE_DELEG		BIT(2)
 #define SC_TYPE_LAYOUT		BIT(3)
+#define SC_TYPE_COPY		BIT(4)
 	unsigned short		sc_type;
 
 /* nn->deleg_lock protects sc_status for delegation stateids.
@@ -191,6 +194,66 @@ struct nfs4_cb_fattr {
 };
 
 /*
+ * FIXME: the current backchannel encoder can't handle a send buffer longer
+ *        than a single page (see bc_malloc/bc_free).
+ */
+#define NOTIFY4_EVENT_QUEUE_SIZE	3
+#define NOTIFY4_PAGE_ARRAY_SIZE		1
+
+struct nfsd_notify_event {
+	refcount_t	ne_ref;		// refcount
+	u32		ne_mask;	// FS_* mask from fsnotify callback
+	struct dentry	*ne_dentry;	// dentry reference to target
+	struct inode	*ne_target;	// inode overwritten by rename, or NULL
+	u32		ne_namelen;	// length of ne_name (old name for a rename)
+	u32		ne_newnamelen;	// length of new name (rename only), else 0
+	char		ne_name[];	// entry name, then new name (rename only)
+};
+
+/*
+ * For a rename, the new name is snapshotted at event-alloc time and stored
+ * immediately after the (NUL-terminated) old name in ne_name[]. ne_dentry can
+ * be renamed again before the CB_NOTIFY work runs, so the new name must not be
+ * read from the live dentry at encode time.
+ */
+static inline char *nfsd_notify_event_newname(struct nfsd_notify_event *ne)
+{
+	return ne->ne_name + ne->ne_namelen + 1;
+}
+
+static inline struct nfsd_notify_event *nfsd_notify_event_get(struct nfsd_notify_event *ne)
+{
+	refcount_inc(&ne->ne_ref);
+	return ne;
+}
+
+static inline void nfsd_notify_event_put(struct nfsd_notify_event *ne)
+{
+	if (refcount_dec_and_test(&ne->ne_ref)) {
+		iput(ne->ne_target);
+		dput(ne->ne_dentry);
+		kfree(ne);
+	}
+}
+
+/*
+ * Represents a directory delegation. The callback is for handling CB_NOTIFYs.
+ * As notifications from fsnotify come in, allocate a new event, take the ncn_lock,
+ * and add it to the ncn_evt queue. The CB_NOTIFY prepare handler will take the
+ * lock, clean out the list and process it.
+ */
+struct nfsd4_cb_notify {
+	spinlock_t			ncn_lock;	// protects the evt queue and count
+	int				ncn_evt_cnt;	// count of events in ncn_evt
+	int				ncn_nf_cnt;	// count of valid entries in ncn_nf
+	struct nfsd_notify_event	*ncn_evt[NOTIFY4_EVENT_QUEUE_SIZE]; // list of events
+	struct page			*ncn_pages[NOTIFY4_PAGE_ARRAY_SIZE]; // for encoding
+	struct notify4			*ncn_nf;	// array of notify4's to be sent
+	bool				ncn_encode_err;	// did encoding fail?
+	struct nfsd4_callback		ncn_cb;		// notify4 callback
+};
+
+/*
  * Represents a delegation stateid. The nfs4_client holds references to these
  * and they are put when it is being destroyed or when the delegation is
  * returned by the client:
@@ -226,13 +289,22 @@ struct nfs4_delegation {
 	bool			dl_written;
 	bool			dl_setattr;
 
-	/* for CB_GETATTR */
-	struct nfs4_cb_fattr    dl_cb_fattr;
+	union {
+		/* for CB_GETATTR */
+		struct nfs4_cb_fattr    dl_cb_fattr;
+		/* for CB_NOTIFY */
+		struct nfsd4_cb_notify	dl_cb_notify;
+	};
 
 	/* For delegated timestamps */
 	struct timespec64	dl_atime;
 	struct timespec64	dl_mtime;
 	struct timespec64	dl_ctime;
+
+	/* For dir delegations */
+	u32			dl_notify_mask;
+	u32			dl_child_attrs[2];
+	u32			dl_dir_attrs[2];
 };
 
 static inline bool deleg_is_read(u32 dl_type)
@@ -384,6 +456,7 @@ struct nfsd4_session {
 	u16			se_slot_gen;
 	bool			se_dead;
 	u32			se_target_maxslots;
+	struct rcu_head		rcu_head;
 };
 
 /* formatted contents of nfs4_sessionid */
@@ -496,7 +569,7 @@ struct nfs4_client {
 #define NFSD4_CB_FAULT		3
 	int			cl_cb_state;
 	struct nfsd4_callback	cl_cb_null;
-	struct nfsd4_session	*cl_cb_session;
+	struct nfsd4_session	__rcu *cl_cb_session;
 
 	/* for all client information that callback code might need: */
 	spinlock_t		cl_lock;
@@ -691,7 +764,7 @@ struct nfs4_file {
 	 */
 	atomic_t		fi_access[2];
 	u32			fi_share_deny;
-	struct nfsd_file	*fi_deleg_file;
+	struct nfsd_file __rcu	*fi_deleg_file;
 	struct nfsd_file	*fi_rdeleg_file;
 	int			fi_delegees;
 	struct knfsd_fh		fi_fhandle;
@@ -754,6 +827,7 @@ struct nfs4_layout_stateid {
 	struct delayed_work		ls_fence_work;
 	unsigned int			ls_fence_delay;
 	bool				ls_fenced;
+	bool				ls_fence_inflight;
 };
 
 static inline struct nfs4_layout_stateid *layoutstateid(struct nfs4_stid *s)
@@ -774,6 +848,7 @@ enum nfsd4_cb_op {
 	NFSPROC4_CLNT_CB_NOTIFY_LOCK,
 	NFSPROC4_CLNT_CB_RECALL_ANY,
 	NFSPROC4_CLNT_CB_GETATTR,
+	NFSPROC4_CLNT_CB_NOTIFY,
 };
 
 /* Returns true iff a is later than b: */
@@ -800,6 +875,7 @@ struct nfsd4_blocked_lock {
 struct nfsd4_compound_state;
 struct nfsd_net;
 struct nfsd4_copy;
+struct nfsd4_async_copy;
 
 extern __be32 nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *cstate, struct svc_fh *fhp,
@@ -811,8 +887,7 @@ __be32 nfsd4_lookup_stateid(struct nfsd4_compound_state *cstate,
 			    struct nfs4_stid **s, struct nfsd_net *nn);
 struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl, struct kmem_cache *slab,
 				  void (*sc_free)(struct nfs4_stid *));
-int nfs4_init_copy_state(struct nfsd_net *nn, struct nfsd4_copy *copy);
-void nfs4_free_copy_state(struct nfsd4_copy *copy);
+struct nfsd4_async_copy *nfs4_alloc_copy_stid(struct nfs4_client *clp);
 struct nfs4_cpntf_state *nfs4_alloc_init_cpntf_state(struct nfsd_net *nn,
 			struct nfs4_stid *p_stid);
 void nfs4_put_stid(struct nfs4_stid *s);
@@ -848,6 +923,8 @@ void nfsd_update_cmtime_attr(struct file *f, unsigned int flags);
 extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(struct xdr_netobj name,
 				struct xdr_netobj princhash, struct nfsd_net *nn);
 extern bool nfs4_has_reclaimed_state(struct xdr_netobj name, struct nfsd_net *nn);
+int nfsd_handle_dir_event(u32 mask, const struct inode *dir, const void *data,
+			  int data_type, const struct qstr *name);
 
 void put_nfs4_file(struct nfs4_file *fi);
 extern void nfs4_put_cpntf_state(struct nfsd_net *nn,

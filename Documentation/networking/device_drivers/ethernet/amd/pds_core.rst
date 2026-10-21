@@ -102,6 +102,95 @@ currently in use, and that bank will used for the next boot::
   # devlink dev flash pci/0000:b5:00.0 \
             file pensando/dsc_fw_1.63.0-22.tar
 
+Firmware Management (PLDM)
+==========================
+
+Firmware that supports PLDM can be updated using the devlink flash command
+with a PLDM firmware package. The entire package can be updated at once::
+
+  # devlink dev flash pci/0000:b5:00.0 file firmware.pldmfw
+
+Individual components can also be updated by specifying the component name::
+
+  # devlink dev flash pci/0000:b5:00.0 \
+            file firmware.pldmfw component fw.cpld
+
+Per-component update uses driver-defined component names (fw, fw.cpld,
+etc.). Not all components support per-component update -
+devlink will reject the request if the specified component cannot
+be updated.
+
+Gold (recovery) components can be updated by specifying the base component
+name (e.g., ``fw`` for ``fw.gold``) with a goldfw package file when the
+device supports per-component update. The ``.gold`` suffix in devlink info
+output indicates the gold slot version, not a flash target.
+
+Info versions (PLDM)
+====================
+
+Firmware that supports PLDM reports component versions using driver-defined
+names. The driver reports the following component versions:
+
+.. list-table:: devlink info versions for PLDM-capable firmware
+   :widths: 5 5 90
+
+   * - Name
+     - Type
+     - Description
+   * - ``fw``
+     - running, stored
+     - Main firmware
+   * - ``fw.gold``
+     - stored
+     - Gold (recovery) firmware
+   * - ``fw.bootloader``
+     - running, stored
+     - Boot loader
+   * - ``fw.cpld``
+     - running, stored
+     - CPLD
+   * - ``fw.secure``
+     - running, stored
+     - Secure boot firmware
+   * - ``fw.fpga``
+     - running, stored
+     - FPGA configuration
+   * - ``fw.suc``
+     - running, stored
+     - System Unit Controller firmware
+   * - ``fw.suc.bootloader``
+     - running, stored
+     - System Unit Controller bootloader
+   * - ``fw.uboot``
+     - running, stored
+     - U-Boot bootloader
+   * - ``asic.id``
+     - fixed
+     - The ASIC type for this device
+   * - ``asic.rev``
+     - fixed
+     - The revision of the ASIC for this device
+
+Example output::
+
+  $ devlink dev info pci/0000:00:05.0
+  pci/0000:00:05.0:
+    driver pds_core
+    serial_number FLM18420073
+    versions:
+        fixed:
+          asic.id 0x0
+          asic.rev 0x0
+        running:
+          fw.bootloader 1.2.3
+          fw 1.3.0
+          fw.cpld 3.18
+        stored:
+          fw.bootloader 1.2.3
+          fw.gold 1.2.0
+          fw 1.3.0
+          fw.cpld 3.18
+
 Health Reporters
 ================
 

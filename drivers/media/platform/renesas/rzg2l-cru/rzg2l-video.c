@@ -851,6 +851,11 @@ static void rzg2l_cru_format_align(struct rzg2l_cru_dev *cru,
 
 	v4l2_fill_pixfmt(pix, pix->pixelformat, pix->width, pix->height);
 
+	if (info->has_stride) {
+		pix->bytesperline = ALIGN(pix->bytesperline, RZG2L_CRU_STRIDE_ALIGN);
+		pix->sizeimage = pix->bytesperline * pix->height;
+	}
+
 	dev_dbg(cru->dev, "Format %ux%u bpl: %u size: %u\n",
 		pix->width, pix->height, pix->bytesperline, pix->sizeimage);
 }

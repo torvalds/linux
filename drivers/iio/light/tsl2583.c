@@ -456,12 +456,8 @@ static int tsl2583_chip_init_and_power_on(struct iio_dev *indio_dev)
 
 	usleep_range(3000, 3500);
 
-	ret = tsl2583_set_power_state(chip, TSL2583_CNTL_PWR_ON |
-					    TSL2583_CNTL_ADC_ENBL);
-	if (ret < 0)
-		return ret;
-
-	return ret;
+	return tsl2583_set_power_state(chip,
+				       TSL2583_CNTL_PWR_ON | TSL2583_CNTL_ADC_ENBL);
 }
 
 /* Sysfs Interface Functions */
@@ -475,7 +471,7 @@ static ssize_t in_illuminance_input_target_show(struct device *dev,
 	int ret;
 
 	mutex_lock(&chip->als_mutex);
-	ret = sprintf(buf, "%d\n", chip->als_settings.als_cal_target);
+	ret = sysfs_emit(buf, "%d\n", chip->als_settings.als_cal_target);
 	mutex_unlock(&chip->als_mutex);
 
 	return ret;
@@ -533,10 +529,10 @@ static ssize_t in_illuminance_lux_table_show(struct device *dev,
 	int offset = 0;
 
 	for (i = 0; i < ARRAY_SIZE(chip->als_settings.als_device_lux); i++) {
-		offset += sprintf(buf + offset, "%u,%u,%u,",
-				  chip->als_settings.als_device_lux[i].ratio,
-				  chip->als_settings.als_device_lux[i].ch0,
-				  chip->als_settings.als_device_lux[i].ch1);
+		offset += sysfs_emit_at(buf, offset, "%u,%u,%u,",
+					chip->als_settings.als_device_lux[i].ratio,
+					chip->als_settings.als_device_lux[i].ch0,
+					chip->als_settings.als_device_lux[i].ch1);
 		if (chip->als_settings.als_device_lux[i].ratio == 0) {
 			/*
 			 * We just printed the first "0" entry.
@@ -547,7 +543,7 @@ static ssize_t in_illuminance_lux_table_show(struct device *dev,
 		}
 	}
 
-	offset += sprintf(buf + offset, "\n");
+	offset += sysfs_emit_at(buf, offset, "\n");
 
 	return offset;
 }
@@ -639,14 +635,6 @@ static const struct iio_chan_spec tsl2583_channels[] = {
 	},
 };
 
-static int tsl2583_set_pm_runtime_busy(struct tsl2583_chip *chip, bool on)
-{
-	if (on)
-		return pm_runtime_resume_and_get(&chip->client->dev);
-
-	return pm_runtime_put_autosuspend(&chip->client->dev);
-}
-
 static int tsl2583_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int *val, int *val2, long mask)
@@ -654,7 +642,7 @@ static int tsl2583_read_raw(struct iio_dev *indio_dev,
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	int ret, pm_ret;
 
-	ret = tsl2583_set_pm_runtime_busy(chip, true);
+	ret = pm_runtime_resume_and_get(&chip->client->dev);
 	if (ret < 0)
 		return ret;
 
@@ -722,16 +710,16 @@ read_done:
 	mutex_unlock(&chip->als_mutex);
 
 	if (ret < 0) {
-		tsl2583_set_pm_runtime_busy(chip, false);
+		pm_runtime_put_autosuspend(&chip->client->dev);
 		return ret;
 	}
 
 	/*
 	 * Preserve the ret variable if the call to
-	 * tsl2583_set_pm_runtime_busy() is successful so the reading
+	 * pm_runtime_put_autosuspend() is successful so the reading
 	 * (if applicable) is returned to user space.
 	 */
-	pm_ret = tsl2583_set_pm_runtime_busy(chip, false);
+	pm_ret = pm_runtime_put_autosuspend(&chip->client->dev);
 	if (pm_ret < 0)
 		return pm_ret;
 
@@ -745,7 +733,7 @@ static int tsl2583_write_raw(struct iio_dev *indio_dev,
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	int ret;
 
-	ret = tsl2583_set_pm_runtime_busy(chip, true);
+	ret = pm_runtime_resume_and_get(&chip->client->dev);
 	if (ret < 0)
 		return ret;
 
@@ -786,15 +774,15 @@ static int tsl2583_write_raw(struct iio_dev *indio_dev,
 	mutex_unlock(&chip->als_mutex);
 
 	if (ret < 0) {
-		tsl2583_set_pm_runtime_busy(chip, false);
+		pm_runtime_put_autosuspend(&chip->client->dev);
 		return ret;
 	}
 
-	ret = tsl2583_set_pm_runtime_busy(chip, false);
+	ret = pm_runtime_put_autosuspend(&chip->client->dev);
 	if (ret < 0)
 		return ret;
 
-	return ret;
+	return 0;
 }
 
 static const struct iio_info tsl2583_info = {

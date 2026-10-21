@@ -619,7 +619,7 @@ static const struct drm_bridge_funcs lt9211_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_bridge_destroy_state,
 	.atomic_get_input_bus_fmts = lt9211_atomic_get_input_bus_fmts,
-	.atomic_reset		= drm_atomic_helper_bridge_reset,
+	.atomic_create_state		= drm_atomic_helper_bridge_create_state,
 };
 
 static int lt9211_parse_dt(struct lt9211 *ctx)
@@ -660,6 +660,7 @@ static int lt9211_parse_dt(struct lt9211 *ctx)
 		return ret;
 	if (panel) {
 		panel_bridge = devm_drm_panel_bridge_add(dev, panel);
+		drm_panel_put(panel);
 		if (IS_ERR(panel_bridge))
 			return PTR_ERR(panel_bridge);
 	}
@@ -772,8 +773,8 @@ static void lt9211_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lt9211_id[] = {
-	{ "lontium,lt9211" },
-	{},
+	{ .name = "lontium,lt9211" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lt9211_id);
 

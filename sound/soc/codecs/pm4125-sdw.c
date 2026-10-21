@@ -126,8 +126,8 @@ static const struct reg_default pm4125_defaults[] = {
 	{ PM4125_ANA_HPHPA_FSM_CLK,              0x12 },
 	{ PM4125_ANA_HPHPA_L_GAIN,               0x00 },
 	{ PM4125_ANA_HPHPA_R_GAIN,               0x00 },
-	{ PM4125_SWR_HPHPA_HD2,                  0x1B },
 	{ PM4125_ANA_HPHPA_SPARE_CTL,            0x02 },
+	{ PM4125_SWR_HPHPA_HD2,                  0x1B },
 	{ PM4125_ANA_SURGE_EN,                   0x38 },
 	{ PM4125_ANA_COMBOPA_CTL,                0x35 },
 	{ PM4125_ANA_COMBOPA_CTL_4,              0x84 },
@@ -464,10 +464,16 @@ static int __maybe_unused pm4125_sdw_runtime_suspend(struct device *dev)
 static int __maybe_unused pm4125_sdw_runtime_resume(struct device *dev)
 {
 	struct pm4125_sdw_priv *priv = dev_get_drvdata(dev);
+	int ret;
 
 	if (priv->regmap) {
 		regcache_cache_only(priv->regmap, false);
-		regcache_sync(priv->regmap);
+		ret = regcache_sync(priv->regmap);
+		if (ret) {
+			regcache_cache_only(priv->regmap, true);
+			regcache_mark_dirty(priv->regmap);
+			return ret;
+		}
 	}
 
 	return 0;

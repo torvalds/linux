@@ -764,6 +764,7 @@ int dp_altmode_probe(struct typec_altmode *alt)
 	struct typec_altmode *plug = typec_altmode_get_plug(alt, TYPEC_PLUG_SOP_P);
 	struct fwnode_handle *fwnode;
 	struct dp_altmode *dp;
+	u32 cap = DP_CAP_CAPABILITY(alt->vdo);
 
 	/* Port can only be DFP_U. */
 	if (typec_altmode_get_data_role(alt) != TYPEC_HOST)
@@ -774,6 +775,18 @@ int dp_altmode_probe(struct typec_altmode *alt)
 	      DP_CAP_PIN_ASSIGN_UFP_D(alt->vdo)) &&
 	    !(DP_CAP_PIN_ASSIGN_UFP_D(port->vdo) &
 	      DP_CAP_PIN_ASSIGN_DFP_D(alt->vdo))) {
+		typec_altmode_put_plug(plug);
+		return -ENODEV;
+	}
+
+	/*
+	 * Make sure the DisplayPort VDO is valid (VESA DPAM v2.1a, Section
+	 * 5.4.1, Table 5-6, DP Capabilities VDO). A device exposing DP on a
+	 * USB-C receptacle must advertise at least one pin assignment for the
+	 * capability it claims, otherwise Alt Mode can never be configured.
+	 */
+	if ((cap == DP_CAP_DFP_D && !DP_CAP_PIN_ASSIGN_DFP_D(alt->vdo)) ||
+	    (cap == DP_CAP_UFP_D && !DP_CAP_PIN_ASSIGN_UFP_D(alt->vdo))) {
 		typec_altmode_put_plug(plug);
 		return -ENODEV;
 	}
@@ -790,7 +803,6 @@ int dp_altmode_probe(struct typec_altmode *alt)
 	dp->alt = alt;
 
 	alt->desc = "DisplayPort";
-	typec_altmode_set_ops(alt, &dp_altmode_ops);
 
 	if (plug) {
 		plug->desc = "Displayport";
@@ -811,6 +823,10 @@ int dp_altmode_probe(struct typec_altmode *alt)
 	if (plug)
 		typec_altmode_set_drvdata(plug, dp);
 
+	if ((alt->vdo & DP_CAP_RECEPTACLE) && typec_cable_altmode_unsupported(alt))
+		return 0;
+
+	typec_altmode_set_ops(alt, &dp_altmode_ops);
 	if (!alt->mode_selection) {
 		dp->state = plug ? DP_STATE_ENTER_PRIME : DP_STATE_ENTER;
 		schedule_work(&dp->work);

@@ -509,7 +509,7 @@ static int cctrng_probe(struct platform_device *pdev)
 	/* register the driver isr function */
 	rc = devm_request_irq(dev, irq, cc_isr, IRQF_SHARED, "cctrng", drvdata);
 	if (rc)
-		return dev_err_probe(dev, rc, "Could not register to interrupt %d\n", irq);
+		return rc;
 	dev_dbg(dev, "Registered to IRQ: %d\n", irq);
 
 	/* Clear all pending interrupts */

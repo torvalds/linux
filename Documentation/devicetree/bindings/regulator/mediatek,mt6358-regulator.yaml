@@ -145,7 +145,7 @@ allOf:
     then:
       patternProperties:
         # Old regulator node name scheme (with prefix and underscores) only
-        # ([^y-] is used to avoid matching -supply
+        # ([^y-]) is used to avoid matching -supply
         "^(?<!buck_)(?<!ldo_)v.*[^y-](?!-supply)$": false
         "^ldo_vsram-": false
         # vsram_core regulator doesn't exist on MT6358

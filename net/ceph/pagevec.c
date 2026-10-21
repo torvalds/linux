@@ -10,19 +10,6 @@
 
 #include <linux/ceph/libceph.h>
 
-void ceph_put_page_vector(struct page **pages, int num_pages, bool dirty)
-{
-	int i;
-
-	for (i = 0; i < num_pages; i++) {
-		if (dirty)
-			set_page_dirty_lock(pages[i]);
-		put_page(pages[i]);
-	}
-	kvfree(pages);
-}
-EXPORT_SYMBOL(ceph_put_page_vector);
-
 void ceph_release_page_vector(struct page **pages, int num_pages)
 {
 	int i;

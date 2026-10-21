@@ -118,7 +118,7 @@ will be cancelled.
 @fregs
         This is the `ftrace_regs` data structure at the entry and exit. This
         includes the function parameters, or the return values. So user can
-        access thos values via appropriate `ftrace_regs_*` APIs.
+        access those values via appropriate `ftrace_regs_*` APIs.
 
 @entry_data
         This is a local storage to share the data between entry and exit handlers.

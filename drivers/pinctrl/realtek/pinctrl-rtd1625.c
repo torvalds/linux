@@ -986,7 +986,7 @@ static const char * const rtd1625_iso_pwm0_loc2_groups[] = {
 };
 
 static const char * const rtd1625_iso_spdif_in_coaxial_groups[] = {
-	"gpio_163", "spdif_sel", "spdif_in_mode"
+	"gpio_163", "spdif_in_mode"
 };
 
 static const char * const rtd1625_iso_spdif_in_gpio_groups[] = {
@@ -2867,7 +2867,7 @@ static const struct rtd_pin_config_desc rtd1625_ve4_configs[] = {
 	[RTD1625_VE4_GPIO_6] = RTK_PIN_CONFIG_V2(gpio_6, 0x1c, 24, 1, 2, 0, 3, 4, 5, PADDRI_4_8),
 	[RTD1625_VE4_GPIO_7] = RTK_PIN_CONFIG_V2(gpio_7, 0x20, 0, 1, 2, 0, 3, 4, 5, PADDRI_4_8),
 	[RTD1625_VE4_GPIO_12] = RTK_PIN_CONFIG_V2(gpio_12, 0x20, 6, 1, 2, 0, 3, 4, 5, PADDRI_4_8),
-	[RTD1625_VE4_GPIO_13] = RTK_PIN_CONFIG_V2(gpio_13, 0x20, 18, 1, 2, 0, 3, 4, 5, PADDRI_4_8),
+	[RTD1625_VE4_GPIO_13] = RTK_PIN_CONFIG_V2(gpio_13, 0x20, 12, 1, 2, 0, 3, 4, 5, PADDRI_4_8),
 	[RTD1625_VE4_GPIO_16] = RTK_PIN_CONFIG_V2(gpio_16, 0x20, 18, 1, 2, 0, 3, 4, 5, PADDRI_4_8),
 	[RTD1625_VE4_GPIO_17] = RTK_PIN_CONFIG_V2(gpio_17, 0x20, 24, 1, 2, 0, 3, 4, 5, PADDRI_4_8),
 	[RTD1625_VE4_GPIO_18] = RTK_PIN_CONFIG_V2(gpio_18, 0x24, 0, 1, 2, 0, 3, 4, 5, PADDRI_4_8),

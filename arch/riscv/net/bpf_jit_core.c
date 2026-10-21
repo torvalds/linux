@@ -72,7 +72,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 	ctx->arena_vm_start = bpf_arena_get_kern_vm_start(prog->aux->arena);
 	ctx->user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
 	ctx->prog = prog;
-	ctx->offset = kzalloc_objs(int, prog->len);
+	ctx->offset = kvzalloc_objs(int, prog->len);
 	if (!ctx->offset)
 		goto out_offset;
 
@@ -170,7 +170,7 @@ skip_init_ctx:
 			ctx->offset[i] = ninsns_rvoff(ctx->offset[i]);
 		bpf_prog_fill_jited_linfo(prog, ctx->offset);
 out_offset:
-		kfree(ctx->offset);
+		kvfree(ctx->offset);
 		kfree(jit_data);
 		prog->aux->jit_data = NULL;
 	}
@@ -234,6 +234,7 @@ void bpf_jit_free(struct bpf_prog *prog)
 		 */
 		if (jit_data) {
 			bpf_jit_binary_pack_finalize(jit_data->ro_header, jit_data->header);
+			kvfree(jit_data->ctx.offset);
 			kfree(jit_data);
 		}
 		hdr = bpf_jit_binary_pack_hdr(prog);

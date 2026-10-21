@@ -816,8 +816,11 @@ bool is_clock_scaling_supported_by_slave(struct sdw_slave *slave)
 	/*
 	 * Dynamic scaling is a defined by SDCA. However, some devices expose the class ID but
 	 * can't support dynamic scaling. We might need a quirk to handle such devices.
+	 * The clock base and scale registers themselves are SoundWire 1.2, so a device
+	 * may implement them without setting the class field; the driver says so with
+	 * clock_reg_supported.
 	 */
-	return slave->id.class_id;
+	return slave->id.class_id || slave->prop.clock_reg_supported;
 }
 EXPORT_SYMBOL(is_clock_scaling_supported_by_slave);
 
@@ -1384,7 +1387,7 @@ static int sdw_slave_set_frequency(struct sdw_slave *slave)
 	 * DisCo property to discover support for the scaling registers
 	 * from platform firmware.
 	 */
-	if (!slave->id.class_id && !slave->prop.clock_reg_supported)
+	if (!is_clock_scaling_supported_by_slave(slave))
 		return 0;
 
 	scale_index = sdw_slave_get_scale_index(slave, &base);

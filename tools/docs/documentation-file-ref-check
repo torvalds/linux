@@ -143,7 +143,7 @@ while (<IN>) {
 		# Check if exists, evaluating wildcards
 		next if (grep -e, glob("$ref $fulref"));
 
-		# Accept relative Documentation patches for tools/
+		# Accept relative Documentation paths for tools/
 		if ($f =~ m/tools/) {
 			my $path = $f;
 			$path =~ s,(.*)/.*,$1,;

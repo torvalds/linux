@@ -298,7 +298,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 					handle_event, 0, "da8xx-remoteproc",
 					rproc);
 	if (ret)
-		return dev_err_probe(dev, ret, "devm_request_threaded_irq error\n");
+		return ret;
 
 	/*
 	 * rproc_add() can end up enabling the DSP's clk with the DSP

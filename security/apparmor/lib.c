@@ -20,8 +20,8 @@
 #include "include/perms.h"
 #include "include/policy.h"
 
-struct aa_perms nullperms;
-struct aa_perms allperms = { .allow = ALL_PERMS_MASK,
+const struct aa_perms nullperms;
+const struct aa_perms allperms = { .allow = ALL_PERMS_MASK,
 			     .quiet = ALL_PERMS_MASK,
 			     .hide = ALL_PERMS_MASK };
 
@@ -30,7 +30,7 @@ struct val_table_ent {
 	int value;
 };
 
-static struct val_table_ent debug_values_table[] = {
+static const struct val_table_ent debug_values_table[] = {
 	{ "N", DEBUG_NONE },
 	{ "none", DEBUG_NONE },
 	{ "n", DEBUG_NONE },
@@ -49,10 +49,11 @@ static struct val_table_ent debug_values_table[] = {
 	{ NULL, 0 }
 };
 
-static struct val_table_ent *val_table_find_ent(struct val_table_ent *table,
-						const char *name, size_t len)
+static const struct val_table_ent *
+val_table_find_ent(const struct val_table_ent *table,
+		   const char *name, size_t len)
 {
-	struct val_table_ent *entry;
+	const struct val_table_ent *entry;
 
 	for (entry = table; entry->str != NULL; entry++) {
 		if (strncmp(entry->str, name, len) == 0 &&
@@ -64,7 +65,7 @@ static struct val_table_ent *val_table_find_ent(struct val_table_ent *table,
 
 int aa_parse_debug_params(const char *str)
 {
-	struct val_table_ent *ent;
+	const struct val_table_ent *ent;
 	const char *next;
 	int val = 0;
 
@@ -360,8 +361,16 @@ void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
  *
  * TODO: split into profile and ns based flags for when accumulating perms
  */
-void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
+void aa_apply_modes_to_perms(const struct aa_profile *profile,
+			     struct aa_perms *perms)
 {
+	if (KILL_MODE(profile))
+		perms->kill = ~perms->allow;
+	else if (COMPLAIN_MODE(profile))
+		perms->complain |= ~(perms->allow | perms->deny);
+	else if (USER_MODE(profile))
+		perms->prompt |= ~(perms->allow | perms->deny);
+
 	switch (AUDIT_MODE(profile)) {
 	case AUDIT_ALL:
 		perms->audit = ALL_PERMS_MASK;
@@ -373,19 +382,15 @@ void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
 		perms->audit = 0;
 		fallthrough;
 	case AUDIT_QUIET_DENIED:
-		perms->quiet = ALL_PERMS_MASK;
+		perms->quiet |= ~perms->allow;
+		break;
+	case AUDIT_QUIET_ALLOWED:
+		perms->quiet |= perms->complain | perms->allow;
 		break;
 	}
-
-	if (KILL_MODE(profile))
-		perms->kill = ALL_PERMS_MASK;
-	else if (COMPLAIN_MODE(profile))
-		perms->complain = ALL_PERMS_MASK;
-	else if (USER_MODE(profile))
-		perms->prompt = ALL_PERMS_MASK;
 }
 
-void aa_profile_match_label(struct aa_profile *profile,
+void aa_profile_match_label(const struct aa_profile *profile,
 			    struct aa_ruleset *rules,
 			    struct aa_label *label,
 			    int type, u32 request, struct aa_perms *perms)
@@ -417,11 +422,11 @@ void aa_profile_match_label(struct aa_profile *profile,
  *       error code will indicate whether there was an explicit deny
  *	 with a positive value.
  */
-int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
+int aa_check_perms(struct aa_profile *profile, const struct aa_perms *perms,
 		   u32 request, struct apparmor_audit_data *ad,
 		   void (*cb)(struct audit_buffer *, void *))
 {
-	int type, error;
+	int error;
 	u32 denied = request & (~perms->allow | perms->deny);
 
 	if (likely(!denied)) {
@@ -430,17 +435,9 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 		if (!request || !ad)
 			return 0;
 
-		type = AUDIT_APPARMOR_AUDIT;
 		error = 0;
 	} else {
 		error = -EACCES;
-
-		if (denied & perms->kill)
-			type = AUDIT_APPARMOR_KILL;
-		else if (denied == (denied & perms->complain))
-			type = AUDIT_APPARMOR_ALLOWED;
-		else
-			type = AUDIT_APPARMOR_DENIED;
 
 		if (denied == (denied & perms->hide))
 			error = -ENOENT;
@@ -449,6 +446,8 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 		if (!ad || !denied)
 			return error;
 	}
+
+	int type = aa_select_audit_type(denied, perms);
 
 	if (ad) {
 		ad->subj_label = &profile->label;
@@ -482,6 +481,8 @@ bool aa_policy_init(struct aa_policy *policy, const char *prefix,
 	char *hname;
 	size_t hname_sz;
 
+	INIT_LIST_HEAD(&policy->list);
+	INIT_LIST_HEAD(&policy->profiles);
 	hname_sz = (prefix ? strlen(prefix) + 2 : 0) + strlen(name) + 1;
 	/* freed by policy_free */
 	hname = aa_str_alloc(hname_sz, gfp);
@@ -494,8 +495,6 @@ bool aa_policy_init(struct aa_policy *policy, const char *prefix,
 	policy->hname = hname;
 	/* base.name is a substring of fqname */
 	policy->name = basename(policy->hname);
-	INIT_LIST_HEAD(&policy->list);
-	INIT_LIST_HEAD(&policy->profiles);
 
 	return true;
 }

@@ -562,7 +562,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		goto out;
 
 	if ((use_browser == 1 || ann->use_stdio2) && ann->has_br_stack)
-		if (session->evlist->nr_br_cntr > 0)
+		if (evlist__nr_br_cntr(session->evlist) > 0)
 			annotate_opts.show_br_cntr = true;
 
 	if (dump_trace) {
@@ -928,8 +928,11 @@ int cmd_annotate(int argc, const char **argv)
 	 * branch counters, if the corresponding branch info is available
 	 * in the perf data in the TUI mode.
 	 */
-	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack)
+	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack) {
 		sort__mode = SORT_MODE__BRANCH;
+		if (evlist__nr_br_cntr(annotate.session->evlist) > 0)
+			annotate_opts.show_br_cntr = true;
+	}
 
 	if (setup_sorting(/*evlist=*/NULL, perf_session__env(annotate.session)) < 0)
 		usage_with_options(annotate_usage, options);

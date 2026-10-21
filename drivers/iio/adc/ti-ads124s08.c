@@ -348,8 +348,8 @@ static int ads124s_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ads124s_id[] = {
-	{ "ads124s06", ADS124S06_ID },
-	{ "ads124s08", ADS124S08_ID },
+	{ .name = "ads124s06", .driver_data = ADS124S06_ID },
+	{ .name = "ads124s08", .driver_data = ADS124S08_ID },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ads124s_id);

@@ -209,6 +209,28 @@ config INFINEON_TLV493D
 	  To compile this driver as a module, choose M here: the module
 	  will be called tlv493d.
 
+config QMC5883L
+	tristate "QST QMC5883L 3-Axis Magnetic Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to add support driver for QST QMC5883L 3-Axis
+	  Magnetic Sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qmc5883l.
+
+config QMC6308
+	tristate "QST QMC6308 3-Axis Magnetic Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to add support for the QST QMC6308 3-Axis
+	  Magnetic Sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qmc6308.
+
 config SENSORS_HMC5843
 	tristate
 	select IIO_BUFFER

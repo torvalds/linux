@@ -83,18 +83,18 @@ structures used in ioctl calls::
    };
 
    struct ntsync_event_args {
-   	__u32 signaled;
    	__u32 manual;
+   	__u32 signaled;
    };
 
    struct ntsync_wait_args {
    	__u64 timeout;
    	__u64 objs;
    	__u32 count;
-   	__u32 owner;
    	__u32 index;
-   	__u32 alert;
    	__u32 flags;
+   	__u32 owner;
+   	__u32 alert;
    	__u32 pad;
    };
 
@@ -152,7 +152,7 @@ The ioctls on the device file are as follows:
 
 The ioctls on the individual objects are as follows:
 
-.. c:macro:: NTSYNC_IOC_SEM_POST
+.. c:macro:: NTSYNC_IOC_SEM_RELEASE
 
   Post to a semaphore object. Takes a pointer to a 32-bit integer,
   which on input holds the count to be added to the semaphore, and on
@@ -186,7 +186,7 @@ The ioctls on the individual objects are as follows:
   unowned and signaled, and eligible threads waiting on it will be
   woken as appropriate.
 
-.. c:macro:: NTSYNC_IOC_SET_EVENT
+.. c:macro:: NTSYNC_IOC_EVENT_SET
 
   Signal an event object. Takes a pointer to a 32-bit integer, which on
   output contains the previous state of the event.
@@ -194,12 +194,12 @@ The ioctls on the individual objects are as follows:
   Eligible threads will be woken, and auto-reset events will be
   designaled appropriately.
 
-.. c:macro:: NTSYNC_IOC_RESET_EVENT
+.. c:macro:: NTSYNC_IOC_EVENT_RESET
 
   Designal an event object. Takes a pointer to a 32-bit integer, which
   on output contains the previous state of the event.
 
-.. c:macro:: NTSYNC_IOC_PULSE_EVENT
+.. c:macro:: NTSYNC_IOC_EVENT_PULSE
 
   Wake threads waiting on an event object while leaving it in an
   unsignaled state. Takes a pointer to a 32-bit integer, which on
@@ -213,7 +213,7 @@ The ioctls on the individual objects are as follows:
   afterwards, and a simultaneous read operation will always report the
   event as unsignaled.
 
-.. c:macro:: NTSYNC_IOC_READ_SEM
+.. c:macro:: NTSYNC_IOC_SEM_READ
 
   Read the current state of a semaphore object. Takes a pointer to
   struct :c:type:`ntsync_sem_args`, which is used as follows:
@@ -225,7 +225,7 @@ The ioctls on the individual objects are as follows:
      * - ``max``
        - On output, contains the maximum count of the semaphore.
 
-.. c:macro:: NTSYNC_IOC_READ_MUTEX
+.. c:macro:: NTSYNC_IOC_MUTEX_READ
 
   Read the current state of a mutex object. Takes a pointer to struct
   :c:type:`ntsync_mutex_args`, which is used as follows:
@@ -242,7 +242,7 @@ The ioctls on the individual objects are as follows:
   ``EOWNERDEAD``. In this case, ``count`` and ``owner`` are set to
   zero.
 
-.. c:macro:: NTSYNC_IOC_READ_EVENT
+.. c:macro:: NTSYNC_IOC_EVENT_READ
 
   Read the current state of an event object. Takes a pointer to struct
   :c:type:`ntsync_event_args`, which is used as follows:
@@ -255,7 +255,7 @@ The ioctls on the individual objects are as follows:
        - On output, contains 1 if the event is a manual-reset event,
          and 0 otherwise.
 
-.. c:macro:: NTSYNC_IOC_KILL_OWNER
+.. c:macro:: NTSYNC_IOC_MUTEX_KILL
 
   Mark a mutex as unowned and abandoned if it is owned by the given
   owner. Takes an input-only pointer to a 32-bit integer denoting the
@@ -276,11 +276,12 @@ The ioctls on the individual objects are as follows:
      * - ``timeout``
        - Absolute timeout in nanoseconds. If ``NTSYNC_WAIT_REALTIME``
          is set, the timeout is measured against the REALTIME clock;
-         otherwise it is measured against the MONOTONIC clock. If the
-         timeout is equal to or earlier than the current time, the
-         function returns immediately without sleeping. If ``timeout``
-         is U64_MAX, the function will sleep until an object is
-         signaled, and will not fail with ``ETIMEDOUT``.
+         otherwise it is measured against the MONOTONIC clock in the
+         caller's time namespace. If the timeout is equal to or earlier
+         than the current time, the function returns immediately
+         without sleeping. If ``timeout`` is U64_MAX, the function will
+         sleep until an object is signaled, and will not fail with
+         ``ETIMEDOUT``.
      * - ``objs``
        - Pointer to an array of ``count`` file descriptors
          (specified as an integer so that the structure has the same

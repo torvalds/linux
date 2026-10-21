@@ -191,7 +191,7 @@ int aa_capable(const struct cred *subj_cred, struct aa_label *label,
 	return error;
 }
 
-kernel_cap_t aa_profile_capget(struct aa_profile *profile)
+kernel_cap_t aa_profile_capget(const struct aa_profile *profile)
 {
 	struct aa_ruleset *rules = profile->label.rules[0];
 	aa_state_t state;

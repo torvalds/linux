@@ -408,7 +408,7 @@ static struct fb_ops mb862xxfb_ops = {
 };
 
 /* initialize fb_info data */
-static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
+static int __maybe_unused mb862xxfb_init_fbinfo(struct fb_info *fbi)
 {
 	struct mb862xxfb_par *par = fbi->par;
 	struct mb862xx_gc_mode *mode = par->gc_mode;
@@ -568,9 +568,9 @@ static ssize_t dispregs_show(struct device *dev,
 	return ptr - buf;
 }
 
-static DEVICE_ATTR_RO(dispregs);
+static __maybe_unused DEVICE_ATTR_RO(dispregs);
 
-static irqreturn_t mb862xx_intr(int irq, void *dev_id)
+static irqreturn_t __maybe_unused mb862xx_intr(int irq, void *dev_id)
 {
 	struct mb862xxfb_par *par = (struct mb862xxfb_par *) dev_id;
 	unsigned long reg_ist, mask;

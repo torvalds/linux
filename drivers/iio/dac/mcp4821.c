@@ -297,12 +297,12 @@ static const struct of_device_id mcp4821_of_table[] = {
 MODULE_DEVICE_TABLE(of, mcp4821_of_table);
 
 static const struct spi_device_id mcp4821_id_table[] = {
-	{ "mcp4801", (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4801]},
-	{ "mcp4802", (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4802]},
-	{ "mcp4811", (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4811]},
-	{ "mcp4812", (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4812]},
-	{ "mcp4821", (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4821]},
-	{ "mcp4822", (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4822]},
+	{ .name = "mcp4801", .driver_data = (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4801] },
+	{ .name = "mcp4802", .driver_data = (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4802] },
+	{ .name = "mcp4811", .driver_data = (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4811] },
+	{ .name = "mcp4812", .driver_data = (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4812] },
+	{ .name = "mcp4821", .driver_data = (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4821] },
+	{ .name = "mcp4822", .driver_data = (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4822] },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, mcp4821_id_table);

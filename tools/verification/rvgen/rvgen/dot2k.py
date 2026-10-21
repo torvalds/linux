@@ -6,16 +6,17 @@
 # dot2k: transform dot files into a monitor for the Linux kernel.
 #
 # For further information, see:
-#   Documentation/trace/rv/da_monitor_synthesis.rst
+#   Documentation/trace/rv/monitor_synthesis.rst
 
-from collections import deque
 from .dot2c import Dot2c
 from .generator import Monitor
-from .automata import _EventConstraintKey, _StateConstraintKey, AutomataError
-
+from .automata import ConstraintCondition, AutomataError
 
 class dot2k(Monitor, Dot2c):
     template_dir = "dot2k"
+
+    # only needed for the per-obj cleanup hook
+    cleanup_marker = "obj_cleanup"
 
     def __init__(self, file_path, MonitorType, extra_params={}):
         self.monitor_type = MonitorType
@@ -56,18 +57,30 @@ class dot2k(Monitor, Dot2c):
                 buff.append(f"\tda_{handle}({event}{self.enum_suffix});")
             buff.append("}")
             buff.append("")
+        if self.monitor_type == "per_obj":
+            buff.append("/* XXX: obj is being destroyed, remove if not required (e.g. obj is static) */")
+            buff.append(f"static void handle_{self.cleanup_marker}(void *data, /* XXX: fill header */)")
+            buff.append("{")
+            buff.append("\tint id = /* XXX: how do I get the id? */;")
+            buff.append("\tda_destroy_storage(id);")
+            buff.append("}")
+            buff.append("")
         return '\n'.join(buff)
 
     def fill_tracepoint_attach_probe(self) -> str:
         buff = []
         for event in self.events:
             buff.append(f"\trv_attach_trace_probe(\"{self.name}\", /* XXX: tracepoint */, handle_{event});")
+        if self.monitor_type == "per_obj":
+            buff.append(f"\trv_attach_trace_probe(\"{self.name}\", /* XXX: cleanup tracepoint */, handle_{self.cleanup_marker});")
         return '\n'.join(buff)
 
     def fill_tracepoint_detach_helper(self) -> str:
         buff = []
         for event in self.events:
             buff.append(f"\trv_detach_trace_probe(\"{self.name}\", /* XXX: tracepoint */, handle_{event});")
+        if self.monitor_type == "per_obj":
+            buff.append(f"\trv_detach_trace_probe(\"{self.name}\", /* XXX: cleanup tracepoint */, handle_{self.cleanup_marker});")
         return '\n'.join(buff)
 
     def fill_model_h_header(self) -> list[str]:
@@ -176,7 +189,14 @@ class ha2k(dot2k):
         if not self.is_hybrid_automata():
             raise AutomataError("Detected deterministic automaton, use the 'da' class")
         self.trace_h = self._read_template_file("trace_hybrid.h")
-        self.__parse_constraints()
+        self.has_invariant = False
+        self.has_guard = False
+        for state in self.states:
+            if state.inv:
+                self.has_invariant = True
+        for transition in self.transitions:
+            if transition.rule or transition.reset:
+                self.has_guard = True
 
     def fill_monitor_class_type(self) -> str:
         if self._is_id_monitor():
@@ -209,38 +229,52 @@ class ha2k(dot2k):
                 value *= 10**9
         return str(value) + "ull"
 
-    def __parse_single_constraint(self, rule: dict, value: str) -> str:
-        return f"ha_get_env(ha_mon, {rule["env"]}{self.enum_suffix}, time_ns) {rule["op"]} {value}"
+    def __parse_guard_rule(self, rule) -> list[str]:
+        buff = []
+        for c, sep in rule.rules:
+            env = c.env + self.enum_suffix
+            op = c.op
+            val = self.__adjust_value(c.val, c.unit)
 
-    def __get_constraint_env(self, constr: str) -> str:
-        """Extract the second argument from an ha_ function"""
-        env = constr.split("(")[1].split()[1].rstrip(")").rstrip(",")
-        assert env.removesuffix(f"_{self.name}") in self.envs
-        return env
+            cond = f"ha_get_env(ha_mon, {env}, time_ns) {op} {val}"
+            if sep:
+                cond += f" {sep}"
+            buff.append(cond)
+        return buff
 
-    def __start_to_invariant_check(self, constr: str) -> str:
-        # by default assume the timer has ns expiration
-        env = self.__get_constraint_env(constr)
-        clock_type = "ns"
-        if self.env_types.get(env.removesuffix(f"_{self.name}")) == "j":
-            clock_type = "jiffy"
-
-        return f"return ha_check_invariant_{clock_type}(ha_mon, {env}, time_ns)"
-
-    def __start_to_conv(self, constr: str) -> str:
-        """
-        Undo the storage conversion done by ha_start_timer_
-        """
-        return "ha_inv_to_guard" + constr[constr.find("("):]
-
-    def __parse_timer_constraint(self, rule: dict, value: str) -> str:
+    def __start_to_invariant_check(self, inv: ConstraintCondition) -> str:
         # by default assume the timer has ns expiration
         clock_type = "ns"
-        if self.env_types.get(rule["env"]) == "j":
+        if inv.unit == "j":
             clock_type = "jiffy"
 
-        return (f"ha_start_timer_{clock_type}(ha_mon, {rule["env"]}{self.enum_suffix},"
-                f" {value}, time_ns)")
+        value = self.__adjust_value(inv.val, inv.unit)
+
+        return f"return ha_check_invariant_{clock_type}(ha_mon, {inv.env}_{self.name}, time_ns, {value})"
+
+    def __parse_invariant(self, inv):
+        # by default assume the timer has ns expiration
+        clock_type = "ns"
+        if inv.unit == "j":
+            clock_type = "jiffy"
+
+        env = inv.env + self.enum_suffix
+        try:
+            val = int(inv.val)
+        except ValueError:
+            # it's a constant, a parameter or a function
+            val = inv.val.replace("()", "(ha_mon)")
+
+        match inv.unit:
+            case "us":
+                val *= 10**3
+            case "ms":
+                val *= 10**6
+            case "s":
+                val *= 10**9
+
+        return (f"ha_start_timer_{clock_type}(ha_mon, {env},"
+                f" {val}, time_ns)")
 
     def __format_guard_rules(self, rules: list[str]) -> list[str]:
         """
@@ -259,124 +293,35 @@ class ha2k(dot2k):
         rules = invalid_checks + rules
 
         separator = "\n\t\t      " if sum(len(r) for r in rules) > 80 else " "
-        return ["res = " + separator.join(rules)]
-
-    def __validate_constraint(self, key: tuple[int, int] | int, constr: str,
-                              rule, reset) -> None:
-        # event constrains are tuples and allow both rules and reset
-        # state constraints are only used for expirations (e.g. clk<N)
-        if self.is_event_constraint(key):
-            if not rule and not reset:
-                raise AutomataError("Unrecognised event constraint "
-                                    f"({self.states[key[0]]}/{self.events[key[1]]}: {constr})")
-            if rule and (rule["env"] in self.env_types and
-                         rule["env"] not in self.env_stored):
-                raise AutomataError("Clocks in hybrid automata always require a storage"
-                                    f" ({rule["env"]})")
-        else:
-            if not rule:
-                raise AutomataError("Unrecognised state constraint "
-                                    f"({self.states[key]}: {constr})")
-            if rule["env"] not in self.env_stored:
-                raise AutomataError("State constraints always require a storage "
-                                    f"({rule["env"]})")
-            if rule["op"] not in ["<", "<="]:
-                raise AutomataError("State constraints must be clock expirations like"
-                                    f" clk<N ({rule.string})")
-
-    def __parse_constraints(self) -> None:
-        self.guards: dict[_EventConstraintKey, str] = {}
-        self.invariants: dict[_StateConstraintKey, str] = {}
-        for key, constraint in self.constraints.items():
-            rules = []
-            resets = []
-            for c, sep in self._split_constraint_expr(constraint):
-                rule = self.constraint_rule.search(c)
-                reset = self.constraint_reset.search(c)
-                self.__validate_constraint(key, c, rule, reset)
-                if rule:
-                    value = rule["val"]
-                    value_len = len(rule["val"])
-                    unit = None
-                    if rule.groupdict().get("unit"):
-                        value_len += len(rule["unit"])
-                        unit = rule["unit"]
-                    c = c[:-(value_len)]
-                    value = self.__adjust_value(value, unit)
-                    if self.is_event_constraint(key):
-                        c = self.__parse_single_constraint(rule, value)
-                        if sep:
-                            c += f" {sep}"
-                    else:
-                        c = self.__parse_timer_constraint(rule, value)
-                    rules.append(c)
-                if reset:
-                    c = f"ha_reset_env(ha_mon, {reset["env"]}{self.enum_suffix}, time_ns)"
-                    resets.append(c)
-            if self.is_event_constraint(key):
-                res = self.__format_guard_rules(rules) + resets
-                self.guards[key] = ";".join(res)
-            else:
-                self.invariants[key] = rules[0]
+        return ["res = " + separator.join(rules) + ";"]
 
     def __fill_verify_invariants_func(self) -> list[str]:
-        buff = []
-        if not self.invariants:
+        if not self.has_invariant:
             return []
 
-        buff.append(
+        buff = [
 f"""static inline bool ha_verify_invariants(struct ha_monitor *ha_mon,
 \t\t\t\t\tenum {self.enum_states_def} curr_state, enum {self.enum_events_def} event,
 \t\t\t\t\tenum {self.enum_states_def} next_state, u64 time_ns)
-{{""")
+{{"""]
 
         _else = ""
-        for state, constr in sorted(self.invariants.items()):
-            check_str = self.__start_to_invariant_check(constr)
-            buff.append(f"\t{_else}if (curr_state == {self.states[state]}{self.enum_suffix})")
+        for state in self.states:
+            if not state.inv:
+                continue
+
+            check_str = self.__start_to_invariant_check(state.inv)
+            buff.append(f"\t{_else}if (curr_state == {state.name}{self.enum_suffix})")
             buff.append(f"\t\t{check_str};")
             _else = "else "
 
         buff.append("\treturn true;\n}\n")
         return buff
 
-    def __fill_convert_inv_guard_func(self) -> list[str]:
-        buff = []
-        if not self.invariants:
-            return []
-
-        conflict_guards, conflict_invs = self.__find_inv_conflicts()
-        if not conflict_guards and not conflict_invs:
-            return []
-
-        buff.append(
-f"""static inline void ha_convert_inv_guard(struct ha_monitor *ha_mon,
-\t\t\t\t\tenum {self.enum_states_def} curr_state, enum {self.enum_events_def} event,
-\t\t\t\t\tenum {self.enum_states_def} next_state, u64 time_ns)
-{{""")
-        buff.append("\tif (curr_state == next_state)\n\t\treturn;")
-
-        _else = ""
-        for state, constr in sorted(self.invariants.items()):
-            # a state with invariant can reach us without reset
-            # multiple conflicts must have the same invariant, otherwise we cannot
-            # know how to reset the value
-            conf_i = [start for start, end in conflict_invs if end == state]
-            # we can reach a guard without reset
-            conf_g = [e for s, e in conflict_guards if s == state]
-            if not conf_i and not conf_g:
-                continue
-            buff.append(f"\t{_else}if (curr_state == {self.states[state]}{self.enum_suffix})")
-
-            buff.append(f"\t\t{self.__start_to_conv(constr)};")
-            _else = "else "
-
-        buff.append("}\n")
-        return buff
-
     def __fill_verify_guards_func(self) -> list[str]:
         buff = []
-        if not self.guards:
+
+        if not self.has_guard:
             return []
 
         buff.append(
@@ -388,14 +333,22 @@ f"""static inline bool ha_verify_guards(struct ha_monitor *ha_mon,
 """)
 
         _else = ""
-        for edge, constr in sorted(self.guards.items()):
+        for transition in self.transitions:
+            if not transition.rule and not transition.reset:
+                continue
+
             buff.append(f"\t{_else}if (curr_state == "
-                        f"{self.states[edge[0]]}{self.enum_suffix} && "
-                        f"event == {self.events[edge[1]]}{self.enum_suffix})")
-            if constr.count(";") > 0:
+                        f"{transition.src}{self.enum_suffix} && "
+                        f"event == {transition.event}{self.enum_suffix})")
+            rule = transition.rule
+            reset = transition.reset
+            if rule and reset:
                 buff[-1] += " {"
-            buff += [f"\t\t{c};" for c in constr.split(";")]
-            if constr.count(";") > 0:
+            if rule:
+                buff.append("\t\t" + self.__format_guard_rules(self.__parse_guard_rule(rule))[0])
+            if reset:
+                buff.append(f"\t\tha_reset_env(ha_mon, {reset.env}{self.enum_suffix}, time_ns);")
+            if rule and reset:
                 _else = "} else "
             else:
                 _else = "else "
@@ -404,64 +357,15 @@ f"""static inline bool ha_verify_guards(struct ha_monitor *ha_mon,
         buff.append("\treturn res;\n}\n")
         return buff
 
-    def __find_inv_conflicts(self) -> tuple[set[tuple[int, _EventConstraintKey]],
-                                            set[tuple[int, _StateConstraintKey]]]:
-        """
-        Run a breadth first search from all states with an invariant.
-        Find any conflicting constraints reachable from there, this can be
-        another state with an invariant or an edge with a non-reset guard.
-        Stop when we find a reset.
-
-        Return the set of conflicting guards and invariants as tuples of
-        conflicting state and constraint key.
-        """
-        conflict_guards: set[tuple[int, _EventConstraintKey]] = set()
-        conflict_invs: set[tuple[int, _StateConstraintKey]] = set()
-        for start_idx in self.invariants:
-            queue = deque([(start_idx, 0)])  # (state_idx, distance)
-            env = self.__get_constraint_env(self.invariants[start_idx])
-
-            while queue:
-                curr_idx, distance = queue.popleft()
-
-                # Check state condition
-                if curr_idx != start_idx and curr_idx in self.invariants:
-                    conflict_invs.add((start_idx, _StateConstraintKey(curr_idx)))
-                    continue
-
-                # Check if we should stop
-                if distance > len(self.states):
-                    break
-                if curr_idx != start_idx and distance > 1:
-                    continue
-
-                for event_idx, next_state_name in enumerate(self.function[curr_idx]):
-                    if next_state_name == self.invalid_state_str:
-                        continue
-                    curr_guard = self.guards.get((curr_idx, event_idx), "")
-                    if "reset" in curr_guard and env in curr_guard:
-                        continue
-
-                    if env in curr_guard:
-                        conflict_guards.add((start_idx,
-                                             _EventConstraintKey(curr_idx, event_idx)))
-                        continue
-
-                    next_idx = self.states.index(next_state_name)
-                    queue.append((next_idx, distance + 1))
-
-        return conflict_guards, conflict_invs
-
     def __fill_setup_invariants_func(self) -> list[str]:
-        buff = []
-        if not self.invariants:
+        if not self.has_invariant:
             return []
 
-        buff.append(
+        buff = [
 f"""static inline void ha_setup_invariants(struct ha_monitor *ha_mon,
 \t\t\t\t       enum {self.enum_states_def} curr_state, enum {self.enum_events_def} event,
 \t\t\t\t       enum {self.enum_states_def} next_state, u64 time_ns)
-{{""")
+{{"""]
 
         conditions = ["next_state == curr_state"]
         conditions += [f"event != {e}{self.enum_suffix}"
@@ -470,13 +374,20 @@ f"""static inline void ha_setup_invariants(struct ha_monitor *ha_mon,
         buff.append(f"\tif ({condition_str})\n\t\treturn;")
 
         _else = ""
-        for state, constr in sorted(self.invariants.items()):
-            buff.append(f"\t{_else}if (next_state == {self.states[state]}{self.enum_suffix})")
-            buff.append(f"\t\t{constr};")
+        for state in self.states:
+            inv = state.inv
+            if not inv:
+                continue
+            inv = self.__parse_invariant(inv)
+            buff.append(f"\t{_else}if (next_state == {state.name}{self.enum_suffix})")
+            buff.append(f"\t\t{inv};")
             _else = "else "
 
-        for state in self.invariants:
-            buff.append(f"\telse if (curr_state == {self.states[state]}{self.enum_suffix})")
+        for state in self.states:
+            inv = state.inv
+            if not inv:
+                continue
+            buff.append(f"\telse if (curr_state == {state.name}{self.enum_suffix})")
             buff.append("\t\tha_cancel_timer(ha_mon);")
 
         buff.append("}\n")
@@ -484,7 +395,7 @@ f"""static inline void ha_setup_invariants(struct ha_monitor *ha_mon,
 
     def __fill_constr_func(self) -> list[str]:
         buff = []
-        if not self.constraints:
+        if not self.has_invariant and not self.has_guard:
             return []
 
         buff.append(
@@ -496,16 +407,9 @@ f"""static inline void ha_setup_invariants(struct ha_monitor *ha_mon,
  * the next state has a constraint, cancel it in any other case and to check
  * that it didn't expire before the callback run. Transitions to the same state
  * without a reset never affect timers.
- * Due to the different representations between invariants and guards, there is
- * a function to convert it in case invariants or guards are reachable from
- * another invariant without reset. Those are not present if not required in
- * the model. This is all automatic but is worth checking because it may show
- * errors in the model (e.g. missing resets).
  */""")
 
         buff += self.__fill_verify_invariants_func()
-        inv_conflicts = self.__fill_convert_inv_guard_func()
-        buff += inv_conflicts
         buff += self.__fill_verify_guards_func()
         buff += self.__fill_setup_invariants_func()
 
@@ -515,18 +419,15 @@ f"""static bool ha_verify_constraint(struct ha_monitor *ha_mon,
 \t\t\t\t enum {self.enum_states_def} next_state, u64 time_ns)
 {{""")
 
-        if self.invariants:
+        if self.has_invariant:
             buff.append("\tif (!ha_verify_invariants(ha_mon, curr_state, "
                         "event, next_state, time_ns))\n\t\treturn false;\n")
-        if inv_conflicts:
-            buff.append("\tha_convert_inv_guard(ha_mon, curr_state, event, "
-                        "next_state, time_ns);\n")
 
-        if self.guards:
+        if self.has_guard:
             buff.append("\tif (!ha_verify_guards(ha_mon, curr_state, event, "
                         "next_state, time_ns))\n\t\treturn false;\n")
 
-        if self.invariants:
+        if self.has_invariant:
             buff.append("\tha_setup_invariants(ha_mon, curr_state, event, next_state, time_ns);\n")
 
         buff.append("\treturn true;\n}\n")
@@ -603,7 +504,7 @@ f"""static bool ha_verify_constraint(struct ha_monitor *ha_mon,
         return self.__fill_hybrid_get_reset_functions() + self.__fill_constr_func()
 
     def _fill_timer_type(self) -> list:
-        if self.invariants:
+        if self.has_invariant:
             return [
                     "/* XXX: If the monitor has several instances, consider HA_TIMER_WHEEL */",
                     "#define HA_TIMER_TYPE HA_TIMER_HRTIMER"

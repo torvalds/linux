@@ -143,6 +143,7 @@ static void construct_link_service_ddc(struct link_service *link_srv)
 			link_aux_transfer_with_retries_no_mutex;
 	link_srv->is_in_aux_transaction_mode = link_is_in_aux_transaction_mode;
 	link_srv->get_aux_defer_delay = link_get_aux_defer_delay;
+	link_srv->get_ddc_aux_inst = link_get_ddc_aux_inst;
 }
 
 /* link dp capability implements dp specific link capability retrieval sequence.
@@ -441,7 +442,7 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 
 	channel = CHANNEL_ID_UNKNOWN;
 
-	if (link->ctx->dc->config.dp_connector_no_native_i2c && link->no_ddc_pin) {
+	if (link->force_to_use_aux) {
 		channel = link->aux_hw_inst + 1;
 	} else {
 		ddc = get_ddc_pin(link->ddc);
@@ -576,6 +577,12 @@ static bool construct_phy(struct dc_link *link,
 		link->is_internal_display = (disp_connect_caps_info.INTERNAL_DISPLAY != 0);
 		DC_LOG_DC("BIOS object table - is_internal_display: %d", link->is_internal_display);
 		link->no_ddc_pin = disp_connect_caps_info.NO_DDC_PIN != 0;
+		//reworked DP port on N-1 board, for testing on N-1, to be removed when IFWI ready
+		if (link->dc->config.dp_connector_no_native_i2c &&
+			(link->link_id.enum_id == link->dc->config.link_index_with_no_ddc))
+			link->no_ddc_pin = true;
+		link->force_to_use_aux = link->dc->config.dp_connector_no_native_i2c
+				&& link->no_ddc_pin;
 	}
 
 	if (link->link_id.type != OBJECT_TYPE_CONNECTOR) {
@@ -598,7 +605,7 @@ static bool construct_phy(struct dc_link *link,
 		goto ddc_create_fail;
 	}
 
-	if (link->ctx->dc->config.dp_connector_no_native_i2c && link->no_ddc_pin) {
+	if (link->force_to_use_aux) {
 		link->ddc_hw_inst = link->aux_hw_inst;
 	} else {
 		/* Embedded display connectors such as LVDS may not have DDC. */
@@ -632,13 +639,14 @@ static bool construct_phy(struct dc_link *link,
 
 		DC_LOG_DC("BIOS object table - hpd_gpio id: %d", enc_init_data.hpd_gpio->id);
 		DC_LOG_DC("BIOS object table - hpd_gpio en: %d", enc_init_data.hpd_gpio->en);
-	} else {
+	} else if (link->ctx->dce_version > DCN_VERSION_4_01) {
 		struct graphics_object_hpd_info hpd_info;
 
 		if (link->ctx->dc_bios->funcs->get_hpd_info(link->ctx->dc_bios, link->link_id, &hpd_info) == BP_RESULT_OK) {
 			link->hpd_src = hpd_info.hpd_int_gpio_uid - 1;
 			link->irq_source_hpd =  DC_IRQ_SOURCE_HPD1 + link->hpd_src;
 			enc_init_data.hpd_source = link->hpd_src;
+			enc_init_data.hpd_active_high = (hpd_info.hpd_active == 0) ? true : false;
 			DC_LOG_DC("BIOS object table - hpd_int_gpio_uid id: %d", hpd_info.hpd_int_gpio_uid);
 		} else {
 			ASSERT(0);

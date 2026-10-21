@@ -9,74 +9,97 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/unaligned.h>
 
+#include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 
-#define IMX355_REG_MODE_SELECT		0x0100
+#define IMX355_REG_MODE_SELECT		CCI_REG8(0x0100)
 #define IMX355_MODE_STANDBY		0x00
 #define IMX355_MODE_STREAMING		0x01
 
 /* Chip ID */
-#define IMX355_REG_CHIP_ID		0x0016
+#define IMX355_REG_CHIP_ID		CCI_REG16(0x0016)
 #define IMX355_CHIP_ID			0x0355
 
+#define IMX355_REG_LANE_SEL		CCI_REG8(0x0114)
+
+/* PLL registers that depend on the external clock frequency */
+#define IMX355_REG_EXTCLK_FREQ		CCI_REG16(0x0136)
+#define IMX355_REG_PLL_OP_PREDIV	CCI_REG8(0x030d)
+#define IMX355_REG_PLL_OP_MUL		CCI_REG16(0x030e)
+#define IMX355_REG_PLL_IVT_PCK_DIV	CCI_REG8(0x0301)
+#define IMX355_REG_PLL_IVT_SYSCK_DIV	CCI_REG8(0x0303)
+#define IMX355_PLL_OP_PREDIV		2
+#define IMX355_PLL_IVT_PCK_DIV		5
+
 /* V_TIMING internal */
-#define IMX355_REG_FLL			0x0340
+#define IMX355_REG_FLL			CCI_REG16(0x0340)
 #define IMX355_FLL_MAX			0xffff
+#define IMX355_VBLANK_MIN		20
+
+#define IMX355_REG_LLP			CCI_REG16(0x0342)
+#define IMX355_LLP_MAX			0xffff
+
+#define IMX355_REG_X_ADD_START		CCI_REG16(0x0344)
+#define IMX355_REG_Y_ADD_START		CCI_REG16(0x0346)
+#define IMX355_REG_X_ADD_END		CCI_REG16(0x0348)
+#define IMX355_REG_Y_ADD_END		CCI_REG16(0x034a)
+#define IMX355_REG_X_OUT_SIZE		CCI_REG16(0x034c)
+#define IMX355_REG_Y_OUT_SIZE		CCI_REG16(0x034e)
 
 /* Exposure control */
-#define IMX355_REG_EXPOSURE		0x0202
+#define IMX355_REG_EXPOSURE		CCI_REG16(0x0202)
 #define IMX355_EXPOSURE_MIN		1
 #define IMX355_EXPOSURE_STEP		1
 #define IMX355_EXPOSURE_DEFAULT		0x0282
+#define IMX355_EXPOSURE_OFFSET		10
 
 /* Analog gain control */
-#define IMX355_REG_ANALOG_GAIN		0x0204
+#define IMX355_REG_ANALOG_GAIN		CCI_REG16(0x0204)
 #define IMX355_ANA_GAIN_MIN		0
 #define IMX355_ANA_GAIN_MAX		960
 #define IMX355_ANA_GAIN_STEP		1
 #define IMX355_ANA_GAIN_DEFAULT		0
 
 /* Digital gain control */
-#define IMX355_REG_DPGA_USE_GLOBAL_GAIN	0x3070
-#define IMX355_REG_DIG_GAIN_GLOBAL	0x020e
+#define IMX355_REG_DPGA_USE_GLOBAL_GAIN	CCI_REG8(0x3070)
+#define IMX355_REG_DIG_GAIN_GLOBAL	CCI_REG16(0x020e)
 #define IMX355_DGTL_GAIN_MIN		256
 #define IMX355_DGTL_GAIN_MAX		4095
 #define IMX355_DGTL_GAIN_STEP		1
 #define IMX355_DGTL_GAIN_DEFAULT	256
 
 /* Test Pattern Control */
-#define IMX355_REG_TEST_PATTERN		0x0600
+#define IMX355_REG_TEST_PATTERN		CCI_REG16(0x0600)
 #define IMX355_TEST_PATTERN_DISABLED		0
 #define IMX355_TEST_PATTERN_SOLID_COLOR		1
 #define IMX355_TEST_PATTERN_COLOR_BARS		2
 #define IMX355_TEST_PATTERN_GRAY_COLOR_BARS	3
 #define IMX355_TEST_PATTERN_PN9			4
 
+#define IMX355_REG_REQ_LINK_BIT_RATE	CCI_REG16(0x0820)
+
+#define IMX355_REG_BINNING_MODE		CCI_REG8(0x0900)
+#define IMX355_REG_BINNING_TYPE		CCI_REG8(0x0901)
+#define IMX355_REG_BINNING_WEIGHTING	CCI_REG8(0x0902)
+
 /* Flip Control */
-#define IMX355_REG_ORIENTATION		0x0101
+#define IMX355_REG_ORIENTATION		CCI_REG8(0x0101)
 
-/* default link frequency and external clock */
-#define IMX355_LINK_FREQ_DEFAULT	360000000LL
-#define IMX355_EXT_CLK			19200000
-#define IMX355_LINK_FREQ_INDEX		0
-
-/* number of data lanes */
-#define IMX355_DATA_LANES		4
-
-struct imx355_reg {
-	u16 address;
-	u8 val;
-};
+#define IMX355_PIXEL_ARRAY_TOP		0
+#define IMX355_PIXEL_ARRAY_LEFT		0
+#define IMX355_PIXEL_ARRAY_WIDTH	3280
+#define IMX355_PIXEL_ARRAY_HEIGHT	2464
 
 struct imx355_reg_list {
 	u32 num_of_regs;
-	const struct imx355_reg *regs;
+	const struct cci_reg_sequence *regs;
 };
 
 /* Mode : resolution and related config&values */
@@ -85,28 +108,58 @@ struct imx355_mode {
 	u32 width;
 	/* Frame height */
 	u32 height;
+	struct v4l2_rect crop;
 
 	/* V-timing */
 	u32 fll_def;
-	u32 fll_min;
 
 	/* H-timing */
 	u32 llp;
-
-	/* index of link frequency */
-	u32 link_freq_index;
 
 	/* Default register values */
 	struct imx355_reg_list reg_list;
 };
 
+struct imx355_clk_params {
+	u32 ext_clk;
+	u16 extclk_freq;	/* External clock (MHz) in 8.8 fixed point) */
+	u16 pll_op_mpy[2];	/* OP system PLL multiplier */
+	u8 pll_op_prediv[2];	/* OP system pre PLL d */
+};
+
+/*
+ * The clock tree is in single PLL mode, so PREDIV_VT and MPY_IVT do nothing.
+ * In 4 lane mode the MIPI rate is 360Mhz (720Mbit/s) and pixel rate is
+ * 288MPix/s.
+ * In 2 lane mode the MIPI rate is 444MHz (888Mbit/s) and pixel rate
+ * 177.6MPix/s with a 24MHz clock, and 441.6MHz (883.2Mbit/s) and 176.6MPix/s
+ * with a 19.2MHz clock.
+ */
+static const struct imx355_clk_params imx355_clk_params[] = {
+	{
+		.ext_clk = 19200000,
+		.extclk_freq = 0x1333,
+		.pll_op_mpy = { 75, 92 },
+		.pll_op_prediv = { 2, 2 }
+	},
+	{
+		.ext_clk = 24000000,
+		.extclk_freq = 0x1800,
+		.pll_op_mpy = { 60, 111 },
+		.pll_op_prediv = { 2, 3 }
+	},
+};
+
 struct imx355_hwcfg {
+	s64 link_freq_menu;
 	unsigned long link_freq_bitmap;
+	unsigned int num_lanes;
 };
 
 struct imx355 {
 	struct device *dev;
 	struct clk *clk;
+	struct regmap *regmap;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -114,24 +167,14 @@ struct imx355 {
 	struct v4l2_ctrl_handler ctrl_handler;
 	/* V4L2 Controls */
 	struct v4l2_ctrl *link_freq;
-	struct v4l2_ctrl *pixel_rate;
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *hblank;
 	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl *vflip;
 	struct v4l2_ctrl *hflip;
 
-	/* Current mode */
-	const struct imx355_mode *cur_mode;
-
 	struct imx355_hwcfg *hwcfg;
-
-	/*
-	 * Mutex for serialized access:
-	 * Protect sensor set pad format and start/stop streaming safely.
-	 * Protect access to sensor v4l2 controls.
-	 */
-	struct mutex mutex;
+	const struct imx355_clk_params *clk_params;
 
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data *supplies;
@@ -143,750 +186,147 @@ static const struct regulator_bulk_data imx355_supplies[] = {
 	{ .supply = "dovdd" },
 };
 
-static const struct imx355_reg imx355_global_regs[] = {
-	{ 0x0136, 0x13 },
-	{ 0x0137, 0x33 },
-	{ 0x304e, 0x03 },
-	{ 0x4348, 0x16 },
-	{ 0x4350, 0x19 },
-	{ 0x4408, 0x0a },
-	{ 0x440c, 0x0b },
-	{ 0x4411, 0x5f },
-	{ 0x4412, 0x2c },
-	{ 0x4623, 0x00 },
-	{ 0x462c, 0x0f },
-	{ 0x462d, 0x00 },
-	{ 0x462e, 0x00 },
-	{ 0x4684, 0x54 },
-	{ 0x480a, 0x07 },
-	{ 0x4908, 0x07 },
-	{ 0x4909, 0x07 },
-	{ 0x490d, 0x0a },
-	{ 0x491e, 0x0f },
-	{ 0x4921, 0x06 },
-	{ 0x4923, 0x28 },
-	{ 0x4924, 0x28 },
-	{ 0x4925, 0x29 },
-	{ 0x4926, 0x29 },
-	{ 0x4927, 0x1f },
-	{ 0x4928, 0x20 },
-	{ 0x4929, 0x20 },
-	{ 0x492a, 0x20 },
-	{ 0x492c, 0x05 },
-	{ 0x492d, 0x06 },
-	{ 0x492e, 0x06 },
-	{ 0x492f, 0x06 },
-	{ 0x4930, 0x03 },
-	{ 0x4931, 0x04 },
-	{ 0x4932, 0x04 },
-	{ 0x4933, 0x05 },
-	{ 0x595e, 0x01 },
-	{ 0x5963, 0x01 },
-	{ 0x3030, 0x01 },
-	{ 0x3031, 0x01 },
-	{ 0x3045, 0x01 },
-	{ 0x4010, 0x00 },
-	{ 0x4011, 0x00 },
-	{ 0x4012, 0x00 },
-	{ 0x4013, 0x01 },
-	{ 0x68a8, 0xfe },
-	{ 0x68a9, 0xff },
-	{ 0x6888, 0x00 },
-	{ 0x6889, 0x00 },
-	{ 0x68b0, 0x00 },
-	{ 0x3058, 0x00 },
-	{ 0x305a, 0x00 },
+static const struct cci_reg_sequence imx355_global_regs[] = {
+	{ CCI_REG8(0x304e), 0x03 },
+	{ CCI_REG8(0x4348), 0x16 },
+	{ CCI_REG8(0x4350), 0x19 },
+	{ CCI_REG8(0x4408), 0x0a },
+	{ CCI_REG8(0x440c), 0x0b },
+	{ CCI_REG8(0x4411), 0x5f },
+	{ CCI_REG8(0x4412), 0x2c },
+	{ CCI_REG8(0x4623), 0x00 },
+	{ CCI_REG8(0x462c), 0x0f },
+	{ CCI_REG8(0x462d), 0x00 },
+	{ CCI_REG8(0x462e), 0x00 },
+	{ CCI_REG8(0x4684), 0x54 },
+	{ CCI_REG8(0x480a), 0x07 },
+	{ CCI_REG8(0x4908), 0x07 },
+	{ CCI_REG8(0x4909), 0x07 },
+	{ CCI_REG8(0x490d), 0x0a },
+	{ CCI_REG8(0x491e), 0x0f },
+	{ CCI_REG8(0x4921), 0x06 },
+	{ CCI_REG8(0x4923), 0x28 },
+	{ CCI_REG8(0x4924), 0x28 },
+	{ CCI_REG8(0x4925), 0x29 },
+	{ CCI_REG8(0x4926), 0x29 },
+	{ CCI_REG8(0x4927), 0x1f },
+	{ CCI_REG8(0x4928), 0x20 },
+	{ CCI_REG8(0x4929), 0x20 },
+	{ CCI_REG8(0x492a), 0x20 },
+	{ CCI_REG8(0x492c), 0x05 },
+	{ CCI_REG8(0x492d), 0x06 },
+	{ CCI_REG8(0x492e), 0x06 },
+	{ CCI_REG8(0x492f), 0x06 },
+	{ CCI_REG8(0x4930), 0x03 },
+	{ CCI_REG8(0x4931), 0x04 },
+	{ CCI_REG8(0x4932), 0x04 },
+	{ CCI_REG8(0x4933), 0x05 },
+	{ CCI_REG8(0x595e), 0x01 },
+	{ CCI_REG8(0x5963), 0x01 },
+	{ CCI_REG8(0x3030), 0x01 },
+	{ CCI_REG8(0x3031), 0x01 },
+	{ CCI_REG8(0x3045), 0x01 },
+	{ CCI_REG8(0x4010), 0x00 },
+	{ CCI_REG8(0x4011), 0x00 },
+	{ CCI_REG8(0x4012), 0x00 },
+	{ CCI_REG8(0x4013), 0x01 },
+	{ CCI_REG8(0x68a8), 0xfe },
+	{ CCI_REG8(0x68a9), 0xff },
+	{ CCI_REG8(0x6888), 0x00 },
+	{ CCI_REG8(0x6889), 0x00 },
+	{ CCI_REG8(0x68b0), 0x00 },
+	{ CCI_REG8(0x3058), 0x00 },
+	{ CCI_REG8(0x305a), 0x00 },
+	{ CCI_REG8(0x0112), 0x0a },
+	{ CCI_REG8(0x0113), 0x0a },
+	{ IMX355_REG_PLL_IVT_PCK_DIV, IMX355_PLL_IVT_PCK_DIV },
+	{ CCI_REG8(0x0303), 0x01 },
+	{ CCI_REG8(0x0305), 0x02 },
+	{ CCI_REG8(0x0306), 0x00 },
+	{ CCI_REG8(0x0307), 0x78 },
+	{ CCI_REG8(0x030b), 0x01 },
+	{ IMX355_REG_PLL_OP_PREDIV, IMX355_PLL_OP_PREDIV },
+	{ CCI_REG8(0x0310), 0x00 },
+	{ CCI_REG8(0x0220), 0x00 },
+	{ CCI_REG8(0x0222), 0x01 },
+	{ CCI_REG8(0x3088), 0x04 },
+	{ CCI_REG8(0x6813), 0x02 },
+	{ CCI_REG8(0x6835), 0x07 },
+	{ CCI_REG8(0x6836), 0x01 },
+	{ CCI_REG8(0x6837), 0x04 },
+	{ CCI_REG8(0x684d), 0x07 },
+	{ CCI_REG8(0x684e), 0x01 },
+	{ CCI_REG8(0x684f), 0x04 },
 };
 
-static const struct imx355_reg_list imx355_global_setting = {
-	.num_of_regs = ARRAY_SIZE(imx355_global_regs),
-	.regs = imx355_global_regs,
+static const struct cci_reg_sequence mode_3268x2448_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_3268x2448_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x0e },
-	{ 0x0343, 0x58 },
-	{ 0x0340, 0x0a },
-	{ 0x0341, 0x37 },
-	{ 0x0344, 0x00 },
-	{ 0x0345, 0x08 },
-	{ 0x0346, 0x00 },
-	{ 0x0347, 0x08 },
-	{ 0x0348, 0x0c },
-	{ 0x0349, 0xcb },
-	{ 0x034a, 0x09 },
-	{ 0x034b, 0x97 },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x00 },
-	{ 0x0901, 0x11 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x0c },
-	{ 0x034d, 0xc4 },
-	{ 0x034e, 0x09 },
-	{ 0x034f, 0x90 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_3264x2448_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_3264x2448_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x0e },
-	{ 0x0343, 0x58 },
-	{ 0x0340, 0x0a },
-	{ 0x0341, 0x37 },
-	{ 0x0344, 0x00 },
-	{ 0x0345, 0x08 },
-	{ 0x0346, 0x00 },
-	{ 0x0347, 0x08 },
-	{ 0x0348, 0x0c },
-	{ 0x0349, 0xc7 },
-	{ 0x034a, 0x09 },
-	{ 0x034b, 0x97 },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x00 },
-	{ 0x0901, 0x11 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x0c },
-	{ 0x034d, 0xc0 },
-	{ 0x034e, 0x09 },
-	{ 0x034f, 0x90 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_3280x2464_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_3280x2464_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x0e },
-	{ 0x0343, 0x58 },
-	{ 0x0340, 0x0a },
-	{ 0x0341, 0x37 },
-	{ 0x0344, 0x00 },
-	{ 0x0345, 0x00 },
-	{ 0x0346, 0x00 },
-	{ 0x0347, 0x00 },
-	{ 0x0348, 0x0c },
-	{ 0x0349, 0xcf },
-	{ 0x034a, 0x09 },
-	{ 0x034b, 0x9f },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x00 },
-	{ 0x0901, 0x11 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x0c },
-	{ 0x034d, 0xd0 },
-	{ 0x034e, 0x09 },
-	{ 0x034f, 0xa0 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_1940x1096_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_1940x1096_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x0e },
-	{ 0x0343, 0x58 },
-	{ 0x0340, 0x05 },
-	{ 0x0341, 0x1a },
-	{ 0x0344, 0x02 },
-	{ 0x0345, 0xa0 },
-	{ 0x0346, 0x02 },
-	{ 0x0347, 0xac },
-	{ 0x0348, 0x0a },
-	{ 0x0349, 0x33 },
-	{ 0x034a, 0x06 },
-	{ 0x034b, 0xf3 },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x00 },
-	{ 0x0901, 0x11 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x07 },
-	{ 0x034d, 0x94 },
-	{ 0x034e, 0x04 },
-	{ 0x034f, 0x48 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_1936x1096_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_1936x1096_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x0e },
-	{ 0x0343, 0x58 },
-	{ 0x0340, 0x05 },
-	{ 0x0341, 0x1a },
-	{ 0x0344, 0x02 },
-	{ 0x0345, 0xa0 },
-	{ 0x0346, 0x02 },
-	{ 0x0347, 0xac },
-	{ 0x0348, 0x0a },
-	{ 0x0349, 0x2f },
-	{ 0x034a, 0x06 },
-	{ 0x034b, 0xf3 },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x00 },
-	{ 0x0901, 0x11 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x07 },
-	{ 0x034d, 0x90 },
-	{ 0x034e, 0x04 },
-	{ 0x034f, 0x48 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_1924x1080_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_1924x1080_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x0e },
-	{ 0x0343, 0x58 },
-	{ 0x0340, 0x05 },
-	{ 0x0341, 0x1a },
-	{ 0x0344, 0x02 },
-	{ 0x0345, 0xa8 },
-	{ 0x0346, 0x02 },
-	{ 0x0347, 0xb4 },
-	{ 0x0348, 0x0a },
-	{ 0x0349, 0x2b },
-	{ 0x034a, 0x06 },
-	{ 0x034b, 0xeb },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x00 },
-	{ 0x0901, 0x11 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x07 },
-	{ 0x034d, 0x84 },
-	{ 0x034e, 0x04 },
-	{ 0x034f, 0x38 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_1920x1080_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_1920x1080_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x0e },
-	{ 0x0343, 0x58 },
-	{ 0x0340, 0x05 },
-	{ 0x0341, 0x1a },
-	{ 0x0344, 0x02 },
-	{ 0x0345, 0xa8 },
-	{ 0x0346, 0x02 },
-	{ 0x0347, 0xb4 },
-	{ 0x0348, 0x0a },
-	{ 0x0349, 0x27 },
-	{ 0x034a, 0x06 },
-	{ 0x034b, 0xeb },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x00 },
-	{ 0x0901, 0x11 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x07 },
-	{ 0x034d, 0x80 },
-	{ 0x034e, 0x04 },
-	{ 0x034f, 0x38 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_1640x1232_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_1640x1232_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x07 },
-	{ 0x0343, 0x2c },
-	{ 0x0340, 0x05 },
-	{ 0x0341, 0x1a },
-	{ 0x0344, 0x00 },
-	{ 0x0345, 0x00 },
-	{ 0x0346, 0x00 },
-	{ 0x0347, 0x00 },
-	{ 0x0348, 0x0c },
-	{ 0x0349, 0xcf },
-	{ 0x034a, 0x09 },
-	{ 0x034b, 0x9f },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x01 },
-	{ 0x0901, 0x22 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x06 },
-	{ 0x034d, 0x68 },
-	{ 0x034e, 0x04 },
-	{ 0x034f, 0xd0 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_1640x922_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_1640x922_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x07 },
-	{ 0x0343, 0x2c },
-	{ 0x0340, 0x05 },
-	{ 0x0341, 0x1a },
-	{ 0x0344, 0x00 },
-	{ 0x0345, 0x00 },
-	{ 0x0346, 0x01 },
-	{ 0x0347, 0x30 },
-	{ 0x0348, 0x0c },
-	{ 0x0349, 0xcf },
-	{ 0x034a, 0x08 },
-	{ 0x034b, 0x63 },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x01 },
-	{ 0x0901, 0x22 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x06 },
-	{ 0x034d, 0x68 },
-	{ 0x034e, 0x03 },
-	{ 0x034f, 0x9a },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_1300x736_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_1300x736_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x07 },
-	{ 0x0343, 0x2c },
-	{ 0x0340, 0x05 },
-	{ 0x0341, 0x1a },
-	{ 0x0344, 0x01 },
-	{ 0x0345, 0x58 },
-	{ 0x0346, 0x01 },
-	{ 0x0347, 0xf0 },
-	{ 0x0348, 0x0b },
-	{ 0x0349, 0x7f },
-	{ 0x034a, 0x07 },
-	{ 0x034b, 0xaf },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x01 },
-	{ 0x0901, 0x22 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x05 },
-	{ 0x034d, 0x14 },
-	{ 0x034e, 0x02 },
-	{ 0x034f, 0xe0 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_1296x736_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_1296x736_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x07 },
-	{ 0x0343, 0x2c },
-	{ 0x0340, 0x05 },
-	{ 0x0341, 0x1a },
-	{ 0x0344, 0x01 },
-	{ 0x0345, 0x58 },
-	{ 0x0346, 0x01 },
-	{ 0x0347, 0xf0 },
-	{ 0x0348, 0x0b },
-	{ 0x0349, 0x77 },
-	{ 0x034a, 0x07 },
-	{ 0x034b, 0xaf },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x01 },
-	{ 0x0901, 0x22 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x05 },
-	{ 0x034d, 0x10 },
-	{ 0x034e, 0x02 },
-	{ 0x034f, 0xe0 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_1284x720_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_1284x720_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x07 },
-	{ 0x0343, 0x2c },
-	{ 0x0340, 0x05 },
-	{ 0x0341, 0x1a },
-	{ 0x0344, 0x01 },
-	{ 0x0345, 0x68 },
-	{ 0x0346, 0x02 },
-	{ 0x0347, 0x00 },
-	{ 0x0348, 0x0b },
-	{ 0x0349, 0x6f },
-	{ 0x034a, 0x07 },
-	{ 0x034b, 0x9f },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x01 },
-	{ 0x0901, 0x22 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x05 },
-	{ 0x034d, 0x04 },
-	{ 0x034e, 0x02 },
-	{ 0x034f, 0xd0 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_1280x720_regs[] = {
+	{ CCI_REG8(0x0700), 0x00 },
+	{ CCI_REG8(0x0701), 0x10 },
 };
 
-static const struct imx355_reg mode_1280x720_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x07 },
-	{ 0x0343, 0x2c },
-	{ 0x0340, 0x05 },
-	{ 0x0341, 0x1a },
-	{ 0x0344, 0x01 },
-	{ 0x0345, 0x68 },
-	{ 0x0346, 0x02 },
-	{ 0x0347, 0x00 },
-	{ 0x0348, 0x0b },
-	{ 0x0349, 0x67 },
-	{ 0x034a, 0x07 },
-	{ 0x034b, 0x9f },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x01 },
-	{ 0x0901, 0x22 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x05 },
-	{ 0x034d, 0x00 },
-	{ 0x034e, 0x02 },
-	{ 0x034f, 0xd0 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x00 },
-	{ 0x0701, 0x10 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
-};
-
-static const struct imx355_reg mode_820x616_regs[] = {
-	{ 0x0112, 0x0a },
-	{ 0x0113, 0x0a },
-	{ 0x0114, 0x03 },
-	{ 0x0342, 0x0e },
-	{ 0x0343, 0x58 },
-	{ 0x0340, 0x02 },
-	{ 0x0341, 0x8c },
-	{ 0x0344, 0x00 },
-	{ 0x0345, 0x00 },
-	{ 0x0346, 0x00 },
-	{ 0x0347, 0x00 },
-	{ 0x0348, 0x0c },
-	{ 0x0349, 0xcf },
-	{ 0x034a, 0x09 },
-	{ 0x034b, 0x9f },
-	{ 0x0220, 0x00 },
-	{ 0x0222, 0x01 },
-	{ 0x0900, 0x01 },
-	{ 0x0901, 0x44 },
-	{ 0x0902, 0x00 },
-	{ 0x034c, 0x03 },
-	{ 0x034d, 0x34 },
-	{ 0x034e, 0x02 },
-	{ 0x034f, 0x68 },
-	{ 0x0301, 0x05 },
-	{ 0x0303, 0x01 },
-	{ 0x0305, 0x02 },
-	{ 0x0306, 0x00 },
-	{ 0x0307, 0x78 },
-	{ 0x030b, 0x01 },
-	{ 0x030d, 0x02 },
-	{ 0x030e, 0x00 },
-	{ 0x030f, 0x4b },
-	{ 0x0310, 0x00 },
-	{ 0x0700, 0x02 },
-	{ 0x0701, 0x78 },
-	{ 0x0820, 0x0b },
-	{ 0x0821, 0x40 },
-	{ 0x3088, 0x04 },
-	{ 0x6813, 0x02 },
-	{ 0x6835, 0x07 },
-	{ 0x6836, 0x01 },
-	{ 0x6837, 0x04 },
-	{ 0x684d, 0x07 },
-	{ 0x684e, 0x01 },
-	{ 0x684f, 0x04 },
+static const struct cci_reg_sequence mode_820x616_regs[] = {
+	{ CCI_REG8(0x0700), 0x02 },
+	{ CCI_REG8(0x0701), 0x78 },
 };
 
 static const char * const imx355_test_pattern_menu[] = {
@@ -897,23 +337,19 @@ static const char * const imx355_test_pattern_menu[] = {
 	"Pseudorandom Sequence (PN9)",
 };
 
-/*
- * When adding more than the one below, make sure the disallowed ones will
- * actually be disabled in the LINK_FREQ control.
- */
-static const s64 link_freq_menu_items[] = {
-	IMX355_LINK_FREQ_DEFAULT,
-};
-
 /* Mode configs */
 static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 3280,
 		.height = 2464,
+		.crop = {
+			.width = 3280,
+			.height = 2464,
+			.left = 0,
+			.top = 0,
+		},
 		.fll_def = 2615,
-		.fll_min = 2615,
 		.llp = 3672,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_3280x2464_regs),
 			.regs = mode_3280x2464_regs,
@@ -922,10 +358,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 3268,
 		.height = 2448,
+		.crop = {
+			.width = 3268,
+			.height = 2448,
+			.left = 8,
+			.top = 8,
+		},
 		.fll_def = 2615,
-		.fll_min = 2615,
 		.llp = 3672,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_3268x2448_regs),
 			.regs = mode_3268x2448_regs,
@@ -934,10 +374,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 3264,
 		.height = 2448,
+		.crop = {
+			.width = 3264,
+			.height = 2448,
+			.left = 8,
+			.top = 8,
+		},
 		.fll_def = 2615,
-		.fll_min = 2615,
 		.llp = 3672,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_3264x2448_regs),
 			.regs = mode_3264x2448_regs,
@@ -946,10 +390,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 1940,
 		.height = 1096,
+		.crop = {
+			.width = 1940,
+			.height = 1096,
+			.left = 672,
+			.top = 684,
+		},
 		.fll_def = 1306,
-		.fll_min = 1306,
 		.llp = 3672,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1940x1096_regs),
 			.regs = mode_1940x1096_regs,
@@ -958,10 +406,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 1936,
 		.height = 1096,
+		.crop = {
+			.width = 1936,
+			.height = 1096,
+			.left = 672,
+			.top = 684,
+		},
 		.fll_def = 1306,
-		.fll_min = 1306,
 		.llp = 3672,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1936x1096_regs),
 			.regs = mode_1936x1096_regs,
@@ -970,10 +422,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 1924,
 		.height = 1080,
+		.crop = {
+			.width = 1924,
+			.height = 1080,
+			.left = 680,
+			.top = 692,
+		},
 		.fll_def = 1306,
-		.fll_min = 1306,
 		.llp = 3672,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1924x1080_regs),
 			.regs = mode_1924x1080_regs,
@@ -982,10 +438,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 1920,
 		.height = 1080,
+		.crop = {
+			.width = 1920,
+			.height = 1080,
+			.left = 680,
+			.top = 692,
+		},
 		.fll_def = 1306,
-		.fll_min = 1306,
 		.llp = 3672,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1920x1080_regs),
 			.regs = mode_1920x1080_regs,
@@ -994,10 +454,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 1640,
 		.height = 1232,
+		.crop = {
+			.width = 3280,
+			.height = 2464,
+			.left = 0,
+			.top = 0,
+		},
 		.fll_def = 1306,
-		.fll_min = 1306,
 		.llp = 1836,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1640x1232_regs),
 			.regs = mode_1640x1232_regs,
@@ -1006,10 +470,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 1640,
 		.height = 922,
+		.crop = {
+			.width = 3280,
+			.height = 1844,
+			.left = 0,
+			.top = 304,
+		},
 		.fll_def = 1306,
-		.fll_min = 1306,
 		.llp = 1836,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1640x922_regs),
 			.regs = mode_1640x922_regs,
@@ -1018,10 +486,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 1300,
 		.height = 736,
+		.crop = {
+			.width = 2600,
+			.height = 1472,
+			.left = 344,
+			.top = 496,
+		},
 		.fll_def = 1306,
-		.fll_min = 1306,
 		.llp = 1836,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1300x736_regs),
 			.regs = mode_1300x736_regs,
@@ -1030,10 +502,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 1296,
 		.height = 736,
+		.crop = {
+			.width = 2592,
+			.height = 1472,
+			.left = 344,
+			.top = 496,
+		},
 		.fll_def = 1306,
-		.fll_min = 1306,
 		.llp = 1836,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1296x736_regs),
 			.regs = mode_1296x736_regs,
@@ -1042,10 +518,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 1284,
 		.height = 720,
+		.crop = {
+			.width = 2568,
+			.height = 1440,
+			.left = 360,
+			.top = 512,
+		},
 		.fll_def = 1306,
-		.fll_min = 1306,
 		.llp = 1836,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1284x720_regs),
 			.regs = mode_1284x720_regs,
@@ -1054,10 +534,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 1280,
 		.height = 720,
+		.crop = {
+			.width = 2560,
+			.height = 1440,
+			.left = 360,
+			.top = 512,
+		},
 		.fll_def = 1306,
-		.fll_min = 1306,
 		.llp = 1836,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1280x720_regs),
 			.regs = mode_1280x720_regs,
@@ -1066,10 +550,14 @@ static const struct imx355_mode supported_modes[] = {
 	{
 		.width = 820,
 		.height = 616,
+		.crop = {
+			.width = 3280,
+			.height = 2464,
+			.left = 0,
+			.top = 0,
+		},
 		.fll_def = 652,
-		.fll_min = 652,
 		.llp = 3672,
-		.link_freq_index = IMX355_LINK_FREQ_INDEX,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_820x616_regs),
 			.regs = mode_820x616_regs,
@@ -1095,116 +583,28 @@ static u32 imx355_get_format_code(struct imx355 *imx355)
 		{ MEDIA_BUS_FMT_SGBRG10_1X10, MEDIA_BUS_FMT_SBGGR10_1X10, },
 	};
 
-	lockdep_assert_held(&imx355->mutex);
 	code = codes[imx355->vflip->val][imx355->hflip->val];
 
 	return code;
-}
-
-/* Read registers up to 4 at a time */
-static int imx355_read_reg(struct imx355 *imx355, u16 reg, u32 len, u32 *val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&imx355->sd);
-	struct i2c_msg msgs[2];
-	u8 addr_buf[2];
-	u8 data_buf[4] = { 0 };
-	int ret;
-
-	if (len > 4)
-		return -EINVAL;
-
-	put_unaligned_be16(reg, addr_buf);
-	/* Write register address */
-	msgs[0].addr = client->addr;
-	msgs[0].flags = 0;
-	msgs[0].len = ARRAY_SIZE(addr_buf);
-	msgs[0].buf = addr_buf;
-
-	/* Read data from register */
-	msgs[1].addr = client->addr;
-	msgs[1].flags = I2C_M_RD;
-	msgs[1].len = len;
-	msgs[1].buf = &data_buf[4 - len];
-
-	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (ret != ARRAY_SIZE(msgs))
-		return -EIO;
-
-	*val = get_unaligned_be32(data_buf);
-
-	return 0;
-}
-
-/* Write registers up to 4 at a time */
-static int imx355_write_reg(struct imx355 *imx355, u16 reg, u32 len, u32 val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&imx355->sd);
-	u8 buf[6];
-
-	if (len > 4)
-		return -EINVAL;
-
-	put_unaligned_be16(reg, buf);
-	put_unaligned_be32(val << (8 * (4 - len)), buf + 2);
-	if (i2c_master_send(client, buf, len + 2) != len + 2)
-		return -EIO;
-
-	return 0;
-}
-
-/* Write a list of registers */
-static int imx355_write_regs(struct imx355 *imx355,
-			     const struct imx355_reg *regs, u32 len)
-{
-	int ret;
-	u32 i;
-
-	for (i = 0; i < len; i++) {
-		ret = imx355_write_reg(imx355, regs[i].address, 1, regs[i].val);
-		if (ret) {
-			dev_err_ratelimited(imx355->dev,
-					    "write reg 0x%4.4x return err %d",
-					    regs[i].address, ret);
-
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-/* Open sub-device */
-static int imx355_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
-{
-	struct imx355 *imx355 = to_imx355(sd);
-	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_state_get_format(fh->state, 0);
-
-	mutex_lock(&imx355->mutex);
-
-	/* Initialize try_fmt */
-	try_fmt->width = imx355->cur_mode->width;
-	try_fmt->height = imx355->cur_mode->height;
-	try_fmt->code = imx355_get_format_code(imx355);
-	try_fmt->field = V4L2_FIELD_NONE;
-
-	mutex_unlock(&imx355->mutex);
-
-	return 0;
 }
 
 static int imx355_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx355 *imx355 = container_of(ctrl->handler,
 					     struct imx355, ctrl_handler);
+	const struct v4l2_mbus_framefmt *format = NULL;
+	struct v4l2_subdev_state *state;
 	s64 max;
 	int ret;
+
+	state = v4l2_subdev_get_locked_active_state(&imx355->sd);
+	format = v4l2_subdev_state_get_format(state, 0);
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = imx355->cur_mode->height + ctrl->val - 10;
+		max = format->height + ctrl->val - IMX355_EXPOSURE_OFFSET;
 		__v4l2_ctrl_modify_range(imx355->exposure,
 					 imx355->exposure->minimum,
 					 max, imx355->exposure->step, max);
@@ -1221,31 +621,31 @@ static int imx355_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_ANALOGUE_GAIN:
 		/* Analog gain = 1024/(1024 - ctrl->val) times */
-		ret = imx355_write_reg(imx355, IMX355_REG_ANALOG_GAIN, 2,
-				       ctrl->val);
+		ret = cci_write(imx355->regmap, IMX355_REG_ANALOG_GAIN,
+				ctrl->val, NULL);
 		break;
 	case V4L2_CID_DIGITAL_GAIN:
-		ret = imx355_write_reg(imx355, IMX355_REG_DIG_GAIN_GLOBAL, 2,
-				       ctrl->val);
+		ret = cci_write(imx355->regmap, IMX355_REG_DIG_GAIN_GLOBAL,
+				ctrl->val, NULL);
 		break;
 	case V4L2_CID_EXPOSURE:
-		ret = imx355_write_reg(imx355, IMX355_REG_EXPOSURE, 2,
-				       ctrl->val);
+		ret = cci_write(imx355->regmap, IMX355_REG_EXPOSURE,
+				ctrl->val, NULL);
 		break;
 	case V4L2_CID_VBLANK:
 		/* Update FLL that meets expected vertical blanking */
-		ret = imx355_write_reg(imx355, IMX355_REG_FLL, 2,
-				       imx355->cur_mode->height + ctrl->val);
+		ret = cci_write(imx355->regmap, IMX355_REG_FLL,
+				format->height + ctrl->val, NULL);
 		break;
 	case V4L2_CID_TEST_PATTERN:
-		ret = imx355_write_reg(imx355, IMX355_REG_TEST_PATTERN,
-				       2, ctrl->val);
+		ret = cci_write(imx355->regmap, IMX355_REG_TEST_PATTERN,
+				ctrl->val, NULL);
 		break;
 	case V4L2_CID_HFLIP:
 	case V4L2_CID_VFLIP:
-		ret = imx355_write_reg(imx355, IMX355_REG_ORIENTATION, 1,
-				       imx355->hflip->val |
-				       imx355->vflip->val << 1);
+		ret = cci_write(imx355->regmap, IMX355_REG_ORIENTATION,
+				imx355->hflip->val | imx355->vflip->val << 1,
+				NULL);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1272,9 +672,7 @@ static int imx355_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index > 0)
 		return -EINVAL;
 
-	mutex_lock(&imx355->mutex);
 	code->code = imx355_get_format_code(imx355);
-	mutex_unlock(&imx355->mutex);
 
 	return 0;
 }
@@ -1288,12 +686,9 @@ static int imx355_enum_frame_size(struct v4l2_subdev *sd,
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	mutex_lock(&imx355->mutex);
 	if (fse->code != imx355_get_format_code(imx355)) {
-		mutex_unlock(&imx355->mutex);
 		return -EINVAL;
 	}
-	mutex_unlock(&imx355->mutex);
 
 	fse->min_width = supported_modes[fse->index].width;
 	fse->max_width = fse->min_width;
@@ -1311,36 +706,10 @@ static void imx355_update_pad_format(struct imx355 *imx355,
 	fmt->format.height = mode->height;
 	fmt->format.code = imx355_get_format_code(imx355);
 	fmt->format.field = V4L2_FIELD_NONE;
-}
-
-static int imx355_do_get_pad_format(struct imx355 *imx355,
-				    struct v4l2_subdev_state *sd_state,
-				    struct v4l2_subdev_format *fmt)
-{
-	struct v4l2_mbus_framefmt *framefmt;
-
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
-		fmt->format = *framefmt;
-	} else {
-		imx355_update_pad_format(imx355, imx355->cur_mode, fmt);
-	}
-
-	return 0;
-}
-
-static int imx355_get_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_state *sd_state,
-				 struct v4l2_subdev_format *fmt)
-{
-	struct imx355 *imx355 = to_imx355(sd);
-	int ret;
-
-	mutex_lock(&imx355->mutex);
-	ret = imx355_do_get_pad_format(imx355, sd_state, fmt);
-	mutex_unlock(&imx355->mutex);
-
-	return ret;
+	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
+	fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_601;
+	fmt->format.quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
 }
 
 static int
@@ -1351,13 +720,8 @@ imx355_set_pad_format(struct v4l2_subdev *sd,
 	struct imx355 *imx355 = to_imx355(sd);
 	const struct imx355_mode *mode;
 	struct v4l2_mbus_framefmt *framefmt;
-	s32 vblank_def;
-	s32 vblank_min;
+	struct v4l2_rect *crop;
 	s64 h_blank;
-	u64 pixel_rate;
-	u32 height;
-
-	mutex_lock(&imx355->mutex);
 
 	/*
 	 * Only one bayer order is supported.
@@ -1370,23 +734,25 @@ imx355_set_pad_format(struct v4l2_subdev *sd,
 				      width, height,
 				      fmt->format.width, fmt->format.height);
 	imx355_update_pad_format(imx355, mode, fmt);
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
-		*framefmt = fmt->format;
-	} else {
-		imx355->cur_mode = mode;
-		pixel_rate = IMX355_LINK_FREQ_DEFAULT * 2 * 4;
-		do_div(pixel_rate, 10);
-		__v4l2_ctrl_s_ctrl_int64(imx355->pixel_rate, pixel_rate);
+	framefmt = v4l2_subdev_state_get_format(sd_state, 0);
+
+	*framefmt = fmt->format;
+
+	crop = v4l2_subdev_state_get_crop(sd_state, 0);
+	crop->width = mode->crop.width;
+	crop->height = mode->crop.height;
+	crop->left = mode->crop.left;
+	crop->top = mode->crop.top;
+
+	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		/* Update limits and set FPS to default */
-		height = imx355->cur_mode->height;
-		vblank_def = imx355->cur_mode->fll_def - height;
-		vblank_min = imx355->cur_mode->fll_min - height;
-		height = IMX355_FLL_MAX - height;
-		__v4l2_ctrl_modify_range(imx355->vblank, vblank_min, height, 1,
-					 vblank_def);
-		__v4l2_ctrl_s_ctrl(imx355->vblank, vblank_def);
-		h_blank = mode->llp - imx355->cur_mode->width;
+		__v4l2_ctrl_modify_range(imx355->vblank, IMX355_VBLANK_MIN,
+					 IMX355_FLL_MAX - mode->height, 1,
+					 mode->fll_def - mode->height);
+		__v4l2_ctrl_s_ctrl(imx355->vblank, mode->fll_def - mode->height);
+
+		h_blank = mode->llp - mode->width;
+
 		/*
 		 * Currently hblank is not changeable.
 		 * So FPS control is done only by vblank.
@@ -1395,7 +761,42 @@ imx355_set_pad_format(struct v4l2_subdev *sd,
 					 h_blank, 1, h_blank);
 	}
 
-	mutex_unlock(&imx355->mutex);
+	return 0;
+}
+
+static int imx355_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_selection *sel)
+{
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+		sel->r = *v4l2_subdev_state_get_crop(sd_state, 0);
+		return 0;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+		sel->r.top = IMX355_PIXEL_ARRAY_TOP;
+		sel->r.left = IMX355_PIXEL_ARRAY_LEFT;
+		sel->r.width = IMX355_PIXEL_ARRAY_WIDTH;
+		sel->r.height = IMX355_PIXEL_ARRAY_HEIGHT;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int imx355_entity_init_state(struct v4l2_subdev *subdev,
+				    struct v4l2_subdev_state *sd_state)
+{
+	struct v4l2_subdev_format fmt = { };
+
+	fmt.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
+	fmt.format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	fmt.format.width = supported_modes[0].width;
+	fmt.format.height = supported_modes[0].height;
+
+	imx355_set_pad_format(subdev, sd_state, &fmt);
 
 	return 0;
 }
@@ -1403,52 +804,98 @@ imx355_set_pad_format(struct v4l2_subdev *sd,
 /* Start streaming */
 static int imx355_start_streaming(struct imx355 *imx355)
 {
-	const struct imx355_reg_list *reg_list;
-	int ret;
+	const struct v4l2_mbus_framefmt *fmt;
+	struct v4l2_subdev_state *state;
+	const struct imx355_mode *mode;
+	int lane_idx = imx355->hwcfg->num_lanes == 4 ? 0 : 1;
+	struct v4l2_rect *crop;
+	u64 link_bitrate;
+	u8 binning_mode;
+	int ret = 0;
 
 	/* Global Setting */
-	reg_list = &imx355_global_setting;
-	ret = imx355_write_regs(imx355, reg_list->regs, reg_list->num_of_regs);
-	if (ret) {
-		dev_err(imx355->dev, "failed to set global settings");
-		return ret;
-	}
+	cci_multi_reg_write(imx355->regmap, imx355_global_regs,
+			    ARRAY_SIZE(imx355_global_regs), &ret);
 
-	/* Apply default values of current mode */
-	reg_list = &imx355->cur_mode->reg_list;
-	ret = imx355_write_regs(imx355, reg_list->regs, reg_list->num_of_regs);
-	if (ret) {
-		dev_err(imx355->dev, "failed to set mode");
-		return ret;
-	}
+	/* Apply values of current mode */
+	state = v4l2_subdev_get_locked_active_state(&imx355->sd);
+	fmt = v4l2_subdev_state_get_format(state, 0);
+	crop = v4l2_subdev_state_get_crop(state, 0);
+	mode = v4l2_find_nearest_size(supported_modes,
+				      ARRAY_SIZE(supported_modes),
+				      width, height, fmt->width, fmt->height);
+	cci_multi_reg_write(imx355->regmap, mode->reg_list.regs,
+			    mode->reg_list.num_of_regs, &ret);
+
+	/* Set readout crop and size registers  */
+	cci_write(imx355->regmap, IMX355_REG_X_ADD_START, crop->left,
+		  &ret);
+	cci_write(imx355->regmap, IMX355_REG_Y_ADD_START, crop->top, &ret);
+	cci_write(imx355->regmap, IMX355_REG_X_ADD_END,
+		  crop->width + crop->left - 1, &ret);
+	cci_write(imx355->regmap, IMX355_REG_Y_ADD_END,
+		  crop->height + crop->top - 1, &ret);
+	cci_write(imx355->regmap, IMX355_REG_X_OUT_SIZE, fmt->width, &ret);
+	cci_write(imx355->regmap, IMX355_REG_Y_OUT_SIZE, fmt->height, &ret);
+
+	binning_mode = ((crop->width / fmt->width) << 4) |
+			(crop->height / fmt->height);
+	cci_write(imx355->regmap, IMX355_REG_BINNING_MODE,
+		  binning_mode == 0x11 ? 0x00 : 0x01, &ret);
+	cci_write(imx355->regmap, IMX355_REG_BINNING_TYPE, binning_mode, &ret);
+	cci_write(imx355->regmap, IMX355_REG_BINNING_WEIGHTING, 0x00, &ret);
+
+	/* Set PLL registers for the external clock frequency */
+	cci_write(imx355->regmap, IMX355_REG_EXTCLK_FREQ,
+		  imx355->clk_params->extclk_freq, &ret);
+	cci_write(imx355->regmap, IMX355_REG_PLL_OP_MUL,
+		  imx355->clk_params->pll_op_mpy[lane_idx], &ret);
+	cci_write(imx355->regmap, IMX355_REG_PLL_OP_PREDIV,
+		  imx355->clk_params->pll_op_prediv[lane_idx], &ret);
+	cci_write(imx355->regmap, IMX355_REG_PLL_IVT_SYSCK_DIV,
+		  lane_idx ? 2 : 1, &ret);
+
+	/* Set MIPI configuration */
+	cci_write(imx355->regmap, IMX355_REG_LANE_SEL,
+		  imx355->hwcfg->num_lanes - 1, &ret);
+
+	link_bitrate = imx355->link_freq->qmenu_int[imx355->link_freq->val] *
+		       imx355->hwcfg->num_lanes * 2;
+	do_div(link_bitrate, 1000000);
+	cci_write(imx355->regmap, IMX355_REG_REQ_LINK_BIT_RATE, link_bitrate,
+		  &ret);
 
 	/* set digital gain control to all color mode */
-	ret = imx355_write_reg(imx355, IMX355_REG_DPGA_USE_GLOBAL_GAIN, 1, 1);
-	if (ret)
-		return ret;
+	cci_write(imx355->regmap, IMX355_REG_DPGA_USE_GLOBAL_GAIN, 1, &ret);
+
+	/* set line length */
+	cci_write(imx355->regmap, IMX355_REG_LLP,
+		  imx355->hblank->val + fmt->width, &ret);
 
 	/* Apply customized values from user */
-	ret =  __v4l2_ctrl_handler_setup(imx355->sd.ctrl_handler);
-	if (ret)
-		return ret;
+	if (!ret)
+		ret = __v4l2_ctrl_handler_setup(imx355->sd.ctrl_handler);
 
-	return imx355_write_reg(imx355, IMX355_REG_MODE_SELECT,
-				1, IMX355_MODE_STREAMING);
+	cci_write(imx355->regmap, IMX355_REG_MODE_SELECT, IMX355_MODE_STREAMING,
+		  &ret);
+
+	return ret;
 }
 
 /* Stop streaming */
 static int imx355_stop_streaming(struct imx355 *imx355)
 {
-	return imx355_write_reg(imx355, IMX355_REG_MODE_SELECT,
-				1, IMX355_MODE_STANDBY);
+	return cci_write(imx355->regmap, IMX355_REG_MODE_SELECT,
+			 IMX355_MODE_STANDBY, NULL);
 }
 
 static int imx355_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct imx355 *imx355 = to_imx355(sd);
+	struct v4l2_subdev_state *state;
 	int ret = 0;
 
-	mutex_lock(&imx355->mutex);
+	state = v4l2_subdev_lock_and_get_active_state(sd);
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(imx355->dev);
@@ -1464,21 +911,21 @@ static int imx355_set_stream(struct v4l2_subdev *sd, int enable)
 			goto err_rpm_put;
 	} else {
 		imx355_stop_streaming(imx355);
-		pm_runtime_put(imx355->dev);
+		pm_runtime_put_autosuspend(imx355->dev);
 	}
 
 	/* vflip and hflip cannot change during streaming */
 	__v4l2_ctrl_grab(imx355->vflip, enable);
 	__v4l2_ctrl_grab(imx355->hflip, enable);
 
-	mutex_unlock(&imx355->mutex);
+	v4l2_subdev_unlock_state(state);
 
 	return ret;
 
 err_rpm_put:
-	pm_runtime_put(imx355->dev);
+	pm_runtime_put_autosuspend(imx355->dev);
 err_unlock:
-	mutex_unlock(&imx355->mutex);
+	v4l2_subdev_unlock_state(state);
 
 	return ret;
 }
@@ -1487,14 +934,14 @@ err_unlock:
 static int imx355_identify_module(struct imx355 *imx355)
 {
 	int ret;
-	u32 val;
+	u64 val;
 
-	ret = imx355_read_reg(imx355, IMX355_REG_CHIP_ID, 2, &val);
+	ret = cci_read(imx355->regmap, IMX355_REG_CHIP_ID, &val, NULL);
 	if (ret)
 		return ret;
 
 	if (val != IMX355_CHIP_ID) {
-		dev_err(imx355->dev, "chip id mismatch: %x!=%x",
+		dev_err(imx355->dev, "chip id mismatch: %x!=%llx",
 			IMX355_CHIP_ID, val);
 		return -EIO;
 	}
@@ -1512,9 +959,10 @@ static const struct v4l2_subdev_video_ops imx355_video_ops = {
 
 static const struct v4l2_subdev_pad_ops imx355_pad_ops = {
 	.enum_mbus_code = imx355_enum_mbus_code,
-	.get_fmt = imx355_get_pad_format,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = imx355_set_pad_format,
 	.enum_frame_size = imx355_enum_frame_size,
+	.get_selection = imx355_get_selection,
 };
 
 static const struct v4l2_subdev_ops imx355_subdev_ops = {
@@ -1528,7 +976,7 @@ static const struct media_entity_operations imx355_subdev_entity_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops imx355_internal_ops = {
-	.open = imx355_open,
+	.init_state = imx355_entity_init_state,
 };
 
 static int imx355_power_off(struct device *dev)
@@ -1582,13 +1030,11 @@ static int imx355_init_controls(struct imx355 *imx355)
 {
 	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
+	const struct imx355_mode *mode = &supported_modes[0];
 	s64 exposure_max;
 	s64 vblank_def;
-	s64 vblank_min;
 	s64 hblank;
 	u64 pixel_rate;
-	const struct imx355_mode *mode;
-	u32 max;
 	int ret;
 
 	ctrl_hdlr = &imx355->ctrl_handler;
@@ -1596,40 +1042,34 @@ static int imx355_init_controls(struct imx355 *imx355)
 	if (ret)
 		return ret;
 
-	ctrl_hdlr->lock = &imx355->mutex;
-	max = ARRAY_SIZE(link_freq_menu_items) - 1;
 	imx355->link_freq = v4l2_ctrl_new_int_menu(ctrl_hdlr, &imx355_ctrl_ops,
-						   V4L2_CID_LINK_FREQ, max, 0,
-						   link_freq_menu_items);
+						   V4L2_CID_LINK_FREQ, 0, 0,
+						   &imx355->hwcfg->link_freq_menu);
 	if (imx355->link_freq)
 		imx355->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	/* pixel_rate = link_freq * 2 * nr_of_lanes / bits_per_sample */
-	pixel_rate = IMX355_LINK_FREQ_DEFAULT * 2 * 4;
+	pixel_rate = imx355->hwcfg->link_freq_menu * 2 * imx355->hwcfg->num_lanes;
 	do_div(pixel_rate, 10);
-	/* By default, PIXEL_RATE is read only */
-	imx355->pixel_rate = v4l2_ctrl_new_std(ctrl_hdlr, &imx355_ctrl_ops,
-					       V4L2_CID_PIXEL_RATE, pixel_rate,
-					       pixel_rate, 1, pixel_rate);
+
+	v4l2_ctrl_new_std(ctrl_hdlr, &imx355_ctrl_ops, V4L2_CID_PIXEL_RATE,
+			  pixel_rate, pixel_rate, 1, pixel_rate);
 
 	/* Initialize vblank/hblank/exposure parameters based on current mode */
-	mode = imx355->cur_mode;
 	vblank_def = mode->fll_def - mode->height;
-	vblank_min = mode->fll_min - mode->height;
 	imx355->vblank = v4l2_ctrl_new_std(ctrl_hdlr, &imx355_ctrl_ops,
-					   V4L2_CID_VBLANK, vblank_min,
+					   V4L2_CID_VBLANK, IMX355_VBLANK_MIN,
 					   IMX355_FLL_MAX - mode->height,
 					   1, vblank_def);
 
 	hblank = mode->llp - mode->width;
-	imx355->hblank = v4l2_ctrl_new_std(ctrl_hdlr, &imx355_ctrl_ops,
-					   V4L2_CID_HBLANK, hblank, hblank,
-					   1, hblank);
+	imx355->hblank = v4l2_ctrl_new_std(ctrl_hdlr, NULL, V4L2_CID_HBLANK,
+					   hblank, hblank, 1, hblank);
 	if (imx355->hblank)
 		imx355->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	/* fll >= exposure time + adjust parameter (default value is 10) */
-	exposure_max = mode->fll_def - 10;
+	exposure_max = mode->fll_def - IMX355_EXPOSURE_OFFSET;
 	imx355->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &imx355_ctrl_ops,
 					     V4L2_CID_EXPOSURE,
 					     IMX355_EXPOSURE_MIN, exposure_max,
@@ -1683,14 +1123,17 @@ error:
 	return ret;
 }
 
-static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
+static struct imx355_hwcfg *imx355_get_hwcfg(struct imx355 *imx355)
 {
+	struct device *dev = imx355->dev;
 	struct imx355_hwcfg *cfg;
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
+	const struct imx355_clk_params *clk = imx355->clk_params;
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	int lane_idx;
 	int ret;
 
 	if (!fwnode)
@@ -1708,13 +1151,18 @@ static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 	if (!cfg)
 		goto out_err;
 
-	if (bus_cfg.bus.mipi_csi2.num_data_lanes != IMX355_DATA_LANES)
+	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 2 &&
+	    bus_cfg.bus.mipi_csi2.num_data_lanes != 4)
 		goto out_err;
 
+	cfg->num_lanes = bus_cfg.bus.mipi_csi2.num_data_lanes;
+
+	lane_idx = cfg->num_lanes == 4 ? 0 : 1;
+	cfg->link_freq_menu = (clk->ext_clk * clk->pll_op_mpy[lane_idx]) /
+			      (clk->pll_op_prediv[lane_idx] * 2);
 	ret = v4l2_link_freq_to_bitmap(dev, bus_cfg.link_frequencies,
 				       bus_cfg.nr_of_link_frequencies,
-				       link_freq_menu_items,
-				       ARRAY_SIZE(link_freq_menu_items),
+				       &cfg->link_freq_menu, 1,
 				       &cfg->link_freq_bitmap);
 	if (ret)
 		goto out_err;
@@ -1741,7 +1189,10 @@ static int imx355_probe(struct i2c_client *client)
 
 	imx355->dev = &client->dev;
 
-	mutex_init(&imx355->mutex);
+	imx355->regmap = devm_cci_regmap_init_i2c(client, 16);
+	if (IS_ERR(imx355->regmap))
+		return dev_err_probe(imx355->dev, PTR_ERR(imx355->regmap),
+				     "Unable to initialize I2C\n");
 
 	imx355->clk = devm_v4l2_sensor_clk_get(imx355->dev, NULL);
 	if (IS_ERR(imx355->clk))
@@ -1749,7 +1200,13 @@ static int imx355_probe(struct i2c_client *client)
 				     "failed to get clock\n");
 
 	freq = clk_get_rate(imx355->clk);
-	if (freq != IMX355_EXT_CLK)
+	for (unsigned int i = 0; i < ARRAY_SIZE(imx355_clk_params); i++) {
+		if (freq == imx355_clk_params[i].ext_clk) {
+			imx355->clk_params = &imx355_clk_params[i];
+			break;
+		}
+	}
+	if (!imx355->clk_params)
 		return dev_err_probe(imx355->dev, -EINVAL,
 				     "external clock %lu is not supported\n",
 				     freq);
@@ -1760,7 +1217,7 @@ static int imx355_probe(struct i2c_client *client)
 					    &imx355->supplies);
 	if (ret) {
 		dev_err_probe(imx355->dev, ret, "could not get regulators");
-		goto error_probe;
+		return ret;
 	}
 
 	imx355->reset_gpio = devm_gpiod_get_optional(imx355->dev, "reset",
@@ -1768,22 +1225,21 @@ static int imx355_probe(struct i2c_client *client)
 	if (IS_ERR(imx355->reset_gpio)) {
 		ret = dev_err_probe(imx355->dev, PTR_ERR(imx355->reset_gpio),
 				    "failed to get gpios");
-		goto error_probe;
+		return ret;
 	}
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx355->sd, client, &imx355_subdev_ops);
 
-	imx355->hwcfg = imx355_get_hwcfg(imx355->dev);
+	imx355->hwcfg = imx355_get_hwcfg(imx355);
 	if (!imx355->hwcfg) {
 		dev_err(imx355->dev, "failed to get hwcfg");
-		ret = -ENODEV;
-		goto error_probe;
+		return -ENODEV;
 	}
 
 	ret = imx355_power_on(imx355->dev);
 	if (ret)
-		goto error_probe;
+		return ret;
 
 	/* Check module identity */
 	ret = imx355_identify_module(imx355);
@@ -1791,9 +1247,6 @@ static int imx355_probe(struct i2c_client *client)
 		dev_err(imx355->dev, "failed to find sensor: %d", ret);
 		goto error_power_off;
 	}
-
-	/* Set default mode to max resolution */
-	imx355->cur_mode = &supported_modes[0];
 
 	ret = imx355_init_controls(imx355);
 	if (ret) {
@@ -1816,23 +1269,36 @@ static int imx355_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
+	imx355->sd.state_lock = imx355->ctrl_handler.lock;
+	ret = v4l2_subdev_init_finalize(&imx355->sd);
+	if (ret < 0) {
+		dev_err_probe(imx355->dev, ret, "subdev init error\n");
+		goto error_media_entity_free;
+	}
+
 	/*
 	 * Device is already turned on by i2c-core with ACPI domain PM.
 	 * Enable runtime PM and turn off the device.
 	 */
 	pm_runtime_set_active(imx355->dev);
 	pm_runtime_enable(imx355->dev);
-	pm_runtime_idle(imx355->dev);
+	pm_runtime_set_autosuspend_delay(imx355->dev, 1000);
+	pm_runtime_use_autosuspend(imx355->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&imx355->sd);
 	if (ret < 0)
-		goto error_media_entity_runtime_pm;
+		goto error_subdev_cleanup_runtime_pm;
+
+	pm_runtime_idle(imx355->dev);
 
 	return 0;
 
-error_media_entity_runtime_pm:
+error_subdev_cleanup_runtime_pm:
 	pm_runtime_disable(imx355->dev);
 	pm_runtime_set_suspended(imx355->dev);
+	pm_runtime_dont_use_autosuspend(imx355->dev);
+	v4l2_subdev_cleanup(&imx355->sd);
+error_media_entity_free:
 	media_entity_cleanup(&imx355->sd.entity);
 
 error_handler_free:
@@ -1840,9 +1306,6 @@ error_handler_free:
 
 error_power_off:
 	imx355_power_off(imx355->dev);
-
-error_probe:
-	mutex_destroy(&imx355->mutex);
 
 	return ret;
 }
@@ -1853,6 +1316,7 @@ static void imx355_remove(struct i2c_client *client)
 	struct imx355 *imx355 = to_imx355(sd);
 
 	v4l2_async_unregister_subdev(sd);
+	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 
@@ -1863,7 +1327,7 @@ static void imx355_remove(struct i2c_client *client)
 		pm_runtime_set_suspended(imx355->dev);
 	}
 
-	mutex_destroy(&imx355->mutex);
+	pm_runtime_dont_use_autosuspend(imx355->dev);
 }
 
 static const struct acpi_device_id imx355_acpi_ids[] __maybe_unused = {

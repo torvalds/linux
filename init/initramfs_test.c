@@ -514,7 +514,7 @@ static void __init initramfs_test_hdr_hex(struct kunit *test)
 	char fdata[] = "this file data will not be unpacked";
 	struct initramfs_test_bufs {
 		char cpio_src[(CPIO_HDRLEN + PATH_MAX + 3 + sizeof(fdata)) * 2];
-	} *tbufs = kzalloc(sizeof(struct initramfs_test_bufs), GFP_KERNEL);
+	} *tbufs = kzalloc_obj(struct initramfs_test_bufs);
 	struct initramfs_test_cpio c[] = { {
 		.magic = "070701",
 		.ino = 1,

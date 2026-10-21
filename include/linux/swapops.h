@@ -5,6 +5,7 @@
 #include <linux/radix-tree.h>
 #include <linux/bug.h>
 #include <linux/mm_types.h>
+#include <linux/swap.h>
 
 #ifdef CONFIG_MMU
 
@@ -73,8 +74,8 @@ static inline pte_t pte_swp_clear_flags(pte_t pte)
 		pte = pte_swp_clear_exclusive(pte);
 	if (pte_swp_soft_dirty(pte))
 		pte = pte_swp_clear_soft_dirty(pte);
-	if (pte_swp_uffd_wp(pte))
-		pte = pte_swp_clear_uffd_wp(pte);
+	if (pte_swp_uffd(pte))
+		pte = pte_swp_clear_uffd(pte);
 	return pte;
 }
 
@@ -321,12 +322,12 @@ static inline swp_entry_t make_guard_swp_entry(void)
 
 struct page_vma_mapped_walk;
 
-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+#ifdef CONFIG_ARCH_HAS_PMD_SOFTLEAVES
 extern int set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
 		struct page *page);
 
-extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
-		struct page *new);
+void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
+		struct folio *folio);
 
 extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
 
@@ -338,7 +339,7 @@ static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
 	return __swp_entry_to_pmd(arch_entry);
 }
 
-#else  /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
+#else  /* CONFIG_ARCH_HAS_PMD_SOFTLEAVES */
 static inline int set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
 		struct page *page)
 {
@@ -346,7 +347,7 @@ static inline int set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
 }
 
 static inline void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
-		struct page *new)
+		struct folio *folio)
 {
 	BUILD_BUG();
 }
@@ -358,7 +359,7 @@ static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
 	return __pmd(0);
 }
 
-#endif  /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
+#endif  /* CONFIG_ARCH_HAS_PMD_SOFTLEAVES */
 
 #endif /* CONFIG_MMU */
 #endif /* _LINUX_SWAPOPS_H */

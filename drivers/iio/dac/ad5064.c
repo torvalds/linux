@@ -920,22 +920,22 @@ static int ad5064_spi_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad5064_spi_ids[] = {
-	{"ad5024", ID_AD5024},
-	{"ad5025", ID_AD5025},
-	{"ad5044", ID_AD5044},
-	{"ad5045", ID_AD5045},
-	{"ad5064", ID_AD5064},
-	{"ad5064-1", ID_AD5064_1},
-	{"ad5065", ID_AD5065},
-	{"ad5628-1", ID_AD5628_1},
-	{"ad5628-2", ID_AD5628_2},
-	{"ad5648-1", ID_AD5648_1},
-	{"ad5648-2", ID_AD5648_2},
-	{"ad5666-1", ID_AD5666_1},
-	{"ad5666-2", ID_AD5666_2},
-	{"ad5668-1", ID_AD5668_1},
-	{"ad5668-2", ID_AD5668_2},
-	{"ad5668-3", ID_AD5668_2}, /* similar enough to ad5668-2 */
+	{ .name = "ad5024", .driver_data = ID_AD5024 },
+	{ .name = "ad5025", .driver_data = ID_AD5025 },
+	{ .name = "ad5044", .driver_data = ID_AD5044 },
+	{ .name = "ad5045", .driver_data = ID_AD5045 },
+	{ .name = "ad5064", .driver_data = ID_AD5064 },
+	{ .name = "ad5064-1", .driver_data = ID_AD5064_1 },
+	{ .name = "ad5065", .driver_data = ID_AD5065 },
+	{ .name = "ad5628-1", .driver_data = ID_AD5628_1 },
+	{ .name = "ad5628-2", .driver_data = ID_AD5628_2 },
+	{ .name = "ad5648-1", .driver_data = ID_AD5648_1 },
+	{ .name = "ad5648-2", .driver_data = ID_AD5648_2 },
+	{ .name = "ad5666-1", .driver_data = ID_AD5666_1 },
+	{ .name = "ad5666-2", .driver_data = ID_AD5666_2 },
+	{ .name = "ad5668-1", .driver_data = ID_AD5668_1 },
+	{ .name = "ad5668-2", .driver_data = ID_AD5668_2 },
+	{ .name = "ad5668-3", .driver_data = ID_AD5668_2 }, /* similar enough to ad5668-2 */
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5064_spi_ids);

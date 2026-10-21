@@ -787,39 +787,60 @@ enum scx_rq_flags {
 	 */
 	SCX_RQ_ONLINE		= 1 << 0,
 	SCX_RQ_CAN_STOP_TICK	= 1 << 1,
-	SCX_RQ_BAL_KEEP		= 1 << 3, /* balance decided to keep current */
 	SCX_RQ_CLK_VALID	= 1 << 5, /* RQ clock is fresh and valid */
 	SCX_RQ_BAL_CB_PENDING	= 1 << 6, /* must queue a cb after dispatching */
+	SCX_RQ_SUB_IDLE_RENOTIFY	= 1 << 7, /* sub-scheds are owed update_idle() */
+	SCX_RQ_ROOT_IDLE_RENOTIFY	= 1 << 8, /* the root is owed update_idle() */
 
 	SCX_RQ_IN_WAKEUP	= 1 << 16,
-	SCX_RQ_IN_BALANCE	= 1 << 17,
+	SCX_RQ_IN_DISPATCH	= 1 << 17,
+};
+
+/* per-rq rescue execution state, see scx_rescue_timerfn() */
+struct scx_rq_rescue {
+	struct scx_dispatch_q	dsq;			/* stranded tasks awaiting rescue */
+	s64			budget;			/* execution token bucket, ns */
+	u64			clock;			/* last budget accrual timestamp */
+	struct task_struct	*curr;			/* task being rescued, one at a time */
+	s64			slice;			/* curr's admitted slice */
+	u64			exec_snap;		/* sum_exec_runtime at admission */
+	struct timer_list	timer;			/* paces admission and escalation */
+	u64			kill_at;		/* last ejection, init before any */
 };
 
 struct scx_rq {
 	struct scx_dispatch_q	local_dsq;
+#ifdef CONFIG_EXT_SUB_SCHED
+	struct scx_dispatch_q	reject_dsq;		/* staging for cap-rejected tasks */
+	struct scx_rq_rescue	rescue;
+#endif
 	struct list_head	runnable_list;		/* runnable tasks on this rq */
 	struct list_head	ddsp_deferred_locals;	/* deferred ddsps from enq */
 	unsigned long		ops_qseq;
-	u64			extra_enq_flags;	/* see move_task_to_local_dsq() */
+	/* both stashed across the activate_task() in move_remote_task_to_local_dsq() */
+	u64			remote_activate_enq_flags;
+	struct scx_sched	*remote_activate_sch;
 	u32			nr_running;
 	u32			cpuperf_target;		/* [0, SCHED_CAPACITY_SCALE] */
 	bool			in_select_cpu;
 	bool			cpu_released;
 	u32			flags;
 	u32			nr_immed;		/* ENQ_IMMED tasks on local_dsq */
+#ifdef CONFIG_SCHED_CORE
+	u32			lock_drop_seq;	/* nr dispatch lock releases */
+#endif
 	u64			clock;			/* current per-rq clock -- see scx_bpf_now() */
-	cpumask_var_t		cpus_to_kick;
-	cpumask_var_t		cpus_to_kick_if_idle;
-	cpumask_var_t		cpus_to_preempt;
-	cpumask_var_t		cpus_to_wait;
+#ifdef CONFIG_EXT_SUB_SCHED
+	struct llist_head	ecaps_to_sync;		/* pending ecaps syncs */
+	struct task_struct	*sub_dispatch_prev;
+#endif
 	cpumask_var_t		cpus_to_sync;
 	bool			kick_sync_pending;
 	unsigned long		kick_sync;
 
-	struct task_struct	*sub_dispatch_prev;
+	struct list_head	sched_pcpus_to_kick;	/* see kick_cpus_irq_workfn() */
 
 	raw_spinlock_t		deferred_reenq_lock;
-	u64			deferred_reenq_locals_seq;
 	struct list_head	deferred_reenq_locals;	/* scheds requesting reenq of local DSQ */
 	struct list_head	deferred_reenq_users;	/* user DSQs requesting reenq */
 	struct balance_callback	deferred_bal_cb;
@@ -1361,6 +1382,7 @@ struct rq {
 	unsigned int		core_forceidle_seq;
 	unsigned int		core_forceidle_occupation;
 	u64			core_forceidle_start;
+	unsigned int		core_pick_in_flight;
 #endif /* CONFIG_SCHED_CORE */
 
 	/* Scratch cpumask to be temporarily used under rq_lock */

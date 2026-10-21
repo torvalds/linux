@@ -1262,7 +1262,7 @@ properties:
     items:
       items:
         - description: |
-            MSM chipset ID - an exact match value consisting of two bitfields::
+            MSM chipset ID - an exact match value consisting of two bitfields:
              - bits 0-15  - The unique MSM chipset ID
              - bits 16-31 - Reserved; should be 0
         - description: |
@@ -1288,7 +1288,7 @@ properties:
       - items:
           - items:
               - description: |
-                  Board ID consisting of three bitfields::
+                  Board ID consisting of three bitfields:
                     - bits 31-24 - Unused
                     - bits 23-16 - Platform Version Major
                     - bits 15-8  - Platform Version Minor

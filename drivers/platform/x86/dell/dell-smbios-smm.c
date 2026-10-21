@@ -49,7 +49,7 @@ static void find_cmd_address(const struct dmi_header *dm, void *dummy)
 	}
 }
 
-static int dell_smbios_smm_call(struct calling_interface_buffer *input)
+static int dell_smbios_smm_call(struct device *dev, struct calling_interface_buffer *input)
 {
 	struct smi_cmd command;
 	size_t size;
@@ -70,7 +70,7 @@ static int dell_smbios_smm_call(struct calling_interface_buffer *input)
 }
 
 /* When enabled this indicates that SMM won't work */
-static bool test_wsmt_enabled(void)
+static bool test_wsmt_enabled(struct device *dev)
 {
 	struct calling_interface_token *wsmt;
 
@@ -88,7 +88,7 @@ static bool test_wsmt_enabled(void)
 	memset(buffer, 0, sizeof(struct calling_interface_buffer));
 	buffer->input[0] = wsmt->location;
 	buffer->output[0] = 99;
-	dell_smbios_smm_call(buffer);
+	dell_smbios_smm_call(dev, buffer);
 	if (buffer->output[0] == 99)
 		return true;
 
@@ -109,7 +109,7 @@ int init_dell_smbios_smm(void)
 
 	dmi_walk(find_cmd_address, NULL);
 
-	if (test_wsmt_enabled()) {
+	if (test_wsmt_enabled(&platform_device->dev)) {
 		pr_debug("Disabling due to WSMT enabled\n");
 		ret = -ENODEV;
 		goto fail_wsmt;

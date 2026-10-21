@@ -48,18 +48,18 @@ static inline bool is_cache_clean(struct pcache_cache *cache, struct pcache_cach
 	addr = cache_pos_addr(dirty_tail);
 	kset_onmedia = (struct pcache_cache_kset_onmedia *)cache->wb_kset_onmedia_buf;
 
-	to_copy = min(PCACHE_KSET_ONMEDIA_SIZE_MAX, PCACHE_SEG_SIZE - dirty_tail->seg_off);
+	to_copy = min(PCACHE_KSET_ONMEDIA_SIZE_MAX, cache_seg_remain(dirty_tail));
 	ret = copy_mc_to_kernel(kset_onmedia, addr, to_copy);
 	if (ret) {
 		pcache_dev_err(pcache, "error to read kset: %d", ret);
 		return true;
 	}
 
-	/* Check if the magic number matches the expected value */
-	if (kset_onmedia->magic != PCACHE_KSET_MAGIC) {
-		pcache_dev_debug(pcache, "dirty_tail: %u:%u magic: %llx, not expected: %llx\n",
+	/* Reject a corrupted or out-of-bounds kset before reading its keys */
+	if (!kset_onmedia_valid(kset_onmedia)) {
+		pcache_dev_debug(pcache, "dirty_tail: %u:%u invalid kset magic: %llx, key_num: %u\n",
 				dirty_tail->cache_seg->cache_seg_id, dirty_tail->seg_off,
-				kset_onmedia->magic, PCACHE_KSET_MAGIC);
+				kset_onmedia->magic, kset_onmedia->key_num);
 		return true;
 	}
 
@@ -196,11 +196,17 @@ clear_tree:
 	return ret;
 }
 
-static void last_kset_writeback(struct pcache_cache *cache,
+static int last_kset_writeback(struct pcache_cache *cache,
 		struct pcache_cache_kset_onmedia *last_kset_onmedia)
 {
 	struct dm_pcache *pcache = CACHE_TO_PCACHE(cache);
 	struct pcache_cache_segment *next_seg;
+
+	if (!cache_seg_id_valid(cache, last_kset_onmedia->next_cache_seg_id)) {
+		pcache_dev_err(pcache, "invalid next_cache_seg_id %u in writeback (n_segs %u)\n",
+				last_kset_onmedia->next_cache_seg_id, cache->n_segs);
+		return -EIO;
+	}
 
 	pcache_dev_debug(pcache, "last kset, next: %u\n", last_kset_onmedia->next_cache_seg_id);
 
@@ -211,6 +217,8 @@ static void last_kset_writeback(struct pcache_cache *cache,
 	cache->dirty_tail.seg_off = 0;
 	cache_encode_dirty_tail(cache);
 	mutex_unlock(&cache->dirty_tail_lock);
+
+	return 0;
 }
 
 void cache_writeback_fn(struct work_struct *work)
@@ -229,6 +237,9 @@ void cache_writeback_fn(struct work_struct *work)
 	if (pcache_is_stopping(pcache))
 		goto unlock;
 
+	if (atomic_read(&cache->writeback_errors))
+		goto unlock;
+
 	kset_onmedia = (struct pcache_cache_kset_onmedia *)cache->wb_kset_onmedia_buf;
 
 	mutex_lock(&cache->dirty_tail_lock);
@@ -241,15 +252,24 @@ void cache_writeback_fn(struct work_struct *work)
 	}
 
 	if (kset_onmedia->flags & PCACHE_KSET_FLAGS_LAST) {
-		last_kset_writeback(cache, kset_onmedia);
+		ret = last_kset_writeback(cache, kset_onmedia);
+		if (ret) {
+			atomic_inc(&cache->writeback_errors);
+			goto unlock;
+		}
 		delay = 0;
 		goto queue_work;
 	}
 
+	if (get_kset_onmedia_size(kset_onmedia) > cache_seg_remain(&dirty_tail)) {
+		atomic_inc(&cache->writeback_errors);
+		goto unlock;
+	}
+
 	ret = cache_kset_insert_tree(cache, kset_onmedia);
 	if (ret) {
-		delay = PCACHE_CACHE_WRITEBACK_INTERVAL;
-		goto queue_work;
+		atomic_inc(&cache->writeback_errors);
+		goto unlock;
 	}
 
 	cache_wb_tree_writeback(cache, get_kset_onmedia_size(kset_onmedia));

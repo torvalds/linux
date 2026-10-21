@@ -24,10 +24,11 @@ use crate::{
     gpu::Chipset,
     gsp,
     num::FromSafeCast,
-    regs, //
+    vgpu::VgpuState, //
 };
 
 mod hal;
+mod regs;
 
 /// Type holding the sysmem flush memory page, a page of memory to be written into the
 /// `NV_PFB_NISO_FLUSH_SYSMEM_ADDR*` registers and used to maintain memory coherency.
@@ -60,7 +61,7 @@ impl<'sys> SysmemFlush<'sys> {
     ) -> Result<Self> {
         let page = CoherentHandle::alloc(dev, kernel::page::PAGE_SIZE, GFP_KERNEL)?;
 
-        hal::fb_hal(chipset).write_sysmem_flush_page(bar, page.dma_handle())?;
+        hal::fb_hal(chipset).write_sysmem_flush_page(bar, page.dma_address())?;
 
         Ok(Self {
             chipset,
@@ -75,7 +76,7 @@ impl Drop for SysmemFlush<'_> {
     fn drop(&mut self) {
         let hal = hal::fb_hal(self.chipset);
 
-        if hal.read_sysmem_flush_page(self.bar) == self.page.dma_handle() {
+        if hal.read_sysmem_flush_page(self.bar) == self.page.dma_address() {
             let _ = hal.write_sysmem_flush_page(self.bar, 0).inspect_err(|e| {
                 dev_warn!(
                     &self.device,
@@ -148,7 +149,7 @@ impl fmt::Debug for FbRange {
 ///
 /// Contains ranges of GPU memory reserved for a given purpose during the GSP boot process.
 #[derive(Debug)]
-pub(crate) struct FbLayout {
+pub(crate) struct FbRanges {
     /// Range of the framebuffer. Starts at `0`.
     pub(crate) fb: FbRange,
     /// VGA workspace, small area of reserved memory at the end of the framebuffer.
@@ -163,15 +164,22 @@ pub(crate) struct FbLayout {
     pub(crate) wpr2_heap: FbRange,
     /// WPR2 region range, starting with an instance of `GspFwWprMeta`.
     pub(crate) wpr2: FbRange,
-    pub(crate) heap: FbRange,
+    /// Non-WPR heap, located just below WPR2.
+    pub(crate) non_wpr_heap: FbRange,
+    /// Number of VF partitions.
     pub(crate) vf_partition_count: u8,
     /// PMU reserved memory size, in bytes.
     pub(crate) pmu_reserved_size: u32,
 }
 
-impl FbLayout {
-    /// Computes the FB layout for `chipset` required to run the `gsp_fw` GSP firmware.
-    pub(crate) fn new(chipset: Chipset, bar: Bar0<'_>, gsp_fw: &GspFirmware) -> Result<Self> {
+impl FbRanges {
+    /// Computes concrete framebuffer ranges required on non-FSP booting architectures.
+    pub(crate) fn new(
+        chipset: Chipset,
+        bar: Bar0<'_>,
+        gsp_fw: &GspFirmware,
+        vgpu_state: VgpuState,
+    ) -> Result<Self> {
         let hal = hal::fb_hal(chipset);
 
         let fb = {
@@ -234,11 +242,15 @@ impl FbLayout {
             FbRange(elf_addr..elf_addr + elf_size)
         };
 
+        let (vf_partition_count, wpr2_heap_size) = wpr2_heap_params(chipset, vgpu_state, fb.end)?;
+
         let wpr2_heap = {
             const WPR2_HEAP_DOWN_ALIGN: Alignment = Alignment::new::<SZ_1M>();
-            let wpr2_heap_size =
-                gsp::LibosParams::from_chipset(chipset).wpr_heap_size(chipset, fb.end)?;
-            let wpr2_heap_addr = (elf.start - wpr2_heap_size).align_down(WPR2_HEAP_DOWN_ALIGN);
+            let wpr2_heap_addr = elf
+                .start
+                .checked_sub(wpr2_heap_size)
+                .ok_or(EOVERFLOW)?
+                .align_down(WPR2_HEAP_DOWN_ALIGN);
 
             FbRange(wpr2_heap_addr..(elf.start).align_down(WPR2_HEAP_DOWN_ALIGN))
         };
@@ -251,9 +263,9 @@ impl FbLayout {
             FbRange(wpr2_addr..frts.end)
         };
 
-        let heap = {
-            let heap_size = u64::from(hal.non_wpr_heap_size());
-            FbRange(wpr2.start - heap_size..wpr2.start)
+        let non_wpr_heap = {
+            let non_wpr_heap_size = hal.non_wpr_heap_size();
+            FbRange(wpr2.start - non_wpr_heap_size..wpr2.start)
         };
 
         Ok(Self {
@@ -264,9 +276,69 @@ impl FbLayout {
             elf,
             wpr2_heap,
             wpr2,
-            heap,
-            vf_partition_count: 0,
+            non_wpr_heap,
+            vf_partition_count,
             pmu_reserved_size: hal.pmu_reserved_size(),
+        })
+    }
+}
+
+/// Reads the WPR2 memory region registers and returns the range if set.
+/// Returns `None` if the WPR2 region is not set.
+pub(crate) fn wpr2_range(bar: Bar0<'_>) -> Option<Range<u64>> {
+    let wpr2_hi = bar.read(regs::NV_PFB_PRI_MMU_WPR2_ADDR_HI);
+
+    if !wpr2_hi.is_wpr2_set() {
+        return None;
+    }
+
+    let wpr2_lo = bar.read(regs::NV_PFB_PRI_MMU_WPR2_ADDR_LO);
+
+    Some(wpr2_lo.lower_bound()..wpr2_hi.higher_bound())
+}
+
+/// Computes the number of VF partitions and the WPR2 heap size from the vGPU state.
+fn wpr2_heap_params(chipset: Chipset, vgpu_state: VgpuState, fb_size: u64) -> Result<(u8, u64)> {
+    Ok(match vgpu_state {
+        VgpuState::Disabled => (
+            0,
+            gsp::LibosParams::from_chipset(chipset).wpr_heap_size(chipset, fb_size)?,
+        ),
+        VgpuState::Enabled { total_vfs } => (
+            u8::try_from(total_vfs.get()).map_err(|_| EINVAL)?,
+            gsp::LibosParams::vgpu_wpr_heap_size(),
+        ),
+    })
+}
+
+/// Framebuffer region sizes needed for GSP-FMC boot.
+#[derive(Debug)]
+pub(crate) struct FbSizes {
+    /// FRTS size, in bytes.
+    pub(crate) frts_size: u64,
+    /// WPR2 heap size, in bytes.
+    pub(crate) wpr2_heap_size: u64,
+    /// Non-WPR heap size, in bytes.
+    pub(crate) non_wpr_heap_size: u64,
+    /// PMU reserved memory size, in bytes.
+    pub(crate) pmu_reserved_size: u32,
+    /// Number of VF partitions.
+    pub(crate) vf_partition_count: u8,
+}
+
+impl FbSizes {
+    /// Computes the framebuffer region sizes for GSP-FMC boot.
+    pub(crate) fn new(chipset: Chipset, bar: Bar0<'_>, vgpu_state: VgpuState) -> Result<Self> {
+        let hal = hal::fb_hal(chipset);
+        let fb_size = hal.vidmem_size(bar);
+        let (vf_partition_count, wpr2_heap_size) = wpr2_heap_params(chipset, vgpu_state, fb_size)?;
+
+        Ok(Self {
+            frts_size: hal.frts_size(),
+            wpr2_heap_size,
+            non_wpr_heap_size: hal.non_wpr_heap_size(),
+            pmu_reserved_size: hal.pmu_reserved_size(),
+            vf_partition_count,
         })
     }
 }

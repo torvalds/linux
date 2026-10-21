@@ -222,7 +222,7 @@ int fnic_request_intr(struct fnic *fnic)
 							fnic->msix[i].devname,
 							fnic->msix[i].devid);
 			if (err) {
-				FNIC_ISR_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+				FNIC_ISR_DBG(KERN_ERR, fnic,
 							"request_irq failed with error: %d\n",
 							err);
 				fnic_free_intr(fnic);
@@ -245,15 +245,22 @@ int fnic_set_intr_mode_msix(struct fnic *fnic)
 	unsigned int m = ARRAY_SIZE(fnic->wq);
 	unsigned int o = ARRAY_SIZE(fnic->hw_copy_wq);
 	unsigned int min_irqs = n + m + 1 + 1; /*rq, raw wq, wq, err*/
-
+	/*
+	 * Make driver critical vectors unmanaged, or else it can get tied
+	 * to an offline CPU. This can happen when hyper-threading is off.
+	 */
+	struct irq_affinity affd = {
+		.pre_vectors = n + m + 1, /* rq, raw wq, 1 ioq */
+		.post_vectors = 1, /* err */
+	};
 	/*
 	 * We need n RQs, m WQs, o Copy WQs, n+m+o CQs, and n+m+o+1 INTRs
 	 * (last INTR is used for WQ/RQ errors and notification area)
 	 */
-	FNIC_ISR_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_ISR_DBG(KERN_INFO, fnic,
 		"rq-array size: %d wq-array size: %d copy-wq array size: %d\n",
 		n, m, o);
-	FNIC_ISR_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_ISR_DBG(KERN_INFO, fnic,
 		"rq_count: %d raw_wq_count: %d wq_copy_count: %d cq_count: %d\n",
 		fnic->rq_count, fnic->raw_wq_count,
 		fnic->wq_copy_count, fnic->cq_count);
@@ -263,19 +270,19 @@ int fnic_set_intr_mode_msix(struct fnic *fnic)
 		int vec_count = 0;
 		int vecs = fnic->rq_count + fnic->raw_wq_count + fnic->wq_copy_count + 1;
 
-		vec_count = pci_alloc_irq_vectors(fnic->pdev, min_irqs, vecs,
-					PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
-		FNIC_ISR_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		vec_count = pci_alloc_irq_vectors_affinity(fnic->pdev, min_irqs,
+			    vecs, PCI_IRQ_MSIX|PCI_IRQ_AFFINITY, &affd);
+		FNIC_ISR_DBG(KERN_INFO, fnic,
 					"allocated %d MSI-X vectors\n",
 					vec_count);
 
 		if (vec_count > 0) {
 			if (vec_count < vecs) {
-				FNIC_ISR_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+				FNIC_ISR_DBG(KERN_ERR, fnic,
 				"interrupts number mismatch: vec_count: %d vecs: %d\n",
 				vec_count, vecs);
 				if (vec_count < min_irqs) {
-					FNIC_ISR_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+					FNIC_ISR_DBG(KERN_ERR, fnic,
 								"no interrupts for copy wq\n");
 					return 1;
 				}
@@ -287,7 +294,7 @@ int fnic_set_intr_mode_msix(struct fnic *fnic)
 			fnic->wq_copy_count = vec_count - n - m - 1;
 			fnic->wq_count = fnic->raw_wq_count + fnic->wq_copy_count;
 			if (fnic->cq_count != vec_count - 1) {
-				FNIC_ISR_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+				FNIC_ISR_DBG(KERN_ERR, fnic,
 				"CQ count: %d does not match MSI-X vector count: %d\n",
 				fnic->cq_count, vec_count);
 				fnic->cq_count = vec_count - 1;
@@ -295,23 +302,23 @@ int fnic_set_intr_mode_msix(struct fnic *fnic)
 			fnic->intr_count = vec_count;
 			fnic->err_intr_offset = fnic->rq_count + fnic->wq_count;
 
-			FNIC_ISR_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+			FNIC_ISR_DBG(KERN_INFO, fnic,
 				"rq_count: %d raw_wq_count: %d copy_wq_base: %d\n",
 				fnic->rq_count,
 				fnic->raw_wq_count, fnic->copy_wq_base);
 
-			FNIC_ISR_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+			FNIC_ISR_DBG(KERN_INFO, fnic,
 				"wq_copy_count: %d wq_count: %d cq_count: %d\n",
 				fnic->wq_copy_count,
 				fnic->wq_count, fnic->cq_count);
 
-			FNIC_ISR_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
-				"intr_count: %d err_intr_offset: %u",
+			FNIC_ISR_DBG(KERN_INFO, fnic,
+				"intr_count: %d err_intr_offset: %u\n",
 				fnic->intr_count,
 				fnic->err_intr_offset);
 
 			vnic_dev_set_intr_mode(fnic->vdev, VNIC_DEV_INTR_MODE_MSIX);
-			FNIC_ISR_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+			FNIC_ISR_DBG(KERN_INFO, fnic,
 					"fnic using MSI-X\n");
 			return 0;
 		}
@@ -351,7 +358,7 @@ int fnic_set_intr_mode(struct fnic *fnic)
 		fnic->intr_count = 1;
 		fnic->err_intr_offset = 0;
 
-		FNIC_ISR_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
+		FNIC_ISR_DBG(KERN_DEBUG, fnic,
 			     "Using MSI Interrupts\n");
 		vnic_dev_set_intr_mode(fnic->vdev, VNIC_DEV_INTR_MODE_MSI);
 
@@ -377,7 +384,7 @@ int fnic_set_intr_mode(struct fnic *fnic)
 		fnic->cq_count = 3;
 		fnic->intr_count = 3;
 
-		FNIC_ISR_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
+		FNIC_ISR_DBG(KERN_DEBUG, fnic,
 			     "Using Legacy Interrupts\n");
 		vnic_dev_set_intr_mode(fnic->vdev, VNIC_DEV_INTR_MODE_INTX);
 

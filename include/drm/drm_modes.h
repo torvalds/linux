@@ -193,6 +193,7 @@ enum drm_mode_status {
 #define DRM_MODE_MATCH_FLAGS (1 << 2)
 #define DRM_MODE_MATCH_3D_FLAGS (1 << 3)
 #define DRM_MODE_MATCH_ASPECT_RATIO (1 << 4)
+#define DRM_MODE_MATCH_TIMINGS_VRR (1 << 5)
 
 /**
  * struct drm_display_mode - DRM kernel-internal display mode structure

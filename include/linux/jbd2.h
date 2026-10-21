@@ -510,11 +510,12 @@ struct jbd2_journal_handle
 	int			h_err;
 
 	/* Flags [no locking] */
-	unsigned int	h_sync:		1;
-	unsigned int	h_reserved:	1;
-	unsigned int	h_aborted:	1;
-	unsigned int	h_type:		8;
-	unsigned int	h_line_no:	16;
+	unsigned char	h_sync:		1;
+	unsigned char	h_reserved:	1;
+	unsigned char	h_aborted:	1;
+	unsigned char	h_invalid:	1;
+	unsigned char	h_type;
+	unsigned short	h_line_no;
 
 	unsigned long		h_start_jiffies;
 	unsigned int		h_requested_credits;

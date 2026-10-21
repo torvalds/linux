@@ -558,17 +558,14 @@ struct sync_item {
 void ionic_rx_filter_sync(struct ionic_lif *lif)
 {
 	struct device *dev = lif->ionic->dev;
-	struct list_head sync_add_list;
-	struct list_head sync_del_list;
 	struct sync_item *sync_item;
 	struct ionic_rx_filter *f;
+	LIST_HEAD(sync_add_list);
+	LIST_HEAD(sync_del_list);
 	struct hlist_head *head;
 	struct hlist_node *tmp;
 	struct sync_item *spos;
 	unsigned int i;
-
-	INIT_LIST_HEAD(&sync_add_list);
-	INIT_LIST_HEAD(&sync_del_list);
 
 	clear_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
 

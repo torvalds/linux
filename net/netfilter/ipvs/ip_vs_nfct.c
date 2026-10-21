@@ -208,7 +208,7 @@ alter:
  * Use port 0 to expect connection from any port.
  */
 void ip_vs_nfct_expect_related(struct sk_buff *skb, struct nf_conn *ct,
-			       struct ip_vs_conn *cp, u_int8_t proto,
+			       struct ip_vs_conn *cp, u8 proto,
 			       const __be16 port, int from_rs)
 {
 	struct nf_conntrack_expect *exp;

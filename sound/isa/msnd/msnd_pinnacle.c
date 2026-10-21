@@ -367,7 +367,8 @@ static int snd_msnd_init_sma(struct snd_msnd *chip)
 static int upload_dsp_code(struct snd_card *card)
 {
 	struct snd_msnd *chip = card->private_data;
-	const struct firmware *init_fw = NULL, *perm_fw = NULL;
+	const struct firmware *init_fw __free(firmware) = NULL;
+	const struct firmware *perm_fw __free(firmware) = NULL;
 	int err;
 
 	outb(HPBLKSEL_0, chip->io + HP_BLKS);
@@ -375,28 +376,21 @@ static int upload_dsp_code(struct snd_card *card)
 	err = request_firmware(&init_fw, INITCODEFILE, card->dev);
 	if (err < 0) {
 		dev_err(card->dev, LOGNAME ": Error loading " INITCODEFILE);
-		goto cleanup1;
+		return err;
 	}
 	err = request_firmware(&perm_fw, PERMCODEFILE, card->dev);
 	if (err < 0) {
 		dev_err(card->dev, LOGNAME ": Error loading " PERMCODEFILE);
-		goto cleanup;
+		return err;
 	}
 
 	memcpy_toio(chip->mappedbase, perm_fw->data, perm_fw->size);
 	if (snd_msnd_upload_host(chip, init_fw->data, init_fw->size) < 0) {
 		dev_warn(card->dev, LOGNAME ": Error uploading to DSP\n");
-		err = -ENODEV;
-		goto cleanup;
+		return -ENODEV;
 	}
 	dev_info(card->dev, LOGNAME ": DSP firmware uploaded\n");
-	err = 0;
-
-cleanup:
-	release_firmware(perm_fw);
-cleanup1:
-	release_firmware(init_fw);
-	return err;
+	return 0;
 }
 
 #ifdef MSND_CLASSIC

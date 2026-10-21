@@ -772,6 +772,25 @@ struct runlist_element *ntfs_mapping_pairs_decompress(const struct ntfs_volume *
 		return ERR_PTR(-EIO);
 	}
 
+	/*
+	 * An empty mapping-pairs array is valid only for a zero-length
+	 * attribute.
+	 */
+	if (!*buf &&
+	    (vcn ||
+	     le64_to_cpu(attr->data.non_resident.highest_vcn) !=
+		     (u64)(vcn - 1) ||
+	     le64_to_cpu(attr->data.non_resident.allocated_size) ||
+	     le64_to_cpu(attr->data.non_resident.data_size) ||
+	     le64_to_cpu(attr->data.non_resident.initialized_size))) {
+		ntfs_error(vol->sb, "Invalid empty mapping pairs array.");
+		return ERR_PTR(-EIO);
+	}
+	if (!vcn && !*buf && old_runlist && old_runlist->rl) {
+		*new_rl_count = old_runlist->count;
+		return old_runlist->rl;
+	}
+
 	/* Current position in runlist array. */
 	rlpos = 0;
 	/* Allocate first page and set current runlist size to one page. */
@@ -884,10 +903,39 @@ struct runlist_element *ntfs_mapping_pairs_decompress(const struct ntfs_volume *
 					ntfs_error(vol->sb, "lcn == -1");
 			}
 #endif
+			/* Check lcn is within the volume. */
+			if (unlikely(lcn >= (s64)vol->nr_clusters)) {
+				ntfs_error(vol->sb,
+						"LCN >= nr_clusters in mapping pairs array.");
+				goto err_out;
+			}
+
 			/* Check lcn is not below -1. */
 			if (unlikely(lcn < -1)) {
 				ntfs_error(vol->sb, "Invalid s64 < -1 in mapping pairs array.");
 				goto err_out;
+			}
+
+			if (lcn >= 0) {
+				s64 run_end;
+
+				/*
+				 * Ensure that the run stays within the volume.
+				 * A valid starting LCN is not sufficient because
+				 * the run length comes from disk.
+				 */
+				if (unlikely(check_add_overflow(lcn,
+						rl[rlpos].length,
+						&run_end))) {
+					ntfs_error(vol->sb,
+							"Run length overflow in mapping pairs array.");
+					goto err_out;
+				}
+				if (unlikely(run_end > (s64)vol->nr_clusters)) {
+					ntfs_error(vol->sb,
+							"Run extends beyond volume boundary.");
+					goto err_out;
+				}
 			}
 
 			/* chkdsk accepts zero-sized runs only for holes */
@@ -1756,7 +1804,7 @@ merge_src_rle:
 	new_2nd_cnt = src_cnt;
 	new_cnt = new_1st_cnt + new_2nd_cnt + new_3rd_cnt;
 	new_cnt += dst_rl_split.lcn >= LCN_HOLE ? 1 : 0;
-	new_rl = kvcalloc(new_cnt, sizeof(*new_rl), GFP_NOFS);
+	new_rl = kvzalloc_objs(*new_rl, new_cnt, GFP_NOFS);
 	if (!new_rl)
 		return ERR_PTR(-ENOMEM);
 
@@ -1840,13 +1888,13 @@ struct runlist_element *ntfs_rl_punch_hole(struct runlist_element *dst_rl, int d
 
 	punch_cnt = (int)(e_rl - s_rl) + 1;
 
-	*punch_rl = kvcalloc(punch_cnt + 1, sizeof(struct runlist_element),
-			GFP_NOFS);
+	*punch_rl = kvzalloc_objs(struct runlist_element, punch_cnt + 1,
+				  GFP_NOFS);
 	if (!*punch_rl)
 		return ERR_PTR(-ENOMEM);
 
 	new_cnt = dst_cnt - (int)(e_rl - s_rl + 1) + 3;
-	new_rl = kvcalloc(new_cnt, sizeof(struct runlist_element), GFP_NOFS);
+	new_rl = kvzalloc_objs(struct runlist_element, new_cnt, GFP_NOFS);
 	if (!new_rl) {
 		kvfree(*punch_rl);
 		*punch_rl = NULL;
@@ -1990,13 +2038,13 @@ struct runlist_element *ntfs_rl_collapse_range(struct runlist_element *dst_rl, i
 	one_split_3 = e_rl == s_rl && begin_split && end_split;
 
 	punch_cnt = (int)(e_rl - s_rl) + 1;
-	*punch_rl = kvcalloc(punch_cnt + 1, sizeof(struct runlist_element),
-			GFP_NOFS);
+	*punch_rl = kvzalloc_objs(struct runlist_element, punch_cnt + 1,
+				  GFP_NOFS);
 	if (!*punch_rl)
 		return ERR_PTR(-ENOMEM);
 
 	new_cnt = dst_cnt - (int)(e_rl - s_rl + 1) + 3;
-	new_rl = kvcalloc(new_cnt, sizeof(struct runlist_element), GFP_NOFS);
+	new_rl = kvzalloc_objs(struct runlist_element, new_cnt, GFP_NOFS);
 	if (!new_rl) {
 		kvfree(*punch_rl);
 		*punch_rl = NULL;

@@ -31,7 +31,7 @@ struct cgroup *scx_bpf_task_cgroup___new(struct task_struct *p) __ksym __weak;
  *
  * v7.1: scx_bpf_dsq_move_to_local___v2() to add @enq_flags.
  */
-bool scx_bpf_dsq_move_to_local___v2(u64 dsq_id, u64 enq_flags) __ksym __weak;
+bool scx_bpf_dsq_move_to_local___v2___compat(u64 dsq_id, u64 enq_flags) __ksym __weak;
 bool scx_bpf_dsq_move_to_local___v1(u64 dsq_id) __ksym __weak;
 void scx_bpf_dsq_move_set_slice___new(struct bpf_iter_scx_dsq *it__iter, u64 slice) __ksym __weak;
 void scx_bpf_dsq_move_set_vtime___new(struct bpf_iter_scx_dsq *it__iter, u64 vtime) __ksym __weak;
@@ -45,8 +45,8 @@ bool scx_bpf_dispatch_from_dsq___old(struct bpf_iter_scx_dsq *it__iter, struct t
 bool scx_bpf_dispatch_vtime_from_dsq___old(struct bpf_iter_scx_dsq *it__iter, struct task_struct *p, u64 dsq_id, u64 enq_flags) __ksym __weak;
 
 #define scx_bpf_dsq_move_to_local(dsq_id, enq_flags)				\
-	(bpf_ksym_exists(scx_bpf_dsq_move_to_local___v2) ?			\
-	 scx_bpf_dsq_move_to_local___v2((dsq_id), (enq_flags)) :		\
+	(bpf_ksym_exists(scx_bpf_dsq_move_to_local___v2___compat) ?		\
+	 scx_bpf_dsq_move_to_local___v2___compat((dsq_id), (enq_flags)) :	\
 	 (bpf_ksym_exists(scx_bpf_dsq_move_to_local___v1) ?			\
 	  scx_bpf_dsq_move_to_local___v1((dsq_id)) :				\
 	  scx_bpf_consume___old((dsq_id))))
@@ -84,7 +84,7 @@ bool scx_bpf_dispatch_vtime_from_dsq___old(struct bpf_iter_scx_dsq *it__iter, st
  *
  * Compat macro will be dropped on v6.19 release.
  */
-int bpf_cpumask_populate(struct cpumask *dst, void *src, size_t src__sz) __ksym __weak;
+int bpf_cpumask_populate(struct bpf_cpumask *dst, void *src, size_t src__sz) __ksym __weak;
 
 #define __COMPAT_bpf_cpumask_populate(cpumask, src, size__sz)		\
 	(bpf_ksym_exists(bpf_cpumask_populate) ?			\
@@ -92,15 +92,20 @@ int bpf_cpumask_populate(struct cpumask *dst, void *src, size_t src__sz) __ksym 
 
 /*
  * v6.19: Introduce lockless peek API for user DSQs.
+ * v7.1:  Fix scx_bpf_dsq_peek() spuriously returning NULL on non-empty
+ *        FIFO DSQs (2f2ea7709266).
  *
- * Preserve the following macro until v6.21.
+ * The kfunc exists from v6.19 but can return NULL for a non-empty FIFO DSQ
+ * before the v7.1 fix. Require kernel version >= 7.1.0 before calling it;
+ * otherwise fall through to the bpf_iter_scx_dsq fallback below.
  */
 static inline struct task_struct *__COMPAT_scx_bpf_dsq_peek(u64 dsq_id)
 {
 	struct task_struct *p = NULL;
 	struct bpf_iter_scx_dsq it;
 
-	if (bpf_ksym_exists(scx_bpf_dsq_peek))
+	if (bpf_ksym_exists(scx_bpf_dsq_peek) &&
+	    LINUX_KERNEL_VERSION >= KERNEL_VERSION(7, 1, 0))
 		return scx_bpf_dsq_peek(dsq_id);
 	if (!bpf_iter_scx_dsq_new(&it, dsq_id, 0))
 		p = bpf_iter_scx_dsq_next(&it);
@@ -122,15 +127,20 @@ static inline bool scx_bpf_sub_dispatch(u64 cgroup_id)
 }
 
 /*
- * v7.2: scx_bpf_cid_override() for explicit cpu->cid mapping. Ignore if
+ * v7.3: scx_bpf_cid_override() for explicit cid and shard mapping. Ignore if
  * missing.
  */
-void scx_bpf_cid_override___compat(const s32 *cpu_to_cid, u32 cpu_to_cid__sz) __ksym __weak;
+void scx_bpf_cid_override___compat(const s32 __arena *cpu_to_cid__arena,
+				   u32 cpu_to_cid_cnt,
+				   const s32 __arena *shard_start__arena,
+				   u32 shard_start_cnt) __ksym __weak;
 
-static inline void scx_bpf_cid_override(const s32 *cpu_to_cid, u32 cpu_to_cid__sz)
+static inline void scx_bpf_cid_override(const s32 __arena *cpu_to_cid, u32 cpu_to_cid_cnt,
+					const s32 __arena *shard_start, u32 shard_start_cnt)
 {
 	if (bpf_ksym_exists(scx_bpf_cid_override___compat))
-		return scx_bpf_cid_override___compat(cpu_to_cid, cpu_to_cid__sz);
+		scx_bpf_cid_override___compat(cpu_to_cid, cpu_to_cid_cnt,
+					      shard_start, shard_start_cnt);
 }
 
 /**
@@ -236,7 +246,10 @@ static inline bool __COMPAT_is_enq_cpu_selected(u64 enq_flags)
 /*
  * v6.18: Add a helper to retrieve the current task running on a CPU.
  *
- * Keep this helper available until v6.20 for compatibility.
+ * The kernel tree dropped this helper and scx_bpf_cpu_rq(), but schedulers in
+ * this tree still support pre-v6.18 kernels where scx_bpf_cpu_curr() doesn't
+ * resolve and the scx_bpf_cpu_rq() fallback still exists. Keep it until
+ * pre-v6.18 kernels fall out of the support window.
  */
 static inline struct task_struct *__COMPAT_scx_bpf_cpu_curr(int cpu)
 {
@@ -391,6 +404,17 @@ static inline void scx_bpf_task_set_dsq_vtime(struct task_struct *p, u64 vtime)
 }
 
 /*
+ * v7.1: New scx_bpf_dsq_reenq() that allows re-enqueues on more DSQs. This
+ * will eventually deprecate scx_bpf_reenqueue_local().
+ */
+void scx_bpf_dsq_reenq___compat(u64 dsq_id, u64 reenq_flags) __ksym __weak;
+
+static inline bool __COMPAT_has_generic_reenq(void)
+{
+	return bpf_ksym_exists(scx_bpf_dsq_reenq___compat);
+}
+
+/*
  * v6.19: The new void variant can be called from anywhere while the older v1
  * variant can only be called from ops.cpu_release(). The double ___ prefixes on
  * the v2 variant need to be removed once libbpf is updated to ignore ___ prefix
@@ -407,27 +431,37 @@ static inline bool __COMPAT_scx_bpf_reenqueue_local_from_anywhere(void)
 
 static inline void scx_bpf_reenqueue_local(void)
 {
-	if (__COMPAT_scx_bpf_reenqueue_local_from_anywhere())
+	if (__COMPAT_has_generic_reenq())
+		scx_bpf_dsq_reenq___compat(SCX_DSQ_LOCAL, 0);
+	else if (__COMPAT_scx_bpf_reenqueue_local_from_anywhere())
 		scx_bpf_reenqueue_local___v2___compat();
 	else
 		scx_bpf_reenqueue_local___v1();
 }
 
-/*
- * v6.20: New scx_bpf_dsq_reenq() that allows re-enqueues on more DSQs. This
- * will eventually deprecate scx_bpf_reenqueue_local().
- */
-void scx_bpf_dsq_reenq___compat(u64 dsq_id, u64 reenq_flags, const struct bpf_prog_aux *aux__prog) __ksym __weak;
-
-static inline bool __COMPAT_has_generic_reenq(void)
+static inline int scx_bpf_reenqueue_local_from_anywhere(void)
 {
-	return bpf_ksym_exists(scx_bpf_dsq_reenq___compat);
+	/*
+	 * The generic reenq kfunc and the v2 reenqueue-local variant can both be
+	 * called from anywhere; v1 cannot. Test each ksym in its own branch with a
+	 * distinct call: combining them with || would fold into a bitwise OR of the
+	 * two ksym addresses, which the verifier rejects.
+	 */
+	if (__COMPAT_has_generic_reenq()) {
+		scx_bpf_dsq_reenq___compat(SCX_DSQ_LOCAL, 0);
+		return 0;
+	}
+	if (__COMPAT_scx_bpf_reenqueue_local_from_anywhere()) {
+		scx_bpf_reenqueue_local___v2___compat();
+		return 0;
+	}
+	return -EOPNOTSUPP;
 }
 
 static inline void scx_bpf_dsq_reenq(u64 dsq_id, u64 reenq_flags)
 {
 	if (bpf_ksym_exists(scx_bpf_dsq_reenq___compat))
-		scx_bpf_dsq_reenq___compat(dsq_id, reenq_flags, NULL);
+		scx_bpf_dsq_reenq___compat(dsq_id, reenq_flags);
 	else if (dsq_id == SCX_DSQ_LOCAL && reenq_flags == 0)
 		scx_bpf_reenqueue_local();
 	else

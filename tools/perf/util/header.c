@@ -385,7 +385,7 @@ static int write_tracing_data(struct feat_fd *ff,
 		return -1;
 
 #ifdef HAVE_LIBTRACEEVENT
-	return read_tracing_data(ff->fd, &evlist->core.entries);
+	return read_tracing_data(ff->fd, &evlist__core(evlist)->entries);
 #else
 	pr_err("ERROR: Trying to write tracing data without libtraceevent support.\n");
 	return -1;
@@ -434,8 +434,8 @@ static int write_osrelease(struct feat_fd *ff,
 	struct utsname uts;
 	const char *release = NULL;
 
-	if (evlist->session)
-		release = perf_env__os_release(perf_session__env(evlist->session));
+	if (evlist__session(evlist))
+		release = perf_env__os_release(perf_session__env(evlist__session(evlist)));
 
 	if (!release) {
 		int ret = uname(&uts);
@@ -452,8 +452,8 @@ static int write_arch(struct feat_fd *ff, struct evlist *evlist)
 	struct utsname uts;
 	const char *arch = NULL;
 
-	if (evlist->session)
-		arch = perf_env__arch(perf_session__env(evlist->session));
+	if (evlist__session(evlist))
+		arch = perf_env__arch(perf_session__env(evlist__session(evlist)));
 
 	if (!arch) {
 		int ret = uname(&uts);
@@ -469,7 +469,7 @@ static int write_e_machine(struct feat_fd *ff, struct evlist *evlist)
 {
 	/* e_machine expanded from 16 to 32-bits for alignment. */
 	uint32_t e_flags;
-	uint32_t e_machine = perf_session__e_machine(evlist->session, &e_flags);
+	uint32_t e_machine = perf_session__e_machine(evlist__session(evlist), &e_flags);
 	int ret;
 
 	ret = do_write(ff, &e_machine, sizeof(e_machine));
@@ -605,7 +605,7 @@ static int write_event_desc(struct feat_fd *ff,
 	u32 nre, nri, sz;
 	int ret;
 
-	nre = evlist->core.nr_entries;
+	nre = evlist__nr_entries(evlist);
 
 	/*
 	 * write number of events
@@ -987,7 +987,7 @@ int __weak get_cpuid(char *buffer __maybe_unused, size_t sz __maybe_unused,
 
 static int write_cpuid(struct feat_fd *ff, struct evlist *evlist)
 {
-	struct perf_cpu cpu = perf_cpu_map__min(evlist->core.all_cpus);
+	struct perf_cpu cpu = perf_cpu_map__min(evlist__core(evlist)->all_cpus);
 	char buffer[64];
 	int ret;
 
@@ -1120,7 +1120,8 @@ static int write_bpf_prog_info(struct feat_fd *ff  __maybe_unused,
 	struct rb_node *next;
 	int ret = 0;
 
-	down_read(&env->bpf_progs.lock);
+	/* write lock: bpil_addr_to_offs() temporarily mutates info_linear */
+	down_write(&env->bpf_progs.lock);
 
 	ret = do_write(ff, &env->bpf_progs.infos_cnt,
 		       sizeof(env->bpf_progs.infos_cnt));
@@ -1150,7 +1151,7 @@ static int write_bpf_prog_info(struct feat_fd *ff  __maybe_unused,
 			goto out;
 	}
 out:
-	up_read(&env->bpf_progs.lock);
+	up_write(&env->bpf_progs.lock);
 	return ret;
 #else
 	pr_err("ERROR: Trying to write bpf_prog_info without libbpf support.\n");
@@ -1420,14 +1421,14 @@ static int write_sample_time(struct feat_fd *ff,
 			     struct evlist *evlist)
 {
 	int ret;
+	u64 data = evlist__first_sample_time(evlist);
 
-	ret = do_write(ff, &evlist->first_sample_time,
-		       sizeof(evlist->first_sample_time));
+	ret = do_write(ff, &data, sizeof(data));
 	if (ret < 0)
 		return ret;
 
-	return do_write(ff, &evlist->last_sample_time,
-			sizeof(evlist->last_sample_time));
+	data = evlist__last_sample_time(evlist);
+	return do_write(ff, &data, sizeof(data));
 }
 
 
@@ -2551,16 +2552,16 @@ static void print_sample_time(struct feat_fd *ff, FILE *fp)
 
 	session = container_of(ff->ph, struct perf_session, header);
 
-	timestamp__scnprintf_usec(session->evlist->first_sample_time,
+	timestamp__scnprintf_usec(evlist__first_sample_time(session->evlist),
 				  time_buf, sizeof(time_buf));
 	fprintf(fp, "# time of first sample : %s\n", time_buf);
 
-	timestamp__scnprintf_usec(session->evlist->last_sample_time,
+	timestamp__scnprintf_usec(evlist__last_sample_time(session->evlist),
 				  time_buf, sizeof(time_buf));
 	fprintf(fp, "# time of last sample : %s\n", time_buf);
 
-	d = (double)(session->evlist->last_sample_time -
-		session->evlist->first_sample_time) / NSEC_PER_MSEC;
+	d = (double)(evlist__last_sample_time(session->evlist) -
+		evlist__first_sample_time(session->evlist)) / NSEC_PER_MSEC;
 
 	fprintf(fp, "# sample duration : %10.3f ms\n", d);
 }
@@ -3519,8 +3520,8 @@ static int process_sample_time(struct feat_fd *ff, void *data __maybe_unused)
 	if (ret)
 		return -1;
 
-	session->evlist->first_sample_time = first_sample_time;
-	session->evlist->last_sample_time = last_sample_time;
+	evlist__set_first_sample_time(session->evlist, first_sample_time);
+	evlist__set_last_sample_time(session->evlist, last_sample_time);
 	return 0;
 }
 
@@ -4610,7 +4611,7 @@ int perf_session__write_header(struct perf_session *session,
 					     /*write_attrs_after_data=*/false);
 }
 
-size_t perf_session__data_offset(const struct evlist *evlist)
+size_t perf_session__data_offset(struct evlist *evlist)
 {
 	struct evsel *evsel;
 	size_t data_offset;
@@ -4619,7 +4620,7 @@ size_t perf_session__data_offset(const struct evlist *evlist)
 	evlist__for_each_entry(evlist, evsel) {
 		data_offset += evsel->core.ids * sizeof(u64);
 	}
-	data_offset += evlist->core.nr_entries * sizeof(struct perf_file_attr);
+	data_offset += evlist__nr_entries(evlist) * sizeof(struct perf_file_attr);
 
 	return data_offset;
 }
@@ -5110,7 +5111,7 @@ int perf_session__read_header(struct perf_session *session)
 	if (session->evlist == NULL)
 		return -ENOMEM;
 
-	session->evlist->session = session;
+	evlist__set_session(session->evlist, session);
 	session->machines.host.env = &header->env;
 
 	/*
@@ -5186,7 +5187,7 @@ int perf_session__read_header(struct perf_session *session)
 			pr_err("Invalid ids section size %" PRIu64 " for attr %d, not aligned to u64\n",
 			       f_attr.ids.size, i);
 			err = -EINVAL;
-			goto out_delete_evlist;
+			goto out_put_evlist;
 		}
 
 		/*
@@ -5199,7 +5200,7 @@ int perf_session__read_header(struct perf_session *session)
 			pr_err("Invalid ids section size %" PRIu64 " for attr %d, too many IDs\n",
 			       f_attr.ids.size, i);
 			err = -EINVAL;
-			goto out_delete_evlist;
+			goto out_put_evlist;
 		}
 
 		/*
@@ -5212,19 +5213,19 @@ int perf_session__read_header(struct perf_session *session)
 			pr_err("Invalid ids section for attr %d: offset=%" PRIu64 " size=%" PRIu64 " exceeds file size %" PRIu64 "\n",
 			       i, f_attr.ids.offset, f_attr.ids.size, (u64)input_stat.st_size);
 			err = -EINVAL;
-			goto out_delete_evlist;
+			goto out_put_evlist;
 		}
 
 		tmp = lseek(fd, 0, SEEK_CUR);
 		evsel = evsel__new(&f_attr.attr);
 
 		if (evsel == NULL)
-			goto out_delete_evlist;
+			goto out_put_evlist;
 
 		evsel->needs_swap = header->needs_swap;
 		/*
 		 * Do it before so that if perf_evsel__alloc_id fails, this
-		 * entry gets purged too at evlist__delete().
+		 * entry gets purged too at evlist__put().
 		 */
 		evlist__add(session->evlist, evsel);
 
@@ -5235,7 +5236,7 @@ int perf_session__read_header(struct perf_session *session)
 		 * hattr->ids threads.
 		 */
 		if (perf_evsel__alloc_id(&evsel->core, 1, nr_ids))
-			goto out_delete_evlist;
+			goto out_put_evlist;
 
 		lseek(fd, f_attr.ids.offset, SEEK_SET);
 
@@ -5243,7 +5244,8 @@ int perf_session__read_header(struct perf_session *session)
 			if (perf_header__getbuffer64(header, fd, &f_id, sizeof(f_id)))
 				goto out_errno;
 
-			perf_evlist__id_add(&session->evlist->core, &evsel->core, 0, j, f_id);
+			perf_evlist__id_add(evlist__core(session->evlist),
+					    &evsel->core, 0, j, f_id);
 		}
 
 		lseek(fd, tmp, SEEK_SET);
@@ -5265,18 +5267,18 @@ int perf_session__read_header(struct perf_session *session)
 		err = perf_header__process_sections(header, fd, &session->tevent,
 						    perf_file_section__process);
 		if (err < 0)
-			goto out_delete_evlist;
+			goto out_put_evlist;
 
 		if (evlist__prepare_tracepoint_events(session->evlist,
 						      session->tevent.pevent)) {
 			err = -ENOMEM;
-			goto out_delete_evlist;
+			goto out_put_evlist;
 		}
 #else
 		err = perf_header__process_sections(header, fd, NULL,
 						    perf_file_section__process);
 		if (err < 0)
-			goto out_delete_evlist;
+			goto out_put_evlist;
 #endif
 	}
 
@@ -5302,8 +5304,8 @@ int perf_session__read_header(struct perf_session *session)
 out_errno:
 	return -errno;
 
-out_delete_evlist:
-	evlist__delete(session->evlist);
+out_put_evlist:
+	evlist__put(session->evlist);
 	session->evlist = NULL;
 	return err;
 }
@@ -5607,7 +5609,7 @@ int perf_event__process_attr(const struct perf_tool *tool __maybe_unused,
 	 */
 	ids = (void *)&event->attr.attr + attr_size;
 	for (i = 0; i < n_ids; i++) {
-		perf_evlist__id_add(&evlist->core, &evsel->core, 0, i, ids[i]);
+		perf_evlist__id_add(evlist__core(evlist), &evsel->core, 0, i, ids[i]);
 	}
 
 	return 0;

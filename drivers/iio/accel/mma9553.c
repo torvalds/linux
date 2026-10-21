@@ -1099,11 +1099,8 @@ static int mma9553_probe(struct i2c_client *client)
 						mma9553_event_handler,
 						IRQF_TRIGGER_RISING,
 						"mma9553_event", indio_dev);
-		if (ret < 0) {
-			dev_err(&client->dev, "request irq %d failed\n",
-				client->irq);
+		if (ret)
 			goto out_poweroff;
-		}
 	}
 
 	ret = pm_runtime_set_active(&client->dev);

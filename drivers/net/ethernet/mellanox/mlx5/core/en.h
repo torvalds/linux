@@ -1027,7 +1027,7 @@ struct mlx5e_profile {
 	void	(*cleanup_rx)(struct mlx5e_priv *priv);
 	int	(*init_tx)(struct mlx5e_priv *priv);
 	void	(*cleanup_tx)(struct mlx5e_priv *priv);
-	void	(*enable)(struct mlx5e_priv *priv);
+	int	(*enable)(struct mlx5e_priv *priv);
 	void	(*disable)(struct mlx5e_priv *priv);
 	int	(*update_rx)(struct mlx5e_priv *priv);
 	void	(*update_stats)(struct mlx5e_priv *priv);

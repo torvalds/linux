@@ -60,6 +60,8 @@
 #undef pr_info
 #undef pr_debug
 
+static int sienna_cichlid_init_ppt_limits(struct smu_context *smu);
+
 static const struct smu_feature_bits sienna_cichlid_dpm_features = {
 	.bits = {
 		SMU_FEATURE_BIT_INIT(FEATURE_DPM_PREFETCHER_BIT),
@@ -524,7 +526,11 @@ static int sienna_cichlid_setup_pptable(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	return sienna_cichlid_patch_pptable_quirk(smu);
+	ret = sienna_cichlid_patch_pptable_quirk(smu);
+	if (ret)
+		return ret;
+
+	return sienna_cichlid_init_ppt_limits(smu);
 }
 
 static int sienna_cichlid_tables_init(struct smu_context *smu)
@@ -624,53 +630,58 @@ static bool sienna_cichlid_is_od_feature_supported(struct smu_11_0_7_overdrive_t
 	return od_table->cap[cap];
 }
 
-static int sienna_cichlid_get_power_limit(struct smu_context *smu,
-					  uint32_t *current_power_limit,
-					  uint32_t *default_power_limit,
-					  uint32_t *max_power_limit,
-					  uint32_t *min_power_limit)
+static int sienna_cichlid_get_ppt_limit(struct smu_context *smu,
+					enum smu_ppt_limit_type limit_type,
+					uint32_t *ppt_limit)
+{
+	if (limit_type != SMU_PPT_LIMIT_PPT0)
+		return -EOPNOTSUPP;
+
+	return smu_v11_0_get_ppt_limit(smu, limit_type, ppt_limit);
+}
+
+static int sienna_cichlid_init_ppt_limits(struct smu_context *smu)
 {
 	struct smu_11_0_7_powerplay_table *powerplay_table =
 		(struct smu_11_0_7_powerplay_table *)smu->smu_table.power_play_table;
 	struct smu_11_0_7_overdrive_table *od_settings = smu->od_settings;
-	uint32_t power_limit, od_percent_upper = 0, od_percent_lower = 0;
-	uint16_t *table_member;
+	uint32_t default_limit[SMU_POWER_SOURCE_COUNT];
+	uint32_t od_percent_upper = 0, od_percent_lower = 0;
+	uint16_t *ppt_limit_ac, *ppt_limit_dc;
+	int i;
 
-	GET_PPTABLE_MEMBER(SocketPowerLimitAc, &table_member);
+	GET_PPTABLE_MEMBER(SocketPowerLimitAc, &ppt_limit_ac);
+	GET_PPTABLE_MEMBER(SocketPowerLimitDc, &ppt_limit_dc);
 
-	if (smu_v11_0_get_current_power_limit(smu, &power_limit)) {
-		power_limit =
-			table_member[PPT_THROTTLER_PPT0];
+	default_limit[SMU_POWER_SOURCE_AC] =
+		ppt_limit_ac[PPT_THROTTLER_PPT0];
+	default_limit[SMU_POWER_SOURCE_DC] =
+		ppt_limit_dc[PPT_THROTTLER_PPT0];
+
+	if (powerplay_table &&
+	    sienna_cichlid_is_od_feature_supported(od_settings,
+						     SMU_11_0_7_ODCAP_POWER_LIMIT)) {
+		od_percent_upper = le32_to_cpu(powerplay_table->overdrive_table.max[
+			SMU_11_0_7_ODSETTING_POWERPERCENTAGE]);
+		od_percent_lower = le32_to_cpu(powerplay_table->overdrive_table.min[
+			SMU_11_0_7_ODSETTING_POWERPERCENTAGE]);
 	}
 
-	if (current_power_limit)
-		*current_power_limit = power_limit;
-	if (default_power_limit)
-		*default_power_limit = power_limit;
-
-	if (powerplay_table) {
-		if (smu->od_enabled &&
-				sienna_cichlid_is_od_feature_supported(od_settings, SMU_11_0_7_ODCAP_POWER_LIMIT)) {
-			od_percent_upper = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_7_ODSETTING_POWERPERCENTAGE]);
-			od_percent_lower = le32_to_cpu(powerplay_table->overdrive_table.min[SMU_11_0_7_ODSETTING_POWERPERCENTAGE]);
-		} else if ((sienna_cichlid_is_od_feature_supported(od_settings, SMU_11_0_7_ODCAP_POWER_LIMIT))) {
-			od_percent_upper = 0;
-			od_percent_lower = le32_to_cpu(powerplay_table->overdrive_table.min[SMU_11_0_7_ODSETTING_POWERPERCENTAGE]);
-		}
+	for (i = SMU_POWER_SOURCE_AC; i < SMU_POWER_SOURCE_COUNT; i++) {
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].default_value =
+			default_limit[i];
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].max =
+			default_limit[i];
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min =
+			default_limit[i] * (100 - od_percent_lower) / 100;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_max =
+			default_limit[i] * (100 + od_percent_upper) / 100;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_min =
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min;
 	}
 
-	dev_dbg(smu->adev->dev, "od percent upper:%d, od percent lower:%d (default power: %d)\n",
-					od_percent_upper, od_percent_lower, power_limit);
+	smu->ppt_limits.supported_mask |= BIT(SMU_PPT_LIMIT_PPT0);
 
-	if (max_power_limit) {
-		*max_power_limit = power_limit * (100 + od_percent_upper);
-		*max_power_limit /= 100;
-	}
-
-	if (min_power_limit) {
-		*min_power_limit = power_limit * (100 - od_percent_lower);
-		*min_power_limit /= 100;
-	}
 	return 0;
 }
 
@@ -683,22 +694,29 @@ static void sienna_cichlid_get_smartshift_power_percentage(struct smu_context *s
 		&(((SmuMetricsExternal_t *)(smu_table->metrics_table))->SmuMetrics_V4);
 	uint16_t powerRatio = 0;
 	uint16_t apu_power_limit = 0;
-	uint16_t dgpu_power_limit = 0;
+	uint16_t dgpu_ppt_limit = 0;
 	uint32_t apu_boost = 0;
 	uint32_t dgpu_boost = 0;
-	uint32_t cur_power_limit;
+	uint32_t cur_ppt_limit;
+	enum smu_power_src_type power_source;
 
 	if (metrics_v4->ApuSTAPMSmartShiftLimit != 0) {
-		sienna_cichlid_get_power_limit(smu, &cur_power_limit, NULL, NULL, NULL);
+		if (sienna_cichlid_get_ppt_limit(smu, SMU_PPT_LIMIT_PPT0,
+						 &cur_ppt_limit)) {
+			power_source = smu->adev->pm.ac_power ?
+				SMU_POWER_SOURCE_AC : SMU_POWER_SOURCE_DC;
+			cur_ppt_limit = smu->ppt_limits.range[power_source]
+				[SMU_PPT_LIMIT_PPT0].default_value;
+		}
 		apu_power_limit = metrics_v4->ApuSTAPMLimit;
-		dgpu_power_limit = cur_power_limit;
+		dgpu_ppt_limit = cur_ppt_limit;
 		powerRatio = (((apu_power_limit +
-						  dgpu_power_limit) * 100) /
+						  dgpu_ppt_limit) * 100) /
 						  metrics_v4->ApuSTAPMSmartShiftLimit);
 		if (powerRatio > 100) {
 			apu_power_limit = (apu_power_limit * 100) /
 									 powerRatio;
-			dgpu_power_limit = (dgpu_power_limit * 100) /
+			dgpu_ppt_limit = (dgpu_ppt_limit * 100) /
 									  powerRatio;
 		}
 		if (metrics_v4->AverageApuSocketPower > apu_power_limit &&
@@ -710,11 +728,11 @@ static void sienna_cichlid_get_smartshift_power_percentage(struct smu_context *s
 				apu_boost = 100;
 		}
 
-		if (metrics_v4->AverageSocketPower > dgpu_power_limit &&
-			 dgpu_power_limit != 0) {
+		if (metrics_v4->AverageSocketPower > dgpu_ppt_limit &&
+			 dgpu_ppt_limit != 0) {
 			dgpu_boost = ((metrics_v4->AverageSocketPower -
-							 dgpu_power_limit) * 100) /
-							 dgpu_power_limit;
+							 dgpu_ppt_limit) * 100) /
+							 dgpu_ppt_limit;
 			if (dgpu_boost > 100)
 				dgpu_boost = 100;
 		}
@@ -1756,9 +1774,10 @@ static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu,
 				return -ENOMEM;
 		}
 		if (custom_params && custom_params_max_idx) {
-			if (custom_params_max_idx != SIENNA_CICHLID_CUSTOM_PARAMS_COUNT)
-				return -EINVAL;
-			if (custom_params[0] >= SIENNA_CICHLID_CUSTOM_PARAMS_CLOCK_COUNT)
+			if (!smu_cmn_custom_params_count_valid(custom_params_max_idx,
+							       SIENNA_CICHLID_CUSTOM_PARAMS_COUNT) ||
+			    !smu_cmn_custom_params_clock_valid(custom_params[0],
+							       SIENNA_CICHLID_CUSTOM_PARAMS_CLOCK_COUNT))
 				return -EINVAL;
 			idx = custom_params[0] * SIENNA_CICHLID_CUSTOM_PARAMS_COUNT;
 			smu->custom_profile_params[idx] = 1;
@@ -3108,7 +3127,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.set_performance_level = smu_v11_0_set_performance_level,
 	.get_thermal_temperature_range = sienna_cichlid_get_thermal_temperature_range,
 	.display_disable_memory_clock_switch = sienna_cichlid_display_disable_memory_clock_switch,
-	.get_power_limit = sienna_cichlid_get_power_limit,
+	.get_ppt_limit = sienna_cichlid_get_ppt_limit,
 	.update_pcie_parameters = sienna_cichlid_update_pcie_parameters,
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -3132,7 +3151,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.disable_all_features_with_exception = smu_cmn_disable_all_features_with_exception,
 	.notify_display_change = NULL,
-	.set_power_limit = smu_v11_0_set_power_limit,
+	.set_ppt_limit = smu_v11_0_set_ppt_limit,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.enable_thermal_alert = smu_v11_0_enable_thermal_alert,
 	.disable_thermal_alert = smu_v11_0_disable_thermal_alert,
@@ -3145,7 +3164,6 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.set_xgmi_pstate = smu_v11_0_set_xgmi_pstate,
 	.gfx_off_control = smu_v11_0_gfx_off_control,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
-	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
 	.get_bamaco_support = smu_v11_0_get_bamaco_support,
 	.baco_enter = sienna_cichlid_baco_enter,

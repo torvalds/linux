@@ -48,7 +48,7 @@
  * For each DRM GPU VA space drivers should call drm_debugfs_gpuva_info() from
  * their @show callback.
  */
-#define DRM_DEBUGFS_GPUVA_INFO(show, data) {"gpuvas", show, DRIVER_GEM_GPUVA, data}
+#define DRM_DEBUGFS_GPUVA_INFO(show, data) {"gpuvas", show, 0, data}
 
 /**
  * struct drm_info_list - debugfs info list entry

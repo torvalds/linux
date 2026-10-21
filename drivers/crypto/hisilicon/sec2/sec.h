@@ -181,9 +181,6 @@ struct sec_ctx {
 	const struct sec_req_op *req_op;
 	struct hisi_qp **qps;
 
-	/* Half queues for encipher, and half for decipher */
-	u32 hlf_q_num;
-
 	/* Current cyclic index to select a queue for encipher */
 	atomic_t enc_qcyclic;
 

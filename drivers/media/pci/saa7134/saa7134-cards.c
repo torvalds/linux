@@ -5800,1317 +5800,758 @@ const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
 
 struct pci_device_id saa7134_pci_tbl[] = {
 	{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0x2001,
-		.driver_data  = SAA7134_BOARD_PROTEUS_PRO,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0x2001,
-		.driver_data  = SAA7134_BOARD_PROTEUS_PRO,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0x6752,
-		.driver_data  = SAA7134_BOARD_EMPRESS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1131,
-		.subdevice    = 0x4e85,
-		.driver_data  = SAA7134_BOARD_MONSTERTV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x153b,
-		.subdevice    = 0x1142,
-		.driver_data  = SAA7134_BOARD_CINERGY400,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x153b,
-		.subdevice    = 0x1143,
-		.driver_data  = SAA7134_BOARD_CINERGY600,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x153b,
-		.subdevice    = 0x1158,
-		.driver_data  = SAA7134_BOARD_CINERGY600_MK3,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x153b,
-		.subdevice    = 0x1162,
-		.driver_data  = SAA7134_BOARD_CINERGY400_CARDBUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x5169,
-		.subdevice    = 0x0138,
-		.driver_data  = SAA7134_BOARD_FLYVIDEO3000_NTSC,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x5168,
-		.subdevice    = 0x0138,
-		.driver_data  = SAA7134_BOARD_FLYVIDEO3000,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x4e42,				/* "Typhoon PCI Capture TV Card" Art.No. 50673 */
-		.subdevice    = 0x0138,
-		.driver_data  = SAA7134_BOARD_FLYVIDEO3000,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x5168,
-		.subdevice    = 0x0138,
-		.driver_data  = SAA7134_BOARD_FLYVIDEO2000,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x4e42,		/* Typhoon */
-		.subdevice    = 0x0138,		/* LifeView FlyTV Prime30 OEM */
-		.driver_data  = SAA7134_BOARD_FLYVIDEO2000,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5168,
-		.subdevice    = 0x0212, /* minipci, LR212 */
-		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_MINI,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x14c0,
-		.subdevice    = 0x1212, /* minipci, LR1212 */
-		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_MINI2,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x4e42,
-		.subdevice    = 0x0212, /* OEM minipci, LR212 */
-		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_MINI,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5168,	/* Animation Technologies (LifeView) */
-		.subdevice    = 0x0214, /* Standard PCI, LR214 Rev E and earlier (SAA7135) */
-		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5168,	/* Animation Technologies (LifeView) */
-		.subdevice    = 0x5214, /* Standard PCI, LR214 Rev F onwards (SAA7131) */
-		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1489, /* KYE */
-		.subdevice    = 0x0214, /* Genius VideoWonder ProTV */
-		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_FM, /* is an LR214WF actually */
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x16be,
-		.subdevice    = 0x0003,
-		.driver_data  = SAA7134_BOARD_MD7134,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x16be, /* CTX946 analog TV, HW mpeg, DVB-T */
-		.subdevice    = 0x5000, /* only analog TV and DVB-T for now */
-		.driver_data  = SAA7134_BOARD_MD7134,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134,
+				PCI_VENDOR_ID_PHILIPS, 0x2001),
+		.driver_data = SAA7134_BOARD_PROTEUS_PRO,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1048,
-		.subdevice    = 0x226b,
-		.driver_data  = SAA7134_BOARD_ELSA,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1048,
-		.subdevice    = 0x226a,
-		.driver_data  = SAA7134_BOARD_ELSA_500TV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1048,
-		.subdevice    = 0x226c,
-		.driver_data  = SAA7134_BOARD_ELSA_700TV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = PCI_VENDOR_ID_ASUSTEK,
-		.subdevice    = 0x4842,
-		.driver_data  = SAA7134_BOARD_ASUSTeK_TVFM7134,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = PCI_VENDOR_ID_ASUSTEK,
-		.subdevice    = 0x4845,
-		.driver_data  = SAA7134_BOARD_ASUSTeK_TVFM7135,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = PCI_VENDOR_ID_ASUSTEK,
-		.subdevice    = 0x4830,
-		.driver_data  = SAA7134_BOARD_ASUSTeK_TVFM7134,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = PCI_VENDOR_ID_ASUSTEK,
-		.subdevice    = 0x4843,
-		.driver_data  = SAA7134_BOARD_ASUSTEK_TVFM7133,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = PCI_VENDOR_ID_ASUSTEK,
-		.subdevice    = 0x4840,
-		.driver_data  = SAA7134_BOARD_ASUSTeK_TVFM7134,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0xfe01,
-		.driver_data  = SAA7134_BOARD_TVSTATION_RDS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1894,
-		.subdevice    = 0xfe01,
-		.driver_data  = SAA7134_BOARD_TVSTATION_RDS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1894,
-		.subdevice    = 0xa006,
-		.driver_data  = SAA7134_BOARD_TVSTATION_DVR,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1131,
-		.subdevice    = 0x7133,
-		.driver_data  = SAA7134_BOARD_VA1000POWER,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0x2001,
-		.driver_data  = SAA7134_BOARD_10MOONSTVMASTER,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x185b,
-		.subdevice    = 0xc100,
-		.driver_data  = SAA7134_BOARD_VIDEOMATE_TV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x185b,
-		.subdevice    = 0xc100,
-		.driver_data  = SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = PCI_VENDOR_ID_MATROX,
-		.subdevice    = 0x48d0,
-		.driver_data  = SAA7134_BOARD_CRONOS_PLUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xa70b,
-		.driver_data  = SAA7134_BOARD_MD2819,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xa7a1,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_A700_PRO,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133,
+				PCI_VENDOR_ID_PHILIPS, 0x2001),
+		.driver_data = SAA7134_BOARD_PROTEUS_PRO,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xa7a2,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_A700_HYBRID,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134,
+				PCI_VENDOR_ID_PHILIPS, 0x6752),
+		.driver_data = SAA7134_BOARD_EMPRESS,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0x2115,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_STUDIO_305,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xa115,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_STUDIO_505,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1131, 0x4e85),
+		.driver_data = SAA7134_BOARD_MONSTERTV,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0x2108,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_305,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0x10ff,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_DVD_EZMAKER,
-	},{
-		/* AVerMedia CardBus */
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xd6ee,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_CARDBUS,
-	},{
-		/* AVerMedia CardBus */
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xb7e9,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_CARDBUS_501,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x153b, 0x1142),
+		.driver_data = SAA7134_BOARD_CINERGY400,
 	}, {
-		/* TransGear 3000TV */
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0x050c,
-		.driver_data  = SAA7134_BOARD_TG3000TV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x11bd,
-		.subdevice    = 0x002b,
-		.driver_data  = SAA7134_BOARD_PINNACLE_PCTV_STEREO,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x11bd,
-		.subdevice    = 0x002d,
-		.driver_data  = SAA7134_BOARD_PINNACLE_300I_DVBT_PAL,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1019,
-		.subdevice    = 0x4cb4,
-		.driver_data  = SAA7134_BOARD_ECS_TVP3XP,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1019,
-		.subdevice    = 0x4cb5,
-		.driver_data  = SAA7134_BOARD_ECS_TVP3XP_4CB5,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1019,
-		.subdevice    = 0x4cb6,
-		.driver_data  = SAA7134_BOARD_ECS_TVP3XP_4CB6,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x12ab,
-		.subdevice    = 0x0800,
-		.driver_data  = SAA7134_BOARD_UPMOST_PURPLE_TV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x153b,
-		.subdevice    = 0x1152,
-		.driver_data  = SAA7134_BOARD_CINERGY200,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x185b,
-		.subdevice    = 0xc100,
-		.driver_data  = SAA7134_BOARD_VIDEOMATE_TV_PVR,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0x9715,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_STUDIO_307,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xa70a,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_307,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x185b,
-		.subdevice    = 0xc200,
-		.driver_data  = SAA7134_BOARD_VIDEOMATE_GOLD_PLUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1540,
-		.subdevice    = 0x9524,
-		.driver_data  = SAA7134_BOARD_PROVIDEO_PV952,
-
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5168,
-		.subdevice    = 0x0502,                /* Cardbus version */
-		.driver_data  = SAA7134_BOARD_FLYDVBT_DUO_CARDBUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5168,
-		.subdevice    = 0x0306,                /* PCI version */
-		.driver_data  = SAA7134_BOARD_FLYDVBTDUO,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xf31f,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_GO_007_FM,
-
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xf11d,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_M135A,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x153b, 0x1143),
+		.driver_data = SAA7134_BOARD_CINERGY600,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0x4155,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_M733A,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x153b, 0x1158),
+		.driver_data = SAA7134_BOARD_CINERGY600_MK3,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0x4255,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_M733A,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x153b, 0x1162),
+		.driver_data = SAA7134_BOARD_CINERGY400_CARDBUS,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0x2004,
-		.driver_data  = SAA7134_BOARD_PHILIPS_TOUGH,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1421,
-		.subdevice    = 0x0350,		/* PCI version */
-		.driver_data  = SAA7134_BOARD_ADS_INSTANT_TV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1421,
-		.subdevice    = 0x0351,		/* PCI version, new revision */
-		.driver_data  = SAA7134_BOARD_ADS_INSTANT_TV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1421,
-		.subdevice    = 0x0370,		/* cardbus version */
-		.driver_data  = SAA7134_BOARD_ADS_INSTANT_TV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1421,
-		.subdevice    = 0x1370,        /* cardbus version */
-		.driver_data  = SAA7134_BOARD_ADS_INSTANT_TV,
-
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x4e42,		/* Typhoon */
-		.subdevice    = 0x0502,		/* LifeView LR502 OEM */
-		.driver_data  = SAA7134_BOARD_FLYDVBT_DUO_CARDBUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1043,
-		.subdevice    = 0x0210,		/* mini pci NTSC version */
-		.driver_data  = SAA7134_BOARD_FLYTV_DIGIMATRIX,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1043,
-		.subdevice    = 0x0210,		/* mini pci PAL/SECAM version */
-		.driver_data  = SAA7134_BOARD_ASUSTEK_DIGIMATRIX_TV,
-
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0000, /* It shouldn't break anything, since subdevice id seems unique */
-		.subdevice    = 0x4091,
-		.driver_data  = SAA7134_BOARD_BEHOLD_409FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5456, /* GoTView */
-		.subdevice    = 0x7135,
-		.driver_data  = SAA7134_BOARD_GOTVIEW_7135,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0x2004,
-		.driver_data  = SAA7134_BOARD_PHILIPS_EUROPA,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x185b,
-		.subdevice    = 0xc900,
-		.driver_data  = SAA7134_BOARD_VIDEOMATE_DVBT_300,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x185b,
-		.subdevice    = 0xc901,
-		.driver_data  = SAA7134_BOARD_VIDEOMATE_DVBT_200,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1435,
-		.subdevice    = 0x7350,
-		.driver_data  = SAA7134_BOARD_RTD_VFG7350,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1435,
-		.subdevice    = 0x7330,
-		.driver_data  = SAA7134_BOARD_RTD_VFG7330,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461,
-		.subdevice    = 0x1044,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1131,
-		.subdevice    = 0x4ee9,
-		.driver_data  = SAA7134_BOARD_MONSTERTV_MOBILE,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x11bd,
-		.subdevice    = 0x002e,
-		.driver_data  = SAA7134_BOARD_PINNACLE_PCTV_110i,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1043,
-		.subdevice    = 0x4862,
-		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_DUAL,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0x2018,
-		.driver_data  = SAA7134_BOARD_PHILIPS_TIGER,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1462,
-		.subdevice    = 0x6231, /* tda8275a, ks003 IR */
-		.driver_data  = SAA7134_BOARD_MSI_TVATANYWHERE_PLUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1462,
-		.subdevice    = 0x8624, /* tda8275, ks003 IR */
-		.driver_data  = SAA7134_BOARD_MSI_TVATANYWHERE_PLUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x153b,
-		.subdevice    = 0x1160,
-		.driver_data  = SAA7134_BOARD_CINERGY250PCI,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,	/* SAA 7131E */
-		.subvendor    = 0x5168,
-		.subdevice    = 0x0319,
-		.driver_data  = SAA7134_BOARD_FLYDVB_TRIO,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1461,
-		.subdevice    = 0x2c05,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_777,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x5168,
-		.subdevice    = 0x0301,
-		.driver_data  = SAA7134_BOARD_FLYDVBT_LR301,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0331,
-		.subdevice    = 0x1421,
-		.driver_data  = SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x17de,
-		.subdevice    = 0x7201,
-		.driver_data  = SAA7134_BOARD_TEVION_DVBT_220RF,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x17de,
-		.subdevice    = 0x7250,
-		.driver_data  = SAA7134_BOARD_KWORLD_DVBT_210,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133, /* SAA7135HL */
-		.subvendor    = 0x17de,
-		.subdevice    = 0x7350,
-		.driver_data  = SAA7134_BOARD_KWORLD_ATSC110,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133, /* SAA7135HL */
-		.subvendor    = 0x17de,
-		.subdevice    = 0x7352,
-		.driver_data  = SAA7134_BOARD_KWORLD_ATSC110, /* ATSC 115 */
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133, /* SAA7135HL */
-		.subvendor    = 0x17de,
-		.subdevice    = 0xa134,
-		.driver_data  = SAA7134_BOARD_KWORLD_PC150U,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x5169, 0x0138),
+		.driver_data = SAA7134_BOARD_FLYVIDEO3000_NTSC,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1461,
-		.subdevice    = 0x7360,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_A169_B,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1461,
-		.subdevice    = 0x6360,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_A169_B1,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x16be,
-		.subdevice    = 0x0005,
-		.driver_data  = SAA7134_BOARD_MD7134_BRIDGE_2,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x5168,
-		.subdevice    = 0x0300,
-		.driver_data  = SAA7134_BOARD_FLYDVBS_LR300,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x4e42,
-		.subdevice    = 0x0300,/* LR300 */
-		.driver_data  = SAA7134_BOARD_FLYDVBS_LR300,
-	},{
-		.vendor = PCI_VENDOR_ID_PHILIPS,
-		.device = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor = 0x1489,
-		.subdevice = 0x0301,
-		.driver_data = SAA7134_BOARD_FLYDVBT_LR301,
-	},{
-		.vendor = PCI_VENDOR_ID_PHILIPS,
-		.device = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor = 0x5168, /* Animation Technologies (LifeView) */
-		.subdevice = 0x0304,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x5168, 0x0138),
+		.driver_data = SAA7134_BOARD_FLYVIDEO3000,
+	}, {
+		/* "Typhoon PCI Capture TV Card" Art.No. 50673 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x4e42, 0x0138),
+		.driver_data = SAA7134_BOARD_FLYVIDEO3000,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x5168, 0x0138),
+		.driver_data = SAA7134_BOARD_FLYVIDEO2000,
+	}, {
+		/* Typhoon LifeView FlyTV Prime30 OEM */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x4e42, 0x0138),
+		.driver_data = SAA7134_BOARD_FLYVIDEO2000,
+	}, {
+		/* minipci, LR212 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5168, 0x0212),
+		.driver_data = SAA7134_BOARD_FLYTVPLATINUM_MINI,
+	}, {
+		/* minipci, LR1212 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x14c0, 0x1212),
+		.driver_data = SAA7134_BOARD_FLYTVPLATINUM_MINI2,
+	}, {
+		/* OEM minipci, LR212 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x4e42, 0x0212),
+		.driver_data = SAA7134_BOARD_FLYTVPLATINUM_MINI,
+	}, {
+		/*
+		 * Animation Technologies (LifeView)
+		 * Standard PCI, LR214 Rev E and earlier (SAA7135)
+		 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5168, 0x0214),
 		.driver_data = SAA7134_BOARD_FLYTVPLATINUM_FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5168,
-		.subdevice    = 0x3306,
-		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5168,
-		.subdevice    = 0x3502,  /* what's the difference to 0x3306 ?*/
-		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5168,
-		.subdevice    = 0x3307, /* FlyDVB-T Hybrid Mini PCI */
-		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x16be,
-		.subdevice    = 0x0007,
-		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x16be,
-		.subdevice    = 0x0008,
-		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x16be,
-		.subdevice    = 0x000d, /* triple CTX948_V1.1.1 */
-		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
+		/*
+		 * Animation Technologies (LifeView)
+		 * Standard PCI, LR214 Rev F onwards (SAA7131)
+		 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5168, 0x5214),
+		.driver_data = SAA7134_BOARD_FLYTVPLATINUM_FM,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461,
-		.subdevice    = 0x2c05,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_777,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1489,
-		.subdevice    = 0x0502,                /* Cardbus version */
-		.driver_data  = SAA7134_BOARD_FLYDVBT_DUO_CARDBUS,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x0919, /* Philips Proteus PRO 2309 */
-		.subdevice    = 0x2003,
-		.driver_data  = SAA7134_BOARD_PROTEUS_2309,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1461,
-		.subdevice    = 0x2c00,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_A16AR,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1043,
-		.subdevice    = 0x4860,
-		.driver_data  = SAA7134_BOARD_ASUS_EUROPA2_HYBRID,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x11bd,
-		.subdevice    = 0x002f,
-		.driver_data  = SAA7134_BOARD_PINNACLE_PCTV_310i,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0x9715,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_STUDIO_507,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xa11b,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_STUDIO_507UA,
+		/* KYE Genius VideoWonder ProTV */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1489, 0x0214),
+		.driver_data = SAA7134_BOARD_FLYTVPLATINUM_FM, /* is an LR214WF actually */
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1043,
-		.subdevice    = 0x4876,
-		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x6700,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x6701,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x6702,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x6703,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x6704,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x6705,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x6706,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1150,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x6707,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1120,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x6708,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1150,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x6709,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1120,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0070,
-		.subdevice    = 0x670a,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1120,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x153b,
-		.subdevice    = 0x1172,
-		.driver_data  = SAA7134_BOARD_CINERGY_HT_PCMCIA,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0x2342,
-		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1131,
-		.subdevice    = 0x2341,
-		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x3016,
-		.subdevice    = 0x2344,
-		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1131,
-		.subdevice    = 0x230f,
-		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1a7f,
-		.subdevice    = 0x2008,
-		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM53,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x16be, 0x0003),
+		.driver_data = SAA7134_BOARD_MD7134,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1a7f,
-		.subdevice    = 0x2108,
-		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM3,
+		/* CTX946 analog TV, HW mpeg, DVB-T; only analog TV and DVB-T for now */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x16be, 0x5000),
+		.driver_data = SAA7134_BOARD_MD7134,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x153b,
-		.subdevice    = 0x1175,
-		.driver_data  = SAA7134_BOARD_CINERGY_HT_PCI,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xf31e,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_M102,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x4E42,         /* MSI */
-		.subdevice    = 0x0306,         /* TV@nywhere DUO */
-		.driver_data  = SAA7134_BOARD_FLYDVBTDUO,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1043,
-		.subdevice    = 0x4871,
-		.driver_data  = SAA7134_BOARD_ASUS_P7131_4871,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1043,
-		.subdevice    = 0x4857,		/* REV:1.00 */
-		.driver_data  = SAA7134_BOARD_ASUSTeK_TIGER,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x0919, /* SinoVideo PCI 2309 Proteus (7134) */
-		.subdevice    = 0x2003, /* OEM cardbus */
-		.driver_data  = SAA7134_BOARD_SABRENT_TV_PCB05,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0x2304,
-		.driver_data  = SAA7134_BOARD_10MOONSTVMASTER3,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xf01d, /* AVerTV DVB-T Super 007 */
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_SUPER_007,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x4016,
-		.driver_data  = SAA7134_BOARD_BEHOLD_401,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x4036,
-		.driver_data  = SAA7134_BOARD_BEHOLD_403,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x4037,
-		.driver_data  = SAA7134_BOARD_BEHOLD_403FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x4050,
-		.driver_data  = SAA7134_BOARD_BEHOLD_405,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x4051,
-		.driver_data  = SAA7134_BOARD_BEHOLD_405FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x4070,
-		.driver_data  = SAA7134_BOARD_BEHOLD_407,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x4071,
-		.driver_data  = SAA7134_BOARD_BEHOLD_407FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x4090,
-		.driver_data  = SAA7134_BOARD_BEHOLD_409,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x505B,
-		.driver_data  = SAA7134_BOARD_BEHOLD_505RDS_MK5,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1048, 0x226b),
+		.driver_data = SAA7134_BOARD_ELSA,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x5051,
-		.driver_data  = SAA7134_BOARD_BEHOLD_505RDS_MK3,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x5050,
-		.driver_data  = SAA7134_BOARD_BEHOLD_505FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x5071,
-		.driver_data  = SAA7134_BOARD_BEHOLD_507RDS_MK3,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x507B,
-		.driver_data  = SAA7134_BOARD_BEHOLD_507RDS_MK5,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x5070,
-		.driver_data  = SAA7134_BOARD_BEHOLD_507_9FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x5090,
-		.driver_data  = SAA7134_BOARD_BEHOLD_507_9FM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x0000,
-		.subdevice    = 0x5201,
-		.driver_data  = SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6070,
-		.driver_data  = SAA7134_BOARD_BEHOLD_607FM_MK3,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6071,
-		.driver_data  = SAA7134_BOARD_BEHOLD_607FM_MK5,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6072,
-		.driver_data  = SAA7134_BOARD_BEHOLD_607RDS_MK3,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6073,
-		.driver_data  = SAA7134_BOARD_BEHOLD_607RDS_MK5,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6090,
-		.driver_data  = SAA7134_BOARD_BEHOLD_609FM_MK3,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6091,
-		.driver_data  = SAA7134_BOARD_BEHOLD_609FM_MK5,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6092,
-		.driver_data  = SAA7134_BOARD_BEHOLD_609RDS_MK3,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6093,
-		.driver_data  = SAA7134_BOARD_BEHOLD_609RDS_MK5,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6190,
-		.driver_data  = SAA7134_BOARD_BEHOLD_M6,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6193,
-		.driver_data  = SAA7134_BOARD_BEHOLD_M6_EXTRA,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1048, 0x226a),
+		.driver_data = SAA7134_BOARD_ELSA_500TV,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6191,
-		.driver_data  = SAA7134_BOARD_BEHOLD_M63,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x4e42,
-		.subdevice    = 0x3502,
-		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1048, 0x226c),
+		.driver_data = SAA7134_BOARD_ELSA_700TV,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1822, /*Twinhan Technology Co. Ltd*/
-		.subdevice    = 0x0022,
-		.driver_data  = SAA7134_BOARD_TWINHAN_DTV_DVB_3056,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134,
+				PCI_VENDOR_ID_ASUSTEK, 0x4842),
+		.driver_data = SAA7134_BOARD_ASUSTeK_TVFM7134,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x16be,
-		.subdevice    = 0x0010, /* Medion version CTX953_V.1.4.3 */
-		.driver_data  = SAA7134_BOARD_CREATIX_CTX953,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133,
+				PCI_VENDOR_ID_ASUSTEK, 0x4845),
+		.driver_data = SAA7134_BOARD_ASUSTeK_TVFM7135,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1462, /* MSI */
-		.subdevice    = 0x8625, /* TV@nywhere A/D v1.1 */
-		.driver_data  = SAA7134_BOARD_MSI_TVANYWHERE_AD11,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xf436,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_CARDBUS_506,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134,
+				PCI_VENDOR_ID_ASUSTEK, 0x4830),
+		.driver_data = SAA7134_BOARD_ASUSTeK_TVFM7134,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xf936,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_A16D,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133,
+				PCI_VENDOR_ID_ASUSTEK, 0x4843),
+		.driver_data = SAA7134_BOARD_ASUSTEK_TVFM7133,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xa836,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_M115,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134,
+				PCI_VENDOR_ID_ASUSTEK, 0x4840),
+		.driver_data = SAA7134_BOARD_ASUSTeK_TVFM7134,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x185b,
-		.subdevice    = 0xc900,
-		.driver_data  = SAA7134_BOARD_VIDEOMATE_T750,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134,
+				PCI_VENDOR_ID_PHILIPS, 0xfe01),
+		.driver_data = SAA7134_BOARD_TVSTATION_RDS,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133, /* SAA7135HL */
-		.subvendor    = 0x1421,
-		.subdevice    = 0x0380,
-		.driver_data  = SAA7134_BOARD_ADS_INSTANT_HDTV_PCI,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1894, 0xfe01),
+		.driver_data = SAA7134_BOARD_TVSTATION_RDS,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5169,
-		.subdevice    = 0x1502,
-		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_MINI,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1894, 0xa006),
+		.driver_data = SAA7134_BOARD_TVSTATION_DVR,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x6290,
-		.driver_data  = SAA7134_BOARD_BEHOLD_H6,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1131, 0x7133),
+		.driver_data = SAA7134_BOARD_VA1000POWER,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xf636,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_M103,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130,
+				PCI_VENDOR_ID_PHILIPS, 0x2001),
+		.driver_data = SAA7134_BOARD_10MOONSTVMASTER,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xf736,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_M103,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x185b, 0xc100),
+		.driver_data = SAA7134_BOARD_VIDEOMATE_TV,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1043,
-		.subdevice    = 0x4878, /* REV:1.02G */
-		.driver_data  = SAA7134_BOARD_ASUSTeK_TIGER_3IN1,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x185b, 0xc100),
+		.driver_data = SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUS,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1043,
-		.subdevice    = 0x48cd,
-		.driver_data  = SAA7134_BOARD_ASUSTeK_PS3_100,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130,
+				PCI_VENDOR_ID_MATROX, 0x48d0),
+		.driver_data = SAA7134_BOARD_CRONOS_PLUS,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x17de,
-		.subdevice    = 0x7128,
-		.driver_data  = SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG,
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1461, 0xa70b),
+		.driver_data = SAA7134_BOARD_MD2819,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x17de,
-		.subdevice    = 0xb136,
-		.driver_data  = SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG,
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xa7a1),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_A700_PRO,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xf31d,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS,
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xa7a2),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_A700_HYBRID,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x185b,
-		.subdevice    = 0xc900,
-		.driver_data  = SAA7134_BOARD_VIDEOMATE_S350,
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1461, 0x2115),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_STUDIO_305,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace, /* Beholder Intl. Ltd. */
-		.subdevice    = 0x7595,
-		.driver_data  = SAA7134_BOARD_BEHOLD_X7,
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1461, 0xa115),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_STUDIO_505,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x19d1, /* RoverMedia */
-		.subdevice    = 0x0138, /* LifeView FlyTV Prime30 OEM */
-		.driver_data  = SAA7134_BOARD_ROVERMEDIA_LINK_PRO_FM,
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1461, 0x2108),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_305,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0x2004,
-		.driver_data  = SAA7134_BOARD_ZOLID_HYBRID_PCI,
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1461, 0x10ff),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_DVD_EZMAKER,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x1043,
-		.subdevice    = 0x4847,
-		.driver_data  = SAA7134_BOARD_ASUS_EUROPA_HYBRID,
+		/* AVerMedia CardBus */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1461, 0xd6ee),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_CARDBUS,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x107d,
-		.subdevice    = 0x6655,
-		.driver_data  = SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S,
+		/* AVerMedia CardBus */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1461, 0xb7e9),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_CARDBUS_501,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x13c2,
-		.subdevice    = 0x2804,
-		.driver_data  = SAA7134_BOARD_TECHNOTREND_BUDGET_T3000,
+		/* AVerMedia TransGear 3000TV */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1461, 0x050c),
+		.driver_data = SAA7134_BOARD_TG3000TV,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace, /* Beholder Intl. Ltd. */
-		.subdevice    = 0x7190,
-		.driver_data  = SAA7134_BOARD_BEHOLD_H7,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x11bd, 0x002b),
+		.driver_data = SAA7134_BOARD_PINNACLE_PCTV_STEREO,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace, /* Beholder Intl. Ltd. */
-		.subdevice    = 0x7090,
-		.driver_data  = SAA7134_BOARD_BEHOLD_A7,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x11bd, 0x002d),
+		.driver_data = SAA7134_BOARD_PINNACLE_300I_DVBT_PAL,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7135,
-		.subvendor    = 0x185b,
-		.subdevice    = 0xc900,
-		.driver_data  = SAA7134_BOARD_VIDEOMATE_M1F,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1019, 0x4cb4),
+		.driver_data = SAA7134_BOARD_ECS_TVP3XP,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x5030,
-		.driver_data  = SAA7134_BOARD_BEHOLD_503FM,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1019, 0x4cb5),
+		.driver_data = SAA7134_BOARD_ECS_TVP3XP_4CB5,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x5ace,
-		.subdevice    = 0x5010,
-		.driver_data  = SAA7134_BOARD_BEHOLD_501,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1019, 0x4cb6),
+		.driver_data = SAA7134_BOARD_ECS_TVP3XP_4CB6,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x17de,
-		.subdevice    = 0xd136,
-		.driver_data  = SAA7134_BOARD_MAGICPRO_PROHDTV_PRO2,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x12ab, 0x0800),
+		.driver_data = SAA7134_BOARD_UPMOST_PURPLE_TV,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x6000,
-		.subdevice    = 0x0811,
-		.driver_data  = SAA7134_BOARD_SENSORAY811_911,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x153b, 0x1152),
+		.driver_data = SAA7134_BOARD_CINERGY200,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x6000,
-		.subdevice    = 0x0911,
-		.driver_data  = SAA7134_BOARD_SENSORAY811_911,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x185b, 0xc100),
+		.driver_data = SAA7134_BOARD_VIDEOMATE_TV_PVR,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0x2055, /* AverTV Satellite Hybrid+FM A706 */
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_A706,
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1461, 0x9715),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_STUDIO_307,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1905, /* WIS */
-		.subdevice    = 0x7007,
-		.driver_data  = SAA7134_BOARD_WIS_VOYAGER,
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1461, 0xa70a),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_307,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
-		.subdevice    = 0xa10a,
-		.driver_data  = SAA7134_BOARD_AVERMEDIA_505,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x185b, 0xc200),
+		.driver_data = SAA7134_BOARD_VIDEOMATE_GOLD_PLUS,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x107d,
-		.subdevice    = 0x6f3a,
-		.driver_data  = SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1540, 0x9524),
+		.driver_data = SAA7134_BOARD_PROVIDEO_PV952,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x1779, /* V One Multimedia PTE Ltd */
-		.subdevice    = 0x13cf,
-		.driver_data  = SAA7134_BOARD_SNAZIO_TVPVR_PRO,
+		/* Cardbus version */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5168, 0x0502),
+		.driver_data = SAA7134_BOARD_FLYDVBT_DUO_CARDBUS,
 	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x107d,
-		.subdevice    = 0x6f2e,
-		.driver_data  = SAA7134_BOARD_LEADTEK_WINFAST_HDTV200_H,
+		/* PCI version */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5168, 0x0306),
+		.driver_data = SAA7134_BOARD_FLYDVBTDUO,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xf31f),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_GO_007_FM,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xf11d),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_M135A,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0x4155),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_M733A,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0x4255),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_M733A,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130,
+				PCI_VENDOR_ID_PHILIPS, 0x2004),
+		.driver_data = SAA7134_BOARD_PHILIPS_TOUGH,
+	}, {
+		/* PCI version */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1421, 0x0350),
+		.driver_data = SAA7134_BOARD_ADS_INSTANT_TV,
+	}, {
+		/* PCI version, new revision */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1421, 0x0351),
+		.driver_data = SAA7134_BOARD_ADS_INSTANT_TV,
+	}, {
+		/* cardbus version */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1421, 0x0370),
+		.driver_data = SAA7134_BOARD_ADS_INSTANT_TV,
+	}, {
+		/* cardbus version */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1421, 0x1370),
+		.driver_data = SAA7134_BOARD_ADS_INSTANT_TV,
+	}, {
+		/* Typhoon LifeView LR502 OEM */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x4e42, 0x0502),
+		.driver_data = SAA7134_BOARD_FLYDVBT_DUO_CARDBUS,
+	}, {
+		/* mini pci NTSC version */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1043, 0x0210),
+		.driver_data = SAA7134_BOARD_FLYTV_DIGIMATRIX,
+	}, {
+		/* mini pci PAL/SECAM version */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1043, 0x0210),
+		.driver_data = SAA7134_BOARD_ASUSTEK_DIGIMATRIX_TV,
+	}, {
+		/* subvendor == 0 shouldn't break anything, since subdevice id seems unique */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0000, 0x4091),
+		.driver_data = SAA7134_BOARD_BEHOLD_409FM,
+	}, {
+		/* GoTView */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5456, 0x7135),
+		.driver_data = SAA7134_BOARD_GOTVIEW_7135,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134,
+				PCI_VENDOR_ID_PHILIPS, 0x2004),
+		.driver_data = SAA7134_BOARD_PHILIPS_EUROPA,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x185b, 0xc900),
+		.driver_data = SAA7134_BOARD_VIDEOMATE_DVBT_300,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x185b, 0xc901),
+		.driver_data = SAA7134_BOARD_VIDEOMATE_DVBT_200,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1435, 0x7350),
+		.driver_data = SAA7134_BOARD_RTD_VFG7350,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1435, 0x7330),
+		.driver_data = SAA7134_BOARD_RTD_VFG7330,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0x1044),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1131, 0x4ee9),
+		.driver_data = SAA7134_BOARD_MONSTERTV_MOBILE,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x11bd, 0x002e),
+		.driver_data = SAA7134_BOARD_PINNACLE_PCTV_110i,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1043, 0x4862),
+		.driver_data = SAA7134_BOARD_ASUSTeK_P7131_DUAL,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133,
+				PCI_VENDOR_ID_PHILIPS, 0x2018),
+		.driver_data = SAA7134_BOARD_PHILIPS_TIGER,
+	}, {
+		/* tda8275a, ks003 IR */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1462, 0x6231),
+		.driver_data = SAA7134_BOARD_MSI_TVATANYWHERE_PLUS,
+	}, {
+		/* tda8275, ks003 IR */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1462, 0x8624),
+		.driver_data = SAA7134_BOARD_MSI_TVATANYWHERE_PLUS,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x153b, 0x1160),
+		.driver_data = SAA7134_BOARD_CINERGY250PCI,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5168, 0x0319),
+		.driver_data = SAA7134_BOARD_FLYDVB_TRIO,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1461, 0x2c05),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_777,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x5168, 0x0301),
+		.driver_data = SAA7134_BOARD_FLYDVBT_LR301,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0331, 0x1421),
+		.driver_data = SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x17de, 0x7201),
+		.driver_data = SAA7134_BOARD_TEVION_DVBT_220RF,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x17de, 0x7250),
+		.driver_data = SAA7134_BOARD_KWORLD_DVBT_210,
+	}, {
+		/* SAA7135HL */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x17de, 0x7350),
+		.driver_data = SAA7134_BOARD_KWORLD_ATSC110,
+	}, {
+		/* SAA7135HL */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x17de, 0x7352),
+		.driver_data = SAA7134_BOARD_KWORLD_ATSC110, /* ATSC 115 */
+	}, {
+		/* SAA7135HL */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x17de, 0xa134),
+		.driver_data = SAA7134_BOARD_KWORLD_PC150U,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1461, 0x7360),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_A169_B,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1461, 0x6360),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_A169_B1,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x16be, 0x0005),
+		.driver_data = SAA7134_BOARD_MD7134_BRIDGE_2,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x5168, 0x0300),
+		.driver_data = SAA7134_BOARD_FLYDVBS_LR300,
+	}, {
+		/* LR300 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x4e42, 0x0300),
+		.driver_data = SAA7134_BOARD_FLYDVBS_LR300,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1489, 0x0301),
+		.driver_data = SAA7134_BOARD_FLYDVBT_LR301,
+	}, {
+		/* Animation Technologies (LifeView) */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5168, 0x0304),
+		.driver_data = SAA7134_BOARD_FLYTVPLATINUM_FM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5168, 0x3306),
+		.driver_data = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
+	}, {
+		/* what's the difference to .subdevice = 0x3306 above? */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5168, 0x3502),
+		.driver_data = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
+	}, {
+		/* FlyDVB-T Hybrid Mini PCI */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5168, 0x3307),
+		.driver_data = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x16be, 0x0007),
+		.driver_data = SAA7134_BOARD_MEDION_MD8800_QUADRO,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x16be, 0x0008),
+		.driver_data = SAA7134_BOARD_MEDION_MD8800_QUADRO,
+	}, {
+		/* triple CTX948_V1.1.1 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x16be, 0x000d),
+		.driver_data = SAA7134_BOARD_MEDION_MD8800_QUADRO,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0x2c05),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_777,
+	}, {
+		/* Cardbus version */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1489, 0x0502),
+		.driver_data = SAA7134_BOARD_FLYDVBT_DUO_CARDBUS,
+	}, {
+		/* Philips Proteus PRO 2309 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x0919, 0x2003),
+		.driver_data = SAA7134_BOARD_PROTEUS_2309,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1461, 0x2c00),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_A16AR,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1043, 0x4860),
+		.driver_data = SAA7134_BOARD_ASUS_EUROPA2_HYBRID,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x11bd, 0x002f),
+		.driver_data = SAA7134_BOARD_PINNACLE_PCTV_310i,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0x9715),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_STUDIO_507,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1461, 0xa11b),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_STUDIO_507UA,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1043, 0x4876),
+		.driver_data = SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x6700),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x6701),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x6702),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x6703),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x6704),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x6705),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x6706),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1150,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x6707),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1120,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x6708),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1150,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x6709),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1120,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0070, 0x670a),
+		.driver_data = SAA7134_BOARD_HAUPPAUGE_HVR1120,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x153b, 0x1172),
+		.driver_data = SAA7134_BOARD_CINERGY_HT_PCMCIA,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130,
+				PCI_VENDOR_ID_PHILIPS, 0x2342),
+		.driver_data = SAA7134_BOARD_ENCORE_ENLTV,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1131, 0x2341),
+		.driver_data = SAA7134_BOARD_ENCORE_ENLTV,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x3016, 0x2344),
+		.driver_data = SAA7134_BOARD_ENCORE_ENLTV,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1131, 0x230f),
+		.driver_data = SAA7134_BOARD_ENCORE_ENLTV_FM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1a7f, 0x2008),
+		.driver_data = SAA7134_BOARD_ENCORE_ENLTV_FM53,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1a7f, 0x2108),
+		.driver_data = SAA7134_BOARD_ENCORE_ENLTV_FM3,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x153b, 0x1175),
+		.driver_data = SAA7134_BOARD_CINERGY_HT_PCI,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xf31e),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_M102,
+	}, {
+		/* MSI TV@nywhere DUO */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x4E42, 0x0306),
+		.driver_data = SAA7134_BOARD_FLYDVBTDUO,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1043, 0x4871),
+		.driver_data = SAA7134_BOARD_ASUS_P7131_4871,
+	}, {
+		/* REV:1.00 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1043, 0x4857),
+		.driver_data = SAA7134_BOARD_ASUSTeK_TIGER,
+	}, {
+		/* SinoVideo PCI 2309 Proteus (7134) OEM cardbus */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x0919, 0x2003),
+		.driver_data = SAA7134_BOARD_SABRENT_TV_PCB05,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130,
+				PCI_VENDOR_ID_PHILIPS, 0x2304),
+		.driver_data = SAA7134_BOARD_10MOONSTVMASTER3,
+	}, {
+		/* Avermedia Technologies Inc AVerTV DVB-T Super 007 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xf01d),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_SUPER_007,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x0000, 0x4016),
+		.driver_data = SAA7134_BOARD_BEHOLD_401,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x0000, 0x4036),
+		.driver_data = SAA7134_BOARD_BEHOLD_403,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x0000, 0x4037),
+		.driver_data = SAA7134_BOARD_BEHOLD_403FM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x0000, 0x4050),
+		.driver_data = SAA7134_BOARD_BEHOLD_405,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x0000, 0x4051),
+		.driver_data = SAA7134_BOARD_BEHOLD_405FM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x0000, 0x4070),
+		.driver_data = SAA7134_BOARD_BEHOLD_407,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x0000, 0x4071),
+		.driver_data = SAA7134_BOARD_BEHOLD_407FM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0000, 0x4090),
+		.driver_data = SAA7134_BOARD_BEHOLD_409,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x0000, 0x505B),
+		.driver_data = SAA7134_BOARD_BEHOLD_505RDS_MK5,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x0000, 0x5051),
+		.driver_data = SAA7134_BOARD_BEHOLD_505RDS_MK3,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x5ace, 0x5050),
+		.driver_data = SAA7134_BOARD_BEHOLD_505FM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0000, 0x5071),
+		.driver_data = SAA7134_BOARD_BEHOLD_507RDS_MK3,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0000, 0x507B),
+		.driver_data = SAA7134_BOARD_BEHOLD_507RDS_MK5,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x5ace, 0x5070),
+		.driver_data = SAA7134_BOARD_BEHOLD_507_9FM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x5090),
+		.driver_data = SAA7134_BOARD_BEHOLD_507_9FM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x0000, 0x5201),
+		.driver_data = SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x5ace, 0x6070),
+		.driver_data = SAA7134_BOARD_BEHOLD_607FM_MK3,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x5ace, 0x6071),
+		.driver_data = SAA7134_BOARD_BEHOLD_607FM_MK5,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x5ace, 0x6072),
+		.driver_data = SAA7134_BOARD_BEHOLD_607RDS_MK3,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x5ace, 0x6073),
+		.driver_data = SAA7134_BOARD_BEHOLD_607RDS_MK5,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x6090),
+		.driver_data = SAA7134_BOARD_BEHOLD_609FM_MK3,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x6091),
+		.driver_data = SAA7134_BOARD_BEHOLD_609FM_MK5,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x6092),
+		.driver_data = SAA7134_BOARD_BEHOLD_609RDS_MK3,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x6093),
+		.driver_data = SAA7134_BOARD_BEHOLD_609RDS_MK5,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x6190),
+		.driver_data = SAA7134_BOARD_BEHOLD_M6,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x6193),
+		.driver_data = SAA7134_BOARD_BEHOLD_M6_EXTRA,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x6191),
+		.driver_data = SAA7134_BOARD_BEHOLD_M63,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x4e42, 0x3502),
+		.driver_data = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
+	}, {
+		/*Twinhan Technology Co. Ltd*/
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1822, 0x0022),
+		.driver_data = SAA7134_BOARD_TWINHAN_DTV_DVB_3056,
+	}, {
+		/* Medion version CTX953_V.1.4.3 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x16be, 0x0010),
+		.driver_data = SAA7134_BOARD_CREATIX_CTX953,
+	}, {
+		/* MSI TV@nywhere A/D v1.1 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1462, 0x8625),
+		.driver_data = SAA7134_BOARD_MSI_TVANYWHERE_AD11,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xf436),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_CARDBUS_506,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xf936),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_A16D,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xa836),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_M115,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x185b, 0xc900),
+		.driver_data = SAA7134_BOARD_VIDEOMATE_T750,
+	}, {
+		/* SAA7135HL */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1421, 0x0380),
+		.driver_data = SAA7134_BOARD_ADS_INSTANT_HDTV_PCI,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5169, 0x1502),
+		.driver_data = SAA7134_BOARD_FLYTVPLATINUM_MINI,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x6290),
+		.driver_data = SAA7134_BOARD_BEHOLD_H6,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xf636),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_M103,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xf736),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_M103,
+	}, {
+		/* REV:1.02G */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1043, 0x4878),
+		.driver_data = SAA7134_BOARD_ASUSTeK_TIGER_3IN1,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1043, 0x48cd),
+		.driver_data = SAA7134_BOARD_ASUSTeK_PS3_100,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x17de, 0x7128),
+		.driver_data = SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x17de, 0xb136),
+		.driver_data = SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG,
+	}, {
+		/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0xf31d),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x185b, 0xc900),
+		.driver_data = SAA7134_BOARD_VIDEOMATE_S350,
+	}, {
+		/* Beholder Intl. Ltd. */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x7595),
+		.driver_data = SAA7134_BOARD_BEHOLD_X7,
+	}, {
+		/* RoverMedia LifeView FlyTV Prime30 OEM */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x19d1, 0x0138),
+		.driver_data = SAA7134_BOARD_ROVERMEDIA_LINK_PRO_FM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133,
+				PCI_VENDOR_ID_PHILIPS, 0x2004),
+		.driver_data = SAA7134_BOARD_ZOLID_HYBRID_PCI,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x1043, 0x4847),
+		.driver_data = SAA7134_BOARD_ASUS_EUROPA_HYBRID,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x107d, 0x6655),
+		.driver_data = SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x13c2, 0x2804),
+		.driver_data = SAA7134_BOARD_TECHNOTREND_BUDGET_T3000,
+	}, {
+		/* Beholder Intl. Ltd. */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x7190),
+		.driver_data = SAA7134_BOARD_BEHOLD_H7,
+	}, {
+		/* Beholder Intl. Ltd. */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x7090),
+		.driver_data = SAA7134_BOARD_BEHOLD_A7,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7135, 0x185b, 0xc900),
+		.driver_data = SAA7134_BOARD_VIDEOMATE_M1F,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x5ace, 0x5030),
+		.driver_data = SAA7134_BOARD_BEHOLD_503FM,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x5ace, 0x5010),
+		.driver_data = SAA7134_BOARD_BEHOLD_501,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134, 0x17de, 0xd136),
+		.driver_data = SAA7134_BOARD_MAGICPRO_PROHDTV_PRO2,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x6000, 0x0811),
+		.driver_data = SAA7134_BOARD_SENSORAY811_911,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x6000, 0x0911),
+		.driver_data = SAA7134_BOARD_SENSORAY811_911,
+	}, {
+		/* Avermedia Technologies Inc AverTV Satellite Hybrid+FM A706 */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1461, 0x2055),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_A706,
+	}, {
+		/* WIS */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1905, 0x7007),
+		.driver_data = SAA7134_BOARD_WIS_VOYAGER,
+	}, {
+			/* Avermedia Technologies Inc */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x1461, 0xa10a),
+		.driver_data = SAA7134_BOARD_AVERMEDIA_505,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130, 0x107d, 0x6f3a),
+		.driver_data = SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM,
+	}, {
+		/* V One Multimedia PTE Ltd */
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x1779, 0x13cf),
+		.driver_data = SAA7134_BOARD_SNAZIO_TVPVR_PRO,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133, 0x107d, 0x6f2e),
+		.driver_data = SAA7134_BOARD_LEADTEK_WINFAST_HDTV200_H,
 	}, {
 		/* --- boards without eeprom + subsystem ID --- */
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0,
-		.driver_data  = SAA7134_BOARD_NOAUTO,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = PCI_VENDOR_ID_PHILIPS,
-		.subdevice    = 0,
-		.driver_data  = SAA7134_BOARD_NOAUTO,
-	},{
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134,
+				PCI_VENDOR_ID_PHILIPS, 0),
+		.driver_data = SAA7134_BOARD_NOAUTO,
+	}, {
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130,
+				PCI_VENDOR_ID_PHILIPS, 0),
+		.driver_data = SAA7134_BOARD_NOAUTO,
+	}, {
 		/* --- default catch --- */
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = PCI_ANY_ID,
-		.subdevice    = PCI_ANY_ID,
-		.driver_data  = SAA7134_BOARD_UNKNOWN,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = PCI_ANY_ID,
-		.subdevice    = PCI_ANY_ID,
-		.driver_data  = SAA7134_BOARD_UNKNOWN,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = PCI_ANY_ID,
-		.subdevice    = PCI_ANY_ID,
-		.driver_data  = SAA7134_BOARD_UNKNOWN,
-	},{
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7135,
-		.subvendor    = PCI_ANY_ID,
-		.subdevice    = PCI_ANY_ID,
-		.driver_data  = SAA7134_BOARD_UNKNOWN,
-	},{
+		PCI_DEVICE(PCI_VENDOR_ID_PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7130),
+		.driver_data = SAA7134_BOARD_UNKNOWN,
+	}, {
+		PCI_DEVICE(PCI_VENDOR_ID_PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7133),
+		.driver_data = SAA7134_BOARD_UNKNOWN,
+	}, {
+		PCI_DEVICE(PCI_VENDOR_ID_PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7134),
+		.driver_data = SAA7134_BOARD_UNKNOWN,
+	}, {
+		PCI_DEVICE(PCI_VENDOR_ID_PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7135),
+		.driver_data = SAA7134_BOARD_UNKNOWN,
+	}, {
 		/* --- end of list --- */
 	}
 };

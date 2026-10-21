@@ -62,7 +62,6 @@ static atomic_t fence_seq = ATOMIC_INIT(0);
 
 struct amdgpu_amdkfd_fence *amdgpu_amdkfd_fence_create(u64 context,
 				struct mm_struct *mm,
-				struct svm_range_bo *svm_bo,
 				u16 context_id)
 {
 	struct amdgpu_amdkfd_fence *fence;
@@ -76,7 +75,6 @@ struct amdgpu_amdkfd_fence *amdgpu_amdkfd_fence_create(u64 context,
 	fence->mm = mm;
 	get_task_comm(fence->timeline_name, current);
 	spin_lock_init(&fence->lock);
-	fence->svm_bo = svm_bo;
 	fence->context_id = context_id;
 	dma_fence_init(&fence->base, &amdkfd_fence_ops, &fence->lock,
 		   context, atomic_inc_return(&fence_seq));
@@ -128,17 +126,8 @@ static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 	if (dma_fence_is_signaled(f))
 		return true;
 
-	/* if fence->svm_bo is NULL, means this fence is created through
-	 * init_kfd_vm() or amdgpu_amdkfd_gpuvm_restore_process_bos().
-	 * Therefore, this fence is amdgpu_amdkfd_fence->eviction_fence.
-	 */
-	if (!fence->svm_bo) {
-		if (!kgd2kfd_schedule_evict_and_restore_process(fence->mm, fence->context_id, f))
-			return true;
-	} else {
-		if (!svm_range_schedule_evict_svm_bo(fence))
-			return true;
-	}
+	if (!kgd2kfd_schedule_evict_and_restore_process(fence->mm, fence->context_id, f))
+		return true;
 	return false;
 }
 
@@ -172,7 +161,6 @@ static void amdkfd_fence_release(struct dma_fence *f)
  *
  * Check if @mm is same as that of the fence @f, if same return TRUE else
  * return FALSE.
- * For svm bo, which support vram overcommitment, always return FALSE.
  */
 bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
 {
@@ -180,7 +168,7 @@ bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
 
 	if (!fence)
 		return false;
-	else if (fence->mm == mm  && !fence->svm_bo)
+	else if (fence->mm == mm)
 		return true;
 
 	return false;

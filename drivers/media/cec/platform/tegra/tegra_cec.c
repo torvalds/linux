@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/seq_file.h>
 #include <linux/clk/tegra.h>
 
 #include <media/cec-notifier.h>
@@ -47,6 +48,7 @@ struct tegra_cec {
 	u32			tx_buf[CEC_MAX_MSG_SIZE];
 	u8			tx_buf_cur;
 	u8			tx_buf_cnt;
+	u32			rx_total_low_drives;
 };
 
 static inline u32 cec_read(struct tegra_cec *cec, u32 reg)
@@ -114,6 +116,13 @@ static irqreturn_t tegra_cec_irq_handler(int irq, void *data)
 		cec->tx_done = true;
 		cec->tx_status = CEC_TX_STATUS_ERROR;
 		return IRQ_WAKE_THREAD;
+	}
+
+	if (status & TEGRA_CEC_INT_STAT_RX_BUS_ERROR_DETECTED) {
+		dev_warn_ratelimited(dev, "RX bus error detected, generated low drive\n");
+		cec->rx_total_low_drives++;
+		cec_write(cec, TEGRA_CEC_INT_STAT,
+			  TEGRA_CEC_INT_STAT_RX_BUS_ERROR_DETECTED);
 	}
 
 	if ((status & TEGRA_CEC_INT_STAT_TX_ARBITRATION_FAILED) ||
@@ -241,9 +250,21 @@ static int tegra_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		  TEGRA_CEC_INT_MASK_TX_BUS_ANOMALY_DETECTED |
 		  TEGRA_CEC_INT_MASK_TX_FRAME_TRANSMITTED |
 		  TEGRA_CEC_INT_MASK_RX_REGISTER_FULL |
+		  TEGRA_CEC_INT_MASK_RX_BUS_ERROR_DETECTED |
 		  TEGRA_CEC_INT_MASK_RX_START_BIT_DETECTED);
 
-	cec_write(cec, TEGRA_CEC_HW_CONTROL, TEGRA_CEC_HWCTRL_TX_RX_MODE);
+	/*
+	 * TX_NAK_MODE ensures that the whole message is transmitted even
+	 * if each byte is NACKed. Without this flag the retransmit of the
+	 * messages after a NACK can be corrupt. This is a bug in the hardware.
+	 *
+	 * While less efficient, in practice you rarely transmit messages
+	 * that can be NACKed, with the exception of POLL messages which
+	 * are just one byte anyway.
+	 */
+	cec_write(cec, TEGRA_CEC_HW_CONTROL,
+		  TEGRA_CEC_HWCTRL_TX_RX_MODE |
+		  TEGRA_CEC_HWCTRL_TX_NAK_MODE);
 	return 0;
 }
 
@@ -307,11 +328,20 @@ static int tegra_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	return 0;
 }
 
+static void tegra_cec_adap_status(struct cec_adapter *adap, struct seq_file *file)
+{
+	struct tegra_cec *cec = adap->priv;
+
+	seq_printf(file, "receive low drive count: %u\n",
+		   cec->rx_total_low_drives);
+}
+
 static const struct cec_adap_ops tegra_cec_ops = {
 	.adap_enable = tegra_cec_adap_enable,
 	.adap_log_addr = tegra_cec_adap_log_addr,
 	.adap_transmit = tegra_cec_adap_transmit,
 	.adap_monitor_all_enable = tegra_cec_adap_monitor_all_enable,
+	.adap_status = tegra_cec_adap_status,
 };
 
 static int tegra_cec_probe(struct platform_device *pdev)
@@ -381,11 +411,8 @@ static int tegra_cec_probe(struct platform_device *pdev)
 		tegra_cec_irq_handler, tegra_cec_irq_thread_handler,
 		0, "cec_irq", &pdev->dev);
 
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Unable to request interrupt for device\n");
+	if (ret)
 		goto err_clk;
-	}
 
 	cec->adap = cec_allocate_adapter(&tegra_cec_ops, cec, TEGRA_CEC_NAME,
 			CEC_CAP_DEFAULTS | CEC_CAP_MONITOR_ALL |
@@ -458,6 +485,7 @@ static const struct of_device_id tegra_cec_of_match[] = {
 	{ .compatible = "nvidia,tegra210-cec", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, tegra_cec_of_match);
 
 static struct platform_driver tegra_cec_driver = {
 	.driver = {

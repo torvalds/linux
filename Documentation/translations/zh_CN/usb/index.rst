@@ -1,4 +1,14 @@
 .. SPDX-License-Identifier: GPL-2.0
+
+.. only:: subproject and latex
+
+   .. raw:: latex
+
+      \renewcommand{\thesection}{}
+      \renewcommand{\thesubsection}{}
+      \kerneldocCJKon
+      \kerneldocBeginSC{
+
 .. include:: ../disclaimer-zh_CN.rst
 
 :Original: Documentation/usb/index.rst
@@ -24,7 +34,7 @@ USB 支持
     ehci
     usbmon
 
-Todolist:
+待翻译文档：
 
 * functionfs
 * functionfs-desc
@@ -52,3 +62,9 @@ Todolist:
    ====
 
    * :ref:`genindex`
+
+.. only:: subproject and latex
+
+   .. raw:: latex
+
+      }\kerneldocEndSC

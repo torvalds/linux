@@ -3,6 +3,7 @@
 
 #include <drm/drm_managed.h>
 #include <drm/gpu_scheduler.h>
+#include <linux/overflow.h>
 
 #include "pvr_cccb.h"
 #include "pvr_context.h"
@@ -16,6 +17,7 @@
 #include "pvr_rogue_fwif_client.h"
 
 #define MAX_DEADLINE_MS 30000
+#define SCHED_TIMEOUT_PERIOD (2 * MAX_DEADLINE_MS)
 
 #define CTX_COMPUTE_CCCB_SIZE_LOG2 15
 #define CTX_FRAG_CCCB_SIZE_LOG2 15
@@ -36,9 +38,8 @@ static int get_xfer_ctx_state_size(struct pvr_device *pvr_dev)
 			return err;
 	}
 
-	return sizeof(struct rogue_fwif_frag_ctx_state) +
-	       (num_isp_store_registers *
-		sizeof(((struct rogue_fwif_frag_ctx_state *)0)->frag_reg_isp_store[0]));
+	return struct_size_t(struct rogue_fwif_frag_ctx_state,
+			     frag_reg_isp_store, num_isp_store_registers);
 }
 
 static int get_frag_ctx_state_size(struct pvr_device *pvr_dev)
@@ -66,9 +67,8 @@ static int get_frag_ctx_state_size(struct pvr_device *pvr_dev)
 			return err;
 	}
 
-	return sizeof(struct rogue_fwif_frag_ctx_state) +
-	       (num_isp_store_registers *
-		sizeof(((struct rogue_fwif_frag_ctx_state *)0)->frag_reg_isp_store[0]));
+	return struct_size_t(struct rogue_fwif_frag_ctx_state,
+			     frag_reg_isp_store, num_isp_store_registers);
 }
 
 static int get_ctx_state_size(struct pvr_device *pvr_dev, enum drm_pvr_job_type type)
@@ -1288,7 +1288,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 		.num_rqs = 1,
 		.credit_limit = 64 * 1024,
 		.hang_limit = 1,
-		.timeout = msecs_to_jiffies(500),
+		.timeout = msecs_to_jiffies(SCHED_TIMEOUT_PERIOD),
 		.timeout_wq = pvr_dev->sched_wq,
 		.name = "pvr-queue",
 		.dev = pvr_dev->base.dev,

@@ -1,0 +1,27 @@
+digraph state_automaton {
+	center = true;
+	size = "7,11";
+	{node [shape = circle] "S1"};
+	{node [shape = plaintext, style=invis, label=""] "__init_S0"};
+	{node [shape = doublecircle] "S0"};
+	{node [shape = circle] "S0"};
+	{node [shape = circle] "S2"};
+	{node [shape = circle] "S3"};
+	"__init_S0" -> "S0";
+	"S0" [label = "S0\nclk < bar_ns()", color = green3];
+	"S1" [label = "S1"];
+	"S2" [label = "S2\nclk < BAR_NS()"];
+	"S3" [label = "S3"];
+	"S1" -> "S0" [ label = "event0;reset(clk)" ];
+	"S0" -> "S1" [ label = "event1;reset(clk)" ];
+	"S0" -> "S0" [ label = "event0;reset(clk)" ];
+	"S1" -> "S2" [ label = "event2;env1 == 0;reset(clk)" ];
+	"S2" -> "S3" [ label = "event2" ];
+	"S2" -> "S2" [ label = "event1;clk < foo_ns" ];
+	"S3" -> "S0" [ label = "event0;clk < FOO_NS && env2 == 0" ];
+	"S3" -> "S1" [ label = "event1;clk < 5us && env1 == 1;reset(clk)" ];
+	{ rank = min ;
+		"__init_S0";
+		"S0";
+	}
+}

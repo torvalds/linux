@@ -1681,8 +1681,13 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 			continue;
 
 		sec = elf_getscn(syms_ss->elf, sym.st_shndx);
-		if (!sec)
+		if (!sec) {
+			if (dynsym && ehdr.e_shnum &&
+			    sym.st_shndx < SHN_LORESERVE &&
+			    sym.st_shndx >= ehdr.e_shnum)
+				continue;
 			goto out_elf_end;
+		}
 
 		gelf_getshdr(sec, &shdr);
 
@@ -2214,6 +2219,10 @@ static int kcore_copy__process_kallsyms(void *arg, const char *name, char type,
 	struct kcore_copy_info *kci = arg;
 
 	if (!kallsyms__is_function(type))
+		return 0;
+
+	/* Ignore livepatch symbols */
+	if (is_livepatch_symbol(name))
 		return 0;
 
 	if (strchr(name, '[')) {

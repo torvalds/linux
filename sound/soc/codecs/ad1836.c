@@ -193,9 +193,15 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static const u64 ad1836_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops ad1836_dai_ops = {
 	.hw_params = ad1836_hw_params,
 	.set_fmt = ad1836_set_dai_fmt,
+	.auto_selectable_formats = &ad1836_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 #define AD183X_DAI(_name, num_dacs, num_adcs) \

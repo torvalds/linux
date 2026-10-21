@@ -150,6 +150,8 @@ struct perf_pmu *perf_pmus__find(const char *name)
 	bool core_pmu;
 	unsigned int to_read_pmus = 0;
 
+	if (!strcmp(name, "default_core"))
+		return perf_pmus__find_core_pmu();
 	/*
 	 * Once PMU is loaded it stays in the list,
 	 * so we keep us from multiple reading/parsing

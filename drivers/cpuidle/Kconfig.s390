@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# S390 CPU Idle drivers
+#
+
+config S390_CPUIDLE
+	bool "S390 CPU idle driver"
+	default y
+	help
+	  Select this option to enable processor idle state management
+	  through cpuidle subsystem.

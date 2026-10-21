@@ -2156,7 +2156,7 @@ again:
 			will_reclaim = true;
 			reclaim = true;
 		}
-		bg->reclaim_mark++;
+		bg->reclaim_mark = true;
 		spin_unlock(&bg->lock);
 		if (reclaim)
 			btrfs_mark_bg_to_reclaim(bg);

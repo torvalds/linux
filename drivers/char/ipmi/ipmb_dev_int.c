@@ -141,13 +141,14 @@ static ssize_t ipmb_write(struct file *file, const char __user *buf,
 	u8 msg[MAX_MSG_LEN];
 	ssize_t ret;
 
-	if (count > sizeof(msg))
+	if (!count || count > sizeof(msg))
 		return -EINVAL;
 
 	if (copy_from_user(&msg, buf, count))
 		return -EFAULT;
 
-	if (count < msg[0])
+	if (msg[IPMB_MSG_LEN_IDX] < IPMB_REQUEST_LEN_MIN ||
+	    count < (size_t)msg[IPMB_MSG_LEN_IDX] + 1)
 		return -EINVAL;
 
 	rq_sa = GET_7BIT_ADDR(msg[RQ_SA_8BIT_IDX]);
@@ -360,8 +361,8 @@ MODULE_DEVICE_TABLE(i2c, ipmb_id);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id acpi_ipmb_id[] = {
-	{ "IPMB0001", 0 },
-	{},
+	{ .id = "IPMB0001" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, acpi_ipmb_id);
 #endif

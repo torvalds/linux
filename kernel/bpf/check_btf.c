@@ -28,9 +28,9 @@ static int check_abnormal_return(struct bpf_verifier_env *env)
 #define MIN_BPF_FUNCINFO_SIZE	8
 #define MAX_FUNCINFO_REC_SIZE	252
 
-static int check_btf_func_early(struct bpf_verifier_env *env,
-				const union bpf_attr *attr,
-				bpfptr_t uattr)
+static int prepare_btf_func(struct bpf_verifier_env *env,
+			    const union bpf_attr *attr,
+			    bpfptr_t uattr)
 {
 	u32 krec_size = sizeof(struct bpf_func_info);
 	const struct btf_type *type, *func_proto;
@@ -407,9 +407,9 @@ static int check_core_relo(struct bpf_verifier_env *env,
 	return err;
 }
 
-int bpf_check_btf_info_early(struct bpf_verifier_env *env,
-			     const union bpf_attr *attr,
-			     bpfptr_t uattr)
+int bpf_prepare_btf_info(struct bpf_verifier_env *env,
+			 const union bpf_attr *attr,
+			 bpfptr_t uattr)
 {
 	struct btf *btf;
 	int err;
@@ -429,7 +429,7 @@ int bpf_check_btf_info_early(struct bpf_verifier_env *env,
 	}
 	env->prog->aux->btf = btf;
 
-	err = check_btf_func_early(env, attr, uattr);
+	err = prepare_btf_func(env, attr, uattr);
 	if (err)
 		return err;
 	return 0;

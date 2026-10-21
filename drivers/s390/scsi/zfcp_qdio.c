@@ -281,6 +281,7 @@ static int zfcp_qdio_sbal_check(struct zfcp_qdio *qdio)
  * Returns: 0 on success, -EIO if there is no free sbal after waiting.
  */
 int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
+	__must_hold(qdio->req_q_lock)
 {
 	long ret;
 

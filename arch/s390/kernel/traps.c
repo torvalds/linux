@@ -9,7 +9,9 @@
  *    Copyright (C) 1991, 1992 Linus Torvalds
  */
 
+#include <linux/capability.h>
 #include <linux/cpufeature.h>
+#include <linux/debugfs.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/randomize_kstack.h>
@@ -32,6 +34,12 @@
 #include <asm/fpu.h>
 #include <asm/fault.h>
 #include "entry.h"
+
+struct pgm_stat {
+	unsigned int count[128];
+};
+
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct pgm_stat, pgm_stat);
 
 static inline void __user *get_trap_ip(struct pt_regs *regs)
 {
@@ -327,11 +335,12 @@ void __init trap_init(void)
 
 static void (*pgm_check_table[128])(struct pt_regs *regs);
 
-void noinstr __do_pgm_check(struct pt_regs *regs)
+void noinstr __do_pgm_check(struct pt_regs *regs, unsigned long flags)
 {
 	struct lowcore *lc = get_lowcore();
 	bool percpu_needs_fixup;
 	irqentry_state_t state;
+	struct pgm_stat *stat;
 	unsigned int trapnr;
 	union teid teid;
 
@@ -339,6 +348,10 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 	regs->int_code = lc->pgm_int_code;
 	regs->int_parm_long = teid.val;
 	regs->monitor_code = lc->monitor_code;
+
+	trapnr = regs->int_code & PGM_INT_CODE_MASK;
+	stat = this_cpu_ptr(&pgm_stat);
+	stat->count[trapnr]++;
 	/*
 	 * In case of a guest fault, short-circuit the fault handler and return.
 	 * This way the sie64a() function will return 0; fault address and
@@ -346,7 +359,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 	 * the fault number in current->thread.gmap_int_code. KVM will be
 	 * able to use this information to handle the fault.
 	 */
-	if (test_pt_regs_flag(regs, PIF_GUEST_FAULT)) {
+	if (flags & PGM_FLAG_GUEST_FAULT) {
 		current->thread.gmap_teid.val = regs->int_parm_long;
 		current->thread.gmap_int_code = regs->int_code & 0xffff;
 		return;
@@ -383,7 +396,6 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 	if (!irqs_disabled_flags(regs->psw.mask))
 		trace_hardirqs_on();
 	__arch_local_irq_ssm(regs->psw.mask & ~PSW_MASK_PER);
-	trapnr = regs->int_code & PGM_INT_CODE_MASK;
 	if (trapnr)
 		pgm_check_table[trapnr](regs);
 out:
@@ -392,6 +404,33 @@ out:
 	irqentry_exit(regs, state);
 	percpu_exit(regs, percpu_needs_fixup);
 }
+
+static int pgm_check_stat_show(struct seq_file *p, void *v)
+{
+	int i, cpu;
+
+	cpus_read_lock();
+	seq_puts(p, "          ");
+	for_each_online_cpu(cpu)
+		seq_printf(p, "CPU%-8d", cpu);
+	seq_putc(p, '\n');
+	for (i = 0; i < 128; i++) {
+		seq_printf(p, "%02x: ", i);
+		for_each_online_cpu(cpu)
+			seq_printf(p, "%10u ", per_cpu(pgm_stat, cpu).count[i]);
+		seq_putc(p, '\n');
+	}
+	cpus_read_unlock();
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pgm_check_stat);
+
+static int __init debugfs_pgm_check_init(void)
+{
+	debugfs_create_file("exceptions", 0400, arch_debugfs_dir, NULL, &pgm_check_stat_fops);
+	return 0;
+}
+late_initcall(debugfs_pgm_check_init);
 
 /*
  * The program check table contains exactly 128 (0x00-0x7f) entries. Each

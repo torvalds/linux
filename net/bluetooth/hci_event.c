@@ -269,7 +269,10 @@ static u8 hci_cc_reset(struct hci_dev *hdev, void *data, struct sk_buff *skb)
 {
 	struct hci_ev_status *rp = data;
 
-	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
+	if (rp->status)
+		bt_dev_err(hdev, "status 0x%2.2x", rp->status);
+	else
+		bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
 
 	clear_bit(HCI_RESET, &hdev->flags);
 
@@ -294,8 +297,10 @@ static u8 hci_cc_reset(struct hci_dev *hdev, void *data, struct sk_buff *skb)
 
 	hdev->ssp_debug_mode = 0;
 
+	hci_dev_lock(hdev);
 	hci_bdaddr_list_clear(&hdev->le_accept_list);
 	hci_bdaddr_list_clear(&hdev->le_resolv_list);
+	hci_dev_unlock(hdev);
 
 	return rp->status;
 }
@@ -1234,6 +1239,39 @@ static u8 hci_cc_le_read_local_features(struct hci_dev *hdev, void *data,
 		return rp->status;
 
 	memcpy(hdev->le_features, rp->features, 8);
+
+	return rp->status;
+}
+
+static u8 hci_cc_le_read_conn_interval(struct hci_dev *hdev, void *data,
+				       struct sk_buff *skb)
+{
+	struct hci_rp_le_read_conn_interval *rp = data;
+	u16 min_interval = 0;
+	int i;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
+
+	if (rp->status)
+		return rp->status;
+
+	if (skb->len < flex_array_size(rp, grps, rp->num_grps)) {
+		bt_dev_err(hdev, "Invalid response length for 0x%4.4x",
+			   HCI_OP_LE_READ_CONN_INTERVAL);
+		return HCI_ERROR_UNSPECIFIED;
+	}
+
+	/* Store the smallest minimum supported connection interval reported by
+	 * the controller so the default rate parameters can be clamped to it.
+	 */
+	for (i = 0; i < rp->num_grps; i++) {
+		u16 min = le16_to_cpu(rp->grps[i].min);
+
+		if (!min_interval || min < min_interval)
+			min_interval = min;
+	}
+
+	hdev->le_min_rate_interval = min_interval;
 
 	return rp->status;
 }
@@ -3827,8 +3865,10 @@ static u8 hci_cc_le_set_cig_params(struct hci_dev *hdev, void *data,
 	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
 
 	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_CIG_PARAMS);
-	if (!rp->status && (!cp || rp->num_handles != cp->num_cis ||
-			    rp->cig_id != cp->cig_id)) {
+	if (!rp->status &&
+	    (!cp || rp->num_handles != cp->num_cis ||
+	     rp->cig_id != cp->cig_id ||
+	     skb->len < array_size(rp->num_handles, sizeof(*rp->handle)))) {
 		bt_dev_err(hdev, "unexpected Set CIG Parameters response data");
 		status = HCI_ERROR_UNSPECIFIED;
 	}
@@ -4150,6 +4190,9 @@ static const struct hci_cc {
 	       sizeof(struct hci_rp_le_read_buffer_size)),
 	HCI_CC(HCI_OP_LE_READ_LOCAL_FEATURES, hci_cc_le_read_local_features,
 	       sizeof(struct hci_rp_le_read_local_features)),
+	HCI_CC_VL(HCI_OP_LE_READ_CONN_INTERVAL, hci_cc_le_read_conn_interval,
+		  sizeof(struct hci_rp_le_read_conn_interval),
+		  HCI_MAX_EVENT_SIZE),
 	HCI_CC(HCI_OP_LE_READ_ADV_TX_POWER, hci_cc_le_read_adv_tx_power,
 	       sizeof(struct hci_rp_le_read_adv_tx_power)),
 	HCI_CC(HCI_OP_USER_CONFIRM_REPLY, hci_cc_user_confirm_reply,
@@ -5720,10 +5763,11 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 	hci_dev_lock(hdev);
 	hci_store_wake_reason(hdev, bdaddr, bdaddr_type);
 
-	/* All controllers implicitly stop advertising in the event of a
-	 * connection, so ensure that the state bit is cleared.
+	/* Advertising stops when a connection is created. On a failed
+	 * connection it keeps running, so leave the state bit alone.
 	 */
-	hci_dev_clear_flag(hdev, HCI_LE_ADV);
+	if (!status)
+		hci_dev_clear_flag(hdev, HCI_LE_ADV);
 
 	/* Check for existing connection:
 	 *
@@ -5862,6 +5906,17 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 			hci_conn_put(params->conn);
 			params->conn = NULL;
 		}
+	}
+
+	/* If we are central and have subrate parameters stored, queue a
+	 * connection rate request to apply them.
+	 */
+	if (conn->role == HCI_ROLE_MASTER && le_sci_capable(hdev)) {
+		struct hci_conn_params *p;
+
+		p = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+		if (p && p->subrate_max)
+			hci_le_conn_rate_request(hdev, conn);
 	}
 
 unlock:
@@ -6603,6 +6658,13 @@ static void hci_le_per_adv_report_evt(struct hci_dev *hdev, void *data,
 	struct hci_conn *pa_sync;
 
 	bt_dev_dbg(hdev, "sync_handle 0x%4.4x", le16_to_cpu(ev->sync_handle));
+
+	/* The reassembly in iso_connect_ind() copies ev->length bytes from the
+	 * stored event, so make sure the event actually carries that many data
+	 * bytes before it is consumed.
+	 */
+	if (!hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_PER_ADV_REPORT, ev->length))
+		return;
 
 	hci_dev_lock(hdev);
 
@@ -7360,6 +7422,36 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static void hci_le_conn_rate_change_evt(struct hci_dev *hdev, void *data,
+					struct sk_buff *skb)
+{
+	struct hci_evt_le_conn_rate_change *ev = data;
+	struct hci_conn *conn;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
+	if (conn) {
+		/* Only update the stored rate parameters on success; on
+		 * failure the values in the event are not valid. Userspace is
+		 * notified either way.
+		 */
+		if (!ev->status) {
+			conn->le_rate_interval = le16_to_cpu(ev->interval);
+			conn->le_subrate = le16_to_cpu(ev->subrate);
+			conn->le_rate_latency = le16_to_cpu(ev->latency);
+			conn->le_cont_num = le16_to_cpu(ev->cont_number);
+			conn->le_rate_supv_timeout =
+				le16_to_cpu(ev->supv_timeout);
+		}
+		mgmt_conn_subrate_notify(hdev, conn, ev->status);
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 #define HCI_LE_EV_VL(_op, _func, _min_len, _max_len) \
 [_op] = { \
 	.func = _func, \
@@ -7471,6 +7563,9 @@ static const struct hci_le_ev {
 		     sizeof(struct
 			    hci_evt_le_read_all_remote_features_complete),
 		     HCI_MAX_EVENT_SIZE),
+	/* [0x37 = HCI_EVT_LE_CONN_RATE_CHANGE] */
+	HCI_LE_EV(HCI_EVT_LE_CONN_RATE_CHANGE, hci_le_conn_rate_change_evt,
+		  sizeof(struct hci_evt_le_conn_rate_change)),
 };
 
 static void hci_le_meta_evt(struct hci_dev *hdev, void *data,
@@ -7515,6 +7610,14 @@ static void hci_le_meta_evt(struct hci_dev *hdev, void *data,
 		return;
 
 	subev->func(hdev, data, skb);
+}
+
+static void hci_vendor_evt(struct hci_dev *hdev, void *data, struct sk_buff *skb)
+{
+	if (hdev->handle_ev_vendor && hdev->handle_ev_vendor(hdev, skb))
+		return;
+
+	msft_vendor_evt(hdev, data, skb);
 }
 
 static bool hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
@@ -7633,7 +7736,7 @@ static const struct hci_ev {
 	HCI_EV_STATUS(HCI_EV_INQUIRY_COMPLETE, hci_inquiry_complete_evt),
 	/* [0x02 = HCI_EV_INQUIRY_RESULT] */
 	HCI_EV_VL(HCI_EV_INQUIRY_RESULT, hci_inquiry_result_evt,
-		  sizeof(struct hci_ev_inquiry_result), HCI_MAX_EVENT_SIZE),
+		  sizeof(struct hci_ev_inquiry_result), HCI_MAX_EVENT_PLEN),
 	/* [0x03 = HCI_EV_CONN_COMPLETE] */
 	HCI_EV(HCI_EV_CONN_COMPLETE, hci_conn_complete_evt,
 	       sizeof(struct hci_ev_conn_complete)),
@@ -7661,7 +7764,7 @@ static const struct hci_ev {
 	       sizeof(struct hci_ev_remote_features)),
 	/* [0x0e = HCI_EV_CMD_COMPLETE] */
 	HCI_EV_REQ_VL(HCI_EV_CMD_COMPLETE, hci_cmd_complete_evt,
-		      sizeof(struct hci_ev_cmd_complete), HCI_MAX_EVENT_SIZE),
+		      sizeof(struct hci_ev_cmd_complete), HCI_MAX_EVENT_PLEN),
 	/* [0x0f = HCI_EV_CMD_STATUS] */
 	HCI_EV_REQ(HCI_EV_CMD_STATUS, hci_cmd_status_evt,
 		   sizeof(struct hci_ev_cmd_status)),
@@ -7673,7 +7776,7 @@ static const struct hci_ev {
 	       sizeof(struct hci_ev_role_change)),
 	/* [0x13 = HCI_EV_NUM_COMP_PKTS] */
 	HCI_EV_VL(HCI_EV_NUM_COMP_PKTS, hci_num_comp_pkts_evt,
-		  sizeof(struct hci_ev_num_comp_pkts), HCI_MAX_EVENT_SIZE),
+		  sizeof(struct hci_ev_num_comp_pkts), HCI_MAX_EVENT_PLEN),
 	/* [0x14 = HCI_EV_MODE_CHANGE] */
 	HCI_EV(HCI_EV_MODE_CHANGE, hci_mode_change_evt,
 	       sizeof(struct hci_ev_mode_change)),
@@ -7699,7 +7802,7 @@ static const struct hci_ev {
 	HCI_EV_VL(HCI_EV_INQUIRY_RESULT_WITH_RSSI,
 		  hci_inquiry_result_with_rssi_evt,
 		  sizeof(struct hci_ev_inquiry_result_rssi),
-		  HCI_MAX_EVENT_SIZE),
+		  HCI_MAX_EVENT_PLEN),
 	/* [0x23 = HCI_EV_REMOTE_EXT_FEATURES] */
 	HCI_EV(HCI_EV_REMOTE_EXT_FEATURES, hci_remote_ext_features_evt,
 	       sizeof(struct hci_ev_remote_ext_features)),
@@ -7709,7 +7812,7 @@ static const struct hci_ev {
 	/* [0x2f = HCI_EV_EXTENDED_INQUIRY_RESULT] */
 	HCI_EV_VL(HCI_EV_EXTENDED_INQUIRY_RESULT,
 		  hci_extended_inquiry_result_evt,
-		  sizeof(struct hci_ev_ext_inquiry_result), HCI_MAX_EVENT_SIZE),
+		  sizeof(struct hci_ev_ext_inquiry_result), HCI_MAX_EVENT_PLEN),
 	/* [0x30 = HCI_EV_KEY_REFRESH_COMPLETE] */
 	HCI_EV(HCI_EV_KEY_REFRESH_COMPLETE, hci_key_refresh_complete_evt,
 	       sizeof(struct hci_ev_key_refresh_complete)),
@@ -7742,9 +7845,9 @@ static const struct hci_ev {
 	       sizeof(struct hci_ev_remote_host_features)),
 	/* [0x3e = HCI_EV_LE_META] */
 	HCI_EV_REQ_VL(HCI_EV_LE_META, hci_le_meta_evt,
-		      sizeof(struct hci_ev_le_meta), HCI_MAX_EVENT_SIZE),
+		      sizeof(struct hci_ev_le_meta), HCI_MAX_EVENT_PLEN),
 	/* [0xff = HCI_EV_VENDOR] */
-	HCI_EV_VL(HCI_EV_VENDOR, msft_vendor_evt, 0, HCI_MAX_EVENT_SIZE),
+	HCI_EV_VL(HCI_EV_VENDOR, hci_vendor_evt, 0, HCI_MAX_EVENT_PLEN),
 };
 
 static void hci_event_func(struct hci_dev *hdev, u8 event, struct sk_buff *skb,

@@ -539,15 +539,10 @@ static bool optc1_enable_crtc(struct timing_generator *optc)
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 1);
 
-	REG_SEQ_START();
-
 	/* Enable CRTC */
 	REG_UPDATE_2(OTG_CONTROL,
 			OTG_DISABLE_POINT_CNTL, 3,
 			OTG_MASTER_EN, 1);
-
-	REG_SEQ_SUBMIT();
-	REG_SEQ_WAIT_DONE();
 
 	return true;
 }
@@ -1476,8 +1471,21 @@ bool optc1_configure_crc(struct timing_generator *optc,
 	if (!optc1_is_tg_enabled(optc))
 		return false;
 
-	if (!params->enable || params->reset)
-		REG_WRITE(OTG_CRC_CNTL, 0);
+	if (!params->enable || params->reset) {
+		switch (params->crc_eng_inst) {
+		case 0:
+			REG_UPDATE(OTG_CRC_CNTL, OTG_CRC_EN, 0);
+			break;
+		case 1:
+			if (optc1->tg_mask->OTG_CRC1_EN != 0)
+				REG_UPDATE(OTG_CRC_CNTL, OTG_CRC1_EN, 0);
+			else
+				REG_UPDATE(OTG_CRC_CNTL, OTG_CRC_EN, 0);
+			break;
+		default:
+			return false;
+		}
+	}
 
 	if (!params->enable)
 		return true;
@@ -1533,10 +1541,16 @@ bool optc1_configure_crc(struct timing_generator *optc,
 				OTG_CRC1_WINDOWB_Y_END, params->windowb_y_end);
 
 		/* Set crc mode and selection, and enable.*/
-		REG_UPDATE_3(OTG_CRC_CNTL,
-				OTG_CRC_CONT_EN, params->continuous_mode ? 1 : 0,
-				OTG_CRC1_SELECT, params->selection,
-				OTG_CRC_EN, 1);
+		if (optc1->tg_mask->OTG_CRC1_EN != 0)
+			REG_UPDATE_3(OTG_CRC_CNTL,
+					OTG_CRC_CONT_EN, params->continuous_mode ? 1 : 0,
+					OTG_CRC1_SELECT, params->selection,
+					OTG_CRC1_EN, 1);
+		else
+			REG_UPDATE_3(OTG_CRC_CNTL,
+					OTG_CRC_CONT_EN, params->continuous_mode ? 1 : 0,
+					OTG_CRC1_SELECT, params->selection,
+					OTG_CRC_EN, 1);
 		break;
 	default:
 		return false;
@@ -1567,7 +1581,10 @@ bool optc1_get_crc(struct timing_generator *optc, uint8_t idx,
 	uint32_t field = 0;
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
-	REG_GET(OTG_CRC_CNTL, OTG_CRC_EN, &field);
+	if (idx == 1 && optc1->tg_mask->OTG_CRC1_EN != 0)
+		REG_GET(OTG_CRC_CNTL, OTG_CRC1_EN, &field);
+	else
+		REG_GET(OTG_CRC_CNTL, OTG_CRC_EN, &field);
 
 	/* Early return if CRC is not enabled for this CRTC */
 	if (!field)

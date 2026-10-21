@@ -192,6 +192,7 @@ nogood:
 
 	for (i = 0; i < numslots; i++) {
 		struct fis_list *new_fl, **prev;
+		size_t name_len;
 
 		if (buf[i].name[0] == 0xff) {
 			if (buf[i].name[1] == 0xff) {
@@ -203,8 +204,14 @@ nogood:
 		if (!redboot_checksum(&buf[i]))
 			break;
 
+		name_len = strnlen(buf[i].name, sizeof(buf[i].name));
+		if (name_len == sizeof(buf[i].name)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
 		new_fl = kmalloc_obj(struct fis_list);
-		namelen += strlen(buf[i].name) + 1;
+		namelen += name_len + 1;
 		if (!new_fl) {
 			ret = -ENOMEM;
 			goto out;

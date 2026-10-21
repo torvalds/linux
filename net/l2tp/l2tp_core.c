@@ -1296,7 +1296,7 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, uns
 			ret = NET_XMIT_DROP;
 			goto out_unlock;
 		}
-		uh->len = htons(udp_len);
+		udp_set_len_short(uh, udp_len);
 
 		/* Calculate UDP checksum if configured to do so */
 #if IS_ENABLED(CONFIG_IPV6)

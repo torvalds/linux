@@ -438,7 +438,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 			return -EOPNOTSUPP;
 	}
 
-	fnew = kzalloc_obj(*fnew);
+	fnew = kzalloc_obj(*fnew, GFP_KERNEL_ACCOUNT);
 	if (!fnew)
 		return -ENOBUFS;
 

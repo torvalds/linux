@@ -193,9 +193,6 @@ static int autospoll_thread(void *board_void)
 		}
 		if (retval <= 0) {
 			dev_err(board->gpib_dev, "stuck SRQ\n");
-
-			atomic_set(&board->stuck_srq, 1);	// XXX could be better
-			set_bit(SRQI_NUM, &board->status);
 		}
 	}
 	return retval;

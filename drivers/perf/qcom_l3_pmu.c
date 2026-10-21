@@ -663,7 +663,7 @@ static ssize_t cpumask_show(struct device *dev,
 {
 	struct l3cache_pmu *l3pmu = to_l3cache_pmu(dev_get_drvdata(dev));
 
-	return cpumap_print_to_pagebuf(true, buf, &l3pmu->cpumask);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&l3pmu->cpumask));
 }
 
 static DEVICE_ATTR_RO(cpumask);

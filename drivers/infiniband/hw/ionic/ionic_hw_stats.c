@@ -235,35 +235,34 @@ err_dma:
 static struct rdma_hw_stats *
 ionic_counter_alloc_stats(struct rdma_counter *counter)
 {
+	struct ionic_rdma_counter *cntr = to_ionic_rdma_counter(counter);
 	struct ionic_ibdev *dev = to_ionic_ibdev(counter->device);
-	struct ionic_counter *cntr;
-	int err;
+	struct rdma_hw_stats *stats;
+	int id;
 
-	cntr = kzalloc_obj(*cntr);
-	if (!cntr)
-		return NULL;
-
-	/* buffer for current values from the device */
 	cntr->vals = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cntr->vals)
-		goto err_vals;
+		return NULL;
 
-	err = xa_alloc(&dev->counter_stats->xa_counters, &counter->id,
-		       cntr,
-		       XA_LIMIT(0, IONIC_MAX_QPID),
-		       GFP_KERNEL);
-	if (err)
-		goto err_xa;
+	id = ida_alloc_max(&dev->counter_stats->counter_ida,
+			   IONIC_MAX_QPID, GFP_KERNEL);
+	if (id < 0)
+		goto err_ida;
 
-	INIT_LIST_HEAD(&cntr->qp_list);
+	counter->id = id;
 
-	return rdma_alloc_hw_stats_struct(dev->counter_stats->stats_hdrs,
-					 dev->counter_stats->queue_stats_count,
-					 RDMA_HW_STATS_DEFAULT_LIFESPAN);
-err_xa:
+	stats = rdma_alloc_hw_stats_struct(dev->counter_stats->stats_hdrs,
+					   dev->counter_stats->queue_stats_count,
+					   RDMA_HW_STATS_DEFAULT_LIFESPAN);
+	if (!stats)
+		goto err_hw_stats;
+
+	return stats;
+
+err_hw_stats:
+	ida_free(&dev->counter_stats->counter_ida, id);
+err_ida:
 	kfree(cntr->vals);
-err_vals:
-	kfree(cntr);
 
 	return NULL;
 }
@@ -271,14 +270,10 @@ err_vals:
 static int ionic_counter_dealloc(struct rdma_counter *counter)
 {
 	struct ionic_ibdev *dev = to_ionic_ibdev(counter->device);
-	struct ionic_counter *cntr;
+	struct ionic_rdma_counter *cntr = to_ionic_rdma_counter(counter);
 
-	cntr = xa_erase(&dev->counter_stats->xa_counters, counter->id);
-	if (!cntr)
-		return -EINVAL;
-
+	ida_free(&dev->counter_stats->counter_ida, counter->id);
 	kfree(cntr->vals);
-	kfree(cntr);
 
 	return 0;
 }
@@ -287,13 +282,8 @@ static int ionic_counter_bind_qp(struct rdma_counter *counter,
 				 struct ib_qp *ibqp,
 				 u32 port)
 {
-	struct ionic_ibdev *dev = to_ionic_ibdev(counter->device);
+	struct ionic_rdma_counter *cntr = to_ionic_rdma_counter(counter);
 	struct ionic_qp *qp = to_ionic_qp(ibqp);
-	struct ionic_counter *cntr;
-
-	cntr = xa_load(&dev->counter_stats->xa_counters, counter->id);
-	if (!cntr)
-		return -EINVAL;
 
 	list_add_tail(&qp->qp_list_counter, &cntr->qp_list);
 	ibqp->counter = counter;
@@ -313,21 +303,14 @@ static int ionic_counter_unbind_qp(struct ib_qp *ibqp, u32 port)
 	return 0;
 }
 
-static int ionic_get_qp_stats(struct ib_device *ibdev,
-			      struct rdma_hw_stats *hw_stats,
-			      u32 counter_id)
+static int ionic_counter_update_stats(struct rdma_counter *counter)
 {
-	struct ionic_ibdev *dev = to_ionic_ibdev(ibdev);
-	struct ionic_counter_stats *cs;
-	struct ionic_counter *cntr;
+	struct ionic_rdma_counter *cntr = to_ionic_rdma_counter(counter);
+	struct ionic_ibdev *dev = to_ionic_ibdev(counter->device);
+	struct ionic_counter_stats *cs = dev->counter_stats;
 	dma_addr_t hw_stats_dma;
 	struct ionic_qp *qp;
 	int rc, stat_i = 0;
-
-	cs = dev->counter_stats;
-	cntr = xa_load(&cs->xa_counters, counter_id);
-	if (!cntr)
-		return -EINVAL;
 
 	hw_stats_dma = dma_map_single(dev->lif_cfg.hwdev, cntr->vals,
 				      PAGE_SIZE, DMA_FROM_DEVICE);
@@ -335,7 +318,8 @@ static int ionic_get_qp_stats(struct ib_device *ibdev,
 	if (rc)
 		return rc;
 
-	memset(hw_stats->value, 0, sizeof(u64) * hw_stats->num_counters);
+	memset(counter->stats->value, 0,
+	       sizeof(u64) * counter->stats->num_counters);
 
 	list_for_each_entry(qp, &cntr->qp_list, qp_list_counter) {
 		rc = ionic_hw_stats_cmd(dev, hw_stats_dma, PAGE_SIZE,
@@ -345,7 +329,7 @@ static int ionic_get_qp_stats(struct ib_device *ibdev,
 			goto err_cmd;
 
 		for (stat_i = 0; stat_i < cs->queue_stats_count; ++stat_i)
-			hw_stats->value[stat_i] +=
+			counter->stats->value[stat_i] +=
 				ionic_v1_stat_val(&cs->hdr[stat_i],
 						  cntr->vals,
 						  PAGE_SIZE);
@@ -358,11 +342,6 @@ err_cmd:
 	dma_unmap_single(dev->lif_cfg.hwdev, hw_stats_dma, PAGE_SIZE, DMA_FROM_DEVICE);
 
 	return rc;
-}
-
-static int ionic_counter_update_stats(struct rdma_counter *counter)
-{
-	return ionic_get_qp_stats(counter->device, counter->stats, counter->id);
 }
 
 static int ionic_alloc_counters(struct ionic_ibdev *dev)
@@ -424,12 +403,22 @@ static const struct ib_device_ops ionic_hw_stats_ops = {
 	.get_hw_stats = ionic_get_hw_stats,
 };
 
+static void ionic_counter_init(struct rdma_counter *counter)
+{
+	struct ionic_rdma_counter *cntr = to_ionic_rdma_counter(counter);
+
+	INIT_LIST_HEAD(&cntr->qp_list);
+}
+
 static const struct ib_device_ops ionic_counter_stats_ops = {
 	.counter_alloc_stats = ionic_counter_alloc_stats,
 	.counter_dealloc = ionic_counter_dealloc,
 	.counter_bind_qp = ionic_counter_bind_qp,
 	.counter_unbind_qp = ionic_counter_unbind_qp,
 	.counter_update_stats = ionic_counter_update_stats,
+	.counter_init = ionic_counter_init,
+
+	INIT_RDMA_OBJ_SIZE(rdma_counter, ionic_rdma_counter, rdma_counter),
 };
 
 void ionic_stats_init(struct ionic_ibdev *dev)
@@ -458,7 +447,7 @@ void ionic_stats_init(struct ionic_ibdev *dev)
 			return;
 		}
 
-		xa_init_flags(&dev->counter_stats->xa_counters, XA_FLAGS_ALLOC);
+		ida_init(&dev->counter_stats->counter_ida);
 
 		ib_set_device_ops(&dev->ibdev, &ionic_counter_stats_ops);
 	}
@@ -467,7 +456,7 @@ void ionic_stats_init(struct ionic_ibdev *dev)
 void ionic_stats_cleanup(struct ionic_ibdev *dev)
 {
 	if (dev->counter_stats) {
-		xa_destroy(&dev->counter_stats->xa_counters);
+		ida_destroy(&dev->counter_stats->counter_ida);
 		kfree(dev->counter_stats->hdr);
 		kfree(dev->counter_stats->stats_hdrs);
 		kfree(dev->counter_stats);

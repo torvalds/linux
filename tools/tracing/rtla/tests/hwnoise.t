@@ -18,5 +18,8 @@ check "stop the trace if a single sample is higher than 1 us" \
 check "enable a trace event trigger" \
 	"hwnoise -t -e osnoise:irq_noise --trigger=\"hist:key=desc,duration:sort=desc,duration:vals=hitcount\" -d 10s" \
 	0 "Saving event osnoise:irq_noise hist to osnoise_irq_noise_hist.txt"
+check "verify OSNOISE_IRQ_DISABLE" \
+	"hwnoise -S 1 --on-threshold shell,command=\"$testdir/scripts/check-osnoise-option.sh OSNOISE_IRQ_DISABLE\"" \
+	2 "^OSNOISE_IRQ_DISABLE=enabled$"
 
 test_end

@@ -153,7 +153,7 @@ void __quota_error(struct super_block *sb, const char *func,
 }
 EXPORT_SYMBOL(__quota_error);
 
-#if defined(CONFIG_QUOTA_DEBUG) || defined(CONFIG_PRINT_QUOTA_WARNING)
+#ifdef CONFIG_QUOTA_DEBUG
 static char *quotatypes[] = INITQFNAMES;
 #endif
 static struct quota_format_type *quota_formats;	/* List of registered formats */
@@ -1208,72 +1208,6 @@ static int warning_issued(struct dquot *dquot, const int warntype)
 	return test_and_set_bit(flag, &dquot->dq_flags);
 }
 
-#ifdef CONFIG_PRINT_QUOTA_WARNING
-static int flag_print_warnings = 1;
-
-static int need_print_warning(struct dquot_warn *warn)
-{
-	if (!flag_print_warnings)
-		return 0;
-
-	switch (warn->w_dq_id.type) {
-		case USRQUOTA:
-			return uid_eq(current_fsuid(), warn->w_dq_id.uid);
-		case GRPQUOTA:
-			return in_group_p(warn->w_dq_id.gid);
-		case PRJQUOTA:
-			return 1;
-	}
-	return 0;
-}
-
-/* Print warning to user which exceeded quota */
-static void print_warning(struct dquot_warn *warn)
-{
-	char *msg = NULL;
-	struct tty_struct *tty;
-	int warntype = warn->w_type;
-
-	if (warntype == QUOTA_NL_IHARDBELOW ||
-	    warntype == QUOTA_NL_ISOFTBELOW ||
-	    warntype == QUOTA_NL_BHARDBELOW ||
-	    warntype == QUOTA_NL_BSOFTBELOW || !need_print_warning(warn))
-		return;
-
-	tty = get_current_tty();
-	if (!tty)
-		return;
-	tty_write_message(tty, warn->w_sb->s_id);
-	if (warntype == QUOTA_NL_ISOFTWARN || warntype == QUOTA_NL_BSOFTWARN)
-		tty_write_message(tty, ": warning, ");
-	else
-		tty_write_message(tty, ": write failed, ");
-	tty_write_message(tty, quotatypes[warn->w_dq_id.type]);
-	switch (warntype) {
-		case QUOTA_NL_IHARDWARN:
-			msg = " file limit reached.\r\n";
-			break;
-		case QUOTA_NL_ISOFTLONGWARN:
-			msg = " file quota exceeded too long.\r\n";
-			break;
-		case QUOTA_NL_ISOFTWARN:
-			msg = " file quota exceeded.\r\n";
-			break;
-		case QUOTA_NL_BHARDWARN:
-			msg = " block limit reached.\r\n";
-			break;
-		case QUOTA_NL_BSOFTLONGWARN:
-			msg = " block quota exceeded too long.\r\n";
-			break;
-		case QUOTA_NL_BSOFTWARN:
-			msg = " block quota exceeded.\r\n";
-			break;
-	}
-	tty_write_message(tty, msg);
-	tty_kref_put(tty);
-}
-#endif
-
 static void prepare_warning(struct dquot_warn *warn, struct dquot *dquot,
 			    int warntype)
 {
@@ -1296,9 +1230,7 @@ static void flush_warnings(struct dquot_warn *warn)
 	for (i = 0; i < MAXQUOTAS; i++) {
 		if (warn[i].w_type == QUOTA_NL_NOWARN)
 			continue;
-#ifdef CONFIG_PRINT_QUOTA_WARNING
-		print_warning(&warn[i]);
-#endif
+
 		quota_send_warning(warn[i].w_dq_id,
 				   warn[i].w_sb->s_dev, warn[i].w_type);
 	}
@@ -1308,7 +1240,7 @@ static int ignore_hardlimit(struct dquot *dquot)
 {
 	struct mem_dqinfo *info = &sb_dqopt(dquot->dq_sb)->info[dquot->dq_id.type];
 
-	return capable(CAP_SYS_RESOURCE) &&
+	return capable_noaudit(CAP_SYS_RESOURCE) &&
 	       (info->dqi_format->qf_fmt_id != QFMT_VFS_OLD ||
 		!(info->dqi_flags & DQF_ROOT_SQUASH));
 }
@@ -3008,15 +2940,6 @@ static const struct ctl_table fs_dqstats_table[] = {
 		.mode		= 0444,
 		.proc_handler	= do_proc_dqstats,
 	},
-#ifdef CONFIG_PRINT_QUOTA_WARNING
-	{
-		.procname	= "warnings",
-		.data		= &flag_print_warnings,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-#endif
 };
 
 static int __init dquot_init(void)

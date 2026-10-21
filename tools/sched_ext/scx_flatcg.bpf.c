@@ -256,7 +256,7 @@ static void cgrp_cap_budget(struct cgv_node *cgv_node, struct fcg_cgrp_ctx *cgc)
 	 * and thus can't be updated and repositioned. Instead, we collect the
 	 * vtime deltas separately and apply it asynchronously here.
 	 */
-	delta = __sync_fetch_and_sub(&cgc->cvtime_delta, cgc->cvtime_delta);
+	delta = __sync_fetch_and_and(&cgc->cvtime_delta, 0);
 	cvtime = cgv_node->cvtime + delta;
 
 	/*
@@ -570,7 +570,8 @@ void BPF_STRUCT_OPS(fcg_stopping, struct task_struct *p, bool runnable)
 	cgc = find_cgrp_ctx(cgrp);
 	if (cgc) {
 		__sync_fetch_and_add(&cgc->cvtime_delta,
-				     p->se.sum_exec_runtime - taskc->bypassed_at);
+				     (p->se.sum_exec_runtime - taskc->bypassed_at) *
+				     FCG_HWEIGHT_ONE / (cgc->hweight ?: 1));
 		taskc->bypassed_at = 0;
 	}
 	bpf_cgroup_release(cgrp);
@@ -604,6 +605,9 @@ void BPF_STRUCT_OPS(fcg_cgroup_set_weight, struct cgroup *cgrp, u32 weight)
 		pcgc->child_weight_sum += (s64)weight - cgc->weight;
 	cgc->weight = weight;
 	bpf_spin_unlock(&cgv_tree_lock);
+
+	/* expire cached hweights so the new weight propagates */
+	__sync_fetch_and_add(&hweight_gen, 1);
 }
 
 static bool try_pick_next_cgroup(u64 *cgidp)
@@ -768,10 +772,18 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
 		 * cgroup to execute but the latter needs to be done in a loop
 		 * and we can't keep the lock held. Oh well...
 		 */
+		s64 delta = now - cpuc->cur_at - cgrp_slice_ns;
+
 		bpf_spin_lock(&cgv_tree_lock);
-		__sync_fetch_and_add(&cgc->cvtime_delta,
-				     (cpuc->cur_at + cgrp_slice_ns - now) *
-				     FCG_HWEIGHT_ONE / (cgc->hweight ?: 1));
+		/* keep the dividends positive, BPF division is unsigned */
+		if (delta >= 0)
+			__sync_fetch_and_add(&cgc->cvtime_delta,
+					     (u64)delta * FCG_HWEIGHT_ONE /
+					     (cgc->hweight ?: 1));
+		else
+			__sync_fetch_and_sub(&cgc->cvtime_delta,
+					     (u64)-delta * FCG_HWEIGHT_ONE /
+					     (cgc->hweight ?: 1));
 		bpf_spin_unlock(&cgv_tree_lock);
 	} else {
 		stat_inc(FCG_STAT_CNS_GONE);
@@ -925,7 +937,7 @@ void BPF_STRUCT_OPS(fcg_cgroup_move, struct task_struct *p,
 	if (!(from_cgc = find_cgrp_ctx(from)) || !(to_cgc = find_cgrp_ctx(to)))
 		return;
 
-	delta = time_delta(p->scx.dsq_vtime, from_cgc->tvtime_now);
+	delta = (s64)(p->scx.dsq_vtime - from_cgc->tvtime_now);
 	scx_bpf_task_set_dsq_vtime(p, to_cgc->tvtime_now + delta);
 }
 

@@ -10,44 +10,46 @@
 
 #define IA_CSS_HDR_MAX_NUM_INPUT_FRAMES         (3)
 
-/**
+/*
  * \brief HDR Irradiance Parameters
  * \detail Currently HDR parameters are used only for testing purposes
  */
 struct ia_css_hdr_irradiance_params {
-	int test_irr;                                          /** Test parameter */
-	int match_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-							1];  /** Histogram matching shift parameter */
-	int match_mul[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-						      1];    /** Histogram matching multiplication parameter */
-	int thr_low[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-						    1];      /** Weight map soft threshold low bound parameter */
-	int thr_high[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-						     1];     /** Weight map soft threshold high bound parameter */
-	int thr_coeff[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-						      1];    /** Soft threshold linear function coefficien */
-	int thr_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-						      1];    /** Soft threshold precision shift parameter */
-	int weight_bpp;                                        /** Weight map bits per pixel */
+	/* Test parameter */
+	int test_irr;
+	/* Histogram matching shift parameter */
+	int match_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];
+	/* Histogram matching multiplication parameter */
+	int match_mul[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];
+	/* Weight map soft threshold low bound parameter */
+	int thr_low[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];
+	/* Weight map soft threshold high bound parameter */
+	int thr_high[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];
+	/* Soft threshold linear function coefficien */
+	int thr_coeff[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];
+	/* Soft threshold precision shift parameter */
+	int thr_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES - 1];
+	/* Weight map bits per pixel */
+	int weight_bpp;
 };
 
-/**
+/*
  * \brief HDR Deghosting Parameters
  * \detail Currently HDR parameters are used only for testing purposes
  */
 struct ia_css_hdr_deghost_params {
-	int test_deg; /** Test parameter */
+	int test_deg; /* Test parameter */
 };
 
-/**
+/*
  * \brief HDR Exclusion Parameters
  * \detail Currently HDR parameters are used only for testing purposes
  */
 struct ia_css_hdr_exclusion_params {
-	int test_excl; /** Test parameter */
+	int test_excl; /* Test parameter */
 };
 
-/**
+/*
  * \brief HDR public parameters.
  * \details Struct with all parameters for HDR that can be seet from
  * the CSS API. Currently, only test parameters are defined.

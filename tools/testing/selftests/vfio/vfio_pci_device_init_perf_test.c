@@ -45,8 +45,8 @@ FIXTURE_SETUP(vfio_pci_device_init_perf_test)
 	int i;
 
 	self->iommu = iommu_init(variant->iommu_mode);
-	self->threads = calloc(nr_devices, sizeof(self->threads[0]));
-	self->thread_args = calloc(nr_devices, sizeof(self->thread_args[0]));
+	self->threads = calloc_assert(nr_devices, sizeof(self->threads[0]));
+	self->thread_args = calloc_assert(nr_devices, sizeof(self->thread_args[0]));
 
 	pthread_barrier_init(&self->barrier, NULL, nr_devices);
 

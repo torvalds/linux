@@ -47,9 +47,25 @@ config MCTP_TRANSPORT_I3C
 	  A MCTP protocol network device is created for each I3C bus
 	  having a "mctp-controller" devicetree property.
 
+config MCTP_TRANSPORT_USBLIB
+	tristate "MCTP over USB common library"
+	depends on USB
+	help
+	  Common protocol handling functions for MCTP-over-USB transport
+	  implementations, suitable for use in either host- or gadget-side
+	  transport driver
+
+	  This will be automatically enabled by the transport driver.
+
+config MCTP_TRANSPORT_USBLIB_TEST
+        bool "MCTP usblib tests" if !KUNIT_ALL_TESTS
+        depends on MCTP_TRANSPORT_USBLIB=y && KUNIT=y
+        default KUNIT_ALL_TESTS
+
 config MCTP_TRANSPORT_USB
 	tristate "MCTP USB transport"
 	depends on USB
+	select MCTP_TRANSPORT_USBLIB
 	help
 	  Provides a driver to access MCTP devices over USB transport,
 	  defined by DMTF specification DSP0283.

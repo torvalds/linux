@@ -821,14 +821,10 @@ static struct saa7146_pci_extension_data mxb = {
 
 static const struct pci_device_id pci_tbl[] = {
 	{
-		.vendor    = PCI_VENDOR_ID_PHILIPS,
-		.device	   = PCI_DEVICE_ID_PHILIPS_SAA7146,
-		.subvendor = 0x0000,
-		.subdevice = 0x0000,
+		PCI_VDEVICE_SUB(PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7146, 0x0000, 0x0000),
 		.driver_data = (unsigned long)&mxb,
-	}, {
-		.vendor	= 0,
-	}
+	},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, pci_tbl);

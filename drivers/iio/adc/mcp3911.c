@@ -927,13 +927,13 @@ static const struct of_device_id mcp3911_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, mcp3911_dt_ids);
 
 static const struct spi_device_id mcp3911_id[] = {
-	{ "mcp3910", (kernel_ulong_t)&mcp3911_chip_info[MCP3910] },
-	{ "mcp3911", (kernel_ulong_t)&mcp3911_chip_info[MCP3911] },
-	{ "mcp3912", (kernel_ulong_t)&mcp3911_chip_info[MCP3912] },
-	{ "mcp3913", (kernel_ulong_t)&mcp3911_chip_info[MCP3913] },
-	{ "mcp3914", (kernel_ulong_t)&mcp3911_chip_info[MCP3914] },
-	{ "mcp3918", (kernel_ulong_t)&mcp3911_chip_info[MCP3918] },
-	{ "mcp3919", (kernel_ulong_t)&mcp3911_chip_info[MCP3919] },
+	{ .name = "mcp3910", .driver_data = (kernel_ulong_t)&mcp3911_chip_info[MCP3910] },
+	{ .name = "mcp3911", .driver_data = (kernel_ulong_t)&mcp3911_chip_info[MCP3911] },
+	{ .name = "mcp3912", .driver_data = (kernel_ulong_t)&mcp3911_chip_info[MCP3912] },
+	{ .name = "mcp3913", .driver_data = (kernel_ulong_t)&mcp3911_chip_info[MCP3913] },
+	{ .name = "mcp3914", .driver_data = (kernel_ulong_t)&mcp3911_chip_info[MCP3914] },
+	{ .name = "mcp3918", .driver_data = (kernel_ulong_t)&mcp3911_chip_info[MCP3918] },
+	{ .name = "mcp3919", .driver_data = (kernel_ulong_t)&mcp3911_chip_info[MCP3919] },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, mcp3911_id);

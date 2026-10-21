@@ -715,6 +715,7 @@ static void ufs_qcom_link_startup_post_change(struct ufs_hba *hba)
 static int ufs_qcom_link_startup_notify(struct ufs_hba *hba,
 					enum ufs_notify_change_status status)
 {
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	int err = 0;
 
 	switch (status) {
@@ -737,6 +738,14 @@ static int ufs_qcom_link_startup_notify(struct ufs_hba *hba,
 		 */
 		err = ufshcd_disable_host_tx_lcc(hba);
 
+		/*
+		 * Restore HS/LS link startup mode set by bootloader
+		 * after UFS reset clears REG_UFS_DEBUG_SPARE_CFG.
+		 */
+		if (host->hw_ver.major > 0x6 ||
+		    (host->hw_ver.major == 0x6 && host->hw_ver.minor >= 0x2))
+			ufshcd_writel(hba, host->boot_spare_cfg,
+				      REG_UFS_DEBUG_SPARE_CFG);
 		break;
 	case POST_CHANGE:
 		ufs_qcom_link_startup_post_change(hba);
@@ -1325,7 +1334,7 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 static void ufs_qcom_set_phy_gear(struct ufs_qcom_host *host)
 {
 	struct ufs_host_params *host_params = &host->host_params;
-	u32 val, dev_major;
+	u32 dev_major;
 
 	/*
 	 * Default to powering up the PHY to the max gear possible, which is
@@ -1344,8 +1353,8 @@ static void ufs_qcom_set_phy_gear(struct ufs_qcom_host *host)
 		 */
 		host->phy_gear = UFS_HS_G2;
 	} else if (host->hw_ver.major >= 0x5) {
-		val = ufshcd_readl(host->hba, REG_UFS_DEBUG_SPARE_CFG);
-		dev_major = FIELD_GET(UFS_DEV_VER_MAJOR_MASK, val);
+		host->boot_spare_cfg = ufshcd_readl(host->hba, REG_UFS_DEBUG_SPARE_CFG);
+		dev_major = FIELD_GET(UFS_DEV_VER_MAJOR_MASK, host->boot_spare_cfg);
 
 		/*
 		 * Since the UFS device version is populated, let's remove the
@@ -2282,7 +2291,7 @@ static void ufs_qcom_config_scaling_param(struct ufs_hba *hba,
 	p->polling_ms = 60;
 	p->timer = DEVFREQ_TIMER_DELAYED;
 	d->upthreshold = 70;
-	d->downdifferential = 5;
+	d->downdifferential = 65;
 
 	hba->clk_scaling.suspend_on_no_request = true;
 }
@@ -2431,8 +2440,6 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 		ret = devm_request_irq(hba->dev, qi[idx].irq, ufs_qcom_mcq_esi_handler,
 				       IRQF_SHARED, "qcom-mcq-esi", qi + idx);
 		if (ret) {
-			dev_err(hba->dev, "%s: Failed to request IRQ for %d, err = %d\n",
-				__func__, qi[idx].irq, ret);
 			/* Free previously allocated IRQs */
 			for (int j = 0; j < idx; j++)
 				devm_free_irq(hba->dev, qi[j].irq, qi + j);
@@ -2763,7 +2770,7 @@ static int ufs_qcom_get_rx_fom(struct ufs_hba *hba,
 			       struct tx_eqtr_iter *d_iter)
 {
 	struct ufshcd_tx_eq_params *params __free(kfree) =
-		kzalloc(sizeof(*params), GFP_KERNEL);
+		kzalloc_obj(*params);
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	struct ufs_pa_layer_attr old_pwr_info;
 	u32 fom[PA_MAXDATALANES] = { 0 };
@@ -2794,7 +2801,7 @@ static int ufs_qcom_get_rx_fom(struct ufs_hba *hba,
 	if (ret) {
 		dev_err(hba->dev, "%s: Failed to apply TX EQ settings for HS-G%u: %d\n",
 			__func__, gear, ret);
-		return ret;
+		goto link_recover_and_restore;
 	}
 
 	/* Force PMC to target HS Gear to use new TX Equalization settings. */
@@ -2802,16 +2809,15 @@ static int ufs_qcom_get_rx_fom(struct ufs_hba *hba,
 	if (ret) {
 		dev_err(hba->dev, "%s: Failed to change power mode to HS-G%u, Rate-%s: %d\n",
 			__func__, gear, ufs_hs_rate_to_str(rate), ret);
-		return ret;
+		goto link_recover_and_restore;
 	}
 
 	ret = ufs_qcom_host_sw_rx_fom(hba, pwr_mode->lane_rx, fom);
-	if (ret) {
+	if (ret)
 		dev_err(hba->dev, "Failed to get SW FOM of TX (PreShoot: %u, DeEmphasis: %u): %d\n",
 			d_iter->preshoot, d_iter->deemphasis, ret);
-		return ret;
-	}
 
+link_recover_and_restore:
 	/* Restore Device's TX Equalization settings. */
 	ret = ufshcd_apply_tx_eq_settings(hba, &hba->tx_eq_params[gear - 1], gear);
 	if (ret) {

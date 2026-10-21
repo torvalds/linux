@@ -261,9 +261,9 @@ examples:
                 "ovr1", "ovr2", "vp1", "vp2", "common1";
         ti,am65x-oldi-io-ctrl = <&dss_oldi_io_ctrl>;
         power-domains = <&k3_pds 67 TI_SCI_PD_EXCLUSIVE>;
-        clocks =        <&k3_clks 67 1>,
-                        <&k3_clks 216 1>,
-                        <&k3_clks 67 2>;
+        clocks = <&k3_clks 67 1>,
+                 <&k3_clks 216 1>,
+                 <&k3_clks 67 2>;
         clock-names = "fck", "vp1", "vp2";
         interrupts = <GIC_SPI 166 IRQ_TYPE_EDGE_RISING>;
         ports {
@@ -299,9 +299,9 @@ examples:
             reg-names = "common", "vidl1", "vid",
                         "ovr1", "ovr2", "vp1", "vp2", "common1";
             power-domains = <&k3_pds 186 TI_SCI_PD_EXCLUSIVE>;
-            clocks =        <&k3_clks 186 6>,
-                            <&vp1_clock>,
-                            <&k3_clks 186 2>;
+            clocks = <&k3_clks 186 6>,
+                     <&vp1_clock>,
+                     <&k3_clks 186 2>;
             clock-names = "fck", "vp1", "vp2";
             interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
             oldi-transmitters {

@@ -289,18 +289,19 @@ int autopoll_all_devices(struct gpib_board *board)
 	dev_dbg(board->gpib_dev, "autopoll has board lock\n");
 
 	retval = serial_poll_all(board, serial_timeout);
-	if (retval < 0)	{
-		mutex_unlock(&board->big_gpib_mutex);
-		mutex_unlock(&board->user_mutex);
-		return retval;
+	if (retval >= 0) {
+		dev_dbg(board->gpib_dev, "complete\n");
+		/*
+		 * need to wake wait queue in case someone is
+		 * waiting on RQS
+		 */
+		wake_up_interruptible(&board->wait);
 	}
 
-	dev_dbg(board->gpib_dev, "complete\n");
-	/*
-	 * need to wake wait queue in case someone is
-	 * waiting on RQS
-	 */
-	wake_up_interruptible(&board->wait);
+	if (retval <= 0) {
+		atomic_set(&board->stuck_srq, 1);
+		set_bit(SRQI_NUM, &board->status);
+	}
 	mutex_unlock(&board->big_gpib_mutex);
 	mutex_unlock(&board->user_mutex);
 

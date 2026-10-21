@@ -1010,25 +1010,12 @@ static void sec_queue_base_init(struct sec_dev_info *info,
 
 static int sec_map_io(struct sec_dev_info *info, struct platform_device *pdev)
 {
-	struct resource *res;
 	int i;
 
 	for (i = 0; i < SEC_NUM_ADDR_REGIONS; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-
-		if (!res) {
-			dev_err(info->dev, "Memory resource %d not found\n", i);
-			return -EINVAL;
-		}
-
-		info->regs[i] = devm_ioremap(info->dev, res->start,
-					     resource_size(res));
-		if (!info->regs[i]) {
-			dev_err(info->dev,
-				"Memory resource %d could not be remapped\n",
-				i);
-			return -EINVAL;
-		}
+		info->regs[i] = devm_platform_ioremap_resource(pdev, i);
+		if (IS_ERR(info->regs[i]))
+			return PTR_ERR(info->regs[i]);
 	}
 
 	return 0;

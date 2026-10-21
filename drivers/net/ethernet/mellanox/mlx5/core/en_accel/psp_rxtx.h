@@ -10,9 +10,8 @@
 #include "en.h"
 #include "en/txrx.h"
 
-/* Bit30: PSP marker, Bit29-23: PSP syndrome, Bit22-0: PSP obj id */
+/* Bit30: PSP marker, Bit22-0: PSP obj id */
 #define MLX5_PSP_METADATA_MARKER(metadata)  ((((metadata) >> 30) & 0x3) == 0x3)
-#define MLX5_PSP_METADATA_SYNDROME(metadata) (((metadata) >> 23) & GENMASK(6, 0))
 #define MLX5_PSP_METADATA_HANDLE(metadata)  ((metadata) & GENMASK(22, 0))
 
 struct mlx5e_accel_tx_psp_state {

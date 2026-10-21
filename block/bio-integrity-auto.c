@@ -44,12 +44,6 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 	bio_endio(bio);
 }
 
-#define BIP_CHECK_FLAGS (BIP_CHECK_GUARD | BIP_CHECK_REFTAG | BIP_CHECK_APPTAG)
-static bool bip_should_check(struct bio_integrity_payload *bip)
-{
-	return bip->bip_flags & BIP_CHECK_FLAGS;
-}
-
 /**
  * __bio_integrity_endio - Integrity I/O completion function
  * @bio:	Protected bio
@@ -66,7 +60,7 @@ bool __bio_integrity_endio(struct bio *bio)
 		container_of(bip, struct bio_integrity_data, bip);
 
 	if (bio_op(bio) == REQ_OP_READ && !bio->bi_status &&
-	    bip_should_check(bip)) {
+	    (bip->bip_flags & BIP_CHECK_FLAGS)) {
 		INIT_WORK(&bid->work, bio_integrity_verify_fn);
 		queue_work(kintegrityd_wq, &bid->work);
 		return false;
@@ -99,7 +93,7 @@ void bio_integrity_prep(struct bio *bio, unsigned int action)
 		bio_integrity_setup_default(bio);
 
 	/* Auto-generate integrity metadata if this is a write */
-	if (bio_data_dir(bio) == WRITE && bip_should_check(&bid->bip))
+	if (bio_data_dir(bio) == WRITE && (bid->bip.bip_flags & BIP_CHECK_FLAGS))
 		bio_integrity_generate(bio);
 	else
 		bid->saved_bio_iter = bio->bi_iter;

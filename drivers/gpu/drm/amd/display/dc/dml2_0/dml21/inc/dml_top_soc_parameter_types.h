@@ -71,8 +71,21 @@ enum dml2_qos_param_type {
 	dml2_qos_param_type_dcn4x
 };
 
+//Indicies mapped to DPM level
+// Unpopulated indicies should fallback to the global derate value.
+struct dml2_soc_derate_values_per_dpm {
+	unsigned int dram_derate_percent_pixel[DML_MAX_CLK_TABLE_SIZE];
+	unsigned int fclk_derate_percent[DML_MAX_CLK_TABLE_SIZE];
+	unsigned int dcfclk_derate_percent[DML_MAX_CLK_TABLE_SIZE];
+};
+
+struct dml2_soc_derates_per_dpm {
+	struct dml2_soc_derate_values_per_dpm system_active_derates_per_dpm;
+};
+
 struct dml2_soc_qos_parameters {
 	struct dml2_soc_derates derate_table;
+	struct dml2_soc_derates_per_dpm derate_table_per_dpm;
 	struct {
 		unsigned int base_latency_us;
 		unsigned int scaling_factor_us;
@@ -104,6 +117,7 @@ struct dml2_soc_power_management_parameters {
 	double g6_temp_read_blackout_us[DML_MAX_CLK_TABLE_SIZE];
 	double type_b_dram_clk_change_blackout_us;
 	double type_b_ppt_blackout_us;
+	unsigned int alternate_dram_carveout_size_mb; // size per aperture - assumed same for both apertures for now
 };
 
 struct dml2_clk_table {
@@ -200,6 +214,7 @@ struct dml2_ip_capabilities {
 	unsigned int ppt_max_allow_delay_us;
 	unsigned int temp_read_max_allow_delay_us;
 	unsigned int dummy_pstate_max_allow_delay_us;
+	unsigned int vblank_nom_default_us;
 	/* FAMS2 delays */
 	struct {
 		unsigned int max_allow_delay_us;

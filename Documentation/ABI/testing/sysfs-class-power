@@ -525,7 +525,7 @@ Description:
 
 		Valid values:
 			      "Unknown", "NiMH", "Li-ion", "Li-poly", "LiFe",
-			      "NiCd", "LiMn"
+			      "NiCd", "LiMn", "PbAc", "NiZn", "RAM", "ZnAr"
 
 
 What:		/sys/class/power_supply/<supply_name>/voltage_avg,

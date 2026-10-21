@@ -200,25 +200,6 @@ static inline void ext4_fc_set_snap_err(int *snap_err, int err)
 		*snap_err = err;
 }
 
-static void ext4_end_buffer_io_sync(struct bio *bio)
-{
-	struct buffer_head *bh;
-	bool uptodate = bio_endio_bh(bio, &bh);
-
-	BUFFER_TRACE(bh, "");
-	if (uptodate) {
-		ext4_debug("%s: Block %lld up-to-date",
-			   __func__, bh->b_blocknr);
-		set_buffer_uptodate(bh);
-	} else {
-		ext4_debug("%s: Block %lld not up-to-date",
-			   __func__, bh->b_blocknr);
-		clear_buffer_uptodate(bh);
-	}
-
-	unlock_buffer(bh);
-}
-
 static void ext4_fc_free_inode_snap(struct inode *inode);
 
 static inline void ext4_fc_reset_inode(struct inode *inode)
@@ -691,7 +672,7 @@ static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
 	lock_buffer(bh);
 	set_buffer_dirty(bh);
 	set_buffer_uptodate(bh);
-	bh_submit(bh, REQ_OP_WRITE | write_flags, ext4_end_buffer_io_sync);
+	bh_submit(bh, REQ_OP_WRITE | write_flags, bh_end_write);
 	EXT4_SB(sb)->s_fc_bh = NULL;
 }
 
@@ -1135,7 +1116,7 @@ static int ext4_fc_snapshot_inode(struct inode *inode,
 	else if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE)
 		inode_len += ei->i_extra_isize;
 
-	snap = kmalloc(struct_size(snap, inode_buf, inode_len), GFP_NOFS);
+	snap = kmalloc_flex(*snap, inode_buf, inode_len, GFP_NOFS);
 	if (!snap) {
 		atomic64_inc(&stats->snap_fail_nomem);
 		ext4_fc_set_snap_err(snap_err, EXT4_FC_SNAP_ERR_NOMEM);
@@ -1541,7 +1522,7 @@ static int ext4_fc_alloc_snapshot_inodes(struct super_block *sb,
 	if (nr_inodes > EXT4_FC_SNAPSHOT_MAX_INODES)
 		return -E2BIG;
 
-	inodes = kvcalloc(nr_inodes, sizeof(*inodes), GFP_NOFS);
+	inodes = kvzalloc_objs(*inodes, nr_inodes, GFP_NOFS);
 	if (!inodes)
 		return -ENOMEM;
 
@@ -2196,8 +2177,11 @@ static int ext4_fc_replay_add_range(struct super_block *sb, u8 *val)
 		if (ret == 0) {
 			/* Range is not mapped */
 			path = ext4_find_extent(inode, cur, path, 0);
-			if (IS_ERR(path))
+			if (IS_ERR(path)) {
+				ret = PTR_ERR(path);
+				path = NULL;
 				goto out;
+			}
 			memset(&newex, 0, sizeof(newex));
 			newex.ee_block = cpu_to_le32(cur);
 			ext4_ext_store_pblock(
@@ -2209,8 +2193,11 @@ static int ext4_fc_replay_add_range(struct super_block *sb, u8 *val)
 			path = ext4_ext_insert_extent(NULL, inode,
 						      path, &newex, 0);
 			up_write((&EXT4_I(inode)->i_data_sem));
-			if (IS_ERR(path))
+			if (IS_ERR(path)) {
+				ret = PTR_ERR(path);
+				path = NULL;
 				goto out;
+			}
 			goto next;
 		}
 
@@ -2257,10 +2244,11 @@ next:
 	}
 	ext4_ext_replay_shrink_inode(inode, i_size_read(inode) >>
 					sb->s_blocksize_bits);
+	ret = 0;
 out:
 	ext4_free_ext_path(path);
 	iput(inode);
-	return 0;
+	return ret;
 }
 
 /* Replay DEL_RANGE tag */
@@ -2320,9 +2308,10 @@ ext4_fc_replay_del_range(struct super_block *sb, u8 *val)
 	ext4_ext_replay_shrink_inode(inode,
 		i_size_read(inode) >> sb->s_blocksize_bits);
 	ext4_mark_inode_dirty(NULL, inode);
+	ret = 0;
 out:
 	iput(inode);
-	return 0;
+	return ret;
 }
 
 static void ext4_fc_set_bitmaps_and_counters(struct super_block *sb)

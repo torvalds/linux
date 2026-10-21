@@ -33,9 +33,9 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "gma_display.h"
 #include "psb_drv.h"
@@ -232,16 +232,17 @@ i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
 }
 
 #define _wait_for(COND, MS, W) ({ \
-        unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);       \
-        int ret__ = 0;                                                  \
-        while (! (COND)) {                                              \
-                if (time_after(jiffies, timeout__)) {                   \
-                        ret__ = -ETIMEDOUT;                             \
-                        break;                                          \
-                }                                                       \
-                if (W && !in_dbg_master()) msleep(W);                   \
-        }                                                               \
-        ret__;                                                          \
+	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);       \
+	int ret__ = 0;                                                  \
+	while (!(COND)) {                                               \
+		if (time_after(jiffies, timeout__)) {                   \
+			ret__ = -ETIMEDOUT;                             \
+			break;                                          \
+		}                                                       \
+		if (W && !in_dbg_master())                              \
+			msleep(W);                                      \
+	}                                                               \
+	ret__;                                                          \
 })
 
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
@@ -296,10 +297,10 @@ static struct ddi_regoff ddi_DP_train_table[] = {
 };
 
 static uint32_t dp_vswing_premph_table[] = {
-        0x55338954,	0x4000,
-        0x554d8954,	0x2000,
-        0x55668954,	0,
-        0x559ac0d4,	0x6000,
+	0x55338954,	0x4000,
+	0x554d8954,	0x2000,
+	0x55668954,	0,
+	0x559ac0d4,	0x6000,
 };
 /**
  * is_edp - is the given port attached to an eDP panel (either CPU or PCH)
@@ -1141,7 +1142,7 @@ static void cdv_intel_dp_prepare(struct drm_encoder *encoder)
 		cdv_intel_edp_backlight_off(intel_encoder);
 		cdv_intel_edp_panel_off(intel_encoder);
 		cdv_intel_edp_panel_vdd_on(intel_encoder);
-        }
+	}
 	/* Wake up the sink first */
 	cdv_intel_dp_sink_dpms(intel_encoder, DRM_MODE_DPMS_ON);
 	cdv_intel_dp_link_down(intel_encoder);
@@ -1183,7 +1184,7 @@ cdv_intel_dp_dpms(struct drm_encoder *encoder, int mode)
 			cdv_intel_edp_panel_off(intel_encoder);
 		}
 	} else {
-        	if (edp)
+		if (edp)
 			cdv_intel_edp_panel_on(intel_encoder);
 		cdv_intel_dp_sink_dpms(intel_encoder, mode);
 		if (!(dp_reg & DP_PORT_EN)) {
@@ -1191,7 +1192,7 @@ cdv_intel_dp_dpms(struct drm_encoder *encoder, int mode)
 			cdv_intel_dp_complete_link_train(intel_encoder);
 		}
 		if (edp)
-        		cdv_intel_edp_backlight_on(intel_encoder);
+			cdv_intel_edp_backlight_on(intel_encoder);
 	}
 }
 
@@ -1419,8 +1420,8 @@ cdv_intel_dp_set_vswing_premph(struct gma_encoder *encoder, uint8_t signal_level
 	DRM_DEBUG_KMS("Test2\n");
 	//return ;
 	cdv_sb_reset(dev);
-	/* ;Swing voltage programming
-        ;gfx_dpio_set_reg(0xc058, 0x0505313A) */
+	/* ;Swing voltage programming */
+	/* ;gfx_dpio_set_reg(0xc058, 0x0505313A) */
 	cdv_sb_write(dev, ddi_reg->VSwing5, 0x0505313A);
 
 	/* ;gfx_dpio_set_reg(0x8154, 0x43406055) */
@@ -1575,7 +1576,7 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 				intel_dp->train_set[0],
 				intel_dp->link_configuration[0],
 				intel_dp->link_configuration[1]);
-        	/* channel eq pattern */
+		/* channel eq pattern */
 
 		if (!cdv_intel_dp_set_link_train(encoder, reg,
 					     DP_TRAINING_PATTERN_2)) {
@@ -1704,7 +1705,7 @@ cdv_intel_dp_detect(struct drm_connector *connector, bool force)
 		if (edp)
 			cdv_intel_edp_panel_vdd_off(encoder);
 		return status;
-        }
+	}
 
 	if (intel_dp->force_audio) {
 		intel_dp->has_audio = intel_dp->force_audio > 0;
@@ -1872,6 +1873,10 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 	kfree(gma_connector);
 }
 
+static const struct drm_encoder_funcs cdv_intel_dp_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 static const struct drm_encoder_helper_funcs cdv_intel_dp_helper_funcs = {
 	.dpms = cdv_intel_dp_dpms,
 	.mode_fixup = cdv_intel_dp_mode_fixup,
@@ -1956,12 +1961,12 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	gma_encoder = kzalloc_obj(struct gma_encoder);
 	if (!gma_encoder)
 		return;
-        gma_connector = kzalloc_obj(struct gma_connector);
-        if (!gma_connector)
-                goto err_connector;
+	gma_connector = kzalloc_obj(struct gma_connector);
+	if (!gma_connector)
+		goto err_connector;
 	intel_dp = kzalloc_obj(struct cdv_intel_dp);
 	if (!intel_dp)
-	        goto err_priv;
+		goto err_priv;
 
 	if ((output_reg == DP_C) && cdv_intel_dpc_is_edp(dev))
 		type = DRM_MODE_CONNECTOR_eDP;
@@ -1970,13 +1975,14 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	encoder = &gma_encoder->base;
 
 	drm_connector_init(dev, connector, &cdv_intel_dp_connector_funcs, type);
-	drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
+	drm_encoder_init(dev, encoder, &cdv_intel_dp_funcs,
+			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 
 	if (type == DRM_MODE_CONNECTOR_DisplayPort)
 		gma_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
-        else
+	else
 		gma_encoder->type = INTEL_OUTPUT_EDP;
 
 
@@ -2006,18 +2012,18 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	cdv_disable_intel_clock_gating(dev);
 
 	cdv_intel_dp_i2c_init(gma_connector, gma_encoder, name);
-        /* FIXME:fail check */
+	/* FIXME:fail check */
 	cdv_intel_dp_add_properties(connector);
 
 	if (is_edp(gma_encoder)) {
 		int ret;
 		struct edp_power_seq cur;
-                u32 pp_on, pp_off, pp_div;
+		u32 pp_on, pp_off, pp_div;
 		u32 pwm_ctrl;
 
 		pp_on = REG_READ(PP_CONTROL);
 		pp_on &= ~PANEL_UNLOCK_MASK;
-	        pp_on |= PANEL_UNLOCK_REGS;
+		pp_on |= PANEL_UNLOCK_REGS;
 
 		REG_WRITE(PP_CONTROL, pp_on);
 
@@ -2025,42 +2031,42 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 		pwm_ctrl |= PWM_PIPE_B;
 		REG_WRITE(BLC_PWM_CTL2, pwm_ctrl);
 
-                pp_on = REG_READ(PP_ON_DELAYS);
-                pp_off = REG_READ(PP_OFF_DELAYS);
-                pp_div = REG_READ(PP_DIVISOR);
+		pp_on = REG_READ(PP_ON_DELAYS);
+		pp_off = REG_READ(PP_OFF_DELAYS);
+		pp_div = REG_READ(PP_DIVISOR);
 
 		/* Pull timing values out of registers */
-                cur.t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
-                        PANEL_POWER_UP_DELAY_SHIFT;
+		cur.t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
+			    PANEL_POWER_UP_DELAY_SHIFT;
 
-                cur.t8 = (pp_on & PANEL_LIGHT_ON_DELAY_MASK) >>
-                        PANEL_LIGHT_ON_DELAY_SHIFT;
+		cur.t8 = (pp_on & PANEL_LIGHT_ON_DELAY_MASK) >>
+			 PANEL_LIGHT_ON_DELAY_SHIFT;
 
-                cur.t9 = (pp_off & PANEL_LIGHT_OFF_DELAY_MASK) >>
-                        PANEL_LIGHT_OFF_DELAY_SHIFT;
+		cur.t9 = (pp_off & PANEL_LIGHT_OFF_DELAY_MASK) >>
+			 PANEL_LIGHT_OFF_DELAY_SHIFT;
 
-                cur.t10 = (pp_off & PANEL_POWER_DOWN_DELAY_MASK) >>
-                        PANEL_POWER_DOWN_DELAY_SHIFT;
+		cur.t10 = (pp_off & PANEL_POWER_DOWN_DELAY_MASK) >>
+			  PANEL_POWER_DOWN_DELAY_SHIFT;
 
-                cur.t11_t12 = ((pp_div & PANEL_POWER_CYCLE_DELAY_MASK) >>
-                               PANEL_POWER_CYCLE_DELAY_SHIFT);
+		cur.t11_t12 = ((pp_div & PANEL_POWER_CYCLE_DELAY_MASK) >>
+			      PANEL_POWER_CYCLE_DELAY_SHIFT);
 
-                DRM_DEBUG_KMS("cur t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
-                              cur.t1_t3, cur.t8, cur.t9, cur.t10, cur.t11_t12);
+		DRM_DEBUG_KMS("cur t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
+			      cur.t1_t3, cur.t8, cur.t9, cur.t10, cur.t11_t12);
 
 
 		intel_dp->panel_power_up_delay = cur.t1_t3 / 10;
-                intel_dp->backlight_on_delay = cur.t8 / 10;
-                intel_dp->backlight_off_delay = cur.t9 / 10;
-                intel_dp->panel_power_down_delay = cur.t10 / 10;
-                intel_dp->panel_power_cycle_delay = (cur.t11_t12 - 1) * 100;
+		intel_dp->backlight_on_delay = cur.t8 / 10;
+		intel_dp->backlight_off_delay = cur.t9 / 10;
+		intel_dp->panel_power_down_delay = cur.t10 / 10;
+		intel_dp->panel_power_cycle_delay = (cur.t11_t12 - 1) * 100;
 
-                DRM_DEBUG_KMS("panel power up delay %d, power down delay %d, power cycle delay %d\n",
-                              intel_dp->panel_power_up_delay, intel_dp->panel_power_down_delay,
-                              intel_dp->panel_power_cycle_delay);
+		DRM_DEBUG_KMS("panel power up delay %d, power down delay %d, power cycle delay %d\n",
+			      intel_dp->panel_power_up_delay, intel_dp->panel_power_down_delay,
+			      intel_dp->panel_power_cycle_delay);
 
-                DRM_DEBUG_KMS("backlight on delay %d, off delay %d\n",
-                              intel_dp->backlight_on_delay, intel_dp->backlight_off_delay);
+		DRM_DEBUG_KMS("backlight on delay %d, off delay %d\n",
+			      intel_dp->backlight_on_delay, intel_dp->backlight_off_delay);
 
 
 		cdv_intel_edp_panel_vdd_on(gma_encoder);
@@ -2075,7 +2081,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 			cdv_intel_dp_destroy(connector);
 			goto err_connector;
 		} else {
-        		DRM_DEBUG_KMS("DPCD: Rev=%x LN_Rate=%x LN_CNT=%x LN_DOWNSP=%x\n",
+			DRM_DEBUG_KMS("DPCD: Rev=%x LN_Rate=%x LN_CNT=%x LN_DOWNSP=%x\n",
 				intel_dp->dpcd[0], intel_dp->dpcd[1],
 				intel_dp->dpcd[2], intel_dp->dpcd[3]);
 
@@ -2083,7 +2089,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 		/* The CDV reference driver moves pnale backlight setup into the displays that
 		   have a backlight: this is a good idea and one we should probably adopt, however
 		   we need to migrate all the drivers before we can do that */
-                /*cdv_intel_panel_setup_backlight(dev); */
+		/*cdv_intel_panel_setup_backlight(dev); */
 	}
 	return;
 

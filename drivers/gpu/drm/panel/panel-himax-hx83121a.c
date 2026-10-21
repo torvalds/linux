@@ -33,7 +33,9 @@ struct himax {
 	struct drm_dsc_config dsc;
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data *supplies;
+	struct regulator *bl_supply;
 	struct backlight_device *backlight;
+	bool backlight_enabled;
 };
 
 struct panel_desc {
@@ -192,10 +194,31 @@ static const struct drm_panel_funcs himax_panel_funcs = {
 
 static int himax_bl_update_status(struct backlight_device *bl)
 {
-	struct mipi_dsi_device *dsi = bl_get_data(bl);
+	struct himax *ctx = bl_get_data(bl);
 	u16 brightness = backlight_get_brightness(bl);
+	int ret = 0;
+
+	if (!brightness) {
+		if (ctx->backlight_enabled)
+			ret = regulator_disable(ctx->bl_supply);
+		if (ret)
+			return ret;
+
+		ctx->backlight_enabled = false;
+
+		return 0;
+	}
+
 	/* TODO: brightness to raw map table */
-	return mipi_dsi_dcs_set_display_brightness_large(dsi, brightness);
+	if (!ctx->backlight_enabled)
+		ret = regulator_enable(ctx->bl_supply);
+	if (ret)
+		return ret;
+
+	ctx->backlight_enabled = true;
+
+	return mipi_dsi_dcs_set_display_brightness_large(to_primary_dsi(ctx),
+							 brightness);
 }
 
 static const struct backlight_ops himax_bl_ops = {
@@ -204,9 +227,9 @@ static const struct backlight_ops himax_bl_ops = {
 };
 
 static struct backlight_device *
-himax_create_backlight(struct mipi_dsi_device *dsi)
+himax_create_backlight(struct himax *ctx)
 {
-	struct device *dev = &dsi->dev;
+	struct device *dev = &to_primary_dsi(ctx)->dev;
 	const struct backlight_properties props = {
 		.type = BACKLIGHT_RAW,
 		.brightness = 512,
@@ -214,7 +237,7 @@ himax_create_backlight(struct mipi_dsi_device *dsi)
 		.scale = BACKLIGHT_SCALE_NON_LINEAR,
 	};
 
-	return devm_backlight_device_register(dev, dev_name(dev), dev, dsi,
+	return devm_backlight_device_register(dev, dev_name(dev), dev, ctx,
 					      &himax_bl_ops, &props);
 }
 
@@ -645,7 +668,11 @@ static int himax_probe(struct mipi_dsi_device *dsi)
 	ctx->panel.prepare_prev_first = true;
 
 	if (desc->has_dcs_backlight) {
-		ctx->backlight = himax_create_backlight(to_primary_dsi(ctx));
+		ctx->bl_supply = devm_regulator_get_optional(dev, "bl");
+		if (IS_ERR(ctx->bl_supply))
+			return dev_err_probe(dev, PTR_ERR(ctx->bl_supply),
+					     "Failed to get backlight supply\n");
+		ctx->backlight = himax_create_backlight(ctx);
 		if (IS_ERR(ctx->backlight))
 			return dev_err_probe(dev, PTR_ERR(ctx->backlight),
 					     "Failed to create backlight\n");

@@ -364,7 +364,6 @@ static int entity_parse_ot(struct device *dev,
 
 /**
  * sdca_asoc_pde_poll_actual_ps - Verify PDE power state reached target state
- * @dev: Pointer to the device for error logging.
  * @regmap: Register map for reading ACTUAL_PS register.
  * @function_id: SDCA function identifier.
  * @entity_id: SDCA entity identifier for the power domain.
@@ -389,11 +388,11 @@ static int entity_parse_ot(struct device *dev,
  * polling times out before reaching the target state, or a negative error code if
  * a register read fails.
  */
-int sdca_asoc_pde_poll_actual_ps(struct device *dev, struct regmap *regmap,
+int sdca_asoc_pde_poll_actual_ps(struct regmap *regmap,
 				 int function_id, int entity_id,
-			    int from_ps, int to_ps,
-			    const struct sdca_pde_delay *pde_delays,
-			    int num_delays)
+				 int from_ps, int to_ps,
+				 const struct sdca_pde_delay *pde_delays,
+				 int num_delays)
 {
 	static const int polls = 100;
 	static const int default_poll_us = 1000;
@@ -451,14 +450,14 @@ static int entity_pde_event(struct snd_soc_dapm_widget *widget,
 		return 0;
 	}
 
-	ret = sdca_asoc_pde_poll_actual_ps(component->dev, component->regmap,
+	ret = sdca_asoc_pde_poll_actual_ps(component->regmap,
 					   SDW_SDCA_CTL_FUNC(widget->reg),
 					   SDW_SDCA_CTL_ENT(widget->reg),
 					   from, to,
 					   entity->pde.max_delay,
 					   entity->pde.num_max_delay);
 	if (ret)
-		dev_err(component->dev, "%s: PDE transition %x -> %x failed, err=%d\n",
+		dev_err(component->dev, "%s: pde transition %x -> %x failed: %d\n",
 			entity->label, from, to, ret);
 
 	return ret;
@@ -1231,7 +1230,7 @@ static u64 width_find_mask(unsigned int bits)
 	}
 }
 
-static int populate_rate_format(struct device *dev,
+int sdca_asoc_populate_rate_format(struct device *dev,
 				struct sdca_function_data *function,
 				struct sdca_entity *entity,
 				struct snd_soc_pcm_stream *stream)
@@ -1292,6 +1291,7 @@ static int populate_rate_format(struct device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(sdca_asoc_populate_rate_format, "SND_SOC_SDCA");
 
 /**
  * sdca_asoc_populate_dais - fill in an array of DAI drivers for a Function
@@ -1344,7 +1344,7 @@ int sdca_asoc_populate_dais(struct device *dev, struct sdca_function_data *funct
 		stream->channels_min = 1;
 		stream->channels_max = SDCA_MAX_CHANNEL_COUNT;
 
-		ret = populate_rate_format(dev, function, entity, stream);
+		ret = sdca_asoc_populate_rate_format(dev, function, entity, stream);
 		if (ret)
 			return ret;
 

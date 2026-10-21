@@ -155,7 +155,7 @@ int spmc_quiesce_on_owner(u64 epoch)
 {
 	u64 i;
 
-	bpf_for(i, 0, TEST_SPMC_SYNC_SPINS) {
+	for (i = zero; i < TEST_SPMC_SYNC_SPINS && can_loop; i++) {
 		if (test_abort)
 			return -EINTR;
 		if (smp_load_acquire(&owner_epoch) >= epoch)
@@ -175,8 +175,7 @@ int spmc_quiesce_on_stealer(u64 epoch)
 	int err = -ETIMEDOUT;
 
 	target = STEALER_EPOCH(epoch);
-	bpf_for(i, 0, TEST_SPMC_SYNC_SPINS) {
-
+	for (i = zero; i < TEST_SPMC_SYNC_SPINS && can_loop; i++) {
 		if (test_abort) {
 			err = -EINTR;
 			break;
@@ -391,7 +390,7 @@ int spmc_wait_for_stealers_to_start(u64 target)
 {
 	u64 i;
 
-	bpf_for(i, 0, TEST_SPMC_SYNC_SPINS) {
+	for (i = zero; i < TEST_SPMC_SYNC_SPINS && can_loop; i++) {
 		if (test_abort)
 			return -EINTR;
 		if (READ_ONCE(stealers_started) >= target)
@@ -537,7 +536,7 @@ static int spmc_wait_for_round_steals(u64 target)
 
 	arena_subprog_init();
 
-	bpf_for(i, 0, TEST_SPMC_SYNC_SPINS) {
+	for (i = zero; i < TEST_SPMC_SYNC_SPINS && can_loop; i++) {
 		if (test_abort)
 			return -EINTR;
 		if (round_steals >= target)

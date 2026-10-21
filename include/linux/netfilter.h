@@ -93,6 +93,7 @@ enum nf_hook_ops_type {
 	NF_HOOK_OP_NF_TABLES,
 	NF_HOOK_OP_BPF,
 	NF_HOOK_OP_NFT_FT,
+	NF_HOOK_OP_NAT,
 };
 
 struct nf_hook_ops {
@@ -138,6 +139,12 @@ struct nf_hook_entries {
 	 *   packet path processing:
 	 * struct nf_hook_entries_rcu_head     head
 	 */
+};
+
+struct nf_nat_lookup_hook_priv {
+	struct nf_hook_entries __rcu *entries;
+
+	struct rcu_head rcu_head;
 };
 
 #ifdef CONFIG_NETFILTER

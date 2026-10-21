@@ -1302,7 +1302,7 @@ static const struct drm_bridge_funcs ti_sn_bridge_funcs = {
 	.atomic_enable = ti_sn_bridge_atomic_enable,
 	.atomic_disable = ti_sn_bridge_atomic_disable,
 	.atomic_post_disable = ti_sn_bridge_atomic_post_disable,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.debugfs_init = ti_sn65dsi86_debugfs_init,
@@ -2080,7 +2080,7 @@ static int ti_sn65dsi86_probe(struct i2c_client *client)
 						dev_name(pdata->dev), pdata);
 
 		if (ret)
-			return dev_err_probe(dev, ret, "failed to request interrupt\n");
+			return ret;
 	}
 
 	/*
@@ -2116,8 +2116,8 @@ static int ti_sn65dsi86_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ti_sn65dsi86_id[] = {
-	{ "ti,sn65dsi86" },
-	{}
+	{ .name = "ti,sn65dsi86" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ti_sn65dsi86_id);
 

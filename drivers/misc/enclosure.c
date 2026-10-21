@@ -184,8 +184,8 @@ EXPORT_SYMBOL_GPL(enclosure_unregister);
 
 static void enclosure_link_name(struct enclosure_component *cdev, char *name)
 {
-	strcpy(name, "enclosure_device:");
-	strcat(name, dev_name(&cdev->cdev));
+	snprintf(name, ENCLOSURE_NAME_SIZE, "enclosure_device:%s",
+		 dev_name(&cdev->cdev));
 }
 
 static void enclosure_remove_links(struct enclosure_component *cdev)

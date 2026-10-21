@@ -244,7 +244,7 @@ void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
 		struct inode *inode);
 
 /**
- * wbc_init_bio - writeback specific initializtion of bio
+ * wbc_init_bio - writeback specific initialization of bio
  * @wbc: writeback_control for the writeback in progress
  * @bio: bio to be initialized
  *

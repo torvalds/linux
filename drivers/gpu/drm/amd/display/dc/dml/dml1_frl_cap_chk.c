@@ -630,17 +630,17 @@ enum frl_cap_chk_result dml1_frl_cap_chk(struct frl_cap_chk_params *params)
 {
 	struct frl_cap_chk_intermediates inter;
 
-#if defined (CONFIG_DRM_AMD_DC_FP)
-	if (params->compressed)
-		return dml1_frl_cap_chk_compressed(params, &inter);
-#endif
-
 	return dml1_frl_cap_chk_inter(params, &inter);
 }
 
 enum frl_cap_chk_result dml1_frl_cap_chk_inter(struct frl_cap_chk_params *params,
 					       struct frl_cap_chk_intermediates *inter)
 {
+#if defined (CONFIG_DRM_AMD_DC_FP)
+	if (params->compressed)
+		return dml1_frl_cap_chk_compressed(params, inter);
+#endif
+
 	return dml1_frl_cap_chk_uncompressed(params, inter);
 }
 

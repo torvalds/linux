@@ -66,4 +66,12 @@ HPO_DCN42 += dcn42_hpo_frl_stream_encoder.o
 AMD_DAL_HPO_DCN42 = $(addprefix $(AMDDALPATH)/dc/hpo/dcn42/,$(HPO_DCN42))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_HPO_DCN42)
+###############################################################################
+# DCN60
+###############################################################################
+HPO_DCN60 = dcn60_hpo_frl_stream_encoder.o dcn60_hpo_frl_link_encoder.o
+
+AMD_DAL_HPO_DCN60 = $(addprefix $(AMDDALPATH)/dc/hpo/dcn60/,$(HPO_DCN60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_HPO_DCN60)
 endif

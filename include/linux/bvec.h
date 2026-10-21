@@ -110,7 +110,7 @@ struct bvec_iter {
 	/*
 	 * Current offset in the bvec entry pointed to by `bi_idx`.
 	 */
-	unsigned int		bi_bvec_done;
+	unsigned int		bi_offset;
 } __packed __aligned(4);
 
 struct bvec_iter_all {
@@ -135,14 +135,14 @@ mp_bvec_iter_page(const struct bio_vec *bvecs, const struct bvec_iter iter)
 static __always_inline unsigned int
 mp_bvec_iter_len(const struct bio_vec *bvecs, const struct bvec_iter iter)
 {
-	return min(__bvec_iter_bvec(bvecs, iter)->bv_len - iter.bi_bvec_done,
+	return min(__bvec_iter_bvec(bvecs, iter)->bv_len - iter.bi_offset,
 			iter.bi_size);
 }
 
 static __always_inline unsigned int
 mp_bvec_iter_offset(const struct bio_vec *bvecs, const struct bvec_iter iter)
 {
-	return __bvec_iter_bvec(bvecs, iter)->bv_offset + iter.bi_bvec_done;
+	return __bvec_iter_bvec(bvecs, iter)->bv_offset + iter.bi_offset;
 }
 
 static __always_inline unsigned int
@@ -204,7 +204,7 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
 	}
 
 	iter->bi_size -= bytes;
-	bytes += iter->bi_bvec_done;
+	bytes += iter->bi_offset;
 
 	while (bytes && bytes >= bv[idx].bv_len) {
 		bytes -= bv[idx].bv_len;
@@ -212,7 +212,7 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
 	}
 
 	iter->bi_idx = idx;
-	iter->bi_bvec_done = bytes;
+	iter->bi_offset = bytes;
 	return true;
 }
 
@@ -223,13 +223,13 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
 static inline void bvec_iter_advance_single(const struct bio_vec *bv,
 				struct bvec_iter *iter, unsigned int bytes)
 {
-	unsigned int done = iter->bi_bvec_done + bytes;
+	unsigned int done = iter->bi_offset + bytes;
 
 	if (done == bv[iter->bi_idx].bv_len) {
 		done = 0;
 		iter->bi_idx++;
 	}
-	iter->bi_bvec_done = done;
+	iter->bi_offset = done;
 	iter->bi_size -= bytes;
 }
 

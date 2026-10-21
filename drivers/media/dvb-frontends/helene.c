@@ -995,22 +995,22 @@ struct dvb_frontend *helene_attach_s(struct dvb_frontend *fe,
 		const struct helene_config *config,
 		struct i2c_adapter *i2c)
 {
-	struct helene_priv *priv = NULL;
+	struct helene_priv *pr = NULL;
 
-	priv = kzalloc_obj(struct helene_priv);
-	if (priv == NULL)
+	pr = kzalloc_obj(struct helene_priv);
+	if (!pr)
 		return NULL;
-	priv->i2c_address = (config->i2c_address >> 1);
-	priv->i2c = i2c;
-	priv->set_tuner_data = config->set_tuner_priv;
-	priv->set_tuner = config->set_tuner_callback;
-	priv->xtal = config->xtal;
+	pr->i2c_address = (config->i2c_address >> 1);
+	pr->i2c = i2c;
+	pr->set_tuner_data = config->set_tuner_priv;
+	pr->set_tuner = config->set_tuner_callback;
+	pr->xtal = config->xtal;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	if (helene_x_pon(priv) != 0) {
-		kfree(priv);
+	if (helene_x_pon(pr) != 0) {
+		kfree(pr);
 		return NULL;
 	}
 
@@ -1019,10 +1019,10 @@ struct dvb_frontend *helene_attach_s(struct dvb_frontend *fe,
 
 	memcpy(&fe->ops.tuner_ops, &helene_tuner_ops_s,
 			sizeof(struct dvb_tuner_ops));
-	fe->tuner_priv = priv;
-	dev_info(&priv->i2c->dev,
-			"Sony HELENE Sat attached on addr=%x at I2C adapter %p\n",
-			priv->i2c_address, priv->i2c);
+	fe->tuner_priv = pr;
+	dev_info(&pr->i2c->dev,
+		 "Sony HELENE Sat attached on addr=%x at I2C adapter %p\n",
+		 pr->i2c_address, pr->i2c);
 	return fe;
 }
 EXPORT_SYMBOL_GPL(helene_attach_s);
@@ -1031,22 +1031,22 @@ struct dvb_frontend *helene_attach(struct dvb_frontend *fe,
 		const struct helene_config *config,
 		struct i2c_adapter *i2c)
 {
-	struct helene_priv *priv = NULL;
+	struct helene_priv *pr = NULL;
 
-	priv = kzalloc_obj(struct helene_priv);
-	if (priv == NULL)
+	pr = kzalloc_obj(struct helene_priv);
+	if (!pr)
 		return NULL;
-	priv->i2c_address = (config->i2c_address >> 1);
-	priv->i2c = i2c;
-	priv->set_tuner_data = config->set_tuner_priv;
-	priv->set_tuner = config->set_tuner_callback;
-	priv->xtal = config->xtal;
+	pr->i2c_address = (config->i2c_address >> 1);
+	pr->i2c = i2c;
+	pr->set_tuner_data = config->set_tuner_priv;
+	pr->set_tuner = config->set_tuner_callback;
+	pr->xtal = config->xtal;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	if (helene_x_pon(priv) != 0) {
-		kfree(priv);
+	if (helene_x_pon(pr) != 0) {
+		kfree(pr);
 		return NULL;
 	}
 
@@ -1055,10 +1055,10 @@ struct dvb_frontend *helene_attach(struct dvb_frontend *fe,
 
 	memcpy(&fe->ops.tuner_ops, &helene_tuner_ops_t,
 			sizeof(struct dvb_tuner_ops));
-	fe->tuner_priv = priv;
-	dev_info(&priv->i2c->dev,
-			"Sony HELENE Ter attached on addr=%x at I2C adapter %p\n",
-			priv->i2c_address, priv->i2c);
+	fe->tuner_priv = pr;
+	dev_info(&pr->i2c->dev,
+		 "Sony HELENE Ter attached on addr=%x at I2C adapter %p\n",
+		 pr->i2c_address, pr->i2c);
 	return fe;
 }
 EXPORT_SYMBOL_GPL(helene_attach);

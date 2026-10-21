@@ -14,7 +14,7 @@ maintainers:
 description: |
   The first phandle argument in the PHY specifier identifies the PHY, its
   meaning is compatible dependent. For the currently supported SoCs (Exynos4210
-  and Exynos4212) it is as follows::
+  and Exynos4212) it is as follows:
     0 - USB device ("device"),
     1 - USB host ("host"),
     2 - HSIC0 ("hsic0"),

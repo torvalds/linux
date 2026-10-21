@@ -1,3 +1,5 @@
+.. _crypto_userspace_interface:
+
 User Space Interface
 ====================
 
@@ -12,9 +14,14 @@ AF_ALG is insecure and is deprecated. Originally added to the kernel in 2010,
 most kernel developers now consider it to be a mistake. Support for hardware
 accelerators, which was the original purpose of AF_ALG, has been removed.
 
-AF_ALG continues to be supported only for backwards compatibility. On systems
-where no programs using AF_ALG remain, the support for it should be disabled by
-disabling ``CONFIG_CRYPTO_USER_API_*``.
+AF_ALG continues to be supported only for backwards compatibility.
+
+Starting in Linux v7.3, the set of algorithms supported by AF_ALG is limited by
+default. See :ref:`/proc/sys/crypto/af_alg_restrict <af_alg_restrict>`.
+
+On systems where no programs using AF_ALG remain, the support for it should be
+disabled entirely by setting ``/proc/sys/crypto/af_alg_restrict`` to 2 or by
+disabling ``CONFIG_CRYPTO_USER_API_*`` in the kernel configuration.
 
 Deprecation
 -----------

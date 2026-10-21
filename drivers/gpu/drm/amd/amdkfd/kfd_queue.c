@@ -102,7 +102,7 @@ static int kfd_queue_buffer_svm_get(struct kfd_process_device *pdd, u64 addr, u6
 	mutex_lock(&p->svms.lock);
 
 	/*
-	 * range may split to multiple svm pranges aligned to granularity boundaery.
+	 * range may split to multiple svm pranges aligned to granularity boundary.
 	 */
 	while (size) {
 		uint32_t gpuid, gpuidx;
@@ -112,11 +112,10 @@ static int kfd_queue_buffer_svm_get(struct kfd_process_device *pdd, u64 addr, u6
 		if (!prange)
 			break;
 
-		if (!prange->mapped_to_gpu)
-			break;
-
 		r = kfd_process_gpuid_from_node(p, pdd->dev, &gpuid, &gpuidx);
 		if (r < 0)
+			break;
+		if (!test_bit(gpuidx, prange->bitmap_mapped))
 			break;
 		if (!test_bit(gpuidx, prange->bitmap_access) &&
 		    !test_bit(gpuidx, prange->bitmap_aip))

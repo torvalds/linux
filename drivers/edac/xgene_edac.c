@@ -1924,11 +1924,8 @@ static int xgene_edac_probe(struct platform_device *pdev)
 			rc = devm_request_irq(&pdev->dev, irq,
 					      xgene_edac_isr, IRQF_SHARED,
 					      dev_name(&pdev->dev), edac);
-			if (rc) {
-				dev_err(&pdev->dev,
-					"Could not request IRQ %d\n", irq);
+			if (rc)
 				goto out_err;
-			}
 		}
 	}
 

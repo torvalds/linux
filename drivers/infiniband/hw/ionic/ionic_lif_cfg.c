@@ -40,6 +40,8 @@ void ionic_fill_lif_cfg(struct ionic_lif *lif, struct ionic_lif_cfg *cfg)
 	cfg->dbid_count = le32_to_cpu(lif->ionic->ident.dev.ndbpgs_per_lif);
 	cfg->dbpage = lif->kern_dbpage;
 	cfg->intr_ctrl = lif->ionic->idev.intr_ctrl;
+	if (lif->phc)
+		cfg->phc_state = lif->phc->state_page;
 
 	cfg->db_phys = lif->ionic->bars[IONIC_PCI_BAR_DBELL].bus_addr;
 
@@ -70,7 +72,7 @@ void ionic_fill_lif_cfg(struct ionic_lif *lif, struct ionic_lif_cfg *cfg)
 	 * eq_count is tunable; see ionic_eq_count
 	 */
 	cfg->aq_count = le32_to_cpu(ident->rdma.aq_qtype.qid_count);
-	cfg->eq_count = le32_to_cpu(ident->rdma.eq_qtype.qid_count);
+	cfg->eq_count = lif->ionic->neqs_per_lif;
 	cfg->cq_count = le32_to_cpu(ident->rdma.cq_qtype.qid_count);
 	cfg->qp_count = le32_to_cpu(ident->rdma.sq_qtype.qid_count);
 	cfg->dbid_count = le32_to_cpu(lif->ionic->ident.dev.ndbpgs_per_lif);

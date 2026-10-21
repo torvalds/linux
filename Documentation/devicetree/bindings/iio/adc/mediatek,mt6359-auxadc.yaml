@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/adc/mediatek,mt6359-auxadc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek MT6350 series PMIC AUXADC
+title: MediaTek MT6350 series and similar PMIC AUXADC
 
 maintainers:
   - AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
@@ -20,6 +20,7 @@ properties:
   compatible:
     oneOf:
       - enum:
+          - mediatek,mt6323-auxadc
           - mediatek,mt6357-auxadc
           - mediatek,mt6358-auxadc
           - mediatek,mt6359-auxadc

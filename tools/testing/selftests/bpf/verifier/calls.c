@@ -31,7 +31,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "R1 pointer type STRUCT prog_test_fail1 must point to scalar",
+	.errstr = "R1 is fp expected STRUCT prog_test_fail1",
 	.fixup_kfunc_btf_id = {
 		{ "bpf_kfunc_call_test_fail1", 2 },
 	},
@@ -46,7 +46,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "max struct nesting depth exceeded\nR1 pointer type STRUCT prog_test_fail2",
+	.errstr = "max struct nesting depth exceeded\nR1 is fp expected STRUCT prog_test_fail2",
 	.fixup_kfunc_btf_id = {
 		{ "bpf_kfunc_call_test_fail2", 2 },
 	},
@@ -61,7 +61,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "R1 pointer type STRUCT prog_test_fail3 must point to scalar",
+	.errstr = "R1 is fp expected STRUCT prog_test_fail3",
 	.fixup_kfunc_btf_id = {
 		{ "bpf_kfunc_call_test_fail3", 2 },
 	},
@@ -1091,7 +1091,17 @@
 	/* stack_main=32, stack_A=256, stack_B=64
 	 * and max(main+A, main+A+B) < 512
 	 */
-	.result = ACCEPT,
+	.result = VERBOSE_ACCEPT,
+	.errstr = "stack depth max 352\t"
+		  "subprog 0 (<unknown>) main insns_self \t"
+		  " insns_total \t"
+		  " stack 32\t"
+		  "subprog 1 (<unknown>) static insns_self \t"
+		  " insns_total \t"
+		  " stack 256\t"
+		  "subprog 2 (<unknown>) static insns_self \t"
+		  " insns_total \t"
+		  " stack 64",
 },
 {
 	"calls: stack depth check using three frames. test2",

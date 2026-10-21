@@ -1002,6 +1002,56 @@ static void gpu_test_buddy_alloc_clear(struct kunit *test)
 				"buddy_alloc hit an error size=%lu\n", ps);
 	gpu_buddy_free_list(&mm, &allocated, GPU_BUDDY_CLEARED);
 	gpu_buddy_fini(&mm);
+
+	/*
+	 * Using a non-power-of-two mm size, allocate all 4KiB blocks and split
+	 * them across two alternating lists, then free one list as cleared and
+	 * the other as dirty. This interleaves cleared and dirty blocks so that
+	 * neighbouring buddies cannot be merged, fragmenting the address space.
+	 * After gpu_buddy_reset_clear(false) every block should be marked dirty
+	 * and the split blocks should be merged back to their original size, so
+	 * clear_avail must drop to 0.
+	 */
+	KUNIT_EXPECT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+	KUNIT_EXPECT_EQ(test, mm.max_order, max_order);
+
+	n_pages = mm_size / ps;
+	for (i = 0; i < n_pages; i++) {
+		struct list_head *list = (i % 2) ? &clean : &dirty;
+
+		KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_alloc_blocks(&mm, 0, mm_size,
+								    ps, ps, list, 0),
+				"buddy_alloc hit an error size=%lu\n", ps);
+	}
+
+	gpu_buddy_free_list(&mm, &clean, GPU_BUDDY_CLEARED);
+	gpu_buddy_free_list(&mm, &dirty, 0);
+	gpu_buddy_reset_clear(&mm, false);
+	KUNIT_EXPECT_EQ(test, mm.clear_avail, 0);
+	gpu_buddy_fini(&mm);
+
+	/*
+	 * Repeat the same fragmented setup, but this time call
+	 * gpu_buddy_reset_clear(true). Every block should be marked cleared and
+	 * the split blocks should be merged back to their original size, so the
+	 * whole address space (clear_avail) must equal mm_size.
+	 */
+	KUNIT_EXPECT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+	KUNIT_EXPECT_EQ(test, mm.max_order, max_order);
+
+	for (i = 0; i < n_pages; i++) {
+		struct list_head *list = (i % 2) ? &clean : &dirty;
+
+		KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_alloc_blocks(&mm, 0, mm_size,
+								    ps, ps, list, 0),
+				"buddy_alloc hit an error size=%lu\n", ps);
+	}
+
+	gpu_buddy_free_list(&mm, &clean, GPU_BUDDY_CLEARED);
+	gpu_buddy_free_list(&mm, &dirty, 0);
+	gpu_buddy_reset_clear(&mm, true);
+	KUNIT_EXPECT_EQ(test, mm.clear_avail, mm_size);
+	gpu_buddy_fini(&mm);
 }
 
 static void gpu_test_buddy_alloc_contiguous(struct kunit *test)
@@ -1381,6 +1431,50 @@ static void gpu_test_buddy_alloc_exceeds_max_order(struct kunit *test)
 	gpu_buddy_fini(&mm);
 }
 
+static void gpu_test_buddy_addr_to_block(struct kunit *test)
+{
+	struct gpu_buddy_block *allocated_block, *found_block;
+	LIST_HEAD(allocated_list);
+	const u64 test_size = SZ_4M + SZ_2M;
+	const u64 alloc_start = SZ_4M;
+	const u64 alloc_size = SZ_4K;
+	const u64 chunk_size = SZ_4K;
+	struct gpu_buddy mm;
+
+	KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_init(&mm, test_size, chunk_size),
+			       "buddy_init failed\n");
+
+	KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_alloc_blocks(&mm, alloc_start,
+							    alloc_start + alloc_size,
+							    alloc_size, chunk_size,
+							    &allocated_list, 0),
+			       "buddy_alloc failed\n");
+
+	allocated_block = list_first_entry(&allocated_list, struct gpu_buddy_block, link);
+	KUNIT_EXPECT_EQ(test, gpu_buddy_block_offset(allocated_block), alloc_start);
+	KUNIT_EXPECT_EQ(test, gpu_buddy_block_size(&mm, allocated_block), alloc_size);
+
+	found_block = gpu_buddy_allocated_addr_to_block(&mm, alloc_start);
+	KUNIT_EXPECT_PTR_EQ(test, found_block, allocated_block);
+
+	/* Unaligned address inside the allocated block (should resolve to the same block) */
+	found_block = gpu_buddy_allocated_addr_to_block(&mm, alloc_start + 16);
+	KUNIT_EXPECT_PTR_EQ(test, found_block, allocated_block);
+
+	/* An unallocated address inside the manager should return NULL. */
+	found_block = gpu_buddy_allocated_addr_to_block(&mm,
+							alloc_start - chunk_size);
+	KUNIT_EXPECT_NULL(test, found_block);
+
+	/* An address outside the manager should return -ENXIO. */
+	found_block = gpu_buddy_allocated_addr_to_block(&mm, test_size);
+	KUNIT_EXPECT_EQ(test, PTR_ERR(found_block), -ENXIO);
+
+	/* 3. Standard inline cleanup flow */
+	gpu_buddy_free_list(&mm, &allocated_list, 0);
+	gpu_buddy_fini(&mm);
+}
+
 static int gpu_buddy_suite_init(struct kunit_suite *suite)
 {
 	while (!random_seed)
@@ -1405,6 +1499,7 @@ static struct kunit_case gpu_buddy_tests[] = {
 	KUNIT_CASE(gpu_test_buddy_alloc_exceeds_max_order),
 	KUNIT_CASE(gpu_test_buddy_offset_aligned_allocation),
 	KUNIT_CASE(gpu_test_buddy_subtree_offset_alignment_stress),
+	KUNIT_CASE(gpu_test_buddy_addr_to_block),
 	{}
 };
 

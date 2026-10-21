@@ -795,16 +795,12 @@ int uniphier_aio_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_component(dev, &uniphier_aio_component,
 					      chip->chip_spec->dais,
 					      chip->chip_spec->num_dais);
-	if (ret) {
-		dev_err(dev, "Register component failed.\n");
+	if (ret)
 		goto err_out_reset;
-	}
 
 	ret = uniphier_aiodma_soc_register_platform(pdev);
-	if (ret) {
-		dev_err(dev, "Register platform failed.\n");
+	if (ret)
 		goto err_out_reset;
-	}
 
 	return 0;
 

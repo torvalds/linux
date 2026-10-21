@@ -135,14 +135,16 @@ struct lzma_dec {
 	uint32_t rep2;
 	uint32_t rep3;
 
-	/* Types of the most recently seen LZMA symbols */
-	enum lzma_state state;
-
 	/*
 	 * Length of a match. This is updated so that dict_repeat can
-	 * be called again to finish repeating the whole match.
+	 * be called again to finish repeating the whole match. This is
+	 * size_t because a pointer to this is passed to dict_repeat,
+	 * and there it's nicer to have size_t instead of uint32_t.
 	 */
-	uint32_t len;
+	size_t len;
+
+	/* Types of the most recently seen LZMA symbols */
+	enum lzma_state state;
 
 	/*
 	 * LZMA properties or related bit masks (number of literal
@@ -228,13 +230,13 @@ struct lzma2_dec {
 	enum lzma2_seq next_sequence;
 
 	/* Uncompressed size of LZMA chunk (2 MiB at maximum) */
-	uint32_t uncompressed;
+	size_t uncompressed;
 
 	/*
 	 * Compressed size of LZMA chunk or compressed/uncompressed
 	 * size of uncompressed chunk (64 KiB at maximum)
 	 */
-	uint32_t compressed;
+	size_t compressed;
 
 	/*
 	 * True if dictionary reset is needed. This is false before
@@ -269,11 +271,11 @@ struct xz_dec_lzma2 {
 	struct lzma_dec lzma;
 
 	/*
-	 * Temporary buffer which holds small number of input bytes between
+	 * Temporary buffer which holds a small number of input bytes between
 	 * decoder calls. See lzma2_lzma() for details.
 	 */
 	struct {
-		uint32_t size;
+		size_t size;
 		uint8_t buf[3 * LZMA_IN_REQUIRED];
 	} temp;
 };
@@ -320,7 +322,7 @@ static inline bool dict_has_space(const struct dictionary *dict)
  * still empty. This special case is needed for single-call decoding to
  * avoid writing a '\0' to the end of the destination buffer.
  */
-static inline uint32_t dict_get(const struct dictionary *dict, uint32_t dist)
+static inline uint32_t dict_get(const struct dictionary *dict, size_t dist)
 {
 	size_t offset = dict->pos - dist - 1;
 
@@ -346,15 +348,15 @@ static inline void dict_put(struct dictionary *dict, uint8_t byte)
  * invalid, false is returned. On success, true is returned and *len is
  * updated to indicate how many bytes were left to be repeated.
  */
-static bool dict_repeat(struct dictionary *dict, uint32_t *len, uint32_t dist)
+static bool dict_repeat(struct dictionary *dict, size_t *len, size_t dist)
 {
 	size_t back;
-	uint32_t left;
+	size_t left;
 
 	if (dist >= dict->full || dist >= dict->size)
 		return false;
 
-	left = min_t(size_t, dict->limit - dict->pos, *len);
+	left = min(dict->limit - dict->pos, *len);
 	*len -= left;
 
 	back = dict->pos - dist - 1;
@@ -375,7 +377,7 @@ static bool dict_repeat(struct dictionary *dict, uint32_t *len, uint32_t dist)
 
 /* Copy uncompressed data as is from input to dictionary and output buffers. */
 static void dict_uncompressed(struct dictionary *dict, struct xz_buf *b,
-			      uint32_t *left)
+			      size_t *left)
 {
 	size_t copy_size;
 
@@ -433,7 +435,7 @@ static void dict_uncompressed(struct dictionary *dict, struct xz_buf *b,
  * enough space in b->out. This is guaranteed because caller uses dict_limit()
  * before decoding data into the dictionary.
  */
-static uint32_t dict_flush(struct dictionary *dict, struct xz_buf *b)
+static size_t dict_flush(struct dictionary *dict, struct xz_buf *b)
 {
 	size_t copy_size = dict->pos - dict->start;
 
@@ -755,8 +757,8 @@ static bool lzma_main(struct xz_dec_lzma2 *s)
 	uint32_t pos_state;
 
 	/*
-	 * If the dictionary was reached during the previous call, try to
-	 * finish the possibly pending repeat in the dictionary.
+	 * If the dictionary write limit was reached during the previous call,
+	 * try to finish the possibly pending repeat in the dictionary.
 	 */
 	if (dict_has_space(&s->dict) && s->lzma.len > 0)
 		dict_repeat(&s->dict, &s->lzma.len, s->lzma.rep0);
@@ -878,7 +880,7 @@ static bool lzma_props(struct xz_dec_lzma2 *s, uint8_t props)
 static bool lzma2_lzma(struct xz_dec_lzma2 *s, struct xz_buf *b)
 {
 	size_t in_avail;
-	uint32_t tmp;
+	size_t tmp;
 
 	in_avail = b->in_size - b->in_pos;
 	if (s->temp.size > 0 || s->lzma2.compressed == 0) {
@@ -976,7 +978,7 @@ enum xz_ret xz_dec_lzma2_run(struct xz_dec_lzma2 *s, struct xz_buf *b)
 			 *          an uncompressed chunk
 			 *   0x02   Uncompressed chunk (no dictionary reset)
 			 *
-			 * Highest three bits (s->control & 0xE0):
+			 * Highest three bits (tmp & 0xE0):
 			 *   0xE0   Dictionary reset, new properties and state
 			 *          reset, followed by LZMA compressed chunk
 			 *   0xC0   New properties and state reset, followed
@@ -988,7 +990,7 @@ enum xz_ret xz_dec_lzma2_run(struct xz_dec_lzma2 *s, struct xz_buf *b)
 			 *   0x80   LZMA chunk (no dictionary or state reset)
 			 *
 			 * For LZMA compressed chunks, the lowest five bits
-			 * (s->control & 1F) are the highest bits of the
+			 * (tmp & 1F) are the highest bits of the
 			 * uncompressed size (bits 16-20).
 			 *
 			 * A new LZMA2 stream must begin with a dictionary
@@ -1046,25 +1048,23 @@ enum xz_ret xz_dec_lzma2_run(struct xz_dec_lzma2 *s, struct xz_buf *b)
 
 		case SEQ_UNCOMPRESSED_1:
 			s->lzma2.uncompressed
-					+= (uint32_t)b->in[b->in_pos++] << 8;
+					+= (size_t)b->in[b->in_pos++] << 8;
 			s->lzma2.sequence = SEQ_UNCOMPRESSED_2;
 			break;
 
 		case SEQ_UNCOMPRESSED_2:
 			s->lzma2.uncompressed
-					+= (uint32_t)b->in[b->in_pos++] + 1;
+					+= (size_t)b->in[b->in_pos++] + 1;
 			s->lzma2.sequence = SEQ_COMPRESSED_0;
 			break;
 
 		case SEQ_COMPRESSED_0:
-			s->lzma2.compressed
-					= (uint32_t)b->in[b->in_pos++] << 8;
+			s->lzma2.compressed = (size_t)b->in[b->in_pos++] << 8;
 			s->lzma2.sequence = SEQ_COMPRESSED_1;
 			break;
 
 		case SEQ_COMPRESSED_1:
-			s->lzma2.compressed
-					+= (uint32_t)b->in[b->in_pos++] + 1;
+			s->lzma2.compressed += (size_t)b->in[b->in_pos++] + 1;
 			s->lzma2.sequence = s->lzma2.next_sequence;
 			break;
 
@@ -1091,16 +1091,15 @@ enum xz_ret xz_dec_lzma2_run(struct xz_dec_lzma2 *s, struct xz_buf *b)
 		case SEQ_LZMA_RUN:
 			/*
 			 * Set dictionary limit to indicate how much we want
-			 * to be encoded at maximum. Decode new data into the
+			 * to be decoded at maximum. Decode new data into the
 			 * dictionary. Flush the new data from dictionary to
 			 * b->out. Check if we finished decoding this chunk.
 			 * In case the dictionary got full but we didn't fill
 			 * the output buffer yet, we may run this loop
 			 * multiple times without changing s->lzma2.sequence.
 			 */
-			dict_limit(&s->dict, min_t(size_t,
-					b->out_size - b->out_pos,
-					s->lzma2.uncompressed));
+			dict_limit(&s->dict, min(b->out_size - b->out_pos,
+						 s->lzma2.uncompressed));
 			if (!lzma2_lzma(s, b))
 				return XZ_DATA_ERROR;
 
@@ -1260,8 +1259,8 @@ enum xz_ret xz_dec_microlzma_run(struct xz_dec_microlzma *s_ptr,
 		s->dict.end = b->out_size - b->out_pos;
 
 	while (true) {
-		dict_limit(&s->dict, min_t(size_t, b->out_size - b->out_pos,
-					   s->lzma2.uncompressed));
+		dict_limit(&s->dict, min(b->out_size - b->out_pos,
+					 s->lzma2.uncompressed));
 
 		if (!lzma2_lzma(s, b))
 			return XZ_DATA_ERROR;

@@ -81,6 +81,7 @@ int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 	else
 		memcpy(cifs_pdu->Signature.SecuritySignature, smb_signature, 8);
 
+	memzero_explicit(smb_signature, sizeof(smb_signature));
 	return rc;
 }
 
@@ -126,15 +127,13 @@ int cifs_verify_signature(struct smb_rqst *rqst,
 	rc = cifs_calc_signature(rqst, server, what_we_think_sig_should_be);
 	cifs_server_unlock(server);
 
-	if (rc)
-		return rc;
+	if (!rc) {
+		if (crypto_memneq(server_response_sig,
+				  what_we_think_sig_should_be, 8))
+			rc = -EACCES;
+	}
 
-/*	cifs_dump_mem("what we think it should be: ",
-		      what_we_think_sig_should_be, 16); */
-
-	if (crypto_memneq(server_response_sig, what_we_think_sig_should_be, 8))
-		return -EACCES;
-	else
-		return 0;
-
+	memzero_explicit(what_we_think_sig_should_be,
+			 sizeof(what_we_think_sig_should_be));
+	return rc;
 }

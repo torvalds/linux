@@ -254,10 +254,10 @@ examples:
     ethernet@15c30000 {
         compatible = "renesas,r9a09g057-gbeth", "renesas,rzv2h-gbeth", "snps,dwmac-5.20";
         reg = <0x15c30000 0x10000>;
-        clocks =  <&cpg CPG_MOD 0xbd>, <&cpg CPG_MOD 0xbc>,
-                  <&ptp_clock>, <&cpg CPG_MOD 0xb8>,
-                  <&cpg CPG_MOD 0xb9>, <&cpg CPG_MOD 0xba>,
-                  <&cpg CPG_MOD 0xbb>;
+        clocks = <&cpg CPG_MOD 0xbd>, <&cpg CPG_MOD 0xbc>,
+                 <&ptp_clock>, <&cpg CPG_MOD 0xb8>,
+                 <&cpg CPG_MOD 0xb9>, <&cpg CPG_MOD 0xba>,
+                 <&cpg CPG_MOD 0xbb>;
         clock-names = "stmmaceth", "pclk", "ptp_ref",
                       "tx", "rx", "tx-180", "rx-180";
         resets = <&cpg 0xb0>;

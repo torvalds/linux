@@ -475,8 +475,9 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 		pos += WPA_SELECTOR_LEN;
 		left -= WPA_SELECTOR_LEN;
 
-	} else if (left > 0)
+	} else if (left > 0) {
 		return _FAIL;
+	}
 
 	/* pairwise_cipher */
 	if (left >= 2) {
@@ -495,8 +496,9 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 			left -= WPA_SELECTOR_LEN;
 		}
 
-	} else if (left == 1)
+	} else if (left == 1) {
 		return _FAIL;
+	}
 
 	if (is_8021x) {
 		if (left >= 6) {
@@ -535,8 +537,9 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwi
 		pos += RSN_SELECTOR_LEN;
 		left -= RSN_SELECTOR_LEN;
 
-	} else if (left > 0)
+	} else if (left > 0) {
 		return _FAIL;
+	}
 
 	/* pairwise_cipher */
 	if (left >= 2) {
@@ -555,8 +558,9 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwi
 			left -= RSN_SELECTOR_LEN;
 		}
 
-	} else if (left == 1)
+	} else if (left == 1) {
 		return _FAIL;
+	}
 
 	if (is_8021x) {
 		if (left >= 6) {
@@ -736,6 +740,10 @@ u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id, u8 *buf_att
 		u16 attr_id = get_unaligned_be16(attr_ptr);
 		u16 attr_data_len = get_unaligned_be16(attr_ptr + 2);
 		u16 attr_len = attr_data_len + 4;
+
+		/* Reject attributes whose claimed length runs past the IE */
+		if (attr_ptr + attr_len > wps_ie + wps_ielen)
+			break;
 
 		if (attr_id == target_attr_id) {
 			target_attr_ptr = attr_ptr;
@@ -1144,6 +1152,9 @@ int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8 *category, u8 *act
 	u16 fc;
 	u8 c;
 	u8 a = ACT_PUBLIC_MAX;
+
+	if (frame_len < sizeof(struct ieee80211_hdr_3addr) + 2)
+		return false;
 
 	fc = le16_to_cpu(((struct ieee80211_hdr_3addr *)frame)->frame_control);
 

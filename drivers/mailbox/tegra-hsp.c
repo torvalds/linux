@@ -708,11 +708,8 @@ static int tegra_hsp_request_shared_irq(struct tegra_hsp *hsp)
 
 		err = devm_request_irq(hsp->dev, irq, tegra_hsp_shared_irq, 0,
 				       dev_name(hsp->dev), hsp);
-		if (err < 0) {
-			dev_err(hsp->dev, "failed to request interrupt: %d\n",
-				err);
+		if (err < 0)
 			continue;
-		}
 
 		hsp->shared_irq = i;
 
@@ -856,12 +853,8 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 		err = devm_request_irq(&pdev->dev, hsp->doorbell_irq,
 				       tegra_hsp_doorbell_irq, IRQF_NO_SUSPEND,
 				       dev_name(&pdev->dev), hsp);
-		if (err < 0) {
-			dev_err(&pdev->dev,
-			        "failed to request doorbell IRQ#%u: %d\n",
-				hsp->doorbell_irq, err);
+		if (err < 0)
 			return err;
-		}
 	}
 
 	if (hsp->shared_irqs) {

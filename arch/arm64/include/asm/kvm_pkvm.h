@@ -45,6 +45,9 @@ static inline bool kvm_pkvm_ext_allowed(struct kvm *kvm, long ext)
 		return true;
 	case KVM_CAP_ARM_MTE:
 		return false;
+	case KVM_CAP_ARM_EAGER_SPLIT_CHUNK_SIZE:
+	case KVM_CAP_ARM_SUPPORTED_BLOCK_SIZES:
+		return false;
 	default:
 		return !kvm || !kvm_vm_is_protected(kvm);
 	}
@@ -195,7 +198,10 @@ struct pkvm_mapping {
 	struct rb_node node;
 	u64 gfn;
 	u64 pfn;
-	u64 nr_pages;
+	struct {
+		u64 nr_pages:48;
+		u64 nc:1;
+	};
 	u64 __subtree_last;	/* Internal member for interval tree */
 };
 

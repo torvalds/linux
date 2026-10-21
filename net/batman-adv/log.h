@@ -117,8 +117,12 @@ static inline void _batadv_dbg(int type __always_unused,
  */
 #define batadv_info(net_dev, fmt, arg...)				\
 	do {								\
-		struct net_device *_netdev = (net_dev);                 \
-		struct batadv_priv *_batpriv = netdev_priv(_netdev);    \
+		struct batadv_priv *_batpriv;				\
+		struct net_device *_netdev;				\
+									\
+		_netdev = (net_dev);					\
+		_batpriv = netdev_priv(_netdev);			\
+									\
 		batadv_dbg(BATADV_DBG_ALL, _batpriv, fmt, ## arg);	\
 		pr_info("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
@@ -131,8 +135,12 @@ static inline void _batadv_dbg(int type __always_unused,
  */
 #define batadv_err(net_dev, fmt, arg...)				\
 	do {								\
-		struct net_device *_netdev = (net_dev);                 \
-		struct batadv_priv *_batpriv = netdev_priv(_netdev);    \
+		struct batadv_priv *_batpriv;				\
+		struct net_device *_netdev;				\
+									\
+		_netdev = (net_dev);					\
+		_batpriv = netdev_priv(_netdev);			\
+									\
 		batadv_dbg(BATADV_DBG_ALL, _batpriv, fmt, ## arg);	\
 		pr_err("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)

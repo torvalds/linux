@@ -219,8 +219,6 @@ static int mpfs_mbox_startup(struct mbox_chan *chan)
 		return -EINVAL;
 
 	ret = devm_request_irq(mbox->dev, mbox->irq, mpfs_mbox_inbox_isr, 0, "mpfs-mailbox", chan);
-	if (ret)
-		dev_err(mbox->dev, "failed to register mailbox interrupt:%d\n", ret);
 
 	return ret;
 }

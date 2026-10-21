@@ -172,8 +172,9 @@ out_mr_err:
 int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
 {
 	const struct ib_device_attr *attrs = &device->attrs;
-	int max_qp_wr, depth, delta;
 	unsigned int max_sge;
+	u32 max_qp_wr;
+	int depth, delta;
 
 	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) ||
 	    attrs->max_fast_reg_page_list_len == 0) {
@@ -229,10 +230,10 @@ int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
 	}
 
 	max_qp_wr = attrs->max_qp_wr;
+	if (max_qp_wr < RPCRDMA_BACKWARD_WRS + 1 + RPCRDMA_MIN_SLOT_TABLE)
+		return -ENOMEM;
 	max_qp_wr -= RPCRDMA_BACKWARD_WRS;
 	max_qp_wr -= 1;
-	if (max_qp_wr < RPCRDMA_MIN_SLOT_TABLE)
-		return -ENOMEM;
 	if (ep->re_max_requests > max_qp_wr)
 		ep->re_max_requests = max_qp_wr;
 	ep->re_attr.cap.max_send_wr = ep->re_max_requests * depth;

@@ -3313,6 +3313,11 @@ this special filter via::
 ftrace_enabled
 --------------
 
+.. note::
+   Disabling ftrace via this switch is deprecated. Writing 0 is refused
+   with -EOPNOTSUPP and logs a warning; writing 1 and reading the value
+   are unaffected.
+
 Note, the proc sysctl ftrace_enable is a big on/off switch for the
 function tracer. By default it is enabled (when function tracing is
 enabled in the kernel). If it is disabled, all function tracing is

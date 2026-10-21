@@ -303,10 +303,8 @@ static int srf04_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, data->irqnr, srf04_handle_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			pdev->name, indio_dev);
-	if (ret < 0) {
-		dev_err(data->dev, "request_irq: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, indio_dev);
 
@@ -330,6 +328,7 @@ static int srf04_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(data->dev, "pm_runtime_set_active: %d\n", ret);
 			iio_device_unregister(indio_dev);
+			return ret;
 		}
 
 		pm_runtime_enable(data->dev);

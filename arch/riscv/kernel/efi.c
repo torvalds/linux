@@ -95,3 +95,8 @@ int __init efi_set_mapping_permissions(struct mm_struct *mm,
 				   md->num_pages << EFI_PAGE_SHIFT,
 				   set_permissions, md);
 }
+
+bool efi_poweroff_required(void)
+{
+	return efi_enabled(EFI_RUNTIME_SERVICES);
+}

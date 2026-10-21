@@ -31,6 +31,7 @@
 
 #define PCI_DEVICE_ID_INTEL_IPU7		0x645d	/* MTL / LNL */
 #define PCI_DEVICE_ID_INTEL_IPU7P5		0xb05d	/* ARL / PTL */
+#define PCI_DEVICE_ID_INTEL_IPU8		0xd719	/* NVL */
 
 /*
  * IPU7 PCI device IDs not covered by ipu6_pci_tbl in ipu6-pci-table.h.
@@ -39,6 +40,7 @@
 static const struct pci_device_id icvs_ipu7_tbl[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IPU7) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IPU7P5) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IPU8) },
 	{ }
 };
 
@@ -962,6 +964,7 @@ static const struct acpi_device_id intel_cvs_acpi_match[] = {
 	{ "INTC10DE" }, /* LNL */
 	{ "INTC10E0" }, /* ARL */
 	{ "INTC10E1" }, /* PTL */
+	{ "INTC10FA" }, /* NVL */
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, intel_cvs_acpi_match);

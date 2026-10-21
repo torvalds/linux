@@ -74,7 +74,8 @@ for DEVNAME in $supplies; do
 	test_sysfs_prop_optional model_name
 	test_sysfs_prop_optional manufacturer
 	test_sysfs_prop_optional serial_number
-	test_sysfs_prop_optional_list technology "Unknown","NiMH","Li-ion","Li-poly","LiFe","NiCd","LiMn"
+	test_sysfs_prop_optional_list technology "Unknown","NiMH","Li-ion","Li-poly","LiFe","NiCd"\
+		,"LiMn","PbAc","NiZn","RAM","ZnAr"
 
 	test_sysfs_prop_optional cycle_count
 

@@ -47,6 +47,8 @@
 
 struct notifier_block;
 
+typedef int (*smbios_callback_fn_t)(struct device *dev, struct calling_interface_buffer *buffer);
+
 struct calling_interface_token {
 	u16 tokenID;
 	u16 location;
@@ -64,7 +66,7 @@ struct calling_interface_structure {
 	struct calling_interface_token tokens[];
 } __packed;
 
-int dell_smbios_register_device(struct device *d, int priority, void *call_fn);
+int dell_smbios_register_device(struct device *d, int priority, smbios_callback_fn_t call_fn);
 void dell_smbios_unregister_device(struct device *d);
 
 int dell_smbios_error(int value);

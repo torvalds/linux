@@ -333,16 +333,6 @@ static int isl29028_ir_get(struct isl29028_chip *chip, int *ir_data)
 	return isl29028_read_als_ir(chip, ir_data);
 }
 
-static int isl29028_set_pm_runtime_busy(struct isl29028_chip *chip, bool on)
-{
-	struct device *dev = regmap_get_device(chip->regmap);
-
-	if (on)
-		return pm_runtime_resume_and_get(dev);
-
-	return pm_runtime_put_autosuspend(dev);
-}
-
 /* Channel IO */
 static int isl29028_write_raw(struct iio_dev *indio_dev,
 			      struct iio_chan_spec const *chan,
@@ -352,7 +342,7 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 	struct device *dev = regmap_get_device(chip->regmap);
 	int ret;
 
-	ret = isl29028_set_pm_runtime_busy(chip, true);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0)
 		return ret;
 
@@ -405,11 +395,11 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 	if (ret < 0)
 		return ret;
 
-	ret = isl29028_set_pm_runtime_busy(chip, false);
+	ret = pm_runtime_put_autosuspend(dev);
 	if (ret < 0)
 		return ret;
 
-	return ret;
+	return 0;
 }
 
 static int isl29028_read_raw(struct iio_dev *indio_dev,
@@ -420,7 +410,7 @@ static int isl29028_read_raw(struct iio_dev *indio_dev,
 	struct device *dev = regmap_get_device(chip->regmap);
 	int ret, pm_ret;
 
-	ret = isl29028_set_pm_runtime_busy(chip, true);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0)
 		return ret;
 
@@ -476,10 +466,10 @@ static int isl29028_read_raw(struct iio_dev *indio_dev,
 
 	/**
 	 * Preserve the ret variable if the call to
-	 * isl29028_set_pm_runtime_busy() is successful so the reading
+	 * pm_runtime_put_autosuspend() is successful so the reading
 	 * (if applicable) is returned to user space.
 	 */
-	pm_ret = isl29028_set_pm_runtime_busy(chip, false);
+	pm_ret = pm_runtime_put_autosuspend(dev);
 	if (pm_ret < 0)
 		return pm_ret;
 

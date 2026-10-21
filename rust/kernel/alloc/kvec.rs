@@ -9,6 +9,7 @@ use super::{
         Vmalloc,
         VmallocPageIter, //
     },
+    flags::__GFP_ZERO,
     layout::ArrayLayout,
     AllocError,
     Allocator,
@@ -50,6 +51,8 @@ use core::{
         SliceIndex, //
     }, //
 };
+
+use pin_init::Zeroable;
 
 mod errors;
 pub use self::errors::{InsertError, PushError, RemoveError};
@@ -529,6 +532,30 @@ where
 
         v.reserve(capacity, flags)?;
 
+        Ok(v)
+    }
+
+    /// Creates a new [`Vec`] with `n` zero-initialized elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let v = KVec::<u32>::zeroed(20, GFP_KERNEL)?;
+    ///
+    /// assert!(v.iter().all(|&x| x == 0));
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn zeroed(n: usize, flags: Flags) -> Result<Self, AllocError>
+    where
+        T: Zeroable,
+    {
+        let mut v = Self::with_capacity(n, flags | __GFP_ZERO)?;
+
+        // SAFETY:
+        // - `n <= capacity - len`: `with_capacity(n)` guarantees capacity >= n, len is 0.
+        // - All elements in `[0, n)` are initialized: `__GFP_ZERO` zeroes the allocation,
+        //   and `T: Zeroable` guarantees all-zeroes is a valid bit pattern.
+        unsafe { v.inc_len(n) };
         Ok(v)
     }
 

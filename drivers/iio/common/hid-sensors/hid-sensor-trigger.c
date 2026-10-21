@@ -233,7 +233,7 @@ void hid_sensor_remove_trigger(struct iio_dev *indio_dev,
 EXPORT_SYMBOL_NS(hid_sensor_remove_trigger, "IIO_HID");
 
 int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
-				struct hid_sensor_common *attrb)
+			     struct hid_sensor_common *attrb)
 {
 	const struct iio_dev_attr **fifo_attrs;
 	int ret;
@@ -266,7 +266,7 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 
 	trig = iio_trigger_alloc(indio_dev->dev.parent,
 				 "%s-dev%d", name, iio_device_id(indio_dev));
-	if (trig == NULL) {
+	if (!trig) {
 		dev_err(&indio_dev->dev, "Trigger Allocate Failed\n");
 		return -ENOMEM;
 	}
@@ -314,7 +314,9 @@ static int __maybe_unused hid_sensor_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct hid_sensor_common *attrb = iio_device_get_drvdata(indio_dev);
+
 	schedule_work(&attrb->work);
+
 	return 0;
 }
 
@@ -322,6 +324,7 @@ static int __maybe_unused hid_sensor_runtime_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct hid_sensor_common *attrb = iio_device_get_drvdata(indio_dev);
+
 	return _hid_sensor_power_state(attrb, true);
 }
 

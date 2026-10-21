@@ -107,3 +107,10 @@ the resulting changes.
 
 If you do so anyway, maintainers are entitled to reject your series
 without detailed review.
+
+References
+==========
+
+For specific guidelines on AI coding assistants, see:
+
+* Documentation/process/coding-assistants.rst

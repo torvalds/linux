@@ -33,6 +33,7 @@
 
 #include "internal.h"
 #include "cma.h"
+#include "mm_init.h"
 
 struct cma cma_areas[MAX_CMA_AREAS];
 unsigned int cma_area_count;
@@ -126,7 +127,6 @@ bool cma_validate_zones(struct cma *cma)
 		 * to be in the same zone. Simplify by forcing the entire
 		 * CMA resv range to be in the same zone.
 		 */
-		WARN_ON_ONCE(!pfn_valid(base_pfn));
 		if (pfn_range_intersects_zones(cma->nid, base_pfn, cmr->count)) {
 			set_bit(CMA_ZONES_INVALID, &cma->flags);
 			return false;
@@ -164,6 +164,8 @@ static void __init cma_activate_area(struct cma *cma)
 			bitmap_count = cma_bitmap_pages_to_bits(cma, count);
 			bitmap_set(cmr->bitmap, 0, bitmap_count);
 		}
+
+		WARN_ON_ONCE(!pfn_valid(cmr->base_pfn));
 
 		for (pfn = early_pfn[r]; pfn < cmr->base_pfn + cmr->count;
 		     pfn += pageblock_nr_pages)
@@ -240,7 +242,7 @@ static int __init cma_new_area(const char *name, phys_addr_t size,
 	if (name)
 		strscpy(cma->name, name);
 	else
-		snprintf(cma->name, CMA_MAX_NAME,  "cma%d\n", cma_area_count);
+		snprintf(cma->name, CMA_MAX_NAME, "cma%d", cma_area_count);
 
 	cma->available_count = cma->count = size >> PAGE_SHIFT;
 	cma->order_per_bit = order_per_bit;

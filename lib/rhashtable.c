@@ -14,6 +14,7 @@
 #include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/irq_work.h>
 #include <linux/log2.h>
 #include <linux/sched.h>
 #include <linux/rculist.h>
@@ -25,6 +26,7 @@
 #include <linux/rhashtable.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/workqueue.h>
 
 #define HASH_DEFAULT_SIZE	64UL
 #define HASH_MIN_SIZE		4U

@@ -41,7 +41,6 @@
 #define WX_VF_MAX_RX_QUEUES      4
 
 #define WX_VXITR(i)              (0x200 + (4 * (i))) /* i=[0,1] */
-#define WX_VXITR_MASK            GENMASK(8, 0)
 #define WX_VXITR_CNT_WDIS        BIT(31)
 #define WX_VXIVAR_MISC           0x260
 #define WX_VXIVAR(i)             (0x240 + (4 * (i))) /* i=[0,3] */

@@ -920,8 +920,21 @@ static int ionic_lif_rxq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	};
 	int err;
 
-	q->partner = &lif->txqcqs[q->index]->q;
-	q->partner->partner = q;
+	q->partner = NULL;
+
+	/* Only normal RX queues have matching TX queue partners. */
+	if (q->index < lif->nxqs) {
+		if (!lif->txqcqs ||
+		    q->index >= lif->ionic->ntxqs_per_lif ||
+		    !lif->txqcqs[q->index]) {
+			dev_err(dev, "missing TX queue partner for RX queue %u\n",
+				q->index);
+			return -ENXIO;
+		}
+
+		q->partner = &lif->txqcqs[q->index]->q;
+		q->partner->partner = q;
+	}
 
 	if (!lif->xdp_prog ||
 	    (lif->xdp_prog->aux && lif->xdp_prog->aux->xdp_has_frags))
@@ -1500,7 +1513,8 @@ static int ionic_set_nic_features(struct ionic_lif *lif,
 	ctx.cmd.lif_setattr.features = ionic_netdev_features_to_nic(features);
 
 	if (lif->phc)
-		ctx.cmd.lif_setattr.features |= cpu_to_le64(IONIC_ETH_HW_TIMESTAMP);
+		ctx.cmd.lif_setattr.features |= lif->ionic->ident.lif.eth.config.features &
+			cpu_to_le64(IONIC_ETH_HW_TIMESTAMP | IONIC_ETH_HW_RDMA_TIMESTAMP);
 
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
@@ -1551,6 +1565,8 @@ static int ionic_set_nic_features(struct ionic_lif *lif,
 		dev_dbg(dev, "feature ETH_HW_TSO_UDP_CSUM\n");
 	if (lif->hw_features & IONIC_ETH_HW_TIMESTAMP)
 		dev_dbg(dev, "feature ETH_HW_TIMESTAMP\n");
+	if (lif->hw_features & IONIC_ETH_HW_RDMA_TIMESTAMP)
+		dev_dbg(dev, "feature ETH_HW_RDMA_TIMESTAMP\n");
 
 	return 0;
 }

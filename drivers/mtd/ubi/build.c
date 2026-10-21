@@ -36,7 +36,7 @@
 #define MTD_PARAM_LEN_MAX 64
 
 /* Maximum number of comma-separated items in the 'mtd=' parameter */
-#define MTD_PARAM_MAX_COUNT 6
+#define MTD_PARAM_MAX_COUNT 7
 
 /* Maximum value for the number of bad PEBs per 1024 PEBs */
 #define MAX_MTD_UBI_BEB_LIMIT 768
@@ -56,6 +56,7 @@
  * @max_beb_per1024: maximum expected number of bad PEBs per 1024 PEBs
  * @enable_fm: enable fastmap when value is non-zero
  * @need_resv_pool: reserve pool->max_size pebs when value is none-zero
+ * @wl_threshold: wear-leveling threshold, 0 means use CONFIG_MTD_UBI_WL_THRESHOLD
  */
 struct mtd_dev_param {
 	char name[MTD_PARAM_LEN_MAX];
@@ -64,6 +65,7 @@ struct mtd_dev_param {
 	int max_beb_per1024;
 	int enable_fm;
 	int need_resv_pool;
+	int wl_threshold;
 };
 
 /* Numbers of elements set in the @mtd_dev_param array */
@@ -832,6 +834,8 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
  * @max_beb_per1024: maximum expected number of bad PEB per 1024 PEBs
  * @disable_fm: whether disable fastmap
  * @need_resv_pool: whether reserve pebs to fill fm_pool
+ * @wl_threshold: wear-leveling threshold for this UBI device; 0 means use
+ *		   %CONFIG_MTD_UBI_WL_THRESHOLD; accepted range is 2-65536
  *
  * This function attaches MTD device @mtd_dev to UBI and assign @ubi_num number
  * to the newly created UBI device, unless @ubi_num is %UBI_DEV_NUM_AUTO, in
@@ -848,7 +852,7 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
  */
 int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 		       int vid_hdr_offset, int max_beb_per1024, bool disable_fm,
-		       bool need_resv_pool)
+		       bool need_resv_pool, int wl_threshold)
 {
 	struct ubi_device *ubi;
 	int i, err;
@@ -858,6 +862,15 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 
 	if (!max_beb_per1024)
 		max_beb_per1024 = CONFIG_MTD_UBI_BEB_LIMIT;
+
+	if (!wl_threshold)
+		wl_threshold = CONFIG_MTD_UBI_WL_THRESHOLD;
+
+	if (wl_threshold < 2 || wl_threshold > 65536) {
+		pr_err("ubi: bad wear-leveling threshold %d\n",
+		       wl_threshold);
+		return -EINVAL;
+	}
 
 	/*
 	 * Check if we already have the same MTD device attached.
@@ -944,6 +957,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	ubi->ubi_num = ubi_num;
 	ubi->vid_hdr_offset = vid_hdr_offset;
 	ubi->autoresize_vol_id = -1;
+	ubi->wl_threshold = wl_threshold;
+	ubi->wl_free_max_diff = wl_threshold * 2;
 
 #ifdef CONFIG_MTD_UBI_FASTMAP
 	ubi->fm_pool.used = ubi->fm_pool.size = 0;
@@ -1044,7 +1059,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 		ubi->vol_count - UBI_INT_VOL_COUNT, UBI_INT_VOL_COUNT,
 		ubi->vtbl_slots);
 	ubi_msg(ubi, "max/mean erase counter: %d/%d, WL threshold: %d, image sequence number: %u",
-		ubi->max_ec, ubi->mean_ec, CONFIG_MTD_UBI_WL_THRESHOLD,
+		ubi->max_ec, ubi->mean_ec, ubi->wl_threshold,
 		ubi->image_seq);
 	ubi_msg(ubi, "available PEBs: %d, total reserved PEBs: %d, PEBs reserved for bad PEB handling: %d",
 		ubi->avail_pebs, ubi->rsvd_pebs, ubi->beb_rsvd_pebs);
@@ -1105,6 +1120,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	ubi->ref_count -= 1;
 	if (ubi->ref_count) {
 		if (!anyway) {
+			put_device(&ubi->dev);
 			spin_unlock(&ubi_devices_lock);
 			return -EBUSY;
 		}
@@ -1247,7 +1263,7 @@ static void ubi_notify_add(struct mtd_info *mtd)
 
 	/* called while holding mtd_table_mutex */
 	mutex_lock_nested(&ubi_devices_mutex, SINGLE_DEPTH_NESTING);
-	err = ubi_attach_mtd_dev(mtd, UBI_DEV_NUM_AUTO, 0, 0, false, false);
+	err = ubi_attach_mtd_dev(mtd, UBI_DEV_NUM_AUTO, 0, 0, false, false, 0);
 	mutex_unlock(&ubi_devices_mutex);
 	if (err < 0)
 		__put_mtd_device(mtd);
@@ -1289,7 +1305,8 @@ static int __init ubi_init_attach(void)
 		err = ubi_attach_mtd_dev(mtd, p->ubi_num,
 					 p->vid_hdr_offs, p->max_beb_per1024,
 					 p->enable_fm == 0,
-					 p->need_resv_pool != 0);
+					 p->need_resv_pool != 0,
+					 p->wl_threshold);
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0) {
 			pr_err("UBI error: cannot attach mtd%d\n",
@@ -1317,10 +1334,10 @@ static int __init ubi_init_attach(void)
 	return 0;
 
 out_detach:
-	for (k = 0; k < i; k++)
+	for (k = 0; k < UBI_MAX_DEVICES; k++)
 		if (ubi_devices[k]) {
 			mutex_lock(&ubi_devices_mutex);
-			ubi_detach_mtd_dev(ubi_devices[k]->ubi_num, 1);
+			ubi_detach_mtd_dev(k, 1);
 			mutex_unlock(&ubi_devices_mutex);
 		}
 	return err;
@@ -1569,12 +1586,24 @@ static int ubi_mtd_param_parse(const char *val, const struct kernel_param *kp)
 	} else
 		p->need_resv_pool = 0;
 
+	token = tokens[6];
+	if (token) {
+		int err = kstrtoint(token, 10, &p->wl_threshold);
+
+		if (err) {
+			pr_err("UBI error: bad value for wl_threshold parameter: %s\n",
+				token);
+			return -EINVAL;
+		}
+	} else
+		p->wl_threshold = 0;
+
 	mtd_devs += 1;
 	return 0;
 }
 
 module_param_call(mtd, ubi_mtd_param_parse, NULL, NULL, 0400);
-MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|path>[,<vid_hdr_offs>[,max_beb_per1024[,ubi_num]]].\n"
+MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|path>[,<vid_hdr_offs>[,max_beb_per1024[,ubi_num[,enable_fm[,need_resv_pool[,wl_threshold]]]]]].\n"
 		      "Multiple \"mtd\" parameters may be specified.\n"
 		      "MTD devices may be specified by their number, name, or path to the MTD character device node.\n"
 		      "Optional \"vid_hdr_offs\" parameter specifies UBI VID header position to be used by UBI. (default value if 0)\n"
@@ -1587,9 +1616,10 @@ MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|pa
 		      "Example 1: mtd=/dev/mtd0 - attach MTD device /dev/mtd0.\n"
 		      "Example 2: mtd=content,1984 mtd=4 - attach MTD device with name \"content\" using VID header offset 1984, and MTD device number 4 with default VID header offset.\n"
 		      "Example 3: mtd=/dev/mtd1,0,25 - attach MTD device /dev/mtd1 using default VID header offset and reserve 25*nand_size_in_blocks/1024 erase blocks for bad block handling.\n"
+		      "\t(e.g. if the NAND *chipset* has 4096 PEB, 100 will be reserved for this UBI device).\n"
 		      "Example 4: mtd=/dev/mtd1,0,0,5 - attach MTD device /dev/mtd1 to UBI 5 and using default values for the other fields.\n"
 		      "example 5: mtd=1,0,0,5 mtd=2,0,0,6,1 - attach MTD device /dev/mtd1 to UBI 5 and disable fastmap; attach MTD device /dev/mtd2 to UBI 6 and enable fastmap.(only works when fastmap is enabled and fm_autoconvert=Y).\n"
-		      "\t(e.g. if the NAND *chipset* has 4096 PEB, 100 will be reserved for this UBI device).");
+		      "Example 6: mtd=/dev/mtd0,0,0,0,0,0,256 mtd=/dev/mtd1,0,0,0,0,0,4096 - attach MTD device /dev/mtd0 with wear-leveling threshold 256, and MTD device /dev/mtd1 with threshold 4096.\n");
 #ifdef CONFIG_MTD_UBI_FASTMAP
 module_param(fm_autoconvert, bool, 0644);
 MODULE_PARM_DESC(fm_autoconvert, "Set this parameter to enable fastmap automatically on images without a fastmap.");

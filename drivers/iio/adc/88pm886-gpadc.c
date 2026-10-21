@@ -279,7 +279,7 @@ static int pm886_gpadc_read_raw(struct iio_dev *iio, struct iio_chan_spec const 
 
 static int pm886_gpadc_hw_enable(struct regmap *map)
 {
-	const u8 config[] = {
+	static const u8 config[] = {
 		PM886_GPADC_CONFIG1_EN_ALL,
 		PM886_GPADC_CONFIG2_EN_ALL,
 		PM886_GPADC_GND_DET2_EN,

@@ -80,6 +80,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com> and Josh Triplett <josh@
 					/* Must be power of two minus one. */
 #define RCUTORTURE_RDR_MAX_SEGS (RCUTORTURE_RDR_MAX_LOOPS + 3)
 
+torture_param(bool, deboost_timeliness_check, 0, "Enable checks for immediate deboosting");
 torture_param(int, extendables, RCUTORTURE_MAX_EXTEND,
 	      "Extend readers by disabling bh (1), irqs (2), or preempt (4)");
 torture_param(int, fqs_duration, 0, "Duration of fqs bursts (us), 0 to disable");
@@ -115,6 +116,7 @@ torture_param(int, n_barrier_cbs, 0, "# of callbacks/kthreads for barrier testin
 torture_param(int, n_up_down, 32, "# of concurrent up/down hrtimer-based RCU readers");
 torture_param(int, nfakewriters, 4, "Number of RCU fake writer threads");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
+torture_param(bool, nwriters, 1, "Number of RCU writer threads (0 or 1)");
 torture_param(int, object_debug, 0, "Enable debug-object double call_rcu() testing");
 torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
 torture_param(int, onoff_interval, 0, "Time between CPU hotplugs (jiffies), 0=disable");
@@ -138,6 +140,7 @@ torture_param(int, stall_cpu_irqsoff, 0, "Disable interrupts while stalling.");
 torture_param(int, stall_cpu_block, 0, "Sleep while stalling.");
 torture_param(int, stall_cpu_repeat, 0, "Number of additional stalls after the first one.");
 torture_param(int, stall_gp_kthread, 0, "Grace-period kthread stall duration (s).");
+torture_param(bool, stall_only, 0, "Suppress all non-CPU-stall kthreads.");
 torture_param(int, stat_interval, 60, "Number of seconds between stats printk()s");
 torture_param(int, stutter, 5, "Number of seconds to run/halt test");
 torture_param(int, test_boost, 1, "Test RCU prio boost: 0=no, 1=maybe, 2=yes.");
@@ -212,6 +215,7 @@ static long n_rcu_torture_boost_ktrerror;
 static long n_rcu_torture_boost_failure;
 static long n_rcu_torture_boosts;
 static atomic_long_t n_rcu_torture_timers;
+static atomic_long_t n_rcu_torture_irqs;
 static long n_barrier_attempts;
 static long n_barrier_successes; /* did rcu_barrier test succeed? */
 static unsigned long n_read_exits;
@@ -392,23 +396,23 @@ struct rcu_torture_ops {
 	void (*exp_current)(void);
 	unsigned long (*get_gp_state_exp)(void);
 	unsigned long (*start_gp_poll_exp)(void);
-	void (*start_gp_poll_exp_full)(struct rcu_gp_oldstate *rgosp);
+	void (*start_gp_poll_exp_full)(struct rcu_gp_seq *gsp);
 	bool (*poll_gp_state_exp)(unsigned long oldstate);
 	void (*cond_sync_exp)(unsigned long oldstate);
-	void (*cond_sync_exp_full)(struct rcu_gp_oldstate *rgosp);
+	void (*cond_sync_exp_full)(struct rcu_gp_seq *gsp);
 	unsigned long (*get_comp_state)(void);
-	void (*get_comp_state_full)(struct rcu_gp_oldstate *rgosp);
+	void (*get_comp_state_full)(struct rcu_gp_seq *gsp);
 	bool (*same_gp_state)(unsigned long oldstate1, unsigned long oldstate2);
-	bool (*same_gp_state_full)(struct rcu_gp_oldstate *rgosp1, struct rcu_gp_oldstate *rgosp2);
+	bool (*same_gp_state_full)(struct rcu_gp_seq *rgosp1, struct rcu_gp_seq *rgosp2);
 	unsigned long (*get_gp_state)(void);
-	void (*get_gp_state_full)(struct rcu_gp_oldstate *rgosp);
+	void (*get_gp_state_full)(struct rcu_gp_seq *gsp);
 	unsigned long (*start_gp_poll)(void);
-	void (*start_gp_poll_full)(struct rcu_gp_oldstate *rgosp);
+	void (*start_gp_poll_full)(struct rcu_gp_seq *gsp);
 	bool (*poll_gp_state)(unsigned long oldstate);
-	bool (*poll_gp_state_full)(struct rcu_gp_oldstate *rgosp);
+	bool (*poll_gp_state_full)(struct rcu_gp_seq *gsp);
 	bool (*poll_need_2gp)(bool poll, bool poll_full);
 	void (*cond_sync)(unsigned long oldstate);
-	void (*cond_sync_full)(struct rcu_gp_oldstate *rgosp);
+	void (*cond_sync_full)(struct rcu_gp_seq *gsp);
 	int poll_active;
 	int poll_active_full;
 	call_rcu_func_t call;
@@ -426,6 +430,7 @@ struct rcu_torture_ops {
 	void (*format_gp_seqs)(unsigned long long seqs, char *cp, size_t len);
 	void (*set_gpwrap_lag)(unsigned long lag);
 	int (*get_gpwrap_count)(int cpu);
+	bool (*is_task_rcu_boosted)(void);
 	long cbflood_max;
 	int irq_capable;
 	int can_boost;
@@ -464,12 +469,14 @@ rcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	unsigned long longdelay_ms = 300;
 	unsigned long long ts;
 
-	/* We want a short delay sometimes to make a reader delay the grace
-	 * period, and we want a long delay occasionally to trigger
-	 * force_quiescent_state. */
+	// If there is a forward-progress test in flight, don't delay.
+	if (atomic_read(&rcu_fwd_cb_nodelay))
+		return;
 
-	if (!atomic_read(&rcu_fwd_cb_nodelay) &&
-	    !(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
+	// We want a short delay sometimes to make a reader delay the grace
+	// period, and we want a long delay occasionally to trigger
+	// force_quiescent_state.
+	if (!(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
 		started = cur_ops->get_gp_seq();
 		ts = rcu_trace_clock_local();
 		if ((preempt_count() & HARDIRQ_MASK) || softirq_count())
@@ -635,6 +642,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.format_gp_seqs		= rcutorture_format_gp_seqs,
 	.set_gpwrap_lag		= rcu_set_gpwrap_lag,
 	.get_gpwrap_count	= rcu_get_gpwrap_count,
+	.is_task_rcu_boosted	= rcu_is_task_rcu_boosted,
 	.irq_capable		= 1,
 	.can_boost		= IS_ENABLED(CONFIG_RCU_BOOST),
 	.extendables		= RCUTORTURE_MAX_EXTEND,
@@ -760,11 +768,16 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	const long uspertick = 1000000 / HZ;
 	const long longdelay = 10;
 
-	/* We want there to be long-running readers, but not all the time. */
+	// If there is a forward-progress test in flight, don't delay.
+	if (atomic_read(&rcu_fwd_cb_nodelay))
+		return;
+
+	// We want there to be long-running readers, but not all the time.
+	// The !rcu_preempt_depth() is for RCU Tasks Trace.
 
 	delay = torture_random(rrsp) %
 		(nrealreaders * 2 * longdelay * uspertick);
-	if (!delay && in_task()) {
+	if (!delay && !in_atomic() && !rcu_preempt_depth() && !irqs_disabled()) {
 		schedule_timeout_interruptible(longdelay);
 		rtrsp->rt_delay_jiffies = longdelay;
 	} else {
@@ -1213,15 +1226,24 @@ static struct rcu_torture_ops tasks_rude_ops = {
  * Definitions for tracing RCU-tasks torture testing.
  */
 
+// Note that an RCU Tasks Trace GP must imply an RCU GP.
 static int tasks_tracing_torture_read_lock(void)
 {
-	rcu_read_lock_trace();
-	return 0;
+	int use_rcu = !(jiffies & 0xff);
+
+	if (use_rcu)
+		rcu_read_lock();
+	else
+		rcu_read_lock_trace();
+	return use_rcu;
 }
 
-static void tasks_tracing_torture_read_unlock(int idx)
+static void tasks_tracing_torture_read_unlock(int use_rcu)
 {
-	rcu_read_unlock_trace();
+	if (use_rcu)
+		rcu_read_unlock();
+	else
+		rcu_read_unlock_trace();
 }
 
 static void rcu_tasks_tracing_torture_deferred_free(struct rcu_torture *p)
@@ -1236,7 +1258,8 @@ static struct rcu_torture_ops tasks_tracing_ops = {
 	.read_delay	= srcu_read_delay,  /* just reuse srcu's version. */
 	.readunlock	= tasks_tracing_torture_read_unlock,
 	.readlock_held	= rcu_read_lock_trace_held,
-	.get_gp_seq	= rcu_no_completed,
+	.get_gp_seq	= rcu_tasks_trace_batches_completed,
+	.gp_diff	= rcu_seq_diff,
 	.deferred_free	= rcu_tasks_tracing_torture_deferred_free,
 	.sync		= synchronize_rcu_tasks_trace,
 	.exp_sync	= synchronize_rcu_tasks_trace,
@@ -1605,7 +1628,7 @@ static void rcu_torture_write_types(void)
 static void do_rtws_sync(struct torture_random_state *trsp, void (*sync)(void))
 {
 	unsigned long cookie;
-	struct rcu_gp_oldstate cookie_full;
+	struct rcu_gp_seq cookie_full;
 	bool dopoll;
 	bool dopoll_full;
 	unsigned long r = torture_random(trsp);
@@ -1653,18 +1676,18 @@ rcu_torture_writer(void *arg)
 	bool booting_still = false;
 	bool can_expedite = !rcu_gp_is_expedited() && !rcu_gp_is_normal();
 	unsigned long cookie;
-	struct rcu_gp_oldstate cookie_full;
+	struct rcu_gp_seq cookie_full;
 	int expediting = 0;
 	unsigned long gp_snap;
 	unsigned long gp_snap1;
-	struct rcu_gp_oldstate gp_snap_full;
-	struct rcu_gp_oldstate gp_snap1_full;
+	struct rcu_gp_seq gp_snap_full;
+	struct rcu_gp_seq gp_snap1_full;
 	int i;
 	int idx;
 	unsigned long j;
 	struct work_struct lazy_work;
 	int oldnice = task_nice(current);
-	struct rcu_gp_oldstate *rgo = NULL;
+	struct rcu_gp_seq *rgo = NULL;
 	int rgo_size = 0;
 	struct rcu_torture *rp;
 	struct rcu_torture *old_rp;
@@ -1963,7 +1986,7 @@ static int
 rcu_torture_fakewriter(void *arg)
 {
 	unsigned long gp_snap;
-	struct rcu_gp_oldstate gp_snap_full;
+	struct rcu_gp_seq gp_snap_full;
 	DEFINE_TORTURE_RANDOM(rand);
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fakewriter task started");
@@ -2124,6 +2147,8 @@ static void rcu_torture_reader_do_mbchk(long myid, struct rcu_torture *rtp,
 	smp_store_release(&rtrcp_assigner->rtc_chkrdr, -1); // Assigner can again assign.
 }
 
+static DEFINE_PER_CPU(bool, torture_in_scf_handler);
+
 // Verify the specified RCUTORTURE_RDR* state.
 #define ROEC_ARGS "%s %s: Current %#x  To add %#x  To remove %#x  preempt_count() %#x\n", __func__, s, curstate, new, old, preempt_count()
 static void rcutorture_one_extend_check(char *s, int curstate, int new, int old)
@@ -2133,7 +2158,7 @@ static void rcutorture_one_extend_check(char *s, int curstate, int new, int old)
 	if (!IS_ENABLED(CONFIG_RCU_TORTURE_TEST_CHK_RDR_STATE) || in_nmi())
 		return;
 
-	WARN_ONCE(!(curstate & RCUTORTURE_RDR_IRQ) && irqs_disabled() && !in_hardirq(), ROEC_ARGS);
+	WARN_ONCE(!(curstate & RCUTORTURE_RDR_IRQ) && irqs_disabled() && !in_hardirq() && !this_cpu_read(torture_in_scf_handler), ROEC_ARGS);
 	WARN_ONCE((curstate & RCUTORTURE_RDR_IRQ) && !irqs_disabled(), ROEC_ARGS);
 
 	// If CONFIG_PREEMPT_COUNT=n, further checks are unreliable.
@@ -2150,7 +2175,7 @@ static void rcutorture_one_extend_check(char *s, int curstate, int new, int old)
 
 	// Interrupt handlers have all sorts of stuff disabled, so ignore
 	// unintended disabling.
-	if (in_serving_softirq() || in_hardirq())
+	if (in_serving_softirq() || in_hardirq() || this_cpu_read(torture_in_scf_handler))
 		return;
 
 	WARN_ONCE(cur_ops->extendables &&
@@ -2343,10 +2368,17 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 	}
 
 	/*
+	 * Don't mess with interrupt masking in interrupt handlers.
+	 */
+	if (in_hardirq() || this_cpu_read(torture_in_scf_handler))
+		mask &= ~(preempts_irq | bhs);
+
+	/*
 	 * Can't enable bh w/irq disabled.
 	 */
 	if (mask & RCUTORTURE_RDR_IRQ)
 		mask |= oldmask & bhs;
+
 
 	/*
 	 * Ideally these sequences would be detected in debug builds
@@ -2392,7 +2424,7 @@ rcutorture_loop_extend(int *readstate, struct torture_random_state *trsp, struct
 struct rcu_torture_one_read_state {
 	bool checkpolling;
 	unsigned long cookie;
-	struct rcu_gp_oldstate cookie_full;
+	struct rcu_gp_seq cookie_full;
 	unsigned long started;
 	struct rcu_torture *p;
 	int readstate;
@@ -2400,6 +2432,80 @@ struct rcu_torture_one_read_state {
 	struct rt_read_seg *rtrsp;
 	unsigned long long ts;
 };
+
+static void rcu_torture_dump_read_segs(struct rt_read_seg *rrsp, int nsegs)
+{
+	bool firsttime;
+	int i;
+	int j;
+
+	firsttime = 1;
+	for (i = 0; i < nsegs; i++) {
+		if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_GP))
+			pr_alert("\t%lluus ", div64_u64(rrsp[i].rt_ts, 1000ULL));
+		else
+			pr_alert("\t");
+		pr_cont("%d: %#4x", i, rrsp[i].rt_readstate);
+		if (rrsp[i].rt_delay_jiffies != 0) {
+			pr_cont("%s%ldjiffies", firsttime ? "" : "+",
+				rrsp[i].rt_delay_jiffies);
+			firsttime = 0;
+		}
+		if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU)) {
+			pr_cont(" CPU %2d", rrsp[i].rt_cpu);
+			if (rrsp[i].rt_cpu != rrsp[i].rt_end_cpu)
+				pr_cont("->%-2d", rrsp[i].rt_end_cpu);
+			else
+				pr_cont(" ...");
+		}
+		if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_GP) &&
+		    cur_ops->gather_gp_seqs && cur_ops->format_gp_seqs) {
+			char buf1[20+1];
+			char buf2[20+1];
+			char sepchar = '-';
+
+			cur_ops->format_gp_seqs(rrsp[i].rt_gp_seq, buf1, ARRAY_SIZE(buf1));
+			cur_ops->format_gp_seqs(rrsp[i].rt_gp_seq_end, buf2, ARRAY_SIZE(buf2));
+			if (rrsp[i].rt_gp_seq == rrsp[i].rt_gp_seq_end) {
+				if (buf2[0]) {
+					for (j = 0; buf2[j]; j++)
+						buf2[j] = '.';
+					if (j)
+						buf2[j - 1] = ' ';
+				}
+				sepchar = ' ';
+			}
+			pr_cont(" %s%c%s", buf1, sepchar, buf2);
+		}
+		if (rrsp[i].rt_delay_ms != 0) {
+			pr_cont(" %s%ldms", firsttime ? "" : "+", rrsp[i].rt_delay_ms);
+			firsttime = 0;
+		}
+		if (rrsp[i].rt_delay_us != 0) {
+			pr_cont(" %s%ldus", firsttime ? "" : "+", rrsp[i].rt_delay_us);
+			firsttime = 0;
+		}
+		pr_cont("%s", rrsp[i].rt_preempted ? " preempted" : "");
+		if (rrsp[i].rt_readstate & RCUTORTURE_RDR_BH)
+			pr_cont(" BH");
+		if (rrsp[i].rt_readstate & RCUTORTURE_RDR_IRQ)
+			pr_cont(" IRQ");
+		if (rrsp[i].rt_readstate & RCUTORTURE_RDR_PREEMPT)
+			pr_cont(" PREEMPT");
+		if (rrsp[i].rt_readstate & RCUTORTURE_RDR_RBH)
+			pr_cont(" RBH");
+		if (rrsp[i].rt_readstate & RCUTORTURE_RDR_SCHED)
+			pr_cont(" SCHED");
+		if (rrsp[i].rt_readstate & RCUTORTURE_RDR_RCU_1)
+			pr_cont(" RCU_1");
+		if (rrsp[i].rt_readstate & RCUTORTURE_RDR_RCU_2)
+			pr_cont(" RCU_2");
+		pr_cont("\n");
+
+	}
+	if (rt_read_preempted)
+		pr_alert("\tReader was preempted.\n");
+}
 
 static void init_rcu_torture_one_read_state(struct rcu_torture_one_read_state *rtorsp,
 					    struct torture_random_state *trsp)
@@ -2465,13 +2571,13 @@ static void rcu_torture_one_read_end(struct rcu_torture_one_read_state *rtorsp,
 					  rtorsp->ts, rtorsp->started, completed);
 		rcu_ftrace_dump(DUMP_ALL);
 	}
-	__this_cpu_inc(rcu_torture_count[pipe_count]);
+	this_cpu_inc(rcu_torture_count[pipe_count]);
 	completed = rcutorture_seq_diff(completed, rtorsp->started);
 	if (completed > RCU_TORTURE_PIPE_LEN) {
 		/* Should not happen, but... */
 		completed = RCU_TORTURE_PIPE_LEN;
 	}
-	__this_cpu_inc(rcu_torture_batch[completed]);
+	this_cpu_inc(rcu_torture_batch[completed]);
 	preempt_enable();
 	if (rtorsp->checkpolling) {
 		if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
@@ -2514,7 +2620,9 @@ static void rcu_torture_one_read_end(struct rcu_torture_one_read_state *rtorsp,
  */
 static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 {
+	static int firsttime = 1;
 	int newstate;
+	unsigned int nsegs;
 	struct rcu_torture_one_read_state rtors;
 
 	WARN_ON_ONCE(!rcu_is_watching());
@@ -2526,6 +2634,26 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 		return false;
 	rtors.rtrsp = rcutorture_loop_extend(&rtors.readstate, trsp, rtors.rtrsp);
 	rcu_torture_one_read_end(&rtors, trsp);
+
+	// This splat will happen on systems built with CONFIG_IRQ_WORK=n
+	// and on systems where arch_irq_work_has_interrupt() returns false.
+	// It might also happen on systems using a short-duration clock
+	// interrupt instead of a self-IPI (powerpc, s390) or that use
+	// neither a self-IPI nor a short-duration clock interrupts
+	// (all architectures using the generic implementation
+	// of arch_irq_work_raise()).  On such systems, RCU cannot
+	// guarantee to immediately deboost RCU readers when the outermost
+	// rcu_read_unlock() does not end the full segmented RCU read-side
+	// critical section.
+	if (cur_ops->is_task_rcu_boosted && cur_ops->is_task_rcu_boosted() &&
+	    !in_serving_softirq() && !in_hardirq() && !in_nmi() &&
+	    READ_ONCE(firsttime) && xchg(&firsttime, 0)) {
+		WARN_ON_ONCE(deboost_timeliness_check);
+		nsegs = rtors.rtrsp - rtors.rtseg;
+		nsegs = clamp_val(nsegs, 0, RCUTORTURE_RDR_MAX_SEGS);
+		pr_alert("Slow-deboost rcutorture reader segments:\n");
+		rcu_torture_dump_read_segs(rtors.rtseg, nsegs);
+	}
 	return true;
 }
 
@@ -2545,8 +2673,43 @@ static void rcu_torture_timer(struct timer_list *unused)
 	atomic_long_inc(&n_rcu_torture_timers);
 	(void)rcu_torture_one_read(this_cpu_ptr(&rcu_torture_timer_rand), -1);
 
-	/* Test call_rcu() invocation from interrupt handler. */
+	/* Test call_rcu() invocation from softirq handler. */
 	if (cur_ops->call) {
+		struct rcu_head *rhp = kmalloc_obj(*rhp, GFP_NOWAIT);
+
+		if (rhp)
+			cur_ops->call(rhp, rcu_torture_timer_cb);
+	}
+}
+
+static DEFINE_TORTURE_RANDOM_PERCPU(rcu_torture_irq_rand);
+
+/*
+ * RCU torture reader from timer handler.  Dereferences rcu_torture_current,
+ * incrementing the corresponding element of the pipeline array.  The
+ * counter in the element should never be greater than 1, otherwise, the
+ * RCU implementation is broken.
+ *
+ * Note that on some systems, "interrupts" from idle are direct calls
+ * rather than interrupts.  The torture_in_scf_handler per-CPU variable
+ * accounts for this case.
+ */
+static void rcu_torture_irq(void *unused)
+{
+	WARN_ON_ONCE(in_nmi());
+	lockdep_assert_irqs_disabled();
+	atomic_long_inc(&n_rcu_torture_irqs);
+	this_cpu_write(torture_in_scf_handler, true);
+	(void)rcu_torture_one_read(this_cpu_ptr(&rcu_torture_irq_rand), -1);
+	this_cpu_write(torture_in_scf_handler, false);
+
+	// Test call_rcu() invocation from interrupt handler.  Interrupts
+	// will always be disabled here, even in CONFIG_PREEMPT_RT=y kernels.
+	// The "right" thing to do would be to create a special-purpose
+	// lockless or raw-spinlock-protected allocator, but in the meantime,
+	// skip testing call_rcu() from interrupt handlers in kernels built
+	// with either CONFIG_PREEMPT_RT=y or CONFIG_PROVE_LOCKING=y.
+	if (cur_ops->call && !IS_ENABLED(CONFIG_PROVE_LOCKING) && !IS_ENABLED(CONFIG_PREEMPT_RT)) {
 		struct rcu_head *rhp = kmalloc_obj(*rhp, GFP_NOWAIT);
 
 		if (rhp)
@@ -2563,6 +2726,7 @@ static void rcu_torture_timer(struct timer_list *unused)
 static int
 rcu_torture_reader(void *arg)
 {
+	unsigned long lastscf = jiffies;
 	unsigned long lastsleep = jiffies;
 	long myid = (long)arg;
 	int mynumonline = myid;
@@ -2576,8 +2740,25 @@ rcu_torture_reader(void *arg)
 	tick_dep_set_task(current, TICK_DEP_BIT_RCU);  // CPU bound, so need tick.
 	do {
 		if (irqreader && cur_ops->irq_capable) {
-			if (!timer_pending(&t))
+			if (!timer_pending(&t)) {
+				int cpu;
+
 				mod_timer(&t, jiffies + 1);
+				preempt_disable();
+				cpu = torture_random(&rand) % nr_cpu_ids;
+				if (!cpu_online(cpu)) {
+					cpu = cpumask_next(cpu, cpu_online_mask);
+					if (cpu >= nr_cpu_ids)
+						cpu = cpumask_next(-1, cpu_online_mask);
+				}
+				// An smp_call_function_single() to self is not an interrupt!
+				if (cpu != smp_processor_id() &&
+				    time_after(jiffies, lastscf + HZ * nrealreaders / 50)) {
+					smp_call_function_single(cpu, rcu_torture_irq, NULL, 0);
+					lastscf = jiffies;
+				}
+				preempt_enable();
+			}
 		}
 		if (!rcu_torture_one_read(&rand, myid) && !torture_must_stop())
 			schedule_timeout_interruptible(HZ);
@@ -2853,10 +3034,11 @@ rcu_torture_stats_print(void)
 		atomic_read(&n_rcu_torture_mbchk_fail), atomic_read(&n_rcu_torture_mbchk_tries),
 		n_rcu_torture_barrier_error,
 		n_rcu_torture_boost_ktrerror);
-	pr_cont("rtbf: %ld rtb: %ld nt: %ld ",
+	pr_cont("rtbf: %ld rtb: %ld nt: %ld ni: %ld ",
 		n_rcu_torture_boost_failure,
 		n_rcu_torture_boosts,
-		atomic_long_read(&n_rcu_torture_timers));
+		atomic_long_read(&n_rcu_torture_timers),
+		atomic_long_read(&n_rcu_torture_irqs));
 	if (updownreaders)
 		pr_cont("ndowns: %lu nups: %lu nhrt: %lu nmigrates: %lu ", ndowns, nups, nunexpired,  nmigrates);
 	torture_onoff_stats();
@@ -2913,10 +3095,10 @@ rcu_torture_stats_print(void)
 		if (cur_ops->get_gp_data)
 			cur_ops->get_gp_data(&flags, &gp_seq);
 		wtp = READ_ONCE(writer_task);
-		pr_alert("??? Writer stall state %s(%d) g%lu f%#x ->state %#x cpu %d\n",
+		pr_alert("??? Writer stall state %s(%d) g%lu f%#x ->state %c cpu %d\n",
 			 rcu_torture_writer_state_getname(),
 			 rcu_torture_writer_state, gp_seq, flags,
-			 wtp == NULL ? ~0U : wtp->__state,
+			 wtp == NULL ? '?' : task_state_to_char(wtp),
 			 wtp == NULL ? -1 : (int)task_cpu(wtp));
 		if (!splatted && wtp) {
 			sched_show_task(wtp);
@@ -3000,7 +3182,7 @@ static void
 rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" TORTURE_FLAG
-		 "--- %s: nreaders=%d nfakewriters=%d "
+		 "--- %s: nreaders=%d nwriters=%d nfakewriters=%d "
 		 "stat_interval=%d verbose=%d test_no_idle_hz=%d "
 		 "shuffle_interval=%d stutter=%d irqreader=%d "
 		 "fqs_duration=%d fqs_holdoff=%d fqs_stutter=%d "
@@ -3015,7 +3197,7 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 "nocbs_nthreads=%d nocbs_toggle=%d "
 		 "test_nmis=%d "
 		 "preempt_duration=%d preempt_interval=%d n_up_down=%d\n",
-		 torture_type, tag, nrealreaders, nrealfakewriters,
+		 torture_type, tag, nrealreaders, nwriters, nrealfakewriters,
 		 stat_interval, verbose, test_no_idle_hz, shuffle_interval,
 		 stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
 		 test_boost, cur_ops->can_boost,
@@ -3447,13 +3629,17 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 	unsigned long stopat;
 	unsigned long stoppedat;
 
-	pr_alert("%s: Starting forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
-	if (READ_ONCE(rcu_fwd_emergency_stop))
+	if (READ_ONCE(rcu_fwd_emergency_stop)) {
+		pr_alert("%s: Emergency stop, so no forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 		return; /* Get out of the way quickly, no GP wait! */
-	if (!cur_ops->call)
+	}
+	if (!cur_ops->call) {
+		pr_alert("%s: No ->call(), so no forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 		return; /* Can't do call_rcu() fwd prog without ->call. */
+	}
 
 	/* Loop continuously posting RCU callbacks. */
+	pr_alert("%s: Starting forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 	atomic_inc(&rcu_fwd_cb_nodelay);
 	cur_ops->sync(); /* Later readers see above write. */
 	WRITE_ONCE(rfp->rcu_fwd_startat, jiffies);
@@ -4020,9 +4206,7 @@ static int rcu_torture_preempt(void *unused)
 		// Wait for preempt_interval ms with up to 100us fuzz.
 		torture_hrtimeout_ms(preempt_interval, 100, &rand);
 		// Select online CPU.
-		cpu = cpumask_next(cpu, cpu_online_mask);
-		if (cpu >= nr_cpu_ids)
-			cpu = cpumask_next(-1, cpu_online_mask);
+		cpu = cpumask_next_wrap(cpu, cpu_online_mask);
 		WARN_ON_ONCE(cpu >= nr_cpu_ids);
 		// Move to that CPU, if can't do so, retry later.
 		if (torture_sched_setaffinity(current->pid, cpumask_of(cpu), false))
@@ -4094,11 +4278,9 @@ static void rcu_gpwrap_lag_cleanup(void)
 static void
 rcu_torture_cleanup(void)
 {
-	int firsttime;
 	int flags = 0;
 	unsigned long gp_seq = 0;
 	int i;
-	int j;
 
 	if (torture_cleanup_begin()) {
 		if (cur_ops->cb_barrier != NULL) {
@@ -4183,76 +4365,8 @@ rcu_torture_cleanup(void)
 		pr_alert("Failure/close-call rcutorture reader segments:\n");
 		if (rt_read_nsegs == 0)
 			pr_alert("\t: No segments recorded!!!\n");
-		firsttime = 1;
-		for (i = 0; i < rt_read_nsegs; i++) {
-			if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_GP))
-				pr_alert("\t%lluus ", div64_u64(err_segs[i].rt_ts, 1000ULL));
-			else
-				pr_alert("\t");
-			pr_cont("%d: %#4x", i, err_segs[i].rt_readstate);
-			if (err_segs[i].rt_delay_jiffies != 0) {
-				pr_cont("%s%ldjiffies", firsttime ? "" : "+",
-					err_segs[i].rt_delay_jiffies);
-				firsttime = 0;
-			}
-			if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU)) {
-				pr_cont(" CPU %2d", err_segs[i].rt_cpu);
-				if (err_segs[i].rt_cpu != err_segs[i].rt_end_cpu)
-					pr_cont("->%-2d", err_segs[i].rt_end_cpu);
-				else
-					pr_cont(" ...");
-			}
-			if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_GP) &&
-			    cur_ops->gather_gp_seqs && cur_ops->format_gp_seqs) {
-				char buf1[20+1];
-				char buf2[20+1];
-				char sepchar = '-';
-
-				cur_ops->format_gp_seqs(err_segs[i].rt_gp_seq,
-							buf1, ARRAY_SIZE(buf1));
-				cur_ops->format_gp_seqs(err_segs[i].rt_gp_seq_end,
-							buf2, ARRAY_SIZE(buf2));
-				if (err_segs[i].rt_gp_seq == err_segs[i].rt_gp_seq_end) {
-					if (buf2[0]) {
-						for (j = 0; buf2[j]; j++)
-							buf2[j] = '.';
-						if (j)
-							buf2[j - 1] = ' ';
-					}
-					sepchar = ' ';
-				}
-				pr_cont(" %s%c%s", buf1, sepchar, buf2);
-			}
-			if (err_segs[i].rt_delay_ms != 0) {
-				pr_cont(" %s%ldms", firsttime ? "" : "+",
-					err_segs[i].rt_delay_ms);
-				firsttime = 0;
-			}
-			if (err_segs[i].rt_delay_us != 0) {
-				pr_cont(" %s%ldus", firsttime ? "" : "+",
-					err_segs[i].rt_delay_us);
-				firsttime = 0;
-			}
-			pr_cont("%s", err_segs[i].rt_preempted ? " preempted" : "");
-			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_BH)
-				pr_cont(" BH");
-			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_IRQ)
-				pr_cont(" IRQ");
-			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_PREEMPT)
-				pr_cont(" PREEMPT");
-			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_RBH)
-				pr_cont(" RBH");
-			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_SCHED)
-				pr_cont(" SCHED");
-			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_RCU_1)
-				pr_cont(" RCU_1");
-			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_RCU_2)
-				pr_cont(" RCU_2");
-			pr_cont("\n");
-
-		}
-		if (rt_read_preempted)
-			pr_alert("\tReader was preempted.\n");
+		else
+			rcu_torture_dump_read_segs(err_segs, rt_read_nsegs);
 	}
 	if (atomic_read(&n_rcu_torture_error) || n_rcu_torture_barrier_error)
 		rcu_torture_print_module_parms(cur_ops, "End of test: FAILURE");
@@ -4557,6 +4671,23 @@ rcu_torture_init(void)
 		cur_ops = NULL;
 		goto unwind;
 	}
+	if (stall_only) {
+		pr_alert("rcu-torture: stall_only specified, suppressing all else.\n");
+		fqs_stutter = 0;
+		fwd_progress = 0;
+		n_barrier_cbs = 0;
+		nfakewriters = 0;
+		nocbs_nthreads = 0;
+		nreaders = 0;
+		n_up_down = 0;
+		nwriters = 0;
+		onoff_interval = 0;
+		preempt_duration = 0;
+		read_exit_burst = 0;
+		shuffle_interval = 0;
+		stutter = 0;
+		test_boost = 0;
+	}
 	if (cur_ops->fqs == NULL && fqs_duration != 0) {
 		pr_alert("rcu-torture: ->fqs NULL and non-zero fqs_duration, fqs disabled.\n");
 		fqs_duration = 0;
@@ -4663,10 +4794,11 @@ rcu_torture_init(void)
 			goto unwind;
 	}
 
-	firsterr = torture_create_kthread(rcu_torture_writer, NULL,
-					  writer_task);
-	if (torture_init_error(firsterr))
-		goto unwind;
+	if (nwriters) {
+		firsterr = torture_create_kthread(rcu_torture_writer, NULL, writer_task);
+		if (torture_init_error(firsterr))
+			goto unwind;
+	}
 
 	firsterr = rcu_torture_updown_init();
 	if (torture_init_error(firsterr))

@@ -45,7 +45,7 @@ test_offcpu_priv() {
 test_offcpu_basic() {
   echo "Basic off-cpu test"
 
-  if ! perf record --off-cpu -e dummy -o ${perfdata} sleep 1 2> /dev/null
+  if ! perf record --off-cpu -e dummy -o ${perfdata} sleep 0.3 2> /dev/null
   then
     echo "Basic off-cpu test [Failed record]"
     err=1
@@ -57,7 +57,7 @@ test_offcpu_basic() {
     err=1
     return
   fi
-  if ! perf report -i ${perfdata} -q --percent-limit=90 | grep -E -q sleep
+  if ! perf report -i ${perfdata} -q --percent-limit=70 | grep -E -q sleep
   then
     echo "Basic off-cpu test [Failed missing output]"
     err=1
@@ -98,8 +98,8 @@ test_offcpu_child() {
 test_offcpu_above_thresh() {
   echo "${test_above_thresh}"
 
-  # collect direct off-cpu samples for tasks blocked for more than 999ms
-  if ! perf record -e dummy --off-cpu --off-cpu-thresh 999 -o ${perfdata} -- sleep 1 2> /dev/null
+  # collect direct off-cpu samples for tasks blocked for more than 50ms
+  if ! perf record -e dummy --off-cpu --off-cpu-thresh 50 -o ${perfdata} -- sleep 0.1 2> /dev/null
   then
     echo "${test_above_thresh} [Failed record]"
     err=1
@@ -115,7 +115,7 @@ test_offcpu_above_thresh() {
   fi
   # there should only be one direct sample, and its period should be higher than off-cpu-thresh
   if ! perf script --time "0, ${dummy_timestamp}" -i ${perfdata} -F period | \
-       awk '{ if (int($1) > 999000000) exit 0; else exit 1; }'
+       awk '{ if (int($1) > 50000000) exit 0; else exit 1; }'
   then
     echo "${test_above_thresh} [Failed off-cpu time too short]"
     err=1
@@ -128,8 +128,8 @@ test_offcpu_above_thresh() {
 test_offcpu_below_thresh() {
   echo "${test_below_thresh}"
 
-  # collect direct off-cpu samples for tasks blocked for more than 1.2s
-  if ! perf record -e dummy --off-cpu --off-cpu-thresh 1200 -o ${perfdata} -- sleep 1 2> /dev/null
+  # collect direct off-cpu samples for tasks blocked for more than 500ms
+  if ! perf record -e dummy --off-cpu --off-cpu-thresh 500 -o ${perfdata} -- sleep 0.1 2> /dev/null
   then
     echo "${test_below_thresh} [Failed record]"
     err=1

@@ -58,6 +58,8 @@ enum scx_dsq_id_flags {
 	SCX_DSQ_GLOBAL		= SCX_DSQ_FLAG_BUILTIN | 1,
 	SCX_DSQ_LOCAL		= SCX_DSQ_FLAG_BUILTIN | 2,
 	SCX_DSQ_BYPASS		= SCX_DSQ_FLAG_BUILTIN | 3,
+	SCX_DSQ_REJECT		= SCX_DSQ_FLAG_BUILTIN | 4,	/* internal - see find_dsq_for_dispatch() */
+	SCX_DSQ_RESCUE		= SCX_DSQ_FLAG_BUILTIN | 5,	/* internal - see find_dsq_for_dispatch() */
 	SCX_DSQ_LOCAL_ON	= SCX_DSQ_FLAG_BUILTIN | SCX_DSQ_FLAG_LOCAL_ON,
 	SCX_DSQ_LOCAL_CPU_MASK	= 0xffffffffLLU,
 };
@@ -101,6 +103,7 @@ enum scx_ent_flags {
 	SCX_TASK_DEQD_FOR_SLEEP	= 1 << 3, /* last dequeue was for SLEEP */
 	SCX_TASK_SUB_INIT	= 1 << 4, /* task being initialized for a sub sched */
 	SCX_TASK_IMMED		= 1 << 5, /* task is on local DSQ with %SCX_ENQ_IMMED */
+	SCX_TASK_PROTECTED	= 1 << 6, /* slice and DSQ head position protected */
 
 	/*
 	 * Bits 8 to 10 are used to carry task state:
@@ -124,7 +127,7 @@ enum scx_ent_flags {
 	SCX_TASK_DEAD		= 5 << SCX_TASK_STATE_SHIFT,
 
 	/*
-	 * Bits 12 and 13 are used to carry reenqueue reason. In addition to
+	 * Bits 12 to 14 are used to carry reenqueue reason. In addition to
 	 * %SCX_ENQ_REENQ flag, ops.enqueue() can also test for
 	 * %SCX_TASK_REENQ_REASON_NONE to distinguish reenqueues.
 	 *
@@ -132,15 +135,17 @@ enum scx_ent_flags {
 	 * KFUNC	reenqueued by scx_bpf_dsq_reenq() and friends
 	 * IMMED	reenqueued due to failed ENQ_IMMED
 	 * PREEMPTED	preempted while running
+	 * CAP		sub-sched cap miss, see p->scx.reenq_reason_*
 	 */
 	SCX_TASK_REENQ_REASON_SHIFT = 12,
-	SCX_TASK_REENQ_REASON_BITS = 2,
+	SCX_TASK_REENQ_REASON_BITS = 3,
 	SCX_TASK_REENQ_REASON_MASK = ((1 << SCX_TASK_REENQ_REASON_BITS) - 1) << SCX_TASK_REENQ_REASON_SHIFT,
 
 	SCX_TASK_REENQ_NONE	= 0 << SCX_TASK_REENQ_REASON_SHIFT,
 	SCX_TASK_REENQ_KFUNC	= 1 << SCX_TASK_REENQ_REASON_SHIFT,
 	SCX_TASK_REENQ_IMMED	= 2 << SCX_TASK_REENQ_REASON_SHIFT,
 	SCX_TASK_REENQ_PREEMPTED = 3 << SCX_TASK_REENQ_REASON_SHIFT,
+	SCX_TASK_REENQ_CAP	= 4 << SCX_TASK_REENQ_REASON_SHIFT,
 
 	/* iteration cursor, not a task */
 	SCX_TASK_CURSOR		= 1 << 31,
@@ -189,22 +194,26 @@ struct sched_ext_entity {
 	atomic_long_t		ops_state;
 	u64			ddsp_dsq_id;
 	u64			ddsp_enq_flags;
+	u64			ddsp_slice;
+	u64			ddsp_vtime;
 	struct scx_dsq_list_node dsq_list;	/* dispatch order */
 	struct rb_node		dsq_priq;	/* p->scx.dsq_vtime order */
 	u32			dsq_seq;
 	u32			dsq_flags;	/* protected by DSQ lock */
 	u32			flags;		/* protected by rq lock */
 	u32			weight;
+	u32			reenq_cnt;	/* reenqueues since last run */
 	s32			sticky_cpu;
 	s32			holding_cpu;
 	s32			selected_cpu;
+	s32			runnable_cpu;	/* cpu @p is runnable on, -1 if not */
 	struct task_struct	*kf_tasks[2];	/* see SCX_CALL_OP_TASK() */
 
 	struct list_head	runnable_node;	/* rq->scx.runnable_list */
 	unsigned long		runnable_at;
 
-#ifdef CONFIG_SCHED_CORE
-	u64			core_sched_at;	/* see scx_prio_less() */
+#ifdef CONFIG_EXT_SUB_SCHED
+	unsigned long		rescue_at;	/* queued on a rescue DSQ at, jiffies */
 #endif
 
 	/*
@@ -219,10 +228,11 @@ struct sched_ext_entity {
 	/* BPF scheduler modifiable fields */
 
 	/*
-	 * Runtime budget in nsecs. This is usually set through
-	 * scx_bpf_dsq_insert() but can also be modified directly by the BPF
-	 * scheduler. Automatically decreased by SCX as the task executes. On
-	 * depletion, a scheduling event is triggered.
+	 * Runtime budget in nsecs - how long the task may hold its cpu. Owned
+	 * by the task's scheduler. Set it when enqueuing via
+	 * scx_bpf_dsq_insert(), or otherwise via scx_bpf_task_set_slice().
+	 * Automatically decreased as the task executes. On depletion a
+	 * scheduling event is triggered.
 	 *
 	 * This value is cleared to zero if the task is preempted by
 	 * %SCX_KICK_PREEMPT and shouldn't be used to determine how long the
@@ -238,6 +248,22 @@ struct sched_ext_entity {
 	 * mangle the ordering and is not recommended.
 	 */
 	u64			dsq_vtime;
+
+	/*
+	 * Out-of-band slice request from scx_bpf_task_set_slice() when the
+	 * caller does not hold the rq lock, applied under the rq lock at the
+	 * next slice consideration. One atomic64 packs the pending flag, the
+	 * issuing sch's id, and the requested slice. See scx_slice_oob_consts.
+	 */
+	atomic64_t		slice_oob;
+
+	/*
+	 * Sub-sched cap rejected reenq context, valid only while
+	 * %SCX_TASK_REENQ_CAP is set. @reenq_reason_caps is the SCX_CAP_* bits
+	 * that were needed but missing. @reenq_reason_cid is the target cid.
+	 */
+	u64			reenq_reason_caps;
+	s32			reenq_reason_cid;
 
 	/*
 	 * If set, reject future sched_setscheduler(2) calls updating the policy
@@ -263,7 +289,7 @@ void sched_ext_dead(struct task_struct *p);
 void print_scx_info(const char *log_lvl, struct task_struct *p);
 void scx_softlockup(u32 dur_s);
 bool scx_hardlockup(int cpu);
-bool scx_rcu_cpu_stall(void);
+bool scx_rcu_cpu_stall(const struct cpumask *stalled_mask);
 
 #else	/* !CONFIG_SCHED_CLASS_EXT */
 
@@ -271,12 +297,27 @@ static inline void sched_ext_dead(struct task_struct *p) {}
 static inline void print_scx_info(const char *log_lvl, struct task_struct *p) {}
 static inline void scx_softlockup(u32 dur_s) {}
 static inline bool scx_hardlockup(int cpu) { return false; }
-static inline bool scx_rcu_cpu_stall(void) { return false; }
+static inline bool scx_rcu_cpu_stall(const struct cpumask *stalled_mask) { return false; }
 
 #endif	/* CONFIG_SCHED_CLASS_EXT */
 
 struct scx_task_group {
 #ifdef CONFIG_EXT_GROUP_SCHED
+	/*
+	 * The sched this tg is on, NULL if none. SCX_TG_INITED tracks whether
+	 * ops.cgroup_init() succeeded on it. When a child sched exits and its
+	 * tgs move to the parent, a failed init leaves the tg on the parent
+	 * with INITED clear (see scx_cgroup_return_subtree()).
+	 *
+	 * This is tracked separately from cgrp->scx_sched because the tg
+	 * hierarchy can diverge from the cgroup2 hierarchy in both lifetime and
+	 * shape. A tg stays online past its cgroup's removal while the
+	 * cgrp->scx_sched rewrites visit only live cgroups, leaving a removed
+	 * cgroup's pointer stale. The cpu controller can also be mounted on
+	 * cgroup1.
+	 */
+	struct scx_sched	*sched;
+
 	u32			flags;		/* SCX_TG_* */
 	u32			weight;
 	u64			bw_period_us;

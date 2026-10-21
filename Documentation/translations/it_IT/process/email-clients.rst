@@ -335,7 +335,14 @@ Per rendere l'editor interno un po' più sensato, fate così:
 
   - impostate ``mailnews.send_plaintext_flowed`` a ``false``
 
-  - impostate ``mailnews.wraplength`` da ``72`` a ``0``
+  - impostate ``mailnews.wraplength`` da ``72`` a ``0`` **oppure** installate
+    l'estensione "Toggle Line Wrap"
+
+    https://github.com/jan-kiszka/togglelinewrap
+
+    https://addons.thunderbird.net/thunderbird/addon/toggle-line-wrap
+
+    per controllare questo registro al volo.
 
 - Non scrivete messaggi HTML! Andate sulla finestra principale ed aprite la
   schermata :menuselection:`Menu principale-->Impostazioni account-->nome@unserver.ovunque-->Composizioni e indirizzi`.

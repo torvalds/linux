@@ -351,19 +351,19 @@ static int ad8366_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad8366_id[] = {
-	{ "ad8366", (kernel_ulong_t)&ad8366_chip_info },
-	{ "ada4961", (kernel_ulong_t)&ada4961_chip_info },
-	{ "adl5240", (kernel_ulong_t)&adl5240_chip_info },
-	{ "adrf5702", (kernel_ulong_t)&adrf5702_chip_info },
-	{ "adrf5703", (kernel_ulong_t)&adrf5703_chip_info },
-	{ "adrf5720", (kernel_ulong_t)&adrf5720_chip_info },
-	{ "adrf5730", (kernel_ulong_t)&adrf5730_chip_info },
-	{ "adrf5731", (kernel_ulong_t)&adrf5731_chip_info },
-	{ "hmc271a", (kernel_ulong_t)&hmc271_chip_info },
-	{ "hmc792a", (kernel_ulong_t)&hmc792_chip_info },
-	{ "hmc1018a", (kernel_ulong_t)&hmc1018_chip_info },
-	{ "hmc1019a", (kernel_ulong_t)&hmc1019_chip_info },
-	{ "hmc1119", (kernel_ulong_t)&hmc1119_chip_info },
+	{ .name = "ad8366", .driver_data = (kernel_ulong_t)&ad8366_chip_info },
+	{ .name = "ada4961", .driver_data = (kernel_ulong_t)&ada4961_chip_info },
+	{ .name = "adl5240", .driver_data = (kernel_ulong_t)&adl5240_chip_info },
+	{ .name = "adrf5702", .driver_data = (kernel_ulong_t)&adrf5702_chip_info },
+	{ .name = "adrf5703", .driver_data = (kernel_ulong_t)&adrf5703_chip_info },
+	{ .name = "adrf5720", .driver_data = (kernel_ulong_t)&adrf5720_chip_info },
+	{ .name = "adrf5730", .driver_data = (kernel_ulong_t)&adrf5730_chip_info },
+	{ .name = "adrf5731", .driver_data = (kernel_ulong_t)&adrf5731_chip_info },
+	{ .name = "hmc271a", .driver_data = (kernel_ulong_t)&hmc271_chip_info },
+	{ .name = "hmc792a", .driver_data = (kernel_ulong_t)&hmc792_chip_info },
+	{ .name = "hmc1018a", .driver_data = (kernel_ulong_t)&hmc1018_chip_info },
+	{ .name = "hmc1019a", .driver_data = (kernel_ulong_t)&hmc1019_chip_info },
+	{ .name = "hmc1119", .driver_data = (kernel_ulong_t)&hmc1119_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad8366_id);

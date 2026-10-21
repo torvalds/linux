@@ -120,8 +120,6 @@ struct throtl_grp {
 	int64_t bytes_disp[2];
 	int io_disp[2];
 
-	unsigned long last_check_time;
-
 	/* When did we start a new slice */
 	unsigned long slice_start[2];
 	unsigned long slice_end[2];

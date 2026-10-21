@@ -169,10 +169,10 @@ static int max5481_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id max5481_id_table[] = {
-	{ "max5481", max5481 },
-	{ "max5482", max5482 },
-	{ "max5483", max5483 },
-	{ "max5484", max5484 },
+	{ .name = "max5481", .driver_data = max5481 },
+	{ .name = "max5482", .driver_data = max5482 },
+	{ .name = "max5483", .driver_data = max5483 },
+	{ .name = "max5484", .driver_data = max5484 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, max5481_id_table);

@@ -6,8 +6,10 @@
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
 //
 
+#include <linux/cleanup.h>
 #include <linux/debugfs.h>
 #include <linux/kfifo.h>
+#include <linux/module.h>
 #include <linux/wait.h>
 #include <linux/sched/signal.h>
 #include <linux/string_helpers.h>
@@ -235,15 +237,20 @@ static int strace_open(struct inode *inode, struct file *file)
 	if (!try_module_get(adev->dev->driver->owner))
 		return -ENODEV;
 
-	if (kfifo_initialized(&adev->trace_fifo))
-		return -EBUSY;
+	if (kfifo_initialized(&adev->trace_fifo)) {
+		ret = -EBUSY;
+		goto err;
+	}
 
 	ret = kfifo_alloc(&adev->trace_fifo, PAGE_SIZE, GFP_KERNEL);
 	if (ret < 0)
-		return ret;
+		goto err;
 
 	file->private_data = adev;
 	return 0;
+err:
+	module_put(adev->dev->driver->owner);
+	return ret;
 }
 
 static int strace_release(struct inode *inode, struct file *file)
@@ -251,23 +258,21 @@ static int strace_release(struct inode *inode, struct file *file)
 	union avs_notify_msg msg = AVS_NOTIFICATION(LOG_BUFFER_STATUS);
 	struct avs_dev *adev = file->private_data;
 	unsigned long resource_mask;
-	unsigned long flags, i;
+	unsigned long i;
 	u32 num_cores;
 
 	resource_mask = adev->logged_resources;
 	num_cores = adev->hw_cfg.dsp_cores;
 
-	spin_lock_irqsave(&adev->trace_lock, flags);
+	scoped_guard(spinlock_irqsave, &adev->trace_lock) {
+		/* Gather any remaining logs. */
+		for_each_set_bit(i, &resource_mask, num_cores) {
+			msg.log.core = i;
+			avs_dsp_op(adev, log_buffer_status, &msg);
+		}
 
-	/* Gather any remaining logs. */
-	for_each_set_bit(i, &resource_mask, num_cores) {
-		msg.log.core = i;
-		avs_dsp_op(adev, log_buffer_status, &msg);
+		kfifo_free(&adev->trace_fifo);
 	}
-
-	kfifo_free(&adev->trace_fifo);
-
-	spin_unlock_irqrestore(&adev->trace_lock, flags);
 
 	module_put(adev->dev->driver->owner);
 	return 0;

@@ -89,7 +89,7 @@ static int amanda_help(struct sk_buff *skb,
 	struct nf_conntrack_tuple *tuple;
 	unsigned int dataoff, start, stop, off, i;
 	char pbuf[sizeof("65535")], *tmp;
-	u_int16_t len;
+	u16 len;
 	__be16 port;
 	int ret = NF_ACCEPT;
 	nf_nat_amanda_hook_fn *nf_nat_amanda;
@@ -151,7 +151,7 @@ static int amanda_help(struct sk_buff *skb,
 
 		nf_nat_amanda = rcu_dereference(nf_nat_amanda_hook);
 		if (nf_nat_amanda && ct->status & IPS_NAT_MASK)
-			ret = nf_nat_amanda(skb, ctinfo, protoff,
+			ret = nf_nat_amanda(skb, ct, ctinfo, protoff,
 					    off - dataoff, len, exp);
 		else if (nf_ct_expect_related(exp, 0) != 0) {
 			nf_ct_helper_log(skb, ct, "cannot add expectation");
@@ -199,10 +199,10 @@ static int __init nf_conntrack_amanda_init(void)
 	}
 
 	nf_ct_helper_init(&amanda_helper[0], AF_INET, IPPROTO_UDP,
-			  HELPER_NAME, 10080, 10080, 10080,
+			  HELPER_NAME,
 			  &amanda_exp_policy, 0, amanda_help, NULL, THIS_MODULE);
 	nf_ct_helper_init(&amanda_helper[1], AF_INET6, IPPROTO_UDP,
-			  HELPER_NAME, 10080, 10080, 10080,
+			  HELPER_NAME,
 			  &amanda_exp_policy, 0, amanda_help, NULL, THIS_MODULE);
 
 	ret = nf_conntrack_helpers_register(amanda_helper,

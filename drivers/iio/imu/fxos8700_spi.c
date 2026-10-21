@@ -23,7 +23,7 @@ static int fxos8700_spi_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id fxos8700_spi_id[] = {
-	{"fxos8700", 0},
+	{ .name = "fxos8700" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, fxos8700_spi_id);

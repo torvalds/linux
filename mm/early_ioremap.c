@@ -47,15 +47,19 @@ pgprot_t __init __weak early_memremap_pgprot_adjust(resource_size_t phys_addr,
 	return prot;
 }
 
+/*
+ * Only architectures whose early_ioremap() must stop using __early_set_fixmap()
+ * after paging_init() need to call this.
+ */
 void __init early_ioremap_reset(void)
 {
 	after_paging_init = 1;
 }
 
 /*
- * Generally, ioremap() is available after paging_init() has been called.
- * Architectures wanting to allow early_ioremap after paging_init() can
- * define __late_set_fixmap and __late_clear_fixmap to do the right thing.
+ * Only architectures that call early_ioremap_reset() need to define
+ * __late_set_fixmap() and __late_clear_fixmap(), which early_ioremap() uses
+ * instead of __early_set_fixmap() after the reset.
  */
 #ifndef __late_set_fixmap
 static inline void __init __late_set_fixmap(enum fixed_addresses idx,

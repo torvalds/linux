@@ -122,6 +122,8 @@ enum dmub_asic {
 	DMUB_ASIC_DCN401,
 	DMUB_ASIC_DCN42,
 	DMUB_ASIC_DCN42B,
+	DMUB_ASIC_DCN60,
+
 	DMUB_ASIC_MAX,
 };
 
@@ -318,6 +320,8 @@ struct dmub_srv_fb_info {
 struct dmub_soc_fb_info {
 	uint64_t fb_base;
 	uint64_t fb_offset;
+	uint32_t alt_channel_region_size[2];
+	uint64_t alt_channel_region_base[2]; /* mc address */
 };
 
 /*
@@ -329,7 +333,7 @@ struct dmub_soc_fb_info {
  * @load_inst_const: true if DMUB should load inst const fw
  */
 struct dmub_srv_hw_params {
-	struct dmub_fb *fb[DMUB_WINDOW_TOTAL];
+	struct dmub_srv_fb_info *fb_info;
 	struct dmub_soc_fb_info soc_fb_info;
 	uint32_t psp_version;
 	bool load_inst_const;
@@ -592,9 +596,11 @@ struct dmub_srv {
 	void *user_ctx;
 	uint32_t fw_version;
 	bool is_virtual;
+	bool no_ext_reg_access;
 	struct dmub_fb scratch_mem_fb;
 	struct dmub_fb ib_mem_gart;
 	struct dmub_fb cursor_offload_fb;
+	const struct dmub_srv_fb_info *fb_info;
 	volatile struct dmub_shared_state_feature_block *shared_state;
 	volatile struct dmub_cursor_offload_v1 *cursor_offload_v1;
 	volatile const struct dmub_fw_state *fw_state;
@@ -606,6 +612,7 @@ struct dmub_srv {
 	struct dmub_srv_dcn35_regs *regs_dcn35;
 	const struct dmub_srv_dcn401_regs *regs_dcn401;
 	struct dmub_srv_dcn42_regs *regs_dcn42;
+    const struct dmub_srv_dcn60_regs *regs_dcn60;
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;
 	struct dmub_srv_inbox inbox1;
@@ -954,14 +961,15 @@ enum dmub_status dmub_srv_get_gpint_dataout(struct dmub_srv *dmub,
 					     uint32_t *dataout);
 
 /**
- * dmub_flush_buffer_mem() - Read back entire frame buffer region.
+ * dmub_srv_flush_buffer_mem() - Read back entire frame buffer region.
  * This ensures that the write from x86 has been flushed and will not
  * hang the DMCUB.
+ * @dmub: the dmub service
  * @fb: frame buffer to flush
  *
  * Can be called after software initialization.
  */
-void dmub_flush_buffer_mem(const struct dmub_fb *fb);
+void dmub_srv_flush_buffer_mem(struct dmub_srv *dmub, const struct dmub_fb *fb);
 
 /**
  * dmub_srv_get_fw_boot_status() - Returns the DMUB boot status bits.

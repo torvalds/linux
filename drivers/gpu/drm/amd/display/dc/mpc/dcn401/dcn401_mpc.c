@@ -73,56 +73,15 @@ void mpc401_set_movable_cm_location(struct mpc *mpc, enum mpcc_movable_cm_locati
 	}
 }
 
-static enum dc_lut_mode get3dlut_config(
-			struct mpc *mpc,
-			bool *is_17x17x17,
-			bool *is_12bits_color_channel,
-			int mpcc_id)
-{
-	uint32_t i_mode, i_enable_10bits, lut_size;
-	enum dc_lut_mode mode;
-	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
-
-	REG_GET(MPCC_MCM_3DLUT_MODE[mpcc_id],
-			MPCC_MCM_3DLUT_MODE_CURRENT,  &i_mode);
-
-	REG_GET(MPCC_MCM_3DLUT_READ_WRITE_CONTROL[mpcc_id],
-			MPCC_MCM_3DLUT_30BIT_EN, &i_enable_10bits);
-
-	switch (i_mode) {
-	case 0:
-		mode = LUT_BYPASS;
-		break;
-	case 1:
-		mode = LUT_RAM_A;
-		break;
-	case 2:
-		mode = LUT_RAM_B;
-		break;
-	default:
-		mode = LUT_BYPASS;
-		break;
-	}
-	if (i_enable_10bits > 0)
-		*is_12bits_color_channel = false;
-	else
-		*is_12bits_color_channel = true;
-
-	REG_GET(MPCC_MCM_3DLUT_MODE[mpcc_id], MPCC_MCM_3DLUT_SIZE, &lut_size);
-
-	if (lut_size == 0)
-		*is_17x17x17 = true;
-	else
-		*is_17x17x17 = false;
-
-	return mode;
-}
-
-void mpc401_populate_lut(struct mpc *mpc, const enum MCM_LUT_ID id, const union mcm_lut_params params, bool lut_bank_a, int mpcc_id)
+void mpc401_populate_lut(struct mpc *mpc,
+		const enum MCM_LUT_ID id,
+		const union mcm_lut_params *params,
+		const bool lut_bank_a,
+		const int mpcc_id)
 {
 	const enum dc_lut_mode next_mode = lut_bank_a ? LUT_RAM_A : LUT_RAM_B;
-	const struct pwl_params *lut1d = params.pwl;
-	const struct pwl_params *lut_shaper = params.pwl;
+	const struct pwl_params *lut1d = params->pwl;
+	const struct pwl_params *lut_shaper = params->pwl;
 	bool is_17x17x17;
 	bool is_12bits_color_channel;
 	const struct dc_rgb *lut0;
@@ -131,7 +90,7 @@ void mpc401_populate_lut(struct mpc *mpc, const enum MCM_LUT_ID id, const union 
 	const struct dc_rgb *lut3;
 	int lut_size0;
 	int lut_size;
-	const struct tetrahedral_params *lut3d = params.lut3d;
+	const struct tetrahedral_params *lut3d = params->lut3d;
 
 	switch (id) {
 	case MCM_LUT_1DLUT:
@@ -174,8 +133,6 @@ void mpc401_populate_lut(struct mpc *mpc, const enum MCM_LUT_ID id, const union 
 
 		mpc32_power_on_shaper_3dlut(mpc, mpcc_id, true);
 
-		get3dlut_config(mpc, &is_17x17x17, &is_12bits_color_channel, mpcc_id);
-
 		is_17x17x17 = !lut3d->use_tetrahedral_9;
 		is_12bits_color_channel = lut3d->use_12bits;
 		if (is_17x17x17) {
@@ -198,8 +155,6 @@ void mpc401_populate_lut(struct mpc *mpc, const enum MCM_LUT_ID id, const union 
 					sizeof(lut3d->tetrahedral_9.lut1[0]);
 			}
 
-		mpc32_select_3dlut_ram(mpc, next_mode,
-					is_12bits_color_channel, mpcc_id);
 		mpc32_select_3dlut_ram_mask(mpc, 0x1, mpcc_id);
 		if (is_12bits_color_channel)
 			mpc32_set3dlut_ram12(mpc, lut0, lut_size0, mpcc_id);
@@ -232,46 +187,69 @@ void mpc401_populate_lut(struct mpc *mpc, const enum MCM_LUT_ID id, const union 
 
 }
 
+static uint32_t mpc401_cm_lut_size_to_3dlut_size(const enum dc_cm_lut_size cm_size)
+{
+	uint32_t size = 0;
+
+	switch (cm_size) {
+	case CM_LUT_SIZE_999:
+		size = 1;
+		break;
+	case CM_LUT_SIZE_171717:
+		size = 0;
+		break;
+	default:
+		/* invalid LUT size */
+		ASSERT(false);
+		size = 0;
+		break;
+	}
+
+	return size;
+}
+
 void mpc401_program_lut_mode(
 		struct mpc *mpc,
 		const enum MCM_LUT_ID id,
-		const enum MCM_LUT_XABLE xable,
-		bool lut_bank_a,
-		int mpcc_id)
+		const bool enable,
+		const bool lut_bank_a,
+		const enum dc_cm_lut_size size,
+		const int mpcc_id)
 {
+	uint32_t lut_size;
 	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
 
 	switch (id) {
 	case MCM_LUT_3DLUT:
-		switch (xable) {
-		case MCM_LUT_DISABLE:
+		if (enable) {
+			lut_size = mpc401_cm_lut_size_to_3dlut_size(size);
+			REG_UPDATE_2(MPCC_MCM_3DLUT_MODE[mpcc_id],
+					MPCC_MCM_3DLUT_MODE, lut_bank_a ? 1 : 2,
+					MPCC_MCM_3DLUT_SIZE, lut_size);
+		} else {
+			if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc)
+				mpc32_power_on_shaper_3dlut(mpc, mpcc_id, false);
 			REG_UPDATE(MPCC_MCM_3DLUT_MODE[mpcc_id], MPCC_MCM_3DLUT_MODE, 0);
-			break;
-		case MCM_LUT_ENABLE:
-			REG_UPDATE(MPCC_MCM_3DLUT_MODE[mpcc_id], MPCC_MCM_3DLUT_MODE, lut_bank_a ? 1 : 2);
-			break;
 		}
 		break;
 	case MCM_LUT_SHAPER:
-		switch (xable) {
-		case MCM_LUT_DISABLE:
-			REG_UPDATE(MPCC_MCM_SHAPER_CONTROL[mpcc_id], MPCC_MCM_SHAPER_LUT_MODE, 0);
-			break;
-		case MCM_LUT_ENABLE:
+		if (enable) {
 			REG_UPDATE(MPCC_MCM_SHAPER_CONTROL[mpcc_id], MPCC_MCM_SHAPER_LUT_MODE, lut_bank_a ? 1 : 2);
-			break;
+		} else {
+			if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc)
+				mpc32_power_on_shaper_3dlut(mpc, mpcc_id, false);
+			REG_UPDATE(MPCC_MCM_SHAPER_CONTROL[mpcc_id], MPCC_MCM_SHAPER_LUT_MODE, 0);
 		}
 		break;
 	case MCM_LUT_1DLUT:
-		switch (xable) {
-		case MCM_LUT_DISABLE:
-			REG_UPDATE(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
-					MPCC_MCM_1DLUT_MODE, 0);
-			break;
-		case MCM_LUT_ENABLE:
+		if (enable) {
 			REG_UPDATE(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
 					MPCC_MCM_1DLUT_MODE, 2);
-			break;
+		} else {
+			if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc)
+				mpc32_power_on_blnd_lut(mpc, mpcc_id, false);
+			REG_UPDATE(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
+					MPCC_MCM_1DLUT_MODE, 0);
 		}
 		REG_UPDATE(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
 				MPCC_MCM_1DLUT_SELECT, lut_bank_a ? 0 : 1);
@@ -279,14 +257,20 @@ void mpc401_program_lut_mode(
 	}
 }
 
-void mpc401_program_lut_read_write_control(struct mpc *mpc, const enum MCM_LUT_ID id, bool lut_bank_a, int mpcc_id)
+void mpc401_program_lut_read_write_control(struct mpc *mpc,
+		const enum MCM_LUT_ID id,
+		const bool lut_bank_a,
+		const unsigned int bit_depth,
+		const int mpcc_id)
 {
 	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
 
 	switch (id) {
 	case MCM_LUT_3DLUT:
 		mpc32_select_3dlut_ram_mask(mpc, 0xf, mpcc_id);
-		REG_UPDATE(MPCC_MCM_3DLUT_READ_WRITE_CONTROL[mpcc_id], MPCC_MCM_3DLUT_RAM_SEL, lut_bank_a ? 0 : 1);
+		REG_UPDATE_2(MPCC_MCM_3DLUT_READ_WRITE_CONTROL[mpcc_id],
+				MPCC_MCM_3DLUT_30BIT_EN, (bit_depth == 10) ? 1 : 0,
+				MPCC_MCM_3DLUT_RAM_SEL, lut_bank_a ? 0 : 1);
 		break;
 	case MCM_LUT_SHAPER:
 		mpc32_configure_shaper_lut(mpc, lut_bank_a, mpcc_id);
@@ -302,7 +286,8 @@ void mpc_program_gamut_remap(
 	unsigned int mpcc_id,
 	const uint16_t *regval,
 	enum mpcc_gamut_remap_id gamut_remap_block_id,
-	enum mpcc_gamut_remap_mode_select mode_select)
+	enum mpcc_gamut_remap_mode_select mode_select,
+	enum cm_gamut_coef_format coef_format)
 {
 	struct color_matrices_reg gamut_regs;
 	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
@@ -339,8 +324,11 @@ void mpc_program_gamut_remap(
 			regval,
 			&gamut_regs);
 
-		//select coefficient set to use, set A (MODE_1) or set B (MODE_2)
-		REG_SET(MPCC_GAMUT_REMAP_MODE[mpcc_id], 0, MPCC_GAMUT_REMAP_MODE, mode_select);
+		//select coefficient set to use, set A (MODE_1) or set B (MODE_2) + format
+		REG_SET(MPCC_GAMUT_REMAP_MODE[mpcc_id], 0,
+			MPCC_GAMUT_REMAP_MODE, mode_select);
+		REG_SET(MPCC_GAMUT_REMAP_COEF_FORMAT[mpcc_id], 0,
+			MPCC_GAMUT_REMAP_COEF_FORMAT, coef_format);
 		break;
 
 	case MPCC_MCM_FIRST_GAMUT_REMAP:
@@ -373,9 +361,11 @@ void mpc_program_gamut_remap(
 			regval,
 			&gamut_regs);
 
-		//select coefficient set to use, set A (MODE_1) or set B (MODE_2)
+		//select coefficient set to use, set A (MODE_1) or set B (MODE_2) + format
 		REG_SET(MPCC_MCM_FIRST_GAMUT_REMAP_MODE[mpcc_id], 0,
 			MPCC_MCM_FIRST_GAMUT_REMAP_MODE, mode_select);
+		REG_SET(MPCC_MCM_FIRST_GAMUT_REMAP_COEF_FORMAT[mpcc_id], 0,
+			MPCC_MCM_FIRST_GAMUT_REMAP_COEF_FORMAT, coef_format);
 		break;
 
 	case MPCC_MCM_SECOND_GAMUT_REMAP:
@@ -408,9 +398,11 @@ void mpc_program_gamut_remap(
 			regval,
 			&gamut_regs);
 
-		//select coefficient set to use, set A (MODE_1) or set B (MODE_2)
+		//select coefficient set to use, set A (MODE_1) or set B (MODE_2) + format
 		REG_SET(MPCC_MCM_SECOND_GAMUT_REMAP_MODE[mpcc_id], 0,
 			MPCC_MCM_SECOND_GAMUT_REMAP_MODE, mode_select);
+		REG_SET(MPCC_MCM_SECOND_GAMUT_REMAP_COEF_FORMAT[mpcc_id], 0,
+			MPCC_MCM_SECOND_GAMUT_REMAP_COEF_FORMAT, coef_format);
 		break;
 
 	default:
@@ -426,19 +418,28 @@ void mpc401_set_gamut_remap(
 	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
 	unsigned int i = 0;
 	uint32_t mode_select = 0;
+	uint16_t hw_matrix[12];
+	enum cm_gamut_coef_format coef_format = CM_GAMUT_REMAP_COEF_FORMAT_S2_13;
+	struct fixed31_32 abs_max_coef = {0};
 
 	if (adjust->gamut_adjust_type != GRAPHICS_GAMUT_ADJUST_TYPE_SW) {
 		/* Bypass / Disable if type is bypass or hw */
-		mpc_program_gamut_remap(mpc, mpcc_id, NULL,
-			adjust->mpcc_gamut_remap_block_id, MPCC_GAMUT_REMAP_MODE_SELECT_0);
+		mpc_program_gamut_remap(mpc, mpcc_id, NULL, adjust->mpcc_gamut_remap_block_id,
+			MPCC_GAMUT_REMAP_MODE_SELECT_0, coef_format);
 	} else {
-		struct fixed31_32 arr_matrix[12];
-		uint16_t arr_reg_val[12];
+		// take largest absolute value of coefficient in temperature matrix
+		// if S2D13 cannot fit value, use S3D12
+		for (i = 0; i < 12; i++) {
+			if (dc_fixpt_le(abs_max_coef, dc_fixpt_abs(adjust->temperature_matrix[i])))
+				abs_max_coef = dc_fixpt_abs(adjust->temperature_matrix[i]);
+		}
 
-		for (i = 0; i < 12; i++)
-			arr_matrix[i] = adjust->temperature_matrix[i];
+		if (dc_fixpt_le(abs_max_coef, dc_fixpt_from_fraction(S2D13_MAX, DIVIDER)))
+			coef_format = CM_GAMUT_REMAP_COEF_FORMAT_S2_13;
+		else
+			coef_format = CM_GAMUT_REMAP_COEF_FORMAT_S3_12;
 
-		convert_float_matrix(arr_reg_val, arr_matrix, 12);
+		convert_float_matrix(hw_matrix, adjust->temperature_matrix, coef_format, 12);
 
 		switch (adjust->mpcc_gamut_remap_block_id) {
 		case MPCC_OGAM_GAMUT_REMAP:
@@ -463,8 +464,8 @@ void mpc401_set_gamut_remap(
 		else
 			mode_select = MPCC_GAMUT_REMAP_MODE_SELECT_2;
 
-		mpc_program_gamut_remap(mpc, mpcc_id, arr_reg_val,
-			adjust->mpcc_gamut_remap_block_id, mode_select);
+		mpc_program_gamut_remap(mpc, mpcc_id, hw_matrix,
+			adjust->mpcc_gamut_remap_block_id, mode_select, coef_format);
 	}
 }
 
@@ -472,7 +473,8 @@ void mpc_read_gamut_remap(struct mpc *mpc,
 	int mpcc_id,
 	uint16_t *regval,
 	enum mpcc_gamut_remap_id gamut_remap_block_id,
-	uint32_t *mode_select)
+	uint32_t *mode_select,
+	enum cm_gamut_coef_format *coef_format)
 {
 	struct color_matrices_reg gamut_regs = {0};
 	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
@@ -480,7 +482,10 @@ void mpc_read_gamut_remap(struct mpc *mpc,
 	switch (gamut_remap_block_id) {
 	case MPCC_OGAM_GAMUT_REMAP:
 		//current coefficient set in use
-		REG_GET(MPCC_GAMUT_REMAP_MODE[mpcc_id], MPCC_GAMUT_REMAP_MODE_CURRENT, mode_select);
+		REG_GET(MPCC_GAMUT_REMAP_MODE[mpcc_id],
+			MPCC_GAMUT_REMAP_MODE_CURRENT, mode_select);
+		REG_GET(MPCC_GAMUT_REMAP_COEF_FORMAT[mpcc_id],
+			MPCC_GAMUT_REMAP_COEF_FORMAT, coef_format);
 
 		gamut_regs.shifts.csc_c11 = mpc401->mpc_shift->MPCC_GAMUT_REMAP_C11_A;
 		gamut_regs.masks.csc_c11 = mpc401->mpc_mask->MPCC_GAMUT_REMAP_C11_A;
@@ -503,7 +508,9 @@ void mpc_read_gamut_remap(struct mpc *mpc,
 
 	case MPCC_MCM_FIRST_GAMUT_REMAP:
 		REG_GET(MPCC_MCM_FIRST_GAMUT_REMAP_MODE[mpcc_id],
-				MPCC_MCM_FIRST_GAMUT_REMAP_MODE_CURRENT, mode_select);
+			MPCC_MCM_FIRST_GAMUT_REMAP_MODE_CURRENT, mode_select);
+		REG_GET(MPCC_MCM_FIRST_GAMUT_REMAP_COEF_FORMAT[mpcc_id],
+			MPCC_MCM_FIRST_GAMUT_REMAP_COEF_FORMAT, coef_format);
 
 		gamut_regs.shifts.csc_c11 = mpc401->mpc_shift->MPCC_MCM_FIRST_GAMUT_REMAP_C11_A;
 		gamut_regs.masks.csc_c11 = mpc401->mpc_mask->MPCC_MCM_FIRST_GAMUT_REMAP_C11_A;
@@ -526,7 +533,9 @@ void mpc_read_gamut_remap(struct mpc *mpc,
 
 	case MPCC_MCM_SECOND_GAMUT_REMAP:
 		REG_GET(MPCC_MCM_SECOND_GAMUT_REMAP_MODE[mpcc_id],
-				MPCC_MCM_SECOND_GAMUT_REMAP_MODE_CURRENT, mode_select);
+			MPCC_MCM_SECOND_GAMUT_REMAP_MODE_CURRENT, mode_select);
+		REG_GET(MPCC_MCM_SECOND_GAMUT_REMAP_COEF_FORMAT[mpcc_id],
+			MPCC_MCM_SECOND_GAMUT_REMAP_COEF_FORMAT, coef_format);
 
 		gamut_regs.shifts.csc_c11 = mpc401->mpc_shift->MPCC_MCM_SECOND_GAMUT_REMAP_C11_A;
 		gamut_regs.masks.csc_c11 = mpc401->mpc_mask->MPCC_MCM_SECOND_GAMUT_REMAP_C11_A;
@@ -565,8 +574,10 @@ void mpc401_get_gamut_remap(struct mpc *mpc,
 {
 	uint16_t arr_reg_val[12] = {0};
 	uint32_t mode_select = MPCC_GAMUT_REMAP_MODE_SELECT_0;
+	enum cm_gamut_coef_format coef_format = CM_GAMUT_REMAP_COEF_FORMAT_S2_13;
 
-	mpc_read_gamut_remap(mpc, mpcc_id, arr_reg_val, adjust->mpcc_gamut_remap_block_id, &mode_select);
+	mpc_read_gamut_remap(mpc, mpcc_id, arr_reg_val,
+			adjust->mpcc_gamut_remap_block_id, &mode_select, &coef_format);
 
 	if (mode_select == MPCC_GAMUT_REMAP_MODE_SELECT_0) {
 		adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
@@ -574,8 +585,46 @@ void mpc401_get_gamut_remap(struct mpc *mpc,
 	}
 
 	adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
-	convert_hw_matrix(adjust->temperature_matrix,
-		arr_reg_val, ARRAY_SIZE(arr_reg_val));
+	convert_hw_matrix(adjust->temperature_matrix, arr_reg_val,
+			coef_format, ARRAY_SIZE(arr_reg_val));
+}
+
+void mpc401_get_lut_mode(struct mpc *mpc,
+		const enum MCM_LUT_ID id,
+		const int mpcc_id,
+		bool *enable,
+		bool *lut_bank_a)
+{
+	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
+
+	uint32_t lut_mode = 0;
+	uint32_t lut_select = 0;
+
+	*enable = false;
+	*lut_bank_a = true;
+
+	switch (id) {
+	case MCM_LUT_SHAPER:
+		REG_GET(MPCC_MCM_SHAPER_CONTROL[mpcc_id],
+				MPCC_MCM_SHAPER_MODE_CURRENT, &lut_mode);
+		*enable = lut_mode != 0;
+		*lut_bank_a = lut_mode != 2;
+		break;
+	case MCM_LUT_1DLUT:
+		REG_GET_2(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
+				MPCC_MCM_1DLUT_MODE_CURRENT, &lut_mode,
+				MPCC_MCM_1DLUT_SELECT_CURRENT, &lut_select);
+		*enable = lut_mode != 0;
+		*lut_bank_a = lut_mode == 0 || lut_select == 0;
+		break;
+	case MCM_LUT_3DLUT:
+	default:
+		REG_GET(MPCC_MCM_3DLUT_MODE[mpcc_id],
+				MPCC_MCM_3DLUT_MODE_CURRENT, &lut_mode);
+		*enable = lut_mode != 0;
+		*lut_bank_a = lut_mode != 2;
+		break;
+	}
 }
 
 static const struct mpc_funcs dcn401_mpc_funcs = {
@@ -616,6 +665,7 @@ static const struct mpc_funcs dcn401_mpc_funcs = {
 	.populate_lut = mpc401_populate_lut,
 	.program_lut_read_write_control = mpc401_program_lut_read_write_control,
 	.program_lut_mode = mpc401_program_lut_mode,
+	.get_lut_mode = mpc401_get_lut_mode,
 };
 
 

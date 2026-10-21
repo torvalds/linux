@@ -985,7 +985,7 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 	params.buf = frame;
 	params.len = len;
 
-	rc = wil_cfg80211_mgmt_tx(wiphy, wdev, &params, NULL);
+	rc = wil_cfg80211_mgmt_tx(wiphy, wdev, &params, 0);
 
 	kfree(frame);
 	wil_info(wil, "-> %d\n", rc);

@@ -816,7 +816,7 @@ static int rv3028_clkout_register_clk(struct rv3028_data *rv3028,
 {
 	int ret;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct device_node *node = client->dev.of_node;
 
 	ret = regmap_update_bits(rv3028->regmap, RV3028_STATUS,

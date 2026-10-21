@@ -360,11 +360,8 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &stm32_adfsdm_soc_platform,
 					      NULL, 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "%s: Failed to register PCM platform\n",
-			__func__);
+	if (ret < 0)
 		return ret;
-	}
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -392,3 +389,4 @@ MODULE_DESCRIPTION("stm32 DFSDM DAI driver");
 MODULE_AUTHOR("Arnaud Pouliquen <arnaud.pouliquen@st.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" STM32_ADFSDM_DRV_NAME);
+MODULE_IMPORT_NS("IIO_CONSUMER");

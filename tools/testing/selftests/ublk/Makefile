@@ -23,6 +23,7 @@ TEST_PROGS += test_generic_17.sh
 TEST_PROGS += test_batch_01.sh
 TEST_PROGS += test_batch_02.sh
 TEST_PROGS += test_batch_03.sh
+TEST_PROGS += test_batch_04.sh
 
 TEST_PROGS += test_null_01.sh
 TEST_PROGS += test_null_02.sh
@@ -34,6 +35,7 @@ TEST_PROGS += test_loop_04.sh
 TEST_PROGS += test_loop_05.sh
 TEST_PROGS += test_loop_06.sh
 TEST_PROGS += test_loop_07.sh
+TEST_PROGS += test_loop_08.sh
 
 TEST_PROGS += test_integrity_01.sh
 TEST_PROGS += test_integrity_02.sh
@@ -53,6 +55,8 @@ TEST_PROGS += test_stripe_06.sh
 TEST_PROGS += test_part_01.sh
 TEST_PROGS += test_part_02.sh
 
+TEST_PROGS += test_params_01.sh
+
 TEST_PROGS += test_shmemzc_01.sh
 TEST_PROGS += test_shmemzc_02.sh
 TEST_PROGS += test_shmemzc_03.sh
@@ -69,6 +73,8 @@ TEST_PROGS += test_stress_08.sh
 TEST_PROGS += test_stress_09.sh
 
 TEST_FILES := settings
+TEST_FILES += test_common.sh
+TEST_FILES += trace
 
 TEST_GEN_PROGS_EXTENDED = kublk metadata_size
 STANDALONE_UTILS := metadata_size.c

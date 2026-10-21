@@ -14,7 +14,6 @@
 
 #ifdef CONFIG_TASKSTATS
 extern struct kmem_cache *taskstats_cache;
-extern struct mutex taskstats_exit_mutex;
 
 static inline void taskstats_tgid_free(struct signal_struct *sig)
 {

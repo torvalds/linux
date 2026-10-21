@@ -367,7 +367,7 @@ int parse_cgroups(const struct option *opt, const char *str,
 	char *s;
 	int ret, i;
 
-	if (list_empty(&evlist->core.entries)) {
+	if (list_empty(&evlist__core(evlist)->entries)) {
 		fprintf(stderr, "must define events before cgroups\n");
 		return -1;
 	}
@@ -423,7 +423,7 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str, bool open_cgro
 	int ret = -1;
 	int prefix_len;
 
-	if (evlist->core.nr_entries == 0) {
+	if (evlist__nr_entries(evlist) == 0) {
 		fprintf(stderr, "must define events before cgroups\n");
 		return -EINVAL;
 	}
@@ -436,11 +436,11 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str, bool open_cgro
 	}
 
 	/* save original events and init evlist */
-	evlist__splice_list_tail(orig_list, &evlist->core.entries);
-	evlist->core.nr_entries = 0;
+	evlist__splice_list_tail(orig_list, &evlist__core(evlist)->entries);
+	evlist__core(evlist)->nr_entries = 0;
 
-	orig_metric_events = evlist->metric_events;
-	metricgroup__rblist_init(&evlist->metric_events);
+	orig_metric_events = *evlist__metric_events(evlist);
+	metricgroup__rblist_init(evlist__metric_events(evlist));
 
 	if (has_pattern_string(str))
 		prefix_len = match_cgroups(str);
@@ -469,7 +469,7 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str, bool open_cgro
 
 		/* copy the list and set to the new cgroup. */
 		evlist__for_each_entry(orig_list, pos) {
-			struct evsel *evsel = evsel__clone(/*dest=*/NULL, pos);
+			struct evsel *evsel = evsel__clone(pos);
 
 			if (evsel == NULL)
 				goto out_err;
@@ -503,15 +503,15 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str, bool open_cgro
 		nr_cgroups++;
 
 		if (metricgroup__copy_metric_events(tmp_list, cgrp,
-						    &evlist->metric_events,
+						    evlist__metric_events(evlist),
 						    &orig_metric_events) < 0)
 			goto out_err;
 
-		evlist__splice_list_tail(evlist, &tmp_list->core.entries);
-		tmp_list->core.nr_entries = 0;
+		evlist__splice_list_tail(evlist, &evlist__core(tmp_list)->entries);
+		evlist__core(tmp_list)->nr_entries = 0;
 	}
 
-	if (list_empty(&evlist->core.entries)) {
+	if (list_empty(&evlist__core(evlist)->entries)) {
 		fprintf(stderr, "no cgroup matched: %s\n", str);
 		goto out_err;
 	}
@@ -520,8 +520,8 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str, bool open_cgro
 	cgrp_event_expanded = true;
 
 out_err:
-	evlist__delete(orig_list);
-	evlist__delete(tmp_list);
+	evlist__put(orig_list);
+	evlist__put(tmp_list);
 	metricgroup__rblist_exit(&orig_metric_events);
 	release_cgroup_list();
 

@@ -25,8 +25,9 @@ impl Module for SampleModule {
         pr_info!("Initialising Rust Faux Device Sample\n");
 
         let reg = faux::Registration::new(c"rust-faux-sample-device", None)?;
+        let fdev = reg.as_ref();
 
-        dev_info!(reg, "Hello from faux device!\n");
+        dev_info!(fdev, "Hello from faux device!\n");
 
         Ok(Self { _reg: reg })
     }

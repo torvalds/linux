@@ -252,7 +252,7 @@ static int test_get_ao_keys_nr(int sk)
 
 int test_get_one_ao(int sk, struct tcp_ao_getsockopt *out,
 		void *addr, size_t addr_sz, uint8_t prefix,
-		uint8_t sndid, uint8_t rcvid)
+		uint8_t sndid, uint8_t rcvid, uint8_t keyflags, int ifindex)
 {
 	struct tcp_ao_getsockopt tmp = {};
 	socklen_t tmp_sz = sizeof(tmp);
@@ -262,6 +262,8 @@ int test_get_one_ao(int sk, struct tcp_ao_getsockopt *out,
 	tmp.prefix = prefix;
 	tmp.sndid  = sndid;
 	tmp.rcvid  = rcvid;
+	tmp.keyflags = keyflags;
+	tmp.ifindex = ifindex;
 	tmp.nkeys  = 1;
 
 	ret = getsockopt(sk, IPPROTO_TCP, TCP_AO_GET_KEYS, &tmp, &tmp_sz);

@@ -21,11 +21,11 @@ from generators.union import XdrUnionGenerator
 
 from xdr_ast import transform_parse_tree, _RpcProgram, Specification
 from xdr_ast import _XdrAst, _XdrEnum, _XdrPassthru, _XdrPointer
-from xdr_ast import _XdrStruct, _XdrTypedef, _XdrUnion
+from xdr_ast import _XdrStruct, _XdrTypedef, _XdrUnion, XdrSemanticError
 
 from xdr_parse import xdr_parser, set_xdr_annotate, set_xdr_enum_validation
 from xdr_parse import make_error_handler, XdrParseError
-from xdr_parse import handle_transform_error
+from xdr_parse import handle_transform_error, handle_semantic_error
 
 logger.setLevel(logging.INFO)
 
@@ -122,6 +122,9 @@ def subcmd(args: Namespace) -> int:
             ast = transform_parse_tree(parse_tree)
         except VisitError as e:
             handle_transform_error(e, source, args.filename)
+            return 1
+        except XdrSemanticError as e:
+            handle_semantic_error(e, source, args.filename)
             return 1
         match args.peer:
             case "server":

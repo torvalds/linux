@@ -1524,7 +1524,7 @@ struct mlx5_flow_handle *
 mlx5_esw_lag_demux_rule_create(struct mlx5_eswitch *esw, u16 vport_num,
 			       struct mlx5_flow_table *lag_ft)
 {
-	struct mlx5_flow_spec *spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	struct mlx5_flow_spec *spec = kvzalloc_obj(*spec);
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_handle *ret;
@@ -2567,6 +2567,7 @@ static void mlx5_esw_fdb_active(struct mlx5_eswitch *esw)
 	mlx5_esw_fdb_drop_destroy(esw);
 	mlx5_mpfs_enable(esw->dev);
 
+	mutex_lock(&esw->state_lock);
 	mlx5_esw_for_each_vf_vport(esw, i, vport, U16_MAX) {
 		if (!vport->adjacent)
 			continue;
@@ -2574,6 +2575,7 @@ static void mlx5_esw_fdb_active(struct mlx5_eswitch *esw)
 			  vport->vport);
 		mlx5_esw_adj_vport_modify(esw->dev, vport->vport, true);
 	}
+	mutex_unlock(&esw->state_lock);
 
 	esw->offloads_inactive = false;
 	esw_warn(esw->dev, "MPFS/FDB active\n");
@@ -2587,6 +2589,7 @@ static void mlx5_esw_fdb_inactive(struct mlx5_eswitch *esw)
 	mlx5_mpfs_disable(esw->dev);
 	mlx5_esw_fdb_drop_create(esw);
 
+	mutex_lock(&esw->state_lock);
 	mlx5_esw_for_each_vf_vport(esw, i, vport, U16_MAX) {
 		if (!vport->adjacent)
 			continue;
@@ -2595,6 +2598,7 @@ static void mlx5_esw_fdb_inactive(struct mlx5_eswitch *esw)
 
 		mlx5_esw_adj_vport_modify(esw->dev, vport->vport, false);
 	}
+	mutex_unlock(&esw->state_lock);
 
 	esw->offloads_inactive = true;
 	esw_warn(esw->dev, "MPFS/FDB inactive\n");

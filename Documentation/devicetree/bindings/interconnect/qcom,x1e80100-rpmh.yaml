@@ -46,6 +46,10 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    minItems: 1
+    maxItems: 6
+
 required:
   - compatible
 
@@ -65,6 +69,73 @@ allOf:
       required:
         - reg
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,x1e80100-aggre1-noc
+    then:
+      properties:
+        clocks:
+          items:
+            - description: aggre UFS PHY AXI clock
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,x1e80100-usb-north-anoc
+    then:
+      properties:
+        clocks:
+          items:
+            - description: aggre USB2 PRIM AXI clock
+            - description: aggre USB3 MP AXI clock
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,x1e80100-usb-south-anoc
+    then:
+      properties:
+        clocks:
+          items:
+            - description: aggre USB3 PRIM AXI clock
+            - description: aggre USB3 SEC AXI clock
+            - description: aggre USB3 TERT AXI clock
+            - description: aggre USB4_0 AXI clock
+            - description: aggre USB4_1 AXI clock
+            - description: aggre USB4_2 AXI clock
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,x1e80100-aggre2-noc
+              - qcom,x1e80100-clk-virt
+              - qcom,x1e80100-cnoc-cfg
+              - qcom,x1e80100-cnoc-main
+              - qcom,x1e80100-gem-noc
+              - qcom,x1e80100-lpass-ag-noc
+              - qcom,x1e80100-lpass-lpiaon-noc
+              - qcom,x1e80100-lpass-lpicx-noc
+              - qcom,x1e80100-mc-virt
+              - qcom,x1e80100-mmss-noc
+              - qcom,x1e80100-nsp-noc
+              - qcom,x1e80100-pcie-center-anoc
+              - qcom,x1e80100-pcie-north-anoc
+              - qcom,x1e80100-pcie-south-anoc
+              - qcom,x1e80100-system-noc
+              - qcom,x1e80100-usb-center-anoc
+    then:
+      properties:
+        clocks: false
+
 unevaluatedProperties: false
 
 examples:
@@ -80,4 +151,5 @@ examples:
       reg = <0x016e0000 0x14400>;
       #interconnect-cells = <2>;
       qcom,bcm-voters = <&apps_bcm_voter>;
+      clocks = <&gcc_aggre_ufs_phy_axi_clk>;
     };

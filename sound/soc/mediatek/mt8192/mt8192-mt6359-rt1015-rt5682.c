@@ -382,7 +382,7 @@ static int mt8192_i2s_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 {
 	/* fix BE i2s format to S24_LE, clean param mask first */
 	snd_mask_reset_range(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT),
-			     0, (__force unsigned int)SNDRV_PCM_FORMAT_LAST);
+			     0, SNDRV_PCM_FORMAT_LAST);
 
 	params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
 
@@ -1019,7 +1019,7 @@ static struct snd_soc_card mt8192_mt6359_rt1015p_rt5682x_card = {
 	.num_dapm_routes = ARRAY_SIZE(mt8192_mt6359_rt1015p_rt5682x_routes),
 };
 
-static int mt8192_mt6359_card_set_be_link(struct snd_soc_card *card,
+static int mt8192_mt6359_card_set_be_link(struct device *dev,
 					  struct snd_soc_dai_link *link,
 					  struct device_node *node,
 					  char *link_name)
@@ -1027,9 +1027,9 @@ static int mt8192_mt6359_card_set_be_link(struct snd_soc_card *card,
 	int ret;
 
 	if (node && strcmp(link->name, link_name) == 0) {
-		ret = snd_soc_of_get_dai_link_codecs(card->dev, node, link);
+		ret = snd_soc_of_get_dai_link_codecs(dev, node, link);
 		if (ret < 0) {
-			dev_err_probe(card->dev, ret, "get dai link codecs fail\n");
+			dev_err_probe(dev, ret, "get dai link codecs fail\n");
 			return ret;
 		}
 	}
@@ -1065,21 +1065,21 @@ static int mt8192_mt6359_legacy_probe(struct mtk_soc_card_data *soc_card_data)
 	}
 
 	for_each_card_prelinks(card, i, dai_link) {
-		ret = mt8192_mt6359_card_set_be_link(card, dai_link, speaker_codec, "I2S3");
+		ret = mt8192_mt6359_card_set_be_link(dev, dai_link, speaker_codec, "I2S3");
 		if (ret) {
 			dev_err_probe(dev, ret, "%s set speaker_codec fail\n",
 				      dai_link->name);
 			break;
 		}
 
-		ret = mt8192_mt6359_card_set_be_link(card, dai_link, headset_codec, "I2S8");
+		ret = mt8192_mt6359_card_set_be_link(dev, dai_link, headset_codec, "I2S8");
 		if (ret) {
 			dev_err_probe(dev, ret, "%s set headset_codec fail\n",
 				      dai_link->name);
 			break;
 		}
 
-		ret = mt8192_mt6359_card_set_be_link(card, dai_link, headset_codec, "I2S9");
+		ret = mt8192_mt6359_card_set_be_link(dev, dai_link, headset_codec, "I2S9");
 		if (ret) {
 			dev_err_probe(dev, ret, "%s set headset_codec fail\n",
 				      dai_link->name);

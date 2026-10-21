@@ -656,7 +656,7 @@ static const struct pci_device_id solo_id_table[] = {
 	  .driver_data = SOLO_DEV_6110 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_BC_6110_16),
 	  .driver_data = SOLO_DEV_6110 },
-	{0,}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, solo_id_table);

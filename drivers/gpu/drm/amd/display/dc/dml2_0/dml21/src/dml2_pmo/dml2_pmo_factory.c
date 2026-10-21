@@ -7,6 +7,8 @@
 #include "dml2_pmo_dcn3.h"
 #include "dml2_pmo_dcn42.h"
 #include "dml2_external_lib_deps.h"
+#include "dml2_pmo_dcn5.h"
+#include "dml2_pmo_dcn6.h"
 
 static bool dummy_init_for_stutter(struct dml2_pmo_init_for_stutter_in_out *in_out)
 {
@@ -94,6 +96,38 @@ bool dml2_pmo_create(enum dml2_project_id project_id, struct dml2_pmo_instance *
 		out->optimize_for_stutter = pmo_dcn4_fams2_optimize_for_stutter;
 		result = true;
 		break;
+	case dml2_project_dcn5x_utm:
+		out->initialize = dml2_pmo_dcn5_initialize;
+		out->get_ordered_mandatory_stage_optimizers = dml2_pmo_dcn5_get_ordered_mandatory_stage_optimizers;
+		out->get_ordered_optional_stage_optimizers = dml2_pmo_dcn5_get_ordered_optional_stages_optimizers;
+		out->initialize_worksheet = dml2_pmo_dcn5_initialize_worksheet;
+		out->optional_sanity_check = dml2_pmo_dcn5_sanity_check;
+		out->convert_worksheet_to_solution = dml2_pmo_dcn5_convert_worksheet_to_solution;
+		out->clear_pre_validation_states = dml2_pmo_dcn5_clear_pre_validation_states;
+		result = true;
+		break;
+	case dml2_project_dcn6x_soc_var_a:
+		out->initialize = dml2_pmo_dcn6a_initialize;
+		out->get_ordered_mandatory_stage_optimizers = dml2_pmo_dcn6a_get_ordered_mandatory_stage_optimizers;
+		out->get_ordered_optional_stage_optimizers = dml2_pmo_dcn6a_get_ordered_optional_stages_optimizers;
+		out->initialize_worksheet = dml2_pmo_dcn5_initialize_worksheet;
+		out->optional_sanity_check = dml2_pmo_dcn5_sanity_check;
+		out->convert_worksheet_to_solution = dml2_pmo_dcn6_convert_worksheet_to_solution;
+		out->clear_pre_validation_states = dml2_pmo_dcn5_clear_pre_validation_states;
+		result = true;
+		break;
+	case dml2_project_dcn6x_soc_var_b:
+		out->initialize = dml2_pmo_dcn6b_initialize;
+		out->get_ordered_mandatory_stage_optimizers = dml2_pmo_dcn6b_get_ordered_mandatory_stage_optimizers;
+		out->get_ordered_optional_stage_optimizers = dml2_pmo_dcn6b_get_ordered_optional_stages_optimizers;
+		out->initialize_worksheet = dml2_pmo_dcn5_initialize_worksheet;
+		out->optional_sanity_check = dml2_pmo_dcn5_sanity_check;
+		out->convert_worksheet_to_solution = dml2_pmo_dcn6_convert_worksheet_to_solution;
+		out->clear_pre_validation_states = dml2_pmo_dcn5_clear_pre_validation_states;
+		result = true;
+		break;
+	case dml2_project_dcn4x_utm:
+	case dml2_project_dcn5x:
 	case dml2_project_invalid:
 	default:
 		break;

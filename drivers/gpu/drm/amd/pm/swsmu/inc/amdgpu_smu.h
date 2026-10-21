@@ -34,7 +34,7 @@
 
 #define SMU_THERMAL_MINIMUM_ALERT_TEMP		0
 #define SMU_THERMAL_MAXIMUM_ALERT_TEMP		255
-#define SMU_TEMPERATURE_UNITS_PER_CENTIGRADES	1000
+#define SMU_TEMPERATURE_UNITS_PER_CENTIGRADES	MILLIDEGREE_PER_DEGREE
 #define SMU_FW_NAME_LEN			0x24
 
 #define SMU_DPM_USER_PROFILE_RESTORE (1 << 0)
@@ -212,9 +212,12 @@ enum smu_power_src_type {
 };
 
 enum smu_ppt_limit_type {
-	SMU_DEFAULT_PPT_LIMIT = 0,
-	SMU_FAST_PPT_LIMIT,
+	SMU_PPT_LIMIT_PPT0 = 0,
+	SMU_PPT_LIMIT_PPT1,
 	SMU_LIMIT_TYPE_COUNT,
+	SMU_DEFAULT_PPT_LIMIT = SMU_PPT_LIMIT_PPT0,
+	SMU_SLOW_PPT_LIMIT = SMU_PPT_LIMIT_PPT0,
+	SMU_FAST_PPT_LIMIT = SMU_PPT_LIMIT_PPT1,
 };
 
 enum smu_ppt_limit_level {
@@ -222,6 +225,20 @@ enum smu_ppt_limit_level {
 	SMU_PPT_LIMIT_CURRENT,
 	SMU_PPT_LIMIT_DEFAULT,
 	SMU_PPT_LIMIT_MAX,
+};
+
+struct smu_ppt_limit_range {
+	uint32_t default_value;
+	uint32_t min;
+	uint32_t max;
+	uint32_t od_min;
+	uint32_t od_max;
+};
+
+struct smu_ppt_limit_context {
+	struct smu_ppt_limit_range
+		range[SMU_POWER_SOURCE_COUNT][SMU_LIMIT_TYPE_COUNT];
+	uint32_t supported_mask;
 };
 
 enum smu_memory_pool_size {
@@ -234,7 +251,8 @@ enum smu_memory_pool_size {
 
 struct smu_user_dpm_profile {
 	uint32_t fan_mode;
-	uint32_t power_limits[SMU_LIMIT_TYPE_COUNT];
+	uint32_t ppt_limits[SMU_POWER_SOURCE_COUNT][SMU_LIMIT_TYPE_COUNT];
+	uint32_t ppt_limit_user_mask[SMU_POWER_SOURCE_COUNT];
 	uint32_t fan_speed_pwm;
 	uint32_t fan_speed_rpm;
 	uint32_t flags;
@@ -719,10 +737,7 @@ struct smu_context {
 	uint32_t pstate_mclk;
 
 	bool od_enabled;
-	uint32_t current_power_limit;
-	uint32_t default_power_limit;
-	uint32_t max_power_limit;
-	uint32_t min_power_limit;
+	struct smu_ppt_limit_context ppt_limits;
 
 	/* soft pptable */
 	uint32_t ppt_offset_bytes;
@@ -852,8 +867,6 @@ struct pptable_funcs {
 	 */
 	int (*set_default_dpm_table)(struct smu_context *smu);
 
-	int (*set_power_state)(struct smu_context *smu);
-
 	/**
 	 * @populate_umd_state_clk: Populate the UMD power state table with
 	 *                          defaults.
@@ -906,16 +919,6 @@ struct pptable_funcs {
 					      struct
 					      pp_clock_levels_with_latency
 					      *clocks);
-	/**
-	 * @get_clock_by_type_with_voltage: Get the speed and voltage of a clock
-	 *                                  domain.
-	 */
-	int (*get_clock_by_type_with_voltage)(struct smu_context *smu,
-					      enum amd_pp_clock_type type,
-					      struct
-					      pp_clock_levels_with_voltage
-					      *clocks);
-
 	/**
 	 * @get_power_profile_mode: Print all power profile modes to
 	 *                          buffer. Star current mode.
@@ -1057,19 +1060,11 @@ struct pptable_funcs {
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
 
 	/**
-	 * @get_power_limit: Get the device's power limits.
+	 * @get_ppt_limit: Get the effective runtime PPT0 or PPT1 limit.
 	 */
-	int (*get_power_limit)(struct smu_context *smu,
-					uint32_t *current_power_limit,
-					uint32_t *default_power_limit,
-					uint32_t *max_power_limit,
-					uint32_t *min_power_limit);
-
-	/**
-	 * @get_ppt_limit: Get the device's ppt limits.
-	 */
-	int (*get_ppt_limit)(struct smu_context *smu, uint32_t *ppt_limit,
-			enum smu_ppt_limit_type limit_type, enum smu_ppt_limit_level limit_level);
+	int (*get_ppt_limit)(struct smu_context *smu,
+			     enum smu_ppt_limit_type limit_type,
+			     uint32_t *current_ppt_limit);
 
 	/**
 	 * @set_df_cstate: Set data fabric cstate.
@@ -1257,11 +1252,11 @@ struct pptable_funcs {
 	int (*notify_display_change)(struct smu_context *smu);
 
 	/**
-	 * @set_power_limit: Set power limit in watts.
+	 * @set_ppt_limit: Set the PPT0 or PPT1 limit in watts.
 	 */
-	int (*set_power_limit)(struct smu_context *smu,
-			       enum smu_ppt_limit_type limit_type,
-			       uint32_t limit);
+	int (*set_ppt_limit)(struct smu_context *smu,
+			     enum smu_ppt_limit_type limit_type,
+			     uint32_t limit);
 
 	/**
 	 * @init_max_sustainable_clocks: Populate max sustainable clock speed
@@ -1358,11 +1353,6 @@ struct pptable_funcs {
 	int (*register_irq_handler)(struct smu_context *smu);
 
 	/**
-	 * @set_azalia_d3_pme: Wake the audio decode engine from d3 sleep.
-	 */
-	int (*set_azalia_d3_pme)(struct smu_context *smu);
-
-	/**
 	 * @get_max_sustainable_clocks_by_dc: Get a copy of the max sustainable
 	 *                                    clock speeds table.
 	 *
@@ -1377,18 +1367,6 @@ struct pptable_funcs {
 	 * MACO: Memory Active, Chip Off
 	 */
 	int (*get_bamaco_support)(struct smu_context *smu);
-
-	/**
-	 * @baco_get_state: Get the current BACO state.
-	 *
-	 * Return: Current BACO state.
-	 */
-	enum smu_baco_state (*baco_get_state)(struct smu_context *smu);
-
-	/**
-	 * @baco_set_state: Enter/exit BACO.
-	 */
-	int (*baco_set_state)(struct smu_context *smu, enum smu_baco_state state);
 
 	/**
 	 * @baco_enter: Enter BACO.
@@ -1650,12 +1628,6 @@ struct pptable_funcs {
 	 */
 	int (*ras_send_msg)(struct smu_context *smu,
 			    enum smu_message_type msg, uint32_t param, uint32_t *read_arg);
-
-	/**
-	 * @get_ras_smu_drv: Get RAS smu driver interface
-	 * Return: ras_smu_drv *
-	 */
-	int (*get_ras_smu_drv)(struct smu_context *smu, const struct ras_smu_drv **ras_smu_drv);
 
 	/**
 	 * @set_power_dep: Create or destroy a power dependency link
@@ -1950,10 +1922,10 @@ smu_driver_table_update_cache_time(struct smu_context *smu,
 }
 
 #if !defined(SWSMU_CODE_LAYER_L2) && !defined(SWSMU_CODE_LAYER_L3) && !defined(SWSMU_CODE_LAYER_L4)
-int smu_get_power_limit(void *handle,
-			uint32_t *limit,
-			enum pp_power_limit_level pp_limit_level,
-			enum pp_power_type pp_power_type);
+int smu_get_ppt_limit(void *handle,
+		      uint32_t *limit,
+		      enum pp_power_limit_level pp_limit_level,
+		      enum pp_power_type pp_power_type);
 
 bool smu_mode1_reset_is_support(struct smu_context *smu);
 bool smu_link_reset_is_support(struct smu_context *smu);
@@ -1962,7 +1934,13 @@ int smu_link_reset(struct smu_context *smu);
 
 extern const struct amd_ip_funcs smu_ip_funcs;
 
-bool is_support_sw_smu(struct amdgpu_device *adev);
+void amdgpu_smu_early_init(struct amdgpu_device *adev);
+
+static inline bool is_support_sw_smu(struct amdgpu_device *adev)
+{
+	return adev->is_sw_smu;
+}
+
 bool is_support_cclk_dpm(struct amdgpu_device *adev);
 int smu_write_watermarks_table(struct smu_context *smu);
 
@@ -1974,7 +1952,7 @@ int smu_set_soft_freq_range(struct smu_context *smu, enum pp_clock_type clk_type
 
 int smu_set_gfx_power_up_by_imu(struct smu_context *smu);
 
-int smu_set_ac_dc(struct smu_context *smu);
+int smu_set_ac_dc(struct smu_context *smu, bool restore_ppt_policy);
 
 int smu_set_xgmi_plpd_mode(struct smu_context *smu,
 			   enum pp_xgmi_plpd_mode mode);
@@ -2005,7 +1983,6 @@ int smu_set_pm_policy(struct smu_context *smu, enum pp_pm_policy p_type,
 		      int level);
 ssize_t smu_get_pm_policy_info(struct smu_context *smu,
 			       enum pp_pm_policy p_type, char *sysbuf);
-const struct ras_smu_drv *smu_get_ras_smu_driver(void *handle);
 
 int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type msg,
 			    uint32_t param, uint32_t *readarg);

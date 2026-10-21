@@ -537,16 +537,6 @@ static bool vcnl4010_is_in_periodic_mode(struct vcnl4000_data *data)
 	return !!(ret & VCNL4000_SELF_TIMED_EN);
 }
 
-static int vcnl4000_set_pm_runtime_state(struct vcnl4000_data *data, bool on)
-{
-	struct device *dev = &data->client->dev;
-
-	if (on)
-		return pm_runtime_resume_and_get(dev);
-
-	return pm_runtime_put_autosuspend(dev);
-}
-
 static int vcnl4040_read_als_it(struct vcnl4000_data *data, int *val, int *val2)
 {
 	int ret;
@@ -850,7 +840,7 @@ static int vcnl4000_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = vcnl4000_set_pm_runtime_state(data, true);
+		ret = pm_runtime_resume_and_get(&data->client->dev);
 		if  (ret < 0)
 			return ret;
 
@@ -869,7 +859,7 @@ static int vcnl4000_read_raw(struct iio_dev *indio_dev,
 		default:
 			ret = -EINVAL;
 		}
-		vcnl4000_set_pm_runtime_state(data, false);
+		pm_runtime_put_autosuspend(&data->client->dev);
 		return ret;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type != IIO_LIGHT)
@@ -1922,7 +1912,7 @@ static void vcnl4000_cleanup(void *data)
 
 static int vcnl4000_probe(struct i2c_client *client)
 {
-	const char * const regulator_names[] = { "vdd", "vio", "vled" };
+	static const char * const regulator_names[] = { "vdd", "vio", "vled" };
 	struct device *dev = &client->dev;
 	struct vcnl4000_data *data;
 	struct iio_dev *indio_dev;

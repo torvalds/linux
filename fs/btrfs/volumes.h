@@ -632,9 +632,15 @@ struct btrfs_chunk_map {
 	u64 start;
 	u64 chunk_len;
 	u64 stripe_size;
+	/*
+	 * The real type that is utilized during logical address mapping.
+	 *
+	 * For most profiles it matches @on_disk_type, but for single-data-RAID56,
+	 * the real type will be set to RAID1/RAID1C3, to avoid unsupported
+	 * operations from raid56 lib.
+	 */
 	u64 type;
-	int io_align;
-	int io_width;
+	u64 on_disk_type;
 	int num_stripes;
 	int sub_stripes;
 	struct btrfs_io_stripe stripes[];

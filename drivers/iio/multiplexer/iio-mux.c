@@ -463,3 +463,4 @@ module_platform_driver(mux_driver);
 MODULE_DESCRIPTION("IIO multiplexer driver");
 MODULE_AUTHOR("Peter Rosin <peda@axentia.se>");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("IIO_CONSUMER");

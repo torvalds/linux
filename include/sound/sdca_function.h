@@ -298,7 +298,7 @@ enum sdca_xu_controls {
 };
 
 /**
- * enum sdca_set_index_range - Column definitions UMP SetIndex
+ * enum sdca_fdl_set_index_range - Column definitions UMP SetIndex
  */
 enum sdca_fdl_set_index_range {
 	SDCA_FDL_SET_INDEX_SET_NUMBER			= 0,
@@ -803,6 +803,8 @@ struct sdca_control_range {
  * @mode: Access mode of the Control.
  * @layers: Bitmask of access layers of the Control.
  * @deferrable: Indicates if the access to the Control can be deferred.
+ * @is_volatile: Indicates the Control registers are forced to be treated
+ *  as volatile.
  * @has_default: Indicates the Control has a default value to be written.
  * @has_reset: Indicates the Control has a defined reset value.
  * @has_fixed: Indicates the Control only supports a single value.
@@ -1116,7 +1118,6 @@ struct sdca_entity_ge {
 
 /**
  * struct sdca_entity_hide - information specific to HIDE Entities
- * @hid: HID device structure
  * @num_hidtx_ids: number of HIDTx Report ID
  * @num_hidrx_ids: number of HIDRx Report ID
  * @hidtx_ids: HIDTx Report ID
@@ -1127,11 +1128,8 @@ struct sdca_entity_ge {
  * within this Device
  * @max_delay: the maximum time in microseconds allowed for the Device
  * to change the ownership from Device to Host
- * @hid_report_desc: HID Report Descriptor for the HIDE Entity
- * @hid_desc: HID descriptor for the HIDE Entity
  */
 struct sdca_entity_hide {
-	struct hid_device *hid;
 	unsigned int *hidtx_ids;
 	unsigned int *hidrx_ids;
 	int num_hidtx_ids;
@@ -1139,12 +1137,10 @@ struct sdca_entity_hide {
 	unsigned int af_number_list[SDCA_MAX_FUNCTION_COUNT];
 	unsigned int hide_reside_function_num;
 	unsigned int max_delay;
-	unsigned char *hid_report_desc;
-	struct hid_descriptor hid_desc;
 };
 
 /**
- * enum sdca_xu_reset_machanism - SDCA FDL Resets
+ * enum sdca_xu_reset_mechanism - SDCA FDL Resets
  */
 enum sdca_xu_reset_mechanism {
 	SDCA_XU_RESET_FUNCTION				= 0x0,
@@ -1402,6 +1398,16 @@ struct sdca_fdl_data {
 };
 
 /**
+ * struct sdca_function_hid - information about a function's HID descriptors
+ * @report_desc: HID Report Descriptor for the HID Function
+ * @desc: HID descriptor for the HID Function
+ */
+struct sdca_function_hid {
+	unsigned char *report_desc;
+	struct hid_descriptor desc;
+};
+
+/**
  * struct sdca_function_data - top-level information for one SDCA function
  * @desc: Pointer to short descriptor from initial parsing.
  * @init_table: Pointer to a table of initialization writes.
@@ -1415,6 +1421,7 @@ struct sdca_fdl_data {
  * @reset_max_delay: Maximum Function reset delay in microseconds, before an
  * error should be reported.
  * @fdl_data: FDL data for this Function, if available.
+ * @hid: HID data for this Function, if available.
  */
 struct sdca_function_data {
 	struct sdca_function_desc *desc;
@@ -1430,6 +1437,10 @@ struct sdca_function_data {
 	unsigned int reset_max_delay;
 
 	struct sdca_fdl_data fdl_data;
+
+	union {
+		struct sdca_function_hid hid;
+	};
 };
 
 static inline u32 sdca_range(struct sdca_control_range *range,
@@ -1451,8 +1462,7 @@ static inline u32 sdca_range_search(struct sdca_control_range *range,
 	return 0;
 }
 
-int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
-			struct sdca_function_data *function);
+int sdca_parse_function(struct device *dev, struct sdca_function_data *function);
 
 const char *sdca_find_terminal_name(enum sdca_terminal_type type);
 
@@ -1469,5 +1479,7 @@ struct sdca_control_range *sdca_selector_find_range(struct device *dev,
 struct sdca_cluster *sdca_id_find_cluster(struct device *dev,
 					  struct sdca_function_data *function,
 					  const int id);
+struct sdca_entity *sdca_find_entity_by_label(struct sdca_function_data *function,
+						     const char *entity_label);
 
 #endif

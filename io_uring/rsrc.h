@@ -2,8 +2,10 @@
 #ifndef IOU_RSRC_H
 #define IOU_RSRC_H
 
+#include <linux/bvec.h>
 #include <linux/io_uring_types.h>
 #include <linux/lockdep.h>
+#include <linux/uio.h>
 
 #define IO_VEC_CACHE_SOFT_CAP		256
 
@@ -21,11 +23,6 @@ struct io_rsrc_node {
 		unsigned long file_ptr;
 		struct io_mapped_ubuf *buf;
 	};
-};
-
-enum {
-	IO_IMU_DEST	= 1 << ITER_DEST,
-	IO_IMU_SOURCE	= 1 << ITER_SOURCE,
 };
 
 enum {

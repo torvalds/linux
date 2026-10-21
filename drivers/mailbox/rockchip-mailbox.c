@@ -40,7 +40,6 @@ struct rockchip_mbox_chan {
 
 struct rockchip_mbox {
 	struct mbox_controller mbox;
-	struct clk *pclk;
 	void __iomem *mbox_base;
 
 	/* The maximum size of buf for each channel */
@@ -166,6 +165,7 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	struct rockchip_mbox *mb;
 	const struct rockchip_mbox_data *drv_data;
 	struct resource *res;
+	struct clk *pclk;
 	int ret, irq, i;
 
 	if (!pdev->dev.of_node)
@@ -196,19 +196,10 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	/* Each channel has two buffers for A2B and B2A */
 	mb->buf_size = (size_t)resource_size(res) / (drv_data->num_chans * 2);
 
-	mb->pclk = devm_clk_get(&pdev->dev, "pclk_mailbox");
-	if (IS_ERR(mb->pclk)) {
-		ret = PTR_ERR(mb->pclk);
-		dev_err(&pdev->dev, "failed to get pclk_mailbox clock: %d\n",
-			ret);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(mb->pclk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable pclk: %d\n", ret);
-		return ret;
-	}
+	pclk = devm_clk_get_enabled(&pdev->dev, "pclk_mailbox");
+	if (IS_ERR(pclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(pclk),
+				     "failed to get and enable pclk_mailbox clock\n");
 
 	for (i = 0; i < mb->mbox.num_chans; i++) {
 		irq = platform_get_irq(pdev, i);

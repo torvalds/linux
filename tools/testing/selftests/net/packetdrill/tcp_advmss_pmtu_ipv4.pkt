@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Test that IPv4 advertised MSS in SYN-ACK is derived from the configured
+// interface MTU (1500 -> MSS 1460), not the ICMP-learned Path MTU.
+
+--ip_version=ipv4
+
+`./defaults.sh
+ethtool -K tun0 tso off
+`
+
+//
+// Connection 1: Learn PMTU exception (MTU 1200 -> MSS 1160)
+//
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 65535 <mss 1460,sackOK,nop,nop,nop,wscale 8>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 257
+   +0 accept(3, ..., ...) = 4
+
+// Send a full 1460-byte segment
+   +0 write(4, ..., 1460) = 1460
+   +0 > P. 1:1461(1460) ack 1
+
+// ICMP Fragmentation Needed arrives indicating next-hop MTU 1200
+   +0 < icmp unreachable frag_needed mtu 1200 [1:1461(1460)]
+
+// Local host retransmits using the learned MTU 1200 (MSS = 1200 - 40 = 1160)
+   +0 > . 1:1161(1160) ack 1
+   +0 > P. 1161:1461(300) ack 1
+   +0 < R 1:1(0) ack 1461 win 0
+
+// Close connection 1 and listener
+   +0 close(4) = 0
+   +0 close(3) = 0
+
+//
+// Connection 2: New connection from the same peer
+//
+   +0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 65535 <mss 1460,sackOK,nop,nop,nop,wscale 8>
+
+// Verify: SYN-ACK MUST advertise configured MSS 1460, NOT the learned PMTU MSS 1160
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+   +0 < . 1:1(0) ack 1 win 257
+   +0 accept(3, ..., ...) = 4
+
+// Verify: Outgoing transmit MSS is still constrained by the learned PMTU 1200
+   +0 write(4, ..., 1460) = 1460
+   +0 > . 1:1161(1160) ack 1
+   +0 > P. 1161:1461(300) ack 1
+   +0 < . 1:1(0) ack 1461 win 257
+
+// Clean up
+   +0 close(4) = 0
+   +0 > F. 1461:1461(0) ack 1
+   +0 < F. 1:1(0) ack 1462 win 257
+   +0 > . 1462:1462(0) ack 2
+   +0 close(3) = 0

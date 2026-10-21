@@ -329,7 +329,7 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 	drv->core = core;
 	drv->function = &sdev->function;
 
-	ret = sdca_parse_function(dev, core->sdw, drv->function);
+	ret = sdca_parse_function(dev, drv->function);
 	if (ret)
 		return ret;
 

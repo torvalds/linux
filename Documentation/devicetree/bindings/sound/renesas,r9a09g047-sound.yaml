@@ -793,7 +793,7 @@ examples:
             bitclock-master = <&rsnd_endpoint0>;
             frame-master = <&rsnd_endpoint0>;
             playback = <&ssi3>, <&src1>, <&dvc1>;
-            capture  = <&ssi4>, <&src0>, <&dvc0>;
+            capture = <&ssi4>, <&src0>, <&dvc0>;
           };
         };
       };

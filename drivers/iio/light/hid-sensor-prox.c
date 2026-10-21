@@ -69,9 +69,8 @@ static const struct iio_chan_spec prox_channels[] = {
 
 /* Channel read_raw handler */
 static int prox_read_raw(struct iio_dev *indio_dev,
-			      struct iio_chan_spec const *chan,
-			      int *val, int *val2,
-			      long mask)
+			 struct iio_chan_spec const *chan,
+			 int *val, int *val2, long mask)
 {
 	struct prox_state *prox_state = iio_priv(indio_dev);
 	struct hid_sensor_hub_device *hsdev;
@@ -134,10 +133,8 @@ static int prox_read_raw(struct iio_dev *indio_dev,
 
 /* Channel write_raw handler */
 static int prox_write_raw(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       int val,
-			       int val2,
-			       long mask)
+			  struct iio_chan_spec const *chan,
+			  int val, int val2, long mask)
 {
 	struct prox_state *prox_state = iio_priv(indio_dev);
 	int ret = 0;
@@ -165,8 +162,7 @@ static const struct iio_info prox_info = {
 
 /* Callback handler to send event after all samples are received and captured */
 static int prox_proc_event(struct hid_sensor_hub_device *hsdev,
-				unsigned usage_id,
-				void *priv)
+			   u32 usage_id, void *priv)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(priv);
 	struct prox_state *prox_state = iio_priv(indio_dev);
@@ -182,9 +178,9 @@ static int prox_proc_event(struct hid_sensor_hub_device *hsdev,
 
 /* Capture samples in local storage */
 static int prox_capture_sample(struct hid_sensor_hub_device *hsdev,
-				unsigned usage_id,
-				size_t raw_len, char *raw_data,
-				void *priv)
+			       u32 usage_id,
+			       size_t raw_len, char *raw_data,
+			       void *priv)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(priv);
 	struct prox_state *prox_state = iio_priv(indio_dev);
@@ -217,8 +213,8 @@ static int prox_capture_sample(struct hid_sensor_hub_device *hsdev,
 
 /* Parse report which is specific to an usage id*/
 static int prox_parse_report(struct platform_device *pdev,
-				struct hid_sensor_hub_device *hsdev,
-				struct prox_state *st)
+			     struct hid_sensor_hub_device *hsdev,
+			     struct prox_state *st)
 {
 	struct iio_chan_spec *channels = st->channels;
 	int index = 0;
@@ -270,8 +266,7 @@ static int hid_prox_probe(struct platform_device *pdev)
 	struct iio_dev *indio_dev;
 	struct prox_state *prox_state;
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev,
-				sizeof(struct prox_state));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(struct prox_state));
 	if (!indio_dev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, indio_dev);
@@ -305,16 +300,10 @@ static int hid_prox_probe(struct platform_device *pdev)
 	atomic_set(&prox_state->common_attributes.data_ready, 0);
 
 	ret = hid_sensor_setup_trigger(indio_dev, name,
-				&prox_state->common_attributes);
+				       &prox_state->common_attributes);
 	if (ret) {
 		dev_err(&pdev->dev, "trigger setup failed\n");
 		return ret;
-	}
-
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		dev_err(&pdev->dev, "device register failed\n");
-		goto error_remove_trigger;
 	}
 
 	prox_state->callbacks.send_event = prox_proc_event;
@@ -324,13 +313,19 @@ static int hid_prox_probe(struct platform_device *pdev)
 					   &prox_state->callbacks);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "callback reg failed\n");
-		goto error_iio_unreg;
+		goto error_remove_trigger;
+	}
+
+	ret = iio_device_register(indio_dev);
+	if (ret) {
+		dev_err(&pdev->dev, "device register failed\n");
+		goto error_remove_callback;
 	}
 
 	return ret;
 
-error_iio_unreg:
-	iio_device_unregister(indio_dev);
+error_remove_callback:
+	sensor_hub_remove_callback(hsdev, hsdev->usage);
 error_remove_trigger:
 	hid_sensor_remove_trigger(indio_dev, &prox_state->common_attributes);
 	return ret;
@@ -343,8 +338,8 @@ static void hid_prox_remove(struct platform_device *pdev)
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct prox_state *prox_state = iio_priv(indio_dev);
 
-	sensor_hub_remove_callback(hsdev, hsdev->usage);
 	iio_device_unregister(indio_dev);
+	sensor_hub_remove_callback(hsdev, hsdev->usage);
 	hid_sensor_remove_trigger(indio_dev, &prox_state->common_attributes);
 }
 

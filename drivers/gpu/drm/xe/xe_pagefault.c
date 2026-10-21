@@ -16,6 +16,7 @@
 #include "xe_hw_engine.h"
 #include "xe_pagefault.h"
 #include "xe_pagefault_types.h"
+#include "xe_pm.h"
 #include "xe_svm.h"
 #include "xe_trace_bo.h"
 #include "xe_vm.h"
@@ -158,7 +159,7 @@ static struct xe_vm *xe_pagefault_asid_to_vm(struct xe_device *xe, u32 asid)
 
 	down_read(&xe->usm.lock);
 	vm = xa_load(&xe->usm.asid_to_vm, asid);
-	if (vm && (xe_vm_in_fault_mode(vm) || xe_vm_has_scratch(vm)))
+	if (vm && xe_vm_in_fault_mode(vm))
 		xe_vm_get(vm);
 	else
 		vm = ERR_PTR(-EINVAL);
@@ -292,8 +293,16 @@ static void xe_pagefault_queue_work(struct work_struct *w)
 {
 	struct xe_pagefault_queue *pf_queue =
 		container_of(w, typeof(*pf_queue), worker);
+	struct xe_device *xe = pf_queue->xe;
 	struct xe_pagefault pf;
 	unsigned long threshold;
+
+	/*
+	 * A live VM holds a PM reference, but a torn-down VM does not.
+	 * Guard the entire worker loop to safely drain stale faults and
+	 * prevent autosuspends from desyncing batched CT flushes.
+	 */
+	guard(xe_pm_runtime)(xe);
 
 #define USM_QUEUE_MAX_RUNTIME_MS      20
 	threshold = jiffies + msecs_to_jiffies(USM_QUEUE_MAX_RUNTIME_MS);
@@ -365,6 +374,7 @@ static int xe_pagefault_queue_init(struct xe_device *xe,
 	drm_dbg(&xe->drm, "xe_pagefault_entry_size=%d, total_num_eus=%d, pf_queue->size=%u",
 		xe_pagefault_entry_size(), total_num_eus, pf_queue->size);
 
+	pf_queue->xe = xe;
 	spin_lock_init(&pf_queue->lock);
 	INIT_WORK(&pf_queue->worker, xe_pagefault_queue_work);
 

@@ -4,13 +4,7 @@
 //! Blackwell GB20x framebuffer HAL.
 
 use kernel::{
-    io::{
-        register::{
-            RegisterBase,
-            WithBase, //
-        },
-        Io, //
-    },
+    io::Io,
     num::Bounded,
     prelude::*,
     sizes::SizeConstants, //
@@ -18,41 +12,37 @@ use kernel::{
 
 use crate::{
     driver::Bar0,
-    fb::hal::FbHal,
-    regs, //
+    fb::{
+        hal::FbHal,
+        regs, //
+    },
 };
 
 struct Gb202;
 
-impl RegisterBase<regs::Fbhub0Base> for Gb202 {
-    const BASE: usize = 0x008a_0000;
-}
-
 fn read_sysmem_flush_page_gb202(bar: Bar0<'_>) -> u64 {
     let lo = u64::from(
-        bar.read(regs::NV_PFB_FBHUB_PCIE_FLUSH_SYSMEM_ADDR_LO::of::<Gb202>())
+        bar.read(regs::NV_PFB_FBHUB0_PCIE_FLUSH_SYSMEM_ADDR_LO)
             .adr(),
     );
     let hi = u64::from(
-        bar.read(regs::NV_PFB_FBHUB_PCIE_FLUSH_SYSMEM_ADDR_HI::of::<Gb202>())
+        bar.read(regs::NV_PFB_FBHUB0_PCIE_FLUSH_SYSMEM_ADDR_HI)
             .adr(),
     );
 
-    lo | (hi << 32)
+    (hi << 32) | lo
 }
 
 /// Write the sysmem flush page address through the GB20x FBHUB0 registers.
 fn write_sysmem_flush_page_gb202(bar: Bar0<'_>, addr: Bounded<u64, 52>) {
     // Write HI first. The hardware will trigger the flush on the LO write.
-    bar.write(
-        regs::NV_PFB_FBHUB_PCIE_FLUSH_SYSMEM_ADDR_HI::of::<Gb202>(),
-        regs::NV_PFB_FBHUB_PCIE_FLUSH_SYSMEM_ADDR_HI::zeroed()
+    bar.write_reg(
+        regs::NV_PFB_FBHUB0_PCIE_FLUSH_SYSMEM_ADDR_HI::zeroed()
             .with_adr(addr.shr::<32, 20>().cast::<u32>()),
     );
-    bar.write(
-        regs::NV_PFB_FBHUB_PCIE_FLUSH_SYSMEM_ADDR_LO::of::<Gb202>(),
+    bar.write_reg(
         // CAST: lower 32 bits. Hardware ignores bits 7:0.
-        regs::NV_PFB_FBHUB_PCIE_FLUSH_SYSMEM_ADDR_LO::zeroed().with_adr(*addr as u32),
+        regs::NV_PFB_FBHUB0_PCIE_FLUSH_SYSMEM_ADDR_LO::zeroed().with_adr(*addr as u32),
     );
 }
 
@@ -81,9 +71,10 @@ impl FbHal for Gb202 {
         super::gb100::pmu_reserved_size_gb100()
     }
 
-    fn non_wpr_heap_size(&self) -> u32 {
+    fn non_wpr_heap_size(&self) -> u64 {
         // Non-WPR heap for GB20x (see Open RM: kgspGetNonWprHeapSize, GB202+).
-        u32::SZ_2M + u32::SZ_128K
+        // This size is r570-specific.
+        u64::SZ_2M + u64::SZ_128K
     }
 
     fn frts_size(&self) -> u64 {

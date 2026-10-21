@@ -223,11 +223,11 @@ int lock_contention_prepare(struct lock_contention *con)
 
 	if (target__has_cpu(target)) {
 		skel->rodata->has_cpu = 1;
-		ncpus = perf_cpu_map__nr(evlist->core.user_requested_cpus);
+		ncpus = perf_cpu_map__nr(evlist__core(evlist)->user_requested_cpus);
 	}
 	if (target__has_task(target)) {
 		skel->rodata->has_task = 1;
-		ntasks = perf_thread_map__nr(evlist->core.threads);
+		ntasks = perf_thread_map__nr(evlist__core(evlist)->threads);
 	}
 	if (con->filters->nr_types) {
 		skel->rodata->has_type = 1;
@@ -334,7 +334,7 @@ int lock_contention_prepare(struct lock_contention *con)
 		fd = bpf_map__fd(skel->maps.cpu_filter);
 
 		for (i = 0; i < ncpus; i++) {
-			cpu = perf_cpu_map__cpu(evlist->core.user_requested_cpus, i).cpu;
+			cpu = perf_cpu_map__cpu(evlist__core(evlist)->user_requested_cpus, i).cpu;
 			bpf_map_update_elem(fd, &cpu, &val, BPF_ANY);
 		}
 	}
@@ -346,13 +346,13 @@ int lock_contention_prepare(struct lock_contention *con)
 		fd = bpf_map__fd(skel->maps.task_filter);
 
 		for (i = 0; i < ntasks; i++) {
-			pid = perf_thread_map__pid(evlist->core.threads, i);
+			pid = perf_thread_map__pid(evlist__core(evlist)->threads, i);
 			bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
 		}
 	}
 
-	if (target__none(target) && evlist->workload.pid > 0) {
-		u32 pid = evlist->workload.pid;
+	if (target__none(target) && evlist__workload_pid(evlist) > 0) {
+		u32 pid = evlist__workload_pid(evlist);
 		u8 val = 1;
 
 		fd = bpf_map__fd(skel->maps.task_filter);

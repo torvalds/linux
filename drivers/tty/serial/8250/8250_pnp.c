@@ -28,351 +28,351 @@
 static const struct pnp_device_id pnp_dev_table[] = {
 	/* Archtek America Corp. */
 	/* Archtek SmartLink Modem 3334BT Plug & Play */
-	{	"AAC000F",		0	},
+	{ .id = "AAC000F", .driver_data = 0 },
 	/* Anchor Datacomm BV */
 	/* SXPro 144 External Data Fax Modem Plug & Play */
-	{	"ADC0001",		0	},
+	{ .id = "ADC0001", .driver_data = 0 },
 	/* SXPro 288 External Data Fax Modem Plug & Play */
-	{	"ADC0002",		0	},
+	{ .id = "ADC0002", .driver_data = 0 },
 	/* PROLiNK 1456VH ISA PnP K56flex Fax Modem */
-	{	"AEI0250",		0	},
+	{ .id = "AEI0250", .driver_data = 0 },
 	/* Actiontec ISA PNP 56K X2 Fax Modem */
-	{	"AEI1240",		0	},
+	{ .id = "AEI1240", .driver_data = 0 },
 	/* Rockwell 56K ACF II Fax+Data+Voice Modem */
-	{	"AKY1021",		0 /*SPCI_FL_NO_SHIRQ*/	},
+	{ .id ="AKY1021", .driver_data = 0 /*SPCI_FL_NO_SHIRQ*/ },
 	/*
 	 * ALi Fast Infrared Controller
 	 * Native driver (ali-ircc) is broken so at least
 	 * it can be used with irtty-sir.
 	 */
-	{	"ALI5123",		0	},
+	{ .id = "ALI5123", .driver_data = 0 },
 	/* AZT3005 PnP SOUND DEVICE */
-	{	"AZT4001",		0	},
+	{ .id = "AZT4001", .driver_data = 0 },
 	/* Best Data Products Inc. Smart One 336F PnP Modem */
-	{	"BDP3336",		0	},
+	{ .id = "BDP3336", .driver_data = 0 },
 	/*  Boca Research */
 	/* Boca Complete Ofc Communicator 14.4 Data-FAX */
-	{	"BRI0A49",		0	},
+	{ .id = "BRI0A49", .driver_data = 0 },
 	/* Boca Research 33,600 ACF Modem */
-	{	"BRI1400",		0	},
+	{ .id = "BRI1400", .driver_data = 0 },
 	/* Boca 33.6 Kbps Internal FD34FSVD */
-	{	"BRI3400",		0	},
+	{ .id = "BRI3400", .driver_data = 0 },
 	/* Computer Peripherals Inc */
 	/* EuroViVa CommCenter-33.6 SP PnP */
-	{	"CPI4050",		0	},
+	{ .id = "CPI4050", .driver_data = 0 },
 	/* Creative Labs */
 	/* Creative Labs Phone Blaster 28.8 DSVD PnP Voice */
-	{	"CTL3001",		0	},
+	{ .id = "CTL3001", .driver_data = 0 },
 	/* Creative Labs Modem Blaster 28.8 DSVD PnP Voice */
-	{	"CTL3011",		0	},
+	{ .id = "CTL3011", .driver_data = 0 },
 	/* Davicom ISA 33.6K Modem */
-	{	"DAV0336",		0	},
+	{ .id = "DAV0336", .driver_data = 0 },
 	/* Creative */
 	/* Creative Modem Blaster Flash56 DI5601-1 */
-	{	"DMB1032",		0	},
+	{ .id = "DMB1032", .driver_data = 0 },
 	/* Creative Modem Blaster V.90 DI5660 */
-	{	"DMB2001",		0	},
+	{ .id = "DMB2001", .driver_data = 0 },
 	/* E-Tech */
 	/* E-Tech CyberBULLET PC56RVP */
-	{	"ETT0002",		0	},
+	{ .id = "ETT0002", .driver_data = 0 },
 	/* FUJITSU */
 	/* Fujitsu 33600 PnP-I2 R Plug & Play */
-	{	"FUJ0202",		0	},
+	{ .id = "FUJ0202", .driver_data = 0 },
 	/* Fujitsu FMV-FX431 Plug & Play */
-	{	"FUJ0205",		0	},
+	{ .id = "FUJ0205", .driver_data = 0 },
 	/* Fujitsu 33600 PnP-I4 R Plug & Play */
-	{	"FUJ0206",		0	},
+	{ .id = "FUJ0206", .driver_data = 0 },
 	/* Fujitsu Fax Voice 33600 PNP-I5 R Plug & Play */
-	{	"FUJ0209",		0	},
+	{ .id = "FUJ0209", .driver_data = 0 },
 	/* Archtek America Corp. */
 	/* Archtek SmartLink Modem 3334BT Plug & Play */
-	{	"GVC000F",		0	},
+	{ .id = "GVC000F", .driver_data = 0 },
 	/* Archtek SmartLink Modem 3334BRV 33.6K Data Fax Voice */
-	{	"GVC0303",		0	},
+	{ .id = "GVC0303", .driver_data = 0 },
 	/* Hayes */
 	/* Hayes Optima 288 V.34-V.FC + FAX + Voice Plug & Play */
-	{	"HAY0001",		0	},
+	{ .id = "HAY0001", .driver_data = 0 },
 	/* Hayes Optima 336 V.34 + FAX + Voice PnP */
-	{	"HAY000C",		0	},
+	{ .id = "HAY000C", .driver_data = 0 },
 	/* Hayes Optima 336B V.34 + FAX + Voice PnP */
-	{	"HAY000D",		0	},
+	{ .id = "HAY000D", .driver_data = 0 },
 	/* Hayes Accura 56K Ext Fax Modem PnP */
-	{	"HAY5670",		0	},
+	{ .id = "HAY5670", .driver_data = 0 },
 	/* Hayes Accura 56K Ext Fax Modem PnP */
-	{	"HAY5674",		0	},
+	{ .id = "HAY5674", .driver_data = 0 },
 	/* Hayes Accura 56K Fax Modem PnP */
-	{	"HAY5675",		0	},
+	{ .id = "HAY5675", .driver_data = 0 },
 	/* Hayes 288, V.34 + FAX */
-	{	"HAYF000",		0	},
+	{ .id = "HAYF000", .driver_data = 0 },
 	/* Hayes Optima 288 V.34 + FAX + Voice, Plug & Play */
-	{	"HAYF001",		0	},
+	{ .id = "HAYF001", .driver_data = 0 },
 	/* IBM */
 	/* IBM Thinkpad 701 Internal Modem Voice */
-	{	"IBM0033",		0	},
+	{ .id = "IBM0033", .driver_data = 0 },
 	/* Intermec */
 	/* Intermec CV60 touchscreen port */
-	{	"PNP4972",		0	},
+	{ .id = "PNP4972", .driver_data = 0 },
 	/* Intertex */
 	/* Intertex 28k8 33k6 Voice EXT PnP */
-	{	"IXDC801",		0	},
+	{ .id = "IXDC801", .driver_data = 0 },
 	/* Intertex 33k6 56k Voice EXT PnP */
-	{	"IXDC901",		0	},
+	{ .id = "IXDC901", .driver_data = 0 },
 	/* Intertex 28k8 33k6 Voice SP EXT PnP */
-	{	"IXDD801",		0	},
+	{ .id = "IXDD801", .driver_data = 0 },
 	/* Intertex 33k6 56k Voice SP EXT PnP */
-	{	"IXDD901",		0	},
+	{ .id = "IXDD901", .driver_data = 0 },
 	/* Intertex 28k8 33k6 Voice SP INT PnP */
-	{	"IXDF401",		0	},
+	{ .id = "IXDF401", .driver_data = 0 },
 	/* Intertex 28k8 33k6 Voice SP EXT PnP */
-	{	"IXDF801",		0	},
+	{ .id = "IXDF801", .driver_data = 0 },
 	/* Intertex 33k6 56k Voice SP EXT PnP */
-	{	"IXDF901",		0	},
+	{ .id = "IXDF901", .driver_data = 0 },
 	/* Kortex International */
 	/* KORTEX 28800 Externe PnP */
-	{	"KOR4522",		0	},
+	{ .id = "KOR4522", .driver_data = 0 },
 	/* KXPro 33.6 Vocal ASVD PnP */
-	{	"KORF661",		0	},
+	{ .id = "KORF661", .driver_data = 0 },
 	/* Lasat */
 	/* LASAT Internet 33600 PnP */
-	{	"LAS4040",		0	},
+	{ .id = "LAS4040", .driver_data = 0 },
 	/* Lasat Safire 560 PnP */
-	{	"LAS4540",		0	},
+	{ .id = "LAS4540", .driver_data = 0 },
 	/* Lasat Safire 336  PnP */
-	{	"LAS5440",		0	},
+	{ .id = "LAS5440", .driver_data = 0 },
 	/* Microcom, Inc. */
 	/* Microcom TravelPorte FAST V.34 Plug & Play */
-	{	"MNP0281",		0	},
+	{ .id = "MNP0281", .driver_data = 0 },
 	/* Microcom DeskPorte V.34 FAST or FAST+ Plug & Play */
-	{	"MNP0336",		0	},
+	{ .id = "MNP0336", .driver_data = 0 },
 	/* Microcom DeskPorte FAST EP 28.8 Plug & Play */
-	{	"MNP0339",		0	},
+	{ .id = "MNP0339", .driver_data = 0 },
 	/* Microcom DeskPorte 28.8P Plug & Play */
-	{	"MNP0342",		0	},
+	{ .id = "MNP0342", .driver_data = 0 },
 	/* Microcom DeskPorte FAST ES 28.8 Plug & Play */
-	{	"MNP0500",		0	},
+	{ .id = "MNP0500", .driver_data = 0 },
 	/* Microcom DeskPorte FAST ES 28.8 Plug & Play */
-	{	"MNP0501",		0	},
+	{ .id = "MNP0501", .driver_data = 0 },
 	/* Microcom DeskPorte 28.8S Internal Plug & Play */
-	{	"MNP0502",		0	},
+	{ .id = "MNP0502", .driver_data = 0 },
 	/* Motorola */
 	/* Motorola BitSURFR Plug & Play */
-	{	"MOT1105",		0	},
+	{ .id = "MOT1105", .driver_data = 0 },
 	/* Motorola TA210 Plug & Play */
-	{	"MOT1111",		0	},
+	{ .id = "MOT1111", .driver_data = 0 },
 	/* Motorola HMTA 200 (ISDN) Plug & Play */
-	{	"MOT1114",		0	},
+	{ .id = "MOT1114", .driver_data = 0 },
 	/* Motorola BitSURFR Plug & Play */
-	{	"MOT1115",		0	},
+	{ .id = "MOT1115", .driver_data = 0 },
 	/* Motorola Lifestyle 28.8 Internal */
-	{	"MOT1190",		0	},
+	{ .id = "MOT1190", .driver_data = 0 },
 	/* Motorola V.3400 Plug & Play */
-	{	"MOT1501",		0	},
+	{ .id = "MOT1501", .driver_data = 0 },
 	/* Motorola Lifestyle 28.8 V.34 Plug & Play */
-	{	"MOT1502",		0	},
+	{ .id = "MOT1502", .driver_data = 0 },
 	/* Motorola Power 28.8 V.34 Plug & Play */
-	{	"MOT1505",		0	},
+	{ .id = "MOT1505", .driver_data = 0 },
 	/* Motorola ModemSURFR External 28.8 Plug & Play */
-	{	"MOT1509",		0	},
+	{ .id = "MOT1509", .driver_data = 0 },
 	/* Motorola Premier 33.6 Desktop Plug & Play */
-	{	"MOT150A",		0	},
+	{ .id = "MOT150A", .driver_data = 0 },
 	/* Motorola VoiceSURFR 56K External PnP */
-	{	"MOT150F",		0	},
+	{ .id = "MOT150F", .driver_data = 0 },
 	/* Motorola ModemSURFR 56K External PnP */
-	{	"MOT1510",		0	},
+	{ .id = "MOT1510", .driver_data = 0 },
 	/* Motorola ModemSURFR 56K Internal PnP */
-	{	"MOT1550",		0	},
+	{ .id = "MOT1550", .driver_data = 0 },
 	/* Motorola ModemSURFR Internal 28.8 Plug & Play */
-	{	"MOT1560",		0	},
+	{ .id = "MOT1560", .driver_data = 0 },
 	/* Motorola Premier 33.6 Internal Plug & Play */
-	{	"MOT1580",		0	},
+	{ .id = "MOT1580", .driver_data = 0 },
 	/* Motorola OnlineSURFR 28.8 Internal Plug & Play */
-	{	"MOT15B0",		0	},
+	{ .id = "MOT15B0", .driver_data = 0 },
 	/* Motorola VoiceSURFR 56K Internal PnP */
-	{	"MOT15F0",		0	},
+	{ .id = "MOT15F0", .driver_data = 0 },
 	/* Com 1 */
 	/*  Deskline K56 Phone System PnP */
-	{	"MVX00A1",		0	},
+	{ .id = "MVX00A1", .driver_data = 0 },
 	/* PC Rider K56 Phone System PnP */
-	{	"MVX00F2",		0	},
+	{ .id = "MVX00F2", .driver_data = 0 },
 	/* NEC 98NOTE SPEAKER PHONE FAX MODEM(33600bps) */
-	{	"nEC8241",		0	},
+	{ .id = "nEC8241", .driver_data = 0 },
 	/* Pace 56 Voice Internal Plug & Play Modem */
-	{	"PMC2430",		0	},
+	{ .id = "PMC2430", .driver_data = 0 },
 	/* Generic */
 	/* Generic standard PC COM port	 */
-	{	"PNP0500",		0	},
+	{ .id = "PNP0500", .driver_data = 0 },
 	/* Generic 16550A-compatible COM port */
-	{	"PNP0501",		0	},
+	{ .id = "PNP0501", .driver_data = 0 },
 	/* Compaq 14400 Modem */
-	{	"PNPC000",		0	},
+	{ .id = "PNPC000", .driver_data = 0 },
 	/* Compaq 2400/9600 Modem */
-	{	"PNPC001",		0	},
+	{ .id = "PNPC001", .driver_data = 0 },
 	/* Dial-Up Networking Serial Cable between 2 PCs */
-	{	"PNPC031",		0	},
+	{ .id = "PNPC031", .driver_data = 0 },
 	/* Dial-Up Networking Parallel Cable between 2 PCs */
-	{	"PNPC032",		0	},
+	{ .id = "PNPC032", .driver_data = 0 },
 	/* Standard 9600 bps Modem */
-	{	"PNPC100",		0	},
+	{ .id = "PNPC100", .driver_data = 0 },
 	/* Standard 14400 bps Modem */
-	{	"PNPC101",		0	},
+	{ .id = "PNPC101", .driver_data = 0 },
 	/*  Standard 28800 bps Modem*/
-	{	"PNPC102",		0	},
+	{ .id = "PNPC102", .driver_data = 0 },
 	/*  Standard Modem*/
-	{	"PNPC103",		0	},
+	{ .id = "PNPC103", .driver_data = 0 },
 	/*  Standard 9600 bps Modem*/
-	{	"PNPC104",		0	},
+	{ .id = "PNPC104", .driver_data = 0 },
 	/*  Standard 14400 bps Modem*/
-	{	"PNPC105",		0	},
+	{ .id = "PNPC105", .driver_data = 0 },
 	/*  Standard 28800 bps Modem*/
-	{	"PNPC106",		0	},
+	{ .id = "PNPC106", .driver_data = 0 },
 	/*  Standard Modem */
-	{	"PNPC107",		0	},
+	{ .id = "PNPC107", .driver_data = 0 },
 	/* Standard 9600 bps Modem */
-	{	"PNPC108",		0	},
+	{ .id = "PNPC108", .driver_data = 0 },
 	/* Standard 14400 bps Modem */
-	{	"PNPC109",		0	},
+	{ .id = "PNPC109", .driver_data = 0 },
 	/* Standard 28800 bps Modem */
-	{	"PNPC10A",		0	},
+	{ .id = "PNPC10A", .driver_data = 0 },
 	/* Standard Modem */
-	{	"PNPC10B",		0	},
+	{ .id = "PNPC10B", .driver_data = 0 },
 	/* Standard 9600 bps Modem */
-	{	"PNPC10C",		0	},
+	{ .id = "PNPC10C", .driver_data = 0 },
 	/* Standard 14400 bps Modem */
-	{	"PNPC10D",		0	},
+	{ .id = "PNPC10D", .driver_data = 0 },
 	/* Standard 28800 bps Modem */
-	{	"PNPC10E",		0	},
+	{ .id = "PNPC10E", .driver_data = 0 },
 	/* Standard Modem */
-	{	"PNPC10F",		0	},
+	{ .id = "PNPC10F", .driver_data = 0 },
 	/* Standard PCMCIA Card Modem */
-	{	"PNP2000",		0	},
+	{ .id = "PNP2000", .driver_data = 0 },
 	/* Rockwell */
 	/* Modular Technology */
 	/* Rockwell 33.6 DPF Internal PnP */
 	/* Modular Technology 33.6 Internal PnP */
-	{	"ROK0030",		0	},
+	{ .id = "ROK0030", .driver_data = 0 },
 	/* Kortex International */
 	/* KORTEX 14400 Externe PnP */
-	{	"ROK0100",		0	},
+	{ .id = "ROK0100", .driver_data = 0 },
 	/* Rockwell 28.8 */
-	{	"ROK4120",		0	},
+	{ .id = "ROK4120", .driver_data = 0 },
 	/* Viking Components, Inc */
 	/* Viking 28.8 INTERNAL Fax+Data+Voice PnP */
-	{	"ROK4920",		0	},
+	{ .id = "ROK4920", .driver_data = 0 },
 	/* Rockwell */
 	/* British Telecom */
 	/* Modular Technology */
 	/* Rockwell 33.6 DPF External PnP */
 	/* BT Prologue 33.6 External PnP */
 	/* Modular Technology 33.6 External PnP */
-	{	"RSS00A0",		0	},
+	{ .id = "RSS00A0", .driver_data = 0 },
 	/* Viking 56K FAX INT */
-	{	"RSS0262",		0	},
+	{ .id = "RSS0262", .driver_data = 0 },
 	/* K56 par,VV,Voice,Speakphone,AudioSpan,PnP */
-	{       "RSS0250",              0       },
+	{ .id = "RSS0250", .driver_data = 0 },
 	/* SupraExpress 28.8 Data/Fax PnP modem */
-	{	"SUP1310",		0	},
+	{ .id = "SUP1310", .driver_data = 0 },
 	/* SupraExpress 336i PnP Voice Modem */
-	{	"SUP1381",		0	},
+	{ .id = "SUP1381", .driver_data = 0 },
 	/* SupraExpress 33.6 Data/Fax PnP modem */
-	{	"SUP1421",		0	},
+	{ .id = "SUP1421", .driver_data = 0 },
 	/* SupraExpress 33.6 Data/Fax PnP modem */
-	{	"SUP1590",		0	},
+	{ .id = "SUP1590", .driver_data = 0 },
 	/* SupraExpress 336i Sp ASVD */
-	{	"SUP1620",		0	},
+	{ .id = "SUP1620", .driver_data = 0 },
 	/* SupraExpress 33.6 Data/Fax PnP modem */
-	{	"SUP1760",		0	},
+	{ .id = "SUP1760", .driver_data = 0 },
 	/* SupraExpress 56i Sp Intl */
-	{	"SUP2171",		0	},
+	{ .id = "SUP2171", .driver_data = 0 },
 	/* Phoebe Micro */
 	/* Phoebe Micro 33.6 Data Fax 1433VQH Plug & Play */
-	{	"TEX0011",		0	},
+	{ .id = "TEX0011", .driver_data = 0 },
 	/* Archtek America Corp. */
 	/* Archtek SmartLink Modem 3334BT Plug & Play */
-	{	"UAC000F",		0	},
+	{ .id = "UAC000F", .driver_data = 0 },
 	/* 3Com Corp. */
 	/* Gateway Telepath IIvi 33.6 */
-	{	"USR0000",		0	},
+	{ .id = "USR0000", .driver_data = 0 },
 	/* U.S. Robotics Sporster 33.6K Fax INT PnP */
-	{	"USR0002",		0	},
+	{ .id = "USR0002", .driver_data = 0 },
 	/*  Sportster Vi 14.4 PnP FAX Voicemail */
-	{	"USR0004",		0	},
+	{ .id = "USR0004", .driver_data = 0 },
 	/* U.S. Robotics 33.6K Voice INT PnP */
-	{	"USR0006",		0	},
+	{ .id = "USR0006", .driver_data = 0 },
 	/* U.S. Robotics 33.6K Voice EXT PnP */
-	{	"USR0007",		0	},
+	{ .id = "USR0007", .driver_data = 0 },
 	/* U.S. Robotics Courier V.Everything INT PnP */
-	{	"USR0009",		0	},
+	{ .id = "USR0009", .driver_data = 0 },
 	/* U.S. Robotics 33.6K Voice INT PnP */
-	{	"USR2002",		0	},
+	{ .id = "USR2002", .driver_data = 0 },
 	/* U.S. Robotics 56K Voice INT PnP */
-	{	"USR2070",		0	},
+	{ .id = "USR2070", .driver_data = 0 },
 	/* U.S. Robotics 56K Voice EXT PnP */
-	{	"USR2080",		0	},
+	{ .id = "USR2080", .driver_data = 0 },
 	/* U.S. Robotics 56K FAX INT */
-	{	"USR3031",		0	},
+	{ .id = "USR3031", .driver_data = 0 },
 	/* U.S. Robotics 56K FAX INT */
-	{	"USR3050",		0	},
+	{ .id = "USR3050", .driver_data = 0 },
 	/* U.S. Robotics 56K Voice INT PnP */
-	{	"USR3070",		0	},
+	{ .id = "USR3070", .driver_data = 0 },
 	/* U.S. Robotics 56K Voice EXT PnP */
-	{	"USR3080",		0	},
+	{ .id = "USR3080", .driver_data = 0 },
 	/* U.S. Robotics 56K Voice INT PnP */
-	{	"USR3090",		0	},
+	{ .id = "USR3090", .driver_data = 0 },
 	/* U.S. Robotics 56K Message  */
-	{	"USR9100",		0	},
+	{ .id = "USR9100", .driver_data = 0 },
 	/* U.S. Robotics 56K FAX EXT PnP*/
-	{	"USR9160",		0	},
+	{ .id = "USR9160", .driver_data = 0 },
 	/* U.S. Robotics 56K FAX INT PnP*/
-	{	"USR9170",		0	},
+	{ .id = "USR9170", .driver_data = 0 },
 	/* U.S. Robotics 56K Voice EXT PnP*/
-	{	"USR9180",		0	},
+	{ .id = "USR9180", .driver_data = 0 },
 	/* U.S. Robotics 56K Voice INT PnP*/
-	{	"USR9190",		0	},
+	{ .id = "USR9190", .driver_data = 0 },
 	/* Wacom tablets */
-	{	"WACFXXX",		0	},
+	{ .id = "WACFXXX", .driver_data = 0 },
 	/* Compaq touchscreen */
-	{       "FPI2002",              0 },
+	{ .id = "FPI2002", .driver_data = 0 },
 	/* Fujitsu Stylistic touchscreens */
-	{       "FUJ02B2",              0 },
-	{       "FUJ02B3",              0 },
+	{ .id = "FUJ02B2", .driver_data = 0 },
+	{ .id = "FUJ02B3", .driver_data = 0 },
 	/* Fujitsu Stylistic LT touchscreens */
-	{       "FUJ02B4",              0 },
+	{ .id = "FUJ02B4", .driver_data = 0 },
 	/* Passive Fujitsu Stylistic touchscreens */
-	{       "FUJ02B6",              0 },
-	{       "FUJ02B7",              0 },
-	{       "FUJ02B8",              0 },
-	{       "FUJ02B9",              0 },
-	{       "FUJ02BC",              0 },
+	{ .id = "FUJ02B6", .driver_data = 0 },
+	{ .id = "FUJ02B7", .driver_data = 0 },
+	{ .id = "FUJ02B8", .driver_data = 0 },
+	{ .id = "FUJ02B9", .driver_data = 0 },
+	{ .id = "FUJ02BC", .driver_data = 0 },
 	/* Fujitsu Wacom Tablet PC device */
-	{	"FUJ02E5",		0	},
+	{ .id = "FUJ02E5", .driver_data = 0 },
 	/* Fujitsu P-series tablet PC device */
-	{	"FUJ02E6",		0	},
+	{ .id = "FUJ02E6", .driver_data = 0 },
 	/* Fujitsu Wacom 2FGT Tablet PC device */
-	{	"FUJ02E7",		0	},
+	{ .id = "FUJ02E7", .driver_data = 0 },
 	/* Fujitsu Wacom 1FGT Tablet PC device */
-	{	"FUJ02E9",		0	},
+	{ .id = "FUJ02E9", .driver_data = 0 },
 	/*
 	 * LG C1 EXPRESS DUAL (C1-PB11A3) touch screen (actually a FUJ02E6
 	 * in disguise).
 	 */
-	{	"LTS0001",		0       },
+	{ .id = "LTS0001", .driver_data = 0 },
 	/* Rockwell's (PORALiNK) 33600 INT PNP */
-	{	"WCI0003",		0	},
+	{ .id = "WCI0003", .driver_data = 0 },
 	/* Unknown PnP modems */
-	{	"PNPCXXX",		UNKNOWN_DEV	},
+	{ .id = "PNPCXXX", .driver_data = UNKNOWN_DEV },
 	/* More unknown PnP modems */
-	{	"PNPDXXX",		UNKNOWN_DEV	},
+	{ .id = "PNPDXXX", .driver_data = UNKNOWN_DEV },
 	/*
 	 * Winbond CIR port, should not be probed. We should keep track of
 	 * it to prevent the legacy serial driver from probing it.
 	 */
-	{	"WEC1022",		CIR_PORT	},
+	{ .id = "WEC1022", .driver_data = CIR_PORT },
 	/*
 	 * SMSC IrCC SIR/FIR port, should not be probed by serial driver as
 	 * well so its own driver can bind to it.
 	 */
-	{	"SMCF010",		CIR_PORT	},
-	{	"",			0	}
+	{ .id = "SMCF010", .driver_data = CIR_PORT },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pnp, pnp_dev_table);
@@ -521,6 +521,7 @@ static struct pnp_driver serial_pnp_driver = {
 	.remove		= serial_pnp_remove,
 	.driver         = {
 		.pm     = pm_sleep_ptr(&serial_pnp_pm_ops),
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.id_table	= pnp_dev_table,
 };

@@ -280,6 +280,11 @@ static void xe_rtp_rules_tests(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, err, param->expected_err);
 }
 
+static u32 bits_2_3_set(struct xe_gt *gt, struct xe_hw_engine *hwe)
+{
+	return REG_BIT(2) | REG_BIT(3);
+}
+
 static const struct rtp_to_sr_test_case rtp_to_sr_cases[] = {
 	{
 		.name = "coalesce-same-reg",
@@ -297,6 +302,29 @@ static const struct rtp_to_sr_test_case rtp_to_sr_cases[] = {
 			{ XE_RTP_NAME("basic-2"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(SET(REGULAR_REG1, REG_BIT(1)))
+			},
+		),
+	},
+	{
+		.name = "coalesce-same-reg-literal-and-func",
+		.expected_reg = REGULAR_REG1,
+		.expected_set_bits = REG_BIT(0) | REG_BIT(1) | REG_BIT(2) | REG_BIT(3),
+		.expected_clr_bits = REG_BIT(0) | REG_BIT(1) | REG_BIT(2) | REG_BIT(3),
+		.expected_active = BIT(0) | BIT(1),
+		.expected_count_sr_entries = 1,
+		/* Different bits on the same register: create a single entry */
+		.table = XE_RTP_TABLE_SR(
+			{ XE_RTP_NAME("basic-1"),
+			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_ACTIONS(FIELD_SET(REGULAR_REG1,
+						   REG_BIT(0) | REG_BIT(1),
+						   REG_BIT(0) | REG_BIT(1)))
+			},
+			{ XE_RTP_NAME("basic-2"),
+			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_ACTIONS(FIELD_SET_FUNC(REGULAR_REG1,
+							REG_BIT(2) | REG_BIT(3),
+							bits_2_3_set))
 			},
 		),
 	},
@@ -414,6 +442,30 @@ static const struct rtp_to_sr_test_case rtp_to_sr_cases[] = {
 			{ XE_RTP_NAME("basic-2"),
 			  XE_RTP_RULES(FUNC(match_yes)),
 			  XE_RTP_ACTIONS(CLR(REGULAR_REG1, REG_GENMASK(1, 0)))
+			},
+		),
+	},
+	{
+		.name = "conflict-not-disjoint-literal-and-func",
+		.expected_reg = REGULAR_REG1,
+		.expected_set_bits = REG_BIT(1) | REG_BIT(2),
+		.expected_clr_bits = REG_BIT(1) | REG_BIT(2),
+		.expected_active = BIT(0) | BIT(1),
+		.expected_count_sr_entries = 1,
+		.expected_sr_errors = 1,
+		.table = XE_RTP_TABLE_SR(
+			{ XE_RTP_NAME("basic-1"),
+			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_ACTIONS(FIELD_SET(REGULAR_REG1,
+						   REG_BIT(1) | REG_BIT(2),
+						   REG_BIT(1) | REG_BIT(2)))
+			},
+			/* drop: bits are not disjoint with previous entries */
+			{ XE_RTP_NAME("basic-2"),
+			  XE_RTP_RULES(FUNC(match_yes)),
+			  XE_RTP_ACTIONS(FIELD_SET_FUNC(REGULAR_REG1,
+							REG_BIT(2) | REG_BIT(3),
+							bits_2_3_set))
 			},
 		),
 	},

@@ -265,8 +265,6 @@ struct stmmac_priv {
 	u32 rx_coal_frames[MTL_MAX_RX_QUEUES];
 
 	int hwts_tx_en;
-	/* skb_shinfo(skb)->gso_type types that we handle */
-	unsigned int gso_enabled_types;
 	bool tx_path_in_lpi_mode;
 	bool sph_active;
 	bool sph_capable;

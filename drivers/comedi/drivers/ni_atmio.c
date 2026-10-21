@@ -215,13 +215,13 @@ static const int ni_irqpin[] = {
 
 #include "ni_mio_common.c"
 
-static const struct pnp_device_id __maybe_unused device_ids[] = {
-	{.id = "NIC1900", .driver_data = 0},
-	{.id = "NIC2400", .driver_data = 0},
-	{.id = "NIC2500", .driver_data = 0},
-	{.id = "NIC2600", .driver_data = 0},
-	{.id = "NIC2700", .driver_data = 0},
-	{.id = ""}
+static const struct pnp_device_id device_ids[] = {
+	{ .id = "NIC1900" },
+	{ .id = "NIC2400" },
+	{ .id = "NIC2500" },
+	{ .id = "NIC2600" },
+	{ .id = "NIC2700" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pnp, device_ids);

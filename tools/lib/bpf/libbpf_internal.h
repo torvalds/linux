@@ -401,6 +401,8 @@ enum kern_feature_id {
 	FEAT_BTF_LAYOUT,
 	/* Kernel supports BPF syscall common attributes */
 	FEAT_BPF_SYSCALL_COMMON_ATTRS,
+	/* Kernel supports percpu data */
+	FEAT_PERCPU_DATA,
 	__FEAT_CNT,
 };
 
@@ -596,8 +598,6 @@ typedef int (*type_id_visit_fn)(__u32 *type_id, void *ctx);
 typedef int (*str_off_visit_fn)(__u32 *str_off, void *ctx);
 int btf_ext_visit_type_ids(struct btf_ext *btf_ext, type_id_visit_fn visit, void *ctx);
 int btf_ext_visit_str_offs(struct btf_ext *btf_ext, str_off_visit_fn visit, void *ctx);
-__s32 btf__find_by_name_kind_own(const struct btf *btf, const char *type_name,
-				 __u32 kind);
 
 /* handle direct returned errors */
 static inline int libbpf_err(int ret)
@@ -768,7 +768,6 @@ int elf_resolve_pattern_offsets(const char *binary_path, const char *pattern,
 int probe_fd(int fd);
 
 #define SHA256_DIGEST_LENGTH 32
-#define SHA256_DWORD_SIZE SHA256_DIGEST_LENGTH / sizeof(__u64)
 
 void libbpf_sha256(const void *data, size_t len, __u8 out[SHA256_DIGEST_LENGTH]);
 int probe_sys_bpf_ext(void);

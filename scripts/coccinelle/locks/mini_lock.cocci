@@ -53,11 +53,31 @@ spin_lock_irq@p1
 spin_lock_irqsave@p1
 ) (E1@p,...);
 
-@looped@
+@err_candidate exists@
+expression E1;
+position prelocked.p;
+position up != prelocked.p1;
+position rc;
+identifier lock,unlock;
+@@
+
+lock(E1@p,...);
+... when != E1
+    when any
+if (...) {
+  ... when != E1
+  return@rc ...;
+}
+... when != E1
+    when any
+unlock@up(E1,...);
+
+@looped exists@
+position err_candidate.rc;
 position r;
 @@
 
-for(...;...;...) { <+... return@r ...; ...+> }
+for(...;...;...) { <+... return@rc@r ...; ...+> }
 
 @err exists@
 expression E1;

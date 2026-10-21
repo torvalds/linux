@@ -224,8 +224,8 @@ static void vcpu_stall_detect_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id vcpu_stall_detect_of_match[] = {
-	{ .compatible = "qemu,vcpu-stall-detector", },
-	{}
+	{ .compatible = "qemu,vcpu-stall-detector" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, vcpu_stall_detect_of_match);

@@ -36,6 +36,7 @@
 #include "cikd.h"
 #include "atom.h"
 #include "amd_pcie.h"
+#include "amdgpu_video_codecs.h"
 
 #include "cik.h"
 #include "gmc_v7_0.h"
@@ -1876,12 +1877,6 @@ static void cik_invalidate_hdp(struct amdgpu_device *adev,
 	}
 }
 
-static bool cik_need_full_reset(struct amdgpu_device *adev)
-{
-	/* change this when we support soft reset */
-	return true;
-}
-
 static void cik_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 			       uint64_t *count1)
 {
@@ -1971,7 +1966,6 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 	.get_config_memsize = &cik_get_config_memsize,
 	.flush_hdp = &cik_flush_hdp,
 	.invalidate_hdp = &cik_invalidate_hdp,
-	.need_full_reset = &cik_need_full_reset,
 	.init_doorbell_index = &legacy_doorbell_index_init,
 	.get_pcie_usage = &cik_get_pcie_usage,
 	.need_reset_on_init = &cik_need_reset_on_init,

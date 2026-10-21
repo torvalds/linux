@@ -67,11 +67,8 @@ config DRM_SIMPLEDRM
 
 	  This driver assumes that the display hardware has been initialized
 	  by the firmware or bootloader before the kernel boots. Scanout
-	  buffer, size, and display format must be provided via device tree,
-	  UEFI, VESA, etc.
-
-	  On x86 BIOS or UEFI systems, you should also select SYSFB_SIMPLEFB
-	  to use UEFI and VESA framebuffers.
+	  buffer, size, and display format must be provided via device tree's
+	  simple-framebuffer node.
 
 config DRM_VESADRM
 	tristate "VESA framebuffer driver"

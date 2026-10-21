@@ -183,10 +183,12 @@ struct dc_panel_patch {
 	unsigned int force_frl;
 	unsigned int vsdb_rcc_wa;
 	unsigned int delay_hdmi_link_training;
+	unsigned int skip_frl_pre_training;
 	unsigned int skip_avmute;
 	unsigned int skip_audio_sab_check;
 	unsigned int mst_start_top_delay;
 	unsigned int remove_sink_ext_caps;
+	bool disable_second_tile;
 	unsigned int disable_colorimetry;
 	uint8_t blankstream_before_otg_off;
 	bool oled_optimize_display_on;
@@ -385,6 +387,16 @@ struct dc_csc_adjustments {
 	struct fixed31_32 saturation;
 	struct fixed31_32 brightness;
 	struct fixed31_32 hue;
+};
+
+enum dc_scaling_linearity {
+	DC_SCALING_LINEARITY_LINEAR,
+	DC_SCALING_LINEARITY_SOURCE,
+};
+
+enum dc_blending_linearity {
+	DC_BLENDING_LINEARITY_LINEAR,
+	DC_BLENDING_LINEARITY_SOURCE,
 };
 
 /* Scaling format */
@@ -1033,8 +1045,9 @@ enum backlight_control_type {
 	BACKLIGHT_CONTROL_AMD_AUX = 2,
 };
 
-#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 #define MAX_CRC_WINDOW_NUM	2
+
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 
 struct otg_phy_mux {
 	uint8_t phy_output_num;
@@ -1346,6 +1359,14 @@ struct dc_panel_config {
 	struct ilr {
 		bool optimize_edp_link_rate; /* eDP ILR */
 	} ilr;
+	/* CACP*/
+	struct cacp {
+		unsigned int cacp_supported;
+		unsigned int cacp_control_mode;
+		unsigned int strscl_valid;
+		unsigned int strscl_sdr[4];
+		unsigned int strscl_hdr[4];
+	} cacp;
 	/* Adaptive VariBright*/
 	struct adaptive_vb {
 		bool disable_adaptive_vb;
@@ -1397,6 +1418,31 @@ enum dc_hpd_enable_select {
 	HPD_EN_FOR_SECONDARY_EDP_ONLY,
 };
 
+enum dc_cm_lut_swizzle {
+	CM_LUT_3D_SWIZZLE_LINEAR_RGB,
+	CM_LUT_3D_SWIZZLE_LINEAR_BGR,
+	CM_LUT_1D_PACKED_LINEAR
+};
+
+enum dc_cm_lut_pixel_format {
+	CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12MSB,
+	CM_LUT_PIXEL_FORMAT_BGRA16161616_UNORM_12MSB,
+	CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12LSB,
+	CM_LUT_PIXEL_FORMAT_BGRA16161616_UNORM_12LSB,
+	CM_LUT_PIXEL_FORMAT_RGBA16161616_FLOAT_FP1_5_10,
+	CM_LUT_PIXEL_FORMAT_BGRA16161616_FLOAT_FP1_5_10
+};
+
+enum dc_cm_lut_size {
+	CM_LUT_SIZE_NONE,
+	CM_LUT_SIZE_999,
+	CM_LUT_SIZE_171717,
+	CM_LUT_SIZE_333333,
+	CM_LUT_SIZE_454545,
+	CM_LUT_SIZE_656565,
+};
+
+#ifndef TRIM_CM2
 enum dc_cm2_shaper_3dlut_setting {
 	DC_CM2_SHAPER_3DLUT_SETTING_BYPASS_ALL,
 	DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER,
@@ -1421,6 +1467,16 @@ enum dc_cm2_gpu_mem_format {
 	DC_CM2_GPU_MEM_FORMAT_16161616_FLOAT_FP1_5_10
 };
 
+enum dc_cm2_gpu_mem_size {
+	DC_CM2_GPU_MEM_SIZE_171717,
+	DC_CM2_GPU_MEM_SIZE_333333,
+	DC_CM2_GPU_MEM_SIZE_454545,
+	DC_CM2_GPU_MEM_SIZE_656565,
+	DC_CM2_GPU_MEM_SIZE_TRANSFORMED,
+};
+#endif /* TRIM_CM2 */
+
+#ifndef TRIM_CM2
 struct dc_cm2_gpu_mem_format_parameters {
 	enum dc_cm2_gpu_mem_format format;
 	union {
@@ -1432,14 +1488,6 @@ struct dc_cm2_gpu_mem_format_parameters {
 	};
 };
 
-enum dc_cm2_gpu_mem_size {
-	DC_CM2_GPU_MEM_SIZE_171717,
-	DC_CM2_GPU_MEM_SIZE_333333,
-	DC_CM2_GPU_MEM_SIZE_454545,
-	DC_CM2_GPU_MEM_SIZE_656565,
-	DC_CM2_GPU_MEM_SIZE_TRANSFORMED,
-};
-
 struct dc_cm2_gpu_mem_parameters {
 	struct dc_plane_address addr;
 	enum dc_cm2_gpu_mem_layout layout;
@@ -1448,17 +1496,16 @@ struct dc_cm2_gpu_mem_parameters {
 	enum dc_cm2_gpu_mem_size  size;
 	uint16_t bit_depth;
 };
+#endif /* TRIM_CM2 */
 
+#ifndef TRIM_CM2
 enum dc_cm2_transfer_func_source {
 	DC_CM2_TRANSFER_FUNC_SOURCE_SYSMEM,
 	DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM
 };
+#endif /* TRIM_CM2 */
 
-struct dc_cm2_component_settings {
-	enum dc_cm2_shaper_3dlut_setting shaper_3dlut_setting;
-	bool lut1d_enable;
-};
-
+#ifndef TRIM_CM2
 /*
  * All pointers in this struct must remain valid for as long as the 3DLUTs are used
  */
@@ -1478,11 +1525,7 @@ struct dc_cm2_func_luts {
 	} lut3d_data;
 	const struct dc_transfer_func *lut1d_func;
 };
-
-struct dc_cm2_parameters {
-	struct dc_cm2_component_settings component_settings;
-	struct dc_cm2_func_luts cm2_luts;
-};
+#endif /* TRIM_CM2 */
 
 enum mall_stream_type {
 	SUBVP_NONE, // subvp not in use

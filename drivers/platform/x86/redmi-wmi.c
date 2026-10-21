@@ -29,24 +29,24 @@ static const struct key_entry redmi_wmi_keymap[] = {
 	{KE_KEY, 0x00011801,	{KEY_ASSISTANT}},
 	{KE_KEY, 0x00011901,	{KEY_ASSISTANT}},
 
-	/* Keyboard backlight */
-	{KE_IGNORE, 0x00000501, {}},
-	{KE_IGNORE, 0x00800501, {}},
-	{KE_IGNORE, 0x00050501, {}},
-	{KE_IGNORE, 0x000a0501, {}},
+	/* Keyboard backlight: Off / Auto / Low / High (new state in byte 2) */
+	{KE_KEY, 0x00000501,	{KEY_KBDILLUMTOGGLE}},
+	{KE_KEY, 0x00800501,	{KEY_KBDILLUMTOGGLE}},
+	{KE_KEY, 0x00050501,	{KEY_KBDILLUMTOGGLE}},
+	{KE_KEY, 0x000a0501,	{KEY_KBDILLUMTOGGLE}},
 
 	/* Xiaomi G Command Center */
 	{KE_KEY, 0x00010a01,	{KEY_VENDOR}},
 
-	/* OEM preset power mode */
-	{KE_IGNORE, 0x00011601, {}},
-	{KE_IGNORE, 0x00021601, {}},
-	{KE_IGNORE, 0x00031601, {}},
-	{KE_IGNORE, 0x00041601, {}},
+	/* OEM preset power mode: 1=Balanced 2=Silent 3=Turbo 4=Full speed */
+	{KE_KEY, 0x00011601,	{KEY_PERFORMANCE}},
+	{KE_KEY, 0x00021601,	{KEY_PERFORMANCE}},
+	{KE_KEY, 0x00031601,	{KEY_PERFORMANCE}},
+	{KE_KEY, 0x00041601,	{KEY_PERFORMANCE}},
 
-	/* Fn Lock state */
-	{KE_IGNORE, 0x00000701, {}},
-	{KE_IGNORE, 0x00010701, {}},
+	/* Fn Lock state: 1=on 0=off */
+	{KE_KEY, 0x00000701,	{KEY_FN_ESC}},
+	{KE_KEY, 0x00010701,	{KEY_FN_ESC}},
 
 	/* Fn+`/1/2/3/4 */
 	{KE_KEY, 0x00011101, {KEY_F13}},

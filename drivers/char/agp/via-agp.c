@@ -221,204 +221,6 @@ static const struct agp_bridge_driver via_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_device_ids via_agp_device_ids[] =
-{
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_82C597_0,
-		.chipset_name	= "Apollo VP3",
-	},
-
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_82C598_0,
-		.chipset_name	= "Apollo MVP3",
-	},
-
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8501_0,
-		.chipset_name	= "Apollo MVP4",
-	},
-
-	/* VT8601 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8601_0,
-		.chipset_name	= "Apollo ProMedia/PLE133Ta",
-	},
-
-	/* VT82C693A / VT28C694T */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_82C691_0,
-		.chipset_name	= "Apollo Pro 133",
-	},
-
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8371_0,
-		.chipset_name	= "KX133",
-	},
-
-	/* VT8633 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8633_0,
-		.chipset_name	= "Pro 266",
-	},
-
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_XN266,
-		.chipset_name	= "Apollo Pro266",
-	},
-
-	/* VT8361 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8361,
-		.chipset_name	= "KLE133",
-	},
-
-	/* VT8365 / VT8362 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8363_0,
-		.chipset_name	= "Twister-K/KT133x/KM133",
-	},
-
-	/* VT8753A */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8753_0,
-		.chipset_name	= "P4X266",
-	},
-
-	/* VT8366 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8367_0,
-		.chipset_name	= "KT266/KY266x/KT333",
-	},
-
-	/* VT8633 (for CuMine/ Celeron) */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8653_0,
-		.chipset_name	= "Pro266T",
-	},
-
-	/* KM266 / PM266 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_XM266,
-		.chipset_name	= "PM266/KM266",
-	},
-
-	/* CLE266 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_862X_0,
-		.chipset_name	= "CLE266",
-	},
-
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8377_0,
-		.chipset_name	= "KT400/KT400A/KT600",
-	},
-
-	/* VT8604 / VT8605 / VT8603
-	 * (Apollo Pro133A chipset with S3 Savage4) */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8605_0,
-		.chipset_name	= "ProSavage PM133/PL133/PN133"
-	},
-
-	/* P4M266x/P4N266 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8703_51_0,
-		.chipset_name	= "P4M266x/P4N266",
-	},
-
-	/* VT8754 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8754C_0,
-		.chipset_name	= "PT800",
-	},
-
-	/* P4X600 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8763_0,
-		.chipset_name	= "P4X600"
-	},
-
-	/* KM400 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8378_0,
-		.chipset_name	= "KM400/KM400A",
-	},
-
-	/* PT880 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_PT880,
-		.chipset_name	= "PT880",
-	},
-
-	/* PT880 Ultra */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_PT880ULTRA,
-		.chipset_name	= "PT880 Ultra",
-	},
-
-	/* PT890 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_8783_0,
-		.chipset_name	= "PT890",
-	},
-
-	/* PM800/PN800/PM880/PN880 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_PX8X0_0,
-		.chipset_name	= "PM800/PN800/PM880/PN880",
-	},
-	/* KT880 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_3269_0,
-		.chipset_name	= "KT880",
-	},
-	/* KTxxx/Px8xx */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_83_87XX_1,
-		.chipset_name	= "VT83xx/VT87xx/KTxxx/Px8xx",
-	},
-	/* P4M800 */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_3296_0,
-		.chipset_name	= "P4M800",
-	},
-	/* P4M800CE */
-	{
-		.device_id	= PCI_DEVICE_ID_VIA_P4M800CE,
-		.chipset_name	= "VT3314",
-	},
-	/* VT3324 / CX700 */
-	{
-		.device_id  = PCI_DEVICE_ID_VIA_VT3324,
-		.chipset_name   = "CX700",
-	},
-	/* VT3336 - this is a chipset for AMD Athlon/K8 CPU. Due to K8's unique
-	 * architecture, the AGP resource and behavior are different from
-	 * the traditional AGP which resides only in chipset. AGP is used
-	 * by 3D driver which wasn't available for the VT3336 and VT3364
-	 * generation until now.  Unfortunately, by testing, VT3364 works
-	 * but VT3336 doesn't. - explanation from via, just leave this as
-	 * as a placeholder to avoid future patches adding it back in.
-	 */
-#if 0
-	{
-		.device_id  = PCI_DEVICE_ID_VIA_VT3336,
-		.chipset_name   = "VT3336",
-	},
-#endif
-	/* P4M890 */
-	{
-		.device_id  = PCI_DEVICE_ID_VIA_P4M890,
-		.chipset_name   = "P4M890",
-	},
-	/* P4M900 */
-	{
-		.device_id  = PCI_DEVICE_ID_VIA_VT3364,
-		.chipset_name   = "P4M900",
-	},
-	{ }, /* dummy final entry, always present */
-};
-
 
 /*
  * VIA's AGP3 chipsets do magick to put the AGP bridge compliant
@@ -437,17 +239,14 @@ static void check_via_agp3 (struct agp_bridge_data *bridge)
 
 static int agp_via_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct agp_device_ids *devs = via_agp_device_ids;
 	struct agp_bridge_data *bridge;
-	int j = 0;
 	u8 cap_ptr;
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
 		return -ENODEV;
 
-	j = ent - agp_via_pci_table;
-	printk (KERN_INFO PFX "Detected VIA %s chipset\n", devs[j].chipset_name);
+	dev_info(&pdev->dev, "Detected VIA %s chipset\n", (const char *)ent->driver_data);
 
 	bridge = agp_alloc_bridge();
 	if (!bridge)
@@ -501,9 +300,8 @@ static int agp_via_resume(struct device *dev)
 	return 0;
 }
 
-/* must be the same order as name table above */
 static const struct pci_device_id agp_via_pci_table[] = {
-#define ID(x) \
+#define ID(x, name) \
 	{						\
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),	\
 	.class_mask	= ~0,				\
@@ -511,39 +309,77 @@ static const struct pci_device_id agp_via_pci_table[] = {
 	.device		= x,				\
 	.subvendor	= PCI_ANY_ID,			\
 	.subdevice	= PCI_ANY_ID,			\
+	.driver_data	= (kernel_ulong_t)name,		\
 	}
-	ID(PCI_DEVICE_ID_VIA_82C597_0),
-	ID(PCI_DEVICE_ID_VIA_82C598_0),
-	ID(PCI_DEVICE_ID_VIA_8501_0),
-	ID(PCI_DEVICE_ID_VIA_8601_0),
-	ID(PCI_DEVICE_ID_VIA_82C691_0),
-	ID(PCI_DEVICE_ID_VIA_8371_0),
-	ID(PCI_DEVICE_ID_VIA_8633_0),
-	ID(PCI_DEVICE_ID_VIA_XN266),
-	ID(PCI_DEVICE_ID_VIA_8361),
-	ID(PCI_DEVICE_ID_VIA_8363_0),
-	ID(PCI_DEVICE_ID_VIA_8753_0),
-	ID(PCI_DEVICE_ID_VIA_8367_0),
-	ID(PCI_DEVICE_ID_VIA_8653_0),
-	ID(PCI_DEVICE_ID_VIA_XM266),
-	ID(PCI_DEVICE_ID_VIA_862X_0),
-	ID(PCI_DEVICE_ID_VIA_8377_0),
-	ID(PCI_DEVICE_ID_VIA_8605_0),
-	ID(PCI_DEVICE_ID_VIA_8703_51_0),
-	ID(PCI_DEVICE_ID_VIA_8754C_0),
-	ID(PCI_DEVICE_ID_VIA_8763_0),
-	ID(PCI_DEVICE_ID_VIA_8378_0),
-	ID(PCI_DEVICE_ID_VIA_PT880),
-	ID(PCI_DEVICE_ID_VIA_PT880ULTRA),
-	ID(PCI_DEVICE_ID_VIA_8783_0),
-	ID(PCI_DEVICE_ID_VIA_PX8X0_0),
-	ID(PCI_DEVICE_ID_VIA_3269_0),
-	ID(PCI_DEVICE_ID_VIA_83_87XX_1),
-	ID(PCI_DEVICE_ID_VIA_3296_0),
-	ID(PCI_DEVICE_ID_VIA_P4M800CE),
-	ID(PCI_DEVICE_ID_VIA_VT3324),
-	ID(PCI_DEVICE_ID_VIA_P4M890),
-	ID(PCI_DEVICE_ID_VIA_VT3364),
+	ID(PCI_DEVICE_ID_VIA_82C597_0, "Apollo VP3"),
+	ID(PCI_DEVICE_ID_VIA_82C598_0, "Apollo MVP3"),
+	ID(PCI_DEVICE_ID_VIA_8501_0, "Apollo MVP4"),
+	/* VT8601 */
+	ID(PCI_DEVICE_ID_VIA_8601_0, "Apollo ProMedia/PLE133Ta"),
+	/* VT82C693A / VT28C694T */
+	ID(PCI_DEVICE_ID_VIA_82C691_0, "Apollo Pro 133"),
+	ID(PCI_DEVICE_ID_VIA_8371_0, "KX133"),
+	/* VT8633 */
+	ID(PCI_DEVICE_ID_VIA_8633_0, "Pro 266"),
+	ID(PCI_DEVICE_ID_VIA_XN266, "Apollo Pro266"),
+	/* VT8361 */
+	ID(PCI_DEVICE_ID_VIA_8361, "KLE133"),
+	/* VT8365 / VT8362 */
+	ID(PCI_DEVICE_ID_VIA_8363_0, "Twister-K/KT133x/KM133"),
+	/* VT8753A */
+	ID(PCI_DEVICE_ID_VIA_8753_0, "P4X266"),
+	/* VT8366 */
+	ID(PCI_DEVICE_ID_VIA_8367_0, "KT266/KY266x/KT333"),
+	/* VT8633 (for CuMine/ Celeron) */
+	ID(PCI_DEVICE_ID_VIA_8653_0, "Pro266T"),
+	/* KM266 / PM266 */
+	ID(PCI_DEVICE_ID_VIA_XM266, "PM266/KM266"),
+	/* CLE266 */
+	ID(PCI_DEVICE_ID_VIA_862X_0, "CLE266"),
+	ID(PCI_DEVICE_ID_VIA_8377_0, "KT400/KT400A/KT600"),
+	/* VT8604 / VT8605 / VT8603 (Apollo Pro133A chipset with S3 Savage4) */
+	ID(PCI_DEVICE_ID_VIA_8605_0, "ProSavage PM133/PL133/PN133"),
+	/* P4M266x/P4N266 */
+	ID(PCI_DEVICE_ID_VIA_8703_51_0, "P4M266x/P4N266"),
+	/* VT8754 */
+	ID(PCI_DEVICE_ID_VIA_8754C_0, "PT800"),
+	/* P4X600 */
+	ID(PCI_DEVICE_ID_VIA_8763_0, "P4X600"),
+	/* KM400 */
+	ID(PCI_DEVICE_ID_VIA_8378_0, "KM400/KM400A"),
+	/* PT880 */
+	ID(PCI_DEVICE_ID_VIA_PT880, "PT880"),
+	/* PT880 Ultra */
+	ID(PCI_DEVICE_ID_VIA_PT880ULTRA, "PT880 Ultra"),
+	/* PT890 */
+	ID(PCI_DEVICE_ID_VIA_8783_0, "PT890"),
+	/* PM800/PN800/PM880/PN880 */
+	ID(PCI_DEVICE_ID_VIA_PX8X0_0, "PM800/PN800/PM880/PN880"),
+	/* KT880 */
+	ID(PCI_DEVICE_ID_VIA_3269_0, "KT880"),
+	/* KTxxx/Px8xx */
+	ID(PCI_DEVICE_ID_VIA_83_87XX_1, "VT83xx/VT87xx/KTxxx/Px8xx"),
+	/* P4M800 */
+	ID(PCI_DEVICE_ID_VIA_3296_0, "P4M800"),
+	/* P4M800CE */
+	ID(PCI_DEVICE_ID_VIA_P4M800CE, "VT3314"),
+	/* VT3324 / CX700 */
+	ID(PCI_DEVICE_ID_VIA_VT3324, "CX700"),
+	/* VT3336 - this is a chipset for AMD Athlon/K8 CPU. Due to K8's unique
+	 * architecture, the AGP resource and behavior are different from
+	 * the traditional AGP which resides only in chipset. AGP is used
+	 * by 3D driver which wasn't available for the VT3336 and VT3364
+	 * generation until now.  Unfortunately, by testing, VT3364 works
+	 * but VT3336 doesn't. - explanation from via, just leave this as
+	 * a placeholder to avoid future patches adding it back in.
+	 */
+#if 0
+	ID(PCI_DEVICE_ID_VIA_VT3336, "VT3336"),
+#endif
+	/* P4M890 */
+	ID(PCI_DEVICE_ID_VIA_P4M890, "P4M890"),
+	/* P4M900 */
+	ID(PCI_DEVICE_ID_VIA_VT3364, "P4M900"),
 	{ }
 };
 

@@ -32,7 +32,9 @@
  */
 #define STAGED_REQ_LENGTH 21
 
-static DEFINE_MUTEX(ima_write_mutex);
+/* lock for protecting concurrent IMA policy updates */
+DEFINE_MUTEX(ima_write_mutex);
+
 static DEFINE_MUTEX(ima_measure_mutex);
 static long ima_measure_users;
 static struct task_struct *measure_writer;
@@ -596,6 +598,7 @@ static ssize_t ima_write_policy(struct file *file, const char __user *buf,
 				    1, 0);
 		result = -EACCES;
 	} else {
+		ima_measure_raw_policy(data, datalen);
 		result = ima_parse_add_rule(data);
 	}
 	mutex_unlock(&ima_write_mutex);
@@ -752,6 +755,10 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 	}
 
 	ima_update_policy();
+
+	mutex_lock(&ima_write_mutex);
+	ima_measure_loaded_policy();
+	mutex_unlock(&ima_write_mutex);
 #if !defined(CONFIG_IMA_WRITE_POLICY) && !defined(CONFIG_IMA_READ_POLICY)
 	securityfs_remove(file->f_path.dentry);
 #elif defined(CONFIG_IMA_WRITE_POLICY)

@@ -222,30 +222,13 @@ static void *vcpu_thread(void *arg)
 	return NULL;
 }
 
-static void cancel_join_vcpu_thread(pthread_t thread, struct kvm_vcpu *vcpu)
-{
-	void *retval;
-	int r;
-
-	r = pthread_cancel(thread);
-	TEST_ASSERT(!r, "pthread_cancel on vcpu_id=%d failed with errno=%d",
-		    vcpu->id, r);
-
-	r = pthread_join(thread, &retval);
-	TEST_ASSERT(!r, "pthread_join on vcpu_id=%d failed with errno=%d",
-		    vcpu->id, r);
-	TEST_ASSERT(retval == PTHREAD_CANCELED,
-		    "expected retval=%p, got %p", PTHREAD_CANCELED,
-		    retval);
-}
-
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu[3];
 	gva_t hcall_page;
 	pthread_t threads[2];
-	int stage = 1, r;
+	int stage = 1;
 	struct ucall uc;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_SEND_IPI));
@@ -272,11 +255,8 @@ int main(int argc, char *argv[])
 	vcpu_args_set(vcpu[0], 2, hcall_page, addr_gva2gpa(vm, hcall_page));
 	vcpu_set_hv_cpuid(vcpu[0]);
 
-	r = pthread_create(&threads[0], NULL, vcpu_thread, vcpu[1]);
-	TEST_ASSERT(!r, "pthread_create failed errno=%d", r);
-
-	r = pthread_create(&threads[1], NULL, vcpu_thread, vcpu[2]);
-	TEST_ASSERT(!r, "pthread_create failed errno=%d", errno);
+	kvm_pthread_create(&threads[0], NULL, vcpu_thread, vcpu[1]);
+	kvm_pthread_create(&threads[1], NULL, vcpu_thread, vcpu[2]);
 
 	while (true) {
 		vcpu_run(vcpu[0]);
@@ -302,9 +282,9 @@ int main(int argc, char *argv[])
 	}
 
 done:
-	cancel_join_vcpu_thread(threads[0], vcpu[1]);
-	cancel_join_vcpu_thread(threads[1], vcpu[2]);
+	kvm_pthread_cancel_join_async(threads[0]);
+	kvm_pthread_cancel_join_async(threads[1]);
 	kvm_vm_free(vm);
 
-	return r;
+	return 0;
 }

@@ -119,7 +119,7 @@ struct ia_css_frame_info {
 	.raw_bayer_order	= IA_CSS_BAYER_ORDER_NUM, \
 }
 
-/**
+/*
  *  Specifies the DVS loop delay in "frame periods"
  */
 enum ia_css_frame_delay {

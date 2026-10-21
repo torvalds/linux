@@ -266,6 +266,24 @@ enum {
 #define ASICREV_IS_DCN36(eChipRev) ((eChipRev) >= 0x50 && (eChipRev) < 0xC0)
 
 #define AMDGPU_FAMILY_GC_12_0_0         152 /* GC 12.0.0 */
+#define AMDGPU_FAMILY_GC_13_0_1         153 /*We may need an update if we find DCN5 and DCN6
+											do not share the same GFX version*/
+enum {
+	DCN6_VARIANT0_A0        = 0x1,
+	DCN6_VARIANT1_A0        = DCN6_VARIANT0_A0,
+	DCN6_VARIANT2_A0        = 0x10,
+	DCN6_VARIANT2_B0        = 0x11,
+	DCN6_VARIANT3_A0        = 0x20,
+	DCN6_VARIANT3_UPPER     = 0x2F,
+	DCN6_UNKNOWN		= 0xFF
+};
+
+#define ASICREV_IS_DCN6_VARIANT0(eChipRev)        (eChipRev < DCN6_VARIANT2_A0)
+#define ASICREV_IS_DCN6_VARIANT1(eChipRev)        ASICREV_IS_DCN_VARIANT0(eChipRev)
+#define ASICREV_IS_DCN6_VARIANT2(eChipRev)        (eChipRev >= DCN6_VARIANT2_A0 && eChipRev < DCN6_VARIANT3_A0)
+#define ASICREV_IS_DCN6_VARIANT2_A0(eChipRev)     (eChipRev >= DCN6_VARIANT2_A0 && eChipRev < DCN6_VARIANT2_B0)
+#define ASICREV_IS_DCN6_VARIANT2_B0(eChipRev)     (eChipRev >= DCN6_VARIANT2_B0 && eChipRev < DCN6_VARIANT3_A0)
+#define ASICREV_IS_DCN6_VARIANT3(eChipRev)        (eChipRev >= DCN6_VARIANT3_A0 && eChipRev <= DCN6_VARIANT3_UPPER)
 
 enum {
 	GC_12_0_0_A0 = 0x50,

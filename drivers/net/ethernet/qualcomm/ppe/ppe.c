@@ -106,7 +106,6 @@ static const struct regmap_config regmap_config_ipq9574 = {
 	.rd_table = &ppe_reg_table,
 	.wr_table = &ppe_reg_table,
 	.max_register = 0xbef800,
-	.fast_io = true,
 };
 
 static int ppe_clock_init_and_reset(struct ppe_device *ppe_dev)

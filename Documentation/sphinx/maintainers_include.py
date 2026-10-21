@@ -161,7 +161,7 @@ class MaintainersParser:
                     html = KERNELDOC_URL + ename + ".html"
                     entries[entry] = f'`{ename} <{html}>`_'
                 else:
-                    entries[entry] = f':doc:`{ename} </{entry}>`'
+                    entries[entry] = f'/{entry}'
 
         return entries
 
@@ -345,7 +345,10 @@ class MaintainersProfile(Include):
                 output += f"- {name}: {entry}\n"
                 self.warning(f"{profile}: Invalid 'P' tag: {entry}\n")
             else:
-                output += f"- {entry}\n"
+                if not name:
+                    name = entry
+
+                output += f"- :doc:`{name} <{entry}>`\n"
 
         #
         # Create a hidden TOC table with all profiles. That allows adding

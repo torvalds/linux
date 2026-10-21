@@ -630,53 +630,118 @@ static struct attribute *ad525x_attributes_commands[] = {
 	NULL
 };
 
-static const struct attribute_group ad525x_group_commands = {
-	.attrs = ad525x_attributes_commands,
+static struct attribute *ad525x_attributes[] = {
+	&dev_attr_rdac0.attr,
+	&dev_attr_rdac1.attr,
+	&dev_attr_rdac2.attr,
+	&dev_attr_rdac3.attr,
+	&dev_attr_rdac4.attr,
+	&dev_attr_rdac5.attr,
+	&dev_attr_eeprom0.attr,
+	&dev_attr_eeprom1.attr,
+	&dev_attr_eeprom2.attr,
+	&dev_attr_eeprom3.attr,
+	&dev_attr_eeprom4.attr,
+	&dev_attr_eeprom5.attr,
+	&dev_attr_tolerance0.attr,
+	&dev_attr_tolerance1.attr,
+	&dev_attr_tolerance2.attr,
+	&dev_attr_tolerance3.attr,
+	&dev_attr_tolerance4.attr,
+	&dev_attr_tolerance5.attr,
+	&dev_attr_otp0.attr,
+	&dev_attr_otp1.attr,
+	&dev_attr_otp2.attr,
+	&dev_attr_otp3.attr,
+	&dev_attr_otp4.attr,
+	&dev_attr_otp5.attr,
+	&dev_attr_otp0en.attr,
+	&dev_attr_otp1en.attr,
+	&dev_attr_otp2en.attr,
+	&dev_attr_otp3en.attr,
+	&dev_attr_otp4en.attr,
+	&dev_attr_otp5en.attr,
+	&dev_attr_inc_all.attr,
+	&dev_attr_dec_all.attr,
+	&dev_attr_inc_all_6db.attr,
+	&dev_attr_dec_all_6db.attr,
+	NULL
 };
 
-static int ad_dpot_add_files(struct device *dev,
-		unsigned int features, unsigned int rdac)
+static int ad525x_attr_index(struct attribute *attr,
+			     const struct attribute * const *attrs)
 {
-	int err = sysfs_create_file(&dev->kobj,
-		dpot_attrib_wipers[rdac]);
-	if (features & F_CMD_EEP)
-		err |= sysfs_create_file(&dev->kobj,
-			dpot_attrib_eeprom[rdac]);
-	if (features & F_CMD_TOL)
-		err |= sysfs_create_file(&dev->kobj,
-			dpot_attrib_tolerance[rdac]);
-	if (features & F_CMD_OTP) {
-		err |= sysfs_create_file(&dev->kobj,
-			dpot_attrib_otp_en[rdac]);
-		err |= sysfs_create_file(&dev->kobj,
-			dpot_attrib_otp[rdac]);
-	}
+	int i;
 
-	if (err)
-		dev_err(dev, "failed to register sysfs hooks for RDAC%d\n",
-			rdac);
+	for (i = 0; attrs[i]; i++)
+		if (attr == attrs[i])
+			return i;
 
-	return err;
+	return -ENOENT;
 }
 
-static inline void ad_dpot_remove_files(struct device *dev,
-		unsigned int features, unsigned int rdac)
+static bool ad525x_is_command_attr(struct attribute *attr)
 {
-	sysfs_remove_file(&dev->kobj,
-		dpot_attrib_wipers[rdac]);
-	if (features & F_CMD_EEP)
-		sysfs_remove_file(&dev->kobj,
-			dpot_attrib_eeprom[rdac]);
-	if (features & F_CMD_TOL)
-		sysfs_remove_file(&dev->kobj,
-			dpot_attrib_tolerance[rdac]);
-	if (features & F_CMD_OTP) {
-		sysfs_remove_file(&dev->kobj,
-			dpot_attrib_otp_en[rdac]);
-		sysfs_remove_file(&dev->kobj,
-			dpot_attrib_otp[rdac]);
+	int i;
+
+	for (i = 0; ad525x_attributes_commands[i]; i++) {
+		if (attr == ad525x_attributes_commands[i])
+			return true;
 	}
+
+	return false;
 }
+
+static umode_t ad525x_is_visible(struct kobject *kobj, struct attribute *attr,
+				 int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct dpot_data *data = dev_get_drvdata(dev);
+	int rdac;
+
+	if (!data)
+		return 0;
+
+	rdac = ad525x_attr_index(attr, dpot_attrib_wipers);
+	if (rdac >= 0)
+		return data->wipers & BIT(rdac) ? attr->mode : 0;
+
+	rdac = ad525x_attr_index(attr, dpot_attrib_eeprom);
+	if (rdac >= 0)
+		return (data->wipers & BIT(rdac)) && (data->feat & F_CMD_EEP) ?
+			attr->mode : 0;
+
+	rdac = ad525x_attr_index(attr, dpot_attrib_tolerance);
+	if (rdac >= 0)
+		return (data->wipers & BIT(rdac)) && (data->feat & F_CMD_TOL) ?
+			attr->mode : 0;
+
+	rdac = ad525x_attr_index(attr, dpot_attrib_otp);
+	if (rdac >= 0)
+		return (data->wipers & BIT(rdac)) && (data->feat & F_CMD_OTP) ?
+			attr->mode : 0;
+
+	rdac = ad525x_attr_index(attr, dpot_attrib_otp_en);
+	if (rdac >= 0)
+		return (data->wipers & BIT(rdac)) && (data->feat & F_CMD_OTP) ?
+			attr->mode : 0;
+
+	if (ad525x_is_command_attr(attr))
+		return data->feat & F_CMD_INC ? attr->mode : 0;
+
+	return attr->mode;
+}
+
+static const struct attribute_group ad525x_group = {
+	.attrs = ad525x_attributes,
+	.is_visible = ad525x_is_visible,
+};
+
+const struct attribute_group *ad_dpot_groups[] = {
+	&ad525x_group,
+	NULL
+};
+EXPORT_SYMBOL(ad_dpot_groups);
 
 int ad_dpot_probe(struct device *dev,
 		struct ad_dpot_bus_data *bdata, unsigned long devid,
@@ -684,12 +749,13 @@ int ad_dpot_probe(struct device *dev,
 {
 
 	struct dpot_data *data;
-	int i, err = 0;
+	int i;
 
 	data = kzalloc_obj(struct dpot_data);
 	if (!data) {
-		err = -ENOMEM;
-		goto exit;
+		dev_err(dev, "failed to create client for %s ID 0x%lX\n",
+			name, devid);
+		return -ENOMEM;
 	}
 
 	dev_set_drvdata(dev, data);
@@ -705,51 +771,22 @@ int ad_dpot_probe(struct device *dev,
 	data->wipers = DPOT_WIPERS(devid);
 
 	for (i = DPOT_RDAC0; i < MAX_RDACS; i++)
-		if (data->wipers & (1 << i)) {
-			err = ad_dpot_add_files(dev, data->feat, i);
-			if (err)
-				goto exit_remove_files;
+		if (data->wipers & BIT(i)) {
 			/* power-up midscale */
 			if (data->feat & F_RDACS_WONLY)
 				data->rdac_cache[i] = data->max_pos / 2;
 		}
 
-	if (data->feat & F_CMD_INC)
-		err = sysfs_create_group(&dev->kobj, &ad525x_group_commands);
-
-	if (err) {
-		dev_err(dev, "failed to register sysfs hooks\n");
-		goto exit_free;
-	}
-
 	dev_info(dev, "%s %d-Position Digital Potentiometer registered\n",
 		 name, data->max_pos);
 
 	return 0;
-
-exit_remove_files:
-	for (i = DPOT_RDAC0; i < MAX_RDACS; i++)
-		if (data->wipers & (1 << i))
-			ad_dpot_remove_files(dev, data->feat, i);
-
-exit_free:
-	kfree(data);
-	dev_set_drvdata(dev, NULL);
-exit:
-	dev_err(dev, "failed to create client for %s ID 0x%lX\n",
-		name, devid);
-	return err;
 }
 EXPORT_SYMBOL(ad_dpot_probe);
 
 void ad_dpot_remove(struct device *dev)
 {
 	struct dpot_data *data = dev_get_drvdata(dev);
-	int i;
-
-	for (i = DPOT_RDAC0; i < MAX_RDACS; i++)
-		if (data->wipers & (1 << i))
-			ad_dpot_remove_files(dev, data->feat, i);
 
 	kfree(data);
 }

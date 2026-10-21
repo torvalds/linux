@@ -937,7 +937,8 @@ anx78xx_bridge_mode_valid(struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
-static void anx78xx_bridge_disable(struct drm_bridge *bridge)
+static void anx78xx_bridge_disable(struct drm_bridge *bridge,
+				   struct drm_atomic_commit *commit)
 {
 	struct anx78xx *anx78xx = bridge_to_anx78xx(bridge);
 
@@ -975,7 +976,8 @@ unlock:
 	mutex_unlock(&anx78xx->lock);
 }
 
-static void anx78xx_bridge_enable(struct drm_bridge *bridge)
+static void anx78xx_bridge_enable(struct drm_bridge *bridge,
+				  struct drm_atomic_commit *commit)
 {
 	struct anx78xx *anx78xx = bridge_to_anx78xx(bridge);
 	int err;
@@ -992,12 +994,15 @@ static void anx78xx_bridge_enable(struct drm_bridge *bridge)
 }
 
 static const struct drm_bridge_funcs anx78xx_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = anx78xx_bridge_attach,
 	.detach = anx78xx_bridge_detach,
 	.mode_valid = anx78xx_bridge_mode_valid,
-	.disable = anx78xx_bridge_disable,
+	.atomic_disable = anx78xx_bridge_disable,
 	.mode_set = anx78xx_bridge_mode_set,
-	.enable = anx78xx_bridge_enable,
+	.atomic_enable = anx78xx_bridge_enable,
 };
 
 static irqreturn_t anx78xx_hpd_threaded_handler(int irq, void *data)

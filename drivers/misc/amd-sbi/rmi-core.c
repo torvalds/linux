@@ -581,6 +581,8 @@ int create_misc_rmi_device(struct sbrmi_data *data,
 							 GFP_KERNEL,
 							 "sbrmi-%x",
 							 data->dev_static_addr);
+	if (!data->sbrmi_misc_dev.name)
+		return -ENOMEM;
 	data->sbrmi_misc_dev.minor	= MISC_DYNAMIC_MINOR;
 	data->sbrmi_misc_dev.fops	= &sbrmi_fops;
 	data->sbrmi_misc_dev.parent	= dev;
@@ -588,6 +590,8 @@ int create_misc_rmi_device(struct sbrmi_data *data,
 							 GFP_KERNEL,
 							 "sbrmi-%x",
 							 data->dev_static_addr);
+	if (!data->sbrmi_misc_dev.nodename)
+		return -ENOMEM;
 	data->sbrmi_misc_dev.mode	= 0600;
 
 	return misc_register(&data->sbrmi_misc_dev);

@@ -26,6 +26,8 @@
 
 #include <linux/gpu_buddy.h>
 
+struct dmem_cgroup_region;
+
 struct amdgpu_vram_mgr {
 	struct ttm_resource_manager manager;
 	struct gpu_buddy mm;
@@ -36,6 +38,7 @@ struct amdgpu_vram_mgr {
 	atomic64_t vis_usage;
 	u64 default_page_size;
 	struct list_head allocated_vres_list;
+	struct dmem_cgroup_region *cg_region;
 };
 
 struct amdgpu_vres_task {

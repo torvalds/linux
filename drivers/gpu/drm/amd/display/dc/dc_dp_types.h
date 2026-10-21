@@ -1146,6 +1146,7 @@ struct edp_psr_info {
 	union edp_psr_dpcd_caps psr_dpcd_caps;
 	uint8_t psr2_su_y_granularity_cap;
 	uint8_t force_psrsu_cap;
+	uint8_t psr_active_vtotal_control_cap;
 };
 
 struct replay_info {

@@ -231,6 +231,7 @@ static void ism_free_dmb(struct ism_dev *ism, struct dibs_dmb *dmb)
 	dma_unmap_page(&ism->pdev->dev, dmb->dma_addr, dmb->dmb_len,
 		       DMA_FROM_DEVICE);
 	folio_put(virt_to_folio(dmb->cpu_addr));
+	dmb->cpu_addr = NULL;
 }
 
 static int ism_alloc_dmb(struct ism_dev *ism, struct dibs_dmb *dmb)
@@ -274,7 +275,8 @@ static int ism_alloc_dmb(struct ism_dev *ism, struct dibs_dmb *dmb)
 	return 0;
 
 out_free:
-	kfree(dmb->cpu_addr);
+	folio_put(folio);
+	dmb->cpu_addr = NULL;
 out_bit:
 	clear_bit(dmb->idx, ism->sba_bitmap);
 	return rc;

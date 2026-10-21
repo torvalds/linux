@@ -171,7 +171,7 @@ Description:
 		all devices attached through the subordinate bus of a specific
 		bridge device, writing 1 to this will try to do it.  This will
 		affect all devices attached to the system through this bridge
-		similiar to writing 1 to their individual "reset" file, so use
+		similar to writing 1 to their individual "reset" file, so use
 		with caution.
 
 What:		/sys/bus/pci/devices/.../vpd

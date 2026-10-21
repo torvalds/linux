@@ -163,7 +163,7 @@ static int hda_sdw_bpt_dma_deprepare(struct device *dev, struct hdac_ext_stream 
 	u32 mask;
 	int ret;
 
-	ret = hda_data_stream_cleanup(sdev->dev, dmab_bdl, false, sdw_bpt_stream, true);
+	ret = hda_data_stream_cleanup(sdev->dev, dmab_bdl, false, sdw_bpt_stream, false, true);
 	if (ret < 0) {
 		dev_err(sdev->dev, "%s: SDW BPT DMA cleanup failed\n",
 			__func__);

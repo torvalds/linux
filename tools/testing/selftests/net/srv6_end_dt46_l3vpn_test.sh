@@ -536,6 +536,14 @@ host_vpn_isolation_tests()
 	done
 }
 
+test_iproute2_supp_or_ksft_skip()
+{
+	if ! ip route add help 2>&1 | grep -qo "End.DT46"; then
+		echo "SKIP: Missing SRv6 End.DT46 support in iproute2"
+		exit "${ksft_skip}"
+	fi
+}
+
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
 	exit $ksft_skip
@@ -545,6 +553,8 @@ if [ ! -x "$(command -v ip)" ]; then
 	echo "SKIP: Could not run test without ip tool"
 	exit $ksft_skip
 fi
+
+test_iproute2_supp_or_ksft_skip
 
 modprobe vrf &>/dev/null
 if [ ! -e /proc/sys/net/vrf/strict_mode ]; then

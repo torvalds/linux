@@ -100,7 +100,12 @@ static int max98363_resume(struct device *dev)
 		return ret;
 
 	regcache_cache_only(max98363->regmap, false);
-	regcache_sync(max98363->regmap);
+	ret = regcache_sync(max98363->regmap);
+	if (ret) {
+		regcache_cache_only(max98363->regmap, true);
+		regcache_mark_dirty(max98363->regmap);
+		return ret;
+	}
 
 	return 0;
 }

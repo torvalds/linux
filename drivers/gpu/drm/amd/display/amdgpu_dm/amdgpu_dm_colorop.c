@@ -31,7 +31,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_dm_colorop.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 #include "dc.h"
 
 const u64 amdgpu_dm_supported_degam_tfs =
@@ -235,3 +235,4 @@ int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_pr
 
 	return amdgpu_dm_build_default_pipeline(dev, plane, hw_3d_lut, list);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_initialize_default_pipeline);

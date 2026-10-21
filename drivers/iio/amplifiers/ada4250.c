@@ -358,7 +358,7 @@ static int ada4250_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ada4250_id[] = {
-	{ "ada4250", 0 },
+	{ .name = "ada4250" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ada4250_id);

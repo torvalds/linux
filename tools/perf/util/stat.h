@@ -69,6 +69,7 @@ struct perf_stat_config {
 	bool			 interval_clear;
 	bool			 metric_only;
 	bool			 null_run;
+	bool			 hide_zero;
 	bool			 ru_display;
 	bool			 big_num;
 	bool			 hybrid_merge;

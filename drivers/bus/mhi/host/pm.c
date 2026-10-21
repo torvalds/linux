@@ -651,21 +651,13 @@ static void mhi_pm_sys_error_transition(struct mhi_controller *mhi_cntrl)
 
 	/* Trigger MHI RESET so that the device will not access host memory */
 	if (reset_device) {
-		u32 in_reset = -1;
-		unsigned long timeout = msecs_to_jiffies(mhi_cntrl->timeout_ms);
-
 		dev_dbg(dev, "Triggering MHI Reset in device\n");
 		mhi_set_mhi_state(mhi_cntrl, MHI_STATE_RESET);
 
 		/* Wait for the reset bit to be cleared by the device */
-		ret = wait_event_timeout(mhi_cntrl->state_event,
-					 mhi_read_reg_field(mhi_cntrl,
-							    mhi_cntrl->regs,
-							    MHICTRL,
-							    MHICTRL_RESET_MASK,
-							    &in_reset) ||
-					!in_reset, timeout);
-		if (!ret || in_reset) {
+		ret = mhi_poll_reg_field(mhi_cntrl, mhi_cntrl->regs, MHICTRL,
+				 MHICTRL_RESET_MASK, 0, 25000, mhi_cntrl->timeout_ms);
+		if (ret) {
 			dev_err(dev, "Device failed to exit MHI Reset state\n");
 			write_lock_irq(&mhi_cntrl->pm_lock);
 			cur_state = mhi_tryset_pm_state(mhi_cntrl,
@@ -922,22 +914,39 @@ int mhi_pm_suspend(struct mhi_controller *mhi_cntrl)
 		return -EIO;
 	}
 
-	/* Set MHI to M3 and wait for completion */
-	mhi_set_mhi_state(mhi_cntrl, MHI_STATE_M3);
-	write_unlock_irq(&mhi_cntrl->pm_lock);
-	dev_dbg(dev, "Waiting for M3 completion\n");
+	/*
+	 * For devices without M3 support, just set the host state to M3. This
+	 * host transition is needed to prevent the client drivers from
+	 * accessing the device during suspend.
+	 */
+	if (mhi_cntrl->no_m3) {
+		new_state = mhi_tryset_pm_state(mhi_cntrl, MHI_PM_M3);
+		write_unlock_irq(&mhi_cntrl->pm_lock);
+		if (new_state != MHI_PM_M3) {
+			dev_err(dev,
+				"Error setting to PM state: %s from: %s\n",
+				to_mhi_pm_state_str(MHI_PM_M3),
+				to_mhi_pm_state_str(mhi_cntrl->pm_state));
+			return -EIO;
+		}
+	} else {
+		/* Set MHI to M3 and wait for completion */
+		mhi_set_mhi_state(mhi_cntrl, MHI_STATE_M3);
+		write_unlock_irq(&mhi_cntrl->pm_lock);
+		dev_dbg(dev, "Waiting for M3 completion\n");
 
-	ret = wait_event_timeout(mhi_cntrl->state_event,
-				 mhi_cntrl->dev_state == MHI_STATE_M3 ||
-				 MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state),
-				 msecs_to_jiffies(mhi_cntrl->timeout_ms));
+		ret = wait_event_timeout(mhi_cntrl->state_event,
+					 mhi_cntrl->dev_state == MHI_STATE_M3 ||
+					 MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state),
+					 msecs_to_jiffies(mhi_cntrl->timeout_ms));
 
-	if (!ret || MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
-		dev_err(dev,
-			"Did not enter M3 state, MHI state: %s, PM state: %s\n",
-			mhi_state_str(mhi_cntrl->dev_state),
-			to_mhi_pm_state_str(mhi_cntrl->pm_state));
-		return -EIO;
+		if (!ret || MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
+			dev_err(dev,
+				"Did not enter M3 state, MHI state: %s, PM state: %s\n",
+				mhi_state_str(mhi_cntrl->dev_state),
+				to_mhi_pm_state_str(mhi_cntrl->pm_state));
+			return -EIO;
+		}
 	}
 
 	/* Notify clients about entering LPM */
@@ -969,7 +978,8 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state))
 		return -EIO;
 
-	if (mhi_get_mhi_state(mhi_cntrl) != MHI_STATE_M3) {
+	if (!mhi_cntrl->no_m3 &&
+	    mhi_get_mhi_state(mhi_cntrl) != MHI_STATE_M3) {
 		dev_warn(dev, "Resuming from non M3 state (%s)\n",
 			 mhi_state_str(mhi_get_mhi_state(mhi_cntrl)));
 		if (!force)
@@ -993,6 +1003,15 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 			 to_mhi_pm_state_str(MHI_PM_M3_EXIT),
 			 to_mhi_pm_state_str(mhi_cntrl->pm_state));
 		return -EIO;
+	}
+
+	/*
+	 * For devices without M3 support, just move the host back to M0
+	 * directly.
+	 */
+	if (mhi_cntrl->no_m3) {
+		write_unlock_irq(&mhi_cntrl->pm_lock);
+		return mhi_pm_m0_transition(mhi_cntrl);
 	}
 
 	/* Set MHI to M0 and wait for completion */

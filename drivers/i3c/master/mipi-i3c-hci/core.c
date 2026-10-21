@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/platform_data/mipi-i3c-hci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -115,6 +116,22 @@
 static inline struct i3c_hci *to_i3c_hci(struct i3c_master_controller *m)
 {
 	return container_of(m, struct i3c_hci, master);
+}
+
+/**
+ * i3c_hci_sysdev() - Get the device to use for DMA and system PM
+ * @dev: Device the HCI controller is bound to
+ *
+ * When an IOMMU is enabled, DMA API calls must use the device that IOMMU
+ * setup was done for.  Under PCI enumeration that is the PCI device, not
+ * the "mipi-i3c-hci" platform device below it.  The same device owns
+ * system PM and wakeup configuration.
+ *
+ * Return: @dev's parent if it is a PCI device, otherwise @dev.
+ */
+struct device *i3c_hci_sysdev(struct device *dev)
+{
+	return dev->parent && dev_is_pci(dev->parent) ? dev->parent : dev;
 }
 
 static void i3c_hci_set_master_dyn_addr(struct i3c_hci *hci)
@@ -375,7 +392,7 @@ static int i3c_hci_send_ccc_cmd(struct i3c_master_controller *m,
 		goto out;
 	for (i = prefixed; i < nxfers; i++) {
 		if (ccc->rnw)
-			ccc->dests[i - prefixed].payload.len =
+			ccc->dests[i - prefixed].payload.actual_len =
 				RESP_DATA_LENGTH(xfer[i].response);
 		switch (RESP_STATUS(xfer[i].response)) {
 		case RESP_SUCCESS:
@@ -392,7 +409,8 @@ static int i3c_hci_send_ccc_cmd(struct i3c_master_controller *m,
 
 	if (ccc->rnw)
 		dev_dbg(&hci->master.dev, "got: %*ph",
-			ccc->dests[0].payload.len, ccc->dests[0].payload.data);
+			ccc->dests[0].payload.actual_len,
+			ccc->dests[0].payload.data);
 
 out:
 	hci_free_xfer(xfer, nxfers);
@@ -1031,6 +1049,7 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	switch (regval & ~0xf) {
 	case 0x100:	/* version 1.0 */
 	case 0x110:	/* version 1.1 */
+	case 0x120:	/* version 1.2 */
 	case 0x200:	/* version 2.0 */
 		break;
 	default:
@@ -1163,6 +1182,9 @@ static int i3c_hci_probe(struct platform_device *pdev)
 	if (hci->quirks & HCI_QUIRK_RPM_IBI_ALLOWED)
 		hci->master.rpm_ibi_allowed = true;
 
+	if (device_can_wakeup(i3c_hci_sysdev(&pdev->dev)))
+		hci->master.ibi_wakeup = true;
+
 	return i3c_master_register(&hci->master, &pdev->dev, &i3c_hci_ops, false);
 }
 
@@ -1196,6 +1218,10 @@ static const struct platform_device_id i3c_hci_driver_ids[] = {
 			HCI_QUIRK_RPM_PARENT_MANAGED |
 			HCI_QUIRK_DMA_ABORT_REQUIRES_PIO_RESET |
 			HCI_QUIRK_DMA_REQUIRES_HC_ABORT,
+	},
+	{
+		.name = "amd-pt-i3c-hci",
+		.driver_data = HCI_QUIRK_RPM_ALLOWED,
 	},
 	{ /* sentinel */ }
 };

@@ -5,6 +5,18 @@
 #include "bpf_misc.h"
 #include "../test_kmods/bpf_testmod_kfunc.h"
 
+static struct bpf_spin_lock kfunc_call_lock SEC(".data.A");
+
+SEC("tc")
+int kfunc_call_test_spin_lock_safe(struct __sk_buff *skb)
+{
+	bpf_spin_lock(&kfunc_call_lock);
+	bpf_testmod_test_mod_kfunc(42);
+	bpf_spin_unlock(&kfunc_call_lock);
+
+	return 0;
+}
+
 SEC("tc")
 int kfunc_call_test5(struct __sk_buff *skb)
 {

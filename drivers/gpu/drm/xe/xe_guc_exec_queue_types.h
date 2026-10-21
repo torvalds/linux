@@ -55,6 +55,13 @@ struct xe_guc_exec_queue {
 	/** @suspend_pending: a suspend of the exec_queue is pending */
 	bool suspend_pending;
 	/**
+	 * @suspend_count: Reference count of active suspend requests. The
+	 * exec_queue remains suspended while this is non-zero, allowing
+	 * multiple concurrent callers to independently hold a suspend without
+	 * prematurely re-enabling the queue. Protected by @sched.msg_lock.
+	 */
+	int suspend_count;
+	/**
 	 * @needs_cleanup: Needs a cleanup message during VF post migration
 	 * recovery.
 	 */

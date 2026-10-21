@@ -1355,8 +1355,8 @@ const char *security_get_initial_sid_context(u32 sid)
 }
 
 static int security_sid_to_context_core(u32 sid, char **scontext,
-					u32 *scontext_len, int force,
-					int only_invalid)
+					u32 *scontext_len, bool force,
+					bool only_invalid)
 {
 	struct selinux_policy *policy;
 	struct policydb *policydb;
@@ -1439,14 +1439,14 @@ out_unlock:
 int security_sid_to_context(u32 sid, char **scontext, u32 *scontext_len)
 {
 	return security_sid_to_context_core(sid, scontext,
-					    scontext_len, 0, 0);
+					    scontext_len, false, false);
 }
 
 int security_sid_to_context_force(u32 sid,
 				  char **scontext, u32 *scontext_len)
 {
 	return security_sid_to_context_core(sid, scontext,
-					    scontext_len, 1, 0);
+					    scontext_len, true, false);
 }
 
 /**
@@ -1466,7 +1466,7 @@ int security_sid_to_context_inval(u32 sid,
 				  char **scontext, u32 *scontext_len)
 {
 	return security_sid_to_context_core(sid, scontext,
-					    scontext_len, 1, 1);
+					    scontext_len, true, true);
 }
 
 /*
@@ -1552,7 +1552,7 @@ out:
 
 static int security_context_to_sid_core(const char *scontext, u32 scontext_len,
 					u32 *sid, u32 def_sid, gfp_t gfp_flags,
-					int force)
+					bool force)
 {
 	struct selinux_policy *policy;
 	struct policydb *policydb;
@@ -1641,7 +1641,7 @@ int security_context_to_sid(const char *scontext, u32 scontext_len, u32 *sid,
 			    gfp_t gfp)
 {
 	return security_context_to_sid_core(scontext, scontext_len,
-					    sid, SECSID_NULL, gfp, 0);
+					    sid, SECSID_NULL, gfp, false);
 }
 
 int security_context_str_to_sid(const char *scontext, u32 *sid, gfp_t gfp)
@@ -1673,14 +1673,14 @@ int security_context_to_sid_default(const char *scontext, u32 scontext_len,
 				    u32 *sid, u32 def_sid, gfp_t gfp_flags)
 {
 	return security_context_to_sid_core(scontext, scontext_len,
-					    sid, def_sid, gfp_flags, 1);
+					    sid, def_sid, gfp_flags, true);
 }
 
 int security_context_to_sid_force(const char *scontext, u32 scontext_len,
 				  u32 *sid)
 {
 	return security_context_to_sid_core(scontext, scontext_len,
-					    sid, SECSID_NULL, GFP_KERNEL, 1);
+					    sid, SECSID_NULL, GFP_KERNEL, true);
 }
 
 static int compute_sid_handle_invalid_context(

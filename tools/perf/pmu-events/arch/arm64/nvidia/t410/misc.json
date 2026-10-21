@@ -316,8 +316,8 @@
     },
     {
         "EventCode": "0x0197",
-        "EventName": "TXREQ_LIMIT_1QUARTER_CYCLES",
-        "PublicDescription": "Number of cycles in which the dynamic TXREQ limit is between 1/4 of the L2_TQ_SIZE and 1/2 of the L2_TQ_SIZE."
+        "EventName": "TXREQ_LIMIT_BELOW_HALF_CYCLES",
+        "PublicDescription": "Number of cycles in which the dynamic TXREQ limit is between 0 and 1/2 of the L2_TQ_SIZE."
     },
     {
         "EventCode": "0x019d",
@@ -517,7 +517,7 @@
     {
         "EventCode": "0x01cc",
         "EventName": "TXREQ_LIMIT_COUNT_CYCLES",
-        "PublicDescription": "This event increments by the dynamic TXREQ value, in each cycle.\nThis is a companion event of TXREQ_LIMIT_MAX_CYCLES, TXREQ_LIMIT_3QUARTER_CYCLES, TXREQ_LIMIT_HALF_CYCLES, and TXREQ_LIMIT_1QUARTER_CYCLES."
+        "PublicDescription": "This event increments by the dynamic TXREQ value, in each cycle.\nThis is a companion event of TXREQ_LIMIT_MAX_CYCLES, TXREQ_LIMIT_3QUARTER_CYCLES, TXREQ_LIMIT_HALF_CYCLES, and TXREQ_LIMIT_BELOW_HALF_CYCLES."
     },
     {
         "EventCode": "0x01ce",

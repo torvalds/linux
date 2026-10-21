@@ -339,7 +339,7 @@ static int mlx5r_build_frmr_key(struct ib_device *device,
 	return 0;
 }
 
-static struct ib_frmr_pool_ops mlx5r_frmr_pool_ops = {
+static const struct ib_frmr_pool_ops mlx5r_frmr_pool_ops = {
 	.create_frmrs = mlx5r_create_mkeys,
 	.destroy_frmrs = mlx5r_destroy_mkeys,
 	.build_key = mlx5r_build_frmr_key,
@@ -898,8 +898,8 @@ static void mlx5_ib_dmabuf_invalidate_cb(struct dma_buf_attachment *attach)
 	ib_umem_dmabuf_unmap_pages(umem_dmabuf);
 }
 
-static struct dma_buf_attach_ops mlx5_ib_dmabuf_attach_ops = {
-	.allow_peer2peer = 1,
+static const struct dma_buf_attach_ops mlx5_ib_dmabuf_attach_ops = {
+	.allow_peer2peer = true,
 	.invalidate_mappings = mlx5_ib_dmabuf_invalidate_cb,
 };
 

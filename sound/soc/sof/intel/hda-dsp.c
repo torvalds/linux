@@ -1114,11 +1114,7 @@ static int hda_dsp_s5_quirk(struct snd_sof_dev *sdev)
 	usleep_range(500, 1000);
 
 	/* Restore state for shutdown, back to reset */
-	ret = hda_dsp_ctrl_link_reset(sdev, true);
-	if (ret < 0)
-		return ret;
-
-	return ret;
+	return hda_dsp_ctrl_link_reset(sdev, true);
 }
 
 int hda_dsp_shutdown_dma_flush(struct snd_sof_dev *sdev)

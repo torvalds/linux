@@ -1994,7 +1994,7 @@ static int ltc2983_probe(struct spi_device *spi)
 	ret = devm_request_irq(dev, spi->irq, ltc2983_irq_handler,
 			       IRQF_TRIGGER_RISING, st->info->name, st);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to request an irq\n");
+		return ret;
 
 	if (st->info->has_eeprom) {
 		ret = ltc2983_eeprom_cmd(st, LTC2983_EEPROM_WRITE_CMD,
@@ -2070,11 +2070,11 @@ static const struct ltc2983_chip_info ltm2985_chip_info_data = {
 };
 
 static const struct spi_device_id ltc2983_id_table[] = {
-	{ "adt7604", (kernel_ulong_t)&adt7604_chip_info_data },
-	{ "ltc2983", (kernel_ulong_t)&ltc2983_chip_info_data },
-	{ "ltc2984", (kernel_ulong_t)&ltc2984_chip_info_data },
-	{ "ltc2986", (kernel_ulong_t)&ltc2986_chip_info_data },
-	{ "ltm2985", (kernel_ulong_t)&ltm2985_chip_info_data },
+	{ .name = "adt7604", .driver_data = (kernel_ulong_t)&adt7604_chip_info_data },
+	{ .name = "ltc2983", .driver_data = (kernel_ulong_t)&ltc2983_chip_info_data },
+	{ .name = "ltc2984", .driver_data = (kernel_ulong_t)&ltc2984_chip_info_data },
+	{ .name = "ltc2986", .driver_data = (kernel_ulong_t)&ltc2986_chip_info_data },
+	{ .name = "ltm2985", .driver_data = (kernel_ulong_t)&ltm2985_chip_info_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ltc2983_id_table);

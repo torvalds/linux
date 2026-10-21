@@ -79,11 +79,12 @@ struct snd_firewire_event_motu_register_dsp_change {
  *
  * @type: Fixed to SNDRV_FIREWIRE_EVENT_FF400_MESSAGE.
  * @message_count: The number of messages.
+ * @messages: Array of @message_count messages
  * @messages.message: The messages expressing hardware knob operation.
  * @messages.tstamp: The isochronous cycle at which the request subaction of asynchronous
- *		     transaction was sent to deliver the message. It has 16 bit unsigned integer
+ *		     transaction was sent to deliver the message. It has 16-bit unsigned integer
  *		     value. The higher 3 bits of value expresses the lower three bits of second
- *		     field in the format of CYCLE_TIME, up to 7. The rest 13 bits expresses cycle
+ *		     field in the format of CYCLE_TIME, up to 7. The remaining 13 bits express cycle
  *		     field up to 7999.
  *
  * The structure expresses message transmitted by Fireface 400 when operating hardware knob.
@@ -191,8 +192,9 @@ struct snd_firewire_motu_register_dsp_meter {
 #define SNDRV_FIREWIRE_MOTU_REGISTER_DSP_ALIGNED_INPUT_COUNT	(SNDRV_FIREWIRE_MOTU_REGISTER_DSP_INPUT_COUNT + 2)
 
 /**
- * snd_firewire_motu_register_dsp_parameter - the container for parameters of DSP controlled
- *					      by register access.
+ * struct snd_firewire_motu_register_dsp_parameter - the container for parameters
+ *                                                   of DSP controlled by register access.
+ * @mixer: aggregate of @mixer.source and @mixer.output
  * @mixer.source.gain: The gain of source to mixer.
  * @mixer.source.pan: The L/R balance of source to mixer.
  * @mixer.source.flag: The flag of source to mixer, including mute, solo.
@@ -200,21 +202,25 @@ struct snd_firewire_motu_register_dsp_meter {
  *				 Audio Express.
  * @mixer.source.paired_width: The width of paired source to mixer, only for 4 pre and
  *			       Audio Express.
+ * @mixer.output: FIXME
  * @mixer.output.paired_volume: The volume of paired output from mixer.
  * @mixer.output.paired_flag: The flag of paired output from mixer.
+ * @output: output parameters
  * @output.main_paired_volume: The volume of paired main output.
  * @output.hp_paired_volume: The volume of paired hp output.
  * @output.hp_paired_assignment: The source assigned to paired hp output.
- * @output.reserved: Padding for 32 bit alignment for future extension.
+ * @output.reserved: Padding for 32-bit alignment for future extension.
+ * @line_input: line input parameters
  * @line_input.boost_flag: The flags of boost for line inputs, only for 828mk2 and Traveler.
  * @line_input.nominal_level_flag: The flags of nominal level for line inputs, only for 828mk2 and
  *				   Traveler.
- * @line_input.reserved: Padding for 32 bit alignment for future extension.
+ * @line_input.reserved: Padding for 32-bit alignment for future extension.
+ * @input: input parameters
  * @input.gain_and_invert: The value including gain and invert for input, only for Ultralite, 4 pre
  *			   and Audio Express.
  * @input.flag: The flag of input; e.g. jack detection, phantom power, and pad, only for Ultralite,
  *		4 pre and Audio express.
- * @reserved: Padding so that the size of structure is kept to 512 byte, but for future extension.
+ * @reserved: Padding so that the size of structure is kept to 512 bytes, but for future extension.
  *
  * The structure expresses the set of parameters for DSP controlled by register access.
  */
@@ -272,8 +278,8 @@ struct snd_firewire_motu_register_dsp_parameter {
  *						controlled by command
  * @data: Signal level meters. The mapping between position and signal channel is model-dependent.
  *
- * The structure expresses the part of DSP status for hardware meter. The 32 bit storage is
- * estimated to include IEEE 764 32 bit single precision floating point (binary32) value. It is
+ * The structure expresses the part of DSP status for hardware meter. The 32-bit storage is
+ * estimated to include IEEE 764 32-bit single precision floating point (binary32) value. It is
  * expected to be linear value (not logarithm) for audio signal level between 0.0 and +1.0.
  */
 struct snd_firewire_motu_command_dsp_meter {

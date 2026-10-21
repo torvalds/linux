@@ -57,22 +57,10 @@ static inline bool ha_verify_invariants(struct ha_monitor *ha_mon,
 					enum states next_state, u64 time_ns)
 {
 	if (curr_state == ready_nomiss)
-		return ha_check_invariant_ns(ha_mon, clk_nomiss, time_ns);
+		return ha_check_invariant_ns(ha_mon, clk_nomiss, time_ns, DEADLINE_NS(ha_mon));
 	else if (curr_state == running_nomiss)
-		return ha_check_invariant_ns(ha_mon, clk_nomiss, time_ns);
+		return ha_check_invariant_ns(ha_mon, clk_nomiss, time_ns, DEADLINE_NS(ha_mon));
 	return true;
-}
-
-static inline void ha_convert_inv_guard(struct ha_monitor *ha_mon,
-					enum states curr_state, enum events event,
-					enum states next_state, u64 time_ns)
-{
-	if (curr_state == next_state)
-		return;
-	if (curr_state == ready_nomiss)
-		ha_inv_to_guard(ha_mon, clk_nomiss, DEADLINE_NS(ha_mon), time_ns);
-	else if (curr_state == running_nomiss)
-		ha_inv_to_guard(ha_mon, clk_nomiss, DEADLINE_NS(ha_mon), time_ns);
 }
 
 static inline bool ha_verify_guards(struct ha_monitor *ha_mon,
@@ -121,8 +109,6 @@ static bool ha_verify_constraint(struct ha_monitor *ha_mon,
 {
 	if (!ha_verify_invariants(ha_mon, curr_state, event, next_state, time_ns))
 		return false;
-
-	ha_convert_inv_guard(ha_mon, curr_state, event, next_state, time_ns);
 
 	if (!ha_verify_guards(ha_mon, curr_state, event, next_state, time_ns))
 		return false;
@@ -291,3 +277,21 @@ module_exit(unregister_nomiss);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Gabriele Monaco <gmonaco@redhat.com>");
 MODULE_DESCRIPTION("nomiss: dl entities run to completion before their deadline.");
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#include <kunit/visibility.h>
+#include "nomiss_kunit.h"
+
+const struct rv_nomiss_ops rv_nomiss_ops = {
+	.mon = RV_MON_OPS_INIT(),
+	.deadline_thresh = &deadline_thresh,
+	.handle_dl_replenish = handle_dl_replenish,
+	.handle_dl_throttle = handle_dl_throttle,
+	.handle_dl_server_stop = handle_dl_server_stop,
+	.handle_sched_switch = handle_sched_switch,
+	.handle_sched_wakeup = handle_sched_wakeup,
+	.handle_sys_enter = handle_sys_enter,
+	.handle_newtask = handle_newtask,
+};
+EXPORT_SYMBOL_IF_KUNIT(rv_nomiss_ops);
+#endif

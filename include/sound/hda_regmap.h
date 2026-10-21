@@ -69,11 +69,14 @@ void snd_hdac_regmap_sync(struct hdac_device *codec);
 
 /**
  * snd_hdac_regmap_write - Write a verb with caching
+ * @codec: HD-audio codec base device
  * @nid: codec NID
- * @reg: verb to write
+ * @verb: verb to write
  * @val: value to write
  *
  * For writing an amp value, use snd_hdac_regmap_update_amp().
+ *
+ * Returns: %0 if successful or a negative error code.
  */
 static inline int
 snd_hdac_regmap_write(struct hdac_device *codec, hda_nid_t nid,
@@ -85,13 +88,16 @@ snd_hdac_regmap_write(struct hdac_device *codec, hda_nid_t nid,
 }
 
 /**
- * snd_hda_regmap_update - Update a verb value with caching
+ * snd_hdac_regmap_update - Update a verb value with caching
+ * @codec: HD-audio codec
  * @nid: codec NID
  * @verb: verb to update
  * @mask: bit mask to update
  * @val: value to update
  *
  * For updating an amp value, use snd_hdac_regmap_update_amp().
+ *
+ * Returns: %0 if successful or a negative error code.
  */
 static inline int
 snd_hdac_regmap_update(struct hdac_device *codec, hda_nid_t nid,
@@ -104,12 +110,15 @@ snd_hdac_regmap_update(struct hdac_device *codec, hda_nid_t nid,
 }
 
 /**
- * snd_hda_regmap_read - Read a verb with caching
+ * snd_hdac_regmap_read - Read a verb with caching
+ * @codec: HD-audio codec
  * @nid: codec NID
  * @verb: verb to read
  * @val: pointer to store the value
  *
  * For reading an amp value, use snd_hda_regmap_get_amp().
+ *
+ * Returns: %0 if successful or a negative error code.
  */
 static inline int
 snd_hdac_regmap_read(struct hdac_device *codec, hda_nid_t nid,
@@ -125,12 +134,12 @@ snd_hdac_regmap_read(struct hdac_device *codec, hda_nid_t nid,
  * @codec: HD-audio codec
  * @nid: NID to read the AMP value
  * @ch: channel (left=0 or right=1)
- * @direction: #HDA_INPUT or #HDA_OUTPUT
- * @index: the index value (only for input direction)
- * @val: the pointer to store the value
+ * @dir: #HDA_INPUT or #HDA_OUTPUT
+ * @idx: the index value (only for input direction)
  *
  * Read AMP value.  The volume is between 0 to 0x7f, 0x80 = mute bit.
- * Returns the value or a negative error.
+ *
+ * Returns: the value or a negative error.
  */
 static inline int
 snd_hdac_regmap_get_amp(struct hdac_device *codec, hda_nid_t nid,
@@ -148,13 +157,14 @@ snd_hdac_regmap_get_amp(struct hdac_device *codec, hda_nid_t nid,
  * @codec: HD-audio codec
  * @nid: NID to read the AMP value
  * @ch: channel (left=0 or right=1)
- * @direction: #HDA_INPUT or #HDA_OUTPUT
+ * @dir: #HDA_INPUT or #HDA_OUTPUT
  * @idx: the index value (only for input direction)
  * @mask: bit mask to set
  * @val: the bits value to set
  *
  * Update the AMP value with a bit mask.
- * Returns 0 if the value is unchanged, 1 if changed, or a negative error.
+ *
+ * Returns: 0 if the value is unchanged, 1 if changed, or a negative error.
  */
 static inline int
 snd_hdac_regmap_update_amp(struct hdac_device *codec, hda_nid_t nid,
@@ -169,13 +179,12 @@ snd_hdac_regmap_update_amp(struct hdac_device *codec, hda_nid_t nid,
  * snd_hdac_regmap_get_amp_stereo - Read stereo AMP values
  * @codec: HD-audio codec
  * @nid: NID to read the AMP value
- * @ch: channel (left=0 or right=1)
- * @direction: #HDA_INPUT or #HDA_OUTPUT
- * @index: the index value (only for input direction)
- * @val: the pointer to store the value
+ * @dir: #HDA_INPUT or #HDA_OUTPUT
+ * @idx: the index value (only for input direction)
  *
  * Read stereo AMP values.  The lower byte is left, the upper byte is right.
- * Returns the value or a negative error.
+ *
+ * Returns: the value or a negative error.
  */
 static inline int
 snd_hdac_regmap_get_amp_stereo(struct hdac_device *codec, hda_nid_t nid,
@@ -192,14 +201,15 @@ snd_hdac_regmap_get_amp_stereo(struct hdac_device *codec, hda_nid_t nid,
  * snd_hdac_regmap_update_amp_stereo - update the stereo AMP value
  * @codec: HD-audio codec
  * @nid: NID to read the AMP value
- * @direction: #HDA_INPUT or #HDA_OUTPUT
+ * @dir: #HDA_INPUT or #HDA_OUTPUT
  * @idx: the index value (only for input direction)
  * @mask: bit mask to set
  * @val: the bits value to set
  *
  * Update the stereo AMP value with a bit mask.
  * The lower byte is left, the upper byte is right.
- * Returns 0 if the value is unchanged, 1 if changed, or a negative error.
+ *
+ * Returns: 0 if the value is unchanged, 1 if changed, or a negative error.
  */
 static inline int
 snd_hdac_regmap_update_amp_stereo(struct hdac_device *codec, hda_nid_t nid,

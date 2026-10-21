@@ -780,7 +780,7 @@ static int intel_dg_mtd_probe(struct auxiliary_device *aux_dev,
 				       dev_name(&aux_dev->dev), invm->regions[i].name);
 		if (!name) {
 			ret = -ENOMEM;
-			goto err;
+			goto err_norpm;
 		}
 
 		nvm->regions[n].name = name;

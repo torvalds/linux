@@ -16,6 +16,9 @@
 // Please see https://github.com/Rust-for-Linux/linux/issues/2 for details on
 // the unstable features in use.
 //
+// Stable since Rust 1.87.0.
+#![feature(unsigned_is_multiple_of)]
+//
 // Stable since Rust 1.89.0.
 #![feature(generic_arg_infer)]
 //
@@ -73,6 +76,8 @@ pub mod faux;
 pub mod firmware;
 pub mod fmt;
 pub mod fs;
+#[cfg(CONFIG_RUST_FWCTL_ABSTRACTIONS)]
+pub mod fwctl;
 #[cfg(CONFIG_GPU_BUDDY = "y")]
 pub mod gpu;
 #[cfg(CONFIG_I2C = "y")]
@@ -121,6 +126,8 @@ pub mod safety;
 pub mod scatterlist;
 pub mod security;
 pub mod seq_file;
+#[cfg(CONFIG_RUST_SERIAL_DEV_BUS_ABSTRACTIONS)]
+pub mod serdev;
 pub mod sizes;
 #[cfg(CONFIG_SOC_BUS)]
 pub mod soc;

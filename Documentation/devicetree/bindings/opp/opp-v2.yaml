@@ -293,9 +293,9 @@ examples:
             opp-microvolt = <970000>, /* Supply 0 */
                             <960000>, /* Supply 1 */
                             <960000>; /* Supply 2 */
-            opp-microamp =  <70000>,  /* Supply 0 */
-                            <70000>,  /* Supply 1 */
-                            <70000>;  /* Supply 2 */
+            opp-microamp = <70000>,  /* Supply 0 */
+                           <70000>,  /* Supply 1 */
+                           <70000>;  /* Supply 2 */
             clock-latency-ns = <300000>;
         };
 
@@ -306,9 +306,9 @@ examples:
             opp-microvolt = <975000 970000 985000>, /* Supply 0 */
                             <965000 960000 975000>, /* Supply 1 */
                             <965000 960000 975000>; /* Supply 2 */
-            opp-microamp =  <70000>,    /* Supply 0 */
-                <70000>,    /* Supply 1 */
-                <70000>;    /* Supply 2 */
+            opp-microamp = <70000>,    /* Supply 0 */
+                           <70000>,    /* Supply 1 */
+                           <70000>;    /* Supply 2 */
             clock-latency-ns = <300000>;
         };
 
@@ -317,11 +317,11 @@ examples:
         opp-1000000002 {
             opp-hz = /bits/ 64 <1000000002>;
             opp-microvolt = <975000 970000 985000>, /* Supply 0 */
-                <965000 960000 975000>, /* Supply 1 */
-                <965000 960000 975000>; /* Supply 2 */
-            opp-microamp =  <70000>,    /* Supply 0 */
-                <0>,      /* Supply 1 doesn't need this */
-                <70000>;    /* Supply 2 */
+                            <965000 960000 975000>, /* Supply 1 */
+                            <965000 960000 975000>; /* Supply 2 */
+            opp-microamp = <70000>,    /* Supply 0 */
+                           <0>,      /* Supply 1 doesn't need this */
+                           <70000>;    /* Supply 2 */
             clock-latency-ns = <300000>;
         };
     };
@@ -405,8 +405,8 @@ examples:
             opp-hz = /bits/ 64 <1000000000>;
             opp-microvolt-slow = <915000 900000 925000>;
             opp-microvolt-fast = <975000 970000 985000>;
-            opp-microamp-slow =  <70000>;
-            opp-microamp-fast =  <71000>;
+            opp-microamp-slow = <70000>;
+            opp-microamp-fast = <71000>;
         };
 
         opp-1200000000 {
@@ -415,7 +415,7 @@ examples:
                                  <925000 910000 935000>; /* Supply vcc1 */
             opp-microvolt-fast = <975000 970000 985000>, /* Supply vcc0 */
                                  <965000 960000 975000>; /* Supply vcc1 */
-            opp-microamp =  <70000>; /* Will be used for both slow/fast */
+            opp-microamp = <70000>; /* Will be used for both slow/fast */
         };
     };
 

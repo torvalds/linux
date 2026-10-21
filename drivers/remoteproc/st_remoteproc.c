@@ -88,33 +88,6 @@ static void st_rproc_kick(struct rproc *rproc, int vqid)
 		dev_err(dev, "failed to send message via mbox: %d\n", ret);
 }
 
-static int st_rproc_mem_alloc(struct rproc *rproc,
-			      struct rproc_mem_entry *mem)
-{
-	struct device *dev = rproc->dev.parent;
-	void *va;
-
-	va = ioremap_wc(mem->dma, mem->len);
-	if (!va) {
-		dev_err(dev, "Unable to map memory region: %pa+%zx\n",
-			&mem->dma, mem->len);
-		return -ENOMEM;
-	}
-
-	/* Update memory entry va */
-	mem->va = va;
-
-	return 0;
-}
-
-static int st_rproc_mem_release(struct rproc *rproc,
-				struct rproc_mem_entry *mem)
-{
-	iounmap(mem->va);
-
-	return 0;
-}
-
 static int st_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
 	struct device *dev = rproc->dev.parent;
@@ -138,8 +111,8 @@ static int st_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 			mem = rproc_mem_entry_init(dev, NULL,
 						   (dma_addr_t)res.start,
 						   resource_size(&res), res.start,
-						   st_rproc_mem_alloc,
-						   st_rproc_mem_release,
+						   rproc_mem_entry_ioremap_wc,
+						   rproc_mem_entry_iounmap,
 						   "%.*s",
 						   strchrnul(res.name, '@') - res.name,
 						   res.name);

@@ -3,6 +3,8 @@
  * CSS tweaks for the Alabaster theme
  */
 
+div.body {  max-width: 120em; }
+
 /* Shrink the headers a bit */
 div.body h1 { font-size: 180%; }
 div.body h2 { font-size: 150%; }
@@ -74,6 +76,19 @@ div.kerneltoc li.toctree-l2,li.toctree-l3 { font-size: small;
 div.kerneltoc li.current ul { margin-left: 0; }
 div.kerneltoc { background-color: #eeeeee; }
 div.kerneltoc li.current ul { background-color: white; }
+
+/*
+ * Hide toctree captions on the welcome page, they should only be shown in the
+ * sidebar.
+ */
+section#the-linux-kernel-documentation p.caption { display: none; }
+
+/*
+ * Make section titles bold in the sidebar, and decrease their bottom margin to
+ * group them with their subsections.
+ */
+div.sphinxsidebar p.caption { font-weight: bold; margin-bottom: 0; }
+div.sphinxsidebar p.caption + ul { margin-top: 0; }
 
 /*
  * The CSS magic to toggle the contents on small screens.
@@ -154,15 +169,6 @@ div.language-selection:hover ul {
 
 div.language-selection ul li:hover {
     background: #dddddd;
-}
-
-/*
- * Let long inline literals in paragraph text wrap as needed to prevent
- * overflow.
- */
-code.docutils.literal span.pre {
-    white-space: normal;
-    overflow-wrap: anywhere;
 }
 
 /* Let rendered reference links in tables wrap when needed. */

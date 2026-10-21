@@ -428,9 +428,16 @@ static void dma_device_release(struct kref *ref)
 
 	list_del_rcu(&device->global_node);
 	dma_channel_rebalance();
+	synchronize_rcu();
 
 	if (device->device_release)
 		device->device_release(device);
+}
+
+static int __must_check dma_device_get(struct dma_device *device)
+{
+	lockdep_assert_held(&dma_list_mutex);
+	return kref_get_unless_zero(&device->ref);
 }
 
 static void dma_device_put(struct dma_device *device)
@@ -460,8 +467,7 @@ static int dma_chan_get(struct dma_chan *chan)
 	if (!try_module_get(owner))
 		return -ENODEV;
 
-	ret = kref_get_unless_zero(&chan->device->ref);
-	if (!ret) {
+	if (!dma_device_get(chan->device)) {
 		ret = -ENODEV;
 		goto module_put_out;
 	}
@@ -495,10 +501,13 @@ module_put_out:
  */
 static void dma_chan_put(struct dma_chan *chan)
 {
+	struct module *owner;
+
 	/* This channel is not in use, bail out */
 	if (!chan->client_count)
 		return;
 
+	owner = dma_chan_to_owner(chan);
 	chan->client_count--;
 
 	/* This channel is not in use anymore, free it */
@@ -515,8 +524,10 @@ static void dma_chan_put(struct dma_chan *chan)
 		chan->route_data = NULL;
 	}
 
-	dma_device_put(chan->device);
-	module_put(dma_chan_to_owner(chan));
+	/* This channel is not in use anymore, drop the device ref */
+	if (!chan->client_count)
+		dma_device_put(chan->device);
+	module_put(owner);
 }
 
 enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
@@ -814,9 +825,14 @@ static const struct dma_slave_map *dma_filter_match(struct dma_device *device,
  */
 struct dma_chan *dma_request_chan(struct device *dev, const char *name)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwnode_handle *fwnode;
 	struct dma_device *d, *_d;
 	struct dma_chan *chan = NULL;
+
+	if (WARN_ON(!dev || !name))
+		return ERR_PTR(-EINVAL);
+
+	fwnode = dev_fwnode(dev);
 
 	if (is_of_node(fwnode))
 		chan = of_dma_request_slave_channel(to_of_node(fwnode), name);
@@ -1100,6 +1116,8 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 	chan->dev->device.parent = device->dev;
 	chan->dev->chan = chan;
 	chan->dev->dev_id = device->dev_id;
+	spin_lock_init(&chan->lock);
+
 	if (!name)
 		dev_set_name(&chan->dev->device, "dma%dchan%d", device->dev_id, chan->chan_id);
 	else

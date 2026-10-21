@@ -469,8 +469,6 @@ static int sprd_soc_platform_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &sprd_soc_component,
 					      NULL, 0);
-	if (ret)
-		dev_err(&pdev->dev, "could not register platform:%d\n", ret);
 
 	return ret;
 }

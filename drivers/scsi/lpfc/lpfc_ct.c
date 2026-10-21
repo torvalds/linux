@@ -1823,34 +1823,15 @@ lpfc_vport_symbolic_node_name(struct lpfc_vport *vport, char *symbol,
 	size_t size)
 {
 	char fwrev[FW_REV_STR_SIZE] = {0};
-	char tmp[MAXHOSTNAMELEN] = {0};
-
-	memset(symbol, 0, size);
-
-	scnprintf(tmp, sizeof(tmp), "Emulex %s", vport->phba->ModelName);
-	if (strlcat(symbol, tmp, size) >= size)
-		goto buffer_done;
 
 	lpfc_decode_firmware_rev(vport->phba, fwrev, 0);
-	scnprintf(tmp, sizeof(tmp), " FV%s", fwrev);
-	if (strlcat(symbol, tmp, size) >= size)
-		goto buffer_done;
 
-	scnprintf(tmp, sizeof(tmp), " DV%s", lpfc_release_version);
-	if (strlcat(symbol, tmp, size) >= size)
-		goto buffer_done;
-
-	scnprintf(tmp, sizeof(tmp), " HN:%s", vport->phba->os_host_name);
-	if (strlcat(symbol, tmp, size) >= size)
-		goto buffer_done;
-
+	memset(symbol, 0, size);
 	/* Note :- OS name is "Linux" */
-	scnprintf(tmp, sizeof(tmp), " OS:%s", init_utsname()->sysname);
-	strlcat(symbol, tmp, size);
-
-buffer_done:
-	return strnlen(symbol, size);
-
+	return scnprintf(symbol, size, "Emulex %s FV%s DV%s HN:%s OS:%s",
+			 vport->phba->ModelName, fwrev,
+			 lpfc_release_version, vport->phba->os_host_name,
+			 init_utsname()->sysname);
 }
 
 static uint32_t

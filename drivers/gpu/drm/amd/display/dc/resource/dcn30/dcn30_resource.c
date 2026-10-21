@@ -31,6 +31,7 @@
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
+#include "basics/conversion.h"
 #include "dcn20/dcn20_resource.h"
 
 #include "dcn30_resource.h"
@@ -752,6 +753,7 @@ static const struct dc_plane_cap plane_cap = {
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
+	.limit_ffe = 3,
 	.disable_dmcu = true, //No DMCU on DCN30
 	.force_abm_enable = false,
 	.clock_trace = true,
@@ -1133,7 +1135,7 @@ static struct hpo_frl_stream_encoder *dcn30_hpo_frl_stream_encoder_create(enum e
 	}
 
 	/* allocate HPO stream encoder and create VPG sub-block */
-	hpo_enc3 = kzalloc(sizeof(struct dcn30_hpo_frl_stream_encoder), GFP_KERNEL);
+	hpo_enc3 = kzalloc_obj(struct dcn30_hpo_frl_stream_encoder);
 	vpg = dcn30_vpg_create(ctx, vpg_inst);
 	afmt = dcn30_afmt_create(ctx, afmt_inst);
 
@@ -1164,7 +1166,7 @@ static struct hpo_frl_link_encoder *dcn30_hpo_frl_link_encoder_create(enum engin
 	ASSERT((eng_id == ENGINE_ID_HPO_0) || (eng_id == ENGINE_ID_HPO_1));
 
 	/* allocate HPO link encoder */
-	hpo_enc3 = kzalloc(sizeof(struct dcn30_hpo_frl_link_encoder), GFP_KERNEL);
+	hpo_enc3 = kzalloc_obj(struct dcn30_hpo_frl_link_encoder);
 	if (!hpo_enc3)
 		return NULL; /* out of memory */
 
@@ -2479,7 +2481,6 @@ static bool dcn30_resource_construct(
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.hdmi_hpo = true;
-	dc->config.skip_frl_pretraining = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
 
@@ -2496,6 +2497,7 @@ static bool dcn30_resource_construct(
 	dc->caps.color.dpp.post_csc = 1;
 	dc->caps.color.dpp.gamma_corr = 1;
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
+	dc->caps.color.dpp.upsp_pre_scaler = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
@@ -2516,6 +2518,7 @@ static bool dcn30_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+	dc->caps.color.mpc.max_gamut_remap_coeff = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
 
 	dc->caps.dp_hdmi21_pcon_support = true;
 	dc->caps.max_v_total = (1 << 15) - 1;

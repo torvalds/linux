@@ -1146,8 +1146,8 @@ static void dce_transform_set_gamut_remap(
 		for (i = 0; i < GAMUT_MATRIX_SIZE; i++)
 			arr_matrix[i] = adjust->temperature_matrix[i];
 
-		convert_float_matrix(
-			arr_reg_val, arr_matrix, GAMUT_MATRIX_SIZE);
+		convert_float_matrix(arr_reg_val, arr_matrix,
+			CM_GAMUT_REMAP_COEF_FORMAT_S2_13, GAMUT_MATRIX_SIZE);
 
 		program_gamut_remap(xfm_dce, arr_reg_val);
 	}

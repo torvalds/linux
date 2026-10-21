@@ -85,6 +85,36 @@ static const __le16 smb2_rsp_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 	/* SMB2_OPLOCK_BREAK */ cpu_to_le16(24)
 };
 
+/*
+ * Minimum received PDU size for commands whose response carries a
+ * variable-length data area.  A non-zero entry marks the command as
+ * having one, and gives the length smb2_check_message() requires
+ * before smb2_get_data_area_len() reads the offset and length fields
+ * out of the fixed response struct.
+ */
+static const size_t smb2_min_pdu_len[NUMBER_OF_SMB2_COMMANDS] = {
+	/* SMB2_NEGOTIATE */       sizeof(struct smb2_negotiate_rsp),
+	/* SMB2_SESSION_SETUP */   sizeof(struct smb2_sess_setup_rsp),
+	/* SMB2_LOGOFF */          0,
+	/* SMB2_TREE_CONNECT */    0,
+	/* SMB2_TREE_DISCONNECT */ 0,
+	/* SMB2_CREATE */          sizeof(struct smb2_create_rsp),
+	/* SMB2_CLOSE */           0,
+	/* SMB2_FLUSH */           0,
+	/* SMB2_READ */            sizeof(struct smb2_read_rsp),
+	/* SMB2_WRITE */           0,
+	/* SMB2_LOCK */            0,
+	/* SMB2_IOCTL */           sizeof(struct smb2_ioctl_rsp),
+	/* SMB2_CANCEL */          0,
+	/* SMB2_ECHO */            0,
+	/* SMB2_QUERY_DIRECTORY */ sizeof(struct smb2_query_directory_rsp),
+	/* SMB2_CHANGE_NOTIFY */   sizeof(struct smb2_change_notify_rsp),
+	/* SMB2_QUERY_INFO */      sizeof(struct smb2_query_info_rsp),
+	/* SMB2_SET_INFO */        0,
+	/* SMB2_OPLOCK_BREAK */    0,
+};
+
+#define smb2_has_data_area(cmd) (smb2_min_pdu_len[cmd] != 0)
 #define SMB311_NEGPROT_BASE_SIZE (sizeof(struct smb2_hdr) + sizeof(struct smb2_negotiate_rsp))
 
 static __u32 get_neg_ctxt_len(struct smb2_hdr *hdr, __u32 len,
@@ -233,6 +263,16 @@ smb2_check_message(char *buf, unsigned int pdu_len, unsigned int len,
 		}
 	}
 
+	if ((shdr->Status == STATUS_SUCCESS ||
+	     shdr->Status == STATUS_MORE_PROCESSING_REQUIRED ||
+	     pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2_LE) &&
+	    smb2_has_data_area(command) &&
+	    len < smb2_min_pdu_len[command]) {
+		cifs_server_dbg(VFS, "SMB2 command %d response too short: %u < %zu\n",
+				command, len, smb2_min_pdu_len[command]);
+		return 1;
+	}
+
 	have_data = false;
 	data_area_overlap = false;
 	calc_len = __smb2_calc_size(buf, &have_data, &data_area_overlap);
@@ -297,33 +337,6 @@ smb2_check_message(char *buf, unsigned int pdu_len, unsigned int len,
 	}
 	return 0;
 }
-
-/*
- * The size of the variable area depends on the offset and length fields
- * located in different fields for various SMB2 responses. SMB2 responses
- * with no variable length info, show an offset of zero for the offset field.
- */
-static const bool has_smb2_data_area[NUMBER_OF_SMB2_COMMANDS] = {
-	/* SMB2_NEGOTIATE */ true,
-	/* SMB2_SESSION_SETUP */ true,
-	/* SMB2_LOGOFF */ false,
-	/* SMB2_TREE_CONNECT */	false,
-	/* SMB2_TREE_DISCONNECT */ false,
-	/* SMB2_CREATE */ true,
-	/* SMB2_CLOSE */ false,
-	/* SMB2_FLUSH */ false,
-	/* SMB2_READ */	true,
-	/* SMB2_WRITE */ false,
-	/* SMB2_LOCK */	false,
-	/* SMB2_IOCTL */ true,
-	/* SMB2_CANCEL */ false, /* BB CHECK this not listed in documentation */
-	/* SMB2_ECHO */ false,
-	/* SMB2_QUERY_DIRECTORY */ true,
-	/* SMB2_CHANGE_NOTIFY */ true,
-	/* SMB2_QUERY_INFO */ true,
-	/* SMB2_SET_INFO */ false,
-	/* SMB2_OPLOCK_BREAK */ false
-};
 
 /*
  * Returns the pointer to the beginning of the data area. Length of the data
@@ -451,7 +464,7 @@ __smb2_calc_size(void *buf, bool *have_data, bool *data_area_overlap)
 	 */
 	len += le16_to_cpu(pdu->StructureSize2);
 
-	if (has_smb2_data_area[le16_to_cpu(shdr->Command)] == false)
+	if (!smb2_has_data_area(le16_to_cpu(shdr->Command)))
 		goto calc_size_exit;
 
 	smb2_get_data_area_len(&offset, &data_length, shdr);

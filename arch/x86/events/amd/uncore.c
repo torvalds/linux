@@ -353,7 +353,7 @@ static ssize_t amd_uncore_attr_show_cpumask(struct device *dev,
 	struct pmu *ptr = dev_get_drvdata(dev);
 	struct amd_uncore_pmu *pmu = container_of(ptr, struct amd_uncore_pmu, pmu);
 
-	return cpumap_print_to_pagebuf(true, buf, &pmu->active_mask);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&pmu->active_mask));
 }
 static DEVICE_ATTR(cpumask, S_IRUGO, amd_uncore_attr_show_cpumask, NULL);
 

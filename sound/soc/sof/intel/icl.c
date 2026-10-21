@@ -9,10 +9,14 @@
  * Hardware interface for audio DSP on IceLake.
  */
 
-#include <linux/kernel.h>
-#include <linux/kconfig.h>
-#include <linux/export.h>
+#include <linux/array_size.h>
 #include <linux/bits.h>
+#include <linux/dev_printk.h>
+#include <linux/errno.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/types.h>
+
 #include "../ipc4-priv.h"
 #include "../ops.h"
 #include "hda.h"

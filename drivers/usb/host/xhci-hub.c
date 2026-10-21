@@ -115,8 +115,8 @@ static int xhci_create_usb3x_bos_desc(struct xhci_hcd *xhci, char *buf,
 
 	if ((xhci->quirks & XHCI_LPM_SUPPORT)) {
 		reg = readl(&xhci->cap_regs->hcs_params3);
-		ss_cap->bU1devExitLat = HCS_U1_LATENCY(reg);
-		ss_cap->bU2DevExitLat = cpu_to_le16(HCS_U2_LATENCY(reg));
+		ss_cap->bU1devExitLat = FIELD_GET(HCS_U1_LATENCY, reg);
+		ss_cap->bU2DevExitLat = cpu_to_le16(FIELD_GET(HCS_U2_LATENCY, reg));
 	}
 
 	if (wLength < le16_to_cpu(bos->wTotalLength))
@@ -1295,7 +1295,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			}
 			/* In spec software should not attempt to suspend
 			 * a port unless the port reports that it is in the
-			 * enabled (PED = ‘1’,PLS < ‘3’) state.
+			 * enabled (PED = '1',PLS < '3') state.
 			 */
 			portsc = xhci_portsc_readl(port);
 			if ((portsc & PORT_PE) == 0 || (portsc & PORT_RESET) ||

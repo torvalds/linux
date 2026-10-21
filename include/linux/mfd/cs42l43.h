@@ -86,7 +86,6 @@ struct cs42l43 {
 	struct regmap_irq_chip_data *irq_data;
 
 	struct work_struct boot_work;
-	struct completion device_attach;
 	struct completion device_detach;
 	struct completion firmware_download;
 	int firmware_error;
@@ -96,7 +95,6 @@ struct cs42l43 {
 	struct mutex pll_lock;
 
 	bool sdw_pll_active;
-	bool attached;
 	bool hw_lock;
 	long variant_id;
 };

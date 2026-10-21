@@ -50,8 +50,8 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    firmware  {
-        optee  {
+    firmware {
+        optee {
             compatible = "linaro,optee-tz";
             method = "smc";
             interrupts = <GIC_SPI 187 IRQ_TYPE_EDGE_RISING>;
@@ -59,8 +59,8 @@ examples:
     };
 
   - |
-    firmware  {
-        optee  {
+    firmware {
+        optee {
             compatible = "linaro,optee-tz";
             method = "hvc";
         };

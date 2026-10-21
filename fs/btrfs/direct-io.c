@@ -14,7 +14,6 @@
 #include "ordered-data.h"
 
 struct btrfs_dio_data {
-	ssize_t submitted;
 	loff_t old_isize;
 	struct extent_changeset *data_reserved;
 	struct btrfs_ordered_extent *ordered;
@@ -151,7 +150,7 @@ static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 	if (type != BTRFS_ORDERED_NOCOW) {
 		em = btrfs_create_io_em(inode, start, file_extent, type);
 		if (IS_ERR(em))
-			goto out;
+			return em;
 	}
 
 	ordered = btrfs_alloc_ordered_extent(inode, start, file_extent,
@@ -168,7 +167,6 @@ static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 		ASSERT(!dio_data->ordered);
 		dio_data->ordered = ordered;
 	}
- out:
 
 	return em;
 }
@@ -281,15 +279,22 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		em2 = btrfs_create_dio_extent(BTRFS_I(inode), dio_data, start,
 					      &file_extent, type);
 		btrfs_dec_nocow_writers(bg);
-		if (type == BTRFS_ORDERED_PREALLOC) {
+		if (IS_ERR(em2)) {
+			ret = PTR_ERR(em2);
+			btrfs_free_extent_map(em);
+			*map = NULL;
+			goto out;
+		}
+
+		/*
+		 * True NOCOW writes don't need to create a new extent map,
+		 * while PREALLOC writes must replace the existing one.
+		 */
+		if (em2) {
+			ASSERT(type == BTRFS_ORDERED_PREALLOC);
 			btrfs_free_extent_map(em);
 			*map = em2;
 			em = em2;
-		}
-
-		if (IS_ERR(em2)) {
-			ret = PTR_ERR(em2);
-			goto out;
 		}
 
 		dio_data->nocow_done = true;
@@ -619,78 +624,81 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 {
 	struct iomap_iter *iter = container_of(iomap, struct iomap_iter, iomap);
 	struct btrfs_dio_data *dio_data = iter->private;
-	size_t submitted = dio_data->submitted;
 	const bool write = !!(flags & IOMAP_WRITE);
 	int ret = 0;
 
-	if (!write && (iomap->type == IOMAP_HOLE)) {
-		/* If reading from a hole, unlock and return */
-		btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
-					pos + length - 1, NULL);
+	if (!write) {
+		/*
+		 * Hole read, nothing is submitted, thus we have to unlock
+		 * the whole range.
+		 */
+		if (iomap->type == IOMAP_HOLE) {
+			btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
+						pos + length - 1, NULL);
+			return 0;
+		}
+		/*
+		 * Short read, needs to unlock the remaining range, and
+		 * return -ENOTBLK so we can later fault in the pages and retry.
+		 */
+		if (written < length) {
+			btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos + written,
+						pos + length - 1, NULL);
+			return -ENOTBLK;
+		}
+		/* The full range is submitted, endio will do the unlock. */
 		return 0;
 	}
 
-	if (submitted < length) {
-		pos += submitted;
-		length -= submitted;
-		if (write) {
-			/*
-			 * Got a short write and have updated the isize, need to
-			 * revert the isize change.
-			 *
-			 * Normally we need to update isize with extent lock hold,
-			 * but we're safe due to the following factors:
-			 *
-			 * - Only a single writer can be enlarging isize
-			 *   Enlarging isize will take the exclusive inode lock.
-			 *
-			 * - Buffered readers need to wait for the OE we're holding
-			 *   Buffered readers will lock extent and wait for OE
-			 *   of the folio range, and since page cache is invalidated
-			 *   the OE wait can not be skipped.
-			 *
-			 * So here we are safe to revert the isize before
-			 * finishing the OE, and no reader of the remaining range
-			 * can see the enlarged size.
-			 *
-			 * TODO: Extend the DIO_LOCKED lifespan for direct writes,
-			 * and only enlarge isize after a successful write.
-			 */
-			if (dio_data->updated_isize) {
-				u64 new_isize;
+	if (written < length) {
+		/*
+		 * Got a short write and have updated the i_size, need to revert
+		 * the i_size change.
+		 *
+		 * Normally we need to update i_size with extent lock held, but
+		 * we're safe due to the following factors:
+		 *
+		 * - Only a single writer can be enlarging i_size
+		 *   Enlarging i_size will take the exclusive inode lock.
+		 *
+		 * - Buffered readers need to wait for the OE we're holding
+		 *   Buffered readers will lock extent and wait for OE
+		 *   of the folio range, and since page cache is invalidated
+		 *   the OE wait cannot be skipped.
+		 *
+		 * So here we are safe to revert the isize before finishing the
+		 * OE, and no reader of the remaining range can see the enlarged
+		 * size.
+		 *
+		 * TODO: Extend the DIO_LOCKED lifespan for direct writes,
+		 * and only enlarge isize after a successful write.
+		 */
+		if (dio_data->updated_isize) {
+			u64 new_isize;
 
-				if (submitted == 0)
-					new_isize = dio_data->old_isize;
-				else
-					new_isize = max(dio_data->old_isize, pos);
-				i_size_write(inode, new_isize);
-				dio_data->updated_isize = false;
-			}
-			/*
-			 * We have a short write, if there is any range
-			 * that is submitted properly, that part will have
-			 * its own OE split from the original one.
-			 *
-			 * So for the OE at dio_data->ordered, it's the part
-			 * that is not submitted, and should be marked
-			 * as fully truncated.
-			 */
-			btrfs_mark_ordered_extent_truncated(dio_data->ordered, 0);
-			btrfs_finish_ordered_extent(dio_data->ordered,
-						    pos, length, true);
-		} else {
-			btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
-						pos + length - 1, NULL);
+			if (written == 0)
+				new_isize = dio_data->old_isize;
+			else
+				new_isize = max(dio_data->old_isize, pos + written);
+			i_size_write(inode, new_isize);
+			dio_data->updated_isize = false;
 		}
+		/*
+		 * We have a short write, if there is any range that is submitted
+		 * properly, that part will have its own OE split from the
+		 * original one.
+		 *
+		 * So for the OE at dio_data->ordered, it's the part that is not
+		 * submitted, and should be marked as fully truncated.
+		 */
+		btrfs_mark_ordered_extent_truncated(dio_data->ordered, 0);
+		btrfs_finish_ordered_extent(dio_data->ordered,
+					    pos + written, length - written, true);
 		ret = -ENOTBLK;
 	}
-	if (write) {
-		btrfs_put_ordered_extent(dio_data->ordered);
-		dio_data->ordered = NULL;
-	}
-
-	if (write)
-		extent_changeset_free(dio_data->data_reserved);
+	btrfs_put_ordered_extent(dio_data->ordered);
+	dio_data->ordered = NULL;
+	extent_changeset_free(dio_data->data_reserved);
 	return ret;
 }
 
@@ -772,8 +780,6 @@ static void btrfs_dio_submit_io(const struct iomap_iter *iter, struct bio *bio,
 	dip->file_offset = file_offset;
 	dip->bytes = bio->bi_iter.bi_size;
 
-	dio_data->submitted += bio->bi_iter.bi_size;
-
 	/*
 	 * Check if we are doing a partial write.  If we are, we need to split
 	 * the ordered extent to match the submitted bio.  Hang on to the
@@ -819,13 +825,41 @@ static ssize_t btrfs_dio_read(struct kiocb *iocb, struct iov_iter *iter,
 			    IOMAP_DIO_PARTIAL | IOMAP_DIO_FSBLOCK_ALIGNED, &data, done_before);
 }
 
+static bool need_stable_write(struct btrfs_inode *inode)
+{
+	const u64 data_profile = btrfs_data_alloc_profile(inode->root->fs_info) &
+				 BTRFS_BLOCK_GROUP_PROFILE_MASK;
+
+	/* Data checksum requires stable buffer. */
+	if (!(inode->flags & BTRFS_INODE_NODATASUM))
+		return true;
+	/*
+	 * Any profile with mirror/parity will require stable buffer.
+	 * Otherwise the mirror may differ from each other.
+	 *
+	 * Thus only SINGLE and RAID0 doesn't require stable buffer.
+	 */
+	if (data_profile != 0 && data_profile != BTRFS_BLOCK_GROUP_RAID0)
+		return true;
+	return false;
+}
+
 static struct iomap_dio *btrfs_dio_write(struct kiocb *iocb, struct iov_iter *iter,
 					 size_t done_before)
 {
 	struct btrfs_dio_data data = { 0 };
+	unsigned int dio_flags = IOMAP_DIO_PARTIAL | IOMAP_DIO_FSBLOCK_ALIGNED;
+
+	if (need_stable_write(BTRFS_I(file_inode(iocb->ki_filp)))) {
+		/* For now no support for BOUNCE and NOWAIT direct write. */
+		if (iocb->ki_flags & IOCB_NOWAIT)
+			return ERR_PTR(-EAGAIN);
+
+		dio_flags |= IOMAP_DIO_BOUNCE;
+	}
 
 	return __iomap_dio_rw(iocb, iter, &btrfs_dio_iomap_ops, &btrfs_dio_ops,
-			    IOMAP_DIO_PARTIAL | IOMAP_DIO_FSBLOCK_ALIGNED, &data, done_before);
+			      dio_flags, &data, done_before);
 }
 
 static ssize_t check_direct_IO(struct btrfs_fs_info *fs_info,
@@ -854,8 +888,6 @@ ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t ret;
 	unsigned int ilock_flags = 0;
 	struct iomap_dio *dio;
-	const u64 data_profile = btrfs_data_alloc_profile(fs_info) &
-				 BTRFS_BLOCK_GROUP_PROFILE_MASK;
 
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		ilock_flags |= BTRFS_ILOCK_TRY;
@@ -868,16 +900,6 @@ ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	 */
 	if (iocb->ki_pos + iov_iter_count(from) <= i_size_read(inode) && IS_NOSEC(inode))
 		ilock_flags |= BTRFS_ILOCK_SHARED;
-
-	/*
-	 * If our data profile has duplication (either extra mirrors or RAID56),
-	 * we can not trust the direct IO buffer, the content may change during
-	 * writeback and cause different contents written to different mirrors.
-	 *
-	 * Thus only RAID0 and SINGLE can go true zero-copy direct IO.
-	 */
-	if (data_profile != BTRFS_BLOCK_GROUP_RAID0 && data_profile != 0)
-		goto buffered;
 
 relock:
 	ret = btrfs_inode_lock(BTRFS_I(inode), ilock_flags);
@@ -916,22 +938,6 @@ relock:
 	}
 
 	if (check_direct_IO(fs_info, from, pos)) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		goto buffered;
-	}
-	/*
-	 * We can't control the folios being passed in, applications can write
-	 * to them while a direct IO write is in progress.  This means the
-	 * content might change after we calculated the data checksum.
-	 * Therefore we can end up storing a checksum that doesn't match the
-	 * persisted data.
-	 *
-	 * To be extra safe and avoid false data checksum mismatch, if the
-	 * inode requires data checksum, just fallback to buffered IO.
-	 * For buffered IO we have full control of page cache and can ensure
-	 * no one is modifying the content during writeback.
-	 */
-	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
 		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 		goto buffered;
 	}

@@ -45,7 +45,6 @@ extern int (*txx9_irq_dispatch)(int pending);
 const char *prom_getenv(const char *name);
 void txx9_wdt_init(unsigned long base);
 void txx9_wdt_now(unsigned long base);
-void txx9_spi_init(int busid, unsigned long base, int irq);
 void txx9_ethaddr_init(unsigned int id, unsigned char *ethaddr);
 void txx9_sio_init(unsigned long baseaddr, int irq,
 		   unsigned int line, unsigned int sclk, int nocts);
@@ -80,14 +79,8 @@ static inline unsigned int __fls8(unsigned char x)
 	return r;
 }
 
-void txx9_iocled_init(unsigned long baseaddr,
-		      int basenum, unsigned int num, int lowactive,
+void txx9_iocled_init(unsigned long baseaddr, unsigned int num,
 		      const char *color, char **deftriggers);
-
-/* 7SEG LED */
-void txx9_7segled_init(unsigned int num,
-		       void (*putc)(unsigned int pos, unsigned char val));
-int txx9_7segled_putc(unsigned int pos, char c);
 
 void __init txx9_aclc_init(unsigned long baseaddr, int irq,
 			   unsigned int dmac_id,

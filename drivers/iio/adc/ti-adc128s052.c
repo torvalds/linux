@@ -247,18 +247,18 @@ static const struct of_device_id adc128_of_match[] = {
 MODULE_DEVICE_TABLE(of, adc128_of_match);
 
 static const struct spi_device_id adc128_id[] = {
-	{ "adc128s052", (kernel_ulong_t)&adc128s_config },
-	{ "adc122s021",	(kernel_ulong_t)&adc122s_config },
-	{ "adc122s051",	(kernel_ulong_t)&adc122s_config },
-	{ "adc122s101",	(kernel_ulong_t)&adc122s_config },
-	{ "adc124s021", (kernel_ulong_t)&adc124s_config },
-	{ "adc124s051", (kernel_ulong_t)&adc124s_config },
-	{ "adc124s101", (kernel_ulong_t)&adc124s_config },
-	{ "bd79100", (kernel_ulong_t)&bd79100_config },
-	{ "bd79101", (kernel_ulong_t)&bd79101_config },
-	{ "bd79102", (kernel_ulong_t)&bd79102_config },
-	{ "bd79103", (kernel_ulong_t)&bd79104_config },
-	{ "bd79104", (kernel_ulong_t)&bd79104_config },
+	{ .name = "adc128s052", .driver_data = (kernel_ulong_t)&adc128s_config },
+	{ .name = "adc122s021", .driver_data = (kernel_ulong_t)&adc122s_config },
+	{ .name = "adc122s051", .driver_data = (kernel_ulong_t)&adc122s_config },
+	{ .name = "adc122s101", .driver_data = (kernel_ulong_t)&adc122s_config },
+	{ .name = "adc124s021", .driver_data = (kernel_ulong_t)&adc124s_config },
+	{ .name = "adc124s051", .driver_data = (kernel_ulong_t)&adc124s_config },
+	{ .name = "adc124s101", .driver_data = (kernel_ulong_t)&adc124s_config },
+	{ .name = "bd79100", .driver_data = (kernel_ulong_t)&bd79100_config },
+	{ .name = "bd79101", .driver_data = (kernel_ulong_t)&bd79101_config },
+	{ .name = "bd79102", .driver_data = (kernel_ulong_t)&bd79102_config },
+	{ .name = "bd79103", .driver_data = (kernel_ulong_t)&bd79104_config },
+	{ .name = "bd79104", .driver_data = (kernel_ulong_t)&bd79104_config },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adc128_id);

@@ -381,6 +381,9 @@ static int sock_connect_mptcp(const char * const remoteaddr,
 
 	hints.ai_family = pf;
 
+	/* Keep the resolved address alive for the whole execution: it is
+	 * used again when reconnecting, and will be released at exit time.
+	 */
 	xgetaddrinfo(remoteaddr, port, &hints, &addr);
 	for (a = addr; a; a = a->ai_next) {
 		sock = socket(a->ai_family, a->ai_socktype, proto);
@@ -421,7 +424,6 @@ static int sock_connect_mptcp(const char * const remoteaddr,
 		sock = -1;
 	}
 
-	freeaddrinfo(addr);
 	if (sock != -1)
 		SOCK_TEST_TCPULP(sock, proto);
 	return sock;
@@ -1264,7 +1266,7 @@ static void apply_cmsg_types(int fd, const struct cfg_cmsg_types *cmsg)
 
 static void parse_cmsg_types(const char *type)
 {
-	char *next = strchr(type, ',');
+	const char *next = strchr(type, ',');
 	unsigned int len = 0;
 
 	cfg_cmsg_types.cmsg_enabled = 1;
@@ -1292,7 +1294,7 @@ static void parse_cmsg_types(const char *type)
 
 static void parse_setsock_options(const char *name)
 {
-	char *next = strchr(name, ',');
+	const char *next = strchr(name, ',');
 	unsigned int len = 0;
 
 	if (next) {

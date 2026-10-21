@@ -126,7 +126,9 @@ config PCI_IMX6_EP
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
+	select PCI_HOST_COMMON
 	select PCI_IMX6
+	select PCI_PWRCTRL_GENERIC
 	help
 	  Enables support for the PCIe controller in the i.MX SoCs to
 	  work in endpoint mode. The PCI controller on i.MX is based
@@ -344,7 +346,7 @@ config PCIE_RCAR_GEN4
 
 config PCIE_RCAR_GEN4_HOST
 	tristate "Renesas R-Car Gen4 PCIe controller (host mode)"
-	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on ARM64 && (ARCH_RENESAS || COMPILE_TEST)
 	depends on PCI_MSI
 	select PCIE_DW_HOST
 	select PCIE_RCAR_GEN4
@@ -355,7 +357,7 @@ config PCIE_RCAR_GEN4_HOST
 
 config PCIE_RCAR_GEN4_EP
 	tristate "Renesas R-Car Gen4 PCIe controller (endpoint mode)"
-	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on ARM64 && (ARCH_RENESAS || COMPILE_TEST)
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
 	select PCIE_RCAR_GEN4
@@ -374,6 +376,7 @@ config PCIE_ROCKCHIP_DW_HOST
 	depends on OF
 	select PCIE_DW_HOST
 	select PCIE_ROCKCHIP_DW
+	select PCI_HOST_COMMON
 	help
 	  Enables support for the DesignWare PCIe controller in the
 	  Rockchip SoC (except RK3399) to work in host mode.

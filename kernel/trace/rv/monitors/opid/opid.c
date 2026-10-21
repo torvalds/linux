@@ -115,3 +115,15 @@ module_exit(unregister_opid);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Gabriele Monaco <gmonaco@redhat.com>");
 MODULE_DESCRIPTION("opid: operations with preemption and irq disabled.");
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#include <kunit/visibility.h>
+#include "opid_kunit.h"
+
+const struct rv_opid_ops rv_opid_ops = {
+	.mon = RV_MON_OPS_INIT(),
+	.handle_sched_need_resched = handle_sched_need_resched,
+	.handle_sched_waking = handle_sched_waking,
+};
+EXPORT_SYMBOL_IF_KUNIT(rv_opid_ops);
+#endif

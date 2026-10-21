@@ -561,7 +561,7 @@ static int evlist__tty_browse_hists(struct evlist *evlist, struct report *rep, c
 
 	if (!quiet) {
 		fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n",
-			evlist->stats.total_lost_samples);
+			evlist__stats(evlist)->total_lost_samples);
 	}
 
 	evlist__for_each_entry(evlist, pos) {
@@ -726,8 +726,11 @@ static int report__collapse_hists(struct report *rep)
 	evlist__for_each_entry(rep->session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 
-		if (pos->core.idx == 0)
-			hists->symbol_filter_str = rep->symbol_filter_str;
+		if (pos->core.idx == 0) {
+			hists->symbol_filter_str =
+				rep->symbol_filter_str ?
+				strdup(rep->symbol_filter_str) : NULL;
+		}
 
 		hists->socket_filter = rep->socket_filter;
 
@@ -1156,7 +1159,7 @@ static int __cmd_report(struct report *rep)
 			PERF_HPP_REPORT__BLOCK_AVG_CYCLES,
 		};
 
-		if (session->evlist->nr_br_cntr > 0)
+		if (evlist__nr_br_cntr(session->evlist) > 0)
 			block_hpps[nr_hpps++] = PERF_HPP_REPORT__BLOCK_BRANCH_COUNTER;
 
 		block_hpps[nr_hpps++] = PERF_HPP_REPORT__BLOCK_RANGE;
@@ -1291,7 +1294,7 @@ static int process_attr(const struct perf_tool *tool __maybe_unused,
 	 * on events sample_type.
 	 */
 	sample_type = evlist__combined_sample_type(*pevlist);
-	session = (*pevlist)->session;
+	session = evlist__session(*pevlist);
 	callchain_param_setup(sample_type, perf_session__e_machine(session, /*e_flags=*/NULL));
 	return 0;
 }

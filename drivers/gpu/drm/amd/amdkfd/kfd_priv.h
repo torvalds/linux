@@ -32,6 +32,7 @@
 #include <linux/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#include <linux/iosys-map.h>
 #include <uapi/linux/kfd_ioctl.h>
 #include <linux/idr.h>
 #include <linux/kfifo.h>
@@ -634,8 +635,15 @@ struct queue {
 	void *gang_ctx_bo;
 	uint64_t gang_ctx_gpu_addr;
 	void *gang_ctx_cpu_ptr;
+	uint32_t gang_ctx_array_index;
 
 	struct amdgpu_bo *wptr_bo_gart;
+
+	/* The VRAM-resident MQD BO (mqd_on_vram()) is unpinned at S4 suspend so
+	 * TTM evicts it into the hibernation image, and repinned on resume. Set
+	 * while the BO is unpinned so the resume path knows to repin it.
+	 */
+	bool needs_mqd_repin;
 };
 
 enum KFD_MQD_TYPE {
@@ -711,7 +719,7 @@ struct qcm_process_device {
 
 	/* CWSR memory */
 	struct kgd_mem *cwsr_mem;
-	void *cwsr_kaddr;
+	struct iosys_map cwsr_map;
 	uint64_t cwsr_base;
 	uint64_t tba_addr;
 	uint64_t tma_addr;
@@ -870,6 +878,8 @@ struct kfd_process_device {
 	uint64_t proc_ctx_gpu_addr;
 	void *proc_ctx_cpu_ptr;
 
+	uint32_t proc_ctx_array_index;
+
 	/* Tracks queue reset status */
 	bool has_reset_queue;
 
@@ -894,7 +904,7 @@ struct svm_range_list {
 	DECLARE_BITMAP(bitmap_supported, MAX_GPU_INSTANCE);
 	struct task_struct		*faulting_task;
 	/* check point ts decides if page fault recovery need be dropped */
-	uint64_t			checkpoint_ts[MAX_GPU_INSTANCE];
+	atomic64_t			checkpoint_ts[MAX_GPU_INSTANCE];
 
 	/* Default granularity to use in buffer migration
 	 * and restoration of backing memory while handling
@@ -953,10 +963,31 @@ struct kfd_process {
 	struct idr event_idr;
 	/* Event page */
 	u64 signal_handle;
-	struct kfd_signal_page *signal_page;
+	/*
+	 * Each signal event needs a 64-bit signal slot where the signaler will
+	 * write a 1 before sending an interrupt. (This is needed because some
+	 * interrupts do not contain enough spare data bits to identify an
+	 * event.) The signal page is allocated in user mode and mapped to the
+	 * kernel; individual signal events use their event_id as slot index.
+	 */
+	uint64_t *signal_page;
 	size_t signal_mapped_size;
 	size_t signal_event_count;
 	bool signal_event_limit_reached;
+
+	/**
+	 * @kfd_sigbus_delay_ms: Per-process KFD SIGBUS delivery option for
+	 * poison/RAS events (set via DRM_IOCTL_AMDGPU_PROC_OPTIONS /
+	 * AMDGPU_PROC_OPTIONS_OP_KFD_SIGBUS_DELAY).
+	 *
+	 *   0          - send SIGBUS immediately (default)
+	 *   0xFFFFFFFF - suppress SIGBUS delivery
+	 *   other      - delay SIGBUS delivery by this many milliseconds
+	 */
+	atomic_t kfd_sigbus_delay_ms;
+
+	/* Delayed signal delivery to user */
+	struct delayed_work signal_work;
 
 	/* Information used for memory eviction */
 	void *kgd_process_info;
@@ -1526,7 +1557,6 @@ extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
 int kfd_event_init_process(struct kfd_process *p);
 void kfd_event_free_process(struct kfd_process *p);
-int kfd_event_mmap(struct kfd_process *process, struct vm_area_struct *vma);
 int kfd_wait_on_events(struct kfd_process *p,
 		       uint32_t num_events, void __user *data,
 		       bool all, uint32_t *user_timeout_ms,
@@ -1555,6 +1585,7 @@ void kfd_signal_vm_fault_event(struct kfd_process_device *pdd,
 void kfd_signal_reset_event(struct kfd_node *dev);
 
 void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid);
+void kfd_signal_sigbus_delayed_fn(struct work_struct *work);
 void kfd_signal_process_terminate_event(struct kfd_process *p);
 
 static inline void kfd_flush_tlb(struct kfd_process_device *pdd)
@@ -1629,14 +1660,14 @@ int kfd_debugfs_hang_hws(struct kfd_node *dev);
 int pm_debugfs_hang_hws(struct packet_manager *pm);
 int dqm_debugfs_hang_hws(struct device_queue_manager *dqm);
 
-void kfd_debugfs_add_process(struct kfd_process *p);
+int kfd_debugfs_add_process(struct kfd_process *p);
 void kfd_debugfs_remove_process(struct kfd_process *p);
 
 #else
 
 static inline void kfd_debugfs_init(void) {}
 static inline void kfd_debugfs_fini(void) {}
-static inline void kfd_debugfs_add_process(struct kfd_process *p) {}
+static inline int kfd_debugfs_add_process(struct kfd_process *p) { return 0; }
 static inline void kfd_debugfs_remove_process(struct kfd_process *p) {}
 
 #endif

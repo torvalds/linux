@@ -76,6 +76,12 @@
 #define ACP70_PCI_ID				0x70
 #define ACP71_PCI_ID				0x71
 #define ACP72_PCI_ID				0x72
+#define ACP7B_PCI_ID				0x7B
+#define ACP7F_PCI_ID				0x7F
+
+#define ACP7X_PGFSM_CNTL_POWER_ON_MASK		0x7F
+#define ACP7X_PGFSM_STATUS_MASK			0xFFF
+#define ACP7X_SRAM_PTE_OFFSET			ACP6X_SRAM_PTE_OFFSET
 
 #define HOST_BRIDGE_CZN				0x1630
 #define HOST_BRIDGE_VGH				0x1645
@@ -107,6 +113,9 @@
 #define PROBE_STATUS_BIT			BIT(31)
 
 #define ACP_FIRMWARE_SIGNATURE			0x100
+#define ACP_IMAGE_HEADER_SIZE			ACP_FIRMWARE_SIGNATURE
+#define ACP_IMAGE_HDR_SIZE_FW_SIGNED_OFF	0x14
+
 #define ACP_ERROR_IRQ_MASK			BIT(29)
 #define ACP_SDW0_IRQ_MASK			BIT(21)
 #define ACP_SDW1_IRQ_MASK			BIT(2)
@@ -271,6 +280,7 @@ struct acp_dev_data {
 	/* acp70_sdw1_wake_event flag set to true when wake irq asserted for SW1 instance */
 	bool acp70_sdw1_wake_event;
 	unsigned int pci_rev;
+	int acp_sof_signed_firmware_image;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
@@ -343,6 +353,16 @@ int sof_acp63_ops_init(struct snd_sof_dev *sdev);
 
 extern struct snd_sof_dsp_ops sof_acp70_ops;
 int sof_acp70_ops_init(struct snd_sof_dev *sdev);
+
+extern struct snd_sof_dsp_ops sof_acp7x_ops;
+int sof_acp7x_ops_init(struct snd_sof_dev *sdev);
+
+int amd_sof_acp7x_probe(struct snd_sof_dev *sdev);
+void amd_sof_acp7x_remove(struct snd_sof_dev *sdev);
+int amd_sof_acp7x_suspend(struct snd_sof_dev *sdev, u32 target_state);
+int amd_sof_acp7x_resume(struct snd_sof_dev *sdev);
+int amd_sof_acp7x_suspend_runtime(struct snd_sof_dev *sdev);
+int amd_sof_acp7x_resume_runtime(struct snd_sof_dev *sdev);
 
 struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev);
 /* Machine configuration */

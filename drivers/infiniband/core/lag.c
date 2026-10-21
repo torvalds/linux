@@ -36,7 +36,7 @@ static struct sk_buff *rdma_build_skb(struct net_device *netdev,
 	uh->source =
 		htons(rdma_flow_label_to_udp_sport(ah_attr->grh.flow_label));
 	uh->dest = htons(ROCE_V2_UDP_DPORT);
-	uh->len = htons(sizeof(struct udphdr));
+	udp_set_len_short(uh, sizeof(struct udphdr));
 
 	if (is_ipv4) {
 		skb_push(skb, sizeof(struct iphdr));

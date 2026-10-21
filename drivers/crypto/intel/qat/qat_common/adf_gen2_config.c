@@ -155,12 +155,8 @@ static int adf_gen2_comp_dev_config(struct adf_accel_dev *accel_dev)
 	}
 
 	val = i;
-	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_DC,
-					  &val, ADF_DEC);
-	if (ret)
-		return ret;
-
-	return ret;
+	return adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+					   ADF_NUM_DC, &val, ADF_DEC);
 
 err:
 	dev_err(&GET_DEV(accel_dev), "Failed to add configuration for compression\n");

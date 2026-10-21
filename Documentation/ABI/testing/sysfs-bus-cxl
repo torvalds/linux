@@ -201,7 +201,8 @@ Description:
 		capability.
 
 
-What:		/sys/bus/cxl/devices/{port,endpoint}X/parent_dport
+What:		/sys/bus/cxl/devices/portX/parent_dport
+What:		/sys/bus/cxl/devices/endpointX/parent_dport
 Date:		January, 2023
 KernelVersion:	v6.3
 Contact:	linux-cxl@vger.kernel.org
@@ -258,7 +259,8 @@ Description:
 		instance id of a given decoder resource.
 
 
-What:		/sys/bus/cxl/devices/decoderX.Y/{start,size}
+What:		/sys/bus/cxl/devices/decoderX.Y/start
+What:		/sys/bus/cxl/devices/decoderX.Y/size
 Date:		June, 2021
 KernelVersion:	v5.14
 Contact:	linux-cxl@vger.kernel.org
@@ -297,7 +299,10 @@ Description:
 		Each entry in the list is a dport id.
 
 
-What:		/sys/bus/cxl/devices/decoderX.Y/cap_{pmem,ram,type2,type3}
+What:		/sys/bus/cxl/devices/decoderX.Y/cap_pmem
+What:		/sys/bus/cxl/devices/decoderX.Y/cap_ram
+What:		/sys/bus/cxl/devices/decoderX.Y/cap_type2
+What:		/sys/bus/cxl/devices/decoderX.Y/cap_type3
 Date:		June, 2021
 KernelVersion:	v5.14
 Contact:	linux-cxl@vger.kernel.org
@@ -410,7 +415,8 @@ Description:
 		interleave_granularity).
 
 
-What:		/sys/bus/cxl/devices/decoderX.Y/create_{pmem,ram}_region
+What:		/sys/bus/cxl/devices/decoderX.Y/create_pmem_region
+What:		/sys/bus/cxl/devices/decoderX.Y/create_ram_region
 Date:		May, 2022, January, 2023
 KernelVersion:	v6.0 (pmem), v6.3 (ram)
 Contact:	linux-cxl@vger.kernel.org
@@ -499,6 +505,7 @@ Description:
 		results in the same address being allocated. If extended linear
 		cache is present, the size indicates extended linear cache size
 		plus the CXL region size.
+
 
 What:		/sys/bus/cxl/devices/regionZ/extended_linear_cache_size
 Date:		October, 2025

@@ -1696,6 +1696,7 @@ void vdo_repair(struct vdo_completion *parent)
 	struct vdo *vdo = parent->vdo;
 	struct recovery_journal *journal = vdo->recovery_journal;
 	physical_block_number_t pbn = journal->origin;
+	block_count_t i;
 	block_count_t remaining = journal->size;
 	block_count_t vio_count = DIV_ROUND_UP(remaining, MAX_BLOCKS_PER_VIO);
 	page_count_t page_count = min_t(page_count_t,
@@ -1749,9 +1750,8 @@ void vdo_repair(struct vdo_completion *parent)
 		remaining -= blocks;
 	}
 
-	for (vio_count = 0; vio_count < repair->vio_count;
-	     vio_count++, pbn += MAX_BLOCKS_PER_VIO) {
-		vdo_submit_metadata_vio(&repair->vios[vio_count], pbn, read_journal_endio,
+	for (i = 0; i < vio_count; i++, pbn += MAX_BLOCKS_PER_VIO) {
+		vdo_submit_metadata_vio(&repair->vios[i], pbn, read_journal_endio,
 					handle_journal_load_error, REQ_OP_READ);
 	}
 }

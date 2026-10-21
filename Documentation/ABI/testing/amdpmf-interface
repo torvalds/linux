@@ -1,0 +1,73 @@
+What:		/dev/amdpmf_interface
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
+Description:
+		The AMD Platform Management Framework (PMF) util layer exposes a
+		minimal user-space interface via a character device for feature
+		discovery and metrics monitoring.
+
+		When CONFIG_AMD_PMF_UTIL_SUPPORT is enabled, the driver creates
+		a character device:
+
+		======================
+		/dev/amdpmf_interface
+		======================
+
+		The interface supports a single ioctl:
+
+		============================ =======================================
+		IOCTL			     Usage
+		IOCTL_AMD_PMF_POPULATE_DATA  User passes a struct amd_pmf_info with
+					     the size field set to sizeof(struct
+					     amd_pmf_info). The driver returns all
+					     available metrics and feature status
+					     in the structure.
+		============================ =======================================
+
+		struct amd_pmf_info layout:
+
+		======================= ========== ================================
+		Field			Type	   Description
+		size			__u64	   Structure size for versioning
+		features_supported	__u32	   Bitmask of supported features
+		platform_type		__u32	   Platform form factor orientation
+		power_source		__u32	   AC/DC power source
+		laptop_placement	__u32	   Device placement state
+		lid_state		__u32	   Lid open/closed status
+		user_presence		__u32	   User presence detection
+		slider_position		__u32	   Current power slider position
+		skin_temp		__s32	   Skin temperature (centidegrees)
+		gfx_busy		__u32	   Graphics workload percentage
+		ambient_light		__s32	   Ambient light sensor reading
+		avg_c0_residency	__u32	   Average C0 state residency
+		max_c0_residency	__u32	   Maximum C0 state residency
+		socket_power		__u32	   Socket power consumption
+		bios_input[10]		__u32	   Custom BIOS input parameters
+		bios_output[10]		__u32	   Custom BIOS output parameters
+		======================= ========== ================================
+
+		Feature Support Flags (features_supported bitmask):
+
+		=====================================    ====  =============================
+		Flag				         Bit   Description
+		AMD_PMF_FEAT_AUTO_MODE		         0     Auto Mode feature support
+		AMD_PMF_FEAT_STATIC_POWER_SLIDER         1     Static Power Slider support
+		AMD_PMF_FEAT_POLICY_BUILDER	         2     Policy Builder (Smart PC)
+		AMD_PMF_FEAT_DYNAMIC_POWER_SLIDER_AC     3     Dynamic slider on AC
+		AMD_PMF_FEAT_DYNAMIC_POWER_SLIDER_DC     4     Dynamic slider on DC
+		=====================================    ====  =============================
+
+		Return codes:
+
+		============= ============================================================
+		Return code   Description
+		0	      Success
+		EINVAL	      Invalid size or parameter
+		EFAULT	      copy_to_user/copy_from_user failures
+		ENODEV	      PMF device not available
+		ENOTTY	      Unknown ioctl command
+		============= ============================================================
+
+		User-space tools integrating with AMD PMF to discover capabilities and
+		monitor real-time metrics for thermal and power management validation.

@@ -208,7 +208,7 @@ r535_fbsr_resume(struct nvkm_gsp *gsp)
 }
 
 static int
-r535_fbsr_suspend(struct nvkm_gsp *gsp, bool runtime)
+r535_fbsr_suspend(struct nvkm_gsp *gsp)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
 	struct nvkm_device *device = subdev->device;
@@ -297,6 +297,7 @@ r535_fbsr = {
 static void *
 r535_instmem_dtor(struct nvkm_instmem *imem)
 {
+	nv50_instmem_dtor(imem);
 	kfree(imem->func);
 	return imem;
 }

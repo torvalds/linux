@@ -280,7 +280,7 @@ static void print_hwparams(struct snd_pcm_substream *substream,
 		snd_pcm_format_width(params_format(p)) / 8);
 }
 
-#define INVALID_FORMAT	(__force snd_pcm_format_t)(-1)
+#define INVALID_FORMAT	-1
 
 static const snd_pcm_format_t hpi_to_alsa_formats[] = {
 	INVALID_FORMAT,		/* INVALID */

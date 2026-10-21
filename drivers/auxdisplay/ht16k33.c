@@ -547,11 +547,8 @@ static int ht16k33_keypad_probe(struct i2c_client *client,
 					ht16k33_keypad_irq_thread,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 					DRIVER_NAME, keypad);
-	if (err) {
-		dev_err(dev, "irq request failed %d, error %d\n", client->irq,
-			err);
+	if (err)
 		return err;
-	}
 
 	ht16k33_keypad_stop(keypad->dev);
 

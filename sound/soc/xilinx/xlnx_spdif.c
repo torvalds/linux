@@ -10,8 +10,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/property.h>
 #include <linux/platform_device.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -242,28 +241,24 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 	struct spdif_dev_data *ctx;
 
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
 	ctx->axi_clk = devm_clk_get_enabled(dev, "s_axi_aclk");
-	if (IS_ERR(ctx->axi_clk)) {
-		ret = PTR_ERR(ctx->axi_clk);
-		dev_err(dev, "failed to get s_axi_aclk(%d)\n", ret);
-		return ret;
-	}
+	if (IS_ERR(ctx->axi_clk))
+		return dev_err_probe(dev, PTR_ERR(ctx->axi_clk),
+				     "failed to get s_axi_aclk\n");
 
 	ctx->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->base))
 		return PTR_ERR(ctx->base);
 
-	ret = of_property_read_u32(node, "xlnx,spdif-mode", &ctx->mode);
-	if (ret < 0) {
-		dev_err(dev, "cannot get SPDIF mode\n");
-		return ret;
-	}
+	ret = device_property_read_u32(dev, "xlnx,spdif-mode", &ctx->mode);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "cannot get SPDIF mode\n");
+
 	if (ctx->mode) {
 		dai_drv = &xlnx_spdif_tx_dai;
 	} else {
@@ -274,29 +269,23 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 		ret = devm_request_irq(dev, ret,
 				       xlnx_spdifrx_irq_handler,
 				       0, "XLNX_SPDIF_RX", ctx);
-		if (ret) {
-			dev_err(dev, "spdif rx irq request failed\n");
-			return -ENODEV;
-		}
+		if (ret)
+			return ret;
 
 		init_waitqueue_head(&ctx->chsts_q);
 		dai_drv = &xlnx_spdif_rx_dai;
 	}
 
-	ret = of_property_read_u32(node, "xlnx,aud_clk_i", &ctx->aclk);
-	if (ret < 0) {
-		dev_err(dev, "cannot get aud_clk_i value\n");
-		return ret;
-	}
+	ret = device_property_read_u32(dev, "xlnx,aud_clk_i", &ctx->aclk);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "cannot get aud_clk_i value\n");
 
 	dev_set_drvdata(dev, ctx);
 
 	ret = devm_snd_soc_register_component(dev, &xlnx_spdif_component,
 					      dai_drv, 1);
-	if (ret) {
-		dev_err(dev, "SPDIF component registration failed\n");
+	if (ret)
 		return ret;
-	}
 
 	writel(XSPDIF_SOFT_RESET_VALUE, ctx->base + XSPDIF_SOFT_RESET_REG);
 	dev_info(dev, "%s DAI registered\n", dai_drv->name);

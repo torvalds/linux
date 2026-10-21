@@ -125,7 +125,7 @@ static ssize_t cfg_services_store(struct device *dev, struct device_attribute *a
 	if (!accel_dev)
 		return -EINVAL;
 
-	ret = adf_parse_service_string(accel_dev, buf, count, services,
+	ret = adf_parse_service_string(accel_dev, buf, services,
 				       ADF_CFG_MAX_VAL_LEN_IN_BYTES);
 	if (ret)
 		return ret;

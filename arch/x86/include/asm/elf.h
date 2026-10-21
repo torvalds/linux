@@ -322,7 +322,7 @@ extern unsigned long get_sigframe_size(void);
 
 #else /* CONFIG_X86_32 */
 
-/* 1GB for 64bit, 8MB for 32bit */
+/* 16GB for 64bit, 8MB for 32bit */
 #define __STACK_RND_MASK(is32bit) ((is32bit) ? 0x7ff : 0x3fffff)
 #define STACK_RND_MASK __STACK_RND_MASK(mmap_is_ia32())
 

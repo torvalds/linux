@@ -11,6 +11,7 @@
 #include <linux/cryptouser.h>
 #include <linux/sched.h>
 #include <linux/security.h>
+#include <linux/string.h>
 #include <net/netlink.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -87,11 +88,9 @@ static int crypto_report_one(struct crypto_alg *alg,
 {
 	memset(ualg, 0, sizeof(*ualg));
 
-	strscpy(ualg->cru_name, alg->cra_name, sizeof(ualg->cru_name));
-	strscpy(ualg->cru_driver_name, alg->cra_driver_name,
-		sizeof(ualg->cru_driver_name));
-	strscpy(ualg->cru_module_name, module_name(alg->cra_module),
-		sizeof(ualg->cru_module_name));
+	strscpy(ualg->cru_name, alg->cra_name);
+	strscpy(ualg->cru_driver_name, alg->cra_driver_name);
+	strscpy(ualg->cru_module_name, module_name(alg->cra_module));
 
 	ualg->cru_type = 0;
 	ualg->cru_mask = 0;

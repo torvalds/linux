@@ -165,7 +165,7 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
 	// Misc
 	copy_settings_data->line_time_in_ns			= (uint16_t)replay_context->line_time_in_ns;
 	copy_settings_data->panel_inst				= (uint16_t)panel_inst;
-	copy_settings_data->debug.u32All			= (uint16_t)link->replay_settings.config.debug_flags;
+	copy_settings_data->debug.u32All			= link->replay_settings.config.debug_flags;
 	copy_settings_data->pixel_deviation_per_line		= link->dpcd_caps.pr_info.pixel_deviation_per_line;
 	copy_settings_data->max_deviation_line			= (uint16_t)link->dpcd_caps.pr_info.max_deviation_line;
 	copy_settings_data->smu_optimizations_en		= link->replay_settings.replay_smu_opt_enable;

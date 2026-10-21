@@ -116,11 +116,9 @@ struct rzg2l_cru_info {
  * @scratch_phys:	physical address of the scratch buffer
  *
  * @qlock:		protects @queue_buf, @buf_list, @sequence
- *			@state
  * @queue_buf:		Keeps track of buffers given to HW slot
  * @buf_list:		list of queued buffers
  * @sequence:		V4L2 buffers sequence number
- * @state:		keeps track of operation state
  *
  * @format:		active V4L2 pixel format
  */

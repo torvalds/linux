@@ -96,7 +96,6 @@
 #define IV_FLAGS_OFFSET	0x6
 #define IV_CM_OFFSET		0x3
 #define IV_LAST_BYTE1		1
-#define IV_LAST_BYTE2		2
 #define IV_LAST_BYTE_MASK	0xFF
 #define IV_CTR_INIT		0x1
 #define IV_BYTE_OFFSET		0x8
@@ -669,9 +668,13 @@ static int sec_ctx_base_init(struct sec_ctx *ctx)
 	sec = container_of(ctx->qps[0]->qm, struct sec_dev, qm);
 	ctx->sec = sec;
 	ctx->dev = &sec->qm.pdev->dev;
-	ctx->hlf_q_num = sec->ctx_q_num >> 1;
 
 	ctx->pbuf_supported = ctx->sec->iommu_used;
+	if (sec->qm.ver < QM_HW_V3)
+		ctx->type_supported = SEC_BD_TYPE2;
+	else
+		ctx->type_supported = SEC_BD_TYPE3;
+
 	ctx->qp_ctx = kzalloc_objs(struct sec_qp_ctx, sec->ctx_q_num);
 	if (!ctx->qp_ctx) {
 		ret = -ENOMEM;
@@ -1696,7 +1699,7 @@ static void set_aead_auth_iv(struct sec_ctx *ctx, struct sec_req *req)
 	struct sec_cipher_req *c_req = &req->c_req;
 	u32 data_size = aead_req->cryptlen;
 	u8 flage = 0;
-	u8 cm, cl;
+	u8 cm, cl, i;
 
 	/* the specification has been checked in aead_iv_demension_check() */
 	cl = c_req->c_ivin[0] + 1;
@@ -1720,15 +1723,16 @@ static void set_aead_auth_iv(struct sec_ctx *ctx, struct sec_req *req)
 	 * the last 32bit is counter's initial number,
 	 * but the nonce uses the first 16bit
 	 * the tail 16bit fill with the cipher length
+	 * When CL is 3, the tail 24bit fill with the cipher length.
 	 */
 	if (!c_req->encrypt)
 		data_size = aead_req->cryptlen - authsize;
 
-	a_req->a_ivin[ctx->c_ctx.ivsize - IV_LAST_BYTE1] =
+	for (i = 1; i <= cl; i++) {
+		a_req->a_ivin[ctx->c_ctx.ivsize - i] =
 			data_size & IV_LAST_BYTE_MASK;
-	data_size >>= IV_BYTE_OFFSET;
-	a_req->a_ivin[ctx->c_ctx.ivsize - IV_LAST_BYTE2] =
-			data_size & IV_LAST_BYTE_MASK;
+		data_size >>= IV_BYTE_OFFSET;
+	}
 }
 
 static void sec_aead_set_iv(struct sec_ctx *ctx, struct sec_req *req)
@@ -2067,13 +2071,10 @@ static int sec_skcipher_ctx_init(struct crypto_skcipher *tfm)
 	if (!ctx->qps)
 		return 0;
 
-	if (ctx->sec->qm.ver < QM_HW_V3) {
-		ctx->type_supported = SEC_BD_TYPE2;
-		ctx->req_op = &sec_skcipher_req_ops;
-	} else {
-		ctx->type_supported = SEC_BD_TYPE3;
+	if (ctx->type_supported == SEC_BD_TYPE3)
 		ctx->req_op = &sec_skcipher_req_ops_v3;
-	}
+	else
+		ctx->req_op = &sec_skcipher_req_ops;
 
 	return 0;
 }
@@ -2100,13 +2101,11 @@ static int sec_aead_init(struct crypto_aead *tfm)
 	ret = sec_ctx_base_init(ctx);
 	if (ret)
 		return ret;
-	if (ctx->sec->qm.ver < QM_HW_V3) {
-		ctx->type_supported = SEC_BD_TYPE2;
-		ctx->req_op = &sec_aead_req_ops;
-	} else {
-		ctx->type_supported = SEC_BD_TYPE3;
+
+	if (ctx->type_supported == SEC_BD_TYPE3)
 		ctx->req_op = &sec_aead_req_ops_v3;
-	}
+	else
+		ctx->req_op = &sec_aead_req_ops;
 
 	ret = sec_auth_init(ctx);
 	if (ret)

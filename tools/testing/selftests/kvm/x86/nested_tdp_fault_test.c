@@ -9,8 +9,6 @@
 #include "svm_util.h"
 #include "vmx.h"
 
-#define L2_GUEST_STACK_SIZE 64
-
 enum test_type {
 	TEST_FINAL_PAGE_UNMAPPED,	    /* Final data page not present */
 	TEST_PT_PAGE_UNMAPPED,		    /* Page table page not present */
@@ -54,14 +52,13 @@ static void l2_guest_code_ins(void)
 static void l1_vmx_code(struct vmx_pages *vmx, u64 expected_fault_gpa,
 			u64 test_type)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	u64 exit_qual;
 
 	GUEST_ASSERT(vmx->vmcs_gpa);
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx));
 	GUEST_ASSERT(load_vmcs(vmx));
 
-	prepare_vmcs(vmx, l2_entry, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	prepare_vmcs(vmx, l2_entry);
 
 	GUEST_ASSERT(!vmlaunch());
 
@@ -120,12 +117,10 @@ static void l1_vmx_code(struct vmx_pages *vmx, u64 expected_fault_gpa,
 static void l1_svm_code(struct svm_test_data *svm, u64 expected_fault_gpa,
 			 u64 test_type)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	struct vmcb *vmcb = svm->vmcb;
 	u64 exit_info_1;
 
-	generic_svm_setup(svm, l2_entry,
-			  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, l2_entry);
 
 	run_guest(vmcb, svm->vmcb_gpa);
 

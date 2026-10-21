@@ -626,19 +626,14 @@ int pci_legacy_write(struct pci_bus *bus, loff_t port, u32 val, size_t size)
 		return -ENXIO;
 	addr = hose->io_base_virt + port;
 
-	/* WARNING: The generic code is idiotic. It gets passed a pointer
-	 * to what can be a 1, 2 or 4 byte quantity and always reads that
-	 * as a u32, which means that we have to correct the location of
-	 * the data read within those 32 bits for size 1 and 2
-	 */
 	switch(size) {
 	case 1:
-		out_8(addr, val >> 24);
+		out_8(addr, val);
 		return 1;
 	case 2:
 		if (port & 1)
 			return -EINVAL;
-		out_le16(addr, val >> 16);
+		out_le16(addr, val);
 		return 2;
 	case 4:
 		if (port & 3)

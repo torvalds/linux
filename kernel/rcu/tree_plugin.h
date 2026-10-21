@@ -298,11 +298,11 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 static void rcu_qs(void)
 {
 	RCU_LOCKDEP_WARN(preemptible(), "rcu_qs() invoked with preemption enabled!!!\n");
-	if (__this_cpu_read(rcu_data.cpu_no_qs.b.norm)) {
+	if (this_cpu_read(rcu_data.cpu_no_qs.b.norm)) {
 		trace_rcu_grace_period(TPS("rcu_preempt"),
 				       __this_cpu_read(rcu_data.gp_seq),
 				       TPS("cpuqs"));
-		__this_cpu_write(rcu_data.cpu_no_qs.b.norm, false);
+		this_cpu_write(rcu_data.cpu_no_qs.b.norm, false);
 		barrier(); /* Coordinate with rcu_flavor_sched_clock_irq(). */
 		WRITE_ONCE(current->rcu_read_unlock_special.b.need_qs, false);
 	}
@@ -488,7 +488,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 
 	rdp = this_cpu_ptr(&rcu_data);
 	if (rdp->defer_qs_pending == DEFER_QS_PENDING)
-		rdp->defer_qs_pending = DEFER_QS_IDLE;
+		rcu_defer_qs_clear(rdp);
 
 	/*
 	 * If RCU core is waiting for this CPU to exit its critical section,
@@ -599,7 +599,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
  */
 static notrace bool rcu_preempt_need_deferred_qs(struct task_struct *t)
 {
-	return (__this_cpu_read(rcu_data.cpu_no_qs.b.exp) ||
+	return (this_cpu_read(rcu_data.cpu_no_qs.b.exp) ||
 		READ_ONCE(t->rcu_read_unlock_special.s)) &&
 	       rcu_preempt_depth() == 0;
 }
@@ -614,9 +614,35 @@ static notrace bool rcu_preempt_need_deferred_qs(struct task_struct *t)
 notrace void rcu_preempt_deferred_qs(struct task_struct *t)
 {
 	unsigned long flags;
+	struct rcu_data *rdp;
 
-	if (!rcu_preempt_need_deferred_qs(t))
+	if (!rcu_preempt_need_deferred_qs(t)) {
+		/*
+		 * If we got here from a softirq/irq_work that fired while
+		 * rcu_preempt_depth() > 0, the deferred-QS mechanism has been
+		 * consumed without doing any work: rcu_preempt_need_deferred_qs()
+		 * just returned false because the task is still in a reader, so
+		 * the actual QS report has to wait for the next
+		 * rcu_read_unlock().
+		 *
+		 * Clear ->defer_qs_pending here so the next outer
+		 * rcu_read_unlock_special() can re-arm a fresh mechanism (in
+		 * particular the irq_work path, which the local_irq_enable()
+		 * recovery boundary cannot itself reschedule from).
+		 *
+		 * Recursion safety: rcu_preempt_depth() > 0 means we are inside
+		 * an outer reader, so any inner rcu_read_unlock() reached via
+		 * tracing (bpf programs attached to trace points) brings
+		 * nesting to outer (> 0), never to 0, so no recursive
+		 * raise_softirq_irqoff()/irq_work_queue_on() can be triggered
+		 * by this clear.
+		 */
+		if (rcu_preempt_depth() > 0) {
+			rdp = this_cpu_ptr(&rcu_data);
+			rcu_defer_qs_clear(rdp);
+		}
 		return;
+	}
 	local_irq_save(flags);
 	rcu_preempt_deferred_qs_irqrestore(t, flags);
 }
@@ -645,7 +671,7 @@ static void rcu_preempt_deferred_qs_handler(struct irq_work *iwp)
 	 * 5. Deferred QS reporting does not happen.
 	 */
 	if (rcu_preempt_depth() > 0)
-		WRITE_ONCE(rdp->defer_qs_pending, DEFER_QS_IDLE);
+		rcu_defer_qs_clear(rdp);
 }
 
 /*
@@ -923,10 +949,10 @@ void rcu_read_unlock_strict(void)
 	 *
 	 * The in_atomic_preempt_off() check ensures that we come here holding
 	 * the last preempt_count (which will get dropped once we return to
-	 * __rcu_read_unlock().
+	 * __rcu_read_unlock()).
 	 */
 	rdp = this_cpu_ptr(&rcu_data);
-	rdp->cpu_no_qs.b.norm = false;
+	WRITE_ONCE(rdp->cpu_no_qs.b.norm, false);
 	rcu_report_qs_rdp(rdp);
 	udelay(rcu_unlock_delay);
 }
@@ -950,12 +976,12 @@ static void __init rcu_bootup_announce(void)
 static void rcu_qs(void)
 {
 	RCU_LOCKDEP_WARN(preemptible(), "rcu_qs() invoked with preemption enabled!!!");
-	if (!__this_cpu_read(rcu_data.cpu_no_qs.s))
+	if (!this_cpu_read(rcu_data.cpu_no_qs.s))
 		return;
 	trace_rcu_grace_period(TPS("rcu_sched"),
 			       __this_cpu_read(rcu_data.gp_seq), TPS("cpuqs"));
-	__this_cpu_write(rcu_data.cpu_no_qs.b.norm, false);
-	if (__this_cpu_read(rcu_data.cpu_no_qs.b.exp))
+	this_cpu_write(rcu_data.cpu_no_qs.b.norm, false);
+	if (this_cpu_read(rcu_data.cpu_no_qs.b.exp))
 		rcu_report_exp_rdp(this_cpu_ptr(&rcu_data));
 }
 
@@ -970,7 +996,7 @@ void rcu_all_qs(void)
 {
 	unsigned long flags;
 
-	if (!raw_cpu_read(rcu_data.rcu_urgent_qs))
+	if (!READ_ONCE(*raw_cpu_ptr(&rcu_data.rcu_urgent_qs)))
 		return;
 	preempt_disable();  // For CONFIG_PREEMPT_COUNT=y kernels
 	/* Load rcu_urgent_qs before other flags. */
@@ -978,8 +1004,8 @@ void rcu_all_qs(void)
 		preempt_enable();
 		return;
 	}
-	this_cpu_write(rcu_data.rcu_urgent_qs, false);
-	if (unlikely(raw_cpu_read(rcu_data.rcu_need_heavy_qs))) {
+	WRITE_ONCE(*this_cpu_ptr(&rcu_data.rcu_urgent_qs), false);
+	if (unlikely(READ_ONCE(*this_cpu_ptr(&rcu_data.rcu_need_heavy_qs)))) {
 		local_irq_save(flags);
 		rcu_momentary_eqs();
 		local_irq_restore(flags);
@@ -999,8 +1025,8 @@ void rcu_note_context_switch(bool preempt)
 	/* Load rcu_urgent_qs before other flags. */
 	if (!smp_load_acquire(this_cpu_ptr(&rcu_data.rcu_urgent_qs)))
 		goto out;
-	this_cpu_write(rcu_data.rcu_urgent_qs, false);
-	if (unlikely(raw_cpu_read(rcu_data.rcu_need_heavy_qs)))
+	WRITE_ONCE(*this_cpu_ptr(&rcu_data.rcu_urgent_qs), false);
+	if (unlikely(READ_ONCE(*this_cpu_ptr(&rcu_data.rcu_need_heavy_qs))))
 		rcu_momentary_eqs();
 out:
 	rcu_tasks_qs(current, preempt);
@@ -1319,6 +1345,41 @@ static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
 	rcu_thread_affine_rnp(t, rnp);
 	wake_up_process(t); /* get to TASK_INTERRUPTIBLE quickly. */
 }
+
+#ifdef CONFIG_RCU_TORTURE_TEST
+
+/*
+ * Is the current task RCU priority boosted?  This is used by
+ * rcutorture to check that tasks are always deboosted once then exit
+ * an RCU read-side critical section, no matter how many overlapping
+ * segments of rcu_read_lock(), preempt_disable(), local_bh_disable(),
+ * or local_irq_disable() made up that reader.
+ *
+ * The lockless accesses in rt_mutex_owner(&rnp->boost_mtx.rtmutex)
+ * are safe because tasks release ->boost_mtx when they own it, they
+ * cannot be boosted unless current->rcu_blocked_node is non-NULL,
+ * current->rcu_blocked_node is modified only by the current task,
+ * rt_mutex_owner() uses READ_ONCE() on the ->owner field, and the owner
+ * switching among other tasks cannot force an equality comparison.
+ */
+bool rcu_is_task_rcu_boosted(void)
+{
+	bool ret;
+	struct rcu_node *rnp;
+	struct task_struct *t = current;
+
+	preempt_disable(); // Stabilize ->rcu_blocked_node
+	rnp = t->rcu_blocked_node;
+	if (!rnp)
+		ret = false;
+	else
+		ret = (rt_mutex_owner(&rnp->boost_mtx.rtmutex) == t);
+	preempt_enable();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rcu_is_task_rcu_boosted);
+
+#endif // #ifdef CONFIG_RCU_TORTURE_TEST
 
 #else /* #ifdef CONFIG_RCU_BOOST */
 

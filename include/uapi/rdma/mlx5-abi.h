@@ -472,17 +472,10 @@ struct mlx5_ib_modify_wq {
 	__u32	reserved;
 };
 
-struct mlx5_ib_clock_info {
-	__u32 sign;
-	__u32 resv;
-	__aligned_u64 nsec;
-	__aligned_u64 cycles;
-	__aligned_u64 frac;
-	__u32 mult;
-	__u32 shift;
-	__aligned_u64 mask;
-	__aligned_u64 overflow_period;
-};
+/*
+ * deprecated, see struct ib_uverbs_clock_info from ib_user_verbs.h
+ */
+#define mlx5_ib_clock_info ib_uverbs_clock_info
 
 enum mlx5_ib_mmap_cmd {
 	MLX5_IB_MMAP_REGULAR_PAGE               = 0,

@@ -93,9 +93,9 @@
    <ellipse cx="144.827" cy="159.143" rx="10.8866" ry="4.39308"/>
    <ellipse cx="59.4364" cy="142.823" rx="7.36455" ry="4.39308"/>
    <ellipse cx="144.827" cy="129.196" rx="10.8866" ry="4.39308"/>
-   <ellipse cx="143.077" cy="180.53" rx="10.8866" ry="4.39308"/>
   </g>
-  <ellipse cx="110.386" cy="180.53" rx="10.8866" ry="4.39308" fill="#ffcb35" stroke="#000" stroke-linecap="square" stroke-width=".499999"/>
+  <ellipse cx="110.386" cy="180.53" rx="10.8866" ry="4.39308" fill="#28a4ff" stroke="#000" stroke-linecap="square" stroke-width=".499999"/>
+  <ellipse cx="143.077" cy="180.53" rx="10.8866" ry="4.39308" fill="#ffcb35" stroke="#000" stroke-linecap="square" stroke-width=".499999"/>
   <text x="110.90907" y="179.42688" font-size="3.175px" xml:space="preserve"><tspan x="110.90907" y="179.42688" dy="0.60000002" text-align="center" text-anchor="middle">Accessible</tspan><tspan x="110.90907" y="183.39563"><tspan font-size="3.175px" text-align="center" text-anchor="middle">for S</tspan>W</tspan></text>
   <text x="143.5869" y="179.52795" xml:space="preserve"><tspan x="143.5869" y="179.52795" dy="1 0 0 0 0 0" font-family="sans-serif" font-size="2.82222px" text-align="center" text-anchor="middle" style="font-variant-caps:normal;font-variant-east-asian:normal;font-variant-ligatures:normal;font-variant-numeric:normal">Inaccessible</tspan><tspan x="143.5869" y="183.36786" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">for S</tspan>W</tspan></text>
   <g font-size="3.175px">

@@ -225,7 +225,7 @@ static const struct drm_bridge_funcs tc358762_bridge_funcs = {
 	.atomic_enable = tc358762_enable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.attach = tc358762_attach,
 	.mode_set = tc358762_bridge_mode_set,
 };
@@ -292,23 +292,15 @@ static int tc358762_probe(struct mipi_dsi_device *dsi)
 	ctx->bridge.of_node = dev->of_node;
 	ctx->bridge.pre_enable_prev_first = true;
 
-	drm_bridge_add(&ctx->bridge);
+	ret = devm_drm_bridge_add(dev, &ctx->bridge);
+	if (ret < 0)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
-	if (ret < 0) {
-		drm_bridge_remove(&ctx->bridge);
+	ret = devm_mipi_dsi_attach(dev, dsi);
+	if (ret < 0)
 		dev_err(dev, "failed to attach dsi\n");
-	}
 
 	return ret;
-}
-
-static void tc358762_remove(struct mipi_dsi_device *dsi)
-{
-	struct tc358762 *ctx = mipi_dsi_get_drvdata(dsi);
-
-	mipi_dsi_detach(dsi);
-	drm_bridge_remove(&ctx->bridge);
 }
 
 static const struct of_device_id tc358762_of_match[] = {
@@ -319,7 +311,6 @@ MODULE_DEVICE_TABLE(of, tc358762_of_match);
 
 static struct mipi_dsi_driver tc358762_driver = {
 	.probe = tc358762_probe,
-	.remove = tc358762_remove,
 	.driver = {
 		.name = "tc358762",
 		.of_match_table = tc358762_of_match,

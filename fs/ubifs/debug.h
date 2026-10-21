@@ -26,7 +26,7 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
 #define UBIFS_DFS_DIR_LEN  (3 + 1 + 2 + 3 + 1)
 
 /**
- * ubifs_debug_info - per-FS debugging information.
+ * struct ubifs_debug_info - per-FS debugging information.
  * @old_zroot: old index root - used by 'dbg_check_old_index()'
  * @old_zroot_level: old index root level - used by 'dbg_check_old_index()'
  * @old_zroot_sqnum: old index root sqnum - used by 'dbg_check_old_index()'
@@ -119,7 +119,7 @@ struct ubifs_debug_info {
 };
 
 /**
- * ubifs_global_debug_info - global (not per-FS) UBIFS debugging information.
+ * struct ubifs_global_debug_info - global (not per-FS) UBIFS debugging information.
  *
  * @chk_gen: if general extra checks are enabled
  * @chk_index: if index xtra checks are enabled

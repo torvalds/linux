@@ -442,14 +442,15 @@ static void gvp11_remove(struct zorro_dev *z)
 	 */
 
 static struct zorro_device_id gvp11_zorro_tbl[] = {
-	{ ZORRO_PROD_GVP_COMBO_030_R3_SCSI,	~0x00ffffff },
-	{ ZORRO_PROD_GVP_SERIES_II,		~0x00ffffff },
-	{ ZORRO_PROD_GVP_GFORCE_030_SCSI,	~0x01ffffff },
-	{ ZORRO_PROD_GVP_A530_SCSI,		~0x01ffffff },
-	{ ZORRO_PROD_GVP_COMBO_030_R4_SCSI,	~0x01ffffff },
-	{ ZORRO_PROD_GVP_A1291,			~0x07ffffff },
-	{ ZORRO_PROD_GVP_GFORCE_040_SCSI_1,	~0x07ffffff },
-	{ 0 }
+	/* .driver_data specifies the DMA mask */
+	{ .id = ZORRO_PROD_GVP_COMBO_030_R3_SCSI,	.driver_data = ~0x00ffffff },
+	{ .id = ZORRO_PROD_GVP_SERIES_II,		.driver_data = ~0x00ffffff },
+	{ .id = ZORRO_PROD_GVP_GFORCE_030_SCSI,		.driver_data = ~0x01ffffff },
+	{ .id = ZORRO_PROD_GVP_A530_SCSI,		.driver_data = ~0x01ffffff },
+	{ .id = ZORRO_PROD_GVP_COMBO_030_R4_SCSI,	.driver_data = ~0x01ffffff },
+	{ .id = ZORRO_PROD_GVP_A1291,			.driver_data = ~0x07ffffff },
+	{ .id = ZORRO_PROD_GVP_GFORCE_040_SCSI_1,	.driver_data = ~0x07ffffff },
+	{ }
 };
 MODULE_DEVICE_TABLE(zorro, gvp11_zorro_tbl);
 

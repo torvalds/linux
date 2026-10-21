@@ -838,11 +838,12 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	port->irq = ret;
 
 	clk = clk_get(&pdev->dev, "refclk");
-	if (IS_ERR(clk) && pdev->dev.of_node)
-		clk = of_clk_get(pdev->dev.of_node, 0);
-
-	if (IS_ERR(clk))
-		return -ENODEV;
+	if (IS_ERR(clk)) {
+		if (pdev->dev.of_node)
+			clk = of_clk_get(pdev->dev.of_node, 0);
+		if (IS_ERR(clk))
+			return -ENODEV;
+	}
 
 	port->iotype = UPIO_MEM;
 	port->ops = &bcm_uart_ops;

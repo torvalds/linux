@@ -875,6 +875,9 @@ static int setup_wait(struct ntsync_device *dev,
 	if (args->pad || (args->flags & ~NTSYNC_WAIT_REALTIME))
 		return -EINVAL;
 
+	if (!args->owner)
+		return -EINVAL;
+
 	if (size >= sizeof(fds))
 		return -EINVAL;
 

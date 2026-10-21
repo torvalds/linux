@@ -796,8 +796,8 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 	struct ad7280_state *st = iio_priv(indio_dev);
 	int i, ret;
 
-	unsigned int *channels __free(kfree) = kcalloc(st->scan_cnt, sizeof(*channels),
-						       GFP_KERNEL);
+	unsigned int *channels __free(kfree) = kzalloc_objs(*channels,
+							    st->scan_cnt);
 	if (!channels)
 		return IRQ_HANDLED;
 
@@ -1082,7 +1082,7 @@ static int ad7280_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7280_id[] = {
-	{ "ad7280a", 0 },
+	{ .name = "ad7280a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7280_id);

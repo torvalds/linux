@@ -44,8 +44,8 @@ enum {
 };
 
 static const struct reg_default stih407_sas_reg_defaults[] = {
-	{ STIH407_AUDIO_DAC_CTRL, 0x000000000 },
 	{ STIH407_AUDIO_GLUE_CTRL, 0x00000040 },
+	{ STIH407_AUDIO_DAC_CTRL, 0x000000000 },
 };
 
 struct sti_dac_audio {

@@ -337,7 +337,8 @@ static bool vop2_output_uv_swap(u32 bus_format, u32 output_mode)
 
 static bool vop2_output_rg_swap(struct vop2 *vop2, u32 bus_format)
 {
-	if (vop2->version == VOP_VERSION_RK3588) {
+	if (vop2->version == VOP_VERSION_RK3588 ||
+	    vop2->version == VOP_VERSION_RK3576) {
 		if (bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
 		    bus_format == MEDIA_BUS_FMT_YUV10_1X30)
 			return true;
@@ -351,6 +352,8 @@ static bool is_yuv_output(u32 bus_format)
 	switch (bus_format) {
 	case MEDIA_BUS_FMT_YUV8_1X24:
 	case MEDIA_BUS_FMT_YUV10_1X30:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_UYVY10_1X20:
 	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
 	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
 	case MEDIA_BUS_FMT_YUYV8_2X8:
@@ -658,7 +661,7 @@ static int vop2_convert_csc_mode(int csc_mode)
 	case V4L2_COLORSPACE_JPEG:
 		return CSC_BT601F;
 	case V4L2_COLORSPACE_BT2020:
-		return CSC_BT2020;
+		return CSC_BT2020L;
 	default:
 		return CSC_BT709L;
 	}
@@ -726,6 +729,89 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 	vop2_win_write(win, VOP2_WIN_Y2R_EN, y2r_en);
 	vop2_win_write(win, VOP2_WIN_R2Y_EN, r2y_en);
 	vop2_win_write(win, VOP2_WIN_CSC_MODE, csc_mode);
+}
+
+/*
+ * RGB-to-YCbCr conversion based on color_to_ycbcr() and rgb2ycbcr() from
+ * drivers/media/common/v4l2-tpg/v4l2-tpg-core.c.
+ *
+ * Limited-range Y offset & chroma midpoint are expressed in 16-bit space.
+ */
+#define RGB2YUV_LIMITED_Y_OFFSET	(16 << 8)
+#define RGB2YUV_CHROMA_OFFSET		(128 << 8)
+#define COEFF(v, r)			((s32)(0.5 + (v) * (r) * 256.0))
+
+struct rgb2yuv_matrix {
+	s32 y_r,  y_g,  y_b;
+	s32 cb_r, cb_g, cb_b;
+	s32 cr_r, cr_g, cr_b;
+	s32 y_offset;
+};
+
+/* BT.601 Limited range */
+static const struct rgb2yuv_matrix rgb2yuv_bt601l = {
+	.y_r  = COEFF(0.299, 219),   .y_g  = COEFF(0.587, 219),   .y_b  = COEFF(0.114, 219),
+	.cb_r = COEFF(-0.1687, 224), .cb_g = COEFF(-0.3313, 224), .cb_b = COEFF(0.5, 224),
+	.cr_r = COEFF(0.5, 224),     .cr_g = COEFF(-0.4187, 224), .cr_b = COEFF(-0.0813, 224),
+	.y_offset = RGB2YUV_LIMITED_Y_OFFSET,
+};
+
+/* BT.601 Full range */
+static const struct rgb2yuv_matrix rgb2yuv_bt601f = {
+	.y_r  = COEFF(0.299, 255),   .y_g  = COEFF(0.587, 255),   .y_b  = COEFF(0.114, 255),
+	.cb_r = COEFF(-0.1687, 255), .cb_g = COEFF(-0.3313, 255), .cb_b = COEFF(0.5, 255),
+	.cr_r = COEFF(0.5, 255),     .cr_g = COEFF(-0.4187, 255), .cr_b = COEFF(-0.0813, 255),
+	.y_offset = 0,
+};
+
+/* BT.709 Limited range */
+static const struct rgb2yuv_matrix rgb2yuv_bt709l = {
+	.y_r  = COEFF(0.2126, 219),  .y_g  = COEFF(0.7152, 219),  .y_b  = COEFF(0.0722, 219),
+	.cb_r = COEFF(-0.1146, 224), .cb_g = COEFF(-0.3854, 224), .cb_b = COEFF(0.5, 224),
+	.cr_r = COEFF(0.5, 224),     .cr_g = COEFF(-0.4542, 224), .cr_b = COEFF(-0.0458, 224),
+	.y_offset = RGB2YUV_LIMITED_Y_OFFSET,
+};
+
+/* BT.2020 Limited range */
+static const struct rgb2yuv_matrix rgb2yuv_bt2020l = {
+	.y_r  = COEFF(0.2627, 219),  .y_g  = COEFF(0.6780, 219),  .y_b  = COEFF(0.0593, 219),
+	.cb_r = COEFF(-0.1396, 224), .cb_g = COEFF(-0.3604, 224), .cb_b = COEFF(0.5, 224),
+	.cr_r = COEFF(0.5, 224),     .cr_g = COEFF(-0.4598, 224), .cr_b = COEFF(-0.0402, 224),
+	.y_offset = RGB2YUV_LIMITED_Y_OFFSET,
+};
+
+static const struct rgb2yuv_matrix *
+vop2_rgb2yuv_get_matrix(enum vop_csc_format csc)
+{
+	switch (csc) {
+	case CSC_BT601L:
+		return &rgb2yuv_bt601l;
+	case CSC_BT601F:
+		return &rgb2yuv_bt601f;
+	case CSC_BT2020L:
+		return &rgb2yuv_bt2020l;
+	case CSC_BT709L:
+	default:
+		return &rgb2yuv_bt709l;
+	}
+}
+
+/* Convert an RGB (16bpc) to YUV444 (16bpc). */
+static void vop2_rgb16_to_yuv16(int v4l2_cs, u16 r, u16 g, u16 b,
+				u16 *y, u16 *cb, u16 *cr)
+{
+	enum vop_csc_format csc = vop2_convert_csc_mode(v4l2_cs);
+	const struct rgb2yuv_matrix *m = vop2_rgb2yuv_get_matrix(csc);
+	s64 rs = r, gs = g, bs = b;
+	s64 ys, cbs, crs;
+
+	ys  = m->y_r  * rs + m->y_g  * gs + m->y_b  * bs;
+	cbs = m->cb_r * rs + m->cb_g * gs + m->cb_b * bs;
+	crs = m->cr_r * rs + m->cr_g * gs + m->cr_b * bs;
+
+	*y  = (ys  >> 16) + m->y_offset;
+	*cb = (cbs >> 16) + RGB2YUV_CHROMA_OFFSET;
+	*cr = (crs >> 16) + RGB2YUV_CHROMA_OFFSET;
 }
 
 static void vop2_crtc_enable_irq(struct vop2_video_port *vp, u32 irq)
@@ -1554,12 +1640,58 @@ static void vop2_dither_setup(struct drm_crtc *crtc, u32 *dsp_ctrl)
 				DITHER_DOWN_ALLEGRO);
 }
 
-static void vop2_post_config(struct drm_crtc *crtc)
+static void vop2_bgcolor_setup(struct drm_crtc *crtc, bool force,
+			       struct drm_crtc_state *new_crtc_state,
+			       struct drm_crtc_state *old_crtc_state)
+{
+	struct rockchip_crtc_state *new_vcstate = to_rockchip_crtc_state(new_crtc_state);
+	struct rockchip_crtc_state *old_vcstate = to_rockchip_crtc_state(old_crtc_state);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	u64 bgcolor = new_crtc_state->background_color;
+	u16 y, cb, cr;
+	u32 val;
+
+	if (!force && old_crtc_state->background_color == bgcolor &&
+	    old_vcstate->color_space == new_vcstate->color_space)
+		return;
+
+	/*
+	 * Background color is programmed with 10 bits of precision, using YUV
+	 * format when operating in YUV overlay mode, and RGB otherwise.
+	 */
+	if (new_vcstate->yuv_overlay) {
+		vop2_rgb16_to_yuv16(new_vcstate->color_space,
+				    DRM_ARGB64_GETR(bgcolor),
+				    DRM_ARGB64_GETG(bgcolor),
+				    DRM_ARGB64_GETB(bgcolor),
+				    &y, &cb, &cr);
+
+		val = FIELD_PREP(RK3568_VP_DSP_BG__DSP_BG_RED, cr >> 6);
+		FIELD_MODIFY(RK3568_VP_DSP_BG__DSP_BG_GREEN, &val, y >> 6);
+		FIELD_MODIFY(RK3568_VP_DSP_BG__DSP_BG_BLUE, &val, cb >> 6);
+	} else {
+		/*
+		 * Since performance is more important than accuracy here, make
+		 * use of the DRM_ARGB64_GET*_BPCS() helpers.
+		 */
+		val = FIELD_PREP(RK3568_VP_DSP_BG__DSP_BG_RED,
+				 DRM_ARGB64_GETR_BPCS(bgcolor, 10));
+		FIELD_MODIFY(RK3568_VP_DSP_BG__DSP_BG_GREEN, &val,
+			     DRM_ARGB64_GETG_BPCS(bgcolor, 10));
+		FIELD_MODIFY(RK3568_VP_DSP_BG__DSP_BG_BLUE, &val,
+			     DRM_ARGB64_GETB_BPCS(bgcolor, 10));
+	}
+
+	vop2_vp_write(vp, RK3568_VP_DSP_BG, val);
+}
+
+static void vop2_post_config(struct drm_crtc *crtc, bool force,
+			     struct drm_crtc_state *new_crtc_state,
+			     struct drm_crtc_state *old_crtc_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
-	u64 bgcolor = crtc->state->background_color;
+	struct drm_display_mode *mode = &new_crtc_state->adjusted_mode;
 	u16 vtotal = mode->crtc_vtotal;
 	u16 hdisplay = mode->crtc_hdisplay;
 	u16 hact_st = mode->crtc_htotal - mode->crtc_hsync_start;
@@ -1605,15 +1737,7 @@ static void vop2_post_config(struct drm_crtc *crtc)
 		vop2_vp_write(vp, RK3568_VP_POST_DSP_VACT_INFO_F1, val);
 	}
 
-	/*
-	 * Background color is programmed with 10 bits of precision.
-	 * Since performance is more important than accuracy here,
-	 * make use of the DRM_ARGB64_GET*_BPCS() helpers.
-	 */
-	val = FIELD_PREP(RK3568_VP_DSP_BG__DSP_BG_RED, DRM_ARGB64_GETR_BPCS(bgcolor, 10));
-	FIELD_MODIFY(RK3568_VP_DSP_BG__DSP_BG_GREEN, &val, DRM_ARGB64_GETG_BPCS(bgcolor, 10));
-	FIELD_MODIFY(RK3568_VP_DSP_BG__DSP_BG_BLUE, &val, DRM_ARGB64_GETB_BPCS(bgcolor, 10));
-	vop2_vp_write(vp, RK3568_VP_DSP_BG, val);
+	vop2_bgcolor_setup(crtc, force, new_crtc_state, old_crtc_state);
 }
 
 static int us_to_vertical_line(struct drm_display_mode *mode, int us)
@@ -1628,8 +1752,9 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc_state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	unsigned long clock = mode->crtc_clock * 1000;
 	u16 hsync_len = mode->crtc_hsync_end - mode->crtc_hsync_start;
@@ -1699,6 +1824,22 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (vcstate->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
 	    !(vp_data->feature & VOP2_VP_FEATURE_OUTPUT_10BIT))
 		out_mode = ROCKCHIP_OUT_MODE_P888;
+	else if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV422 &&
+		 vop2->version == VOP_VERSION_RK3576)
+		switch (vcstate->output_type) {
+		case DRM_MODE_CONNECTOR_DisplayPort:
+		case DRM_MODE_CONNECTOR_eDP:
+			out_mode = ROCKCHIP_OUT_MODE_YUV422_RK3576_DP;
+			break;
+		case DRM_MODE_CONNECTOR_HDMIA:
+			out_mode = ROCKCHIP_OUT_MODE_YUV422_RK3576_HDMI;
+			break;
+		default:
+			drm_err(vop2->drm, "Unknown DRM_MODE_CONNECTOR %d\n",
+				vcstate->output_type);
+			vop2_unlock(vop2);
+			return;
+		}
 	else
 		out_mode = vcstate->output_mode;
 
@@ -1799,7 +1940,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	clk_set_rate(vp->dclk, clock);
 
-	vop2_post_config(crtc);
+	vop2_post_config(crtc, true, crtc_state, old_crtc_state);
 
 	vop2_cfg_done(vp);
 
@@ -1874,6 +2015,7 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc,
 				   struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 
@@ -1881,7 +2023,7 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc,
 	if (!drm_atomic_crtc_needs_modeset(crtc_state) && crtc_state->color_mgmt_changed)
 		vop2_crtc_atomic_try_set_gamma_locked(vop2, vp, crtc, crtc_state);
 
-	vop2_post_config(crtc);
+	vop2_post_config(crtc, false, crtc_state, old_crtc_state);
 
 	vop2_cfg_done(vp);
 

@@ -162,10 +162,6 @@ struct acpi_hotplug_context {
  * -----------
  */
 
-bool acpi_of_match_device(const struct acpi_device *adev,
-			  const struct of_device_id *of_match_table,
-			  const struct of_device_id **of_id);
-
 /* Status (_STA) */
 
 struct acpi_device_status {
@@ -206,12 +202,8 @@ struct acpi_device_dir {
 
 /* Plug and Play */
 
-#define MAX_ACPI_DEVICE_NAME_LEN	40
-#define MAX_ACPI_CLASS_NAME_LEN		20
 typedef char acpi_bus_id[8];
 typedef u64 acpi_bus_address;
-typedef char acpi_device_name[MAX_ACPI_DEVICE_NAME_LEN];
-typedef char acpi_device_class[MAX_ACPI_CLASS_NAME_LEN];
 
 struct acpi_hardware_id {
 	struct list_head list;
@@ -233,16 +225,12 @@ struct acpi_device_pnp {
 	acpi_bus_address bus_address;	/* _ADR */
 	char *unique_id;		/* _UID */
 	struct list_head ids;		/* _HID and _CIDs */
-	acpi_device_name device_name;	/* Driver-determined */
-	acpi_device_class device_class;	/*        "          */
 };
 
 #define acpi_device_bid(d)	((d)->pnp.bus_id)
 #define acpi_device_adr(d)	((d)->pnp.bus_address)
 const char *acpi_device_hid(struct acpi_device *device);
 #define acpi_device_uid(d)	((d)->pnp.unique_id)
-#define acpi_device_name(d)	((d)->pnp.device_name)
-#define acpi_device_class(d)	((d)->pnp.device_class)
 
 /* Power Management */
 
@@ -582,6 +570,9 @@ int acpi_dev_for_each_child_reverse(struct acpi_device *adev,
  * ------
  */
 
+#define MAX_ACPI_CLASS_NAME_LEN		20
+typedef char acpi_device_class[MAX_ACPI_CLASS_NAME_LEN];
+
 struct acpi_bus_event {
 	struct list_head node;
 	acpi_device_class device_class;
@@ -650,6 +641,7 @@ int acpi_scan_add_handler(struct acpi_scan_handler *handler);
 int acpi_bus_scan(acpi_handle handle);
 void acpi_bus_trim(struct acpi_device *start);
 acpi_status acpi_bus_get_ejd(acpi_handle handle, acpi_handle * ejd);
+struct device *acpi_bus_get_primary_device(struct acpi_device *adev);
 int acpi_match_device_ids(struct acpi_device *device,
 			  const struct acpi_device_id *ids);
 void acpi_set_modalias(struct acpi_device *adev, const char *default_id,
@@ -952,11 +944,9 @@ int acpi_scan_add_dep(acpi_handle handle, struct acpi_handle_list *dep_devices);
 u32 arch_acpi_add_auto_dep(acpi_handle handle);
 #else	/* CONFIG_ACPI */
 
-static inline bool acpi_of_match_device(const struct acpi_device *adev,
-					const struct of_device_id *of_match_table,
-					const struct of_device_id **of_id)
+static inline struct device *acpi_bus_get_primary_device(struct acpi_device *adev)
 {
-	return false;
+	return NULL;
 }
 
 static inline int register_acpi_bus_type(void *bus) { return 0; }

@@ -1421,7 +1421,8 @@ static int nfp_net_get_fs_rule(struct nfp_net *nn, struct ethtool_rxnfc *cmd)
 	return -ENOENT;
 }
 
-static int nfp_net_get_fs_loc(struct nfp_net *nn, u32 *rule_locs)
+static int nfp_net_get_fs_loc(struct nfp_net *nn, struct ethtool_rxnfc *cmd,
+			      u32 *rule_locs)
 {
 	struct nfp_fs_entry *entry;
 	u32 count = 0;
@@ -1429,8 +1430,12 @@ static int nfp_net_get_fs_loc(struct nfp_net *nn, u32 *rule_locs)
 	if (!(nn->cap_w1 & NFP_NET_CFG_CTRL_FLOW_STEER))
 		return -EOPNOTSUPP;
 
-	list_for_each_entry(entry, &nn->fs.list, node)
+	list_for_each_entry(entry, &nn->fs.list, node) {
+		if (count == cmd->rule_cnt)
+			return -EMSGSIZE;
 		rule_locs[count++] = entry->loc;
+	}
+	cmd->rule_cnt = count;
 
 	return 0;
 }
@@ -1455,7 +1460,7 @@ static int nfp_net_get_rxnfc(struct net_device *netdev,
 		return nfp_net_get_fs_rule(nn, cmd);
 	case ETHTOOL_GRXCLSRLALL:
 		cmd->data = NFP_FS_MAX_ENTRY;
-		return nfp_net_get_fs_loc(nn, rule_locs);
+		return nfp_net_get_fs_loc(nn, cmd, rule_locs);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1698,8 +1703,14 @@ static int nfp_net_fs_add(struct nfp_net *nn, struct ethtool_rxnfc *cmd)
 
 			nn->fs.count--;
 			err = nfp_net_fs_add_hw(nn, new);
-			if (err)
+			if (err) {
+				/* mbox broken, adding the old rule back will
+				 * likely also fail.
+				 */
+				list_del(&entry->node);
+				kfree(entry);
 				goto err;
+			}
 
 			nn->fs.count++;
 			list_replace(&entry->node, &new->node);

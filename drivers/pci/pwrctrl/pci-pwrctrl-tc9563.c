@@ -79,8 +79,7 @@ enum tc9563_pwrctrl_ports {
 	TC9563_USP,
 	TC9563_DSP1,
 	TC9563_DSP2,
-	TC9563_DSP3,
-	TC9563_ETHERNET,
+	TC9563_VDSP,
 	TC9563_MAX
 };
 
@@ -108,6 +107,7 @@ struct tc9563_pwrctrl {
 	struct pci_pwrctrl pwrctrl;
 	struct regulator_bulk_data supplies[TC9563_PWRCTL_MAX_SUPPLY];
 	struct tc9563_pwrctrl_cfg cfg[TC9563_MAX];
+	struct tc9563_pwrctrl_cfg ep_cfg;
 	struct gpio_desc *reset_gpio;
 	struct i2c_adapter *adapter;
 	struct i2c_client *client;
@@ -240,12 +240,18 @@ static int tc9563_pwrctrl_disable_port(struct tc9563_pwrctrl *tc9563,
 	if (!cfg->disable_port)
 		return 0;
 
-	if (port == TC9563_DSP1) {
+	switch (port) {
+	case TC9563_DSP1:
 		seq = dsp1_pwroff_seq;
 		len = ARRAY_SIZE(dsp1_pwroff_seq);
-	} else {
+		break;
+	case TC9563_DSP2:
 		seq = dsp2_pwroff_seq;
 		len = ARRAY_SIZE(dsp2_pwroff_seq);
+		break;
+	default:
+		/* Only external downstream ports DSP1/DSP2 can be powered off */
+		return 0;
 	}
 
 	ret = tc9563_pwrctrl_i2c_bulk_write(tc9563->client, seq, len);
@@ -256,11 +262,11 @@ static int tc9563_pwrctrl_disable_port(struct tc9563_pwrctrl *tc9563,
 					     ARRAY_SIZE(common_pwroff_seq));
 }
 
-static int tc9563_pwrctrl_set_l0s_l1_entry_delay(struct tc9563_pwrctrl *tc9563,
-						 enum tc9563_pwrctrl_ports port,
-						 bool is_l1, u32 ns)
+static int tc9563_pwrctrl_set_port_l0s_l1_entry_delay(struct tc9563_pwrctrl *tc9563,
+						      enum tc9563_pwrctrl_ports port,
+						      bool is_l1, u32 ns)
 {
-	u32 rd_val, units;
+	u32 units;
 	int ret;
 
 	if (ns < TC9563_L0S_L1_DELAY_UNIT_NS)
@@ -268,25 +274,6 @@ static int tc9563_pwrctrl_set_l0s_l1_entry_delay(struct tc9563_pwrctrl *tc9563,
 
 	/* convert to units of 256ns */
 	units = ns / TC9563_L0S_L1_DELAY_UNIT_NS;
-
-	if (port == TC9563_ETHERNET) {
-		ret = tc9563_pwrctrl_i2c_read(tc9563->client,
-					      TC9563_EMBEDDED_ETH_DELAY,
-					      &rd_val);
-		if (ret)
-			return ret;
-
-		if (is_l1)
-			rd_val = u32_replace_bits(rd_val, units,
-						  TC9563_ETH_L1_DELAY_MASK);
-		else
-			rd_val = u32_replace_bits(rd_val, units,
-						  TC9563_ETH_L0S_DELAY_MASK);
-
-		return tc9563_pwrctrl_i2c_write(tc9563->client,
-						TC9563_EMBEDDED_ETH_DELAY,
-						rd_val);
-	}
 
 	ret = tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_PORT_SELECT,
 				       BIT(port));
@@ -298,9 +285,38 @@ static int tc9563_pwrctrl_set_l0s_l1_entry_delay(struct tc9563_pwrctrl *tc9563,
 			units);
 }
 
+static int tc9563_pwrctrl_set_eth_l0s_l1_entry_delay(struct tc9563_pwrctrl *tc9563,
+						     bool is_l1, u32 ns)
+{
+	u32 rd_val, units;
+	int ret;
+
+	if (ns < TC9563_L0S_L1_DELAY_UNIT_NS)
+		return 0;
+
+	/* convert to units of 256ns */
+	units = ns / TC9563_L0S_L1_DELAY_UNIT_NS;
+
+	ret = tc9563_pwrctrl_i2c_read(tc9563->client, TC9563_EMBEDDED_ETH_DELAY,
+				      &rd_val);
+	if (ret)
+		return ret;
+
+	if (is_l1)
+		rd_val = u32_replace_bits(rd_val, units,
+					  TC9563_ETH_L1_DELAY_MASK);
+	else
+		rd_val = u32_replace_bits(rd_val, units,
+					  TC9563_ETH_L0S_DELAY_MASK);
+
+	return tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_EMBEDDED_ETH_DELAY,
+					rd_val);
+}
+
 static int tc9563_pwrctrl_set_tx_amplitude(struct tc9563_pwrctrl *tc9563,
 					   enum tc9563_pwrctrl_ports port)
 {
+	struct device *dev = tc9563->pwrctrl.dev;
 	u32 amp = tc9563->cfg[port].tx_amp;
 	int port_access;
 
@@ -320,6 +336,9 @@ static int tc9563_pwrctrl_set_tx_amplitude(struct tc9563_pwrctrl *tc9563,
 	case TC9563_DSP2:
 		port_access = 0x8;
 		break;
+	case TC9563_VDSP:
+		dev_dbg(dev, "Tx amplitude tuning not supported for VDSP\n");
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -338,6 +357,7 @@ static int tc9563_pwrctrl_disable_dfe(struct tc9563_pwrctrl *tc9563,
 				      enum tc9563_pwrctrl_ports port)
 {
 	struct tc9563_pwrctrl_cfg *cfg = &tc9563->cfg[port];
+	struct device *dev = tc9563->pwrctrl.dev;
 	int port_access, lane_access = 0x3;
 	u32 phy_rate = 0x21;
 
@@ -356,6 +376,9 @@ static int tc9563_pwrctrl_disable_dfe(struct tc9563_pwrctrl *tc9563,
 		port_access = 0x8;
 		lane_access = 0x1;
 		break;
+	case TC9563_VDSP:
+		dev_dbg(dev, "DFE tuning not supported for VDSP\n");
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -386,10 +409,16 @@ static int tc9563_pwrctrl_set_nfts(struct tc9563_pwrctrl *tc9563,
 		{TC9563_NFTS_2_5_GT, nfts[0]},
 		{TC9563_NFTS_5_GT, nfts[1]},
 	};
+	struct device *dev = tc9563->pwrctrl.dev;
 	int ret;
 
 	if (!nfts[0])
 		return 0;
+
+	if (port == TC9563_VDSP) {
+		dev_dbg(dev, "N_FTS tuning not supported for VDSP\n");
+		return 0;
+	}
 
 	ret =  tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_PORT_SELECT,
 					BIT(port));
@@ -415,11 +444,9 @@ static int tc9563_pwrctrl_assert_deassert_reset(struct tc9563_pwrctrl *tc9563,
 	return tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_RESET_GPIO, val);
 }
 
-static int tc9563_pwrctrl_parse_device_dt(struct tc9563_pwrctrl *tc9563,
-					  struct device_node *node,
-					  enum tc9563_pwrctrl_ports port)
+static int tc9563_pwrctrl_parse_device_dt(struct device_node *node,
+					  struct tc9563_pwrctrl_cfg *cfg)
 {
-	struct tc9563_pwrctrl_cfg *cfg = &tc9563->cfg[port];
 	int ret;
 
 	/* Disable port if the status of the port is disabled. */
@@ -490,13 +517,13 @@ static int tc9563_pwrctrl_power_on(struct pci_pwrctrl *pwrctrl)
 			goto power_off;
 		}
 
-		ret = tc9563_pwrctrl_set_l0s_l1_entry_delay(tc9563, i, false, cfg->l0s_delay);
+		ret = tc9563_pwrctrl_set_port_l0s_l1_entry_delay(tc9563, i, false, cfg->l0s_delay);
 		if (ret) {
 			dev_err(dev, "Setting L0s entry delay failed\n");
 			goto power_off;
 		}
 
-		ret = tc9563_pwrctrl_set_l0s_l1_entry_delay(tc9563, i, true, cfg->l1_delay);
+		ret = tc9563_pwrctrl_set_port_l0s_l1_entry_delay(tc9563, i, true, cfg->l1_delay);
 		if (ret) {
 			dev_err(dev, "Setting L1 entry delay failed\n");
 			goto power_off;
@@ -519,6 +546,21 @@ static int tc9563_pwrctrl_power_on(struct pci_pwrctrl *pwrctrl)
 			dev_err(dev, "Disabling DFE failed\n");
 			goto power_off;
 		}
+	}
+
+	/* Configure the integrated Ethernet MAC endpoint */
+	ret = tc9563_pwrctrl_set_eth_l0s_l1_entry_delay(tc9563, false,
+							tc9563->ep_cfg.l0s_delay);
+	if (ret) {
+		dev_err(dev, "Setting Ethernet L0s entry delay failed\n");
+		goto power_off;
+	}
+
+	ret = tc9563_pwrctrl_set_eth_l0s_l1_entry_delay(tc9563, true,
+							tc9563->ep_cfg.l1_delay);
+	if (ret) {
+		dev_err(dev, "Setting Ethernet L1 entry delay failed\n");
+		goto power_off;
 	}
 
 	ret = tc9563_pwrctrl_assert_deassert_reset(tc9563, true);
@@ -548,7 +590,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "Failed to read i2c-parent property\n");
 
 	i2c_node = of_parse_phandle(dev->of_node, "i2c-parent", 0);
-	tc9563->adapter = of_find_i2c_adapter_by_node(i2c_node);
+	tc9563->adapter = of_get_i2c_adapter_by_node(i2c_node);
 	of_node_put(i2c_node);
 	if (!tc9563->adapter)
 		return dev_err_probe(dev, -EPROBE_DEFER, "Failed to find I2C adapter\n");
@@ -556,7 +598,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 	tc9563->client = i2c_new_dummy_device(tc9563->adapter, addr);
 	if (IS_ERR(tc9563->client)) {
 		dev_err(dev, "Failed to create I2C client\n");
-		put_device(&tc9563->adapter->dev);
+		i2c_put_adapter(tc9563->adapter);
 		return PTR_ERR(tc9563->client);
 	}
 
@@ -578,8 +620,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 
 	pci_pwrctrl_init(&tc9563->pwrctrl, dev);
 
-	port = TC9563_USP;
-	ret = tc9563_pwrctrl_parse_device_dt(tc9563, node, port);
+	ret = tc9563_pwrctrl_parse_device_dt(node, &tc9563->cfg[TC9563_USP]);
 	if (ret) {
 		dev_err(dev, "failed to parse device tree properties: %d\n", ret);
 		goto remove_i2c;
@@ -590,17 +631,26 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 	 * The first node represents DSP1, the second node represents DSP2,
 	 * and so on.
 	 */
+	port = TC9563_USP;
 	for_each_child_of_node_scoped(node, child) {
-		port++;
-		ret = tc9563_pwrctrl_parse_device_dt(tc9563, child, port);
+		if (++port >= TC9563_MAX)
+			break;
+
+		ret = tc9563_pwrctrl_parse_device_dt(child, &tc9563->cfg[port]);
 		if (ret)
 			break;
-		/* Embedded ethernet device are under DSP3 */
-		if (port == TC9563_DSP3) {
-			for_each_child_of_node_scoped(child, child1) {
-				port++;
-				ret = tc9563_pwrctrl_parse_device_dt(tc9563,
-								child1, port);
+
+		/*
+		 * The integrated Ethernet MAC Endpoint under VDSP is a single
+		 * device whose functions share the same config registers.
+		 */
+		if (port == TC9563_VDSP) {
+			struct device_node *eth __free(device_node) =
+					of_get_next_available_child(child, NULL);
+
+			if (eth) {
+				ret = tc9563_pwrctrl_parse_device_dt(eth,
+							&tc9563->ep_cfg);
 				if (ret)
 					break;
 			}
@@ -624,7 +674,7 @@ power_off:
 	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
 remove_i2c:
 	i2c_unregister_device(tc9563->client);
-	put_device(&tc9563->adapter->dev);
+	i2c_put_adapter(tc9563->adapter);
 	return ret;
 }
 
@@ -636,7 +686,7 @@ static void tc9563_pwrctrl_remove(struct platform_device *pdev)
 
 	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
 	i2c_unregister_device(tc9563->client);
-	put_device(&tc9563->adapter->dev);
+	i2c_put_adapter(tc9563->adapter);
 }
 
 static const struct of_device_id tc9563_pwrctrl_of_match[] = {

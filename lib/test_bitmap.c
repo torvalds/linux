@@ -234,6 +234,43 @@ static void __init test_find_nth_bit(void)
 	}
 }
 
+static void __init
+test_bitmap_find_next_zero_area_off(void)
+{
+	DECLARE_BITMAP(bmap, 192);
+
+	bitmap_set(bmap, 0, 192);
+
+	bitmap_clear(bmap, 0, 8);
+	__clear_bit(50, bmap);
+	bitmap_clear(bmap, 60, 18);
+	__set_bit(69, bmap);
+	__clear_bit(80, bmap);
+	bitmap_clear(bmap, 100, 10);
+	__clear_bit(120, bmap);
+	bitmap_clear(bmap, 145, 8);
+	bitmap_clear(bmap, 160, 32);
+
+	expect_eq_uint(0,
+		bitmap_find_next_zero_area_off(bmap, 192, 0, 8, 0, 0));
+	expect_eq_uint(0,
+		bitmap_find_next_zero_area_off(bmap, 192, 0, 8, 3, 0));
+	expect_eq_uint(163,
+		bitmap_find_next_zero_area_off(bmap, 192, 0, 8, 3, 1));
+	expect_eq_uint(60,
+		bitmap_find_next_zero_area_off(bmap, 192, 1, 8, 0, 0));
+	expect_eq_uint(160,
+		bitmap_find_next_zero_area_off(bmap, 192, 1, 8, 7, 0));
+	expect_eq_uint(60,
+		bitmap_find_next_zero_area_off(bmap, 192, 1, 8, 7, 4));
+	expect_eq_uint(100,
+		bitmap_find_next_zero_area_off(bmap, 192, 0, 10, 0, 0));
+	expect_eq_uint(160,
+		bitmap_find_next_zero_area_off(bmap, 192, 0, 32, 0, 0));
+	expect_eq_uint(1,
+		!!(bitmap_find_next_zero_area_off(bmap, 192, 0, 33, 0, 0) >= 192));
+}
+
 static void __init test_fill_set(void)
 {
 	DECLARE_BITMAP(bmap, 1024);
@@ -392,6 +429,7 @@ static void __init test_bitmap_sg(void)
 
 	/* Scatter/gather relationship */
 	bitmap_zero(bmap_tmp, 100);
+	bitmap_zero(bmap_res, 100);
 	bitmap_gather(bmap_tmp, bmap_scatter, sg_mask, nbits);
 	bitmap_scatter(bmap_res, bmap_tmp, sg_mask, nbits);
 	expect_eq_bitmap(bmap_scatter, bmap_res, 100);
@@ -1559,6 +1597,7 @@ static void __init selftest(void)
 	test_for_each_clear_bitrange_from();
 	test_for_each_set_clump8();
 	test_for_each_set_bit_wrap();
+	test_bitmap_find_next_zero_area_off();
 }
 
 KSTM_MODULE_LOADERS(test_bitmap);

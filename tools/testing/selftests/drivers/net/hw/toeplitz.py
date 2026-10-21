@@ -21,6 +21,8 @@ from lib.py import ksft_variants, KsftNamedVariant, KsftSkipEx, KsftFailEx
 ETH_RSS_HASH_TOP = 1
 # Must match RPS_MAX_CPUS in toeplitz.c
 RPS_MAX_CPUS = 16
+# Cap Rx queues so IRQ pinning leaves free CPUs in the RPS_MAX_CPUS range
+QUEUE_CAP = 8
 
 
 def _check_rps_and_rfs_not_configured(cfg):
@@ -46,6 +48,25 @@ def _get_cpu_for_irq(irq):
         if "," in data or "-" in data:
             raise KsftFailEx(f"IRQ{irq} is not mapped to a single core: {data}")
         return int(data)
+
+
+def _cap_queue_count(cfg):
+    ehdr = {"header": {"dev-index": cfg.ifindex}}
+    chans = cfg.ethnl.channels_get(ehdr)
+
+    config = {}
+    restore = {}
+    for key in ("combined-count", "rx-count"):
+        cur = chans.get(key, 0)
+        if cur > QUEUE_CAP:
+            config[key] = QUEUE_CAP
+            restore[key] = cur
+
+    if not config:
+        return
+
+    cfg.ethnl.channels_set(ehdr | config)
+    defer(cfg.ethnl.channels_set, ehdr | restore)
 
 
 def _get_irq_cpus(cfg):
@@ -177,6 +198,7 @@ def test(cfg, proto_flag, ipver, grp):
     ]
 
     if grp:
+        _cap_queue_count(cfg)
         _check_rps_and_rfs_not_configured(cfg)
     if grp == "rss":
         irq_cpus = ",".join([str(x) for x in _get_irq_cpus(cfg)])

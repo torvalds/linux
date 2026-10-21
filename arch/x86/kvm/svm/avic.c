@@ -285,12 +285,9 @@ static int avic_get_physical_id_table_order(struct kvm *kvm)
 	return get_order((__avic_get_max_physical_id(kvm, NULL) + 1) * sizeof(u64));
 }
 
-int avic_alloc_physical_id_table(struct kvm *kvm)
+static int avic_alloc_physical_id_table(struct kvm *kvm)
 {
 	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
-
-	if (!irqchip_in_kernel(kvm) || !enable_apicv)
-		return 0;
 
 	if (kvm_svm->avic_physical_id_table)
 		return 0;
@@ -303,39 +300,32 @@ int avic_alloc_physical_id_table(struct kvm *kvm)
 	return 0;
 }
 
-void avic_vm_destroy(struct kvm *kvm)
+static int avic_alloc_logical_id_table(struct kvm *kvm)
 {
-	unsigned long flags;
 	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
 
-	if (!enable_apicv)
-		return;
-
-	free_page((unsigned long)kvm_svm->avic_logical_id_table);
-	free_pages((unsigned long)kvm_svm->avic_physical_id_table,
-		   avic_get_physical_id_table_order(kvm));
-
-	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
-	hash_del(&kvm_svm->hnode);
-	spin_unlock_irqrestore(&svm_vm_data_hash_lock, flags);
-}
-
-int avic_vm_init(struct kvm *kvm)
-{
-	unsigned long flags;
-	int err = -ENOMEM;
-	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
-	struct kvm_svm *k2;
-	u32 vm_id;
-
-	if (!enable_apicv)
+	if (kvm_svm->avic_logical_id_table)
 		return 0;
 
 	kvm_svm->avic_logical_id_table = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!kvm_svm->avic_logical_id_table)
-		goto free_avic;
+		return -ENOMEM;
 
-	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
+	return 0;
+}
+
+static void avic_add_vm_to_ga_log_list(struct kvm *kvm)
+{
+	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
+	struct kvm_svm *k2;
+	u32 vm_id;
+
+	lockdep_assert_held(&kvm->lock);
+
+	if (kvm_svm->avic_vm_id)
+		return;
+
+	guard(spinlock_irqsave)(&svm_vm_data_hash_lock);
  again:
 	vm_id = next_vm_id = (next_vm_id + 1) & AVIC_VM_ID_MASK;
 	if (vm_id == 0) { /* id is 1-based, zero is not okay */
@@ -351,13 +341,53 @@ int avic_vm_init(struct kvm *kvm)
 	}
 	kvm_svm->avic_vm_id = vm_id;
 	hash_add(svm_vm_data_hash, &kvm_svm->hnode, kvm_svm->avic_vm_id);
-	spin_unlock_irqrestore(&svm_vm_data_hash_lock, flags);
+}
 
+int avic_vcpu_precreate(struct kvm *kvm)
+{
+	int r;
+
+	if (!irqchip_in_kernel(kvm) || WARN_ON_ONCE(!enable_apicv))
+		return 0;
+
+	/*
+	 * Don't unwind on failure, all actions must be idempotent with respect
+	 * to creating multiple vCPUs, i.e. must persist until the VM is destroyed.
+	 */
+	r = avic_alloc_physical_id_table(kvm);
+	if (r)
+		return r;
+
+	r = avic_alloc_logical_id_table(kvm);
+	if (r)
+		return r;
+
+	avic_add_vm_to_ga_log_list(kvm);
 	return 0;
+}
 
-free_avic:
-	avic_vm_destroy(kvm);
-	return err;
+void avic_vm_pre_destroy(struct kvm *kvm)
+{
+	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
+
+	if (WARN_ON_ONCE(!enable_apicv) || !kvm_svm->avic_vm_id)
+		return;
+
+	guard(spinlock_irqsave)(&svm_vm_data_hash_lock);
+
+	hash_del(&kvm_svm->hnode);
+}
+
+void avic_vm_destroy(struct kvm *kvm)
+{
+	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
+
+	if (!enable_apicv)
+		return;
+
+	free_page((unsigned long)kvm_svm->avic_logical_id_table);
+	free_pages((unsigned long)kvm_svm->avic_physical_id_table,
+		   avic_get_physical_id_table_order(kvm));
 }
 
 static phys_addr_t avic_get_backing_page_address(struct vcpu_svm *svm)

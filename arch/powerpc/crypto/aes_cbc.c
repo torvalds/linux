@@ -72,7 +72,7 @@ static int p8_aes_cbc_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	return ret ? -EINVAL : 0;
 }
 
-static int p8_aes_cbc_crypt(struct skcipher_request *req, int enc)
+static int p8_aes_cbc_crypt(struct skcipher_request *req, bool enc)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	const struct p8_aes_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -110,12 +110,12 @@ static int p8_aes_cbc_crypt(struct skcipher_request *req, int enc)
 
 static int p8_aes_cbc_encrypt(struct skcipher_request *req)
 {
-	return p8_aes_cbc_crypt(req, 1);
+	return p8_aes_cbc_crypt(req, true);
 }
 
 static int p8_aes_cbc_decrypt(struct skcipher_request *req)
 {
-	return p8_aes_cbc_crypt(req, 0);
+	return p8_aes_cbc_crypt(req, false);
 }
 
 struct skcipher_alg p8_aes_cbc_alg = {

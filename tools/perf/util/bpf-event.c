@@ -969,7 +969,8 @@ void __bpf_event__print_bpf_prog_info(struct perf_bpil *info_linear,
 {
 	struct bpf_prog_info *info = &info_linear->info;
 	__u64 required_arrays = (1UL << PERF_BPIL_JITED_KSYMS) |
-				(1UL << PERF_BPIL_JITED_FUNC_LENS);
+				(1UL << PERF_BPIL_JITED_FUNC_LENS) |
+				(1UL << PERF_BPIL_PROG_TAGS);
 	__u32 *prog_lens;
 	__u64 *prog_addrs;
 	char name[KSYM_NAME_LEN];

@@ -11,11 +11,47 @@
 #define BTC_TLV_SLOT_ID_LEN_V7 1
 #define BTC_SLOT_REQ_TH 2
 
+#define BTC_FREQ_W2G 2412
+#define BTC_FREQ_W5G 5005
+#define BTC_FREQ_W6G 5955
+
+#define BTC_FREQ_B2G 2402
+#define BTC_FREQ_B6G 5125
+
+#define BTC_FREQ_W2G_CH14 2484
+
+#define BTC_LO_2G_DNM 125 /* LO Coefficient Denominator */
+#define BTC_LO_5G_DNM 125
+#define BTC_LO_6G_DNM 150
+
+#define BTC_LO_2G_NMR 400 /* LO Coefficient Numerator */
+#define BTC_LO_5G_NMR 200
+#define BTC_LO_6G_NMR 200
+
+#define BTC_CH_W2G_MIN 1    /* start from 2412MHz */
+#define BTC_CH_W2G_MAX 14
+#define BTC_CH_W5G_MIN 1    /* start from 5005MHz */
+#define BTC_CH_W5G_MAX 165
+#define BTC_CH_W6G_MIN 1    /* start from 5955MHz */
+#define BTC_CH_W6G_MAX 233
+
+#define BTC_CH_B2G_MIN 0    /* start from 2402MHz */
+#define BTC_CH_B2G_MAX 78
+
+#define BTC_CH_B5G_MIN 600    /* start from 5725MHz */
+#define BTC_CH_B5G_MAX 1300
+
+#define BTC_VCO_GUARD_W2W 10 /* WiFi to WiFi VCO freq forbiddened range (MHZ) */
+#define BTC_VCO_GUARD_W2B 25 /* WiFi to WiFi VCO freq forbiddened range (MHZ) */
+#define BTC_VCO_GUARD_B2B 10 /* WiFi to WiFi VCO freq forbiddened range (MHZ) */
+
 enum btc_mode {
 	BTC_MODE_NORMAL,
 	BTC_MODE_WL,
 	BTC_MODE_BT,
 	BTC_MODE_WLOFF,
+	BTC_MODE_COTX,
+	BTC_MODE_MECHANISM_INIT,
 	BTC_MODE_MAX
 };
 
@@ -33,7 +69,7 @@ enum btc_wl_rfk_type {
 #define NM_EXEC false
 #define FC_EXEC true
 
-#define RTW89_COEX_ACT1_WORK_PERIOD	round_jiffies_relative(HZ * 4)
+#define RTW89_COEX_ACT1_WORK_PERIOD	round_jiffies_relative(HZ)
 #define RTW89_COEX_BT_DEVINFO_WORK_PERIOD	round_jiffies_relative(HZ * 16)
 #define RTW89_COEX_RFK_CHK_WORK_PERIOD	msecs_to_jiffies(300)
 #define BTC_RFK_PATH_MAP GENMASK(3, 0)
@@ -91,6 +127,11 @@ enum btc_fddt_en {
 	  ((__rssi == BTC_RSSI_ST_LOW || \
 	    __rssi == BTC_RSSI_ST_HIGH) ? 1 : 0); })
 
+/* Antenna TX/RX path position masks and helpers */
+#define BTC_ANT_TX_MASK 0xf0
+#define BTC_ANT_RX_MASK 0x0f
+#define BTC_ANT_SHIFT 4
+
 enum btc_ant {
 	BTC_ANT_SHARED = 0,
 	BTC_ANT_DEDICATED,
@@ -105,6 +146,11 @@ enum btc_bt_btg {
 enum btc_switch {
 	BTC_SWITCH_INTERNAL = 0,
 	BTC_SWITCH_EXTERNAL
+};
+
+enum btc_ant_switch_type {
+	BTC_SWITCH_V1_NONE = 0, /* independent antenna */
+	BTC_SWITCH_V1_INTERNAL, /* internal-switch: BTGA structure */
 };
 
 enum btc_pkt_type {
@@ -205,6 +251,14 @@ enum btc_3cx_type {
 	BTC_3CX_MAX,
 };
 
+enum btc_fddt_type {
+	BTC_FDDT_TYPE_STOP,
+	BTC_FDDT_TYPE_AUTO,
+	BTC_FDDT_TYPE_FIX_TDD,
+	BTC_FDDT_TYPE_FIX_FULL_FDD,
+	BTC_FDDT_MAX,
+};
+
 enum btc_chip_feature {
 	BTC_FEAT_PTA_ONOFF_CTRL  = BIT(0), /* on/off ctrl by HW (not 0x73[2]) */
 	BTC_FEAT_NONBTG_GWL_THRU = BIT(1), /* non-BTG GNT_WL!=0 if GNT_BT = 1 */
@@ -212,6 +266,36 @@ enum btc_chip_feature {
 	BTC_FEAT_NEW_BBAPI_FLOW = BIT(3), /* new btg_ctrl/pre_agc_ctrl */
 	BTC_FEAT_MLO_SUPPORT = BIT(4),
 	BTC_FEAT_H2C_MACRO = BIT(5),
+	BTC_FEAT_DUAL_BT = BIT(6),
+	BTC_FEAT_BT_6G = BIT(7),
+	BTC_FEAT_MULTI_PTA = BIT(8),
+	BTC_FEAT_DUAL_BTGA = BIT(9) /* the future A-Die */
+};
+
+enum btc_efuse_ant_function_map {
+	BTC_EFMAP_NONE = 0,
+	BTC_EFMAP_BT0 = BIT(0),
+	BTC_EFMAP_BT1 = BIT(1),
+	BTC_EFMAP_ZB = BIT(2), /* ZB or thread */
+	BTC_EFMAP_24GP = BIT(3),
+	BTC_EFMAP_ULL = BIT(4),
+};
+
+enum btc_extsoc_interface { /* cx->other.hw_coex */
+	BTC_EXTSOC_INTF_NONE = 0,
+	BTC_EXTSOC_INTF_PTA = BIT(0),
+	BTC_EXTSOC_INTF_MBX = BIT(1),
+	BTC_EXTSOC_INTF_SWIO = BIT(2),
+	BTC_EXTSOC_INTF_MAX,
+};
+
+enum btc_esoc_type {
+	BTC_ESOC_NONE,
+	BTC_ESOC_8761,
+	BTC_ESOC_8771,
+	BTC_ESOC_SILAB_MG21,
+	BTC_ESOC_NORDI_NRF52840,
+	BTC_ESOC_MAX,
 };
 
 enum btc_wl_mode {
@@ -231,41 +315,7 @@ enum btc_mlo_rf_combin {
 	BTC_MLO_RF_2_PLUS_2 = 3,
 };
 
-enum btc_wl_gpio_debug {
-	BTC_DBG_GNT_BT = 0,
-	BTC_DBG_GNT_WL = 1,
-	BTC_DBG_BCN_EARLY = 2,
-	BTC_DBG_WL_NULL0 = 3,
-	BTC_DBG_WL_NULL1 = 4,
-	BTC_DBG_WL_RXISR = 5,
-	BTC_DBG_TDMA_ENTRY = 6,
-	BTC_DBG_A2DP_EMPTY = 7,
-	BTC_DBG_BT_RETRY = 8,
-	BTC_DBG_BT_RELINK = 9,
-	BTC_DBG_SLOT_WL = 10,
-	BTC_DBG_SLOT_BT = 11,
-	BTC_DBG_WL_ERR = 12,
-	BTC_DBG_WL_OK = 13,
-	BTC_DBG_SLOT_B2W = 14,
-	BTC_DBG_SLOT_W1 = 15,
-	BTC_DBG_SLOT_W2 = 16,
-	BTC_DBG_SLOT_W2B = 17,
-	BTC_DBG_SLOT_B1 = 18,
-	BTC_DBG_SLOT_B2 = 19,
-	BTC_DBG_SLOT_B3 = 20,
-	BTC_DBG_SLOT_B4 = 21,
-	BTC_DBG_SLOT_LK = 22,
-	BTC_DBG_SLOT_E2G = 23,
-	BTC_DBG_SLOT_E5G = 24,
-	BTC_DBG_SLOT_EBT = 25,
-	BTC_DBG_SLOT_WLK = 26,
-	BTC_DBG_SLOT_B1FDD = 27,
-	BTC_DBG_BT_CHANGE = 28,
-	BTC_DBG_WL_CCA = 29,
-	BTC_DBG_BT_LEAUDIO = 30,
-	BTC_DBG_USER_DEF = 31,
-};
-
+void rtw89_btc_init(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_poweron(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_poweroff(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode);
@@ -329,7 +379,7 @@ static inline u16 rtw89_coex_query_bt_req_len(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 
-	return btc->bt_req_len;
+	return btc->bt_req_len[phy_idx];
 }
 
 static inline u32 rtw89_get_antpath_type(u8 phy_map, u8 type)
@@ -344,7 +394,7 @@ void _slot_set_le(struct rtw89_btc *btc, u8 sid, __le16 dura, __le32 tbl, __le16
 		btc->dm.slot.v1[sid].dur = dura;
 		btc->dm.slot.v1[sid].cxtbl = tbl;
 		btc->dm.slot.v1[sid].cxtype = type;
-	} else if (btc->ver->fcxslots == 7) {
+	} else if (btc->ver->fcxslots == 2 || btc->ver->fcxslots == 7) {
 		btc->dm.slot.v7[sid].dur = dura;
 		btc->dm.slot.v7[sid].cxtype = type;
 		btc->dm.slot.v7[sid].cxtbl = tbl;
@@ -362,7 +412,7 @@ void _slot_set_dur(struct rtw89_btc *btc, u8 sid, u16 dura)
 {
 	if (btc->ver->fcxslots == 1)
 		btc->dm.slot.v1[sid].dur = cpu_to_le16(dura);
-	else if (btc->ver->fcxslots == 7)
+	else if (btc->ver->fcxslots == 2 || btc->ver->fcxslots == 7)
 		btc->dm.slot.v7[sid].dur = cpu_to_le16(dura);
 }
 
@@ -371,7 +421,7 @@ void _slot_set_type(struct rtw89_btc *btc, u8 sid, u16 type)
 {
 	if (btc->ver->fcxslots == 1)
 		btc->dm.slot.v1[sid].cxtype = cpu_to_le16(type);
-	else if (btc->ver->fcxslots == 7)
+	else if (btc->ver->fcxslots == 2 || btc->ver->fcxslots == 7)
 		btc->dm.slot.v7[sid].cxtype = cpu_to_le16(type);
 }
 
@@ -380,8 +430,31 @@ void _slot_set_tbl(struct rtw89_btc *btc, u8 sid, u32 tbl)
 {
 	if (btc->ver->fcxslots == 1)
 		btc->dm.slot.v1[sid].cxtbl = cpu_to_le32(tbl);
-	else if (btc->ver->fcxslots == 7)
+	else if (btc->ver->fcxslots == 2 || btc->ver->fcxslots == 7)
 		btc->dm.slot.v7[sid].cxtbl = cpu_to_le32(tbl);
+}
+
+static inline
+void btc_dw2b(u8 *buf, size_t idx, u32 val)
+{
+	buf[idx] = u32_get_bits(val, MASKBYTE0);
+	buf[idx + 1] = u32_get_bits(val, MASKBYTE1);
+	buf[idx + 2] = u32_get_bits(val, MASKBYTE2);
+	buf[idx + 3] = u32_get_bits(val, MASKBYTE3);
+}
+
+static inline
+u8 _btc_get_rf_path_from_ant_num(struct rtw89_btc *btc, u8 antnum)
+{
+	switch (antnum) {
+	default:
+	case 1:
+		return btc->mdinfo.ant.single_pos;
+	case 2:
+		return RF_PATH_AB;
+	case 3:
+		return RF_PATH_ABC;
+	}
 }
 
 #endif

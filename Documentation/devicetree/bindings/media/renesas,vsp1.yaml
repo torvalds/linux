@@ -29,6 +29,8 @@ properties:
               - renesas,r9a09g047-vsp2    # RZ/G3E
               - renesas,r9a09g056-vsp2    # RZ/V2N
               - renesas,r9a09g057-vsp2    # RZ/V2H(P)
+              - renesas,r9a09g077-vsp2    # RZ/T2H
+              - renesas,r9a09g087-vsp2    # RZ/N2H
           - const: renesas,r9a07g044-vsp2 # RZ/G2L fallback
 
   reg:
@@ -67,7 +69,6 @@ required:
   - interrupts
   - clocks
   - power-domains
-  - resets
 
 additionalProperties: false
 
@@ -100,6 +101,20 @@ allOf:
         clocks:
           maxItems: 1
         clock-names: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,r9a09g077-vsp2
+              - renesas,r9a09g087-vsp2
+    then:
+      properties:
+        resets: false
+    else:
+      required:
+        - resets
 
 examples:
   # R8A7790 (R-Car H2) VSP1-S

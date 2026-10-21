@@ -166,6 +166,9 @@ static void rp1_unregister_interrupts(struct pci_dev *pdev)
 	struct rp1_dev *rp1 = pci_get_drvdata(pdev);
 	int irq, i;
 
+	for (i = 0; i < RP1_INT_END; i++)
+		irq_set_chained_handler_and_data(pci_irq_vector(pdev, i), NULL, NULL);
+
 	if (rp1->domain) {
 		for (i = 0; i < RP1_INT_END; i++) {
 			irq = irq_find_mapping(rp1->domain, i);
@@ -191,13 +194,13 @@ static int rp1_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!rp1_node) {
 		dev_err(dev, "Missing of_node for device\n");
 		err = -EINVAL;
-		goto err_put_node;
+		goto err_out;
 	}
 
 	rp1 = devm_kzalloc(&pdev->dev, sizeof(*rp1), GFP_KERNEL);
 	if (!rp1) {
 		err = -ENOMEM;
-		goto err_put_node;
+		goto err_out;
 	}
 
 	rp1->pdev = pdev;
@@ -206,21 +209,21 @@ static int rp1_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_err(&pdev->dev,
 			"Not initialized - is the firmware running?\n");
 		err = -EINVAL;
-		goto err_put_node;
+		goto err_out;
 	}
 
 	err = pcim_enable_device(pdev);
 	if (err < 0) {
 		err = dev_err_probe(&pdev->dev, err,
 				    "Enabling PCI device has failed");
-		goto err_put_node;
+		goto err_out;
 	}
 
 	rp1->bar1 = pcim_iomap(pdev, 1, 0);
 	if (!rp1->bar1) {
 		dev_err(&pdev->dev, "Cannot map PCI BAR\n");
 		err = -EIO;
-		goto err_put_node;
+		goto err_out;
 	}
 
 	pci_set_master(pdev);
@@ -230,16 +233,16 @@ static int rp1_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err < 0) {
 		err = dev_err_probe(&pdev->dev, err,
 				    "Failed to allocate MSI-X vectors\n");
-		goto err_put_node;
+		goto err_out;
 	} else if (err != RP1_INT_END) {
 		dev_err(&pdev->dev, "Cannot allocate enough interrupts\n");
 		err = -EINVAL;
-		goto err_put_node;
+		goto err_out;
 	}
 
 	pci_set_drvdata(pdev, rp1);
-	rp1->domain = irq_domain_add_linear(rp1_node, RP1_INT_END,
-					    &rp1_domain_ops, rp1);
+	rp1->domain = irq_domain_create_linear(of_fwnode_handle(rp1_node), RP1_INT_END,
+					       &rp1_domain_ops, rp1);
 	if (!rp1->domain) {
 		dev_err(&pdev->dev, "Error creating IRQ domain\n");
 		err = -ENOMEM;
@@ -267,15 +270,11 @@ static int rp1_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_unregister_interrupts;
 	}
 
-	of_node_put(rp1_node);
-
 	return 0;
 
 err_unregister_interrupts:
 	rp1_unregister_interrupts(pdev);
-err_put_node:
-	of_node_put(rp1_node);
-
+err_out:
 	return err;
 }
 
@@ -288,7 +287,7 @@ static void rp1_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id dev_id_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_RPI, PCI_DEVICE_ID_RPI_RP1_C0), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RPI, PCI_DEVICE_ID_RPI_RP1_C0) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, dev_id_table);

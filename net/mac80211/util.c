@@ -2706,12 +2706,31 @@ end:
 	return 0;
 }
 
-int ieee80211_put_reg_conn(struct sk_buff *skb,
-			   enum ieee80211_channel_flags flags)
+void ieee80211_put_reg_conn(struct ieee80211_sub_if_data *sdata,
+			    struct sk_buff *skb)
 {
+	struct ieee80211_local *local = sdata->local;
 	u8 reg_conn = IEEE80211_REG_CONN_LPI_VALID |
 		      IEEE80211_REG_CONN_LPI_VALUE |
 		      IEEE80211_REG_CONN_SP_VALID;
+	struct ieee80211_supported_band *sband;
+	bool available_channels = false;
+	u32 flags = 0;
+	int i;
+
+	sband = local->hw.wiphy->bands[NL80211_BAND_6GHZ];
+	if (!sband)
+		return;
+
+	for (i = 0; i < sband->n_channels; i++) {
+		if (sband->channels[i].flags & IEEE80211_CHAN_DISABLED)
+			continue;
+		flags |= sband->channels[i].flags;
+		available_channels = true;
+	}
+
+	if (!available_channels)
+		return;
 
 	if (!(flags & IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT))
 		reg_conn |= IEEE80211_REG_CONN_SP_VALUE;
@@ -2720,7 +2739,6 @@ int ieee80211_put_reg_conn(struct sk_buff *skb,
 	skb_put_u8(skb, 1 + sizeof(reg_conn));
 	skb_put_u8(skb, WLAN_EID_EXT_NON_AP_STA_REG_CON);
 	skb_put_u8(skb, reg_conn);
-	return 0;
 }
 
 int ieee80211_put_he_6ghz_cap(struct sk_buff *skb,

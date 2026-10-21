@@ -88,6 +88,13 @@ const __le16 SQ_NAME[2] = {
 const __le16 SR_NAME[2] = {
 	cpu_to_le16('$'), cpu_to_le16('R'),
 };
+const __le16 QUERY_STREAMS[13] = {
+  cpu_to_le16('q'), cpu_to_le16('u'), cpu_to_le16('e'), cpu_to_le16('r'),
+  cpu_to_le16('y'), cpu_to_le16('_'), cpu_to_le16('s'), cpu_to_le16('t'),
+  cpu_to_le16('r'), cpu_to_le16('e'), cpu_to_le16('a'), cpu_to_le16('m'),
+  cpu_to_le16('s'),
+};
+
 
 #ifdef CONFIG_NTFS3_LZX_XPRESS
 const __le16 WOF_NAME[17] = {
@@ -122,7 +129,6 @@ static const __le16 COM_NAME[3] = {
 static const __le16 LPT_NAME[3] = {
 	cpu_to_le16('L'), cpu_to_le16('P'), cpu_to_le16('T'),
 };
-
 // clang-format on
 
 /*
@@ -236,7 +242,7 @@ int ntfs_extend_init(struct ntfs_sb_info *sbi)
 	}
 
 	/* Try to find $ObjId */
-	inode2 = dir_search_u(inode, &NAME_OBJID, NULL);
+	inode2 = dir_search(inode, &NAME_OBJID);
 	if (inode2 && !IS_ERR(inode2)) {
 		if (is_bad_inode(inode2)) {
 			iput(inode2);
@@ -247,21 +253,21 @@ int ntfs_extend_init(struct ntfs_sb_info *sbi)
 	}
 
 	/* Try to find $Quota */
-	inode2 = dir_search_u(inode, &NAME_QUOTA, NULL);
+	inode2 = dir_search(inode, &NAME_QUOTA);
 	if (inode2 && !IS_ERR(inode2)) {
 		sbi->quota_no = inode2->i_ino;
 		iput(inode2);
 	}
 
 	/* Try to find $Reparse */
-	inode2 = dir_search_u(inode, &NAME_REPARSE, NULL);
+	inode2 = dir_search(inode, &NAME_REPARSE);
 	if (inode2 && !IS_ERR(inode2)) {
 		sbi->reparse.ni = ntfs_i(inode2);
 		sbi->reparse_no = inode2->i_ino;
 	}
 
 	/* Try to find $UsnJrnl */
-	inode2 = dir_search_u(inode, &NAME_USNJRNL, NULL);
+	inode2 = dir_search(inode, &NAME_USNJRNL);
 	if (inode2 && !IS_ERR(inode2)) {
 		sbi->usn_jrnl_no = inode2->i_ino;
 		iput(inode2);
@@ -475,7 +481,7 @@ bool ntfs_check_free_space(struct ntfs_sb_info *sbi, CLST clen, CLST mlen,
 
 	avail = free - (zlen + clen);
 
-	/* 
+	/*
 	 * When delalloc is active then keep in mind some reserved space.
 	 * The worst case: 1 mft record per each ~500 clusters.
 	 */
@@ -1705,6 +1711,8 @@ struct ntfs_inode *ntfs_new_inode(struct ntfs_sb_info *sbi, CLST rno,
 		goto out;
 	}
 
+	ni->base = ni;
+
 out:
 	if (err) {
 		make_bad_inode(inode);
@@ -2302,8 +2310,8 @@ int ntfs_reparse_init(struct ntfs_sb_info *sbi)
 		goto out;
 	}
 
-	root_r = resident_data(attr);
-	if (root_r->type != ATTR_ZERO ||
+	root_r = resident_data_ex(attr, sizeof(struct INDEX_ROOT));
+	if (!root_r || root_r->type != ATTR_ZERO ||
 	    root_r->rule != NTFS_COLLATION_TYPE_UINTS) {
 		err = -EINVAL;
 		goto out;
@@ -2340,8 +2348,8 @@ int ntfs_objid_init(struct ntfs_sb_info *sbi)
 		goto out;
 	}
 
-	root = resident_data(attr);
-	if (root->type != ATTR_ZERO ||
+	root = resident_data_ex(attr, sizeof(struct INDEX_ROOT));
+	if (!root || root->type != ATTR_ZERO ||
 	    root->rule != NTFS_COLLATION_TYPE_UINTS) {
 		err = -EINVAL;
 		goto out;
@@ -2663,6 +2671,12 @@ int ntfs_set_label(struct ntfs_sb_info *sbi, u8 *label, int len)
 				UTF16_LITTLE_ENDIAN);
 	if (err < 0)
 		goto out;
+
+	if (uni->ads_len) {
+		/* Undo delimiter parse */
+		uni->len += uni->ads_len + 1;
+		uni->ads_len = 0;
+	}
 
 	uni_bytes = uni->len * sizeof(u16);
 	if (uni_bytes > NTFS_LABEL_MAX_LENGTH * sizeof(u16)) {

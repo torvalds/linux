@@ -63,6 +63,9 @@ void drm_dp_tunnel_set_io_error(struct drm_dp_tunnel *tunnel);
 int drm_dp_tunnel_handle_irq(struct drm_dp_tunnel_mgr *mgr,
 			     struct drm_dp_aux *aux);
 
+bool drm_dp_tunnel_128b132b_supported(const struct drm_dp_tunnel *tunnel);
+bool drm_dp_tunnel_128b132b_lane0_mapping_supported(const struct drm_dp_tunnel *tunnel);
+u8 drm_dp_tunnel_128b132b_dprx_rates(const struct drm_dp_tunnel *tunnel);
 int drm_dp_tunnel_max_dprx_rate(const struct drm_dp_tunnel *tunnel);
 int drm_dp_tunnel_max_dprx_lane_count(const struct drm_dp_tunnel *tunnel);
 int drm_dp_tunnel_available_bw(const struct drm_dp_tunnel *tunnel);
@@ -171,6 +174,24 @@ drm_dp_tunnel_handle_irq(struct drm_dp_tunnel_mgr *mgr,
 			 struct drm_dp_aux *aux)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline bool
+drm_dp_tunnel_128b132b_supported(const struct drm_dp_tunnel *tunnel)
+{
+	return false;
+}
+
+static inline bool
+drm_dp_tunnel_128b132b_lane0_mapping_supported(const struct drm_dp_tunnel *tunnel)
+{
+	return false;
+}
+
+static inline u8
+drm_dp_tunnel_128b132b_dprx_rates(const struct drm_dp_tunnel *tunnel)
+{
+	return 0;
 }
 
 static inline int

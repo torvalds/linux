@@ -9,8 +9,6 @@
  *
  * These are the low level assembler for performing cache and TLB
  * functions on the arm922.
- *
- *  CONFIG_CPU_ARM922_CPU_IDLE -> nohlt
  */
 #include <linux/linkage.h>
 #include <linux/init.h>

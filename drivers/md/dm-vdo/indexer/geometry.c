@@ -53,75 +53,51 @@
  * chapter it was moved to.
  */
 
-int uds_make_index_geometry(size_t bytes_per_page, u32 record_pages_per_chapter,
-			    u32 chapters_per_volume, u32 sparse_chapters_per_volume,
-			    u64 remapped_virtual, u64 remapped_physical,
-			    struct index_geometry **geometry_ptr)
+struct index_geometry uds_init_index_geometry(size_t bytes_per_page, u32 record_pages_per_chapter,
+					      u32 chapters_per_volume, u32 sparse_chapters_per_volume,
+					      u64 remapped_virtual, u64 remapped_physical)
 {
-	int result;
-	struct index_geometry *geometry;
+	struct index_geometry geometry = {
+		.bytes_per_page = bytes_per_page,
+		.record_pages_per_chapter = record_pages_per_chapter,
+		.chapters_per_volume = chapters_per_volume,
+		.sparse_chapters_per_volume = sparse_chapters_per_volume,
+		.dense_chapters_per_volume = chapters_per_volume - sparse_chapters_per_volume,
+		.remapped_virtual = remapped_virtual,
+		.remapped_physical = remapped_physical,
+	};
 
-	result = vdo_allocate(1, "geometry", &geometry);
-	if (result != VDO_SUCCESS)
-		return result;
+	geometry.records_per_page = bytes_per_page / BYTES_PER_RECORD;
+	geometry.records_per_chapter = geometry.records_per_page * record_pages_per_chapter;
+	geometry.records_per_volume = (u64) geometry.records_per_chapter * chapters_per_volume;
 
-	geometry->bytes_per_page = bytes_per_page;
-	geometry->record_pages_per_chapter = record_pages_per_chapter;
-	geometry->chapters_per_volume = chapters_per_volume;
-	geometry->sparse_chapters_per_volume = sparse_chapters_per_volume;
-	geometry->dense_chapters_per_volume = chapters_per_volume - sparse_chapters_per_volume;
-	geometry->remapped_virtual = remapped_virtual;
-	geometry->remapped_physical = remapped_physical;
-
-	geometry->records_per_page = bytes_per_page / BYTES_PER_RECORD;
-	geometry->records_per_chapter = geometry->records_per_page * record_pages_per_chapter;
-	geometry->records_per_volume = (u64) geometry->records_per_chapter * chapters_per_volume;
-
-	geometry->chapter_mean_delta = 1 << DEFAULT_CHAPTER_MEAN_DELTA_BITS;
-	geometry->chapter_payload_bits = bits_per(record_pages_per_chapter - 1);
+	geometry.chapter_mean_delta = 1 << DEFAULT_CHAPTER_MEAN_DELTA_BITS;
+	geometry.chapter_payload_bits = bits_per(record_pages_per_chapter - 1);
 	/*
 	 * We want 1 delta list for every 64 records in the chapter.
 	 * The "| 077" ensures that the chapter_delta_list_bits computation
 	 * does not underflow.
 	 */
-	geometry->chapter_delta_list_bits =
-		bits_per((geometry->records_per_chapter - 1) | 077) - 6;
-	geometry->delta_lists_per_chapter = 1 << geometry->chapter_delta_list_bits;
+	geometry.chapter_delta_list_bits = bits_per((geometry.records_per_chapter - 1) | 077) - 6;
+	geometry.delta_lists_per_chapter = 1 << geometry.chapter_delta_list_bits;
 	/* We need enough address bits to achieve the desired mean delta. */
-	geometry->chapter_address_bits =
+	geometry.chapter_address_bits =
 		(DEFAULT_CHAPTER_MEAN_DELTA_BITS -
-		 geometry->chapter_delta_list_bits +
-		 bits_per(geometry->records_per_chapter - 1));
-	geometry->index_pages_per_chapter =
-		uds_get_delta_index_page_count(geometry->records_per_chapter,
-					       geometry->delta_lists_per_chapter,
-					       geometry->chapter_mean_delta,
-					       geometry->chapter_payload_bits,
+		 geometry.chapter_delta_list_bits +
+		 bits_per(geometry.records_per_chapter - 1));
+	geometry.index_pages_per_chapter =
+		uds_get_delta_index_page_count(geometry.records_per_chapter,
+					       geometry.delta_lists_per_chapter,
+					       geometry.chapter_mean_delta,
+					       geometry.chapter_payload_bits,
 					       bytes_per_page);
 
-	geometry->pages_per_chapter = geometry->index_pages_per_chapter + record_pages_per_chapter;
-	geometry->pages_per_volume = geometry->pages_per_chapter * chapters_per_volume;
-	geometry->bytes_per_volume =
-		bytes_per_page * (geometry->pages_per_volume + HEADER_PAGES_PER_VOLUME);
+	geometry.pages_per_chapter = geometry.index_pages_per_chapter + record_pages_per_chapter;
+	geometry.pages_per_volume = geometry.pages_per_chapter * chapters_per_volume;
+	geometry.bytes_per_volume =
+		bytes_per_page * (geometry.pages_per_volume + HEADER_PAGES_PER_VOLUME);
 
-	*geometry_ptr = geometry;
-	return UDS_SUCCESS;
-}
-
-int uds_copy_index_geometry(struct index_geometry *source,
-			    struct index_geometry **geometry_ptr)
-{
-	return uds_make_index_geometry(source->bytes_per_page,
-				       source->record_pages_per_chapter,
-				       source->chapters_per_volume,
-				       source->sparse_chapters_per_volume,
-				       source->remapped_virtual, source->remapped_physical,
-				       geometry_ptr);
-}
-
-void uds_free_index_geometry(struct index_geometry *geometry)
-{
-	vdo_free(geometry);
+	return geometry;
 }
 
 u32 __must_check uds_map_to_physical_chapter(const struct index_geometry *geometry,

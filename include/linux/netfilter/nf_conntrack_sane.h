@@ -3,8 +3,6 @@
 #define _NF_CONNTRACK_SANE_H
 /* SANE tracking. */
 
-#define SANE_PORT	6566
-
 enum sane_state {
 	SANE_STATE_NORMAL,
 	SANE_STATE_START_REQUESTED,

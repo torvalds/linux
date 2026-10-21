@@ -8,7 +8,7 @@ title: ARM Versatile Express Serial Configuration Controller
 
 maintainers:
   - Liviu Dudau <liviu.dudau@arm.com>
-  - Sudeep Holla <sudeep.holla@arm.com>
+  - Sudeep Holla <sudeep.holla@kernel.org>
 
 description: |
   Test chips for ARM Versatile Express platform implement SCC (Serial

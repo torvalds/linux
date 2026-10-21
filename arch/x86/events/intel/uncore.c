@@ -861,7 +861,7 @@ static ssize_t uncore_get_attr_cpumask(struct device *dev,
 {
 	struct intel_uncore_pmu *pmu = container_of(dev_get_drvdata(dev), struct intel_uncore_pmu, pmu);
 
-	return cpumap_print_to_pagebuf(true, buf, &pmu->cpu_mask);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&pmu->cpu_mask));
 }
 
 static DEVICE_ATTR(cpumask, S_IRUGO, uncore_get_attr_cpumask, NULL);

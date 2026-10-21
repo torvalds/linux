@@ -477,6 +477,7 @@ static const struct of_device_id mt8365_pctrl_match[] = {
 	{ .compatible = "mediatek,mt8365-pinctrl", .data = &mt8365_pinctrl_data },
 	{}
 };
+MODULE_DEVICE_TABLE(of, mt8365_pctrl_match);
 
 static struct platform_driver mtk_pinctrl_driver = {
 	.probe = mtk_pctrl_common_probe,
@@ -494,4 +495,6 @@ static int __init mtk_pinctrl_init(void)
 arch_initcall(mtk_pinctrl_init);
 
 MODULE_DESCRIPTION("MediaTek MT8365 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Zhiyong Tao <zhiyong.tao@mediatek.com>");
+MODULE_IMPORT_NS("MTK_PINCTRL");

@@ -42,21 +42,8 @@ clock interface.
 Common data structures and api
 ==============================
 
-Below is the common struct clk_core definition from
-drivers/clk/clk.c, modified for brevity::
-
-	struct clk_core {
-		const char		*name;
-		const struct clk_ops	*ops;
-		struct clk_hw		*hw;
-		struct module		*owner;
-		struct clk_core		*parent;
-		const char		**parent_names;
-		struct clk_core		**parents;
-		u8			num_parents;
-		u8			new_parent_index;
-		...
-	};
+.. kernel-doc:: drivers/clk/clk.c
+   :identifiers: struct clk_core
 
 The members above make up the core of the clk tree topology.  The clk
 api itself defines several driver-facing functions which operate on
@@ -64,38 +51,17 @@ struct clk.  That api is documented in include/linux/clk.h.
 
 Platforms and devices utilizing the common struct clk_core use the struct
 clk_ops pointer in struct clk_core to perform the hardware-specific parts of
-the operations defined in clk-provider.h::
+the operations defined in clk-provider.h, and can set one or more
+framework-level flags documented below.
 
-	struct clk_ops {
-		int		(*prepare)(struct clk_hw *hw);
-		void		(*unprepare)(struct clk_hw *hw);
-		int		(*is_prepared)(struct clk_hw *hw);
-		void		(*unprepare_unused)(struct clk_hw *hw);
-		int		(*enable)(struct clk_hw *hw);
-		void		(*disable)(struct clk_hw *hw);
-		int		(*is_enabled)(struct clk_hw *hw);
-		void		(*disable_unused)(struct clk_hw *hw);
-		unsigned long	(*recalc_rate)(struct clk_hw *hw,
-						unsigned long parent_rate);
-		int		(*determine_rate)(struct clk_hw *hw,
-						  struct clk_rate_request *req);
-		int		(*set_parent)(struct clk_hw *hw, u8 index);
-		u8		(*get_parent)(struct clk_hw *hw);
-		int		(*set_rate)(struct clk_hw *hw,
-					    unsigned long rate,
-					    unsigned long parent_rate);
-		int		(*set_rate_and_parent)(struct clk_hw *hw,
-					    unsigned long rate,
-					    unsigned long parent_rate,
-					    u8 index);
-		unsigned long	(*recalc_accuracy)(struct clk_hw *hw,
-						unsigned long parent_accuracy);
-		int		(*get_phase)(struct clk_hw *hw);
-		int		(*set_phase)(struct clk_hw *hw, int degrees);
-		void		(*init)(struct clk_hw *hw);
-		void		(*debug_init)(struct clk_hw *hw,
-					      struct dentry *dentry);
-	};
+.. kernel-doc:: include/linux/clk-provider.h
+   :identifiers: struct clk_ops
+
+Core flags
+==========
+
+.. kernel-doc:: include/linux/clk-provider.h
+   :doc: clk framework flags
 
 Hardware clk implementations
 ============================

@@ -60,6 +60,7 @@ struct pps_device {
 	struct device dev;
 	struct fasync_struct *async_queue;	/* fasync method */
 	spinlock_t lock;
+	bool kc_removed;
 };
 
 /*

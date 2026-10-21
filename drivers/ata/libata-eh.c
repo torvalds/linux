@@ -1221,9 +1221,10 @@ static void __ata_eh_qc_complete(struct ata_queued_cmd *qc)
  *	Indicate to the mid and upper layers that an ATA command has
  *	completed.  To be used from EH.
  */
-void ata_eh_qc_complete(struct ata_queued_cmd *qc)
+static void ata_eh_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *scmd = qc->scsicmd;
+
 	scmd->retries = scmd->allowed;
 	__ata_eh_qc_complete(qc);
 }
@@ -1239,9 +1240,10 @@ void ata_eh_qc_complete(struct ata_queued_cmd *qc)
  *	scmd->allowed is incremented for commands which get retried
  *	due to unrelated failures (qc->err_mask is zero).
  */
-void ata_eh_qc_retry(struct ata_queued_cmd *qc)
+static void ata_eh_qc_retry(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *scmd = qc->scsicmd;
+
 	if (!qc->err_mask)
 		scmd->allowed++;
 	__ata_eh_qc_complete(qc);

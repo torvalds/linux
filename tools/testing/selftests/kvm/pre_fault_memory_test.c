@@ -84,7 +84,7 @@ static void pre_fault_memory(struct kvm_vcpu *vcpu, u64 base_gpa, u64 offset,
 	 * Concurrently delete (and recreate) the slot to test KVM's handling
 	 * of a racing memslot deletion with prefaulting.
 	 */
-	pthread_create(&slot_worker, NULL, delete_slot_worker, &data);
+	kvm_pthread_create(&slot_worker, NULL, delete_slot_worker, &data);
 
 	while (!READ_ONCE(data.worker_ready))
 		cpu_relax();
@@ -116,7 +116,7 @@ static void pre_fault_memory(struct kvm_vcpu *vcpu, u64 base_gpa, u64 offset,
 		 */
 		if (!slot_recreated) {
 			WRITE_ONCE(data.recreate_slot, true);
-			pthread_join(slot_worker, NULL);
+			kvm_pthread_join(slot_worker, NULL);
 			slot_recreated = true;
 
 			/*

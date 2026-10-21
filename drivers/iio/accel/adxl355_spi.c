@@ -40,8 +40,8 @@ static int adxl355_spi_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id adxl355_spi_id[] = {
-	{ "adxl355", (kernel_ulong_t)&adxl35x_chip_info[ADXL355] },
-	{ "adxl359", (kernel_ulong_t)&adxl35x_chip_info[ADXL359] },
+	{ .name = "adxl355", .driver_data = (kernel_ulong_t)&adxl35x_chip_info[ADXL355] },
+	{ .name = "adxl359", .driver_data = (kernel_ulong_t)&adxl35x_chip_info[ADXL359] },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adxl355_spi_id);

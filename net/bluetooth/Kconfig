@@ -76,7 +76,7 @@ config BT_LE_L2CAP_ECRED
 
 config BT_6LOWPAN
 	tristate "Bluetooth 6LoWPAN support"
-	depends on BT_LE && 6LOWPAN
+	depends on BT && BT_LE && 6LOWPAN
 	help
 	  IPv6 compression over Bluetooth Low Energy.
 

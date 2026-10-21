@@ -1040,13 +1040,19 @@ void mlx5_esw_vport_disable(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 	    (vport->info.ipsec_crypto_enabled || vport->info.ipsec_packet_enabled))
 		esw->enabled_ipsec_vf_count--;
 
+	/* Clear rx-mode before esw_vport_change_handle_locked(): on
+	 * MLX5_VPORT_PROMISC_CHANGE it calls esw_update_vport_mc_promisc()
+	 * when vport->allmulti_rule is set, repopulating mc_list with FDB
+	 * rules that dangle once the FDB is destroyed. NULL allmulti_rule
+	 * here skips that path.
+	 */
+	esw_apply_vport_rx_mode(esw, vport, false, false);
 	/* We don't assume VFs will cleanup after themselves.
 	 * Calling vport change handler while vport is disabled will cleanup
 	 * the vport resources.
 	 */
 	esw_vport_change_handle_locked(vport);
 	vport->enabled_events = 0;
-	esw_apply_vport_rx_mode(esw, vport, false, false);
 	esw_vport_cleanup(esw, vport);
 	esw->enabled_vports--;
 
@@ -1885,10 +1891,6 @@ int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int num_vfs)
 	MLX5_NB_INIT(&esw->nb, eswitch_vport_event, NIC_VPORT_CHANGE);
 	mlx5_eq_notifier_register(esw->dev, &esw->nb);
 
-	err = mlx5_esw_qos_init(esw);
-	if (err)
-		goto err_esw_init;
-
 	if (esw->mode == MLX5_ESWITCH_LEGACY) {
 		err = esw_legacy_enable(esw);
 	} else {
@@ -1990,6 +1992,13 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf)
 		 esw->esw_funcs.num_vfs, esw->esw_funcs.num_ec_vfs, esw->enabled_vports);
 
 	mlx5_eswitch_invalidate_wq(esw);
+
+	if (esw->mode == MLX5_ESWITCH_OFFLOADS) {
+		struct devlink *devlink = priv_to_devlink(esw->dev);
+
+		devl_rate_nodes_destroy(devlink);
+	}
+
 	mlx5_esw_reps_block(esw);
 
 	if (!mlx5_core_is_ecpf(esw->dev)) {
@@ -2003,12 +2012,6 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf)
 	}
 
 	mlx5_esw_reps_unblock(esw);
-
-	if (esw->mode == MLX5_ESWITCH_OFFLOADS) {
-		struct devlink *devlink = priv_to_devlink(esw->dev);
-
-		devl_rate_nodes_destroy(devlink);
-	}
 	/* Destroy legacy fdb when disabling sriov in legacy mode. */
 	if (esw->mode == MLX5_ESWITCH_LEGACY)
 		mlx5_eswitch_disable_locked(esw);
@@ -2039,6 +2042,9 @@ void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw)
 		 esw->mode == MLX5_ESWITCH_LEGACY ? "LEGACY" : "OFFLOADS",
 		 esw->esw_funcs.num_vfs, esw->esw_funcs.num_ec_vfs, esw->enabled_vports);
 
+	if (esw->mode == MLX5_ESWITCH_OFFLOADS)
+		devl_rate_nodes_destroy(devlink);
+
 	if (esw->fdb_table.flags & MLX5_ESW_FDB_CREATED) {
 		esw->fdb_table.flags &= ~MLX5_ESW_FDB_CREATED;
 		if (esw->mode == MLX5_ESWITCH_OFFLOADS)
@@ -2047,9 +2053,6 @@ void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw)
 			esw_legacy_disable(esw);
 		mlx5_esw_acls_ns_cleanup(esw);
 	}
-
-	if (esw->mode == MLX5_ESWITCH_OFFLOADS)
-		devl_rate_nodes_destroy(devlink);
 }
 
 void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
@@ -2291,8 +2294,7 @@ static int mlx5_esw_spfs_init(struct mlx5_eswitch *esw)
 	if (!num_entries)
 		goto out_free;
 
-	esw_funcs->spfs = kcalloc(num_entries, sizeof(*esw_funcs->spfs),
-				  GFP_KERNEL);
+	esw_funcs->spfs = kzalloc_objs(*esw_funcs->spfs, num_entries);
 	if (!esw_funcs->spfs) {
 		err = -ENOMEM;
 		goto out_free;
@@ -2554,9 +2556,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		goto reps_err;
 
 	esw->mode = MLX5_ESWITCH_LEGACY;
-	err = mlx5_esw_qos_init(esw);
-	if (err)
-		goto reps_err;
 
 	mutex_init(&esw->offloads.encap_tbl_lock);
 	hash_init(esw->offloads.encap_tbl);
@@ -2611,7 +2610,6 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 
 	mlx5_eswitch_invalidate_wq(esw);
 	destroy_workqueue(esw->work_queue);
-	mlx5_esw_qos_cleanup(esw);
 	WARN_ON(refcount_read(&esw->qos.refcnt));
 	mutex_destroy(&esw->state_lock);
 	WARN_ON(!xa_empty(&esw->offloads.vhca_map));

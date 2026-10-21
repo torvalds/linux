@@ -13,13 +13,26 @@
 #include "iris_vpu_common.h"
 #include "iris_instance.h"
 
+#include "iris_platform_milos.h"
 #include "iris_platform_sc7280.h"
 #include "iris_platform_sm8250.h"
+
+static const struct iris_firmware_desc iris_milos_desc = {
+	.firmware_data = &iris_hfi_milos_data,
+	.get_vpu_buffer_size = iris_vpu_buf_size,
+	.fwname = "qcom/vpu/vpu20_p2_gen2_s7.mbn",
+};
 
 static const struct iris_firmware_desc iris_vpu20_p1_gen1_desc = {
 	.firmware_data = &iris_hfi_gen1_data,
 	.get_vpu_buffer_size = iris_vpu_buf_size,
 	.fwname = "qcom/vpu/vpu20_p1.mbn",
+};
+
+static const struct iris_firmware_desc iris_vpu20_p1_gen2_s6_desc = {
+	.firmware_data = &iris_hfi_gen2_data,
+	.get_vpu_buffer_size = iris_vpu33_buf_size,
+	.fwname = "qcom/vpu/vpu20_p1_gen2_s6.mbn",
 };
 
 static const struct iris_firmware_desc iris_vpu20_p4_gen1_desc = {
@@ -64,8 +77,37 @@ static const struct tz_cp_config tz_cp_config_vpu2[] = {
 	},
 };
 
+const struct iris_platform_data milos_data = {
+	.firmware_desc_gen1 = &iris_milos_desc,
+	.vpu_ops = &iris_vpu2_ops,
+	.icc_tbl = iris_icc_info_milos,
+	.icc_tbl_size = ARRAY_SIZE(iris_icc_info_milos),
+	.bw_tbl_dec = sm8250_bw_table_dec,
+	.bw_tbl_dec_size = ARRAY_SIZE(sm8250_bw_table_dec),
+	.pmdomain_tbl = iris_pmdomain_table_vpu2,
+	.pmdomain_tbl_size = ARRAY_SIZE(iris_pmdomain_table_vpu2),
+	.opp_pd_tbl = milos_opp_pd_table,
+	.opp_pd_tbl_size = ARRAY_SIZE(milos_opp_pd_table),
+	.clk_tbl = sm8250_clk_table,
+	.clk_tbl_size = ARRAY_SIZE(sm8250_clk_table),
+	.opp_clk_tbl = sm8250_opp_clk_table,
+	.clk_rst_tbl = iris_clk_reset_table_vpu2,
+	.clk_rst_tbl_size = ARRAY_SIZE(iris_clk_reset_table_vpu2),
+	.dma_mask = 0xe0000000 - 1,
+	.inst_iris_fmts = iris_fmts_vpu2_dec,
+	.inst_iris_fmts_size = ARRAY_SIZE(iris_fmts_vpu2_dec),
+	.inst_caps = &platform_inst_cap_milos,
+	.tz_cp_config_data = tz_cp_config_vpu2,
+	.tz_cp_config_data_size = ARRAY_SIZE(tz_cp_config_vpu2),
+	.num_vpp_pipe = 2,
+	.max_session_count = 16,
+	.max_core_mbpf = ((4096 * 2176) / 256) * 2,
+	.max_core_mbps = ((3840 * 2176) / 256) * 30 + ((1920 * 1088) / 256) * 30,
+};
+
 const struct iris_platform_data sc7280_data = {
-	.firmware_desc = &iris_vpu20_p1_gen1_desc,
+	.firmware_desc_gen1 = &iris_vpu20_p1_gen1_desc,
+	.firmware_desc_gen2 = &iris_vpu20_p1_gen2_s6_desc,
 	.vpu_ops = &iris_vpu2_ops,
 	.icc_tbl = iris_icc_info_vpu2,
 	.icc_tbl_size = ARRAY_SIZE(iris_icc_info_vpu2),
@@ -94,7 +136,7 @@ const struct iris_platform_data sc7280_data = {
 };
 
 const struct iris_platform_data sm8250_data = {
-	.firmware_desc = &iris_vpu20_p4_gen1_desc,
+	.firmware_desc_gen1 = &iris_vpu20_p4_gen1_desc,
 	.vpu_ops = &iris_vpu2_ops,
 	.icc_tbl = iris_icc_info_vpu2,
 	.icc_tbl_size = ARRAY_SIZE(iris_icc_info_vpu2),

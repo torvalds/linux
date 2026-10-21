@@ -23,6 +23,12 @@
 			compatible = "mips,mips34Kc";
 			reg = <0>;
 		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "mips,mips34Kc";
+			reg = <1>;
+		};
 	};
 
 	cpuintc: interrupt-controller {
@@ -65,6 +71,7 @@
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		econet,shadow-interrupts = <7 2>, <8 3>, <13 12>, <30 29>;
+		econet,cpu-interrupt-map = <7 0>, <8 1>;
 	};
 
 	pciecfg: pciecfg@1fb80000 {

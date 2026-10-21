@@ -53,6 +53,7 @@ struct amdgpu_ras_mgr {
 	void *virt_ras_cmd;
 	uint64_t last_poison_consumption_seqno;
 	bool ras_is_ready;
+	bool is_debug_mode;
 
 	bool is_paused;
 	struct completion ras_event_done;
@@ -82,6 +83,9 @@ int amdgpu_ras_mgr_handle_ras_cmd(struct amdgpu_device *adev,
 		void *output, uint32_t out_size);
 int amdgpu_ras_mgr_pre_reset(struct amdgpu_device *adev);
 int amdgpu_ras_mgr_post_reset(struct amdgpu_device *adev);
+int amdgpu_ras_mgr_resume_after_reset(struct amdgpu_device *adev);
 int amdgpu_ras_mgr_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 		uint64_t addr, uint64_t *nps_page_addr, uint32_t max_page_count);
+int amdgpu_ras_mgr_set_debug_mode(struct amdgpu_device *adev, bool enable);
+bool amdgpu_ras_mgr_get_debug_mode(struct amdgpu_device *adev);
 #endif

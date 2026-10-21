@@ -55,13 +55,51 @@ check_top_q_hist "verify -k/--kernel-threads" \
 check_top_q_hist "verify -u/--user-threads" \
 	"timerlat TOOL -u -c 0 -d 10s -T 1 --on-threshold shell,command=$testdir/scripts/check-user-kernel-threads.sh" 2 "0 kernel threads, 1 user threads"
 
+# Tracer option tests - verify that rtla correctly sets tracefs options
+# Default tests: poison tracefs with wrong values, verify rtla resets to defaults
+check_with_osnoise_options "apply default timerlat_period_us" \
+	"timerlat top -q -T 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/timerlat_period_us\"" \
+	2 "^osnoise/timerlat_period_us=1000$" osnoise/timerlat_period_us=999999
+check_with_osnoise_options "apply default print_stack" \
+	"timerlat top -q -T 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/print_stack\"" \
+	2 "^osnoise/print_stack=0$" osnoise/print_stack=999999
+check_with_osnoise_options "apply default stop_tracing_us" \
+	"timerlat top -q -T 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/stop_tracing_us\"" \
+	2 "^osnoise/stop_tracing_us=0$" osnoise/stop_tracing_us=999999
+check_with_osnoise_options "apply default stop_tracing_total_us" \
+	"timerlat top -q -i 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/stop_tracing_total_us\"" \
+	2 "^osnoise/stop_tracing_total_us=0$" osnoise/stop_tracing_total_us=999999
+
+# Non-default tracer option tests: verify CLI options correctly set tracefs values
+check_top_q_hist "verify -p sets timerlat_period_us" \
+	"timerlat TOOL -p 2000 -T 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/timerlat_period_us\"" \
+	2 "^osnoise/timerlat_period_us=2000$"
+check_top_q_hist "verify -s sets print_stack" \
+	"timerlat TOOL -s 5 -T 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/print_stack\"" \
+	2 "^osnoise/print_stack=5$"
+check_top_q_hist "verify -i sets stop_tracing_us" \
+	"timerlat TOOL -i 2 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/stop_tracing_us\"" \
+	2 "^osnoise/stop_tracing_us=2$"
+check_top_q_hist "verify -T sets stop_tracing_total_us" \
+	"timerlat TOOL -T 2 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/stop_tracing_total_us\"" \
+	2 "^osnoise/stop_tracing_total_us=2$"
+check_with_osnoise_options "apply default TIMERLAT_ALIGN" \
+	"timerlat top -q -T 1 --on-threshold shell,command=\"$testdir/scripts/check-osnoise-option.sh TIMERLAT_ALIGN\"" \
+	2 "^TIMERLAT_ALIGN=disabled$" osnoise/options=TIMERLAT_ALIGN
+check_top_q_hist "verify -A sets TIMERLAT_ALIGN" \
+	"timerlat TOOL -A 100 -T 1 --on-threshold shell,command=\"$testdir/scripts/check-osnoise-option.sh TIMERLAT_ALIGN\"" \
+	2 "^TIMERLAT_ALIGN=enabled$"
+check_top_q_hist "verify -A sets timerlat_align_us" \
+	"timerlat TOOL -A 100 -T 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/timerlat_align_us\"" \
+	2 "^osnoise/timerlat_align_us=100$"
+
 # Histogram tests
 check "hist with -b/--bucket-size" \
 	"timerlat hist -b 1 -d 1s"
 check "hist with -E/--entries" \
 	"timerlat hist -E 10 -d 1s"
 check "hist with -E/--entries out of range" \
-	"timerlat hist -E 1 -d 1s" 1 "^Entries must be > 10 and < 10000000$"
+	"timerlat hist -E 1 -d 1s" 129 "out of range \[10, 9999999\]"
 check "hist with --no-header" \
 	"timerlat hist --no-header -d 1s" 0 "" "RTLA timerlat histogram"
 check "hist with --with-zeros" \

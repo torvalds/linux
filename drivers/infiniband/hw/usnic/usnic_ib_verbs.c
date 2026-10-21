@@ -278,13 +278,12 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	int err;
 
 	usnic_dbg("\n");
-	err = ib_is_udata_in_empty(uhw);
+	err = ib_no_udata_io(uhw);
 	if (err)
 		return err;
 
 	mutex_lock(&us_ibdev->usdev_lock);
 	us_ibdev->netdev->ethtool_ops->get_drvinfo(us_ibdev->netdev, &info);
-	memset(props, 0, sizeof(*props));
 	usnic_mac_ip_to_gid(us_ibdev->ufdev->mac, us_ibdev->ufdev->inaddr,
 			&gid.raw[0]);
 	memcpy(&props->sys_image_guid, &gid.global.interface_id,
@@ -324,7 +323,7 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	 * max_qp_wr, max_sge, max_sge_rd, max_cqe */
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	return ib_respond_empty_udata(uhw);
+	return 0;
 }
 
 int usnic_ib_query_port(struct ib_device *ibdev, u32 port,

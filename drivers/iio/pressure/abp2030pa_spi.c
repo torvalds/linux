@@ -45,7 +45,7 @@ static const struct of_device_id abp2_spi_match[] = {
 MODULE_DEVICE_TABLE(of, abp2_spi_match);
 
 static const struct spi_device_id abp2_spi_id[] = {
-	{ "abp2030pa" },
+	{ .name = "abp2030pa" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, abp2_spi_id);

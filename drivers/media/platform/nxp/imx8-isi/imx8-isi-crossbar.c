@@ -106,8 +106,20 @@ static int __mxc_isi_crossbar_set_routing(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	/* The memory input can be routed to the first pipeline only. */
-	for_each_active_route(&state->routing, route) {
+	/*
+	 * Validate routes against hardware constraints:
+	 * - SOURCE stream must be 0 (pipes are hardcoded to stream 0)
+	 * - Memory input can only route to the first pipeline
+	 */
+	for_each_active_route(routing, route) {
+		if (route->source_stream != 0) {
+			dev_dbg(xbar->isi->dev,
+				"route to pipe %u must use source_stream=0, got %u\n",
+				route->source_pad - xbar->num_sinks,
+				route->source_stream);
+			return -ENXIO;
+		}
+
 		if (route->sink_pad == xbar->num_sinks - 1 &&
 		    route->source_pad != xbar->num_sinks) {
 			dev_dbg(xbar->isi->dev,
@@ -145,10 +157,10 @@ mxc_isi_crossbar_xlate_streams(struct mxc_isi_crossbar *xbar,
 	 */
 	for_each_active_route(&state->routing, route) {
 		if (route->source_pad != source_pad ||
-		    !(source_streams & BIT(route->source_stream)))
+		    !(source_streams & BIT_ULL(route->source_stream)))
 			continue;
 
-		sink_streams |= BIT(route->sink_stream);
+		sink_streams |= BIT_ULL(route->sink_stream);
 		sink_pad = route->sink_pad;
 	}
 
@@ -318,11 +330,32 @@ static int mxc_isi_crossbar_set_routing(struct v4l2_subdev *sd,
 	return __mxc_isi_crossbar_set_routing(sd, state, routing);
 }
 
+/*
+ * Check if a stream on a sink pad is in used by any of the ISI pipelines. The
+ * sink_streams argument is a bitmask that must have a single bit set (enforced
+ * by mxc_isi_crossbar_xlate_streams() translating the single stream mask of the
+ * pipeline to a single stream on the crossbar input side).
+ */
+static bool mxc_isi_crossbar_stream_in_use(const struct mxc_isi_crossbar *xbar,
+					   unsigned int sink_pad, u64 sink_streams)
+{
+	for (unsigned int i = 0; i < xbar->isi->pdata->num_channels; ++i) {
+		const struct mxc_isi_pipe *pipe = &xbar->isi->pipes[i];
+
+		if (pipe->input == sink_pad &&
+		    pipe->input_stream == sink_streams)
+			return true;
+	}
+
+	return false;
+}
+
 static int mxc_isi_crossbar_enable_streams(struct v4l2_subdev *sd,
 					   struct v4l2_subdev_state *state,
 					   u32 pad, u64 streams_mask)
 {
 	struct mxc_isi_crossbar *xbar = to_isi_crossbar(sd);
+	struct mxc_isi_pipe *pipe = &xbar->isi->pipes[pad - xbar->num_sinks];
 	struct v4l2_subdev *remote_sd;
 	struct mxc_isi_input *input;
 	u64 sink_streams;
@@ -339,29 +372,44 @@ static int mxc_isi_crossbar_enable_streams(struct v4l2_subdev *sd,
 	input = &xbar->inputs[sink_pad];
 
 	/*
-	 * TODO: Track per-stream enable counts to support multiplexed
-	 * streams.
+	 * Check if any other pipe already receives the same input stream.
+	 * If so, just record this pipe's usage and return.
 	 */
-	if (!input->enable_count) {
+	if (mxc_isi_crossbar_stream_in_use(xbar, sink_pad, sink_streams)) {
+		pipe->input = sink_pad;
+		pipe->input_stream = sink_streams;
+		return 0;
+	}
+
+	/* Enable the gasket when the first stream is enabled for this input. */
+	if (!input->enabled_streams) {
 		ret = mxc_isi_crossbar_gasket_enable(xbar, state, remote_sd,
 						     remote_pad, sink_pad);
 		if (ret)
 			return ret;
-
-		ret = v4l2_subdev_enable_streams(remote_sd, remote_pad,
-						 sink_streams);
-		if (ret) {
-			dev_err(xbar->isi->dev,
-				"failed to enable streams 0x%llx on '%s':%u: %d\n",
-				sink_streams, remote_sd->name, remote_pad, ret);
-			mxc_isi_crossbar_gasket_disable(xbar, sink_pad);
-			return ret;
-		}
 	}
 
-	input->enable_count++;
+	ret = v4l2_subdev_enable_streams(remote_sd, remote_pad, sink_streams);
+	if (ret) {
+		dev_err(xbar->isi->dev,
+			"failed to enable streams 0x%llx on '%s':%u: %d\n",
+			sink_streams, remote_sd->name, remote_pad, ret);
+		goto err_gasket_disable;
+	}
+
+	input->enabled_streams |= sink_streams;
+
+	/* Record the input and stream for this pipe. */
+	pipe->input = sink_pad;
+	pipe->input_stream = sink_streams;
 
 	return 0;
+
+err_gasket_disable:
+	if (!input->enabled_streams)
+		mxc_isi_crossbar_gasket_disable(xbar, sink_pad);
+
+	return ret;
 }
 
 static int mxc_isi_crossbar_disable_streams(struct v4l2_subdev *sd,
@@ -369,6 +417,7 @@ static int mxc_isi_crossbar_disable_streams(struct v4l2_subdev *sd,
 					    u32 pad, u64 streams_mask)
 {
 	struct mxc_isi_crossbar *xbar = to_isi_crossbar(sd);
+	struct mxc_isi_pipe *pipe = &xbar->isi->pipes[pad - xbar->num_sinks];
 	struct v4l2_subdev *remote_sd;
 	struct mxc_isi_input *input;
 	u64 sink_streams;
@@ -384,18 +433,27 @@ static int mxc_isi_crossbar_disable_streams(struct v4l2_subdev *sd,
 
 	input = &xbar->inputs[sink_pad];
 
-	input->enable_count--;
+	/* Clear the input and stream for this pipe. */
+	pipe->input = UINT_MAX;
+	pipe->input_stream = 0;
 
-	if (!input->enable_count) {
-		ret = v4l2_subdev_disable_streams(remote_sd, remote_pad,
-						  sink_streams);
-		if (ret)
-			dev_err(xbar->isi->dev,
-				"failed to disable streams 0x%llx on '%s':%u: %d\n",
-				sink_streams, remote_sd->name, remote_pad, ret);
+	/*
+	 * Check if any other pipe receives the same input stream. If so we
+	 * can't disable it yet, so return immediately.
+	 */
+	if (mxc_isi_crossbar_stream_in_use(xbar, sink_pad, sink_streams))
+		return 0;
 
+	ret = v4l2_subdev_disable_streams(remote_sd, remote_pad, sink_streams);
+	if (ret)
+		dev_err(xbar->isi->dev,
+			"failed to disable streams 0x%llx on '%s':%u: %d\n",
+			sink_streams, remote_sd->name, remote_pad, ret);
+
+	input->enabled_streams &= ~sink_streams;
+
+	if (!input->enabled_streams)
 		mxc_isi_crossbar_gasket_disable(xbar, sink_pad);
-	}
 
 	return ret;
 }
@@ -404,6 +462,7 @@ static const struct v4l2_subdev_pad_ops mxc_isi_crossbar_subdev_pad_ops = {
 	.enum_mbus_code = mxc_isi_crossbar_enum_mbus_code,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = mxc_isi_crossbar_set_fmt,
+	.get_frame_desc = v4l2_subdev_get_frame_desc_passthrough,
 	.set_routing = mxc_isi_crossbar_set_routing,
 	.enable_streams = mxc_isi_crossbar_enable_streams,
 	.disable_streams = mxc_isi_crossbar_disable_streams,

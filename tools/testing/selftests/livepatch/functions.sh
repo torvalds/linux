@@ -126,6 +126,20 @@ function set_ftrace_enabled() {
 	echo "livepatch: kernel.ftrace_enabled = $result" > /dev/kmsg
 }
 
+# ftrace_disable_supported() - probe whether kernel.ftrace_enabled=0
+#	can still disable ftrace on this kernel. Newer kernels deprecate
+#	the knob and always refuse the write with -EOPNOTSUPP.
+function ftrace_disable_supported() {
+	local orig result
+
+	orig=$(sysctl --values kernel.ftrace_enabled)
+	sysctl -q kernel.ftrace_enabled=0 &> /dev/null
+	result=$(sysctl --values kernel.ftrace_enabled)
+	sysctl -q "kernel.ftrace_enabled=$orig" &> /dev/null
+
+	[[ "$result" == "0" ]]
+}
+
 function cleanup() {
 	pop_config
 }

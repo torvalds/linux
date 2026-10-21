@@ -202,9 +202,9 @@ static const struct of_device_id cpcap_of_match[] = {
 MODULE_DEVICE_TABLE(of, cpcap_of_match);
 
 static const struct spi_device_id cpcap_spi_ids[] = {
-	{ .name = "cpcap", },
-	{ .name = "6556002", },
-	{},
+	{ .name = "cpcap" },
+	{ .name = "6556002" },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, cpcap_spi_ids);
 

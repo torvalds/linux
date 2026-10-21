@@ -19,8 +19,6 @@
 #include "vmx.h"
 #include "svm_util.h"
 
-#define L2_GUEST_STACK_SIZE 256
-
 void svm_l2_guest_code(void)
 {
 	GUEST_SYNC(4);
@@ -35,13 +33,11 @@ void svm_l2_guest_code(void)
 
 static void svm_l1_guest_code(struct svm_test_data *svm)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	struct vmcb *vmcb = svm->vmcb;
 
 	GUEST_ASSERT(svm->vmcb_gpa);
 	/* Prepare for L2 execution. */
-	generic_svm_setup(svm, svm_l2_guest_code,
-			  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, svm_l2_guest_code);
 
 	vmcb->control.int_ctl |= (V_GIF_ENABLE_MASK | V_GIF_MASK);
 
@@ -78,8 +74,6 @@ void vmx_l2_guest_code(void)
 
 static void vmx_l1_guest_code(struct vmx_pages *vmx_pages)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
-
 	GUEST_ASSERT(vmx_pages->vmcs_gpa);
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
 	GUEST_SYNC(3);
@@ -89,8 +83,7 @@ static void vmx_l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_SYNC(4);
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
 
-	prepare_vmcs(vmx_pages, vmx_l2_guest_code,
-		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	prepare_vmcs(vmx_pages, vmx_l2_guest_code);
 
 	GUEST_SYNC(5);
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);

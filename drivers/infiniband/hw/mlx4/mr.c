@@ -313,7 +313,7 @@ mlx4_alloc_priv_pages(struct ib_device *device,
 				    MLX4_MR_PAGES_ALIGN);
 
 	/* Prevent cross page boundary allocation. */
-	mr->pages = (__be64 *)get_zeroed_page(GFP_KERNEL);
+	mr->pages = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!mr->pages)
 		return -ENOMEM;
 
@@ -328,7 +328,7 @@ mlx4_alloc_priv_pages(struct ib_device *device,
 	return 0;
 
 err:
-	free_page((unsigned long)mr->pages);
+	kfree(mr->pages);
 	return ret;
 }
 
@@ -340,7 +340,7 @@ mlx4_free_priv_pages(struct mlx4_ib_mr *mr)
 
 		dma_unmap_single(device->dev.parent, mr->page_map,
 				 mr->page_map_size, DMA_TO_DEVICE);
-		free_page((unsigned long)mr->pages);
+		kfree(mr->pages);
 		mr->pages = NULL;
 	}
 }

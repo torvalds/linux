@@ -2077,8 +2077,9 @@ int sparx5_vcap_init(struct sparx5 *sparx5)
 	dir = vcap_debugfs(sparx5->dev, sparx5->debugfs_root, ctrl);
 	for (idx = 0; idx < consts->n_ports; ++idx)
 		if (sparx5->ports[idx])
-			vcap_port_debugfs(sparx5->dev, dir, ctrl,
-					  sparx5->ports[idx]->ndev);
+			vcap_port_debugfs_portno(sparx5->dev, dir, ctrl,
+						 sparx5->ports[idx]->ndev,
+						 sparx5->ports[idx]->portno);
 
 	return err;
 }

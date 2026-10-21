@@ -40,7 +40,6 @@
 #include <linux/sched/rseq_api.h>
 #include <linux/sched/rt.h>
 
-#include <linux/blkdev.h>
 #include <linux/context_tracking.h>
 #include <linux/cpuset.h>
 #include <linux/delayacct.h>
@@ -442,6 +441,17 @@ static void __sched_core_flip(bool enabled)
 		const struct cpumask *smt_mask = cpu_smt_mask(cpu);
 
 		sched_core_lock(cpu, &flags);
+
+		/*
+		 * A core-wide selection may have the shared rq lock temporarily
+		 * released by a lock-dropping ->pick_task(). Flipping would
+		 * rebind rq_lockp() under it. Wait it out.
+		 */
+		while (cpu_rq(cpu)->core->core_pick_in_flight) {
+			sched_core_unlock(cpu, &flags);
+			cpu_relax();
+			sched_core_lock(cpu, &flags);
+		}
 
 		for_each_cpu(t, smt_mask)
 			cpu_rq(t)->core_enabled = enabled;
@@ -3341,6 +3351,8 @@ void relax_compatible_cpus_allowed_ptr(struct task_struct *p)
 void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 {
 	unsigned int state = READ_ONCE(p->__state);
+	bool proxy_migrated = sched_proxy_exec() && p->is_blocked &&
+			      task_cpu(p) != p->wake_cpu;
 
 	/*
 	 * We should never call set_task_cpu() on a blocked task,
@@ -3376,7 +3388,12 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 	 */
 	WARN_ON_ONCE(!cpu_online(new_cpu));
 
-	WARN_ON_ONCE(is_migration_disabled(p));
+	/*
+	 * Proxy execution can move a blocked task's scheduling context to any
+	 * CPU without moving its migration-disabled execution context. The
+	 * wakeup path will return the task to a CPU where it can execute.
+	 */
+	WARN_ON_ONCE(is_migration_disabled(p) && !proxy_migrated);
 
 	trace_sched_migrate_task(p, new_cpu);
 
@@ -3732,11 +3749,17 @@ static inline void ttwu_do_wakeup(struct task_struct *p)
 
 void update_rq_avg_idle(struct rq *rq)
 {
-	u64 delta = rq_clock(rq) - rq->idle_stamp;
-	u64 max = 2*rq->max_idle_balance_cost;
+	u64 idle_stamp = rq->idle_stamp;
+	u64 delta, max;
+
+	if (!idle_stamp)
+		return;
+
+	delta = rq_clock(rq) - idle_stamp;
 
 	update_avg(&rq->avg_idle, delta);
 
+	max = 2 * rq->max_idle_balance_cost;
 	if (rq->avg_idle > max)
 		rq->avg_idle = max;
 	rq->idle_stamp = 0;
@@ -4638,7 +4661,7 @@ void set_numabalancing_state(bool enabled)
 	__set_numabalancing_state(enabled);
 }
 
-#ifdef CONFIG_PROC_SYSCTL
+#ifdef CONFIG_SYSCTL
 static void reset_memory_tiering(void)
 {
 	struct pglist_data *pgdat;
@@ -4674,7 +4697,7 @@ static int sysctl_numa_balancing(const struct ctl_table *table, int write,
 	}
 	return err;
 }
-#endif /* CONFIG_PROC_SYSCTL */
+#endif /* CONFIG_SYSCTL */
 #endif /* CONFIG_NUMA_BALANCING */
 
 #ifdef CONFIG_SCHEDSTATS
@@ -4718,7 +4741,7 @@ out:
 }
 __setup("schedstats=", setup_schedstats);
 
-#ifdef CONFIG_PROC_SYSCTL
+#ifdef CONFIG_SYSCTL
 static int sysctl_schedstats(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
@@ -4738,7 +4761,7 @@ static int sysctl_schedstats(const struct ctl_table *table, int write, void *buf
 		set_schedstats(state);
 	return err;
 }
-#endif /* CONFIG_PROC_SYSCTL */
+#endif /* CONFIG_SYSCTL */
 #endif /* CONFIG_SCHEDSTATS */
 
 #ifdef CONFIG_SYSCTL
@@ -5760,8 +5783,8 @@ void sched_tick(void)
 {
 	int cpu = smp_processor_id();
 	struct rq *rq = cpu_rq(cpu);
-	/* accounting goes to the donor task */
-	struct task_struct *donor;
+	/* scheduler accounting goes to the donor task */
+	struct task_struct *curr, *donor;
 	struct rq_flags rf;
 	unsigned long hw_pressure;
 	u64 resched_latency;
@@ -5772,6 +5795,7 @@ void sched_tick(void)
 	sched_clock_tick();
 
 	rq_lock(rq, &rf);
+	curr = rq->curr;
 	donor = rq->donor;
 
 	psi_account_irqtime(rq, donor, NULL);
@@ -5797,8 +5821,8 @@ void sched_tick(void)
 
 	perf_event_task_tick();
 
-	if (donor->flags & PF_WQ_WORKER)
-		wq_worker_tick(donor);
+	if (curr->flags & PF_WQ_WORKER)
+		wq_worker_tick(curr);
 
 	if (!scx_switched_all()) {
 		rq->idle_balance = idle_cpu(cpu);
@@ -6228,7 +6252,7 @@ pick_next_task(struct rq *rq, struct rq_flags *rf)
 	unsigned long cookie;
 	int i, cpu, occ = 0;
 	struct rq *rq_i;
-	bool need_sync;
+	bool need_sync = false;
 
 	if (!sched_core_enabled(rq))
 		return __pick_next_task(rq, rf);
@@ -6246,6 +6270,8 @@ pick_next_task(struct rq *rq, struct rq_flags *rf)
 		rq->core_dl_server = NULL;
 		return __pick_next_task(rq, rf);
 	}
+
+	rq->core->core_pick_in_flight++;
 
 	/*
 	 * If there were no {en,de}queues since we picked (IOW, the task
@@ -6271,7 +6297,9 @@ pick_next_task(struct rq *rq, struct rq_flags *rf)
 	prev_balance(rq, rf);
 
 	smt_mask = cpu_smt_mask(cpu);
-	need_sync = !!rq->core->core_cookie;
+
+restart:
+	need_sync |= !!rq->core->core_cookie;
 
 	/* reset state */
 	rq->core->core_cookie = 0UL;
@@ -6306,10 +6334,15 @@ pick_next_task(struct rq *rq, struct rq_flags *rf)
 	 * and there are no cookied tasks running on siblings.
 	 */
 	if (!need_sync) {
-restart_single:
 		next = pick_task(rq, rf);
-		if (unlikely(next == RETRY_TASK))
-			goto restart_single;
+		if (unlikely(next == RETRY_TASK)) {
+			/* rq lock may have been dropped, clocks invalidated */
+			core_clock_updated = false;
+			if (!(rq->clock_update_flags & RQCF_UPDATED))
+				update_rq_clock(rq);
+			goto restart;
+		}
+
 		if (!next->core_cookie) {
 			rq->core_pick = NULL;
 			rq->core_dl_server = NULL;
@@ -6329,7 +6362,6 @@ restart_single:
 	 *
 	 * Tie-break prio towards the current CPU
 	 */
-restart_multi:
 	max = NULL;
 	for_each_cpu_wrap(i, smt_mask, cpu) {
 		rq_i = cpu_rq(i);
@@ -6343,8 +6375,13 @@ restart_multi:
 			update_rq_clock(rq_i);
 
 		p = pick_task(rq_i, rf);
-		if (unlikely(p == RETRY_TASK))
-			goto restart_multi;
+		if (unlikely(p == RETRY_TASK)) {
+			/* rq lock may have been dropped, clocks invalidated */
+			core_clock_updated = false;
+			if (!(rq->clock_update_flags & RQCF_UPDATED))
+				update_rq_clock(rq);
+			goto restart;
+		}
 
 		rq_i->core_pick = p;
 		rq_i->core_dl_server = rq_i->dl_server;
@@ -6450,6 +6487,7 @@ restart_multi:
 	}
 
 out_set_next:
+	rq->core->core_pick_in_flight--;
 	put_prev_set_next_task(rq, rq->donor, next);
 	if (rq->core->core_forceidle_count && next == rq->idle)
 		queue_core_balance(rq);
@@ -6643,6 +6681,13 @@ static void sched_core_cpu_deactivate(unsigned int cpu)
 	core_rq->core_forceidle_count      = rq->core_forceidle_count;
 	core_rq->core_forceidle_seq        = rq->core_forceidle_seq;
 	core_rq->core_forceidle_occupation = rq->core_forceidle_occupation;
+
+	/*
+	 * A stale leftover would bias the count forever if this CPU later
+	 * returns as its own leader. Move, don't copy.
+	 */
+	core_rq->core_pick_in_flight       = rq->core_pick_in_flight;
+	rq->core_pick_in_flight            = 0;
 
 	/*
 	 * Accounting edge for forced idle is handled in pick_next_task().
@@ -7606,6 +7651,17 @@ void rt_mutex_pre_schedule(void)
 	sched_submit_work(current);
 }
 
+/*
+ * Used within the futex syscall context, skips sched_submit_work() because none
+ * its work will be done. Asserts ensure that it is indeed the case.
+ */
+void rt_mutex_futex_pre_schedule(void)
+{
+	lockdep_assert(!(current->flags & (PF_WQ_WORKER | PF_IO_WORKER)));
+	lockdep_assert(!current->plug);
+	lockdep_assert(!fetch_and_set(current->sched_rt_mutex, 1));
+}
+
 void rt_mutex_schedule(void)
 {
 	lockdep_assert(current->sched_rt_mutex);
@@ -7615,6 +7671,11 @@ void rt_mutex_schedule(void)
 void rt_mutex_post_schedule(void)
 {
 	sched_update_worker(current);
+	lockdep_assert(fetch_and_set(current->sched_rt_mutex, 0));
+}
+
+void rt_mutex_futex_post_schedule(void)
+{
 	lockdep_assert(fetch_and_set(current->sched_rt_mutex, 0));
 }
 
@@ -9058,6 +9119,7 @@ void __init sched_init(void)
 		rq->core_forceidle_count = 0;
 		rq->core_forceidle_occupation = 0;
 		rq->core_forceidle_start = 0;
+		rq->core_pick_in_flight = 0;
 
 		rq->core_cookie = 0UL;
 #endif

@@ -96,8 +96,7 @@ static int vprbrd_probe(struct usb_interface *interface,
 	return 0;
 
 error:
-	if (vb)
-		kfree(vb);
+	kfree(vb);
 
 	return ret;
 }

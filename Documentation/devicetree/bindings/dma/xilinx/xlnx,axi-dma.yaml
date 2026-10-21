@@ -81,8 +81,13 @@ properties:
     description: Should be the number of framebuffers as configured in h/w.
 
   xlnx,flush-fsync:
-    type: boolean
-    description: Tells which channel to Flush on Frame sync.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 3]
+    description:
+      Tells which channel to flush on frame sync.
+      1 - flush both channels
+      2 - flush mm2s channel
+      3 - flush s2mm channel
 
   xlnx,sg-length-width:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -93,7 +98,7 @@ properties:
       Width in bits of the length register as configured in hardware.
 
   xlnx,irq-delay:
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint8
     minimum: 0
     maximum: 255
     description:
@@ -251,7 +256,7 @@ examples:
                       "m_axi_s2mm_aclk", "m_axis_mm2s_aclk",
                       "s_axis_s2mm_aclk";
         xlnx,num-fstores = <8>;
-        xlnx,flush-fsync;
+        xlnx,flush-fsync = <1>;
         xlnx,addrwidth = <32>;
 
         dma-channel-mm2s {

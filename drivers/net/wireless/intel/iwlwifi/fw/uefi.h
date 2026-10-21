@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright(c) 2021-2025 Intel Corporation
+ * Copyright(c) 2021-2026 Intel Corporation
  */
 #ifndef __iwl_fw_uefi__
 #define __iwl_fw_uefi__
@@ -275,8 +275,6 @@ enum iwl_uefi_cnv_puncturing_flags {
 	IWL_UEFI_CNV_PUNCTURING_CANADA_EN_MSK	= BIT(1),
 };
 
-#define IWL_UEFI_PUNCTURING_REV0_MASK (IWL_UEFI_CNV_PUNCTURING_USA_EN_MSK | \
-				       IWL_UEFI_CNV_PUNCTURING_CANADA_EN_MSK)
 /**
  * struct uefi_cnv_var_puncturing_data - controlling channel
  *	puncturing for few countries.

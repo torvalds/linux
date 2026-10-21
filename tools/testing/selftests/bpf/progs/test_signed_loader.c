@@ -4,10 +4,11 @@
 
 /*
  * Minimal, map-less program. Driven through libbpf's gen_loader (gen_hash)
- * by prog_tests/signed_loader.c so the generated light-skeleton loader (with
- * the emit_signature_match metadata check) can be exercised against good
- * and tampered metadata. A socket filter needs no load-time attach resolution,
- * and having no maps keeps the generated loader's ctx trivial (0 maps, 1 prog).
+ * by prog_tests/signed_loader.c so the generated light-skeleton loader can be
+ * exercised against good and tampered metadata, which the kernel now verifies
+ * at load time via the insns||metadata signature. A socket filter needs no
+ * load-time attach resolution, and having no maps keeps the generated loader's
+ * ctx trivial (0 maps, 1 prog).
  */
 SEC("socket")
 int probe(void *ctx)

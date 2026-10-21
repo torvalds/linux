@@ -65,7 +65,7 @@ examples:
 
   - |
     pericfg@10003000 {
-        compatible =  "mediatek,mt7623-pericfg", "mediatek,mt2701-pericfg", "syscon";
+        compatible = "mediatek,mt7623-pericfg", "mediatek,mt2701-pericfg", "syscon";
         reg = <0x10003000 0x1000>;
         #clock-cells = <1>;
         #reset-cells = <1>;

@@ -19,6 +19,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
 #define DSI_NUM_MIN 1
@@ -1206,7 +1207,7 @@ static int nt36523_probe(struct mipi_dsi_device *dsi)
 	pinfo->dsi[0] = dsi;
 	mipi_dsi_set_drvdata(dsi, pinfo);
 
-	ret = of_drm_get_panel_orientation(dev->of_node, &pinfo->orientation);
+	ret = drm_of_get_panel_orientation(dev->of_node, &pinfo->orientation);
 	if (ret < 0) {
 		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, ret);
 		return ret;

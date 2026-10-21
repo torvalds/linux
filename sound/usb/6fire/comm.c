@@ -21,7 +21,6 @@ enum {
 static void usb6fire_comm_init_urb(struct comm_runtime *rt, struct urb *urb,
 		u8 *buffer, void *context, void(*handler)(struct urb *urb))
 {
-	usb_init_urb(urb);
 	urb->transfer_buffer = buffer;
 	urb->pipe = usb_sndintpipe(rt->chip->dev, COMM_EP);
 	urb->complete = handler;
@@ -36,11 +35,14 @@ static void usb6fire_comm_receiver_handler(struct urb *urb)
 	struct midi_runtime *midi_rt = rt->chip->midi;
 
 	if (!urb->status) {
-		if (rt->receiver_buffer[0] == 0x10) /* midi in event */
+		u8 len = rt->receiver_buffer[1];
+
+		if (rt->receiver_buffer[0] == 0x10 && /* midi in event */
+		    len <= COMM_RECEIVER_BUFSIZE - 2 &&
+		    urb->actual_length >= len + 2)
 			if (midi_rt)
 				midi_rt->in_received(midi_rt,
-						rt->receiver_buffer + 2,
-						rt->receiver_buffer[1]);
+						rt->receiver_buffer + 2, len);
 	}
 
 	if (!rt->chip->shutdown) {
@@ -139,6 +141,19 @@ static int usb6fire_comm_write16(struct comm_runtime *rt, u8 request,
 	return ret;
 }
 
+static void usb6fire_comm_free(struct comm_runtime *rt)
+{
+	if (!rt)
+		return;
+
+	if (rt->chip)
+		rt->chip->comm = NULL;
+
+	usb_free_urb(rt->receiver);
+	kfree(rt->receiver_buffer);
+	kfree(rt);
+}
+
 int usb6fire_comm_init(struct sfire_chip *chip)
 {
 	struct comm_runtime *rt = kzalloc_obj(struct comm_runtime);
@@ -150,14 +165,18 @@ int usb6fire_comm_init(struct sfire_chip *chip)
 
 	rt->receiver_buffer = kzalloc(COMM_RECEIVER_BUFSIZE, GFP_KERNEL);
 	if (!rt->receiver_buffer) {
-		kfree(rt);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error;
 	}
 
-	urb = &rt->receiver;
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb) {
+		ret = -ENOMEM;
+		goto error;
+	}
+	rt->receiver = urb;
 	rt->serial = 1;
 	rt->chip = chip;
-	usb_init_urb(urb);
 	rt->init_urb = usb6fire_comm_init_urb;
 	rt->write8 = usb6fire_comm_write8;
 	rt->write16 = usb6fire_comm_write16;
@@ -172,13 +191,15 @@ int usb6fire_comm_init(struct sfire_chip *chip)
 	urb->interval = 1;
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret < 0) {
-		kfree(rt->receiver_buffer);
-		kfree(rt);
 		dev_err(&chip->dev->dev, "cannot create comm data receiver.");
-		return ret;
+		goto error;
 	}
 	chip->comm = rt;
 	return 0;
+
+ error:
+	usb6fire_comm_free(rt);
+	return ret;
 }
 
 void usb6fire_comm_abort(struct sfire_chip *chip)
@@ -186,14 +207,10 @@ void usb6fire_comm_abort(struct sfire_chip *chip)
 	struct comm_runtime *rt = chip->comm;
 
 	if (rt)
-		usb_poison_urb(&rt->receiver);
+		usb_poison_urb(rt->receiver);
 }
 
 void usb6fire_comm_destroy(struct sfire_chip *chip)
 {
-	struct comm_runtime *rt = chip->comm;
-
-	kfree(rt->receiver_buffer);
-	kfree(rt);
-	chip->comm = NULL;
+	usb6fire_comm_free(chip->comm);
 }

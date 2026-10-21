@@ -31,6 +31,7 @@
 #include <asm/nospec-insn.h>
 #include <asm/lowcore.h>
 #include <asm/machine.h>
+#include "entry.h"
 
 _LPP_OFFSET	= __LC_LPP
 
@@ -321,7 +322,7 @@ SYM_CODE_START(pgm_check_handler)
 	jz	1f
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 	SIEEXIT __SF_SIE_CONTROL(%r15),%r13
-	lghi	%r10,_PIF_GUEST_FAULT
+	lghi	%r10,PGM_FLAG_GUEST_FAULT
 #endif
 1:	tmhh	%r8,0x4000		# PER bit set in old PSW ?
 	jnz	2f			# -> enabled, can't be a double fault
@@ -332,7 +333,7 @@ SYM_CODE_START(pgm_check_handler)
 	CHECK_VMAP_STACK __LC_SAVE_AREA,%r13,4f
 3:	lg	%r15,__LC_KERNEL_STACK(%r13)
 4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	stg	%r10,__PT_FLAGS(%r11)
+	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA(%r13)
@@ -341,13 +342,13 @@ SYM_CODE_START(pgm_check_handler)
 	# clear user controlled registers to prevent speculative use
 	xgr	%r0,%r0
 	xgr	%r1,%r1
-	xgr	%r3,%r3
 	xgr	%r4,%r4
 	xgr	%r5,%r5
 	xgr	%r6,%r6
 	xgr	%r7,%r7
 	xgr	%r12,%r12
 	lgr	%r2,%r11
+	lgr	%r3,%r10
 	brasl	%r14,__do_pgm_check
 	tmhh	%r8,0x0001		# returning to user space?
 	jno	.Lpgm_exit_kernel
@@ -367,7 +368,7 @@ SYM_CODE_START(pgm_check_handler)
 	mvc	__LC_RETURN_PSW(8,%r13),__LC_SVC_NEW_PSW(%r13)
 	larl	%r14,.Lsysc_per
 	stg	%r14,__LC_RETURN_PSW+8(%r13)
-	lghi	%r14,1
+	lghi	%r14,SYSCALL_FLAG_PER_TRAP
 	LBEAR	__LC_PGM_LAST_BREAK(%r13)
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE # branch to .Lsysc_per
 SYM_CODE_END(pgm_check_handler)

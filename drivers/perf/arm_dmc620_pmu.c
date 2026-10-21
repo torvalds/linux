@@ -237,8 +237,8 @@ static ssize_t dmc620_pmu_cpumask_show(struct device *dev,
 {
 	struct dmc620_pmu *dmc620_pmu = to_dmc620_pmu(dev_get_drvdata(dev));
 
-	return cpumap_print_to_pagebuf(true, buf,
-				       cpumask_of(dmc620_pmu->irq->cpu));
+	return sysfs_emit(buf, "%*pbl\n",
+			  cpumask_pr_args(cpumask_of(dmc620_pmu->irq->cpu)));
 }
 
 static struct device_attribute dmc620_pmu_cpumask_attr =

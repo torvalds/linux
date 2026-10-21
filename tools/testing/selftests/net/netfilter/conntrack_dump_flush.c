@@ -102,7 +102,6 @@ static int conntrack_data_insert(struct mnl_socket *sock, struct nlmsghdr *nlh,
 				 uint16_t zone)
 {
 	char buf[MNL_SOCKET_BUFFER_SIZE];
-	struct nlmsghdr *rplnlh;
 	unsigned int portid;
 	int ret;
 
@@ -216,12 +215,11 @@ static int count_entries(const struct nlmsghdr *nlh, void *data)
 	return MNL_CB_OK;
 }
 
-static int conntracK_count_zone(struct mnl_socket *sock, uint16_t zone)
+static int conntrack_count_zone(struct mnl_socket *sock, uint16_t zone)
 {
 	char buf[MNL_SOCKET_BUFFER_SIZE];
-	struct nlmsghdr *nlh, *rplnlh;
+	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfh;
-	struct nlattr *nest;
 	unsigned int portid;
 	int ret;
 
@@ -266,9 +264,8 @@ static int conntracK_count_zone(struct mnl_socket *sock, uint16_t zone)
 static int conntrack_flush_zone(struct mnl_socket *sock, uint16_t zone)
 {
 	char buf[MNL_SOCKET_BUFFER_SIZE];
-	struct nlmsghdr *nlh, *rplnlh;
+	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfh;
-	struct nlattr *nest;
 	unsigned int portid;
 	int ret;
 
@@ -326,7 +323,7 @@ FIXTURE_SETUP(conntrack_dump_flush)
 	ret = mnl_socket_bind(self->sock, 0, MNL_SOCKET_AUTOPID);
 	EXPECT_EQ(ret, 0);
 
-	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID);
+	ret = conntrack_count_zone(self->sock, TEST_ZONE_ID);
 	if (ret < 0 && errno == EPERM)
 		SKIP(return, "Needs to be run as root");
 	else if (ret < 0 && errno == EOPNOTSUPP)
@@ -423,7 +420,7 @@ FIXTURE_SETUP(conntrack_dump_flush)
 					 NF_CT_DEFAULT_ZONE_ID);
 	EXPECT_EQ(ret, 0);
 
-	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID);
+	ret = conntrack_count_zone(self->sock, TEST_ZONE_ID);
 	EXPECT_GE(ret, 2);
 	if (ret > 2)
 		SKIP(return, "kernel does not support filtering by zone");
@@ -437,7 +434,7 @@ TEST_F(conntrack_dump_flush, test_dump_by_zone)
 {
 	int ret;
 
-	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID);
+	ret = conntrack_count_zone(self->sock, TEST_ZONE_ID);
 	EXPECT_EQ(ret, 2);
 }
 
@@ -447,13 +444,13 @@ TEST_F(conntrack_dump_flush, test_flush_by_zone)
 
 	ret = conntrack_flush_zone(self->sock, TEST_ZONE_ID);
 	EXPECT_EQ(ret, 0);
-	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID);
+	ret = conntrack_count_zone(self->sock, TEST_ZONE_ID);
 	EXPECT_EQ(ret, 0);
-	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID + 1);
+	ret = conntrack_count_zone(self->sock, TEST_ZONE_ID + 1);
 	EXPECT_EQ(ret, 2);
-	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID + 2);
+	ret = conntrack_count_zone(self->sock, TEST_ZONE_ID + 2);
 	EXPECT_EQ(ret, 2);
-	ret = conntracK_count_zone(self->sock, NF_CT_DEFAULT_ZONE_ID);
+	ret = conntrack_count_zone(self->sock, NF_CT_DEFAULT_ZONE_ID);
 	EXPECT_EQ(ret, 2);
 }
 
@@ -463,13 +460,13 @@ TEST_F(conntrack_dump_flush, test_flush_by_zone_default)
 
 	ret = conntrack_flush_zone(self->sock, NF_CT_DEFAULT_ZONE_ID);
 	EXPECT_EQ(ret, 0);
-	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID);
+	ret = conntrack_count_zone(self->sock, TEST_ZONE_ID);
 	EXPECT_EQ(ret, 2);
-	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID + 1);
+	ret = conntrack_count_zone(self->sock, TEST_ZONE_ID + 1);
 	EXPECT_EQ(ret, 2);
-	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID + 2);
+	ret = conntrack_count_zone(self->sock, TEST_ZONE_ID + 2);
 	EXPECT_EQ(ret, 2);
-	ret = conntracK_count_zone(self->sock, NF_CT_DEFAULT_ZONE_ID);
+	ret = conntrack_count_zone(self->sock, NF_CT_DEFAULT_ZONE_ID);
 	EXPECT_EQ(ret, 0);
 }
 

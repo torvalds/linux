@@ -406,6 +406,21 @@ get_ifname_by_ip()
 	__run_on "$target" ip -j addr show to "$ip_addr" | jq -r '.[].ifname'
 }
 
+# Wait for the device to refresh its HW statistics. Devices latch the stats
+# reported via ethtool only every stats-block-usecs, so sample after that.
+hw_stats_settle()
+{
+	local iface=$1; shift
+	local usecs
+
+	# Match only a non-zero integer; 0 or "n/a" use default (20msec)
+	usecs=$(run_on "$iface" ethtool -c "$iface" 2>/dev/null | \
+		sed -n 's/^stats-block-usecs:[[:space:]]*\([1-9][0-9]*\)$/\1/p')
+	usecs=${usecs:-20000}
+
+	sleep "$(echo "$usecs * 1.25 / 1000 / 1000" | bc -l)"
+}
+
 # Whether the test is conforming to the requirements and usage described in
 # drivers/net/README.rst.
 : "${DRIVER_TEST_CONFORMANT:=no}"

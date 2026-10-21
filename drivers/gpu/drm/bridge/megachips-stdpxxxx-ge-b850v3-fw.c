@@ -214,6 +214,9 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs ge_b850v3_lvds_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = ge_b850v3_lvds_attach,
 	.detect = ge_b850v3_lvds_bridge_detect,
 	.edid_read = ge_b850v3_lvds_edid_read,
@@ -314,8 +317,8 @@ static void stdp4028_ge_b850v3_fw_remove(struct i2c_client *stdp4028_i2c)
 }
 
 static const struct i2c_device_id stdp4028_ge_b850v3_fw_i2c_table[] = {
-	{ "stdp4028_ge_fw" },
-	{}
+	{ .name = "stdp4028_ge_fw" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stdp4028_ge_b850v3_fw_i2c_table);
 
@@ -361,8 +364,8 @@ static void stdp2690_ge_b850v3_fw_remove(struct i2c_client *stdp2690_i2c)
 }
 
 static const struct i2c_device_id stdp2690_ge_b850v3_fw_i2c_table[] = {
-	{ "stdp2690_ge_fw" },
-	{}
+	{ .name = "stdp2690_ge_fw" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stdp2690_ge_b850v3_fw_i2c_table);
 

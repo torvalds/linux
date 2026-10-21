@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#define pr_fmt(fmt) "deflate: " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -22,10 +24,29 @@ static void deflate_release_params(struct zcomp_params *params)
 
 static int deflate_setup_params(struct zcomp_params *params)
 {
-	if (params->level == ZCOMP_PARAM_NOT_SET)
+	if (params->dict_sz) {
+		pr_err("dictionary is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (params->level == ZCOMP_PARAM_NOT_SET) {
 		params->level = Z_DEFAULT_COMPRESSION;
-	if (params->deflate.winbits == ZCOMP_PARAM_NOT_SET)
+	} else if (params->level < Z_DEFAULT_COMPRESSION ||
+		   params->level > Z_BEST_COMPRESSION) {
+		pr_err("invalid compression level %d\n", params->level);
+		return -EINVAL;
+	}
+
+	if (params->deflate.winbits == ZCOMP_PARAM_NOT_SET) {
 		params->deflate.winbits = DEFLATE_DEF_WINBITS;
+	} else {
+		s32 wb = params->deflate.winbits;
+
+		if ((wb < -15 || wb > -9) && (wb < 9 || wb > 15)) {
+			pr_err("invalid winbits %d\n", wb);
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }

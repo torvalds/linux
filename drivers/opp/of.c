@@ -1039,7 +1039,7 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 
 	val = prop->value;
 	while (nr) {
-		unsigned long freq = be32_to_cpup(val++) * 1000;
+		unsigned long freq = (unsigned long)be32_to_cpup(val++) * 1000;
 		unsigned long volt = be32_to_cpup(val++);
 		struct dev_pm_opp_data data = {
 			.freq = freq,
@@ -1345,8 +1345,8 @@ int of_get_required_opp_performance_state(struct device_node *np, int index)
 		_find_table_of_opp_np(required_np);
 
 	if (IS_ERR(opp_table)) {
-		pr_err("%s: Failed to find required OPP table %pOF: %ld\n",
-		       __func__, np, PTR_ERR(opp_table));
+		pr_err("%s: Failed to find required OPP table %pOF: %pe\n",
+		       __func__, np, opp_table);
 		return PTR_ERR(opp_table);
 	}
 

@@ -171,8 +171,8 @@ void dpp1_cm_set_gamut_remap(
 		for (i = 0; i < 12; i++)
 			arr_matrix[i] = adjust->temperature_matrix[i];
 
-		convert_float_matrix(
-			arr_reg_val, arr_matrix, 12);
+		convert_float_matrix(arr_reg_val, arr_matrix,
+			CM_GAMUT_REMAP_COEF_FORMAT_S2_13, 12);
 
 		program_gamut_remap(dpp, arr_reg_val, GAMUT_REMAP_COEFF);
 	}
@@ -242,8 +242,8 @@ void dpp1_cm_get_gamut_remap(struct dpp *dpp_base,
 	}
 
 	adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
-	convert_hw_matrix(adjust->temperature_matrix,
-			  arr_reg_val, ARRAY_SIZE(arr_reg_val));
+	convert_hw_matrix(adjust->temperature_matrix, arr_reg_val,
+			CM_GAMUT_REMAP_COEF_FORMAT_S2_13, ARRAY_SIZE(arr_reg_val));
 }
 
 static void dpp1_cm_program_color_matrix(
@@ -397,8 +397,6 @@ void dpp1_cm_program_regamma_lut(struct dpp *dpp_base,
 	uint32_t i;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
-	REG_SEQ_START();
-
 	for (i = 0 ; i < num; i++) {
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].green_reg);
@@ -408,9 +406,6 @@ void dpp1_cm_program_regamma_lut(struct dpp *dpp_base,
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_green_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_blue_reg);
 	}
-
-	REG_SEQ_SUBMIT();
-	REG_SEQ_WAIT_DONE();
 }
 
 void dpp1_cm_configure_regamma_lut(

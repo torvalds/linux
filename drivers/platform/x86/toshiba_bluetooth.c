@@ -252,10 +252,8 @@ static int toshiba_bt_rfkill_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, bt_dev);
 
 	result = toshiba_bluetooth_sync_status(bt_dev);
-	if (result) {
-		kfree(bt_dev);
-		return result;
-	}
+	if (result)
+		goto err_free_bt_dev;
 
 	bt_dev->rfk = rfkill_alloc("Toshiba Bluetooth",
 				   &pdev->dev,

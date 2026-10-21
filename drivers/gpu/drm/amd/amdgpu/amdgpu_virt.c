@@ -34,6 +34,7 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_reset.h"
 #include "amdgpu_dpm.h"
+#include "amdgpu_video_codecs.h"
 #include "vi.h"
 #include "soc15.h"
 #include "nv.h"
@@ -315,8 +316,8 @@ static int amdgpu_virt_ras_realloc_eh_data_space(struct amdgpu_device *adev,
 	if (align_space > AMDGPU_VIRT_RAS_BAD_PAGE_TABLE_MAX_CAPACITY)
 		return -ENOMEM;
 
-	new_bps = kmalloc_array(align_space, sizeof(*data->bps), GFP_KERNEL);
-	new_bo = kcalloc(align_space, sizeof(*data->bps_bo), GFP_KERNEL);
+	new_bps = kmalloc_objs(*data->bps, align_space);
+	new_bo = kzalloc_objs(*data->bps_bo, align_space);
 	if (!new_bps || !new_bo) {
 		kfree(new_bps);
 		kfree(new_bo);
@@ -354,7 +355,7 @@ static int amdgpu_virt_init_ras_err_handler_data(struct amdgpu_device *adev)
 	if (!bps)
 		goto bps_failure;
 
-	bps_bo = kcalloc(align_space, sizeof(*(*data)->bps_bo), GFP_KERNEL);
+	bps_bo = kzalloc_objs(*(*data)->bps_bo, align_space);
 	if (!bps_bo)
 		goto bps_bo_failure;
 
@@ -2088,4 +2089,40 @@ int amdgpu_virt_send_remote_ras_cmd(struct amdgpu_device *adev,
 	}
 
 	return ret;
+}
+
+int amdgpu_virt_ptl_request(struct amdgpu_device *adev, u32 req_code,
+			    uint32_t *ptl_state, uint32_t *fmt1, uint32_t *fmt2)
+{
+	int ret;
+
+	if (!ptl_state || !fmt1 || !fmt2)
+		return -EINVAL;
+
+	if (!amdgpu_sriov_ptl_support(adev) ||
+	    !adev->virt.ops || !adev->virt.ops->req_ptl_update)
+		return -EOPNOTSUPP;
+
+	if (req_code == PSP_PTL_PERF_MON_SET && *ptl_state) {
+		if (*fmt1 == *fmt2) {
+			dev_warn(adev->dev,
+				"PTL formats must be different (fmt1=%u, fmt2=%u)\n",
+				*fmt1, *fmt2);
+			return -EINVAL;
+		}
+	}
+
+	ret = adev->virt.ops->req_ptl_update(adev, req_code, *ptl_state, *fmt1, *fmt2);
+	if (ret) {
+		dev_warn(adev->dev, "VF PTL update request failed: %d\n", ret);
+		return ret;
+	}
+
+	if (req_code == PSP_PTL_PERF_MON_QUERY) {
+		*ptl_state = adev->virt.ptl_state;
+		*fmt1 = adev->virt.ptl_pref_format1;
+		*fmt2 = adev->virt.ptl_pref_format2;
+	}
+
+	return 0;
 }

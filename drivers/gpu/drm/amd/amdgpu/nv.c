@@ -36,6 +36,7 @@
 #include "amdgpu_psp.h"
 #include "atom.h"
 #include "amd_pcie.h"
+#include "amdgpu_video_codecs.h"
 
 #include "gc/gc_10_1_0_offset.h"
 #include "gc/gc_10_1_0_sh_mask.h"
@@ -507,11 +508,6 @@ void nv_set_virt_ops(struct amdgpu_device *adev)
 	adev->virt.ops = &xgpu_nv_virt_ops;
 }
 
-static bool nv_need_full_reset(struct amdgpu_device *adev)
-{
-	return true;
-}
-
 static bool nv_need_reset_on_init(struct amdgpu_device *adev)
 {
 	u32 sol_reg;
@@ -595,7 +591,6 @@ static const struct amdgpu_asic_funcs nv_asic_funcs = {
 	.set_vce_clocks = &nv_set_vce_clocks,
 	.get_config_memsize = &nv_get_config_memsize,
 	.init_doorbell_index = &nv_init_doorbell_index,
-	.need_full_reset = &nv_need_full_reset,
 	.need_reset_on_init = &nv_need_reset_on_init,
 	.get_pcie_replay_count = &amdgpu_nbio_get_pcie_replay_count,
 	.supports_baco = &amdgpu_dpm_is_baco_supported,

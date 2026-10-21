@@ -243,6 +243,17 @@
 /* Rn - Rm; set condition flags */
 #define A64_CMP(sf, Rn, Rm) A64_SUBS(sf, A64_ZR, Rn, Rm)
 
+/* Add/subtract (extended register) */
+#define A64_ADDSUB_EREG(sf, Rd, Rn, Rm, ext, shift, type) \
+	aarch64_insn_gen_add_sub_extended_reg(Rd, Rn, Rm, \
+		AARCH64_INSN_EXTEND_##ext, shift, A64_VARIANT(sf), \
+		AARCH64_INSN_ADSB_##type)
+/* Rd = Rn + (EXT(Rm) << shift) */
+#define A64_ADD_EXT(sf, Rd, Rn, Rm, ext, shift) \
+	A64_ADDSUB_EREG(sf, Rd, Rn, Rm, ext, shift, ADD)
+/* Rd = Rn + (u32)Rm */
+#define A64_ADD_UXTW(Rd, Rn, Rm) A64_ADD_EXT(1, Rd, Rn, Rm, UXTW, 0)
+
 /* Data-processing (1 source) */
 #define A64_DATA1(sf, Rd, Rn, type) aarch64_insn_gen_data1(Rd, Rn, \
 	A64_VARIANT(sf), AARCH64_INSN_DATA1_##type)

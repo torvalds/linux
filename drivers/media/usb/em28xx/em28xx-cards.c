@@ -2677,6 +2677,28 @@ const struct em28xx_board em28xx_boards[] = {
 			.gpio     = mygica_utv3_tuner_audio_gpio,
 		} },
 	},
+	/* eb1a:8286 StarTech SVID2USB232
+	 * Empia EM28281 with integrated TVP5150-compatible video decoder.
+	 * Composite and S-Video inputs, stereo line-in audio.
+	 */
+	[EM28281_BOARD_STARTECH_SVID2USB232] = {
+		.name         = "StarTech SVID2USB232",
+		.vchannels    = 2,
+		.tuner_type   = TUNER_ABSENT,
+		.has_dvb      = 0,
+		.decoder      = EM28XX_BUILTIN,
+		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_400_KHZ,
+		.xclk         = EM28XX_XCLK_FREQUENCY_12MHZ,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = EM2828X_COMPOSITE,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = EM2828X_SVIDEO,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
 	[EM2828X_BOARD_HAUPPAUGE_USB_LIVE2] = {
 		.name         = "Hauppauge USB Live2",
 		.vchannels    = 2,
@@ -2946,6 +2968,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2874_BOARD_HAUPPAUGE_USB_QUADHD },
 	{ USB_DEVICE(0x2040, 0xc220),
 			.driver_info = EM2828X_BOARD_HAUPPAUGE_USB_LIVE2 },
+	{ USB_DEVICE(0xeb1a, 0x8286),
+			.driver_info = EM28281_BOARD_STARTECH_SVID2USB232 },
 	{ USB_DEVICE(0x2040, 0x0360),
 			.driver_info = EM2828X_BOARD_HAUPPAUGE_935_V2 },
 	{ USB_DEVICE(0x2040, 0x8360),
@@ -3651,6 +3675,7 @@ static void request_module_async(struct work_struct *work)
 	 * intf. Don't register extensions twice on those devices.
 	 */
 	if (dev->is_audio_only) {
+		em28xx_init_extension(dev);
 #if defined(CONFIG_MODULES) && defined(MODULE)
 		request_module("em28xx-alsa");
 #endif
@@ -3758,7 +3783,7 @@ void em28xx_free_device(struct kref *ref)
 {
 	struct em28xx *dev = kref_to_dev(ref);
 
-	dev_info(&dev->intf->dev, "Freeing device\n");
+	pr_info("%s: Freeing device\n", dev->name);
 
 	if (!dev->disconnected)
 		em28xx_release_resources(dev);
@@ -3859,6 +3884,11 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			dev->wait_after_write = 0;
 			dev->eeprom_addrwidth_16bit = 1;
 			break;
+		case CHIP_ID_EM28281:
+			chip_name = "em28281";
+			dev->wait_after_write = 0;
+			dev->eeprom_addrwidth_16bit = 1;
+			break;
 		case CHIP_ID_EM2883:
 			chip_name = "em2882/3";
 			dev->wait_after_write = 0;
@@ -3884,8 +3914,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			retval = -ENODEV;
 			goto err_deinit_media;
 		}
-		em28xx_init_extension(dev);
-
 		return 0;
 	}
 
@@ -4082,7 +4110,7 @@ static void em28xx_check_usb_descriptor(struct em28xx *dev,
 			dev->analog_ep_bulk = e->bEndpointAddress;
 		}
 		return;
-	};
+	}
 }
 
 /*

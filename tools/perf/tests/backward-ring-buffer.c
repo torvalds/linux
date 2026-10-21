@@ -34,8 +34,8 @@ static int count_samples(struct evlist *evlist, int *sample_count,
 {
 	int i;
 
-	for (i = 0; i < evlist->core.nr_mmaps; i++) {
-		struct mmap *map = &evlist->overwrite_mmap[i];
+	for (i = 0; i < evlist__core(evlist)->nr_mmaps; i++) {
+		struct mmap *map = &evlist__overwrite_mmap(evlist)[i];
 		union perf_event *event;
 
 		perf_mmap__read_init(&map->core);
@@ -65,7 +65,7 @@ static int do_test(struct evlist *evlist, int mmap_pages,
 	int err;
 	char sbuf[STRERR_BUFSIZE];
 
-	err = evlist__mmap(evlist, mmap_pages);
+	err = evlist__do_mmap(evlist, mmap_pages);
 	if (err < 0) {
 		pr_debug("evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
@@ -77,7 +77,7 @@ static int do_test(struct evlist *evlist, int mmap_pages,
 	evlist__disable(evlist);
 
 	err = count_samples(evlist, sample_count, comm_count);
-	evlist__munmap(evlist);
+	evlist__do_munmap(evlist);
 	return err;
 }
 
@@ -111,7 +111,7 @@ static int test__backward_ring_buffer(struct test_suite *test __maybe_unused, in
 	err = evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
 		pr_debug("Not enough memory to create thread/cpu maps\n");
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
 	parse_events_error__init(&parse_error);
@@ -124,7 +124,7 @@ static int test__backward_ring_buffer(struct test_suite *test __maybe_unused, in
 	if (err) {
 		pr_debug("Failed to parse tracepoint event, try use root\n");
 		ret = TEST_SKIP;
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
 	evlist__config(evlist, &opts, NULL);
@@ -133,19 +133,19 @@ static int test__backward_ring_buffer(struct test_suite *test __maybe_unused, in
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
 	ret = TEST_FAIL;
 	err = do_test(evlist, opts.mmap_pages, &sample_count,
 		      &comm_count);
 	if (err != TEST_OK)
-		goto out_delete_evlist;
+		goto out_put_evlist;
 
 	if ((sample_count != NR_ITERS) || (comm_count != NR_ITERS)) {
 		pr_err("Unexpected counter: sample_count=%d, comm_count=%d\n",
 		       sample_count, comm_count);
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
 	evlist__close(evlist);
@@ -154,16 +154,16 @@ static int test__backward_ring_buffer(struct test_suite *test __maybe_unused, in
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
 	err = do_test(evlist, 1, &sample_count, &comm_count);
 	if (err != TEST_OK)
-		goto out_delete_evlist;
+		goto out_put_evlist;
 
 	ret = TEST_OK;
-out_delete_evlist:
-	evlist__delete(evlist);
+out_put_evlist:
+	evlist__put(evlist);
 	return ret;
 }
 

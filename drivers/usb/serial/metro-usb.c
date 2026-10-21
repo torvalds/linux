@@ -36,6 +36,7 @@
 struct metrousb_private {
 	spinlock_t lock;
 	int throttled;
+	int throttle_req;
 	unsigned long control_state;
 };
 
@@ -108,7 +109,7 @@ static void metrousb_read_int_callback(struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
 	int throttled = 0;
-	int result = 0;
+	int result;
 
 	dev_dbg(&port->dev, "%s\n", __func__);
 
@@ -143,7 +144,10 @@ static void metrousb_read_int_callback(struct urb *urb)
 
 	/* Set any port variables. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
-	throttled = metro_priv->throttled;
+	if (metro_priv->throttle_req) {
+		metro_priv->throttled = 1;
+		throttled = 1;
+	}
 	spin_unlock_irqrestore(&metro_priv->lock, flags);
 
 	if (throttled)
@@ -169,12 +173,13 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-	int result = 0;
+	int result;
 
 	/* Set the private data information for the port. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	metro_priv->control_state = 0;
 	metro_priv->throttled = 0;
+	metro_priv->throttle_req = 0;
 	spin_unlock_irqrestore(&metro_priv->lock, flags);
 
 	/* Clear the urb pipe. */
@@ -269,7 +274,7 @@ static void metrousb_throttle(struct tty_struct *tty)
 
 	/* Set the private information for the port to stop reading data. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
-	metro_priv->throttled = 1;
+	metro_priv->throttle_req = 1;
 	spin_unlock_irqrestore(&metro_priv->lock, flags);
 }
 
@@ -321,19 +326,23 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-	int result = 0;
+	int throttled;
+	int result;
 
 	/* Set the private information for the port to resume reading data. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
+	throttled = metro_priv->throttled;
 	metro_priv->throttled = 0;
+	metro_priv->throttle_req = 0;
 	spin_unlock_irqrestore(&metro_priv->lock, flags);
 
-	/* Submit the urb to read from the port. */
-	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
-	if (result)
-		dev_err(&port->dev,
-			"failed submitting interrupt in urb error code=%d\n",
-			result);
+	if (throttled) {
+		result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
+		if (result) {
+			dev_err(&port->dev, "failed to submit interrupt in urb: %d\n",
+				result);
+		}
+	}
 }
 
 static struct usb_serial_driver metrousb_device = {

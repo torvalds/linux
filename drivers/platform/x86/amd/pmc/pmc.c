@@ -939,9 +939,16 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	}
 
 	amd_pmc_dbgfs_register(dev);
+
+	/*
+	 * STB is an optional debug facility (enable_stb); a failure to set it
+	 * up must not stop the rest of the driver - most importantly the s0i3
+	 * LPS0 handler - from working, so treat it as non-fatal.
+	 */
 	err = amd_stb_s2d_init(dev);
 	if (err)
-		goto err_pci_dev_put;
+		dev_warn(dev->dev, "STB initialization failed (%d), continuing without STB support\n",
+			 err);
 
 	if (IS_ENABLED(CONFIG_AMD_MP2_STB))
 		amd_mp2_stb_init(dev);

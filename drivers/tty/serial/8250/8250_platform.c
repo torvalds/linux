@@ -284,6 +284,7 @@ static struct platform_driver serial8250_isa_driver = {
 	.driver		= {
 		.name	= "serial8250",
 		.acpi_match_table = acpi_platform_serial_table,
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 };
 

@@ -116,6 +116,8 @@ vcpu_alloc_vmx(struct kvm_vm *vm, gva_t *p_vmx_gva)
 	vmx->vmwrite_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmwrite);
 	memset(vmx->vmwrite_hva, 0, getpagesize());
 
+	vmx->stack = (void *)vm_alloc_stack(vm, 1);
+
 	if (vm->stage2_mmu.pgd_created)
 		vmx->eptp_gpa = vm->stage2_mmu.pgd;
 
@@ -230,7 +232,7 @@ static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 
 	vmwrite(EXCEPTION_BITMAP, 0);
 	vmwrite(PAGE_FAULT_ERROR_CODE_MASK, 0);
-	vmwrite(PAGE_FAULT_ERROR_CODE_MATCH, -1); /* Never match */
+	vmwrite(PAGE_FAULT_ERROR_CODE_MATCH, 0);
 	vmwrite(CR3_TARGET_COUNT, 0);
 	vmwrite(VM_EXIT_CONTROLS, rdmsr(MSR_IA32_VMX_EXIT_CTLS) |
 		VM_EXIT_HOST_ADDR_SPACE_SIZE);	  /* 64-bit host */
@@ -366,11 +368,11 @@ static inline void init_vmcs_guest_state(void *rip, void *rsp)
 	vmwrite(GUEST_SYSENTER_EIP, vmreadz(HOST_IA32_SYSENTER_EIP));
 }
 
-void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp)
+void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip)
 {
 	init_vmcs_control_fields(vmx);
 	init_vmcs_host_state();
-	init_vmcs_guest_state(guest_rip, guest_rsp);
+	init_vmcs_guest_state(guest_rip, vmx->stack);
 }
 
 bool kvm_cpu_has_ept(void)

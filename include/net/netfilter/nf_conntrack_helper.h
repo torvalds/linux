@@ -43,11 +43,10 @@ struct nf_conntrack_helper {
 
 	refcount_t ct_refcnt;
 
-	/* Tuple of things we will help (compared against server response) */
-	struct nf_conntrack_tuple tuple;
+	u8 nfproto;	/* NFPROTO_*, can be NFPROTO_UNSPEC */
+	u8 l4proto;	/* IPPROTO_UDP/TCP */
 
-	/* Function to call when data passes; return verdict, or -1 to
-           invalidate. */
+	/* Function to call when data passes; return verdict */
 	int __rcu (*help)(struct sk_buff *skb, unsigned int protoff,
 			  struct nf_conn *ct,
 			  enum ip_conntrack_info conntrackinfo);
@@ -94,8 +93,7 @@ struct nf_conntrack_helper *nf_conntrack_helper_try_module_get(const char *name,
 void nf_conntrack_helper_put(struct nf_conntrack_helper *helper);
 
 void nf_ct_helper_init(struct nf_conntrack_helper *helper,
-		       u16 l3num, u16 protonum, const char *name,
-		       u16 default_port, u16 spec_port, u32 id,
+		       u8 l3num, u16 protonum, const char *name,
 		       const struct nf_conntrack_expect_policy *exp_pol,
 		       u32 expect_class_max,
 		       int (*help)(struct sk_buff *skb, unsigned int protoff,
@@ -108,6 +106,7 @@ void nf_ct_helper_init(struct nf_conntrack_helper *helper,
 int nf_conntrack_helper_register(struct nf_conntrack_helper *, struct nf_conntrack_helper **);
 int __nf_conntrack_helper_register(struct nf_conntrack_helper *);
 void nf_conntrack_helper_unregister(struct nf_conntrack_helper *);
+void nf_conntrack_helper_release(struct nf_conntrack_helper *);
 
 int nf_conntrack_helpers_register(struct nf_conntrack_helper *, unsigned int,
 				  struct nf_conntrack_helper **);

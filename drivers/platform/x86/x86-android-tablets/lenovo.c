@@ -61,13 +61,6 @@ static struct lp855x_platform_data lenovo_lp8557_reg_only_pdata = {
 	.initial_brightness = 128,
 };
 
-static const struct software_node arizona_gpiochip_node = {
-	.name = "arizona",
-};
-
-static const struct software_node crystalcove_gpiochip_node = {
-	.name = "gpio_crystalcove",
-};
 
 /* Lenovo Yoga Book X90F / X90L's Android factory image has everything hardcoded */
 
@@ -416,28 +409,22 @@ static const struct platform_device_info lenovo_yoga_tab2_830_1050_pdevs[] __ini
 
 #define LENOVO_YOGA_TAB2_830_1050_CODEC_NAME "spi-10WM5102:00"
 
+static const struct software_node lenovo_yoga_tab2_830_1050_wm5102;
+
 static const struct property_entry lenovo_yoga_tab2_830_1050_wm1502_props[] = {
 	PROPERTY_ENTRY_GPIO("reset-gpios",
 			    &crystalcove_gpiochip_node, 3, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("wlf,ldoena-gpios",
 			    &baytrail_gpiochip_nodes[1], 23, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("wlf,spkvdd-ena-gpios",
-			    &arizona_gpiochip_node, 2, GPIO_ACTIVE_HIGH),
+			    &lenovo_yoga_tab2_830_1050_wm5102, 2, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("wlf,micd-pol-gpios",
-			    &arizona_gpiochip_node, 4, GPIO_ACTIVE_LOW),
+			    &lenovo_yoga_tab2_830_1050_wm5102, 4, GPIO_ACTIVE_LOW),
 	{ }
 };
 
 static const struct software_node lenovo_yoga_tab2_830_1050_wm5102 = {
 	.properties = lenovo_yoga_tab2_830_1050_wm1502_props,
-};
-
-static const struct software_node *lenovo_yoga_tab2_830_1050_swnodes[] = {
-	&crystalcove_gpiochip_node,
-	&arizona_gpiochip_node,
-	&lenovo_yoga_tab2_830_1050_wm5102,
-	&generic_lipo_hv_4v35_battery_node,
-	NULL
 };
 
 static int __init lenovo_yoga_tab2_830_1050_init(struct device *dev);
@@ -455,8 +442,9 @@ const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.pdev_info = lenovo_yoga_tab2_830_1050_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_pdevs),
 	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
-	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
+	.swnode_group = generic_lipo_hv_4v35_battery_swnodes,
 	.modules = lenovo_yoga_tab2_modules,
+	.has_crystalcove = true,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_830_1050_init,
 	.exit = lenovo_yoga_tab2_830_1050_exit,
@@ -800,8 +788,9 @@ const struct x86_dev_info lenovo_yoga_tab2_1380_info __initconst = {
 	.pdev_info = lenovo_yoga_tab2_1380_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_1380_pdevs),
 	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
-	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
+	.swnode_group = generic_lipo_hv_4v35_battery_swnodes,
 	.modules = lenovo_yoga_tab2_modules,
+	.has_crystalcove = true,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_1380_init,
 	.exit = lenovo_yoga_tab2_830_1050_exit,
@@ -985,13 +974,15 @@ static struct arizona_pdata lenovo_yt3_wm5102_pdata = {
 	},
 };
 
+static const struct software_node lenovo_yt3_wm5102;
+
 static const struct property_entry lenovo_yt3_wm1502_props[] = {
 	PROPERTY_ENTRY_GPIO("wlf,spkvdd-ena-gpios",
 			    &cherryview_gpiochip_nodes[0], 75, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("wlf,ldoena-gpios",
 			    &cherryview_gpiochip_nodes[0], 81, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[0], 82, GPIO_ACTIVE_HIGH),
-	PROPERTY_ENTRY_GPIO("wlf,micd-pol-gpios", &arizona_gpiochip_node, 2, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,micd-pol-gpios", &lenovo_yt3_wm5102, 2, GPIO_ACTIVE_HIGH),
 	{ }
 };
 
@@ -1000,11 +991,6 @@ static const struct software_node lenovo_yt3_wm5102 = {
 	.name = "wm5102",
 };
 
-static const struct software_node *lenovo_yt3_swnodes[] = {
-	&arizona_gpiochip_node,
-	&lenovo_yt3_wm5102,
-	NULL
-};
 
 static const struct x86_spi_dev_info lenovo_yt3_spi_devs[] __initconst = {
 	{
@@ -1072,7 +1058,6 @@ const struct x86_dev_info lenovo_yt3_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(lenovo_yt3_i2c_clients),
 	.spi_dev_info = lenovo_yt3_spi_devs,
 	.spi_dev_count = ARRAY_SIZE(lenovo_yt3_spi_devs),
-	.swnode_group = lenovo_yt3_swnodes,
 	.modules = lenovo_yt3_modules,
 	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 	.init = lenovo_yt3_init,

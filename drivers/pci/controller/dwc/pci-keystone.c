@@ -876,7 +876,7 @@ static const struct dw_pcie_ops ks_pcie_dw_pcie_ops = {
 	.write_dbi2 = ks_pcie_am654_write_dbi2,
 };
 
-static void ks_pcie_am654_ep_init(struct dw_pcie_ep *ep)
+static int ks_pcie_am654_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	int flags;
@@ -885,6 +885,8 @@ static void ks_pcie_am654_ep_init(struct dw_pcie_ep *ep)
 	flags = PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_32;
 	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_0, APP_ADDR_SPACE_0 - 1);
 	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_0, flags);
+
+	return 0;
 }
 
 static void ks_pcie_am654_raise_intx_irq(struct keystone_pcie *ks_pcie)
@@ -1389,13 +1391,17 @@ static int ks_pcie_fault(unsigned long addr, unsigned int fsr,
 
 static int __init ks_pcie_init(void)
 {
+	struct device_node *np;
 	/*
 	 * PCIe access errors that result into OCP errors are caught by ARM as
 	 * "External aborts"
 	 */
-	if (of_find_matching_node(NULL, ks_pcie_of_match))
+	np = of_find_matching_node(NULL, ks_pcie_of_match);
+	if (np) {
+		of_node_put(np);
 		hook_fault_code(17, ks_pcie_fault, SIGBUS, 0,
 				"Asynchronous external abort");
+	}
 
 	return platform_driver_register(&ks_pcie_driver);
 }

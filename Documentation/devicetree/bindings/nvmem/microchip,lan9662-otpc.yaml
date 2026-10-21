@@ -25,6 +25,7 @@ properties:
           - const: microchip,lan9662-otpc
       - enum:
           - microchip,lan9662-otpc
+          - microchip,lan9691-otpc
 
   reg:
     maxItems: 1

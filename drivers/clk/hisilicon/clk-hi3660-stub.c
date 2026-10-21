@@ -67,16 +67,6 @@ static unsigned long hi3660_stub_clk_recalc_rate(struct clk_hw *hw,
 	return stub_clk->rate;
 }
 
-static int hi3660_stub_clk_determine_rate(struct clk_hw *hw,
-					  struct clk_rate_request *req)
-{
-	/*
-	 * LPM3 handles rate rounding so just return whatever
-	 * rate is requested.
-	 */
-	return 0;
-}
-
 static int hi3660_stub_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 				    unsigned long parent_rate)
 {
@@ -97,7 +87,7 @@ static int hi3660_stub_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops hi3660_stub_clk_ops = {
 	.recalc_rate    = hi3660_stub_clk_recalc_rate,
-	.determine_rate = hi3660_stub_clk_determine_rate,
+	.determine_rate = clk_determine_rate_noop,
 	.set_rate       = hi3660_stub_clk_set_rate,
 };
 
@@ -124,7 +114,6 @@ static struct clk_hw *hi3660_stub_clk_hw_get(struct of_phandle_args *clkspec,
 static int hi3660_stub_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	unsigned int i;
 	int ret;
 
@@ -139,12 +128,9 @@ static int hi3660_stub_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(stub_clk_chan.mbox))
 		return PTR_ERR(stub_clk_chan.mbox);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-	freq_reg = devm_ioremap(dev, res->start, resource_size(res));
-	if (!freq_reg)
-		return -ENOMEM;
+	freq_reg = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(freq_reg))
+		return PTR_ERR(freq_reg);
 
 	freq_reg += HI3660_STUB_CLOCK_DATA;
 

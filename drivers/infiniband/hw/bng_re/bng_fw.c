@@ -401,14 +401,15 @@ static int __wait_for_resp(struct bng_re_rcfw *rcfw, u16 cookie)
 {
 	struct bng_re_cmdq_ctx *cmdq;
 	struct bng_re_crsqe *crsqe;
+	unsigned long time_left;
 
 	cmdq = &rcfw->cmdq;
 	crsqe = &rcfw->crsqe_tbl[cookie];
 
 	do {
-		wait_event_timeout(cmdq->waitq,
-				   !crsqe->is_in_used,
-				   secs_to_jiffies(rcfw->max_timeout));
+		time_left = wait_event_timeout(cmdq->waitq,
+					       !crsqe->is_in_used,
+					       secs_to_jiffies(rcfw->max_timeout));
 
 		if (!crsqe->is_in_used)
 			return 0;
@@ -417,6 +418,9 @@ static int __wait_for_resp(struct bng_re_rcfw *rcfw, u16 cookie)
 
 		if (!crsqe->is_in_used)
 			return 0;
+
+		if (!time_left)
+			return -ENODEV;
 	} while (true);
 };
 

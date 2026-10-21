@@ -72,8 +72,8 @@ MODULE_PARM_DESC(video_nr, "video devices numbers array");
  * added under vendor 0x1797 (Techwell Inc.) as subsystem IDs.
  */
 static const struct pci_device_id tw5864_pci_tbl[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_TECHWELL_5864)},
-	{0,}
+	{ PCI_VDEVICE(TECHWELL, PCI_DEVICE_ID_TECHWELL_5864) },
+	{ }
 };
 
 void tw5864_irqmask_apply(struct tw5864_dev *dev)

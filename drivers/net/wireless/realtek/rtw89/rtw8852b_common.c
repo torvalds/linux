@@ -1321,11 +1321,9 @@ static void rtw8852bx_set_tx_shape(struct rtw89_dev *rtwdev,
 				   const struct rtw89_chan *chan,
 				   enum rtw89_phy_idx phy_idx)
 {
-	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
 	u8 band = chan->band_type;
-	u8 regd = rtw89_regd_get(rtwdev, band);
-	u8 tx_shape_cck = (*rfe_parms->tx_shape.lmt)[band][RTW89_RS_CCK][regd];
-	u8 tx_shape_ofdm = (*rfe_parms->tx_shape.lmt)[band][RTW89_RS_OFDM][regd];
+	u8 tx_shape_cck = rtw89_get_tx_shape_idx(rtwdev, band, RTW89_RS_CCK);
+	u8 tx_shape_ofdm = rtw89_get_tx_shape_idx(rtwdev, band, RTW89_RS_OFDM);
 
 	if (band == RTW89_BAND_2G)
 		rtw8852bx_bb_set_tx_shape_dfir(rtwdev, chan, tx_shape_cck, phy_idx);
@@ -1838,7 +1836,6 @@ static void __rtw8852bx_btc_init_cfg(struct rtw89_dev *rtwdev)
 
 	 /* enable BT counter 0xda40[16,2] = 2b'11 */
 	rtw89_write32_set(rtwdev, R_AX_CSR_MODE, B_AX_BT_CNT_RST | B_AX_STATIS_BT_EN);
-	btc->cx.wl.status.map.init_ok = true;
 }
 
 static

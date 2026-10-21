@@ -46,18 +46,81 @@
 #include "page_actor.h"
 
 /*
+ * Waiters on cache->wait_queue are keyed by the block they want, so a wakeup
+ * can name who it is for.  A NULL key is a capacity wakeup: one entry became
+ * free, so wake one waiter.  A block key is a publication wakeup: that block
+ * now has an entry, so wake every waiter which can share it.
+ */
+struct squashfs_cache_wait {
+	wait_queue_entry_t	wait;
+	u64			block;
+	bool			capacity_wake;
+};
+
+static int squashfs_cache_wake_function(wait_queue_entry_t *wait,
+					unsigned int mode, int sync, void *key)
+{
+	struct squashfs_cache_wait *cache_wait =
+		container_of(wait, struct squashfs_cache_wait, wait);
+	u64 *block = key;
+
+	if (block && cache_wait->block != *block)
+		return 0;
+
+	WRITE_ONCE(cache_wait->capacity_wake, !block);
+
+	/*
+	 * Wake and unlink unconditionally instead of using
+	 * autoremove_wake_function(), which unlinks only when it changed the
+	 * task state.  A waiter can be made runnable by something which does
+	 * not go through this queue: wake_up_process() takes TASK_NORMAL, and
+	 * a cgroup v2 thaw calls it on every task in the cgroup, as do
+	 * free_pid() on a pid namespace init and a late rcuwait_wake_up().
+	 * try_to_wake_up() then fails.  Leaving such a waiter queued with a
+	 * reason already recorded would let it act on a freed entry it was not
+	 * given, and the failure would not consume the exclusive budget, so a
+	 * second waiter would be woken for the same entry.
+	 *
+	 * list_del_init_careful() must be the last access to @cache_wait: it
+	 * releases the waiter, whose wait structure lives on its stack, and it
+	 * pairs with list_empty_careful() in finish_wait() to publish the
+	 * store above.  __wake_up_common() samples ->flags and the next entry
+	 * before calling here, so it does not touch @wait afterwards either.
+	 */
+	default_wake_function(wait, mode, sync, key);
+	list_del_init_careful(&wait->entry);
+
+	return 1;
+}
+
+static void squashfs_cache_wake_block(struct squashfs_cache *cache, u64 block)
+{
+	/* nr_exclusive == 0: wake every waiter which matches the key. */
+	__wake_up(&cache->wait_queue, TASK_NORMAL, 0, &block);
+}
+
+/*
  * Look-up block in cache, and increment usage count.  If not in cache, read
  * and decompress it from disk.
+ *
+ * A caller which finds no free entry sleeps on cache->wait_queue as an
+ * exclusive waiter, so squashfs_cache_put() releasing one entry wakes exactly
+ * one task.  Because a wakee may find its block published in the meantime and
+ * share that entry rather than claim the free one, a wakee which shares hands
+ * its wakeup on to the next waiter.
  */
 struct squashfs_cache_entry *squashfs_cache_get(struct super_block *sb,
 	struct squashfs_cache *cache, u64 block, int length)
 {
 	int i, n;
 	struct squashfs_cache_entry *entry;
+	bool capacity_wake = false;
 
 	spin_lock(&cache->lock);
 
 	while (1) {
+		bool pending, wake_next, wake_block;
+
 		for (i = cache->curr_blk, n = 0; n < cache->entries; n++) {
 			if (cache->entry[i].block == block) {
 				cache->curr_blk = i;
@@ -72,9 +135,25 @@ struct squashfs_cache_entry *squashfs_cache_get(struct super_block *sb,
 			 * go to sleep waiting for one to become available.
 			 */
 			if (cache->unused == 0) {
+				struct squashfs_cache_wait wait = {
+					.block		= block,
+					.capacity_wake	= false,
+				};
+
+				init_wait_func(&wait.wait,
+					       squashfs_cache_wake_function);
 				cache->num_waiters++;
+				/*
+				 * Enqueue while still holding cache->lock, so
+				 * that a concurrent lookup either sees us
+				 * queued or we see the block it publishes.
+				 */
+				prepare_to_wait_exclusive(&cache->wait_queue,
+						&wait.wait, TASK_UNINTERRUPTIBLE);
 				spin_unlock(&cache->lock);
-				wait_event(cache->wait_queue, cache->unused);
+				schedule();
+				finish_wait(&cache->wait_queue, &wait.wait);
+				capacity_wake = READ_ONCE(wait.capacity_wake);
 				spin_lock(&cache->lock);
 				cache->num_waiters--;
 				continue;
@@ -105,7 +184,17 @@ struct squashfs_cache_entry *squashfs_cache_get(struct super_block *sb,
 			entry->pending = 1;
 			entry->num_waiters = 0;
 			entry->error = 0;
+			wake_block = cache->num_waiters > 0;
 			spin_unlock(&cache->lock);
+
+			/*
+			 * The entry is now findable, so release everybody
+			 * queued for this block to share it rather than each
+			 * waiting for an entry of their own.  They will block
+			 * on entry->wait_queue below until the read completes.
+			 */
+			if (wake_block)
+				squashfs_cache_wake_block(cache, block);
 
 			entry->length = squashfs_read_data(sb, block, length,
 				&entry->next_index, entry->actor);
@@ -138,20 +227,33 @@ struct squashfs_cache_entry *squashfs_cache_get(struct super_block *sb,
 		 * for reuse.
 		 */
 		entry = &cache->entry[i];
-		if (entry->refcount == 0)
+		if (entry->refcount == 0) {
 			cache->unused--;
+			/* This claims the capacity we were woken for. */
+			capacity_wake = false;
+		}
 		entry->refcount++;
 
 		/*
 		 * If the entry is currently being filled in by another process
 		 * go to sleep waiting for it to become available.
 		 */
-		if (entry->pending) {
+		pending = entry->pending;
+		if (pending)
 			entry->num_waiters++;
-			spin_unlock(&cache->lock);
+
+		/*
+		 * We were woken because an entry became free, but shared a
+		 * block instead of claiming it.  Hand the wakeup on, otherwise
+		 * the free entry sits unclaimed while others sleep.
+		 */
+		wake_next = capacity_wake && cache->unused && cache->num_waiters;
+		spin_unlock(&cache->lock);
+
+		if (wake_next)
+			wake_up(&cache->wait_queue);
+		if (pending)
 			wait_event(entry->wait_queue, !entry->pending);
-		} else
-			spin_unlock(&cache->lock);
 
 		goto out;
 	}
@@ -299,7 +401,7 @@ int squashfs_copy_data(void *buffer, struct squashfs_cache_entry *entry,
 {
 	int remaining = length;
 
-	if (length == 0)
+	if (length == 0 || offset < 0)
 		return 0;
 	else if (buffer == NULL)
 		return min(length, entry->length - offset);

@@ -1540,5 +1540,169 @@
             "$TC qdisc del dev $DUMMY root",
             "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
         ]
+    },
+    {
+        "id": "fb6c",
+        "name": "Force multiq to dequeue from its child's gso_skb with qfq leaf",
+        "category": [
+            "qdisc",
+            "tbf",
+            "multiq",
+            "qfq"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
+            "$IP link set dev $ETH up || true",
+            "$IP l set addr 01:02:03:04:05:06 dev $ETH || true",
+            "$IP n add dev $ETH 10.10.11.1 lladdr 01:02:03:04:05:06 dev $ETH || true",
+            "$IP addr add 10.10.11.10/24 dev $ETH || true",
+            "$TC qdisc add dev $ETH root handle 1: tbf rate 88bit burst 1661b peakrate 2257333 minburst 1024 limit 7b",
+            "$TC qdisc add dev $ETH parent 1: handle 2: multiq",
+            "$TC qdisc add dev $ETH parent 2:1 handle 3: qfq",
+            "$TC class add dev $ETH classid 3:1 parent 3: qfq maxpkt 512 weight 1",
+            "$TC filter add dev $ETH parent 2: protocol all prio 1 matchall action skbedit queue_mapping 0",
+            "$TC filter add dev $ETH parent 3: protocol all prio 1 matchall classid 3:1 action ok"
+        ],
+        "cmdUnderTest": "ping -c 1 10.10.11.1 -W0.01 -I$ETH || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s -j qdisc ls dev $ETH parent 1:",
+        "matchJSON": [
+            {
+                "kind": "multiq",
+                "handle": "2:",
+                "bytes": 98,
+                "packets": 1,
+                "backlog": 0,
+                "qlen": 0
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $ETH handle 1: root",
+            "echo \"1\" > /sys/bus/netdevsim/del_device"
+        ]
+    },
+    {
+        "id": "1922",
+        "name": "Force multiq to dequeue from its child's gso_skb with dualpi2 leaf",
+        "category": [
+            "qdisc",
+            "tbf",
+            "multiq",
+            "dualpi2"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
+            "$IP link set dev $ETH up || true",
+            "$IP l set addr 01:02:03:04:05:06 dev $ETH || true",
+            "$IP n add dev $ETH 10.10.11.1 lladdr 01:02:03:04:05:06 dev $ETH || true",
+            "$IP addr add 10.10.11.10/24 dev $ETH || true",
+            "$TC qdisc add dev $ETH root handle 1: tbf rate 88bit burst 1661b peakrate 2257333 minburst 1024 limit 7b",
+            "$TC qdisc add dev $ETH parent 1: handle 2: multiq",
+            "$TC qdisc add dev $ETH parent 2:1 handle 3: dualpi2",
+            "$TC filter add dev $ETH parent 2: protocol ip prio 1 u32 match ip dst 10.10.11.1 action skbedit queue_mapping 0",
+            "$TC filter add dev $ETH parent 3: protocol ip prio 1 u32 match ip dst 10.10.11.1 classid 3:1 action ok"
+        ],
+        "cmdUnderTest": "ping -c 1 10.10.11.1 -W0.01 -I$ETH || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j -s qdisc ls dev $ETH handle 3:",
+        "matchJSON": [
+            {
+                "kind": "dualpi2",
+                "handle": "3:",
+                "bytes": 98,
+                "packets": 1,
+                "backlog": 0,
+                "qlen": 0
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $ETH handle 1: root",
+            "echo \"1\" > /sys/bus/netdevsim/del_device"
+        ]
+    },
+    {
+        "id": "476f",
+        "name": "Force taprio to dequeue from its child's gso_skb with qfq leaf",
+        "category": [
+            "qdisc",
+            "tbf",
+            "multiq",
+            "qfq"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
+            "$IP link set dev $ETH up || true",
+            "$IP l set addr 01:02:03:04:05:06 dev $ETH || true",
+            "$IP n add dev $ETH 10.10.11.1 lladdr 01:02:03:04:05:06 dev $ETH || true",
+            "$TC qdisc add dev $ETH root handle 1: taprio num_tc 2 map 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 queues 1@0 1@1 base-time 9000000000000000000 sched-entry S 03 200000 flags 0x0 clockid CLOCK_TAI",
+            "$TC qdisc add dev $ETH parent 1:1 handle 3: qfq",
+            "$TC class add dev $ETH classid 3:1 parent 3: qfq maxpkt 512 weight 1",
+            "$TC filter add dev $ETH parent 3: protocol all prio 1 matchall classid 3:1 action ok"
+        ],
+        "cmdUnderTest": "ping -c 1 10.10.11.1 -W0.01 -I$ETH || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s -j qdisc ls dev $ETH",
+        "matchJSON": [
+            {
+                "kind": "taprio",
+                "handle": "1:",
+                "bytes": 98,
+                "packets": 1,
+                "backlog": 0,
+                "qlen": 0
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $ETH handle 1: root",
+            "echo \"1\" > /sys/bus/netdevsim/del_device"
+        ]
+    },
+    {
+        "id": "0235",
+        "name": "Force taprio to dequeue from its child's gso_skb with dualpi2 leaf",
+        "category": [
+            "qdisc",
+            "tbf",
+            "taprio",
+            "dualpi2"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
+            "$IP link set dev $ETH up || true",
+            "$IP l set addr 01:02:03:04:05:06 dev $ETH || true",
+            "$IP n add dev $ETH 10.10.11.1 lladdr 01:02:03:04:05:06 dev $ETH || true",
+            "$TC qdisc add dev $ETH root handle 1: taprio num_tc 2 map 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 queues 1@0 1@1 base-time 9000000000000000000 sched-entry S 03 200000 flags 0x0 clockid CLOCK_TAI",
+            "$TC qdisc replace dev $ETH parent 1:1 handle 3: dualpi2",
+            "$TC filter add dev $ETH parent 3: protocol ip prio 1 u32 match ip dst 10.10.11.1 classid 3:1 action ok"
+        ],
+        "cmdUnderTest": "ping -c 1 10.10.11.1 -W0.01 -I$ETH || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j -s qdisc ls dev $ETH handle 3:",
+        "matchJSON": [
+            {
+                "kind": "dualpi2",
+                "handle": "3:",
+                "bytes": 98,
+                "packets": 1,
+                "backlog": 0,
+                "qlen": 0
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $ETH handle 1: root",
+            "echo \"1\" > /sys/bus/netdevsim/del_device"
+        ]
     }
 ]

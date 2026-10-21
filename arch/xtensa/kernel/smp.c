@@ -21,7 +21,6 @@
 #include <linux/irq.h>
 #include <linux/kdebug.h>
 #include <linux/module.h>
-#include <linux/profile.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/hotplug.h>
 #include <linux/sched/task_stack.h>
@@ -457,12 +456,6 @@ void show_ipi_list(struct seq_file *p, int prec)
 					per_cpu(ipi_data, cpu).ipi_count[i]);
 		seq_printf(p, "   %s\n", ipi_text[i].long_text);
 	}
-}
-
-int setup_profiling_timer(unsigned int multiplier)
-{
-	pr_debug("setup_profiling_timer %d\n", multiplier);
-	return 0;
 }
 
 /* TLB flush functions */

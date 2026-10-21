@@ -123,6 +123,8 @@ void resource_build_test_pattern_params(
 		struct resource_context *res_ctx,
 		struct pipe_ctx *pipe_ctx);
 
+enum upsp_mode resource_is_upsp_required(enum surface_pixel_format format);
+
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx);
 
 enum dc_status resource_build_scaling_params_for_context(
@@ -577,11 +579,14 @@ struct pipe_ctx *resource_find_free_secondary_pipe_legacy(
 		const struct pipe_ctx *primary_pipe);
 
 bool resource_validate_attach_surfaces(
-		const struct dc_validation_set set[],
-		int set_count,
+		const struct dc_validation_set *set,
 		const struct dc_state *old_context,
 		struct dc_state *context,
 		const struct resource_pool *pool);
+
+enum dc_status resource_validate_probe_set(struct dc *dc,
+		const struct dc_probe_state *probes,
+		uint8_t probe_count);
 
 enum dc_status resource_map_clock_resources(
 		const struct dc *dc,

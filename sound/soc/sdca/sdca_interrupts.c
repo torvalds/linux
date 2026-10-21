@@ -487,6 +487,12 @@ int sdca_irq_populate_early(struct device *dev, struct regmap *regmap,
 				}
 				break;
 			case SDCA_CTL_TYPE_S(HIDE, HIDTX_CURRENTOWNER):
+				interrupt->free_priv = sdca_destroy_hid_device;
+
+				ret = sdca_add_hid_device(interrupt);
+				if (ret)
+					return ret;
+
 				interrupt->handler = hid_handler;
 				break;
 			default:

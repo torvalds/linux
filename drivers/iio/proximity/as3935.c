@@ -428,10 +428,8 @@ static int as3935_probe(struct spi_device *spi)
 				dev_name(dev),
 				indio_dev);
 
-	if (ret) {
-		dev_err(dev, "unable to request irq\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret < 0) {
@@ -448,7 +446,7 @@ static const struct of_device_id as3935_of_match[] = {
 MODULE_DEVICE_TABLE(of, as3935_of_match);
 
 static const struct spi_device_id as3935_id[] = {
-	{"as3935", 0},
+	{ .name = "as3935" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, as3935_id);

@@ -4393,7 +4393,7 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 	struct hns_roce_hem_mhop mhop;
 	struct hns_roce_hem *hem;
 	unsigned long mhop_obj = obj;
-	int i, j, k;
+	u64 i, j, k;
 	int ret = 0;
 	u64 hem_idx = 0;
 	u64 l1_idx = 0;

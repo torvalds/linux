@@ -246,7 +246,7 @@ static const struct drm_bridge_funcs vs_dpi_bridge_funcs = {
 	.atomic_get_output_bus_fmts = vs_bridge_atomic_get_output_bus_fmts_dpi,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 };
 
 static const struct drm_bridge_funcs vs_dp_bridge_funcs = {
@@ -258,7 +258,7 @@ static const struct drm_bridge_funcs vs_dp_bridge_funcs = {
 	.atomic_get_output_bus_fmts = vs_bridge_atomic_get_output_bus_fmts_dp,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 };
 
 static int vs_bridge_detect_output_interface(struct device_node *of_node,

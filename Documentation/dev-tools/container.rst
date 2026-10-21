@@ -40,7 +40,7 @@ Available options:
 
 ``-r, --runtime RUNTIME``
 
-    Container runtime name.  Supported runtimes: ``docker``, ``podman``.
+    Container runtime name.  Supported runtimes: ``podman``, ``docker``.
 
     If not specified, the first one found on the system will be used
     i.e. Podman if present, otherwise Docker.
@@ -75,8 +75,8 @@ working directory and adjust the user and group id as needed.
 
 The container image which would typically include a compiler toolchain is
 provided by the user and selected via the ``-i`` option.  The container runtime
-can be selected with the ``-r`` option, which can be either ``docker`` or
-``podman``.  If none is specified, the first one found on the system will be
+can be selected with the ``-r`` option, which can be either ``podman`` or
+``docker``.  If none is specified, the first one found on the system will be
 used while giving priority to Podman.  Support for other runtimes may be added
 later depending on their popularity among users.
 

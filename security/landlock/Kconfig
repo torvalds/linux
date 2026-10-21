@@ -21,6 +21,11 @@ config SECURITY_LANDLOCK
 	  you should also prepend "landlock," to the content of CONFIG_LSM to
 	  enable Landlock at boot time.
 
+config SECURITY_LANDLOCK_LOG
+	bool
+	depends on SECURITY_LANDLOCK
+	default y if AUDIT || TRACEPOINTS
+
 config SECURITY_LANDLOCK_KUNIT_TEST
 	bool "KUnit tests for Landlock" if !KUNIT_ALL_TESTS
 	depends on KUNIT=y

@@ -46,17 +46,17 @@ each workqueue:
 
 import sys
 
+import argparse
+parser = argparse.ArgumentParser(description=desc,
+                                 formatter_class=argparse.RawTextHelpFormatter)
+args = parser.parse_args()
+
 import drgn
 from drgn.helpers.linux.list import list_for_each_entry,list_empty
 from drgn.helpers.linux.percpu import per_cpu_ptr
 from drgn.helpers.linux.cpumask import for_each_cpu,for_each_possible_cpu
 from drgn.helpers.linux.nodemask import for_each_node
 from drgn.helpers.linux.idr import idr_for_each
-
-import argparse
-parser = argparse.ArgumentParser(description=desc,
-                                 formatter_class=argparse.RawTextHelpFormatter)
-args = parser.parse_args()
 
 def err(s):
     print(s, file=sys.stderr, flush=True)
@@ -78,6 +78,12 @@ def cpumask_str(cpumask):
 
 wq_type_len = 9
 
+def wq_attrs(wq):
+    try:
+        return wq.attrs
+    except AttributeError:
+        return wq.unbound_attrs
+
 def wq_type_str(wq):
     if wq.flags & WQ_BH:
         return f'{"bh":{wq_type_len}}'
@@ -85,7 +91,7 @@ def wq_type_str(wq):
         if wq.flags & WQ_ORDERED:
             return f'{"ordered":{wq_type_len}}'
         else:
-            if wq.unbound_attrs.affn_strict:
+            if wq_attrs(wq).affn_strict:
                 return f'{"unbound,S":{wq_type_len}}'
             else:
                 return f'{"unbound":{wq_type_len}}'
@@ -205,8 +211,8 @@ for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(
         continue
 
     print(f'{wq.name.string_().decode():{WQ_NAME_LEN}}', end='')
-    if wq.unbound_attrs.value_() != 0:
-        print(f' {cpumask_str(wq.unbound_attrs.cpumask):{ucpus_len}}', end='')
+    if wq.flags & WQ_UNBOUND:
+        print(f' {cpumask_str(wq_attrs(wq).cpumask):{ucpus_len}}', end='')
     else:
         print(f' {"":{ucpus_len}}', end='')
 

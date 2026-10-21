@@ -163,6 +163,7 @@ static const struct of_device_id cdns_plat_pcie_of_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, cdns_plat_pcie_of_match);
 
 static struct platform_driver cdns_plat_pcie_driver = {
 	.driver = {

@@ -51,24 +51,24 @@
  */
 
 /**
- * ib_user_mad_hdr_old - Old version of MAD packet header without pkey_index
- * @id - ID of agent MAD received with/to be sent with
- * @status - 0 on successful receive, ETIMEDOUT if no response
+ * struct ib_user_mad_hdr_old - Old version of MAD packet header without pkey_index
+ * @id: ID of agent MAD received with/to be sent with
+ * @status: 0 on successful receive, ETIMEDOUT if no response
  *   received (transaction ID in data[] will be set to TID of original
  *   request) (ignored on send)
- * @timeout_ms - Milliseconds to wait for response (unset on receive)
- * @retries - Number of automatic retries to attempt
- * @qpn - Remote QP number received from/to be sent to
- * @qkey - Remote Q_Key to be sent with (unset on receive)
- * @lid - Remote lid received from/to be sent to
- * @sl - Service level received with/to be sent with
- * @path_bits - Local path bits received with/to be sent with
- * @grh_present - If set, GRH was received/should be sent
- * @gid_index - Local GID index to send with (unset on receive)
- * @hop_limit - Hop limit in GRH
- * @traffic_class - Traffic class in GRH
- * @gid - Remote GID in GRH
- * @flow_label - Flow label in GRH
+ * @timeout_ms: Milliseconds to wait for response (unset on receive)
+ * @retries: Number of automatic retries to attempt
+ * @qpn: Remote QP number received from/to be sent to
+ * @qkey: Remote Q_Key to be sent with (unset on receive)
+ * @lid: Remote lid received from/to be sent to
+ * @sl: Service level received with/to be sent with
+ * @path_bits: Local path bits received with/to be sent with
+ * @grh_present: If set, GRH was received/should be sent
+ * @gid_index: Local GID index to send with (unset on receive)
+ * @hop_limit: Hop limit in GRH
+ * @traffic_class: Traffic class in GRH
+ * @gid: Remote GID in GRH
+ * @flow_label: Flow label in GRH
  */
 struct ib_user_mad_hdr_old {
 	__u32	id;
@@ -90,29 +90,29 @@ struct ib_user_mad_hdr_old {
 };
 
 /**
- * ib_user_mad_hdr - MAD packet header
+ * struct ib_user_mad_hdr - MAD packet header
  *   This layout allows specifying/receiving the P_Key index.  To use
  *   this capability, an application must call the
  *   IB_USER_MAD_ENABLE_PKEY ioctl on the user MAD file handle before
  *   any other actions with the file handle.
- * @id - ID of agent MAD received with/to be sent with
- * @status - 0 on successful receive, ETIMEDOUT if no response
+ * @id: ID of agent MAD received with/to be sent with
+ * @status: 0 on successful receive, ETIMEDOUT if no response
  *   received (transaction ID in data[] will be set to TID of original
  *   request) (ignored on send)
- * @timeout_ms - Milliseconds to wait for response (unset on receive)
- * @retries - Number of automatic retries to attempt
- * @qpn - Remote QP number received from/to be sent to
- * @qkey - Remote Q_Key to be sent with (unset on receive)
- * @lid - Remote lid received from/to be sent to
- * @sl - Service level received with/to be sent with
- * @path_bits - Local path bits received with/to be sent with
- * @grh_present - If set, GRH was received/should be sent
- * @gid_index - Local GID index to send with (unset on receive)
- * @hop_limit - Hop limit in GRH
- * @traffic_class - Traffic class in GRH
- * @gid - Remote GID in GRH
- * @flow_label - Flow label in GRH
- * @pkey_index - P_Key index
+ * @timeout_ms: Milliseconds to wait for response (unset on receive)
+ * @retries: Number of automatic retries to attempt
+ * @qpn: Remote QP number received from/to be sent to
+ * @qkey: Remote Q_Key to be sent with (unset on receive)
+ * @lid: Remote lid received from/to be sent to
+ * @sl: Service level received with/to be sent with
+ * @path_bits: Local path bits received with/to be sent with
+ * @grh_present: If set, GRH was received/should be sent
+ * @gid_index: Local GID index to send with (unset on receive)
+ * @hop_limit: Hop limit in GRH
+ * @traffic_class: Traffic class in GRH
+ * @gid: Remote GID in GRH
+ * @flow_label: Flow label in GRH
+ * @pkey_index: P_Key index
  */
 struct ib_user_mad_hdr {
 	__u32	id;
@@ -136,9 +136,9 @@ struct ib_user_mad_hdr {
 };
 
 /**
- * ib_user_mad - MAD packet
- * @hdr - MAD packet header
- * @data - Contents of MAD
+ * struct ib_user_mad - MAD packet
+ * @hdr: MAD packet header
+ * @data: Contents of MAD
  *
  */
 struct ib_user_mad {
@@ -167,15 +167,15 @@ typedef unsigned long __attribute__((aligned(4))) packed_ulong;
 #define IB_USER_MAD_LONGS_PER_METHOD_MASK (128 / (8 * sizeof (long)))
 
 /**
- * ib_user_mad_reg_req - MAD registration request
- * @id - Set by the kernel; used to identify agent in future requests.
- * @qpn - Queue pair number; must be 0 or 1.
- * @method_mask - The caller will receive unsolicited MADs for any method
+ * struct ib_user_mad_reg_req - MAD registration request
+ * @id: Set by the kernel; used to identify agent in future requests.
+ * @qpn: Queue pair number; must be 0 or 1.
+ * @method_mask: The caller will receive unsolicited MADs for any method
  *   where @method_mask = 1.
- * @mgmt_class - Indicates which management class of MADs should be receive
+ * @mgmt_class: Indicates which management class of MADs should be receive
  *   by the caller.  This field is only required if the user wishes to
  *   receive unsolicited MADs, otherwise it should be 0.
- * @mgmt_class_version - Indicates which version of MADs for the given
+ * @mgmt_class_version: Indicates which version of MADs for the given
  *   management class to receive.
  * @oui: Indicates IEEE OUI when mgmt_class is a vendor class
  *   in the range from 0x30 to 0x4f. Otherwise not used.
@@ -193,7 +193,7 @@ struct ib_user_mad_reg_req {
 };
 
 /**
- * ib_user_mad_reg_req2 - MAD registration request
+ * struct ib_user_mad_reg_req2 - MAD registration request
  *
  * @id                 - Set by the _kernel_; used by userspace to identify the
  *                       registered agent in future requests.
@@ -214,10 +214,6 @@ struct ib_user_mad_reg_req {
  *                       used.
  * @rmpp_version       - If set, indicates the RMPP version to use.
  */
-enum {
-	IB_USER_MAD_USER_RMPP = (1 << 0),
-};
-#define IB_USER_MAD_REG_FLAGS_CAP (IB_USER_MAD_USER_RMPP)
 struct ib_user_mad_reg_req2 {
 	__u32	id;
 	__u32	qpn;
@@ -230,5 +226,10 @@ struct ib_user_mad_reg_req2 {
 	__u8	rmpp_version;
 	__u8	reserved[3];
 };
+
+enum {
+	IB_USER_MAD_USER_RMPP = (1 << 0),
+};
+#define IB_USER_MAD_REG_FLAGS_CAP (IB_USER_MAD_USER_RMPP)
 
 #endif /* IB_USER_MAD_H */

@@ -679,12 +679,15 @@ static int fsl_samsung_hdmi_phy_probe(struct platform_device *pdev)
 	return 0;
 
 register_clk_failed:
+	pm_runtime_disable(phy->dev);
+	pm_runtime_put_noidle(phy->dev);
 	return ret;
 }
 
 static void fsl_samsung_hdmi_phy_remove(struct platform_device *pdev)
 {
 	of_clk_del_provider(pdev->dev.of_node);
+	pm_runtime_disable(&pdev->dev);
 }
 
 static int __maybe_unused fsl_samsung_hdmi_phy_suspend(struct device *dev)

@@ -313,10 +313,10 @@ static const struct of_device_id adc0832_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, adc0832_dt_ids);
 
 static const struct spi_device_id adc0832_id[] = {
-	{ "adc0831", adc0831 },
-	{ "adc0832", adc0832 },
-	{ "adc0834", adc0834 },
-	{ "adc0838", adc0838 },
+	{ .name = "adc0831", .driver_data = adc0831 },
+	{ .name = "adc0832", .driver_data = adc0832 },
+	{ .name = "adc0834", .driver_data = adc0834 },
+	{ .name = "adc0838", .driver_data = adc0838 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adc0832_id);

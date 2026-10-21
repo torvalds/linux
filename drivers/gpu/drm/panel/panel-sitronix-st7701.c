@@ -7,6 +7,7 @@
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
 #include <linux/bitfield.h>
@@ -1296,7 +1297,7 @@ static int st7701_probe(struct device *dev, int connector_type)
 		return PTR_ERR(st7701->reset);
 	}
 
-	ret = of_drm_get_panel_orientation(dev->of_node, &st7701->orientation);
+	ret = drm_of_get_panel_orientation(dev->of_node, &st7701->orientation);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to get orientation\n");
 

@@ -458,7 +458,7 @@ The list_move() and list_move_tail() functions can be used to move an entry
 from one list to another, to either the start or end respectively.
 
 In the following example, we'll assume we start with two lists ("clowns" and
-"sidewalk" in the following initial state "State 0"::
+"sidewalk") in the following initial state "State 0"::
 
          .----------------------------------------------------------------.
          v                                                                |

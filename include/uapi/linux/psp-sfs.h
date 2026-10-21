@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 
-/**
+/*
  * SFS: AMD Seamless Firmware Support (SFS) interface
  */
 
@@ -43,7 +43,7 @@ struct sfs_user_update_package {
 	__u32	sfs_extended_status;
 } __packed;
 
-/**
+/*
  * Seamless Firmware Support (SFS) IOC
  *
  * possible return codes for all SFS IOCTLs:

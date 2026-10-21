@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include <crypto/xts.h>
 #include <crypto/b128ops.h>
@@ -400,7 +401,7 @@ static int xts_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (!memcmp(cipher_name, "ecb(", 4)) {
 		int len;
 
-		len = strscpy(name, cipher_name + 4, sizeof(name));
+		len = strscpy(name, cipher_name + 4);
 		if (len < 2)
 			goto err_free_inst;
 

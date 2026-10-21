@@ -73,7 +73,7 @@ static struct sk_buff *nsim_dev_psample_skb_build(void)
 	udph = skb_put_zero(skb, sizeof(struct udphdr) + data_len);
 	get_random_bytes(&udph->source, sizeof(u16));
 	get_random_bytes(&udph->dest, sizeof(u16));
-	udph->len = htons(sizeof(struct udphdr) + data_len);
+	udp_set_len_short(udph, sizeof(struct udphdr) + data_len);
 
 	return skb;
 }

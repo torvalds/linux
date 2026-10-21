@@ -17,6 +17,7 @@
 #include <linux/export.h>
 #include <linux/kstrtox.h>
 #include <linux/math64.h>
+#include <linux/overflow.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 
@@ -45,6 +46,7 @@ const char *_parse_integer_fixup_radix(const char *s, unsigned int *base)
  * @base: Radix
  * @p: Where to store result
  * @max_chars: Maximum amount of characters to convert
+ * @init: Initial value of the multiply-accumulate result
  *
  * Convert non-negative integer string representation in explicitly given
  * radix to an integer. If overflow occurs, value at @p is set to ULLONG_MAX.
@@ -56,12 +58,12 @@ const char *_parse_integer_fixup_radix(const char *s, unsigned int *base)
  */
 noinline
 unsigned int _parse_integer_limit(const char *s, unsigned int base, unsigned long long *p,
-				  size_t max_chars)
+				  size_t max_chars, unsigned long long init)
 {
 	unsigned int rv, overflow = 0;
 	unsigned long long res;
 
-	res = 0;
+	res = init;
 	for (rv = 0; rv < max_chars; rv++, s++) {
 		unsigned int c = *s;
 		unsigned int lc = _tolower(c);
@@ -92,12 +94,6 @@ unsigned int _parse_integer_limit(const char *s, unsigned int base, unsigned lon
 	}
 	*p = res;
 	return rv | overflow;
-}
-
-noinline
-unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long *p)
-{
-	return _parse_integer_limit(s, base, p, INT_MAX);
 }
 
 static int _kstrtoull(const char *s, unsigned int base, unsigned long long *res)
@@ -398,6 +394,109 @@ int kstrtobool(const char *s, bool *res)
 	return -EINVAL;
 }
 EXPORT_SYMBOL(kstrtobool);
+
+static int _kstrtoudec64(const char *s, unsigned int scale, u64 *res)
+{
+	unsigned int rv_int, rv_frac;
+	u64 _res = 0;
+
+	rv_int = _parse_integer(s, 10, &_res);
+	if (rv_int & KSTRTOX_OVERFLOW)
+		return -ERANGE;
+	s += rv_int;
+
+	if (*s == '.')
+		s++; /* skip decimal point */
+
+	rv_frac = _parse_integer(s, 10, &_res, scale, _res);
+	if (rv_frac & KSTRTOX_OVERFLOW)
+		return -ERANGE;
+	s += rv_frac;
+
+	/*
+	 * Check input beyond rv_int and rv_frac to cover cases like ".5" with
+	 * scale 0, which is considered a valid input, being parsed as 0.
+	 */
+	if (!rv_int && !rv_frac && !isdigit(*s))
+		return -EINVAL;
+
+	while (isdigit(*s)) /* truncate digits */
+		s++;
+
+	if (*s == '\n')
+		s++;
+	if (*s)
+		return -EINVAL;
+
+	if (_res && ((scale - rv_frac) > 19 /* log10(2^64) = 19.26 */ ||
+		     check_mul_overflow(_res, int_pow(10, scale - rv_frac), &_res)))
+		return -ERANGE;
+
+	*res = _res;
+	return 0;
+}
+
+/**
+ * kstrtoudec64() - Convert a string to an unsigned 64-bit scaled decimal value.
+ * @s: The start of the string. The string must be null-terminated, and may also
+ *  include a single newline before its terminating null. The first character
+ *  may also be a plus sign, but not a minus sign.
+ * @scale: The number of digits to the right of the decimal point.
+ * @res: Where to write the result of the conversion on success.
+ *
+ * For example, a scale of 3 with input "123.45" results in 123450. Note that
+ * trailing zeros in the fractional part input to match the scale are not
+ * required. Also, digits beyond the specified scale are ignored.
+ *
+ * Return: 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
+ */
+noinline
+int kstrtoudec64(const char *s, unsigned int scale, u64 *res)
+{
+	if (s[0] == '+')
+		s++;
+	return _kstrtoudec64(s, scale, res);
+}
+EXPORT_SYMBOL(kstrtoudec64);
+
+/**
+ * kstrtodec64() - Convert a string to a signed 64-bit scaled decimal value.
+ * @s: The start of the string. The string must be null-terminated, and may also
+ *  include a single newline before its terminating null. The first character
+ *  may also be a plus sign or a minus sign.
+ * @scale: The number of digits to the right of the decimal point.
+ * @res: Where to write the result of the conversion on success.
+ *
+ * For example, a scale of 4 with input "-3.141592" results in -31415. Note
+ * that digits beyond the specified scale are ignored. Also, trailing zeros in
+ * the fractional part input to match the scale are not required.
+ *
+ * Return: 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
+ */
+noinline
+int kstrtodec64(const char *s, unsigned int scale, s64 *res)
+{
+	u64 tmp;
+	int rv;
+
+	if (s[0] == '-') {
+		rv = _kstrtoudec64(s + 1, scale, &tmp);
+		if (rv < 0)
+			return rv;
+		if ((s64)-tmp > 0)
+			return -ERANGE;
+		*res = -tmp;
+	} else {
+		rv = kstrtoudec64(s, scale, &tmp);
+		if (rv < 0)
+			return rv;
+		if ((s64)tmp < 0)
+			return -ERANGE;
+		*res = tmp;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(kstrtodec64);
 
 /*
  * Since "base" would be a nonsense argument, this open-codes the

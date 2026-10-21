@@ -81,62 +81,38 @@ void PHY_RF6052SetBandwidth8723B(
 static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 {
 	u32 u4RegValue = 0;
-	u8 eRFPath;
 	struct bb_register_def *pPhyReg;
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 
 	/* 3----------------------------------------------------------------- */
 	/* 3 <2> Initialize RF */
 	/* 3----------------------------------------------------------------- */
-	/* for (eRFPath = RF_PATH_A; eRFPath <pHalData->NumTotalRFPath; eRFPath++) */
-	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++) {
 
-		pPhyReg = &pHalData->PHYRegDef[eRFPath];
+	pPhyReg = &pHalData->PHYRegDef[RF_PATH_A];
 
-		/*----Store original RFENV control type----*/
-		switch (eRFPath) {
-		case RF_PATH_A:
-			u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV);
-			break;
-		case RF_PATH_B:
-			u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV << 16);
-			break;
-		}
+	/*----Store original RFENV control type----*/
+	u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV);
 
-		/*----Set RF_ENV enable----*/
-		PHY_SetBBReg(Adapter, pPhyReg->rfintfe, bRFSI_RFENV << 16, 0x1);
-		udelay(1);/* PlatformStallExecution(1); */
+	/*----Set RF_ENV enable----*/
+	PHY_SetBBReg(Adapter, pPhyReg->rfintfe, bRFSI_RFENV << 16, 0x1);
+	udelay(1);/* PlatformStallExecution(1); */
 
-		/*----Set RF_ENV output high----*/
-		PHY_SetBBReg(Adapter, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
-		udelay(1);/* PlatformStallExecution(1); */
+	/*----Set RF_ENV output high----*/
+	PHY_SetBBReg(Adapter, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
+	udelay(1);/* PlatformStallExecution(1); */
 
-		/* Set bit number of Address and Data for RF register */
-		PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0);	/*  Set 1 to 4 bits for 8255 */
-		udelay(1);/* PlatformStallExecution(1); */
+	/* Set bit number of Address and Data for RF register */
+	PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0);	/*  Set 1 to 4 bits for 8255 */
+	udelay(1);/* PlatformStallExecution(1); */
 
-		PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);	/*  Set 0 to 12  bits for 8255 */
-		udelay(1);/* PlatformStallExecution(1); */
+	PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);	/*  Set 0 to 12  bits for 8255 */
+	udelay(1);/* PlatformStallExecution(1); */
 
-		/*----Initialize RF fom connfiguration file----*/
-		switch (eRFPath) {
-		case RF_PATH_A:
-		case RF_PATH_B:
-			ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv,
-						   CONFIG_RF_RADIO, eRFPath);
-			break;
-		}
+	/*----Initialize RF fom connfiguration file----*/
+	ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, CONFIG_RF_RADIO, RF_PATH_A);
 
-		/*----Restore RFENV control type----*/
-		switch (eRFPath) {
-		case RF_PATH_A:
-			PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV, u4RegValue);
-			break;
-		case RF_PATH_B:
-			PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV << 16, u4RegValue);
-			break;
-		}
-	}
+	/*----Restore RFENV control type----*/
+	PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV, u4RegValue);
 
 	/* 3 ----------------------------------------------------------------- */
 	/* 3 Configuration of Tx Power Tracking */
@@ -149,13 +125,6 @@ static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 
 int PHY_RF6052_Config8723B(struct adapter *Adapter)
 {
-	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
-
-	/*  */
-	/*  Initialize general global value */
-	/*  */
-	pHalData->NumTotalRFPath = 1;
-
 	/*  */
 	/*  Config BB and RF */
 	/*  */

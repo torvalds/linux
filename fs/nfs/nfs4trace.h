@@ -33,7 +33,8 @@
 		{ NFS_ATTR_FATTR_CHANGE, "CHANGE" }, \
 		{ NFS_ATTR_FATTR_OWNER_NAME, "OWNER_NAME" }, \
 		{ NFS_ATTR_FATTR_GROUP_NAME, "GROUP_NAME" }, \
-		{ NFS_ATTR_FATTR_BTIME, "BTIME" })
+		{ NFS_ATTR_FATTR_BTIME, "BTIME" }, \
+		{ NFS_ATTR_FATTR_UNCACHEABLE_FILE_DATA, "UNCACHEABLE_FILE_DATA" })
 
 DECLARE_EVENT_CLASS(nfs4_clientid_event,
 		TP_PROTO(
@@ -1515,7 +1516,60 @@ DECLARE_EVENT_CLASS(nfs4_inode_stateid_callback_event,
 			), \
 			TP_ARGS(clp, fhandle, inode, stateid, error))
 DEFINE_NFS4_INODE_STATEID_CALLBACK_EVENT(nfs4_cb_recall);
-DEFINE_NFS4_INODE_STATEID_CALLBACK_EVENT(nfs4_cb_layoutrecall_file);
+
+TRACE_EVENT(nfs4_cb_layoutrecall_file,
+		TP_PROTO(
+			const struct nfs_client *clp,
+			const struct nfs_fh *fhandle,
+			const struct inode *inode,
+			const nfs4_stateid *stateid,
+			unsigned int changed,
+			int error
+		),
+
+		TP_ARGS(clp, fhandle, inode, stateid, changed, error),
+
+		TP_STRUCT__entry(
+			__field(unsigned long, error)
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__string(dstaddr, clp ? clp->cl_hostname : "unknown")
+			__field(int, stateid_seq)
+			__field(u32, stateid_hash)
+			__field(unsigned int, changed)
+		),
+
+		TP_fast_assign(
+			__entry->error = error < 0 ? -error : 0;
+			__entry->fhandle = nfs_fhandle_hash(fhandle);
+			if (!IS_ERR_OR_NULL(inode)) {
+				__entry->fileid = inode->i_ino;
+				__entry->dev = inode->i_sb->s_dev;
+			} else {
+				__entry->fileid = 0;
+				__entry->dev = 0;
+			}
+			__assign_str(dstaddr);
+			__entry->stateid_seq =
+				be32_to_cpu(stateid->seqid);
+			__entry->stateid_hash =
+				nfs_stateid_hash(stateid);
+			__entry->changed = changed;
+		),
+
+		TP_printk(
+			"error=%ld (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"stateid=%d:0x%08x dstaddr=%s clora_changed=%u",
+			-__entry->error,
+			show_nfs4_status(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			__entry->stateid_seq, __entry->stateid_hash,
+			__get_str(dstaddr), __entry->changed
+		)
+);
 
 #define show_stateid_type(type) \
 	__print_symbolic(type, \

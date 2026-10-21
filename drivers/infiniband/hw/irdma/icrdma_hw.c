@@ -29,6 +29,8 @@ static u32 icrdma_regs[IRDMA_MAX_REGS] = {
 	GLHMC_VFPDINV(0),
 	GLPE_CRITERR,
 	GLINT_RATE(0),
+	PFHMC_ERRORINFO,
+	PFHMC_ERRORDATA,
 };
 
 static u64 icrdma_masks[IRDMA_MAX_MASKS] = {

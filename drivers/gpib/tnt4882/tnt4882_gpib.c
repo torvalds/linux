@@ -1373,8 +1373,8 @@ static struct pci_driver tnt4882_pci_driver = {
 #if 0
 /* unused, will be needed when the driver is turned into a pnp_driver */
 static const struct pnp_device_id tnt4882_pnp_table[] = {
-	{.id = "NICC601"},
-	{.id = ""}
+	{ .id = "NICC601" },
+	{ }
 };
 MODULE_DEVICE_TABLE(pnp, tnt4882_pnp_table);
 #endif

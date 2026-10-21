@@ -396,13 +396,13 @@ static int rk_spdif_probe(struct platform_device *pdev)
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Could not register PCM\n");
+		return ret;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rk_spdif_component,
 					      &rk_spdif_dai, 1);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Could not register DAI\n");
+		return ret;
 
 	return 0;
 }

@@ -196,7 +196,7 @@ mwifiex_form_mgmt_frame(struct sk_buff *skb, const u8 *buf, size_t len)
  */
 static int
 mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
-			 struct cfg80211_mgmt_tx_params *params, u64 *cookie)
+			 struct cfg80211_mgmt_tx_params *params, u64 cookie)
 {
 	const u8 *buf = params->buf;
 	size_t len = params->len;
@@ -259,14 +259,13 @@ mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	tx_info->pkt_len = pkt_len;
 
 	mwifiex_form_mgmt_frame(skb, buf, len);
-	*cookie = get_random_u32() | 1;
 
 	if (ieee80211_is_action(mgmt->frame_control))
 		skb = mwifiex_clone_skb_for_tx_status(priv,
 						      skb,
-				MWIFIEX_BUF_FLAG_ACTION_TX_STATUS, cookie);
+				MWIFIEX_BUF_FLAG_ACTION_TX_STATUS, &cookie);
 	else
-		cfg80211_mgmt_tx_status(wdev, *cookie, buf, len, true,
+		cfg80211_mgmt_tx_status(wdev, cookie, buf, len, true,
 					GFP_ATOMIC);
 
 	mwifiex_queue_tx_pkt(priv, skb);
@@ -304,13 +303,13 @@ static int
 mwifiex_cfg80211_remain_on_channel(struct wiphy *wiphy,
 				   struct wireless_dev *wdev,
 				   struct ieee80211_channel *chan,
-				   unsigned int duration, u64 *cookie,
+				   unsigned int duration, u64 cookie,
 				   const u8 *rx_addr)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 	int ret;
 
-	if (!chan || !cookie) {
+	if (!chan) {
 		mwifiex_dbg(priv->adapter, ERROR, "Invalid parameter for ROC\n");
 		return -EINVAL;
 	}
@@ -326,15 +325,14 @@ mwifiex_cfg80211_remain_on_channel(struct wiphy *wiphy,
 					 duration);
 
 	if (!ret) {
-		*cookie = get_random_u32() | 1;
-		priv->roc_cfg.cookie = *cookie;
+		priv->roc_cfg.cookie = cookie;
 		priv->roc_cfg.chan = *chan;
 
-		cfg80211_ready_on_channel(wdev, *cookie, chan,
+		cfg80211_ready_on_channel(wdev, cookie, chan,
 					  duration, GFP_ATOMIC);
 
 		mwifiex_dbg(priv->adapter, INFO,
-			    "info: ROC, cookie = 0x%llx\n", *cookie);
+			    "info: ROC, cookie = 0x%llx\n", cookie);
 	}
 
 	return ret;
@@ -4279,6 +4277,7 @@ mwifiex_cfg80211_authenticate(struct wiphy *wiphy,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct sk_buff *skb;
 	u16 pkt_len, auth_alg;
+	size_t frame_len;
 	int ret;
 	struct mwifiex_ieee80211_mgmt *mgmt;
 	struct mwifiex_txinfo *tx_info;
@@ -4351,10 +4350,17 @@ mwifiex_cfg80211_authenticate(struct wiphy *wiphy,
 
 	mwifiex_cancel_scan(adapter);
 
-	pkt_len = (u16)req->ie_len + req->auth_data_len +
+	frame_len = req->ie_len + req->auth_data_len +
 		MWIFIEX_MGMT_HEADER_LEN + MWIFIEX_AUTH_BODY_LEN;
 	if (req->auth_data_len >= 4)
-		pkt_len -= 4;
+		frame_len -= 4;
+
+	if (frame_len > U16_MAX) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "auth frame too long: %zu bytes\n", frame_len);
+		return -EINVAL;
+	}
+	pkt_len = frame_len;
 
 	skb = dev_alloc_skb(MWIFIEX_MIN_DATA_HEADER_LEN +
 			    MWIFIEX_MGMT_FRAME_HEADER_SIZE +
@@ -4558,9 +4564,9 @@ mwifiex_cfg80211_disassociate(struct wiphy *wiphy,
 }
 
 static int
-mwifiex_cfg80211_probe_client(struct wiphy *wiphy,
-			      struct net_device *dev, const u8 *peer,
-			      u64 *cookie)
+mwifiex_cfg80211_probe_peer(struct wiphy *wiphy,
+			    struct net_device *dev, const u8 *peer,
+			    u64 cookie)
 {
 	/* hostapd looks for NL80211_CMD_PROBE_CLIENT support; otherwise,
 	 * it requires monitor-mode support (which mwifiex doesn't support).
@@ -4726,7 +4732,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 		ops->disassoc = mwifiex_cfg80211_disassociate;
 		ops->disconnect = NULL;
 		ops->connect = NULL;
-		ops->probe_client = mwifiex_cfg80211_probe_client;
+		ops->probe_peer = mwifiex_cfg80211_probe_peer;
 	}
 	wiphy->max_scan_ssids = MWIFIEX_MAX_SSID_LIST_LENGTH;
 	wiphy->max_scan_ie_len = MWIFIEX_MAX_VSIE_LEN;

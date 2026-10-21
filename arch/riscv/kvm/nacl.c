@@ -33,7 +33,7 @@ again:
 	}
 
 	if (ent < 0) {
-		if (try_count) {
+		if (try_count--) {
 			nacl_sync_hfence(-1UL);
 			goto again;
 		} else {

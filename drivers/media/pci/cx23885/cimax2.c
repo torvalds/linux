@@ -528,6 +528,7 @@ void netup_ci_exit(struct cx23885_tsport *port)
 	if (NULL == state->ca.data)
 		return;
 
+	cancel_work_sync(&state->work);
 	dvb_ca_en50221_release(&state->ca);
 	kfree(state);
 }

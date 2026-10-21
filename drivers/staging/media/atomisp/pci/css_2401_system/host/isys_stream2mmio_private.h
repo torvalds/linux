@@ -27,7 +27,7 @@
  * Native command interface (NCI).
  *
  *****************************************************/
-/**
+/*
  * @brief Get the stream2mmio-controller state.
  * Refer to "stream2mmio_public.h" for details.
  */
@@ -45,7 +45,7 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_state(
 		stream2mmio_get_sid_state(ID, i, &state->sid_state[i]);
 }
 
-/**
+/*
  * @brief Get the state of the stream2mmio-controller sidess.
  * Refer to "stream2mmio_public.h" for details.
  */
@@ -76,7 +76,7 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_sid_state(
 	    stream2mmio_reg_load(ID, sid_id, STREAM2MMIO_BLOCK_WHEN_NO_CMD_REG_ID);
 }
 
-/**
+/*
  * @brief Dump the state of the stream2mmio-controller sidess.
  * Refer to "stream2mmio_public.h" for details.
  */
@@ -92,7 +92,7 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_print_sid_state(
 	ia_css_print("\t \t block when no cmd 0x%x\n", state->block_when_no_cmd);
 }
 
-/**
+/*
  * @brief Dump the ibuf-controller state.
  * Refer to "stream2mmio_public.h" for details.
  */
@@ -119,7 +119,7 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_dump_state(
  * Device level interface (DLI).
  *
  *****************************************************/
-/**
+/*
  * @brief Load the register value.
  * Refer to "stream2mmio_public.h" for details.
  */
@@ -137,7 +137,7 @@ STORAGE_CLASS_STREAM2MMIO_C hrt_data stream2mmio_reg_load(
 					 (reg_bank_offset + reg_idx) * sizeof(hrt_data));
 }
 
-/**
+/*
  * @brief Store a value to the register.
  * Refer to "stream2mmio_public.h" for details.
  */

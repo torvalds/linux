@@ -23,6 +23,13 @@ int cs_count;
 #if defined(ENABLE_ATOMICS_TESTS) && defined(__BPF_FEATURE_ADDR_SPACE_CAST)
 arena_spinlock_t __arena lock;
 int test_skip = 1;
+
+/*
+ * Storage for the queue nodes declared by bpf_arena_spin_lock.h. Each program
+ * linking the arena spinlock provides exactly one definition; libarena's lives
+ * in libarena/src/common.bpf.c.
+ */
+struct arena_qnode __arena __hidden qnodes[_Q_MAX_CPUS][_Q_MAX_NODES];
 #else
 int test_skip = 2;
 #endif

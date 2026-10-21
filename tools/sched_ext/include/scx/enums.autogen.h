@@ -11,11 +11,11 @@
 	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_ONLINE); \
 	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_CAN_STOP_TICK); \
 	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_BAL_PENDING); \
-	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_BAL_KEEP); \
 	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_BYPASSING); \
 	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_CLK_VALID); \
 	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_IN_WAKEUP); \
 	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_IN_BALANCE); \
+	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_IN_DISPATCH); \
 	SCX_ENUM_SET(skel, scx_dsq_id_flags, SCX_DSQ_FLAG_BUILTIN); \
 	SCX_ENUM_SET(skel, scx_dsq_id_flags, SCX_DSQ_FLAG_LOCAL_ON); \
 	SCX_ENUM_SET(skel, scx_dsq_id_flags, SCX_DSQ_INVALID); \
@@ -45,6 +45,7 @@
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_HEAD); \
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_PREEMPT); \
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_IMMED); \
+	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_RESCUE); \
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_REENQ); \
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_LAST); \
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_CLEAR_OPSS); \

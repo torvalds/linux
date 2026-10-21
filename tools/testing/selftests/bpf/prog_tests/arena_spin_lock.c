@@ -101,7 +101,7 @@ end:
 	return;
 }
 
-void test_arena_spin_lock(void)
+void serial_test_arena_spin_lock(void)
 {
 	repeat = 1000;
 	if (test__start_subtest("arena_spin_lock_1"))

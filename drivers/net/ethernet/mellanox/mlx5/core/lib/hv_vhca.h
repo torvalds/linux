@@ -31,7 +31,7 @@ struct mlx5_hv_vhca_control_block {
 
 struct mlx5_hv_vhca *mlx5_hv_vhca_create(struct mlx5_core_dev *dev);
 void mlx5_hv_vhca_destroy(struct mlx5_hv_vhca *hv_vhca);
-int mlx5_hv_vhca_init(struct mlx5_hv_vhca *hv_vhca);
+void mlx5_hv_vhca_init(struct mlx5_hv_vhca *hv_vhca);
 void mlx5_hv_vhca_cleanup(struct mlx5_hv_vhca *hv_vhca);
 void mlx5_hv_vhca_invalidate(void *context, u64 block_mask);
 
@@ -63,9 +63,8 @@ static inline void mlx5_hv_vhca_destroy(struct mlx5_hv_vhca *hv_vhca)
 {
 }
 
-static inline int mlx5_hv_vhca_init(struct mlx5_hv_vhca *hv_vhca)
+static inline void mlx5_hv_vhca_init(struct mlx5_hv_vhca *hv_vhca)
 {
-	return 0;
 }
 
 static inline void mlx5_hv_vhca_cleanup(struct mlx5_hv_vhca *hv_vhca)

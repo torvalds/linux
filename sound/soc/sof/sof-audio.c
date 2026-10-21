@@ -501,9 +501,8 @@ sof_prepare_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget
 	    !sof_widget_in_same_direction(swidget, dir))
 		return 0;
 
-	/* skip widgets already prepared or aggregated DAI widgets*/
-	if (!widget_ops[widget->id].ipc_prepare || swidget->prepared ||
-	    is_aggregated_dai(swidget))
+	/* skip widgets aggregated DAI widgets */
+	if (!widget_ops[widget->id].ipc_prepare || is_aggregated_dai(swidget))
 		goto sink_prepare;
 
 	/* prepare the source widget */

@@ -12,9 +12,9 @@
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "intel_bios.h"
 #include "power.h"
@@ -202,6 +202,10 @@ static void oaktrail_lvds_commit(struct drm_encoder *encoder)
 	oaktrail_lvds_set_power(dev, gma_encoder, true);
 }
 
+static const struct drm_encoder_funcs oaktrail_lvds_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 static const struct drm_encoder_helper_funcs oaktrail_lvds_helper_funcs = {
 	.dpms = oaktrail_lvds_dpms,
 	.mode_fixup = psb_intel_lvds_mode_fixup,
@@ -319,7 +323,8 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	if (ret)
 		goto err_free_connector;
 
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_LVDS);
+	ret = drm_encoder_init(dev, encoder, &oaktrail_lvds_funcs,
+			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret)
 		goto err_connector_cleanup;
 

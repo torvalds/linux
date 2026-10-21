@@ -123,6 +123,9 @@ attribute-sets:
       -
         name: proto
         type: u8
+      -
+        name: mc-users
+        type: u32
 
 
 operations:
@@ -176,6 +179,7 @@ operations:
           value: 58
           attributes: &mcaddr-attrs
             - multicast
+            - mc-users
             - cacheinfo
       dump:
         request:

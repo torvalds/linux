@@ -33,6 +33,7 @@ struct dm_io_client {
  */
 struct io {
 	unsigned long error_bits;
+	unsigned long unsup_bits;
 	atomic_t count;
 	struct dm_io_client *client;
 	io_notify_fn callback;
@@ -119,6 +120,7 @@ static void retrieve_io_and_region_from_bio(struct bio *bio, struct io **io,
 static void complete_io(struct io *io)
 {
 	unsigned long error_bits = io->error_bits;
+	unsigned long unsup_bits = io->unsup_bits;
 	io_notify_fn fn = io->callback;
 	void *context = io->context;
 
@@ -127,13 +129,17 @@ static void complete_io(struct io *io)
 					     io->vma_invalidate_size);
 
 	mempool_free(io, &io->client->pool);
-	fn(error_bits, context);
+	fn(error_bits, unsup_bits, context);
 }
 
 static void dec_count(struct io *io, unsigned int region, blk_status_t error)
 {
-	if (error)
-		set_bit(region, &io->error_bits);
+	if (unlikely(error)) {
+		if (error == BLK_STS_NOTSUPP || error == BLK_STS_INVAL)
+			set_bit(region, &io->unsup_bits);
+		else
+			set_bit(region, &io->error_bits);
+	}
 
 	if (atomic_dec_and_test(&io->count))
 		complete_io(io);
@@ -170,11 +176,10 @@ struct dpages {
 			 struct page **p, unsigned long *len, unsigned int *offset);
 	void (*next_page)(struct dpages *dp);
 
-	union {
-		unsigned int context_u;
-		struct bvec_iter context_bi;
-	};
+	unsigned int context_u;
 	void *context_ptr;
+
+	struct bio *orig_bio;
 
 	void *vma_invalidate_address;
 	unsigned long vma_invalidate_size;
@@ -208,44 +213,6 @@ static void list_dp_init(struct dpages *dp, struct page_list *pl, unsigned int o
 	dp->next_page = list_next_page;
 	dp->context_u = offset;
 	dp->context_ptr = pl;
-}
-
-/*
- * Functions for getting the pages from a bvec.
- */
-static void bio_get_page(struct dpages *dp, struct page **p,
-			 unsigned long *len, unsigned int *offset)
-{
-	struct bio_vec bvec = bvec_iter_bvec((struct bio_vec *)dp->context_ptr,
-					     dp->context_bi);
-
-	*p = bvec.bv_page;
-	*len = bvec.bv_len;
-	*offset = bvec.bv_offset;
-
-	/* avoid figuring it out again in bio_next_page() */
-	dp->context_bi.bi_sector = (sector_t)bvec.bv_len;
-}
-
-static void bio_next_page(struct dpages *dp)
-{
-	unsigned int len = (unsigned int)dp->context_bi.bi_sector;
-
-	bvec_iter_advance((struct bio_vec *)dp->context_ptr,
-			  &dp->context_bi, len);
-}
-
-static void bio_dp_init(struct dpages *dp, struct bio *bio)
-{
-	dp->get_page = bio_get_page;
-	dp->next_page = bio_next_page;
-
-	/*
-	 * We just use bvec iterator to retrieve pages, so it is ok to
-	 * access the bvec table directly here
-	 */
-	dp->context_ptr = bio->bi_io_vec;
-	dp->context_bi = bio->bi_iter;
 }
 
 /*
@@ -329,6 +296,21 @@ static void do_region(const blk_opf_t opf, unsigned int region,
 	    special_cmd_max_sectors == 0) {
 		atomic_inc(&io->count);
 		dec_count(io, region, BLK_STS_NOTSUPP);
+		return;
+	}
+
+	if (dp->orig_bio) {
+		bio = bio_alloc_clone(where->bdev, dp->orig_bio, GFP_NOIO,
+				      &io->client->bios);
+		bio->bi_iter.bi_sector = where->sector;
+		bio->bi_iter.bi_size = where->count << SECTOR_SHIFT;
+		bio->bi_opf = opf;
+		bio->bi_end_io = endio;
+		bio->bi_ioprio = ioprio;
+		store_io_and_region_in_bio(bio, io, region);
+
+		atomic_inc(&io->count);
+		submit_bio(bio);
 		return;
 	}
 
@@ -418,6 +400,7 @@ static void async_io(struct dm_io_client *client, unsigned int num_regions,
 
 	io = mempool_alloc(&client->pool, GFP_NOIO);
 	io->error_bits = 0;
+	io->unsup_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
 	io->client = client;
 	io->callback = fn;
@@ -431,20 +414,23 @@ static void async_io(struct dm_io_client *client, unsigned int num_regions,
 
 struct sync_io {
 	unsigned long error_bits;
+	unsigned long unsup_bits;
 	struct completion wait;
 };
 
-static void sync_io_complete(unsigned long error, void *context)
+static void sync_io_complete(unsigned long error, unsigned long unsup, void *context)
 {
 	struct sync_io *sio = context;
 
 	sio->error_bits = error;
+	sio->unsup_bits = unsup;
 	complete(&sio->wait);
 }
 
 static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 		   struct dm_io_region *where, blk_opf_t opf, struct dpages *dp,
-		   unsigned long *error_bits, unsigned short ioprio)
+		   unsigned long *error_bits, unsigned long *unsup_bits,
+		   unsigned short ioprio)
 {
 	struct sync_io sio;
 
@@ -457,8 +443,10 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 
 	if (error_bits)
 		*error_bits = sio.error_bits;
+	if (unsup_bits)
+		*unsup_bits = sio.unsup_bits;
 
-	return sio.error_bits ? -EIO : 0;
+	return sio.error_bits ? -EIO : sio.unsup_bits ? -EOPNOTSUPP : 0;
 }
 
 static int dp_init(struct dm_io_request *io_req, struct dpages *dp,
@@ -468,6 +456,7 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp,
 
 	dp->vma_invalidate_address = NULL;
 	dp->vma_invalidate_size = 0;
+	dp->orig_bio = NULL;
 
 	switch (io_req->mem.type) {
 	case DM_IO_PAGE_LIST:
@@ -475,7 +464,11 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp,
 		break;
 
 	case DM_IO_BIO:
-		bio_dp_init(dp, io_req->mem.ptr.bio);
+		/*
+		 * The destination bios clone this bio's biovec directly, so
+		 * there are no per-page accessors to set up here.
+		 */
+		dp->orig_bio = io_req->mem.ptr.bio;
 		break;
 
 	case DM_IO_VMA:
@@ -500,7 +493,7 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp,
 
 int dm_io(struct dm_io_request *io_req, unsigned int num_regions,
 	  struct dm_io_region *where, unsigned long *sync_error_bits,
-	  unsigned short ioprio)
+	  unsigned long *sync_unsup_bits, unsigned short ioprio)
 {
 	int r;
 	struct dpages dp;
@@ -516,7 +509,8 @@ int dm_io(struct dm_io_request *io_req, unsigned int num_regions,
 
 	if (!io_req->notify.fn)
 		return sync_io(io_req->client, num_regions, where,
-			       io_req->bi_opf, &dp, sync_error_bits, ioprio);
+			       io_req->bi_opf, &dp, sync_error_bits,
+			       sync_unsup_bits, ioprio);
 
 	async_io(io_req->client, num_regions, where, io_req->bi_opf, &dp,
 		 io_req->notify.fn, io_req->notify.context, ioprio);

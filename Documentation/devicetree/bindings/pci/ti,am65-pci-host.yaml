@@ -121,12 +121,12 @@ examples:
 
     pcie0_rc: pcie@5500000 {
         compatible = "ti,am654-pcie-rc";
-        reg =  <0x5500000 0x1000>,
-               <0x5501000 0x1000>,
-               <0x10000000 0x2000>,
-               <0x5506000 0x1000>,
-               <0x2900000 0x1000>,
-               <0x2908000 0x1000>;
+        reg = <0x5500000 0x1000>,
+              <0x5501000 0x1000>,
+              <0x10000000 0x2000>,
+              <0x5506000 0x1000>,
+              <0x2900000 0x1000>,
+              <0x2908000 0x1000>;
         reg-names = "app", "dbics", "config", "atu", "vmap_lp", "vmap_hp";
         power-domains = <&k3_pds 120 TI_SCI_PD_EXCLUSIVE>;
         #address-cells = <3>;

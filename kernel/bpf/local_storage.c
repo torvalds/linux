@@ -220,7 +220,7 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *_map, void *key,
 	struct bpf_cgroup_storage *storage;
 	void *val;
 	u32 size;
-	int cpu;
+	int cpu, off = 0;
 
 	if ((u32)map_flags & ~(BPF_ANY | BPF_EXIST | BPF_F_CPU | BPF_F_ALL_CPUS))
 		return -EINVAL;
@@ -245,8 +245,9 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *_map, void *key,
 	}
 	size = round_up(_map->value_size, 8);
 	for_each_possible_cpu(cpu) {
-		val = (map_flags & BPF_F_ALL_CPUS) ? value : value + size * cpu;
+		val = (map_flags & BPF_F_ALL_CPUS) ? value : value + off;
 		copy_map_value(_map, per_cpu_ptr(storage->percpu_buf, cpu), val);
+		off += size;
 	}
 unlock:
 	rcu_read_unlock();

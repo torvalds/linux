@@ -526,7 +526,7 @@ static int ti_eqep_probe(struct platform_device *pdev)
 	err = devm_request_threaded_irq(dev, irq, NULL, ti_eqep_irq_handler,
 					IRQF_ONESHOT, dev_name(dev), counter);
 	if (err < 0)
-		return dev_err_probe(dev, err, "failed to request IRQ\n");
+		return err;
 
 	counter->name = dev_name(dev);
 	counter->parent = dev;

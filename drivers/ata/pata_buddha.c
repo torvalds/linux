@@ -252,9 +252,9 @@ static void pata_buddha_remove(struct zorro_dev *z)
 }
 
 static const struct zorro_device_id pata_buddha_zorro_tbl[] = {
-	{ ZORRO_PROD_INDIVIDUAL_COMPUTERS_BUDDHA, BOARD_BUDDHA},
-	{ ZORRO_PROD_INDIVIDUAL_COMPUTERS_CATWEASEL, BOARD_CATWEASEL},
-	{ 0 }
+	{ .id = ZORRO_PROD_INDIVIDUAL_COMPUTERS_BUDDHA, .driver_data = BOARD_BUDDHA },
+	{ .id = ZORRO_PROD_INDIVIDUAL_COMPUTERS_CATWEASEL, .driver_data = BOARD_CATWEASEL },
+	{ }
 };
 MODULE_DEVICE_TABLE(zorro, pata_buddha_zorro_tbl);
 
@@ -281,7 +281,7 @@ static int __init pata_buddha_late_init(void)
 	/* Manually bind to all X-Surf boards */
 	while ((z = zorro_find_device(ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF, z))) {
 		static struct zorro_device_id xsurf_ent = {
-			ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF, BOARD_XSURF
+			.id = ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF, .driver_data = BOARD_XSURF
 		};
 
 		pata_buddha_probe(z, &xsurf_ent);

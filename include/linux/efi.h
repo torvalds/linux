@@ -705,7 +705,7 @@ efi_guidcmp (efi_guid_t left, efi_guid_t right)
 }
 
 static inline char *
-efi_guid_to_str(efi_guid_t *guid, char *out)
+efi_guid_to_str(const efi_guid_t *guid, char *out)
 {
 	sprintf(out, "%pUl", guid->b);
         return out;
@@ -1212,8 +1212,8 @@ efi_call_acpi_prm_handler(efi_status_t (__efiapi *handler_addr)(u64, void *),
 
 /*
  * efi_runtime_service() function identifiers.
- * "NONE" is used by efi_recover_from_page_fault() to check if the page
- * fault happened while executing an efi runtime service.
+ * "NONE" is used by efi_crash_gracefully_on_page_fault() to check if the
+ * page fault happened while executing an efi runtime service.
  */
 enum efi_rts_ids {
 	EFI_NONE,
@@ -1255,6 +1255,8 @@ extern struct efi_runtime_work efi_rts_work;
 
 /* Workqueue to queue EFI Runtime Services */
 extern struct workqueue_struct *efi_rts_wq;
+
+void __noreturn efi_rts_park_worker(void);
 
 struct linux_efi_memreserve {
 	int		size;			// allocated size of the array

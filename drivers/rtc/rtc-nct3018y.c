@@ -459,8 +459,8 @@ static struct clk *nct3018y_clkout_register_clk(struct nct3018y *nct3018y)
 {
 	struct i2c_client *client = nct3018y->client;
 	struct device_node *node = client->dev.of_node;
+	struct clk_init_data init = {};
 	struct clk *clk;
-	struct clk_init_data init;
 
 	init.name = "nct3018y-clkout";
 	init.ops = &nct3018y_clkout_ops;

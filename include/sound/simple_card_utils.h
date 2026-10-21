@@ -181,7 +181,7 @@ void simple_util_canonicalize_platform(struct snd_soc_dai_link_component *platfo
 void simple_util_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
 				  int is_single_links);
 
-void simple_util_clean_reference(struct snd_soc_card *card);
+void simple_util_clean_reference(struct simple_util_priv *priv);
 
 void simple_util_parse_convert(struct device_node *np, char *prefix,
 			       struct simple_util_data *data);
@@ -189,18 +189,37 @@ bool simple_util_is_convert_required(const struct simple_util_data *data);
 
 int simple_util_get_sample_fmt(struct simple_util_data *data);
 
-int simple_util_parse_routing(struct snd_soc_card *card,
-				      char *prefix);
-int simple_util_parse_widgets(struct snd_soc_card *card,
-				      char *prefix);
-int simple_util_parse_pin_switches(struct snd_soc_card *card,
-				   char *prefix);
+int simple_util_parse_property(struct simple_util_priv *priv,
+			       int (*func)(struct snd_soc_card *card, const char *propname),
+			       char *prefix, char *property);
+static inline int simple_util_parse_routing(struct simple_util_priv *priv, char *prefix)
+{
+	return simple_util_parse_property(priv, snd_soc_of_parse_audio_routing,
+					  prefix, "routing");
+}
+
+static inline int simple_util_parse_widgets(struct simple_util_priv *priv, char *prefix)
+{
+	return simple_util_parse_property(priv, snd_soc_of_parse_audio_simple_widgets,
+					  prefix, "widgets");
+}
+
+static inline int simple_util_parse_pin_switches(struct simple_util_priv *priv, char *prefix)
+{
+	return simple_util_parse_property(priv, snd_soc_of_parse_pin_switches,
+					  prefix, "pin-switches");
+}
+
+static inline int simple_util_parse_aux_devs(struct simple_util_priv *priv, char *prefix)
+{
+	return simple_util_parse_property(priv, snd_soc_of_parse_aux_devs,
+					  prefix, "aux-devs");
+}
 
 int simple_util_init_jack(struct snd_soc_card *card,
 			       struct simple_util_jack *sjack,
 			       int is_hp, char *prefix, char *pin);
-int simple_util_init_aux_jacks(struct simple_util_priv *priv,
-				char *prefix);
+int simple_util_init_aux_jacks(struct snd_soc_card *card, char *prefix);
 int simple_util_init_priv(struct simple_util_priv *priv,
 			       struct link_info *li);
 void simple_util_remove(struct platform_device *pdev);

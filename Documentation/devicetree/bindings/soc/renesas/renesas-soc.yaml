@@ -12,10 +12,10 @@ maintainers:
 
 description: |
   Guidelines for new compatibles for SoC blocks/components.
-  When adding new compatibles in new bindings, use the format::
+  When adding new compatibles in new bindings, use the format:
     renesas,SoC-IP
 
-  For example::
+  For example:
    renesas,r8a77965-csi2
 
   When adding new compatibles to existing bindings, use the format in the

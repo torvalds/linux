@@ -55,7 +55,7 @@
 	#define PT_LEVEL_BITS 9
 	#define PT_GUEST_DIRTY_SHIFT 9
 	#define PT_GUEST_ACCESSED_SHIFT 8
-	#define PT_HAVE_ACCESSED_DIRTY(mmu) (!(mmu)->cpu_role.base.ad_disabled)
+	#define PT_HAVE_ACCESSED_DIRTY(w) (!(w)->cpu_role.base.ad_disabled)
 	#define PT_MAX_FULL_LEVELS PT64_ROOT_MAX_LEVEL
 #else
 	#error Invalid PTTYPE value
@@ -106,13 +106,13 @@ static gfn_t gpte_to_gfn_lvl(pt_element_t gpte, int lvl)
 	return (gpte & PT_LVL_ADDR_MASK(lvl)) >> PAGE_SHIFT;
 }
 
-static inline void FNAME(protect_clean_gpte)(struct kvm_mmu *mmu, unsigned *access,
+static inline void FNAME(protect_clean_gpte)(struct kvm_pagewalk *w, unsigned *access,
 					     unsigned gpte)
 {
 	unsigned mask;
 
 	/* dirty bit is not supported, so no need to track it */
-	if (!PT_HAVE_ACCESSED_DIRTY(mmu))
+	if (!PT_HAVE_ACCESSED_DIRTY(w))
 		return;
 
 	BUILD_BUG_ON(PT_WRITABLE_MASK != ACC_WRITE_MASK);
@@ -124,7 +124,7 @@ static inline void FNAME(protect_clean_gpte)(struct kvm_mmu *mmu, unsigned *acce
 	*access &= mask;
 }
 
-static inline int FNAME(is_present_gpte)(struct kvm_mmu *mmu,
+static inline int FNAME(is_present_gpte)(struct kvm_pagewalk *w,
 					 unsigned long pte)
 {
 #if PTTYPE != PTTYPE_EPT
@@ -134,38 +134,40 @@ static inline int FNAME(is_present_gpte)(struct kvm_mmu *mmu,
 	 * For EPT, an entry is present if any of bits 2:0 are set.
 	 * With mode-based execute control, bit 10 also indicates presence.
 	 */
-	return pte & (7 | (mmu_has_mbec(mmu) ? VMX_EPT_USER_EXECUTABLE_MASK : 0));
+	return pte & (7 | (is_cr4_smep(w) ? VMX_EPT_USER_EXECUTABLE_MASK : 0));
 #endif
 }
 
-static bool FNAME(is_bad_mt_xwr)(struct rsvd_bits_validate *rsvd_check, u64 gpte)
+static bool FNAME(is_bad_mt_xwr)(struct kvm_page_format *fmt, u64 gpte)
 {
 #if PTTYPE != PTTYPE_EPT
 	return false;
 #else
-	return __is_bad_mt_xwr(rsvd_check, gpte);
+	return __is_bad_mt_xwr(fmt, gpte);
 #endif
 }
 
-static bool FNAME(is_rsvd_bits_set)(struct kvm_mmu *mmu, u64 gpte, int level)
+static bool FNAME(is_rsvd_bits_set)(struct kvm_page_format *fmt, u64 gpte, int level)
 {
-	return __is_rsvd_bits_set(&mmu->guest_rsvd_check, gpte, level) ||
-	       FNAME(is_bad_mt_xwr)(&mmu->guest_rsvd_check, gpte);
+	return __is_rsvd_bits_set(fmt, gpte, level) ||
+	       FNAME(is_bad_mt_xwr)(fmt, gpte);
 }
 
 static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 				  struct kvm_mmu_page *sp, u64 *spte,
 				  u64 gpte)
 {
-	if (!FNAME(is_present_gpte)(vcpu->arch.mmu, gpte))
+	struct kvm_pagewalk *w = vcpu->arch.mmu->w;
+
+	if (!FNAME(is_present_gpte)(w, gpte))
 		goto no_present;
 
 	/* Prefetch only accessed entries (unless A/D bits are disabled). */
-	if (PT_HAVE_ACCESSED_DIRTY(vcpu->arch.mmu) &&
+	if (PT_HAVE_ACCESSED_DIRTY(w) &&
 	    !(gpte & PT_GUEST_ACCESSED_MASK))
 		goto no_present;
 
-	if (FNAME(is_rsvd_bits_set)(vcpu->arch.mmu, gpte, PG_LEVEL_4K))
+	if (FNAME(is_rsvd_bits_set)(&w->fmt, gpte, PG_LEVEL_4K))
 		goto no_present;
 
 	return false;
@@ -206,7 +208,7 @@ static inline unsigned FNAME(gpte_access)(u64 gpte)
 }
 
 static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
-					     struct kvm_mmu *mmu,
+					     struct kvm_pagewalk *w,
 					     struct guest_walker *walker,
 					     gpa_t addr, int write_fault)
 {
@@ -217,7 +219,7 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 	int ret;
 
 	/* dirty/accessed bits are not supported, so no need to update them */
-	if (!PT_HAVE_ACCESSED_DIRTY(mmu))
+	if (!PT_HAVE_ACCESSED_DIRTY(w))
 		return 0;
 
 	for (level = walker->max_level; level >= walker->level; --level) {
@@ -233,7 +235,7 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 				!(pte & PT_GUEST_DIRTY_MASK)) {
 			trace_kvm_mmu_set_dirty_bit(table_gfn, index, sizeof(pte));
 #if PTTYPE == PTTYPE_EPT
-			if (kvm_x86_ops.nested_ops->write_log_dirty(vcpu, addr))
+			if (kvm_nested_call(write_log_dirty)(vcpu, addr))
 				return -EINVAL;
 #endif
 			pte |= PT_GUEST_DIRTY_MASK;
@@ -278,7 +280,7 @@ static inline unsigned FNAME(gpte_pkeys)(struct kvm_vcpu *vcpu, u64 gpte)
 	return pkeys;
 }
 
-static inline bool FNAME(is_last_gpte)(struct kvm_mmu *mmu,
+static inline bool FNAME(is_last_gpte)(struct kvm_pagewalk *w,
 				       unsigned int level, unsigned int gpte)
 {
 	/*
@@ -296,7 +298,7 @@ static inline bool FNAME(is_last_gpte)(struct kvm_mmu *mmu,
 	 * is not reserved and does not indicate a large page at this level,
 	 * so clear PT_PAGE_SIZE_MASK in gpte if that is the case.
 	 */
-	gpte &= level - (PT32_ROOT_LEVEL + mmu->cpu_role.ext.cr4_pse);
+	gpte &= level - (PT32_ROOT_LEVEL + w->cpu_role.ext.cr4_pse);
 #endif
 	/*
 	 * PG_LEVEL_4K always terminates.  The RHS has bit 7 set
@@ -311,7 +313,7 @@ static inline bool FNAME(is_last_gpte)(struct kvm_mmu *mmu,
  * Fetch a guest pte for a guest virtual address, or for an L2's GPA.
  */
 static int FNAME(walk_addr_generic)(struct guest_walker *walker,
-				    struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+				    struct kvm_vcpu *vcpu, struct kvm_pagewalk *w,
 				    gpa_t addr, u64 access)
 {
 	int ret;
@@ -340,16 +342,16 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 
 	trace_kvm_mmu_pagetable_walk(addr, access);
 retry_walk:
-	walker->level = mmu->cpu_role.base.level;
-	pte           = kvm_mmu_get_guest_pgd(vcpu, mmu);
-	have_ad       = PT_HAVE_ACCESSED_DIRTY(mmu);
+	walker->level = w->cpu_role.base.level;
+	pte           = kvm_mmu_get_guest_pgd(vcpu, w);
+	have_ad       = PT_HAVE_ACCESSED_DIRTY(w);
 
 #if PTTYPE == 64
 	walk_nx_mask = 1ULL << PT64_NX_SHIFT;
 	if (walker->level == PT32E_ROOT_LEVEL) {
-		pte = mmu->get_pdptr(vcpu, (addr >> 30) & 3);
+		pte = w->get_pdptr(vcpu, (addr >> 30) & 3);
 		trace_kvm_mmu_paging_element(pte, walker->level);
-		if (!FNAME(is_present_gpte)(mmu, pte))
+		if (!FNAME(is_present_gpte)(w, pte))
 			goto error;
 		--walker->level;
 	}
@@ -393,7 +395,7 @@ retry_walk:
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
-		real_gpa = kvm_translate_gpa(vcpu, mmu, gfn_to_gpa(table_gfn),
+		real_gpa = kvm_translate_gpa(vcpu, w, gfn_to_gpa(table_gfn),
 					     nested_access | PFERR_GUEST_PAGE_MASK,
 					     &walker->fault, 0);
 
@@ -422,10 +424,10 @@ retry_walk:
 		 */
 		pte_access = pt_access & (pte ^ walk_nx_mask);
 
-		if (unlikely(!FNAME(is_present_gpte)(mmu, pte)))
+		if (unlikely(!FNAME(is_present_gpte)(w, pte)))
 			goto error;
 
-		if (unlikely(FNAME(is_rsvd_bits_set)(mmu, pte, walker->level))) {
+		if (unlikely(FNAME(is_rsvd_bits_set)(&w->fmt, pte, walker->level))) {
 			errcode = PFERR_RSVD_MASK | PFERR_PRESENT_MASK;
 			goto error;
 		}
@@ -434,14 +436,14 @@ retry_walk:
 
 		/* Convert to ACC_*_MASK flags for struct guest_walker.  */
 		walker->pt_access[walker->level - 1] = FNAME(gpte_access)(pt_access ^ walk_nx_mask);
-	} while (!FNAME(is_last_gpte)(mmu, walker->level, pte));
+	} while (!FNAME(is_last_gpte)(w, walker->level, pte));
 
 	pte_pkey = FNAME(gpte_pkeys)(vcpu, pte);
 	accessed_dirty = have_ad ? pte_access & PT_GUEST_ACCESSED_MASK : 0;
 
 	/* Convert to ACC_*_MASK flags for struct guest_walker.  */
 	walker->pte_access = FNAME(gpte_access)(pte_access ^ walk_nx_mask);
-	errcode = permission_fault(vcpu, mmu, walker->pte_access, pte_pkey, access);
+	errcode = permission_fault(vcpu, w, walker->pte_access, pte_pkey, access);
 	if (unlikely(errcode))
 		goto error;
 
@@ -453,7 +455,7 @@ retry_walk:
 		gfn += pse36_gfn_delta(pte);
 #endif
 
-	real_gpa = kvm_translate_gpa(vcpu, mmu, gfn_to_gpa(gfn),
+	real_gpa = kvm_translate_gpa(vcpu, w, gfn_to_gpa(gfn),
 				     access | PFERR_GUEST_FINAL_MASK,
 				     &walker->fault, walker->pte_access);
 	if (real_gpa == INVALID_GPA)
@@ -462,7 +464,7 @@ retry_walk:
 	walker->gfn = real_gpa >> PAGE_SHIFT;
 
 	if (!write_fault)
-		FNAME(protect_clean_gpte)(mmu, &walker->pte_access, pte);
+		FNAME(protect_clean_gpte)(w, &walker->pte_access, pte);
 	else
 		/*
 		 * On a write fault, fold the dirty bit into accessed_dirty.
@@ -473,7 +475,7 @@ retry_walk:
 			(PT_GUEST_DIRTY_SHIFT - PT_GUEST_ACCESSED_SHIFT);
 
 	if (unlikely(!accessed_dirty)) {
-		ret = FNAME(update_accessed_dirty_bits)(vcpu, mmu, walker,
+		ret = FNAME(update_accessed_dirty_bits)(vcpu, w, walker,
 							addr, write_fault);
 		if (unlikely(ret < 0))
 			goto error;
@@ -485,7 +487,7 @@ retry_walk:
 
 error:
 	errcode |= write_fault | user_fault;
-	if (fetch_fault && has_pferr_fetch(mmu))
+	if (fetch_fault && has_pferr_fetch(w))
 		errcode |= PFERR_FETCH_MASK;
 
 	walker->fault.vector = PF_VECTOR;
@@ -540,13 +542,13 @@ error:
 		 * ACC_*_MASK flags!
 		 */
 		walker->fault.exit_qualification |= EPT_VIOLATION_RWX_TO_PROT(pte_access);
-		if (mmu_has_mbec(mmu))
+		if (is_cr4_smep(w))
 			walker->fault.exit_qualification |=
 				EPT_VIOLATION_USER_EXEC_TO_PROT(pte_access);
 	}
 #endif
 	walker->fault.address = addr;
-	walker->fault.nested_page_fault = mmu != vcpu->arch.walk_mmu;
+	walker->fault.nested_page_fault = w != &vcpu->arch.gva_walk;
 	walker->fault.async_page_fault = false;
 
 #if PTTYPE != PTTYPE_EPT
@@ -561,7 +563,7 @@ error:
 static int FNAME(walk_addr)(struct guest_walker *walker,
 			    struct kvm_vcpu *vcpu, gpa_t addr, u64 access)
 {
-	return FNAME(walk_addr_generic)(walker, vcpu, vcpu->arch.mmu, addr,
+	return FNAME(walk_addr_generic)(walker, vcpu, vcpu->arch.mmu->w, addr,
 					access);
 }
 
@@ -577,7 +579,7 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 
 	gfn = gpte_to_gfn(gpte);
 	pte_access = sp->role.access & FNAME(gpte_access)(gpte);
-	FNAME(protect_clean_gpte)(vcpu->arch.mmu, &pte_access, gpte);
+	FNAME(protect_clean_gpte)(vcpu->arch.mmu->w, &pte_access, gpte);
 
 	return kvm_mmu_prefetch_sptes(vcpu, gfn, spte, 1, pte_access);
 }
@@ -660,7 +662,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	WARN_ON_ONCE(gw->gfn != base_gfn);
 	direct_access = gw->pte_access;
 
-	top_level = vcpu->arch.mmu->cpu_role.base.level;
+	top_level = vcpu->arch.mmu->w->cpu_role.base.level;
 	if (top_level == PT32E_ROOT_LEVEL)
 		top_level = PT32_ROOT_LEVEL;
 	/*
@@ -849,7 +851,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 	 * otherwise KVM will cache incorrect access information in the SPTE.
 	 */
 	if (fault->write && !(walker.pte_access & ACC_WRITE_MASK) &&
-	    !is_cr0_wp(vcpu->arch.mmu) && !fault->user && fault->slot) {
+	    !is_cr0_wp(vcpu->arch.mmu->w) && !fault->user && fault->slot) {
 		walker.pte_access |= ACC_WRITE_MASK;
 		walker.pte_access &= ~ACC_USER_MASK;
 
@@ -859,7 +861,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 		 * then we should prevent the kernel from executing it
 		 * if SMEP is enabled.
 		 */
-		if (is_cr4_smep(vcpu->arch.mmu))
+		if (is_cr4_smep(vcpu->arch.mmu->w))
 			walker.pte_access &= ~ACC_EXEC_MASK;
 	}
 #endif
@@ -896,7 +898,7 @@ static gpa_t FNAME(get_level1_sp_gpa)(struct kvm_mmu_page *sp)
 }
 
 /* Note, @addr is a GPA when gva_to_gpa() translates an L2 GPA to an L1 GPA. */
-static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, struct kvm_pagewalk *w,
 			       gpa_t addr, u64 access,
 			       struct x86_exception *exception)
 {
@@ -906,10 +908,10 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 
 #ifndef CONFIG_X86_64
 	/* A 64-bit GVA should be impossible on 32-bit KVM. */
-	WARN_ON_ONCE((addr >> 32) && mmu == vcpu->arch.walk_mmu);
+	WARN_ON_ONCE((addr >> 32) && w == &vcpu->arch.gva_walk);
 #endif
 
-	r = FNAME(walk_addr_generic)(&walker, vcpu, mmu, addr, access);
+	r = FNAME(walk_addr_generic)(&walker, vcpu, w, addr, access);
 
 	if (r) {
 		gpa = gfn_to_gpa(walker.gfn);
@@ -959,7 +961,7 @@ static int FNAME(sync_spte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp, int 
 	gfn = gpte_to_gfn(gpte);
 	pte_access = sp->role.access;
 	pte_access &= FNAME(gpte_access)(gpte);
-	FNAME(protect_clean_gpte)(vcpu->arch.mmu, &pte_access, gpte);
+	FNAME(protect_clean_gpte)(vcpu->arch.mmu->w, &pte_access, gpte);
 
 	if (sync_mmio_spte(vcpu, &sp->spt[i], gfn, pte_access))
 		return 0;

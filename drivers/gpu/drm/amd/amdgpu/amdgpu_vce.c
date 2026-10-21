@@ -473,7 +473,8 @@ static int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	r = amdgpu_job_alloc_with_ib(ring->adev, &ring->adev->vce.entity,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
 				     ib_size_dw * 4, AMDGPU_IB_POOL_DIRECT,
-				     &job, AMDGPU_KERNEL_JOB_ID_VCN_RING_TEST);
+				     AMDGPU_KERNEL_JOB_ID_VCN_RING_TEST,
+				     &job);
 	if (r)
 		return r;
 
@@ -564,8 +565,9 @@ static int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
 				     ib_size_dw * 4,
 				     direct ? AMDGPU_IB_POOL_DIRECT :
-				     AMDGPU_IB_POOL_DELAYED, &job,
-				     AMDGPU_KERNEL_JOB_ID_VCN_RING_TEST);
+				     AMDGPU_IB_POOL_DELAYED,
+				     AMDGPU_KERNEL_JOB_ID_VCN_RING_TEST,
+				     &job);
 	if (r)
 		return r;
 

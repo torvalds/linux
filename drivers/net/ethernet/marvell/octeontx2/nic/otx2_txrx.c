@@ -750,7 +750,7 @@ static void otx2_sqe_add_ext(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 				ext->lso_format = pfvf->hw.lso_udpv6_idx;
 			}
 
-			udph->len = htons(sizeof(struct udphdr));
+			udp_set_len_short(udph, sizeof(struct udphdr));
 		}
 	} else if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		ext->tstmp = 1;

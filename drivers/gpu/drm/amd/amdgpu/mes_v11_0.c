@@ -86,7 +86,7 @@ static void mes_v11_0_ring_set_wptr(struct amdgpu_ring *ring)
 			     ring->wptr);
 		WDOORBELL64(ring->doorbell_index, ring->wptr);
 	} else {
-		BUG();
+		dev_warn_once(adev->dev, "%s requires doorbell!\n", __func__);
 	}
 }
 
@@ -97,12 +97,15 @@ static u64 mes_v11_0_ring_get_rptr(struct amdgpu_ring *ring)
 
 static u64 mes_v11_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
+	struct amdgpu_device *adev = ring->adev;
 	u64 wptr;
 
-	if (ring->use_doorbell)
+	if (ring->use_doorbell) {
 		wptr = atomic64_read((atomic64_t *)ring->wptr_cpu_addr);
-	else
-		BUG();
+	} else {
+		dev_warn_once(adev->dev, "%s requires doorbell!\n", __func__);
+		wptr = 0;
+	}
 	return wptr;
 }
 
@@ -198,7 +201,7 @@ static int mes_v11_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 		timeout = 15 * 600 * 1000;
 	}
 
-	ret = amdgpu_device_wb_get(adev, &status_offset);
+	ret = amdgpu_wb_get(adev, &status_offset);
 	if (ret)
 		return ret;
 
@@ -270,7 +273,7 @@ static int mes_v11_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 		goto error_wb_free;
 	}
 
-	amdgpu_device_wb_free(adev, status_offset);
+	amdgpu_wb_free(adev, status_offset);
 	return 0;
 
 error_undo:
@@ -281,7 +284,7 @@ error_unlock_free:
 	spin_unlock_irqrestore(&mes->ring_lock[0], flags);
 
 error_wb_free:
-	amdgpu_device_wb_free(adev, status_offset);
+	amdgpu_wb_free(adev, status_offset);
 	return r;
 }
 
@@ -294,8 +297,8 @@ static int convert_to_mes_queue_type(int queue_type)
 	else if (queue_type == AMDGPU_RING_TYPE_SDMA)
 		return MES_QUEUE_TYPE_SDMA;
 	else
-		BUG();
-	return -1;
+		WARN(1, "Invalid queue type %d\n", queue_type);
+	return MES_QUEUE_TYPE_GFX;
 }
 
 static int convert_to_mes_priority_level(int priority_level)
@@ -335,8 +338,10 @@ static int mes_v11_0_add_hw_queue(struct amdgpu_mes *mes,
 	mes_add_queue_pkt.process_va_end = input->process_va_end;
 	mes_add_queue_pkt.process_quantum = input->process_quantum;
 	mes_add_queue_pkt.process_context_addr = input->process_context_addr;
+	mes_add_queue_pkt.process_context_array_index = input->process_context_array_index;
 	mes_add_queue_pkt.gang_quantum = input->gang_quantum;
 	mes_add_queue_pkt.gang_context_addr = input->gang_context_addr;
+	mes_add_queue_pkt.gang_context_array_index = input->gang_context_array_index;
 	mes_add_queue_pkt.inprocess_gang_priority =
 		convert_to_mes_priority_level(input->inprocess_gang_priority);
 	mes_add_queue_pkt.gang_global_priority_level =
@@ -387,6 +392,9 @@ static int mes_v11_0_remove_hw_queue(struct amdgpu_mes *mes,
 
 	mes_remove_queue_pkt.doorbell_offset = input->doorbell_offset;
 	mes_remove_queue_pkt.gang_context_addr = input->gang_context_addr;
+	mes_remove_queue_pkt.gang_context_array_index = input->gang_context_array_index;
+	mes_remove_queue_pkt.queue_type =
+		convert_to_mes_queue_type(input->queue_type);
 
 	if (mes_rev >= 0x60)
 		mes_remove_queue_pkt.remove_queue_after_reset = input->remove_queue_after_reset;
@@ -394,6 +402,230 @@ static int mes_v11_0_remove_hw_queue(struct amdgpu_mes *mes,
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
 			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt),
 			offsetof(union MESAPI__REMOVE_QUEUE, api_status));
+}
+
+static bool mes_v11_0_pipe_reset_support(struct amdgpu_device *adev)
+{
+	/* Disable the pipe reset until the CPFW fully support it.*/
+	dev_warn_once(adev->dev, "The CPFW hasn't support pipe reset yet.\n");
+	return false;
+}
+static int mes_v11_0_reset_gfx_pipe_mmio(struct amdgpu_device *adev,
+					 u32 me, u32 pipe, u32 queue)
+{
+	uint32_t reset_pipe = 0, clean_pipe = 0;
+	int r;
+
+	if (!mes_v11_0_pipe_reset_support(adev))
+		return -EOPNOTSUPP;
+
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
+	mutex_lock(&adev->srbm_mutex);
+	soc21_grbm_select(adev, me, pipe, queue, 0);
+
+	switch (pipe) {
+	case 0:
+		reset_pipe = REG_SET_FIELD(reset_pipe, CP_ME_CNTL,
+					   PFP_PIPE0_RESET, 1);
+		reset_pipe = REG_SET_FIELD(reset_pipe, CP_ME_CNTL,
+					   ME_PIPE0_RESET, 1);
+		clean_pipe = REG_SET_FIELD(clean_pipe, CP_ME_CNTL,
+					   PFP_PIPE0_RESET, 0);
+		clean_pipe = REG_SET_FIELD(clean_pipe, CP_ME_CNTL,
+					   ME_PIPE0_RESET, 0);
+		break;
+	case 1:
+		reset_pipe = REG_SET_FIELD(reset_pipe, CP_ME_CNTL,
+					   PFP_PIPE1_RESET, 1);
+		reset_pipe = REG_SET_FIELD(reset_pipe, CP_ME_CNTL,
+					   ME_PIPE1_RESET, 1);
+		clean_pipe = REG_SET_FIELD(clean_pipe, CP_ME_CNTL,
+					   PFP_PIPE1_RESET, 0);
+		clean_pipe = REG_SET_FIELD(clean_pipe, CP_ME_CNTL,
+					   ME_PIPE1_RESET, 0);
+		break;
+	default:
+		break;
+	}
+
+	WREG32_SOC15(GC, 0, regCP_ME_CNTL, reset_pipe);
+	WREG32_SOC15(GC, 0, regCP_ME_CNTL, clean_pipe);
+
+	r = (RREG32(SOC15_REG_OFFSET(GC, 0, regCP_GFX_RS64_INSTR_PNTR1)) << 2) -
+						RS64_FW_UC_START_ADDR_LO;
+	soc21_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
+
+	dev_info(adev->dev, "The gfx pipe reset to the ME firmware start PC: %s\n",
+			r == 0 ? "successfully" : "failed");
+	/* FIXME: Sometimes driver can't cache the ME firmware start PC correctly,
+	 * so the pipe reset status relies on the later gfx ring test result.
+	 */
+	return 0;
+}
+
+/*
+ * With MEC pipe reset asserted, clear CP_HQD_ACTIVE / CP_HQD_DEQUEUE_REQUEST for
+ * every queue on (me, pipe). HQDs must be torn down while pipe reset stays
+ * asserted; only then clear the pipe reset bit.
+ * Caller must hold adev->srbm_mutex.
+ */
+static void mes_v11_0_clear_hqds_on_mec_pipe(struct amdgpu_device *adev, u32 me,
+					     u32 pipe)
+{
+	unsigned int q;
+
+	for (q = 0; q < adev->gfx.mec.num_queue_per_pipe; q++) {
+		soc21_grbm_select(adev, me, pipe, q, 0);
+		/* Start from a clean HQD dequeue state before forcing HQD inactive. */
+		WREG32_SOC15(GC, 0, regCP_HQD_ACTIVE, 0);
+		WREG32_SOC15(GC, 0, regCP_HQD_DEQUEUE_REQUEST, 0);
+	}
+}
+
+static int mes_v11_0_reset_compute_pipe_mmio(struct amdgpu_device *adev,
+					     u32 me, u32 pipe, u32 queue)
+{
+	uint32_t reset_val, clean_val;
+	int r;
+
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
+	mutex_lock(&adev->srbm_mutex);
+	soc21_grbm_select(adev, me, pipe, queue, 0);
+
+	if (adev->gfx.rs64_enable) {
+		reset_val = RREG32_SOC15(GC, 0, regCP_MEC_RS64_CNTL);
+		clean_val = reset_val;
+
+		switch (pipe) {
+		case 0:
+			reset_val = REG_SET_FIELD(reset_val, CP_MEC_RS64_CNTL,
+						  MEC_PIPE0_RESET, 1);
+			clean_val = REG_SET_FIELD(clean_val, CP_MEC_RS64_CNTL,
+						  MEC_PIPE0_RESET, 0);
+			break;
+		case 1:
+			reset_val = REG_SET_FIELD(reset_val, CP_MEC_RS64_CNTL,
+						  MEC_PIPE1_RESET, 1);
+			clean_val = REG_SET_FIELD(clean_val, CP_MEC_RS64_CNTL,
+						  MEC_PIPE1_RESET, 0);
+			break;
+		case 2:
+			reset_val = REG_SET_FIELD(reset_val, CP_MEC_RS64_CNTL,
+						  MEC_PIPE2_RESET, 1);
+			clean_val = REG_SET_FIELD(clean_val, CP_MEC_RS64_CNTL,
+						  MEC_PIPE2_RESET, 0);
+			break;
+		case 3:
+			reset_val = REG_SET_FIELD(reset_val, CP_MEC_RS64_CNTL,
+						  MEC_PIPE3_RESET, 1);
+			clean_val = REG_SET_FIELD(clean_val, CP_MEC_RS64_CNTL,
+						  MEC_PIPE3_RESET, 0);
+			break;
+		default:
+			break;
+		}
+		WREG32_SOC15(GC, 0, regCP_MEC_RS64_CNTL, reset_val);
+		mes_v11_0_clear_hqds_on_mec_pipe(adev, me, pipe);
+		WREG32_SOC15(GC, 0, regCP_MEC_RS64_CNTL, clean_val);
+		r = (RREG32_SOC15(GC, 0, regCP_MEC_RS64_INSTR_PNTR) << 2) -
+					RS64_FW_UC_START_ADDR_LO;
+	} else {
+		reset_val = RREG32_SOC15(GC, 0, regCP_MEC_CNTL);
+		clean_val = reset_val;
+
+		if (me == 1) {
+			switch (pipe) {
+			case 0:
+				reset_val = REG_SET_FIELD(reset_val, CP_MEC_CNTL,
+							  MEC_ME1_PIPE0_RESET, 1);
+				clean_val = REG_SET_FIELD(clean_val, CP_MEC_CNTL,
+							  MEC_ME1_PIPE0_RESET, 0);
+				break;
+			case 1:
+				reset_val = REG_SET_FIELD(reset_val, CP_MEC_CNTL,
+							  MEC_ME1_PIPE1_RESET, 1);
+				clean_val = REG_SET_FIELD(clean_val, CP_MEC_CNTL,
+							  MEC_ME1_PIPE1_RESET, 0);
+				break;
+			case 2:
+				reset_val = REG_SET_FIELD(reset_val, CP_MEC_CNTL,
+							  MEC_ME1_PIPE2_RESET, 1);
+				clean_val = REG_SET_FIELD(clean_val, CP_MEC_CNTL,
+							  MEC_ME1_PIPE2_RESET, 0);
+				break;
+			case 3:
+				reset_val = REG_SET_FIELD(reset_val, CP_MEC_CNTL,
+							  MEC_ME1_PIPE3_RESET, 1);
+				clean_val = REG_SET_FIELD(clean_val, CP_MEC_CNTL,
+							  MEC_ME1_PIPE3_RESET, 0);
+				break;
+			default:
+				break;
+			}
+			/* mec1 fw pc: CP_MEC1_INSTR_PNTR */
+		} else {
+			switch (pipe) {
+			case 0:
+				reset_val = REG_SET_FIELD(reset_val, CP_MEC_CNTL,
+							  MEC_ME2_PIPE0_RESET, 1);
+				clean_val = REG_SET_FIELD(clean_val, CP_MEC_CNTL,
+							  MEC_ME2_PIPE0_RESET, 0);
+				break;
+			case 1:
+				reset_val = REG_SET_FIELD(reset_val, CP_MEC_CNTL,
+							  MEC_ME2_PIPE1_RESET, 1);
+				clean_val = REG_SET_FIELD(clean_val, CP_MEC_CNTL,
+							  MEC_ME2_PIPE1_RESET, 0);
+				break;
+			case 2:
+				reset_val = REG_SET_FIELD(reset_val, CP_MEC_CNTL,
+							  MEC_ME2_PIPE2_RESET, 1);
+				clean_val = REG_SET_FIELD(clean_val, CP_MEC_CNTL,
+							  MEC_ME2_PIPE2_RESET, 0);
+				break;
+			case 3:
+				reset_val = REG_SET_FIELD(reset_val, CP_MEC_CNTL,
+							  MEC_ME2_PIPE3_RESET, 1);
+				clean_val = REG_SET_FIELD(clean_val, CP_MEC_CNTL,
+							  MEC_ME2_PIPE3_RESET, 0);
+				break;
+			default:
+				break;
+			}
+			/* mec2 fw pc: CP:CP_MEC2_INSTR_PNTR */
+		}
+		WREG32_SOC15(GC, 0, regCP_MEC_CNTL, reset_val);
+		mes_v11_0_clear_hqds_on_mec_pipe(adev, me, pipe);
+		WREG32_SOC15(GC, 0, regCP_MEC_CNTL, clean_val);
+		r = RREG32(SOC15_REG_OFFSET(GC, 0, regCP_MEC1_INSTR_PNTR));
+	}
+
+	soc21_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
+
+	dev_dbg(adev->dev, "MEC pipe me%u pipe%u queue%u resets to MEC FW start PC: %s\n",
+		me, pipe, queue, r == 0 ? "successfully" : "failed");
+	/*FIXME:Sometimes driver can't cache the MEC firmware start PC correctly, so the pipe
+	 * reset status relies on the compute ring test result.
+	 */
+	return 0;
+}
+
+static int mes_v11_0_reset_pipe_mmio(struct amdgpu_mes *mes, uint32_t queue_type,
+				     uint32_t me_id, uint32_t pipe_id,
+				     uint32_t queue_id, uint32_t vmid)
+{
+	struct amdgpu_device *adev = mes->adev;
+
+	if (queue_type == AMDGPU_RING_TYPE_GFX)
+		return mes_v11_0_reset_gfx_pipe_mmio(adev, me_id, pipe_id, queue_id);
+	else if (queue_type == AMDGPU_RING_TYPE_COMPUTE)
+		return mes_v11_0_reset_compute_pipe_mmio(adev, me_id, pipe_id, queue_id);
+	else
+		return -EOPNOTSUPP;
 }
 
 static int mes_v11_0_reset_queue_mmio(struct amdgpu_mes *mes, uint32_t queue_type,
@@ -543,6 +775,11 @@ static int mes_v11_0_unmap_legacy_queue(struct amdgpu_mes *mes,
 			convert_to_mes_queue_type(input->queue_type);
 	}
 
+	if (input->action == RESET_QUEUES &&
+	   (mes->sched_version & AMDGPU_MES_VERSION_MASK) >= 0x60)
+		mes_remove_queue_pkt.remove_queue_after_reset = 1;
+
+
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
 			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt),
 			offsetof(union MESAPI__REMOVE_QUEUE, api_status));
@@ -603,6 +840,58 @@ static int mes_v11_0_query_sched_status(struct amdgpu_mes *mes)
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
 			&mes_status_pkt, sizeof(mes_status_pkt),
 			offsetof(union MESAPI__QUERY_MES_STATUS, api_status));
+}
+
+/*
+ * QUERY_SCHEDULER_STATUS: get proc/gang context array sizes
+ */
+static int mes_v11_0_query_ctx_array_sizes(struct amdgpu_mes *mes)
+{
+	struct amdgpu_device *adev = mes->adev;
+	union MESAPI__QUERY_MES_STATUS mes_query_pkt;
+	int r;
+
+	if (!mes->ctx_array_size_cpu_ptr)
+		return -EINVAL;
+
+	/* Clear the output buffer */
+	mes->ctx_array_size_cpu_ptr[0] = 0;  /* proc_ctx_array_size */
+	mes->ctx_array_size_cpu_ptr[1] = 0;  /* gang_ctx_array_size */
+
+	memset(&mes_query_pkt, 0, sizeof(mes_query_pkt));
+
+	mes_query_pkt.header.type = MES_API_TYPE_SCHEDULER;
+	mes_query_pkt.header.opcode = MES_SCH_API_QUERY_SCHEDULER_STATUS;
+	mes_query_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
+
+	mes_query_pkt.subopcode = MES_API_QUERY_MES__GET_CTX_ARRAY_SIZE;
+
+	/*
+	 * MES FW will write the array sizes to these GPU addresses:
+	 *   proc_ctx_array_size_addr -> uint32_t N (e.g., 50)
+	 *   gang_ctx_array_size_addr -> uint32_t M (e.g., 300)
+	 */
+	mes_query_pkt.ctx_array_size.proc_ctx_array_size_addr =
+		mes->ctx_array_size_gpu_addr;
+	mes_query_pkt.ctx_array_size.gang_ctx_array_size_addr =
+		mes->ctx_array_size_gpu_addr + sizeof(uint32_t);
+
+	mes_query_pkt.api_status.api_completion_fence_addr =
+		mes->ring[0].fence_drv.gpu_addr;
+	mes_query_pkt.api_status.api_completion_fence_value =
+		++mes->ring[0].fence_drv.sync_seq;
+
+	r = mes_v11_0_submit_pkt_and_poll_completion(mes,
+			&mes_query_pkt, sizeof(mes_query_pkt),
+			offsetof(union MESAPI__QUERY_MES_STATUS, api_status));
+	if (r) {
+		dev_err(adev->dev,
+			"MES QUERY_SCHEDULER_STATUS (GET_CTX_ARRAY_SIZE) failed, r=%d\n", r);
+		return r;
+	}
+
+	/* MES has written the sizes - now set up bitmaps */
+	return amdgpu_mes_rs64mem_setup_bitmaps(mes);
 }
 
 static int mes_v11_0_misc_op(struct amdgpu_mes *mes,
@@ -728,6 +1017,8 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.enable_reg_active_poll = 1;
 	mes_set_hw_res_pkt.enable_level_process_quantum_check = 1;
 	mes_set_hw_res_pkt.oversubscription_timer = 50;
+	if (adev->mes.use_rs64mem)
+		mes_set_hw_res_pkt.use_rs64mem_for_proc_gang_ctx = 1;
 
 	if (amdgpu_mes_log_enable) {
 		mes_set_hw_res_pkt.enable_mes_event_int_logging = 1;
@@ -770,10 +1061,16 @@ static int mes_v11_0_reset_hw_queue(struct amdgpu_mes *mes,
 {
 	union MESAPI__RESET mes_reset_queue_pkt;
 
-	if (input->use_mmio)
-		return mes_v11_0_reset_queue_mmio(mes, input->queue_type,
-						  input->me_id, input->pipe_id,
-						  input->queue_id, input->vmid);
+	if (input->use_mmio) {
+		int r = mes_v11_0_reset_queue_mmio(mes, input->queue_type,
+						   input->me_id, input->pipe_id,
+						   input->queue_id, input->vmid);
+		if (r)
+			return mes_v11_0_reset_pipe_mmio(mes, input->queue_type,
+							 input->me_id, input->pipe_id,
+							 input->queue_id, input->vmid);
+		return 0;
+	}
 
 	memset(&mes_reset_queue_pkt, 0, sizeof(mes_reset_queue_pkt));
 
@@ -1307,12 +1604,14 @@ static int mes_v11_0_queue_init(struct amdgpu_device *adev,
 	struct amdgpu_ring *ring;
 	int r;
 
-	if (pipe == AMDGPU_MES_KIQ_PIPE)
+	if (pipe == AMDGPU_MES_KIQ_PIPE) {
 		ring = &adev->gfx.kiq[0].ring;
-	else if (pipe == AMDGPU_MES_SCHED_PIPE)
+	} else if (pipe == AMDGPU_MES_SCHED_PIPE) {
 		ring = &adev->mes.ring[0];
-	else
-		BUG();
+	} else {
+		WARN(1, "Invalid MES pipe %d\n", pipe);
+		return -EINVAL;
+	}
 
 	if ((pipe == AMDGPU_MES_SCHED_PIPE) &&
 	    (amdgpu_in_reset(adev) || adev->in_suspend)) {
@@ -1395,7 +1694,7 @@ static int mes_v11_0_mqd_sw_init(struct amdgpu_device *adev,
 	else if (pipe == AMDGPU_MES_SCHED_PIPE)
 		ring = &adev->mes.ring[0];
 	else
-		BUG();
+		return -EINVAL;
 
 	if (ring->mqd_obj)
 		return 0;
@@ -1655,6 +1954,8 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 	if (adev->mes.ring[0].sched.ready)
 		goto out;
 
+	adev->mes.use_rs64mem = false;
+
 	if (!adev->enable_mes_kiq) {
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 			r = mes_v11_0_load_microcode(adev,
@@ -1672,9 +1973,34 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		goto failure;
 
+	/* Allocate GPU buffer for array size query results */
+	r = amdgpu_mes_rs64mem_init(&adev->mes);
+	if (r) {
+		dev_warn(adev->dev,
+			 "RS64 local memory init failed (%d),"
+			 "falling back to system memory path\n", r);
+		adev->mes.use_rs64mem = false;
+	}
 	r = mes_v11_0_set_hw_resources(&adev->mes);
+
 	if (r)
 		goto failure;
+
+	/*
+	 * QUERY_SCHEDULER_STATUS to get array sizes (N, M).
+	 * MES writes the sizes to the GPU buffer, then we allocate bitmaps.
+	 */
+	if (adev->mes.use_rs64mem) {
+		r = mes_v11_0_query_ctx_array_sizes(&adev->mes);
+		if (r) {
+			dev_warn(adev->dev,
+				 "Failed to query ctx array sizes (%d),"
+				 "disabling RS64 local memory\n", r);
+			/* Continue without optimization - not fatal */
+			adev->mes.use_rs64mem = false;
+		}
+	}
+
 
 	if ((adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x52) {
 		r = mes_v11_0_set_hw_resources_1(&adev->mes);

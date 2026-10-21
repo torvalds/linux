@@ -423,7 +423,8 @@ struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id)
 {
 	struct rmnet_endpoint *ep;
 
-	hlist_for_each_entry_rcu(ep, &port->muxed_ep[mux_id], hlnode) {
+	hlist_for_each_entry_rcu(ep, &port->muxed_ep[mux_id], hlnode,
+				 lockdep_rtnl_is_held()) {
 		if (ep->mux_id == mux_id)
 			return ep;
 	}

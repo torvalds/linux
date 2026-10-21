@@ -190,3 +190,4 @@ module_platform_driver(ingenic_battery_driver);
 MODULE_DESCRIPTION("Battery driver for Ingenic JZ47xx SoCs");
 MODULE_AUTHOR("Artur Rojek <contact@artur-rojek.eu>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

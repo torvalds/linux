@@ -48,9 +48,10 @@ static int gx_card_parse_i2s(struct snd_soc_card *card,
 	struct meson_card *priv = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link *link = &card->dai_link[*index];
 	struct gx_dai_link_i2s_data *be;
+	struct device *dev = card->dev;
 
 	/* Allocate i2s link parameters */
-	be = devm_kzalloc(card->dev, sizeof(*be), GFP_KERNEL);
+	be = devm_kzalloc(dev, sizeof(*be), GFP_KERNEL);
 	if (!be)
 		return -ENOMEM;
 	priv->link_data[*index] = be;
@@ -81,9 +82,10 @@ static int gx_card_add_link(struct snd_soc_card *card, struct device_node *np,
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[*index];
 	struct snd_soc_dai_link_component *cpu;
+	struct device *dev = card->dev;
 	int ret;
 
-	cpu = devm_kzalloc(card->dev, sizeof(*cpu), GFP_KERNEL);
+	cpu = devm_kzalloc(dev, sizeof(*cpu), GFP_KERNEL);
 	if (!cpu)
 		return -ENOMEM;
 

@@ -99,6 +99,11 @@ struct clk *devm_clk_get_optional_enabled(struct device *dev, const char *id)
 }
 EXPORT_SYMBOL_GPL(devm_clk_get_optional_enabled);
 
+static void devm_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 struct clk *devm_clk_get_optional_enabled_with_rate(struct device *dev,
 						    const char *id,
 						    unsigned long rate)
@@ -106,8 +111,7 @@ struct clk *devm_clk_get_optional_enabled_with_rate(struct device *dev,
 	struct clk *clk;
 	int ret;
 
-	clk = __devm_clk_get(dev, id, clk_get_optional, NULL,
-			     clk_disable_unprepare);
+	clk = devm_clk_get_optional(dev, id);
 	if (IS_ERR(clk))
 		return ERR_CAST(clk);
 
@@ -116,6 +120,10 @@ struct clk *devm_clk_get_optional_enabled_with_rate(struct device *dev,
 		goto out_put_clk;
 
 	ret = clk_prepare_enable(clk);
+	if (ret)
+		goto out_put_clk;
+
+	ret = devm_add_action_or_reset(dev, devm_clk_disable_unprepare, clk);
 	if (ret)
 		goto out_put_clk;
 
@@ -221,6 +229,13 @@ err_clk_get:
 	devres_free(devres);
 	return ret;
 }
+
+int __must_check devm_clk_bulk_get_enable(struct device *dev, int num_clks,
+					  struct clk_bulk_data *clks)
+{
+	return __devm_clk_bulk_get_enable(dev, num_clks, clks, false);
+}
+EXPORT_SYMBOL_GPL(devm_clk_bulk_get_enable);
 
 int __must_check devm_clk_bulk_get_optional_enable(struct device *dev, int num_clks,
 						   struct clk_bulk_data *clks)

@@ -13,7 +13,7 @@
 
 #include "speakup.h"
 
-unsigned short spk_xs, spk_ys, spk_xe, spk_ye; /* our region points */
+u16 spk_xs, spk_ys, spk_xe, spk_ye; /* our region points */
 struct vc_data *spk_sel_cons;
 
 struct speakup_selection_work {

@@ -185,6 +185,13 @@ logical address types are already defined will return with error ``EBUSY``.
 	are CEC devices that can only handle CDC messages.
 
 	All other messages are ignored.
+    * .. _`CEC-LOG-ADDRS-FL-CONFIG-FAILED`:
+
+      - ``CEC_LOG_ADDRS_FL_CONFIG_FAILED``
+      - 8
+      - If this flag is set, then the CEC device failed to claim a free logical
+        address and is in the unconfigured state. This can never happen if
+	``CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK`` was set as well.
 
 .. tabularcolumns:: |p{7.8cm}|p{1.0cm}|p{8.5cm}|
 

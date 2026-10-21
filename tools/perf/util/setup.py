@@ -1,107 +1,194 @@
-from os import getenv, path
-from subprocess import Popen, PIPE
-from re import sub
+# SPDX-License-Identifier: GPL-2.0
+"""Setup script for perf python extension.
+
+This script is used to build and install the perf python binding.
+It handles compiler-specific flags, especially for clang, and configures
+the setuptools Extension.
+"""
+
+import os
 import shlex
+import shutil
+import subprocess
+import sysconfig
 
-cc = getenv("CC")
-assert cc, "Environment variable CC not set"
+from setuptools import setup, Extension
+from setuptools.command.build_ext import build_ext as _build_ext
+from setuptools.command.install_lib import install_lib as _install_lib
 
-# Check if CC has options, as is the case in yocto, where it uses CC="cc --sysroot..."
-cc_tokens = cc.split()
-if len(cc_tokens) > 1:
-    cc = cc_tokens[0]
-    cc_options = " ".join([str(e) for e in cc_tokens[1:]]) + " "
-else:
-    cc_options = ""
 
-# ignore optional stderr could be None as it is set to PIPE to avoid that.
-# mypy: disable-error-code="union-attr"
-cc_is_clang = b"clang version" in Popen([cc, "-v"], stderr=PIPE).stderr.readline()
+def clang_has_option(cc: str, cc_args: list[str], src_feature_tests: str, option: str) -> bool:
+    """Check if clang supports a specific option.
 
-srctree = getenv('srctree')
-assert srctree, "Environment variable srctree, for the Linux sources, not set"
-src_feature_tests  = f'{srctree}/tools/build/feature'
+    Args:
+        cc: The compiler executable.
+        cc_args: Compiler arguments from CC environment variable.
+        src_feature_tests: Path to the feature tests directory.
+        option: The compiler option to check (e.g., "-mcet").
 
-def clang_has_option(option):
+    Returns:
+        True if the option is supported, False otherwise.
+    """
     error_substrings = (
         b"unknown argument",
         b"is not supported",
         b"unknown warning option"
     )
-    cmd = shlex.split(f"{cc} {cc_options} {option}") + [
+    cmd = [cc] + cc_args + [
+        option,
         "-o", "/dev/null",
-        path.join(src_feature_tests, "test-hello.c")
+        os.path.join(src_feature_tests, "test-hello.c")
     ]
-    cc_output = Popen(cmd, stderr=PIPE).stderr.readlines()
+    try:
+        res = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, check=False)
+        cc_output = res.stderr.splitlines()
+    except OSError:
+        return False
     return not any(any(error in line for error in error_substrings) for line in cc_output)
 
-if cc_is_clang:
-    from sysconfig import get_config_vars
-    vars = get_config_vars()
+
+def filter_clang_options(cc: str, cc_args: list[str], src_feature_tests: str) -> None:
+    """Filter out unsupported clang options from sysconfig CFLAGS and OPT.
+
+    Args:
+        cc: The compiler executable.
+        cc_args: Compiler arguments from CC environment variable.
+        src_feature_tests: Path to the feature tests directory.
+    """
+    config_vars = sysconfig.get_config_vars()
     for var in ('CFLAGS', 'OPT'):
-        vars[var] = sub("-specs=[^ ]+", "", vars[var])
-        if not clang_has_option("-mcet"):
-            vars[var] = sub("-mcet", "", vars[var])
-        if not clang_has_option("-fcf-protection"):
-            vars[var] = sub("-fcf-protection", "", vars[var])
-        if not clang_has_option("-fstack-clash-protection"):
-            vars[var] = sub("-fstack-clash-protection", "", vars[var])
-        if not clang_has_option("-fstack-protector-strong"):
-            vars[var] = sub("-fstack-protector-strong", "", vars[var])
-        if not clang_has_option("-fno-semantic-interposition"):
-            vars[var] = sub("-fno-semantic-interposition", "", vars[var])
-        if not clang_has_option("-ffat-lto-objects"):
-            vars[var] = sub("-ffat-lto-objects", "", vars[var])
-        if not clang_has_option("-ftree-loop-distribute-patterns"):
-            vars[var] = sub("-ftree-loop-distribute-patterns", "", vars[var])
-        if not clang_has_option("-gno-variable-location-views"):
-            vars[var] = sub("-gno-variable-location-views", "", vars[var])
+        if var not in config_vars:
+            continue
 
-from setuptools import setup, Extension
+        # Split into individual flags using shlex to preserve quoted arguments
+        flags = shlex.split(config_vars[var])
 
-from setuptools.command.build_ext   import build_ext   as _build_ext
-from setuptools.command.install_lib import install_lib as _install_lib
+        # Remove -specs=...
+        flags = [f for f in flags if not f.startswith("-specs=")]
 
-class build_ext(_build_ext):
-    def finalize_options(self):
+        options = (
+            "-mcet",
+            "-fcf-protection",
+            "-fstack-clash-protection",
+            "-fstack-protector-strong",
+            "-fno-semantic-interposition",
+            "-ffat-lto-objects",
+            "-ftree-loop-distribute-patterns",
+            "-gno-variable-location-views"
+        )
+        for option in options:
+            if not clang_has_option(cc, cc_args, src_feature_tests, option):
+                # Remove the option and any variant (e.g. -option=...)
+                flags = [f for f in flags if not f.startswith(option)]
+
+        # Re-join flags preserving quoting
+        config_vars[var] = shlex.join(flags)
+
+
+class BuildExt(_build_ext):
+    """Custom build_ext command to set output directories."""
+
+    def __init__(self, *args, **kwargs):
+        self.build_lib = None
+        self.build_temp = None
+        super().__init__(*args, **kwargs)
+
+    def finalize_options(self) -> None:
         _build_ext.finalize_options(self)
-        self.build_lib  = build_lib
-        self.build_temp = build_tmp
+        build_lib = os.getenv('PYTHON_EXTBUILD_LIB')
+        build_tmp = os.getenv('PYTHON_EXTBUILD_TMP')
+        if build_lib:
+            self.build_lib = build_lib
+        if build_tmp:
+            self.build_temp = build_tmp
 
-class install_lib(_install_lib):
-    def finalize_options(self):
+
+class InstallLib(_install_lib):
+    """Custom install_lib command to set output directory."""
+
+    def __init__(self, *args, **kwargs):
+        self.build_dir = None
+        super().__init__(*args, **kwargs)
+
+    def finalize_options(self) -> None:
         _install_lib.finalize_options(self)
-        self.build_dir = build_lib
+        build_lib = os.getenv('PYTHON_EXTBUILD_LIB')
+        if build_lib:
+            self.build_dir = build_lib
+
+    def run(self):
+        _install_lib.run(self)
+        srctree = os.getenv('srctree', '.')
+        src_perf = os.path.join(srctree, 'tools/perf')
+        shutil.copy2(os.path.join(src_perf, 'python/perf.pyi'), self.install_dir)
 
 
-# switch off several checks (need to be at the end of cflags list)
-extra_cflags = ['-fno-strict-aliasing', '-Wno-write-strings', '-Wno-unused-parameter', '-Wno-redundant-decls' ]
-if cc_is_clang:
-    extra_cflags += ["-Wno-unused-command-line-argument" ]
-    if clang_has_option("-Wno-cast-function-type-mismatch"):
-        extra_cflags += ["-Wno-cast-function-type-mismatch" ]
-else:
-    extra_cflags += ['-Wno-cast-function-type' ]
+def main() -> None:
+    """Main entry point for the setup script."""
+    cc_env = os.getenv("CC")
+    assert cc_env, "Environment variable CC not set"
 
-# The python headers have mixed code with declarations (decls after asserts, for instance)
-extra_cflags += [ "-Wno-declaration-after-statement" ]
+    # Safe parsing of CC environment variable which might contain options/quotes
+    cc_tokens = shlex.split(cc_env)
+    cc = cc_tokens[0]
+    cc_args = cc_tokens[1:]
 
-src_perf  = f'{srctree}/tools/perf'
-build_lib = getenv('PYTHON_EXTBUILD_LIB')
-build_tmp = getenv('PYTHON_EXTBUILD_TMP')
+    # Run CC -v to check if it is clang.
+    try:
+        cc_info = subprocess.run(
+            [cc, "-v"], stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, check=False
+        )
+        cc_is_clang = b"clang version" in cc_info.stderr
+    except OSError as e:
+        raise RuntimeError(f"Failed to execute compiler '{cc}': {e}") from e
 
-perf = Extension('perf',
-                 sources = [ src_perf + '/util/python.c' ],
-		         include_dirs = ['util/include'],
-		         extra_compile_args = extra_cflags,
-                 )
+    srctree = os.getenv('srctree')
+    assert srctree, "Environment variable srctree, for the Linux sources, not set"
+    src_feature_tests = f'{srctree}/tools/build/feature'
 
-setup(name='perf',
-      version='0.1',
-      description='Interface with the Linux profiling infrastructure',
-      author='Arnaldo Carvalho de Melo',
-      author_email='acme@redhat.com',
-      license='GPLv2',
-      url='http://perf.wiki.kernel.org',
-      ext_modules=[perf],
-      cmdclass={'build_ext': build_ext, 'install_lib': install_lib})
+    if cc_is_clang:
+        filter_clang_options(cc, cc_args, src_feature_tests)
+
+    # switch off several checks (need to be at the end of cflags list)
+    cflags = [
+        '-fno-strict-aliasing',
+        '-Wno-write-strings',
+        '-Wno-unused-parameter',
+        '-Wno-redundant-decls'
+    ]
+    if cc_is_clang:
+        cflags += ["-Wno-unused-command-line-argument"]
+        if clang_has_option(
+            cc, cc_args, src_feature_tests, "-Wno-cast-function-type-mismatch"
+        ):
+            cflags += ["-Wno-cast-function-type-mismatch"]
+    else:
+        cflags += ['-Wno-cast-function-type']
+
+    # The python headers have mixed code with declarations (decls after asserts, for instance)
+    cflags += ["-Wno-declaration-after-statement"]
+
+    src_perf = f'{srctree}/tools/perf'
+
+    perf = Extension(
+        'perf',
+        sources=[os.path.join(src_perf, 'util/python.c')],
+        include_dirs=['util/include'],
+        extra_compile_args=cflags,
+    )
+
+    setup(
+        name='perf',
+        version='0.1',
+        description='Interface with the Linux profiling infrastructure',
+        author='Arnaldo Carvalho de Melo',
+        author_email='acme@redhat.com',
+        license='GPLv2',
+        url='http://perf.wiki.kernel.org',
+        ext_modules=[perf],
+        cmdclass={'build_ext': BuildExt, 'install_lib': InstallLib},
+    )
+
+
+if __name__ == '__main__':
+    main()

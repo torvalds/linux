@@ -40,3 +40,6 @@ __NR_link,
 #ifdef __NR_linkat
 __NR_linkat,
 #endif
+#ifdef __NR_file_setattr
+__NR_file_setattr,
+#endif

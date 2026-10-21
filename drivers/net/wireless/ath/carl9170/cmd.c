@@ -52,7 +52,7 @@ int carl9170_write_reg(struct ar9170 *ar, const u32 reg, const u32 val)
 				(u8 *) buf, 0, NULL);
 	if (err) {
 		if (net_ratelimit()) {
-			wiphy_err(ar->hw->wiphy, "writing reg %#x "
+			wiphy_dbg(ar->hw->wiphy, "writing reg %#x "
 				"(val %#x) failed (%d)\n", reg, val, err);
 		}
 	}
@@ -78,7 +78,7 @@ int carl9170_read_mreg(struct ar9170 *ar, const int nregs,
 				4 * nregs, (u8 *)res);
 	if (err) {
 		if (net_ratelimit()) {
-			wiphy_err(ar->hw->wiphy, "reading regs failed (%d)\n",
+			wiphy_dbg(ar->hw->wiphy, "reading regs failed (%d)\n",
 				  err);
 		}
 		return err;

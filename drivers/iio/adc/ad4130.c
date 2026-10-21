@@ -2425,12 +2425,12 @@ static const struct of_device_id ad4130_of_match[] = {
 MODULE_DEVICE_TABLE(of, ad4130_of_match);
 
 static const struct spi_device_id ad4130_id_table[] = {
-	{ "ad4129-4", (kernel_ulong_t)&ad4129_4_chip_info },
-	{ "ad4129-8", (kernel_ulong_t)&ad4129_8_chip_info },
-	{ "ad4130-4", (kernel_ulong_t)&ad4130_4_chip_info },
-	{ "ad4130", (kernel_ulong_t)&ad4130_8_chip_info },
-	{ "ad4131-4", (kernel_ulong_t)&ad4131_4_chip_info },
-	{ "ad4131-8", (kernel_ulong_t)&ad4131_8_chip_info },
+	{ .name = "ad4129-4", .driver_data = (kernel_ulong_t)&ad4129_4_chip_info },
+	{ .name = "ad4129-8", .driver_data = (kernel_ulong_t)&ad4129_8_chip_info },
+	{ .name = "ad4130-4", .driver_data = (kernel_ulong_t)&ad4130_4_chip_info },
+	{ .name = "ad4130", .driver_data = (kernel_ulong_t)&ad4130_8_chip_info },
+	{ .name = "ad4131-4", .driver_data = (kernel_ulong_t)&ad4131_4_chip_info },
+	{ .name = "ad4131-8", .driver_data = (kernel_ulong_t)&ad4131_8_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad4130_id_table);

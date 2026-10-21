@@ -278,12 +278,14 @@ static int keembay_pcie_setup_msi_irq(struct keembay_pcie *pcie)
 	return 0;
 }
 
-static void keembay_pcie_ep_init(struct dw_pcie_ep *ep)
+static int keembay_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct keembay_pcie *pcie = dev_get_drvdata(pci->dev);
 
 	writel(EDMA_INT_EN, pcie->apb_base + PCIE_REGS_INTERRUPT_ENABLE);
+
+	return 0;
 }
 
 static int keembay_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,

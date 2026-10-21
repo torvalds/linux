@@ -11,17 +11,20 @@ struct device;
 struct fwnode_handle;
 struct i2c_adapter;
 struct i2c_client;
-struct irq_domain;
 struct platform_device;
+struct xe_amc;
 struct xe_device;
 struct xe_mmio;
-
-#define XE_I2C_MAX_CLIENTS		3
 
 #define XE_I2C_EP_COOKIE_DEVICE		0xde
 
 /* Endpoint Capabilities */
 #define XE_I2C_EP_CAP_IRQ		BIT(0)
+
+enum XE_I2C_CLIENT {
+	XE_I2C_CLIENT_AMC = 1,
+	XE_I2C_MAX_CLIENTS = 3,
+};
 
 struct xe_i2c_endpoint {
 	u8 cookie;
@@ -30,21 +33,19 @@ struct xe_i2c_endpoint {
 };
 
 struct xe_i2c {
-	struct fwnode_handle *adapter_node;
 	struct platform_device *pdev;
 	struct i2c_adapter *adapter;
 	struct i2c_client *client[XE_I2C_MAX_CLIENTS];
+	unsigned int ic_enable;
 
 	struct notifier_block bus_notifier;
 	struct work_struct work;
-
-	struct irq_domain *irqdomain;
-	int adapter_irq;
 
 	struct xe_i2c_endpoint ep;
 	struct device *drm_dev;
 
 	struct xe_mmio *mmio;
+	struct xe_amc *amc;
 };
 
 #if IS_ENABLED(CONFIG_I2C)

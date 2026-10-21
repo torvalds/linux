@@ -517,44 +517,6 @@ end:
 	return simple_ret(priv, ret);
 }
 
-static int simple_parse_of(struct simple_util_priv *priv, struct link_info *li)
-{
-	struct snd_soc_card *card = simple_priv_to_card(priv);
-	int ret;
-
-	ret = simple_util_parse_widgets(card, PREFIX);
-	if (ret < 0)
-		goto end;
-
-	ret = simple_util_parse_routing(card, PREFIX);
-	if (ret < 0)
-		goto end;
-
-	ret = simple_util_parse_pin_switches(card, PREFIX);
-	if (ret < 0)
-		goto end;
-
-	/* Single/Muti DAI link(s) & New style of DT node */
-	memset(li, 0, sizeof(*li));
-	ret = simple_for_each_link(priv, li,
-				   simple_dai_link_of,
-				   simple_dai_link_of_dpcm);
-	if (ret < 0)
-		goto end;
-
-	ret = simple_util_parse_card_name(priv, PREFIX);
-	if (ret < 0)
-		goto end;
-
-	ret = simple_populate_aux(priv);
-	if (ret < 0)
-		goto end;
-
-	ret = snd_soc_of_parse_aux_devs(card, PREFIX "aux-devs");
-end:
-	return simple_ret(priv, ret);
-}
-
 static int simple_count_noml(struct simple_util_priv *priv,
 			     struct device_node *np,
 			     struct device_node *codec,
@@ -699,28 +661,19 @@ static int simple_soc_probe(struct snd_soc_card *card)
 	if (ret < 0)
 		goto end;
 
-	ret = simple_util_init_aux_jacks(priv, PREFIX);
+	ret = simple_util_init_aux_jacks(card, PREFIX);
 end:
 	return simple_ret(priv, ret);
 }
 
-static int simple_probe(struct platform_device *pdev)
+static int simple_parse_of(struct simple_util_priv *priv)
 {
-	struct simple_util_priv *priv;
-	struct device *dev = &pdev->dev;
-	struct snd_soc_card *card;
-	int ret;
+	struct snd_soc_card *card = simple_priv_to_card(priv);
+	struct device *dev = card->dev;
+	int ret = -EINVAL;
 
-	/* Allocate the private data and the DAI link array */
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	card = simple_priv_to_card(priv);
-	card->owner		= THIS_MODULE;
-	card->dev		= dev;
-	card->probe		= simple_soc_probe;
-	card->driver_name       = "simple-card";
+	if (!dev)
+		return simple_ret(priv, ret);
 
 	ret = -ENOMEM;
 	struct link_info *li __free(kfree) = kzalloc_obj(*li);
@@ -739,25 +692,71 @@ static int simple_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto end;
 
-	ret = simple_parse_of(priv, li);
-	if (ret < 0) {
-		dev_err_probe(dev, ret, "parse error\n");
+	ret = simple_util_parse_widgets(priv, PREFIX);
+	if (ret < 0)
+		goto end;
+
+	ret = simple_util_parse_routing(priv, PREFIX);
+	if (ret < 0)
+		goto end;
+
+	ret = simple_util_parse_pin_switches(priv, PREFIX);
+	if (ret < 0)
+		goto end;
+
+	ret = simple_util_parse_aux_devs(priv, PREFIX);
+	if (ret < 0)
 		goto err;
-	}
+
+	/* Single/Muti DAI link(s) & New style of DT node */
+	memset(li, 0, sizeof(*li));
+	ret = simple_for_each_link(priv, li,
+				   simple_dai_link_of,
+				   simple_dai_link_of_dpcm);
+	if (ret < 0)
+		goto err;
+
+	/* Card name should be set after simple_for_each_link() */
+	ret = simple_util_parse_card_name(priv, PREFIX);
+	if (ret < 0)
+		goto err;
+
+	ret = simple_populate_aux(priv);
+	if (ret < 0)
+		goto err;
 
 	snd_soc_card_set_drvdata(card, priv);
 
 	simple_util_debug_info(priv);
 
 	ret = devm_snd_soc_register_card(dev, card);
-	if (ret < 0)
-		goto err;
-
-	return 0;
 err:
-	simple_util_clean_reference(card);
+	if (ret < 0) {
+		simple_util_clean_reference(priv);
+		return dev_err_probe(dev, ret, "parse error\n");
+	}
 end:
-	return dev_err_probe(dev, ret, "parse error\n");
+	return simple_ret(priv, ret);
+}
+
+static int simple_probe(struct platform_device *pdev)
+{
+	struct simple_util_priv *priv;
+	struct device *dev = &pdev->dev;
+	struct snd_soc_card *card;
+
+	/* Allocate the private data and the DAI link array */
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	card = simple_priv_to_card(priv);
+	card->owner		= THIS_MODULE;
+	card->dev		= dev;
+	card->probe		= simple_soc_probe;
+	card->driver_name       = "simple-card";
+
+	return simple_parse_of(priv);
 }
 
 static const struct of_device_id simple_of_match[] = {

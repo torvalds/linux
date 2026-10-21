@@ -18,12 +18,16 @@
 #include "ntfs.h"
 #include "ntfs_fs.h"
 
+struct IGET5_PARAM {
+	const struct MFT_REF *ref;
+	const struct cpu_str *name;
+};
+
 /*
  * ntfs_read_mft - Read record and parse MFT.
  */
-static struct inode *ntfs_read_mft(struct inode *inode,
-				   const struct cpu_str *name,
-				   const struct MFT_REF *ref)
+static int ntfs_read_mft(struct inode *inode, const struct cpu_str *name,
+			 const struct MFT_REF *ref)
 {
 	int err = 0;
 	struct ntfs_inode *ni = ntfs_i(inode);
@@ -36,7 +40,7 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 	bool is_match = false;
 	bool is_root = false;
 	bool is_dir;
-	unsigned long ino = inode->i_ino;
+	u64 ino = inode->i_ino;
 	u32 rp_fa = 0, asize, t32;
 	u16 roff, rsize, names = 0, links = 0;
 	const struct ATTR_FILE_NAME *fname = NULL;
@@ -46,6 +50,7 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 	struct MFT_REC *rec;
 	struct runs_tree *run;
 	struct timespec64 ts;
+	const __le16 *aname;
 
 	inode->i_op = NULL;
 	/* Setup 'uid' and 'gid' */
@@ -79,7 +84,7 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 		;
 	} else if (ref->seq != rec->seq) {
 		err = -EINVAL;
-		ntfs_err(sb, "MFT: r=%lx, expect seq=%x instead of %x!", ino,
+		ntfs_err(sb, "MFT: r=%llx, expect seq=%x instead of %x!", ino,
 			 le16_to_cpu(ref->seq), le16_to_cpu(rec->seq));
 		goto out;
 	} else if (!is_rec_inuse(rec)) {
@@ -127,10 +132,16 @@ next_attr:
 
 	if (le && le->vcn) {
 		/* This is non primary attribute segment. Ignore if not MFT. */
-		if (ino != MFT_REC_MFT || attr->type != ATTR_DATA)
+		if (ino != MFT_REC_MFT)
 			goto next_attr;
 
-		run = &ni->file.run;
+		if (attr->type == ATTR_DATA)
+			run = &ni->file.run;
+		else if (attr->type == ATTR_BITMAP)
+			run = &sbi->mft.bitmap.run;
+		else
+			goto next_attr;
+
 		asize = le32_to_cpu(attr->size);
 		goto attr_unpack_run;
 	}
@@ -138,6 +149,7 @@ next_attr:
 	roff = attr->non_res ? 0 : le16_to_cpu(attr->res.data_off);
 	rsize = attr->non_res ? 0 : le32_to_cpu(attr->res.data_size);
 	asize = le32_to_cpu(attr->size);
+	aname = attr_name(attr);
 
 	/*
 	 * Really this check was done in 'ni_enum_attr_ex' -> ... 'mi_enum_attr'.
@@ -224,10 +236,10 @@ next_attr:
 		if (attr->name_len &&
 		    ((ino != MFT_REC_BADCLUST || !attr->non_res ||
 		      attr->name_len != ARRAY_SIZE(BAD_NAME) ||
-		      memcmp(attr_name(attr), BAD_NAME, sizeof(BAD_NAME))) &&
+		      memcmp(aname, BAD_NAME, sizeof(BAD_NAME))) &&
 		     (ino != MFT_REC_SECURE || !attr->non_res ||
 		      attr->name_len != ARRAY_SIZE(SDS_NAME) ||
-		      memcmp(attr_name(attr), SDS_NAME, sizeof(SDS_NAME))))) {
+		      memcmp(aname, SDS_NAME, sizeof(SDS_NAME))))) {
 			/* File contains stream attribute. Ignore it. */
 			goto next_attr;
 		}
@@ -247,14 +259,11 @@ next_attr:
 		else
 			ni->std_fa &= ~FILE_ATTRIBUTE_ENCRYPTED;
 
-		if (!attr->non_res) {
-			ni->i_valid = inode->i_size = rsize;
-			inode_set_bytes(inode, rsize);
-		}
-
 		mode = S_IFREG | (0777 & sbi->options->fs_fmask_inv);
 
 		if (!attr->non_res) {
+			ni->i_valid = inode->i_size = rsize;
+			inode_set_bytes(inode, rsize);
 			ni->ni_flags |= NI_FLAG_RESIDENT;
 			goto next_attr;
 		}
@@ -495,16 +504,136 @@ end_enum:
 	if (ino == MFT_REC_MFT && !sb->s_root)
 		sbi->mft.ni = NULL;
 
-	unlock_new_inode(inode);
-
-	return inode;
+	return 0;
 
 out:
 	if (ino == MFT_REC_MFT && !sb->s_root)
 		sbi->mft.ni = NULL;
 
-	iget_failed(inode);
-	return ERR_PTR(err);
+	return err;
+}
+
+/*
+ * ntfs_init_ads_node
+ *
+ * This function scans base inode for given ADS.
+ * And init inode associated with this ADS
+ */
+static int ntfs_init_ads_node(struct inode *inode, const __le16 *ads_name,
+			      u8 ads_len, u32 flags)
+{
+	int err = -EINVAL;
+	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ntfs_inode *nb = ni->base;
+	struct ntfs_sb_info *sbi = nb->mi.sbi;
+	struct ATTR_LIST_ENTRY *le = NULL;
+	struct ATTRIB *attr = NULL;
+	u16 roff, asize;
+	u64 svcn;
+
+	if (nb->ni_flags & NI_FLAG_DIR)
+		return -EINVAL; /* no ADS for directories. */
+
+	ni->mi.sbi = sbi;
+	ni->mi.rno = inode->i_ino;
+
+	if (ads_len == ARRAY_SIZE(QUERY_STREAMS) &&
+	    !memcmp(ads_name, QUERY_STREAMS, sizeof(QUERY_STREAMS))) {
+		goto ok; /* use goto to reduce tab pressure. */
+	}
+
+	/* Enumerate all attributes in record. */
+	while ((attr = ni_enum_attr_ex(nb, attr, &le, NULL))) {
+		if (attr->type == ATTR_DATA && attr->name_len &&
+		    ads_len == attr->name_len &&
+		    !memcmp(ads_name, attr_name(attr), ads_len * sizeof(u16))) {
+			/* We have found the ADS to open. */
+			break;
+		}
+	}
+
+	if (!attr) {
+		if (!(flags & LOOKUP_CREATE)) {
+			/* Do not create ADS. */
+			return -ENOENT;
+		}
+
+		/* Create new ADS. */
+		err = ni_insert_resident(nb, 0, ATTR_DATA, ads_name, ads_len,
+					 &attr, NULL, NULL);
+		if (err) {
+			/* Looks like the only reasons: ENOSPC/ENOMEM .*/
+			return err;
+		}
+	}
+
+	if (is_attr_sparsed(attr))
+		ni->std_fa |= FILE_ATTRIBUTE_SPARSE_FILE;
+	else
+		ni->std_fa &= ~FILE_ATTRIBUTE_SPARSE_FILE;
+
+	if (is_attr_compressed(attr))
+		ni->std_fa |= FILE_ATTRIBUTE_COMPRESSED;
+	else
+		ni->std_fa &= ~FILE_ATTRIBUTE_COMPRESSED;
+
+	if (is_attr_encrypted(attr))
+		ni->std_fa |= FILE_ATTRIBUTE_ENCRYPTED;
+	else
+		ni->std_fa &= ~FILE_ATTRIBUTE_ENCRYPTED;
+
+	if (!attr->non_res) {
+		ni->ni_flags |= NI_FLAG_RESIDENT;
+		ni->i_valid = inode->i_size = le32_to_cpu(attr->res.data_size);
+		inode_set_bytes(inode, inode->i_size);
+		goto ok;
+	}
+
+	inode_set_bytes(inode, attr_ondisk_size(attr));
+	ni->i_valid = le64_to_cpu(attr->nres.valid_size);
+	inode->i_size = le64_to_cpu(attr->nres.data_size);
+
+	if (!attr->nres.alloc_size)
+		goto ok;
+
+	roff = le16_to_cpu(attr->nres.run_off);
+	asize = le32_to_cpu(attr->size);
+
+	if (roff > asize) {
+		/* This case should be checked in mi_enum_attr */
+		return -EINVAL;
+	}
+
+	svcn = le64_to_cpu(attr->nres.svcn);
+	err = run_unpack_ex(&ni->file.run, sbi, ni->mi.rno, svcn,
+			    le64_to_cpu(attr->nres.evcn), svcn,
+			    Add2Ptr(attr, roff), asize - roff);
+	if (err < 0) {
+		/* run_unpack_ex marks volume dirty, if logical error. */
+		return err;
+	}
+
+ok:
+	/* Keep ADS name (little endian). */
+	ni->file.ads.name = kmemdup(ads_name, ads_len * sizeof(u16), GFP_NOFS);
+	if (!ni->file.ads.name)
+		return -ENOMEM;
+	ni->file.ads.len = ads_len;
+
+	set_nlink(inode, 1);
+
+	init_rwsem(&ni->file.run_lock);
+	/* Most fields are the same as the base's? */
+	inode->i_op = nb->vfs_inode.i_op;
+	inode->i_fop = nb->vfs_inode.i_fop;
+	inode->i_mapping->a_ops = nb->vfs_inode.i_mapping->a_ops;
+	inode->i_flags = nb->vfs_inode.i_flags;
+	inode->i_mode = nb->vfs_inode.i_mode;
+	inode->i_uid = nb->vfs_inode.i_uid;
+	inode->i_gid = nb->vfs_inode.i_gid;
+	inode->i_generation = nb->vfs_inode.i_generation;
+
+	return 0;
 }
 
 /*
@@ -514,43 +643,119 @@ out:
  */
 static int ntfs_test_inode(struct inode *inode, void *data)
 {
-	struct MFT_REF *ref = data;
+	const struct IGET5_PARAM *ig5 = data;
+	struct ntfs_inode *ni;
+	const struct cpu_str *name;
 
-	return ino_get(ref) == inode->i_ino;
+	if (ino_get(ig5->ref) != inode->i_ino)
+		return 0;
+
+	ni = ntfs_i(inode);
+
+	if (ni->ni_flags & NI_FLAG_DIR) {
+		/* No ads for directories. */
+		return 1;
+	}
+
+	name = ig5->name;
+	if (!name || !name->ads_len) {
+		if (!ni->file.ads.len) {
+			/* default file (not ads) match. */
+			return 1;
+		}
+	} else if (ni->file.ads.len == name->ads_len &&
+		   !memcmp(ni->file.ads.name, &name->name[name->len + 1],
+			   name->ads_len * sizeof(u16))) {
+		/* ads name match. */
+		return 1;
+	}
+
+	return 0;
 }
 
 static int ntfs_set_inode(struct inode *inode, void *data)
 {
-	const struct MFT_REF *ref = data;
+	const struct IGET5_PARAM *ig5 = data;
 
-	inode->i_ino = ino_get(ref);
+	inode->i_ino = ino_get(ig5->ref);
 	return 0;
 }
 
-struct inode *ntfs_iget5(struct super_block *sb, const struct MFT_REF *ref,
-			 const struct cpu_str *name)
+struct inode *ntfs_iget5_flags(struct super_block *sb,
+			       const struct MFT_REF *ref,
+			       const struct cpu_str *name, u32 flags)
 {
-	struct inode *inode;
+	int err;
+	/* Pack params to pass in iget5_locked. */
+	struct IGET5_PARAM ig5 = { ref, name };
+	u64 ino = ino_get(ref);
+	struct inode *inode, *base = NULL;
+	bool ads = name && name->ads_len;
+	struct ntfs_inode *ni;
 
-	inode = iget5_locked(sb, ino_get(ref), ntfs_test_inode, ntfs_set_inode,
-			     (void *)ref);
-	if (unlikely(!inode))
-		return ERR_PTR(-ENOMEM);
+	if (ads) {
+		/* First get base inode */
+		base = ntfs_iget5_flags(sb, ref, NULL, 0);
+		if (IS_ERR(base))
+			return base;
+	}
+
+	inode = iget5_locked(sb, ino, ntfs_test_inode, ntfs_set_inode, &ig5);
+	if (unlikely(!inode)) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	ni = ntfs_i(inode);
 
 	/* If this is a freshly allocated inode, need to read it now. */
-	if (inode_state_read_once(inode) & I_NEW)
-		inode = ntfs_read_mft(inode, name, ref);
-	else if (ref->seq != ntfs_i(inode)->mi.mrec->seq) {
+	if (inode_state_read_once(inode) & I_NEW) {
+		if (!base) {
+			/* default inode. generic file/dir. */
+			ni->base = ni;
+		} else {
+			/* inode + ads */
+			ni->base = ntfs_i(base);
+			base = NULL; /* keep reference incremented (instead of ihold). */
+		}
+
+		if (ads) {
+			/* base record is loaded. Init ads node. */
+			err = ntfs_init_ads_node(
+				inode, (__le16 *)&name->name[name->len + 1],
+				name->ads_len, flags);
+		} else {
+			err = ntfs_read_mft(inode, name, ref);
+		}
+
+		if (!err) {
+			unlock_new_inode(inode);
+		} else {
+			iget_failed(inode);
+			/* Do not mark volume dirty if ADS not found. */
+			if (ads)
+				goto out;
+		}
+	} else if (!ads && ref->seq != ni->mi.mrec->seq) {
 		/*
 		 * Sequence number is not expected.
 		 * Looks like inode was reused but caller uses the old reference
 		 */
 		iput(inode);
-		inode = ERR_PTR(-ESTALE);
+		err = -ESTALE;
+	} else {
+		err = 0;
 	}
 
-	if (IS_ERR(inode))
+	if (err)
 		ntfs_set_state(sb->s_fs_info, NTFS_DIRTY_ERROR);
+
+out:
+	if (base)
+		iput(base);
+
+	if (err)
+		return ERR_PTR(err);
 
 	return inode;
 }
@@ -606,15 +811,17 @@ static void ntfs_iomap_read_end_io(struct bio *bio)
 }
 
 static void ntfs_iomap_bio_submit_read(const struct iomap_iter *iter,
-		struct iomap_read_folio_ctx *ctx)
+				       struct iomap_read_folio_ctx *ctx)
 {
 	iomap_bio_submit_read_endio(iter, ctx, ntfs_iomap_read_end_io);
 }
 
+// clang-format off
 static const struct iomap_read_ops ntfs_iomap_bio_read_ops = {
 	.read_folio_range	= iomap_bio_read_folio_range,
 	.submit_read		= ntfs_iomap_bio_submit_read,
 };
+// clang-format on
 
 static int ntfs_read_folio(struct file *file, struct folio *folio)
 {
@@ -698,8 +905,8 @@ int ntfs_set_size(struct inode *inode, u64 new_size)
 		ni->i_valid = new_size;
 
 	/* last 'true' means keep preallocated. */
-	err = attr_set_size(ni, ATTR_DATA, NULL, 0, &ni->file.run, new_size,
-			    &ni->i_valid, true);
+	err = attr_set_size(ni, ATTR_DATA, ni->file.ads.name, ni->file.ads.len,
+			    &ni->file.run, new_size, &ni->i_valid, true);
 
 	up_write(&ni->file.run_lock);
 	ni_unlock(ni);
@@ -793,7 +1000,8 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 
 	if (lcn == RESIDENT_LCN) {
 		if (offset >= clen) {
-			__free_page(virt_to_page(res));
+			if (res)
+				__free_page(virt_to_page(res));
 			if (flags & IOMAP_REPORT) {
 				/* special code for report. */
 				return -ENOENT;
@@ -884,7 +1092,8 @@ static int ntfs_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 			struct ATTRIB *attr;
 			struct mft_inode *mi;
 
-			attr = ni_find_attr(ni, NULL, NULL, ATTR_DATA, NULL, 0,
+			attr = ni_find_attr(ni, NULL, NULL, ATTR_DATA,
+					    ni->file.ads.name, ni->file.ads.len,
 					    NULL, &mi);
 			if (!attr || attr->non_res) {
 				err = -EINVAL;
@@ -1205,6 +1414,15 @@ int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 
 	if (!fnd)
 		ni_lock_dir(dir_ni);
+
+	if (sbi->options->ads) {
+		const char *ads = strchr(name->name + 1, ':');
+		if (ads && ads[1]) {
+			ntfs_warn(sb, "failed to create ads");
+			err = -EINVAL;
+			goto out1;
+		}
+	}
 
 	dir_root = indx_get_root(&dir_ni->dir, dir_ni, NULL, NULL);
 	if (!dir_root) {

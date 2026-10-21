@@ -142,6 +142,10 @@ struct sg_table *drm_gem_shmem_get_pages_sgt(struct drm_gem_shmem_object *shmem)
 void drm_gem_shmem_print_info(const struct drm_gem_shmem_object *shmem,
 			      struct drm_printer *p, unsigned int indent);
 
+int drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
+				     struct drm_device *dev, size_t size,
+				     uint32_t *handle);
+
 extern const struct vm_operations_struct drm_gem_shmem_vm_ops;
 
 /*

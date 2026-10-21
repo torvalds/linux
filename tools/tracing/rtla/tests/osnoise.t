@@ -32,7 +32,7 @@ check "hist with -b/--bucket-size" \
 check "hist with -E/--entries" \
 	"osnoise hist -E 10 -d 1s"
 check "hist with -E/--entries out of range" \
-	"osnoise hist -E 1 -d 1s" 1 "^Entries must be > 10 and < 10000000$"
+	"osnoise hist -E 1 -d 1s" 129 "out of range \[10, 9999999\]"
 check "hist with --no-header" \
 	"osnoise hist --no-header -d 1s" 0 "" "RTLA osnoise histogram"
 check "hist with --with-zeros" \
@@ -42,11 +42,40 @@ check "hist with --no-index" \
 check "hist with --no-summary" \
 	"osnoise hist --no-summary -d 1s" 0 "" "^count:"
 
-# Test setting default period by putting an absurdly high period
-# and stopping on threshold.
-# If default period is not set, this will time out.
+# Tracer option tests - verify that rtla correctly sets tracefs options
+# Default tests: poison tracefs with wrong values, verify rtla resets to defaults
 check_with_osnoise_options "apply default period" \
-	"osnoise hist -s 1" 2 period_us=600000000
+	"osnoise top -q -S 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/period_us\"" \
+	2 "^osnoise/period_us=1000000$" osnoise/period_us=600000000
+check_with_osnoise_options "apply default runtime" \
+	"osnoise top -q -S 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/runtime_us\"" \
+	2 "^osnoise/runtime_us=1000000$" osnoise/runtime_us=100
+check_with_osnoise_options "apply default tracing_thresh" \
+	"osnoise top -q -S 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh tracing_thresh\"" \
+	2 "^tracing_thresh=0$" tracing_thresh=999999
+check_with_osnoise_options "apply default stop_tracing_us" \
+	"osnoise top -q -S 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/stop_tracing_us\"" \
+	2 "^osnoise/stop_tracing_us=0$" osnoise/stop_tracing_us=999999
+check_with_osnoise_options "apply default stop_tracing_total_us" \
+	"osnoise top -q -s 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/stop_tracing_total_us\"" \
+	2 "^osnoise/stop_tracing_total_us=0$" osnoise/stop_tracing_total_us=999999
+
+# Non-default tracer option tests: verify CLI options correctly set tracefs values
+check_top_q_hist "verify -p sets period_us" \
+	"osnoise TOOL -p 2000000 -S 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/period_us\"" \
+	2 "^osnoise/period_us=2000000$"
+check_top_q_hist "verify -r sets runtime_us" \
+	"osnoise TOOL -r 500000 -S 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/runtime_us\"" \
+	2 "^osnoise/runtime_us=500000$"
+check_top_q_hist "verify -T sets tracing_thresh" \
+	"osnoise TOOL -T 5 -S 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh tracing_thresh\"" \
+	2 "^tracing_thresh=5$"
+check_top_q_hist "verify -s sets stop_tracing_us" \
+	"osnoise TOOL -s 30 -S 1 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/stop_tracing_us\"" \
+	2 "^osnoise/stop_tracing_us=30$"
+check_top_q_hist "verify -S sets stop_tracing_total_us" \
+	"osnoise TOOL -S 100 --on-threshold shell,command=\"$testdir/scripts/check-tracefs-value.sh osnoise/stop_tracing_total_us\"" \
+	2 "^osnoise/stop_tracing_total_us=100$"
 
 # Actions tests
 check_top_q_hist "trace output through -t with custom filename" \

@@ -406,7 +406,7 @@ static inline bool bio_may_need_split(struct bio *bio,
 		return true;
 
 	bv = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
-	if (bio->bi_iter.bi_size > bv->bv_len - bio->bi_iter.bi_bvec_done)
+	if (bio->bi_iter.bi_size > bv->bv_len - bio->bi_iter.bi_offset)
 		return true;
 	if ((bv->bv_offset | bv->bv_len) & lim->dma_alignment)
 		return true;

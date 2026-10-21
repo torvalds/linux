@@ -839,6 +839,13 @@ config CHARGER_BQ25980
 	  Say Y to enable support for the TI BQ25980, BQ25975 and BQ25960
 	  series of fast battery chargers.
 
+config CHARGER_BQ25630
+	tristate "TI BQ25630 battery charger driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ25630 battery charger.
+
 config CHARGER_BQ256XX
 	tristate "TI BQ256XX battery charger driver"
 	depends on I2C
@@ -865,6 +872,15 @@ config CHARGER_S2M
 	  certain Samsung S2M series PMICs, such as the S2MU005. These
 	  devices provide USB power supply information and also required
 	  for USB OTG role switching.
+
+config CHARGER_SGM41542
+	tristate "SGM41542 charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	depends on REGULATOR
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the SGM41542 battery charger.
 
 config CHARGER_SMB347
 	tristate "Summit Microelectronics SMB3XX Battery Charger"

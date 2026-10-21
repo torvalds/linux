@@ -361,7 +361,7 @@ static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, u32 port_num,
 	MLX5_SET(field_select_r_roce_rp, field, field_select_r_roce_rp,
 		 attr_mask);
 
-	err = mlx5_cmd_exec_in(dev->mdev, modify_cong_params, in);
+	err = mlx5_cmd_exec_in(mdev, modify_cong_params, in);
 	kvfree(in);
 alloc_err:
 	mlx5_ib_put_native_port_mdev(dev, port_num + 1);
@@ -373,22 +373,12 @@ static ssize_t set_param(struct file *filp, const char __user *buf,
 {
 	struct mlx5_ib_dbg_param *param = filp->private_data;
 	int offset = param->offset;
-	char lbuf[11] = { };
 	u32 var;
 	int ret;
 
-	if (count > sizeof(lbuf))
-		return -EINVAL;
-
-	if (copy_from_user(lbuf, buf, count))
-		return -EFAULT;
-
-	lbuf[sizeof(lbuf) - 1] = '\0';
-
-	if (kstrtou32(lbuf, 0, &var))
-		return -EINVAL;
-
-	ret = mlx5_ib_set_cc_params(param->dev, param->port_num, offset, var);
+	ret = kstrtou32_from_user(buf, count, 0, &var);
+	if (!ret)
+		ret = mlx5_ib_set_cc_params(param->dev, param->port_num, offset, var);
 	return ret ? ret : count;
 }
 
@@ -399,15 +389,13 @@ static ssize_t get_param(struct file *filp, char __user *buf, size_t count,
 	int offset = param->offset;
 	u32 var = 0;
 	int ret;
-	char lbuf[11];
+	char lbuf[12];
 
 	ret = mlx5_ib_get_cc_params(param->dev, param->port_num, offset, &var);
 	if (ret)
 		return ret;
 
-	ret = snprintf(lbuf, sizeof(lbuf), "%d\n", var);
-	if (ret < 0)
-		return ret;
+	ret = scnprintf(lbuf, sizeof(lbuf), "%u\n", var);
 
 	return simple_read_from_buffer(buf, count, pos, lbuf, ret);
 }

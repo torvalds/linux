@@ -405,3 +405,4 @@ module_platform_driver(envelope_detector_driver);
 MODULE_DESCRIPTION("Envelope detector using a DAC and a comparator");
 MODULE_AUTHOR("Peter Rosin <peda@axentia.se>");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("IIO_CONSUMER");

@@ -75,6 +75,7 @@ enum {
 	ATA_ID_HW_CONFIG	= 93,
 	ATA_ID_SPG		= 98,
 	ATA_ID_LBA_CAPACITY_2	= 100,
+	ATA_ID_MAX_PAGES_PER_DSM	= 105,
 	ATA_ID_SECTOR_SIZE	= 106,
 	ATA_ID_WWN		= 108,
 	ATA_ID_LOGICAL_SECTOR_SIZE	= 117,	/* and 118 */
@@ -288,6 +289,10 @@ enum {
 	ATA_CMD_SANITIZE_DEVICE = 0xB4,
 	ATA_CMD_ZAC_MGMT_IN	= 0x4A,
 	ATA_CMD_ZAC_MGMT_OUT	= 0x9F,
+	ATA_CMD_GET_PHYS_ELEMENT_STATUS = 0x12,
+	ATA_CMD_REMOVE_ELEMENT_AND_TRUNCATE = 0x7c,
+	ATA_CMD_RESTORE_ELEMENTS_AND_REBUILD = 0x7d,
+	ATA_CMD_REMOVE_ELEMENT_AND_MODIFY_ZONES = 0x7e,
 
 	/* marked obsolete in the ATA/ATAPI-7 spec */
 	ATA_CMD_RESTORE		= 0x10,
@@ -926,6 +931,18 @@ static inline bool ata_id_has_trim(const u16 *id)
 	    (id[ATA_ID_DATA_SET_MGMT] & 1))
 		return true;
 	return false;
+}
+
+static inline u16 ata_id_dsm_max_pages(const u16 *id)
+{
+	/*
+	 * IDENTIFY DEVICE word 105: MAX PAGES PER DSM COMMAND. Maximum number
+	 * of 512-byte pages of LBA Range Entries the device accepts in a
+	 * single DATA SET MANAGEMENT command. Zero means the device does not
+	 * specify a limit. The field is reserved unless TRIM is supported, so
+	 * callers must gate on ata_id_has_trim().
+	 */
+	return id[ATA_ID_MAX_PAGES_PER_DSM];
 }
 
 static inline bool ata_id_has_zero_after_trim(const u16 *id)

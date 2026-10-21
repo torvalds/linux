@@ -141,6 +141,9 @@ struct dma_fence_ops {
 	 * compute the name at runtime, without having it to store permanently
 	 * for each fence, or build a cache of some sort.
 	 *
+	 * The returned string is RCU protected and can be freed after the fence
+	 * signaled and a RCU grace period passed.
+	 *
 	 * This callback is mandatory.
 	 */
 	const char * (*get_driver_name)(struct dma_fence *fence);
@@ -152,6 +155,9 @@ struct dma_fence_ops {
 	 * callback to allow drivers to compute the name at runtime, without
 	 * having it to store permanently for each fence, or build a cache of
 	 * some sort.
+	 *
+	 * The returned string is RCU protected and can be freed after the fence
+	 * signaled and a RCU grace period passed.
 	 *
 	 * This callback is mandatory.
 	 */
@@ -448,7 +454,7 @@ int dma_fence_add_callback(struct dma_fence *fence,
 			   dma_fence_func_t func);
 bool dma_fence_remove_callback(struct dma_fence *fence,
 			       struct dma_fence_cb *cb);
-void dma_fence_enable_sw_signaling(struct dma_fence *fence);
+void dma_fence_enable_signaling(struct dma_fence *fence);
 
 /**
  * DOC: Safe external access to driver provided object members
@@ -534,7 +540,7 @@ dma_fence_is_signaled_locked(struct dma_fence *fence)
  * Returns true if the fence was already signaled, false if not. Since this
  * function doesn't enable signaling, it is not guaranteed to ever return
  * true if dma_fence_add_callback(), dma_fence_wait() or
- * dma_fence_enable_sw_signaling() haven't been called before.
+ * dma_fence_enable_signaling() haven't been called before.
  *
  * It's recommended for seqno fences to call dma_fence_signal when the
  * operation is complete, it makes it possible to prevent issues from

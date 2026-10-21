@@ -240,6 +240,8 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	}
 	for (i = aoa_resource_i2smmio; i <= aoa_resource_rxdbdma; i++) {
 		int irq = irq_of_parse_and_map(np, i);
+		if (!irq)
+			goto err;
 		if (request_irq(irq, ints[i], 0, dev->rnames[i], dev))
 			goto err;
 		dev->interrupts[i] = irq;

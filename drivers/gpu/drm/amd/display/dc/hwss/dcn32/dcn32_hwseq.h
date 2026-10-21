@@ -54,12 +54,10 @@ bool dcn32_set_input_transfer_func(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_plane_state *plane_state);
 
-bool dcn32_set_mpc_shaper_3dlut(
-	struct pipe_ctx *pipe_ctx, const struct dc_stream_state *stream);
+bool dcn32_set_mpc_shaper_3dlut(struct dpp *dpp_base, struct mpc *mpc,
+	int mpcc_id, const struct dc_stream_state *stream);
 
-bool dcn32_set_output_transfer_func(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream);
+bool dcn32_set_output_transfer_func(struct set_output_transfer_func_params *params);
 
 void dcn32_init_hw(struct dc *dc);
 

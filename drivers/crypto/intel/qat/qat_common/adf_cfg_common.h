@@ -28,7 +28,6 @@ enum adf_cfg_service_type {
 
 enum adf_cfg_val_type {
 	ADF_DEC,
-	ADF_HEX,
 	ADF_STR
 };
 

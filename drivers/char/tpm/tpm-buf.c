@@ -3,86 +3,114 @@
  * Handling of TPM command and other buffers.
  */
 
-#include <linux/tpm_command.h>
 #include <linux/module.h>
-#include <linux/tpm.h>
+#include <linux/tpm_command.h>
+#include <linux/tpm_buf.h>
 
-/**
- * tpm_buf_init() - Allocate and initialize a TPM command
- * @buf:	A &tpm_buf
- * @tag:	TPM_TAG_RQU_COMMAND, TPM2_ST_NO_SESSIONS or TPM2_ST_SESSIONS
- * @ordinal:	A command ordinal
- *
- * Return: 0 or -ENOMEM
- */
-int tpm_buf_init(struct tpm_buf *buf, u16 tag, u32 ordinal)
+static void __tpm_buf_size_invariant(struct tpm_buf *buf, u16 buf_size)
 {
-	buf->data = (u8 *)__get_free_page(GFP_KERNEL);
-	if (!buf->data)
-		return -ENOMEM;
+	u32 buf_size_2 = (u32)buf->capacity + (u32)sizeof(*buf);
 
-	tpm_buf_reset(buf, tag, ordinal);
-	return 0;
+	if (!buf->capacity) {
+		if (buf_size > TPM_BUFSIZE) {
+			WARN(1, "%s: size overflow: %u\n", __func__, buf_size);
+			buf->flags |= TPM_BUF_INVALID;
+		}
+	} else {
+		if (buf_size != buf_size_2) {
+			WARN(1, "%s: size mismatch: %u != %u\n", __func__,
+			     buf_size, buf_size_2);
+			buf->flags |= TPM_BUF_INVALID;
+		}
+	}
 }
-EXPORT_SYMBOL_GPL(tpm_buf_init);
 
-/**
- * tpm_buf_reset() - Initialize a TPM command
- * @buf:	A &tpm_buf
- * @tag:	TPM_TAG_RQU_COMMAND, TPM2_ST_NO_SESSIONS or TPM2_ST_SESSIONS
- * @ordinal:	A command ordinal
- */
-void tpm_buf_reset(struct tpm_buf *buf, u16 tag, u32 ordinal)
+static void __tpm_buf_reset(struct tpm_buf *buf, u16 buf_size, u16 tag,
+			    u32 ordinal)
 {
 	struct tpm_header *head = (struct tpm_header *)buf->data;
+
+	__tpm_buf_size_invariant(buf, buf_size);
+
+	if (buf->flags & TPM_BUF_INVALID)
+		return;
 
 	WARN_ON(tag != TPM_TAG_RQU_COMMAND && tag != TPM2_ST_NO_SESSIONS &&
 		tag != TPM2_ST_SESSIONS && tag != 0);
 
 	buf->flags = 0;
 	buf->length = sizeof(*head);
+	buf->capacity = buf_size - sizeof(*buf);
+	buf->handles = 0;
 	head->tag = cpu_to_be16(tag);
 	head->length = cpu_to_be32(sizeof(*head));
 	head->ordinal = cpu_to_be32(ordinal);
-	buf->handles = 0;
 }
-EXPORT_SYMBOL_GPL(tpm_buf_reset);
+
+static void __tpm_buf_reset_sized(struct tpm_buf *buf, u16 buf_size)
+{
+	__tpm_buf_size_invariant(buf, buf_size);
+
+	if (buf->flags & TPM_BUF_INVALID)
+		return;
+
+	buf->flags = TPM_BUF_TPM2B;
+	buf->length = 2;
+	buf->capacity = buf_size - sizeof(*buf);
+	buf->handles = 0;
+	buf->data[0] = 0;
+	buf->data[1] = 0;
+}
 
 /**
- * tpm_buf_init_sized() - Allocate and initialize a sized (TPM2B) buffer
- * @buf:	A @tpm_buf
- *
- * Return: 0 or -ENOMEM
+ * tpm_buf_init() - Initialize a TPM command
+ * @buf:	A &tpm_buf
+ * @buf_size:	Size of the buffer.
  */
-int tpm_buf_init_sized(struct tpm_buf *buf)
+void tpm_buf_init(struct tpm_buf *buf, u16 buf_size)
 {
-	buf->data = (u8 *)__get_free_page(GFP_KERNEL);
-	if (!buf->data)
-		return -ENOMEM;
+	memset(buf, 0, buf_size);
+	__tpm_buf_reset(buf, buf_size, TPM_TAG_RQU_COMMAND, 0);
+}
+EXPORT_SYMBOL_GPL(tpm_buf_init);
 
-	tpm_buf_reset_sized(buf);
-	return 0;
+/**
+ * tpm_buf_init_sized() - Initialize a sized buffer
+ * @buf:	A &tpm_buf
+ * @buf_size:	Size of the buffer.
+ */
+void tpm_buf_init_sized(struct tpm_buf *buf, u16 buf_size)
+{
+	memset(buf, 0, buf_size);
+	__tpm_buf_reset_sized(buf, buf_size);
 }
 EXPORT_SYMBOL_GPL(tpm_buf_init_sized);
 
 /**
- * tpm_buf_reset_sized() - Initialize a sized buffer
+ * tpm_buf_reset() - Re-initialize a TPM command
+ * @buf:	A &tpm_buf
+ * @tag:	TPM_TAG_RQU_COMMAND, TPM2_ST_NO_SESSIONS or TPM2_ST_SESSIONS
+ * @ordinal:	A command ordinal
+ */
+void tpm_buf_reset(struct tpm_buf *buf, u16 tag, u32 ordinal)
+{
+	u16 buf_size = buf->capacity + sizeof(*buf);
+
+	__tpm_buf_reset(buf, buf_size, tag, ordinal);
+}
+EXPORT_SYMBOL_GPL(tpm_buf_reset);
+
+/**
+ * tpm_buf_reset_sized() - Re-initialize a sized buffer
  * @buf:	A &tpm_buf
  */
 void tpm_buf_reset_sized(struct tpm_buf *buf)
 {
-	buf->flags = TPM_BUF_TPM2B;
-	buf->length = 2;
-	buf->data[0] = 0;
-	buf->data[1] = 0;
+	u16 buf_size = buf->capacity + sizeof(*buf);
+
+	__tpm_buf_reset_sized(buf, buf_size);
 }
 EXPORT_SYMBOL_GPL(tpm_buf_reset_sized);
-
-void tpm_buf_destroy(struct tpm_buf *buf)
-{
-	free_page((unsigned long)buf->data);
-}
-EXPORT_SYMBOL_GPL(tpm_buf_destroy);
 
 /**
  * tpm_buf_length() - Return the number of bytes consumed by the data
@@ -90,7 +118,7 @@ EXPORT_SYMBOL_GPL(tpm_buf_destroy);
  *
  * Return: The number of bytes consumed by the buffer
  */
-u32 tpm_buf_length(struct tpm_buf *buf)
+u16 tpm_buf_length(struct tpm_buf *buf)
 {
 	return buf->length;
 }
@@ -104,13 +132,14 @@ EXPORT_SYMBOL_GPL(tpm_buf_length);
  */
 void tpm_buf_append(struct tpm_buf *buf, const u8 *new_data, u16 new_length)
 {
-	/* Return silently if overflow has already happened. */
-	if (buf->flags & TPM_BUF_OVERFLOW)
+	u32 total_length = (u32)buf->length + (u32)new_length;
+
+	if (buf->flags & TPM_BUF_INVALID)
 		return;
 
-	if ((buf->length + new_length) > PAGE_SIZE) {
+	if (total_length > (u32)buf->capacity) {
 		WARN(1, "tpm_buf: write overflow\n");
-		buf->flags |= TPM_BUF_OVERFLOW;
+		buf->flags |= TPM_BUF_INVALID;
 		return;
 	}
 
@@ -148,17 +177,20 @@ EXPORT_SYMBOL_GPL(tpm_buf_append_u32);
 
 /**
  * tpm_buf_append_handle() - Add a handle
- * @chip:	&tpm_chip instance
  * @buf:	&tpm_buf instance
  * @handle:	a TPM object handle
  *
  * Add a handle to the buffer, and increase the count tracking the number of
  * handles in the command buffer. Works only for command buffers.
  */
-void tpm_buf_append_handle(struct tpm_chip *chip, struct tpm_buf *buf, u32 handle)
+void tpm_buf_append_handle(struct tpm_buf *buf, u32 handle)
 {
+	if (buf->flags & TPM_BUF_INVALID)
+		return;
+
 	if (buf->flags & TPM_BUF_TPM2B) {
-		dev_err(&chip->dev, "Invalid buffer type (TPM2B)\n");
+		WARN(1, "tpm-buf: invalid type: TPM2B\n");
+		buf->flags |= TPM_BUF_INVALID;
 		return;
 	}
 
@@ -177,14 +209,13 @@ static void tpm_buf_read(struct tpm_buf *buf, off_t *offset, size_t count, void 
 {
 	off_t next_offset;
 
-	/* Return silently if overflow has already happened. */
-	if (buf->flags & TPM_BUF_BOUNDARY_ERROR)
+	if (buf->flags & TPM_BUF_INVALID)
 		return;
 
 	next_offset = *offset + count;
 	if (next_offset > buf->length) {
 		WARN(1, "tpm_buf: read out of boundary\n");
-		buf->flags |= TPM_BUF_BOUNDARY_ERROR;
+		buf->flags |= TPM_BUF_INVALID;
 		return;
 	}
 

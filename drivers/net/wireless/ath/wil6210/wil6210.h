@@ -1301,7 +1301,7 @@ int wil_p2p_search(struct wil6210_vif *vif,
 		   struct cfg80211_scan_request *request);
 int wil_p2p_listen(struct wil6210_priv *wil, struct wireless_dev *wdev,
 		   unsigned int duration, struct ieee80211_channel *chan,
-		   u64 *cookie);
+		   u64 cookie);
 u8 wil_p2p_stop_discovery(struct wil6210_vif *vif);
 int wil_p2p_cancel_listen(struct wil6210_vif *vif, u64 cookie);
 void wil_p2p_listen_expired(struct work_struct *work);
@@ -1317,7 +1317,7 @@ int wmi_stop_discovery(struct wil6210_vif *vif);
 
 int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct cfg80211_mgmt_tx_params *params,
-			 u64 *cookie);
+			 u64 cookie);
 void wil_cfg80211_ap_recovery(struct wil6210_priv *wil);
 int wil_cfg80211_iface_combinations_from_fw(
 	struct wil6210_priv *wil,

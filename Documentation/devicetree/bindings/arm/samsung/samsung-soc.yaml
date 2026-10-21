@@ -11,10 +11,10 @@ maintainers:
 
 description: |
   Guidelines for new compatibles for SoC blocks/components.
-  When adding new compatibles in new bindings, use the format::
+  When adding new compatibles in new bindings, use the format:
     samsung,SoC-IP
 
-  For example::
+  For example:
     samsung,exynos5433-cmu-isp
 
 select:

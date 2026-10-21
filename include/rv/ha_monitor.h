@@ -327,19 +327,8 @@ static inline void __ha_monitor_timer_callback(struct ha_monitor *ha_mon)
 }
 
 /*
- * The clock variables have 2 different representations in the env_store:
- * - The guard representation is the timestamp of the last reset
- * - The invariant representation is the timestamp when the invariant expires
- * As the representations are incompatible, care must be taken when switching
- * between them: the invariant representation can only be used when starting a
- * timer when the previous representation was guard (e.g. no other invariant
- * started since the last reset operation).
- * Likewise, switching from invariant to guard representation without a reset
- * can be done only by subtracting the exact value used to start the invariant.
- *
- * Reading the environment variable (ha_get_clk) also reflects this difference
- * any reads in states that have an invariant return the (possibly negative)
- * time since expiration, other reads return the time since last reset.
+ * The clock variables store the time epoch - the timestamp when the clock was last reset.
+ * They are read by subtracting the time epoch from the current time.
  */
 
 /*
@@ -353,31 +342,21 @@ static inline void ha_reset_clk_ns(struct ha_monitor *ha_mon, enum envs env, u64
 {
 	WRITE_ONCE(ha_mon->env_store[env], time_ns);
 }
-static inline void ha_set_invariant_ns(struct ha_monitor *ha_mon, enum envs env,
-				       u64 value, u64 time_ns)
+static inline bool ha_check_invariant_ns(struct ha_monitor *ha_mon, enum envs env,
+					 u64 time_ns, u64 expire_ns)
 {
-	WRITE_ONCE(ha_mon->env_store[env], time_ns + value);
-}
-static inline bool ha_check_invariant_ns(struct ha_monitor *ha_mon,
-					 enum envs env, u64 time_ns)
-{
-	return READ_ONCE(ha_mon->env_store[env]) >= time_ns;
+	return READ_ONCE(ha_mon->env_store[env]) >= time_ns - expire_ns;
 }
 /*
  * ha_invariant_passed_ns - prepare the invariant and return the time since reset
  */
-static inline u64 ha_invariant_passed_ns(struct ha_monitor *ha_mon, enum envs env,
-				   u64 expire, u64 time_ns)
+static inline u64 ha_invariant_passed_ns(struct ha_monitor *ha_mon, enum envs env, u64 time_ns)
 {
-	u64 passed = 0;
-
 	if (env < 0 || env >= ENV_MAX_STORED)
 		return 0;
 	if (ha_monitor_env_invalid(ha_mon, env))
 		return 0;
-	passed = ha_get_env(ha_mon, env, time_ns);
-	ha_set_invariant_ns(ha_mon, env, expire - passed, time_ns);
-	return passed;
+	return ha_get_env(ha_mon, env, time_ns);
 }
 
 /*
@@ -391,32 +370,21 @@ static inline void ha_reset_clk_jiffy(struct ha_monitor *ha_mon, enum envs env)
 {
 	WRITE_ONCE(ha_mon->env_store[env], get_jiffies_64());
 }
-static inline void ha_set_invariant_jiffy(struct ha_monitor *ha_mon,
-					  enum envs env, u64 value)
+static inline bool ha_check_invariant_jiffy(struct ha_monitor *ha_mon, enum envs env,
+					    u64 time_ns, u64 expire_jiffy)
 {
-	WRITE_ONCE(ha_mon->env_store[env], get_jiffies_64() + value);
-}
-static inline bool ha_check_invariant_jiffy(struct ha_monitor *ha_mon,
-					    enum envs env, u64 time_ns)
-{
-	return time_after64(READ_ONCE(ha_mon->env_store[env]), get_jiffies_64());
-
+	return time_after64(READ_ONCE(ha_mon->env_store[env]), get_jiffies_64() - expire_jiffy);
 }
 /*
  * ha_invariant_passed_jiffy - prepare the invariant and return the time since reset
  */
-static inline u64 ha_invariant_passed_jiffy(struct ha_monitor *ha_mon, enum envs env,
-				      u64 expire, u64 time_ns)
+static inline u64 ha_invariant_passed_jiffy(struct ha_monitor *ha_mon, enum envs env, u64 time_ns)
 {
-	u64 passed = 0;
-
 	if (env < 0 || env >= ENV_MAX_STORED)
 		return 0;
 	if (ha_monitor_env_invalid(ha_mon, env))
 		return 0;
-	passed = ha_get_env(ha_mon, env, time_ns);
-	ha_set_invariant_jiffy(ha_mon, env, expire - passed);
-	return passed;
+	return ha_get_env(ha_mon, env, time_ns);
 }
 
 /*
@@ -463,14 +431,14 @@ static inline void ha_setup_timer(struct ha_monitor *ha_mon)
 static inline void ha_start_timer_jiffy(struct ha_monitor *ha_mon, enum envs env,
 					u64 expire, u64 time_ns)
 {
-	u64 passed = ha_invariant_passed_jiffy(ha_mon, env, expire, time_ns);
+	u64 passed = ha_invariant_passed_jiffy(ha_mon, env, time_ns);
 
 	mod_timer(&ha_mon->timer, get_jiffies_64() + expire - passed);
 }
 static inline void ha_start_timer_ns(struct ha_monitor *ha_mon, enum envs env,
 				     u64 expire, u64 time_ns)
 {
-	u64 passed = ha_invariant_passed_ns(ha_mon, env, expire, time_ns);
+	u64 passed = ha_invariant_passed_ns(ha_mon, env, time_ns);
 
 	ha_start_timer_jiffy(ha_mon, ENV_MAX_STORED,
 			     nsecs_to_jiffies(expire - passed + TICK_NSEC - 1), time_ns);
@@ -516,7 +484,7 @@ static inline void ha_start_timer_ns(struct ha_monitor *ha_mon, enum envs env,
 				     u64 expire, u64 time_ns)
 {
 	int mode = HRTIMER_MODE_REL_HARD;
-	u64 passed = ha_invariant_passed_ns(ha_mon, env, expire, time_ns);
+	u64 passed = ha_invariant_passed_ns(ha_mon, env, time_ns);
 
 	if (RV_MON_TYPE == RV_MON_PER_CPU)
 		mode |= HRTIMER_MODE_PINNED;
@@ -525,7 +493,7 @@ static inline void ha_start_timer_ns(struct ha_monitor *ha_mon, enum envs env,
 static inline void ha_start_timer_jiffy(struct ha_monitor *ha_mon, enum envs env,
 					u64 expire, u64 time_ns)
 {
-	u64 passed = ha_invariant_passed_jiffy(ha_mon, env, expire, time_ns);
+	u64 passed = ha_invariant_passed_jiffy(ha_mon, env, time_ns);
 
 	ha_start_timer_ns(ha_mon, ENV_MAX_STORED,
 			  jiffies_to_nsecs(expire - passed), time_ns);
@@ -557,5 +525,26 @@ static inline bool ha_cancel_timer(struct ha_monitor *ha_mon)
 }
 static inline void ha_cancel_timer_sync(struct ha_monitor *ha_mon) { }
 #endif
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#ifdef RV_MON_OPS_INIT
+#undef RV_MON_OPS_INIT
+#endif
+
+#if RV_MON_TYPE == RV_MON_PER_TASK
+#define RV_MON_OPS_INIT() {             \
+	.rv_this = &rv_this,            \
+	.is_per_task = true,            \
+	.task_slot = &task_mon_slot,    \
+	.task_reset = da_reset,         \
+}
+#else
+#define RV_MON_OPS_INIT() {                     \
+	.rv_this = &rv_this,                    \
+	.monitor_init = ha_monitor_init,        \
+	.monitor_destroy = ha_monitor_destroy,  \
+}
+#endif /* RV_MON_TYPE */
+#endif /* CONFIG_RV_MONITORS_KUNIT_TEST */
 
 #endif

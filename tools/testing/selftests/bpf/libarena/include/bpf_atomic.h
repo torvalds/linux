@@ -86,6 +86,25 @@ extern bool CONFIG_X86_64 __kconfig __weak;
 /* Control dependency provides LOAD->STORE, provide LOAD->LOAD */
 #define smp_acquire__after_ctrl_dep() ({ smp_rmb(); })
 
+#if defined(__BPF_FEATURE_LOAD_ACQ_STORE_REL)
+/*
+ * Clang advertises this feature when it can lower acquire/release atomic
+ * builtins to BPF_LOAD_ACQ/BPF_STORE_REL. Older compilers keep using the
+ * barrier-based fallback below. The generated instructions require kernel
+ * verifier/JIT support added in Linux 6.15; compile for an older BPF CPU to
+ * keep using the fallback when targeting older kernels.
+ */
+#define smp_load_acquire(p)								\
+	({										\
+		__unqual_typeof(*(p)) ___p1 = __atomic_load_n((p), __ATOMIC_ACQUIRE);	\
+		(typeof(*(p)))___p1;							\
+	})
+
+#define smp_store_release(p, val)							\
+	({										\
+		__atomic_store_n((p), (val), __ATOMIC_RELEASE);				\
+	})
+#else
 #define smp_load_acquire(p)                                  \
 	({                                                   \
 		__unqual_typeof(*(p)) __v = READ_ONCE(*(p)); \
@@ -102,6 +121,7 @@ extern bool CONFIG_X86_64 __kconfig __weak;
 		barrier();             \
 		WRITE_ONCE(*(p), val); \
 	})
+#endif
 
 #define smp_cond_load_relaxed_label(p, cond_expr, label)                \
 	({                                                              \

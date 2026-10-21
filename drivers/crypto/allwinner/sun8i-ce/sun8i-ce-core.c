@@ -12,7 +12,6 @@
 
 #include <crypto/engine.h>
 #include <crypto/internal/hash.h>
-#include <crypto/internal/rng.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -49,7 +48,6 @@ static const struct ce_variant ce_h3_variant = {
 		{ "mod", 50000000, 0 },
 		},
 	.esr = ESR_H3,
-	.prng = CE_ALG_PRNG,
 	.trng = CE_ID_NOTSUPP,
 };
 
@@ -66,7 +64,6 @@ static const struct ce_variant ce_h5_variant = {
 		{ "mod", 300000000, 0 },
 		},
 	.esr = ESR_H5,
-	.prng = CE_ALG_PRNG,
 	.trng = CE_ID_NOTSUPP,
 };
 
@@ -80,7 +77,6 @@ static const struct ce_variant ce_h6_variant = {
 	},
 	.cipher_t_dlen_in_bytes = true,
 	.hash_t_dlen_in_bits = true,
-	.prng_t_dlen_in_bytes = true,
 	.trng_t_dlen_in_bytes = true,
 	.ce_clks = {
 		{ "bus", 0, 200000000 },
@@ -88,7 +84,6 @@ static const struct ce_variant ce_h6_variant = {
 		{ "ram", 0, 400000000 },
 		},
 	.esr = ESR_H6,
-	.prng = CE_ALG_PRNG_V2,
 	.trng = CE_ALG_TRNG_V2,
 };
 
@@ -102,7 +97,6 @@ static const struct ce_variant ce_h616_variant = {
 	},
 	.cipher_t_dlen_in_bytes = true,
 	.hash_t_dlen_in_bits = true,
-	.prng_t_dlen_in_bytes = true,
 	.trng_t_dlen_in_bytes = true,
 	.needs_word_addresses = true,
 	.ce_clks = {
@@ -112,7 +106,6 @@ static const struct ce_variant ce_h616_variant = {
 		{ "trng", 0, 0 },
 		},
 	.esr = ESR_H6,
-	.prng = CE_ALG_PRNG_V2,
 	.trng = CE_ALG_TRNG_V2,
 };
 
@@ -129,7 +122,6 @@ static const struct ce_variant ce_a64_variant = {
 		{ "mod", 300000000, 0 },
 		},
 	.esr = ESR_A64,
-	.prng = CE_ALG_PRNG,
 	.trng = CE_ID_NOTSUPP,
 };
 
@@ -148,7 +140,6 @@ static const struct ce_variant ce_d1_variant = {
 		{ "trng", 0, 0 },
 		},
 	.esr = ESR_D1,
-	.prng = CE_ALG_PRNG,
 	.trng = CE_ALG_TRNG,
 };
 
@@ -165,7 +156,6 @@ static const struct ce_variant ce_r40_variant = {
 		{ "mod", 300000000, 0 },
 		},
 	.esr = ESR_R40,
-	.prng = CE_ALG_PRNG,
 	.trng = CE_ID_NOTSUPP,
 };
 
@@ -614,25 +604,6 @@ static struct sun8i_ce_alg_template ce_algs[] = {
 	},
 },
 #endif
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_PRNG
-{
-	.type = CRYPTO_ALG_TYPE_RNG,
-	.alg.rng = {
-		.base = {
-			.cra_name		= "stdrng",
-			.cra_driver_name	= "sun8i-ce-prng",
-			.cra_priority		= 300,
-			.cra_ctxsize		= sizeof(struct sun8i_ce_rng_tfm_ctx),
-			.cra_module		= THIS_MODULE,
-			.cra_init		= sun8i_ce_prng_init,
-			.cra_exit		= sun8i_ce_prng_exit,
-		},
-		.generate               = sun8i_ce_prng_generate,
-		.seed                   = sun8i_ce_prng_seed,
-		.seedsize               = PRNG_SEED_SIZE,
-	}
-},
-#endif
 };
 
 static int sun8i_ce_debugfs_show(struct seq_file *seq, void *v)
@@ -692,14 +663,6 @@ static int sun8i_ce_debugfs_show(struct seq_file *seq, void *v)
 				   ce_algs[i].stat_fb_srcali);
 			seq_printf(seq, "\tFallback due to SG numbers: %lu\n",
 				   ce_algs[i].stat_fb_maxsg);
-			break;
-#endif
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_PRNG
-		case CRYPTO_ALG_TYPE_RNG:
-			seq_printf(seq, "%s %s reqs=%lu bytes=%lu\n",
-				   ce_algs[i].alg.rng.base.cra_driver_name,
-				   ce_algs[i].alg.rng.base.cra_name,
-				   ce_algs[i].stat_req, ce_algs[i].stat_bytes);
 			break;
 #endif
 		}
@@ -931,25 +894,6 @@ static int sun8i_ce_register_algs(struct sun8i_ce_dev *ce)
 			}
 			break;
 #endif
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_PRNG
-		case CRYPTO_ALG_TYPE_RNG:
-			if (ce->variant->prng == CE_ID_NOTSUPP) {
-				dev_info(ce->dev,
-					 "DEBUG: Algo of %s not supported\n",
-					 ce_algs[i].alg.rng.base.cra_name);
-				ce_algs[i].ce = NULL;
-				break;
-			}
-			dev_info(ce->dev, "Register %s\n",
-				 ce_algs[i].alg.rng.base.cra_name);
-			err = crypto_register_rng(&ce_algs[i].alg.rng);
-			if (err) {
-				dev_err(ce->dev, "Fail to register %s\n",
-					ce_algs[i].alg.rng.base.cra_name);
-				ce_algs[i].ce = NULL;
-			}
-			break;
-#endif
 		default:
 			ce_algs[i].ce = NULL;
 			dev_err(ce->dev, "ERROR: tried to register an unknown algo\n");
@@ -976,13 +920,6 @@ static void sun8i_ce_unregister_algs(struct sun8i_ce_dev *ce)
 			dev_info(ce->dev, "Unregister %d %s\n", i,
 				 ce_algs[i].alg.hash.base.halg.base.cra_name);
 			crypto_engine_unregister_ahash(&ce_algs[i].alg.hash);
-			break;
-#endif
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_PRNG
-		case CRYPTO_ALG_TYPE_RNG:
-			dev_info(ce->dev, "Unregister %d %s\n", i,
-				 ce_algs[i].alg.rng.base.cra_name);
-			crypto_unregister_rng(&ce_algs[i].alg.rng);
 			break;
 #endif
 		}
@@ -1039,10 +976,8 @@ static int sun8i_ce_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, irq, ce_irq_handler, 0,
 			       "sun8i-ce-ns", ce);
-	if (err) {
-		dev_err(ce->dev, "Cannot request CryptoEngine Non-secure IRQ (err=%d)\n", err);
+	if (err)
 		goto error_pm;
-	}
 
 	err = sun8i_ce_register_algs(ce);
 	if (err)

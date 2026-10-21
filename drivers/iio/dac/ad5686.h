@@ -14,15 +14,18 @@
 
 #include <linux/iio/iio.h>
 
-#define AD5310_CMD(x)				((x) << 12)
+#define AD5310_CMD_MSK				GENMASK(15, 12)
+#define AD5310_DATA_MSK				GENMASK(11, 0)
 
-#define AD5683_DATA(x)				((x) << 4)
+#define AD5683_DATA_MSK				GENMASK(19, 4)
 
-#define AD5686_ADDR(x)				((x) << 16)
-#define AD5686_CMD(x)				((x) << 20)
+#define AD5686_CMD_MSK				GENMASK(23, 20)
+#define AD5686_ADDR_MSK				GENMASK(19, 16)
+#define AD5686_DATA_MSK				GENMASK(15, 0)
 
 #define AD5686_ADDR_DAC(chan)			(0x1 << (chan))
 #define AD5686_ADDR_ALL_DAC			0xF
+#define AD5686_MAX_CHANNELS			16
 
 #define AD5686_CMD_NOOP				0x0
 #define AD5686_CMD_WRITE_INPUT_N		0x1
@@ -38,15 +41,17 @@
 #define AD5686_CMD_CONTROL_REG			0x4
 #define AD5686_CMD_READBACK_ENABLE_V2		0x5
 
-#define AD5310_REF_BIT_MSK			BIT(8)
-#define AD5310_PD_MSK				GENMASK(10, 9)
+#define AD5310_DATA_GAIN_MSK			BIT(7)
+#define AD5310_DATA_REF_MSK			BIT(8)
+#define AD5310_DATA_PD_MSK			GENMASK(10, 9)
 
-#define AD5683_REF_BIT_MSK			BIT(12)
-#define AD5683_PD_MSK				GENMASK(14, 13)
+#define AD5683_DATA_GAIN_MSK			BIT(11) /* DB15 */
+#define AD5683_DATA_REF_MSK			BIT(12) /* DB16 */
+#define AD5683_DATA_PD_MSK			GENMASK(14, 13) /* DB18:DB17 */
 
-#define AD5686_REF_BIT_MSK			BIT(0)
+#define AD5686_DATA_REF_MSK			BIT(0)
+
 #define AD5686_PD_MSK				GENMASK(1, 0)
-
 #define AD5686_PD_MODE_1K_TO_GND		0x1
 #define AD5686_PD_MODE_100K_TO_GND		0x2
 #define AD5686_PD_MODE_THREE_STATE		0x3
@@ -60,16 +65,20 @@ enum ad5686_regmap_type {
 	AD5686_REGMAP,
 };
 
+struct gpio_desc;
+
 struct ad5686_state;
 
 /**
  * struct ad5686_bus_ops - bus specific read/write operations
  * @read: read a register value at the given address
  * @write: write a command, address and value to the device
+ * @sync: ensure the completion of the write operation (optional)
  */
 struct ad5686_bus_ops {
 	int (*read)(struct ad5686_state *st, u8 addr);
 	int (*write)(struct ad5686_state *st, u8 cmd, u8 addr, u16 val);
+	int (*sync)(struct ad5686_state *st);
 };
 
 /**
@@ -97,8 +106,13 @@ extern const struct ad5686_chip_info ad5683r_chip_info;
 /* dual-channel instances */
 extern const struct ad5686_chip_info ad5337r_chip_info;
 extern const struct ad5686_chip_info ad5338r_chip_info;
+extern const struct ad5686_chip_info ad5687_chip_info;
+extern const struct ad5686_chip_info ad5687r_chip_info;
+extern const struct ad5686_chip_info ad5689_chip_info;
+extern const struct ad5686_chip_info ad5689r_chip_info;
 
 /* quad-channel instances */
+extern const struct ad5686_chip_info ad5317r_chip_info;
 extern const struct ad5686_chip_info ad5684_chip_info;
 extern const struct ad5686_chip_info ad5684r_chip_info;
 extern const struct ad5686_chip_info ad5685r_chip_info;
@@ -111,7 +125,9 @@ extern const struct ad5686_chip_info ad5676_chip_info;
 extern const struct ad5686_chip_info ad5676r_chip_info;
 
 /* 16-channel instances */
+extern const struct ad5686_chip_info ad5674_chip_info;
 extern const struct ad5686_chip_info ad5674r_chip_info;
+extern const struct ad5686_chip_info ad5679_chip_info;
 extern const struct ad5686_chip_info ad5679r_chip_info;
 
 /**
@@ -119,23 +135,33 @@ extern const struct ad5686_chip_info ad5679r_chip_info;
  * @dev:		device instance
  * @chip_info:		chip model specific constants, available modes etc
  * @ops:		bus specific operations
- * @vref_mv:		actual reference voltage used
+ * @ldac_gpio:		LDAC pin GPIO descriptor
+ * @gain_gpio:		GAIN pin GPIO descriptor
  * @pwr_down_mask:	power down mask
  * @pwr_down_mode:	current power down mode
+ * @scale_avail:	pre-calculated available scale values
+ * @vref_mv:		actual reference voltage used
+ * @double_scale:	flag to indicate the gain multiplier is applied
  * @use_internal_vref:	set to true if the internal reference voltage is used
  * @lock:		lock to protect access to state fields, which includes
  *			the data buffer during regmap ops
+ * @bus_data:		bus specific data
  * @data:		transfer buffers
  */
 struct ad5686_state {
 	struct device			*dev;
 	const struct ad5686_chip_info	*chip_info;
 	const struct ad5686_bus_ops	*ops;
-	unsigned short			vref_mv;
+	struct gpio_desc		*ldac_gpio;
+	struct gpio_desc		*gain_gpio;
 	unsigned int			pwr_down_mask;
 	unsigned int			pwr_down_mode;
+	int				scale_avail[4];
+	unsigned short			vref_mv;
+	bool				double_scale;
 	bool				use_internal_vref;
 	struct mutex			lock;
+	void				*bus_data;
 
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
@@ -146,17 +172,24 @@ struct ad5686_state {
 		__be32 d32;
 		__be16 d16;
 		u8 d8[4];
-	} data[3] __aligned(IIO_DMA_MINALIGN);
+	} data[AD5686_MAX_CHANNELS] __aligned(IIO_DMA_MINALIGN);
 };
 
 
 int ad5686_probe(struct device *dev,
 		 const struct ad5686_chip_info *chip_info,
-		 const char *name, const struct ad5686_bus_ops *ops);
+		 const char *name, const struct ad5686_bus_ops *ops,
+		 void *bus_data);
 
 static inline int ad5686_write(struct ad5686_state *st, u8 cmd, u8 addr, u16 val)
 {
-	return st->ops->write(st, cmd, addr, val);
+	int ret;
+
+	ret = st->ops->write(st, cmd, addr, val);
+	if (ret)
+		return ret;
+
+	return st->ops->sync ? st->ops->sync(st) : 0;
 }
 
 static inline int ad5686_read(struct ad5686_state *st, u8 addr)

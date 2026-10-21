@@ -912,6 +912,19 @@ static const struct upboard_pinctrl_map upboard_pinctrl_map_apl01 = {
 	.nmaps = ARRAY_SIZE(pinctrl_map_apl01),
 };
 
+static const struct pinctrl_map pinctrl_map_adl[] = {
+	PIN_MAP_MUX_GROUP_DEFAULT("upboard-pinctrl", "INTC1055:00", "i2c0_grp", "i2c0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("upboard-pinctrl", "INTC1055:00", "i2c1_grp", "i2c1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("upboard-pinctrl", "INTC1055:00", "pwm0_grp", "pwm0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("upboard-pinctrl", "INTC1055:00", "uart1_grp", "uart1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("upboard-pinctrl", "INTC1055:00", "ssp2_grp", "ssp2"),
+};
+
+static const struct upboard_pinctrl_map upboard_pinctrl_map_adl = {
+	.maps = &pinctrl_map_adl[0],
+	.nmaps = ARRAY_SIZE(pinctrl_map_adl),
+};
+
 static const struct dmi_system_id dmi_platform_info[] = {
 	{
 		/* UP Squared */
@@ -920,6 +933,14 @@ static const struct dmi_system_id dmi_platform_info[] = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "UP-APL01"),
 		},
 		.driver_data = (void *)&upboard_pinctrl_map_apl01,
+	},
+	{
+		/* UP Xtreme i12 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "AAEON"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "UPX-ADLP01"),
+		},
+		.driver_data = (void *)&upboard_pinctrl_map_adl,
 	},
 	{ }
 };

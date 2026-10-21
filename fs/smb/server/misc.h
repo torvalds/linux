@@ -43,7 +43,7 @@ struct ksmbd_const_name {
 	const char *name;
 };
 
-void ksmbd_proc_init(void);
+int ksmbd_proc_init(void);
 void ksmbd_proc_cleanup(void);
 void ksmbd_proc_reset(void);
 struct proc_dir_entry *ksmbd_proc_create(const char *name,
@@ -53,13 +53,10 @@ void ksmbd_proc_show_flag_names(struct seq_file *m,
 				const struct ksmbd_const_name *table,
 				int count,
 				unsigned int flags);
-void ksmbd_proc_show_const_name(struct seq_file *m,
-				const char *format,
-				const struct ksmbd_const_name *table,
-				int count,
-				unsigned int const_value);
+const char *ksmbd_proc_const_name(const struct ksmbd_const_name *table,
+				  int count, unsigned int const_value);
 #else
-static inline void ksmbd_proc_init(void) {}
+static inline int ksmbd_proc_init(void) { return 0; }
 static inline void ksmbd_proc_cleanup(void) {}
 static inline void ksmbd_proc_reset(void) {}
 #endif

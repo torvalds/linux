@@ -82,6 +82,52 @@ enum hal_encrypt_type ath12k_dp_tx_get_encrypt_type(u32 cipher)
 }
 EXPORT_SYMBOL(ath12k_dp_tx_get_encrypt_type);
 
+u8 ath12k_dp_tx_crypto_iv_len(enum hal_encrypt_type enc_type)
+{
+	switch (enc_type) {
+	case HAL_ENCRYPT_TYPE_TKIP_NO_MIC:
+	case HAL_ENCRYPT_TYPE_TKIP_MIC:
+		return IEEE80211_TKIP_IV_LEN;
+	case HAL_ENCRYPT_TYPE_CCMP_128:
+		return IEEE80211_CCMP_HDR_LEN;
+	case HAL_ENCRYPT_TYPE_CCMP_256:
+		return IEEE80211_CCMP_256_HDR_LEN;
+	case HAL_ENCRYPT_TYPE_GCMP_128:
+	case HAL_ENCRYPT_TYPE_AES_GCMP_256:
+		return IEEE80211_GCMP_HDR_LEN;
+	case HAL_ENCRYPT_TYPE_WEP_40:
+	case HAL_ENCRYPT_TYPE_WEP_104:
+	case HAL_ENCRYPT_TYPE_WEP_128:
+		return IEEE80211_WEP_IV_LEN;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(ath12k_dp_tx_crypto_iv_len);
+
+u8 ath12k_dp_tx_crypto_icv_len(enum hal_encrypt_type enc_type)
+{
+	switch (enc_type) {
+	case HAL_ENCRYPT_TYPE_CCMP_128:
+		return IEEE80211_CCMP_MIC_LEN;
+	case HAL_ENCRYPT_TYPE_CCMP_256:
+		return IEEE80211_CCMP_256_MIC_LEN;
+	case HAL_ENCRYPT_TYPE_GCMP_128:
+	case HAL_ENCRYPT_TYPE_AES_GCMP_256:
+		return IEEE80211_GCMP_MIC_LEN;
+	case HAL_ENCRYPT_TYPE_TKIP_NO_MIC:
+	case HAL_ENCRYPT_TYPE_TKIP_MIC:
+		return IEEE80211_TKIP_ICV_LEN;
+	case HAL_ENCRYPT_TYPE_WEP_40:
+	case HAL_ENCRYPT_TYPE_WEP_104:
+	case HAL_ENCRYPT_TYPE_WEP_128:
+		return IEEE80211_WEP_ICV_LEN;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(ath12k_dp_tx_crypto_icv_len);
+
 void ath12k_dp_tx_release_txbuf(struct ath12k_dp *dp,
 				struct ath12k_tx_desc_info *tx_desc,
 				u8 pool_id)

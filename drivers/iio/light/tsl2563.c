@@ -754,7 +754,7 @@ static int tsl2563_probe(struct i2c_client *client)
 					   "tsl2563_event",
 					   indio_dev);
 		if (err)
-			return dev_err_probe(dev, err, "irq request error\n");
+			return err;
 	}
 
 	err = tsl2563_configure(chip);

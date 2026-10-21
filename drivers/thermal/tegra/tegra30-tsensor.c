@@ -602,8 +602,7 @@ static int tegra_tsensor_probe(struct platform_device *pdev)
 					tegra_tsensor_isr, IRQF_ONESHOT,
 					"tegra_tsensor", ts);
 	if (err)
-		return dev_err_probe(&pdev->dev, err,
-				     "failed to request interrupt\n");
+		return err;
 
 	return 0;
 }

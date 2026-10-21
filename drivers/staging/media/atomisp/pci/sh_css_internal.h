@@ -80,7 +80,7 @@
 
 #define SH_CSS_MAX_SP_THREADS		5
 
-/**
+/*
  * The C99 standard does not specify the exact object representation of structs;
  * the representation is compiler dependent.
  *
@@ -638,7 +638,7 @@ struct sh_css_sp_output {
 	unsigned int		sw_interrupt_value[SH_CSS_NUM_SDW_IRQS];
 };
 
-/**
+/*
  * @brief Data structure for the circular buffer.
  * The circular buffer is empty if "start == end". The
  * circular buffer is full if "(end + 1) % size == start".

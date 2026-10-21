@@ -18,12 +18,8 @@
 #include <linux/nfs4.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svc_xprt.h>
-#include <linux/sunrpc/msg_prot.h>
-#include <linux/sunrpc/addr.h>
 
 #include <uapi/linux/nfsd/debug.h>
-
-#include "export.h"
 
 #undef ifdebug
 #ifdef CONFIG_SUNRPC_DEBUG
@@ -40,9 +36,6 @@
 #define NFSD_SUPPORTED_MINOR_VERSION	2
 bool nfsd_support_version(int vers);
 
-#include "netns.h"
-#include "stats.h"
-
 /*
  * Default and maximum payload size (NFS READ or WRITE), in bytes.
  * The maximum is an implementation limit.
@@ -50,10 +43,6 @@ bool nfsd_support_version(int vers);
 enum {
 	NFSSVC_DEFBLKSIZE       = 4 * 1024 * 1024,
 	NFSSVC_MAXBLKSIZE       = RPCSVC_MAXPAYLOAD,
-};
-
-struct readdir_cd {
-	__be32			err;	/* 0, nfserr, or nfserr_eof */
 };
 
 /* Maximum number of operations per session compound */
@@ -101,6 +90,8 @@ struct nfsdfs_client {
 	void (*cl_release)(struct kref *kref);
 };
 
+struct nfsd_net;
+
 struct nfsdfs_client *get_nfsdfs_client(struct inode *);
 struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
 				 struct nfsdfs_client *ncl, u32 id,
@@ -125,8 +116,6 @@ extern const struct svc_version nfsd_acl_version3;
 #if IS_ENABLED(CONFIG_NFS_LOCALIO)
 extern const struct svc_version localio_version1;
 #endif
-
-struct nfsd_net;
 
 enum vers_op {NFSD_SET, NFSD_CLEAR, NFSD_TEST, NFSD_AVAIL };
 int nfsd_vers(struct nfsd_net *nn, int vers, enum vers_op change);
@@ -161,12 +150,6 @@ extern int nfsd_max_blksize;
 static inline int nfsd_v4client(struct svc_rqst *rq)
 {
 	return rq && rq->rq_prog == NFS_PROGRAM && rq->rq_vers == 4;
-}
-static inline struct user_namespace *
-nfsd_user_namespace(const struct svc_rqst *rqstp)
-{
-	const struct cred *cred = rqstp->rq_xprt->xpt_cred;
-	return cred ? cred->user_ns : &init_user_ns;
 }
 
 /* 
@@ -332,13 +315,14 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_noxattr			cpu_to_be32(NFS4ERR_NOXATTR)
 
 /*
- * Error codes for internal use.  We use enum to choose numbers that are
- * not already assigned, then covert to be32 resulting in a number that
- * cannot conflict with any existing be32 nfserr value.
+ * Error codes for internal use.  These are based at an impossible
+ * nfsstat4 value so that, once converted to be32, they cannot conflict
+ * with any value defined by the protocol (compare the nlm__int__* codes
+ * in fs/lockd/lockd.h).
  */
 enum {
 /* end-of-file indicator in readdir */
-	NFSERR_EOF = NFS4ERR_FIRST_FREE,
+	NFSERR_EOF = 30000,
 #define	nfserr_eof		cpu_to_be32(NFSERR_EOF)
 
 /* replay detected */
@@ -355,9 +339,6 @@ enum {
 	NFSERR_SYMLINK_NOT_DIR,
 #define	nfserr_symlink_not_dir	cpu_to_be32(NFSERR_SYMLINK_NOT_DIR)
 };
-
-/* Check for dir entries '.' and '..' */
-#define isdotent(n, l)	(l < 3 && n[0] == '.' && (l == 1 || n[1] == '.'))
 
 #ifdef CONFIG_NFSD_V4
 
@@ -385,187 +366,6 @@ enum {
 #define	NFS4_CLIENTS_PER_GB		1024
 #define NFSD_DELEGRETURN_TIMEOUT	(HZ / 34)	/* 30ms */
 #define	NFSD_CB_GETATTR_TIMEOUT		NFSD_DELEGRETURN_TIMEOUT
-
-/*
- * The following attributes are not implemented by NFSD:
- *    ARCHIVE       (deprecated anyway)
- *    HIDDEN        (unlikely to be supported any time soon)
- *    MIMETYPE      (unlikely to be supported any time soon)
- *    QUOTA_*       (will be supported in a forthcoming patch)
- *    SYSTEM        (unlikely to be supported any time soon)
- *    TIME_BACKUP   (unlikely to be supported any time soon)
- */
-#define NFSD4_SUPPORTED_ATTRS_WORD0                                                         \
-(FATTR4_WORD0_SUPPORTED_ATTRS   | FATTR4_WORD0_TYPE         | FATTR4_WORD0_FH_EXPIRE_TYPE   \
- | FATTR4_WORD0_CHANGE          | FATTR4_WORD0_SIZE         | FATTR4_WORD0_LINK_SUPPORT     \
- | FATTR4_WORD0_SYMLINK_SUPPORT | FATTR4_WORD0_NAMED_ATTR   | FATTR4_WORD0_FSID             \
- | FATTR4_WORD0_UNIQUE_HANDLES  | FATTR4_WORD0_LEASE_TIME   | FATTR4_WORD0_RDATTR_ERROR     \
- | FATTR4_WORD0_ACLSUPPORT      | FATTR4_WORD0_CANSETTIME   | FATTR4_WORD0_CASE_INSENSITIVE \
- | FATTR4_WORD0_CASE_PRESERVING | FATTR4_WORD0_CHOWN_RESTRICTED                             \
- | FATTR4_WORD0_FILEHANDLE      | FATTR4_WORD0_FILEID       | FATTR4_WORD0_FILES_AVAIL      \
- | FATTR4_WORD0_FILES_FREE      | FATTR4_WORD0_FILES_TOTAL  | FATTR4_WORD0_FS_LOCATIONS | FATTR4_WORD0_HOMOGENEOUS      \
- | FATTR4_WORD0_MAXFILESIZE     | FATTR4_WORD0_MAXLINK      | FATTR4_WORD0_MAXNAME          \
- | FATTR4_WORD0_MAXREAD         | FATTR4_WORD0_MAXWRITE     | FATTR4_WORD0_ACL)
-
-#define NFSD4_SUPPORTED_ATTRS_WORD1                                                         \
-(FATTR4_WORD1_MODE              | FATTR4_WORD1_NO_TRUNC     | FATTR4_WORD1_NUMLINKS         \
- | FATTR4_WORD1_OWNER	        | FATTR4_WORD1_OWNER_GROUP  | FATTR4_WORD1_RAWDEV           \
- | FATTR4_WORD1_SPACE_AVAIL     | FATTR4_WORD1_SPACE_FREE   | FATTR4_WORD1_SPACE_TOTAL      \
- | FATTR4_WORD1_SPACE_USED      | FATTR4_WORD1_TIME_ACCESS  | FATTR4_WORD1_TIME_ACCESS_SET  \
- | FATTR4_WORD1_TIME_DELTA      | FATTR4_WORD1_TIME_METADATA   | FATTR4_WORD1_TIME_CREATE      \
- | FATTR4_WORD1_TIME_MODIFY     | FATTR4_WORD1_TIME_MODIFY_SET | FATTR4_WORD1_MOUNTED_ON_FILEID)
-
-#define NFSD4_SUPPORTED_ATTRS_WORD2 0
-
-/* 4.1 */
-#ifdef CONFIG_NFSD_PNFS
-#define PNFSD_SUPPORTED_ATTRS_WORD1	FATTR4_WORD1_FS_LAYOUT_TYPES
-#define PNFSD_SUPPORTED_ATTRS_WORD2 \
-(FATTR4_WORD2_LAYOUT_BLKSIZE	| FATTR4_WORD2_LAYOUT_TYPES)
-#else
-#define PNFSD_SUPPORTED_ATTRS_WORD1	0
-#define PNFSD_SUPPORTED_ATTRS_WORD2	0
-#endif /* CONFIG_NFSD_PNFS */
-
-#define NFSD4_1_SUPPORTED_ATTRS_WORD0 \
-	NFSD4_SUPPORTED_ATTRS_WORD0
-
-#define NFSD4_1_SUPPORTED_ATTRS_WORD1 \
-	(NFSD4_SUPPORTED_ATTRS_WORD1	| PNFSD_SUPPORTED_ATTRS_WORD1)
-
-#define NFSD4_1_SUPPORTED_ATTRS_WORD2 \
-	(NFSD4_SUPPORTED_ATTRS_WORD2	| PNFSD_SUPPORTED_ATTRS_WORD2 | \
-	 FATTR4_WORD2_SUPPATTR_EXCLCREAT)
-
-/* 4.2 */
-#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-#define NFSD4_2_SECURITY_ATTRS		FATTR4_WORD2_SECURITY_LABEL
-#else
-#define NFSD4_2_SECURITY_ATTRS		0
-#endif
-
-#ifdef CONFIG_NFSD_V4_POSIX_ACLS
-#define NFSD4_2_POSIX_ACL_ATTRS \
-	(FATTR4_WORD2_ACL_TRUEFORM | \
-	FATTR4_WORD2_ACL_TRUEFORM_SCOPE | \
-	FATTR4_WORD2_POSIX_DEFAULT_ACL | \
-	FATTR4_WORD2_POSIX_ACCESS_ACL)
-#else
-#define NFSD4_2_POSIX_ACL_ATTRS		0
-#endif
-
-#define NFSD4_2_SUPPORTED_ATTRS_WORD2 \
-	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | \
-	FATTR4_WORD2_MODE_UMASK | \
-	FATTR4_WORD2_CLONE_BLKSIZE | \
-	NFSD4_2_SECURITY_ATTRS | \
-	FATTR4_WORD2_XATTR_SUPPORT | \
-	FATTR4_WORD2_TIME_DELEG_ACCESS | \
-	FATTR4_WORD2_TIME_DELEG_MODIFY | \
-	FATTR4_WORD2_OPEN_ARGUMENTS | \
-	NFSD4_2_POSIX_ACL_ATTRS)
-
-extern const u32 nfsd_suppattrs[3][3];
-
-static inline __be32 nfsd4_set_netaddr(struct sockaddr *addr,
-				    struct nfs42_netaddr *netaddr)
-{
-	struct sockaddr_in *sin = (struct sockaddr_in *)addr;
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addr;
-	unsigned int port;
-	size_t ret_addr, ret_port;
-
-	switch (addr->sa_family) {
-	case AF_INET:
-		port = ntohs(sin->sin_port);
-		sprintf(netaddr->netid, "tcp");
-		netaddr->netid_len = 3;
-		break;
-	case AF_INET6:
-		port = ntohs(sin6->sin6_port);
-		sprintf(netaddr->netid, "tcp6");
-		netaddr->netid_len = 4;
-		break;
-	default:
-		return nfserr_inval;
-	}
-	ret_addr = rpc_ntop(addr, netaddr->addr, sizeof(netaddr->addr));
-	ret_port = snprintf(netaddr->addr + ret_addr,
-			    RPCBIND_MAXUADDRLEN + 1 - ret_addr,
-			    ".%u.%u", port >> 8, port & 0xff);
-	WARN_ON(ret_port >= RPCBIND_MAXUADDRLEN + 1 - ret_addr);
-	netaddr->addr_len = ret_addr + ret_port;
-	return 0;
-}
-
-static inline bool bmval_is_subset(const u32 *bm1, const u32 *bm2)
-{
-	return !((bm1[0] & ~bm2[0]) ||
-	         (bm1[1] & ~bm2[1]) ||
-		 (bm1[2] & ~bm2[2]));
-}
-
-static inline bool nfsd_attrs_supported(u32 minorversion, const u32 *bmval)
-{
-	return bmval_is_subset(bmval, nfsd_suppattrs[minorversion]);
-}
-
-/* These will return ERR_INVAL if specified in GETATTR or READDIR. */
-#define NFSD_WRITEONLY_ATTRS_WORD1 \
-	(FATTR4_WORD1_TIME_ACCESS_SET   | FATTR4_WORD1_TIME_MODIFY_SET)
-
-/*
- * These are the only attrs allowed in CREATE/OPEN/SETATTR. Don't add
- * a writeable attribute here without also adding code to parse it to
- * nfsd4_decode_fattr().
- */
-#define NFSD_WRITEABLE_ATTRS_WORD0 \
-	(FATTR4_WORD0_SIZE | FATTR4_WORD0_ACL)
-#define NFSD_WRITEABLE_ATTRS_WORD1 \
-	(FATTR4_WORD1_MODE | FATTR4_WORD1_OWNER | FATTR4_WORD1_OWNER_GROUP \
-	| FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_CREATE \
-	| FATTR4_WORD1_TIME_MODIFY_SET)
-#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-#define MAYBE_FATTR4_WORD2_SECURITY_LABEL \
-	FATTR4_WORD2_SECURITY_LABEL
-#else
-#define MAYBE_FATTR4_WORD2_SECURITY_LABEL 0
-#endif
-#ifdef CONFIG_NFSD_V4_POSIX_ACLS
-#define MAYBE_FATTR4_WORD2_POSIX_ACL_ATTRS \
-	FATTR4_WORD2_POSIX_DEFAULT_ACL | FATTR4_WORD2_POSIX_ACCESS_ACL
-#else
-#define MAYBE_FATTR4_WORD2_POSIX_ACL_ATTRS 0
-#endif
-#define NFSD_WRITEABLE_ATTRS_WORD2 \
-	(FATTR4_WORD2_MODE_UMASK \
-	| MAYBE_FATTR4_WORD2_SECURITY_LABEL \
-	| FATTR4_WORD2_TIME_DELEG_ACCESS \
-	| FATTR4_WORD2_TIME_DELEG_MODIFY \
-	| MAYBE_FATTR4_WORD2_POSIX_ACL_ATTRS \
-	)
-
-#define NFSD_SUPPATTR_EXCLCREAT_WORD0 \
-	NFSD_WRITEABLE_ATTRS_WORD0
-/*
- * we currently store the exclusive create verifier in the v_{a,m}time
- * attributes so the client can't set these at create time using EXCLUSIVE4_1
- */
-#define NFSD_SUPPATTR_EXCLCREAT_WORD1 \
-	(NFSD_WRITEABLE_ATTRS_WORD1 & \
-	 ~(FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_MODIFY_SET))
-/*
- * The FATTR4_WORD2_TIME_DELEG attributes are not to be allowed for
- * OPEN(create) with EXCLUSIVE4_1. It doesn't make sense to set a
- * delegated timestamp on a new file.
- *
- * This mask includes NFSv4.2-only attributes (e.g., POSIX ACLs).
- * Version filtering occurs via nfsd_suppattrs[] before this mask
- * is applied, so pre-4.2 clients never see unsupported attributes.
- */
-#define NFSD_SUPPATTR_EXCLCREAT_WORD2 \
-	(NFSD_WRITEABLE_ATTRS_WORD2 & \
-	~(FATTR4_WORD2_TIME_DELEG_ACCESS | FATTR4_WORD2_TIME_DELEG_MODIFY))
 
 extern int nfsd4_is_junction(struct dentry *dentry);
 extern int register_cld_notifier(void);

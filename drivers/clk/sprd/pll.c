@@ -254,16 +254,10 @@ static int sprd_pll_clk_prepare(struct clk_hw *hw)
 	return 0;
 }
 
-static int sprd_pll_determine_rate(struct clk_hw *hw,
-				   struct clk_rate_request *req)
-{
-	return 0;
-}
-
 const struct clk_ops sprd_pll_ops = {
 	.prepare = sprd_pll_clk_prepare,
 	.recalc_rate = sprd_pll_recalc_rate,
-	.determine_rate = sprd_pll_determine_rate,
+	.determine_rate = clk_determine_rate_noop,
 	.set_rate = sprd_pll_set_rate,
 };
 EXPORT_SYMBOL_GPL(sprd_pll_ops);

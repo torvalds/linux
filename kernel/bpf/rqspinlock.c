@@ -745,10 +745,10 @@ __bpf_kfunc void bpf_res_spin_unlock_irqrestore(struct bpf_res_spin_lock *lock, 
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(rqspinlock_kfunc_ids)
-BTF_ID_FLAGS(func, bpf_res_spin_lock, KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_res_spin_unlock)
-BTF_ID_FLAGS(func, bpf_res_spin_lock_irqsave, KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_res_spin_unlock_irqrestore)
+BTF_ID_FLAGS(func, bpf_res_spin_lock, KF_RET_NULL | KF_SPINLOCK_SAFE)
+BTF_ID_FLAGS(func, bpf_res_spin_unlock, KF_SPINLOCK_SAFE)
+BTF_ID_FLAGS(func, bpf_res_spin_lock_irqsave, KF_RET_NULL | KF_SPINLOCK_SAFE)
+BTF_ID_FLAGS(func, bpf_res_spin_unlock_irqrestore, KF_SPINLOCK_SAFE)
 BTF_KFUNCS_END(rqspinlock_kfunc_ids)
 
 static const struct btf_kfunc_id_set rqspinlock_kfunc_set = {

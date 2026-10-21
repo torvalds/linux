@@ -334,12 +334,12 @@ static const struct of_device_id ti_dac_of_id[] = {
 MODULE_DEVICE_TABLE(of, ti_dac_of_id);
 
 static const struct spi_device_id ti_dac_spi_id[] = {
-	{ "dac082s085", dual_8bit  },
-	{ "dac102s085", dual_10bit },
-	{ "dac122s085", dual_12bit },
-	{ "dac084s085", quad_8bit  },
-	{ "dac104s085", quad_10bit },
-	{ "dac124s085", quad_12bit },
+	{ .name = "dac082s085", .driver_data = dual_8bit },
+	{ .name = "dac102s085", .driver_data = dual_10bit },
+	{ .name = "dac122s085", .driver_data = dual_12bit },
+	{ .name = "dac084s085", .driver_data = quad_8bit },
+	{ .name = "dac104s085", .driver_data = quad_10bit },
+	{ .name = "dac124s085", .driver_data = quad_12bit },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ti_dac_spi_id);

@@ -477,10 +477,6 @@ struct module {
 	struct module_notes_attrs *notes_attrs;
 #endif
 
-	/* The command line arguments (may be mangled).  People like
-	   keeping pointers to this stuff */
-	char *args;
-
 #ifdef CONFIG_SMP
 	/* Per-cpu data. */
 	void __percpu *percpu;

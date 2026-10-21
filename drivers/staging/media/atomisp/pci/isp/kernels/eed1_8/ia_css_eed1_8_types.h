@@ -13,7 +13,7 @@
 
 #include "type_support.h"
 
-/**
+/*
  * \brief EED1_8 public parameters.
  * \details Struct with all parameters for the EED1.8 kernel that can be set
  * from the CSS API.

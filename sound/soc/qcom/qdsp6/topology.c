@@ -753,6 +753,103 @@ static int audioreach_widget_i2s_module_load(struct audioreach_module *mod,
 	return 0;
 }
 
+static int audioreach_widget_audio_if_module_load(struct audioreach_module *mod,
+						  const struct snd_soc_tplg_vendor_array *mod_array)
+{
+	const struct snd_soc_tplg_vendor_value_elem *mod_elem;
+	int tkn_count = 0;
+	u32 val;
+
+	mod_elem = mod_array->value;
+
+	while (tkn_count < le32_to_cpu(mod_array->num_elems)) {
+		val = le32_to_cpu(mod_elem->value);
+		switch (le32_to_cpu(mod_elem->token)) {
+		case AR_TKN_U32_MODULE_HW_IF_IDX:
+			mod->hw_interface_idx = val;
+			break;
+		case AR_TKN_U32_MODULE_FMT_DATA:
+			mod->data_format = val;
+			break;
+		case AR_TKN_U16_MODULE_SYNC_SRC:
+			if (val > U16_MAX)
+				return -EINVAL;
+			mod->sync_src = (u16)val;
+			break;
+		case AR_TKN_U16_MODULE_CTRL_DATA_OUT_ENABLE:
+			if (val > U16_MAX)
+				return -EINVAL;
+			mod->ctrl_data_out_enable = (u16)val;
+			break;
+		case AR_TKN_U32_MODULE_SLOT_MASK:
+			mod->slot_mask = val;
+			break;
+		case AR_TKN_U16_MODULE_NSLOTS_PER_FRAME:
+			if (val > U16_MAX)
+				return -EINVAL;
+			mod->nslots_per_frame = (u16)val;
+			break;
+		case AR_TKN_U16_MODULE_SLOT_WIDTH:
+			if (val > U16_MAX)
+				return -EINVAL;
+			mod->slot_width = (u16)val;
+			break;
+		case AR_TKN_U16_MODULE_INTF_MODE:
+			if (val > U16_MAX)
+				return -EINVAL;
+			mod->intf_mode = (u16)val;
+			break;
+		case AR_TKN_U16_MODULE_SYNC_MODE:
+			if (val > U16_MAX)
+				return -EINVAL;
+			mod->sync_mode = (u16)val;
+			break;
+		case AR_TKN_U16_MODULE_CTRL_INVERT_SYNC_PULSE:
+			if (val > U16_MAX)
+				return -EINVAL;
+			mod->ctrl_invert_sync_pulse = (u16)val;
+			break;
+		case AR_TKN_U16_MODULE_CTRL_SYNC_DATA_DELAY:
+			if (val > U16_MAX)
+				return -EINVAL;
+			mod->ctrl_sync_data_delay = (u16)val;
+			break;
+		case AR_TKN_U16_MODULE_QAIF_TYPE:
+			if (val > U16_MAX)
+				return -EINVAL;
+			mod->qaif_type = (u16)val;
+			break;
+		case AR_TKN_U32_MODULE_ACTIVE_LANE_MASK:
+			mod->active_lane_mask = val;
+			break;
+		case AR_TKN_U32_MODULE_FRAME_SYNC_RATE:
+			mod->frame_sync_rate = val;
+			break;
+		case AR_TKN_U16_MODULE_BIT_CLK_TYPE:
+			if (val > U16_MAX)
+				return -EINVAL;
+			mod->bit_clk_type = (u16)val;
+			break;
+		case AR_TKN_U8_MODULE_INV_INT_BIT_CLK:
+			if (val > U8_MAX)
+				return -EINVAL;
+			mod->inv_int_bit_clk = (u8)val;
+			break;
+		case AR_TKN_U8_MODULE_INV_EXT_BIT_CLK:
+			if (val > U8_MAX)
+				return -EINVAL;
+			mod->inv_ext_bit_clk = (u8)val;
+			break;
+		default:
+			break;
+		}
+		tkn_count++;
+		mod_elem++;
+	}
+
+	return 0;
+}
+
 static int audioreach_widget_dp_module_load(struct audioreach_module *mod,
 					    const struct snd_soc_tplg_vendor_array *mod_array)
 {
@@ -805,6 +902,12 @@ static int audioreach_widget_load_buffer(struct snd_soc_component *component,
 	case MODULE_ID_I2S_SINK:
 	case MODULE_ID_I2S_SOURCE:
 		audioreach_widget_i2s_module_load(mod, mod_array);
+		break;
+	case MODULE_ID_AUDIO_IF_SINK:
+	case MODULE_ID_AUDIO_IF_SOURCE:
+		ret = audioreach_widget_audio_if_module_load(mod, mod_array);
+		if (ret)
+			return ret;
 		break;
 	case MODULE_ID_DISPLAY_PORT_SINK:
 		audioreach_widget_dp_module_load(mod, mod_array);
@@ -1313,7 +1416,6 @@ int audioreach_tplg_init(struct snd_soc_component *component)
 {
 	struct snd_soc_card *card = component->card;
 	struct device *dev = component->dev;
-	const struct firmware *fw;
 	int ret;
 
 	/* Inline with Qualcomm UCM configs and linux-firmware path */
@@ -1323,6 +1425,7 @@ int audioreach_tplg_init(struct snd_soc_component *component)
 	if (!tplg_fw_name)
 		return -ENOMEM;
 
+	const struct firmware *fw __free(firmware) = NULL;
 	ret = request_firmware(&fw, tplg_fw_name, dev);
 	if (ret < 0) {
 		dev_err(dev, "tplg firmware loading %s failed %d\n", tplg_fw_name, ret);
@@ -1334,8 +1437,6 @@ int audioreach_tplg_init(struct snd_soc_component *component)
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "tplg component load failed: %d\n", ret);
 	}
-
-	release_firmware(fw);
 
 	return ret;
 }

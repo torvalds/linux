@@ -21,7 +21,7 @@ int msi_bitmap_alloc_hwirqs(struct msi_bitmap *bmp, int num)
 
 	offset = bitmap_find_next_zero_area(bmp->bitmap, bmp->irq_count, 0,
 					    num, (1 << order) - 1);
-	if (offset > bmp->irq_count)
+	if (offset >= bmp->irq_count)
 		goto err;
 
 	bitmap_set(bmp->bitmap, offset, num);

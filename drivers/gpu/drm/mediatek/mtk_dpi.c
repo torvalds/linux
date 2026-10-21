@@ -850,7 +850,8 @@ static void mtk_dpi_bridge_mode_set(struct drm_bridge *bridge,
 	drm_mode_copy(&dpi->mode, adjusted_mode);
 }
 
-static void mtk_dpi_bridge_disable(struct drm_bridge *bridge)
+static void mtk_dpi_bridge_disable(struct drm_bridge *bridge,
+				   struct drm_atomic_commit *commit)
 {
 	struct mtk_dpi *dpi = bridge_to_dpi(bridge);
 
@@ -860,7 +861,8 @@ static void mtk_dpi_bridge_disable(struct drm_bridge *bridge)
 		pinctrl_select_state(dpi->pinctrl, dpi->pins_gpio);
 }
 
-static void mtk_dpi_bridge_enable(struct drm_bridge *bridge)
+static void mtk_dpi_bridge_enable(struct drm_bridge *bridge,
+				  struct drm_atomic_commit *commit)
 {
 	struct mtk_dpi *dpi = bridge_to_dpi(bridge);
 
@@ -982,14 +984,14 @@ static const struct drm_bridge_funcs mtk_dpi_bridge_funcs = {
 	.attach = mtk_dpi_bridge_attach,
 	.mode_set = mtk_dpi_bridge_mode_set,
 	.mode_valid = mtk_dpi_bridge_mode_valid,
-	.disable = mtk_dpi_bridge_disable,
-	.enable = mtk_dpi_bridge_enable,
+	.atomic_disable = mtk_dpi_bridge_disable,
+	.atomic_enable = mtk_dpi_bridge_enable,
 	.atomic_check = mtk_dpi_bridge_atomic_check,
 	.atomic_get_output_bus_fmts = mtk_dpi_bridge_atomic_get_output_bus_fmts,
 	.atomic_get_input_bus_fmts = mtk_dpi_bridge_atomic_get_input_bus_fmts,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.debugfs_init = mtk_dpi_debugfs_init,
 };
 

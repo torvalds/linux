@@ -124,10 +124,10 @@ static int snet_wait_for_dpu_completion(struct snet_ctrl_regs __iomem *ctrl_regs
  *     reading the in_process and error bits in the control register.
  * (2) Write the request opcode and the VQ idx in the opcode register
  *     and write the buffer size in the control register.
- * (3) Start readind chunks of data, chunk_ready bit indicates that a
+ * (3) Start reading chunks of data, chunk_ready bit indicates that a
  *     data chunk is available, we signal that we read the data by clearing the bit.
  * (4) Detect that the transfer is completed when the in_process bit
- *     in the control register is cleared or when the an error appears.
+ *     in the control register is cleared or when an error appears.
  */
 static int snet_ctrl_read_from_dpu(struct snet *snet, u16 opcode, u16 vq_idx, void *buffer,
 				   u32 buf_size)

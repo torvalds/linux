@@ -538,7 +538,15 @@ static int cs35l32_runtime_resume(struct device *dev)
 	gpiod_set_value_cansleep(cs35l32->reset_gpio, 1);
 
 	regcache_cache_only(cs35l32->regmap, false);
-	regcache_sync(cs35l32->regmap);
+	ret = regcache_sync(cs35l32->regmap);
+	if (ret) {
+		regcache_cache_only(cs35l32->regmap, true);
+		regcache_mark_dirty(cs35l32->regmap);
+		gpiod_set_value_cansleep(cs35l32->reset_gpio, 0);
+		regulator_bulk_disable(ARRAY_SIZE(cs35l32->supplies),
+				       cs35l32->supplies);
+		return ret;
+	}
 
 	return 0;
 }

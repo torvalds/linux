@@ -172,7 +172,7 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		 * the h_proto field is in the same place so we just leave it
 		 * alone and fill in the remaining fields.
 		 */
-		ethhdr = (struct ethhdr *) skb->data;
+		ethhdr = (struct ethhdr *)buf->data;
 		if (be16_to_cpup(&ethhdr->h_proto) == ETH_P_ARP &&
 				buf->len > 0x26) {
 			/* Copy the addresses from packet contents */

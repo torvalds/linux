@@ -115,7 +115,7 @@ static inline void ceph_fname_free_buffer(struct inode *parent,
 		fscrypt_fname_free_buffer(fname);
 }
 
-int ceph_fname_to_usr(const struct ceph_fname *fname, struct fscrypt_str *tname,
+int ceph_fname_to_usr(const struct ceph_fname *fname, unsigned char *tname,
 		      struct fscrypt_str *oname, bool *is_nokey);
 int ceph_fscrypt_prepare_readdir(struct inode *dir);
 
@@ -204,7 +204,7 @@ static inline void ceph_fname_free_buffer(struct inode *parent,
 }
 
 static inline int ceph_fname_to_usr(const struct ceph_fname *fname,
-				    struct fscrypt_str *tname,
+				    unsigned char *tname,
 				    struct fscrypt_str *oname, bool *is_nokey)
 {
 	oname->name = fname->name;

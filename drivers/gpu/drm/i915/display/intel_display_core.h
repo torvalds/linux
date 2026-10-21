@@ -97,6 +97,8 @@ struct intel_wm_funcs {
 struct intel_audio_state {
 	struct intel_encoder *encoder;
 	u8 eld[MAX_ELD_BYTES];
+	/* MST, or SST on UHBR link */
+	bool needs_cpu_transcoder_id;
 };
 
 struct intel_audio {
@@ -325,14 +327,14 @@ struct intel_display {
 		struct intel_bw_info {
 			/* for each QGV point */
 			unsigned int deratedbw[I915_NUM_QGV_POINTS];
-			/* for each PSF GV point */
-			unsigned int psf_bw[I915_NUM_PSF_GV_POINTS];
-			/* Peak BW for each QGV point */
-			unsigned int peakbw[I915_NUM_QGV_POINTS];
-			u8 num_qgv_points;
-			u8 num_psf_gv_points;
 			u8 num_planes;
 		} max[6];
+		/* for each PSF GV point */
+		unsigned int psf_bw[I915_NUM_PSF_GV_POINTS];
+		/* Peak BW for each QGV point */
+		unsigned int peakbw[I915_NUM_QGV_POINTS];
+		u8 num_qgv_points;
+		u8 num_psf_gv_points;
 	} bw;
 
 	struct {
@@ -538,6 +540,8 @@ struct intel_display {
 
 	struct {
 		struct i915_power_domains domains;
+		/* DC3CO state */
+		struct intel_dc3co_state dc3co;
 
 		/* Shadow for DISPLAY_PHY_CONTROL which can't be safely read */
 		u32 chv_phy_control;

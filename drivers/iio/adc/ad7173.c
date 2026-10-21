@@ -2065,19 +2065,19 @@ static const struct of_device_id ad7173_of_match[] = {
 MODULE_DEVICE_TABLE(of, ad7173_of_match);
 
 static const struct spi_device_id ad7173_id_table[] = {
-	{ "ad4111",   (kernel_ulong_t)&ad4111_device_info },
-	{ "ad4112",   (kernel_ulong_t)&ad4112_device_info },
-	{ "ad4113",   (kernel_ulong_t)&ad4113_device_info },
-	{ "ad4114",   (kernel_ulong_t)&ad4114_device_info },
-	{ "ad4115",   (kernel_ulong_t)&ad4115_device_info },
-	{ "ad4116",   (kernel_ulong_t)&ad4116_device_info },
-	{ "ad7172-2", (kernel_ulong_t)&ad7172_2_device_info },
-	{ "ad7172-4", (kernel_ulong_t)&ad7172_4_device_info },
-	{ "ad7173-8", (kernel_ulong_t)&ad7173_8_device_info },
-	{ "ad7175-2", (kernel_ulong_t)&ad7175_2_device_info },
-	{ "ad7175-8", (kernel_ulong_t)&ad7175_8_device_info },
-	{ "ad7176-2", (kernel_ulong_t)&ad7176_2_device_info },
-	{ "ad7177-2", (kernel_ulong_t)&ad7177_2_device_info },
+	{ .name = "ad4111",   .driver_data = (kernel_ulong_t)&ad4111_device_info },
+	{ .name = "ad4112",   .driver_data = (kernel_ulong_t)&ad4112_device_info },
+	{ .name = "ad4113",   .driver_data = (kernel_ulong_t)&ad4113_device_info },
+	{ .name = "ad4114",   .driver_data = (kernel_ulong_t)&ad4114_device_info },
+	{ .name = "ad4115",   .driver_data = (kernel_ulong_t)&ad4115_device_info },
+	{ .name = "ad4116",   .driver_data = (kernel_ulong_t)&ad4116_device_info },
+	{ .name = "ad7172-2", .driver_data = (kernel_ulong_t)&ad7172_2_device_info },
+	{ .name = "ad7172-4", .driver_data = (kernel_ulong_t)&ad7172_4_device_info },
+	{ .name = "ad7173-8", .driver_data = (kernel_ulong_t)&ad7173_8_device_info },
+	{ .name = "ad7175-2", .driver_data = (kernel_ulong_t)&ad7175_2_device_info },
+	{ .name = "ad7175-8", .driver_data = (kernel_ulong_t)&ad7175_8_device_info },
+	{ .name = "ad7176-2", .driver_data = (kernel_ulong_t)&ad7176_2_device_info },
+	{ .name = "ad7177-2", .driver_data = (kernel_ulong_t)&ad7177_2_device_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7173_id_table);

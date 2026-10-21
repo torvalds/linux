@@ -7,9 +7,9 @@
 use crate::{
     bindings,
     device::Device,
-    error::Error,
-    error::Result,
+    error::to_result,
     ffi,
+    prelude::*,
     str::{CStr, CStrExt as _},
 };
 use core::ptr::NonNull;
@@ -51,12 +51,8 @@ impl FwFunc {
 /// # Examples
 ///
 /// ```no_run
-/// # use kernel::{device::Device, firmware::Firmware};
-///
-/// # fn no_run() -> Result<(), Error> {
-/// # // SAFETY: *NOT* safe, just for the example to get an `ARef<Device>` instance
-/// # let dev = unsafe { Device::get_device(core::ptr::null_mut()) };
-///
+/// # use kernel::{device::Device, firmware::Firmware, sync::aref::ARef};
+/// # fn no_run(dev: ARef<Device>) -> Result<(), Error> {
 /// let fw = Firmware::request(c"path/to/firmware.bin", &dev)?;
 /// let blob = fw.data();
 ///
@@ -118,6 +114,48 @@ impl Drop for Firmware {
         // SAFETY: `self.as_raw()` is valid by the type invariant.
         unsafe { bindings::release_firmware(self.as_raw()) };
     }
+}
+
+/// Load firmware directly into the caller-provided `buf`.
+///
+/// On success the firmware image has been copied into `buf`; the caller accesses the data
+/// through `buf` itself.
+///
+/// This is intentionally a stand-alone function rather than a `Firmware` constructor. For
+/// the `into_buf` path, the firmware data lives in the caller's `buf`, not in a
+/// kernel-owned buffer, so returning a `Firmware` would expose `Firmware::data()` as a
+/// second handle aliasing `buf` (and `release_firmware()` does not free `buf` anyway).
+pub fn request_into_buf(name: &CStr, dev: &Device, buf: &mut [u8]) -> Result {
+    // `as_mut_ptr()` on an empty slice returns a non-NULL pointer to
+    // memory which the loader does not own. Passing that pointer with `size == 0`
+    // makes the loader believe that it is buffer it allocated itself, so when
+    // `release_firmware()` is called, it will vfree the pointer and trigger a
+    // bug. Reject empty slices to avoid this situation.
+    if buf.is_empty() {
+        return Err(EINVAL);
+    }
+
+    let mut fw: *const bindings::firmware = core::ptr::null();
+
+    // SAFETY: `&raw mut fw` is a valid pointer to a NULL initialized `bindings::firmware` pointer.
+    // `name` and `dev` are valid as by their type invariants. `buf` is a valid writable
+    // buffer of `buf.len()` bytes.
+    to_result(unsafe {
+        bindings::request_firmware_into_buf(
+            &raw mut fw,
+            name.as_char_ptr(),
+            dev.as_raw(),
+            buf.as_mut_ptr().cast(),
+            buf.len(),
+        )
+    })?;
+
+    // The firmware bytes are now in `buf`, which the caller owns, so we don't need
+    // the kernel to hang on to it any more.
+    // SAFETY: `fw` is a valid pointer returned by `request_firmware_into_buf`.
+    unsafe { bindings::release_firmware(fw) };
+
+    Ok(())
 }
 
 // SAFETY: `Firmware` only holds a pointer to a C `struct firmware`, which is safe to be used from

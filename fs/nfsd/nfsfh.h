@@ -131,6 +131,8 @@ enum fsid_source {
 	FSIDSOURCE_FSID,
 	FSIDSOURCE_UUID,
 };
+extern enum fsid_source fsid_source_fh(const struct knfsd_fh *fh,
+				       struct svc_export *exp);
 extern enum fsid_source fsid_source(const struct svc_fh *fhp);
 
 
@@ -226,6 +228,7 @@ __be32	fh_getattr(const struct svc_fh *fhp, struct kstat *stat);
 __be32	fh_compose(struct svc_fh *, struct svc_export *, struct dentry *, struct svc_fh *);
 __be32	fh_update(struct svc_fh *);
 void	fh_put(struct svc_fh *);
+bool	fh_append_mac(struct knfsd_fh *fh, int fh_maxsize, struct net *net);
 
 static __inline__ struct svc_fh *
 fh_copy(struct svc_fh *dst, const struct svc_fh *src)

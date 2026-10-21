@@ -37,8 +37,8 @@ static int find_comm(struct evlist *evlist, const char *comm)
 	int i, found;
 
 	found = 0;
-	for (i = 0; i < evlist->core.nr_mmaps; i++) {
-		md = &evlist->mmap[i];
+	for (i = 0; i < evlist__core(evlist)->nr_mmaps; i++) {
+		md = &evlist__mmap(evlist)[i];
 		if (perf_mmap__read_init(&md->core) < 0)
 			continue;
 		while ((event = perf_mmap__read_event(&md->core)) != NULL) {
@@ -87,7 +87,7 @@ static int test__keep_tracking(struct test_suite *test __maybe_unused, int subte
 	evlist = evlist__new();
 	CHECK_NOT_NULL__(evlist);
 
-	perf_evlist__set_maps(&evlist->core, cpus, threads);
+	perf_evlist__set_maps(evlist__core(evlist), cpus, threads);
 
 	CHECK__(parse_event(evlist, "dummy:u"));
 	CHECK__(parse_event(evlist, "cpu-cycles:u"));
@@ -106,7 +106,7 @@ static int test__keep_tracking(struct test_suite *test __maybe_unused, int subte
 		goto out_err;
 	}
 
-	CHECK__(evlist__mmap(evlist, UINT_MAX));
+	CHECK__(evlist__do_mmap(evlist, UINT_MAX));
 
 	/*
 	 * First, test that a 'comm' event can be found when the event is
@@ -153,7 +153,7 @@ static int test__keep_tracking(struct test_suite *test __maybe_unused, int subte
 out_err:
 	if (evlist) {
 		evlist__disable(evlist);
-		evlist__delete(evlist);
+		evlist__put(evlist);
 	}
 	perf_cpu_map__put(cpus);
 	perf_thread_map__put(threads);

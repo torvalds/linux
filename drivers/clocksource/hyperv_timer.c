@@ -31,44 +31,20 @@ static struct clock_event_device __percpu *hv_clock_event;
 /* Note: offset can hold negative values after hibernation. */
 static u64 hv_sched_clock_offset __read_mostly;
 
-/*
- * If false, we're using the old mechanism for stimer0 interrupts
- * where it sends a VMbus message when it expires. The old
- * mechanism is used when running on older versions of Hyper-V
- * that don't support Direct Mode. While Hyper-V provides
- * four stimer's per CPU, Linux uses only stimer0.
- *
- * Because Direct Mode does not require processing a VMbus
- * message, stimer interrupts can be enabled earlier in the
- * process of booting a CPU, and consistent with when timer
- * interrupts are enabled for other clocksource drivers.
- * However, for legacy versions of Hyper-V when Direct Mode
- * is not enabled, setting up stimer interrupts must be
- * delayed until VMbus is initialized and can process the
- * interrupt message.
- */
-static bool direct_mode_enabled;
-
 static int stimer0_irq = -1;
-static int stimer0_message_sint;
 static __maybe_unused DEFINE_PER_CPU(long, stimer0_evt);
 
-/*
- * Common code for stimer0 interrupts coming via Direct Mode or
- * as a VMbus message.
- */
-void hv_stimer0_isr(void)
+static void hv_stimer0_isr(void)
 {
 	struct clock_event_device *ce;
 
 	ce = this_cpu_ptr(hv_clock_event);
 	ce->event_handler(ce);
 }
-EXPORT_SYMBOL_GPL(hv_stimer0_isr);
 
 /*
  * stimer0 interrupt handler for architectures that support
- * per-cpu interrupts, which also implies Direct Mode.
+ * per-cpu interrupts
  */
 static irqreturn_t __maybe_unused hv_stimer0_percpu_isr(int irq, void *dev_id)
 {
@@ -91,7 +67,7 @@ static int hv_ce_shutdown(struct clock_event_device *evt)
 {
 	hv_set_msr(HV_MSR_STIMER0_COUNT, 0);
 	hv_set_msr(HV_MSR_STIMER0_CONFIG, 0);
-	if (direct_mode_enabled && stimer0_irq >= 0)
+	if (stimer0_irq >= 0)
 		disable_percpu_irq(stimer0_irq);
 
 	return 0;
@@ -104,23 +80,16 @@ static int hv_ce_set_oneshot(struct clock_event_device *evt)
 	timer_cfg.as_uint64 = 0;
 	timer_cfg.enable = 1;
 	timer_cfg.auto_enable = 1;
-	if (direct_mode_enabled) {
-		/*
-		 * When it expires, the timer will directly interrupt
-		 * on the specified hardware vector/IRQ.
-		 */
-		timer_cfg.direct_mode = 1;
-		timer_cfg.apic_vector = HYPERV_STIMER0_VECTOR;
-		if (stimer0_irq >= 0)
-			enable_percpu_irq(stimer0_irq, IRQ_TYPE_NONE);
-	} else {
-		/*
-		 * When it expires, the timer will generate a VMbus message,
-		 * to be handled by the normal VMbus interrupt handler.
-		 */
-		timer_cfg.direct_mode = 0;
-		timer_cfg.sintx = stimer0_message_sint;
-	}
+
+	/*
+	 * When it expires, the timer will directly interrupt
+	 * on the specified hardware vector/IRQ.
+	 */
+	timer_cfg.direct_mode = 1;
+	timer_cfg.apic_vector = HYPERV_STIMER0_VECTOR;
+	if (stimer0_irq >= 0)
+		enable_percpu_irq(stimer0_irq, IRQ_TYPE_NONE);
+
 	hv_set_msr(HV_MSR_STIMER0_CONFIG, timer_cfg.as_uint64);
 	return 0;
 }
@@ -175,25 +144,8 @@ int hv_stimer_cleanup(unsigned int cpu)
 	if (!hv_clock_event)
 		return 0;
 
-	/*
-	 * In the legacy case where Direct Mode is not enabled
-	 * (which can only be on x86/64), stimer cleanup happens
-	 * relatively early in the CPU offlining process. We
-	 * must unbind the stimer-based clockevent device so
-	 * that the LAPIC timer can take over until clockevents
-	 * are no longer needed in the offlining process. Note
-	 * that clockevents_unbind_device() eventually calls
-	 * hv_ce_shutdown().
-	 *
-	 * The unbind should not be done when Direct Mode is
-	 * enabled because we may be on an architecture where
-	 * there are no other clockevent devices to fallback to.
-	 */
 	ce = per_cpu_ptr(hv_clock_event, cpu);
-	if (direct_mode_enabled)
-		hv_ce_shutdown(ce);
-	else
-		clockevents_unbind_device(ce, cpu);
+	hv_ce_shutdown(ce);
 
 	return 0;
 }
@@ -268,22 +220,13 @@ int hv_stimer_alloc(bool have_percpu_irqs)
 	 * Hyper-V on x86.  In that case, return as error as Linux will use a
 	 * clockevent based on emulated LAPIC timer hardware.
 	 */
-	if (!(ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE))
+	if (!(ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE) ||
+	    !(ms_hyperv.misc_features & HV_STIMER_DIRECT_MODE_AVAILABLE))
 		return -EINVAL;
 
 	hv_clock_event = alloc_percpu(struct clock_event_device);
 	if (!hv_clock_event)
 		return -ENOMEM;
-
-	direct_mode_enabled = ms_hyperv.misc_features &
-			HV_STIMER_DIRECT_MODE_AVAILABLE;
-
-	/*
-	 * If Direct Mode isn't enabled, the remainder of the initialization
-	 * is done later by hv_stimer_legacy_init()
-	 */
-	if (!direct_mode_enabled)
-		return 0;
 
 	if (have_percpu_irqs) {
 		ret = hv_setup_stimer0_irq();
@@ -293,11 +236,6 @@ int hv_stimer_alloc(bool have_percpu_irqs)
 		hv_setup_stimer0_handler(hv_stimer0_isr);
 	}
 
-	/*
-	 * Since we are in Direct Mode, stimer initialization
-	 * can be done now with a CPUHP value in the same range
-	 * as other clockevent devices.
-	 */
 	ret = cpuhp_setup_state(CPUHP_AP_HYPERV_TIMER_STARTING,
 			"clockevents/hyperv/stimer:starting",
 			hv_stimer_init, hv_stimer_cleanup);
@@ -315,66 +253,18 @@ free_clock_event:
 EXPORT_SYMBOL_GPL(hv_stimer_alloc);
 
 /*
- * hv_stimer_legacy_init -- Called from the VMbus driver to handle
- * the case when Direct Mode is not enabled, and the stimer
- * must be initialized late in the CPU onlining process.
- *
- */
-void hv_stimer_legacy_init(unsigned int cpu, int sint)
-{
-	if (direct_mode_enabled)
-		return;
-
-	/*
-	 * This function gets called by each vCPU, so setting the
-	 * global stimer_message_sint value each time is conceptually
-	 * not ideal, but the value passed in is always the same and
-	 * it avoids introducing yet another interface into this
-	 * clocksource driver just to set the sint in the legacy case.
-	 */
-	stimer0_message_sint = sint;
-	(void)hv_stimer_init(cpu);
-}
-EXPORT_SYMBOL_GPL(hv_stimer_legacy_init);
-
-/*
- * hv_stimer_legacy_cleanup -- Called from the VMbus driver to
- * handle the case when Direct Mode is not enabled, and the
- * stimer must be cleaned up early in the CPU offlining
- * process.
- */
-void hv_stimer_legacy_cleanup(unsigned int cpu)
-{
-	if (direct_mode_enabled)
-		return;
-	(void)hv_stimer_cleanup(cpu);
-}
-EXPORT_SYMBOL_GPL(hv_stimer_legacy_cleanup);
-
-/*
  * Do a global cleanup of clockevents for the cases of kexec and
  * vmbus exit
  */
 void hv_stimer_global_cleanup(void)
 {
-	int	cpu;
-
-	/*
-	 * hv_stime_legacy_cleanup() will stop the stimer if Direct
-	 * Mode is not enabled, and fallback to the LAPIC timer.
-	 */
-	for_each_present_cpu(cpu) {
-		hv_stimer_legacy_cleanup(cpu);
-	}
-
 	if (!hv_clock_event)
 		return;
 
-	if (direct_mode_enabled) {
-		cpuhp_remove_state(CPUHP_AP_HYPERV_TIMER_STARTING);
-		hv_remove_stimer0_irq();
-		stimer0_irq = -1;
-	}
+	cpuhp_remove_state(CPUHP_AP_HYPERV_TIMER_STARTING);
+	hv_remove_stimer0_irq();
+	stimer0_irq = -1;
+
 	free_percpu(hv_clock_event);
 	hv_clock_event = NULL;
 

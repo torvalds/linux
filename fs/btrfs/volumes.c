@@ -749,39 +749,34 @@ const u8 *btrfs_sb_fsid_ptr(const struct btrfs_super_block *sb)
 	return has_metadata_uuid ? sb->metadata_uuid : sb->fsid;
 }
 
-static bool is_same_device(struct btrfs_device *device, const char *new_path)
+static bool should_rename_device(const struct btrfs_device *dev)
 {
-	struct path old = { .mnt = NULL, .dentry = NULL };
-	struct path new = { .mnt = NULL, .dentry = NULL };
-	char AUTO_KFREE(old_path);
-	bool is_same = false;
-	int ret;
-
-	if (!device->name)
-		goto out;
-
-	old_path = kzalloc(PATH_MAX, GFP_NOFS);
-	if (!old_path)
-		goto out;
+	bool ret;
+	const char *old_name;
 
 	rcu_read_lock();
-	ret = strscpy(old_path, rcu_dereference(device->name), PATH_MAX);
+	old_name = rcu_dereference(dev->name);
+	/*
+	 * For systems booted without an initramfs, the rootfs has the device
+	 * name "/dev/root".
+	 *
+	 * Although using btrfs without an initramfs is not recommended (if a
+	 * new device is added to the rootfs, the system can no longer boot, as
+	 * there is no way to register all devices), there is still a minority
+	 * of users doing this.
+	 *
+	 * And after the system is up, a later device scan on the real block
+	 * device file will never get this device's name updated, as the
+	 * device->devt is still the same.
+	 *
+	 * Here we add one and only one exception for "/dev/root", to allow the
+	 * device name to be updated even if the new path points to the same
+	 * block device.
+	 */
+	ret = (strcmp(old_name, "/dev/root") == 0);
 	rcu_read_unlock();
-	if (ret < 0)
-		goto out;
 
-	ret = kern_path(old_path, LOOKUP_FOLLOW, &old);
-	if (ret)
-		goto out;
-	ret = kern_path(new_path, LOOKUP_FOLLOW, &new);
-	if (ret)
-		goto out;
-	if (path_equal(&old, &new))
-		is_same = true;
-out:
-	path_put(&old);
-	path_put(&new);
-	return is_same;
+	return ret;
 }
 
 /*
@@ -904,7 +899,8 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 				MAJOR(path_devt), MINOR(path_devt),
 				current->comm, task_pid_nr(current));
 
-	} else if (!device->name || !is_same_device(device, path)) {
+	} else if (!device->name || device->devt != path_devt ||
+		   should_rename_device(device)) {
 		const char *old_name;
 
 		/*
@@ -3152,7 +3148,11 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 error_sysfs:
 	btrfs_sysfs_remove_device(device);
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	if (seeding_dev)
+		btrfs_assign_next_active_device(device, seed_devices->latest_dev);
 	mutex_lock(&fs_info->chunk_mutex);
+	if (!list_empty(&device->post_commit_list))
+		list_del_init(&device->post_commit_list);
 	list_del_rcu(&device->dev_list);
 	list_del(&device->dev_alloc_list);
 	fs_info->fs_devices->num_devices--;
@@ -4670,7 +4670,7 @@ again:
 		if (ret == -ENOSPC) {
 			enospc_errors++;
 		} else if (ret == -ETXTBSY) {
-			btrfs_info(fs_info,
+			btrfs_warn(fs_info,
 	   "skipping relocation of block group %llu due to active swapfile",
 				   found_key.offset);
 			ret = 0;
@@ -6131,6 +6131,19 @@ struct btrfs_chunk_map *btrfs_alloc_chunk_map(int num_stripes, gfp_t gfp)
 	return map;
 }
 
+static void set_real_chunk_type(struct btrfs_chunk_map *map)
+{
+	map->type = map->on_disk_type;
+	if (likely((map->on_disk_type & BTRFS_BLOCK_GROUP_RAID56_MASK) == 0 ||
+		   nr_data_stripes(map) > 1))
+		return;
+	if (map->on_disk_type & BTRFS_BLOCK_GROUP_RAID5)
+		map->type |= BTRFS_BLOCK_GROUP_RAID1;
+	else
+		map->type |= BTRFS_BLOCK_GROUP_RAID1C3;
+	map->type &= ~BTRFS_BLOCK_GROUP_RAID56_MASK;
+}
+
 static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 			struct alloc_chunk_ctl *ctl,
 			struct btrfs_device_info *devices_info)
@@ -6149,11 +6162,10 @@ static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 	map->start = start;
 	map->chunk_len = ctl->chunk_size;
 	map->stripe_size = ctl->stripe_size;
-	map->type = type;
-	map->io_align = BTRFS_STRIPE_LEN;
-	map->io_width = BTRFS_STRIPE_LEN;
+	map->on_disk_type = type;
 	map->sub_stripes = ctl->sub_stripes;
 	map->num_stripes = ctl->num_stripes;
+	set_real_chunk_type(map);
 
 	for (int i = 0; i < ctl->ndevs; i++) {
 		for (int j = 0; j < ctl->dev_stripes; j++) {
@@ -6332,7 +6344,7 @@ int btrfs_chunk_alloc_add_chunk_item(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_chunk_length(chunk, bg->length);
 	btrfs_set_stack_chunk_owner(chunk, BTRFS_EXTENT_TREE_OBJECTID);
 	btrfs_set_stack_chunk_stripe_len(chunk, BTRFS_STRIPE_LEN);
-	btrfs_set_stack_chunk_type(chunk, map->type);
+	btrfs_set_stack_chunk_type(chunk, map->on_disk_type);
 	btrfs_set_stack_chunk_num_stripes(chunk, map->num_stripes);
 	btrfs_set_stack_chunk_io_align(chunk, BTRFS_STRIPE_LEN);
 	btrfs_set_stack_chunk_io_width(chunk, BTRFS_STRIPE_LEN);
@@ -7714,9 +7726,7 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 	map->start = logical;
 	map->chunk_len = length;
 	map->num_stripes = num_stripes;
-	map->io_width = btrfs_chunk_io_width(leaf, chunk);
-	map->io_align = btrfs_chunk_io_align(leaf, chunk);
-	map->type = type;
+	map->on_disk_type = type;
 	/*
 	 * We can't use the sub_stripes value, as for profiles other than
 	 * RAID10, they may have 0 as sub_stripes for filesystems created by
@@ -7727,6 +7737,7 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 	 */
 	map->sub_stripes = btrfs_raid_array[index].sub_stripes;
 	map->verified_stripes = 0;
+	set_real_chunk_type(map);
 
 	if (num_stripes > 0)
 		map->stripe_size = btrfs_calc_stripe_length(map);

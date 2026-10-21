@@ -5,10 +5,8 @@ config DRM_HISI_HIBMC
 	select DRM_CLIENT_SELECTION
 	select DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
-	select DRM_VRAM_HELPER
-	select DRM_TTM
-	select DRM_TTM_HELPER
 	select I2C
 	select I2C_ALGOBIT
 	help

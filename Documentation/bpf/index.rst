@@ -28,6 +28,7 @@ that goes into great technical depth about the BPF Architecture.
    classic_vs_extended.rst
    bpf_iterators
    bpf_licensing
+   signing
    test_debug
    clang-notes
    linux-notes

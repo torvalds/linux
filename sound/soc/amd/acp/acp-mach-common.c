@@ -938,15 +938,10 @@ static int acp_max98388_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai =
 			snd_soc_card_get_codec_dai(card,
 						   MAX98388_CODEC_DAI);
-	int ret;
 
-	ret = snd_soc_dai_set_fmt(codec_dai,
-				  SND_SOC_DAIFMT_CBC_CFC | SND_SOC_DAIFMT_I2S |
-				  SND_SOC_DAIFMT_NB_NF);
-	if (ret < 0)
-		return ret;
-
-	return ret;
+	return snd_soc_dai_set_fmt(codec_dai,
+				   SND_SOC_DAIFMT_CBC_CFC | SND_SOC_DAIFMT_I2S |
+				   SND_SOC_DAIFMT_NB_NF);
 }
 
 static const struct snd_soc_ops acp_max98388_ops = {

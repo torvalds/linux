@@ -354,7 +354,7 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, irq, uniphier_i2c_interrupt, 0, pdev->name,
 			       priv);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to request irq %d\n", irq);
+		return ret;
 
 	return i2c_add_adapter(&priv->adap);
 }

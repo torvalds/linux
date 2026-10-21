@@ -170,8 +170,9 @@ void vgic_v2_deactivate(struct kvm_vcpu *vcpu, u32 val)
 	/* Make sure we're in the same context as LR handling */
 	local_irq_save(flags);
 
+	/* Guest-supplied INTID: out of range yields no irq, so ignore it */
 	irq = vgic_get_vcpu_irq(vcpu, val);
-	if (WARN_ON_ONCE(!irq))
+	if (!irq)
 		goto out;
 
 	/* See the corresponding v3 code for the rationale */

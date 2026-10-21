@@ -140,8 +140,8 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     switch: ethernet-switch@e0000000 {
       compatible = "microchip,lan966x-switch";
-      reg =  <0xe0000000 0x0100000>,
-             <0xe2000000 0x0800000>;
+      reg = <0xe0000000 0x0100000>,
+            <0xe2000000 0x0800000>;
       reg-names = "cpu", "gcb";
       interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
       interrupt-names = "xtr";

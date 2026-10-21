@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: June 2026
+:Date: August 2026
 
 The goal of Landlock is to enable restriction of ambient rights (e.g. global
 filesystem or network access) for a set of processes.  Because Landlock
@@ -250,7 +250,8 @@ similar backwards compatibility check is needed for the restrict flags
 
     __u32 restrict_flags =
         LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON |
-        LANDLOCK_RESTRICT_SELF_TSYNC;
+        LANDLOCK_RESTRICT_SELF_TSYNC |
+        LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS;
     switch (abi) {
     case 1 ... 6:
         /* Removes logging flags for ABI < 7 */
@@ -269,16 +270,37 @@ similar backwards compatibility check is needed for the restrict flags
          * children (and not for all threads, including parents and siblings).
          */
         restrict_flags &= ~LANDLOCK_RESTRICT_SELF_TSYNC;
+        __attribute__((fallthrough));
+    case 8 ... 10:
+        /* Removes no new privs flag for ABI < 11 */
+        restrict_flags &= ~LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS;
     }
 
 The next step is to restrict the current thread from gaining more privileges
-(e.g. through a SUID binary).  We now have a ruleset with the first rule
-allowing read and execute access to ``/usr`` while denying all other handled
-accesses for the filesystem, and two more rules allowing DNS queries.
+(e.g. through a SUID binary).  For unprivileged processes, setting the
+no_new_privs attribute is required by Landlock.
+
+Processes with ``CAP_SYS_ADMIN`` in their namespace can enforce a ruleset
+without setting no_new_privs, but leaving no_new_privs unset is risky even
+when Landlock does not require this attribute: sandboxed processes could
+still execute set-user-ID, set-group-ID or file-capability binaries, which
+would then run with elevated privileges while being restricted by a Landlock
+domain they may not expect, making them potential confused deputies.
+no_new_privs should only be left unset if such a privilege transition is
+expected.
+
+We now have a ruleset with the first rule allowing read and execute access to
+``/usr`` while denying all other handled accesses for the filesystem, and two
+more rules allowing DNS queries.
 
 .. code-block:: c
 
-    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
+    /*
+     * If the ABI > 10, we can tie setting no_new_privs with successful ruleset
+     * enforcement and skip the manual prctl(PR_SET_NO_NEW_PRIVS, ...) call.
+     */
+    if (!(restrict_flags & LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS) &&
+        prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
         perror("Failed to restrict privileges");
         close(ruleset_fd);
         return 1;
@@ -556,6 +578,9 @@ in the running kernel.
 .. kernel-doc:: security/landlock/errata/abi-1.h
     :doc: erratum_3
 
+.. kernel-doc:: security/landlock/errata/abi-1.h
+    :doc: erratum_4
+
 How to check for errata
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -737,6 +762,8 @@ Starting with the Landlock ABI version 6, it is possible to restrict
 :manpage:`signal(7)` sending by setting ``LANDLOCK_SCOPE_SIGNAL`` to the
 ``scoped`` ruleset attribute.
 
+.. _landlock_log_flags:
+
 Logging (ABI < 7)
 -----------------
 
@@ -744,8 +771,13 @@ Starting with the Landlock ABI version 7, it is possible to control logging of
 Landlock audit events with the ``LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF``,
 ``LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON``, and
 ``LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF`` flags passed to
-sys_landlock_restrict_self().  See Documentation/admin-guide/LSM/landlock.rst
-for more details on audit.
+sys_landlock_restrict_self().  These flags control audit record generation.
+Landlock tracepoints are not affected by these flags and always fire when
+enabled, providing an alternative observability channel for debugging and
+monitoring.  See Documentation/admin-guide/LSM/landlock.rst for more
+details on audit and tracepoints, and
+Documentation/trace/events-landlock.rst for the complete trace event
+reference.
 
 Thread synchronization (ABI < 8)
 --------------------------------
@@ -788,6 +820,19 @@ landlock_ruleset_attr.  The object is marked as quiet within a ruleset
 when at least one sys_landlock_add_rule() call is made for it with the
 ``LANDLOCK_ADD_RULE_QUIET`` flag, additional add-rule calls for the same
 object without this flag do not clear it.
+
+no_new_privs flag (ABI < 11)
+----------------------------
+
+Starting with the Landlock ABI version 11, sys_landlock_restrict_self()
+accepts the ``LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS`` flag, which sets the
+no_new_privs attribute of the calling thread only once the enforcement of
+the ruleset succeeded: no_new_privs is set if and only if the call
+succeeds.  This removes the need for a prior :manpage:`prctl(2)`
+``PR_SET_NO_NEW_PRIVS`` call (or ``CAP_SYS_ADMIN`` use).  When combined
+with ``LANDLOCK_RESTRICT_SELF_TSYNC``, no_new_privs is set on all threads
+of the process.  As explained in the tutorial above, leaving no_new_privs
+unset is risky even when Landlock does not require it.
 
 .. _kernel_support:
 
@@ -887,6 +932,7 @@ Additional documentation
 ========================
 
 * Documentation/admin-guide/LSM/landlock.rst
+* Documentation/trace/events-landlock.rst
 * Documentation/security/landlock.rst
 * https://landlock.io
 

@@ -141,26 +141,37 @@ ritorno di strcpy().  La funzione strscpy() non ritorna un puntatore
 alla destinazione, ma un contatore dei byte non NUL copiati (oppure
 un errno negativo se la stringa è stata troncata).
 
-strncpy() su stringe terminate con NUL
---------------------------------------
-L'utilizzo di strncpy() non fornisce alcuna garanzia sul fatto che
-il buffer di destinazione verrà terminato con il carattere NUL. Questo
-potrebbe portare a diversi overflow di lettura o altri malfunzionamenti
-causati, appunto, dalla mancanza del terminatore. Questa estende la
-terminazione nel buffer di destinazione quando la stringa d'origine è più
-corta; questo potrebbe portare ad una penalizzazione delle prestazioni per
-chi usa solo stringe terminate. La versione sicura da usare è
-strscpy(), tuttavia va prestata attenzione a tutti quei casi dove
-viene usato il valore di ritorno di strncpy().  La funzione strscpy()
-non ritorna un puntatore alla destinazione, ma un contatore dei byte
-non NUL copiati (oppure un errno negativo se la stringa è stata
-troncata). Tutti i casi che necessitano di estendere la
-terminazione con NUL dovrebbero usare strscpy_pad().
+strncpy()
+---------
+La funzione strncpy() è stata rimossa dal kernel. Tutti i chiamanti che
+la usavano sono stati migrati verso alternative più sicure.
 
-Se il chiamate no usa stringhe terminate con NUL, allore strncpy()
-può continuare ad essere usata, ma i buffer di destinazione devono essere
-marchiati con l'attributo `__nonstring <https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html>`_
-per evitare avvisi durante la compilazione.
+strncpy() non garantiva che il buffer di destinazione venisse terminato
+con il carattere NUL, causando overflow di lettura lineari e altri
+malfunzionamenti. Inoltre estendeva incondizionatamente la terminazione
+NUL nel buffer di destinazione, il che era una penalizzazione delle
+prestazioni superflua per i chiamanti che usavano solo stringhe
+terminate con NUL. A causa dei suoi vari comportamenti, si trattava di
+un'API ambigua per determinare quale fosse la reale intenzione
+dell'autore per la copia.
+
+I sostituti di strncpy() sono:
+
+- strscpy(), quando la destinazione deve essere terminata con NUL.
+- strscpy_pad(), quando la destinazione deve essere terminata con NUL
+  ed estesa con zeri (per esempio, strutture che attraversano i confini
+  dei privilegi).
+- memtostr(), per destinazioni terminate con NUL a partire da sorgenti
+  a larghezza fissa non terminate con NUL (con l'attributo
+  `__nonstring` sulla sorgente).
+- memtostr_pad(), per lo stesso caso, ma con estensione tramite zeri.
+- strtomem(), per destinazioni a larghezza fissa non terminate con NUL,
+  con l'attributo `__nonstring` sulla destinazione.
+- strtomem_pad(), per destinazioni non terminate con NUL che
+  necessitano anche di estensione tramite zeri.
+- memcpy_and_pad(), per copie limitate da sorgenti potenzialmente non
+  terminate, quando la dimensione della destinazione è un valore
+  determinato a runtime.
 
 strlcpy()
 ---------
@@ -407,3 +418,37 @@ La macro di supporto dev'essere usata::
             DECLARE_FLEX_ARRAY(struct type2, two);
         };
     };
+
+Assegnazioni kmalloc con codice esplicito per oggetti struct
+--------------------------------------------------------------
+Eseguire assegnazioni con codice esplicito per le allocazioni della
+famiglia kmalloc() impedisce al kernel (e al compilatore) di poter
+esaminare il tipo della variabile a cui viene fatta l'assegnazione, il
+che limita ogni possibile introspezione utile per l'allineamento, per
+l'overflow, o per un ulteriore irrobustimento. Le macro della famiglia
+kmalloc_obj() forniscono questa introspezione, e possono essere usate
+per i più comuni schemi di codice per l'allocazione di un singolo
+oggetto, di un vettore di oggetti, o di un oggetto con un array
+flessibile. Per esempio, queste assegnazioni con codice esplicito::
+
+	ptr = kmalloc(sizeof(*ptr), gfp);
+	ptr = kzalloc(sizeof(*ptr), gfp);
+	ptr = kmalloc_array(count, sizeof(*ptr), gfp);
+	ptr = kcalloc(count, sizeof(*ptr), gfp);
+	ptr = kmalloc(struct_size(ptr, flex_member, count), gfp);
+	ptr = kmalloc(sizeof(struct foo), gfp);
+
+diventano, rispettivamente::
+
+	ptr = kmalloc_obj(*ptr [, gfp] );
+	ptr = kzalloc_obj(*ptr [, gfp] );
+	ptr = kmalloc_objs(*ptr, count [, gfp] );
+	ptr = kzalloc_objs(*ptr, count [, gfp] );
+	ptr = kmalloc_flex(*ptr, flex_member, count [, gfp] );
+	__auto_type ptr = kmalloc_obj(struct foo [, gfp] );
+
+L'argomento gfp è opzionale, e il suo valore predefinito è GFP_KERNEL.
+Se `ptr->flex_member` è annotato con __counted_by(), l'allocazione
+fallirà automaticamente se `count` è più grande del valore massimo
+rappresentabile che può essere memorizzato nel membro contatore
+associato a `flex_member`.

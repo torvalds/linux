@@ -19,6 +19,7 @@
 #include <linux/mmu_context.h>
 #include <linux/sched/sysctl.h>
 #include <uapi/linux/io_uring.h>
+#include <linux/kcov.h>
 
 #include "io-wq.h"
 #include "slist.h"
@@ -211,9 +212,12 @@ static void io_worker_cancel_cb(struct io_worker *worker)
 	struct io_wq *wq = worker->wq;
 
 	atomic_dec(&acct->nr_running);
-	raw_spin_lock(&acct->workers_lock);
-	acct->nr_workers--;
-	raw_spin_unlock(&acct->workers_lock);
+	/* create_worker_cb() has not reserved a worker slot yet. */
+	if (worker->create_work.func != create_worker_cb) {
+		raw_spin_lock(&acct->workers_lock);
+		acct->nr_workers--;
+		raw_spin_unlock(&acct->workers_lock);
+	}
 	io_worker_ref_put(wq);
 	clear_bit_unlock(0, &worker->create_state);
 	io_worker_release(worker);
@@ -643,13 +647,17 @@ static void io_worker_handle_work(struct io_wq_acct *acct,
 			unsigned int hash = __io_wq_is_hashed(work_flags)
 				? __io_get_work_hash(work_flags)
 				: -1U;
+			struct io_kiocb *req;
 
 			next_hashed = wq_next_work(work);
 
 			if (do_kill &&
 			    (work_flags & IO_WQ_WORK_UNBOUND))
 				atomic_or(IO_WQ_WORK_CANCEL, &work->flags);
+			req = container_of(work, struct io_kiocb, work);
+			kcov_remote_start_common(req->ctx->kcov_handle);
 			io_wq_submit_work(work);
+			kcov_remote_stop();
 			io_assign_current_work(worker, NULL);
 
 			linked = io_wq_free_work(work);

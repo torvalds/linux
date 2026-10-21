@@ -38,7 +38,7 @@ static inline bool ha_verify_invariants(struct ha_monitor *ha_mon,
 					enum states next_state, u64 time_ns)
 {
 	if (curr_state == enqueued_stall)
-		return ha_check_invariant_jiffy(ha_mon, clk_stall, time_ns);
+		return ha_check_invariant_jiffy(ha_mon, clk_stall, time_ns, threshold_jiffies);
 	return true;
 }
 

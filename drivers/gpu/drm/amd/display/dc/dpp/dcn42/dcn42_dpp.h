@@ -465,5 +465,11 @@ bool dpp42_construct(struct dcn42_dpp *dpp42,
 	const struct dcn42_dpp_shift *tf_shift,
 	const struct dcn42_dpp_mask *tf_mask);
 
+void dpp42_dpp_cm_hist_control(struct dpp *dpp_base,
+	struct cm_hist_control cntl,
+	enum dc_color_space color_space);
+
+bool dpp42_dpp_cm_hist_read(struct dpp *dpp_base,
+	struct cm_hist *hist_out);
 
 #endif /* __DCN42_DPP_H__ */

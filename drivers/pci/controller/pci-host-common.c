@@ -13,9 +13,11 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
+#include <linux/pci.h>
 #include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
 
+#include "../pci.h"
 #include "pci-host-common.h"
 
 /**
@@ -108,8 +110,7 @@ parse_child_node:
  * dependencies and the driver may fail to operate if required resources
  * are missing.
  *
- * Return: 0 on success, -ENODEV if PERST# found in RC node (legacy binding
- * should be used), Other negative error codes on failure.
+ * Return: 0 on success, negative error codes on failure.
  */
 static int pci_host_common_parse_port(struct device *dev,
 				      struct pci_host_bridge *bridge,
@@ -128,22 +129,6 @@ static int pci_host_common_parse_port(struct device *dev,
 	if (ret)
 		return ret;
 
-	/*
-	 * 1. PERST# found in RP or its child nodes - list is not empty,
-	 *    continue
-	 *
-	 * 2. PERST# not found in RP/children, but found in RC node -
-	 *    return -ENODEV to fallback legacy binding
-	 *
-	 * 3. PERST# not found anywhere - list is empty, continue (optional
-	 *    PERST#)
-	 */
-	if (list_empty(&port->perst)) {
-		if (of_property_present(dev->of_node, "reset-gpios") ||
-		    of_property_present(dev->of_node, "reset-gpio"))
-			return -ENODEV;
-	}
-
 	INIT_LIST_HEAD(&port->list);
 	list_add_tail(&port->list, &bridge->ports);
 
@@ -158,13 +143,11 @@ static int pci_host_common_parse_port(struct device *dev,
  * Iterate through child nodes of the host bridge and parse Root Port
  * properties (currently only reset GPIOs).
  *
- * Return: 0 on success, -ENODEV if no ports found or PERST# found in RC
- * node (legacy binding should be used), Other negative error codes on
- * failure.
+ * Return: 0 on success or ports not found, negative error codes on failure.
  */
 int pci_host_common_parse_ports(struct device *dev, struct pci_host_bridge *bridge)
 {
-	int ret = -ENODEV;
+	int ret = 0;
 
 	for_each_available_child_of_node_scoped(dev->of_node, of_port) {
 		if (!of_node_is_type(of_port, "pci"))
@@ -174,8 +157,8 @@ int pci_host_common_parse_ports(struct device *dev, struct pci_host_bridge *brid
 			goto err_cleanup;
 	}
 
-	if (ret)
-		return ret;
+	if (list_empty(&bridge->ports))
+		return 0;
 
 	return devm_add_action_or_reset(dev, pci_host_common_delete_ports,
 					&bridge->ports);
@@ -341,6 +324,39 @@ bool pci_host_common_d3cold_possible(struct pci_host_bridge *bridge,
 	return !!(flags & PCI_HOST_D3COLD_ALLOWED);
 }
 EXPORT_SYMBOL_GPL(pci_host_common_d3cold_possible);
+
+static pci_ers_result_t pci_host_reset_root_port(struct pci_dev *dev)
+{
+	int ret;
+
+	pci_lock_rescan_remove();
+	ret = pci_bus_error_reset(dev);
+	pci_unlock_rescan_remove();
+	if (ret) {
+		pci_err(dev, "Failed to reset Root Port: %d\n", ret);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	pci_info(dev, "Root Port has been reset\n");
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static void pci_host_recover_root_port(struct pci_dev *port)
+{
+#if IS_ENABLED(CONFIG_PCIEAER)
+	pcie_do_recovery(port, pci_channel_io_frozen, pci_host_reset_root_port);
+#else
+	pci_host_reset_root_port(port);
+#endif
+}
+
+void pci_host_handle_link_down(struct pci_dev *port)
+{
+	pci_info(port, "Recovering Root Port due to Link Down\n");
+	pci_host_recover_root_port(port);
+}
+EXPORT_SYMBOL_GPL(pci_host_handle_link_down);
 
 MODULE_DESCRIPTION("Common library for PCI host controller drivers");
 MODULE_LICENSE("GPL v2");

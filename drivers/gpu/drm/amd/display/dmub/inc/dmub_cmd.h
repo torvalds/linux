@@ -246,14 +246,14 @@
  * OS/FW agnostic memcpy
  */
 #ifndef dmub_memcpy
-#define dmub_memcpy(dest, source, bytes) memcpy((dest), (source), (bytes))
+#define dmub_memcpy(dest, source, bytes) ((void)memcpy((dest), (source), (bytes)))
 #endif
 
 /**
  * OS/FW agnostic memset
  */
 #ifndef dmub_memset
-#define dmub_memset(dest, val, bytes) memset((dest), (val), (bytes))
+#define dmub_memset(dest, val, bytes) ((void)memset((dest), (val), (bytes)))
 #endif
 
 /**
@@ -911,12 +911,48 @@ struct dmub_cursor_offload_pipe_data_dcn401_v1 {
 };
 
 /**
+ * struct dmub_cursor_offload_pipe_data_dcn60_v1 - DCN60 per pipe data.
+ */
+struct dmub_cursor_offload_pipe_data_dcn60_v1 {
+	uint32_t CURSOR0_0_CURSOR_SURFACE_ADDRESS;
+	uint32_t CURSOR0_0_CURSOR_SURFACE_ADDRESS_HIGH;
+	uint32_t CURSOR0_0_CURSOR_SIZE__CURSOR_WIDTH : 16;
+	uint32_t CURSOR0_0_CURSOR_SIZE__CURSOR_HEIGHT : 16;
+	uint32_t CURSOR0_0_CURSOR_POSITION__CURSOR_X_POSITION : 16;
+	uint32_t CURSOR0_0_CURSOR_POSITION__CURSOR_Y_POSITION : 16;
+	uint32_t CURSOR0_0_CURSOR_HOT_SPOT__CURSOR_HOT_SPOT_X : 16;
+	uint32_t CURSOR0_0_CURSOR_HOT_SPOT__CURSOR_HOT_SPOT_Y : 16;
+	uint32_t CURSOR0_0_CURSOR_DST_OFFSET__CURSOR_DST_X_OFFSET : 13;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_ENABLE : 1;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_MODE : 3;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_2X_MAGNIFY : 1;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_PITCH : 2;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_LINES_PER_CHUNK : 5;
+	uint32_t reserved0[4];
+	uint32_t CM_CUR0_CURSOR0_CONTROL__CUR0_ENABLE : 1;
+	uint32_t CM_CUR0_CURSOR0_CONTROL__CUR0_MODE : 3;
+	uint32_t CM_CUR0_CURSOR0_CONTROL__CUR0_EXPANSION_MODE : 1;
+	uint32_t CM_CUR0_CURSOR0_CONTROL__CUR0_ROM_EN : 1;
+	uint32_t CM_CUR0_CURSOR0_COLOR0__CUR0_COLOR0 : 24;
+	uint32_t CM_CUR0_CURSOR0_COLOR1__CUR0_COLOR1 : 24;
+	uint32_t CM_CUR0_CURSOR0_FP_SCALE_BIAS_G_Y__CUR0_FP_BIAS_G_Y : 16;
+	uint32_t CM_CUR0_CURSOR0_FP_SCALE_BIAS_G_Y__CUR0_FP_SCALE_G_Y, : 16;
+	uint32_t CM_CUR0_CURSOR0_FP_SCALE_BIAS_RB_CRCB__CUR0_FP_BIAS_RB_CRCB : 16;
+	uint32_t CM_CUR0_CURSOR0_FP_SCALE_BIAS_RB_CRCB__CUR0_FP_SCALE_RB_CRCB : 16;
+	uint32_t reserved1[4];
+	uint32_t HUBPREQ0_CURSOR_SETTINGS__CURSOR0_DST_Y_OFFSET : 8;
+	uint32_t HUBPREQ0_CURSOR_SETTINGS__CURSOR0_CHUNK_HDL_ADJUST : 8;
+	uint32_t HUBPREQ0_CURSOR_SETTINGS__FORCE_CURSOR_TO_DISP_PREF : 1;
+	uint32_t reserved2[3];
+};
+/**
  * struct dmub_cursor_offload_pipe_data_v1 - Per pipe data for cursor offload.
  */
 struct dmub_cursor_offload_pipe_data_v1 {
 	union {
 		struct dmub_cursor_offload_pipe_data_dcn30_v1 dcn30; /**< DCN30 cursor data. */
 		struct dmub_cursor_offload_pipe_data_dcn401_v1 dcn401; /**< DCN401 cursor data. */
+		struct dmub_cursor_offload_pipe_data_dcn60_v1 dcn60; /**< DCN60 cursor data. */
 		uint8_t payload[96]; /**< Guarantees the cursor pipe data size per-pipe. */
 	};
 };
@@ -1702,6 +1738,17 @@ enum dmub_gpint_command {
 	 * ARGS: 1 - Power off
 	 */
 	DMUB_GPINT__PANEL_POWER_OFF_SEQ = 138,
+	/**
+	 * DESC: Gets panel polarity bias.
+	 * ARGS: 0 - Get panel polarity bias
+	 */
+	DMUB_GPINT__PANEL_POLARITY_GET_BIAS = 139,
+	/**
+	 * DESC: Enables panel polarity.
+	 * ARGS: 0 - Disable panel polarity
+	 *       1 - Enable panel polarity
+	 */
+	DMUB_GPINT__PANEL_POLARITY_DEBUG_ENABLE = 140,
 };
 
 /**
@@ -1800,28 +1847,13 @@ enum dmub_inbox0_command {
  *
  * Command IDs should be treated as stable ABI.
  * Do not reuse or modify IDs.
+ * Note that command IDs 1-4 have been deprecated.
  */
 enum dmub_cmd_type {
 	/**
 	 * Invalid command.
 	 */
 	DMUB_CMD__NULL = 0,
-	/**
-	 * Read modify write register sequence offload.
-	 */
-	DMUB_CMD__REG_SEQ_READ_MODIFY_WRITE = 1,
-	/**
-	 * Field update register sequence offload.
-	 */
-	DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ = 2,
-	/**
-	 * Burst write sequence offload.
-	 */
-	DMUB_CMD__REG_SEQ_BURST_WRITE = 3,
-	/**
-	 * Reg wait sequence offload.
-	 */
-	DMUB_CMD__REG_REG_WAIT = 4,
 	/**
 	 * Workaround to avoid HUBP underflow during NV12 playback.
 	 */
@@ -1972,6 +2004,11 @@ enum dmub_cmd_type {
 	DMUB_CMD__BOOT_TIME_CRC = 96,
 
 	/**
+	 * Command type use for all Panel Polarity commands.
+	 */
+	DMUB_CMD__PANEL_POLARITY = 97,
+
+	/**
 	 * Command type use for VBIOS shared commands.
 	 */
 	DMUB_CMD__VBIOS = 128,
@@ -2041,98 +2078,6 @@ struct dmub_cmd_header {
 	unsigned int reserved1 : 2; /**< reserved bits */
 };
 
-/*
- * struct dmub_cmd_read_modify_write_sequence - Read modify write
- *
- * 60 payload bytes can hold up to 5 sets of read modify writes,
- * each take 3 dwords.
- *
- * number of sequences = header.payload_bytes / sizeof(struct dmub_cmd_read_modify_write_sequence)
- *
- * modify_mask = 0xffff'ffff means all fields are going to be updated.  in this case
- * command parser will skip the read and we can use modify_mask = 0xffff'ffff as reg write
- */
-struct dmub_cmd_read_modify_write_sequence {
-	uint32_t addr; /**< register address */
-	uint32_t modify_mask; /**< modify mask */
-	uint32_t modify_value; /**< modify value */
-};
-
-/**
- * Maximum number of ops in read modify write sequence.
- */
-#define DMUB_READ_MODIFY_WRITE_SEQ__MAX 5
-
-/**
- * struct dmub_cmd_read_modify_write_sequence - Read modify write command.
- */
-struct dmub_rb_cmd_read_modify_write {
-	struct dmub_cmd_header header;  /**< command header */
-	/**
-	 * Read modify write sequence.
-	 */
-	struct dmub_cmd_read_modify_write_sequence seq[DMUB_READ_MODIFY_WRITE_SEQ__MAX];
-};
-
-/*
- * Update a register with specified masks and values sequeunce
- *
- * 60 payload bytes can hold address + up to 7 sets of mask/value combo, each take 2 dword
- *
- * number of field update sequence = (header.payload_bytes - sizeof(addr)) / sizeof(struct read_modify_write_sequence)
- *
- *
- * USE CASE:
- *   1. auto-increment register where additional read would update pointer and produce wrong result
- *   2. toggle a bit without read in the middle
- */
-
-struct dmub_cmd_reg_field_update_sequence {
-	uint32_t modify_mask; /**< 0xffff'ffff to skip initial read */
-	uint32_t modify_value; /**< value to update with */
-};
-
-/**
- * Maximum number of ops in field update sequence.
- */
-#define DMUB_REG_FIELD_UPDATE_SEQ__MAX 7
-
-/**
- * struct dmub_rb_cmd_reg_field_update_sequence - Field update command.
- */
-struct dmub_rb_cmd_reg_field_update_sequence {
-	struct dmub_cmd_header header; /**< command header */
-	uint32_t addr; /**< register address */
-	/**
-	 * Field update sequence.
-	 */
-	struct dmub_cmd_reg_field_update_sequence seq[DMUB_REG_FIELD_UPDATE_SEQ__MAX];
-};
-
-
-/**
- * Maximum number of burst write values.
- */
-#define DMUB_BURST_WRITE_VALUES__MAX  14
-
-/*
- * struct dmub_rb_cmd_burst_write - Burst write
- *
- * support use case such as writing out LUTs.
- *
- * 60 payload bytes can hold up to 14 values to write to given address
- *
- * number of payload = header.payload_bytes / sizeof(struct read_modify_write_sequence)
- */
-struct dmub_rb_cmd_burst_write {
-	struct dmub_cmd_header header; /**< command header */
-	uint32_t addr; /**< register start address */
-	/**
-	 * Burst write register values.
-	 */
-	uint32_t write_values[DMUB_BURST_WRITE_VALUES__MAX];
-};
-
 /**
  * struct dmub_rb_cmd_common - Common command header
  */
@@ -2142,24 +2087,6 @@ struct dmub_rb_cmd_common {
 	 * Padding to RB_CMD_SIZE
 	 */
 	uint8_t cmd_buffer[DMUB_RB_CMD_SIZE - sizeof(struct dmub_cmd_header)];
-};
-
-/**
- * struct dmub_cmd_reg_wait_data - Register wait data
- */
-struct dmub_cmd_reg_wait_data {
-	uint32_t addr; /**< Register address */
-	uint32_t mask; /**< Mask for register bits */
-	uint32_t condition_field_value; /**< Value to wait for */
-	uint32_t time_out_us; /**< Time out for reg wait in microseconds */
-};
-
-/**
- * struct dmub_rb_cmd_reg_wait - Register wait command
- */
-struct dmub_rb_cmd_reg_wait {
-	struct dmub_cmd_header header; /**< Command header */
-	struct dmub_cmd_reg_wait_data reg_wait; /**< Register wait data */
 };
 
 /**
@@ -2574,6 +2501,7 @@ enum fams2_stream_type {
 	FAMS2_STREAM_TYPE_VACTIVE = 2,
 	FAMS2_STREAM_TYPE_DRR = 3,
 	FAMS2_STREAM_TYPE_SUBVP = 4,
+	FAMS2_STREAM_TYPE_ALTERNATE = 5,
 };
 
 struct dmub_rect16 {
@@ -2596,6 +2524,140 @@ struct dmub_rect16 {
 	 * Dirty rect height.
 	 */
 	uint16_t height;
+};
+
+struct plane_pipe_rect {
+	struct dmub_rect16 luma;
+	struct dmub_rect16 chroma;
+};
+
+/**
+ * Structure to hold the LSDMA source / dest copy parameters.
+ * Each field is an array of [2][4]:
+ * [2] - Instance 0 is the copy for current frame, instance 1 is the copy for next frame (instance 1 potentially unused if no next)
+ * [4] - One instance per pipe
+ */
+
+struct lsdma_outputs {
+	uint16_t src_x[2][4]; // src x position for the copy. Array of [2][4] for curr vs. next and each pipe
+	uint16_t src_y[2][4]; // src y position for the copy
+	uint16_t dst_x[2][4]; // dst x position for the copy (can change for curr vs. next)
+	uint16_t dst_y[2][4]; // dst y position for the copy (can change for curr vs. next)
+	uint16_t width[2][4]; // src and dst width for the copy (src and dst must match)
+	uint16_t height[2][4]; // src and dst height for the copy (src and dst must match)
+	uint16_t dst_pitch[4]; // dst pitch for the copy (same for curr and next)
+};
+
+struct dmub_fams2_alternate_stream_dynamic_state {
+	uint64_t earliest_init_tick; // track earliest possible init tick for calculating is_tick_in_allow
+	uint32_t otg_frame_pending_clear[3]; // In this context pending means prefetch has never been completed for this frame yet
+	uint8_t flip_pending_clear_order[3];
+	uint8_t num_pending_flips;
+	uint32_t prefetch_start_line_x1000[3]; // can compute from existing params, but store because we use this multiple times
+	uint16_t prefetch_end_line[3]; // can compute from existing params, but store because we use this multiple times
+	uint16_t recout_y[3];
+	uint8_t flip_pending[3];
+	uint8_t copy_from_earliest[3];
+	uint16_t lsdma_bandwidth_mbps;
+	uint16_t vstartup_line;
+	uint16_t vready_line;
+	uint8_t cursor_size[3]; //  Cursor array per plane for now - if we assume a single cursor, then we don't need an array
+	uint8_t pad; // to maintain alignment for below fields - re-arrange structure once all fields are finalized
+	/* outputs: */
+	uint16_t subvp_start_line_a[3];
+	uint16_t subvp_height_a[3];
+	uint16_t subvp_next_start_line_a[3];
+	uint16_t subvp_next_height_a[3];
+	uint16_t subvp_start_line_b[3];
+	uint16_t subvp_height_b[3];
+	uint16_t subvp_next_start_line_b[3];
+	uint16_t subvp_next_height_b[3];
+	uint16_t subvp_c_start_line_a[3];
+	uint16_t subvp_c_height_a[3];
+	uint16_t subvp_c_next_start_line_a[3];
+	uint16_t subvp_c_next_height_a[3];
+	uint16_t subvp_c_start_line_b[3];
+	uint16_t subvp_c_height_b[3];
+	uint16_t subvp_c_next_start_line_b[3];
+	uint16_t subvp_c_next_height_b[3];
+	uint8_t subvp_position[3];
+	uint8_t pad1[1]; // to maintain alignment for below fields - re-arrange structure once all fields are finalized
+	uint32_t program_go_line;
+	uint32_t program_go_frame_count;
+	uint16_t svp0_start_dst_line;
+	uint16_t svp0_end_dst_line;
+	uint16_t svp1_start_dst_line;
+	uint16_t svp1_end_dst_line;
+	struct lsdma_outputs lsdma[2]; // [2] - instance per SVP0 and SVP1
+	struct lsdma_outputs lsdma_c[2]; // [2] - instance per SVP0 and SVP1
+};
+struct dmub_fams2_cmd_alternate_stream_static_state {
+	uint32_t total_bytes_to_copy;
+	uint16_t svp0_dst_lines; // per stream
+	uint16_t svp1_dst_lines; // per stream
+	uint16_t min_lead_dst_lines; // per stream, should be max(nominal_req_limit, vstartup_to_vactive). Does not have to be maxed over all planes
+	uint16_t svp_req_limit; // per stream, should be the same value in time between all streams max(2 swaths, dst_y_pre) over all planes
+	uint16_t fw_delays;
+	uint16_t vstartup_start;
+	uint16_t rec_height[3];
+	uint16_t viewport_start[3];
+	uint16_t viewport_size[3]; // for now size will be the number of lines perpendicular to scan direction (height for 0 / 180, width for 90 and 270)
+	uint16_t viewport_start_c[3];
+	uint16_t viewport_size_c[3];
+	uint16_t surface_pitch[3];
+	uint16_t surface_pitch_c[3];
+	uint16_t surface_height[3];
+	uint16_t surface_height_c[3];
+	uint8_t element_size[3];
+	uint8_t element_size_c[3];
+	uint8_t swizzle_mode[3]; // TODO: Add mapping, should be value used in LSDMA command
+	uint8_t vready_offset_lines; // vready offset from vstartup in lines (rounded up, as the actual offset may be a fraction of a line)
+	uint16_t dst_y_prefetch_x1000[3];
+	uint16_t total_swaths[3];
+	uint16_t total_swaths_c[3];
+	uint8_t prefetch_swaths[3];
+	uint8_t prefetch_swaths_c[3];
+	uint8_t swath_height[3];
+	uint8_t swath_height_c[3];
+	uint16_t block_256b_width[3];
+	uint16_t block_256b_height[3];
+	uint16_t block_256b_width_c[3];
+	uint16_t block_256b_height_c[3];
+	uint16_t macro_tile_width[3];
+	uint16_t macro_tile_width_c[3];
+	union {
+		struct {
+			uint8_t is_multi_planar : 1;
+			uint8_t is_yuv420 : 1;
+			uint8_t prefetch_relative_vblank : 1;
+			uint8_t vertical_access : 1; // vertical_access = 1 means 90 or 270 rotation
+			uint8_t access_direction : 1; // access_direction = 1 means bigger to smaller coordinations (e.g., scan from 2160 to 0 as opposed to regular 0 to 2160)
+			uint8_t dcc : 1;
+			uint8_t tmz : 1; // TODO: Need to assign outside of DML (DML not aware of TMZ)
+		} bits;
+		uint8_t all;
+	} config[3];
+	uint8_t max_cursor_size;
+	uint16_t pre_hdl_delta_x1000[3];
+	uint16_t pre_hdl_delta_c_x1000[3];
+	uint16_t rec_hdl_delta_x1000[3];
+	uint16_t rec_hdl_delta_c_x1000[3];
+	uint16_t dst_y_per_vm_vblank_x1000[3];
+	uint16_t dst_y_per_row_vblank_x1000[3];
+	uint16_t dst_y_after_scaler[3];
+	uint16_t vinit_prefill[3];
+	uint16_t vinit_prefill_c[3];
+	uint16_t vratio_x1000[3];
+	uint16_t vratio_c_x1000[3];
+	struct plane_pipe_rect pipe_viewports[4];
+	/* TODO - remove these deprecated vars */
+	uint32_t pipe_copy_offset[2][4]; // [2] - SVP0/1, [4] - 4 pipes
+	uint32_t pipe_copy_offset_c[2][4];
+	/* bits 47:16 of the surface address */
+	uint32_t pipe_copy_addr_47_16[2][4]; // [2] - SVP0/1, [4] - 4 pipes
+	uint32_t pipe_copy_addr_47_16_c[2][4];
+	uint32_t pipe_copy_max_size[2][4];
+	uint32_t pipe_copy_max_size_c[2][4];
 };
 
 /* static stream state */
@@ -2676,6 +2738,7 @@ union dmub_fams2_cmd_stream_static_sub_state {
 
 union dmub_fams2_stream_static_sub_state_v2 {
 	COMMON_STREAM_STATIC_SUB_STATE
+	struct dmub_fams2_cmd_alternate_stream_static_state alternate;
 }; //v2
 
 struct dmub_fams2_stream_static_state {
@@ -2769,7 +2832,8 @@ union dmub_fams2_global_feature_config {
 		uint32_t enable_visual_confirm: 1;
 		uint32_t allow_delay_check_mode: 2;
 		uint32_t legacy_method_no_fams2 : 1;
-		uint32_t reserved : 23;
+		uint32_t alternate_channel_workaround : 1;
+		uint32_t reserved: 22;
 	} bits;
 	uint32_t all;
 };
@@ -4491,6 +4555,15 @@ enum dmub_cmd_replay_type {
 };
 
 /*
+ * Panel Polarity sub-types
+ */
+enum dmub_cmd_panel_polarity_type {
+	DMUB_CMD__PANEL_POLARITY_ENABLE = 0,
+	DMUB_CMD__PANEL_POLARITY_GET_BIAS = 1,
+	DMUB_CMD__PANEL_POLARITY_RESET = 2,
+};
+
+/*
  * Panel Replay sub-types
  */
 enum dmub_cmd_panel_replay_type {
@@ -6183,6 +6256,10 @@ enum dmub_cmd_cacp_type {
 	 * Get CACP Histogram
 	 */
 	DMUB_CMD__CACP_GET_HISTOGRAM = 7,
+	/**
+	 * Get ACE curve area for IGT test validation.
+	 */
+	DMUB_CMD__CACP_GET_ACE_CURVE_AREA = 8,
 };
 
 /**
@@ -6440,9 +6517,42 @@ struct dmub_cmd_cacp_set_backlight_data {
 	uint8_t panel_mask;
 
 	/**
+	 * AUX HW Instance.
+	 */
+	uint8_t aux_inst;
+
+	/**
 	 * Explicit padding to 4 byte boundary.
 	 */
-	uint8_t pad[2];
+	uint8_t pad[1];
+
+	/**
+	 * Backlight control type.
+	 * Value 0 is PWM backlight control.
+	 * Value 1 is VAUX backlight control.
+	 * Value 2 is AMD DPCD AUX backlight control.
+	 */
+	enum dmub_backlight_control_type backlight_control_type;
+
+	/**
+	 * Minimum luminance in nits.
+	 */
+	uint32_t min_luminance;
+
+	/**
+	 * Maximum luminance in nits.
+	 */
+	uint32_t max_luminance;
+
+	/**
+	 * Minimum backlight in pwm.
+	 */
+	uint32_t min_backlight_pwm;
+
+	/**
+	 * Maximum backlight in pwm.
+	 */
+	uint32_t max_backlight_pwm;
 };
 
 /**
@@ -6536,6 +6646,50 @@ struct dmub_rb_cmd_cacp_get_histogram {
 	 * Explicit padding to 4 byte boundary.
 	 */
 	uint8_t pad;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__CACP_GET_ACE_CURVE_AREA command.
+ */
+struct dmub_cmd_cacp_get_ace_curve_area_in {
+	/**
+	 * eDP panel instance (0-based).
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[3];
+};
+
+/**
+ * Data returned from FW in a DMUB_CMD__CACP_GET_ACE_CURVE_AREA command.
+ */
+struct dmub_cmd_cacp_get_ace_curve_area_out {
+	/**
+	 * Computed area under the ACE PWL curve (trapezoidal integration).
+	 * Lower value = stronger dimming (higher CACP level).
+	 * Directly comparable across levels.
+	 */
+	uint32_t area;
+};
+
+/**
+ * Definition of a DMUB_CMD__CACP_GET_ACE_CURVE_AREA command.
+ * Uses inline response pattern: input and output share the data union.
+ */
+struct dmub_rb_cmd_cacp_get_ace_curve_area {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data union for input/output.
+	 */
+	union {
+		struct dmub_cmd_cacp_get_ace_curve_area_in in;
+		struct dmub_cmd_cacp_get_ace_curve_area_out out;
+	} data;
 };
 
 /**
@@ -7123,6 +7277,80 @@ struct dmub_cmd_pr_enable_data {
 	uint8_t pad[2];
 };
 
+struct dmub_cmd_panel_polarity_enable_data {
+	/**
+	 * Panel Polarity enable or disable.
+	 */
+	uint8_t enable;
+	/**
+	 * OTG instance
+	 */
+	uint8_t otg_inst;
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
+struct dmub_cmd_panel_polarity_reset_data {
+	/**
+	 * OTG instance
+	 */
+	uint8_t otg_inst;
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[3];
+};
+
+struct dmub_cmd_panel_polarity_get_bias_input {
+	/**
+	 * OTG instance
+	 */
+	uint8_t otg_inst;
+	uint8_t pad[3];
+};
+
+struct dmub_cmd_panel_polarity_get_bias_output {
+	/**
+	 * Accumulated Polarity Bias
+	 */
+	int32_t accumulated_bias;
+};
+
+struct dmub_rb_cmd_panel_polarity_enable {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	struct dmub_cmd_panel_polarity_enable_data data;
+};
+
+
+struct dmub_rb_cmd_panel_polarity_get_bias {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	union dmub_cmd_panel_polarity_get_bias_data {
+		struct dmub_cmd_panel_polarity_get_bias_input input; /**< Input */
+		struct dmub_cmd_panel_polarity_get_bias_output output; /**< Output */
+		uint32_t output_raw; /**< Raw data output */
+	} data;
+};
+
+struct dmub_rb_cmd_panel_polarity_reset {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	struct dmub_cmd_panel_polarity_reset_data data;
+};
+
+
 /**
  * Definition of a DMUB_CMD__PR_ENABLE command.
  * Panel Replay enable/disable is controlled using action in data.
@@ -7255,6 +7483,7 @@ struct dmub_rb_cmd_pr_copy_settings {
 union dmub_pr_runtime_flags {
 	struct {
 		uint32_t disable_abm_optimization : 1; // Disable ABM optimization for PR
+		uint32_t abm_periodic_ffu_allowed : 1; // DAL: scenario wants periodic ABM keep-alive FFU
 	} bitfields;
 	uint32_t u32All;
 };
@@ -7362,22 +7591,6 @@ union dmub_rb_cmd {
 	 * Elements shared with all commands.
 	 */
 	struct dmub_rb_cmd_common cmd_common;
-	/**
-	 * Definition of a DMUB_CMD__REG_SEQ_READ_MODIFY_WRITE command.
-	 */
-	struct dmub_rb_cmd_read_modify_write read_modify_write;
-	/**
-	 * Definition of a DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ command.
-	 */
-	struct dmub_rb_cmd_reg_field_update_sequence reg_field_update_seq;
-	/**
-	 * Definition of a DMUB_CMD__REG_SEQ_BURST_WRITE command.
-	 */
-	struct dmub_rb_cmd_burst_write burst_write;
-	/**
-	 * Definition of a DMUB_CMD__REG_REG_WAIT command.
-	 */
-	struct dmub_rb_cmd_reg_wait reg_wait;
 	/**
 	 * Definition of a DMUB_CMD__VBIOS_DIGX_ENCODER_CONTROL command.
 	 */
@@ -7652,6 +7865,11 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_cacp_get_histogram cacp_get_histogram;
 
 	/**
+	 * Definition of a DMUB_CMD__CACP_GET_ACE_CURVE_AREA command.
+	 */
+	struct dmub_rb_cmd_cacp_get_ace_curve_area cacp_get_ace_curve_area;
+
+	/**
 	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
 	 */
 	struct dmub_rb_cmd_idle_opt_dcn_notify_idle idle_opt_notify_idle;
@@ -7754,6 +7972,7 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_pr_update_state pr_update_state;
 
 	struct dmub_rb_cmd_pr_general_cmd pr_general_cmd;
+
 	/**
 	 * Definition of a DMUB_CMD__IHC command.
 	 */
@@ -7762,6 +7981,13 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__BOOT_TIME_CRC_INIT command.
 	 */
 	struct dmub_rb_cmd_boot_time_crc_init boot_time_crc_init;
+
+	/**
+	 * Definition of a DMUB_CMD__PANEL_POLARITY_ENABLE command.
+	 */
+	struct dmub_rb_cmd_panel_polarity_enable panel_polarity_enable;
+	struct dmub_rb_cmd_panel_polarity_get_bias panel_polarity_get_bias;
+	struct dmub_rb_cmd_panel_polarity_reset panel_polarity_reset;
 };
 
 /**

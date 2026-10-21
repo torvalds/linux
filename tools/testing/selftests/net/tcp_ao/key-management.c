@@ -63,8 +63,8 @@ static int prepare_lsk(union tcp_addr *addr, uint8_t sndid, uint8_t rcvid)
 	return sk;
 }
 
-static int test_del_key(int sk, uint8_t sndid, uint8_t rcvid, bool async,
-			int current_key, int rnext_key)
+static int test_del_key(int sk, uint8_t sndid, uint8_t rcvid, int ifindex,
+			bool async, int current_key, int rnext_key)
 {
 	struct tcp_ao_info_opt ao_info = {};
 	struct tcp_ao_getsockopt key = {};
@@ -76,6 +76,10 @@ static int test_del_key(int sk, uint8_t sndid, uint8_t rcvid, bool async,
 	del.prefix = DEFAULT_TEST_PREFIX;
 	del.sndid = sndid;
 	del.rcvid = rcvid;
+	if (ifindex) {
+		del.keyflags = TCP_AO_KEYF_IFINDEX;
+		del.ifindex = ifindex;
+	}
 
 	if (current_key >= 0) {
 		del.set_current = 1;
@@ -95,7 +99,8 @@ static int test_del_key(int sk, uint8_t sndid, uint8_t rcvid, bool async,
 
 	tcp_addr_to_sockaddr_in(&sockaddr, &this_ip_dest, 0);
 	err = test_get_one_ao(sk, &key, &sockaddr, sizeof(sockaddr),
-			      DEFAULT_TEST_PREFIX, sndid, rcvid);
+			      DEFAULT_TEST_PREFIX, sndid, rcvid,
+			      del.keyflags, del.ifindex);
 	if (!err)
 		return -EEXIST;
 	if (err != -E2BIG)
@@ -112,12 +117,12 @@ static int test_del_key(int sk, uint8_t sndid, uint8_t rcvid, bool async,
 }
 
 static void try_delete_key(char *tst_name, int sk, uint8_t sndid, uint8_t rcvid,
-			   bool async, int current_key, int rnext_key,
+			   int ifindex, bool async, int current_key, int rnext_key,
 			   fault_t inj)
 {
 	int err;
 
-	err = test_del_key(sk, sndid, rcvid, async, current_key, rnext_key);
+	err = test_del_key(sk, sndid, rcvid, ifindex, async, current_key, rnext_key);
 	if ((err == -EBUSY && fault(BUSY)) || (err == -EINVAL && fault(CURRNEXT))) {
 		test_ok("%s: key deletion was prevented", tst_name);
 		return;
@@ -236,15 +241,15 @@ static void check_closed_socket(void)
 	int sk;
 
 	sk = prepare_sk(&this_ip_dest, 200, 200);
-	try_delete_key("closed socket, delete a key", sk, 200, 200, 0, -1, -1, 0);
-	try_delete_key("closed socket, delete all keys", sk, 100, 100, 0, -1, -1, 0);
+	try_delete_key("closed socket, delete a key", sk, 200, 200, 0, 0, -1, -1, 0);
+	try_delete_key("closed socket, delete all keys", sk, 100, 100, 0, 0, -1, -1, 0);
 	close(sk);
 
 	sk = prepare_sk(&this_ip_dest, 200, 200);
 	if (test_set_key(sk, 100, 200))
 		test_error("failed to set current/rnext keys");
-	try_delete_key("closed socket, delete current key", sk, 100, 100, 0, -1, -1, FAULT_BUSY);
-	try_delete_key("closed socket, delete rnext key", sk, 200, 200, 0, -1, -1, FAULT_BUSY);
+	try_delete_key("closed socket, delete current key", sk, 100, 100, 0, 0, -1, -1, FAULT_BUSY);
+	try_delete_key("closed socket, delete rnext key", sk, 200, 200, 0, 0, -1, -1, FAULT_BUSY);
 	close(sk);
 
 	sk = prepare_sk(&this_ip_dest, 200, 200);
@@ -254,10 +259,12 @@ static void check_closed_socket(void)
 	if (test_add_key(sk, "Glory to Ukraine!", this_ip_dest,
 			 DEFAULT_TEST_PREFIX, 12, 13))
 		test_error("test_add_key()");
-	try_delete_key("closed socket, delete a key + set current/rnext", sk, 100, 100, 0, 10, 13, 0);
-	try_delete_key("closed socket, force-delete current key", sk, 10, 11, 0, 200, -1, 0);
-	try_delete_key("closed socket, force-delete rnext key", sk, 12, 13, 0, -1, 200, 0);
-	try_delete_key("closed socket, delete current+rnext key", sk, 200, 200, 0, -1, -1, FAULT_BUSY);
+	try_delete_key("closed socket, delete a key + set current/rnext", sk,
+		       100, 100, 0, 0, 10, 13, 0);
+	try_delete_key("closed socket, force-delete current key", sk, 10, 11, 0, 0, 200, -1, 0);
+	try_delete_key("closed socket, force-delete rnext key", sk, 12, 13, 0, 0, -1, 200, 0);
+	try_delete_key("closed socket, delete current+rnext key", sk,
+		       200, 200, 0, 0, -1, -1, FAULT_BUSY);
 	close(sk);
 
 	sk = prepare_sk(&this_ip_dest, 200, 200);
@@ -272,6 +279,18 @@ static void check_closed_socket(void)
 				  this_ip_dest, DEFAULT_TEST_PREFIX,
 				  false, true, 20, 10, 0);
 	close(sk);
+
+	if (!should_skip_test("closed socket, add + delete VRF-scoped key",
+			      KCONFIG_NET_VRF)) {
+		sk = prepare_sk(&this_ip_dest, 200, 200);
+		if (test_add_key_vrf(sk, SECOND_PASSWORD, TCP_AO_KEYF_IFINDEX,
+				     this_ip_dest, DEFAULT_TEST_PREFIX,
+				     test_vrf_ifindex, 201, 201))
+			test_error("test_add_key_vrf()");
+		try_delete_key("closed socket, add + delete VRF-scoped key", sk, 201, 201,
+			       test_vrf_ifindex, 0, -1, -1, 0);
+		close(sk);
+	}
 }
 
 static void assert_no_current_rnext(const char *tst_msg, int sk)
@@ -322,8 +341,8 @@ static void check_listen_socket(void)
 	int sk, err;
 
 	sk = prepare_lsk(&this_ip_dest, 200, 200);
-	try_delete_key("listen socket, delete a key", sk, 200, 200, 0, -1, -1, 0);
-	try_delete_key("listen socket, delete all keys", sk, 100, 100, 0, -1, -1, 0);
+	try_delete_key("listen socket, delete a key", sk, 200, 200, 0, 0, -1, -1, 0);
+	try_delete_key("listen socket, delete all keys", sk, 100, 100, 0, 0, -1, -1, 0);
 	close(sk);
 
 	sk = prepare_lsk(&this_ip_dest, 200, 200);
@@ -345,8 +364,10 @@ static void check_listen_socket(void)
 	if (listen(sk, 10))
 		test_error("listen()");
 	assert_no_current_rnext("listen() after current/rnext keys set", sk);
-	try_delete_key("listen socket, delete current key from before listen()", sk, 100, 100, 0, -1, -1, FAULT_FIXME);
-	try_delete_key("listen socket, delete rnext key from before listen()", sk, 200, 200, 0, -1, -1, FAULT_FIXME);
+	try_delete_key("listen socket, delete current key from before listen()", sk,
+		       100, 100, 0, 0, -1, -1, FAULT_FIXME);
+	try_delete_key("listen socket, delete rnext key from before listen()", sk,
+		       200, 200, 0, 0, -1, -1, FAULT_FIXME);
 	close(sk);
 
 	assert_no_tcp_repair();
@@ -359,13 +380,13 @@ static void check_listen_socket(void)
 			 DEFAULT_TEST_PREFIX, 12, 13))
 		test_error("test_add_key()");
 	try_delete_key("listen socket, delete a key + set current/rnext", sk,
-		       100, 100, 0, 10, 13, FAULT_CURRNEXT);
+		       100, 100, 0, 0, 10, 13, FAULT_CURRNEXT);
 	try_delete_key("listen socket, force-delete current key", sk,
-		       10, 11, 0, 200, -1, FAULT_CURRNEXT);
+		       10, 11, 0, 0, 200, -1, FAULT_CURRNEXT);
 	try_delete_key("listen socket, force-delete rnext key", sk,
-		       12, 13, 0, -1, 200, FAULT_CURRNEXT);
+		       12, 13, 0, 0, -1, 200, FAULT_CURRNEXT);
 	try_delete_key("listen socket, delete a key", sk,
-		       200, 200, 0, -1, -1, 0);
+		       200, 200, 0, 0, -1, -1, 0);
 	close(sk);
 
 	sk = prepare_lsk(&this_ip_dest, 200, 200);
@@ -1131,7 +1152,6 @@ static void check_established_socket(void)
 {
 	unsigned int port = test_server_port;
 
-	setup_vrfs();
 	try_client_run("client: Check current/rnext keys unset before connect()",
 		       port++, 20, -1, -1);
 	try_client_run("client: Check current/rnext keys set before connect()",
@@ -1150,6 +1170,7 @@ static void *client_fn(void *arg)
 {
 	if (inet_pton(TEST_FAMILY, TEST_WRONG_IP, &wrong_addr) != 1)
 		test_error("Can't convert ip address %s", TEST_WRONG_IP);
+	setup_vrfs();
 	check_closed_socket();
 	check_listen_socket();
 	check_established_socket();
@@ -1158,6 +1179,6 @@ static void *client_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
-	test_init(121, server_fn, client_fn);
+	test_init(122, server_fn, client_fn);
 	return 0;
 }

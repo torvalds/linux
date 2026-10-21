@@ -1574,30 +1574,6 @@ static void blk_zone_wplug_handle_native_zone_append(struct bio *bio)
 	disk_put_zone_wplug(zwplug);
 }
 
-static bool blk_zone_wplug_handle_zone_mgmt(struct bio *bio)
-{
-	if (bio_op(bio) != REQ_OP_ZONE_RESET_ALL &&
-	    !bdev_zone_is_seq(bio->bi_bdev, bio->bi_iter.bi_sector)) {
-		/*
-		 * Zone reset and zone finish operations do not apply to
-		 * conventional zones.
-		 */
-		bio_io_error(bio);
-		return true;
-	}
-
-	/*
-	 * No-wait zone management BIOs do not make much sense as the callers
-	 * issue these as blocking operations in most cases. To avoid issues
-	 * with the BIO execution potentially failing with BLK_STS_AGAIN, warn
-	 * about REQ_NOWAIT being set and ignore that flag.
-	 */
-	if (WARN_ON_ONCE(bio->bi_opf & REQ_NOWAIT))
-		bio->bi_opf &= ~REQ_NOWAIT;
-
-	return false;
-}
-
 /**
  * blk_zone_plug_bio - Handle a zone write BIO with zone write plugging
  * @bio: The BIO being submitted
@@ -1644,15 +1620,9 @@ bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
 	case REQ_OP_WRITE:
 	case REQ_OP_WRITE_ZEROES:
 		return blk_zone_wplug_handle_write(bio, nr_segs);
-	case REQ_OP_ZONE_RESET:
-	case REQ_OP_ZONE_FINISH:
-	case REQ_OP_ZONE_RESET_ALL:
-		return blk_zone_wplug_handle_zone_mgmt(bio);
 	default:
 		return false;
 	}
-
-	return false;
 }
 EXPORT_SYMBOL_GPL(blk_zone_plug_bio);
 

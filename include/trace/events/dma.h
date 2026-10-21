@@ -35,7 +35,8 @@ TRACE_DEFINE_ENUM(DMA_NONE);
 		{ DMA_ATTR_MMIO, "MMIO" }, \
 		{ DMA_ATTR_DEBUGGING_IGNORE_CACHELINES, "CACHELINES_OVERLAP" }, \
 		{ DMA_ATTR_REQUIRE_COHERENT, "REQUIRE_COHERENT" }, \
-		{ DMA_ATTR_CC_SHARED, "CC_SHARED" })
+		{ DMA_ATTR_CC_SHARED, "CC_SHARED" }, \
+		{ __DMA_ATTR_ALLOC_CC_SHARED, "ALLOC_CC_SHARED" })
 
 DECLARE_EVENT_CLASS(dma_map,
 	TP_PROTO(struct device *dev, phys_addr_t phys_addr, dma_addr_t dma_addr,
@@ -133,7 +134,7 @@ DECLARE_EVENT_CLASS(dma_alloc_class,
 	TP_fast_assign(
 		__assign_str(device);
 		__entry->virt_addr = virt_addr;
-		__entry->dma_addr = dma_addr;
+		__entry->dma_addr = virt_addr ? dma_addr : 0;
 		__entry->size = size;
 		__entry->flags = flags;
 		__entry->dir = dir;

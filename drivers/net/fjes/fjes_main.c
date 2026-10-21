@@ -1394,16 +1394,15 @@ static void fjes_remove(struct platform_device *plat_dev)
 
 	fjes_dbg_adapter_exit(adapter);
 
-	cancel_delayed_work_sync(&adapter->interrupt_watch_task);
-	cancel_work_sync(&adapter->unshare_watch_task);
-	cancel_work_sync(&adapter->raise_intr_rxdata_task);
-	cancel_work_sync(&adapter->tx_stall_task);
+	/* Unregister first: .ndo_stop frees the IRQ and cancels the workers. */
+	unregister_netdev(netdev);
+
 	if (adapter->control_wq)
 		destroy_workqueue(adapter->control_wq);
 	if (adapter->txrx_wq)
 		destroy_workqueue(adapter->txrx_wq);
 
-	unregister_netdev(netdev);
+	cancel_work_sync(&adapter->force_close_task);
 
 	fjes_hw_exit(hw);
 

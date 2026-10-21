@@ -368,6 +368,9 @@ struct amdgpu_vcn {
 	struct mutex            workload_profile_mutex;
 	u32 reg_count;
 	const struct amdgpu_hwip_reg_entry *reg_list;
+
+	bool			disable_uq;
+	bool			disable_kq;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {

@@ -141,7 +141,7 @@ in its previous activation.
 find_energy_efficient_cpu() uses compute_energy() to estimate what will be the
 energy consumed by the system if the waking task was migrated. compute_energy()
 looks at the current utilization landscape of the CPUs and adjusts it to
-'simulate' the task migration. The EM framework provides the em_pd_energy() API
+'simulate' the task migration. The EM framework provides the em_cpu_energy() API
 which computes the expected energy consumption of each performance domain for
 the given utilization landscape.
 

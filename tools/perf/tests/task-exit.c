@@ -74,15 +74,15 @@ static int test__task_exit(struct test_suite *test __maybe_unused, int subtest _
 	if (!cpus || !threads) {
 		err = -ENOMEM;
 		pr_debug("Not enough memory to create thread/cpu maps\n");
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
-	perf_evlist__set_maps(&evlist->core, cpus, threads);
+	perf_evlist__set_maps(evlist__core(evlist), cpus, threads);
 
 	err = evlist__prepare_workload(evlist, &target, argv, false, workload_exec_failed_signal);
 	if (err < 0) {
 		pr_debug("Couldn't run the workload!\n");
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
 	evsel = evlist__first(evlist);
@@ -101,20 +101,20 @@ static int test__task_exit(struct test_suite *test __maybe_unused, int subtest _
 	if (err < 0) {
 		pr_debug("Couldn't open the evlist: %s\n",
 			 str_error_r(-err, sbuf, sizeof(sbuf)));
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
-	if (evlist__mmap(evlist, 128) < 0) {
+	if (evlist__do_mmap(evlist, 128) < 0) {
 		pr_debug("failed to mmap events: %d (%s)\n", errno,
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		err = -1;
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
 	evlist__start_workload(evlist);
 
 retry:
-	md = &evlist->mmap[0];
+	md = &evlist__mmap(evlist)[0];
 	if (perf_mmap__read_init(&md->core) < 0)
 		goto out_init;
 
@@ -133,7 +133,7 @@ out_init:
 		if (retry_count++ > 1000) {
 			pr_debug("Failed after retrying 1000 times\n");
 			err = -1;
-			goto out_delete_evlist;
+			goto out_put_evlist;
 		}
 
 		goto retry;
@@ -144,10 +144,10 @@ out_init:
 		err = -1;
 	}
 
-out_delete_evlist:
+out_put_evlist:
 	perf_cpu_map__put(cpus);
 	perf_thread_map__put(threads);
-	evlist__delete(evlist);
+	evlist__put(evlist);
 	return err;
 }
 

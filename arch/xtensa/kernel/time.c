@@ -23,7 +23,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <linux/profile.h>
 #include <linux/delay.h>
 #include <linux/irqdomain.h>
 #include <linux/sched_clock.h>

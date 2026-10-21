@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/ti,palmas-rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments Palmas RTC
+
+maintainers:
+  - Eduard Bostina <egbostina@gmail.com>
+
+allOf:
+  - $ref: /schemas/rtc/rtc.yaml#
+
+properties:
+  compatible:
+    const: ti,palmas-rtc
+
+  interrupts:
+    maxItems: 1
+
+  wakeup-source: true
+
+  ti,backup-battery-chargeable:
+    type: boolean
+    description:
+      The backup battery can be chargeable or non-chargeable. This flag
+      indicates whether the battery is chargeable. If present, the driver
+      can enable charging.
+
+  ti,backup-battery-charge-high-current:
+    type: boolean
+    description:
+      Enable high current charging in the backup battery.
+      Device supports the < 100uA and > 100uA charging. The high current will
+      be > 100uA. Absence of this property will charge battery to lower
+      current i.e. < 100uA.
+
+required:
+  - compatible
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    pmic {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        rtc {
+            compatible = "ti,palmas-rtc";
+            interrupts = <8 0>;
+            ti,backup-battery-chargeable;
+            ti,backup-battery-charge-high-current;
+        };
+    };

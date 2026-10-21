@@ -4054,17 +4054,13 @@ static int mv_platform_probe(struct platform_device *pdev)
 				n_ports);
 			return -EINVAL;
 		}
-
-		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	} else {
 		mv_platform_data = dev_get_platdata(&pdev->dev);
 		n_ports = mv_platform_data->n_ports;
-		irq = platform_get_irq(pdev, 0);
 	}
+	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
-	if (!irq)
-		return -EINVAL;
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
 	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
@@ -4092,21 +4088,19 @@ static int mv_platform_probe(struct platform_device *pdev)
 
 	hpriv->base -= SATAHC0_REG_BASE;
 
-	hpriv->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(hpriv->clk)) {
-		dev_notice(&pdev->dev, "cannot get optional clkdev\n");
-	} else {
-		rc = clk_prepare_enable(hpriv->clk);
-		if (rc)
-			goto err;
-	}
+	hpriv->clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
+	if (IS_ERR(hpriv->clk))
+		return PTR_ERR(hpriv->clk);
 
 	for (port = 0; port < n_ports; port++) {
 		char port_number[16];
 		sprintf(port_number, "%d", port);
-		hpriv->port_clks[port] = clk_get(&pdev->dev, port_number);
-		if (!IS_ERR(hpriv->port_clks[port]))
-			clk_prepare_enable(hpriv->port_clks[port]);
+		hpriv->port_clks[port] = devm_clk_get_optional_enabled(&pdev->dev, port_number);
+		if (IS_ERR(hpriv->port_clks[port])) {
+			rc = PTR_ERR(hpriv->port_clks[port]);
+			hpriv->n_ports = port;
+			goto err;
+		}
 
 		sprintf(port_number, "port%d", port);
 		hpriv->port_phys[port] = devm_phy_optional_get(&pdev->dev,
@@ -4120,8 +4114,8 @@ static int mv_platform_probe(struct platform_device *pdev)
 			/* Cleanup only the initialized ports */
 			hpriv->n_ports = port;
 			goto err;
-		} else
-			phy_power_on(hpriv->port_phys[port]);
+		}
+		phy_power_on(hpriv->port_phys[port]);
 	}
 
 	/* All the ports have been initialized */
@@ -4160,17 +4154,8 @@ static int mv_platform_probe(struct platform_device *pdev)
 		return 0;
 
 err:
-	if (!IS_ERR(hpriv->clk)) {
-		clk_disable_unprepare(hpriv->clk);
-		clk_put(hpriv->clk);
-	}
-	for (port = 0; port < hpriv->n_ports; port++) {
-		if (!IS_ERR(hpriv->port_clks[port])) {
-			clk_disable_unprepare(hpriv->port_clks[port]);
-			clk_put(hpriv->port_clks[port]);
-		}
+	for (port = 0; port < hpriv->n_ports; port++)
 		phy_power_off(hpriv->port_phys[port]);
-	}
 
 	return rc;
 }
@@ -4190,17 +4175,8 @@ static void mv_platform_remove(struct platform_device *pdev)
 	int port;
 	ata_host_detach(host);
 
-	if (!IS_ERR(hpriv->clk)) {
-		clk_disable_unprepare(hpriv->clk);
-		clk_put(hpriv->clk);
-	}
-	for (port = 0; port < host->n_ports; port++) {
-		if (!IS_ERR(hpriv->port_clks[port])) {
-			clk_disable_unprepare(hpriv->port_clks[port]);
-			clk_put(hpriv->port_clks[port]);
-		}
+	for (port = 0; port < host->n_ports; port++)
 		phy_power_off(hpriv->port_phys[port]);
-	}
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -2590,10 +2590,8 @@ static int stm32_cryp_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(dev, irq, stm32_cryp_irq,
 					stm32_cryp_irq_thread, IRQF_ONESHOT,
 					dev_name(dev), cryp);
-	if (ret) {
-		dev_err(dev, "Cannot grab IRQ\n");
+	if (ret)
 		return ret;
-	}
 
 	cryp->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(cryp->clk)) {

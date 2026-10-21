@@ -165,7 +165,8 @@ static int profile_cmp(struct aa_profile *a, struct aa_profile *b)
  *          ==0 if @a == @b
  *          >0  if @a > @b
  */
-static int vec_cmp(struct aa_profile **a, int an, struct aa_profile **b, int bn)
+static int vec_cmp(struct aa_profile * const *a, int an,
+		   struct aa_profile * const *b, int bn)
 {
 	int i;
 
@@ -473,7 +474,7 @@ fail:
  *          ==0 if a == b
  *          >0  if a > b
  */
-static int label_cmp(struct aa_label *a, struct aa_label *b)
+static int label_cmp(const struct aa_label *a, const struct aa_label *b)
 {
 	AA_BUG(!b);
 
@@ -484,7 +485,7 @@ static int label_cmp(struct aa_label *a, struct aa_label *b)
 }
 
 /* helper fn for label_for_each_confined */
-int aa_label_next_confined(struct aa_label *label, int i)
+int aa_label_next_confined(const struct aa_label *label, int i)
 {
 	AA_BUG(!label);
 	AA_BUG(i < 0);
@@ -507,8 +508,8 @@ int aa_label_next_confined(struct aa_label *label, int i)
  *     else NULL if @sub is a subset of @set
  */
 struct aa_profile *__aa_label_next_not_in_set(struct label_it *I,
-					      struct aa_label *set,
-					      struct aa_label *sub)
+					      const struct aa_label *set,
+					      const struct aa_label *sub)
 {
 	AA_BUG(!set);
 	AA_BUG(!I);
@@ -544,7 +545,7 @@ struct aa_profile *__aa_label_next_not_in_set(struct label_it *I,
  * Returns: true if @sub is subset of @set
  *     else false
  */
-bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub)
+bool aa_label_is_subset(const struct aa_label *set, const struct aa_label *sub)
 {
 	struct label_it i = { };
 
@@ -571,7 +572,8 @@ bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub)
  * Returns: true if @sub is special_subset of @set
  *     else false
  */
-bool aa_label_is_unconfined_subset(struct aa_label *set, struct aa_label *sub)
+bool aa_label_is_unconfined_subset(const struct aa_label *set,
+				   const struct aa_label *sub)
 {
 	struct label_it i = { };
 	struct aa_profile *p;
@@ -796,6 +798,44 @@ bool aa_label_remove(struct aa_label *label)
 	return res;
 }
 
+enum ls_lock_class {
+	AA_LS_LOCK_FIRST,
+	AA_LS_LOCK_SECOND,
+};
+
+#define write_lock_irqsave_nested(L, F, SC) write_lock_irqsave(L, F)
+
+static void ns_ls_double_lock(struct aa_ns *ns1, struct aa_ns *ns2,
+	unsigned long *flags)
+{
+	if (likely(ns1 == ns2)) {
+		write_lock_irqsave(&ns1->labels.lock, *flags);
+		return;
+	}
+
+	/* ordered by namespace hierarchy (walked in nesting order in
+	 * labels_update. If at the same level by address order
+	 */
+	if ((ns1->level > ns2->level) ||
+	    (ns1->level == ns2->level && ns1 > ns2))
+		swap(ns1, ns2);
+
+	write_lock_irqsave_nested(&ns1->labels.lock, *flags, AA_LS_LOCK_FIRST);
+	write_lock_nested(&ns2->labels.lock, AA_LS_LOCK_SECOND);
+}
+
+static void ns_ls_double_unlock(struct aa_ns *ns1, struct aa_ns *ns2,
+			     unsigned long flags)
+{
+	if (likely(ns1 == ns2)) {
+		write_unlock_irqrestore(&ns1->labels.lock, flags);
+		return;
+	}
+	/* order doesn't matter on unlock, except flags restore must be last */
+	write_unlock(&ns2->labels.lock);
+	write_unlock_irqrestore(&ns1->labels.lock, flags);
+}
+
 /**
  * aa_label_replace - replace a label @old with a new version @new
  * @old: label to replace
@@ -803,36 +843,34 @@ bool aa_label_remove(struct aa_label *label)
  *
  * Returns: true if @old was in tree and replaced
  *     else @old was not in tree, and @new was not inserted
+ *
+ * replacement can involve two different labelsets so has to be
+ * handled very careful, as a double lock may be required.
  */
 bool aa_label_replace(struct aa_label *old, struct aa_label *new)
 {
+	struct aa_ns *ons = labels_ns(old);
+	struct aa_ns *nns = labels_ns(new);
 	unsigned long flags;
 	bool res;
 
-	if (name_is_shared(old, new) && labels_ns(old) == labels_ns(new)) {
-		write_lock_irqsave(&labels_set(old)->lock, flags);
+	ns_ls_double_lock(ons, nns, &flags);
+	if (ons == nns && name_is_shared(old, new)) {
 		if (old->proxy != new->proxy)
 			__proxy_share(old, new);
 		else
 			__aa_proxy_redirect(old, new);
 		res = __label_replace(old, new);
-		write_unlock_irqrestore(&labels_set(old)->lock, flags);
 	} else {
 		struct aa_label *l;
-		struct aa_labelset *ls = labels_set(old);
 
-		write_lock_irqsave(&ls->lock, flags);
+		/* will redirect old proxy to new */
 		res = __label_remove(old, new);
-		if (labels_ns(old) != labels_ns(new)) {
-			write_unlock_irqrestore(&ls->lock, flags);
-			ls = labels_set(new);
-			write_lock_irqsave(&ls->lock, flags);
-		}
-		l = __label_insert(ls, new, true);
+		l = __label_insert(&nns->labels, new, true);
 		res = (l == new);
-		write_unlock_irqrestore(&ls->lock, flags);
 		aa_put_label(l);
 	}
+	ns_ls_double_unlock(ons, nns, flags);
 
 	return res;
 }
@@ -955,8 +993,8 @@ struct aa_label *aa_label_insert(struct aa_labelset *ls, struct aa_label *label)
  *     else null if no more profiles
  */
 struct aa_profile *aa_label_next_in_merge(struct label_it *I,
-					  struct aa_label *a,
-					  struct aa_label *b)
+					  const struct aa_label *a,
+					  const struct aa_label *b)
 {
 	AA_BUG(!a);
 	AA_BUG(!b);
@@ -1254,9 +1292,9 @@ out:
  * If a subns profile is not to be matched should be prescreened with
  * visibility test.
  */
-static inline aa_state_t match_component(struct aa_profile *profile,
+static inline aa_state_t match_component(const struct aa_profile *profile,
 					 struct aa_ruleset *rules,
-					 struct aa_profile *tp,
+					 const struct aa_profile *tp,
 					 aa_state_t state)
 {
 	const char *ns_name;
@@ -1288,7 +1326,7 @@ static inline aa_state_t match_component(struct aa_profile *profile,
  * @perms should be preinitialized with allperms OR a previous permission
  *        check to be stacked.
  */
-static int label_compound_match(struct aa_profile *profile,
+static int label_compound_match(const struct aa_profile *profile,
 				struct aa_ruleset *rules,
 				struct aa_label *label,
 				aa_state_t state, bool inview, u32 request,
@@ -1344,7 +1382,7 @@ fail:
  * @perms should be preinitialized with allperms OR a previous permission
  *        check to be stacked.
  */
-static int label_components_match(struct aa_profile *profile,
+static int label_components_match(const struct aa_profile *profile,
 				  struct aa_ruleset *rules,
 				  struct aa_label *label, aa_state_t start,
 				  bool inview, u32 request,
@@ -1403,7 +1441,7 @@ fail:
  *
  * Returns: the state the match finished in, may be the none matching state
  */
-int aa_label_match(struct aa_profile *profile, struct aa_ruleset *rules,
+int aa_label_match(const struct aa_profile *profile, struct aa_ruleset *rules,
 		   struct aa_label *label, aa_state_t state, bool inview,
 		   u32 request, struct aa_perms *perms)
 {
@@ -1743,10 +1781,7 @@ void aa_label_xaudit(struct audit_buffer *ab, struct aa_ns *ns,
 		str = (char *) label->hname;
 		len = strlen(str);
 	}
-	if (audit_string_contains_control(str, len))
-		audit_log_n_hex(ab, str, len);
-	else
-		audit_log_n_string(ab, str, len);
+	audit_log_n_untrustedstring(ab, str, len);
 
 	kfree(name);
 }

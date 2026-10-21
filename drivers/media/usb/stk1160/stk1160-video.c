@@ -48,6 +48,9 @@ static inline void print_err_status(struct stk1160 *dev,
 	case -EILSEQ:
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
+	case -ESHUTDOWN:
+		errmsg = "host controller removed";
+		break;
 	case -ETIME:
 		errmsg = "Device does not respond";
 		break;

@@ -791,11 +791,86 @@ static int rtl8366rb_setup_all_leds_off(struct realtek_priv *priv)
 	return ret;
 }
 
+static int rtl8366rb_port_set_isolation(struct realtek_priv *priv, int port,
+					u32 mask)
+{
+	/* Bit 0 enables isolation, the mask indicates allowed forwarding
+	 * ports
+	 */
+	mask = RTL8366RB_PORT_ISO_PORTS(mask) | RTL8366RB_PORT_ISO_EN;
+
+	return regmap_write(priv->map, RTL8366RB_PORT_ISO(port),
+			    mask);
+}
+
+static int rtl8366rb_port_add_isolation(struct realtek_priv *priv, int port,
+					u32 mask)
+{
+	/* We assume isolation bit is on */
+	return regmap_update_bits(priv->map, RTL8366RB_PORT_ISO(port),
+				  RTL8366RB_PORT_ISO_PORTS(mask),
+				  RTL8366RB_PORT_ISO_PORTS(mask));
+}
+
+static int rtl8366rb_port_remove_isolation(struct realtek_priv *priv, int port,
+					   u32 mask)
+{
+	return regmap_update_bits(priv->map, RTL8366RB_PORT_ISO(port),
+				  RTL8366RB_PORT_ISO_PORTS(mask), 0);
+}
+
+static void
+rtl8366rb_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
+{
+	struct realtek_priv *priv = ds->priv;
+	u32 val;
+	int i;
+
+	switch (state) {
+	case BR_STATE_DISABLED:
+		val = RTL8366RB_STP_STATE_DISABLED;
+		break;
+	case BR_STATE_BLOCKING:
+	case BR_STATE_LISTENING:
+		val = RTL8366RB_STP_STATE_BLOCKING;
+		break;
+	case BR_STATE_LEARNING:
+		val = RTL8366RB_STP_STATE_LEARNING;
+		break;
+	case BR_STATE_FORWARDING:
+		val = RTL8366RB_STP_STATE_FORWARDING;
+		break;
+	default:
+		dev_err(priv->dev, "unknown bridge state requested\n");
+		return;
+	}
+
+	/* Set the same status for the port on all the FIDs */
+	for (i = 0; i < RTL8366RB_NUM_FIDS; i++) {
+		regmap_update_bits(priv->map, RTL8366RB_STP_STATE_BASE + i,
+				   RTL8366RB_STP_STATE_MASK(port),
+				   RTL8366RB_STP_STATE(port, val));
+	}
+}
+
+static int rtl8366rb_port_set_learning(struct realtek_priv *priv, int port,
+				       bool enable)
+{
+	/* Notice inverted semantics in this register: setting a bit disables
+	 * learning instead of enabling it.
+	 */
+	return regmap_update_bits(priv->map, RTL8366RB_PORT_LEARNDIS_CTRL,
+				  BIT(port), enable ? 0 : BIT(port));
+}
+
 static int rtl8366rb_setup(struct dsa_switch *ds)
 {
 	struct realtek_priv *priv = ds->priv;
 	const struct rtl8366rb_jam_tbl_entry *jam_table;
+	u32 downports_mask = 0;
 	struct rtl8366rb *rb;
+	u32 upports_mask = 0;
+	struct dsa_port *dp;
 	u32 chip_ver = 0;
 	u32 chip_id = 0;
 	int jam_size;
@@ -866,20 +941,58 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Isolate all user ports so they can only send packets to itself and the CPU port */
-	for (i = 0; i < RTL8366RB_PORT_NUM_CPU; i++) {
-		ret = regmap_write(priv->map, RTL8366RB_PORT_ISO(i),
-				   RTL8366RB_PORT_ISO_PORTS(BIT(RTL8366RB_PORT_NUM_CPU)) |
-				   RTL8366RB_PORT_ISO_EN);
+	/* Start with all ports blocked, including unused ports */
+	dsa_switch_for_each_port(dp, ds) {
+		/* Set the initial STP state of all ports to DISABLED, otherwise
+		 * ports will still forward frames to the CPU despite being
+		 * administratively down by default.
+		 */
+		rtl8366rb_port_stp_state_set(ds, dp->index, BR_STATE_DISABLED);
+
+		/* Start with all ports completely isolated */
+		ret = rtl8366rb_port_set_isolation(priv, dp->index, 0);
+		if (ret)
+			return ret;
+
+		/* Disable learning */
+		ret = rtl8366rb_port_set_learning(priv, dp->index, false);
+		if (ret)
+			return ret;
+
+		/* Collect CPU ports. If we support cascade switches, it should
+		 * also include the upstream DSA ports.
+		 */
+		if (!dsa_port_is_cpu(dp))
+			continue;
+
+		upports_mask |= BIT(dp->index);
+	}
+
+	/* Configure user ports */
+	dsa_switch_for_each_port(dp, ds) {
+		if (!dsa_port_is_user(dp))
+			continue;
+
+		/* Forward only to the CPU(s), isolate from all other ports */
+		ret = rtl8366rb_port_set_isolation(priv, dp->index, upports_mask);
+		if (ret)
+			return ret;
+
+		/* If we support cascade switches, it should also include the
+		 * downstream DSA ports.
+		 */
+		downports_mask |= BIT(dp->index);
+	}
+
+	/* Configure CPU ports. If we support cascade switches, this will also
+	 * include DSA ports.
+	 */
+	dsa_switch_for_each_cpu_port(dp, ds) {
+		/* Forward to all user ports */
+		ret = rtl8366rb_port_set_isolation(priv, dp->index, downports_mask);
 		if (ret)
 			return ret;
 	}
-	/* CPU port can send packets to all ports */
-	ret = regmap_write(priv->map, RTL8366RB_PORT_ISO(RTL8366RB_PORT_NUM_CPU),
-			   RTL8366RB_PORT_ISO_PORTS(dsa_user_ports(ds)) |
-			   RTL8366RB_PORT_ISO_EN);
-	if (ret)
-		return ret;
 
 	/* Set up the "green ethernet" feature */
 	ret = rtl8366rb_jam_table(rtl8366rb_green_jam,
@@ -937,12 +1050,6 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 		else
 			rb->max_mtu[i] = ETH_DATA_LEN;
 	}
-
-	/* Disable learning for all ports */
-	ret = regmap_write(priv->map, RTL8366RB_PORT_LEARNDIS_CTRL,
-			   RTL8366RB_PORT_ALL);
-	if (ret)
-		return ret;
 
 	/* Enable auto ageing for all ports */
 	ret = regmap_write(priv->map, RTL8366RB_SECURITY_CTRL, 0);
@@ -1184,70 +1291,6 @@ rtl8366rb_port_disable(struct dsa_switch *ds, int port)
 		return;
 }
 
-static int
-rtl8366rb_port_bridge_join(struct dsa_switch *ds, int port,
-			   struct dsa_bridge bridge,
-			   bool *tx_fwd_offload,
-			   struct netlink_ext_ack *extack)
-{
-	struct realtek_priv *priv = ds->priv;
-	unsigned int port_bitmap = 0;
-	int ret, i;
-
-	/* Loop over all other ports than the current one */
-	for (i = 0; i < RTL8366RB_PORT_NUM_CPU; i++) {
-		/* Current port handled last */
-		if (i == port)
-			continue;
-		/* Not on this bridge */
-		if (!dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
-			continue;
-		/* Join this port to each other port on the bridge */
-		ret = regmap_update_bits(priv->map, RTL8366RB_PORT_ISO(i),
-					 RTL8366RB_PORT_ISO_PORTS(BIT(port)),
-					 RTL8366RB_PORT_ISO_PORTS(BIT(port)));
-		if (ret)
-			dev_err(priv->dev, "failed to join port %d\n", port);
-
-		port_bitmap |= BIT(i);
-	}
-
-	/* Set the bits for the ports we can access */
-	return regmap_update_bits(priv->map, RTL8366RB_PORT_ISO(port),
-				  RTL8366RB_PORT_ISO_PORTS(port_bitmap),
-				  RTL8366RB_PORT_ISO_PORTS(port_bitmap));
-}
-
-static void
-rtl8366rb_port_bridge_leave(struct dsa_switch *ds, int port,
-			    struct dsa_bridge bridge)
-{
-	struct realtek_priv *priv = ds->priv;
-	unsigned int port_bitmap = 0;
-	int ret, i;
-
-	/* Loop over all other ports than this one */
-	for (i = 0; i < RTL8366RB_PORT_NUM_CPU; i++) {
-		/* Current port handled last */
-		if (i == port)
-			continue;
-		/* Not on this bridge */
-		if (!dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
-			continue;
-		/* Remove this port from any other port on the bridge */
-		ret = regmap_update_bits(priv->map, RTL8366RB_PORT_ISO(i),
-					 RTL8366RB_PORT_ISO_PORTS(BIT(port)), 0);
-		if (ret)
-			dev_err(priv->dev, "failed to leave port %d\n", port);
-
-		port_bitmap |= BIT(i);
-	}
-
-	/* Clear the bits for the ports we can not access, leave ourselves */
-	regmap_update_bits(priv->map, RTL8366RB_PORT_ISO(port),
-			   RTL8366RB_PORT_ISO_PORTS(port_bitmap), 0);
-}
-
 /**
  * rtl8366rb_drop_untagged() - make the switch drop untagged and C-tagged frames
  * @priv: SMI state container
@@ -1304,59 +1347,6 @@ rtl8366rb_port_pre_bridge_flags(struct dsa_switch *ds, int port,
 		return -EINVAL;
 
 	return 0;
-}
-
-static int
-rtl8366rb_port_bridge_flags(struct dsa_switch *ds, int port,
-			    struct switchdev_brport_flags flags,
-			    struct netlink_ext_ack *extack)
-{
-	struct realtek_priv *priv = ds->priv;
-	int ret;
-
-	if (flags.mask & BR_LEARNING) {
-		ret = regmap_update_bits(priv->map, RTL8366RB_PORT_LEARNDIS_CTRL,
-					 BIT(port),
-					 (flags.val & BR_LEARNING) ? 0 : BIT(port));
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static void
-rtl8366rb_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
-{
-	struct realtek_priv *priv = ds->priv;
-	u32 val;
-	int i;
-
-	switch (state) {
-	case BR_STATE_DISABLED:
-		val = RTL8366RB_STP_STATE_DISABLED;
-		break;
-	case BR_STATE_BLOCKING:
-	case BR_STATE_LISTENING:
-		val = RTL8366RB_STP_STATE_BLOCKING;
-		break;
-	case BR_STATE_LEARNING:
-		val = RTL8366RB_STP_STATE_LEARNING;
-		break;
-	case BR_STATE_FORWARDING:
-		val = RTL8366RB_STP_STATE_FORWARDING;
-		break;
-	default:
-		dev_err(priv->dev, "unknown bridge state requested\n");
-		return;
-	}
-
-	/* Set the same status for the port on all the FIDs */
-	for (i = 0; i < RTL8366RB_NUM_FIDS; i++) {
-		regmap_update_bits(priv->map, RTL8366RB_STP_STATE_BASE + i,
-				   RTL8366RB_STP_STATE_MASK(port),
-				   RTL8366RB_STP_STATE(port, val));
-	}
 }
 
 static void
@@ -1801,15 +1791,15 @@ static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.get_strings = rtl8366_get_strings,
 	.get_ethtool_stats = rtl8366_get_ethtool_stats,
 	.get_sset_count = rtl8366_get_sset_count,
-	.port_bridge_join = rtl8366rb_port_bridge_join,
-	.port_bridge_leave = rtl8366rb_port_bridge_leave,
+	.port_bridge_join = rtl83xx_port_bridge_join,
+	.port_bridge_leave = rtl83xx_port_bridge_leave,
 	.port_vlan_filtering = rtl8366rb_vlan_filtering,
 	.port_vlan_add = rtl8366_vlan_add,
 	.port_vlan_del = rtl8366_vlan_del,
 	.port_enable = rtl8366rb_port_enable,
 	.port_disable = rtl8366rb_port_disable,
 	.port_pre_bridge_flags = rtl8366rb_port_pre_bridge_flags,
-	.port_bridge_flags = rtl8366rb_port_bridge_flags,
+	.port_bridge_flags = rtl83xx_port_bridge_flags,
 	.port_stp_state_set = rtl8366rb_port_stp_state_set,
 	.port_fast_age = rtl8366rb_port_fast_age,
 	.port_change_mtu = rtl8366rb_change_mtu,
@@ -1830,6 +1820,9 @@ static const struct realtek_ops rtl8366rb_ops = {
 	.is_vlan_valid	= rtl8366rb_is_vlan_valid,
 	.enable_vlan	= rtl8366rb_enable_vlan,
 	.enable_vlan4k	= rtl8366rb_enable_vlan4k,
+	.port_add_isolation = rtl8366rb_port_add_isolation,
+	.port_remove_isolation = rtl8366rb_port_remove_isolation,
+	.port_set_learning = rtl8366rb_port_set_learning,
 	.phy_read	= rtl8366rb_phy_read,
 	.phy_write	= rtl8366rb_phy_write,
 };

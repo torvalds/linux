@@ -182,8 +182,9 @@ static int smbdirect_connect_rdma_connect(struct smbdirect_socket *sc)
 	if (sc->ib.dev->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
 		sc->mr_io.type = IB_MR_TYPE_SG_GAPS;
 
-	sp->responder_resources = min_t(u8, sp->responder_resources,
-					sc->ib.dev->attrs.max_qp_rd_atom);
+	sp->responder_resources = min3(sp->responder_resources,
+				       sc->ib.dev->attrs.max_qp_rd_atom,
+				       U8_MAX);
 	smbdirect_log_rdma_mr(sc, SMBDIRECT_LOG_INFO,
 		"responder_resources=%d\n",
 		sp->responder_resources);

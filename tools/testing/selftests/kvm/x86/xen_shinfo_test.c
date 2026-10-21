@@ -437,7 +437,6 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	pthread_t thread;
 	bool verbose;
-	int ret;
 
 	verbose = argc > 1 && (!strncmp(argv[1], "-v", 3) ||
 			       !strncmp(argv[1], "--verbose", 10));
@@ -894,8 +893,7 @@ int main(int argc, char *argv[])
 				if (verbose)
 					printf("Testing shinfo lock corruption (KVM_XEN_HVM_EVTCHN_SEND)\n");
 
-				ret = pthread_create(&thread, NULL, &juggle_shinfo_state, (void *)vm);
-				TEST_ASSERT(ret == 0, "pthread_create() failed: %s", strerror(ret));
+				kvm_pthread_create(&thread, NULL, &juggle_shinfo_state, (void *)vm);
 
 				struct kvm_irq_routing_xen_evtchn uxe = {
 					.port = 1,
@@ -949,11 +947,7 @@ int main(int argc, char *argv[])
 				TEST_ASSERT(!evtchn_irq_expected,
 					    "Expected event channel IRQ but it didn't happen");
 
-				ret = pthread_cancel(thread);
-				TEST_ASSERT(ret == 0, "pthread_cancel() failed: %s", strerror(ret));
-
-				ret = pthread_join(thread, 0);
-				TEST_ASSERT(ret == 0, "pthread_join() failed: %s", strerror(ret));
+				kvm_pthread_cancel_join(thread);
 				goto done;
 
 			case TEST_GUEST_SAW_IRQ:

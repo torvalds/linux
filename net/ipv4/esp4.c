@@ -323,7 +323,7 @@ static struct ip_esp_hdr *esp_output_udp_encap(struct sk_buff *skb,
 	uh = (struct udphdr *)esp->esph;
 	uh->source = sport;
 	uh->dest = dport;
-	uh->len = htons(len);
+	udp_set_len_short(uh, len);
 	uh->check = 0;
 
 	/* For IPv4 ESP with UDP encapsulation, if xo is not null, the skb is in the crypto offload
@@ -440,6 +440,12 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 			struct page_frag *pfrag = &x->xfrag;
 
 			esp->inplace = false;
+
+			/* Take real page refs and clear SKBFL_MANAGED_FRAG_REFS before
+			 * we mutate the frag array, so the per-frag unref stays balanced
+			 * for zerocopy managed frags (see __ip_append_data()).
+			 */
+			skb_zcopy_downgrade_managed(skb);
 
 			allocsize = ALIGN(tailen, L1_CACHE_BYTES);
 

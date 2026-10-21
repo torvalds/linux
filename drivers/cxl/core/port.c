@@ -11,6 +11,7 @@
 #include <linux/idr.h>
 #include <linux/node.h>
 #include <cxl/einj.h>
+#include <cxl/pci.h>
 #include <cxlmem.h>
 #include <cxlpci.h>
 #include <cxl.h>
@@ -932,11 +933,10 @@ struct cxl_port *devm_cxl_add_port(struct device *host,
 
 	parent_port = parent_dport ? parent_dport->port : NULL;
 	if (IS_ERR(port)) {
-		dev_dbg(uport_dev, "Failed to add%s%s%s: %ld\n",
+		dev_dbg(uport_dev, "Failed to add%s%s%s: %pe\n",
 			parent_port ? " port to " : "",
 			parent_port ? dev_name(&parent_port->dev) : "",
-			parent_port ? "" : " root port",
-			PTR_ERR(port));
+			parent_port ? "" : " root port", port);
 	} else {
 		dev_dbg(uport_dev, "%s added%s%s%s\n",
 			dev_name(&port->dev),
@@ -1271,8 +1271,8 @@ struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 	dport = __devm_cxl_add_dport(port, dport_dev, port_id,
 				     component_reg_phys, CXL_RESOURCE_NONE);
 	if (IS_ERR(dport)) {
-		dev_dbg(dport_dev, "failed to add dport to %s: %ld\n",
-			dev_name(&port->dev), PTR_ERR(dport));
+		dev_dbg(dport_dev, "failed to add dport to %s: %pe\n",
+			dev_name(&port->dev), dport);
 	} else {
 		dev_dbg(dport_dev, "dport added to %s\n",
 			dev_name(&port->dev));
@@ -1305,8 +1305,8 @@ struct cxl_dport *devm_cxl_add_rch_dport(struct cxl_port *port,
 	dport = __devm_cxl_add_dport(port, dport_dev, port_id,
 				     CXL_RESOURCE_NONE, rcrb);
 	if (IS_ERR(dport)) {
-		dev_dbg(dport_dev, "failed to add RCH dport to %s: %ld\n",
-			dev_name(&port->dev), PTR_ERR(dport));
+		dev_dbg(dport_dev, "failed to add RCH dport to %s: %pe\n",
+			dev_name(&port->dev), dport);
 	} else {
 		dev_dbg(dport_dev, "RCH dport added to %s\n",
 			dev_name(&port->dev));
@@ -1379,7 +1379,7 @@ static int match_port_by_dport(struct device *dev, const void *data)
 	return dport != NULL;
 }
 
-static struct cxl_port *__find_cxl_port(struct cxl_find_port_ctx *ctx)
+static struct cxl_port *__find_cxl_port_by_dport(struct cxl_find_port_ctx *ctx)
 {
 	struct device *dev;
 
@@ -1392,8 +1392,16 @@ static struct cxl_port *__find_cxl_port(struct cxl_find_port_ctx *ctx)
 	return NULL;
 }
 
-static struct cxl_port *find_cxl_port(struct device *dport_dev,
-				      struct cxl_dport **dport)
+/**
+ * find_cxl_port_by_dport - find a cxl_port by one of its targets
+ * @dport_dev: device representing the dport target
+ * @dport: optional output of the 'struct cxl_dport' companion of the @dport_dev
+ *
+ * Return a 'struct cxl_port' with an elevated reference if found. Use
+ * __free(put_cxl_port) to release.
+ */
+static struct cxl_port *find_cxl_port_by_dport(struct device *dport_dev,
+					       struct cxl_dport **dport)
 {
 	struct cxl_find_port_ctx ctx = {
 		.dport_dev = dport_dev,
@@ -1401,7 +1409,7 @@ static struct cxl_port *find_cxl_port(struct device *dport_dev,
 	};
 	struct cxl_port *port;
 
-	port = __find_cxl_port(&ctx);
+	port = __find_cxl_port_by_dport(&ctx);
 	return port;
 }
 
@@ -1749,8 +1757,8 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 					     parent_dport, uport_dev,
 					     dport_dev);
 		if (IS_ERR(dport)) {
-			/* Port already exists, restart iteration */
-			if (PTR_ERR(dport) == -EAGAIN)
+			/* Port or dport already exists, restart iteration */
+			if (PTR_ERR(dport) == -EAGAIN || PTR_ERR(dport) == -EBUSY)
 				return 0;
 			return PTR_ERR(dport);
 		}
@@ -1895,14 +1903,14 @@ EXPORT_SYMBOL_NS_GPL(devm_cxl_enumerate_ports, "CXL");
 struct cxl_port *cxl_pci_find_port(struct pci_dev *pdev,
 				   struct cxl_dport **dport)
 {
-	return find_cxl_port(pdev->dev.parent, dport);
+	return find_cxl_port_by_dport(pdev->dev.parent, dport);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_pci_find_port, "CXL");
 
 struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd,
 				   struct cxl_dport **dport)
 {
-	return find_cxl_port(grandparent(&cxlmd->dev), dport);
+	return find_cxl_port_by_dport(grandparent(&cxlmd->dev), dport);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_mem_find_port, "CXL");
 
@@ -2531,14 +2539,10 @@ static __init int cxl_core_init(void)
 	if (rc)
 		goto err_region;
 
-	rc = cxl_ras_init();
-	if (rc)
-		goto err_ras;
+	cxl_ras_init();
 
 	return 0;
 
-err_ras:
-	cxl_region_exit();
 err_region:
 	bus_unregister(&cxl_bus_type);
 err_bus:

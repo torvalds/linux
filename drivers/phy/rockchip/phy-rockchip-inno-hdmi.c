@@ -245,6 +245,7 @@ struct inno_hdmi_phy {
 	struct clk *phyclk;
 	unsigned long pixclock;
 	unsigned long tmdsclock;
+	unsigned long opts_tmds_char_rate;
 };
 
 struct pre_pll_config {
@@ -554,19 +555,10 @@ static inline void inno_update_bits(struct inno_hdmi_phy *inno, u8 reg,
 static unsigned long inno_hdmi_phy_get_tmdsclk(struct inno_hdmi_phy *inno,
 					       unsigned long rate)
 {
-	int bus_width = phy_get_bus_width(inno->phy);
+	if (inno->opts_tmds_char_rate)
+		return inno->opts_tmds_char_rate;
 
-	switch (bus_width) {
-	case 4:
-	case 5:
-	case 6:
-	case 10:
-	case 12:
-	case 16:
-		return (u64)rate * bus_width / 8;
-	default:
-		return rate;
-	}
+	return rate;
 }
 
 static irqreturn_t inno_hdmi_phy_rk3328_hardirq(int irq, void *dev_id)
@@ -600,6 +592,57 @@ static irqreturn_t inno_hdmi_phy_rk3328_irq(int irq, void *dev_id)
 	inno_update_bits(inno, 0x02, RK3328_PDATA_EN, RK3328_PDATA_EN);
 
 	return IRQ_HANDLED;
+}
+
+/*
+ * phy_validate() is expected to be called from encoder atomic_check(), before
+ * the hdmiphy pixel clock is known. Without knowing the actual pixel clock, we
+ * cannot do full validation of the configuration. Instead, we do a simple check
+ * that the pre-pll table contains an entry for the requested TMDS char rate.
+ */
+static int inno_hdmi_phy_validate(struct phy *phy, enum phy_mode mode,
+				  int submode, union phy_configure_opts *opts)
+{
+	const struct pre_pll_config *cfg = pre_pll_cfg_table;
+	unsigned long tmdsclock;
+
+	if (!(mode == PHY_MODE_HDMI && submode == PHY_HDMI_MODE_TMDS))
+		return -EINVAL;
+
+	if (!opts)
+		return -EINVAL;
+
+	if (!opts->hdmi.tmds_char_rate || opts->hdmi.tmds_char_rate > 594000000)
+		return -EINVAL;
+
+	tmdsclock = opts->hdmi.tmds_char_rate;
+	for (; cfg->pixclock != 0; cfg++)
+		if (cfg->tmdsclock == tmdsclock)
+			return 0;
+
+	return -EINVAL;
+}
+
+/*
+ * phy_configure() is expected to be called from encoder atomic_set_mode(),
+ * before the hdmiphy pixel clock is known. Store the requested TMDS character
+ * rate, so that it can be used later in power_on() and/or set_rate() when the
+ * pixel clock is known.
+ */
+static int inno_hdmi_phy_configure(struct phy *phy,
+				   union phy_configure_opts *opts)
+{
+	struct inno_hdmi_phy *inno = phy_get_drvdata(phy);
+	int ret;
+
+	ret = inno_hdmi_phy_validate(phy, phy_get_mode(phy),
+				     PHY_HDMI_MODE_TMDS, opts);
+	if (ret)
+		return ret;
+
+	inno->opts_tmds_char_rate = opts->hdmi.tmds_char_rate;
+
+	return 0;
 }
 
 static int inno_hdmi_phy_power_on(struct phy *phy)
@@ -670,6 +713,8 @@ static const struct phy_ops inno_hdmi_phy_ops = {
 	.owner = THIS_MODULE,
 	.power_on = inno_hdmi_phy_power_on,
 	.power_off = inno_hdmi_phy_power_off,
+	.configure = inno_hdmi_phy_configure,
+	.validate = inno_hdmi_phy_validate,
 };
 
 static const
@@ -1392,7 +1437,7 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 	}
 
 	phy_set_drvdata(inno->phy, inno);
-	phy_set_bus_width(inno->phy, 8);
+	phy_set_mode_ext(inno->phy, PHY_MODE_HDMI, PHY_HDMI_MODE_TMDS);
 
 	if (inno->plat_data->ops->init) {
 		ret = inno->plat_data->ops->init(inno);

@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/qcom,wsa8855.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm WSA8855 stereo smart speaker amplifier
+
+maintainers:
+  - Srinivas Kandagatla <srinivas.kandagatla@oss.qualcomm.com>
+  - Prasad Kumpatla <prasad.kumpatla@oss.qualcomm.com>
+
+description:
+  WSA885X is a Qualcomm Aqstic stereo smart speaker amplifier. It uses a PCM
+  audio interface, an I2C control interface, and a Class-H amplifier path for
+  high efficiency, low output noise, and low idle power consumption.
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    const: qcom,wsa8855
+
+  reg:
+    maxItems: 1
+
+  '#sound-dai-cells':
+    const: 0
+
+  powerdown-gpios:
+    description: GPIO controlling the SD_N powerdown pin.
+    maxItems: 1
+
+  reset-gpios:
+    description: GPIO controlling the SD_N powerdown pin.
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vdd-1p8-supply: true
+
+  vdd-io-supply: true
+
+  qcom,battery-config:
+    description:
+      Battery topology connected to the speaker amplifier. 1S indicates one
+      battery cell in series, while 2S indicates two battery cells in series.
+    $ref: /schemas/types.yaml#/definitions/string
+    default: 1s
+    enum:
+      - 1s
+      - 2s
+
+required:
+  - compatible
+  - reg
+  - '#sound-dai-cells'
+  - interrupts
+  - vdd-1p8-supply
+  - vdd-io-supply
+
+oneOf:
+  - required:
+      - powerdown-gpios
+  - required:
+      - reset-gpios
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        speaker@c {
+            compatible = "qcom,wsa8855";
+            reg = <0x0c>;
+            #sound-dai-cells = <0>;
+            powerdown-gpios = <&tlmm 11 GPIO_ACTIVE_LOW>;
+            interrupt-parent = <&tlmm>;
+            interrupts = <77 IRQ_TYPE_EDGE_FALLING>;
+            vdd-1p8-supply = <&vreg_l2g_1p8>;
+            vdd-io-supply = <&vreg_l1g_1p2>;
+            qcom,battery-config = "1s";
+        };
+    };
+...

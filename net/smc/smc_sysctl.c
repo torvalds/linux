@@ -97,7 +97,7 @@ static int proc_smc_hs_ctrl(const struct ctl_table *ctl, int write,
 }
 #endif /* CONFIG_SMC_HS_CTRL_BPF */
 
-static struct ctl_table smc_table[] = {
+static const struct ctl_table smc_table[] = {
 	{
 		.procname       = "autocorking_size",
 		.data           = &init_net.smc.sysctl_autocorking_size,
@@ -195,14 +195,29 @@ static struct ctl_table smc_table[] = {
 #endif /* CONFIG_SMC_HS_CTRL_BPF */
 };
 
-int __net_init smc_sysctl_net_init(struct net *net)
+static const struct ctl_table *smc_table_dup(struct net *net)
 {
 	size_t table_size = ARRAY_SIZE(smc_table);
 	struct ctl_table *table;
+	int i;
+
+	table = kmemdup(smc_table, sizeof(smc_table), GFP_KERNEL);
+	if (!table)
+		return NULL;
+
+	for (i = 0; i < table_size; i++)
+		table[i].data += (void *)net - (void *)&init_net;
+
+	return table;
+}
+
+int __net_init smc_sysctl_net_init(struct net *net)
+{
+	size_t table_size = ARRAY_SIZE(smc_table);
+	const struct ctl_table *table;
 
 	table = smc_table;
 	if (!net_eq(net, &init_net)) {
-		int i;
 #if IS_ENABLED(CONFIG_SMC_HS_CTRL_BPF)
 		struct smc_hs_ctrl *ctrl;
 
@@ -214,12 +229,9 @@ int __net_init smc_sysctl_net_init(struct net *net)
 		rcu_read_unlock();
 #endif /* CONFIG_SMC_HS_CTRL_BPF */
 
-		table = kmemdup(table, sizeof(smc_table), GFP_KERNEL);
+		table = smc_table_dup(net);
 		if (!table)
 			goto err_alloc;
-
-		for (i = 0; i < table_size; i++)
-			table[i].data += (void *)net - (void *)&init_net;
 	}
 
 	net->smc.smc_hdr = register_net_sysctl_sz(net, "net/smc", table,

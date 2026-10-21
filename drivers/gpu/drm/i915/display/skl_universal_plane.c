@@ -266,7 +266,7 @@ bool icl_is_hdr_plane(struct intel_display *display, enum plane_id plane_id)
 static int icl_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 			       const struct intel_plane_state *plane_state)
 {
-	unsigned int pixel_rate = intel_plane_pixel_rate(crtc_state, plane_state);
+	unsigned int pixel_rate = intel_plane_pixel_rate_cdclk(crtc_state, plane_state);
 
 	/* two pixels per clock */
 	return DIV_ROUND_UP(pixel_rate, 2);
@@ -290,7 +290,7 @@ glk_plane_ratio(const struct intel_plane_state *plane_state,
 static int glk_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 			       const struct intel_plane_state *plane_state)
 {
-	unsigned int pixel_rate = intel_plane_pixel_rate(crtc_state, plane_state);
+	unsigned int pixel_rate = intel_plane_pixel_rate_cdclk(crtc_state, plane_state);
 	unsigned int num, den;
 
 	glk_plane_ratio(plane_state, &num, &den);
@@ -317,7 +317,7 @@ skl_plane_ratio(const struct intel_plane_state *plane_state,
 static int skl_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 			       const struct intel_plane_state *plane_state)
 {
-	unsigned int pixel_rate = intel_plane_pixel_rate(crtc_state, plane_state);
+	unsigned int pixel_rate = intel_plane_pixel_rate_cdclk(crtc_state, plane_state);
 	unsigned int num, den;
 
 	skl_plane_ratio(plane_state, &num, &den);
@@ -1932,10 +1932,10 @@ static int intel_plane_min_height(struct intel_plane *plane,
 	return 1;
 }
 
-static int intel_plane_max_width(struct intel_plane *plane,
-				 const struct drm_framebuffer *fb,
-				 int color_plane,
-				 unsigned int rotation)
+int intel_plane_max_width(struct intel_plane *plane,
+			  const struct drm_framebuffer *fb,
+			  int color_plane,
+			  unsigned int rotation)
 {
 	if (plane->max_width)
 		return plane->max_width(fb, color_plane, rotation);
@@ -1943,10 +1943,10 @@ static int intel_plane_max_width(struct intel_plane *plane,
 		return INT_MAX;
 }
 
-static int intel_plane_max_height(struct intel_plane *plane,
-				  const struct drm_framebuffer *fb,
-				  int color_plane,
-				  unsigned int rotation)
+int intel_plane_max_height(struct intel_plane *plane,
+			   const struct drm_framebuffer *fb,
+			   int color_plane,
+			   unsigned int rotation)
 {
 	if (plane->max_height)
 		return plane->max_height(fb, color_plane, rotation);

@@ -445,22 +445,19 @@ static void __clean_func_state(struct bpf_verifier_env *env,
 				struct bpf_reg_state *spill = &st->stack[i].spilled_ptr;
 
 				if (lo_live && stype == STACK_SPILL) {
-					u8 val = STACK_MISC;
-
 					if (spill->type != SCALAR_VALUE)
 						continue;
-
 					/*
-					 * 8 byte spill of scalar 0 where half slot is dead
-					 * should become STACK_ZERO in lo 4 bytes.
+					 * Can't replace with STACK_ZERO, because
+					 * that requires bpf_mark_chain_precision().
 					 */
 					if (bpf_register_is_null(spill))
-						val = STACK_ZERO;
+						continue;
 					for (j = 0; j < 4; j++) {
 						u8 *t = &st->stack[i].slot_type[j];
 
 						if (*t == STACK_SPILL)
-							*t = val;
+							*t = STACK_MISC;
 					}
 				}
 				bpf_mark_reg_not_init(env, spill);
@@ -812,7 +809,8 @@ static bool stacksafe(struct bpf_verifier_env *env, struct bpf_func_state *old,
 			 * infinite loop check triggering, see
 			 * iter_active_depths_differ()
 			 */
-			if (old_reg->iter.btf != cur_reg->iter.btf ||
+			if (old_reg->type != cur_reg->type ||
+			    old_reg->iter.btf != cur_reg->iter.btf ||
 			    old_reg->iter.btf_id != cur_reg->iter.btf_id ||
 			    old_reg->iter.state != cur_reg->iter.state ||
 			    /* ignore {old_reg,cur_reg}->iter.depth, see above */

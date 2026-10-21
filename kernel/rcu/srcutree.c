@@ -266,12 +266,13 @@ __init_srcu_struct_common(struct srcu_struct *ssp, const char *name, struct lock
 	return init_srcu_struct_fields(ssp, false);
 }
 
-int __init_srcu_struct(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
+int init_srcu_struct_lockdep(struct srcu_struct *ssp, const char *name,
+			     struct lock_class_key *key)
 {
 	ssp->srcu_reader_flavor = 0;
 	return __init_srcu_struct_common(ssp, name, key);
 }
-EXPORT_SYMBOL_GPL(__init_srcu_struct);
+EXPORT_SYMBOL_GPL(init_srcu_struct_lockdep);
 
 int __init_srcu_struct_fast(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
 {
@@ -291,7 +292,7 @@ EXPORT_SYMBOL_GPL(__init_srcu_struct_fast_updown);
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 /**
- * init_srcu_struct - initialize a sleep-RCU structure
+ * init_srcu_struct_generic - initialize a sleep-RCU structure
  * @ssp: structure to initialize.
  *
  * Use this in place of DEFINE_SRCU() and DEFINE_STATIC_SRCU()
@@ -301,12 +302,12 @@ EXPORT_SYMBOL_GPL(__init_srcu_struct_fast_updown);
  * to any other function.  Each srcu_struct represents a separate domain
  * of SRCU protection.
  */
-int init_srcu_struct(struct srcu_struct *ssp)
+int init_srcu_struct_generic(struct srcu_struct *ssp)
 {
 	ssp->srcu_reader_flavor = 0;
 	return init_srcu_struct_fields(ssp, false);
 }
-EXPORT_SYMBOL_GPL(init_srcu_struct);
+EXPORT_SYMBOL_GPL(init_srcu_struct_generic);
 
 /**
  * init_srcu_struct_fast - initialize a fast-reader sleep-RCU structure
@@ -598,31 +599,6 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *ssp, int idx)
 	return srcu_readers_lock_idx(ssp, idx, did_gp, unlocks);
 }
 
-/**
- * srcu_readers_active - returns true if there are readers. and false
- *                       otherwise
- * @ssp: which srcu_struct to count active readers (holding srcu_read_lock).
- *
- * Note that this is not an atomic primitive, and can therefore suffer
- * severe errors when invoked on an active srcu_struct.  That said, it
- * can be useful as an error check at cleanup time.
- */
-static bool srcu_readers_active(struct srcu_struct *ssp)
-{
-	int cpu;
-	unsigned long sum = 0;
-
-	for_each_possible_cpu(cpu) {
-		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
-
-		sum += atomic_long_read(&sdp->srcu_ctrs[0].srcu_locks);
-		sum += atomic_long_read(&sdp->srcu_ctrs[1].srcu_locks);
-		sum -= atomic_long_read(&sdp->srcu_ctrs[0].srcu_unlocks);
-		sum -= atomic_long_read(&sdp->srcu_ctrs[1].srcu_unlocks);
-	}
-	return sum;
-}
-
 /*
  * We use an adaptive strategy for synchronize_srcu() and especially for
  * synchronize_srcu_expedited().  We spin for a fixed time period
@@ -725,7 +701,12 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
 	for_each_possible_cpu(cpu) {
 		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
 
-		timer_delete_sync(&sdp->delay_work);
+		// Call srcu_barrier() before this cleanup_srcu_struct()
+		// to avoid triggering this WARN_ON().
+		if (WARN_ON(timer_delete_sync(&sdp->delay_work) &&
+			    rcu_segcblist_n_cbs(&sdp->srcu_cblist)) &&
+		    rcu_cpu_beenfullyonline(sdp->cpu))
+			queue_work_on(sdp->cpu, rcu_gp_wq, &sdp->work);
 		flush_work(&sdp->work);
 		if (WARN_ON(rcu_segcblist_n_cbs(&sdp->srcu_cblist)))
 			return; /* Forgot srcu_barrier(), so just leak it! */
@@ -1351,7 +1332,7 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 	 *  2) The grace period for RCU_WAIT_TAIL is seen as started but not
 	 *     completed so rcu_seq_current() returns X + SRCU_STATE_SCAN1.
 	 *
-	 *  3) This value is passed to rcu_segcblist_advance() which can't move
+	 *  3) This value is passed to srcu_segcblist_advance() which can't move
 	 *     any segment forward and fails.
 	 *
 	 *  4) srcu_gp_start_if_needed() still proceeds with callback acceleration.
@@ -1360,15 +1341,15 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 	 *     RCU_NEXT_READY_TAIL segment as started (ie: X + 4 + SRCU_STATE_SCAN1)
 	 *     so it returns a snapshot of the next grace period, which is X + 12.
 	 *
-	 *  5) The value of X + 12 is passed to rcu_segcblist_accelerate() but the
+	 *  5) The value of X + 12 is passed to srcu_segcblist_accelerate() but the
 	 *     freshly enqueued callback in RCU_NEXT_TAIL can't move to
 	 *     RCU_NEXT_READY_TAIL which already has callbacks for a previous grace
 	 *     period (gp_num = X + 8). So acceleration fails.
 	 */
 	s = rcu_seq_snap(&ssp->srcu_sup->srcu_gp_seq);
 	if (rhp) {
-		rcu_segcblist_advance(&sdp->srcu_cblist,
-				      rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq));
+		srcu_segcblist_advance(&sdp->srcu_cblist,
+				       rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq));
 		/*
 		 * Acceleration can never fail because the base current gp_seq
 		 * used for acceleration is <= the value of gp_seq used for
@@ -1376,7 +1357,7 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 		 * always be able to be emptied by the acceleration into the
 		 * RCU_NEXT_READY_TAIL or RCU_WAIT_TAIL segments.
 		 */
-		WARN_ON_ONCE(!rcu_segcblist_accelerate(&sdp->srcu_cblist, s));
+		WARN_ON_ONCE(!srcu_segcblist_accelerate(&sdp->srcu_cblist, s));
 	}
 	if (ULONG_CMP_LT(sdp->srcu_gp_seq_needed, s)) {
 		sdp->srcu_gp_seq_needed = s;
@@ -1891,8 +1872,8 @@ static void srcu_invoke_callbacks(struct work_struct *work)
 	rcu_cblist_init(&ready_cbs);
 	raw_spin_lock_irq_rcu_node(sdp);
 	WARN_ON_ONCE(!rcu_segcblist_segempty(&sdp->srcu_cblist, RCU_NEXT_TAIL));
-	rcu_segcblist_advance(&sdp->srcu_cblist,
-			      rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq));
+	srcu_segcblist_advance(&sdp->srcu_cblist,
+			       rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq));
 	/*
 	 * Although this function is theoretically re-entrant, concurrent
 	 * callbacks invocation is disallowed to avoid executing an SRCU barrier

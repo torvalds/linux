@@ -31,8 +31,6 @@ struct s3c_camif_sensor_info {
 
 struct s3c_camif_plat_data {
 	struct s3c_camif_sensor_info sensor;
-	int (*gpio_get)(void);
-	int (*gpio_put)(void);
 };
 
 #endif /* MEDIA_S3C_CAMIF_ */

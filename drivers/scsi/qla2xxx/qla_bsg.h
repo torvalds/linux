@@ -40,6 +40,10 @@
 #define QL_VND_MBX_PASSTHRU		0x2B
 #define QL_VND_DPORT_DIAGNOSTICS_V2	0x2C
 #define QL_VND_IMG_SET_VALID	0x30
+#define QL_VND_READ_FLASH_BLOCK		0x33
+#define QL_VND_WRITE_FLASH_BLOCK	0x34
+#define QL_VND_LOAD_MPI			0x35
+#define QL_VND_DUMP_MPI			0x36
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -83,6 +87,36 @@
 #define ELS_OPCODE_BYTE			0x10
 
 /* BSG Vendor specific definations */
+
+#define QLA_IS_TIM	0x1
+#define QLA_IS_SECURE	0x2
+#define QLA_UPDATE_MBR	0x4
+
+struct qla_block_rw {
+	uint32_t region;
+	uint32_t rw_length;
+	uint32_t options;
+	uint32_t region_offset;
+	uint32_t chunk_length;
+	uint8_t  reserved[44];
+} __packed;
+
+struct qla_load_dump_mpi {
+	uint32_t mpi_address;
+	uint32_t length;
+	uint32_t options;
+#define	QLA_LDM_SECURE_ENABLE	0x1
+#define	QLA_LDM_OTP_PROV	0x2
+#define	QLA_LDM_DEV_CSR		0x4
+#define	QLA_LDM_AUTH_CMD_BIN	0x8
+#define	QLA_LDM_SHADOW_REGS	0x10
+#define	QLA_LDM_CA_CSR		0x20
+#define	QLA_LDM_MLDSA_ALGO	0x40
+#define	QLA_LDM_MLDSA_SIGNATURE	0x80
+
+	uint8_t reserved[52];
+} __packed;
+
 #define A84_ISSUE_WRITE_TYPE_CMD        0
 #define A84_ISSUE_READ_TYPE_CMD         1
 #define A84_CLEANUP_CMD                 2

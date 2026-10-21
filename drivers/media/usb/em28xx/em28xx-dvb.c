@@ -29,7 +29,7 @@
 #include <media/dmxdev.h>
 #include <media/tuner.h>
 #include "tuner-simple.h"
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 
 #include "lgdt330x.h"
 #include "lgdt3305.h"

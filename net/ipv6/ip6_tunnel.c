@@ -1236,19 +1236,8 @@ route_lookup:
 	 */
 	max_headroom += LL_RESERVED_SPACE(tdev);
 
-	if (skb_headroom(skb) < max_headroom || skb_shared(skb) ||
-	    (skb_cloned(skb) && !skb_clone_writable(skb, 0))) {
-		struct sk_buff *new_skb;
-
-		new_skb = skb_realloc_headroom(skb, max_headroom);
-		if (!new_skb)
-			goto tx_err_dst_release;
-
-		if (skb->sk)
-			skb_set_owner_w(new_skb, skb->sk);
-		consume_skb(skb);
-		skb = new_skb;
-	}
+	if (skb_cow_head(skb, max_headroom))
+		goto tx_err_dst_release;
 
 	if (t->parms.collect_md) {
 		if (t->encap.type != TUNNEL_ENCAP_NONE)
@@ -1525,8 +1514,11 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 			tdev = __dev_get_by_index(t->net, p->link);
 
 		if (tdev) {
-			dev->needed_headroom = tdev->hard_header_len +
-				tdev->needed_headroom + t_hlen;
+			unsigned int headroom;
+
+			headroom = tdev->hard_header_len + tdev->needed_headroom;
+			headroom += t_hlen;
+			dev->needed_headroom = ip_tunnel_limit_headroom(headroom);
 			mtu = min_t(unsigned int, tdev->mtu, IP6_MAX_MTU);
 
 			mtu = mtu - t_hlen;
@@ -1848,31 +1840,42 @@ static int ip6_tnl_fill_forward_path(struct net_device_path_ctx *ctx,
 				     struct net_device_path *path)
 {
 	struct ip6_tnl *t = netdev_priv(ctx->dev);
-	struct flowi6 fl6 = {
-		.daddr = t->parms.raddr,
-	};
 	struct dst_entry *dst;
+	struct flowi6 fl6;
 	int err;
 
-	if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT)) {
-		/* encaplimit option is currently not supported is
-		 * sw-acceleration path.
-		 */
+	if (ctx->ether_type != cpu_to_be16(ETH_P_IPV6))
 		return -EOPNOTSUPP;
-	}
+
+	if (t->parms.flags & (IP6_TNL_F_USE_ORIG_TCLASS |
+			      IP6_TNL_F_USE_ORIG_FLOWLABEL |
+			      IP6_TNL_F_USE_ORIG_FWMARK))
+		return -EOPNOTSUPP;
+
+	if (t->parms.collect_md)
+		return -EOPNOTSUPP;
+
+	if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
+		return -EOPNOTSUPP;
+
+	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
+	fl6.flowi6_mark = t->parms.fwmark;
+	fl6.flowi6_proto = 0;
 
 	dst = ip6_route_output(dev_net(ctx->dev), NULL, &fl6);
 	if (!dst->error) {
 		path->type = DEV_PATH_TUN;
-		path->tun.src_v6 = t->parms.laddr;
-		path->tun.dst_v6 = t->parms.raddr;
-		path->tun.l3_proto = IPPROTO_IPV6;
+		path->tun.src_v6 = fl6.saddr;
+		path->tun.dst_v6 = fl6.daddr;
+		path->tun.inner_proto = IPPROTO_IPV6;
+		path->tun.dst = dst;
 		path->dev = ctx->dev;
 		ctx->dev = dst->dev;
 	}
 
 	err = dst->error;
-	dst_release(dst);
+	if (err)
+		dst_release(dst);
 
 	return err;
 }

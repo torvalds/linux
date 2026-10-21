@@ -8,8 +8,6 @@
 #include "kselftest.h"
 
 
-#define L2_GUEST_STACK_SIZE 64
-
 static void l2_guest_code(void)
 {
 	unsigned long efer = rdmsr(MSR_EFER);
@@ -24,10 +22,7 @@ static void l2_guest_code(void)
 
 static void l1_guest_code(struct svm_test_data *svm)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
-
-	generic_svm_setup(svm, l2_guest_code,
-			  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, l2_guest_code);
 	run_guest(svm->vmcb, svm->vmcb_gpa);
 
 	/* Unreachable, L1 should be shutdown */

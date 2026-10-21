@@ -219,10 +219,8 @@ static int ingenic_rproc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, vpu->irq, vpu_interrupt, IRQF_NO_AUTOEN,
 			       "VPU", rproc);
-	if (ret < 0) {
-		dev_err(dev, "Failed to request IRQ\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = devm_rproc_add(dev, rproc);
 	if (ret) {

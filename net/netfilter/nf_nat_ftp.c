@@ -61,6 +61,7 @@ static int nf_nat_ftp_fmt_cmd(struct nf_conn *ct, enum nf_ct_ftp_type type,
 /* So, this packet has hit the connection tracking matching code.
    Mangle it, and change the expectation to match the new version. */
 static unsigned int nf_nat_ftp(struct sk_buff *skb,
+			       struct nf_conn *ct,
 			       enum ip_conntrack_info ctinfo,
 			       enum nf_ct_ftp_type type,
 			       unsigned int protoff,
@@ -71,7 +72,6 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 	union nf_inet_addr newaddr;
 	u_int16_t port;
 	int dir = CTINFO2DIR(ctinfo);
-	struct nf_conn *ct = exp->master;
 	char buffer[sizeof("|1||65535|") + INET6_ADDRSTRLEN];
 	unsigned int buflen;
 
@@ -88,7 +88,7 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 
 	port = nf_nat_exp_find_port(exp, ntohs(exp->saved_proto.tcp.port));
 	if (port == 0) {
-		nf_ct_helper_log(skb, exp->master, "all ports in use");
+		nf_ct_helper_log(skb, ct, "all ports in use");
 		return NF_DROP;
 	}
 

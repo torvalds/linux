@@ -1690,7 +1690,7 @@ static void sma1307_check_fault_worker(struct work_struct *work)
 
 static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *file)
 {
-	const struct firmware *fw;
+	const struct firmware *fw __free(firmware) = NULL;
 	int size, offset, num_mode;
 	int ret;
 
@@ -1703,21 +1703,17 @@ static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *fil
 		return;
 	} else if ((fw->size) < SMA1307_SETTING_HEADER_SIZE) {
 		dev_err(sma1307->dev, "%s: Invalid file\n", __func__);
-		release_firmware(fw);
 		sma1307->set.status = false;
 		return;
 	}
 
 	int *data __free(kfree) = kzalloc(fw->size, GFP_KERNEL);
 	if (!data) {
-		release_firmware(fw);
 		sma1307->set.status = false;
 		return;
 	}
 	size = fw->size >> 2;
 	memcpy(data, fw->data, fw->size);
-
-	release_firmware(fw);
 
 	/* HEADER */
 	sma1307->set.header_size = SMA1307_SETTING_HEADER_SIZE;

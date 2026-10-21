@@ -155,9 +155,7 @@ static int brx_set_format(struct v4l2_subdev *subdev,
 
 	/* Propagate the format code to all pads. */
 	if (fmt->pad == BRX_PAD_SINK(0)) {
-		unsigned int i;
-
-		for (i = 0; i <= brx->entity.source_pad; ++i) {
+		for (unsigned int i = 0; i <= brx->entity.source_pad; ++i) {
 			format = v4l2_subdev_state_get_format(state, i);
 			format->code = fmt->format.code;
 		}
@@ -271,7 +269,6 @@ static void brx_configure_stream(struct vsp1_entity *entity,
 	struct vsp1_brx *brx = to_brx(&entity->subdev);
 	struct v4l2_mbus_framefmt *format;
 	unsigned int flags;
-	unsigned int i;
 
 	format = v4l2_subdev_state_get_format(state, brx->entity.source_pad);
 
@@ -315,7 +312,7 @@ static void brx_configure_stream(struct vsp1_entity *entity,
 			       VI6_BRU_ROP_CROP(VI6_ROP_NOP) |
 			       VI6_BRU_ROP_AROP(VI6_ROP_NOP));
 
-	for (i = 0; i < brx->entity.source_pad; ++i) {
+	for (unsigned int i = 0; i < brx->entity.source_pad; ++i) {
 		bool premultiplied = false;
 		u32 ctrl = 0;
 

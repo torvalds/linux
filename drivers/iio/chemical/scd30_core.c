@@ -2,7 +2,7 @@
 /*
  * Sensirion SCD30 carbon dioxide sensor core driver
  *
- * Copyright (c) 2020 Tomasz Duszynski <tomasz.duszynski@octakon.com>
+ * Copyright (c) 2020 Tomasz Duszynski <tduszyns@gmail.com>
  */
 
 #include <linux/bitfield.h>
@@ -686,7 +686,7 @@ static int scd30_setup_trigger(struct iio_dev *indio_dev)
 					IRQF_NO_AUTOEN,
 					indio_dev->name, indio_dev);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to request irq\n");
+		return ret;
 
 	return 0;
 }
@@ -711,7 +711,11 @@ int scd30_probe(struct device *dev, int irq, const char *name, void *priv,
 	state->pressure_comp = SCD30_PRESSURE_COMP_DEFAULT;
 	state->meas_interval = SCD30_MEAS_INTERVAL_DEFAULT;
 	state->command = command;
-	mutex_init(&state->lock);
+
+	ret = devm_mutex_init(dev, &state->lock);
+	if (ret)
+		return ret;
+
 	init_completion(&state->meas_ready);
 
 	dev_set_drvdata(dev, indio_dev);
@@ -770,6 +774,6 @@ int scd30_probe(struct device *dev, int irq, const char *name, void *priv,
 }
 EXPORT_SYMBOL_NS(scd30_probe, "IIO_SCD30");
 
-MODULE_AUTHOR("Tomasz Duszynski <tomasz.duszynski@octakon.com>");
+MODULE_AUTHOR("Tomasz Duszynski <tduszyns@gmail.com>");
 MODULE_DESCRIPTION("Sensirion SCD30 carbon dioxide sensor core driver");
 MODULE_LICENSE("GPL v2");

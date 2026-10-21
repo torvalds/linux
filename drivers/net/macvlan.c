@@ -171,7 +171,7 @@ static int macvlan_hash_add_source(struct macvlan_dev *vlan,
 	RCU_INIT_POINTER(entry->vlan, vlan);
 	h = &port->vlan_source_hash[macvlan_eth_hash(addr)];
 	hlist_add_head_rcu(&entry->hlist, h);
-	vlan->macaddr_count++;
+	WRITE_ONCE(vlan->macaddr_count, vlan->macaddr_count + 1);
 
 	return 0;
 }
@@ -277,7 +277,7 @@ static void macvlan_broadcast(struct sk_buff *skb,
 		return;
 
 	hash_for_each_rcu(port->vlan_hash, i, vlan, hlist) {
-		if (vlan->dev == src || !(vlan->mode & mode))
+		if (vlan->dev == src || !(READ_ONCE(vlan->mode) & mode))
 			continue;
 
 		hash = mc_hash(vlan, eth->h_dest);
@@ -306,7 +306,7 @@ static void macvlan_multicast_rx(const struct macvlan_port *port,
 				  MACVLAN_MODE_VEPA    |
 				  MACVLAN_MODE_PASSTHRU|
 				  MACVLAN_MODE_BRIDGE);
-	else if (src->mode == MACVLAN_MODE_VEPA)
+	else if (READ_ONCE(src->mode) == MACVLAN_MODE_VEPA)
 		/* flood to everyone except source */
 		macvlan_broadcast(skb, port, src->dev,
 				  MACVLAN_MODE_VEPA |
@@ -402,7 +402,7 @@ static void macvlan_flush_sources(struct macvlan_port *port,
 		if (rcu_access_pointer(entry->vlan) == vlan)
 			macvlan_hash_del_source(entry);
 
-	vlan->macaddr_count = 0;
+	WRITE_ONCE(vlan->macaddr_count, 0);
 }
 
 static void macvlan_forward_source_one(struct sk_buff *skb,
@@ -447,7 +447,7 @@ static bool macvlan_forward_source(struct sk_buff *skb,
 			if (!vlan)
 				continue;
 
-			if (vlan->flags & MACVLAN_FLAG_NODST)
+			if (READ_ONCE(vlan->flags) & MACVLAN_FLAG_NODST)
 				consume = true;
 			macvlan_forward_source_one(skb, vlan);
 		}
@@ -487,14 +487,18 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 			return RX_HANDLER_CONSUMED;
 		}
 		src = macvlan_hash_lookup(port, eth->h_source);
-		if (src && src->mode != MACVLAN_MODE_VEPA &&
-		    src->mode != MACVLAN_MODE_BRIDGE) {
-			/* forward to original port. */
-			vlan = src;
-			ret = macvlan_broadcast_one(skb, vlan, eth, 0) ?:
-			      __netif_rx(skb);
-			handle_res = RX_HANDLER_CONSUMED;
-			goto out;
+		if (src) {
+			enum macvlan_mode mode = READ_ONCE(src->mode);
+
+			if (mode != MACVLAN_MODE_VEPA &&
+			    mode != MACVLAN_MODE_BRIDGE) {
+				/* forward to original port. */
+				vlan = src;
+				ret = macvlan_broadcast_one(skb, vlan, eth, 0) ?:
+				      __netif_rx(skb);
+				handle_res = RX_HANDLER_CONSUMED;
+				goto out;
+			}
 		}
 
 		hash = mc_hash(NULL, eth->h_dest);
@@ -515,7 +519,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 					      struct macvlan_dev, list);
 	else
 		vlan = macvlan_hash_lookup(port, eth->h_dest);
-	if (!vlan || vlan->mode == MACVLAN_MODE_SOURCE)
+	if (!vlan || READ_ONCE(vlan->mode) == MACVLAN_MODE_SOURCE)
 		return RX_HANDLER_PASS;
 
 	dev = vlan->dev;
@@ -548,7 +552,7 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 	const struct macvlan_port *port = vlan->port;
 	const struct macvlan_dev *dest;
 
-	if (vlan->mode == MACVLAN_MODE_BRIDGE) {
+	if (READ_ONCE(vlan->mode) == MACVLAN_MODE_BRIDGE) {
 		const struct ethhdr *eth = skb_eth_hdr(skb);
 
 		/* send to other bridge ports directly */
@@ -559,7 +563,7 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		dest = macvlan_hash_lookup(port, eth->h_dest);
-		if (dest && dest->mode == MACVLAN_MODE_BRIDGE) {
+		if (dest && READ_ONCE(dest->mode) == MACVLAN_MODE_BRIDGE) {
 			/* send to lowerdev first for its network taps */
 			dev_forward_skb(vlan->lowerdev, skb);
 
@@ -777,7 +781,7 @@ static int macvlan_set_mac_address(struct net_device *dev, void *p)
 	if (ether_addr_equal(dev->dev_addr, addr->__data))
 		return 0;
 
-	if (vlan->mode == MACVLAN_MODE_PASSTHRU) {
+	if (READ_ONCE(vlan->mode) == MACVLAN_MODE_PASSTHRU) {
 		macvlan_set_addr_change(vlan->port);
 		return dev_set_mac_address(vlan->lowerdev, addr, NULL);
 	}
@@ -870,7 +874,7 @@ static void update_port_bc_cutoff(struct macvlan_dev *vlan, int cutoff)
 	if (vlan->port->bc_cutoff == cutoff)
 		return;
 
-	vlan->port->bc_cutoff = cutoff;
+	WRITE_ONCE(vlan->port->bc_cutoff, cutoff);
 	macvlan_recompute_bc_filter(vlan);
 }
 
@@ -1337,6 +1341,15 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 	if (!data)
 		return 0;
 
+	if (data[IFLA_MACVLAN_BC_QUEUE_LEN] &&
+	    nla_get_u32(data[IFLA_MACVLAN_BC_QUEUE_LEN]) >
+			MACVLAN_DEFAULT_BC_QUEUE_LEN &&
+	    !capable(CAP_NET_ADMIN)) {
+		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_MACVLAN_BC_QUEUE_LEN],
+				    "bc_queue_len above the default requires CAP_NET_ADMIN in the initial user namespace");
+		return -EPERM;
+	}
+
 	if (data[IFLA_MACVLAN_FLAGS] &&
 	    nla_get_u16(data[IFLA_MACVLAN_FLAGS]) & ~(MACVLAN_FLAG_NOPROMISC |
 						      MACVLAN_FLAG_NODST))
@@ -1425,7 +1438,7 @@ static int macvlan_changelink_sources(struct macvlan_dev *vlan, u32 mode,
 		entry = macvlan_hash_lookup_source(vlan, addr);
 		if (entry) {
 			macvlan_hash_del_source(entry);
-			vlan->macaddr_count--;
+			WRITE_ONCE(vlan->macaddr_count, vlan->macaddr_count - 1);
 		}
 	} else if (mode == MACVLAN_MACADDR_FLUSH) {
 		macvlan_flush_sources(vlan->port, vlan);
@@ -1481,8 +1494,14 @@ int macvlan_common_newlink(struct net_device *dev,
 	/* When creating macvlans or macvtaps on top of other macvlans - use
 	 * the real device as the lowerdev.
 	 */
-	if (netif_is_macvlan(lowerdev))
+	if (netif_is_macvlan(lowerdev)) {
 		lowerdev = macvlan_dev_real_dev(lowerdev);
+		if (!rtnl_dev_link_net_capable(dev, dev_net(lowerdev))) {
+			NL_SET_ERR_MSG(extack,
+				       "Creating a macvlan on a lower device in another network namespace requires CAP_NET_ADMIN in that namespace");
+			return -EPERM;
+		}
+	}
 
 	if (!tb[IFLA_MTU])
 		dev->mtu = lowerdev->mtu;
@@ -1621,6 +1640,14 @@ static int macvlan_changelink(struct net_device *dev,
 	enum macvlan_macaddr_mode macmode;
 	int ret;
 
+	if (data &&
+	    (data[IFLA_MACVLAN_BC_QUEUE_LEN] || data[IFLA_MACVLAN_BC_CUTOFF]) &&
+	    !rtnl_dev_link_net_capable(dev, dev_net(vlan->lowerdev))) {
+		NL_SET_ERR_MSG(extack,
+			       "Changing shared macvlan port settings requires CAP_NET_ADMIN in the lower device network namespace");
+		return -EPERM;
+	}
+
 	/* Validate mode, but don't set yet: setting flags may fail. */
 	if (data && data[IFLA_MACVLAN_MODE]) {
 		set_mode = true;
@@ -1647,11 +1674,12 @@ static int macvlan_changelink(struct net_device *dev,
 			if (err < 0)
 				return err;
 		}
-		vlan->flags = flags;
+		WRITE_ONCE(vlan->flags, flags);
 	}
 
 	if (data && data[IFLA_MACVLAN_BC_QUEUE_LEN]) {
-		vlan->bc_queue_len_req = nla_get_u32(data[IFLA_MACVLAN_BC_QUEUE_LEN]);
+		WRITE_ONCE(vlan->bc_queue_len_req,
+			   nla_get_u32(data[IFLA_MACVLAN_BC_QUEUE_LEN]));
 		update_port_bc_queue_len(vlan->port);
 	}
 
@@ -1660,7 +1688,7 @@ static int macvlan_changelink(struct net_device *dev,
 			vlan, nla_get_s32(data[IFLA_MACVLAN_BC_CUTOFF]));
 
 	if (set_mode)
-		vlan->mode = mode;
+		WRITE_ONCE(vlan->mode, mode);
 	if (data && data[IFLA_MACVLAN_MACADDR_MODE]) {
 		if (vlan->mode != MACVLAN_MODE_SOURCE)
 			return -EINVAL;
@@ -1674,10 +1702,12 @@ static int macvlan_changelink(struct net_device *dev,
 
 static size_t macvlan_get_size_mac(const struct macvlan_dev *vlan)
 {
-	if (vlan->macaddr_count == 0)
+	unsigned int macaddr_count = READ_ONCE(vlan->macaddr_count);
+
+	if (!macaddr_count)
 		return 0;
 	return nla_total_size(0) /* IFLA_MACVLAN_MACADDR_DATA */
-		+ vlan->macaddr_count * nla_total_size(sizeof(u8) * ETH_ALEN);
+		+ macaddr_count * nla_total_size(sizeof(u8) * ETH_ALEN);
 }
 
 static size_t macvlan_get_size(const struct net_device *dev)
@@ -1700,53 +1730,75 @@ static int macvlan_fill_info_macaddr(struct sk_buff *skb,
 				     const int i)
 {
 	struct hlist_head *h = &vlan->port->vlan_source_hash[i];
-	struct macvlan_source_entry *entry;
+	const struct macvlan_source_entry *entry;
+	int cnt = 0;
 
-	hlist_for_each_entry_rcu(entry, h, hlist, lockdep_rtnl_is_held()) {
+	hlist_for_each_entry_rcu(entry, h, hlist) {
 		if (rcu_access_pointer(entry->vlan) != vlan)
 			continue;
 		if (nla_put(skb, IFLA_MACVLAN_MACADDR, ETH_ALEN, entry->addr))
-			return 1;
+			return -EMSGSIZE;
+		cnt++;
 	}
-	return 0;
+	return cnt;
 }
 
 static int macvlan_fill_info(struct sk_buff *skb,
 				const struct net_device *dev)
 {
-	struct macvlan_dev *vlan = netdev_priv(dev);
+	const struct macvlan_dev *vlan = netdev_priv(dev);
 	struct macvlan_port *port = vlan->port;
-	int i;
-	struct nlattr *nest;
+	unsigned int macaddr_count = 0;
+	struct nlattr *nest, *attr;
+	int bc_cutoff, cnt, i;
 
-	if (nla_put_u32(skb, IFLA_MACVLAN_MODE, vlan->mode))
+	rcu_read_lock();
+	if (nla_put_u32(skb, IFLA_MACVLAN_MODE, READ_ONCE(vlan->mode)))
 		goto nla_put_failure;
-	if (nla_put_u16(skb, IFLA_MACVLAN_FLAGS, vlan->flags))
+
+	if (nla_put_u16(skb, IFLA_MACVLAN_FLAGS, READ_ONCE(vlan->flags)))
 		goto nla_put_failure;
-	if (nla_put_u32(skb, IFLA_MACVLAN_MACADDR_COUNT, vlan->macaddr_count))
+
+	attr = nla_reserve(skb, IFLA_MACVLAN_MACADDR_COUNT, sizeof(u32));
+	if (!attr)
 		goto nla_put_failure;
-	if (vlan->macaddr_count > 0) {
+
+	if (READ_ONCE(vlan->macaddr_count) > 0) {
 		nest = nla_nest_start_noflag(skb, IFLA_MACVLAN_MACADDR_DATA);
 		if (nest == NULL)
 			goto nla_put_failure;
 
 		for (i = 0; i < MACVLAN_HASH_SIZE; i++) {
-			if (macvlan_fill_info_macaddr(skb, vlan, i))
+			cnt = macvlan_fill_info_macaddr(skb, vlan, i);
+			if (cnt < 0)
 				goto nla_put_failure;
+			macaddr_count += cnt;
 		}
-		nla_nest_end(skb, nest);
+		if (!macaddr_count)
+			nla_nest_cancel(skb, nest);
+		else if (nla_nest_end_safe(skb, nest) < 0)
+			goto nla_put_failure;
 	}
-	if (nla_put_u32(skb, IFLA_MACVLAN_BC_QUEUE_LEN, vlan->bc_queue_len_req))
+	*(u32 *)nla_data(attr) = macaddr_count;
+
+	if (nla_put_u32(skb, IFLA_MACVLAN_BC_QUEUE_LEN,
+			READ_ONCE(vlan->bc_queue_len_req)))
 		goto nla_put_failure;
+
 	if (nla_put_u32(skb, IFLA_MACVLAN_BC_QUEUE_LEN_USED,
 			READ_ONCE(port->bc_queue_len_used)))
 		goto nla_put_failure;
-	if (port->bc_cutoff != 1 &&
-	    nla_put_s32(skb, IFLA_MACVLAN_BC_CUTOFF, port->bc_cutoff))
+
+	bc_cutoff = READ_ONCE(port->bc_cutoff);
+	if (bc_cutoff != 1 &&
+	    nla_put_s32(skb, IFLA_MACVLAN_BC_CUTOFF, bc_cutoff))
 		goto nla_put_failure;
+
+	rcu_read_unlock();
 	return 0;
 
 nla_put_failure:
+	rcu_read_unlock();
 	return -EMSGSIZE;
 }
 
@@ -1881,7 +1933,9 @@ static int __init macvlan_init_module(void)
 {
 	int err;
 
-	register_netdevice_notifier(&macvlan_notifier_block);
+	err = register_netdevice_notifier(&macvlan_notifier_block);
+	if (err)
+		return err;
 
 	err = macvlan_link_register(&macvlan_link_ops);
 	if (err < 0)

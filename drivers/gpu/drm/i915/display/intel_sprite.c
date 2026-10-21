@@ -241,13 +241,13 @@ int vlv_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	unsigned int num, den;
 
 	/*
-	 * Note that crtc_state->pixel_rate accounts for both
+	 * Note that crtc_state->pixel_rate_cdclk accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
 	 * downscaling factor here. We ignore that and just consider
 	 * both for simplicity.
 	 */
-	pixel_rate = crtc_state->pixel_rate;
+	pixel_rate = crtc_state->pixel_rate_cdclk;
 
 	vlv_plane_ratio(crtc_state, plane_state, &num, &den);
 
@@ -550,13 +550,13 @@ int ivb_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	unsigned int num, den;
 
 	/*
-	 * Note that crtc_state->pixel_rate accounts for both
+	 * Note that crtc_state->pixel_rate_cdclk accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
 	 * downscaling factor here. We ignore that and just consider
 	 * both for simplicity.
 	 */
-	pixel_rate = crtc_state->pixel_rate;
+	pixel_rate = crtc_state->pixel_rate_cdclk;
 
 	ivb_plane_ratio(crtc_state, plane_state, &num, &den);
 
@@ -570,13 +570,13 @@ static int ivb_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	unsigned int num, den;
 
 	/*
-	 * Note that crtc_state->pixel_rate accounts for both
+	 * Note that crtc_state->pixel_rate_cdclk accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
 	 * downscaling factor here. We ignore that and just consider
 	 * both for simplicity.
 	 */
-	pixel_rate = crtc_state->pixel_rate;
+	pixel_rate = crtc_state->pixel_rate_cdclk;
 
 	src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	dst_w = drm_rect_width(&plane_state->uapi.dst);
@@ -629,7 +629,7 @@ static void hsw_plane_ratio(const struct intel_crtc_state *crtc_state,
 int hsw_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state)
 {
-	unsigned int pixel_rate = crtc_state->pixel_rate;
+	unsigned int pixel_rate = crtc_state->pixel_rate_cdclk;
 	unsigned int num, den;
 
 	hsw_plane_ratio(crtc_state, plane_state, &num, &den);
@@ -918,13 +918,13 @@ static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	unsigned int limit, decimate;
 
 	/*
-	 * Note that crtc_state->pixel_rate accounts for both
+	 * Note that crtc_state->pixel_rate_cdclk accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
 	 * downscaling factor here. We ignore that and just consider
 	 * both for simplicity.
 	 */
-	pixel_rate = crtc_state->pixel_rate;
+	pixel_rate = crtc_state->pixel_rate_cdclk;
 
 	/* Horizontal downscaling limits the maximum pixel rate */
 	hscale = drm_rect_calc_hscale(&plane_state->uapi.src,
@@ -1721,6 +1721,10 @@ intel_sprite_plane_create(struct intel_display *display,
 					  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
 					  DRM_COLOR_YCBCR_BT709,
 					  DRM_COLOR_YCBCR_LIMITED_RANGE);
+
+	if (display->platform.valleyview || display->platform.cherryview)
+		drm_plane_create_blend_mode_property(&plane->base,
+						     BIT(DRM_MODE_BLEND_PREMULTI));
 
 	zpos = sprite + 1;
 	drm_plane_create_zpos_immutable_property(&plane->base, zpos);

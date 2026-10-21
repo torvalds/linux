@@ -190,7 +190,7 @@ restart:
 	ecode = UEI_REPORT(skel, uei);
 	scx_pair__destroy(skel);
 
-	if (UEI_ECODE_RESTART(ecode))
+	if (!exit_req && UEI_ECODE_RESTART(ecode))
 		goto restart;
 	return 0;
 }

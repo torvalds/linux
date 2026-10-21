@@ -167,44 +167,6 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 	}
 }
 
-static void gmc_v8_0_mc_stop(struct amdgpu_device *adev)
-{
-	u32 blackout;
-	struct amdgpu_ip_block *ip_block;
-
-	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_GMC);
-	if (!ip_block)
-		return;
-
-	gmc_v8_0_wait_for_idle(ip_block);
-
-	blackout = RREG32(mmMC_SHARED_BLACKOUT_CNTL);
-	if (REG_GET_FIELD(blackout, MC_SHARED_BLACKOUT_CNTL, BLACKOUT_MODE) != 1) {
-		/* Block CPU access */
-		WREG32(mmBIF_FB_EN, 0);
-		/* blackout the MC */
-		blackout = REG_SET_FIELD(blackout,
-					 MC_SHARED_BLACKOUT_CNTL, BLACKOUT_MODE, 1);
-		WREG32(mmMC_SHARED_BLACKOUT_CNTL, blackout);
-	}
-	/* wait for the MC to settle */
-	udelay(100);
-}
-
-static void gmc_v8_0_mc_resume(struct amdgpu_device *adev)
-{
-	u32 tmp;
-
-	/* unblackout the MC */
-	tmp = RREG32(mmMC_SHARED_BLACKOUT_CNTL);
-	tmp = REG_SET_FIELD(tmp, MC_SHARED_BLACKOUT_CNTL, BLACKOUT_MODE, 0);
-	WREG32(mmMC_SHARED_BLACKOUT_CNTL, tmp);
-	/* allow CPU access */
-	tmp = REG_SET_FIELD(0, BIF_FB_EN, FB_READ_EN, 1);
-	tmp = REG_SET_FIELD(tmp, BIF_FB_EN, FB_WRITE_EN, 1);
-	WREG32(mmBIF_FB_EN, tmp);
-}
-
 /**
  * gmc_v8_0_init_microcode - load ucode images from disk
  *
@@ -1293,89 +1255,6 @@ static int gmc_v8_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 
 }
 
-static bool gmc_v8_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	u32 srbm_soft_reset = 0;
-	struct amdgpu_device *adev = ip_block->adev;
-	u32 tmp = RREG32(mmSRBM_STATUS);
-
-	if (tmp & SRBM_STATUS__VMC_BUSY_MASK)
-		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
-						SRBM_SOFT_RESET, SOFT_RESET_VMC, 1);
-
-	if (tmp & (SRBM_STATUS__MCB_BUSY_MASK | SRBM_STATUS__MCB_NON_DISPLAY_BUSY_MASK |
-		   SRBM_STATUS__MCC_BUSY_MASK | SRBM_STATUS__MCD_BUSY_MASK)) {
-		if (!(adev->flags & AMD_IS_APU))
-			srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
-							SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
-	}
-
-	if (srbm_soft_reset) {
-		adev->gmc.srbm_soft_reset = srbm_soft_reset;
-		return true;
-	}
-
-	adev->gmc.srbm_soft_reset = 0;
-
-	return false;
-}
-
-static int gmc_v8_0_pre_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-
-	if (!adev->gmc.srbm_soft_reset)
-		return 0;
-
-	gmc_v8_0_mc_stop(adev);
-	if (gmc_v8_0_wait_for_idle(ip_block))
-		dev_warn(adev->dev, "Wait for GMC idle timed out !\n");
-
-	return 0;
-}
-
-static int gmc_v8_0_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-	u32 srbm_soft_reset;
-
-	if (!adev->gmc.srbm_soft_reset)
-		return 0;
-	srbm_soft_reset = adev->gmc.srbm_soft_reset;
-
-	if (srbm_soft_reset) {
-		u32 tmp;
-
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-		tmp |= srbm_soft_reset;
-		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
-		WREG32(mmSRBM_SOFT_RESET, tmp);
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-
-		udelay(50);
-
-		tmp &= ~srbm_soft_reset;
-		WREG32(mmSRBM_SOFT_RESET, tmp);
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-
-		/* Wait a little for things to settle down */
-		udelay(50);
-	}
-
-	return 0;
-}
-
-static int gmc_v8_0_post_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-
-	if (!adev->gmc.srbm_soft_reset)
-		return 0;
-
-	gmc_v8_0_mc_resume(adev);
-	return 0;
-}
-
 static int gmc_v8_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 					     struct amdgpu_irq_src *src,
 					     unsigned int type,
@@ -1715,10 +1594,6 @@ static const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
 	.resume = gmc_v8_0_resume,
 	.is_idle = gmc_v8_0_is_idle,
 	.wait_for_idle = gmc_v8_0_wait_for_idle,
-	.check_soft_reset = gmc_v8_0_check_soft_reset,
-	.pre_soft_reset = gmc_v8_0_pre_soft_reset,
-	.soft_reset = gmc_v8_0_soft_reset,
-	.post_soft_reset = gmc_v8_0_post_soft_reset,
 	.set_clockgating_state = gmc_v8_0_set_clockgating_state,
 	.set_powergating_state = gmc_v8_0_set_powergating_state,
 	.get_clockgating_state = gmc_v8_0_get_clockgating_state,

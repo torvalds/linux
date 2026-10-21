@@ -66,6 +66,10 @@ properties:
   "#sound-dai-cells":
     const: 0
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
   - reg

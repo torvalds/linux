@@ -588,8 +588,8 @@ void ivpu_mmu_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ct
 		start = vdev->hw->ranges.runtime.start;
 		end = vdev->hw->ranges.shave.end;
 	} else {
-		start = min_t(u64, vdev->hw->ranges.user.start, vdev->hw->ranges.shave.start);
-		end = max_t(u64, vdev->hw->ranges.user.end, vdev->hw->ranges.dma.end);
+		start = min(vdev->hw->ranges.user.start, vdev->hw->ranges.shave.start);
+		end = max(vdev->hw->ranges.user.end, vdev->hw->ranges.dma.end);
 	}
 
 	drm_mm_init(&ctx->mm, start, end - start);

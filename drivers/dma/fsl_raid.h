@@ -256,7 +256,7 @@ struct fsl_re_hw_desc {
 struct fsl_re_drv_private {
 	u8 total_chans;
 	struct dma_device dma_dev;
-	struct fsl_re_ctrl *re_regs;
+	void __iomem *base;
 	struct fsl_re_chan *re_jrs[FSL_RE_MAX_CHANS];
 	struct dma_pool *cf_desc_pool;
 	struct dma_pool *hw_desc_pool;
@@ -273,7 +273,7 @@ struct fsl_re_chan {
 	struct device *dev;
 	struct fsl_re_drv_private *re_dev;
 	struct dma_chan chan;
-	struct fsl_re_chan_cfg *jrregs;
+	struct fsl_re_chan_cfg __iomem *jrregs;
 	int irq;
 	struct tasklet_struct irqtask;
 	u32 alloc_count;

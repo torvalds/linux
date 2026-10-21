@@ -736,6 +736,7 @@ static const struct i2c_device_id cw_bat_id_table[] = {
 	{ .name = "cw2015" },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, cw_bat_id_table);
 
 static const struct of_device_id cw2015_of_match[] = {
 	{ .compatible = "cellwise,cw2015" },

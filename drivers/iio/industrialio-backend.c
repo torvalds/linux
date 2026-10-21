@@ -649,7 +649,7 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_ext_info_get, "IIO_BACKEND");
  * @len: Buffer length
  *
  * This helper is intended to be used by backends that extend an IIO channel
- * (trough iio_backend_extend_chan_spec()) with extended info. In that case,
+ * (through iio_backend_extend_chan_spec()) with extended info. In that case,
  * backends are not supposed to give their own callbacks (as they would not have
  * a way to get the backend from indio_dev). This is the setter.
  *
@@ -851,7 +851,7 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_filter_type_set, "IIO_BACKEND");
  * @back: Backend device
  * @timeout_us: Timeout value in us.
  *
- * When activated, it initates a proccess that aligns the sample's most
+ * When activated, it initiates a process that aligns the sample's most
  * significant bit (MSB) based solely on the captured data, without
  * considering any other external signals.
  *
@@ -1017,7 +1017,7 @@ static struct iio_backend *__devm_iio_backend_fwnode_get(struct device *dev, con
  * @dev: Consumer device for the backend
  * @name: Backend name
  *
- * Get's the backend associated with @dev.
+ * Gets the backend associated with @dev.
  *
  * RETURNS:
  * A backend pointer, negative error pointer otherwise.
@@ -1050,7 +1050,7 @@ EXPORT_SYMBOL_NS_GPL(devm_iio_backend_get_by_index, "IIO_BACKEND");
  * @name: Backend name
  * @fwnode: Firmware node of the backend consumer
  *
- * Get's the backend associated with a firmware node.
+ * Gets the backend associated with a firmware node.
  *
  * RETURNS:
  * A backend pointer, negative error pointer otherwise.

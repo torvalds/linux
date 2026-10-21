@@ -38,6 +38,8 @@ driver. The display driver isn't an independent driver in that sense.
    fifo-underrun
    frontbuffer
    hotplug
+   dp-link-training
+   dp-link-capabilities
    plane
    psr
    snps-phy

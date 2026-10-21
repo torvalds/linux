@@ -25,7 +25,7 @@
 //
 // Nevertheless, it is useful to have most of them defined, like the C driver
 // does.
-#![allow(dead_code)]
+#![expect(dead_code)]
 
 /// Combine two 32-bit values into a single 64-bit value.
 pub(crate) fn join_u64(lo: u32, hi: u32) -> u64 {
@@ -45,20 +45,17 @@ pub(crate) fn read_u64_no_tearing(lo_read: impl Fn() -> u32, hi_read: impl Fn() 
     }
 }
 
+pub(crate) use mmu_control::mmu_as_control::MAX_AS;
+
 /// These registers correspond to the GPU_CONTROL register page.
 /// They are involved in GPU configuration and control.
 pub(crate) mod gpu_control {
-    use core::convert::TryFrom;
     use kernel::{
-        error::{
-            code::EINVAL,
-            Error, //
-        },
         num::Bounded,
+        prelude::*,
         register,
         uapi, //
     };
-    use pin_init::Zeroable;
 
     register! {
         /// GPU identification register.
@@ -964,16 +961,13 @@ pub(crate) mod mmu_control {
     ///
     /// This array contains 16 instances of the MMU_AS_CONTROL register page.
     pub(crate) mod mmu_as_control {
-        use core::convert::TryFrom;
-
         use kernel::{
-            error::{
-                code::EINVAL,
-                Error, //
-            },
             num::Bounded,
+            prelude::*,
             register, //
         };
+
+        use pin_init::Zeroable;
 
         /// Maximum number of hardware address space slots.
         /// The actual number of slots available is usually lower.
@@ -1168,7 +1162,136 @@ pub(crate) mod mmu_control {
             pub(crate) MEMATTR_HI(u32)[MAX_AS, stride = STRIDE] @ 0x240c {
                 31:0 value;
             }
+        }
 
+        impl MEMATTR {
+            /// Outer cache-policy nibble indicating device memory.
+            const ARM_MAIR_DEVICE_MEMORY: u8 = 0x0;
+
+            /// In the ARM Architecture Reference Manual, the MAIR encoding for Normal memory
+            /// uses the format `0bxxRW` where:
+            /// - `W` (bit 0) = Write-Allocate policy
+            /// - `R` (bit 1) = Read-Allocate policy
+            ///   E.g., `0b0011` would allow both read and write allocation on a cache miss.
+            ///
+            /// ARM MAIR Write-Allocate bit (bit 0 of a cache policy nibble).
+            const ARM_MAIR_WRITE_ALLOCATE: u8 = 0x1;
+            /// ARM MAIR Read-Allocate bit (bit 1 of a cache policy nibble).
+            const ARM_MAIR_READ_ALLOCATE: u8 = 0x2;
+
+            /// Write-back policy bit. For cacheable encodings, it is necessary but not
+            /// sufficient to set bit 2 of the cache policy nibble. Bit 2 does not
+            /// definitively determine write back because bit 2 is also set in `0b0100`
+            /// which encodes Normal non-cacheable memory.
+            const ARM_MAIR_WRITE_BACK_BIT: u8 = 0x4;
+
+            /// Complete cache-policy nibble encoding for Normal Non-cacheable memory.
+            const ARM_MAIR_NON_CACHEABLE: u8 = 0x4;
+
+            /// Mask for the inner cache policy nibble in MAIR attribute bytes.
+            const ARM_MAIR_INNER_MASK: u8 = 0x0f;
+
+            /// Check if a MAIR attribute byte represents device memory.
+            ///
+            /// Device memory (memory-mapped I/O, registers) cannot be cached because
+            /// reading and writing to this memory may have side effects.
+            fn is_device_memory(mair_attr: u8) -> bool {
+                // In AArch64 MAIR, outer nibble only is 0 for device memory.
+                (mair_attr >> 4) == Self::ARM_MAIR_DEVICE_MEMORY
+            }
+
+            /// Check if normal memory is fully write-back cacheable.
+            ///
+            /// ARM MAIR has two cache policy levels (outer [7:4] and inner [3:0]).
+            /// For memory to be truly write-back, BOTH levels must have the write-back bit set.
+            /// If only one level is write-back, treat it as non-cacheable for GPU purposes.
+            fn is_writeback_cacheable(mair_attr: u8) -> bool {
+                let outer = mair_attr >> 4;
+                let inner = mair_attr & Self::ARM_MAIR_INNER_MASK;
+
+                outer != Self::ARM_MAIR_NON_CACHEABLE
+                    && inner != Self::ARM_MAIR_NON_CACHEABLE
+                    && (outer & Self::ARM_MAIR_WRITE_BACK_BIT) != 0
+                    && (inner & Self::ARM_MAIR_WRITE_BACK_BIT) != 0
+            }
+
+            // Helper to encode a MEMATTR attribute from its individual fields.
+            fn encode_attribute(
+                alloc_w: bool,
+                alloc_r: bool,
+                alloc_sel: AllocPolicySelect,
+                coherency: Coherency,
+                memory_type: MemoryType,
+            ) -> MMU_MEMATTR_STAGE1 {
+                MMU_MEMATTR_STAGE1::zeroed()
+                    .with_alloc_w(alloc_w)
+                    .with_alloc_r(alloc_r)
+                    .with_alloc_sel(alloc_sel)
+                    .with_coherency(coherency)
+                    .with_memory_type(memory_type)
+            }
+
+            /// Convert one MAIR attribute byte into a MEMATTR attribute.
+            // TODO: Add a `coherent` parameter like panthor's mair_to_memattr().
+            // For now, assume a non-coherent system and always encode write-back
+            // memory with MidgardInnerDomain coherency.
+            fn attribute_from_mair(mair_attr: u8) -> MMU_MEMATTR_STAGE1 {
+                // Device memory or non-write-back normal memory
+                if Self::is_device_memory(mair_attr) || !Self::is_writeback_cacheable(mair_attr) {
+                    return Self::encode_attribute(
+                        false,
+                        false,
+                        AllocPolicySelect::Alloc,
+                        Coherency::MidgardInnerDomain,
+                        MemoryType::NonCacheable,
+                    );
+                }
+
+                // Write-back cacheable normal memory
+                let inner: u8 = mair_attr & Self::ARM_MAIR_INNER_MASK;
+                Self::encode_attribute(
+                    (inner & Self::ARM_MAIR_WRITE_ALLOCATE) != 0,
+                    (inner & Self::ARM_MAIR_READ_ALLOCATE) != 0,
+                    AllocPolicySelect::Alloc,
+                    Coherency::MidgardInnerDomain,
+                    MemoryType::WriteBack,
+                )
+            }
+
+            /// Write one converted MAIR attribute into a corresponding MEMATTR slot.
+            fn with_encoded_attribute(self, index: usize, attr: MMU_MEMATTR_STAGE1) -> Self {
+                debug_assert!(index < 8);
+
+                let shift = index * 8;
+                let mask = !(0xffu64 << shift);
+                let raw = (self.into_raw() & mask) | ((u64::from(attr.into_raw())) << shift);
+
+                Self::from_raw(raw)
+            }
+
+            /// Convert an AArch64 MAIR value into the GPU MEMATTR register encoding.
+            ///
+            /// Both MAIR and MEMATTR are 64-bit values with eight 8-bit memory
+            /// attribute entries, but the bits do not map directly. The GPU MEMATTR encoding
+            /// is  less detailed than the MAIR encoding, so MAIR is converted to MEMATTR
+            /// conservatively as follows:
+            ///
+            /// 1. Device memory, or Normal Memory that is not write-back cacheable, is encoded
+            ///    as GPU `NonCacheable`
+            ///
+            /// 2. Normal memory that is write-back cacheable is encoded as GPU `WriteBack`,
+            ///    and the inner allocation hints are preserved.
+            pub(crate) fn from_mair(mair: u64) -> Self {
+                mair.to_le_bytes()
+                    .into_iter()
+                    .enumerate()
+                    .fold(Self::zeroed(), |acc, (i, attr)| {
+                        acc.with_encoded_attribute(i, Self::attribute_from_mair(attr))
+                    })
+            }
+        }
+
+        register! {
             /// Lock region address for each address space.
             pub(crate) LOCKADDR(u64)[MAX_AS, stride = STRIDE] @ 0x2410 {
                 /// Lock region size.

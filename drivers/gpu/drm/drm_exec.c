@@ -79,7 +79,7 @@ void drm_exec_init(struct drm_exec *exec, u32 flags, unsigned nr)
 		nr = PAGE_SIZE / sizeof(void *);
 
 	exec->flags = flags;
-	exec->objects = kvmalloc_array(nr, sizeof(void *), GFP_KERNEL);
+	exec->objects = kvmalloc_objs(*exec->objects, nr);
 
 	/* If allocation here fails, just delay that till the first use */
 	exec->max_objects = exec->objects ? nr : 0;
@@ -321,6 +321,19 @@ int drm_exec_prepare_array(struct drm_exec *exec,
 			   unsigned int num_fences)
 {
 	int ret;
+
+	/*
+	 * Make sure to lock a contended object even when no objects are
+	 * given, otherwise drm_exec_retry_on_contention() would loop
+	 * forever on patterns like:
+	 *
+	 *	ret = drm_exec_prepare_array(exec, objs, num_objects, ...);
+	 *	drm_exec_retry_on_contention(exec);
+	 *
+	 * with num_objects == 0.
+	 */
+	if (!num_objects)
+		return drm_exec_lock_contended(exec);
 
 	for (unsigned int i = 0; i < num_objects; ++i) {
 		ret = drm_exec_prepare_obj(exec, objects[i], num_fences);

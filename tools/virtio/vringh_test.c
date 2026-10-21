@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Simple test of virtio code, entirely in userpsace. */
+/* Simple test of virtio code, entirely in userspace. */
 #define _GNU_SOURCE
 #include <sched.h>
 #include <err.h>

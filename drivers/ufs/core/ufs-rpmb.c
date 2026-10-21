@@ -69,7 +69,11 @@ static int ufs_rpmb_route_frames(struct device *dev, u8 *req, unsigned int req_l
 
 	hba = ufs_rpmb->hba;
 
-	req_type = be16_to_cpu(frm_out->req_resp);
+	/* req_resp is at the end of an RPMB frame. */
+	if (req_len < sizeof(*frm_out))
+		return -EINVAL;
+
+	req_type = get_unaligned_be16(&frm_out->req_resp);
 
 	switch (req_type) {
 	case RPMB_PROGRAM_KEY:
@@ -107,7 +111,7 @@ static int ufs_rpmb_route_frames(struct device *dev, u8 *req, unsigned int req_l
 		struct rpmb_frame *frm_resp = (struct rpmb_frame *)resp;
 
 		memset(frm_resp, 0, sizeof(*frm_resp));
-		frm_resp->req_resp = cpu_to_be16(RPMB_RESULT_READ);
+		put_unaligned_be16(RPMB_RESULT_READ, &frm_resp->req_resp);
 		ret = ufs_sec_submit(hba, protocol_id, resp, resp_len, true);
 		if (ret) {
 			dev_err(dev, "Result read request failed with ret=%d\n", ret);

@@ -1495,6 +1495,8 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="0x3058" name="VBIF_OUT_AXI_AMEMTYPE_CONF0"/>
 	<reg32 offset="0x305e" name="VBIF_OUT_AXI_AOOO_EN"/>
 	<reg32 offset="0x305f" name="VBIF_OUT_AXI_AOOO"/>
+	<reg32 offset="0x3080" name="VBIF_XIN_HALT_CTRL0"/>
+	<reg32 offset="0x3081" name="VBIF_XIN_HALT_CTRL1"/>
 
 	<bitset name="a3xx_vbif_perf_cnt" inline="yes">
 		<bitfield name="CNT0" pos="0" type="boolean"/>

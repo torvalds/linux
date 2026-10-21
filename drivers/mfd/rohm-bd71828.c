@@ -5,8 +5,6 @@
  * ROHM BD718[15/28/79] and BD72720 PMIC driver
  */
 
-#include <linux/device/devres.h>
-#include <linux/gfp_types.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -19,9 +17,10 @@
 #include <linux/mfd/rohm-generic.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
+
+#include "rohm-pwrbutton.h"
 
 #define BD72720_TYPED_IRQ_REG(_irq, _stat_offset, _mask, _type_offset)     \
 	[_irq] = {							   \
@@ -859,83 +858,7 @@ static int set_clk_mode(struct device *dev, struct regmap *regmap,
 				  OUT32K_MODE_CMOS);
 }
 
-static const struct property_entry bd71828_powerkey_parent_props[] = {
-	PROPERTY_ENTRY_STRING("label", "bd71828-pwrkey"),
-	{ }
-};
 
-static const struct property_entry bd71828_powerkey_props[] = {
-	PROPERTY_ENTRY_U32("linux,code", KEY_POWER),
-	PROPERTY_ENTRY_BOOL("wakeup-source"),
-	{ }
-};
-
-#define GPIO_KEYS  0	/* Node corresponding to gpio-keys device itself */
-#define PWRON_KEY  1	/* Node describing power button in gpio-keys */
-
-static int bd71828_i2c_register_swnodes(const struct software_node *nodes)
-{
-	const struct software_node * const node_group[] = {
-		&nodes[GPIO_KEYS], &nodes[PWRON_KEY], NULL
-	};
-
-	return software_node_register_node_group(node_group);
-}
-
-static void bd71828_i2c_unregister_swnodes(void *data)
-{
-	const struct software_node *nodes = data;
-	const struct software_node * const node_group[] = {
-		&nodes[GPIO_KEYS], &nodes[PWRON_KEY], NULL
-	};
-
-	software_node_unregister_node_group(node_group);
-}
-
-static int bd71828_i2c_register_pwrbutton(struct device *dev, int button_irq,
-					  struct irq_domain *irq_domain)
-{
-	const struct resource res[] = {
-		DEFINE_RES_IRQ_NAMED(button_irq, "bd71828-pwrkey"),
-	};
-	struct mfd_cell gpio_keys_cell = {
-		.name = "gpio-keys",
-		.resources = res,
-		.num_resources = ARRAY_SIZE(res),
-	};
-	struct software_node *nodes;
-	int ret;
-
-	nodes = devm_kcalloc(dev, 2, sizeof(*nodes), GFP_KERNEL);
-	if (!nodes)
-		return -ENOMEM;
-
-	nodes[GPIO_KEYS].name = devm_kasprintf(dev, GFP_KERNEL, "%s-power-key", dev_name(dev));
-	if (!nodes[GPIO_KEYS].name)
-		return -ENOMEM;
-
-	nodes[GPIO_KEYS].properties = bd71828_powerkey_parent_props;
-
-	nodes[PWRON_KEY].parent = &nodes[GPIO_KEYS];
-	nodes[PWRON_KEY].properties = bd71828_powerkey_props;
-
-	ret = bd71828_i2c_register_swnodes(nodes);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev, bd71828_i2c_unregister_swnodes, nodes);
-	if (ret)
-		return ret;
-
-	gpio_keys_cell.swnode = &nodes[GPIO_KEYS];
-
-	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, &gpio_keys_cell, 1,
-				   NULL, 0, irq_domain);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to register power-button");
-
-	return 0;
-}
 
 static struct i2c_client *bd71828_dev;
 static void bd71828_power_off(void)
@@ -1096,7 +1019,8 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 		return dev_err_probe(&i2c->dev, ret, "Failed to create subdevices\n");
 
 	if (button_irq) {
-		ret = bd71828_i2c_register_pwrbutton(&i2c->dev, button_irq, irq_domain);
+		ret = rohm_register_pwrbutton(&i2c->dev, button_irq,
+					      "bd71828-pwrkey", true, irq_domain);
 		if (ret)
 			return ret;
 	}

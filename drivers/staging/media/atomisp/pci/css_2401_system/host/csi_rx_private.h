@@ -21,7 +21,7 @@
  * Device level interface (DLI).
  *
  *****************************************************/
-/**
+/*
  * @brief Load the register value.
  * Refer to "csi_rx_public.h" for details.
  */
@@ -35,7 +35,7 @@ static inline hrt_data csi_rx_fe_ctrl_reg_load(
 					     hrt_data));
 }
 
-/**
+/*
  * @brief Store a value to the register.
  * Refer to "ibuf_ctrl_public.h" for details.
  */
@@ -51,7 +51,7 @@ static inline void csi_rx_fe_ctrl_reg_store(
 				   value);
 }
 
-/**
+/*
  * @brief Load the register value.
  * Refer to "csi_rx_public.h" for details.
  */
@@ -65,7 +65,7 @@ static inline hrt_data csi_rx_be_ctrl_reg_load(
 					     hrt_data));
 }
 
-/**
+/*
  * @brief Store a value to the register.
  * Refer to "ibuf_ctrl_public.h" for details.
  */
@@ -88,7 +88,7 @@ static inline void csi_rx_be_ctrl_reg_store(
  * Native command interface (NCI).
  *
  *****************************************************/
-/**
+/*
  * @brief Get the state of the csi rx fe dlane process.
  * Refer to "csi_rx_public.h" for details.
  */
@@ -103,7 +103,7 @@ static inline void csi_rx_fe_ctrl_get_dlane_state(
 	    csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_DLY_CNT_SETTLE_DLANE_REG_IDX(lane));
 }
 
-/**
+/*
  * @brief Get the csi rx fe state.
  * Refer to "csi_rx_public.h" for details.
  */
@@ -142,7 +142,7 @@ static inline void csi_rx_fe_ctrl_get_state(
 	}
 }
 
-/**
+/*
  * @brief dump the csi rx fe state.
  * Refer to "csi_rx_public.h" for details.
  */
@@ -180,7 +180,7 @@ static inline void csi_rx_fe_ctrl_dump_state(
 	}
 }
 
-/**
+/*
  * @brief Get the csi rx be state.
  * Refer to "csi_rx_public.h" for details.
  */
@@ -243,7 +243,7 @@ static inline void csi_rx_be_ctrl_get_state(
 	}
 }
 
-/**
+/*
  * @brief Dump the csi rx be state.
  * Refer to "csi_rx_public.h" for details.
  */

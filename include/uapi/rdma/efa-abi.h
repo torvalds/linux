@@ -56,7 +56,8 @@ struct efa_ibv_alloc_pd_resp {
 
 enum {
 	EFA_CREATE_CQ_WITH_COMPLETION_CHANNEL = 1 << 0,
-	EFA_CREATE_CQ_WITH_SGID               = 1 << 1,
+	EFA_CREATE_CQ_WITH_SGID = 1 << 1,
+	EFA_CREATE_CQ_WITH_SQ_COMP_64_BIT_REQ_ID = 1 << 2,
 };
 
 struct efa_ibv_create_cq {
@@ -88,6 +89,7 @@ enum {
 
 enum {
 	EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV = 1 << 0,
+	EFA_CREATE_QP_WITH_SQ_64_BIT_REQ_ID = 1 << 1,
 };
 
 struct efa_ibv_create_qp {
@@ -133,6 +135,8 @@ enum {
 	EFA_QUERY_DEVICE_CAPS_RDMA_WRITE = 1 << 5,
 	EFA_QUERY_DEVICE_CAPS_UNSOLICITED_WRITE_RECV = 1 << 6,
 	EFA_QUERY_DEVICE_CAPS_CQ_WITH_EXT_MEM = 1 << 7,
+	EFA_QUERY_DEVICE_CAPS_COMP_CNTR = 1 << 8,
+	EFA_QUERY_DEVICE_CAPS_SQ_64_BIT_REQ_ID = 1 << 9,
 };
 
 struct efa_ibv_ex_query_device_resp {
@@ -161,6 +165,11 @@ enum efa_query_mr_attrs {
 
 enum efa_mr_methods {
 	EFA_IB_METHOD_MR_QUERY = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum efa_comp_cntr_create_attrs {
+	EFA_IB_ATTR_CREATE_COMP_CNTR_COMP_BUFFER = (1U << UVERBS_ID_NS_SHIFT),
+	EFA_IB_ATTR_CREATE_COMP_CNTR_ERR_BUFFER,
 };
 
 #endif /* EFA_ABI_USER_H */

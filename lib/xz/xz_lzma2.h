@@ -143,7 +143,7 @@ static inline bool lzma_state_is_literal(enum lzma_state state)
  * Get the index of the appropriate probability array for decoding
  * the distance slot.
  */
-static inline uint32_t lzma_get_dist_state(uint32_t len)
+static inline size_t lzma_get_dist_state(size_t len)
 {
 	return len < DIST_STATES + MATCH_LEN_MIN
 			? len - MATCH_LEN_MIN : DIST_STATES - 1;

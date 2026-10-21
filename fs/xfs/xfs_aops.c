@@ -20,6 +20,7 @@
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_icache.h"
+#include "xfs_ioend.h"
 #include "xfs_zone_alloc.h"
 #include "xfs_rtgroup.h"
 #include <linux/bio-integrity.h>
@@ -34,15 +35,6 @@ static inline struct xfs_writepage_ctx *
 XFS_WPC(struct iomap_writepage_ctx *ctx)
 {
 	return container_of(ctx, struct xfs_writepage_ctx, ctx);
-}
-
-/*
- * Fast and loose check if this write could update the on-disk inode size.
- */
-static inline bool xfs_ioend_is_append(struct iomap_ioend *ioend)
-{
-	return ioend->io_offset + ioend->io_size >
-		XFS_I(ioend->io_inode)->i_disk_size;
 }
 
 /*
@@ -78,175 +70,6 @@ xfs_setfilesize(
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	return xfs_trans_commit(tp);
-}
-
-static void
-xfs_ioend_put_open_zones(
-	struct iomap_ioend	*ioend)
-{
-	struct iomap_ioend *tmp;
-
-	/*
-	 * Put the open zone for all ioends merged into this one (if any).
-	 */
-	list_for_each_entry(tmp, &ioend->io_list, io_list)
-		xfs_open_zone_put(tmp->io_private);
-
-	/*
-	 * The main ioend might not have an open zone if the submission failed
-	 * before xfs_zone_alloc_and_submit got called.
-	 */
-	if (ioend->io_private)
-		xfs_open_zone_put(ioend->io_private);
-}
-
-/*
- * IO write completion.
- */
-STATIC void
-xfs_end_ioend_write(
-	struct iomap_ioend	*ioend)
-{
-	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
-	struct xfs_mount	*mp = ip->i_mount;
-	bool			is_zoned = xfs_is_zoned_inode(ip);
-	xfs_off_t		offset = ioend->io_offset;
-	size_t			size = ioend->io_size;
-	unsigned int		nofs_flag;
-	int			error;
-
-	/*
-	 * We can allocate memory here while doing writeback on behalf of
-	 * memory reclaim.  To avoid memory allocation deadlocks set the
-	 * task-wide nofs context for the following operations.
-	 */
-	nofs_flag = memalloc_nofs_save();
-
-	/*
-	 * Just clean up the in-memory structures if the fs has been shut down.
-	 */
-	if (xfs_is_shutdown(mp)) {
-		error = -EIO;
-		goto done;
-	}
-
-	/*
-	 * Clean up all COW blocks and underlying data fork delalloc blocks on
-	 * I/O error. The delalloc punch is required because this ioend was
-	 * mapped to blocks in the COW fork and the associated pages are no
-	 * longer dirty. If we don't remove delalloc blocks here, they become
-	 * stale and can corrupt free space accounting on unmount.
-	 */
-	error = blk_status_to_errno(ioend->io_bio.bi_status);
-	if (unlikely(error)) {
-		/*
-		 * Zoned writes update the in-core open zone accounting before
-		 * I/O submission.  A failed write leaves that state
-		 * inconsistent, so shut down the filesystem instead of letting
-		 * later writers wait forever for open zone space to become
-		 * available.
-		 */
-		if (is_zoned) {
-			xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
-			goto done;
-		}
-		if (ioend->io_flags & IOMAP_IOEND_SHARED) {
-			ASSERT(!is_zoned);
-			xfs_reflink_cancel_cow_range(ip, offset, size, true);
-			xfs_bmap_punch_delalloc_range(ip, XFS_DATA_FORK, offset,
-					offset + size, NULL);
-		}
-		goto done;
-	}
-
-	/*
-	 * Success: commit the COW or unwritten blocks if needed.
-	 */
-	if (is_zoned)
-		error = xfs_zoned_end_io(ip, offset, size, ioend->io_sector,
-				ioend->io_private, NULLFSBLOCK);
-	else if (ioend->io_flags & IOMAP_IOEND_SHARED)
-		error = xfs_reflink_end_cow(ip, offset, size);
-	else if (ioend->io_flags & IOMAP_IOEND_UNWRITTEN)
-		error = xfs_iomap_write_unwritten(ip, offset, size, false);
-
-	if (!error &&
-	    !(ioend->io_flags & IOMAP_IOEND_DIRECT) &&
-	    xfs_ioend_is_append(ioend))
-		error = xfs_setfilesize(ip, offset, size);
-done:
-	if (is_zoned)
-		xfs_ioend_put_open_zones(ioend);
-	iomap_finish_ioends(ioend, error);
-	memalloc_nofs_restore(nofs_flag);
-}
-
-/*
- * Finish all pending IO completions that require transactional modifications.
- *
- * We try to merge physical and logically contiguous ioends before completion to
- * minimise the number of transactions we need to perform during IO completion.
- * Both unwritten extent conversion and COW remapping need to iterate and modify
- * one physical extent at a time, so we gain nothing by merging physically
- * discontiguous extents here.
- *
- * The ioend chain length that we can be processing here is largely unbound in
- * length and we may have to perform significant amounts of work on each ioend
- * to complete it. Hence we have to be careful about holding the CPU for too
- * long in this loop.
- */
-void
-xfs_end_io(
-	struct work_struct	*work)
-{
-	struct xfs_inode	*ip =
-		container_of(work, struct xfs_inode, i_ioend_work);
-	struct iomap_ioend	*ioend;
-	struct list_head	tmp;
-	unsigned long		flags;
-
-	spin_lock_irqsave(&ip->i_ioend_lock, flags);
-	list_replace_init(&ip->i_ioend_list, &tmp);
-	spin_unlock_irqrestore(&ip->i_ioend_lock, flags);
-
-	iomap_sort_ioends(&tmp);
-	while ((ioend = list_first_entry_or_null(&tmp, struct iomap_ioend,
-			io_list))) {
-		list_del_init(&ioend->io_list);
-		iomap_ioend_try_merge(ioend, &tmp);
-		if (bio_op(&ioend->io_bio) == REQ_OP_READ)
-			iomap_finish_ioends(ioend,
-				blk_status_to_errno(ioend->io_bio.bi_status));
-		else
-			xfs_end_ioend_write(ioend);
-		cond_resched();
-	}
-}
-
-void
-xfs_end_bio(
-	struct bio		*bio)
-{
-	struct iomap_ioend	*ioend = iomap_ioend_from_bio(bio);
-	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
-	struct xfs_mount	*mp = ip->i_mount;
-	unsigned long		flags;
-
-	/*
-	 * For Appends record the actually written block number and set the
-	 * boundary flag if needed.
-	 */
-	if (IS_ENABLED(CONFIG_XFS_RT) && bio_is_zone_append(bio)) {
-		ioend->io_sector = bio->bi_iter.bi_sector;
-		xfs_mark_rtg_boundary(ioend);
-	}
-
-	spin_lock_irqsave(&ip->i_ioend_lock, flags);
-	if (list_empty(&ip->i_ioend_list))
-		WARN_ON_ONCE(!queue_work(mp->m_unwritten_workqueue,
-					 &ip->i_ioend_work));
-	list_add_tail(&ioend->io_list, &ip->i_ioend_list);
-	spin_unlock_irqrestore(&ip->i_ioend_lock, flags);
 }
 
 /*
@@ -522,10 +345,6 @@ xfs_ioend_needs_wq_completion(
 	if (ioend->io_flags & (IOMAP_IOEND_UNWRITTEN | IOMAP_IOEND_SHARED))
 		return true;
 
-	/* Page cache invalidation cannot be done in irq context. */
-	if (ioend->io_flags & IOMAP_IOEND_DONTCACHE)
-		return true;
-
 	return false;
 }
 
@@ -553,10 +372,14 @@ xfs_writeback_submit(
 	}
 
 	/*
-	 * Send ioends that might require a transaction to the completion wq.
+	 * Send ioends that might require a transaction to the completion wq,
+	 * and disable the block layer task completion for them as there is no
+	 * need to defer twice.
 	 */
-	if (xfs_ioend_needs_wq_completion(ioend))
+	if (xfs_ioend_needs_wq_completion(ioend)) {
 		ioend->io_bio.bi_end_io = xfs_end_bio;
+		bio_clear_flag(&ioend->io_bio, BIO_COMPLETE_IN_TASK);
+	}
 
 	return iomap_ioend_writeback_submit(wpc, error);
 }
@@ -631,13 +454,8 @@ xfs_zoned_map_blocks(
 			XFS_BMAPI_REMAP);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
-	wpc->iomap.type = IOMAP_MAPPED;
-	wpc->iomap.flags = IOMAP_F_DIRTY;
-	wpc->iomap.bdev = mp->m_rtdev_targp->bt_bdev;
-	wpc->iomap.offset = offset;
-	wpc->iomap.length = XFS_FSB_TO_B(mp, count_fsb);
-	wpc->iomap.flags = IOMAP_F_ANON_WRITE;
-
+	xfs_iomap_set_anon_write(ip, &wpc->iomap, offset,
+			XFS_FSB_TO_B(mp, count_fsb));
 	trace_xfs_zoned_map_blocks(ip, offset, wpc->iomap.length);
 	return 0;
 }
@@ -667,7 +485,14 @@ xfs_zoned_writeback_submit(
 {
 	struct iomap_ioend		*ioend = wpc->wb_ctx;
 
+	/*
+	 * Defer all completions to our workqueue as all zoned writes require a
+	 * transaction to be persisted. This also means we never need the block
+	 * layer in-task completion for a task context.
+	 */
 	ioend->io_bio.bi_end_io = xfs_end_bio;
+	bio_clear_flag(&ioend->io_bio, BIO_COMPLETE_IN_TASK);
+
 	if (error) {
 		ioend->io_bio.bi_status = errno_to_blk_status(error);
 		bio_endio(&ioend->io_bio);

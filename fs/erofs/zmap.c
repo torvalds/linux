@@ -483,14 +483,14 @@ static int z_erofs_map_blocks_fo(struct inode *inode,
 	}
 
 	if (m.headtype == Z_EROFS_LCLUSTER_TYPE_PLAIN) {
-		if (vi->z_advise & Z_EROFS_ADVISE_INTERLACED_PCLUSTER)
+		if ((vi->z_advise & Z_EROFS_ADVISE_INTERLACED_PCLUSTER) &&
+		    !(map->m_flags & EROFS_MAP_META))
 			map->m_algorithmformat = Z_EROFS_COMPRESSION_INTERLACED;
 		else
 			map->m_algorithmformat = Z_EROFS_COMPRESSION_SHIFTED;
-	} else if (m.headtype == Z_EROFS_LCLUSTER_TYPE_HEAD2) {
-		map->m_algorithmformat = vi->z_algorithmtype[1];
 	} else {
-		map->m_algorithmformat = vi->z_algorithmtype[0];
+		map->m_algorithmformat =
+			vi->z_algofmt[m.headtype == Z_EROFS_LCLUSTER_TYPE_HEAD2];
 	}
 
 	if ((flags & EROFS_GET_BLOCKS_FIEMAP) ||
@@ -604,9 +604,14 @@ static int z_erofs_map_blocks_ext(struct inode *inode,
 			if (map->m_plen & Z_EROFS_EXTENT_PLEN_PARTIAL)
 				map->m_flags |= EROFS_MAP_PARTIAL_REF;
 			map->m_plen &= Z_EROFS_EXTENT_PLEN_MASK;
-			if (fmt)
-				map->m_algorithmformat = fmt - 1;
-			else if (interlaced && !((map->m_pa | map->m_plen) & bmask))
+			if (fmt) {
+				map->m_algorithmformat = --fmt;
+				if (fmt >= Z_EROFS_COMPRESSION_MAX) {
+					erofs_err(sb, "unknown algorithm %d @ pos %llu for nid %llu, please upgrade kernel",
+						  fmt, map->m_la, vi->nid);
+					return -EOPNOTSUPP;
+				}
+			} else if (interlaced && !((map->m_pa | map->m_plen) & bmask))
 				map->m_algorithmformat =
 					Z_EROFS_COMPRESSION_INTERLACED;
 			else
@@ -624,7 +629,7 @@ static int z_erofs_fill_inode(struct inode *inode, struct erofs_map_blocks *map)
 	struct super_block *const sb = inode->i_sb;
 	struct z_erofs_map_header *h;
 	erofs_off_t pos;
-	int err = 0;
+	int err = 0, nr;
 
 	if (test_bit(EROFS_I_Z_INITED_BIT, &vi->flags)) {
 		/*
@@ -667,12 +672,19 @@ static int z_erofs_fill_inode(struct inode *inode, struct erofs_map_blocks *map)
 		goto done;
 	}
 
-	vi->z_algorithmtype[0] = h->h_algorithmtype & 15;
-	vi->z_algorithmtype[1] = h->h_algorithmtype >> 4;
 	if (vi->z_advise & Z_EROFS_ADVISE_FRAGMENT_PCLUSTER)
 		vi->z_fragmentoff = le32_to_cpu(h->h_fragmentoff);
 	else if (vi->z_advise & Z_EROFS_ADVISE_INLINE_PCLUSTER)
 		vi->z_idata_size = le16_to_cpu(h->h_idata_size);
+	for (nr = 0; nr < 2; ++nr) {
+		vi->z_algofmt[nr] = (h->h_algorithmtype >> (4 * nr)) & 15;
+		if (vi->z_algofmt[nr] >= Z_EROFS_COMPRESSION_MAX) {
+			erofs_err(sb, "unknown HEAD%u format %u for nid %llu, please upgrade kernel",
+				  nr + 1, vi->z_algofmt[nr], vi->nid);
+			err = -EOPNOTSUPP;
+			goto out_unlock;
+		}
+	}
 
 	if (!erofs_sb_has_big_pcluster(EROFS_SB(sb)) &&
 	    vi->z_advise & (Z_EROFS_ADVISE_BIG_PCLUSTER_1 |
@@ -720,12 +732,8 @@ static int z_erofs_map_sanity_check(struct inode *inode,
 
 	if (!(map->m_flags & EROFS_MAP_MAPPED))
 		return 0;
-	if (unlikely(map->m_algorithmformat >= Z_EROFS_COMPRESSION_RUNTIME_MAX)) {
-		erofs_err(inode->i_sb, "unknown algorithm %d @ pos %llu for nid %llu, please upgrade kernel",
-			  map->m_algorithmformat, map->m_la, EROFS_I(inode)->nid);
-		return -EOPNOTSUPP;
-	}
 
+	DBG_BUGON(map->m_algorithmformat >= Z_EROFS_COMPRESSION_RUNTIME_MAX);
 	if (map->m_algorithmformat < Z_EROFS_COMPRESSION_MAX) {
 		if (!(sbi->available_compr_algs & BIT(map->m_algorithmformat))) {
 			erofs_err(inode->i_sb, "inconsistent algorithmtype %u for nid %llu",

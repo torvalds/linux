@@ -317,7 +317,14 @@ static int enetc_vf_probe(struct pci_dev *pdev,
 
 	enetc_get_si_caps(si);
 
-	ndev = alloc_etherdev_mq(sizeof(*priv), ENETC_MAX_NUM_TXQS);
+	/* Currently, the supported SoCs have a max of 6 CPUs and the VFs
+	 * have less than 6 RX/TX rings. So no issues for these supported
+	 * SoCs, but for future SoCs which have more CPUs or more TX/RX
+	 * rings, all the related logic needs to be improved.
+	 */
+	ndev = alloc_etherdev_mqs(sizeof(*priv),
+				  min(si->num_tx_rings, ENETC_MAX_NUM_TXQS),
+				  min(si->num_rx_rings, ENETC_MAX_NUM_TXQS));
 	if (!ndev) {
 		err = -ENOMEM;
 		dev_err(&pdev->dev, "netdev creation failed\n");

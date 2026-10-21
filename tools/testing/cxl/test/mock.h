@@ -5,6 +5,8 @@
 #include <linux/dax.h>
 #include <cxl.h>
 
+extern bool hmem_test;
+
 struct cxl_mock_ops {
 	struct list_head list;
 	bool (*is_mock_adev)(struct acpi_device *dev);

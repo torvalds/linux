@@ -27,8 +27,6 @@ identifier fname6 =~ ".*call_rcu.*";
 |
  atomic_dec_and_lock@p1(&(a)->x, ...)
 |
- atomic_long_dec_and_lock@p1(&(a)->x, ...)
-|
  atomic_long_dec_and_test@p1(&(a)->x)
 |
  atomic64_dec_and_test@p1(&(a)->x)
@@ -69,8 +67,6 @@ identifier fname =~ ".*free.*";
  atomic_dec_and_test@p1(&(a)->x)
 |
  atomic_dec_and_lock@p1(&(a)->x, ...)
-|
- atomic_long_dec_and_lock@p1(&(a)->x, ...)
 |
  atomic_long_dec_and_test@p1(&(a)->x)
 |

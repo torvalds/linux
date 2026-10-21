@@ -1208,7 +1208,7 @@ ef4_channel_get_tx_queue(struct ef4_channel *channel, unsigned type)
 
 static inline bool ef4_tx_queue_used(struct ef4_tx_queue *tx_queue)
 {
-	return !(tx_queue->efx->net_dev->num_tc < 2 &&
+	return !(netdev_get_num_tc(tx_queue->efx->net_dev) < 2 &&
 		 tx_queue->queue & EF4_TXQ_TYPE_HIGHPRI);
 }
 

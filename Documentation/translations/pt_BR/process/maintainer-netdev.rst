@@ -22,11 +22,11 @@ netdev
 ------
 A **netdev** é a lista de discussão para todos os assuntos do Linux relacionados
 a rede. Isso inclui qualquer item encontrado em ``net/`` (ex: código principal
-como IPv6) e  em ``drivers/net`` (ex: drivers específicos de hardware) na árvore
+como IPv6) e em ``drivers/net`` (ex: drivers específicos de hardware) na árvore
 de diretórios do Linux.
 
 Note que alguns subsistemas (ex: drivers de rede sem fio/wireless), que possuem
-um  alto volume de tráfego, possuem suas próprias listas de discussão e árvores
+um alto volume de tráfego, possuem suas próprias listas de discussão e árvores
 específicas.
 
 Como muitas outras listas de discussão do Linux, a lista netdev é hospedada no
@@ -34,7 +34,7 @@ Como muitas outras listas de discussão do Linux, a lista netdev é hospedada no
 https://lore.kernel.org/netdev/.
 
 À exceção dos subsistemas mencionados anteriormente, todo o desenvolvimento de
-rede  do Linux (ex: RFCs, revisões, comentários, etc.) ocorre na **netdev**.
+rede do Linux (ex: RFCs, revisões, comentários, etc.) ocorre na **netdev**.
 
 Ciclo de Desenvolvimento
 ------------------------
@@ -506,8 +506,14 @@ netdevsim
 
 O ``netdevsim`` é um driver de teste que pode ser usado para exercitar APIs de
 configuração de driver sem a necessidade de hardware compatível. Mock-ups e
-testes baseados no ``netdevsim`` são fortemente encorajados ao adicionar novas
-APIs, mas o ``netdevsim`` em si **não** é considerado um caso de uso/usuário.
+testes baseados no ``netdevsim`` são encorajados ao adicionar novas APIs com
+lógica complexa na pilha. Os testes devem ser escritos de forma que possam ser
+executados tanto contra o ``netdevsim`` quanto contra um dispositivo real
+(veja ``tools/testing/selftests/drivers/net/README.rst``). Testes exclusivos
+para o ``netdevsim`` devem se concentrar em testar casos extremos e caminhos de
+falha no núcleo que são difíceis de exercitar com um driver real.
+
+``netdevsim`` em si **não** é considerado um caso de uso/usuário.
 Você também deve implementar as novas APIs em um driver real.
 
 Não damos garantias de que o ``netdevsim`` mudará no futuro de uma forma que
@@ -577,8 +583,11 @@ independentemente do nível de experiência. Para orientações gerais e dicas
 
 É seguro assumir que os mantenedores da netdev conhecem a comunidade e o nível
 de experiência dos revisores. Os revisores não devem se preocupar com o fato de
-seus comentários impedirem ou desviarem o fluxo de patches. Revisores menos
-experientes são fortemente incentivados a fazer uma revisão mais aprofundada das
+seus comentários impedirem ou desviarem o fluxo de patches. Uma tag Reviewed-by
+é entendida como "Eu revisei este código da melhor maneira possível" em vez de
+"Posso atestar que este código está correto".
+
+Revisores são fortemente incentivados a fazer uma revisão mais aprofundada das
 submissões e não focar exclusivamente em questões triviais ou subjetivas, como
 formatação de código, tags, etc.
 

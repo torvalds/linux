@@ -192,81 +192,22 @@ int smu_v11_0_check_fw_status(struct smu_context *smu)
 	return -EIO;
 }
 
-static int smu_v11_0_set_pptable_v2_0(struct smu_context *smu, void **table, uint32_t *size)
-{
-	struct amdgpu_device *adev = smu->adev;
-	uint32_t ppt_offset_bytes;
-	const struct smc_firmware_header_v2_0 *v2;
-
-	v2 = (const struct smc_firmware_header_v2_0 *) adev->pm.fw->data;
-
-	ppt_offset_bytes = le32_to_cpu(v2->ppt_offset_bytes);
-	*size = le32_to_cpu(v2->ppt_size_bytes);
-	*table = (uint8_t *)v2 + ppt_offset_bytes;
-
-	return 0;
-}
-
-static int smu_v11_0_set_pptable_v2_1(struct smu_context *smu, void **table,
-				      uint32_t *size, uint32_t pptable_id)
-{
-	struct amdgpu_device *adev = smu->adev;
-	const struct smc_firmware_header_v2_1 *v2_1;
-	struct smc_soft_pptable_entry *entries;
-	uint32_t pptable_count = 0;
-	int i = 0;
-
-	v2_1 = (const struct smc_firmware_header_v2_1 *) adev->pm.fw->data;
-	entries = (struct smc_soft_pptable_entry *)
-		((uint8_t *)v2_1 + le32_to_cpu(v2_1->pptable_entry_offset));
-	pptable_count = le32_to_cpu(v2_1->pptable_count);
-	for (i = 0; i < pptable_count; i++) {
-		if (le32_to_cpu(entries[i].id) == pptable_id) {
-			*table = ((uint8_t *)v2_1 + le32_to_cpu(entries[i].ppt_offset_bytes));
-			*size = le32_to_cpu(entries[i].ppt_size_bytes);
-			break;
-		}
-	}
-
-	if (i == pptable_count)
-		return -EINVAL;
-
-	return 0;
-}
-
 int smu_v11_0_setup_pptable(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	const struct smc_firmware_header_v1_0 *hdr;
-	int ret, index;
-	uint32_t size = 0;
 	uint16_t atom_table_size;
 	uint8_t frev, crev;
+	uint32_t size = 0;
+	int ret, index;
 	void *table;
-	uint16_t version_major, version_minor;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
-		version_major = le16_to_cpu(hdr->header.header_version_major);
-		version_minor = le16_to_cpu(hdr->header.header_version_minor);
-		if (version_major == 2 && smu->smu_table.boot_values.pp_table_id > 0) {
-			dev_info(adev->dev, "use driver provided pptable %d\n", smu->smu_table.boot_values.pp_table_id);
-			switch (version_minor) {
-			case 0:
-				ret = smu_v11_0_set_pptable_v2_0(smu, &table, &size);
-				break;
-			case 1:
-				ret = smu_v11_0_set_pptable_v2_1(smu, &table, &size,
-								smu->smu_table.boot_values.pp_table_id);
-				break;
-			default:
-				ret = -EINVAL;
-				break;
-			}
-			if (ret)
-				return ret;
-			goto out;
-		}
+	if (!amdgpu_sriov_vf(adev) &&
+	    smu->smu_table.boot_values.pp_table_id > 0) {
+		ret = smu_cmn_get_pptable_from_firmware(smu, &table, &size,
+							smu->smu_table.boot_values.pp_table_id);
+		if (ret)
+			return ret;
+		goto out;
 	}
 
 	dev_info(adev->dev, "use vbios provided pptable\n");
@@ -829,14 +770,17 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 	return 0;
 }
 
-int smu_v11_0_get_current_power_limit(struct smu_context *smu,
-				      uint32_t *power_limit)
+int smu_v11_0_get_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t *ppt_limit)
 {
 	int power_src;
 	int ret = 0;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
 		return -EINVAL;
+	if (limit_type != SMU_PPT_LIMIT_PPT0)
+		return -EOPNOTSUPP;
 
 	power_src = smu_cmn_to_asic_specific_index(smu,
 					CMN2ASIC_MAPPING_PWR,
@@ -853,26 +797,26 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 	ret = smu_cmn_send_smc_msg_with_param(smu,
 					  SMU_MSG_GetPptLimit,
 					  (0 << 24) | (power_src << 16),
-					  power_limit);
+					  ppt_limit);
 	if (ret)
 		dev_err(smu->adev->dev, "[%s] get PPT limit failed!", __func__);
 
 	return ret;
 }
 
-int smu_v11_0_set_power_limit(struct smu_context *smu,
-			      enum smu_ppt_limit_type limit_type,
-			      uint32_t limit)
+int smu_v11_0_set_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t limit)
 {
 	int power_src;
 	int ret = 0;
 	uint32_t limit_param;
 
-	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
+	if (limit_type != SMU_PPT_LIMIT_PPT0)
 		return -EINVAL;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
-		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
+		dev_err(smu->adev->dev, "Setting new PPT limit is not supported!\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -894,11 +838,9 @@ int smu_v11_0_set_power_limit(struct smu_context *smu,
 	limit_param |= (power_src) << 16;
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, limit_param, NULL);
 	if (ret) {
-		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
+		dev_err(smu->adev->dev, "[%s] Set PPT limit failed!\n", __func__);
 		return ret;
 	}
-
-	smu->current_power_limit = limit;
 
 	return 0;
 }
@@ -1474,11 +1416,6 @@ int smu_v11_0_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
 	max_clocks->fabricClockInKhz = 0;
 
 	return 0;
-}
-
-int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu)
-{
-	return smu_cmn_send_smc_msg(smu, SMU_MSG_BacoAudioD3PME, NULL);
 }
 
 int smu_v11_0_baco_set_armd3_sequence(struct smu_context *smu,

@@ -2491,12 +2491,27 @@ EXPORT_SYMBOL(ieee80211_sta_recalc_aggregates);
 
 void ieee80211_sta_update_pending_airtime(struct ieee80211_local *local,
 					  struct sta_info *sta, u8 ac,
-					  u16 tx_airtime, bool tx_completed)
+					  u16 tx_airtime, bool tx_completed,
+					  bool mcast)
 {
 	int tx_pending;
 
 	if (!wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL))
 		return;
+
+	if (mcast) {
+		if (!tx_completed) {
+			atomic_add(tx_airtime, &local->aql_mc_pending_airtime);
+			return;
+		}
+
+		tx_pending = atomic_sub_return(tx_airtime,
+					       &local->aql_mc_pending_airtime);
+		if (tx_pending < 0)
+			atomic_cmpxchg(&local->aql_mc_pending_airtime,
+				       tx_pending, 0);
+		return;
+	}
 
 	if (!tx_completed) {
 		if (sta)
@@ -2797,6 +2812,28 @@ void sta_set_accumulated_removed_links_sinfo(struct sta_info *sta,
 	}
 }
 
+static u32 sta_estimate_expected_throughput(struct sta_info *sta,
+					    struct rate_info *ri,
+					    struct ieee80211_bss_conf *bss_conf)
+{
+	struct ieee80211_hw *hw = &sta->sdata->local->hw;
+	struct ieee80211_chanctx_conf *conf;
+	u32 duration;
+	u8 band;
+
+	conf = sdata_dereference(bss_conf->chanctx_conf, sta->sdata);
+	if (!conf)
+		return 0;
+	band = conf->def.chan->band;
+
+	duration = ieee80211_rate_expected_tx_airtime(hw, NULL, ri, band, true, 1024);
+	duration += duration >> 4; /* add assumed packet error rate of ~6% */
+	if (!duration)
+		return 0;
+
+	return ((1024 * USEC_PER_SEC) / duration) * 8;
+}
+
 static void sta_set_link_sinfo(struct sta_info *sta,
 			       struct link_station_info *link_sinfo,
 			       struct ieee80211_link_data *link,
@@ -3011,6 +3048,10 @@ static void sta_set_link_sinfo(struct sta_info *sta,
 	link_sinfo->bss_param.beacon_interval = link->conf->beacon_int;
 
 	thr = sta_get_expected_throughput(sta);
+	if (!thr && (link_sinfo->filled & BIT_ULL(NL80211_STA_INFO_TX_BITRATE)))
+		thr = sta_estimate_expected_throughput(sta,
+						      &link_sinfo->txrate,
+						      link->conf);
 
 	if (thr != 0) {
 		link_sinfo->filled |=
@@ -3264,6 +3305,14 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 	if (thr != 0) {
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_EXPECTED_THROUGHPUT);
 		sinfo->expected_throughput = thr;
+	} else if (!sta->sta.valid_links &&
+		   (sinfo->filled & BIT_ULL(NL80211_STA_INFO_TX_BITRATE))) {
+		thr = sta_estimate_expected_throughput(sta, &sinfo->txrate,
+						      &sdata->vif.bss_conf);
+		if (thr) {
+			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_EXPECTED_THROUGHPUT);
+			sinfo->expected_throughput = thr;
+		}
 	}
 
 	if (!(sinfo->filled & BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL)) &&
@@ -3284,6 +3333,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 	if (sta->sta.valid_links) {
 		struct ieee80211_link_data *link;
 		struct link_sta_info *link_sta;
+		u32 est_thr = 0;
 		int link_id;
 
 		sinfo->mlo_params_valid = true;
@@ -3295,17 +3345,25 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 		sinfo->valid_links = sta->sta.valid_links;
 
 		for_each_valid_link(sinfo, link_id) {
+			struct link_station_info *link_sinfo = sinfo->links[link_id];
+
 			link_sta = wiphy_dereference(sta->local->hw.wiphy,
 						     sta->link[link_id]);
 			link = wiphy_dereference(sdata->local->hw.wiphy,
 						 sdata->link[link_id]);
 
-			if (!link_sta || !sinfo->links[link_id] || !link) {
+			if (!link_sta || !link_sinfo || !link) {
 				sinfo->valid_links &= ~BIT(link_id);
 				continue;
 			}
-			sta_set_link_sinfo(sta, sinfo->links[link_id],
-					   link, tidstats);
+			sta_set_link_sinfo(sta, link_sinfo, link, tidstats);
+			if (!thr &&
+			    (link_sinfo->filled & BIT_ULL(NL80211_STA_INFO_EXPECTED_THROUGHPUT)))
+				est_thr += link_sinfo->expected_throughput;
+		}
+		if (est_thr) {
+			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_EXPECTED_THROUGHPUT);
+			sinfo->expected_throughput = est_thr;
 		}
 	}
 }

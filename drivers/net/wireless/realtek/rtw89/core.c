@@ -11,6 +11,7 @@
 #include "core.h"
 #include "efuse.h"
 #include "fw.h"
+#include "led.h"
 #include "mac.h"
 #include "phy.h"
 #include "ps.h"
@@ -486,6 +487,37 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 	__rtw89_core_set_chip_txpwr(rtwdev, conf.chans[1], RTW89_PHY_1);
 }
 
+static void rtw89_core_rfk_record(struct rtw89_dev *rtwdev,
+				  struct rtw89_vif_link *rtwvif_link,
+				  bool start)
+{
+	struct rtw89_rfk_wait_info *info = &rtwdev->rfk_wait;
+	struct rtw89_rfk_record *record = &info->records[info->record_idx];
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 path_num = min(chip->rf_path_num, RTW89_RFK_RECORD_PATH_NR);
+	int path;
+
+	if (!start)
+		goto end;
+
+	info->record_ptr = record;
+	record->phy_idx = rtwvif_link->phy_idx;
+
+	for (path = 0; path < path_num; path++) {
+		record->ch[path] = rtw89_read_rf(rtwdev, path, RR_CFGCH,
+						 RR_CFGCH_BAND0 | RR_CFGCH_CH);
+		record->cv[path] = rtw89_read_rf(rtwdev, path, RR_VCO,
+						 RR_VCO_SEL | RR_VCO_STS);
+		record->c5[path] = rtw89_read_rf(rtwdev, path, RR_SYNFB, RFREG_MASK);
+	}
+
+	return;
+
+end:
+	info->record_idx = (info->record_idx + 1) % RTW89_RFK_RECORD_HISTORY_NR;
+	info->record_ptr = NULL;
+}
+
 void rtw89_chip_rfk_channel(struct rtw89_dev *rtwdev,
 			    struct rtw89_vif_link *rtwvif_link)
 {
@@ -503,8 +535,13 @@ void rtw89_chip_rfk_channel(struct rtw89_dev *rtwdev,
 		rtw89_set_channel(rtwdev);
 	}
 
-	if (chip->ops->rfk_channel)
+	if (chip->ops->rfk_channel) {
+		rtw89_core_rfk_record(rtwdev, rtwvif_link, true);
+
 		chip->ops->rfk_channel(rtwdev, rtwvif_link);
+
+		rtw89_core_rfk_record(rtwdev, rtwvif_link, false);
+	}
 
 	if (prehdl_link) {
 		rtw89_entity_force_hw(rtwdev, RTW89_PHY_NUM);
@@ -5236,8 +5273,17 @@ static bool rtw89_traffic_stats_track(struct rtw89_dev *rtwdev)
 static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev,
 				  enum rtw89_tfc_interval interval)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
 	struct ieee80211_vif *vif;
 	struct rtw89_vif *rtwvif;
+
+	/*
+	 * If vcore level is set, temperature is high and voltage is low. As
+	 * entering power save must reset voltage to default, avoid power save
+	 * until vcore decreases to zero resulting from temperature becomes low.
+	 */
+	if (hal->thermal_prot_vlv)
+		return;
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		if (rtwvif->tdls_peer)
@@ -5265,6 +5311,37 @@ static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw89_core_rfk_tssi_record(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 path_num = min(chip->rf_path_num, RTW89_RFK_RECORD_PATH_NR);
+	struct rtw89_rfk_wait_info *info = &rtwdev->rfk_wait;
+	int i = info->record_tssi_idx;
+	u32 base;
+	u32 mask;
+	int path;
+
+	if (chip->chip_gen == RTW89_CHIP_AX)
+		return;
+
+	info->record_tssi_idx = (info->record_tssi_idx + 1) %
+				RTW89_RFK_RECORD_HISTORY_NR;
+
+	if (chip->chip_id == RTL8922A) {
+		base = 0x2ee10;
+		mask = 0x7fc00;
+	} else {
+		base = 0x2f918;
+		mask = 0x000001ff;
+	}
+
+	for (path = 0; path < path_num; path++) {
+		u32 addr = base + 0x100 * path;
+
+		info->tssi_code[i][path] = rtw89_read32_mask(rtwdev, addr, mask);
+	}
+}
+
 static void rtw89_core_rfk_track(struct rtw89_dev *rtwdev)
 {
 	enum rtw89_entity_mode mode;
@@ -5274,6 +5351,8 @@ static void rtw89_core_rfk_track(struct rtw89_dev *rtwdev)
 		return;
 
 	rtw89_chip_rfk_track(rtwdev);
+
+	rtw89_core_rfk_tssi_record(rtwdev);
 }
 
 void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev,
@@ -5417,7 +5496,7 @@ static void rtw89_track_ps_work(struct wiphy *wiphy, struct wiphy_work *work)
 	if (rtwdev->scanning)
 		return;
 
-	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
+	if (rtwdev->lps_enabled && !rtwdev->btc.btc_ctrl_lps)
 		rtw89_enter_lps_track(rtwdev, RTW89_TFC_INTERVAL_100MS);
 }
 
@@ -5465,7 +5544,7 @@ static void rtw89_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 	rtw89_core_rfkill_poll(rtwdev, false);
 	rtw89_core_mlo_track(rtwdev);
 
-	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
+	if (rtwdev->lps_enabled && !rtwdev->btc.btc_ctrl_lps)
 		rtw89_enter_lps_track(rtwdev, RTW89_TFC_INTERVAL_2SEC);
 }
 
@@ -5806,6 +5885,7 @@ int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
 									 rtwsta_link);
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
+	struct rtw89_bb_ctx *bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
 	struct ieee80211_link_sta *link_sta;
 	int ret;
 
@@ -5858,12 +5938,19 @@ int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
 		struct ieee80211_bss_conf *bss_conf;
+		u8 link_mode = 0;
 
 		rcu_read_lock();
 
 		bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
 		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
 		rtwsta_link->er_cap = rtw89_sta_link_can_er(rtwdev, bss_conf, link_sta);
+
+		if (link_sta->he_cap.has_he || link_sta->eht_cap.has_eht)
+			link_mode = 2;
+		else if (link_sta->vht_cap.vht_supported)
+			link_mode = 1;
+		bb->path_diff.link_mode = link_mode;
 
 		rcu_read_unlock();
 
@@ -6331,6 +6418,9 @@ static int rtw89_core_set_supported_band(struct rtw89_dev *rtwdev)
 	u8 support_bands = rtwdev->chip->support_bands;
 	int ret;
 
+	if (test_bit(RTW89_QUIRK_DISABLE_2GHZ, rtwdev->quirks))
+		support_bands &= ~BIT(NL80211_BAND_2GHZ);
+
 	if (support_bands & BIT(NL80211_BAND_2GHZ)) {
 		sband = rtw89_core_sband_dup(rtwdev, &rtw89_sband_2ghz);
 		if (!sband)
@@ -6522,15 +6612,18 @@ void rtw89_complete_cond(struct rtw89_wait_info *wait, unsigned int cond,
 	rtw89_complete_cond_resp(resp, data);
 }
 
-void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event)
+void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev,
+			       enum rtw89_btc_hmsg event,
+			       enum rtw89_phy_idx phy_idx)
 {
-	u16 bt_req_len;
+	u16 bt_slot_req[RTW89_PHY_NUM];
 
 	switch (event) {
 	case RTW89_BTC_HMSG_SET_BT_REQ_SLOT:
-		bt_req_len = rtw89_coex_query_bt_req_len(rtwdev, RTW89_PHY_0);
+		bt_slot_req[phy_idx] = rtw89_coex_query_bt_req_len(rtwdev, phy_idx);
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
-			    "coex updates BT req len to %d TU\n", bt_req_len);
+			    "coex updates PHY-%d BT req len to %d TU\n",
+			    phy_idx, bt_slot_req[phy_idx]);
 		rtw89_queue_chanctx_change(rtwdev, RTW89_CHANCTX_BT_SLOT_CHANGE);
 		break;
 	default:
@@ -6867,6 +6960,7 @@ void rtw89_sta_unset_link(struct rtw89_sta *rtwsta, unsigned int link_id)
 
 int rtw89_core_init(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	u8 band;
 
@@ -6923,7 +7017,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	rtw89_core_ppdu_sts_init(rtwdev);
 	rtw89_traffic_stats_init(rtwdev, &rtwdev->stats);
 
-	rtwdev->hal.rx_fltr = DEFAULT_AX_RX_FLTR;
+	rtwdev->hal.rx_fltr = mac->default_rx_fltr;
 	rtwdev->dbcc_en = false;
 	rtwdev->mlo_dbcc_mode = MLO_DBCC_NOT_SUPPORT;
 	rtwdev->mac.qta_mode = RTW89_QTA_SCC;
@@ -7180,9 +7274,19 @@ wake_queue:
 static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	bool bb_preinit = false;
 	int ret;
 
-	ret = rtw89_mac_partial_init(rtwdev, false);
+	/*
+	 * Normally in probe stage, we don't need to do BB pre-initialization.
+	 * However, RTL8922D firmware can access BB registers at firmware
+	 * initial state, so initialize it to avoid BB IO stuck in firmware.
+	 */
+	if (chip->chip_id == RTL8922D)
+		bb_preinit = true;
+
+	ret = rtw89_mac_partial_init(rtwdev, false, bb_preinit);
 	if (ret)
 		return ret;
 
@@ -7266,7 +7370,7 @@ void rtw89_core_rfkill_poll(struct rtw89_dev *rtwdev, bool force)
 		return;
 
 	rtw89_info(rtwdev, "rfkill hardware state changed to %s\n",
-		   blocked ? "disable" : "enable");
+		   str_enable_disable(!blocked));
 
 	if (blocked)
 		set_bit(RTW89_FLAG_HW_RFKILL_STATE, rtwdev->flags);
@@ -7432,9 +7536,6 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	if (!chip->support_rnr)
 		hw->wiphy->flags |= WIPHY_FLAG_SPLIT_SCAN_6GHZ;
 
-	if (chip->chip_gen == RTW89_CHIP_BE)
-		hw->wiphy->flags |= WIPHY_FLAG_DISABLE_WEXT;
-
 	if (rtwdev->support_mlo) {
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
 		hw->wiphy->iftype_ext_capab = rtw89_iftypes_ext_capa;
@@ -7488,6 +7589,8 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	}
 
 	rtw89_rfkill_polling_init(rtwdev);
+	rtw89_btc_init(rtwdev);
+	rtw89_led_init(rtwdev);
 
 	return 0;
 
@@ -7501,6 +7604,7 @@ static void rtw89_core_unregister_hw(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
 
+	rtw89_led_deinit(rtwdev);
 	rtw89_rfkill_polling_deinit(rtwdev);
 	ieee80211_unregister_hw(hw);
 }
@@ -7598,6 +7702,7 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	rtwdev->ops = ops;
 	rtwdev->chip = chip;
 	rtwdev->variant = variant;
+	rtwdev->board = info->board;
 	rtwdev->fw.req.firmware = firmware;
 	rtwdev->fw.fw_format = fw_format;
 	rtwdev->support_mlo = support_mlo;

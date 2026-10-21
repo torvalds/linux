@@ -255,7 +255,7 @@ pvr_kccb_used_slot_count_locked(struct pvr_device *pvr_dev)
  * pvr_kccb_send_cmd_reserved_powered() - Send command to the KCCB, with the PM ref
  * held and a slot pre-reserved
  * @pvr_dev: Device pointer.
- * @cmd: Command to sent.
+ * @cmd: Command to send.
  * @kccb_slot: Address to store the KCCB slot for this command. May be %NULL.
  */
 void
@@ -361,7 +361,7 @@ static int pvr_kccb_reserve_slot_sync(struct pvr_device *pvr_dev)
 /**
  * pvr_kccb_send_cmd_powered() - Send command to the KCCB, with a PM ref held
  * @pvr_dev: Device pointer.
- * @cmd: Command to sent.
+ * @cmd: Command to send.
  * @kccb_slot: Address to store the KCCB slot for this command. May be %NULL.
  *
  * Returns:
@@ -385,7 +385,7 @@ pvr_kccb_send_cmd_powered(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd
 /**
  * pvr_kccb_send_cmd() - Send command to the KCCB
  * @pvr_dev: Device pointer.
- * @cmd: Command to sent.
+ * @cmd: Command to send.
  * @kccb_slot: Address to store the KCCB slot for this command. May be %NULL.
  *
  * Returns:

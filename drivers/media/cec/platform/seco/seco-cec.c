@@ -7,14 +7,15 @@
  * Copyright (C) 2018, Aidilab Srl.
  */
 
-#include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/time.h>
 
 /* CEC Framework */
 #include <media/cec-notifier.h>
@@ -356,7 +357,7 @@ static int secocec_ir_probe(void *priv)
 	cec->ir->allowed_protocols = RC_PROTO_BIT_RC5;
 	cec->ir->priv = cec;
 	cec->ir->map_name = RC_MAP_HAUPPAUGE;
-	cec->ir->timeout = MS_TO_US(100);
+	cec->ir->timeout = 100 * USEC_PER_MSEC;
 
 	/* Clear the status register */
 	status = smb_rd16(SECOCEC_STATUS_REG_1, &val);
@@ -618,7 +619,6 @@ static int secocec_probe(struct platform_device *pdev)
 					dev_name(&pdev->dev), secocec);
 
 	if (ret) {
-		dev_err(dev, "Cannot request IRQ %d\n", secocec->irq);
 		ret = -EIO;
 		goto err;
 	}

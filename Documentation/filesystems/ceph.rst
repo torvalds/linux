@@ -194,6 +194,12 @@ Mount Options
         copies.  Currently, it's only used in copy_file_range, which will revert
         to the default VFS implementation if this option is used.
 
+  nearfull_sync
+	Force written data to stable storage when the cluster or file data pool is
+	marked NEARFULL. This restores the legacy client-side backpressure
+	behavior. By default, CephFS writes are not forced synchronous solely
+	because of NEARFULL.
+
   recover_session=<no|clean>
 	Set auto reconnect mode in the case where the client is blocklisted. The
 	available modes are "no" and "clean". The default is "no".

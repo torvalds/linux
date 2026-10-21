@@ -789,14 +789,14 @@ static const struct mbox_chan_ops mhuv2_receiver_ops = {
 	.last_tx_done = mhuv2_receiver_last_tx_done,
 };
 
-static struct mbox_chan *mhuv2_mbox_of_xlate(struct mbox_controller *mbox,
-					     const struct of_phandle_args *pa)
+static struct mbox_chan *mhuv2_mbox_fw_xlate(struct mbox_controller *mbox,
+					     const struct fwnode_reference_args *pa)
 {
 	struct mhuv2 *mhu = mhu_from_mbox(mbox);
 	struct mbox_chan *chans = mbox->chans;
 	int channel = 0, i, offset, doorbell, protocol, windows;
 
-	if (pa->args_count != 2)
+	if (pa->nargs != 2)
 		return ERR_PTR(-EINVAL);
 
 	offset = pa->args[0];
@@ -828,7 +828,7 @@ static struct mbox_chan *mhuv2_mbox_of_xlate(struct mbox_controller *mbox,
 	}
 
 out:
-	dev_err(mbox->dev, "Couldn't xlate to a valid channel (%d: %d)\n",
+	dev_err(mbox->dev, "Couldn't xlate to a valid channel (%llu: %d)\n",
 		pa->args[0], doorbell);
 	return ERR_PTR(-ENODEV);
 }
@@ -931,11 +931,10 @@ static int mhuv2_allocate_channels(struct mhuv2 *mhu)
 static int mhuv2_parse_channels(struct mhuv2 *mhu)
 {
 	struct device *dev = mhu->mbox.dev;
-	const struct device_node *np = dev->of_node;
 	int ret, count;
 	u32 *protocols;
 
-	count = of_property_count_u32_elems(np, MHUV2_PROTOCOL_PROP);
+	count = device_property_count_u32(dev, MHUV2_PROTOCOL_PROP);
 	if (count <= 0 || count % 2) {
 		dev_err(dev, "Invalid %s property (%d)\n", MHUV2_PROTOCOL_PROP,
 			count);
@@ -946,7 +945,7 @@ static int mhuv2_parse_channels(struct mhuv2 *mhu)
 	if (!protocols)
 		return -ENOMEM;
 
-	ret = of_property_read_u32_array(np, MHUV2_PROTOCOL_PROP, protocols, count);
+	ret = device_property_read_u32_array(dev, MHUV2_PROTOCOL_PROP, protocols, count);
 	if (ret) {
 		dev_err(dev, "Failed to read %s property: %d\n",
 			MHUV2_PROTOCOL_PROP, ret);
@@ -986,10 +985,7 @@ static int mhuv2_tx_init(struct amba_device *adev, struct mhuv2 *mhu,
 		ret = devm_request_threaded_irq(dev, adev->irq[0], NULL,
 						mhuv2_sender_interrupt,
 						IRQF_ONESHOT, "mhuv2-tx", mhu);
-		if (ret) {
-			dev_err(dev, "Failed to request tx IRQ, fallback to polling mode: %d\n",
-				ret);
-		} else {
+		if (!ret) {
 			mhu->mbox.txdone_irq = true;
 			mhu->mbox.txdone_poll = false;
 			mhu->irq = adev->irq[0];
@@ -1039,10 +1035,8 @@ static int mhuv2_rx_init(struct amba_device *adev, struct mhuv2 *mhu,
 	ret = devm_request_threaded_irq(dev, mhu->irq, NULL,
 					mhuv2_receiver_interrupt, IRQF_ONESHOT,
 					"mhuv2-rx", mhu);
-	if (ret) {
-		dev_err(dev, "Failed to request rx IRQ\n");
+	if (ret)
 		return ret;
-	}
 
 	/* Mask all the channel windows */
 	for (i = 0; i < mhu->windows; i++)
@@ -1071,7 +1065,7 @@ static int mhuv2_probe(struct amba_device *adev, const struct amba_id *id)
 		return -ENOMEM;
 
 	mhu->mbox.dev = dev;
-	mhu->mbox.of_xlate = mhuv2_mbox_of_xlate;
+	mhu->mbox.fw_xlate = mhuv2_mbox_fw_xlate;
 
 	if (of_device_is_compatible(np, "arm,mhuv2-tx"))
 		ret = mhuv2_tx_init(adev, mhu, reg);

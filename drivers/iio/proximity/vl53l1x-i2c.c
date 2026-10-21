@@ -2,7 +2,7 @@
 /*
  * Support for ST VL53L1X FlightSense ToF Ranging Sensor on a i2c bus.
  *
- * Copyright (C) 2026 Siratul Islam <email@sirat.me>
+ * Copyright (C) 2026 Siratul Islam <siratul.islam@linux.dev>
  *
  * Datasheet available at
  * <https://www.st.com/resource/en/datasheet/vl53l1x.pdf>
@@ -42,6 +42,7 @@
 #define VL53L1X_REG_SOFT_RESET						0x0000
 #define VL53L1X_REG_VHV_CONFIG__TIMEOUT_MACROP_LOOP_BOUND		0x0008
 #define VL53L1X_REG_VHV_CONFIG__INIT					0x000B
+#define VL53L1X_REG_DEFAULT_CONFIG					0x002D
 #define VL53L1X_REG_GPIO_HV_MUX__CTRL					0x0030
 #define VL53L1X_REG_GPIO__TIO_HV_STATUS					0x0031
 #define VL53L1X_REG_SYSTEM__INTERRUPT_CONFIG_GPIO			0x0046
@@ -63,7 +64,6 @@
 #define VL53L1X_REG_RESULT__OSC_CALIBRATE_VAL				0x00DE
 #define VL53L1X_REG_FIRMWARE__SYSTEM_STATUS				0x00E5
 #define VL53L1X_REG_IDENTIFICATION__MODEL_ID				0x010F
-#define VL53L1X_REG_DEFAULT_CONFIG					0x002D
 
 #define VL53L1X_MODEL_ID_VAL		0xEACC
 
@@ -80,6 +80,9 @@
 #define VL53L1X_RANGE_STATUS_VALID	9
 
 #define VL53L1X_OSC_CALIBRATE_MASK	GENMASK(9, 0)
+
+#define VL53L1X_FIRMWARE__SYSTEM_STATUS_BOOTED	BIT(0)
+#define VL53L1X_GPIO__TIO_HV_STATUS_DATA_READY	BIT(0)
 
 /* Inter-measurement period uses PLL divider with 1.075 oscillator correction */
 static const struct u32_fract vl53l1x_osc_correction = {
@@ -190,6 +193,17 @@ static int vl53l1x_stop_ranging(struct vl53l1x_data *data)
 			    VL53L1X_MODE_START_STOP);
 }
 
+static int vl53l1x_wait_data_ready(struct vl53l1x_data *data)
+{
+	unsigned int val;
+
+	/* 1ms poll, 1s timeout covers max timing budgets (per ST Ultra Lite Driver) */
+	return regmap_read_poll_timeout(data->regmap,
+		VL53L1X_REG_GPIO__TIO_HV_STATUS, val,
+		(val & VL53L1X_GPIO__TIO_HV_STATUS_DATA_READY) != data->gpio_polarity,
+		1 * USEC_PER_MSEC, 1 * USEC_PER_SEC);
+}
+
 /*
  * Default configuration blob from ST's VL53L1X Ultra Lite Driver
  * (STSW-IMG009).
@@ -229,10 +243,9 @@ static int vl53l1x_chip_init(struct vl53l1x_data *data)
 	}
 
 	ret = regmap_read_poll_timeout(data->regmap,
-				       VL53L1X_REG_FIRMWARE__SYSTEM_STATUS, val,
-				       val & BIT(0),
-				       1 * USEC_PER_MSEC,
-				       100 * USEC_PER_MSEC);
+				       VL53L1X_REG_FIRMWARE__SYSTEM_STATUS,
+				       val, val & VL53L1X_FIRMWARE__SYSTEM_STATUS_BOOTED,
+				       1 * USEC_PER_MSEC, 100 * USEC_PER_MSEC);
 	if (ret)
 		return dev_err_probe(dev, ret, "firmware boot timeout\n");
 
@@ -260,12 +273,7 @@ static int vl53l1x_chip_init(struct vl53l1x_data *data)
 	if (ret)
 		return ret;
 
-	/* 1ms poll, 1s timeout covers max timing budgets (per ST Ultra Lite Driver) */
-	ret = regmap_read_poll_timeout(data->regmap,
-				       VL53L1X_REG_GPIO__TIO_HV_STATUS, val,
-				       (val & 1) != data->gpio_polarity,
-				       1 * USEC_PER_MSEC,
-				       1000 * USEC_PER_MSEC);
+	ret = vl53l1x_wait_data_ready(data);
 	if (ret)
 		return ret;
 
@@ -460,14 +468,7 @@ static int vl53l1x_read_proximity(struct vl53l1x_data *data, int *val)
 		if (!wait_for_completion_timeout(&data->completion, HZ))
 			return -ETIMEDOUT;
 	} else {
-		unsigned int rdy;
-
-		/* 1ms poll, 1s timeout covers max timing budgets (per ST Ultra Lite Driver) */
-		ret = regmap_read_poll_timeout(data->regmap,
-					       VL53L1X_REG_GPIO__TIO_HV_STATUS, rdy,
-					       (rdy & 1) != data->gpio_polarity,
-					       1 * USEC_PER_MSEC,
-					       1000 * USEC_PER_MSEC);
+		ret = vl53l1x_wait_data_ready(data);
 		if (ret)
 			return ret;
 	}
@@ -750,6 +751,6 @@ static struct i2c_driver vl53l1x_driver = {
 };
 module_i2c_driver(vl53l1x_driver);
 
-MODULE_AUTHOR("Siratul Islam <email@sirat.me>");
+MODULE_AUTHOR("Siratul Islam <siratul.islam@linux.dev>");
 MODULE_DESCRIPTION("ST VL53L1X ToF ranging sensor driver");
 MODULE_LICENSE("Dual BSD/GPL");

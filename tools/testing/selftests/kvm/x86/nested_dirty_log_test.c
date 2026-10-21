@@ -40,8 +40,6 @@
 
 #define TEST_HVA(vm, idx)		addr_gpa2hva(vm, TEST_GPA(idx))
 
-#define L2_GUEST_STACK_SIZE 64
-
 /* Use the page offset bits to communicate the access+fault type. */
 #define TEST_SYNC_READ_FAULT		BIT(0)
 #define TEST_SYNC_WRITE_FAULT		BIT(1)
@@ -92,7 +90,6 @@ static void l2_guest_code_tdp_disabled(void)
 
 void l1_vmx_code(struct vmx_pages *vmx)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	void *l2_rip;
 
 	GUEST_ASSERT(vmx->vmcs_gpa);
@@ -104,7 +101,7 @@ void l1_vmx_code(struct vmx_pages *vmx)
 	else
 		l2_rip = l2_guest_code_tdp_disabled;
 
-	prepare_vmcs(vmx, l2_rip, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	prepare_vmcs(vmx, l2_rip);
 
 	GUEST_SYNC(TEST_SYNC_NO_FAULT);
 	GUEST_ASSERT(!vmlaunch());
@@ -115,7 +112,6 @@ void l1_vmx_code(struct vmx_pages *vmx)
 
 static void l1_svm_code(struct svm_test_data *svm)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	void *l2_rip;
 
 	if (svm->ncr3_gpa)
@@ -123,7 +119,7 @@ static void l1_svm_code(struct svm_test_data *svm)
 	else
 		l2_rip = l2_guest_code_tdp_disabled;
 
-	generic_svm_setup(svm, l2_rip, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, l2_rip);
 
 	GUEST_SYNC(TEST_SYNC_NO_FAULT);
 	run_guest(svm->vmcb, svm->vmcb_gpa);

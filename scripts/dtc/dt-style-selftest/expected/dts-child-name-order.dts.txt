@@ -1,0 +1,2 @@
+# mode=strict
+bad/dts-child-name-order.dts:16: [child-name-order] child node 'bar' out of name order

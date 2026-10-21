@@ -1,0 +1,199 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===============
+ADF41513 driver
+===============
+
+This driver supports Analog Devices' ADF41513 and similar SPI PLL frequency
+synthesizers.
+
+1. Supported devices
+====================
+
+* `ADF41510 <https://www.analog.com/ADF41510>`_
+* `ADF41513 <https://www.analog.com/ADF41513>`_
+
+The ADF41513 is an ultralow noise frequency synthesizer that can be used to
+implement local oscillators (LOs) as high as 26.5 GHz in the upconversion and
+downconversion sections of wireless receivers and transmitters. The ADF41510
+is a similar device that supports frequencies up to 10 GHz.
+
+Both devices support integer-N and fractional-N operation modes, providing
+excellent phase noise performance and flexible frequency generation
+capabilities.
+
+Key Features:
+
+- **ADF41510**: 1 GHz to 10 GHz frequency range
+- **ADF41513**: 1 GHz to 26.5 GHz frequency range
+- Integer-N and fractional-N operation modes
+- Ultra-low phase noise (-235 dBc/Hz integer-N, -231 dBc/Hz fractional-N)
+- High maximum PFD frequency (250 MHz integer-N, 125 MHz fractional-N)
+- 25-bit fixed modulus or 49-bit variable modulus fractional modes
+- Programmable charge pump currents with 16x range
+- Digital lock detect functionality
+- Phase resync capability for consistent output phase
+
+2. Device attributes
+====================
+
+The ADF41513 driver provides the following IIO extended attributes for
+frequency control and monitoring:
+
+Each IIO device has a device folder under ``/sys/bus/iio/devices/iio:deviceX``,
+where X is the IIO index of the device. Under these folders reside a set of
+device files that provide access to the synthesizer's functionality.
+
+The following table shows the ADF41513 related device files:
+
++--------------------------------------+-------------------------------------------------------+
+| Device file                          | Description                                           |
++======================================+=======================================================+
+| out_altvoltage0_frequency            | RF output frequency control and readback (Hz)         |
++--------------------------------------+-------------------------------------------------------+
+| out_altvoltage0_frequency_resolution | Target frequency resolution control (Hz)              |
++--------------------------------------+-------------------------------------------------------+
+| out_altvoltage0_powerdown            | Power management control (0=active, 1=power down)     |
++--------------------------------------+-------------------------------------------------------+
+| out_altvoltage0_phase                | RF output phase adjustment and readback (radians)     |
++--------------------------------------+-------------------------------------------------------+
+
+2.1 Frequency Control
+----------------------
+
+The ``out_altvoltage0_frequency`` attribute controls the RF output frequency
+with sub-Hz precision. The driver automatically selects between integer-N and
+fractional-N modes to achieve the requested frequency with the best possible
+phase noise performance.
+
+**Supported ranges:**
+
+- **ADF41510**: 1,000,000,000 Hz to 10,000,000,000 Hz (1 GHz to 10 GHz)
+- **ADF41513**: 1,000,000,000 Hz to 26,500,000,000 Hz (1 GHz to 26.5 GHz)
+
+The frequency is specified in Hz, for sub-Hz precision use decimal notation.
+For example, 12.102 GHz would be written as "12102000000.000000".
+
+2.2 Frequency Resolution Control
+--------------------------------
+
+The ``out_altvoltage0_frequency_resolution`` attribute controls the target
+frequency resolution that the driver attempts to achieve. This affects the
+choice between integer-N and fractional-N modes, including fixed modulus
+(25-bit) and variable modulus (49-bit) fractional-N modes:
+
+- **Integer-N**: Resolution = :math:`f_{PFD}` (same as PFD frequency)
+- **Fixed modulus**: Resolution = :math:`f_{PFD} / 2^{25}` (~3 Hz with 100 MHz PFD)
+- **Variable modulus**: Resolution = :math:`f_{PFD} / 2^{49}` (µHz resolution possible)
+
+Default resolution is 1 Hz (1,000,000 µHz).
+
+2.3 Phase adjustment
+--------------------
+
+The ``out_altvoltage0_phase`` attribute allows adjustment of the output phase
+in radians. Setting this attribute enables phase adjustment. It can be set
+from 0 to :math:`2\pi` radians. Reading this attribute returns the current
+phase offset of the output signal. To create a consistent phase relationship
+with the reference signal, the phase resync feature needs to be enabled by
+setting a non-zero value to the ``adi,phase-resync-period-ns`` device property,
+which triggers a phase resynchronization after locking is achieved.
+
+3. Operating modes
+==================
+
+3.1 Integer-N Mode
+------------------
+
+When the requested frequency can be achieved as an integer multiple of the PFD
+frequency (within the specified resolution tolerance), the driver automatically
+selects integer-N mode for optimal phase noise performance.
+
+In integer-N mode:
+
+- Phase noise: -235 dBc/Hz normalized floor
+- Frequency resolution: :math:`f_{PFD}` (same as PFD frequency)
+- Maximum PFD frequency: 250 MHz
+- Bleed current: Disabled
+
+3.2 Fractional-N Mode
+---------------------
+
+When sub-integer frequency steps are required, the driver automatically selects
+fractional-N mode using either fixed or variable modulus.
+
+**Fixed Modulus (25-bit)**:
+
+- Used when variable modulus is not required
+- Resolution: :math:`f_{PFD} / 2^{25}`
+- Simpler implementation, faster settling
+
+**Variable Modulus (49-bit)**:
+
+- Used for maximum resolution requirements
+- Resolution: :math:`f_{PFD} / 2^{49}` (theoretical)
+- Exact frequency synthesis capability
+
+In fractional-N mode:
+
+- Phase noise: -231 dBc/Hz normalized floor
+- Maximum PFD frequency: 125 MHz
+- Bleed current: Automatically enabled and optimized
+- Dithering: Enabled to reduce fractional spurs
+
+3.3 Automatic Mode Selection
+----------------------------
+
+The driver automatically selects the optimal operating mode based on:
+
+1. **Frequency accuracy requirements**: Determined by ``frequency_resolution`` setting
+2. **Phase noise optimization**: Integer-N preferred when possible
+3. **PFD frequency constraints**: Different limits for integer vs fractional modes
+4. **Prescaler selection**: Automatic 4/5 vs 8/9 prescaler selection based on frequency
+
+4. Usage examples
+=================
+
+4.1 Basic Frequency Setting
+----------------------------
+
+Set output frequency to 12.102 GHz:
+
+.. code-block:: bash
+
+    root:/sys/bus/iio/devices/iio:device0> echo 12102000000 > out_altvoltage0_frequency
+
+Read current frequency:
+
+.. code-block:: bash
+
+    root:/sys/bus/iio/devices/iio:device0> cat out_altvoltage0_frequency
+    12101999999.582767
+
+4.2 High Resolution Frequency Control
+-------------------------------------
+
+Configure for sub-Hz resolution and set a precise frequency:
+
+.. code-block:: bash
+
+    # Set resolution to 0.1 Hz (100,000 µHz)
+    root:/sys/bus/iio/devices/iio:device0> echo 0.1 > out_altvoltage0_frequency_resolution
+
+    # Set frequency to 12.102 GHz (1 µHz precision)
+    root:/sys/bus/iio/devices/iio:device0> echo 12102000000 > out_altvoltage0_frequency
+    root:/sys/bus/iio/devices/iio:device0> cat out_altvoltage0_frequency
+    12101999999.980131
+
+4.3 Monitor Lock Status
+-----------------------
+
+When lock detect GPIO is configured, check if PLL is locked:
+
+.. code-block:: bash
+
+    # Read frequency - will return error if not locked
+    root:/sys/bus/iio/devices/iio:device0> cat out_altvoltage0_frequency
+
+If the PLL is not locked, the frequency read will return ``-EBUSY`` (Device or
+resource busy).

@@ -399,4 +399,14 @@ config RISCV_SBI_MPXY_MBOX
 	  or HS-mode hypervisor). Say Y here, unless you are sure you do not
 	  need this.
 
+config AXIADO_MAILBOX
+	tristate "Axiado mailbox driver"
+	depends on ARCH_AXIADO || COMPILE_TEST
+	depends on OF
+	help
+	  Enable support for the Axiado mailbox controller. The driver provides
+	  communication channels between the host CPU and the coprocessor on
+	  Axiado SoCs.
+	  If unsure, say N.
+
 endif

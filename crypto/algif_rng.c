@@ -50,6 +50,10 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
 MODULE_DESCRIPTION("User-space interface for random number generators");
 
+static const struct af_alg_allowlist_entry rng_allowlist[] = {
+	{},
+};
+
 struct rng_ctx {
 #define MAXSIZE 128
 	unsigned int len;
@@ -201,6 +205,11 @@ static void *rng_bind(const char *name)
 {
 	struct rng_parent_ctx *pctx;
 	struct crypto_rng *rng;
+	int err;
+
+	err = af_alg_check_restriction(name, rng_allowlist);
+	if (err)
+		return ERR_PTR(err);
 
 	pctx = kzalloc_obj(*pctx);
 	if (!pctx)

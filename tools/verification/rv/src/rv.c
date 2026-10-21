@@ -50,23 +50,23 @@ static void rv_list(int argc, char **argv)
 		"	[container]: list only monitors in this container",
 		NULL,
 	};
-	int i, print_help = 0, retval = 0;
+	int i, print_help = 0, retval = EXIT_SUCCESS;
 	char *container = NULL;
 
 	if (argc == 2) {
 		if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
 			print_help = 1;
-			retval = 0;
+			retval = EXIT_SUCCESS;
 		} else if (argv[1][0] == '-') {
 			/* assume invalid option */
 			print_help = 1;
-			retval = 1;
+			retval = EXIT_FAILURE;
 		} else
 			container = argv[1];
 	} else if (argc > 2) {
 		/* more than 2 is always usage */
 		print_help = 1;
-		retval = 1;
+		retval = EXIT_FAILURE;
 	}
 	if (print_help) {
 		fprintf(stderr, "rv version %s\n", VERSION);
@@ -77,7 +77,7 @@ static void rv_list(int argc, char **argv)
 
 	ikm_list_monitors(container);
 
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 /*
@@ -108,14 +108,14 @@ static void rv_mon(int argc, char **argv)
 
 		for (i = 0; usage[i]; i++)
 			fprintf(stderr, "%s\n", usage[i]);
-		exit(1);
+		exit(EXIT_FAILURE);
 	} else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
 
 		fprintf(stderr, "rv version %s\n", VERSION);
 
 		for (i = 0; usage[i]; i++)
 			fprintf(stderr, "%s\n", usage[i]);
-		exit(0);
+		exit(EXIT_SUCCESS);
 	}
 
 	monitor_name = argv[1];
@@ -127,7 +127,7 @@ static void rv_mon(int argc, char **argv)
 
 	if (!run)
 		err_msg("rv: monitor %s does not exist\n", monitor_name);
-	exit(!run);
+	exit(run > 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static void usage(int exit_val, const char *fmt, ...)
@@ -174,13 +174,13 @@ static void usage(int exit_val, const char *fmt, ...)
 int main(int argc, char **argv)
 {
 	if (geteuid())
-		usage(1, "%s needs root permission", argv[0]);
+		usage(EXIT_FAILURE, "%s needs root permission", argv[0]);
 
 	if (argc <= 1)
-		usage(1, "%s requires a command", argv[0]);
+		usage(EXIT_FAILURE, "%s requires a command", argv[0]);
 
 	if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
-		usage(0, "help");
+		usage(EXIT_SUCCESS, "help");
 
 	if (!strcmp(argv[1], "list"))
 		rv_list(--argc, &argv[1]);
@@ -197,5 +197,5 @@ int main(int argc, char **argv)
 	}
 
 	/* invalid sub-command */
-	usage(1, "%s does not know the %s command, old version?", argv[0], argv[1]);
+	usage(EXIT_FAILURE, "%s does not know the %s command, old version?", argv[0], argv[1]);
 }

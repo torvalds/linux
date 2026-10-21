@@ -58,6 +58,17 @@
  *             __BTF_ID__func__vfs_fallocate__5:
  *             .zero 4
  *	       .word (1 << 3) | (1 << 1) | (1 << 2)
+ *
+ * In addition to resolving BTF IDs, resolve_btfids performs kernel-specific
+ * BTF-to-BTF transformations for kfuncs found in BTF_SET8_KFUNCS sets. For
+ * each such kfunc it:
+ *
+ *   - emits a "bpf_kfunc" decl tag, and "bpf_fastcall" when KF_FASTCALL is set;
+ *   - wraps the return value and/or arguments that use arena pointers
+ *     with the "address_space(1)" type attribute;
+ *   - rewrites the prototype of KF_IMPLICIT_ARGS kfuncs.
+ *
+ * These kfunc annotations were historically produced by pahole.
  */
 
 #define  _GNU_SOURCE
@@ -119,6 +130,11 @@ struct btf_id {
 	Elf64_Addr	 addr[ADDR_CNT];
 };
 
+struct addr_sym {
+	Elf64_Addr	 addr;
+	const char	*name;
+};
+
 struct object {
 	const char *path;
 	const char *btf_path;
@@ -150,12 +166,27 @@ struct object {
 	int nr_structs;
 	int nr_unions;
 	int nr_typedefs;
+
+	struct addr_sym *addr_syms;
+	u32 addr_syms_cnt;
+	u32 addr_syms_cap;
 };
 
+#define DECL_TAG_FASTCALL "bpf_fastcall"
+#define DECL_TAG_KFUNC "bpf_kfunc"
+
+#define KF_FASTCALL	(1 << 12)
+#define KF_ARENA_RET	(1 << 13)
+#define KF_ARENA_ARG1	(1 << 14)
+#define KF_ARENA_ARG2	(1 << 15)
 #define KF_IMPLICIT_ARGS (1 << 16)
 #define KF_IMPL_SUFFIX "_impl"
+#define TYPE_ATTR_ARENA "address_space(1)"
+#define PARAM_SUFFIX_ARENA "__arena"
+#define PARAM_SUFFIX_ARENA_NULLABLE "__arena__nullable"
 
 struct kfunc {
+	struct rb_node rb_node;
 	const char *name;
 	u32 btf_id;
 	u32 flags;
@@ -166,9 +197,7 @@ struct btf2btf_context {
 	u32 *decl_tags;
 	u32 nr_decl_tags;
 	u32 max_decl_tags;
-	struct kfunc *kfuncs;
-	u32 nr_kfuncs;
-	u32 max_kfuncs;
+	struct rb_root kfuncs;
 };
 
 static int verbose;
@@ -200,6 +229,35 @@ static int eprintf(int level, int var, const char *fmt, ...)
 	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info(fmt, ...) \
 	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+
+/*
+ * Grow *data so it can hold at least cnt elements of elem_sz bytes each.
+ * *cap is the capacity in elements and is updated on growth.
+ */
+static int __ensure_mem(void **data, u32 *cap, u32 cnt, size_t elem_sz)
+{
+	u32 new_cap, old_cap = *cap;
+	void *arr;
+
+	if (cnt <= old_cap)
+		return 0;
+
+	new_cap = max(old_cap + 256, old_cap * 2);
+	if (new_cap < cnt)
+		new_cap = cnt;
+
+	arr = realloc(*data, elem_sz * new_cap);
+	if (!arr)
+		return -ENOMEM;
+
+	*data = arr;
+	*cap = new_cap;
+
+	return 0;
+}
+
+#define ensure_mem(arr_ptr, cap_ptr, cnt) \
+	__ensure_mem((void **)(arr_ptr), (cap_ptr), (cnt), sizeof(**(arr_ptr)))
 
 static bool is_btf_id(const char *name)
 {
@@ -480,6 +538,40 @@ static int elf_collect(struct object *obj)
 	return 0;
 }
 
+static int push_addr_sym(struct object *obj, Elf64_Addr addr, const char *name)
+{
+	if (ensure_mem(&obj->addr_syms, &obj->addr_syms_cap, obj->addr_syms_cnt + 1))
+		return -ENOMEM;
+
+	obj->addr_syms[obj->addr_syms_cnt++] = (struct addr_sym){
+		.addr = addr,
+		.name = name,
+	};
+
+	return 0;
+}
+
+static int cmp_addr_sym(const void *a, const void *b)
+{
+	Elf64_Addr aa = ((const struct addr_sym *)a)->addr;
+	Elf64_Addr ab = ((const struct addr_sym *)b)->addr;
+
+	return (aa > ab) - (aa < ab);
+}
+
+static const char *find_name_by_addr(struct object *obj, Elf64_Addr addr)
+{
+	struct addr_sym key = { .addr = addr };
+	struct addr_sym *res;
+
+	if (!obj->addr_syms_cnt)
+		return NULL;
+
+	res = bsearch(&key, obj->addr_syms, obj->addr_syms_cnt,
+		      sizeof(*obj->addr_syms), cmp_addr_sym);
+	return res ? res->name : NULL;
+}
+
 static int symbols_collect(struct object *obj)
 {
 	Elf_Scn *scn = NULL;
@@ -573,7 +665,14 @@ static int symbols_collect(struct object *obj)
 			return -1;
 		}
 		id->addr[id->addr_cnt++] = sym.st_value;
+
+		if (push_addr_sym(obj, sym.st_value, id->name))
+			return -1;
 	}
+
+	if (obj->addr_syms_cnt)
+		qsort(obj->addr_syms, obj->addr_syms_cnt,
+		      sizeof(*obj->addr_syms), cmp_addr_sym);
 
 	return 0;
 }
@@ -890,17 +989,8 @@ static const struct btf_type *btf_type_skip_qualifiers(const struct btf *btf, s3
 
 static int push_decl_tag_id(struct btf2btf_context *ctx, u32 decl_tag_id)
 {
-	u32 *arr = ctx->decl_tags;
-	u32 cap = ctx->max_decl_tags;
-
-	if (ctx->nr_decl_tags + 1 > cap) {
-		cap = max(cap + 256, cap * 2);
-		arr = realloc(arr, sizeof(u32) * cap);
-		if (!arr)
-			return -ENOMEM;
-		ctx->max_decl_tags = cap;
-		ctx->decl_tags = arr;
-	}
+	if (ensure_mem(&ctx->decl_tags, &ctx->max_decl_tags, ctx->nr_decl_tags + 1))
+		return -ENOMEM;
 
 	ctx->decl_tags[ctx->nr_decl_tags++] = decl_tag_id;
 
@@ -909,21 +999,55 @@ static int push_decl_tag_id(struct btf2btf_context *ctx, u32 decl_tag_id)
 
 static int push_kfunc(struct btf2btf_context *ctx, struct kfunc *kfunc)
 {
-	struct kfunc *arr = ctx->kfuncs;
-	u32 cap = ctx->max_kfuncs;
+	struct rb_node **p = &ctx->kfuncs.rb_node;
+	struct rb_node *parent = NULL;
+	struct kfunc *k;
 
-	if (ctx->nr_kfuncs + 1 > cap) {
-		cap = max(cap + 256, cap * 2);
-		arr = realloc(arr, sizeof(struct kfunc) * cap);
-		if (!arr)
-			return -ENOMEM;
-		ctx->max_kfuncs = cap;
-		ctx->kfuncs = arr;
+	/*
+	 * Dedup by BTF ID: collecting the same kfunc twice is a no-op,
+	 * UNLESS the kfunc flags are inconsistent, in which case we
+	 * fail hard because it indicates a bug in a kfunc set declaration.
+	 */
+	while (*p) {
+		parent = *p;
+		k = rb_entry(parent, struct kfunc, rb_node);
+
+		if (kfunc->btf_id < k->btf_id) {
+			p = &(*p)->rb_left;
+		} else if (kfunc->btf_id > k->btf_id) {
+			p = &(*p)->rb_right;
+		} else if (k->flags == kfunc->flags) {
+			return 0;
+		} else {
+			pr_err("ERROR: resolve_btfids: kfunc %s has inconsistent flags across BTF ID sets: 0x%x != 0x%x\n",
+			       kfunc->name, k->flags, kfunc->flags);
+			return -EINVAL;
+		}
 	}
 
-	ctx->kfuncs[ctx->nr_kfuncs++] = *kfunc;
+	k = zalloc(sizeof(*k));
+	if (!k)
+		return -ENOMEM;
+
+	*k = *kfunc;
+	rb_link_node(&k->rb_node, parent, p);
+	rb_insert_color(&k->rb_node, &ctx->kfuncs);
 
 	return 0;
+}
+
+static void free_kfuncs(struct rb_root *root)
+{
+	struct rb_node *next;
+	struct kfunc *kfunc;
+
+	next = rb_first(root);
+	while (next) {
+		kfunc = rb_entry(next, struct kfunc, rb_node);
+		next = rb_next(&kfunc->rb_node);
+		rb_erase(&kfunc->rb_node, root);
+		free(kfunc);
+	}
 }
 
 static int collect_decl_tags(struct btf2btf_context *ctx)
@@ -945,94 +1069,76 @@ static int collect_decl_tags(struct btf2btf_context *ctx)
 	return 0;
 }
 
-/*
- * To find the kfunc flags having its struct btf_id (with ELF addresses)
- * we need to find the address that is in range of a set8.
- * If a set8 is found, then the flags are located at addr + 4 bytes.
- * Return 0 (no flags!) if not found.
- */
-static u32 find_kfunc_flags(struct object *obj, struct btf_id *kfunc_id)
+static bool param_name_has_suffix(const char *name, const char *suffix)
 {
-	const u32 *elf_data_ptr = obj->efile.idlist->d_buf;
-	u64 set_lower_addr, set_upper_addr, addr;
-	struct btf_id *set_id;
-	struct rb_node *next;
-	u32 flags;
-	u64 idx;
+	size_t name_len = strlen(name);
+	size_t suffix_len = strlen(suffix);
 
-	for (next = rb_first(&obj->sets); next; next = rb_next(next)) {
-		set_id = rb_entry(next, struct btf_id, rb_node);
-		if (set_id->kind != BTF_ID_KIND_SET8 || set_id->addr_cnt != 1)
-			continue;
+	return name_len >= suffix_len && !strcmp(name + name_len - suffix_len, suffix);
+}
 
-		set_lower_addr = set_id->addr[0];
-		set_upper_addr = set_lower_addr + set_id->cnt * sizeof(u64);
+static bool is_arena_param(const struct btf *btf, const struct btf_param *param)
+{
+	const char *name = btf__name_by_offset(btf, param->name_off);
 
-		for (u32 i = 0; i < kfunc_id->addr_cnt; i++) {
-			addr = kfunc_id->addr[i];
-			/*
-			 * Lower bound is exclusive to skip the 8-byte header of the set.
-			 * Upper bound is inclusive to capture the last entry at offset 8*cnt.
-			 */
-			if (set_lower_addr < addr && addr <= set_upper_addr) {
-				pr_debug("found kfunc %s in BTF_ID_FLAGS %s\n",
-					 kfunc_id->name, set_id->name);
-				idx = addr - obj->efile.idlist_addr;
-				idx = idx / sizeof(u32) + 1;
-				flags = elf_data_ptr[idx];
-
-				return flags;
-			}
-		}
-	}
-
-	return 0;
+	return param_name_has_suffix(name, PARAM_SUFFIX_ARENA) ||
+	       param_name_has_suffix(name, PARAM_SUFFIX_ARENA_NULLABLE);
 }
 
 static int collect_kfuncs(struct object *obj, struct btf2btf_context *ctx)
 {
-	const char *tag_name, *func_name;
+	Elf_Data *idlist = obj->efile.idlist;
 	struct btf *btf = ctx->btf;
-	const struct btf_type *t;
-	u32 flags, func_id;
-	struct kfunc kfunc;
-	struct btf_id *id;
-	int err;
+	struct rb_node *next;
 
-	if (ctx->nr_decl_tags == 0)
+	if (!idlist || !idlist->d_buf)
 		return 0;
 
-	for (u32 i = 0; i < ctx->nr_decl_tags; i++) {
-		t = btf__type_by_id(btf, ctx->decl_tags[i]);
-		if (btf_kflag(t) || btf_decl_tag(t)->component_idx != -1)
+	for (next = rb_first(&obj->sets); next; next = rb_next(next)) {
+		struct btf_id_set8 *set8;
+		struct btf_id *set_id;
+		u64 set_addr;
+
+		set_id = rb_entry(next, struct btf_id, rb_node);
+		if (set_id->kind != BTF_ID_KIND_SET8 || set_id->addr_cnt != 1)
 			continue;
 
-		tag_name = btf__name_by_offset(btf, t->name_off);
-		if (strcmp(tag_name, "bpf_kfunc") != 0)
+		set_addr = set_id->addr[0];
+		set8 = idlist->d_buf + (set_addr - obj->efile.idlist_addr);
+		if (!(set8->flags & BTF_SET8_KFUNCS))
 			continue;
 
-		func_id = t->type;
-		t = btf__type_by_id(btf, func_id);
-		if (!btf_is_func(t))
-			continue;
+		for (u32 i = 0; i < set_id->cnt; i++) {
+			size_t off = (char *)&set8->pairs[i] - (char *)set8;
+			const char *name = find_name_by_addr(obj, set_addr + off);
+			struct kfunc kfunc;
+			s32 func_id;
+			int err;
 
-		func_name = btf__name_by_offset(btf, t->name_off);
-		if (!func_name)
-			continue;
+			if (!name) {
+				pr_err("WARN: resolve_btfids: no BTF ID symbol for %s entry %u\n",
+				       set_id->name, i);
+				warnings++;
+				continue;
+			}
 
-		id = btf_id__find(&obj->funcs, func_name);
-		if (!id || id->kind != BTF_ID_KIND_SYM)
-			continue;
+			func_id = btf__find_by_name_kind_own(btf, name, BTF_KIND_FUNC);
+			if (func_id < 0) {
+				pr_err("WARN: resolve_btfids: no BTF func for kfunc %s in %s\n",
+				       name, set_id->name);
+				warnings++;
+				continue;
+			}
 
-		flags = find_kfunc_flags(obj, id);
+			pr_debug("found kfunc %s in %s\n", name, set_id->name);
 
-		kfunc.name = id->name;
-		kfunc.btf_id = func_id;
-		kfunc.flags = flags;
-
-		err = push_kfunc(ctx, &kfunc);
-		if (err)
-			return err;
+			kfunc.name = name;
+			kfunc.btf_id = func_id;
+			kfunc.flags = set8->pairs[i].flags;
+			err = push_kfunc(ctx, &kfunc);
+			if (err)
+				return err;
+		}
 	}
 
 	return 0;
@@ -1141,7 +1247,7 @@ static int process_kfunc_with_implicit_args(struct btf2btf_context *ctx, struct 
 		return -E2BIG;
 	}
 
-	if (btf__find_by_name_kind(btf, tmp_name, BTF_KIND_FUNC) > 0) {
+	if (btf__find_by_name_kind_own(btf, tmp_name, BTF_KIND_FUNC) > 0) {
 		pr_debug("resolve_btfids: function %s already exists in BTF\n", tmp_name);
 		goto add_new_proto;
 	}
@@ -1160,7 +1266,7 @@ static int process_kfunc_with_implicit_args(struct btf2btf_context *ctx, struct 
 			continue;
 
 		tag_name = btf__name_by_offset(btf, t->name_off);
-		if (strcmp(tag_name, "bpf_kfunc") == 0)
+		if (strcmp(tag_name, DECL_TAG_KFUNC) == 0)
 			continue;
 
 		idx = btf_decl_tag(t)->component_idx;
@@ -1211,22 +1317,187 @@ add_new_proto:
 	return 0;
 }
 
+static bool is_arena_arg(const struct btf *btf, const struct kfunc *kfunc,
+			 const struct btf_param *param, u32 idx)
+{
+	if (is_arena_param(btf, param))
+		return true;
+
+	switch (idx) {
+	case 0:
+		return kfunc->flags & KF_ARENA_ARG1;
+	case 1:
+		return kfunc->flags & KF_ARENA_ARG2;
+	default:
+		return false;
+	}
+}
+
+static s32 arena_tag_ptr(struct btf *btf, u32 ptr_id, struct kfunc *kfunc)
+{
+	const struct btf_type *ptr = btf__type_by_id(btf, ptr_id);
+	s32 tag_id, new_ptr_id;
+
+	if (!btf_is_ptr(ptr)) {
+		pr_err("ERROR: resolve_btfids: kfunc %s: arena type is not a pointer\n",
+		       kfunc->name);
+		return -EINVAL;
+	}
+
+	tag_id = btf__add_type_attr(btf, TYPE_ATTR_ARENA, ptr->type);
+	if (tag_id < 0) {
+		pr_err("ERROR: resolve_btfids: kfunc %s: failed to add a type attr to BTF: %d\n",
+		       kfunc->name, tag_id);
+		return tag_id;
+	}
+
+	new_ptr_id = btf__add_ptr(btf, tag_id);
+	if (new_ptr_id < 0) {
+		pr_err("ERROR: resolve_btfids: kfunc %s: failed to add a pointer to BTF: %d\n",
+		       kfunc->name, new_ptr_id);
+	}
+
+	return new_ptr_id;
+}
+
+/*
+ * Add a FUNC_PROTO for @kfunc with each arena pointer tagged with an
+ * "address_space(1)" attribute. The original proto may be shared with
+ * other FUNCs, so it is never modified in place. Returns the original
+ * proto id when @kfunc has no arena return value or arguments.
+ */
+static s32 add_arena_tagged_proto(struct btf *btf, struct kfunc *kfunc)
+{
+	const struct btf_type *func = btf__type_by_id(btf, kfunc->btf_id);
+	u32 proto_id = func->type;
+	const struct btf_type *proto = btf__type_by_id(btf, proto_id);
+	const struct btf_param *params = btf_params(proto);
+	u32 nr_params = btf_vlen(proto);
+	s32 ret_type_id = proto->type;
+	const struct btf_type *t;
+	struct btf_param *tag_params;
+	s32 new_proto_id, id;
+	const char *name;
+	bool has_arena_arg = false;
+	int err, i;
+
+	for (i = 0; i < nr_params; i++) {
+		if (is_arena_arg(btf, kfunc, &params[i], i)) {
+			has_arena_arg = true;
+			break;
+		}
+	}
+
+	if (!(kfunc->flags & KF_ARENA_RET) && !has_arena_arg)
+		return proto_id;
+
+	if (kfunc->flags & KF_ARENA_RET) {
+		ret_type_id = arena_tag_ptr(btf, ret_type_id, kfunc);
+		if (ret_type_id < 0)
+			return ret_type_id;
+	}
+
+	new_proto_id = btf__add_func_proto(btf, ret_type_id);
+	if (new_proto_id < 0) {
+		pr_err("ERROR: resolve_btfids: kfunc %s: failed to add a func proto to BTF: %d\n",
+		       kfunc->name, new_proto_id);
+		return new_proto_id;
+	}
+
+	for (i = 0; i < nr_params; i++) {
+		/* btf__add_func_param() below may move the proto, re-fetch */
+		proto = btf__type_by_id(btf, proto_id);
+		name = btf__name_by_offset(btf, btf_params(proto)[i].name_off);
+
+		err = btf__add_func_param(btf, name ?: "", btf_params(proto)[i].type);
+		if (err < 0) {
+			pr_err("ERROR: resolve_btfids: kfunc %s: failed to add a proto param to BTF: %d\n",
+			       kfunc->name, err);
+			return err;
+		}
+	}
+
+	for (i = 0; i < nr_params; i++) {
+		t = btf__type_by_id(btf, new_proto_id);
+		tag_params = btf_params(t);
+		if (!is_arena_arg(btf, kfunc, &tag_params[i], i))
+			continue;
+
+		id = arena_tag_ptr(btf, tag_params[i].type, kfunc);
+		if (id < 0)
+			return id;
+
+		t = btf__type_by_id(btf, new_proto_id);
+		tag_params = btf_params(t);
+		tag_params[i].type = id;
+	}
+
+	pr_debug("added arena-tagged proto for kfunc %s: %d\n", kfunc->name, new_proto_id);
+
+	return new_proto_id;
+}
+
+static int process_kfunc_with_arena_attrs(struct btf2btf_context *ctx,
+					  struct kfunc *kfunc)
+{
+	struct btf_type *t;
+	s32 proto_id;
+
+	proto_id = add_arena_tagged_proto(ctx->btf, kfunc);
+	if (proto_id < 0)
+		return proto_id;
+
+	t = (struct btf_type *)btf__type_by_id(ctx->btf, kfunc->btf_id);
+	t->type = proto_id;
+
+	return 0;
+}
+
+static int add_decl_tag(struct btf2btf_context *ctx, const char *tag_name,
+			u32 target_btf_id, int component_idx)
+{
+	s32 new_id;
+
+	new_id = btf__add_decl_tag(ctx->btf, tag_name, target_btf_id, component_idx);
+	if (new_id < 0) {
+		pr_err("ERROR: resolve_btfids: failed to add '%s' decl tag for BTF id %u: %d\n",
+		       tag_name, target_btf_id, new_id);
+		return new_id;
+	}
+
+	return push_decl_tag_id(ctx, new_id);
+}
+
 static int btf2btf(struct object *obj)
 {
 	struct btf2btf_context ctx = {};
+	struct rb_node *next;
 	int err;
 
 	err = build_btf2btf_context(obj, &ctx);
 	if (err)
 		goto out;
 
-	for (u32 i = 0; i < ctx.nr_kfuncs; i++) {
-		struct kfunc *kfunc = &ctx.kfuncs[i];
+	for (next = rb_first(&ctx.kfuncs); next; next = rb_next(next)) {
+		struct kfunc *kfunc = rb_entry(next, struct kfunc, rb_node);
 
-		if (!(kfunc->flags & KF_IMPLICIT_ARGS))
-			continue;
+		err = add_decl_tag(&ctx, DECL_TAG_KFUNC, kfunc->btf_id, -1);
+		if (err)
+			goto out;
 
-		err = process_kfunc_with_implicit_args(&ctx, kfunc);
+		if (kfunc->flags & KF_FASTCALL) {
+			err = add_decl_tag(&ctx, DECL_TAG_FASTCALL, kfunc->btf_id, -1);
+			if (err)
+				goto out;
+		}
+
+		if (kfunc->flags & KF_IMPLICIT_ARGS) {
+			err = process_kfunc_with_implicit_args(&ctx, kfunc);
+			if (err)
+				goto out;
+		}
+
+		err = process_kfunc_with_arena_attrs(&ctx, kfunc);
 		if (err)
 			goto out;
 	}
@@ -1234,7 +1505,7 @@ static int btf2btf(struct object *obj)
 	err = 0;
 out:
 	free(ctx.decl_tags);
-	free(ctx.kfuncs);
+	free_kfuncs(&ctx.kfuncs);
 
 	return err;
 }
@@ -1308,6 +1579,12 @@ static int finalize_btf(struct object *obj)
 {
 	struct btf *base_btf = obj->base_btf, *btf = obj->btf;
 	int err;
+
+	err = btf__dedup(obj->btf, NULL);
+	if (err) {
+		pr_err("FAILED to dedup BTF: %s\n", strerror(errno));
+		goto out_err;
+	}
 
 	if (obj->base_btf && obj->distill_base) {
 		err = btf__distill_base(obj->btf, &base_btf, &btf);
@@ -1575,6 +1852,7 @@ out:
 	btf_id__free_all(&obj.typedefs);
 	btf_id__free_all(&obj.funcs);
 	btf_id__free_all(&obj.sets);
+	free(obj.addr_syms);
 	if (obj.efile.elf) {
 		elf_end(obj.efile.elf);
 		close(obj.efile.fd);

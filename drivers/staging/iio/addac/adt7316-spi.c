@@ -126,15 +126,14 @@ static int adt7316_spi_probe(struct spi_device *spi_dev)
 }
 
 static const struct spi_device_id adt7316_spi_id[] = {
-	{ "adt7316", 0 },
-	{ "adt7317", 0 },
-	{ "adt7318", 0 },
-	{ "adt7516", 0 },
-	{ "adt7517", 0 },
-	{ "adt7519", 0 },
+	{ .name = "adt7316" },
+	{ .name = "adt7317" },
+	{ .name = "adt7318" },
+	{ .name = "adt7516" },
+	{ .name = "adt7517" },
+	{ .name = "adt7519" },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(spi, adt7316_spi_id);
 
 static const struct of_device_id adt7316_of_spi_match[] = {

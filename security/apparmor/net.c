@@ -9,6 +9,7 @@
  */
 
 #include "include/af_unix.h"
+#include "include/af_inet.h"
 #include "include/apparmor.h"
 #include "include/audit.h"
 #include "include/cred.h"
@@ -133,12 +134,12 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 	audit_log_format(ab, " protocol=%d", ad->net.protocol);
 
 	if (ad->request & NET_PERMS_MASK) {
-		audit_log_format(ab, " requested_mask=");
+		audit_log_format(ab, " requested=");
 		aa_audit_perm_mask(ab, ad->request, NULL, 0,
 				   net_mask_names, NET_PERMS_MASK);
 
 		if (ad->denied & NET_PERMS_MASK) {
-			audit_log_format(ab, " denied_mask=");
+			audit_log_format(ab, " denied=");
 			aa_audit_perm_mask(ab, ad->denied, NULL, 0,
 					   net_mask_names, NET_PERMS_MASK);
 		}
@@ -166,7 +167,7 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 /* standard permission lookup pattern - supports early bailout */
 int aa_do_perms(struct aa_profile *profile, struct aa_policydb *policy,
 		aa_state_t state, u32 request,
-		struct aa_perms *p, struct apparmor_audit_data *ad)
+		const struct aa_perms *p, struct apparmor_audit_data *ad)
 {
 	struct aa_perms perms;
 
@@ -198,7 +199,7 @@ static struct aa_perms *early_match(struct aa_policydb *policy,
 	return p;
 }
 
-static aa_state_t aa_dfa_match_be16(struct aa_dfa *dfa, aa_state_t state,
+static aa_state_t aa_dfa_match_be16(const struct aa_dfa *dfa, aa_state_t state,
 					  u16 data)
 {
 	__be16 buffer = cpu_to_be16(data);
@@ -261,14 +262,15 @@ int aa_profile_af_perm(struct aa_profile *profile,
 	AA_BUG(type < 0 || type >= SOCK_MAX);
 	AA_BUG(profile_unconfined(profile));
 
-	if (profile_unconfined(profile))
-		return 0;
 	state = RULE_MEDIATES_NET(rules);
-	if (!state)
-		return 0;
-	state = aa_match_to_prot(rules->policy, state, request, family, type,
-				 protocol, &p, &ad->info);
-	return aa_do_perms(profile, rules->policy, state, request, p, ad);
+	if (state) {
+		state = aa_match_to_prot(rules->policy, state, request, family,
+					 type, protocol, &p, &ad->info);
+		return aa_do_perms(profile, rules->policy, state, request, p,
+				   ad);
+	} /* else */
+
+	return 0;
 }
 
 int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
@@ -282,10 +284,8 @@ int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
 					   type, protocol));
 }
 
-static int aa_label_sk_perm(const struct cred *subj_cred,
-			    struct aa_label *label,
-			    const char *op, u32 request,
-			    struct sock *sk)
+int aa_label_sk_perm(const struct cred *subj_cred, struct aa_label *label,
+		     const char *op, u32 request, const struct sock *sk)
 {
 	struct aa_sk_ctx *ctx = aa_sock(sk);
 	int error = 0;
@@ -299,24 +299,26 @@ static int aa_label_sk_perm(const struct cred *subj_cred,
 
 		ad.subj_cred = subj_cred;
 		error = fn_for_each_confined(label, profile,
-			    aa_profile_af_sk_perm(profile, &ad, request, sk));
+			    aa_profile_af_perm(profile, &ad, request, sk->sk_family,
+					    sk->sk_type, sk->sk_protocol));
 	}
 
 	return error;
 }
 
-int aa_sk_perm(const char *op, u32 request, struct sock *sk)
+int aa_sk_perm(const char *op, u32 request, const struct sock *sk)
 {
 	struct aa_label *label;
+	bool needput;
 	int error;
 
 	AA_BUG(!sk);
 	AA_BUG(in_interrupt());
 
 	/* TODO: switch to begin_current_label ???? */
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	error = aa_label_sk_perm(current_cred(), label, op, request, sk);
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -333,8 +335,13 @@ int aa_sock_file_perm(const struct cred *subj_cred, struct aa_label *label,
 	if (!sock || !sock->sk)
 		return 0;
 
-	if (sock->sk->sk_family == PF_UNIX)
+	switch (sock->sk->sk_family) {
+	case PF_UNIX:
 		return aa_unix_file_perm(subj_cred, label, op, request, file);
+	case PF_INET:
+	case PF_INET6:
+		return aa_inet_file_perm(subj_cred, label, op, request, sock);
+	}
 	return aa_label_sk_perm(subj_cred, label, op, request, sock->sk);
 }
 

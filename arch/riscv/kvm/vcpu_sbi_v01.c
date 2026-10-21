@@ -16,8 +16,9 @@
 static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 				   struct kvm_vcpu_sbi_return *retdata)
 {
-	ulong hmask;
-	int i, ret = 0;
+	ulong hbase = 0, hmask;
+	unsigned long i;
+	int ret = 0;
 	u64 next_cycle;
 	struct kvm_vcpu *rvcpu;
 	struct kvm *kvm = vcpu->kvm;
@@ -46,20 +47,25 @@ static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		ret = kvm_riscv_vcpu_unset_interrupt(vcpu, IRQ_VS_SOFT);
 		break;
 	case SBI_EXT_0_1_SEND_IPI:
-		if (cp->a0)
+		if (cp->a0) {
 			hmask = kvm_riscv_vcpu_unpriv_read(vcpu, false, cp->a0, utrap);
-		else
-			hmask = (1UL << atomic_read(&kvm->online_vcpus)) - 1;
-		if (utrap->scause)
-			break;
-
-		for_each_set_bit(i, &hmask, BITS_PER_LONG) {
-			rvcpu = kvm_get_vcpu_by_id(vcpu->kvm, i);
-			if (!rvcpu)
-				continue;
-			ret = kvm_riscv_vcpu_set_interrupt(rvcpu, IRQ_VS_SOFT);
-			if (ret < 0)
+			if (utrap->scause)
 				break;
+
+			for_each_set_bit(i, &hmask, BITS_PER_LONG) {
+				rvcpu = kvm_get_vcpu_by_id(vcpu->kvm, i);
+				if (!rvcpu)
+					continue;
+				ret = kvm_riscv_vcpu_set_interrupt(rvcpu, IRQ_VS_SOFT);
+				if (ret < 0)
+					break;
+			}
+		} else {
+			kvm_for_each_vcpu(i, rvcpu, kvm) {
+				ret = kvm_riscv_vcpu_set_interrupt(rvcpu, IRQ_VS_SOFT);
+				if (ret < 0)
+					break;
+			}
 		}
 		break;
 	case SBI_EXT_0_1_SHUTDOWN:
@@ -70,29 +76,31 @@ static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case SBI_EXT_0_1_REMOTE_FENCE_I:
 	case SBI_EXT_0_1_REMOTE_SFENCE_VMA:
 	case SBI_EXT_0_1_REMOTE_SFENCE_VMA_ASID:
-		if (cp->a0)
+		if (cp->a0) {
 			hmask = kvm_riscv_vcpu_unpriv_read(vcpu, false, cp->a0, utrap);
-		else
-			hmask = (1UL << atomic_read(&kvm->online_vcpus)) - 1;
+		} else {
+			hbase = -1UL;
+			hmask = 0;
+		}
 		if (utrap->scause)
 			break;
 
 		if (cp->a7 == SBI_EXT_0_1_REMOTE_FENCE_I)
-			kvm_riscv_fence_i(vcpu->kvm, 0, hmask);
+			kvm_riscv_fence_i(vcpu->kvm, hbase, hmask);
 		else if (cp->a7 == SBI_EXT_0_1_REMOTE_SFENCE_VMA) {
 			vmid = READ_ONCE(vcpu->kvm->arch.vmid.vmid);
 			if (cp->a1 == 0 && cp->a2 == 0)
-				kvm_riscv_hfence_vvma_all(vcpu->kvm, 0, hmask, vmid);
+				kvm_riscv_hfence_vvma_all(vcpu->kvm, hbase, hmask, vmid);
 			else
-				kvm_riscv_hfence_vvma_gva(vcpu->kvm, 0, hmask, cp->a1,
+				kvm_riscv_hfence_vvma_gva(vcpu->kvm, hbase, hmask, cp->a1,
 							  cp->a2, PAGE_SHIFT, vmid);
 		} else {
 			vmid = READ_ONCE(vcpu->kvm->arch.vmid.vmid);
 			if (cp->a1 == 0 && cp->a2 == 0)
-				kvm_riscv_hfence_vvma_asid_all(vcpu->kvm, 0, hmask,
+				kvm_riscv_hfence_vvma_asid_all(vcpu->kvm, hbase, hmask,
 							       cp->a3, vmid);
 			else
-				kvm_riscv_hfence_vvma_asid_gva(vcpu->kvm, 0, hmask,
+				kvm_riscv_hfence_vvma_asid_gva(vcpu->kvm, hbase, hmask,
 							       cp->a1, cp->a2, PAGE_SHIFT,
 							       cp->a3, vmid);
 		}

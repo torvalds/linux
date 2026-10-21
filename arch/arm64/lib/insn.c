@@ -986,6 +986,66 @@ u32 aarch64_insn_gen_add_sub_shifted_reg(enum aarch64_insn_register dst,
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_6, insn, shift);
 }
 
+/*
+ * Unlike the shifted-register form, register 31 is not XZR everywhere here:
+ * it encodes SP for @src, and for @dst too unless @type sets the flags. Only
+ * @reg keeps the XZR meaning.
+ */
+u32 aarch64_insn_gen_add_sub_extended_reg(enum aarch64_insn_register dst,
+					  enum aarch64_insn_register src,
+					  enum aarch64_insn_register reg,
+					  enum aarch64_insn_extend_type extend,
+					  int shift,
+					  enum aarch64_insn_variant variant,
+					  enum aarch64_insn_adsb_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_ADSB_ADD:
+		insn = aarch64_insn_get_add_ext_value();
+		break;
+	case AARCH64_INSN_ADSB_SUB:
+		insn = aarch64_insn_get_sub_ext_value();
+		break;
+	case AARCH64_INSN_ADSB_ADD_SETFLAGS:
+		insn = aarch64_insn_get_adds_ext_value();
+		break;
+	case AARCH64_INSN_ADSB_SUB_SETFLAGS:
+		insn = aarch64_insn_get_subs_ext_value();
+		break;
+	default:
+		pr_err("%s: unknown add/sub encoding %d\n", __func__, type);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		break;
+	default:
+		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	if (shift < 0 || shift > 4) {
+		pr_err("%s: invalid shift encoding %d\n", __func__, shift);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, src);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn, reg);
+
+	/* option in bits [15:13] and imm3 in [12:10] together fill IMM_6 */
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_6, insn,
+					     (extend << 3) | shift);
+}
+
 u32 aarch64_insn_gen_data1(enum aarch64_insn_register dst,
 			   enum aarch64_insn_register src,
 			   enum aarch64_insn_variant variant,

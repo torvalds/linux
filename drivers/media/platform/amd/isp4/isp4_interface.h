@@ -68,7 +68,7 @@ struct isp4if_cmd_element {
 	u32 seq_num;
 	u32 cmd_id;
 	struct completion cmd_done;
-	atomic_t refcnt;
+	refcount_t refcnt;
 };
 
 struct isp4_interface {

@@ -1317,6 +1317,7 @@ static int ufshcd_wait_for_pending_cmds(struct ufs_hba *hba,
 			break;
 		}
 
+		__set_current_state(TASK_UNINTERRUPTIBLE);
 		io_schedule_timeout(msecs_to_jiffies(20));
 		if (ktime_to_us(ktime_sub(ktime_get(), start)) >
 		    wait_timeout_us) {
@@ -1353,6 +1354,8 @@ out:
  * On failure, all acquired locks are released and the tagset is unquiesced.
  */
 int ufshcd_pause_command_processing(struct ufs_hba *hba, u64 timeout_us)
+	__cond_acquires(0, &hba->host->scan_mutex)
+	__cond_acquires(0, &hba->clk_scaling_lock)
 {
 	int ret = 0;
 
@@ -1377,6 +1380,8 @@ int ufshcd_pause_command_processing(struct ufs_hba *hba, u64 timeout_us)
  * This function resumes command submissions.
  */
 void ufshcd_resume_command_processing(struct ufs_hba *hba)
+	__releases(&hba->clk_scaling_lock)
+	__releases(&hba->host->scan_mutex)
 {
 	up_write(&hba->clk_scaling_lock);
 	blk_mq_unquiesce_tagset(&hba->host->tag_set);
@@ -1446,6 +1451,9 @@ config_pwr_mode:
  * Return: 0 upon success; -EBUSY upon timeout.
  */
 static int ufshcd_clock_scaling_prepare(struct ufs_hba *hba, u64 timeout_us)
+	__cond_acquires(0, &hba->host->scan_mutex)
+	__cond_acquires(0, &hba->wb_mutex)
+	__cond_acquires(0, &hba->clk_scaling_lock)
 {
 	int ret = 0;
 	/*
@@ -1475,6 +1483,9 @@ out:
 }
 
 static void ufshcd_clock_scaling_unprepare(struct ufs_hba *hba, int err)
+	__releases(&hba->clk_scaling_lock)
+	__releases(&hba->wb_mutex)
+	__releases(&hba->host->scan_mutex)
 {
 	up_write(&hba->clk_scaling_lock);
 	mutex_unlock(&hba->wb_mutex);
@@ -2506,7 +2517,10 @@ static inline int ufshcd_hba_capabilities(struct ufs_hba *hba)
 	hba->nutmrs =
 	((hba->capabilities & MASK_TASK_MANAGEMENT_REQUEST_SLOTS) >> 16) + 1;
 
-	hba->nortt = FIELD_GET(MASK_NUMBER_OUTSTANDING_RTT, hba->capabilities) + 1;
+	if (hba->vops && hba->vops->get_hba_nortt)
+		hba->nortt = hba->vops->get_hba_nortt(hba);
+	else
+		hba->nortt = FIELD_GET(MASK_NUMBER_OUTSTANDING_RTT, hba->capabilities) + 1;
 
 	/* Read crypto capabilities */
 	err = ufshcd_hba_init_crypto_capabilities(hba);
@@ -2944,23 +2958,44 @@ static void ufshcd_comp_scsi_upiu(struct ufs_hba *hba, struct scsi_cmnd *cmd)
 static void ufshcd_init_lrb(struct ufs_hba *hba, struct scsi_cmnd *cmd)
 {
 	const int i = scsi_cmd_to_rq(cmd)->tag;
-	struct utp_transfer_cmd_desc *cmd_descp =
-		(void *)hba->ucdl_base_addr + i * ufshcd_get_ucd_size(hba);
 	struct utp_transfer_req_desc *utrdlp = hba->utrdl_base_addr;
-	dma_addr_t cmd_desc_element_addr =
-		hba->ucdl_dma_addr + i * ufshcd_get_ucd_size(hba);
 	u16 response_offset = le16_to_cpu(utrdlp[i].response_upiu_offset);
 	u16 prdt_offset = le16_to_cpu(utrdlp[i].prd_table_offset);
 	struct ufshcd_lrb *lrb = scsi_cmd_priv(cmd);
+	u8 *command_upiu, *response_upiu, *prd_table;
+	dma_addr_t cmd_desc_element_addr;
+
+	/* The reserved tag uses a dedicated UCD outside the pool. */
+	if (unlikely(blk_mq_is_reserved_rq(scsi_cmd_to_rq(cmd)))) {
+		struct utp_devman_cmd_desc *cmd_descp = hba->devman_ucd_base_addr;
+
+		cmd_desc_element_addr = hba->devman_ucd_dma_addr;
+		command_upiu = cmd_descp->command_upiu;
+		response_upiu = cmd_descp->response_upiu;
+		prd_table = cmd_descp->prd_table;
+	} else {
+		int slot = i - UFSHCD_NUM_RESERVED;
+		struct utp_transfer_cmd_desc *cmd_descp;
+
+		/* Non-reserved tags start at UFSHCD_NUM_RESERVED, so slot >= 0. */
+		WARN_ON_ONCE(slot < 0);
+		cmd_descp = (void *)hba->ucdl_base_addr + slot * ufshcd_get_ucd_size(hba);
+
+		cmd_desc_element_addr =
+			hba->ucdl_dma_addr + slot * ufshcd_get_ucd_size(hba);
+		command_upiu = cmd_descp->command_upiu;
+		response_upiu = cmd_descp->response_upiu;
+		prd_table = cmd_descp->prd_table;
+	}
 
 	lrb->utr_descriptor_ptr = utrdlp + i;
 	lrb->utrd_dma_addr =
 		hba->utrdl_dma_addr + i * sizeof(struct utp_transfer_req_desc);
-	lrb->ucd_req_ptr = (struct utp_upiu_req *)cmd_descp->command_upiu;
+	lrb->ucd_req_ptr = (struct utp_upiu_req *)command_upiu;
 	lrb->ucd_req_dma_addr = cmd_desc_element_addr;
-	lrb->ucd_rsp_ptr = (struct utp_upiu_rsp *)cmd_descp->response_upiu;
+	lrb->ucd_rsp_ptr = (struct utp_upiu_rsp *)response_upiu;
 	lrb->ucd_rsp_dma_addr = cmd_desc_element_addr + response_offset;
-	lrb->ucd_prdt_ptr = (struct ufshcd_sg_entry *)cmd_descp->prd_table;
+	lrb->ucd_prdt_ptr = (struct ufshcd_sg_entry *)prd_table;
 	lrb->ucd_prdt_dma_addr = cmd_desc_element_addr + prdt_offset;
 }
 
@@ -3157,6 +3192,7 @@ static void ufshcd_setup_dev_cmd(struct ufs_hba *hba, struct scsi_cmnd *cmd,
 	__ufshcd_setup_cmd(hba, cmd, lun, tag);
 	lrbp->intr_cmd = true; /* No interrupt aggregation */
 	hba->dev_cmd.type = cmd_type;
+	hba->dev_cmd.tag = tag;
 }
 
 /*
@@ -3279,6 +3315,8 @@ ufshcd_dev_cmd_completion(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 }
 
 static void ufshcd_dev_man_lock(struct ufs_hba *hba)
+	__acquires(&hba->dev_cmd.lock)
+	__acquires_shared(&hba->clk_scaling_lock)
 {
 	ufshcd_hold(hba);
 	mutex_lock(&hba->dev_cmd.lock);
@@ -3286,6 +3324,8 @@ static void ufshcd_dev_man_lock(struct ufs_hba *hba)
 }
 
 static void ufshcd_dev_man_unlock(struct ufs_hba *hba)
+	__releases_shared(&hba->clk_scaling_lock)
+	__releases(&hba->dev_cmd.lock)
 {
 	up_read(&hba->clk_scaling_lock);
 	mutex_unlock(&hba->dev_cmd.lock);
@@ -3865,7 +3905,7 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, u8 desc_index, u8 **buf, enum u
 {
 	struct uc_string_id *uc_str;
 	u8 *str;
-	int ret;
+	int ret, uc_len;
 
 	if (!buf)
 		return -EINVAL;
@@ -3890,11 +3930,19 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, u8 desc_index, u8 **buf, enum u
 		goto out;
 	}
 
+	uc_len = uc_str->len - QUERY_DESC_HDR_SIZE;
+	if (uc_len % sizeof(*uc_str->uc)) {
+		dev_err(hba->dev, "String Desc has an odd UTF-16 payload length\n");
+		str = NULL;
+		ret = -EINVAL;
+		goto out;
+	}
+
 	if (fmt == SD_ASCII_STD) {
 		ssize_t ascii_len;
 		int i;
-		/* remove header and divide by 2 to move from UTF16 to UTF8 */
-		ascii_len = (uc_str->len - QUERY_DESC_HDR_SIZE) / 2 + 1;
+		/* Allow up to three UTF-8 bytes per UTF-16 code unit plus a NUL. */
+		ascii_len = uc_len / sizeof(*uc_str->uc) * 3 + 1;
 		str = kzalloc(ascii_len, GFP_KERNEL);
 		if (!str) {
 			ret = -ENOMEM;
@@ -3906,7 +3954,7 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, u8 desc_index, u8 **buf, enum u
 		 * we need to convert to utf-8 so it can be displayed
 		 */
 		ret = utf16s_to_utf8s(uc_str->uc,
-				      uc_str->len - QUERY_DESC_HDR_SIZE,
+				      uc_len / sizeof(*uc_str->uc),
 				      UTF16_BIG_ENDIAN, str, ascii_len - 1);
 
 		/* replace non-printable or non-ASCII characters with spaces */
@@ -3916,11 +3964,17 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, u8 desc_index, u8 **buf, enum u
 		str[ret++] = '\0';
 
 	} else {
-		str = kmemdup(uc_str->uc, uc_str->len, GFP_KERNEL);
+		/*
+		 * Keep the bLength-sized raw output for the RPMB device ID ABI.
+		 * The two bytes beyond the UTF-16 payload are explicitly zeroed
+		 * instead of being read past the descriptor buffer.
+		 */
+		str = kzalloc(uc_str->len, GFP_KERNEL);
 		if (!str) {
 			ret = -ENOMEM;
 			goto out;
 		}
+		memcpy(str, uc_str->uc, uc_len);
 		ret = uc_str->len;
 	}
 out:
@@ -3998,8 +4052,8 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 {
 	size_t utmrdl_size, utrdl_size, ucdl_size;
 
-	/* Allocate memory for UTP command descriptors */
-	ucdl_size = ufshcd_get_ucd_size(hba) * hba->nutrs;
+	/* The reserved tag uses the dedicated UCD below, not this pool. */
+	ucdl_size = ufshcd_get_ucd_size(hba) * (hba->nutrs - UFSHCD_NUM_RESERVED);
 	hba->ucdl_base_addr = dmam_alloc_coherent(hba->dev,
 						  ucdl_size,
 						  &hba->ucdl_dma_addr,
@@ -4013,6 +4067,21 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 		dev_err(hba->dev,
 			"Command Descriptor Memory allocation failed\n");
 		goto out;
+	}
+
+	/* Dedicated UCD for the reserved tag; allocate once (survives MCQ re-init). */
+	if (!hba->devman_ucd_base_addr) {
+		hba->devman_ucd_base_addr =
+			dmam_alloc_coherent(hba->dev,
+					    ufshcd_get_devman_ucd_size(hba),
+					    &hba->devman_ucd_dma_addr,
+					    GFP_KERNEL);
+		if (!hba->devman_ucd_base_addr ||
+		    WARN_ON(hba->devman_ucd_dma_addr & (128 - 1))) {
+			dev_err(hba->dev,
+				"Devman Command Descriptor Memory allocation failed\n");
+			goto out;
+		}
 	}
 
 	/*
@@ -4081,23 +4150,38 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
 	dma_addr_t cmd_desc_element_addr;
 	u16 response_offset;
 	u16 prdt_offset;
+	u16 response_len;
 	int cmd_desc_size;
 	int i;
 
 	utrdlp = hba->utrdl_base_addr;
 
-	response_offset =
-		offsetof(struct utp_transfer_cmd_desc, response_upiu);
-	prdt_offset =
-		offsetof(struct utp_transfer_cmd_desc, prd_table);
-
 	cmd_desc_size = ufshcd_get_ucd_size(hba);
 	cmd_desc_dma_addr = hba->ucdl_dma_addr;
 
 	for (i = 0; i < hba->nutrs; i++) {
+		/*
+		 * Reserved tags (low end) use the dedicated devman UCD with a
+		 * larger response area; other tags index the pool at i - RESERVED.
+		 */
+		if (i < UFSHCD_NUM_RESERVED) {
+			cmd_desc_element_addr = hba->devman_ucd_dma_addr;
+			response_offset = offsetof(struct utp_devman_cmd_desc,
+						   response_upiu);
+			prdt_offset = offsetof(struct utp_devman_cmd_desc,
+					       prd_table);
+			response_len = ALIGNED_DEVMAN_RSP_SIZE;
+		} else {
+			cmd_desc_element_addr = cmd_desc_dma_addr +
+				cmd_desc_size * (i - UFSHCD_NUM_RESERVED);
+			response_offset = offsetof(struct utp_transfer_cmd_desc,
+						   response_upiu);
+			prdt_offset = offsetof(struct utp_transfer_cmd_desc,
+					       prd_table);
+			response_len = ALIGNED_UPIU_SIZE;
+		}
+
 		/* Configure UTRD with command descriptor base address */
-		cmd_desc_element_addr =
-				(cmd_desc_dma_addr + (cmd_desc_size * i));
 		utrdlp[i].command_desc_base_addr =
 				cpu_to_le64(cmd_desc_element_addr);
 
@@ -4108,14 +4192,14 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
 			utrdlp[i].prd_table_offset =
 				cpu_to_le16(prdt_offset);
 			utrdlp[i].response_upiu_length =
-				cpu_to_le16(ALIGNED_UPIU_SIZE);
+				cpu_to_le16(response_len);
 		} else {
 			utrdlp[i].response_upiu_offset =
 				cpu_to_le16(response_offset >> 2);
 			utrdlp[i].prd_table_offset =
 				cpu_to_le16(prdt_offset >> 2);
 			utrdlp[i].response_upiu_length =
-				cpu_to_le16(ALIGNED_UPIU_SIZE >> 2);
+				cpu_to_le16(response_len >> 2);
 		}
 	}
 }
@@ -4715,7 +4799,9 @@ static int ufshcd_get_max_pwr_mode(struct ufs_hba *hba)
 	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDTXDATALANES),
 			&pwr_info->lane_tx);
 
-	if (!pwr_info->lane_rx || !pwr_info->lane_tx) {
+	if (!pwr_info->lane_rx || !pwr_info->lane_tx ||
+	    pwr_info->lane_rx > UFS_MAX_LANES ||
+	    pwr_info->lane_tx > UFS_MAX_LANES) {
 		dev_err(hba->dev, "%s: invalid connected lanes value. rx=%d, tx=%d\n",
 				__func__,
 				pwr_info->lane_rx,
@@ -5846,8 +5932,8 @@ void ufshcd_compl_one_cqe(struct ufs_hba *hba, int task_tag,
 	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
 	enum utp_ocs ocs;
 
-	if (WARN_ONCE(!cmd, "cqe->command_desc_base_addr = %#llx\n",
-		      le64_to_cpu(cqe->command_desc_base_addr)))
+	if (WARN_ONCE(!cmd, "invalid completion tag %d, cqe->command_desc_base_addr = %#llx\n",
+		      task_tag, cqe ? le64_to_cpu(cqe->command_desc_base_addr) : 0ULL))
 		return;
 
 	if (hba->monitor.enabled) {
@@ -6415,8 +6501,8 @@ static bool ufshcd_wb_curr_buff_threshold_check(struct ufs_hba *hba,
 	}
 
 	if (!cur_buf) {
-		dev_info(hba->dev, "dCurWBBuf: %d WB disabled until free-space is available\n",
-			 cur_buf);
+		dev_warn_once(hba->dev, "dCurWBBuf: %d WB disabled until free-space is available\n",
+			      cur_buf);
 		return false;
 	}
 	/* Let it continue to flush when available buffer exceeds threshold */
@@ -7606,7 +7692,8 @@ static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
 
 	/* just copy the upiu response as it is */
 	memcpy(rsp_upiu, lrbp->ucd_rsp_ptr, sizeof(*rsp_upiu));
-	if (desc_buff && desc_op == UPIU_QUERY_OPCODE_READ_DESC) {
+	if (desc_buff && (desc_op == UPIU_QUERY_OPCODE_READ_DESC ||
+			  desc_op == UPIU_QUERY_OPCODE_AGGREGATED_READ)) {
 		u8 *descp = (u8 *)lrbp->ucd_rsp_ptr + sizeof(*rsp_upiu);
 		u16 resp_len = be16_to_cpu(lrbp->ucd_rsp_ptr->header
 					   .data_segment_length);
@@ -7778,10 +7865,7 @@ int ufshcd_advanced_rpmb_req_handler(struct ufs_hba *hba, struct utp_upiu_req *r
 		 * Message is 02h
 		 */
 		if (ehs_len == 2 && rsp_ehs) {
-			/*
-			 * ucd_rsp_ptr points to a buffer with a length of 512 bytes
-			 * (ALIGNED_UPIU_SIZE = 512), and the EHS data just starts from byte32
-			 */
+			/* EHS data starts from byte32 of the devman UCD response area. */
 			ehs_data = (u8 *)lrbp->ucd_rsp_ptr + EHS_OFFSET_IN_RESPONSE;
 			memcpy(rsp_ehs, ehs_data, ehs_len * 32);
 		}
@@ -8579,8 +8663,6 @@ static void ufshcd_set_rtt(struct ufs_hba *hba)
 	struct ufs_dev_info *dev_info = &hba->dev_info;
 	u32 rtt = 0;
 	u32 dev_rtt = 0;
-	int host_rtt_cap = hba->vops && hba->vops->max_num_rtt ?
-			   hba->vops->max_num_rtt : hba->nortt;
 
 	/* RTT override makes sense only for UFS-4.0 and above */
 	if (dev_info->wspecversion < 0x400)
@@ -8596,7 +8678,7 @@ static void ufshcd_set_rtt(struct ufs_hba *hba)
 	if (dev_rtt != DEFAULT_MAX_NUM_RTT)
 		return;
 
-	rtt = min_t(int, dev_info->rtt_cap, host_rtt_cap);
+	rtt = min_t(int, dev_info->rtt_cap, hba->nortt);
 
 	if (rtt == dev_rtt)
 		return;
@@ -9207,7 +9289,7 @@ static void ufshcd_release_sdb_queue(struct ufs_hba *hba, int nutrs)
 {
 	size_t ucdl_size, utrdl_size;
 
-	ucdl_size = ufshcd_get_ucd_size(hba) * nutrs;
+	ucdl_size = ufshcd_get_ucd_size(hba) * (nutrs - UFSHCD_NUM_RESERVED);
 	dmam_free_coherent(hba->dev, ucdl_size, hba->ucdl_base_addr,
 			   hba->ucdl_dma_addr);
 

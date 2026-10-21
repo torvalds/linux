@@ -97,7 +97,7 @@ struct page_cache {
 };
 
 struct volume {
-	struct index_geometry *geometry;
+	struct index_geometry geometry;
 	struct dm_bufio_client *client;
 	u64 nonce;
 	size_t cache_size;

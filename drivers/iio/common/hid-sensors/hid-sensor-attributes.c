@@ -72,8 +72,7 @@ static const struct {
 	{HID_USAGE_SENSOR_HUMAN_ATTENTION, 0, 1, 0},
 };
 
-static void simple_div(int dividend, int divisor, int *whole,
-				int *micro_frac)
+static void simple_div(int dividend, int divisor, int *whole, int *micro_frac)
 {
 	int rem;
 	int exp = 0;
@@ -111,7 +110,7 @@ for 10^-2.
 Negative numbers are 2's complement
 */
 static void convert_from_vtf_format(u32 value, int size, int exp,
-					int *val1, int *val2)
+				    int *val1, int *val2)
 {
 	int sign = 1;
 
@@ -176,7 +175,7 @@ s32 hid_sensor_read_poll_value(struct hid_sensor_common *st)
 EXPORT_SYMBOL_NS(hid_sensor_read_poll_value, "IIO_HID_ATTRIBUTES");
 
 int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,
-				int *val1, int *val2)
+				    int *val1, int *val2)
 {
 	s32 value;
 	int ret;
@@ -203,7 +202,7 @@ int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,
 EXPORT_SYMBOL_NS(hid_sensor_read_samp_freq_value, "IIO_HID");
 
 int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
-				int val1, int val2)
+				     int val1, int val2)
 {
 	s32 value;
 	int ret;
@@ -238,15 +237,15 @@ int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
 EXPORT_SYMBOL_NS(hid_sensor_write_samp_freq_value, "IIO_HID");
 
 int hid_sensor_read_raw_hyst_value(struct hid_sensor_common *st,
-				int *val1, int *val2)
+				   int *val1, int *val2)
 {
 	s32 value;
 	int ret;
 
 	ret = sensor_hub_get_feature(st->hsdev,
 				     st->sensitivity.report_id,
-				     st->sensitivity.index, sizeof(value),
-				     &value);
+				     st->sensitivity.index,
+				     sizeof(value), &value);
 	if (ret < 0 || value < 0) {
 		*val1 = *val2 = 0;
 		return -EINVAL;
@@ -268,8 +267,8 @@ int hid_sensor_read_raw_hyst_rel_value(struct hid_sensor_common *st, int *val1,
 
 	ret = sensor_hub_get_feature(st->hsdev,
 				     st->sensitivity_rel.report_id,
-				     st->sensitivity_rel.index, sizeof(value),
-				     &value);
+				     st->sensitivity_rel.index,
+				     sizeof(value), &value);
 	if (ret < 0 || value < 0) {
 		*val1 = *val2 = 0;
 		return -EINVAL;
@@ -282,9 +281,8 @@ int hid_sensor_read_raw_hyst_rel_value(struct hid_sensor_common *st, int *val1,
 }
 EXPORT_SYMBOL_NS(hid_sensor_read_raw_hyst_rel_value, "IIO_HID");
 
-
 int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
-					int val1, int val2)
+				    int val1, int val2)
 {
 	s32 value;
 	int ret;
@@ -293,8 +291,8 @@ int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 		return -EINVAL;
 
 	value = convert_to_vtf_format(st->sensitivity.size,
-				st->sensitivity.unit_expo,
-				val1, val2);
+				      st->sensitivity.unit_expo,
+				      val1, val2);
 	ret = sensor_hub_set_feature(st->hsdev, st->sensitivity.report_id,
 				     st->sensitivity.index, sizeof(value),
 				     &value);
@@ -303,8 +301,8 @@ int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 
 	ret = sensor_hub_get_feature(st->hsdev,
 				     st->sensitivity.report_id,
-				     st->sensitivity.index, sizeof(value),
-				     &value);
+				     st->sensitivity.index,
+				     sizeof(value), &value);
 	if (ret < 0 || value < 0)
 		return -EINVAL;
 
@@ -324,8 +322,8 @@ int hid_sensor_write_raw_hyst_rel_value(struct hid_sensor_common *st,
 		return -EINVAL;
 
 	value = convert_to_vtf_format(st->sensitivity_rel.size,
-				st->sensitivity_rel.unit_expo,
-				val1, val2);
+				      st->sensitivity_rel.unit_expo,
+				      val1, val2);
 	ret = sensor_hub_set_feature(st->hsdev, st->sensitivity_rel.report_id,
 				     st->sensitivity_rel.index, sizeof(value),
 				     &value);
@@ -334,8 +332,8 @@ int hid_sensor_write_raw_hyst_rel_value(struct hid_sensor_common *st,
 
 	ret = sensor_hub_get_feature(st->hsdev,
 				     st->sensitivity_rel.report_id,
-				     st->sensitivity_rel.index, sizeof(value),
-				     &value);
+				     st->sensitivity_rel.index,
+				     sizeof(value), &value);
 	if (ret < 0 || value < 0)
 		return -EINVAL;
 
@@ -356,8 +354,8 @@ EXPORT_SYMBOL_NS(hid_sensor_write_raw_hyst_rel_value, "IIO_HID");
  * 1.001745329 ->exp:4-> val0[10017]val1[453290000]
  * 9.806650000 ->exp:-2-> val0[0]val1[98066500]
  */
-static void adjust_exponent_nano(int *val0, int *val1, int scale0,
-				  int scale1, int exp)
+static void adjust_exponent_nano(int *val0, int *val1,
+				 int scale0, int scale1, int exp)
 {
 	int divisor;
 	int i;
@@ -404,8 +402,8 @@ static void adjust_exponent_nano(int *val0, int *val1, int scale0,
 }
 
 int hid_sensor_format_scale(u32 usage_id,
-			struct hid_sensor_hub_attribute_info *attr_info,
-			int *val0, int *val1)
+			    struct hid_sensor_hub_attribute_info *attr_info,
+			    int *val0, int *val1)
 {
 	int i;
 	int exp;
@@ -415,12 +413,11 @@ int hid_sensor_format_scale(u32 usage_id,
 
 	for (i = 0; i < ARRAY_SIZE(unit_conversion); ++i) {
 		if (unit_conversion[i].usage_id == usage_id &&
-			unit_conversion[i].unit == attr_info->units) {
-			exp  = hid_sensor_convert_exponent(
-						attr_info->unit_expo);
+		    unit_conversion[i].unit == attr_info->units) {
+			exp  = hid_sensor_convert_exponent(attr_info->unit_expo);
 			adjust_exponent_nano(val0, val1,
-					unit_conversion[i].scale_val0,
-					unit_conversion[i].scale_val1, exp);
+					     unit_conversion[i].scale_val0,
+					     unit_conversion[i].scale_val1, exp);
 			break;
 		}
 	}
@@ -438,8 +435,8 @@ EXPORT_SYMBOL_NS(hid_sensor_convert_timestamp, "IIO_HID");
 
 static
 int hid_sensor_get_reporting_interval(struct hid_sensor_hub_device *hsdev,
-					u32 usage_id,
-					struct hid_sensor_common *st)
+				      u32 usage_id,
+				      struct hid_sensor_common *st)
 {
 	sensor_hub_input_get_attribute_info(hsdev,
 					HID_FEATURE_REPORT, usage_id,
@@ -473,9 +470,10 @@ int hid_sensor_get_report_latency(struct hid_sensor_common *st)
 	int ret;
 	int value;
 
-	ret = sensor_hub_get_feature(st->hsdev, st->report_latency.report_id,
-				     st->report_latency.index, sizeof(value),
-				     &value);
+	ret = sensor_hub_get_feature(st->hsdev,
+				     st->report_latency.report_id,
+				     st->report_latency.index,
+				     sizeof(value), &value);
 	if (ret < 0)
 		return ret;
 
@@ -498,10 +496,10 @@ bool hid_sensor_batch_mode_supported(struct hid_sensor_common *st)
 EXPORT_SYMBOL_NS(hid_sensor_batch_mode_supported, "IIO_HID_ATTRIBUTES");
 
 int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
-					u32 usage_id,
-					struct hid_sensor_common *st,
-					const u32 *sensitivity_addresses,
-					u32 sensitivity_addresses_len)
+				       u32 usage_id,
+				       struct hid_sensor_common *st,
+				       const u32 *sensitivity_addresses,
+				       u32 sensitivity_addresses_len)
 {
 
 	struct hid_sensor_hub_attribute_info timestamp;
@@ -527,7 +525,7 @@ int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 	sensor_hub_input_get_attribute_info(hsdev,
 			HID_FEATURE_REPORT, usage_id,
 			HID_USAGE_SENSOR_PROP_SENSITIVITY_ABS,
-			 &st->sensitivity);
+			&st->sensitivity);
 
 	sensor_hub_input_get_attribute_info(hsdev,
 			HID_FEATURE_REPORT, usage_id,
@@ -578,8 +576,9 @@ int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 		timestamp.index, timestamp.report_id);
 
 	ret = sensor_hub_get_feature(hsdev,
-				st->power_state.report_id,
-				st->power_state.index, sizeof(value), &value);
+				     st->power_state.report_id,
+				     st->power_state.index,
+				     sizeof(value), &value);
 	if (ret < 0)
 		return ret;
 	if (value < 0)

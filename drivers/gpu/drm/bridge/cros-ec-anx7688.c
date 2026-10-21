@@ -5,6 +5,7 @@
  * Copyright 2020 Google LLC
  */
 
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_print.h>
 #include <linux/i2c.h>
@@ -92,6 +93,9 @@ static bool cros_ec_anx7688_bridge_mode_fixup(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs cros_ec_anx7688_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.mode_fixup = cros_ec_anx7688_bridge_mode_fixup,
 };
 

@@ -532,9 +532,7 @@ static int max77759_init_irqhandler(struct max77759_charger *chg)
 		ret = devm_request_threaded_irq(dev, chg->irqs[i], NULL,
 						thread_fn, 0, name, chg);
 		if (ret)
-			return dev_err_probe(dev, ret,
-					     "Unable to register irq handler for %s\n",
-					     chgr_irqs_str[i]);
+			return ret;
 	}
 
 	return 0;

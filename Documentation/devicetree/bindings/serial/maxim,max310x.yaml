@@ -9,6 +9,13 @@ title: Maxim MAX310X Advanced Universal Asynchronous Receiver-Transmitter (UART)
 maintainers:
   - Hugo Villeneuve <hvilleneuve@dimonoff.com>
 
+description:
+  The MAX310X is a family of SPI/I2C UARTs with one (max3107, max3108),
+  two (max3109) or four (max14830) channels. Single-channel parts are
+  described as a serial node with RS-485 properties on the chip node;
+  multi-channel parts use one "serial@N" child node per channel, each
+  carrying its own serial/RS-485 properties.
+
 properties:
   compatible:
     enum:
@@ -49,8 +56,55 @@ required:
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
-  - $ref: /schemas/serial/serial.yaml#
-  - $ref: /schemas/serial/rs485.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - maxim,max3107
+              - maxim,max3108
+    then:
+      allOf:
+        - $ref: /schemas/serial/serial.yaml#
+        - $ref: /schemas/serial/rs485.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - maxim,max3109
+              - maxim,max14830
+    then:
+      properties:
+        "#address-cells":
+          const: 1
+        "#size-cells":
+          const: 0
+      patternProperties:
+        "^serial@[0-3]$":
+          type: object
+          description: A single UART channel of the chip.
+          allOf:
+            - $ref: /schemas/serial/serial.yaml#
+            - $ref: /schemas/serial/rs485.yaml#
+          properties:
+            reg:
+              description: UART channel number on the chip.
+              maximum: 3
+          required:
+            - reg
+          unevaluatedProperties: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: maxim,max3109
+    then:
+      patternProperties:
+        "^serial@[23]$": false
 
 unevaluatedProperties: false
 
@@ -70,5 +124,39 @@ examples:
             interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
             gpio-controller;
             #gpio-cells = <2>;
+            rs485-rts-active-low;
+            linux,rs485-enabled-at-boot-time;
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        serial@0 {
+            compatible = "maxim,max14830";
+            reg = <0>;
+            spi-max-frequency = <26000000>;
+            clocks = <&xtal4m>;
+            clock-names = "xtal";
+            interrupt-parent = <&gpio3>;
+            interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            serial@0 {
+                reg = <0>;
+                rs485-rts-active-low;
+                linux,rs485-enabled-at-boot-time;
+            };
+
+            serial@2 {
+                reg = <2>;
+                rs485-rts-active-low;
+            };
         };
     };

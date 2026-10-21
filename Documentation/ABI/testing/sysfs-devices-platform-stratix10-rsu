@@ -172,3 +172,61 @@ Contact:	Richard Gong <richard.gong@linux.intel.com>
 Description:
 		(RO) max retry parameter is stored in the firmware
 		decision IO section, as a byte located at offset 0x18c.
+
+What:		/sys/devices/platform/stratix10-rsu.0/size0
+Date:		May 2026
+KernelVersion:	7.1
+Contact:	Tze Yee Ng <tze.yee.ng@altera.com>
+Description:
+		(RO) Flash size in bytes for QSPI device 0 (32-bit hex, one
+		line).  EIO if unavailable.
+
+What:		/sys/devices/platform/stratix10-rsu.0/size1
+Date:		May 2026
+KernelVersion:	7.1
+Contact:	Tze Yee Ng <tze.yee.ng@altera.com>
+Description:
+		(RO) Like size0 for device 1.
+
+What:		/sys/devices/platform/stratix10-rsu.0/size2
+Date:		May 2026
+KernelVersion:	7.1
+Contact:	Tze Yee Ng <tze.yee.ng@altera.com>
+Description:
+		(RO) Like size0 for device 2.
+
+What:		/sys/devices/platform/stratix10-rsu.0/size3
+Date:		May 2026
+KernelVersion:	7.1
+Contact:	Tze Yee Ng <tze.yee.ng@altera.com>
+Description:
+		(RO) Like size0 for device 3.
+
+What:		/sys/devices/platform/stratix10-rsu.0/erase_size0
+Date:		May 2026
+KernelVersion:	7.1
+Contact:	Tze Yee Ng <tze.yee.ng@altera.com>
+Description:
+		(RO) Erase size in bytes for QSPI device 0 (32-bit hex, one
+		line).  EIO if unavailable.
+
+What:		/sys/devices/platform/stratix10-rsu.0/erase_size1
+Date:		May 2026
+KernelVersion:	7.1
+Contact:	Tze Yee Ng <tze.yee.ng@altera.com>
+Description:
+		(RO) Like erase_size0 for device 1.
+
+What:		/sys/devices/platform/stratix10-rsu.0/erase_size2
+Date:		May 2026
+KernelVersion:	7.1
+Contact:	Tze Yee Ng <tze.yee.ng@altera.com>
+Description:
+		(RO) Like erase_size0 for device 2.
+
+What:		/sys/devices/platform/stratix10-rsu.0/erase_size3
+Date:		May 2026
+KernelVersion:	7.1
+Contact:	Tze Yee Ng <tze.yee.ng@altera.com>
+Description:
+		(RO) Like erase_size0 for device 3.

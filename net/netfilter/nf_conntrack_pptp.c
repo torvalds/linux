@@ -540,7 +540,7 @@ static int __init nf_conntrack_pptp_init(void)
 	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_pptp_master));
 
 	nf_ct_helper_init(&pptp, AF_INET, IPPROTO_TCP,
-			  "pptp", PPTP_CONTROL_PORT, PPTP_CONTROL_PORT, PPTP_CONTROL_PORT,
+			  "pptp",
 			  &pptp_exp_policy, 0, conntrack_pptp_help, NULL, THIS_MODULE);
 
 	pptp.destroy = gre_pptp_destroy_siblings;

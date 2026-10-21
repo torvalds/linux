@@ -53,7 +53,7 @@ enum var_id_t {
 };
 
 typedef int (*special_func)(struct vc_data *vc, u_char type, u_char ch,
-		u_short key);
+		u16 key);
 
 #define COLOR_BUFFER_SIZE 160
 

@@ -667,7 +667,7 @@ static void print_metric_header(struct perf_stat_config *config,
 
 	/* In case of iostat, print metric header for first root port only */
 	if (config->iostat_run &&
-	    os->evsel->priv != os->evsel->evlist->selected->priv)
+		os->evsel->priv != evlist__selected(os->evsel->evlist)->priv)
 		return;
 
 	if (os->evsel->cgrp != os->cgrp)
@@ -907,6 +907,9 @@ static bool should_skip_zero_counter(struct perf_stat_config *config,
 	/* Metric only counts won't be displayed but the metric wants to be computed. */
 	if (config->metric_only)
 		return false;
+
+	if (config->hide_zero && counter->supported)
+		return true;
 	/*
 	 * Skip value 0 when enabling --per-thread globally,
 	 * otherwise it will have too many 0 output.
@@ -1126,7 +1129,7 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 	unsigned int all_idx;
 	struct perf_cpu cpu;
 
-	perf_cpu_map__for_each_cpu(cpu, all_idx, evlist->core.user_requested_cpus) {
+	perf_cpu_map__for_each_cpu(cpu, all_idx, evlist__core(evlist)->user_requested_cpus) {
 		struct evsel *counter;
 		bool first = true;
 
@@ -1543,7 +1546,7 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 	evlist__uniquify_evsel_names(evlist, config);
 
 	if (config->iostat_run)
-		evlist->selected = evlist__first(evlist);
+		evlist__set_selected(evlist, evlist__first(evlist));
 
 	if (config->interval)
 		prepare_timestamp(config, &os, ts);

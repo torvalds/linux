@@ -1518,6 +1518,99 @@ int zynqmp_pm_request_wake(const u32 node,
 EXPORT_SYMBOL_GPL(zynqmp_pm_request_wake);
 
 /**
+ * zynqmp_pm_start_rpu - Boot Real-time Processing Unit (Cortex-R) on SoC
+ *
+ * @node: power-domains id of the core
+ * @bootaddr: Boot address of elf
+ *
+ * Return: status, either success or error+reason
+ */
+int zynqmp_pm_start_rpu(const u32 node, const u64 bootaddr)
+{
+	enum rpu_boot_mem bootmem;
+	int ret;
+
+	/*
+	 * The exception vector pointers (EVP) refer to the base-address of
+	 * exception vectors (for reset, IRQ, FIQ, etc). The reset-vector
+	 * starts at the base-address and subsequent vectors are on 4-byte
+	 * boundaries.
+	 *
+	 * Exception vectors can start either from 0x0000_0000 (LOVEC) or
+	 * from 0xFFFF_0000 (HIVEC) which is mapped in the OCM (On-Chip Memory)
+	 *
+	 * Usually firmware will put Exception vectors at LOVEC.
+	 *
+	 * It is not recommend that you change the exception vector.
+	 * Changing the EVP to HIVEC will result in increased interrupt latency
+	 * and jitter. Also, if the OCM is secured and the Cortex-R5F processor
+	 * is non-secured, then the Cortex-R5F processor cannot access the
+	 * HIVEC exception vectors in the OCM.
+	 */
+	bootmem = (bootaddr >= 0xFFFC0000) ?
+		   PM_RPU_BOOTMEM_HIVEC : PM_RPU_BOOTMEM_LOVEC;
+
+	pr_debug("RPU boot addr 0x%llx from %s.", bootaddr,
+		 bootmem == PM_RPU_BOOTMEM_HIVEC ? "OCM" : "TCM");
+
+	/* Request node before starting RPU core if new version of API is supported */
+	if (zynqmp_pm_feature(PM_REQUEST_NODE) > PM_API_VERSION_1) {
+		ret = zynqmp_pm_request_node(node,
+					     ZYNQMP_PM_CAPABILITY_ACCESS, 0,
+					     ZYNQMP_PM_REQUEST_ACK_BLOCKING);
+		if (ret < 0) {
+			pr_err("failed to request 0x%x", node);
+			return ret;
+		}
+	}
+
+	ret = zynqmp_pm_request_wake(node, true,
+				     bootmem, ZYNQMP_PM_REQUEST_ACK_NO);
+	if (ret)
+		pr_err("failed to start RPU = 0x%x\n", node);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_start_rpu);
+
+/**
+ * zynqmp_pm_stop_rpu - Stop Real-time Processing Unit (Cortex-R) on SoC
+ *
+ * @node: power-domains id of the core
+ *
+ * Return: status, either success or error+reason
+ */
+int zynqmp_pm_stop_rpu(const u32 node)
+{
+	int ret;
+
+	/* Use release node API to stop core if new version of API is supported */
+	if (zynqmp_pm_feature(PM_RELEASE_NODE) > PM_API_VERSION_1) {
+		ret = zynqmp_pm_release_node(node);
+		if (ret)
+			pr_err("failed to stop remoteproc RPU %d\n", ret);
+		return ret;
+	}
+
+	/*
+	 * Check expected version of EEMI call before calling it. This avoids
+	 * any error or warning prints from firmware as it is expected that fw
+	 * doesn't support it.
+	 */
+	if (zynqmp_pm_feature(PM_FORCE_POWERDOWN) != PM_API_VERSION_1) {
+		pr_debug("EEMI interface %d ver 1 not supported\n",
+			 PM_FORCE_POWERDOWN);
+		return -EOPNOTSUPP;
+	}
+
+	/* maintain force pwr down for backward compatibility */
+	ret = zynqmp_pm_force_pwrdwn(node, ZYNQMP_PM_REQUEST_ACK_BLOCKING);
+	if (ret)
+		pr_err("core force power down failed\n");
+	return ret;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_stop_rpu);
+
+/**
  * zynqmp_pm_set_requirement() - PM call to set requirement for PM slaves
  * @node:		Node ID of the slave
  * @capabilities:	Requested capabilities of the slave

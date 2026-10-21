@@ -9,6 +9,7 @@
 #define _LINUX_NFSD_XDR3_H
 
 #include "xdr.h"
+#include "vfs.h"
 
 struct nfsd3_sattrargs {
 	struct svc_fh		fh;

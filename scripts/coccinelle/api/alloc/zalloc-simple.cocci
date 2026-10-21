@@ -35,7 +35,7 @@ statement S;
 @@
 
 * x = (T)\(kmalloc(E1, ...)\|vmalloc(E1)\|dma_alloc_coherent(...,E1,...)\|
-  kmalloc_node(E1, ...)\|kmem_cache_alloc(...)\|kmem_alloc(E1, ...)\|
+  kmalloc_node(E1, ...)\|kmem_cache_alloc(...)\|
   devm_kmalloc(...,E1,...)\|kvmalloc(E1, ...)\|kvmalloc_node(E1,...)\);
   if ((x==NULL) || ...) S
 * memset((T2)x,0,E1);
@@ -87,15 +87,6 @@ statement S;
 |
 - x = (T)kmem_cache_alloc(E3,E4);
 + x = (T)kmem_cache_zalloc(E3,E4);
-|
-- x = kmem_alloc(E1,E2);
-+ x = kmem_zalloc(E1,E2);
-|
-- x = (T *)kmem_alloc(E1,E2);
-+ x = kmem_zalloc(E1,E2);
-|
-- x = (T)kmem_alloc(E1,E2);
-+ x = (T)kmem_zalloc(E1,E2);
 |
 - x = devm_kmalloc(E2,E1,E3);
 + x = devm_kzalloc(E2,E1,E3);
@@ -288,36 +279,6 @@ x << r4.x;
 @@
 
 msg="WARNING: kmem_cache_zalloc should be used for %s, instead of kmem_cache_alloc/memset" % (x)
-coccilib.report.print_report(p[0], msg)
-
-//-----------------------------------------------------------------
-@r5 depends on org || report@
-type T, T2;
-expression x;
-expression E1,E2;
-statement S;
-position p;
-@@
-
- x = (T)kmem_alloc@p(E1,E2);
- if ((x==NULL) || ...) S
- memset((T2)x,0,E1);
-
-@script:python depends on org@
-p << r5.p;
-x << r5.x;
-@@
-
-msg="%s" % (x)
-msg_safe=msg.replace("[","@(").replace("]",")")
-coccilib.org.print_todo(p[0], msg_safe)
-
-@script:python depends on report@
-p << r5.p;
-x << r5.x;
-@@
-
-msg="WARNING: kmem_zalloc should be used for %s, instead of kmem_alloc/memset" % (x)
 coccilib.report.print_report(p[0], msg)
 
 //-----------------------------------------------------------------

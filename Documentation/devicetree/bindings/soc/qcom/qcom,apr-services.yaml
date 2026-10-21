@@ -40,7 +40,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string-array
     description: |
       Protection domain service name and path for APR service (if supported).
-      Possible values are::
+      Possible values are:
       "avs/audio", "msm/adsp/audio_pd".
       "kernel/elf_loader", "msm/modem/wlan_pd".
       "tms/servreg", "msm/adsp/audio_pd".

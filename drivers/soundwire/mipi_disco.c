@@ -470,6 +470,12 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 	device_property_read_u32(dev, "mipi-sdw-sdca-interrupt-register-list",
 				 &prop->sdca_interrupt_register_list);
 
+	device_property_read_u32(dev, "mipi-sdw-bra-mode-block-alignment",
+				 &prop->bra_block_alignment);
+
+	device_property_read_u32(dev, "mipi-sdw-bra-mode-max-data-per-frame",
+				 &prop->bra_max_data_per_frame);
+
 	prop->commit_register_supported = mipi_device_property_read_bool(dev,
 			"mipi-sdw-commit-register-supported");
 

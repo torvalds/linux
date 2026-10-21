@@ -119,6 +119,25 @@ struct extent_buffer {
 #endif
 };
 
+/*
+ * Wrapper struct for managing preallocating an extent_buffer, its folios and a
+ * btrfs_folio_state if needed.
+ *
+ * Only used to mediate allocation, do not refer to the eb directly if not
+ * returned from a successful eb allocating API.
+ *
+ * The eb folios and bfs should generally not be fully attached, except briefly
+ * before they are NULLed in the struct after successful attachment.
+ */
+struct btrfs_eb_prealloc {
+	struct extent_buffer *eb;
+	struct btrfs_folio_state *bfs;
+	/* eb alloc may use GFP_NOWAIT; caller can drop locks and retry. */
+	bool supports_nowait;
+	/* GFP_NOWAIT eb alloc failed; preallocate again and retry. */
+	bool needs_prealloc;
+};
+
 struct btrfs_eb_write_context {
 	struct writeback_control *wbc;
 	struct extent_buffer *eb;
@@ -255,6 +274,11 @@ bool try_release_extent_mapping(struct folio *folio, gfp_t mask);
 int try_release_extent_buffer(struct folio *folio);
 
 int btrfs_read_folio(struct file *file, struct folio *folio);
+#ifdef CONFIG_BTRFS_DEBUG
+void btrfs_check_folio_write_protected(struct folio *folio);
+#else
+static inline void btrfs_check_folio_write_protected(struct folio *folio) { }
+#endif
 void extent_write_locked_range(struct inode *inode, const struct folio *locked_folio,
 			       u64 start, u64 end, struct writeback_control *wbc,
 			       bool pages_dirty);
@@ -266,7 +290,11 @@ int set_folio_extent_mapped(struct folio *folio);
 void clear_folio_extent_mapped(struct folio *folio);
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
+					  struct btrfs_eb_prealloc *pa,
 					  u64 start, u64 owner_root, int level);
+int btrfs_init_eb_prealloc(struct btrfs_fs_info *fs_info,
+			   struct btrfs_eb_prealloc *pa, bool nowait);
+void btrfs_free_eb_prealloc(struct btrfs_eb_prealloc *pa);
 struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 						u64 start);
 struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src);
@@ -388,6 +416,7 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 				  u32 bits_to_clear, unsigned long page_ops);
 void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 			      struct extent_buffer *buf);
+void btrfs_zoned_release_dirty_metadata(struct btrfs_fs_info *fs_info);
 
 static inline void btrfs_clear_folio_dirty_tag(struct folio *folio)
 {

@@ -131,7 +131,7 @@ static int evlist__init_callchain_streams(struct evlist *evlist,
 	struct evsel *pos;
 	int i = 0;
 
-	BUG_ON(els->nr_evsel < evlist->core.nr_entries);
+	BUG_ON(els->nr_evsel < evlist__nr_entries(evlist));
 
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
@@ -148,7 +148,7 @@ static int evlist__init_callchain_streams(struct evlist *evlist,
 struct evlist_streams *evlist__create_streams(struct evlist *evlist,
 					      int nr_streams_max)
 {
-	int nr_evsel = evlist->core.nr_entries, ret = -1;
+	int nr_evsel = evlist__nr_entries(evlist), ret = -1;
 	struct evlist_streams *els = evlist_streams__new(nr_evsel,
 							 nr_streams_max);
 

@@ -393,16 +393,14 @@ the credentials so obtained when they're finished with.
    The result of ``__task_cred()`` should not be passed directly to
    ``get_cred()`` as this may race with ``commit_cred()``.
 
-There are a couple of convenience functions to access bits of another task's
-credentials, hiding the RCU magic from the caller::
+There is a convenience function to access bits of another task's credentials,
+hiding the RCU magic from the caller::
 
 	uid_t task_uid(task)		Task's real UID
-	uid_t task_euid(task)		Task's effective UID
 
 If the caller is holding the RCU read lock at the time anyway, then::
 
 	__task_cred(task)->uid
-	__task_cred(task)->euid
 
 should be used instead.  Similarly, if multiple aspects of a task's credentials
 need to be accessed, RCU read lock should be used, ``__task_cred()`` called,

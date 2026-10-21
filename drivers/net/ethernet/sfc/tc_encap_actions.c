@@ -311,7 +311,7 @@ static void efx_gen_tun_header_udp(struct efx_tc_encap_action *encap, u8 len)
 	encap->encap_hdr_len += sizeof(*udp);
 
 	udp->dest = key->tp_dst;
-	udp->len = cpu_to_be16(sizeof(*udp) + len);
+	udp_set_len_short(udp, sizeof(*udp) + len);
 }
 
 static void efx_gen_tun_header_vxlan(struct efx_tc_encap_action *encap)

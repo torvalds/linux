@@ -468,7 +468,7 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 	 * MTK xHCI 0.96: PSA is 1 by default even if doesn't support stream,
 	 * and it's 3 when support it.
 	 */
-	if (xhci->hci_version < 0x100 && HCC_MAX_PSA(xhci->hcc_params) == 4)
+	if (xhci->hci_version < 0x100 && GET_MAX_PSA_SIZE(xhci->hcc_params) == 4)
 		xhci->quirks |= XHCI_BROKEN_STREAMS;
 }
 
@@ -650,7 +650,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	}
 
 	usb3_hcd = xhci_get_usb3_hcd(xhci);
-	if (usb3_hcd && HCC_MAX_PSA(xhci->hcc_params) >= 4 &&
+	if (usb3_hcd && GET_MAX_PSA_SIZE(xhci->hcc_params) >= 4 &&
 	    !(xhci->quirks & XHCI_BROKEN_STREAMS))
 		usb3_hcd->can_do_streams = 1;
 

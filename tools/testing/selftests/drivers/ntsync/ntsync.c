@@ -8,11 +8,17 @@
 #define _GNU_SOURCE
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <time.h>
 #include <pthread.h>
 #include <linux/ntsync.h>
 #include "kselftest_harness.h"
+
+#ifndef CLONE_NEWTIME
+#define CLONE_NEWTIME 0x00000080
+#endif
 
 static int read_sem_state(int sem, __u32 *count, __u32 *max)
 {
@@ -968,7 +974,7 @@ TEST(wake_all)
 	auto_event_args.manual = false;
 	auto_event_args.signaled = true;
 	objs[3] = ioctl(fd, NTSYNC_IOC_CREATE_EVENT, &auto_event_args);
-	EXPECT_EQ(0, objs[3]);
+	EXPECT_LE(0, objs[3]);
 
 	wait_args.timeout = get_abs_timeout(1000);
 	wait_args.objs = (uintptr_t)objs;
@@ -1338,6 +1344,131 @@ TEST(stress_wait)
 	close(stress_start_event);
 	close(stress_mutex);
 	close(stress_device);
+}
+
+TEST(wait_args_validation)
+{
+	struct ntsync_sem_args sem_args = { .count = 1, .max = 1 };
+	struct ntsync_wait_args wait_args = {0};
+	struct timespec timeout;
+	int fd, fd2, sem, ret;
+	__u32 index;
+
+	fd = open("/dev/ntsync", O_CLOEXEC | O_RDONLY);
+	ASSERT_GE(fd, 0);
+
+	fd2 = open("/dev/ntsync", O_CLOEXEC | O_RDONLY);
+	ASSERT_GE(fd2, 0);
+
+	sem = ioctl(fd, NTSYNC_IOC_CREATE_SEM, &sem_args);
+	EXPECT_GE(sem, 0);
+
+	ret = wait_any(fd, 1, &sem, 0, &index);
+	EXPECT_EQ(-1, ret);
+	EXPECT_EQ(EINVAL, errno);
+
+	ret = wait_all(fd, 1, &sem, 0, &index);
+	EXPECT_EQ(-1, ret);
+	EXPECT_EQ(EINVAL, errno);
+
+	clock_gettime(CLOCK_MONOTONIC, &timeout);
+	wait_args.timeout = timeout.tv_sec * 1000000000ULL + timeout.tv_nsec;
+	wait_args.count = 0;
+	wait_args.objs = 0;
+	wait_args.owner = 123;
+	wait_args.pad = 1;
+	ret = ioctl(fd, NTSYNC_IOC_WAIT_ANY, &wait_args);
+	EXPECT_EQ(-1, ret);
+	EXPECT_EQ(EINVAL, errno);
+
+	ret = wait_any(fd2, 1, &sem, 123, &index);
+	EXPECT_EQ(-1, ret);
+	EXPECT_EQ(EINVAL, errno);
+
+	close(sem);
+	close(fd2);
+	close(fd);
+}
+
+/*
+ * Absolute MONOTONIC timeouts must honour the caller's time namespace.
+ * With a negative monotonic offset, a 100 ms wait must still take ~100 ms
+ * of namespace time (not return immediately against the host clock).
+ */
+TEST(wait_any_monotonic_timens)
+{
+	struct ntsync_sem_args sem_args = {0};
+	struct ntsync_wait_args wait_args = {0};
+	struct timespec start, end;
+	char buf[64];
+	__u64 elapsed_ns;
+	int fd, offset_fd, sem, ret, status, len;
+	pid_t pid;
+
+	if (access("/proc/self/ns/time", F_OK))
+		SKIP(return, "Time namespaces are not supported");
+
+	fd = open("/dev/ntsync", O_CLOEXEC | O_RDONLY);
+	if (fd < 0)
+		SKIP(return, "/dev/ntsync is not available");
+
+	ret = unshare(CLONE_NEWTIME);
+	if (ret) {
+		close(fd);
+		if (errno == EPERM)
+			SKIP(return, "need CAP_SYS_ADMIN for CLONE_NEWTIME");
+		ASSERT_EQ(0, ret);
+	}
+
+	len = snprintf(buf, sizeof(buf), "%d %d 0", CLOCK_MONOTONIC, -10);
+	offset_fd = open("/proc/self/timens_offsets", O_WRONLY);
+	ASSERT_LE(0, offset_fd);
+	ASSERT_EQ(len, write(offset_fd, buf, len));
+	close(offset_fd);
+
+	pid = fork();
+	ASSERT_LE(0, pid);
+	if (!pid) {
+		int obj;
+
+		sem_args.count = 0;
+		sem_args.max = 1;
+		sem = ioctl(fd, NTSYNC_IOC_CREATE_SEM, &sem_args);
+		if (sem < 0)
+			_exit(1);
+
+		obj = sem;
+		wait_args.timeout = get_abs_timeout(100);
+		wait_args.objs = (uintptr_t)&obj;
+		wait_args.count = 1;
+		wait_args.owner = 123;
+		wait_args.index = 0xdeadbeef;
+
+		if (clock_gettime(CLOCK_MONOTONIC, &start))
+			_exit(2);
+		ret = ioctl(fd, NTSYNC_IOC_WAIT_ANY, &wait_args);
+		if (clock_gettime(CLOCK_MONOTONIC, &end))
+			_exit(2);
+
+		if (ret != -1 || errno != ETIMEDOUT)
+			_exit(3);
+
+		elapsed_ns = (end.tv_sec - start.tv_sec) * 1000000000ULL +
+			     (end.tv_nsec - start.tv_nsec);
+		/* Without timens conversion this returns in ~0 ms. */
+		if (elapsed_ns < 50 * 1000000ULL)
+			_exit(4);
+		if (elapsed_ns > 1000 * 1000000ULL)
+			_exit(5);
+
+		_exit(0);
+	}
+
+	ASSERT_EQ(pid, waitpid(pid, &status, 0));
+	EXPECT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	close(fd);
 }
 
 TEST_HARNESS_MAIN

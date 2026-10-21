@@ -648,6 +648,14 @@ static inline void *enum_rstbl(struct RESTART_TABLE *t, void *c)
 }
 
 /*
+ * dp_range_ok - true if [j, j + count) fits in a page_lcns[cap] array.
+ */
+static inline bool dp_range_ok(size_t j, u32 count, u32 cap)
+{
+	return j < cap && count <= cap - j;
+}
+
+/*
  * find_dp - Search for a @vcn in Dirty Page Table.
  */
 static inline struct DIR_PAGE_ENTRY *find_dp(struct RESTART_TABLE *dptbl,
@@ -789,6 +797,20 @@ static bool check_rstbl(const struct RESTART_TABLE *rt, size_t bytes)
 	return true;
 }
 
+static bool check_dp_table(const struct RESTART_TABLE *dptbl)
+{
+	u32 rsize = le16_to_cpu(dptbl->size);
+	struct DIR_PAGE_ENTRY *dp = NULL;
+
+	while ((dp = enum_rstbl((struct RESTART_TABLE *)dptbl, dp))) {
+		if (struct_size(dp, page_lcns, le32_to_cpu(dp->lcns_follow)) >
+		    rsize)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * free_rsttbl_idx - Free a previously allocated index a Restart Table.
  */
@@ -852,6 +874,9 @@ static inline struct RESTART_TABLE *extend_rsttbl(struct RESTART_TABLE *tbl,
 	__le32 osize = cpu_to_le32(bytes_per_rt(tbl));
 	u32 used = le16_to_cpu(tbl->used);
 	struct RESTART_TABLE *rt;
+
+	if (used + add > U16_MAX)
+		return NULL;
 
 	rt = init_rsttbl(esize, used + add);
 	if (!rt)
@@ -2276,7 +2301,15 @@ static int read_log_rec_buf(struct ntfs_log *log,
 	 */
 	for (;;) {
 		bool usa_error;
-		u32 tail = log->page_size - off;
+		u32 tail;
+
+		/* off comes from the on-disk restart area; bound it. */
+		if (off > log->page_size) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		tail = log->page_size - off;
 
 		if (tail >= data_len)
 			tail = data_len;
@@ -2613,7 +2646,6 @@ bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes)
 	const bool has_subnode = hdr_has_subnode(hdr);
 	__le16 mask;
 	u32 min_de, de_off, used, total;
-	const struct NTFS_DE *e;
 
 	if (has_subnode) {
 		min_de = sizeof(struct NTFS_DE) + sizeof(u64);
@@ -2632,8 +2664,8 @@ bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes)
 		return false;
 	}
 
-	e = (const struct NTFS_DE *)((const u8 *)hdr + de_off);
 	for (;;) {
+		const struct NTFS_DE *e = Add2Ptr(hdr, de_off);
 		u16 esize = le16_to_cpu(e->size);
 		u16 key_size = le16_to_cpu(e->key_size);
 		u16 data_size;
@@ -2649,7 +2681,6 @@ bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes)
 		if (de_is_last(e)) {
 			if (key_size)
 				return false;
-
 			break;
 		}
 
@@ -2658,7 +2689,6 @@ bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes)
 			return false;
 
 		de_off += esize;
-		e = (const struct NTFS_DE *)((const u8 *)hdr + de_off);
 	}
 
 	return true;
@@ -3544,8 +3574,7 @@ move_data:
 		 * bound here so the memmove cannot reach past the entry.
 		 */
 		if (le16_to_cpu(e->view.data_off) > le16_to_cpu(e->size) ||
-		    le16_to_cpu(e->view.data_off) + dlen >
-			    le16_to_cpu(e->size))
+		    le16_to_cpu(e->view.data_off) + dlen > le16_to_cpu(e->size))
 			goto dirty_vol;
 
 		memmove(Add2Ptr(e, le16_to_cpu(e->view.data_off)), data, dlen);
@@ -3756,8 +3785,7 @@ move_data:
 
 		/* See UpdateRecordDataRoot for the rationale. */
 		if (le16_to_cpu(e->view.data_off) > le16_to_cpu(e->size) ||
-		    le16_to_cpu(e->view.data_off) + dlen >
-			    le16_to_cpu(e->size))
+		    le16_to_cpu(e->view.data_off) + dlen > le16_to_cpu(e->size))
 			goto dirty_vol;
 
 		memmove(Add2Ptr(e, le16_to_cpu(e->view.data_off)), data, dlen);
@@ -4295,6 +4323,11 @@ check_dirty_page_table:
 		goto out;
 	}
 
+	if (!check_dp_table(rt)) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	dptbl = kmemdup(rt, t32, GFP_NOFS);
 	if (!dptbl) {
 		err = -ENOMEM;
@@ -4653,11 +4686,11 @@ copy_lcns:
 		}
 
 		/*
-         * find_dp() only validates that target_vcn is the first
-         * cluster covered by dp.  The walk through lrh->lcns_follow
-         * further entries must stay within the allocated
-         * dp->page_lcns[] array, which is sized by dp->lcns_follow.
-         */
+		 * find_dp() only validates that target_vcn is the first
+		 * cluster covered by dp.  The walk through lrh->lcns_follow
+		 * further entries must stay within the allocated
+		 * dp->page_lcns[] array, which is sized by dp->lcns_follow.
+		 */
 		if (le64_to_cpu(lrh->target_vcn) - le64_to_cpu(dp->vcn) + t16 >
 		    le32_to_cpu(dp->lcns_follow)) {
 			err = -EINVAL;
@@ -5086,6 +5119,13 @@ find_dirty_page:
 
 	/* Shorten length by any Lcns which were deleted. */
 	saved_len = dlen;
+
+	if (!dp_range_ok(le64_to_cpu(lrh->target_vcn) - le64_to_cpu(dp->vcn),
+			 le16_to_cpu(lrh->lcns_follow),
+			 le32_to_cpu(dp->lcns_follow))) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	for (i = le16_to_cpu(lrh->lcns_follow); i; i--) {
 		size_t j;

@@ -78,10 +78,23 @@ dropit:
 	return false;
 }
 
+static int tcpmss_mt_check(const struct xt_mtchk_param *par)
+{
+	const struct xt_tcpmss_match_info *info = par->matchinfo;
+
+	if (info->mss_min > info->mss_max)
+		return -EINVAL;
+	if (info->invert > 1)
+		return -EINVAL;
+
+	return 0;
+}
+
 static struct xt_match tcpmss_mt_reg[] __read_mostly = {
 	{
 		.name		= "tcpmss",
 		.family		= NFPROTO_IPV4,
+		.checkentry	= tcpmss_mt_check,
 		.match		= tcpmss_mt,
 		.matchsize	= sizeof(struct xt_tcpmss_match_info),
 		.proto		= IPPROTO_TCP,
@@ -90,6 +103,7 @@ static struct xt_match tcpmss_mt_reg[] __read_mostly = {
 	{
 		.name		= "tcpmss",
 		.family		= NFPROTO_IPV6,
+		.checkentry	= tcpmss_mt_check,
 		.match		= tcpmss_mt,
 		.matchsize	= sizeof(struct xt_tcpmss_match_info),
 		.proto		= IPPROTO_TCP,

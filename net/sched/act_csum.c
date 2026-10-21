@@ -276,7 +276,7 @@ static int tcf_csum_ipv4_udp(struct sk_buff *skb, unsigned int ihl,
 		return 0;
 
 	iph = ip_hdr(skb);
-	ul = ntohs(udph->len);
+	ul = udp_get_len_short(udph);
 
 	if (udplite || udph->check) {
 
@@ -334,7 +334,7 @@ static int tcf_csum_ipv6_udp(struct sk_buff *skb, unsigned int ihl,
 		return 0;
 
 	ip6h = ipv6_hdr(skb);
-	ul = ntohs(udph->len);
+	ul = udp_get_len_short(udph);
 
 	udph->check = 0;
 

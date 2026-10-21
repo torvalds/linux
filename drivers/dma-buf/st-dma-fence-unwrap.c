@@ -103,7 +103,7 @@ static void test_sanitycheck(struct kunit *test)
 	f = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	array = mock_array(1, f);
 	KUNIT_ASSERT_NOT_NULL(test, array);
@@ -122,7 +122,7 @@ static void test_unwrap_array(struct kunit *test)
 	f1 = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f1);
 
-	dma_fence_enable_sw_signaling(f1);
+	dma_fence_enable_signaling(f1);
 
 	f2 = mock_fence();
 	if (!f2) {
@@ -131,7 +131,7 @@ static void test_unwrap_array(struct kunit *test)
 		return;
 	}
 
-	dma_fence_enable_sw_signaling(f2);
+	dma_fence_enable_signaling(f2);
 
 	array = mock_array(2, f1, f2);
 	KUNIT_ASSERT_NOT_NULL(test, array);
@@ -160,7 +160,7 @@ static void test_unwrap_chain(struct kunit *test)
 	f1 = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f1);
 
-	dma_fence_enable_sw_signaling(f1);
+	dma_fence_enable_signaling(f1);
 
 	f2 = mock_fence();
 	if (!f2) {
@@ -169,7 +169,7 @@ static void test_unwrap_chain(struct kunit *test)
 		return;
 	}
 
-	dma_fence_enable_sw_signaling(f2);
+	dma_fence_enable_signaling(f2);
 
 	chain = mock_chain(f1, f2);
 	KUNIT_ASSERT_NOT_NULL(test, chain);
@@ -198,7 +198,7 @@ static void test_unwrap_chain_array(struct kunit *test)
 	f1 = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f1);
 
-	dma_fence_enable_sw_signaling(f1);
+	dma_fence_enable_signaling(f1);
 
 	f2 = mock_fence();
 	if (!f2) {
@@ -207,7 +207,7 @@ static void test_unwrap_chain_array(struct kunit *test)
 		return;
 	}
 
-	dma_fence_enable_sw_signaling(f2);
+	dma_fence_enable_signaling(f2);
 
 	array = mock_array(2, f1, f2);
 	KUNIT_ASSERT_NOT_NULL(test, array);
@@ -239,7 +239,7 @@ static void test_unwrap_merge(struct kunit *test)
 	f1 = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f1);
 
-	dma_fence_enable_sw_signaling(f1);
+	dma_fence_enable_signaling(f1);
 
 	f2 = mock_fence();
 	if (!f2) {
@@ -247,7 +247,7 @@ static void test_unwrap_merge(struct kunit *test)
 		goto error_put_f1;
 	}
 
-	dma_fence_enable_sw_signaling(f2);
+	dma_fence_enable_signaling(f2);
 
 	f3 = dma_fence_unwrap_merge(f1, f2);
 	if (!f3) {
@@ -285,7 +285,7 @@ static void test_unwrap_merge_duplicate(struct kunit *test)
 	f1 = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f1);
 
-	dma_fence_enable_sw_signaling(f1);
+	dma_fence_enable_signaling(f1);
 
 	f2 = dma_fence_unwrap_merge(f1, f1);
 	if (!f2) {
@@ -322,7 +322,7 @@ static void test_unwrap_merge_seqno(struct kunit *test)
 	f1 = __mock_fence(ctx[1], 1);
 	KUNIT_ASSERT_NOT_NULL(test, f1);
 
-	dma_fence_enable_sw_signaling(f1);
+	dma_fence_enable_signaling(f1);
 
 	f2 = __mock_fence(ctx[1], 2);
 	if (!f2) {
@@ -330,7 +330,7 @@ static void test_unwrap_merge_seqno(struct kunit *test)
 		goto error_put_f1;
 	}
 
-	dma_fence_enable_sw_signaling(f2);
+	dma_fence_enable_signaling(f2);
 
 	f3 = __mock_fence(ctx[0], 1);
 	if (!f3) {
@@ -338,7 +338,7 @@ static void test_unwrap_merge_seqno(struct kunit *test)
 		goto error_put_f2;
 	}
 
-	dma_fence_enable_sw_signaling(f3);
+	dma_fence_enable_signaling(f3);
 
 	f4 = dma_fence_unwrap_merge(f1, f2, f3);
 	if (!f4) {
@@ -378,7 +378,7 @@ static void test_unwrap_merge_order(struct kunit *test)
 	f1 = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f1);
 
-	dma_fence_enable_sw_signaling(f1);
+	dma_fence_enable_signaling(f1);
 
 	f2 = mock_fence();
 	if (!f2) {
@@ -387,7 +387,7 @@ static void test_unwrap_merge_order(struct kunit *test)
 		return;
 	}
 
-	dma_fence_enable_sw_signaling(f2);
+	dma_fence_enable_signaling(f2);
 
 	a1 = mock_array(2, f1, f2);
 	KUNIT_ASSERT_NOT_NULL(test, a1);
@@ -442,7 +442,7 @@ static void test_unwrap_merge_complex(struct kunit *test)
 	f1 = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f1);
 
-	dma_fence_enable_sw_signaling(f1);
+	dma_fence_enable_signaling(f1);
 
 	f2 = mock_fence();
 	if (!f2) {
@@ -450,7 +450,7 @@ static void test_unwrap_merge_complex(struct kunit *test)
 		goto error_put_f1;
 	}
 
-	dma_fence_enable_sw_signaling(f2);
+	dma_fence_enable_signaling(f2);
 
 	f3 = dma_fence_unwrap_merge(f1, f2);
 	if (!f3) {
@@ -510,7 +510,7 @@ static void test_unwrap_merge_complex_seqno(struct kunit *test)
 	f1 = __mock_fence(ctx[0], 2);
 	KUNIT_ASSERT_NOT_NULL(test, f1);
 
-	dma_fence_enable_sw_signaling(f1);
+	dma_fence_enable_signaling(f1);
 
 	f2 = __mock_fence(ctx[1], 1);
 	if (!f2) {
@@ -518,7 +518,7 @@ static void test_unwrap_merge_complex_seqno(struct kunit *test)
 		goto error_put_f1;
 	}
 
-	dma_fence_enable_sw_signaling(f2);
+	dma_fence_enable_signaling(f2);
 
 	f3 = __mock_fence(ctx[0], 1);
 	if (!f3) {
@@ -526,7 +526,7 @@ static void test_unwrap_merge_complex_seqno(struct kunit *test)
 		goto error_put_f2;
 	}
 
-	dma_fence_enable_sw_signaling(f3);
+	dma_fence_enable_signaling(f3);
 
 	f4 = __mock_fence(ctx[1], 2);
 	if (!f4) {
@@ -534,7 +534,7 @@ static void test_unwrap_merge_complex_seqno(struct kunit *test)
 		goto error_put_f3;
 	}
 
-	dma_fence_enable_sw_signaling(f4);
+	dma_fence_enable_signaling(f4);
 
 	f5 = mock_array(2, dma_fence_get(f1), dma_fence_get(f2));
 	if (!f5) {

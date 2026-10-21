@@ -852,7 +852,7 @@ static int spacemit_i2c_probe(struct platform_device *pdev)
 
 	i2c->irq = platform_get_irq(pdev, 0);
 	if (i2c->irq < 0)
-		return dev_err_probe(dev, i2c->irq, "failed to get irq resource");
+		return i2c->irq;
 
 	clk = devm_clk_get_enabled(dev, "func");
 	if (IS_ERR(clk))
@@ -906,7 +906,7 @@ static int spacemit_i2c_probe(struct platform_device *pdev)
 	ret = devm_request_irq(i2c->dev, i2c->irq, spacemit_i2c_irq_handler,
 			       IRQF_NO_SUSPEND, dev_name(i2c->dev), i2c);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to request irq");
+		return ret;
 
 	platform_set_drvdata(pdev, i2c);
 

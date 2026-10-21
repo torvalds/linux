@@ -53,7 +53,7 @@
 #include "isp/kernels/output/output_1.0/ia_css_output_types.h"
 
 #define IA_CSS_DVS_STAT_GRID_INFO_SUPPORTED
-/** Should be removed after Driver adaptation will be done */
+/* Should be removed after Driver adaptation will be done */
 
 #define IA_CSS_VERSION_MAJOR    2
 #define IA_CSS_VERSION_MINOR    0
@@ -421,7 +421,7 @@ struct ia_css_dvs_6axis_config {
 	u32 *ycoords_uv;
 };
 
-/**
+/*
  * This specifies the coordinates (x,y)
  */
 struct ia_css_point {
@@ -429,7 +429,7 @@ struct ia_css_point {
 	s32 y; /** y coordinate */
 };
 
-/**
+/*
  * Digital zoom:
  * This feature is currently available only for video, but will become
  * available for preview and capture as well.

@@ -65,8 +65,7 @@ class AbiRegex(AbiParser):
         (re.compile(r"\[[^\]]+\]"), "\\\\w\xf7"),
 
         (re.compile(r"XX+"), "\\\\w\xf7"),
-        (re.compile(r"([^A-Z])[XYZ]([^A-Z])"), "\\1\\\\w\xf7\\2"),
-        (re.compile(r"([^A-Z])[XYZ]$"), "\\1\\\\w\xf7"),
+        (re.compile(r"(?<![A-Z])[XYZ](?![A-Z])"), "\\\\w\xf7"),
         (re.compile(r"_[AB]_"), "_\\\\w\xf7_"),
 
         # Recover [0-9] type of patterns
@@ -155,7 +154,7 @@ class AbiRegex(AbiParser):
             if self.search_string:
                 if what.find(self.search_string) >= 0:
                     print(f"What: {what}")
-        except re.PatternError:
+        except re.error:
             self.log.warning("Ignoring '%s' as it produced an invalid regex:\n"
                              "           '%s'", what, new)
 
@@ -194,7 +193,7 @@ class AbiRegex(AbiParser):
 
                 try:
                     self.re_string = re.compile(self.search_string)
-                except re.PatternError as e:
+                except re.error as e:
                     msg = f"{self.search_string} is not a valid regular expression"
                     raise ValueError(msg) from e
 
@@ -223,9 +222,9 @@ class AbiRegex(AbiParser):
                 for r, s in self.re_whats:
                     try:
                         new = r.sub(s, new)
-                    except re.PatternError as e:
+                    except re.error as e:
                         # Help debugging troubles with new regexes
-                        raise re.PatternError(f"{e}\nwhile re.sub('{r.pattern}', {s}, str)") from e
+                        raise re.error(f"{e}\nwhile re.sub('{r.pattern}', {s}, str)") from e
 
                 v["regex"].append(new)
 

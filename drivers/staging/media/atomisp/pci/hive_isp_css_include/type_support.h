@@ -7,7 +7,7 @@
 #ifndef __TYPE_SUPPORT_H_INCLUDED__
 #define __TYPE_SUPPORT_H_INCLUDED__
 
-/**
+/*
 * @file
 * Platform specific types.
 *

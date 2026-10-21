@@ -82,32 +82,33 @@ static struct snd_soc_card atmel_asoc_wm8904_card = {
 
 static int atmel_asoc_wm8904_dt_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct device_node *codec_np, *cpu_np;
 	struct snd_soc_card *card = &atmel_asoc_wm8904_card;
 	struct snd_soc_dai_link *dailink = &atmel_asoc_wm8904_dailink;
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "only device tree supported\n");
+		dev_err(dev, "only device tree supported\n");
 		return -EINVAL;
 	}
 
 	ret = snd_soc_of_parse_card_name(card, "atmel,model");
 	if (ret) {
-		dev_err(&pdev->dev, "failed to parse card name\n");
+		dev_err(dev, "failed to parse card name\n");
 		return ret;
 	}
 
 	ret = snd_soc_of_parse_audio_routing(card, "atmel,audio-routing");
 	if (ret) {
-		dev_err(&pdev->dev, "failed to parse audio routing\n");
+		dev_err(dev, "failed to parse audio routing\n");
 		return ret;
 	}
 
 	cpu_np = of_parse_phandle(np, "atmel,ssc-controller", 0);
 	if (!cpu_np) {
-		dev_err(&pdev->dev, "failed to get dai and pcm info\n");
+		dev_err(dev, "failed to get dai and pcm info\n");
 		ret = -EINVAL;
 		return ret;
 	}
@@ -117,7 +118,7 @@ static int atmel_asoc_wm8904_dt_init(struct platform_device *pdev)
 
 	codec_np = of_parse_phandle(np, "atmel,audio-codec", 0);
 	if (!codec_np) {
-		dev_err(&pdev->dev, "failed to get codec info\n");
+		dev_err(dev, "failed to get codec info\n");
 		ret = -EINVAL;
 		return ret;
 	}

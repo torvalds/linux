@@ -74,6 +74,7 @@ struct rt712_dmic_kctrl_priv {
 #define RT712_JD_PRODUCT_NUM			0x00
 #define RT712_ANALOG_BIAS_CTL3			0x04
 #define RT712_JD_CTL1				0x09
+#define RT712_JD_CTL3				0x0b
 #define RT712_IO_CTL				0x0c
 #define RT712_LDO2_3_CTL1			0x0e
 #define RT712_PARA_VERB_CTL			0x1a
@@ -160,6 +161,16 @@ struct rt712_dmic_kctrl_priv {
 
 #define RT712_EAPD_HIGH				0x2
 #define RT712_EAPD_LOW				0x0
+
+/* SDW clock root frequency */
+#define RT712_SDW_ROOT_CLK		0x004d
+#define RT712_SDW_SCALE_CLK0		0x0062
+#define RT712_SDW_SCALE_CLK1		0x0072
+
+/* PLL2 config */
+#define RT712_PLL2_CONF1		0x2f3a
+#define RT712_PLL2_CONF2		0x2f3d
+#define RT712_PLL2_CONF3		0x2f41
 
 /* RC Calibration register */
 #define RT712_RC_CAL			0x3201
@@ -252,6 +263,14 @@ enum rt712_sdca_version {
 	RT712_VA,
 	RT712_VB,
 };
+
+enum {
+	RT712_CLK_FREQ_19_2_MHZ = 1,
+	RT712_CLK_FREQ_24MHZ = 2,
+	RT712_CLK_FREQ_24_576MHZ = 3,
+	RT712_CLK_FREQ_22_5792MHZ = 4,
+};
+
 
 int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave);
 int rt712_sdca_init(struct device *dev, struct regmap *regmap,

@@ -97,7 +97,7 @@ static u32 map_old_perms(u32 old)
 	return new;
 }
 
-static void compute_fperms_allow(struct aa_perms *perms, struct aa_dfa *dfa,
+static void compute_fperms_allow(struct aa_perms *perms, const struct aa_dfa *dfa,
 				 aa_state_t state)
 {
 	perms->allow |= AA_MAY_GETATTR;
@@ -109,7 +109,7 @@ static void compute_fperms_allow(struct aa_perms *perms, struct aa_dfa *dfa,
 		perms->allow |= AA_MAY_ONEXEC;
 }
 
-static struct aa_perms compute_fperms_user(struct aa_dfa *dfa,
+static struct aa_perms compute_fperms_user(const struct aa_dfa *dfa,
 					   aa_state_t state)
 {
 	struct aa_perms perms = { };
@@ -124,7 +124,7 @@ static struct aa_perms compute_fperms_user(struct aa_dfa *dfa,
 	return perms;
 }
 
-static struct aa_perms compute_fperms_other(struct aa_dfa *dfa,
+static struct aa_perms compute_fperms_other(const struct aa_dfa *dfa,
 					    aa_state_t state)
 {
 	struct aa_perms perms = { };
@@ -147,7 +147,7 @@ static struct aa_perms compute_fperms_other(struct aa_dfa *dfa,
  *
  * Returns: remapped perm table
  */
-static struct aa_perms *compute_fperms(struct aa_dfa *dfa,
+static struct aa_perms *compute_fperms(const struct aa_dfa *dfa,
 				       u32 *size)
 {
 	aa_state_t state;
@@ -171,7 +171,7 @@ static struct aa_perms *compute_fperms(struct aa_dfa *dfa,
 	return table;
 }
 
-static struct aa_perms *compute_xmatch_perms(struct aa_dfa *xmatch,
+static struct aa_perms *compute_xmatch_perms(const struct aa_dfa *xmatch,
 				      u32 *size)
 {
 	struct aa_perms *perms;
@@ -207,7 +207,7 @@ static u32 map_xbits(u32 x)
 		((x & 0x7e) << 9);
 }
 
-static struct aa_perms compute_perms_entry(struct aa_dfa *dfa,
+static struct aa_perms compute_perms_entry(const struct aa_dfa *dfa,
 					   aa_state_t state,
 					   u32 version)
 {
@@ -246,7 +246,7 @@ static struct aa_perms compute_perms_entry(struct aa_dfa *dfa,
 	return perms;
 }
 
-static struct aa_perms *compute_perms(struct aa_dfa *dfa, u32 version,
+static struct aa_perms *compute_perms(const struct aa_dfa *dfa, u32 version,
 				      u32 *size)
 {
 	unsigned int state;

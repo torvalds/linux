@@ -293,7 +293,7 @@ typedef enum {
 } stream2mmio_sid_ID_t;
 /* end of Stream2MMIO */
 
-/**
+/*
  * Input System 2401: CSI-MIPI recevier.
  */
 typedef enum {
@@ -324,7 +324,7 @@ typedef enum {
 	N_ISYS2401_DMA_ID
 } isys2401_dma_ID_t;
 
-/**
+/*
  * Pixel-generator. ("system_global.h")
  */
 typedef enum {

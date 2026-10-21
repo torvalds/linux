@@ -11,25 +11,25 @@
 * CSS-API header file for Extra Noise Reduction (XNR) parameters.
 */
 
-/**
+/*
  * \brief Scale of the XNR sigma parameters.
  * \details The define specifies which fixed-point value represents 1.0.
  */
 #define IA_CSS_XNR3_SIGMA_SCALE  BIT(10)
 
-/**
+/*
  * \brief Scale of the XNR coring parameters.
  * \details The define specifies which fixed-point value represents 1.0.
  */
 #define IA_CSS_XNR3_CORING_SCALE BIT(15)
 
-/**
+/*
  * \brief Scale of the XNR blending parameter.
  * \details The define specifies which fixed-point value represents 1.0.
  */
 #define IA_CSS_XNR3_BLENDING_SCALE BIT(11)
 
-/**
+/*
  * \brief XNR3 Sigma Parameters.
  * \details Sigma parameters define the strength of the XNR filter.
  * A higher number means stronger filtering. There are two values for each of
@@ -46,7 +46,7 @@ struct ia_css_xnr3_sigma_params {
 	int v1;     /** Sigma for V range similarity in bright area */
 };
 
-/**
+/*
  * \brief XNR3 Coring Parameters
  * \details Coring parameters define the "coring" strength, which is a soft
  * thresholding technique to avoid false coloring. There are two values for
@@ -61,7 +61,7 @@ struct ia_css_xnr3_coring_params {
 	int v1;     /** Coring threshold of V channel in bright area */
 };
 
-/**
+/*
  * \brief XNR3 Blending Parameters
  * \details Blending parameters define the blending strength of filtered
  * output pixels with the original chroma pixels from before xnr3. The
@@ -75,7 +75,7 @@ struct ia_css_xnr3_blending_params {
 	int strength;   /** Blending strength */
 };
 
-/**
+/*
  * \brief XNR3 public parameters.
  * \details Struct with all parameters for the XNR3 kernel that can be set
  * from the CSS API.

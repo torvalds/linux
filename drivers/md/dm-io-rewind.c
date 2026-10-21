@@ -16,12 +16,12 @@ static inline bool dm_bvec_iter_rewind(const struct bio_vec *bv,
 	int idx;
 
 	iter->bi_size += bytes;
-	if (bytes <= iter->bi_bvec_done) {
-		iter->bi_bvec_done -= bytes;
+	if (bytes <= iter->bi_offset) {
+		iter->bi_offset -= bytes;
 		return true;
 	}
 
-	bytes -= iter->bi_bvec_done;
+	bytes -= iter->bi_offset;
 	idx = iter->bi_idx - 1;
 
 	while (idx >= 0 && bytes && bytes > bv[idx].bv_len) {
@@ -32,13 +32,13 @@ static inline bool dm_bvec_iter_rewind(const struct bio_vec *bv,
 	if (WARN_ONCE(idx < 0 && bytes,
 		      "Attempted to rewind iter beyond bvec's boundaries\n")) {
 		iter->bi_size -= bytes;
-		iter->bi_bvec_done = 0;
+		iter->bi_offset = 0;
 		iter->bi_idx = 0;
 		return false;
 	}
 
 	iter->bi_idx = idx;
-	iter->bi_bvec_done = bv[idx].bv_len - bytes;
+	iter->bi_offset = bv[idx].bv_len - bytes;
 	return true;
 }
 

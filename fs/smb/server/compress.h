@@ -11,6 +11,7 @@
 #include "../common/compress/compress.h"
 
 int ksmbd_decompress_request(struct ksmbd_conn *conn);
+int ksmbd_decompress_work_request(struct ksmbd_work *work);
 int ksmbd_compress_response(struct ksmbd_work *work);
 
 #endif /* __KSMBD_COMPRESS_H__ */

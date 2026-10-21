@@ -187,4 +187,6 @@ void dcn42_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *cl
 int dcn42_smu_get_dtbclk(struct clk_mgr_internal *clk_mgr);
 int dcn42_smu_get_dprefclk(struct clk_mgr_internal *clk_mgr);
 
+bool dcn42_smu_set_df_cstate_disable(struct clk_mgr_internal *clk_mgr, bool disable);
+
 #endif /* DAL_DC_42_SMU_H_ */

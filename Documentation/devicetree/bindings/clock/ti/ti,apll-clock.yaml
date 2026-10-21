@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti/ti,apll-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments APLL clock
+
+maintainers:
+  - Eduard Bostina <egbostina@gmail.com>
+
+allOf:
+  - $ref: /schemas/clock/clock.yaml#
+
+description:
+  This binding assumes a register-mapped APLL with usually two selectable
+  input clocks (reference clock and bypass clock), with analog phase locked
+  loop logic for multiplying the input clock to a desired output clock.
+  This clock also typically supports different operation modes (locked, low
+  power stop etc.) APLL mostly behaves like a subtype of a DPLL, although
+  a simplified one at that.
+
+properties:
+  compatible:
+    enum:
+      - ti,dra7-apll-clock
+      - ti,omap2-apll-clock
+
+  "#clock-cells":
+    const: 0
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+    description: Link phandles of parent clocks (clk-ref and clk-bypass)
+
+  reg:
+    minItems: 2
+    maxItems: 3
+    description: |
+      Address and length of the register set for controlling the APLL.
+      It contains the information of registers in the following order:
+      "control" - contains the control register offset
+      "idlest" - contains the idlest register offset
+      "autoidle" - contains the autoidle register offset (OMAP2 only)
+
+  ti,clock-frequency:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: static clock frequency for the clock (OMAP2 only)
+
+  ti,idlest-shift:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: bit-shift for the idlest field (OMAP2 only)
+
+  ti,bit-shift:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: bit-shift for enable and autoidle fields (OMAP2 only)
+
+required:
+  - compatible
+  - "#clock-cells"
+  - clocks
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    bus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        clock@21c {
+            #clock-cells = <0>;
+            compatible = "ti,dra7-apll-clock";
+            clocks = <&apll_pcie_in_clk_mux>, <&dpll_pcie_ref_ck>;
+            reg = <0x021c>, <0x0220>;
+        };
+
+        clock@500 {
+            #clock-cells = <0>;
+            compatible = "ti,omap2-apll-clock";
+            clocks = <&sys_ck>;
+            ti,bit-shift = <2>;
+            ti,idlest-shift = <8>;
+            ti,clock-frequency = <96000000>;
+            reg = <0x0500>, <0x0530>, <0x0520>;
+        };
+    };

@@ -8,7 +8,7 @@ SPATCH_REQ_VERSION="1.0.4"
 DIR="$(dirname $(readlink -f $0))/.."
 SPATCH="`which ${SPATCH:=spatch}`"
 if [ ! -x "$SPATCH" ]; then
-	echo 'spatch is part of the Coccinelle project and is available at http://coccinelle.lip6.fr/'
+	echo 'spatch is part of the Coccinelle project and is available at https://coccinelle.gitlabpages.inria.fr/website'
 	exit 1
 fi
 

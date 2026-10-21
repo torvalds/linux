@@ -41,11 +41,22 @@ static void udp_error_log(const struct sk_buff *skb,
 	nf_l4proto_log_invalid(skb, state, IPPROTO_UDP, "%s", msg);
 }
 
+static bool udp_validate_len(struct sk_buff *skb,
+			     const struct udphdr *hdr,
+			     unsigned int dataoff)
+{
+	unsigned int udplen = udp_get_len(skb, hdr, dataoff);
+	unsigned int skblen = skb->len - dataoff;
+
+	if (udplen > skblen || udplen < sizeof(*hdr))
+		return false;
+	return true;
+}
+
 static bool udp_error(struct sk_buff *skb,
 		      unsigned int dataoff,
 		      const struct nf_hook_state *state)
 {
-	unsigned int udplen = skb->len - dataoff;
 	const struct udphdr *hdr;
 	struct udphdr _hdr;
 
@@ -57,7 +68,7 @@ static bool udp_error(struct sk_buff *skb,
 	}
 
 	/* Truncated/malformed packets */
-	if (ntohs(hdr->len) > udplen || ntohs(hdr->len) < sizeof(*hdr)) {
+	if (!udp_validate_len(skb, hdr, dataoff)) {
 		udp_error_log(skb, state, "truncated/malformed packet");
 		return true;
 	}

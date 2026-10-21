@@ -323,7 +323,7 @@ static int ls2x_i2c_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, irq, ls2x_i2c_isr, IRQF_SHARED, "ls2x-i2c",
 			       priv);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Unable to request irq %d\n", irq);
+		return ret;
 
 	return devm_i2c_add_adapter(dev, adap);
 }

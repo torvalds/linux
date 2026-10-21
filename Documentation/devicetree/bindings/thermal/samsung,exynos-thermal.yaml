@@ -40,7 +40,7 @@ properties:
     description: |
       The Exynos TMU supports generating interrupts when reaching given
       temperature thresholds. Number of supported thermal trip points depends
-      on the SoC (only first trip points defined in DT will be configured)::
+      on the SoC (only first trip points defined in DT will be configured):
        - most of SoC: 4
        - samsung,exynos5433-tmu: 8
        - samsung,exynos7-tmu: 8
@@ -52,7 +52,7 @@ properties:
       - description: |
           Shared TMU registers.
 
-          Note:: On Exynos5420, the TRIMINFO register is misplaced for TMU
+          Note: On Exynos5420, the TRIMINFO register is misplaced for TMU
           channels 2, 3 and 4 Use "samsung,exynos5420-tmu-ext-triminfo" in
           cases, there is a misplaced register, also provide clock to access
           that base.

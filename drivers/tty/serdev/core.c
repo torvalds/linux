@@ -651,10 +651,10 @@ static int acpi_serdev_do_lookup(struct acpi_device *adev,
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list,
 				     acpi_serdev_parse_resource, lookup);
-	acpi_dev_free_resource_list(&resource_list);
-
 	if (ret < 0)
 		return -EINVAL;
+
+	acpi_dev_free_resource_list(&resource_list);
 
 	return 0;
 }

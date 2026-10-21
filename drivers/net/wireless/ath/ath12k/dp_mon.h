@@ -112,9 +112,7 @@ void ath12k_dp_mon_update_radiotap(struct ath12k_pdev_dp *dp_pdev,
 void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 				   struct napi_struct *napi,
 				   struct sk_buff *msdu,
-				   const struct hal_rx_mon_ppdu_info *ppduinfo,
-				   struct ieee80211_rx_status *status,
-				   u8 decap);
+				   struct ieee80211_rx_status *status);
 struct sk_buff *
 ath12k_dp_mon_rx_merg_msdus(struct ath12k_pdev_dp *dp_pdev,
 			    struct dp_mon_mpdu *mon_mpdu,

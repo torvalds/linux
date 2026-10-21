@@ -29,6 +29,15 @@ struct io_path_stats {
 	atomic64_t io_greater_than_30000_msec;
 	atomic64_t current_max_io_time;
 	atomic64_t ios[FNIC_MQ_MAX_QUEUES];
+
+	atomic64_t nvme_io_reqs_rcvd;
+	atomic64_t nvme_ios_queued_for_rsp;
+	atomic64_t nvme_io_rsps_unqueued;
+	atomic64_t nvme_io_rsps_sending;
+	atomic64_t nvme_io_rsps_sent;
+	atomic64_t nvme_num_ios_in_waitq;
+	atomic64_t nvme_ios_in_waitq_3000_msec;
+	atomic64_t nvme_ios_in_waitq_max_time;
 };
 
 struct abort_stats {
@@ -151,6 +160,17 @@ struct fnic_iport_stats {
 	atomic64_t unsupported_frames_dropped;
 };
 
+struct nvme_host_statistics {
+	atomic64_t nvme_input_requests;
+	atomic64_t nvme_output_requests;
+	atomic64_t nvme_control_requests;
+	atomic64_t nvme_ersps;
+	atomic64_t nvme_ls_requests;
+	atomic64_t nvme_ls_responses;
+	atomic64_t nvme_ls_aborts;
+	atomic64_t nvme_ls_abort_responses;
+};
+
 struct fnic_stats {
 	struct stats_timestamps stats_timestamps;
 	struct io_path_stats io_stats;
@@ -161,10 +181,18 @@ struct fnic_stats {
 	struct vlan_stats vlan_stats;
 	struct fc_host_statistics host_stats;
 	struct misc_stats misc_stats;
+	struct nvme_host_statistics nvme_stats;
 };
 
 struct stats_debug_info {
 	char *debug_buffer;
+	void *i_private;
+	int buf_size;
+	int buffer_len;
+};
+
+struct fnic_nvmef_info {
+	char *info_buffer;
 	void *i_private;
 	int buf_size;
 	int buffer_len;

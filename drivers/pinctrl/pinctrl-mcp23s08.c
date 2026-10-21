@@ -559,11 +559,8 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 	err = devm_request_threaded_irq(chip->parent, mcp->irq, NULL,
 					mcp23s08_irq,
 					irqflags, dev_name(chip->parent), mcp);
-	if (err != 0) {
-		dev_err(chip->parent, "unable to request IRQ#%d: %d\n",
-			mcp->irq, err);
+	if (err)
 		return err;
-	}
 
 	return 0;
 }

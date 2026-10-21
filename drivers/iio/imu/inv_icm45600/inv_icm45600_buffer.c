@@ -422,8 +422,11 @@ int inv_icm45600_buffer_fifo_read(struct inv_icm45600_state *st,
 	if (max > 0 && fifo_nb > max)
 		fifo_nb = max;
 
-	/* Try to read all FIFO data in internal buffer. */
-	st->fifo.count = fifo_nb * packet_size;
+	/*
+	 * Read all FIFO data into the internal buffer, clamping the
+	 * device-reported count to the buffer capacity.
+	 */
+	st->fifo.count = min(fifo_nb * packet_size, INV_ICM45600_FIFO_SIZE_MAX);
 	ret = regmap_noinc_read(st->map, INV_ICM45600_REG_FIFO_DATA,
 				st->fifo.data, st->fifo.count);
 	if (ret == -ENOTSUPP || ret == -EFBIG) {

@@ -42,6 +42,9 @@ struct nf_conntrack_expect {
 	/* Expectation class */
 	unsigned int class;
 
+	/* Event filter mask */
+	u16 event_mask;
+
 	/* Function to call after setup and insertion */
 	void (*expectfn)(struct nf_conn *new,
 			 struct nf_conntrack_expect *this);

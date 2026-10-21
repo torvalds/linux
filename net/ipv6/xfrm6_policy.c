@@ -187,7 +187,7 @@ static void xfrm6_policy_fini(void)
 }
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table xfrm6_policy_table[] = {
+static const struct ctl_table xfrm6_policy_table[] = {
 	{
 		.procname       = "xfrm6_gc_thresh",
 		.data		= &init_net.xfrm.xfrm6_dst_ops.gc_thresh,
@@ -197,18 +197,30 @@ static struct ctl_table xfrm6_policy_table[] = {
 	},
 };
 
-static int __net_init xfrm6_net_sysctl_init(struct net *net)
+static const struct ctl_table *xfrm6_policy_table_dup(struct net *net)
 {
 	struct ctl_table *table;
+
+	table = kmemdup(xfrm6_policy_table, sizeof(xfrm6_policy_table),
+			GFP_KERNEL);
+	if (!table)
+		return NULL;
+
+	table[0].data = &net->xfrm.xfrm6_dst_ops.gc_thresh;
+
+	return table;
+}
+
+static int __net_init xfrm6_net_sysctl_init(struct net *net)
+{
+	const struct ctl_table *table;
 	struct ctl_table_header *hdr;
 
 	table = xfrm6_policy_table;
 	if (!net_eq(net, &init_net)) {
-		table = kmemdup(table, sizeof(xfrm6_policy_table), GFP_KERNEL);
+		table = xfrm6_policy_table_dup(net);
 		if (!table)
 			goto err_alloc;
-
-		table[0].data = &net->xfrm.xfrm6_dst_ops.gc_thresh;
 	}
 
 	hdr = register_net_sysctl_sz(net, "net/ipv6", table,

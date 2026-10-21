@@ -45,7 +45,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1, 2]
         description: |
-          The direction of the dai stream::
+          The direction of the dai stream:
            - Q6ASM_DAI_TX_RX (0) for both tx and rx
            - Q6ASM_DAI_TX (1) for only tx (Capture/Encode)
            - Q6ASM_DAI_RX (2) for only rx (Playback/Decode)

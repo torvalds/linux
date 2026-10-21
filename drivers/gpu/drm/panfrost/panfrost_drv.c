@@ -21,6 +21,7 @@
 #include <drm/drm_utils.h>
 
 #include "panfrost_device.h"
+#include "panfrost_drv.h"
 #include "panfrost_gem.h"
 #include "panfrost_mmu.h"
 #include "panfrost_job.h"

@@ -321,6 +321,24 @@ out_inode:
 	return ret;
 }
 
+static int vfio_device_set_noiommu_and_name(struct vfio_device *device, enum vfio_group_type type)
+{
+	if (IS_ENABLED(CONFIG_IOMMUFD_NOIOMMU) && vfio_noiommu &&
+	    !device->dev->iommu && type == VFIO_IOMMU)
+		device->noiommu = true;
+
+	/*
+	 * device->noiommu records no-IOMMU support for the standalone cdev
+	 * interface. VFIO_NOIOMMU enables both group and cdev no-IOMMU; when
+	 * cdev no-IOMMU is available, device->noiommu is set before
+	 * vfio_device_set_group(), so the cdev is named noiommu-vfio%d up
+	 * front. If IOMMUFD_NOIOMMU is unavailable, no-IOMMU devices are
+	 * limited to the group interface and do not receive a device cdev.
+	 */
+	return dev_set_name(&device->device, "%svfio%d",
+		     device->noiommu ? "noiommu-" : "", device->index);
+}
+
 static int __vfio_register_dev(struct vfio_device *device,
 			       enum vfio_group_type type)
 {
@@ -340,13 +358,19 @@ static int __vfio_register_dev(struct vfio_device *device,
 	if (!device->dev_set)
 		vfio_assign_device_set(device, device);
 
-	ret = dev_set_name(&device->device, "vfio%d", device->index);
+	ret = vfio_device_set_noiommu_and_name(device, type);
 	if (ret)
 		return ret;
 
 	ret = vfio_device_set_group(device, type);
 	if (ret)
 		return ret;
+
+	if (vfio_device_is_noiommu(device) && IS_ENABLED(CONFIG_IOMMUFD_NOIOMMU)) {
+		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+		dev_warn(device->dev,
+			 "Adding kernel taint for vfio-noiommu cdev\n");
+	}
 
 	/*
 	 * VFIO always sets IOMMU_CACHE because we offer no way for userspace to

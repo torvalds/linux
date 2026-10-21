@@ -5,6 +5,8 @@
  * Copyright (c) 2003-2010 Cavium Networks
  */
 
+#include <asm-generic/errno-base.h>
+#include <linux/dev_printk.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -445,7 +447,7 @@ void cvm_oct_poll_controller(struct net_device *dev)
 }
 #endif
 
-void cvm_oct_rx_initialize(struct platform_device *pdev)
+int cvm_oct_rx_initialize(struct platform_device *pdev)
 {
 	int i;
 	struct net_device *dev_for_napi = NULL;
@@ -459,8 +461,10 @@ void cvm_oct_rx_initialize(struct platform_device *pdev)
 		}
 	}
 
-	if (!dev_for_napi)
-		panic("No net_devices were allocated.");
+	if (!dev_for_napi) {
+		dev_err(&pdev->dev, "No net_devices were allocated.");
+		return -ENODEV;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(plat->rx_group); i++) {
 		int ret;
@@ -479,9 +483,10 @@ void cvm_oct_rx_initialize(struct platform_device *pdev)
 		/* Register an IRQ handler to receive POW interrupts */
 		ret = request_irq(rx_group[i].irq, cvm_oct_do_interrupt, 0,
 				  "Ethernet", &rx_group[i].napi);
-		if (ret)
-			panic("Could not acquire Ethernet IRQ %d\n",
-			      rx_group[i].irq);
+		if (ret) {
+			dev_err(&pdev->dev, "Could not acquire Ethernet IRQ %d\n", rx_group[i].irq);
+			return ret;
+		}
 
 		disable_irq_nosync(rx_group[i].irq);
 
@@ -518,6 +523,7 @@ void cvm_oct_rx_initialize(struct platform_device *pdev)
 		napi_schedule(&rx_group[i].napi);
 	}
 	atomic_inc(&oct_rx_ready);
+	return 0;
 }
 
 void cvm_oct_rx_shutdown(struct platform_device *pdev)
@@ -534,6 +540,8 @@ void cvm_oct_rx_shutdown(struct platform_device *pdev)
 			cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(i), 0);
 		else
 			cvmx_write_csr(CVMX_POW_WQ_INT_THRX(i), 0);
+
+		napi_disable(&plat->rx_group[i].napi);
 
 		/* Free the interrupt handler */
 		free_irq(plat->rx_group[i].irq, &plat->rx_group[i].napi);

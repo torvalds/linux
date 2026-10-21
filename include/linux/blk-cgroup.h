@@ -14,6 +14,8 @@
  * 	              Nauman Rafique <nauman@google.com>
  */
 
+#include <linux/atomic.h>
+#include <linux/compiler.h>
 #include <linux/types.h>
 
 struct bio;
@@ -24,10 +26,29 @@ struct gendisk;
 
 #ifdef CONFIG_BLK_CGROUP
 extern struct cgroup_subsys_state * const blkcg_root_css;
+extern atomic_t blkcg_nr_congested;
 
 void blkcg_schedule_throttle(struct gendisk *disk, bool use_memdelay);
 void blkcg_maybe_throttle_current(void);
-bool blk_cgroup_congested(void);
+bool __blk_cgroup_congested(void);
+
+/**
+ * blk_cgroup_congested - is the current task in a throttled blkcg?
+ *
+ * Called from mm hot paths where the answer is almost always false, so keep
+ * that case to a load and a branch and only walk the hierarchy out of line
+ * when something in the system really is throttled.
+ *
+ * Return: %true if the current task's blkcg or any of its ancestors is
+ * throttled, %false otherwise.
+ */
+static inline bool blk_cgroup_congested(void)
+{
+	if (likely(!atomic_read(&blkcg_nr_congested)))
+		return false;
+	return __blk_cgroup_congested();
+}
+
 void blkcg_pin_online(struct cgroup_subsys_state *blkcg_css);
 void blkcg_unpin_online(struct cgroup_subsys_state *blkcg_css);
 struct list_head *blkcg_get_cgwb_list(struct cgroup_subsys_state *css);

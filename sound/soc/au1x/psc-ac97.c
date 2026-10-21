@@ -210,9 +210,7 @@ static int au1xpsc_ac97_hw_params(struct snd_pcm_substream *substream,
 {
 	struct au1xpsc_audio_data *pscdata = snd_soc_dai_get_drvdata(dai);
 	unsigned long r, ro, stat;
-	int chans, t, stype = substream->stream;
-
-	chans = params_channels(params);
+	int t, stype = substream->stream;
 
 	r = ro = __raw_readl(AC97_CFG(pscdata));
 	stat = __raw_readl(AC97_STAT(pscdata));

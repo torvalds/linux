@@ -1525,6 +1525,7 @@ static const struct of_device_id mt7988_pinctrl_of_match[] = {
 	{ .compatible = "mediatek,mt7988-pinctrl" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, mt7988_pinctrl_of_match);
 
 static int mt7988_pinctrl_probe(struct platform_device *pdev)
 {
@@ -1544,3 +1545,7 @@ static int __init mt7988_pinctrl_init(void)
 	return platform_driver_register(&mt7988_pinctrl_driver);
 }
 arch_initcall(mt7988_pinctrl_init);
+
+MODULE_DESCRIPTION("MediaTek MT7988 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("MTK_PINCTRL");

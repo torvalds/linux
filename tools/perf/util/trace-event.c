@@ -26,7 +26,11 @@ static bool tevent_initialized;
 
 int trace_event__init(struct trace_event *t)
 {
-	struct tep_handle *pevent = tep_alloc();
+	struct tep_handle *pevent;
+
+	trace_event__cleanup(t);
+
+	pevent = tep_alloc();
 
 	if (pevent) {
 		t->plugin_list = tep_load_plugins(pevent);
@@ -63,8 +67,13 @@ int trace_event__register_resolver(struct machine *machine,
 
 void trace_event__cleanup(struct trace_event *t)
 {
+	if (!t->pevent)
+		return;
+
 	tep_unload_plugins(t->plugin_list, t->pevent);
 	tep_free(t->pevent);
+	t->pevent = NULL;
+	t->plugin_list = NULL;
 }
 
 /*

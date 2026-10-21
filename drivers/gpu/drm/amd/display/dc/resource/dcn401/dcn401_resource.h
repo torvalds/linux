@@ -7,6 +7,7 @@
 
 #include "core_types.h"
 #include "dcn32/dcn32_resource.h"
+#include "dcn35/dcn35_resource.h"
 #include "dcn401/dcn401_hubp.h"
 
 #define TO_DCN401_RES_POOL(pool)\
@@ -234,6 +235,10 @@ int dcn401_get_power_profile(const struct dc_state *context);
 	SRI_ARR(DP_DPHY_INTERNAL_CTRL, DP, id), \
 	SRI_ARR(DIG_BE_CLK_CNTL, DIG, id),\
 	SR_ARR(DIO_CLK_CNTL, id)
+
+#define LE_DCN60_REG_LIST_RI(id)                                             \
+	SRI_ARR(HDCP_I2C_CONTROL_0, DIG, id),                                    \
+	SRI_ARR(HDCP_INT_CONTROL, DIG, id)
 
 /* DPP */
 #define DPP_REG_LIST_DCN401_COMMON_RI(id)                                    \
@@ -622,7 +627,8 @@ int dcn401_get_power_profile(const struct dc_state *context);
 	SR(DCHUBBUB_MEM_PWR_MODE_CTRL),                                          \
 	SR(DCHUBBUB_TIMEOUT_DETECTION_CTRL1),                                    \
 	SR(DCHUBBUB_TIMEOUT_DETECTION_CTRL2),									 \
-	SR(DCHUBBUB_CTRL_STATUS)
+	SR(DCHUBBUB_CTRL_STATUS),                                                \
+	SR(DCHUBBUB_ARB_MALL_CNTL)
 
 /* DCCG */
 
@@ -658,5 +664,8 @@ int dcn401_get_power_profile(const struct dc_state *context);
 	SR(SYMCLKB_CLOCK_ENABLE),\
 	SR(SYMCLKC_CLOCK_ENABLE),\
 	SR(SYMCLKD_CLOCK_ENABLE)
+
+#define MCIF_WB_COMMON_REG_LIST_DCN4_01_RI(inst)  \
+	MCIF_WB_COMMON_REG_LIST_DCN3_5_RI(inst)
 
 #endif /* _DCN401_RESOURCE_H_ */

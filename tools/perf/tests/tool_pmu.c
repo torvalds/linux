@@ -40,9 +40,10 @@ static int do_test(enum tool_pmu_event ev, bool with_pmu)
 	}
 
 	ret = TEST_OK;
-	if (with_pmu ? (evlist->core.nr_entries != 1) : (evlist->core.nr_entries < 1)) {
+	if (with_pmu ? (evlist__nr_entries(evlist) != 1)
+		     : (evlist__nr_entries(evlist) < 1)) {
 		pr_debug("FAILED %s:%d Unexpected number of events for '%s' of %d\n",
-			 __FILE__, __LINE__, str, evlist->core.nr_entries);
+			 __FILE__, __LINE__, str, evlist__nr_entries(evlist));
 		ret = TEST_FAIL;
 		goto out;
 	}
@@ -67,7 +68,7 @@ static int do_test(enum tool_pmu_event ev, bool with_pmu)
 
 out:
 	parse_events_error__exit(&err);
-	evlist__delete(evlist);
+	evlist__put(evlist);
 	return ret;
 }
 

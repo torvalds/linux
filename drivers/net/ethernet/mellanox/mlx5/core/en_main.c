@@ -695,7 +695,7 @@ static void mlx5e_free_mpwqe_rq_drop_page(struct mlx5e_rq *rq)
 
 	dma_unmap_page(rq->pdev, rq->wqe_overflow.addr, page_size,
 		       rq->buff.map_dir);
-	 __free_pages(rq->wqe_overflow.page, page_order);
+	__free_pages(rq->wqe_overflow.page, page_order);
 }
 
 static int mlx5e_init_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *params,
@@ -3245,9 +3245,9 @@ static int mlx5e_update_tc_and_tx_queues(struct mlx5e_priv *priv)
 	int i;
 
 	old_num_txqs = netdev->real_num_tx_queues;
-	old_ntc = netdev->num_tc ? : 1;
+	old_ntc = netdev_get_num_tc(netdev) ? : 1;
 	for (i = 0; i < ARRAY_SIZE(old_tc_to_txq); i++)
-		old_tc_to_txq[i] = netdev->tc_to_txq[i];
+		old_tc_to_txq[i].combined = READ_ONCE(netdev->tc_to_txq[i].combined);
 
 	nch = priv->channels.params.num_channels;
 	ntc = priv->channels.params.mqprio.num_tc;
@@ -6195,7 +6195,7 @@ static int mlx5e_init_nic_tx(struct mlx5e_priv *priv)
 	return 0;
 }
 
-static void mlx5e_nic_enable(struct mlx5e_priv *priv)
+static int mlx5e_nic_enable(struct mlx5e_priv *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -6203,7 +6203,9 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 
 	mlx5e_fs_init_l2_addr(priv->fs, netdev);
 	mlx5e_ipsec_init(priv);
-	mlx5e_psp_register(priv);
+	err = mlx5e_psp_register(priv);
+	if (err)
+		goto out_ipsec_cleanup;
 
 	err = mlx5e_macsec_init(priv);
 	if (err)
@@ -6226,7 +6228,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	mlx5e_pcie_cong_event_init(priv);
 	mlx5e_hv_vhca_stats_create(priv);
 	if (netdev->reg_state != NETREG_REGISTERED)
-		return;
+		return 0;
 	mlx5e_dcbnl_init_app(priv);
 
 	mlx5e_nic_set_rx_mode(priv);
@@ -6239,6 +6241,12 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	netdev_unlock(netdev);
 	netif_device_attach(netdev);
 	rtnl_unlock();
+
+	return 0;
+
+out_ipsec_cleanup:
+	mlx5e_ipsec_cleanup(priv);
+	return err;
 }
 
 static void mlx5e_nic_disable(struct mlx5e_priv *priv)
@@ -6613,13 +6621,18 @@ int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 	if (err)
 		goto err_cleanup_tx;
 
-	if (profile->enable)
-		profile->enable(priv);
+	if (profile->enable) {
+		err = profile->enable(priv);
+		if (err)
+			goto err_cleanup_rx;
+	}
 
 	mlx5e_update_features(priv->netdev);
 
 	return 0;
 
+err_cleanup_rx:
+	profile->cleanup_rx(priv);
 err_cleanup_tx:
 	profile->cleanup_tx(priv);
 

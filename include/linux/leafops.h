@@ -81,7 +81,7 @@ static inline pte_t softleaf_to_pte(softleaf_t entry)
 	return swp_entry_to_pte(entry);
 }
 
-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+#ifdef CONFIG_ARCH_HAS_PMD_SOFTLEAVES
 /**
  * softleaf_from_pmd() - Obtain a leaf entry from a PMD entry.
  * @pmd: PMD entry.
@@ -100,12 +100,27 @@ static inline softleaf_t softleaf_from_pmd(pmd_t pmd)
 
 	if (pmd_swp_soft_dirty(pmd))
 		pmd = pmd_swp_clear_soft_dirty(pmd);
-	if (pmd_swp_uffd_wp(pmd))
-		pmd = pmd_swp_clear_uffd_wp(pmd);
+	if (pmd_swp_uffd(pmd))
+		pmd = pmd_swp_clear_uffd(pmd);
 	arch_entry = __pmd_to_swp_entry(pmd);
 
 	/* Temporary until swp_entry_t eliminated. */
 	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
+}
+
+/**
+ * softleaf_to_pmd() - Obtain a PMD entry from a leaf entry.
+ * @entry: Leaf entry.
+ *
+ * This generates an architecture-specific PMD entry that can be utilised to
+ * encode the metadata the leaf entry encodes.
+ *
+ * Returns: Architecture-specific PMD entry encoding leaf entry.
+ */
+static inline pmd_t softleaf_to_pmd(softleaf_t entry)
+{
+	/* Temporary until swp_entry_t eliminated. */
+	return swp_entry_to_pmd(entry);
 }
 
 #else
@@ -113,6 +128,11 @@ static inline softleaf_t softleaf_from_pmd(pmd_t pmd)
 static inline softleaf_t softleaf_from_pmd(pmd_t pmd)
 {
 	return softleaf_mk_none();
+}
+
+static inline pmd_t softleaf_to_pmd(softleaf_t entry)
+{
+	return __pmd(0);
 }
 
 #endif
@@ -567,7 +587,7 @@ static inline bool pte_is_uffd_marker(pte_t pte)
 	return false;
 }
 
-#if defined(CONFIG_ZONE_DEVICE) && defined(CONFIG_ARCH_ENABLE_THP_MIGRATION)
+#if defined(CONFIG_ZONE_DEVICE) && defined(CONFIG_ARCH_HAS_PMD_SOFTLEAVES)
 
 /**
  * pmd_is_device_private_entry() - Check if PMD contains a device private swap
@@ -586,14 +606,14 @@ static inline bool pmd_is_device_private_entry(pmd_t pmd)
 	return softleaf_is_device_private(softleaf_from_pmd(pmd));
 }
 
-#else  /* CONFIG_ZONE_DEVICE && CONFIG_ARCH_ENABLE_THP_MIGRATION */
+#else  /* CONFIG_ZONE_DEVICE && CONFIG_ARCH_HAS_PMD_SOFTLEAVES */
 
 static inline bool pmd_is_device_private_entry(pmd_t pmd)
 {
 	return false;
 }
 
-#endif /* CONFIG_ZONE_DEVICE && CONFIG_ARCH_ENABLE_THP_MIGRATION */
+#endif /* CONFIG_ZONE_DEVICE && CONFIG_ARCH_HAS_PMD_SOFTLEAVES */
 
 /**
  * pmd_is_migration_entry() - Does this PMD entry encode a migration entry?

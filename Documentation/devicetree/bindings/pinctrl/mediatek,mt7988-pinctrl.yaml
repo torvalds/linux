@@ -573,7 +573,7 @@ examples:
         uart0_pins: uart0-pins {
           mux {
             function = "uart";
-            groups =  "uart0";
+            groups = "uart0";
           };
         };
       };

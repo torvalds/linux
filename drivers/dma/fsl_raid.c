@@ -242,9 +242,9 @@ static void fill_cfd_frame(struct fsl_re_cmpnd_frame *cf, u8 index,
 	u32 efrl = length & FSL_RE_CF_LENGTH_MASK;
 
 	efrl |= final << FSL_RE_CF_FINAL_SHIFT;
-	cf[index].efrl32 = efrl;
-	cf[index].addr_high = upper_32_bits(addr);
-	cf[index].addr_low = lower_32_bits(addr);
+	cf[index].efrl32 = cpu_to_be32(efrl);
+	cf[index].addr_high = cpu_to_be32(upper_32_bits(addr));
+	cf[index].addr_low = cpu_to_be32(lower_32_bits(addr));
 }
 
 static struct fsl_re_desc *fsl_re_init_desc(struct fsl_re_chan *re_chan,
@@ -256,9 +256,10 @@ static struct fsl_re_desc *fsl_re_init_desc(struct fsl_re_chan *re_chan,
 	dma_async_tx_descriptor_init(&desc->async_tx, &re_chan->chan);
 	INIT_LIST_HEAD(&desc->node);
 
-	desc->hwdesc.fmt32 = FSL_RE_FRAME_FORMAT << FSL_RE_HWDESC_FMT_SHIFT;
-	desc->hwdesc.lbea32 = upper_32_bits(paddr);
-	desc->hwdesc.addr_low = lower_32_bits(paddr);
+	desc->hwdesc.fmt32 = cpu_to_be32(FSL_RE_FRAME_FORMAT <<
+					  FSL_RE_HWDESC_FMT_SHIFT);
+	desc->hwdesc.lbea32 = cpu_to_be32(upper_32_bits(paddr));
+	desc->hwdesc.addr_low = cpu_to_be32(lower_32_bits(paddr));
 	desc->cf_addr = cf;
 	desc->cf_paddr = paddr;
 
@@ -374,11 +375,11 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_genq(
 	for (i = 2, j = 0; j < save_src_cnt; i++, j++)
 		fill_cfd_frame(cf, i, len, src[j], 0);
 
+	/* Fill the last frame and mark it final */
 	if (cont_q)
-		fill_cfd_frame(cf, i++, len, dest, 0);
-
-	/* Setting the final bit in the last source buffer frame in CFD */
-	cf[i - 1].efrl32 |= 1 << FSL_RE_CF_FINAL_SHIFT;
+		fill_cfd_frame(cf, i, len, dest, 1);
+	else
+		fill_cfd_frame(cf, i - 1, len, src[j - 1], 1);
 
 	return &desc->async_tx;
 }
@@ -504,15 +505,15 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_pq(
 			p[save_src_cnt + 2] = 1;
 			fill_cfd_frame(cf, i++, len, dest[0], 0);
 			fill_cfd_frame(cf, i++, len, dest[1], 0);
-			fill_cfd_frame(cf, i++, len, dest[1], 0);
+			fill_cfd_frame(cf, i++, len, dest[1], 1);
 		} else {
 			dev_err(re_chan->dev, "PQ tx continuation error!\n");
 			return NULL;
 		}
+	} else {
+		/* Mark the last source buffer frame final */
+		fill_cfd_frame(cf, i - 1, len, src[j - 1], 1);
 	}
-
-	/* Setting the final bit in the last source buffer frame in CFD */
-	cf[i - 1].efrl32 |= 1 << FSL_RE_CF_FINAL_SHIFT;
 
 	return &desc->async_tx;
 }
@@ -656,8 +657,7 @@ static int fsl_re_chan_probe(struct platform_device *ofdev,
 		goto err_free;
 	}
 
-	chan->jrregs = (struct fsl_re_chan_cfg *)((u8 *)re_priv->re_regs +
-			off + ptr);
+	chan->jrregs = re_priv->base + off + ptr;
 
 	/* read irq property from dts */
 	chan->irq = irq_of_parse_and_map(np, 0);
@@ -745,38 +745,36 @@ err_free:
 /* Probe function for RAID Engine */
 static int fsl_re_probe(struct platform_device *ofdev)
 {
+	struct fsl_re_ctrl __iomem *re_regs;
 	struct fsl_re_drv_private *re_priv;
 	struct device_node *child;
 	u32 off;
 	u8 ridx = 0;
 	struct dma_device *dma_dev;
-	struct resource *res;
 	int rc;
 	struct device *dev = &ofdev->dev;
+
+	/* IOMAP the entire RAID Engine region */
+	re_regs = devm_platform_ioremap_resource(ofdev, 0);
+	if (IS_ERR(re_regs))
+		return PTR_ERR(re_regs);
 
 	re_priv = devm_kzalloc(dev, sizeof(*re_priv), GFP_KERNEL);
 	if (!re_priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	/* IOMAP the entire RAID Engine region */
-	re_priv->re_regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (!re_priv->re_regs)
-		return -EBUSY;
+	re_priv->base = re_regs;
 
 	/* Program the RE mode */
-	out_be32(&re_priv->re_regs->global_config, FSL_RE_NON_DPAA_MODE);
+	out_be32(&re_regs->global_config, FSL_RE_NON_DPAA_MODE);
 
 	/* Program Galois Field polynomial */
-	out_be32(&re_priv->re_regs->galois_field_config, FSL_RE_GFM_POLY);
+	out_be32(&re_regs->galois_field_config, FSL_RE_GFM_POLY);
 
 	dev_info(dev, "version %x, mode %x, gfp %x\n",
-		 in_be32(&re_priv->re_regs->re_version_id),
-		 in_be32(&re_priv->re_regs->global_config),
-		 in_be32(&re_priv->re_regs->galois_field_config));
+		 in_be32(&re_regs->re_version_id),
+		 in_be32(&re_regs->global_config),
+		 in_be32(&re_regs->galois_field_config));
 
 	dma_dev = &re_priv->dma_dev;
 	dma_dev->dev = dev;

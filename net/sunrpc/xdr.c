@@ -371,8 +371,7 @@ int xdr_buf_to_sg_alloc(const struct xdr_buf *buf, unsigned int offset,
 		unsigned int overflow_nents = nsg - sg_head_nents + 1;
 		struct scatterlist *overflow;
 
-		overflow = kmalloc_array(overflow_nents, sizeof(*overflow),
-					 gfp);
+		overflow = kmalloc_objs(*overflow, overflow_nents, gfp);
 		if (!overflow)
 			return -ENOMEM;
 
@@ -2049,7 +2048,7 @@ void xdr_buf_trim(struct xdr_buf *buf, unsigned int len)
 		trim -= cur;
 	}
 fix_len:
-	buf->len -= (len - trim);
+	buf->len -= min_t(unsigned int, buf->len, len - trim);
 }
 EXPORT_SYMBOL_GPL(xdr_buf_trim);
 

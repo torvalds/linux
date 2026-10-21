@@ -9411,11 +9411,9 @@ static int qla4xxx_eh_target_reset(struct scsi_cmnd *cmd)
  * This routine finds that if reset host is called in EH
  * scenario or from some application like sg_reset
  **/
-static int qla4xxx_is_eh_active(struct Scsi_Host *shost)
+static bool qla4xxx_is_eh_active(struct Scsi_Host *shost)
 {
-	if (shost->shost_state == SHOST_RECOVERY)
-		return 1;
-	return 0;
+	return scsi_get_host_state(shost) == SHOST_RECOVERY;
 }
 
 /**

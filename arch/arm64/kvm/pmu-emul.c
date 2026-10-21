@@ -838,9 +838,9 @@ static u64 __compute_pmceid(struct arm_pmu *pmu, bool pmceid1)
 	return ((u64)hi[pmceid1] << 32) | lo[pmceid1];
 }
 
-static u64 compute_pmceid0(struct arm_pmu *pmu)
+static u64 compute_pmceid0(struct kvm_vcpu *vcpu)
 {
-	u64 val = __compute_pmceid(pmu, 0);
+	u64 val = __compute_pmceid(vcpu->kvm->arch.arm_pmu, 0);
 
 	/* always support SW_INCR */
 	val |= BIT(ARMV8_PMUV3_PERFCTR_SW_INCR);
@@ -849,32 +849,33 @@ static u64 compute_pmceid0(struct arm_pmu *pmu)
 	return val;
 }
 
-static u64 compute_pmceid1(struct arm_pmu *pmu)
+static u64 compute_pmceid1(struct kvm_vcpu *vcpu)
 {
-	u64 val = __compute_pmceid(pmu, 1);
+	u64 val = __compute_pmceid(vcpu->kvm->arch.arm_pmu, 1);
 
 	/*
-	 * Don't advertise STALL_SLOT*, as PMMIR_EL0 is handled
-	 * as RAZ
+	 * If KVM_ARM_VCPU_PMU_V3_STRICT is not set, PMMIR_EL1 is
+	 * unconditionally RAZ, so don't advertise STALL_SLOT* events.
 	 */
-	val &= ~(BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT - 32) |
-		 BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT_FRONTEND - 32) |
-		 BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT_BACKEND - 32));
+	if (!kvm_vcpu_has_pmuv3_strict(vcpu))
+		val &= ~(BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT - 32) |
+			 BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT_FRONTEND - 32) |
+			 BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT_BACKEND - 32));
+
 	return val;
 }
 
 u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
 {
-	struct arm_pmu *cpu_pmu = vcpu->kvm->arch.arm_pmu;
 	unsigned long *bmap = vcpu->kvm->arch.pmu_filter;
 	u64 val, mask = 0;
 	int base, i, nr_events;
 
 	if (!pmceid1) {
-		val = compute_pmceid0(cpu_pmu);
+		val = compute_pmceid0(vcpu);
 		base = 0;
 	} else {
-		val = compute_pmceid1(cpu_pmu);
+		val = compute_pmceid1(vcpu);
 		base = 32;
 	}
 
@@ -938,6 +939,10 @@ int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 
 static int kvm_arm_pmu_v3_init(struct kvm_vcpu *vcpu)
 {
+	/* Only possible when using KVM_ARM_VCPU_PMU_V3_STRICT */
+	if (!vcpu->kvm->arch.arm_pmu)
+		return -ENXIO;
+
 	if (irqchip_in_kernel(vcpu->kvm)) {
 		int ret;
 
@@ -1009,6 +1014,14 @@ u8 kvm_arm_pmu_get_max_counters(struct kvm *kvm)
 	struct arm_pmu *arm_pmu = kvm->arch.arm_pmu;
 
 	/*
+	 * Under KVM_ARM_VCPU_PMU_V3_STRICT no PMU exists until userspace sets
+	 * one, so this can be reached before arm_pmu is set. Report no
+	 * counters in that case.
+	 */
+	if (!arm_pmu)
+		return 0;
+
+	/*
 	 * PMUv3 requires that all event counters are capable of counting any
 	 * event, though the same may not be true of non-PMUv3 hardware.
 	 */
@@ -1049,7 +1062,8 @@ static void kvm_arm_set_pmu(struct kvm *kvm, struct arm_pmu *arm_pmu)
 }
 
 /**
- * kvm_arm_set_default_pmu - No PMU set, get the default one.
+ * kvm_arm_set_default_pmu - No PMU set and KVM_ARM_VCPU_PMU_V3_STRICT not
+ * set, get the default one.
  * @kvm: The kvm pointer
  *
  * The observant among you will notice that the supported_cpus
@@ -1092,6 +1106,17 @@ static int kvm_arm_pmu_v3_set_pmu(struct kvm_vcpu *vcpu, int pmu_id)
 
 			kvm_arm_set_pmu(kvm, arm_pmu);
 			cpumask_copy(kvm->arch.supported_cpus, &arm_pmu->supported_cpus);
+
+			/*
+			 * Since a specific PMU is explicitly selected,
+			 * PMMIR_EL1.SLOTS is deterministic to the guest.
+			 * If KVM_ARM_VCPU_PMU_V3_STRICT is set, snapshot
+			 * the value to allow the guest to read it.
+			 */
+			if (kvm_vcpu_has_pmuv3_strict(vcpu))
+				kvm->arch.pmmir_slots =
+					FIELD_GET(ARMV8_PMU_SLOTS,
+						  arm_pmu->reg_pmmir);
 			ret = 0;
 			break;
 		}
@@ -1177,6 +1202,9 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 
 		if (kvm_vm_has_ran_once(kvm))
 			return -EBUSY;
+
+		if (!kvm->arch.arm_pmu)
+			return -ENXIO;
 
 		if (!kvm->arch.pmu_filter) {
 			kvm->arch.pmu_filter = bitmap_alloc(nr_events, GFP_KERNEL_ACCOUNT);

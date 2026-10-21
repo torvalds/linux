@@ -18,11 +18,11 @@ void evlist__init_trace_event_sample_raw(struct evlist *evlist, struct perf_env 
 	uint16_t e_machine = perf_env__e_machine(env, /*e_flags=*/NULL);
 
 	if (e_machine == EM_S390) {
-		evlist->trace_event_sample_raw = evlist__s390_sample_raw;
+		evlist__set_trace_event_sample_raw(evlist, evlist__s390_sample_raw);
 	} else if (e_machine == EM_X86_64 || e_machine == EM_386) {
 		const char *cpuid = perf_env__cpuid(env);
 
 		if (cpuid && strstarts(cpuid, "AuthenticAMD") && evlist__has_amd_ibs(evlist))
-			evlist->trace_event_sample_raw = evlist__amd_sample_raw;
+			evlist__set_trace_event_sample_raw(evlist, evlist__amd_sample_raw);
 	}
 }

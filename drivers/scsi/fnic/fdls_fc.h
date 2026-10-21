@@ -30,6 +30,9 @@
 #include <linux/if_ether.h>
 #include <scsi/fc/fc_encaps.h>
 #include <scsi/fc/fc_fcoe.h>
+#include <linux/nvme.h>
+#include <linux/nvme-fc.h>
+#include <linux/nvme-fc-driver.h>
 
 #define FDLS_MIN_FRAMES	(32)
 #define FDLS_MIN_FRAME_ELEM	(4)
@@ -38,6 +41,9 @@
 #define FNIC_FCP_SP_INITIATOR   0x00000020
 #define FNIC_FCP_SP_CONF_CMPL   0x00000080
 #define FNIC_FCP_SP_RETRY       0x00000100
+
+#define FNIC_NVME_SP_INITIATOR   0x00000020
+#define FNIC_NVME_SP_SLER        0x00000100
 
 #define FNIC_FC_CONCUR_SEQS    (0xFF)
 #define FNIC_FC_RO_INFO        (0x1F)
@@ -50,6 +56,7 @@
 
 #define FNIC_FCP_RSP_FCTL      (0x000099)
 #define FNIC_REQ_ABTS_FCTL     (0x000009)
+#define FNIC_NVME_LS_REQ_FCTL  (0x000029)
 
 #define FNIC_FC_PH_VER_HI      (0x20)
 #define FNIC_FC_PH_VER_LO      (0x20)

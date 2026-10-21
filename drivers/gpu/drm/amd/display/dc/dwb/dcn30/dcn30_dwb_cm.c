@@ -371,7 +371,8 @@ void dwb3_set_gamut_remap(
 		for (i = 0; i < 12; i++)
 			arr_matrix[i] = adjust.temperature_matrix[i];
 
-		convert_float_matrix(arr_reg_val, arr_matrix, 12);
+		convert_float_matrix(arr_reg_val, arr_matrix,
+			CM_GAMUT_REMAP_COEF_FORMAT_S2_13, 12);
 
 		REG_GET(DWB_GAMUT_REMAP_MODE, DWB_GAMUT_REMAP_MODE_CURRENT, &current_mode);
 

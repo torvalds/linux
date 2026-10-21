@@ -1570,7 +1570,7 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 	if (status)
 		return status;
 
-	return status;
+	return 0;
 }
 
 int ath6kl_init_hw_params(struct ath6kl *ar)

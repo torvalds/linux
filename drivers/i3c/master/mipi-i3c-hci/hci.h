@@ -30,6 +30,11 @@
 #define reg_set(r, v)		reg_write(r, reg_read(r) | (v))
 #define reg_clear(r, v)		reg_write(r, reg_read(r) & ~(v))
 
+/* helper macro for HCI version check */
+#define hci_version_at_least(hci, maj, min) \
+	((hci)->version_major > (maj) || \
+	((hci)->version_major == (maj) && (hci)->version_minor >= (min)))
+
 struct hci_cmd_ops;
 
 struct dat_words {
@@ -183,6 +188,8 @@ void amd_set_od_pp_timing(struct i3c_hci *hci);
 void amd_set_resp_buf_thld(struct i3c_hci *hci);
 void i3c_hci_sync_irq_inactive(struct i3c_hci *hci);
 int i3c_hci_process_xfer(struct i3c_hci *hci, struct hci_xfer *xfer, int n);
+
+struct device *i3c_hci_sysdev(struct device *dev);
 
 #define DEFAULT_AUTOSUSPEND_DELAY_MS 1000
 

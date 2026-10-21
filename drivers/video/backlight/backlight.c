@@ -139,7 +139,7 @@ static ssize_t bl_power_show(struct device *dev, struct device_attribute *attr,
 {
 	struct backlight_device *bd = to_backlight_device(dev);
 
-	return sprintf(buf, "%d\n", bd->props.power);
+	return sysfs_emit(buf, "%d\n", bd->props.power);
 }
 
 static ssize_t bl_power_store(struct device *dev, struct device_attribute *attr,
@@ -180,7 +180,7 @@ static ssize_t brightness_show(struct device *dev,
 {
 	struct backlight_device *bd = to_backlight_device(dev);
 
-	return sprintf(buf, "%d\n", bd->props.brightness);
+	return sysfs_emit(buf, "%d\n", bd->props.brightness);
 }
 
 int backlight_device_set_brightness(struct backlight_device *bd,
@@ -228,7 +228,7 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr,
 {
 	struct backlight_device *bd = to_backlight_device(dev);
 
-	return sprintf(buf, "%s\n", backlight_types[bd->props.type]);
+	return sysfs_emit(buf, "%s\n", backlight_types[bd->props.type]);
 }
 static DEVICE_ATTR_RO(type);
 
@@ -237,7 +237,7 @@ static ssize_t max_brightness_show(struct device *dev,
 {
 	struct backlight_device *bd = to_backlight_device(dev);
 
-	return sprintf(buf, "%d\n", bd->props.max_brightness);
+	return sysfs_emit(buf, "%d\n", bd->props.max_brightness);
 }
 static DEVICE_ATTR_RO(max_brightness);
 
@@ -251,9 +251,9 @@ static ssize_t actual_brightness_show(struct device *dev,
 	if (bd->ops && bd->ops->get_brightness) {
 		rc = bd->ops->get_brightness(bd);
 		if (rc >= 0)
-			rc = sprintf(buf, "%d\n", rc);
+			rc = sysfs_emit(buf, "%d\n", rc);
 	} else {
-		rc = sprintf(buf, "%d\n", bd->props.brightness);
+		rc = sysfs_emit(buf, "%d\n", bd->props.brightness);
 	}
 	mutex_unlock(&bd->ops_lock);
 
@@ -267,9 +267,9 @@ static ssize_t scale_show(struct device *dev,
 	struct backlight_device *bd = to_backlight_device(dev);
 
 	if (WARN_ON(bd->props.scale > BACKLIGHT_SCALE_NON_LINEAR))
-		return sprintf(buf, "unknown\n");
+		return sysfs_emit(buf, "unknown\n");
 
-	return sprintf(buf, "%s\n", backlight_scale_types[bd->props.scale]);
+	return sysfs_emit(buf, "%s\n", backlight_scale_types[bd->props.scale]);
 }
 static DEVICE_ATTR_RO(scale);
 

@@ -27,7 +27,7 @@ struct page_list {
 	struct page *page;
 };
 
-typedef void (*io_notify_fn)(unsigned int long error, void *context);
+typedef void (*io_notify_fn)(unsigned long int error, unsigned long int unsup, void *context);
 
 enum dm_io_mem_type {
 	DM_IO_PAGE_LIST,/* Page list */
@@ -80,8 +80,8 @@ void dm_io_client_destroy(struct dm_io_client *client);
  * error occurred doing io to the corresponding region.
  */
 int dm_io(struct dm_io_request *io_req, unsigned int num_regions,
-	  struct dm_io_region *region, unsigned int long *sync_error_bits,
-	  unsigned short ioprio);
+	  struct dm_io_region *region, unsigned long int *sync_error_bits,
+	  unsigned long int *sync_unsup_bits, unsigned short ioprio);
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_DM_IO_H */

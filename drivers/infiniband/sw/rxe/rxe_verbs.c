@@ -22,13 +22,13 @@ static int rxe_query_device(struct ib_device *ibdev,
 	struct rxe_dev *rxe = to_rdev(ibdev);
 	int err;
 
-	err = ib_is_udata_in_empty(udata);
+	err = ib_no_udata_io(udata);
 	if (err)
 		return err;
 
 	memcpy(attr, &rxe->attr, sizeof(*attr));
 
-	return ib_respond_empty_udata(udata);
+	return 0;
 }
 
 static int rxe_query_port(struct ib_device *ibdev,
@@ -238,6 +238,10 @@ static void rxe_dealloc_ucontext(struct ib_ucontext *ibuc)
 	err = rxe_cleanup(uc);
 	if (err)
 		rxe_err_uc(uc, "cleanup failed, err = %d\n", err);
+}
+
+static void rxe_disassociate_ucontext(struct ib_ucontext *ibuc)
+{
 }
 
 /* pd */
@@ -1327,19 +1331,20 @@ static struct ib_mr *rxe_rereg_user_mr(struct ib_mr *ibmr, int flags,
 	if (err)
 		return ERR_PTR(err);
 
+	if ((flags & IB_MR_REREG_ACCESS) &&
+	    (access & ~RXE_ACCESS_SUPPORTED_MR)) {
+		rxe_err_mr(mr, "access = %#x not supported\n", access);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
 	if (flags & IB_MR_REREG_PD) {
 		rxe_put(old_pd);
 		rxe_get(pd);
 		mr->ibmr.pd = ibpd;
 	}
 
-	if (flags & IB_MR_REREG_ACCESS) {
-		if (access & ~RXE_ACCESS_SUPPORTED_MR) {
-			rxe_err_mr(mr, "access = %#x not supported\n", access);
-			return ERR_PTR(-EOPNOTSUPP);
-		}
+	if (flags & IB_MR_REREG_ACCESS)
 		mr->access = access;
-	}
 
 	return NULL;
 }
@@ -1478,6 +1483,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.destroy_srq = rxe_destroy_srq,
 	.detach_mcast = rxe_detach_mcast,
 	.device_group = &rxe_attr_group,
+	.disassociate_ucontext = rxe_disassociate_ucontext,
 	.enable_driver = rxe_enable_driver,
 	.get_dma_mr = rxe_get_dma_mr,
 	.get_hw_stats = rxe_ib_get_hw_stats,

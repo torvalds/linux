@@ -205,6 +205,7 @@ struct mt7915_phy {
 
 	struct ieee80211_vif *monitor_vif;
 
+	struct thermal_zone_device *tzone;
 	struct thermal_cooling_device *cdev;
 	u8 cdev_state;
 	u8 throttle_state;
@@ -295,6 +296,7 @@ struct mt7915_dev {
 	spinlock_t reg_lock;
 
 	u32 hw_pattern;
+	u32 ple1_sts;
 
 	bool dbdc_support;
 	bool flash_mode;
@@ -395,6 +397,24 @@ mt7915_ext_phy(struct mt7915_dev *dev)
 		return NULL;
 
 	return phy->priv;
+}
+
+/* without dbdc, the chainmask is stored unshifted, even if the phy is
+ * bound to band 1
+ */
+static inline u8 mt7915_band_chainshift(struct mt7915_phy *phy)
+{
+	struct mt7915_dev *dev = phy->dev;
+
+	if (!dev->dbdc_support)
+		return 0;
+
+	return phy->mt76->band_idx * dev->chainshift;
+}
+
+static inline u16 mt7915_band_chainmask(struct mt7915_phy *phy)
+{
+	return phy->mt76->chainmask >> mt7915_band_chainshift(phy);
 }
 
 static inline u32 mt7915_check_adie(struct mt7915_dev *dev, bool sku)

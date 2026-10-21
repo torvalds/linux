@@ -356,6 +356,16 @@ static void tcf_ctinfo_cleanup(struct tc_action *a)
 		kfree_rcu(cp, rcu);
 }
 
+static size_t tcf_ctinfo_get_fill_size(const struct tc_action *act)
+{
+	return nla_total_size(sizeof(struct tc_ctinfo)) /* TCA_CTINFO_ACT */
+		+ nla_total_size(sizeof(u16)) /* TCA_CTINFO_ZONE */
+		/* TCA_CTINFO_PARMS_{DSCP_MASK,DSCP_STATEMASK,CPMARK_MASK} */
+		+ 3 * nla_total_size(sizeof(u32))
+		/* TCA_CTINFO_STATS_{DSCP_SET,DSCP_ERROR,CPMARK_SET} */
+		+ 3 * nla_total_size_64bit(sizeof(u64));
+}
+
 static struct tc_action_ops act_ctinfo_ops = {
 	.kind	= "ctinfo",
 	.id	= TCA_ID_CTINFO,
@@ -364,6 +374,7 @@ static struct tc_action_ops act_ctinfo_ops = {
 	.dump	= tcf_ctinfo_dump,
 	.init	= tcf_ctinfo_init,
 	.cleanup= tcf_ctinfo_cleanup,
+	.get_fill_size = tcf_ctinfo_get_fill_size,
 	.size	= sizeof(struct tcf_ctinfo),
 };
 MODULE_ALIAS_NET_ACT("ctinfo");

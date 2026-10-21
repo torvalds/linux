@@ -161,8 +161,6 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	struct ata_host *host;
 	struct ata_port *ap;
 	struct pata_pxa_data *data;
-	struct resource *cmd_res;
-	struct resource *ctl_res;
 	struct resource *dma_res;
 	struct pata_pxa_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct dma_slave_config	config;
@@ -180,20 +178,6 @@ static int pxa_ata_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "invalid number of resources\n");
 		return -EINVAL;
 	}
-
-	/*
-	 * CMD port base address
-	 */
-	cmd_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(cmd_res == NULL))
-		return -EINVAL;
-
-	/*
-	 * CTL port base address
-	 */
-	ctl_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (unlikely(ctl_res == NULL))
-		return -EINVAL;
 
 	/*
 	 * DMA port base address
@@ -221,14 +205,12 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	ap->pio_mask	= ATA_PIO4;
 	ap->mwdma_mask	= ATA_MWDMA2;
 
-	ap->ioaddr.cmd_addr	= devm_ioremap(&pdev->dev, cmd_res->start,
-						resource_size(cmd_res));
-	if (!ap->ioaddr.cmd_addr)
-		return -ENOMEM;
-	ap->ioaddr.ctl_addr	= devm_ioremap(&pdev->dev, ctl_res->start,
-						resource_size(ctl_res));
-	if (!ap->ioaddr.ctl_addr)
-		return -ENOMEM;
+	ap->ioaddr.cmd_addr	= devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(ap->ioaddr.cmd_addr))
+		return PTR_ERR(ap->ioaddr.cmd_addr);
+	ap->ioaddr.ctl_addr	= devm_platform_ioremap_resource(pdev, 1);
+	if (IS_ERR(ap->ioaddr.ctl_addr))
+		return PTR_ERR(ap->ioaddr.ctl_addr);
 	ap->ioaddr.bmdma_addr	= devm_ioremap(&pdev->dev, dma_res->start,
 						resource_size(dma_res));
 	if (!ap->ioaddr.bmdma_addr)
@@ -280,40 +262,26 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	/*
 	 * Request the DMA channel
 	 */
-	data->dma_chan = dma_request_chan(&pdev->dev, "data");
+	data->dma_chan = devm_dma_request_chan(&pdev->dev, "data");
 	if (IS_ERR(data->dma_chan))
 		return PTR_ERR(data->dma_chan);
+
 	ret = dmaengine_slave_config(data->dma_chan, &config);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "dma configuration failed: %d\n", ret);
-		dma_release_channel(data->dma_chan);
 		return ret;
 	}
 
 	/*
 	 * Activate the ATA host
 	 */
-	ret = ata_host_activate(host, irq, ata_sff_interrupt,
+	return ata_host_activate(host, irq, ata_sff_interrupt,
 				pdata->irq_flags, &pxa_ata_sht);
-	if (ret)
-		dma_release_channel(data->dma_chan);
-
-	return ret;
-}
-
-static void pxa_ata_remove(struct platform_device *pdev)
-{
-	struct ata_host *host = platform_get_drvdata(pdev);
-	struct pata_pxa_data *data = host->ports[0]->private_data;
-
-	dma_release_channel(data->dma_chan);
-
-	ata_host_detach(host);
 }
 
 static struct platform_driver pxa_ata_driver = {
 	.probe		= pxa_ata_probe,
-	.remove		= pxa_ata_remove,
+	.remove		= ata_platform_remove_one,
 	.driver		= {
 		.name		= DRV_NAME,
 	},

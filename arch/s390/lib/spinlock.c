@@ -18,6 +18,7 @@
 #include <asm/alternative.h>
 #include <asm/machine.h>
 #include <asm/asm.h>
+#include <trace/events/lock.h>
 
 int spin_retry = -1;
 
@@ -281,10 +282,12 @@ static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
 
 void arch_spin_lock_wait(arch_spinlock_t *lp)
 {
+	trace_contention_begin(lp, LCB_F_SPIN);
 	if (test_cpu_flag(CIF_DEDICATED_CPU))
 		arch_spin_lock_queued(lp);
 	else
 		arch_spin_lock_classic(lp);
+	trace_contention_end(lp, 0);
 }
 EXPORT_SYMBOL(arch_spin_lock_wait);
 

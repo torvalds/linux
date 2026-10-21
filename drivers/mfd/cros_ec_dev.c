@@ -197,6 +197,17 @@ static int ec_device_probe(struct platform_device *pdev)
 	ec->features.flags[1] = -1U; /* Not cached yet */
 	device_initialize(&ec->class_dev);
 
+	/*
+	 * Add the class device
+	 */
+	ec->class_dev.class = &cros_class;
+	ec->class_dev.parent = dev;
+	ec->class_dev.release = cros_ec_class_release;
+
+	retval = cros_ec_read_features(ec);
+	if (retval < 0)
+		goto failed;
+
 	for (i = 0; i < ARRAY_SIZE(cros_mcu_devices); i++) {
 		/*
 		 * Check whether this is actually a dedicated MCU rather
@@ -213,13 +224,6 @@ static int ec_device_probe(struct platform_device *pdev)
 			break;
 		}
 	}
-
-	/*
-	 * Add the class device
-	 */
-	ec->class_dev.class = &cros_class;
-	ec->class_dev.parent = dev;
-	ec->class_dev.release = cros_ec_class_release;
 
 	retval = dev_set_name(&ec->class_dev, "%s", ec_platform->ec_name);
 	if (retval) {

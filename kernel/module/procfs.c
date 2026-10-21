@@ -64,7 +64,7 @@ static void m_stop(struct seq_file *m, void *p)
 
 static unsigned int module_total_size(struct module *mod)
 {
-	int size = 0;
+	unsigned int size = 0;
 
 	for_each_mod_mem_type(type)
 		size += mod->mem[type].size;

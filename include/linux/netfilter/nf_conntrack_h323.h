@@ -9,8 +9,6 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <uapi/linux/netfilter/nf_conntrack_tuple_common.h>
 
-#define RAS_PORT 1719
-#define Q931_PORT 1720
 #define H323_RTP_CHANNEL_MAX 4	/* Audio, video, FAX and other */
 
 /* This structure exists only once per master */

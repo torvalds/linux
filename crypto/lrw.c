@@ -359,7 +359,7 @@ static int lrw_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (!memcmp(cipher_name, "ecb(", 4)) {
 		int len;
 
-		len = strscpy(ecb_name, cipher_name + 4, sizeof(ecb_name));
+		len = strscpy(ecb_name, cipher_name + 4);
 		if (len < 2)
 			goto err_free_inst;
 

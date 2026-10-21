@@ -80,9 +80,9 @@ void cec_queue_event_fh(struct cec_fh *fh,
 			const struct cec_event *new_ev, u64 ts)
 {
 	static const u16 max_events[CEC_NUM_EVENTS] = {
-		1, 1, 800, 800, 8, 8, 8, 8
+		3, 1, 800, 800, 8, 8, 8, 8
 	};
-	struct cec_event_entry *entry;
+	struct cec_event_entry *new_entry, *entry;
 	unsigned int ev_idx = new_ev->event - 1;
 
 	if (WARN_ON(ev_idx >= ARRAY_SIZE(fh->events)))
@@ -92,36 +92,57 @@ void cec_queue_event_fh(struct cec_fh *fh,
 		ts = ktime_get_ns();
 
 	mutex_lock(&fh->lock);
-	if (ev_idx < CEC_NUM_CORE_EVENTS)
-		entry = &fh->core_events[ev_idx];
-	else
-		entry = kmalloc_obj(*entry);
-	if (entry) {
+	new_entry = kmalloc_obj(*new_entry);
+	if (new_entry) {
 		if (new_ev->event == CEC_EVENT_LOST_MSGS &&
 		    fh->queued_events[ev_idx]) {
+			entry = list_first_entry(&fh->events[ev_idx],
+						 struct cec_event_entry, list);
 			entry->ev.lost_msgs.lost_msgs +=
 				new_ev->lost_msgs.lost_msgs;
+			kfree(new_entry);
 			goto unlock;
 		}
-		entry->ev = *new_ev;
-		entry->ev.ts = ts;
+
+		new_entry->ev = *new_ev;
+		new_entry->ev.ts = ts;
+
+		/*
+		 * If the physical address becomes invalid (HPD went low),
+		 * then just flush all pending STATE_CHANGE events since
+		 * those are all obsoleted.
+		 *
+		 * This ensures you will not see stale STATE_CHANGE events.
+		 */
+		if (new_ev->event == CEC_EVENT_STATE_CHANGE &&
+		    new_ev->state_change.phys_addr == CEC_PHYS_ADDR_INVALID &&
+		    fh->queued_events[ev_idx]) {
+			/* drop all events */
+			while (!list_empty(&fh->events[ev_idx])) {
+				entry = list_first_entry(&fh->events[ev_idx],
+						struct cec_event_entry, list);
+				list_del(&entry->list);
+				kfree(entry);
+				fh->total_queued_events--;
+				fh->queued_events[ev_idx]--;
+			}
+			new_entry->ev.flags |= CEC_EVENT_FL_DROPPED_EVENTS;
+		}
 
 		if (fh->queued_events[ev_idx] < max_events[ev_idx]) {
 			/* Add new msg at the end of the queue */
-			list_add_tail(&entry->list, &fh->events[ev_idx]);
+			list_add_tail(&new_entry->list, &fh->events[ev_idx]);
 			fh->queued_events[ev_idx]++;
 			fh->total_queued_events++;
 			goto unlock;
 		}
 
-		if (ev_idx >= CEC_NUM_CORE_EVENTS) {
-			list_add_tail(&entry->list, &fh->events[ev_idx]);
-			/* drop the oldest event */
-			entry = list_first_entry(&fh->events[ev_idx],
-						 struct cec_event_entry, list);
-			list_del(&entry->list);
-			kfree(entry);
-		}
+		list_add_tail(&new_entry->list, &fh->events[ev_idx]);
+		/* drop the oldest event */
+		entry = list_first_entry(&fh->events[ev_idx],
+					 struct cec_event_entry, list);
+		list_del(&entry->list);
+		kfree(entry);
 	}
 	/* Mark that events were lost */
 	entry = list_first_entry_or_null(&fh->events[ev_idx],
@@ -608,6 +629,13 @@ void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
 		attempts_made = 1;
 
 	mutex_lock(&adap->lock);
+	if (adap->error_inj_tx_timeouts) {
+		dprintk(2, "%s: error_inj_tx_timeouts %u\n",
+			__func__, adap->error_inj_tx_timeouts);
+		adap->error_inj_tx_timeouts--;
+		mutex_unlock(&adap->lock);
+		return;
+	}
 	data = adap->transmitting;
 	if (!data) {
 		/*
@@ -965,7 +993,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	 */
 	mutex_unlock(&adap->lock);
 	err = wait_for_completion_killable(&data->c);
-	cancel_delayed_work_sync(&data->work);
+	disable_delayed_work_sync(&data->work);
 	mutex_lock(&adap->lock);
 
 	if (err)
@@ -1317,7 +1345,7 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 {
 	struct cec_log_addrs *las = &adap->log_addrs;
 	struct cec_msg msg = { };
-	const unsigned int max_retries = 2;
+	const unsigned int max_attempts = 3;
 	unsigned int i;
 	int err;
 
@@ -1328,7 +1356,7 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 	msg.len = 1;
 	msg.msg[0] = (log_addr << 4) | log_addr;
 
-	for (i = 0; i < max_retries; i++) {
+	for (i = 0; i < max_attempts; i++) {
 		err = cec_transmit_msg_fh(adap, &msg, NULL, true);
 
 		/*
@@ -1345,31 +1373,24 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 		if (err)
 			return err;
 
-		/*
-		 * The message was aborted or timed out due to a disconnect or
-		 * unconfigure, just bail out.
-		 */
-		if (msg.tx_status &
-		    (CEC_TX_STATUS_ABORTED | CEC_TX_STATUS_TIMEOUT))
-			return -EINTR;
 		if (msg.tx_status & CEC_TX_STATUS_OK)
 			return 0;
 		if (msg.tx_status & CEC_TX_STATUS_NACK)
 			break;
 		/*
-		 * Retry up to max_retries times if the message was neither
+		 * Do up to max_attempts if the message was neither
 		 * OKed or NACKed. This can happen due to e.g. a Lost
 		 * Arbitration condition.
 		 */
 	}
 
 	/*
-	 * If we are unable to get an OK or a NACK after max_retries attempts
+	 * If we are unable to get an OK or a NACK after max_attempts
 	 * (and note that each attempt already consists of four polls), then
 	 * we assume that something is really weird and that it is not a
 	 * good idea to try and claim this logical address.
 	 */
-	if (i == max_retries) {
+	if (i == max_attempts) {
 		dprintk(0, "polling for LA %u failed with tx_status=0x%04x\n",
 			log_addr, msg.tx_status);
 		return 0;
@@ -1468,6 +1489,7 @@ static int cec_config_thread_func(void *arg)
 	dprintk(1, "physical address: %x.%x.%x.%x, claim %d logical addresses\n",
 		cec_phys_addr_exp(adap->phys_addr), las->num_log_addrs);
 	las->log_addr_mask = 0;
+	las->flags &= ~CEC_LOG_ADDRS_FL_CONFIG_FAILED;
 
 	if (las->log_addr_type[0] == CEC_LOG_ADDR_TYPE_UNREGISTERED)
 		goto configured;
@@ -1600,6 +1622,8 @@ configured:
 unconfigure:
 	for (i = 0; i < las->num_log_addrs; i++)
 		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
+	if (adap->phys_addr != CEC_PHYS_ADDR_INVALID)
+		las->flags |= CEC_LOG_ADDRS_FL_CONFIG_FAILED;
 	cec_adap_unconfigure(adap);
 	adap->is_configuring = false;
 	adap->must_reconfigure = false;
@@ -1717,7 +1741,6 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 		cec_phys_addr_exp(phys_addr));
 	if (becomes_invalid || !is_invalid) {
 		adap->phys_addr = CEC_PHYS_ADDR_INVALID;
-		cec_post_state_event(adap);
 		cec_adap_unconfigure(adap);
 		if (becomes_invalid) {
 			cec_adap_enable(adap);
@@ -2219,9 +2242,13 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 * Unprocessed messages are aborted if userspace isn't doing
 		 * any processing either.
 		 */
+		mutex_lock(&adap->lock);
 		if (!is_broadcast && !is_reply && !adap->follower_cnt &&
-		    !adap->cec_follower && msg->msg[1] != CEC_MSG_FEATURE_ABORT)
+		    !adap->cec_follower && msg->msg[1] != CEC_MSG_FEATURE_ABORT) {
+			mutex_unlock(&adap->lock);
 			return cec_feature_abort(adap, msg);
+		}
+		mutex_unlock(&adap->lock);
 		break;
 	}
 
@@ -2234,10 +2261,12 @@ skip_processing:
 	 * Send to the exclusive follower if there is one, otherwise send
 	 * to all followers.
 	 */
+	mutex_lock(&adap->lock);
 	if (adap->cec_follower)
 		cec_queue_msg_fh(adap->cec_follower, msg);
 	else
 		cec_queue_msg_followers(adap, msg);
+	mutex_unlock(&adap->lock);
 	return 0;
 }
 

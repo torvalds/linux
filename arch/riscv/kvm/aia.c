@@ -25,6 +25,7 @@ struct aia_hgei_control {
 	unsigned long free_bitmap;
 	struct kvm_vcpu *owners[BITS_PER_LONG];
 	unsigned int nr_hgei;
+	unsigned long saved_hgeie;
 };
 static DEFINE_PER_CPU(struct aia_hgei_control, aia_hgei);
 static int hgei_parent_irq;
@@ -551,6 +552,47 @@ static void aia_hgei_exit(void)
 {
 	/* Free per-CPU SGEI interrupt */
 	free_percpu_irq(hgei_parent_irq, &aia_hgei);
+}
+
+void kvm_riscv_aia_pm_exit(void)
+{
+	struct aia_hgei_control *hgctrl;
+
+	if (!kvm_riscv_aia_available())
+		return;
+
+	hgctrl = this_cpu_ptr(&aia_hgei);
+	csr_write(CSR_HGEIE, hgctrl->saved_hgeie);
+
+	csr_write(CSR_HVICTL, aia_hvictl_value(false));
+	csr_write(CSR_HVIPRIO1, 0x0);
+	csr_write(CSR_HVIPRIO2, 0x0);
+#ifdef CONFIG_32BIT
+	csr_write(CSR_HVIPH, 0x0);
+	csr_write(CSR_HIDELEGH, 0x0);
+	csr_write(CSR_HVIPRIO1H, 0x0);
+	csr_write(CSR_HVIPRIO2H, 0x0);
+#endif
+	csr_set(CSR_HIE, BIT(IRQ_S_GEXT));
+	/* Enable IRQ filtering for overflow interrupt only if sscofpmf is present */
+	if (__riscv_isa_extension_available(NULL, RISCV_ISA_EXT_SSCOFPMF))
+		csr_set(CSR_HVIEN, BIT(IRQ_PMU_OVF));
+}
+
+void kvm_riscv_aia_pm_enter(void)
+{
+	struct aia_hgei_control *hgctrl;
+
+	if (!kvm_riscv_aia_available())
+		return;
+
+	if (__riscv_isa_extension_available(NULL, RISCV_ISA_EXT_SSCOFPMF))
+		csr_clear(CSR_HVIEN, BIT(IRQ_PMU_OVF));
+
+	csr_write(CSR_HVICTL, aia_hvictl_value(false));
+
+	hgctrl = this_cpu_ptr(&aia_hgei);
+	hgctrl->saved_hgeie = csr_read(CSR_HGEIE);
 }
 
 void kvm_riscv_aia_enable(void)

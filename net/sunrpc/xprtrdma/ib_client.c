@@ -51,7 +51,11 @@ static struct rpcrdma_device *rpcrdma_get_client_data(struct ib_device *device)
  * to be invoked when the device is removed, unless this notification
  * is unregistered first.
  *
- * On failure, a negative errno is returned.
+ * On failure, a negative errno is returned. rn->rn_done is left
+ * NULL on every failure path (it is armed before xa_alloc but
+ * cleared again if xa_alloc fails), so the @rn may safely be
+ * passed to rpcrdma_rn_unregister() without a separate
+ * registered/unregistered flag in the caller.
  */
 int rpcrdma_rn_register(struct ib_device *device,
 			struct rpcrdma_notification *rn,
@@ -62,10 +66,21 @@ int rpcrdma_rn_register(struct ib_device *device,
 	if (!rd || test_bit(RPCRDMA_RD_F_REMOVING, &rd->rd_flags))
 		return -ENETUNREACH;
 
-	if (xa_alloc(&rd->rd_xa, &rn->rn_index, rn, xa_limit_32b, GFP_KERNEL) < 0)
-		return -ENOMEM;
-	kref_get(&rd->rd_kref);
+	/*
+	 * Arm rn_done before xa_alloc() publishes @rn: once @rn is
+	 * visible in rd_xa, a concurrent rpcrdma_remove_one() can
+	 * call rn->rn_done(), so the pointer must already be set.
+	 *
+	 * Restore NULL if xa_alloc() fails. rn_done doubles as the
+	 * registration sentinel for rpcrdma_rn_unregister(); a stale
+	 * value would unregister an @rn that was never inserted.
+	 */
 	rn->rn_done = done;
+	if (xa_alloc(&rd->rd_xa, &rn->rn_index, rn, xa_limit_32b, GFP_KERNEL) < 0) {
+		rn->rn_done = NULL;
+		return -ENOMEM;
+	}
+	kref_get(&rd->rd_kref);
 	trace_rpcrdma_client_register(device, rn);
 	return 0;
 }
@@ -83,6 +98,10 @@ static void rpcrdma_rn_release(struct kref *kref)
  * rpcrdma_rn_unregister - stop device removal notifications
  * @device: monitored device
  * @rn: notification object that no longer wishes to be notified
+ *
+ * It is safe to call this on an @rn whose registration never
+ * completed or failed; rn_done == NULL is treated as
+ * never-registered and the call is a no-op.
  */
 void rpcrdma_rn_unregister(struct ib_device *device,
 			   struct rpcrdma_notification *rn)
@@ -91,6 +110,21 @@ void rpcrdma_rn_unregister(struct ib_device *device,
 
 	if (!rd)
 		return;
+
+	/*
+	 * rn_done is the registration sentinel: rpcrdma_rn_register
+	 * leaves it NULL on every failure path, clearing it again if
+	 * xa_alloc fails, so a non-NULL rn_done marks a completed
+	 * registration. A NULL rn_done means this notification was
+	 * never registered (or its registration failed) or has
+	 * already been unregistered, and the call is a no-op.
+	 * Without this guard, rn_index == 0 from a kzalloc'd
+	 * parent would erase another caller's slot 0 and underflow
+	 * rd_kref.
+	 */
+	if (!rn->rn_done)
+		return;
+	rn->rn_done = NULL;
 
 	trace_rpcrdma_client_unregister(device, rn);
 	xa_erase(&rd->rd_xa, rn->rn_index);

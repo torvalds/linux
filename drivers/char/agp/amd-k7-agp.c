@@ -387,37 +387,17 @@ static const struct agp_bridge_driver amd_irongate_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_device_ids amd_agp_device_ids[] =
-{
-	{
-		.device_id	= PCI_DEVICE_ID_AMD_FE_GATE_7006,
-		.chipset_name	= "Irongate",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_AMD_FE_GATE_700E,
-		.chipset_name	= "761",
-	},
-	{
-		.device_id	= PCI_DEVICE_ID_AMD_FE_GATE_700C,
-		.chipset_name	= "760MP",
-	},
-	{ }, /* dummy final entry, always present */
-};
-
 static int agp_amdk7_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *ent)
 {
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr;
-	int j;
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
 		return -ENODEV;
 
-	j = ent - agp_amdk7_pci_table;
-	dev_info(&pdev->dev, "AMD %s chipset\n",
-		 amd_agp_device_ids[j].chipset_name);
+	dev_info(&pdev->dev, "AMD %s chipset\n", (const char *)ent->driver_data);
 
 	bridge = agp_alloc_bridge();
 	if (!bridge)
@@ -492,7 +472,6 @@ static int agp_amdk7_resume(struct device *dev)
 	return amd_irongate_driver.configure();
 }
 
-/* must be the same order as name table above */
 static const struct pci_device_id agp_amdk7_pci_table[] = {
 	{
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
@@ -501,6 +480,7 @@ static const struct pci_device_id agp_amdk7_pci_table[] = {
 	.device		= PCI_DEVICE_ID_AMD_FE_GATE_7006,
 	.subvendor	= PCI_ANY_ID,
 	.subdevice	= PCI_ANY_ID,
+	.driver_data	= (kernel_ulong_t)"Irongate",
 	},
 	{
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
@@ -509,6 +489,7 @@ static const struct pci_device_id agp_amdk7_pci_table[] = {
 	.device		= PCI_DEVICE_ID_AMD_FE_GATE_700E,
 	.subvendor	= PCI_ANY_ID,
 	.subdevice	= PCI_ANY_ID,
+	.driver_data	= (kernel_ulong_t)"761",
 	},
 	{
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
@@ -517,6 +498,7 @@ static const struct pci_device_id agp_amdk7_pci_table[] = {
 	.device		= PCI_DEVICE_ID_AMD_FE_GATE_700C,
 	.subvendor	= PCI_ANY_ID,
 	.subdevice	= PCI_ANY_ID,
+	.driver_data	= (kernel_ulong_t)"760MP",
 	},
 	{ }
 };

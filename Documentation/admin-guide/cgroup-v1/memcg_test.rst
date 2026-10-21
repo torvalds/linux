@@ -10,7 +10,7 @@ Because VM is getting complex (one of reasons is memcg...), memcg's behavior
 is complex. This is a document for memcg's internal behavior.
 Please note that implementation details can be changed.
 
-(*) Topics on API should be in Documentation/admin-guide/cgroup-v1/memory.rst)
+(*) Topics on API should be in Documentation/admin-guide/cgroup-v1/memory.rst
 
 0. How to record usage ?
 ========================

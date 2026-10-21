@@ -5,7 +5,7 @@
 //! C header: [`include/linux/moduleparam.h`](srctree/include/linux/moduleparam.h)
 
 use crate::prelude::*;
-use crate::str::BStr;
+use crate::str::{kstrtobool_bytes, BStr};
 use bindings;
 use kernel::sync::SetOnce;
 
@@ -105,6 +105,12 @@ impl_int_module_param!(u64);
 impl_int_module_param!(isize);
 impl_int_module_param!(usize);
 
+impl ModuleParam for bool {
+    fn try_from_param_arg(arg: &BStr) -> Result<Self> {
+        kstrtobool_bytes(arg)
+    }
+}
+
 /// A wrapper for kernel parameters.
 ///
 /// This type is instantiated by the [`module!`] macro when module parameters are
@@ -130,10 +136,26 @@ impl<T> ModuleParamAccess<T> {
         }
     }
 
+    /// Get a copy of the parameter value.
+    ///
+    /// Returns the value supplied at module load time, or the default value
+    /// if the parameter has not been set.
+    #[inline]
+    pub fn value(&self) -> T
+    where
+        T: Copy,
+    {
+        self.value.copy().unwrap_or(self.default)
+    }
+
     /// Get a shared reference to the parameter value.
+    ///
+    /// Returns a reference to the value supplied at module load time, or a
+    /// reference to the default value if the parameter has not been set.
     // Note: When sysfs access to parameters are enabled, we have to pass in a
     // held lock guard here.
-    pub fn value(&self) -> &T {
+    #[inline]
+    pub fn value_ref(&self) -> &T {
         self.value.as_ref().unwrap_or(&self.default)
     }
 
@@ -179,3 +201,4 @@ make_param_ops!(PARAM_OPS_I64, i64);
 make_param_ops!(PARAM_OPS_U64, u64);
 make_param_ops!(PARAM_OPS_ISIZE, isize);
 make_param_ops!(PARAM_OPS_USIZE, usize);
+make_param_ops!(PARAM_OPS_BOOL, bool);

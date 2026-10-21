@@ -302,8 +302,8 @@ void bond_3ad_state_machine_handler(struct work_struct *);
 void bond_3ad_initiate_agg_selection(struct bonding *bond, int timeout);
 void bond_3ad_adapter_speed_duplex_changed(struct slave *slave);
 void bond_3ad_handle_link_change(struct slave *slave, char link);
-int  bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info);
-int  __bond_3ad_get_active_agg_info(struct bonding *bond,
+int  bond_3ad_get_active_agg_info(const struct bonding *bond, struct ad_info *ad_info);
+int  __bond_3ad_get_active_agg_info(const struct bonding *bond,
 				    struct ad_info *ad_info);
 int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 			 struct slave *slave);

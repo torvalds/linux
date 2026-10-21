@@ -590,7 +590,7 @@ void odm_DIGbyRSSI_LPS(void *pDM_VOID)
 }
 
 /* 3 ============================================================ */
-/* 3 FASLE ALARM CHECK */
+/* 3 FALSE ALARM CHECK */
 /* 3 ============================================================ */
 
 void odm_FalseAlarmCounterStatistics(void *pDM_VOID)

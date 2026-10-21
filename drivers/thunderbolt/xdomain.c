@@ -968,6 +968,9 @@ tb_xdp_schedule_request(struct tb *tb, const struct tb_xdp_header *hdr,
  */
 int tb_register_service_driver(struct tb_service_driver *drv)
 {
+	if (!drv->probe)
+		return -EINVAL;
+
 	drv->driver.bus = &tb_bus_type;
 	return driver_register(&drv->driver);
 }
@@ -1811,6 +1814,7 @@ static void tb_xdomain_state_work(struct work_struct *work)
 			tb_xdomain_failed(xd);
 		} else {
 			xd->state = XDOMAIN_STATE_ENUMERATED;
+			tb_xdomain_queue_properties_changed(xd);
 		}
 		break;
 

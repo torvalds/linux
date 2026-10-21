@@ -136,7 +136,9 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		err = psp_init_toc_microcode(psp, ucode_prefix);
 		break;
 	default:
-		BUG();
+		dev_warn(adev->dev, "Unsupported MP0 version 0x%08x\n",
+			 amdgpu_ip_version(adev, MP0_HWIP, 0));
+		return -EINVAL;
 	}
 
 	return err;

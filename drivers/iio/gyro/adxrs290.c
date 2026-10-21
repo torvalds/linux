@@ -585,9 +585,8 @@ static int adxrs290_probe_trigger(struct iio_dev *indio_dev)
 	ret = devm_request_irq(&st->spi->dev, st->spi->irq,
 			       &iio_trigger_generic_data_rdy_poll,
 			       IRQF_NO_THREAD, "adxrs290_irq", st->dready_trig);
-	if (ret < 0)
-		return dev_err_probe(&st->spi->dev, ret,
-				     "request irq %d failed\n", st->spi->irq);
+	if (ret)
+		return ret;
 
 	ret = devm_iio_trigger_register(&st->spi->dev, st->dready_trig);
 	if (ret) {

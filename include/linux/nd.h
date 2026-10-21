@@ -110,7 +110,7 @@ static inline struct nd_namespace_common *to_ndns(struct device *dev)
 
 /**
  * struct nd_namespace_io - device representation of a persistent memory range
- * @dev: namespace device created by the nd region driver
+ * @common: namespace device core infrastructure created by the nd region driver
  * @res: struct resource conversion of a NFIT SPA table
  * @size: cached resource_size(@res) for fast path size checks
  * @addr: virtual address to access the namespace range
@@ -158,8 +158,11 @@ static inline struct nd_namespace_pmem *to_nd_namespace_pmem(const struct device
  * @offset: namespace-relative starting offset
  * @buf: buffer to fill
  * @size: transfer length
+ * @flags: process (0) or atomic (1) context
  *
  * @buf is up-to-date upon return from this routine.
+ *
+ * Returns: %0 on success or a negative error code on failure
  */
 static inline int nvdimm_read_bytes(struct nd_namespace_common *ndns,
 		resource_size_t offset, void *buf, size_t size,
@@ -174,11 +177,14 @@ static inline int nvdimm_read_bytes(struct nd_namespace_common *ndns,
  * @offset: namespace-relative starting offset
  * @buf: buffer to drain
  * @size: transfer length
+ * @flags: process (0) or atomic (1) context
  *
  * NVDIMM Namepaces disks do not implement sectors internally.  Depending on
  * the @ndns, the contents of @buf may be in cpu cache, platform buffers,
  * or on backing memory media upon return from this routine.  Flushing
  * to media is handled internal to the @ndns driver, if at all.
+ *
+ * Returns: %0 on success or a negative error code on failure
  */
 static inline int nvdimm_write_bytes(struct nd_namespace_common *ndns,
 		resource_size_t offset, void *buf, size_t size,

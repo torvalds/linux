@@ -46,7 +46,7 @@
 
 static const char driver_name[] = "fsl-usb2-otg";
 
-const pm_message_t otg_suspend_state = {
+static const pm_message_t otg_suspend_state = {
 	.event = 1,
 };
 
@@ -57,11 +57,11 @@ static struct fsl_otg *fsl_otg_dev;
 static int srp_wait_done;
 
 /* FSM timers */
-struct fsl_otg_timer *a_wait_vrise_tmr, *a_wait_bcon_tmr, *a_aidl_bdis_tmr,
+static struct fsl_otg_timer *a_wait_vrise_tmr, *a_wait_bcon_tmr, *a_aidl_bdis_tmr,
 	*b_ase0_brst_tmr, *b_se0_srp_tmr;
 
 /* Driver specific timers */
-struct fsl_otg_timer *b_data_pulse_tmr, *b_vbus_pulse_tmr, *b_srp_fail_tmr,
+static struct fsl_otg_timer *b_data_pulse_tmr, *b_vbus_pulse_tmr, *b_srp_fail_tmr,
 	*b_srp_wait_tmr, *a_wait_enum_tmr;
 
 static struct list_head active_timers;
@@ -102,7 +102,7 @@ static void (*_fsl_writel)(u32 v, unsigned __iomem *p);
 #define fsl_writel(val, addr)	writel(val, addr)
 #endif /* CONFIG_PPC32 */
 
-int write_ulpi(u8 addr, u8 data)
+static int write_ulpi(u8 addr, u8 data)
 {
 	u32 temp;
 
@@ -115,7 +115,7 @@ int write_ulpi(u8 addr, u8 data)
 /* Operations that will be called from OTG Finite State Machine */
 
 /* Charge vbus for vbus pulsing in SRP */
-void fsl_otg_chrg_vbus(struct otg_fsm *fsm, int on)
+static void fsl_otg_chrg_vbus(struct otg_fsm *fsm, int on)
 {
 	u32 tmp;
 
@@ -133,7 +133,7 @@ void fsl_otg_chrg_vbus(struct otg_fsm *fsm, int on)
 }
 
 /* Discharge vbus through a resistor to ground */
-void fsl_otg_dischrg_vbus(int on)
+static void fsl_otg_dischrg_vbus(int on)
 {
 	u32 tmp;
 
@@ -151,7 +151,7 @@ void fsl_otg_dischrg_vbus(int on)
 }
 
 /* A-device driver vbus, controlled through PP bit in PORTSC */
-void fsl_otg_drv_vbus(struct otg_fsm *fsm, int on)
+static void fsl_otg_drv_vbus(struct otg_fsm *fsm, int on)
 {
 	u32 tmp;
 
@@ -169,7 +169,7 @@ void fsl_otg_drv_vbus(struct otg_fsm *fsm, int on)
  * Pull-up D+, signalling connect by periperal. Also used in
  * data-line pulsing in SRP
  */
-void fsl_otg_loc_conn(struct otg_fsm *fsm, int on)
+static void fsl_otg_loc_conn(struct otg_fsm *fsm, int on)
 {
 	u32 tmp;
 
@@ -188,7 +188,7 @@ void fsl_otg_loc_conn(struct otg_fsm *fsm, int on)
  * port.  In host mode, controller will automatically send SOF.
  * Suspend will block the data on the port.
  */
-void fsl_otg_loc_sof(struct otg_fsm *fsm, int on)
+static void fsl_otg_loc_sof(struct otg_fsm *fsm, int on)
 {
 	u32 tmp;
 
@@ -203,7 +203,7 @@ void fsl_otg_loc_sof(struct otg_fsm *fsm, int on)
 }
 
 /* Start SRP pulsing by data-line pulsing, followed with v-bus pulsing. */
-void fsl_otg_start_pulse(struct otg_fsm *fsm)
+static void fsl_otg_start_pulse(struct otg_fsm *fsm)
 {
 	u32 tmp;
 
@@ -219,7 +219,7 @@ void fsl_otg_start_pulse(struct otg_fsm *fsm)
 	fsl_otg_add_timer(fsm, b_data_pulse_tmr);
 }
 
-void b_data_pulse_end(unsigned long foo)
+static void b_data_pulse_end(unsigned long foo)
 {
 #ifdef HA_DATA_PULSE
 #else
@@ -230,7 +230,7 @@ void b_data_pulse_end(unsigned long foo)
 	fsl_otg_pulse_vbus();
 }
 
-void fsl_otg_pulse_vbus(void)
+static void fsl_otg_pulse_vbus(void)
 {
 	srp_wait_done = 0;
 	fsl_otg_chrg_vbus(&fsl_otg_dev->fsm, 1);
@@ -238,7 +238,7 @@ void fsl_otg_pulse_vbus(void)
 	fsl_otg_add_timer(&fsl_otg_dev->fsm, b_vbus_pulse_tmr);
 }
 
-void b_vbus_pulse_end(unsigned long foo)
+static void b_vbus_pulse_end(unsigned long foo)
 {
 	fsl_otg_chrg_vbus(&fsl_otg_dev->fsm, 0);
 
@@ -251,7 +251,7 @@ void b_vbus_pulse_end(unsigned long foo)
 	fsl_otg_add_timer(&fsl_otg_dev->fsm, b_srp_wait_tmr);
 }
 
-void b_srp_end(unsigned long foo)
+static void b_srp_end(unsigned long foo)
 {
 	fsl_otg_dischrg_vbus(0);
 	srp_wait_done = 1;
@@ -266,7 +266,7 @@ void b_srp_end(unsigned long foo)
  * a_host will start by SRP.  It needs to set b_hnp_enable before
  * actually suspending to start HNP
  */
-void a_wait_enum(unsigned long foo)
+static void a_wait_enum(unsigned long foo)
 {
 	VDBG("a_wait_enum timeout\n");
 	if (!fsl_otg_dev->phy.otg->host->b_hnp_enable)
@@ -276,13 +276,13 @@ void a_wait_enum(unsigned long foo)
 }
 
 /* The timeout callback function to set time out bit */
-void set_tmout(unsigned long indicator)
+static void set_tmout(unsigned long indicator)
 {
 	*(int *)indicator = 1;
 }
 
 /* Initialize timers */
-int fsl_otg_init_timers(struct otg_fsm *fsm)
+static int fsl_otg_init_timers(struct otg_fsm *fsm)
 {
 	/* FSM used timers */
 	a_wait_vrise_tmr = otg_timer_initializer(&set_tmout, TA_WAIT_VRISE,
@@ -339,7 +339,7 @@ int fsl_otg_init_timers(struct otg_fsm *fsm)
 }
 
 /* Uninitialize timers */
-void fsl_otg_uninit_timers(void)
+static void fsl_otg_uninit_timers(void)
 {
 	/* FSM used timers */
 	kfree(a_wait_vrise_tmr);
@@ -391,7 +391,7 @@ static struct fsl_otg_timer *fsl_otg_get_timer(enum otg_fsm_timer t)
 }
 
 /* Add timer to timer list */
-void fsl_otg_add_timer(struct otg_fsm *fsm, void *gtimer)
+static void fsl_otg_add_timer(struct otg_fsm *fsm, void *gtimer)
 {
 	struct fsl_otg_timer *timer = gtimer;
 	struct fsl_otg_timer *tmp_timer;
@@ -421,7 +421,7 @@ static void fsl_otg_fsm_add_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
 }
 
 /* Remove timer from the timer list; clear timeout status */
-void fsl_otg_del_timer(struct otg_fsm *fsm, void *gtimer)
+static void fsl_otg_del_timer(struct otg_fsm *fsm, void *gtimer)
 {
 	struct fsl_otg_timer *timer = gtimer;
 	struct fsl_otg_timer *tmp_timer, *del_tmp;
@@ -443,7 +443,7 @@ static void fsl_otg_fsm_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
 }
 
 /* Reset controller, not reset the bus */
-void otg_reset_controller(void)
+static void otg_reset_controller(void)
 {
 	u32 command;
 
@@ -455,7 +455,7 @@ void otg_reset_controller(void)
 }
 
 /* Call suspend/resume routines in host driver */
-int fsl_otg_start_host(struct otg_fsm *fsm, int on)
+static int fsl_otg_start_host(struct otg_fsm *fsm, int on)
 {
 	struct usb_otg *otg = fsm->otg;
 	struct device *dev;
@@ -522,7 +522,7 @@ end:
  * Call suspend and resume function in udc driver
  * to stop and start udc driver.
  */
-int fsl_otg_start_gadget(struct otg_fsm *fsm, int on)
+static int fsl_otg_start_gadget(struct otg_fsm *fsm, int on)
 {
 	struct usb_otg *otg = fsm->otg;
 	struct device *dev;
@@ -704,7 +704,7 @@ static int fsl_otg_start_hnp(struct usb_otg *otg)
  * intact.  It needs to have knowledge of some USB interrupts
  * such as port change.
  */
-irqreturn_t fsl_otg_isr(int irq, void *dev_id)
+static irqreturn_t fsl_otg_isr(int irq, void *dev_id)
 {
 	struct otg_fsm *fsm = &((struct fsl_otg *)dev_id)->fsm;
 	struct usb_otg *otg = ((struct fsl_otg *)dev_id)->phy.otg;
@@ -830,7 +830,7 @@ err:
 }
 
 /* OTG Initialization */
-int usb_otg_start(struct platform_device *pdev)
+static int usb_otg_start(struct platform_device *pdev)
 {
 	struct fsl_otg *p_otg;
 	struct usb_phy *otg_trans = usb_get_phy(USB_PHY_TYPE_USB2);
@@ -1002,7 +1002,7 @@ static void fsl_otg_remove(struct platform_device *pdev)
 		pdata->exit(pdev);
 }
 
-struct platform_driver fsl_otg_driver = {
+static struct platform_driver fsl_otg_driver = {
 	.probe = fsl_otg_probe,
 	.remove = fsl_otg_remove,
 	.driver = {

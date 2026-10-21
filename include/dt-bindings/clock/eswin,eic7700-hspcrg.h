@@ -1,0 +1,33 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/*
+ * Copyright 2026, Beijing ESWIN Computing Technology Co., Ltd..
+ * All rights reserved.
+ *
+ * Device Tree binding constants for EIC7700 HSP clock controller.
+ *
+ * Authors: Xuyang Dong <dongxuyang@eswincomputing.com>
+ */
+
+#ifndef _DT_BINDINGS_ESWIN_EIC7700_HSPCRG_CLOCK_H_
+#define _DT_BINDINGS_ESWIN_EIC7700_HSPCRG_CLOCK_H_
+
+#define EIC7700_HSP_CLK_FAC_CFG_DIV2		0
+#define EIC7700_HSP_CLK_FAC_CFG_DIV4		1
+#define EIC7700_HSP_CLK_FAC_MMC_DIV10		2
+#define EIC7700_HSP_CLK_MUX_EMMC_3MUX1		3
+#define EIC7700_HSP_CLK_MUX_SD0_3MUX1		4
+#define EIC7700_HSP_CLK_MUX_SD1_3MUX1		5
+#define EIC7700_HSP_CLK_MUX_EMMC_CQE_2MUX1	6
+#define EIC7700_HSP_CLK_MUX_SD0_CQE_2MUX1	7
+#define EIC7700_HSP_CLK_MUX_SD1_CQE_2MUX1	8
+#define EIC7700_HSP_CLK_GATE_MSHC0_TMR		9
+#define EIC7700_HSP_CLK_GATE_EMMC		10
+#define EIC7700_HSP_CLK_GATE_MSHC1_TMR		11
+#define EIC7700_HSP_CLK_GATE_SD0		12
+#define EIC7700_HSP_CLK_GATE_MSHC2_TMR		13
+#define EIC7700_HSP_CLK_GATE_SD1		14
+#define EIC7700_HSP_CLK_GATE_USB0		15
+#define EIC7700_HSP_CLK_GATE_USB1		16
+#define EIC7700_HSP_CLK_GATE_SATA		17
+
+#endif /* _DT_BINDINGS_ESWIN_EIC7700_HSPCRG_CLOCK_H_ */

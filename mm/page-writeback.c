@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/backing-dev.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/blkdev.h>
 #include <linux/mpage.h>
 #include <linux/rmap.h>
 #include <linux/percpu.h>
@@ -583,16 +582,6 @@ static inline void __wb_writeout_add(struct bdi_writeback *wb, long nr)
 		wb_domain_writeout_add(cgdom, wb_memcg_completions(wb),
 				       wb->bdi->max_prop_frac, nr);
 }
-
-void wb_writeout_inc(struct bdi_writeback *wb)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__wb_writeout_add(wb, 1);
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL_GPL(wb_writeout_inc);
 
 /*
  * On idle system, we can be called long after we scheduled because we use
@@ -2772,6 +2761,11 @@ EXPORT_SYMBOL(folio_redirty_for_writepage);
  * the page table lock for a page table which contains at least one page
  * in this folio.  Truncation will block on the page table lock as it
  * unmaps pages before removing the folio from its mapping.
+ *
+ * .. DANGER::
+ *    Do not use this on a folio obtained from a function like
+ *    get_user_pages_fast() without holding appropriate locks; you might want to
+ *    use set_page_dirty_lock() or folio_mark_dirty_lock() instead.
  *
  * Return: True if the folio was newly dirtied, false if it was already dirty.
  */

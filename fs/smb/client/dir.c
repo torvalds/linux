@@ -115,11 +115,7 @@ char *__build_path_from_dentry_optional_prefix(struct dentry *direntry, void *pa
 	}
 	if (dirsep != '/') {
 		/* BB test paths to Windows with '/' in the midst of prepath */
-		char *p;
-
-		for (p = s; *p; p++)
-			if (*p == '/')
-				*p = dirsep;
+		strreplace(s, '/', dirsep);
 	}
 	if (dfsplen) {
 		s -= dfsplen;
@@ -1138,6 +1134,8 @@ int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	} while (unlikely(rc == -EEXIST) && ++retries < max_retries);
 
 	if (rc) {
+		if (rc == -ENOENT)
+			rc = -EOPNOTSUPP;
 		cifs_del_pending_open(&open);
 		goto out;
 	}

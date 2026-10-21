@@ -895,6 +895,16 @@ attribute-sets:
           resource-dump response. Bit 0 (dev) selects device-level
           resources; bit 1 (port) selects port-level resources.
           When absent all classes are returned.
+      -
+        name: parent-dev
+        type: nest
+        nested-attributes: dl-parent-dev
+        doc: |
+          Identifies the devlink instance which owns the parent rate node.
+          Used with rate-set and rate-new to parent a rate object to a node on
+          a different devlink instance, enabling cross-device rate scheduling.
+          When absent, the parent node is resolved on the same instance.
+
   -
     name: dl-dev-stats
     subset-of: devlink
@@ -1317,6 +1327,16 @@ attribute-sets:
              Specifies the bandwidth share assigned to the Traffic Class.
              The bandwidth for the traffic class is determined
              in proportion to the sum of the shares of all configured classes.
+  -
+    name: dl-parent-dev
+    subset-of: devlink
+    attributes:
+      -
+        name: bus-name
+      -
+        name: dev-name
+      -
+        name: index
 
 operations:
   enum-model: directional
@@ -2289,8 +2309,8 @@ operations:
       dont-validate: [strict]
       flags: [admin-perm]
       do:
-        pre: devlink-nl-pre-doit
-        post: devlink-nl-post-doit
+        pre: devlink-nl-pre-doit-parent-dev-optional
+        post: devlink-nl-post-doit-parent-dev-optional
         request:
           attributes:
             - bus-name
@@ -2303,6 +2323,7 @@ operations:
             - rate-tx-weight
             - rate-parent-node-name
             - rate-tc-bws
+            - parent-dev
 
     -
       name: rate-new
@@ -2311,8 +2332,8 @@ operations:
       dont-validate: [strict]
       flags: [admin-perm]
       do:
-        pre: devlink-nl-pre-doit
-        post: devlink-nl-post-doit
+        pre: devlink-nl-pre-doit-parent-dev-optional
+        post: devlink-nl-post-doit-parent-dev-optional
         request:
           attributes:
             - bus-name
@@ -2325,6 +2346,7 @@ operations:
             - rate-tx-weight
             - rate-parent-node-name
             - rate-tc-bws
+            - parent-dev
 
     -
       name: rate-del

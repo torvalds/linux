@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_TEST_LTL
+	depends on RV
+	# XXX: add dependencies if there
+	depends on RV_MON_LTL_PARENT
+	default y
+	select LTL_MON_EVENTS_ID
+	bool "test_ltl monitor"
+	help
+	  Simple description

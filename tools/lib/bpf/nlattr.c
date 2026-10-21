@@ -123,7 +123,7 @@ int libbpf_nla_parse(struct nlattr *tb[], int maxtype, struct nlattr *head,
 
 		if (tb[type]) {
 			pr_warn("Attribute of type %#x found multiple times in message, "
-				"previous attribute is being ignored.\n", type);
+				"previous attribute is being ignored.\n", (unsigned)type);
 		}
 
 		tb[type] = nla;

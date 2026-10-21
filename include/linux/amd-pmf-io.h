@@ -66,15 +66,6 @@ enum sfh_dev_mode {
 	SFH_MODE_TABLET	= 3,
 };
 
-enum laptop_placement {
-	LP_UNKNOWN = 0,
-	ON_TABLE,
-	ON_LAP_MOTION,
-	IN_BAG,
-	OUT_OF_BAG,
-	LP_UNDEFINED,
-};
-
 /**
  * struct amd_pmf_npu_metrics: Get NPU metrics data from PMF driver
  * @npuclk_freq: NPU clock frequency [MHz]
@@ -83,6 +74,7 @@ enum laptop_placement {
  * @mpnpuclk_freq: MPNPU [MHz]
  * @npu_reads: NPU read bandwidth [MB/sec]
  * @npu_writes: NPU write bandwidth [MB/sec]
+ * @npu_temp: NPU temperature [C]
  */
 struct amd_pmf_npu_metrics {
 	u16 npuclk_freq;
@@ -91,6 +83,7 @@ struct amd_pmf_npu_metrics {
 	u16 mpnpuclk_freq;
 	u16 npu_reads;
 	u16 npu_writes;
+	u16 npu_temp;
 };
 
 int amd_get_sfh_info(struct amd_sfh_info *sfh_info, enum sfh_message_type op);

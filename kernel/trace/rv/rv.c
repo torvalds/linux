@@ -164,7 +164,6 @@ struct dentry *get_monitors_root(void)
  */
 LIST_HEAD(rv_monitors_list);
 
-static int task_monitor_count;
 static bool task_monitor_slots[CONFIG_RV_PER_TASK_MONITORS];
 
 int rv_get_task_monitor_slot(void)
@@ -173,22 +172,16 @@ int rv_get_task_monitor_slot(void)
 
 	lockdep_assert_held(&rv_interface_lock);
 
-	if (task_monitor_count == CONFIG_RV_PER_TASK_MONITORS)
-		return -EBUSY;
-
-	task_monitor_count++;
-
 	for (i = 0; i < CONFIG_RV_PER_TASK_MONITORS; i++) {
-		if (task_monitor_slots[i] == false) {
+		if (!task_monitor_slots[i]) {
 			task_monitor_slots[i] = true;
 			return i;
 		}
 	}
 
-	WARN_ONCE(1, "RV task_monitor_count and slots are out of sync\n");
-
-	return -EINVAL;
+	return -EBUSY;
 }
+EXPORT_SYMBOL_GPL(rv_get_task_monitor_slot);
 
 void rv_put_task_monitor_slot(int slot)
 {
@@ -199,12 +192,13 @@ void rv_put_task_monitor_slot(int slot)
 		return;
 	}
 
-	WARN_ONCE(!task_monitor_slots[slot], "RV releasing unused task_monitor_slots: %d\n",
-		  slot);
+	if (WARN_ONCE(!task_monitor_slots[slot],
+		      "RV releasing unused task monitor slot: %d\n", slot))
+		return;
 
-	task_monitor_count--;
 	task_monitor_slots[slot] = false;
 }
+EXPORT_SYMBOL_GPL(rv_put_task_monitor_slot);
 
 /*
  * Monitors with a parent are nested,
@@ -852,3 +846,69 @@ int __init rv_init_interface(void)
 
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#include <rv/kunit.h>
+#include <kunit/visibility.h>
+
+/*
+ * rv_set_testing - ensure mutual exclusion between KUnit tests and real monitors
+ *
+ * KUnit tests for RV monitors rely on stubs that are incompatible with
+ * the execution of real monitors. Ensure mutual exclusion by acquiring
+ * the rv_interface_lock for the duration of the suite.
+ *
+ * Returns 0 on success, -EBUSY if any real monitor is already enabled.
+ */
+int rv_set_testing(struct kunit_suite *suite)
+{
+	struct rv_monitor *mon;
+
+	mutex_lock(&rv_interface_lock);
+
+	list_for_each_entry(mon, &rv_monitors_list, list) {
+		if (mon->enabled) {
+			mutex_unlock(&rv_interface_lock);
+			return -EBUSY;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_IF_KUNIT(rv_set_testing);
+
+/*
+ * rv_clear_testing - allow real monitors to run again after KUnit tests
+ */
+void rv_clear_testing(struct kunit_suite *suite)
+{
+	mutex_unlock(&rv_interface_lock);
+}
+EXPORT_SYMBOL_IF_KUNIT(rv_clear_testing);
+
+/*
+ * rv_get_mock_current() is called only if we are running from a KUnit test.
+ * This can occur from a legitimate RV test or any unrelated test running when
+ * a real RV monitor is active and triggering events.
+ * We assume the former case is the only one where mock_current is not NULL and
+ * can occur only sequentially (KUnit doesn't run tests in parallel).
+ * We cannot rely on the test's context because there is no way to safely
+ * understand from which test we are running and KUnit utilities require
+ * locking, which is unsafe from NMI or scheduling context.
+ * Note that it is not possible for a real RV monitor to run when the RV KUnit
+ * tests are running (see rv_set_testing()).
+ */
+static struct task_struct *mock_current;
+
+void rv_mock_current(struct task_struct *tsk)
+{
+	mock_current = tsk;
+}
+EXPORT_SYMBOL_IF_KUNIT(rv_mock_current);
+
+struct task_struct *rv_get_mock_current(void)
+{
+	return mock_current ?: current;
+}
+EXPORT_SYMBOL_GPL(rv_get_mock_current);
+#endif

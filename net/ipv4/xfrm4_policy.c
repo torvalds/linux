@@ -141,7 +141,7 @@ static const struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 };
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table xfrm4_policy_table[] = {
+static const struct ctl_table xfrm4_policy_table[] = {
 	{
 		.procname       = "xfrm4_gc_thresh",
 		.data           = &init_net.xfrm.xfrm4_dst_ops.gc_thresh,
@@ -151,18 +151,30 @@ static struct ctl_table xfrm4_policy_table[] = {
 	},
 };
 
-static __net_init int xfrm4_net_sysctl_init(struct net *net)
+static const struct ctl_table *xfrm4_policy_table_dup(struct net *net)
 {
 	struct ctl_table *table;
+
+	table = kmemdup(xfrm4_policy_table, sizeof(xfrm4_policy_table),
+			GFP_KERNEL);
+	if (!table)
+		return NULL;
+
+	table[0].data = &net->xfrm.xfrm4_dst_ops.gc_thresh;
+
+	return table;
+}
+
+static __net_init int xfrm4_net_sysctl_init(struct net *net)
+{
+	const struct ctl_table *table;
 	struct ctl_table_header *hdr;
 
 	table = xfrm4_policy_table;
 	if (!net_eq(net, &init_net)) {
-		table = kmemdup(table, sizeof(xfrm4_policy_table), GFP_KERNEL);
+		table = xfrm4_policy_table_dup(net);
 		if (!table)
 			goto err_alloc;
-
-		table[0].data = &net->xfrm.xfrm4_dst_ops.gc_thresh;
 	}
 
 	hdr = register_net_sysctl_sz(net, "net/ipv4", table,

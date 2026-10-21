@@ -1098,10 +1098,8 @@ static int apds9960_probe(struct i2c_client *client)
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					"apds9960_event",
 					indio_dev);
-	if (ret) {
-		dev_err(&client->dev, "request irq (%d) failed\n", client->irq);
+	if (ret)
 		goto error_power_down;
-	}
 
 	ret = iio_device_register(indio_dev);
 	if (ret)

@@ -62,17 +62,21 @@ enum spl_pixel_format {
 	/*video*/
 	SPL_PIXEL_FORMAT_420BPP8,
 	SPL_PIXEL_FORMAT_420BPP10,
+	SPL_PIXEL_FORMAT_422BPP8,
+	SPL_PIXEL_FORMAT_422BPP10,
+	SPL_PIXEL_FORMAT_422BPP12,
+	SPL_PIXEL_FORMAT_444BPP8,
+	SPL_PIXEL_FORMAT_444BPP10,
 	/*end of pixel format definition*/
 	SPL_PIXEL_FORMAT_GRPH_BEGIN = SPL_PIXEL_FORMAT_INDEX8,
 	SPL_PIXEL_FORMAT_GRPH_END = SPL_PIXEL_FORMAT_FP16,
 	SPL_PIXEL_FORMAT_SUBSAMPLED_BEGIN = SPL_PIXEL_FORMAT_420BPP8,
-	SPL_PIXEL_FORMAT_SUBSAMPLED_END = SPL_PIXEL_FORMAT_420BPP10,
+	SPL_PIXEL_FORMAT_SUBSAMPLED_END = SPL_PIXEL_FORMAT_422BPP12,
 	SPL_PIXEL_FORMAT_VIDEO_BEGIN = SPL_PIXEL_FORMAT_420BPP8,
-	SPL_PIXEL_FORMAT_VIDEO_END = SPL_PIXEL_FORMAT_420BPP10,
+	SPL_PIXEL_FORMAT_VIDEO_END = SPL_PIXEL_FORMAT_444BPP10,
 	SPL_PIXEL_FORMAT_INVALID,
 	SPL_PIXEL_FORMAT_UNKNOWN
 };
-
 enum lb_memory_config {
 	/* Enable all 3 pieces of memory */
 	LB_MEMORY_CONFIG_0 = 0,
@@ -88,7 +92,6 @@ enum lb_memory_config {
 	 */
 	LB_MEMORY_CONFIG_3 = 3
 };
-
 /* Rotation angle */
 enum spl_rotation_angle {
 	SPL_ROTATION_ANGLE_0 = 0,
@@ -126,6 +129,23 @@ enum chroma_cositing {
 	CHROMA_COSITING_LEFT,
 	CHROMA_COSITING_TOPLEFT,
 	CHROMA_COSITING_COUNT
+};
+
+enum upsp_mode {
+	UPSP_BYPASS = 0,
+	UPSP_HORIZONTAL_UPSAMPLING_ONLY,
+	UPSP_VERTICAL_UPSAMPLING_ONLY,
+	UPSP_HORIZONTAL_VERTICAL_UPSAMPLING
+};
+
+enum upsp_num_taps {
+	UPSP_2_TAPS,
+	UPSP_4_TAPS
+};
+
+enum upsp_boundary_mode {
+	UPSP_BOUNDARY_EDGE, //Replace out of bound samples with the edge samples
+	UPSP_BOUNDARY_BLACK //Replace out of bound samples with black as 12bpc(0x800)
 };
 
 // Scratch space for calculating scaler params
@@ -253,7 +273,7 @@ enum isharp_en	{
 #define ISHARP_LUT_TABLE_SIZE 32
 // Below struct holds values that can be directly used to program
 // hardware registers. No conversion/clamping is required
-struct dscl_prog_data {
+struct dscl_prog_data	{
 	struct spl_rect recout; // RECOUT - set based on scl_data.recout
 	struct mpc_size mpc_size;
 	uint32_t dscl_mode;
@@ -395,6 +415,33 @@ struct dscl_prog_data {
 	uint32_t easf_matrix_c1;
 	uint32_t easf_matrix_c2;
 	uint32_t easf_matrix_c3;
+	// UPSP registers
+	uint32_t upsp_mode;//UPSP_MODE
+	uint32_t upsp_v_num_taps;
+	uint32_t upsp_v_init_int;
+	uint32_t upsp_v_init_frac;
+	uint32_t upsp_h_num_taps;
+	uint32_t upsp_h_init_int;
+	uint32_t upsp_h_init_frac;
+	uint32_t upsp_boundary_mode;
+	uint32_t upsp_v_coef_tap0_p0;//UPSP_V_COEF_P0
+	uint32_t upsp_v_coef_tap1_p0;
+	uint32_t upsp_v_coef_tap2_p0;
+	uint32_t upsp_v_coef_tap3_p0;
+	uint32_t upsp_v_coef_tap0_p1;//UPSP_V_COEF_P1
+	uint32_t upsp_v_coef_tap1_p1;
+	uint32_t upsp_v_coef_tap2_p1;
+	uint32_t upsp_v_coef_tap3_p1;
+	uint32_t upsp_h_coef_tap0_p0;//UPSP_H_COEF_P0
+	uint32_t upsp_h_coef_tap1_p0;
+	uint32_t upsp_h_coef_tap2_p0;
+	uint32_t upsp_h_coef_tap3_p0;
+	uint32_t upsp_h_coef_tap0_p1;//UPSP_H_COEF_P1
+	uint32_t upsp_h_coef_tap1_p1;
+	uint32_t upsp_h_coef_tap2_p1;
+	uint32_t upsp_h_coef_tap3_p1;
+	uint32_t upsp_clamp_max;//UPSP_CLAMP
+	uint32_t upsp_clamp_min;
 	// iSharp
 	uint32_t isharp_en;     //      ISHARP_EN
 	struct isharp_noise_det isharp_noise_det;       //      ISHARP_NOISEDET
@@ -554,6 +601,7 @@ struct spl_in	{
 	int min_viewport_size;
 	int sdr_white_level_nits;
 	enum sharpen_policy sharpen_policy;
+	enum upsp_mode upsp_mode;
 };
 // end of SPL inputs
 

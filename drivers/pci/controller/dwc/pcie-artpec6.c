@@ -335,7 +335,7 @@ static const struct dw_pcie_host_ops artpec6_pcie_host_ops = {
 	.init = artpec6_pcie_host_init,
 };
 
-static void artpec6_pcie_ep_init(struct dw_pcie_ep *ep)
+static int artpec6_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
@@ -344,6 +344,8 @@ static void artpec6_pcie_ep_init(struct dw_pcie_ep *ep)
 	artpec6_pcie_init_phy(artpec6_pcie);
 	artpec6_pcie_deassert_core_reset(artpec6_pcie);
 	artpec6_pcie_wait_for_phy(artpec6_pcie);
+
+	return 0;
 }
 
 static int artpec6_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,

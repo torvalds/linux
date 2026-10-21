@@ -553,10 +553,11 @@ static int amdgpu_sdma_soft_reset(struct amdgpu_device *adev, u32 instance_id)
 int amdgpu_sdma_reset_engine(struct amdgpu_device *adev, uint32_t instance_id,
 			     bool caller_handles_kernel_queues)
 {
-	int ret = 0;
 	struct amdgpu_sdma_instance *sdma_instance = &adev->sdma.instance[instance_id];
 	struct amdgpu_ring *gfx_ring = &sdma_instance->ring;
 	struct amdgpu_ring *page_ring = &sdma_instance->page;
+	struct amdgpu_fence *gfx_fence, *page_fence;
+	int ret = 0;
 
 	if (amdgpu_sriov_vf(adev))
 		return -EOPNOTSUPP;
@@ -569,9 +570,14 @@ int amdgpu_sdma_reset_engine(struct amdgpu_device *adev, uint32_t instance_id,
 		 * the reset is in progress.
 		 */
 		drm_sched_wqueue_stop(&gfx_ring->sched);
+		gfx_fence = amdgpu_ring_find_guilty_fence(gfx_ring);
+		amdgpu_ring_reset_helper_begin(gfx_ring, gfx_fence);
 
-		if (adev->sdma.has_page_queue)
+		if (adev->sdma.has_page_queue) {
 			drm_sched_wqueue_stop(&page_ring->sched);
+			page_fence = amdgpu_ring_find_guilty_fence(page_ring);
+			amdgpu_ring_reset_helper_begin(page_ring, page_fence);
+		}
 	}
 
 	if (sdma_instance->funcs->stop_kernel_queue) {
@@ -600,14 +606,19 @@ exit:
 		 * to be submitted to the queues after the reset is complete.
 		 */
 		if (!ret) {
-			amdgpu_fence_driver_force_completion(gfx_ring, NULL);
+			ret = amdgpu_ring_reset_helper_end(gfx_ring, gfx_fence);
+			if (ret)
+				goto unlock;
 			drm_sched_wqueue_start(&gfx_ring->sched);
 			if (adev->sdma.has_page_queue) {
-				amdgpu_fence_driver_force_completion(page_ring, NULL);
+				ret = amdgpu_ring_reset_helper_end(page_ring, page_fence);
+				if (ret)
+					goto unlock;
 				drm_sched_wqueue_start(&page_ring->sched);
 			}
 		}
 	}
+unlock:
 	mutex_unlock(&sdma_instance->engine_reset_mutex);
 
 	return ret;

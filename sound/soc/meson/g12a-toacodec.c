@@ -312,7 +312,7 @@ static int g12a_toacodec_probe(struct platform_device *pdev)
 
 	ret = device_reset(dev);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "failed to reset device\n");
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))

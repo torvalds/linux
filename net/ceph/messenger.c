@@ -762,7 +762,7 @@ static bool ceph_msg_data_bio_advance(struct ceph_msg_data_cursor *cursor,
 	if (!cursor->resid)
 		return false;   /* no more data */
 
-	if (!bytes || (it->iter.bi_size && it->iter.bi_bvec_done &&
+	if (!bytes || (it->iter.bi_size && it->iter.bi_offset &&
 		       page == bio_iter_page(it->bio, it->iter)))
 		return false;	/* more bytes to process in this segment */
 
@@ -817,7 +817,7 @@ static bool ceph_msg_data_bvecs_advance(struct ceph_msg_data_cursor *cursor,
 	if (!cursor->resid)
 		return false;   /* no more data */
 
-	if (!bytes || (cursor->bvec_iter.bi_bvec_done &&
+	if (!bytes || (cursor->bvec_iter.bi_offset &&
 		       page == bvec_iter_page(bvecs, cursor->bvec_iter)))
 		return false;	/* more bytes to process in this segment */
 
@@ -1003,7 +1003,6 @@ static struct page *ceph_msg_data_iter_next(struct ceph_msg_data_cursor *cursor,
 	 *	  we'll get an iov_iter_get_pages2 variant that doesn't take
 	 *	  page refs. Until then, just put the page ref.
 	 */
-	VM_BUG_ON_PAGE(!PageWriteback(page) && page_count(page) < 2, page);
 	put_page(page);
 
 	*length = min_t(size_t, len, cursor->resid);

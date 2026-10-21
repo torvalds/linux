@@ -25,10 +25,6 @@ struct qce_sha_saved_state {
 
 static LIST_HEAD(ahash_algs);
 
-static const u32 std_iv_sha1[SHA256_DIGEST_SIZE / sizeof(u32)] = {
-	SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4, 0, 0, 0
-};
-
 static const u32 std_iv_sha256[SHA256_DIGEST_SIZE / sizeof(u32)] = {
 	SHA256_H0, SHA256_H1, SHA256_H2, SHA256_H3,
 	SHA256_H4, SHA256_H5, SHA256_H6, SHA256_H7
@@ -187,10 +183,8 @@ static int qce_ahash_update(struct ahash_request *req)
 	struct qce_sha_reqctx *rctx = ahash_request_ctx_dma(req);
 	struct qce_alg_template *tmpl = to_ahash_tmpl(req->base.tfm);
 	struct qce_device *qce = tmpl->qce;
-	struct scatterlist *sg_last, *sg;
-	unsigned int total, len;
+	unsigned int total;
 	unsigned int hash_later;
-	unsigned int nbytes;
 	unsigned int blocksize;
 
 	blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
@@ -238,28 +232,8 @@ static int qce_ahash_update(struct ahash_request *req)
 	if (!hash_later)
 		hash_later = blocksize;
 
-	if (hash_later) {
-		unsigned int src_offset = req->nbytes - hash_later;
-		scatterwalk_map_and_copy(rctx->buf, req->src, src_offset,
-					 hash_later, 0);
-	}
-
-	/* here nbytes is multiple of blocksize */
-	nbytes = total - hash_later;
-
-	len = rctx->buflen;
-	sg = sg_last = req->src;
-
-	while (len < nbytes && sg) {
-		if (len + sg_dma_len(sg) > nbytes)
-			break;
-		len += sg_dma_len(sg);
-		sg_last = sg;
-		sg = sg_next(sg);
-	}
-
-	if (!sg_last)
-		return -EINVAL;
+	scatterwalk_map_and_copy(rctx->buf, req->src, req->nbytes - hash_later,
+				 hash_later, 0);
 
 	if (rctx->buflen) {
 		sg_init_table(rctx->sg, 2);
@@ -268,7 +242,8 @@ static int qce_ahash_update(struct ahash_request *req)
 		req->src = rctx->sg;
 	}
 
-	req->nbytes = nbytes;
+	/* hash only complete blocks */
+	req->nbytes = total - hash_later;
 	rctx->buflen = hash_later;
 
 	return qce->async_req_enqueue(tmpl->qce, &req->base);
@@ -349,9 +324,7 @@ static int qce_ahash_hmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return 0;
 	}
 
-	if (digestsize == SHA1_DIGEST_SIZE)
-		alg_name = "sha1-qce";
-	else if (digestsize == SHA256_DIGEST_SIZE)
+	if (digestsize == SHA256_DIGEST_SIZE)
 		alg_name = "sha256-qce";
 	else
 		return -EINVAL;
@@ -413,15 +386,6 @@ struct qce_ahash_def {
 
 static const struct qce_ahash_def ahash_def[] = {
 	{
-		.flags		= QCE_HASH_SHA1,
-		.name		= "sha1",
-		.drv_name	= "sha1-qce",
-		.digestsize	= SHA1_DIGEST_SIZE,
-		.blocksize	= SHA1_BLOCK_SIZE,
-		.statesize	= sizeof(struct qce_sha_saved_state),
-		.std_iv		= std_iv_sha1,
-	},
-	{
 		.flags		= QCE_HASH_SHA256,
 		.name		= "sha256",
 		.drv_name	= "sha256-qce",
@@ -429,15 +393,6 @@ static const struct qce_ahash_def ahash_def[] = {
 		.blocksize	= SHA256_BLOCK_SIZE,
 		.statesize	= sizeof(struct qce_sha_saved_state),
 		.std_iv		= std_iv_sha256,
-	},
-	{
-		.flags		= QCE_HASH_SHA1_HMAC,
-		.name		= "hmac(sha1)",
-		.drv_name	= "hmac-sha1-qce",
-		.digestsize	= SHA1_DIGEST_SIZE,
-		.blocksize	= SHA1_BLOCK_SIZE,
-		.statesize	= sizeof(struct qce_sha_saved_state),
-		.std_iv		= std_iv_sha1,
 	},
 	{
 		.flags		= QCE_HASH_SHA256_HMAC,
@@ -476,9 +431,7 @@ static int qce_ahash_register_one(const struct qce_ahash_def *def,
 	alg->halg.digestsize = def->digestsize;
 	alg->halg.statesize = def->statesize;
 
-	if (IS_SHA1(def->flags))
-		tmpl->hash_zero = sha1_zero_message_hash;
-	else if (IS_SHA256(def->flags))
+	if (IS_SHA256(def->flags))
 		tmpl->hash_zero = sha256_zero_message_hash;
 
 	base = &alg->halg.base;

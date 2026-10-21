@@ -26,20 +26,23 @@ const char *event_type(size_t type);
 struct parse_events_option_args {
 	struct evlist **evlistp;
 	const char *pmu_filter;
+	bool cputype_filter;
 };
 int parse_events_option(const struct option *opt, const char *str, int unset);
 int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset);
-__attribute__((nonnull(1, 2, 4)))
-int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filter,
-		   struct parse_events_error *error, bool fake_pmu,
-		   bool warn_if_reordered, bool fake_tp);
+__attribute__((nonnull(1, 2, 5))) int
+__parse_events(struct evlist *evlist, const char *str, const char *pmu_filter,
+	       bool cputype_filter, struct parse_events_error *error,
+	       bool fake_pmu, bool warn_if_reordered, bool fake_tp);
 
 __attribute__((nonnull(1, 2, 3)))
 static inline int parse_events(struct evlist *evlist, const char *str,
 			       struct parse_events_error *err)
 {
-	return __parse_events(evlist, str, /*pmu_filter=*/NULL, err, /*fake_pmu=*/false,
-			      /*warn_if_reordered=*/true, /*fake_tp=*/false);
+	return __parse_events(evlist, str, /*pmu_filter=*/NULL,
+			      /*cputype_filter=*/false, err, /*fake_pmu=*/false,
+			      /*warn_if_reordered=*/true,
+			      /*fake_tp=*/false);
 }
 
 int parse_event(struct evlist *evlist, const char *str);
@@ -161,6 +164,8 @@ struct parse_events_state {
 	bool			   fake_tp;
 	/* If non-null, when wildcard matching only match the given PMU. */
 	const char		  *pmu_filter;
+	/* If true, the pmu_filter was set by --cputype option. */
+	bool cputype_filter;
 	/* Should PE_LEGACY_NAME tokens be generated for config terms? */
 	bool			   match_legacy_cache_terms;
 	/* Were multiple PMUs scanned to find events? */

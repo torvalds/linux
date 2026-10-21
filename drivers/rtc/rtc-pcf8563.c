@@ -425,7 +425,7 @@ static const struct clk_ops pcf8563_clkout_ops = {
 static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 {
 	struct device_node *node = pcf8563->rtc->dev.parent->of_node;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk *clk;
 	int ret;
 
@@ -449,7 +449,9 @@ static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 	clk = devm_clk_register(&pcf8563->rtc->dev, &pcf8563->clkout_hw);
 
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		devm_of_clk_add_hw_provider(pcf8563->rtc->dev.parent,
+					    of_clk_hw_simple_get,
+					    &pcf8563->clkout_hw);
 
 	return clk;
 }

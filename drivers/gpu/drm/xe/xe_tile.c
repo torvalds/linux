@@ -157,7 +157,9 @@ int xe_tile_init_early(struct xe_tile *tile, struct xe_device *xe, u8 id)
 	if (err)
 		return err;
 
-	xe_pcode_init(tile);
+	err = xe_pcode_init_early(tile);
+	if (err)
+		return err;
 
 	return 0;
 }

@@ -2565,6 +2565,12 @@ static int cfi_intelext_suspend(struct mtd_info *mtd)
 			ret = -EAGAIN;
 			break;
 		case FL_PM_SUSPENDED:
+		case FL_SHUTDOWN:
+			/*
+			 * Already suspended, or put into array mode by the
+			 * reboot notifier ahead of an imminent power-off.
+			 * Either way there is nothing to do.
+			 */
 			break;
 		}
 		mutex_unlock(&chip->mutex);
