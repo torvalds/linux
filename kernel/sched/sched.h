@@ -2175,7 +2175,8 @@ queue_balance_callback(struct rq *rq,
 	 * balance_push() is active, see the comment with
 	 * balance_push_callback.
 	 */
-	if (unlikely(head->next || rq->balance_callback == &balance_push_callback))
+	if (unlikely(head->next || rq->balance_callback == head ||
+		     rq->balance_callback == &balance_push_callback))
 		return;
 
 	head->func = func;
