@@ -1,0 +1,9 @@
+#
+# Automatically generated file; DO NOT EDIT.
+# Main menu
+#
+CONFIG_MODULES=y
+# CONFIG_GUARD is not set
+CONFIG_DEF_STRING="fallback"
+CONFIG_DEF_INT=32
+CONFIG_DEF_HEX=0x0

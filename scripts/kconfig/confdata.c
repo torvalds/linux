@@ -354,6 +354,12 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 	case S_INT:
 	case S_HEX:
 		if (sym_string_valid(sym, p)) {
+			if (def != S_DEF_AUTO &&
+			    !sym_string_check_bounds(sym, p))
+				/* hex uses 64-bit unsigned integer */
+				conf_warning("value '%s' for %s is outside the 64-bit %s integer bounds",
+					     p, sym->name,
+					     sym->type == S_INT ? "signed" : "unsigned");
 			sym->def[def].val = xstrdup(p);
 			sym->flags |= def_flags;
 		} else {

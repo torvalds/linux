@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# Static default and range values
+
+config INT_DEFAULT_ABOVE_RANGE
+	int
+	range 1 1
+	default 16
+
+config INT_DEFAULT_BELOW_RANGE
+	int
+	range 4 8
+	default 2
+
+# Default and range values determined by other options
+
+config RANGE_UPPER_BOUND
+	int
+	default 3
+
+config INT_DYNAMIC_RANGE
+	int
+	range 0 RANGE_UPPER_BOUND
+	default 4
+
+# Hex
+
+config HEX_DEFAULT_ABOVE_RANGE
+	hex
+	range 0x10 0x20
+	default 0x40
+
+# Implicit default value of 0
+
+config INT_IMPLICIT_DEFAULT_ZERO
+	int
+	range 1 4
+
+# Conditional range
+
+config USE_FIRST_RANGE
+	bool
+	default y
+
+config INT_CONDITIONAL_RANGE
+	int
+	range 1 2 if USE_FIRST_RANGE
+	range 3 4 if !USE_FIRST_RANGE
+	default 3
+
+# Conditional default
+
+config USE_DEFAULT
+	bool
+	default y
+
+config INT_CONDITIONAL_DEFAULT
+	int
+	range 1 2
+	default 3 if USE_DEFAULT
+
+# Default outside of the range of a symbol with a prompt
+
+config INT_PROMPT_DEFAULT_ABOVE_RANGE
+	int "int with prompt"
+	range 1 4
+	default 8

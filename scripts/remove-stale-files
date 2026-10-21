@@ -28,3 +28,5 @@ rm -f *.spec
 rm -f lib/test_fortify.log
 
 rm -f rust/doctests_kernel_generated_kunit.c
+
+rm -f usr/gen_init_cpio

@@ -1,0 +1,4 @@
+Kconfig:14: error: 'HEX_SOURCE' is an invalid value for 'integer'
+Kconfig:18: error: 'HEX_SOURCE' is an invalid value for 'integer'
+Kconfig:24: error: 'INT_SOURCE' is an invalid value for 'hex'
+Kconfig:28: error: 'INT_SOURCE' is an invalid value for 'hex'

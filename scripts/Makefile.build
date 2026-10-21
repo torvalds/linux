@@ -306,6 +306,27 @@ quiet_cmd_cc_lst_c = MKLST   $@
 $(obj)/%.lst: $(obj)/%.c FORCE
 	$(call if_changed_dep,cc_lst_c)
 
+# Compile C headers (.h) for header check
+# ---------------------------------------------------------------------------
+
+# Check a header is self-contained, has header guards, and passes kernel-doc.
+#
+# This is for 'make HEADER_CHECK=(headers|dirs) headercheck'. Not to be confused
+# with CONFIG_UAPI_HEADER_TEST.
+#
+# Please do *not* plug %.header-check into any configurable targets, unless you
+# also figure out a way to completely hide the %.header-check artefacts.
+
+quiet_cmd_header_check = HDRCHK  $(patsubst %.header-check,%.h,$@)
+      cmd_header_check = \
+		$(CC) $(c_flags) -fsyntax-only -x c /dev/null -include $< -include $<; \
+		PYTHONDONTWRITEBYTECODE=1 $(PYTHON3) $(KERNELDOC) -none $(KDOCFLAGS) \
+			$(if $(findstring e, $(KBUILD_EXTRA_WARN))$(CONFIG_WERROR),-Werror) $<; \
+		touch $@
+
+$(obj)/%.header-check: $(obj)/%.h FORCE
+	$(call if_changed_dep,header_check)
+
 # Compile Rust sources (.rs)
 # ---------------------------------------------------------------------------
 

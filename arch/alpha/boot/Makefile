@@ -91,7 +91,7 @@ $(obj)/vmlinux.nh: vmlinux $(OBJSTRIP) FORCE
 	$(call if_changed,objstrip)
 
 $(obj)/vmlinux.nh.gz: $(obj)/vmlinux.nh FORCE
-	$(call if_changed,gzip)
+	+$(call if_changed,gzip)
 
 $(obj)/tools/lxboot: $(obj)/bootloader $(OBJSTRIP) FORCE
 	$(call if_changed,objstrip)

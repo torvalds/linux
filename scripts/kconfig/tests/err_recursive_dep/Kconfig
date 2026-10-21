@@ -61,3 +61,27 @@ config G
 	bool "G"
 
 endmenu
+
+# depends on and range
+
+config H1
+	int
+	depends on H2 < H3
+
+config H2
+	int
+	range H3 H1
+
+config H3
+	int
+	range H1 H2
+
+# range
+
+config I1
+	int
+	range I2 I2
+
+config I2
+	int
+	range I1 I1

@@ -105,6 +105,9 @@ n	[A-Za-z0-9_-]
 "comment"		return T_COMMENT;
 "config"		return T_CONFIG;
 "def_bool"		return T_DEF_BOOL;
+"def_hex"		return T_DEF_HEX;
+"def_int"		return T_DEF_INT;
+"def_string"		return T_DEF_STRING;
 "def_tristate"		return T_DEF_TRISTATE;
 "default"		return T_DEFAULT;
 "depends"		return T_DEPENDS;

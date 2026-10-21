@@ -1,0 +1,10 @@
+Kconfig:51: error: integer constant '10000000000000000000' is outside the 64-bit signed bounds
+Kconfig:55: error: integer constant '-9223372036854775809' is outside the 64-bit signed bounds
+Kconfig:59: error: integer constant '10000000000000000000' is outside the 64-bit signed bounds
+Kconfig:63: error: integer constant '-10000000000000000000' is outside the 64-bit signed bounds
+Kconfig:67: error: integer constant '-9223372036854775809' is outside the 64-bit signed bounds
+Kconfig:67: error: integer constant '10000000000000000000' is outside the 64-bit signed bounds
+Kconfig:71: error: hex constant '0x10000000000000000' is outside the 64-bit unsigned bounds
+Kconfig:75: error: hex constant '0x10000000000000000' is outside the 64-bit unsigned bounds
+Kconfig:79: error: hex constant '0x10000000000000000' is outside the 64-bit unsigned bounds
+Kconfig:79: error: hex constant '0x20000000000000000' is outside the 64-bit unsigned bounds

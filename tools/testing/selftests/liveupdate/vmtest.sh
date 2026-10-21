@@ -152,7 +152,7 @@ file /test_binary $workspace_dir/test_binary 0755 0 0
 EOF
 
 	# Generate inner_initrd.cpio
-	"$build_dir/usr/gen_init_cpio" "$workspace_dir/cpio_list_inner" > "$workspace_dir/inner_initrd.cpio"
+	"$build_dir/scripts/gen_init_cpio" "$workspace_dir/cpio_list_inner" > "$workspace_dir/inner_initrd.cpio"
 
 	cat > "$workspace_dir/cpio_list" <<EOF
 dir /dev 0755 0 0
@@ -166,7 +166,7 @@ file /initrd.img $workspace_dir/inner_initrd.cpio 0644 0 0
 EOF
 
 	# Generate the final initrd
-	"$build_dir/usr/gen_init_cpio" "$workspace_dir/cpio_list" > "$initrd"
+	"$build_dir/scripts/gen_init_cpio" "$workspace_dir/cpio_list" > "$initrd"
 }
 
 function run_qemu() {

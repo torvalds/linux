@@ -6,7 +6,7 @@
 #
 # Generate a cpio packed initramfs. It uses gen_init_cpio to generate
 # the cpio archive.
-# This script assumes that gen_init_cpio is located in usr/ directory
+# This script assumes that gen_init_cpio is located in scripts/ directory
 
 # error out on errors
 set -e
@@ -247,4 +247,4 @@ done
 
 # If output_file is set we will generate cpio archive
 # we are careful to delete tmp files
-usr/gen_init_cpio $output $timestamp $cpio_list
+scripts/gen_init_cpio $output $timestamp $cpio_list

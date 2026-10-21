@@ -110,6 +110,23 @@ HOSTLDLIBS
 ----------
 Additional libraries to link against when building host programs.
 
+KGZIP
+-----
+The gzip program used for compressed modules, packaging and the embedded
+kernel configuration. Defaults to gzip.
+
+KPGZIP
+------
+The gzip program used for the compressed kernel image. Defaults to pigz (a
+parallel implementation of gzip), run under scripts/jobserver-exec so that it
+uses the job slots make has free, if pigz is installed, otherwise to
+``KGZIP``. Set ``KPGZIP=`` on the make command line to use another program.
+
+KBZIP2, KLZOP, LZMA, LZ4, XZ, ZSTD
+----------------------------------
+The compressor programs for the other formats. Each defaults to the program
+of the same name.
+
 .. _userkbuildflags:
 
 USERCFLAGS

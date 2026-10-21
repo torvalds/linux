@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0
+# The def_<type> shorthands: a type definition plus a default value.
+
+config MODULES
+	bool "Enable loadable module support"
+	modules
+	default y
+
+config GUARD
+	bool "Guard symbol"
+
+config DEF_BOOL
+	def_bool GUARD
+
+config DEF_TRISTATE
+	def_tristate m if GUARD
+
+config DEF_STRING
+	def_string "guarded" if GUARD
+	default "fallback"
+
+config DEF_INT
+	def_int 64 if GUARD
+	default 32
+
+config DEF_HEX
+	def_hex 0xdead if GUARD
+	default 0x0

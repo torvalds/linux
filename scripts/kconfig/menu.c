@@ -234,17 +234,42 @@ void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep)
 	menu_add_prop(type, expr_alloc_symbol(sym), dep);
 }
 
-static int menu_validate_number(struct symbol *sym, struct symbol *sym2)
+/* Validate the sym2 value for numeric sym. */
+static int menu_validate_number(struct symbol *sym, struct symbol *sym2,
+				const struct property *prop)
 {
-	return sym2->type == S_INT || sym2->type == S_HEX ||
-	       (sym2->type == S_UNKNOWN && sym_string_valid(sym, sym2->name));
+	if (sym->type != S_INT && sym->type != S_HEX)
+		return 0;
+
+	if (sym2->type == sym->type)
+		return 0;
+
+	if (sym2->type != S_UNKNOWN ||
+		!sym_string_valid(sym, sym2->name)) {
+		fprintf(stderr, "%s:%d: error: '%s' is an invalid value for '%s'\n",
+			prop->filename, prop->lineno, sym2->name,
+			sym_type_name(sym->type));
+		return 1;
+	}
+
+	if (!sym_string_check_bounds(sym, sym2->name)) {
+		fprintf(stderr,
+			"%s:%d: error: %s constant '%s' is outside the 64-bit %s bounds\n",
+			prop->filename, prop->lineno, sym_type_name(sym->type),
+			sym2->name, sym->type == S_INT ? "signed" : "unsigned");
+
+		return 1;
+	}
+
+	return 0;
 }
 
-static void sym_check_prop(struct symbol *sym)
+static int sym_check_prop(struct symbol *sym)
 {
 	struct property *prop;
 	struct symbol *sym2;
 	char *use;
+	int errors = 0;
 
 	for (prop = sym->prop; prop; prop = prop->next) {
 		switch (prop->type) {
@@ -258,10 +283,7 @@ static void sym_check_prop(struct symbol *sym)
 				break;
 			sym2 = prop_get_symbol(prop);
 			if (sym->type == S_HEX || sym->type == S_INT) {
-				if (!menu_validate_number(sym, sym2))
-					prop_warn(prop,
-					    "'%s': number is invalid",
-					    sym->name);
+				errors += menu_validate_number(sym, sym2, prop);
 			}
 			if (sym_is_choice(sym)) {
 				struct menu *choice = sym_get_choice_menu(sym2);
@@ -287,27 +309,33 @@ static void sym_check_prop(struct symbol *sym)
 				    "'%s' has wrong type. '%s' only "
 				    "accept arguments of bool and "
 				    "tristate type", sym2->name, use);
+			if (sym_is_choice_value(sym2))
+				prop_warn(prop,
+					  "config symbol '%s' uses %s for '%s', but '%s' is a choice value",
+					  sym->name, use, sym2->name, sym2->name);
 			break;
 		case P_RANGE:
 			if (sym->type != S_INT && sym->type != S_HEX)
 				prop_warn(prop, "range is only allowed "
 						"for int or hex symbols");
-			if (!menu_validate_number(sym, prop->expr->left.sym) ||
-			    !menu_validate_number(sym, prop->expr->right.sym))
-				prop_warn(prop, "range is invalid");
+			errors += menu_validate_number(sym, prop->expr->left.sym, prop);
+			errors += menu_validate_number(sym, prop->expr->right.sym, prop);
 			break;
 		default:
 			;
 		}
 	}
+
+	return errors;
 }
 
-static void _menu_finalize(struct menu *parent, bool inside_choice)
+static int _menu_finalize(struct menu *parent, bool inside_choice)
 {
 	struct menu *menu, *last_menu;
 	struct symbol *sym;
 	struct property *prop;
 	struct expr *basedep, *dep, *dep2;
+	int errors = 0;
 
 	sym = parent->sym;
 	if (parent->list) {
@@ -393,7 +421,7 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 		 * moving on
 		 */
 		for (menu = parent->list; menu; menu = menu->next)
-			_menu_finalize(menu, sym && sym_is_choice(sym));
+			errors += _menu_finalize(menu, sym && sym_is_choice(sym));
 	} else if (!inside_choice && sym) {
 		/*
 		 * Automatic submenu creation. If sym is a symbol and A, B, C,
@@ -461,7 +489,7 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 			}
 			/* Superset, put in submenu */
 		next:
-			_menu_finalize(menu, false);
+			errors += _menu_finalize(menu, false);
 			menu->parent = parent;
 			last_menu = menu;
 		}
@@ -519,14 +547,16 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 			menu_warn(parent, "config symbol defined without type");
 
 		/* Check properties connected to this symbol */
-		sym_check_prop(sym);
+		errors += sym_check_prop(sym);
 		sym->flags |= SYMBOL_WARNED;
 	}
+
+	return errors;
 }
 
-void menu_finalize(void)
+int menu_finalize(void)
 {
-	_menu_finalize(&rootmenu, false);
+	return _menu_finalize(&rootmenu, false);
 }
 
 bool menu_has_prompt(const struct menu *menu)

@@ -23,13 +23,33 @@ success = $(if-success,$(1),y,n)
 # Return n if <command> exits with 0, y otherwise
 failure = $(if-success,$(1),n,y)
 
+# $(cc-probe,<flag>)
+# The command $(cc-option) and $(cc-option-str) test <flag> with. Not meant
+# to be called directly; use one of those two instead.
+cc-probe = trap "rm -rf .tmp_$$" EXIT; mkdir .tmp_$$; $(CC) -Werror $(CLANG_FLAGS) $(shell,echo $(1) | sed "s;^-Wno-;-W;") -c -x c /dev/null -o .tmp_$$/tmp.o
+
 # $(cc-option,<flag>)
 # Return y if the compiler supports <flag>, n otherwise
-cc-option = $(success,trap "rm -rf .tmp_$$" EXIT; mkdir .tmp_$$; $(CC) -Werror $(CLANG_FLAGS) $(1) -c -x c /dev/null -o .tmp_$$/tmp.o)
+cc-option = $(success,$(cc-probe,$(1)))
+
+# $(cc-option-str,<flag>[,<fallback>])
+# Return <flag> if the compiler supports it, <fallback> otherwise.
+# <fallback> defaults to an empty string and is returned untested.
+cc-option-str = $(if-success,$(cc-probe,$(1)),$(1),$(2))
+
+# $(ld-probe,<flag>)
+# The command $(ld-option) and $(ld-option-str) test <flag> with. Not meant
+# to be called directly; use one of those two instead.
+ld-probe = $(LD) -v $(1)
 
 # $(ld-option,<flag>)
 # Return y if the linker supports <flag>, n otherwise
-ld-option = $(success,$(LD) -v $(1))
+ld-option = $(success,$(ld-probe,$(1)))
+
+# $(ld-option-str,<flag>[,<fallback>])
+# Return <flag> if the linker supports it, <fallback> otherwise.
+# <fallback> defaults to an empty string and is returned untested.
+ld-option-str = $(if-success,$(ld-probe,$(1)),$(1),$(2))
 
 # $(as-instr,<instr>)
 # Return y if the assembler supports <instr>, n otherwise
@@ -61,9 +81,8 @@ ld-version := $(shell,set -- $(ld-info) && echo $2)
 # machine bit flags
 #  $(m32-flag): -m32 if the compiler supports it, or an empty string otherwise.
 #  $(m64-flag): -m64 if the compiler supports it, or an empty string otherwise.
-cc-option-bit = $(if-success,$(CC) -Werror $(1) -E -x c /dev/null -o /dev/null,$(1))
-m32-flag := $(cc-option-bit,-m32)
-m64-flag := $(cc-option-bit,-m64)
+m32-flag := $(cc-option-str,-m32)
+m64-flag := $(cc-option-str,-m64)
 
 # Test whether the compiler can link userspace applications
 cc_can_link_user = $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(1))

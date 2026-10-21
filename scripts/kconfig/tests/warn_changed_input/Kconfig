@@ -26,6 +26,11 @@ config NUM
 	  Kconfig resolves it to the constrained in-range value.
 	  The warning should report that adjustment.
 
+config HEX_RANGE
+	hex
+	range 0 0xfffffffffffffffe
+	default 0xffffffffffffffff
+
 config DUP
 	bool "DUP"
 	depends on DEP

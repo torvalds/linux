@@ -1,0 +1,11 @@
+#
+# Automatically generated file; DO NOT EDIT.
+# Main menu
+#
+CONFIG_MODULES=y
+CONFIG_GUARD=y
+CONFIG_DEF_BOOL=y
+CONFIG_DEF_TRISTATE=m
+CONFIG_DEF_STRING="guarded"
+CONFIG_DEF_INT=64
+CONFIG_DEF_HEX=0xdead

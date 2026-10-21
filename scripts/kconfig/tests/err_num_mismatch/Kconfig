@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0
+# Test 'int' and 'hex' symbols that reference each other
+
+config INT_SOURCE
+	int
+
+config HEX_SOURCE
+	hex
+
+# 'hex' reference from 'int'
+
+config INT_DEFAULT_HEX
+	int
+	default HEX_SOURCE
+
+config INT_RANGE_HEX
+	int
+	range HEX_SOURCE 1
+
+# A hex symbol must not reference an int symbol
+
+config HEX_DEFAULT_INT
+	hex
+	default INT_SOURCE
+
+config HEX_RANGE_INT
+	hex
+	range INT_SOURCE 0x1
+
+# Referencing the same type is valid
+
+config INT_FROM_INT
+	int
+	default INT_SOURCE
+
+config HEX_FROM_HEX
+	hex
+	range 0 HEX_SOURCE

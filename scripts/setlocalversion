@@ -33,7 +33,7 @@ if test $# -gt 0 -o ! -d "$srctree"; then
 fi
 
 try_tag() {
-	tag="$1"
+	local tag="$1"
 
 	# Is $tag an annotated tag?
 	if [ "$(git cat-file -t "$tag" 2> /dev/null)" != tag ]; then
@@ -59,7 +59,6 @@ scm_version()
 {
 	local short=false
 	local no_dirty=false
-	local tag
 
 	while [ $# -gt 0 ];
 	do

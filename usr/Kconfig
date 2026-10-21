@@ -13,7 +13,7 @@ config INITRAMFS_SOURCE
 	  to be used as an initramfs image.  Directories should contain a
 	  filesystem layout to be included in the initramfs image.  Files
 	  should contain entries according to the format described by the
-	  "usr/gen_init_cpio" program in the kernel tree.
+	  "scripts/gen_init_cpio" program in the kernel tree.
 
 	  When multiple directories and files are specified then the
 	  initramfs image will be the aggregate of all of them.

@@ -155,7 +155,7 @@ specification such as the following example::
   dir /mnt 755 0 0
   file /init initramfs/init.sh 755 0 0
 
-Run "usr/gen_init_cpio" (after the kernel build) to get a usage message
+Run "scripts/gen_init_cpio" (after the kernel build) to get a usage message
 documenting the above file format.
 
 One advantage of the configuration file is that root access is not required to
@@ -167,9 +167,9 @@ Documentation/driver-api/early-userspace/early_userspace_support.rst for more de
 The kernel does not depend on external cpio tools.  If you specify a
 directory instead of a configuration file, the kernel's build infrastructure
 creates a configuration file from that directory (usr/Makefile calls
-usr/gen_initramfs.sh), and proceeds to package up that directory
-using the config file (by feeding it to usr/gen_init_cpio, which is created
-from usr/gen_init_cpio.c).  The kernel's build-time cpio creation code is
+scripts/gen_initramfs.sh), and proceeds to package up that directory
+using the config file (by feeding it to scripts/gen_init_cpio, which is created
+from scripts/gen_init_cpio.c).  The kernel's build-time cpio creation code is
 entirely self-contained, and the kernel's boot-time extractor is also
 (obviously) self-contained.
 
@@ -313,7 +313,7 @@ the above threads) is:
 2) The cpio archive format chosen by the kernel is simpler and cleaner (and
    thus easier to create and parse) than any of the (literally dozens of)
    various tar archive formats.  The complete initramfs archive format is
-   explained in buffer-format.rst, created in usr/gen_init_cpio.c, and
+   explained in buffer-format.rst, created in scripts/gen_init_cpio.c, and
    extracted in init/initramfs.c.  All three together come to less than 26k
    total of human-readable text.
 

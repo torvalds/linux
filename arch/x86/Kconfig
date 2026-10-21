@@ -2363,6 +2363,23 @@ config CC_HAS_KCFI_ARITY
 	def_bool $(cc-option,-fsanitize=kcfi -fsanitize-kcfi-arity)
 	depends on CC_IS_CLANG && !RUST
 
+config CC_OPT_INDIRECT_BRANCH_CS_PREFIX
+	def_string "$(cc-option-str,-mindirect-branch-cs-prefix)"
+
+config CC_OPT_CF_PROTECTION_NONE
+	def_string "$(cc-option-str,-fcf-protection=none)"
+
+# with jump tables off: the compilers use NOTRACK for them, which kernel IBT
+# does not allow
+config CC_OPT_CF_PROTECTION_BRANCH
+	def_string "$(cc-option-str,-fcf-protection=branch -fno-jump-tables)"
+
+config CC_OPT_FALIGN_JUMPS
+	def_string "$(cc-option-str,-falign-jumps=1)"
+
+config CC_OPT_FALIGN_LOOPS
+	def_string "$(cc-option-str,-falign-loops=1)"
+
 config FUNCTION_PADDING_CFI
 	int
 	default 59 if FUNCTION_ALIGNMENT_64B

@@ -31,6 +31,7 @@ bool sym_set_tristate_value(struct symbol *sym,tristate tri);
 void choice_set_value(struct menu *choice, struct symbol *sym);
 tristate sym_toggle_tristate_value(struct symbol *sym);
 bool sym_string_valid(struct symbol *sym, const char *newval);
+bool sym_string_check_bounds(struct symbol *sym, const char *str);
 bool sym_string_within_range(struct symbol *sym, const char *str);
 bool sym_set_string_value(struct symbol *sym, const char *newval);
 bool sym_is_changeable(const struct symbol *sym);

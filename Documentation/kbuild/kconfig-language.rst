@@ -113,10 +113,21 @@ applicable everywhere (see syntax).
 
 - type definition + default value::
 
-	"def_bool"/"def_tristate" <expr> ["if" <expr>]
+	"def_bool" <expr> ["if" <expr>]
+	"def_tristate" <expr> ["if" <expr>]
+	"def_string" <expr> ["if" <expr>]
+	"def_int" <expr> ["if" <expr>]
+	"def_hex" <expr> ["if" <expr>]
 
   This is a shorthand notation for a type definition plus a value.
   Optionally dependencies for this default value can be added with "if".
+
+  The shorthand supplies the type once, and is otherwise an ordinary
+  default: it is the first entry of the list described above, so any
+  further "default" entries still apply when its "if" is not met. Since
+  that leaves the type definition inside one arm of a list, spelling the
+  type out on its own line reads better for a symbol with several
+  defaults.
 
 - dependencies: "depends on" <expr> ["if" <expr>]
 
