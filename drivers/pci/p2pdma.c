@@ -236,9 +236,8 @@ static void pci_p2pdma_release(void *data)
 		return;
 
 	/* Flush and disable pci_alloc_p2p_mem() */
-	pdev->p2pdma = NULL;
-	if (p2pdma->pool)
-		synchronize_rcu();
+	RCU_INIT_POINTER(pdev->p2pdma, NULL);
+	synchronize_rcu();
 	xa_destroy(&p2pdma->map_types);
 
 	if (!p2pdma->pool)
@@ -440,8 +439,8 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 		goto pgmap_free;
 	}
 
-	error = devm_add_action_or_reset(&pdev->dev, pci_p2pdma_unmap_mappings,
-					 p2p_pgmap);
+	error = devm_add_action(&pdev->dev, pci_p2pdma_unmap_mappings,
+				p2p_pgmap);
 	if (error)
 		goto pages_free;
 
@@ -451,13 +450,15 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 			range_len(&pgmap->range), dev_to_node(&pdev->dev),
 			&pgmap->ref);
 	if (error)
-		goto pages_free;
+		goto mappings_remove;
 
 	pci_info(pdev, "added peer-to-peer DMA memory %#llx-%#llx\n",
 		 pgmap->range.start, pgmap->range.end);
 
 	return 0;
 
+mappings_remove:
+	devm_remove_action(&pdev->dev, pci_p2pdma_unmap_mappings, p2p_pgmap);
 pages_free:
 	devm_memunmap_pages(&pdev->dev, pgmap);
 pgmap_free:
@@ -542,9 +543,13 @@ static const struct pci_p2pdma_whitelist_entry {
 	/* Intel Xeon E5/Core i7 */
 	{PCI_VENDOR_ID_INTEL,	0x3c00, REQ_SAME_HOST_BRIDGE},
 	{PCI_VENDOR_ID_INTEL,	0x3c01, REQ_SAME_HOST_BRIDGE},
+	/* Intel Xeon E7 v4/Xeon E5 v4/Xeon E3 v4/Xeon D */
+	{PCI_VENDOR_ID_INTEL,	0x6f00, REQ_SAME_HOST_BRIDGE},
 	/* Intel Xeon E7 v3/Xeon E5 v3/Core i7 */
 	{PCI_VENDOR_ID_INTEL,	0x2f00, REQ_SAME_HOST_BRIDGE},
 	{PCI_VENDOR_ID_INTEL,	0x2f01, REQ_SAME_HOST_BRIDGE},
+	/* Intel Haswell (client) */
+	{PCI_VENDOR_ID_INTEL,	0x0c08, REQ_SAME_HOST_BRIDGE},
 	/* Intel Skylake-E */
 	{PCI_VENDOR_ID_INTEL,	0x2030, 0},
 	{PCI_VENDOR_ID_INTEL,	0x2031, 0},
@@ -569,6 +574,14 @@ static const struct pci_p2pdma_whitelist_entry {
 	{PCI_VENDOR_ID_NVIDIA, 0x2f96, 0},
 	{PCI_VENDOR_ID_NVIDIA, 0x2f97, 0},
 	{PCI_VENDOR_ID_NVIDIA, 0x2f98, 0},
+	/* Zhaoxin KX-6000/KH-40000/KX-6000G/KX-7000/KH-50000 */
+	{PCI_VENDOR_ID_ZHAOXIN, 0x1003, REQ_SAME_HOST_BRIDGE},
+	{PCI_VENDOR_ID_ZHAOXIN, 0x1005, REQ_SAME_HOST_BRIDGE},
+	{PCI_VENDOR_ID_ZHAOXIN, 0x1006, REQ_SAME_HOST_BRIDGE},
+	{PCI_VENDOR_ID_ZHAOXIN, 0x1007, REQ_SAME_HOST_BRIDGE},
+	{PCI_VENDOR_ID_ZHAOXIN, 0x1008, 0},
+	/* Alibaba T-HEAD Yitian 710 CPU */
+	{PCI_VENDOR_ID_ALIBABA, 0x8000, 0},
 	{}
 };
 
@@ -708,7 +721,6 @@ calc_map_type_and_dist(struct pci_dev *provider, struct pci_dev *client,
 {
 	enum pci_p2pdma_map_type map_type = PCI_P2PDMA_MAP_THRU_HOST_BRIDGE;
 	struct pci_dev *a = provider, *b = client, *bb;
-	bool acs_redirects = false;
 	struct pci_p2pdma *p2pdma;
 	struct seq_buf acs_list;
 	int acs_cnt = 0;
@@ -771,17 +783,18 @@ check_b_path_acs:
 	}
 
 	if (verbose) {
-		acs_list.buffer[acs_list.len-1] = 0; /* drop final semicolon */
+		/* Drop the final semicolon; the list is not empty here */
+		if (!seq_buf_has_overflowed(&acs_list))
+			acs_list.buffer[acs_list.len - 1] = '\0';
 		pci_warn(client, "ACS redirect is set between the client and provider (%s)\n",
 			 pci_name(provider));
 		pci_warn(client, "to disable ACS redirect for this path, add the kernel parameter: pci=disable_acs_redir=%s\n",
-			 acs_list.buffer);
+			 seq_buf_str(&acs_list));
 	}
-	acs_redirects = true;
 
 map_through_host_bridge:
 	if (!cpu_supports_p2pdma() &&
-	    !host_bridge_whitelist(provider, client, acs_redirects)) {
+	    !host_bridge_whitelist(provider, client, verbose)) {
 		if (verbose)
 			pci_warn(client, "cannot be used for peer-to-peer DMA as the client and provider (%s) do not share an upstream bridge or whitelisted host bridge\n",
 				 pci_name(provider));
@@ -867,7 +880,13 @@ static bool pci_has_p2pmem(struct pci_dev *pdev)
 
 	rcu_read_lock();
 	p2pdma = rcu_dereference(pdev->p2pdma);
-	res = p2pdma && p2pdma->p2pmem_published;
+
+	/*
+	 * The callers hand the result to pci_alloc_p2pmem(), so only a
+	 * provider backed by a pool is of any use here. pcim_p2pdma_init()
+	 * creates providers without one.
+	 */
+	res = p2pdma && p2pdma->pool && p2pdma->p2pmem_published;
 	rcu_read_unlock();
 
 	return res;
