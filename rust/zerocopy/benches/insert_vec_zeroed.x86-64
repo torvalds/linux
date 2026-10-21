@@ -54,8 +54,8 @@ bench_insert_vec_zeroed:
 	mov r15, rsi
 	mov rbp, rdx
 	lea rcx, [rax + rax]
-	cmp r12, rcx
-	cmova rcx, r12
+	cmp rcx, r12
+	cmovbe rcx, r12
 	cmp rcx, 5
 	mov r14d, 4
 	cmovae r14, rcx

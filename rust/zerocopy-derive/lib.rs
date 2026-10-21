@@ -28,6 +28,10 @@
 #![allow(clippy::type_complexity)]
 // Inlining format args isn't supported on our MSRV.
 #![allow(clippy::uninlined_format_args)]
+// `cargo-zerocopy` supplies this cfg for pinned-nightly tests. During UI tests,
+// `testutil::UiTestRunner` explicitly supplies it to the host-built proc macro;
+// ordinary `RUSTFLAGS` are not sufficient when Cargo receives `--target`.
+#![cfg_attr(__ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS, feature(proc_macro_def_site))]
 #![deny(
     rustdoc::bare_urls,
     rustdoc::broken_intra_doc_links,
@@ -46,6 +50,7 @@ macro_rules! ident {
 }
 
 mod derive;
+mod invariant;
 #[cfg(test)]
 mod output_tests;
 mod repr;
@@ -79,7 +84,8 @@ use crate::util::*;
 /// are currently required to live at the crate root, and so the caller must
 /// specify the name in order to avoid name collisions.
 macro_rules! derive {
-    ($trait:ident => $outer:ident => $inner:path) => {
+    ($(#[$attr:meta])* $trait:ident => $outer:ident => $inner:path) => {
+        $(#[$attr])*
         #[proc_macro_derive($trait, attributes(zerocopy))]
         pub fn $outer(ts: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let ast = syn::parse_macro_input!(ts as DeriveInput);
@@ -88,10 +94,13 @@ macro_rules! derive {
                 Err(e) => return e.into_compile_error().into(),
             };
             let ts = $inner(&ctx, Trait::$trait).into_ts();
-            // We wrap in `const_block` as a backstop in case any derive fails
-            // to wrap its output in `const_block` (and thus fails to annotate)
-            // with the full set of `#[allow(...)]` attributes).
-            let ts = const_block([Some(ts)]);
+            // Apply generated-code lint allowances as a backstop, except
+            // around caller-authored invariant expressions.
+            let ts = if matches!(Trait::$trait, Trait::TryFromBytes) {
+                ctx.const_block([Some(ts)])
+            } else {
+                const_block([Some(ts)])
+            };
             #[cfg(test)]
             crate::util::testutil::check_hygiene(ts.clone());
             ts.into()
@@ -120,6 +129,7 @@ impl IntoTokenStream for Result<proc_macro2::TokenStream, Error> {
 
 derive!(KnownLayout => derive_known_layout => crate::derive::known_layout::derive);
 derive!(Immutable => derive_immutable => crate::derive::derive_immutable);
+derive!(#[doc(hidden)] Project => derive_project => crate::derive::project::derive);
 derive!(TryFromBytes => derive_try_from_bytes => crate::derive::try_from_bytes::derive_try_from_bytes);
 derive!(FromZeros => derive_from_zeros => crate::derive::from_bytes::derive_from_zeros);
 derive!(FromBytes => derive_from_bytes => crate::derive::from_bytes::derive_from_bytes);
@@ -128,6 +138,89 @@ derive!(Unaligned => derive_unaligned => crate::derive::unaligned::derive_unalig
 derive!(ByteHash => derive_hash => crate::derive::derive_hash);
 derive!(ByteEq => derive_eq => crate::derive::derive_eq);
 derive!(SplitAt => derive_split_at => crate::derive::derive_split_at);
+
+/// Generates a struct whose two identically-printed field types resolve to
+/// different types. This is used to test that derives preserve type identity
+/// across macro hygiene contexts.
+#[cfg(__ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS)]
+#[doc(hidden)]
+#[proc_macro]
+pub fn __test_hygienically_mixed_into_bytes(
+    _input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    use proc_macro::{Group, Ident, Span, TokenStream, TokenTree};
+
+    fn rewrite(input: TokenStream) -> TokenStream {
+        input
+            .into_iter()
+            .map(|token| match token {
+                TokenTree::Ident(ident) if ident.to_string() == "CallT" => {
+                    TokenTree::Ident(Ident::new("T", Span::call_site()))
+                }
+                TokenTree::Ident(ident) if ident.to_string() == "DefT" => {
+                    TokenTree::Ident(Ident::new("T", Span::def_site()))
+                }
+                TokenTree::Group(group) => {
+                    let mut rewritten = Group::new(group.delimiter(), rewrite(group.stream()));
+                    rewritten.set_span(group.span());
+                    TokenTree::Group(rewritten)
+                }
+                token => token,
+            })
+            .collect()
+    }
+
+    rewrite(
+        "#[derive(zerocopy_renamed::IntoBytes)] \
+         #[zerocopy(crate = \"zerocopy_renamed\")] \
+         #[repr(C)] \
+         struct IntoBytes15<DefT>(CallT, DefT);"
+            .parse()
+            .expect("test input must parse"),
+    )
+}
+
+/// Constructs an invariant whose field declaration and reference have different
+/// syntax contexts, while preserving all other caller tokens.
+#[doc(hidden)]
+#[proc_macro]
+pub fn __test_hygienically_mixed_invariant(
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    // Cross-compilation does not necessarily pass the nightly test cfg to
+    // host proc macros. Omit the fixture and its test together in that case.
+    #[cfg(not(__ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS))]
+    {
+        let _ = input;
+        proc_macro::TokenStream::new()
+    }
+    #[cfg(__ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS)]
+    {
+        use proc_macro::{Group, Ident, Span, TokenStream, TokenTree};
+
+        fn rewrite(input: TokenStream) -> TokenStream {
+            input
+                .into_iter()
+                .map(|token| match token {
+                    TokenTree::Ident(ident) if ident.to_string() == "DefField" => {
+                        TokenTree::Ident(Ident::new("field", Span::def_site()))
+                    }
+                    TokenTree::Ident(ident) if ident.to_string() == "CallField" => {
+                        TokenTree::Ident(Ident::new("field", Span::call_site()))
+                    }
+                    TokenTree::Group(group) => {
+                        let mut rewritten = Group::new(group.delimiter(), rewrite(group.stream()));
+                        rewritten.set_span(group.span());
+                        TokenTree::Group(rewritten)
+                    }
+                    token => token,
+                })
+                .collect()
+        }
+
+        rewrite(input)
+    }
+}
 
 #[cfg_attr(not(zerocopy_unstable_linux), doc(hidden))]
 #[proc_macro_derive(most_traits, attributes(zerocopy))]
@@ -153,11 +246,18 @@ pub fn most_traits(ts: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for (derive, t) in derives {
         tokens.extend(derive(&ctx, t))
     }
+    // Invariants prevent `FromBytes` from generating its usual supertrait
+    // impls, but still permit checked conversions through `TryFromBytes`.
+    if ctx.invariant_span.is_some() {
+        tokens.extend(crate::derive::try_from_bytes::derive_try_from_bytes(
+            &ctx,
+            Trait::TryFromBytes,
+        ));
+    }
 
-    // We wrap in `const_block` as a backstop in case any derive fails
-    // to wrap its output in `const_block` (and thus fails to annotate)
-    // with the full set of `#[allow(...)]` attributes).
-    let ts = const_block([Some(tokens)]);
+    // Apply generated-code lint allowances as a backstop, except around
+    // caller-authored invariant expressions.
+    let ts = ctx.const_block([Some(tokens)]);
     #[cfg(test)]
     crate::util::testutil::check_hygiene(ts.clone());
     ts.into()

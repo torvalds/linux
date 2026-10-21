@@ -476,6 +476,7 @@ KBUILD_USERLDFLAGS := $(USERLDFLAGS)
 # These flags apply to all Rust code in the tree, including the kernel and
 # host programs.
 #
+# `-Aclippy::comparison_chain`: the lint has been demoted since 1.87.
 # `-Aclippy::unwrap_or_default`: the lint is buggy [1] and ignores our
 # MSRV. It can trigger depending on the optimization level.
 # [1] https://github.com/rust-lang/rust-clippy/issues/17379
@@ -494,6 +495,7 @@ export rust_common_flags := --edition=2021 \
 			    -Wclippy::cast_lossless \
 			    -Aclippy::collapsible_if \
 			    -Aclippy::collapsible_match \
+			    -Aclippy::comparison_chain \
 			    -Wclippy::ignored_unit_patterns \
 			    -Aclippy::incompatible_msrv \
 			    -Wclippy::mut_mut \

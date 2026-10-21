@@ -402,15 +402,26 @@
 //! ```
 //!
 //! [`Arc`]: kernel::sync::Arc
+// Implementation details
+//
+// The reasoning for adopting a handle based approach:
+// - If we explicitly drop the target of a timer callback in the timer callback, we
+//   may get a dangling reference.
+// - If the callback owns the last reference to the target, target may be dropped
+//   in non-sleepable context when the callback is finished.
+// - When dropping an object that is the target of an armed timer, we may drop
+//   fields accessed by the timer callback before we cancel the timer (drop order).
+//
+// By using a handle, we can make the handle own the callback target and avoid these problems.
 
-use super::{ClockSource, Delta, Instant};
+use super::{ClockId, Delta, Instant};
 use crate::{prelude::*, types::Opaque};
 use core::{marker::PhantomData, ptr::NonNull};
 use pin_init::PinInit;
 
 /// A type-alias to refer to the [`Instant<C>`] for a given `T` from [`HrTimer<T>`].
 ///
-/// Where `C` is the [`ClockSource`] of the [`HrTimer`].
+/// Where `C` is the [`ClockId`] of the [`HrTimer`].
 pub type HrTimerInstant<T> = Instant<<<T as HasHrTimer<T>>::TimerMode as HrTimerMode>::Clock>;
 
 /// A timer backed by a C `struct hrtimer`.
@@ -855,7 +866,7 @@ pub trait HrTimerExpires {
     fn as_nanos(&self) -> i64;
 }
 
-impl<C: ClockSource> HrTimerExpires for Instant<C> {
+impl<C: ClockId> HrTimerExpires for Instant<C> {
     #[inline]
     fn as_nanos(&self) -> i64 {
         Instant::<C>::as_nanos(self)
@@ -870,22 +881,22 @@ impl HrTimerExpires for Delta {
 }
 
 mod private {
-    use crate::time::ClockSource;
+    use crate::time::ClockId;
 
     pub trait Sealed {}
 
-    impl<C: ClockSource> Sealed for super::AbsoluteMode<C> {}
-    impl<C: ClockSource> Sealed for super::RelativeMode<C> {}
-    impl<C: ClockSource> Sealed for super::AbsolutePinnedMode<C> {}
-    impl<C: ClockSource> Sealed for super::RelativePinnedMode<C> {}
-    impl<C: ClockSource> Sealed for super::AbsoluteSoftMode<C> {}
-    impl<C: ClockSource> Sealed for super::RelativeSoftMode<C> {}
-    impl<C: ClockSource> Sealed for super::AbsolutePinnedSoftMode<C> {}
-    impl<C: ClockSource> Sealed for super::RelativePinnedSoftMode<C> {}
-    impl<C: ClockSource> Sealed for super::AbsoluteHardMode<C> {}
-    impl<C: ClockSource> Sealed for super::RelativeHardMode<C> {}
-    impl<C: ClockSource> Sealed for super::AbsolutePinnedHardMode<C> {}
-    impl<C: ClockSource> Sealed for super::RelativePinnedHardMode<C> {}
+    impl<C: ClockId> Sealed for super::AbsoluteMode<C> {}
+    impl<C: ClockId> Sealed for super::RelativeMode<C> {}
+    impl<C: ClockId> Sealed for super::AbsolutePinnedMode<C> {}
+    impl<C: ClockId> Sealed for super::RelativePinnedMode<C> {}
+    impl<C: ClockId> Sealed for super::AbsoluteSoftMode<C> {}
+    impl<C: ClockId> Sealed for super::RelativeSoftMode<C> {}
+    impl<C: ClockId> Sealed for super::AbsolutePinnedSoftMode<C> {}
+    impl<C: ClockId> Sealed for super::RelativePinnedSoftMode<C> {}
+    impl<C: ClockId> Sealed for super::AbsoluteHardMode<C> {}
+    impl<C: ClockId> Sealed for super::RelativeHardMode<C> {}
+    impl<C: ClockId> Sealed for super::AbsolutePinnedHardMode<C> {}
+    impl<C: ClockId> Sealed for super::RelativePinnedHardMode<C> {}
 }
 
 /// Operational mode of [`HrTimer`].
@@ -894,16 +905,16 @@ pub trait HrTimerMode: private::Sealed {
     const C_MODE: bindings::hrtimer_mode;
 
     /// Type representing the clock source.
-    type Clock: ClockSource;
+    type Clock: ClockId;
 
     /// Type representing the expiration specification (absolute or relative time).
     type Expires: HrTimerExpires;
 }
 
 /// Timer that expires at a fixed point in time.
-pub struct AbsoluteMode<C: ClockSource>(PhantomData<C>);
+pub struct AbsoluteMode<C: ClockId>(PhantomData<C>);
 
-impl<C: ClockSource> HrTimerMode for AbsoluteMode<C> {
+impl<C: ClockId> HrTimerMode for AbsoluteMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS;
 
     type Clock = C;
@@ -911,9 +922,9 @@ impl<C: ClockSource> HrTimerMode for AbsoluteMode<C> {
 }
 
 /// Timer that expires after a delay from now.
-pub struct RelativeMode<C: ClockSource>(PhantomData<C>);
+pub struct RelativeMode<C: ClockId>(PhantomData<C>);
 
-impl<C: ClockSource> HrTimerMode for RelativeMode<C> {
+impl<C: ClockId> HrTimerMode for RelativeMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL;
 
     type Clock = C;
@@ -921,8 +932,8 @@ impl<C: ClockSource> HrTimerMode for RelativeMode<C> {
 }
 
 /// Timer with absolute expiration time, pinned to its current CPU.
-pub struct AbsolutePinnedMode<C: ClockSource>(PhantomData<C>);
-impl<C: ClockSource> HrTimerMode for AbsolutePinnedMode<C> {
+pub struct AbsolutePinnedMode<C: ClockId>(PhantomData<C>);
+impl<C: ClockId> HrTimerMode for AbsolutePinnedMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS_PINNED;
 
     type Clock = C;
@@ -930,8 +941,8 @@ impl<C: ClockSource> HrTimerMode for AbsolutePinnedMode<C> {
 }
 
 /// Timer with relative expiration time, pinned to its current CPU.
-pub struct RelativePinnedMode<C: ClockSource>(PhantomData<C>);
-impl<C: ClockSource> HrTimerMode for RelativePinnedMode<C> {
+pub struct RelativePinnedMode<C: ClockId>(PhantomData<C>);
+impl<C: ClockId> HrTimerMode for RelativePinnedMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL_PINNED;
 
     type Clock = C;
@@ -939,8 +950,8 @@ impl<C: ClockSource> HrTimerMode for RelativePinnedMode<C> {
 }
 
 /// Timer with absolute expiration, handled in soft irq context.
-pub struct AbsoluteSoftMode<C: ClockSource>(PhantomData<C>);
-impl<C: ClockSource> HrTimerMode for AbsoluteSoftMode<C> {
+pub struct AbsoluteSoftMode<C: ClockId>(PhantomData<C>);
+impl<C: ClockId> HrTimerMode for AbsoluteSoftMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS_SOFT;
 
     type Clock = C;
@@ -948,8 +959,8 @@ impl<C: ClockSource> HrTimerMode for AbsoluteSoftMode<C> {
 }
 
 /// Timer with relative expiration, handled in soft irq context.
-pub struct RelativeSoftMode<C: ClockSource>(PhantomData<C>);
-impl<C: ClockSource> HrTimerMode for RelativeSoftMode<C> {
+pub struct RelativeSoftMode<C: ClockId>(PhantomData<C>);
+impl<C: ClockId> HrTimerMode for RelativeSoftMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL_SOFT;
 
     type Clock = C;
@@ -957,8 +968,8 @@ impl<C: ClockSource> HrTimerMode for RelativeSoftMode<C> {
 }
 
 /// Timer with absolute expiration, pinned to CPU and handled in soft irq context.
-pub struct AbsolutePinnedSoftMode<C: ClockSource>(PhantomData<C>);
-impl<C: ClockSource> HrTimerMode for AbsolutePinnedSoftMode<C> {
+pub struct AbsolutePinnedSoftMode<C: ClockId>(PhantomData<C>);
+impl<C: ClockId> HrTimerMode for AbsolutePinnedSoftMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS_PINNED_SOFT;
 
     type Clock = C;
@@ -966,8 +977,8 @@ impl<C: ClockSource> HrTimerMode for AbsolutePinnedSoftMode<C> {
 }
 
 /// Timer with absolute expiration, pinned to CPU and handled in soft irq context.
-pub struct RelativePinnedSoftMode<C: ClockSource>(PhantomData<C>);
-impl<C: ClockSource> HrTimerMode for RelativePinnedSoftMode<C> {
+pub struct RelativePinnedSoftMode<C: ClockId>(PhantomData<C>);
+impl<C: ClockId> HrTimerMode for RelativePinnedSoftMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL_PINNED_SOFT;
 
     type Clock = C;
@@ -975,8 +986,8 @@ impl<C: ClockSource> HrTimerMode for RelativePinnedSoftMode<C> {
 }
 
 /// Timer with absolute expiration, handled in hard irq context.
-pub struct AbsoluteHardMode<C: ClockSource>(PhantomData<C>);
-impl<C: ClockSource> HrTimerMode for AbsoluteHardMode<C> {
+pub struct AbsoluteHardMode<C: ClockId>(PhantomData<C>);
+impl<C: ClockId> HrTimerMode for AbsoluteHardMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS_HARD;
 
     type Clock = C;
@@ -984,8 +995,8 @@ impl<C: ClockSource> HrTimerMode for AbsoluteHardMode<C> {
 }
 
 /// Timer with relative expiration, handled in hard irq context.
-pub struct RelativeHardMode<C: ClockSource>(PhantomData<C>);
-impl<C: ClockSource> HrTimerMode for RelativeHardMode<C> {
+pub struct RelativeHardMode<C: ClockId>(PhantomData<C>);
+impl<C: ClockId> HrTimerMode for RelativeHardMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL_HARD;
 
     type Clock = C;
@@ -993,8 +1004,8 @@ impl<C: ClockSource> HrTimerMode for RelativeHardMode<C> {
 }
 
 /// Timer with absolute expiration, pinned to CPU and handled in hard irq context.
-pub struct AbsolutePinnedHardMode<C: ClockSource>(PhantomData<C>);
-impl<C: ClockSource> HrTimerMode for AbsolutePinnedHardMode<C> {
+pub struct AbsolutePinnedHardMode<C: ClockId>(PhantomData<C>);
+impl<C: ClockId> HrTimerMode for AbsolutePinnedHardMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS_PINNED_HARD;
 
     type Clock = C;
@@ -1002,8 +1013,8 @@ impl<C: ClockSource> HrTimerMode for AbsolutePinnedHardMode<C> {
 }
 
 /// Timer with relative expiration, pinned to CPU and handled in hard irq context.
-pub struct RelativePinnedHardMode<C: ClockSource>(PhantomData<C>);
-impl<C: ClockSource> HrTimerMode for RelativePinnedHardMode<C> {
+pub struct RelativePinnedHardMode<C: ClockId>(PhantomData<C>);
+impl<C: ClockId> HrTimerMode for RelativePinnedHardMode<C> {
     const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL_PINNED_HARD;
 
     type Clock = C;

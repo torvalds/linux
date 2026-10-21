@@ -295,7 +295,6 @@ macro_rules! bitfield {
         $(#[$attr:meta])* $vis:vis struct $name:ident($storage:ty) { $($fields:tt)* }
     ) => {
         $crate::bitfield!(@core
-            #[allow(non_camel_case_types)]
             $(#[$attr])* $vis $name $storage
         );
         $crate::bitfield!(@fields $vis $name $storage { $($fields)* });

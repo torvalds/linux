@@ -50,7 +50,7 @@
 --blocklist-item VM_MAYREAD
 --blocklist-item VM_MAYWRITE
 --blocklist-item VM_MAYEXEC
---blocklist-item VM_MAYEXEC
+--blocklist-item VM_MAYSHARE
 --blocklist-item VM_PFNMAP
 --blocklist-item VM_IO
 --blocklist-item VM_DONTCOPY

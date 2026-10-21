@@ -23,7 +23,7 @@ use core::{
 
 use super::*;
 use crate::pointer::{
-    invariant::{Exclusive, Shared, Valid},
+    invariant::{Exclusive, Safe, Shared},
     SizeEq, TransmuteFromPtr,
 };
 
@@ -108,7 +108,7 @@ impl<T: ?Sized> AsAddress for *const T {
         #[allow(clippy::as_conversions)]
         #[cfg_attr(
             __ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS,
-            allow(lossy_provenance_casts)
+            allow(implicit_provenance_casts)
         )]
         return self.cast::<()>() as usize;
     }
@@ -144,9 +144,10 @@ pub(crate) fn validate_aligned_to<T: AsAddress, U>(t: T) -> Result<(), Alignment
 /// on the answer it gives if this is not the case.
 #[cfg_attr(
     kani,
-    kani::requires(len <= DstLayout::MAX_SIZE),
     kani::requires(align.is_power_of_two()),
-    kani::ensures(|&p| (len + p) % align.get() == 0),
+    // A power-of-two alignment divides the `usize` modulus, so wrapping
+    // preserves congruence even when the next aligned value exceeds `usize`.
+    kani::ensures(|&p| len.wrapping_add(p) % align.get() == 0),
     // Ensures that we add the minimum required padding.
     kani::ensures(|&p| p < align.get()),
 )]
@@ -340,7 +341,7 @@ pub(crate) unsafe fn transmute_ref<Src, Dst, R>(src: &Src) -> &Dst
 where
     Src: ?Sized,
     Dst: SizeEq<Src>
-        + TransmuteFromPtr<Src, Shared, Valid, Valid, <Dst as SizeEq<Src>>::CastFrom, R>
+        + TransmuteFromPtr<Src, Shared, Safe, Safe, <Dst as SizeEq<Src>>::CastFrom, R>
         + ?Sized,
 {
     let dst = Ptr::from_ref(src).transmute();
@@ -357,7 +358,7 @@ pub(crate) unsafe fn transmute_mut<Src, Dst, R>(src: &mut Src) -> &mut Dst
 where
     Src: ?Sized,
     Dst: SizeEq<Src>
-        + TransmuteFromPtr<Src, Exclusive, Valid, Valid, <Dst as SizeEq<Src>>::CastFrom, R>
+        + TransmuteFromPtr<Src, Exclusive, Safe, Safe, <Dst as SizeEq<Src>>::CastFrom, R>
         + ?Sized,
 {
     let dst = Ptr::from_mut(src).transmute();
@@ -560,31 +561,6 @@ mod len_of {
             T::PointerMetadata: Copy,
         {
             self.meta
-        }
-
-        #[inline]
-        pub(crate) fn padding_needed_for(&self) -> usize
-        where
-            T: KnownLayout<PointerMetadata = usize>,
-        {
-            let trailing_slice_layout = crate::trailing_slice_layout::<T>();
-
-            // FIXME(#67): Remove this allow. See NumExt for more details.
-            #[allow(
-                unstable_name_collisions,
-                clippy::incompatible_msrv,
-                clippy::multiple_unsafe_ops_per_block
-            )]
-            // SAFETY: By invariant on `self`, a `&T` with metadata `self.meta`
-            // describes an object of size `<= isize::MAX`. This computes the
-            // size of such a `&T` without any trailing padding, and so neither
-            // the multiplication nor the addition will overflow.
-            let unpadded_size = unsafe {
-                let trailing_size = self.meta.unchecked_mul(trailing_slice_layout.elem_size);
-                trailing_size.unchecked_add(trailing_slice_layout.offset)
-            };
-
-            util::padding_needed_for(unpadded_size, T::LAYOUT.align)
         }
 
         #[inline(always)]
@@ -895,6 +871,8 @@ mod tests {
 
     #[test]
     fn test_round_down_to_next_multiple_of_alignment() {
+        // Division by `NonZeroUsize` unsupported on our MSRV.
+        #[allow(clippy::needless_nonzero_get)]
         fn alt_impl(n: usize, align: NonZeroUsize) -> usize {
             let mul = n / align.get();
             mul * align.get()

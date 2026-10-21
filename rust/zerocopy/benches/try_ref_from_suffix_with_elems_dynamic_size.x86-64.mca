@@ -1,12 +1,12 @@
 Iterations:        100
-Instructions:      2400
-Total Cycles:      1107
-Total uOps:        2600
+Instructions:      1700
+Total Cycles:      544
+Total uOps:        1900
 
 Dispatch Width:    4
-uOps Per Cycle:    2.35
-IPC:               2.17
-Block RThroughput: 6.5
+uOps Per Cycle:    3.49
+IPC:               3.13
+Block RThroughput: 4.8
 
 
 Instruction Info:
@@ -20,27 +20,20 @@ Instruction Info:
 [1]    [2]    [3]    [4]    [5]    [6]    Instructions:
  1      1     0.33                        movabs	rax, 4611686018427387901
  1      1     0.33                        cmp	rdx, rax
- 1      1     1.00                        ja	.LBB5_1
- 1      1     0.50                        lea	r8d, [rsi + rdi]
- 1      0     0.25                        xor	ecx, ecx
- 1      1     0.33                        mov	eax, 0
- 1      1     0.33                        test	r8b, 1
- 1      1     1.00                        jne	.LBB5_5
+ 1      1     1.00                        ja	.LBB5_3
  1      1     0.50                        lea	rax, [2*rdx + 4]
+ 1      1     0.50                        lea	ecx, [rsi + rdi]
  1      1     0.33                        sub	rsi, rax
- 1      1     1.00                        jae	.LBB5_4
+ 1      1     0.50                        setb	al
+ 1      1     0.33                        or	al, cl
+ 1      1     0.33                        test	al, 1
+ 1      1     1.00                        je	.LBB5_4
  1      0     0.25                        xor	eax, eax
- 1      1     0.33                        mov	edx, 1
  1      1     1.00                  U     ret
- 1      1     0.50                        lea	r8, [rdi + rsi]
- 1      5     0.50    *                   movzx	esi, word ptr [rdi + rsi]
- 1      1     0.33                        cmp	si, -16192
- 1      1     0.33                        mov	ecx, 2
- 2      2     0.67                        cmove	rcx, rdx
+ 1      1     0.50                        lea	rcx, [rdi + rsi]
  1      0     0.25                        xor	eax, eax
- 1      1     0.33                        cmp	esi, 49344
- 2      2     0.67                        cmove	rax, r8
- 1      1     0.33                        mov	rdx, rcx
+ 2      6     0.50    *                   cmp	word ptr [rdi + rsi], -16192
+ 2      2     0.67                        cmove	rax, rcx
  1      1     1.00                  U     ret
 
 
@@ -57,31 +50,24 @@ Resources:
 
 Resource pressure per iteration:
 [0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
- -      -     6.99   7.00    -     8.01   0.50   0.50   
+ -      -     5.33   5.33    -     5.34   0.50   0.50   
 
 Resource pressure by instruction:
 [0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
- -      -     0.02   0.95    -     0.03    -      -     movabs	rax, 4611686018427387901
- -      -     0.93   0.04    -     0.03    -      -     cmp	rdx, rax
- -      -      -      -      -     1.00    -      -     ja	.LBB5_1
- -      -     0.96   0.04    -      -      -      -     lea	r8d, [rsi + rdi]
- -      -      -      -      -      -      -      -     xor	ecx, ecx
- -      -     0.95   0.02    -     0.03    -      -     mov	eax, 0
- -      -     0.95   0.05    -      -      -      -     test	r8b, 1
- -      -      -      -      -     1.00    -      -     jne	.LBB5_5
- -      -     0.06   0.94    -      -      -      -     lea	rax, [2*rdx + 4]
- -      -     0.93   0.07    -      -      -      -     sub	rsi, rax
- -      -      -      -      -     1.00    -      -     jae	.LBB5_4
+ -      -     0.66   0.33    -     0.01    -      -     movabs	rax, 4611686018427387901
+ -      -     0.02   0.98    -      -      -      -     cmp	rdx, rax
+ -      -      -      -      -     1.00    -      -     ja	.LBB5_3
+ -      -     0.98   0.02    -      -      -      -     lea	rax, [2*rdx + 4]
+ -      -     0.66   0.34    -      -      -      -     lea	ecx, [rsi + rdi]
+ -      -     0.33   0.65    -     0.02    -      -     sub	rsi, rax
+ -      -     0.99    -      -     0.01    -      -     setb	al
+ -      -     0.01   0.36    -     0.63    -      -     or	al, cl
+ -      -     0.01   0.96    -     0.03    -      -     test	al, 1
+ -      -      -      -      -     1.00    -      -     je	.LBB5_4
  -      -      -      -      -      -      -      -     xor	eax, eax
- -      -     0.03   0.95    -     0.02    -      -     mov	edx, 1
  -      -      -      -      -     1.00    -      -     ret
- -      -     0.97   0.03    -      -      -      -     lea	r8, [rdi + rsi]
- -      -      -      -      -      -     0.50   0.50   movzx	esi, word ptr [rdi + rsi]
- -      -     0.03   0.97    -      -      -      -     cmp	si, -16192
- -      -     0.05   0.94    -     0.01    -      -     mov	ecx, 2
- -      -     0.06   0.98    -     0.96    -      -     cmove	rcx, rdx
+ -      -     0.32   0.68    -      -      -      -     lea	rcx, [rdi + rsi]
  -      -      -      -      -      -      -      -     xor	eax, eax
- -      -     0.97   0.03    -      -      -      -     cmp	esi, 49344
- -      -     0.06   0.96    -     0.98    -      -     cmove	rax, r8
- -      -     0.02   0.03    -     0.95    -      -     mov	rdx, rcx
+ -      -     0.36   0.02    -     0.62   0.50   0.50   cmp	word ptr [rdi + rsi], -16192
+ -      -     0.99   0.99    -     0.02    -      -     cmove	rax, rcx
  -      -      -      -      -     1.00    -      -     ret

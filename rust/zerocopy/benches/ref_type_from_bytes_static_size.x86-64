@@ -1,0 +1,15 @@
+bench_ref_type_from_bytes_static_size:
+	mov rax, rdi
+	cmp rdx, 6
+	setne cl
+	or cl, sil
+	test cl, 1
+	je .LBB5_2
+	xor esi, esi
+	mov qword ptr [rax], rsi
+	ret
+.LBB5_2:
+	mov qword ptr [rax + 8], 6
+	mov qword ptr [rax + 16], 0
+	mov qword ptr [rax], rsi
+	ret

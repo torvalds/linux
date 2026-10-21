@@ -11,10 +11,7 @@
 use crate::{
     bindings,
     device::Device,
-    error::{
-        to_result,
-        VTABLE_DEFAULT_ERROR, //
-    },
+    error::to_result,
     fs::{
         File,
         Kiocb, //
@@ -145,37 +142,33 @@ pub trait MiscDevice: Sized {
     /// the VMA initialization by calling methods of `vma`. If the function does not return an
     /// error, the kernel will complete initialization of the VMA according to the properties of
     /// `vma`.
+    #[optional]
     fn mmap(
         _device: <Self::Ptr as ForeignOwnable>::Borrowed<'_>,
         _file: &File,
         _vma: &VmaNew,
-    ) -> Result {
-        build_error!(VTABLE_DEFAULT_ERROR)
-    }
+    ) -> Result;
 
     /// Read from this miscdevice.
-    fn read_iter(_kiocb: Kiocb<'_, Self::Ptr>, _iov: &mut IovIterDest<'_>) -> Result<usize> {
-        build_error!(VTABLE_DEFAULT_ERROR)
-    }
+    #[optional]
+    fn read_iter(_kiocb: Kiocb<'_, Self::Ptr>, _iov: &mut IovIterDest<'_>) -> Result<usize>;
 
     /// Write to this miscdevice.
-    fn write_iter(_kiocb: Kiocb<'_, Self::Ptr>, _iov: &mut IovIterSource<'_>) -> Result<usize> {
-        build_error!(VTABLE_DEFAULT_ERROR)
-    }
+    #[optional]
+    fn write_iter(_kiocb: Kiocb<'_, Self::Ptr>, _iov: &mut IovIterSource<'_>) -> Result<usize>;
 
     /// Handler for ioctls.
     ///
     /// The `cmd` argument is usually manipulated using the utilities in [`kernel::ioctl`].
     ///
     /// [`kernel::ioctl`]: mod@crate::ioctl
+    #[optional]
     fn ioctl(
         _device: <Self::Ptr as ForeignOwnable>::Borrowed<'_>,
         _file: &File,
         _cmd: u32,
         _arg: usize,
-    ) -> Result<isize> {
-        build_error!(VTABLE_DEFAULT_ERROR)
-    }
+    ) -> Result<isize>;
 
     /// Handler for ioctls.
     ///
@@ -185,23 +178,21 @@ pub trait MiscDevice: Sized {
     /// that have different layout on 32-bit and 64-bit userspace. If no implementation is
     /// provided, then `compat_ptr_ioctl` will be used instead.
     #[cfg(CONFIG_COMPAT)]
+    #[optional]
     fn compat_ioctl(
         _device: <Self::Ptr as ForeignOwnable>::Borrowed<'_>,
         _file: &File,
         _cmd: u32,
         _arg: usize,
-    ) -> Result<isize> {
-        build_error!(VTABLE_DEFAULT_ERROR)
-    }
+    ) -> Result<isize>;
 
     /// Show info for this fd.
+    #[optional]
     fn show_fdinfo(
         _device: <Self::Ptr as ForeignOwnable>::Borrowed<'_>,
         _m: &SeqFile,
         _file: &File,
-    ) {
-        build_error!(VTABLE_DEFAULT_ERROR)
-    }
+    );
 }
 
 /// A vtable for the file operations of a Rust miscdevice.

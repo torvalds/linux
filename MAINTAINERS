@@ -15318,6 +15318,7 @@ F:	rust/helpers/mutex.c
 F:	rust/helpers/spinlock.c
 F:	rust/kernel/sync/lock.rs
 F:	rust/kernel/sync/lock/
+F:	rust/kernel/sync/lockdep.rs
 F:	rust/kernel/sync/locked_by.rs
 X:	kernel/locking/locktorture.c
 
@@ -24022,6 +24023,7 @@ K:	\b(?i:rust)\b
 
 RUST [ALLOC]
 M:	Danilo Krummrich <dakr@kernel.org>
+M:	Alice Ryhl <aliceryhl@google.com>
 R:	Lorenzo Stoakes <ljs@kernel.org>
 R:	Vlastimil Babka <vbabka@kernel.org>
 R:	Liam R. Howlett <liam@infradead.org>
@@ -24038,6 +24040,15 @@ R:	Yury Norov <yury.norov@gmail.com>
 L:	rust-for-linux@vger.kernel.org
 S:	Maintained
 F:	rust/kernel/bitfield.rs
+
+RUST [BUG]
+M:	FUJITA Tomonori <fujita.tomonori@gmail.com>
+L:	rust-for-linux@vger.kernel.org
+S:	Maintained
+F:	rust/helpers/bug.c
+F:	rust/kernel/bug.rs
+F:	rust/kernel/generated_arch_reachable_asm.rs.S
+F:	rust/kernel/generated_arch_warn_asm.rs.S
 
 RUST [INTEROP]
 M:	Joel Fernandes <joelagnelf@nvidia.com>

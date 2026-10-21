@@ -345,7 +345,7 @@ where
     /// }
     ///
     /// // Allocate a boxed slice of 10 `Example`s.
-    /// let s = KBox::pin_slice(
+    /// let s = KBox::pin_slice::<_, _, Error, _>(
     ///     | _i | Example::new(),
     ///     10,
     ///     GFP_KERNEL
@@ -355,15 +355,16 @@ where
     /// assert_eq!(s[3].d.lock().a, 20);
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn pin_slice<Func, Item, E>(
+    pub fn pin_slice<Func, Item, E, E2>(
         mut init: Func,
         len: usize,
         flags: Flags,
     ) -> Result<Pin<Box<[T], A>>, E>
     where
         Func: FnMut(usize) -> Item,
-        Item: PinInit<T, E>,
+        Item: PinInit<T, E2>,
         E: From<AllocError>,
+        E: From<E2>,
     {
         let mut buffer = super::Vec::<T, A>::with_capacity(len, flags)?;
         for i in 0..len {

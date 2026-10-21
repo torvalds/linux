@@ -83,4 +83,25 @@ config RUST_BITFIELD_KUNIT_TEST
 
 	  If unsure, say N.
 
+config RUST_BUG_KUNIT_TEST
+	bool "KUnit tests for the Rust BUG/WARN functionality" if !KUNIT_ALL_TESTS
+	depends on BUG
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables KUnit tests for the Rust BUG/WARN functionality.
+	  These are only for development and testing, not for regular
+	  kernel use cases.
+
+	  If unsure, say N.
+
+config RUST_TIME_KUNIT_TEST
+	bool "KUnit tests for the Rust time API" if !KUNIT_ALL_TESTS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables KUnit tests for the Rust time API.
+	  These are only for development and testing, not for regular
+	  kernel use cases.
+
+	  If unsure, say N.
+
 endif

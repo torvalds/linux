@@ -1,0 +1,21 @@
+bench_ref_type_from_bytes_dynamic_size:
+	mov rax, rdi
+	cmp rdx, 4
+	setae cl
+	mov edi, edx
+	or edi, esi
+	test dil, 1
+	sete dil
+	and dil, cl
+	cmp dil, 1
+	je .LBB5_2
+	xor esi, esi
+	mov qword ptr [rax], rsi
+	ret
+.LBB5_2:
+	lea rcx, [rdx - 4]
+	shr rcx
+	mov qword ptr [rax + 8], rdx
+	mov qword ptr [rax + 16], rcx
+	mov qword ptr [rax], rsi
+	ret

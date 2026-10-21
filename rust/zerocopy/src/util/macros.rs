@@ -15,21 +15,20 @@
 /// The trait impl must be sound.
 ///
 /// When implementing `TryFromBytes`:
-/// - If no `is_bit_valid` impl is provided, then it must be valid for
-///   `is_bit_valid` to unconditionally return `true`. In other words, it must
-///   be the case that any initialized sequence of bytes constitutes a valid
-///   instance of `$ty`.
-/// - If an `is_bit_valid` impl is provided, then the impl of `is_bit_valid`
-///   must only return `true` if its argument refers to a valid `$ty`.
+/// - If no `is_safe` impl is provided, then it must be valid for `is_safe` to
+///   unconditionally return `true`. In other words, it must be the case that any
+///   initialized sequence of bytes constitutes a valid instance of `$ty`.
+/// - If an `is_safe` impl is provided, then the impl of `is_safe` must only
+///   return `true` if its argument refers to a valid `$ty`.
 macro_rules! unsafe_impl {
     // Implement `$trait` for `$ty` with no bounds.
-    ($(#[$attr:meta])* $ty:ty: $trait:ident $(; |$candidate:ident| $is_bit_valid:expr)?) => {{
+    ($(#[$attr:meta])* $ty:ty: $trait:ident $(; |$candidate:ident| $is_safe:expr)?) => {{
         crate::util::macros::__unsafe();
 
         $(#[$attr])*
         // SAFETY: The caller promises that this is sound.
         unsafe impl $trait for $ty {
-            unsafe_impl!(@method $trait $(; |$candidate| $is_bit_valid)?);
+            unsafe_impl!(@method $trait $(; |$candidate| $is_safe)?);
         }
     }};
 
@@ -92,26 +91,26 @@ macro_rules! unsafe_impl {
         $(#[$attr:meta])*
         const $constname:ident : $constty:ident $(,)?
         $($tyvar:ident $(: $(? $optbound:ident $(+)?)* $($bound:ident $(+)?)* )?),*
-        => $trait:ident for $ty:ty $(; |$candidate:ident| $is_bit_valid:expr)?
+        => $trait:ident for $ty:ty $(; |$candidate:ident| $is_safe:expr)?
     ) => {
         unsafe_impl!(
             @inner
             $(#[$attr])*
             @const $constname: $constty,
             $($tyvar $(: $(? $optbound +)* + $($bound +)*)?,)*
-            => $trait for $ty $(; |$candidate| $is_bit_valid)?
+            => $trait for $ty $(; |$candidate| $is_safe)?
         );
     };
     (
         $(#[$attr:meta])*
         $($tyvar:ident $(: $(? $optbound:ident $(+)?)* $($bound:ident $(+)?)* )?),*
-        => $trait:ident for $ty:ty $(; |$candidate:ident| $is_bit_valid:expr)?
+        => $trait:ident for $ty:ty $(; |$candidate:ident| $is_safe:expr)?
     ) => {{
         unsafe_impl!(
             @inner
             $(#[$attr])*
             $($tyvar $(: $(? $optbound +)* + $($bound +)*)?,)*
-            => $trait for $ty $(; |$candidate| $is_bit_valid)?
+            => $trait for $ty $(; |$candidate| $is_safe)?
         );
     }};
     (
@@ -119,7 +118,7 @@ macro_rules! unsafe_impl {
         $(#[$attr:meta])*
         $(@const $constname:ident : $constty:ident,)*
         $($tyvar:ident $(: $(? $optbound:ident +)* + $($bound:ident +)* )?,)*
-        => $trait:ident for $ty:ty $(; |$candidate:ident| $is_bit_valid:expr)?
+        => $trait:ident for $ty:ty $(; |$candidate:ident| $is_safe:expr)?
     ) => {{
         crate::util::macros::__unsafe();
 
@@ -127,21 +126,21 @@ macro_rules! unsafe_impl {
         #[allow(non_local_definitions)]
         // SAFETY: The caller promises that this is sound.
         unsafe impl<$($tyvar $(: $(? $optbound +)* $($bound +)*)?),* $(, const $constname: $constty,)*> $trait for $ty {
-            unsafe_impl!(@method $trait $(; |$candidate| $is_bit_valid)?);
+            unsafe_impl!(@method $trait $(; |$candidate| $is_safe)?);
         }
     }};
 
-    (@method TryFromBytes ; |$candidate:ident| $is_bit_valid:expr) => {
+    (@method TryFromBytes ; |$candidate:ident| $is_safe:expr) => {
         #[allow(clippy::missing_inline_in_public_items, dead_code)]
         #[cfg_attr(all(coverage_nightly, __ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS), coverage(off))]
         fn only_derive_is_allowed_to_implement_this_trait() {}
 
         #[inline]
-        fn is_bit_valid<Alignment>($candidate: Maybe<'_, Self, Alignment>) -> bool
+        fn is_safe<Alignment>($candidate: Maybe<'_, Self, Alignment>) -> bool
         where
             Alignment: crate::invariant::Alignment,
         {
-            $is_bit_valid
+            $is_safe
         }
     };
     (@method TryFromBytes) => {
@@ -149,7 +148,7 @@ macro_rules! unsafe_impl {
         #[cfg_attr(all(coverage_nightly, __ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS), coverage(off))]
         fn only_derive_is_allowed_to_implement_this_trait() {}
         #[inline(always)]
-        fn is_bit_valid<Alignment>(_candidate: Maybe<'_, Self, Alignment>) -> bool
+        fn is_safe<Alignment>(_candidate: Maybe<'_, Self, Alignment>) -> bool
         where
             Alignment: crate::invariant::Alignment,
         {
@@ -161,16 +160,16 @@ macro_rules! unsafe_impl {
         #[cfg_attr(all(coverage_nightly, __ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS), coverage(off))]
         fn only_derive_is_allowed_to_implement_this_trait() {}
     };
-    (@method $trait:ident; |$_candidate:ident| $_is_bit_valid:expr) => {
-        compile_error!("Can't provide `is_bit_valid` impl for trait other than `TryFromBytes`");
+    (@method $trait:ident; |$_candidate:ident| $_is_safe:expr) => {
+        compile_error!("Can't provide `is_safe` impl for trait other than `TryFromBytes`");
     };
 }
 
 /// Implements `$trait` for `$ty` where `$ty: TransmuteFrom<$repr>` (and
 /// vice-versa).
 ///
-/// Calling this macro is safe; the internals of the macro emit appropriate
-/// trait bounds which ensure that the given impl is sound.
+/// This macro is intended to be safe to call. The current proof is incomplete;
+/// see FIXME(#3691) below.
 macro_rules! impl_for_transmute_from {
     (
         $(#[$attr:meta])*
@@ -181,26 +180,32 @@ macro_rules! impl_for_transmute_from {
             $(#[$attr])*
             #[allow(non_local_definitions)]
 
-            // SAFETY: `is_trait<T, R>` (defined and used below) requires `T:
-            // TransmuteFrom<R>`, `R: TransmuteFrom<T>`, and `R: $trait`. It is
-            // called using `$ty` and `$repr`, ensuring that `$ty` and `$repr`
-            // have equivalent bit validity, and ensuring that `$repr: $trait`.
-            // The supported traits - `TryFromBytes`, `FromZeros`, `FromBytes`,
-            // and `IntoBytes` - are defined only in terms of the bit validity
-            // of a type. Therefore, `$repr: $trait` ensures that `$ty: $trait`
-            // is sound.
+            // SAFETY: `is_trait<T, R>` (defined and used below) requires
+            // reciprocal `TransmuteFrom<_, Safe, Safe>` bounds and `R: $trait`.
+            // If `T` and `R` have the same size, the reciprocal bounds imply
+            // that they permit the same `Safe` bit patterns. The call below
+            // instantiates `T` with `$ty` and `R` with `$repr`, and establishes
+            // `$repr: $trait`. The supported traits - `TryFromBytes`,
+            // `FromZeros`, `FromBytes`, and `IntoBytes` - are defined only in
+            // terms of bit validity, so these premises are sufficient when
+            // `$ty` and `$repr` have the same size.
+            //
+            // FIXME(#3691): This macro does not establish that `$ty` and
+            // `$repr` have the same size. Without that premise, `TransmuteFrom`
+            // conveys no safety guarantee, so these bounds do not make
+            // arbitrary invocations of this macro sound.
             unsafe impl<$($tyvar $(: $(? $optbound +)* $($bound +)*)?)?> $trait for $ty {
                 #[allow(dead_code, clippy::missing_inline_in_public_items)]
                 #[cfg_attr(all(coverage_nightly, __ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS), coverage(off))]
                 fn only_derive_is_allowed_to_implement_this_trait() {
-                    use crate::pointer::{*, invariant::Valid};
+                    use crate::pointer::{*, invariant::Safe};
 
                     impl_for_transmute_from!(@assert_is_supported_trait $trait);
 
                     fn is_trait<T, R>()
                     where
-                        T: TransmuteFrom<R, Valid, Valid> + ?Sized,
-                        R: TransmuteFrom<T, Valid, Valid> + ?Sized,
+                        T: TransmuteFrom<R, Safe, Safe> + ?Sized,
+                        R: TransmuteFrom<T, Safe, Safe> + ?Sized,
                         R: $trait,
                     {
                     }
@@ -212,7 +217,7 @@ macro_rules! impl_for_transmute_from {
                 }
 
                 impl_for_transmute_from!(
-                    @is_bit_valid
+                    @is_safe
                     $(<$tyvar $(: $(? $optbound +)* $($bound +)*)?>)?
                     $trait for $ty [$repr]
                 );
@@ -224,27 +229,27 @@ macro_rules! impl_for_transmute_from {
     (@assert_is_supported_trait FromBytes) => {};
     (@assert_is_supported_trait IntoBytes) => {};
     (
-        @is_bit_valid
+        @is_safe
         $(<$tyvar:ident $(: $(? $optbound:ident $(+)?)* $($bound:ident $(+)?)* )?>)?
         TryFromBytes for $ty:ty [$repr:ty]
     ) => {
         #[inline(always)]
-        fn is_bit_valid<Alignment>(candidate: $crate::Maybe<'_, Self, Alignment>) -> bool
+        fn is_safe<Alignment>(candidate: $crate::Maybe<'_, Self, Alignment>) -> bool
         where
             Alignment: $crate::invariant::Alignment,
         {
             // SAFETY: This macro ensures that `$repr` and `Self` have the same
             // size and bit validity. Thus, a bit-valid instance of `$repr` is
             // also a bit-valid instance of `Self`.
-            <$repr as TryFromBytes>::is_bit_valid(candidate.transmute::<_, _, BecauseImmutable>())
+            <$repr as TryFromBytes>::is_safe(candidate.transmute::<_, _, BecauseImmutable>())
         }
     };
     (
-        @is_bit_valid
+        @is_safe
         $(<$tyvar:ident $(: $(? $optbound:ident $(+)?)* $($bound:ident $(+)?)* )?>)?
         $trait:ident for $ty:ty [$repr:ty]
     ) => {
-        // Trait other than `TryFromBytes`; no `is_bit_valid` impl.
+        // Trait other than `TryFromBytes`; no `is_safe` impl.
     };
 }
 
@@ -269,33 +274,33 @@ macro_rules! impl_for_transmute_from {
 macro_rules! unsafe_impl_for_power_set {
     (
         $first:ident $(, $rest:ident)* $(-> $ret:ident)? => $trait:ident for $macro:ident!(...)
-        $(; |$candidate:ident| $is_bit_valid:expr)?
+        $(; |$candidate:ident| $is_safe:expr)?
     ) => {
         unsafe_impl_for_power_set!(
             $($rest),* $(-> $ret)? => $trait for $macro!(...)
-            $(; |$candidate| $is_bit_valid)?
+            $(; |$candidate| $is_safe)?
         );
         unsafe_impl_for_power_set!(
             @impl $first $(, $rest)* $(-> $ret)? => $trait for $macro!(...)
-            $(; |$candidate| $is_bit_valid)?
+            $(; |$candidate| $is_safe)?
         );
     };
     (
         $(-> $ret:ident)? => $trait:ident for $macro:ident!(...)
-        $(; |$candidate:ident| $is_bit_valid:expr)?
+        $(; |$candidate:ident| $is_safe:expr)?
     ) => {
         unsafe_impl_for_power_set!(
             @impl $(-> $ret)? => $trait for $macro!(...)
-            $(; |$candidate| $is_bit_valid)?
+            $(; |$candidate| $is_safe)?
         );
     };
     (
         @impl $($vars:ident),* $(-> $ret:ident)? => $trait:ident for $macro:ident!(...)
-        $(; |$candidate:ident| $is_bit_valid:expr)?
+        $(; |$candidate:ident| $is_safe:expr)?
     ) => {
         unsafe_impl!(
             $($vars,)* $($ret)? => $trait for $macro!($($vars),* $(-> $ret)?)
-            $(; |$candidate| $is_bit_valid)?
+            $(; |$candidate| $is_safe)?
         );
     };
 }
@@ -355,8 +360,8 @@ macro_rules! opt_unsafe_fn {
 /// impl in this case, and also provides useful documentation for readers of the
 /// code.
 ///
-/// Finally, if a `TryFromBytes::is_bit_valid` impl is provided, it must adhere
-/// to the safety preconditions of [`unsafe_impl!`].
+/// Finally, if a `TryFromBytes::is_safe` impl is provided, it must adhere to the
+/// safety preconditions of [`unsafe_impl!`].
 ///
 /// ## Example
 ///
@@ -396,11 +401,11 @@ macro_rules! impl_or_verify {
     };
     (
         $($tyvar:ident $(: $(? $optbound:ident $(+)?)* $($bound:ident $(+)?)* )?),*
-        => $trait:ident for $ty:ty $(; |$candidate:ident| $is_bit_valid:expr)?
+        => $trait:ident for $ty:ty $(; |$candidate:ident| $is_safe:expr)?
     ) => {
         impl_or_verify!(@impl { unsafe_impl!(
             $($tyvar $(: $(? $optbound +)* $($bound +)*)?),* => $trait for $ty
-            $(; |$candidate| $is_bit_valid)?
+            $(; |$candidate| $is_safe)?
         ); });
         impl_or_verify!(@verify $trait, {
             impl<$($tyvar $(: $(? $optbound +)* $($bound +)*)?),*> Subtrait for $ty {}
@@ -495,7 +500,7 @@ macro_rules! unsafe_impl_known_layout {
         #[allow(non_local_definitions)]
         // SAFETY: The caller promises that this is sound.
         unsafe impl<$($tyvar: ?Sized + KnownLayout)?> KnownLayout for $ty {
-            #[allow(clippy::missing_inline_in_public_items, dead_code)]
+            #[allow(dead_code, clippy::missing_inline_in_public_items)]
             #[cfg_attr(all(coverage_nightly, __ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS), coverage(off))]
             fn only_derive_is_allowed_to_implement_this_trait() {}
 
@@ -742,14 +747,14 @@ macro_rules! unsafe_impl_for_transparent_wrapper {
     ($vis:vis T $(: ?$optbound:ident)? => $wrapper:ident<T>) => {{
         crate::util::macros::__unsafe();
 
-        use crate::pointer::{TransmuteFrom, cast::{CastExact, TransitiveProject}, SizeEq, invariant::Valid};
+        use crate::pointer::{TransmuteFrom, cast::{CastExact, TransitiveProject}, SizeEq, invariant::Safe};
         use crate::wrappers::ReadOnly;
 
         // SAFETY: The caller promises that `T` and `$wrapper<T>` have the same
         // bit validity.
-        unsafe impl<T $(: ?$optbound)?> TransmuteFrom<T, Valid, Valid> for $wrapper<T> {}
+        unsafe impl<T $(: ?$optbound)?> TransmuteFrom<T, Safe, Safe> for $wrapper<T> {}
         // SAFETY: See previous safety comment.
-        unsafe impl<T $(: ?$optbound)?> TransmuteFrom<$wrapper<T>, Valid, Valid> for T {}
+        unsafe impl<T $(: ?$optbound)?> TransmuteFrom<$wrapper<T>, Safe, Safe> for T {}
         // SAFETY: The caller promises that a `T` to `$wrapper<T>` cast is
         // size-preserving.
         define_cast!(unsafe { $vis CastToWrapper<T $(: ?$optbound)? > = T => $wrapper<T> });
@@ -805,7 +810,7 @@ macro_rules! unsafe_impl_for_transparent_wrapper {
 macro_rules! impl_transitive_transmute_from {
     ($($tyvar:ident $(: ?$optbound:ident)?)? => $t:ty => $u:ty => $v:ty) => {
         const _: () = {
-            use crate::pointer::{TransmuteFrom, SizeEq, invariant::Valid};
+            use crate::pointer::{TransmuteFrom, SizeEq, invariant::Safe};
 
             impl<$($tyvar $(: ?$optbound)?)?> SizeEq<$t> for $v
             where
@@ -819,14 +824,14 @@ macro_rules! impl_transitive_transmute_from {
                 >;
             }
 
-            // SAFETY: Since `$u: TransmuteFrom<$t, Valid, Valid>`, it is sound
-            // to transmute a bit-valid `$t` to a bit-valid `$u`. Since `$v:
-            // TransmuteFrom<$u, Valid, Valid>`, it is sound to transmute that
+            // SAFETY: Since `$u: TransmuteFrom<$t, Safe, Safe>`, it is sound to
+            // transmute a bit-valid `$t` to a bit-valid `$u`. Since `$v:
+            // TransmuteFrom<$u, Safe, Safe>`, it is sound to transmute that
             // bit-valid `$u` to a bit-valid `$v`.
-            unsafe impl<$($tyvar $(: ?$optbound)?)?> TransmuteFrom<$t, Valid, Valid> for $v
+            unsafe impl<$($tyvar $(: ?$optbound)?)?> TransmuteFrom<$t, Safe, Safe> for $v
             where
-                $u: TransmuteFrom<$t, Valid, Valid>,
-                $v: TransmuteFrom<$u, Valid, Valid>,
+                $u: TransmuteFrom<$t, Safe, Safe>,
+                $v: TransmuteFrom<$u, Safe, Safe>,
             {}
         };
     };

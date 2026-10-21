@@ -14,6 +14,7 @@ use core::{
 
 use kernel::{
     num::{
+        FromConst,
         Integer,
         Unsigned, //
     },
@@ -271,6 +272,21 @@ macro_rules! impl_const_new {
                 // `N` bits.
                 unsafe { Self::__new(VALUE) }
             }
+        }
+
+        impl<const N: u32, const V: i128> FromConst<V> for Bounded<$type, N> {
+            const VALUE: Self = {
+                let value = <$type as FromConst<V>>::VALUE;
+                // Statically assert that `value` fits within the set number of bits.
+                assert!(
+                    fits_within!(value, $type, N),
+                    "constant cannot be represented within the given number of bits"
+                );
+
+                // SAFETY: The assert above confirmed that `value` can be represented within `N`
+                // bits.
+                unsafe { Self::__new(value) }
+            };
         }
         )*
     };
