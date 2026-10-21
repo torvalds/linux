@@ -187,6 +187,7 @@ static u8 get_input_rep(u8 current_index, int sensor_idx, int report_id,
 	struct sfh_gyro_data gyro_data;
 	struct sfh_mag_data mag_data;
 	struct sfh_als_data als_data;
+	struct sfh_hpd_data hpd_data;
 	struct hpd_status hpdstatus;
 	struct sfh_base_info binfo;
 	void __iomem *sensoraddr;
@@ -251,8 +252,16 @@ static u8 get_input_rep(u8 current_index, int sensor_idx, int report_id,
 		break;
 	case HPD_IDX:
 		get_common_inputs(&hpd_input.common_property, report_id);
-		hpdstatus.val = readl(mp2->mmio + amd_get_c2p_val(mp2, 4));
-		hpd_input.human_presence = hpdstatus.shpd.presence;
+		if (mp2->mp2_ver >= MP2_VER_1_2) {
+			sensoraddr = mp2->vsbase +
+				(HPD_IDX * SENSOR_DATA_MEM_SIZE_DEFAULT) +
+				OFFSET_SENSOR_DATA_DEFAULT;
+			memcpy_fromio(&hpd_data, sensoraddr, sizeof(struct sfh_hpd_data));
+			hpd_input.human_presence = hpd_data.status.shpd.presence;
+		} else {
+			hpdstatus.val = readl(mp2->mmio + amd_get_c2p_val(mp2, 4));
+			hpd_input.human_presence = hpdstatus.shpd.presence;
+		}
 		report_size = sizeof(hpd_input);
 		memcpy(input_report, &hpd_input, sizeof(hpd_input));
 		break;
