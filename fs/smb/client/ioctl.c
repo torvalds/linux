@@ -181,7 +181,7 @@ static int cifs_set_compression(unsigned int xid, struct dentry *dentry,
 					    compression_state);
 }
 
-int cifs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
+int cifs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct file_kattr *fa)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry);
