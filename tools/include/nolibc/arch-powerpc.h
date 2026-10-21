@@ -222,12 +222,7 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __nolibc_no_stack_prote
 #endif /* NOLIBC_NO_RUNTIME */
 
 #if !defined(__powerpc64__)
-static __attribute__((unused))
-int _sys_ftruncate64(int fd, uint32_t length0, uint32_t length1)
-{
-	return __nolibc_syscall4(__NR_ftruncate64, fd, 0, length0, length1);
-}
-#define _sys_ftruncate64 _sys_ftruncate64
+#define __NOLIBC_PAD_64BIT_SYSCALL_ARGUMENT_PAIR
 #endif
 
 #endif /* _NOLIBC_ARCH_POWERPC_H */

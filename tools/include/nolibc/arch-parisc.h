@@ -7,9 +7,7 @@
 #ifndef _NOLIBC_ARCH_PARISC_H
 #define _NOLIBC_ARCH_PARISC_H
 
-#if defined(__LP64__)
-#error 64-bit not supported
-#endif
+#include <linux/unistd.h>
 
 #include "compiler.h"
 #include "crt.h"
@@ -167,9 +165,15 @@
 void __attribute__((weak, noreturn)) __nolibc_entrypoint __nolibc_no_stack_protector _start(void)
 {
 	__asm__ volatile (
+#ifdef __LP64__
+		".import __gp\n"               /* Set up the dp register */
+		"ldil L%__gp, %dp\n"
+		"ldo R%__gp(%dp), %dp\n"
+#else
 		".import $global$\n"           /* Set up the dp register */
 		"ldil L%$global$, %dp\n"
-		"ldo R%$global$(%r27), %dp\n"
+		"ldo R%$global$(%dp), %dp\n"
+#endif
 
 		"b _start_c\n"                 /* Call _start_c, the load below is executed first */
 
@@ -181,5 +185,21 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __nolibc_no_stack_prote
 	__nolibc_entrypoint_epilogue();
 }
 #endif /* NOLIBC_NO_RUNTIME */
+
+#ifdef __LP64__
+/*
+ * This override is normally only meant for 32-bit architectures.
+ * But parisc 64-bit has __NR_ftruncate64, so this path is taken.
+ * Add an unused second argument to satisfy the calling convention.
+ */
+static __attribute__((unused))
+int _sys_ftruncate64(int fd, uint64_t length, uint64_t unused)
+{
+	(void)unused;
+
+	return __nolibc_syscall2(__NR_ftruncate64, fd, length);
+}
+#define _sys_ftruncate64 _sys_ftruncate64
+#endif
 
 #endif /* _NOLIBC_ARCH_PARISC_H */

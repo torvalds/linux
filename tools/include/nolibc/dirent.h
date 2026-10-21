@@ -30,10 +30,23 @@ typedef struct {
 static __attribute__((unused))
 DIR *fdopendir(int fd)
 {
+	struct stat buf;
+	int ret;
+
 	if (fd < 0) {
 		SET_ERRNO(EBADF);
 		return NULL;
 	}
+
+	ret = fstat(fd, &buf);
+	if (ret < 0)
+		return NULL;
+
+	if (!S_ISDIR(buf.st_mode)) {
+		SET_ERRNO(ENOTDIR);
+		return NULL;
+	}
+
 	return (DIR *)(intptr_t)~fd;
 }
 
@@ -42,10 +55,11 @@ DIR *opendir(const char *name)
 {
 	int fd;
 
-	fd = open(name, O_RDONLY);
+	fd = open(name, O_RDONLY | O_DIRECTORY);
 	if (fd == -1)
 		return NULL;
-	return fdopendir(fd);
+
+	return (DIR *)(intptr_t)~fd;
 }
 
 static __attribute__((unused))
@@ -67,6 +81,7 @@ int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 	struct linux_dirent64 *ldir = (void *)buf;
 	intptr_t i = (intptr_t)dirp;
 	int fd, ret;
+	off_t off;
 
 	if (i >= 0)
 		return EBADF;
@@ -86,9 +101,9 @@ int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 	 * readdir() can only return one entry at a time.
 	 * Make sure the non-returned ones are not skipped.
 	 */
-	ret = _sys_lseek(fd, ldir->d_off, SEEK_SET);
-	if (ret < 0)
-		return -ret;
+	off = _sys_lseek(fd, ldir->d_off, SEEK_SET);
+	if (off < 0)
+		return -off;
 
 	entry->d_ino = ldir->d_ino;
 	/* the destination should always be big enough */

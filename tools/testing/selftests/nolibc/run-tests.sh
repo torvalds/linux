@@ -29,8 +29,9 @@ all_archs=(
 	sparc32 sparc64
 	m68k
 	sh4
-	parisc32
+	parisc32 parisc64
 	alpha
+	hexagon
 )
 archs="${all_archs[@]}"
 
@@ -121,6 +122,7 @@ crosstool_arch() {
 	sparc*) echo sparc64;;
 	x32*) echo x86_64;;
 	parisc32) echo hppa;;
+	parisc64) echo hppa64;;
 	*) echo "$1";;
 	esac
 }
@@ -129,6 +131,13 @@ crosstool_abi() {
 	case "$1" in
 	arm | armthumb) echo linux-gnueabi;;
 	*) echo linux;;
+	esac
+}
+
+need_gcc() {
+	case "$1" in
+	hexagon);;
+	*) echo "1";;
 	esac
 }
 
@@ -164,14 +173,18 @@ test_arch() {
 	arch=$1
 	ct_arch=$(crosstool_arch "$arch")
 	ct_abi=$(crosstool_abi "$1")
+	gcc="$(need_gcc "$1")"
+	cross_compile=
 
-	if [ ! -d "${download_location}gcc-${crosstool_version}-nolibc/${ct_arch}-${ct_abi}/bin/." ]; then
+	if [ -n "$gcc" ] && [ ! -d "${download_location}gcc-${crosstool_version}-nolibc/${ct_arch}-${ct_abi}/bin/." ]; then
 		echo "No toolchain found in ${download_location}gcc-${crosstool_version}-nolibc/${ct_arch}-${ct_abi}."
 		echo "Did you install the toolchains or set the correct arch ? Rerun with -h for help."
 		return 1
 	fi
 
-	cross_compile=$(realpath "${download_location}gcc-${crosstool_version}-nolibc/${ct_arch}-${ct_abi}/bin/${ct_arch}-${ct_abi}-")
+	if [ -n "$gcc" ]; then
+		cross_compile=$(realpath "${download_location}gcc-${crosstool_version}-nolibc/${ct_arch}-${ct_abi}/bin/${ct_arch}-${ct_abi}-")
+	fi
 	build_dir="${build_location}/${arch}"
 	if [ "$werror" -ne 0 ]; then
 		CFLAGS_EXTRA="$CFLAGS_EXTRA -Werror -Wl,--fatal-warnings"
@@ -194,11 +207,18 @@ test_arch() {
 			exit 1
 	esac
 	printf '%-15s' "$arch:"
-	if [ "$arch" = "m68k" -o "$arch" = "sh4" -o "$arch" = "openrisc" -o "$arch" = "parisc32" -o "$arch" = "alpha" ] && [ "$llvm" = "1" ]; then
+	if [ "$llvm" = "1" ] && \
+	   [ "$arch" = "m68k" -o "$arch" = "sh4" -o "$arch" = "openrisc" \
+	     -o "$arch" == "parisc32" -o "$arch" == "parisc64" -o "$arch" = "alpha"  \
+	]; then
 		echo "Unsupported configuration"
 		return
 	fi
-	if [ "$arch" = "x32" ] && [ "$test_mode" = "user" ]; then
+	if [ "$test_mode" = "user" ] && [ "$arch" = "x32" -o "$arch" = "parisc64" ]; then
+		echo "Unsupported configuration"
+		return
+	fi
+	if [ -z "$llvm" -o "$test_mode" = "system" ] && [ "$arch" = "hexagon" ]; then
 		echo "Unsupported configuration"
 		return
 	fi

@@ -22,6 +22,7 @@
 #include <sys/random.h>
 #include <sys/reboot.h>
 #include <sys/resource.h>
+#include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
@@ -1368,6 +1369,51 @@ int test_pipe(void)
 	return !!memcmp(buf, msg, len);
 }
 
+int test_pwrite_pread(void)
+{
+	const off_t offset = (0x12ULL << 32) | 0x34;
+	ssize_t ret;
+	char buf[2];
+	int fd, err;
+	off_t offs;
+
+	fd = open("/tmp", O_TMPFILE | O_RDWR, 0644);
+	if (fd == -1)
+		return __LINE__;
+
+	/* Write into the middle of the file. */
+	ret = pwrite(fd, "abc", 3, offset);
+	if (ret != 3) {
+		err = __LINE__;
+		goto out;
+	}
+
+	/* Make sure the file offset points somewhere else before pread(). */
+	offs = lseek(fd, 0, SEEK_END);
+	if (offs != offset + 3) {
+		err = __LINE__;
+		goto out;
+	}
+
+	ret = pread(fd, buf, 2, offset + 1);
+	if (ret != 2) {
+		err = __LINE__;
+		goto out;
+	}
+
+	if (buf[0] != 'b' || buf[1] != 'c') {
+		err = __LINE__;
+		goto out;
+	}
+
+	err = 0;
+
+out:
+	close(fd);
+
+	return err;
+}
+
 int test_rlimit(void)
 {
 	struct rlimit rlim = {
@@ -1524,12 +1570,6 @@ int test_large_file(void)
 	ssize_t written;
 	off_t off;
 
-#if defined(__mips__) && defined(_ABIN32)
-	/* https://lore.kernel.org/qemu-devel/fed03914-a95a-4522-a432-f129264cb2ac@t-8ch.de/ */
-	if (getpid() != 1)
-		return 0;
-#endif
-
 	if (large_seek < UINT32_MAX) {
 		errno = EOVERFLOW;
 		return -1;
@@ -1563,6 +1603,72 @@ out:
 	return ret;
 }
 
+int test_sendfile(void)
+{
+	char data_in[] = "This is some data";
+	const size_t data_sz = sizeof(data_in);
+	char data_out[data_sz + 10];
+	int in_fd, out_fd;
+	int ret;
+
+	/* Create two tmp files */
+	in_fd = open("/tmp", O_TMPFILE | O_RDWR, 0644);
+	out_fd = open("/tmp", O_TMPFILE | O_RDWR, 0644);
+
+	if (in_fd == -1 || out_fd == -1) {
+		ret = __LINE__;
+		goto out;
+	}
+
+	/* Populate the "in" file */
+	ret = write(in_fd, data_in, data_sz);
+	if (ret != data_sz) {
+		ret = __LINE__;
+		goto out;
+	}
+
+	/* Rewind the "in" file */
+	if (lseek(in_fd, 0, SEEK_SET)) {
+		ret = __LINE__;
+		goto out;
+	}
+
+	/* Use sendfile() to copy "in" to "out" */
+	ret = sendfile(out_fd, in_fd, NULL, data_sz + 5);
+	if (ret != data_sz) {
+		ret = __LINE__;
+		goto out;
+	}
+
+	/* Rewind the "out" file */
+	if (lseek(out_fd, 0, SEEK_SET)) {
+		ret = __LINE__;
+		goto out;
+	}
+
+	/* Read back the transferred data */
+	ret = read(out_fd, data_out, sizeof(data_out));
+	if (ret != data_sz) {
+		ret = __LINE__;
+		goto out;
+	}
+
+	/* Check we have the same data in both files */
+	if (memcmp(data_out, data_in, data_sz)) {
+		ret = __LINE__;
+		goto out;
+	}
+
+	/* Test passed */
+	ret = 0;
+
+out:
+	close(out_fd);
+	close(in_fd);
+
+	return ret;
+}
+
 /* Run syscall tests between IDs <min> and <max>.
  * Return 0 on success, non-zero on failure.
  */
@@ -1584,6 +1690,7 @@ int run_syscall(int min, int max)
 	void *p1, *p2;
 	int has_gettid = 1;
 	int has_brk;
+	int has_working_64bit_syscall_arg = 1;
 
 	/* <proc> indicates whether or not /proc is mounted */
 	proc = stat("/proc", &stat_buf) == 0;
@@ -1598,6 +1705,11 @@ int run_syscall(int min, int max)
 
 	/* on musl setting brk()/sbrk() always fails */
 	has_brk = brk(0) == 0;
+
+#if defined(__mips__) && defined(_ABIN32)
+	/* https://lore.kernel.org/qemu-devel/fed03914-a95a-4522-a432-f129264cb2ac@t-8ch.de/ */
+	has_working_64bit_syscall_arg = getpid() == 1;
+#endif
 
 	for (test = min; test >= 0 && test <= max; test++) {
 		int llen = 0; /* line length */
@@ -1644,6 +1756,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(execve_root);       EXPECT_SYSER(1, execve("/", (char*[]){ [0] = (char []){"/"}, [1] = NULL }, NULL), -1, EACCES); break;
 		CASE_TEST(fchdir_stdin);      EXPECT_SYSER(1, fchdir(STDIN_FILENO), -1, ENOTDIR); break;
 		CASE_TEST(fchdir_badfd);      EXPECT_SYSER(1, fchdir(-1), -1, EBADF); break;
+		CASE_TEST(fdopendir_notdir);  EXPECT_SYSER(1, (uintptr_t)fdopendir(STDIN_FILENO), (uintptr_t)NULL, ENOTDIR); break;
 		CASE_TEST(file_stream);       EXPECT_SYSZR(1, test_file_stream()); break;
 		CASE_TEST(file_stream_wsr);   EXPECT_SYSZR(1, test_file_stream_wsr()); break;
 		CASE_TEST(fork);              EXPECT_SYSZR(1, test_fork(FORK_STANDARD)); break;
@@ -1672,11 +1785,13 @@ int run_syscall(int min, int max)
 		CASE_TEST(open_blah);         EXPECT_SYSER(1, tmp = open("/proc/self/blah", O_RDONLY), -1, ENOENT); if (tmp != -1) close(tmp); break;
 		CASE_TEST(openat_dir);        EXPECT_SYSZR(1, test_openat()); break;
 		CASE_TEST(open_mode);         EXPECT_SYSZR(1, test_open_mode()); break;
+		CASE_TEST(opendir_notdir);    EXPECT_SYSER(1, (uintptr_t)opendir("/dev/null"), (uintptr_t)NULL, ENOTDIR); break;
 		CASE_TEST(pipe);              EXPECT_SYSZR(1, test_pipe()); break;
 		CASE_TEST(poll_null);         EXPECT_SYSZR(1, poll(NULL, 0, 0)); break;
 		CASE_TEST(poll_stdout);       EXPECT_SYSNE(1, ({ struct pollfd fds = { 1, POLLOUT, 0}; poll(&fds, 1, 0); }), -1); break;
 		CASE_TEST(poll_fault);        EXPECT_SYSER(1, poll(NULL, 1, 0), -1, EFAULT); break;
 		CASE_TEST(prctl);             EXPECT_SYSER(1, prctl(PR_SET_NAME, (unsigned long)NULL, 0, 0, 0), -1, EFAULT); break;
+		CASE_TEST(pwrite_pread);      EXPECT_SYSZR(has_working_64bit_syscall_arg, test_pwrite_pread()); break;
 		CASE_TEST(read_badf);         EXPECT_SYSER(1, read(-1, &tmp, 1), -1, EBADF); break;
 		CASE_TEST(rlimit);            EXPECT_SYSZR(1, test_rlimit()); break;
 		CASE_TEST(rmdir_blah);        EXPECT_SYSER(1, rmdir("/blah"), -1, ENOENT); break;
@@ -1684,6 +1799,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(select_null);       EXPECT_SYSZR(1, ({ struct timeval tv = { 0 }; select(0, NULL, NULL, NULL, &tv); })); break;
 		CASE_TEST(select_stdout);     EXPECT_SYSNE(1, ({ fd_set fds; FD_ZERO(&fds); FD_SET(1, &fds); select(2, NULL, &fds, NULL, NULL); }), -1); break;
 		CASE_TEST(select_fault);      EXPECT_SYSER(1, select(1, (void *)1, NULL, NULL, 0), -1, EFAULT); break;
+		CASE_TEST(sendfile);          EXPECT_SYSZR(1, test_sendfile()); break;
 		CASE_TEST(stat_blah);         EXPECT_SYSER(1, stat("/proc/self/blah", &stat_buf), -1, ENOENT); break;
 		CASE_TEST(stat_fault);        EXPECT_SYSER(1, stat(NULL, &stat_buf), -1, EFAULT); break;
 		CASE_TEST(stat_rdev);         EXPECT_SYSZR(1, ({ int ret = stat("/dev/null", &stat_buf); ret ?: stat_buf.st_rdev != makedev(1, 3); })); break;
@@ -1711,7 +1827,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(_syscall_noargs);   EXPECT_SYSEQ(is_nolibc, _syscall(__NR_getpid), getpid()); break;
 		CASE_TEST(_syscall_args);     EXPECT_SYSEQ(is_nolibc, _syscall(__NR_statx, 0, NULL, 0, 0, NULL), -EFAULT); break;
 		CASE_TEST(namespace);         EXPECT_SYSZR(euid0 && proc, test_namespace()); break;
-		CASE_TEST(largefile);         EXPECT_SYSZR(1, test_large_file()); break;
+		CASE_TEST(largefile);         EXPECT_SYSZR(has_working_64bit_syscall_arg, test_large_file()); break;
 		case __LINE__:
 			return ret; /* must be last */
 		/* note: do not set any defaults so as to permit holes above */
@@ -1767,6 +1883,26 @@ int test_time_types(void)
 	if (offsetof(__typeof__(ts), tv_nsec) != offsetof(__typeof__(kts), tv_nsec))
 		return 1;
 #endif /* NOLIBC */
+
+	return 0;
+}
+
+int test_fd_set(void)
+{
+	fd_set set, clr;
+	int fd, i;
+
+	/* FD_SET() and FD_CLR() must change exactly one fd */
+	for (fd = 0; fd < FD_SETSIZE; fd++) {
+		FD_ZERO(&set);
+		FD_SET(fd, &set);
+		memset(&clr, 0xff, sizeof(clr));
+		FD_CLR(fd, &clr);
+		for (i = 0; i < FD_SETSIZE; i++)
+			if (!!FD_ISSET(i, &set) != (i == fd) ||
+			    !!FD_ISSET(i, &clr) != (i != fd))
+				return 1;
+	}
 
 	return 0;
 }
@@ -1952,6 +2088,7 @@ int run_stdlib(int min, int max)
 		CASE_TEST(memchr_foobar6_o);        EXPECT_STREQ(1, memchr("foobar", 'o', 6), "oobar"); break;
 		CASE_TEST(memchr_foobar3_b);        EXPECT_STRZR(1, memchr("foobar", 'b', 3)); break;
 		CASE_TEST(time_types);              EXPECT_ZR(is_nolibc, test_time_types()); break;
+		CASE_TEST(fd_set);                  EXPECT_ZR(1, test_fd_set()); break;
 		CASE_TEST(makedev);                 EXPECT_EQ(1, makedev(0x12, 0x34), 0x1234); break;
 		CASE_TEST(major);                   EXPECT_EQ(1, major(0x1234), 0x12); break;
 		CASE_TEST(minor);                   EXPECT_EQ(1, minor(0x1234), 0x34); break;
@@ -1968,6 +2105,14 @@ int run_stdlib(int min, int max)
 		CASE_TEST(htole32);                 EXPECT_EQ(1, htole32(is_le ? 0x01234567 : 0x67452301), 0x01234567); break;
 		CASE_TEST(htobe64);                 EXPECT_EQ(1, htobe64(is_le ? 0x0123456789000000 : 0x8967452301), 0x8967452301); break;
 		CASE_TEST(htole64);                 EXPECT_EQ(1, htole64(is_le ? 0x0123456789 : 0x8967452301000000), 0x0123456789); break;
+		CASE_TEST(wexitstatus);             EXPECT_EQ(1, WEXITSTATUS(0x1200), 0x12); break;
+		CASE_TEST(wifexited_exit0);         EXPECT_EQ(1, WIFEXITED(0), 1); break;
+		CASE_TEST(wifexited_signal);        EXPECT_EQ(1, WIFEXITED(SIGKILL), 0); break;
+		CASE_TEST(wifsignaled_exit0);       EXPECT_EQ(1, WIFSIGNALED(0), 0); break;
+		CASE_TEST(wifsignaled_exit);        EXPECT_EQ(1, WIFSIGNALED(0x1200), 0); break;
+		CASE_TEST(wifsignaled_signal);      EXPECT_EQ(1, WIFSIGNALED(SIGKILL), 1); break;
+		CASE_TEST(wifsignaled_stopped);     EXPECT_EQ(1, WIFSIGNALED((SIGSTOP << 8) | 0x7f), 0); break;
+		CASE_TEST(wtermsig_core);           EXPECT_EQ(1, WTERMSIG(0x80 | SIGSEGV), SIGSEGV); break;
 
 		case __LINE__:
 			return ret; /* must be last */
