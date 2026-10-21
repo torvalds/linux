@@ -861,8 +861,10 @@ static void timekeeping_update_from_shadow(struct tk_data *tkd, unsigned int act
 	 *
 	 * Write xtime_sec first so that even if the memcpy() tears the store
 	 * data integrity is provided for ktime_get_real_seconds().
+	 * The same goes for ktime_sec and ktime_get_seconds().
 	 */
 	WRITE_ONCE(tkd->timekeeper.xtime_sec, tk->xtime_sec);
+	WRITE_ONCE(tkd->timekeeper.ktime_sec, tk->ktime_sec);
 	memcpy(&tkd->timekeeper, tk, sizeof(*tk));
 	write_seqcount_end(&tkd->seq);
 }
@@ -1169,7 +1171,7 @@ time64_t ktime_get_seconds(void)
 	struct timekeeper *tk = &tk_core.timekeeper;
 
 	WARN_ON(timekeeping_suspended);
-	return tk->ktime_sec;
+	return READ_ONCE(tk->ktime_sec);
 }
 EXPORT_SYMBOL_GPL(ktime_get_seconds);
 

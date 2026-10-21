@@ -113,9 +113,10 @@ static void check_itimer(int which, const char *name)
 
 	done = 0;
 
-	if (which == ITIMER_VIRTUAL)
+	if (which == ITIMER_VIRTUAL) {
+		clock_id = CLOCK_THREAD_CPUTIME_ID;
 		signal(SIGVTALRM, sig_handler);
-	else if (which == ITIMER_PROF) {
+	} else if (which == ITIMER_PROF) {
 		clock_id = CLOCK_THREAD_CPUTIME_ID;
 		signal(SIGPROF, sig_handler);
 	}
@@ -148,7 +149,7 @@ static void check_timer_create(int which)
 	struct itimerspec val = {
 		.it_value.tv_sec = DELAY,
 	};
-	int clock_id = CLOCK_REALTIME;
+	int clock_id = which;
 	timer_t id;
 
 	done = 0;

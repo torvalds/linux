@@ -212,7 +212,7 @@ int __sched schedule_hrtimeout_range_clock(ktime_t *expires, u64 delta,
 	hrtimer_set_expires_range_ns(&t.timer, *expires, delta);
 	hrtimer_sleeper_start_expires(&t, mode);
 
-	if (likely(t.task))
+	if (likely(hrtimer_sleeper_task_get(&t)))
 		schedule();
 
 	hrtimer_cancel(&t.timer);
@@ -220,7 +220,7 @@ int __sched schedule_hrtimeout_range_clock(ktime_t *expires, u64 delta,
 
 	__set_current_state(TASK_RUNNING);
 
-	return !t.task ? 0 : -EINTR;
+	return !hrtimer_sleeper_task_get(&t) ? 0 : -EINTR;
 }
 EXPORT_SYMBOL_GPL(schedule_hrtimeout_range_clock);
 

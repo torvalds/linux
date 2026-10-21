@@ -715,7 +715,7 @@ static void __tmigr_cpu_activate(struct tmigr_cpu *tmc)
 
 	trace_tmigr_cpu_active(tmc);
 
-	tmc->cpuevt.ignore = true;
+	WRITE_ONCE(tmc->cpuevt.ignore, true);
 	WRITE_ONCE(tmc->wakeup, KTIME_MAX);
 
 	walk_groups(&tmigr_active_up, &data, tmc);
@@ -1258,7 +1258,7 @@ u64 tmigr_cpu_new_timer(u64 nextexp)
 	ret = READ_ONCE(tmc->wakeup);
 	if (nextexp != KTIME_MAX) {
 		if (nextexp != tmc->cpuevt.nextevt.expires ||
-		    tmc->cpuevt.ignore) {
+		    READ_ONCE(tmc->cpuevt.ignore)) {
 			ret = tmigr_new_timer(tmc, nextexp);
 			/*
 			 * Make sure the reevaluation of timers in idle path
@@ -1362,7 +1362,7 @@ static u64 __tmigr_cpu_deactivate(struct tmigr_cpu *tmc, u64 nextexp)
 	 * or CPU goes offline.
 	 */
 	if (nextexp != KTIME_MAX)
-		tmc->cpuevt.ignore = false;
+		WRITE_ONCE(tmc->cpuevt.ignore, false);
 
 	walk_groups(&tmigr_inactive_up, &data, tmc);
 	return data.firstexp;

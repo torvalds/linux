@@ -780,7 +780,8 @@ static void hrtimer_switch_to_hres(void)
 		return;
 	}
 	base->hres_active = true;
-	hrtimer_resolution = HIGH_RES_NSEC;
+	if (hrtimer_resolution != HIGH_RES_NSEC)
+		hrtimer_resolution = HIGH_RES_NSEC;
 
 	tick_setup_sched_timer(true);
 	/* "Retrigger" the interrupt to get things going */
@@ -2003,7 +2004,7 @@ bool hrtimer_active(const struct hrtimer *timer)
 		base = READ_ONCE(timer->base);
 		seq = raw_read_seqcount_begin(&base->seq);
 
-		if (timer->is_queued || base->running == timer)
+		if (timer->is_queued || READ_ONCE(base->running) == timer)
 			return true;
 
 	} while (read_seqcount_retry(&base->seq, seq) || base != READ_ONCE(timer->base));
@@ -2040,7 +2041,7 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base, struct hrtimer_cloc
 	lockdep_assert_held(&cpu_base->lock);
 
 	debug_hrtimer_deactivate(timer);
-	base->running = timer;
+	WRITE_ONCE(base->running, timer);
 
 	/*
 	 * Separate the ->running assignment from the ->is_queued assignment.
@@ -2099,7 +2100,7 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base, struct hrtimer_cloc
 	raw_write_seqcount_barrier(&base->seq);
 
 	WARN_ON_ONCE(base->running != timer);
-	base->running = NULL;
+	WRITE_ONCE(base->running, NULL);
 }
 
 static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
@@ -2323,9 +2324,9 @@ void hrtimer_run_queues(void)
 static enum hrtimer_restart hrtimer_wakeup(struct hrtimer *timer)
 {
 	struct hrtimer_sleeper *t = container_of(timer, struct hrtimer_sleeper, timer);
-	struct task_struct *task = t->task;
+	struct task_struct *task = hrtimer_sleeper_task_get(t);
 
-	t->task = NULL;
+	hrtimer_sleeper_task_set(t, NULL);
 	if (task)
 		wake_up_process(task);
 
@@ -2354,7 +2355,7 @@ void hrtimer_sleeper_start_expires(struct hrtimer_sleeper *sl, enum hrtimer_mode
 
 	/* If already expired, clear the task pointer and set current state to running */
 	if (!hrtimer_start_expires_user(&sl->timer, mode)) {
-		sl->task = NULL;
+		hrtimer_sleeper_task_set(sl, NULL);
 		__set_current_state(TASK_RUNNING);
 	}
 }
@@ -2388,7 +2389,7 @@ static void __hrtimer_setup_sleeper(struct hrtimer_sleeper *sl, clockid_t clock_
 	}
 
 	__hrtimer_setup(&sl->timer, hrtimer_wakeup, clock_id, mode);
-	sl->task = current;
+	hrtimer_sleeper_task_set(sl, current);
 }
 
 /**
@@ -2432,17 +2433,17 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 		set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
 		hrtimer_sleeper_start_expires(t, mode);
 
-		if (likely(t->task))
+		if (likely(hrtimer_sleeper_task_get(t)))
 			schedule();
 
 		hrtimer_cancel(&t->timer);
 		mode = HRTIMER_MODE_ABS;
 
-	} while (t->task && !signal_pending(current));
+	} while (hrtimer_sleeper_task_get(t) && !signal_pending(current));
 
 	__set_current_state(TASK_RUNNING);
 
-	if (!t->task)
+	if (!hrtimer_sleeper_task_get(t))
 		return 0;
 
 	restart = &current->restart_block;

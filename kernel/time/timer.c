@@ -890,7 +890,7 @@ static inline void detach_timer(struct timer_list *timer, bool clear_pending)
 
 	__hlist_del(entry);
 	if (clear_pending)
-		entry->pprev = NULL;
+		WRITE_ONCE(entry->pprev, NULL);
 	entry->next = LIST_POISON2;
 }
 

@@ -1295,7 +1295,7 @@ static u64 io_hybrid_iopoll_delay(struct io_ring_ctx *ctx, struct io_kiocb *req)
 	set_current_state(TASK_INTERRUPTIBLE);
 	hrtimer_sleeper_start_expires(&timer, mode);
 
-	if (timer.task)
+	if (hrtimer_sleeper_task_get(&timer))
 		io_schedule();
 
 	hrtimer_cancel(&timer.timer);
