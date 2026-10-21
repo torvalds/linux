@@ -306,6 +306,11 @@ affs_lock_dir(struct inode *inode)
 	mutex_lock_nested(&AFFS_I(inode)->i_hash_lock, SINGLE_DEPTH_NESTING);
 }
 static inline void
+affs_lock_subdir(struct inode *inode)
+{
+	mutex_lock_nested(&AFFS_I(inode)->i_hash_lock, SINGLE_DEPTH_NESTING + 1);
+}
+static inline void
 affs_unlock_dir(struct inode *inode)
 {
 	mutex_unlock(&AFFS_I(inode)->i_hash_lock);
