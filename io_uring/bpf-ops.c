@@ -17,8 +17,22 @@ __bpf_kfunc_start_defs();
 __bpf_kfunc int bpf_io_uring_submit_sqes(struct iou_ctx *loop_ctx, u32 nr)
 {
 	struct io_ring_ctx *ctx = io_loop_demangle_ctx(loop_ctx);
+	struct bpf_run_ctx *old_run_ctx;
+	int ret;
 
-	return io_submit_sqes(ctx, nr);
+	/*
+	 * The requests come from the SQ, which user space can write, so they
+	 * are issued for the task and not for the BPF program. Hide the run
+	 * context of the program from them. The users of has_current_bpf_ctx(),
+	 * such as sockopt_lock_sock() and sockopt_capable(), take a context for
+	 * a call from a BPF helper, whose caller holds the socket lock already
+	 * and needs no capability.
+	 */
+	old_run_ctx = bpf_set_run_ctx(NULL);
+	ret = io_submit_sqes(ctx, nr);
+	bpf_reset_run_ctx(old_run_ctx);
+
+	return ret;
 }
 
 __bpf_kfunc
