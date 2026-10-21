@@ -122,10 +122,11 @@ warnings:
 	of RCU CPU stall warnings, eventually leading to the realization
 	that the CPU had failed.
 
-The RCU, RCU-sched, RCU-tasks, and RCU-tasks-trace implementations have
-CPU stall warning.  Note that SRCU does *not* have CPU stall warnings.
-Please note that RCU only detects CPU stalls when there is a grace period
-in progress.  No grace period, no CPU stall warnings.
+The RCU and RCU-tasks implementations have CPU stall warning.  Note that
+SRCU does *not* have CPU stall warnings, and now that RCU-tasks-trace
+is implemented in terms of SRCU, neither does it.  Please note that
+RCU only detects CPU stalls when there is a grace period in progress.
+No grace period, no CPU stall warnings.
 
 To diagnose the cause of the stall, inspect the stack traces.
 The offending function will usually be near the top of the stack.
@@ -213,20 +214,15 @@ RCU_STALL_RAT_DELAY
 rcupdate.rcu_task_stall_timeout
 -------------------------------
 
-	This boot/sysfs parameter controls the RCU-tasks and
-	RCU-tasks-trace stall warning intervals.  A value of zero or less
-	suppresses RCU-tasks stall warnings.  A positive value sets the
-	stall-warning interval in seconds.  An RCU-tasks stall warning
-	starts with the line:
+	This boot/sysfs parameter controls the RCU-tasks stall warning
+	interval.  A value of zero or less suppresses RCU-tasks stall
+	warnings.  A positive value sets the stall-warning interval
+	in seconds.  An RCU-tasks stall warning starts with the line:
 
 		INFO: rcu_tasks detected stalls on tasks:
 
 	And continues with the output of sched_show_task() for each
 	task stalling the current RCU-tasks grace period.
-
-	An RCU-tasks-trace stall warning starts (and continues) similarly:
-
-		INFO: rcu_tasks_trace detected stalls on tasks
 
 
 Interpreting RCU's CPU Stall-Detector "Splats"

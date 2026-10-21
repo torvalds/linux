@@ -5610,9 +5610,12 @@ Kernel parameters
 			there is an ongoing too-long CSD-lock wait.
 
 	rcutree.do_rcu_barrier=	[KNL]
-			Request a call to rcu_barrier().  This is
-			throttled so that userspace tests can safely
-			hammer on the sysfs variable if they so choose.
+			Wait for deferred kfree_rcu() frees and ordinary
+			call_rcu() callbacks queued before this request to
+			complete.  This does not prevent new work from being
+			queued concurrently.  Requests are throttled so that
+			userspace tests can safely hammer on the sysfs
+			variable if they so choose.
 			If triggered before the RCU grace-period machinery
 			is fully active, this will error out with EAGAIN.
 
@@ -6084,6 +6087,13 @@ Kernel parameters
 			stress RCU, they don't participate in the actual
 			test, hence the "fake".
 
+	rcutorture.nmi_calls= [KNL]
+			Enable issuing RCU callbacks from an NMI, on the
+			RCU flavors that support it, to exercise the
+			any-context callback path.  Requires
+			CONFIG_PERF_EVENTS and a hardware PMU; without
+			both, nothing is issued.  Defaults to enabled.
+
 	rcutorture.nocbs_nthreads= [KNL]
 			Set number of RCU callback-offload togglers.
 			Zero (the default) disables toggling.
@@ -6312,6 +6322,13 @@ Kernel parameters
 			post-boot attempt at an expedited RCU grace
 			period to instead use normal non-expedited
 			grace-period processing.
+
+	rcupdate.rcu_task_collapse_debug= [KNL]
+			Enable debugging prints that record when RCU Tasks
+			and RCU Tasks Trace expand to per-CPU callback
+			queuing and collapse back to CPU-0 queuing.
+			This is default-disabled due to the fact that
+			some workloads can make it quite noisy.
 
 	rcupdate.rcu_task_collapse_lim= [KNL]
 			Set the maximum number of callbacks present

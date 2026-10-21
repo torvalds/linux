@@ -572,6 +572,20 @@ static inline void tasks_cblist_init_generic(void) { }
 #define RCU_SCHEDULER_INIT	1
 #define RCU_SCHEDULER_RUNNING	2
 
+/*
+ * Defer whenever interrupts are disabled, since a callback-list operation may
+ * be in flight on this CPU.  Not before the scheduler is up: irq_work is not
+ * usable that early, and rcu_init() itself calls call_rcu().
+ */
+static inline bool should_rcu_defer(void)
+{
+	return IS_ENABLED(CONFIG_RCU_DEFER) && irqs_disabled() &&
+	       rcu_scheduler_active != RCU_SCHEDULER_INACTIVE;
+}
+
+/* Drain an outgoing CPU's deferred SRCU callbacks; see rcutree_migrate_callbacks(). */
+void srcu_offline_drain(int cpu);
+
 enum rcutorture_type {
 	RCU_FLAVOR,
 	RCU_TASKS_FLAVOR,

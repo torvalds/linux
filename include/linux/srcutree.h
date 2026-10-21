@@ -13,6 +13,8 @@
 
 #include <linux/rcu_node_tree.h>
 #include <linux/completion.h>
+#include <linux/irq_work_types.h>
+#include <linux/llist.h>
 
 struct srcu_node;
 struct srcu_struct;
@@ -41,6 +43,8 @@ struct srcu_data {
 	bool srcu_cblist_invoking;		/* Invoking these CBs? */
 	struct timer_list delay_work;		/* Delay for CB invoking */
 	struct work_struct work;		/* Context for CB invoking. */
+	struct llist_head defer_cbs;		/* Callbacks deferred on re-entry. */
+	struct llist_node defer_link;		/* Links onto the per-CPU deferral drain list */
 	struct rcu_head srcu_barrier_head;	/* For srcu_barrier() use. */
 	struct rcu_head srcu_ec_head;		/* For srcu_expedite_current() use. */
 	int srcu_ec_state;			/*  State for srcu_expedite_current(). */
@@ -76,6 +80,7 @@ struct srcu_usage {
 	struct mutex srcu_cb_mutex;		/* Serialize CB preparation. */
 	raw_spinlock_t __private lock;		/* Protect counters and size state. */
 	struct mutex srcu_gp_mutex;		/* Serialize GP work. */
+	atomic_t srcu_atomic_gp_flag;		/* Serialize atomic GP work. */
 	unsigned long srcu_gp_seq;		/* Grace-period seq #. */
 	unsigned long srcu_gp_seq_needed;	/* Latest gp_seq needed. */
 	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
@@ -209,6 +214,12 @@ struct srcu_struct {
  * instead of smp_mb(), and given that the first (for example)
  * srcu_read_lock_fast() might race with the first synchronize_srcu(),
  * this different must be specified at initialization time.
+ *
+ * If you use any of the DEFINE_SRCU() functions within a module, the
+ * module-entry code will invoke init_srcu_struct() and the module-exit
+ * code will invoke cleanup_srcu_struct().  This means that if your module
+ * passes the resulting srcu_struct structure to call_srcu(), you will
+ * need to also pass this structure to srcu_barrier() prior to module exit.
  */
 #ifdef MODULE
 # define __DEFINE_SRCU(name, fast, is_static)							\
@@ -225,14 +236,16 @@ struct srcu_struct {
 	is_static struct srcu_struct name =							\
 		__SRCU_STRUCT_INIT(name, name##_srcu_usage, name##_srcu_data, fast)
 #endif
-#define DEFINE_SRCU(name)		__DEFINE_SRCU(name, 0, /* not static */)
+#define DEFINE_SRCU(name)		__DEFINE_SRCU(name, 0, /* !static */)
 #define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, 0, static)
-#define DEFINE_SRCU_FAST(name)		__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST, /* not static */)
+#define DEFINE_SRCU_FAST(name)		__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST, /* !static */)
 #define DEFINE_STATIC_SRCU_FAST(name)	__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST, static)
 #define DEFINE_SRCU_FAST_UPDOWN(name)	__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST_UPDOWN, \
-						      /* not static */)
+						      /* !static */)
 #define DEFINE_STATIC_SRCU_FAST_UPDOWN(name) \
 					__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST_UPDOWN, static)
+#define DEFINE_SRCU_ATOMIC(name)	__DEFINE_SRCU(name, SRCU_READ_FLAVOR_ATOMIC, /* !static */)
+#define DEFINE_STATIC_SRCU_ATOMIC(name)	__DEFINE_SRCU(name, SRCU_READ_FLAVOR_ATOMIC, static)
 
 int __srcu_read_lock(struct srcu_struct *ssp) __acquires_shared(ssp);
 void synchronize_srcu_expedited(struct srcu_struct *ssp);
