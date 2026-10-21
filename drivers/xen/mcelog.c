@@ -1,6 +1,6 @@
 /******************************************************************************
  * mcelog.c
- * Driver for receiving and transferring machine check error infomation
+ * Driver for receiving and transferring machine check error information
  *
  * Copyright (c) 2012 Intel Corporation
  * Author: Liu, Jinsong <jinsong.liu@intel.com>
