@@ -15,6 +15,8 @@
 #ifndef _LINUX_ATARIKB_H
 #define _LINUX_ATARIKB_H
 
+#include <linux/types.h>
+
 void ikbd_write(const char *, int);
 void ikbd_mouse_button_action(int mode);
 void ikbd_mouse_rel_pos(void);
@@ -37,7 +39,7 @@ extern void (*atari_MIDI_interrupt_hook) (void);
 /* Hook for keyboard inputdev  driver */
 extern void (*atari_input_keyboard_interrupt_hook) (unsigned char, char);
 /* Hook for mouse inputdev  driver */
-extern void (*atari_input_mouse_interrupt_hook) (char *);
+extern void (*atari_input_mouse_interrupt_hook)(u8 *buf);
 
 int atari_keyb_init(void);
 

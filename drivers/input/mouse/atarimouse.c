@@ -60,7 +60,7 @@ extern int atari_mouse_buttons;
 
 static struct input_dev *atamouse_dev;
 
-static void atamouse_interrupt(char *buf)
+static void atamouse_interrupt(u8 *buf)
 {
 	int buttons, dx, dy;
 
@@ -71,8 +71,8 @@ static void atamouse_interrupt(char *buf)
 #endif
 
 	/* only relative events get here */
-	dx = buf[1];
-	dy = buf[2];
+	dx = (s8)buf[1];
+	dy = (s8)buf[2];
 
 	input_report_rel(atamouse_dev, REL_X, dx);
 	input_report_rel(atamouse_dev, REL_Y, dy);
