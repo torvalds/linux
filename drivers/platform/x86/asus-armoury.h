@@ -1302,6 +1302,37 @@ static const struct dmi_system_id power_limits[] = {
 	},
 	{
 		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "GA402NV"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				.nv_dynamic_boost_max = 25,
+				.nv_dynamic_boost_min = 5,
+				.nv_temp_target_max = 87,
+				.nv_temp_target_min = 75,
+				.ppt_pl1_spl_def = 35,
+				.ppt_pl1_spl_max = 80,
+				.ppt_pl1_spl_min = 15,
+				.ppt_pl2_sppt_def = 65,
+				.ppt_pl2_sppt_max = 80,
+				.ppt_pl2_sppt_min = 25,
+				.ppt_pl3_fppt_max = 80,
+				.ppt_pl3_fppt_min = 35,
+			},
+			.dc_data = &(struct power_limits) {
+				.nv_temp_target_max = 87,
+				.nv_temp_target_min = 75,
+				.ppt_pl1_spl_max = 35,
+				.ppt_pl1_spl_min = 15,
+				.ppt_pl2_sppt_max = 35,
+				.ppt_pl2_sppt_min = 25,
+				.ppt_pl3_fppt_max = 65,
+				.ppt_pl3_fppt_min = 35,
+			},
+		},
+	},
+	{
+		.matches = {
 			// This model is full AMD. No Nvidia dGPU.
 			DMI_MATCH(DMI_BOARD_NAME, "GA402R"),
 		},
