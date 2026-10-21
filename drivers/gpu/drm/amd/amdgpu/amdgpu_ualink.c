@@ -1085,7 +1085,7 @@ static void activate_accelerator(struct amdgpu_device *adev)
 
 static void deactivate_accelerator(struct amdgpu_device *adev)
 {
-	if (adev->ualink.info->accel_state < AMDGPU_UALINK_ACCEL_STATE_ACTIVE)
+	if (adev->ualink.info->accel_state != AMDGPU_UALINK_ACCEL_STATE_ACTIVE)
 		return;
 
 	dev_info(adev->dev,
