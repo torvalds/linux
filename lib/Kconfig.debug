@@ -1329,6 +1329,18 @@ config WQ_CPU_INTENSIVE_REPORT
 	  triggering likely indicates that the work item should be switched
 	  to use an unbound workqueue.
 
+config TEST_CSD_LOCK
+	tristate "Test module to stall a CPU on a CSD lock"
+	depends on m
+	depends on CSD_LOCK_WAIT_DEBUG
+	help
+	  This builds the "test_csd_lock" module, which keeps one CPU from
+	  answering an IPI for as long as its stall_ms parameter says, so
+	  that the CSD-lock debug code has a stall to report.  It needs
+	  csdlock_debug=1 to be of any use.
+
+	  If unsure, say N.
+
 config TEST_LOCKUP
 	tristate "Test module to generate lockups"
 	depends on m
