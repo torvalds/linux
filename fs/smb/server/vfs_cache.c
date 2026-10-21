@@ -87,7 +87,7 @@ static void ksmbd_oplock_break_timer(struct work_struct *work)
 	oplock_break_timer_pending = pending;
 	if (pending) {
 		oplock_break_timer_next = next;
-		mod_delayed_work(system_wq, &oplock_break_timer_work,
+		mod_delayed_work(system_percpu_wq, &oplock_break_timer_work,
 				 time_after_eq(jiffies, next) ? 0 : next - jiffies);
 	}
 	mutex_unlock(&oplock_break_timer_lock);
@@ -100,7 +100,7 @@ void ksmbd_schedule_oplock_break_timer(unsigned long timeout)
 	    time_before(timeout, oplock_break_timer_next)) {
 		oplock_break_timer_pending = true;
 		oplock_break_timer_next = timeout;
-		mod_delayed_work(system_wq, &oplock_break_timer_work,
+		mod_delayed_work(system_percpu_wq, &oplock_break_timer_work,
 				 time_after_eq(jiffies, timeout) ? 0 : timeout - jiffies);
 	}
 	mutex_unlock(&oplock_break_timer_lock);

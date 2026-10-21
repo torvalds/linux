@@ -573,7 +573,7 @@ static void ksmbd_tcp_tx_work(struct work_struct *work)
 	if (READ_ONCE(t->tx_stopped))
 		ksmbd_tcp_purge_tx(t);
 	else if (!list_empty(&t->tx_queue))
-		queue_delayed_work(system_unbound_wq, &t->tx_work, delay);
+		queue_delayed_work(system_dfl_wq, &t->tx_work, delay);
 	mutex_unlock(&t->tx_lock);
 	wake_up_all(&t->transport.conn->req_running_q);
 
@@ -590,7 +590,7 @@ static void ksmbd_tcp_write_space(struct sock *sk)
 	if (t) {
 		t->write_space(sk);
 		if (!READ_ONCE(t->tx_stopped) && sk_stream_is_writeable(sk))
-			mod_delayed_work(system_unbound_wq, &t->tx_work, 0);
+			mod_delayed_work(system_dfl_wq, &t->tx_work, 0);
 	}
 	read_unlock_bh(&sk->sk_callback_lock);
 }
@@ -687,7 +687,7 @@ static int ksmbd_tcp_writev(struct ksmbd_transport *t,
 	msg->deadline = deadline;
 	list_add_tail(&msg->list, &tt->tx_queue);
 	WRITE_ONCE(tt->tx_queued, tt->tx_queued + msg->len);
-	queue_delayed_work(system_unbound_wq, &tt->tx_work, 0);
+	queue_delayed_work(system_dfl_wq, &tt->tx_work, 0);
 
 accepted:
 	tt->tx_end += tx->size;

@@ -178,7 +178,7 @@ static void lease_break_timer(struct work_struct *work)
 	lease_break_timer_pending = pending;
 	if (pending) {
 		lease_break_timer_next = next;
-		mod_delayed_work(system_wq, &lease_break_timer_work,
+		mod_delayed_work(system_percpu_wq, &lease_break_timer_work,
 				 time_after_eq(jiffies, next) ? 0 : next - jiffies);
 	}
 	mutex_unlock(&lease_break_timer_lock);
@@ -191,7 +191,7 @@ static void schedule_lease_break_timer(unsigned long timeout)
 	    time_before(timeout, lease_break_timer_next)) {
 		lease_break_timer_pending = true;
 		lease_break_timer_next = timeout;
-		mod_delayed_work(system_wq, &lease_break_timer_work,
+		mod_delayed_work(system_percpu_wq, &lease_break_timer_work,
 				 time_after_eq(jiffies, timeout) ? 0 : timeout - jiffies);
 	}
 	mutex_unlock(&lease_break_timer_lock);
