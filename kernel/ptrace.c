@@ -1365,16 +1365,13 @@ int ptrace_request(struct task_struct *child, long request,
 		struct iovec kiov;
 		struct iovec __user *uiov = datavp;
 
-		if (!access_ok(uiov, sizeof(*uiov)))
-			return -EFAULT;
-
-		if (__get_user(kiov.iov_base, &uiov->iov_base) ||
-		    __get_user(kiov.iov_len, &uiov->iov_len))
+		if (get_user(kiov.iov_base, &uiov->iov_base) ||
+		    get_user(kiov.iov_len, &uiov->iov_len))
 			return -EFAULT;
 
 		ret = ptrace_regset(child, request, addr, &kiov);
 		if (!ret)
-			ret = __put_user(kiov.iov_len, &uiov->iov_len);
+			ret = put_user(kiov.iov_len, &uiov->iov_len);
 		break;
 	}
 
@@ -1531,11 +1528,8 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 		compat_uptr_t ptr;
 		compat_size_t len;
 
-		if (!access_ok(uiov, sizeof(*uiov)))
-			return -EFAULT;
-
-		if (__get_user(ptr, &uiov->iov_base) ||
-		    __get_user(len, &uiov->iov_len))
+		if (get_user(ptr, &uiov->iov_base) ||
+		    get_user(len, &uiov->iov_len))
 			return -EFAULT;
 
 		kiov.iov_base = compat_ptr(ptr);
@@ -1543,7 +1537,7 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 
 		ret = ptrace_regset(child, request, addr, &kiov);
 		if (!ret)
-			ret = __put_user(kiov.iov_len, &uiov->iov_len);
+			ret = put_user(kiov.iov_len, &uiov->iov_len);
 		break;
 	}
 #endif

@@ -76,9 +76,9 @@ static inline int set_xfeature_in_sigframe(struct xregs_state __user *xbuf, u64 
 	int err;
 
 	/* Read the xfeatures value already saved in the user buffer */
-	err  = __get_user(xfeatures, &xbuf->header.xfeatures);
+	err  = get_user(xfeatures, &xbuf->header.xfeatures);
 	xfeatures |= mask;
-	err |= __put_user(xfeatures, &xbuf->header.xfeatures);
+	err |= put_user(xfeatures, &xbuf->header.xfeatures);
 
 	return err;
 }
@@ -99,7 +99,7 @@ static inline int update_pkru_in_sigframe(struct xregs_state __user *buf, u32 pk
 		return err;
 
 	/* Update PKRU value in the userspace xsave buffer. */
-	return __put_user(pkru, (unsigned int __user *)get_xsave_addr_user(buf, XFEATURE_PKRU));
+	return put_user(pkru, (unsigned int __user *)get_xsave_addr_user(buf, XFEATURE_PKRU));
 }
 
 /* XSAVE/XRSTOR wrapper functions */

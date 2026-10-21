@@ -124,7 +124,7 @@ void show_registers(struct pt_regs *regs)
 		for (i = -8; i < 24; i += 1) {
 			unsigned long word;
 
-			if (__get_user(word, &((unsigned long *)esp)[i])) {
+			if (get_kernel_nofault(word, &((unsigned long *)esp)[i])) {
 bad_stack:
 				pr_info(" Bad Stack value.");
 				break;
@@ -140,7 +140,7 @@ bad_stack:
 		for (i = -6; i < 6; i += 1) {
 			unsigned long word;
 
-			if (__get_user(word, &((unsigned long *)regs->pc)[i])) {
+			if (get_kernel_nofault(word, &((unsigned long *)regs->pc)[i])) {
 bad:
 				pr_info(" Bad PC value.");
 				break;

@@ -247,19 +247,19 @@ static ssize_t lpc_debug_read(struct file *filp, char __user *ubuf,
 		 */
 		switch(len) {
 		case 4:
-			rc = __put_user((u32)data, (u32 __user *)ubuf);
+			rc = put_user((u32)data, (u32 __user *)ubuf);
 			break;
 		case 2:
 #ifdef __LITTLE_ENDIAN__
 			data >>= 16;
 #endif
-			rc = __put_user((u16)data, (u16 __user *)ubuf);
+			rc = put_user((u16)data, (u16 __user *)ubuf);
 			break;
 		default:
 #ifdef __LITTLE_ENDIAN__
 			data >>= 24;
 #endif
-			rc = __put_user((u8)data, (u8 __user *)ubuf);
+			rc = put_user((u8)data, (u8 __user *)ubuf);
 			break;
 		}
 		if (rc)
@@ -317,15 +317,15 @@ static ssize_t lpc_debug_write(struct file *filp, const char __user *ubuf,
 		 */
 		switch(len) {
 		case 4:
-			rc = __get_user(data, (u32 __user *)ubuf);
+			rc = get_user(data, (u32 __user *)ubuf);
 			data = cpu_to_be32(data);
 			break;
 		case 2:
-			rc = __get_user(data, (u16 __user *)ubuf);
+			rc = get_user(data, (u16 __user *)ubuf);
 			data = cpu_to_be16(data);
 			break;
 		default:
-			rc = __get_user(data, (u8 __user *)ubuf);
+			rc = get_user(data, (u8 __user *)ubuf);
 			break;
 		}
 		if (rc)

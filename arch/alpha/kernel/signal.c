@@ -64,11 +64,11 @@ SYSCALL_DEFINE3(osf_sigaction, int, sig,
 
 	if (act) {
 		old_sigset_t mask;
-		if (!access_ok(act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
+		scoped_user_read_access(act, Efault) {
+			unsafe_get_user(new_ka.sa.sa_handler, &act->sa_handler, Efault);
+			unsafe_get_user(new_ka.sa.sa_flags, &act->sa_flags, Efault);
+			unsafe_get_user(mask, &act->sa_mask, Efault);
+		}
 		siginitset(&new_ka.sa.sa_mask, mask);
 		new_ka.ka_restorer = NULL;
 	}
@@ -76,14 +76,17 @@ SYSCALL_DEFINE3(osf_sigaction, int, sig,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		if (!access_ok(oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
+		scoped_user_write_access(oact, Efault) {
+			unsafe_put_user(old_ka.sa.sa_handler, &oact->sa_handler, Efault);
+			unsafe_put_user(old_ka.sa.sa_flags, &oact->sa_flags, Efault);
+			unsafe_put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask, Efault);
+		}
 	}
 
 	return ret;
+
+Efault:
+	return -EFAULT;
 }
 
 SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
@@ -149,51 +152,54 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 {
 	unsigned long usp;
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
-	long err = __get_user(regs->pc, &sc->sc_pc);
 
 	current->restart_block.fn = do_no_restart_syscall;
 	current_thread_info()->status |= TS_SAVED_FP | TS_RESTORE_FP;
 
 	sw->r26 = (unsigned long) ret_from_sys_call;
 
-	err |= __get_user(regs->r0, sc->sc_regs+0);
-	err |= __get_user(regs->r1, sc->sc_regs+1);
-	err |= __get_user(regs->r2, sc->sc_regs+2);
-	err |= __get_user(regs->r3, sc->sc_regs+3);
-	err |= __get_user(regs->r4, sc->sc_regs+4);
-	err |= __get_user(regs->r5, sc->sc_regs+5);
-	err |= __get_user(regs->r6, sc->sc_regs+6);
-	err |= __get_user(regs->r7, sc->sc_regs+7);
-	err |= __get_user(regs->r8, sc->sc_regs+8);
-	err |= __get_user(sw->r9, sc->sc_regs+9);
-	err |= __get_user(sw->r10, sc->sc_regs+10);
-	err |= __get_user(sw->r11, sc->sc_regs+11);
-	err |= __get_user(sw->r12, sc->sc_regs+12);
-	err |= __get_user(sw->r13, sc->sc_regs+13);
-	err |= __get_user(sw->r14, sc->sc_regs+14);
-	err |= __get_user(sw->r15, sc->sc_regs+15);
-	err |= __get_user(regs->r16, sc->sc_regs+16);
-	err |= __get_user(regs->r17, sc->sc_regs+17);
-	err |= __get_user(regs->r18, sc->sc_regs+18);
-	err |= __get_user(regs->r19, sc->sc_regs+19);
-	err |= __get_user(regs->r20, sc->sc_regs+20);
-	err |= __get_user(regs->r21, sc->sc_regs+21);
-	err |= __get_user(regs->r22, sc->sc_regs+22);
-	err |= __get_user(regs->r23, sc->sc_regs+23);
-	err |= __get_user(regs->r24, sc->sc_regs+24);
-	err |= __get_user(regs->r25, sc->sc_regs+25);
-	err |= __get_user(regs->r26, sc->sc_regs+26);
-	err |= __get_user(regs->r27, sc->sc_regs+27);
-	err |= __get_user(regs->r28, sc->sc_regs+28);
-	err |= __get_user(regs->gp, sc->sc_regs+29);
-	err |= __get_user(usp, sc->sc_regs+30);
+	scoped_user_read_access(sc, Efault) {
+		unsafe_get_user(regs->pc, &sc->sc_pc, Efault);
+		unsafe_get_user(regs->r0, sc->sc_regs+0, Efault);
+		unsafe_get_user(regs->r1, sc->sc_regs+1, Efault);
+		unsafe_get_user(regs->r2, sc->sc_regs+2, Efault);
+		unsafe_get_user(regs->r3, sc->sc_regs+3, Efault);
+		unsafe_get_user(regs->r4, sc->sc_regs+4, Efault);
+		unsafe_get_user(regs->r5, sc->sc_regs+5, Efault);
+		unsafe_get_user(regs->r6, sc->sc_regs+6, Efault);
+		unsafe_get_user(regs->r7, sc->sc_regs+7, Efault);
+		unsafe_get_user(regs->r8, sc->sc_regs+8, Efault);
+		unsafe_get_user(sw->r9, sc->sc_regs+9, Efault);
+		unsafe_get_user(sw->r10, sc->sc_regs+10, Efault);
+		unsafe_get_user(sw->r11, sc->sc_regs+11, Efault);
+		unsafe_get_user(sw->r12, sc->sc_regs+12, Efault);
+		unsafe_get_user(sw->r13, sc->sc_regs+13, Efault);
+		unsafe_get_user(sw->r14, sc->sc_regs+14, Efault);
+		unsafe_get_user(sw->r15, sc->sc_regs+15, Efault);
+		unsafe_get_user(regs->r16, sc->sc_regs+16, Efault);
+		unsafe_get_user(regs->r17, sc->sc_regs+17, Efault);
+		unsafe_get_user(regs->r18, sc->sc_regs+18, Efault);
+		unsafe_get_user(regs->r19, sc->sc_regs+19, Efault);
+		unsafe_get_user(regs->r20, sc->sc_regs+20, Efault);
+		unsafe_get_user(regs->r21, sc->sc_regs+21, Efault);
+		unsafe_get_user(regs->r22, sc->sc_regs+22, Efault);
+		unsafe_get_user(regs->r23, sc->sc_regs+23, Efault);
+		unsafe_get_user(regs->r24, sc->sc_regs+24, Efault);
+		unsafe_get_user(regs->r25, sc->sc_regs+25, Efault);
+		unsafe_get_user(regs->r26, sc->sc_regs+26, Efault);
+		unsafe_get_user(regs->r27, sc->sc_regs+27, Efault);
+		unsafe_get_user(regs->r28, sc->sc_regs+28, Efault);
+		unsafe_get_user(regs->gp, sc->sc_regs+29, Efault);
+		unsafe_get_user(usp, sc->sc_regs+30, Efault);
+		unsafe_copy_from_user(current_thread_info()->fp,
+				      sc->sc_fpregs, 31 * 8, Efault);
+		unsafe_get_user(current_thread_info()->fp[31], &sc->sc_fpcr, Efault);
+	}
 	wrusp(usp);
+	return 0;
 
-	err |= __copy_from_user(current_thread_info()->fp,
-				sc->sc_fpregs, 31 * 8);
-	err |= __get_user(current_thread_info()->fp[31], &sc->sc_fpcr);
-
-	return err;
+Efault:
+	return -EFAULT;
 }
 
 /* Note that this syscall is also used by setcontext(3) to install
@@ -206,11 +212,8 @@ do_sigreturn(struct sigcontext __user *sc)
 	struct pt_regs *regs = current_pt_regs();
 	sigset_t set;
 
-	/* Verify that it's a good sigcontext before using it */
-	if (!access_ok(sc, sizeof(*sc)))
-		goto give_sigsegv;
-	if (__get_user(set.sig[0], &sc->sc_mask))
-		goto give_sigsegv;
+	scoped_user_read_access(sc, give_sigsegv)
+		unsafe_get_user(set.sig[0], &sc->sc_mask, give_sigsegv);
 
 	set_current_blocked(&set);
 
@@ -272,62 +275,66 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 		 unsigned long mask, unsigned long sp)
 {
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
-	long err = 0;
+	long onstack = on_sig_stack((unsigned long)sc);
 
-	err |= __put_user(on_sig_stack((unsigned long)sc), &sc->sc_onstack);
-	err |= __put_user(mask, &sc->sc_mask);
-	err |= __put_user(regs->pc, &sc->sc_pc);
-	err |= __put_user(8, &sc->sc_ps);
+	scoped_user_write_access(sc, Efault) {
+		unsafe_put_user(onstack, &sc->sc_onstack, Efault);
+		unsafe_put_user(mask, &sc->sc_mask, Efault);
+		unsafe_put_user(regs->pc, &sc->sc_pc, Efault);
+		unsafe_put_user(8, &sc->sc_ps, Efault);
 
-	err |= __put_user(regs->r0 , sc->sc_regs+0);
-	err |= __put_user(regs->r1 , sc->sc_regs+1);
-	err |= __put_user(regs->r2 , sc->sc_regs+2);
-	err |= __put_user(regs->r3 , sc->sc_regs+3);
-	err |= __put_user(regs->r4 , sc->sc_regs+4);
-	err |= __put_user(regs->r5 , sc->sc_regs+5);
-	err |= __put_user(regs->r6 , sc->sc_regs+6);
-	err |= __put_user(regs->r7 , sc->sc_regs+7);
-	err |= __put_user(regs->r8 , sc->sc_regs+8);
-	err |= __put_user(sw->r9   , sc->sc_regs+9);
-	err |= __put_user(sw->r10  , sc->sc_regs+10);
-	err |= __put_user(sw->r11  , sc->sc_regs+11);
-	err |= __put_user(sw->r12  , sc->sc_regs+12);
-	err |= __put_user(sw->r13  , sc->sc_regs+13);
-	err |= __put_user(sw->r14  , sc->sc_regs+14);
-	err |= __put_user(sw->r15  , sc->sc_regs+15);
-	err |= __put_user(regs->r16, sc->sc_regs+16);
-	err |= __put_user(regs->r17, sc->sc_regs+17);
-	err |= __put_user(regs->r18, sc->sc_regs+18);
-	err |= __put_user(regs->r19, sc->sc_regs+19);
-	err |= __put_user(regs->r20, sc->sc_regs+20);
-	err |= __put_user(regs->r21, sc->sc_regs+21);
-	err |= __put_user(regs->r22, sc->sc_regs+22);
-	err |= __put_user(regs->r23, sc->sc_regs+23);
-	err |= __put_user(regs->r24, sc->sc_regs+24);
-	err |= __put_user(regs->r25, sc->sc_regs+25);
-	err |= __put_user(regs->r26, sc->sc_regs+26);
-	err |= __put_user(regs->r27, sc->sc_regs+27);
-	err |= __put_user(regs->r28, sc->sc_regs+28);
-	err |= __put_user(regs->gp , sc->sc_regs+29);
-	err |= __put_user(sp, sc->sc_regs+30);
-	err |= __put_user(0, sc->sc_regs+31);
+		unsafe_put_user(regs->r0, sc->sc_regs+0, Efault);
+		unsafe_put_user(regs->r1, sc->sc_regs+1, Efault);
+		unsafe_put_user(regs->r2, sc->sc_regs+2, Efault);
+		unsafe_put_user(regs->r3, sc->sc_regs+3, Efault);
+		unsafe_put_user(regs->r4, sc->sc_regs+4, Efault);
+		unsafe_put_user(regs->r5, sc->sc_regs+5, Efault);
+		unsafe_put_user(regs->r6, sc->sc_regs+6, Efault);
+		unsafe_put_user(regs->r7, sc->sc_regs+7, Efault);
+		unsafe_put_user(regs->r8, sc->sc_regs+8, Efault);
+		unsafe_put_user(sw->r9, sc->sc_regs+9, Efault);
+		unsafe_put_user(sw->r10, sc->sc_regs+10, Efault);
+		unsafe_put_user(sw->r11, sc->sc_regs+11, Efault);
+		unsafe_put_user(sw->r12, sc->sc_regs+12, Efault);
+		unsafe_put_user(sw->r13, sc->sc_regs+13, Efault);
+		unsafe_put_user(sw->r14, sc->sc_regs+14, Efault);
+		unsafe_put_user(sw->r15, sc->sc_regs+15, Efault);
+		unsafe_put_user(regs->r16, sc->sc_regs+16, Efault);
+		unsafe_put_user(regs->r17, sc->sc_regs+17, Efault);
+		unsafe_put_user(regs->r18, sc->sc_regs+18, Efault);
+		unsafe_put_user(regs->r19, sc->sc_regs+19, Efault);
+		unsafe_put_user(regs->r20, sc->sc_regs+20, Efault);
+		unsafe_put_user(regs->r21, sc->sc_regs+21, Efault);
+		unsafe_put_user(regs->r22, sc->sc_regs+22, Efault);
+		unsafe_put_user(regs->r23, sc->sc_regs+23, Efault);
+		unsafe_put_user(regs->r24, sc->sc_regs+24, Efault);
+		unsafe_put_user(regs->r25, sc->sc_regs+25, Efault);
+		unsafe_put_user(regs->r26, sc->sc_regs+26, Efault);
+		unsafe_put_user(regs->r27, sc->sc_regs+27, Efault);
+		unsafe_put_user(regs->r28, sc->sc_regs+28, Efault);
+		unsafe_put_user(regs->gp, sc->sc_regs+29, Efault);
+		unsafe_put_user(sp, sc->sc_regs+30, Efault);
+		unsafe_put_user(0, sc->sc_regs+31, Efault);
 
-	err |= __copy_to_user(sc->sc_fpregs,
-			      current_thread_info()->fp, 31 * 8);
-	err |= __put_user(0, sc->sc_fpregs+31);
-	err |= __put_user(current_thread_info()->fp[31], &sc->sc_fpcr);
+		unsafe_copy_to_user(sc->sc_fpregs,
+				    current_thread_info()->fp, 31 * 8, Efault);
+		unsafe_put_user(0, sc->sc_fpregs+31, Efault);
+		unsafe_put_user(current_thread_info()->fp[31], &sc->sc_fpcr, Efault);
 
-	err |= __put_user(regs->trap_a0, &sc->sc_traparg_a0);
-	err |= __put_user(regs->trap_a1, &sc->sc_traparg_a1);
-	err |= __put_user(regs->trap_a2, &sc->sc_traparg_a2);
+		unsafe_put_user(regs->trap_a0, &sc->sc_traparg_a0, Efault);
+		unsafe_put_user(regs->trap_a1, &sc->sc_traparg_a1, Efault);
+		unsafe_put_user(regs->trap_a2, &sc->sc_traparg_a2, Efault);
+	}
+	return 0;
 
-	return err;
+Efault:
+	return -EFAULT;
 }
 
 static int
 setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 {
-	unsigned long oldsp, r26, err = 0;
+	unsigned long oldsp, r26;
 	struct sigframe __user *frame;
 
 	oldsp = rdusp();
@@ -335,24 +342,21 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	if (!access_ok(frame, sizeof(*frame)))
 		return -EFAULT;
 
-	err |= setup_sigcontext(&frame->sc, regs, set->sig[0], oldsp);
-	if (err)
+	if (setup_sigcontext(&frame->sc, regs, set->sig[0], oldsp))
 		return -EFAULT;
 
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	r26 = (unsigned long) ksig->ka.ka_restorer;
 	if (!r26) {
-		err |= __put_user(INSN_MOV_R30_R16, frame->retcode+0);
-		err |= __put_user(INSN_LDI_R0+__NR_sigreturn, frame->retcode+1);
-		err |= __put_user(INSN_CALLSYS, frame->retcode+2);
+		scoped_user_write_access(frame, Efault) {
+			unsafe_put_user(INSN_MOV_R30_R16, frame->retcode+0, Efault);
+			unsafe_put_user(INSN_LDI_R0+__NR_sigreturn, frame->retcode+1, Efault);
+			unsafe_put_user(INSN_CALLSYS, frame->retcode+2, Efault);
+		}
 		imb();
 		r26 = (unsigned long) frame->retcode;
 	}
-
-	/* Check that everything was written properly.  */
-	if (err)
-		return err;
 
 	/* "Return" to the handler */
 	regs->r26 = r26;
@@ -367,6 +371,9 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 		current->comm, current->pid, frame, regs->pc, regs->r26);
 #endif
 	return 0;
+
+Efault:
+	return -EFAULT;
 }
 
 static int
@@ -383,9 +390,11 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	err |= copy_siginfo_to_user(&frame->info, &ksig->info);
 
 	/* Create the ucontext.  */
-	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user(set->sig[0], &frame->uc.uc_osf_sigmask);
+	scoped_user_write_access(frame, Efault) {
+		unsafe_put_user(0, &frame->uc.uc_flags, Efault);
+		unsafe_put_user(0, &frame->uc.uc_link, Efault);
+		unsafe_put_user(set->sig[0], &frame->uc.uc_osf_sigmask, Efault);
+	}
 	err |= __save_altstack(&frame->uc.uc_stack, oldsp);
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, 
 				set->sig[0], oldsp);
@@ -397,16 +406,15 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	   already in userspace.  */
 	r26 = (unsigned long) ksig->ka.ka_restorer;
 	if (!r26) {
-		err |= __put_user(INSN_MOV_R30_R16, frame->retcode+0);
-		err |= __put_user(INSN_LDI_R0+__NR_rt_sigreturn,
-				  frame->retcode+1);
-		err |= __put_user(INSN_CALLSYS, frame->retcode+2);
+		scoped_user_write_access(frame, Efault) {
+			unsafe_put_user(INSN_MOV_R30_R16, frame->retcode+0, Efault);
+			unsafe_put_user(INSN_LDI_R0+__NR_rt_sigreturn,
+					frame->retcode+1, Efault);
+			unsafe_put_user(INSN_CALLSYS, frame->retcode+2, Efault);
+		}
 		imb();
 		r26 = (unsigned long) frame->retcode;
 	}
-
-	if (err)
-		return -EFAULT;
 
 	/* "Return" to the handler */
 	regs->r26 = r26;
@@ -422,6 +430,9 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 #endif
 
 	return 0;
+
+Efault:
+	return -EFAULT;
 }
 
 

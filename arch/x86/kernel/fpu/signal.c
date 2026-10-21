@@ -49,7 +49,7 @@ static inline bool check_xstate_in_sigframe(struct fxregs_state __user *buf_fx,
 	 * fpstate layout with out copying the extended state information
 	 * in the memory layout.
 	 */
-	if (__get_user(magic2, (__u32 __user *)(buf + fx_sw->xstate_size)))
+	if (get_user(magic2, (__u32 __user *)(buf + fx_sw->xstate_size)))
 		return false;
 	if (unlikely(magic2 != FP_XSTATE_MAGIC2))
 		goto err_setfx;
@@ -106,14 +106,14 @@ static inline bool save_fsave_header(struct task_struct *tsk, void __user *buf)
 		convert_from_fxsr(&env, tsk);
 
 		if (__copy_to_user(buf, &env, sizeof(env)) ||
-		    __put_user(xsave->i387.swd, &fp->status) ||
-		    __put_user(X86_FXSR_MAGIC, &fp->magic))
+		    put_user(xsave->i387.swd, &fp->status) ||
+		    put_user(X86_FXSR_MAGIC, &fp->magic))
 			return false;
 	} else {
 		struct fregs_state __user *fp = buf;
 		u32 swd;
 
-		if (__get_user(swd, &fp->swd) || __put_user(swd, &fp->status))
+		if (get_user(swd, &fp->swd) || put_user(swd, &fp->status))
 			return false;
 	}
 
@@ -153,8 +153,8 @@ static inline bool save_xstate_epilog(void __user *buf, int ia32_frame,
 	if (!use_xsave())
 		return !err;
 
-	err |= __put_user(FP_XSTATE_MAGIC2,
-			  (__u32 __user *)(buf + fpstate->user_size));
+	err |= put_user(FP_XSTATE_MAGIC2,
+			(__u32 __user *)(buf + fpstate->user_size));
 
 	/*
 	 * For legacy compatible, we always set FP/SSE bits in the bit

@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/uaccess.h>
 #include <linux/etherdevice.h>
 #include <linux/vringh.h>
 #include <linux/vdpa.h>
@@ -68,6 +69,8 @@ static struct vdpasim_net *sim_to_net(struct vdpasim *vdpasim)
 
 static void vdpasim_net_complete(struct vdpasim_virtqueue *vq, size_t len)
 {
+	bool notify;
+
 	/* Make sure data is wrote before advancing index */
 	smp_wmb();
 
@@ -77,7 +80,11 @@ static void vdpasim_net_complete(struct vdpasim_virtqueue *vq, size_t len)
 	smp_wmb();
 
 	local_bh_disable();
-	if (vringh_need_notify_iotlb(&vq->vring) > 0)
+	/* The ring may be in user memory, and we can't take faults here */
+	pagefault_disable();
+	notify = vringh_need_notify_iotlb(&vq->vring) > 0;
+	pagefault_enable();
+	if (notify)
 		vringh_notify(&vq->vring);
 	local_bh_enable();
 }

@@ -411,12 +411,12 @@ static int mmap_return_error(int err, struct mmap_batch_state *st)
 			gfn |= (err == -ENOENT) ?
 				PRIVCMD_MMAPBATCH_PAGED_ERROR :
 				PRIVCMD_MMAPBATCH_MFN_ERROR;
-			return __put_user(gfn, st->user_gfn++);
+			return put_user(gfn, st->user_gfn++);
 		} else
 			st->user_gfn++;
 	} else { /* st->version == 2 */
 		if (err)
-			return __put_user(err, st->user_err++);
+			return put_user(err, st->user_err++);
 		else
 			st->user_err++;
 	}
@@ -777,7 +777,7 @@ static long privcmd_ioctl_mmap_resource(struct file *file,
 		rc = HYPERVISOR_memory_op(XENMEM_acquire_resource, &xdata);
 		if (rc)
 			return rc;
-		return __put_user(xdata.nr_frames, &udata->num);
+		return put_user(xdata.nr_frames, &udata->num);
 	}
 
 	mmap_write_lock(mm);

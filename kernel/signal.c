@@ -4553,11 +4553,12 @@ int restore_altstack(const stack_t __user *uss)
 
 int __save_altstack(stack_t __user *uss, unsigned long sp)
 {
-	struct task_struct *t = current;
-	int err = __put_user((void __user *)t->sas_ss_sp, &uss->ss_sp) |
-		__put_user(t->sas_ss_flags, &uss->ss_flags) |
-		__put_user(t->sas_ss_size, &uss->ss_size);
-	return err;
+	scoped_user_write_access(uss, Efault)
+		unsafe_save_altstack(uss, sp, Efault);
+	return 0;
+
+Efault:
+	return -EFAULT;
 }
 
 #ifdef CONFIG_COMPAT
@@ -4606,13 +4607,12 @@ int compat_restore_altstack(const compat_stack_t __user *uss)
 
 int __compat_save_altstack(compat_stack_t __user *uss, unsigned long sp)
 {
-	int err;
-	struct task_struct *t = current;
-	err = __put_user(ptr_to_compat((void __user *)t->sas_ss_sp),
-			 &uss->ss_sp) |
-		__put_user(t->sas_ss_flags, &uss->ss_flags) |
-		__put_user(t->sas_ss_size, &uss->ss_size);
-	return err;
+	scoped_user_write_access(uss, Efault)
+		unsafe_compat_save_altstack(uss, sp, Efault);
+	return 0;
+
+Efault:
+	return -EFAULT;
 }
 #endif
 
@@ -4790,12 +4790,12 @@ SYSCALL_DEFINE3(sigaction, int, sig,
 
 	if (act) {
 		old_sigset_t mask;
-		if (!access_ok(act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
+		scoped_user_read_access(act, Efault) {
+			unsafe_get_user(new_ka.sa.sa_handler, &act->sa_handler, Efault);
+			unsafe_get_user(new_ka.sa.sa_restorer, &act->sa_restorer, Efault);
+			unsafe_get_user(new_ka.sa.sa_flags, &act->sa_flags, Efault);
+			unsafe_get_user(mask, &act->sa_mask, Efault);
+		}
 #ifdef __ARCH_HAS_KA_RESTORER
 		new_ka.ka_restorer = NULL;
 #endif
@@ -4805,15 +4805,18 @@ SYSCALL_DEFINE3(sigaction, int, sig,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		if (!access_ok(oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
+		scoped_user_write_access(oact, Efault) {
+			unsafe_put_user(old_ka.sa.sa_handler, &oact->sa_handler, Efault);
+			unsafe_put_user(old_ka.sa.sa_restorer, &oact->sa_restorer, Efault);
+			unsafe_put_user(old_ka.sa.sa_flags, &oact->sa_flags, Efault);
+			unsafe_put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask, Efault);
+		}
 	}
 
 	return ret;
+
+Efault:
+	return -EFAULT;
 }
 #endif
 #ifdef CONFIG_COMPAT_OLD_SIGACTION
@@ -4827,12 +4830,12 @@ COMPAT_SYSCALL_DEFINE3(sigaction, int, sig,
 	compat_uptr_t handler, restorer;
 
 	if (act) {
-		if (!access_ok(act, sizeof(*act)) ||
-		    __get_user(handler, &act->sa_handler) ||
-		    __get_user(restorer, &act->sa_restorer) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
+		scoped_user_read_access(act, Efault) {
+			unsafe_get_user(handler, &act->sa_handler, Efault);
+			unsafe_get_user(restorer, &act->sa_restorer, Efault);
+			unsafe_get_user(new_ka.sa.sa_flags, &act->sa_flags, Efault);
+			unsafe_get_user(mask, &act->sa_mask, Efault);
+		}
 
 #ifdef __ARCH_HAS_KA_RESTORER
 		new_ka.ka_restorer = NULL;
@@ -4845,16 +4848,19 @@ COMPAT_SYSCALL_DEFINE3(sigaction, int, sig,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		if (!access_ok(oact, sizeof(*oact)) ||
-		    __put_user(ptr_to_compat(old_ka.sa.sa_handler),
-			       &oact->sa_handler) ||
-		    __put_user(ptr_to_compat(old_ka.sa.sa_restorer),
-			       &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
+		scoped_user_write_access(oact, Efault) {
+			unsafe_put_user(ptr_to_compat(old_ka.sa.sa_handler),
+					&oact->sa_handler, Efault);
+			unsafe_put_user(ptr_to_compat(old_ka.sa.sa_restorer),
+					&oact->sa_restorer, Efault);
+			unsafe_put_user(old_ka.sa.sa_flags, &oact->sa_flags, Efault);
+			unsafe_put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask, Efault);
+		}
 	}
 	return ret;
+
+Efault:
+	return -EFAULT;
 }
 #endif
 

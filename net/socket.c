@@ -2850,7 +2850,7 @@ int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 					     &msg_sys, flags, &used_address, MSG_EOR);
 			if (err < 0)
 				break;
-			err = __put_user(err, &compat_entry->msg_len);
+			err = put_user(err, &compat_entry->msg_len);
 			++compat_entry;
 		} else {
 			err = ___sys_sendmsg(sock,
@@ -2943,16 +2943,16 @@ static int ____sys_recvmsg(struct socket *sock, struct msghdr *msg_sys,
 		if (err < 0)
 			goto out;
 	}
-	err = __put_user((msg_sys->msg_flags & ~MSG_CMSG_COMPAT),
-			 COMPAT_FLAGS(msg));
+	err = put_user((msg_sys->msg_flags & ~MSG_CMSG_COMPAT),
+		       COMPAT_FLAGS(msg));
 	if (err)
 		goto out;
 	if (MSG_CMSG_COMPAT & flags)
-		err = __put_user((unsigned long)msg_sys->msg_control - cmsg_ptr,
-				 &msg_compat->msg_controllen);
+		err = put_user((unsigned long)msg_sys->msg_control - cmsg_ptr,
+			       &msg_compat->msg_controllen);
 	else
-		err = __put_user((unsigned long)msg_sys->msg_control - cmsg_ptr,
-				 &msg->msg_controllen);
+		err = put_user((unsigned long)msg_sys->msg_control - cmsg_ptr,
+			       &msg->msg_controllen);
 	if (err)
 		goto out;
 	err = len;
@@ -3064,7 +3064,7 @@ static int do_recvmmsg(int fd, struct mmsghdr __user *mmsg,
 					     datagrams);
 			if (err < 0)
 				break;
-			err = __put_user(err, &compat_entry->msg_len);
+			err = put_user(err, &compat_entry->msg_len);
 			++compat_entry;
 		} else {
 			err = ___sys_recvmsg(sock,

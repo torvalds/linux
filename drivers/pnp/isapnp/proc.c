@@ -41,7 +41,7 @@ static ssize_t isapnp_proc_bus_read(struct file *file, char __user * buf,
 	for (; pos < 256 && cnt > 0; pos++, buf++, cnt--) {
 		unsigned char val;
 		val = isapnp_read_byte(pos);
-		__put_user(val, buf);
+		put_user(val, buf);
 	}
 	isapnp_cfg_end();
 
