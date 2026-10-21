@@ -10746,7 +10746,8 @@ M:	Theodore Y. Ts'o <tytso@mit.edu>
 L:	fsverity@lists.linux.dev
 S:	Supported
 Q:	https://patchwork.kernel.org/project/fsverity/list/
-T:	git https://git.kernel.org/pub/scm/fs/fsverity/linux.git
+T:	git https://git.kernel.org/pub/scm/fs/fsverity/linux.git for-next
+T:	git https://git.kernel.org/pub/scm/fs/fsverity/linux.git for-current
 F:	Documentation/filesystems/fsverity.rst
 F:	fs/verity/
 F:	include/linux/fsverity.h
