@@ -27,9 +27,8 @@
 #include <linux/uaccess.h>
 #include <asm/sigcontext.h>
 #include <asm/ucontext.h>
-
+#include <linux/entry-common.h>
 #include "proto.h"
-
 
 #define DEBUG_SIG 0
 
@@ -41,14 +40,6 @@ asmlinkage void ret_from_sys_call(void);
  * The OSF/1 sigprocmask calling sequence is different from the
  * C sigprocmask() sequence..
  */
-
-asmlinkage void alpha_schedule_user_work(void)
-{
-	local_irq_enable();
-	schedule();
-	local_irq_disable();
-}
-
 SYSCALL_DEFINE2(osf_sigprocmask, int, how, unsigned long, newmask)
 {
 	sigset_t oldmask;
@@ -465,6 +456,7 @@ syscall_restart(unsigned long r0, unsigned long r19,
 		fallthrough;
 	case ERESTARTNOINTR:
 		regs->r0 = r0;	/* reset v0 and a3 and replay syscall */
+		regs->r1 = r0;
 		regs->r19 = r19;
 		regs->pc -= 4;
 		break;
@@ -488,7 +480,7 @@ syscall_restart(unsigned long r0, unsigned long r19,
  * restart. "r0" is also used as an indicator whether we can restart at
  * all (if we get here from anything but a syscall return, it will be 0)
  */
-static void
+void
 do_signal(struct pt_regs *regs, unsigned long r0, unsigned long r19)
 {
 	unsigned long single_stepping = ptrace_cancel_bpt(current);
@@ -511,12 +503,14 @@ do_signal(struct pt_regs *regs, unsigned long r0, unsigned long r19)
 			case ERESTARTNOINTR:
 				/* Reset v0 and a3 and replay syscall.  */
 				regs->r0 = r0;
+				regs->r1 = r0;
 				regs->r19 = r19;
 				regs->pc -= 4;
 				break;
 			case ERESTART_RESTARTBLOCK:
 				/* Set v0 to the restart_syscall and replay */
 				regs->r0 = __NR_restart_syscall;
+				regs->r1 = __NR_restart_syscall;
 				regs->pc -= 4;
 				break;
 			}
@@ -527,27 +521,133 @@ do_signal(struct pt_regs *regs, unsigned long r0, unsigned long r19)
 		ptrace_set_bpt(current);	/* re-set breakpoint */
 }
 
-void
-do_work_pending(struct pt_regs *regs, unsigned long thread_flags,
-		 unsigned long r0, unsigned long r19)
+asmlinkage void alpha_exit_to_user_mode(struct pt_regs *regs)
 {
-	do {
-		if (thread_flags & _TIF_NEED_RESCHED) {
-			local_irq_enable();
-			schedule();
-		} else {
-			local_irq_enable();
-			if (thread_flags & (_TIF_SIGPENDING|_TIF_NOTIFY_SIGNAL)) {
-				preempt_disable();
-				save_fpu();
-				preempt_enable();
-				do_signal(regs, r0, r19);
-				r0 = 0;
-			} else {
-				resume_user_mode_work(regs);
-			}
+	local_irq_disable();
+	irqentry_exit_to_user_mode_prepare(regs);
+	exit_to_user_mode();
+}
+
+/*
+ * Syscall return reaches here after Alpha-specific r0/a3 result encoding.
+ * Delegate syscall-exit work and final exit-to-user handling to generic
+ * entry code; low-level PAL restore remains in assembly.
+ */
+asmlinkage void alpha_syscall_exit_to_user_mode(struct pt_regs *regs)
+{
+	syscall_exit_to_user_mode(regs);
+}
+
+void arch_do_signal_or_restart(struct pt_regs *regs)
+{
+	struct thread_info *ti = current_thread_info();
+
+	preempt_disable();
+	save_fpu();
+	preempt_enable();
+	do_signal(regs, ti->syscall_saved_nr, ti->syscall_saved_r19);
+}
+
+asmlinkage unsigned long
+alpha_syscall_enter_select(struct pt_regs *regs, long syscall)
+{
+	struct thread_info *ti = current_thread_info();
+	unsigned long saved_r0 = regs->r0;
+	unsigned long saved_r19 = regs->r19;
+	unsigned long fn = (unsigned long)sys_ni_syscall;
+	long nr = syscall;
+	bool permit;
+
+	ti->syscall_meta = 0;
+	ti->syscall_saved_nr = syscall;
+
+	if (!(ti->status & TS_SAVED_FP)) {
+		ti->status |= TS_SAVED_FP;
+		__save_fpu();
+	}
+
+	permit = syscall_enter_from_user_mode_randomize_stack(regs, &nr);
+
+	/*
+	 * Alpha cannot preset the full -ENOSYS return state before generic
+	 * entry handling, because r19 is still syscall argument 4 on the
+	 * normal dispatch path. So provide the default -ENOSYS result only
+	 * here, after we know no real syscall will be invoked, and only if
+	 * entry work did not already change the return state.
+	 */
+	if (unlikely(!permit || (unsigned long)nr >= NR_syscalls)) {
+		if (regs->r0 == saved_r0 && regs->r19 == saved_r19)
+			syscall_set_return_value(current, regs, -ENOSYS, 0);
+
+		ti->syscall_meta = ALPHA_SYSCALL_META_SKIP;
+		return fn;	/* ignored by asm when SKIP is set */
+	}
+
+	instrumentation_begin();
+	{
+		unsigned long index;
+
+		index = array_index_nospec((unsigned long)nr, NR_syscalls);
+		fn = (unsigned long)sys_call_table[index];
+	}
+	instrumentation_end();
+
+	return fn;
+}
+
+asmlinkage noinstr void
+alpha_finish_syscall_to_user_mode(struct pt_regs *regs, long ret)
+{
+	struct thread_info *ti = current_thread_info();
+	unsigned long meta = ti->syscall_meta;
+
+	ti->syscall_meta = 0;
+	ti->syscall_saved_r19 = regs->r19;
+
+	instrumentation_begin();
+
+	if (meta & ALPHA_SYSCALL_META_SKIP) {
+	/*
+	 * Skip-dispatch path: ptrace/seccomp may already have installed
+	 * the return state in r0/r19. Preserve it unless the syscall was
+	 * skipped with no explicit return value.
+	 *
+	 * Generic PTRACE_SET_SYSCALL_INFO changes only the syscall-number
+	 * shadow, so r1 == -1 while r0 still contains the original Alpha
+	 * syscall number. Legacy PTRACE_POKEUSR based skipping can leave
+	 * r0 == -1 with a3/r19 still indicating success. Both represent
+	 * an unhandled skipped syscall and should become ENOSYS/a3=1.
+	 */
+		if (regs->r1 == (unsigned long)-1 &&
+		   (regs->r0 == ti->syscall_saved_nr ||
+		    regs->r0 == (unsigned long)-1)) {
+			regs->r0 = ENOSYS;
+			regs->r19 = 1;
 		}
-		local_irq_disable();
-		thread_flags = read_thread_flags();
-	} while (thread_flags & _TIF_WORK_MASK);
+
+		instrumentation_end();
+
+		syscall_exit_to_user_mode(regs);
+		return;
+	}
+
+	/*
+	 * Some successful syscalls, notably legacy ptrace PEEK requests,
+	 * return arbitrary data in r0.  That data may have the bit pattern
+	 * of a negative errno, so do not infer failure from ret < 0 when
+	 * arch code explicitly requested a successful Alpha return.
+	 */
+	if (meta & ALPHA_SYSCALL_META_FORCE_SUCCESS) {
+		regs->r0 = ret;
+		regs->r19 = 0;
+	} else if (ret < 0) {
+		regs->r0 = -ret;
+		regs->r19 = 1;
+	} else {
+		regs->r0 = ret;
+		regs->r19 = 0;
+	}
+
+	instrumentation_end();
+	syscall_exit_to_user_mode(regs);
 }

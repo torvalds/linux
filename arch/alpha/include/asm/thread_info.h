@@ -12,16 +12,21 @@
 #endif
 
 #ifndef __ASSEMBLER__
+
 struct thread_info {
 	struct pcb_struct	pcb;		/* palcode state */
 
 	struct task_struct	*task;		/* main task structure */
-	unsigned int		flags;		/* low level flags */
+	unsigned long		flags;		/* low level flags */
+	unsigned long		syscall_work;	/* SYSCALL_WORK_* flags */
 	unsigned int		ieee_state;	/* see fpu.h */
 
 	unsigned		cpu;		/* current CPU */
-	int			preempt_count; /* 0 => preemptable, <0 => BUG */
+	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	unsigned int		status;		/* thread-synchronous flags */
+	unsigned long		syscall_saved_r19;
+	unsigned long		syscall_meta;
+	unsigned long		syscall_saved_nr;
 
 	int bpt_nsaved;
 	unsigned long bpt_addr[2];		/* breakpoint handling  */
@@ -50,6 +55,9 @@ register unsigned long *current_stack_pointer __asm__ ("$30");
 #define THREAD_SIZE_ORDER 1
 #define THREAD_SIZE (2*PAGE_SIZE)
 
+#define ALPHA_SYSCALL_META_SKIP			0x2
+#define ALPHA_SYSCALL_META_FORCE_SUCCESS	0x4
+
 /*
  * Thread information flags:
  * - these are process state flags and used from assembly
@@ -68,6 +76,7 @@ register unsigned long *current_stack_pointer __asm__ ("$30");
 #define TIF_SECCOMP		6	/* seccomp syscall filtering active */
 #define	TIF_SYSCALL_TRACEPOINT	7	/* syscall tracepoint instrumentation */
 #define TIF_DIE_IF_KERNEL	9	/* dik recursion lock */
+#define TIF_UPROBE		10	/* uprobe breakpoint or singlestep */
 #define TIF_MEMDIE		13	/* is terminating due to OOM killer */
 #define TIF_POLLING_NRFLAG	14	/* idle is polling for TIF_NEED_RESCHED */
 
@@ -80,22 +89,7 @@ register unsigned long *current_stack_pointer __asm__ ("$30");
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
-
-/*
- * Work to do on syscall entry (in entry.S).
- * If you want this to exactly mirror what entry.S checks, keep it aligned
- * with the mask used before branching to syscall_trace_enter().
- */
-#ifdef CONFIG_AUDITSYSCALL
-# define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP \
-				| _TIF_SYSCALL_TRACEPOINT)
-#else
-# define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SECCOMP | _TIF_SYSCALL_TRACEPOINT)
-#endif
-
-/* Work to do on interrupt/exception return.  */
-#define _TIF_WORK_MASK		(_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
-				 _TIF_NOTIFY_RESUME | _TIF_NOTIFY_SIGNAL)
+#define _TIF_UPROBE		(1 << TIF_UPROBE)
 
 #define TS_UAC_NOPRINT		0x0001	/* ! Preserve the following three */
 #define TS_UAC_NOFIX		0x0002	/* ! flags as they match          */

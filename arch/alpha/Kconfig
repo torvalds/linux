@@ -2,37 +2,66 @@
 config ALPHA
 	bool
 	default y
+	select GENERIC_ENTRY
+	select HAVE_SYSCALL_TRACEPOINTS
 	select ARCH_32BIT_USTAT_F_TINODE
 	select ARCH_HAS_CURRENT_STACK_POINTER
+	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DMA_OPS if PCI
+	select ARCH_HAS_FAST_MULTIPLIER
+	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_UBSAN
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ARCH_MODULE_NEEDS_WEAK_PER_CPU if SMP
 	select ARCH_NO_PREEMPT
 	select ARCH_NO_SG_CHAIN
+	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_HUGETLBFS
+	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128
+	select ARCH_SUPPORTS_PAGE_TABLE_CHECK
 	select ARCH_USE_CMPXCHG_LOCKREF
+	select ARCH_USE_MEMTEST
 	select FORCE_PCI
 	select PCI_DOMAINS if PCI
 	select PCI_SYSCALL if PCI
+	select HAVE_ARCH_COMPILER_H
 	select HAVE_ASM_MODVERSIONS
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_GUP_FAST
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZ4
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_XZ
+	select HAVE_KERNEL_ZSTD
 	select HAVE_PAGE_SIZE_8KB
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PCI_IOMAP
 	select AUTO_IRQ_AFFINITY if SMP
 	select GENERIC_IRQ_SHOW
+	select ARCH_WANT_IRQS_OFF_ACTIVATE_MM
 	select ARCH_WANT_IPC_PARSE_VERSION
+	select ARCH_WANT_LD_ORPHAN_WARN
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select AUDIT_ARCH
+	select EDAC_SUPPORT
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_SMP_IDLE_THREAD
 	select HAS_IOPORT
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_SECCOMP
 	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_MOD_ARCH_SPECIFIC
 	select LOCK_MM_AND_FIND_VMA
@@ -43,7 +72,9 @@ config ALPHA
 	select CPU_NO_EFFICIENT_FFS if !ALPHA_EV67
 	select MMU_GATHER_NO_RANGE
 	select MMU_GATHER_RCU_TABLE_FREE
+	select SPARSE_IRQ
 	select SPARSEMEM_EXTREME if SPARSEMEM
+	select SYSCTL_EXCEPTION_TRACE
 	select ZONE_DMA
 	select TRACE_IRQFLAGS_SUPPORT
 	select ARCH_WANT_FRAME_POINTERS
@@ -98,27 +129,35 @@ choice
 	  This is the system type of your hardware.  A "generic" kernel will
 	  run on any supported Alpha system. However, if you configure a
 	  kernel for your specific system, it will be faster and smaller.
+	  Only EV56 (21164A) and later CPUs are supported.
 
-	  To find out what type of Alpha system you have, you may want to
-	  check out the Linux/Alpha FAQ, accessible on the WWW from
-	  <http://www.alphalinux.org/>. In summary:
+	  To find out what type of Alpha system you have, see the system and
+	  motherboard lists at
+	  <https://alphalinux.org/wiki/hardware:systems> and
+	  <https://alphalinux.org/wiki/hardware:motherboards>. In summary:
 
-	  Alcor/Alpha-XLT     AS 600, AS 500, XL-300, XL-366
-	  DP264               DP264 / DS20 / ES40 / DS10 / DS10L
+	  Alcor/Alpha-XLT     AlphaStation 500, Alpha XL 366, 433
+	  DP264               DP264, UP2000(+), DS10, DS10L, DS20, DS20E,
+	                      ES40, XP900, XP1000
+	  Eiger               Eiger (OEM)
 	  LX164               AlphaPC164-LX
+	  Marvel              AlphaServer ES47, ES80, GS1280
 	  Miata               Personal Workstation 433/500/600 a/au
-	  Marvel              AlphaServer ES47 / ES80 / GS1280
-	  Mikasa              AS 1000
-	  Noritake            AS 1000A, AS 600A, AS 800
+	  Mikasa              AlphaServer 1000
+	  Nautilus            UP1000, UP1100, UP1500
+	  Noritake            AlphaServer 1000A, 800, AlphaStation 600A,
+	                      Digital Server 3300
 	  PC164               AlphaPC164
-	  Rawhide             AS 1200, AS 4000, AS 4100
+	  Rawhide             AlphaServer 1200, 4000, 4100,
+	                      Digital Server 5300, 7300
 	  Ruffian             RPX164-2, AlphaPC164-UX, AlphaPC164-BX
+	  RX164               AlphaPC164-RX
 	  SX164               AlphaPC164-SX
-	  Sable               AS 2000, AS 2100
-	  Shark               DS 20L
+	  Sable               AlphaServer 2000, 2100
+	  Shark               AlphaServer DS20L, API NetWorks CS20
 	  Takara              Takara (OEM)
-	  Titan               AlphaServer ES45 / DS25 / DS15
-	  Wildfire            AlphaServer GS 40/80/160/320
+	  Titan               AlphaServer DS15, DS25, ES45, TS202c
+	  Wildfire            AlphaServer GS80, GS160, GS320
 
 	  If you don't know what to do, choose "generic".
 
@@ -139,13 +178,24 @@ config ALPHA_ALCOR
 	  controller (256-bit memory bus) and a PCI interface.  It also does
 	  all the work required to support an external Bcache and to maintain
 	  memory coherence when a PCI device DMAs into (or out of) memory.
+	  It is used by the AlphaStation 500 and the Alpha XL 366 and 433.
+
+	  See <https://alphalinux.org/wiki/hardware:systems:alcor>.
 
 config ALPHA_DP264
 	bool "DP264"
 	help
 	  Various 21264 systems with the tsunami core logic chipset.
-	  API Networks: 264DP, UP2000(+), CS20;
-	  Compaq: DS10(E,L), XP900, XP1000, DS20(E), ES40.
+	  API NetWorks: 264DP, UP2000(+);
+	  Compaq: DS10, DS10L, XP900, XP1000, DS20, DS20E, ES40.
+
+	  See:
+	  <https://alphalinux.org/wiki/hardware:systems:webbrick>
+	  <https://alphalinux.org/wiki/hardware:systems:goldrush>
+	  <https://alphalinux.org/wiki/hardware:systems:clipper>
+	  <https://alphalinux.org/wiki/hardware:systems:monet>
+	  <https://alphalinux.org/wiki/hardware:motherboards:pc264dp>
+	  <https://alphalinux.org/wiki/hardware:motherboards:up2000>
 
 config ALPHA_EIGER
 	bool "Eiger"
@@ -153,63 +203,100 @@ config ALPHA_EIGER
 	  Apparently an obscure OEM single-board computer based on the
 	  Typhoon/Tsunami chipset family. Information on it is scanty.
 
+	  See <https://alphalinux.org/wiki/hardware:motherboards:eiger>.
+
 config ALPHA_LX164
 	bool "LX164"
 	help
-	  A technical overview of this board is available at
-	  <http://www.unix-ag.org/Linux-Alpha/Architectures/LX164.html>.
+	  AlphaPC164-LX, a 21164A-based single-board computer using the
+	  Pyxis chipset.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:pc164lx>.
 
 config ALPHA_MARVEL
 	bool "Marvel"
 	help
 	  AlphaServer ES47 / ES80 / GS1280 based on EV7.
 
+	  See <https://alphalinux.org/wiki/hardware:systems:marvel>.
+
 config ALPHA_MIATA
 	bool "Miata"
 	select HAVE_EISA
 	help
-	  The Digital PersonalWorkStation (PWS 433a, 433au, 500a, 500au, 600a,
-	  or 600au).
+	  The Digital Personal Workstation (PWS 433a, 433au, 500a, 500au,
+	  600a, or 600au).
+
+	  See <https://alphalinux.org/wiki/hardware:systems:miata>.
 
 config ALPHA_MIKASA
 	bool "Mikasa"
 	help
 	  AlphaServer 1000-based Alpha systems.
 
+	  See <https://alphalinux.org/wiki/hardware:systems:mikasa>.
+
 config ALPHA_NAUTILUS
 	bool "Nautilus"
 	help
-	  Alpha systems based on the AMD 751 & ALI 1543C chipsets.
+	  UP1000, UP1100 and UP1500 systems based on the AMD 751 or 761
+	  chipset.
+
+	  See:
+	  <https://alphalinux.org/wiki/hardware:motherboards:up1000>
+	  <https://alphalinux.org/wiki/hardware:motherboards:up1100>
+	  <https://alphalinux.org/wiki/hardware:motherboards:up1500>
 
 config ALPHA_NORITAKE
 	bool "Noritake"
 	select HAVE_EISA
 	help
-	  AlphaServer 1000A, AlphaServer 600A, and AlphaServer 800-based
-	  systems.
+	  AlphaServer 1000A, AlphaServer 800, AlphaStation 600A and
+	  Digital Server 3300 systems.
+
+	  See <https://alphalinux.org/wiki/hardware:systems:noritake>.
 
 config ALPHA_PC164
 	bool "PC164"
+	help
+	  AlphaPC164, a 21164A-based single-board computer using the CIA
+	  chipset.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:pc164>.
 
 config ALPHA_RAWHIDE
 	bool "Rawhide"
 	select HAVE_EISA
 	help
-	  AlphaServer 1200, AlphaServer 4000 and AlphaServer 4100 machines.
-	  See HOWTO at
-	  <http://www.alphalinux.org/docs/rawhide/4100_install.shtml>.
+	  AlphaServer 1200, 4000 and 4100 and Digital Server 5300 and 7300
+	  machines.
+
+	  See <https://alphalinux.org/wiki/hardware:systems:rawhide>.
 
 config ALPHA_RUFFIAN
 	bool "Ruffian"
 	help
-	  Samsung APC164UX.  There is a page on known problems and workarounds
-	  at <http://www.alphalinux.org/faq/FAQ-11.html>.
+	  DeskStation RPX164-2, AlphaPC164-UX and AlphaPC164-BX boards.
+	  They have no SRM console and can only boot Linux through MILO.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:pc164ux>.
 
 config ALPHA_RX164
 	bool "RX164"
+	help
+	  AlphaPC164-RX, a 21164PC-based single-board computer using the
+	  Polaris chipset. It has no SRM console and can only boot Linux
+	  through MILO.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:pc164rx>.
 
 config ALPHA_SX164
 	bool "SX164"
+	help
+	  AlphaPC164-SX, a 21164PC-based single-board computer using the
+	  Pyxis chipset.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:pc164sx>.
 
 config ALPHA_SABLE
 	bool "Sable"
@@ -217,23 +304,38 @@ config ALPHA_SABLE
 	help
 	  Digital AlphaServer 2000 and 2100-based systems.
 
+	  See <https://alphalinux.org/wiki/hardware:systems:sable>.
+
 config ALPHA_SHARK
 	bool "Shark"
+	help
+	  AlphaServer DS20L and API NetWorks CS20 systems based on the
+	  Tsunami chipset.
+
+	  See <https://alphalinux.org/wiki/hardware:systems:shark>.
 
 config ALPHA_TAKARA
 	bool "Takara"
 	help
-	  Alpha 11164-based OEM single-board computer.
+	  Alpha 21164-based OEM single-board computer.
+
+	  See <https://alphalinux.org/wiki/hardware:motherboards:takara>.
 
 config ALPHA_TITAN
 	bool "Titan"
 	help
-	  AlphaServer ES45/DS25 SMP based on EV68 and Titan chipset.
+	  AlphaServer DS15, DS25, ES45 and TS202c based on EV68 and the
+	  Titan chipset.
+
+	  See <https://alphalinux.org/wiki/hardware:systems:titan>.
 
 config ALPHA_WILDFIRE
 	bool "Wildfire"
 	help
-	  AlphaServer GS 40/80/160/320 SMP based on the EV67 core.
+	  AlphaServer GS80, GS160 and GS320 SMP based on the EV67 or EV68
+	  core.
+
+	  See <https://alphalinux.org/wiki/hardware:systems:wildfire>.
 
 endchoice
 
@@ -344,9 +446,7 @@ config ALPHA_SRM
 	help
 	  There are two different types of booting firmware on Alphas: SRM,
 	  which is command line driven, and ARC, which uses menus and arrow
-	  keys. Details about the Linux/Alpha booting process are contained in
-	  the Linux/Alpha FAQ, accessible on the WWW from
-	  <http://www.alphalinux.org/>.
+	  keys.
 
 	  The usual way to load Linux on an Alpha machine is to use MILO
 	  (a bootloader that lets you pass command line parameters to the
@@ -354,10 +454,9 @@ config ALPHA_SRM
 	  loaded either from ARC or can be installed directly as a permanent
 	  firmware replacement from floppy (which requires changing a certain
 	  jumper on the motherboard). If you want to do either of these, say N
-	  here. If MILO doesn't work on your system (true for Jensen
-	  motherboards), you can bypass it altogether and boot Linux directly
-	  from an SRM console; say Y here in order to do that. Note that you
-	  won't be able to boot from an IDE disk using SRM.
+	  here. If MILO doesn't work on your system, you can bypass it
+	  altogether and boot Linux directly from an SRM console; say Y here
+	  in order to do that.
 
 	  If unsure, say N.
 
@@ -387,11 +486,11 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "32" if ALPHA_GENERIC || ALPHA_MARVEL
-	default "4" if !ALPHA_GENERIC && !ALPHA_MARVEL
+	default "32" if ALPHA_GENERIC || ALPHA_MARVEL || ALPHA_WILDFIRE
+	default "4"
 	help
-	  MARVEL support can handle a maximum of 32 CPUs, all the others
-	  with working support have a maximum of 4 CPUs.
+	  The kernel supports at most 32 CPUs. Only Marvel and Wildfire
+	  systems have more than 4.
 
 config ARCH_SPARSEMEM_ENABLE
 	bool "Sparse Memory Support"
@@ -415,8 +514,8 @@ config ALPHA_WTINT
 	  For emulation under QEMU, definitely say Y here, as we have other
 	  mechanisms for measuring time than the cycle counter.
 
-	  For EV4 (but not LCA), EV5 and EV56 systems, or for systems running
-	  MILO, sleep mode is not supported so you might as well say N here.
+	  For EV56 systems, or for systems running MILO, sleep mode is not
+	  supported so you might as well say N here.
 
 	  For SMP systems we cannot use the cycle counter for timing anyway,
 	  so you might as well say Y here.

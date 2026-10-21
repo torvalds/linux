@@ -8,6 +8,8 @@
 #include <linux/types.h>
 #include <asm/ptrace.h>
 
+extern void *sys_call_table[];
+
 static inline int syscall_get_arch(struct task_struct *task)
 {
 	return AUDIT_ARCH_ALPHA;
@@ -104,10 +106,17 @@ static inline void syscall_set_return_value(struct task_struct *task,
 }
 
 /* Restore the original syscall nr after seccomp/ptrace modified regs->r1. */
+
 static inline void syscall_rollback(struct task_struct *task,
 					struct pt_regs *regs)
 {
-	regs->r1 = regs->r2;
+	unsigned long nr = task_thread_info(task)->syscall_saved_nr;
+
+	regs->r1 = nr;
 }
 
+static inline bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs)
+{
+	return false;
+}
 #endif	/* _ASM_ALPHA_SYSCALL_H */

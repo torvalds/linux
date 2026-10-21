@@ -533,6 +533,7 @@ monet_init_pci(void)
 static void __init
 clipper_init_pci(void)
 {
+	tsunami_check_console_data_log();
 	common_init_pci();
 	locate_and_init_vga(NULL);
 }
@@ -627,7 +628,7 @@ struct alpha_machine_vector clipper_mv __initmv = {
 	DO_EV6_MMU,
 	DO_DEFAULT_RTC,
 	DO_TSUNAMI_IO,
-	.machine_check		= tsunami_machine_check,
+	.machine_check		= clipper_machine_check,
 	.max_isa_dma_address	= ALPHA_MAX_ISA_DMA_ADDRESS,
 	.min_io_address		= DEFAULT_IO_BASE,
 	.min_mem_address	= DEFAULT_MEM_BASE,
