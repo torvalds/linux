@@ -7,6 +7,7 @@
 #include <sched.h>
 #include <fcntl.h>
 #include <sys/param.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
@@ -578,6 +579,63 @@ out:
 	free(sm);
 }
 
+/*
+ * A string request needs a buffer that is larger than the fixed part of
+ * struct statmount. That's true even if the string turns out to be empty
+ * since the empty string itself is placed past the fixed part.
+ */
+static void test_statmount_string_short_buffer(void)
+{
+	const struct {
+		uint64_t mask;
+		const char *name;
+	} reqs[] = {
+		{ STATMOUNT_FS_TYPE,	"fs type" },
+		{ STATMOUNT_FS_SUBTYPE,	"fs subtype" },
+		{ STATMOUNT_MNT_UIDMAP,	"mount uidmap" },
+	};
+	const size_t sizes[] = { 0, 1, 100, sizeof(struct statmount) - 1,
+				 sizeof(struct statmount) };
+	long page = sysconf(_SC_PAGESIZE);
+	unsigned char *map;
+	size_t i, j;
+	int ret;
+
+	map = mmap(NULL, 2 * page, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (map == MAP_FAILED) {
+		ksft_test_result_fail("mmap: %s\n", strerror(errno));
+		return;
+	}
+
+	/* Anything written past the end of the buffer faults. */
+	if (mprotect(map + page, page, PROT_NONE)) {
+		ksft_test_result_fail("mprotect: %s\n", strerror(errno));
+		goto out;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(reqs); i++) {
+		for (j = 0; j < ARRAY_SIZE(sizes); j++) {
+			/* The buffer ends right at the guard page. */
+			struct statmount *sm = (void *)(map + page - sizes[j]);
+
+			errno = 0;
+			ret = statmount(root_id, 0, 0, reqs[i].mask, sm,
+					sizes[j], 0);
+			if (ret != -1 || errno != EOVERFLOW) {
+				ksft_test_result_fail("statmount %s with %zu byte buffer: %s\n",
+						      reqs[i].name, sizes[j],
+						      ret ? strerror(errno) : "success");
+				goto out;
+			}
+		}
+	}
+
+	ksft_test_result_pass("statmount string short buffer\n");
+out:
+	munmap(map, 2 * page);
+}
+
 static void test_listmount_tree(void)
 {
 	ssize_t res;
@@ -869,7 +927,7 @@ int main(void)
 
 	setup_namespace();
 
-	ksft_set_plan(17);
+	ksft_set_plan(18);
 	test_listmount_empty_root();
 	test_statmount_zero_mask();
 	test_statmount_mnt_basic();
@@ -884,6 +942,7 @@ int main(void)
 	test_statmount_string(all_mask, str_off(mnt_root), "mount root & all");
 	test_statmount_string(all_mask, str_off(mnt_point), "mount point & all");
 	test_statmount_string(all_mask, str_off(fs_type), "fs type & all");
+	test_statmount_string_short_buffer();
 
 	test_listmount_tree();
 	test_statmount_by_fd_unmounted();

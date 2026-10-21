@@ -459,10 +459,10 @@ static inline int prepare_klistns(struct klistns *kls, struct ns_id_req *kreq,
 }
 
 /*
- * Lookup a namespace owned by owner with id >= ns_id.
- * Returns the namespace with the smallest id that is >= ns_id.
+ * Lookup a namespace owned by owner with id > ns_id.
+ * Returns the namespace with the smallest id that is > ns_id.
  */
-static struct ns_common *lookup_ns_owner_at(u64 ns_id, struct ns_common *owner)
+static struct ns_common *lookup_ns_owner_after(u64 ns_id, struct ns_common *owner)
 {
 	struct ns_common *ret = NULL;
 	struct rb_node *node;
@@ -476,10 +476,8 @@ static struct ns_common *lookup_ns_owner_at(u64 ns_id, struct ns_common *owner)
 		struct ns_common *ns;
 
 		ns = node_to_ns_owner(node);
-		if (ns_id <= ns->ns_id) {
+		if (ns_id < ns->ns_id) {
 			ret = ns;
-			if (ns_id == ns->ns_id)
-				break;
 			node = node->rb_left;
 		} else {
 			node = node->rb_right;
@@ -565,7 +563,7 @@ static ssize_t do_listns_userns(struct klistns *kls)
 	 * then use it's list entry to iterate from there.
 	 */
 	if (kls->last_ns_id) {
-		kls->first_ns = lookup_ns_owner_at(kls->last_ns_id + 1, ns);
+		kls->first_ns = lookup_ns_owner_after(kls->last_ns_id, ns);
 		if (!kls->first_ns)
 			return -ENOENT;
 		first_ns = kls->first_ns;
@@ -613,10 +611,10 @@ static ssize_t do_listns_userns(struct klistns *kls)
 }
 
 /*
- * Lookup a namespace with id >= ns_id in either the unified tree or a type-specific tree.
- * Returns the namespace with the smallest id that is >= ns_id.
+ * Lookup a namespace with id > ns_id in either the unified tree or a type-specific tree.
+ * Returns the namespace with the smallest id that is > ns_id.
  */
-static struct ns_common *lookup_ns_id_at(u64 ns_id, int ns_type)
+static struct ns_common *lookup_ns_id_after(u64 ns_id, int ns_type)
 {
 	struct ns_common *ret = NULL;
 	struct ns_tree_root *ns_tree = NULL;
@@ -643,13 +641,8 @@ static struct ns_common *lookup_ns_id_at(u64 ns_id, int ns_type)
 		else
 			ns = node_to_ns_unified(node);
 
-		if (ns_id <= ns->ns_id) {
-			if (ns_type)
-				ret = node_to_ns(node);
-			else
-				ret = node_to_ns_unified(node);
-			if (ns_id == ns->ns_id)
-				break;
+		if (ns_id < ns->ns_id) {
+			ret = ns;
 			node = node->rb_left;
 		} else {
 			node = node->rb_right;
@@ -708,7 +701,7 @@ static ssize_t do_listns(struct klistns *kls)
 	}
 
 	if (kls->last_ns_id) {
-		kls->first_ns = lookup_ns_id_at(kls->last_ns_id + 1, ns_type);
+		kls->first_ns = lookup_ns_id_after(kls->last_ns_id, ns_type);
 		if (!kls->first_ns)
 			return -ENOENT;
 		first_ns = kls->first_ns;
