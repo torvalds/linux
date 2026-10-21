@@ -18,7 +18,7 @@ bool napi_pp_get_page(netmem_ref netmem);
  *
  * Acquires pp_ref_count via napi_pp_get_page() if @recycle is true and
  * @netmem belongs to a page_pool; otherwise acquires a non-pp backing
- * reference via get_netmem(). Counterpart to skb_netmem_unref().
+ * reference via netmem_inc_ref(). Counterpart to skb_netmem_unref().
  */
 static __always_inline void skb_netmem_ref(netmem_ref netmem, bool recycle)
 {
@@ -26,7 +26,7 @@ static __always_inline void skb_netmem_ref(netmem_ref netmem, bool recycle)
 	if (recycle && napi_pp_get_page(netmem))
 		return;
 #endif
-	get_netmem(netmem);
+	netmem_inc_ref(netmem);
 }
 
 /**
@@ -53,7 +53,7 @@ bool napi_pp_put_page(netmem_ref netmem);
  *
  * Drops pp_ref_count via napi_pp_put_page() if @recycle is true and @netmem
  * belongs to a page_pool; otherwise drops a non-pp backing reference via
- * put_netmem(). Counterpart to skb_netmem_ref().
+ * netmem_dec_ref(). Counterpart to skb_netmem_ref().
  */
 static __always_inline void skb_netmem_unref(netmem_ref netmem, bool recycle)
 {
@@ -61,7 +61,7 @@ static __always_inline void skb_netmem_unref(netmem_ref netmem, bool recycle)
 	if (recycle && napi_pp_put_page(netmem))
 		return;
 #endif
-	put_netmem(netmem);
+	netmem_dec_ref(netmem);
 }
 
 /**

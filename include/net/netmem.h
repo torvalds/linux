@@ -413,14 +413,14 @@ void net_iov_inc_ref(struct net_iov *niov);
 void net_iov_dec_ref(struct net_iov *niov);
 
 /**
- * get_netmem - acquire a non-page_pool reference on a netmem
+ * netmem_inc_ref - acquire a non-page_pool reference on a netmem
  * @netmem: netmem to reference
  *
  * Acquires a non-pp backing reference (page._refcount via get_page() or
  * binding->ref via net_iov_inc_ref()) regardless of page_pool membership.
- * Counterpart to put_netmem().
+ * Counterpart to netmem_dec_ref().
  */
-static __always_inline void get_netmem(netmem_ref netmem)
+static __always_inline void netmem_inc_ref(netmem_ref netmem)
 {
 	if (netmem_is_net_iov(netmem))
 		net_iov_inc_ref(netmem_to_net_iov(netmem));
@@ -429,14 +429,14 @@ static __always_inline void get_netmem(netmem_ref netmem)
 }
 
 /**
- * put_netmem - release a non-page_pool reference on a netmem
+ * netmem_dec_ref - release a non-page_pool reference on a netmem
  * @netmem: netmem to unreference
  *
  * Drops a non-pp backing reference (page._refcount via put_page() or
  * binding->ref via net_iov_dec_ref()) regardless of page_pool membership.
- * Counterpart to get_netmem().
+ * Counterpart to netmem_inc_ref().
  */
-static __always_inline void put_netmem(netmem_ref netmem)
+static __always_inline void netmem_dec_ref(netmem_ref netmem)
 {
 	if (netmem_is_net_iov(netmem))
 		net_iov_dec_ref(netmem_to_net_iov(netmem));
