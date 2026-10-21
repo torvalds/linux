@@ -958,6 +958,9 @@ static int mlx5e_ipsec_netevent_event(struct notifier_block *nb,
 	xa_for_each_marked(&ipsec->sadb, idx, sa_entry, MLX5E_IPSEC_TUNNEL_SA) {
 		attrs = &sa_entry->attrs;
 
+		if (attrs->addrs.family != n->tbl->family)
+			continue;
+
 		if (attrs->addrs.family == AF_INET) {
 			if (!neigh_key_eq32(n, &attrs->addrs.saddr.a4) &&
 			    !neigh_key_eq32(n, &attrs->addrs.daddr.a4))
