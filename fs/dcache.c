@@ -1916,6 +1916,10 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	 * be overwriting an internal NUL character
 	 */
 	dentry->d_shortname.string[DNAME_INLINE_LEN-1] = 0;
+
+	/* Racy __d_lookup_rcu() walk may read past the NUL; harmless */
+	kmsan_unpoison_memory(dentry->d_shortname.string, DNAME_INLINE_LEN);
+
 	if (unlikely(!name)) {
 		name = &slash_name;
 		dname = dentry->d_shortname.string;

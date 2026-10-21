@@ -37,7 +37,7 @@ static void *run_vcpu(void *arg)
 	struct kvm_vcpu *vcpu = arg;
 	struct kvm_run *run = vcpu->run;
 
-#ifndef _GNU_SOURCE
+#ifndef __GLIBC__
 	kvm_sched_setaffinity(0, sizeof(cpu_set_t), &threads_cpu_set);
 #endif
 
@@ -51,7 +51,7 @@ static void *sleeping_thread(void *arg)
 {
 	int fd;
 
-#ifndef _GNU_SOURCE
+#ifndef __GLIBC__
 	kvm_sched_setaffinity(0, sizeof(cpu_set_t), &threads_cpu_set);
 #endif
 
@@ -71,7 +71,7 @@ static void run_test(u32 run)
 	u32 i, j;
 
 	TEST_ASSERT_EQ(pthread_attr_init(&attr), 0);
-#ifdef _GNU_SOURCE
+#ifdef __GLIBC__
 	TEST_ASSERT_EQ(pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &threads_cpu_set), 0);
 #endif
 

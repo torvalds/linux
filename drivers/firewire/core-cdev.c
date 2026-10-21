@@ -1397,8 +1397,10 @@ static void iso_resource_auto_work(struct work_struct *work)
 		} else {
 			// Transit from allocation to reallocation, except if the client requested
 			// deallocation in the meantime.
-			scoped_guard(spinlock_irq,  &client->lock)
-				r->todo = ISO_RES_AUTO_REALLOC;
+			scoped_guard(spinlock_irq,  &client->lock) {
+				if (r->todo == ISO_RES_AUTO_ALLOC)
+					r->todo = ISO_RES_AUTO_REALLOC;
+			}
 
 			if (channel >= 0)
 				r->params.channels_mask = BIT_ULL(channel);

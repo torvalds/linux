@@ -555,8 +555,8 @@ static void scx_rescue_timerfn(struct timer_list *timer)
 				     scx.dsq_list.node);
 		scx_task_unlink_from_dsq(p, &rq->scx.rescue.dsq);
 		scx_rescue_admit(rq, p, slice);
-		scx_move_local_task_to_local_dsq(scx_task_sched(p), p, SCX_ENQ_IGNORE_CAPS,
-						 &rq->scx.rescue.dsq, rq);
+		scx_move_local_task_to_local_dsq(scx_task_sched(p), p,
+						 SCX_ENQ_IGNORE_CAPS, rq);
 		if (sched_class_above(&ext_sched_class, rq->curr->sched_class))
 			resched_curr(rq);
 	} else if (p->scx.dsq && rq->scx.rescue.budget > 2 * scx_rescue_quantum_ns) {
@@ -572,7 +572,7 @@ static void scx_rescue_timerfn(struct timer_list *timer)
 		scx_task_unlink_from_dsq(p, &rq->scx.local_dsq);
 		scx_move_local_task_to_local_dsq(scx_task_sched(p), p,
 					SCX_ENQ_HEAD | SCX_ENQ_PREEMPT | SCX_ENQ_IGNORE_CAPS,
-					&rq->scx.local_dsq, rq);
+					rq);
 	}
 out_arm:
 	scx_rescue_timer_arm(rq);
@@ -596,8 +596,8 @@ void scx_rescue_flush(struct rq *rq)
 	/* and flush out all pending ones */
 	list_for_each_entry_safe(p, n, &rq->scx.rescue.dsq.list, scx.dsq_list.node) {
 		scx_task_unlink_from_dsq(p, &rq->scx.rescue.dsq);
-		scx_move_local_task_to_local_dsq(scx_task_sched(p), p, SCX_ENQ_IGNORE_CAPS,
-						 &rq->scx.rescue.dsq, rq);
+		scx_move_local_task_to_local_dsq(scx_task_sched(p), p,
+						 SCX_ENQ_IGNORE_CAPS, rq);
 	}
 
 	timer_delete(&rq->scx.rescue.timer);
@@ -801,6 +801,7 @@ void scx_reenq_reject(struct rq *rq)
 		if (WARN_ON_ONCE(p->migration_pending))
 			continue;
 
+		scx_reenq_wait_dispatching(p);
 		scx_dispatch_dequeue(rq, p);
 
 		if (WARN_ON_ONCE(p->scx.flags & SCX_TASK_REENQ_REASON_MASK))

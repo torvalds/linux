@@ -6184,6 +6184,21 @@ struct mnt_namespace init_mnt_ns = {
 	.poll		= __WAIT_QUEUE_HEAD_INITIALIZER(init_mnt_ns.poll),
 };
 
+static void __init mount_rootfs_on_nullfs(struct vfsmount *mnt,
+					  struct vfsmount *nullfs_mnt)
+{
+	struct path root = {
+		.mnt	= nullfs_mnt,
+		.dentry	= nullfs_mnt->mnt_root,
+	};
+
+	LOCK_MOUNT_EXACT(mp, &root);
+	if (unlikely(IS_ERR(mp.parent)))
+		panic("VFS: Failed to mount rootfs on nullfs");
+	scoped_guard(mount_writer)
+		attach_mnt(real_mount(mnt), mp.parent, mp.mp);
+}
+
 static void __init init_mount_tree(void)
 {
 	struct vfsmount *mnt, *nullfs_mnt;
@@ -6215,15 +6230,7 @@ static void __init init_mount_tree(void)
 	mnt_root		= real_mount(nullfs_mnt);
 	init_mnt_ns.root	= mnt_root;
 
-	/* Mount mutable rootfs on top of nullfs. */
-	root.mnt		= nullfs_mnt;
-	root.dentry		= nullfs_mnt->mnt_root;
-
-	LOCK_MOUNT_EXACT(mp, &root);
-	if (unlikely(IS_ERR(mp.parent)))
-		panic("VFS: Failed to mount rootfs on nullfs");
-	scoped_guard(mount_writer)
-		attach_mnt(real_mount(mnt), mp.parent, mp.mp);
+	mount_rootfs_on_nullfs(mnt, nullfs_mnt);
 
 	pr_info("VFS: Finished mounting rootfs on nullfs\n");
 
@@ -6294,7 +6301,7 @@ void put_mnt_ns(struct mnt_namespace *ns)
 	guard(namespace_excl)();
 	emptied_ns = ns;
 	guard(mount_writer)();
-	umount_tree(ns->root, UMOUNT_CONNECTED);
+	umount_tree(ns->root, 0);
 }
 
 struct vfsmount *kern_mount(struct file_system_type *type)

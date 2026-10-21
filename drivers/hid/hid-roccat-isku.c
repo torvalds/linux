@@ -411,6 +411,9 @@ static int isku_raw_event(struct hid_device *hdev,
 	if (isku == NULL)
 		return 0;
 
+	if (size < sizeof(struct isku_report_button))
+		return 0;
+
 	isku_keep_values_up_to_date(isku, data);
 
 	if (isku->roccat_claimed)

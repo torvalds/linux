@@ -617,14 +617,23 @@ void udp_lib_hash4(struct sock *sk, u16 hash)
 	struct net *net = sock_net(sk);
 	struct udp_table *udptable;
 
-	/* Connected udp socket can re-connect to another remote address, which
-	 * will be handled by rehash. Thus no need to redo hash4 here.
-	 */
-	if (udp_hashed4(sk))
-		return;
-
 	udptable = net->ipv4.udp_table;
 	hslot = udp_hashslot(udptable, net, udp_sk(sk)->udp_port_hash);
+
+	/* A connected socket can re-connect to another address. rehash()
+	 * relocates it, but only runs when the local address changes, so a
+	 * socket bound to a specific address would stay filed under the
+	 * previous peer's hash. Move it here.
+	 */
+	if (udp_hashed4(sk)) {
+		if (udp_sk(sk)->udp_lrpa_hash != hash) {
+			spin_lock_bh(&hslot->lock);
+			udp_rehash4(udptable, sk, hash);
+			spin_unlock_bh(&hslot->lock);
+		}
+		return;
+	}
+
 	hslot2 = udp_hashslot2(udptable, udp_sk(sk)->udp_portaddr_hash);
 	hslot4 = udp_hashslot4(udptable, hash);
 	udp_sk(sk)->udp_lrpa_hash = hash;
@@ -2197,9 +2206,31 @@ int __udp_disconnect(struct sock *sk, int flags)
 }
 EXPORT_SYMBOL(__udp_disconnect);
 
+/* __udp_disconnect() takes a socket out of the 4-tuple hash table only via
+ * ->rehash() or ->unhash(), and neither runs for a socket bound to a
+ * specific address and port. Remove it here, before its peer is cleared.
+ */
+static void udp_unhash4_on_disconnect(struct sock *sk)
+{
+	struct net *net = sock_net(sk);
+	struct udp_table *udptable;
+	struct udp_hslot *hslot;
+
+	if (!udp_hashed4(sk))
+		return;
+
+	udptable = net->ipv4.udp_table;
+	hslot = udp_hashslot(udptable, net, udp_sk(sk)->udp_port_hash);
+
+	spin_lock_bh(&hslot->lock);
+	udp_unhash4(udptable, sk);
+	spin_unlock_bh(&hslot->lock);
+}
+
 int udp_disconnect(struct sock *sk, int flags)
 {
 	lock_sock(sk);
+	udp_unhash4_on_disconnect(sk);
 	__udp_disconnect(sk, flags);
 	release_sock(sk);
 	return 0;
@@ -3131,6 +3162,7 @@ int udp_abort(struct sock *sk, int err)
 
 	sk->sk_err = err;
 	sk_error_report(sk);
+	udp_unhash4_on_disconnect(sk);
 	__udp_disconnect(sk, 0);
 
 out:

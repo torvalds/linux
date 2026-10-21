@@ -867,6 +867,7 @@ static const struct of_device_id ipq5210_tlmm_of_match[] = {
 	{ .compatible = "qcom,ipq5210-tlmm", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ipq5210_tlmm_of_match);
 
 static int ipq5210_tlmm_probe(struct platform_device *pdev)
 {

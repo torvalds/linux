@@ -994,11 +994,13 @@ static long _destroy_pages_pte(union pte *ptep, gfn_t gfn, gfn_t next, struct da
 static long _destroy_pages_crste(union crste *crstep, gfn_t gfn, gfn_t next, struct dat_walk *walk)
 {
 	phys_addr_t origin, cur, end;
+	union crste crste;
 
-	if (!crstep->h.fc || !crstep->s.fc1.pr)
+	crste = READ_ONCE(*crstep);
+	if (!crste.h.fc || !crste.s.fc1.pr)
 		return 0;
 
-	origin = crste_origin_large(*crstep);
+	origin = crste_origin_large(crste);
 	cur = ((max(gfn, walk->start) - gfn) << PAGE_SHIFT) + origin;
 	end = ((min(next, walk->end) - gfn) << PAGE_SHIFT) + origin;
 	for ( ; cur < end; cur += PAGE_SIZE)

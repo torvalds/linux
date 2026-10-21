@@ -91,6 +91,7 @@ struct nfc_llcp_local {
 	struct hlist_head pending_sdreqs;
 	struct timer_list sdreq_timer;
 	struct work_struct sdreq_timeout_work;
+	struct work_struct release_work;
 	u8 sdreq_next_tid;
 
 	/* sockets array */
