@@ -39,7 +39,7 @@
 #include <linux/gfp.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
-#include <vdso/vsyscall.h>
+#include <linux/vdso_time.h>
 #include <vdso/clocksource.h>
 #include <vdso/helpers.h>
 #include <asm/facility.h>
@@ -527,7 +527,7 @@ static int stp_sync_clock(void *data)
 			cpu_relax();
 		rc = 0;
 		if (stp_info.todoff || stp_info.tmd != 2) {
-			flags = vdso_update_begin();
+			flags = vdso_time_update_begin();
 			rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0,
 					&clock_delta);
 			if (rc == 0) {
@@ -537,7 +537,7 @@ static int stp_sync_clock(void *data)
 				if (rc == 0 && stp_info.tmd != 2)
 					rc = -EAGAIN;
 			}
-			vdso_update_end(flags);
+			vdso_time_update_end(flags);
 		}
 		sync->in_sync = rc ? -EAGAIN : 1;
 		xchg(&first, 0);

@@ -11,7 +11,6 @@
 #include <linux/const.h>
 #include <asm/page.h>
 #include <asm/vdso.h>
-#include <asm/vdso/vsyscall.h>
 #include <asm-generic/vmlinux.lds.h>
 #include <vdso/datapage.h>
 
