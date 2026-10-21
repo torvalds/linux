@@ -10,13 +10,13 @@
 #include <linux/align.h>
 #include <linux/fs.h>
 #include <linux/dmi.h>
+#include <linux/firmware_attributes.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
 #include <linux/wmi.h>
 #include "dell-wmi-sysman.h"
-#include "../../firmware_attributes_class.h"
 
 #define MAX_TYPES  4
 #include <linux/nls.h>
