@@ -744,6 +744,9 @@ static int panthor_gem_mmap(struct drm_gem_object *obj, struct vm_area_struct *v
 	struct panthor_gem_object *bo = to_panthor_bo(obj);
 	int ret;
 
+	if (bo->flags & DRM_PANTHOR_BO_NO_MMAP)
+		return -EINVAL;
+
 	if (drm_gem_is_imported(obj)) {
 		/* Reset both vm_ops and vm_private_data, so we don't end up with
 		 * vm_ops pointing to our implementation if the dma-buf backend

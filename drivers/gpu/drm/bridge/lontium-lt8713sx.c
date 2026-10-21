@@ -554,7 +554,6 @@ static int lt8713sx_probe(struct i2c_client *client)
 
 	lt8713sx_reset(lt8713sx);
 
-	lt8713sx->bridge.funcs = &lt8713sx_bridge_funcs;
 	lt8713sx->bridge.of_node = dev->of_node;
 	lt8713sx->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
 	drm_bridge_add(&lt8713sx->bridge);

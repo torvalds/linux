@@ -4379,6 +4379,9 @@ static const struct panel_desc raystar_rff500f_awh_dnn = {
 		.width = 108,
 		.height = 65,
 	},
+	.delay = {
+		.enable = 250,
+	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };

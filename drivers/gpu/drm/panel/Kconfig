@@ -695,6 +695,8 @@ config DRM_PANEL_NOVATEK_NT36536
 	depends on OF
 	depends on DRM_MIPI_DSI
 	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_DISPLAY_DSC_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	help
 	  Say Y here if you want to enable support for Novatek NT36536-based
@@ -752,6 +754,15 @@ config DRM_PANEL_NOVATEK_NT39016
 	help
 	  Say Y here if you want to enable support for the panels built
 	  around the Novatek NT39016 display controller.
+
+config DRM_PANEL_NOVATEK_NT51021
+	tristate "Novatek NT51021 DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the panels built
+	  around the Novatek NT51021 Display controller.
 
 config DRM_PANEL_OLIMEX_LCD_OLINUXINO
 	tristate "Olimex LCD-OLinuXino panel"
@@ -849,6 +860,21 @@ config DRM_PANEL_RAYDIUM_RM692E5
 	help
 	  Say Y here if you want to enable support for Raydium RM692E5-based
 	  display panels, such as the one found in the Fairphone 5 smartphone.
+
+config DRM_PANEL_RAYDIUM_RM69220
+	tristate "Raydium RM69220-based DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_DISPLAY_DSC_HELPER
+	select DRM_DISPLAY_HELPER
+	help
+	  Say Y here if you want to enable support for Raydium RM69220-based
+	  display panels, such as the BOE BF068MWM-TD0 which can be found in
+	  the Nothing Phone (3a).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called panel-raydium-rm69220.
 
 config DRM_PANEL_RAYDIUM_RM69380
 	tristate "Raydium RM69380-based DSI panel"

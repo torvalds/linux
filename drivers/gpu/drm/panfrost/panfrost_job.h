@@ -74,4 +74,8 @@ int panfrost_job_get_slot(struct panfrost_job *job);
 int panfrost_job_push(struct panfrost_job *job);
 void panfrost_job_put(struct panfrost_job *job);
 
+#ifdef CONFIG_DEBUG_FS
+void panfrost_sched_debugfs_init(struct drm_minor *minor);
+#endif
+
 #endif

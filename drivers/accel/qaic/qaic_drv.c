@@ -40,6 +40,7 @@ MODULE_IMPORT_NS("DMA_BUF");
 #define PCI_DEVICE_ID_QCOM_AIC080	0xa080
 #define PCI_DEVICE_ID_QCOM_AIC100	0xa100
 #define PCI_DEVICE_ID_QCOM_AIC200	0xa110
+#define PCI_DEVICE_ID_QCOM_AIC200VF	0xa111
 #define QAIC_NAME			"qaic"
 #define QAIC_DESC			"Qualcomm Cloud AI Accelerators"
 #define CNTL_MAJOR			5
@@ -73,6 +74,13 @@ static const struct qaic_device_config aic100_config = {
 
 static const struct qaic_device_config aic200_config = {
 	.family = FAMILY_AIC200,
+	.bar_mask = BIT(0) | BIT(1) | BIT(2) | BIT(4),
+	.mhi_bar_idx = 1,
+	.dbc_bar_idx = 2,
+};
+
+static const struct qaic_device_config aic200vf_config = {
+	.family = FAMILY_AIC200_VF,
 	.bar_mask = BIT(0) | BIT(1) | BIT(2) | BIT(4),
 	.mhi_bar_idx = 1,
 	.dbc_bar_idx = 2,
@@ -610,6 +618,8 @@ static void qaic_pci_remove(struct pci_dev *pdev)
 {
 	struct qaic_device *qdev = pci_get_drvdata(pdev);
 
+	pci_disable_sriov(pdev);
+
 	if (!qdev)
 		return;
 
@@ -666,6 +676,7 @@ static const struct pci_device_id qaic_ids[] = {
 	{ PCI_DEVICE_DATA(QCOM, AIC080, (kernel_ulong_t)&aic080_config), },
 	{ PCI_DEVICE_DATA(QCOM, AIC100, (kernel_ulong_t)&aic100_config), },
 	{ PCI_DEVICE_DATA(QCOM, AIC200, (kernel_ulong_t)&aic200_config), },
+	{ PCI_DEVICE_DATA(QCOM, AIC200VF, (kernel_ulong_t)&aic200vf_config), },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, qaic_ids);
@@ -762,6 +773,41 @@ static const struct dev_pm_ops qaic_pm_ops = {
 	SYSTEM_SLEEP_PM_OPS(qaic_pm_suspend, qaic_pm_resume)
 };
 
+static int qaic_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	struct qaic_device *qdev = pci_get_drvdata(pdev);
+	int rcu_id;
+	int ret;
+
+	if (num_vfs == 0) {
+		pci_disable_sriov(pdev);
+		return 0;
+	}
+
+	rcu_id = srcu_read_lock(&qdev->dev_lock);
+	/* Qaic device must be online to process VF bringup */
+	if (qdev->dev_state == QAIC_OFFLINE) {
+		ret = -ENODEV;
+		goto unlock_dev_srcu;
+	}
+	if (qdev->dev_state == QAIC_BOOT) {
+		ret = -EBUSY;
+		goto unlock_dev_srcu;
+	}
+
+	ret = pci_enable_sriov(pdev, num_vfs);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to enable SR-IOV: %d (requested %d VFs, max %d)\n",
+			ret, num_vfs, pci_sriov_get_totalvfs(pdev));
+		goto unlock_dev_srcu;
+	}
+
+	dev_dbg(&pdev->dev, "Successfully enabled %d VFs\n", num_vfs);
+unlock_dev_srcu:
+	srcu_read_unlock(&qdev->dev_lock, rcu_id);
+	return ret ?: num_vfs;
+}
+
 static struct pci_driver qaic_pci_driver = {
 	.name = QAIC_NAME,
 	.id_table = qaic_ids,
@@ -769,6 +815,7 @@ static struct pci_driver qaic_pci_driver = {
 	.remove = qaic_pci_remove,
 	.shutdown = qaic_pci_shutdown,
 	.err_handler = &qaic_pci_err_handler,
+	.sriov_configure = qaic_pci_sriov_configure,
 	.driver = {
 		.pm = pm_sleep_ptr(&qaic_pm_ops),
 	},

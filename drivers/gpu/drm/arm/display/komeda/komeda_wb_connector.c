@@ -128,7 +128,7 @@ static void komeda_wb_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs komeda_wb_connector_funcs = {
-	.reset			= drm_atomic_helper_connector_reset,
+	.atomic_create_state	= drm_atomic_helper_connector_create_state,
 	.detect			= komeda_wb_connector_detect,
 	.fill_modes		= komeda_wb_connector_fill_modes,
 	.destroy		= komeda_wb_connector_destroy,

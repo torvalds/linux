@@ -24,10 +24,8 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/device.h>
-#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -273,15 +271,6 @@ static void vc4_component_unbind_all(void *ptr)
 	component_unbind_all(vc4->dev, &vc4->base);
 }
 
-static const struct of_device_id vc4_dma_range_matches[] = {
-	{ .compatible = "brcm,bcm2711-hvs" },
-	{ .compatible = "brcm,bcm2712-hvs" },
-	{ .compatible = "brcm,bcm2835-hvs" },
-	{ .compatible = "brcm,bcm2835-v3d" },
-	{ .compatible = "brcm,cygnus-v3d" },
-	{}
-};
-
 static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -294,29 +283,12 @@ static int vc4_drm_bind(struct device *dev)
 	enum vc4_gen gen;
 	int ret = 0;
 
-	dev->coherent_dma_mask = DMA_BIT_MASK(32);
-
 	gen = (enum vc4_gen)of_device_get_match_data(dev);
 
 	if (gen > VC4_GEN_4)
 		driver = &vc5_drm_driver;
 	else
 		driver = &vc4_drm_driver;
-
-	if (gen >= VC4_GEN_6_C)
-		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
-	else
-		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
-
-	node = of_find_matching_node_and_match(NULL, vc4_dma_range_matches,
-					       NULL);
-	if (node) {
-		ret = of_dma_configure(dev, node, true);
-		of_node_put(node);
-
-		if (ret)
-			return ret;
-	}
 
 	vc4 = devm_drm_dev_alloc(dev, driver, struct vc4_dev, base);
 	if (IS_ERR(vc4))

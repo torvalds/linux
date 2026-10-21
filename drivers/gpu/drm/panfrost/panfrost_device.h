@@ -165,6 +165,7 @@ struct panfrost_device {
 	struct {
 		struct workqueue_struct *wq;
 		struct work_struct work;
+		struct rw_semaphore lock;
 		atomic_t pending;
 	} reset;
 
@@ -340,5 +341,9 @@ panfrost_device_schedule_reset(struct panfrost_device *pfdev)
 	atomic_set(&pfdev->reset.pending, 1);
 	queue_work(pfdev->reset.wq, &pfdev->reset.work);
 }
+
+#ifdef CONFIG_DEBUG_FS
+void panfrost_device_debugfs_init(struct drm_minor *minor);
+#endif // CONFIG_DEBUG_FS
 
 #endif

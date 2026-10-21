@@ -7,8 +7,6 @@
 #define __IVPU_HW_BTRS_H__
 
 #include "ivpu_drv.h"
-#include "ivpu_hw_37xx_reg.h"
-#include "ivpu_hw_40xx_reg.h"
 #include "ivpu_hw_reg_io.h"
 
 #define PLL_PROFILING_FREQ_DEFAULT   38400000
@@ -19,7 +17,6 @@
 
 int ivpu_hw_btrs_info_init(struct ivpu_device *vdev);
 void ivpu_hw_btrs_freq_ratios_init(struct ivpu_device *vdev);
-int ivpu_hw_btrs_irqs_clear_with_0_mtl(struct ivpu_device *vdev);
 int ivpu_hw_btrs_wp_drive(struct ivpu_device *vdev, bool enable);
 int ivpu_hw_btrs_wait_for_clock_res_own_ack(struct ivpu_device *vdev);
 int ivpu_hw_btrs_d0i3_enable(struct ivpu_device *vdev);

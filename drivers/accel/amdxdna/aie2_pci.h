@@ -244,7 +244,7 @@ int aie2_pm_set_mode(struct amdxdna_dev_hdl *ndev, enum amdxdna_power_mode_type 
 int aie2_pm_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level);
 
 /* aie2_error.c */
-int aie2_error_async_events_alloc(struct amdxdna_dev_hdl *ndev);
+int aie2_error_async_events_alloc(struct amdxdna_dev_hdl *ndev, u32 num_events);
 void aie2_error_async_events_free(struct amdxdna_dev_hdl *ndev);
 int aie2_error_async_msg_thread(void *data);
 int aie2_get_array_async_error(struct amdxdna_dev_hdl *ndev,

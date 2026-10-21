@@ -101,7 +101,7 @@ struct drm_sched_entity {
 	 *
 	 * Lock protecting the run-queue (@rq) to which this entity belongs,
 	 * @priority, @last_scheduled and the list of schedulers (@sched_list,
-	 * @num_sched_list) and @rr_ts.
+	 * @num_sched_list), @rr_ts and @stopped.
 	 */
 	spinlock_t			lock;
 

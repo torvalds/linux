@@ -6,7 +6,6 @@
 #ifndef _AMDXDNA_MAILBOX_HELPER_H
 #define _AMDXDNA_MAILBOX_HELPER_H
 
-#define TX_TIMEOUT 2000 /* milliseconds */
 #define RX_TIMEOUT 5000 /* milliseconds */
 
 struct amdxdna_dev;

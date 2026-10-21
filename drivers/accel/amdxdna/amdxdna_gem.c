@@ -1140,6 +1140,11 @@ amdxdna_drm_create_dev_heap_bo(struct drm_device *dev,
 	struct amdxdna_gem_obj *abo;
 	int ret;
 
+	if (!xdna->dev_info->dev_mem_size) {
+		XDNA_DBG(xdna, "Device heap is not supported");
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
 	WARN_ON(!is_power_of_2(xdna->dev_info->dev_mem_size));
 	XDNA_DBG(xdna, "Requested dev heap size 0x%llx", args->size);
 	if (!args->size || !IS_ALIGNED(args->size, xdna->dev_info->dev_mem_size)) {

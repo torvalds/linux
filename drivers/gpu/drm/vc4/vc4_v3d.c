@@ -423,6 +423,13 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	vc4->v3d = v3d;
 	v3d->vc4 = vc4;
 
+	/*
+	 * In headless setups where HVS is absent, use V3D as the fallback
+	 * DMA controller for buffer allocations.
+	 */
+	if (drm_dev_dma_dev(drm) == drm->dev)
+		drm_dev_set_dma_dev(drm, dev);
+
 	v3d->clk = devm_clk_get_optional(dev, NULL);
 	if (IS_ERR(v3d->clk))
 		return dev_err_probe(dev, PTR_ERR(v3d->clk), "Failed to get V3D clock\n");

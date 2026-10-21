@@ -1202,6 +1202,11 @@ static void drm_sched_cancel_remaining_jobs(struct drm_gpu_scheduler *sched)
  * is implemented, all jobs will be canceled through it and afterwards cleaned
  * up through &struct drm_sched_backend_ops.free_job. If cancel_job is not
  * implemented, memory could leak.
+ *
+ * The user must wait one RCU grace period between signaling the last hardware-
+ * fence and calling this function because the timeline name returned by
+ * scheduler fences must stay valid until all readers have exited their RCU read
+ * side critical section.
  */
 void drm_sched_fini(struct drm_gpu_scheduler *sched)
 {
