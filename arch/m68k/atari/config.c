@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/isp116x.h>
 #include <linux/module.h>
+#include <net/ethoc.h>
 
 #include <asm/bootinfo.h>
 #include <asm/bootinfo-atari.h>
@@ -748,6 +749,62 @@ static struct platform_device *atari_ethernat_devices[] __initdata = {
 };
 #endif /* CONFIG_ATARI_ETHERNAT */
 
+#ifdef CONFIG_ATARI_SVETHLANA
+/*
+ * SVEthLANa: OpenCores 10/100 Mbps Ethernet MAC in the SuperVidel FPGA,
+ * handled by the ethoc driver. Requires SuperVidel firmware version 10
+ * or newer (Ethernet DMA).
+ *
+ * The MAC can only DMA within the SuperVidel DDR RAM, so the packet
+ * buffers are carved out of the top of the DDR; the framebuffer lives
+ * at the bottom.
+ */
+
+#define ATARI_SVETHLANA_PHYS_ADDR	0x80012000
+#define ATARI_SVETHLANA_IRQ		141	/* vector 0xc5 */
+
+#define ATARI_SV_VERSION_PHYS_ADDR	0x8001007c
+#define ATARI_SV_DDR_END		0xa8000000
+/* 128 packet buffers of 1536 bytes each, the maximum ethoc supports */
+#define SVETHLANA_BUF_SIZE		(128 * 1536)
+
+static struct resource svethlana_resources[] = {
+	[0] = {
+		.name	= "ethoc-regs",
+		.start	= ATARI_SVETHLANA_PHYS_ADDR,
+		.end	= ATARI_SVETHLANA_PHYS_ADDR + 0x7ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "ethoc-buf",
+		.start	= ATARI_SV_DDR_END - SVETHLANA_BUF_SIZE,
+		.end	= ATARI_SV_DDR_END - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.name	= "ethoc-irq",
+		.start	= ATARI_SVETHLANA_IRQ,
+		.end	= ATARI_SVETHLANA_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct ethoc_platform_data svethlana_platform_data = {
+	.phy_id		= -1,
+	.big_endian	= true,
+};
+
+static struct platform_device svethlana_device = {
+	.name		= "ethoc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(svethlana_resources),
+	.resource	= svethlana_resources,
+	.dev		= {
+		.platform_data	= &svethlana_platform_data,
+	},
+};
+#endif /* CONFIG_ATARI_SVETHLANA */
+
 #ifdef CONFIG_ATARI_ETHERNEC
 /*
  * EtherNEC: RTL8019 (NE2000 compatible) Ethernet chipset,
@@ -889,6 +946,24 @@ static int __init atari_platform_init(void)
 						ARRAY_SIZE(atari_ethernat_devices));
 		}
 		iounmap(enatc_virt);
+	}
+#endif
+
+#ifdef CONFIG_ATARI_SVETHLANA
+	{
+		int error;
+		void __iomem *sv_version;
+
+		sv_version = ioremap(ATARI_SV_VERSION_PHYS_ADDR, 4);
+		if (sv_version) {
+			if (hwreg_present(sv_version) &&
+			    (__raw_readl(sv_version) & 0x3ff) >= 10) {
+				error = platform_device_register(&svethlana_device);
+				if (error && !rv)
+					rv = error;
+			}
+			iounmap(sv_version);
+		}
 	}
 #endif
 
