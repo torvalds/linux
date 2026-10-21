@@ -75,7 +75,7 @@ ip_vs_sed_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	 */
 
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
-		if (!(dest->flags & IP_VS_DEST_F_OVERLOAD) &&
+		if (!ip_vs_dest_is_overloaded(dest) &&
 		    atomic_read(&dest->weight) > 0) {
 			least = dest;
 			loh = ip_vs_sed_dest_overhead(least);
@@ -90,7 +90,7 @@ ip_vs_sed_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	 */
   nextstage:
 	list_for_each_entry_continue_rcu(dest, &svc->destinations, n_list) {
-		if (dest->flags & IP_VS_DEST_F_OVERLOAD)
+		if (ip_vs_dest_is_overloaded(dest))
 			continue;
 		doh = ip_vs_sed_dest_overhead(dest);
 		if ((__s64)loh * atomic_read(&dest->weight) >
