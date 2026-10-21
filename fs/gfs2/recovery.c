@@ -32,14 +32,15 @@ struct workqueue_struct *gfs2_recovery_wq;
 int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 			   struct buffer_head **bh)
 {
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
-	struct gfs2_glock *gl = ip->i_gl;
+	struct inode *inode = jd->jd_inode;
+	struct gfs2_glock *gl = gfs2_inode_glock(inode);
+	struct gfs2_inode *ip = GFS2_I(inode);
 	u64 dblock;
 	u32 extlen;
 	int error;
 
 	extlen = 32;
-	error = gfs2_get_extent(&ip->i_inode, blk, &dblock, &extlen);
+	error = gfs2_get_extent(inode, blk, &dblock, &extlen);
 	if (error)
 		return error;
 	if (!dblock) {
@@ -155,7 +156,7 @@ int __get_log_header(struct gfs2_sbd *sdp, const struct gfs2_log_header *lh,
  * @blk: the block to look at
  * @head: the log header to return
  *
- * Read the log header for a given segement in a given journal.  Do a few
+ * Read the log header for a given segment in a given journal.  Do a few
  * sanity checks on it.
  *
  * Returns: 0 on success,
@@ -306,15 +307,13 @@ static int update_statfs_inode(struct gfs2_jdesc *jd,
 			       struct inode *inode)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	struct gfs2_inode *ip;
 	struct buffer_head *bh;
 	struct gfs2_statfs_change_host sc;
 	int error = 0;
 
 	BUG_ON(!inode);
-	ip = GFS2_I(inode);
 
-	error = gfs2_meta_inode_buffer(ip, &bh);
+	error = gfs2_meta_inode_buffer(GFS2_I(inode), &bh);
 	if (error)
 		goto out;
 
@@ -345,7 +344,7 @@ static int update_statfs_inode(struct gfs2_jdesc *jd,
 
 	mark_buffer_dirty(bh);
 	brelse(bh);
-	gfs2_inode_metasync(ip->i_gl);
+	gfs2_inode_metasync(gfs2_inode_glock(inode));
 
 out:
 	return error;
@@ -398,7 +397,7 @@ out:
 void gfs2_recover_func(struct work_struct *work)
 {
 	struct gfs2_jdesc *jd = container_of(work, struct gfs2_jdesc, jd_work);
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
+	struct gfs2_glock *gl = gfs2_inode_glock(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	struct gfs2_log_header_host head;
 	struct gfs2_holder j_gh, ji_gh;
@@ -440,7 +439,7 @@ void gfs2_recover_func(struct work_struct *work)
 			goto fail;
 		}
 
-		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED,
+		error = gfs2_glock_nq_init(gl, LM_ST_SHARED,
 					   LM_FLAG_RECOVER | GL_NOCACHE,
 					   &ji_gh);
 		if (error)

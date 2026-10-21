@@ -745,6 +745,7 @@ void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 
 /**
  * compute_bitstructs - Compute the bitmap sizes
+ * @sb: The superblock
  * @rgd: The resource group descriptor
  *
  * Calculates bitmap descriptors, one for each block that contains bitmap data
@@ -752,84 +753,74 @@ void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
  * Returns: errno
  */
 
-static int compute_bitstructs(struct gfs2_rgrpd *rgd)
+static int compute_bitstructs(struct super_block *sb, struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	struct gfs2_bitmap *bi;
-	u32 length = rgd->rd_length; /* # blocks in hdr & bitmap */
+	u32 expected_length;
 	u32 bytes_left, bytes;
+	u64 data_end;
 	int x;
 
-	if (!length)
-		return -EINVAL;
+	/*
+	 * The first resource group block has a gfs2_rgrp header; the remaining
+	 * blocks have a gfs2_meta_header header.  The rest of each block is
+	 * filled with bitmap data.
+	 */
 
-	rgd->rd_bits = kzalloc_objs(struct gfs2_bitmap, length, GFP_NOFS);
+	if (rgd->rd_addr <= (GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift)) {
+		gfs2_consist_rgrpd(rgd);
+		return -EIO;
+	}
+	if (check_add_overflow(rgd->rd_data0, rgd->rd_data, &data_end) ||
+	    rgd->rd_data == 0 || data_end > sb_bdev_nr_blocks(sb)) {
+		gfs2_consist_rgrpd(rgd);
+		return -EIO;
+	}
+	if (rgd->rd_bitbytes != DIV_ROUND_UP(rgd->rd_data, GFS2_NBBY)) {
+		gfs2_consist_rgrpd(rgd);
+		return -EIO;
+	}
+	expected_length = DIV_ROUND_UP(rgd->rd_bitbytes +
+		sizeof(struct gfs2_rgrp) - sizeof(struct gfs2_meta_header),
+		sdp->sd_sb.sb_bsize - sizeof(struct gfs2_meta_header));
+	if (rgd->rd_length != expected_length) {
+		gfs2_consist_rgrpd(rgd);
+		return -EIO;
+	}
+	if (rgd->rd_data0 < rgd->rd_addr + rgd->rd_length) {
+		gfs2_consist_rgrpd(rgd);
+		return -EIO;
+	}
+
+	rgd->rd_bits = kzalloc_objs(struct gfs2_bitmap, rgd->rd_length, GFP_NOFS);
 	if (!rgd->rd_bits)
 		return -ENOMEM;
 
 	bytes_left = rgd->rd_bitbytes;
 
-	for (x = 0; x < length; x++) {
+	for (x = 0; x < rgd->rd_length; x++) {
 		bi = rgd->rd_bits + x;
 
 		bi->bi_flags = 0;
-		/* small rgrp; bitmap stored completely in header block */
-		if (length == 1) {
-			bytes = bytes_left;
-			bi->bi_offset = sizeof(struct gfs2_rgrp);
+		if (x == 0) {
+			/* header block */
 			bi->bi_start = 0;
-			bi->bi_bytes = bytes;
-			bi->bi_blocks = bytes * GFS2_NBBY;
-		/* header block */
-		} else if (x == 0) {
-			bytes = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_rgrp);
 			bi->bi_offset = sizeof(struct gfs2_rgrp);
-			bi->bi_start = 0;
-			bi->bi_bytes = bytes;
-			bi->bi_blocks = bytes * GFS2_NBBY;
-		/* last block */
-		} else if (x + 1 == length) {
-			bytes = bytes_left;
-			bi->bi_offset = sizeof(struct gfs2_meta_header);
-			bi->bi_start = rgd->rd_bitbytes - bytes_left;
-			bi->bi_bytes = bytes;
-			bi->bi_blocks = bytes * GFS2_NBBY;
-		/* other blocks */
 		} else {
-			bytes = sdp->sd_sb.sb_bsize -
-				sizeof(struct gfs2_meta_header);
-			bi->bi_offset = sizeof(struct gfs2_meta_header);
-			bi->bi_start = rgd->rd_bitbytes - bytes_left;
-			bi->bi_bytes = bytes;
-			bi->bi_blocks = bytes * GFS2_NBBY;
-		}
+			/* bitmap-only block */
+			struct gfs2_bitmap *prev = bi - 1;
 
+			bi->bi_start = prev->bi_start + prev->bi_bytes;
+			bi->bi_offset = sizeof(struct gfs2_meta_header);
+		}
+		bytes = sdp->sd_sb.sb_bsize - bi->bi_offset;
+		if (bytes > bytes_left)
+			bytes = bytes_left;
+		bi->bi_bytes = bytes;
+		bi->bi_blocks = bytes * GFS2_NBBY;
 		bytes_left -= bytes;
 	}
-
-	if (bytes_left) {
-		gfs2_consist_rgrpd(rgd);
-		return -EIO;
-	}
-	bi = rgd->rd_bits + (length - 1);
-	if ((bi->bi_start + bi->bi_bytes) * GFS2_NBBY != rgd->rd_data) {
-		gfs2_lm(sdp,
-			"ri_addr=%llu "
-			"ri_length=%u "
-			"ri_data0=%llu "
-			"ri_data=%u "
-			"ri_bitbytes=%u "
-			"start=%u len=%u offset=%u\n",
-			(unsigned long long)rgd->rd_addr,
-			rgd->rd_length,
-			(unsigned long long)rgd->rd_data0,
-			rgd->rd_data,
-			rgd->rd_bitbytes,
-			bi->bi_start, bi->bi_bytes, bi->bi_offset);
-		gfs2_consist_rgrpd(rgd);
-		return -EIO;
-	}
-
 	return 0;
 }
 
@@ -864,6 +855,7 @@ static int rgd_insert(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	struct rb_node **newn = &sdp->sd_rindex_tree.rb_node, *parent = NULL;
+	struct rb_node *prevn;
 
 	/* Figure out where to put new node */
 	while (*newn) {
@@ -882,6 +874,19 @@ static int rgd_insert(struct gfs2_rgrpd *rgd)
 	rb_link_node(&rgd->rd_node, parent, newn);
 	rb_insert_color(&rgd->rd_node, &sdp->sd_rindex_tree);
 	sdp->sd_rgrps++;
+
+	prevn = rb_prev(&rgd->rd_node);
+	if (prevn) {
+		struct gfs2_rgrpd *prev =
+			rb_entry(prevn, struct gfs2_rgrpd, rd_node);
+
+		if (prev->rd_data0 + prev->rd_data > rgd->rd_addr) {
+			fs_err(sdp, "overlapping resource groups.\n");
+			rb_erase(&rgd->rd_node, &sdp->sd_rindex_tree);
+			return -ENOENT;
+		}
+	}
+
 	return 0;
 }
 
@@ -928,7 +933,7 @@ static int read_rindex_entry(struct gfs2_inode *ip)
 	if (error)
 		goto fail;
 
-	error = compute_bitstructs(rgd);
+	error = compute_bitstructs(sdp->sd_vfs, rgd);
 	if (error)
 		goto fail_glock;
 
@@ -944,7 +949,9 @@ static int read_rindex_entry(struct gfs2_inode *ip)
 		return 0;
 	}
 
-	error = 0; /* someone else read in the rgrp; free it and ignore it */
+	/* If someone else read in the rgrp, free it and ignore it. */
+	if (error == -EEXIST)
+		error = 0;
 fail_glock:
 	gfs2_glock_put(rgd->rd_gl);
 
@@ -1033,8 +1040,8 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 
 int gfs2_rindex_update(struct gfs2_sbd *sdp)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(sdp->sd_rindex);
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_rindex);
-	struct gfs2_glock *gl = ip->i_gl;
 	struct gfs2_holder ri_gh;
 	int error = 0;
 	int unlock_required = 0;
@@ -2453,7 +2460,7 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 		if (error == 0) {
 			struct gfs2_dinode *di =
 				(struct gfs2_dinode *)dibh->b_data;
-			gfs2_trans_add_meta(ip->i_gl, dibh);
+			gfs2_trans_add_meta(gfs2_inode_glock(&ip->i_inode), dibh);
 			di->di_goal_meta = di->di_goal_data =
 				cpu_to_be64(ip->i_goal);
 			brelse(dibh);

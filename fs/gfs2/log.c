@@ -1038,7 +1038,6 @@ void gfs2_remove_from_journal(struct buffer_head *bh, int meta)
 			set_bit(TR_TOUCHED, &tr->tr_flags);
 		}
 		was_pinned = 1;
-		brelse(bh);
 	}
 	if (bd) {
 		if (bd->bd_tr) {
@@ -1056,6 +1055,8 @@ void gfs2_remove_from_journal(struct buffer_head *bh, int meta)
 	}
 	clear_buffer_dirty(bh);
 	clear_buffer_uptodate(bh);
+	if (was_pinned)
+		brelse(bh);
 }
 
 /**
