@@ -91,7 +91,7 @@ static ssize_t acpi_table_aml_read(struct config_item *cfg,
 
 CONFIGFS_BIN_ATTR(acpi_table_, aml, NULL, MAX_ACPI_TABLE_SIZE);
 
-static struct configfs_bin_attribute *acpi_table_bin_attrs[] = {
+static const struct configfs_bin_attribute *const acpi_table_bin_attrs[] = {
 	&acpi_table_attr_aml,
 	NULL,
 };

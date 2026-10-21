@@ -6603,6 +6603,7 @@ S:	Supported
 F:	fs/configfs/
 F:	include/linux/configfs.h
 F:	samples/configfs/
+F:	tools/testing/selftests/filesystems/configfs/
 
 CONFIGFS [RUST]
 M:	Andreas Hindborg <a.hindborg@kernel.org>

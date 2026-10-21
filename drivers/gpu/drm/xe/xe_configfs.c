@@ -886,7 +886,7 @@ static struct configfs_item_operations xe_config_device_ops = {
 };
 
 static bool xe_config_device_is_visible(struct config_item *item,
-					struct configfs_attribute *attr, int n)
+					const struct configfs_attribute *attr, int n)
 {
 	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 
@@ -981,7 +981,7 @@ static struct configfs_attribute *xe_config_sriov_attrs[] = {
 };
 
 static bool xe_config_sriov_is_visible(struct config_item *item,
-				       struct configfs_attribute *attr, int n)
+				       const struct configfs_attribute *attr, int n)
 {
 	struct xe_config_group_device *dev = to_xe_config_group_device(item->ci_parent);
 

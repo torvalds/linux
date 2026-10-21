@@ -178,7 +178,7 @@ struct inode *configfs_create(struct dentry *dentry, umode_t mode)
  */
 const unsigned char * configfs_get_name(struct configfs_dirent *sd)
 {
-	struct configfs_attribute *attr;
+	const struct configfs_attribute *attr;
 
 	BUG_ON(!sd || !sd->s_element);
 
