@@ -43,7 +43,7 @@ struct net_devmem_dmabuf_binding {
 	 * those refs are dropped and the binding is no longer desired or in
 	 * use.
 	 *
-	 * net_devmem_get_net_iov() on dmabuf net_iovs will increment this
+	 * net_devmem_net_iov_inc_ref() on dmabuf net_iovs will increment this
 	 * reference, making sure that the binding remains alive until all the
 	 * net_iovs are no longer used. net_iovs allocated from this binding
 	 * that are stuck in the TX path for any reason (such as awaiting
@@ -131,8 +131,8 @@ net_devmem_dmabuf_binding_put(struct net_devmem_dmabuf_binding *binding)
 	percpu_ref_put(&binding->ref);
 }
 
-void net_devmem_get_net_iov(struct net_iov *niov);
-void net_devmem_put_net_iov(struct net_iov *niov);
+void net_devmem_net_iov_inc_ref(struct net_iov *niov);
+void net_devmem_net_iov_dec_ref(struct net_iov *niov);
 
 void net_devmem_free_dmabuf(struct net_iov *ppiov);
 
@@ -151,11 +151,11 @@ net_devmem_dmabuf_binding_put(struct net_devmem_dmabuf_binding *binding)
 {
 }
 
-static inline void net_devmem_get_net_iov(struct net_iov *niov)
+static inline void net_devmem_net_iov_inc_ref(struct net_iov *niov)
 {
 }
 
-static inline void net_devmem_put_net_iov(struct net_iov *niov)
+static inline void net_devmem_net_iov_dec_ref(struct net_iov *niov)
 {
 }
 
