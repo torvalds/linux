@@ -219,15 +219,6 @@ fscrypt_policy_du_bits(const union fscrypt_policy *policy,
 	BUG();
 }
 
-/*
- * For encrypted symlinks, the ciphertext length is stored at the beginning
- * of the string in little-endian format.
- */
-struct fscrypt_symlink_data {
-	__le16 len;
-	char encrypted_path[];
-} __packed;
-
 /**
  * struct fscrypt_prepared_key - a key prepared for actual encryption/decryption
  * @tfm: crypto API transform object
@@ -320,11 +311,6 @@ struct fscrypt_inode_info {
 	/* This inode's nonce, copied from the fscrypt_context */
 	u8 ci_nonce[FSCRYPT_FILE_NONCE_SIZE];
 };
-
-typedef enum {
-	FS_DECRYPT = 0,
-	FS_ENCRYPT,
-} fscrypt_direction_t;
 
 /* crypto.c */
 extern struct kmem_cache *fscrypt_inode_info_cachep;
@@ -472,19 +458,6 @@ fscrypt_is_key_prepared(const struct fscrypt_prepared_key *prep_key,
 #endif /* !CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
 
 /* keyring.c */
-
-/*
- * fscrypt_master_key_user - a user's claim to a master key
- */
-struct fscrypt_master_key_user {
-	struct list_head link;
-	kuid_t uid;
-	/*
-	 * This 'struct key' contains no secret.  It exists solely to charge the
-	 * appropriate user's key quota.
-	 */
-	struct key *quota_key;
-};
 
 /*
  * fscrypt_master_key_secret - secret key material of an in-use master key

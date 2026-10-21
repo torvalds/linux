@@ -10698,7 +10698,8 @@ M:	Jaegeuk Kim <jaegeuk@kernel.org>
 L:	linux-fscrypt@vger.kernel.org
 S:	Supported
 Q:	https://patchwork.kernel.org/project/linux-fscrypt/list/
-T:	git https://git.kernel.org/pub/scm/fs/fscrypt/linux.git
+T:	git https://git.kernel.org/pub/scm/fs/fscrypt/linux.git for-next
+T:	git https://git.kernel.org/pub/scm/fs/fscrypt/linux.git for-current
 F:	Documentation/filesystems/fscrypt.rst
 F:	fs/crypto/
 F:	include/linux/fscrypt.h

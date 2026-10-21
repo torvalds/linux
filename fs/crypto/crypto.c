@@ -98,6 +98,11 @@ void fscrypt_generate_iv(union fscrypt_iv *iv, u64 index,
 	iv->index = cpu_to_le64(index);
 }
 
+typedef enum {
+	FS_DECRYPT = 0,
+	FS_ENCRYPT,
+} fscrypt_direction_t;
+
 /* Encrypt or decrypt a single "data unit" of file contents. */
 static int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
 				   fscrypt_direction_t rw, u64 index,
