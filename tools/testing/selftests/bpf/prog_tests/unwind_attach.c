@@ -67,7 +67,7 @@ void test_unwind_attach(void)
 {
 	struct verifier_unwind *tgt;
 	struct bpf_program *prog;
-	int tgt_fd, plain_fd, err;
+	int tgt_fd, plain_fd, shared_fd, tail_fd, throws_fd, err, key = 0;
 
 	if (!is_jit_enabled()) {
 		printf("%s:SKIP:JIT is disabled\n", __func__);
@@ -79,7 +79,10 @@ void test_unwind_attach(void)
 		return;
 	bpf_object__for_each_program(prog, tgt->obj)
 		bpf_program__set_autoload(prog, prog == tgt->progs.calls_global_unwinds ||
-						prog == tgt->progs.calls_global_never_unwinds);
+						prog == tgt->progs.calls_global_never_unwinds ||
+						prog == tgt->progs.shared_pad ||
+						prog == tgt->progs.tail_call_in_subprog ||
+						prog == tgt->progs.exception_callback_unwinds);
 	err = verifier_unwind__load(tgt);
 	if (err == -ENOTSUPP) {
 		printf("%s:SKIP:JIT does not support unwinding\n", __func__);
@@ -107,6 +110,21 @@ void test_unwind_attach(void)
 	attach(plain_fd, "global_never_unwinds", "freplace_unwinds",
 	       "Extension program can unwind, while original does not", 0);
 	ASSERT_EQ(run(tgt_fd), 15, "retval");
+
+	/*
+	 * An exception callback returns from the frame of the main prog. Here
+	 * that's a return to a call that unwind_goto follows. unwind_exit of
+	 * the callback has to be exit: the pad wasn't verified with it.
+	 */
+	shared_fd = bpf_program__fd(tgt->progs.shared_pad);
+	attach(shared_fd, "global_never_unwinds", "freplace_throws", NULL, 3);
+
+	tail_fd = bpf_program__fd(tgt->progs.tail_call_in_subprog);
+	throws_fd = bpf_program__fd(tgt->progs.exception_callback_unwinds);
+	err = bpf_map__update_elem(tgt->maps.prog_array, &key, sizeof(key),
+				   &throws_fd, sizeof(throws_fd), 0);
+	if (ASSERT_OK(err, "prog_array"))
+		ASSERT_EQ(run(tail_fd), 7, "retval");
 out:
 	verifier_unwind__destroy(tgt);
 }

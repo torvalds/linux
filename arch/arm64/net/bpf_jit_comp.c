@@ -1273,7 +1273,7 @@ static long bpf_unwind_fixup(u64 lr)
 	e = search_bpf_extables(ptrauth_strip_kernel_insn_pac(lr) - 1);
 	/*
 	 * The verifier made sure that unwind_goto follows a call in a prog. When
-	 * the kernel called an async or an exception callback, it's exit.
+	 * the kernel called an async callback, it's exit.
 	 */
 	return e ? e->fixup : 0;
 }
