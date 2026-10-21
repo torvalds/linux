@@ -1928,6 +1928,24 @@ static void f2fs_cache_compressed_page(struct f2fs_sb_info *sbi,
 	if (IS_ERR(entry))
 		return;
 
+	/* someone else has populated the entry after f2fs_find_cache() */
+	if (f2fs_cache_test_uptodate(entry)) {
+		/*
+		 * a block address can only be owned by one inode, if the
+		 * entry was cached by another inode, one of copies must be
+		 * stale, drop it and let readers load the block from disk.
+		 */
+		if (unlikely(entry->ino != ino)) {
+			f2fs_bug_on(sbi, 1);
+			f2fs_warn_ratelimited(sbi,
+				"%s: blkaddr %u was cached by ino %u, current ino %u",
+				__func__, blkaddr, entry->ino, ino);
+			f2fs_truncate_locked_cache(entry, false);
+		}
+		f2fs_put_cache(entry, true);
+		return;
+	}
+
 	entry->ino = ino;
 	memcpy(cache_address(entry), folio_address(folio), sbi->blocksize);
 	f2fs_cache_set_uptodate(entry);
