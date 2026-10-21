@@ -620,13 +620,15 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 	struct usb_device *usb_dev = cdev->chip.dev;
 	struct input_dev *input;
 	int i, ret = 0;
+	int len;
 
 	input = input_allocate_device();
 	if (!input)
 		return -ENOMEM;
 
-	usb_make_path(usb_dev, cdev->phys, sizeof(cdev->phys));
-	strlcat(cdev->phys, "/input0", sizeof(cdev->phys));
+	len = usb_make_path(usb_dev, cdev->phys, sizeof(cdev->phys));
+	if (len >= 0)
+		strscpy(cdev->phys + len, "/input0", sizeof(cdev->phys) - len);
 
 	input->name = cdev->product_name;
 	input->phys = cdev->phys;
