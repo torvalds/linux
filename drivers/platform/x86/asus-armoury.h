@@ -1731,6 +1731,37 @@ static const struct dmi_system_id power_limits[] = {
 	},
 	{
 		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "GU605CM"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				.nv_dynamic_boost_max = 15,
+				.nv_dynamic_boost_min = 5,
+				.nv_temp_target_max = 87,
+				.nv_temp_target_min = 75,
+				.nv_tgp_max = 95,
+				.nv_tgp_min = 55,
+				.ppt_pl1_spl_def = 85,
+				.ppt_pl1_spl_max = 75,
+				.ppt_pl1_spl_min = 45,
+				.ppt_pl2_sppt_def = 110,
+				.ppt_pl2_sppt_max = 95,
+				.ppt_pl2_sppt_min = 56,
+			},
+			.dc_data = &(struct power_limits) {
+				.nv_temp_target_max = 87,
+				.nv_temp_target_min = 75,
+				.ppt_pl1_spl_def = 85,
+				.ppt_pl1_spl_max = 75,
+				.ppt_pl1_spl_min = 25,
+				.ppt_pl2_sppt_def = 110,
+				.ppt_pl2_sppt_max = 95,
+				.ppt_pl2_sppt_min = 32,
+			},
+		},
+	},
+	{
+		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "GU605CP"),
 		},
 		.driver_data = &(struct power_data) {
