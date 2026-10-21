@@ -96,13 +96,13 @@ static int pnp_device_probe(struct device *dev)
 		if (!(pnp_drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE)) {
 			error = pnp_activate_dev(pnp_dev);
 			if (error < 0)
-				return error;
+				goto fail;
 		}
 	} else if ((pnp_drv->flags & PNP_DRIVER_RES_DISABLE)
 		   == PNP_DRIVER_RES_DISABLE) {
 		error = pnp_disable_dev(pnp_dev);
 		if (error < 0)
-			return error;
+			goto fail;
 	}
 	error = 0;
 	if (pnp_drv->probe) {

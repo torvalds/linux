@@ -157,6 +157,7 @@ void acpi_turn_off_unused_power_resources(void);
                               Device Power Management
    -------------------------------------------------------------------------- */
 int acpi_device_get_power(struct acpi_device *device, int *state);
+int acpi_bus_init_power(struct acpi_device *device);
 int acpi_wakeup_device_init(void);
 
 /* --------------------------------------------------------------------------

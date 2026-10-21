@@ -109,7 +109,7 @@ static inline bool apple_gmux_detect(struct pnp_dev *pnp_dev, enum apple_gmux_ty
 		if (!adev)
 			return false;
 
-		dev = get_device(acpi_get_first_physical_node(adev));
+		dev = acpi_bus_get_primary_device(adev);
 		acpi_dev_put(adev);
 		if (!dev)
 			return false;

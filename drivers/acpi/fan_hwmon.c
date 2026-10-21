@@ -94,7 +94,7 @@ static int acpi_fan_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	struct acpi_fan_fst fst;
 	int ret;
 
-	ret = acpi_fan_get_fst(fan->handle, &fst);
+	ret = acpi_fan_get_fst(fan->adev->handle, &fst);
 	if (ret < 0)
 		return ret;
 

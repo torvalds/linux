@@ -270,7 +270,8 @@ void thermal_governor_update_tz(struct thermal_zone_device *tz,
 struct thermal_cooling_device *
 thermal_cooling_device_alloc(const char *type, const struct thermal_cooling_device_ops *ops);
 
-int thermal_cooling_device_add(struct thermal_cooling_device *cdev, void *devdata);
+int thermal_cooling_device_add(struct thermal_cooling_device *cdev,
+			       struct device *parent, void *devdata);
 
 /* Helpers */
 #define for_each_trip_desc(__tz, __td)	\

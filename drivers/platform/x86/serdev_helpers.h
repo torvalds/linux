@@ -74,8 +74,7 @@ get_serdev_controller(const char *serial_ctrl_hid,
 		return ERR_PTR(-ENODEV);
 	}
 
-	/* get_first_physical_node() returns a weak ref */
-	parent = get_device(acpi_get_first_physical_node(adev));
+	parent = acpi_bus_get_primary_device(adev);
 	acpi_dev_put(adev);
 	if (!parent) {
 		pr_err("error could not get %s/%s serial-ctrl physical node\n",

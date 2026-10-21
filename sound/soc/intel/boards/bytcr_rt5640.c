@@ -1744,11 +1744,11 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	codec_dev = acpi_get_first_physical_node(adev);
+	codec_dev = acpi_bus_get_primary_device(adev);
 	acpi_dev_put(adev);
 
 	if (codec_dev) {
-		priv->codec_dev = get_device(codec_dev);
+		priv->codec_dev = codec_dev;
 	} else {
 		/*
 		 * Special case for Android tablets where the codec i2c_client

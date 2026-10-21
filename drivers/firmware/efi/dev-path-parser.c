@@ -37,9 +37,9 @@ static long __init parse_acpi_path(const struct efi_dev_path *node,
 	if (!adev)
 		return -ENODEV;
 
-	phys_dev = acpi_get_first_physical_node(adev);
+	phys_dev = acpi_bus_get_primary_device(adev);
 	if (phys_dev) {
-		*child = get_device(phys_dev);
+		*child = phys_dev;
 		acpi_dev_put(adev);
 	} else
 		*child = &adev->dev;

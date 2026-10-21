@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kstrtox.h>
 #include <linux/moduleparam.h>
+#include <linux/string.h>
 
 #include "internal.h"
 
@@ -181,10 +182,10 @@ static int param_set_trace_method_name(const char *val,
 
 	/* This is a hack.  We can't kmalloc in early boot. */
 	if (is_abs_path)
-		strcpy(trace_method_name, val);
+		strscpy(trace_method_name, val, sizeof(trace_method_name));
 	else {
 		trace_method_name[0] = '\\';
-		strcpy(trace_method_name+1, val);
+		strscpy(trace_method_name + 1, val, sizeof(trace_method_name) - 1);
 	}
 
 	/* Restore the original tracer state */
