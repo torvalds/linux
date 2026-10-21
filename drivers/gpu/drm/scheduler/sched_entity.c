@@ -454,6 +454,8 @@ void drm_sched_entity_set_priority(struct drm_sched_entity *entity,
 {
 	spin_lock(&entity->lock);
 	entity->priority = priority;
+	if (drm_sched_policy != DRM_SCHED_POLICY_FAIR)
+		entity->rq_priority = priority;
 	spin_unlock(&entity->lock);
 }
 EXPORT_SYMBOL(drm_sched_entity_set_priority);
