@@ -8,4 +8,3 @@ PCI Native Host Bridge and Endpoint Drivers
    :maxdepth: 2
 
    pci-controller-drivers
-   rcar-pcie-firmware
