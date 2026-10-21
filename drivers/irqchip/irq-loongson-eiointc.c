@@ -454,7 +454,7 @@ static int __init pch_pic_parse_madt(union acpi_subtable_headers *header,
 					const unsigned long end)
 {
 	struct acpi_madt_bio_pic *pchpic_entry = (struct acpi_madt_bio_pic *)header;
-	unsigned int node = (pchpic_entry->address >> 44) & 0xf;
+	unsigned int node = pa_to_nid(pchpic_entry->address) & 0xf;
 	struct irq_domain *parent = acpi_get_vec_parent(node, pch_group);
 
 	if (parent)

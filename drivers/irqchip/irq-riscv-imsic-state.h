@@ -13,7 +13,6 @@
 #include <linux/timer.h>
 
 #define IMSIC_IPI_ID				1
-#define IMSIC_NR_IPI				8
 
 struct imsic_vector {
 	/* Fixed details of the vector */
@@ -44,9 +43,6 @@ struct imsic_local_priv {
 };
 
 struct imsic_priv {
-	/* Device details */
-	struct fwnode_handle			*fwnode;
-
 	/* Global configuration common for all HARTs */
 	struct imsic_global_config		global;
 

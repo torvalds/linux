@@ -361,6 +361,7 @@ config ARCH_SEATTLE
 
 config ARCH_INTEL_SOCFPGA
 	bool "Intel's SoCFPGA ARMv8 Families"
+	select ALTERA_ERRATUM_AGILEX5_2_1_23
 	help
 	  This enables support for Intel's SoCFPGA ARMv8 families:
 	  Stratix 10 (ex. Altera), Stratix10 Software Virtual Platform,

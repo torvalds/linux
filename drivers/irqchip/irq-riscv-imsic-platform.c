@@ -313,40 +313,40 @@ int imsic_irqdomain_init(void)
 	};
 	struct imsic_global_config *global;
 
-	if (!imsic || !imsic->fwnode) {
+	if (!imsic || !imsic->global.fwnode) {
 		pr_err("early driver not probed\n");
 		return -ENODEV;
 	}
 
 	if (imsic->base_domain) {
-		pr_err("%pfwP: irq domain already created\n", imsic->fwnode);
+		pr_err("%pfwP: irq domain already created\n", imsic->global.fwnode);
 		return -ENODEV;
 	}
 
 	/* Create Base IRQ domain */
-	info.fwnode = imsic->fwnode,
+	info.fwnode = imsic->global.fwnode,
 	imsic->base_domain = msi_create_parent_irq_domain(&info, &imsic_msi_parent_ops);
 	if (!imsic->base_domain) {
-		pr_err("%pfwP: failed to create IMSIC base domain\n", imsic->fwnode);
+		pr_err("%pfwP: failed to create IMSIC base domain\n", imsic->global.fwnode);
 		return -ENOMEM;
 	}
 
 	global = &imsic->global;
 	pr_info("%pfwP:  hart-index-bits: %d,  guest-index-bits: %d\n",
-		imsic->fwnode, global->hart_index_bits, global->guest_index_bits);
+		imsic->global.fwnode, global->hart_index_bits, global->guest_index_bits);
 	pr_info("%pfwP: group-index-bits: %d, group-index-shift: %d\n",
-		imsic->fwnode, global->group_index_bits, global->group_index_shift);
+		imsic->global.fwnode, global->group_index_bits, global->group_index_shift);
 	pr_info("%pfwP: per-CPU IDs %d at base address %pa\n",
-		imsic->fwnode, global->nr_ids, &global->base_addr);
+		imsic->global.fwnode, global->nr_ids, &global->base_addr);
 	pr_info("%pfwP: total %d interrupts available\n",
-		imsic->fwnode, num_possible_cpus() * (global->nr_ids - 1));
+		imsic->global.fwnode, num_possible_cpus() * (global->nr_ids - 1));
 
 	return 0;
 }
 
 static int imsic_platform_probe_common(struct fwnode_handle *fwnode)
 {
-	if (imsic && imsic->fwnode != fwnode) {
+	if (imsic && imsic->global.fwnode != fwnode) {
 		pr_err("%pfwP: fwnode mismatch\n", fwnode);
 		return -ENODEV;
 	}

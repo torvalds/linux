@@ -48,7 +48,7 @@ void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 int gic_configure_irq(unsigned int irq, unsigned int type,
 		       void __iomem *base)
 {
-	u32 confmask = 0x2 << ((irq % 16) * 2);
+	u32 confmask = BIT(((irq % 16) * 2) + 1);
 	u32 confoff = (irq / 16) * 4;
 	u32 val, oldval;
 	int ret = 0;

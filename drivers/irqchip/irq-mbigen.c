@@ -247,8 +247,8 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id mbigen_acpi_match[] = {
-	{ "HISI0152", 0 },
-	{}
+	{ .id = "HISI0152" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, mbigen_acpi_match);
 

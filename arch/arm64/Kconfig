@@ -1461,6 +1461,15 @@ config NVIDIA_OLYMPUS_1027_ERRATUM
 
 	  If unsure, say Y.
 
+config ALTERA_ERRATUM_AGILEX5_2_1_23
+	bool
+	help
+	  The Altera SoCFPGA Agilex5 GIC600 SoC integration has ACE-lite
+	  addressing limited to the first 32bit of physical address space,
+	  so the ITS cannot access memory above 4GB.
+
+	  Selected by ARCH_INTEL_SOCFPGA, as all Agilex5 devices are affected.
+
 config RENESAS_ERRATUM_GEN4GICITS1
 	bool "Renesas R-Car Gen4: GIC600 can not access physical addresses above 4 GiB"
 	default y

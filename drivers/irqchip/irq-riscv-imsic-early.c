@@ -67,15 +67,15 @@ static int __init imsic_ipi_domain_init(void)
 		return 0;
 
 	/* Create IMSIC IPI multiplexing */
-	virq = ipi_mux_create(IMSIC_NR_IPI, imsic_ipi_send);
+	virq = ipi_mux_create(IPI_MAX, imsic_ipi_send);
 	if (virq <= 0)
 		return virq < 0 ? virq : -ENOMEM;
 
 	/* Set vIRQ range */
-	riscv_ipi_set_virq_range(virq, IMSIC_NR_IPI);
+	riscv_ipi_set_virq_range(virq, IPI_MAX);
 
 	/* Announce that IMSIC is providing IPIs */
-	pr_info("%pfwP: providing IPIs using interrupt %d\n", imsic->fwnode, IMSIC_IPI_ID);
+	pr_info("%pfwP: providing IPIs using interrupt %d\n", imsic->global.fwnode, IMSIC_IPI_ID);
 
 	return 0;
 }

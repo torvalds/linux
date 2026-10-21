@@ -220,7 +220,6 @@ static int lan966x_oic_probe(struct platform_device *pdev)
 	};
 	struct irq_domain_info d_info = {
 		.fwnode		= of_fwnode_handle(pdev->dev.of_node),
-		.domain_flags	= IRQ_DOMAIN_FLAG_DESTROY_GC,
 		.size		= LAN966X_OIC_NR_IRQ,
 		.hwirq_max	= LAN966X_OIC_NR_IRQ,
 		.ops		= &irq_generic_chip_ops,

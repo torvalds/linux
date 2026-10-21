@@ -307,8 +307,8 @@ out_unmap:
 }
 
 static const struct acpi_device_id exiu_acpi_ids[] = {
-	{ "SCX0008" },
-	{ /* sentinel */ }
+	{ .id = "SCX0008" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, exiu_acpi_ids);
 

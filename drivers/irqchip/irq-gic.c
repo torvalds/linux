@@ -178,14 +178,14 @@ static inline bool cascading_gic_irq(struct irq_data *d)
  */
 static void gic_poke_irq(struct irq_data *d, u32 offset)
 {
-	u32 mask = 1 << (irqd_to_hwirq(d) % 32);
+	u32 mask = BIT(irqd_to_hwirq(d) % 32);
 
 	writel_relaxed(mask, gic_dist_base(d) + offset + (irqd_to_hwirq(d) / 32) * 4);
 }
 
 static int gic_peek_irq(struct irq_data *d, u32 offset)
 {
-	u32 mask = 1 << (irqd_to_hwirq(d) % 32);
+	u32 mask = BIT(irqd_to_hwirq(d) % 32);
 
 	return !!(readl_relaxed(gic_dist_base(d) + offset + (irqd_to_hwirq(d) / 32) * 4) & mask);
 }
@@ -1527,7 +1527,6 @@ static struct
 {
 	phys_addr_t cpu_phys_base;
 	u32 maint_irq;
-	int maint_irq_mode;
 	phys_addr_t vctrl_base;
 	phys_addr_t vcpu_base;
 } acpi_data __initdata;
@@ -1553,10 +1552,11 @@ gic_acpi_parse_madt_cpu(union acpi_subtable_headers *header,
 	if (cpu_base_assigned && gic_cpu_base != acpi_data.cpu_phys_base)
 		return -EINVAL;
 
+	if (processor->flags & ACPI_MADT_VGIC_IRQ_MODE)
+		pr_warn_once(FW_BUG "MI wrongly advertised as Edge-triggered\n");
+
 	acpi_data.cpu_phys_base = gic_cpu_base;
 	acpi_data.maint_irq = processor->vgic_interrupt;
-	acpi_data.maint_irq_mode = (processor->flags & ACPI_MADT_VGIC_IRQ_MODE) ?
-				    ACPI_EDGE_SENSITIVE : ACPI_LEVEL_SENSITIVE;
 	acpi_data.vctrl_base = processor->gich_base_address;
 	acpi_data.vcpu_base = processor->gicv_base_address;
 
@@ -1616,7 +1616,7 @@ static void __init gic_acpi_setup_kvm_info(void)
 	vcpu_res->end = vcpu_res->start + ACPI_GICV2_VCPU_MEM_SIZE - 1;
 
 	irq = acpi_register_gsi(NULL, acpi_data.maint_irq,
-				acpi_data.maint_irq_mode,
+				ACPI_LEVEL_SENSITIVE,
 				ACPI_ACTIVE_HIGH);
 	if (irq <= 0)
 		return;
