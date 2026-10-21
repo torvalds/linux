@@ -1178,6 +1178,7 @@ void dlm_midcomms_exit(void)
 		}
 	}
 	srcu_read_unlock(&nodes_srcu, idx);
+	srcu_barrier(&nodes_srcu);
 
 	dlm_lowcomms_exit();
 }

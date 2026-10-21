@@ -596,7 +596,8 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 {
 	struct dlm_ls *ls = file->private_data;
 	struct dlm_lkb *lkb;
-	size_t len = DLM_DEBUG_BUF_LEN, pos = 0, ret, rv;
+	size_t len = DLM_DEBUG_BUF_LEN, pos = 0, ret;
+	ssize_t rv;
 
 	mutex_lock(&debug_buf_lock);
 	ret = dlm_lock_recovery_try(ls);

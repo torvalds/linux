@@ -81,7 +81,7 @@ bool dlm_may_skip_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 		 * Suppress some redundant basts here, do more on removal.
 		 * Don't even add a bast if the callback just before it
 		 * is a bast for the same mode or a more restrictive mode.
-		 * (the addional > PR check is needed for PR/CW inversion)
+		 * (the additional > PR check is needed for PR/CW inversion)
 		 */
 		if (lkb->lkb_last_cb_mode != -1 &&
 		    lkb->lkb_last_cb_flags & DLM_CB_BAST) {

@@ -4,6 +4,7 @@
  */
 
 #include <linux/miscdevice.h>
+#include <linux/capability.h>
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/file.h>
@@ -511,6 +512,7 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
 	struct dlm_user_proc *proc = file->private_data;
+	size_t name_payload = 0;
 	struct dlm_write_request *kbuf;
 	int error;
 
@@ -544,6 +546,7 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
 		if (count > sizeof(struct dlm_write_request32))
 			namelen = count - sizeof(struct dlm_write_request32);
+		name_payload = namelen;
 
 		k32buf = (struct dlm_write_request32 *)kbuf;
 
@@ -560,7 +563,13 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
 		compat_input(kbuf, k32buf, namelen);
 		kfree(k32buf);
+	} else {
+		if (count > sizeof(*kbuf))
+			name_payload = count - sizeof(*kbuf);
 	}
+#else
+	if (count > sizeof(*kbuf))
+		name_payload = count - sizeof(*kbuf);
 #endif
 
 	/* do we really need this? can a write happen after a close? */
@@ -568,6 +577,15 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 	    (proc && test_bit(DLM_PROC_FLAGS_CLOSING, &proc->flags))) {
 		error = -EINVAL;
 		goto out_free;
+	}
+
+	if (kbuf->cmd == DLM_USER_LOCK &&
+	    !(kbuf->i.lock.flags & DLM_LKF_CONVERT)) {
+		if (kbuf->i.lock.namelen > name_payload ||
+		    kbuf->i.lock.namelen > DLM_RESNAME_MAXLEN) {
+			error = -EINVAL;
+			goto out_free;
+		}
 	}
 
 	error = -EINVAL;
@@ -910,6 +928,10 @@ static int ctl_device_close(struct inode *inode, struct file *file)
 
 static int monitor_device_open(struct inode *inode, struct file *file)
 {
+	/* dlm_controld is the only expected opener; last close stops LS. */
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	atomic_inc(&dlm_monitor_opened);
 	dlm_monitor_unused = 0;
 	return 0;
@@ -958,6 +980,7 @@ static struct miscdevice monitor_device = {
 	.name  = "dlm-monitor",
 	.fops  = &monitor_device_fops,
 	.minor = MISC_DYNAMIC_MINOR,
+	.mode  = 0600,
 };
 
 int __init dlm_user_init(void)
