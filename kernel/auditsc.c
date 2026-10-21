@@ -107,7 +107,7 @@ struct audit_aux_data_pids {
 
 struct audit_aux_data_bprm_fcaps {
 	struct audit_aux_data	d;
-	struct audit_cap_data	fcap;
+	struct audit_file_caps	fcap;
 	unsigned int		fcap_ver;
 	struct audit_cap_data	old_pcap;
 	struct audit_cap_data	new_pcap;
@@ -2601,6 +2601,8 @@ void __audit_bprm(struct linux_binprm *bprm)
 {
 	struct audit_context *context = audit_context();
 
+	/* clear proctitle in audit context to allow replacement */
+	audit_proctitle_free(context);
 	context->type = AUDIT_EXECVE;
 	context->execve.argc = bprm->argc;
 }
@@ -2882,6 +2884,19 @@ void __audit_log_nfcfg(const char *name, u8 af, unsigned int nentries,
 	audit_log_end(ab);
 }
 EXPORT_SYMBOL_GPL(__audit_log_nfcfg);
+
+void __audit_log_fsopen(const char *fs_name)
+{
+	struct audit_buffer *ab;
+
+	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_FSOPEN);
+	if (!ab)
+		return;
+
+	audit_log_format(ab, "fs_name=");
+	audit_log_untrustedstring(ab, fs_name);
+	audit_log_end(ab);
+}
 
 static void audit_log_task(struct audit_buffer *ab)
 {

@@ -15,6 +15,7 @@
 #include <linux/namei.h>
 #include <linux/file.h>
 #include <uapi/linux/mount.h>
+#include <linux/audit.h>
 #include "internal.h"
 #include "mount.h"
 
@@ -133,6 +134,8 @@ SYSCALL_DEFINE2(fsopen, const char __user *, _fs_name, unsigned int, flags)
 	fs_name = strndup_user(_fs_name, PAGE_SIZE);
 	if (IS_ERR(fs_name))
 		return PTR_ERR(fs_name);
+
+	audit_log_fsopen(fs_name);
 
 	fs_type = get_fs_type(fs_name);
 	kfree(fs_name);
