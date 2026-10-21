@@ -391,49 +391,31 @@ int nilfs_mdt_fetch_dirty(struct inode *inode)
 	return test_bit(NILFS_I_DIRTY, &ii->i_state);
 }
 
-static int nilfs_mdt_write_folio(struct folio *folio,
+static int nilfs_mdt_writeback(struct address_space *mapping,
 		struct writeback_control *wbc)
 {
-	struct inode *inode = folio->mapping->host;
-	struct super_block *sb;
+	struct inode *inode = mapping->host;
 	int err = 0;
-
-	if (inode && sb_rdonly(inode->i_sb)) {
-		/*
-		 * It means that filesystem was remounted in read-only
-		 * mode because of error or metadata corruption. But we
-		 * have dirty folios that try to be flushed in background.
-		 * So, here we simply discard this dirty folio.
-		 */
-		nilfs_clear_folio_dirty(folio);
-		folio_unlock(folio);
-		return -EROFS;
-	}
-
-	folio_redirty_for_writepage(wbc, folio);
-	folio_unlock(folio);
 
 	if (!inode)
 		return 0;
 
-	sb = inode->i_sb;
+	if (sb_rdonly(inode->i_sb)) {
+		/*
+		 * It means that filesystem was remounted in read-only
+		 * mode because of error or metadata corruption. But we
+		 * have dirty folios that try to be flushed in background.
+		 * So, here we simply discard these dirty folios.
+		 */
+		nilfs_clear_dirty_pages(mapping, false);
+		return -EROFS;
+	}
 
-	if (wbc->sync_mode == WB_SYNC_ALL)
-		err = nilfs_construct_segment(sb);
+	if (wbc->sync_mode == WB_SYNC_ALL &&
+		mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
+		err = nilfs_construct_segment(inode->i_sb);
 
 	return err;
-}
-
-static int nilfs_mdt_writeback(struct address_space *mapping,
-		struct writeback_control *wbc)
-{
-	struct folio *folio = NULL;
-	int error;
-
-	while ((folio = writeback_iter(mapping, wbc, folio, &error)))
-		error = nilfs_mdt_write_folio(folio, wbc);
-
-	return error;
 }
 
 static const struct address_space_operations def_mdt_aops = {
@@ -648,10 +630,10 @@ void nilfs_mdt_restore_from_shadow_map(struct inode *inode)
 	if (mi->mi_palloc_cache)
 		nilfs_palloc_clear_cache(inode);
 
-	nilfs_clear_dirty_pages(inode->i_mapping);
+	nilfs_clear_dirty_pages(inode->i_mapping, true);
 	nilfs_copy_back_pages(inode->i_mapping, shadow->inode->i_mapping);
 
-	nilfs_clear_dirty_pages(ii->i_assoc_inode->i_mapping);
+	nilfs_clear_dirty_pages(ii->i_assoc_inode->i_mapping, true);
 	nilfs_copy_back_pages(ii->i_assoc_inode->i_mapping,
 			      NILFS_I(shadow->inode)->i_assoc_inode->i_mapping);
 

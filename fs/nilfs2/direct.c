@@ -270,8 +270,14 @@ static int nilfs_direct_propagate(struct nilfs_bmap *bmap,
 	if (!NILFS_BMAP_USE_VBN(bmap))
 		return 0;
 
+	if (WARN_ON_ONCE(buffer_nilfs_node(bh)))
+		return -EINVAL;
+
 	dat = nilfs_bmap_get_dat(bmap);
 	key = nilfs_bmap_data_get_key(bmap, bh);
+	if (WARN_ON_ONCE(key > NILFS_DIRECT_KEY_MAX))
+		return -EINVAL;
+
 	ptr = nilfs_direct_get_ptr(bmap, key);
 	if (ptr == NILFS_BMAP_INVALID_PTR)
 		return -EINVAL;
