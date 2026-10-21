@@ -986,7 +986,13 @@ const struct rtpse_mcu_match_data rtpse_mcu_gen2_data = {
 };
 EXPORT_SYMBOL_GPL(rtpse_mcu_gen2_data);
 
-/* Same dialect as gen2, but the MCU expects raw-I2C framing. */
+/* Same dialects as above, but the MCU expects raw-I2C framing. */
+const struct rtpse_mcu_match_data rtpse_mcu_gen1_i2c_data = {
+	.dialect = &rtpse_mcu_dialect_gen1,
+	.native_i2c = true,
+};
+EXPORT_SYMBOL_GPL(rtpse_mcu_gen1_i2c_data);
+
 const struct rtpse_mcu_match_data rtpse_mcu_gen2_i2c_data = {
 	.dialect = &rtpse_mcu_dialect_gen2,
 	.native_i2c = true,
