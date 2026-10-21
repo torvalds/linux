@@ -1057,32 +1057,31 @@ static int alloc_retstack_tasklist(unsigned long **ret_stack_list)
 		}
 	}
 
-	rcu_read_lock();
-	for_each_process_thread(g, t) {
-		unsigned long *rs;
+	scoped_guard (rcu) {
+		for_each_process_thread(g, t) {
+			unsigned long *rs;
 
-		if (t->ret_stack)
-			continue;
+			if (t->ret_stack)
+				continue;
 
-		rs = kmem_cache_alloc(fgraph_stack_cachep, GFP_NOWAIT);
-		if (!rs) {
-			if (start == end) {
-				ret = -EAGAIN;
-				goto unlock;
+			rs = kmem_cache_alloc(fgraph_stack_cachep, GFP_NOWAIT);
+			if (!rs) {
+				if (start == end) {
+					ret = -EAGAIN;
+					goto free;
+				}
+				rs = ret_stack_list[start++];
 			}
-			rs = ret_stack_list[start++];
-		}
 
-		atomic_set(&t->trace_overrun, 0);
-		ret_stack_init_task_vars(rs);
-		t->curr_ret_stack = 0;
-		t->curr_ret_depth = -1;
-		/* Make sure the tasks see the 0 first: */
-		smp_store_release(&t->ret_stack, rs);
+			atomic_set(&t->trace_overrun, 0);
+			ret_stack_init_task_vars(rs);
+			t->curr_ret_stack = 0;
+			t->curr_ret_depth = -1;
+			/* Make sure the tasks see the 0 first: */
+			smp_store_release(&t->ret_stack, rs);
+		}
 	}
 
-unlock:
-	rcu_read_unlock();
 free:
 	for (i = start; i < end; i++)
 		kmem_cache_free(fgraph_stack_cachep, ret_stack_list[i]);
