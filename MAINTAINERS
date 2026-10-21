@@ -19388,6 +19388,7 @@ F:	drivers/scsi/nsp32*
 
 NINTENDO HID DRIVER
 M:	Daniel J. Ogorchock <djogorchock@gmail.com>
+M:	Vicki Pfau <vi@endrift.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-nintendo*
