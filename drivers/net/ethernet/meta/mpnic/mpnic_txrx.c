@@ -6,6 +6,7 @@
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <net/netdev_lock.h>
 #include <net/page_pool/helpers.h>
 
 #include "mpnic.h"
@@ -65,6 +66,23 @@ static struct netdev_queue *mpnic_txring_txq(const struct net_device *dev,
 					     const struct mpnic_ring *ring)
 {
 	return netdev_get_tx_queue(dev, ring->q_idx);
+}
+
+static bool
+mpnic_maybe_stop_tx(const struct net_device *dev, struct mpnic_ring *ring)
+{
+	int res;
+
+	res = netif_txq_maybe_stop(mpnic_txring_txq(dev, ring),
+				   mpnic_desc_unused(ring), MPNIC_MAX_SKB_DESC,
+				   MPNIC_TX_DESC_WAKEUP);
+	if (!res) {
+		u64_stats_update_begin(&ring->stats.syncp);
+		u64_stats_inc(&ring->stats.twq.stop);
+		u64_stats_update_end(&ring->stats.syncp);
+	}
+
+	return !res;
 }
 
 static void mpnic_tx_doorbell(struct mpnic_ring *ring, __le64 *meta)
@@ -163,9 +181,7 @@ mpnic_tx_map(struct mpnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 	ring->tail = tail;
 
 	/* Verify there is room for another packet */
-	netif_txq_maybe_stop(mpnic_txring_txq(skb->dev, ring),
-			     mpnic_desc_unused(ring), MPNIC_MAX_SKB_DESC,
-			     MPNIC_TX_DESC_WAKEUP);
+	mpnic_maybe_stop_tx(skb->dev, ring);
 
 	if (__netdev_tx_sent_queue(mpnic_txring_txq(skb->dev, ring),
 				   MPNIC_XMIT_CB(skb)->bytecount,
@@ -203,9 +219,7 @@ static netdev_tx_t mpnic_xmit_frame_ring(struct sk_buff *skb,
 	if (skb_put_padto(skb, MPNIC_MIN_FRAME_LEN))
 		goto err_drop;
 
-	if (!netif_txq_maybe_stop(mpnic_txring_txq(skb->dev, ring),
-				  mpnic_desc_unused(ring), MPNIC_MAX_SKB_DESC,
-				  MPNIC_TX_DESC_WAKEUP)) {
+	if (mpnic_maybe_stop_tx(skb->dev, ring)) {
 		mpnic_tx_flush_doorbell(ring);
 		return NETDEV_TX_BUSY;
 	}
@@ -228,6 +242,10 @@ err_free:
 err_drop:
 	mpnic_tx_flush_doorbell(ring);
 
+	u64_stats_update_begin(&ring->stats.syncp);
+	u64_stats_inc(&ring->stats.twq.dropped);
+	u64_stats_update_end(&ring->stats.syncp);
+
 	return NETDEV_TX_OK;
 }
 
@@ -239,10 +257,12 @@ netdev_tx_t mpnic_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 }
 
 static void mpnic_clean_twq0(struct mpnic_napi_vector *nv, int napi_budget,
-			     struct mpnic_ring *ring, bool discard,
+			     struct mpnic_q_triad *qt, bool discard,
 			     unsigned int hw_head)
 {
 	u64 total_bytes = 0, total_packets = 0;
+	struct mpnic_ring *ring = &qt->sub0;
+	struct mpnic_ring *cmpl = &qt->cmpl;
 	unsigned int head = ring->head;
 	struct netdev_queue *txq;
 	unsigned int clean_desc;
@@ -288,13 +308,28 @@ static void mpnic_clean_twq0(struct mpnic_napi_vector *nv, int napi_budget,
 
 	ring->head = head;
 
-	if (discard)
+	if (discard) {
+		local_bh_disable();
+		u64_stats_update_begin(&ring->stats.syncp);
+		u64_stats_add(&ring->stats.twq.dropped, total_packets);
+		u64_stats_update_end(&ring->stats.syncp);
+		local_bh_enable();
 		return;
+	}
+
+	u64_stats_update_begin(&cmpl->stats.syncp);
+	u64_stats_add(&cmpl->stats.tcq.bytes, total_bytes);
+	u64_stats_add(&cmpl->stats.tcq.packets, total_packets);
+	u64_stats_update_end(&cmpl->stats.syncp);
 
 	txq = mpnic_txring_txq(nv->napi.dev, ring);
-	netif_txq_completed_wake(txq, total_packets, total_bytes,
-				 mpnic_desc_unused(ring),
-				 MPNIC_TX_DESC_WAKEUP);
+	if (!netif_txq_completed_wake(txq, total_packets, total_bytes,
+				      mpnic_desc_unused(ring),
+				      MPNIC_TX_DESC_WAKEUP)) {
+		u64_stats_update_begin(&cmpl->stats.syncp);
+		u64_stats_inc(&cmpl->stats.tcq.wake);
+		u64_stats_update_end(&cmpl->stats.syncp);
+	}
 }
 
 static void mpnic_commit_cq_head(struct mpnic_ring *cmpl)
@@ -346,7 +381,7 @@ static void mpnic_clean_tcq(struct mpnic_napi_vector *nv,
 	cmpl->head = head;
 
 	if (head0 >= 0)
-		mpnic_clean_twq0(nv, napi_budget, &qt->sub0, false, head0);
+		mpnic_clean_twq0(nv, napi_budget, qt, false, head0);
 }
 
 static void mpnic_bd_prep(struct mpnic_ring *bdq, u32 idx, struct page *page)
@@ -374,8 +409,12 @@ static unsigned int __mpnic_fill_bdq(struct mpnic_ring *bdq)
 		struct page *page;
 
 		page = page_pool_dev_alloc_pages(bdq->page_pool);
-		if (!page)
+		if (!page) {
+			u64_stats_update_begin(&bdq->stats.syncp);
+			u64_stats_inc(&bdq->stats.bdq.alloc_failed);
+			u64_stats_update_end(&bdq->stats.syncp);
 			break;
+		}
 
 		bdq->rx_buf[i] = page;
 		mpnic_bd_prep(bdq, i, page);
@@ -560,9 +599,10 @@ static void mpnic_put_pkt_buff(struct mpnic_pkt_ctxt *ctxt, bool napi)
 static int mpnic_clean_rcq(struct mpnic_napi_vector *nv,
 			   struct mpnic_q_triad *qt, int budget)
 {
+	unsigned int packets = 0, bytes = 0, dropped = 0, errors = 0;
 	struct mpnic_ring *rcq = &qt->cmpl;
 	struct mpnic_rcq_state *state;
-	unsigned int packets = 0;
+	unsigned int alloc_failed = 0;
 	__le64 *raw_rcd, done;
 	u32 head = rcq->head;
 
@@ -594,13 +634,21 @@ static int mpnic_clean_rcq(struct mpnic_napi_vector *nv,
 
 			if (likely(!(rcd &
 				     MPNIC_RCD_META_UNCORRECTABLE_ERR_MASK) &&
-				   !state->pkt.add_frag_failed))
+				   !state->pkt.add_frag_failed)) {
+				bytes += xdp_get_buff_len(&state->pkt.buff);
 				skb = xdp_build_skb_from_buff(&state->pkt.buff);
+				alloc_failed += !skb;
+			}
 
-			if (likely(skb))
+			if (likely(skb)) {
 				napi_gro_receive(&nv->napi, skb);
-			else
+			} else {
 				mpnic_put_pkt_buff(&state->pkt, true);
+				if (rcd & MPNIC_RCD_META_UNCORRECTABLE_ERR_MASK)
+					errors++;
+				else
+					dropped++;
+			}
 
 			state->pkt.buff.data_hard_start = NULL;
 			packets++;
@@ -618,6 +666,14 @@ static int mpnic_clean_rcq(struct mpnic_napi_vector *nv,
 	}
 
 	rcq->head = head;
+
+	u64_stats_update_begin(&rcq->stats.syncp);
+	u64_stats_add(&rcq->stats.rcq.packets, packets - errors);
+	u64_stats_add(&rcq->stats.rcq.bytes, bytes);
+	u64_stats_add(&rcq->stats.rcq.dropped, dropped);
+	u64_stats_add(&rcq->stats.rcq.alloc_failed, alloc_failed);
+	u64_stats_add(&rcq->stats.rcq.errors, errors);
+	u64_stats_update_end(&rcq->stats.syncp);
 
 	/* Allocate buffers, force dma_wmb(), and then start writing tails */
 	mpnic_fill_qt_bdqs(qt);
@@ -661,6 +717,94 @@ static irqreturn_t mpnic_msix_clean_rings(int __always_unused irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void mpnic_aggregate_ring_twq_counters(struct mpnic_base_stats *base,
+					      struct mpnic_ring *twq)
+{
+	base->tx.dropped += u64_stats_read(&twq->stats.twq.dropped);
+	base->tx.stop += u64_stats_read(&twq->stats.twq.stop);
+}
+
+static void mpnic_aggregate_ring_tcq_counters(struct mpnic_base_stats *base,
+					      struct mpnic_ring *tcq)
+{
+	base->tx.packets += u64_stats_read(&tcq->stats.tcq.packets);
+	base->tx.bytes += u64_stats_read(&tcq->stats.tcq.bytes);
+	base->tx.wake += u64_stats_read(&tcq->stats.tcq.wake);
+}
+
+static void mpnic_aggregate_ring_bdq_counters(struct mpnic_base_stats *base,
+					      struct mpnic_ring *bdq)
+{
+	base->rx.alloc_failed += u64_stats_read(&bdq->stats.bdq.alloc_failed);
+}
+
+static void mpnic_aggregate_ring_rcq_counters(struct mpnic_base_stats *base,
+					      struct mpnic_ring *rcq)
+{
+	base->rx.packets += u64_stats_read(&rcq->stats.rcq.packets);
+	base->rx.bytes += u64_stats_read(&rcq->stats.rcq.bytes);
+	base->rx.dropped += u64_stats_read(&rcq->stats.rcq.dropped);
+	base->rx.alloc_failed += u64_stats_read(&rcq->stats.rcq.alloc_failed);
+	base->rx.errors += u64_stats_read(&rcq->stats.rcq.errors);
+}
+
+static struct mpnic_base_stats *mpnic_base_stats_prepare(struct mpnic_net *mpn)
+{
+	struct mpnic_base_stats *old, *new;
+
+	old = netdev_lock_dereference(mpn->stats.base, mpn->netdev);
+	new = &mpn->stats.buf[old == &mpn->stats.buf[0]];
+	*new = *old;
+
+	return new;
+}
+
+void mpnic_stats_fold_rings(struct mpnic_net *mpn)
+{
+	struct mpnic_base_stats *new;
+	int i, j, t;
+
+	new = mpnic_base_stats_prepare(mpn);
+	new->num_tx_queues = 0;
+	new->num_rx_queues = 0;
+
+	for (i = 0; i < mpn->num_napi; i++) {
+		struct mpnic_napi_vector *nv = mpn->napi[i];
+
+		if (!nv)
+			continue;
+
+		for (t = 0; t < nv->txt_count; t++) {
+			struct mpnic_q_triad *qt = &nv->qt[t];
+
+			mpnic_aggregate_ring_twq_counters(new, &qt->sub0);
+			mpnic_aggregate_ring_tcq_counters(new, &qt->cmpl);
+		}
+
+		for (j = 0; j < nv->rxt_count; j++, t++) {
+			struct mpnic_q_triad *qt = &nv->qt[t];
+
+			mpnic_aggregate_ring_bdq_counters(new, &qt->sub0);
+			mpnic_aggregate_ring_bdq_counters(new, &qt->sub1);
+			mpnic_aggregate_ring_rcq_counters(new, &qt->cmpl);
+		}
+	}
+
+	rcu_assign_pointer(mpn->stats.base, new);
+	synchronize_net();
+}
+
+void mpnic_stats_attach_rings(struct mpnic_net *mpn)
+{
+	struct mpnic_base_stats *new;
+
+	new = mpnic_base_stats_prepare(mpn);
+	new->num_tx_queues = mpn->num_tx_queues;
+	new->num_rx_queues = mpn->num_rx_queues;
+	rcu_assign_pointer(mpn->stats.base, new);
+	synchronize_net();
+}
+
 static void mpnic_free_napi_vector(struct mpnic_net *mpn,
 				   struct mpnic_napi_vector *nv)
 {
@@ -692,6 +836,7 @@ static void mpnic_ring_init(struct mpnic_ring *ring, u32 __iomem *doorbell,
 {
 	ring->doorbell = doorbell;
 	ring->q_idx = q_idx;
+	u64_stats_init(&ring->stats.syncp);
 }
 
 static int mpnic_alloc_napi_vector(struct mpnic_dev *mpd,
@@ -1326,7 +1471,7 @@ void mpnic_flush(struct mpnic_net *mpn)
 			struct netdev_queue *txq;
 
 			/* Clean the work queue of unprocessed work */
-			mpnic_clean_twq0(nv, 0, &qt->sub0, true, qt->sub0.tail);
+			mpnic_clean_twq0(nv, 0, qt, true, qt->sub0.tail);
 
 			txq = netdev_get_tx_queue(mpn->netdev, qt->sub0.q_idx);
 			netdev_tx_reset_queue(txq);
@@ -1368,7 +1513,9 @@ void mpnic_fill(struct mpnic_net *mpn)
 			state->hdr.idx = UINT_MAX;
 			state->payld.idx = UINT_MAX;
 
+			local_bh_disable();
 			mpnic_fill_qt_bdqs(qt);
+			local_bh_enable();
 		}
 	}
 }

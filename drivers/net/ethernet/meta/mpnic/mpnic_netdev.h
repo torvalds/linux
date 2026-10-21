@@ -4,10 +4,34 @@
 #ifndef _MPNIC_NETDEV_H_
 #define _MPNIC_NETDEV_H_
 
+#include <linux/netdevice.h>
+#include <linux/rcupdate.h>
 #include <linux/types.h>
 
 #include "mpnic.h"
 #include "mpnic_txrx.h"
+
+struct mpnic_base_stats {
+	struct {
+		u64 packets;
+		u64 bytes;
+		u64 dropped;
+		u64 stop;
+		u64 wake;
+	} tx;
+	struct {
+		u64 packets;
+		u64 bytes;
+		u64 dropped;
+		u64 alloc_failed;
+		u64 errors;
+	} rx;
+
+	unsigned int num_tx_queues;
+	unsigned int num_rx_queues;
+	struct mpnic_ring **txr;
+	struct mpnic_ring **rxr;
+};
 
 struct mpnic_net {
 	struct mpnic_ring *tx[MPNIC_MAX_TXQS];
@@ -26,6 +50,11 @@ struct mpnic_net {
 	u16 num_napi;
 	u16 num_tx_queues;
 	u16 num_rx_queues;
+
+	struct {
+		struct mpnic_base_stats __rcu *base;
+		struct mpnic_base_stats buf[2];
+	} stats;
 };
 
 struct net_device *mpnic_netdev_alloc(struct mpnic_dev *mpd);

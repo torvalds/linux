@@ -8,6 +8,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
+#include <linux/u64_stats_sync.h>
 #include <net/netdev_queues.h>
 #include <net/xdp.h>
 
@@ -84,6 +85,31 @@ struct mpnic_rcq_state {
 	struct mpnic_pg_ctxt payld;
 };
 
+struct mpnic_queue_stats {
+	union {
+		struct {
+			u64_stats_t dropped;
+			u64_stats_t stop;
+		} twq;
+		struct {
+			u64_stats_t packets;
+			u64_stats_t bytes;
+			u64_stats_t wake;
+		} tcq;
+		struct {
+			u64_stats_t packets;
+			u64_stats_t bytes;
+			u64_stats_t dropped;
+			u64_stats_t alloc_failed;
+			u64_stats_t errors;
+		} rcq;
+		struct {
+			u64_stats_t alloc_failed;
+		} bdq;
+	};
+	struct u64_stats_sync syncp;
+};
+
 struct mpnic_ring {
 	union {
 		struct mpnic_rcq_state *state;	/* RCQ */
@@ -109,6 +135,8 @@ struct mpnic_ring {
 		 */
 		s32 deferred_meta;
 	};
+
+	struct mpnic_queue_stats stats;
 
 	/* Slow path fields follow */
 	dma_addr_t dma;			/* Phys addr of descriptor memory */
@@ -142,6 +170,8 @@ struct mpnic_napi_vector {
 netdev_tx_t mpnic_xmit_frame(struct sk_buff *skb, struct net_device *dev);
 int mpnic_alloc_napi_vectors(struct mpnic_net *mpn);
 void mpnic_free_napi_vectors(struct mpnic_net *mpn);
+void mpnic_stats_attach_rings(struct mpnic_net *mpn);
+void mpnic_stats_fold_rings(struct mpnic_net *mpn);
 int mpnic_alloc_resources(struct mpnic_net *mpn);
 void mpnic_free_resources(struct mpnic_net *mpn);
 int mpnic_set_netif_queues(struct mpnic_net *mpn);
