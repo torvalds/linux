@@ -77,8 +77,8 @@ struct ext2_sb_info {
 	unsigned long s_gdb_count;	/* Number of group descriptor blocks */
 	unsigned long s_desc_per_block;	/* Number of group descriptors per block */
 	unsigned long s_groups_count;	/* Number of groups in the fs */
-	unsigned long s_overhead_last;  /* Last calculated overhead */
-	unsigned long s_blocks_last;    /* Last seen block count */
+	unsigned long s_overhead_last __guarded_by(&s_lock);  /* Last calculated overhead */
+	unsigned long s_blocks_last __guarded_by(&s_lock);    /* Last seen block count */
 	struct buffer_head * s_sbh;	/* Buffer containing the super block */
 	struct ext2_super_block * s_es;	/* Pointer to the super block in the buffer */
 	struct buffer_head ** s_group_desc;
@@ -86,14 +86,14 @@ struct ext2_sb_info {
 	unsigned long s_sb_block;
 	kuid_t s_resuid;
 	kgid_t s_resgid;
-	unsigned short s_mount_state;
+	unsigned short s_mount_state __guarded_by(&s_lock);
 	unsigned short s_pad;
 	int s_addr_per_block_bits;
 	int s_desc_per_block_bits;
 	int s_inode_size;
 	int s_first_ino;
 	spinlock_t s_next_gen_lock;
-	u32 s_next_generation;
+	u32 s_next_generation __guarded_by(&s_next_gen_lock);
 	unsigned long s_dir_count;
 	u8 *s_debts;
 	struct percpu_counter s_freeblocks_counter;
@@ -102,7 +102,7 @@ struct ext2_sb_info {
 	struct blockgroup_lock *s_blockgroup_lock;
 	/* root of the per fs reservation window tree */
 	spinlock_t s_rsv_window_lock;
-	struct rb_root s_rsv_window_root;
+	struct rb_root s_rsv_window_root __guarded_by(&s_rsv_window_lock);
 	struct ext2_reserve_window_node s_rsv_window_head;
 	/*
 	 * s_lock protects against concurrent modifications of s_mount_state,
@@ -710,8 +710,10 @@ extern struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
 						    struct buffer_head ** bh);
 extern void ext2_discard_reservation (struct inode *);
 extern int ext2_should_retry_alloc(struct super_block *sb, int *retries);
-extern void ext2_init_block_alloc_info(struct inode *);
-extern void ext2_rsv_window_add(struct super_block *sb, struct ext2_reserve_window_node *rsv);
+extern void ext2_init_block_alloc_info(struct inode *inode)
+	__must_hold(&EXT2_I(inode)->truncate_mutex);
+extern void ext2_rsv_window_add(struct super_block *sb, struct ext2_reserve_window_node *rsv)
+	__must_hold(&EXT2_SB(sb)->s_rsv_window_lock);
 
 /* dir.c */
 int ext2_add_link(struct dentry *, struct inode *);
@@ -761,7 +763,8 @@ extern __printf(3, 4)
 void ext2_error(struct super_block *, const char *, const char *, ...);
 extern __printf(3, 4)
 void ext2_msg(struct super_block *, const char *, const char *, ...);
-extern void ext2_update_dynamic_rev (struct super_block *sb);
+extern void ext2_update_dynamic_rev(struct super_block *sb)
+	__must_hold(&EXT2_SB(sb)->s_lock);
 extern void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es,
 			    int wait);
 

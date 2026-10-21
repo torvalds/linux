@@ -10,18 +10,20 @@
 #define DO_ONCE_LITE(func, ...)						\
 	DO_ONCE_LITE_IF(true, func, ##__VA_ARGS__)
 
-#define __ONCE_LITE_IF(condition)					\
+#define __ONCE_LITE()							\
 	({								\
 		static bool __section(".data..once") __already_done;	\
-		bool __ret_cond = !!(condition);			\
 		bool __ret_once = false;				\
 									\
-		if (unlikely(__ret_cond) && unlikely(!__already_done)) {\
+		if (unlikely(!__already_done)) {			\
 			__already_done = true;				\
 			__ret_once = true;				\
 		}							\
 		unlikely(__ret_once);					\
 	})
+
+#define __ONCE_LITE_IF(condition)					\
+	(unlikely(condition) && __ONCE_LITE())
 
 #define DO_ONCE_LITE_IF(condition, func, ...)				\
 	({								\

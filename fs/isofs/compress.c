@@ -39,7 +39,7 @@ static DEFINE_MUTEX(zisofs_zlib_lock);
  */
 static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 				      loff_t block_end, int pcount,
-				      struct page **pages, unsigned poffset,
+				      struct folio **folios, unsigned int poffset,
 				      int *errp)
 {
 	unsigned int zisofs_block_shift = ISOFS_I(inode)->i_format_parm[1];
@@ -66,11 +66,12 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 	if (block_size == 0) {
 		for ( i = 0 ; i < pcount ; i++ ) {
 			unsigned int off = i ? 0 : poffset;
+			struct folio *folio = folios[i];
 
-			if (!pages[i])
+			if (!folio)
 				continue;
-			memzero_page(pages[i], off, PAGE_SIZE - off);
-			SetPageUptodate(pages[i]);
+			folio_zero_range(folio, off, folio_size(folio) - off);
+			folio_mark_uptodate(folio);
 		}
 		return (((loff_t)pcount) << PAGE_SHIFT) - poffset;
 	}
@@ -119,11 +120,12 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 
 	while (curpage < pcount && curbh < haveblocks &&
 	       zerr != Z_STREAM_END) {
+		struct folio *folio = folios[curpage];
+
 		if (!stream.avail_out) {
-			if (pages[curpage]) {
-				stream.next_out = kmap_local_page(pages[curpage])
-						+ poffset;
-				stream.avail_out = PAGE_SIZE - poffset;
+			if (folio) {
+				stream.next_out = kmap_local_folio(folio, poffset);
+				stream.avail_out = folio_size(folio) - poffset;
 				poffset = 0;
 			} else {
 				stream.next_out = (void *)&zisofs_sink_page;
@@ -173,9 +175,9 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 
 		if (!stream.avail_out) {
 			/* This page completed */
-			if (pages[curpage]) {
-				flush_dcache_page(pages[curpage]);
-				SetPageUptodate(pages[curpage]);
+			if (folio) {
+				flush_dcache_folio(folio);
+				folio_mark_uptodate(folio);
 			}
 			if (stream.next_out != (unsigned char *)zisofs_sink_page) {
 				kunmap_local(stream.next_out);
@@ -206,7 +208,7 @@ b_eio:
  * fills in other pages if we have data for them.
  */
 static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
-			     struct page **pages)
+			     struct folio **folios)
 {
 	loff_t start_off, end_off;
 	loff_t block_start, block_end;
@@ -221,14 +223,14 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
 	int err;
 	loff_t ret;
 
-	BUG_ON(!pages[full_page]);
+	BUG_ON(!folios[full_page]);
 
 	/*
 	 * We want to read at least 'full_page' page. Because we have to
 	 * uncompress the whole compression block anyway, fill the surrounding
 	 * pages with the data we have anyway...
 	 */
-	start_off = page_offset(pages[full_page]);
+	start_off = folio_pos(folios[full_page]);
 	end_off = min_t(loff_t, start_off + PAGE_SIZE, inode->i_size);
 
 	cstart_block = start_off >> zisofs_block_shift;
@@ -267,9 +269,9 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
 		}
 		err = 0;
 		ret = zisofs_uncompress_block(inode, block_start, block_end,
-					      pcount, pages, poffset, &err);
+					      pcount, folios, poffset, &err);
 		poffset += ret;
-		pages += poffset >> PAGE_SHIFT;
+		folios += poffset >> PAGE_SHIFT;
 		pcount -= poffset >> PAGE_SHIFT;
 		full_page -= poffset >> PAGE_SHIFT;
 		poffset &= ~PAGE_MASK;
@@ -289,9 +291,11 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
 		cstart_block++;
 	}
 
-	if (poffset && *pages) {
-		memzero_page(*pages, poffset, PAGE_SIZE - poffset);
-		SetPageUptodate(*pages);
+	if (poffset && *folios) {
+		struct folio *folio = *folios;
+
+		folio_zero_range(folio, poffset, folio_size(folio) - poffset);
+		folio_mark_uptodate(folio);
 	}
 	brelse(bh);
 	return 0;
@@ -312,7 +316,7 @@ static int zisofs_read_folio(struct file *file, struct folio *folio)
 	unsigned int zisofs_pages_per_cblock =
 		PAGE_SHIFT <= zisofs_block_shift ?
 		(1 << (zisofs_block_shift - PAGE_SHIFT)) : 0;
-	struct page **pages;
+	struct folio **folios;
 	pgoff_t index = folio->index, end_index;
 
 	end_index = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -336,33 +340,38 @@ static int zisofs_read_folio(struct file *file, struct folio *folio)
 		full_page = 0;
 		pcount = 1;
 	}
-	pages = kzalloc_objs(*pages,
-			     max_t(unsigned int, zisofs_pages_per_cblock, 1));
-	if (!pages) {
+	folios = kzalloc_objs(*folios,
+			      max_t(unsigned int, zisofs_pages_per_cblock, 1));
+	if (!folios) {
 		folio_unlock(folio);
 		return -ENOMEM;
 	}
-	pages[full_page] = &folio->page;
+	folios[full_page] = folio;
 
 	for (i = 0; i < pcount; i++, index++) {
-		if (i != full_page)
-			pages[i] = grab_cache_page_nowait(mapping, index);
+		if (i == full_page)
+			continue;
+		folios[i] = __filemap_get_folio(mapping, index,
+				FGP_LOCK | FGP_CREAT | FGP_NOWAIT,
+				mapping_gfp_mask(mapping));
+		if (IS_ERR(folios[i]))
+			folios[i] = NULL;
 	}
 
-	err = zisofs_fill_pages(inode, full_page, pcount, pages);
+	err = zisofs_fill_pages(inode, full_page, pcount, folios);
 
-	/* Release any residual pages, do not SetPageUptodate */
+	/* Release any residual folios, do not mark them uptodate */
 	for (i = 0; i < pcount; i++) {
-		if (pages[i]) {
-			flush_dcache_page(pages[i]);
-			unlock_page(pages[i]);
+		if (folios[i]) {
+			flush_dcache_folio(folios[i]);
+			folio_unlock(folios[i]);
 			if (i != full_page)
-				put_page(pages[i]);
+				folio_put(folios[i]);
 		}
-	}			
+	}
 
 	/* At this point, err contains 0 or -EIO depending on the "critical" page */
-	kfree(pages);
+	kfree(folios);
 	return err;
 }
 

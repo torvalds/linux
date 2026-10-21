@@ -104,12 +104,14 @@ isofs_find_entry(struct inode *dir, struct dentry *dentry,
 		dpnt = de->name;
 
 		if (sbi->s_rock &&
-		    ((i = get_rock_ridge_filename(de, tmpname, dir)))) {
+		    ((i = get_rock_ridge_filename(de, tmpname, NAME_MAX + 1,
+						  dir)))) {
 			dlen = i;	/* possibly -1 */
 			dpnt = tmpname;
 #ifdef CONFIG_JOLIET
 		} else if (sbi->s_joliet_level) {
-			dlen = get_joliet_filename(de, tmpname, dir);
+			dlen = get_joliet_filename(de, tmpname,
+						   JOLIET_NAME_MAX + 1, dir);
 			dpnt = tmpname;
 #endif
 		} else if (sbi->s_mapping == 'a') {
@@ -155,7 +157,7 @@ struct dentry *isofs_lookup(struct inode *dir, struct dentry *dentry, unsigned i
 	struct inode *inode;
 	char *tmpname;
 
-	tmpname = kmalloc(1024, GFP_USER);
+	tmpname = kmalloc(JOLIET_NAME_MAX + 1, GFP_USER);
 	if (!tmpname)
 		return ERR_PTR(-ENOMEM);
 

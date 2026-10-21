@@ -186,7 +186,8 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 
 		map = 1;
 		if (sbi->s_rock) {
-			len = get_rock_ridge_filename(de, tmpname, inode);
+			len = get_rock_ridge_filename(de, tmpname, NAME_MAX + 1,
+						      inode);
 			if (len != 0) {		/* may be -1 */
 				p = tmpname;
 				map = 0;
@@ -195,7 +196,9 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 		if (map) {
 #ifdef CONFIG_JOLIET
 			if (sbi->s_joliet_level) {
-				len = get_joliet_filename(de, tmpname, inode);
+				len = get_joliet_filename(de, tmpname,
+							  JOLIET_NAME_MAX + 1,
+							  inode);
 				p = tmpname;
 			} else
 #endif
@@ -233,7 +236,12 @@ static int isofs_readdir(struct file *file, struct dir_context *ctx)
 	char *tmpname;
 	struct inode *inode = file_inode(file);
 
-	tmpname = kmalloc(1024, GFP_KERNEL);
+	/*
+	 * Rockridge can produce names of NAME_MAX size, Acorn extensions at
+	 * most 227 chars.
+	 */
+	BUILD_BUG_ON(JOLIET_NAME_MAX < NAME_MAX || JOLIET_NAME_MAX < 227);
+	tmpname = kmalloc(JOLIET_NAME_MAX + 1, GFP_KERNEL);
 	if (tmpname == NULL)
 		return -ENOMEM;
 
