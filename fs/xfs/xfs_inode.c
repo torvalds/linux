@@ -1481,8 +1481,17 @@ xfs_inactive(
 	 */
 	if (xfs_inode_has_attr_fork(ip)) {
 		error = xfs_attr_inactive(ip);
-		if (error)
+		if (error) {
+			/*
+			 * Attr teardown failed, leaking blocks with no in-core
+			 * record. Clear i_mode to block xfs_iget() recycling,
+			 * then shut down so recovery cleans up the inode.
+			 */
+			VFS_I(ip)->i_mode = 0;
+			if (!xfs_is_shutdown(mp))
+				xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 			goto out;
+		}
 	}
 
 	ASSERT(ip->i_forkoff == 0);
