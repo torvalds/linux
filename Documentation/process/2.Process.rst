@@ -223,11 +223,11 @@ of the kernel they manage; they are the ones who will (usually) accept a
 patch for inclusion into the mainline kernel.
 
 Subsystem maintainers each manage their own version of the kernel source
-tree, usually (but certainly not always) using the git source management
-tool.  Tools like git (and related tools like quilt or mercurial) allow
+tree, usually (but certainly not always) using the Git source management
+tool.  Tools like Git (and related tools like Quilt or Mercurial) allow
 maintainers to track a list of patches, including authorship information
 and other metadata.  At any given time, the maintainer can identify which
-patches in his or her repository are not found in the mainline.
+patches in their repository are not found in the mainline.
 
 When the merge window opens, top-level maintainers will ask Linus to "pull"
 the patches they have selected for merging from their repositories.  If
@@ -343,13 +343,13 @@ are well beyond the scope of this document, but there is space for a few
 pointers.
 
 By far the dominant source code management system used by the kernel
-community is git.  Git is one of a number of distributed version control
+community is Git.  Git is one of a number of distributed version control
 systems being developed in the free software community.  It is well tuned
 for kernel development, in that it performs quite well when dealing with
 large repositories and large numbers of patches.  It also has a reputation
 for being difficult to learn and use, though it has gotten better over
-time.  Some sort of familiarity with git is almost a requirement for kernel
-developers; even if they do not use it for their own work, they'll need git
+time.  Some sort of familiarity with Git is almost a requirement for kernel
+developers; even if they do not use it for their own work, they'll need Git
 to keep up with what other developers (and the mainline) are doing.
 
 Git is now packaged by almost all Linux distributions.  There is a home
@@ -359,12 +359,12 @@ page at:
 
 That page has pointers to documentation and tutorials.
 
-Among the kernel developers who do not use git, the most popular choice is
+Among the kernel developers who do not use Git, the most popular choice is
 almost certainly Mercurial:
 
 	https://www.selenic.com/mercurial/
 
-Mercurial shares many features with git, but it provides an interface which
+Mercurial shares many features with Git, but it provides an interface which
 many find easier to use.
 
 The other tool worth knowing about is Quilt:
@@ -374,9 +374,9 @@ The other tool worth knowing about is Quilt:
 Quilt is a patch management system, rather than a source code management
 system.  It does not track history over time; it is, instead, oriented
 toward tracking a specific set of changes against an evolving code base.
-Some major subsystem maintainers use quilt to manage patches intended to go
+Some major subsystem maintainers use Quilt to manage patches intended to go
 upstream.  For the management of certain kinds of trees (-mm, for example),
-quilt is the best tool for the job.
+Quilt is the best tool for the job.
 
 
 Mailing lists

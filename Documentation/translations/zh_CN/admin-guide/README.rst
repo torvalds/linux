@@ -83,7 +83,7 @@ Linux内核6.x版本 <http://kernel.org/>
    补丁，则不应先应用6.0.1和6.0.2的补丁。类似地，如果您运行的是6.0.2内核，
    并且希望跳转到6.0.3，那么在应用6.0.3补丁之前，必须首先撤销6.0.2补丁
    （即patch -R）。更多关于这方面的内容，请阅读
-   :ref:`Documentation/process/applying-patches.rst <applying_patches>` 。
+   Documentation/translations/zh_CN/process/applying-patches.rst 。
 
    或者，脚本 patch-kernel 可以用来自动化这个过程。它能确定当前内核版本并
    应用找到的所有补丁::

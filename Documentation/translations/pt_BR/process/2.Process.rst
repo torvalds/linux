@@ -75,16 +75,16 @@ Como exemplo, veja como ocorreu o ciclo de desenvolvimento da versão 5.4
 (todas as datas são de 2019):
 
 	==============  ===============================
-	Setembro 15	5.3 Lançamento estável do 5.3
+	Setembro 15	Lançamento estável do 5.3
 	Setembro 30	5.4-rc1, fechamento da janela de integração
 	Outubro 6	5.4-rc2
 	Outubro 13	5.4-rc3
 	Outubro 20	5.4-rc4
-	October 27	5.4-rc5
+	Outubro 27	5.4-rc5
 	Novembro 3	5.4-rc6
 	Novembro 10	5.4-rc7
 	Novembro 17	5.4-rc8
-	Novembro 24	5.4 Lançamento estável do 5.4
+	Novembro 24	Lançamento estável do 5.4
 	==============  ===============================
 
 Como os desenvolvedores decidem quando encerrar o ciclo de desenvolvimento
@@ -330,7 +330,7 @@ A árvore de fontes do kernel contém o diretório drivers/staging/, onde reside
 muitos subdiretórios para drivers ou sistemas de arquivos que estão a caminho
 de serem adicionados à árvore do kernel. Eles permanecem em drivers/staging/
 enquanto ainda precisam de mais trabalho; uma vez concluídos, podem ser movidos
-para o kernel proper Esta é uma maneira de acompanhar drivers que não estão à
+para o kernel propriamente dito. Esta é uma maneira de acompanhar drivers que não estão à
 altura dos padrões de codificação ou de qualidade do kernel Linux, mas que as
 pessoas podem querer usar e acompanhar o desenvolvimento.
 
@@ -433,7 +433,7 @@ Existem algumas dicas que podem ajudar na sobrevivência na lista linux-kernel:
   caixa de entrada principal. É preciso ser capaz de ignorar o fluxo de e-mails
   por períodos prolongados de tempo.
 
-- Não tente acompanhar cada conversa ninguém mais faz isso. É importante
+- Não tente acompanhar cada conversa, ninguém mais faz isso. É importante
   filtrar tanto pelo tópico de interesse (embora note que conversas longas
   podem se desviar do assunto original sem que a linha de assunto do e-mail
   seja alterada) quanto pelas pessoas que estão participando.
@@ -455,13 +455,13 @@ Existem algumas dicas que podem ajudar na sobrevivência na lista linux-kernel:
 - Use respostas intercaladas, o que torna sua resposta mais fácil
   de ler. (ou seja, evite o "top-posting" — a prática de colocar sua resposta
   acima do texto citado ao qual você está respondendo). Para mais detalhes, veja
-  :ref:`Documentation/process/submitting-patches.rst <interleaved_replies>`.
+  :ref:`Documentation/process/submitting-patches.rst <pt_BR_interleaved_replies>`.
 
 - Pergunte na lista de discussão correta. A lista linux-kernel pode até ser o
   ponto de encontro geral, mas não é o melhor lugar para encontrar desenvolvedores
   de todos os subsistemas.
 
-O último ponto, encontrar a lista de discussão correta  é um lugar comum
+O último ponto, encontrar a lista de discussão correta, é um lugar comum
 onde os desenvolvedores iniciantes costumam errar. Alguém que faça uma pergunta
 relacionada a redes na lista linux-kernel quase certamente receberá uma
 sugestão educada para perguntar na lista netdev em seu lugar, já que essa é a

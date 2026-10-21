@@ -82,13 +82,13 @@ TODOLIST:
    :maxdepth: 1
 
    magic-number
+   applying-patches
    volatile-considered-harmful
    ../arch/riscv/patch-acceptance
    ../core-api/unaligned-memory-access
 
 TODOLIST:
 
-* applying-patches
 * backporting
 * adding-syscalls
 * botching-up-ioctls

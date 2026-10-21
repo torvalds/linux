@@ -107,7 +107,7 @@ A single allocation from swiotlb is limited to IO_TLB_SIZE * IO_TLB_SEGSIZE
 bytes, which is 256 KiB with current definitions. When a device's DMA settings
 are such that the device might use swiotlb, the maximum size of a DMA segment
 must be limited to that 256 KiB. This value is communicated to higher-level
-kernel code via dma_map_mapping_size() and swiotlb_max_mapping_size(). If the
+kernel code via dma_max_mapping_size() and swiotlb_max_mapping_size(). If the
 higher-level code fails to account for this limit, it may make requests that
 are too large for swiotlb, and get a "swiotlb full" error.
 

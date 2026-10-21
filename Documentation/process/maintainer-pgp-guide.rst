@@ -25,16 +25,16 @@ communication channels between developers via PGP-signed email exchange.
 
 The Linux kernel source code is available in two main formats:
 
-- Distributed source repositories (git)
+- Distributed source repositories (Git)
 - Periodic release snapshots (tarballs)
 
-Both git repositories and tarballs carry PGP signatures of the kernel
+Both Git repositories and tarballs carry PGP signatures of the kernel
 developers who create official kernel releases. These signatures offer a
 cryptographic guarantee that downloadable versions made available via
 kernel.org or any other mirrors are identical to what these developers
 have on their workstations. To this end:
 
-- git repositories provide PGP signatures on all tags
+- Git repositories provide PGP signatures on all tags
 - tarballs provide detached PGP signatures with all downloads
 
 .. _devs_not_infra:
@@ -660,12 +660,12 @@ impersonate you without having access to your PGP keys.
 
 .. _`nothing to do with it`: https://github.com/jayphelps/git-blame-someone-else
 
-Configure git to use your PGP key
+Configure Git to use your PGP key
 ---------------------------------
 
 If you only have one secret key in your keyring, then you don't really
 need to do anything extra, as it becomes your default key.  However, if
-you happen to have multiple secret keys, you can tell git which key
+you happen to have multiple secret keys, you can tell Git which key
 should be used (``[fpr]`` is the fingerprint of your key)::
 
     $ git config --global user.signingKey [fpr]
@@ -677,8 +677,8 @@ To create a signed tag, pass the ``-s`` switch to the tag command::
 
     $ git tag -s [tagname]
 
-Our recommendation is to always sign git tags, as this allows other
-developers to ensure that the git repository they are pulling from has
+Our recommendation is to always sign Git tags, as this allows other
+developers to ensure that the Git repository they are pulling from has
 not been maliciously altered.
 
 How to verify signed tags
@@ -689,7 +689,7 @@ To verify a signed tag, use the ``verify-tag`` command::
     $ git verify-tag [tagname]
 
 If you are pulling a tag from another fork of the project repository,
-git should automatically verify the signature at the tip you're pulling
+Git should automatically verify the signature at the tip you're pulling
 and show you the results during the merge operation::
 
     $ git pull [url] tags/sometag
@@ -703,15 +703,15 @@ The merge message will contain something like this::
     # gpg: Signature made [...]
     # gpg: Good signature from [...]
 
-If you are verifying someone else's git tag, you will first need to
+If you are verifying someone else's Git tag, you will first need to
 import their PGP key. Please refer to the ":ref:`verify_identities`"
 section below.
 
-Configure git to always sign annotated tags
+Configure Git to always sign annotated tags
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Chances are, if you're creating an annotated tag, you'll want to sign
-it. To force git to always sign annotated tags, you can set a global
+it. To force Git to always sign annotated tags, you can set a global
 configuration option::
 
     $ git config --global tag.forceSignAnnotated true
@@ -722,15 +722,15 @@ How to work with signed commits
 It is also possible to create signed commits, but they have limited
 usefulness in Linux kernel development. The kernel contribution workflow
 relies on sending in patches, and converting commits to patches does not
-preserve git commit signatures. Furthermore, when rebasing your own
+preserve Git commit signatures. Furthermore, when rebasing your own
 repository on a newer upstream, PGP commit signatures will end up
 discarded. For this reason, most kernel developers don't bother signing
 their commits and will ignore signed commits in any external
 repositories that they rely upon in their work.
 
-That said, if you have your working git tree publicly available at some
-git hosting service (kernel.org, infradead.org, ozlabs.org, or others),
-then the recommendation is that you sign all your git commits even if
+That said, if you have your working Git tree publicly available at some
+Git hosting service (kernel.org, infradead.org, ozlabs.org, or others),
+then the recommendation is that you sign all your Git commits even if
 upstream developers do not directly benefit from this practice.
 
 We recommend this for the following reasons:
@@ -752,10 +752,10 @@ command (it's capital ``-S`` due to collision with another flag)::
 
     $ git commit -S
 
-Configure git to always sign commits
+Configure Git to always sign commits
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can tell git to always sign commits::
+You can tell Git to always sign commits::
 
     git config --global commit.gpgSign true
 
@@ -790,7 +790,7 @@ Installing and configuring patatt
 Patatt is packaged for many distributions already, so please check there
 first. You can also install it from pypi using "``pip install patatt``".
 
-If you already have your PGP key configured with git (via the
+If you already have your PGP key configured with Git (via the
 ``user.signingKey`` configuration parameter), then patatt requires no
 further configuration. You can start signing your patches by installing
 the git-send-email hook in the repository you want::
@@ -902,7 +902,7 @@ the new default in GnuPG v2). To set it, add (or modify) the
 Using the kernel.org web of trust repository
 --------------------------------------------
 
-Kernel.org maintains a git repository with developers' public keys as a
+Kernel.org maintains a Git repository with developers' public keys as a
 replacement for replicating keyserver networks that have gone mostly
 dark in the past few years. The full documentation for how to set up
 that repository as your source of public keys can be found here:

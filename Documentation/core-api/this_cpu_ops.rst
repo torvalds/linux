@@ -150,10 +150,10 @@ preemptible code are addressed by raw_cpu_ptr(), but such use cases need
 to handle cases where two different CPUs are accessing the same per cpu
 variable, which might well be that of a third CPU.  These use cases are
 typically performance optimizations.  For example, SRCU implements a pair
-of counters as a pair of per-CPU variables, and rcu_read_lock_nmisafe()
+of counters as a pair of per-CPU variables, and srcu_read_lock_nmisafe()
 uses raw_cpu_ptr() to get a pointer to some CPU's counter, and uses
-atomic_inc_long() to handle migration between the raw_cpu_ptr() and
-the atomic_inc_long().
+atomic_long_inc() to handle migration between the raw_cpu_ptr() and
+the atomic_long_inc().
 
 Per cpu variables and offsets
 -----------------------------

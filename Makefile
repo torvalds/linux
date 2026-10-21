@@ -2002,7 +2002,7 @@ $(help-board-dirs): help-%:
 # ---------------------------------------------------------------------------
 DOC_TARGETS := xmldocs latexdocs pdfdocs htmldocs epubdocs cleandocs \
 	       linkcheckdocs dochelp refcheckdocs texinfodocs infodocs mandocs \
-	       htmldocs-redirects
+	       htmldocs-redirects testdocs
 
 PHONY += $(DOC_TARGETS)
 $(DOC_TARGETS):

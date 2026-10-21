@@ -38,7 +38,7 @@ along with a description:
       are not detailed, but errors with specific meanings are.
 
 The guest ioctl should be issued on a file descriptor of the /dev/sev-guest
-device.  The ioctl accepts struct snp_user_guest_request. The input and
+device.  The ioctl accepts struct snp_guest_request_ioctl. The input and
 output structure is specified through the req_data and resp_data field
 respectively. If the ioctl fails to execute due to a firmware error, then
 the fw_error code will be set, otherwise fw_error will be set to -1.

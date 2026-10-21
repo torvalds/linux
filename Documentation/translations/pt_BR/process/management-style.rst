@@ -1,13 +1,16 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. _pt_BR_managementstyle:
+
 Estilo de gerenciamento do kernel Linux
 =======================================
 
 Este é um documento curto descrevendo o estilo de gerenciamento preferido (ou
 inventado, dependendo de quem você perguntar) para o kernel do Linux. Ele se
-destina a espelhar o documento :ref:`process/coding-style.rst <codingstyle>` em
-algum grau, e foi escrito principalmente para evitar responder [#f1]_ as mesmas
-(ou semelhantes) perguntas repetidamente.
+destina a espelhar o documento
+:ref:`Documentation/translations/pt_BR/process/coding-style.rst <pt_BR_codingstyle>`
+em algum grau, e foi escrito principalmente para evitar responder [#f1]_ as
+mesmas (ou semelhantes) perguntas repetidamente.
 
 Estilo de gerenciamento é muito pessoal e muito mais difícil de quantificar do
 que simples regras de estilo de codificação, então este documento pode ou não ter

@@ -187,7 +187,7 @@ security issues in the past.
 
 The mailing list operates in the same way as normal Linux development.
 Patches are posted, discussed, and reviewed and if agreed upon, applied to
-a non-public git repository which is only accessible to the participating
+a non-public Git repository which is only accessible to the participating
 developers via a secure connection. The repository contains the main
 development branch against the mainline kernel and backport branches for
 stable kernel versions as necessary.

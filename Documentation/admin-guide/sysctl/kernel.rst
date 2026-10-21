@@ -1334,19 +1334,6 @@ seccomp
 See Documentation/userspace-api/seccomp_filter.rst.
 
 
-sg-big-buff
-===========
-
-This file shows the size of the generic SCSI (sg) buffer.
-You can't tune it just yet, but you could change it on
-compile time by editing ``include/scsi/sg.h`` and changing
-the value of ``SG_BIG_BUFF``.
-
-There shouldn't be any reason to change this value. If
-you can come up with one, you probably know what you
-are doing anyway :)
-
-
 shmall
 ======
 
@@ -1609,8 +1596,10 @@ If a value outside of this range is written to ``threads-max`` an
 timer_migration
 ===============
 
-When set to a non-zero value, attempt to migrate timers away from idle cpus to
-allow them to remain in low power states longer.
+When set to a non-zero value, attempt to migrate high-resolution timers from
+nohz isolated (nohz_full) to housekeeping CPUs.
+See Documentation/admin-guide/cpu-isolation.rst
+and Documentation/admin-guide/kernel-parameters.rst.
 
 Default is set (1).
 

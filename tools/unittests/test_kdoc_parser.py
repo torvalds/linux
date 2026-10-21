@@ -418,6 +418,32 @@ class TestSelfValidate(GenerateKdocItem):
         """
         self.run_test(self.SOURCE, [self.DEFAULT.copy()], self.EXPORTS)
 
+class TestContextLockStruct(GenerateKdocItem):
+    def test_context_lock_struct_declaration(self):
+        source = """
+            /**
+             * struct debugfs_cancellation - cancellation data
+             * @list: internal, for keeping track
+             * @cancel: callback to call
+             * @cancel_data: extra data for the callback to call
+             */
+            context_lock_struct(debugfs_cancellation) {
+                struct list_head list;
+                void (*cancel)(struct dentry *, void *);
+                void *cancel_data;
+            };
+        """
+
+        kernel_doc = KernelDoc(self.config, "test.c", self.xforms)
+        patcher = patch('builtins.open', new_callable=mock_open,
+                        read_data=dedent(source))
+        with patcher:
+            _, entries = kernel_doc.parse_kdoc()
+
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].name, "debugfs_cancellation")
+        self.assertEqual(entries[0].warnings, [])
+
 #
 # Class and logic to create dynamic tests from YAML
 #

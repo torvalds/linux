@@ -283,7 +283,7 @@ sure your patch description makes this aspect obvious. Once the change is
 merged, tell the Linux kernel's regression tracker and the regressions mailing
 list about the risk, so everyone has the change on the radar in case reports
 trickle in. Depending on the risk, you also might want to ask the subsystem
-maintainer to mention the issue in his mainline pull request.
+maintainer to mention the issue in their mainline pull request.
 
 What else is there to known about regressions?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

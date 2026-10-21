@@ -9,12 +9,8 @@ that it gives interested subsystems an opportunity to be notified of
 every hardirqs-off/hardirqs-on, softirqs-off/softirqs-on event that
 happens in the kernel.
 
-CONFIG_TRACE_IRQFLAGS_SUPPORT is needed for CONFIG_PROVE_SPIN_LOCKING
-and CONFIG_PROVE_RW_LOCKING to be offered by the generic lock debugging
-code. Otherwise only CONFIG_PROVE_MUTEX_LOCKING and
-CONFIG_PROVE_RWSEM_LOCKING will be offered on an architecture - these
-are locking APIs that are not used in IRQ context. (the one exception
-for rwsems is worked around)
+CONFIG_TRACE_IRQFLAGS_SUPPORT is needed for CONFIG_PROVE_LOCKING to be
+offered by the generic lock debugging code.
 
 Architecture support for this is certainly not in the "trivial"
 category, because lots of lowlevel assembly code deal with irq-flags

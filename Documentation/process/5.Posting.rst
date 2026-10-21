@@ -21,7 +21,7 @@ There is a constant temptation to avoid posting patches before they are
 completely "ready."  For simple patches, that is not a problem.  If the
 work being done is complex, though, there is a lot to be gained by getting
 feedback from the community before the work is complete.  So you should
-consider posting in-progress work, or even making a git tree available so
+consider posting in-progress work, or even making a Git tree available so
 that interested developers can catch up with your work at any time.
 
 When posting code which is not yet considered ready for inclusion, it is a
@@ -71,7 +71,7 @@ even in the short term.
 
 Patches must be prepared against a specific version of the kernel.  As a
 general rule, a patch should be based on the current mainline as found in
-Linus's git tree.  When basing on mainline, start with a well-known release
+Linus's Git tree.  When basing on mainline, start with a well-known release
 point - a stable or -rc release - rather than branching off the mainline at
 an arbitrary spot.
 
@@ -233,7 +233,7 @@ the patch. Each of these uses this format::
 
 The tags in common use are:
 
- - Signed-off-by: this is a developer's certification that he or she has
+ - Signed-off-by: this is a developer's certification that they have
    the right to submit the patch for inclusion into the kernel.  It is an
    agreement to the Developer's Certificate of Origin, the full text of
    which can be found in :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
@@ -320,7 +320,7 @@ copies should go to:
    the MAINTAINERS file is the first place to look for these people.
 
  - Other developers who have been working in the same area - especially
-   those who might be working there now.  Using git to see who else has
+   those who might be working there now.  Using Git to see who else has
    modified the files you are working on can be helpful.
 
  - If you are responding to a bug report or a feature request, copy the
@@ -362,7 +362,7 @@ that the patches, themselves, have complete changelog information.
 
 In general, the second and following parts of a multi-part patch should be
 sent as a reply to the first part so that they all thread together at the
-receiving end.  Tools like git and quilt have commands to mail out a set of
+receiving end.  Tools like Git and Quilt have commands to mail out a set of
 patches with the proper threading.  If you have a long series, though, and
-are using git, please stay away from the --chain-reply-to option to avoid
+are using Git, please stay away from the --chain-reply-to option to avoid
 creating exceptionally deep nesting.

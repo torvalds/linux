@@ -68,7 +68,7 @@ class CToken():
 
     MISMATCH = 255  #: an error indicator: should never happen in practice.
 
-    # Dict to convert from an enum interger into a string.
+    # Dict to convert from an enum integer into a string.
     _name_by_val = {v: k for k, v in dict(vars()).items() if isinstance(v, int)}
 
     # Dict to convert from string to an enum-like integer value.

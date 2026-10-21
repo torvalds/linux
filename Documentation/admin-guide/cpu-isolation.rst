@@ -353,5 +353,5 @@ Some tools may also be useful for higher level analysis:
   latency and noise in the system. For example Documentation/tools/rtla/rtla-osnoise.rst
   runs a kernel tracer that analyzes and output a summary of the noises.
 
-- dynticks-testing does something similar to rtla-osnoise but in userspace. It is available
-  at git://git.kernel.org/pub/scm/linux/kernel/git/frederic/dynticks-testing.git
+- cpunoise does something similar to rtla-osnoise but in userspace. It is available
+  at https://git.kernel.org/pub/scm/linux/kernel/git/frederic/cpunoise.git

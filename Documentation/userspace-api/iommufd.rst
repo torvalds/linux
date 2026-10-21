@@ -242,7 +242,7 @@ creating the objects and links::
 
       Either a manual IOMMUFD_OBJ_HWPT_PAGING or an IOMMUFD_OBJ_HWPT_NESTED is
       created via the same IOMMU_HWPT_ALLOC uAPI. The difference is at the type
-      of the object passed in via the @pt_id field of struct iommufd_hwpt_alloc.
+      of the object passed in via the @pt_id field of struct iommu_hwpt_alloc.
 
 5. IOMMUFD_OBJ_VIOMMU can be only manually created via the IOMMU_VIOMMU_ALLOC
    uAPI, provided a dev_id (for the device's physical IOMMU to back the vIOMMU)

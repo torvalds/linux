@@ -40,8 +40,8 @@ edit the patch to make it apply.
 
 It is strongly recommended to instead find an appropriate base version
 where the patch applies cleanly and *then* cherry-pick it over to your
-destination tree, as this will make git output conflict markers and let
-you resolve conflicts with the help of git and any other conflict
+destination tree, as this will make Git output conflict markers and let
+you resolve conflicts with the help of Git and any other conflict
 resolution tools you might prefer to use. For example, if you want to
 apply a patch that just arrived on LKML to an older stable kernel, you
 can apply it to the most recent mainline kernel and then cherry-pick it
@@ -54,7 +54,7 @@ problem with applying the patch to the "wrong" base is that it may pull
 in more unrelated changes in the context of the diff when cherry-picking
 it to the older branch.
 
-A good reason to prefer ``git cherry-pick`` over ``git am`` is that git
+A good reason to prefer ``git cherry-pick`` over ``git am`` is that Git
 knows the precise history of an existing commit, so it will know when
 code has moved around and changed the line numbers; this in turn makes
 it less likely to apply the patch to the wrong place (which can result
@@ -69,7 +69,7 @@ article will assume that you are doing a plain ``git cherry-pick``.
 .. _b4: https://people.kernel.org/monsieuricon/introducing-b4-and-patch-attestation
 .. _b4 presentation: https://youtu.be/mF10hgVIx9o?t=2996
 
-Once you have the patch in git, you can go ahead and cherry-pick it into
+Once you have the patch in Git, you can go ahead and cherry-pick it into
 your source tree. Don't forget to cherry-pick with ``-x`` if you want a
 written record of where the patch came from!
 
@@ -101,7 +101,7 @@ backporting from contains patches not in the branch you are backporting
 to. However, the reverse is also possible. In any case, the result is a
 conflict that needs to be resolved.
 
-If your attempted cherry-pick fails with a conflict, git automatically
+If your attempted cherry-pick fails with a conflict, Git automatically
 edits the files to include so-called conflict markers showing you where
 the conflict is and how the two branches have diverged. Resolving the
 conflict typically means editing the end result in such a way that it
@@ -128,7 +128,7 @@ pointers to various tools that you could use:
 -  `IntelliJ <https://www.jetbrains.com/help/idea/resolve-conflicts.html>`__
 -  `VSCode <https://code.visualstudio.com/docs/editor/versioncontrol>`__
 
-To configure git to work with these, see ``git mergetool --help`` or
+To configure Git to work with these, see ``git mergetool --help`` or
 the official `git-mergetool documentation`_.
 
 .. _git-mergetool documentation: https://git-scm.com/docs/git-mergetool
@@ -326,7 +326,7 @@ style, which looks like this::
     this is what the patch wants it to be after being applied
     >>>>>>> <commit> (title)
 
-As you can see, this has 3 parts instead of 2, and includes what git
+As you can see, this has 3 parts instead of 2, and includes what Git
 expected to find there but didn't. It is *highly recommended* to use
 this conflict style as it makes it much clearer what the patch actually
 changed; i.e., it allows you to compare the before-and-after versions
@@ -382,7 +382,7 @@ Dealing with file renames
 
 One of the most annoying things that can happen while backporting a
 patch is discovering that one of the files being patched has been
-renamed, as that typically means git won't even put in conflict markers,
+renamed, as that typically means Git won't even put in conflict markers,
 but will just throw up its hands and say (paraphrased): "Unmerged path!
 You do the work..."
 
@@ -393,7 +393,7 @@ other hand, if the change is big or complicated, you definitely don't
 want to do it by hand.
 
 As a first pass, you can try something like this, which will lower the
-rename detection threshold to 30% (by default, git uses 50%, meaning
+rename detection threshold to 30% (by default, Git uses 50%, meaning
 that two files need to have at least 50% in common for it to consider
 an add-delete pair to be a potential rename)::
 

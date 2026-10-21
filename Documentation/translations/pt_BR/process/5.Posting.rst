@@ -37,7 +37,7 @@ Antes de criar patches
 ----------------------
 
 Há uma série de coisas que devem ser feitas antes de você considerar o envio
-de patches para la comunidade de desenvolvimento. Elas incluem:
+de patches para a comunidade de desenvolvimento. Elas incluem:
 
  - Teste o código tanto quanto puder. Faça uso das ferramentas de depuração
    do kernel, garanta que o kernel seja compilado com todas as combinações
@@ -106,7 +106,7 @@ que podem ajudar consideravelmente:
 
  - Como uma forma de reafirmar a diretriz acima: não misture diferentes tipos de
    alterações no mesmo patch. Se um único patch corrige uma falha crítica de
-   segurança, reorganiza algumas estruturas e reformatará o código, há uma grande
+   segurança, reorganiza algumas estruturas e reformata o código, há uma grande
    chance de que ele seja ignorado e a correção importante seja perdida.
 
  - Cada patch deve resultar em um kernel que compile e funcione corretamente; se
@@ -199,7 +199,7 @@ a alteração em um sistema de controle de versão. Ele será seguido por:
    diff associará os nomes das funções às alterações, tornando o patch resultante
    mais fácil de ser lido por outras pessoas.
 
-As tags  já mencionadas brevemente acima são usados para fornecer
+Os marcadores (tags) já mencionados brevemente acima são usados para fornecer
 informações sobre como o patch surgiu. Eles são descritos em detalhes no
 documento :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`;
 o que se segue aqui é um breve resumo.
@@ -215,7 +215,7 @@ documento com uma especificação implementada pelo patch::
 
   Link: https://example.com/somewhere.html  optional-other-stuff
 
-De acordo com as orientações do Pinguim-Chefe, um marcador Link
+De acordo com as orientações do Pinguim-Chefe, um marcador Link:
 só deve ser adicionado a um commit se ele levar a informações úteis que não
 são encontradas no próprio commit.
 
@@ -279,7 +279,7 @@ Os marcadores de uso comum são:
 
 Tenha cuidado ao adicionar os marcadores mencionados acima aos seus patches, pois
 todos, exceto Cc:, Reported-by: e Suggested-by:, precisam de permissão explícita
-fontes da pessoa nomeada. Para esses três, a permissão implícita é suficiente se
+da pessoa nomeada. Para esses três, a permissão implícita é suficiente se
 a pessoa contribuiu para o kernel Linux usando esse nome e endereço de e-mail de
 acordo com os arquivos do lore ou o histórico de commits — e, no caso de
 Reported-by: e Suggested-by:, se fizeram o relato ou a sugestão publicamente.
@@ -322,7 +322,7 @@ kernel incentiva as pessoas a pecarem pelo excesso, enviando cópias demais; nã
 assuma que as pessoas relevantes verão sua publicação nas listas de discussão. Em
 particular, as cópias devem ir para:
 
-- O(s) mantenedor(es) do(s) subsistema(s) afetado(s). Como descrito antes, o
+ - O(s) mantenedor(es) do(s) subsistema(s) afetado(s). Como descrito antes, o
    arquivo MAINTAINERS é o primeiro lugar para procurar por essas pessoas.
 
  - Outros desenvolvedores que estiveram trabalhando na mesma área — especialmente

@@ -34,7 +34,7 @@ such mapping is non-trivial task and consumes very limited resources
 (like kernel virtual address space or dma consistent address space).
 Buffers allocated with this attribute can be only passed to user space
 by calling dma_mmap_attrs(). By using this API, you are guaranteeing
-that you won't dereference the pointer returned by dma_alloc_attr(). You
+that you won't dereference the pointer returned by dma_alloc_attrs(). You
 can treat it as a cookie that must be passed to dma_mmap_attrs() and
 dma_free_attrs(). Make sure that both of these also get this attribute
 set on each call.

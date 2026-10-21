@@ -58,7 +58,17 @@ fácil se você mantiver algumas coisas em mente:
   de codificação e pedidos para refatorar parte do seu código em seções
   compartilhadas do kernel. Uma das funções dos mantenedores é manter as coisas
   com a mesma aparência. Às vezes, isso significa que aquele truque inteligente
-  (*clever hack*) em seu driver para contornar um problema
+  (*clever hack*) em seu driver para contornar um problema na verdade precisa
+  se tornar um recurso generalizado do kernel, pronto para a próxima vez.
+
+O que tudo isso significa é que, quando os revisores lhe enviam comentários,
+você precisa prestar atenção às observações técnicas que eles estão fazendo.
+Não deixe que a forma como eles se expressam, ou o seu próprio orgulho, impeçam
+que isso aconteça. Quando você receber comentários de revisão em um patch,
+reserve um tempo para entender o que o revisor está tentando dizer. Se
+possível, corrija as coisas que o revisor está pedindo para você corrigir. E
+responda ao revisor: agradeça-o e descreva como você responderá às suas
+perguntas.
 
 Note que você não precisa concordar com todas as mudanças sugeridas pelos
 revisores. Se você acredita que o revisor entendeu mal o seu código, explique
@@ -67,7 +77,7 @@ sugerida, descreva-a e justifique a sua solução para o problema. Se as suas
 explicações fizerem sentido, o revisor as aceitará. Contudo, caso a sua
 explicação não seja persuasiva — especialmente se outros começarem a concordar
 com o revisor —, reserve um tempo para repensar as coisas. Pode ser fácil ficar
-ceguificado por sua própria solução para um problema, a ponto de não perceber
+cego por sua própria solução para um problema, a ponto de não perceber
 que algo está fundamentalmente errado ou que, talvez, você não esteja sequer
 resolvendo o problema certo.
 

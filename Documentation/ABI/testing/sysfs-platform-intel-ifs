@@ -10,8 +10,10 @@ Description:	Write <cpu#> to trigger IFS test for one online core.
 		Note that the test is per core. The cpu# can be
 		for any thread on the core. Running on one thread
 		completes the test for the core containing that thread.
-		Example: to test the core containing cpu5: echo 5 >
-		/sys/devices/virtual/misc/intel_ifs_<N>/run_test
+		Example: to test the core containing cpu5::
+
+		  echo 5 > /sys/devices/virtual/misc/intel_ifs_<N>/run_test
+
 Devices:	all
 
 What:		/sys/devices/virtual/misc/intel_ifs_<N>/status

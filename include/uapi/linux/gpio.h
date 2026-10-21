@@ -218,7 +218,7 @@ struct gpio_v2_line_request {
  * gpio_v2_line_flag, such as %GPIO_V2_LINE_FLAG_ACTIVE_LOW,
  * %GPIO_V2_LINE_FLAG_OUTPUT etc, added together
  * @attrs: the configuration attributes associated with the line
- * @padding: reserved for future use
+ * @padding: reserved for future use, must be zero filled
  */
 struct gpio_v2_line_info {
 	char name[GPIO_MAX_NAME_SIZE];

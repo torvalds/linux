@@ -129,7 +129,7 @@ When the real object is not yet tracked by debugobjects then the
 fixup_activate function is called if available. This is necessary to
 allow the legitimate activation of statically allocated and initialized
 objects. The fixup function checks whether the object is valid and calls
-the debug_objects_init() function to initialize the tracking of this
+the debug_object_init() function to initialize the tracking of this
 object.
 
 When the activation is legitimate, then the state of the associated

@@ -273,7 +273,7 @@ If that works fine, try with ``io=0x378 irq=7`` (adjust for your
 hardware), to make it use interrupt-driven in-software protocol.
 
 If **that** works fine, then one of the hardware modes isn't working
-right.  Enable ``CONFIG_FIFO`` (no, it isn't a module option,
+right.  Enable ``CONFIG_PARPORT_PC_FIFO`` (no, it isn't a module option,
 and yes, it should be), set the port to ECP mode in the BIOS and note
 the DMA channel, and try with::
 

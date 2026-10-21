@@ -120,9 +120,10 @@ Reading /sys/../lineX will return the format string with its current value.
 Writing to /sys/../lineX will set the corresponding LCD line.
 
  - Excess characters are ignored.
- - If less characters are written than allowed, the remaining digits are
+ - If fewer characters than allowed are written, the remaining digits are
    unchanged.
- - The tab '\t'and '\n' char does not overwrite the original content.
+ - The tab ``\t`` and newline ``\n`` characters do not overwrite the original
+   content.
  - Writing a space to an icon will always hide its content.
 
   Example::
@@ -205,7 +206,7 @@ Troubleshooting
 :Q: Module yealink compiled and installed without any problem but phone
     is not initialized and does not react to any actions.
 :A: If you see something like:
-    hiddev0: USB HID v1.00 Device [Yealink Network Technology Ltd. VOIP USB Phone
+    hiddev0: USB HID v1.00 Device [Yealink Network Technology Ltd. VOIP USB Phone]
     in dmesg, it means that the hid driver has grabbed the device first. Try to
     load module yealink before any other usb hid driver. Please see the
     instructions provided by your distribution on module configuration.

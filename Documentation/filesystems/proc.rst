@@ -440,7 +440,7 @@ ioctl()-based API that gives ability to flexibly and efficiently query and
 filter individual VMAs. This interface is binary and is meant for more
 efficient and easy programmatic use. `struct procmap_query`, defined in
 linux/fs.h UAPI header, serves as an input/output argument to the
-`PROCMAP_QUERY` ioctl() command. See comments in linus/fs.h UAPI header for
+`PROCMAP_QUERY` ioctl() command. See comments in linux/fs.h UAPI header for
 details on query semantics, supported flags, data returned, and general API
 usage information.
 
@@ -576,14 +576,14 @@ encoded manner. The codes are the following:
 
     ==    =============================================================
     rd    readable
-    wr    writeable
+    wr    writable
     ex    executable
     sh    shared
     mr    may read
     mw    may write
     me    may execute
     ms    may share
-    gd    stack segment growns down
+    gd    stack segment grows down
     pf    pure PFN range
     lo    pages are locked in memory
     io    memory mapped I/O area
@@ -719,7 +719,7 @@ size, in KB, that is backing the mapping up.
 
 Note that some kernel configurations do not track the precise number of times
 a page part of a larger allocation (e.g., THP) is mapped. In these
-configurations, "mapmax" might corresponds to the average number of mappings
+configurations, "mapmax" might correspond to the average number of mappings
 per page in such a larger allocation instead.
 
 1.2 Kernel data
@@ -2012,7 +2012,7 @@ For more information on mount propagation see:
 These files provide a method to access a task's comm value. It also allows for
 a task to set its own or one of its thread siblings comm value. The comm value
 is limited in size compared to the cmdline value, so writing anything longer
-then the kernel's TASK_COMM_LEN (currently 16 chars, including the NUL
+than the kernel's TASK_COMM_LEN (currently 16 chars, including the NUL
 terminator) will result in a truncated comm value.
 
 

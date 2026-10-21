@@ -673,7 +673,7 @@ watch out, since that shortcut is no longer valid.
 they used to - they just take it exclusive.  However, ->lookup() may be
 called with parent locked shared.  Its instances must not
 
-	* use d_instantiate) and d_rehash() separately - use d_add() or
+	* use d_instantiate() and d_rehash() separately - use d_add() or
 	  d_splice_alias() instead.
 	* use d_rehash() alone - call d_add(new_dentry, NULL) instead.
 	* in the unlikely case when (read-only) access to filesystem

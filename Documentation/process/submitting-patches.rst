@@ -456,7 +456,7 @@ When to use Acked-by:, Cc:, and Co-developed-by:
 ------------------------------------------------
 
 The Signed-off-by: tag indicates that the signer was involved in the
-development of the patch, or that he/she was in the patch's delivery path.
+development of the patch, or that they were in the patch's delivery path.
 
 If a person was not directly involved in the preparation or handling of a
 patch but wishes to signify and record their approval of it then they can
@@ -631,16 +631,6 @@ and Suggested-by: did the reporting or suggestion in public. Note,
 bugzilla.kernel.org is a public place in this sense, but email addresses
 used there are private; so do not expose them in tags, unless the person
 used them in earlier contributions.
-
-Using Assisted-by:
-------------------
-
-If you used any sort of advanced coding tool in the creation of your patch,
-you need to acknowledge that use by adding an Assisted-by tag.  Failure to
-do so may impede the acceptance of your work.  Please see
-Documentation/process/coding-assistants.rst for details regarding the
-acknowledgment of coding assistants.
-
 
 .. _the_canonical_patch_format:
 

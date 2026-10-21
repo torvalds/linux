@@ -8,7 +8,7 @@ Aqui estão algumas coisas básicas que os desenvolvedores devem fazer se
 quiserem ver suas submissões de patches de kernel aceitas mais rapidamente.
 
 Estas diretrizes vão além da documentação fornecida em
-:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
+:ref:`Documentation/translations/pt_BR/process/submitting-patches.rst <pt_BR_submittingpatches>`
 e em outros locais sobre o envio de patches para o kernel Linux.
 
 Revise seu código
@@ -19,7 +19,7 @@ Revise seu código
    os que você usa de forma indireta.
 
 2) Verifique o estilo geral do seu patch conforme detalhado em
-   :ref:`Documentation//process/coding-style.rst <codingstyle>`.
+   :ref:`Documentation/translations/pt_BR/process/coding-style.rst <pt_BR_codingstyle>`.
 
 3) Todas as barreiras de memória {por exemplo, ``barrier()``, ``rmb()``,
    ``wmb()``} precisam de um comentário no código-fonte que explique a

@@ -7,7 +7,7 @@ Adicionando uma Nova Chamada de Sistema
 Este documento descreve o que está envolvido na adição de uma nova chamada de
 sistema (system call) ao kernel Linux, indo além dos conselhos normais de
 submissão em
-:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`.
+:ref:`Documentation/translations/pt_BR/process/submitting-patches.rst <pt_BR_submittingpatches>`.
 
 
 Alternativas às Chamadas de Sistema
@@ -122,10 +122,10 @@ como o handle (identificador) para esse objeto -- não invente um novo tipo de
 handle de objeto para o espaço do usuário quando o kernel já possui mecanismos
 e semânticas bem definidas para o uso de descritores de arquivo.
 
-Se a sua nova chamada de sistema (2) de fato retornar un novo descritor de
+Se a sua nova chamada de sistema xyzzy(2) de fato retornar um novo descritor de
 arquivo, então o argumento de flags deve incluir um valor que seja equivalente
 a definir ``O_CLOEXEC`` no novo FD. Isso torna possível para o espaço do usuário
-fechar a janela de tempo entre a chamada ``()`` e a execução de
+fechar a janela de tempo entre a chamada ``xyzzy()`` e a execução de
 ``fcntl(fd, F_SETFD, FD_CLOEXEC)``, onde um ``fork()`` e ``execve()`` inesperados
 em outra thread poderiam vazar um descritor para o programa executado. (Contudo,
 resista à tentação de reutilizar o valor real da constante ``O_CLOEXEC``, pois
@@ -138,7 +138,7 @@ deve considerar o que significa usar a família de chamadas de sistema
 pronto para leitura ou escrita é a maneira normal de o kernel indicar ao espaço
 do usuário que um evento ocorreu no objeto correspondente do kernel.
 
-Se a sua nova chamada de sistema (2) envolver um argumento de nome de arquivo
+Se a sua nova chamada de sistema xyzzy(2) envolver um argumento de nome de arquivo
 (filename)::
 
     int sys_xyzzy(const char __user *path, ..., unsigned int flags);
@@ -152,18 +152,18 @@ o arquivo em questão; em particular, permite que o espaço do usuário solicite
 funcionalidade para um descritor de arquivo já aberto usando a flag
 ``AT_EMPTY_PATH``, fornecendo efetivamente uma operação fxyzzy(3) de graça::
 
- - xyzzyat(AT_FDCWD, path, ..., 0) é equivalente a (path,...)
+ - xyzzyat(AT_FDCWD, path, ..., 0) é equivalente a xyzzy(path,...)
  - xyzzyat(fd, "", ..., AT_EMPTY_PATH) é equivalente a fxyzzy(fd, ...)
 
 (Para mais detalhes sobre a justificativa das chamadas \*at(), veja a página de
 manual :manpage:`openat(2)`; para um exemplo de AT_EMPTY_PATH, veja a página de
 manual :manpage:`fstatat(2)`.)
 
-Se a sua nova chamada de sistema (2) envolver um parâmetro que descreve um
+Se a sua nova chamada de sistema xyzzy(2) envolver um parâmetro que descreve um
 deslocamento (offset) dentro de um arquivo, mude o seu tipo para ``loff_t`` para
 que offsets de 64 bits possam ser suportados mesmo em arquiteturas de 32 bits.
 
-Se a sua nova chamada de sistema (2) envolver funcionalidades privilegiadas,
+Se a sua nova chamada de sistema xyzzy(2) envolver funcionalidades privilegiadas,
 ela precisa ser governada pelo bit de capacidade (capability) do Linux apropriado
 (verificado com uma chamada a ``capable()``), conforme descrito na página de
 manual :manpage:`capabilities(7)`. Escolha um bit de capacidade existente que governe
@@ -172,7 +172,7 @@ apenas uma vaga relação sob o mesmo bit, pois isso vai contra o propósito das
 capabilities de dividir o poder do root. Em particular, evite adicionar novos
 usos para a capacidade ``CAP_SYS_ADMIN``, que já é excessivamente generalista.
 
-Se a sua nova chamada de sistema (2) manipular um processo diferente do
+Se a sua nova chamada de sistema xyzzy(2) manipular um processo diferente do
 processo que a chamou, ela deve ser restrita (usando uma chamada a
 ``ptrace_may_access()``) para que apenas um processo chamador com as mesmas
 permissões do processo alvo, ou com as capacidades necessárias, possa manipular
@@ -211,7 +211,7 @@ kernel, devem sempre ser enviadas com cópia (cc'ed) para linux-api@vger.kernel.
 Implementação Genérica de Chamadas de Sistema
 ---------------------------------------------
 
-O ponto de entrada principal para a sua nova chamada de sistema (2) será chamado
+O ponto de entrada principal para a sua nova chamada de sistema xyzzy(2) será chamado
 de ``sys_xyzzy()``, mas você deve adicionar esse ponto de entrada com a macro
 ``SYSCALL_DEFINEn()`` apropriada, em vez de fazer isso explicitamente. O 'n'
 indica o número de argumentos da chamada de sistema, e a macro recebe o nome da
@@ -242,7 +242,7 @@ O arquivo ``kernel/sys_ni.c`` fornece uma implementação de stub de fallback pa
 cada chamada de sistema, retornando ``-ENOSYS``. Adicione a sua nova chamada de
 sistema aqui também::
 
-    COND_SYSCALL(sys_xyzzy);
+    COND_SYSCALL(xyzzy);
 
 A sua nova funcionalidade de kernel, e a chamada de sistema que a controla, deve
 normalmente ser opcional, portanto adicione uma opção ``CONFIG`` (tipicamente em
@@ -259,7 +259,7 @@ normalmente ser opcional, portanto adicione uma opção ``CONFIG`` (tipicamente 
 Para resumir, você precisa de um commit que inclua:
 
  - Opção ``CONFIG`` para a nova função, normalmente em ``init/Kconfig``
- - ``SYSCALL_DEFINEn(, ...)`` para o ponto de entrada
+ - ``SYSCALL_DEFINEn(xyzzy, ...)`` para o ponto de entrada
  - Protótipo correspondente em ``include/linux/syscalls.h``
  - Entrada na tabela genérica em ``include/uapi/asm-generic/unistd.h``
  - Stub de fallback em ``kernel/sys_ni.c``
@@ -289,7 +289,7 @@ ajustar ``arch/*/kernel/Makefile.syscalls``.
 Como o ``scripts/syscall.tbl`` serve como uma tabela de syscall comum para
 múltiplas arquiteturas, uma nova entrada é necessária nesta tabela::
 
-    468   common        sys_xyzzy
+    468   common   xyzzy     sys_xyzzy
 
 Note que adicionar uma entrada ao ``scripts/syscall.tbl`` com a ABI "common"
 também afeta todas as arquiteturas que compartilham essa tabela. Para alterações
@@ -304,7 +304,7 @@ correspondentes também devem ser feitas em ``arch/*/kernel/Makefile.syscalls``:
 Para resumir, você precisa de um commit que inclua:
 
  - Opção ``CONFIG`` para a nova função, normalmente em ``init/Kconfig``
- - ``SYSCALL_DEFINEn(, ...)`` para o ponto de entrada
+ - ``SYSCALL_DEFINEn(xyzzy, ...)`` para o ponto de entrada
  - Protótipo correspondente em ``include/linux/syscalls.h``
  - Nova entrada em ``scripts/syscall.tbl``
  - (Se necessário) Atualizações de Makefile em ``arch/*/kernel/Makefile.syscalls``
@@ -320,11 +320,11 @@ de sistema não seja especial de alguma forma (veja abaixo), isso envolve uma
 entrada "common" (para x86_64 e x32) em
 ``arch/x86/entry/syscalls/syscall_64.tbl``::
 
-    333   common        sys_xyzzy
+    333   common   xyzzy     sys_xyzzy
 
 e uma entrada "i386" em ``arch/x86/entry/syscalls/syscall_32.tbl``::
 
-    380   i386          sys_xyzzy
+    380   i386     xyzzy     sys_xyzzy
 
 Novamente, esses números estão sujeitos a alterações caso ocorram conflitos na
 janela de mesclagem (merge window) relevante.
@@ -414,7 +414,7 @@ a versão compat; a entrada em ``include/uapi/asm-generic/unistd.h`` deve usar
 
 Para resumir, você precisa de:
 
- - uma macro ``COMPAT_SYSCALL_DEFINEn(, ...)`` para o ponto de entrada compat
+ - uma macro ``COMPAT_SYSCALL_DEFINEn(xyzzy, ...)`` para o ponto de entrada compat
  - protótipo correspondente em ``include/linux/compat.h``
  - (se necessário) struct de mapeamento de 32 bits em ``include/linux/compat.h``
  - instância de ``__SC_COMP``, e não de ``__SYSCALL``, em
@@ -433,11 +433,11 @@ Você precisa estender a entrada em ``scripts/syscall.tbl`` com uma coluna extra
 para indicar que um programa de espaço do usuário de 32 bits rodando em um
 kernel de 64 bits deve atingir o ponto de entrada compat::
 
-    468   common          sys_xyzzy    compat_sys_xyzzy
+    468   common     xyzzy     sys_xyzzy    compat_sys_xyzzy
 
 Para resumir, você precisa de:
 
- - ``COMPAT_SYSCALL_DEFINEn(, ...)`` para o ponto de entrada compat
+ - ``COMPAT_SYSCALL_DEFINEn(xyzzy, ...)`` para o ponto de entrada compat
  - Protótipo correspondente em ``include/linux/compat.h``
  - Modificação da entrada em ``scripts/syscall.tbl`` para incluir uma coluna
    "compat" extra
@@ -454,7 +454,7 @@ compatibilidade voltadas para o espaço do usuário de 32 bits (AArch32):
 ``arch/arm64/tools/syscall_32.tbl``. Você precisa adicionar uma linha adicional
 a esta tabela especificando o ponto de entrada compat::
 
-    468   common          sys_xyzzy    compat_sys_xyzzy
+    468   common     xyzzy     sys_xyzzy    compat_sys_xyzzy
 
 
 Chamadas de Sistema de Compatibilidade (x86)
@@ -467,7 +467,7 @@ Primeiro, a entrada em ``arch/x86/entry/syscalls/syscall_32.tbl`` ganha uma
 coluna extra para indicar que um programa de espaço do usuário de 32 bits rodando
 em um kernel de 64 bits deve atingir o ponto de entrada compat::
 
-    380   i386          sys_xyzzy    __ia32_compat_sys_xyzzy
+    380   i386     xyzzy     sys_xyzzy    __ia32_compat_sys_xyzzy
 
 Segundo, você precisa definir o que deve acontecer para a versão da ABI x32 da
 nova chamada de sistema. Há uma escolha aqui: o layout dos argumentos deve
@@ -479,9 +479,9 @@ corresponder à versão de 32 bits, e a entrada em
 ``arch/x86/entry/syscalls/syscall_64.tbl`` é dividida para que os programas x32
 atinjam o wrapper de compatibilidade::
 
-    333   64            sys_xyzzy
+    333   64       xyzzy     sys_xyzzy
     ...
-    555   x32           __x32_compat_sys_xyzzy
+    555   x32      xyzzy     __x32_compat_sys_xyzzy
 
 Se não houver ponteiros envolvidos, então é preferível reutilizar a chamada de
 sistema de 64 bits para a ABI x32 (e, consequentemente, a entrada em
@@ -518,14 +518,14 @@ Para x86_64, isso é implementado como um ponto de entrada ``stub_xyzzy`` em
 ``arch/x86/entry/entry_64.S``, e a entrada correspondente na tabela de syscalls
 (``arch/x86/entry/syscalls/syscall_64.tbl``) é ajustada para refletir::
 
-    333   common        stub_xyzzy
+    333   common   xyzzy     stub_xyzzy
 
 O equivalente para programas de 32 bits executados em um kernel de 64 bits é
 normalmente chamado de ``stub32_xyzzy`` e implementado em
 ``arch/x86/entry/entry_64_compat.S``, com o respectivo ajuste na tabela de
 syscalls em ``arch/x86/entry/syscalls/syscall_32.tbl``::
 
-    380   i386          sys_xyzzy    stub32_xyzzy
+    380   i386     xyzzy     sys_xyzzy    stub32_xyzzy
 
 Se a chamada de sistema precisar de uma camada de compatibilidade (como na
 seção anterior), a versão ``stub32_`` precisará chamar a versão
@@ -579,12 +579,16 @@ espaço do usuário, o cabeçalho correspondente precisará ser instalado para
 compilar o teste.
 
 Certifique-se de que o autoteste seja executado com sucesso em todas as
-arquiteturas suportadas. Por exemplo, verifique se ele funciona quando compitado
+arquiteturas suportadas. Por exemplo, verifique se ele funciona quando compilado
 como um programa ABI x86_64 (-m64), x86_32 (-m32) e x32 (-mx32).
 
 Para testes mais extensos e minuciosos de novas funcionalidades, você também
 deve considerar a adição de testes ao Linux Test Project ou ao projeto
-xfstests para alterações relacionadas
+xfstests para alterações relacionadas a sistemas de arquivos.
+
+ - https://linux-test-project.github.io/
+ - git://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git
+
 
 Página de Manual (Man Page)
 ---------------------------

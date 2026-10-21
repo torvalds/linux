@@ -831,6 +831,13 @@ class KernelDoc:
         #
         source = source
         proto = trim_private_members(proto)
+
+        #
+        # Expand macro-based declarations, like context_lock_struct(),
+        # into a plain struct/union declaration before splitting it,
+        # as dump_var() and dump_function() already do.
+        #
+        proto = self.xforms.apply("struct", proto)
         struct_parts = self.split_struct_proto(proto)
         if not struct_parts:
             self.emit_msg(ln, f"{proto} error: Cannot parse struct or union!")
@@ -841,10 +848,6 @@ class KernelDoc:
             self.emit_msg(ln, f"expecting prototype for {decl_type} {self.entry.identifier}. "
                           f"Prototype was for {decl_type} {declaration_name} instead")
             return
-        #
-        # Go through the list of members applying all of our transformations.
-        #
-        members = self.xforms.apply("struct", members)
 
         #
         # Deal with embedded struct and union members, and drop enums entirely.
