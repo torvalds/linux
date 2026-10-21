@@ -1033,13 +1033,16 @@ void ftrace_stub_graph(struct ftrace_graph_ret *trace, struct fgraph_ops *gops,
 trace_func_graph_ret_t ftrace_graph_return = ftrace_stub_graph;
 trace_func_graph_ent_t ftrace_graph_entry = ftrace_graph_entry_stub;
 
-/* Try to assign a return stack array on FTRACE_RETSTACK_ALLOC_SIZE tasks. */
+/*
+ * Loop thru all the tasks in the system and assign ret_stack.
+ * The @ret_stack_list is a small pre-allocated fallback, in case
+ * the GFP_NOWAIT allocations here fail.
+ */
 static int alloc_retstack_tasklist(unsigned long **ret_stack_list)
 {
-	int i;
-	int ret = 0;
 	int start = 0, end = FTRACE_RETSTACK_ALLOC_SIZE;
 	struct task_struct *g, *t;
+	int i, ret = 0;
 
 	if (WARN_ON_ONCE(!fgraph_stack_cachep))
 		return -ENOMEM;
@@ -1056,20 +1059,26 @@ static int alloc_retstack_tasklist(unsigned long **ret_stack_list)
 
 	rcu_read_lock();
 	for_each_process_thread(g, t) {
-		if (start == end) {
-			ret = -EAGAIN;
-			goto unlock;
+		unsigned long *rs;
+
+		if (t->ret_stack)
+			continue;
+
+		rs = kmem_cache_alloc(fgraph_stack_cachep, GFP_NOWAIT);
+		if (!rs) {
+			if (start == end) {
+				ret = -EAGAIN;
+				goto unlock;
+			}
+			rs = ret_stack_list[start++];
 		}
 
-		if (t->ret_stack == NULL) {
-			atomic_set(&t->trace_overrun, 0);
-			ret_stack_init_task_vars(ret_stack_list[start]);
-			t->curr_ret_stack = 0;
-			t->curr_ret_depth = -1;
-			/* Make sure the tasks see the 0 first: */
-			smp_wmb();
-			t->ret_stack = ret_stack_list[start++];
-		}
+		atomic_set(&t->trace_overrun, 0);
+		ret_stack_init_task_vars(rs);
+		t->curr_ret_stack = 0;
+		t->curr_ret_depth = -1;
+		/* Make sure the tasks see the 0 first: */
+		smp_store_release(&t->ret_stack, rs);
 	}
 
 unlock:
