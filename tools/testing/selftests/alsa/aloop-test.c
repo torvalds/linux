@@ -323,6 +323,46 @@ TEST_F(aloop, params_change_stops_capture_with_notify) {
 	snd_pcm_close(capt);
 }
 
+/*
+ * A playback that joins a running capture with the same parameters doesn't
+ * stop it, and the "PCM Slave" controls still report the playback's
+ * parameters rather than those of an earlier stream.
+ */
+TEST_F(aloop, matching_playback_updates_controls) {
+	snd_pcm_t *capt, *play;
+	unsigned int events;
+
+	/* Leave the controls at other parameters than the ones used below. */
+	ASSERT_EQ(open_pcm(&play, self->play_name, SND_PCM_STREAM_PLAYBACK, &playback_params), 0);
+	ASSERT_EQ(start_playback(play, &playback_params), 0);
+	snd_pcm_close(play);
+
+	ASSERT_EQ(set_notify(self->ctl, false), 0);
+	ASSERT_EQ(open_pcm(&capt, self->capt_name, SND_PCM_STREAM_CAPTURE, &capture_params), 0);
+	ASSERT_EQ(snd_pcm_start(capt), 0);
+	read_events(self->ctl);
+
+	ASSERT_EQ(open_pcm(&play, self->play_name, SND_PCM_STREAM_PLAYBACK, &capture_params), 0);
+	ASSERT_EQ(start_playback(play, &capture_params), 0);
+
+	EXPECT_EQ(snd_pcm_state(capt), SND_PCM_STATE_RUNNING);
+
+	EXPECT_EQ(cable_ctl_get(self->ctl, "PCM Slave Active"), 1);
+	EXPECT_EQ(cable_ctl_get(self->ctl, "PCM Slave Format"), capture_params.format);
+	EXPECT_EQ(cable_ctl_get(self->ctl, "PCM Slave Rate"), capture_params.rate);
+	EXPECT_EQ(cable_ctl_get(self->ctl, "PCM Slave Channels"), capture_params.channels);
+	EXPECT_EQ(cable_ctl_get(self->ctl, "PCM Slave Access Mode"), 0);
+
+	events = read_events(self->ctl);
+	EXPECT_TRUE(events & EV_FORMAT);
+	EXPECT_TRUE(events & EV_RATE);
+	EXPECT_TRUE(events & EV_CHANNELS);
+	EXPECT_TRUE(events & EV_ACCESS);
+
+	snd_pcm_close(play);
+	snd_pcm_close(capt);
+}
+
 /* With notify, a capture opened second is still pinned to the playback's parameters. */
 TEST_F(aloop, capture_constrained_with_notify) {
 	struct probe_result res;
