@@ -59,8 +59,7 @@ STATIC void xfs_attr_restore_rmt_blk(struct xfs_da_args *args);
 static int xfs_attr_node_try_addname(struct xfs_attr_intent *attr);
 STATIC int xfs_attr_node_addname_find_attr(struct xfs_attr_intent *attr);
 STATIC int xfs_attr_node_remove_attr(struct xfs_attr_intent *attr);
-STATIC int xfs_attr_node_lookup(struct xfs_da_args *args,
-		struct xfs_da_state *state);
+STATIC int xfs_attr_node_lookup(struct xfs_da_state *state);
 
 int
 xfs_inode_hasattr(
@@ -709,7 +708,7 @@ int xfs_attr_node_removename_setup(
 	int				error;
 
 	xfs_attr_item_init_da_state(attr);
-	error = xfs_attr_node_lookup(args, attr->xattri_da_state);
+	error = xfs_attr_node_lookup(attr->xattri_da_state);
 	if (error != -EEXIST)
 		goto out;
 	error = 0;
@@ -985,7 +984,7 @@ xfs_attr_lookup(
 	}
 
 	state = xfs_da_state_alloc(args);
-	error = xfs_attr_node_lookup(args, state);
+	error = xfs_attr_node_lookup(state);
 	xfs_da_state_free(state);
 	return error;
 }
@@ -1014,7 +1013,7 @@ xfs_attr_add_fork(
 	if (xfs_inode_has_attr_fork(ip))
 		goto trans_cancel;
 
-	error = xfs_bmap_add_attrfork(tp, ip, size, rsvd);
+	error = xfs_bmap_add_attrfork(tp, ip, size);
 	if (error)
 		goto trans_cancel;
 
@@ -1386,7 +1385,6 @@ xfs_attr_leaf_get(
 /* Return EEXIST if attr is found, or ENOATTR if not. */
 STATIC int
 xfs_attr_node_lookup(
-	struct xfs_da_args	*args,
 	struct xfs_da_state	*state)
 {
 	int			retval, error;
@@ -1417,7 +1415,7 @@ xfs_attr_node_addname_find_attr(
 	 * to where it should go.
 	 */
 	xfs_attr_item_init_da_state(attr);
-	error = xfs_attr_node_lookup(args, attr->xattri_da_state);
+	error = xfs_attr_node_lookup(attr->xattri_da_state);
 	switch (error) {
 	case -ENOATTR:
 		if (args->op_flags & XFS_DA_OP_REPLACE)
@@ -1588,7 +1586,7 @@ xfs_attr_node_get(
 	 * Search to see if name exists, and get back a pointer to it.
 	 */
 	state = xfs_da_state_alloc(args);
-	error = xfs_attr_node_lookup(args, state);
+	error = xfs_attr_node_lookup(state);
 	if (error != -EEXIST)
 		goto out_release;
 

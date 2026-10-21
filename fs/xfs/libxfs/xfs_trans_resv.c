@@ -606,10 +606,10 @@ static inline unsigned int xfs_calc_pptr_replace_overhead(void)
  */
 STATIC uint
 xfs_calc_rename_reservation(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	struct xfs_trans_resv	*resp)
 {
 	unsigned int		overhead = XFS_DQUOT_LOGRES;
-	struct xfs_trans_resv	*resp = M_RES(mp);
 	unsigned int		t1, t2, t3 = 0;
 
 	t1 = xfs_calc_inode_res(mp, 5) +
@@ -715,10 +715,10 @@ xfs_link_log_count(
  */
 STATIC uint
 xfs_calc_link_reservation(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	struct xfs_trans_resv	*resp)
 {
 	unsigned int		overhead = XFS_DQUOT_LOGRES;
-	struct xfs_trans_resv	*resp = M_RES(mp);
 	unsigned int		t1, t2, t3 = 0;
 
 	overhead += xfs_calc_iunlink_remove_reservation(mp);
@@ -777,10 +777,10 @@ xfs_remove_log_count(
  */
 STATIC uint
 xfs_calc_remove_reservation(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	struct xfs_trans_resv	*resp)
 {
 	unsigned int            overhead = XFS_DQUOT_LOGRES;
-	struct xfs_trans_resv   *resp = M_RES(mp);
 	unsigned int            t1, t2, t3 = 0;
 
 	overhead += xfs_calc_iunlink_add_reservation(mp);
@@ -862,9 +862,9 @@ xfs_icreate_log_count(
 
 STATIC uint
 xfs_calc_icreate_reservation(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	struct xfs_trans_resv	*resp)
 {
-	struct xfs_trans_resv	*resp = M_RES(mp);
 	unsigned int		overhead = XFS_DQUOT_LOGRES;
 	unsigned int		t1, t2, t3 = 0;
 
@@ -911,9 +911,10 @@ xfs_mkdir_log_count(
  */
 STATIC uint
 xfs_calc_mkdir_reservation(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	struct xfs_trans_resv	*resp)
 {
-	return xfs_calc_icreate_reservation(mp);
+	return xfs_calc_icreate_reservation(mp, resp);
 }
 
 static inline unsigned int
@@ -940,9 +941,10 @@ xfs_symlink_log_count(
  */
 STATIC uint
 xfs_calc_symlink_reservation(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	struct xfs_trans_resv	*resp)
 {
-	return xfs_calc_icreate_reservation(mp) +
+	return xfs_calc_icreate_reservation(mp, resp) +
 	       xfs_calc_buf_res(1, XFS_SYMLINK_MAXLEN);
 }
 
@@ -1265,34 +1267,33 @@ xfs_calc_namespace_reservations(
 {
 	ASSERT(resp->tr_attrsetm.tr_logres > 0);
 
-	resp->tr_rename.tr_logres = xfs_calc_rename_reservation(mp);
+	resp->tr_rename.tr_logres = xfs_calc_rename_reservation(mp, resp);
 	resp->tr_rename.tr_logcount = xfs_rename_log_count(mp, resp);
 	resp->tr_rename.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
-	resp->tr_link.tr_logres = xfs_calc_link_reservation(mp);
+	resp->tr_link.tr_logres = xfs_calc_link_reservation(mp, resp);
 	resp->tr_link.tr_logcount = xfs_link_log_count(mp, resp);
 	resp->tr_link.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
-	resp->tr_remove.tr_logres = xfs_calc_remove_reservation(mp);
+	resp->tr_remove.tr_logres = xfs_calc_remove_reservation(mp, resp);
 	resp->tr_remove.tr_logcount = xfs_remove_log_count(mp, resp);
 	resp->tr_remove.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
-	resp->tr_symlink.tr_logres = xfs_calc_symlink_reservation(mp);
+	resp->tr_symlink.tr_logres = xfs_calc_symlink_reservation(mp, resp);
 	resp->tr_symlink.tr_logcount = xfs_symlink_log_count(mp, resp);
 	resp->tr_symlink.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
-	resp->tr_create.tr_logres = xfs_calc_icreate_reservation(mp);
+	resp->tr_create.tr_logres = xfs_calc_icreate_reservation(mp, resp);
 	resp->tr_create.tr_logcount = xfs_icreate_log_count(mp, resp);
 	resp->tr_create.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
-	resp->tr_mkdir.tr_logres = xfs_calc_mkdir_reservation(mp);
+	resp->tr_mkdir.tr_logres = xfs_calc_mkdir_reservation(mp, resp);
 	resp->tr_mkdir.tr_logcount = xfs_mkdir_log_count(mp, resp);
 	resp->tr_mkdir.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 }
 
 STATIC void
 xfs_calc_default_atomic_ioend_reservation(
-	struct xfs_mount	*mp,
 	struct xfs_trans_resv	*resp)
 {
 	/* Pick a default that will scale reasonably for the log size. */
@@ -1398,7 +1399,7 @@ xfs_trans_resv_calc(
 	 * Now that we've finished computing the static reservations, we can
 	 * compute the dynamic reservation for atomic writes.
 	 */
-	xfs_calc_default_atomic_ioend_reservation(mp, resp);
+	xfs_calc_default_atomic_ioend_reservation(resp);
 }
 
 /*
@@ -1508,7 +1509,7 @@ xfs_calc_atomic_write_log_geometry(
 
 	ASSERT(blockcount > 0);
 
-	xfs_calc_default_atomic_ioend_reservation(mp, M_RES(mp));
+	xfs_calc_default_atomic_ioend_reservation(M_RES(mp));
 
 	per_intent = xfs_calc_atomic_write_ioend_geometry(mp, &step_size);
 
@@ -1545,7 +1546,7 @@ xfs_calc_atomic_write_reservation(
 	 * use the defaults.
 	 */
 	if (blockcount == 0) {
-		xfs_calc_default_atomic_ioend_reservation(mp, M_RES(mp));
+		xfs_calc_default_atomic_ioend_reservation(M_RES(mp));
 		return 0;
 	}
 

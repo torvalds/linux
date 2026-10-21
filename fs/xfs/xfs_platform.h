@@ -50,6 +50,7 @@
 #include <linux/xattr.h>
 #include <linux/mnt_idmapping.h>
 #include <linux/debugfs.h>
+#include <linux/iversion.h>
 #include <asm/page.h>
 #include <asm/div64.h>
 #include <asm/param.h>

@@ -796,9 +796,9 @@ xreap_fsmeta_extent(
 	xfs_agblock_t		agbno_next = agbno + len;
 	int			error = 0;
 
-	ASSERT(len <= XFS_MAX_BMBT_EXTLEN);
 	ASSERT(sc->ip != NULL);
 	ASSERT(!sc->sa.pag);
+	ASSERT(agno == XFS_FSB_TO_AGNO(sc->mp, fsbno + len - 1));
 
 	/*
 	 * We're reaping blocks after repairing file metadata, which means that
@@ -1080,25 +1080,22 @@ xreap_configure_rgcow_limits(
 				 XFS_RTGLOCK_RMAP | \
 				 XFS_RTGLOCK_REFCOUNT)
 
-/*
- * Break a rt file metadata extent into sub-extents by fate (crosslinked, not
- * crosslinked), and dispose of each sub-extent separately.  The extent must
- * be aligned to a realtime extent.
- */
-STATIC int
-xreap_rtmeta_extent(
-	uint64_t		rtbno,
+static int
+xreap_rtgroup_extent(
+	struct xreap_state	*rs,
+	xfs_rtblock_t		rtbno,
 	uint64_t		len,
-	void			*priv)
+	xfs_rgblock_t		*done)
 {
-	struct xreap_state	*rs = priv;
 	struct xfs_scrub	*sc = rs->sc;
 	xfs_rgblock_t		rgbno = xfs_rtb_to_rgbno(sc->mp, rtbno);
-	xfs_rgblock_t		rgbno_next = rgbno + len;
+	xfs_rgblock_t		rgbno_next;
 	int			error = 0;
 
 	ASSERT(sc->ip != NULL);
 	ASSERT(!sc->sr.rtg);
+
+	*done = 0;
 
 	/*
 	 * We're reaping blocks after repairing file metadata, which means that
@@ -1110,6 +1107,7 @@ xreap_rtmeta_extent(
 
 	xfs_rtgroup_lock(sc->sr.rtg, XREAP_RTGLOCK_ALL);
 
+	rgbno_next = rgbno + min(len, (uint64_t)rtg_blocks(sc->sr.rtg) - rgbno);
 	while (rgbno < rgbno_next) {
 		xfs_extlen_t	rglen;
 		bool		crosslinked;
@@ -1136,6 +1134,7 @@ xreap_rtmeta_extent(
 		}
 
 		rgbno += rglen;
+		*done += rglen;
 	}
 
 out_unlock:
@@ -1143,6 +1142,44 @@ out_unlock:
 	xfs_rtgroup_put(sc->sr.rtg);
 	sc->sr.rtg = NULL;
 	return error;
+}
+
+/*
+ * Break a rt file metadata extent into sub-extents by fate (crosslinked, not
+ * crosslinked), and dispose of each sub-extent separately.  The extent must
+ * be aligned to a realtime extent.
+ */
+STATIC int
+xreap_rtmeta_extent(
+	uint64_t		rtbno,
+	uint64_t		len,
+	void			*priv)
+{
+	struct xreap_state	*rs = priv;
+	int			error;
+
+	/*
+	 * Space from adjacent rtgroups can be stored as a single bitmap extent
+	 * because rtgroups do not have fixed-location metadata such as a
+	 * per-group superblock that cannot be reaped.  Handle these overlaps
+	 * by only reaping within a single rtgroup at a time.
+	 *
+	 * In the somewhat unlikely event that an rtgroup size is not a power
+	 * of two, the segmented nature of xfs_rtblock_t prevents space in
+	 * adjacent rtgroups from merging in the bitmap.
+	 */
+	while (len > 0) {
+		xfs_rgblock_t	done = 0;
+
+		error = xreap_rtgroup_extent(rs, rtbno, len, &done);
+		if (error)
+			return error;
+
+		rtbno += done;
+		len -= done;
+	}
+
+	return 0;
 }
 
 /*
@@ -1443,12 +1480,12 @@ xrep_reap_bmapi_iter(
 		/*
 		 * t0: Schedule removal of the mapping from the fork.  We use
 		 * deferred log intents in this function to control the exact
-		 * sequence of metadata updates.
+		 * sequence of metadata updates.  The BUI queues a RUI to
+		 * remove the reverse mapping.
 		 */
 		xfs_bmap_unmap_extent(sc->tp, rs->ip, rs->whichfork, imap);
 		xfs_trans_mod_dquot_byino(sc->tp, rs->ip, XFS_TRANS_DQ_BCOUNT,
 				-(int64_t)imap->br_blockcount);
-		xfs_rmap_unmap_extent(sc->tp, rs->ip, rs->whichfork, imap);
 		return 0;
 	}
 

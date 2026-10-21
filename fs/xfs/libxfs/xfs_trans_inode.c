@@ -15,8 +15,6 @@
 #include "xfs_trans_priv.h"
 #include "xfs_inode_item.h"
 
-#include <linux/iversion.h>
-
 /*
  * Add a locked inode to the transaction.
  *

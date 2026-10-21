@@ -219,7 +219,7 @@ xfs_symlink(
 	*ipp = du.ip;
 	xfs_iunlock(du.ip, XFS_ILOCK_EXCL);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-	xfs_parent_finish(mp, du.ppargs);
+	xfs_parent_finish(du.ppargs);
 	return 0;
 
 out_trans_cancel:
@@ -236,7 +236,7 @@ out_release_inode:
 		xfs_irele(du.ip);
 	}
 out_parent:
-	xfs_parent_finish(mp, du.ppargs);
+	xfs_parent_finish(du.ppargs);
 out_release_dquots:
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);

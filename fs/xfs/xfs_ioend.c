@@ -147,23 +147,53 @@ xfs_ioend_submit_read(
 }
 
 static void
-xfs_ioend_put_open_zones(
+xfs_end_ioend_write_zoned(
 	struct iomap_ioend	*ioend)
 {
-	struct iomap_ioend *tmp;
+	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
+	struct xfs_open_zone	*oz = ioend->io_private;
+	struct iomap_ioend	*tmp;
+	int			error = -EIO;
+
+	ASSERT(!(ioend->io_flags & IOMAP_IOEND_SHARED));
+
+	if (xfs_is_shutdown(ip->i_mount))
+		goto done;
 
 	/*
-	 * Put the open zone for all ioends merged into this one (if any).
+	 * Zoned writes update the in-core open zone accounting before I/O
+	 * submission.  A failed write leaves that state inconsistent, so shut
+	 * down the filesystem instead of letting later writers wait forever for
+	 * open zone space to become available.
 	 */
-	list_for_each_entry(tmp, &ioend->io_list, io_list)
-		xfs_open_zone_put(tmp->io_private);
+	error = blk_status_to_errno(ioend->io_bio.bi_status);
+	if (unlikely(error)) {
+		xfs_force_shutdown(ip->i_mount, SHUTDOWN_META_IO_ERROR);
+		goto done;
+	}
 
+	error = xfs_zoned_end_io(ip, ioend->io_offset, ioend->io_size,
+			ioend->io_sector, oz, NULLFSBLOCK);
+	if (error)
+		goto done;
+
+	if (!(ioend->io_flags & IOMAP_IOEND_DIRECT) &&
+	    xfs_ioend_is_append(ioend))
+		error = xfs_setfilesize(ip, ioend->io_offset, ioend->io_size);
+done:
 	/*
-	 * The main ioend might not have an open zone if the submission failed
-	 * before xfs_zone_alloc_and_submit got called.
+	 * Put the open zone references for all ioends merged into this one in
+	 * addition to the main one they were merged into.  If the submission
+	 * failed before xfs_zone_alloc_and_submit got called, there is no open
+	 * zone and at least in theory that could also happen for merged ioends.
 	 */
-	if (ioend->io_private)
-		xfs_open_zone_put(ioend->io_private);
+	list_for_each_entry(tmp, &ioend->io_list, io_list) {
+		if (tmp->io_private)
+			xfs_open_zone_put(tmp->io_private);
+	}
+	if (oz)
+		xfs_open_zone_put(oz);
+	iomap_finish_ioends(ioend, error);
 }
 
 static void
@@ -172,18 +202,9 @@ xfs_end_ioend_write(
 {
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	bool			is_zoned = xfs_is_zoned_inode(ip);
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
-	unsigned int		nofs_flag;
 	int			error;
-
-	/*
-	 * We can allocate memory here while doing writeback on behalf of
-	 * memory reclaim.  To avoid memory allocation deadlocks set the
-	 * task-wide nofs context for the following operations.
-	 */
-	nofs_flag = memalloc_nofs_save();
 
 	/*
 	 * Just clean up the in-memory structures if the fs has been shut down.
@@ -202,19 +223,7 @@ xfs_end_ioend_write(
 	 */
 	error = blk_status_to_errno(ioend->io_bio.bi_status);
 	if (unlikely(error)) {
-		/*
-		 * Zoned writes update the in-core open zone accounting before
-		 * I/O submission.  A failed write leaves that state
-		 * inconsistent, so shut down the filesystem instead of letting
-		 * later writers wait forever for open zone space to become
-		 * available.
-		 */
-		if (is_zoned) {
-			xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
-			goto done;
-		}
 		if (ioend->io_flags & IOMAP_IOEND_SHARED) {
-			ASSERT(!is_zoned);
 			xfs_reflink_cancel_cow_range(ip, offset, size, true);
 			xfs_bmap_punch_delalloc_range(ip, XFS_DATA_FORK, offset,
 					offset + size, NULL);
@@ -225,10 +234,7 @@ xfs_end_ioend_write(
 	/*
 	 * Success: commit the COW or unwritten blocks if needed.
 	 */
-	if (is_zoned)
-		error = xfs_zoned_end_io(ip, offset, size, ioend->io_sector,
-				ioend->io_private, NULLFSBLOCK);
-	else if (ioend->io_flags & IOMAP_IOEND_SHARED)
+	if (ioend->io_flags & IOMAP_IOEND_SHARED)
 		error = xfs_reflink_end_cow(ip, offset, size);
 	else if (ioend->io_flags & IOMAP_IOEND_UNWRITTEN)
 		error = xfs_iomap_write_unwritten(ip, offset, size, false);
@@ -238,10 +244,7 @@ xfs_end_ioend_write(
 	    xfs_ioend_is_append(ioend))
 		error = xfs_setfilesize(ip, offset, size);
 done:
-	if (is_zoned)
-		xfs_ioend_put_open_zones(ioend);
 	iomap_finish_ioends(ioend, error);
-	memalloc_nofs_restore(nofs_flag);
 }
 
 /*
@@ -266,6 +269,7 @@ xfs_end_io(
 		container_of(work, struct xfs_inode, i_ioend_work);
 	struct iomap_ioend	*ioend;
 	struct list_head	tmp;
+	unsigned int		nofs_flag;
 	unsigned long		flags;
 
 	spin_lock_irqsave(&ip->i_ioend_lock, flags);
@@ -273,13 +277,24 @@ xfs_end_io(
 	spin_unlock_irqrestore(&ip->i_ioend_lock, flags);
 
 	iomap_sort_ioends(&tmp);
+
+	/*
+	 * We can allocate memory here while doing writeback on behalf of
+	 * memory reclaim.  To avoid memory allocation deadlocks set the
+	 * task-wide nofs context for the following operations.
+	 */
+	nofs_flag = memalloc_nofs_save();
 	while ((ioend = list_first_entry_or_null(&tmp, struct iomap_ioend,
 			io_list))) {
 		list_del_init(&ioend->io_list);
 		iomap_ioend_try_merge(ioend, &tmp);
-		xfs_end_ioend_write(ioend);
+		if (xfs_is_zoned_inode(ip))
+			xfs_end_ioend_write_zoned(ioend);
+		else
+			xfs_end_ioend_write(ioend);
 		cond_resched();
 	}
+	memalloc_nofs_restore(nofs_flag);
 }
 
 void

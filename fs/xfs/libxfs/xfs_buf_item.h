@@ -6,8 +6,6 @@
 #ifndef	__XFS_BUF_ITEM_H__
 #define	__XFS_BUF_ITEM_H__
 
-/* kernel only definitions */
-
 struct xfs_buf;
 struct xfs_mount;
 

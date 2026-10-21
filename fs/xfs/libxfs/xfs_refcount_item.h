@@ -22,8 +22,6 @@
  * to replay the refcountbt metadata updates.
  */
 
-/* kernel only CUI/CUD definitions */
-
 struct xfs_mount;
 struct kmem_cache;
 

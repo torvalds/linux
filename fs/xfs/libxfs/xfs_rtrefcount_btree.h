@@ -129,7 +129,6 @@ xfs_rtrefcount_broot_ptr_addr(
  */
 static inline size_t
 xfs_rtrefcount_broot_space_calc(
-	struct xfs_mount	*mp,
 	unsigned int		level,
 	unsigned int		nrecs)
 {
@@ -146,9 +145,9 @@ xfs_rtrefcount_broot_space_calc(
  * btree root block.
  */
 static inline size_t
-xfs_rtrefcount_broot_space(struct xfs_mount *mp, struct xfs_rtrefcount_root *bb)
+xfs_rtrefcount_broot_space(struct xfs_rtrefcount_root *bb)
 {
-	return xfs_rtrefcount_broot_space_calc(mp, be16_to_cpu(bb->bb_level),
+	return xfs_rtrefcount_broot_space_calc(be16_to_cpu(bb->bb_level),
 			be16_to_cpu(bb->bb_numrecs));
 }
 

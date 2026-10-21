@@ -132,7 +132,7 @@ xfs_ifork_ptr(
 
 static inline unsigned int xfs_inode_fork_boff(struct xfs_inode *ip)
 {
-	return ip->i_forkoff << 3;
+	return XFS_FORKOFF_TO_B(ip->i_forkoff);
 }
 
 static inline unsigned int xfs_inode_data_fork_size(struct xfs_inode *ip)
@@ -351,6 +351,15 @@ static inline bool xfs_inode_has_large_extent_counts(const struct xfs_inode *ip)
 static inline bool xfs_inode_has_bigrtalloc(const struct xfs_inode *ip)
 {
 	return XFS_IS_REALTIME_INODE(ip) && ip->i_mount->m_sb.sb_rextsize > 1;
+}
+
+/*
+ * Return the type of the group that data for a given inode is allocated from.
+ */
+static inline enum xfs_group_type
+xfs_inode_group_type(const struct xfs_inode *ip)
+{
+	return XFS_IS_REALTIME_INODE(ip) ? XG_TYPE_RTG : XG_TYPE_AG;
 }
 
 /*

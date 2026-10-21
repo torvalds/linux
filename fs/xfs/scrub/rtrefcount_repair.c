@@ -44,6 +44,7 @@
 #include "scrub/newbt.h"
 #include "scrub/reap.h"
 #include "scrub/rcbag.h"
+#include "scrub/refcount.h"
 
 /*
  * Rebuilding the Reference Count Btree
@@ -266,42 +267,6 @@ xrep_rtrefc_walk_rmaps(
 	return 0;
 }
 
-static inline uint32_t
-xrep_rtrefc_encode_startblock(
-	const struct xfs_refcount_irec	*irec)
-{
-	uint32_t			start;
-
-	start = irec->rc_startblock & ~XFS_REFC_COWFLAG;
-	if (irec->rc_domain == XFS_REFC_DOMAIN_COW)
-		start |= XFS_REFC_COWFLAG;
-
-	return start;
-}
-
-/*
- * Compare two refcount records.  We want to sort in order of increasing block
- * number.
- */
-static int
-xrep_rtrefc_extent_cmp(
-	const void			*a,
-	const void			*b)
-{
-	const struct xfs_refcount_irec	*ap = a;
-	const struct xfs_refcount_irec	*bp = b;
-	uint32_t			sa, sb;
-
-	sa = xrep_rtrefc_encode_startblock(ap);
-	sb = xrep_rtrefc_encode_startblock(bp);
-
-	if (sa > sb)
-		return 1;
-	if (sa < sb)
-		return -1;
-	return 0;
-}
-
 /*
  * Sort the refcount extents by startblock or else the btree records will be in
  * the wrong order.  Make sure the records do not overlap in physical space.
@@ -316,7 +281,7 @@ xrep_rtrefc_sort_records(
 	xfs_rgblock_t			next_rgbno = 0;
 	int				error;
 
-	error = xfarray_sort(rr->refcount_records, xrep_rtrefc_extent_cmp,
+	error = xfarray_sort(rr->refcount_records, xrep_refc_extent_cmp,
 			XFARRAY_SORT_KILLABLE);
 	if (error)
 		return error;
@@ -420,12 +385,12 @@ xrep_rtrefc_scan_ag(
 	struct xfs_scrub	*sc = rr->sc;
 	int			error;
 
-	error = xrep_ag_init(sc, pag, &sc->sa);
+	error = xrep_ag_init(sc, pag);
 	if (error)
 		return error;
 
 	error = xfs_rmap_query_all(sc->sa.rmap_cur, xrep_rtrefc_walk_rmap, rr);
-	xchk_ag_free(sc, &sc->sa);
+	xchk_ag_free(sc);
 	return error;
 }
 
@@ -453,7 +418,7 @@ xrep_rtrefc_find_refcounts(
 		}
 	}
 
-	xrep_rtgroup_btcur_init(sc, &sc->sr);
+	xrep_rtgroup_btcur_init(sc);
 
 	/*
 	 * Set up a bag to store all the rmap records that we're tracking to
@@ -545,7 +510,7 @@ xrep_rtrefc_find_refcounts(
 out_bag:
 	rcbag_free(&rcstack);
 out_cur:
-	xchk_rtgroup_btcur_free(&sc->sr);
+	xchk_rtgroup_btcur_free(sc);
 	return error;
 }
 
@@ -596,8 +561,7 @@ xrep_rtrefc_iroot_size(
 	unsigned int		nr_this_level,
 	void			*priv)
 {
-	return xfs_rtrefcount_broot_space_calc(cur->bc_mp, level,
-			nr_this_level);
+	return xfs_rtrefcount_broot_space_calc(level, nr_this_level);
 }
 
 /*

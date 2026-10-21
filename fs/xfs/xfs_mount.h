@@ -820,6 +820,8 @@ static inline void xfs_mod_sb_delalloc(struct xfs_mount *mp, int64_t delta)
 
 int xfs_set_max_atomic_write_opt(struct xfs_mount *mp,
 		unsigned long long new_max_bytes);
+xfs_extlen_t xfs_calc_group_awu_align_max(struct xfs_mount *mp,
+		enum xfs_group_type type);
 
 static inline struct xfs_buftarg *
 xfs_group_type_buftarg(

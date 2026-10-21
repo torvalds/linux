@@ -3,7 +3,6 @@
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include <linux/iversion.h>
 #include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
@@ -346,7 +345,7 @@ xfs_inode_init(
 	}
 
 	if (xfs_icreate_want_attrfork(mp, args)) {
-		ip->i_forkoff = xfs_default_attroffset(ip) >> 3;
+		ip->i_forkoff = xfs_inode_default_forkoff(ip);
 		xfs_ifork_init_attr(ip, XFS_DINODE_FMT_EXTENTS, 0);
 
 		if (!xfs_has_attr(mp)) {

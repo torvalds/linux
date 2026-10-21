@@ -70,9 +70,10 @@ unsigned int xfs_alloc_set_aside(struct xfs_mount *mp);
 unsigned int xfs_alloc_ag_max_usable(struct xfs_mount *mp);
 
 xfs_extlen_t xfs_alloc_longest_free_extent(struct xfs_perag *pag,
-		xfs_extlen_t need, xfs_extlen_t reserved);
-unsigned int xfs_alloc_min_freelist(struct xfs_mount *mp,
-		struct xfs_perag *pag);
+		xfs_extlen_t min_free, xfs_extlen_t max_free,
+		xfs_extlen_t reserved);
+void xfs_alloc_freelist(struct xfs_mount *mp, struct xfs_perag *pag,
+		unsigned int *min_free, unsigned int *max_free);
 int xfs_alloc_get_freelist(struct xfs_perag *pag, struct xfs_trans *tp,
 		struct xfs_buf *agfbp, xfs_agblock_t *bnop, int	 btreeblk);
 int xfs_alloc_put_freelist(struct xfs_perag *pag, struct xfs_trans *tp,

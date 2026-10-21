@@ -2948,7 +2948,8 @@ xlog_recover_process(
 		 * fatal log corruption failure.
 		 */
 		if (xfs_has_crc(log->l_mp)) {
-			XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
+			XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW,
+					 -EFSCORRUPTED, log->l_mp);
 			return -EFSCORRUPTED;
 		}
 	}

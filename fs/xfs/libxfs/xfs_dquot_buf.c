@@ -454,19 +454,8 @@ xfs_dqinode_metadir_link(
 		.path			= xfs_dqinode_path(type),
 		.ip			= ip,
 	};
-	int				error;
 
-	error = xfs_metadir_start_link(&upd);
-	if (error)
-		return error;
-
-	error = xfs_metadir_link(&upd);
-	if (error)
-		return error;
-
-	xfs_trans_log_inode(upd.tp, upd.ip, XFS_ILOG_CORE);
-
-	return xfs_metadir_commit(&upd);
+	return xfs_metadir_link_file(&upd);
 }
 #endif /* __KERNEL__ */
 

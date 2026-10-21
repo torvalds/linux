@@ -2397,31 +2397,36 @@ xfs_alloc_compute_maxlevels(
 }
 
 /*
- * Find the length of the longest extent in an AG.  The 'need' parameter
- * specifies how much space we're going to need for the AGFL and the
- * 'reserved' parameter tells us how many blocks in this AG are reserved for
+ * Find the length of the longest extent in an AG. The @min_agfl and @max_agfl
+ * parameters specify how much space we're going to need for the AGFL and the
+ * @reserved parameter tells us how many blocks in this AG are reserved for
  * other callers.
  */
 xfs_extlen_t
 xfs_alloc_longest_free_extent(
 	struct xfs_perag	*pag,
-	xfs_extlen_t		need,
+	xfs_extlen_t		min_agfl,
+	xfs_extlen_t		max_agfl,
 	xfs_extlen_t		reserved)
 {
 	xfs_extlen_t		delta = 0;
 
 	/*
-	 * If the AGFL needs a recharge, we'll have to subtract that from the
-	 * longest extent.
+	 * If the AGFL needs a recharge, subtract that from the longest extent
+	 * because AGFL refill happens before the alloc.
 	 */
-	if (need > pag->pagf_flcount)
-		delta = need - pag->pagf_flcount;
+	if (min_agfl > pag->pagf_flcount)
+		delta = min_agfl - pag->pagf_flcount;
 
 	/*
-	 * If we cannot maintain others' reservations with space from the
-	 * not-longest freesp extents, we'll have to subtract /that/ from
-	 * the longest extent too.
+	 * Extra AGFL blocks beyond the min are reserved by ->minleft during
+	 * allocation. Similar to reserved, these blocks are not available to
+	 * this allocation. Check if we can preserve the combined total without
+	 * the longest extent. If not, deduct the necessary blocks from the
+	 * longest extent.
 	 */
+	if (max_agfl > min_agfl)
+		reserved += max_agfl - min_agfl;
 	if (pag->pagf_freeblks - pag->pagf_longest < reserved)
 		delta += reserved - (pag->pagf_freeblks - pag->pagf_longest);
 
@@ -2439,17 +2444,22 @@ xfs_alloc_longest_free_extent(
 
 /*
  * Compute the minimum length of the AGFL in the given AG.  If @pag is NULL,
- * return the largest possible minimum length.
+ * return the largest possible minimum length. The base calculation accounts
+ * for a single full split per btree. @extra_levels adds additional split
+ * levels to compute the prospective AGFL requirement increase for
+ * multi-allocation transactions.
  */
-unsigned int
-xfs_alloc_min_freelist(
+static unsigned int
+__xfs_alloc_freelist(
 	struct xfs_mount	*mp,
-	struct xfs_perag	*pag)
+	struct xfs_perag	*pag,
+	unsigned int		extra_levels)
 {
 	/* AG btrees have at least 1 level. */
 	const unsigned int	bno_level = pag ? pag->pagf_bno_level : 1;
 	const unsigned int	cnt_level = pag ? pag->pagf_cnt_level : 1;
 	const unsigned int	rmap_level = pag ? pag->pagf_rmap_level : 1;
+	const unsigned int	levels = 1 + extra_levels;
 	unsigned int		min_free;
 
 	ASSERT(mp->m_alloc_maxlevels > 0);
@@ -2476,13 +2486,32 @@ xfs_alloc_min_freelist(
 	 */
 
 	/* space needed by-bno freespace btree */
-	min_free = min(bno_level + 1, mp->m_alloc_maxlevels) * 2 - 2;
+	min_free = min(bno_level + levels, mp->m_alloc_maxlevels) * 2 - 2;
 	/* space needed by-size freespace btree */
-	min_free += min(cnt_level + 1, mp->m_alloc_maxlevels) * 2 - 2;
+	min_free += min(cnt_level + levels, mp->m_alloc_maxlevels) * 2 - 2;
 	/* space needed reverse mapping used space btree */
-	if (xfs_has_rmapbt(mp))
-		min_free += min(rmap_level + 1, mp->m_rmap_maxlevels) * 2 - 2;
+	if (xfs_has_rmapbt(mp)) {
+		min_free += min(rmap_level + levels,
+				mp->m_rmap_maxlevels) * 2 - 2;
+	}
 	return min_free;
+}
+
+/*
+ * Compute the minimum and maximum length of the AGFL in the given AG. The max
+ * value in this context refers to the max requirement the AG might see in a
+ * multi-alloc transaction. If @pag is NULL, return the largest possible values.
+ */
+void
+xfs_alloc_freelist(
+	struct xfs_mount	*mp,
+	struct xfs_perag	*pag,
+	unsigned int		*min_free,
+	unsigned int		*max_free)
+{
+	*min_free = __xfs_alloc_freelist(mp, pag, 0);
+	if (max_free)
+		*max_free = __xfs_alloc_freelist(mp, pag, 1);
 }
 
 /*
@@ -2495,6 +2524,7 @@ static bool
 xfs_alloc_space_available(
 	struct xfs_alloc_arg	*args,
 	xfs_extlen_t		min_free,
+	xfs_extlen_t		max_free,
 	int			flags)
 {
 	struct xfs_perag	*pag = args->pag;
@@ -2502,15 +2532,32 @@ xfs_alloc_space_available(
 	xfs_extlen_t		reservation; /* blocks that are still reserved */
 	int			available;
 	xfs_extlen_t		agflcount;
+	xfs_extlen_t		minleft;
 
 	if (flags & XFS_ALLOC_FLAG_FREEING)
 		return true;
 
 	reservation = xfs_ag_resv_needed(pag, args->resv);
 
+	/*
+	 * minleft implies a multi-alloc transaction. If set, the first alloc
+	 * might cause btree splits that increase the AGFL requirement for the
+	 * next. This worst case requirement is calculated in max_free.
+	 *
+	 * We don't prepopulate the AGFL because we don't know in advance if
+	 * splits will occur. Instead, add the delta to minleft so it is
+	 * accounted for in AG selection. This ensures the AG has enough space
+	 * for the caller's minleft plus that needed to repopulate the AGFL on
+	 * the next alloc if splits do occur.
+	 */
+	minleft = args->minleft;
+	if (minleft)
+		minleft += max_free - min_free;
+
 	/* do we have enough contiguous free space for the allocation? */
 	alloc_len = args->minlen + (args->alignment - 1) + args->minalignslop;
-	longest = xfs_alloc_longest_free_extent(pag, min_free, reservation);
+	longest = xfs_alloc_longest_free_extent(pag, min_free,
+			minleft ? max_free : min_free, reservation);
 	if (longest < alloc_len)
 		return false;
 
@@ -2521,7 +2568,7 @@ xfs_alloc_space_available(
 	 */
 	agflcount = min_t(xfs_extlen_t, pag->pagf_flcount, min_free);
 	available = (int)(pag->pagf_freeblks + agflcount -
-			  reservation - min_free - args->minleft);
+			  reservation - min_free - minleft);
 	if (available < (int)max(args->total, alloc_len))
 		return false;
 
@@ -2834,7 +2881,8 @@ xfs_alloc_fix_freelist(
 	struct xfs_buf		*agflbp = NULL;
 	struct xfs_alloc_arg	targs;	/* local allocation arguments */
 	xfs_agblock_t		bno;	/* freelist block */
-	xfs_extlen_t		need;	/* total blocks needed in freelist */
+	xfs_extlen_t		min_free;/* total blocks needed in freelist */
+	xfs_extlen_t		max_free; /* max freelist requirement */
 	int			error = 0;
 
 	/* deferred ops (AGFL block frees) require permanent transactions */
@@ -2862,8 +2910,8 @@ xfs_alloc_fix_freelist(
 		goto out_agbp_relse;
 	}
 
-	need = xfs_alloc_min_freelist(mp, pag);
-	if (!xfs_alloc_space_available(args, need, alloc_flags |
+	xfs_alloc_freelist(mp, pag, &min_free, &max_free);
+	if (!xfs_alloc_space_available(args, min_free, max_free, alloc_flags |
 			XFS_ALLOC_FLAG_CHECK))
 		goto out_agbp_relse;
 
@@ -2886,8 +2934,8 @@ xfs_alloc_fix_freelist(
 		xfs_agfl_reset(tp, agbp, pag);
 
 	/* If there isn't enough total space or single-extent, reject it. */
-	need = xfs_alloc_min_freelist(mp, pag);
-	if (!xfs_alloc_space_available(args, need, alloc_flags))
+	xfs_alloc_freelist(mp, pag, &min_free, &max_free);
+	if (!xfs_alloc_space_available(args, min_free, max_free, alloc_flags))
 		goto out_agbp_relse;
 
 	if (IS_ENABLED(CONFIG_XFS_DEBUG) && args->alloc_minlen_only) {
@@ -2929,7 +2977,7 @@ xfs_alloc_fix_freelist(
 	else
 		targs.oinfo = XFS_RMAP_OINFO_AG;
 	while (!(alloc_flags & XFS_ALLOC_FLAG_NOSHRINK) &&
-			pag->pagf_flcount > need) {
+			pag->pagf_flcount > min_free) {
 		error = xfs_alloc_get_freelist(pag, tp, agbp, &bno, 0);
 		if (error)
 			goto out_agbp_relse;
@@ -2963,9 +3011,9 @@ xfs_alloc_fix_freelist(
 		goto out_agbp_relse;
 
 	/* Make the freelist longer if it's too short. */
-	while (pag->pagf_flcount < need) {
+	while (pag->pagf_flcount < min_free) {
 		targs.agbno = 0;
-		targs.maxlen = need - pag->pagf_flcount;
+		targs.maxlen = min_free - pag->pagf_flcount;
 		targs.resv = XFS_AG_RESV_AGFL;
 
 		/* Allocate as many blocks as possible at once. */

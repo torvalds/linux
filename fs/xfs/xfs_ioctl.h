@@ -10,9 +10,7 @@ struct xfs_bstat;
 struct xfs_ibulk;
 struct xfs_inogrp;
 
-int
-xfs_ioc_swapext(
-	xfs_swapext_t	*sxp);
+int xfs_swapext(struct xfs_swapext *sxp);
 
 extern int
 xfs_fileattr_get(

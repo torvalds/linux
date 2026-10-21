@@ -694,6 +694,32 @@ xfs_qm_create_metadir_qinos(
 }
 
 /*
+ * For metadir filesystems, quota flag state persists across mounts, so update
+ * secondary superblocks in case xfs_repair ever has to recover the primary
+ * from a secondary.  growfs also updates backup supers so lock against that.
+ * Note that the secondary backups are opportunistic, so we log but do not
+ * return write errors.
+ */
+void
+__xfs_qm_update_secondary_sb(
+	struct xfs_mount	*mp,
+	const char		*func)
+{
+	int			error;
+
+	if (!xfs_has_metadir(mp))
+		return;
+
+	mutex_lock(&mp->m_growlock);
+	error = xfs_update_secondary_sbs(mp);
+	mutex_unlock(&mp->m_growlock);
+
+	if (error)
+		xfs_alert(mp, "%s: Secondary super update failed, err=%d!",
+				func, error);
+}
+
+/*
  * Add QUOTABIT to sb_versionnum and initialize qflags in preparation for
  * creating quota files on a metadir filesystem.
  */
@@ -718,7 +744,12 @@ xfs_qm_prep_metadir_sb(
 	spin_unlock(&mp->m_sb_lock);
 	xfs_log_sb(tp);
 
-	return xfs_trans_commit(tp);
+	error = xfs_trans_commit(tp);
+	if (error)
+		return error;
+
+	xfs_qm_update_secondary_sb(mp);
+	return 0;
 }
 
 /*
@@ -1294,11 +1325,7 @@ xfs_qm_quotacheck_dqadjust(
 	 *
 	 * There are no timers for the default values set in the root dquot.
 	 */
-	if (dqp->q_id) {
-		xfs_qm_adjust_dqlimits(dqp);
-		xfs_qm_adjust_dqtimers(dqp);
-	}
-
+	xfs_qm_adjust_dqenforcement(dqp);
 	dqp->q_flags |= XFS_DQFLAG_DIRTY;
 out_unlock:
 	mutex_unlock(&dqp->q_qlock);
@@ -1687,6 +1714,9 @@ xfs_qm_mount_quotas(
 			ASSERT(!(XFS_IS_QUOTA_ON(mp)));
 			xfs_alert(mp, "%s: Superblock update failed!",
 				__func__);
+		} else {
+			/* Primary update succeeded, try to write secondary */
+			xfs_qm_update_secondary_sb(mp);
 		}
 	}
 

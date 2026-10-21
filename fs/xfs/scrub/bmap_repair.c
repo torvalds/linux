@@ -211,7 +211,7 @@ xrep_bmap_check_fork_rmap(
 
 	/* Check the file offset range. */
 	if (!(rec->rm_flags & XFS_RMAP_BMBT_BLOCK) &&
-	    !xfs_verify_fileext(sc->mp, rec->rm_offset, rec->rm_blockcount))
+	    !xfs_verify_fileext(rec->rm_offset, rec->rm_blockcount))
 		return -EFSCORRUPTED;
 
 	/* No contradictory flags. */
@@ -359,12 +359,12 @@ xrep_bmap_scan_ag(
 	struct xfs_scrub	*sc = rb->sc;
 	int			error;
 
-	error = xrep_ag_init(sc, pag, &sc->sa);
+	error = xrep_ag_init(sc, pag);
 	if (error)
 		return error;
 
 	error = xfs_rmap_query_all(sc->sa.rmap_cur, xrep_bmap_walk_rmap, rb);
-	xchk_ag_free(sc, &sc->sa);
+	xchk_ag_free(sc);
 	return error;
 }
 
@@ -389,7 +389,7 @@ xrep_bmap_check_rtfork_rmap(
 		return -EFSCORRUPTED;
 
 	/* Check the file offsets and physical extents. */
-	if (!xfs_verify_fileext(sc->mp, rec->rm_offset, rec->rm_blockcount))
+	if (!xfs_verify_fileext(rec->rm_offset, rec->rm_blockcount))
 		return -EFSCORRUPTED;
 
 	/* Check that this is within the rtgroup. */
@@ -456,16 +456,15 @@ xrep_bmap_scan_rtgroup(
 	if (!xfs_has_rtrmapbt(sc->mp))
 		return 0;
 
-	error = xrep_rtgroup_init(sc, rtg, &sc->sr,
-			XFS_RTGLOCK_RMAP |
-			XFS_RTGLOCK_REFCOUNT |
-			XFS_RTGLOCK_BITMAP_SHARED);
+	error = xrep_rtgroup_init(sc, rtg, XFS_RTGLOCK_RMAP |
+					   XFS_RTGLOCK_REFCOUNT |
+					   XFS_RTGLOCK_BITMAP_SHARED);
 	if (error)
 		return error;
 
 	error = xfs_rmap_query_all(sc->sr.rmap_cur, xrep_bmap_walk_rtrmap, rb);
-	xchk_rtgroup_btcur_free(&sc->sr);
-	xchk_rtgroup_free(sc, &sc->sr);
+	xchk_rtgroup_btcur_free(sc);
+	xchk_rtgroup_free(sc);
 	return error;
 }
 #else

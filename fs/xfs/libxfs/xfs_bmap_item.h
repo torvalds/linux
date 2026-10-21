@@ -22,8 +22,6 @@
  * bmbt metadata updates in the non-first transaction.
  */
 
-/* kernel only BUI/BUD definitions */
-
 struct xfs_mount;
 struct kmem_cache;
 

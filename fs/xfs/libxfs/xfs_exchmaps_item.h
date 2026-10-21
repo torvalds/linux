@@ -22,8 +22,6 @@
  * rest of the mapping exchanges.
  */
 
-/* kernel only XMI/XMD definitions */
-
 struct xfs_mount;
 struct kmem_cache;
 

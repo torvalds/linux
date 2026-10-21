@@ -48,7 +48,7 @@ xchk_setup_rtbitmap(
 	sc->buf = rtb;
 	rtb->sc = sc;
 
-	error = xchk_rtgroup_init(sc, sc->sm->sm_agno, &sc->sr);
+	error = xchk_rtgroup_init(sc, sc->sm->sm_agno);
 	if (error)
 		return error;
 
@@ -70,7 +70,7 @@ xchk_setup_rtbitmap(
 	if (error)
 		return error;
 
-	error = xchk_rtgroup_lock(sc, &sc->sr, XCHK_RTGLOCK_ALL);
+	error = xchk_rtgroup_lock(sc, XCHK_RTGLOCK_ALL);
 	if (error)
 		return error;
 

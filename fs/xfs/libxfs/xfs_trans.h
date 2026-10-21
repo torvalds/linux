@@ -6,8 +6,6 @@
 #ifndef	__XFS_TRANS_H__
 #define	__XFS_TRANS_H__
 
-/* kernel only transaction subsystem defines */
-
 struct xlog;
 struct xlog_format_buf;
 struct xfs_buf;
@@ -237,7 +235,7 @@ void		xfs_trans_log_inode(xfs_trans_t *, struct xfs_inode *, uint);
 int		xfs_trans_commit(struct xfs_trans *);
 int		xfs_trans_roll(struct xfs_trans **);
 int		xfs_trans_roll_inode(struct xfs_trans **, struct xfs_inode *);
-void		xfs_trans_cancel(xfs_trans_t *);
+void		xfs_trans_cancel_error(struct xfs_trans *, int);
 int		xfs_trans_ail_init(struct xfs_mount *);
 void		xfs_trans_ail_destroy(struct xfs_mount *);
 
@@ -278,6 +276,13 @@ xfs_trans_clear_context(
 	struct xfs_trans	*tp)
 {
 	memalloc_nofs_restore(tp->t_pflags);
+}
+
+static inline void
+xfs_trans_cancel(
+	struct xfs_trans	*tp)
+{
+	return xfs_trans_cancel_error(tp, 0);
 }
 
 #endif	/* __XFS_TRANS_H__ */

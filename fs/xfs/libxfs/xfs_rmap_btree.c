@@ -170,7 +170,7 @@ static inline __be64 ondisk_rec_offset_to_key(const union xfs_btree_rec *rec)
 	return rec->rmap.rm_offset & ~cpu_to_be64(XFS_RMAP_OFF_UNWRITTEN);
 }
 
-STATIC void
+void
 xfs_rmapbt_init_key_from_rec(
 	union xfs_btree_key		*key,
 	const union xfs_btree_rec	*rec)
@@ -187,7 +187,7 @@ xfs_rmapbt_init_key_from_rec(
  * the startblock for all records, and if the record is for a data/attr
  * fork mapping, we add blockcount-1 to the offset too.
  */
-STATIC void
+void
 xfs_rmapbt_init_high_key_from_rec(
 	union xfs_btree_key		*key,
 	const union xfs_btree_rec	*rec)
@@ -209,7 +209,7 @@ xfs_rmapbt_init_high_key_from_rec(
 	key->rmap.rm_offset = cpu_to_be64(off);
 }
 
-STATIC void
+void
 xfs_rmapbt_init_rec_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_rec	*rec)
@@ -243,7 +243,7 @@ static inline uint64_t offset_keymask(uint64_t offset)
 	return offset & ~XFS_RMAP_OFF_UNWRITTEN;
 }
 
-STATIC int
+int
 xfs_rmapbt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
@@ -257,7 +257,7 @@ xfs_rmapbt_cmp_key_with_cur(
 		       offset_keymask(xfs_rmap_irec_offset_pack(rec)));
 }
 
-STATIC int
+int
 xfs_rmapbt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
@@ -390,7 +390,7 @@ const struct xfs_buf_ops xfs_rmapbt_buf_ops = {
 	.verify_struct		= xfs_rmapbt_verify,
 };
 
-STATIC int
+int
 xfs_rmapbt_keys_inorder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
@@ -420,7 +420,7 @@ xfs_rmapbt_keys_inorder(
 	return 0;
 }
 
-STATIC int
+int
 xfs_rmapbt_recs_inorder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_rec	*r1,
@@ -450,7 +450,7 @@ xfs_rmapbt_recs_inorder(
 	return 0;
 }
 
-STATIC enum xbtree_key_contig
+enum xbtree_key_contig
 xfs_rmapbt_keys_contiguous(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key1,

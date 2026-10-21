@@ -71,12 +71,14 @@ enum xlog_iclog_state {
 /*
  * In core log flags
  */
-#define XLOG_ICL_NEED_FLUSH	(1u << 0)	/* iclog needs REQ_PREFLUSH */
-#define XLOG_ICL_NEED_FUA	(1u << 1)	/* iclog needs REQ_FUA */
+#define XLOG_ICL_NEED_FLUSH	(1u << 0)	/* all devs need REQ_PREFLUSH */
+#define XLOG_ICL_NEED_FLUSH_LOG	(1u << 1)	/* logdev needs REQ_PREFLUSH */
+#define XLOG_ICL_NEED_FUA	(1u << 2)	/* iclog needs REQ_FUA */
 
 #define XLOG_ICL_STRINGS \
-	{ XLOG_ICL_NEED_FLUSH,	"XLOG_ICL_NEED_FLUSH" }, \
-	{ XLOG_ICL_NEED_FUA,	"XLOG_ICL_NEED_FUA" }
+	{ XLOG_ICL_NEED_FLUSH,		"XLOG_ICL_NEED_FLUSH" }, \
+	{ XLOG_ICL_NEED_FLUSH_LOG,	"XLOG_ICL_NEED_FLUSH_LOG" }, \
+	{ XLOG_ICL_NEED_FUA,		"XLOG_ICL_NEED_FUA" }
 
 
 /*

@@ -57,10 +57,9 @@ unsigned int xfs_inobt_maxrecs(struct xfs_mount *mp, unsigned int blocklen,
 uint64_t xfs_inobt_irec_to_allocmask(const struct xfs_inobt_rec_incore *irec);
 
 #if defined(DEBUG) || defined(XFS_WARN)
-int xfs_inobt_rec_check_count(struct xfs_mount *,
-			      struct xfs_inobt_rec_incore *);
+int xfs_inobt_rec_check_count(struct xfs_inobt_rec_incore *);
 #else
-#define xfs_inobt_rec_check_count(mp, rec)	0
+#define xfs_inobt_rec_check_count(rec)	0
 #endif	/* DEBUG */
 
 int xfs_finobt_calc_reserves(struct xfs_perag *perag, struct xfs_trans *tp,

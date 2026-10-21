@@ -27,7 +27,6 @@
 #include "xfs_trans.h"
 #include "xfs_trace.h"
 #include "xfs_inode.h"
-#include "xfs_icache.h"
 #include "xfs_buf_item.h"
 #include "xfs_rtgroup.h"
 #include "xfs_rtbitmap.h"

@@ -6,8 +6,6 @@
 #ifndef	__XFS_ATTR_ITEM_H__
 #define	__XFS_ATTR_ITEM_H__
 
-/* kernel only ATTRI/ATTRD definitions */
-
 struct xfs_mount;
 struct kmem_zone;
 

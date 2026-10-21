@@ -127,10 +127,10 @@ xfs_rename_space_res(
 		if (has_whiteout)
 			ret += xfs_parent_calc_space_res(mp, src_namelen);
 		ret += 2 * xfs_parent_calc_space_res(mp, target_namelen);
-	}
 
-	if (target_exists)
-		ret += xfs_parent_calc_space_res(mp, target_namelen);
+		if (target_exists)
+			ret += xfs_parent_calc_space_res(mp, target_namelen);
+	}
 
 	return ret;
 }

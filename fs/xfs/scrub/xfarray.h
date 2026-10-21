@@ -27,23 +27,22 @@ struct xfarray {
 	/* Maximum possible array size. */
 	xfarray_idx_t	max_nr;
 
-	/* Number of unset slots in the array below @nr. */
-	uint64_t	unset_slots;
-
 	/* Size of an array element. */
 	size_t		obj_size;
 
 	/* log2 of array element size, if possible. */
 	int		obj_size_log;
+
+	/* Might there be sparse holes in this array? */
+	bool		possibly_sparse;
 };
 
 int xfarray_create(const char *descr, unsigned long long required_capacity,
 		size_t obj_size, struct xfarray **arrayp);
 void xfarray_destroy(struct xfarray *array);
 int xfarray_load(struct xfarray *array, xfarray_idx_t idx, void *ptr);
-int xfarray_unset(struct xfarray *array, xfarray_idx_t idx);
+int xfarray_trim(struct xfarray *array, unsigned long long nr);
 int xfarray_store(struct xfarray *array, xfarray_idx_t idx, const void *ptr);
-int xfarray_store_anywhere(struct xfarray *array, const void *ptr);
 bool xfarray_element_is_null(struct xfarray *array, const void *ptr);
 void xfarray_truncate(struct xfarray *array);
 unsigned long long xfarray_bytes(struct xfarray *array);

@@ -962,10 +962,10 @@ out_free_buf:
 }
 
 int
-xfs_ioc_swapext(
-	xfs_swapext_t	*sxp)
+xfs_swapext(
+	struct xfs_swapext	*sxp)
 {
-	xfs_inode_t     *ip, *tip;
+	struct xfs_inode	*ip, *tip;
 
 	/* Pull information for the target fd */
 	CLASS(fd, f)((int)sxp->sx_fdtarget);
@@ -1033,6 +1033,46 @@ xfs_ioc_getlabel(
 	if (copy_to_user(user_label, label, sizeof(label)))
 		return -EFAULT;
 	return 0;
+}
+
+/*
+ * Same behavior as xfs_sync_sb, except that it is always synchronous and it
+ * also writes the superblock buffer to disk sector 0 immediately.
+ */
+static int
+xfs_sync_sb_buf(
+	struct xfs_mount	*mp,
+	bool			update_rtsb)
+{
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_sb, 0, 0, 0, &tp);
+	if (error)
+		return error;
+
+	xfs_log_sb(tp);
+	if (update_rtsb)
+		xfs_log_rtsb(tp, xfs_trans_getsb(tp));
+	xfs_trans_set_sync(tp);
+	error = xfs_trans_commit(tp);
+	if (error)
+		return error;
+
+	/* Re-acquire and write the sb and rtsb to disk. */
+	xfs_buf_lock(mp->m_sb_bp);
+	error = xfs_bwrite(mp->m_sb_bp);
+	xfs_buf_unlock(mp->m_sb_bp);
+	if (error)
+		return error;
+
+	if (update_rtsb && mp->m_rtsb_bp) {
+		xfs_buf_lock(mp->m_rtsb_bp);
+		error = xfs_bwrite(mp->m_rtsb_bp);
+		xfs_buf_unlock(mp->m_rtsb_bp);
+	}
+
+	return error;
 }
 
 static int
@@ -1144,7 +1184,7 @@ xfs_fs_eofblocks_from_user(
 }
 
 static int
-xfs_ioctl_getset_resblocks(
+xfs_ioc_getset_resblocks(
 	struct file		*filp,
 	unsigned int		cmd,
 	void __user		*arg)
@@ -1183,7 +1223,7 @@ xfs_ioctl_getset_resblocks(
 }
 
 static int
-xfs_ioctl_fs_counts(
+xfs_ioc_fs_counts(
 	struct xfs_mount	*mp,
 	struct xfs_fsop_counts __user	*uarg)
 {
@@ -1200,6 +1240,202 @@ xfs_ioctl_fs_counts(
 	return 0;
 }
 
+static int
+xfs_ioc_dioinfo(
+	struct file		*file,
+	void __user		*arg)
+{
+	struct kstat		st;
+	struct dioattr		da;
+	int			error;
+
+	error = vfs_getattr(&file->f_path, &st, STATX_DIOALIGN, 0);
+	if (error)
+		return error;
+
+	/*
+	 * Some userspace directly feeds the return value to posix_memalign,
+	 * which fails for values that are smaller than the pointer size.
+	 * Round up the value to not break userspace.
+	 */
+	da.d_mem = roundup(st.dio_mem_align, sizeof(void *));
+	da.d_miniosz = st.dio_offset_align;
+	da.d_maxiosz = INT_MAX & ~(da.d_miniosz - 1);
+	if (copy_to_user(arg, &da, sizeof(da)))
+		return -EFAULT;
+	return 0;
+}
+
+static int
+xfs_ioc_find_handle(
+	unsigned int		cmd,
+	void __user		*arg)
+{
+	struct xfs_fsop_handlereq hreq;
+
+	if (copy_from_user(&hreq, arg, sizeof(hreq)))
+		return -EFAULT;
+	return xfs_find_handle(cmd, &hreq);
+}
+
+static int
+xfs_ioc_open_by_handle(
+	struct file		*file,
+	void __user		*arg)
+{
+	struct xfs_fsop_handlereq hreq;
+
+	if (copy_from_user(&hreq, arg, sizeof(hreq)))
+		return -EFAULT;
+	return xfs_open_by_handle(file, &hreq);
+}
+
+static int
+xfs_ioc_readlink_by_handle(
+	struct file		*file,
+	void __user		*arg)
+{
+	struct xfs_fsop_handlereq hreq;
+
+	if (copy_from_user(&hreq, arg, sizeof(hreq)))
+		return -EFAULT;
+	return xfs_readlink_by_handle(file, &hreq);
+}
+
+static int
+xfs_ioc_swapext(
+	struct file		*file,
+	void __user		*arg)
+{
+	struct xfs_swapext	sxp;
+	int			error;
+
+	if (copy_from_user(&sxp, arg, sizeof(sxp)))
+		return -EFAULT;
+
+	error = mnt_want_write_file(file);
+	if (error)
+		return error;
+	error = xfs_swapext(&sxp);
+	mnt_drop_write_file(file);
+	return error;
+}
+
+static int
+xfs_ioc_growfs_data(
+	struct file		*file,
+	struct xfs_mount	*mp,
+	void __user		*arg)
+{
+	struct xfs_growfs_data	in;
+	int			error;
+
+	if (copy_from_user(&in, arg, sizeof(in)))
+		return -EFAULT;
+
+	error = mnt_want_write_file(file);
+	if (error)
+		return error;
+	error = xfs_growfs_data(mp, &in);
+	mnt_drop_write_file(file);
+	return error;
+}
+
+static int
+xfs_ioc_growfs_log(
+	struct file		*file,
+	struct xfs_mount	*mp,
+	void  __user		*arg)
+{
+	struct xfs_growfs_log	in;
+	int			error;
+
+	if (copy_from_user(&in, arg, sizeof(in)))
+		return -EFAULT;
+
+	error = mnt_want_write_file(file);
+	if (error)
+		return error;
+	error = xfs_growfs_log(mp, &in);
+	mnt_drop_write_file(file);
+	return error;
+}
+
+static int
+xfs_ioc_growfs_rt(
+	struct file		*file,
+	struct xfs_mount	*mp,
+	void __user		*arg)
+{
+	struct xfs_growfs_rt	in;
+	int			error;
+
+	if (copy_from_user(&in, arg, sizeof(in)))
+		return -EFAULT;
+
+	error = mnt_want_write_file(file);
+	if (error)
+		return error;
+	error = xfs_growfs_rt(mp, &in);
+	mnt_drop_write_file(file);
+	return error;
+}
+
+static int
+xfs_ioc_goingdown(
+	struct xfs_mount	*mp,
+	uint32_t __user		*arg)
+{
+	uint32_t		in;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (get_user(in, arg))
+		return -EFAULT;
+	return xfs_fs_goingdown(mp, in);
+}
+
+static int
+xfs_ioc_error_injection(
+	struct xfs_mount	*mp,
+	struct xfs_error_injection __user *arg)
+{
+	struct xfs_error_injection in;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (copy_from_user(&in, arg, sizeof(in)))
+		return -EFAULT;
+	return xfs_errortag_add(mp, in.errtag);
+}
+
+static int
+xfs_ioc_free_eofblocks(
+	struct xfs_mount	*mp,
+	struct xfs_fs_eofblocks	__user *arg)
+{
+	struct xfs_fs_eofblocks	eofb;
+	struct xfs_icwalk	icw;
+	int			error;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (xfs_is_readonly(mp))
+		return -EROFS;
+
+	if (copy_from_user(&eofb, arg, sizeof(eofb)))
+		return -EFAULT;
+
+	error = xfs_fs_eofblocks_from_user(&eofb, &icw);
+	if (error)
+		return error;
+
+	trace_xfs_ioc_free_eofblocks(mp, &icw, _RET_IP_);
+
+	guard(super_write)(mp->m_super);
+	return xfs_blockgc_free_space(mp, &icw);
+}
+
 /*
  * These long-unused ioctls were removed from the official ioctl API in 5.17,
  * but retain these definitions so that we can log warnings about them.
@@ -1209,12 +1445,6 @@ xfs_ioctl_fs_counts(
 #define XFS_IOC_ALLOCSP64	_IOW ('X', 36, struct xfs_flock64)
 #define XFS_IOC_FREESP64	_IOW ('X', 37, struct xfs_flock64)
 
-/*
- * Note: some of the ioctl's return positive numbers as a
- * byte count indicating success, such as readlink_by_handle.
- * So we don't "sign flip" like most other routines.  This means
- * true errors need to be returned as a negative value.
- */
 long
 xfs_file_ioctl(
 	struct file		*filp,
@@ -1225,7 +1455,6 @@ xfs_file_ioctl(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	void			__user *arg = (void __user *)p;
-	int			error;
 
 	trace_xfs_file_ioctl(ip);
 
@@ -1244,26 +1473,9 @@ xfs_file_ioctl(
 	"%s should use fallocate; XFS_IOC_{ALLOC,FREE}SP ioctl unsupported",
 				current->comm);
 		return -ENOTTY;
-	case XFS_IOC_DIOINFO: {
-		struct kstat		st;
-		struct dioattr		da;
 
-		error = vfs_getattr(&filp->f_path, &st, STATX_DIOALIGN, 0);
-		if (error)
-			return error;
-
-		/*
-		 * Some userspace directly feeds the return value to
-		 * posix_memalign, which fails for values that are smaller than
-		 * the pointer size.  Round up the value to not break userspace.
-		 */
-		da.d_mem = roundup(st.dio_mem_align, sizeof(void *));
-		da.d_miniosz = st.dio_offset_align;
-		da.d_maxiosz = INT_MAX & ~(da.d_miniosz - 1);
-		if (copy_to_user(arg, &da, sizeof(da)))
-			return -EFAULT;
-		return 0;
-	}
+	case XFS_IOC_DIOINFO:
+		return xfs_ioc_dioinfo(filp, arg);
 
 	case XFS_IOC_FSBULKSTAT_SINGLE:
 	case XFS_IOC_FSBULKSTAT:
@@ -1311,148 +1523,45 @@ xfs_file_ioctl(
 
 	case XFS_IOC_FD_TO_HANDLE:
 	case XFS_IOC_PATH_TO_HANDLE:
-	case XFS_IOC_PATH_TO_FSHANDLE: {
-		xfs_fsop_handlereq_t	hreq;
-
-		if (copy_from_user(&hreq, arg, sizeof(hreq)))
-			return -EFAULT;
-		return xfs_find_handle(cmd, &hreq);
-	}
-	case XFS_IOC_OPEN_BY_HANDLE: {
-		xfs_fsop_handlereq_t	hreq;
-
-		if (copy_from_user(&hreq, arg, sizeof(xfs_fsop_handlereq_t)))
-			return -EFAULT;
-		return xfs_open_by_handle(filp, &hreq);
-	}
-
-	case XFS_IOC_READLINK_BY_HANDLE: {
-		xfs_fsop_handlereq_t	hreq;
-
-		if (copy_from_user(&hreq, arg, sizeof(xfs_fsop_handlereq_t)))
-			return -EFAULT;
-		return xfs_readlink_by_handle(filp, &hreq);
-	}
+	case XFS_IOC_PATH_TO_FSHANDLE:
+		return xfs_ioc_find_handle(cmd, arg);
+	case XFS_IOC_OPEN_BY_HANDLE:
+		return xfs_ioc_open_by_handle(filp, arg);
+	case XFS_IOC_READLINK_BY_HANDLE:
+		return xfs_ioc_readlink_by_handle(filp, arg);
 	case XFS_IOC_ATTRLIST_BY_HANDLE:
 		return xfs_attrlist_by_handle(filp, arg);
-
 	case XFS_IOC_ATTRMULTI_BY_HANDLE:
 		return xfs_attrmulti_by_handle(filp, arg);
 
-	case XFS_IOC_SWAPEXT: {
-		struct xfs_swapext	sxp;
-
-		if (copy_from_user(&sxp, arg, sizeof(xfs_swapext_t)))
-			return -EFAULT;
-		error = mnt_want_write_file(filp);
-		if (error)
-			return error;
-		error = xfs_ioc_swapext(&sxp);
-		mnt_drop_write_file(filp);
-		return error;
-	}
+	case XFS_IOC_SWAPEXT:
+		return xfs_ioc_swapext(filp, arg);
 
 	case XFS_IOC_FSCOUNTS:
-		return xfs_ioctl_fs_counts(mp, arg);
+		return xfs_ioc_fs_counts(mp, arg);
 
 	case XFS_IOC_SET_RESBLKS:
 	case XFS_IOC_GET_RESBLKS:
-		return xfs_ioctl_getset_resblocks(filp, cmd, arg);
+		return xfs_ioc_getset_resblocks(filp, cmd, arg);
 
-	case XFS_IOC_FSGROWFSDATA: {
-		struct xfs_growfs_data in;
+	case XFS_IOC_FSGROWFSDATA:
+		return xfs_ioc_growfs_data(filp, mp, arg);
+	case XFS_IOC_FSGROWFSLOG:
+		return xfs_ioc_growfs_log(filp, mp, arg);
+	case XFS_IOC_FSGROWFSRT:
+		return xfs_ioc_growfs_rt(filp, mp, arg);
 
-		if (copy_from_user(&in, arg, sizeof(in)))
-			return -EFAULT;
-
-		error = mnt_want_write_file(filp);
-		if (error)
-			return error;
-		error = xfs_growfs_data(mp, &in);
-		mnt_drop_write_file(filp);
-		return error;
-	}
-
-	case XFS_IOC_FSGROWFSLOG: {
-		struct xfs_growfs_log in;
-
-		if (copy_from_user(&in, arg, sizeof(in)))
-			return -EFAULT;
-
-		error = mnt_want_write_file(filp);
-		if (error)
-			return error;
-		error = xfs_growfs_log(mp, &in);
-		mnt_drop_write_file(filp);
-		return error;
-	}
-
-	case XFS_IOC_FSGROWFSRT: {
-		xfs_growfs_rt_t in;
-
-		if (copy_from_user(&in, arg, sizeof(in)))
-			return -EFAULT;
-
-		error = mnt_want_write_file(filp);
-		if (error)
-			return error;
-		error = xfs_growfs_rt(mp, &in);
-		mnt_drop_write_file(filp);
-		return error;
-	}
-
-	case XFS_IOC_GOINGDOWN: {
-		uint32_t in;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		if (get_user(in, (uint32_t __user *)arg))
-			return -EFAULT;
-
-		return xfs_fs_goingdown(mp, in);
-	}
-
-	case XFS_IOC_ERROR_INJECTION: {
-		xfs_error_injection_t in;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		if (copy_from_user(&in, arg, sizeof(in)))
-			return -EFAULT;
-
-		return xfs_errortag_add(mp, in.errtag);
-	}
-
+	case XFS_IOC_GOINGDOWN:
+		return xfs_ioc_goingdown(mp, arg);
+	case XFS_IOC_ERROR_INJECTION:
+		return xfs_ioc_error_injection(mp, arg);
 	case XFS_IOC_ERROR_CLEARALL:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-
 		return xfs_errortag_clearall(mp);
 
-	case XFS_IOC_FREE_EOFBLOCKS: {
-		struct xfs_fs_eofblocks	eofb;
-		struct xfs_icwalk	icw;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		if (xfs_is_readonly(mp))
-			return -EROFS;
-
-		if (copy_from_user(&eofb, arg, sizeof(eofb)))
-			return -EFAULT;
-
-		error = xfs_fs_eofblocks_from_user(&eofb, &icw);
-		if (error)
-			return error;
-
-		trace_xfs_ioc_free_eofblocks(mp, &icw, _RET_IP_);
-
-		guard(super_write)(mp->m_super);
-		return xfs_blockgc_free_space(mp, &icw);
-	}
+	case XFS_IOC_FREE_EOFBLOCKS:
+		return xfs_ioc_free_eofblocks(mp, arg);
 
 	case XFS_IOC_EXCHANGE_RANGE:
 		return xfs_ioc_exchange_range(filp, arg);

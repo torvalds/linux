@@ -6,8 +6,6 @@
 #ifndef	__XFS_EXTFREE_ITEM_H__
 #define	__XFS_EXTFREE_ITEM_H__
 
-/* kernel only EFI/EFD definitions */
-
 struct xfs_mount;
 struct kmem_cache;
 

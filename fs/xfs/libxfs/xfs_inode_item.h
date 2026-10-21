@@ -6,8 +6,6 @@
 #ifndef	__XFS_INODE_ITEM_H__
 #define	__XFS_INODE_ITEM_H__
 
-/* kernel only definitions */
-
 struct xfs_buf;
 struct xfs_bmbt_rec;
 struct xfs_inode;

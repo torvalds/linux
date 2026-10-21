@@ -25,8 +25,6 @@
  * (rmapbt/bnobt/cntbt) metadata updates in the non-first transaction.
  */
 
-/* kernel only RUI/RUD definitions */
-
 struct xfs_mount;
 struct kmem_cache;
 

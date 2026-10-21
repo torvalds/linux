@@ -94,7 +94,7 @@ xrep_dirtree_delete_all_paths(
 }
 
 /* Since this is the surviving path, set the dotdot entry to this value. */
-STATIC void
+STATIC int
 xrep_dirpath_retain_parent(
 	struct xchk_dirtree		*dl,
 	struct xchk_dirpath		*path)
@@ -104,18 +104,20 @@ xrep_dirpath_retain_parent(
 
 	error = xfarray_load(dl->path_steps, path->first_step, &step);
 	if (error)
-		return;
+		return error;
 
 	dl->parent_ino = be64_to_cpu(step.pptr_rec.p_ino);
+	return 0;
 }
 
 /* Find the one surviving path so we know how to set dotdot. */
-STATIC void
+STATIC int
 xrep_dirtree_find_surviving_path(
 	struct xchk_dirtree		*dl,
 	struct xchk_dirtree_outcomes	*oc)
 {
 	struct xchk_dirpath		*path;
+	int				error;
 	bool				foundit = false;
 
 	xchk_dirtree_for_each_path(dl, path) {
@@ -124,7 +126,10 @@ xrep_dirtree_find_surviving_path(
 		case XCHK_DIRPATH_LOOP:
 		case XCHK_DIRPATH_OK:
 			if (!foundit) {
-				xrep_dirpath_retain_parent(dl, path);
+				error = xrep_dirpath_retain_parent(dl, path);
+				if (error)
+					return error;
+
 				foundit = true;
 				continue;
 			}
@@ -136,16 +141,19 @@ xrep_dirtree_find_surviving_path(
 	}
 
 	ASSERT(oc->suspect + oc->good == 1);
+
+	return 0;
 }
 
 /* Delete all paths except for the one good one. */
-STATIC void
+STATIC int
 xrep_dirtree_keep_one_good_path(
 	struct xchk_dirtree		*dl,
 	struct xchk_dirtree_outcomes	*oc)
 {
 	struct xchk_dirpath		*path;
 	bool				foundit = false;
+	int				error;
 
 	xchk_dirtree_for_each_path(dl, path) {
 		switch (path->outcome) {
@@ -157,7 +165,10 @@ xrep_dirtree_keep_one_good_path(
 			break;
 		case XCHK_DIRPATH_OK:
 			if (!foundit) {
-				xrep_dirpath_retain_parent(dl, path);
+				error = xrep_dirpath_retain_parent(dl, path);
+				if (error)
+					return error;
+
 				foundit = true;
 				continue;
 			}
@@ -172,23 +183,28 @@ xrep_dirtree_keep_one_good_path(
 
 	ASSERT(oc->suspect == 0);
 	ASSERT(oc->good < 2);
+	return 0;
 }
 
 /* Delete all paths except for one suspect one. */
-STATIC void
+STATIC int
 xrep_dirtree_keep_one_suspect_path(
 	struct xchk_dirtree		*dl,
 	struct xchk_dirtree_outcomes	*oc)
 {
 	struct xchk_dirpath		*path;
 	bool				foundit = false;
+	int				error = 0;
 
 	xchk_dirtree_for_each_path(dl, path) {
 		switch (path->outcome) {
 		case XCHK_DIRPATH_CORRUPT:
 		case XCHK_DIRPATH_LOOP:
 			if (!foundit) {
-				xrep_dirpath_retain_parent(dl, path);
+				error = xrep_dirpath_retain_parent(dl, path);
+				if (error)
+					return error;
+
 				foundit = true;
 				continue;
 			}
@@ -206,13 +222,14 @@ xrep_dirtree_keep_one_suspect_path(
 
 	ASSERT(oc->suspect == 1);
 	ASSERT(oc->good == 0);
+	return error;
 }
 
 /*
  * Figure out what to do with the paths we tried to find.  Returns -EDEADLOCK
  * if the scan results have become stale.
  */
-STATIC void
+STATIC int
 xrep_dirtree_decide_fate(
 	struct xchk_dirtree		*dl,
 	struct xchk_dirtree_outcomes	*oc)
@@ -222,36 +239,32 @@ xrep_dirtree_decide_fate(
 	/* Parentless directories should not have any paths at all. */
 	if (xchk_dirtree_parentless(dl)) {
 		xrep_dirtree_delete_all_paths(dl, oc);
-		return;
+		return 0;
 	}
 
 	/* One path is exactly the number of paths we want. */
-	if (oc->good + oc->suspect == 1) {
-		xrep_dirtree_find_surviving_path(dl, oc);
-		return;
-	}
+	if (oc->good + oc->suspect == 1)
+		return xrep_dirtree_find_surviving_path(dl, oc);
 
 	/* Zero paths means we should reattach the subdir to the orphanage. */
 	if (oc->good + oc->suspect == 0) {
 		if (dl->sc->orphanage)
 			oc->needs_adoption = true;
-		return;
+		return 0;
 	}
 
 	/*
 	 * Otherwise, this subdirectory has too many parents.  If there's at
 	 * least one good path, keep it and delete the others.
 	 */
-	if (oc->good > 0) {
-		xrep_dirtree_keep_one_good_path(dl, oc);
-		return;
-	}
+	if (oc->good > 0)
+		return xrep_dirtree_keep_one_good_path(dl, oc);
 
 	/*
 	 * There are no good paths and there are too many suspect paths.
 	 * Keep the first suspect path and delete the rest.
 	 */
-	xrep_dirtree_keep_one_suspect_path(dl, oc);
+	return xrep_dirtree_keep_one_suspect_path(dl, oc);
 }
 
 /*
@@ -427,6 +440,11 @@ again:
 		error = -ESTALE;
 		goto out_trans_cancel;
 	}
+	if (dl->aborted) {
+		mutex_unlock(&dl->lock);
+		error = -EIO;
+		goto out_trans_cancel;
+	}
 	xrep_dirpath_set_outcome(dl, path, XREP_DIRPATH_DELETING);
 	mutex_unlock(&dl->lock);
 
@@ -557,6 +575,8 @@ xrep_dirtree_delete_path(
 
 	if (!error && dl->stale)
 		error = -ESTALE;
+	if (!error && dl->aborted)
+		error = -EIO;
 	return error;
 }
 
@@ -702,6 +722,11 @@ xrep_dirtree_adopt(
 		error = -ESTALE;
 		goto out_trans;
 	}
+	if (dl->aborted) {
+		mutex_unlock(&dl->lock);
+		error = -EIO;
+		goto out_trans;
+	}
 	error = xrep_dirtree_create_adoption_path(dl);
 	mutex_unlock(&dl->lock);
 	if (error)
@@ -762,6 +787,8 @@ xrep_dirtree_move_to_orphanage(
 
 	if (!error && dl->stale)
 		error = -ESTALE;
+	if (!error && dl->aborted)
+		error = -EIO;
 	return error;
 }
 
@@ -813,13 +840,20 @@ xrep_dirtree(
 	 */
 	mutex_lock(&dl->lock);
 	do {
+		if (dl->aborted) {
+			error = -EIO;
+			break;
+		}
+
 		/*
 		 * Decide what we're going to do, then do it.  An -ESTALE
 		 * return here means the scan results are invalid and we have
 		 * to walk again.
 		 */
 		if (!dl->stale) {
-			xrep_dirtree_decide_fate(dl, &oc);
+			error = xrep_dirtree_decide_fate(dl, &oc);
+			if (error)
+				break;
 
 			trace_xrep_dirtree_decided_fate(dl, &oc);
 

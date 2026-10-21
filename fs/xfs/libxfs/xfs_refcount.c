@@ -26,7 +26,6 @@
 #include "xfs_health.h"
 #include "xfs_refcount_item.h"
 #include "xfs_rtgroup.h"
-#include "xfs_rtalloc.h"
 #include "xfs_rtrefcount_btree.h"
 
 struct kmem_cache	*xfs_refcount_intent_cache;
