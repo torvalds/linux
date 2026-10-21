@@ -48,9 +48,9 @@
 #include <asm/vdso.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
-#include <asm/vtimer.h>
 #include <asm/stp.h>
 #include <asm/cio.h>
+#include <asm/vtime.h>
 #include "entry.h"
 
 union tod_clock __bootdata_preserved(tod_clock_base);

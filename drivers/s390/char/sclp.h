@@ -320,11 +320,10 @@ static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 	exception = 1;
 	asm_inline volatile(
 		"0:	.insn	rre,0xb2200000,%[cmd],%[sccb]\n" /* servc */
-		"1:	lhi	%[exc],0\n"
-		"2:\n"
+		"	lhi	%[exc],0\n"
+		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 2b)
-		EX_TABLE(1b, 2b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [exc] "+d" (exception)
 		: [cmd] "d" (command), [sccb] "a" (__pa(sccb))
 		: CC_CLOBBER_LIST("memory"));

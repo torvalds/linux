@@ -261,7 +261,7 @@ static void hd_capacity_work_fn(struct work_struct *work)
 	}
 	trace_s390_hd_work_fn(steal_percentage, hd_entitled_cores, hd_high_capacity_cores);
 	mutex_unlock(&smp_cpu_state_mutex);
-	schedule_delayed_work(&hd_capacity_work, HD_DELAY_INTERVAL);
+	queue_delayed_work(system_dfl_wq, &hd_capacity_work, HD_DELAY_INTERVAL);
 }
 
 static int hiperdispatch_ctl_handler(const struct ctl_table *ctl, int write,

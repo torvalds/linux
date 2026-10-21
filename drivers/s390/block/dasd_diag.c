@@ -77,11 +77,11 @@ static inline int __dia250(void *iob, int cmd)
 
 	exception = 1;
 	asm_inline volatile(
-		"	diag	%[rx],%[cmd],0x250\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	diag	%[rx],%[cmd],0x250\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b,1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [rx] "+d" (rx.pair),
 		  "+m" (*(addr_type *)iob), [exc] "+d" (exception)
 		: [cmd] "d" (cmd)

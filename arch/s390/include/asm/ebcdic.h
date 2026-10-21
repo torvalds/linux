@@ -10,6 +10,7 @@
 #ifndef _EBCDIC_H
 #define _EBCDIC_H
 
+#include <linux/ctype.h>
 #include <linux/types.h>
 
 extern __u8 _ascebc_500[256];   /* ASCII -> EBCDIC 500 conversion table */
@@ -18,6 +19,11 @@ extern __u8 _ascebc[256];   /* ASCII -> EBCDIC conversion table */
 extern __u8 _ebcasc[256];   /* EBCDIC -> ASCII conversion table */
 extern __u8 _ebc_tolower[256]; /* EBCDIC -> lowercase */
 extern __u8 _ebc_toupper[256]; /* EBCDIC -> uppercase */
+extern const __u8 _ebctype_asc[256]; /* EBCDIC -> character classes */
+
+#define __ismask_ebc_asc(x)	(_ebctype_asc[(int)(unsigned char)(x)])
+#define isprint_ebc_asc(c)	((__ismask_ebc_asc(c)&(_P|_U|_L|_D|_SP)) != 0)
+#define isspace_ebc_asc(c)	((__ismask_ebc_asc(c)&(_S)) != 0)
 
 static inline void
 codepage_convert(const __u8 *codepage, volatile char *addr, unsigned long nr)

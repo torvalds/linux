@@ -91,10 +91,10 @@ static inline bool ap_instructions_available(void)
 		"	lgr	0,%[reg0]\n"		/* qid into gr0 */
 		"	lghi	1,0\n"			/* 0 into gr1 */
 		"	lghi	2,0\n"			/* 0 into gr2 */
-		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(TAPQ) */
-		"0:	la	%[reg1],1\n"		/* 1 into reg1 */
+		"0:	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(TAPQ) */
+		"	la	%[reg1],1\n"		/* 1 into reg1 */
 		"1:\n"
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: [reg1] "+&d" (reg1)
 		: [reg0] "d" (reg0)
 		: "cc", "0", "1", "2");
@@ -272,10 +272,10 @@ static inline int ap_qci(struct ap_config_info *config)
 	asm volatile(
 		"	lgr	0,%[reg0]\n"		/* QCI fc into gr0 */
 		"	lgr	2,%[reg2]\n"		/* ptr to config into gr2 */
-		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(QCI) */
-		"0:	la	%[reg1],0\n"		/* good case, QCI fc available */
+		"0:	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(QCI) */
+		"	la	%[reg1],0\n"		/* good case, QCI fc available */
 		"1:\n"
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: [reg1] "+&d" (reg1)
 		: [reg0] "d" (reg0), [reg2] "d" (reg2)
 		: "cc", "memory", "0", "2");

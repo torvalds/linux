@@ -35,7 +35,6 @@
 #include <asm/cpu_mf.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
-#include <asm/vtimer.h>
 #include <asm/exec.h>
 #include <asm/fpu.h>
 #include <asm/irq.h>
@@ -131,6 +130,12 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	p->thread.hardirq_timer = 0;
 	p->thread.softirq_timer = 0;
 	p->thread.last_break = 1;
+	/*
+	 * s390 stores the svc return address in arch_data when calling
+	 * sigreturn()/restart_syscall() via vdso. 1 means no valid address
+	 * stored.
+	 */
+	p->restart_block.arch_data = 1;
 
 	frame->sf.back_chain = 0;
 	frame->sf.gprs[11 - 6] = (unsigned long)&frame->childregs;
@@ -168,12 +173,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		p->thread.acrs[0] = (unsigned int)(tls >> 32);
 		p->thread.acrs[1] = (unsigned int)tls;
 	}
-	/*
-	 * s390 stores the svc return address in arch_data when calling
-	 * sigreturn()/restart_syscall() via vdso. 1 means no valid address
-	 * stored.
-	 */
-	p->restart_block.arch_data = 1;
 	return 0;
 }
 

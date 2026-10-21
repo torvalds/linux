@@ -1768,8 +1768,9 @@ static struct miscdevice cfset_dev = {
 	.mode	= 0666,
 };
 
-/* Hotplug add of a CPU. Scan through all active processes and add
- * that CPU to the list of CPUs supplied with ioctl(..., START, ...).
+/*
+ * Start counter sets on a newly online CPU for each active hwctr session that
+ * includes this CPU in its requested mask.
  */
 static int cfset_online_cpu(unsigned int cpu)
 {
@@ -1778,17 +1779,19 @@ static int cfset_online_cpu(unsigned int cpu)
 
 	if (!list_empty(&cfset_session.head)) {
 		list_for_each_entry(rp, &cfset_session.head, node) {
+			if (!cpumask_test_cpu(cpu, &rp->mask))
+				continue;
+
 			p.sets = rp->ctrset;
 			cfset_ioctl_on(&p);
-			cpumask_set_cpu(cpu, &rp->mask);
 		}
 	}
 	return 0;
 }
 
-/* Hotplug remove of a CPU. Scan through all active processes and clear
- * that CPU from the list of CPUs supplied with ioctl(..., START, ...).
- * Adjust reference counts.
+/*
+ * Stop counter sets on an outgoing CPU for each active hwctr session that
+ * includes this CPU in its requested mask.
  */
 static int cfset_offline_cpu(unsigned int cpu)
 {
@@ -1797,9 +1800,11 @@ static int cfset_offline_cpu(unsigned int cpu)
 
 	if (!list_empty(&cfset_session.head)) {
 		list_for_each_entry(rp, &cfset_session.head, node) {
+			if (!cpumask_test_cpu(cpu, &rp->mask))
+				continue;
+
 			p.sets = rp->ctrset;
 			cfset_ioctl_off(&p);
-			cpumask_clear_cpu(cpu, &rp->mask);
 		}
 	}
 	return 0;

@@ -8,6 +8,8 @@
 
 DECLARE_PER_CPU(u64, mt_cycles[8]);
 
+void vtime_init(void);
+
 static inline void update_timer_sys(void)
 {
 	struct lowcore *lc = get_lowcore();

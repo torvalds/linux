@@ -40,9 +40,9 @@ static inline int __diag308(unsigned long subcode, void *addr)
 	union register_pair r1 = { .even = (unsigned long)addr, .odd = 0 };
 
 	asm_inline volatile(
-		"	diag	%[r1],%[subcode],0x308\n"
-		"0:\n"
-		EX_TABLE(0b, 0b)
+		"0:	diag	%[r1],%[subcode],0x308\n"
+		"1:\n"
+		EX_TABLE_INSN(0b, 1b)
 		: [r1] "+d" (r1.pair)
 		: [subcode] "d" (subcode)
 		: "cc", "memory");
@@ -172,12 +172,23 @@ static inline int has_ebcdic_char(const char *str)
 	return 0;
 }
 
+static inline bool has_nonprintable_ebcdic_char(const char *str)
+{
+	for (; *str; str++)
+		if (!isprint_ebc_asc(*str) && !isspace_ebc_asc(*str))
+			return true;
+	return false;
+}
+
 void setup_boot_command_line(void)
 {
 	parmarea.command_line[COMMAND_LINE_SIZE - 1] = 0;
 	/* convert arch command line to ascii if necessary */
-	if (has_ebcdic_char(parmarea.command_line))
+	if (has_ebcdic_char(parmarea.command_line)) {
+		if (has_nonprintable_ebcdic_char(parmarea.command_line))
+			boot_warn("Kernel command line was treated as EBCDIC, but contains non-printable characters\n");
 		EBCASC(parmarea.command_line, COMMAND_LINE_SIZE);
+	}
 	/* copy arch command line */
 	strscpy(early_command_line, strim(parmarea.command_line));
 

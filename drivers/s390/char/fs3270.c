@@ -355,6 +355,9 @@ static long fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (copy_to_user(argp, &iocb, sizeof(struct raw3270_iocb)))
 			rc = -EFAULT;
 		break;
+	default:
+		rc = -ENOTTY;
+		break;
 	}
 	mutex_unlock(&fs3270_mutex);
 	return rc;

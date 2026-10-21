@@ -318,6 +318,7 @@ void arch_read_lock_wait(arch_rwlock_t *rw)
 
 	/* Remove this reader again to allow recursive read locking */
 	__atomic_add_const(-1, &rw->cnts);
+	trace_contention_begin(rw, LCB_F_SPIN | LCB_F_READ);
 	/* Put the reader into the wait queue */
 	arch_spin_lock(&rw->wait);
 	/* Now add this reader to the count value again */
@@ -326,6 +327,7 @@ void arch_read_lock_wait(arch_rwlock_t *rw)
 	while (READ_ONCE(rw->cnts) & 0x10000)
 		barrier();
 	arch_spin_unlock(&rw->wait);
+	trace_contention_end(rw, 0);
 }
 EXPORT_SYMBOL(arch_read_lock_wait);
 
@@ -333,6 +335,7 @@ void arch_write_lock_wait(arch_rwlock_t *rw)
 {
 	int old;
 
+	trace_contention_begin(rw, LCB_F_SPIN | LCB_F_WRITE);
 	/* Add this CPU to the write waiters */
 	__atomic_add(0x20000, &rw->cnts);
 
@@ -349,6 +352,7 @@ void arch_write_lock_wait(arch_rwlock_t *rw)
 	}
 
 	arch_spin_unlock(&rw->wait);
+	trace_contention_end(rw, 0);
 }
 EXPORT_SYMBOL(arch_write_lock_wait);
 
