@@ -28,7 +28,15 @@ static struct lock_class_key irq_desc_lock_class;
 static int __init irq_affinity_setup(char *str)
 {
 	alloc_bootmem_cpumask_var(&irq_default_affinity);
-	cpulist_parse(str, irq_default_affinity);
+	if (cpulist_parse(str, irq_default_affinity) < 0) {
+		/*
+		 * Clear the mask so that init_irq_default_affinity()
+		 * defaults it later.
+		 */
+		cpumask_clear(irq_default_affinity);
+		pr_warn("irqaffinity: incorrect CPU range, using default\n");
+		return 1;
+	}
 	/*
 	 * Set at least the boot cpu. We don't want to end up with
 	 * bugreports caused by random commandline masks
