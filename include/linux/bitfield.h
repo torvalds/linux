@@ -10,7 +10,7 @@
 #include <linux/build_bug.h>
 #include <linux/compiler.h>
 #include <linux/typecheck.h>
-#include <asm/byteorder.h>
+#include <linux/bitfield-fix-width.h>
 
 /*
  * Bitfield access macros
@@ -210,53 +210,6 @@
 		*(_reg_p) &= ~(_mask);							\
 		*(_reg_p) |= (((typeof(_mask))(_val) << __bf_shf(_mask)) & (_mask));	\
 	})
-
-extern void __compiletime_error("value doesn't fit into mask")
-__field_overflow(void);
-extern void __compiletime_error("bad bitfield mask")
-__bad_mask(void);
-static __always_inline u64 field_multiplier(u64 field)
-{
-	if ((field | (field - 1)) & ((field | (field - 1)) + 1))
-		__bad_mask();
-	return field & -field;
-}
-static __always_inline u64 field_mask(u64 field)
-{
-	return field / field_multiplier(field);
-}
-#define field_max(field)	((typeof(field))field_mask(field))
-#define ____MAKE_OP(type,base,to,from)					\
-static __always_inline __##type __must_check type##_encode_bits(base v, base field)	\
-{									\
-	if (__builtin_constant_p(v) && (v & ~field_mask(field)))	\
-		__field_overflow();					\
-	return to((v & field_mask(field)) * field_multiplier(field));	\
-}									\
-static __always_inline __##type __must_check type##_replace_bits(__##type old,	\
-							base val, base field)	\
-{									\
-	return (old & ~to(field)) | type##_encode_bits(val, field);	\
-}									\
-static __always_inline void type##p_replace_bits(__##type *p,		\
-					base val, base field)		\
-{									\
-	*p = (*p & ~to(field)) | type##_encode_bits(val, field);	\
-}									\
-static __always_inline base __must_check type##_get_bits(__##type v, base field)	\
-{									\
-	return (from(v) & field)/field_multiplier(field);		\
-}
-#define __MAKE_OP(size)							\
-	____MAKE_OP(le##size,u##size,cpu_to_le##size,le##size##_to_cpu)	\
-	____MAKE_OP(be##size,u##size,cpu_to_be##size,be##size##_to_cpu)	\
-	____MAKE_OP(u##size,u##size,,)
-____MAKE_OP(u8,u8,,)
-__MAKE_OP(16)
-__MAKE_OP(32)
-__MAKE_OP(64)
-#undef __MAKE_OP
-#undef ____MAKE_OP
 
 #define __field_prep(mask, val)						\
 	({								\

@@ -502,6 +502,8 @@ static const struct test_bitmap_parselist parselist_tests[] __initconst = {
 	{0, "0-N:1/3,1-N:1/3,2-N:1/3",		&exp1[8 * step], 32, 0},
 	{0, "0-31:1/3,1-31:1/3,2-31:1/3",	&exp1[8 * step], 32, 0},
 	{0, "1-10:8/12,8-31:24/29,0-31:0/3",	&exp1[9 * step], 32, 0},
+	{0, "1-1:1/4294967295",			&exp1[1 * step], 32, 0},
+	{0, "15-15:1/4294967281",		&exp1[13 * step], 32, 0},
 
 	{0,	  "all",		&exp1[8 * step], 32, 0},
 	{0,	  "0, 1, all,  ",	&exp1[8 * step], 32, 0},
@@ -528,6 +530,9 @@ static const struct test_bitmap_parselist parselist_tests[] __initconst = {
 	{-EINVAL, "a-31:10/1", NULL, 8, 0},
 	{-EINVAL, "0-31:a/1", NULL, 8, 0},
 	{-EINVAL, "0-\n", NULL, 8, 0},
+	{-EINVAL, "0-7:1/2N", NULL, 8, 0},
+	{-EINVAL, "0-7:1/2all", NULL, 8, 0},
+	{-EINVAL, "all:1/2N", NULL, 8, 0},
 
 };
 
@@ -643,6 +648,10 @@ static const struct test_bitmap_parselist parse_tests[] __initconst = {
 	{-EOVERFLOW, "badf00d,deadbeef,1,0",	NULL, 90, 0},
 	{-EOVERFLOW, "fbadf00d,deadbeef,1,0",	NULL, 95, 0},
 	{-EOVERFLOW, "badf00d,deadbeef,1,0",	NULL, 100, 0},
+
+	{-EINVAL,    "x12345678",		NULL, 32, 0},
+	{-EINVAL,    "1g12345678",		NULL, 64, 0},
+	{-EINVAL,    "0x0000000f",		NULL, 64, 0},
 #undef step
 };
 
