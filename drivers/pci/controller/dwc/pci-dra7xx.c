@@ -214,7 +214,7 @@ static int dra7xx_pcie_handle_msi(struct dw_pcie_rp *pp, int index)
 
 	pos = find_first_bit(&val, MAX_MSI_IRQS_PER_CTRL);
 	while (pos != MAX_MSI_IRQS_PER_CTRL) {
-		generic_handle_domain_irq(pp->irq_domain,
+		generic_handle_domain_irq(pp->msi_irq_domain,
 					  (index * MAX_MSI_IRQS_PER_CTRL) + pos);
 		pos++;
 		pos = find_next_bit(&val, MAX_MSI_IRQS_PER_CTRL, pos);

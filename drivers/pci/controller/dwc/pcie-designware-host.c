@@ -82,7 +82,7 @@ void dw_handle_msi_irq(struct dw_pcie_rp *pp)
 			continue;
 
 		for_each_set_bit(pos, &status, MAX_MSI_IRQS_PER_CTRL)
-			generic_handle_demux_domain_irq(pp->irq_domain, irq_off + pos);
+			generic_handle_demux_domain_irq(pp->msi_irq_domain, irq_off + pos);
 	}
 }
 
@@ -207,7 +207,7 @@ static const struct irq_domain_ops dw_pcie_msi_domain_ops = {
 	.free	= dw_pcie_irq_domain_free,
 };
 
-int dw_pcie_allocate_domains(struct dw_pcie_rp *pp)
+int dw_pcie_allocate_msi_domains(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct irq_domain_info info = {
@@ -217,15 +217,15 @@ int dw_pcie_allocate_domains(struct dw_pcie_rp *pp)
 		.host_data	= pp,
 	};
 
-	pp->irq_domain = msi_create_parent_irq_domain(&info, &dw_pcie_msi_parent_ops);
-	if (!pp->irq_domain) {
+	pp->msi_irq_domain = msi_create_parent_irq_domain(&info, &dw_pcie_msi_parent_ops);
+	if (!pp->msi_irq_domain) {
 		dev_err(pci->dev, "Failed to create IRQ domain\n");
 		return -ENOMEM;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dw_pcie_allocate_domains);
+EXPORT_SYMBOL_GPL(dw_pcie_allocate_msi_domains);
 
 void dw_pcie_free_msi(struct dw_pcie_rp *pp)
 {
@@ -236,7 +236,7 @@ void dw_pcie_free_msi(struct dw_pcie_rp *pp)
 			irq_set_chained_handler_and_data(pp->msi_irq[ctrl], NULL, NULL);
 	}
 
-	irq_domain_remove(pp->irq_domain);
+	irq_domain_remove(pp->msi_irq_domain);
 }
 EXPORT_SYMBOL_GPL(dw_pcie_free_msi);
 
@@ -342,7 +342,7 @@ int dw_pcie_msi_host_init(struct dw_pcie_rp *pp)
 
 	pp->msi_irq_chip = &dw_pci_msi_bottom_irq_chip;
 
-	ret = dw_pcie_allocate_domains(pp);
+	ret = dw_pcie_allocate_msi_domains(pp);
 	if (ret)
 		return ret;
 
@@ -440,7 +440,7 @@ static int dw_pcie_config_ecam_iatu(struct dw_pcie_rp *pp)
 	atu.parent_bus_addr = pp->cfg0_base + SZ_1M;
 	/* 1MiB is to cover 1 (bus) * 32 (devices) * 8 (functions) */
 	atu.size = SZ_1M;
-	atu.ctrl2 = PCIE_ATU_CFG_SHIFT_MODE_ENABLE;
+	atu.ctrl2 = ATU_CFG_SHIFT_MODE_ENABLE;
 	ret = dw_pcie_prog_outbound_atu(pci, &atu);
 	if (ret)
 		return ret;
@@ -455,7 +455,7 @@ static int dw_pcie_config_ecam_iatu(struct dw_pcie_rp *pp)
 	atu.type = PCIE_TLP_TYPE_CFG1_RDWR;
 	atu.parent_bus_addr = pp->cfg0_base + SZ_2M;
 	atu.size = (SZ_1M * bus_range_max) - SZ_2M;
-	atu.ctrl2 = PCIE_ATU_CFG_SHIFT_MODE_ENABLE;
+	atu.ctrl2 = ATU_CFG_SHIFT_MODE_ENABLE;
 
 	return dw_pcie_prog_outbound_atu(pci, &atu);
 }
@@ -747,8 +747,8 @@ static void __iomem *dw_pcie_other_conf_map_bus(struct pci_bus *bus,
 	if (!dw_pcie_link_up(pci))
 		return NULL;
 
-	busdev = PCIE_ATU_BUS(bus->number) | PCIE_ATU_DEV(PCI_SLOT(devfn)) |
-		 PCIE_ATU_FUNC(PCI_FUNC(devfn));
+	busdev = ATU_BUS(bus->number) | ATU_DEV(PCI_SLOT(devfn)) |
+		 ATU_FUNC(PCI_FUNC(devfn));
 
 	if (pci_is_root_bus(bus->parent))
 		type = PCIE_TLP_TYPE_CFG0_RDWR;
@@ -884,10 +884,10 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 	 * the MEM/IO (dma-)ranges setups.
 	 */
 	for (i = 0; i < pci->num_ob_windows; i++)
-		dw_pcie_disable_atu(pci, PCIE_ATU_REGION_DIR_OB, i);
+		dw_pcie_disable_atu(pci, ATU_REGION_DIR_OB, i);
 
 	for (i = 0; i < pci->num_ib_windows; i++)
-		dw_pcie_disable_atu(pci, PCIE_ATU_REGION_DIR_IB, i);
+		dw_pcie_disable_atu(pci, ATU_REGION_DIR_IB, i);
 
 	/*
 	 * NOTE: For outbound address translation, outbound iATU at index 0 is
@@ -1165,9 +1165,9 @@ int dw_pcie_setup_rc(struct dw_pcie_rp *pp)
 	/* Program correct class for RC */
 	dw_pcie_writew_dbi(pci, PCI_CLASS_DEVICE, PCI_CLASS_BRIDGE_PCI);
 
-	val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
-	val |= PORT_LOGIC_SPEED_CHANGE;
-	dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
+	val = dw_pcie_readl_dbi(pci, LINK_WIDTH_SPEED_CTRL);
+	val |= SPEED_CHANGE;
+	dw_pcie_writel_dbi(pci, LINK_WIDTH_SPEED_CTRL, val);
 
 	dw_pcie_dbi_ro_wr_dis(pci);
 

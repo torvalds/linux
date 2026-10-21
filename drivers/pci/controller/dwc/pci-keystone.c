@@ -310,7 +310,7 @@ static int ks_pcie_msi_host_init(struct dw_pcie_rp *pp)
 	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_0, ks_pcie->app.start);
 
 	pp->msi_irq_chip = &ks_pcie_msi_irq_chip;
-	return dw_pcie_allocate_domains(pp);
+	return dw_pcie_allocate_msi_domains(pp);
 }
 
 static void ks_pcie_handle_intx_irq(struct keystone_pcie *ks_pcie,
@@ -498,8 +498,8 @@ static bool ks_pcie_link_up(struct dw_pcie *pci)
 {
 	u32 val;
 
-	val = dw_pcie_readl_dbi(pci, PCIE_PORT_DEBUG0);
-	return (val & PORT_LOGIC_LTSSM_STATE_MASK) == PORT_LOGIC_LTSSM_STATE_L0;
+	val = dw_pcie_readl_dbi(pci, PORT_LINK_DEBUG0);
+	return (val & PORT_LINK_DEBUG0_LTSSM_MASK) == DW_PCIE_LTSSM_L0;
 }
 
 static void ks_pcie_stop_link(struct dw_pcie *pci)
@@ -634,7 +634,7 @@ static void ks_pcie_msi_irq_handler(struct irq_desc *desc)
 
 		vector = offset + (pos << 3);
 		dev_dbg(dev, "irq: bit %d, vector %d\n", pos, vector);
-		generic_handle_domain_irq(pp->irq_domain, vector);
+		generic_handle_domain_irq(pp->msi_irq_domain, vector);
 	}
 
 	chained_irq_exit(chip, desc);

@@ -107,7 +107,7 @@ static void s32g_pcie_reset_mstr_ace(struct dw_pcie *pci)
 	u32 ddr_base_high = upper_32_bits(S32G_MEMORY_BOUNDARY_ADDR);
 
 	dw_pcie_dbi_ro_wr_en(pci);
-	dw_pcie_writel_dbi(pci, COHERENCY_CONTROL_3_OFF, 0x0);
+	dw_pcie_writel_dbi(pci, COHERENCY_CTRL3, 0x0);
 
 	/*
 	 * Ncore is a cache-coherent interconnect module that enables the
@@ -125,9 +125,9 @@ static void s32g_pcie_reset_mstr_ace(struct dw_pcie *pci)
 	 * Define the start of DDR as seen by Linux as this boundary between
 	 * "memory" and "peripherals", with peripherals being below.
 	 */
-	dw_pcie_writel_dbi(pci, COHERENCY_CONTROL_1_OFF,
+	dw_pcie_writel_dbi(pci, COHERENCY_CTRL1,
 			   (ddr_base_low & CFG_MEMTYPE_BOUNDARY_LOW_ADDR_MASK));
-	dw_pcie_writel_dbi(pci, COHERENCY_CONTROL_2_OFF, ddr_base_high);
+	dw_pcie_writel_dbi(pci, COHERENCY_CTRL2, ddr_base_high);
 	dw_pcie_dbi_ro_wr_dis(pci);
 }
 
@@ -154,13 +154,13 @@ static int s32g_init_pcie_controller(struct dw_pcie_rp *pp)
 
 	dw_pcie_dbi_ro_wr_en(pci);
 
-	val = dw_pcie_readl_dbi(pci, PCIE_PORT_FORCE);
-	val |= PORT_FORCE_DO_DESKEW_FOR_SRIS;
-	dw_pcie_writel_dbi(pci, PCIE_PORT_FORCE, val);
+	val = dw_pcie_readl_dbi(pci, PORT_FORCE_LINK);
+	val |= PORT_FORCE_LINK_DDFS;
+	dw_pcie_writel_dbi(pci, PORT_FORCE_LINK, val);
 
-	val = dw_pcie_readl_dbi(pci, GEN3_RELATED_OFF);
-	val |= GEN3_RELATED_OFF_EQ_PHASE_2_3;
-	dw_pcie_writel_dbi(pci, GEN3_RELATED_OFF, val);
+	val = dw_pcie_readl_dbi(pci, GEN3_CTRL);
+	val |= GEN3_CTRL_EQ_PHASE_2_3;
+	dw_pcie_writel_dbi(pci, GEN3_CTRL, val);
 
 	dw_pcie_dbi_ro_wr_dis(pci);
 

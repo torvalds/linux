@@ -955,9 +955,9 @@ static int imx_pcie_wait_for_speed_change(struct imx_pcie *imx_pcie)
 	unsigned int retries;
 
 	for (retries = 0; retries < 200; retries++) {
-		tmp = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
+		tmp = dw_pcie_readl_dbi(pci, LINK_WIDTH_SPEED_CTRL);
 		/* Test if the speed change finished. */
-		if (!(tmp & PORT_LOGIC_SPEED_CHANGE))
+		if (!(tmp & SPEED_CHANGE))
 			return 0;
 		usleep_range(100, 1000);
 	}
@@ -1040,9 +1040,9 @@ static int imx_pcie_start_link(struct dw_pcie *pci)
 		 * Start Directed Speed Change so the best possible
 		 * speed both link partners support can be negotiated.
 		 */
-		tmp = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
-		tmp |= PORT_LOGIC_SPEED_CHANGE;
-		dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, tmp);
+		tmp = dw_pcie_readl_dbi(pci, LINK_WIDTH_SPEED_CTRL);
+		tmp |= SPEED_CHANGE;
+		dw_pcie_writel_dbi(pci, LINK_WIDTH_SPEED_CTRL, tmp);
 		dw_pcie_dbi_ro_wr_dis(pci);
 
 		ret = imx_pcie_wait_for_speed_change(imx_pcie);
@@ -1058,8 +1058,8 @@ static int imx_pcie_start_link(struct dw_pcie *pci)
 
 err_reset_phy:
 	dev_dbg(dev, "PHY DEBUG_R0=0x%08x DEBUG_R1=0x%08x\n",
-		dw_pcie_readl_dbi(pci, PCIE_PORT_DEBUG0),
-		dw_pcie_readl_dbi(pci, PCIE_PORT_DEBUG1));
+		dw_pcie_readl_dbi(pci, PORT_LINK_DEBUG0),
+		dw_pcie_readl_dbi(pci, PORT_LINK_DEBUG1));
 	imx_pcie_reset_phy(imx_pcie);
 	return 0;
 }
@@ -1498,18 +1498,18 @@ static void imx_pcie_host_post_init(struct dw_pcie_rp *pp)
 		/*
 		 * ERR051586: Compliance with 8GT/s Receiver Impedance ECN
 		 *
-		 * The default value of GEN3_RELATED_OFF[GEN3_ZRXDC_NONCOMPL]
+		 * The default value of GEN3_CTRL[GEN3_ZRXDC_NONCOMPL]
 		 * is 1 which makes receiver non-compliant with the ZRX-DC
 		 * parameter for 2.5 GT/s when operating at 8 GT/s or higher.
 		 * It causes unnecessary timeout in L1.
 		 *
-		 * Workaround: Program GEN3_RELATED_OFF[GEN3_ZRXDC_NONCOMPL]
+		 * Workaround: Program GEN3_CTRL[GEN3_ZRXDC_NONCOMPL]
 		 * to 0.
 		 */
 		dw_pcie_dbi_ro_wr_en(pci);
-		val = dw_pcie_readl_dbi(pci, GEN3_RELATED_OFF);
-		val &= ~GEN3_RELATED_OFF_GEN3_ZRXDC_NONCOMPL;
-		dw_pcie_writel_dbi(pci, GEN3_RELATED_OFF, val);
+		val = dw_pcie_readl_dbi(pci, GEN3_CTRL);
+		val &= ~GEN3_CTRL_GEN3_ZRXDC_NONCOMPL;
+		dw_pcie_writel_dbi(pci, GEN3_CTRL, val);
 		dw_pcie_dbi_ro_wr_dis(pci);
 	}
 
@@ -1521,7 +1521,7 @@ static void imx_pcie_host_post_init(struct dw_pcie_rp *pp)
 }
 
 /*
- * In old DWC implementations, PCIE_ATU_INHIBIT_PAYLOAD in iATU Ctrl2
+ * In old DWC implementations, ATU_INHIBIT_PAYLOAD in iATU Ctrl2
  * register is reserved, so the generic DWC implementation of sending the
  * PME_Turn_Off message using a dummy MMIO write cannot be used.
  */

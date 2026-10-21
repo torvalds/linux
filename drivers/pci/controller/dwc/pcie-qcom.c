@@ -1295,9 +1295,9 @@ static int qcom_pcie_post_init_2_9_0(struct qcom_pcie *pcie)
 	writel(DEVICE_TYPE_RC, pcie->parf + PARF_DEVICE_TYPE);
 	writel(BYPASS | MSTR_AXI_CLK_EN | AHB_CLK_EN,
 		pcie->parf + PARF_MHI_CLOCK_RESET_CTRL);
-	writel(GEN3_RELATED_OFF_RXEQ_RGRDLESS_RXTS |
-		GEN3_RELATED_OFF_GEN3_ZRXDC_NONCOMPL,
-		pci->dbi_base + GEN3_RELATED_OFF);
+	writel(GEN3_CTRL_RXEQ_RGRDLESS_RXTS |
+		GEN3_CTRL_GEN3_ZRXDC_NONCOMPL,
+		pci->dbi_base + GEN3_CTRL);
 
 	writel(MST_WAKEUP_EN | SLV_WAKEUP_EN | MSTR_ACLK_CGC_DIS |
 		SLV_ACLK_CGC_DIS | CORE_CLK_CGC_DIS |
