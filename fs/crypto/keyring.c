@@ -561,8 +561,10 @@ static int add_master_key(struct super_block *sb,
 		if (secret->is_hw_wrapped) {
 			err = fscrypt_derive_sw_secret(sb, secret->bytes,
 						       secret->size, sw_secret);
-			if (err)
+			if (err) {
+				memzero_explicit(sw_secret, sizeof(sw_secret));
 				return err;
+			}
 			kdf_key = sw_secret;
 			kdf_key_size = sizeof(sw_secret);
 			/*
