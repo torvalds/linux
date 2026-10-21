@@ -658,6 +658,8 @@ static const struct device_type pci_host_bridge_type = {
 
 static void pci_init_host_bridge(struct pci_host_bridge *bridge)
 {
+	bool port_services = IS_ENABLED(CONFIG_PCIEPORTBUS);
+
 	INIT_LIST_HEAD(&bridge->windows);
 	INIT_LIST_HEAD(&bridge->dma_ranges);
 	INIT_LIST_HEAD(&bridge->ports);
@@ -668,12 +670,12 @@ static void pci_init_host_bridge(struct pci_host_bridge *bridge)
 	 * may implement its own AER handling and use _OSC to prevent the
 	 * OS from interfering.
 	 */
-	bridge->native_aer = 1;
-	bridge->native_pcie_hotplug = 1;
+	bridge->native_aer = port_services;
+	bridge->native_pcie_hotplug = port_services;
 	bridge->native_shpc_hotplug = 1;
-	bridge->native_pme = 1;
+	bridge->native_pme = port_services;
 	bridge->native_ltr = 1;
-	bridge->native_dpc = 1;
+	bridge->native_dpc = port_services;
 	bridge->domain_nr = PCI_DOMAIN_NR_NOT_SET;
 	bridge->native_cxl_error = 1;
 	bridge->dev.type = &pci_host_bridge_type;

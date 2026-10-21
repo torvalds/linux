@@ -993,6 +993,25 @@ static void acpi_pci_root_release_info(struct pci_host_bridge *bridge)
 	__acpi_pci_root_release_info(bridge->release_data);
 }
 
+#define OSC_OWNER(ctrl, bit, flag)		\
+	do {					\
+		if (!((ctrl) & (bit)))		\
+			flag = 0;		\
+	} while (0)
+
+#define FLAG(x)		((x) ? '+' : '-')
+
+/*
+ * _OSC control bits for the features implemented by the PCIe port driver,
+ * i.e., the ones "pcie_ports=native" applies to.  LTR and SHPC hotplug are
+ * negotiated via _OSC as well, but they are not portdrv services, so
+ * "pcie_ports=" has no bearing on them.
+ */
+#define OSC_PCIE_PORT_SERVICE_CONTROLS	(OSC_PCI_EXPRESS_NATIVE_HP_CONTROL | \
+					 OSC_PCI_EXPRESS_PME_CONTROL | \
+					 OSC_PCI_EXPRESS_AER_CONTROL | \
+					 OSC_PCI_EXPRESS_DPC_CONTROL)
+
 struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 				     struct acpi_pci_root_ops *ops,
 				     struct acpi_pci_root_info *info,
@@ -1003,6 +1022,7 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 	int node = acpi_get_node(device->handle);
 	struct pci_bus *bus;
 	struct pci_host_bridge *host_bridge;
+	u32 ctrl, ext_ctrl, override = 0;
 
 	info->root = root;
 	info->bridge = device;
@@ -1028,21 +1048,49 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 		goto out_release_info;
 
 	host_bridge = to_pci_host_bridge(bus->bridge);
-	if (!(root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL))
-		host_bridge->native_pcie_hotplug = 0;
-	if (!(root->osc_control_set & OSC_PCI_SHPC_NATIVE_HP_CONTROL))
-		host_bridge->native_shpc_hotplug = 0;
-	if (!(root->osc_control_set & OSC_PCI_EXPRESS_AER_CONTROL))
-		host_bridge->native_aer = 0;
-	if (!(root->osc_control_set & OSC_PCI_EXPRESS_PME_CONTROL))
-		host_bridge->native_pme = 0;
-	if (!(root->osc_control_set & OSC_PCI_EXPRESS_LTR_CONTROL))
-		host_bridge->native_ltr = 0;
-	if (!(root->osc_control_set & OSC_PCI_EXPRESS_DPC_CONTROL))
-		host_bridge->native_dpc = 0;
 
-	if (!(root->osc_ext_control_set & OSC_CXL_ERROR_REPORTING_CONTROL))
-		host_bridge->native_cxl_error = 0;
+	ctrl = root->osc_control_set;
+	ext_ctrl = root->osc_ext_control_set;
+
+	/*
+	 * If the user specified "pcie_ports=native", use the PCIe port
+	 * services regardless of what _OSC says, i.e., proceed as though the
+	 * platform had granted us control of them.  "pcie_ports=dpc-native"
+	 * does the same for DPC alone.  This may conflict with firmware that
+	 * expects to own those features.
+	 */
+	if (pcie_ports_native)
+		override = OSC_PCIE_PORT_SERVICE_CONTROLS & ~ctrl;
+	else if (pcie_ports_dpc_native)
+		override = OSC_PCI_EXPRESS_DPC_CONTROL & ~ctrl;
+
+	if (override) {
+		decode_osc_control(root, pcie_ports_native ?
+				   "OS forcing control (\"pcie_ports=native\") of" :
+				   "OS forcing control (\"pcie_ports=dpc-native\") of",
+				   override);
+		ctrl |= override;
+	}
+
+	OSC_OWNER(ctrl, OSC_PCI_EXPRESS_NATIVE_HP_CONTROL,
+		  host_bridge->native_pcie_hotplug);
+	OSC_OWNER(ctrl, OSC_PCI_SHPC_NATIVE_HP_CONTROL,
+		  host_bridge->native_shpc_hotplug);
+	OSC_OWNER(ctrl, OSC_PCI_EXPRESS_AER_CONTROL, host_bridge->native_aer);
+	OSC_OWNER(ctrl, OSC_PCI_EXPRESS_PME_CONTROL, host_bridge->native_pme);
+	OSC_OWNER(ctrl, OSC_PCI_EXPRESS_LTR_CONTROL, host_bridge->native_ltr);
+	OSC_OWNER(ctrl, OSC_PCI_EXPRESS_DPC_CONTROL, host_bridge->native_dpc);
+
+	OSC_OWNER(ext_ctrl, OSC_CXL_ERROR_REPORTING_CONTROL,
+		  host_bridge->native_cxl_error);
+
+	dev_info(&root->device->dev, "OS native features: SHPCHotplug%c PCIeHotplug%c PME%c AER%c DPC%c LTR%c\n",
+		 FLAG(host_bridge->native_shpc_hotplug),
+		 FLAG(host_bridge->native_pcie_hotplug),
+		 FLAG(host_bridge->native_pme),
+		 FLAG(host_bridge->native_aer),
+		 FLAG(host_bridge->native_dpc),
+		 FLAG(host_bridge->native_ltr));
 
 	acpi_dev_power_up_children_with_adr(device);
 

@@ -31,7 +31,7 @@ static bool cxl_error_is_native(struct pci_dev *dev)
 {
 	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
 
-	return (pcie_ports_native || host->native_aer);
+	return host->native_aer;
 }
 
 static int cxl_rch_handle_error_iter(struct pci_dev *dev, void *data)
