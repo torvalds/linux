@@ -4146,6 +4146,9 @@ TEST_F_FORK(layout1, o_path_ftruncate_and_ioctl)
 	ASSERT_EQ(0, close(fd));
 }
 
+/* Arbitrary command with nonzero bits in both 16-bit halves. */
+static const unsigned int unknown_ioctl_cmd = 0xc00ffeee;
+
 /*
  * ioctl_error - generically call the given ioctl with a pointer to a
  * sufficiently large zeroed-out memory region.
@@ -4249,7 +4252,7 @@ TEST_F_FORK(layout1, blanket_permitted_ioctls)
 	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FS_IOC_ZERO_RANGE));
 
 	/* Default case is also blocked. */
-	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, 0xc00ffeee));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, unknown_ioctl_cmd));
 
 	ASSERT_EQ(0, close(fd));
 }
@@ -7943,6 +7946,7 @@ TEST_F(audit_layout1, truncate)
 	EXPECT_EQ(1, records.domain);
 }
 
+/* Checks that audit records preserve every ioctl command bit. */
 TEST_F(audit_layout1, ioctl_dev)
 {
 	struct audit_records records;
@@ -7952,10 +7956,10 @@ TEST_F(audit_layout1, ioctl_dev)
 
 	fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
 	ASSERT_LE(0, fd);
-	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FIONREAD));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, unknown_ioctl_cmd));
 	EXPECT_EQ(0, matches_log_fs_extra(_metadata, self->audit_fd,
 					  "fs\\.ioctl_dev", "/dev/null",
-					  " ioctlcmd=0x541b"));
+					  " ioctlcmd=0xc00ffeee"));
 
 	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
 	EXPECT_EQ(0, records.access);

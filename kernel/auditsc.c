@@ -459,7 +459,7 @@ static int audit_field_compare(struct task_struct *tsk,
  *
  * If task_creation is true, this is an explicit indication that we are
  * filtering a task rule at task creation time.  This and tsk == current are
- * the only situations where tsk->cred may be accessed without an rcu read lock.
+ * the only situations where tsk->cred may be accessed.
  */
 static int audit_filter_rules(struct task_struct *tsk,
 			      struct audit_krule *rule,
@@ -476,7 +476,8 @@ static int audit_filter_rules(struct task_struct *tsk,
 	if (ctx && rule->prio <= ctx->prio)
 		return 0;
 
-	cred = rcu_dereference_check(tsk->cred, tsk == current || task_creation);
+	WARN_ON(tsk != current && !task_creation);
+	cred = tsk->cred;
 
 	for (i = 0; i < rule->field_count; i++) {
 		struct audit_field *f = &rule->fields[i];
