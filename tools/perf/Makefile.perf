@@ -870,6 +870,9 @@ help:
 	@echo ''
 	@echo 'Perf maintainer targets:'
 	@echo '  clean			- clean all binary objects and build output'
+	@echo '  check-headers		- check which header copies are out of sync with the kernel'
+	@echo '  sync-headers		- sync those header copies with the kernel, creating commits'
+	@echo '			  (SYNC_HEADERS_ARGS="..." passes options to the script)'
 
 
 DOC_TARGETS := doc man html info pdf

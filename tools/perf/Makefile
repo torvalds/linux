@@ -137,6 +137,9 @@ build-test-tarball:
 check-headers:
 	@./check-headers.sh
 
+sync-headers:
+	@./scripts/sync-headers.sh $(SYNC_HEADERS_ARGS)
+
 #
 # All other targets get passed through:
 #
@@ -144,4 +147,4 @@ check-headers:
 	$(print_msg)
 	$(make)
 
-.PHONY: all clean tags TAGS FORCE Makefile build-test build-test-tarball check-headers
+.PHONY: all clean tags TAGS FORCE Makefile build-test build-test-tarball check-headers sync-headers
