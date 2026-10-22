@@ -5026,8 +5026,8 @@ void __init trace_event_init(void)
 {
 	event_trace_memsetup();
 	init_ftrace_syscalls();
-	event_trace_enable();
 	event_trace_init_fields();
+	event_trace_enable();
 }
 
 #ifdef CONFIG_EVENT_TRACE_STARTUP_TEST
