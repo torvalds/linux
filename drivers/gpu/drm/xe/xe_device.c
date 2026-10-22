@@ -1373,29 +1373,16 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
  *   firmware and restore device to normal operation.
  */
 
-/**
- * xe_device_set_wedged_method - Set wedged recovery method
- * @xe: xe device instance
- * @method: recovery method to set
- *
- * Set wedged recovery method to be sent in drm wedged uevent.
- */
-void xe_device_set_wedged_method(struct xe_device *xe, unsigned long method)
-{
-	xe->wedged.method = method;
-}
-
 #define WEDGED_URL	"https://docs.kernel.org/gpu/drm-uapi.html#device-wedging"
 #define XE_BUG_URL	"https://gitlab.freedesktop.org/drm/xe/kernel/issues/new"
 
 /**
  * xe_device_declare_wedged - Declare device wedged
  * @xe: xe device instance
+ * @method: method(s) to be used for recovery
  *
  * This is a final state that can only be cleared with the recovery method
- * specified in the drm wedged uevent. The method can be set using
- * xe_device_set_wedged_method before declaring the device as wedged. If no method
- * is set, reprobe (unbind/re-bind) will be sent by default.
+ * specified in the drm wedged uevent.
  *
  * In this state every IOCTL will be blocked so the GT cannot be used.
  * In general it will be called upon any critical error such as gt reset
@@ -1406,7 +1393,7 @@ void xe_device_set_wedged_method(struct xe_device *xe, unsigned long method)
  * snapshot capture. In this mode, GT reset won't be attempted so the state of
  * the issue is preserved for further debugging.
  */
-void xe_device_declare_wedged(struct xe_device *xe)
+void xe_device_declare_wedged(struct xe_device *xe, unsigned long method)
 {
 	struct xe_gt *gt;
 	u8 id;
@@ -1437,14 +1424,10 @@ void xe_device_declare_wedged(struct xe_device *xe)
 		 * it available to the user for debugging.
 		 */
 		if (xe->wedged.mode == XE_WEDGED_MODE_UPON_ANY_HANG_NO_RESET)
-			xe_device_set_wedged_method(xe, DRM_WEDGE_RECOVERY_NONE);
-		/* If no wedge recovery method is set, use default */
-		else if (!xe->wedged.method)
-			xe_device_set_wedged_method(xe, DRM_WEDGE_RECOVERY_REBIND |
-						    DRM_WEDGE_RECOVERY_BUS_RESET);
+			method = DRM_WEDGE_RECOVERY_NONE;
 
 		/* Notify userspace of wedged device */
-		drm_dev_wedged_event(&xe->drm, xe->wedged.method, NULL);
+		drm_dev_wedged_event(&xe->drm, method, NULL);
 	}
 }
 
