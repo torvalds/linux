@@ -4651,8 +4651,15 @@ static int ext4_alloc_file_blocks(struct file *file, loff_t offset, loff_t len,
 	credits = ext4_chunk_trans_blocks(inode, len_lblk);
 	depth = ext_depth(inode);
 
-	/* Zero to the end of the block containing i_size */
-	if (new_size > old_size) {
+	/*
+	 * Zero to the end of the block containing i_size.
+	 * Loading the eof block back before it is converted to unwritten
+	 * or zeroed out may leave the page cache inconsistent with the
+	 * disk, and zeroing it is redundant, so skip it.
+	 */
+	if (new_size > old_size &&
+	    !(in_range(old_size >> blkbits, map.m_lblk, map.m_len) &&
+	      (flags & EXT4_GET_BLOCKS_CONVERT_UNWRITTEN || alloc_zero))) {
 		ret = ext4_block_zero_eof(inode, old_size, LLONG_MAX);
 		if (ret)
 			return ret;
