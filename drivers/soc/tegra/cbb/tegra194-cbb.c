@@ -1912,7 +1912,7 @@ static bool print_errlog0(struct seq_file *file, struct tegra194_cbb *cbb)
 
 /*
  * Print debug information about failed transaction using
- * ErrLog registers of error loggger having ErrVld set
+ * ErrLog registers of error logger having ErrVld set
  */
 static bool print_errloggerX_info(struct seq_file *file, struct tegra194_cbb *cbb,
 				  int errloggerX)

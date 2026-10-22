@@ -36,6 +36,7 @@ struct qcom_ubwc_cfg_data {
 #define UBWC_4_3 0x40030000
 #define UBWC_5_0 0x50000000
 #define UBWC_6_0 0x60000000
+#define UBWC_7_0 0x70000000
 
 #if IS_ENABLED(CONFIG_QCOM_UBWC_CONFIG)
 const struct qcom_ubwc_cfg_data *qcom_ubwc_config_get_data(void);
@@ -108,6 +109,8 @@ static inline u32 qcom_ubwc_swizzle(const struct qcom_ubwc_cfg_data *cfg)
 
 static inline u32 qcom_ubwc_version_tag(const struct qcom_ubwc_cfg_data *cfg)
 {
+	if (cfg->ubwc_enc_version >= UBWC_7_0)
+		return 6;
 	if (cfg->ubwc_enc_version >= UBWC_6_0)
 		return 5;
 	if (cfg->ubwc_enc_version >= UBWC_5_0)

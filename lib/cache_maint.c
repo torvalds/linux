@@ -59,12 +59,12 @@ static int cache_inval_done_one(struct cache_coherency_ops_inst *cci)
 
 static int cache_invalidate_memregion(phys_addr_t addr, size_t size)
 {
-	int ret;
 	struct cache_coherency_ops_inst *cci;
 	struct cc_inval_params params = {
 		.addr = addr,
 		.size = size,
 	};
+	int ret = -ENXIO;
 
 	guard(rwsem_read)(&cache_ops_instance_list_lock);
 	list_for_each_entry(cci, &cache_ops_instance_list, node) {
@@ -78,7 +78,7 @@ static int cache_invalidate_memregion(phys_addr_t addr, size_t size)
 			return ret;
 	}
 
-	return 0;
+	return ret;
 }
 
 struct cache_coherency_ops_inst *

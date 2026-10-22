@@ -7,6 +7,8 @@ scmi_transport_mailbox-objs := mailbox.o
 obj-$(CONFIG_ARM_SCMI_TRANSPORT_MAILBOX) += scmi_transport_mailbox.o
 scmi_transport_optee-objs := optee.o
 obj-$(CONFIG_ARM_SCMI_TRANSPORT_OPTEE) += scmi_transport_optee.o
+scmi_transport_pcc-objs := pcc.o
+obj-$(CONFIG_ARM_SCMI_TRANSPORT_PCC) += scmi_transport_pcc.o
 scmi_transport_virtio-objs := virtio.o
 obj-$(CONFIG_ARM_SCMI_TRANSPORT_VIRTIO) += scmi_transport_virtio.o
 

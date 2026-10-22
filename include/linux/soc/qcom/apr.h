@@ -5,7 +5,6 @@
 
 #include <linux/spinlock.h>
 #include <linux/device.h>
-#include <linux/device-id/apr.h>
 #include <dt-bindings/soc/qcom,apr.h>
 #include <dt-bindings/soc/qcom,gpr.h>
 
@@ -135,6 +134,8 @@ struct pkt_router_svc {
 
 typedef struct pkt_router_svc gpr_port_t;
 
+#define APR_NAME_SIZE   32
+
 struct apr_device {
 	struct device	dev;
 	uint16_t	svc_id;
@@ -158,7 +159,6 @@ struct apr_driver {
 			    const struct apr_resp_pkt *d);
 	gpr_port_cb gpr_callback;
 	struct device_driver		driver;
-	const struct apr_device_id	*id_table;
 };
 
 typedef struct apr_driver gpr_driver_t;

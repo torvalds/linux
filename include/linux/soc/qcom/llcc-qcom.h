@@ -74,6 +74,7 @@
 #define LLCC_CAMSRTIP	 73
 #define LLCC_CAMRTRF	 74
 #define LLCC_CAMSRTRF	 75
+#define LLCC_GPU_LITTLE  80
 #define LLCC_OOBM_NS	 81
 #define LLCC_OOBM_S	 82
 #define LLCC_VIDEO_APV	 83
@@ -85,7 +86,12 @@
 #define LLCC_CAM_OFE_STROV	 93
 #define LLCC_CPUSS_HEU	 94
 #define LLCC_PCIE_TCU	 97
+#define LLCC_GPUHTW_LITTLE	 98
 #define LLCC_MDM_PNG_FIXED	 100
+#define LLCC_PPE_RXDESC		 101
+#define LLCC_PPE_RXFILL		 102
+#define LLCC_WLAN_5G		 103
+#define LLCC_WLAN_6G		 104
 
 /**
  * struct llcc_slice_desc - Cache slice descriptor

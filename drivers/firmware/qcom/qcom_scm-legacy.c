@@ -219,7 +219,7 @@ out:
  * @res:  SCM call return values
  *
  * This shall only be used with commands that are guaranteed to be
- * uninterruptable, atomic and SMP safe.
+ * uninterruptible, atomic and SMP safe.
  */
 int scm_legacy_call_atomic(struct device *unused,
 			   const struct qcom_scm_desc *desc,

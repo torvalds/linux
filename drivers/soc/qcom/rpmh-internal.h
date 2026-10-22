@@ -20,7 +20,7 @@
 struct rsc_drv;
 
 /**
- * struct tcs_group: group of Trigger Command Sets (TCS) to send state requests
+ * struct tcs_group - group of Trigger Command Sets (TCS) to send state requests
  * to the controller
  *
  * @drv:       The controller.
@@ -53,7 +53,7 @@ struct tcs_group {
 };
 
 /**
- * struct rpmh_request: the message to be sent to rpmh-rsc
+ * struct rpmh_request - the message to be sent to rpmh-rsc
  *
  * @msg: the request
  * @cmd: the payload that will be part of the @msg
@@ -70,7 +70,7 @@ struct rpmh_request {
 };
 
 /**
- * struct rpmh_ctrlr: our representation of the controller
+ * struct rpmh_ctrlr - our representation of the controller
  *
  * @cache: the list of cached requests
  * @cache_lock: synchronize access to the cache data
@@ -84,13 +84,19 @@ struct rpmh_ctrlr {
 	struct list_head batch_cache;
 };
 
+/**
+ * struct rsc_ver - Hardware version of the RSC controller.
+ *
+ * @major: Major version number.
+ * @minor: Minor version number.
+ */
 struct rsc_ver {
 	u32 major;
 	u32 minor;
 };
 
 /**
- * struct rsc_drv: the Direct Resource Voter (DRV) of the
+ * struct rsc_drv - the Direct Resource Voter (DRV) of the
  * Resource State Coordinator controller (RSC)
  *
  * @name:               Controller identifier.
@@ -116,6 +122,8 @@ struct rsc_ver {
  *                      slot
  * @client:             Handle to the DRV's client.
  * @dev:                RSC device.
+ * @ver:                HW version of the RSC controller.
+ * @regs:               Pointer to the register offset table for this version.
  */
 struct rsc_drv {
 	const char *name;
