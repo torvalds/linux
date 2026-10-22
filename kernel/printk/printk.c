@@ -4426,36 +4426,51 @@ void __init console_init(void)
  * be a brief interval in which no messages are logged to the console, which
  * makes it difficult to diagnose problems that occur during this time.
  *
- * To mitigate this problem somewhat, only unregister consoles whose memory
- * intersects with the init section. Note that all other boot consoles will
- * get unregistered when the real preferred console is registered.
+ * If a real console has already registered, remove all remaining boot consoles.
+ * Otherwise, mitigate the no-console interval by removing only boot consoles
+ * whose memory intersects with the init section.
  */
 static int __init printk_late_init(void)
 {
+	bool have_real_console = false;
 	struct hlist_node *tmp;
 	struct console *con;
 	int ret;
 
 	console_list_lock();
+	for_each_console(con) {
+		if (!(con->flags & CON_BOOT)) {
+			have_real_console = true;
+			break;
+		}
+	}
+
 	hlist_for_each_entry_safe(con, tmp, &console_list, node) {
 		if (!(con->flags & CON_BOOT))
 			continue;
 
-		/* Check addresses that might be used for enabled consoles. */
-		if (init_section_intersects(con, sizeof(*con)) ||
-		    init_section_contains(con->write, 0) ||
-		    init_section_contains(con->read, 0) ||
-		    init_section_contains(con->device, 0) ||
-		    init_section_contains(con->unblank, 0) ||
-		    init_section_contains(con->data, 0)) {
+		/*
+		 * Keep the boot console when requested or as a fallback
+		 * unless it is using an init section.
+		 */
+		if (keep_bootcon || !have_real_console) {
+			if (!init_section_intersects(con, sizeof(*con)) &&
+			    !init_section_contains(con->write, 0) &&
+			    !init_section_contains(con->read, 0) &&
+			    !init_section_contains(con->device, 0) &&
+			    !init_section_contains(con->unblank, 0) &&
+			    !init_section_contains(con->data, 0))
+				continue;
+
 			/*
 			 * Please, consider moving the reported consoles out
 			 * of the init section.
 			 */
 			pr_warn("bootconsole [%s%d] uses init memory and must be disabled even before the real one is ready\n",
 				con->name, con->index);
-			unregister_console_locked(con);
 		}
+
+		unregister_console_locked(con);
 	}
 	console_list_unlock();
 
