@@ -690,6 +690,8 @@ static int xe_device_vram_alloc(struct xe_device *xe)
 	return 0;
 }
 
+static void xe_device_wedged_fini(struct drm_device *drm, void *arg);
+
 /**
  * xe_device_probe_early: Device early probe
  * @xe: xe device instance
@@ -755,6 +757,10 @@ int xe_device_probe_early(struct xe_device *xe)
 		xe->wedged.mode, xe_wedged_mode_to_string(xe->wedged.mode));
 
 	err = xe_device_vram_alloc(xe);
+	if (err)
+		return err;
+
+	err = drmm_add_action_or_reset(&xe->drm, xe_device_wedged_fini, xe);
 	if (err)
 		return err;
 
@@ -1089,10 +1095,6 @@ int xe_device_probe(struct xe_device *xe)
 		goto err_unregister_display;
 
 	detect_preproduction_hw(xe);
-
-	err = drmm_add_action_or_reset(&xe->drm, xe_device_wedged_fini, xe);
-	if (err)
-		goto err_unregister_display;
 
 	/*
 	 * Process and log any errors detected by hardware. Possible results can
