@@ -445,6 +445,15 @@ int dock_notify(struct acpi_device *adev, u32 event)
 				break;
 			}
 			hotplug_dock_devices(ds, event);
+			/*
+			 * The dock platform device already exists when an empty battery
+			 * bay becomes occupied, but its driver may not have bound while
+			 * the battery was absent.  Retry after the ACPI scan updates its
+			 * status, since the scan only attaches the ACPI device.
+			 */
+			if (ds->flags & DOCK_IS_BAT)
+				device_initial_probe(&ds->dock_device->dev);
+
 			complete_dock(ds);
 			dock_event(ds, event, DOCK_EVENT);
 			acpi_evaluate_lck(ds->handle, 1);

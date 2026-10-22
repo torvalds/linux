@@ -17,8 +17,8 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct fwnode_handle *fwnode;
 	struct tb_nhi *nhi = data;
+	struct device *dev = NULL;
 	struct pci_dev *pdev;
-	struct device *dev;
 
 	if (!adev)
 		return AE_OK;
@@ -37,7 +37,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 	 * USB3 ports might not even have a physical device yet if xHCI driver
 	 * isn't bound yet.
 	 */
-	dev = acpi_get_first_physical_node(adev);
+	dev = acpi_bus_get_primary_device(adev);
 	if (!dev || !dev_is_pci(dev))
 		goto out_put;
 
@@ -74,6 +74,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 	}
 
 out_put:
+	put_device(dev);
 	fwnode_handle_put(fwnode);
 	return AE_OK;
 }

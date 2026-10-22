@@ -180,8 +180,10 @@ function are specified using param1::
 	| segment |   bus  | device | function | reserved |
 	+-------------------------------------------------+
 
-Anyway, you get the idea, if there's doubt just take a look at the code
-in drivers/acpi/apei/einj.c.
+Anyway, you get the idea, if there's doubt just take a look at the code:
+drivers/acpi/apei/einj-core.c holds the core logic, while CXL-specific
+handling lives in drivers/acpi/apei/einj-cxl.c and the shared plumbing
+in drivers/acpi/apei/apei-internal.h.
 
 An ACPI 5.0 BIOS may also allow vendor-specific errors to be injected.
 In this case a file named vendor will contain identifying information

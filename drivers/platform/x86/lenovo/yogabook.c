@@ -353,13 +353,13 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 		goto error_put_devs;
 	}
 
-	data->kbd_dev = get_device(acpi_get_first_physical_node(data->kbd_adev));
+	data->kbd_dev = acpi_bus_get_primary_device(data->kbd_adev);
 	if (!data->kbd_dev || !data->kbd_dev->driver) {
 		r = -EPROBE_DEFER;
 		goto error_put_devs;
 	}
 
-	data->dig_dev = get_device(acpi_get_first_physical_node(data->dig_adev));
+	data->dig_dev = acpi_bus_get_primary_device(data->dig_adev);
 	if (!data->dig_dev || !data->dig_dev->driver) {
 		r = -EPROBE_DEFER;
 		goto error_put_devs;

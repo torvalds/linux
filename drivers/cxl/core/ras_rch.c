@@ -19,7 +19,7 @@ void cxl_dport_map_rch_aer(struct cxl_dport *dport)
 		aer_phys = aer_cap + dport->rcrb.base;
 		dport->regs.dport_aer =
 			devm_cxl_iomap_block(host, aer_phys,
-					     sizeof(struct aer_capability_regs));
+					     PCIE_AER_CAP_HW_SIZE);
 	}
 }
 
@@ -58,31 +58,20 @@ void cxl_disable_rch_root_ints(struct cxl_dport *dport)
 static bool cxl_rch_get_aer_info(void __iomem *aer_base,
 				 struct aer_capability_regs *aer_regs)
 {
-	/*
-	 * Bound the copy to the physically-defined AER registers (header
-	 * through the 16-byte Header Log). struct aer_capability_regs is a
-	 * software layout whose embedded struct pcie_tlp_log is larger than
-	 * the on-wire AER capability; copying sizeof(*aer_regs) would
-	 * over-read the RCRB-mapped MMIO block.
-	 */
-	int read_cnt = (PCI_ERR_HEADER_LOG + 16) / sizeof(u32);
-	u32 *aer_regs_buf = (u32 *)aer_regs;
-	int n;
+	/* A flat copy cannot fill the struct; aer_cap_regs_unpack() places it. */
+	__le32 raw[PCIE_AER_CAP_HW_SIZE / sizeof(__le32)];
 
 	if (!aer_base)
 		return false;
 
 	/*
-	 * Zero the destination so the software-only tail fields
-	 * (e.g. header_log.header_len) are deterministic rather than
-	 * left as uninitialized stack, which could drive a bogus loop
-	 * length in pcie_print_tlp_log().
+	 * Use readl() to guarantee 32-bit accesses; it returns host order, so
+	 * put the registers back little-endian for aer_cap_regs_unpack().
 	 */
-	memset(aer_regs, 0, sizeof(*aer_regs));
+	for (int n = 0; n < ARRAY_SIZE(raw); n++)
+		raw[n] = cpu_to_le32(readl(aer_base + n * sizeof(u32)));
 
-	/* Use readl() to guarantee 32-bit accesses */
-	for (n = 0; n < read_cnt; n++)
-		aer_regs_buf[n] = readl(aer_base + n * sizeof(u32));
+	aer_cap_regs_unpack(aer_regs, raw, sizeof(raw));
 
 	writel(aer_regs->uncor_status, aer_base + PCI_ERR_UNCOR_STATUS);
 	writel(aer_regs->cor_status, aer_base + PCI_ERR_COR_STATUS);

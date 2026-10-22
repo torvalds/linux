@@ -235,15 +235,7 @@ static int
 processor_get_max_state(struct thermal_cooling_device *cdev,
 			unsigned long *state)
 {
-	struct acpi_device *device = cdev->devdata;
-	struct acpi_processor *pr;
-
-	if (!device)
-		return -EINVAL;
-
-	pr = acpi_driver_data(device);
-	if (!pr)
-		return -EINVAL;
+	struct acpi_processor *pr = cdev->devdata;
 
 	*state = acpi_processor_max_state(pr);
 	return 0;
@@ -253,15 +245,7 @@ static int
 processor_get_cur_state(struct thermal_cooling_device *cdev,
 			unsigned long *cur_state)
 {
-	struct acpi_device *device = cdev->devdata;
-	struct acpi_processor *pr;
-
-	if (!device)
-		return -EINVAL;
-
-	pr = acpi_driver_data(device);
-	if (!pr)
-		return -EINVAL;
+	struct acpi_processor *pr = cdev->devdata;
 
 	*cur_state = cpufreq_get_cur_state(pr->id);
 	if (pr->flags.throttling)
@@ -273,17 +257,9 @@ static int
 processor_set_cur_state(struct thermal_cooling_device *cdev,
 			unsigned long state)
 {
-	struct acpi_device *device = cdev->devdata;
-	struct acpi_processor *pr;
+	struct acpi_processor *pr = cdev->devdata;
 	int result = 0;
 	int max_pstate;
-
-	if (!device)
-		return -EINVAL;
-
-	pr = acpi_driver_data(device);
-	if (!pr)
-		return -EINVAL;
 
 	max_pstate = cpufreq_get_max_state(pr->id);
 
@@ -308,55 +284,21 @@ const struct thermal_cooling_device_ops processor_cooling_ops = {
 	.set_cur_state = processor_set_cur_state,
 };
 
-int acpi_processor_thermal_init(struct acpi_processor *pr,
-				struct acpi_device *device)
+int acpi_processor_thermal_init(struct acpi_processor *pr)
 {
-	int result = 0;
+	pr->cdev = thermal_cooling_device_create(pr->dev, "Processor", pr,
+						 &processor_cooling_ops);
+	if (IS_ERR(pr->cdev))
+		return PTR_ERR(pr->cdev);
 
-	pr->cdev = thermal_cooling_device_register("Processor", device,
-						   &processor_cooling_ops);
-	if (IS_ERR(pr->cdev)) {
-		result = PTR_ERR(pr->cdev);
-		return result;
-	}
-
-	dev_dbg(&device->dev, "registered as cooling_device%d\n",
-		pr->cdev->id);
-
-	result = sysfs_create_link(&device->dev.kobj,
-				   &pr->cdev->device.kobj,
-				   "thermal_cooling");
-	if (result) {
-		dev_err(&device->dev,
-			"Failed to create sysfs link 'thermal_cooling'\n");
-		goto err_thermal_unregister;
-	}
-
-	result = sysfs_create_link(&pr->cdev->device.kobj,
-				   &device->dev.kobj,
-				   "device");
-	if (result) {
-		dev_err(&pr->cdev->device,
-			"Failed to create sysfs link 'device'\n");
-		goto err_remove_sysfs_thermal;
-	}
+	dev_dbg(pr->dev, "registered as cooling_device%d\n", pr->cdev->id);
 
 	return 0;
-
-err_remove_sysfs_thermal:
-	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
-err_thermal_unregister:
-	thermal_cooling_device_unregister(pr->cdev);
-
-	return result;
 }
 
-void acpi_processor_thermal_exit(struct acpi_processor *pr,
-				 struct acpi_device *device)
+void acpi_processor_thermal_exit(struct acpi_processor *pr)
 {
-	if (pr->cdev) {
-		sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
-		sysfs_remove_link(&pr->cdev->device.kobj, "device");
+	if (!IS_ERR_OR_NULL(pr->cdev)) {
 		thermal_cooling_device_unregister(pr->cdev);
 		pr->cdev = NULL;
 	}

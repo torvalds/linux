@@ -1121,6 +1121,44 @@ static const struct dmi_system_id dmi_leave_unused_power_resources_on[] = {
 		}
 
 	},
+	{
+		/*
+		 * Acer Swift 3 SF314-56G with NVIDIA MX250 suffers from the
+		 * same ACPI power resource regression as the Thunderobot ZERO.
+		 * The power resource controlling the dGPU is incorrectly turned off
+		 * during initialization, causing the GPU to fall off the bus (D3cold).
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Swift SF314-56G"),
+		}
+
+	},
+	{
+		/*
+		 * CASPER EXCALIBUR G900 laptop: Keep unused ACPI power
+		 * resources on to prevent the NVIDIA dGPU and NVMe #2
+		 * from becoming inaccessible.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "CASPER BILGISAYAR SISTEMLERI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EXCALIBUR G900"),
+			DMI_MATCH(DMI_BOARD_NAME, "NLCC 001"),
+		},
+	},
+	{
+		/*
+		 * Acer Aspire A515-53G: Two SSDTs both define power resources
+		 * for the dGPU root port RP05 ('PC01' and 'PCRP'). Only PC01 ends
+		 * up in RP05's _PR0/_PR3, so 'PCRP' is shut down on
+		 * initialization, cutting power to the NVIDIA dGPU behind the
+		 * back of 'PC01' and making the dGPU unavailable.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire A515-53G"),
+		},
+	},
 	{}
 };
 

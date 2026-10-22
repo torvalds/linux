@@ -20,6 +20,7 @@
 #include <linux/kthread.h>
 #include <linux/dmi.h>
 #include <linux/dma-map-ops.h>
+#include <linux/pci.h>
 #include <linux/platform_data/x86/apple.h>
 #include <linux/pgtable.h>
 #include <linux/crc32.h>
@@ -637,10 +638,9 @@ static struct acpi_device *handle_to_device(acpi_handle handle,
 
 	status = acpi_get_data_full(handle, acpi_scan_drop_device,
 				    (void **)&adev, callback);
-	if (ACPI_FAILURE(status) || !adev) {
-		acpi_handle_debug(handle, "No context!\n");
+	if (ACPI_FAILURE(status) || !adev)
 		return NULL;
-	}
+
 	return adev;
 }
 
@@ -1143,8 +1143,7 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 			device->power.states[ACPI_STATE_D3_COLD].flags.valid = 1;
 	}
 
-	if (acpi_bus_init_power(device))
-		device->flags.power_manageable = 0;
+	device->power.state = ACPI_STATE_UNKNOWN;
 }
 
 static void acpi_bus_get_flags(struct acpi_device *device)
@@ -2338,50 +2337,57 @@ static int acpi_scan_attach_handler(struct acpi_device *device)
 static int acpi_bus_attach(struct acpi_device *device, void *first_pass)
 {
 	bool skip = !first_pass && device->flags.visited;
+	struct pci_dev *pci;
 	acpi_handle ejd;
 	int ret;
 
 	if (skip)
 		goto ok;
 
+	device->flags.initialized = true;
+
 	if (ACPI_SUCCESS(acpi_bus_get_ejd(device->handle, &ejd)))
 		register_dock_dependent_device(device, ejd);
 
 	acpi_bus_get_status(device);
-	/* Skip devices that are not ready for enumeration (e.g. not present) */
-	if (!acpi_dev_ready_for_enumeration(device)) {
-		device->flags.initialized = false;
+	/*
+	 * If the given ACPI device object has been already associated with a
+	 * PCI device found on the bus, its status is effectively "present and
+	 * enabled", and dependencies are not tracked for PCI devices, so it is
+	 * not necessary or even useful to check the device's readiness in that
+	 * case.
+	 */
+	pci = acpi_dev_get_pci_dev(device);
+	if (pci) {
+		acpi_handle_debug(device->handle, "PCI companion %s found\n",
+				  pci_name(pci));
+
+		if (!acpi_device_is_present(device))
+			pci_info(pci, FW_BUG "ACPI status differs from reality\n");
+
+		pci_dev_put(pci);
+	} else if (!acpi_dev_ready_for_enumeration(device)) {
+		/* The device is not ready (e.g. not present), so skip it. */
 		acpi_device_clear_enumerated(device);
-		device->flags.power_manageable = 0;
 		return 0;
 	}
+
 	if (device->handler)
 		goto ok;
 
 	acpi_ec_register_opregions(device);
 
-	if (!device->flags.initialized) {
-		device->flags.power_manageable =
-			device->power.states[ACPI_STATE_D0].flags.valid;
-		if (acpi_bus_init_power(device))
-			device->flags.power_manageable = 0;
+	acpi_bus_init_power(device);
 
-		device->flags.initialized = true;
-	} else if (device->flags.visited) {
+	if (device->flags.visited)
 		goto ok;
-	}
 
 	ret = acpi_scan_attach_handler(device);
 	if (ret < 0)
 		return 0;
 
-	if (ret > 0 && !device->flags.enumeration_by_parent) {
-		acpi_device_set_enumerated(device);
-		goto ok;
-	}
-
-	if (device->pnp.type.platform_id || device->pnp.type.backlight ||
-	    device->flags.enumeration_by_parent)
+	if (device->flags.enumeration_by_parent ||
+	    (!ret && (device->pnp.type.platform_id || device->pnp.type.backlight)))
 		acpi_default_enumeration(device);
 	else
 		acpi_device_set_enumerated(device);
