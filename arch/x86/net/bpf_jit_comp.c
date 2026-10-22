@@ -97,56 +97,6 @@ static bool is_imm8(int value)
 	return value <= 127 && value >= -128;
 }
 
-/*
- * Let us limit the positive offset to be <= 123.
- * This is to ensure eventual jit convergence For the following patterns:
- * ...
- * pass4, final_proglen=4391:
- *   ...
- *   20e:    48 85 ff                test   rdi,rdi
- *   211:    74 7d                   je     0x290
- *   213:    48 8b 77 00             mov    rsi,QWORD PTR [rdi+0x0]
- *   ...
- *   289:    48 85 ff                test   rdi,rdi
- *   28c:    74 17                   je     0x2a5
- *   28e:    e9 7f ff ff ff          jmp    0x212
- *   293:    bf 03 00 00 00          mov    edi,0x3
- * Note that insn at 0x211 is 2-byte cond jump insn for offset 0x7d (-125)
- * and insn at 0x28e is 5-byte jmp insn with offset -129.
- *
- * pass5, final_proglen=4392:
- *   ...
- *   20e:    48 85 ff                test   rdi,rdi
- *   211:    0f 84 80 00 00 00       je     0x297
- *   217:    48 8b 77 00             mov    rsi,QWORD PTR [rdi+0x0]
- *   ...
- *   28d:    48 85 ff                test   rdi,rdi
- *   290:    74 1a                   je     0x2ac
- *   292:    eb 84                   jmp    0x218
- *   294:    bf 03 00 00 00          mov    edi,0x3
- * Note that insn at 0x211 is 6-byte cond jump insn now since its offset
- * becomes 0x80 based on previous round (0x293 - 0x213 = 0x80).
- * At the same time, insn at 0x292 is a 2-byte insn since its offset is
- * -124.
- *
- * pass6 will repeat the same code as in pass4 and this will prevent
- * eventual convergence.
- *
- * To fix this issue, we need to break je (2->6 bytes) <-> jmp (5->2 bytes)
- * cycle in the above. In the above example je offset <= 0x7c should work.
- *
- * For other cases, je <-> je needs offset <= 0x7b to avoid no convergence
- * issue. For jmp <-> je and jmp <-> jmp cases, jmp offset <= 0x7c should
- * avoid no convergence issue.
- *
- * Overall, let us limit the positive offset for 8bit cond/uncond jmp insn
- * to maximum 123 (0x7b). This way, the jit pass can eventually converge.
- */
-static bool is_imm8_jmp_offset(int value)
-{
-	return value <= 123 && value >= -128;
-}
-
 static bool is_simm32(s64 value)
 {
 	return value == (s64)(s32)value;
@@ -2298,6 +2248,17 @@ static void emit_priv_frame_ptr(u8 **pprog, void __percpu *priv_frame_ptr)
 
 #define INSN_SZ_DIFF (((addrs[i] - addrs[i - 1]) - (prog - temp)))
 
+/*
+ * addrs[] below i are from this pass, addrs[i] and above are from the previous
+ * one. 'moved' is how far back this pass moved the start of the current insn.
+ * With it a jump in either direction is sized by the insns it jumps over, plus
+ * its own previous size for a backward jump, none of which grow.
+ */
+static int jmp_distance(const int *addrs, int i, int off, int moved)
+{
+	return addrs[i + off] - addrs[i] + (off < 0 ? moved : 0);
+}
+
 #define __LOAD_TCC_PTR(off)			\
 	emit_ldx(&prog, BPF_DW, BPF_REG_0, BPF_REG_FP, off)
 /* mov rax, qword ptr [rbp - rounded_stack_depth - 16] */
@@ -2586,7 +2547,7 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 	u64 arena_vm_start = 0, user_vm_start = 0;
 	void __percpu *priv_stack_ptr;
 	int i, excnt = 0;
-	int ilen, proglen = 0;
+	int ilen, moved, proglen = 0;
 	u8 *ip, *prog = temp;
 	u32 stack_depth;
 	int callee_saved_size;
@@ -2700,6 +2661,7 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 	if (rw_image)
 		memcpy(rw_image + proglen, temp, ilen);
 	proglen += ilen;
+	moved = addrs[0] - proglen;
 	addrs[0] = proglen;
 	prog = temp;
 
@@ -3745,8 +3707,8 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 			default: /* to silence GCC warning */
 				return -EFAULT;
 			}
-			jmp_offset = addrs[i + insn->off] - addrs[i];
-			if (is_imm8_jmp_offset(jmp_offset)) {
+			jmp_offset = jmp_distance(addrs, i, insn->off, moved);
+			if (is_imm8(jmp_offset)) {
 				if (jmp_padding) {
 					/* To keep the jmp_offset valid, the extra bytes are
 					 * padded before the jump insn, so we subtract the
@@ -3786,23 +3748,10 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 			break;
 		case BPF_JMP | BPF_JA:
 		case BPF_JMP32 | BPF_JA:
-			if (BPF_CLASS(insn->code) == BPF_JMP) {
-				if (insn->off == -1)
-					/* -1 jmp instructions will always jump
-					 * backwards two bytes. Explicitly handling
-					 * this case avoids wasting too many passes
-					 * when there are long sequences of replaced
-					 * dead code.
-					 */
-					jmp_offset = -2;
-				else
-					jmp_offset = addrs[i + insn->off] - addrs[i];
-			} else {
-				if (insn->imm == -1)
-					jmp_offset = -2;
-				else
-					jmp_offset = addrs[i + insn->imm] - addrs[i];
-			}
+			if (BPF_CLASS(insn->code) == BPF_JMP)
+				jmp_offset = jmp_distance(addrs, i, insn->off, moved);
+			else
+				jmp_offset = jmp_distance(addrs, i, insn->imm, moved);
 
 			if (!jmp_offset) {
 				/*
@@ -3831,7 +3780,7 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 				break;
 			}
 emit_jmp:
-			if (is_imm8_jmp_offset(jmp_offset)) {
+			if (is_imm8(jmp_offset)) {
 				if (jmp_padding) {
 					/* To avoid breaking jmp_offset, the extra bytes
 					 * are padded before the actual jmp insn, so
@@ -3867,7 +3816,7 @@ emit_jmp:
 			    emit_unwind_ret_addr(&prog, ip))
 				return -EINVAL;
 			if (seen_exit) {
-				jmp_offset = ctx->cleanup_addr - addrs[i];
+				jmp_offset = ctx->cleanup_addr - addrs[i] + moved;
 				goto emit_jmp;
 			}
 			seen_exit = true;
@@ -3928,6 +3877,7 @@ emit_jmp:
 			memcpy(rw_image + proglen, temp, ilen);
 		}
 		proglen += ilen;
+		moved = addrs[i] - proglen;
 		addrs[i] = proglen;
 		prog = temp;
 	}
@@ -4965,20 +4915,23 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 
 	/*
 	 * Before first pass, make a rough estimation of addrs[]
-	 * each BPF instruction is translated to less than 64 bytes
+	 * each BPF instruction is translated to at most BPF_MAX_INSN_SIZE
+	 * bytes, so no insn grows in the first pass
 	 */
 	for (proglen = 0, i = 0; i <= prog->len; i++) {
-		proglen += 64;
+		proglen += BPF_MAX_INSN_SIZE;
 		addrs[i] = proglen;
 	}
 	ctx.cleanup_addr = proglen;
 skip_init_addrs:
 
 	/*
-	 * JITed image shrinks with every pass and the loop iterates
-	 * until the image stops shrinking. Very large BPF programs
-	 * may converge on the last pass. In such case do one more
-	 * pass to emit the final image.
+	 * Jumps are sized by the insns they jump over, which start at
+	 * their maximum size, so no insn grows from one pass to the
+	 * next. The loop iterates until the image stops shrinking, at
+	 * which point no insn has moved. Very large BPF programs may
+	 * converge on the last pass. In such case do one more pass to
+	 * emit the final image.
 	 */
 	for (pass = 0; pass < MAX_PASSES || image; pass++) {
 		if (!padding && pass >= PADDING_PASSES)
