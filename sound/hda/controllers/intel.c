@@ -1668,6 +1668,7 @@ static const struct snd_pci_quirk msi_deny_list[] = {
 	SND_PCI_QUIRK(0x1179, 0xfb44, "Toshiba Satellite C870", 0), /* AMD Hudson */
 	SND_PCI_QUIRK(0x1849, 0x0888, "ASRock", 0), /* Athlon64 X2 + nvidia */
 	SND_PCI_QUIRK(0xa0a0, 0x0575, "Aopen MZ915-M", 0), /* ICH6 */
+	SND_PCI_QUIRK(0x1d94, 0xc950, "Hygon H34M51A", 1), /* INTx broken */
 	{}
 };
 
