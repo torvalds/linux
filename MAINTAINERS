@@ -5296,7 +5296,7 @@ F:	Documentation/devicetree/bindings/usb/brcm,bdc.yaml
 F:	drivers/usb/gadget/udc/bdc/
 
 BROADCOM BMIPS CPUFREQ DRIVER
-M:	Markus Mayer <mmayer@broadcom.com>
+M:	Markus Mayer <markus.mayer@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
@@ -5571,7 +5571,7 @@ F:	drivers/spi/spi-brcmstb-qspi.c
 F:	drivers/spi/spi-iproc-qspi.c
 
 BROADCOM STB AVS CPUFREQ DRIVER
-M:	Markus Mayer <mmayer@broadcom.com>
+M:	Markus Mayer <markus.mayer@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
@@ -5579,7 +5579,7 @@ F:	Documentation/devicetree/bindings/cpufreq/brcm,stb-avs-cpu-freq.txt
 F:	drivers/cpufreq/brcmstb*
 
 BROADCOM STB AVS TMON DRIVER
-M:	Markus Mayer <mmayer@broadcom.com>
+M:	Markus Mayer <markus.mayer@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
@@ -5587,7 +5587,7 @@ F:	Documentation/devicetree/bindings/thermal/brcm,avs-tmon.yaml
 F:	drivers/thermal/broadcom/brcmstb*
 
 BROADCOM STB DPFE DRIVER
-M:	Markus Mayer <mmayer@broadcom.com>
+M:	Markus Mayer <markus.mayer@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
