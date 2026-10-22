@@ -95,41 +95,62 @@ static int __em_nl_get_pd_for_dump(struct em_perf_domain *pd, void *data)
 	return ret;
 }
 
-int dev_energymodel_nl_get_perf_domains_doit(struct sk_buff *skb,
-					      struct genl_info *info)
-{
-	int id, ret = -EMSGSIZE, msg_sz = 0;
-	int cmd = info->genlhdr->cmd;
-	struct em_perf_domain *pd;
+struct em_nl_doit_ctx {
+	struct genl_info *info;
+	int cmd;
 	struct sk_buff *msg;
+};
+
+static int __em_nl_get_pd_doit_fill(struct em_perf_domain *pd, void *data)
+{
+	struct em_nl_doit_ctx *ctx = data;
 	void *hdr;
+
+	hdr = genlmsg_put_reply(ctx->msg, ctx->info, &dev_energymodel_nl_family, 0,
+				ctx->cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (__em_nl_get_pd(pd, ctx->msg)) {
+		genlmsg_cancel(ctx->msg, hdr);
+		return -EMSGSIZE;
+	}
+
+	genlmsg_end(ctx->msg, hdr);
+	return 0;
+}
+
+int dev_energymodel_nl_get_perf_domains_doit(struct sk_buff *skb,
+					     struct genl_info *info)
+{
+	struct em_nl_doit_ctx ctx = {
+		.info = info,
+		.cmd = info->genlhdr->cmd,
+	};
+	struct sk_buff *msg;
+	int id, ret, msg_sz = 0;
 
 	if (!info->attrs[DEV_ENERGYMODEL_A_PERF_DOMAIN_PERF_DOMAIN_ID])
 		return -EINVAL;
 
 	id = nla_get_u32(info->attrs[DEV_ENERGYMODEL_A_PERF_DOMAIN_PERF_DOMAIN_ID]);
-	pd = em_perf_domain_get_by_id(id);
-	if (!pd)
-		return -EINVAL;
 
-	__em_nl_get_pd_size(pd, &msg_sz);
+	/* Encode under em_pd_list_mutex, like the dumpit path. */
+	ret = em_perf_domain_for_id(id, __em_nl_get_pd_size, &msg_sz);
+	if (ret)
+		return ret;
+
 	msg = genlmsg_new(msg_sz, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
-	hdr = genlmsg_put_reply(msg, info, &dev_energymodel_nl_family, 0, cmd);
-	if (!hdr)
-		goto out_free_msg;
-
-	ret = __em_nl_get_pd(pd, msg);
+	ctx.msg = msg;
+	ret = em_perf_domain_for_id(id, __em_nl_get_pd_doit_fill, &ctx);
 	if (ret)
-		goto out_cancel_msg;
-	genlmsg_end(msg, hdr);
+		goto out_free_msg;
 
 	return genlmsg_reply(msg, info);
 
-out_cancel_msg:
-	genlmsg_cancel(msg, hdr);
 out_free_msg:
 	nlmsg_free(msg);
 	return ret;
@@ -146,19 +167,6 @@ int dev_energymodel_nl_get_perf_domains_dumpit(struct sk_buff *skb,
 	};
 
 	return for_each_em_perf_domain(__em_nl_get_pd_for_dump, &ctx);
-}
-
-static struct em_perf_domain *__em_nl_get_pd_table_id(struct nlattr **attrs)
-{
-	struct em_perf_domain *pd;
-	int id;
-
-	if (!attrs[DEV_ENERGYMODEL_A_PERF_TABLE_PERF_DOMAIN_ID])
-		return NULL;
-
-	id = nla_get_u32(attrs[DEV_ENERGYMODEL_A_PERF_TABLE_PERF_DOMAIN_ID]);
-	pd = em_perf_domain_get_by_id(id);
-	return pd;
 }
 
 static int __em_nl_get_pd_table_size(const struct em_perf_domain *pd)
@@ -245,34 +253,58 @@ out_err:
 	return -EMSGSIZE;
 }
 
-int dev_energymodel_nl_get_perf_table_doit(struct sk_buff *skb,
-					    struct genl_info *info)
+static int __em_nl_get_pd_table_size_cb(struct em_perf_domain *pd, void *data)
 {
-	int cmd = info->genlhdr->cmd;
-	int msg_sz, ret = -EMSGSIZE;
-	struct em_perf_domain *pd;
-	struct sk_buff *msg;
+	*(int *)data = __em_nl_get_pd_table_size(pd);
+	return 0;
+}
+
+static int __em_nl_get_pd_table_doit_fill(struct em_perf_domain *pd,
+					  void *data)
+{
+	struct em_nl_doit_ctx *ctx = data;
 	void *hdr;
 
-	pd = __em_nl_get_pd_table_id(info->attrs);
-	if (!pd)
+	hdr = genlmsg_put_reply(ctx->msg, ctx->info, &dev_energymodel_nl_family, 0,
+				ctx->cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (__em_nl_get_pd_table(ctx->msg, pd))
+		return -EMSGSIZE;
+
+	genlmsg_end(ctx->msg, hdr);
+	return 0;
+}
+
+int dev_energymodel_nl_get_perf_table_doit(struct sk_buff *skb,
+					   struct genl_info *info)
+{
+	struct em_nl_doit_ctx ctx = {
+		.info = info,
+		.cmd = info->genlhdr->cmd,
+	};
+	struct sk_buff *msg;
+	int id, ret, msg_sz;
+
+	if (!info->attrs[DEV_ENERGYMODEL_A_PERF_TABLE_PERF_DOMAIN_ID])
 		return -EINVAL;
 
-	msg_sz = __em_nl_get_pd_table_size(pd);
+	id = nla_get_u32(info->attrs[DEV_ENERGYMODEL_A_PERF_TABLE_PERF_DOMAIN_ID]);
+
+	ret = em_perf_domain_for_id(id, __em_nl_get_pd_table_size_cb, &msg_sz);
+	if (ret)
+		return ret;
 
 	msg = genlmsg_new(msg_sz, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
-	hdr = genlmsg_put_reply(msg, info, &dev_energymodel_nl_family, 0, cmd);
-	if (!hdr)
-		goto out_free_msg;
-
-	ret = __em_nl_get_pd_table(msg, pd);
+	ctx.msg = msg;
+	ret = em_perf_domain_for_id(id, __em_nl_get_pd_table_doit_fill, &ctx);
 	if (ret)
 		goto out_free_msg;
 
-	genlmsg_end(msg, hdr);
 	return genlmsg_reply(msg, info);
 
 out_free_msg:

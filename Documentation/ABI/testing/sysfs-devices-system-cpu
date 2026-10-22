@@ -335,12 +335,16 @@ Description:	Performance Limited
 		Read to check if platform throttling (thermal/power/current
 		limits) caused delivered performance to fall below the
 		requested level. A non-zero value indicates throttling occurred.
+		If firmware provides the register but Linux cannot access it
+		safely, reads return the literal string "<unsupported>".
 
-		Write the bitmask of bits to clear:
-
-		  - 0x1 = clear bit 0 (desired performance excursion)
-		  - 0x2 = clear bit 1 (minimum performance excursion)
-		  - 0x3 = clear both bits
+		Write 0x3 to clear both bits. Selectively clearing one bit is
+		not supported because ACPI does not define the effect of writing
+		one to these status bits and an interlocked read-modify-write is
+		not generally available.
+		Writing 0x3 returns -EOPNOTSUPP when firmware describes the
+		register using an access which Linux cannot clear safely; reads
+		may remain available in that case.
 
 		The platform sets these bits; OSPM can only clear them.
 

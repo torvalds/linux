@@ -85,10 +85,12 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 	freq_step = get_freq_step(cs_tuners, policy);
 
 	/*
-	 * Decrease requested_freq one freq_step for each idle period that
-	 * we didn't update the frequency.
+	 * Apply deferred down steps only when the policy sample load is
+	 * below down_threshold. Otherwise, multiple deferred down steps may
+	 * cause a net frequency decrease outside the downscaling region.
 	 */
-	if (policy_dbs->idle_periods < UINT_MAX) {
+	if (policy_dbs->max_sample_load < cs_tuners->down_threshold &&
+	    policy_dbs->idle_periods < UINT_MAX) {
 		unsigned int freq_steps = policy_dbs->idle_periods * freq_step;
 
 		if (requested_freq > policy->min + freq_steps)
