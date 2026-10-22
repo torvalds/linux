@@ -1781,6 +1781,7 @@ static int gmem_abort(const struct kvm_s2_fault_desc *s2fd,
 						      s2vi.vma_pagesize, write_fault, exec_fault,
 						      false);
 		kfree(mapping);
+		return ret;
 	}
 
 	if (!(s2fd->memslot->flags & KVM_MEM_READONLY))
