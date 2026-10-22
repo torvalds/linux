@@ -770,15 +770,12 @@ static void null_release_zone_resources(struct nullb_device *dev,
 	spin_unlock(&dev->zone_res_lock);
 }
 
-/*
- * Set a zone in the read-only or offline condition.
- */
-static void null_set_zone_cond(struct nullb_device *dev,
-			       struct nullb_zone *zone, enum blk_zone_cond cond)
+static void null_set_zone_readonly_or_offline(struct nullb_device *dev,
+					      struct nullb_zone *zone,
+					      bool set_offline)
 {
-	if (WARN_ON_ONCE(cond != BLK_ZONE_COND_READONLY &&
-			 cond != BLK_ZONE_COND_OFFLINE))
-		return;
+	enum blk_zone_cond cond =
+		set_offline ? BLK_ZONE_COND_OFFLINE : BLK_ZONE_COND_READONLY;
 
 	null_lock_zone(dev, zone);
 
@@ -814,6 +811,11 @@ ssize_t zone_cond_store(struct nullb_device *dev, const char *page,
 	unsigned int zone_no;
 	int ret;
 
+	/* Read-only and offline are the only conditions supported for now */
+	if (WARN_ON_ONCE(cond != BLK_ZONE_COND_READONLY &&
+			 cond != BLK_ZONE_COND_OFFLINE))
+		return -EINVAL;
+
 	if (!dev->zoned) {
 		pr_err("null_blk device is not zoned\n");
 		return -EINVAL;
@@ -839,7 +841,8 @@ ssize_t zone_cond_store(struct nullb_device *dev, const char *page,
 		return -EINVAL;
 	}
 
-	null_set_zone_cond(dev, &dev->zones[zone_no], cond);
+	null_set_zone_readonly_or_offline(dev, &dev->zones[zone_no],
+					  cond == BLK_ZONE_COND_OFFLINE);
 
 	return count;
 }
