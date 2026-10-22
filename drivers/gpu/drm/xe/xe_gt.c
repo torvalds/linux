@@ -175,6 +175,7 @@ static void xe_gt_enable_comp_1wcoh(struct xe_gt *gt)
 }
 
 static void gt_reset_worker(struct work_struct *w);
+static void gt_wedge_worker(struct work_struct *w);
 
 static int emit_job_sync(struct xe_exec_queue *q, struct xe_bb *bb,
 			 long timeout_jiffies, bool force_reset)
@@ -546,6 +547,8 @@ int xe_gt_init_early(struct xe_gt *gt)
 	xe_gt_mcr_init_early(gt);
 	xe_pat_init(gt);
 
+	INIT_WORK(&gt->reset.worker, gt_reset_worker);
+	INIT_WORK(&gt->wedge.worker, gt_wedge_worker);
 	return 0;
 }
 
@@ -630,15 +633,20 @@ static int gt_init_with_gt_forcewake(struct xe_gt *gt)
 	return 0;
 }
 
-static void gt_reset_worker_disable(void *arg)
+static void gt_worker_disable(void *arg)
 {
 	struct xe_gt *gt = arg;
+
+	WRITE_ONCE(gt->initialized, false);
 
 	if (disable_work_sync(&gt->reset.worker))
 		/*
 		 * If gt_reset_worker was halted from executing, take care of
 		 * releasing the rpm reference here.
 		 */
+		xe_pm_runtime_put(gt_to_xe(gt));
+
+	if (disable_work_sync(&gt->wedge.worker))
 		xe_pm_runtime_put(gt_to_xe(gt));
 }
 
@@ -712,7 +720,7 @@ static int gt_init_with_all_forcewake(struct xe_gt *gt)
 		xe_gt_sriov_pf_init_hw(gt);
 
 	/* Last action registered here so devres drains resets before teardown */
-	err = devm_add_action_or_reset(xe->drm.dev, gt_reset_worker_disable, gt);
+	err = devm_add_action_or_reset(xe->drm.dev, gt_worker_disable, gt);
 	if (err)
 		return err;
 
@@ -724,7 +732,7 @@ static void xe_gt_fini(void *arg)
 	struct xe_gt *gt = arg;
 	int i;
 
-	gt_reset_worker_disable(gt);
+	gt_worker_disable(gt);
 
 	for (i = 0; i < XE_ENGINE_CLASS_MAX; ++i)
 		xe_hw_fence_irq_finish(&gt->fence_irq[i]);
@@ -736,8 +744,6 @@ int xe_gt_init(struct xe_gt *gt)
 {
 	int err;
 	int i;
-
-	INIT_WORK(&gt->reset.worker, gt_reset_worker);
 
 	for (i = 0; i < XE_ENGINE_CLASS_MAX; ++i) {
 		gt->ring_ops[i] = xe_ring_ops_get(gt, i);
@@ -768,7 +774,7 @@ int xe_gt_init(struct xe_gt *gt)
 
 	err = gt_init_with_all_forcewake(gt);
 	if (err) {
-		gt_reset_worker_disable(gt);
+		gt_worker_disable(gt);
 		return err;
 	}
 
@@ -784,6 +790,8 @@ int xe_gt_init(struct xe_gt *gt)
 			return err;
 	}
 
+	/* Must be last */
+	WRITE_ONCE(gt->initialized, true);
 	return 0;
 }
 
@@ -1204,6 +1212,15 @@ struct xe_hw_engine *xe_gt_any_hw_engine(struct xe_gt *gt)
 	return NULL;
 }
 
+static void gt_wedge_worker(struct work_struct *w)
+{
+	struct xe_gt *gt = container_of(w, typeof(*gt), wedge.worker);
+
+	xe_uc_declare_wedged(&gt->uc);
+	xe_tlb_inval_reset(&gt->tlb_inval);
+	xe_pm_runtime_put(gt_to_xe(gt));
+}
+
 /**
  * xe_gt_declare_wedged() - Declare GT wedged
  * @gt: the GT object
@@ -1213,8 +1230,12 @@ struct xe_hw_engine *xe_gt_any_hw_engine(struct xe_gt *gt)
  */
 void xe_gt_declare_wedged(struct xe_gt *gt)
 {
-	xe_gt_assert(gt, gt_to_xe(gt)->wedged.mode);
+	struct xe_device *xe = gt_to_xe(gt);
 
-	xe_uc_declare_wedged(&gt->uc);
-	xe_tlb_inval_reset(&gt->tlb_inval);
+	xe_gt_assert(gt, xe->wedged.mode);
+	xe_uc_reset_prepare(&gt->uc);
+
+	xe_pm_runtime_get_noresume(xe);
+	if (!queue_work(gt->ordered_wq, &gt->wedge.worker))
+		xe_pm_runtime_put(xe);
 }
