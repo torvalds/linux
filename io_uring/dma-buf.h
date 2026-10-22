@@ -34,10 +34,10 @@ static inline int io_attach_dmabuf_map(struct io_kiocb *req,
 	struct dma_buf_io_map *map;
 	struct io_buf_dma *bd;
 
-	if (!IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
-		return -EOPNOTSUPP;
 	if (!(req->flags & REQ_F_DMABUF))
 		return 0;
+	if (!IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
+		return -EOPNOTSUPP;
 
 	bd = req->buf_node->buf->priv;
 	map = dma_buf_io_get_map(bd->ctx, nowait);
