@@ -4,7 +4,17 @@
 $id: http://devicetree.org/schemas/spi/nuvoton,ma35d1-qspi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Nuvoton MA35D1 Quad SPI Controller
+title: Nuvoton MA35D1 SPI and Quad SPI Controllers
+
+description: |
+  The Nuvoton MA35D1 SoC contains separate SPI and QSPI controller IPs.
+  Both controllers expose the same Devicetree-visible resources and provide
+  two native chip-select signals. GPIO chip selects are supported through the
+  generic SPI controller binding.
+
+  The QSPI controller additionally supports dual, quad and DTR transfers and
+  a target-mode timeout function. These capability differences do not require
+  additional controller properties.
 
 maintainers:
   - Chi-Wen Weng <cwweng@nuvoton.com>
@@ -14,7 +24,9 @@ allOf:
 
 properties:
   compatible:
-    const: nuvoton,ma35d1-qspi
+    enum:
+      - nuvoton,ma35d1-spi
+      - nuvoton,ma35d1-qspi
 
   reg:
     maxItems: 1
@@ -32,8 +44,6 @@ properties:
     minimum: 1
     maximum: 2
     default: 2
-
-  cs-gpios: false
 
 required:
   - compatible
@@ -59,7 +69,10 @@ examples:
             interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&clk QSPI0_GATE>;
             resets = <&sys MA35D1_RESET_QSPI0>;
+
             #address-cells = <1>;
             #size-cells = <0>;
         };
     };
+
+...

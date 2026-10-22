@@ -67,12 +67,21 @@ properties:
   reg:
     maxItems: 1
 
+  ready-gpios:
+    description:
+      GPIO used by the SPI target to notify the SPI master when it is
+      ready to service a transfer. Only applicable in target (slave) mode.
+    maxItems: 1
+
 required:
   - compatible
   - clocks
   - clock-names
   - interrupts
   - reg
+
+dependencies:
+  ready-gpios: [ spi-slave ]
 
 unevaluatedProperties: false
 

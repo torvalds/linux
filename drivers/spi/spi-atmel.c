@@ -871,14 +871,14 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_controller *host,
 	rxdesc->callback_param = host;
 
 	/* Submit and fire RX and TX with TX last so we're ready to read! */
-	cookie = rxdesc->tx_submit(rxdesc);
+	cookie = dmaengine_submit(rxdesc);
 	if (dma_submit_error(cookie))
 		goto err_dma;
-	cookie = txdesc->tx_submit(txdesc);
+	cookie = dmaengine_submit(txdesc);
 	if (dma_submit_error(cookie))
 		goto err_dma;
-	rxchan->device->device_issue_pending(rxchan);
-	txchan->device->device_issue_pending(txchan);
+	dma_async_issue_pending(rxchan);
+	dma_async_issue_pending(txchan);
 
 	return 0;
 

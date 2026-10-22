@@ -231,16 +231,16 @@ static int at91_usart_spi_dma_transfer(struct spi_controller *ctlr,
 	rxdesc->callback = dma_callback;
 	rxdesc->callback_param = ctlr;
 
-	cookie = rxdesc->tx_submit(rxdesc);
+	cookie = dmaengine_submit(rxdesc);
 	if (dma_submit_error(cookie))
 		goto at91_usart_spi_err_dma;
 
-	cookie = txdesc->tx_submit(txdesc);
+	cookie = dmaengine_submit(txdesc);
 	if (dma_submit_error(cookie))
 		goto at91_usart_spi_err_dma;
 
-	rxchan->device->device_issue_pending(rxchan);
-	txchan->device->device_issue_pending(txchan);
+	dma_async_issue_pending(rxchan);
+	dma_async_issue_pending(txchan);
 
 	return 0;
 

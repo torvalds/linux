@@ -158,22 +158,6 @@
 #define DW_SPI_GET_BYTE(_val, _idx) \
 	((_val) >> (BITS_PER_BYTE * (_idx)) & 0xff)
 
-/* Slave spi_transfer/spi_mem_op related */
-struct dw_spi_cfg {
-	u8 tmode;
-	u8 dfs;
-	u32 ndf;
-	u32 freq;
-	u8 spi_frf;
-};
-
-struct dw_spi_enh_cfg {
-	u8 wait_c;
-	u8 inst_l;
-	u8 addr_l;
-	u8 trans_t;
-};
-
 struct dw_spi;
 struct dw_spi_dma_ops {
 	int (*dma_init)(struct device *dev, struct dw_spi *dws);
@@ -183,6 +167,12 @@ struct dw_spi_dma_ops {
 			struct spi_transfer *xfer);
 	int (*dma_transfer)(struct dw_spi *dws, struct spi_transfer *xfer);
 	void (*dma_stop)(struct dw_spi *dws);
+
+	/* enh mem dma ops */
+	int (*dma_enh_mem_get_chan)(struct device *dev, struct dw_spi *dws);
+	int (*dma_enh_mem_setup)(struct dw_spi *dws);
+	bool (*can_dma_enh_mem)(struct spi_controller *ctlr);
+	int (*dma_enh_mem_transfer)(struct spi_mem *mem, const struct spi_mem_op *op);
 };
 
 struct dw_spi {
@@ -227,6 +217,8 @@ struct dw_spi {
 	u32			txburst;
 	struct dma_chan		*rxchan;
 	u32			rxburst;
+	unsigned int		dma_nr_chans;
+	bool			tx_dir;
 	u32			dma_sg_burst;
 	u32			dma_addr_widths;
 	unsigned long		dma_chan_busy;
@@ -337,8 +329,6 @@ static inline void dw_spi_shutdown_chip(struct dw_spi *dws)
 }
 
 extern void dw_spi_set_cs(struct spi_device *spi, bool enable);
-extern void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
-				 struct dw_spi_cfg *cfg, struct dw_spi_enh_cfg *enh_cfg);
 extern int dw_spi_check_status(struct dw_spi *dws, bool raw);
 extern int dw_spi_add_controller(struct device *dev, struct dw_spi *dws);
 extern void dw_spi_remove_controller(struct dw_spi *dws);

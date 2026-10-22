@@ -55,6 +55,11 @@ properties:
           - const: renesas,rcar-gen4-msiof  # generic R-Car Gen4
                                             # compatible device
       - items:
+          - enum:
+              - renesas,msiof-r8a78000      # R-Car X5H
+          - const: renesas,rcar-gen5-msiof  # generic R-Car Gen5
+                                            # compatible device
+      - items:
           - const: renesas,sh-msiof  # deprecated
 
   reg:
@@ -100,11 +105,11 @@ properties:
 
   dmas:
     minItems: 2
-    maxItems: 4
+    maxItems: 6
 
   dma-names:
     minItems: 2
-    maxItems: 4
+    maxItems: 6
     items:
       enum: [ tx, rx ]
 

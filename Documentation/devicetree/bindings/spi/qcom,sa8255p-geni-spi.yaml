@@ -39,12 +39,21 @@ properties:
       - const: power
       - const: perf
 
+  ready-gpios:
+    description:
+      GPIO used by the SPI target to notify the SPI master when it is
+      ready to service a transfer. Only applicable in target (slave) mode.
+    maxItems: 1
+
 required:
   - compatible
   - reg
   - interrupts
   - power-domains
   - power-domain-names
+
+dependencies:
+  ready-gpios: [ spi-slave ]
 
 allOf:
   - $ref: /schemas/spi/spi-controller.yaml#
