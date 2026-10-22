@@ -2448,15 +2448,17 @@ static int hci_le_del_resolve_list_sync(struct hci_dev *hdev,
 					bdaddr_t *bdaddr, u8 bdaddr_type)
 {
 	struct hci_cp_le_del_from_resolv_list cp;
-	struct bdaddr_list_with_irk *entry;
+	bool exists;
 
 	if (!ll_privacy_capable(hdev))
 		return 0;
 
 	/* Check if the IRK has been programmed */
-	entry = hci_bdaddr_list_lookup_with_irk(&hdev->le_resolv_list, bdaddr,
-						bdaddr_type);
-	if (!entry)
+	hci_dev_lock(hdev);
+	exists = hci_bdaddr_list_lookup_with_irk(&hdev->le_resolv_list,
+						 bdaddr, bdaddr_type);
+	hci_dev_unlock(hdev);
+	if (!exists)
 		return 0;
 
 	cp.bdaddr_type = bdaddr_type;
@@ -2512,8 +2514,8 @@ static int hci_le_add_resolve_list_sync(struct hci_dev *hdev,
 {
 	struct hci_cp_le_add_to_resolv_list cp;
 	struct smp_irk *irk;
-	struct bdaddr_list_with_irk *entry;
 	struct hci_conn_params *p;
+	bool exists;
 
 	if (!ll_privacy_capable(hdev))
 		return 0;
@@ -2536,10 +2538,11 @@ static int hci_le_add_resolve_list_sync(struct hci_dev *hdev,
 		return 0;
 
 	/* Check if the IK has _not_ been programmed yet. */
-	entry = hci_bdaddr_list_lookup_with_irk(&hdev->le_resolv_list,
-						&params->addr,
-						params->addr_type);
-	if (entry)
+	hci_dev_lock(hdev);
+	exists = hci_bdaddr_list_lookup_with_irk(
+		&hdev->le_resolv_list, &params->addr, params->addr_type);
+	hci_dev_unlock(hdev);
+	if (exists)
 		return 0;
 
 	cp.bdaddr_type = params->addr_type;
