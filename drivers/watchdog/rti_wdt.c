@@ -17,6 +17,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/stringify.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
 
@@ -414,8 +415,8 @@ MODULE_DESCRIPTION("K3 RTI Watchdog Driver");
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat,
 		 "Watchdog heartbeat period in seconds from 1 to "
-		 __MODULE_STRING(MAX_HEARTBEAT) ", default "
-		 __MODULE_STRING(DEFAULT_HEARTBEAT));
+		 __stringify(MAX_HEARTBEAT) ", default "
+		 __stringify(DEFAULT_HEARTBEAT));
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:rti-wdt");

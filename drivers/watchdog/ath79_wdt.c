@@ -32,6 +32,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/uaccess.h>
+#include <linux/stringify.h>
 
 #define DRIVER_NAME	"ath79-wdt"
 
@@ -50,12 +51,12 @@
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-			   "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+			   "(default=" __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static int timeout = WDT_TIMEOUT;
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds "
-			  "(default=" __MODULE_STRING(WDT_TIMEOUT) "s)");
+			  "(default=" __stringify(WDT_TIMEOUT) "s)");
 
 static unsigned long wdt_flags;
 

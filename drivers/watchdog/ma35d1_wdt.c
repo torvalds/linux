@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/property.h>
+#include <linux/stringify.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
 
@@ -355,7 +356,7 @@ MODULE_PARM_DESC(timeout, "Watchdog heartbeat in seconds");
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(
 	nowayout,
-	"Watchdog cannot be stopped once started (default=" __MODULE_STRING(
+	"Watchdog cannot be stopped once started (default=" __stringify(
 		WATCHDOG_NOWAYOUT) ")");
 
 MODULE_AUTHOR("Zi-Yu Chen <zychennvt@gmail.com>");

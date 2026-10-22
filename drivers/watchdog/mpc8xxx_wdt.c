@@ -22,6 +22,7 @@
 #include <linux/watchdog.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/stringify.h>
 #include <sysdev/fsl_soc.h>
 
 #define WATCHDOG_TIMEOUT 10
@@ -57,7 +58,7 @@ static u16 timeout;
 module_param(timeout, ushort, 0);
 MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. (1<timeout<65535, default="
-	__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
+	__stringify(WATCHDOG_TIMEOUT) ")");
 
 static bool reset = 1;
 module_param(reset, bool, 0);
@@ -67,7 +68,7 @@ MODULE_PARM_DESC(reset,
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-		 "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		 "(default=" __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static void mpc8xxx_wdt_keepalive(struct mpc8xxx_wdt_ddata *ddata)
 {

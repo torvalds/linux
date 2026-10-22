@@ -30,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
+#include <linux/stringify.h>
 
 /* WatchDog Timer - Chapter 23 Page 207 */
 
@@ -237,8 +238,8 @@ MODULE_DESCRIPTION("PNX4008 Watchdog Driver");
 module_param(heartbeat, uint, 0);
 MODULE_PARM_DESC(heartbeat,
 		 "Watchdog heartbeat period in seconds from 1 to "
-		 __MODULE_STRING(MAX_HEARTBEAT) ", default "
-		 __MODULE_STRING(DEFAULT_HEARTBEAT));
+		 __stringify(MAX_HEARTBEAT) ", default "
+		 __stringify(DEFAULT_HEARTBEAT));
 
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,

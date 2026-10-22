@@ -20,6 +20,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/types.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 #ifdef CONFIG_HPWDT_NMI_DECODING
 #include <asm/nmi.h>
@@ -432,7 +433,7 @@ MODULE_PARM_DESC(timeout, "Alias of soft_margin");
 
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		__stringify(WATCHDOG_NOWAYOUT) ")");
 
 module_param(kdumptimeout, int, 0444);
 MODULE_PARM_DESC(kdumptimeout, "Timeout applied for crash kernel transition in seconds");

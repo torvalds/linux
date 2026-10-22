@@ -37,6 +37,7 @@
 #include <linux/ioport.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/stringify.h>
 
 /* Module and version information */
 #define ESB_MODULE_NAME "i6300ESB timer"
@@ -74,19 +75,19 @@
 #define ESB_HEARTBEAT_MIN	1
 #define ESB_HEARTBEAT_MAX	2046
 #define ESB_HEARTBEAT_DEFAULT	30
-#define ESB_HEARTBEAT_RANGE __MODULE_STRING(ESB_HEARTBEAT_MIN) \
-	"<heartbeat<" __MODULE_STRING(ESB_HEARTBEAT_MAX)
+#define ESB_HEARTBEAT_RANGE __stringify(ESB_HEARTBEAT_MIN) \
+	"<heartbeat<" __stringify(ESB_HEARTBEAT_MAX)
 static int heartbeat; /* in seconds */
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat,
 	"Watchdog heartbeat in seconds. (" ESB_HEARTBEAT_RANGE
-	", default=" __MODULE_STRING(ESB_HEARTBEAT_DEFAULT) ")");
+	", default=" __stringify(ESB_HEARTBEAT_DEFAULT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+				__stringify(WATCHDOG_NOWAYOUT) ")");
 
 /* internal variables */
 struct esb_dev {
@@ -264,13 +265,21 @@ static void esb_initdevice(struct esb_dev *edev)
 	 */
 	pci_write_config_word(edev->pdev, ESB_CONFIG_REG, 0x0003);
 
-	/* Check that the WDT isn't already locked */
+	/* Check the current state of the WDT */
 	pci_read_config_byte(edev->pdev, ESB_LOCK_REG, &val1);
 	if (val1 & ESB_WDT_LOCK)
 		dev_warn(&edev->pdev->dev, "nowayout already set\n");
 
-	/* Set the timer to watchdog mode and disable it for now */
-	pci_write_config_byte(edev->pdev, ESB_LOCK_REG, 0x00);
+	if (val1 & ESB_WDT_ENABLE) {
+		/*
+		 * The watchdog is already running, e.g. enabled by
+		 * firmware. Do not stop it, just mark it as running.
+		 */
+		set_bit(WDOG_HW_RUNNING, &edev->wdd.status);
+	} else {
+		/* Set the timer to watchdog mode and disable it for now */
+		pci_write_config_byte(edev->pdev, ESB_LOCK_REG, 0x00);
+	}
 
 	/* Check if the watchdog was previously triggered */
 	esb_unlock_registers(edev);
@@ -301,7 +310,10 @@ static int esb_probe(struct pci_dev *pdev,
 	if (!esb_getdevice(edev))
 		return -ENODEV;
 
-	/* Initialize the watchdog and make sure it does not run */
+	/*
+	 * Initialize the watchdog, keeping it running if it was already
+	 * started, e.g. by firmware.
+	 */
 	edev->wdd.info = &esb_info;
 	edev->wdd.ops = &esb_ops;
 	edev->wdd.min_timeout = ESB_HEARTBEAT_MIN;

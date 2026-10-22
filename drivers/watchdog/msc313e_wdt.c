@@ -140,8 +140,8 @@ static int msc313e_wdt_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->clk);
 	}
 
-	priv->wdev.info = &msc313e_wdt_ident,
-	priv->wdev.ops = &msc313e_wdt_ops,
+	priv->wdev.info = &msc313e_wdt_ident;
+	priv->wdev.ops = &msc313e_wdt_ops;
 	priv->wdev.parent = dev;
 	priv->wdev.min_timeout = MSC313E_WDT_MIN_TIMEOUT;
 	rate = clk_get_rate(priv->clk);
@@ -184,7 +184,7 @@ static int msc313e_wdt_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __maybe_unused msc313e_wdt_suspend(struct device *dev)
+static int msc313e_wdt_suspend(struct device *dev)
 {
 	struct msc313e_wdt_priv *priv = dev_get_drvdata(dev);
 
@@ -194,7 +194,7 @@ static int __maybe_unused msc313e_wdt_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused msc313e_wdt_resume(struct device *dev)
+static int msc313e_wdt_resume(struct device *dev)
 {
 	struct msc313e_wdt_priv *priv = dev_get_drvdata(dev);
 	int ret = 0;
@@ -208,13 +208,13 @@ static int __maybe_unused msc313e_wdt_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(msc313e_wdt_pm_ops, msc313e_wdt_suspend, msc313e_wdt_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(msc313e_wdt_pm_ops, msc313e_wdt_suspend, msc313e_wdt_resume);
 
 static struct platform_driver msc313e_wdt_driver = {
 	.driver = {
 		.name = "msc313e-wdt",
 		.of_match_table = msc313e_wdt_of_match,
-		.pm = &msc313e_wdt_pm_ops,
+		.pm = pm_sleep_ptr(&msc313e_wdt_pm_ops),
 	},
 	.probe = msc313e_wdt_probe,
 };

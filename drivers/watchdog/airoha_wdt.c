@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
+#include <linux/stringify.h>
 
 /* Base address of timer and watchdog registers */
 #define TIMER_CTRL			0x0
@@ -44,12 +45,12 @@ struct airoha_wdt_desc {
 static int heartbeat = WDT_HEARTBEAT;
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds. (default="
-		 __MODULE_STRING(WDT_HEARTBEAT) ")");
+		 __stringify(WDT_HEARTBEAT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		 __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static int airoha_wdt_start(struct watchdog_device *wdog_dev)
 {

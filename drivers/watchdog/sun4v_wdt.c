@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 #include <asm/hypervisor.h>
 #include <asm/mdesc.h>
@@ -27,12 +28,12 @@
 static unsigned int timeout;
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds (default="
-	__MODULE_STRING(WDT_TIMEOUT) ")");
+	__stringify(WDT_TIMEOUT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, S_IRUGO);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+	__stringify(WATCHDOG_NOWAYOUT) ")");
 
 static int sun4v_wdt_stop(struct watchdog_device *wdd)
 {

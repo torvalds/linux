@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/stringify.h>
 #include <asm/txx9tmr.h>
 
 #define WD_TIMER_CCD	7		/* 1/256 */
@@ -27,14 +28,14 @@ static unsigned int timeout = TIMER_MARGIN;	/* in seconds */
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. "
-	"(0<timeout<((2^" __MODULE_STRING(TXX9_TIMER_BITS) ")/(IMCLK/256)), "
-	"default=" __MODULE_STRING(TIMER_MARGIN) ")");
+	"(0<timeout<((2^" __stringify(TXX9_TIMER_BITS) ")/(IMCLK/256)), "
+	"default=" __stringify(TIMER_MARGIN) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started "
-	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+	"(default=" __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static struct txx9_tmr_reg __iomem *txx9wdt_reg;
 static struct clk *txx9_imclk;

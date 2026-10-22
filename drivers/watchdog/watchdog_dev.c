@@ -44,6 +44,7 @@
 #include <linux/types.h>	/* For standard types (like size_t) */
 #include <linux/watchdog.h>	/* For watchdog specific items */
 #include <linux/uaccess.h>	/* For copy_to_user/put_user/... */
+#include <linux/stringify.h>	/* For __stringify */
 
 #include "watchdog_core.h"
 #include "watchdog_pretimeout.h"
@@ -305,6 +306,10 @@ static int watchdog_stop(struct watchdog_device *wdd)
 	if (wdd->ops->stop) {
 		clear_bit(WDOG_HW_RUNNING, &wdd->status);
 		err = wdd->ops->stop(wdd);
+		if (err < 0) {
+			pr_err("watchdog%d: Failed to stop watchdog: %pe\n",
+			       wdd->id, ERR_PTR(err));
+		}
 		trace_watchdog_stop(wdd, err);
 	} else {
 		set_bit(WDOG_HW_RUNNING, &wdd->status);
@@ -1314,9 +1319,9 @@ int watchdog_dev_resume(struct watchdog_device *wdd)
 module_param(handle_boot_enabled, bool, 0444);
 MODULE_PARM_DESC(handle_boot_enabled,
 	"Watchdog core auto-updates boot enabled watchdogs before userspace takes over (default="
-	__MODULE_STRING(IS_ENABLED(CONFIG_WATCHDOG_HANDLE_BOOT_ENABLED)) ")");
+	__stringify(IS_ENABLED(CONFIG_WATCHDOG_HANDLE_BOOT_ENABLED)) ")");
 
 module_param(open_timeout, uint, 0644);
 MODULE_PARM_DESC(open_timeout,
 	"Maximum time (in seconds, 0 means infinity) for userspace to take over a running watchdog (default="
-	__MODULE_STRING(CONFIG_WATCHDOG_OPEN_TIMEOUT) ")");
+	__stringify(CONFIG_WATCHDOG_OPEN_TIMEOUT) ")");

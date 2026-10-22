@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/stringify.h>
 
 #include <sysdev/fsl_soc.h>
 
@@ -70,7 +71,7 @@ static DEFINE_SPINLOCK(gef_wdt_spinlock);
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+	__stringify(WATCHDOG_NOWAYOUT) ")");
 
 
 static int gef_wdt_toggle_wdc(int enabled_predicate, int field_shift)

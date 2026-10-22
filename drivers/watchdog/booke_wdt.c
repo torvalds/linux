@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/smp.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 #include <asm/reg_booke.h>
@@ -43,7 +44,7 @@ static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+				__stringify(WATCHDOG_NOWAYOUT) ")");
 
 #ifdef CONFIG_PPC_E500
 

@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 #define MODULE_NAME		"ebc-c384_wdt"
@@ -30,12 +31,12 @@
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+	__stringify(WATCHDOG_NOWAYOUT) ")");
 
 static unsigned timeout;
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds (default="
-	__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
+	__stringify(WATCHDOG_TIMEOUT) ")");
 
 static int ebc_c384_wdt_start(struct watchdog_device *wdev)
 {

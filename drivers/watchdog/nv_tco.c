@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/stringify.h>
 
 #include "nv_tco.h"
 
@@ -55,12 +56,12 @@ static struct platform_device *nv_tco_platform_device;
 static int heartbeat = WATCHDOG_HEARTBEAT;  /* in seconds */
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (2<heartbeat<39, "
-			    "default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
+			    "default=" __stringify(WATCHDOG_HEARTBEAT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started"
-		" (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		" (default=" __stringify(WATCHDOG_NOWAYOUT) ")");
 
 /*
  * Some TCO specific functions

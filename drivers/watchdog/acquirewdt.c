@@ -64,6 +64,7 @@
 #include <linux/init.h>			/* For __init/__exit/... */
 #include <linux/uaccess.h>		/* For copy_to_user/put_user/... */
 #include <linux/io.h>			/* For inb/outb/... */
+#include <linux/stringify.h>		/* For __stringify */
 
 /* Module information */
 #define DRV_NAME "acquirewdt"
@@ -92,7 +93,7 @@ static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+	__stringify(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Watchdog Operations

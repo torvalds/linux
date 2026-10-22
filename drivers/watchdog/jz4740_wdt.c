@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
+#include <linux/stringify.h>
 
 #define DEFAULT_HEARTBEAT 5
 #define MAX_HEARTBEAT     2048
@@ -27,14 +28,14 @@ static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		 __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static unsigned int heartbeat = DEFAULT_HEARTBEAT;
 module_param(heartbeat, uint, 0);
 MODULE_PARM_DESC(heartbeat,
 		"Watchdog heartbeat period in seconds from 1 to "
-		__MODULE_STRING(MAX_HEARTBEAT) ", default "
-		__MODULE_STRING(DEFAULT_HEARTBEAT));
+		__stringify(MAX_HEARTBEAT) ", default "
+		__stringify(DEFAULT_HEARTBEAT));
 
 struct jz4740_wdt_drvdata {
 	struct watchdog_device wdt;

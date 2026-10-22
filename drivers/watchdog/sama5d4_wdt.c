@@ -14,6 +14,7 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 #include "at91sam9_wdt.h"
@@ -42,12 +43,12 @@ static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(wdt_timeout, int, 0);
 MODULE_PARM_DESC(wdt_timeout,
 	"Watchdog timeout in seconds. (default = "
-	__MODULE_STRING(WDT_DEFAULT_TIMEOUT) ")");
+	__stringify(WDT_DEFAULT_TIMEOUT) ")");
 
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+	__stringify(WATCHDOG_NOWAYOUT) ")");
 
 static inline bool wdt_enabled(struct sama5d4_wdt *wdt)
 {

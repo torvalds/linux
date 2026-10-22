@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 #include <xen/xen.h>
 #include <asm/xen/hypercall.h>
@@ -30,12 +31,12 @@ static time64_t wdt_expires;
 static unsigned int timeout;
 module_param(timeout, uint, S_IRUGO);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds "
-	"(default=" __MODULE_STRING(WATCHDOG_TIMEOUT) ")");
+	"(default=" __stringify(WATCHDOG_TIMEOUT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, S_IRUGO);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+	"(default=" __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static inline time64_t set_timeout(struct watchdog_device *wdd)
 {

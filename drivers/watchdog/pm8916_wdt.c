@@ -233,7 +233,7 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, &wdt->wdev);
 }
 
-static int __maybe_unused pm8916_wdt_suspend(struct device *dev)
+static int pm8916_wdt_suspend(struct device *dev)
 {
 	struct pm8916_wdt *wdt = dev_get_drvdata(dev);
 
@@ -243,7 +243,7 @@ static int __maybe_unused pm8916_wdt_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused pm8916_wdt_resume(struct device *dev)
+static int pm8916_wdt_resume(struct device *dev)
 {
 	struct pm8916_wdt *wdt = dev_get_drvdata(dev);
 
@@ -253,7 +253,7 @@ static int __maybe_unused pm8916_wdt_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(pm8916_wdt_pm_ops, pm8916_wdt_suspend,
+static DEFINE_SIMPLE_DEV_PM_OPS(pm8916_wdt_pm_ops, pm8916_wdt_suspend,
 			 pm8916_wdt_resume);
 
 static const struct of_device_id pm8916_wdt_id_table[] = {
@@ -267,7 +267,7 @@ static struct platform_driver pm8916_wdt_driver = {
 	.driver = {
 		.name = "pm8916-wdt",
 		.of_match_table = pm8916_wdt_id_table,
-		.pm = &pm8916_wdt_pm_ops,
+		.pm = pm_sleep_ptr(&pm8916_wdt_pm_ops),
 	},
 };
 module_platform_driver(pm8916_wdt_driver);

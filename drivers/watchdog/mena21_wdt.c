@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/of.h>
+#include <linux/stringify.h>
 
 #define NUM_GPIOS 6
 
@@ -37,7 +38,7 @@ struct a21_wdt_drv {
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-			    __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+			    __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static unsigned int a21_wdt_get_bootstatus(struct a21_wdt_drv *drv)
 {

@@ -9,6 +9,7 @@
 #include <linux/mfd/rn5t618.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 #define DRIVER_NAME "rn5t618-wdt"
@@ -21,7 +22,7 @@ MODULE_PARM_DESC(timeout, "Initial watchdog timeout in seconds");
 
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		 __stringify(WATCHDOG_NOWAYOUT) ")");
 
 struct rn5t618_wdt {
 	struct watchdog_device wdt_dev;

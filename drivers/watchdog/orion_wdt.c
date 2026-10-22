@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/stringify.h>
 
 /* RSTOUT mask register physical address for Orion5x, Kirkwood and Dove */
 #define ORION_RSTOUT_MASK_OFFSET	0x20108
@@ -687,7 +688,7 @@ MODULE_PARM_DESC(heartbeat, "Initial watchdog heartbeat in seconds");
 
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+				__stringify(WATCHDOG_NOWAYOUT) ")");
 
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:orion_wdt");

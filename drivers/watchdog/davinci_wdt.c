@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/stringify.h>
 
 #define MODULE_NAME "DAVINCI-WDT: "
 
@@ -120,7 +121,7 @@ static unsigned int davinci_wdt_get_timeleft(struct watchdog_device *wdd)
 	u32 val;
 	struct davinci_wdt_device *davinci_wdt = watchdog_get_drvdata(wdd);
 
-	/* if timeout has occured then return 0 */
+	/* if timeout has occurred then return 0 */
 	val = ioread32(davinci_wdt->base + WDTCR);
 	if (val & WDFLAG)
 		return 0;
@@ -250,8 +251,8 @@ MODULE_DESCRIPTION("DaVinci Watchdog Driver");
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat,
 		 "Watchdog heartbeat period in seconds from 1 to "
-		 __MODULE_STRING(MAX_HEARTBEAT) ", default "
-		 __MODULE_STRING(DEFAULT_HEARTBEAT));
+		 __stringify(MAX_HEARTBEAT) ", default "
+		 __stringify(DEFAULT_HEARTBEAT));
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:davinci-wdt");

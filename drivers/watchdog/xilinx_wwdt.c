@@ -12,6 +12,7 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 /* Max timeout is calculated at 100MHz source clock */
@@ -47,11 +48,11 @@ static int closed_window_percent;
 module_param(wwdt_timeout, int, 0);
 MODULE_PARM_DESC(wwdt_timeout,
 		 "Watchdog time in seconds. (default="
-		 __MODULE_STRING(XWWDT_DEFAULT_TIMEOUT) ")");
+		 __stringify(XWWDT_DEFAULT_TIMEOUT) ")");
 module_param(closed_window_percent, int, 0);
 MODULE_PARM_DESC(closed_window_percent,
 		 "Watchdog closed window percentage. (default="
-		 __MODULE_STRING(XWWDT_CLOSE_WINDOW_PERCENT) ")");
+		 __stringify(XWWDT_CLOSE_WINDOW_PERCENT) ")");
 /**
  * struct xwwdt_device - Watchdog device structure
  * @base: base io address of WDT device

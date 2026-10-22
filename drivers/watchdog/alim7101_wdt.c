@@ -36,6 +36,7 @@
 #include <linux/pci.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/stringify.h>
 
 
 #define WDT_ENABLE 0x9C
@@ -64,7 +65,7 @@ static int timeout = WATCHDOG_TIMEOUT;
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout,
 		"Watchdog timeout in seconds. (1<=timeout<=3600, default="
-				__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
+				__stringify(WATCHDOG_TIMEOUT) ")");
 
 static int use_gpio; /* Use the pic (for a1d revision alim7101) */
 module_param(use_gpio, int, 0);
@@ -82,7 +83,7 @@ static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+				__stringify(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Whack the dog

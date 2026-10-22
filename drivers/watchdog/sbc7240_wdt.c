@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
+#include <linux/stringify.h>
 
 #define SBC7240_ENABLE_PORT		0x443
 #define SBC7240_DISABLE_PORT		0x043
@@ -34,8 +35,8 @@
 static int timeout = SBC7240_TIMEOUT;	/* in seconds */
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. (1<=timeout<="
-		 __MODULE_STRING(SBC7240_MAX_TIMEOUT) ", default="
-		 __MODULE_STRING(SBC7240_TIMEOUT) ")");
+		 __stringify(SBC7240_MAX_TIMEOUT) ", default="
+		 __stringify(SBC7240_TIMEOUT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
