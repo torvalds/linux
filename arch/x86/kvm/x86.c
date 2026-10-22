@@ -9731,9 +9731,6 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	kvm_x86_call(set_efer)(vcpu, 0);
 	kvm_x86_call(update_exception_bitmap)(vcpu);
 
-	if (old_cr0 & X86_CR0_PG)
-		kvm_make_request(KVM_REQ_TLB_FLUSH_GUEST, vcpu);
-
 	/*
 	 * Unconditionally reset the MMU, even though super strictly speaking,
 	 * a MMU reset is only necessary if and only one of the page role bits
@@ -9750,16 +9747,16 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	kvm_mmu_reset_context(vcpu);
 
 	/*
-	 * Intel's SDM states that all TLB entries are flushed on INIT.  AMD's
-	 * APM states the TLBs are untouched by INIT, but it also states that
-	 * the TLBs are flushed on "External initialization of the processor."
-	 * Flush the guest TLB regardless of vendor, there is no meaningful
-	 * benefit in relying on the guest to flush the TLB immediately after
-	 * INIT.  A spurious TLB flush is benign and likely negligible from a
-	 * performance perspective.
+	 * Intel's SDM states that all TLB entries are flushed on INIT "as with
+	 * a hardware reset", and AMD's APM states the TLBs are flushed on
+	 * "External initialization of the processor".  Flush the guest TLB for
+	 * both RESET and INIT, regardless of vendor, even though both the SDM
+	 * and APM contradict the above statements in other tables.  There is
+	 * no meaningful benefit in relying on the guest to flush the TLB, and
+	 * a spurious TLB flush is benign and likely negligible from a
+	 * performance perspective (especially for RESET).
 	 */
-	if (init_event)
-		kvm_make_request(KVM_REQ_TLB_FLUSH_GUEST, vcpu);
+	kvm_make_request(KVM_REQ_TLB_FLUSH_GUEST, vcpu);
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_vcpu_reset);
 
