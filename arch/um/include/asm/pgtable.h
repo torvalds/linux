@@ -13,6 +13,7 @@
 
 #define _PAGE_PRESENT	0x001
 #define _PAGE_NEEDSYNC	0x002
+#define _PAGE_EXEC	0x004
 #define _PAGE_RW	0x020
 #define _PAGE_USER	0x040
 #define _PAGE_ACCESSED	0x080
@@ -55,14 +56,19 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
-#define __PAGE_KERNEL_EXEC                                              \
-	 (_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED)
-#define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED)
-#define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
-#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
-#define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED)
-#define PAGE_KERNEL_EXEC	__pgprot(__PAGE_KERNEL_EXEC)
+
+#define _PAGE_BASE		(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
+#define PAGE_NONE		__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
+#define PAGE_SHARED		__pgprot(_PAGE_BASE | _PAGE_RW)
+#define PAGE_SHARED_EXEC	__pgprot(_PAGE_BASE | _PAGE_RW | _PAGE_EXEC)
+#define PAGE_COPY		__pgprot(_PAGE_BASE)
+#define PAGE_COPY_EXEC		__pgprot(_PAGE_BASE | _PAGE_EXEC)
+#define PAGE_READONLY		__pgprot(_PAGE_BASE)
+#define PAGE_READONLY_EXEC	__pgprot(_PAGE_BASE | _PAGE_EXEC)
+
+#define _PAGE_KERNEL		(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED)
+#define PAGE_KERNEL		__pgprot(_PAGE_KERNEL)
+#define PAGE_KERNEL_EXEC	__pgprot(_PAGE_KERNEL | _PAGE_EXEC)
 
 /*
  * The i386 can't do page protection for execute, and considers that the same
@@ -117,7 +123,8 @@ static inline int pte_read(pte_t pte)
 
 static inline int pte_exec(pte_t pte)
 {
-	return !pte_get_bits(pte, _PAGE_PROTNONE);
+	return pte_get_bits(pte, _PAGE_EXEC) &&
+	       !pte_get_bits(pte, _PAGE_PROTNONE);
 }
 
 static inline int pte_write(pte_t pte)

@@ -816,7 +816,7 @@ static __thread void (*cb_proc)(void *arg);
 static __thread void *cb_arg;
 static __thread jmp_buf *cb_back;
 
-int start_idle_thread(void *stack, jmp_buf *switch_buf)
+void start_idle_thread(void *stack, jmp_buf *switch_buf)
 {
 	int n;
 
@@ -843,21 +843,16 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 		break;
 	case INIT_JMP_HALT:
 		kmalloc_ok = 0;
-		return 0;
+		os_exit(false);
 	case INIT_JMP_REBOOT:
 		kmalloc_ok = 0;
-		return 1;
+		os_exit(true);
 	default:
 		printk(UM_KERN_ERR "Bad sigsetjmp return in %s - %d\n",
 		       __func__, n);
 		fatal_sigsegv();
 	}
 	longjmp(*switch_buf, 1);
-
-	/* unreachable */
-	printk(UM_KERN_ERR "impossible long jump!");
-	fatal_sigsegv();
-	return 0;
 }
 
 void initial_thread_cb_skas(void (*proc)(void *), void *arg)

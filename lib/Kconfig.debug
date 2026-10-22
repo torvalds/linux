@@ -649,7 +649,7 @@ menu "Generic Kernel Debugging Instruments"
 
 config MAGIC_SYSRQ
 	bool "Magic SysRq key"
-	depends on !UML
+	depends on !UML || MCONSOLE
 	help
 	  If you say Y here, you will have some control over the system even
 	  if the system crashes for example during kernel debugging (e.g., you
@@ -657,9 +657,11 @@ config MAGIC_SYSRQ
 	  immediately or dump some status information). This is accomplished
 	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
 	  also works on a serial console (on PC hardware at least), if you
-	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/admin-guide/sysrq.rst>.
-	  Don't say Y unless you really know what this hack does.
+	  send a BREAK and then within 5 seconds a command keypress. On UML,
+	  this is accomplished by sending a "sysrq" command with mconsole,
+	  followed by the letter for the requested command. The keys are
+	  documented in <file:Documentation/admin-guide/sysrq.rst>. Don't say
+	  Y unless you really know what this hack does.
 
 config MAGIC_SYSRQ_DEFAULT_ENABLE
 	hex "Enable magic SysRq key functions by default"

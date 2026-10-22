@@ -30,6 +30,8 @@
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
  */
 
+#ifdef CONFIG_MMU
+
 extern int um_tlb_sync(struct mm_struct *mm);
 
 extern void flush_tlb_all(void);
@@ -55,5 +57,23 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 	/* Kernel needs to be synced immediately */
 	um_tlb_sync(&init_mm);
 }
+
+#else /* !CONFIG_MMU */
+
+/*
+ * With NOMMU the kernel and userspace share a single host address space,
+ * so there is nothing to synchronise and all TLB flushes are no-ops.
+ */
+static inline int um_tlb_sync(struct mm_struct *mm) { return 0; }
+static inline void flush_tlb_all(void) { }
+static inline void flush_tlb_mm(struct mm_struct *mm) { }
+static inline void flush_tlb_page(struct vm_area_struct *vma,
+				  unsigned long address) { }
+static inline void flush_tlb_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end) { }
+static inline void flush_tlb_kernel_range(unsigned long start,
+					  unsigned long end) { }
+
+#endif /* CONFIG_MMU */
 
 #endif

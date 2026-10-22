@@ -453,7 +453,7 @@ void unblock_signals_hard(void)
 	 * call _within_ e.g. vu_req_read_message(), where we observed this
 	 * issue, which loops. Thus, if the inner call handles the recorded
 	 * pending signals, we can get out of the inner call with the real
-	 * signal hander no longer blocked, and still have a race. Thus don't
+	 * signal handler no longer blocked, and still have a race. Thus don't
 	 * handle unblocking in the inner call, if it happens, but only in
 	 * the outermost call - 'unblocking' serves as an ownership for the
 	 * signals_blocked_pending decrement.

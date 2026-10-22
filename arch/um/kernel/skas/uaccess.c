@@ -231,116 +231,90 @@ long strnlen_user(const char __user *str, long len)
 }
 EXPORT_SYMBOL(strnlen_user);
 
-/**
- * arch_futex_atomic_op_inuser() - Atomic arithmetic operation with constant
- *			  argument and comparison of the previous
- *			  futex value with another constant.
- *
- * @op:		operation to execute
- * @oparg:	argument to operation
- * @oval:	old value at uaddr
- * @uaddr:	pointer to user space address
- *
- * Return:
- * 0 - On success
- * -EFAULT - User access resulted in a page fault
- * -EAGAIN - Atomic operation was unable to complete due to contention
- * -ENOSYS - Operation not supported
- */
-
 int arch_futex_atomic_op_inuser(int op, u32 oparg, int *oval, u32 __user *uaddr)
 {
-	int oldval, ret;
-	struct page *page;
 	unsigned long addr = (unsigned long) uaddr;
+	u32 *p, oldval, newval;
+	struct page *page;
 	pte_t *pte;
 
-	ret = -EFAULT;
 	if (!access_ok(uaddr, sizeof(*uaddr)))
 		return -EFAULT;
+
+	switch (op) {
+	case FUTEX_OP_SET:
+	case FUTEX_OP_ADD:
+	case FUTEX_OP_OR:
+	case FUTEX_OP_ANDN:
+	case FUTEX_OP_XOR:
+		break;
+	default:
+		return -ENOSYS;
+	}
+
 	preempt_disable();
 	pte = maybe_map(addr, 1);
-	if (pte == NULL)
-		goto out_inuser;
+	if (pte == NULL) {
+		preempt_enable();
+		return -EFAULT;
+	}
 
 	page = pte_page(*pte);
 #ifdef CONFIG_64BIT
 	pagefault_disable();
-	addr = (unsigned long) page_address(page) +
-			(((unsigned long) addr) & ~PAGE_MASK);
+	p = page_address(page) + (addr & ~PAGE_MASK);
 #else
-	addr = (unsigned long) kmap_atomic(page) +
-		((unsigned long) addr & ~PAGE_MASK);
+	p = kmap_atomic(page) + (addr & ~PAGE_MASK);
 #endif
-	uaddr = (u32 *) addr;
-	oldval = *uaddr;
 
-	ret = 0;
+	do {
+		oldval = READ_ONCE(*p);
 
-	switch (op) {
-	case FUTEX_OP_SET:
-		*uaddr = oparg;
-		break;
-	case FUTEX_OP_ADD:
-		*uaddr += oparg;
-		break;
-	case FUTEX_OP_OR:
-		*uaddr |= oparg;
-		break;
-	case FUTEX_OP_ANDN:
-		*uaddr &= ~oparg;
-		break;
-	case FUTEX_OP_XOR:
-		*uaddr ^= oparg;
-		break;
-	default:
-		ret = -ENOSYS;
-	}
+		switch (op) {
+		case FUTEX_OP_SET:
+			newval = oparg;
+			break;
+		case FUTEX_OP_ADD:
+			newval = oldval + oparg;
+			break;
+		case FUTEX_OP_OR:
+			newval = oldval | oparg;
+			break;
+		case FUTEX_OP_ANDN:
+			newval = oldval & ~oparg;
+			break;
+		case FUTEX_OP_XOR:
+			newval = oldval ^ oparg;
+			break;
+		}
+	} while (!try_cmpxchg(p, &oldval, newval));
+
+	*oval = oldval;
+
 #ifdef CONFIG_64BIT
 	pagefault_enable();
 #else
 	kunmap_atomic((void *)addr);
 #endif
-
-out_inuser:
 	preempt_enable();
-
-	if (ret == 0)
-		*oval = oldval;
-
-	return ret;
+	return 0;
 }
-EXPORT_SYMBOL(arch_futex_atomic_op_inuser);
-
-/**
- * futex_atomic_cmpxchg_inatomic() - Compare and exchange the content of the
- *				uaddr with newval if the current value is
- *				oldval.
- * @uval:	pointer to store content of @uaddr
- * @uaddr:	pointer to user space address
- * @oldval:	old value
- * @newval:	new value to store to @uaddr
- *
- * Return:
- * 0 - On success
- * -EFAULT - User access resulted in a page fault
- * -EAGAIN - Atomic operation was unable to complete due to contention
- */
 
 int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
-			      u32 oldval, u32 newval)
+				  u32 oldval, u32 newval)
 {
 	struct page *page;
 	pte_t *pte;
-	int ret = -EFAULT;
 
 	if (!access_ok(uaddr, sizeof(*uaddr)))
 		return -EFAULT;
 
 	preempt_disable();
 	pte = maybe_map((unsigned long) uaddr, 1);
-	if (pte == NULL)
-		goto out_inatomic;
+	if (pte == NULL) {
+		preempt_enable();
+		return -EFAULT;
+	}
 
 	page = pte_page(*pte);
 #ifdef CONFIG_64BIT
@@ -350,19 +324,13 @@ int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	uaddr = kmap_atomic(page) + ((unsigned long) uaddr & ~PAGE_MASK);
 #endif
 
-	*uval = *uaddr;
-
-	ret = cmpxchg(uaddr, oldval, newval);
+	*uval = cmpxchg(uaddr, oldval, newval);
 
 #ifdef CONFIG_64BIT
 	pagefault_enable();
 #else
 	kunmap_atomic(uaddr);
 #endif
-	ret = 0;
-
-out_inatomic:
 	preempt_enable();
-	return ret;
+	return 0;
 }
-EXPORT_SYMBOL(futex_atomic_cmpxchg_inatomic);

@@ -20,6 +20,7 @@
 #include <init.h>
 #include <kern.h>
 #include <os.h>
+#include <skas.h>
 #include <smp.h>
 
 enum {
@@ -66,7 +67,7 @@ static void ipi_handler(int vector, struct uml_pt_regs *regs)
 	irq_enter();
 
 	if (current->mm)
-		os_alarm_process(current->mm->context.id.pid);
+		os_alarm_process(current_mm_id()->pid);
 
 	switch (vector) {
 	case UML_IPI_RES:

@@ -20,9 +20,12 @@ SECTIONS
   __binary_start = .;
   . = ALIGN(4096);		/* Init code and data */
   _text = .;
+  __init_begin = .;
   INIT_TEXT_SECTION(PAGE_SIZE)
 
+  init.data : { INIT_DATA }
   . = ALIGN(PAGE_SIZE);
+  __init_end = .;
 
   /* Read-only sections, merged into text segment: */
   .hash           : { *(.hash) }
@@ -98,10 +101,6 @@ SECTIONS
 
   #include <asm/common.lds.S>
 
-  __init_begin = .;
-  init.data : { INIT_DATA }
-  __init_end = .;
-
   /* Ensure the __preinit_array_start label is properly aligned.  We
      could instead move the label definition inside the section, but
      the linker would then create the section even if it turns out to
@@ -117,6 +116,7 @@ SECTIONS
   .data           : {
     INIT_TASK_DATA(KERNEL_STACK_SIZE)
     DATA_DATA
+    *(.ldata .ldata.[0-9a-zA-Z_]* .ldata..L*)
     *(.data.* .gnu.linkonce.d.*)
     SORT(CONSTRUCTORS)
   }
@@ -159,6 +159,7 @@ SECTIONS
    __bss_start = .;
    *(.dynbss)
    *(.bss .bss.* .gnu.linkonce.b.*)
+   *(.lbss .lbss.[0-9a-zA-Z_]* .lbss..L*)
    *(COMMON)
    /* Align here to ensure that the .bss section occupies space up to
       _end.  Align after .bss to ensure correct alignment even if the

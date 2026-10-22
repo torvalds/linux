@@ -12,6 +12,7 @@
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/mmu_context.h>
+#include <asm/tlbflush.h>
 #include <as-layout.h>
 #include <os.h>
 #include <skas.h>
@@ -38,6 +39,30 @@ void enter_turnstile(struct mm_id *mm_id)
 void exit_turnstile(struct mm_id *mm_id)
 {
 	mutex_unlock(__get_turnstile(mm_id));
+}
+
+unsigned long current_stub_stack(void)
+{
+	if (current->mm == NULL)
+		return 0;
+
+	return current->mm->context.id.stack;
+}
+
+struct mm_id *current_mm_id(void)
+{
+	if (current->mm == NULL)
+		return NULL;
+
+	return &current->mm->context.id;
+}
+
+void current_mm_sync(void)
+{
+	if (current->mm == NULL)
+		return;
+
+	um_tlb_sync(current->mm);
 }
 
 int init_new_context(struct task_struct *task, struct mm_struct *mm)

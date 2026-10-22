@@ -159,6 +159,7 @@ config UML_RTC
 
 config UML_PCI
 	bool
+	depends on MMU
 	select FORCE_PCI
 	select IRQ_MSI_LIB
 	select UML_IOMEM_EMULATION
@@ -169,6 +170,7 @@ config UML_PCI
 config UML_PCI_OVER_VIRTIO
 	bool "Enable PCI over VIRTIO device simulation"
 	# in theory, just VIRTIO is enough, but that causes recursion
+	depends on MMU
 	depends on VIRTIO_UML
 	select UML_PCI
 
@@ -183,6 +185,7 @@ config UML_PCI_OVER_VIRTIO_DEVICE_ID
 
 config UML_PCI_OVER_VFIO
 	bool "Enable VFIO-based PCI passthrough"
+	depends on MMU
 	select UML_PCI
 	help
 	  This driver provides support for VFIO-based PCI passthrough.

@@ -568,7 +568,7 @@ static void vhost_user_get_config(struct virtio_uml_device *vu_dev,
 		goto free;
 	}
 
-	rc = vhost_user_recv_resp(vu_dev, msg, msg_size);
+	rc = vhost_user_recv_resp(vu_dev, msg, payload_size);
 	if (rc) {
 		vu_err(vu_dev,
 		       "receiving VHOST_USER_GET_CONFIG response failed: %d\n",
@@ -1274,14 +1274,7 @@ static void virtio_uml_remove(struct platform_device *pdev)
 
 /* Command line device list */
 
-static void vu_cmdline_release_dev(struct device *d)
-{
-}
-
-static struct device vu_cmdline_parent = {
-	.init_name = "virtio-uml-cmdline",
-	.release = vu_cmdline_release_dev,
-};
+static struct device *vu_cmdline_parent;
 
 static DEFINE_MUTEX(vu_cmdline_lock);
 static bool vu_cmdline_parent_registered;
@@ -1333,11 +1326,10 @@ static int vu_cmdline_set_device(const char *device)
 		return -EINVAL;
 
 	if (!vu_cmdline_parent_registered) {
-		err = device_register(&vu_cmdline_parent);
-		if (err) {
+		vu_cmdline_parent = __root_device_register("virtio-uml-cmdline", NULL);
+		if (IS_ERR(vu_cmdline_parent)) {
 			pr_err("Failed to register parent device!\n");
-			put_device(&vu_cmdline_parent);
-			return err;
+			return PTR_ERR(vu_cmdline_parent);
 		}
 		vu_cmdline_parent_registered = true;
 	}
@@ -1352,7 +1344,7 @@ static int vu_cmdline_set_device(const char *device)
 	pr_info("Registering device virtio-uml.%d id=%d at %s\n",
 		vu_cmdline_id, virtio_device_id, socket_path);
 
-	pdev = platform_device_register_data(&vu_cmdline_parent, "virtio-uml",
+	pdev = platform_device_register_data(vu_cmdline_parent, "virtio-uml",
 					     vu_cmdline_id++, &pdata,
 					     sizeof(pdata));
 	err = PTR_ERR_OR_ZERO(pdev);
@@ -1393,7 +1385,7 @@ static int vu_cmdline_get(char *buffer, const struct kernel_param *kp)
 
 	buffer[0] = '\0';
 	if (vu_cmdline_parent_registered)
-		device_for_each_child(&vu_cmdline_parent, buffer,
+		device_for_each_child(vu_cmdline_parent, buffer,
 				      vu_cmdline_get_device);
 	return strlen(buffer) + 1;
 }
@@ -1417,9 +1409,9 @@ static void vu_unregister_cmdline_devices(void)
 	guard(mutex)(&vu_cmdline_lock);
 
 	if (vu_cmdline_parent_registered) {
-		device_for_each_child(&vu_cmdline_parent, NULL,
+		device_for_each_child(vu_cmdline_parent, NULL,
 				      vu_unregister_cmdline_device);
-		device_unregister(&vu_cmdline_parent);
+		root_device_unregister(vu_cmdline_parent);
 		vu_cmdline_parent_registered = false;
 	}
 }

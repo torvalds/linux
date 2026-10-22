@@ -47,4 +47,7 @@ include/generated/user_constants.h: $(obj)/user-offsets.s FORCE
 UNPROFILE_OBJS := stub_segv.o
 CFLAGS_stub_segv.o := $(CFLAGS_NO_HARDENING)
 
+# see arch/um/kernel/skas/Makefile - this goes into the stub
+CFLAGS_stub_segv.o += $(call cc-option, -ftrivial-auto-var-init=uninitialized)
+
 include $(srctree)/arch/um/scripts/Makefile.rules

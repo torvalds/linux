@@ -19,6 +19,7 @@
 #include <asm/param.h>
 #include <kern_util.h>
 #include <os.h>
+#include <skas.h>
 #include <linux/delay.h>
 #include <linux/time-internal.h>
 #include <linux/um_timetravel.h>
@@ -873,7 +874,7 @@ static irqreturn_t um_timer(int irq, void *dev)
 	if (time_travel_mode != TT_MODE_INFCPU &&
 	    time_travel_mode != TT_MODE_EXTERNAL &&
 	    get_current()->mm)
-		os_alarm_process(get_current()->mm->context.id.pid);
+		os_alarm_process(current_mm_id()->pid);
 
 	evt->event_handler(evt);
 
