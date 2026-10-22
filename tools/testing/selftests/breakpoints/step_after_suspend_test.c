@@ -18,6 +18,7 @@
 #include <sys/timerfd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 
 #include "kselftest.h"
 
@@ -158,10 +159,20 @@ void suspend(void)
 	int err;
 	int count_before;
 	int count_after;
+	struct timespec res;
 	struct itimerspec spec = {};
 
 	if (getuid() != 0)
 		ksft_exit_skip("Please run the test as root - Exiting.\n");
+
+	/*
+	 * CLOCK_BOOTTIME_ALARM cannot wake up systems that don't have a
+	 * wakeup capable RTC from suspend. Check if we have a wakeup-capable
+	 * RTC to prevent this test from causing the system to hang after
+	 * it suspends.
+	 */
+	if (clock_getres(CLOCK_BOOTTIME_ALARM, &res) != 0)
+		ksft_exit_skip("No wakeup-capable RTC for CLOCK_BOOTTIME_ALARM\n");
 
 	timerfd = timerfd_create(CLOCK_BOOTTIME_ALARM, 0);
 	if (timerfd < 0)

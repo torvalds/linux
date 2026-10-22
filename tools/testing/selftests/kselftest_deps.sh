@@ -10,13 +10,20 @@
 usage()
 {
 
-echo -e "Usage: $0 -[p] <compiler> [test_name]\n"
+echo -e "Usage: $0 -[p] <compiler> [ARCH=<arch>] [test_name]\n"
 echo -e "\tkselftest_deps.sh [-p] gcc"
 echo -e "\tkselftest_deps.sh [-p] gcc mm"
 echo -e "\tkselftest_deps.sh [-p] aarch64-linux-gnu-gcc"
-echo -e "\tkselftest_deps.sh [-p] aarch64-linux-gnu-gcc mm\n"
+echo -e "\tkselftest_deps.sh [-p] aarch64-linux-gnu-gcc mm"
+echo -e "\tkselftest_deps.sh [-p] LLVM"
+echo -e "\tkselftest_deps.sh [-p] LLVM ARCH=arm64 mm\n"
 echo "- Should be run in selftests directory in the kernel repo."
 echo "- Checks if Kselftests can be built/cross-built on a system."
+echo "- Compiler can be given as LLVM to use clang, as with LLVM=1 in"
+echo "  the kselftest build. LLVM=<prefix>/ and LLVM=-<suffix> select"
+echo "  the clang binary as in the kselftest build. ARCH=<arch> selects"
+echo "  the clang target architecture, defaulting to the host; it is"
+echo "  ignored for other compilers."
 echo "- Parses all test/sub-test Makefile to find library dependencies."
 echo "- Runs compile test on a trivial C file with LDLIBS specified"
 echo "  in the test Makefiles to identify missing library dependencies."
@@ -53,13 +60,32 @@ while getopts "p" arg; do
 	esac
 done
 
+# Pull an optional ARCH=<arch> out of the remaining arguments. The
+# environment is used if it is not given on the command line, as with
+# make.
+args=()
+for arg in "$@"; do
+	case "$arg" in
+		ARCH=*)
+		ARCH=${arg#ARCH=};;
+		*)
+		args+=("$arg");;
+	esac
+done
+set -- "${args[@]}"
+
 if [ $# -eq 0 ]
 then
 	usage
 fi
 
 # Compiler
-CC=$1
+case "$1" in
+	LLVM|LLVM=*)
+	setup_llvm "${1#LLVM}";;
+	*)
+	CC=$1;;
+esac
 
 tmp_file=$(mktemp).c
 trap "rm -f $tmp_file.o $tmp_file $tmp_file.bin" EXIT
@@ -178,6 +204,56 @@ exit $?
 }
 # end main()
 
+# Mirror the LLVM handling in lib.mk: LLVM=<prefix>/ or LLVM=-<suffix>
+# select the clang binary, and ARCH selects the target triple with the
+# host as the default.
+setup_llvm()
+{
+	local llvm=${1#=}
+	local llvm_prefix=""
+	local llvm_suffix=""
+	local clang
+	local target
+
+	declare -A clang_target
+	clang_target[arm]=arm-linux-gnueabi
+	clang_target[arm64]=aarch64-linux-gnu
+	clang_target[hexagon]=hexagon-linux-musl
+	clang_target[i386]=i386-linux-gnu
+	clang_target[m68k]=m68k-linux-gnu
+	clang_target[mips]=mipsel-linux-gnu
+	clang_target[powerpc]=powerpc64le-linux-gnu
+	clang_target[riscv]=riscv64-linux-gnu
+	clang_target[s390]=s390x-linux-gnu
+	clang_target[x86]=x86_64-linux-gnu
+	clang_target[x86_64]=x86_64-linux-gnu
+
+	case "$llvm" in
+		*/)
+		llvm_prefix=$llvm;;
+		-*)
+		llvm_suffix=$llvm;;
+	esac
+	clang=${llvm_prefix}clang${llvm_suffix}
+
+	if [ -z "$ARCH" ]; then
+		target=$($clang -print-target-triple 2>/dev/null)
+		if [ -z "$target" ]; then
+			echo -e "\tUnable to run $clang ..."
+			exit 1
+		fi
+	else
+		target=${clang_target[$ARCH]}
+		if [ -z "$target" ]; then
+			echo -e "\tUnknown ARCH $ARCH for LLVM, supported:"
+			echo -e "\t$(echo "${!clang_target[*]}" | xargs -n1 | sort | xargs)"
+			exit 1
+		fi
+	fi
+
+	CC="$clang --target=$target -fintegrated-as"
+}
+
 all_tests()
 {
 	for test in $l1_tests; do
@@ -285,6 +361,7 @@ print_results()
 {
 	echo -e "========================================================";
 	echo -e "Kselftest Dependency Check for [$0 $1 $2] results..."
+	echo -e "Compiler: $CC"
 
 	if [ $print_targets -ne 0 ]
 	then

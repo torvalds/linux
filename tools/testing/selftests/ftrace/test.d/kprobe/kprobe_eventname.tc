@@ -5,7 +5,7 @@
 
 :;: "Add an event on function without name" ;:
 
-FUNC=`grep " [tT] .*vfs_read$" /proc/kallsyms | tail -n 1 | cut -f 3 -d " "`
+FUNC=`grep " [tT] .*vfs_read$" /proc/kallsyms | grep -v __gcov | tail -n 1 | cut -f 3 -d " "`
 [ "x" != "x$FUNC" ] || exit_unresolved
 echo "p $FUNC" > kprobe_events
 PROBE_NAME=`echo $FUNC | tr ".:" "_"`
