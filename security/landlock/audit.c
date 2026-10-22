@@ -21,10 +21,10 @@
 #include "log.h"
 
 /*
- * Access-right and scope names are built from the lists shared with the trace
- * events (see <linux/landlock.h>).  The designated initializer places each name
- * at its bit index, so the lookup stays O(1) and does not depend on the entry
- * order.  log_blockers() adds the "fs."/"net."/"scope." category prefix.
+ * Access-right, scope, and permission names are built from the lists shared
+ * with the trace events (see <linux/landlock.h>).  The designated initializer
+ * places each name at its bit index, so the lookup stays O(1) and does not
+ * depend on the entry order.  log_blockers() adds the related category prefix.
  */
 #define _LANDLOCK_NAME_ENTRY(mask, name) [BIT_INDEX(mask)] = name
 
@@ -39,6 +39,12 @@ static_assert(ARRAY_SIZE(net_access_strings) == LANDLOCK_NUM_ACCESS_NET);
 static const char *const scope_strings[] = { _LANDLOCK_SCOPE_NAMES };
 
 static_assert(ARRAY_SIZE(scope_strings) == LANDLOCK_NUM_SCOPE);
+
+static const char *const permission_strings[] = {
+	_LANDLOCK_PERMISSION_BLOCKER_NAMES
+};
+
+static_assert(ARRAY_SIZE(permission_strings) == LANDLOCK_NUM_PERMISSION);
 
 #undef _LANDLOCK_NAME_ENTRY
 
@@ -73,6 +79,12 @@ get_blocker(const enum landlock_request_type type,
 	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
 		WARN_ON_ONCE(access_bit != -1);
 		return scope_strings[BIT_INDEX(LANDLOCK_SCOPE_SIGNAL)];
+
+	case LANDLOCK_REQUEST_NAMESPACE:
+	case LANDLOCK_REQUEST_CAPABILITY:
+		if (WARN_ON_ONCE(access_bit >= ARRAY_SIZE(permission_strings)))
+			return "unknown";
+		return permission_strings[access_bit];
 	}
 
 	WARN_ON_ONCE(1);
@@ -82,8 +94,8 @@ get_blocker(const enum landlock_request_type type,
 /*
  * Returns the audit category prefix prepended to the unprefixed blocker name
  * returned by get_blocker() (filesystem and network access rights,
- * change_topology, and scopes).  The ptrace blocker is standalone and carries
- * its full name in get_blocker(), so it uses no prefix.
+ * change_topology, scopes, and permissions).  The ptrace blocker is standalone:
+ * its full name comes from get_blocker(), so it uses no prefix.
  */
 static __attribute_const__ const char *
 blocker_prefix(const enum landlock_request_type type)
@@ -102,6 +114,12 @@ blocker_prefix(const enum landlock_request_type type)
 	case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
 	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
 		return "scope.";
+
+	case LANDLOCK_REQUEST_NAMESPACE:
+		return _LANDLOCK_PERMISSION_NAMESPACE_NAME ".";
+
+	case LANDLOCK_REQUEST_CAPABILITY:
+		return _LANDLOCK_PERMISSION_CAPABILITY_NAME ".";
 	}
 
 	WARN_ON_ONCE(1);
@@ -163,7 +181,7 @@ static void log_domain(struct landlock_hierarchy *const hierarchy)
  *
  * @request: Detail of the user space request.
  * @youngest_denied: The youngest hierarchy node that denied the access.
- * @missing: The set of denied access rights.
+ * @missing: The set of denied access rights or permissions.
  * @logged: Whether the denial is selected for logging, as computed by
  *          landlock_log_denial() (domain policy and quiet rules).
  *

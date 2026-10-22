@@ -19,9 +19,9 @@
 
 /*
  * All access rights that are denied by default whether they are handled or not
- * by a ruleset/layer.  This must be ORed with all domain->handled_masks[]
- * entries when we need to get the absolute handled access masks, see
- * landlock_upgrade_handled_access_masks().
+ * by a ruleset/layer.  This must be ORed with the .handled field of all
+ * domain->layers[] entries when we need to get the absolute handled access
+ * masks, see landlock_upgrade_handled_layer_config().
  */
 /* clang-format off */
 #define _LANDLOCK_ACCESS_FS_INITIALLY_DENIED ( \
@@ -42,14 +42,17 @@ static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_ACCESS_FS);
 static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_ACCESS_NET);
 /* Makes sure all scoped rights can be stored. */
 static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_SCOPE);
+/* Makes sure all permissions can be stored. */
+static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_PERMISSION);
 /* Makes sure for_each_set_bit() and for_each_clear_bit() calls are OK. */
 static_assert(sizeof(unsigned long) >= sizeof(access_mask_t));
 
-/* Ruleset access masks. */
+/* Access and permission masks (bitfields only). */
 struct access_masks {
 	access_mask_t fs : LANDLOCK_NUM_ACCESS_FS;
 	access_mask_t net : LANDLOCK_NUM_ACCESS_NET;
 	access_mask_t scope : LANDLOCK_NUM_SCOPE;
+	access_mask_t permissions : LANDLOCK_NUM_PERMISSION;
 } __packed __aligned(sizeof(u32));
 
 union access_masks_all {
@@ -60,6 +63,46 @@ union access_masks_all {
 /* Makes sure all fields are covered. */
 static_assert(sizeof(typeof_member(union access_masks_all, masks)) ==
 	      sizeof(typeof_member(union access_masks_all, all)));
+
+/**
+ * struct permission_masks - Per-permission member bitmasks
+ */
+struct permission_masks {
+	/**
+	 * @ns_types: Namespace type member mask, indexed in FOR_EACH_NS_TYPE()
+	 * order.
+	 */
+	u64 ns_types : LANDLOCK_NUM_NAMESPACE_TYPE;
+	/**
+	 * @caps: Capability member mask, indexed by CAP_* values.
+	 */
+	u64 caps : LANDLOCK_NUM_CAPABILITY;
+} __packed __aligned(sizeof(u64));
+
+static_assert(sizeof(struct permission_masks) == sizeof(u64));
+/* All permission_masks bitfields must fit in a single u64. */
+static_assert(LANDLOCK_NUM_CAPABILITY + LANDLOCK_NUM_NAMESPACE_TYPE <=
+	      BITS_PER_TYPE(u64));
+
+/**
+ * struct layer_config - Per-layer access configuration
+ *
+ * A ruleset stores one mutable layer and a domain stores a flexible array of
+ * immutable layers.  Unlike filesystem and network access rights, namespace
+ * types and capabilities use flat bitmasks because their keyspaces are small
+ * and bounded.
+ */
+struct layer_config {
+	/**
+	 * @allowed: Members allowed by each handled permission.
+	 */
+	struct permission_masks allowed;
+	/**
+	 * @handled: Bitmask of access rights and permissions handled (i.e.
+	 * restricted) by this layer.
+	 */
+	struct access_masks handled;
+};
 
 #define _LANDLOCK_LAYER_MASK_PADDING                              \
 	(BITS_PER_TYPE(access_mask_t) - LANDLOCK_NUM_ACCESS_MAX - \
@@ -131,17 +174,17 @@ static_assert(BITS_PER_TYPE(deny_masks_t) >=
 static_assert(HWEIGHT(LANDLOCK_MAX_NUM_LAYERS) == 1);
 
 /* Upgrades with all initially denied by default access rights. */
-static inline struct access_masks
-landlock_upgrade_handled_access_masks(struct access_masks access_masks)
+static inline struct layer_config
+landlock_upgrade_handled_layer_config(struct layer_config layer_config)
 {
 	/*
 	 * All access rights that are denied by default whether they are
 	 * explicitly handled or not.
 	 */
-	if (access_masks.fs)
-		access_masks.fs |= _LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
+	if (layer_config.handled.fs)
+		layer_config.handled.fs |= _LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
 
-	return access_masks;
+	return layer_config;
 }
 
 /* Checks the subset relation between access masks. */

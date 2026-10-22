@@ -57,13 +57,6 @@ int renameat2(int olddirfd, const char *oldpath, int newdirfd,
 }
 #endif
 
-#ifndef open_tree
-int open_tree(int dfd, const char *filename, unsigned int flags)
-{
-	return syscall(__NR_open_tree, dfd, filename, flags);
-}
-#endif
-
 static int sys_execveat(int dirfd, const char *pathname, char *const argv[],
 			char *const envp[], int flags)
 {
@@ -2628,9 +2621,9 @@ TEST_F_FORK(layout1, refer_mount_root_deny)
 
 	/* Creates a mount object from a non-mount point. */
 	set_cap(_metadata, CAP_SYS_ADMIN);
-	root_fd =
-		open_tree(AT_FDCWD, dir_s1d1,
-			  AT_EMPTY_PATH | OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	root_fd = sys_open_tree(AT_FDCWD, dir_s1d1,
+				AT_EMPTY_PATH | OPEN_TREE_CLONE |
+					OPEN_TREE_CLOEXEC);
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 	ASSERT_LE(0, root_fd);
 

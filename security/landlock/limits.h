@@ -11,7 +11,9 @@
 #define _SECURITY_LANDLOCK_LIMITS_H
 
 #include <linux/bitops.h>
+#include <linux/capability.h>
 #include <linux/limits.h>
+#include <linux/ns/ns_common_types.h>
 #include <uapi/linux/landlock.h>
 
 /* clang-format off */
@@ -30,6 +32,13 @@
 #define LANDLOCK_LAST_SCOPE		LANDLOCK_SCOPE_SIGNAL
 #define LANDLOCK_MASK_SCOPE		((LANDLOCK_LAST_SCOPE << 1) - 1)
 #define LANDLOCK_NUM_SCOPE		__const_hweight64(LANDLOCK_MASK_SCOPE)
+
+#define LANDLOCK_LAST_PERMISSION	LANDLOCK_PERMISSION_CAPABILITY_USE
+#define LANDLOCK_MASK_PERMISSION	((LANDLOCK_LAST_PERMISSION << 1) - 1)
+#define LANDLOCK_NUM_PERMISSION		__const_hweight64(LANDLOCK_MASK_PERMISSION)
+
+#define LANDLOCK_NUM_NAMESPACE_TYPE	__const_hweight64((u64)CLONE_NS_ALL)
+#define LANDLOCK_NUM_CAPABILITY		(CAP_LAST_CAP + 1)
 
 #define LANDLOCK_NUM_ACCESS_MAX \
 	MAX(MAX(LANDLOCK_NUM_ACCESS_FS, LANDLOCK_NUM_ACCESS_NET), LANDLOCK_NUM_SCOPE)

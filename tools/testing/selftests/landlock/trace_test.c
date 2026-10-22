@@ -148,7 +148,7 @@ TEST_F(trace, no_trace_when_disabled)
 
 /*
  * Verifies that landlock_create_ruleset emits a trace event with the correct
- * handled access masks.
+ * handled access and permission masks.
  */
 TEST_F(trace, create_ruleset)
 {
@@ -185,6 +185,12 @@ TEST_F(trace, create_ruleset)
 		  tracefs_extract_field(buf, REGEX_CREATE_RULESET(TRACE_TASK),
 					"handled_net", field, sizeof(field)));
 	EXPECT_STREQ("bind_tcp", field);
+
+	/* Verify that no permission is handled. */
+	EXPECT_EQ(0, tracefs_extract_field(
+			     buf, REGEX_CREATE_RULESET(TRACE_TASK),
+			     "handled_permissions", field, sizeof(field)));
+	EXPECT_STREQ("", field);
 
 	/* Verify version is 0 at creation (no rules added yet). */
 	EXPECT_EQ(0,
