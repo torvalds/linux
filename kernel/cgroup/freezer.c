@@ -20,10 +20,7 @@ static bool cgroup_update_frozen_flag(struct cgroup *cgrp, bool frozen)
 	if (test_bit(CGRP_FROZEN, &cgrp->flags) == frozen)
 		return false;
 
-	if (frozen)
-		set_bit(CGRP_FROZEN, &cgrp->flags);
-	else
-		clear_bit(CGRP_FROZEN, &cgrp->flags);
+	assign_bit(CGRP_FROZEN, &cgrp->flags, frozen);
 
 	cgroup_file_notify(&cgrp->events_file);
 	TRACE_CGROUP_PATH(notify_frozen, cgrp, frozen);

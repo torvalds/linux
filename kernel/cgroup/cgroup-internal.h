@@ -254,7 +254,7 @@ void cgroup_procs_write_finish(struct task_struct *task,
 			       enum cgroup_attach_lock_mode lock_mode)
 	__releases(&cgroup_threadgroup_rwsem);
 
-void cgroup_lock_and_drain_offline(struct cgroup *cgrp);
+int cgroup_lock_and_drain_offline(struct cgroup *cgrp);
 
 int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode);
 int cgroup_rmdir(struct kernfs_node *kn);

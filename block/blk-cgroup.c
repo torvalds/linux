@@ -1189,10 +1189,17 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 	struct blkcg *blkcg = css_to_blkcg(seq_css(sf));
 	struct blkcg_gq *blkg;
 
-	if (!seq_css(sf)->parent)
+	if (!seq_css(sf)->parent) {
 		blkcg_fill_root_iostats();
-	else
+	} else {
+		/*
+		 * Descendant blkgs imply ancestor blkgs, so an empty
+		 * ->blkg_list has no stats to report.
+		 */
+		if (hlist_empty(&blkcg->blkg_list))
+			return 0;
 		css_rstat_flush(&blkcg->css);
+	}
 
 	guard(spinlock_irq)(&blkcg->lock);
 	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node)

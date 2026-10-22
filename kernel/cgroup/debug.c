@@ -45,13 +45,13 @@ static int current_css_set_read(struct seq_file *seq, void *v)
 	struct cgroup_subsys_state *css;
 	int i, refcnt;
 
-	if (!cgroup_kn_lock_live(of->kn, false))
+	if (IS_ERR(cgroup_kn_lock_live(of->kn, false)))
 		return -ENODEV;
 
 	spin_lock_irq(&css_set_lock);
 	cset = task_css_set(current);
 	refcnt = refcount_read(&cset->refcount);
-	seq_printf(seq, "css_set %pK %d", cset, refcnt);
+	seq_printf(seq, "css_set %p %d", cset, refcnt);
 	if (refcnt > cset->nr_tasks)
 		seq_printf(seq, " +%d", refcnt - cset->nr_tasks);
 	seq_puts(seq, "\n");
@@ -125,10 +125,10 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 		 * Print out the proc_cset and threaded_cset relationship
 		 * and highlight difference between refcount and task_count.
 		 */
-		seq_printf(seq, "css_set %pK", cset);
+		seq_printf(seq, "css_set %p", cset);
 		if (rcu_dereference_protected(cset->dom_cset, 1) != cset) {
 			threaded_csets++;
-			seq_printf(seq, "=>%pK", cset->dom_cset);
+			seq_printf(seq, "=>%p", cset->dom_cset);
 		}
 		if (!list_empty(&cset->threaded_csets)) {
 			struct css_set *tcset;
@@ -137,7 +137,7 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 			list_for_each_entry(tcset, &cset->threaded_csets,
 					    threaded_csets_node) {
 				seq_puts(seq, idx ? "," : "<=");
-				seq_printf(seq, "%pK", tcset);
+				seq_printf(seq, "%p", tcset);
 				idx++;
 			}
 		} else {
@@ -206,8 +206,8 @@ static int cgroup_subsys_states_read(struct seq_file *seq, void *v)
 	int i;
 
 	cgrp = cgroup_kn_lock_live(of->kn, false);
-	if (!cgrp)
-		return -ENODEV;
+	if (IS_ERR(cgrp))
+		return PTR_ERR(cgrp);
 
 	for_each_subsys(ss, i) {
 		css = rcu_dereference_check(cgrp->subsys[ss->id], true);
@@ -254,8 +254,8 @@ static int cgroup_masks_read(struct seq_file *seq, void *v)
 	struct cgroup *cgrp;
 
 	cgrp = cgroup_kn_lock_live(of->kn, false);
-	if (!cgrp)
-		return -ENODEV;
+	if (IS_ERR(cgrp))
+		return PTR_ERR(cgrp);
 
 	cgroup_masks_read_one(seq, "subtree_control", cgrp->subtree_control);
 	cgroup_masks_read_one(seq, "subtree_ss_mask", cgrp->subtree_ss_mask);

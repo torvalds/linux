@@ -304,7 +304,9 @@ void cpuset_callback_lock_irq(void);
 void cpuset_callback_unlock_irq(void);
 void cpuset_update_tasks_cpumask(struct cpuset *cs, struct cpumask *new_cpus);
 void cpuset_update_tasks_nodemask(struct cpuset *cs);
-int cpuset_update_flag(cpuset_flagbits_t bit, struct cpuset *cs, int turning_on);
+struct cpuset *dup_or_alloc_cpuset(struct cpuset *cs);
+void free_cpuset(struct cpuset *cs);
+int validate_change(struct cpuset *cur, struct cpuset *trial);
 ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 				    char *buf, size_t nbytes, loff_t off);
 int cpuset_common_seq_show(struct seq_file *sf, void *v);
@@ -318,7 +320,6 @@ void cpuset_full_unlock(void);
 extern struct cftype cpuset1_files[];
 void cpuset1_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk);
-void cpuset1_update_tasks_flags(struct cpuset *cs);
 void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 			    struct cpumask *new_cpus, nodemask_t *new_mems,
 			    bool cpus_updated, bool mems_updated);
@@ -328,11 +329,11 @@ void cpuset1_init(struct cpuset *cs);
 void cpuset1_online_css(struct cgroup_subsys_state *css);
 int cpuset1_generate_sched_domains(cpumask_var_t **domains,
 			struct sched_domain_attr **attributes);
+void cpuset1_offline_css(struct cpuset *cs);
 
 #else
 static inline void cpuset1_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk) {}
-static inline void cpuset1_update_tasks_flags(struct cpuset *cs) {}
 static inline void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 			    struct cpumask *new_cpus, nodemask_t *new_mems,
 			    bool cpus_updated, bool mems_updated) {}
@@ -344,6 +345,7 @@ static inline void cpuset1_init(struct cpuset *cs) {}
 static inline void cpuset1_online_css(struct cgroup_subsys_state *css) {}
 static inline int cpuset1_generate_sched_domains(cpumask_var_t **domains,
 			struct sched_domain_attr **attributes) { return 0; };
+static inline void cpuset1_offline_css(struct cpuset *cs) {}
 
 #endif /* CONFIG_CPUSETS_V1 */
 
