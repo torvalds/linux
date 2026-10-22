@@ -5,6 +5,7 @@
  * Copyright (c) 2023 Tejun Heo <tj@kernel.org>
  */
 #include <signal.h>
+#include <string.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sched.h>
@@ -72,7 +73,17 @@ static enum scx_test_status run_test(bool global)
 	close(pipe_fds[1]);
 	signal(SIGCHLD, SIG_DFL);
 
+	SCX_ASSERT_ALIVE(skel, uei);
+
 	bpf_link__destroy(link);
+
+	/*
+	 * The clean unregister above is recorded in uei and would
+	 * otherwise trip the liveness check of the second cycle, which
+	 * reuses this skeleton.
+	 */
+	memset(&skel->data->uei, 0, sizeof(skel->data->uei));
+
 	SCX_GE(skel->bss->init_task_cnt, num_pre_forks);
 	SCX_GE(skel->bss->exit_task_cnt, num_pre_forks);
 
@@ -123,6 +134,8 @@ static enum scx_test_status run_test(bool global)
 		SCX_FAIL_IF(status != 0, "Normal child %d exited with status %d\n", i,
 			    status);
 	}
+
+	SCX_ASSERT_ALIVE(skel, uei);
 
 	bpf_link__destroy(link);
 

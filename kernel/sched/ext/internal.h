@@ -215,6 +215,34 @@ enum scx_ops_flags {
 	 */
 	SCX_OPS_TID_TO_TASK		= 1LLU << 8,
 
+	/*
+	 * If set, tasks default to requesting lazy rescheduling when their
+	 * slice runs out at the tick, the way fair.c expires a slice from
+	 * update_curr(). The default is copied to p->scx.lazy_resched
+	 * immediately before ops.enable(), after which
+	 * scx_bpf_task_set_lazy_resched() may override it per task.
+	 *
+	 * A task in user space still reschedules on the way back from the tick;
+	 * a task in the kernel runs on to its next return to user space or to
+	 * the next tick, which promotes the request. When lazy preemption is
+	 * disabled at runtime, the request behaves like an immediate
+	 * reschedule. Rescheduling while bypassing stays immediate.
+	 */
+	SCX_OPS_LAZY_RESCHED		= 1LLU << 9,
+
+	/*
+	 * If set, mutex-blocked tasks remain runnable as proxy donors and are
+	 * passed to ops.enqueue() with %SCX_ENQ_BLOCKED. The BPF scheduler controls
+	 * when donors are dispatched and whether they should preempt other work.
+	 *
+	 * If clear, mutex-blocked tasks are removed from the runqueue normally
+	 * and cannot donate their scheduling context through proxy execution.
+	 *
+	 * For blocked donors, this flag takes precedence over
+	 * %SCX_OPS_ENQ_EXITING and %SCX_OPS_ENQ_MIGRATION_DISABLED.
+	 */
+	SCX_OPS_ENQ_BLOCKED		= 1LLU << 10,
+
 	SCX_OPS_ALL_FLAGS		= SCX_OPS_KEEP_BUILTIN_IDLE |
 					  SCX_OPS_ENQ_LAST |
 					  SCX_OPS_ENQ_EXITING |
@@ -223,7 +251,9 @@ enum scx_ops_flags {
 					  SCX_OPS_SWITCH_PARTIAL |
 					  SCX_OPS_BUILTIN_IDLE_PER_NODE |
 					  SCX_OPS_ALWAYS_ENQ_IMMED |
-					  SCX_OPS_TID_TO_TASK,
+					  SCX_OPS_TID_TO_TASK |
+					  SCX_OPS_LAZY_RESCHED |
+					  SCX_OPS_ENQ_BLOCKED,
 
 	/* high 8 bits are internal, don't include in SCX_OPS_ALL_FLAGS */
 	__SCX_OPS_INTERNAL_MASK		= 0xffLLU << 56,
@@ -334,6 +364,18 @@ struct scx_sub_attach_args {
 struct scx_sub_detach_args {
 	struct sched_ext_ops	*ops;
 	char			*cgroup_path;
+};
+
+/*
+ * What a sched sees running on a cid, as reported by
+ * ops.sub_cid_sched_updated(): NONE when the cid is idle or runs a task outside
+ * the sched's subtree, SELF for the sched itself, or a direct child by its
+ * cgroup id. The sentinels lie outside the cgroup id space, whose low 32 bits
+ * are an idr value of at most INT_MAX.
+ */
+enum scx_cid_sched_consts {
+	SCX_CID_SCHED_NONE = (u64)-2,
+	SCX_CID_SCHED_SELF = (u64)-1,
 };
 
 /**
@@ -476,6 +518,12 @@ struct sched_ext_ops {
 	 *
 	 * Therefore, always use scx_bpf_task_cpu(@p) to determine the
 	 * target CPU the task is going to use.
+	 *
+	 * Under proxy execution, the BPF scheduler continues to observe the
+	 * donor as the current scheduling context. A blocked donor enters a
+	 * ->running()/->stopping() session while its scheduling context drives
+	 * the lock owner. The lock owner executing on its behalf is intentionally
+	 * not reported through these callbacks.
 	 *
 	 * See ->runnable() for explanation on the task state notifiers.
 	 */
@@ -828,6 +876,11 @@ struct sched_ext_ops {
 	/**
 	 * @sub_detach: Detach a sub-scheduler
 	 * @args: argument container, see the struct definition
+	 *
+	 * The sub-scheduler holds no caps by this point and can no longer
+	 * affect any cid. Its caps went away without a
+	 * sub_child_ecaps_updated() report, so whatever was delegated to it,
+	 * e.g. cpuperf targets, is the parent's to restore here.
 	 */
 	void (*sub_detach)(struct scx_sub_detach_args *args);
 
@@ -863,6 +916,41 @@ struct sched_ext_ops {
 	 * including inserting/moving tasks.
 	 */
 	void (*sub_ecaps_updated)(s32 cid, u64 before, u64 after);
+
+	/**
+	 * @sub_cid_sched_updated: The sched running on a cid changed
+	 * @cid: cid whose running sched changed
+	 * @sched: what this sched now sees running there
+	 *
+	 * Invoked when the sched owning the task running on @cid changes.
+	 * @sched is %SCX_CID_SCHED_NONE when no task of this sched's subtree
+	 * runs there, %SCX_CID_SCHED_SELF for its own task, or the cgroup id of
+	 * the direct child whose subtree the task belongs to. Changes inside a
+	 * child's subtree, whether across tasks or nested sub-scheds, are not
+	 * reported. Every sched for which @sched changes is notified.
+	 *
+	 * Runs with the rq lock held on the context switch path.
+	 */
+	void (*sub_cid_sched_updated)(s32 cid, u64 sched);
+
+	/**
+	 * @sub_child_ecaps_updated: A child's effective caps on a cid changed
+	 * @cgroup_id: cgroup id of the direct child
+	 * @cid: the cid whose effective caps changed
+	 * @before: the child's effective caps as of the last delivery
+	 * @after: the child's effective caps now
+	 *
+	 * Invoked right after the child's sub_ecaps_updated(), once a grant or
+	 * revoke is in effect on the cpu. From here on the parent can act on a
+	 * cap the child lost, e.g. reset the cpuperf target or schedule on the
+	 * cid. A detaching child's caps go away without a report, see
+	 * sub_detach(). A cpu going offline drops caps without a report.
+	 *
+	 * Runs in dispatch context with rq lock held, and can perform all
+	 * operations allowed in ops.dispatch() including inserting/moving
+	 * tasks.
+	 */
+	void (*sub_child_ecaps_updated)(u64 cgroup_id, s32 cid, u64 before, u64 after);
 
 	/*
 	 * All online ops must come before ops.cpu_online().
@@ -911,6 +999,9 @@ struct sched_ext_ops {
 	 * ops.exit() is also called on ops.init() failure, which is a bit
 	 * unusual. This is to allow rich reporting through @info on how
 	 * ops.init() failed.
+	 *
+	 * A sub-scheduler holds no caps by the time ops.exit() runs. Its
+	 * cap-gated kfuncs are denied.
 	 */
 	void (*exit)(struct scx_exit_info *info);
 
@@ -1118,6 +1209,8 @@ struct sched_ext_ops_cid {
 	void (*sub_detach)(struct scx_sub_detach_args *args);
 	void (*sub_caps_updated)(const struct scx_cmask *cmask__arena, u64 caps);
 	void (*sub_ecaps_updated)(s32 cid, u64 before, u64 after);
+	void (*sub_cid_sched_updated)(s32 cid, u64 sched);
+	void (*sub_child_ecaps_updated)(u64 cgroup_id, s32 cid, u64 before, u64 after);
 	void (*cid_online)(s32 cid);
 	void (*cid_offline)(s32 cid);
 	s32 (*init_cids)(void);
@@ -1359,6 +1452,7 @@ struct scx_sched_pcpu {
 	cpumask_var_t		cpus_to_kick;
 	cpumask_var_t		cpus_to_kick_if_idle;
 	cpumask_var_t		cpus_to_preempt;
+	cpumask_var_t		cpus_to_preempt_lazy;
 	cpumask_var_t		cpus_to_wait;
 	struct list_head	to_kick_node;
 
@@ -1380,7 +1474,10 @@ struct scx_sched_pcpu {
 	struct llist_node	ecaps_to_sync_node;
 	/* owed a forced update_idle() re-notify on this cpu */
 	bool			idle_renotify;
-	/* effective caps as of the last sub_ecaps_updated() delivery */
+	/*
+	 * ecaps as of the last sub_ecaps_updated() and
+	 * sub_child_ecaps_updated() delivery. See __scx_process_sync_ecaps().
+	 */
 	u64			reported_ecaps;
 
 	/*
@@ -1439,15 +1536,16 @@ struct scx_sched_pnode {
  * the allocation pattern.
  *
  * ENQ_IMMED  insert an IMMED task onto the cid's local DSQ
- *            - kick the cid's cpu (except SCX_KICK_PREEMPT)
+ *            - kick the cid's cpu (except SCX_KICK_PREEMPT and
+ *              SCX_KICK_PREEMPT_LAZY)
  *
  * ENQ        insert any task onto the cid's local DSQ (implies ENQ_IMMED)
  *
  * PREEMPT    preempt any task running on the cid regardless of the owning
  *            sched (implies ENQ). Preempting a task in the sched's own subtree
  *            doesn't require any cap.
- *            - SCX_ENQ_PREEMPT inserts
- *            - SCX_KICK_PREEMPT kicks
+ *            - SCX_ENQ_PREEMPT and SCX_ENQ_PREEMPT_LAZY insert
+ *            - SCX_KICK_PREEMPT and SCX_KICK_PREEMPT_LAZY kick
  *
  * PERF       control the cid's cpu power/perf management state, currently the
  *            cpufreq target set through scx_bpf_cidperf_set(). Hardware
@@ -1733,10 +1831,19 @@ enum scx_enq_flags {
 	SCX_ENQ_PREEMPT		= 1LLU << 32,
 
 	/*
+	 * Like %SCX_ENQ_PREEMPT, but request lazy rescheduling. The current
+	 * task's slice is still cleared immediately so that the next scheduling
+	 * boundary observes the new ordering. %SCX_ENQ_PREEMPT takes precedence
+	 * if both are specified. Implies %SCX_ENQ_HEAD, which is all it means
+	 * on a non-local DSQ, as with %SCX_ENQ_PREEMPT.
+	 */
+	SCX_ENQ_PREEMPT_LAZY	= 1LLU << 35,
+
+	/*
 	 * Only allowed on local DSQs. Guarantees that the task either gets
 	 * on the CPU immediately and stays on it, or gets reenqueued back
-	 * to the BPF scheduler. It will never linger on a local DSQ or be
-	 * silently put back after preemption.
+	 * to the BPF scheduler. A blocked proxy donor may be put back on the
+	 * local DSQ temporarily while proxy execution resolves its mutex owner.
 	 *
 	 * The protection persists until the next fresh enqueue - it
 	 * survives SAVE/RESTORE cycles, slice extensions and preemption.
@@ -1780,6 +1887,18 @@ enum scx_enq_flags {
 	 */
 	SCX_ENQ_LAST		= 1LLU << 41,
 
+	/*
+	 * The task is blocked on a mutex and is being kept runnable as a proxy
+	 * donor. Only passed to ops.enqueue() when %SCX_OPS_ENQ_BLOCKED is set.
+	 *
+	 * Blocking on the mutex does not enqueue the task by itself. A donor put
+	 * with slice left stays at the head of the local DSQ, except when an
+	 * IMMED donor is preempted or cannot stay local. It is passed to
+	 * ops.enqueue() when its slice runs out, the IMMED placement cannot be
+	 * kept, or proxy execution moves it to the owner's CPU.
+	 */
+	SCX_ENQ_BLOCKED		= 1LLU << 42,
+
 	/* high 8 bits are internal */
 	__SCX_ENQ_INTERNAL_MASK	= 0xffLLU << 56,
 
@@ -1791,6 +1910,15 @@ enum scx_enq_flags {
 	SCX_ENQ_APPLY_SLICE	= 1LLU << 61,	/* apply carried slice/vtime at insertion */
 	SCX_ENQ_SLICE_DFL	= 1LLU << 62,	/* carried slice is a default refill */
 };
+
+/* Strip priority and carried slice state when diverting from a local DSQ. */
+static inline void scx_divert_strip_flags(struct task_struct *p, u64 *enq_flags)
+{
+	*enq_flags &= ~(SCX_ENQ_IMMED | SCX_ENQ_PREEMPT |
+			SCX_ENQ_PREEMPT_LAZY | SCX_ENQ_HEAD |
+			SCX_ENQ_APPLY_SLICE | SCX_ENQ_SLICE_DFL);
+	p->scx.flags &= ~SCX_TASK_IMMED;
+}
 
 enum scx_deq_flags {
 	/* expose select DEQUEUE_* flags as enums */
@@ -1818,6 +1946,8 @@ enum scx_reenq_flags {
 
 	/* internal: kernel-issued on cap revoke, not accepted from BPF */
 	SCX_REENQ_CAP_REVOKE	= 1LLU << 1,
+	/* internal: tasks marked by scx_bpf_dsq_reenq_task() */
+	SCX_REENQ_MARKED	= 1LLU << 2,
 
 	__SCX_REENQ_FILTER_MASK	= 0xffffLLU,
 
@@ -1859,6 +1989,15 @@ enum scx_kick_flags {
 	 * is not on SCX.
 	 */
 	SCX_KICK_WAIT		= 1LLU << 2,
+
+	/*
+	 * Like %SCX_KICK_PREEMPT, but request lazy rescheduling. If combined
+	 * with %SCX_KICK_PREEMPT or %SCX_KICK_WAIT, rescheduling is immediate.
+	 */
+	SCX_KICK_PREEMPT_LAZY	= 1LLU << 3,
+
+	SCX_KICK_ALL_FLAGS	= SCX_KICK_IDLE | SCX_KICK_PREEMPT |
+				  SCX_KICK_WAIT | SCX_KICK_PREEMPT_LAZY,
 };
 
 enum scx_tg_flags {
@@ -2107,6 +2246,7 @@ struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter);
 bool scx_set_task_slice(struct task_struct *p, u64 slice);
 void scx_task_slice_ended(struct rq *rq, struct task_struct *p);
 void scx_task_unlink_from_dsq(struct task_struct *p, struct scx_dispatch_q *dsq);
+void scx_prepare_task_sched_change(struct task_struct *p);
 void scx_dispatch_dequeue(struct rq *rq, struct task_struct *p);
 void scx_do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 			 int sticky_cpu);
@@ -2167,6 +2307,22 @@ extern struct scx_sched *scx_enabling_sub_sched;
 	__scx_exit(sch, kind, exit_code, raw_smp_processor_id(), fmt, ##args)
 #define scx_error(sch, fmt, args...)						\
 	scx_exit((sch), SCX_EXIT_ERROR, 0, fmt, ##args)
+
+/*
+ * Tracing progs can call kfuncs from NMI. Kfuncs that take scheduler locks or
+ * touch the kick lists, which are only protected by irq masking, can't run
+ * there, so abort the scheduler instead. scx_error() is NMI-safe.
+ */
+static __always_inline bool __scx_kf_allowed_ctx(struct scx_sched *sch, const char *who)
+{
+	if (unlikely(in_nmi())) {
+		scx_error(sch, "%s called from NMI", who);
+		return false;
+	}
+	return true;
+}
+
+#define scx_kf_allowed_ctx(sch)	__scx_kf_allowed_ctx((sch), __func__)
 
 /**
  * scx_root_protected_live - Root sched for paths that only run while live
@@ -2258,6 +2414,15 @@ static inline void scx_schedule_reenq_local(struct rq *rq, u64 reenq_flags)
  */
 static inline struct rq *scx_locked_rq(void)
 {
+	/*
+	 * Tracing progs can call kfuncs from NMI. scx_locked_rq_state tracks
+	 * the rq locked by the interrupted context, so a non-NULL read from
+	 * NMI would falsely claim its lock. Return NULL from NMI so that
+	 * callers take their unlocked paths.
+	 */
+	if (unlikely(in_nmi()))
+		return NULL;
+
 	return __this_cpu_read(scx_locked_rq_state);
 }
 
@@ -2538,5 +2703,22 @@ static inline struct scx_sched *scx_prog_sched(const struct bpf_prog_aux *aux)
 static inline struct scx_sched *scx_parent(struct scx_sched *sch) { return NULL; }
 
 #endif	/* CONFIG_EXT_SUB_SCHED */
+
+/**
+ * scx_exec_sched - Find the sched running @sch's tasks on @cpu
+ * @sch: sched owning the tasks
+ * @cpu: cpu of interest
+ *
+ * A bypassing sched's tasks are run by its nearest ancestor that isn't
+ * bypassing. Return @sch if it isn't bypassing on @cpu, otherwise that
+ * ancestor, or the root if every ancestor is bypassing. Hold @cpu's rq lock for
+ * a stable answer.
+ */
+static inline struct scx_sched *scx_exec_sched(struct scx_sched *sch, s32 cpu)
+{
+	while (scx_parent(sch) && scx_bypassing(sch, cpu))
+		sch = scx_parent(sch);
+	return sch;
+}
 
 #endif /* _KERNEL_SCHED_EXT_INTERNAL_H */

@@ -21,15 +21,17 @@ static bool is_cpu_online(void)
 	return file_read_long(online_path) > 0;
 }
 
-static void toggle_online_status(bool online)
+static int toggle_online_status(bool online)
 {
 	long val = online ? 1 : 0;
 	int ret;
 
 	ret = file_write_long(online_path, val);
 	if (ret != 0)
-		fprintf(stderr, "Failed to bring CPU %s (%s)",
+		fprintf(stderr, "Failed to bring CPU %s (%s)\n",
 			online ? "online" : "offline", strerror(errno));
+
+	return ret;
 }
 
 static enum scx_test_status setup(void **ctx)
@@ -44,6 +46,7 @@ static enum scx_test_status test_hotplug(bool onlining, bool cbs_defined)
 {
 	struct hotplug *skel;
 	struct bpf_link *link;
+	enum scx_test_status status = SCX_TEST_FAIL;
 	long kind, code;
 
 	SCX_ASSERT(is_cpu_online());
@@ -54,8 +57,8 @@ static enum scx_test_status test_hotplug(bool onlining, bool cbs_defined)
 	SCX_FAIL_IF(hotplug__load(skel), "Failed to load skel");
 
 	/* Testing the offline -> online path, so go offline before starting */
-	if (onlining)
-		toggle_online_status(0);
+	if (onlining && toggle_online_status(0))
+		goto out_destroy_skel;
 
 	if (cbs_defined) {
 		kind = SCX_KIND_VAL(SCX_EXIT_UNREG_BPF);
@@ -79,28 +82,34 @@ static enum scx_test_status test_hotplug(bool onlining, bool cbs_defined)
 		return SCX_TEST_FAIL;
 	}
 
-	toggle_online_status(onlining ? 1 : 0);
+	if (toggle_online_status(onlining ? 1 : 0))
+		goto out_destroy_link;
 
-	while (!UEI_EXITED(skel, uei))
-		sched_yield();
+	if (!SCX_TIMED_WAIT_UEI(skel, uei, 10000)) {
+		SCX_ERR("Timed out waiting for scheduler to exit");
+		goto out_destroy_link;
+	}
 
 	SCX_EQ(skel->data->uei.kind, kind);
 	SCX_EQ(UEI_REPORT(skel, uei), code);
 
-	if (!onlining)
-		toggle_online_status(1);
+	if (!onlining && toggle_online_status(1))
+		goto out_destroy_link;
 
+	status = SCX_TEST_PASS;
+out_destroy_link:
 	bpf_link__destroy(link);
+out_destroy_skel:
 	hotplug__destroy(skel);
 
-	return SCX_TEST_PASS;
+	return status;
 }
 
 static enum scx_test_status test_hotplug_attach(void)
 {
 	struct hotplug *skel;
 	struct bpf_link *link;
-	enum scx_test_status status = SCX_TEST_PASS;
+	enum scx_test_status status = SCX_TEST_FAIL;
 	long kind, code;
 
 	SCX_ASSERT(is_cpu_online());
@@ -115,14 +124,18 @@ static enum scx_test_status test_hotplug_attach(void)
 	 * Take the CPU offline to increment the global hotplug seq, which
 	 * should cause attach to fail due to us setting the hotplug seq above
 	 */
-	toggle_online_status(0);
+	if (toggle_online_status(0))
+		goto out_destroy_skel;
 	link = bpf_map__attach_struct_ops(skel->maps.hotplug_nocb_ops);
 
-	toggle_online_status(1);
+	if (toggle_online_status(1))
+		goto out_destroy_link;
 
 	SCX_ASSERT(link);
-	while (!UEI_EXITED(skel, uei))
-		sched_yield();
+	if (!SCX_TIMED_WAIT_UEI(skel, uei, 10000)) {
+		SCX_ERR("Timed out waiting for scheduler to exit");
+		goto out_destroy_link;
+	}
 
 	kind = SCX_KIND_VAL(SCX_EXIT_UNREG_KERN);
 	code = SCX_ECODE_VAL(SCX_ECODE_ACT_RESTART) |
@@ -130,7 +143,10 @@ static enum scx_test_status test_hotplug_attach(void)
 	SCX_EQ(skel->data->uei.kind, kind);
 	SCX_EQ(UEI_REPORT(skel, uei), code);
 
+	status = SCX_TEST_PASS;
+out_destroy_link:
 	bpf_link__destroy(link);
+out_destroy_skel:
 	hotplug__destroy(skel);
 
 	return status;

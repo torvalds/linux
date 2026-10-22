@@ -46,7 +46,7 @@ const char help_fmt[] =
 "See the top-of-file comment in .bpf.c for the design.\n"
 "\n"
 "Usage: %s [-s SLICE_US] [-e COUNT] [-t COUNT] [-T COUNT] [-l COUNT] [-b COUNT]\n"
-"       [-N COUNT] [-P] [-M] [-H] [-c CG_PATH] [-d PID] [-D LEN] [-S] [-p] [-I]\n"
+"       [-N COUNT] [-P] [-M] [-H] [-c CG_PATH] [-d PID] [-D LEN] [-S] [-p] [-I] [-X]\n"
 "       [-F COUNT] [-i SEC] [-R MS] [-J MODE] [-v]\n"
 "\n"
 "  -s SLICE_US   Override slice duration\n"
@@ -65,6 +65,7 @@ const char help_fmt[] =
 "  -S            Suppress qmap-specific debug dump\n"
 "  -p            Switch only tasks on SCHED_EXT policy instead of all\n"
 "  -I            Turn on SCX_OPS_ALWAYS_ENQ_IMMED\n"
+"  -X            Turn on SCX_OPS_ENQ_BLOCKED\n"
 "  -F COUNT      IMMED stress: force every COUNT'th enqueue to a busy local DSQ (use with -I)\n"
 "  -C MODE       cid-override test (shuffle|bad-dup|bad-range|bad-mono)\n"
 "  -i SEC        Stats interval, seconds (default 5)\n"
@@ -104,11 +105,15 @@ struct hier_prev {
 	u64 alloc_ns[MAX_SUB_SCHEDS];
 	u64 self_alloc_ns;
 	u64 alloc_window_ns;
+	u64 used_snap_ns[MAX_SUB_SCHEDS];
+	u64 self_used_snap_ns;
 	u64 nr_dsps[MAX_SUB_SCHEDS];
 	u64 nr_reenq_cap;
 	u64 nr_reenq_immed;
+	u64 nr_enq_blocked;
 	u64 nr_inject_attempts;
 	u64 nr_rescue_dsp;
+	u64 nr_child_ecaps;
 };
 
 /* current wall-clock time as "HH:MM:SS" for the startup and interval headers */
@@ -157,10 +162,24 @@ static void format_cid_ranges(struct qmap_arena *qa, s32 owner, char *buf, size_
 		strcpy(buf, "-");
 }
 
+/*
+ * Delta of a cumulative ns counter over the interval, as a fraction of the
+ * interval. The used snapshot can briefly run behind the previous one (see
+ * snapshot_used()), hence the floor.
+ */
+static double delta_ratio(u64 cur, u64 prev, double secs)
+{
+	s64 delta = cur - prev;
+
+	return secs > 0 && delta > 0 ? delta / (secs * 1e9) : 0.0;
+}
+
 /* partition summary + one row per sched: weight, cpus, dispatch rate, cids */
 static void print_hier(struct qmap_arena *qa, struct hier_prev *prev, u64 own_cgid)
 {
-	char ranges[128], who[16];
+	/* worst case, no ranges: a comma and up to six digits per cid */
+	static char ranges[SCX_QMAP_MAX_CPUS * 7];
+	char who[16];
 	const char *rr = "-";
 	double secs;
 	u32 i;
@@ -190,26 +209,39 @@ static void print_hier(struct qmap_arena *qa, struct hier_prev *prev, u64 own_cg
 	}
 
 	format_cid_ranges(qa, CID_SHARED, ranges, sizeof(ranges));
-	printf("hier   : nsub=%llu excl=%u shared=%s rr=%s reenq cap/immed +%llu/+%llu inj=+%llu rescue=+%llu\n",
+	printf("hier   : nsub=%llu excl=%u shared=%s rr=%s reenq cap/immed +%llu/+%llu blocked=+%llu inj=+%llu rescue=+%llu child_ecaps=+%llu\n",
 	       (unsigned long long)qa->nr_sub_scheds, qa->part.nr_excl, ranges, rr,
 	       (unsigned long long)(qa->nr_reenq_cap - prev->nr_reenq_cap),
 	       (unsigned long long)(qa->nr_reenq_immed - prev->nr_reenq_immed),
+	       (unsigned long long)(qa->nr_enq_blocked - prev->nr_enq_blocked),
 	       (unsigned long long)(qa->nr_inject_attempts - prev->nr_inject_attempts),
-	       (unsigned long long)(qa->nr_rescue_dsp - prev->nr_rescue_dsp));
+	       (unsigned long long)(qa->nr_rescue_dsp - prev->nr_rescue_dsp),
+	       (unsigned long long)(qa->nr_child_ecaps - prev->nr_child_ecaps));
 	prev->nr_reenq_cap = qa->nr_reenq_cap;
 	prev->nr_reenq_immed = qa->nr_reenq_immed;
+	prev->nr_enq_blocked = qa->nr_enq_blocked;
 	prev->nr_inject_attempts = qa->nr_inject_attempts;
 	prev->nr_rescue_dsp = qa->nr_rescue_dsp;
+	prev->nr_child_ecaps = qa->nr_child_ecaps;
 
-	printf("hier   : %-4s %10s %4s %6s %8s  %s\n",
-	       "", "cgroup", "w", "alloc", "disp/s", "cids");
+	/*
+	 * alloc is the cid-time the partition handed each participant, and used
+	 * is the cid-time its tasks actually ran, per
+	 * ops.sub_cid_sched_updated(). Both are in cpus over the window.
+	 */
+	printf("hier   : %-4s %10s %4s %6s %6s %8s  %s\n",
+	       "", "cgroup", "w", "alloc", "used", "disp/s", "cids");
 
 	format_cid_ranges(qa, CID_SELF, ranges, sizeof(ranges));
-	printf("hier   : %-4s %10llu %4u %6.2f %8s  %s\n", "self",
+	printf("hier   : %-4s %10llu %4u %6.2f %6.2f %8s  %s\n", "self",
 	       (unsigned long long)own_cgid, 100,
-	       secs > 0 ? (qa->self_alloc_ns - prev->self_alloc_ns) / (secs * 1e9) : 0.0,
+	       delta_ratio(qa->self_alloc_ns, prev->self_alloc_ns, secs),
+	       delta_ratio(qa->self_used_snap_ns, prev->self_used_snap_ns, secs),
 	       "-", ranges);
 	prev->self_alloc_ns = qa->self_alloc_ns;
+	/* used accrues without a window, so prev moves only with the window */
+	if (secs > 0)
+		prev->self_used_snap_ns = qa->self_used_snap_ns;
 
 	for (i = 0; i < MAX_SUB_SCHEDS; i++) {
 		struct sub_sched_ctx *sc = &qa->sub_sched_ctxs[i];
@@ -219,12 +251,15 @@ static void print_hier(struct qmap_arena *qa, struct hier_prev *prev, u64 own_cg
 
 		snprintf(who, sizeof(who), "sub%u", i);
 		format_cid_ranges(qa, i, ranges, sizeof(ranges));
-		printf("hier   : %-4s %10llu %4u %6.2f %8.1f  %s\n", who,
+		printf("hier   : %-4s %10llu %4u %6.2f %6.2f %8.1f  %s\n", who,
 		       (unsigned long long)sc->cgroup_id, sc->weight,
-		       secs > 0 ? (qa->alloc_ns[i] - prev->alloc_ns[i]) / (secs * 1e9) : 0.0,
+		       delta_ratio(qa->alloc_ns[i], prev->alloc_ns[i], secs),
+		       delta_ratio(qa->used_snap_ns[i], prev->used_snap_ns[i], secs),
 		       secs > 0 ? (sc->nr_dsps - prev->nr_dsps[i]) / secs : 0.0,
 		       ranges);
 		prev->alloc_ns[i] = qa->alloc_ns[i];
+		if (secs > 0)
+			prev->used_snap_ns[i] = qa->used_snap_ns[i];
 		prev->nr_dsps[i] = sc->nr_dsps;
 	}
 }
@@ -263,7 +298,7 @@ restart:
 	skel->rodata->max_tasks = 16384;
 
 	while ((opt = getopt(argc, argv,
-			     "s:e:t:T:l:b:N:PMHc:d:D:SpIF:C:i:R:J:B:q:vh")) != -1) {
+			     "s:e:t:T:l:b:N:PMHc:d:D:SpIXF:C:i:R:J:B:q:vh")) != -1) {
 		switch (opt) {
 		case 's':
 			skel->rodata->slice_ns = strtoull(optarg, NULL, 0) * 1000;
@@ -323,6 +358,9 @@ restart:
 			break;
 		case 'I':
 			skel->struct_ops.qmap_ops->flags |= SCX_OPS_ALWAYS_ENQ_IMMED;
+			break;
+		case 'X':
+			skel->struct_ops.qmap_ops->flags |= SCX_OPS_ENQ_BLOCKED;
 			break;
 		case 'F':
 			skel->rodata->immed_stress_nth = strtoul(optarg, NULL, 0);

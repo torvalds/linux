@@ -14,6 +14,8 @@ char _license[] SEC("license") = "GPL";
 
 #define DSQ_ID 0
 
+UEI_DEFINE(uei);
+
 s32 BPF_STRUCT_OPS(maximal_select_cpu, struct task_struct *p, s32 prev_cpu,
 		   u64 wake_flags)
 {
@@ -132,7 +134,9 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(maximal_init)
 }
 
 void BPF_STRUCT_OPS(maximal_exit, struct scx_exit_info *info)
-{}
+{
+	UEI_RECORD(uei, info);
+}
 
 SEC(".struct_ops.link")
 struct sched_ext_ops maximal_ops = {

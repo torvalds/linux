@@ -214,6 +214,7 @@ static inline bool __COMPAT_struct_has_field(const char *type, const char *field
 #define SCX_OPS_ALLOW_QUEUED_WAKEUP SCX_OPS_FLAG(SCX_OPS_ALLOW_QUEUED_WAKEUP)
 #define SCX_OPS_BUILTIN_IDLE_PER_NODE SCX_OPS_FLAG(SCX_OPS_BUILTIN_IDLE_PER_NODE)
 #define SCX_OPS_ALWAYS_ENQ_IMMED SCX_OPS_FLAG(SCX_OPS_ALWAYS_ENQ_IMMED)
+#define SCX_OPS_ENQ_BLOCKED SCX_OPS_FLAG(SCX_OPS_ENQ_BLOCKED)
 
 #define SCX_PICK_IDLE_FLAG(name) __COMPAT_ENUM_OR_ZERO("scx_pick_idle_cpu_flags", #name)
 
@@ -274,23 +275,23 @@ static inline long scx_hotplug_seq(void)
  * - v7.1:  ops.sub_attach(), ops.sub_detach(), ops.sub_cgroup_id
  * - v7.3:  ops.rescue_bandwidth_ppt, ops.rescue_quantum_us
  */
-#define __SCX_OPS_OPEN(__ops_name, __scx_name, __ops_struct) ({			\
+#define __SCX_OPS_OPEN(__ops_name, __scx_name, __ops_struct, __opts) ({		\
 	struct __scx_name *__oskel;						\
 										\
 	SCX_BUG_ON(!__COMPAT_struct_has_field(__ops_struct, "dump"),		\
 		   __ops_struct ".dump() missing, kernel too old?");		\
 										\
-	__oskel = __scx_name##__open();						\
+	__oskel = __scx_name##__open_opts(__opts);				\
 	SCX_BUG_ON(!__oskel, "Could not open " #__scx_name);			\
 	__oskel->struct_ops.__ops_name->hotplug_seq = scx_hotplug_seq();	\
 	SCX_ENUM_INIT(__oskel);							\
 	__oskel;								\
 })
 
-#define SCX_OPS_OPEN(__ops_name, __scx_name) ({					\
+#define SCX_OPS_OPEN_OPTS(__ops_name, __scx_name, __opts) ({			\
 	struct __scx_name *__skel;						\
 										\
-	__skel = __SCX_OPS_OPEN(__ops_name, __scx_name, "sched_ext_ops");	\
+	__skel = __SCX_OPS_OPEN(__ops_name, __scx_name, "sched_ext_ops", __opts); \
 	if (__skel->struct_ops.__ops_name->cgroup_set_bandwidth &&		\
 	    !__COMPAT_struct_has_field("sched_ext_ops", "cgroup_set_bandwidth")) { \
 		fprintf(stderr, "WARNING: kernel doesn't support ops.cgroup_set_bandwidth()\n"); \
@@ -329,12 +330,29 @@ static inline long scx_hotplug_seq(void)
 	__skel; 								\
 })
 
+#define SCX_OPS_OPEN(__ops_name, __scx_name)					\
+	SCX_OPS_OPEN_OPTS(__ops_name, __scx_name, 0)
+
 /*
  * Open a cid-form (struct sched_ext_ops_cid) skeleton. The cid form postdates
  * every op the load-time fix-ups above handle, so none of them apply.
+ *
+ * A cid-form scheduler registers through bpf_scx_reg_cid() rather than
+ * bpf_scx_reg(), so repoint common.bpf.h's prolog probe at it. Both the cid
+ * form and bpf_scx_reg_cid() appeared in v7.2, so a kernel that accepts this
+ * skeleton always has the symbol.
  */
+#define SCX_OPS_CID_OPEN_OPTS(__ops_name, __scx_name, __opts) ({		\
+	struct __scx_name *__cskel;						\
+										\
+	__cskel = __SCX_OPS_OPEN(__ops_name, __scx_name, "sched_ext_ops_cid", __opts); \
+	bpf_program__set_attach_target(__cskel->progs.scx_lib_init_probe, 0,	\
+				       "bpf_scx_reg_cid");			\
+	__cskel;								\
+})
+
 #define SCX_OPS_CID_OPEN(__ops_name, __scx_name)				\
-	__SCX_OPS_OPEN(__ops_name, __scx_name, "sched_ext_ops_cid")
+	SCX_OPS_CID_OPEN_OPTS(__ops_name, __scx_name, 0)
 
 /*
  * Associate non-struct_ops BPF programs with the scheduler's struct_ops map so

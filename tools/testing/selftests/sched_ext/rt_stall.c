@@ -17,7 +17,6 @@
 #include <scx/common.h>
 #include "rt_stall.bpf.skel.h"
 #include "scx_test.h"
-#include "../kselftest.h"
 
 #define CORE_ID		0	/* CPU to pin tasks to */
 #define RUN_TIME        5	/* How long to run the test in seconds */
@@ -35,15 +34,17 @@ static void signal_ready(int fd)
 }
 
 /* Wait for a child to signal readiness via a pipe */
-static void wait_ready(int fd)
+static bool wait_ready(int fd)
 {
+	bool ready;
 	char c;
 
-	if (read(fd, &c, 1) != 1) {
+	ready = read(fd, &c, 1) == 1;
+	if (!ready)
 		perror("read from ready pipe");
-		exit(EXIT_FAILURE);
-	}
 	close(fd);
+
+	return ready;
 }
 
 /* Simple busy-wait function for test tasks */
@@ -151,13 +152,11 @@ static bool sched_stress_test(bool is_ext)
 	float ext_runtime, rt_runtime, actual_ratio;
 	int ext_pid, rt_pid;
 	int ext_ready[2], rt_ready[2];
-
-	ksft_print_header();
-	ksft_set_plan(1);
+	bool ret = false;
 
 	if (pipe(ext_ready) || pipe(rt_ready)) {
 		perror("pipe");
-		ksft_exit_fail();
+		return false;
 	}
 
 	/* Create and set up a EXT task */
@@ -172,7 +171,7 @@ static bool sched_stress_test(bool is_ext)
 		exit(0);
 	} else if (ext_pid < 0) {
 		perror("fork task");
-		ksft_exit_fail();
+		return false;
 	}
 
 	/* Create an RT task */
@@ -188,7 +187,7 @@ static bool sched_stress_test(bool is_ext)
 		exit(0);
 	} else if (rt_pid < 0) {
 		perror("fork for RT task");
-		ksft_exit_fail();
+		goto out_kill_ext;
 	}
 
 	/*
@@ -199,45 +198,47 @@ static bool sched_stress_test(bool is_ext)
 	 */
 	close(ext_ready[1]);
 	close(rt_ready[1]);
-	wait_ready(ext_ready[0]);
-	wait_ready(rt_ready[0]);
+	if (!wait_ready(ext_ready[0]) || !wait_ready(rt_ready[0]))
+		goto out_kill;
 
 	/* Let the processes run for the specified time */
 	sleep(RUN_TIME);
 
 	/* Get runtime for the EXT task */
 	ext_runtime = get_process_runtime(ext_pid);
-	if (ext_runtime == -1)
-		ksft_exit_fail_msg("Error getting runtime for %s task (PID %d)\n",
-				   class_str, ext_pid);
-	ksft_print_msg("Runtime of %s task (PID %d) is %f seconds\n",
-		       class_str, ext_pid, ext_runtime);
+	if (ext_runtime == -1) {
+		fprintf(stderr, "Failed to read %s task runtime\n", class_str);
+		goto out_kill;
+	}
 
 	/* Get runtime for the RT task */
 	rt_runtime = get_process_runtime(rt_pid);
-	if (rt_runtime == -1)
-		ksft_exit_fail_msg("Error getting runtime for RT task (PID %d)\n", rt_pid);
-	ksft_print_msg("Runtime of RT task (PID %d) is %f seconds\n", rt_pid, rt_runtime);
-
-	/* Kill the processes */
-	kill(ext_pid, SIGKILL);
-	kill(rt_pid, SIGKILL);
-	waitpid(ext_pid, NULL, 0);
-	waitpid(rt_pid, NULL, 0);
+	if (rt_runtime == -1) {
+		fprintf(stderr, "Failed to read RT task runtime\n");
+		goto out_kill;
+	}
 
 	/* Verify that the scx task got enough runtime */
 	actual_ratio = ext_runtime / (ext_runtime + rt_runtime);
-	ksft_print_msg("%s task got %.2f%% of total runtime\n",
-		       class_str, actual_ratio * 100);
+	fprintf(stderr, "%s task ran %.3fs, RT task ran %.3fs (%.2f%% of runtime)\n",
+		class_str, ext_runtime, rt_runtime, actual_ratio * 100);
 
-	if (actual_ratio >= expected_min_ratio) {
-		ksft_test_result_pass("PASS: %s task got more than %.2f%% of runtime\n",
-				      class_str, expected_min_ratio * 100);
-		return true;
+	if (actual_ratio < expected_min_ratio) {
+		fprintf(stderr, "%s task got less than %.2f%% of runtime\n",
+			class_str, expected_min_ratio * 100);
+		goto out_kill;
 	}
-	ksft_test_result_fail("FAIL: %s task got less than %.2f%% of runtime\n",
-			      class_str, expected_min_ratio * 100);
-	return false;
+
+	ret = true;
+
+out_kill:
+	kill(rt_pid, SIGKILL);
+	waitpid(rt_pid, NULL, 0);
+out_kill_ext:
+	kill(ext_pid, SIGKILL);
+	waitpid(ext_pid, NULL, 0);
+
+	return ret;
 }
 
 static enum scx_test_status run(void *ctx)
@@ -263,14 +264,17 @@ static enum scx_test_status run(void *ctx)
 			link = bpf_map__attach_struct_ops(skel->maps.rt_stall_ops);
 			SCX_FAIL_IF(!link, "Failed to attach scheduler");
 		}
+
 		res = sched_stress_test(is_ext);
+
 		if (is_ext) {
-			SCX_EQ(skel->data->uei.kind, EXIT_KIND(SCX_EXIT_NONE));
+			int exit_kind = skel->data->uei.kind;
 			bpf_link__destroy(link);
+			SCX_EQ(exit_kind, EXIT_KIND(SCX_EXIT_NONE));
 		}
 
 		if (!res)
-			ksft_exit_fail();
+			return SCX_TEST_FAIL;
 	}
 
 	return SCX_TEST_PASS;
