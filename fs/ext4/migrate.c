@@ -570,13 +570,6 @@ err_out:
 			free_ext_block(handle, tmp_inode);
 	}
 
-	/* We mark the tmp_inode dirty via ext4_ext_tree_init. */
-	err = ext4_journal_ensure_credits(handle, 1, 0);
-	if (err < 0) {
-		if (!retval)
-			retval = err;
-		goto out_stop;
-	}
 	/*
 	 * Mark the tmp_inode as of size zero
 	 */
@@ -593,6 +586,13 @@ err_out:
 	tmp_inode->i_blocks = 0;
 	EXT4_I(tmp_inode)->i_csum_seed = tmp_csum_seed;
 
+	/* We mark the tmp_inode dirty via ext4_ext_tree_init. */
+	err = ext4_journal_ensure_credits(handle, 1, 0);
+	if (err < 0) {
+		if (!retval)
+			retval = err;
+		goto out_stop;
+	}
 	/* Reset the extent details */
 	ext4_ext_tree_init(handle, tmp_inode);
 out_stop:
