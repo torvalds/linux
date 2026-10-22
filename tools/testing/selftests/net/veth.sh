@@ -335,6 +335,31 @@ chk_gro "        - aggregation with TSO off" 1
 cleanup
 
 create_ns
+ip netns exec $NS_SRC sysctl -qw net.ipv6.conf.veth$SRC.disable_ipv6=1
+ip netns exec $NS_DST sysctl -qw net.ipv6.conf.veth$DST.disable_ipv6=1
+ip netns exec $NS_SRC ethtool -K veth$SRC gro on
+ip -n $NS_DST link set dev veth$DST xdp object ${BPF_FILE} section xdp_tx
+# veth$DST sends every frame back, so neither ARP nor ping gets an answer
+mac=`ip netns exec $NS_DST cat /sys/class/net/veth$DST/address`
+ip -n $NS_SRC neigh replace $BM_NET_V4$DST lladdr $mac dev veth$SRC
+ip netns exec $NS_SRC ping -qc 5 -i 0.01 -W 1 $BM_NET_V4$DST >/dev/null
+tx=`ip netns exec $NS_DST ethtool -S veth$DST | \
+    awk '/rx_queue_[0-9]+_xdp_tx:/ {s += $2} END {print s + 0}'`
+rx=`ip netns exec $NS_SRC ethtool -S veth$SRC | \
+    awk '/rx_queue_[0-9]+_xdp_packets:/ {s += $2} END {print s + 0}'`
+printf "%-60s" "xdp_tx to peer with gro on"
+if [ $tx -ne 5 ]; then
+	echo " fail - $tx frames sent back, expected 5"
+	ret=1
+elif [ $rx -ne 5 ]; then
+	echo " fail - $rx frames received by the peer NAPI, expected 5"
+	ret=1
+else
+	echo " ok "
+fi
+cleanup
+
+create_ns
 
 CUR_TX=1
 CUR_RX=1
