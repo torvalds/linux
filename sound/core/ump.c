@@ -559,6 +559,7 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 /* update dir_bits and active flag for all groups in the client */
 void snd_ump_update_group_attrs(struct snd_ump_endpoint *ump)
 {
+	static const char separator[] = ", ";
 	struct snd_ump_block *fb;
 	struct snd_ump_group *group;
 	int i;
@@ -598,7 +599,8 @@ void snd_ump_update_group_attrs(struct snd_ump_endpoint *ump)
 			if (!*fb->info.name)
 				continue;
 			if (*group->name)
-				strlcat(group->name, ", ", sizeof(group->name));
+				safe_append_string(group->name, sizeof(group->name),
+						   separator, sizeof(separator));
 			safe_append_string(group->name, sizeof(group->name),
 					   fb->info.name, sizeof(fb->info.name));
 		}
