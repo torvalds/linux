@@ -240,27 +240,14 @@ struct pt_iommu_dirty_args {
 };
 
 static void record_dirty(struct pt_state *pts,
-			 struct pt_iommu_dirty_args *dirty,
-			 unsigned int num_contig_lg2)
+			 struct pt_iommu_dirty_args *dirty)
 {
-	pt_vaddr_t dirty_len;
-
-	if (num_contig_lg2 != ilog2(1)) {
-		unsigned int index = pts->index;
-		unsigned int end_index = log2_set_mod_max_t(
-			unsigned int, pts->index, num_contig_lg2);
-
-		/* Adjust for being contained inside a contiguous page */
-		end_index = min(end_index, pts->end_index);
-		dirty_len = (end_index - index) *
-				log2_to_int(pt_table_item_lg2sz(pts));
-	} else {
-		dirty_len = log2_to_int(pt_table_item_lg2sz(pts));
-	}
+	unsigned int lg2sz = pt_entry_oa_lg2sz(pts);
+	pt_vaddr_t start_va = log2_set_mod(pts->range->va, 0, lg2sz);
+	pt_vaddr_t dirty_len = log2_to_int(lg2sz);
 
 	if (dirty->dirty->bitmap)
-		iova_bitmap_set(dirty->dirty->bitmap, pts->range->va,
-				dirty_len);
+		iova_bitmap_set(dirty->dirty->bitmap, start_va, dirty_len);
 
 	if (!(dirty->flags & IOMMU_DIRTY_NO_CLEAR)) {
 		/*
@@ -268,8 +255,8 @@ static void record_dirty(struct pt_state *pts,
 		 * dirty tracking bits can't work together
 		 */
 		pt_entry_make_write_clean(pts);
-		iommu_iotlb_gather_add_range(dirty->dirty->gather,
-					     pts->range->va, dirty_len);
+		iommu_iotlb_gather_add_range(dirty->dirty->gather, start_va,
+					     dirty_len);
 	}
 }
 
@@ -289,8 +276,7 @@ static inline int __read_and_clear_dirty(struct pt_range *range, void *arg,
 			continue;
 		}
 		if (pts.type == PT_ENTRY_OA && pt_entry_is_write_dirty(&pts))
-			record_dirty(&pts, dirty,
-				     pt_entry_num_contig_lg2(&pts));
+			record_dirty(&pts, dirty);
 	}
 	return 0;
 }
