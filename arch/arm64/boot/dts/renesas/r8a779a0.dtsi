@@ -59,7 +59,7 @@
 		bootph-all;
 	};
 
-	pmu_a76 {
+	pmu-a76 {
 		compatible = "arm,cortex-a76-pmu";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
 	};

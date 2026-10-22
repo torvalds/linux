@@ -28,7 +28,7 @@
 	};
 
 	chosen {
-		stdout-path = &uart4;
+		stdout-path = "serial0:115200n8";
 	};
 
 	backlight: backlight {

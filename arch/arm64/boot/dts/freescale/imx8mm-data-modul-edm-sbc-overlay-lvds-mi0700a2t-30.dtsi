@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2024-2026 Marek Vasut
+ */
+
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-3v3.dtsi"
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-single.dtsi"
+
+&backlight {
+	power-supply = <&reg_panel_bl>;
+	/* 1.5 POWER ON/OFF SEQUENCE, T4 >= 200 ms */
+	pwm-off-delay-ms = <200>;
+	/* ELECTRICAL CHARACTERISTICS, BL_ADJ Frequency 20K HZ Typ., value below in ns */
+	pwms = <&pwm1 0 50000 0>;
+	status = "okay";
+};
+
+&panel {
+	compatible = "multi-inno,mi0700a2t-30";
+};
+
+&reg_panel_bl {
+	startup-delay-us = <200000>; /* T3 */
+	off-on-delay-us = <1450000>; /* T4 + T5 + T6 + T1 + T2 + T3 */
+	status = "okay";
+};
+
+&reg_panel_vcc {
+	/* 1.5 POWER ON/OFF SEQUENCE */
+	startup-delay-us = <60000>; /* T1 + T2 >= 1 ms (typ. 60ms) */
+};

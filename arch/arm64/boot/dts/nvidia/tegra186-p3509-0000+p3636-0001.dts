@@ -1176,22 +1176,22 @@
 			};
 
 			cooling-maps {
-				cpu-critical {
+				map-critical {
 					cooling-device = <&fan 3 3>;
 					trip = <&cpu_trip_critical>;
 				};
 
-				cpu-hot {
+				map-hot {
 					cooling-device = <&fan 2 2>;
 					trip = <&cpu_trip_hot>;
 				};
 
-				cpu-active {
+				map-active {
 					cooling-device = <&fan 1 1>;
 					trip = <&cpu_trip_active>;
 				};
 
-				cpu-passive {
+				map-passive {
 					cooling-device = <&fan 0 0>;
 					trip = <&cpu_trip_passive>;
 				};

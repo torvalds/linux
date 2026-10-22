@@ -285,7 +285,6 @@
 	bus-width = <4>;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	max-frequency = <125000000>;
 	status = "okay";
 };
 

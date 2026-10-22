@@ -28,7 +28,7 @@
 	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&adc 0>, /* 24V */
-		              <&adc 1>; /* temperature */
+			      <&adc 1>; /* temperature */
 	};
 
 	leds {

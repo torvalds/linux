@@ -1429,7 +1429,7 @@
 
 		pmu_system_controller: system-controller@11860000 {
 			compatible = "samsung,exynosautov920-pmu",
-				     "samsung,exynos7-pmu","syscon";
+				     "samsung,exynos7-pmu", "syscon";
 			reg = <0x11860000 0x10000>;
 		};
 

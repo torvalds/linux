@@ -20,6 +20,7 @@
 		i2c1 = &i2c1;
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
+		rtc0 = &rtc0;
 		serial0 = &sci0;
 		spi0 = &xspi0;
 		spi1 = &xspi1;
@@ -514,6 +515,10 @@
 	};
 };
 
+&rtc0 {
+	status = "okay";
+};
+
 &sci0 {
 	pinctrl-0 = <&sci0_pins>;
 	pinctrl-names = "default";
@@ -647,11 +652,13 @@
 			partition@0 {
 				label = "bl2-1";
 				reg = <0x00000000 0x00060000>;
+				read-only;
 			};
 
 			partition@60000 {
 				label = "fip-1";
 				reg = <0x00060000 0x007a0000>;
+				read-only;
 			};
 
 			partition@800000 {

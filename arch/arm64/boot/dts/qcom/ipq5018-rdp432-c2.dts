@@ -30,6 +30,16 @@
 	status = "okay";
 };
 
+&mdio1 {
+	clock-frequency = <6250000>;
+
+	status = "okay";
+
+	ethernet-phy@1c {
+		reg = <0x1c>;
+	};
+};
+
 &pcie0 {
 	pinctrl-0 = <&pcie0_default>;
 	pinctrl-names = "default";

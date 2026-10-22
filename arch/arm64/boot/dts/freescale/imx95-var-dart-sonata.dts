@@ -336,7 +336,7 @@
 	status = "okay";
 };
 
-/* Header (J12.4, J12.6) */
+/* Header (J6.4, J6.6) */
 &lpuart8 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart8>;

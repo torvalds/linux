@@ -17,10 +17,6 @@
 	chassis-type = "handset";
 
 	chosen {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
 		framebuffer: framebuffer {
 			compatible = "simple-framebuffer";
 			memory-region = <&cont_splash_mem>;
@@ -52,9 +48,9 @@
 
 		volup-key {
 			label = "Volume Up";
-			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&gpa3 0 GPIO_ACTIVE_LOW>;
 			wakeup-source;
+			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
 
@@ -71,9 +67,9 @@
 	};
 
 	reserved-memory {
+		ranges;
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges;
 
 		cont_splash_mem: framebuffer@f6200000 {
 			reg = <0x0 0xf6200000 0x0 (1080 * 2340 * 4)>;

@@ -405,7 +405,7 @@
 			};
 		};
 
-		tps659038_rtc: tps659038_rtc {
+		tps659038_rtc: rtc {
 			compatible = "ti,palmas-rtc";
 			interrupt-parent = <&tps659038>;
 			interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
@@ -491,7 +491,6 @@
 
 &rtc {
 	status = "okay";
-	ext-clk-src;
 };
 
 &mac_sw {

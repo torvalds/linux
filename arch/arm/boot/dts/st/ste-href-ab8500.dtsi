@@ -6,6 +6,48 @@
 #include "ste-ab8500.dtsi"
 
 / {
+	href_sound: sound {
+		compatible = "audio-graph-card2";
+		label = "HREF-500";
+		widgets =
+			"Headphone", "Headset",
+			"Speaker", "Earpiece Speaker",
+			"Speaker", "Loudspeaker",
+			"Line", "Line Out",
+			"Speaker", "Vibra 1 Motor",
+			"Speaker", "Vibra 2 Motor",
+			"Microphone", "Mic 1 Jack",
+			"Microphone", "Mic 2 Jack",
+			"Line", "Line In",
+			"Microphone", "Digital Mic 1",
+			"Microphone", "Digital Mic 2",
+			"Microphone", "Digital Mic 3",
+			"Microphone", "Digital Mic 4",
+			"Microphone", "Digital Mic 5",
+			"Microphone", "Digital Mic 6";
+		routing =
+			"Headset", "Headset Left",
+			"Headset", "Headset Right",
+			"Earpiece Speaker", "Earpiece",
+			"Loudspeaker", "Speaker Left",
+			"Loudspeaker", "Speaker Right",
+			"Line Out", "LineOut Left",
+			"Line Out", "LineOut Right",
+			"Vibra 1 Motor", "Vibra 1",
+			"Vibra 2 Motor", "Vibra 2",
+			"Mic 1", "Mic 1 Jack",
+			"Mic 2", "Mic 2 Jack",
+			"LineIn Left", "Line In",
+			"LineIn Right", "Line In",
+			"DMic 1", "Digital Mic 1",
+			"DMic 2", "Digital Mic 2",
+			"DMic 3", "Digital Mic 3",
+			"DMic 4", "Digital Mic 4",
+			"DMic 5", "Digital Mic 5",
+			"DMic 6", "Digital Mic 6";
+		links = <&href_msp1_port &href_msp3_port>;
+	};
+
 	soc {
 		prcmu@80157000 {
 			ab8500 {
@@ -485,6 +527,68 @@
 					status = "disabled";
 				};
 			};
+		};
+	};
+};
+
+&codec {
+	assigned-clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+	assigned-clock-parents = <&ab8500_clock AB8500_SYSCLK_ULP>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			href_codec_playback: endpoint {
+				remote-endpoint = <&href_msp1_endpoint>;
+				bitclock-master;
+				frame-master;
+				dai-tdm-slot-num = <16>;
+				dai-tdm-slot-width = <16>;
+				dai-tdm-slot-tx-mask = <0 1 0 1>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			href_codec_capture: endpoint {
+				remote-endpoint = <&href_msp3_endpoint>;
+				bitclock-master;
+				frame-master;
+				dai-tdm-slot-num = <16>;
+				dai-tdm-slot-width = <16>;
+				dai-tdm-slot-rx-mask = <1>;
+			};
+		};
+	};
+};
+
+&msp1 {
+	href_msp1_port: port {
+		href_msp1_endpoint: endpoint {
+			continuous-clock;
+			remote-endpoint = <&href_codec_playback>;
+			dai-format = "dsp_a";
+			dai-tdm-slot-num = <16>;
+			dai-tdm-slot-width = <16>;
+			dai-tdm-slot-tx-mask = <0 1 0 1>;
+		};
+	};
+};
+
+&msp3 {
+	href_msp3_port: port {
+		href_msp3_endpoint: endpoint {
+			continuous-clock;
+			remote-endpoint = <&href_codec_capture>;
+			dai-format = "dsp_a";
+			dai-tdm-slot-num = <16>;
+			dai-tdm-slot-width = <16>;
+			dai-tdm-slot-rx-mask = <1>;
 		};
 	};
 };

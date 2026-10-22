@@ -151,7 +151,7 @@
 		enable-active-high;
 	};
 
-	reg_wl18xx_vmmc:  regulator-wl18xx-vmcc {
+	reg_wl18xx_vmmc: regulator-wl18xx-vmcc {
 		compatible = "regulator-fixed";
 		regulator-name = "vwl1807";
 		pinctrl-names = "default";

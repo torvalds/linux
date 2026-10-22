@@ -90,7 +90,7 @@
 				drive-open-drain;
 				reg = <0x18>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&accel_tvk_mode>;
 				/*
@@ -113,7 +113,7 @@
 				compatible = "st,lsm303dlh-magn";
 				reg = <0x1e>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 				/*
 				 * These interrupts cannot be used: the other component
 				 * ST-Micro L3D4200D gyro that is connected to the same lines
@@ -132,7 +132,7 @@
 				st,drdy-int-pin = <1>;
 				reg = <0x1c>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&accel_tvk_mode>;
 				interrupt-parent = <&gpio2>;
@@ -148,7 +148,7 @@
 				compatible = "asahi-kasei,ak8974";
 				reg = <0x0f>;
 				avdd-supply = <&ab8500_ldo_aux1_reg>;
-				dvdd-supply = <&db8500_vsmps2_reg>;
+				dvdd-supply = <&buck_vio18>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&gyro_magn_tvk_mode>;
 				/*
@@ -169,7 +169,7 @@
 				st,drdy-int-pin = <2>;
 				reg = <0x68>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&gyro_magn_tvk_mode>;
 				interrupts-extended =
@@ -181,7 +181,7 @@
 				compatible = "st,lps001wp-press";
 				reg = <0x5c>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 			};
 		};
 		i2c@80110000 {
@@ -192,7 +192,7 @@
 				#size-cells = <0>;
 				reg = <0x4b>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vio-supply = <&db8500_vsmps2_reg>;
+				vio-supply = <&buck_vio18>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&synaptics_tvk_mode>;
 				interrupt-parent = <&gpio2>;

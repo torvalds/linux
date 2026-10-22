@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2026 NXP
+ */
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	sound-mqs {
+		compatible = "audio-graph-card2";
+		aux-devs = <&amp_mqs1>;
+		label = "mqs-audio";
+		links = <&sai1_port1>;
+		routing = "MQS AMP INL", "MQS_L",
+			  "MQS AMP INR", "MQS_R";
+	};
+};
+
+&mqs1_conflict_card {
+	status = "disabled";
+};
+
+&mqs1_conflict_dev {
+	status = "disabled";
+};
+
+&mqs1 {
+	status = "okay";
+
+	port {
+		mqs1_endpoint: endpoint {
+			remote-endpoint = <&sai1_endpoint1>;
+		};
+	};
+};
+
+&sai1 {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sai1_port1: port@1 {
+			reg = <1>;
+			playback-only;
+
+			sai1_endpoint1: endpoint {
+				dai-format = "left_j";
+				bitclock-master;
+				frame-master;
+				mclk-fs = <512>;
+				system-clock-direction-out;
+				remote-endpoint = <&mqs1_endpoint>;
+			};
+		};
+	};
+};

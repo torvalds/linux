@@ -428,6 +428,8 @@
 };
 
 &keypad {
+	status = "okay";
+
 	pinctrl-names = "default";
 	pinctrl-0 = <&keypad_pins>;
 	keypad,num-rows = <2>;

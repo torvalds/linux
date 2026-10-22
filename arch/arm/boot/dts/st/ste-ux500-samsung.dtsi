@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/ {
+	samsung_sound: sound {
+		compatible = "audio-graph-card2";
+		label = "Samsung";
+		links = <&samsung_msp1_port &samsung_msp3_port>;
+	};
+};
+
+&codec {
+	assigned-clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+	assigned-clock-parents = <&ab8500_clock AB8500_SYSCLK_ULP>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			samsung_codec_playback: endpoint {
+				remote-endpoint = <&samsung_playback_cpu>;
+				bitclock-master;
+				frame-master;
+				dai-tdm-slot-num = <8>;
+				dai-tdm-slot-width = <16>;
+				dai-tdm-slot-tx-mask = <1 1>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			samsung_codec_capture: endpoint {
+				remote-endpoint = <&samsung_capture_cpu>;
+				bitclock-master;
+				frame-master;
+				dai-tdm-slot-num = <8>;
+				dai-tdm-slot-width = <16>;
+				dai-tdm-slot-rx-mask = <1>;
+			};
+		};
+	};
+};
+
+&msp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&msp1txrx_a_1_default>;
+	status = "okay";
+
+	samsung_msp1_port: port {
+		samsung_playback_cpu: endpoint {
+			continuous-clock;
+			remote-endpoint = <&samsung_codec_playback>;
+			dai-format = "dsp_a";
+			dai-tdm-slot-num = <8>;
+			dai-tdm-slot-width = <16>;
+			dai-tdm-slot-tx-mask = <1 1>;
+		};
+	};
+};
+
+&msp3 {
+	status = "okay";
+
+	samsung_msp3_port: port {
+		samsung_capture_cpu: endpoint {
+			continuous-clock;
+			remote-endpoint = <&samsung_codec_capture>;
+			dai-format = "dsp_a";
+			dai-tdm-slot-num = <8>;
+			dai-tdm-slot-width = <16>;
+			dai-tdm-slot-rx-mask = <1>;
+		};
+	};
+};

@@ -20,7 +20,7 @@
 		clock-frequency = <12288000>;
 	};
 
-	wlan_en_reg: regulator-wlan_en {
+	wlan_en_reg: regulator-wlan-en {
 		compatible = "regulator-fixed";
 		regulator-name = "wlan-en-regulator";
 		regulator-min-microvolt = <1800000>;
@@ -68,7 +68,7 @@
 		function = "i2c2";
 	};
 
-	sound_clk_pins: sound_clk {
+	sound_clk_pins: sound-clk {
 		groups = "audio_clk_a_a", "audio_clk_b_a", "audio_clkout_a";
 		function = "audio_clk";
 	};

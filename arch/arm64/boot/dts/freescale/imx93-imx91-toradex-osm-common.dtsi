@@ -1,0 +1,526 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * Copyright (c) Toradex
+ *
+ * Toradex OSM iMX93/iMX91 SoM
+ *
+ * https://www.toradex.com/computer-on-modules/osm-arm-family/nxp-imx93
+ * https://www.toradex.com/computer-on-modules/osm-arm-family/nxp-imx91
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	aliases {
+		can0 = &flexcan1;
+		can1 = &flexcan2;
+		eeprom0 = &som_eeprom;
+		ethernet0 = &eqos;
+		ethernet1 = &fec;
+		i2c0 = &lpi2c2;
+		i2c1 = &lpi2c3;
+		i2c2 = &lpi2c1;
+		mmc0 = &usdhc1;
+		mmc1 = &usdhc2;
+		mmc2 = &usdhc3;
+		rtc0 = &rtc_i2c;
+		rtc1 = &bbnsm_rtc;
+		serial0 = &lpuart1;
+		serial1 = &lpuart6;
+		serial2 = &lpuart7;
+		serial3 = &lpuart2;
+		usb0 = &usbotg1;
+		usb1 = &usbotg2;
+	};
+
+	chosen {
+		stdout-path = &lpuart1;
+	};
+
+	reg_sdio_a_vmmc: regulator-sdhci2-vmmc {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sdio_a_pwr_en>;
+		/* OSM SDIO_A_PWR_EN (OSM D21) */
+		gpios = <&gpio3 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		off-on-delay-us = <100000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "SDIO_A_PWR_EN";
+		startup-delay-us = <20000>;
+	};
+
+	reg_sdio_a_vqmmc: regulator-sdhci2-vqmmc {
+		compatible = "regulator-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sdio_a_vsel>;
+		/* PMIC_SD_2_VSEL */
+		gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "LDO1-VSEL-SD (PMIC)";
+		states = <1800000 0x1>,
+			 <3300000 0x0>;
+		vin-supply = <&reg_sd_3v3_1v8>;
+	};
+
+	reg_usb_b_vbus: regulator-usb2-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb_b_en>;
+		/* OSM USB_B_EN (OSM AC20) */
+		gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "USB_B_EN";
+		startup-delay-us = <20000>;
+	};
+};
+
+/* OSM ADC_0, ADC_1 */
+&adc1 {
+	vref-supply = <&reg_1v8>;
+};
+
+/* OSM ETH_A */
+&eqos {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mdio>, <&pinctrl_eth_a>;
+
+	mdio: mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		status = "disabled";
+	};
+};
+
+/* OSM ETH_B */
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_eth_b>;
+};
+
+/* OSM CAN_A */
+&flexcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can_a>;
+};
+
+/* OSM CAN_B */
+&flexcan2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can_b>;
+};
+
+&gpio1 {
+	gpio-line-names =
+		"OSM_AA20",
+		"OSM_AA21",
+		"PMIC_I2C_SCL",
+		"PMIC_I2C_SDA",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"OSM_AC20", /* 10 */
+		"OSM_AA23",
+		"",
+		"",
+		"",
+		"";
+};
+
+&gpio2 {
+	gpio-line-names =
+		"OSM_D17",
+		"OSM_E17",
+		"OSM_F17",
+		"OSM_G17",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 10 */
+		"",
+		"OSM_Y15",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 20 */
+		"",
+		"OSM_H17",
+		"",
+		"OSM_J17",
+		"",
+		"",
+		"",
+		"OSM_AA16",
+		"OSM_AA15";
+};
+
+&gpio3 {
+	gpio-line-names =
+		"OSM_J21",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"OSM_D21",
+		"",
+		"",
+		"", /* 10 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"PMIC_SD_2_VSEL",
+		"", /* 20 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"CTRL_INT#",
+		"",
+		"",
+		"", /* 30 */
+		"";
+};
+
+&gpio4 {
+	gpio-line-names =
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 10 */
+		"",
+		"",
+		"",
+		"OSM_K17",
+		"OSM_L17",
+		"",
+		"",
+		"",
+		"",
+		"", /* 20 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"OSM_AC16",
+		"OSM_AC15";
+};
+
+/* OSM I2C_B */
+&lpi2c1 {
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c_b>;
+	pinctrl-1 = <&pinctrl_i2c_b_gpio>;
+	clock-frequency = <100000>;
+	scl-gpios = <&gpio1 0 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio1 1 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	single-master;
+
+	status = "okay";
+
+	rtc_i2c: rtc@32 {
+		compatible = "epson,rx8130";
+		reg = <0x32>;
+	};
+};
+
+/* On-module I2C - PMIC_I2C */
+&lpi2c2 {
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_pmic_i2c>, <&pinctrl_ctrl_int>;
+	pinctrl-1 = <&pinctrl_pmic_i2c_gpio>, <&pinctrl_ctrl_int>;
+	clock-frequency = <400000>;
+	scl-gpios = <&gpio1 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio1 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	single-master;
+
+	status = "okay";
+
+	som_gpio_expander: gpio@21 {
+		compatible = "nxp,pcal6416";
+		reg = <0x21>;
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		interrupt-parent = <&gpio3>;
+		interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		gpio-line-names =
+			"OSM_D19", /* OSM GPIO_B_0 */
+			"OSM_E19", /* OSM GPIO_B_1 */
+			"OSM_F19", /* OSM GPIO_B_2 */
+			"OSM_G19", /* OSM GPIO_B_3 */
+			"OSM_H19", /* OSM GPIO_B_4 */
+			"OSM_J19", /* OSM GPIO_B_5 */
+			"OSM_K19", /* OSM GPIO_B_6 */
+			"OSM_L19", /* OSM GPIO_B_7 */
+			"OSM_D3",  /* OSM GPIO_C_0 */
+			"OSM_D4",  /* OSM GPIO_C_1 */
+			"OSM_E3",  /* OSM GPIO_C_2/CAM_B_PWR   */
+			"OSM_E4",  /* OSM GPIO_C_3/CAM_B_RST#  */
+			"OSM_F3",  /* OSM GPIO_C_4/DISP_VDD_EN */
+			"OSM_F4",  /* OSM GPIO_C_5/DISP_BL_EN  */
+			"OSM_G3",  /* OSM GPIO_C_6/CAM_A_PWR   */
+			"OSM_G4";  /* OSM GPIO_C_7/CAM_A_RST#  */
+	};
+
+	tpm@2e {
+		compatible = "st,st33ktpm2xi2c", "tcg,tpm-tis-i2c";
+		reg = <0x2e>;
+	};
+
+	pmic@32 {
+		compatible = "nxp,pf9453";
+		reg = <0x32>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
+
+		regulators {
+			BUCK1 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <1100000>;
+				regulator-min-microvolt = <1100000>;
+				regulator-name = "+V1.1_DDR (PMIC BUCK1)";
+			};
+
+			reg_vdd_soc: BUCK2 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <950000>;
+				regulator-min-microvolt = <612500>;
+				regulator-name = "+VDD_SOC (PMIC BUCK2)";
+				regulator-ramp-delay = <12500>;
+			};
+
+			reg_1v8: BUCK3 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-name = "+V1.8 / +V1.8_ANA (PMIC BUCK3)";
+			};
+
+			reg_3v3: BUCK4 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <3300000>;
+				regulator-name = "+V3.3 (PMIC BUCK4)";
+			};
+
+			reg_sd_3v3_1v8: LDO1 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-name = "+V3.3_1.8_SD (PMIC LDO1)";
+			};
+
+			LDO2 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <800000>;
+				regulator-min-microvolt = <800000>;
+				regulator-name = "+V0.8_ANA (PMIC LDO2)";
+			};
+
+			LDO-SNVS {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-name = "+V1.8_BBSM (PMIC LDO-SNVS)";
+			};
+		};
+	};
+
+	temperature-sensor@48 {
+		compatible = "ti,tmp1075";
+		reg = <0x48>;
+	};
+
+	som_eeprom: eeprom@50 {
+		compatible = "st,24c02", "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+/* OSM I2C_A */
+&lpi2c3 {
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c_a>;
+	pinctrl-1 = <&pinctrl_i2c_a_gpio>;
+	clock-frequency = <100000>;
+	scl-gpios = <&gpio2 29 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio2 28 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	single-master;
+};
+
+/* OSM SPI_B */
+&lpspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi_b>, <&pinctrl_spi_b_cs0_gpio>;
+	cs-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+};
+
+/* OSM SPI_A */
+&lpspi8 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi_a>, <&pinctrl_spi_a_cs0_gpio>;
+	cs-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
+};
+
+/* OSM UART_CON, used as the Linux Console */
+&lpuart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart_con>;
+};
+
+/* OSM UART_C */
+&lpuart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart_c>;
+};
+
+/* OSM UART_A */
+&lpuart6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart_a>;
+	uart-has-rtscts;
+};
+
+/* OSM UART_B */
+&lpuart7 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart_b>;
+	uart-has-rtscts;
+};
+
+/* OSM I2S_A */
+&sai3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2s_a>;
+	assigned-clocks = <&clk IMX93_CLK_SAI3>;
+	assigned-clock-parents = <&clk IMX93_CLK_AUDIO_PLL>;
+	assigned-clock-rates = <12288000>;
+	fsl,sai-mclk-direction-output;
+};
+
+/* OSM PWM_0 */
+&tpm4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0>;
+};
+
+/* OSM PWM_1 */
+&tpm5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+};
+
+/* OSM PWM_2 */
+&tpm6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>;
+};
+
+/* OSM USB_A */
+&usbotg1 {
+	dr_mode = "otg";
+	adp-disable;
+	hnp-disable;
+	srp-disable;
+	usb-role-switch;
+	disable-over-current;
+	role-switch-default-mode = "peripheral";
+	samsung,picophy-dc-vol-level-adjust = <7>;
+	samsung,picophy-pre-emp-curr-control = <3>;
+};
+
+/* OSM USB_B */
+&usbotg2 {
+	disable-over-current;
+	dr_mode = "host";
+	vbus-supply = <&reg_usb_b_vbus>;
+	samsung,picophy-dc-vol-level-adjust = <7>;
+	samsung,picophy-pre-emp-curr-control = <3>;
+};
+
+/* On-module eMMC */
+&usdhc1 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_emmc>;
+	pinctrl-1 = <&pinctrl_emmc>;
+	pinctrl-2 = <&pinctrl_emmc>;
+	no-sd;
+	no-sdio;
+	non-removable;
+
+	status = "okay";
+};
+
+/* OSM SDIO_A */
+&usdhc2 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_sdio_a>, <&pinctrl_sdio_a_cd>;
+	pinctrl-1 = <&pinctrl_sdio_a>, <&pinctrl_sdio_a_cd>;
+	pinctrl-2 = <&pinctrl_sdio_a>, <&pinctrl_sdio_a_cd>;
+	cd-gpios = <&gpio3 0 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	vmmc-supply = <&reg_sdio_a_vmmc>;
+	vqmmc-supply = <&reg_sdio_a_vqmmc>;
+};
+
+/* OSM SDIO_B */
+&usdhc3 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_sdio_b>;
+	pinctrl-1 = <&pinctrl_sdio_b>;
+	pinctrl-2 = <&pinctrl_sdio_b>;
+	disable-wp;
+};
+
+&wdog3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,ext-reset-output;
+
+	status = "okay";
+};

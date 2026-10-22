@@ -15,6 +15,7 @@
 		can1 = &flexcan2;
 		ethernet0 = &enetc_port0;
 		ethernet1 = &enetc_port1;
+		ethernet2 = &enetc_port2;
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc2;
 		mmc2 = &usdhc3;
@@ -219,6 +220,12 @@
 	pinctrl-0 = <&pinctrl_enetc1>, <&pinctrl_enetc1_1588_tmr>;
 	phy-handle = <&ethphy2>;
 	phy-mode = "rgmii-id";
+};
+
+/* SMARC SERDES_0 */
+&enetc_port2 {
+	clocks = <&clk_serdes_eth_ref>;
+	clock-names = "ref";
 };
 
 /* SMARC CAN0 */
@@ -839,6 +846,7 @@
 	keep-power-in-suspend;
 	non-removable;
 	vmmc-supply = <&reg_wifi_en>;
+	status = "okay";
 };
 
 &scmi_bbm {

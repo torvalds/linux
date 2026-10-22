@@ -208,7 +208,7 @@
 				interrupts = <12 IRQ_TYPE_EDGE_RISING>;
 				interrupt-parent = <&gpio4>;
 				vdd33a-supply = <&en_3v3_reg>;
-				vddvario-supply = <&db8500_vape_reg>;
+				vddvario-supply = <&ab8500_buck_vsmps2>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&eth_snowball_mode>;
 
@@ -354,7 +354,7 @@
 				st,drdy-int-pin = <1>;
 				reg = <0x18>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&ab8500_buck_vsmps2>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&accel_snowball_mode>;
 				interrupt-parent = <&gpio5>;
@@ -366,7 +366,7 @@
 				compatible = "st,lsm303dlh-magn";
 				reg = <0x1e>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&ab8500_buck_vsmps2>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&magneto_snowball_mode>;
 				interrupt-parent = <&gpio5>;
@@ -378,7 +378,7 @@
 				st,drdy-int-pin = <2>;
 				reg = <0x68>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&ab8500_buck_vsmps2>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&gyro_snowball_mode>;
 				interrupt-parent = <&gpio5>;
@@ -390,7 +390,7 @@
 				compatible = "st,lps001wp-press";
 				reg = <0x5c>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&ab8500_buck_vsmps2>;
 			};
 		};
 

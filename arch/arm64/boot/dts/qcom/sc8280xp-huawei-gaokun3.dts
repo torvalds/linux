@@ -582,14 +582,17 @@
 };
 
 &gpi_dma0 {
+	dma-channel-mask = <0xb>;
 	status = "okay";
 };
 
 &gpi_dma1 {
+	dma-channel-mask = <0x3>;
 	status = "okay";
 };
 
 &gpi_dma2 {
+	dma-channel-mask = <0xb>;
 	status = "okay";
 };
 
@@ -1363,11 +1366,11 @@
 		};
 
 		wake-n-pins {
-		       pins = "gpio145";
-		       function = "gpio";
-		       drive-strength = <2>;
-		       bias-pull-up;
-	       };
+			pins = "gpio145";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
 	};
 
 	pcie4_default: pcie4-default-state {

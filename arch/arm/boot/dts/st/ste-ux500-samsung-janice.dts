@@ -7,6 +7,7 @@
 #include "ste-db8500.dtsi"
 #include "ste-ab8500.dtsi"
 #include "ste-dbx5x0-pinctrl.dtsi"
+#include "ste-ux500-samsung.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
@@ -360,7 +361,38 @@
 		pinctrl-0 = <&i2c_gpio_2_default>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		/* TODO: add the Immersion ISA1200 I2C device here */
+
+		/* Haptic feedback unit Imagis ISA1200 */
+		haptic-engine@49 {
+			compatible = "imagis,isa1200";
+			reg = <0x49>;
+
+			/*
+			 * GPIO194 pin HEN (motor hardware enable)
+			 * GPIO195 pin LEN (motor LDO enable)
+			 */
+			control-gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>, <&gpio6 3 GPIO_ACTIVE_HIGH>;
+
+			/* clkout1 from ACLK divided by 8 */
+			clocks = <&clkout_clk DB8500_CLKOUT_1 DB8500_CLKOUT_SRC_ACLK 8>;
+
+			imagis,clk-div = <256>;
+			imagis,pll-div = <2>;
+
+			imagis,mode = <0>; /* LRA_MODE */
+
+			imagis,period-ns = <13400>;
+			imagis,duty-cycle-ns = <100>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&isa1200_janice_default>;
+
+			ldo {
+				regulator-name = "vdd_vib";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+			};
+		};
 	};
 
 	/* Bit-banged I2C on GPIO151 and GPIO152 also called "NFC_I2C" */
@@ -512,7 +544,7 @@
 				/* GPS_ON_OFF on GPIO96 */
 				sirf,onoff-gpios = <&gpio3 0 GPIO_ACTIVE_HIGH>;
 				/* GPS_1V8 (VSMPS2) */
-				vcc-supply = <&db8500_vsmps2_reg>;
+				vcc-supply = <&ab8500_buck_vsmps2>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&gsd4t_janice_default>;
 				/* According to /etc/sirfgps.conf */
@@ -993,6 +1025,29 @@
 			janice_cfg3 {
 				pins = "GPIO86_C6";
 				ste,config = <&gpio_in_pd>;
+			};
+		};
+	};
+	isa1200 {
+		isa1200_janice_default: isa1200_janice {
+			/* Bring out clkout1 on pin GPIO227 pin AH7 */
+			janice_mux {
+				function = "clkout";
+				groups = "clkout1_a_1";
+			};
+			janice_cfg1 {
+				pins = "GPIO227_AH7";
+				ste,config = <&out_lo>;
+			};
+			/* HEN GPIO */
+			janice_cfg2 {
+				pins = "GPIO194_AF27";
+				ste,config = <&gpio_out_lo>;
+			};
+			/* LEN GPIO */
+			janice_cfg3 {
+				pins = "GPIO195_AG28";
+				ste,config = <&gpio_out_lo>;
 			};
 		};
 	};

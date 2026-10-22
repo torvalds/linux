@@ -269,51 +269,51 @@
 	};
 
 	sdhi0_emmc_pins: sd0emmc {
-		sd0_emmc_data {
+		sd0-emmc-data {
 			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3",
 			       "SD0_DATA4", "SD0_DATA5", "SD0_DATA6", "SD0_DATA7";
 			power-source = <1800>;
 		};
 
-		sd0_emmc_ctrl {
+		sd0-emmc-ctrl {
 			pins = "SD0_CLK", "SD0_CMD";
 			power-source = <1800>;
 		};
 
-		sd0_emmc_rst {
+		sd0-emmc-rst {
 			pins = "SD0_RST#";
 			power-source = <1800>;
 		};
 	};
 
 	sdhi0_pins: sd0 {
-		sd0_data {
+		sd0-data {
 			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3";
 			power-source = <3300>;
 		};
 
-		sd0_ctrl {
+		sd0-ctrl {
 			pins = "SD0_CLK", "SD0_CMD";
 			power-source = <3300>;
 		};
 
-		sd0_mux {
+		sd0-mux {
 			pinmux = <RZG2L_PORT_PINMUX(47, 0, 2)>; /* SD0_CD */
 		};
 	};
 
-	sdhi0_pins_uhs: sd0_uhs {
-		sd0_data_uhs {
+	sdhi0_pins_uhs: sd0-uhs {
+		sd0-data-uhs {
 			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3";
 			power-source = <1800>;
 		};
 
-		sd0_ctrl_uhs {
+		sd0-ctrl-uhs {
 			pins = "SD0_CLK", "SD0_CMD";
 			power-source = <1800>;
 		};
 
-		sd0_mux_uhs {
+		sd0-mux-uhs {
 			pinmux = <RZG2L_PORT_PINMUX(47, 0, 2)>; /* SD0_CD */
 		};
 	};

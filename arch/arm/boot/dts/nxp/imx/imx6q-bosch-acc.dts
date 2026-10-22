@@ -177,7 +177,7 @@
 		regulator-name = "usb_h2_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		vin-supply = <&reg_5p0> ;
+		vin-supply = <&reg_5p0>;
 		regulator-always-on;
 	};
 
@@ -207,7 +207,7 @@
 		regulator-name = "vref_dac";
 		regulator-min-microvolt = <20000>;
 		regulator-max-microvolt = <20000>;
-		vin-supply = <&reg_5p0> ;
+		vin-supply = <&reg_5p0>;
 		regulator-boot-on;
 	};
 

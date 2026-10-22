@@ -933,6 +933,16 @@ properties:
           - const: tbs-biometrics,a711
           - const: allwinner,sun8i-a83t
 
+      - description: Teclast P80 Tablet
+        items:
+          - const: teclast,p80
+          - const: allwinner,sun50i-a133
+
+      - description: Teclast P85T Tablet
+        items:
+          - const: teclast,p85t
+          - const: allwinner,sun55i-a523
+
       - description: Topwise A721 Tablet
         items:
           - const: topwise,a721

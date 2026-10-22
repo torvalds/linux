@@ -26,6 +26,125 @@ pci_ep_bus: pci-ep-bus@1 {
 				       <200000000>;  // RP1_CLK_SYS
 	};
 
+	rp1_spi8: spi@4004c000 {
+		compatible = "snps,dw-apb-ssi";
+		reg = <0x00 0x4004c000  0x0 0x130>;
+		interrupts = <56 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		clock-names = "ssi_clk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		num-cs = <2>;
+
+		status = "disabled";
+	};
+
+	rp1_spi0: spi@40050000 {
+		compatible = "snps,dw-apb-ssi";
+		reg = <0x00 0x40050000  0x0 0x130>;
+		interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		clock-names = "ssi_clk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		num-cs = <4>;
+
+		status = "disabled";
+	};
+
+	rp1_spi1: spi@40054000 {
+		compatible = "snps,dw-apb-ssi";
+		reg = <0x00 0x40054000  0x0 0x130>;
+		interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		clock-names = "ssi_clk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		num-cs = <3>;
+
+		status = "disabled";
+	};
+
+	rp1_spi2: spi@40058000 {
+		compatible = "snps,dw-apb-ssi";
+		reg = <0x00 0x40058000  0x0 0x130>;
+		interrupts = <21 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		clock-names = "ssi_clk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		num-cs = <2>;
+
+		status = "disabled";
+	};
+
+	rp1_spi3: spi@4005c000 {
+		compatible = "snps,dw-apb-ssi";
+		reg = <0x00 0x4005c000  0x0 0x130>;
+		interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		clock-names = "ssi_clk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		num-cs = <2>;
+
+		status = "disabled";
+	};
+
+	rp1_spi4: spi@40060000 {
+		compatible = "snps,dw-apb-ssi";
+		reg = <0x00 0x40060000  0x0 0x130>;
+		interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		clock-names = "ssi_clk";
+		#address-cells = <0>;
+		#size-cells = <0>;
+		num-cs = <1>;
+		spi-slave;
+
+		status = "disabled";
+	};
+
+	rp1_spi5: spi@40064000 {
+		compatible = "snps,dw-apb-ssi";
+		reg = <0x00 0x40064000  0x0 0x130>;
+		interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		clock-names = "ssi_clk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		num-cs = <2>;
+
+		status = "disabled";
+	};
+
+	rp1_spi6: spi@40068000 {
+		compatible = "snps,dw-apb-ssi";
+		reg = <0x00 0x40068000  0x0 0x130>;
+		interrupts = <54 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		clock-names = "ssi_clk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		num-cs = <3>;
+
+		status = "disabled";
+	};
+
+	rp1_spi7: spi@4006c000 {
+		compatible = "snps,dw-apb-ssi";
+		reg = <0x00 0x4006c000  0x0 0x130>;
+		interrupts = <55 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		clock-names = "ssi_clk";
+		#address-cells = <0>;
+		#size-cells = <0>;
+		num-cs = <1>;
+		spi-slave;
+
+		status = "disabled";
+	};
+
 	rp1_i2c0: i2c@40070000 {
 		compatible = "snps,designware-i2c";
 		reg = <0x0 0x40070000  0x0 0x1000>;
@@ -33,7 +152,16 @@ pci_ep_bus: pci-ep-bus@1 {
 		clocks = <&rp1_clocks RP1_CLK_SYS>;
 		i2c-scl-rising-time-ns = <65>;
 		i2c-scl-falling-time-ns = <100>;
+		status = "disabled";
+	};
 
+	rp1_pwm1: pwm@4009c000 {
+		compatible = "raspberrypi,rp1-pwm";
+		reg = <0x00 0x4009c000  0x0 0x100>;
+		clocks = <&rp1_clocks RP1_CLK_PWM1>;
+		assigned-clocks = <&rp1_clocks RP1_CLK_PWM1>;
+		assigned-clock-rates = <50000000>;
+		#pwm-cells = <3>;
 		status = "disabled";
 	};
 

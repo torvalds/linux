@@ -924,11 +924,11 @@
 						#power-domain-cells = <0>;
 						power-supply = <&reg_pu>;
 						clocks = <&clks IMX6QDL_CLK_GPU3D_CORE>,
-						         <&clks IMX6QDL_CLK_GPU3D_SHADER>,
-						         <&clks IMX6QDL_CLK_GPU2D_CORE>,
-						         <&clks IMX6QDL_CLK_GPU2D_AXI>,
-						         <&clks IMX6QDL_CLK_OPENVG_AXI>,
-						         <&clks IMX6QDL_CLK_VPU_AXI>;
+							 <&clks IMX6QDL_CLK_GPU3D_SHADER>,
+							 <&clks IMX6QDL_CLK_GPU2D_CORE>,
+							 <&clks IMX6QDL_CLK_GPU2D_AXI>,
+							 <&clks IMX6QDL_CLK_OPENVG_AXI>,
+							 <&clks IMX6QDL_CLK_VPU_AXI>;
 					};
 				};
 			};

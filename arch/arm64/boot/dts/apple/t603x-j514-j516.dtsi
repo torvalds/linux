@@ -25,18 +25,20 @@
 	};
 
 	chosen {
+		ranges;
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges;
 
 		stdout-path = "serial0";
 
 		framebuffer0: framebuffer@0 {
-			compatible = "apple,simple-framebuffer", "simple-framebuffer";
+			compatible = "apple,simple-framebuffer",
+				     "simple-framebuffer";
 			reg = <0 0 0 0>; /* To be filled by loader */
 			/* Format properties will be added by loader */
-			status = "disabled";
 			power-domains = <&ps_disp_fe>;
+
+			status = "disabled";
 		};
 	};
 
@@ -47,12 +49,13 @@
 
 	led-controller {
 		compatible = "pwm-leds";
+
 		led-0 {
-			pwms = <&fpwm0 0 40000>;
-			function = LED_FUNCTION_KBD_BACKLIGHT;
 			color = <LED_COLOR_ID_WHITE>;
-			max-brightness = <255>;
 			default-state = "keep";
+			function = LED_FUNCTION_KBD_BACKLIGHT;
+			max-brightness = <255>;
+			pwms = <&fpwm0 0 40000>;
 		};
 	};
 };

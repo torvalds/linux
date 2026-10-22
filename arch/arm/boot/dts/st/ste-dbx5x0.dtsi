@@ -1071,13 +1071,9 @@
 			status = "disabled";
 		};
 
-		sound {
-			compatible = "stericsson,snd-soc-mop500";
-			stericsson,cpu-dai = <&msp1 &msp3>;
-		};
-
 		msp0: msp@80123000 {
 			compatible = "stericsson,ux500-msp-i2s";
+			#sound-dai-cells = <0>;
 			reg = <0x80123000 0x1000>;
 			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
@@ -1095,6 +1091,7 @@
 
 		msp1: msp@80124000 {
 			compatible = "stericsson,ux500-msp-i2s";
+			#sound-dai-cells = <0>;
 			reg = <0x80124000 0x1000>;
 			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
@@ -1113,6 +1110,7 @@
 		// HDMI sound
 		msp2: msp@80117000 {
 			compatible = "stericsson,ux500-msp-i2s";
+			#sound-dai-cells = <0>;
 			reg = <0x80117000 0x1000>;
 			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
@@ -1131,6 +1129,7 @@
 
 		msp3: msp@80125000 {
 			compatible = "stericsson,ux500-msp-i2s";
+			#sound-dai-cells = <0>;
 			reg = <0x80125000 0x1000>;
 			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;

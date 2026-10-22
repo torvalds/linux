@@ -26,5 +26,7 @@
 		interrupt-parent = <&gpio5>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&tca6424a 21 GPIO_ACTIVE_HIGH>;
+		touchscreen-size-x = <1280>;
+		touchscreen-size-y = <800>;
 	};
 };

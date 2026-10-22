@@ -53,8 +53,9 @@
 	};
 };
 
-&gpio2 {
-	status = "okay";
+&gpio2b {
+	pinctrl-0 = <&pins_cn12>;
+	pinctrl-names = "default";
 };
 
 &i2c2 {
@@ -85,6 +86,15 @@
 };
 
 &pinctrl {
+	pins_cn12: pins-cn12 {
+		pinmux = <RZN1_PINMUX(164, RZN1_FUNC_GPIO)>,
+			 <RZN1_PINMUX(165, RZN1_FUNC_GPIO)>,
+			 <RZN1_PINMUX(166, RZN1_FUNC_GPIO)>,
+			 <RZN1_PINMUX(167, RZN1_FUNC_GPIO)>,
+			 <RZN1_PINMUX(168, RZN1_FUNC_GPIO)>,
+			 <RZN1_PINMUX(169, RZN1_FUNC_GPIO)>;
+	};
+
 	pins_eth0: pins-eth0 {
 		pinmux = <RZN1_PINMUX(0, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
 			 <RZN1_PINMUX(1, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,

@@ -595,12 +595,12 @@
 			function = "avb0";
 		};
 
-		pins_mdio {
+		pins-mdio {
 			groups = "avb0_mdio";
 			drive-strength = <21>;
 		};
 
-		pins_mii {
+		pins-mii {
 			groups = "avb0_rgmii";
 			drive-strength = <21>;
 		};
@@ -696,7 +696,7 @@
 		function = "i2c3";
 	};
 
-	irq0_pins: irq0_pins {
+	irq0_pins: irq0 {
 		groups = "intc_ex_irq0_a";
 		function = "intc_ex";
 	};
@@ -727,7 +727,7 @@
 		function = "scif_clk2";
 	};
 
-	sound_clk_pins: sound_clk {
+	sound_clk_pins: sound-clk {
 		groups = "audio_clkin", "audio_clkout";
 		function = "audio_clk";
 	};

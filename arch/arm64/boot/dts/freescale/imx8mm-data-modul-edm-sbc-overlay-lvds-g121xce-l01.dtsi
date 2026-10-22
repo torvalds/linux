@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2024 Wael Karman <wkarman@data-modul.com>
+ */
+
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-3v3.dtsi"
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-single.dtsi"
+
+&backlight {
+	power-supply = <&reg_panel_bl>;
+	/* 6.2 POWER ON/OFF SEQUENCE, T9 >= 10 ms */
+	pwm-off-delay-ms = <10>;
+	/* 3.2 BACKLIGHT UNIT fPWM=200 Hz (Typ.), value below in ns */
+	pwms = <&pwm1 0 5000000 0>;
+	status = "okay";
+};
+
+&panel {
+	compatible = "innolux,g121xce-l01";
+};
+
+&reg_panel_bl {
+	startup-delay-us = <10000>; /* T8 */
+	off-on-delay-us = <1180000>; /* T9 + T6 + T3 + T7 + T4 + T1 + T2 + T5 */
+	status = "okay";
+};
+
+&reg_panel_vcc {
+	/* 6.2 POWER ON/OFF SEQUENCE */
+	startup-delay-us = <1000>; /* 0.5ms <= T1 + T2 <= 60 ms */
+};

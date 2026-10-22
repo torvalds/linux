@@ -151,7 +151,7 @@
 		function = "i2c5";
 	};
 
-	scif_clk_pins: scif_clk {
+	scif_clk_pins: scif-clk {
 		groups = "scif_clk";
 		function = "scif_clk";
 	};

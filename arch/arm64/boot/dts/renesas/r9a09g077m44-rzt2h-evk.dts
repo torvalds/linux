@@ -69,7 +69,7 @@
 		compatible = "gpio-keys";
 
 #if (!SD1_MICRO_SD)
-		/* SW2-3: OFF */
+		/* SW2[3]: OFF */
 		key-1 {
 			interrupts-extended = <&pinctrl RZT2H_GPIO(8, 6) IRQ_TYPE_EDGE_FALLING>;
 			linux,code = <KEY_1>;
@@ -100,7 +100,7 @@
 		compatible = "gpio-leds";
 
 		led-0 {
-			/* SW8-9: ON, SW8-10: OFF */
+			/* SW8[9]: ON, SW8[10]: OFF */
 			gpios = <&pinctrl RZT2H_GPIO(23, 1) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;
@@ -108,7 +108,7 @@
 		};
 
 		led-1 {
-			/* SW5-1: OFF, SW5-2: ON */
+			/* SW5[1]: OFF, SW5[2]: ON */
 			gpios = <&pinctrl RZT2H_GPIO(32, 2) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;
@@ -124,7 +124,7 @@
 
 #if (!SD1_MICRO_SD)
 		led-3 {
-			/* SW2-3: OFF */
+			/* SW2[3]: OFF */
 			gpios = <&pinctrl RZT2H_GPIO(8, 5) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_RED>;
 			function = LED_FUNCTION_DEBUG;
@@ -133,7 +133,7 @@
 #endif
 
 		led-4 {
-			/* SW8-3: ON, SW8-4: OFF */
+			/* SW8[3]: ON, SW8[4]: OFF */
 			gpios = <&pinctrl RZT2H_GPIO(18, 0) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;
@@ -141,7 +141,7 @@
 		};
 
 		led-5 {
-			/* SW8-1: ON, SW8-2: OFF */
+			/* SW8[1]: ON, SW8[2]: OFF */
 			gpios = <&pinctrl RZT2H_GPIO(18, 1) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_RED>;
 			function = LED_FUNCTION_DEBUG;
@@ -149,7 +149,7 @@
 		};
 
 		led-6 {
-			/* SW5-9: OFF, SW5-10: ON */
+			/* SW5[9]: OFF, SW5[10]: ON */
 			gpios = <&pinctrl RZT2H_GPIO(22, 7) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;
@@ -157,7 +157,7 @@
 		};
 
 		led-7 {
-			/* SW5-7: OFF, SW5-8: ON */
+			/* SW5[7]: OFF, SW5[8]: ON */
 			gpios = <&pinctrl RZT2H_GPIO(23, 0) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;
@@ -165,7 +165,7 @@
 		};
 
 		led-8 {
-			/* SW7-5: OFF, SW7-6: ON */
+			/* SW7[5]: OFF, SW7[6]: ON */
 			gpios = <&pinctrl RZT2H_GPIO(23, 5) GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_DEBUG;

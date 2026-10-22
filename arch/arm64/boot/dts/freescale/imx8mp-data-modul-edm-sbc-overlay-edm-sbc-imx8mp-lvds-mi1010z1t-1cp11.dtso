@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2024-2026 Marek Vasut
+ */
+
+#include "imx8mp-data-modul-edm-sbc-overlay-edm-sbc-imx8mp-lvds.dtsi"
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-mi1010z1t-1cp11.dtsi"
+
+&media_blk_ctrl {
+	/*
+	 * The MI1010Z1T-1CP11 panel requires 51.2 MHz LVDS clock.
+	 * Set IMX8MP_VIDEO_PLL1 to 358.4 MHz , since 358.4 MHz / 7 = 51.2 MHz .
+	 */
+	assigned-clock-rates = <500000000>, <200000000>,
+			       <0>, <0>, <500000000>, <358400000>;
+};
+
+&ldb_lvds_ch1 {
+	remote-endpoint = <&panel_lvds>;
+};
+
+&panel_lvds {
+	remote-endpoint = <&ldb_lvds_ch1>;
+};

@@ -131,5 +131,7 @@
 
 		reset-gpios = <&port4 2 GPIO_ACTIVE_LOW>;
 		reset-delay-us = <5>;
+		reset-assert-us = <25000>;
+		reset-deassert-us = <300>;
 	};
 };

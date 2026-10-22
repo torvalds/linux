@@ -84,7 +84,7 @@
 		regulator-always-on;
 	};
 
-	wlan_en: regulator-wlan_en {
+	wlan_en: regulator-wlan-en {
 		compatible = "regulator-fixed";
 		regulator-name = "wlan-en-regulator";
 

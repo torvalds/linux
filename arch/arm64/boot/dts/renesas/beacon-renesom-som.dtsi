@@ -13,7 +13,7 @@
 		reg = <0x0 0x48000000 0x0 0x78000000>;
 	};
 
-	osc_32k: osc_32k {
+	osc_32k: clock-32768 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
@@ -38,7 +38,7 @@
 		regulator-always-on;
 	};
 
-	wlan_pwrseq: wlan_pwrseq {
+	wlan_pwrseq: wlan-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&pca9654 1 GPIO_ACTIVE_LOW>;
 		clocks = <&osc_32k>;
@@ -63,6 +63,8 @@
 		reg = <0>;
 		interrupts-extended = <&gpio2 11 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&gpio2 10 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <300>;
 	};
 };
 
@@ -209,12 +211,12 @@
 			function = "avb";
 		};
 
-		pins_mdio {
+		pins-mdio {
 			groups = "avb_mdio";
 			drive-strength = <24>;
 		};
 
-		pins_mii_tx {
+		pins-mii-tx {
 			pins = "PIN_AVB_TX_CTL", "PIN_AVB_TXC", "PIN_AVB_TD0",
 			       "PIN_AVB_TD1", "PIN_AVB_TD2", "PIN_AVB_TD3";
 			drive-strength = <12>;
@@ -251,7 +253,7 @@
 		function = "scif5";
 	};
 
-	scif_clk_pins: scif_clk {
+	scif_clk_pins: scif-clk {
 		groups = "scif_clk_a";
 		function = "scif_clk";
 	};

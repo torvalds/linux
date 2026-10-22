@@ -215,7 +215,7 @@
 		function = "i2c0";
 	};
 
-	mmc_pins: mmc_3_3v {
+	mmc_pins: mmc-3-3v {
 		groups = "mmc_data8", "mmc_ctrl";
 		function = "mmc";
 		power-source = <3300>;

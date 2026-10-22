@@ -302,13 +302,13 @@
 	};
 
 	/*
-	 * IIC0/I2C0 is routed to EXIO connector A, pins 114 (SCL) + 116 (SDA) only.
+	 * IIC0/I2C0 is routed to EXIO connector C, pins 114 (SCL) + 116 (SDA) only.
 	 * We use the I2C demuxer, so the desired IP core can be selected at runtime
-	 * depending on the use case (e.g. DMA with IIC0 or slave support with I2C0).
-	 * Note: For testing the I2C slave feature, it is convenient to connect this
+	 * depending on the use case (e.g. DMA with IIC0 or target support with I2C0).
+	 * Note: For testing the I2C target feature, it is convenient to connect this
 	 * bus with IIC3 on pins 110 (SCL) + 112 (SDA), select I2C0 at runtime, and
-	 * instantiate the slave device at runtime according to the documentation.
-	 * You can then communicate with the slave via IIC3.
+	 * instantiate the target device at runtime according to the documentation.
+	 * You can then communicate with the target via IIC3.
 	 *
 	 * IIC0/I2C0 does not appear to support fallback to GPIO.
 	 */
@@ -690,6 +690,8 @@
 		interrupts-extended = <&irqc0 0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 		reset-gpios = <&gpio5 31 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <300>;
 	};
 };
 
@@ -813,46 +815,46 @@
 	cpu0-supply = <&vdd_dvfs>;
 };
 
-&i2c0	{
+&i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "i2c-exio0";
 };
 
-&iic0	{
+&iic0 {
 	pinctrl-0 = <&iic0_pins>;
 	pinctrl-names = "i2c-exio0";
 };
 
-&i2c1	{
+&i2c1 {
 	pinctrl-0 = <&i2c1_pins>;
 	pinctrl-names = "i2c-exio1";
 };
 
-&iic1	{
+&iic1 {
 	pinctrl-0 = <&iic1_pins>;
 	pinctrl-names = "i2c-exio1";
 };
 
-&i2c2	{
+&i2c2 {
 	pinctrl-0 = <&i2c2_pins>;
 	pinctrl-names = "i2c-hdmi";
 
 	clock-frequency = <100000>;
 };
 
-&iic2	{
+&iic2 {
 	pinctrl-0 = <&iic2_pins>;
 	pinctrl-names = "i2c-hdmi";
 
 	clock-frequency = <100000>;
 };
 
-&i2c3	{
+&i2c3 {
 	pinctrl-0 = <&i2c3_pins>;
 	pinctrl-names = "i2c-pwr";
 };
 
-&iic3	{
+&iic3 {
 	pinctrl-0 = <&iic3_pins>;
 	pinctrl-names = "i2c-pwr";
 };

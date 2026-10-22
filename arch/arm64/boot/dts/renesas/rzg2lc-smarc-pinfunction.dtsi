@@ -79,38 +79,38 @@
 	};
 
 	sdhi1_pins: sd1 {
-		sd1_data {
+		sd1-data {
 			pins = "SD1_DATA0", "SD1_DATA1", "SD1_DATA2", "SD1_DATA3";
 			power-source = <3300>;
 		};
 
-		sd1_ctrl {
+		sd1-ctrl {
 			pins = "SD1_CLK", "SD1_CMD";
 			power-source = <3300>;
 		};
 
-		sd1_mux {
+		sd1-mux {
 			pinmux = <RZG2L_PORT_PINMUX(19, 0, 1)>; /* SD1_CD */
 		};
 	};
 
-	sdhi1_pins_uhs: sd1_uhs {
-		sd1_data_uhs {
+	sdhi1_pins_uhs: sd1-uhs {
+		sd1-data-uhs {
 			pins = "SD1_DATA0", "SD1_DATA1", "SD1_DATA2", "SD1_DATA3";
 			power-source = <1800>;
 		};
 
-		sd1_ctrl_uhs {
+		sd1-ctrl-uhs {
 			pins = "SD1_CLK", "SD1_CMD";
 			power-source = <1800>;
 		};
 
-		sd1_mux_uhs {
+		sd1-mux-uhs {
 			pinmux = <RZG2L_PORT_PINMUX(19, 0, 1)>; /* SD1_CD */
 		};
 	};
 
-	sound_clk_pins: sound_clk {
+	sound_clk_pins: sound-clk {
 		pins = "AUDIO_CLK1", "AUDIO_CLK2";
 		input-enable;
 	};

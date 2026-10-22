@@ -66,6 +66,19 @@
 		regulator-always-on;
 	};
 
+	reserved-memory {
+		ramoops@42f00000 {
+			compatible = "ramoops";
+			reg = <0 0x42f00000 0 0x100000>;
+			no-map;
+			record-size = <0x20000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x10000>;
+			pmsg-size = <0x10000>;
+			ecc-size = <16>;
+		};
+	};
+
 	/* SFP1 cage (WAN) */
 	sfp1: sfp1 {
 		compatible = "sff,sfp";

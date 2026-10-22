@@ -5,8 +5,8 @@
  * Carrier provides:
  *   - Full-size HDMI 2.1 (HDMI TX via HDPTX PHY)
  *   - Gigabit Ethernet RJ45 (GMAC0 + on-module YT8531)
- *   - 2x USB-A behind a USB3 hub (combphy1 + u2phy1)
- *   - USB-C with PD/altmode (FUSB302 on i2c0, combphy0 + USBDP PHY)
+ *   - 4x USB-A behind a USB3 hub (combphy1 + u2phy1)
+ *   - USB-C with PD/altmode (FUSB302 on i2c0, USBDP PHY)
  *   - M.2 PCIe 2.0 x1 slot (combphy0 as PCIe lane)
  *   - microSD card slot
  *   - Green/red status LEDs, 40-pin RPi-compatible header
@@ -290,7 +290,6 @@
 
 &sdmmc {
 	bus-width = <4>;
-	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	disable-wp;
 	max-frequency = <200000000>;

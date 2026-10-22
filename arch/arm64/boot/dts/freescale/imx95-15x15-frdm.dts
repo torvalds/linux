@@ -56,7 +56,7 @@
 		num-channels = <2>;
 	};
 
-	flexcan2_phy: can-phy {
+	flexcan2_phy: can-phy0 {
 		compatible = "nxp,tja1051";
 		#phy-cells = <0>;
 		max-bitrate = <5000000>;
@@ -67,7 +67,7 @@
 		silent-gpios = <&pcal6524 7 GPIO_ACTIVE_HIGH>;
 	};
 
-	flexcan5_phy: can-phy {
+	flexcan5_phy: can-phy1 {
 		compatible = "nxp,tja1051";
 		#phy-cells = <0>;
 		max-bitrate = <5000000>;
@@ -140,6 +140,7 @@
 		regulator-name = "VDD_SD2_3V3";
 		gpio = <&gpio3 7 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		bootph-pre-ram;
 	};
 
 	reg_usdhc3_vmmc: regulator-usdhc3 {
@@ -188,33 +189,33 @@
 			linux,cma-default;
 		};
 
-		vdev0vring0: memory@88000000 {
+		vdev0vring0: vdev0vring0@88000000 {
 			reg = <0 0x88000000 0 0x8000>;
 			no-map;
 		};
 
-		vdev0vring1: memory@88008000 {
+		vdev0vring1: vdev0vring1@88008000 {
 			reg = <0 0x88008000 0 0x8000>;
 			no-map;
 		};
 
-		vdev1vring0: memory@88010000 {
+		vdev1vring0: vdev1vring0@88010000 {
 			reg = <0 0x88010000 0 0x8000>;
 			no-map;
 		};
 
-		vdev1vring1: memory@88018000 {
+		vdev1vring1: vdev1vring1@88018000 {
 			reg = <0 0x88018000 0 0x8000>;
 			no-map;
 		};
 
-		vdevbuffer: memory@88020000 {
+		vdev0buffer: vdev0buffer@88020000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x88020000 0 0x100000>;
 			no-map;
 		};
 
-		rsc_table: memory@88220000 {
+		rsc_table: rsc-table@88220000 {
 			reg = <0 0x88220000 0 0x1000>;
 			no-map;
 		};
@@ -445,6 +446,7 @@
 &lpuart1 {
 	pinctrl-0 = <&pinctrl_uart1>;
 	pinctrl-names = "default";
+	bootph-pre-ram;
 	status = "okay";
 };
 
@@ -480,8 +482,6 @@
 };
 
 &mqs1 {
-	clocks = <&scmi_clk IMX95_CLK_SAI1>;
-	clock-names = "mclk";
 	pinctrl-0 = <&pinctrl_mqs1>;
 	pinctrl-names = "default";
 	status = "okay";
@@ -549,10 +549,13 @@
 &pcie0 {
 	pinctrl-0 = <&pinctrl_pcie0>;
 	pinctrl-names = "default";
-	reset-gpio = <&gpio5 13 GPIO_ACTIVE_LOW>;
 	supports-clkreq;
-	vpcie-supply = <&reg_m2_mkey_pwr>;
 	status = "okay";
+};
+
+&pcie0_port0 {
+	reset-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
+	vpcie3v3-supply = <&reg_m2_mkey_pwr>;
 };
 
 &sai1 {
@@ -721,6 +724,7 @@
 		fsl,pins = <
 			IMX95_PAD_SD2_RESET_B__GPIO3_IO_BIT7			0x31e
 		>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_uart1: uart1grp {
@@ -728,6 +732,7 @@
 			IMX95_PAD_UART1_RXD__AONMIX_TOP_LPUART1_RX		0x31e
 			IMX95_PAD_UART1_TXD__AONMIX_TOP_LPUART1_TX		0x31e
 		>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_uart5: uart5grp {
@@ -753,6 +758,7 @@
 			IMX95_PAD_SD1_DATA7__USDHC1_DATA7			0x138e
 			IMX95_PAD_SD1_STROBE__USDHC1_STROBE			0x158e
 		>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_usdhc1_100mhz: usdhc1-100mhzgrp {
@@ -769,6 +775,7 @@
 			IMX95_PAD_SD1_DATA7__USDHC1_DATA7			0x138e
 			IMX95_PAD_SD1_STROBE__USDHC1_STROBE			0x158e
 		>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_usdhc1_200mhz: usdhc1-200mhzgrp {
@@ -785,12 +792,14 @@
 			IMX95_PAD_SD1_DATA7__USDHC1_DATA7			0x13fe
 			IMX95_PAD_SD1_STROBE__USDHC1_STROBE			0x15fe
 		>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_usdhc2_gpio: usdhc2gpiogrp {
 		fsl,pins = <
 			IMX95_PAD_SD2_CD_B__GPIO3_IO_BIT0			0x31e
 		>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_usdhc2: usdhc2grp {
@@ -803,6 +812,7 @@
 			IMX95_PAD_SD2_DATA3__USDHC2_DATA3			0x138e
 			IMX95_PAD_SD2_VSELECT__USDHC2_VSELECT			0x51e
 		>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_usdhc2_100mhz: usdhc2-100mhzgrp {
@@ -815,6 +825,7 @@
 			IMX95_PAD_SD2_DATA3__USDHC2_DATA3			0x138e
 			IMX95_PAD_SD2_VSELECT__USDHC2_VSELECT			0x51e
 		>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_usdhc2_200mhz: usdhc2-200mhzgrp {
@@ -827,6 +838,7 @@
 			IMX95_PAD_SD2_DATA3__USDHC2_DATA3			0x138e
 			IMX95_PAD_SD2_VSELECT__USDHC2_VSELECT			0x51e
 		>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_usdhc3: usdhc3grp {
@@ -1001,6 +1013,7 @@
 	pinctrl-3 = <&pinctrl_usdhc1>;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	fsl,tuning-step = <1>;
+	bootph-pre-ram;
 	status = "okay";
 };
 
@@ -1014,6 +1027,7 @@
 	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	fsl,tuning-step = <1>;
+	bootph-pre-ram;
 	status = "okay";
 };
 

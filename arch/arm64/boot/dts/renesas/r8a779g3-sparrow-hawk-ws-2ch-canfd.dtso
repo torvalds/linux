@@ -1,0 +1,135 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Overlay for the Waveshare 2-Channel Isolated CAN FD HAT
+ * on connector CN7 on R-Car V4H ES3.0 Sparrow Hawk board
+ *
+ * Copyright (C) 2026 Marek Vasut <marek.vasut+renesas@mailbox.org>
+ *
+ * Example usage:
+ * - Connect HAT signals to Sparrow Hawk board CAN BUS connector CONN2:
+ *   HAT CAN_0 H -- CONN2 pin 6
+ *   HAT CAN_0 L -- CONN2 pin 2
+ *   HAT CAN_1 H -- CONN2 pin 5
+ *   HAT CAN_1 L -- CONN2 pin 1
+ *
+ * - Determine which interface is which:
+ *   $ ip -d link show
+ *   2: can0: <NOARP,ECHO> ...
+ *      ...
+ *        clock 40000000 ... e6660000.can <------ Native Renesas CANFD
+ *   3: can1: <NOARP,ECHO> ...
+ *      ...
+ *   4: can2: <NOARP,ECHO> ...
+ *      ...
+ *        clock 40000000 ... spi1.0 <------------ SPI CANFD on this HAT
+ *   5: can3: <NOARP,ECHO> ...
+ *      ...
+ *
+ * - Bring connected interfaces up:
+ *   # CAN_0 link
+ *   $ ip link set can0 up type can bitrate 125000 dbitrate 250000 fd on
+ *   $ ip link set can3 up type can bitrate 125000 dbitrate 250000 fd on
+ *
+ *   # CAN_1 link
+ *   $ ip link set can1 up type can bitrate 125000 dbitrate 250000 fd on
+ *   $ ip link set can2 up type can bitrate 125000 dbitrate 250000 fd on
+ *
+ * - Perform CAN test, run each of the pair commands in separate terminals:
+ *   # CAN_0 link
+ *   $ canfdtest -v can0
+ *   $ canfdtest -g -v can3
+ *
+ *   # CAN_1 link
+ *   $ canfdtest -v can1
+ *   $ canfdtest -g -v can2
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/*
+ * PWM1 uses PWM1_B pin configuration for pin GP2_13. This conflicts
+ * with SPI_1 CE_1 signal which is also on pin GP2_13. Disable PWM1
+ * in case this hat is in use.
+ *
+ * In case of a dynamic overlay, pwm1 must be disabled before SPI_1
+ * is probed. Otherwise the latter will fail with -EBUSY due to the
+ * conflicting pin being still in use. Hence place pwm1 node here.
+ */
+&pwm1 {
+	status = "disabled";
+};
+
+&{/} {
+	/* Fixed clock dedicated to SPI CAN on 2-CH CAN FD HAT */
+	clk_can0: clk-ws-2ch-canfd0 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <40000000>;
+	};
+
+	clk_can1: clk-ws-2ch-canfd1 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <40000000>;
+	};
+
+	/*
+	 * SPI_1 is operated as GPIO SPI, because MSIOF5 can not be
+	 * muxed on the pins allocated for SPI_1 on this CANFD HAT.
+	 */
+	spi-ws-2ch-canfd {	/* SPI_1 */
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		sck-gpios = <&gpio0 10 0>;		/* CN7 pin 40 */
+		miso-gpios = <&gpio0 9 0>;		/* CN7 pin 35 */
+		mosi-gpios = <&gpio0 12 0>;		/* CN7 pin 38 */
+		cs-gpios = <&gpio2 13 GPIO_ACTIVE_LOW>;	/* CN7 pin 12 */
+		num-chipselects = <1>;
+
+		can@0 {
+			compatible = "microchip,mcp2518fd";
+			reg = <0>;
+			clocks = <&clk_can1>;
+			/* CN7 pin 18 */
+			interrupts-extended = <&gpio1 25 IRQ_TYPE_LEVEL_LOW>;
+			spi-max-frequency = <20000000>;
+		};
+	};
+};
+
+&msiof0 {	/* SPI_0 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-0 = <&msiof0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	/*
+	 * Native MSIOF chipselect does not work with MCP2518FD
+	 * because MCP251xFD driver needs to keep the chipselect
+	 * line asserted between transfers. This requirement is
+	 * fulfilled only by using GPIO chipselect.
+	 */
+	cs-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+
+	can@0 {
+		compatible = "microchip,mcp2518fd";
+		reg = <0>;
+		clocks = <&clk_can0>;
+		/* CN7 pin 22 */
+		interrupts-extended = <&gpio1 26 IRQ_TYPE_LEVEL_LOW>;
+		spi-max-frequency = <20000000>;
+	};
+};
+
+&pfc {
+	msiof0_pins: msiof0 {	/* SPI_0 */
+		groups = "msiof0_clk", "msiof0_txd", "msiof0_rxd";
+		function = "msiof0";
+	};
+};

@@ -21,13 +21,13 @@
 	 * clocks by default.
 	 * Boards that provide audio clocks should override them.
 	 */
-	audio_clk_a: audio_clk_a {
+	audio_clk_a: audio-clk-a {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <0>;
 	};
 
-	audio_clk_b: audio_clk_b {
+	audio_clk_b: audio-clk-b {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <0>;
@@ -69,7 +69,7 @@
 		bootph-all;
 	};
 
-	pmu_a53 {
+	pmu-a53 {
 		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 	};

@@ -93,6 +93,29 @@
 				};
 			};
 
+			typec@28 {
+				compatible = "st,stusb1600";
+				reg = <0x28>;
+				interrupt-parent = <&gpio>;
+				interrupts = <TEGRA234_MAIN_GPIO(K, 6) IRQ_TYPE_LEVEL_LOW>;
+				vdd-supply = <&vdd_5v_sys>;
+				vsys-supply = <&vdd_3v3_sys>;
+
+				connector {
+					compatible = "usb-c-connector";
+					label = "USB-C";
+					data-role = "dual";
+					power-role = "dual";
+					typec-power-opmode = "default";
+
+					port {
+						typec_con_ep: endpoint {
+							remote-endpoint = <&usb_role_switch0>;
+						};
+					};
+				};
+			};
+
 			/* carrier board ID EEPROM */
 			eeprom@55 {
 				compatible = "atmel,24c02";
@@ -173,6 +196,12 @@
 					mode = "otg";
 					usb-role-switch;
 					status = "okay";
+
+					port {
+						usb_role_switch0: endpoint {
+							remote-endpoint = <&typec_con_ep>;
+						};
+					};
 				};
 
 				usb2-1 {
@@ -337,7 +366,7 @@
 			label = "Force Recovery";
 			gpios = <&gpio TEGRA234_MAIN_GPIO(G, 0) GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
-			linux,code = <BTN_1>;
+			linux,code = <KEY_SLEEP>;
 		};
 
 		key-power {
@@ -347,13 +376,6 @@
 			linux,code = <KEY_POWER>;
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
-		};
-
-		key-suspend {
-			label = "Suspend";
-			gpios = <&gpio TEGRA234_MAIN_GPIO(G, 2) GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_KEY>;
-			linux,code = <KEY_SLEEP>;
 		};
 	};
 
@@ -472,5 +494,12 @@
 		gpio = <&gpio TEGRA234_MAIN_GPIO(G, 3) GPIO_ACTIVE_HIGH>;
 		regulator-boot-on;
 		enable-active-high;
+	};
+
+	vdd_5v_sys: regulator-vdd-5v-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-5v-sys";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 	};
 };

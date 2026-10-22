@@ -226,8 +226,6 @@
 			reset-assert-us = <10>;
 			reset-deassert-us = <5000>;
 			reset-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
-			adi,led-polarity = <GPIO_ACTIVE_LOW>;
-			adi,link-st-polarity = <GPIO_ACTIVE_LOW>;
 			status = "disabled";
 
 			leds {

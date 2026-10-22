@@ -5,6 +5,7 @@
  * Copyright The Asahi Linux Contributors
  */
 
+&SOC_NODE {
 	DIE_NODE(ans_mbox): mbox@347408000 {
 		compatible = "apple,t6020-asc-mailbox", "apple,asc-mailbox-v4";
 		reg = <0x3 0x47408000 0x0 0x4000>;
@@ -40,3 +41,4 @@
 		power-domain-names = "ans", "apcie0", "apcie1";
 		resets = <&DIE_NODE(ps_ans2)>;
 	};
+};

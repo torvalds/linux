@@ -175,6 +175,11 @@ properties:
           - const: coolpi,pi-4b
           - const: rockchip,rk3588s
 
+      - description: DFRobot UNIHIKER M10 V1.2
+        items:
+          - const: dfrobot,unihiker-m10-v1.2
+          - const: rockchip,rk3308
+
       - description: Alientek CLRV1126F SoM based boards
         items:
           - enum:
@@ -215,6 +220,13 @@ properties:
         items:
           - const: embedfire,lubancat-4
           - const: rockchip,rk3588s
+
+      - description: EmbedFire LubanCat 5IO
+        items:
+          - enum:
+              - embedfire,lubancat-5io
+          - const: embedfire,lubancat-5-btb
+          - const: rockchip,rk3588
 
       - description: Engicam PX30.Core C.TOUCH 2.0
         items:
@@ -340,6 +352,13 @@ properties:
               - friendlyarm,nanopi-r2s-plus
           - const: rockchip,rk3328
 
+      - description: FriendlyElec NanoPi RK3528 series boards
+        items:
+          - enum:
+              - friendlyarm,nanopi-r28s
+              - friendlyarm,nanopi-zero2
+          - const: rockchip,rk3528
+
       - description: FriendlyElec NanoPi R3S
         items:
           - const: friendlyarm,nanopi-r3s
@@ -369,9 +388,10 @@ properties:
               - friendlyarm,nanopi-r5s
           - const: rockchip,rk3568
 
-      - description: FriendlyElec NanoPi R6 series boards
+      - description: FriendlyElec NanoPi6 series boards
         items:
           - enum:
+              - friendlyarm,nanopi-m6
               - friendlyarm,nanopi-r6c
               - friendlyarm,nanopi-r6s
           - const: rockchip,rk3588s
@@ -380,11 +400,6 @@ properties:
         items:
           - const: friendlyarm,nanopi-r76s
           - const: rockchip,rk3576
-
-      - description: FriendlyElec NanoPi Zero2
-        items:
-          - const: friendlyarm,nanopi-zero2
-          - const: rockchip,rk3528
 
       - description: FriendlyElec NanoPC T6 series boards
         items:
@@ -844,6 +859,11 @@ properties:
               - lunzn,fastrhino-r68s
           - const: rockchip,rk3568
 
+      - description: MangoPi M28K
+        items:
+          - const: widora,mangopi-m28k
+          - const: rockchip,rk3528
+
       - description: mqmaker MiQi
         items:
           - const: mqmaker,miqi
@@ -1005,9 +1025,11 @@ properties:
           - const: radxa,e20c
           - const: rockchip,rk3528
 
-      - description: Radxa E52C
+      - description: Radxa E52C/E54C
         items:
-          - const: radxa,e52c
+          - enum:
+              - radxa,e52c
+              - radxa,e54c
           - const: rockchip,rk3582
           - const: rockchip,rk3588s
 
@@ -1336,9 +1358,11 @@ properties:
           - const: tsd,rk3588-jaguar
           - const: rockchip,rk3588
 
-      - description: Theobroma Systems RK3588-Q7 with Haikou baseboard
+      - description: Theobroma Systems RK3588-Q7 with baseboards
         items:
-          - const: tsd,rk3588-tiger-haikou
+          - enum:
+              - tsd,rk3588-tiger-displayport-carrier
+              - tsd,rk3588-tiger-haikou
           - const: tsd,rk3588-tiger
           - const: rockchip,rk3588
 

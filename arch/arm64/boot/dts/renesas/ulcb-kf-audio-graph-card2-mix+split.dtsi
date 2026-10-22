@@ -76,14 +76,14 @@
 				 * (H) CPU7
 				 * (I) CPU8
 				 */
-			fe_c:	port@2 { reg = <2>; fe_c_ep: endpoint { remote-endpoint = <&rsnd_c_ep>; }; };
-			fe_d:	port@3 { reg = <3>; fe_d_ep: endpoint { remote-endpoint = <&rsnd_d_ep>; }; };
-			fe_e:	port@4 { reg = <4>; fe_e_ep: endpoint { remote-endpoint = <&rsnd_e_ep>; }; };
-			fe_f:	port@5 { reg = <5>; fe_f_ep: endpoint { remote-endpoint = <&rsnd_f_ep>; }; };
+			fe_c: port@2 { reg = <2>; fe_c_ep: endpoint { remote-endpoint = <&rsnd_c_ep>; }; };
+			fe_d: port@3 { reg = <3>; fe_d_ep: endpoint { remote-endpoint = <&rsnd_d_ep>; }; };
+			fe_e: port@4 { reg = <4>; fe_e_ep: endpoint { remote-endpoint = <&rsnd_e_ep>; }; };
+			fe_f: port@5 { reg = <5>; fe_f_ep: endpoint { remote-endpoint = <&rsnd_f_ep>; }; };
 
-			fe_g:	port@6 { reg = <6>; fe_g_ep: endpoint { remote-endpoint = <&rsnd_g_ep>; }; };
-			fe_h:	port@7 { reg = <7>; fe_h_ep: endpoint { remote-endpoint = <&rsnd_h_ep>; }; };
-			fe_i:	port@8 { reg = <8>; fe_i_ep: endpoint { remote-endpoint = <&rsnd_i_ep>; }; };
+			fe_g: port@6 { reg = <6>; fe_g_ep: endpoint { remote-endpoint = <&rsnd_g_ep>; }; };
+			fe_h: port@7 { reg = <7>; fe_h_ep: endpoint { remote-endpoint = <&rsnd_h_ep>; }; };
+			fe_i: port@8 { reg = <8>; fe_i_ep: endpoint { remote-endpoint = <&rsnd_i_ep>; }; };
 			};
 
 			ports@1 {
@@ -96,8 +96,8 @@
 				 * (Y) PCM3168A-p
 				 * (Z) PCM3168A-c
 				 */
-			be_y:	port@0 { reg = <0>; be_y_ep: endpoint { remote-endpoint = <&pcm3168a_y_ep>; }; };
-			be_z:	port@1 { reg = <1>; be_z_ep: endpoint { remote-endpoint = <&pcm3168a_z_ep>; }; };
+			be_y: port@0 { reg = <0>; be_y_ep: endpoint { remote-endpoint = <&pcm3168a_y_ep>; }; };
+			be_z: port@1 { reg = <1>; be_z_ep: endpoint { remote-endpoint = <&pcm3168a_z_ep>; }; };
 			};
 		};
 	};

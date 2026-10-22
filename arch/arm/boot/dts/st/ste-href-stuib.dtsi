@@ -35,8 +35,8 @@
 				reg = <0x40>;
 				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
 				interrupt-parent = <&gpio6>;
-				vcc-supply = <&db8500_vsmps2_reg>;
-				vio-supply = <&db8500_vsmps2_reg>;
+				vcc-supply = <&buck_vio18>;
+				vio-supply = <&buck_vio18>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&stmpe_stuib_mode>;
 
@@ -80,7 +80,7 @@
 				st,drdy-int-pin = <1>;
 				reg = <0x1c>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&accel_stuib_mode>;
 				interrupt-parent = <&gpio2>;
@@ -92,7 +92,7 @@
 				compatible = "asahi-kasei,ak8974";
 				reg = <0x0f>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vddio-supply = <&buck_vio18>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&magneto_stuib_mode>;
 				interrupt-parent = <&gpio1>;

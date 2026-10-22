@@ -11,6 +11,7 @@
 #include "ste-db8500.dtsi"
 #include "ste-ab8505.dtsi"
 #include "ste-dbx5x0-pinctrl.dtsi"
+#include "ste-ux500-samsung.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
@@ -323,8 +324,8 @@
 				reset-gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
 				/* GPS_ON_OFF on GPIO86 */
 				sirf,onoff-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
-				/* GPS_1V8 (VSMPS2) */
-				vcc-supply = <&db8500_vsmps2_reg>;
+				/* GPS_1V8 (VSMPSB) */
+				vcc-supply = <&ab8505_buck_vsmpsb>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&g05ta03_kyle_default>;
 				/* According to /etc/sirfgps.conf */

@@ -320,12 +320,12 @@
 			function = "avb0";
 		};
 
-		pins_mdio {
+		pins-mdio {
 			groups = "avb0_mdio";
 			drive-strength = <21>;
 		};
 
-		pins_mii {
+		pins-mii {
 			groups = "avb0_rgmii";
 			drive-strength = <21>;
 		};
@@ -368,7 +368,7 @@
 		function = "qspi0";
 	};
 
-	scif_clk_pins: scif_clk {
+	scif_clk_pins: scif-clk {
 		groups = "scif_clk";
 		function = "scif_clk";
 	};

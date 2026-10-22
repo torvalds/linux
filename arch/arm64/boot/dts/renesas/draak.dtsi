@@ -561,7 +561,7 @@
 		power-source = <1800>;
 	};
 
-	sdhi2_pins_uhs: sd2_uhs {
+	sdhi2_pins_uhs: sd2-uhs {
 		groups = "mmc_data8", "mmc_ctrl";
 		function = "mmc";
 		power-source = <1800>;

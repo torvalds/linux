@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Google Pixel 10 family common dtsi.
+ *
+ * Copyright 2024-2025 Google LLC.
+ */
+
+#include "lga.dtsi"
+
+/ {
+	aliases {
+		serial0 = &lsion_cli16_uart;
+	};
+
+	chosen {
+		stdout-path = "serial0";
+	};
+};
+
+&osc {
+	clock-frequency = <38400000>;
+};

@@ -45,6 +45,21 @@
 		reg = <0x0 0x48000000 0x0 0x78000000>;
 	};
 
+	pcie_refclk: pcie-ref-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+	};
+
+	reg_1p0v: regulator-1p0v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.0V";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
@@ -98,6 +113,11 @@
 
 &extal_clk {
 	clock-frequency = <24000000>;
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&reg_1p0v>;
 };
 
 &i2c0 {
@@ -155,6 +175,11 @@
 		txd2-skew-psec = <0>;
 		txd3-skew-psec = <0>;
 	};
+};
+
+&pcie_port0 {
+	clocks = <&pcie_refclk>;
+	clock-names = "ref";
 };
 
 &pinctrl {

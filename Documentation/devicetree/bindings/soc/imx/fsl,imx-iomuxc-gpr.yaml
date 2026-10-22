@@ -47,9 +47,22 @@ properties:
   reg:
     maxItems: 1
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+  ranges: true
+
   mux-controller:
     type: object
     $ref: /schemas/mux/reg-mux.yaml
+
+  bridge@18:
+    type: object
+    $ref: /schemas/display/bridge/fsl,ldb.yaml#
+    unevaluatedProperties: false
 
 patternProperties:
   "^ipu[12]_csi[01]_mux$":
@@ -66,6 +79,19 @@ allOf:
     then:
       patternProperties:
         '^ipu[12]_csi[01]_mux$': false
+
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: fsl,imx6sx-iomuxc-gpr
+    then:
+      properties:
+        bridge@18: false
+        '#address-cells': false
+        '#size-cells': false
+        ranges: false
 
 additionalProperties: false
 
@@ -87,4 +113,40 @@ examples:
         };
     };
 
+  - |
+    #include <dt-bindings/clock/imx6sx-clock.h>
+
+    syscon@20e4000 {
+        compatible = "fsl,imx6sx-iomuxc-gpr", "fsl,imx6q-iomuxc-gpr", "syscon", "simple-mfd";
+        reg = <0x020e4000 0x4000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        bridge@18 {
+            compatible = "fsl,imx6sx-ldb";
+            reg = <0x18 0x4>;
+            clocks = <&clks IMX6SX_CLK_LDB_DI0>;
+            clock-names = "ldb";
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+
+                    endpoint {
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+
+                    endpoint {
+                    };
+                };
+            };
+        };
+    };
 ...

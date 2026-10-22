@@ -3556,7 +3556,7 @@
 			ranges = <0x0 0x38000 0x1000>;
 
 			rtc: rtc@0 {
-				compatible = "ti,am3352-rtc";
+				compatible = "ti,am3352-rtc", "ti,da830-rtc";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>;

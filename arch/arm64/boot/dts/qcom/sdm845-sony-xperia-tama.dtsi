@@ -754,6 +754,8 @@
 };
 
 &uart6 {
+	pinctrl-0 = <&qup_uart6_4pin>;
+
 	status = "okay";
 
 	bluetooth {

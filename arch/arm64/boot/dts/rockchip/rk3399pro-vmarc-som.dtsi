@@ -296,6 +296,8 @@
 
 &i2c2 {
 	clock-frequency = <400000>;
+	i2c-scl-falling-time-ns = <15>;
+	i2c-scl-rising-time-ns = <450>;
 	status = "okay";
 
 	hym8563: rtc@51 {

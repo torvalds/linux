@@ -54,7 +54,7 @@
 		regulator-always-on;
 	};
 
-	osc25250_clk: osc25250_clk {
+	osc25250_clk: clock-24000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <24000000>;

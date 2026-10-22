@@ -1114,13 +1114,13 @@
 			    "rx3", "tx3", "rx4", "tx4", "rx5", "tx5",
 			    "rx6", "tx6", "rx7", "tx7", "rx8", "tx8",
 			    "rx9", "tx9";
-		ranges;
-		#address-cells = <2>;
-		#size-cells = <2>;
+		ranges = <0x70300000 0x0 0x70300000 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 
 		tegra_i2s0: i2s@70301000 {
 			compatible = "nvidia,tegra124-i2s";
-			reg = <0x0 0x70301000 0x0 0x100>;
+			reg = <0x70301000 0x100>;
 			nvidia,ahub-cif-ids = <4 4>;
 			clocks = <&tegra_car TEGRA124_CLK_I2S0>;
 			resets = <&tegra_car 30>;
@@ -1130,7 +1130,7 @@
 
 		tegra_i2s1: i2s@70301100 {
 			compatible = "nvidia,tegra124-i2s";
-			reg = <0x0 0x70301100 0x0 0x100>;
+			reg = <0x70301100 0x100>;
 			nvidia,ahub-cif-ids = <5 5>;
 			clocks = <&tegra_car TEGRA124_CLK_I2S1>;
 			resets = <&tegra_car 11>;
@@ -1140,7 +1140,7 @@
 
 		tegra_i2s2: i2s@70301200 {
 			compatible = "nvidia,tegra124-i2s";
-			reg = <0x0 0x70301200 0x0 0x100>;
+			reg = <0x70301200 0x100>;
 			nvidia,ahub-cif-ids = <6 6>;
 			clocks = <&tegra_car TEGRA124_CLK_I2S2>;
 			resets = <&tegra_car 18>;
@@ -1150,7 +1150,7 @@
 
 		tegra_i2s3: i2s@70301300 {
 			compatible = "nvidia,tegra124-i2s";
-			reg = <0x0 0x70301300 0x0 0x100>;
+			reg = <0x70301300 0x100>;
 			nvidia,ahub-cif-ids = <7 7>;
 			clocks = <&tegra_car TEGRA124_CLK_I2S3>;
 			resets = <&tegra_car 101>;
@@ -1160,7 +1160,7 @@
 
 		tegra_i2s4: i2s@70301400 {
 			compatible = "nvidia,tegra124-i2s";
-			reg = <0x0 0x70301400 0x0 0x100>;
+			reg = <0x70301400 0x100>;
 			nvidia,ahub-cif-ids = <8 8>;
 			clocks = <&tegra_car TEGRA124_CLK_I2S4>;
 			resets = <&tegra_car 102>;

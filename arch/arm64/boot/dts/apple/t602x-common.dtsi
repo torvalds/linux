@@ -254,7 +254,7 @@
 			cache-unified;
 			cache-size = <0x1000000>;
 		};
-	 };
+	};
 
 	blizzard_opp: opp-table-0 {
 		compatible = "operating-points-v2";

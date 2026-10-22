@@ -428,7 +428,7 @@
 				 <&pcie1_phy>,
 				 <&pcie2_phy>,
 				 <&pcie3_phy>,
-				 <0>;
+				 <&usb_0_qmpphy>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#interconnect-cells = <1>;
@@ -471,6 +471,7 @@
 				 <&xo_board_clk>,
 				 <&gcc GCC_SDCC1_ICE_CORE_CLK>;
 			clock-names = "iface", "core", "xo", "ice";
+			resets = <&gcc GCC_SDCC_BCR>;
 			non-removable;
 			supports-cqe;
 			pinctrl-0 = <&sdc_default_state>;

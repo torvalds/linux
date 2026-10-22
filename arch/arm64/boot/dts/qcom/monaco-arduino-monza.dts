@@ -7,6 +7,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
 
@@ -31,6 +32,14 @@
 		compatible = "gpio-keys";
 		pinctrl-0 = <&gpio_keys_default>;
 		pinctrl-names = "default";
+
+		button-sleep {
+			label = "Sleep Key";
+			linux,code = <KEY_SLEEP>;
+			gpios = <&tlmm 69 GPIO_ACTIVE_HIGH>;
+			debounce-interval = <60>;
+			wakeup-source;
+		};
 
 		button-home {
 			label = "Home Key";
@@ -176,6 +185,109 @@
 };
 
 &cci1_i2c1 {
+	led-controller@22 {
+		compatible = "nxp,pca9635";
+		reg = <0x22>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		multi-led@0 {
+			reg = <0>;
+			color = <LED_COLOR_ID_RGB>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			led@0 {
+				reg = <0>;
+				color = <LED_COLOR_ID_RED>;
+			};
+
+			led@1 {
+				reg = <1>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@2 {
+				reg = <2>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+		};
+
+		multi-led@1 {
+			reg = <1>;
+			color = <LED_COLOR_ID_RGB>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			led@3 {
+				reg = <3>;
+				color = <LED_COLOR_ID_RED>;
+			};
+
+			led@4 {
+				reg = <4>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@5 {
+				reg = <5>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+		};
+
+		multi-led@2 {
+			reg = <2>;
+			color = <LED_COLOR_ID_RGB>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			led@6 {
+				reg = <6>;
+				color = <LED_COLOR_ID_RED>;
+			};
+
+			led@7 {
+				reg = <7>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@8 {
+				reg = <8>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+		};
+
+		multi-led@3 {
+			reg = <3>;
+			color = <LED_COLOR_ID_RGB>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			led@9 {
+				reg = <9>;
+				color = <LED_COLOR_ID_RED>;
+			};
+
+			led@a {
+				reg = <10>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@b {
+				reg = <11>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+		};
+	};
+
 	fan_controller: fan-controller@2f {
 		compatible = "microchip,emc2305";
 		reg = <0x2f>;
@@ -452,26 +564,85 @@
 
 &thermal_zones {
 	cpuss-0-0-thermal {
-		polling-delay = <2000>;
-
 		trips {
-			cpuss0_active: cpuss-active {
-				temperature = <32000>;
-				hysteresis = <2000>;
+			cpuss0_active0: cpuss-active0 {
+				temperature = <50000>;
+				hysteresis = <4000>;
+				type = "active";
+			};
+
+			cpuss0_active1: cpuss-active1 {
+				temperature = <60000>;
+				hysteresis = <4000>;
+				type = "active";
+			};
+
+			cpuss0_active2: cpuss-active2 {
+				temperature = <70000>;
+				hysteresis = <4000>;
+				type = "active";
+			};
+
+			cpuss0_active3: cpuss-active3 {
+				temperature = <80000>;
+				hysteresis = <4000>;
 				type = "active";
 			};
 		};
 
 		cooling-maps {
-			map-active {
-				trip = <&cpuss0_active>;
-				cooling-device = <&fan 0 THERMAL_NO_LIMIT>;
+			map-active0 {
+				trip = <&cpuss0_active0>;
+				cooling-device = <&fan 4 4>;
+			};
+
+			map-active1 {
+				trip = <&cpuss0_active1>;
+				cooling-device = <&fan 6 6>;
+			};
+
+			map-active2 {
+				trip = <&cpuss0_active2>;
+				cooling-device = <&fan 8 8>;
+			};
+
+			map-active3 {
+				trip = <&cpuss0_active3>;
+				cooling-device = <&fan 10 THERMAL_NO_LIMIT>;
 			};
 		};
 	};
 };
 
 &tlmm {
+	gpio-line-names = "", "", "", "", "",
+			  "", "", "", "", "",
+			  "JMISC_SPI_MISO", "JMISC_SPI_MOSI", "JMISC_SPI_SCK", "JMISC_SPI_CS0", "JMISC_SPI_CS1",
+			  "JMISC_CS2", "", "JHAT_P03_I2C_SDA", "JHAT_P05_I2C_SCL", "JHAT_P27_EEPROM_SDA",
+			  "JHAT_P28_EEPROM_SDL", "", "", "", "",
+			  "JHAT_P21_SPI_MISO", "JHAT_P19_SPI_MOSI", "JHAT_P23_SPI_SCLK", "JHAT_P24_SPI_CE0", "",
+			  "", "MCU_I2C1_SDA", "MCU_I2C1_SDL", "", "",
+			  "", "", "JOMEGA_SPI_SCK", "JOMEGA_SPI_CS", "JOMEGA_SPI_MISO",
+			  "JOMEGA_SPI_MOSI", "", "MCU_PG11", "JCTL_UART_DBG_TX", "JCTL_UART_DBG_RX",
+			  "", "", "MCU_BOOT0", "CYPD_SWCLK", "",
+			  "", "", "FORCE_USB_BOOT", "", "",
+			  "", "", "JMEDIA_SOC_CC0_SDA", "JMEDIA_SOC_CC0_SCL", "JMEDIA_SOC_CC1_SDA",
+			  "JMEDIA_SOC_CC1_SCL", "", "", "MCU_PG12", "",
+			  "FLAT0_P17_GPIO", "", "JMEDIA_SOC_CAM_MCLK0", "JMEDIA_SOC_CAM_MCLK1", "MCU_PG9",
+			  "MCU_PA13_SWDIO", "MCU_PA14_SWCLK", "", "JMISC_SOC_GPIO_0", "JMISC_SOC_GPIO_1",
+			  "FLAT1_P17_GPIO", "", "JHAT_P32_PWM0", "MCU_NRST", "USER_BUTTON",
+			  "JHAT_P31_GPIO", "JHAT_P33_GPIO",  "FLAT2_P17_GPIO", "JHAT_P07_GPCLK0", "JHAT_P36_UART_CTS",
+			  "JHAT_P11_UART_RFR", "JHAT_P08_UART_TX", "JHAT_P10_UART_RX", "JHAT_P26_SPI_CE1", "JHAT_P29_GPIO",
+			  "JHAT_P15_GPIO", "", "MCU_PG10", "", "CYPD_SWDIO",
+			  "MCU_PG13", "MCU_PG14", "", "", "",
+			  "", "", "", "", "CYPD_NRES",
+			  "JHAT_P16_GPIO", "JHAT_P18_GPIO", "JHAT_P22_GPIO", "JHAT_P37_GPIO", "JHAT_P13_GPIO",
+			  "", "", "", "", "",
+			  "", "JHAT_P12_PCM_CLK", "JHAT_P35_PCM_FS", "JHAT_P38_PCM_DIN", "JHAT_P40_PCM_DOUT",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "";
+
 	pcie0_default_state: pcie0-default-state {
 		wake-pins {
 			pins = "gpio0";
@@ -547,9 +718,17 @@
 	};
 
 	gpio_keys_default: gpio-keys-default-state {
-		pins = "gpio79";
-		function = "gpio";
-		bias-disable;
+		horizontal-button-pins {
+			pins = "gpio69";
+			function = "gpio";
+			bias-pull-down;
+		};
+
+		vertical-button-pins {
+			pins = "gpio79";
+			function = "gpio";
+			bias-disable;
+		};
 	};
 
 	adv7535_default: adv7535-default-state {

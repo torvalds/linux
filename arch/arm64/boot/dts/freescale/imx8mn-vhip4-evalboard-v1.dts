@@ -13,6 +13,11 @@
 		     "ifm,imx8mn-vhip4", "fsl,imx8mn";
 };
 
+&cfg_eeprom {
+	/* Shared with logging EEPROM on v1 hardware */
+	wp-gpios = <&gpio5 20 GPIO_ACTIVE_HIGH>;
+};
+
 &ifm_led {
 	pinctrl-1 = <&pinctrl_gpio_led_v1>;
 
@@ -91,6 +96,9 @@
 	eeprom@50 {
 		compatible = "atmel,24c128";
 		reg = <0x50>;
+		label = "ifm-logging";
+		/* Shared with configuration EEPROM on v1 hardware */
+		wp-gpios = <&gpio5 20 GPIO_ACTIVE_HIGH>;
 	};
 };
 

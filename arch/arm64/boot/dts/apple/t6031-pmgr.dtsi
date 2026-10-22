@@ -1383,6 +1383,7 @@
 		#reset-cells = <0>;
 		label = DIE_LABEL(afi_d2d_0);
 		apple,always-on;
+
 		status = "disabled";
 	};
 
@@ -1393,6 +1394,7 @@
 		#reset-cells = <0>;
 		label = DIE_LABEL(afi_d2d_1);
 		apple,always-on;
+
 		status = "disabled";
 	};
 
@@ -1403,6 +1405,7 @@
 		#reset-cells = <0>;
 		label = DIE_LABEL(afc_d2d_0);
 		apple,always-on;
+
 		status = "disabled";
 	};
 
@@ -1413,6 +1416,7 @@
 		#reset-cells = <0>;
 		label = DIE_LABEL(afc_d2d_1);
 		apple,always-on;
+
 		status = "disabled";
 	};
 
@@ -1423,6 +1427,7 @@
 		#reset-cells = <0>;
 		label = DIE_LABEL(afr_d2d_0);
 		apple,always-on;
+
 		status = "disabled";
 	};
 
@@ -1433,6 +1438,7 @@
 		#reset-cells = <0>;
 		label = DIE_LABEL(afr_d2d_1);
 		apple,always-on;
+
 		status = "disabled";
 	};
 

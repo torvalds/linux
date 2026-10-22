@@ -196,12 +196,17 @@ properties:
           - const: ultratronik,stm32mp157c-ultra-fly-sbc
           - const: st,stm32mp157
 
-      - description: ST STM32MP257 based Boards
+      - description: ST STM32MP215 based Boards
         items:
           - enum:
-              - st,stm32mp257f-dk
-              - st,stm32mp257f-ev1
-          - const: st,stm32mp257
+              - st,stm32mp215f-dk
+          - const: st,stm32mp215
+
+      - description: DH STM32MP231 DHCOS SoM based Boards
+        items:
+          - const: dh,stm32mp231a-dhcos-bb
+          - const: dh,stm32mp231a-dhcos-som
+          - const: st,stm32mp231
 
       - description: ST STM32MP235 based Boards
         items:
@@ -209,11 +214,31 @@ properties:
               - st,stm32mp235f-dk
           - const: st,stm32mp235
 
-      - description: ST STM32MP215 based Boards
+      - description: DH STM32MP251 DHCOS SoM based Boards
+        items:
+          - const: dh,stm32mp251a-dhcos-bb
+          - const: dh,stm32mp251a-dhcos-som
+          - const: st,stm32mp251
+
+      - description: DH STM32MP255 DHCOS SoM based Boards
+        items:
+          - const: dh,stm32mp255c-dhcos-dhsbc
+          - const: dh,stm32mp255c-dhcos-som
+          - const: st,stm32mp255
+
+      - description: Engicam MicroGEA STM32MP257 SoM based Boards
         items:
           - enum:
-              - st,stm32mp215f-dk
-          - const: st,stm32mp215
+              - engicam,microgea-stm32mp257d-rmm
+          - const: engicam,microgea-stm32mp257
+          - const: st,stm32mp257
+
+      - description: ST STM32MP257 based Boards
+        items:
+          - enum:
+              - st,stm32mp257f-dk
+              - st,stm32mp257f-ev1
+          - const: st,stm32mp257
 
 additionalProperties: true
 

@@ -1455,5 +1455,7 @@
 };
 
 &wifi {
+	qcom,calibration-variant = "Nothing_Spacewar";
+
 	status = "okay";
 };

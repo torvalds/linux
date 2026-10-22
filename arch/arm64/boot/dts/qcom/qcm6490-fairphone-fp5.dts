@@ -196,6 +196,17 @@
 		pinctrl-names = "default";
 	};
 
+	vph_pwr: regulator-vph-pwr {
+		compatible = "regulator-fixed";
+
+		regulator-name = "vph_pwr";
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
+
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vreg_vtof_ldo_2p8: regulator-vtof-ldo-2p8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VTOF_LDO_2P8";
@@ -372,6 +383,18 @@
 &apps_rsc {
 	regulators-0 {
 		compatible = "qcom,pm7325-rpmh-regulators";
+
+		vdd-l1-l4-l12-l15-supply = <&vreg_s7b>;
+		vdd-l2-l7-supply = <&vreg_bob>;
+		vdd-l6-l9-l10-supply = <&vreg_s8b>;
+		vdd-l8-supply = <&vreg_s7b>;
+		vdd-l11-l17-l18-l19-supply = <&vreg_s1b>;
+		vdd-l13-supply = <&vreg_s7b>;
+		vdd-l14-l16-supply = <&vreg_s8b>;
+		vdd-s1-supply = <&vph_pwr>;
+		vdd-s7-supply = <&vph_pwr>;
+		vdd-s8-supply = <&vph_pwr>;
+
 		qcom,pmic-id = "b";
 
 		vreg_s1b: smps1 {
@@ -379,6 +402,12 @@
 			regulator-min-microvolt = <1840000>;
 			regulator-max-microvolt = <2040000>;
 		};
+
+		/*
+		 * s2b (smps2) is ebi.lvl
+		 * s3b-s4b-s5b (smps3-smps4-smps5) is VDD_APC1
+		 * s6b (smps6) is VDD_APC0
+		 */
 
 		vreg_s7b: smps7 {
 			regulator-name = "vreg_s7b";
@@ -414,6 +443,11 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
+		/*
+		 * l4b (ldo4) is lmx.lvl
+		 * l5b (ldo5) is lcx.lvl
+		 */
+
 		vreg_l6b: ldo6 {
 			regulator-name = "vreg_l6b";
 			regulator-min-microvolt = <1140000>;
@@ -442,6 +476,8 @@
 			regulator-max-microvolt = <1304000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
+
+		/* l10b (ldo10) is PMK7325 VDD_ACTIVE */
 
 		vreg_l11b: ldo11 {
 			regulator-name = "vreg_l11b";
@@ -509,6 +545,16 @@
 
 	regulators-1 {
 		compatible = "qcom,pm8350c-rpmh-regulators";
+
+		vdd-bob-supply = <&vph_pwr>;
+		vdd-l1-l12-supply = <&vreg_s1b>;
+		vdd-l2-l8-supply = <&vreg_s1b>;
+		vdd-l3-l4-l5-l7-l13-supply = <&vreg_bob>;
+		vdd-l6-l9-l11-supply = <&vreg_bob>;
+		vdd-l10-supply = <&vreg_s7b>;
+		vdd-s1-supply = <&vph_pwr>;
+		vdd-s9-supply = <&vph_pwr>;
+
 		qcom,pmic-id = "c";
 
 		vreg_s1c: smps1 {
@@ -518,12 +564,20 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
+		/*
+		 * s2c-s3c-s4c (smps2-smps3-smps4) is cx.lvl
+		 * s5c-s6c (smps5-smps6) is mss.lvl
+		 * s7c-s8c (smps7-smps8) is gfx.lvl
+		 */
+
 		vreg_s9c: smps9 {
 			regulator-name = "vreg_s9c";
 			regulator-min-microvolt = <1010000>;
 			regulator-max-microvolt = <1170000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
+
+		/* s10c (smps10) is mx.lvl */
 
 		vreg_l1c: ldo1 {
 			regulator-name = "vreg_l1c";

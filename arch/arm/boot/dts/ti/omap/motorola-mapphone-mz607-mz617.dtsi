@@ -4,6 +4,8 @@
 #include "motorola-mapphone-common.dtsi"
 
 &keypad {
+	status = "okay";
+
 	keypad,num-rows = <8>;
 	keypad,num-columns = <8>;
 	linux,keymap = <MATRIX_KEY(5, 0, KEY_VOLUMEUP)>,

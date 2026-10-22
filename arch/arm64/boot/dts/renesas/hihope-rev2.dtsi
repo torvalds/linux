@@ -13,14 +13,14 @@
 	leds {
 		compatible = "gpio-leds";
 
-		bt_active_led {
+		bt-active-led {
 			label = "blue:bt";
 			gpios = <&gpio7  0 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "hci0-power";
 			default-state = "off";
 		};
 
-		wlan_active_led {
+		wlan-active-led {
 			label = "yellow:wlan";
 			gpios = <&gpio7  1 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "phy0tx";
@@ -28,7 +28,7 @@
 		};
 	};
 
-	wlan_en_reg: regulator-wlan_en {
+	wlan_en_reg: regulator-wlan-en {
 		compatible = "regulator-fixed";
 		regulator-name = "wlan-en-regulator";
 		regulator-min-microvolt = <1800000>;
@@ -57,7 +57,7 @@
 };
 
 &pfc {
-	sound_clk_pins: sound_clk {
+	sound_clk_pins: sound-clk {
 		groups = "audio_clk_a_a";
 		function = "audio_clk";
 	};

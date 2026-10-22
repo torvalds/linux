@@ -5,6 +5,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/leds/common.h>
 #include "msm8917-xiaomi-wingtech.dtsi"
 
 / {
@@ -12,6 +13,10 @@
 	compatible = "xiaomi,riva", "qcom,msm8917";
 
 	qcom,board-id = <0x1000b 1>, <0x1000b 2>;
+
+	chosen {
+		stdout-path = &blsp1_uart2;
+	};
 
 	battery: battery {
 		compatible = "simple-battery";
@@ -23,6 +28,36 @@
 		charge-term-current-microamp = <60000>;
 		voltage-min-design-microvolt = <3400000>;
 	};
+
+	vibrator {
+		compatible = "gpio-vibrator";
+		enable-gpios = <&tlmm 97 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&vph_pwr>;
+	};
+};
+
+&blsp1_i2c2 {
+	status = "okay";
+
+	led-controller@45 {
+		compatible = "awinic,aw2013";
+		reg = <0x45>;
+		vcc-supply = <&pm8937_l10>;
+		vio-supply = <&pm8937_l5>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@0 {
+			reg = <0>;
+			led-max-microamp = <5000>;
+			function = LED_FUNCTION_INDICATOR;
+			color = <LED_COLOR_ID_WHITE>;
+		};
+	};
+};
+
+&blsp1_uart2 {
+	status = "okay";
 };
 
 &blsp2_i2c1 {
