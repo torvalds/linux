@@ -157,16 +157,18 @@ void quicki2c_hid_remove(struct quicki2c_device *qcdev)
  *
  * @qcdev: point to quicki2c device
  * @data: point to input report data buffer
+ * @buf_size: the allocated size of the input report data buffer
  * @data_len: the length of input report data
  *
  * Return: 0 on success, non zero on error.
  */
 int quicki2c_hid_send_report(struct quicki2c_device *qcdev,
-			     void *data, size_t data_len)
+			     void *data, size_t buf_size, size_t data_len)
 {
 	int ret;
 
-	ret = hid_input_report(qcdev->hid_dev, HID_INPUT_REPORT, data, data_len, 1);
+	ret = hid_safe_input_report(qcdev->hid_dev, HID_INPUT_REPORT, data,
+				    buf_size, data_len, 1);
 	if (ret)
 		dev_err(qcdev->dev, "Failed to send HID input report, ret = %d.\n", ret);
 

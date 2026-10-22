@@ -527,15 +527,6 @@ config HID_KYE
 	- MousePen i608X tablet
 	- EasyPen M610X tablet
 
-config HID_KYSONA
-	tristate "Kysona devices"
-	depends on USB_HID
-	help
-	Support for Kysona mice.
-
-	Say Y here if you have a Kysona M600 mouse
-	and want to be able to read its battery capacity.
-
 config HID_UCLOGIC
 	tristate "UC-Logic"
 	depends on USB_HID
@@ -867,12 +858,16 @@ config HID_NINTENDO
 	tristate "Nintendo Joy-Con, NSO, and Pro Controller support"
 	depends on NEW_LEDS
 	depends on LEDS_CLASS
+	depends on USB_HID
 	select POWER_SUPPLY
 	help
-	Adds support for the Nintendo Switch Joy-Cons, NSO, Pro Controller.
-	All controllers support bluetooth, and the Pro Controller also supports
-	its USB mode. This also includes support for the Nintendo Switch Online
-	Controllers which include the NES, Genesis, SNES, and N64 controllers.
+	Adds support for the Nintendo Switch Joy-Cons, NSO, Pro Controller, as
+	well as Nintendo Switch 2 Joy-Cons, Pro Controller, and NSO GameCube
+	controllers. All Switch controllers support bluetooth, and the Pro
+	Controller also supports its USB mode. This also includes support for
+	the Nintendo Switch Online Controllers which include the NES, Genesis,
+	SNES, and N64 controllers. Switch 2 controllers currently only support
+	USB mode.
 
 	To compile this driver as a module, choose M here: the
 	module will be called hid-nintendo.
@@ -882,10 +877,21 @@ config NINTENDO_FF
 	depends on HID_NINTENDO
 	select INPUT_FF_MEMLESS
 	help
-	Say Y here if you have a Nintendo Switch controller and want to enable
-	force feedback support for it. This works for both joy-cons, the pro
-	controller, and the NSO N64 controller. For the pro controller, both
-	rumble motors can be controlled individually.
+	Say Y here if you have a Nintendo Switch or Switch 2 controller and want
+	to enable force feedback support for it. This works for Joy-Cons, the Pro
+	Controllers, and the NSO N64 and GameCube controller. For the Pro
+	Controller, both rumble motors can be controlled individually.
+
+config NINTENDO_SWITCH2_USB
+	tristate "Wired Nintendo Switch 2 controller support"
+	depends on HID_NINTENDO
+	depends on USB
+	help
+	Say Y here if you want to enable support for wired Nintendo Switch 2
+	controllers.
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-nintendo-switch2-usb.
 
 config HID_NTI
 	tristate "NTI keyboard adapters"
@@ -1358,6 +1364,18 @@ config HID_UNIVERSAL_PIDFF
 	  high precision direct drive devices.
 
 	  Supports Moza Racing, Cammus, VRS, FFBeast and more.
+
+config HID_PULSAR
+	tristate "Pulsar gaming mouse support"
+	depends on USB_HID
+	select POWER_SUPPLY
+	help
+	  Support for Pulsar gaming mice (X2 V2, X2H, X2A, Xlite V3)
+	  connected via 1kHz/4kHz USB dongle or wired.
+	  Provides battery level, voltage, and charging status
+	  monitoring via the power supply framework.
+
+	  Additional supported devices: Kysona M600, ATK VXE R1 SE+
 
 config HID_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"

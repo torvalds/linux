@@ -56,6 +56,12 @@ static int appletb_tb_idle_timeout = 15;
 module_param_named(idle_timeout, appletb_tb_idle_timeout, int, 0644);
 MODULE_PARM_DESC(idle_timeout, "Idle timeout in sec");
 
+static int appletb_tb_double_press_switch_time;
+module_param_named(double_press_switch_time,
+		   appletb_tb_double_press_switch_time, int, 0644);
+MODULE_PARM_DESC(double_press_switch_time,
+		 "Fn double-press interval in ms (0 disables layer switching)");
+
 struct appletb_kbd {
 	struct hid_field *mode_field;
 	struct input_handler inp_handler;
@@ -68,6 +74,7 @@ struct appletb_kbd {
 	bool has_turned_off;
 	u8 saved_mode;
 	u8 current_mode;
+	unsigned long last_fn_press;
 };
 
 static const struct key_entry appletb_kbd_keymap[] = {
@@ -87,10 +94,27 @@ static const struct key_entry appletb_kbd_keymap[] = {
 	{ KE_END, 0 }
 };
 
-static int appletb_kbd_set_mode(struct appletb_kbd *kbd, u8 mode)
+static int appletb_kbd_set_mode_active(struct appletb_kbd *kbd, u8 mode)
 {
 	struct hid_report *report = kbd->mode_field->report;
 	struct hid_device *hdev = report->device;
+	int ret;
+
+	ret = hid_set_field(kbd->mode_field, 0, mode);
+	if (ret) {
+		hid_err(hdev, "Failed to set mode field to %u (%pe)\n", mode, ERR_PTR(ret));
+		return ret;
+	}
+
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
+
+	kbd->current_mode = mode;
+	return 0;
+}
+
+static int appletb_kbd_set_mode(struct appletb_kbd *kbd, u8 mode)
+{
+	struct hid_device *hdev = kbd->mode_field->report->device;
 	int ret;
 
 	ret = hid_hw_power(hdev, PM_HINT_FULLON);
@@ -99,17 +123,8 @@ static int appletb_kbd_set_mode(struct appletb_kbd *kbd, u8 mode)
 		return ret;
 	}
 
-	ret = hid_set_field(kbd->mode_field, 0, mode);
-	if (ret) {
-		hid_err(hdev, "Failed to set mode field to %u (%pe)\n", mode, ERR_PTR(ret));
-		goto power_normal;
-	}
+	ret = appletb_kbd_set_mode_active(kbd, mode);
 
-	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
-
-	kbd->current_mode = mode;
-
-power_normal:
 	hid_hw_power(hdev, PM_HINT_NORMAL);
 
 	return ret;
@@ -243,6 +258,18 @@ static int appletb_kbd_hid_event(struct hid_device *hdev, struct hid_field *fiel
 	return kbd->current_mode == APPLETB_KBD_MODE_OFF;
 }
 
+static u8 appletb_switch_mode(u8 mode)
+{
+	switch (mode) {
+	case APPLETB_KBD_MODE_SPCL:
+		return APPLETB_KBD_MODE_FN;
+	case APPLETB_KBD_MODE_FN:
+		return APPLETB_KBD_MODE_SPCL;
+	default:
+		return mode;
+	}
+}
+
 static void appletb_kbd_inp_event(struct input_handle *handle, unsigned int type,
 			      unsigned int code, int value)
 {
@@ -250,15 +277,36 @@ static void appletb_kbd_inp_event(struct input_handle *handle, unsigned int type
 
 	reset_inactivity_timer(kbd);
 
-	if (type == EV_KEY && code == KEY_FN && appletb_tb_fn_toggle &&
-		(kbd->current_mode == APPLETB_KBD_MODE_SPCL ||
-		 kbd->current_mode == APPLETB_KBD_MODE_FN)) {
+	if (type == EV_KEY && code == KEY_FN &&
+	    (kbd->current_mode == APPLETB_KBD_MODE_SPCL ||
+	     kbd->current_mode == APPLETB_KBD_MODE_FN)) {
 		if (value == 1) {
-			kbd->saved_mode = kbd->current_mode;
-			appletb_kbd_set_mode(kbd, kbd->current_mode == APPLETB_KBD_MODE_SPCL
-						? APPLETB_KBD_MODE_FN : APPLETB_KBD_MODE_SPCL);
+			if (appletb_tb_double_press_switch_time > 0) {
+				unsigned long now = jiffies;
+
+				if (time_before(now, kbd->last_fn_press +
+					msecs_to_jiffies(appletb_tb_double_press_switch_time))) {
+					appletb_tb_def_mode =
+						appletb_switch_mode(appletb_tb_def_mode);
+
+					appletb_kbd_set_mode(kbd, appletb_tb_def_mode);
+
+					kbd->saved_mode = appletb_tb_def_mode;
+					kbd->last_fn_press = 0;
+
+					return;
+				}
+
+				kbd->last_fn_press = now;
+			}
+			if (appletb_tb_fn_toggle) {
+				kbd->saved_mode = kbd->current_mode;
+
+				appletb_kbd_set_mode(kbd, appletb_switch_mode(kbd->current_mode));
+			}
 		} else if (value == 0) {
-			if (kbd->saved_mode != kbd->current_mode)
+			if (appletb_tb_fn_toggle &&
+			    kbd->saved_mode != kbd->current_mode)
 				appletb_kbd_set_mode(kbd, kbd->saved_mode);
 		}
 	}
@@ -487,18 +535,19 @@ static int appletb_kbd_suspend(struct hid_device *hdev, pm_message_t msg)
 	struct appletb_kbd *kbd = hid_get_drvdata(hdev);
 
 	kbd->saved_mode = kbd->current_mode;
-	appletb_kbd_set_mode(kbd, APPLETB_KBD_MODE_OFF);
 
-	return 0;
+	/* This callback already runs as part of a USB PM transition. Taking a
+	 * nested runtime-PM reference would wait for that transition to complete
+	 * and deadlock the USB PM state machine.
+	 */
+	return appletb_kbd_set_mode_active(kbd, APPLETB_KBD_MODE_OFF);
 }
 
 static int appletb_kbd_resume(struct hid_device *hdev)
 {
 	struct appletb_kbd *kbd = hid_get_drvdata(hdev);
 
-	appletb_kbd_set_mode(kbd, kbd->saved_mode);
-
-	return 0;
+	return appletb_kbd_set_mode_active(kbd, kbd->saved_mode);
 }
 
 static const struct hid_device_id appletb_kbd_hid_ids[] = {

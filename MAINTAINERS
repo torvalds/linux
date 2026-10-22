@@ -1333,6 +1333,7 @@ AMD SENSOR FUSION HUB DRIVER
 M:	Basavaraj Natikar <basavaraj.natikar@amd.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
+F:	Documentation/ABI/testing/sysfs-driver-amd-sfh
 F:	Documentation/hid/amd-sfh*
 F:	drivers/hid/amd-sfh-hid/
 F:	drivers/input/misc/amd_sfh_tabletmode.c
@@ -11696,6 +11697,12 @@ L:	linux-input@vger.kernel.org
 S:	Supported
 F:	drivers/hid/hid-playstation.c
 
+HID PULSAR DRIVER
+M:	Nikolas Koesling <nikolas@koesling.info>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/hid/hid-pulsar.c
+
 HID SENSOR HUB DRIVERS
 M:	Jiri Kosina <jikos@kernel.org>
 M:	Jonathan Cameron <jic23@kernel.org>
@@ -19450,6 +19457,7 @@ F:	drivers/scsi/nsp32*
 
 NINTENDO HID DRIVER
 M:	Daniel J. Ogorchock <djogorchock@gmail.com>
+M:	Vicki Pfau <vi@endrift.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-nintendo*
