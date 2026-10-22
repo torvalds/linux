@@ -12,23 +12,21 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#define MAILBOX_A2B_INTEN		0x00
-#define MAILBOX_A2B_STATUS		0x04
-#define MAILBOX_A2B_CMD(x)		(0x08 + (x) * 8)
-#define MAILBOX_A2B_DAT(x)		(0x0c + (x) * 8)
+#define ROCKCHIP_MAILBOX_A2B_INTEN		0x00
+#define ROCKCHIP_MAILBOX_A2B_STATUS		0x04
+#define ROCKCHIP_MAILBOX_A2B_CMD(x)		(0x08 + (x) * 8)
+#define ROCKCHIP_MAILBOX_A2B_DAT(x)		(0x0c + (x) * 8)
 
-#define MAILBOX_B2A_INTEN		0x28
-#define MAILBOX_B2A_STATUS		0x2C
-#define MAILBOX_B2A_CMD(x)		(0x30 + (x) * 8)
-#define MAILBOX_B2A_DAT(x)		(0x34 + (x) * 8)
+#define ROCKCHIP_MAILBOX_B2A_INTEN		0x28
+#define ROCKCHIP_MAILBOX_B2A_STATUS		0x2C
+#define ROCKCHIP_MAILBOX_B2A_CMD(x)		(0x30 + (x) * 8)
+#define ROCKCHIP_MAILBOX_B2A_DAT(x)		(0x34 + (x) * 8)
+
+#define ROCKCHIP_MAILBOX_NUM_CHANS		4
 
 struct rockchip_mbox_msg {
 	u32 cmd;
 	int rx_size;
-};
-
-struct rockchip_mbox_data {
-	int num_chans;
 };
 
 struct rockchip_mbox_chan {
@@ -68,9 +66,10 @@ static int rockchip_mbox_send_data(struct mbox_chan *chan, void *data)
 
 	mb->chans[chans->idx].msg = msg;
 
-	writel_relaxed(msg->cmd, mb->mbox_base + MAILBOX_A2B_CMD(chans->idx));
+	writel_relaxed(msg->cmd, mb->mbox_base +
+		       ROCKCHIP_MAILBOX_A2B_CMD(chans->idx));
 	writel_relaxed(msg->rx_size, mb->mbox_base +
-		       MAILBOX_A2B_DAT(chans->idx));
+		       ROCKCHIP_MAILBOX_A2B_DAT(chans->idx));
 
 	return 0;
 }
@@ -81,7 +80,7 @@ static int rockchip_mbox_startup(struct mbox_chan *chan)
 
 	/* Enable all B2A interrupts */
 	writel_relaxed((1 << mb->mbox.num_chans) - 1,
-		       mb->mbox_base + MAILBOX_B2A_INTEN);
+		       mb->mbox_base + ROCKCHIP_MAILBOX_B2A_INTEN);
 
 	return 0;
 }
@@ -92,7 +91,7 @@ static void rockchip_mbox_shutdown(struct mbox_chan *chan)
 	struct rockchip_mbox_chan *chans = mb->chans;
 
 	/* Disable all B2A interrupts */
-	writel_relaxed(0, mb->mbox_base + MAILBOX_B2A_INTEN);
+	writel_relaxed(0, mb->mbox_base + ROCKCHIP_MAILBOX_B2A_INTEN);
 
 	mb->chans[chans->idx].msg = NULL;
 }
@@ -107,13 +106,13 @@ static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 {
 	int idx;
 	struct rockchip_mbox *mb = (struct rockchip_mbox *)dev_id;
-	u32 status = readl_relaxed(mb->mbox_base + MAILBOX_B2A_STATUS);
+	u32 status = readl_relaxed(mb->mbox_base + ROCKCHIP_MAILBOX_B2A_STATUS);
 
 	for (idx = 0; idx < mb->mbox.num_chans; idx++) {
 		if ((status & (1 << idx)) && (irq == mb->chans[idx].irq)) {
 			/* Clear mbox interrupt */
 			writel_relaxed(1 << idx,
-				       mb->mbox_base + MAILBOX_B2A_STATUS);
+				       mb->mbox_base + ROCKCHIP_MAILBOX_B2A_STATUS);
 			return IRQ_WAKE_THREAD;
 		}
 	}
@@ -150,20 +149,15 @@ static irqreturn_t rockchip_mbox_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static const struct rockchip_mbox_data rk3368_drv_data = {
-	.num_chans = 4,
-};
-
 static const struct of_device_id rockchip_mbox_of_match[] = {
-	{ .compatible = "rockchip,rk3368-mailbox", .data = &rk3368_drv_data},
-	{ },
+	{ .compatible = "rockchip,rk3368-mailbox" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rockchip_mbox_of_match);
 
 static int rockchip_mbox_probe(struct platform_device *pdev)
 {
 	struct rockchip_mbox *mb;
-	const struct rockchip_mbox_data *drv_data;
 	struct resource *res;
 	struct clk *pclk;
 	int ret, irq, i;
@@ -171,13 +165,13 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	drv_data = (const struct rockchip_mbox_data *) device_get_match_data(&pdev->dev);
-
-	mb = devm_kzalloc(&pdev->dev, struct_size(mb, chans, drv_data->num_chans), GFP_KERNEL);
+	mb = devm_kzalloc(&pdev->dev,
+			  struct_size(mb, chans, ROCKCHIP_MAILBOX_NUM_CHANS),
+			  GFP_KERNEL);
 	if (!mb)
 		return -ENOMEM;
 
-	mb->mbox.chans = devm_kcalloc(&pdev->dev, drv_data->num_chans,
+	mb->mbox.chans = devm_kcalloc(&pdev->dev, ROCKCHIP_MAILBOX_NUM_CHANS,
 				      sizeof(*mb->mbox.chans), GFP_KERNEL);
 	if (!mb->mbox.chans)
 		return -ENOMEM;
@@ -185,7 +179,7 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mb);
 
 	mb->mbox.dev = &pdev->dev;
-	mb->mbox.num_chans = drv_data->num_chans;
+	mb->mbox.num_chans = ROCKCHIP_MAILBOX_NUM_CHANS;
 	mb->mbox.ops = &rockchip_mbox_chan_ops;
 	mb->mbox.txdone_irq = true;
 
@@ -194,7 +188,7 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 		return PTR_ERR(mb->mbox_base);
 
 	/* Each channel has two buffers for A2B and B2A */
-	mb->buf_size = (size_t)resource_size(res) / (drv_data->num_chans * 2);
+	mb->buf_size = (size_t)resource_size(res) / (ROCKCHIP_MAILBOX_NUM_CHANS * 2);
 
 	pclk = devm_clk_get_enabled(&pdev->dev, "pclk_mailbox");
 	if (IS_ERR(pclk))
@@ -221,9 +215,9 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 
 	ret = devm_mbox_controller_register(&pdev->dev, &mb->mbox);
 	if (ret < 0)
-		dev_err(&pdev->dev, "Failed to register mailbox: %d\n", ret);
+		return dev_err_probe(&pdev->dev, ret, "Failed to register mailbox\n");
 
-	return ret;
+	return 0;
 }
 
 static struct platform_driver rockchip_mbox_driver = {

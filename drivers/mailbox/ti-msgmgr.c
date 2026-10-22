@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/soc/ti/ti-msgmgr.h>
+#include <linux/string.h>
 
 #define Q_DATA_OFFSET(proxy, queue, reg)	\
 		     ((0x10000 * (proxy)) + (0x80 * (queue)) + ((reg) * 4))
@@ -44,8 +45,8 @@
  * @is_tx:	Is this a receive path?
  */
 struct ti_msgmgr_valid_queue_desc {
-	u8 queue_id;
-	u8 proxy_id;
+	u16 queue_id;
+	u16 proxy_id;
 	bool is_tx;
 };
 
@@ -71,7 +72,7 @@ struct ti_msgmgr_valid_queue_desc {
  * for a specific compatible SoC is done.
  */
 struct ti_msgmgr_desc {
-	u8 queue_count;
+	u16 queue_count;
 	u8 max_message_size;
 	u8 max_messages;
 	u8 data_first_reg;
@@ -105,8 +106,8 @@ struct ti_msgmgr_desc {
  */
 struct ti_queue_inst {
 	char name[30];
-	u8 queue_id;
-	u8 proxy_id;
+	u16 queue_id;
+	u16 proxy_id;
 	int irq;
 	bool is_tx;
 	void __iomem *queue_buff_start;
@@ -138,7 +139,7 @@ struct ti_msgmgr_inst {
 	void __iomem *queue_proxy_region;
 	void __iomem *queue_state_debug_region;
 	void __iomem *queue_ctrl_region;
-	u8 num_valid_queues;
+	u16 num_valid_queues;
 	struct ti_queue_inst *qinsts;
 	struct mbox_controller mbox;
 	struct mbox_chan *chans;
@@ -425,10 +426,15 @@ static int ti_msgmgr_send_data(struct mbox_chan *chan, void *data)
 
 	trail_bytes = message->len % sizeof(u32);
 	if (trail_bytes) {
-		u32 data_trail = *word_data;
+		/*
+		 * Copy only the trailing bytes instead of reading a full u32,
+		 * as the message buffer may end right after them and a u32
+		 * read would go past the end of it. This also leaves all
+		 * unused data as 0.
+		 */
+		u32 data_trail = 0;
 
-		/* Ensure all unused data is 0 */
-		data_trail &= 0xFFFFFFFF >> (8 * (sizeof(u32) - trail_bytes));
+		memcpy(&data_trail, word_data, trail_bytes);
 		writel(data_trail, data_reg);
 		data_reg += sizeof(u32);
 	}
@@ -445,12 +451,24 @@ static int ti_msgmgr_send_data(struct mbox_chan *chan, void *data)
 		data_reg += sizeof(u32);
 	}
 
-	/* If we are in polled mode, wait for a response before proceeding */
-	if (ti_msgmgr_chan_has_polled_queue_rx(message->chan_rx))
+	/*
+	 * If we are in polled mode, wait for a response before proceeding.
+	 *
+	 * The message has already been transmitted at this point, so do not
+	 * report a missing response as a send failure. Doing so would make
+	 * the mailbox core keep the message queued and submit it again later,
+	 * after the client has possibly given up on it. The client detects the
+	 * missing response by itself timing out.
+	 */
+	if (ti_msgmgr_chan_has_polled_queue_rx(message->chan_rx)) {
 		ret = ti_msgmgr_queue_rx_poll_timeout(message->chan_rx,
 						      message->timeout_rx_ms * 1000);
+		if (ret)
+			dev_err(dev, "Queue %s timed out waiting for response: %d\n",
+				qinst->name, ret);
+	}
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -466,7 +484,11 @@ static int ti_msgmgr_queue_rx_irq_req(struct device *dev,
 				      struct mbox_chan *chan)
 {
 	int ret = 0;
-	char of_rx_irq_name[7];
+	/*
+	 * To keep compiler happy about u16 proxy_id:
+	 * "rx_" + up to 5 digits of u16 id + NULL
+	 */
+	char of_rx_irq_name[9];
 	struct device_node *np;
 
 	snprintf(of_rx_irq_name, sizeof(of_rx_irq_name),
@@ -799,9 +821,24 @@ static const struct ti_msgmgr_desc am654_desc = {
 	.is_sproxy = true,
 };
 
+static const struct ti_msgmgr_desc tda54_main_desc = {
+	.queue_count = 444,
+	.num_valid_queues = 444,
+	.max_message_size = 60,
+	.data_region_name = "target_data",
+	.status_region_name = "rt",
+	.ctrl_region_name = "scfg",
+	.data_first_reg = 0,
+	.data_last_reg = 14,
+	.status_cnt_mask = SPROXY_THREAD_STATUS_COUNT_MASK,
+	.tx_polled = false,
+	.is_sproxy = true,
+};
+
 static const struct of_device_id ti_msgmgr_of_match[] = {
 	{.compatible = "ti,k2g-message-manager", .data = &k2g_desc},
 	{.compatible = "ti,am654-secure-proxy", .data = &am654_desc},
+	{.compatible = "ti,tda54-main-secure-proxy", .data = &tda54_main_desc},
 	{ /* Sentinel */ }
 };
 
