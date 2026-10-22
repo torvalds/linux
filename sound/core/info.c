@@ -738,6 +738,23 @@ static void snd_info_clear_entries(struct snd_info_entry *entry)
 }
 
 /**
+ * snd_info_disconnect_entry - remove proc nodes and drain their callbacks
+ * @entry: root of the info entry subtree
+ *
+ * Retains the info entries for snd_info_free_entry().  Callers must serialize
+ * registration and destruction, and must not hold locks needed by callbacks.
+ */
+void snd_info_disconnect_entry(struct snd_info_entry *entry)
+{
+	if (entry && entry->p) {
+		proc_remove(entry->p);
+		guard(mutex)(&info_mutex);
+		snd_info_clear_entries(entry);
+	}
+}
+EXPORT_SYMBOL(snd_info_disconnect_entry);
+
+/**
  * snd_info_free_entry - release the info entry
  * @entry: the info entry
  *
@@ -749,11 +766,7 @@ void snd_info_free_entry(struct snd_info_entry * entry)
 
 	if (!entry)
 		return;
-	if (entry->p) {
-		proc_remove(entry->p);
-		guard(mutex)(&info_mutex);
-		snd_info_clear_entries(entry);
-	}
+	snd_info_disconnect_entry(entry);
 
 	/* free all children at first */
 	list_for_each_entry_safe(p, n, &entry->children, list)
