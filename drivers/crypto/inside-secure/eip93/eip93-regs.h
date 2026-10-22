@@ -281,7 +281,7 @@
 #define   EIP93_SA_CMD_HASH_CRYPT_OFFSET	GENMASK(23, 16)
 #define   EIP93_SA_CMD_BYTE_OFFSET		BIT(13) /* 0: CRYPT_OFFSET in 32bit word 1: CRYPT_OFFSET in 8bit bytes */
 #define   EIP93_SA_CMD_HMAC			BIT(12)
-#define   EIP93_SA_CMD_SSL_MAC			BIT(12)
+#define   EIP93_SA_CMD_SSL_MAC			BIT(11)
 /* This mask can be either used for ARC4 or AES */
 #define   EIP93_SA_CMD_CHIPER_MODE		GENMASK(9, 8)
 /* AES or DES operations */

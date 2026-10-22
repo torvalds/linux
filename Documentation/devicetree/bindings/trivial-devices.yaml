@@ -69,6 +69,8 @@ properties:
           - asteralabs,pt5161l
             # ATECC508A - i2c h/w elliptic curve crypto module
           - atmel,atecc508a
+            # ATECC608A - i2c h/w elliptic curve crypto module
+          - atmel,atecc608a
             # ATECC608B - i2c h/w elliptic curve crypto module
           - atmel,atecc608b
             # ATSHA204 - i2c h/w symmetric crypto module

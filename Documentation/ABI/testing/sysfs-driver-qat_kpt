@@ -14,7 +14,8 @@ Contact:	qat-linux@intel.com
 Description:
 		(RW) Enables or disables Key Protection Technology (KPT).
 
-		Write 1 to enable KPT, or 0 to disable it.
+		Write 1 to enable KPT, or 0 to disable it. The device must be
+		in the down state before changing the KPT state.
 
 		Example usage::
 

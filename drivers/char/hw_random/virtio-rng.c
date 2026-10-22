@@ -81,13 +81,13 @@ static unsigned int copy_data(struct virtrng_info *vi, void *buf,
 	 * steered into adjacent slab memory, including under
 	 * speculation.
 	 */
-	avail = min_t(unsigned int, vi->data_avail, sizeof(vi->data));
+	avail = min(vi->data_avail, sizeof(vi->data));
 	if (vi->data_idx >= avail) {
 		vi->data_avail = 0;
 		request_entropy(vi);
 		return 0;
 	}
-	size = min_t(unsigned int, size, avail - vi->data_idx);
+	size = min(size, avail - vi->data_idx);
 	idx = array_index_nospec(vi->data_idx, sizeof(vi->data));
 	memcpy(buf, vi->data + idx, size);
 	vi->data_idx += size;
@@ -162,7 +162,7 @@ static int probe_common(struct virtio_device *vdev)
 		err = index;
 		goto err_ida;
 	}
-	sprintf(vi->name, "virtio_rng.%d", index);
+	snprintf(vi->name, sizeof(vi->name), "virtio_rng.%d", vi->index);
 	init_completion(&vi->have_data);
 
 	vi->hwrng = (struct hwrng) {

@@ -7,15 +7,6 @@
 #include "icp_qat_hw.h"
 #include <linux/pci.h>
 
-u32 adf_gen2_get_num_accels(struct adf_hw_device_data *self)
-{
-	if (!self || !self->accel_mask)
-		return 0;
-
-	return hweight16(self->accel_mask);
-}
-EXPORT_SYMBOL_GPL(adf_gen2_get_num_accels);
-
 u32 adf_gen2_get_num_aes(struct adf_hw_device_data *self)
 {
 	if (!self || !self->ae_mask)

@@ -412,7 +412,6 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	hw_data->enable_error_correction = adf_gen4_enable_error_correction;
 	hw_data->get_accel_mask = adf_gen4_get_accel_mask;
 	hw_data->get_ae_mask = get_ae_mask;
-	hw_data->get_num_accels = adf_gen4_get_num_accels;
 	hw_data->get_num_aes = adf_gen4_get_num_aes;
 	hw_data->get_sram_bar_id = adf_gen4_get_sram_bar_id;
 	hw_data->get_etr_bar_id = adf_gen4_get_etr_bar_id;

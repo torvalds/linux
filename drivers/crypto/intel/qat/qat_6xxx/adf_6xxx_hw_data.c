@@ -326,11 +326,6 @@ static u32 get_accel_mask(struct adf_hw_device_data *self)
 	return ADF_GEN6_ACCELERATORS_MASK;
 }
 
-static u32 get_num_accels(struct adf_hw_device_data *self)
-{
-	return ADF_GEN6_MAX_ACCELERATORS;
-}
-
 static u32 get_num_aes(struct adf_hw_device_data *self)
 {
 	return self ? hweight32(self->ae_mask) : 0;
@@ -1023,7 +1018,6 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	hw_data->enable_error_correction = enable_error_correction;
 	hw_data->get_accel_mask = get_accel_mask;
 	hw_data->get_ae_mask = get_ae_mask;
-	hw_data->get_num_accels = get_num_accels;
 	hw_data->get_num_aes = get_num_aes;
 	hw_data->get_sram_bar_id = get_sram_bar_id;
 	hw_data->get_etr_bar_id = get_etr_bar_id;

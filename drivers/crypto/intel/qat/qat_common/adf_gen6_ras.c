@@ -323,11 +323,23 @@ static void adf_handle_ti_cd_par_sts(struct adf_accel_dev *accel_dev, void __iom
 	u32 ti_cd_par_sts;
 
 	ti_cd_par_sts = ADF_CSR_RD(csr, ADF_GEN6_TI_CD_PAR_STS);
-	ti_cd_par_sts &= ADF_GEN6_TI_CD_PAR_STS_MASK;
+	ti_cd_par_sts &= ADF_GEN6_TI_CD_PAR_STS_TI_INT_ERR_DEVHALT_MASK;
 	if (ti_cd_par_sts) {
 		dev_err(&GET_DEV(accel_dev), "TI CD parity error: %#x\n", ti_cd_par_sts);
-		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 		ADF_CSR_WR(csr, ADF_GEN6_TI_CD_PAR_STS, ti_cd_par_sts);
+	}
+}
+
+static void adf_handle_ti_misc_cd_par_sts(struct adf_accel_dev *accel_dev, void __iomem *csr)
+{
+	u32 ti_misc_cd_par_sts;
+
+	ti_misc_cd_par_sts = ADF_CSR_RD(csr, ADF_GEN6_TI_CD_PAR_STS);
+	ti_misc_cd_par_sts &= ADF_GEN6_TI_CD_PAR_STS_TI_MISC_MASK;
+	if (ti_misc_cd_par_sts) {
+		dev_err(&GET_DEV(accel_dev), "TI MISC CD parity error: %#x\n", ti_misc_cd_par_sts);
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+		ADF_CSR_WR(csr, ADF_GEN6_TI_CD_PAR_STS, ti_misc_cd_par_sts);
 	}
 }
 
@@ -367,7 +379,6 @@ static void adf_handle_ti_err(struct adf_accel_dev *accel_dev, void __iomem *csr
 	adf_handle_ti_ci_par_sts(accel_dev, csr);
 	adf_handle_ti_pullfub_par_sts(accel_dev, csr);
 	adf_handle_ti_pushfub_par_sts(accel_dev, csr);
-	adf_handle_ti_cd_par_sts(accel_dev, csr);
 	adf_handle_ti_trnsb_par_sts(accel_dev, csr);
 	adf_handle_iosfp_cmd_parerr(accel_dev, csr);
 }
@@ -591,6 +602,8 @@ static void adf_handle_timiscsts(struct adf_accel_dev *accel_dev, void __iomem *
 	if (!(errsou & ADF_GEN6_ERRSOU3_TIMISCSTS_BIT))
 		return;
 
+	adf_handle_ti_misc_cd_par_sts(accel_dev, csr);
+
 	timiscsts = ADF_CSR_RD(csr, ADF_GEN6_TIMISCSTS);
 	if (timiscsts) {
 		dev_err(&GET_DEV(accel_dev), "Fatal error in transmit interface: %#x\n",
@@ -730,6 +743,7 @@ static void adf_handle_ti_int_err_devhalt(struct adf_accel_dev *accel_dev, void 
 	if (!(errsou & ADF_GEN6_ERRSOU3_TI_INT_ERR_DEVHALT_BIT))
 		return;
 
+	adf_handle_ti_cd_par_sts(accel_dev, csr);
 	dev_err(&GET_DEV(accel_dev), "DEVHALT due to a TI internal memory error\n");
 	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
 }

@@ -15,7 +15,7 @@
 
 #include <linux/types.h>
 
-/**
+/*
  * SEV platform commands
  */
 enum {
@@ -36,7 +36,7 @@ enum {
 	SEV_MAX,
 };
 
-/**
+/*
  * SEV Firmware status code
  */
 typedef enum {
@@ -109,8 +109,8 @@ typedef enum {
 /**
  * struct sev_user_data_status - PLATFORM_STATUS command parameters
  *
- * @major: major API version
- * @minor: minor API version
+ * @api_major: major API version
+ * @api_minor: minor API version
  * @state: platform state
  * @flags: platform config flags
  * @build: firmware build id for API version
@@ -139,12 +139,12 @@ struct sev_user_data_pek_csr {
 } __packed;
 
 /**
- * struct sev_user_data_cert_import - PEK_CERT_IMPORT command parameters
+ * struct sev_user_data_pek_cert_import - PEK_CERT_IMPORT command parameters
  *
- * @pek_address: PEK certificate chain
- * @pek_len: length of PEK certificate
- * @oca_address: OCA certificate chain
- * @oca_len: length of OCA certificate
+ * @pek_cert_address: PEK certificate chain
+ * @pek_cert_len: length of PEK certificate
+ * @oca_cert_address: OCA certificate chain
+ * @oca_cert_len: length of OCA certificate
  */
 struct sev_user_data_pek_cert_import {
 	__u64 pek_cert_address;			/* In */
@@ -156,8 +156,8 @@ struct sev_user_data_pek_cert_import {
 /**
  * struct sev_user_data_pdh_cert_export - PDH_CERT_EXPORT command parameters
  *
- * @pdh_address: PDH certificate address
- * @pdh_len: length of PDH certificate
+ * @pdh_cert_address: PDH certificate address
+ * @pdh_cert_len: length of PDH certificate
  * @cert_chain_address: PDH certificate chain
  * @cert_chain_len: length of PDH certificate chain
  */
@@ -248,7 +248,7 @@ struct sev_user_data_snp_config {
 } __packed;
 
 /**
- * struct sev_data_snp_vlek_load - SNP_VLEK_LOAD structure
+ * struct sev_user_data_snp_vlek_load - SNP_VLEK_LOAD structure
  *
  * @len: length of the command buffer read by the PSP
  * @vlek_wrapped_version: version of wrapped VLEK hashstick (Must be 0h)
@@ -264,7 +264,7 @@ struct sev_user_data_snp_vlek_load {
 } __packed;
 
 /**
- * struct sev_user_data_snp_vlek_wrapped_vlek_hashstick - Wrapped VLEK data
+ * struct sev_user_data_snp_wrapped_vlek_hashstick - Wrapped VLEK data
  *
  * @data: Opaque data provided by AMD KDS (as described in SEV-SNP Firmware ABI
  *        1.54, SNP_VLEK_LOAD)

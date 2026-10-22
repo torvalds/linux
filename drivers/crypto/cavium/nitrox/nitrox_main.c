@@ -468,7 +468,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 		err = -EIO;
 		goto ioremap_err;
 	}
-	/* allocate command queus based on cpus, max queues are 64 */
+	/* allocate command queues based on cpus, max queues are 64 */
 	ndev->nr_queues = min_t(u32, MAX_PF_QUEUES, num_online_cpus());
 	ndev->qlen = qlen;
 

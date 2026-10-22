@@ -1423,9 +1423,22 @@ static void ecc_point_add(const struct ecc_point *result,
 	vli_set(result->x, q->x, ndigits);
 	vli_set(result->y, q->y, ndigits);
 	vli_mod_sub(z, result->x, p->x, curve->p, ndigits);
+	if (vli_is_zero(z, ndigits)) {
+		if (vli_cmp(p->y, q->y, ndigits)) {
+			/* P + (-P) is the point at infinity. */
+			vli_clear(result->x, ndigits);
+			vli_clear(result->y, ndigits);
+			return;
+		}
+		/* The co-Z addition formula does not handle P == Q. */
+		z[0] = 1;
+		ecc_point_double_jacobian(result->x, result->y, z, curve);
+		goto out;
+	}
 	vli_set(px, p->x, ndigits);
 	vli_set(py, p->y, ndigits);
 	xycz_add(px, py, result->x, result->y, curve);
+out:
 	vli_mod_inv(z, z, curve->p, ndigits);
 	apply_z(result->x, result->y, z, curve);
 }
@@ -1465,22 +1478,38 @@ void ecc_point_mult_shamir(const struct ecc_point *result,
 	vli_set(rx, point->x, ndigits);
 	vli_set(ry, point->y, ndigits);
 	vli_clear(z + 1, ndigits - 1);
-	z[0] = 1;
+	z[0] = !ecc_point_is_zero(point);
 
 	for (--i; i >= 0; i--) {
 		ecc_point_double_jacobian(rx, ry, z, curve);
 		idx = !!vli_test_bit(u1, i);
 		idx |= (!!vli_test_bit(u2, i)) << 1;
 		point = points[idx];
-		if (point) {
+		if (point && !ecc_point_is_zero(point)) {
 			u64 tx[ECC_MAX_DIGITS];
 			u64 ty[ECC_MAX_DIGITS];
 			u64 tz[ECC_MAX_DIGITS];
 
+			if (vli_is_zero(z, ndigits)) {
+				/* Adding to infinity starts a new accumulator. */
+				vli_set(rx, point->x, ndigits);
+				vli_set(ry, point->y, ndigits);
+				z[0] = 1;
+				continue;
+			}
 			vli_set(tx, point->x, ndigits);
 			vli_set(ty, point->y, ndigits);
 			apply_z(tx, ty, z, curve);
 			vli_mod_sub(tz, rx, tx, curve->p, ndigits);
+			if (vli_is_zero(tz, ndigits)) {
+				if (!vli_cmp(ry, ty, ndigits))
+					ecc_point_double_jacobian(rx, ry, z,
+								  curve);
+				else
+					/* Adding opposite points yields infinity. */
+					vli_clear(z, ndigits);
+				continue;
+			}
 			xycz_add(tx, ty, rx, ry, curve);
 			vli_mod_mult_fast(z, z, tz, curve);
 		}

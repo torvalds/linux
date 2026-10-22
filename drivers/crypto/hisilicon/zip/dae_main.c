@@ -39,6 +39,8 @@
 #define DAE_AM_RETURN_MASK		0x3
 #define DAE_AXI_CFG_OFFSET		0x331000
 #define DAE_AXI_SHUTDOWN_EN_MASK	(BIT(0) | BIT(5))
+#define DAE_AUTO_CG_EN_OFFSET		0x331070
+#define DAE_AUTO_CG_EN_MASK		(~(BIT_ULL(4) | BIT_ULL(18) | BIT_ULL(19)))
 
 struct hisi_dae_hw_error {
 	u32 int_msk;
@@ -61,6 +63,17 @@ static inline bool dae_is_support(struct hisi_qm *qm)
 	return false;
 }
 
+static void hisi_dae_set_clock_gating(struct hisi_qm *qm, bool enable)
+{
+	if (qm->ver < QM_HW_V5)
+		return;
+
+	if (enable)
+		writeq(DAE_AUTO_CG_EN_MASK, qm->io_base + DAE_AUTO_CG_EN_OFFSET);
+	else
+		writeq(0, qm->io_base + DAE_AUTO_CG_EN_OFFSET);
+}
+
 int hisi_dae_set_user_domain(struct hisi_qm *qm)
 {
 	u32 val;
@@ -69,16 +82,22 @@ int hisi_dae_set_user_domain(struct hisi_qm *qm)
 	if (!dae_is_support(qm))
 		return 0;
 
+	hisi_dae_set_clock_gating(qm, false);
+
 	val = readl(qm->io_base + DAE_MEM_START_OFFSET);
 	val |= DAE_MEM_START_MASK;
 	writel(val, qm->io_base + DAE_MEM_START_OFFSET);
 	ret = readl_relaxed_poll_timeout(qm->io_base + DAE_MEM_DONE_OFFSET, val,
 					 val & DAE_MEM_DONE_MASK,
 					 DAE_REG_RD_INTVRL_US, DAE_REG_RD_TMOUT_US);
-	if (ret)
+	if (ret) {
 		pci_err(qm->pdev, "failed to init dae memory!\n");
+		return ret;
+	}
 
-	return ret;
+	hisi_dae_set_clock_gating(qm, true);
+
+	return 0;
 }
 
 int hisi_dae_set_alg(struct hisi_qm *qm)

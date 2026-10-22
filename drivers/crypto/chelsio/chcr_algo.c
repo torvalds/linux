@@ -1605,7 +1605,7 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 		req_ctx->hctx_wr.dma_addr = 0;
 	}
 	chcr_add_hash_src_ent(req, ulptx, param);
-	/* Request upto max wr size */
+	/* Request up to max wr size */
 	temp = param->kctx_len + DUMMY_BYTES + (req_ctx->hctx_wr.imm ?
 				(param->sg_len + param->bfr_len) : 0);
 	atomic_inc(&adap->chcr_stats.digest_rqst);

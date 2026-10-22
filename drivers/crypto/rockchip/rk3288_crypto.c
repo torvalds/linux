@@ -163,7 +163,7 @@ static void rk_crypto_pm_exit(struct rk_crypto_info *rkdev)
 
 static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 {
-	struct rk_crypto_info *dev  = platform_get_drvdata(dev_id);
+	struct rk_crypto_info *dev = dev_id;
 	u32 interrupt_status;
 
 	interrupt_status = CRYPTO_READ(dev, RK_CRYPTO_INTSTS);
@@ -363,7 +363,7 @@ static int rk_crypto_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, crypto_info->irq,
 			       rk_crypto_irq_handle, IRQF_SHARED,
-			       "rk-crypto", pdev);
+			       "rk-crypto", crypto_info);
 
 	if (err)
 		goto err_crypto;

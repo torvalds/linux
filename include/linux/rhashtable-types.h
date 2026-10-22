@@ -70,6 +70,12 @@ struct rhashtable_params {
 	rht_obj_cmpfn_t		obj_cmpfn;
 };
 
+struct rhashtable_lockdep_keys {
+	struct lock_class_key lock_key;
+	struct lock_class_key mutex_key;
+	struct lock_class_key bucket_key;
+};
+
 /**
  * struct rhashtable - Hash table handle
  * @tbl: Bucket table
@@ -96,6 +102,9 @@ struct rhashtable {
 	atomic_t			nelems;
 #ifdef CONFIG_MEM_ALLOC_PROFILING
 	struct alloc_tag		*alloc_tag;
+#endif
+#ifdef CONFIG_LOCKDEP
+	struct lock_class_key		*lockdep_key;
 #endif
 };
 
@@ -138,24 +147,77 @@ struct rhashtable_iter {
 
 int __rhashtable_init_noprof(struct rhashtable *ht,
 		    const struct rhashtable_params *params,
-		    struct lock_class_key *key);
+		    struct rhashtable_lockdep_keys *keys);
 #define rhashtable_init_noprof(ht, params)				\
 ({									\
-	static struct lock_class_key __key;				\
+	static struct rhashtable_lockdep_keys __keys;			\
 									\
-	__rhashtable_init_noprof(ht, params, &__key);			\
+	__rhashtable_init_noprof(ht, params, &__keys);			\
 })
+
+/**
+ * rhashtable_init - initialize a new hash table
+ * @ht:		hash table to be initialized
+ * @params:	configuration parameters
+ *
+ * Initializes a new hash table based on the provided configuration
+ * parameters. A table can be configured either with a variable or
+ * fixed length key:
+ *
+ * Configuration Example 1: Fixed length keys
+ * struct test_obj {
+ *	int			key;
+ *	void *			my_member;
+ *	struct rhash_head	node;
+ * };
+ *
+ * struct rhashtable_params params = {
+ *	.head_offset = offsetof(struct test_obj, node),
+ *	.key_offset = offsetof(struct test_obj, key),
+ *	.key_len = sizeof(int),
+ *	.hashfn = jhash,
+ * };
+ *
+ * Configuration Example 2: Variable length keys
+ * struct test_obj {
+ *	[...]
+ *	struct rhash_head	node;
+ * };
+ *
+ * u32 my_hash_fn(const void *data, u32 len, u32 seed)
+ * {
+ *	struct test_obj *obj = data;
+ *
+ *	return [... hash ...];
+ * }
+ *
+ * struct rhashtable_params params = {
+ *	.head_offset = offsetof(struct test_obj, node),
+ *	.hashfn = jhash,
+ *	.obj_hashfn = my_hash_fn,
+ * };
+ */
 #define rhashtable_init(...)	alloc_hooks(rhashtable_init_noprof(__VA_ARGS__))
 
 int __rhltable_init_noprof(struct rhltable *hlt,
 		  const struct rhashtable_params *params,
-		  struct lock_class_key *key);
+		  struct rhashtable_lockdep_keys *keys);
 #define rhltable_init_noprof(hlt, params)				\
 ({									\
-	static struct lock_class_key __key;				\
+	static struct rhashtable_lockdep_keys __keys;			\
 									\
-	__rhltable_init_noprof(hlt, params, &__key);			\
+	__rhltable_init_noprof(hlt, params, &__keys);			\
 })
+
+/**
+ * rhltable_init - initialize a new hash list table
+ * @hlt:	hash list table to be initialized
+ * @params:	configuration parameters
+ *
+ * Initializes a new hash list table.
+ *
+ * See documentation for rhashtable_init.
+ */
 #define rhltable_init(...)	alloc_hooks(rhltable_init_noprof(__VA_ARGS__))
 
 #endif /* _LINUX_RHASHTABLE_TYPES_H */

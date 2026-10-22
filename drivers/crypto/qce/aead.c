@@ -379,7 +379,7 @@ static int qce_aead_create_ccm_nonce(struct qce_aead_reqctx *rctx, struct qce_ae
 
 	/*
 	 * The crypto framework encodes cryptlen as unsigned int. Thus, even though
-	 * spec allows for upto 8 bytes to encode msg_len only 4 bytes are needed.
+	 * spec allows for up to 8 bytes to encode msg_len only 4 bytes are needed.
 	 */
 	if (msglen_size > 4)
 		msglen_size = 4;
@@ -769,14 +769,13 @@ static int qce_aead_register(struct qce_device *qce)
 
 	for (i = 0; i < ARRAY_SIZE(aead_def); i++) {
 		ret = qce_aead_register_one(&aead_def[i], qce);
-		if (ret)
-			goto err;
+		if (ret) {
+			qce_aead_unregister(qce);
+			return ret;
+		}
 	}
 
 	return 0;
-err:
-	qce_aead_unregister(qce);
-	return ret;
 }
 
 const struct qce_algo_ops aead_ops = {

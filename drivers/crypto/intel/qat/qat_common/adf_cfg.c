@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2014 - 2020 Intel Corporation */
-#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/list.h>
@@ -9,13 +8,11 @@
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
 
-static DEFINE_MUTEX(qat_cfg_read_lock);
-
 static void *qat_dev_cfg_start(struct seq_file *sfile, loff_t *pos)
 {
 	struct adf_cfg_device_data *dev_cfg = sfile->private;
 
-	mutex_lock(&qat_cfg_read_lock);
+	down_read(&dev_cfg->lock);
 	return seq_list_start(&dev_cfg->sec_list, *pos);
 }
 
@@ -43,7 +40,9 @@ static void *qat_dev_cfg_next(struct seq_file *sfile, void *v, loff_t *pos)
 
 static void qat_dev_cfg_stop(struct seq_file *sfile, void *v)
 {
-	mutex_unlock(&qat_cfg_read_lock);
+	struct adf_cfg_device_data *dev_cfg = sfile->private;
+
+	up_read(&dev_cfg->lock);
 }
 
 static const struct seq_operations qat_dev_cfg_sops = {
@@ -144,24 +143,6 @@ static void adf_cfg_keyval_add(struct adf_cfg_key_val *new,
 			       struct adf_cfg_section *sec)
 {
 	list_add_tail(&new->list, &sec->param_head);
-}
-
-static void adf_cfg_keyval_remove(const char *key, struct adf_cfg_section *sec)
-{
-	struct list_head *head = &sec->param_head;
-	struct list_head *list_ptr, *tmp;
-
-	list_for_each_prev_safe(list_ptr, tmp, head) {
-		struct adf_cfg_key_val *ptr =
-			list_entry(list_ptr, struct adf_cfg_key_val, list);
-
-		if (strncmp(ptr->key, key, sizeof(ptr->key)))
-			continue;
-
-		list_del(list_ptr);
-		kfree(ptr);
-		break;
-	}
 }
 
 static void adf_cfg_keyval_del_all(struct list_head *head)
@@ -272,13 +253,9 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 				enum adf_cfg_val_type type)
 {
 	struct adf_cfg_device_data *cfg = accel_dev->cfg;
-	struct adf_cfg_key_val *key_val;
-	struct adf_cfg_section *section = adf_cfg_sec_find(accel_dev,
-							   section_name);
-	char temp_val[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
-
-	if (!section)
-		return -EFAULT;
+	struct adf_cfg_key_val *key_val, *existing;
+	struct adf_cfg_section *section;
+	int ret = 0;
 
 	key_val = kzalloc_obj(*key_val);
 	if (!key_val)
@@ -299,7 +276,17 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 	}
 	key_val->type = type;
 
-	/* Add the key-value pair as below policy:
+	down_write(&cfg->lock);
+
+	section = adf_cfg_sec_find(accel_dev, section_name);
+	if (!section) {
+		kfree(key_val);
+		ret = -ENOENT;
+		goto unlock;
+	}
+
+	/*
+	 * Add the key-value pair as below policy:
 	 * 1. if the key doesn't exist, add it;
 	 * 2. if the key already exists with a different value then update it
 	 *    to the new value (the key is deleted and the newly created
@@ -307,21 +294,21 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 	 * 3. if the key exists with the same value, then return without doing
 	 *    anything (the newly created key_val is freed).
 	 */
-	down_write(&cfg->lock);
-	if (!adf_cfg_key_val_get(accel_dev, section_name, key, temp_val)) {
-		if (strncmp(temp_val, key_val->val, sizeof(temp_val))) {
-			adf_cfg_keyval_remove(key, section);
-		} else {
+	existing = adf_cfg_key_value_find(section, key);
+	if (existing) {
+		if (!strncmp(existing->val, key_val->val, sizeof(existing->val))) {
 			kfree(key_val);
-			goto out;
+			goto unlock;
 		}
+		list_del(&existing->list);
+		kfree(existing);
 	}
 
 	adf_cfg_keyval_add(key_val, section);
 
-out:
+unlock:
 	up_write(&cfg->lock);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(adf_cfg_add_key_value_param);
 
@@ -339,21 +326,26 @@ EXPORT_SYMBOL_GPL(adf_cfg_add_key_value_param);
 int adf_cfg_section_add(struct adf_accel_dev *accel_dev, const char *name)
 {
 	struct adf_cfg_device_data *cfg = accel_dev->cfg;
-	struct adf_cfg_section *sec = adf_cfg_sec_find(accel_dev, name);
+	struct adf_cfg_section *sec;
+	int ret = 0;
 
-	if (sec)
-		return 0;
+	down_write(&cfg->lock);
+
+	if (adf_cfg_sec_find(accel_dev, name))
+		goto unlock;
 
 	sec = kzalloc_obj(*sec);
-	if (!sec)
-		return -ENOMEM;
+	if (!sec) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
 
 	strscpy(sec->name, name);
 	INIT_LIST_HEAD(&sec->param_head);
-	down_write(&cfg->lock);
 	list_add_tail(&sec->list, &cfg->sec_list);
+unlock:
 	up_write(&cfg->lock);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(adf_cfg_section_add);
 

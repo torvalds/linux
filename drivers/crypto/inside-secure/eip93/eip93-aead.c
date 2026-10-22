@@ -92,7 +92,6 @@ static int eip93_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	struct crypto_tfm *tfm = crypto_aead_tfm(ctfm);
 	struct eip93_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct crypto_authenc_keys keys;
-	struct crypto_aes_ctx aes;
 	struct sa_record *sa_record = ctx->sa_record;
 	u32 nonce = 0;
 	int ret;
@@ -126,7 +125,7 @@ static int eip93_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 		break;
 	case EIP93_ALG_AES:
-		ret = aes_expandkey(&aes, keys.enckey, keys.enckeylen);
+		ret = aes_check_keylen(keys.enckeylen);
 		if (ret)
 			return ret;
 

@@ -26,7 +26,7 @@
 #include <crypto/xts.h>
 #include <linux/unaligned.h>
 
-#define CAAM_CRA_PRIORITY	2000
+#define CAAM_CRA_PRIORITY	100
 
 /* max key is sum of AES_MAX_KEY_SIZE, max split key size */
 #define CAAM_MAX_KEY_SIZE	(AES_MAX_KEY_SIZE + CTR_RFC3686_NONCE_SIZE + \
@@ -961,6 +961,8 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 	ctx->cdata.keylen = keylen;
 	ctx->cdata.key_virt = key;
 	ctx->cdata.key_inline = true;
+	ctx->cdata.plain_keylen = keylen;
+	ctx->cdata.key_cmd_opt = 0;
 
 	/* skcipher_encrypt shared descriptor */
 	flc = &ctx->flc[ENCRYPT];
@@ -5041,10 +5043,21 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 	dev_info(dev, "dpseci v%d.%d\n", priv->major_ver, priv->minor_ver);
 
 	if (DPSECI_VER(priv->major_ver, priv->minor_ver) > DPSECI_VER(5, 3)) {
-		err = dpseci_reset(priv->mc_io, 0, ls_dev->mc_handle);
+		int enabled;
+
+		err = dpseci_is_enabled(priv->mc_io, 0, ls_dev->mc_handle,
+					&enabled);
 		if (err) {
-			dev_err(dev, "dpseci_reset() failed\n");
+			dev_err(dev, "dpseci_is_enabled() failed\n");
 			goto err_get_vers;
+		}
+
+		if (enabled) {
+			err = dpseci_reset(priv->mc_io, 0, ls_dev->mc_handle);
+			if (err) {
+				dev_err(dev, "dpseci_reset() failed\n");
+				goto err_get_vers;
+			}
 		}
 	}
 

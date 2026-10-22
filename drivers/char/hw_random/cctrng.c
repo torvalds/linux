@@ -86,17 +86,12 @@ static inline u32 cc_ioread(struct cctrng_drvdata *drvdata, u32 reg)
 
 static int cc_trng_pm_get(struct device *dev)
 {
-	int rc = 0;
-
-	rc = pm_runtime_get_sync(dev);
-
-	/* pm_runtime_get_sync() can return 1 as a valid return code */
-	return (rc == 1 ? 0 : rc);
+	return pm_runtime_resume_and_get(dev);
 }
 
 static void cc_trng_pm_put_suspend(struct device *dev)
 {
-	int rc = 0;
+	int rc;
 
 	rc = pm_runtime_put_autosuspend(dev);
 	if (rc)
@@ -213,7 +208,7 @@ static int cctrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	struct cctrng_drvdata *drvdata = (struct cctrng_drvdata *)rng->priv;
 	struct device *dev = &(drvdata->pdev->dev);
 	u32 *buf = (u32 *)drvdata->circ.buf;
-	size_t copied = 0;
+	size_t copied;
 	size_t cnt_w;
 	size_t size;
 	size_t left;
@@ -273,7 +268,7 @@ static int cctrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 
 static void cc_trng_hw_trigger(struct cctrng_drvdata *drvdata)
 {
-	u32 tmp_smpl_cnt = 0;
+	u32 tmp_smpl_cnt;
 	struct device *dev = &(drvdata->pdev->dev);
 
 	dev_dbg(dev, "cctrng hw trigger.\n");
@@ -314,8 +309,8 @@ static void cc_trng_hw_trigger(struct cctrng_drvdata *drvdata)
 
 static void cc_trng_compwork_handler(struct work_struct *w)
 {
-	u32 isr = 0;
-	u32 ehr_valid = 0;
+	u32 isr;
+	u32 ehr_valid;
 	struct cctrng_drvdata *drvdata =
 			container_of(w, struct cctrng_drvdata, compwork);
 	struct device *dev = &(drvdata->pdev->dev);
@@ -458,7 +453,7 @@ static int cctrng_probe(struct platform_device *pdev)
 {
 	struct cctrng_drvdata *drvdata;
 	struct device *dev = &pdev->dev;
-	int rc = 0;
+	int rc;
 	u32 val;
 	int irq;
 
@@ -539,7 +534,8 @@ static int cctrng_probe(struct platform_device *pdev)
 	rc = devm_hwrng_register(dev, &drvdata->rng);
 	if (rc) {
 		dev_err(dev, "Could not register hwrng device.\n");
-		goto post_pm_err;
+		cc_trng_pm_fini(drvdata);
+		return rc;
 	}
 
 	/* trigger HW to start generate data */
@@ -552,11 +548,6 @@ static int cctrng_probe(struct platform_device *pdev)
 	dev_info(dev, "ARM cctrng device initialized\n");
 
 	return 0;
-
-post_pm_err:
-	cc_trng_pm_fini(drvdata);
-
-	return rc;
 }
 
 static void cctrng_remove(struct platform_device *pdev)

@@ -534,7 +534,7 @@ static void padata_init_reorder_list(struct parallel_data *pd)
 	}
 }
 
-/* Allocate and initialize the internal cpumask dependend resources. */
+/* Allocate and initialize the internal cpumask dependent resources. */
 static struct parallel_data *padata_alloc_pd(struct padata_shell *ps,
 					     int offlining_cpu)
 {

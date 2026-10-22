@@ -8,12 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/types.h>
-#include <linux/err.h>
 #include <linux/cpufeature.h>
-#include <linux/crypto.h>
-#include <asm/cputable.h>
 #include <crypto/internal/skcipher.h>
 
 #include "aesp8-ppc.h"
@@ -24,7 +19,7 @@ static int __init p8_init(void)
 
 	ret = crypto_register_skcipher(&p8_aes_cbc_alg);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = crypto_register_skcipher(&p8_aes_ctr_alg);
 	if (ret)
@@ -40,7 +35,6 @@ err_unregister_aes_ctr:
 	crypto_unregister_skcipher(&p8_aes_ctr_alg);
 err_unregister_aes_cbc:
 	crypto_unregister_skcipher(&p8_aes_cbc_alg);
-err:
 	return ret;
 }
 
@@ -54,8 +48,6 @@ static void __exit p8_exit(void)
 module_cpu_feature_match(PPC_MODULE_FEATURE_VEC_CRYPTO, p8_init);
 module_exit(p8_exit);
 
-MODULE_AUTHOR("Marcelo Cerri<mhcerri@br.ibm.com>");
-MODULE_DESCRIPTION("IBM VMX cryptographic acceleration instructions "
-		   "support on Power 8");
+MODULE_AUTHOR("Marcelo Cerri <mhcerri@br.ibm.com>");
+MODULE_DESCRIPTION("IBM VMX cryptographic acceleration instructions support on Power 8");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0.0");

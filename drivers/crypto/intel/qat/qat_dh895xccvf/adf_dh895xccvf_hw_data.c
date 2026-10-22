@@ -24,11 +24,6 @@ static u32 get_ae_mask(struct adf_hw_device_data *self)
 	return ADF_DH895XCCIOV_ACCELENGINES_MASK;
 }
 
-static u32 get_num_accels(struct adf_hw_device_data *self)
-{
-	return ADF_DH895XCCIOV_MAX_ACCELERATORS;
-}
-
 static u32 get_num_aes(struct adf_hw_device_data *self)
 {
 	return ADF_DH895XCCIOV_MAX_ACCELENGINES;
@@ -80,7 +75,6 @@ void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 	hw_data->disable_iov = adf_vf2pf_notify_shutdown;
 	hw_data->get_accel_mask = get_accel_mask;
 	hw_data->get_ae_mask = get_ae_mask;
-	hw_data->get_num_accels = get_num_accels;
 	hw_data->get_num_aes = get_num_aes;
 	hw_data->get_etr_bar_id = get_etr_bar_id;
 	hw_data->get_misc_bar_id = get_misc_bar_id;

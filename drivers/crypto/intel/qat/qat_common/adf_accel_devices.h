@@ -279,7 +279,6 @@ struct adf_hw_device_data {
 	u32 (*get_misc_bar_id)(struct adf_hw_device_data *self);
 	u32 (*get_etr_bar_id)(struct adf_hw_device_data *self);
 	u32 (*get_num_aes)(struct adf_hw_device_data *self);
-	u32 (*get_num_accels)(struct adf_hw_device_data *self);
 	void (*get_arb_info)(struct arb_info *arb_csrs_info);
 	void (*get_admin_info)(struct admin_info *admin_csrs_info);
 	enum dev_sku_info (*get_sku)(struct adf_hw_device_data *self);

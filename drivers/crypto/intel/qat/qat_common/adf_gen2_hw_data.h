@@ -78,7 +78,6 @@
 #define ADF_GEN2_SMIAPF1_MASK_OFFSET    (0x3A000 + 0x30)
 #define ADF_GEN2_SMIA1_MASK             0x1
 
-u32 adf_gen2_get_num_accels(struct adf_hw_device_data *self);
 u32 adf_gen2_get_num_aes(struct adf_hw_device_data *self);
 void adf_gen2_enable_error_correction(struct adf_accel_dev *accel_dev);
 void adf_gen2_cfg_iov_thds(struct adf_accel_dev *accel_dev, bool enable,

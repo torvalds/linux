@@ -120,7 +120,7 @@ int cptvf_send_vq_size_msg(struct cpt_vf *cptvf)
 }
 
 /*
- * Communicate VF group required to PF and get the VQ binded to that group
+ * Communicate VF group required to PF and get the VQ bound to that group
  */
 int cptvf_send_vf_to_grp_msg(struct cpt_vf *cptvf)
 {
@@ -139,7 +139,7 @@ int cptvf_send_vf_to_grp_msg(struct cpt_vf *cptvf)
 }
 
 /*
- * Communicate VF group required to PF and get the VQ binded to that group
+ * Communicate VF group required to PF and get the VQ bound to that group
  */
 int cptvf_send_vf_priority_msg(struct cpt_vf *cptvf)
 {

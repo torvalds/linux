@@ -70,6 +70,7 @@ void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 void adf_enable_all_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 num_vfs)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
+	struct adf_pfvf_ops *pfvf_ops = GET_PFVF_OPS(accel_dev);
 	unsigned long flags;
 	u32 vf_mask;
 
@@ -79,7 +80,19 @@ void adf_enable_all_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 num_vf
 
 	spin_lock_irqsave(&accel_dev->pf.vf2pf_ints_lock, flags);
 	WRITE_ONCE(accel_dev->pf.vf2pf_disabled, false);
-	GET_PFVF_OPS(accel_dev)->enable_vf2pf_interrupts(pmisc_addr, vf_mask);
+	/*
+	 * A VF2PF interrupt is only generated when a source transitions from
+	 * masked to unmasked. A VF may write to its VF2PF CSR while the source
+	 * is masked or while the MSI-X vectors are torn down, for example
+	 * during a device reset, leaving the source latched with no interrupt
+	 * pending. The FLR performed as part of a device reset returns the mask
+	 * register to its default value, which leaves all the sources unmasked,
+	 * so simply unmasking is not guaranteed to be a transition. Mask all the
+	 * sources first, so that unmasking always generates an interrupt for
+	 * the sources latched in the meantime.
+	 */
+	pfvf_ops->disable_all_vf2pf_interrupts(pmisc_addr);
+	pfvf_ops->enable_vf2pf_interrupts(pmisc_addr, vf_mask);
 	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
 }
 

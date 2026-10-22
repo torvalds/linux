@@ -112,8 +112,7 @@ int __cast6_setkey(struct cast6_ctx *c, const u8 *in_key, unsigned int key_len)
 	if (key_len % 4 != 0)
 		return -EINVAL;
 
-	memset(p_key, 0, 32);
-	memcpy(p_key, in_key, key_len);
+	memcpy_and_pad(p_key, sizeof(p_key), in_key, key_len, 0);
 
 	key[0] = be32_to_cpu(p_key[0]);		/* A */
 	key[1] = be32_to_cpu(p_key[1]);		/* B */

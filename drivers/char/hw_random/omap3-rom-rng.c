@@ -42,12 +42,9 @@ static int omap3_rom_rng_read(struct hwrng *rng, void *data, size_t max, bool w)
 
 	ddata = (struct omap_rom_rng *)rng->priv;
 
-	r = pm_runtime_get_sync(ddata->dev);
-	if (r < 0) {
-		pm_runtime_put_noidle(ddata->dev);
-
+	r = pm_runtime_resume_and_get(ddata->dev);
+	if (r < 0)
 		return r;
-	}
 
 	ptr = virt_to_phys(data);
 	r = ddata->rom_rng_call(ptr, 4, RNG_GEN_HW);
