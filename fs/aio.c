@@ -816,13 +816,12 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	 * counters at a time, so make sure that isn't 0:
 	 */
 	nr_events = max(nr_events, num_possible_cpus() * 4);
-	nr_events *= 2;
-
 	/* Prevent overflows */
-	if (nr_events > (0x10000000U / sizeof(struct io_event))) {
+	if (nr_events > (0x8000000U / sizeof(struct io_event))) {
 		pr_debug("ENOMEM: nr_events too high\n");
 		return ERR_PTR(-EINVAL);
 	}
+	nr_events *= 2;
 
 	if (!nr_events || (unsigned long)max_reqs > aio_max_nr)
 		return ERR_PTR(-EAGAIN);
