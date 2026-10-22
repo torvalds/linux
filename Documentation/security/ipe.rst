@@ -442,5 +442,5 @@ IPE has KUnit Tests for the policy parser. Recommended kunitconfig::
   CONFIG_SECURITY_IPE_KUNIT_TEST=y
 
 In addition, IPE has a python based integration
-`test suite <https://github.com/microsoft/ipe/tree/test-suite>`_ that
+`test suite <https://github.com/Integrity-Policy-Enforcement/ci>`_ that
 can test both user interfaces and enforcement functionalities.
