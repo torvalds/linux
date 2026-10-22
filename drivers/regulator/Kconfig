@@ -864,11 +864,22 @@ config REGULATOR_MP8859
 	  module. The module will be named "mp8859".
 
 config REGULATOR_MP886X
-	tristate "MPS MP8869 regulator driver"
+	tristate "MPS MP8864/MP8867/MP8869 regulator driver"
 	depends on I2C && OF
 	select REGMAP_I2C
 	help
 	  This driver supports the MP8869 voltage regulator.
+
+config REGULATOR_MPQ4210
+	tristate "MPS MPQ4210 regulator driver"
+	depends on I2C && OF
+	select REGMAP_I2C
+	help
+	  This driver supports the MPQ4210 synchronous buck-boost controller.
+	  It supports get/set voltage, enable/disable and ramp rate selection
+	  through the regulator interface.
+	  Say M here if you want to include support for the regulator as a
+	  module. The module will be named "mpq4210".
 
 config REGULATOR_MPQ7920
 	tristate "Monolithic MPQ7920 PMIC"
@@ -1019,6 +1030,14 @@ config REGULATOR_MTK_DVFSRC
 	  This driver supports to control regulators via the DVFSRC
 	  of Mediatek. It allows for voting on regulator state
 	  between multiple users.
+
+config REGULATOR_NEX10000UB
+	tristate "Nexperia NEX10000UB Dual Output Power regulators"
+	depends on I2C && GPIOLIB
+	select REGMAP_I2C
+	help
+	  This driver supports the NEX10000UB single inductor - dual output
+	  power supply specifically designed for display panels.
 
 config REGULATOR_PALMAS
 	tristate "TI Palmas PMIC Regulators"

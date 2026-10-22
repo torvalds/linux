@@ -337,6 +337,25 @@ static struct regulator_desc pm886_regulators[] = {
 	},
 };
 
+static const struct linear_range pm886_vbus_volt_ranges[] = {
+	REGULATOR_LINEAR_RANGE(3750000, 0, 7, 250000)
+};
+
+static struct regulator_desc pm886_vbus_regulator = {
+	.name = "vbus",
+	.regulators_node = "regulators",
+	.of_match = "vbus",
+	.ops = &pm886_buck_ops,
+	.type = REGULATOR_VOLTAGE,
+	.n_voltages = 8,
+	.linear_ranges = pm886_vbus_volt_ranges,
+	.n_linear_ranges = ARRAY_SIZE(pm886_vbus_volt_ranges),
+	.vsel_reg = PM886_REG_BOOST_CONFIG1,
+	.vsel_mask = PM886_REG_BOOST_MASK,
+	.enable_reg = PM886_REG_BATTERY_CONFIG1,
+	.enable_mask = PM886_REG_VBUS_EN,
+};
+
 static int pm886_regulator_probe(struct platform_device *pdev)
 {
 	struct pm886_chip *chip = dev_get_drvdata(pdev->dev.parent);
@@ -368,6 +387,13 @@ static int pm886_regulator_probe(struct platform_device *pdev)
 			return dev_err_probe(dev, PTR_ERR(rdev),
 					"Failed to register %s\n", rdesc->name);
 	}
+
+	rcfg.regmap = chip->regmap_battery;
+	rdesc = &pm886_vbus_regulator;
+	rdev = devm_regulator_register(dev, rdesc, &rcfg);
+	if (IS_ERR(rdev))
+		return dev_err_probe(dev, PTR_ERR(rdev),
+				      "Failed to register %s\n", rdesc->name);
 
 	return 0;
 }

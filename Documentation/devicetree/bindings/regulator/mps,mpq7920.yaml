@@ -88,30 +88,30 @@ examples:
         #size-cells = <0>;
 
         pmic@69 {
-          compatible = "mps,mpq7920";
-          reg = <0x69>;
+            compatible = "mps,mpq7920";
+            reg = <0x69>;
 
-          regulators {
-            mps,switch-freq = /bits/ 8 <1>;
+            regulators {
+                mps,switch-freq = /bits/ 8 <1>;
 
-            buck1 {
-             regulator-name = "buck1";
-             regulator-min-microvolt = <400000>;
-             regulator-max-microvolt = <3587500>;
-             regulator-min-microamp = <460000>;
-             regulator-max-microamp = <7600000>;
-             regulator-boot-on;
-             mps,buck-ovp-disable;
-             mps,buck-phase-delay = /bits/ 8 <2>;
-             mps,buck-softstart = /bits/ 8 <1>;
+                buck1 {
+                    regulator-name = "buck1";
+                    regulator-min-microvolt = <400000>;
+                    regulator-max-microvolt = <3587500>;
+                    regulator-min-microamp = <460000>;
+                    regulator-max-microamp = <7600000>;
+                    regulator-boot-on;
+                    mps,buck-ovp-disable;
+                    mps,buck-phase-delay = /bits/ 8 <2>;
+                    mps,buck-softstart = /bits/ 8 <1>;
+                };
+
+                ldo2 {
+                    regulator-name = "ldo2";
+                    regulator-min-microvolt = <650000>;
+                    regulator-max-microvolt = <3587500>;
+                };
             };
-
-            ldo2 {
-             regulator-name = "ldo2";
-             regulator-min-microvolt = <650000>;
-             regulator-max-microvolt = <3587500>;
-            };
-         };
-       };
-     };
+        };
+    };
 ...

@@ -392,8 +392,7 @@ static int tps65185_probe(struct i2c_client *client)
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"PGOOD", data);
 	if (ret)
-		return dev_err_probe(&client->dev, ret,
-				     "failed to request power good irq\n");
+		return ret;
 
 	if (client->irq) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
@@ -401,8 +400,7 @@ static int tps65185_probe(struct i2c_client *client)
 						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 						"tps65185", data);
 		if (ret)
-			return dev_err_probe(&client->dev, ret,
-					     "failed to request irq\n");
+			return ret;
 	}
 
 	ret = regmap_update_bits(data->regmap, TPS65185_REG_INT_EN2, BIT(0), BIT(0));

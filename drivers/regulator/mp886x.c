@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// MP8867/MP8869 regulator driver
+// MP8864/MP8867/MP8869 regulator driver
 //
 // Copyright (C) 2020 Synaptics Incorporated
 //
@@ -229,6 +229,23 @@ static const struct regulator_ops mp8867_regulator_ops = {
 	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 };
 
+static const struct mp886x_cfg_info mp8864_ci = {
+	.rops = &mp8867_regulator_ops,
+	.slew_rates = {
+		64000,
+		32000,
+		16000,
+		8000,
+		4000,
+		2000,
+		1000,
+		500,
+	},
+	.switch_freq = { 600000, 850000, 1100000, 1600000 },
+	.fs_reg = MP886X_SYSCNTLREG1,
+	.fs_shift = 1,
+};
+
 static const struct mp886x_cfg_info mp8867_ci = {
 	.rops = &mp8867_regulator_ops,
 	.slew_rates = {
@@ -256,6 +273,7 @@ static int mp886x_regulator_register(struct mp886x_device_info *di,
 {
 	struct regulator_desc *rdesc = &di->desc;
 	struct regulator_dev *rdev;
+	int sel;
 
 	rdesc->name = "mp886x-reg";
 	rdesc->supply_name = "vin";
@@ -267,7 +285,7 @@ static int mp886x_regulator_register(struct mp886x_device_info *di,
 	rdesc->min_uV = 600000;
 	rdesc->uV_step = 10000;
 	rdesc->vsel_reg = MP886X_VSEL;
-	rdesc->vsel_mask = 0x3f;
+	rdesc->vsel_mask = 0x7f;
 	rdesc->ramp_reg = MP886X_SYSCNTLREG1;
 	rdesc->ramp_mask = MP886X_SLEW_MASK;
 	rdesc->ramp_delay_table = di->ci->slew_rates;
@@ -277,7 +295,12 @@ static int mp886x_regulator_register(struct mp886x_device_info *di,
 	rdev = devm_regulator_register(di->dev, &di->desc, config);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
-	di->sel = rdesc->ops->get_voltage_sel(rdev);
+
+	sel = rdesc->ops->get_voltage_sel(rdev);
+	if (sel < 0)
+		return sel;
+	di->sel = sel;
+
 	return 0;
 }
 
@@ -311,6 +334,9 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
+	if (di->r[1] == 0)
+		return -EINVAL;
+
 	di->en_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(di->en_gpio))
 		return PTR_ERR(di->en_gpio);
@@ -341,6 +367,7 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 }
 
 static const struct of_device_id mp886x_dt_ids[] = {
+	{ .compatible = "mps,mp8864", .data = &mp8864_ci },
 	{ .compatible = "mps,mp8867", .data = &mp8867_ci },
 	{ .compatible = "mps,mp8869", .data = &mp8869_ci },
 	{ }
@@ -348,6 +375,7 @@ static const struct of_device_id mp886x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, mp886x_dt_ids);
 
 static const struct i2c_device_id mp886x_id[] = {
+	{ .name = "mp8864", .driver_data = (kernel_ulong_t)&mp8864_ci },
 	{ .name = "mp8867", .driver_data = (kernel_ulong_t)&mp8867_ci },
 	{ .name = "mp8869", .driver_data = (kernel_ulong_t)&mp8869_ci },
 	{ }
