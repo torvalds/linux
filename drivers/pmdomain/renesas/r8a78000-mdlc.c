@@ -45,8 +45,9 @@ struct r8a78000_mdlc_priv {
 };
 
 static struct generic_pm_domain *r8a78000_genpd_always_on;
+
 static HLIST_HEAD(r8a78000_mdlc_list);
-static DEFINE_MUTEX(r8a78000_mdlc_lock);	/* protects the two above */
+static DEFINE_MUTEX(r8a78000_mdlc_lock);	/* protects the list above */
 
 static struct generic_pm_domain *r8a78000_genpd_xlate(
 			const struct of_phandle_args *spec, void *data)
@@ -191,10 +192,11 @@ static void r8a78000_genpd_del_provider(void *data)
 
 static int r8a78000_genpd_always_on_singleton(struct device *dev)
 {
+	static DEFINE_MUTEX(singleton_lock);
 	struct generic_pm_domain *genpd;
 	int ret;
 
-	guard(mutex)(&r8a78000_mdlc_lock);
+	guard(mutex)(&singleton_lock);
 
 	if (r8a78000_genpd_always_on)
 		return 0;

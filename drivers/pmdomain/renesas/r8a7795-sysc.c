@@ -13,7 +13,7 @@
 
 #include "rcar-sysc.h"
 
-static struct rcar_sysc_area r8a7795_areas[] __initdata = {
+static const struct rcar_sysc_area r8a7795_areas[] __initconst = {
 	{ "always-on",	    0, 0, R8A7795_PD_ALWAYS_ON,	-1, PD_ALWAYS_ON },
 	{ "ca57-scu",	0x1c0, 0, R8A7795_PD_CA57_SCU,	R8A7795_PD_ALWAYS_ON,
 	  PD_SCU },
