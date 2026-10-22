@@ -3129,7 +3129,7 @@ static int fuse_file_fadvise(struct file *file, loff_t offset, loff_t len, int a
 	struct fuse_file *ff = file->private_data;
 
 	if (fuse_is_passthrough(ff))
-		return fuse_passthrough_fadvise(ff, offset, len, advice);
+		return fuse_passthrough_fadvise(file, offset, len, advice);
 
 	return generic_fadvise(file, offset, len, advice);
 }

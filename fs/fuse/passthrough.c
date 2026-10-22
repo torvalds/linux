@@ -159,11 +159,15 @@ ssize_t fuse_passthrough_mmap(struct file *file, struct vm_area_struct *vma)
 	return backing_file_mmap(backing_file, vma, &ctx);
 }
 
-int fuse_passthrough_fadvise(struct fuse_file *ff, loff_t offset, loff_t len, int advice)
+int fuse_passthrough_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 {
+	struct fuse_file *ff = file->private_data;
 	struct file *backing_file = fuse_file_passthrough(ff);
 	const struct cred *old_cred;
 	int ret;
+
+	if (!backing_file)
+		return generic_fadvise(file, offset, len, advice);
 
 	old_cred = override_creds(ff->cred);
 	ret = vfs_fadvise(backing_file, offset, len, advice);
