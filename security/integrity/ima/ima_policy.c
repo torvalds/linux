@@ -1992,7 +1992,8 @@ ssize_t ima_parse_add_rule(char *rule)
 	entry = kzalloc_obj(*entry);
 	if (!entry) {
 		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL,
-				    NULL, op, "-ENOMEM", -ENOMEM, audit_info);
+				    NULL, op, "-ENOMEM", -ENOMEM, audit_info,
+				    -ENOMEM);
 		return -ENOMEM;
 	}
 
@@ -2003,7 +2004,7 @@ ssize_t ima_parse_add_rule(char *rule)
 		ima_free_rule(entry);
 		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL,
 				    NULL, op, "invalid-policy", result,
-				    audit_info);
+				    audit_info, result);
 		return result;
 	}
 
@@ -2421,7 +2422,7 @@ void ima_measure_loaded_policy(void)
 	rule = kmalloc(rule_len, GFP_KERNEL);
 	if (!rule) {
 		integrity_audit_msg(AUDIT_INTEGRITY_PCR, NULL, event_name,
-				    op, "ENOMEM", result, 0);
+				    op, "ENOMEM", result, 0, result);
 		return;
 	}
 
@@ -2440,7 +2441,7 @@ void ima_measure_loaded_policy(void)
 			result = -E2BIG;
 			integrity_audit_msg(AUDIT_INTEGRITY_PCR, NULL,
 					    event_name, op, "rule_length",
-					    result, 0);
+					    result, 0, result);
 			rcu_read_unlock();
 			goto free_rule;
 		}
@@ -2454,7 +2455,7 @@ void ima_measure_loaded_policy(void)
 	file.buf = kmalloc(file_len, GFP_KERNEL);
 	if (!file.buf) {
 		integrity_audit_msg(AUDIT_INTEGRITY_PCR, NULL, event_name,
-				    op, "ENOMEM", result, 0);
+				    op, "ENOMEM", result, 0, result);
 		goto free_rule;
 	}
 

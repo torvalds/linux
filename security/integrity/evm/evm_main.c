@@ -563,7 +563,7 @@ static int evm_protect_xattr(const struct mnt_idmap *idmap,
 				    dentry->d_inode, dentry->d_name.name,
 				    "update_metadata",
 				    integrity_status_msg[evm_status],
-				    -EPERM, 0);
+				    -EPERM, 0, -EPERM);
 	}
 out:
 	/* Exception if the HMAC is not going to be calculated. */
@@ -588,7 +588,7 @@ out:
 		integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_inode(dentry),
 				    dentry->d_name.name, "appraise_metadata",
 				    integrity_status_msg[evm_status],
-				    -EPERM, 0);
+				    -EPERM, 0, -EPERM);
 	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
 }
 
@@ -729,7 +729,7 @@ static int evm_inode_set_acl(const struct mnt_idmap *idmap, struct dentry *dentr
 		integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_inode(dentry),
 				    dentry->d_name.name, "appraise_metadata",
 				    integrity_status_msg[evm_status],
-				    -EPERM, 0);
+				    -EPERM, 0, -EPERM);
 	return -EPERM;
 }
 
@@ -992,7 +992,8 @@ static int evm_inode_setattr(const struct mnt_idmap *idmap, struct dentry *dentr
 
 	integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_inode(dentry),
 			    dentry->d_name.name, "appraise_metadata",
-			    integrity_status_msg[evm_status], -EPERM, 0);
+			    integrity_status_msg[evm_status], -EPERM, 0,
+			    -EPERM);
 	return -EPERM;
 }
 

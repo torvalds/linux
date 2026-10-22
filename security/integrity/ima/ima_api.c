@@ -116,7 +116,7 @@ int ima_store_template(struct ima_template_entry *entry,
 		if (result < 0) {
 			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
 					    template_name, op,
-					    audit_cause, result, 0);
+					    audit_cause, result, 0, result);
 			return result;
 		}
 	}
@@ -159,7 +159,7 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 		ima_free_template_entry(entry);
 err_out:
 	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
-			    op, cause, result, 0);
+			    op, cause, result, 0, result);
 }
 
 /**
@@ -330,7 +330,7 @@ out:
 
 		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
 				    filename.name.name, "collect_data",
-				    audit_cause, result, 0);
+				    audit_cause, result, 0, result);
 
 		release_dentry_name_snapshot(&filename);
 	}
@@ -383,7 +383,7 @@ void ima_store_measurement(struct ima_iint_cache *iint, struct file *file,
 	result = ima_alloc_init_template(&event_data, &entry, template_desc);
 	if (result < 0) {
 		integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
-				    op, audit_cause, result, 0);
+				    op, audit_cause, result, 0, result);
 		return;
 	}
 

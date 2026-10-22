@@ -450,6 +450,11 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 		return -EINVAL;
 	}
 
+	if (khdr->buffer_size > size) {
+		pr_err("attempting to restore a corrupted measurement list");
+		return -EINVAL;
+	}
+
 	bitmap_zero(hdr_mask, HDR__LAST);
 	bitmap_set(hdr_mask, HDR_PCR, 1);
 	bitmap_set(hdr_mask, HDR_DIGEST, 1);
@@ -524,6 +529,13 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 				ret = -EINVAL;
 				break;
 			}
+		} else {
+			/*
+			 * If the template hash found in the kexec buffer is all
+			 * zeros, record it as a violation. Note that this can
+			 * be a false positive.
+			 */
+			atomic_long_inc(&ima_num_violations);
 		}
 
 		entry->pcr = !ima_canonical_fmt ? *(u32 *)(hdr[HDR_PCR].data) :
