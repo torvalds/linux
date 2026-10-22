@@ -1339,7 +1339,6 @@ static void check_capacity_pkts(int fd)
 	int coalesced[num_flows];
 	struct tcphdr *tcph;
 	int ip_ext_len = 0;
-	int total_data = 0;
 	int pkt_size = -1;
 	int data_len = 0;
 	int flow_id;
@@ -1402,7 +1401,6 @@ static void check_capacity_pkts(int fd)
 		}
 
 		num_pkt++;
-		total_data += data_len;
 	}
 
 	/* Check flow ordering. We expect to see all non-coalesced first segs
