@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/novatek,nt72676-i2c.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Novatek NT72676 I2C Controller
+
+maintainers:
+  - Ben Huang <ben_huang@novatek.com.tw>
+  - Jason JJ Wu <jason_jj_wu@novatek.com.tw>
+
+description: >
+  Novatek NT72676 SoC provides multiple I2C controller instances that share
+  the same register layout and transfer programming model.
+
+  Generic I2C controllers are directly accessible by the host CPU and driven
+  by a 96 MHz AHB clock.
+
+  STBC I2C controllers are driven by a 12 MHz clock from the STBC (Standby
+  Controller, an 8051-based microcontroller). Before accessing an STBC I2C
+  controller, the host CPU must authenticate with the STBC and switch
+  ownership of the controller to the host CPU. The presence of the
+  novatek,stbc-syscon property identifies an STBC I2C controller requiring
+  this initialization sequence.
+
+properties:
+  compatible:
+    const: novatek,nt72676-i2c
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-frequency:
+    default: 100000
+    enum: [ 100000, 400000 ]
+
+  novatek,stbc-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: >
+      Phandle to the STBC system controller used to authenticate host
+      access and switch ownership of the STBC I2C controller to the host
+      CPU during initialization.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c@fc040a00 {
+      compatible = "novatek,nt72676-i2c";
+      reg = <0xfc040a00 0x40>;
+      interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&stbc_i2c_clock>;
+      clock-frequency = <400000>;
+      novatek,stbc-syscon = <&stbc>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+    };

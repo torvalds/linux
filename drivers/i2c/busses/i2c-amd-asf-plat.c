@@ -354,7 +354,7 @@ static int amd_asf_probe(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id amd_asf_acpi_ids[] = {
-	{ "AMDI001A" },
+	{ .id = "AMDI001A" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, amd_asf_acpi_ids);

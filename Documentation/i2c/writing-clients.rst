@@ -258,7 +258,7 @@ Driver Information
 ::
 
   /* Substitute your own name and email address */
-  MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>"
+  MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");
   MODULE_DESCRIPTION("Driver for Barf Inc. Foo I2C devices");
 
   /* a few non-GPL license types are also allowed */

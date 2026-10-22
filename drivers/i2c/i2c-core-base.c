@@ -1902,6 +1902,9 @@ static int i2c_dev_or_parent_fwnode_match(struct device *dev, const void *data)
  * If no adapter can be found, or @fwnode is NULL, this returns NULL.
  *
  * The user must call put_device(&adapter->dev) once done with the i2c adapter.
+ *
+ * Note that i2c_get_adapter_by_fwnode(), which also takes a module reference,
+ * should almost always be used instead of this one.
  */
 struct i2c_adapter *i2c_find_adapter_by_fwnode(struct fwnode_handle *fwnode)
 {

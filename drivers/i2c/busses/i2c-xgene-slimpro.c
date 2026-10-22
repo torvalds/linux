@@ -539,9 +539,9 @@ MODULE_DEVICE_TABLE(of, xgene_slimpro_i2c_dt_ids);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xgene_slimpro_i2c_acpi_ids[] = {
-	{"APMC0D40", XGENE_SLIMPRO_I2C_V1},
-	{"APMC0D8B", XGENE_SLIMPRO_I2C_V2},
-	{}
+	{ .id = "APMC0D40", .driver_data = XGENE_SLIMPRO_I2C_V1 },
+	{ .id = "APMC0D8B", .driver_data = XGENE_SLIMPRO_I2C_V2 },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, xgene_slimpro_i2c_acpi_ids);
 #endif

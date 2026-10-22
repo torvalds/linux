@@ -166,7 +166,7 @@ static struct clk *bcm2835_i2c_register_div(struct device *dev,
 					struct clk *mclk,
 					struct bcm2835_i2c_dev *i2c_dev)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_bcm2835_i2c *priv;
 	char name[32];
 	const char *mclk_name;

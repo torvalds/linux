@@ -208,11 +208,11 @@ s32 i2c_smbus_write_word_data(const struct i2c_client *client, u8 command,
 EXPORT_SYMBOL(i2c_smbus_write_word_data);
 
 /**
- * i2c_smbus_read_block_data - SMBus "block read" protocol
+ * __i2c_smbus_read_block_data - SMBus "block read" protocol
  * @client: Handle to slave device
  * @command: Byte interpreted by slave
- * @values: Byte array into which data will be read; big enough to hold
- *	the data returned by the slave.  SMBus allows at most 32 bytes.
+ * @length: size of the @values array. SMBus allows at most 32 bytes
+ * @values: Byte array into which data will be read
  *
  * This executes the SMBus "block read" protocol, returning negative errno
  * else the number of data bytes in the slave's response.
@@ -222,11 +222,15 @@ EXPORT_SYMBOL(i2c_smbus_write_word_data);
  * support this; its emulation through I2C messaging relies on a specific
  * mechanism (I2C_M_RECV_LEN) which may not be implemented.
  */
-s32 i2c_smbus_read_block_data(const struct i2c_client *client, u8 command,
-			      u8 *values)
+s32 __i2c_smbus_read_block_data(const struct i2c_client *client, u8 command,
+				u8 length, u8 *values)
 {
 	union i2c_smbus_data data;
+	int ret_len;
 	int status;
+
+	if (length > I2C_SMBUS_BLOCK_MAX)
+		return -EINVAL;
 
 	status = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
 				I2C_SMBUS_READ, command,
@@ -234,10 +238,14 @@ s32 i2c_smbus_read_block_data(const struct i2c_client *client, u8 command,
 	if (status)
 		return status;
 
-	memcpy(values, &data.block[1], data.block[0]);
-	return data.block[0];
+	ret_len = data.block[0];
+	if (ret_len > length)
+		return -EMSGSIZE;
+
+	memcpy(values, &data.block[1], ret_len);
+	return ret_len;
 }
-EXPORT_SYMBOL(i2c_smbus_read_block_data);
+EXPORT_SYMBOL(__i2c_smbus_read_block_data);
 
 /**
  * i2c_smbus_write_block_data - SMBus "block write" protocol
