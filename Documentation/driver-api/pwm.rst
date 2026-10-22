@@ -177,7 +177,7 @@ and pwm_put() may not be called from an atomic context.
 Most functions in the PWM consumer API might sleep and so must not be called
 from atomic context. The notable exception is pwm_apply_atomic() which has the
 same semantics as pwm_apply_might_sleep() but can be called from atomic context.
-(The price for that is that it doesn't work for all PWM devices, use
+The price for that is that it doesn't work for all PWM devices. Use
 pwm_might_sleep() to check if a given PWM supports atomic operation.
 
 Locking in the PWM core ensures that callbacks related to a single chip are
