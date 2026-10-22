@@ -107,10 +107,11 @@ static int rtd1625_reg_mask_xlate(struct gpio_regmap *gpio, enum gpio_regmap_ope
 				  unsigned int base, unsigned int offset, unsigned int *reg,
 				  unsigned int *mask)
 {
-	/* Each GPIO has its own dedicated 32-bit register */
 	struct rtd1625_gpio *data = gpio_regmap_get_drvdata(gpio);
-	int val = 0, ret = 0;
+	/* Each GPIO has its own dedicated 32-bit register */
 	*reg = base + offset * 4;
+	unsigned int val;
+	int ret;
 
 	switch (op) {
 	case GPIO_REGMAP_SET_OP:
@@ -220,11 +221,11 @@ static void rtd1625_gpio_irq_handle(struct irq_desc *desc)
 {
 	unsigned int (*get_reg_offset)(struct rtd1625_gpio *gpio, unsigned int offset);
 	struct rtd1625_gpio *data = irq_desc_get_handler_data(desc);
+	struct device *dev = regmap_get_device(data->regmap);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct irq_domain *domain = data->domain;
-	unsigned int reg_offset, i, j, val;
-	irq_hw_number_t hwirq;
+	unsigned int reg_offset, j, val;
 	unsigned long status;
 	u32 irq_type;
 	int ret;
@@ -240,11 +241,12 @@ static void rtd1625_gpio_irq_handle(struct irq_desc *desc)
 
 	chained_irq_enter(chip, desc);
 
-	for (i = 0; i < data->info->num_gpios; i += 32) {
+	for (unsigned int i = 0; i < data->info->num_gpios; i += 32) {
 		reg_offset = get_reg_offset(data, i);
 		ret = regmap_read(data->regmap, reg_offset, &val);
 		if (ret) {
-			pr_err_ratelimited("Failed to read IRQ status for GPIO %u: %d\n", i, ret);
+			dev_err_ratelimited(dev, "Failed to read IRQ status for GPIO %u: %d\n",
+					    i, ret);
 			continue;
 		}
 
@@ -261,12 +263,14 @@ static void rtd1625_gpio_irq_handle(struct irq_desc *desc)
 		if (irq != data->irqs[RTD1625_IRQ_LEVEL]) {
 			ret = regmap_write(data->regmap, reg_offset, status);
 			if (ret)
-				pr_err_ratelimited("Failed to clear edge IRQ for GPIO %u: %d\n",
-						   i, ret);
+				dev_err_ratelimited(dev,
+						    "Failed to clear edge IRQ for GPIO %u: %d\n",
+						    i, ret);
 		}
 
 		for_each_set_bit(j, &status, 32) {
-			hwirq = i + j;
+			irq_hw_number_t hwirq = i + j;
+
 			irq_type = irq_get_trigger_type(irq_find_mapping(domain, hwirq));
 
 			/*
@@ -486,7 +490,6 @@ static int rtd1625_gpio_setup_irq(struct platform_device *pdev, struct rtd1625_g
 		return irq;
 
 	num_irqs = (data->info->irq_type_support & IRQ_TYPE_LEVEL_MASK) ? 3 : 2;
-
 	for (unsigned int i = 0; i < num_irqs; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq < 0)
@@ -612,8 +615,7 @@ static const struct rtd1625_gpio_info rtd1625_iso_gpio_info = {
 
 static const struct rtd1625_gpio_info rtd1625_isom_gpio_info = {
 	.num_gpios        = 4,
-	.irq_type_support = IRQ_TYPE_EDGE_BOTH | IRQ_TYPE_LEVEL_LOW |
-			    IRQ_TYPE_LEVEL_HIGH,
+	.irq_type_support = IRQ_TYPE_DEFAULT,
 	.base_offset      = 0x20,
 	.gpa_offset       = 0x00,
 	.gpda_offset      = 0x04,

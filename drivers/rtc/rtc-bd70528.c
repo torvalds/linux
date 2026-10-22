@@ -8,6 +8,7 @@
 #include <linux/mfd/rohm-bd71815.h>
 #include <linux/mfd/rohm-bd71828.h>
 #include <linux/mfd/rohm-bd72720.h>
+#include <linux/mfd/rohm-bd73800.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -284,6 +285,12 @@ static int bd70528_probe(struct platform_device *pdev)
 		bd_rtc->bd718xx_alm_block_start = BD72720_REG_RTC_ALM_START;
 		hour_reg = BD72720_REG_RTC_HOUR;
 		break;
+	case ROHM_CHIP_TYPE_BD73800:
+		bd_rtc->reg_time_start = BD73800_REG_RTC_START;
+		bd_rtc->bd718xx_alm_block_start = BD73800_REG_RTC_ALM_START;
+		hour_reg = BD73800_REG_RTC_HOUR;
+		break;
+
 	default:
 		dev_err(&pdev->dev, "Unknown chip\n");
 		return -ENOENT;
@@ -344,6 +351,7 @@ static const struct platform_device_id bd718x7_rtc_id[] = {
 	{ .name = "bd71828-rtc", .driver_data = ROHM_CHIP_TYPE_BD71828 },
 	{ .name = "bd71815-rtc", .driver_data = ROHM_CHIP_TYPE_BD71815 },
 	{ .name = "bd72720-rtc", .driver_data = ROHM_CHIP_TYPE_BD72720 },
+	{ .name = "bd73800-rtc", .driver_data = ROHM_CHIP_TYPE_BD73800 },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, bd718x7_rtc_id);

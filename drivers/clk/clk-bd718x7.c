@@ -21,6 +21,9 @@
 #define BD718XX_REG_OUT32K	0x2E
 /* BD72720 */
 #define BD72720_REG_OUT32K	0x9a
+/* BD73800 */
+#define BD73800_REG_OUT32K	0x50
+
 /*
  * BD71837, BD71847, and BD71828 all use bit [0] to clk output control
  */
@@ -123,6 +126,10 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 		c->reg = BD72720_REG_OUT32K;
 		c->mask = CLK_OUT_EN_MASK;
 		break;
+	case ROHM_CHIP_TYPE_BD73800:
+		c->reg = BD73800_REG_OUT32K;
+		c->mask = CLK_OUT_EN_MASK;
+		break;
 	default:
 		dev_err(&pdev->dev, "Unknown clk chip\n");
 		return -EINVAL;
@@ -152,6 +159,7 @@ static const struct platform_device_id bd718x7_clk_id[] = {
 	{ .name = "bd71828-clk", .driver_data = ROHM_CHIP_TYPE_BD71828 },
 	{ .name = "bd71815-clk", .driver_data = ROHM_CHIP_TYPE_BD71815 },
 	{ .name = "bd72720-clk", .driver_data = ROHM_CHIP_TYPE_BD72720 },
+	{ .name = "bd73800-clk", .driver_data = ROHM_CHIP_TYPE_BD73800 },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, bd718x7_clk_id);

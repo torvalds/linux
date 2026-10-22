@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/rohm,pmic-pins.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ROHM PMICs' OTP configured pin descriptions
+
+maintainers:
+  - Matti Vaittinen <mazziesaccount@gmail.com>
+
+description:
+  Collection of properties which are commonly used to describe various
+  ROHM PMIC's pins.
+
+properties:
+  rohm,clkout-open-drain:
+    description: clk32kout mode. Set to 1 for "open-drain" or 0 for "cmos"
+      a.k.a "push-pull".
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 1
+
+  rohm,pin-clkout:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      The IC has different OTP options to use clkout-pin for different
+      purposes. Set this property to indicate the OTP variant.
+
+      Many of the ROHM ICs have pins, which function can be defined in
+      OTP. Some of them provide no means to detect the pin configuration
+      at run-time, leaving software unaware of which features the IC
+      really has. These properties can be used to inform which pins
+      provide which functionality. IOW, these properties aren't used to
+      configure pin, they are used to tell what functionality pins on
+      this specific IC have.
+
+    # Supported functionalities depend on the exact IC model. Following
+    # values are already defined: gpi, gpo.
+    # Please, re-use them when adding new ICs.
+
+  rohm,pin-fault_b:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      The IC has different OTP options to use fault_b-pin for different
+      purposes. Set this property to indicate the OTP variant.
+
+    # Supported functionalities depend on the exact IC model. Following
+    # values are already defined: gpi, gpo, faultb, readyind, pwrseq.
+    # Please, re-use them when adding new ICs.
+
+patternProperties:
+  "^rohm,pin-dvs[0-1]$":
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      The IC has different OTP options to use dvs<X>-pins for different
+      purposes. Set this property to indicate the OTP variant.
+    # Supported functionalities depend on the exact IC model. Following
+    # values are already defined: dvs-input, gpi, gpo, pwrseq.
+    # Please, re-use them when adding new ICs.
+
+  "^rohm,pin-exten([0-1])?$":
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      The IC has an OTP option to use exten -pin(s) for different purposes.
+      Set this property to indicate the OTP variant.
+    # Supported functionalities depend on the exact IC model. Following
+    # values are already defined: gpi, gpo, pwrseq.
+    # Please, re-use them when adding new ICs.
+
+# The schema is expected to be reference by IC schemas, which may introduce
+# other properties that must be allowed.
+additionalProperties: true

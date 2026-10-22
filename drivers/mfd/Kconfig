@@ -2226,7 +2226,7 @@ config MFD_ROHM_BD718XX
 	  and emergency shut down as well as 32,768KHz clock output.
 
 config MFD_ROHM_BD71828
-	tristate "ROHM BD718[15/28/79], BD72720 and BD73900 PMICs"
+	tristate "ROHM BD718[15/28/79], BD72720 and BD73[8/9]00 PMICs"
 	depends on I2C=y
 	depends on OF
 	select REGMAP_I2C
@@ -2235,14 +2235,17 @@ config MFD_ROHM_BD71828
 	select MFD_ROHM_PWRBUTTON
 	help
 	  Select this option to get support for the ROHM BD71815, BD71828,
-	  BD71879, BD72720 and BD73900 Power Management ICs (PMICs). These are
-	  single-chip Power Management ICs (PMIC), mainly for battery-powered
-	  portable devices.
+	  BD71879, BD72720, BD73800 and BD73900 Power Management ICs (PMICs).
+	  These are single-chip Power Management ICs (PMIC), mainly for
+	  battery-powered portable devices.
 	  The BD71815 has 5 bucks, 7 LDOs, and a boost for driving LEDs.
 	  The BD718[28/79] have 7 buck converters and 7 LDOs.
 	  The BD72720 and the BD73900 have 10 bucks and 11 LDOs.
-	  All ICs provide a single-cell linear charger, a Coulomb counter,
-	  a Real-Time Clock (RTC), GPIOs and a 32.768 kHz clock gate.
+	  All the above ICs provide a single-cell linear charger, and a Coulomb
+	  counter.
+	  The BD73800 has 8 bucks, 4 LDOs and ADC for power/current
+	  accumulation but no charging logic. All these PMICs integrate also a
+	  Real-Time Clock (RTC), GPIOs and a 32.768 kHz clock gate.
 
 config MFD_ROHM_BD957XMUF
 	tristate "ROHM BD9576MUF and BD9573MUF Power Management ICs"

@@ -220,8 +220,11 @@ static int altera_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mapped_irq = platform_get_irq_optional(pdev, 0);
-	if (mapped_irq < 0)
+	if (mapped_irq < 0) {
+		if (mapped_irq != -ENXIO)
+			return mapped_irq;
 		goto skip_irq;
+	}
 
 	if (device_property_read_u32(dev, "altr,interrupt-type", &reg)) {
 		dev_err(&pdev->dev,
