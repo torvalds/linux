@@ -2882,6 +2882,63 @@ static void test_convergence(void)
 }
 
 /*
+ * On x86-64 a backward jump sized from its own previous-pass address grew
+ * here while others shrank, so two passes gave the same image length with
+ * jumps still changing. The fillers are 7 and 2 bytes of native code, the
+ * conditional jumps are never taken.
+ */
+static void test_same_len_not_converged(void)
+{
+	struct bpf_insn insns[] = {
+		BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1, IN0),
+		BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_1, IN1),
+		BPF_JMP_IMM(BPF_JA, 0, 0, 1),
+		BPF_JMP_IMM(BPF_JA, 0, 0, 29),
+		BPF_JMP32_REG(BPF_JEQ, BPF_REG_0, BPF_REG_4, 20),
+		BPF_JMP32_REG(BPF_JEQ, BPF_REG_0, BPF_REG_4, -3),
+		BPF_JMP32_REG(BPF_JEQ, BPF_REG_0, BPF_REG_4, 22),
+		BPF_JMP32_REG(BPF_JEQ, BPF_REG_0, BPF_REG_4, 2),
+		BPF_MOV32_IMM(BPF_REG_2, 0),
+		BPF_JMP32_REG(BPF_JEQ, BPF_REG_0, BPF_REG_4, 23),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV32_IMM(BPF_REG_2, 0),
+		BPF_JMP_IMM(BPF_JA, 0, 0, -22),
+		BPF_MOV64_IMM(BPF_REG_2, -1),
+		BPF_MOV32_IMM(BPF_REG_2, 0),
+		BPF_MOV32_IMM(BPF_REG_2, 0),
+		BPF_JMP32_REG(BPF_JEQ, BPF_REG_0, BPF_REG_4, 3),
+		BPF_MOV32_IMM(BPF_REG_2, 0),
+		BPF_JMP32_REG(BPF_JEQ, BPF_REG_0, BPF_REG_4, 2),
+		BPF_JMP_IMM(BPF_JA, 0, 0, -22),
+		BPF_MOV32_IMM(BPF_REG_2, 0),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 10),
+		BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0, RES),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	int fd;
+
+	fd = load_prog(insns, ARRAY_SIZE(insns), "same len not converged");
+	if (fd < 0)
+		return;
+	ASSERT_GT(jited_len(fd), 0, "same len not converged jited");
+	prog_run(fd, 1, 2, 11, "same len not converged");
+	close(fd);
+}
+
+/*
  * Calls into a subprogram with all five arguments, which clobbers a subset
  * of r6-r9 and uses the deepest stack slot the budget leaves, directly or
  * through another one clobbering the rest, so the JIT has to save and
@@ -3087,6 +3144,8 @@ void test_jit_insns(void)
 		test_max_jmp();
 	if (test__start_subtest("convergence"))
 		test_convergence();
+	if (test__start_subtest("same_len_not_converged"))
+		test_same_len_not_converged();
 	if (test__start_subtest("calls"))
 		test_calls();
 	if (test__start_subtest("helper_calls"))
