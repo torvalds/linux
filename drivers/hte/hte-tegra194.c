@@ -856,10 +856,8 @@ static int tegra_hte_probe(struct platform_device *pdev)
 	hte_dev->hte_irq = ret;
 	ret = devm_request_irq(dev, hte_dev->hte_irq, tegra_hte_isr, 0,
 			       dev_name(dev), hte_dev);
-	if (ret < 0) {
-		dev_err(dev, "request irq failed.\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	gc->nlines = nlines;
 	gc->ops = &g_ops;
@@ -910,15 +908,15 @@ static int tegra_hte_probe(struct platform_device *pdev)
 
 	hte_dev->chip = gc;
 
+	for (i = 0; i < slices; i++) {
+		hte_dev->sl[i].flags = 0;
+		spin_lock_init(&hte_dev->sl[i].s_lock);
+	}
+
 	ret = devm_hte_register_chip(hte_dev->chip);
 	if (ret) {
 		dev_err(gc->dev, "hte chip register failed");
 		return ret;
-	}
-
-	for (i = 0; i < slices; i++) {
-		hte_dev->sl[i].flags = 0;
-		spin_lock_init(&hte_dev->sl[i].s_lock);
 	}
 
 	val = HTE_TECTRL_ENABLE_ENABLE |
