@@ -25,6 +25,8 @@ int pwrseq_disable(struct pwrseq_desc *desc);
 
 struct device *pwrseq_to_device(struct pwrseq_desc *desc);
 
+bool pwrseq_is_controllable(struct pwrseq_desc *desc);
+
 #else /* CONFIG_POWER_SEQUENCING */
 
 static inline struct pwrseq_desc * __must_check
@@ -56,6 +58,11 @@ static inline int pwrseq_disable(struct pwrseq_desc *desc)
 static inline struct device *pwrseq_to_device(struct pwrseq_desc *desc)
 {
 	return NULL;
+}
+
+static inline bool pwrseq_is_controllable(struct pwrseq_desc *desc)
+{
+	return false;
 }
 
 #endif /* CONFIG_POWER_SEQUENCING */
