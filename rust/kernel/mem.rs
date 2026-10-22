@@ -2,9 +2,10 @@
 
 //! Basic utilities for dealing with memory, values, and types.
 
+use crate::prelude::*;
+
 // TODO: `Alignment` should be moved here as well, Rust moved it upstream in 1.96.
 pub use crate::ptr::Alignment;
-use crate::prelude::*;
 
 /// Trait indicating that [`Align<N>`] is a valid alignment.
 pub trait ValidAlign {
