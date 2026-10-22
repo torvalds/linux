@@ -3511,9 +3511,13 @@ int hci_write_ssp_mode_sync(struct hci_dev *hdev, u8 mode)
 	return hci_write_sc_support_sync(hdev, 0x01);
 }
 
+static int hci_le_set_host_feature_sync(struct hci_dev *hdev, u16 bit,
+					u8 value);
+
 int hci_write_le_host_supported_sync(struct hci_dev *hdev, u8 le, u8 simul)
 {
 	struct hci_cp_write_le_host_supported cp;
+	int err;
 
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED) ||
 	    !lmp_bredr_capable(hdev))
@@ -3531,8 +3535,16 @@ int hci_write_le_host_supported_sync(struct hci_dev *hdev, u8 le, u8 simul)
 	cp.le = le;
 	cp.simul = simul;
 
-	return __hci_cmd_sync_status(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED,
-				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	err = __hci_cmd_sync_status(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED,
+				    sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	if (err || !cis_capable(hdev))
+		return err;
+
+	/* The CIS host feature is set during init based on LE being enabled,
+	 * which is not repeated when LE is enabled afterwards, e.g. while the
+	 * controller is still auto powered on, so update it here.
+	 */
+	return hci_le_set_host_feature_sync(hdev, 32, iso_enabled(hdev));
 }
 
 static int hci_powered_update_adv_sync(struct hci_dev *hdev)
