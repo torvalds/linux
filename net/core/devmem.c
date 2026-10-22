@@ -387,12 +387,12 @@ struct net_devmem_dmabuf_binding *net_devmem_lookup_dmabuf(u32 id)
 	return binding;
 }
 
-void net_devmem_get_net_iov(struct net_iov *niov)
+void net_devmem_net_iov_inc_ref(struct net_iov *niov)
 {
 	net_devmem_dmabuf_binding_get(net_devmem_iov_binding(niov));
 }
 
-void net_devmem_put_net_iov(struct net_iov *niov)
+void net_devmem_net_iov_dec_ref(struct net_iov *niov)
 {
 	net_devmem_dmabuf_binding_put(net_devmem_iov_binding(niov));
 }

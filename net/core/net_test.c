@@ -536,10 +536,10 @@ static void netmem_ref_test_page(struct kunit *test)
 	netmem = page_to_netmem(page);
 	base_ref = page_ref_count(page);
 
-	/* Layer 1: get_netmem / put_netmem use page non-pp refcount */
-	get_netmem(netmem);
+	/* Layer 1: netmem_inc_ref / netmem_dec_ref use page non-pp refcount */
+	netmem_inc_ref(netmem);
 	KUNIT_EXPECT_EQ(test, page_ref_count(page), base_ref + 1);
-	put_netmem(netmem);
+	netmem_dec_ref(netmem);
 	KUNIT_EXPECT_EQ(test, page_ref_count(page), base_ref);
 
 #ifdef CONFIG_PAGE_POOL
@@ -600,12 +600,12 @@ static void netmem_ref_test_pp_page(struct kunit *test)
 	base_ref = page_ref_count(page);
 	base_pp_ref = atomic_long_read(&page->pp_ref_count);
 
-	/* Layer 1: get_netmem / put_netmem always use non-pp refcount */
-	get_netmem(netmem);
+	/* Layer 1: netmem_inc/dec_ref always use non-pp refcount */
+	netmem_inc_ref(netmem);
 	KUNIT_EXPECT_EQ(test, page_ref_count(page), base_ref + 1);
 	KUNIT_EXPECT_EQ(test, atomic_long_read(&page->pp_ref_count),
 			base_pp_ref);
-	put_netmem(netmem);
+	netmem_dec_ref(netmem);
 	KUNIT_EXPECT_EQ(test, page_ref_count(page), base_ref);
 
 	/* Layer 2: napi_pp_get/put_page use pp_ref_count */
@@ -861,11 +861,11 @@ static void netmem_ref_test_net_iov(struct kunit *test)
 	netmem = net_iov_to_netmem(&niov);
 	base_ref = atomic_long_read(&binding.ref.data->count);
 
-	/* Non-PP net_iov: get/put_net_iov & get/put_netmem */
-	get_net_iov(&niov);
+	/* Non-PP net_iov: net_iov_inc/dec_ref & netmem_inc/dec_ref */
+	net_iov_inc_ref(&niov);
 	KUNIT_EXPECT_EQ(test, atomic_long_read(&binding.ref.data->count),
 			base_ref + 1);
-	put_net_iov(&niov);
+	net_iov_dec_ref(&niov);
 	KUNIT_EXPECT_EQ(test, atomic_long_read(&binding.ref.data->count),
 			base_ref);
 
@@ -886,12 +886,12 @@ static void netmem_ref_test_net_iov(struct kunit *test)
 	netmem_or_pp_magic(netmem, PP_SIGNATURE);
 	atomic_long_set(&niov.desc.pp_ref_count, 2);
 
-	/* Layer 0 & 1: get_net_iov / get_netmem grab non-pp ref even on PP */
-	get_net_iov(&niov);
+	/* Layer 0 & 1: net_iov/netmem_inc_ref grab non-pp ref on PP */
+	net_iov_inc_ref(&niov);
 	KUNIT_EXPECT_EQ(test, atomic_long_read(&binding.ref.data->count),
 			base_ref + 1);
 	KUNIT_EXPECT_EQ(test, atomic_long_read(&niov.desc.pp_ref_count), 2L);
-	put_net_iov(&niov);
+	net_iov_dec_ref(&niov);
 	KUNIT_EXPECT_EQ(test, atomic_long_read(&binding.ref.data->count),
 			base_ref);
 
