@@ -98,7 +98,7 @@ static void mlx5e_skb_cb_hwtstamp_tx(struct sk_buff *skb,
 		ptpsq->cq_stats->abort_abs_diff_ns += diff;
 		if (diff > (NSEC_PER_SEC >> 1) &&
 		    !test_and_set_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state)) {
-			netdev_warn(sq->channel->netdev,
+			netdev_warn(sq->netdev,
 				    "PTP TX timestamp difference between CQE and port exceeds threshold: %lld ns, recovering SQ %u\n",
 				    (s64)diff, sq->sqn);
 			queue_work(sq->priv->wq, &ptpsq->report_unhealthy_work);

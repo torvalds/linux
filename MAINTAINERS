@@ -5624,7 +5624,7 @@ F:	drivers/net/ethernet/broadcom/unimac.h
 
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
 M:	Pavan Chebbi <pavan.chebbi@broadcom.com>
-M:	Michael Chan <mchan@broadcom.com>
+M:	Michael Chan <michael.chan@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/broadcom/tg3.*
@@ -28875,6 +28875,7 @@ F:	virt/lib/
 VIRTIO AND VHOST VSOCK DRIVER
 M:	Stefan Hajnoczi <stefanha@redhat.com>
 M:	Stefano Garzarella <sgarzare@redhat.com>
+R:	Bobby Eshleman <bobbyeshleman@meta.com>
 L:	kvm@vger.kernel.org
 L:	virtualization@lists.linux.dev
 L:	netdev@vger.kernel.org
@@ -29180,6 +29181,7 @@ F:	drivers/media/test-drivers/vivid/*
 
 VM SOCKETS (AF_VSOCK)
 M:	Stefano Garzarella <sgarzare@redhat.com>
+R:	Bobby Eshleman <bobbyeshleman@meta.com>
 L:	virtualization@lists.linux.dev
 L:	netdev@vger.kernel.org
 S:	Maintained
