@@ -1058,6 +1058,13 @@ static int io_uring_register_send_msg_ring(void __user *arg, unsigned int nr_arg
 static int io_uring_register_blind(unsigned int opcode, void __user *arg,
 				   unsigned int nr_args)
 {
+	if (current->io_uring_restrict &&
+	    current->io_uring_restrict->reg_registered) {
+		opcode = array_index_nospec(opcode, IORING_REGISTER_LAST);
+		if (!test_bit(opcode, current->io_uring_restrict->register_op))
+			return -EACCES;
+	}
+
 	switch (opcode) {
 	case IORING_REGISTER_SEND_MSG_RING:
 		return io_uring_register_send_msg_ring(arg, nr_args);
