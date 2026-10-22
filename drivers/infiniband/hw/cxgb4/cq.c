@@ -1182,7 +1182,7 @@ void c4iw_flush_srqidx(struct c4iw_qp *qhp, u32 srqidx)
 	struct c4iw_cq *rchp = to_c4iw_cq(qhp->ibqp.recv_cq);
 	unsigned long flag;
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&rchp->lock, flag);
 	spin_lock(&qhp->lock);
 

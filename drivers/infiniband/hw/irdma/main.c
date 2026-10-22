@@ -80,6 +80,8 @@ static int ig3rdma_vport_probe(struct auxiliary_device *aux_dev,
 		return -ENOMEM;
 	}
 	iwdev = ib_alloc_device(irdma_device, ibdev);
+	if (!iwdev)
+		return -ENOMEM;
 	/* Fill iwdev info */
 	iwdev->is_vport = true;
 	iwdev->rf = rf;

@@ -489,6 +489,49 @@ static int ionic_rdma_queue_devcmd(struct ionic_ibdev *dev,
 	return ionic_rdma_devcmd(dev, &admin);
 }
 
+static int ionic_rdma_cq_devcmd(struct ionic_vcq *vcq,
+				struct ionic_queue *q,
+				u32 *qid, u32 cid, u16 opcode,
+				u8 udma_idx)
+{
+	struct ionic_ibdev *dev = to_ionic_ibdev(vcq->ibcq.device);
+	struct ionic_admin_ctx admin = {
+		.work = COMPLETION_INITIALIZER_ONSTACK(admin.work),
+		.cmd.rdma_queue = {
+			.opcode = opcode,
+			.lif_index = cpu_to_le16(dev->lif_cfg.lif_index),
+			.qid_ver = cpu_to_le32(*qid),
+			.cid = cpu_to_le32(cid),
+			.dbid = cpu_to_le16(dev->lif_cfg.dbid),
+			.depth_log2 = q->depth_log2,
+			.stride_log2 = q->stride_log2,
+			.dma_addr = cpu_to_le64(q->dma),
+		},
+	};
+	int rc;
+
+	if (ionic_fw_has_qid_alloc(dev, IONIC_LIF_RDMA_ALLOC_QID_CQ)) {
+		struct ionic_admin_create_cq_resp resp_buf;
+
+		/* Indicates use of CQ create V2 response format. */
+		admin.cmd.rdma_queue.qid_ver = cpu_to_le32(IONIC_CREATE_CQ_CMD_V2_MAGIC);
+		admin.cmd.rdma_queue.udma_idx = udma_idx;
+
+		rc = ionic_rdma_devcmd(dev, &admin);
+		if (rc)
+			return rc;
+
+		memcpy(&resp_buf, admin.comp.comp.cmd_data, sizeof(resp_buf));
+		*qid = le32_to_cpu(resp_buf.id);
+	} else {
+		rc = ionic_rdma_devcmd(dev, &admin);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
 static void ionic_rdma_admincq_comp(struct ib_cq *ibcq, void *cq_context)
 {
 	struct ionic_aq *aq = cq_context;
@@ -533,12 +576,16 @@ static struct ionic_vcq *ionic_create_rdma_admincq(struct ionic_ibdev *dev,
 	cq = &vcq->cq[0];
 
 	rc = ionic_create_cq_common(vcq, &buf, &attr, NULL, NULL,
-				    NULL, NULL, 0);
+				    NULL, 0);
 	if (rc)
 		goto err_init;
 
-	rc = ionic_rdma_queue_devcmd(dev, &cq->q, cq->cqid, cq->eqid,
-				     IONIC_CMD_RDMA_CREATE_CQ);
+	rc = ionic_rdma_cq_devcmd(vcq, &cq->q, &cq->cqid, cq->eqid,
+				  IONIC_CMD_RDMA_CREATE_CQ, 0);
+	if (rc)
+		goto err_cmd;
+
+	rc = ionic_post_create_cq_cmd(cq, NULL, NULL);
 	if (rc)
 		goto err_cmd;
 
@@ -550,6 +597,14 @@ err_init:
 	kfree(vcq);
 
 	return ERR_PTR(rc);
+}
+
+static void ionic_destroy_rdma_admincq(struct ionic_ibdev *dev,
+				       struct ionic_vcq *vcq)
+{
+	ionic_pre_destroy_cq_cmd(dev, &vcq->cq[0]);
+	ionic_destroy_cq_common(dev, &vcq->cq[0]);
+	kfree(vcq);
 }
 
 static struct ionic_aq *__ionic_create_rdma_adminq(struct ionic_ibdev *dev,
@@ -890,6 +945,49 @@ out:
 	kref_put(&qp->qp_kref, ionic_qp_complete);
 }
 
+static void ionic_srq_event(struct ionic_ibdev *dev, u32 srqid, u8 code)
+{
+	unsigned long irqflags;
+	struct ionic_srq *srq;
+	struct ib_event ibev;
+
+	xa_lock_irqsave(&dev->srq_tbl, irqflags);
+	srq = xa_load(&dev->srq_tbl, srqid);
+	if (srq)
+		kref_get(&srq->kref);
+	xa_unlock_irqrestore(&dev->srq_tbl, irqflags);
+
+	if (!srq) {
+		ibdev_dbg(&dev->ibdev,
+			  "missing srqid %#x code %u\n", srqid, code);
+		return;
+	}
+
+	ibev.device = &dev->ibdev;
+	ibev.element.srq = &srq->ibsrq;
+
+	switch (code) {
+	case IONIC_V1_EQE_SRQ_LIMIT_REACHED:
+		ibev.event = IB_EVENT_SRQ_LIMIT_REACHED;
+		break;
+
+	case IONIC_V1_EQE_SRQ_ERR:
+		ibev.event = IB_EVENT_SRQ_ERR;
+		break;
+
+	default:
+		ibdev_dbg(&dev->ibdev,
+			  "unrecognized srqid %#x code %u\n", srqid, code);
+		goto out;
+	}
+
+	if (srq->ibsrq.event_handler)
+		srq->ibsrq.event_handler(&ibev, srq->ibsrq.srq_context);
+
+out:
+	kref_put(&srq->kref, ionic_srq_complete);
+}
+
 static u16 ionic_poll_eq(struct ionic_eq *eq, u16 budget)
 {
 	struct ionic_ibdev *dev = eq->dev;
@@ -921,6 +1019,10 @@ static u16 ionic_poll_eq(struct ionic_eq *eq, u16 budget)
 
 		case IONIC_V1_EQE_TYPE_QP:
 			ionic_qp_event(dev, qid, code);
+			break;
+
+		case IONIC_V1_EQE_TYPE_SRQ:
+			ionic_srq_event(dev, qid, code);
 			break;
 
 		default:
@@ -1153,8 +1255,7 @@ int ionic_create_rdma_admin(struct ionic_ibdev *dev)
 					      vcq->cq[0].cqid);
 		if (IS_ERR(aq)) {
 			/* Clean up the dangling CQ */
-			ionic_destroy_cq_common(dev, &vcq->cq[0]);
-			kfree(vcq);
+			ionic_destroy_rdma_admincq(dev, vcq);
 
 			rc = PTR_ERR(aq);
 
@@ -1207,10 +1308,8 @@ void ionic_destroy_rdma_admin(struct ionic_ibdev *dev)
 			cancel_work_sync(&aq->work);
 
 			__ionic_destroy_rdma_adminq(dev, aq);
-			if (vcq) {
-				ionic_destroy_cq_common(dev, &vcq->cq[0]);
-				kfree(vcq);
-			}
+			if (vcq)
+				ionic_destroy_rdma_admincq(dev, vcq);
 		}
 
 		kfree(dev->aq_vec);

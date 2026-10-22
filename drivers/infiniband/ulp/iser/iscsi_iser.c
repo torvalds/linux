@@ -498,7 +498,7 @@ out:
  * iscsi_iser_conn_start() - start iscsi-iser connection
  * @cls_conn: iscsi class connection
  *
- * Notes: Here iser intialize (or re-initialize) stop_completion as
+ * Notes: Here iser initialize (or re-initialize) stop_completion as
  *        from this point iscsi must call conn_stop in session/connection
  *        teardown so iser transport must wait for it.
  */
@@ -593,7 +593,7 @@ static inline unsigned int iser_dif_prot_caps(int prot_caps)
  * @qdepth:         session command queue depth
  * @initial_cmdsn:  initiator command sequnce number
  *
- * Allocates and adds a scsi host, expose DIF supprot if
+ * Allocates and adds a scsi host, expose DIF support if
  * exists, and sets up an iscsi session.
  */
 static struct iscsi_cls_session *
@@ -866,7 +866,7 @@ static int iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
  * @ep:    iscsi endpoint handle
  *
  * This routine is not blocked by iser and RDMA termination process
- * completion as we queue a deffered work for iser/RDMA destruction
+ * completion as we queue a deferred work for iser/RDMA destruction
  * and cleanup or actually call it immediately in case we didn't pass
  * iscsi conn bind/start stage, thus it is safe.
  */

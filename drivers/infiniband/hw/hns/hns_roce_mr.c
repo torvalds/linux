@@ -112,7 +112,7 @@ static int alloc_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
 
 	err = hns_roce_mtr_create(hr_dev, &mr->pbl_mtr, &buf_attr,
 				  hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT,
-				  udata, start);
+				  udata, start, false);
 	if (err) {
 		ibdev_err(ibdev, "failed to alloc pbl mtr, ret = %d.\n", err);
 		return err;
@@ -586,7 +586,8 @@ static void mtr_free_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr)
 
 static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			  struct hns_roce_buf_attr *buf_attr,
-			  struct ib_udata *udata, unsigned long user_addr)
+			  struct ib_udata *udata, unsigned long user_addr,
+			  bool is_cq)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	size_t total_size;
@@ -595,8 +596,14 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 
 	if (udata) {
 		mtr->kmem = NULL;
-		mtr->umem = ib_umem_get_va(ibdev, user_addr, total_size,
-					   buf_attr->user_access);
+		if (is_cq)
+			mtr->umem = ib_umem_get_cq_buf_or_va(ibdev, NULL,
+							     user_addr,
+							     total_size,
+							     buf_attr->user_access);
+		else
+			mtr->umem = ib_umem_get_va(ibdev, user_addr, total_size,
+						   buf_attr->user_access);
 		if (IS_ERR(mtr->umem)) {
 			ibdev_err(ibdev, "failed to get umem, ret = %pe.\n",
 				  mtr->umem);
@@ -1035,11 +1042,13 @@ static void mtr_free_mtt(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr)
  * @ba_page_shift: page shift for multi-hop base address table
  * @udata: user space context, if it's NULL, means kernel space
  * @user_addr: userspace virtual address to start at
+ * @is_cq: true when @mtr backs a CQ buffer, which the device writes
+ *         completion entries into
  */
 int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			struct hns_roce_buf_attr *buf_attr,
 			unsigned int ba_page_shift, struct ib_udata *udata,
-			unsigned long user_addr)
+			unsigned long user_addr, bool is_cq)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	int ret;
@@ -1052,7 +1061,8 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		mtr->umem = NULL;
 		mtr->kmem = NULL;
 	} else {
-		ret = mtr_alloc_bufs(hr_dev, mtr, buf_attr, udata, user_addr);
+		ret = mtr_alloc_bufs(hr_dev, mtr, buf_attr, udata, user_addr,
+				     is_cq);
 		if (ret) {
 			ibdev_err(ibdev,
 				  "failed to alloc mtr bufs, ret = %d.\n", ret);

@@ -128,7 +128,7 @@ static int rsc_event_notifier(struct notifier_block *nb,
 	case MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR:
 	case MLX5_EVENT_TYPE_WQ_ACCESS_ERROR:
 		rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
-		rsn |= (eqe->data.qp_srq.type << MLX5_USER_INDEX_LEN);
+		rsn |= ((u32)eqe->data.qp_srq.type << MLX5_USER_INDEX_LEN);
 		break;
 	default:
 		return NOTIFY_DONE;
@@ -146,6 +146,8 @@ static int rsc_event_notifier(struct notifier_block *nb,
 	case MLX5_RES_RQ:
 	case MLX5_RES_SQ:
 		qp = (struct mlx5_core_qp *)common;
+		if (WARN_ON_ONCE(!qp->event))
+			goto out;
 		qp->event(qp, event_type);
 		/* Need to put resource in event handler */
 		return NOTIFY_OK;
@@ -165,6 +167,10 @@ static int create_resource_common(struct mlx5_ib_dev *dev,
 	int err;
 
 	qp->common.res = rsc_type;
+	refcount_set(&qp->common.refcount, 1);
+	init_completion(&qp->common.free);
+	qp->pid = current->pid;
+
 	spin_lock_irq(&table->lock);
 	err = radix_tree_insert(&table->tree,
 				qp->qpn | (rsc_type << MLX5_USER_INDEX_LEN),
@@ -172,10 +178,6 @@ static int create_resource_common(struct mlx5_ib_dev *dev,
 	spin_unlock_irq(&table->lock);
 	if (err)
 		return err;
-
-	refcount_set(&qp->common.refcount, 1);
-	init_completion(&qp->common.free);
-	qp->pid = current->pid;
 
 	return 0;
 }
@@ -258,6 +260,14 @@ int mlx5_qpc_create_qp(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp,
 
 	qp->uid = MLX5_GET(create_qp_in, in, uid);
 	qp->qpn = MLX5_GET(create_qp_out, out, qpn);
+	/* Set ibqp.qp_num before create_resource_common() inserts the QP into
+	 * the radix tree and makes it visible to EQE processing.  The
+	 * assignment in create_qp() happens only after this function returns,
+	 * leaving a window where an arriving EQE would observe qp_num == 0.
+	 * create_qp() still overrides this with 0/1 for QP0/QP1, and sets it
+	 * independently for DCT (which does not go through this function).
+	 */
+	to_mibqp(qp)->ibqp.qp_num = qp->qpn;
 
 	err = create_resource_common(dev, qp, MLX5_RES_QP);
 	if (err)

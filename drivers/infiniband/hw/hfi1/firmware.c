@@ -77,7 +77,7 @@ struct css_header {
 /* size of platform configuration partition */
 #define MAX_PLATFORM_CONFIG_FILE_SIZE 4096
 
-/* size of file of plaform configuration encoded in format version 4 */
+/* size of file of platform configuration encoded in format version 4 */
 #define PLATFORM_CONFIG_FORMAT_4_FILE_SIZE 528
 
 /* the file itself */

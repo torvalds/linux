@@ -24,8 +24,12 @@
 /* MANA doesn't have any limit for MR size */
 #define MANA_IB_MAX_MR_SIZE	U64_MAX
 
-/* Send queue ID mask */
-#define MANA_SENDQ_MASK	BIT(31)
+/*
+ * Send queue ID mask. Queue IDs are 2-bit aligned (see MANA_QID_SUBTYPE_MASK),
+ * so bit 0 is always free to tag send queues in the lookup table. This keeps
+ * the whole top byte available to index per-port GSI QPs by (port << 24).
+ */
+#define MANA_SENDQ_MASK	BIT(0)
 /* Queue ID encodes type in the lower 2 bits */
 #define MANA_QID_SUBTYPE_MASK 0x3
 
@@ -162,17 +166,20 @@ struct mana_ib_cq {
 	struct mana_ib_queue queue;
 	/* protects CQ polling */
 	spinlock_t cq_lock;
-	struct list_head list_send_qp;
-	struct list_head list_recv_qp;
+	struct list_head send_err_qp_list;
+	struct list_head recv_err_qp_list;
+	struct gdma_comp pending_cqe;
+	bool has_pending_cqe;
 	int cqe;
 	u32 comp_vector;
+	u32 poll_credit;
 	mana_handle_t  cq_handle;
 };
 
 enum mana_rc_queue_type {
 	MANA_RC_SEND_QUEUE_REQUESTER = 0,
 	MANA_RC_SEND_QUEUE_RESPONDER,
-	MANA_RC_SEND_QUEUE_FMR,
+	MANA_RC_SEND_QUEUE_MMQ,
 	MANA_RC_RECV_QUEUE_REQUESTER,
 	MANA_RC_RECV_QUEUE_RESPONDER,
 	MANA_RC_QUEUE_TYPE_MAX,
@@ -180,6 +187,7 @@ enum mana_rc_queue_type {
 
 struct mana_ib_rc_qp {
 	struct mana_ib_queue queues[MANA_RC_QUEUE_TYPE_MAX];
+	u32 wqe_size_in_bu;
 };
 
 enum mana_uc_queue_type {
@@ -201,7 +209,6 @@ enum mana_ud_queue_type {
 
 struct mana_ib_ud_qp {
 	struct mana_ib_queue queues[MANA_UD_QUEUE_TYPE_MAX];
-	u32 sq_psn;
 };
 
 struct mana_ib_qp {
@@ -217,9 +224,14 @@ struct mana_ib_qp {
 
 	/* The port on the IB device, starting with 1 */
 	u32 port;
+	u32 sq_psn;
+	bool sq_sig_all;
 
-	struct list_head cq_send_list;
-	struct list_head cq_recv_list;
+	/* Serializes QP modification and error-list transitions. */
+	struct mutex modify_lock;
+
+	struct list_head send_err_node;
+	struct list_head recv_err_node;
 	struct shadow_queue shadow_rq;
 	struct shadow_queue shadow_sq;
 
@@ -262,6 +274,9 @@ enum mana_ib_adapter_features {
 	MANA_IB_FEATURE_CLIENT_ERROR_CQE_SUPPORT = BIT(4),
 	MANA_IB_FEATURE_DEV_COUNTERS_SUPPORT = BIT(5),
 	MANA_IB_FEATURE_MULTI_PORTS_SUPPORT = BIT(6),
+	MANA_IB_FEATURE_MSN_IN_WQE_SUPPORT = BIT(7),
+	MANA_IB_FEATURE_RC_QP_SQ_POW2_SUPPORT = BIT(14),
+	MANA_IB_FEATURE_MULTI_PORT_GSI_SUPPORT = BIT(15),
 };
 
 struct mana_ib_query_adapter_caps_resp {
@@ -372,7 +387,9 @@ struct mana_rnic_destroy_cq_resp {
 }; /* HW Data */
 
 enum mana_rnic_create_rc_flags {
-	MANA_RC_FLAG_NO_FMR = 2,
+	MANA_RC_FLAG_NO_MMQ = BIT(1),
+	MANA_RC_FLAG_FIXED_SIZE_WQE = BIT(3),
+	MANA_RC_FLAG_MSN_IN_WQE = BIT(4),
 };
 
 struct mana_rnic_create_qp_req {
@@ -389,7 +406,8 @@ struct mana_rnic_create_qp_req {
 	u32 max_recv_wr;
 	u32 max_send_sge;
 	u32 max_recv_sge;
-	u32 reserved;
+	u8 wqe_size_in_bu;
+	u8 reserved[3];
 }; /* HW Data */
 
 struct mana_rnic_create_qp_resp {
@@ -445,7 +463,13 @@ struct mana_rnic_create_udqp_req {
 	u32 max_recv_wr;
 	u32 max_send_sge;
 	u32 max_recv_sge;
+	u8 mac[ETH_ALEN];     /* V2: port MAC for multi-port GSI */
+	u16 flags;            /* V2: MANA_UD_QP_FLAG_* */
 }; /* HW Data */
+
+enum mana_ud_qp_flags {
+	MANA_UD_QP_FLAG_CREATE_IN_INIT = BIT(0),
+};
 
 struct mana_rnic_create_udqp_resp {
 	struct gdma_resp_hdr hdr;
@@ -508,7 +532,16 @@ struct mana_rnic_set_qp_state_resp {
 
 enum WQE_OPCODE_TYPES {
 	WQE_TYPE_UD_SEND = 0,
+	WQE_TYPE_RC_SEND = 2,
+	WQE_TYPE_RC_SEND_IMM = 3,
+	WQE_TYPE_RC_SEND_INV = 4,
+	WQE_TYPE_WRITE = 5,
+	WQE_TYPE_WRITE_IMM = 6,
+	WQE_TYPE_READ = 7,
 	WQE_TYPE_UD_RECV = 8,
+	WQE_TYPE_RC_RECV = 9,
+	WQE_TYPE_REG_MR = 10,
+	WQE_TYPE_LOCAL_INV = 12,
 }; /* HW DATA */
 
 struct rdma_send_oob {
@@ -527,7 +560,83 @@ struct rdma_send_oob {
 			u32 reserved1;
 			u32 reserved2;
 		} ud_send;
+		union {
+			u32 immediate;
+			u32 invalidate_key;
+		} rc_send;
+		struct {
+			u32 address_hi;
+			u32 address_low;
+			u32 rkey;
+			u32 dma_len;
+		} rdma;
+		struct {
+			u32 mkey;
+		} mm;
 	};
+	union {
+		u32 immediate_ext;
+		struct {
+			u16 rsn;
+			u16 reserved;
+		} read;
+	};
+	u32 fsn : 24;
+	u32 reserved2   : 8;
+}; /* HW DATA */
+
+struct rdma_recv_oob {
+	u32 psn_start   : 24;
+	u32 reserved1   : 8;
+	u32 msn         : 24;
+	u32 reserved2   : 8;
+}; /* HW DATA */
+
+enum mana_ib_error_code {
+	VENDOR_ERR_OK					= 0x0,
+	VENDOR_ERR_RX_PKT_LEN                           = 0x05,
+	VENDOR_ERR_RX_MSG_LEN_OVFL                      = 0x102,
+	VENDOR_ERR_RX_MISBEHAVING_CLIENT                = 0x108,
+	VENDOR_ERR_RX_MALFORMED_WQE                     = 0x109,
+	VENDOR_ERR_RX_CLIENT_ID                         = 0x10a,
+	VENDOR_ERR_RX_GFID                              = 0x10b,
+	VENDOR_ERR_RX_PCIE                              = 0x10c,
+	VENDOR_ERR_RX_NO_AVAIL_WQE                      = 0x111,
+	VENDOR_ERR_RX_ATB_SGE_MISSCONFIG                = 0x143,
+	VENDOR_ERR_RX_ATB_WQE_MISCONFIG                 = 0x145,
+	VENDOR_ERR_RX_ATB_SGE_ADDR_RIGHT                = 0x183,
+	VENDOR_ERR_RX_ATB_WQE_ADDR_RIGHT                = 0x185,
+	VENDOR_ERR_RX_ATB_SGE_ADDR_RANGE                = 0x1c3,
+	VENDOR_ERR_RX_ATB_WQE_ADDR_RANGE                = 0x1c5,
+	VENDOR_ERR_RX_NOT_EMPTY_ON_DISABLE              = 0x1c7,
+	VENDOR_ERR_TX_GDMA_CORRUPTED_WQE                = 0x201,
+	VENDOR_ERR_TX_ATB_WQE_ACCESS_VIOLATION          = 0x202,
+	VENDOR_ERR_TX_ATB_WQE_ADDR_RANGE                = 0x203,
+	VENDOR_ERR_TX_ATB_WQE_CONFIG_ERR                = 0x204,
+	VENDOR_ERR_TX_PCIE_WQE                          = 0x205,
+	VENDOR_ERR_TX_ATB_MSG_ACCESS_VIOLATION          = 0x206,
+	VENDOR_ERR_TX_ATB_MSG_ADDR_RANGE                = 0x207,
+	VENDOR_ERR_TX_ATB_MSG_CONFIG_ERR                = 0x208,
+	VENDOR_ERR_TX_PCIE_MSG                          = 0x209,
+	VENDOR_ERR_TX_GDMA_INVALID_STATE                = 0x20a,
+	VENDOR_ERR_TX_MISBEHAVING_CLIENT                = 0x20b,
+	VENDOR_ERR_TX_RDMA_MALFORMED_WQE_SIZE           = 0x210,
+	VENDOR_ERR_TX_RDMA_MALFORMED_WQE_FIELD          = 0x211,
+	VENDOR_ERR_TX_RDMA_INVALID_STATE                = 0x212,
+	VENDOR_ERR_TX_RDMA_INVALID_NPT                  = 0x213,
+	VENDOR_ERR_TX_RDMA_INVALID_SGID                 = 0x214,
+	VENDOR_ERR_TX_RDMA_WQE_UNSUPPORTED              = 0x215,
+	VENDOR_ERR_TX_RDMA_WQE_LEN_ERR                  = 0x216,
+	VENDOR_ERR_TX_RDMA_MTU_ERR                      = 0x217,
+	VENDOR_ERR_TX_RDMA_VFID_MISMATCH                = 0x218,
+	VENDOR_ERR_HW_MAX                               = 0x3ff,
+	/* SW vendor errors */
+	VENDOR_ERR_SW_FLUSHED				= 0xfff,
+};
+
+enum mana_ib_cqe_type {
+	CQE_TYPE_UD_SEND = 1,
+	CQE_TYPE_UD_SEND_IMM = 2,
 }; /* HW DATA */
 
 struct mana_rdma_cqe {
@@ -538,8 +647,7 @@ struct mana_rdma_cqe {
 		};
 		struct {
 			u32 cqe_type		: 8;
-			u32 vendor_error	: 9;
-			u32 reserved1		: 15;
+			u32 reserved1		: 24;
 			u32 sge_offset		: 5;
 			u32 tx_wqe_offset	: 27;
 		} ud_send;
@@ -714,7 +822,7 @@ int mana_ib_gd_destroy_dma_region(struct mana_ib_dev *dev,
 int mana_ib_create_kernel_queue(struct mana_ib_dev *mdev, u32 size, enum gdma_queue_type type,
 				struct mana_ib_queue *queue);
 int mana_ib_create_queue(struct mana_ib_dev *mdev, u64 addr, u32 size,
-			 struct mana_ib_queue *queue);
+			 struct mana_ib_queue *queue, bool is_cq);
 void mana_ib_destroy_queue(struct mana_ib_dev *mdev, struct mana_ib_queue *queue);
 
 struct ib_wq *mana_ib_create_wq(struct ib_pd *pd,

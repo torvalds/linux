@@ -103,8 +103,7 @@ static int mana_ib_netdev_event(struct notifier_block *this,
 				ib_device_set_netdev(&dev->ib_dev, ndev, i + 1);
 
 				/* mana_get_primary_netdev() returns ndev with refcount held */
-				if (ndev)
-					netdev_put(ndev, &dev->dev_tracker);
+				netdev_put(ndev, &dev->dev_tracker);
 
 				return NOTIFY_OK;
 			default:

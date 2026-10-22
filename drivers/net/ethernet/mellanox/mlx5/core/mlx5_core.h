@@ -532,4 +532,9 @@ static inline bool mlx5_pcie_cong_event_supported(struct mlx5_core_dev *dev)
 
 	return true;
 }
+
+int mlx5_data_direct_init(struct mlx5_core_dev *mdev);
+void mlx5_data_direct_cleanup(struct mlx5_core_dev *mdev);
+int mlx5_data_direct_driver_register(void);
+void mlx5_data_direct_driver_unregister(void);
 #endif /* __MLX5_CORE_H__ */

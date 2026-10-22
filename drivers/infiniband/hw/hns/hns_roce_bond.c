@@ -81,7 +81,7 @@ static int hns_roce_set_bond_netdev(struct hns_roce_bond_group *bond_grp,
 {
 	struct net_device *active_dev;
 	struct net_device *old_dev;
-	int i, ret = 0;
+	int i = 0, ret = 0;
 
 	if (bond_grp->tx_type == NETDEV_LAG_TX_TYPE_ACTIVEBACKUP) {
 		rcu_read_lock();
@@ -89,7 +89,7 @@ static int hns_roce_set_bond_netdev(struct hns_roce_bond_group *bond_grp,
 			bond_option_active_slave_get_rcu(netdev_priv(bond_grp->upper_dev));
 		rcu_read_unlock();
 	} else {
-		for (i = 0; i < ROCE_BOND_FUNC_MAX; i++) {
+		for (; i < ROCE_BOND_FUNC_MAX; i++) {
 			active_dev = bond_grp->bond_func_info[i].net_dev;
 			if (active_dev &&
 			    ib_get_curr_port_state(active_dev) == IB_PORT_ACTIVE)

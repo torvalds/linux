@@ -1392,9 +1392,9 @@ int ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	qp = get_ocrdma_qp(ibqp);
 	dev = get_ocrdma_dev(ibqp->device);
 
-	/* syncronize with multiple context trying to change, retrive qps */
+	/* synchronize with multiple context trying to change, retrieve qps */
 	mutex_lock(&dev->dev_lock);
-	/* syncronize with wqe, rqe posting and cqe processing contexts */
+	/* synchronize with wqe, rqe posting and cqe processing contexts */
 	spin_lock_irqsave(&qp->q_lock, flags);
 	old_qps = get_ibqp_state(qp->state);
 	if (attr_mask & IB_QP_STATE)
@@ -1599,7 +1599,7 @@ static void ocrdma_discard_cqes(struct ocrdma_qp *qp, struct ocrdma_cq *cq)
 	 */
 
 	cur_getp = cq->getp;
-	/* find upto when do we reap the cq. */
+	/* find up to when do we reap the cq. */
 	stop_getp = cur_getp;
 	do {
 		if (is_hw_sq_empty(qp) && (!qp->srq && is_hw_rq_empty(qp)))

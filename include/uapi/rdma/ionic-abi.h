@@ -22,6 +22,10 @@
 #define IONIC_CMB_WC		8
 #define IONIC_CMB_UC		16
 
+enum ionic_ctx_resp_comp_mask {
+	IONIC_CTX_CMASK_IONIC_FLAGS = 1 << 0,
+};
+
 struct ionic_ctx_req {
 	__u32 rsvd[2];
 };
@@ -46,8 +50,9 @@ struct ionic_ctx_resp {
 	__u8 udma_count;
 	__u8 expdb_mask;
 	__u8 expdb_qtypes;
+	__u8 rcq_sign_bit;
 
-	__u8 rsvd2[3];
+	__u16 comp_mask;
 	__aligned_u64 phc_offset;
 };
 
@@ -85,6 +90,8 @@ struct ionic_qp_req {
 	__u8 rq_cmb;
 	__u8 udma_mask;
 	__u8 rsvd[3];
+	__u32 ionic_flags;
+	__u32 rsvd_pad;
 };
 
 struct ionic_qp_resp {
@@ -106,7 +113,7 @@ struct ionic_srq_req {
 };
 
 struct ionic_srq_resp {
-	__u32 qpid;
+	__u32 srqid;
 	__u8 rq_cmb;
 	__u8 udma_idx;
 	__u8 rsvd[2];

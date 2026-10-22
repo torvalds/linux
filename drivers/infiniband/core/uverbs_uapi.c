@@ -729,7 +729,7 @@ void uverbs_disassociate_api(struct uverbs_api *uapi)
 			 *
 			 * release_cleanup is the exception because
 			 * uverbs_uobject_fd_release() needs it. In this case
-			 * the module reference held by the fops will guarentee
+			 * the module reference held by the fops will guarantee
 			 * the type_class remains valid too.
 			 */
 			if (type_attrs &&

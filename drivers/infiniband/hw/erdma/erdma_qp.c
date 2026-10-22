@@ -259,8 +259,8 @@ static void erdma_reset_qp(struct erdma_qp *qp)
 	qp->kern_qp.rq_ci = 0;
 	memset(qp->kern_qp.swr_tbl, 0, qp->attrs.sq_size * sizeof(u64));
 	memset(qp->kern_qp.rwr_tbl, 0, qp->attrs.rq_size * sizeof(u64));
-	memset(qp->kern_qp.sq_buf, 0, qp->attrs.sq_size << SQEBB_SHIFT);
-	memset(qp->kern_qp.rq_buf, 0, qp->attrs.rq_size << RQE_SHIFT);
+	erdma_kmem_clear(&qp->kern_qp.sq_mem);
+	erdma_kmem_clear(&qp->kern_qp.rq_mem);
 	erdma_remove_cqes_of_qp(&qp->scq->ibcq, QP_ID(qp));
 	if (qp->rcq != qp->scq)
 		erdma_remove_cqes_of_qp(&qp->rcq->ibcq, QP_ID(qp));
@@ -332,8 +332,8 @@ static int fill_inline_data(struct erdma_qp *qp,
 
 	wqe_idx += (sgl_offset >> SQEBB_SHIFT);
 	sgl_offset &= (SQEBB_SIZE - 1);
-	data = get_queue_entry(qp->kern_qp.sq_buf, wqe_idx, qp->attrs.sq_size,
-			       SQEBB_SHIFT);
+	data = erdma_kmem_get_entry(&qp->kern_qp.sq_mem, wqe_idx,
+				    qp->attrs.sq_size, SQEBB_SHIFT);
 
 	while (i < send_wr->num_sge) {
 		bytes += send_wr->sg_list[i].length;
@@ -356,8 +356,9 @@ static int fill_inline_data(struct erdma_qp *qp,
 			wqe_idx += (sgl_offset >> SQEBB_SHIFT);
 			sgl_offset &= (SQEBB_SIZE - 1);
 
-			data = get_queue_entry(qp->kern_qp.sq_buf, wqe_idx,
-					       qp->attrs.sq_size, SQEBB_SHIFT);
+			data = erdma_kmem_get_entry(&qp->kern_qp.sq_mem,
+						    wqe_idx, qp->attrs.sq_size,
+						    SQEBB_SHIFT);
 			if (!remain_size)
 				break;
 		}
@@ -385,8 +386,8 @@ static int fill_sgl(struct erdma_qp *qp, const struct ib_send_wr *send_wr,
 	while (i < send_wr->num_sge) {
 		wqe_idx += (sgl_offset >> SQEBB_SHIFT);
 		sgl_offset &= (SQEBB_SIZE - 1);
-		sgl = get_queue_entry(qp->kern_qp.sq_buf, wqe_idx,
-				      qp->attrs.sq_size, SQEBB_SHIFT);
+		sgl = erdma_kmem_get_entry(&qp->kern_qp.sq_mem, wqe_idx,
+					   qp->attrs.sq_size, SQEBB_SHIFT);
 
 		bytes += send_wr->sg_list[i].length;
 		memcpy(sgl + sgl_offset, &send_wr->sg_list[i],
@@ -463,8 +464,8 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 	    send_wr->opcode != IB_WR_SEND_WITH_IMM)
 		return -EINVAL;
 
-	entry = get_queue_entry(qp->kern_qp.sq_buf, idx, qp->attrs.sq_size,
-				SQEBB_SHIFT);
+	entry = erdma_kmem_get_entry(&qp->kern_qp.sq_mem, idx,
+				     qp->attrs.sq_size, SQEBB_SHIFT);
 
 	/* Clear the SQE header section. */
 	*entry = 0;
@@ -524,8 +525,8 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 		read_sqe->sink_to_h =
 			cpu_to_le32(upper_32_bits(send_wr->sg_list[0].addr));
 
-		sge = get_queue_entry(qp->kern_qp.sq_buf, idx + 1,
-				      qp->attrs.sq_size, SQEBB_SHIFT);
+		sge = erdma_kmem_get_entry(&qp->kern_qp.sq_mem, idx + 1,
+					   qp->attrs.sq_size, SQEBB_SHIFT);
 		sge->addr = cpu_to_le64(rdma_wr->remote_addr);
 		sge->key = cpu_to_le32(rdma_wr->rkey);
 		sge->length = cpu_to_le32(send_wr->sg_list[0].length);
@@ -569,8 +570,9 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 		if (mr->mem.mtt_nents <= ERDMA_MAX_INLINE_MTT_ENTRIES) {
 			attrs |= FIELD_PREP(ERDMA_SQE_MR_MTT_TYPE_MASK, 0);
 			/* Copy SGLs to SQE content to accelerate */
-			memcpy(get_queue_entry(qp->kern_qp.sq_buf, idx + 1,
-					       qp->attrs.sq_size, SQEBB_SHIFT),
+			memcpy(erdma_kmem_get_entry(&qp->kern_qp.sq_mem,
+						    idx + 1, qp->attrs.sq_size,
+						    SQEBB_SHIFT),
 			       mr->mem.mtt->buf, MTT_SIZE(mr->mem.mtt_nents));
 			wqe_size = sizeof(struct erdma_reg_mr_sqe) +
 				   MTT_SIZE(mr->mem.mtt_nents);
@@ -605,8 +607,8 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 				cpu_to_le64(atomic_wr(send_wr)->compare_add);
 		}
 
-		sge = get_queue_entry(qp->kern_qp.sq_buf, idx + 1,
-				      qp->attrs.sq_size, SQEBB_SHIFT);
+		sge = erdma_kmem_get_entry(&qp->kern_qp.sq_mem, idx + 1,
+					   qp->attrs.sq_size, SQEBB_SHIFT);
 		sge->addr = cpu_to_le64(atomic_wr(send_wr)->remote_addr);
 		sge->key = cpu_to_le32(atomic_wr(send_wr)->rkey);
 		sge++;
@@ -702,8 +704,8 @@ static int erdma_post_recv_one(struct erdma_qp *qp,
 			       const struct ib_recv_wr *recv_wr)
 {
 	struct erdma_rqe *rqe =
-		get_queue_entry(qp->kern_qp.rq_buf, qp->kern_qp.rq_pi,
-				qp->attrs.rq_size, RQE_SHIFT);
+		erdma_kmem_get_entry(&qp->kern_qp.rq_mem, qp->kern_qp.rq_pi,
+				     qp->attrs.rq_size, RQE_SHIFT);
 
 	rqe->qe_idx = cpu_to_le16(qp->kern_qp.rq_pi + 1);
 	rqe->qpn = cpu_to_le32(QP_ID(qp));

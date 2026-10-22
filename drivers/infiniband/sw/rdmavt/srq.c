@@ -286,7 +286,7 @@ int rvt_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 }
 
 /**
- * rvt_destroy_srq - destory an srq
+ * rvt_destroy_srq - destroy an srq
  * @ibsrq: srq object to destroy
  * @udata: user data for libibverbs.so
  */

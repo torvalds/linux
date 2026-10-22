@@ -40,6 +40,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/data_direct.h>
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
 #include <linux/debugfs.h>
@@ -1339,8 +1340,14 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 	if (err)
 		goto err_traps_reg;
 
+	err = mlx5_data_direct_init(dev);
+	if (err)
+		goto err_data_direct;
+
 	return 0;
 
+err_data_direct:
+	mlx5_devlink_traps_unregister(priv_to_devlink(dev));
 err_traps_reg:
 	mlx5_sf_dev_table_destroy(dev);
 	mlx5_sriov_detach(dev);
@@ -1371,6 +1378,7 @@ err_irq_table:
 
 static void mlx5_unload(struct mlx5_core_dev *dev)
 {
+	mlx5_data_direct_cleanup(dev);
 	mlx5_devlink_traps_unregister(priv_to_devlink(dev));
 	mlx5_vhca_event_stop(dev);
 	mlx5_sf_dev_table_destroy(dev);
@@ -2363,6 +2371,10 @@ static int __init mlx5_init(void)
 	if (err)
 		goto err_sf;
 
+	err = mlx5_data_direct_driver_register();
+	if (err)
+		goto err_dd;
+
 	err = pci_register_driver(&mlx5_core_driver);
 	if (err)
 		goto err_pci;
@@ -2370,6 +2382,8 @@ static int __init mlx5_init(void)
 	return 0;
 
 err_pci:
+	mlx5_data_direct_driver_unregister();
+err_dd:
 	mlx5_sf_driver_unregister();
 err_sf:
 	mlx5e_cleanup();
@@ -2381,6 +2395,7 @@ err_debug:
 static void __exit mlx5_cleanup(void)
 {
 	pci_unregister_driver(&mlx5_core_driver);
+	mlx5_data_direct_driver_unregister();
 	mlx5_sf_driver_unregister();
 	mlx5e_cleanup();
 	mlx5_unregister_debugfs();

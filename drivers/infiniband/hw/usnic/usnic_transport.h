@@ -50,7 +50,7 @@ int usnic_transport_sock_to_str(char *buf, int buf_sz,
 u16 usnic_transport_rsrv_port(enum usnic_transport_type type, u16 port_num);
 void usnic_transport_unrsrv_port(enum usnic_transport_type type, u16 port_num);
 /*
- * Do a fget on the socket refered to by sock_fd and returns the socket.
+ * Do a fget on the socket referred to by sock_fd and returns the socket.
  * Socket will not be destroyed before usnic_transport_put_socket has
  * been called.
  */

@@ -140,7 +140,7 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 		goto out_early;
 	}
 
-	/* RTNL childs don't need proprietary sysfs entries */
+	/* RTNL children don't need proprietary sysfs entries */
 	if (type == IPOIB_LEGACY_CHILD) {
 		if (ipoib_cm_add_mode_attr(ndev))
 			goto sysfs_failed;

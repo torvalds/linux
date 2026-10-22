@@ -638,6 +638,10 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		err_event = (struct creq_qp_error_notification *)qp_event;
 		qp_id = le32_to_cpu(err_event->xid);
 		spin_lock(&rcfw->tbl_lock);
+		if (!rcfw->qp_tbl) {
+			spin_unlock(&rcfw->tbl_lock);
+			break;
+		}
 		tbl_indx = map_qp_id_to_tbl_indx(qp_id, rcfw);
 		qp = rcfw->qp_tbl[tbl_indx].qp_handle;
 		if (!qp) {

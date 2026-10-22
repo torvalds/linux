@@ -36,6 +36,10 @@
 #define IONIC_SQCMB_ORDER 5
 #define IONIC_RQCMB_ORDER 0
 
+#define IONIC_MAX_SRQ_SGES	2
+#define IONIC_MAX_SRQ_LIMIT	0xffff
+#define IONIC_MAX_SRQ_DEPTH	0xffff
+
 #define IONIC_META_LAST		((void *)1ul)
 #define IONIC_META_POSTED	((void *)2ul)
 
@@ -88,6 +92,7 @@ struct ionic_ibdev {
 
 	struct xarray		qp_tbl;
 	struct xarray		cq_tbl;
+	struct xarray		srq_tbl;
 
 	struct ionic_resid_bits	inuse_dbid;
 	struct ionic_resid_bits	inuse_pdid;
@@ -241,6 +246,37 @@ struct ionic_rq_meta {
 	u64			wrid;
 };
 
+struct ionic_rq {
+	struct ionic_queue		q;
+	u32				qid;
+	u32				cqid;
+	struct list_head		cq_flush;
+	spinlock_t			lock; /* for posting and polling */
+
+	phys_addr_t			cmb_addr;
+	struct rdma_user_mmap_entry	*mmap_cmb;
+
+	struct ionic_rq_meta		*meta;
+	struct ionic_rq_meta		*meta_head;
+	struct ib_umem			*umem;
+
+	int				spec;
+	int				cmb_order;
+	u32				cmb_pgid;
+	u16				old_prod;
+	u8				cmb;
+	bool				flush;
+};
+
+struct ionic_srq {
+	struct ib_srq		ibsrq;
+	struct ionic_rq		rq;
+	struct kref		kref;
+	struct completion	rel_comp;
+	u16			srq_limit;
+	u8			udma_idx;
+};
+
 struct ionic_qp {
 	struct ib_qp		ibqp;
 	enum ib_qp_state	state;
@@ -248,18 +284,15 @@ struct ionic_qp {
 	u32			qpid;
 	u32			ahid;
 	u32			sq_cqid;
-	u32			rq_cqid;
 	u8			udma_idx;
 	u8			has_ah:1;
 	u8			has_sq:1;
-	u8			has_rq:1;
 	u8			sig_all:1;
 
 	struct list_head	qp_list_counter;
 
 	struct list_head	cq_poll_sq;
 	struct list_head	cq_flush_sq;
-	struct list_head	cq_flush_rq;
 	struct list_head	ibkill_flush_ent;
 
 	spinlock_t		sq_lock; /* for posting and polling */
@@ -274,14 +307,7 @@ struct ionic_qp {
 	bool			sq_flush;
 	bool			sq_flush_rcvd;
 
-	spinlock_t		rq_lock; /* for posting and polling */
-	struct ionic_queue	rq;
-	struct ionic_rq_meta	*rq_meta;
-	struct ionic_rq_meta	*rq_meta_head;
-	int			rq_spec;
-	u16			rq_old_prod;
-	u8			rq_cmb;
-	bool			rq_flush;
+	struct ionic_rq		rq;
 
 	struct kref		qp_kref;
 	struct completion	qp_rel_comp;
@@ -295,16 +321,10 @@ struct ionic_qp {
 
 	struct ib_umem		*sq_umem;
 
-	int			rq_cmb_order;
-	u32			rq_cmb_pgid;
-	phys_addr_t		rq_cmb_addr;
-	struct rdma_user_mmap_entry *mmap_rq_cmb;
-
-	struct ib_umem		*rq_umem;
-
 	int			dcqcn_profile;
 
 	struct ib_ud_header	*hdr;
+	struct ionic_srq	*srq;
 };
 
 struct ionic_ah {
@@ -399,6 +419,11 @@ static inline struct ionic_qp *to_ionic_qp(struct ib_qp *ibqp)
 	return container_of(ibqp, struct ionic_qp, ibqp);
 }
 
+static inline struct ionic_srq *to_ionic_srq(struct ib_srq *ibsrq)
+{
+	return container_of(ibsrq, struct ionic_srq, ibsrq);
+}
+
 static inline struct ionic_ah *to_ionic_ah(struct ib_ah *ibah)
 {
 	return container_of(ibah, struct ionic_ah, ibah);
@@ -438,6 +463,19 @@ static inline void ionic_cq_complete(struct kref *kref)
 	complete(&cq->cq_rel_comp);
 }
 
+static inline bool ionic_fw_has_qid_alloc(struct ionic_ibdev *dev,
+					  enum ionic_lif_rdma_alloc_qid qtype)
+{
+	return dev->lif_cfg.alloc_qid_cap & qtype;
+}
+
+static inline void ionic_srq_complete(struct kref *kref)
+{
+	struct ionic_srq *srq = container_of(kref, struct ionic_srq, kref);
+
+	complete(&srq->rel_comp);
+}
+
 /* ionic_admin.c */
 extern struct workqueue_struct *ionic_evt_workq;
 void ionic_admin_post(struct ionic_ibdev *dev, struct ionic_admin_wr *wr);
@@ -457,8 +495,11 @@ int ionic_create_cq_common(struct ionic_vcq *vcq,
 			   struct ionic_ctx *ctx,
 			   struct ib_udata *udata,
 			   struct ionic_qdesc *req_cq,
-			   __u32 *resp_cqid,
 			   int udma_idx);
+int ionic_post_create_cq_cmd(struct ionic_cq *cq,
+			     struct ib_udata *udata,
+			     __u32 *resp_cqid);
+void ionic_pre_destroy_cq_cmd(struct ionic_ibdev *dev, struct ionic_cq *cq);
 void ionic_destroy_cq_common(struct ionic_ibdev *dev, struct ionic_cq *cq);
 void ionic_flush_qp(struct ionic_ibdev *dev, struct ionic_qp *qp);
 void ionic_notify_flush_cq(struct ionic_cq *cq);
@@ -498,6 +539,12 @@ int ionic_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int mask,
 int ionic_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int mask,
 		   struct ib_qp_init_attr *init_attr);
 int ionic_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
+int ionic_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *attr,
+		     struct ib_udata *udata);
+int ionic_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
+int ionic_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr);
+int ionic_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
+		     enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 
 /* ionic_datapath.c */
 int ionic_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,

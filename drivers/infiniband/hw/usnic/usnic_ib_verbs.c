@@ -181,7 +181,7 @@ find_free_vf_and_create_qp_grp(struct ib_qp *qp,
 	}
 
 	if (usnic_ib_share_vf) {
-		/* Try to find resouces on a used vf which is in pd */
+		/* Try to find resources on a used vf which is in pd */
 		dev_list = usnic_uiom_get_dev_list(pd->umem_pd);
 		if (IS_ERR(dev_list))
 			return PTR_ERR(dev_list);

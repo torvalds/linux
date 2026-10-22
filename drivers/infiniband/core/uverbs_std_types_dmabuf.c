@@ -28,7 +28,7 @@ uverbs_dmabuf_map(struct dma_buf_attachment *attachment,
 	struct ib_uverbs_dmabuf_file *priv = attachment->dmabuf->priv;
 	struct sg_table *ret;
 
-	dma_resv_assert_held(priv->dmabuf->resv);
+	dma_resv_assert_held(attachment->dmabuf->resv);
 
 	if (priv->revoked)
 		return ERR_PTR(-ENODEV);
@@ -49,7 +49,7 @@ static void uverbs_dmabuf_unmap(struct dma_buf_attachment *attachment,
 {
 	struct ib_uverbs_dmabuf_file *priv = attachment->dmabuf->priv;
 
-	dma_resv_assert_held(priv->dmabuf->resv);
+	dma_resv_assert_held(attachment->dmabuf->resv);
 	dma_buf_free_sgt(attachment, sgt, dir);
 	kref_put(&priv->kref, ib_uverbs_dmabuf_done);
 }
@@ -68,12 +68,31 @@ static void uverbs_dmabuf_release(struct dma_buf *dmabuf)
 	struct ib_uverbs_dmabuf_file *priv = dmabuf->priv;
 
 	/*
-	 * This can only happen if the fput came from alloc_abort_fd_uobject()
+	 * This can only happen if the fput came from the error unwind of
+	 * UVERBS_METHOD_DMABUF_ALLOC. The abort cleans up the uobject.
 	 */
-	if (!priv->uobj.context)
+	if (!priv)
 		return;
 
+	/*
+	 * uverbs_uobject_release() may drop the last reference to the uobject,
+	 * keep it around until the dmabuf pointer below has been cleared.
+	 */
+	uverbs_uobject_get(&priv->uobj);
 	uverbs_uobject_release(&priv->uobj);
+
+	/*
+	 * The dma_buf is freed once this function returns. If the uobject was
+	 * not destroyed above, because the ufile is concurrently being cleaned
+	 * up, it is still reachable through the ufile's uobjects list and the
+	 * mmap entry's dmabufs list. Make sure those paths are not in the
+	 * middle of using the dma_buf and cannot use it afterwards.
+	 */
+	mutex_lock(&priv->dmabuf_release_lock);
+	priv->dmabuf = NULL;
+	mutex_unlock(&priv->dmabuf_release_lock);
+
+	uverbs_uobject_put(&priv->uobj);
 }
 
 static const struct dma_buf_ops uverbs_dmabuf_ops = {
@@ -98,6 +117,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DMABUF_ALLOC)(
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	off_t pg_off;
 	int ret;
+
+	mutex_init(&uverbs_dmabuf->dmabuf_release_lock);
 
 	ret = uverbs_get_const(&pg_off, attrs, UVERBS_ATTR_ALLOC_DMABUF_PGOFF);
 	if (ret)
@@ -141,6 +162,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DMABUF_ALLOC)(
 	return 0;
 
 err_revoked:
+	/* Tell uverbs_dmabuf_release() that the uobject is being aborted */
+	uverbs_dmabuf->dmabuf->priv = NULL;
 	dma_buf_put(uverbs_dmabuf->dmabuf);
 err:
 	rdma_user_mmap_entry_put(mmap_entry);
@@ -162,24 +185,11 @@ static void uverbs_dmabuf_fd_destroy_uobj(struct ib_uobject *uobj,
 {
 	struct ib_uverbs_dmabuf_file *uverbs_dmabuf =
 		container_of(uobj, struct ib_uverbs_dmabuf_file, uobj);
-	bool wait_for_comp = false;
 
 	mutex_lock(&uverbs_dmabuf->mmap_entry->dmabufs_lock);
-	dma_resv_lock(uverbs_dmabuf->dmabuf->resv, NULL);
 	if (!uverbs_dmabuf->revoked) {
-		uverbs_dmabuf->revoked = true;
 		list_del(&uverbs_dmabuf->dmabufs_elm);
-		dma_buf_invalidate_mappings(uverbs_dmabuf->dmabuf);
-		dma_resv_wait_timeout(uverbs_dmabuf->dmabuf->resv,
-				      DMA_RESV_USAGE_BOOKKEEP, false,
-				      MAX_SCHEDULE_TIMEOUT);
-		wait_for_comp = true;
-	}
-	dma_resv_unlock(uverbs_dmabuf->dmabuf->resv);
-	if (wait_for_comp) {
-		kref_put(&uverbs_dmabuf->kref, ib_uverbs_dmabuf_done);
-		/* Let's wait till all DMA unmap are completed. */
-		wait_for_completion(&uverbs_dmabuf->comp);
+		ib_uverbs_dmabuf_revoke(uverbs_dmabuf);
 	}
 	mutex_unlock(&uverbs_dmabuf->mmap_entry->dmabufs_lock);
 
