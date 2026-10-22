@@ -327,7 +327,7 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci *host, u32 opcode)
 						i,
 						priv->num_phases));
 
-		v = !mmc_send_tuning(mmc, opcode, NULL);
+		v = !mmc_send_tuning_timeout(mmc, opcode, NULL, 5);
 
 		if (i == 0)
 			first_v = v;

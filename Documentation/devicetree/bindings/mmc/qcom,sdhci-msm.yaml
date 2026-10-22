@@ -26,6 +26,7 @@ properties:
               - qcom,ipq4019-sdhci
               - qcom,ipq8074-sdhci
               - qcom,msm8226-sdhci
+              - qcom,msm8952-sdhci
               - qcom,msm8953-sdhci
               - qcom,msm8974-sdhci
               - qcom,msm8976-sdhci
@@ -47,6 +48,7 @@ properties:
               - qcom,ipq9574-sdhci
               - qcom,ipq9650-sdhci
               - qcom,kaanapali-sdhci
+              - qcom,maili-sdhci
               - qcom,milos-sdhci
               - qcom,qcm2290-sdhci
               - qcom,qcs404-sdhci

@@ -3113,6 +3113,11 @@ N: Peter Oruba
 D: AMD Microcode loader driver
 S: Germany
 
+N: Pierre Ossman
+D: MMC maintainer 2006-2009
+D: First SDIO implementation
+S: Sweden
+
 N: Jens Osterkamp
 E: jens@de.ibm.com
 D: Maintainer of Spidernet network driver for Cell

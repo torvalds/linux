@@ -717,7 +717,7 @@ static int mvsd_probe(struct platform_device *pdev)
 	/*
 	 * Some non-DT platforms do not pass a clock, and the clock
 	 * frequency is passed through platform_data. On DT platforms,
-	 * a clock must always be passed, even if there is no gatable
+	 * a clock must always be passed, even if there is no gateable
 	 * clock associated to the SDIO interface (it can simply be a
 	 * fixed rate clock).
 	 */

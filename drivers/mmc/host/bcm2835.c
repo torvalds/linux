@@ -1095,7 +1095,7 @@ static void bcm2835_set_clock(struct bcm2835_host *host, unsigned int clock)
 	int div;
 
 	/* The SDCDIV register has 11 bits, and holds (div - 2).  But
-	 * in data mode the max is 50MHz wihout a minimum, and only
+	 * in data mode the max is 50MHz without a minimum, and only
 	 * the bottom 3 bits are used. Since the switch over is
 	 * automatic (unless we have marked the card as slow...),
 	 * chosen values have to make sense in both modes.  Ident mode

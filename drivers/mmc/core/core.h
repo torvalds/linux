@@ -73,6 +73,14 @@ static inline void mmc_delay(unsigned int ms)
 		msleep(ms);
 }
 
+static inline void mmc_delay_us(unsigned int us)
+{
+	if (us == 0)
+		return;
+
+	fsleep(us);
+}
+
 void mmc_rescan(struct work_struct *work);
 void mmc_start_host(struct mmc_host *host);
 void __mmc_stop_host(struct mmc_host *host);
@@ -162,7 +170,7 @@ int mmc_cqe_recovery(struct mmc_host *host);
  *	@host: MMC host to prepare command
  *	@mrq: MMC request to prepare for
  *
- *	mmc_pre_req() is called in prior to mmc_start_req() to let
+ *	mmc_pre_req() is called in prior to mmc_start_request() to let
  *	host prepare for the new request. Preparation of a request may be
  *	performed while another request is running on the host.
  */

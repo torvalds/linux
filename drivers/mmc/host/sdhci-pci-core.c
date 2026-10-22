@@ -2170,13 +2170,11 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 
 	host->irq = pdev->irq;
 
-	ret = pcim_iomap_regions(pdev, BIT(bar), mmc_hostname(host->mmc));
-	if (ret) {
+	host->ioaddr = pcim_iomap_region(pdev, bar, mmc_hostname(host->mmc));
+	if (IS_ERR(host->ioaddr)) {
 		dev_err(&pdev->dev, "cannot request region\n");
-		return ERR_PTR(ret);
+		return ERR_CAST(host->ioaddr);
 	}
-
-	host->ioaddr = pcim_iomap_table(pdev)[bar];
 
 	if (chip->fixes && chip->fixes->probe_slot) {
 		ret = chip->fixes->probe_slot(slot);

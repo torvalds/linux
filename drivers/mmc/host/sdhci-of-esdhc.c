@@ -1381,7 +1381,7 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 	if (!IS_ERR(clk)) {
 		/*
 		 * esdhc->peripheral_clock would be assigned with a value
-		 * which is eSDHC base clock when use periperal clock.
+		 * which is eSDHC base clock when use peripheral clock.
 		 * For some platforms, the clock value got by common clk
 		 * API is peripheral clock while the eSDHC base clock is
 		 * 1/2 peripheral clock.

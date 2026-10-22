@@ -409,7 +409,7 @@ struct sdhci_adma2_64_desc {
 #define SDHCI_MAX_MRQS		2
 
 /*
- * 48bit command and 136 bit response in 100KHz clock could take upto 2.48ms.
+ * 48bit command and 136 bit response in 100KHz clock could take up to 2.48ms.
  * However since the start time of the command, the time between
  * command and response, and the time between response and start of data is
  * not known, set the command transfer time to 10ms.

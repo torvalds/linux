@@ -123,7 +123,7 @@ static int mv_conf_mbus_windows(struct platform_device *pdev,
 static int armada_38x_quirks(struct platform_device *pdev,
 			     struct sdhci_host *host)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_pxa *pxa = sdhci_pltfm_priv(pltfm_host);
 	struct resource *res;
@@ -155,7 +155,7 @@ static int armada_38x_quirks(struct platform_device *pdev,
 	 * controller has different capabilities than the ones shown
 	 * in its registers
 	 */
-	if (of_property_read_bool(np, "no-1-8-v")) {
+	if (device_property_present(dev, "no-1-8-v")) {
 		host->caps &= ~SDHCI_CAN_VDD_180;
 		host->mmc->caps &= ~MMC_CAP_1_8V_DDR;
 	} else {
@@ -284,7 +284,8 @@ static void pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 		    uhs == MMC_TIMING_UHS_DDR50) {
 			reg_val &= ~SDIO3_CONF_CLK_INV;
 			reg_val |= SDIO3_CONF_SD_FB_CLK;
-		} else if (uhs == MMC_TIMING_MMC_HS) {
+		} else if (uhs == MMC_TIMING_MMC_HS ||
+			   uhs == MMC_TIMING_SD_HS) {
 			reg_val &= ~SDIO3_CONF_CLK_INV;
 			reg_val &= ~SDIO3_CONF_SD_FB_CLK;
 		} else {
@@ -363,14 +364,13 @@ MODULE_DEVICE_TABLE(of, sdhci_pxav3_of_match);
 static struct sdhci_pxa_platdata *pxav3_get_mmc_pdata(struct device *dev)
 {
 	struct sdhci_pxa_platdata *pdata;
-	struct device_node *np = dev->of_node;
 	u32 clk_delay_cycles;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	if (!of_property_read_u32(np, "mrvl,clk-delay-cycles",
+	if (!device_property_read_u32(dev, "mrvl,clk-delay-cycles",
 				  &clk_delay_cycles))
 		pdata->clk_delay_cycles = clk_delay_cycles;
 
@@ -401,7 +401,6 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_pxa_platdata *pdata = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
 	struct sdhci_host *host = NULL;
 	struct sdhci_pxa *pxa = NULL;
 	const struct of_device_id *match;
@@ -432,7 +431,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	/* enable 1/8V DDR capable */
 	host->mmc->caps |= MMC_CAP_1_8V_DDR;
 
-	if (of_device_is_compatible(np, "marvell,armada-380-sdhci")) {
+	if (device_is_compatible(dev, "marvell,armada-380-sdhci")) {
 		ret = armada_38x_quirks(pdev, host);
 		if (ret < 0)
 			goto err_mbus_win;

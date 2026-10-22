@@ -388,10 +388,7 @@ static void ushc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 {
 	struct ushc_data *ushc = mmc_priv(mmc);
 
-	if (enable)
-		set_bit(INT_EN, &ushc->flags);
-	else
-		clear_bit(INT_EN, &ushc->flags);
+	assign_bit(INT_EN, &ushc->flags, enable);
 }
 
 static void ushc_clean_up(struct ushc_data *ushc)

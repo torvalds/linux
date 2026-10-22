@@ -86,7 +86,7 @@ MODULE_ALIAS("mmc:block");
 static DEFINE_MUTEX(block_mutex);
 
 /*
- * The defaults come from config options but can be overriden by module
+ * The defaults come from config options but can be overridden by module
  * or bootarg options.
  */
 static int perdev_minors = CONFIG_MMC_BLOCK_MINORS;

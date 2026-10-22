@@ -1677,10 +1677,7 @@ static void atmci_detect_change(struct timer_list *t)
 
 		spin_lock(&host->lock);
 
-		if (!present)
-			clear_bit(ATMCI_CARD_PRESENT, &slot->flags);
-		else
-			set_bit(ATMCI_CARD_PRESENT, &slot->flags);
+		assign_bit(ATMCI_CARD_PRESENT, &slot->flags, present);
 
 		/* Clean up queue if present */
 		mrq = slot->mrq;

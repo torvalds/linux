@@ -44,6 +44,137 @@
 #define DW_MCI_FREQ_MAX	200000000	/* unit: HZ */
 #define DW_MCI_FREQ_MIN	100000		/* unit: HZ */
 
+/* Event sets guarded by the central watchdog, see below. */
+#define DW_MCI_WD_CMD_EVENTS	BIT(EVENT_CMD_COMPLETE)
+#define DW_MCI_WD_DATA_EVENTS	(BIT(EVENT_DATA_ERROR) | \
+				 BIT(EVENT_DATA_COMPLETE))
+/* Extra watch rounds granted while the completion IRQ is merely late. */
+#define DW_MCI_WD_INFLIGHT_GRACE_MS	10
+
+/*
+ * Central watchdog
+ * ================
+ *
+ * A single hrtimer guards the legs of a request (command, data, voltage
+ * switch) against the hardware going silent: whenever a completion event
+ * that was expected within a bounded time does not arrive in time, the
+ * callback synthesizes it so that the request state machine can error out.
+ *
+ * @wd_events holds the pending_events bits still being waited for and
+ * @wd_states the host->state values for which the watch is valid; both
+ * are protected by irq_lock.  Every producer of the guarded events posts
+ * them under irq_lock as well, so a callback holding irq_lock can never
+ * miss an already-delivered event.  A stale callback which raced past
+ * all checks therefore degrades to at most one redundant state-machine
+ * run instead of completing a foreign leg.  Arming replaces whatever
+ * watch was outstanding before: command and data legs are strictly
+ * serial, so consecutive arms on the same path collapse onto the latest
+ * deadline.
+ *
+ * On expiry, before declaring a timeout, the callback double-checks that
+ * the completion interrupt is not already latched in hardware; if it is,
+ * only the interrupt latency is to blame and the watch is granted extra
+ * rounds instead of failing a transfer that is about to complete.
+ */
+static void dw_mci_wd_deliver(struct dw_mci *host, unsigned long events)
+{
+	host->wd_events &= ~events;
+	if (!host->wd_events)
+		hrtimer_try_to_cancel(&host->wd_timer);
+}
+
+/*
+ * Arm a new watch for @events valid while host->state is one of @states,
+ * expiring after @ms milliseconds.  @already lists bits whose delivery
+ * makes the watch pointless before it is even armed: arming is skipped
+ * when any of them has been posted concurrently.  Must be called with
+ * irq_lock held.
+ */
+static void dw_mci_wd_arm(struct dw_mci *host, unsigned long ms,
+			  unsigned long already, unsigned long events,
+			  unsigned long states)
+{
+	lockdep_assert_held(&host->irq_lock);
+
+	if (host->pending_events & already) {
+		/*
+		 * The event was delivered concurrently; no need for a
+		 * watch anymore.
+		 */
+		host->wd_events = 0;
+		hrtimer_try_to_cancel(&host->wd_timer);
+		return;
+	}
+
+	host->wd_events = events;
+	host->wd_states = states;
+	host->wd_deadline_ns = ktime_get_ns() + (u64)ms * NSEC_PER_MSEC;
+	hrtimer_start(&host->wd_timer, ms_to_ktime(ms), HRTIMER_MODE_REL);
+}
+
+/* Called from hardirq context on watchdog expiry. */
+static enum hrtimer_restart dw_mci_watchdog_fn(struct hrtimer *t)
+{
+	struct dw_mci *host = container_of(t, struct dw_mci, wd_timer);
+	unsigned long irqflags;
+	u32 pending;
+
+	spin_lock_irqsave(&host->irq_lock, irqflags);
+
+	/*
+	 * Last line of defense against a false timeout: when the completion
+	 * interrupt is already latched in MINTSTS but its handler has not
+	 * been scheduled yet, the leg is about to finish normally.  Warn
+	 * about the latency and keep watching instead of failing the
+	 * transfer; delivery by the real interrupt will stop the watch.
+	 * The retired per-timer callbacks went passive here and relied on
+	 * the latched interrupt arriving; rearming bounds the damage if
+	 * that assumption is ever broken.
+	 */
+	if (host->wd_events) {
+		pending = mci_readl(host, MINTSTS); /* read-only mask reg */
+		if ((host->wd_events == DW_MCI_WD_CMD_EVENTS &&
+		     (pending & (DW_MCI_CMD_ERROR_FLAGS |
+				 SDMMC_INT_CMD_DONE))) ||
+		    (host->wd_events == DW_MCI_WD_DATA_EVENTS &&
+		     (pending & (SDMMC_INT_DATA_OVER |
+				 DW_MCI_DATA_ERROR_FLAGS)))) {
+			dev_warn(host->dev,
+				 "Interrupt latency, state %d (watched %#lx)\n",
+				 host->state, host->wd_events);
+			hrtimer_forward_now(&host->wd_timer,
+					    ms_to_ktime(DW_MCI_WD_INFLIGHT_GRACE_MS));
+			spin_unlock_irqrestore(&host->irq_lock, irqflags);
+			return HRTIMER_RESTART;
+		}
+	}
+
+	if (host->wd_events == DW_MCI_WD_DATA_EVENTS) {
+		dev_warn(host->dev,
+			 "Data timeout, state %d\n", host->state);
+		host->data_status = SDMMC_INT_DRTO;
+		set_bit(EVENT_DATA_ERROR, &host->pending_events);
+		set_bit(EVENT_DATA_COMPLETE, &host->pending_events);
+	} else if (host->wd_events) {
+		dev_warn(host->dev,
+			 "Command timeout, state %d (watched %#lx)\n",
+			 host->state, host->wd_events);
+		host->cmd_status = SDMMC_INT_RTO;
+		set_bit(EVENT_CMD_COMPLETE, &host->pending_events);
+	}
+
+	if (host->wd_events)
+		queue_work(system_bh_wq, &host->bh_work);
+
+	host->wd_events = 0;
+	host->wd_states = 0;
+	host->wd_deadline_ns = 0;
+
+	spin_unlock_irqrestore(&host->irq_lock, irqflags);
+
+	return HRTIMER_NORESTART;
+}
+
 #define IDMAC_INT_CLR		(SDMMC_IDMAC_INT_AI | SDMMC_IDMAC_INT_NI | \
 				 SDMMC_IDMAC_INT_CES | SDMMC_IDMAC_INT_DU | \
 				 SDMMC_IDMAC_INT_FBE | SDMMC_IDMAC_INT_RI | \
@@ -171,6 +302,10 @@ static void dw_mci_init_debugfs(struct dw_mci *host)
 			   &host->pending_events);
 	debugfs_create_xul("completed_events", 0400, root,
 			   &host->completed_events);
+	debugfs_create_x64("wd_deadline_ns", 0400, root,
+			   &host->wd_deadline_ns);
+	debugfs_create_xul("wd_events", 0400, root, &host->wd_events);
+	debugfs_create_xul("wd_states", 0400, root, &host->wd_states);
 #ifdef CONFIG_FAULT_INJECTION
 	fault_create_debugfs_attr("fail_data_crc", root, &host->fail_data_crc);
 #endif
@@ -366,18 +501,17 @@ static inline void dw_mci_set_cto(struct dw_mci *host)
 	 * extra careful about synchronization here.  Specifically in hardware a
 	 * command timeout is _at most_ 5.1 ms, so that means we expect an
 	 * interrupt (either command done or timeout) to come rather quickly
-	 * after the mci_writel.  ...but just in case we have a long interrupt
-	 * latency let's add a bit of paranoia.
+	 * after the mci_writel.
 	 *
-	 * In general we'll assume that at least an interrupt will be asserted
-	 * in hardware by the time the cto_timer runs.  ...and if it hasn't
-	 * been asserted in hardware by that time then we'll assume it'll never
-	 * come.
+	 * dw_mci_wd_arm() skips arming when the event was already delivered,
+	 * and the watchdog callback rechecks under the same lock before
+	 * declaring a timeout, so both orderings of the race are covered.
 	 */
 	spin_lock_irqsave(&host->irq_lock, irqflags);
-	if (!test_bit(EVENT_CMD_COMPLETE, &host->pending_events))
-		mod_timer(&host->cto_timer,
-			jiffies + msecs_to_jiffies(cto_ms) + 1);
+	dw_mci_wd_arm(host, cto_ms, DW_MCI_WD_CMD_EVENTS,
+		      DW_MCI_WD_CMD_EVENTS,
+		      BIT(STATE_SENDING_CMD) | BIT(STATE_SENDING_STOP) |
+		      BIT(STATE_SENDING_CMD11));
 	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 }
 
@@ -1265,17 +1399,16 @@ static void dw_mci_start_request(struct dw_mci *host, struct mmc_command *cmd)
 		/*
 		 * Databook says to fail after 2ms w/ no response, but evidence
 		 * shows that sometimes the cmd11 interrupt takes over 130ms.
-		 * We'll set to 500ms, plus an extra jiffy just in case jiffies
-		 * is just about to roll over.
+		 * We'll set to 500ms.
 		 *
 		 * We do this whole thing under spinlock and only if the
 		 * command hasn't already completed (indicating the irq
 		 * already ran so we don't want the timeout).
 		 */
 		spin_lock_irqsave(&host->irq_lock, irqflags);
-		if (!test_bit(EVENT_CMD_COMPLETE, &host->pending_events))
-			mod_timer(&host->cmd11_timer,
-				jiffies + msecs_to_jiffies(500) + 1);
+		dw_mci_wd_arm(host, 500, DW_MCI_WD_CMD_EVENTS,
+			      DW_MCI_WD_CMD_EVENTS,
+			      BIT(STATE_SENDING_CMD11));
 		spin_unlock_irqrestore(&host->irq_lock, irqflags);
 	}
 
@@ -1870,9 +2003,9 @@ static void dw_mci_set_drto(struct dw_mci *host)
 	drto_ms += 10;
 
 	spin_lock_irqsave(&host->irq_lock, irqflags);
-	if (!test_bit(EVENT_DATA_COMPLETE, &host->pending_events))
-		mod_timer(&host->dto_timer,
-			  jiffies + msecs_to_jiffies(drto_ms));
+	dw_mci_wd_arm(host, drto_ms, BIT(EVENT_DATA_COMPLETE),
+		      DW_MCI_WD_DATA_EVENTS,
+		      BIT(STATE_SENDING_DATA) | BIT(STATE_DATA_BUSY));
 	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 }
 
@@ -1881,14 +2014,6 @@ static bool dw_mci_clear_pending_cmd_complete(struct dw_mci *host)
 	if (!test_bit(EVENT_CMD_COMPLETE, &host->pending_events))
 		return false;
 
-	/*
-	 * Really be certain that the timer has stopped.  This is a bit of
-	 * paranoia and could only really happen if we had really bad
-	 * interrupt latency and the interrupt routine and timeout were
-	 * running concurrently so that the timer_delete() in the interrupt
-	 * handler couldn't run.
-	 */
-	WARN_ON(timer_delete_sync(&host->cto_timer));
 	clear_bit(EVENT_CMD_COMPLETE, &host->pending_events);
 
 	return true;
@@ -1899,8 +2024,6 @@ static bool dw_mci_clear_pending_data_complete(struct dw_mci *host)
 	if (!test_bit(EVENT_DATA_COMPLETE, &host->pending_events))
 		return false;
 
-	/* Extra paranoia just like dw_mci_clear_pending_cmd_complete() */
-	WARN_ON(timer_delete_sync(&host->dto_timer));
 	clear_bit(EVENT_DATA_COMPLETE, &host->pending_events);
 
 	return true;
@@ -2633,7 +2756,7 @@ done:
 
 static void dw_mci_cmd_interrupt(struct dw_mci *host, u32 status)
 {
-	timer_delete(&host->cto_timer);
+	dw_mci_wd_deliver(host, BIT(EVENT_CMD_COMPLETE));
 
 	if (!host->cmd_status)
 		host->cmd_status = status;
@@ -2666,21 +2789,15 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			mci_writel(host, RINTSTS, SDMMC_INT_VOLT_SWITCH);
 			pending &= ~SDMMC_INT_VOLT_SWITCH;
 
-			/*
-			 * Hold the lock; we know cmd11_timer can't be kicked
-			 * off after the lock is released, so safe to delete.
-			 */
 			spin_lock(&host->irq_lock);
 			dw_mci_cmd_interrupt(host, pending);
 			spin_unlock(&host->irq_lock);
-
-			timer_delete(&host->cmd11_timer);
 		}
 
 		if (pending & DW_MCI_CMD_ERROR_FLAGS) {
 			spin_lock(&host->irq_lock);
 
-			timer_delete(&host->cto_timer);
+			dw_mci_wd_deliver(host, BIT(EVENT_CMD_COMPLETE));
 			mci_writel(host, RINTSTS, DW_MCI_CMD_ERROR_FLAGS);
 			host->cmd_status = pending;
 			smp_wmb(); /* drain writebuffer */
@@ -2693,7 +2810,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			spin_lock(&host->irq_lock);
 
 			if (host->quirks & DW_MMC_QUIRK_EXTENDED_TMOUT)
-				timer_delete(&host->dto_timer);
+				dw_mci_wd_deliver(host, DW_MCI_WD_DATA_EVENTS);
 
 			/* if there is an error report DATA_ERROR */
 			mci_writel(host, RINTSTS, DW_MCI_DATA_ERROR_FLAGS);
@@ -2714,7 +2831,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		if (pending & SDMMC_INT_DATA_OVER) {
 			spin_lock(&host->irq_lock);
 
-			timer_delete(&host->dto_timer);
+			dw_mci_wd_deliver(host, DW_MCI_WD_DATA_EVENTS);
 
 			mci_writel(host, RINTSTS, SDMMC_INT_DATA_OVER);
 			if (!host->data_status)
@@ -2994,126 +3111,6 @@ no_dma:
 	host->use_dma = TRANS_MODE_PIO;
 }
 
-static void dw_mci_cmd11_timer(struct timer_list *t)
-{
-	struct dw_mci *host = timer_container_of(host, t, cmd11_timer);
-
-	if (host->state != STATE_SENDING_CMD11) {
-		dev_warn(host->dev, "Unexpected CMD11 timeout\n");
-		return;
-	}
-
-	host->cmd_status = SDMMC_INT_RTO;
-	set_bit(EVENT_CMD_COMPLETE, &host->pending_events);
-	queue_work(system_bh_wq, &host->bh_work);
-}
-
-static void dw_mci_cto_timer(struct timer_list *t)
-{
-	struct dw_mci *host = timer_container_of(host, t, cto_timer);
-	unsigned long irqflags;
-	u32 pending;
-
-	spin_lock_irqsave(&host->irq_lock, irqflags);
-
-	/*
-	 * If somehow we have very bad interrupt latency it's remotely possible
-	 * that the timer could fire while the interrupt is still pending or
-	 * while the interrupt is midway through running.  Let's be paranoid
-	 * and detect those two cases.  Note that this is paranoia is somewhat
-	 * justified because in this function we don't actually cancel the
-	 * pending command in the controller--we just assume it will never come.
-	 */
-	pending = mci_readl(host, MINTSTS); /* read-only mask reg */
-	if (pending & (DW_MCI_CMD_ERROR_FLAGS | SDMMC_INT_CMD_DONE)) {
-		/* The interrupt should fire; no need to act but we can warn */
-		dev_warn(host->dev, "Unexpected interrupt latency\n");
-		goto exit;
-	}
-	if (test_bit(EVENT_CMD_COMPLETE, &host->pending_events)) {
-		/* Presumably interrupt handler couldn't delete the timer */
-		dev_warn(host->dev, "CTO timeout when already completed\n");
-		goto exit;
-	}
-
-	/*
-	 * Continued paranoia to make sure we're in the state we expect.
-	 * This paranoia isn't really justified but it seems good to be safe.
-	 */
-	switch (host->state) {
-	case STATE_SENDING_CMD11:
-	case STATE_SENDING_CMD:
-	case STATE_SENDING_STOP:
-		/*
-		 * If CMD_DONE interrupt does NOT come in sending command
-		 * state, we should notify the driver to terminate current
-		 * transfer and report a command timeout to the core.
-		 */
-		host->cmd_status = SDMMC_INT_RTO;
-		set_bit(EVENT_CMD_COMPLETE, &host->pending_events);
-		queue_work(system_bh_wq, &host->bh_work);
-		break;
-	default:
-		dev_warn(host->dev, "Unexpected command timeout, state %d\n",
-			 host->state);
-		break;
-	}
-
-exit:
-	spin_unlock_irqrestore(&host->irq_lock, irqflags);
-}
-
-static void dw_mci_dto_timer(struct timer_list *t)
-{
-	struct dw_mci *host = timer_container_of(host, t, dto_timer);
-	unsigned long irqflags;
-	u32 pending;
-
-	spin_lock_irqsave(&host->irq_lock, irqflags);
-
-	/*
-	 * The DTO timer is much longer than the CTO timer, so it's even less
-	 * likely that we'll these cases, but it pays to be paranoid.
-	 */
-	pending = mci_readl(host, MINTSTS); /* read-only mask reg */
-	if (pending & SDMMC_INT_DATA_OVER) {
-		/* The interrupt should fire; no need to act but we can warn */
-		dev_warn(host->dev, "Unexpected data interrupt latency\n");
-		goto exit;
-	}
-	if (test_bit(EVENT_DATA_COMPLETE, &host->pending_events)) {
-		/* Presumably interrupt handler couldn't delete the timer */
-		dev_warn(host->dev, "DTO timeout when already completed\n");
-		goto exit;
-	}
-
-	/*
-	 * Continued paranoia to make sure we're in the state we expect.
-	 * This paranoia isn't really justified but it seems good to be safe.
-	 */
-	switch (host->state) {
-	case STATE_SENDING_DATA:
-	case STATE_DATA_BUSY:
-		/*
-		 * If DTO interrupt does NOT come in sending data state,
-		 * we should notify the driver to terminate current transfer
-		 * and report a data timeout to the core.
-		 */
-		host->data_status = SDMMC_INT_DRTO;
-		set_bit(EVENT_DATA_ERROR, &host->pending_events);
-		set_bit(EVENT_DATA_COMPLETE, &host->pending_events);
-		queue_work(system_bh_wq, &host->bh_work);
-		break;
-	default:
-		dev_warn(host->dev, "Unexpected data timeout, state %d\n",
-			 host->state);
-		break;
-	}
-
-exit:
-	spin_unlock_irqrestore(&host->irq_lock, irqflags);
-}
-
 static int dw_mci_parse_dt(struct dw_mci *host)
 {
 	struct device *dev = host->dev;
@@ -3261,9 +3258,8 @@ int dw_mci_probe(struct dw_mci *host)
 		}
 	}
 
-	timer_setup(&host->cmd11_timer, dw_mci_cmd11_timer, 0);
-	timer_setup(&host->cto_timer, dw_mci_cto_timer, 0);
-	timer_setup(&host->dto_timer, dw_mci_dto_timer, 0);
+	hrtimer_setup(&host->wd_timer, dw_mci_watchdog_fn, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 
 	spin_lock_init(&host->lock);
 	spin_lock_init(&host->irq_lock);

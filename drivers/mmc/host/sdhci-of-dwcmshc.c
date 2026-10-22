@@ -239,6 +239,8 @@
 					 SDHCI_TRNS_BLK_CNT_EN | \
 					 SDHCI_TRNS_DMA)
 
+#define CQHCI_SW_ERR_HALT_REQ_DISABLE	BIT(1)
+
 #define to_pltfm_data(priv, name) \
 	container_of((priv)->dwcmshc_pdata, struct name##_pltfm_data, dwcmshc_pdata)
 
@@ -702,6 +704,8 @@ static void rk35xx_sdhci_cqe_pre_enable(struct mmc_host *mmc)
 static void rk35xx_sdhci_cqe_enable(struct mmc_host *mmc)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
 	u32 reg;
 
 	reg = sdhci_readl(host, SDHCI_PRESENT_STATE);
@@ -711,6 +715,15 @@ static void rk35xx_sdhci_cqe_enable(struct mmc_host *mmc)
 	}
 
 	sdhci_writew(host, DWCMSHC_SDHCI_CQE_TRNS_MODE, SDHCI_TRANSFER_MODE);
+
+	/*
+	 * Disable the halt request raised on an I/O error, otherwise a
+	 * doorbell write gets a slave response error while the halt request
+	 * is pending and hangs the CPU. This bit is reserved on older SoCs,
+	 * so the write is a no-op there.
+	 */
+	sdhci_writel(host, CQHCI_SW_ERR_HALT_REQ_DISABLE,
+		     dwc_priv->vendor_specific_area2 + CQHCI_CTL);
 
 	sdhci_cqe_enable(mmc);
 }

@@ -1552,8 +1552,8 @@ sdhci_arasan_register_sdcardclk(struct sdhci_arasan_data *sdhci_arasan,
 				struct device *dev)
 {
 	struct sdhci_arasan_clk_data *clk_data = &sdhci_arasan->clk_data;
+	struct clk_init_data sdcardclk_init = {};
 	struct device_node *np = dev->of_node;
-	struct clk_init_data sdcardclk_init;
 	const char *parent_clk_name;
 	int ret;
 
@@ -1604,8 +1604,8 @@ sdhci_arasan_register_sampleclk(struct sdhci_arasan_data *sdhci_arasan,
 				struct device *dev)
 {
 	struct sdhci_arasan_clk_data *clk_data = &sdhci_arasan->clk_data;
+	struct clk_init_data sampleclk_init = {};
 	struct device_node *np = dev->of_node;
-	struct clk_init_data sampleclk_init;
 	const char *parent_clk_name;
 	int ret;
 

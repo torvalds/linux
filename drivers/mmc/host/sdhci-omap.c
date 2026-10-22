@@ -332,7 +332,7 @@ static int sdhci_omap_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	u32 reg;
 	int i;
 
-	/* clock tuning is not needed for upto 52MHz */
+	/* clock tuning is not needed for up to 52MHz */
 	if (ios->clock <= 52000000)
 		return 0;
 
