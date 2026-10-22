@@ -2844,7 +2844,7 @@ void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_state,
 		       HSYNC_END(adjusted_mode->crtc_hsync_end - 1));
 
 	if (display->platform.novalake &&
-	    IS_DISPLAY_STEP(display, STEP_A0, STEP_C0))
+	    IS_DISPLAY_STEP(display, STEP_A0, STEP_B0))
 		crtc_vtotal = 1;
 
 	intel_de_write(display, TRANS_VTOTAL(display, transcoder),
@@ -2941,7 +2941,7 @@ void intel_set_transcoder_timings_lrr(const struct intel_crtc_state *crtc_state,
 	 * is the transcoder's undelayed vblank.
 	 */
 	if (display->platform.novalake &&
-	    IS_DISPLAY_STEP(display, STEP_A0, STEP_C0))
+	    IS_DISPLAY_STEP(display, STEP_A0, STEP_B0))
 		crtc_vtotal = 1;
 
 	intel_de_write(display, TRANS_VTOTAL(display, transcoder),

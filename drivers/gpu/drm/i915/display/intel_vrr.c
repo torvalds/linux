@@ -1147,7 +1147,7 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 		}
 
 		if (display->platform.novalake &&
-		    IS_DISPLAY_STEP(display, STEP_A0, STEP_C0))
+		    IS_DISPLAY_STEP(display, STEP_A0, STEP_B0))
 			crtc_state->hw.adjusted_mode.crtc_vtotal =
 				intel_vrr_vmin_vtotal(crtc_state);
 
