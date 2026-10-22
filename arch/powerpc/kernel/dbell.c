@@ -31,7 +31,7 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(doorbell_exception)
 		do_hard_irq_enable();
 
 	kvmppc_clear_host_ipi(smp_processor_id());
-	__this_cpu_inc(irq_stat.doorbell_irqs);
+	inc_irq_stat(DOORBELL);
 
 	smp_ipi_demux_relaxed(); /* already performed the barrier */
 

@@ -146,10 +146,14 @@
 			interrupts = <83 0x8>;
 		};
 
-		gpio@1100 {
+		gpio_pic: gpio@1100 {
 			compatible = "fsl,mpc5121-gpio";
 			reg = <0x1100 0x100>;
 			interrupts = <78 0x8>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		can@1300 {

@@ -148,19 +148,6 @@
 			compatible = "fsl,mpc5121rev2-clock", "fsl,mpc5121-clock";
 		};
 
-		/*
-		 * GPIO PIC:
-		 * interrupts cell = <pin nr, sense>
-		 * sense == 8: Level, low assertion
-		 * sense == 2: Edge, high-to-low change
-		 */
-		gpio_pic: gpio@1100 {
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
-
 		sdhc@1500 {
 			cd-gpios = <&gpio_pic 23 0>;	/* card detect */
 			wp-gpios = <&gpio_pic 24 0>;	/* write protect */
