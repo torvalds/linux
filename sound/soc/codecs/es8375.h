@@ -49,6 +49,9 @@
 #define ES8375_ANALOG_SPK2         0x29
 #define ES8375_VMID_SEL            0x2D
 #define ES8375_ANALOG1             0x2E
+#define ES8375_VSEL1               0x2F
+#define ES8375_VSEL2               0x30
+#define ES8375_LP_DAC              0x31
 #define ES8375_ANALOG2             0x32
 #define ES8375_ANALOG3             0x37
 #define ES8375_ADC2DAC_CLKTRI      0xF8
