@@ -53,13 +53,13 @@ pub enum DeviceType {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum RpcScope {
     /// Read/write access to device configuration.
-    Configuration = bindings::fwctl_rpc_scope_FWCTL_RPC_CONFIGURATION,
+    Configuration = bindings::fwctl_rpc_scope::FWCTL_RPC_CONFIGURATION.0,
     /// Read-only access to debug information.
-    DebugReadOnly = bindings::fwctl_rpc_scope_FWCTL_RPC_DEBUG_READ_ONLY,
+    DebugReadOnly = bindings::fwctl_rpc_scope::FWCTL_RPC_DEBUG_READ_ONLY.0,
     /// Write access to lockdown-compatible debug information.
-    DebugWrite = bindings::fwctl_rpc_scope_FWCTL_RPC_DEBUG_WRITE,
+    DebugWrite = bindings::fwctl_rpc_scope::FWCTL_RPC_DEBUG_WRITE.0,
     /// Full read/write access to all debug information (requires `CAP_SYS_RAWIO`).
-    DebugWriteFull = bindings::fwctl_rpc_scope_FWCTL_RPC_DEBUG_WRITE_FULL,
+    DebugWriteFull = bindings::fwctl_rpc_scope::FWCTL_RPC_DEBUG_WRITE_FULL.0,
 }
 
 impl TryFrom<u32> for RpcScope {
@@ -539,12 +539,12 @@ impl<T: Operations> VTable<T> {
     /// - `out_len` must be valid for reading and writing an initialised `usize`.
     unsafe extern "C" fn fw_rpc_callback(
         uctx: *mut bindings::fwctl_uctx,
-        scope: u32,
+        scope: bindings::fwctl_rpc_scope,
         rpc_in: *mut ffi::c_void,
         in_len: usize,
         out_len: *mut usize,
     ) -> *mut ffi::c_void {
-        let scope = match RpcScope::try_from(scope) {
+        let scope = match RpcScope::try_from(scope.0) {
             Ok(s) => s,
             Err(e) => return Error::to_ptr(e),
         };
