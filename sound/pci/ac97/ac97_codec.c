@@ -1832,36 +1832,39 @@ void snd_ac97_get_name(struct snd_ac97 *ac97, unsigned int id, char *name,
 		       size_t maxlen, int modem)
 {
 	const struct ac97_codec_id *pid;
+	size_t len;
 
-	sprintf(name, "0x%x %c%c%c", id,
-		printable(id >> 24),
-		printable(id >> 16),
-		printable(id >> 8));
 	pid = look_for_codec_id(snd_ac97_codec_id_vendors, id);
-	if (! pid)
+	if (!pid) {
+		snprintf(name, maxlen, "0x%x %c%c%c", id,
+			 printable(id >> 24),
+			 printable(id >> 16),
+			 printable(id >> 8));
 		return;
+	}
 
 	strscpy(name, pid->name, maxlen);
 	if (ac97 && pid->patch) {
 		if ((modem && (pid->flags & AC97_MODEM_PATCH)) ||
-		    (! modem && ! (pid->flags & AC97_MODEM_PATCH)))
+		    (!modem && !(pid->flags & AC97_MODEM_PATCH)))
 			pid->patch(ac97);
-	} 
+	}
 
+	len = strnlen(name, maxlen);
 	pid = look_for_codec_id(snd_ac97_codec_ids, id);
 	if (pid) {
-		strlcat(name, " ", maxlen);
-		strlcat(name, pid->name, maxlen);
 		if (pid->mask != 0xffffffff)
-			sprintf(name + strlen(name), " rev %u", id & ~pid->mask);
+			snprintf(name + len, maxlen - len, " %s rev %u",
+				 pid->name, id & ~pid->mask);
+		else
+			snprintf(name + len, maxlen - len, " %s", pid->name);
 		if (ac97 && pid->patch) {
 			if ((modem && (pid->flags & AC97_MODEM_PATCH)) ||
-			    (! modem && ! (pid->flags & AC97_MODEM_PATCH)))
+			    (!modem && !(pid->flags & AC97_MODEM_PATCH)))
 				pid->patch(ac97);
 		}
 	} else {
-		int l = strlen(name);
-		snprintf(name + l, maxlen - l, " id %x", id & 0xff);
+		snprintf(name + len, maxlen - len, " id %x", id & 0xff);
 	}
 }
 
