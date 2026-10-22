@@ -644,7 +644,6 @@ impl<'drm> DriverGpuVm for GpuVmData<'drm> {
             // Expressly convert to u64 to work with arm 32-bit builds.
             #[allow(clippy::useless_conversion)]
             let mut paddr = u64::from(sgt_entry.dma_address());
-            #[allow(clippy::useless_conversion)]
             let mut sgt_entry_length = u64::from(sgt_entry.dma_len());
 
             if bytes_left_to_map == 0 {

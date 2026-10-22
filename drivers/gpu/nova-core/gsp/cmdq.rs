@@ -25,10 +25,7 @@ use kernel::{
     new_mutex,
     prelude::*,
     ptr,
-    sync::{
-        aref::ARef,
-        Mutex, //
-    },
+    sync::Mutex,
     time::Delta,
     transmute::{
         AsBytes,
@@ -230,19 +227,19 @@ unsafe impl FromBytes for GspMem {}
 ///   pointer and the GSP read pointer. This region is returned by [`Self::driver_write_area`].
 /// * The driver owns (i.e. can read from) the part of the GSP message queue between the CPU read
 ///   pointer and the GSP write pointer. This region is returned by [`Self::driver_read_area`].
-struct DmaGspMem(Coherent<GspMem>);
+struct DmaGspMem<'a>(Coherent<'a, GspMem>);
 
-impl DmaGspMem {
+impl<'a> DmaGspMem<'a> {
     /// Allocate a new instance and map it for `dev`.
-    fn new(dev: &device::Device<device::Bound>) -> Result<Self> {
+    fn new(dev: &'a device::Device<device::Bound>) -> Result<Self> {
         const MSGQ_SIZE: u32 = num::usize_into_u32::<{ size_of::<Msgq>() }>();
         const RX_HDR_OFF: u32 = num::usize_into_u32::<{ mem::offset_of!(Msgq, rx) }>();
 
-        let mut gsp_mem = CoherentBox::<GspMem>::zeroed(dev, GFP_KERNEL)?;
+        let mut gsp_mem = CoherentBox::<'_, GspMem>::zeroed(dev, GFP_KERNEL)?;
         gsp_mem.cpuq.tx = MsgqTxHeader::new(MSGQ_SIZE, RX_HDR_OFF, MSGQ_NUM_PAGES);
         gsp_mem.cpuq.rx = MsgqRxHeader::new();
 
-        let gsp_mem: Coherent<_> = gsp_mem.into();
+        let gsp_mem: Coherent<'_, _> = gsp_mem.into();
         PteArray::init(io_project!(gsp_mem, .ptes), gsp_mem.dma_address())?;
 
         Ok(Self(gsp_mem))
@@ -483,15 +480,15 @@ struct GspMessage<'a> {
 /// Provides the ability to send commands and receive messages from the GSP using a shared memory
 /// area.
 #[pin_data]
-pub(crate) struct Cmdq {
+pub(crate) struct Cmdq<'cmdq> {
     /// Inner mutex-protected state.
     #[pin]
-    inner: Mutex<CmdqInner>,
+    inner: Mutex<CmdqInner<'cmdq>>,
     /// DMA address of the command queue's shared memory region.
     pub(super) dma_addr: DmaAddress,
 }
 
-impl Cmdq {
+impl<'cmdq> Cmdq<'cmdq> {
     /// Offset of the data after the PTEs.
     const POST_PTE_OFFSET: usize = core::mem::offset_of!(GspMem, cpuq);
 
@@ -512,14 +509,16 @@ impl Cmdq {
     pub(super) const RECEIVE_TIMEOUT: Delta = Delta::from_secs(5);
 
     /// Creates a new command queue for `dev`.
-    pub(crate) fn new(dev: &device::Device<device::Bound>) -> impl PinInit<Self, Error> + '_ {
+    pub(crate) fn new(
+        dev: &'cmdq device::Device<device::Bound>,
+    ) -> impl PinInit<Self, Error> + 'cmdq {
         pin_init_scope(move || {
             let gsp_mem = DmaGspMem::new(dev)?;
 
             Ok(try_pin_init!(Self {
                 dma_addr: gsp_mem.0.dma_address(),
                 inner <- new_mutex!(CmdqInner {
-                    dev: dev.into(),
+                    dev,
                     gsp_mem,
                     seq: 0,
                 }),
@@ -610,16 +609,16 @@ impl Cmdq {
 }
 
 /// Inner mutex protected state of [`Cmdq`].
-struct CmdqInner {
+struct CmdqInner<'a> {
     /// Device this command queue belongs to.
-    dev: ARef<device::Device>,
+    dev: &'a device::Device,
     /// Current command sequence number.
     seq: u32,
     /// Memory area shared with the GSP for communicating commands and messages.
-    gsp_mem: DmaGspMem,
+    gsp_mem: DmaGspMem<'a>,
 }
 
-impl CmdqInner {
+impl CmdqInner<'_> {
     /// Timeout for waiting for space on the command queue.
     const ALLOCATE_TIMEOUT: Delta = Delta::from_secs(1);
 

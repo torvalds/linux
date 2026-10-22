@@ -34,12 +34,12 @@ use crate::{
     bindings,
     device::{Bound, Device},
     devres::Devres,
-    dma, error,
-    io::ResourceSize,
+    dma,
+    error,
     page,
     prelude::*,
     sync::aref::ARef,
-    types::Opaque,
+    types::Opaque, //
 };
 use core::{ops::Deref, ptr::NonNull};
 
@@ -90,10 +90,9 @@ impl SGEntry {
 
     /// Returns the length of this SG entry in bytes.
     #[inline]
-    pub fn dma_len(&self) -> ResourceSize {
-        #[allow(clippy::useless_conversion)]
+    pub fn dma_len(&self) -> u32 {
         // SAFETY: `self.as_raw()` is a valid pointer to a `struct scatterlist`.
-        unsafe { bindings::sg_dma_len(self.as_raw()) }.into()
+        unsafe { bindings::sg_dma_len(self.as_raw()) }
     }
 }
 
@@ -350,14 +349,22 @@ where
             page_vec.push(page.as_ptr(), flags)?;
         }
 
+        // Cap segments at both the DMA mapping-path limit and the device's declared
+        // max segment size.
+        //
         // `dma_max_mapping_size` returns `size_t`, but `sg_alloc_table_from_pages_segment()` takes
         // an `unsigned int`.
         //
         // SAFETY: `dev.as_raw()` is a valid pointer to a `struct device`.
-        let max_segment = match unsafe { bindings::dma_max_mapping_size(dev.as_raw()) } {
+        let max_mapping_size = match unsafe { bindings::dma_max_mapping_size(dev.as_raw()) } {
             0 => u32::MAX,
-            max_segment => u32::try_from(max_segment).unwrap_or(u32::MAX),
+            max_mapping_size => u32::try_from(max_mapping_size).unwrap_or(u32::MAX),
         };
+
+        // SAFETY: `dev.as_raw()` is a valid pointer to a `struct device`.
+        let max_seg_size = unsafe { bindings::dma_get_max_seg_size(dev.as_raw()) };
+
+        let max_segment = max_mapping_size.min(max_seg_size);
 
         Ok(try_pin_init!(&this in Self {
             // SAFETY:

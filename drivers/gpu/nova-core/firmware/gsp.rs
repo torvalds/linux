@@ -44,7 +44,7 @@ use crate::{
 /// Each page is 4KB, each entry is 8 bytes (64-bit DMA address).
 /// Also known as "Radix3" firmware.
 #[pin_data]
-pub(crate) struct GspFirmware {
+pub(crate) struct GspFirmware<'a> {
     /// The GSP firmware inside a [`VVec`], device-mapped via a SG table.
     #[pin]
     fw: SGTable<Owned<VVec<u8>>>,
@@ -55,19 +55,19 @@ pub(crate) struct GspFirmware {
     #[pin]
     level1: SGTable<Owned<VVec<u8>>>,
     /// Level 0 page table (single 4KB page) with one entry: DMA address of first level 1 page.
-    level0: Coherent<[u64]>,
+    level0: Coherent<'a, [u64]>,
     /// Size in bytes of the firmware contained in [`Self::fw`].
     pub(crate) size: usize,
     /// Device-mapped GSP signatures matching the GPU's [`Chipset`].
-    pub(crate) signatures: Coherent<[u8]>,
+    pub(crate) signatures: Coherent<'a, [u8]>,
     /// GSP bootloader, verifies the GSP firmware before loading and running it.
-    pub(crate) bootloader: RiscvFirmware,
+    pub(crate) bootloader: RiscvFirmware<'a>,
 }
 
-impl GspFirmware {
+impl<'a> GspFirmware<'a> {
     /// Loads the GSP firmware binaries, map them into `dev`'s address-space, and creates the page
     /// tables expected by the GSP bootloader to load it.
-    pub(crate) fn new<'a>(
+    pub(crate) fn new(
         dev: &'a device::Device<device::Bound>,
         chipset: Chipset,
     ) -> impl PinInit<Self, Error> + 'a {
@@ -120,7 +120,7 @@ impl GspFirmware {
 
                     // Create level 0 page table data and fill its first entry with the level 1
                     // table.
-                    let mut level0 = CoherentBox::<[u64]>::zeroed_slice(
+                    let mut level0 = CoherentBox::<'_, [u64]>::zeroed_slice(
                         dev,
                         GSP_PAGE_SIZE / size_of::<u64>(),
                         GFP_KERNEL

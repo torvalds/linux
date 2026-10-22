@@ -272,9 +272,9 @@ struct GspResources<'gpu> {
     vgpu: VgpuManager,
     /// GSP runtime data.
     #[pin]
-    gsp: Gsp,
+    gsp: Gsp<'gpu>,
     /// GSP unload firmware bundle, if any.
-    unload_bundle: Option<gsp::UnloadBundle>,
+    unload_bundle: Option<gsp::UnloadBundle<'gpu>>,
 }
 
 /// Structure holding the resources required to operate the GPU.

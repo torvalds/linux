@@ -179,7 +179,7 @@ impl GspFwWprMeta {
     /// Returns an initializer for a `GspFwWprMeta` suitable for booting `gsp_firmware` using the
     /// framebuffer ranges `ranges`.
     pub(crate) fn from_ranges<'a>(
-        gsp_firmware: &'a GspFirmware,
+        gsp_firmware: &'a GspFirmware<'_>,
         ranges: &'a FbRanges,
     ) -> impl Init<Self> + 'a {
         let init_inner = init!(bindings::GspFwWprMeta {
@@ -231,7 +231,7 @@ impl GspFwWprMeta {
     ///
     /// The region offsets are left at zero: the ACR ucode computes them when it sets up WPR2.
     pub(crate) fn from_sizes<'a>(
-        gsp_firmware: &'a GspFirmware,
+        gsp_firmware: &'a GspFirmware<'_>,
         sizes: &'a FbSizes,
     ) -> impl Init<Self> + 'a {
         /// VGA workspace size to reserve at the end of the framebuffer, in bytes.
@@ -665,7 +665,7 @@ unsafe impl FromBytes for LibosMemoryRegionInitArgument {}
 impl LibosMemoryRegionInitArgument {
     pub(crate) fn new<'a, A: AsBytes + FromBytes + KnownSize + ?Sized>(
         name: &'static str,
-        obj: &'a Coherent<A>,
+        obj: &'a Coherent<'_, A>,
     ) -> impl Init<Self> + 'a {
         /// Generates the `ID8` identifier required for some GSP objects.
         fn id8(name: &str) -> u64 {
@@ -897,7 +897,7 @@ pub(crate) struct GspArgumentsCached {
 
 impl GspArgumentsCached {
     /// Creates the arguments for starting the GSP up using `cmdq` as its command queue.
-    pub(crate) fn new(cmdq: &Cmdq) -> impl Init<Self> + '_ {
+    pub(crate) fn new<'a, 'b>(cmdq: &'a Cmdq<'b>) -> impl Init<Self> + use<'a, 'b> {
         let init_inner = init!(bindings::GSP_ARGUMENTS_CACHED {
             messageQueueInitArguments <- MessageQueueInitArguments::new(cmdq),
             bDmemStack: 1,
@@ -924,7 +924,7 @@ pub(crate) struct GspArgumentsPadded {
 }
 
 impl GspArgumentsPadded {
-    pub(crate) fn new(cmdq: &Cmdq) -> impl Init<Self> + '_ {
+    pub(crate) fn new<'a, 'b>(cmdq: &'a Cmdq<'b>) -> impl Init<Self> + use<'a, 'b> {
         init!(GspArgumentsPadded {
             inner <- GspArgumentsCached::new(cmdq),
             ..Zeroable::init_zeroed()
@@ -944,7 +944,7 @@ type MessageQueueInitArguments = bindings::MESSAGE_QUEUE_INIT_ARGUMENTS;
 
 impl MessageQueueInitArguments {
     /// Creates a new init arguments structure for `cmdq`.
-    fn new(cmdq: &Cmdq) -> impl Init<Self> + '_ {
+    fn new<'a, 'b>(cmdq: &'a Cmdq<'b>) -> impl Init<Self> + use<'a, 'b> {
         init!(MessageQueueInitArguments {
             sharedMemPhysAddr: cmdq.dma_addr,
             pageTableEntryCount: num::usize_into_u32::<{ Cmdq::NUM_PTES }>(),

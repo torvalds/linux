@@ -5,7 +5,6 @@ use core::marker::PhantomData;
 use kernel::{
     io::{
         poll::read_poll_timeout,
-        register::WithBase,
         Io, //
     },
     prelude::*,
@@ -50,8 +49,8 @@ impl<E: FalconEngine> FalconHal<E> for Tu102<E> {
 
     fn is_riscv_active(&self, falcon: &Falcon<'_, E>) -> bool {
         falcon
-            .bar
-            .read(regs::NV_PRISCV_RISCV_CORE_SWITCH_RISCV_STATUS::of::<E>())
+            .pfalcon2
+            .read(regs::NV_PRISCV_RISCV_CORE_SWITCH_RISCV_STATUS)
             .active_stat()
     }
 
@@ -62,7 +61,7 @@ impl<E: FalconEngine> FalconHal<E> for Tu102<E> {
     fn reset_wait_mem_scrubbing(&self, falcon: &Falcon<'_, E>) -> Result {
         // TIMEOUT: memory scrubbing should complete in less than 10ms.
         read_poll_timeout(
-            || Ok(falcon.bar.read(regs::NV_PFALCON_FALCON_DMACTL::of::<E>())),
+            || Ok(falcon.pfalcon.read(regs::NV_PFALCON_FALCON_DMACTL)),
             |r| r.mem_scrubbing_done(),
             Delta::ZERO,
             Delta::from_millis(10),
@@ -71,7 +70,7 @@ impl<E: FalconEngine> FalconHal<E> for Tu102<E> {
     }
 
     fn reset_eng(&self, falcon: &Falcon<'_, E>) -> Result {
-        regs::NV_PFALCON_FALCON_ENGINE::reset_engine::<E>(falcon.bar);
+        regs::NV_PFALCON_FALCON_ENGINE::reset_engine(falcon.pfalcon);
         self.reset_wait_mem_scrubbing(falcon)?;
 
         Ok(())

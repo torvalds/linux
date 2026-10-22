@@ -46,6 +46,7 @@ use crate::{
 };
 
 pub(crate) type IoMem<'a> = kernel::io::mem::IoMem<'a, SZ_2M>;
+pub(crate) type TyrRegisters = kernel::io::Region<SZ_2M>;
 
 pub(crate) struct TyrDrmDriver;
 

@@ -632,16 +632,17 @@ struct platform_device *platform_device_alloc(const char *name, int id)
 	struct platform_object *pa;
 
 	pa = kzalloc(sizeof(*pa) + strlen(name) + 1, GFP_KERNEL);
-	if (pa) {
-		strcpy(pa->name, name);
-		pa->pdev.name = pa->name;
-		pa->pdev.id = id;
-		device_initialize(&pa->pdev.dev);
-		pa->pdev.dev.release = platform_device_release;
-		setup_pdev_dma_masks(&pa->pdev);
-	}
+	if (!pa)
+		return NULL;
 
-	return pa ? &pa->pdev : NULL;
+	strcpy(pa->name, name);
+	pa->pdev.name = pa->name;
+	pa->pdev.id = id;
+	device_initialize(&pa->pdev.dev);
+	pa->pdev.dev.release = platform_device_release;
+	setup_pdev_dma_masks(&pa->pdev);
+
+	return &pa->pdev;
 }
 EXPORT_SYMBOL_GPL(platform_device_alloc);
 

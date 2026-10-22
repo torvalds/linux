@@ -16,7 +16,10 @@ use kernel::{
 };
 
 use crate::{
-    driver::Bar0,
+    driver::{
+        Bar0,
+        NovaRegisters, //
+    },
     firmware::{
         fwsec::Bcrt30Rsa3kSignature,
         FalconUCodeDesc,
@@ -92,12 +95,16 @@ impl<'a> VbiosIterator<'a> {
     fn rom_offset(dev: &device::Device, bar0: Bar0<'_>) -> Result<usize> {
         // IFR Header in VBIOS.
         register! {
+            base: NovaRegisters;
+
             NV_PBUS_IFR_FMT_FIXED0(u32) @ 0x300000 {
                 31:0    signature;
             }
         }
 
         register! {
+            base: NovaRegisters;
+
             NV_PBUS_IFR_FMT_FIXED1(u32) @ 0x300004 {
                 30:16   fixed_data_size;
                 15:8    version => u8;
@@ -105,6 +112,8 @@ impl<'a> VbiosIterator<'a> {
         }
 
         register! {
+            base: NovaRegisters;
+
             NV_PBUS_IFR_FMT_FIXED2(u32) @ 0x300008 {
                 19:0 total_data_size;
             }

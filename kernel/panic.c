@@ -826,6 +826,7 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 	TAINT_FLAG(RANDSTRUCT,			'T', ' '),
 	TAINT_FLAG(TEST,			'N', ' '),
 	TAINT_FLAG(FWCTL,			'J', ' '),
+	TAINT_FLAG(FORCED_BIND,			'Y', ' '),
 };
 
 #undef TAINT_FLAG
@@ -862,9 +863,9 @@ static void print_tainted_seq(struct seq_buf *s, bool verbose)
  * exact size is allocated dynamically; the initial buffer remains
  * as a fallback if allocation fails.
  *
- * The verbose taint string currently requires up to 327 characters.
+ * The verbose taint string currently requires up to 344 characters.
  */
-#define INIT_TAINT_BUF_MAX 350
+#define INIT_TAINT_BUF_MAX 370
 
 static char init_taint_buf[INIT_TAINT_BUF_MAX] __initdata;
 static char *taint_buf __refdata = init_taint_buf;
@@ -948,8 +949,9 @@ unsigned long get_taint(void)
  * @flag: one of the TAINT_* constants.
  * @lockdep_ok: whether lock debugging is still OK.
  *
- * If something bad has gone wrong, you'll want @lockdebug_ok = false, but for
- * some notewortht-but-not-corrupting cases, it can be set to true.
+ * If something bad has gone wrong, you'll want
+ * @lockdep_ok = LOCKDEP_NOW_UNRELIABLE, but for some
+ * noteworthy-but-not-corrupting cases, it can be set to LOCKDEP_STILL_OK.
  */
 void add_taint(unsigned flag, enum lockdep_ok lockdep_ok)
 {

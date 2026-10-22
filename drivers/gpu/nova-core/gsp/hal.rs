@@ -35,12 +35,12 @@ pub(super) trait GspHal: Send {
     ///
     /// Upon success, returns the [`crate::gsp::UnloadBundle`] to use with [`Gsp::unload`], if one
     /// could be created.
-    fn boot(
+    fn boot<'gpu>(
         &self,
-        gsp: &Gsp,
-        ctx: &mut GspBootContext<'_, '_>,
-        gsp_fw: &GspFirmware,
-    ) -> Result<Option<crate::gsp::UnloadBundle>>;
+        gsp: &Gsp<'gpu>,
+        ctx: &mut GspBootContext<'_, 'gpu>,
+        gsp_fw: &GspFirmware<'gpu>,
+    ) -> Result<Option<super::UnloadBundle<'gpu>>>;
 
     /// Performs HAL-specific post-GSP boot tasks.
     ///
@@ -48,9 +48,9 @@ pub(super) trait GspHal: Send {
     /// after the initialization commands have been pushed onto its queue.
     fn post_boot(
         &self,
-        _gsp: &Gsp,
+        _gsp: &Gsp<'_>,
         _ctx: &mut GspBootContext<'_, '_>,
-        _gsp_fw: &GspFirmware,
+        _gsp_fw: &GspFirmware<'_>,
     ) -> Result {
         Ok(())
     }

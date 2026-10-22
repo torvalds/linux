@@ -172,9 +172,9 @@ static ssize_t arm_spe_pmu_cap_show_hex(struct device *dev,
 	return sysfs_emit(buf, "0x%llx\n", arm_spe_pmu_cap_get(spe_pmu, cap));
 }
 
-#define SPE_EXT_ATTR_ENTRY(_name, _func, _var)				\
-	&((struct dev_ext_attribute[]) {				\
-		{ __ATTR(_name, S_IRUGO, _func, NULL), (void *)_var }	\
+#define SPE_EXT_ATTR_ENTRY(_name, _func, _var)					\
+	&((struct dev_ext_attribute[]) {					\
+		{ __DEVICE_ATTR(_name, S_IRUGO, _func, NULL), (void *)_var }	\
 	})[0].attr.attr
 
 #define SPE_CAP_EXT_ATTR_ENTRY(_name, _var)				\

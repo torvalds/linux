@@ -138,7 +138,7 @@ pub(crate) struct GspSequencer<'a> {
     /// GSP falcon for core operations.
     gsp_falcon: &'a Falcon<'a, Gsp>,
     /// LibOS memory region init arguments.
-    libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
+    libos: &'a Coherent<'a, [LibosMemoryRegionInitArgument]>,
     /// Bootloader application version.
     bootloader_app_version: u32,
     /// Device for logging.
@@ -338,9 +338,9 @@ impl<'a> Iterator for GspSeqIter<'a> {
 
 impl<'a> GspSequencer<'a> {
     pub(crate) fn run(
-        cmdq: &Cmdq,
+        cmdq: &Cmdq<'_>,
         ctx: &'a GspBootContext<'_, '_>,
-        libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
+        libos: &'a Coherent<'a, [LibosMemoryRegionInitArgument]>,
         bootloader_app_version: u32,
     ) -> Result {
         let seq_info = loop {

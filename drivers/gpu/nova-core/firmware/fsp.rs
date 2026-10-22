@@ -39,15 +39,15 @@ pub(crate) struct FmcSignatures {
     pub(crate) signature: [u8; FSP_SIG_SIZE],
 }
 
-pub(crate) struct FspFirmware {
+pub(crate) struct FspFirmware<'a> {
     /// FMC firmware image data
-    pub(crate) fmc_image: Coherent<[u8]>,
+    pub(crate) fmc_image: Coherent<'a, [u8]>,
     /// FMC firmware signatures.
     pub(crate) fmc_sigs: KBox<FmcSignatures>,
 }
 
-impl FspFirmware {
-    pub(crate) fn new(dev: &device::Device<device::Bound>, chipset: Chipset) -> Result<Self> {
+impl<'a> FspFirmware<'a> {
+    pub(crate) fn new(dev: &'a device::Device<device::Bound>, chipset: Chipset) -> Result<Self> {
         let fw = request_tlv(dev, chipset, "fmc")?;
         let tlv = Tlv::new(fw.data())?;
         dev_dbg!(dev, "loaded fsp firmware v{}\n", tlv.get_string(b"VERS")?);

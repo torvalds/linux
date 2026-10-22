@@ -7,7 +7,7 @@
  *
  * The basic idea here is to allow any "device controller" (which
  * would most often be a Host Bus Adapter to use the services of one
- * or more tranport classes for performing transport specific
+ * or more transport classes for performing transport specific
  * services.  Transport specific services are things that the generic
  * command layer doesn't want to know about (speed settings, line
  * condidtioning, etc), but which the user might be interested in.

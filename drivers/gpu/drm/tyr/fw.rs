@@ -39,7 +39,8 @@ use kernel::{
 use crate::{
     driver::{
         IoMem,
-        TyrDrmDevice, //
+        TyrDrmDevice,
+        TyrRegisters, //
     },
     fw::parser::{
         FwParser,
@@ -101,6 +102,8 @@ impl From<CacheMode> for Bounded<u32, 2> {
 }
 
 register! {
+    base: TyrRegisters;
+
      #[allow(non_upper_case_globals)]
     pub(super) SectionFlags(u32) @ 0x0 {
         0:0 read => bool;

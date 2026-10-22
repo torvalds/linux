@@ -22,7 +22,7 @@ use crate::{
     },
 };
 
-impl super::Gsp {
+impl<'gsp> super::Gsp<'gsp> {
     /// Attempt to boot the GSP.
     ///
     /// This is a GPU-dependent and complex procedure that involves loading firmware files from
@@ -33,8 +33,8 @@ impl super::Gsp {
     /// [`Self::unload`]) returned.
     pub(crate) fn boot(
         self: Pin<&mut Self>,
-        mut ctx: super::GspBootContext<'_, '_>,
-    ) -> Result<Option<super::UnloadBundle>> {
+        mut ctx: super::GspBootContext<'_, 'gsp>,
+    ) -> Result<Option<super::UnloadBundle<'gsp>>> {
         let pdev = ctx.pdev;
         let bar = ctx.bar;
         let chipset = ctx.chipset;
@@ -88,7 +88,7 @@ impl super::Gsp {
 
     /// Shut down the GSP and wait until it is offline.
     fn shutdown_gsp(
-        cmdq: &Cmdq,
+        cmdq: &Cmdq<'_>,
         bar: Bar0<'_>,
         gsp_falcon: &Falcon<'_, Gsp>,
         mode: commands::PowerStateLevel,
@@ -113,7 +113,7 @@ impl super::Gsp {
     pub(crate) fn unload(
         &self,
         mut ctx: super::GspBootContext<'_, '_>,
-        unload_bundle: Option<super::UnloadBundle>,
+        unload_bundle: Option<super::UnloadBundle<'_>>,
     ) -> Result {
         let dev = ctx.dev();
 

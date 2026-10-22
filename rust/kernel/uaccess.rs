@@ -520,14 +520,14 @@ impl UserSliceWriter {
     ///
     /// fn copy_dma_to_user(
     ///     mut writer: UserSliceWriter,
-    ///     alloc: &Coherent<[u8]>,
+    ///     alloc: &Coherent<'_, [u8]>,
     /// ) -> Result {
     ///     writer.write_dma(alloc, 0, 256)
     /// }
     /// ```
     pub fn write_dma<T: KnownSize + AsBytes + ?Sized>(
         &mut self,
-        alloc: &Coherent<T>,
+        alloc: &Coherent<'_, T>,
         offset: usize,
         count: usize,
     ) -> Result {

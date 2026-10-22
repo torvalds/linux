@@ -137,9 +137,17 @@ pub struct DeviceId(bindings::auxiliary_device_id);
 
 impl DeviceId {
     /// Create a new [`DeviceId`] from name.
+    ///
+    /// This is only intended to be called in const context, when constructing a
+    /// device ID table, where exceeding `AUXILIARY_NAME_SIZE` is a compile time error.
     pub const fn new(modname: &'static CStr, name: &'static CStr) -> Self {
         let name = name.to_bytes_with_nul();
         let modname = modname.to_bytes_with_nul();
+
+        assert!(
+            modname.len().saturating_add(name.len()) <= bindings::AUXILIARY_NAME_SIZE as usize,
+            "auxiliary device ID is too long"
+        );
 
         let mut id: bindings::auxiliary_device_id = pin_init::zeroed();
         let mut i = 0;

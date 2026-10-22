@@ -115,11 +115,11 @@ impl<const NUM_PAGES: usize> PteArray<NUM_PAGES> {
 /// then pp points to index into the buffer where the next logging entry will
 /// be written. Therefore, the logging data is valid if:
 ///   1 <= pp < sizeof(buffer)/sizeof(u64)
-struct LogBuffer(Coherent<[u8; LOG_BUFFER_SIZE]>);
+struct LogBuffer<'a>(Coherent<'a, [u8; LOG_BUFFER_SIZE]>);
 
-impl LogBuffer {
+impl<'a> LogBuffer<'a> {
     /// Creates a new `LogBuffer` mapped on `dev`.
-    fn new(dev: &device::Device<device::Bound>) -> Result<Self> {
+    fn new(dev: &'a device::Device<device::Bound>) -> Result<Self> {
         let obj = Self(Coherent::zeroed(dev, GFP_KERNEL)?);
 
         let start_addr = obj.0.dma_address();
@@ -135,33 +135,33 @@ impl LogBuffer {
     }
 }
 
-struct LogBuffers {
+struct LogBuffers<'a> {
     /// Init log buffer.
-    loginit: LogBuffer,
+    loginit: LogBuffer<'a>,
     /// Interrupts log buffer.
-    logintr: LogBuffer,
+    logintr: LogBuffer<'a>,
     /// RM log buffer.
-    logrm: LogBuffer,
+    logrm: LogBuffer<'a>,
 }
 
 /// GSP runtime data.
 #[pin_data]
-pub(crate) struct Gsp {
+pub(crate) struct Gsp<'gsp> {
     /// Libos arguments.
-    pub(crate) libos: Coherent<[LibosMemoryRegionInitArgument]>,
+    pub(crate) libos: Coherent<'gsp, [LibosMemoryRegionInitArgument]>,
     /// Log buffers, optionally exposed via debugfs.
     #[pin]
-    logs: debugfs::Scope<LogBuffers>,
+    logs: debugfs::Scope<LogBuffers<'gsp>>,
     /// Command queue.
     #[pin]
-    pub(crate) cmdq: Cmdq,
+    pub(crate) cmdq: Cmdq<'gsp>,
     /// RM arguments.
-    rmargs: Coherent<GspArgumentsPadded>,
+    rmargs: Coherent<'gsp, GspArgumentsPadded>,
 }
 
-impl Gsp {
+impl<'gsp> Gsp<'gsp> {
     // Creates an in-place initializer for a `Gsp` manager for `pdev`.
-    pub(crate) fn new(pdev: &pci::Device<device::Bound>) -> impl PinInit<Self, Error> + '_ {
+    pub(crate) fn new(pdev: &'gsp pci::Device<device::Bound>) -> impl PinInit<Self, Error> + 'gsp {
         pin_init::pin_init_scope(move || {
             let dev = pdev.as_ref();
 
@@ -223,4 +223,4 @@ impl Gsp {
 }
 
 /// Opaque bundle required to unload the GSP. Created by [`Gsp::boot`], consumed by [`Gsp::unload`].
-pub(crate) struct UnloadBundle(KBox<dyn hal::UnloadBundle>);
+pub(crate) struct UnloadBundle<'a>(KBox<dyn hal::UnloadBundle + 'a>);

@@ -29,6 +29,7 @@
 #include <linux/srcu.h>
 #include <linux/static_call_types.h>
 #include <linux/dynamic_debug.h>
+#include <linux/panic.h>
 
 #include <linux/percpu.h>
 #include <asm/module.h>
@@ -770,6 +771,9 @@ static inline bool is_livepatch_module(struct module *mod)
 
 void module_for_each_mod(int(*func)(struct module *mod, void *data), void *data);
 
+void add_taint_module(struct module *mod, unsigned flag,
+		      enum lockdep_ok lockdep_ok);
+
 #else /* !CONFIG_MODULES... */
 
 static inline struct module *__module_address(unsigned long addr)
@@ -876,6 +880,12 @@ static inline bool module_is_coming(struct module *mod)
 
 static inline void module_for_each_mod(int(*func)(struct module *mod, void *data), void *data)
 {
+}
+
+static inline void add_taint_module(struct module *mod, unsigned flag,
+				    enum lockdep_ok lockdep_ok)
+{
+	add_taint(flag, lockdep_ok);
 }
 #endif /* CONFIG_MODULES */
 

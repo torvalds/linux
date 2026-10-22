@@ -186,7 +186,7 @@ impl BooterFirmware {
         &self,
         dev: &device::Device<device::Bound>,
         sec2_falcon: &Falcon<'_, Sec2>,
-        wpr_meta: &Coherent<T>,
+        wpr_meta: &Coherent<'_, T>,
     ) -> Result {
         sec2_falcon.reset()?;
         sec2_falcon.load(self)?;

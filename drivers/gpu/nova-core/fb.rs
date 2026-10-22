@@ -49,7 +49,7 @@ pub(crate) struct SysmemFlush<'sys> {
     device: &'sys device::Device,
     bar: Bar0<'sys>,
     /// Keep the page alive as long as we need it.
-    page: CoherentHandle,
+    page: CoherentHandle<'sys>,
 }
 
 impl<'sys> SysmemFlush<'sys> {
@@ -177,7 +177,7 @@ impl FbRanges {
     pub(crate) fn new(
         chipset: Chipset,
         bar: Bar0<'_>,
-        gsp_fw: &GspFirmware,
+        gsp_fw: &GspFirmware<'_>,
         vgpu_state: VgpuState,
     ) -> Result<Self> {
         let hal = hal::fb_hal(chipset);

@@ -146,8 +146,7 @@ impl<T: RawDeviceId, const N: usize> IdArray<T, (), N> {
     /// If the device implements [`RawDeviceIdIndex`], consider using [`IdArray::new`] instead.
     pub const fn new_without_index(ids: [T; N]) -> Self {
         // SAFETY: `T` is layout-wise compatible with `T::RawType`, so is the array of them.
-        let raw_ids: [MaybeUninit<T::RawType>; N] = unsafe { core::mem::transmute_copy(&ids) };
-        core::mem::forget(ids);
+        let raw_ids: [MaybeUninit<T::RawType>; N] = unsafe { crate::mem::transmute(ids) };
 
         Self {
             ids: raw_ids,

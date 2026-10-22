@@ -538,7 +538,7 @@ impl<'data, 'dir> ScopedDir<'data, 'dir> {
         }
     }
 
-    fn create_file<T: Sync>(&self, name: &CStr, data: &'data T, vtable: &'static FileOps<T>) {
+    fn create_file<T: Sync>(&self, name: &CStr, data: &'data T, vtable: &FileOps<T>) {
         #[cfg(CONFIG_DEBUG_FS)]
         core::mem::forget(Entry::file(name, &self.entry, data, vtable));
     }
@@ -550,7 +550,7 @@ impl<'data, 'dir> ScopedDir<'data, 'dir> {
     /// This function does not produce an owning handle to the file. The created
     /// file is removed when the [`Scope`] that this directory belongs
     /// to is dropped.
-    pub fn read_only_file<T: Writer + Send + Sync + 'static>(&self, name: &CStr, data: &'data T) {
+    pub fn read_only_file<T: Writer + Send + Sync>(&self, name: &CStr, data: &'data T) {
         self.create_file(name, data, &T::FILE_OPS)
     }
 
@@ -560,11 +560,7 @@ impl<'data, 'dir> ScopedDir<'data, 'dir> {
     ///
     /// This function does not produce an owning handle to the file. The created file is removed
     /// when the [`Scope`] that this directory belongs to is dropped.
-    pub fn read_binary_file<T: BinaryWriter + Send + Sync + 'static>(
-        &self,
-        name: &CStr,
-        data: &'data T,
-    ) {
+    pub fn read_binary_file<T: BinaryWriter + Send + Sync>(&self, name: &CStr, data: &'data T) {
         self.create_file(name, data, &T::FILE_OPS)
     }
 
@@ -596,11 +592,7 @@ impl<'data, 'dir> ScopedDir<'data, 'dir> {
     /// This function does not produce an owning handle to the file. The created
     /// file is removed when the [`Scope`] that this directory belongs
     /// to is dropped.
-    pub fn read_write_file<T: Writer + Reader + Send + Sync + 'static>(
-        &self,
-        name: &CStr,
-        data: &'data T,
-    ) {
+    pub fn read_write_file<T: Writer + Reader + Send + Sync>(&self, name: &CStr, data: &'data T) {
         let vtable = &<T as ReadWriteFile<_>>::FILE_OPS;
         self.create_file(name, data, vtable)
     }
@@ -612,7 +604,7 @@ impl<'data, 'dir> ScopedDir<'data, 'dir> {
     ///
     /// This function does not produce an owning handle to the file. The created file is removed
     /// when the [`Scope`] that this directory belongs to is dropped.
-    pub fn read_write_binary_file<T: BinaryWriter + BinaryReader + Send + Sync + 'static>(
+    pub fn read_write_binary_file<T: BinaryWriter + BinaryReader + Send + Sync>(
         &self,
         name: &CStr,
         data: &'data T,
@@ -655,7 +647,7 @@ impl<'data, 'dir> ScopedDir<'data, 'dir> {
     /// This function does not produce an owning handle to the file. The created
     /// file is removed when the [`Scope`] that this directory belongs
     /// to is dropped.
-    pub fn write_only_file<T: Reader + Send + Sync + 'static>(&self, name: &CStr, data: &'data T) {
+    pub fn write_only_file<T: Reader + Send + Sync>(&self, name: &CStr, data: &'data T) {
         let vtable = &<T as WriteFile<_>>::FILE_OPS;
         self.create_file(name, data, vtable)
     }
@@ -666,11 +658,7 @@ impl<'data, 'dir> ScopedDir<'data, 'dir> {
     ///
     /// This function does not produce an owning handle to the file. The created file is removed
     /// when the [`Scope`] that this directory belongs to is dropped.
-    pub fn write_binary_file<T: BinaryReader + Send + Sync + 'static>(
-        &self,
-        name: &CStr,
-        data: &'data T,
-    ) {
+    pub fn write_binary_file<T: BinaryReader + Send + Sync>(&self, name: &CStr, data: &'data T) {
         self.create_file(name, data, &T::FILE_OPS)
     }
 
