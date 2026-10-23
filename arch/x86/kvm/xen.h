@@ -235,6 +235,11 @@ struct compat_shared_info {
 #define COMPAT_EVTCHN_2L_NR_CHANNELS (8 *				\
 				      sizeof_field(struct compat_shared_info, \
 						   evtchn_pending))
+
+/* Latched VM-wide mode; the KVM equivalent of Xen's !has_32bit_shinfo(). */
+#define kvm_xen_has_64bit_shinfo(kvm) \
+	(IS_ENABLED(CONFIG_64BIT) && READ_ONCE((kvm)->arch.xen.long_mode))
+
 struct compat_vcpu_runstate_info {
     int state;
     uint64_t state_entry_time;

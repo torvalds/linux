@@ -135,6 +135,17 @@ static void test_cr_bits(struct kvm_vcpu *vcpu, u64 cr4)
 	/* NW without CD is illegal, as is PG without PE. */
 	TEST_INVALID_SREG_BIT(vcpu, cr0, sregs, X86_CR0_NW);
 	TEST_INVALID_SREG_BIT(vcpu, cr0, sregs, X86_CR0_PG);
+
+	/* CR8 bits 3:0 are writable; bits 63:4 are reserved. */
+	vcpu_sregs_get(vcpu, &sregs);
+	sregs.cr8 = 0xf;
+	vcpu_sregs_set(vcpu, &sregs);
+
+	vcpu_sregs_get(vcpu, &sregs);
+	TEST_ASSERT_EQ(sregs.cr8, 0xf);
+
+	for (i = 4; i < 64; i++)
+		TEST_INVALID_SREG_BIT(vcpu, cr8, sregs, BIT_ULL(i));
 }
 
 static void test_efer_bits(struct kvm_vcpu *vcpu, u64 efer)

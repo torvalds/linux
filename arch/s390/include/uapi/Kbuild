@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# The ARM64 uapi headers under generated/uapi/arm64/ are private copies used
+# internally by the s390 KVM ARM64 implementation.  They contain #line
+# directives and rewritten include paths and must not be shipped to userspace.
+no-export-headers += arm64/%

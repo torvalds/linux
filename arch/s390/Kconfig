@@ -181,7 +181,7 @@ config S390
 	select GENERIC_ENTRY
 	select GENERIC_GETTIMEOFDAY
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_IOREMAP if PCI
+	select GENERIC_IOREMAP
 	select GLOB
 	select HAVE_ALIGNED_STRUCT_PAGE
 	select HAVE_ARCH_AUDITSYSCALL
@@ -765,9 +765,6 @@ config PCI_NR_FUNCTIONS
 	  this kernel will support.
 
 endif # PCI
-
-config HAS_IOMEM
-	def_bool PCI
 
 config CHSC_SCH
 	def_tristate m

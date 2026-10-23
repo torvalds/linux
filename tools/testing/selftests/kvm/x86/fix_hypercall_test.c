@@ -48,7 +48,7 @@ static void guest_main(void)
 	const u8 *other_hypercall_insn;
 	u64 ret;
 
-	if (host_cpu_is_intel) {
+	if (host_cpu_is_intel_compatible) {
 		native_hypercall_insn = vmx_vmcall;
 		other_hypercall_insn  = svm_vmmcall;
 	} else if (host_cpu_is_amd_compatible) {

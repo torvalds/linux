@@ -241,6 +241,10 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 	if (config & CPUCFG6_PMP)
 		c->options |= LOONGARCH_CPU_PMP;
 
+	config = read_cpucfg(LOONGARCH_CPUCFG8);
+	if (config & CPUCFG8_S2TGID)
+		c->options |= LOONGARCH_CPU_GUESTID;
+
 	config = csr_read32(LOONGARCH_CSR_ASID);
 	config = (config & CSR_ASID_BIT) >> CSR_ASID_BIT_SHIFT;
 	asid_mask = GENMASK(config - 1, 0);

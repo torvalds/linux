@@ -33,15 +33,15 @@ __asm__(
 static void l1_vmx_code(struct vmx_pages *vmx, u64 vcpu_id)
 {
 	GUEST_ASSERT(vmx->vmcs_gpa);
-	GUEST_ASSERT(prepare_for_vmx_operation(vmx));
-	GUEST_ASSERT(load_vmcs(vmx));
+	prepare_for_vmx_operation(vmx);
+	load_vmcs(vmx);
 	GUEST_ASSERT(ept_1g_pages_supported());
 
 	*(u64 *)vmx->stack = vcpu_id;
 	prepare_vmcs(vmx, memstress_l2_guest_entry);
 
-	GUEST_ASSERT(!vmlaunch());
-	GUEST_ASSERT_EQ(vmreadz(VM_EXIT_REASON), EXIT_REASON_VMCALL);
+	vmlaunch();
+	GUEST_ASSERT_EQ(vmread(VM_EXIT_REASON), EXIT_REASON_VMCALL);
 	GUEST_DONE();
 }
 

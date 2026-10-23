@@ -4,16 +4,20 @@
  */
 #include "guest_modes.h"
 
-#if defined(__aarch64__) || defined(__riscv)
+#if defined(__aarch64__) || defined(__riscv) || defined(__powerpc64__)
 #include "processor.h"
 enum vm_guest_mode vm_mode_default;
+#endif
+
+#if defined(__powerpc64__)
+#include <unistd.h>
 #endif
 
 struct guest_mode guest_modes[NUM_VM_MODES];
 
 void guest_modes_append_default(void)
 {
-#if !defined(__aarch64__) && !defined(__riscv)
+#if !defined(__aarch64__) && !defined(__riscv) && !defined(__powerpc64__)
 	guest_mode_append(VM_MODE_DEFAULT, true);
 #endif
 
@@ -106,6 +110,18 @@ void guest_modes_append_default(void)
 				vm_mode_default = i;
 		}
 		TEST_ASSERT(vm_mode_default != NUM_VM_MODES, "No supported mode!");
+	}
+#endif
+#ifdef __powerpc64__
+	{
+		TEST_REQUIRE(kvm_has_cap(KVM_CAP_PPC_MMU_RADIX));
+		/* Radix guest EA and RA are 52-bit on POWER9 and POWER10 */
+		if (sysconf(_SC_PAGESIZE) == 4096)
+			vm_mode_default = VM_MODE_P52V52_4K;
+		else
+			vm_mode_default = VM_MODE_P52V52_64K;
+		guest_mode_append(VM_MODE_P52V52_4K, true);
+		guest_mode_append(VM_MODE_P52V52_64K, true);
 	}
 #endif
 }

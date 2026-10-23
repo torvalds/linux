@@ -280,6 +280,24 @@ Allows user space to disable dea key wrapping, clearing the wrapping key.
 :Parameters: none
 :Returns:    0
 
+4.5. ATTRIBUTE: KVM_S390_VM_CRYPTO_ENABLE_APIE (w/o)
+-------------------------------------------------------
+
+Allows user space to enable AP interpretive execution.
+
+:Parameters: none
+:Returns:    0 for success
+	     -EOPNOTSUPP if AP instructions not available for guest
+
+4.6. ATTRIBUTE: KVM_S390_VM_CRYPTO_DISABLE_APIE (w/o)
+-------------------------------------------------------
+
+Allows user space to disable AP interpretive execution.
+
+:Parameters: none
+:Returns:    0 for success
+	     -EOPNOTSUPP if AP instructions not available for guest
+
 5. GROUP: KVM_S390_VM_MIGRATION
 ===============================
 

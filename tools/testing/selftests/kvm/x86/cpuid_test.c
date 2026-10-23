@@ -128,7 +128,7 @@ static void run_vcpu(struct kvm_vcpu *vcpu, int stage)
 		TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&
 			    uc.args[1] == stage + 1,
 			    "Stage %d: Unexpected register values vmexit, got %lx",
-			    stage + 1, (ulong)uc.args[1]);
+			    stage + 1, (unsigned long)uc.args[1]);
 		return;
 	case UCALL_DONE:
 		return;

@@ -130,6 +130,9 @@ int main(int argc, char **argv)
 	int s, r, cpu, i;
 	pid_t pid;
 
+	/* PowerPC PAPR L0 cannot guarantee 512 overlapping H_GUEST_CREATE from fork+SIGKILL. */
+	TEST_REQUIRE(!kvm_is_ppc_pseries_lpar());
+
 	kvm_sched_getaffinity(0, sizeof(cpu_set_t), &allowed_cpu_set);
 
 	for (i = 0; i < NR_VCPUS && CPU_COUNT(&allowed_cpu_set); i++) {
