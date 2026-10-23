@@ -5132,6 +5132,14 @@ int ext4_convert_unwritten_extents_atomic(handle_t *handle, struct inode *inode,
 		map.m_lblk += ret;
 		map.m_len = (max_blocks -= ret);
 		ret = ext4_map_blocks(handle, inode, &map, flags);
+		if (ret == 0) {
+			ext4_msg(inode->i_sb, KERN_ERR,
+				 "inode #%llu: block %u: len %u: "
+				 "hole found while converting extents for atomic write",
+				 inode->i_ino, map.m_lblk, map.m_len);
+			ret = -EINVAL;
+			break;
+		}
 		if (ret != max_blocks)
 			ext4_msg(inode->i_sb, KERN_INFO,
 				     "inode #%llu: block %u: len %u: "
