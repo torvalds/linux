@@ -2617,12 +2617,6 @@ static struct bpf_verifier_state *push_async_cb(struct bpf_verifier_env *env,
 	return &elem->st;
 }
 
-static int cmp_subprogs(const void *a, const void *b)
-{
-	return ((struct bpf_subprog_info *)a)->start -
-	       ((struct bpf_subprog_info *)b)->start;
-}
-
 /* Find subprogram that contains instruction at 'off' */
 struct bpf_subprog_info *bpf_find_containing_subprog(struct bpf_verifier_env *env, int off)
 {
@@ -2657,26 +2651,29 @@ int bpf_find_subprog(struct bpf_verifier_env *env, int off)
 
 static int add_subprog(struct bpf_verifier_env *env, int off)
 {
+	struct bpf_subprog_info *subprog = env->subprog_info;
 	int insn_cnt = env->prog->len;
-	int ret;
+	int i;
 
 	if (off >= insn_cnt || off < 0) {
 		verbose(env, "call to invalid destination\n");
 		return -EINVAL;
 	}
-	ret = bpf_find_subprog(env, off);
-	if (ret >= 0)
-		return ret;
+	i = bpf_find_subprog(env, off);
+	if (i >= 0)
+		return i;
 	if (env->subprog_cnt >= BPF_MAX_SUBPROGS) {
 		verbose(env, "too many subprograms\n");
 		return -E2BIG;
 	}
-	/* determine subprog starts. The end is one before the next starts */
-	env->subprog_info[env->subprog_cnt].exit_idx = U32_MAX;
-	env->subprog_info[env->subprog_cnt++].start = off;
-	sort(env->subprog_info, env->subprog_cnt,
-	     sizeof(env->subprog_info[0]), cmp_subprogs, NULL);
-	return env->subprog_cnt - 1;
+	/*
+	 * Determine subprog starts. The end is one before the next starts.
+	 * The array stays sorted: subprogs that start after 'off' move up.
+	 */
+	for (i = env->subprog_cnt++; i > 0 && subprog[i - 1].start > off; i--)
+		subprog[i] = subprog[i - 1];
+	subprog[i] = (struct bpf_subprog_info){ .start = off, .exit_idx = U32_MAX };
+	return i;
 }
 
 static int bpf_find_exception_callback_insn_off(struct bpf_verifier_env *env)
