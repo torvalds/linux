@@ -275,6 +275,14 @@ static int xpcs_plat_init_res(struct dw_xpcs_plat *pxpcs)
 	return 0;
 }
 
+static void xpcs_plat_exit_clk(void *data)
+{
+	struct dw_xpcs_plat *pxpcs = data;
+	struct device *dev = &pxpcs->pdev->dev;
+
+	pm_runtime_force_suspend(dev);
+}
+
 static int xpcs_plat_init_clk(struct dw_xpcs_plat *pxpcs)
 {
 	struct device *dev = &pxpcs->pdev->dev;
@@ -285,10 +293,12 @@ static int xpcs_plat_init_clk(struct dw_xpcs_plat *pxpcs)
 		return dev_err_probe(dev, PTR_ERR(pxpcs->cclk),
 				     "Failed to get CSR clock\n");
 
-	pm_runtime_set_active(dev);
-	ret = devm_pm_runtime_enable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_enable(dev);
+
+	ret = devm_add_action_or_reset(dev, xpcs_plat_exit_clk, pxpcs);
 	if (ret) {
-		dev_err(dev, "Failed to enable runtime-PM\n");
+		dev_err(dev, "Failed to register devm for xpcs_plat_exit_clk: %d\n", ret);
 		return ret;
 	}
 
