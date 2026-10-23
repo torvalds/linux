@@ -1,0 +1,6 @@
+#!/bin/sh -e
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# boottime-ktap: Wrapper to integrate boottime tracing test framework with kselftest runner
+
+exec ./boottime/run_boottime_test.sh "$@"

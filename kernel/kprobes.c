@@ -43,6 +43,7 @@
 #include <linux/cleanup.h>
 #include <linux/wait.h>
 #include <linux/wait_bit.h>
+#include <linux/rcupdate.h>
 
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
@@ -67,7 +68,7 @@ static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
 /* NOTE: change this value only with 'kprobe_mutex' held */
 static bool kprobes_all_disarmed;
 
-/* This protects 'kprobe_table' and 'optimizing_list' */
+/* This protects 'kprobe_table' and 'optprobe_gens' */
 static DEFINE_MUTEX(kprobe_mutex);
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance);
 
@@ -476,18 +477,6 @@ bool kprobe_disarmed(struct kprobe *p)
 	return kprobe_disabled(p) && list_empty(&op->list);
 }
 
-/* Return true if the probe is queued on (un)optimizing lists */
-static bool kprobe_queued(struct kprobe *p)
-{
-	struct optimized_kprobe *op;
-
-	if (kprobe_aggrprobe(p)) {
-		op = container_of(p, struct optimized_kprobe, kp);
-		if (!list_empty(&op->list))
-			return true;
-	}
-	return false;
-}
 
 /*
  * Return an optimized kprobe whose optimizing code replaces
@@ -514,10 +503,39 @@ static struct kprobe *get_optimized_kprobe(kprobe_opcode_t *addr)
 	return NULL;
 }
 
-/* Optimization staging list, protected by 'kprobe_mutex' */
-static LIST_HEAD(optimizing_list);
-static LIST_HEAD(unoptimizing_list);
-static LIST_HEAD(freeing_list);
+#define OPTPROBE_GEN_MAX 2
+
+struct optprobe_generation {
+	/* Probes waiting for grace period to drain tasks from original text */
+	struct list_head optimizing_list;
+	/* Probes queued for batch unoptimization upon dispatch */
+	struct list_head unoptimizing_list;
+	/* In-use probes waiting for grace period to drain optinsn slot */
+	struct list_head cooling_list;
+	/* Unused probes unhashed and waiting for batch release */
+	struct list_head freeing_list;
+	/* Tasks RCU callback head for asynchronous waiting */
+	struct rcu_head rcu;
+	/* True if dispatched and awaiting Tasks RCU callback */
+	bool in_flight;
+	/* True when Tasks RCU callback has fired and ready to finalize */
+	bool ready;
+};
+
+/*
+ * Generational ring of optprobes.
+ *
+ * Incoming probe requests are queued into the waiting room generation
+ * (optprobe_gens[optprobe_cur_gen]). When dispatched, the generation
+ * unoptimizes its probes, invokes call_rcu_tasks(), and optprobe_cur_gen
+ * advances to the next slot.
+ *
+ * To ensure an idle generation is always available to collect incoming
+ * requests without dynamic allocation, the last available generation slot
+ * is never dispatched until another generation has finished.
+ */
+static struct optprobe_generation optprobe_gens[OPTPROBE_GEN_MAX];
+static int optprobe_cur_gen;
 
 static void optimize_kprobe(struct kprobe *p);
 static struct task_struct *kprobe_optimizer_task;
@@ -535,11 +553,66 @@ static unsigned long optimizer_passes;
 #define OPTIMIZE_DELAY 5
 
 /*
- * Optimize (replace a breakpoint with a jump) kprobes listed on
- * 'optimizing_list'.
+ * Note: gen->cooling_list is not checked here because it is strictly
+ * an in-flight holding list for dispatched generations, so it is always
+ * empty in optprobe_cur_gen.
  */
-static void do_optimize_kprobes(void)
+static bool optprobe_has_queued_probes(void)
 {
+	struct optprobe_generation *gen = &optprobe_gens[optprobe_cur_gen];
+
+	return !list_empty(&gen->optimizing_list) ||
+	       !list_empty(&gen->unoptimizing_list) ||
+	       !list_empty(&gen->freeing_list);
+}
+
+static int optprobe_active_gens_count(void)
+{
+	int count = 0;
+	int i;
+
+	for (i = 0; i < OPTPROBE_GEN_MAX; i++) {
+		if (optprobe_gens[i].in_flight || optprobe_gens[i].ready)
+			count++;
+	}
+	return count;
+}
+
+/*
+ * The last generation must not be fired until another generation is done.
+ * (Thus the last generation acts as the waiting room.)
+ */
+static bool optprobe_can_fire(void)
+{
+	return optprobe_active_gens_count() < OPTPROBE_GEN_MAX - 1;
+}
+
+static bool optprobe_has_ready_gens(void)
+{
+	int i;
+
+	for (i = 0; i < OPTPROBE_GEN_MAX; i++) {
+		if (READ_ONCE(optprobe_gens[i].ready))
+			return true;
+	}
+	return false;
+}
+
+static bool optprobe_optimizer_busy(void)
+{
+	return optprobe_has_queued_probes() || (optprobe_active_gens_count() > 0);
+}
+
+/*
+ * Unoptimize (replace a jump with a breakpoint and remove the breakpoint
+ * if need) kprobes listed on 'unopt_list'.
+ */
+static void do_unoptimize_kprobes(struct list_head *unopt_list,
+				  struct list_head *free_list,
+				  struct list_head *cooling_list)
+{
+	struct optimized_kprobe *op, *tmp;
+
 	lockdep_assert_held(&text_mutex);
 	/*
 	 * The optimization/unoptimization refers 'online_cpus' via
@@ -553,31 +626,11 @@ static void do_optimize_kprobes(void)
 	 */
 	lockdep_assert_cpus_held();
 
-	/* Optimization never be done when disarmed */
-	if (kprobes_all_disarmed || !kprobes_allow_optimization ||
-	    list_empty(&optimizing_list))
-		return;
+	if (!list_empty(unopt_list))
+		arch_unoptimize_kprobes(unopt_list, free_list);
 
-	arch_optimize_kprobes(&optimizing_list);
-}
-
-/*
- * Unoptimize (replace a jump with a breakpoint and remove the breakpoint
- * if need) kprobes listed on 'unoptimizing_list'.
- */
-static void do_unoptimize_kprobes(void)
-{
-	struct optimized_kprobe *op, *tmp;
-
-	lockdep_assert_held(&text_mutex);
-	/* See comment in do_optimize_kprobes() */
-	lockdep_assert_cpus_held();
-
-	if (!list_empty(&unoptimizing_list))
-		arch_unoptimize_kprobes(&unoptimizing_list, &freeing_list);
-
-	/* Loop on 'freeing_list' for disarming and removing from kprobe hash list */
-	list_for_each_entry_safe(op, tmp, &freeing_list, list) {
+	/* Loop on 'free_list' for disarming and removing from kprobe hash list */
+	list_for_each_entry_safe(op, tmp, free_list, list) {
 		/* Switching from detour code to origin */
 		op->kp.flags &= ~KPROBE_FLAG_OPTIMIZED;
 		/* Disarm probes if marked disabled and not gone */
@@ -589,18 +642,26 @@ static void do_unoptimize_kprobes(void)
 			 * for synchronization, these probes are reclaimed.
 			 * (reclaiming is done by do_free_cleaned_kprobes().)
 			 */
-			hlist_del_rcu(&op->kp.hlist);
-		} else
-			list_del_init(&op->list);
+			hlist_del_init_rcu(&op->kp.hlist);
+		} else {
+			/*
+			 * Keep on cooling_list until the quiescence period
+			 * completes so that kprobe_disarmed() remains false and
+			 * unregister_kprobes() does not prematurely free it.
+			 */
+			list_move(&op->list, cooling_list);
+		}
 	}
 }
 
-/* Reclaim all kprobes on the 'freeing_list' */
-static void do_free_cleaned_kprobes(void)
+/* Reclaim all kprobes on the 'free_list' */
+static void do_free_cleaned_kprobes(struct list_head *free_list)
 {
 	struct optimized_kprobe *op, *tmp;
 
-	list_for_each_entry_safe(op, tmp, &freeing_list, list) {
+	list_for_each_entry_safe(op, tmp, free_list, list) {
+		struct kprobe *_p;
+
 		list_del_init(&op->list);
 		if (WARN_ON_ONCE(!kprobe_unused(&op->kp))) {
 			/*
@@ -612,11 +673,10 @@ static void do_free_cleaned_kprobes(void)
 
 		/*
 		 * The aggregator was holding back another probe while it sat on the
-		 * unoptimizing/freeing lists.  Now that the aggregator has been fully
+		 * unoptimizing/freeing lists. Now that the aggregator has been fully
 		 * reverted we can safely retry the optimization of that sibling.
 		 */
-
-		struct kprobe *_p = get_optimized_kprobe(op->kp.addr);
+		_p = get_optimized_kprobe(op->kp.addr);
 		if (unlikely(_p))
 			optimize_kprobe(_p);
 
@@ -626,67 +686,146 @@ static void do_free_cleaned_kprobes(void)
 
 static void kick_kprobe_optimizer(void);
 
-/* Kprobe jump optimizer */
-static void kprobe_optimizer(void)
+static void optprobe_generation_rcu_cb(struct rcu_head *rcu)
 {
-	guard(mutex)(&kprobe_mutex);
+	struct optprobe_generation *gen;
+
+	gen = container_of(rcu, struct optprobe_generation, rcu);
+	WRITE_ONCE(gen->ready, true);
+	wake_up(&kprobe_optimizer_wait);
+}
+
+static void optprobe_finalize_generation(struct optprobe_generation *gen)
+{
+	struct optimized_kprobe *op, *tmp;
+
+	lockdep_assert_held(&kprobe_mutex);
+
+	scoped_guard(cpus_read_lock) {
+		guard(mutex)(&text_mutex);
+
+		/* Optimization never be done when disarmed */
+		if (!kprobes_all_disarmed && kprobes_allow_optimization &&
+		    !list_empty(&gen->optimizing_list))
+			arch_optimize_kprobes(&gen->optimizing_list);
+	}
+
+	/* Free cleaned kprobes after quiescence period */
+	do_free_cleaned_kprobes(&gen->freeing_list);
+
+	/* Finalize unoptimized kprobes whose quiescence period completed */
+	list_for_each_entry_safe(op, tmp, &gen->cooling_list, list) {
+		if (kprobe_unused(&op->kp)) {
+			/*
+			 * Unregistered while quiescence period was in flight.
+			 * Unhash it now and move to cur_gen's freeing list so
+			 * it will be reclaimed after the next quiescence period.
+			 */
+			hlist_del_init_rcu(&op->kp.hlist);
+			list_move(&op->list, &optprobe_gens[optprobe_cur_gen].freeing_list);
+			kick_kprobe_optimizer();
+		} else {
+			/* Still in use; now safely disarmed */
+			list_del_init(&op->list);
+			if (!kprobe_disabled(&op->kp))
+				optimize_kprobe(&op->kp);
+		}
+	}
+
+	gen->in_flight = false;
+	WRITE_ONCE(gen->ready, false);
+}
+
+static bool optprobe_dispatch_generation(void)
+{
+	struct optprobe_generation *gen;
+
+	lockdep_assert_held(&kprobe_mutex);
+
+	if (!optprobe_can_fire() || !optprobe_has_queued_probes())
+		return false;
+
+	gen = &optprobe_gens[optprobe_cur_gen];
 
 	scoped_guard(cpus_read_lock) {
 		guard(mutex)(&text_mutex);
 
 		/*
-		 * Step 1: Unoptimize kprobes and collect cleaned (unused and disarmed)
-		 * kprobes before waiting for quiesence period.
+		 * Unoptimize kprobes and collect cleaned (unused and disarmed)
+		 * kprobes before waiting for quiescence period.
 		 */
-		do_unoptimize_kprobes();
-
-		/*
-		 * Step 2: Wait for quiesence period to ensure all potentially
-		 * preempted tasks to have normally scheduled. Because optprobe
-		 * may modify multiple instructions, there is a chance that Nth
-		 * instruction is preempted. In that case, such tasks can return
-		 * to 2nd-Nth byte of jump instruction. This wait is for avoiding it.
-		 * Note that on non-preemptive kernel, this is transparently converted
-		 * to synchronoze_sched() to wait for all interrupts to have completed.
-		 */
-		synchronize_rcu_tasks();
-
-		/* Step 3: Optimize kprobes after quiesence period */
-		do_optimize_kprobes();
-
-		/* Step 4: Free cleaned kprobes after quiesence period */
-		do_free_cleaned_kprobes();
+		do_unoptimize_kprobes(&gen->unoptimizing_list, &gen->freeing_list,
+				      &gen->cooling_list);
 	}
 
-	/* Step 5: Wake up flushers, and kick optimizer again if needed. */
-	optimizer_passes++;
-	wake_up_var_locked(&optimizer_passes, &kprobe_mutex);
+	/* Advance cur_gen to the next generation slot */
+	optprobe_cur_gen = (optprobe_cur_gen + 1) % OPTPROBE_GEN_MAX;
 
-	if (!list_empty(&optimizing_list) || !list_empty(&unoptimizing_list))
-		kick_kprobe_optimizer();	/*normal kick*/
+	gen->in_flight = true;
+	WRITE_ONCE(gen->ready, false);
+
+	call_rcu_tasks(&gen->rcu, optprobe_generation_rcu_cb);
+	return true;
+}
+
+/* Kprobe jump optimizer */
+static void kprobe_optimizer(void)
+{
+	bool progress = false;
+	int i;
+
+	guard(mutex)(&kprobe_mutex);
+
+	/* Step 1: Finalize any generation whose Tasks RCU grace period completed */
+	for (i = 0; i < OPTPROBE_GEN_MAX; i++) {
+		if (READ_ONCE(optprobe_gens[i].ready)) {
+			optprobe_finalize_generation(&optprobe_gens[i]);
+			progress = true;
+		}
+	}
+
+	/* Step 2: Dispatch waiting room generation if allowed */
+	if (optprobe_dispatch_generation())
+		progress = true;
+
+	/* Step 3: Wake up flushers if progress was made */
+	if (progress) {
+		optimizer_passes++;
+		wake_up_var_locked(&optimizer_passes, &kprobe_mutex);
+	}
+
+	if (optprobe_has_queued_probes() && optprobe_can_fire()) {
+		/* Probes remain and can be fired immediately (e.g. retried siblings) */
+		kick_kprobe_optimizer();
+	}
 }
 
 static int kprobe_optimizer_thread(void *data)
 {
 	while (!kthread_should_stop()) {
-		/* To avoid hung_task, wait in interruptible state. */
+		/* Wait until there is work to do or a generation is ready */
 		wait_event_interruptible(kprobe_optimizer_wait,
-			   atomic_read(&optimizer_state) != OPTIMIZER_ST_IDLE ||
-			   kthread_should_stop());
+			atomic_read(&optimizer_state) != OPTIMIZER_ST_IDLE ||
+			optprobe_has_ready_gens() ||
+			kthread_should_stop());
 
 		if (kthread_should_stop())
 			break;
 
 		/*
-		 * If it was a normal kick, wait for OPTIMIZE_DELAY.
-		 * This wait can be interrupted by a flush request.
+		 * If it was a normal kick and no generation is ready to finalize,
+		 * wait for OPTIMIZE_DELAY to batch incoming requests.
+		 * This wait can be interrupted by a flush request or a ready generation.
 		 */
-		if (atomic_read(&optimizer_state) == 1)
+		if (atomic_read(&optimizer_state) == OPTIMIZER_ST_KICKED &&
+		    !optprobe_has_ready_gens()) {
 			wait_event_interruptible_timeout(
 				kprobe_optimizer_wait,
 				atomic_read(&optimizer_state) == OPTIMIZER_ST_FLUSHING ||
+				optprobe_has_ready_gens() ||
 				kthread_should_stop(),
 				OPTIMIZE_DELAY);
+		}
 
 		if (kthread_should_stop())
 			break;
@@ -711,20 +850,20 @@ static void wait_for_kprobe_optimizer_locked(void)
 {
 	lockdep_assert_held(&kprobe_mutex);
 
-	while (!list_empty(&optimizing_list) || !list_empty(&unoptimizing_list)) {
+	while (optprobe_optimizer_busy()) {
 		unsigned long passes = optimizer_passes;
 
-		/*
-		 * Set state to OPTIMIZER_ST_FLUSHING and wake up the thread if it's
-		 * idle. If it's already kicked, it will see the state change.
-		 */
-		if (atomic_xchg_acquire(&optimizer_state,
-			OPTIMIZER_ST_FLUSHING) != OPTIMIZER_ST_FLUSHING)
-			wake_up(&kprobe_optimizer_wait);
+		/* Wake up optimizer thread if it can make progress */
+		if ((optprobe_can_fire() && optprobe_has_queued_probes()) ||
+		    optprobe_has_ready_gens()) {
+			if (atomic_xchg_acquire(&optimizer_state,
+				OPTIMIZER_ST_FLUSHING) != OPTIMIZER_ST_FLUSHING)
+				wake_up(&kprobe_optimizer_wait);
+		}
 
 		/*
 		 * kprobe_optimizer() holds 'kprobe_mutex' for a whole pass, which
-		 * this drops while sleeping, so a new count means a full pass ran.
+		 * this drops while sleeping, so a new count means progress was made.
 		 */
 		wait_var_event_mutex(&optimizer_passes,
 				     optimizer_passes != passes, &kprobe_mutex);
@@ -742,10 +881,43 @@ void wait_for_kprobe_optimizer(void)
 bool optprobe_queued_unopt(struct optimized_kprobe *op)
 {
 	struct optimized_kprobe *_op;
+	int i;
 
-	list_for_each_entry(_op, &unoptimizing_list, list) {
-		if (op == _op)
-			return true;
+	for (i = 0; i < OPTPROBE_GEN_MAX; i++) {
+		list_for_each_entry(_op, &optprobe_gens[i].unoptimizing_list, list) {
+			if (op == _op)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+static bool optprobe_queued_freeing(struct optimized_kprobe *op)
+{
+	struct optimized_kprobe *_op;
+	int i;
+
+	for (i = 0; i < OPTPROBE_GEN_MAX; i++) {
+		list_for_each_entry(_op, &optprobe_gens[i].freeing_list, list) {
+			if (op == _op)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+static bool optprobe_queued_cooling(struct optimized_kprobe *op)
+{
+	struct optimized_kprobe *_op;
+	int i;
+
+	for (i = 0; i < OPTPROBE_GEN_MAX; i++) {
+		list_for_each_entry(_op, &optprobe_gens[i].cooling_list, list) {
+			if (op == _op)
+				return true;
+		}
 	}
 
 	return false;
@@ -779,6 +951,15 @@ static void optimize_kprobe(struct kprobe *p)
 		}
 		return;
 	}
+
+	if (optprobe_queued_cooling(op)) {
+		/* Under in-flight unoptimization. It will be re-optimized upon finalize */
+		return;
+	}
+
+	if (optprobe_queued_freeing(op))
+		list_del_init(&op->list);
+
 	op->kp.flags |= KPROBE_FLAG_OPTIMIZED;
 
 	/*
@@ -788,7 +969,7 @@ static void optimize_kprobe(struct kprobe *p)
 	if (WARN_ON_ONCE(!list_empty(&op->list)))
 		return;
 
-	list_add(&op->list, &optimizing_list);
+	list_add(&op->list, &optprobe_gens[optprobe_cur_gen].optimizing_list);
 	kick_kprobe_optimizer();
 }
 
@@ -803,14 +984,14 @@ static void force_unoptimize_kprobe(struct optimized_kprobe *op)
 /* Unoptimize a kprobe if p is optimized */
 static void unoptimize_kprobe(struct kprobe *p, bool force)
 {
+	struct optprobe_generation *cur;
 	struct optimized_kprobe *op;
 
 	if (!kprobe_aggrprobe(p) || kprobe_disarmed(p))
 		return; /* This is not an optprobe nor optimized */
 
 	op = container_of(p, struct optimized_kprobe, kp);
-	if (!kprobe_optimized(p))
-		return;
+	cur = &optprobe_gens[optprobe_cur_gen];
 
 	if (!list_empty(&op->list)) {
 		if (optprobe_queued_unopt(op)) {
@@ -818,10 +999,30 @@ static void unoptimize_kprobe(struct kprobe *p, bool force)
 			if (force) {
 				/*
 				 * Forcibly unoptimize the kprobe here, and queue it
-				 * in the freeing list for release afterwards.
+				 * for cooling down (or freeing if unused).
 				 */
 				force_unoptimize_kprobe(op);
-				list_move(&op->list, &freeing_list);
+				if (kprobe_unused(&op->kp)) {
+					if (!kprobe_gone(&op->kp))
+						arch_disarm_kprobe(&op->kp);
+					hlist_del_init_rcu(&op->kp.hlist);
+					list_move(&op->list, &cur->freeing_list);
+				} else {
+					list_move(&op->list, &cur->cooling_list);
+				}
+				kick_kprobe_optimizer();
+			}
+		} else if (optprobe_queued_cooling(op)) {
+			if (force && kprobe_unused(&op->kp)) {
+				/*
+				 * Already unoptimized, move to freeing list for
+				 * release afterwards.
+				 */
+				if (!kprobe_gone(&op->kp))
+					arch_disarm_kprobe(&op->kp);
+				hlist_del_init_rcu(&op->kp.hlist);
+				list_move(&op->list, &cur->freeing_list);
+				kick_kprobe_optimizer();
 			}
 		} else {
 			/* Dequeue from the optimizing queue */
@@ -831,12 +1032,15 @@ static void unoptimize_kprobe(struct kprobe *p, bool force)
 		return;
 	}
 
+	if (!kprobe_optimized(p))
+		return;
+
 	/* Optimized kprobe case */
 	if (force) {
 		/* Forcibly update the code: this is a special case */
 		force_unoptimize_kprobe(op);
 	} else {
-		list_add(&op->list, &unoptimizing_list);
+		list_add(&op->list, &cur->unoptimizing_list);
 		kick_kprobe_optimizer();
 	}
 }
@@ -868,23 +1072,29 @@ static void kill_optimized_kprobe(struct kprobe *p)
 	struct optimized_kprobe *op;
 
 	op = container_of(p, struct optimized_kprobe, kp);
-	if (!list_empty(&op->list))
-		/* Dequeue from the (un)optimization queue */
-		list_del_init(&op->list);
+	if (!list_empty(&op->list)) {
+		if (kprobe_unused(p)) {
+			if (optprobe_queued_unopt(op) || optprobe_queued_cooling(op)) {
+				hlist_del_init_rcu(&op->kp.hlist);
+				list_move(&op->list,
+					  &optprobe_gens[optprobe_cur_gen].freeing_list);
+				kick_kprobe_optimizer();
+			} else if (!optprobe_queued_freeing(op)) {
+				list_del_init(&op->list);
+			}
+		} else {
+			list_del_init(&op->list);
+		}
+	}
 	op->kp.flags &= ~KPROBE_FLAG_OPTIMIZED;
 
-	if (kprobe_unused(p)) {
-		/*
-		 * Unused kprobe is on unoptimizing or freeing list. We move it
-		 * to freeing_list and let the kprobe_optimizer() remove it from
-		 * the kprobe hash list and free it.
-		 */
-		if (optprobe_queued_unopt(op))
-			list_move(&op->list, &freeing_list);
-	}
-
-	/* Don't touch the code, because it is already freed. */
-	arch_remove_optimized_kprobe(op);
+	/*
+	 * Don't remove the slot if it is queued for freeing or unoptimization;
+	 * the optimizer will reclaim it after the quiescence period.
+	 */
+	if (!optprobe_queued_freeing(op) && !optprobe_queued_unopt(op) &&
+	    !optprobe_queued_cooling(op))
+		arch_remove_optimized_kprobe(op);
 }
 
 static inline
@@ -1060,6 +1270,19 @@ static void __arm_kprobe(struct kprobe *p)
 	optimize_kprobe(p);	/* Try to optimize (add kprobe to a list) */
 }
 
+/* Return true if the probe is queued on unoptimizing lists */
+static bool kprobe_queued_unopt(struct kprobe *p)
+{
+	struct optimized_kprobe *op;
+
+	if (kprobe_aggrprobe(p)) {
+		op = container_of(p, struct optimized_kprobe, kp);
+		if (optprobe_queued_unopt(op))
+			return true;
+	}
+	return false;
+}
+
 /* Remove the breakpoint of a probe. */
 static void __disarm_kprobe(struct kprobe *p, bool reopt)
 {
@@ -1070,7 +1293,7 @@ static void __disarm_kprobe(struct kprobe *p, bool reopt)
 	/* Try to unoptimize */
 	unoptimize_kprobe(p, kprobes_all_disarmed);
 
-	if (!kprobe_queued(p)) {
+	if (!kprobe_queued_unopt(p)) {
 		arch_disarm_kprobe(p);
 		/* If another kprobe was blocked, re-optimize it. */
 		_p = get_optimized_kprobe(p->addr);
@@ -1081,10 +1304,22 @@ static void __disarm_kprobe(struct kprobe *p, bool reopt)
 
 static void __init init_optprobe(void)
 {
+	int i;
+
 #ifdef __ARCH_WANT_KPROBES_INSN_SLOT
 	/* Init 'kprobe_optinsn_slots' for allocation */
 	kprobe_optinsn_slots.insn_size = MAX_OPTINSN_SIZE;
 #endif
+
+	for (i = 0; i < OPTPROBE_GEN_MAX; i++) {
+		INIT_LIST_HEAD(&optprobe_gens[i].optimizing_list);
+		INIT_LIST_HEAD(&optprobe_gens[i].unoptimizing_list);
+		INIT_LIST_HEAD(&optprobe_gens[i].cooling_list);
+		INIT_LIST_HEAD(&optprobe_gens[i].freeing_list);
+		optprobe_gens[i].in_flight = false;
+		optprobe_gens[i].ready = false;
+	}
+	optprobe_cur_gen = 0;
 
 	init_waitqueue_head(&kprobe_optimizer_wait);
 	atomic_set(&optimizer_state, OPTIMIZER_ST_IDLE);
@@ -3027,47 +3262,22 @@ static int disarm_all_kprobes(void)
 	return ret;
 }
 
-/*
- * XXX: The debugfs bool file interface doesn't allow for callbacks
- * when the bool state is switched. We can reuse that facility when
- * available
- */
-static ssize_t read_enabled_file_bool(struct file *file,
-	       char __user *user_buf, size_t count, loff_t *ppos)
+static int kprobes_enabled_set(void *data, u64 val)
 {
-	char buf[3];
+	if (val)
+		return arm_all_kprobes();
 
-	if (!kprobes_all_disarmed)
-		buf[0] = '1';
-	else
-		buf[0] = '0';
-	buf[1] = '\n';
-	buf[2] = 0x00;
-	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+	return disarm_all_kprobes();
 }
 
-static ssize_t write_enabled_file_bool(struct file *file,
-	       const char __user *user_buf, size_t count, loff_t *ppos)
+static int kprobes_enabled_get(void *data, u64 *val)
 {
-	bool enable;
-	int ret;
-
-	ret = kstrtobool_from_user(user_buf, count, &enable);
-	if (ret)
-		return ret;
-
-	ret = enable ? arm_all_kprobes() : disarm_all_kprobes();
-	if (ret)
-		return ret;
-
-	return count;
+	*val = !kprobes_all_disarmed;
+	return 0;
 }
 
-static const struct file_operations fops_kp = {
-	.read =         read_enabled_file_bool,
-	.write =        write_enabled_file_bool,
-	.llseek =	default_llseek,
-};
+DEFINE_DEBUGFS_ATTRIBUTE(fops_kp, kprobes_enabled_get,
+			 kprobes_enabled_set, "%llu\n");
 
 static int __init debugfs_kprobe_init(void)
 {

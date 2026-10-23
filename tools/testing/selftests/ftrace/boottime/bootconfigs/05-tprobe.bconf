@@ -1,0 +1,4 @@
+ftrace.event.tracepoints.tp_sched {
+	probes = "sched_switch"
+	enable
+}

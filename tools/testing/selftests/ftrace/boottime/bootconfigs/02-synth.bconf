@@ -1,0 +1,4 @@
+ftrace.event.synthetic.boot_lat {
+	fields = "unsigned long id", "u64 delta"
+	enable
+}

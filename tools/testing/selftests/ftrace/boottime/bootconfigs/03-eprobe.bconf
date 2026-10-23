@@ -1,0 +1,4 @@
+ftrace.event.eprobes.ep_read {
+	probes = "sched/sched_switch"
+	enable
+}

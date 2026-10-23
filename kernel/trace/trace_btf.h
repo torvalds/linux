@@ -18,7 +18,8 @@ const struct btf_member *btf_find_struct_member(struct btf *btf,
 						const struct btf_type *type,
 						const char *member_name,
 						u32 *anon_offset,
-						const struct btf_type **member_type);
+						const struct btf_type **container_type);
+
 #ifdef CONFIG_DEBUG_INFO_BTF
 void btf_trim_retval(unsigned long func, unsigned long *retval, bool *print_retval,
 		     int *fmt, bool hex);

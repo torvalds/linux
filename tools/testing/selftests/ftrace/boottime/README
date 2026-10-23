@@ -1,0 +1,74 @@
+Boot Tracing Test Suite
+=======================
+
+This directory contains an automated test framework to verify kernel boot
+tracing configurations (bootconfig, kernel command-line tracing options, and
+persistent ring buffers) during early boot.
+
+Overview
+--------
+The test runner (`run_boottime_test.sh`) constructs a lightweight initramfs with
+busybox and a tracefs checker script from `tests/`, attaches optional bootconfigs
+from `bootconfigs/` using the `bootconfig` tool, applies optional command-line
+parameters from `cmdlines/`, boots the target kernel image under QEMU, and reports
+results according to TAP version 13 format.
+
+Test Specification Format
+-------------------------
+For each test script `tests/<name>.sh`, the harness dynamically detects:
+- `bootconfigs/<name>.bconf` or `<name>.bconf`: Bootconfig configuration file.
+- `cmdlines/<name>.cmdline` or `# CMDLINE: <opts>` header in script: Kernel boot parameters.
+- `qemuopts/<name>.qemuopts` or `# QEMUOPTS: <opts>` header in script: Additional QEMU CLI arguments.
+- `# APPLETS: <applets>` header in script: Additional BusyBox applet symlinks to create in initramfs.
+- `# REBOOT: 1` header in script: Multi-boot reboot/crash test mode (omits `-no-reboot` and doubles timeout).
+
+Required Tools
+--------------
+- Host Architecture: x86 (x86_64/i686/i386/x86; tests skip on non-x86 hosts)
+- `qemu-system-x86_64` (or custom QEMU executable)
+- `busybox` (host binary at `/usr/bin/busybox` or custom path)
+- `bootconfig` (compiled from `tools/bootconfig/bootconfig` or in PATH)
+- `file` (standard file architecture identifier)
+- `cpio` (standard archiver)
+- `timeout` (standard coreutils execution timer)
+
+Required Kernel Configurations
+------------------------------
+The kernel binary under test must be compiled with:
+- `CONFIG_BOOT_CONFIG=y`
+- `CONFIG_BOOTTIME_TRACING=y`
+- `CONFIG_MAGIC_SYSRQ=y` (for guest reboot and poweroff)
+
+Additional feature-specific config options enable respective testcases:
+- `CONFIG_KPROBE_EVENTS=y` (for kprobe tests)
+- `CONFIG_SYNTH_EVENTS=y`  (for synthetic event tests)
+- `CONFIG_EPROBE_EVENTS=y` (for eprobe tests)
+- `CONFIG_FPROBE_EVENTS=y` (for fprobe and tracepoint probe tests)
+- `CONFIG_FUNCTION_TRACER=y` (for tracer options)
+- `CONFIG_RESERVE_MEM=y` (for persistent ring buffer tests)
+
+Usage
+-----
+To run all test cases with a compiled kernel image:
+
+  $ ./run_boottime_test.sh -k /path/to/bzImage
+
+To run a specific test case (e.g. `01-kprobe`):
+
+  $ ./run_boottime_test.sh -k /path/to/bzImage -t 01-kprobe
+
+Customizing Tool Paths:
+
+  $ ./run_boottime_test.sh -b /path/to/bootconfig \
+                         -k /path/to/bzImage \
+                         -q /path/to/qemu-system-x86_64 \
+                         -B /path/to/busybox
+
+Environment Variables
+---------------------
+Tool locations and kernel paths can also be set via environment variables:
+- `BOOTCONFIG`: Path to the `bootconfig` tool
+- `KERNEL`: Path to the `bzImage` kernel binary
+- `QEMU`: Path to the QEMU binary
+- `BUSYBOX`: Path to the `busybox` binary
+- `LOGDIR`: Directory path to preserve QEMU execution log files
