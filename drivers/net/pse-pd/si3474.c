@@ -250,9 +250,9 @@ static int si3474_get_of_channels(struct si3474_priv *priv)
 					"Failed to read channel reg property\n");
 				return ret;
 			}
-			if (chan_id > SI3474_MAX_CHANS) {
+			if (chan_id >= SI3474_MAX_CHANS) {
 				dev_err(&priv->client[0]->dev,
-					"Incorrect channel number: %d\n", chan_id);
+					"Incorrect channel number: %u\n", chan_id);
 				return -EINVAL;
 			}
 
@@ -265,6 +265,16 @@ static int si3474_get_of_channels(struct si3474_priv *priv)
 			dev_err(&priv->client[0]->dev,
 				"Second pairset is missing for PI %pOF, only 4p configs are supported\n",
 				pi->np);
+			return -EINVAL;
+		}
+
+		/* The 2P/4P mode bit pairs channels 0+1 and 2+3 of a quad */
+		if (pairset_found &&
+		    (priv->pi[pi_no].chan[0] ^ 1) != priv->pi[pi_no].chan[1]) {
+			dev_err(&priv->client[0]->dev,
+				"PI %pOF: channels %u and %u are not a channel pair\n",
+				pi->np, priv->pi[pi_no].chan[0],
+				priv->pi[pi_no].chan[1]);
 			return -EINVAL;
 		}
 	}
@@ -312,8 +322,13 @@ static int si3474_pi_enable(struct pse_controller_dev *pcdev, int id)
 	/* DETECT_CLASS_ENABLE must be set when using AUTO mode,
 	 * otherwise PI does not power up - datasheet section 2.10.2
 	 */
-	val = CHAN_BIT(chan0) | CHAN_UPPER_BIT(chan0) |
-	      CHAN_BIT(chan1) | CHAN_UPPER_BIT(chan1);
+	ret = i2c_smbus_read_byte_data(client, DETECT_CLASS_ENABLE_REG);
+	if (ret < 0)
+		return ret;
+
+	val = (u8)ret;
+	val |= CHAN_BIT(chan0) | CHAN_UPPER_BIT(chan0) |
+	       CHAN_BIT(chan1) | CHAN_UPPER_BIT(chan1);
 
 	ret = i2c_smbus_write_byte_data(client, DETECT_CLASS_ENABLE_REG, val);
 	if (ret)
