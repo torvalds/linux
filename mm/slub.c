@@ -360,33 +360,64 @@ enum add_mode {
 	ADD_TO_TAIL,
 };
 
+#define STAT_ITEMS							\
+	/* Allocation from percpu sheaves */				\
+	ITEM_EXP(ALLOC_FASTPATH, alloc_fastpath)			\
+	/* Allocation from partial or new slab */			\
+	ITEM_EXP(ALLOC_SLOWPATH, alloc_slowpath)			\
+	/* Free to rcu_free sheaf */					\
+	ITEM_EXP(FREE_RCU_SHEAF, free_rcu_sheaf)			\
+	/* Failed to free to a rcu_free sheaf */			\
+	ITEM_EXP(FREE_RCU_SHEAF_FAIL, free_rcu_sheaf_fail)		\
+	/* Free to percpu sheaves */					\
+	ITEM_EXP(FREE_FASTPATH, free_fastpath)				\
+	/* Free to a slab */						\
+	ITEM_EXP(FREE_SLOWPATH, free_slowpath)				\
+	/* Freeing moves slab to partial list */			\
+	ITEM_EXP(FREE_ADD_PARTIAL, free_add_partial)			\
+	/* Freeing removes last object */				\
+	ITEM_EXP(FREE_REMOVE_PARTIAL, free_remove_partial)		\
+	/* New slab acquired from page allocator */			\
+	ITEM_EXP(ALLOC_SLAB, alloc_slab)				\
+	/* Requested node different from cpu sheaf */			\
+	ITEM_EXP(ALLOC_NODE_MISMATCH, alloc_node_mismatch)		\
+	/* Slab freed to the page allocator */				\
+	ITEM_EXP(FREE_SLAB, free_slab)					\
+	/* Number of times fallback was necessary */			\
+	ITEM_EXP(ORDER_FALLBACK, order_fallback)			\
+	/* Failures of slab freelist update */				\
+	ITEM_EXP(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail)		\
+	/* Objects flushed from a sheaf */				\
+	ITEM_EXP(SHEAF_FLUSH, sheaf_flush)				\
+	/* Objects refilled to a sheaf */				\
+	ITEM_EXP(SHEAF_REFILL, sheaf_refill)				\
+	/* Allocation of an empty sheaf including oversized ones */	\
+	ITEM_EXP(SHEAF_ALLOC, sheaf_alloc)				\
+	/* Freeing of an empty sheaf including oversized ones */	\
+	ITEM_EXP(SHEAF_FREE, sheaf_free)				\
+	/* Got full sheaf from barn */					\
+	ITEM_EXP(BARN_GET, barn_get)					\
+	/* Failed to get full sheaf from barn */			\
+	ITEM_EXP(BARN_GET_FAIL, barn_get_fail)				\
+	/* Put full sheaf to barn */					\
+	ITEM_EXP(BARN_PUT, barn_put)					\
+	/* Failed to put full sheaf to barn */				\
+	ITEM_EXP(BARN_PUT_FAIL, barn_put_fail)				\
+	/* Sheaf prefill grabbed the spare sheaf */			\
+	ITEM_EXP(SHEAF_PREFILL_FAST, sheaf_prefill_fast)		\
+	/* Sheaf prefill found no spare sheaf */			\
+	ITEM_EXP(SHEAF_PREFILL_SLOW, sheaf_prefill_slow)		\
+	/* Allocation of oversize sheaf for prefill */			\
+	ITEM_EXP(SHEAF_PREFILL_OVERSIZE, sheaf_prefill_oversize)	\
+	/* Sheaf return reattached spare sheaf */			\
+	ITEM_EXP(SHEAF_RETURN_FAST, sheaf_return_fast)			\
+	/* Sheaf return could not reattach spare */			\
+	ITEM_EXP(SHEAF_RETURN_SLOW, sheaf_return_slow)
+
 enum stat_item {
-	ALLOC_FASTPATH,		/* Allocation from percpu sheaves */
-	ALLOC_SLOWPATH,		/* Allocation from partial or new slab */
-	FREE_RCU_SHEAF,		/* Free to rcu_free sheaf */
-	FREE_RCU_SHEAF_FAIL,	/* Failed to free to a rcu_free sheaf */
-	FREE_FASTPATH,		/* Free to percpu sheaves */
-	FREE_SLOWPATH,		/* Free to a slab */
-	FREE_ADD_PARTIAL,	/* Freeing moves slab to partial list */
-	FREE_REMOVE_PARTIAL,	/* Freeing removes last object */
-	ALLOC_SLAB,		/* New slab acquired from page allocator */
-	ALLOC_NODE_MISMATCH,	/* Requested node different from cpu sheaf */
-	FREE_SLAB,		/* Slab freed to the page allocator */
-	ORDER_FALLBACK,		/* Number of times fallback was necessary */
-	CMPXCHG_DOUBLE_FAIL,	/* Failures of slab freelist update */
-	SHEAF_FLUSH,		/* Objects flushed from a sheaf */
-	SHEAF_REFILL,		/* Objects refilled to a sheaf */
-	SHEAF_ALLOC,		/* Allocation of an empty sheaf including oversized ones */
-	SHEAF_FREE,		/* Freeing of an empty sheaf including oversized ones */
-	BARN_GET,		/* Got full sheaf from barn */
-	BARN_GET_FAIL,		/* Failed to get full sheaf from barn */
-	BARN_PUT,		/* Put full sheaf to barn */
-	BARN_PUT_FAIL,		/* Failed to put full sheaf to barn */
-	SHEAF_PREFILL_FAST,	/* Sheaf prefill grabbed the spare sheaf */
-	SHEAF_PREFILL_SLOW,	/* Sheaf prefill found no spare sheaf */
-	SHEAF_PREFILL_OVERSIZE,	/* Allocation of oversize sheaf for prefill */
-	SHEAF_RETURN_FAST,	/* Sheaf return reattached spare sheaf */
-	SHEAF_RETURN_SLOW,	/* Sheaf return could not reattach spare */
+#define ITEM_EXP(name, unused) name,
+	STAT_ITEMS
+#undef ITEM_EXP
 	NR_SLUB_STAT_ITEMS
 };
 
@@ -422,6 +453,7 @@ struct node_barn {
 	spinlock_t lock;
 	struct list_head sheaves_full;
 	struct list_head sheaves_empty;
+	struct slab_sheaf *sheaf_partial;
 	unsigned int nr_full;
 	unsigned int nr_empty;
 };
@@ -3298,6 +3330,7 @@ static void barn_init(struct node_barn *barn)
 	spin_lock_init(&barn->lock);
 	INIT_LIST_HEAD(&barn->sheaves_full);
 	INIT_LIST_HEAD(&barn->sheaves_empty);
+	barn->sheaf_partial = NULL;
 	barn->nr_full = 0;
 	barn->nr_empty = 0;
 }
@@ -3315,6 +3348,10 @@ static void barn_shrink(struct kmem_cache *s, struct node_barn *barn)
 	barn->nr_full = 0;
 	list_splice_init(&barn->sheaves_empty, &empty_list);
 	barn->nr_empty = 0;
+	if (barn->sheaf_partial) {
+		list_add(&barn->sheaf_partial->barn_list, &full_list);
+		barn->sheaf_partial = NULL;
+	}
 
 	spin_unlock_irqrestore(&barn->lock, flags);
 
@@ -5073,11 +5110,86 @@ void *kmem_cache_alloc_node_noprof(struct kmem_cache *s, gfp_t gfpflags, int nod
 }
 EXPORT_SYMBOL(kmem_cache_alloc_node_noprof);
 
+/*
+ * Refill @sheaf from the barn: from its partial sheaf first, then from its full
+ * sheaves. A sheaf that objects were copied from stays in the barn as the
+ * partial sheaf if it still holds objects, or goes on the empty list if it is
+ * empty.
+ *
+ * Returns true if the sheaf is now full, at s->sheaf_capacity.
+ * Returns false if the sheaf is still not full.
+ */
+static bool refill_sheaf_from_barn(struct kmem_cache *s,
+				   struct slab_sheaf *sheaf)
+{
+	struct node_barn *barn = get_barn(s);
+	struct slab_sheaf *src;
+	unsigned int to_move;
+	unsigned long flags;
+
+	if (!barn)
+		return false;
+
+	if (!data_race(barn->nr_full) && !data_race(barn->sheaf_partial))
+		return false;
+
+	spin_lock_irqsave(&barn->lock, flags);
+
+	/*
+	 * The partial sheaf can hold fewer objects than @sheaf needs to
+	 * reach capacity, and a sheaf on the full list is not necessarily
+	 * full (see the comment in rcu_free_sheaf()), so keep taking from
+	 * the barn until @sheaf is full or nothing is left.
+	 */
+	while (sheaf->size < s->sheaf_capacity) {
+		src = barn->sheaf_partial;
+		barn->sheaf_partial = NULL;
+		if (!src) {
+			if (!barn->nr_full)
+				break;
+			src = list_first_entry(&barn->sheaves_full,
+					       struct slab_sheaf, barn_list);
+			list_del(&src->barn_list);
+			barn->nr_full--;
+		}
+
+		to_move = min(s->sheaf_capacity - sheaf->size, src->size);
+		src->size -= to_move;
+		memcpy(&sheaf->objects[sheaf->size], &src->objects[src->size],
+		       to_move * sizeof(void *));
+		sheaf->size += to_move;
+
+		if (src->size) {
+			barn->sheaf_partial = src;
+		} else {
+			/*
+			 * No empty-limit check: the sheaf put on the empty list
+			 * was already in the barn, so the barn holds no more
+			 * sheaves than before. barn_replace_empty_sheaf() skips
+			 * the check for the same reason.
+			 */
+			list_add(&src->barn_list, &barn->sheaves_empty);
+			barn->nr_empty++;
+		}
+	}
+
+	spin_unlock_irqrestore(&barn->lock, flags);
+
+	if (sheaf->size < s->sheaf_capacity)
+		return false;
+
+	stat(s, BARN_GET);
+	return true;
+}
+
 static int __prefill_sheaf_pfmemalloc(struct kmem_cache *s,
 				      struct slab_sheaf *sheaf, gfp_t gfp)
 {
 	gfp_t gfp_nomemalloc;
 	int ret;
+
+	if (refill_sheaf_from_barn(s, sheaf))
+		return 0;
 
 	gfp_nomemalloc = gfp | __GFP_NOMEMALLOC;
 	if (gfp_pfmemalloc_allowed(gfp))
@@ -5342,7 +5454,12 @@ static void *___kmalloc_large_node(size_t size, gfp_t flags, int node)
 {
 	struct page *page;
 	void *ptr = NULL;
-	unsigned int order = get_order(size);
+	unsigned int order;
+
+	if (WARN_ON_ONCE_GFP(size > KMALLOC_MAX_SIZE, flags))
+		return NULL;
+
+	order = get_order(size);
 
 	if (unlikely(flags & GFP_SLAB_BUG_MASK))
 		flags = kmalloc_fix_flags(flags);
@@ -5751,76 +5868,80 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 		new.inuse -= cnt;
 
 		/*
-		 * Might need to be taken off (due to becoming empty) or added
-		 * to (due to not being full anymore) the partial list.
-		 * Unless it's frozen.
+		 * partial->partial: if the slab was on the node partial list,
+		 * it stays there, and if it was off, it stays off, so we need
+		 * no list handling and no list_lock.
+		 *
+		 * Note that "continue;" in a do-while goes on to evaluate the
+		 * condition below, so we do perform the freelist update.
 		 */
-		if (!new.inuse || was_full) {
+		if (!was_full && new.inuse)
+			continue;
 
-			n = get_node(s, slab_nid(slab));
-			/*
-			 * Speculatively acquire the list_lock.
-			 * If the cmpxchg does not succeed then we may
-			 * drop the list_lock without any processing.
-			 *
-			 * Otherwise the list_lock will synchronize with
-			 * other processors updating the list of slabs.
-			 */
-			spin_lock_irqsave(&n->list_lock, flags);
-
-			on_node_partial = slab_test_node_partial(slab);
-		}
+		/*
+		 * The slab might need to be taken off (due to becoming empty)
+		 * or added to (due to not being full anymore) the partial
+		 * list.
+		 *
+		 * Speculatively acquire list_lock prior to cmpxchg(), as
+		 * performing cmpxchg() before lock acquisition races with
+		 * concurrent partial list operations.
+		 *
+		 * If the cmpxchg does not succeed then we will retry.
+		 */
+		n = get_node(s, slab_nid(slab));
+		spin_lock_irqsave(&n->list_lock, flags);
 
 	} while (!slab_update_freelist(s, slab, &old, &new, "__slab_free"));
 
-	if (likely(!n)) {
-		/*
-		 * We didn't take the list_lock because the slab was already on
-		 * the partial list and will remain there.
-		 */
+	/* partial->partial: we didn't take the list_lock. */
+	if (likely(!n))
 		return;
-	}
 
-	/*
-	 * This slab was partially empty but not on the per-node partial list,
-	 * in which case we shouldn't manipulate its list, just return.
-	 */
+	on_node_partial = slab_test_node_partial(slab);
+
 	if (!was_full && !on_node_partial) {
+		/*
+		 * partial->empty, offlist: a bulk refill has taken the slab
+		 * off the partial list and will put it back, so its list
+		 * handling is not ours to do.
+		 */
 		spin_unlock_irqrestore(&n->list_lock, flags);
 		return;
 	}
 
 	/*
-	 * If slab became empty, should we add/keep it on the partial list or we
-	 * have enough?
+	 * full/partial->empty, exceed: we have enough partial slabs already.
 	 */
-	if (unlikely(!new.inuse && n->nr_partial >= s->min_partial))
-		goto slab_empty;
+	if (unlikely(!new.inuse && n->nr_partial >= s->min_partial)) {
+		/* partial->empty, onlist, exceed */
+		if (likely(!was_full)) {
+			remove_partial(n, slab);
+			stat(s, FREE_REMOVE_PARTIAL);
+		}
+		/* else, full->empty, exceed: it is on no list to remove from */
+
+		spin_unlock_irqrestore(&n->list_lock, flags);
+		stat(s, FREE_SLAB);
+		discard_slab(s, slab);
+		return;
+	}
 
 	/*
-	 * Objects left in the slab. If it was not on the partial list before
-	 * then add it.
+	 * At this point, only three cases remain:
+	 *   full->partial
+	 *   full->empty, not exceed
+	 *   partial->empty, onlist, not exceed
 	 */
+
+	/* full->partial; full->empty, not exceed */
 	if (unlikely(was_full)) {
 		add_partial(n, slab, ADD_TO_TAIL);
 		stat(s, FREE_ADD_PARTIAL);
 	}
-	spin_unlock_irqrestore(&n->list_lock, flags);
-	return;
-
-slab_empty:
-	/*
-	 * The slab could have a single object and thus go from full to empty in
-	 * a single free, but more likely it was on the partial list. Remove it.
-	 */
-	if (likely(!was_full)) {
-		remove_partial(n, slab);
-		stat(s, FREE_REMOVE_PARTIAL);
-	}
+	/* else, partial->empty, onlist, not exceed: it stays on partial list */
 
 	spin_unlock_irqrestore(&n->list_lock, flags);
-	stat(s, FREE_SLAB);
-	discard_slab(s, slab);
 }
 
 /*
@@ -7778,6 +7899,7 @@ static void early_kmem_cache_node_alloc(int node)
 
 	n = next_slab_obj(kmem_cache_node, &iter);
 	BUG_ON(!n);
+	set_freepointer(kmem_cache_node, n, NULL);
 
 	slab->inuse = 1;
 	build_slab_freelist(kmem_cache_node, slab, &iter);
@@ -9515,34 +9637,12 @@ static ssize_t text##_store(struct kmem_cache *s,		\
 	clear_stat(s, si);					\
 	return length;						\
 }								\
-SLAB_ATTR(text);						\
+SLAB_ATTR(text);
 
-STAT_ATTR(ALLOC_FASTPATH, alloc_fastpath);
-STAT_ATTR(ALLOC_SLOWPATH, alloc_slowpath);
-STAT_ATTR(FREE_RCU_SHEAF, free_rcu_sheaf);
-STAT_ATTR(FREE_RCU_SHEAF_FAIL, free_rcu_sheaf_fail);
-STAT_ATTR(FREE_FASTPATH, free_fastpath);
-STAT_ATTR(FREE_SLOWPATH, free_slowpath);
-STAT_ATTR(FREE_ADD_PARTIAL, free_add_partial);
-STAT_ATTR(FREE_REMOVE_PARTIAL, free_remove_partial);
-STAT_ATTR(ALLOC_SLAB, alloc_slab);
-STAT_ATTR(ALLOC_NODE_MISMATCH, alloc_node_mismatch);
-STAT_ATTR(FREE_SLAB, free_slab);
-STAT_ATTR(ORDER_FALLBACK, order_fallback);
-STAT_ATTR(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail);
-STAT_ATTR(SHEAF_FLUSH, sheaf_flush);
-STAT_ATTR(SHEAF_REFILL, sheaf_refill);
-STAT_ATTR(SHEAF_ALLOC, sheaf_alloc);
-STAT_ATTR(SHEAF_FREE, sheaf_free);
-STAT_ATTR(BARN_GET, barn_get);
-STAT_ATTR(BARN_GET_FAIL, barn_get_fail);
-STAT_ATTR(BARN_PUT, barn_put);
-STAT_ATTR(BARN_PUT_FAIL, barn_put_fail);
-STAT_ATTR(SHEAF_PREFILL_FAST, sheaf_prefill_fast);
-STAT_ATTR(SHEAF_PREFILL_SLOW, sheaf_prefill_slow);
-STAT_ATTR(SHEAF_PREFILL_OVERSIZE, sheaf_prefill_oversize);
-STAT_ATTR(SHEAF_RETURN_FAST, sheaf_return_fast);
-STAT_ATTR(SHEAF_RETURN_SLOW, sheaf_return_slow);
+#define ITEM_EXP(name, text) STAT_ATTR(name, text)
+STAT_ITEMS
+#undef ITEM_EXP
+
 #endif	/* CONFIG_SLUB_STATS */
 
 #ifdef CONFIG_KFENCE
@@ -9605,32 +9705,9 @@ static const struct attribute *const slab_attrs[] = {
 	&remote_node_defrag_ratio_attr.attr,
 #endif
 #ifdef CONFIG_SLUB_STATS
-	&alloc_fastpath_attr.attr,
-	&alloc_slowpath_attr.attr,
-	&free_rcu_sheaf_attr.attr,
-	&free_rcu_sheaf_fail_attr.attr,
-	&free_fastpath_attr.attr,
-	&free_slowpath_attr.attr,
-	&free_add_partial_attr.attr,
-	&free_remove_partial_attr.attr,
-	&alloc_slab_attr.attr,
-	&alloc_node_mismatch_attr.attr,
-	&free_slab_attr.attr,
-	&order_fallback_attr.attr,
-	&cmpxchg_double_fail_attr.attr,
-	&sheaf_flush_attr.attr,
-	&sheaf_refill_attr.attr,
-	&sheaf_alloc_attr.attr,
-	&sheaf_free_attr.attr,
-	&barn_get_attr.attr,
-	&barn_get_fail_attr.attr,
-	&barn_put_attr.attr,
-	&barn_put_fail_attr.attr,
-	&sheaf_prefill_fast_attr.attr,
-	&sheaf_prefill_slow_attr.attr,
-	&sheaf_prefill_oversize_attr.attr,
-	&sheaf_return_fast_attr.attr,
-	&sheaf_return_slow_attr.attr,
+#define ITEM_EXP(unused, text) &text##_attr.attr,
+	STAT_ITEMS
+#undef ITEM_EXP
 #endif
 #ifdef CONFIG_FAILSLAB
 	&failslab_attr.attr,
