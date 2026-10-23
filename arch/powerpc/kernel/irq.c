@@ -122,6 +122,7 @@ void inc_irq_stat_and_enable(enum irq_stat_counts which)
 	set_bit(which, irq_stat_count_show);
 }
 
+#ifdef CONFIG_PROC_FS
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
 	const struct irq_stat_info *info = irq_stat_info;
@@ -155,6 +156,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 #endif
 	return 0;
 }
+#endif /* CONFIG_PROC_FS */
 
 static int __init irq_init_stats(void)
 {
