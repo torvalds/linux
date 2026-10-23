@@ -27984,6 +27984,22 @@ F:	kernel/trace/trace_irqsoff.c
 F:	kernel/trace/trace_osnoise.c
 F:	kernel/trace/trace_sched_wakeup.c
 
+TRACING RING BUFFER
+M:	Steven Rostedt <rostedt@goodmis.org>
+M:	Vincent Donnefort <vdonnefort@google.com>
+M:	Masami Hiramatsu <mhiramat@kernel.org>
+L:	linux-kernel@vger.kernel.org
+L:	linux-trace-kernel@vger.kernel.org
+S:	Maintained
+Q:	https://patchwork.kernel.org/project/linux-trace-kernel/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/trace/linux-trace.git
+F:	Documentation/trace/ring-buffer*
+F:	Documentation/trace/remotes.rst
+F:	include/linux/ring-buffer*.h
+F:	kernel/trace/*ring_buffer*.c
+F:	kernel/trace/remote*.c
+F:	tools/testing/selftests/ring-buffer/
+
 TRADITIONAL CHINESE DOCUMENTATION
 M:	Chen-Yu Yeh <chenyou910331@gmail.com>
 M:	Weijie Yuan <wy@wyuan.org>
