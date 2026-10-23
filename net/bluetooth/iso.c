@@ -287,8 +287,11 @@ static void iso_chan_del(struct sock *sk, int err)
 
 	parent = bt_sk(sk)->parent;
 	if (parent) {
+		/* Unlinking the child allows the parent to be freed. */
+		sock_hold(parent);
 		bt_accept_unlink(sk);
 		parent->sk_data_ready(parent);
+		sock_put(parent);
 	} else {
 		sk->sk_state_change(sk);
 	}
@@ -1974,10 +1977,7 @@ static int iso_sock_setsockopt(struct socket *sock, int level, int optname,
 		if (err)
 			break;
 
-		if (opt)
-			set_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
-		else
-			clear_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
+		assign_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags, opt);
 		break;
 
 	case BT_PKT_STATUS:
@@ -1985,10 +1985,7 @@ static int iso_sock_setsockopt(struct socket *sock, int level, int optname,
 		if (err)
 			break;
 
-		if (opt)
-			set_bit(BT_SK_PKT_STATUS, &bt_sk(sk)->flags);
-		else
-			clear_bit(BT_SK_PKT_STATUS, &bt_sk(sk)->flags);
+		assign_bit(BT_SK_PKT_STATUS, &bt_sk(sk)->flags, opt);
 		break;
 
 	case BT_PKT_SEQNUM:
@@ -1996,10 +1993,7 @@ static int iso_sock_setsockopt(struct socket *sock, int level, int optname,
 		if (err)
 			break;
 
-		if (opt)
-			set_bit(BT_SK_PKT_SEQNUM, &bt_sk(sk)->flags);
-		else
-			clear_bit(BT_SK_PKT_SEQNUM, &bt_sk(sk)->flags);
+		assign_bit(BT_SK_PKT_SEQNUM, &bt_sk(sk)->flags, opt);
 		break;
 
 	case BT_ISO_QOS:

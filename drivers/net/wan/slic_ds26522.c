@@ -219,7 +219,7 @@ static int slic_ds26522_probe(struct spi_device *spi)
 
 static const struct spi_device_id slic_ds26522_id[] = {
 	{ .name = "ds26522" },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(spi, slic_ds26522_id);
 

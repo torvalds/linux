@@ -94,7 +94,7 @@ struct s_sba {
 	long		msg_mib_ov ;		/* Current Overhead for this Path*/
 	long		msg_category ;		/* Category of the Allocation */
 	u_long		msg_max_t_neg ;		/* longest T_Neg acceptable */
-	u_long		msg_min_seg_siz ;	/* minimum segement size */
+	u_long		msg_min_seg_siz ;	/* minimum segment size */
 	struct smt_header	*sm ;		/* points to the rec message */
 	struct fddi_addr	*msg_alloc_addr ;	/* Allocation Address */
 

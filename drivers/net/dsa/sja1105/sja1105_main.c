@@ -3374,7 +3374,7 @@ static const struct of_device_id sja1105_dt_ids[] = {
 	{ .compatible = "nxp,sja1110b", .data = &sja1110b_info },
 	{ .compatible = "nxp,sja1110c", .data = &sja1110c_info },
 	{ .compatible = "nxp,sja1110d", .data = &sja1110d_info },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sja1105_dt_ids);
 

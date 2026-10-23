@@ -582,7 +582,7 @@ static void bnx2x_init_pxp_arb(struct bnx2x *bp, int r_order,
 		REG_WR(bp, PXP2_REG_WR_CDU_MPS, val);
 	}
 
-	/* Validate number of tags suppoted by device */
+	/* Validate number of tags supported by device */
 #define PCIE_REG_PCIER_TL_HDR_FC_ST		0x2980
 	val = REG_RD(bp, PCIE_REG_PCIER_TL_HDR_FC_ST);
 	val &= 0xFF;

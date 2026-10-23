@@ -127,7 +127,8 @@ enum brcmf_profile_fwsup {
 	BRCMF_PROFILE_FWSUP_NONE,
 	BRCMF_PROFILE_FWSUP_PSK,
 	BRCMF_PROFILE_FWSUP_1X,
-	BRCMF_PROFILE_FWSUP_SAE
+	BRCMF_PROFILE_FWSUP_SAE,
+	BRCMF_PROFILE_FWSUP_ROAM
 };
 
 /**
@@ -164,6 +165,7 @@ enum brcmf_mgmt_tx_status {
  * @bssid: bssid of joined/joining ibss.
  * @sec: security information.
  * @key: key information
+ * @is_okc: OKC is used for current connection.
  */
 struct brcmf_cfg80211_profile {
 	u8 bssid[ETH_ALEN];
@@ -172,6 +174,7 @@ struct brcmf_cfg80211_profile {
 	enum brcmf_profile_fwsup use_fwsup;
 	u16 use_fwauth;
 	bool is_ft;
+	bool is_okc;
 };
 
 /**

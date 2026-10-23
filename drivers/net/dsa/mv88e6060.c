@@ -362,8 +362,9 @@ static const struct of_device_id mv88e6060_of_match[] = {
 	{
 		.compatible = "marvell,mv88e6060",
 	},
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mv88e6060_of_match);
 
 static struct mdio_driver mv88e6060_driver = {
 	.probe	= mv88e6060_probe,

@@ -68,9 +68,9 @@ psp_dev_create(struct net_device *netdev,
 		    !psd_ops->set_config ||
 		    !psd_ops->key_rotate ||
 		    !psd_ops->rx_spi_alloc ||
-		    !psd_ops->tx_key_add ||
-		    !psd_ops->tx_key_del ||
-		    !psd_ops->get_stats))
+		    !psd_ops->get_stats ||
+		    (!psd_ops->tx_key_add != !psd_ops->tx_key_del) ||
+		    (psd_caps->assoc_drv_spc && !psd_ops->tx_key_add)))
 		return ERR_PTR(-EINVAL);
 
 	psd = kzalloc_obj(*psd);
@@ -147,8 +147,11 @@ void psp_dev_unregister(struct psp_dev *psd)
 
 	list_splice_init(&psd->active_assocs, &psd->prev_assocs);
 	list_splice_init(&psd->prev_assocs, &psd->stale_assocs);
-	list_for_each_entry_safe(pas, next, &psd->stale_assocs, assocs_list)
-		psp_dev_tx_key_del(psd, pas);
+	list_for_each_entry_safe(pas, next, &psd->stale_assocs, assocs_list) {
+		if (psp_assoc_needs_tx_key_del(pas))
+			psp_dev_tx_key_del(psd, pas);
+		list_del(&pas->assocs_list);
+	}
 
 	list_for_each_entry_safe(entry, entry_tmp, &psd->assoc_dev_list,
 				 dev_list) {
@@ -405,7 +408,7 @@ int psp_dev_rcv(struct sk_buff *skb, u16 dev_id, u8 generation, bool strip_icv)
 }
 EXPORT_SYMBOL(psp_dev_rcv);
 
-static void psp_dev_disassoc_one(struct psp_dev *psd, struct net_device *dev)
+static bool psp_dev_disassoc_one(struct psp_dev *psd, struct net_device *dev)
 {
 	struct psp_assoc_dev *entry;
 
@@ -416,9 +419,11 @@ static void psp_dev_disassoc_one(struct psp_dev *psd, struct net_device *dev)
 			rcu_assign_pointer(entry->assoc_dev->psp_dev, NULL);
 			netdev_put(entry->assoc_dev, &entry->dev_tracker);
 			kfree(entry);
-			return;
+			return true;
 		}
 	}
+
+	return false;
 }
 
 static int psp_netdev_event(struct notifier_block *nb, unsigned long event,
@@ -435,9 +440,13 @@ static int psp_netdev_event(struct notifier_block *nb, unsigned long event,
 	if (psd && psp_dev_tryget(psd)) {
 		rcu_read_unlock();
 		mutex_lock(&psd->lock);
-		if (psp_dev_is_registered(psd))
-			psp_nl_notify_dev(psd, PSP_CMD_DEV_CHANGE_NTF);
-		psp_dev_disassoc_one(psd, dev);
+		/* Nothing to report if the device was never on the list,
+		 * dev-assoc may have failed after publishing dev->psp_dev,
+		 * and this is also the main netdevice's path.
+		 */
+		if (psp_dev_disassoc_one(psd, dev) &&
+		    psp_dev_is_registered(psd))
+			psp_nl_notify_disassoc(psd, dev_net(dev));
 		mutex_unlock(&psd->lock);
 		psp_dev_put(psd);
 	} else {

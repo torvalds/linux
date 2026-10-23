@@ -146,9 +146,9 @@ static u32 *ipv4_cow_metrics(struct dst_entry *dst, unsigned long old)
 	return NULL;
 }
 
-static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
-					   struct sk_buff *skb,
-					   const void *daddr);
+static struct neighbour *ipv4_dst_neigh_lookup(const struct dst_entry *dst,
+					       struct sk_buff *skb,
+					       const void *daddr);
 static void ipv4_confirm_neigh(const struct dst_entry *dst, const void *daddr);
 
 static struct dst_ops ipv4_dst_ops = {
@@ -163,7 +163,7 @@ static struct dst_ops ipv4_dst_ops = {
 	.update_pmtu =		ip_rt_update_pmtu,
 	.redirect =		ip_do_redirect,
 	.local_out =		__ip_local_out,
-	.neigh_lookup =		ipv4_neigh_lookup,
+	.neigh_lookup =		ipv4_dst_neigh_lookup,
 	.confirm_neigh =	ipv4_confirm_neigh,
 };
 
@@ -409,9 +409,9 @@ void rt_cache_flush(struct net *net)
 	rt_genid_bump_ipv4(net);
 }
 
-static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
-					   struct sk_buff *skb,
-					   const void *daddr)
+static struct neighbour *ipv4_dst_neigh_lookup(const struct dst_entry *dst,
+					       struct sk_buff *skb,
+					       const void *daddr)
 {
 	const struct rtable *rt = container_of(dst, struct rtable, dst);
 	struct net_device *dev;
@@ -817,7 +817,7 @@ static void __ip_do_redirect(struct rtable *rt, struct sk_buff *skb, struct flow
 
 	n = __ipv4_neigh_lookup(rt->dst.dev, (__force u32)new_gw);
 	if (!n)
-		n = neigh_create(&arp_tbl, &new_gw, rt->dst.dev);
+		n = ipv4_neigh_create(rt->dst.dev, &new_gw);
 	if (!IS_ERR(n)) {
 		if (!(READ_ONCE(n->nud_state) & NUD_VALID)) {
 			neigh_event_send(n, NULL);
@@ -1589,6 +1589,9 @@ void rt_flush_dev(struct net_device *dev)
 	struct rtable *rt, *safe;
 	int cpu;
 
+	if (dev && dev->dismantle)
+		return;
+
 	for_each_possible_cpu(cpu) {
 		struct uncached_list *ul = &per_cpu(rt_uncached_list, cpu);
 
@@ -1597,10 +1600,14 @@ void rt_flush_dev(struct net_device *dev)
 
 		spin_lock_bh(&ul->lock);
 		list_for_each_entry_safe(rt, safe, &ul->head, dst.rt_uncached) {
-			if (rt->dst.dev != dev)
+			struct net_device *rt_dev = rt->dst.dev;
+
+			if (dev ? rt_dev != dev :
+			    READ_ONCE(rt_dev->reg_state) != NETREG_UNREGISTERED)
 				continue;
+
 			rcu_assign_pointer(rt->dst.dev_rcu, blackhole_netdev);
-			netdev_ref_replace(dev, blackhole_netdev,
+			netdev_ref_replace(rt_dev, blackhole_netdev,
 					   &rt->dst.dev_tracker, GFP_ATOMIC);
 			list_del_init(&rt->dst.rt_uncached);
 		}
@@ -2912,7 +2919,7 @@ out:
 static struct dst_ops ipv4_dst_blackhole_ops = {
 	.family			= AF_INET,
 	.default_advmss		= ipv4_default_advmss,
-	.neigh_lookup		= ipv4_neigh_lookup,
+	.neigh_lookup		= ipv4_dst_neigh_lookup,
 	.check			= dst_blackhole_check,
 	.cow_metrics		= dst_blackhole_cow_metrics,
 	.update_pmtu		= dst_blackhole_update_pmtu,

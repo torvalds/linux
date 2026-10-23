@@ -2511,7 +2511,7 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 	mlx5_cqwq_update_db_record(cqwq);
 
 	/* ensure cq space is freed before enabling more cqes */
-	wmb();
+	dma_wmb();
 
 	return work_done;
 }

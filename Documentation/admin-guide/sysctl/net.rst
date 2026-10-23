@@ -413,6 +413,20 @@ new netns has been created.
 
 Default : 0  (for compatibility reasons)
 
+neigh_inherit_init_net
+----------------------
+
+Controls if a new network namespace should inherit all current
+settings under /proc/sys/net/ipv{4,6}/neigh/default/.
+
+By default, the value is set to 1, and all settings are inherited
+from init_net.
+
+If set to 0, both IPv4 and IPv6 settings are reset to their default
+values.
+
+Default : 1  (for compatibility reasons)
+
 txrehash
 --------
 

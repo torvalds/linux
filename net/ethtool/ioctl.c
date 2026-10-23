@@ -35,6 +35,7 @@
 #include <net/netdev_queues.h>
 
 #include "common.h"
+#include "../core/dev.h"
 
 /* State held across locks and calls for commands which have devlink fallback */
 struct ethtool_devlink_compat {
@@ -1301,15 +1302,6 @@ static int ethtool_copy_validate_indir(u32 *indir, void __user *useraddr,
 	return 0;
 }
 
-u8 netdev_rss_key[NETDEV_RSS_KEY_LEN] __read_mostly;
-
-void netdev_rss_key_fill(void *buffer, size_t len)
-{
-	BUG_ON(len > sizeof(netdev_rss_key));
-	net_get_random_once(netdev_rss_key, sizeof(netdev_rss_key));
-	memcpy(buffer, netdev_rss_key, len);
-}
-EXPORT_SYMBOL(netdev_rss_key_fill);
 
 static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
@@ -2239,10 +2231,29 @@ static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 	    ringparam.tx_pending > max.tx_max_pending)
 		return -EINVAL;
 
+	ret = netdev_reconfig_start(dev);
+	if (ret)
+		return ret;
+
+	ethtool_ringparam_set_cfg(dev->cfg_pending, &ringparam);
+
+	ret = netdev_queue_config_revalidate(dev, NULL);
+	if (ret)
+		goto out_free_cfg;
+
 	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam,
 					      &kernel_ringparam, NULL);
-	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_RINGS_NTF);
+	if (ret)
+		goto out_free_cfg;
+
+	/* Capture ring depth adjustments reported by the driver. */
+	ethtool_ringparam_set_cfg(dev->cfg_pending, &ringparam);
+	swap(dev->cfg, dev->cfg_pending);
+	ethtool_notify(dev, ETHTOOL_MSG_RINGS_NTF);
+
+out_free_cfg:
+	__netdev_free_config(dev->cfg_pending);
+	dev->cfg_pending = dev->cfg;
 	return ret;
 }
 

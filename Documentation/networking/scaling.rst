@@ -48,6 +48,15 @@ count is not a power of two. NICs should provide an indirection table
 at least 4 times larger than the queue count. 4x table results in ~16%
 imbalance between the queues, which is acceptable for most applications.
 
+The Toeplitz hash is linear over GF(2), so the quality of the hash key
+matters as much as its randomness. For a key made of uniformly random
+bytes, the q lowest order bits of a given header field fail to spread
+flows over all 2^q queues with probability 1/2, and a burst of connections
+picking nearly consecutive ephemeral ports then lands on a fraction of the
+queues while the others stay idle. The netdev_rss_key_fill() helper draws
+a random key that is free of this defect; drivers should use it rather
+than seeding a key of their own.
+
 Some NICs support symmetric RSS hashing where, if the IP (source address,
 destination address) and TCP/UDP (source port, destination port) tuples
 are swapped, the computed hash is the same. This is beneficial in some

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2019, 2021, 2024-2025 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2019, 2021, 2024-2026 Intel Corporation
  */
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -8,7 +8,7 @@
 
 #include "iwl-drv.h"
 #include "iwl-debug.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
 #include "agn.h"
@@ -672,13 +672,13 @@ static int iwl_eeprom_acquire_semaphore(struct iwl_trans *trans)
 
 	for (count = 0; count < IWL_EEPROM_SEM_RETRY_LIMIT; count++) {
 		/* Request semaphore */
-		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM);
+		iwl_trans_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+				  CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM);
 
 		/* See if we got it */
-		ret = iwl_poll_bits(trans, CSR_HW_IF_CONFIG_REG,
-				    CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM,
-				    IWL_EEPROM_SEM_TIMEOUT);
+		ret = iwl_trans_poll_bits(trans, CSR_HW_IF_CONFIG_REG,
+					  CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM,
+					  IWL_EEPROM_SEM_TIMEOUT);
 		if (!ret) {
 			IWL_DEBUG_EEPROM(trans->dev,
 					 "Acquired semaphore after %d tries.\n",
@@ -692,13 +692,13 @@ static int iwl_eeprom_acquire_semaphore(struct iwl_trans *trans)
 
 static void iwl_eeprom_release_semaphore(struct iwl_trans *trans)
 {
-	iwl_clear_bit(trans, CSR_HW_IF_CONFIG_REG,
-		      CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM);
+	iwl_trans_clear_bit(trans, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM);
 }
 
 static int iwl_eeprom_verify_signature(struct iwl_trans *trans, bool nvm_is_otp)
 {
-	u32 gp = iwl_read32(trans, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
+	u32 gp = iwl_trans_read32(trans, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
 
 	IWL_DEBUG_EEPROM(trans->dev, "EEPROM signature=0x%08x\n", gp);
 
@@ -734,10 +734,10 @@ static int iwl_eeprom_verify_signature(struct iwl_trans *trans, bool nvm_is_otp)
 
 static void iwl_set_otp_access_absolute(struct iwl_trans *trans)
 {
-	iwl_read32(trans, CSR_OTP_GP_REG);
+	iwl_trans_read32(trans, CSR_OTP_GP_REG);
 
-	iwl_clear_bit(trans, CSR_OTP_GP_REG,
-		      CSR_OTP_GP_REG_OTP_ACCESS_MODE);
+	iwl_trans_clear_bit(trans, CSR_OTP_GP_REG,
+			    CSR_OTP_GP_REG_OTP_ACCESS_MODE);
 }
 
 static int iwl_nvm_is_otp(struct iwl_trans *trans)
@@ -755,7 +755,7 @@ static int iwl_nvm_is_otp(struct iwl_trans *trans)
 	case CSR_HW_REV_TYPE_5150:
 		return 0;
 	default:
-		otpgp = iwl_read32(trans, CSR_OTP_GP_REG);
+		otpgp = iwl_trans_read32(trans, CSR_OTP_GP_REG);
 		if (otpgp & CSR_OTP_GP_REG_DEVICE_SELECT)
 			return 1;
 		return 0;
@@ -770,19 +770,19 @@ static int iwl_init_otp_access(struct iwl_trans *trans)
 	if (ret)
 		return ret;
 
-	iwl_set_bits_prph(trans, APMG_PS_CTRL_REG,
-			  APMG_PS_CTRL_VAL_RESET_REQ);
+	iwl_trans_set_bits_prph(trans, APMG_PS_CTRL_REG,
+				APMG_PS_CTRL_VAL_RESET_REQ);
 	udelay(5);
-	iwl_clear_bits_prph(trans, APMG_PS_CTRL_REG,
-			    APMG_PS_CTRL_VAL_RESET_REQ);
+	iwl_trans_clear_bits_prph(trans, APMG_PS_CTRL_REG,
+				  APMG_PS_CTRL_VAL_RESET_REQ);
 
 	/*
 	 * CSR auto clock gate disable bit -
 	 * this is only applicable for HW with OTP shadow RAM
 	 */
 	if (trans->mac_cfg->base->shadow_ram_support)
-		iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
-			    CSR_RESET_LINK_PWR_MGMT_DISABLED);
+		iwl_trans_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+				  CSR_RESET_LINK_PWR_MGMT_DISABLED);
 
 	return 0;
 }
@@ -794,31 +794,31 @@ static int iwl_read_otp_word(struct iwl_trans *trans, u16 addr,
 	u32 r;
 	u32 otpgp;
 
-	iwl_write32(trans, CSR_EEPROM_REG,
-		    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
-	ret = iwl_poll_bits(trans, CSR_EEPROM_REG,
-			    CSR_EEPROM_REG_READ_VALID_MSK,
-			    IWL_EEPROM_ACCESS_TIMEOUT);
+	iwl_trans_write32(trans, CSR_EEPROM_REG,
+			  CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+	ret = iwl_trans_poll_bits(trans, CSR_EEPROM_REG,
+				  CSR_EEPROM_REG_READ_VALID_MSK,
+				  IWL_EEPROM_ACCESS_TIMEOUT);
 	if (ret) {
 		IWL_ERR(trans, "Time out reading OTP[%d]\n", addr);
 		return ret;
 	}
-	r = iwl_read32(trans, CSR_EEPROM_REG);
+	r = iwl_trans_read32(trans, CSR_EEPROM_REG);
 	/* check for ECC errors: */
-	otpgp = iwl_read32(trans, CSR_OTP_GP_REG);
+	otpgp = iwl_trans_read32(trans, CSR_OTP_GP_REG);
 	if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
 		/* stop in this case */
 		/* set the uncorrectable OTP ECC bit for acknowledgment */
-		iwl_set_bit(trans, CSR_OTP_GP_REG,
-			    CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
+		iwl_trans_set_bit(trans, CSR_OTP_GP_REG,
+				  CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		IWL_ERR(trans, "Uncorrectable OTP ECC error, abort OTP read\n");
 		return -EINVAL;
 	}
 	if (otpgp & CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK) {
 		/* continue in this case */
 		/* set the correctable OTP ECC bit for acknowledgment */
-		iwl_set_bit(trans, CSR_OTP_GP_REG,
-			    CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK);
+		iwl_trans_set_bit(trans, CSR_OTP_GP_REG,
+				  CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK);
 		IWL_ERR(trans, "Correctable OTP ECC error, continue read\n");
 	}
 	*eeprom_data = cpu_to_le16(r >> 16);
@@ -918,7 +918,7 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
 int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 {
 	__le16 *e;
-	u32 gp = iwl_read32(trans, CSR_EEPROM_GP);
+	u32 gp = iwl_trans_read32(trans, CSR_EEPROM_GP);
 	int sz;
 	int ret;
 	u16 addr;
@@ -960,13 +960,13 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 			goto err_unlock;
 		}
 
-		iwl_write32(trans, CSR_EEPROM_GP,
-			    iwl_read32(trans, CSR_EEPROM_GP) &
-			    ~CSR_EEPROM_GP_IF_OWNER_MSK);
+		iwl_trans_write32(trans, CSR_EEPROM_GP,
+				  iwl_trans_read32(trans, CSR_EEPROM_GP) &
+				  ~CSR_EEPROM_GP_IF_OWNER_MSK);
 
-		iwl_set_bit(trans, CSR_OTP_GP_REG,
-			    CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
-			    CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
+		iwl_trans_set_bit(trans, CSR_OTP_GP_REG,
+				  CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
+				  CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		/* traversing the linked list if no shadow ram supported */
 		if (!trans->mac_cfg->base->shadow_ram_support) {
 			ret = iwl_find_otp_image(trans, &validblockaddr);
@@ -988,18 +988,18 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 		for (addr = 0; addr < sz; addr += sizeof(u16)) {
 			u32 r;
 
-			iwl_write32(trans, CSR_EEPROM_REG,
-				    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+			iwl_trans_write32(trans, CSR_EEPROM_REG,
+					  CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
-			ret = iwl_poll_bits(trans, CSR_EEPROM_REG,
-					    CSR_EEPROM_REG_READ_VALID_MSK,
-					    IWL_EEPROM_ACCESS_TIMEOUT);
+			ret = iwl_trans_poll_bits(trans, CSR_EEPROM_REG,
+						  CSR_EEPROM_REG_READ_VALID_MSK,
+						  IWL_EEPROM_ACCESS_TIMEOUT);
 			if (ret) {
 				IWL_ERR(trans,
 					"Time out reading EEPROM[%d]\n", addr);
 				goto err_unlock;
 			}
-			r = iwl_read32(trans, CSR_EEPROM_REG);
+			r = iwl_trans_read32(trans, CSR_EEPROM_REG);
 			e[addr / 2] = cpu_to_le16(r >> 16);
 		}
 	}

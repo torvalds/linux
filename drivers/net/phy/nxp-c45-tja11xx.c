@@ -2180,7 +2180,7 @@ module_phy_driver(nxp_c45_driver);
 static const struct mdio_device_id __maybe_unused nxp_c45_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA_1103) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA_1120) },
-	{ /*sentinel*/ },
+	{ /*sentinel*/ }
 };
 
 MODULE_DEVICE_TABLE(mdio, nxp_c45_tbl);

@@ -4,16 +4,26 @@
  */
 #include "mt76.h"
 
-static void mt76_scan_complete(struct mt76_dev *dev, bool abort)
+static struct mt76_phy *
+mt76_scan_chan_phy(struct ieee80211_hw *hw, struct ieee80211_channel *chan)
 {
-	struct mt76_phy *phy = dev->scan.phy;
-	struct cfg80211_scan_info info = {
-		.aborted = abort,
-	};
+	struct mt76_phy *phy = hw->priv;
+
+	if (hw->wiphy->n_radio > 1)
+		return phy->dev->band_phys[chan->band];
+
+	return phy;
+}
+
+static void mt76_scan_phy_complete(struct mt76_phy *phy, bool abort)
+{
+	struct mt76_dev *dev = phy->dev;
+	struct cfg80211_scan_info info = {};
+	struct ieee80211_hw *hw = phy->hw;
 
 	lockdep_assert_held(&dev->mutex);
 
-	if (!phy)
+	if (!mt76_phy_scanning(phy))
 		return;
 
 	clear_bit(MT76_SCANNING, &phy->state);
@@ -29,41 +39,75 @@ static void mt76_scan_complete(struct mt76_dev *dev, bool abort)
 		__mt76_set_channel(phy, &phy->main_chandef, false);
 		if (offchannel)
 			mt76_offchannel_notify(phy, false);
+	} else {
+		/* A phy that has no operating channel has nothing to restore,
+		 * but the flag also gates the TX queues of every station whose
+		 * wcid points at this band, so leaving it set stalls them until
+		 * something else happens to set a channel.
+		 */
+		phy->offchannel = false;
 	}
-	mt76_put_vif_phy_link(phy, dev->scan.vif, dev->scan.mlink);
+	mt76_put_vif_phy_link(phy, dev->scan.vif, phy->scan.mlink);
+	memset(&phy->scan, 0, sizeof(phy->scan));
+
+	clear_bit(phy->band_idx, &dev->scan.phy_mask);
+	if (abort)
+		dev->scan.aborted = true;
+
+	if (dev->scan.phy_mask)
+		return;
+
+	info.aborted = dev->scan.aborted;
 	memset(&dev->scan, 0, sizeof(dev->scan));
-	if (!test_bit(MT76_MCU_RESET, &dev->phy.state))
-		ieee80211_scan_completed(phy->hw, &info);
+	ieee80211_scan_completed(hw, &info);
 }
 
 void mt76_abort_scan(struct mt76_dev *dev)
 {
-	spin_lock_bh(&dev->scan_lock);
-	dev->scan.beacon_wait = false;
-	spin_unlock_bh(&dev->scan_lock);
+	struct mt76_phy *phy;
+	int i;
 
-	cancel_delayed_work_sync(&dev->scan_work);
+	for (i = 0; i < ARRAY_SIZE(dev->phys); i++) {
+		phy = dev->phys[i];
+		if (!phy)
+			continue;
+
+		spin_lock_bh(&dev->scan_lock);
+		phy->scan.beacon_wait = false;
+		spin_unlock_bh(&dev->scan_lock);
+
+		disable_delayed_work_sync(&phy->scan_work);
+	}
 
 	mutex_lock(&dev->mutex);
-	mt76_scan_complete(dev, true);
+	for (i = 0; i < ARRAY_SIZE(dev->phys); i++) {
+		phy = dev->phys[i];
+		if (!phy)
+			continue;
+
+		mt76_scan_phy_complete(phy, true);
+		enable_delayed_work(&phy->scan_work);
+	}
 	mutex_unlock(&dev->mutex);
 }
 EXPORT_SYMBOL_GPL(mt76_abort_scan);
 
 static void
-mt76_scan_send_probe(struct mt76_dev *dev, struct cfg80211_ssid *ssid)
+mt76_scan_send_probe(struct mt76_phy *phy, struct cfg80211_ssid *ssid)
 {
-	struct cfg80211_scan_request *req = dev->scan.req;
+	struct mt76_dev *dev = phy->dev;
+	struct cfg80211_scan_request *req = &dev->scan.req->req;
+	struct ieee80211_scan_ies *ies = &dev->scan.req->ies;
 	struct ieee80211_vif *vif = dev->scan.vif;
-	struct mt76_vif_link *mvif = dev->scan.mlink;
-	enum nl80211_band band = dev->scan.chan->band;
-	struct mt76_phy *phy = dev->scan.phy;
+	struct mt76_vif_link *mvif = phy->scan.mlink;
+	enum nl80211_band band = phy->scan.chan->band;
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
 	u8 link_id;
 
 	skb = ieee80211_probereq_get(phy->hw, vif->addr, ssid->ssid,
-				     ssid->ssid_len, req->ie_len);
+				     ssid->ssid_len,
+				     ies->len[band] + ies->common_ie_len);
 	if (!skb)
 		return;
 
@@ -74,8 +118,10 @@ mt76_scan_send_probe(struct mt76_dev *dev, struct cfg80211_ssid *ssid)
 		ether_addr_copy(hdr->addr3, req->bssid);
 	}
 
-	if (req->ie_len)
-		skb_put_data(skb, req->ie, req->ie_len);
+	if (ies->len[band])
+		skb_put_data(skb, ies->ies[band], ies->len[band]);
+	if (ies->common_ie_len)
+		skb_put_data(skb, ies->common_ies, ies->common_ie_len);
 
 	skb->priority = 7;
 	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
@@ -100,65 +146,77 @@ out:
 	rcu_read_unlock();
 }
 
-void mt76_scan_rx_beacon(struct mt76_dev *dev, struct ieee80211_channel *chan)
+void mt76_scan_rx_beacon(struct mt76_phy *phy, struct ieee80211_channel *chan)
 {
-	struct mt76_phy *phy;
+	struct mt76_dev *dev = phy->dev;
 
 	spin_lock(&dev->scan_lock);
 
-	if (!dev->scan.beacon_wait || dev->scan.beacon_received ||
-	    dev->scan.chan != chan)
+	if (!phy->scan.beacon_wait || phy->scan.beacon_received ||
+	    phy->scan.chan != chan)
 		goto out;
 
-	phy = dev->scan.phy;
-	if (!phy)
-		goto out;
-
-	dev->scan.beacon_received = true;
-	ieee80211_queue_delayed_work(phy->hw, &dev->scan_work, 0);
+	phy->scan.beacon_received = true;
+	ieee80211_queue_delayed_work(phy->hw, &phy->scan_work, 0);
 
 out:
 	spin_unlock(&dev->scan_lock);
 }
 
-void mt76_scan_work(struct work_struct *work)
+static int mt76_scan_next_chan_idx(struct mt76_phy *phy)
 {
-	struct mt76_dev *dev = container_of(work, struct mt76_dev,
-					    scan_work.work);
-	struct cfg80211_scan_request *req = dev->scan.req;
-	struct cfg80211_chan_def chandef = {};
-	struct mt76_phy *phy = dev->scan.phy;
-	int duration = HZ / 9; /* ~110 ms */
-	bool beacon_rx, offchannel = true;
+	struct cfg80211_scan_request *req = &phy->dev->scan.req->req;
 	int i;
 
-	if (!phy || !req)
+	for (i = phy->scan.chan_idx; i < req->n_channels; i++)
+		if (mt76_scan_chan_phy(phy->hw, req->channels[i]) == phy)
+			return i;
+
+	return -1;
+}
+
+void mt76_scan_work(struct work_struct *work)
+{
+	struct mt76_phy *phy = container_of(work, struct mt76_phy,
+					    scan_work.work);
+	struct mt76_dev *dev = phy->dev;
+	struct cfg80211_scan_request *req;
+	struct cfg80211_chan_def chandef = {};
+	int duration = HZ / 9; /* ~110 ms */
+	bool beacon_rx, offchannel = true;
+	int i, idx;
+
+	if (!dev->scan.req || !mt76_phy_scanning(phy))
 		return;
 
+	req = &dev->scan.req->req;
+
 	spin_lock_bh(&dev->scan_lock);
-	beacon_rx = dev->scan.beacon_wait && dev->scan.beacon_received;
-	dev->scan.beacon_wait = false;
+	beacon_rx = phy->scan.beacon_wait && phy->scan.beacon_received;
+	phy->scan.beacon_wait = false;
 	spin_unlock_bh(&dev->scan_lock);
 
 	if (beacon_rx)
 		goto probe;
 
-	if (dev->scan.chan_idx >= req->n_channels) {
+	idx = mt76_scan_next_chan_idx(phy);
+	if (idx < 0) {
 		mutex_lock(&dev->mutex);
-		mt76_scan_complete(dev, false);
+		mt76_scan_phy_complete(phy, false);
 		mutex_unlock(&dev->mutex);
 		return;
 	}
 
-	if (dev->scan.chan && phy->num_sta && phy->offchannel) {
-		dev->scan.chan = NULL;
+	if (phy->scan.chan && phy->num_sta && phy->offchannel) {
+		phy->scan.chan = NULL;
 		mt76_set_channel(phy, &phy->main_chandef, false);
 		mt76_offchannel_notify(phy, false);
 		goto out;
 	}
 
-	dev->scan.chan = req->channels[dev->scan.chan_idx++];
-	offchannel = mt76_offchannel_chandef(phy, dev->scan.chan, &chandef);
+	phy->scan.chan = req->channels[idx];
+	phy->scan.chan_idx = idx + 1;
+	offchannel = mt76_offchannel_chandef(phy, phy->scan.chan, &chandef);
 
 	if (offchannel)
 		mt76_offchannel_notify(phy, true);
@@ -169,8 +227,8 @@ void mt76_scan_work(struct work_struct *work)
 
 	if (chandef.chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR)) {
 		spin_lock_bh(&dev->scan_lock);
-		dev->scan.beacon_received = false;
-		dev->scan.beacon_wait = true;
+		phy->scan.beacon_received = false;
+		phy->scan.beacon_wait = true;
 		spin_unlock_bh(&dev->scan_lock);
 		goto out;
 	}
@@ -180,16 +238,16 @@ probe:
 		duration = HZ / 16; /* ~60 ms */
 	local_bh_disable();
 	for (i = 0; i < req->n_ssids; i++)
-		mt76_scan_send_probe(dev, &req->ssids[i]);
+		mt76_scan_send_probe(phy, &req->ssids[i]);
 	local_bh_enable();
 
 out:
-	if (dev->scan.chan && phy->offchannel)
+	if (phy->scan.chan && phy->offchannel)
 		duration = max_t(int, duration,
 			         msecs_to_jiffies(req->duration +
 						  (req->duration >> 5)));
 
-	ieee80211_queue_delayed_work(dev->phy.hw, &dev->scan_work, duration);
+	ieee80211_queue_delayed_work(phy->hw, &phy->scan_work, duration);
 }
 
 int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -197,36 +255,67 @@ int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt76_phy *phy = hw->priv;
 	struct mt76_dev *dev = phy->dev;
+	unsigned long phy_mask = 0;
 	struct mt76_vif_link *mlink;
-	int ret = 0;
+	int i, ret = 0;
 
-	if (hw->wiphy->n_radio > 1) {
-		phy = dev->band_phys[req->req.channels[0]->band];
+	for (i = 0; i < req->req.n_channels; i++) {
+		phy = mt76_scan_chan_phy(hw, req->req.channels[i]);
 		if (!phy)
 			return -EINVAL;
+
+		phy_mask |= BIT(phy->band_idx);
 	}
 
 	mutex_lock(&dev->mutex);
 
-	if (dev->scan.req || phy->roc_vif ||
-	    test_bit(MT76_MCU_RESET, &dev->phy.state)) {
+	if (dev->scan.req || test_bit(MT76_MCU_RESET, &dev->phy.state) ||
+	    test_bit(MT76_RESTART, &dev->phy.state)) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	mlink = mt76_get_vif_phy_link(phy, vif);
-	if (IS_ERR(mlink)) {
-		ret = PTR_ERR(mlink);
-		goto out;
+	for_each_set_bit(i, &phy_mask, ARRAY_SIZE(dev->phys)) {
+		if (dev->phys[i]->roc_vif) {
+			ret = -EBUSY;
+			goto out;
+		}
 	}
 
-	memset(&dev->scan, 0, sizeof(dev->scan));
-	dev->scan.req = &req->req;
+	for_each_set_bit(i, &phy_mask, ARRAY_SIZE(dev->phys)) {
+		phy = dev->phys[i];
+		mlink = mt76_get_vif_phy_link(phy, vif);
+		if (IS_ERR(mlink)) {
+			ret = PTR_ERR(mlink);
+			goto put_links;
+		}
+
+		memset(&phy->scan, 0, sizeof(phy->scan));
+		phy->scan.mlink = mlink;
+	}
+
+	dev->scan.req = req;
 	dev->scan.vif = vif;
-	dev->scan.phy = phy;
-	dev->scan.mlink = mlink;
-	set_bit(MT76_SCANNING, &phy->state);
-	ieee80211_queue_delayed_work(dev->phy.hw, &dev->scan_work, 0);
+	dev->scan.phy_mask = phy_mask;
+	dev->scan.aborted = false;
+
+	for_each_set_bit(i, &phy_mask, ARRAY_SIZE(dev->phys)) {
+		phy = dev->phys[i];
+		set_bit(MT76_SCANNING, &phy->state);
+		ieee80211_queue_delayed_work(phy->hw, &phy->scan_work, 0);
+	}
+
+	goto out;
+
+put_links:
+	for_each_set_bit(i, &phy_mask, ARRAY_SIZE(dev->phys)) {
+		phy = dev->phys[i];
+		if (!phy->scan.mlink)
+			break;
+
+		mt76_put_vif_phy_link(phy, vif, phy->scan.mlink);
+		phy->scan.mlink = NULL;
+	}
 
 out:
 	mutex_unlock(&dev->mutex);

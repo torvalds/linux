@@ -12,11 +12,9 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
-#include <net/llc_pdu.h>
 #include <linux/kernel.h>
 #include <linux/jhash.h>
 #include <linux/jiffies.h>
-#include <linux/llc.h>
 #include <linux/module.h>
 #include <linux/in.h>
 #include <linux/rcupdate.h>

@@ -704,17 +704,17 @@ static void wilc_set_multicast_list(struct net_device *dev)
 		return;
 
 	if (dev->flags & IFF_ALLMULTI ||
-	    dev->mc.count > WILC_MULTICAST_TABLE_SIZE) {
+	    netdev_mc_count(dev) > WILC_MULTICAST_TABLE_SIZE) {
 		wilc_setup_multicast_filter(vif, 0, 0, NULL);
 		return;
 	}
 
-	if (dev->mc.count == 0) {
+	if (netdev_mc_empty(dev)) {
 		wilc_setup_multicast_filter(vif, 1, 0, NULL);
 		return;
 	}
 
-	mc_list = kmalloc_array(dev->mc.count, ETH_ALEN, GFP_ATOMIC);
+	mc_list = kmalloc_array(netdev_mc_count(dev), ETH_ALEN, GFP_ATOMIC);
 	if (!mc_list)
 		return;
 
@@ -727,7 +727,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 		cur_mc += ETH_ALEN;
 	}
 
-	if (wilc_setup_multicast_filter(vif, 1, dev->mc.count, mc_list))
+	if (wilc_setup_multicast_filter(vif, 1, netdev_mc_count(dev), mc_list))
 		kfree(mc_list);
 }
 

@@ -31,6 +31,8 @@
 #include <net/rtnetlink.h>
 #include <net/neighbour_tables.h>
 
+extern int sysctl_neigh_inherit_init_net;
+
 /*
  * NUD stands for "neighbor unreachability detection"
  */
@@ -179,7 +181,6 @@ struct neigh_ops {
 
 struct pneigh_entry {
 	struct pneigh_entry	__rcu *next;
-	possible_net_t		net;
 	struct net_device	*dev;
 	netdevice_tracker	dev_tracker;
 	union {
@@ -234,7 +235,7 @@ struct neigh_table {
 	struct delayed_work	managed_work;
 	struct timer_list 	proxy_timer;
 	struct sk_buff_head	proxy_queue;
-	atomic_t		entries;
+	refcount_t		entries;
 	atomic_t		gc_entries;
 	struct list_head	gc_list;
 	struct list_head	managed_list;
@@ -339,8 +340,8 @@ static inline void neigh_confirm(struct neighbour *n)
 	}
 }
 
-void neigh_table_init(int index, struct neigh_table *tbl);
-int neigh_table_clear(int index, struct neigh_table *tbl);
+int neigh_table_register(struct net *net, struct neigh_table *tbl, int index);
+void neigh_table_unregister(struct net *net, int index);
 struct neighbour *neigh_lookup(struct neigh_table *tbl, const void *pkey,
 			       struct net_device *dev);
 struct neighbour *__neigh_create(struct neigh_table *tbl, const void *pkey,
@@ -389,24 +390,17 @@ static inline void neigh_set_reach_time(struct neigh_parms *p)
 
 void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 		    struct sk_buff *skb);
-struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl, struct net *net,
+struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl,
 				   const void *key, struct net_device *dev);
-int pneigh_create(struct neigh_table *tbl, struct net *net, const void *key,
+int pneigh_create(struct neigh_table *tbl, const void *key,
 		  struct net_device *dev, u32 flags, u8 protocol,
 		  bool permanent);
-int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *key,
+int pneigh_delete(struct neigh_table *tbl, const void *key,
 		  struct net_device *dev);
-
-static inline struct net *pneigh_net(const struct pneigh_entry *pneigh)
-{
-	return read_pnet(&pneigh->net);
-}
 
 void neigh_app_ns(struct neighbour *n);
 void neigh_for_each(struct neigh_table *tbl,
 		    void (*cb)(struct neighbour *, void *), void *cookie);
-void __neigh_for_each_release(struct neigh_table *tbl,
-			      int (*cb)(struct neighbour *));
 int neigh_xmit(int fam, struct net_device *, const void *, struct sk_buff *);
 
 struct neigh_seq_state {
@@ -558,30 +552,6 @@ static inline int neigh_output(struct neighbour *n, struct sk_buff *skb,
 		return neigh_hh_output(hh, skb);
 
 	return READ_ONCE(n->output)(n, skb);
-}
-
-static inline struct neighbour *
-__neigh_lookup(struct neigh_table *tbl, const void *pkey, struct net_device *dev, int creat)
-{
-	struct neighbour *n = neigh_lookup(tbl, pkey, dev);
-
-	if (n || !creat)
-		return n;
-
-	n = neigh_create(tbl, pkey, dev);
-	return IS_ERR(n) ? NULL : n;
-}
-
-static inline struct neighbour *
-__neigh_lookup_errno(struct neigh_table *tbl, const void *pkey,
-  struct net_device *dev)
-{
-	struct neighbour *n = neigh_lookup(tbl, pkey, dev);
-
-	if (n)
-		return n;
-
-	return neigh_create(tbl, pkey, dev);
 }
 
 struct neighbour_cb {

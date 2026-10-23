@@ -2023,25 +2023,20 @@ static int bcmgenet_tx_poll(struct napi_struct *napi, int budget)
 {
 	struct bcmgenet_tx_ring *ring =
 		container_of(napi, struct bcmgenet_tx_ring, napi);
-	unsigned int work_done = 0;
 	struct netdev_queue *txq;
 
 	spin_lock(&ring->lock);
-	work_done = __bcmgenet_tx_reclaim(ring->priv->dev, ring);
+	__bcmgenet_tx_reclaim(ring->priv->dev, ring);
 	if (ring->free_bds > (MAX_SKB_FRAGS + 1)) {
 		txq = netdev_get_tx_queue(ring->priv->dev, ring->index);
 		netif_tx_wake_queue(txq);
 	}
 	spin_unlock(&ring->lock);
 
-	if (work_done == 0) {
-		napi_complete(napi);
+	if (budget && napi_complete_done(napi, 0))
 		bcmgenet_tx_ring_int_enable(ring);
 
-		return 0;
-	}
-
-	return budget;
+	return 0;
 }
 
 static void bcmgenet_tx_reclaim_all(struct net_device *dev)

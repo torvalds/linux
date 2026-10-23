@@ -1490,6 +1490,9 @@ netdev_tx_t bnge_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_BUSY;
 	}
 
+	if (eth_skb_pad(skb))
+		goto tx_kick_pending;
+
 	last_frag = skb_shinfo(skb)->nr_frags;
 
 	txbd = &txr->tx_desc_ring[TX_RING(bn, prod)][TX_IDX(prod)];
@@ -1512,9 +1515,6 @@ netdev_tx_t bnge_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(skb->no_fcs))
 		lflags |= cpu_to_le32(TX_BD_FLAGS_NO_CRC);
-
-	if (eth_skb_pad(skb))
-		goto tx_kick_pending;
 
 	len = skb_headlen(skb);
 

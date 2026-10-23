@@ -125,10 +125,6 @@ required:
   - reg
   - fsl,fman-ports
 
-dependencies:
-  pcs-handle-names:
-    - pcs-handle
-
 allOf:
   - $ref: ethernet-controller.yaml#
   - if:

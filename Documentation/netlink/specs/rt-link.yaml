@@ -25,17 +25,17 @@ definitions:
       -
         name: loopback
       -
-        name: point-to-point
+        name: pointopoint
       -
-        name: no-trailers
+        name: notrailers
       -
         name: running
       -
-        name: no-arp
+        name: noarp
       -
         name: promisc
       -
-        name: all-multi
+        name: allmulti
       -
         name: master
       -
@@ -45,7 +45,7 @@ definitions:
       -
         name: portsel
       -
-        name: auto-media
+        name: automedia
       -
         name: dynamic
       -
@@ -309,6 +309,7 @@ definitions:
     entries:
       -
         name: forwarding
+        value: 1
       -
         name: mc-forwarding
       -
@@ -494,6 +495,10 @@ definitions:
         name: ndisc-evict-nocarrier
       -
         name: accept-untracked-na
+      -
+        name: accept-ra-min-lft
+      -
+        name: force-forwarding
   -
     name: ifla-icmp6-stats
     enum-name:
@@ -527,11 +532,21 @@ definitions:
       -
         name: indelivers
       -
-        name: outforwdatagrams
+        name: noectpkts
+      -
+        name: ect1pkts
+      -
+        name: ect0pkts
+      -
+        name: cepkts
+      -
+        name: outrequests
       -
         name: outpkts
       -
         name: outoctets
+      -
+        name: outforwdatagrams
       -
         name: inhdrerrors
       -
@@ -582,14 +597,6 @@ definitions:
         name: outbcastoctets
       -
         name: csumerrors
-      -
-        name: noectpkts
-      -
-        name: ect1-pkts
-      -
-        name: ect0-pkts
-      -
-        name: cepkts
       -
         name: reasm-overlaps
   - name: br-boolopt-multi
@@ -835,7 +842,7 @@ definitions:
   -
     name: ovpn-mode
     enum-name: ovpn-mode
-    name-prefix: ovpn-mode
+    name-prefix: ovpn-mode-
     type: enum
     entries:
       - p2p
@@ -1087,6 +1094,10 @@ attribute-sets:
       -
         name: tailroom
         type: u16
+      -
+        name: pacing-offload
+        type: u32
+        doc: Enable EDT pacing offload (0 - disabled, 1 - enabled).
   -
     name: prop-list-link-attrs
     subset-of: link-attrs
@@ -2220,7 +2231,7 @@ attribute-sets:
         name: conf
         type: binary
         sub-type: u32
-        doc: u32 indexed by ipv6-devconf - 1 on output, on input it's a nest
+        doc: u32 indexed by ipv6-devconf on output, input is not yet implemented
       -
         name: stats
         type: binary
@@ -2555,6 +2566,7 @@ operations:
             - devlink-port
             - gso-ipv4-max-size
             - gro-ipv4-max-size
+            - pacing-offload
       dump:
         request:
           value: 18

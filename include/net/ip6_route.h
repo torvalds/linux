@@ -231,6 +231,13 @@ void rt6_multipath_rebalance(struct fib6_info *f6i);
 
 void rt6_uncached_list_add(struct rt6_info *rt);
 void rt6_uncached_list_del(struct rt6_info *rt);
+#ifdef CONFIG_IPV6
+void rt6_uncached_list_flush_dev(struct net_device *dev);
+#else
+static inline void rt6_uncached_list_flush_dev(struct net_device *dev)
+{
+}
+#endif
 
 static inline const struct rt6_info *skb_rt6_info(const struct sk_buff *skb)
 {
@@ -430,7 +437,7 @@ u32 ip6_mtu_from_fib6(const struct fib6_result *res,
 		      const struct in6_addr *daddr,
 		      const struct in6_addr *saddr);
 
-struct neighbour *ip6_neigh_lookup(const struct in6_addr *gw,
-				   struct net_device *dev, struct sk_buff *skb,
-				   const void *daddr);
+struct neighbour *__ip6_dst_neigh_lookup(const struct in6_addr *gw,
+					 struct net_device *dev, struct sk_buff *skb,
+					 const void *daddr);
 #endif

@@ -2337,6 +2337,10 @@ ieee80211_add_link_elems(struct ieee80211_sub_if_data *sdata,
 		ieee80211_put_eht_cap(skb, sdata, sband,
 				      &assoc_data->link[link_id].conn);
 
+	/* Insert CIP only on the assoc link (it will be inherited) */
+	if (link_id == assoc_data->assoc_link_id && assoc_data->cip)
+		ieee80211_put_cip_cap(skb, sdata);
+
 	if (assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_UHR)
 		ieee80211_put_uhr_cap(skb, sdata, sband);
 
@@ -2613,7 +2617,8 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	       assoc_data->ie_len + /* extra IEs */
 	       (assoc_data->fils_kek_len ? 16 /* AES-SIV */ : 0) +
 	       9 /* WMM */ +
-	       4 /* regulatory connectivity, if 6 GHz is supported */;
+	       4 /* regulatory connectivity, if 6 GHz is supported */ +
+	       (assoc_data->cip ? 4 /* CIP capabilities */ : 0);
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
@@ -6163,13 +6168,6 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 						  link_sta);
 
 		bss_conf->he_support = link_sta->pub->he_cap.has_he;
-		if (elems->rsnx && elems->rsnx_len &&
-		    (elems->rsnx[0] & WLAN_RSNX_CAPA_PROTECTED_TWT) &&
-		    wiphy_ext_feature_isset(local->hw.wiphy,
-					    NL80211_EXT_FEATURE_PROTECTED_TWT))
-			bss_conf->twt_protected = true;
-		else
-			bss_conf->twt_protected = false;
 
 		*changed |= ieee80211_recalc_twt_req(sdata, sband, link,
 						     link_sta, elems);
@@ -6202,7 +6200,6 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 	} else {
 		bss_conf->he_support = false;
 		bss_conf->twt_requester = false;
-		bss_conf->twt_protected = false;
 		bss_conf->eht_support = false;
 		bss_conf->epcs_support = false;
 	}
@@ -6271,6 +6268,17 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		ieee80211_he_op_ie_to_bss_conf(&sdata->vif, elems->he_operation);
 		ieee80211_he_spr_ie_to_bss_conf(&sdata->vif, elems->he_spr);
 		/* TODO: OPEN: what happens if BSS color disable is set? */
+	}
+
+	if (assoc_data->cip) {
+		if (elems->cip_cap) {
+			link_sta->pub->cip_cap = elems->cip_cap->v;
+		} else {
+			sdata_info(sdata,
+				   "CIP Capabilities not included in association response\n");
+			ret = false;
+			goto out;
+		}
 	}
 
 	if (cbss->transmitted_bss) {
@@ -6347,7 +6355,6 @@ out:
 }
 
 static int ieee80211_mgd_setup_link_sta(struct ieee80211_link_data *link,
-					struct sta_info *sta,
 					struct link_sta_info *link_sta,
 					struct cfg80211_bss *cbss)
 {
@@ -6362,11 +6369,9 @@ static int ieee80211_mgd_setup_link_sta(struct ieee80211_link_data *link,
 	memcpy(link_sta->addr, cbss->bssid, ETH_ALEN);
 	memcpy(link_sta->pub->addr, cbss->bssid, ETH_ALEN);
 
-	/* TODO: S1G Basic Rate Set is expressed elsewhere */
-	if (cbss->channel->band == NL80211_BAND_S1GHZ) {
-		ieee80211_s1g_sta_rate_init(sta);
+	/* S1G does not use basic rates */
+	if (cbss->channel->band == NL80211_BAND_S1GHZ)
 		return 0;
-	}
 
 	sband = local->hw.wiphy->bands[cbss->channel->band];
 
@@ -6516,7 +6521,7 @@ ieee80211_determine_our_sta_mode(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_sta_ht_cap sta_ht_cap = sband->ht_cap;
 	bool is_5ghz = sband->band == NL80211_BAND_5GHZ;
 	bool is_6ghz = sband->band == NL80211_BAND_6GHZ;
-	const struct ieee80211_sta_he_cap *he_cap;
+	const struct ieee80211_sta_he_cap *he_cap = NULL;
 	const struct ieee80211_sta_eht_cap *eht_cap;
 	const struct ieee80211_sta_uhr_cap *uhr_cap;
 	struct ieee80211_sta_vht_cap vht_cap;
@@ -6580,7 +6585,15 @@ ieee80211_determine_our_sta_mode(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	if (vht_cap.vht_supported && is_5ghz) {
+	if (req && req->flags & ASSOC_REQ_DISABLE_HE && !is_6ghz)
+		mlme_link_id_dbg(sdata, link_id,
+				 "HE disabled by flag, limiting to HT/VHT\n");
+	else
+		he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
+
+	if (vht_cap.vht_supported && is_5ghz && he_cap) {
+		/* nothing - since HE we can be 20 MHz-only non-AP STA */
+	} else if (vht_cap.vht_supported && is_5ghz) {
 		bool have_80mhz = false;
 		unsigned int i;
 
@@ -6626,17 +6639,11 @@ ieee80211_determine_our_sta_mode(struct ieee80211_sub_if_data *sdata,
 				 "no VHT 160 MHz capability on 5 GHz, limiting to 80 MHz");
 	}
 
-	if (req && req->flags & ASSOC_REQ_DISABLE_HE) {
-		mlme_link_id_dbg(sdata, link_id,
-				 "HE disabled by flag, limiting to HT/VHT\n");
-		goto out;
-	}
-
-	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 	if (!he_cap) {
 		WARN_ON(is_6ghz);
-		mlme_link_id_dbg(sdata, link_id,
-				 "no HE support, limiting to HT/VHT\n");
+		if (!req || !(req->flags & ASSOC_REQ_DISABLE_HE))
+			mlme_link_id_dbg(sdata, link_id,
+					 "no HE support, limiting to HT/VHT\n");
 		goto out;
 	}
 
@@ -7000,6 +7007,19 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		goto out_err;
 
 	sta->sta.spp_amsdu = assoc_data->spp_amsdu;
+	sta->sta.cip = assoc_data->cip;
+	sta->sta.twt_protected = assoc_data->protected_twt;
+
+	/*
+	 * backward compatibility - assumes that RSNX will not
+	 * indicate anything (if present at all) _less_ than
+	 * security profile RSNX content might
+	 */
+	if (elems->rsnx && elems->rsnx_len &&
+	    (elems->rsnx[0] & WLAN_RSNX_CAPA_PROTECTED_TWT) &&
+	    wiphy_ext_feature_isset(local->hw.wiphy,
+				    NL80211_EXT_FEATURE_PROTECTED_TWT))
+		sta->sta.twt_protected = true;
 
 	if (ieee80211_vif_is_mld(&sdata->vif)) {
 		if (!elems->ml_basic)
@@ -7107,7 +7127,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 			}
 		}
 
-		err = ieee80211_mgd_setup_link_sta(link, sta, link_sta,
+		err = ieee80211_mgd_setup_link_sta(link, link_sta,
 						   assoc_data->link[link_id].bss);
 		if (err)
 			goto out_err;
@@ -7966,7 +7986,7 @@ ieee80211_mgd_check_cross_link_csa(struct ieee80211_sub_if_data *sdata,
 	subelems = (u8 *)elems->ml_basic + common_size;
 	subelems_len = elems->ml_basic_len - common_size;
 
-	for_each_element_id(sub, IEEE80211_MLE_SUBELEM_PER_STA_PROFILE,
+	for_each_element_id(sub, (u8)IEEE80211_MLE_SUBELEM_PER_STA_PROFILE,
 			    subelems, subelems_len) {
 		struct ieee80211_mle_per_sta_profile *prof = (void *)sub->data;
 		struct ieee80211_link_data *link;
@@ -9094,6 +9114,57 @@ void ieee80211_mgd_conn_tx_status(struct ieee80211_sub_if_data *sdata,
 	wiphy_work_queue(local->hw.wiphy, &sdata->work);
 }
 
+static void
+ieee80211_assoc_timeout_teardown(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_mgd_assoc_data *assoc_data = sdata->u.mgd.assoc_data;
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_event event = {
+		.type = MLME_EVENT,
+		.u.mlme.data = ASSOC_EVENT,
+		.u.mlme.status = MLME_TIMEOUT,
+	};
+	struct sta_info *sta;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	/*
+	 * With an EPP station, the AP is already maintaining a state for the
+	 * station. Send a deauthentication frame, so that the AP clears its
+	 * state for this station (to allow additional connection attempts).
+	 * Note that this needs to be done before the station is removed
+	 * locally as the deauthentication frame needs to be sent encrypted.
+	 */
+	sta = sta_info_get_bss(sdata, assoc_data->ap_addr);
+	if (sta && sta->sta.epp_peer &&
+	    wiphy_dereference(local->hw.wiphy, sta->ptk[sta->ptk_idx])) {
+		u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
+		struct ieee80211_prep_tx_info info = {
+			.subtype = IEEE80211_STYPE_DEAUTH,
+			.link_id = assoc_data->assoc_link_id,
+		};
+
+		drv_mgd_prepare_tx(local, sdata, &info);
+
+		ieee80211_send_deauth_disassoc(sdata, assoc_data->ap_addr,
+					       assoc_data->ap_addr,
+					       IEEE80211_STYPE_DEAUTH,
+					       WLAN_REASON_DEAUTH_LEAVING,
+					       true, frame_buf);
+
+		/* make sure the deauth is out before the station is removed */
+		ieee80211_flush_queues(local, sdata, false);
+
+		drv_mgd_complete_tx(local, sdata, &info);
+
+		cfg80211_tx_mlme_mgmt(sdata->dev, frame_buf, sizeof(frame_buf),
+				      false);
+	}
+
+	ieee80211_destroy_assoc_data(sdata, ASSOC_TIMEOUT, NULL);
+	drv_event_callback(local, sdata, &event);
+}
+
 void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -9176,17 +9247,8 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 	    time_after(jiffies, ifmgd->assoc_data->timeout)) {
 		if ((ifmgd->assoc_data->need_beacon &&
 		     !sdata->deflink.u.mgd.have_beacon) ||
-		    ieee80211_do_assoc(sdata)) {
-			struct ieee80211_event event = {
-				.type = MLME_EVENT,
-				.u.mlme.data = ASSOC_EVENT,
-				.u.mlme.status = MLME_TIMEOUT,
-			};
-
-			ieee80211_destroy_assoc_data(sdata, ASSOC_TIMEOUT,
-						     NULL);
-			drv_event_callback(sdata->local, sdata, &event);
-		}
+		    ieee80211_do_assoc(sdata))
+			ieee80211_assoc_timeout_teardown(sdata);
 	} else if (ifmgd->assoc_data && ifmgd->assoc_data->timeout_started)
 		run_again(sdata, ifmgd->assoc_data->timeout);
 
@@ -9699,8 +9761,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			goto out_err;
 		}
 
-		err = ieee80211_mgd_setup_link_sta(link, new_sta,
-						   link_sta, cbss);
+		err = ieee80211_mgd_setup_link_sta(link, link_sta, cbss);
 		if (err) {
 			rcu_read_unlock();
 			sta_info_free(local, new_sta);
@@ -10538,6 +10599,8 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	assoc_data->spp_amsdu = req->flags & ASSOC_REQ_SPP_AMSDU;
+	assoc_data->cip = req->flags & ASSOC_REQ_CIP;
+	assoc_data->protected_twt = req->flags & ASSOC_REQ_PROTECTED_TWT;
 
 	if (ifmgd->auth_data && !ifmgd->auth_data->done) {
 		err = -EBUSY;
@@ -11090,7 +11153,7 @@ ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 			goto disconnect;
 		}
 
-		if (ieee80211_mgd_setup_link_sta(link, sta, link_sta,
+		if (ieee80211_mgd_setup_link_sta(link, link_sta,
 						 add_links_data->link[link_id].bss))
 			goto disconnect;
 
@@ -11831,12 +11894,10 @@ void ieee80211_sta_rx_queued_frame(struct ieee80211_sub_if_data *sdata,
 	rx_status = (struct ieee80211_rx_status *) skb->cb;
 	fc = le16_to_cpu(mgmt->frame_control);
 
-	if (rx_status->link_valid) {
-		link = sdata_dereference(sdata->link[rx_status->link_id],
-					 sdata);
-		if (!link)
-			return;
-	}
+	link = sdata_dereference(sdata->link[rx_status->link_id],
+				 sdata);
+	if (!link)
+		return;
 
 	switch (fc & IEEE80211_FCTL_STYPE) {
 	case IEEE80211_STYPE_BEACON:

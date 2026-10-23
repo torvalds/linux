@@ -858,7 +858,7 @@ static int xs_nospace(struct rpc_rqst *req, struct sock_xprt *transport)
 	if (xprt_connected(xprt)) {
 		/* wait for more buffer space */
 		set_bit(XPRT_SOCK_NOSPACE, &transport->sock_state);
-		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		sk_set_nospace(sk);
 		sk->sk_write_pending++;
 		xprt_wait_for_buffer_space(xprt);
 	} else
@@ -1615,7 +1615,7 @@ static void xs_write_space(struct sock *sk)
 
 	if (!sk->sk_socket)
 		return;
-	clear_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+	sk_clear_nospace(sk);
 
 	if (unlikely(!(xprt = xprt_from_sock(sk))))
 		return;

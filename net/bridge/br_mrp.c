@@ -1219,11 +1219,11 @@ static int br_mrp_rcv(struct net_bridge_port *p,
 
 forward:
 	if (p_dst)
-		br_forward(p_dst, skb, true, false);
+		br_forward(br_port_to_dst(p_dst), skb, true, false);
 	if (s_dst)
-		br_forward(s_dst, skb, true, false);
+		br_forward(br_port_to_dst(s_dst), skb, true, false);
 	if (i_dst)
-		br_forward(i_dst, skb, true, false);
+		br_forward(br_port_to_dst(i_dst), skb, true, false);
 
 no_forward:
 	return 1;

@@ -452,6 +452,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	table data. For LARI_CONFIG_CHANGE command version 13 and above, this
  *	capability is obsolete since raw DSM values are accepted by default.
  * @IWL_UCODE_TLV_CAPA_NAN_SYNC_SUPPORT: Supports NAN synchronization
+ * @IWL_UCODE_TLV_CAPA_ASSOC_ENC_SUPPORT: firmware supports association frame encryption
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
@@ -556,6 +557,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_RESET_DURING_ASSERT		= (__force iwl_ucode_tlv_capa_t)(4 * 32 + 0),
 	IWL_UCODE_TLV_CAPA_FW_ACCEPTS_RAW_DSM_TABLE 	= (__force iwl_ucode_tlv_capa_t)(4 * 32 + 1),
 	IWL_UCODE_TLV_CAPA_NAN_SYNC_SUPPORT		= (__force iwl_ucode_tlv_capa_t)(4 * 32 + 2),
+	IWL_UCODE_TLV_CAPA_ASSOC_ENC_SUPPORT		= (__force iwl_ucode_tlv_capa_t)(4 * 32 + 4),
 	NUM_IWL_UCODE_TLV_CAPA
 /*
  * This construction make both sparse (which cannot increment the previous

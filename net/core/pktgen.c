@@ -2024,11 +2024,11 @@ static const struct proc_ops pktgen_thread_proc_ops = {
 };
 
 /* Think find or remove for NN */
-static struct pktgen_dev *__pktgen_NN_threads(const struct pktgen_net *pn,
-					      const char *ifname, int remove)
+static bool __pktgen_NN_threads(const struct pktgen_net *pn,
+				const char *ifname, int remove)
 {
 	struct pktgen_thread *t;
-	struct pktgen_dev *pkt_dev = NULL;
+	struct pktgen_dev *pkt_dev;
 	bool exact = (remove == FIND);
 
 	list_for_each_entry(t, &pn->pktgen_threads, th_list) {
@@ -2038,10 +2038,10 @@ static struct pktgen_dev *__pktgen_NN_threads(const struct pktgen_net *pn,
 				pkt_dev->removal_mark = 1;
 				t->control |= T_REMDEV;
 			}
-			break;
+			return true;
 		}
 	}
-	return pkt_dev;
+	return false;
 }
 
 /*
@@ -2049,7 +2049,6 @@ static struct pktgen_dev *__pktgen_NN_threads(const struct pktgen_net *pn,
  */
 static void pktgen_mark_device(const struct pktgen_net *pn, const char *ifname)
 {
-	struct pktgen_dev *pkt_dev = NULL;
 	const int max_tries = 10, msec_per_try = 125;
 	int i = 0;
 
@@ -2058,8 +2057,7 @@ static void pktgen_mark_device(const struct pktgen_net *pn, const char *ifname)
 
 	while (1) {
 
-		pkt_dev = __pktgen_NN_threads(pn, ifname, REMOVE);
-		if (pkt_dev == NULL)
+		if (!__pktgen_NN_threads(pn, ifname, REMOVE))
 			break;	/* success */
 
 		mutex_unlock(&pktgen_thread_lock);
@@ -3835,8 +3833,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 
 	/* We don't allow a device to be on several threads */
 
-	pkt_dev = __pktgen_NN_threads(t->net, ifname, FIND);
-	if (pkt_dev) {
+	if (__pktgen_NN_threads(t->net, ifname, FIND)) {
 		pr_err("ERROR: interface already used\n");
 		return -EBUSY;
 	}

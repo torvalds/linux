@@ -494,7 +494,7 @@ static int ngbe_open(struct net_device *netdev)
 
 	err = wx_setup_resources(wx);
 	if (err)
-		return err;
+		goto err_control_hw;
 
 	wx_configure(wx);
 
@@ -526,6 +526,8 @@ err_free_irq:
 err_free_resources:
 	wx_free_isb_resources(wx);
 	wx_free_resources(wx);
+err_control_hw:
+	wx_control_hw(wx, false);
 	return err;
 }
 
@@ -954,13 +956,14 @@ static int ngbe_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev;
 	struct wx *wx;
-	u32 err;
+	int err;
 
 	wx = pci_get_drvdata(pdev);
 	netdev = wx->netdev;
 
 	err = pci_enable_device_mem(pdev);
 	if (err) {
+		set_bit(WX_STATE_RES_FREED, wx->state);
 		wx_err(wx, "Cannot enable PCI device from suspend\n");
 		return err;
 	}
@@ -968,16 +971,23 @@ static int ngbe_resume(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	device_wakeup_disable(&pdev->dev);
 
-	ngbe_reset_hw(wx);
+	err = ngbe_reset_hw(wx);
+	if (err) {
+		set_bit(WX_STATE_RES_FREED, wx->state);
+		wx_err(wx, "Hardware reset failed: %d\n", err);
+		return err;
+	}
 	rtnl_lock();
 	err = wx_init_interrupt_scheme(wx);
 	if (!err && netif_running(netdev))
 		err = ngbe_open(netdev);
 	if (!err)
 		netif_device_attach(netdev);
+	else
+		set_bit(WX_STATE_RES_FREED, wx->state);
 	rtnl_unlock();
 
-	return 0;
+	return err;
 }
 
 static struct pci_driver ngbe_driver = {

@@ -24,31 +24,7 @@ which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 
 log_test()
 {
-	local rc=$1
-	local expected=$2
-	local msg="$3"
-
-	if [ ${rc} -eq ${expected} ]; then
-		printf "    TEST: %-60s  [ OK ]\n" "${msg}"
-		nsuccess=$((nsuccess+1))
-	else
-		ret=1
-		nfail=$((nfail+1))
-		printf "    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
-		echo
-			echo "hit enter to continue, 'q' to quit"
-			read a
-			[ "$a" = "q" ] && exit 1
-		fi
-	fi
-
-	if [ "${PAUSE}" = "yes" ]; then
-		echo
-		echo "hit enter to continue, 'q' to quit"
-		read a
-		[ "$a" = "q" ] && exit 1
-	fi
+	log_test_expected "$1" "$2" "$3"
 }
 
 setup()
@@ -369,8 +345,6 @@ fib_carrier_local_test()
 
 fib_carrier_unicast_test()
 {
-	ret=0
-
 	echo
 	echo "Single path route carrier test"
 
@@ -685,12 +659,12 @@ fib6_notify_test()
 
 	err=`cat errors.txt |grep "Message too long"`
 	if [ -z "$err" ];then
-		ret=0
+		RET=0
 	else
-		ret=1
+		RET=1
 	fi
 
-	log_test $ret 0 "ipv6 route add notify"
+	log_test "$RET" 0 "ipv6 route add notify"
 
 	kill_process %%
 
@@ -732,12 +706,12 @@ fib_notify_test()
 
 	err=`cat errors.txt |grep "Message too long"`
 	if [ -z "$err" ];then
-		ret=0
+		RET=0
 	else
-		ret=1
+		RET=1
 	fi
 
-	log_test $ret 0 "ipv4 route add notify"
+	log_test "$RET" 0 "ipv4 route add notify"
 
 	kill_process %%
 
@@ -763,9 +737,9 @@ check_rt_num()
 
     if [ $num -ne $expected ]; then
 	echo "FAIL: Expected $expected routes, got $num"
-	ret=1
+	RET=1
     else
-	ret=0
+	RET=0
     fi
 }
 
@@ -812,7 +786,7 @@ fib6_gc_test()
 	sleep $GC_WAIT_TIME
 	$NS_EXEC sysctl -wq net.ipv6.route.flush=1
 	check_rt_num 0 $($IP -6 route list |grep expires|wc -l)
-	log_test $ret 0 "ipv6 route garbage collection"
+	log_test "$RET" 0 "ipv6 route garbage collection"
 
 	reset_dummy_10
 
@@ -830,7 +804,7 @@ fib6_gc_test()
 	# Wait for GC
 	sleep $GC_WAIT_TIME
 	check_rt_num 0 $($IP -6 route list |grep expires|wc -l)
-	log_test $ret 0 "ipv6 route garbage collection (with permanent routes)"
+	log_test "$RET" 0 "ipv6 route garbage collection (with permanent routes)"
 
 	reset_dummy_10
 
@@ -848,7 +822,7 @@ fib6_gc_test()
 	# Wait for GC
 	sleep $GC_WAIT_TIME
 	check_rt_num 0 $($IP -6 route list |grep expires|wc -l)
-	log_test $ret 0 "ipv6 route garbage collection (replace with expires)"
+	log_test "$RET" 0 "ipv6 route garbage collection (replace with expires)"
 
 	reset_dummy_10
 
@@ -868,7 +842,7 @@ fib6_gc_test()
 	# Wait for GC
 	sleep $GC_WAIT_TIME
 	check_rt_num 5 $($IP -6 route list |grep -v expires|grep 2001:20::|wc -l)
-	log_test $ret 0 "ipv6 route garbage collection (replace with permanent)"
+	log_test "$RET" 0 "ipv6 route garbage collection (replace with permanent)"
 
 	# Delete dummy_10 and remove all routes
 	$IP link del dev dummy_10
@@ -923,7 +897,7 @@ fib6_gc_test()
 	# rt6_nh_dump_exceptions() just skips expired exceptions.
 	$NS_EXEC sysctl -wq net.ipv6.route.flush=1
 	check_rt_num 0 $($IP -6 route list cache | grep 2001:10:: | wc -l)
-	log_test $ret 0 "ipv6 route garbage collection (promote to permanent routes)"
+	log_test "$RET" 0 "ipv6 route garbage collection (promote to permanent routes)"
 
 	$IP neigh del fe80:dead::3 lladdr 00:11:22:33:44:55 dev veth1 router
 	$IP link del veth1
@@ -960,7 +934,7 @@ fib6_gc_test()
 	# Wait for GC
 	sleep $GC_WAIT_TIME
 	check_rt_num 0 $($IP -6 route list |grep expires|wc -l)
-	log_test $ret 0 "ipv6 route garbage collection (RA message)"
+	log_test "$RET" 0 "ipv6 route garbage collection (RA message)"
 
 	set +e
 
@@ -1589,7 +1563,7 @@ fib6_ra_to_static()
 	# Expire is back, on-link route is now owned by RA again
 	check_rt_num 2 $($IP -6 route list |grep expires|wc -l)
 
-	log_test $ret 0 "ipv6 promote RA route to static"
+	log_test "$RET" 0 "ipv6 promote RA route to static"
 
 	# Prepare for RA route with gateway
 	$NS_EXEC sysctl -wq net.ipv6.conf.veth1.accept_ra_rt_info_max_plen=64
@@ -1606,7 +1580,7 @@ fib6_ra_to_static()
 
 	check_rt_num 2 "$($IP -6 route list | grep -c "nexthop via")"
 
-	log_test "$ret" 0 "ipv6 RA route with nexthop do not merge into ECMP with static"
+	log_test "$RET" 0 "ipv6 RA route with nexthop do not merge into ECMP with static"
 
 	set +e
 
@@ -1651,18 +1625,18 @@ fib6_temp_addr_renewal() {
 	# Restore it
 	$NS_EXEC ra6 -i veth2 -s fe80::1 -d ff02::1 -P 2001:12::/64\#LA\#3600\#3600 -e
 
-	ret=1
+	RET=1
 	for i in $(seq 1 25); do
 		sleep 1
 		num_dep="$($IP -6 addr | grep -c "temporary deprecated" || true)"
 		num_tot="$($IP -6 addr | grep -c "temporary" || true)"
 
 		if [ "$num_dep" -eq 1 ] && [ "$num_tot" -ge 2 ]; then
-			ret=0
+			RET=0
 			break
 		fi
 	done
-	log_test "$ret" 0 "IPv6 temporary address cleanly deprecated and regenerated"
+	log_test "$RET" 0 "IPv6 temporary address cleanly deprecated and regenerated"
 
 	set +e
 

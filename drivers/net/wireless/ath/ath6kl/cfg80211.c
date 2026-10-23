@@ -1130,13 +1130,15 @@ void ath6kl_cfg80211_ch_switch_notify(struct ath6kl_vif *vif, int freq,
 }
 
 static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-				   int link_id, u8 key_index, bool pairwise,
+				   int link_id, u8 key_index,
+				   enum nl80211_key_type type,
 				   const u8 *mac_addr,
 				   struct key_params *params)
 {
 	struct ath6kl *ar = ath6kl_priv(wdev->netdev);
 	struct ath6kl_vif *vif = netdev_priv(wdev->netdev);
 	struct ath6kl_key *key = NULL;
+	bool pairwise = type == NL80211_KEYTYPE_PAIRWISE;
 	int seq_len;
 	u8 key_usage;
 	u8 key_type;
@@ -1255,7 +1257,8 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct wireless_dev *wde
 }
 
 static int ath6kl_cfg80211_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-				   int link_id, u8 key_index, bool pairwise,
+				   int link_id, u8 key_index,
+				   enum nl80211_key_type type,
 				   const u8 *mac_addr)
 {
 	struct ath6kl *ar = ath6kl_priv(wdev->netdev);
@@ -1285,7 +1288,8 @@ static int ath6kl_cfg80211_del_key(struct wiphy *wiphy, struct wireless_dev *wde
 }
 
 static int ath6kl_cfg80211_get_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-				   int link_id, u8 key_index, bool pairwise,
+				   int link_id, u8 key_index,
+				   enum nl80211_key_type type,
 				   const u8 *mac_addr, void *cookie,
 				   void (*callback) (void *cookie,
 						     struct key_params *))
@@ -1556,9 +1560,7 @@ static int ath6kl_cfg80211_del_iface(struct wiphy *wiphy,
 
 	ath6kl_cfg80211_vif_stop(vif, test_bit(WMI_READY, &ar->flag));
 
-	rtnl_lock();
 	ath6kl_cfg80211_vif_cleanup(vif);
-	rtnl_unlock();
 
 	return 0;
 }

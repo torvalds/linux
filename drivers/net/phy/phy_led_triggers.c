@@ -126,6 +126,7 @@ out_unreg:
 	while (i--)
 		phy_led_trigger_unregister(&phy->phy_led_triggers[i]);
 	kfree(phy->phy_led_triggers);
+	phy->phy_led_triggers = NULL;
 out_unreg_link:
 	phy_led_trigger_unregister(phy->led_link_trigger);
 out_free_link:
@@ -141,10 +142,12 @@ void phy_led_triggers_unregister(struct phy_device *phy)
 {
 	int i;
 
-	for (i = 0; i < phy->phy_num_led_triggers; i++)
-		phy_led_trigger_unregister(&phy->phy_led_triggers[i]);
-	kfree(phy->phy_led_triggers);
-	phy->phy_led_triggers = NULL;
+	if (phy->phy_led_triggers) {
+		for (i = 0; i < phy->phy_num_led_triggers; i++)
+			phy_led_trigger_unregister(&phy->phy_led_triggers[i]);
+		kfree(phy->phy_led_triggers);
+		phy->phy_led_triggers = NULL;
+	}
 
 	if (phy->led_link_trigger) {
 		phy_led_trigger_unregister(phy->led_link_trigger);

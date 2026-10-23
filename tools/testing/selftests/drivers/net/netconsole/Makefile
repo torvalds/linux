@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 
 TEST_INCLUDES := \
-	../../../net/lib.sh \
+	$(wildcard ../../../net/lib/sh/*.sh) \
 	../lib/sh/lib_netcons.sh \
+	../../../net/lib.sh \
 # end of TEST_INCLUDES
 
 TEST_PROGS := \

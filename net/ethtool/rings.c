@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "netlink.h"
+#include "../core/dev.h"
 
 struct rings_req_info {
 	struct ethnl_req_info		base;
@@ -299,10 +300,20 @@ ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 
 	dev->cfg_pending->hds_config = kernel_ringparam.tcp_data_split;
 	dev->cfg_pending->hds_thresh = kernel_ringparam.hds_thresh;
+	ethtool_ringparam_set_cfg(dev->cfg_pending, &ringparam);
+
+	ret = netdev_queue_config_revalidate(dev, info->extack);
+	if (ret)
+		return ret;
 
 	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam,
 					      &kernel_ringparam, info->extack);
-	return ret < 0 ? ret : 1;
+	if (ret < 0)
+		return ret;
+
+	/* Capture ring depth adjustments reported by the driver. */
+	ethtool_ringparam_set_cfg(dev->cfg_pending, &ringparam);
+	return 1;
 }
 
 const struct ethnl_request_ops ethnl_rings_request_ops = {

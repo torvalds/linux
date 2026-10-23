@@ -7,7 +7,7 @@
 #include <net/mac80211.h>
 
 #include "iwl-debug.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
 #include "mvm.h"
@@ -1159,7 +1159,7 @@ u32 iwl_mvm_get_systime(struct iwl_mvm *mvm)
 	    mvm->trans->mac_cfg->base->gp2_reg_addr)
 		reg_addr = mvm->trans->mac_cfg->base->gp2_reg_addr;
 
-	return iwl_read_prph(mvm->trans, reg_addr);
+	return iwl_trans_read_prph(mvm->trans, reg_addr);
 }
 
 void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, int clock_type,
@@ -1356,8 +1356,8 @@ __le32 iwl_mvm_v3_rate_to_fw(u32 rate, u8 rate_ver)
 	case RATE_MCS_MOD_TYPE_VHT:
 		result = RATE_MCS_VHT_MSK_V1;
 		result |= u32_encode_bits(u32_get_bits(rate,
-						       RATE_VHT_MCS_NSS_MSK),
-					  RATE_MCS_CODE_MSK);
+						       RATE_MCS_CODE_MSK),
+					  RATE_VHT_MCS_RATE_CODE_MSK);
 		result |= u32_encode_bits(u32_get_bits(rate, RATE_MCS_NSS_MSK),
 					  RATE_VHT_MCS_NSS_MSK);
 		break;

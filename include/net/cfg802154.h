@@ -458,15 +458,16 @@ struct ieee802154_llsec_device_key {
 	u32 frame_counter;
 };
 
-struct wpan_dev_header_ops {
+struct wpan_dev_ops {
 	/* TODO create callback currently assumes ieee802154_mac_cb inside
 	 * skb->cb. This should be changed to give these information as
 	 * parameter.
 	 */
-	int	(*create)(struct sk_buff *skb, struct net_device *dev,
+	int	(*header_create)(struct sk_buff *skb, struct net_device *dev,
 			  const struct ieee802154_addr *daddr,
 			  const struct ieee802154_addr *saddr,
 			  unsigned int len);
+	int	(*ioctl)(struct net_device *dev, struct ifreq *ifr, int cmd);
 };
 
 struct wpan_dev {
@@ -477,7 +478,7 @@ struct wpan_dev {
 	struct list_head list;
 	struct net_device *netdev;
 
-	const struct wpan_dev_header_ops *header_ops;
+	const struct wpan_dev_ops *ops;
 
 	/* lowpan interface, set when the wpan_dev belongs to one lowpan_dev */
 	struct net_device *lowpan_dev;
@@ -523,7 +524,7 @@ wpan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 {
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
 
-	return wpan_dev->header_ops->create(skb, dev, daddr, saddr, len);
+	return wpan_dev->ops->header_create(skb, dev, daddr, saddr, len);
 }
 #endif
 

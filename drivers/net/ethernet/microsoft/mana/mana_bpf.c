@@ -21,7 +21,7 @@ void mana_xdp_tx(struct sk_buff *skb, struct net_device *ndev)
 	ndevtxq = netdev_get_tx_queue(ndev, txq_idx);
 	__netif_tx_lock(ndevtxq, smp_processor_id());
 
-	rc = mana_start_xmit(skb, ndev);
+	rc = __mana_start_xmit(skb, ndev, true);
 
 	__netif_tx_unlock(ndevtxq);
 
@@ -254,7 +254,6 @@ err_dealloc_rxbuffs:
 int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
 {
 	struct netlink_ext_ack *extack = bpf->extack;
-	int ret;
 
 	switch (bpf->command) {
 	case XDP_SETUP_PROG:
@@ -263,6 +262,4 @@ int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
 	default:
 		return -EOPNOTSUPP;
 	}
-
-	return ret;
 }

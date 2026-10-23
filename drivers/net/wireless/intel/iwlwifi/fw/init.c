@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2021, 2024-2025 Intel Corporation
+ * Copyright (C) 2019-2021, 2024-2026 Intel Corporation
  */
 #include "iwl-drv.h"
 #include "runtime.h"
@@ -23,6 +23,8 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 	int i;
 
 	memset(fwrt, 0, sizeof(*fwrt));
+	fwrt->wrds_table_revision = IWL_BIOS_REVISION_UNSET;
+	fwrt->ewrd_table_revision = IWL_BIOS_REVISION_UNSET;
 	fwrt->trans = trans;
 	fwrt->fw = fw;
 	fwrt->dev = trans->dev;
@@ -31,6 +33,8 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 	fwrt->sanitize_ops = sanitize_ops;
 	fwrt->sanitize_ctx = sanitize_ctx;
 	fwrt->ops_ctx = ops_ctx;
+	/* default until the connectivity GUID lock status is resolved */
+	fwrt->uefi_tables_lock_status = UEFI_CNV_GUID_UNKNOWN;
 	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++) {
 		fwrt->dump.wks[i].idx = i;
 		INIT_DELAYED_WORK(&fwrt->dump.wks[i].wk, iwl_fw_error_dump_wk);

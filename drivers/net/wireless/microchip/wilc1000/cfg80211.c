@@ -535,10 +535,13 @@ static int wilc_wfi_cfg_copy_wpa_info(struct wilc_wfi_key *key_info,
 }
 
 static int add_key(struct wiphy *wiphy, struct wireless_dev *wdev, int link_id,
-		   u8 key_index, bool pairwise, const u8 *mac_addr,
+		   u8 key_index,
+		   enum nl80211_key_type type,
+		   const u8 *mac_addr,
 		   struct key_params *params)
 
 {
+	bool pairwise = type == NL80211_KEYTYPE_PAIRWISE;
 	int ret = 0, keylen = params->key_len;
 	const u8 *rx_mic = NULL;
 	const u8 *tx_mic = NULL;
@@ -641,9 +644,10 @@ static int add_key(struct wiphy *wiphy, struct wireless_dev *wdev, int link_id,
 
 static int del_key(struct wiphy *wiphy, struct wireless_dev *wdev, int link_id,
 		   u8 key_index,
-		   bool pairwise,
+		   enum nl80211_key_type type,
 		   const u8 *mac_addr)
 {
+	bool pairwise = type == NL80211_KEYTYPE_PAIRWISE;
 	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 	struct wilc_priv *priv = &vif->priv;
 
@@ -681,10 +685,11 @@ static int del_key(struct wiphy *wiphy, struct wireless_dev *wdev, int link_id,
 }
 
 static int get_key(struct wiphy *wiphy, struct wireless_dev *wdev, int link_id,
-		   u8 key_index, bool pairwise, const u8 *mac_addr,
-		   void *cookie,
+		   u8 key_index, enum nl80211_key_type type,
+		   const u8 *mac_addr, void *cookie,
 		   void (*callback)(void *cookie, struct key_params *))
 {
+	bool pairwise = type == NL80211_KEYTYPE_PAIRWISE;
 	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 	struct wilc_priv *priv = &vif->priv;
 	struct  key_params key_params;

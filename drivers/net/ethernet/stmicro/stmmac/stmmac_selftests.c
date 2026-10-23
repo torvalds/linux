@@ -217,24 +217,6 @@ static struct sk_buff *stmmac_test_get_udp_skb(struct stmmac_priv *priv,
 	return skb;
 }
 
-static struct sk_buff *stmmac_test_get_arp_skb(struct stmmac_priv *priv,
-					       struct stmmac_packet_attrs *attr)
-{
-	__be32 ip_src = htonl(attr->ip_src);
-	__be32 ip_dst = htonl(attr->ip_dst);
-	struct sk_buff *skb = NULL;
-
-	skb = arp_create(ARPOP_REQUEST, ETH_P_ARP, ip_dst, priv->dev, ip_src,
-			 NULL, attr->src, attr->dst);
-	if (!skb)
-		return NULL;
-
-	skb->pkt_type = PACKET_HOST;
-	skb->dev = priv->dev;
-
-	return skb;
-}
-
 struct stmmac_test_priv {
 	struct stmmac_packet_attrs *packet;
 	struct packet_type pt;
@@ -262,7 +244,7 @@ static int stmmac_test_loopback_validate(struct sk_buff *skb,
 	struct tcphdr *thdr;
 	struct iphdr *ihdr;
 
-	skb = skb_unshare(skb, GFP_ATOMIC);
+	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		goto out;
 
@@ -938,7 +920,7 @@ static int stmmac_test_vlan_validate(struct sk_buff *skb,
 
 	proto = tpriv->svlan ? ETH_P_8021AD : ETH_P_8021Q;
 
-	skb = skb_unshare(skb, GFP_ATOMIC);
+	skb = skb_unclone_full(skb, GFP_ATOMIC);
 	if (!skb)
 		goto out;
 
@@ -1693,97 +1675,6 @@ static int stmmac_test_l4filt_sa_udp(struct stmmac_priv *priv)
 	return __stmmac_test_l4filt(priv, 0, dummy_port, 0, ~0, true);
 }
 
-static int stmmac_test_arp_validate(struct sk_buff *skb,
-				    struct net_device *ndev,
-				    struct packet_type *pt,
-				    struct net_device *orig_ndev)
-{
-	struct stmmac_test_priv *tpriv = pt->af_packet_priv;
-	struct ethhdr *ehdr;
-	struct arphdr *ahdr;
-
-	ehdr = (struct ethhdr *)skb_mac_header(skb);
-	if (!ether_addr_equal_unaligned(ehdr->h_dest, tpriv->packet->src))
-		goto out;
-
-	ahdr = arp_hdr(skb);
-	if (ahdr->ar_op != htons(ARPOP_REPLY))
-		goto out;
-
-	tpriv->ok = true;
-	complete(&tpriv->comp);
-out:
-	kfree_skb(skb);
-	return 0;
-}
-
-static int stmmac_test_arpoffload(struct stmmac_priv *priv)
-{
-	unsigned char src[ETH_ALEN] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
-	unsigned char dst[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	struct stmmac_packet_attrs attr = { };
-	struct stmmac_test_priv *tpriv;
-	struct sk_buff *skb = NULL;
-	u32 ip_addr = 0xdeadcafe;
-	u32 ip_src = 0xdeadbeef;
-	int ret;
-
-	if (!priv->dma_cap.arpoffsel)
-		return -EOPNOTSUPP;
-
-	tpriv = kzalloc_obj(*tpriv);
-	if (!tpriv)
-		return -ENOMEM;
-
-	tpriv->ok = false;
-	init_completion(&tpriv->comp);
-
-	tpriv->pt.type = htons(ETH_P_ARP);
-	tpriv->pt.func = stmmac_test_arp_validate;
-	tpriv->pt.dev = priv->dev;
-	tpriv->pt.af_packet_priv = tpriv;
-	tpriv->packet = &attr;
-	dev_add_pack(&tpriv->pt);
-
-	attr.src = src;
-	attr.ip_src = ip_src;
-	attr.dst = dst;
-	attr.ip_dst = ip_addr;
-
-	skb = stmmac_test_get_arp_skb(priv, &attr);
-	if (!skb) {
-		ret = -ENOMEM;
-		goto cleanup;
-	}
-
-	ret = stmmac_set_arp_offload(priv, priv->hw, true, ip_addr);
-	if (ret) {
-		kfree_skb(skb);
-		goto cleanup;
-	}
-
-	ret = dev_set_promiscuity(priv->dev, 1);
-	if (ret) {
-		kfree_skb(skb);
-		goto cleanup;
-	}
-
-	ret = dev_direct_xmit(skb, 0);
-	if (ret)
-		goto cleanup_promisc;
-
-	wait_for_completion_timeout(&tpriv->comp, STMMAC_LB_TIMEOUT);
-	ret = tpriv->ok ? 0 : -ETIMEDOUT;
-
-cleanup_promisc:
-	dev_set_promiscuity(priv->dev, -1);
-cleanup:
-	stmmac_set_arp_offload(priv, priv->hw, false, 0x0);
-	dev_remove_pack(&tpriv->pt);
-	kfree(tpriv);
-	return ret;
-}
-
 static int __stmmac_test_jumbo(struct stmmac_priv *priv, u16 queue)
 {
 	struct stmmac_packet_attrs attr = { };
@@ -1887,7 +1778,7 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 		return ret;
 
 	read_lock_irqsave(&priv->ptp_lock, flags);
-	stmmac_get_systime(priv, priv->ptpaddr, &curr_time);
+	stmmac_get_systime(priv, priv->ptpaddr, &curr_time, NULL);
 	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if (!curr_time) {
@@ -1909,7 +1800,7 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 
 	/* Check if expected time has elapsed */
 	read_lock_irqsave(&priv->ptp_lock, flags);
-	stmmac_get_systime(priv, priv->ptpaddr, &curr_time);
+	stmmac_get_systime(priv, priv->ptpaddr, &curr_time, NULL);
 	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if ((curr_time - start_time) < STMMAC_TBS_LT_OFFSET)
@@ -2004,9 +1895,6 @@ static const struct stmmac_test {
 	}, {
 		.name = "L4 SA UDP Filtering        ",
 		.fn = stmmac_test_l4filt_sa_udp,
-	}, {
-		.name = "ARP Offload                ",
-		.fn = stmmac_test_arpoffload,
 	}, {
 		.name = "Jumbo Frame                ",
 		.fn = stmmac_test_jumbo,

@@ -240,35 +240,6 @@ def enabled_set_xdp(cfg, netnl) -> None:
         _xdp_onoff(cfg)
 
 
-def set_xdp(cfg, netnl) -> None:
-    """
-    Enable single-buffer XDP on the device.
-    When HDS is in "auto" / UNKNOWN mode, XDP installation should work.
-    """
-    mode = _get_hds_mode(cfg, netnl)
-    if mode == 'enabled':
-        netnl.rings_set({'header': {'dev-index': cfg.ifindex},
-                         'tcp-data-split': 'unknown'})
-
-    _xdp_onoff(cfg)
-
-
-def enabled_set_xdp(cfg, netnl) -> None:
-    """
-    Enable single-buffer XDP on the device.
-    When HDS is in "enabled" mode, XDP installation should not work.
-    """
-    _get_hds_mode(cfg, netnl)  # Trigger skip if not supported
-
-    netnl.rings_set({'header': {'dev-index': cfg.ifindex},
-                     'tcp-data-split': 'enabled'})
-    defer(netnl.rings_set, {'header': {'dev-index': cfg.ifindex},
-                            'tcp-data-split': 'unknown'})
-
-    with ksft_raises(CmdExitFailure) as e:
-        _xdp_onoff(cfg)
-
-
 def ioctl(cfg, netnl) -> None:
     mode1 = _get_hds_mode(cfg, netnl)
     _ioctl_ringparam_modify(cfg, netnl)

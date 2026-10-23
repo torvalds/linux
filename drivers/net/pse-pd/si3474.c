@@ -516,10 +516,8 @@ static int si3474_i2c_probe(struct i2c_client *client)
 		return PTR_ERR(priv->client[1]);
 
 	ret = devm_add_action_or_reset(dev, si3474_ancillary_i2c_remove, priv->client[1]);
-	if (ret < 0) {
-		dev_err(&priv->client[1]->dev, "Cannot register remove callback\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = i2c_smbus_read_byte_data(priv->client[1], VENDOR_IC_ID_REG);
 	if (ret < 0) {
@@ -541,10 +539,9 @@ static int si3474_i2c_probe(struct i2c_client *client)
 	priv->pcdev.nr_lines = SI3474_MAX_CHANS;
 
 	ret = devm_pse_controller_register(dev, &priv->pcdev);
-	if (ret) {
-		dev_err(dev, "Failed to register PSE controller: 0x%x\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to register PSE controller\n");
 
 	return 0;
 }

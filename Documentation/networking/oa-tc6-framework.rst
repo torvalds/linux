@@ -278,7 +278,7 @@ SYNC (Bit 29) - Configuration Synchronized flag. This bit reflects the
                 register (see Table 12). A zero indicates that the MAC-PHY
                 configuration may not be as expected by the SPI host.
                 Following configuration, the SPI host sets the
-                corresponding bitin the configuration register which is
+                corresponding bit in the configuration register which is
                 reflected in this field.
 
 RCA (Bit 28..24) - Receive Chunks Available. The RCA field indicates to

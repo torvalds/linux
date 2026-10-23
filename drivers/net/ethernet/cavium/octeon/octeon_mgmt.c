@@ -573,14 +573,14 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 
 	memset(&cam_state, 0, sizeof(cam_state));
 
-	if ((netdev->flags & IFF_PROMISC) || netdev->uc.count > 7) {
+	if ((netdev->flags & IFF_PROMISC) || netdev_uc_count(netdev) > 7) {
 		cam_mode = 0;
 		available_cam_entries = 8;
 	} else {
 		/* One CAM entry for the primary address, leaves seven
 		 * for the secondary addresses.
 		 */
-		available_cam_entries = 7 - netdev->uc.count;
+		available_cam_entries = 7 - netdev_uc_count(netdev);
 	}
 
 	if (netdev->flags & IFF_MULTICAST) {
@@ -1254,6 +1254,7 @@ static int octeon_mgmt_stop(struct net_device *netdev)
 	octeon_mgmt_reset_hw(p);
 
 	free_irq(p->irq, netdev);
+	tasklet_kill(&p->tx_clean_tasklet);
 
 	/* dma_unmap is a nop on Octeon, so just free everything.  */
 	skb_queue_purge(&p->tx_list);

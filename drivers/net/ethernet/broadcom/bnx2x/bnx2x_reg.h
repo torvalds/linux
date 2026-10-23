@@ -2236,7 +2236,7 @@ extern const u32 dmae_reg_go_c[];
 /* [RW 1] Output enable for TX PAUSE signal to the MAC. */
 #define NIG_REG_P0_MAC_PAUSE_OUT_EN				 0x185b4
 /* [RW 32] Eight 4-bit configurations for specifying which COS (0-15 for
- * future expansion) each priorty is to be mapped to. Bits 3:0 specify the
+ * future expansion) each priority is to be mapped to. Bits 3:0 specify the
  * COS for priority 0. Bits 31:28 specify the COS for priority 7. The 3-bit
  * priority field is extracted from the outer-most VLAN in receive packet.
  * Only COS 0 and COS 1 are supported in E2. */
@@ -2434,7 +2434,7 @@ extern const u32 dmae_reg_go_c[];
 /* [RW 1] Output enable for TX PAUSE signal to the MAC. */
 #define NIG_REG_P1_MAC_PAUSE_OUT_EN				 0x185c8
 /* [RW 32] Eight 4-bit configurations for specifying which COS (0-15 for
- * future expansion) each priorty is to be mapped to. Bits 3:0 specify the
+ * future expansion) each priority is to be mapped to. Bits 3:0 specify the
  * COS for priority 0. Bits 31:28 specify the COS for priority 7. The 3-bit
  * priority field is extracted from the outer-most VLAN in receive packet.
  * Only COS 0 and COS 1 are supported in E2. */

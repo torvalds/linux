@@ -159,6 +159,9 @@ struct fq_sched_data {
 	u64		stat_allocation_errors;
 };
 
+/* EDT timestamps to clear beyond now. */
+static const int fq_offload_slack_ns = 400;
+
 /* return the i-th 2-bit value ("crumb") */
 static u8 fq_prio2band(const u8 *prio2band, unsigned int prio)
 {
@@ -301,6 +304,26 @@ static void fq_gc(struct fq_sched_data *q,
 	q->stat_gc_flows += fcnt;
 }
 
+static u64 fq_offload_horizon(const struct Qdisc *sch,
+			      const struct fq_sched_data *q)
+{
+	const struct net_device *dev;
+	u64 offload_horizon;
+
+	offload_horizon = READ_ONCE(q->offload_horizon);
+	if (!offload_horizon)
+		return 0;
+
+	dev = qdisc_dev(sch);
+	if (!dev->pacing_offload)
+		return 0;
+
+	if (offload_horizon > READ_ONCE(dev->max_pacing_offload_horizon))
+		return 0;
+
+	return offload_horizon;
+}
+
 /* Fast path can be used if :
  * 1) Packet tstamp is in the past, or within the pacing offload horizon.
  * 2) FQ qlen == 0   OR
@@ -312,12 +335,12 @@ static void fq_gc(struct fq_sched_data *q,
  * FQ can not use generic TCQ_F_CAN_BYPASS infrastructure.
  */
 static bool fq_fastpath_check(const struct Qdisc *sch, struct sk_buff *skb,
-			      u64 now)
+			      u64 now, u64 offload_horizon)
 {
 	const struct fq_sched_data *q = qdisc_priv(sch);
 	const struct sock *sk;
 
-	if (fq_skb_cb(skb)->time_to_send > now + q->offload_horizon)
+	if (fq_skb_cb(skb)->time_to_send > now + offload_horizon)
 		return false;
 
 	if (sch->q.qlen != 0) {
@@ -338,7 +361,7 @@ static bool fq_fastpath_check(const struct Qdisc *sch, struct sk_buff *skb,
 		/* Ordering invariants fall apart if some delayed flows
 		 * are ready but we haven't serviced them, yet.
 		 */
-		if (q->time_next_delayed_flow <= now + q->offload_horizon)
+		if (q->time_next_delayed_flow <= now + offload_horizon)
 			return false;
 	}
 
@@ -357,6 +380,7 @@ static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb,
 				   u64 now)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
+	u64 offload_horizon = fq_offload_horizon(sch, q);
 	struct rb_node **p, *parent;
 	struct sock *sk = skb->sk;
 	struct rb_root *root;
@@ -393,12 +417,17 @@ static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb,
 		sk = (struct sock *)((hash << 1) | 1UL);
 	}
 
-	if (fq_fastpath_check(sch, skb, now)) {
+	if (fq_fastpath_check(sch, skb, now, offload_horizon)) {
 		q->internal.stat_fastpath_packets++;
 		if (skb->sk == sk && q->rate_enable &&
 		    READ_ONCE(sk->sk_pacing_status) != SK_PACING_FQ)
 			smp_store_release(&sk->sk_pacing_status,
 					  SK_PACING_FQ);
+
+		if (offload_horizon &&
+		    fq_skb_cb(skb)->time_to_send <= now + fq_offload_slack_ns)
+			skb_set_delivery_time(skb, 0, SKB_CLOCK_REALTIME);
+
 		return &q->internal;
 	}
 
@@ -661,12 +690,13 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	return NET_XMIT_SUCCESS;
 }
 
-static void fq_check_throttled(struct fq_sched_data *q, u64 now)
+static void fq_check_throttled(struct fq_sched_data *q, u64 now,
+			       u64 offload_horizon)
 {
 	unsigned long sample;
 	struct rb_node *p;
 
-	if (q->time_next_delayed_flow > now + q->offload_horizon)
+	if (q->time_next_delayed_flow > now + offload_horizon)
 		return;
 
 	/* Update unthrottle latency EWMA.
@@ -677,7 +707,7 @@ static void fq_check_throttled(struct fq_sched_data *q, u64 now)
 		q->unthrottle_latency_ns -= q->unthrottle_latency_ns >> 3;
 		q->unthrottle_latency_ns += sample >> 3;
 	}
-	now += q->offload_horizon;
+	now += offload_horizon;
 
 	q->time_next_delayed_flow = ~0ULL;
 	while ((p = rb_first(&q->delayed)) != NULL) {
@@ -705,8 +735,10 @@ static struct fq_flow_head *fq_pband_head_select(struct fq_perband_flows *pband)
 static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
+	u64 offload_horizon = fq_offload_horizon(sch, q);
 	struct fq_perband_flows *pband;
 	struct fq_flow_head *head;
+	u64 time_next_packet = 0;
 	struct sk_buff *skb;
 	struct fq_flow *f;
 	unsigned long rate;
@@ -721,11 +753,11 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 	if (skb) {
 		q->internal.qlen--;
 		fq_dequeue_skb(sch, &q->internal, skb);
-		goto out;
+		return skb;
 	}
 
 	now = ktime_get_ns();
-	fq_check_throttled(q, now);
+	fq_check_throttled(q, now, offload_horizon);
 	retry = 0;
 	pband = &q->band_flows[q->band_nr];
 begin:
@@ -758,10 +790,10 @@ begin:
 
 	skb = fq_peek(f);
 	if (skb) {
-		u64 time_next_packet = max_t(u64, fq_skb_cb(skb)->time_to_send,
-					     f->time_next_packet);
+		time_next_packet = max_t(u64, fq_skb_cb(skb)->time_to_send,
+					 f->time_next_packet);
 
-		if (now + q->offload_horizon < time_next_packet) {
+		if (now + offload_horizon < time_next_packet) {
 			head->first = f->next;
 			f->time_next_packet = time_next_packet;
 			fq_flow_set_throttled(q, f);
@@ -836,7 +868,12 @@ begin:
 		}
 		f->time_next_packet = now + len;
 	}
+
 out:
+	if (offload_horizon &&
+	    time_next_packet && time_next_packet <= now + fq_offload_slack_ns)
+		skb_set_delivery_time(skb, 0, SKB_CLOCK_REALTIME);
+
 	return skb;
 }
 
@@ -1179,11 +1216,15 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt,
 		u64 offload_horizon = (u64)NSEC_PER_USEC *
 				      nla_get_u32(tb[TCA_FQ_OFFLOAD_HORIZON]);
 
-		if (offload_horizon <= qdisc_dev(sch)->max_pacing_offload_horizon) {
-			WRITE_ONCE(q->offload_horizon, offload_horizon);
-		} else {
+		if (offload_horizon && !qdisc_dev(sch)->pacing_offload) {
+			NL_SET_ERR_MSG_MOD(extack, "device pacing offload is disabled");
+			err = -EINVAL;
+		} else if (offload_horizon >
+			   qdisc_dev(sch)->max_pacing_offload_horizon) {
 			NL_SET_ERR_MSG_MOD(extack, "invalid offload_horizon");
 			err = -EINVAL;
+		} else {
+			WRITE_ONCE(q->offload_horizon, offload_horizon);
 		}
 	}
 	if (!err) {

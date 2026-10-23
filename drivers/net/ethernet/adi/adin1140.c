@@ -725,8 +725,8 @@ static int adin1140_probe(struct spi_device *spi)
 	tc6_quirks.quirk_flags = OA_TC6_BROKEN_PHY;
 
 	priv->tc6 = oa_tc6_init(spi, netdev, &tc6_quirks);
-	if (!priv->tc6)
-		return -ENODEV;
+	if (IS_ERR(priv->tc6))
+		return PTR_ERR(priv->tc6);
 
 	ret = devm_add_action_or_reset(&spi->dev, adin1140_oa_tc6_remove,
 				       priv->tc6);

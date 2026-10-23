@@ -586,14 +586,13 @@ static int pn_sock_seq_show(struct seq_file *seq, void *v)
 		struct pn_sock *pn = pn_sk(sk);
 
 		seq_printf(seq, "%2d %04X:%04X:%02X %02X %08X:%08X %5d %llu "
-			"%d %pK %u",
+			"%d 0 %u",
 			sk->sk_protocol, pn->sobject, pn->dobject,
 			pn->resource, sk->sk_state,
 			sk_wmem_alloc_get(sk), sk_rmem_alloc_get(sk),
 			from_kuid_munged(seq_user_ns(seq), sk_uid(sk)),
 			sock_i_ino(sk),
-			refcount_read(&sk->sk_refcnt), sk,
-			sk_drops_read(sk));
+			refcount_read(&sk->sk_refcnt), sk_drops_read(sk));
 	}
 	seq_pad(seq, '\n');
 	return 0;

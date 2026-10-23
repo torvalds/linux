@@ -106,7 +106,7 @@ static int tee_tg_check(const struct xt_tgchk_param *par)
 		if (info->oif[sizeof(info->oif)-1] != '\0')
 			return -EINVAL;
 
-		priv = kzalloc_obj(*priv);
+		priv = kzalloc_obj(*priv, GFP_KERNEL_ACCOUNT);
 		if (priv == NULL)
 			return -ENOMEM;
 

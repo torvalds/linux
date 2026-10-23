@@ -59,8 +59,11 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 					   const struct mlxsw_sp_nve_params *params,
 					   struct netlink_ext_ack *extack)
 {
-	struct vxlan_dev *vxlan = netdev_priv(params->dev);
-	struct vxlan_config *cfg = &vxlan->cfg;
+	const struct vxlan_config *cfg;
+	struct vxlan_dev *vxlan;
+
+	vxlan = netdev_priv(params->dev);
+	cfg = rtnl_dereference(vxlan->cfg);
 
 	if (vxlan_addr_multicast(&cfg->remote_ip)) {
 		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Multicast destination IP is not supported");
@@ -89,6 +92,11 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 
 	if (cfg->flags & VXLAN_F_TTL_INHERIT) {
 		NL_SET_ERR_MSG_MOD(extack, "VxLAN: TTL must not be configured to inherit");
+		return false;
+	}
+
+	if (test_bit(VXLAN_DEV_F_MDB, &vxlan->flags)) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: MDB entries are not supported");
 		return false;
 	}
 
@@ -148,8 +156,11 @@ static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
 				      const struct mlxsw_sp_nve_params *params,
 				      struct mlxsw_sp_nve_config *config)
 {
-	struct vxlan_dev *vxlan = netdev_priv(params->dev);
-	struct vxlan_config *cfg = &vxlan->cfg;
+	const struct vxlan_config *cfg;
+	struct vxlan_dev *vxlan;
+
+	vxlan = netdev_priv(params->dev);
+	cfg = rtnl_dereference(vxlan->cfg);
 
 	config->type = MLXSW_SP_NVE_TYPE_VXLAN;
 	config->ttl = cfg->ttl;

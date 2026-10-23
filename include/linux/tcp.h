@@ -269,6 +269,9 @@ struct tcp_sock {
 				 */
 	u32	snd_sml;	/* Last byte of the most recently transmitted small packet */
 	u8	chrono_type;	/* current chronograph type */
+	u8	tcp_nospace;	/* mirrors SOCK_NOSPACE, must be set whenever
+				 * SOCK_NOSPACE is set.
+				 */
 	u32	chrono_start;	/* Start time in jiffies of a TCP chrono */
 	u32	chrono_stat[3];	/* Time in jiffies for chrono_stat stats */
 	u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */

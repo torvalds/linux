@@ -3075,7 +3075,6 @@ void mlx5e_close_channels(struct mlx5e_channels *chs)
 {
 	int i;
 
-	ASSERT_RTNL();
 	if (chs->ptp) {
 		mlx5e_ptp_close(chs->ptp);
 		chs->ptp = NULL;
@@ -5430,8 +5429,7 @@ static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
 	u8 addr[ETH_ALEN];
 
 	mlx5_query_mac_address(priv->mdev, addr);
-	if (is_zero_ether_addr(addr) &&
-	    !MLX5_CAP_GEN(priv->mdev, vport_group_manager)) {
+	if (is_zero_ether_addr(addr)) {
 		eth_hw_addr_random(netdev);
 		mlx5_core_info(priv->mdev, "Assigned random MAC address %pM\n", netdev->dev_addr);
 		return;
@@ -6558,8 +6556,9 @@ int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 
 	clear_bit(MLX5E_STATE_DESTROYING, &priv->state);
 	if (priv->fs)
-		mlx5e_fs_set_state_destroy(priv->fs,
-					   !test_bit(MLX5E_STATE_DESTROYING, &priv->state));
+		mlx5e_fs_set_rx_mode_active(priv->fs,
+					    !test_bit(MLX5E_STATE_DESTROYING,
+						      &priv->state));
 
 	/* Validate the max_wqe_size_sq capability. */
 	if (WARN_ON_ONCE(mlx5e_get_max_sq_wqebbs(priv->mdev) < MLX5E_MAX_TX_WQEBBS)) {
@@ -6639,8 +6638,9 @@ out:
 	mlx5e_reset_channels(priv->netdev);
 	set_bit(MLX5E_STATE_DESTROYING, &priv->state);
 	if (priv->fs)
-		mlx5e_fs_set_state_destroy(priv->fs,
-					   !test_bit(MLX5E_STATE_DESTROYING, &priv->state));
+		mlx5e_fs_set_rx_mode_active(priv->fs,
+					    !test_bit(MLX5E_STATE_DESTROYING,
+						      &priv->state));
 	cancel_work_sync(&priv->update_stats_work);
 	return err;
 }
@@ -6651,8 +6651,9 @@ void mlx5e_detach_netdev(struct mlx5e_priv *priv)
 
 	set_bit(MLX5E_STATE_DESTROYING, &priv->state);
 	if (priv->fs)
-		mlx5e_fs_set_state_destroy(priv->fs,
-					   !test_bit(MLX5E_STATE_DESTROYING, &priv->state));
+		mlx5e_fs_set_rx_mode_active(priv->fs,
+					    !test_bit(MLX5E_STATE_DESTROYING,
+						      &priv->state));
 
 	if (profile->disable)
 		profile->disable(priv);

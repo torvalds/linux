@@ -11,6 +11,8 @@ import struct
 import termios
 import time
 
+from contextlib import contextmanager
+
 from lib.py import defer
 from lib.py import ksft_run, ksft_exit, ksft_pr
 from lib.py import ksft_true, ksft_eq, ksft_ne, ksft_gt, ksft_raises
@@ -56,6 +58,17 @@ def _make_psp_conn(cfg, version=0, ipver=None):
     remote_addr = cfg.remote_addr_v[ipver] if ipver else cfg.remote_addr
     s = socket.create_connection((remote_addr, cfg.comm_port), )
     return s
+
+
+@contextmanager
+def _make_lo_conn():
+    # After tx-assoc, the client's egress is dropped, since lo has no
+    # psp_dev, so its FIN never reaches the server. Closing the server
+    # resets the unaccepted child, and the client accepts the cleartext
+    # RST because it hasn't received any PSP traffic yet.
+    with socket.create_server(("localhost", 0)) as srv, \
+         socket.create_connection(srv.getsockname()[:2]) as s:
+        yield s
 
 
 def _close_conn(cfg, s):
@@ -200,20 +213,18 @@ def dev_rotate_spi(cfg):
     _init_psp_dev(cfg)
 
     top_a = top_b = 0
-    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+    with _make_lo_conn() as s:
         assoc_a = cfg.pspnl.rx_assoc({"version": 0,
                                      "dev-id": cfg.psp_dev_id,
                                      "sock-fd": s.fileno()})
         top_a = assoc_a['rx-key']['spi'] >> 31
-        s.close()
     rot = cfg.pspnl.key_rotate({"id": cfg.psp_dev_id})
-    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+    with _make_lo_conn() as s:
         ksft_eq(rot['id'], cfg.psp_dev_id)
         assoc_b = cfg.pspnl.rx_assoc({"version": 0,
                                     "dev-id": cfg.psp_dev_id,
                                     "sock-fd": s.fileno()})
         top_b = assoc_b['rx-key']['spi'] >> 31
-        s.close()
     ksft_ne(top_a, top_b)
 
 
@@ -221,7 +232,7 @@ def assoc_basic(cfg):
     """ Test creating associations """
     _init_psp_dev(cfg)
 
-    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+    with _make_lo_conn() as s:
         assoc = cfg.pspnl.rx_assoc({"version": 0,
                                   "dev-id": cfg.psp_dev_id,
                                   "sock-fd": s.fileno()})
@@ -234,7 +245,6 @@ def assoc_basic(cfg):
                                   "tx-key": assoc['rx-key'],
                                   "sock-fd": s.fileno()})
         ksft_eq(len(assoc), 0)
-        s.close()
 
 
 def assoc_bad_dev(cfg):
@@ -309,6 +319,32 @@ def assoc_sk_only_unconn(cfg):
         ksft_eq(the_exception.nl_msg.error, -errno.EINVAL)
 
 
+def assoc_rx_unconnected(cfg):
+    """ Test that an Rx assoc is rejected on an unconnected socket """
+    _init_psp_dev(cfg)
+
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+        with ksft_raises(NlError) as cm:
+            cfg.pspnl.rx_assoc({"version": 0,
+                                "dev-id": cfg.psp_dev_id,
+                                "sock-fd": s.fileno()})
+        ksft_eq(cm.exception.nl_msg.error, -errno.ENOTCONN)
+        ksft_eq(cm.exception.nl_msg.extack['bad-attr'], ".sock-fd")
+
+
+def assoc_rx_listener(cfg):
+    """ Test that an Rx assoc is rejected on a listening socket """
+    _init_psp_dev(cfg)
+
+    with socket.create_server(("localhost", 0)) as s:
+        with ksft_raises(NlError) as cm:
+            cfg.pspnl.rx_assoc({"version": 0,
+                                "dev-id": cfg.psp_dev_id,
+                                "sock-fd": s.fileno()})
+        ksft_eq(cm.exception.nl_msg.error, -errno.ENOTCONN)
+        ksft_eq(cm.exception.nl_msg.extack['bad-attr'], ".sock-fd")
+
+
 def assoc_version_mismatch(cfg):
     """ Test creating associations where Rx and Tx PSP versions do not match """
     _init_psp_dev(cfg)
@@ -320,7 +356,7 @@ def assoc_version_mismatch(cfg):
     # Translate versions to integers
     versions = [cfg.pspnl.consts["version"].entries[v].value for v in versions]
 
-    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+    with _make_lo_conn() as s:
         rx = cfg.pspnl.rx_assoc({"version": versions[0],
                                  "dev-id": cfg.psp_dev_id,
                                  "sock-fd": s.fileno()})
@@ -393,7 +429,7 @@ def assoc_twice(cfg):
 
         return assoc
 
-    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+    with _make_lo_conn() as s:
         assoc = rx_assoc_check(s)
         tx = cfg.pspnl.tx_assoc({"dev-id": cfg.psp_dev_id,
                                "version": 0,
@@ -402,15 +438,13 @@ def assoc_twice(cfg):
         ksft_eq(len(tx), 0)
 
         # Use the same Tx assoc second time
-        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s2:
+        with _make_lo_conn() as s2:
             rx_assoc_check(s2)
             tx = cfg.pspnl.tx_assoc({"dev-id": cfg.psp_dev_id,
                                    "version": 0,
                                    "tx-key": assoc['rx-key'],
                                    "sock-fd": s2.fileno()})
             ksft_eq(len(tx), 0)
-
-        s.close()
 
 
 def _data_basic_send(cfg, version, ipver):
@@ -571,11 +605,11 @@ def data_stale_key(cfg):
 
 def __nsim_psp_rereg(cfg):
     # The PSP dev ID will change, remember what was there before
-    before = set([x['id'] for x in cfg.pspnl.dev_get({}, dump=True)])
+    before = {x['id'] for x in cfg.pspnl.dev_get({}, dump=True)}
 
     cfg._ns.nsims[0].dfs_write('psp_rereg', '1')
 
-    after = set([x['id'] for x in cfg.pspnl.dev_get({}, dump=True)])
+    after = {x['id'] for x in cfg.pspnl.dev_get({}, dump=True)}
 
     new_devs = list(after - before)
     ksft_eq(len(new_devs), 1)
@@ -769,6 +803,111 @@ def _dev_change_notify_multi_ns_netkit(cfg):
                 f" in {label} namespace")
 
 
+def _subscribe_mgmt(cfg):
+    """Listen on the mgmt group in the guest and in the main namespace."""
+    # Listener in the guest namespace; socket stays bound to that ns
+    with NetNSEnter(cfg.netns.name):
+        peer_pspnl = PSPFamily()
+        peer_pspnl.ntf_subscribe('mgmt')
+
+    main_pspnl = PSPFamily()
+    main_pspnl.ntf_subscribe('mgmt')
+
+    return main_pspnl, peer_pspnl
+
+
+def _get_dev_ntf(cfg, pspnl, label):
+    """Wait for the next notification about the PSP device under test."""
+    for ntf in pspnl.poll_ntf(duration=10):
+        if ntf['msg'].get('id') == cfg.psp_dev_id:
+            return ntf
+    raise KsftFailEx(f"No notification received in the {label} namespace")
+
+
+def _check_disassoc_ntf(cfg, main_pspnl, peer_pspnl, ifindex):
+    """Check the notifications for a netns losing its last association."""
+    ntf = _get_dev_ntf(cfg, main_pspnl, "main")
+    ksft_eq(ntf['name'], 'dev-change-ntf')
+    for assoc in ntf['msg'].get('assoc-list', []):
+        if assoc['nsid'] != cfg.psp_dev_peer_nsid:
+            continue
+        ksft_ne(assoc['ifindex'], ifindex,
+                "Disassociated device still listed in the notification")
+
+    # The device is gone as far as the disassociated namespace is concerned
+    ntf = _get_dev_ntf(cfg, peer_pspnl, "guest")
+    ksft_eq(ntf['name'], 'dev-del-ntf')
+    ksft_true('ifindex' not in ntf['msg'],
+              "ifindex reported to an associated namespace")
+
+
+def _dev_disassoc_notify_multi_ns_netkit(cfg):
+    """ Test the notifications dev-disassoc generates in both namespaces """
+    _init_psp_dev(cfg, True)
+    defer(delattr, cfg, 'psp_dev_id')
+    defer(delattr, cfg, 'psp_info')
+
+    cfg.pspnl.dev_assoc({'id': cfg.psp_dev_id,
+                         'ifindex': cfg.nk_guest_ifindex,
+                         'nsid': cfg.psp_dev_peer_nsid})
+    defer(_try_disassoc, cfg, cfg.psp_dev_id, cfg.nk_guest_ifindex,
+          cfg.psp_dev_peer_nsid)
+
+    main_pspnl, peer_pspnl = _subscribe_mgmt(cfg)
+
+    cfg.pspnl.dev_disassoc({'id': cfg.psp_dev_id,
+                            'ifindex': cfg.nk_guest_ifindex,
+                            'nsid': cfg.psp_dev_peer_nsid})
+
+    _check_disassoc_ntf(cfg, main_pspnl, peer_pspnl, cfg.nk_guest_ifindex)
+
+
+def _dev_disassoc_notify_one_of_two_netkit(cfg):
+    """Test the notifications with two netkits associated in one netns.
+
+    Disassociating the first netkit leaves the PSP device visible in the
+    guest namespace, generates a dev-change-ntf.
+    Disassociating the second one takes the device out of its view,
+    generates 'dev-del-ntf'.
+    """
+    _init_psp_dev(cfg, True)
+    defer(delattr, cfg, 'psp_dev_id')
+    defer(delattr, cfg, 'psp_info')
+
+    tmp_ifindex, _ = _add_netkit_guest(cfg, "tmp_nk_host", "tmp_nk_guest")
+
+    for ifindex in [cfg.nk_guest_ifindex, tmp_ifindex]:
+        cfg.pspnl.dev_assoc({'id': cfg.psp_dev_id, 'ifindex': ifindex,
+                             'nsid': cfg.psp_dev_peer_nsid})
+        defer(_try_disassoc, cfg, cfg.psp_dev_id, ifindex,
+              cfg.psp_dev_peer_nsid)
+
+    main_pspnl, peer_pspnl = _subscribe_mgmt(cfg)
+
+    # One of the two goes away, the device stays visible in the guest netns
+    cfg.pspnl.dev_disassoc({'id': cfg.psp_dev_id, 'ifindex': tmp_ifindex,
+                            'nsid': cfg.psp_dev_peer_nsid})
+
+    ntf = _get_dev_ntf(cfg, main_pspnl, "main")
+    ksft_eq(ntf['name'], 'dev-change-ntf')
+
+    ntf = _get_dev_ntf(cfg, peer_pspnl, "guest")
+    ksft_eq(ntf['name'], 'dev-change-ntf')
+    found = False
+    for assoc in ntf['msg'].get('assoc-list', []):
+        ksft_ne(assoc['ifindex'], tmp_ifindex,
+                "Disassociated device still listed in the notification")
+        found |= assoc['ifindex'] == cfg.nk_guest_ifindex
+    ksft_true(found, "Remaining association missing from the notification")
+
+    # And now the last one, the device disappears from the guest netns
+    cfg.pspnl.dev_disassoc({'id': cfg.psp_dev_id,
+                            'ifindex': cfg.nk_guest_ifindex,
+                            'nsid': cfg.psp_dev_peer_nsid})
+
+    _check_disassoc_ntf(cfg, main_pspnl, peer_pspnl, cfg.nk_guest_ifindex)
+
+
 def _psp_dev_get_check_netkit_psp_assoc(cfg):
     """ Check psp dev-get output with netkit interface associated with PSP dev """
     _assoc_nk_guest(cfg)
@@ -794,6 +933,10 @@ def _psp_dev_get_check_netkit_psp_assoc(cfg):
                 break
 
         ksft_not_none(peer_dev, "No PSP device found with by-association flag in guest netns")
+
+        # ifindex of the main netdevice means nothing in this namespace
+        ksft_true('ifindex' not in peer_dev,
+                  "ifindex reported to an associated namespace")
 
         # Verify assoc-list contains the nk_guest device
         ksft_true('assoc-list' in peer_dev and len(peer_dev['assoc-list']) > 0,
@@ -840,25 +983,18 @@ def _dev_assoc_no_nsid(cfg):
     ksft_true(not found, "Device should not be in assoc-list after disassociation")
 
 
-def _psp_dev_assoc_cleanup_on_netkit_del(cfg):
-    """Test that assoc-list is cleared when associated netkit is deleted.
+def _add_netkit_guest(cfg, host_name, guest_name):
+    """Create a netkit pair and move its peer into the test namespace.
 
-    Creates a disposable netkit pair for this test to avoid destroying
-    the shared environment.
+    Returns the peer's ifindex there and the defer() deleting the pair.
     """
-    _init_psp_dev(cfg, True)
-    defer(delattr, cfg, 'psp_dev_id')
-    defer(delattr, cfg, 'psp_info')
+    existing = {link['ifindex'] for link in ip("-d link show", json=True)
+                if link.get('linkinfo', {}).get('info_kind') == 'netkit'}
 
-    existing = {cfg.nk_host_ifindex, cfg.nk_guest_ifindex}
-
-    # Create a temporary netkit pair
-    tmp_host_name = "tmp_nk_host"
-    tmp_guest_name = "tmp_nk_guest"
     rtnl = RtnlFamily()
     rtnl.newlink(
         {
-            "ifname": tmp_host_name,
+            "ifname": host_name,
             "linkinfo": {
                 "kind": "netkit",
                 "data": {
@@ -870,25 +1006,38 @@ def _psp_dev_assoc_cleanup_on_netkit_del(cfg):
         },
         flags=[Netlink.NLM_F_CREATE, Netlink.NLM_F_EXCL],
     )
-    cleanup_netkit = defer(ip, f"link del {tmp_host_name}")
+    cleanup = defer(ip, f"link del {host_name}")
 
     # Find the peer by diffing against existing netkit ifindexes
     all_links = ip("-d link show", json=True)
-    tmp_peer = [link for link in all_links
-                if link.get('linkinfo', {}).get('info_kind') == 'netkit'
-                and link['ifindex'] not in existing
-                and link['ifname'] != tmp_host_name]
-    ksft_eq(len(tmp_peer), 1,
-            "Failed to find temporary netkit peer")
-    guest_name = tmp_peer[0]['ifname']
+    peer = [link for link in all_links
+            if link.get('linkinfo', {}).get('info_kind') == 'netkit'
+            and link['ifindex'] not in existing
+            and link['ifname'] != host_name]
+    ksft_eq(len(peer), 1, "Failed to find the new netkit peer")
 
     # Rename and move guest end into the test namespace
-    ip(f"link set dev {guest_name} name {tmp_guest_name}")
-    ip(f"link set dev {tmp_guest_name} netns {cfg.netns.name}")
-    tmp_guest_dev = ip(f"link show dev {tmp_guest_name}",
-                       json=True, ns=cfg.netns)[0]
-    tmp_guest_ifindex = tmp_guest_dev['ifindex']
-    ip(f"link set dev {tmp_guest_name} up", ns=cfg.netns)
+    ip(f"link set dev {peer[0]['ifname']} name {guest_name}")
+    ip(f"link set dev {guest_name} netns {cfg.netns.name}")
+    guest_dev = ip(f"link show dev {guest_name}", json=True, ns=cfg.netns)[0]
+    ip(f"link set dev {guest_name} up", ns=cfg.netns)
+
+    return guest_dev['ifindex'], cleanup
+
+
+def _psp_dev_assoc_cleanup_on_netkit_del(cfg):
+    """Test that assoc-list is cleared when associated netkit is deleted.
+
+    Creates a disposable netkit pair for this test to avoid destroying
+    the shared environment.
+    """
+    _init_psp_dev(cfg, True)
+    defer(delattr, cfg, 'psp_dev_id')
+    defer(delattr, cfg, 'psp_info')
+
+    tmp_host_name = "tmp_nk_host"
+    tmp_guest_ifindex, cleanup_netkit = _add_netkit_guest(cfg, tmp_host_name,
+                                                          "tmp_nk_guest")
 
     # Associate PSP device with the temporary guest interface
     cfg.pspnl.dev_assoc({'id': cfg.psp_dev_id,
@@ -899,6 +1048,9 @@ def _psp_dev_assoc_cleanup_on_netkit_del(cfg):
     _check_assoc_list(cfg, cfg.psp_dev_id, tmp_guest_ifindex,
                       cfg.psp_dev_peer_nsid)
 
+    # Removing the netdevice is notified like a disassociation
+    main_pspnl, peer_pspnl = _subscribe_mgmt(cfg)
+
     # Delete the temporary netkit pair (deleting one end removes both)
     ip(f"link del {tmp_host_name}")
     cleanup_netkit.cancel()
@@ -908,6 +1060,8 @@ def _psp_dev_assoc_cleanup_on_netkit_del(cfg):
     ksft_true('assoc-list' not in dev_info
               or len(dev_info['assoc-list']) == 0,
               "assoc-list should be empty after netkit deletion")
+
+    _check_disassoc_ntf(cfg, main_pspnl, peer_pspnl, tmp_guest_ifindex)
 
 
 def _try_disassoc(cfg, psp_dev_id, ifindex, nsid=None):
@@ -1027,6 +1181,8 @@ def main() -> None:
                         data_basic_send_netkit_psp_assoc,
                         _key_rotation_notify_multi_ns_netkit,
                         _dev_change_notify_multi_ns_netkit,
+                        _dev_disassoc_notify_multi_ns_netkit,
+                        _dev_disassoc_notify_one_of_two_netkit,
                         _psp_dev_get_check_netkit_psp_assoc,
                         _dev_assoc_no_nsid,
                         _psp_dev_assoc_cleanup_on_netkit_del,

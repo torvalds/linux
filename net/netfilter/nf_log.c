@@ -493,7 +493,7 @@ static int netfilter_log_sysctl_init(struct net *net)
 	if (!net_eq(net, &init_net)) {
 		table = kmemdup(nf_log_sysctl_table,
 				 sizeof(nf_log_sysctl_table),
-				 GFP_KERNEL);
+				 GFP_KERNEL_ACCOUNT);
 		if (!table)
 			goto err_alloc;
 	} else {

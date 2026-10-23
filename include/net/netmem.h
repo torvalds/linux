@@ -70,16 +70,18 @@ enum net_iov_type {
 	NET_IOV_IOURING,
 };
 
-/* A memory descriptor representing abstract networking I/O vectors,
- * generally for non-pages memory that doesn't have its corresponding
- * struct page and needs to be explicitly allocated through slab.
+/* A memory descriptor representing abstract networking I/O vectors.
  *
  * net_iovs are allocated and used by networking code, and the size of
  * the chunk is PAGE_SIZE.
  *
- * This memory can be any form of non-struct paged memory.  Examples
- * include imported dmabuf memory and imported io_uring memory.  See
- * net_iov_type for all the supported types.
+ * Examples include imported dmabuf memory and imported io_uring memory. See
+ * net_iov_type for all the supported types. While current net_iov types are
+ * unreadable by the CPU, net_iov has no inherent restrictions and may be
+ * CPU-readable or unreadable. New code must not assume net_iov implies
+ * unreadable memory (check readability via netmem_address() or
+ * skb_frags_readable() instead) and should, as much as possible, generalize
+ * existing limitations to match the design principles.
  *
  * @pp_magic:	pp field, similar to the one in struct page/struct
  *		netmem_desc.
@@ -102,9 +104,6 @@ struct net_iov_area {
 	/* Array of net_iovs for this area. */
 	struct net_iov *niovs;
 	size_t num_niovs;
-
-	/* Offset into the dma-buf where this chunk starts.  */
-	unsigned long base_virtual;
 };
 
 static inline struct net_iov_area *net_iov_owner(const struct net_iov *niov)
@@ -134,8 +133,17 @@ static inline void net_iov_init(struct net_iov *niov,
  * network memory.
  *
  * A netmem_ref can be a struct page* or a struct net_iov* underneath.
+ * Memory providers (or the default page_pool allocator) allocate struct
+ * net_iov or struct page, cast them to netmem_ref, and hand them to
+ * page_pool.
  *
- * Use the supplied helpers to obtain the underlying memory pointer and fields.
+ * The page_pool, drivers, and core networking stack should operate on
+ * netmem_ref rather than struct page or struct net_iov. Downcasting
+ * netmem_ref via netmem_to_page() or netmem_to_net_iov() in callers is
+ * not allowed unless a code path strictly requires a specific backing
+ * type (e.g., kmap_local_page()). In such cases, add a netmem helper here
+ * that handles both page and net_iov cases and returns an error if the
+ * underlying type cannot support the operation.
  */
 typedef unsigned long __bitwise netmem_ref;
 
@@ -300,9 +308,8 @@ static inline atomic_long_t *netmem_get_pp_ref_count_ref(netmem_ref netmem)
 
 static inline bool netmem_is_pref_nid(netmem_ref netmem, int pref_nid)
 {
-	/* NUMA node preference only makes sense if we're allocating
-	 * system memory. Memory providers (which give us net_iovs)
-	 * choose for us.
+	/* NUMA node preference only applies to struct page; net_iovs are
+	 * managed by their memory provider.
 	 */
 	if (netmem_is_net_iov(netmem))
 		return true;
@@ -358,6 +365,33 @@ static inline bool netmem_is_pfmemalloc(netmem_ref netmem)
 	return page_is_pfmemalloc(netmem_to_page(netmem));
 }
 
+#define NETMEM_32BIT_ARCH_WITH_64BIT_DMA	\
+	(sizeof(dma_addr_t) > sizeof(unsigned long))
+
+static inline unsigned long netmem_dma_addr_encode(dma_addr_t addr)
+{
+	if (NETMEM_32BIT_ARCH_WITH_64BIT_DMA)
+		addr >>= PAGE_SHIFT;
+
+	return addr;
+}
+
+static inline dma_addr_t netmem_dma_addr_decode(unsigned long addr)
+{
+	if (NETMEM_32BIT_ARCH_WITH_64BIT_DMA)
+		return (dma_addr_t)addr << PAGE_SHIFT;
+
+	return addr;
+}
+
+static inline bool netmem_dma_addr_fits(dma_addr_t addr)
+{
+	/* We assume page alignment to shave off bottom bits,
+	 * if this "compression" doesn't work we need to drop.
+	 */
+	return addr == netmem_dma_addr_decode(netmem_dma_addr_encode(addr));
+}
+
 static inline unsigned long netmem_get_dma_addr(netmem_ref netmem)
 {
 	return netmem_to_nmdesc(netmem)->dma_addr;
@@ -375,21 +409,37 @@ static inline bool net_is_devmem_iov(const struct net_iov *niov)
 }
 #endif
 
-void __get_netmem(netmem_ref netmem);
-void __put_netmem(netmem_ref netmem);
+void net_iov_inc_ref(struct net_iov *niov);
+void net_iov_dec_ref(struct net_iov *niov);
 
-static __always_inline void get_netmem(netmem_ref netmem)
+/**
+ * netmem_inc_ref - acquire a non-page_pool reference on a netmem
+ * @netmem: netmem to reference
+ *
+ * Acquires a non-pp backing reference (page._refcount via get_page() or
+ * binding->ref via net_iov_inc_ref()) regardless of page_pool membership.
+ * Counterpart to netmem_dec_ref().
+ */
+static __always_inline void netmem_inc_ref(netmem_ref netmem)
 {
 	if (netmem_is_net_iov(netmem))
-		__get_netmem(netmem);
+		net_iov_inc_ref(netmem_to_net_iov(netmem));
 	else
 		get_page(netmem_to_page(netmem));
 }
 
-static __always_inline void put_netmem(netmem_ref netmem)
+/**
+ * netmem_dec_ref - release a non-page_pool reference on a netmem
+ * @netmem: netmem to unreference
+ *
+ * Drops a non-pp backing reference (page._refcount via put_page() or
+ * binding->ref via net_iov_dec_ref()) regardless of page_pool membership.
+ * Counterpart to netmem_inc_ref().
+ */
+static __always_inline void netmem_dec_ref(netmem_ref netmem)
 {
 	if (netmem_is_net_iov(netmem))
-		__put_netmem(netmem);
+		net_iov_dec_ref(netmem_to_net_iov(netmem));
 	else
 		put_page(netmem_to_page(netmem));
 }

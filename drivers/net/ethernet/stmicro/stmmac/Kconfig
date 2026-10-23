@@ -170,6 +170,7 @@ config DWMAC_ROCKCHIP
 	default ARCH_ROCKCHIP
 	depends on OF && (ARCH_ROCKCHIP || COMPILE_TEST)
 	select MFD_SYSCON
+	select PCS_XPCS_ROCKCHIP
 	help
 	  Support for Ethernet controller on Rockchip RK3288 SoC.
 
@@ -318,6 +319,17 @@ config DWMAC_THEAD
 	  This selects the T-HEAD platform specific glue layer support for
 	  the stmmac device driver. This driver is used for T-HEAD TH1520
 	  ethernet controller.
+
+config DWMAC_ULTRARISC
+	tristate "UltraRISC DWMAC support"
+	default ARCH_ULTRARISC
+	depends on OF && (ARCH_ULTRARISC || COMPILE_TEST)
+	help
+	  Support for the Ethernet controller on the UltraRISC DP1000 SoC.
+
+	  This selects the UltraRISC platform specific glue layer support
+	  for the stmmac device driver. This driver is used for the DP1000
+	  GMAC Ethernet controller.
 
 config DWMAC_IMX8
 	tristate "NXP IMX8 DWMAC support"

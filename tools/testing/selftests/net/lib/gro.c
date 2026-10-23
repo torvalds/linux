@@ -46,6 +46,12 @@
  *   - large_max: exceeding max size
  *   - large_rem: remainder handling
  *
+ * big_tcp_*:
+ *   - big_tcp_data_same:    equal segments coalescing past IP_MAXPACKET
+ *   - big_tcp_data_lrg_sml: a smaller final segment carrying it over
+ *   - big_tcp_tcp_seq:      16-bit truncated sequence number must not coalesce
+ *   - big_tcp_large_max:    coalescing stops at the configured limit
+ *
  * single, capacity:
  *  Boring cases used to test coalescing machinery itself and stats
  *  more than protocol behavior.
@@ -110,6 +116,16 @@
 
 #define EXIT_OVER_COALESCE	42
 
+/* Must match BIG_TCP_GRO_MAX_SIZE in gro_lib.py. */
+#define BIG_TCP_GRO_MAX_SIZE	128000
+
+#define BIG_TCP_RECV_BUF_LEN \
+	(BIG_TCP_GRO_MAX_SIZE + MAX_MSS + L2_HLEN_MAX)
+#define BIG_TCP_MIN_MSS		(ASSUMED_MTU - (MAX_HDR_LEN - ETH_HLEN))
+#define BIG_TCP_MAX_FILL_CNT \
+	((int)((BIG_TCP_GRO_MAX_SIZE - 1 - (MAX_HDR_LEN - ETH_HLEN)) / \
+	       BIG_TCP_MIN_MSS))
+
 #define ipv6_optlen(p)  (((p)->hdrlen+1) << 3) /* calculate IPv6 extension header len */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
@@ -164,6 +180,27 @@ static int calc_mss(void)
 static int num_large_pkt(void)
 {
 	return max_payload() / calc_mss();
+}
+
+/* How many maximum sized segments fit under the configured limit. */
+static int big_tcp_large_cnt(void)
+{
+	return (BIG_TCP_GRO_MAX_SIZE - 1 - (total_hdr_len - ETH_HLEN)) /
+	       calc_mss();
+}
+
+/* How many calc_mss() sized segments are needed to satisfy the
+ * following condition:
+ * pkt_count * calc_mss() < IP_MAXPACKET < (pkt_count + 1) * calc_mss()
+ */
+static int big_tcp_fill_cnt(void)
+{
+	return IP_MAXPACKET / calc_mss();
+}
+
+static int big_tcp_fill_len(void)
+{
+	return big_tcp_fill_cnt() * calc_mss();
 }
 
 static void vlog(const char *fmt, ...)
@@ -558,6 +595,61 @@ static void send_data_pkts(int fd, struct sockaddr_ll *daddr,
 	write_packet(fd, buf, total_hdr_len + payload_len1, daddr);
 	create_packet(buf, payload_len1, 0, payload_len2, 0);
 	write_packet(fd, buf, total_hdr_len + payload_len2, daddr);
+}
+
+/* Send num_pkt segments of pkt_len bytes, then one of remainder len. */
+static void send_big_tcp(int fd, struct sockaddr_ll *daddr, int pkt_len,
+			 int num_pkt, int remainder)
+{
+	static char pkts[BIG_TCP_MAX_FILL_CNT][MAX_HDR_LEN + MAX_MSS];
+	static char last[MAX_HDR_LEN + MAX_MSS];
+	const int filled = num_pkt * pkt_len;
+	int i;
+
+	if (num_pkt > BIG_TCP_MAX_FILL_CNT)
+		error(1, 0, "need %d packets, array holds %d",
+		      num_pkt, BIG_TCP_MAX_FILL_CNT);
+
+	for (i = 0; i < num_pkt; i++)
+		create_packet(pkts[i], i * pkt_len, 0, pkt_len, 0);
+	create_packet(last, filled, 0, remainder, 0);
+
+	for (i = 0; i < num_pkt; i++)
+		write_packet(fd, pkts[i], total_hdr_len + pkt_len, daddr);
+	write_packet(fd, last, total_hdr_len + remainder, daddr);
+}
+
+/* In BIG TCP configuration, the total aggregate length can
+ * be greater than the legacy IP_MAXPACKET. Since the aggregate
+ * length is used in calculating the sequence numbers,
+ * send a packet with a sequence number that differs by IP_MAXPACKET + 1,
+ * to test against truncation bugs.
+ */
+static void send_big_tcp_bad_seq(int fd, struct sockaddr_ll *daddr)
+{
+	static char pkts[BIG_TCP_MAX_FILL_CNT][MAX_HDR_LEN + MAX_MSS];
+	const int num_pkt = big_tcp_fill_cnt() + 1;
+	static char last[MAX_HDR_LEN + MAX_MSS];
+	const int pkt_len = calc_mss();
+	int bad_seq;
+	int filled;
+	int i;
+
+	filled = num_pkt * pkt_len;
+	/* Low 16 bits match with the correct incoming sequence number. */
+	bad_seq = filled - (IP_MAXPACKET + 1);
+
+	if (num_pkt > BIG_TCP_MAX_FILL_CNT)
+		error(1, 0, "need %d packets, array holds %d",
+		      num_pkt, BIG_TCP_MAX_FILL_CNT);
+
+	for (i = 0; i < num_pkt; i++)
+		create_packet(pkts[i], i * pkt_len, 0, pkt_len, 0);
+	create_packet(last, bad_seq, 0, pkt_len, 0);
+
+	for (i = 0; i < num_pkt; i++)
+		write_packet(fd, pkts[i], total_hdr_len + pkt_len, daddr);
+	write_packet(fd, last, total_hdr_len + pkt_len, daddr);
 }
 
 /* If incoming segments make tracked segment length exceed
@@ -1161,7 +1253,7 @@ static void recv_error(int fd, int rcv_errno)
 static void check_recv_pkts(int fd, int *correct_payload,
 			    int correct_num_pkts)
 {
-	static char buffer[IP_MAXPACKET + L2_HLEN_MAX + 1];
+	static char buffer[BIG_TCP_RECV_BUF_LEN];
 	int nhoff = ETH_HLEN + (pppoe ? PPPOE_SES_HLEN : 0);
 	struct iphdr *iph = (struct iphdr *)(buffer + nhoff);
 	struct ipv6hdr *ip6h = (struct ipv6hdr *)(buffer + nhoff);
@@ -1211,7 +1303,8 @@ static void check_recv_pkts(int fd, int *correct_payload,
 				- sizeof(struct tcphdr) - sizeof(struct iphdr);
 		}
 		vlog("%d ", data_len);
-		if (data_len != correct_payload[num_pkt]) {
+		if (num_pkt < correct_num_pkts &&
+		    data_len != correct_payload[num_pkt]) {
 			vlog("[!=%d]", correct_payload[num_pkt]);
 			bad_packet = true;
 		}
@@ -1541,6 +1634,25 @@ static void gro_sender(void)
 		send_large(txfd, &daddr, remainder + 1);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 
+	/* big tcp sub-tests */
+	} else if (strcmp(testname, "big_tcp_data_same") == 0) {
+		send_big_tcp(txfd, &daddr, calc_mss(), big_tcp_fill_cnt(),
+			     calc_mss());
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "big_tcp_data_lrg_sml") == 0) {
+		int remainder = calc_mss() / 2;
+
+		send_big_tcp(txfd, &daddr, calc_mss(), big_tcp_fill_cnt(),
+			     remainder);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "big_tcp_tcp_seq") == 0) {
+		send_big_tcp_bad_seq(txfd, &daddr);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "big_tcp_large_max") == 0) {
+		send_big_tcp(txfd, &daddr, calc_mss(), big_tcp_large_cnt(),
+			     calc_mss());
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+
 	/* machinery sub-tests */
 	} else if (strcmp(testname, "single") == 0) {
 		static char buf[MAX_HDR_LEN + PAYLOAD_LEN];
@@ -1767,6 +1879,26 @@ static void gro_receiver(void)
 		correct_payload[2] = remainder + 1;
 		printf("last segment sent individually: ");
 		check_recv_pkts(rxfd, correct_payload, 3);
+
+	/* big tcp sub-tests */
+	} else if (strcmp(testname, "big_tcp_data_same") == 0) {
+		correct_payload[0] = big_tcp_fill_len() + calc_mss();
+		printf("data packets of same size past IP_MAXPACKET: ");
+		check_recv_pkts(rxfd, correct_payload, 1);
+	} else if (strcmp(testname, "big_tcp_data_lrg_sml") == 0) {
+		correct_payload[0] = big_tcp_fill_len() + calc_mss() / 2;
+		printf("smaller last packet past IP_MAXPACKET: ");
+		check_recv_pkts(rxfd, correct_payload, 1);
+	} else if (strcmp(testname, "big_tcp_tcp_seq") == 0) {
+		correct_payload[0] = (big_tcp_fill_cnt() + 1) * calc_mss();
+		correct_payload[1] = calc_mss();
+		printf("aliased seq past IP_MAXPACKET doesn't coalesce: ");
+		check_recv_pkts(rxfd, correct_payload, 2);
+	} else if (strcmp(testname, "big_tcp_large_max") == 0) {
+		correct_payload[0] = big_tcp_large_cnt() * calc_mss();
+		correct_payload[1] = calc_mss();
+		printf("shouldn't coalesce past gro_max_size: ");
+		check_recv_pkts(rxfd, correct_payload, 2);
 
 	/* machinery sub-tests */
 	} else if (strcmp(testname, "single") == 0) {

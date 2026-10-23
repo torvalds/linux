@@ -800,7 +800,10 @@ static inline int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg)
 	int ret = INDIRECT_CALL_INET(READ_ONCE(sock->ops)->sendmsg, inet6_sendmsg,
 				     inet_sendmsg, sock, msg,
 				     msg_data_left(msg));
-	BUG_ON(ret == -EIOCBQUEUED);
+	if (unlikely(ret == -EIOCBQUEUED)) {
+		DEBUG_NET_WARN_ON_ONCE(1);
+		ret = -EIO;
+	}
 
 	if (trace_sock_send_length_enabled())
 		call_trace_sock_send_length(sock->sk, ret, 0);
@@ -1851,10 +1854,7 @@ int __sys_socketpair(int family, int type, int protocol, int __user *usockvec)
 	if (SOCK_NONBLOCK != O_NONBLOCK && (flags & SOCK_NONBLOCK))
 		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
-	/*
-	 * reserve descriptors and make sure we won't fail
-	 * to return them to userland.
-	 */
+	/* Reserve both descriptors before creating the sockets. */
 	fd1 = get_unused_fd_flags(flags);
 	if (unlikely(fd1 < 0))
 		return fd1;
@@ -1864,14 +1864,6 @@ int __sys_socketpair(int family, int type, int protocol, int __user *usockvec)
 		put_unused_fd(fd1);
 		return fd2;
 	}
-
-	err = put_user(fd1, &usockvec[0]);
-	if (err)
-		goto out;
-
-	err = put_user(fd2, &usockvec[1]);
-	if (err)
-		goto out;
 
 	/*
 	 * Obtain the first socket and check if the underlying protocol
@@ -1912,6 +1904,16 @@ int __sys_socketpair(int family, int type, int protocol, int __user *usockvec)
 	newfile2 = sock_alloc_file(sock2, flags, NULL);
 	if (IS_ERR(newfile2)) {
 		err = PTR_ERR(newfile2);
+		fput(newfile1);
+		goto out;
+	}
+
+	/* Publish the descriptors now that it shouldn't fail. */
+	err = put_user(fd1, &usockvec[0]);
+	if (!err)
+		err = put_user(fd2, &usockvec[1]);
+	if (err) {
+		fput(newfile2);
 		fput(newfile1);
 		goto out;
 	}
@@ -2437,8 +2439,8 @@ INDIRECT_CALLABLE_DECLARE(bool tcp_bpf_bypass_getsockopt(int level,
  * It is important to remember that both iov points to the same data, but,
  * .iter_in is read-only and .iter_out is write-only by the protocol callbacks
  */
-static int sockptr_to_sockopt(sockopt_t *opt, sockptr_t optval,
-			      sockptr_t optlen, struct kvec *kvec)
+int sockptr_to_sockopt(sockopt_t *opt, sockptr_t optval,
+		       sockptr_t optlen, struct kvec *kvec)
 {
 	int koptlen;
 

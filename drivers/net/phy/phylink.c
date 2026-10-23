@@ -14,6 +14,8 @@
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
+#include <linux/phy_link_topology.h>
+#include <linux/phy_port.h>
 #include <linux/phylink.h>
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
@@ -93,6 +95,8 @@ struct phylink {
 	DECLARE_PHY_INTERFACE_MASK(sfp_interfaces);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(sfp_support);
 	u8 sfp_port;
+	struct phy_port *sfp_cage_port;
+	struct phy_port *mod_port;
 
 	struct eee_config eee_cfg;
 
@@ -1767,6 +1771,57 @@ static void phylink_fixed_poll(struct timer_list *t)
 
 static const struct sfp_upstream_ops sfp_phylink_ops;
 
+static int phylink_create_sfp_cage_port(struct phylink *pl)
+{
+	struct phy_port *port;
+	int ret = 0;
+
+	if (!pl->netdev || !pl->sfp_bus)
+		return 0;
+
+	port = phy_port_alloc();
+	if (!port)
+		return -ENOMEM;
+
+	port->is_sfp = true;
+	port->is_mii = true;
+	port->active = true;
+
+	phy_interface_and(port->interfaces, pl->config->supported_interfaces,
+			  phylink_sfp_interfaces);
+	phy_port_update_supported(port);
+
+	rtnl_lock();
+	ret = phy_link_topo_add_port(pl->netdev, port);
+	rtnl_unlock();
+	if (ret)
+		goto out_destroy_port;
+
+	pl->sfp_cage_port = port;
+
+	return 0;
+
+out_destroy_port:
+	phy_port_destroy(port);
+	pl->sfp_cage_port = NULL;
+	return ret;
+}
+
+static void phylink_destroy_sfp_cage_port(struct phylink *pl)
+{
+	if (pl->netdev && pl->sfp_cage_port) {
+		/* The port may still be accessed under RTNL */
+		rtnl_lock();
+		phy_link_topo_del_port(pl->netdev, pl->sfp_cage_port);
+		rtnl_unlock();
+	}
+
+	if (pl->sfp_cage_port)
+		phy_port_destroy(pl->sfp_cage_port);
+
+	pl->sfp_cage_port = NULL;
+}
+
 static int phylink_register_sfp(struct phylink *pl,
 				const struct fwnode_handle *fwnode)
 {
@@ -1784,8 +1839,17 @@ static int phylink_register_sfp(struct phylink *pl,
 
 	pl->sfp_bus = bus;
 
+	ret = phylink_create_sfp_cage_port(pl);
+	if (ret) {
+		sfp_bus_put(bus);
+		return ret;
+	}
+
 	ret = sfp_bus_add_upstream(bus, pl, &sfp_phylink_ops);
 	sfp_bus_put(bus);
+
+	if (ret)
+		phylink_destroy_sfp_cage_port(pl);
 
 	return ret;
 }
@@ -1830,6 +1894,126 @@ int phylink_set_fixed_link(struct phylink *pl,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(phylink_set_fixed_link);
+
+/**
+ * phylink_update_pause_state() - Update the phylink pause frame configuration
+ * @pl: a pointer to a &struct phylink instance
+ * @pause_state: bitmask indicating the new pause state
+ *
+ * Update the MAC pause frame (flow control) state for the phylink instance.
+ */
+static void phylink_update_pause_state(struct phylink *pl, int pause_state)
+{
+	struct phylink_link_state *config = &pl->link_config;
+	bool tx_pause = !!(pause_state & MLO_PAUSE_TX);
+	bool rx_pause = !!(pause_state & MLO_PAUSE_RX);
+	bool manual_changed;
+
+	mutex_lock(&pl->state_mutex);
+
+	/*
+	 * See the comments for linkmode_set_pause(), wrt the deficiencies
+	 * with the current implementation.  A solution to this issue would
+	 * be:
+	 * ethtool  Local device
+	 *  rx  tx  Pause AsymDir
+	 *  0   0   0     0
+	 *  1   0   1     1
+	 *  0   1   0     1
+	 *  1   1   1     1
+	 * and then use the ethtool rx/tx enablement status to mask the
+	 * rx/tx pause resolution.
+	 */
+	linkmode_set_pause(config->advertising, tx_pause,
+			   rx_pause);
+
+	manual_changed = (config->pause ^ pause_state) & MLO_PAUSE_AN ||
+			 (!(pause_state & MLO_PAUSE_AN) &&
+			   (config->pause ^ pause_state) & MLO_PAUSE_TXRX_MASK);
+
+	config->pause = pause_state;
+
+	/* Update our in-band advertisement, triggering a renegotiation if
+	 * the advertisement changed.
+	 */
+	if (!pl->phydev)
+		phylink_change_inband_advert(pl);
+
+	mutex_unlock(&pl->state_mutex);
+
+	/* If we have a PHY, a change of the pause frame advertisement will
+	 * cause phylib to renegotiate (if AN is enabled) which will in turn
+	 * call our phylink_phy_change() and trigger a resolve.  Note that
+	 * we can't hold our state mutex while calling phy_set_asym_pause().
+	 */
+	if (pl->phydev)
+		phy_set_asym_pause(pl->phydev, rx_pause, tx_pause);
+
+	/* If the manual pause settings changed, make sure we trigger a
+	 * resolve to update their state; we can not guarantee that the
+	 * link will cycle.
+	 */
+	if (manual_changed) {
+		pl->link_failed = true;
+		phylink_run_resolve(pl);
+	}
+}
+
+/**
+ * phylink_update_mac_pause_capabilities() - Dynamically update MAC pause
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @mac_pause: the new MAC pause capabilities mask
+ *
+ * This function allows a MAC driver to dynamically change its pause state,
+ * such as losing/gaining Pause frame support based on MTU size.
+ * It recalculates supported link modes and triggers renegotiation if needed.
+ */
+void phylink_update_mac_pause_capabilities(struct phylink *pl, unsigned long mac_pause)
+{
+	struct phylink_link_state *config = &pl->link_config;
+	unsigned long old_pause;
+	int pause_state;
+
+	ASSERT_RTNL();
+
+	if (mac_pause & ~(MAC_SYM_PAUSE | MAC_ASYM_PAUSE)) {
+		phylink_err(pl, "Attempted to dynamically change non-pause MAC capabilities\n");
+		return;
+	}
+
+	old_pause = pl->config->mac_capabilities & (MAC_SYM_PAUSE | MAC_ASYM_PAUSE);
+	if (old_pause == mac_pause)
+		return;
+
+	mutex_lock(&pl->state_mutex);
+
+	pl->config->mac_capabilities &= ~(MAC_SYM_PAUSE | MAC_ASYM_PAUSE);
+	pl->config->mac_capabilities |= mac_pause;
+
+	phylink_set(pl->supported, Pause);
+	phylink_set(pl->supported, Asym_Pause);
+
+	if (pl->phydev)
+		linkmode_and(pl->supported, pl->supported, pl->phydev->supported);
+	else if (pl->sfp_bus)
+		linkmode_and(pl->supported, pl->supported, pl->sfp_support);
+
+	phylink_validate(pl, pl->supported, config);
+
+	pause_state = config->pause;
+
+	if (!phylink_test(pl->supported, Pause)) {
+		pause_state &= ~(MLO_PAUSE_RX | MLO_PAUSE_TX);
+	} else if (!phylink_test(pl->supported, Asym_Pause)) {
+		if ((pause_state & MLO_PAUSE_RX) ^ (pause_state & MLO_PAUSE_TX))
+			pause_state &= ~(MLO_PAUSE_RX | MLO_PAUSE_TX);
+	}
+
+	mutex_unlock(&pl->state_mutex);
+
+	phylink_update_pause_state(pl, pause_state);
+}
+EXPORT_SYMBOL_GPL(phylink_update_mac_pause_capabilities);
 
 /**
  * phylink_create() - create a phylink instance
@@ -1949,6 +2133,7 @@ EXPORT_SYMBOL_GPL(phylink_create);
 void phylink_destroy(struct phylink *pl)
 {
 	sfp_bus_del_upstream(pl->sfp_bus);
+	phylink_destroy_sfp_cage_port(pl);
 	if (pl->link_gpio)
 		gpiod_put(pl->link_gpio);
 
@@ -3204,8 +3389,6 @@ EXPORT_SYMBOL_GPL(phylink_ethtool_get_pauseparam);
 int phylink_ethtool_set_pauseparam(struct phylink *pl,
 				   struct ethtool_pauseparam *pause)
 {
-	struct phylink_link_state *config = &pl->link_config;
-	bool manual_changed;
 	int pause_state;
 
 	ASSERT_RTNL();
@@ -3229,54 +3412,7 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 	if (pause->tx_pause)
 		pause_state |= MLO_PAUSE_TX;
 
-	mutex_lock(&pl->state_mutex);
-	/*
-	 * See the comments for linkmode_set_pause(), wrt the deficiencies
-	 * with the current implementation.  A solution to this issue would
-	 * be:
-	 * ethtool  Local device
-	 *  rx  tx  Pause AsymDir
-	 *  0   0   0     0
-	 *  1   0   1     1
-	 *  0   1   0     1
-	 *  1   1   1     1
-	 * and then use the ethtool rx/tx enablement status to mask the
-	 * rx/tx pause resolution.
-	 */
-	linkmode_set_pause(config->advertising, pause->tx_pause,
-			   pause->rx_pause);
-
-	manual_changed = (config->pause ^ pause_state) & MLO_PAUSE_AN ||
-			 (!(pause_state & MLO_PAUSE_AN) &&
-			   (config->pause ^ pause_state) & MLO_PAUSE_TXRX_MASK);
-
-	config->pause = pause_state;
-
-	/* Update our in-band advertisement, triggering a renegotiation if
-	 * the advertisement changed.
-	 */
-	if (!pl->phydev)
-		phylink_change_inband_advert(pl);
-
-	mutex_unlock(&pl->state_mutex);
-
-	/* If we have a PHY, a change of the pause frame advertisement will
-	 * cause phylib to renegotiate (if AN is enabled) which will in turn
-	 * call our phylink_phy_change() and trigger a resolve.  Note that
-	 * we can't hold our state mutex while calling phy_set_asym_pause().
-	 */
-	if (pl->phydev)
-		phy_set_asym_pause(pl->phydev, pause->rx_pause,
-				   pause->tx_pause);
-
-	/* If the manual pause settings changed, make sure we trigger a
-	 * resolve to update their state; we can not guarantee that the
-	 * link will cycle.
-	 */
-	if (manual_changed) {
-		pl->link_failed = true;
-		phylink_run_resolve(pl);
-	}
+	phylink_update_pause_state(pl, pause_state);
 
 	return 0;
 }
@@ -3884,14 +4020,70 @@ static void phylink_sfp_module_remove(void *upstream)
 	phy_interface_zero(pl->sfp_interfaces);
 }
 
+static int phylink_add_sfp_mod_port(struct phylink *pl)
+{
+	DECLARE_PHY_INTERFACE_MASK(interfaces);
+	const struct sfp_module_caps *caps;
+	struct phy_port *port;
+	int ret = 0;
+
+	if (!pl->sfp_cage_port)
+		return 0;
+
+	/* Create mod port */
+	port = phy_port_alloc();
+	if (!port)
+		return -ENOMEM;
+
+	port->active = true;
+
+	caps = sfp_get_module_caps(pl->sfp_bus);
+
+	phy_interface_and(interfaces, pl->sfp_cage_port->interfaces,
+			  caps->interfaces);
+	phy_caps_linkmode_filter_ifaces(port->supported, caps->link_modes,
+					interfaces);
+
+	if (pl->netdev) {
+		ret = phy_link_topo_add_port(pl->netdev, port);
+		if (ret) {
+			phy_port_destroy(port);
+			return ret;
+		}
+	}
+
+	port->upstream_port = pl->sfp_cage_port;
+
+	pl->mod_port = port;
+
+	return 0;
+}
+
+static void phylink_del_sfp_mod_port(struct phylink *pl)
+{
+	if (!pl->mod_port)
+		return;
+
+	if (pl->netdev)
+		phy_link_topo_del_port(pl->netdev, pl->mod_port);
+
+	phy_port_destroy(pl->mod_port);
+	pl->mod_port = NULL;
+}
+
 static int phylink_sfp_module_start(void *upstream)
 {
 	struct phylink *pl = upstream;
+	int ret;
 
 	/* If this SFP module has a PHY, start the PHY now. */
 	if (pl->phydev) {
 		phy_start(pl->phydev);
 		return 0;
+	} else {
+		ret = phylink_add_sfp_mod_port(pl);
+		if (ret)
+			return ret;
 	}
 
 	/* If the module may have a PHY but we didn't detect one we
@@ -3900,7 +4092,16 @@ static int phylink_sfp_module_start(void *upstream)
 	if (!pl->sfp_may_have_phy)
 		return 0;
 
-	return phylink_sfp_config_optical(pl);
+	ret = phylink_sfp_config_optical(pl);
+	if (ret)
+		goto del_mod_port;
+
+	return 0;
+
+del_mod_port:
+	phylink_del_sfp_mod_port(pl);
+
+	return ret;
 }
 
 static void phylink_sfp_module_stop(void *upstream)
@@ -3910,6 +4111,8 @@ static void phylink_sfp_module_stop(void *upstream)
 	/* If this SFP module has a PHY, stop it. */
 	if (pl->phydev)
 		phy_stop(pl->phydev);
+	else
+		phylink_del_sfp_mod_port(pl);
 }
 
 static void phylink_sfp_link_down(void *upstream)
@@ -3954,6 +4157,8 @@ static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 	phy_interface_and(phy->host_interfaces, phylink_sfp_interfaces,
 			  pl->config->supported_interfaces);
 
+	phy_set_upstream_port(phy, pl->sfp_cage_port);
+
 	/* Do the initial configuration */
 	return phylink_sfp_config_phy(pl, phy);
 }
@@ -3962,6 +4167,7 @@ static void phylink_sfp_disconnect_phy(void *upstream,
 				       struct phy_device *phydev)
 {
 	phylink_disconnect_phy(upstream);
+	phy_set_upstream_port(phydev, NULL);
 }
 
 static const struct sfp_upstream_ops sfp_phylink_ops = {
@@ -4373,6 +4579,11 @@ void phylink_mii_c45_pcs_get_state(struct mdio_device *pcs,
 	switch (state->interface) {
 	case PHY_INTERFACE_MODE_10GBASER:
 		state->speed = SPEED_10000;
+		state->duplex = DUPLEX_FULL;
+		break;
+
+	case PHY_INTERFACE_MODE_25GBASER:
+		state->speed = SPEED_25000;
 		state->duplex = DUPLEX_FULL;
 		break;
 

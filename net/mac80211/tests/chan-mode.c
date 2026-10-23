@@ -153,8 +153,11 @@ static void test_determine_chan_mode(struct kunit *test)
 		.mode = params->conn_mode,
 		.bw_limit = params->conn_bw_limit,
 	};
-	struct cfg80211_bss cbss = {
-		.channel = &t_sdata->band_5ghz.channels[0],
+	struct {
+		struct cfg80211_bss cbss;
+		struct ieee80211_bss internal;
+	} bss = {
+		.cbss.channel = &t_sdata->band_5ghz.channels[0],
 	};
 	unsigned long userspace_selectors[BITS_TO_LONGS(128)] = {};
 	u8 bss_ies[] = {
@@ -219,10 +222,8 @@ static void test_determine_chan_mode(struct kunit *test)
 	/* To force EHT downgrade to HE on punctured 80 MHz downgraded to 40 MHz */
 	set_bit(IEEE80211_HW_DISALLOW_PUNCTURING, t_sdata->local.hw.flags);
 
-	if (params->strict)
-		set_bit(IEEE80211_HW_STRICT, t_sdata->local.hw.flags);
-	else
-		clear_bit(IEEE80211_HW_STRICT, t_sdata->local.hw.flags);
+	assign_bit(IEEE80211_HW_STRICT, t_sdata->local.hw.flags,
+		   params->strict);
 
 	t_sdata->sdata->u.mgd.ht_capa_mask = params->ht_capa_mask;
 	t_sdata->sdata->u.mgd.vht_capa = params->vht_capa;
@@ -231,18 +232,18 @@ static void test_determine_chan_mode(struct kunit *test)
 	if (params->userspace_selector)
 		set_bit(params->userspace_selector, userspace_selectors);
 
-	rcu_assign_pointer(cbss.ies,
+	rcu_assign_pointer(bss.cbss.ies,
 			   kunit_kzalloc(test,
-					 sizeof(cbss) + sizeof(bss_ies),
+					 sizeof(*bss.cbss.ies) + sizeof(bss_ies),
 					 GFP_KERNEL));
-	KUNIT_ASSERT_NOT_NULL(test, rcu_access_pointer(cbss.ies));
-	((struct cfg80211_bss_ies *)rcu_access_pointer(cbss.ies))->len = sizeof(bss_ies);
+	KUNIT_ASSERT_NOT_NULL(test, rcu_access_pointer(bss.cbss.ies));
+	((struct cfg80211_bss_ies *)rcu_access_pointer(bss.cbss.ies))->len = sizeof(bss_ies);
 
-	memcpy((void *)rcu_access_pointer(cbss.ies)->data, bss_ies,
+	memcpy((void *)rcu_access_pointer(bss.cbss.ies)->data, bss_ies,
 	       sizeof(bss_ies));
 
 	rcu_read_lock();
-	elems = ieee80211_determine_chan_mode(t_sdata->sdata, &conn, &cbss,
+	elems = ieee80211_determine_chan_mode(t_sdata->sdata, &conn, &bss.cbss,
 					      NULL, 0, &chanreq, &ap_chandef,
 					      userspace_selectors);
 	rcu_read_unlock();

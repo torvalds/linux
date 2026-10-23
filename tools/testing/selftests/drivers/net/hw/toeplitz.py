@@ -13,7 +13,7 @@ import os
 import socket
 from lib.py import ksft_run, ksft_exit, ksft_pr
 from lib.py import NetDrvEpEnv, EthtoolFamily, NetdevFamily
-from lib.py import cmd, bkg, rand_port, defer
+from lib.py import cmd, bkg, ctl_file_write, rand_port, defer
 from lib.py import ksft_in
 from lib.py import ksft_variants, KsftNamedVariant, KsftSkipEx, KsftFailEx
 
@@ -113,7 +113,7 @@ def _get_unused_rps_cpus(cfg, count=2):
 
 
 def _configure_rps(cfg, rps_cpus):
-    """Configure RPS for all Rx queues."""
+    """Configure RPS for all Rx queues, restored at the end of the test."""
 
     mask = 0
     for cpu in rps_cpus:
@@ -123,9 +123,8 @@ def _configure_rps(cfg, rps_cpus):
 
     # Set RPS bitmap for all rx queues
     for rps_file in glob.glob(f"/sys/class/net/{cfg.ifname}/queues/rx-*/rps_cpus"):
-        with open(rps_file, "w", encoding="utf-8") as fp:
-            # sysfs expects hex without '0x' prefix, toeplitz.c needs the prefix
-            fp.write(mask[2:])
+        # sysfs expects hex without '0x' prefix, toeplitz.c needs the prefix
+        ctl_file_write(rps_file, mask[2:])
 
     return mask
 
@@ -208,7 +207,6 @@ def test(cfg, proto_flag, ipver, grp):
         # Get CPUs not used by Rx queues and configure them for RPS
         rps_cpus = _get_unused_rps_cpus(cfg, count=2)
         rps_mask = _configure_rps(cfg, rps_cpus)
-        defer(_configure_rps, cfg, [])
         rx_cmd += ["-r", rps_mask]
         ksft_pr(f"RPS using CPUs: {rps_cpus}, mask: {rps_mask}")
 

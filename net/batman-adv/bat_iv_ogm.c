@@ -2422,27 +2422,28 @@ static int batadv_iv_ogm_neigh_cmp(struct batadv_neigh_node *neigh1,
 }
 
 /**
- * batadv_iv_ogm_neigh_is_sob() - check if neigh1 is similarly good or better
- *  than neigh2 from the metric prospective
- * @neigh1: the first neighbor object of the comparison
- * @if_outgoing1: outgoing interface for the first neighbor
- * @neigh2: the second neighbor object of the comparison
- * @if_outgoing2: outgoing interface for the second neighbor
+ * batadv_iv_ogm_neigh_is_sob() - check if @candidate is similarly good or
+ *  better than @reference from the metric prospective
+ * @candidate: the first neighbor object of the comparison
+ * @if_outgoing_cand: outgoing interface for the @candidate neighbor
+ * @reference: the second neighbor object of the comparison
+ * @if_outgoing_ref: outgoing interface for the @reference neighbor
  *
- * Return: true if the metric via neigh1 is equally good or better than
- * the metric via neigh2, false otherwise.
+ * Return: true if the metric via @candidate is equally good or better than
+ * the metric via @reference, false otherwise.
  */
 static bool
-batadv_iv_ogm_neigh_is_sob(struct batadv_neigh_node *neigh1,
-			   struct batadv_hard_iface *if_outgoing1,
-			   struct batadv_neigh_node *neigh2,
-			   struct batadv_hard_iface *if_outgoing2)
+batadv_iv_ogm_neigh_is_sob(struct batadv_neigh_node *candidate,
+			   struct batadv_hard_iface *if_outgoing_cand,
+			   struct batadv_neigh_node *reference,
+			   struct batadv_hard_iface *if_outgoing_ref)
 {
 	bool ret;
 	int diff;
 
-	ret = batadv_iv_ogm_neigh_diff(neigh1, if_outgoing1, neigh2,
-				       if_outgoing2, &diff);
+	ret = batadv_iv_ogm_neigh_diff(candidate, if_outgoing_cand,
+				       reference, if_outgoing_ref,
+				       &diff);
 	if (!ret)
 		return false;
 

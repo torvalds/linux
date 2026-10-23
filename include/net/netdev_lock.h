@@ -110,34 +110,20 @@ static inline int netdev_is_locked_ops_compat(const struct net_device *dev)
 	return lockdep_rtnl_is_held();
 }
 
-static inline int netdev_lock_cmp_fn(const struct lockdep_map *a,
-				     const struct lockdep_map *b)
-{
-	if (a == b)
-		return 0;
-
-	/* Allow locking multiple devices only under rtnl_lock,
-	 * the exact order doesn't matter.
-	 * Note that upper devices don't lock their ops, so nesting
-	 * mostly happens in batched device removal for now.
-	 */
-	return lockdep_rtnl_is_held() ? -1 : 1;
-}
+void netdev_set_instance_lock_class(struct net_device *dev);
 
 #define netdev_lockdep_set_classes(dev)				\
 {								\
 	static struct lock_class_key qdisc_tx_busylock_key;	\
 	static struct lock_class_key qdisc_xmit_lock_key;	\
 	static struct lock_class_key dev_addr_list_lock_key;	\
-	static struct lock_class_key dev_instance_lock_key;	\
 	unsigned int i;						\
 								\
 	(dev)->qdisc_tx_busylock = &qdisc_tx_busylock_key;	\
 	lockdep_set_class(&(dev)->addr_list_lock,		\
 			  &dev_addr_list_lock_key);		\
-	lockdep_set_class(&(dev)->lock,				\
-			  &dev_instance_lock_key);		\
-	lock_set_cmp_fn(&dev->lock, netdev_lock_cmp_fn, NULL);	\
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING))			\
+		netdev_set_instance_lock_class(dev);		\
 	for (i = 0; i < (dev)->num_tx_queues; i++)		\
 		lockdep_set_class(&(dev)->_tx[i]._xmit_lock,	\
 				  &qdisc_xmit_lock_key);	\

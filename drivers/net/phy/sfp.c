@@ -432,6 +432,19 @@ static void sfp_fixup_rollball_wait4s(struct sfp *sfp)
 	sfp->module_t_wait = msecs_to_jiffies(4000);
 }
 
+static void sfp_fixup_xikestor_2_5g(struct sfp *sfp)
+{
+	sfp_fixup_rollball(sfp);
+
+	/* This module does not immediately respond to Rollball commands. Add
+	 * a small delay to avoid unnecessary PHY access attempts. Note that
+	 * the delay should not be too long, as the RTL8221B-VB-CG PHY inside
+	 * breaks when reading some registers from MMD 30 if it has already
+	 * established a link (which takes about 4 seconds after reset).
+	 */
+	sfp->module_t_wait = msecs_to_jiffies(1000);
+}
+
 static void sfp_fixup_fs_10gt(struct sfp *sfp)
 {
 	sfp_fixup_10gbaset_30m(sfp);
@@ -581,17 +594,17 @@ static const struct sfp_quirk sfp_quirks[] = {
 	// can operate at 2500base-X, but reports 1000BASE-LX / 1300MBd in its
 	// EEPROM
 	SFP_QUIRK("Hisense-Leox", "LXT-010S-H", sfp_quirk_2500basex,
-		  sfp_fixup_ignore_tx_fault),
+		  sfp_fixup_ignore_tx_fault_and_los),
 
 	// Hisense ZNID-GPON-2311NA can operate at 2500base-X, but reports
 	// 1000BASE-LX / 1300MBd in its EEPROM
 	SFP_QUIRK("Hisense", "ZNID-GPON-2311NA", sfp_quirk_2500basex,
-		  sfp_fixup_ignore_tx_fault),
+		  sfp_fixup_ignore_tx_fault_and_los),
 
 	// HSGQ HSGQ-XPON-Stick can operate at 2500base-X, but reports
 	// 1000BASE-LX / 1300MBd in its EEPROM
 	SFP_QUIRK("HSGQ", "HSGQ-XPON-Stick", sfp_quirk_2500basex,
-		  sfp_fixup_ignore_tx_fault),
+		  sfp_fixup_ignore_tx_fault_and_los),
 
 	// Lantech 8330-262D-E and 8330-265D can operate at 2500base-X, but
 	// incorrectly report 2500MBd NRZ in their EEPROM.
@@ -632,9 +645,13 @@ static const struct sfp_quirk sfp_quirks[] = {
 	// match the part as a prefix.
 	SFP_QUIRK_F_PREFIX("OEM", "XGSPONST2001", sfp_fixup_potron),
 
+	SFP_QUIRK_S("TP-LINK", "TL-SM410U", sfp_quirk_oem_2_5g),
+
 	SFP_QUIRK_F("Turris", "RTSFP-2.5G", sfp_fixup_rollball),
 	SFP_QUIRK_F("Turris", "RTSFP-10", sfp_fixup_rollball),
 	SFP_QUIRK_F("Turris", "RTSFP-10G", sfp_fixup_rollball),
+
+	SFP_QUIRK_F("XikeStor", "SKT-2.5G-100M", sfp_fixup_xikestor_2_5g),
 
 	SFP_QUIRK_S("ZOERAX", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
 };

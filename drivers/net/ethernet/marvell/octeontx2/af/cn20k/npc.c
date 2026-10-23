@@ -857,10 +857,7 @@ npc_cn20k_enable_mcam_entry(struct rvu *rvu, int blkaddr,
 	}
 
 update_en_map:
-	if (enable)
-		set_bit(index, npc_priv->en_map);
-	else
-		clear_bit(index, npc_priv->en_map);
+	assign_bit(index, npc_priv->en_map, enable);
 
 	return 0;
 }

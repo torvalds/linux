@@ -117,6 +117,8 @@ static void do_setup(struct net_device *netdev)
 	netdev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
 	netdev->hw_features = netdev->features;
 
+	netif_set_tso_max_size(netdev, GSO_MAX_SIZE);
+
 	eth_hw_addr_random(netdev);
 }
 

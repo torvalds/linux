@@ -19,8 +19,6 @@
 		offset = 0xa28ull;			\
 	offset += (a) * 0x8ull;				\
 	offset; })
-
-
 #define MCSX_MCS_TOP_SLAVE_CHANNEL_CFG(a) ({		\
 	u64 offset;					\
 							\

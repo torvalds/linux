@@ -70,6 +70,15 @@ LOCAL_V4, LOCAL_V6, REMOTE_V4, REMOTE_V6
 
 Local and remote endpoint IP addresses.
 
+Tests reconfigure the device freely, including taking the link down, and
+expect the addresses to work immediately afterwards. IPv6 needs help::
+
+  ip -6 address add 2001:db8:1::1/64 dev eth0 nodad
+  sysctl -w net.ipv6.conf.eth0.keep_addr_on_down=1
+
+Without those the address is flushed when the link goes down, or spends
+a second unusable while waiting for DAD to finish.
+
 LOCAL_PREFIX_V6
 ~~~~~~~~~~~~~~~
 

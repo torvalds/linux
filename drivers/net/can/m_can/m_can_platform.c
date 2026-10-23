@@ -220,7 +220,7 @@ static const struct dev_pm_ops m_can_pmops = {
 
 static const struct of_device_id m_can_of_table[] = {
 	{ .compatible = "bosch,m_can", .data = NULL },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, m_can_of_table);
 

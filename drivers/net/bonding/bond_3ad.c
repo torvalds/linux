@@ -2071,7 +2071,6 @@ static void ad_initialize_port(struct port *port, const struct bond_params *bond
 		port->sm_periodic_timer_counter = 0;
 		port->sm_mux_state = 0;
 		port->sm_mux_timer_counter = 0;
-		port->sm_tx_state = 0;
 		port->aggregator = NULL;
 		port->next_port_in_aggregator = NULL;
 		port->transaction_id = 0;

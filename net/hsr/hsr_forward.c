@@ -645,7 +645,7 @@ static void handle_std_frame(struct sk_buff *skb,
 		/* Sequence nr for the master/interlink node */
 		lockdep_assert_held(&hsr->seqnr_lock);
 		frame->sequence_nr = hsr->sequence_nr;
-		hsr->sequence_nr++;
+		WRITE_ONCE(hsr->sequence_nr, hsr->sequence_nr + 1);
 	}
 }
 

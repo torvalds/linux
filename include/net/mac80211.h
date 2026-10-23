@@ -640,7 +640,6 @@ struct ieee80211_bss_npca_params {
  *	mode only, set if the AP advertises TWT responder role)
  * @twt_responder: does this BSS support TWT requester (relevant for managed
  *	mode only, set if the AP advertises TWT responder role)
- * @twt_protected: does this BSS support protected TWT frames
  * @twt_broadcast: does this BSS support broadcast TWT
  * @use_cts_prot: use CTS protection
  * @use_short_preamble: use 802.11b short preamble
@@ -812,7 +811,6 @@ struct ieee80211_bss_conf {
 	bool he_support;
 	bool twt_requester;
 	bool twt_responder;
-	bool twt_protected;
 	bool twt_broadcast;
 	/* erp related data */
 	bool use_cts_prot;
@@ -923,12 +921,14 @@ struct ieee80211_bss_conf {
  * @channel_entry: the Channel Entry blob as defined in Wi-Fi Aware
  *	(TM) 4.0 specification Table 100 (Channel Entry format for the NAN
  *	Availability attribute).
+ * @no_evacuate: if set, this channel must not be evacuated
  */
 struct ieee80211_nan_channel {
 	struct ieee80211_chan_req chanreq;
 	u8 needed_rx_chains;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	u8 channel_entry[6];
+	bool no_evacuate;
 };
 
 /**
@@ -1770,10 +1770,9 @@ enum mac80211_rx_encoding {
  * @ampdu_reference: A-MPDU reference number, must be a different value for
  *	each A-MPDU but the same for each subframe within one A-MPDU
  * @zero_length_psdu_type: radiotap type of the 0-length PSDU
- * @link_valid: if the link which is identified by @link_id is valid. This flag
- *	is set only when connection is MLO.
- * @link_id: id of the link used to receive the packet. This is used along with
- *	@link_valid.
+ * @link_id: id of the link used to receive the packet. Set and used by
+ *	mac80211 internally, it uses @freq set by the driver to identify the
+ *	correct link per vif.
  */
 struct ieee80211_rx_status {
 	u64 mactime;
@@ -1813,7 +1812,7 @@ struct ieee80211_rx_status {
 	u8 chains;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 	u8 zero_length_psdu_type;
-	u8 link_valid:1, link_id:4;
+	u8 link_id:4;
 };
 
 static_assert(sizeof(struct ieee80211_rx_status) <= sizeof_field(struct sk_buff, cb));
@@ -2396,6 +2395,8 @@ static inline bool lockdep_vif_wiphy_mutex_held(struct ieee80211_vif *vif)
  *	number generation only
  * @IEEE80211_KEY_FLAG_SPP_AMSDU: SPP A-MSDUs can be used with this key
  *	(set by mac80211 from the sta->spp_amsdu flag)
+ * @IEEE80211_KEY_FLAG_CIP: This key is used for the Control Integrity
+ *	Protocol, and is either a pairwise key or a CIGTK.
  */
 enum ieee80211_key_flags {
 	IEEE80211_KEY_FLAG_GENERATE_IV_MGMT	= BIT(0),
@@ -2410,6 +2411,7 @@ enum ieee80211_key_flags {
 	IEEE80211_KEY_FLAG_NO_AUTO_TX		= BIT(9),
 	IEEE80211_KEY_FLAG_GENERATE_MMIE	= BIT(10),
 	IEEE80211_KEY_FLAG_SPP_AMSDU		= BIT(11),
+	IEEE80211_KEY_FLAG_CIP			= BIT(12),
 };
 
 /**
@@ -2630,6 +2632,7 @@ struct ieee80211_sta_aggregates {
  * @eht_cap: EHT capabilities of this STA
  * @uhr_cap: UHR capabilities of this STA
  * @s1g_cap: S1G capabilities of this STA
+ * @cip_cap: the CIP capabilities of this STA (or zero)
  * @agg: per-link data for multi-link aggregation
  * @bandwidth: current bandwidth the station can receive with.
  *	This is the minimum between the peer's capabilities and our own
@@ -2658,6 +2661,7 @@ struct ieee80211_link_sta {
 	struct ieee80211_sta_eht_cap eht_cap;
 	struct ieee80211_sta_uhr_cap uhr_cap;
 	struct ieee80211_sta_s1g_cap s1g_cap;
+	u8 cip_cap;
 
 	struct ieee80211_sta_aggregates agg;
 
@@ -2721,6 +2725,8 @@ struct ieee80211_link_sta {
  * @valid_links: bitmap of valid links, or 0 for non-MLO
  * @spp_amsdu: indicates whether the STA uses SPP A-MSDU or not.
  * @epp_peer: indicates that the peer is an EPP peer.
+ * @cip: indicates whether the STA uses control frame protection or not.
+ * @twt_protected: does this STA support protected TWT frames
  * @nmi: For NDI stations, pointer to the NMI station of the peer.
  * @nan_sched: NAN peer schedule for this station. Valid only for NMI stations.
  * @ext_mld_capa_ops: the MLD's extended MLD capabilities and operations
@@ -2741,6 +2747,9 @@ struct ieee80211_sta {
 	bool spp_amsdu;
 	u8 max_amsdu_subframes;
 	u16 eml_cap;
+
+	bool cip;
+	bool twt_protected;
 
 	struct ieee80211_sta_aggregates *cur;
 
@@ -2919,8 +2928,8 @@ struct ieee80211_txq {
  *	autonomously manages the PS status of connected stations. When
  *	this flag is set mac80211 will not trigger PS mode for connected
  *	stations based on the PM bit of incoming frames.
- *	Use ieee80211_start_ps()/ieee8021_end_ps() to manually configure
- *	the PS mode of connected stations.
+ *	Use ieee80211_sta_ps_transition() to manually toggle the PS mode
+ *	of connected stations.
  *
  * @IEEE80211_HW_TX_AMPDU_SETUP_IN_HW: The device handles TX A-MPDU session
  *	setup strictly in HW. mac80211 should not attempt to do this in
@@ -4360,6 +4369,13 @@ struct ieee80211_prep_tx_info {
  *	Statistics that the driver doesn't fill will be filled by mac80211.
  *	The callback can sleep.
  *
+ * @sta_statistics_atomic: Like @sta_statistics, but called under RCU, so it
+ *	must be atomic. This is called instead of @sta_statistics if available,
+ *	but may return -EAGAIN to fall back to @sta_statistics with the wiphy
+ *	mutex held.
+ *	Note that it's not guaranteed this will always be called first, some
+ *	(internal) calls may call @sta_statistics directly.
+ *
  * @link_sta_statistics: Get link statistics for this station. For example with
  *	beacon filtering, the statistics kept by mac80211 might not be
  *	accurate, so let the driver pre-fill the statistics. The driver can
@@ -4368,6 +4384,9 @@ struct ieee80211_prep_tx_info {
  *	ones are possible.
  *	Statistics that the driver doesn't fill will be filled by mac80211.
  *	The callback can sleep.
+ *
+ * @link_sta_statistics_atomic: Like @link_sta_statistics, with the same
+ *	locking/retry semantics as @sta_statistics_atomic. Must be atomic.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
@@ -4577,6 +4596,9 @@ struct ieee80211_prep_tx_info {
  *	just "paused" for scanning/ROC, which is indicated by the beacon being
  *	disabled/enabled via @bss_info_changed.
  * @stop_ap: Stop operation on the AP interface.
+ * @update_beacon: Update the templates indicated by @changed (beacon, probe
+ *	response, FILS discovery and/or unsolicitated bcast probe response)
+ *	without the wiphy mutex held. This callback must not sleep.
  *
  * @reconfig_complete: Called after a call to ieee80211_restart_hw() and
  *	during resume, when the reconfiguration has completed.
@@ -4774,6 +4796,10 @@ struct ieee80211_ops {
 			struct ieee80211_bss_conf *link_conf);
 	void (*stop_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *link_conf);
+	void (*update_beacon)(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf,
+			      u64 changed);
 
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);
@@ -4867,6 +4893,10 @@ struct ieee80211_ops {
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta,
 			       struct station_info *sinfo);
+	int (*sta_statistics_atomic)(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_sta *sta,
+				     struct station_info *sinfo);
 	int (*conf_tx)(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
 		       unsigned int link_id, u16 ac,
@@ -4882,6 +4912,10 @@ struct ieee80211_ops {
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_link_sta *link_sta,
 				    struct link_station_info *link_sinfo);
+	int (*link_sta_statistics_atomic)(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_link_sta *link_sta,
+					  struct link_station_info *link_sinfo);
 
 	/**
 	 * @ampdu_action:
@@ -5389,14 +5423,18 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw);
  * mixed for a single hardware. Must not run concurrently with
  * ieee80211_tx_status_skb() or ieee80211_tx_status_ni().
  *
+ * For data frames, when hardware has done address translation, a link station
+ * has to be provided and the frequency information may be skipped.
+ *
  * This function must be called with BHs disabled and RCU read lock
  *
  * @hw: the hardware this frame came in on
- * @sta: the station the frame was received from, or %NULL
+ * @link_sta: the link station the data frame was received from, or %NULL
  * @skb: the buffer to receive, owned by mac80211 after this call
  * @list: the destination list
  */
-void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+void ieee80211_rx_list(struct ieee80211_hw *hw,
+		       struct ieee80211_link_sta *link_sta,
 		       struct sk_buff *skb, struct list_head *list);
 
 /**
@@ -5414,14 +5452,18 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
  * mixed for a single hardware. Must not run concurrently with
  * ieee80211_tx_status_skb() or ieee80211_tx_status_ni().
  *
+ * For data frames, when hardware has done address translation, a link station
+ * has to be provided and the frequency information may be skipped.
+ *
  * This function must be called with BHs disabled.
  *
  * @hw: the hardware this frame came in on
- * @sta: the station the frame was received from, or %NULL
+ * @link_sta: the link station the data frame was received from, or %NULL
  * @skb: the buffer to receive, owned by mac80211 after this call
  * @napi: the NAPI context
  */
-void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+void ieee80211_rx_napi(struct ieee80211_hw *hw,
+		       struct ieee80211_link_sta *link_sta,
 		       struct sk_buff *skb, struct napi_struct *napi);
 
 /**
@@ -5499,10 +5541,8 @@ static inline void ieee80211_rx_ni(struct ieee80211_hw *hw,
  *
  * @sta: currently connected sta
  * @start: start or stop PS
- *
- * Return: 0 on success. -EINVAL when the requested PS mode is already set.
  */
-int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start);
+void ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start);
 
 /**
  * ieee80211_sta_ps_transition_ni - PS transition for connected sta
@@ -5514,19 +5554,13 @@ int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start);
  *
  * @sta: currently connected sta
  * @start: start or stop PS
- *
- * Return: Like ieee80211_sta_ps_transition().
  */
-static inline int ieee80211_sta_ps_transition_ni(struct ieee80211_sta *sta,
+static inline void ieee80211_sta_ps_transition_ni(struct ieee80211_sta *sta,
 						  bool start)
 {
-	int ret;
-
 	local_bh_disable();
-	ret = ieee80211_sta_ps_transition(sta, start);
+	ieee80211_sta_ps_transition(sta, start);
 	local_bh_enable();
-
-	return ret;
 }
 
 /**
@@ -6279,6 +6313,7 @@ void ieee80211_set_key_rx_seq(struct ieee80211_key_conf *keyconf,
  * @key_len: the key data. Might be bigger than the actual key length,
  *	but not smaller (for the driver convinence)
  * @link_id: the link id of the key or -1 for non-MLO
+ * @cigtk: whether this is a CIGTK
  *
  * When GTK rekeying was done while the system was suspended, (a) new
  * key(s) will be available. These will be needed by mac80211 for proper
@@ -6305,7 +6340,7 @@ void ieee80211_set_key_rx_seq(struct ieee80211_key_conf *keyconf,
 struct ieee80211_key_conf *
 ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
 			u8 idx, u8 *key_data, u8 key_len,
-			int link_id);
+			int link_id, bool cigtk);
 
 /**
  * ieee80211_gtk_rekey_notify - notify userspace supplicant of rekeying
@@ -7640,12 +7675,14 @@ bool ieee80211_tx_prepare_skb(struct ieee80211_hw *hw,
  * @dev: the &struct device of this 802.11 device
  * @chandef: the channel definition the frame will be transmitted on, or
  *	%NULL to skip the bandwidth checks
+ * @trim_fcs: trim the FCS trailer when present; validate it otherwise
  *
  * Return: %true if the radiotap header was parsed, %false otherwise
  */
 bool ieee80211_parse_tx_radiotap(struct sk_buff *skb,
 				 struct net_device *dev,
-				 const struct cfg80211_chan_def *chandef);
+				 const struct cfg80211_chan_def *chandef,
+				 bool trim_fcs);
 
 /**
  * struct ieee80211_noa_data - holds temporary data for tracking P2P NoA state
@@ -8060,25 +8097,6 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
 void
 ieee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
 				      u64 color_bitmap, u8 link_id);
-
-/**
- * ieee80211_is_tx_data - check if frame is a data frame
- *
- * The function is used to check if a frame is a data frame. Frames with
- * hardware encapsulation enabled are data frames.
- *
- * @skb: the frame to be transmitted.
- *
- * Return: %true if @skb is a data frame, %false otherwise
- */
-static inline bool ieee80211_is_tx_data(struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hdr *hdr = (void *) skb->data;
-
-	return info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP ||
-	       ieee80211_is_data(hdr->frame_control);
-}
 
 /**
  * ieee80211_set_active_links - set active links in client mode

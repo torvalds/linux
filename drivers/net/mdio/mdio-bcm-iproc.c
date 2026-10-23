@@ -195,7 +195,7 @@ static const struct dev_pm_ops iproc_mdio_pm_ops = {
 
 static const struct of_device_id iproc_mdio_of_match[] = {
 	{ .compatible = "brcm,iproc-mdio", },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, iproc_mdio_of_match);
 

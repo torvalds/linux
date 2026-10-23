@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/snps,dwmac-common.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys DesignWare MAC common properties
+
+maintainers:
+  - Alexandre Torgue <alexandre.torgue@foss.st.com>
+  - Giuseppe Cavallaro <peppe.cavallaro@st.com>
+  - Jose Abreu <joabreu@synopsys.com>
+
+properties:
+  stmmac-axi-config:
+    type: object
+    unevaluatedProperties: false
+    description:
+      AXI BUS Mode parameters.
+
+    properties:
+      snps,lpi_en:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          enable Low Power Interface
+
+      snps,xit_frm:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          unlock on WoL
+
+      snps,wr_osr_lmt:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          max write outstanding req. limit
+
+      snps,rd_osr_lmt:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          max read outstanding req. limit
+
+      snps,blen:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        description:
+          this is a vector of supported burst length.
+        minItems: 7
+        maxItems: 7
+
+      snps,fb:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          fixed-burst
+
+  snps,axi-config:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      AXI BUS Mode parameters. Phandle to a node that can contain the
+      following properties
+        * snps,lpi_en, enable Low Power Interface
+        * snps,xit_frm, unlock on WoL
+        * snps,wr_osr_lmt, max write outstanding req. limit
+        * snps,rd_osr_lmt, max read outstanding req. limit
+        * snps,blen, this is a vector of supported burst length.
+        * snps,fb, fixed-burst
+
+additionalProperties: true

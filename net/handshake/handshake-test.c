@@ -42,7 +42,7 @@ static struct handshake_proto handshake_req_alloc_proto_2 = {
 };
 
 static struct handshake_proto handshake_req_alloc_proto_3 = {
-	.hp_handler_class	= HANDSHAKE_HANDLER_CLASS_MAX,
+	.hp_handler_class	= __HANDSHAKE_HANDLER_CLASS_MAX,
 };
 
 static struct handshake_proto handshake_req_alloc_proto_4 = {

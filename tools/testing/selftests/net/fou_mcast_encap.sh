@@ -51,8 +51,6 @@ setup_common() {
 }
 
 setup_ipv4() {
-	# IPv4 FOU (CONFIG_NET_FOU) is built in on kernels configured for
-	# these tests, so no module load is needed here.
 	ip -n "$NSENDER" addr add 10.0.0.1/24 dev veth_s
 	ip -n "$NRECV" addr add 10.0.0.2/24 dev veth_r
 
@@ -160,8 +158,13 @@ run_ping_test() {
 }
 
 setup_common
-setup_ipv4
-run_ping_test -4 eoudp4 "$TUN4_R" "FOU/GRETAP IPv4 multicast encap resubmit"
+
+if modprobe -q fou; then
+	setup_ipv4
+	run_ping_test -4 eoudp4 "$TUN4_R" "FOU/GRETAP IPv4 multicast encap resubmit"
+else
+	log_test_skip "FOU/GRETAP IPv4 multicast encap resubmit"
+fi
 
 if setup_ipv6; then
 	run_ping_test -6 eoudp6 "$TUN6_R" "FOU/ip6gretap IPv6 multicast encap resubmit"

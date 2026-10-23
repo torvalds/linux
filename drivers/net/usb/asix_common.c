@@ -327,11 +327,6 @@ int asix_read_phy_addr(struct usbnet *dev, bool internal)
 	if (ret < 0)
 		goto error;
 
-	if (ret < 2) {
-		ret = -EIO;
-		goto error;
-	}
-
 	offset = (internal ? 1 : 0);
 	ret = buf[offset];
 

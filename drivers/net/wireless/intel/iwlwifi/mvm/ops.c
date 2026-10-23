@@ -20,7 +20,6 @@
 #include "iwl-phy-db.h"
 #include "iwl-nvm-utils.h"
 #include "iwl-csr.h"
-#include "iwl-io.h"
 #include "iwl-prph.h"
 #include "rs.h"
 #include "fw/api/scan.h"
@@ -138,9 +137,9 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	 * to lose ownership and not being able to obtain it back.
 	 */
 	if (!mvm->trans->mac_cfg->base->apmg_not_supported)
-		iwl_set_bits_mask_prph(mvm->trans, APMG_PS_CTRL_REG,
-				       APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
-				       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
+		iwl_trans_set_bits_mask_prph(mvm->trans, APMG_PS_CTRL_REG,
+					     APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
+					     ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
 }
 
 static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,
@@ -374,7 +373,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		   struct iwl_umac_scan_complete),
 	RX_HANDLER(SCAN_ITERATION_COMPLETE_UMAC,
 		   iwl_mvm_rx_umac_scan_iter_complete_notif, RX_HANDLER_SYNC,
-		   struct iwl_umac_scan_iter_complete_notif),
+		   struct iwl_umac_scan_iter_complete_notif_v2),
 
 	RX_HANDLER(MISSED_BEACONS_NOTIFICATION,
 		   iwl_mvm_rx_missed_beacons_notif_legacy,

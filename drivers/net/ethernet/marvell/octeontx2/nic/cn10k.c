@@ -301,7 +301,7 @@ static void cn10k_get_ingress_rate_cfg(u64 rate, u32 *rate_exp,
 	 * policer timeunit * 2^rdiv ie 2 * 2^rdiv usecs, to the token bucket.
 	 * Here policer timeunit is 2 usecs and rate is in bits per sec.
 	 * Since floating point cannot be used below algorithm uses 1000000
-	 * scale factor to support rates upto 100Gbps.
+	 * scale factor to support rates up to 100Gbps.
 	 */
 	tmp = rate * 32 * 2;
 	if (tmp < 256000000) {

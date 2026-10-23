@@ -704,10 +704,10 @@ static bool cfg80211_is_all_idle(void)
 
 static void disconnect_work(struct work_struct *work)
 {
-	rtnl_lock();
+	guard(mutex)(&cfg80211_mutex);
+
 	if (cfg80211_is_all_idle())
 		regulatory_hint_disconnect();
-	rtnl_unlock();
 }
 
 DECLARE_WORK(cfg80211_disconnect_work, disconnect_work);
@@ -872,6 +872,25 @@ void __cfg80211_connect_result(struct net_device *dev,
 
 	cfg80211_upload_connect_keys(wdev);
 
+	if (!wdev->u.client.ssid_len) {
+		rcu_read_lock();
+		for_each_valid_link(cr, link) {
+			u32 ssid_len;
+
+			ssid = ieee80211_bss_get_elem(cr->links[link].bss,
+						      WLAN_EID_SSID);
+
+			if (!ssid || !ssid->datalen)
+				continue;
+
+			ssid_len = min(ssid->datalen, IEEE80211_MAX_SSID_LEN);
+			memcpy(wdev->u.client.ssid, ssid->data, ssid_len);
+			wdev->u.client.ssid_len = ssid_len;
+			break;
+		}
+		rcu_read_unlock();
+	}
+
 	rcu_read_lock();
 	for_each_valid_link(cr, link) {
 		country_elem =
@@ -896,25 +915,6 @@ void __cfg80211_connect_result(struct net_device *dev,
 				   cr->links[link].bss->channel->band,
 				   country_data, country_datalen);
 	kfree(country_data);
-
-	if (!wdev->u.client.ssid_len) {
-		rcu_read_lock();
-		for_each_valid_link(cr, link) {
-			u32 ssid_len;
-
-			ssid = ieee80211_bss_get_elem(cr->links[link].bss,
-						      WLAN_EID_SSID);
-
-			if (!ssid || !ssid->datalen)
-				continue;
-
-			ssid_len = min(ssid->datalen, IEEE80211_MAX_SSID_LEN);
-			memcpy(wdev->u.client.ssid, ssid->data, ssid_len);
-			wdev->u.client.ssid_len = ssid_len;
-			break;
-		}
-		rcu_read_unlock();
-	}
 
 	return;
 out:
@@ -1387,7 +1387,15 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 			    NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT))
 			max_key_idx = 7;
 		for (i = 0; i <= max_key_idx; i++)
-			rdev_del_key(rdev, wdev, -1, i, false, NULL);
+			rdev_del_key(rdev, wdev, -1, i, NL80211_KEYTYPE_GROUP,
+				     NULL);
+
+		if (cfg80211_cigtk_supported(wdev, NULL)) {
+			rdev_del_key(rdev, wdev, -1, 0, NL80211_KEYTYPE_CIGTK,
+				     NULL);
+			rdev_del_key(rdev, wdev, -1, 1, NL80211_KEYTYPE_CIGTK,
+				     NULL);
+		}
 	}
 
 	rdev_set_qos_map(rdev, dev, NULL);
@@ -1444,6 +1452,13 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 	int err;
 
 	lockdep_assert_wiphy(wdev->wiphy);
+
+	/*
+	 * Pending events may still change the state we're about to reason
+	 * about (e.g. a deferred disconnect clearing ssid_len), so process
+	 * them before looking at it.
+	 */
+	cfg80211_process_rdev_events(rdev);
 
 	/*
 	 * If we have an ssid_len, we're trying to connect or are
@@ -1550,6 +1565,13 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 	int err = 0;
 
 	lockdep_assert_wiphy(wdev->wiphy);
+
+	/*
+	 * Pending events may still change the state we're about to reason
+	 * about (e.g. a deferred disconnect clearing ssid_len), so process
+	 * them before looking at it.
+	 */
+	cfg80211_process_rdev_events(rdev);
 
 	kfree_sensitive(wdev->connect_keys);
 	wdev->connect_keys = NULL;

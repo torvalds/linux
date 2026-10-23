@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright Amazon.com Inc. or its affiliates. */
 
+#define _GNU_SOURCE
+#include <sched.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
@@ -716,6 +718,9 @@ static void setup_addr(FIXTURE_DATA(bind_wildcard) *self, int i,
 
 FIXTURE_SETUP(bind_wildcard)
 {
+	ASSERT_EQ(unshare(CLONE_NEWNET), 0);
+	ASSERT_EQ(system("ip link set lo up"), 0);
+
 	setup_addr(self, 0, variant->family[0], variant->addr[0]);
 	setup_addr(self, 1, variant->family[1], variant->addr[1]);
 

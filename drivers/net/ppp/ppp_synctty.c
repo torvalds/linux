@@ -436,10 +436,9 @@ ppp_sync_txmunge(struct syncppp *ap, struct sk_buff *skb)
 	int islcp;
 
 	/* Ensure we can safely access protocol field and LCP code */
-	if (!pskb_may_pull(skb, 3)) {
-		kfree_skb(skb);
-		return NULL;
-	}
+	if (!pskb_may_pull(skb, 3))
+		goto free_skb;
+
 	data  = skb->data;
 	proto = get_unaligned_be16(data);
 
@@ -455,10 +454,9 @@ ppp_sync_txmunge(struct syncppp *ap, struct sk_buff *skb)
 
 	/* prepend address/control fields if necessary */
 	if ((ap->flags & SC_COMP_AC) == 0 || islcp) {
-		if (skb_cow_head(skb, 2)) {
-			kfree_skb(skb);
-			return NULL;
-		}
+		if (skb_cow_head(skb, 2))
+			goto free_skb;
+
 		skb_push(skb,2);
 		skb->data[0] = PPP_ALLSTATIONS;
 		skb->data[1] = PPP_UI;
@@ -466,10 +464,14 @@ ppp_sync_txmunge(struct syncppp *ap, struct sk_buff *skb)
 
 	ap->last_xmit = jiffies;
 
-	if (skb && ap->flags & SC_LOG_OUTPKT)
+	if (ap->flags & SC_LOG_OUTPKT)
 		ppp_print_buffer ("send buffer", skb->data, skb->len);
 
 	return skb;
+
+free_skb:
+	kfree_skb(skb);
+	return NULL;
 }
 
 /*

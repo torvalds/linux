@@ -565,7 +565,7 @@ static int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
 }
 
 /**
- * liquidio_push_packet - Routine to push packets arriving on Octeon interface upto network layer.
+ * liquidio_push_packet - Routine to push packets arriving on Octeon interface up to network layer.
  * @octeon_id:octeon device id.
  * @skbuff:   skbuff struct to be passed to network layer.
  * @len:      size of total data received.

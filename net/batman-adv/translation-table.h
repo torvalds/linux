@@ -16,6 +16,9 @@
 #include <linux/types.h>
 
 int batadv_tt_init(struct batadv_priv *bat_priv);
+bool batadv_tt_local_reserve_vlan(struct batadv_priv *bat_priv,
+				  unsigned short vid);
+void batadv_tt_local_unreserve_vlan(struct batadv_priv *bat_priv);
 bool batadv_tt_local_add(struct net_device *mesh_iface, const u8 *addr,
 			 unsigned short vid, int ifindex, u32 mark);
 u16 batadv_tt_local_remove(struct batadv_priv *bat_priv,

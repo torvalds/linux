@@ -5,6 +5,7 @@
  * Copyright 2011-2024 NXP
  */
 
+#include <linux/string_choices.h>
 #include <linux/suspend.h>
 
 #include "main.h"
@@ -603,14 +604,18 @@ static int _nxpwifi_fw_dpc(const struct firmware *firmware, void *context)
 	maybe_quirk_fw_disable_ds(adapter);
 
 	if (!adapter->wiphy) {
-		if (nxpwifi_register_cfg80211(adapter)) {
+		ret = nxpwifi_register_cfg80211(adapter);
+
+		if (ret) {
 			nxpwifi_dbg(adapter, ERROR,
 				    "cannot register with cfg80211\n");
 			goto err_init_fw;
 		}
 	}
 
-	if (nxpwifi_init_channel_scan_gap(adapter)) {
+	ret = nxpwifi_init_channel_scan_gap(adapter);
+
+	if (ret) {
 		nxpwifi_dbg(adapter, ERROR,
 			    "could not init channel stats table\n");
 		goto err_init_chan_scan;
@@ -623,6 +628,7 @@ static int _nxpwifi_fw_dpc(const struct firmware *firmware, void *context)
 	if (IS_ERR(wdev)) {
 		nxpwifi_dbg(adapter, ERROR,
 			    "cannot create default STA interface\n");
+		ret = PTR_ERR(wdev);
 		rtnl_unlock();
 		goto err_add_intf;
 	}
@@ -632,6 +638,7 @@ static int _nxpwifi_fw_dpc(const struct firmware *firmware, void *context)
 	if (IS_ERR(wdev)) {
 		nxpwifi_dbg(adapter, ERROR,
 			    "cannot create AP interface\n");
+		ret = PTR_ERR(wdev);
 		rtnl_unlock();
 		goto err_add_intf;
 	}
@@ -1088,8 +1095,8 @@ void nxpwifi_drv_info_dump(struct nxpwifi_adapter *adapter)
 			     atomic_read(&priv->wmm_tx_pending[3]));
 		p += sprintf(p, "media_state=\"%s\"\n", !priv->media_connected ?
 			     "Disconnected" : "Connected");
-		p += sprintf(p, "carrier %s\n", (netif_carrier_ok(priv->netdev)
-			     ? "on" : "off"));
+		p += sprintf(p, "carrier %s\n",
+			     str_on_off(netif_carrier_ok(priv->netdev)));
 		for (idx = 0; idx < priv->netdev->num_tx_queues; idx++) {
 			txq = netdev_get_tx_queue(priv->netdev, idx);
 			p += sprintf(p, "tx queue %d:%s  ", idx,
@@ -1113,7 +1120,10 @@ void nxpwifi_drv_info_dump(struct nxpwifi_adapter *adapter)
 				continue;
 			priv = adapter->priv[i];
 			nxpwifi_get_debug_info(priv, debug_info);
-			p += nxpwifi_debug_info_to_buffer(priv, p, debug_info);
+			p += nxpwifi_debug_info_to_buffer(priv, p,
+					  NXPWIFI_FW_DUMP_SIZE -
+					  (p - (char *)adapter->devdump_data),
+					  debug_info);
 			break;
 		}
 		kfree(debug_info);

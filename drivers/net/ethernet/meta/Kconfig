@@ -35,4 +35,17 @@ config FBNIC
 	  To compile this driver as a module, choose M here. The module
 	  will be called fbnic.  MSI-X interrupt support is required.
 
+config MPNIC
+	tristate "Meta Platforms Network Interface Controller"
+	depends on 64BIT || COMPILE_TEST
+	depends on !S390
+	depends on PCI_MSI
+	select PAGE_POOL
+	help
+	  This driver supports the Meta Platforms Network Interface
+	  Controller.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called mpnic.
+
 endif # NET_VENDOR_META

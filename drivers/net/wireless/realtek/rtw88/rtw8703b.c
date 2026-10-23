@@ -187,11 +187,39 @@ static const struct rtw_pwr_seq_cmd trans_pre_enable_8703b[] = {
 };
 
 static const struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8703b[] = {
+	/* clear WL suspend enable and HW power down enable */
 	{0x0005,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
 	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(7), 0},
+	 RTW_PWR_CMD_WRITE, BIT(3) | BIT(7), 0},
+	/* withdraw the SDIO suspend request */
+	{0x0086,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_SDIO,
+	 RTW_PWR_CMD_WRITE, BIT(0), 0},
+	/* and wait for the interface to leave the suspended state */
+	{0x0086,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_SDIO,
+	 RTW_PWR_CMD_POLLING, BIT(1), BIT(1)},
+	/* disable WL suspend */
+	{0x0005,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_ALL_MSK,
+	 RTW_PWR_ADDR_MAC,
+	 RTW_PWR_CMD_WRITE, BIT(3) | BIT(4), 0},
+	/*
+	 * take the 12H LDO back out of sleep mode, which the card-disable
+	 * transition put it into
+	 */
+	{0x0023,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_MAC,
+	 RTW_PWR_CMD_WRITE, BIT(4), 0},
 	{TRANS_SEQ_END},
 };
 
@@ -412,7 +440,7 @@ static const struct rtw_pwr_seq_cmd trans_act_to_reset_mcu_8703b[] = {
 static const struct rtw_pwr_seq_cmd trans_act_to_lps_8703b[] = {
 	{0x0301,
 	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_ALL_MSK,
+	 RTW_PWR_INTF_PCI_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, 0xff, 0xff},
 	{0x0522,
@@ -902,7 +930,7 @@ static s8 get_cck_rx_pwr(struct rtw_dev *rtwdev, u8 lna_idx, u8 vga_idx)
 static void query_phy_status_cck(struct rtw_dev *rtwdev, u8 *phy_raw,
 				 struct rtw_rx_pkt_stat *pkt_stat)
 {
-	struct phy_status_8703b *phy_status = (struct phy_status_8703b *)phy_raw;
+	struct phy_status_8723x *phy_status = (struct phy_status_8723x *)phy_raw;
 	u8 vga_idx = phy_status->cck_agc_rpt_ofdm_cfosho_a & VGA_BITS;
 	u8 lna_idx = phy_status->cck_agc_rpt_ofdm_cfosho_a & LNA_L_BITS;
 	s8 rx_power;
@@ -924,7 +952,7 @@ static void query_phy_status_cck(struct rtw_dev *rtwdev, u8 *phy_raw,
 static void query_phy_status_ofdm(struct rtw_dev *rtwdev, u8 *phy_raw,
 				  struct rtw_rx_pkt_stat *pkt_stat)
 {
-	struct phy_status_8703b *phy_status = (struct phy_status_8703b *)phy_raw;
+	struct phy_status_8723x *phy_status = (struct phy_status_8723x *)phy_raw;
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	s8 val_s8;
 

@@ -8,7 +8,6 @@
 
 enum mlx5_devlink_resource_id {
 	MLX5_DL_RES_MAX_LOCAL_SFS = 1,
-	MLX5_DL_RES_MAX_EXTERNAL_SFS,
 
 	__MLX5_ID_RES_MAX,
 	MLX5_ID_RES_MAX = __MLX5_ID_RES_MAX - 1,

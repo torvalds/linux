@@ -102,7 +102,7 @@ ice_parser_create_table(struct ice_hw *hw, u32 sect_type,
 	if (!seg)
 		return ERR_PTR(-EINVAL);
 
-	table = kzalloc(item_size * length, GFP_KERNEL);
+	table = kcalloc(length, item_size, GFP_KERNEL);
 	if (!table)
 		return ERR_PTR(-ENOMEM);
 

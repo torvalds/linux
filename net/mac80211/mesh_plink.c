@@ -399,11 +399,13 @@ u64 mesh_plink_deactivate(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	u64 changed;
+	bool send_close;
 
 	spin_lock_bh(&sta->mesh->plink_lock);
+	send_close = sta->mesh->plink_state != NL80211_PLINK_LISTEN;
 	changed = __mesh_plink_deactivate(sta);
 
-	if (!sdata->u.mesh.user_mpm) {
+	if (!sdata->u.mesh.user_mpm && send_close) {
 		sta->mesh->reason = WLAN_REASON_MESH_PEER_CANCELED;
 		mesh_plink_frame_tx(sdata, sta, WLAN_SP_MESH_PEERING_CLOSE,
 				    sta->sta.addr, sta->mesh->llid,

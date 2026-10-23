@@ -8,6 +8,20 @@ title: Realtek switches for unmanaged switches
 
 allOf:
   - $ref: dsa.yaml#/$defs/ethernet-ports
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: realtek,rtl8365mb
+    then:
+      properties:
+        avddh-supply: false
+        avddl-supply: false
+        dvddio-supply: false
+        dvddio1-supply: false
+        dvddl-supply: false
+        pllvddl-supply: false
 
 maintainers:
   - Linus Walleij <linusw@kernel.org>
@@ -61,6 +75,24 @@ properties:
 
   resets:
     maxItems: 1
+
+  avddh-supply:
+    description: AVDDH high-voltage analog supply.
+
+  avddl-supply:
+    description: AVDDL low-voltage analog supply.
+
+  dvddio-supply:
+    description: DVDDIO digital I/O supply.
+
+  dvddio1-supply:
+    description: DVDDIO_1 secondary digital I/O supply for the RGMII bank.
+
+  dvddl-supply:
+    description: DVDDL digital core supply.
+
+  pllvddl-supply:
+    description: PLLVDDL PLL analog supply.
 
   realtek,disable-leds:
     type: boolean
@@ -243,6 +275,7 @@ examples:
     platform {
             ethernet-switch {
                     compatible = "realtek,rtl8365mb";
+                    avddh-supply = <&avddh>;
                     mdc-gpios = <&gpio1 16 GPIO_ACTIVE_HIGH>;
                     mdio-gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
                     reset-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;

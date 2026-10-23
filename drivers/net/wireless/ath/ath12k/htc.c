@@ -236,10 +236,7 @@ static void ath12k_htc_suspend_complete(struct ath12k_base *ab, bool ack)
 {
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "boot suspend complete %d\n", ack);
 
-	if (ack)
-		set_bit(ATH12K_FLAG_HTC_SUSPEND_COMPLETE, &ab->dev_flags);
-	else
-		clear_bit(ATH12K_FLAG_HTC_SUSPEND_COMPLETE, &ab->dev_flags);
+	assign_bit(ATH12K_FLAG_HTC_SUSPEND_COMPLETE, &ab->dev_flags, ack);
 
 	complete(&ab->htc_suspend);
 }

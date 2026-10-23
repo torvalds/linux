@@ -55,14 +55,10 @@ static int sophgo_dwmac_probe(struct platform_device *pdev)
 		return ret;
 
 	data = device_get_match_data(&pdev->dev);
-	if (data && data->has_internal_rx_delay) {
-		plat_dat->phy_interface = phy_fix_phy_mode_for_mac_delays(plat_dat->phy_interface,
-									  false, true);
-		if (plat_dat->phy_interface == PHY_INTERFACE_MODE_NA)
-			return -EINVAL;
-	}
+	if (data)
+		plat_dat->has_internal_rx_delay = data->has_internal_rx_delay;
 
-	return stmmac_dvr_probe(dev, plat_dat, &stmmac_res);
+	return stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
 }
 
 static const struct sophgo_dwmac_data sg2042_dwmac_data = {

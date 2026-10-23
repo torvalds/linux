@@ -90,6 +90,19 @@ config BT_HCIBTUSB_RTL
 
 	  Say Y here to compile support for Realtek protocol.
 
+config BT_HCIBTUSB_QCOM
+	bool "Qualcomm protocol support"
+	depends on BT_HCIBTUSB
+	select FW_LOADER
+	select GPIOLIB
+	select WANT_DEV_COREDUMP
+	default n
+	help
+	  Enables various required support, such as configuration, firmware
+	  download, and error recovery, for Qualcomm Bluetooth controllers.
+
+	  Say Y here to compile support for Qualcomm protocol.
+
 config BT_HCIBTSDIO
 	tristate "HCI SDIO driver"
 	depends on MMC
@@ -151,6 +164,7 @@ config BT_HCIUART_BCSP
 	bool "BCSP protocol support"
 	depends on BT_HCIUART
 	select BITREVERSE
+	select CRC_CCITT
 	help
 	  BCSP (BlueCore Serial Protocol) is serial protocol for communication
 	  between Bluetooth device and host. This protocol is required for non

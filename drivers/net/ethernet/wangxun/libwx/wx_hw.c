@@ -2521,7 +2521,7 @@ int wx_sw_init(struct wx *wx)
 	spin_lock_init(&wx->ptp_tx_lock);
 	mutex_init(&wx->reset_lock);
 	bitmap_zero(wx->state, WX_STATE_NBITS);
-	bitmap_zero(wx->flags, WX_PF_FLAGS_NBITS);
+	bitmap_zero(wx->flags, WX_FLAGS_NBITS);
 	set_bit(WX_STATE_DOWN, wx->state);
 	wx->misc_irq_domain = false;
 

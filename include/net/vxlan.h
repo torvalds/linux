@@ -204,7 +204,6 @@ struct vxlan_rdst {
 	u8			 offloaded:1;
 	__be32			 remote_vni;
 	u32			 remote_ifindex;
-	struct net_device	 *remote_dev;
 	struct list_head	 list;
 	struct rcu_head		 rcu;
 	struct dst_cache	 dst_cache;
@@ -229,6 +228,7 @@ struct vxlan_config {
 	bool				no_share;
 	enum ifla_vxlan_df		df;
 	struct vxlanhdr			reserved_bits;
+	struct rcu_head			rcu;
 };
 
 enum {
@@ -294,14 +294,15 @@ struct vxlan_dev {
 #endif
 	struct net_device *dev;
 	struct net	  *net;		/* netns for packet i/o */
-	struct vxlan_rdst default_dst;	/* default destination */
+	struct net_device *lowerdev;
 
 	struct timer_list age_timer;
 	spinlock_t	  hash_lock;
 	unsigned int	  addrcnt;
 	struct gro_cells  gro_cells;
+	unsigned long	  flags;
 
-	struct vxlan_config	cfg;
+	struct vxlan_config __rcu	*cfg;
 
 	struct vxlan_vni_group  __rcu *vnigrp;
 
@@ -311,6 +312,10 @@ struct vxlan_dev {
 	struct hlist_head fdb_list;
 	struct hlist_head mdb_list;
 	unsigned int mdb_seq;
+};
+
+enum vxlan_dev_flags {
+	VXLAN_DEV_F_MDB,
 };
 
 #define VXLAN_F_LEARN			0x01
@@ -331,7 +336,6 @@ struct vxlan_dev {
 #define VXLAN_F_IPV6_LINKLOCAL		0x8000
 #define VXLAN_F_TTL_INHERIT		0x10000
 #define VXLAN_F_VNIFILTER               0x20000
-#define VXLAN_F_MDB			0x40000
 #define VXLAN_F_LOCALBYPASS		0x80000
 #define VXLAN_F_MC_ROUTE		0x100000
 

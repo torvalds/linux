@@ -53,6 +53,8 @@ void ethtool_ringparam_get_cfg(struct net_device *dev,
 			       struct ethtool_ringparam *param,
 			       struct kernel_ethtool_ringparam *kparam,
 			       struct netlink_ext_ack *extack);
+void ethtool_ringparam_set_cfg(struct netdev_config *cfg,
+			       const struct ethtool_ringparam *param);
 
 int ethtool_get_rx_ring_count(struct net_device *dev);
 

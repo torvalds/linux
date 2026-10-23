@@ -5050,6 +5050,7 @@ static int ath12k_wmi_svc_rdy_ext_parse(struct ath12k_base *ab,
 					u16 tag, u16 len,
 					const void *ptr, void *data)
 {
+	struct ath12k_svc_ext_info *svc_ext_info = &ab->wmi_ab.svc_ext_info;
 	struct ath12k_wmi_pdev *wmi_handle = &ab->wmi_ab.wmi[0];
 	struct ath12k_wmi_svc_rdy_ext_parse *svc_rdy_ext = data;
 	int ret;
@@ -5092,6 +5093,22 @@ static int ath12k_wmi_svc_rdy_ext_parse(struct ath12k_base *ab,
 			if (ret) {
 				ath12k_warn(ab, "failed to parse tlv %d\n", ret);
 				return ret;
+			}
+
+			if (svc_rdy_ext->tot_phy_id >
+			    ARRAY_SIZE(svc_ext_info->mac_phy_info)) {
+				ath12k_warn(ab, "too many PHY entries %u (max %zu)\n",
+					    svc_rdy_ext->tot_phy_id,
+					    ARRAY_SIZE(svc_ext_info->mac_phy_info));
+				return -EINVAL;
+			}
+
+			if (svc_rdy_ext->n_mac_phy_caps < svc_rdy_ext->tot_phy_id) {
+				ath12k_warn(ab,
+					    "not enough MAC/PHY caps %u, expected %u\n",
+					    svc_rdy_ext->n_mac_phy_caps,
+					    svc_rdy_ext->tot_phy_id);
+				return -EINVAL;
 			}
 
 			ath12k_wmi_save_all_mac_phy_info(ab, svc_rdy_ext);
@@ -6975,6 +6992,14 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 		goto mem_free;
 	}
 
+	/*
+	 * Set the valid pdev_idx before validating so that, even when the
+	 * event is dropped or falls back, the completion the caller in
+	 * ath12k_mac_hw_register() may be waiting on is still signalled at
+	 * the end and it does not time out.
+	 */
+	pdev_idx = reg_info->phy_id;
+
 	ret = ath12k_reg_validate_reg_info(ab, reg_info);
 	if (ret == ATH12K_REG_STATUS_FALLBACK) {
 		ath12k_warn(ab, "failed to validate reg info %d\n", ret);
@@ -6991,7 +7016,6 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 	}
 
 	/* free old reg_info if it exist */
-	pdev_idx = reg_info->phy_id;
 	if (ab->reg_info[pdev_idx]) {
 		ath12k_reg_reset_reg_info(ab->reg_info[pdev_idx]);
 		kfree(ab->reg_info[pdev_idx]);
@@ -7030,7 +7054,7 @@ fallback:
 
 out:
 	/* In some error cases, even a valid pdev_idx might not be available */
-	if (pdev_idx != 255)
+	if (pdev_idx < ab->num_radios)
 		ar = ab->pdevs[pdev_idx].ar;
 
 	/* During the boot-time update, 'ar' might not be allocated,
@@ -7271,7 +7295,6 @@ static void ath12k_mgmt_rx_event(struct ath12k_base *ab, struct sk_buff *skb)
 	struct ath12k_wmi_mgmt_rx_arg rx_ev = {};
 	struct ath12k *ar;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_sta *pubsta = NULL;
 	struct ath12k_dp_link_peer *peer;
 	struct ieee80211_hdr *hdr;
 	bool is_4addr_null_pkt;
@@ -7372,11 +7395,6 @@ static void ath12k_mgmt_rx_event(struct ath12k_base *ab, struct sk_buff *skb)
 			spin_unlock_bh(&dp->dp_lock);
 			dev_kfree_skb(skb);
 			goto exit;
-		}
-		pubsta = peer->sta;
-		if (pubsta && pubsta->valid_links) {
-			status->link_valid = 1;
-			status->link_id = peer->link_id;
 		}
 		spin_unlock_bh(&dp->dp_lock);
 		goto send_rx;
@@ -9991,11 +10009,6 @@ static void ath12k_wmi_process_tpc_stats(struct ath12k_base *ab,
 	u16 tlv_len;
 	u32 event_count;
 	int ret;
-
-	if (!skb->data) {
-		ath12k_warn(ab, "No data present in tpc stats event\n");
-		return;
-	}
 
 	if (skb->len < (sizeof(*fixed_param) + TLV_HDR_SIZE)) {
 		ath12k_warn(ab, "TPC stats event size invalid\n");

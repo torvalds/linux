@@ -17,7 +17,7 @@ netxen_poll_rsp(struct netxen_adapter *adapter)
 	int	timeout = 0;
 
 	do {
-		/* give atleast 1ms for firmware to respond */
+		/* give at least 1ms for firmware to respond */
 		msleep(1);
 
 		if (++timeout > NX_OS_CRB_RETRY_COUNT)

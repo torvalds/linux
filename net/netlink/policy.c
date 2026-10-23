@@ -234,6 +234,11 @@ int netlink_policy_dump_attr_size_estimate(const struct nla_policy *pt)
 		/* maximum is common, u64 min/max with padding */
 		return common +
 		       2 * (nla_attr_size(0) + nla_attr_size(sizeof(u64)));
+	case NLA_BE16:
+	case NLA_BE32:
+		/* same as the unsigned types, plus the byte order */
+		return common + nla_attr_size(sizeof(u32)) +
+		       2 * (nla_attr_size(0) + nla_attr_size(sizeof(u64)));
 	case NLA_BITFIELD32:
 		return common + nla_attr_size(sizeof(u32));
 	case NLA_STRING:
@@ -289,20 +294,27 @@ __netlink_policy_dump_write_attr(struct netlink_policy_dump_state *state,
 	case NLA_U16:
 	case NLA_U32:
 	case NLA_U64:
+	case NLA_BE16:
+	case NLA_BE32:
 	case NLA_UINT:
 	case NLA_MSECS: {
 		struct netlink_range_validation range;
 
 		if (pt->type == NLA_U8)
 			type = NL_ATTR_TYPE_U8;
-		else if (pt->type == NLA_U16)
+		else if (pt->type == NLA_U16 || pt->type == NLA_BE16)
 			type = NL_ATTR_TYPE_U16;
-		else if (pt->type == NLA_U32)
+		else if (pt->type == NLA_U32 || pt->type == NLA_BE32)
 			type = NL_ATTR_TYPE_U32;
 		else if (pt->type == NLA_U64)
 			type = NL_ATTR_TYPE_U64;
 		else
 			type = NL_ATTR_TYPE_UINT;
+
+		if ((pt->type == NLA_BE16 || pt->type == NLA_BE32) &&
+		    nla_put_u32(skb, NL_POLICY_TYPE_ATTR_BYTE_ORDER,
+				NL_POLICY_BYTE_ORDER_BIG_ENDIAN))
+			goto nla_put_failure;
 
 		if (pt->validation_type == NLA_VALIDATE_MASK) {
 			if (nla_put_u64_64bit(skb, NL_POLICY_TYPE_ATTR_MASK,

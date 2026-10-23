@@ -647,6 +647,14 @@ static void br_multicast_del_mdb_entry(struct net_bridge_mdb_entry *mp)
 	queue_work(system_long_wq, &br->mcast_gc_work);
 }
 
+void br_multicast_del_group(struct net_bridge_mdb_entry *mp)
+{
+	if (mp->ports || mp->host_joined)
+		return;
+
+	br_multicast_del_mdb_entry(mp);
+}
+
 static void br_multicast_group_expired(struct timer_list *t)
 {
 	struct net_bridge_mdb_entry *mp = timer_container_of(mp, t, timer);
@@ -936,7 +944,7 @@ static void __br_multicast_query_handle_vlan(struct net_bridge_mcast *brmctx,
 	else if (br_multicast_ctx_is_vlan(brmctx))
 		vlan = brmctx->vlan;
 
-	if (vlan && !(vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED)) {
+	if (vlan && !(READ_ONCE(vlan->flags) & BRIDGE_VLAN_INFO_UNTAGGED)) {
 		u16 vlan_proto;
 
 		if (br_vlan_get_proto(brmctx->br->dev, &vlan_proto) != 0)
@@ -1554,6 +1562,7 @@ __br_multicast_add_group(struct net_bridge_mcast *brmctx,
 	p = br_multicast_new_port_group(pmctx->port, group, *pp, 0, src,
 					filter_mode, RTPROT_KERNEL, NULL);
 	if (unlikely(!p)) {
+		br_multicast_del_group(mp);
 		p = ERR_PTR(-ENOMEM);
 		goto out;
 	}
@@ -2197,7 +2206,7 @@ static void br_multicast_enable_port_ctx(struct net_bridge_mcast_port *pmctx)
 
 	spin_lock_bh(&br->multicast_lock);
 	if (br_multicast_port_ctx_is_vlan(pmctx) &&
-	    !(pmctx->vlan->priv_flags & BR_VLFLAG_MCAST_ENABLED)) {
+	    !(READ_ONCE(pmctx->vlan->priv_flags) & BR_VLFLAG_MCAST_ENABLED)) {
 		spin_unlock_bh(&br->multicast_lock);
 		return;
 	}
@@ -2234,7 +2243,7 @@ static void br_multicast_disable_port_ctx(struct net_bridge_mcast_port *pmctx)
 
 	spin_lock_bh(&br->multicast_lock);
 	if (br_multicast_port_ctx_is_vlan(pmctx) &&
-	    !(pmctx->vlan->priv_flags & BR_VLFLAG_MCAST_ENABLED)) {
+	    !(READ_ONCE(pmctx->vlan->priv_flags) & BR_VLFLAG_MCAST_ENABLED)) {
 		spin_unlock_bh(&br->multicast_lock);
 		return;
 	}
@@ -4108,7 +4117,8 @@ int br_multicast_rcv(struct net_bridge_mcast **brmctx,
 			*pmctx = &vlan->port_mcast_ctx;
 		}
 
-		if (!(masterv->priv_flags & BR_VLFLAG_GLOBAL_MCAST_ENABLED))
+		if (!(READ_ONCE(masterv->priv_flags) &
+		      BR_VLFLAG_GLOBAL_MCAST_ENABLED))
 			return 0;
 	}
 
@@ -4408,7 +4418,8 @@ void br_multicast_toggle_one_vlan(struct net_bridge_vlan *vlan, bool on)
 			return;
 
 		spin_lock_bh(&br->multicast_lock);
-		vlan->priv_flags ^= BR_VLFLAG_MCAST_ENABLED;
+		WRITE_ONCE(vlan->priv_flags, vlan->priv_flags ^
+					    BR_VLFLAG_MCAST_ENABLED);
 		spin_unlock_bh(&br->multicast_lock);
 
 		if (on)
@@ -4424,7 +4435,8 @@ void br_multicast_toggle_one_vlan(struct net_bridge_vlan *vlan, bool on)
 
 		br = vlan->port->br;
 		spin_lock_bh(&br->multicast_lock);
-		vlan->priv_flags ^= BR_VLFLAG_MCAST_ENABLED;
+		WRITE_ONCE(vlan->priv_flags, vlan->priv_flags ^
+					    BR_VLFLAG_MCAST_ENABLED);
 		if (on)
 			__br_multicast_enable_port_ctx(&vlan->port_mcast_ctx);
 		else
@@ -4502,7 +4514,8 @@ bool br_multicast_toggle_global_vlan(struct net_bridge_vlan *vlan, bool on)
 	if (on == !!(vlan->priv_flags & BR_VLFLAG_GLOBAL_MCAST_ENABLED))
 		return false;
 
-	vlan->priv_flags ^= BR_VLFLAG_GLOBAL_MCAST_ENABLED;
+	WRITE_ONCE(vlan->priv_flags, vlan->priv_flags ^
+				    BR_VLFLAG_GLOBAL_MCAST_ENABLED);
 	br_multicast_toggle_vlan(vlan, on);
 
 	return true;

@@ -43,7 +43,7 @@ static void _usbctrl_vendorreq_sync(struct usb_device *udev, u8 reqtype,
 					 reqtype, value, REALTEK_USB_VENQT_CMD_IDX,
 					 pdata, len, 1000);
 		if (status < 0) {
-			/* firmware download is checksumed, don't retry */
+			/* firmware download is checksummed, don't retry */
 			if ((value >= FW_8192C_START_ADDRESS &&
 			    value <= FW_8192C_END_ADDRESS))
 				break;

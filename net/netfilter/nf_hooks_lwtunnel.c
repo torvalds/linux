@@ -73,7 +73,7 @@ static int __net_init nf_lwtunnel_net_init(struct net *net)
 	if (!net_eq(net, &init_net)) {
 		table = kmemdup(nf_lwtunnel_sysctl_table,
 				sizeof(nf_lwtunnel_sysctl_table),
-				GFP_KERNEL);
+				GFP_KERNEL_ACCOUNT);
 		if (!table)
 			goto err_alloc;
 	}

@@ -1209,6 +1209,7 @@ static int otx2_get_link_ksettings(struct net_device *netdev,
 {
 	struct otx2_nic *pfvf = netdev_priv(netdev);
 	struct cgx_fw_data *rsp = NULL;
+	u8 port;
 
 	cmd->base.duplex  = pfvf->linfo.full_duplex;
 	cmd->base.speed   = pfvf->linfo.speed;
@@ -1231,6 +1232,23 @@ static int otx2_get_link_ksettings(struct net_device *netdev,
 				OTX2_MODE_SUPPORTED, cmd);
 	otx2_get_fec_info(rsp->fwdata.supported_fec,
 			  OTX2_MODE_SUPPORTED, cmd);
+
+	port = FIELD_GET(GENMASK(7, 0), rsp->fwdata.port);
+	switch (port) {
+	case PORT_TP:
+	case PORT_AUI:
+	case PORT_MII:
+	case PORT_FIBRE:
+	case PORT_BNC:
+	case PORT_DA:
+	case PORT_NONE:
+		cmd->base.port = port;
+		break;
+	default:
+		cmd->base.port = PORT_OTHER;
+		break;
+	}
+
 	return 0;
 }
 

@@ -289,4 +289,4 @@ static int __init blackhole_netdev_init(void)
 	return 0;
 }
 
-device_initcall(blackhole_netdev_init);
+subsys_initcall_sync(blackhole_netdev_init);

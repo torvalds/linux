@@ -97,18 +97,14 @@ struct mlx5e_tc_flow {
 	struct encap_flow_item encaps[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct mlx5e_hairpin_entry *hpe; /* attached hairpin instance */
 	struct list_head hairpin; /* flows sharing the same hairpin */
-	struct list_head peer[MLX5_MAX_PORTS];    /* flows with peer flow */
-	DECLARE_BITMAP(peer_used, MLX5_MAX_PORTS); /* tracks populated peer
-						    * slots
-						    */
+	struct list_head peer; /* dup: node in origin esw's peer_flows */
 	struct list_head unready; /* flows not ready to be offloaded (e.g
 				   * due to missing route)
 				   */
-	struct list_head peer_flows; /* flows on peer */
-	int peer_index; /* peer-flow index pinned at add time, used at del
-			 * time so removal is independent of LAG state
-			 * changes between add and del.
-			 */
+
+	/* origin: its dups; dup: node on that list */
+	struct list_head peer_flows;
+	struct mlx5e_tc_flow *peer_orig; /* dup: back-ref to origin flow */
 	struct net_device *orig_dev; /* netdev adding flow first */
 	int tmp_entry_index;
 	struct list_head tmp_list; /* temporary flow list used by neigh update */

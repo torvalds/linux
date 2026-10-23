@@ -548,7 +548,7 @@ static void batadv_dbg_arp(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			break;
 		default:
 			batadv_dbg(BATADV_DBG_DAT, bat_priv, "* type: Unknown (%u)!\n",
-				   unicast_4addr_packet->u.packet_type);
+				   unicast_4addr_packet->subtype);
 		}
 		break;
 	case BATADV_BCAST:
@@ -863,10 +863,8 @@ static void batadv_dat_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 					   u8 flags,
 					   void *tvlv_value, u16 tvlv_value_len)
 {
-	if (flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND)
-		clear_bit(BATADV_ORIG_CAPA_HAS_DAT, &orig->capabilities);
-	else
-		set_bit(BATADV_ORIG_CAPA_HAS_DAT, &orig->capabilities);
+	assign_bit(BATADV_ORIG_CAPA_HAS_DAT, &orig->capabilities,
+		   !(flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND));
 }
 
 /**
@@ -940,7 +938,7 @@ batadv_dat_cache_dump_entry(struct sk_buff *msg, u32 portid,
 			    struct netlink_callback *cb,
 			    struct batadv_dat_entry *dat_entry)
 {
-	u8 mac[ETH_ALEN];
+	u8 mac[ETH_ALEN] __aligned(2);
 	u64 u64_mac;
 	int msecs;
 	void *hdr;
@@ -1236,10 +1234,10 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 {
 	struct net_device *mesh_iface = bat_priv->mesh_iface;
 	struct batadv_dat_entry *dat_entry = NULL;
+	u8 mac[ETH_ALEN] __aligned(2);
 	struct sk_buff *skb_new;
 	unsigned short vid;
 	bool ret = false;
-	u8 mac[ETH_ALEN];
 	int hdr_size = 0;
 	__be32 ip_dst;
 	__be32 ip_src;
@@ -1344,10 +1342,10 @@ bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb, int hdr_size)
 {
 	struct batadv_dat_entry *dat_entry = NULL;
+	u8 mac[ETH_ALEN] __aligned(2);
 	struct sk_buff *skb_new;
 	unsigned short vid;
 	bool ret = false;
-	u8 mac[ETH_ALEN];
 	__be32 ip_src;
 	__be32 ip_dst;
 	u64 u64_mac;
@@ -1474,9 +1472,9 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb, int hdr_size)
 {
 	struct batadv_dat_entry *dat_entry = NULL;
+	u8 mac[ETH_ALEN] __aligned(2);
 	bool dropped = false;
 	unsigned short vid;
-	u8 mac[ETH_ALEN];
 	__be32 ip_src;
 	__be32 ip_dst;
 	u64 u64_mac;

@@ -689,6 +689,16 @@ static int gswip_setup(struct dsa_switch *ds)
 	 */
 	regmap_write(priv->mdio, GSWIP_MDIO_MDC_CFG0, 0x0);
 
+	/* GSW1xx will wake up the PHYs here, so it makes sense that it happens
+	 * after the auto-polling deactivation above, but before the MDIO bus
+	 * registration below
+	 */
+	if (priv->hw_info->setup) {
+		err = priv->hw_info->setup(ds);
+		if (err)
+			return err;
+	}
+
 	/* Configure the MDIO Clock 2.5 MHz */
 	regmap_write_bits(priv->mdio, GSWIP_MDIO_MDC_CFG1, 0xff, 0x09);
 
@@ -1279,12 +1289,8 @@ static int gswip_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 	/* Enable MLEN for ports with non-standard MTUs, including the special
 	 * header on the CPU port added above.
 	 */
-	if (new_mtu != ETH_DATA_LEN)
-		regmap_set_bits(priv->gswip, GSWIP_MAC_CTRL_2p(port),
-				GSWIP_MAC_CTRL_2_MLEN);
-	else
-		regmap_clear_bits(priv->gswip, GSWIP_MAC_CTRL_2p(port),
-				  GSWIP_MAC_CTRL_2_MLEN);
+	regmap_assign_bits(priv->gswip, GSWIP_MAC_CTRL_2p(port),
+			   GSWIP_MAC_CTRL_2_MLEN, new_mtu != ETH_DATA_LEN);
 
 	return 0;
 }
@@ -1339,6 +1345,7 @@ static void gswip_port_set_speed(struct gswip_priv *priv, int port, int speed,
 		break;
 
 	case SPEED_1000:
+	case SPEED_2500:
 		mdio_phy = GSWIP_MDIO_PHY_SPEED_G1;
 
 		mii_cfg = GSWIP_MII_CFG_RATE_M125;

@@ -84,12 +84,15 @@ netdev_nl_page_pool_get_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	struct page_pool_dump_cb *state = (void *)cb->ctx;
 	const struct genl_info *info = genl_info_dump(cb);
 	struct net *net = sock_net(skb->sk);
+	unsigned long start_ifindex;
 	struct net_device *netdev;
 	struct page_pool *pool;
 	int err = 0;
 
 	if (ifindex_attr)
 		state->ifindex = nla_get_u32(ifindex_attr);
+
+	start_ifindex = state->ifindex;
 
 	rtnl_lock();
 	mutex_lock(&page_pools_lock);
@@ -98,6 +101,9 @@ netdev_nl_page_pool_get_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		if (ifindex_attr &&
 		    netdev->ifindex != nla_get_u32(ifindex_attr))
 			break;
+
+		if (state->ifindex != start_ifindex)
+			state->pp_id = 0;
 
 		hlist_for_each_entry(pool, &netdev->page_pools, user.list) {
 			if (state->pp_id && state->pp_id < pool->user.id)
@@ -108,8 +114,6 @@ netdev_nl_page_pool_get_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			if (err)
 				goto out;
 		}
-
-		state->pp_id = 0;
 	}
 out:
 	mutex_unlock(&page_pools_lock);

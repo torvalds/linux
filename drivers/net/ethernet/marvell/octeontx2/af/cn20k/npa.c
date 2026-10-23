@@ -18,4 +18,3 @@ int rvu_mbox_handler_npa_cn20k_aq_enq(struct rvu *rvu,
 	return rvu_npa_aq_enq_inst(rvu, (struct npa_aq_enq_req *)req,
 				   (struct npa_aq_enq_rsp *)rsp);
 }
-EXPORT_SYMBOL(rvu_mbox_handler_npa_cn20k_aq_enq);

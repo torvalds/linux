@@ -254,7 +254,7 @@ struct octeon_oq_config {
 	u64 pkts_per_intr:16;
 
 	/** Interrupt Coalescing (Time Interval). Octeon will interrupt the
-	 *  host if atleast one packet was sent in the time interval specified
+	 *  host if at least one packet was sent in the time interval specified
 	 *  by this field. The driver uses time interval interrupt coalescing
 	 *  by default. The time is specified in microseconds.
 	 */
@@ -296,7 +296,7 @@ struct octeon_oq_config {
 	u64 oq_intr_pkt:16;
 
 	/** Interrupt Coalescing (Time Interval). Octeon will interrupt the
-	 *  host if atleast one packet was sent in the time interval specified
+	 *  host if at least one packet was sent in the time interval specified
 	 *  by this field. The driver uses time interval interrupt coalescing
 	 *  by default.  The time is specified in microseconds.
 	 */

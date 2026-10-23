@@ -258,6 +258,7 @@ struct fib_table {
 	struct hlist_node	tb_hlist;
 	u32			tb_id;
 	int			tb_num_default;
+	struct net		*tb_net;
 	struct rcu_head		rcu;
 	unsigned long 		*tb_data;
 	unsigned long		__data[];
@@ -591,7 +592,8 @@ void fib_nh_common_release(struct fib_nh_common *nhc);
 /* Exported by fib_trie.c */
 void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri);
 void fib_trie_init(void);
-struct fib_table *fib_trie_table(u32 id, struct fib_table *alias);
+struct fib_table *fib_trie_table(struct net *net, u32 id,
+				 struct fib_table *alias);
 bool fib_lookup_good_nhc(const struct fib_nh_common *nhc, int fib_flags,
 			 const struct flowi4 *flp);
 

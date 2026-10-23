@@ -41,10 +41,7 @@ static void ksz_hwtstamp_set_state(struct dsa_switch *ds, bool on)
 {
 	struct ksz_tagger_private *priv = ksz_tagger_private(ds);
 
-	if (on)
-		set_bit(KSZ_HWTS_EN, &priv->state);
-	else
-		clear_bit(KSZ_HWTS_EN, &priv->state);
+	assign_bit(KSZ_HWTS_EN, &priv->state, on);
 }
 
 static void ksz_disconnect(struct dsa_switch *ds)

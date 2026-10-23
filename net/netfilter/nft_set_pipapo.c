@@ -1441,7 +1441,7 @@ static struct nft_pipapo_match *pipapo_clone(struct nft_pipapo_match *old)
 	new->field_count = old->field_count;
 	new->bsize_max = old->bsize_max;
 
-	new->scratch = alloc_percpu(*new->scratch);
+	new->scratch = alloc_percpu_gfp(*new->scratch, GFP_KERNEL_ACCOUNT);
 	if (!new->scratch)
 		goto out_scratch;
 
@@ -2298,14 +2298,14 @@ static int nft_pipapo_init(const struct nft_set *set,
 	if (field_count > NFT_PIPAPO_MAX_FIELDS)
 		return -EINVAL;
 
-	m = kmalloc_flex(*m, f, field_count);
+	m = kmalloc_flex(*m, f, field_count, GFP_KERNEL_ACCOUNT);
 	if (!m)
 		return -ENOMEM;
 
 	m->field_count = field_count;
 	m->bsize_max = 0;
 
-	m->scratch = alloc_percpu(struct nft_pipapo_scratch *);
+	m->scratch = alloc_percpu_gfp(struct nft_pipapo_scratch *, GFP_KERNEL_ACCOUNT);
 	if (!m->scratch) {
 		err = -ENOMEM;
 		goto out_scratch;

@@ -663,7 +663,7 @@ static void batadv_bla_send_request(struct batadv_bla_backbone_gw *backbone_gw)
 static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
 				     struct batadv_bla_backbone_gw *backbone_gw)
 {
-	u8 mac[ETH_ALEN];
+	u8 mac[ETH_ALEN] __aligned(2);
 	__be16 crc;
 
 	memcpy(mac, batadv_announce_mac, 4);
@@ -1582,7 +1582,9 @@ static struct lock_class_key batadv_backbone_hash_lock_class_key;
  */
 int batadv_bla_init(struct batadv_priv *bat_priv)
 {
-	u8 claim_dest[ETH_ALEN] = {0xff, 0x43, 0x05, 0x00, 0x00, 0x00};
+	static const u8 claim_dest[ETH_ALEN] __aligned(2) = {
+		0xff, 0x43, 0x05, 0x00, 0x00, 0x00
+	};
 	struct batadv_hard_iface *primary_if;
 	unsigned long entrytime;
 	u16 crc;
@@ -1623,6 +1625,7 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
 	bat_priv->bla.backbone_hash = batadv_hash_new(32);
 	if (!bat_priv->bla.backbone_hash) {
 		batadv_hash_destroy(bat_priv->bla.claim_hash);
+		bat_priv->bla.claim_hash = NULL;
 		return -ENOMEM;
 	}
 

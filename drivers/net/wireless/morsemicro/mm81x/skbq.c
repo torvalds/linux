@@ -231,10 +231,9 @@ static bool mm81x_tx_h_is_ps_filtered(struct mm81x_skbq *mq,
 	WARN_ON_ONCE(!(le32_to_cpu(tx_sts->flags) &
 		       MM81X_TX_STATUS_FLAGS_PS_FILTERED));
 
-	if (vif->type == NL80211_IFTYPE_AP) {
-		__mm81x_skbq_drop_pending_skb(mq, skb);
-		return true;
-	}
+	/* mac80211 buffers frames in AP mode */
+	if (vif->type == NL80211_IFTYPE_AP)
+		return false;
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		mm81x_skbq_insert_pending(mq, skb, tx_sts->pkt_id);

@@ -155,13 +155,41 @@ enum offs_rev {
 #define MT_FL_Q2_CTRL				MT_PLE(0x3e8)
 #define MT_FL_Q3_CTRL				MT_PLE(0x3ec)
 
-#define MT_PLE_FREEPG_CNT			MT_PLE(0x380)
-#define MT_PLE_FREEPG_HEAD_TAIL			MT_PLE(0x384)
-#define MT_PLE_PG_HIF_GROUP			MT_PLE(0x00c)
-#define MT_PLE_HIF_PG_INFO			MT_PLE(0x388)
+#define MT_FL_Q0_CTRL_EXECUTE			BIT(31)
+#define MT_FL_Q0_CTRL_QID			GENMASK(30, 24)
+#define MT_FL_Q0_CTRL_TGID			GENMASK(21, 20)
+#define MT_FL_Q0_CTRL_PID			GENMASK(17, 16)
+#define MT_FL_Q0_CTRL_WLAN_IDX			GENMASK(11, 0)
+#define MT_FL_Q2_CTRL_TAIL_FID			GENMASK(28, 16)
+#define MT_FL_Q2_CTRL_HEAD_FID			GENMASK(12, 0)
+#define MT_FL_Q3_CTRL_PKT_NUM			GENMASK(12, 0)
 
-#define MT_PLE_AC_QEMPTY(ac, n)			MT_PLE(0x600 +	0x80 * (ac) + ((n) << 2))
+#define MT_PLE_FREEPG_CNT			MT_PLE(0x3a0)
+#define MT_PLE_FREEPG_HEAD_TAIL			MT_PLE(0x3a4)
+#define MT_PLE_PG_HIF_GROUP			MT_PLE(0x00c)
+#define MT_PLE_HIF_PG_INFO			MT_PLE(0x3a8)
+
+#define MT_PLE_AC_QEMPTY(ac, n)			MT_PLE(0x600 + 0x100 * (ac) + ((n) << 2))
 #define MT_PLE_AMSDU_PACK_MSDU_CNT(n)		MT_PLE(0x10e0 + ((n) << 2))
+
+#define MT_FREEPG_CNT_FFA			GENMASK(28, 16)
+#define MT_FREEPG_CNT_FREE			GENMASK(12, 0)
+#define MT_FREEPG_HEAD_TAIL_TAIL		GENMASK(28, 16)
+#define MT_FREEPG_HEAD_TAIL_HEAD		GENMASK(12, 0)
+#define MT_PG_GROUP_MAX_QUOTA			GENMASK(28, 16)
+#define MT_PG_GROUP_MIN_QUOTA			GENMASK(12, 0)
+#define MT_PG_INFO_SRC_CNT			GENMASK(28, 16)
+#define MT_PG_INFO_RSV_CNT			GENMASK(12, 0)
+
+/* PSE */
+#define MT_PSE_BASE				0x820c8000
+#define MT_PSE(ofs)				(MT_PSE_BASE + (ofs))
+
+#define MT_PSE_QUEUE_EMPTY			MT_PSE(0x0b0)
+#define MT_PSE_QUEUE_EMPTY_1			MT_PSE(0x0bc)
+#define MT_PSE_FL_Q0_CTRL			MT_PSE(0x1b0)
+#define MT_PSE_FL_Q2_CTRL			MT_PSE(0x1b8)
+#define MT_PSE_FL_Q3_CTRL			MT_PSE(0x1bc)
 
 /* WF MDP TOP */
 #define MT_MDP_BASE				0x820cc000

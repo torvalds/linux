@@ -96,7 +96,7 @@ MODULE_DEVICE_TABLE(i2c, lan9303_i2c_id);
 
 static const struct of_device_id lan9303_i2c_of_match[] = {
 	{ .compatible = "smsc,lan9303-i2c", },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, lan9303_i2c_of_match);
 

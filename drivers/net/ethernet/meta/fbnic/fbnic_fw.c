@@ -620,11 +620,55 @@ static int fbnic_fw_parse_bmc_addrs(u8 bmc_mac_addr[][ETH_ALEN],
 	return 0;
 }
 
+static int fbnic_fw_parse_bmc_cap(struct fbnic_dev *fbd,
+				  struct fbnic_tlv_msg **results)
+{
+	struct fbnic_tlv_msg *attr;
+	bool bmc_present = false;
+	u32 all_multi = 0;
+	int err;
+
+	/* FW reports the BMC present once its NC-SI channel is enabled, before
+	 * it has a MAC. No MAC array means nothing to program, so treat it as
+	 * absent rather than rejecting the message.
+	 */
+	attr = results[FBNIC_FW_CAP_RESP_BMC_PRESENT] ?
+	       results[FBNIC_FW_CAP_RESP_BMC_MAC_ARRAY] : NULL;
+	if (attr) {
+		err = fbnic_fw_parse_bmc_addrs(fbd->fw_cap.bmc_mac_addr,
+					       attr, 4);
+		if (err)
+			return err;
+
+		all_multi = fta_get_uint(results,
+					 FBNIC_FW_CAP_RESP_BMC_ALL_MULTI);
+		bmc_present = true;
+	} else {
+		memset(fbd->fw_cap.bmc_mac_addr, 0,
+		       sizeof(fbd->fw_cap.bmc_mac_addr));
+	}
+
+	/* all_multi is only read out of the message when a BMC is present, so
+	 * it is never set on its own and callers can test it without pairing
+	 * it with the presence check.
+	 */
+	assign_bit(FBNIC_FW_CAP_F_BMC_PRESENT, &fbd->fw_cap.state, bmc_present);
+	assign_bit(FBNIC_FW_CAP_F_BMC_ALL_MULTI, &fbd->fw_cap.state, all_multi);
+
+	/* Always assume we need a BMC reinit. The barrier orders the BMC state
+	 * published above ahead of the flag, pairing with the ordering implied
+	 * by the test_and_clear_bit() in fbnic_bmc_rpc_check().
+	 */
+	smp_mb__before_atomic();
+	set_bit(FBNIC_FW_CAP_F_BMC_TCAM_REINIT, &fbd->fw_cap.state);
+
+	return 0;
+}
+
 static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 {
-	u32 all_multi = 0, version = 0;
 	struct fbnic_dev *fbd = opaque;
-	bool bmc_present;
+	u32 version = 0;
 	int err;
 
 	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_VERSION);
@@ -684,36 +728,12 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 	fbd->fw_cap.link_fec =
 		fta_get_uint(results, FBNIC_FW_CAP_RESP_FW_LINK_FEC);
 
-	bmc_present = !!results[FBNIC_FW_CAP_RESP_BMC_PRESENT];
-	if (bmc_present) {
-		struct fbnic_tlv_msg *attr;
-
-		attr = results[FBNIC_FW_CAP_RESP_BMC_MAC_ARRAY];
-		if (!attr)
-			return -EINVAL;
-
-		err = fbnic_fw_parse_bmc_addrs(fbd->fw_cap.bmc_mac_addr,
-					       attr, 4);
-		if (err)
-			return err;
-
-		all_multi =
-			fta_get_uint(results, FBNIC_FW_CAP_RESP_BMC_ALL_MULTI);
-	} else {
-		memset(fbd->fw_cap.bmc_mac_addr, 0,
-		       sizeof(fbd->fw_cap.bmc_mac_addr));
-	}
-
-	fbd->fw_cap.bmc_present = bmc_present;
-
-	if (results[FBNIC_FW_CAP_RESP_BMC_ALL_MULTI] || !bmc_present)
-		fbd->fw_cap.all_multi = all_multi;
+	err = fbnic_fw_parse_bmc_cap(fbd, results);
+	if (err)
+		return err;
 
 	fbd->fw_cap.anti_rollback_version =
 		fta_get_uint(results, FBNIC_FW_CAP_RESP_ANTI_ROLLBACK_VERSION);
-
-	/* Always assume we need a BMC reinit */
-	fbd->fw_cap.need_bmc_tcam_reinit = true;
 
 	return 0;
 }
@@ -1697,16 +1717,19 @@ static void fbnic_mbx_process_rx_msgs(struct fbnic_dev *fbd)
 		if (!length)
 			goto next_page;
 
-		/* Report descriptors with length greater than page size */
-		if (length > PAGE_SIZE) {
+		/* Report descriptors with invalid message extents. */
+		if (length < sizeof(msg->hdr) || length > PAGE_SIZE) {
 			dev_warn(fbd->dev,
 				 "Invalid mailbox descriptor length: %lld\n",
 				 length);
 			goto next_page;
 		}
 
-		if (le16_to_cpu(msg->hdr.len) * sizeof(u32) > length)
+		if (!le16_to_cpu(msg->hdr.len) ||
+		    le16_to_cpu(msg->hdr.len) * sizeof(u32) > length) {
 			dev_warn(fbd->dev, "Mailbox message length mismatch\n");
+			goto next_page;
+		}
 
 		/* If parsing fails dump contents of message to dmesg */
 		err = fbnic_tlv_msg_parse(fbd, msg, fbnic_fw_tlv_parser);

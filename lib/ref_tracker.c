@@ -265,7 +265,7 @@ int ref_tracker_alloc(struct ref_tracker_dir *dir,
 		refcount_inc(&dir->no_tracker);
 		return 0;
 	}
-	if (gfp & __GFP_DIRECT_RECLAIM)
+	if ((gfp & __GFP_DIRECT_RECLAIM) && !(current->flags & PF_MEMALLOC))
 		gfp_mask |= __GFP_NOFAIL;
 	*trackerp = tracker = kzalloc_obj(*tracker, gfp_mask);
 	if (unlikely(!tracker)) {

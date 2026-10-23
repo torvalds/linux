@@ -665,8 +665,10 @@ static int smcr_clnt_conf_first_link(struct smc_sock *smc)
 	if (rc < 0)
 		return SMC_CLC_DECL_TIMEOUT_CL;
 
+	down_write(&link->lgr->llc_conf_mutex);
 	smc_llc_link_active(link);
 	smcr_lgr_set_type(link->lgr, SMC_LGR_SINGLE);
+	up_write(&link->lgr->llc_conf_mutex);
 
 	if (link->lgr->max_links > 1) {
 		/* optional 2nd link, receive ADD LINK request from server */
@@ -682,7 +684,9 @@ static int smcr_clnt_conf_first_link(struct smc_sock *smc)
 			return rc;
 		}
 		smc_llc_flow_qentry_clr(&link->lgr->llc_flow_lcl);
+		down_write(&link->lgr->llc_conf_mutex);
 		smc_llc_cli_add_link(link, qentry);
+		up_write(&link->lgr->llc_conf_mutex);
 	}
 	return 0;
 }
@@ -1909,8 +1913,10 @@ static int smcr_serv_conf_first_link(struct smc_sock *smc)
 	/* confirm_rkey is implicit on 1st contact */
 	smc->conn.rmb_desc->is_conf_rkey = true;
 
+	down_write(&link->lgr->llc_conf_mutex);
 	smc_llc_link_active(link);
 	smcr_lgr_set_type(link->lgr, SMC_LGR_SINGLE);
+	up_write(&link->lgr->llc_conf_mutex);
 
 	if (link->lgr->max_links > 1) {
 		down_write(&link->lgr->llc_conf_mutex);
@@ -2924,7 +2930,7 @@ __poll_t smc_poll(struct file *file, struct socket *sock,
 				mask |= EPOLLOUT | EPOLLWRNORM;
 			} else {
 				sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
-				set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+				sk_set_nospace(sk);
 
 				if (sk->sk_state != SMC_INIT) {
 					/* Race breaker the same way as tcp_poll(). */
@@ -3146,7 +3152,8 @@ int smc_setsockopt(struct socket *sock, int level, int optname,
 			if (val) {
 				SMC_STAT_INC(smc, ndly_cnt);
 				smc_tx_pending(&smc->conn);
-				cancel_delayed_work(&smc->conn.tx_work);
+				if (cancel_delayed_work(&smc->conn.tx_work))
+					sock_put(sk);
 			}
 		}
 		break;
@@ -3157,7 +3164,8 @@ int smc_setsockopt(struct socket *sock, int level, int optname,
 			if (!val) {
 				SMC_STAT_INC(smc, cork_cnt);
 				smc_tx_pending(&smc->conn);
-				cancel_delayed_work(&smc->conn.tx_work);
+				if (cancel_delayed_work(&smc->conn.tx_work))
+					sock_put(sk);
 			}
 		}
 		break;

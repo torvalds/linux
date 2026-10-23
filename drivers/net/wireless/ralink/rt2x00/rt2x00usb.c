@@ -755,54 +755,30 @@ void rt2x00usb_uninitialize(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_uninitialize);
 
-/*
- * USB driver handlers.
- */
-static void rt2x00usb_free_reg(struct rt2x00_dev *rt2x00dev)
-{
-	kfree(rt2x00dev->rf);
-	rt2x00dev->rf = NULL;
-
-	kfree(rt2x00dev->eeprom);
-	rt2x00dev->eeprom = NULL;
-
-	kfree(rt2x00dev->csr.cache);
-	rt2x00dev->csr.cache = NULL;
-}
-
-static int rt2x00usb_alloc_reg(struct rt2x00_dev *rt2x00dev)
-{
-	rt2x00dev->csr.cache = kzalloc(CSR_CACHE_SIZE, GFP_KERNEL);
-	if (!rt2x00dev->csr.cache)
-		goto exit;
-
-	rt2x00dev->eeprom = kzalloc(rt2x00dev->ops->eeprom_size, GFP_KERNEL);
-	if (!rt2x00dev->eeprom)
-		goto exit;
-
-	rt2x00dev->rf = kzalloc(rt2x00dev->ops->rf_size, GFP_KERNEL);
-	if (!rt2x00dev->rf)
-		goto exit;
-
-	return 0;
-
-exit:
-	rt2x00_probe_err("Failed to allocate registers\n");
-
-	rt2x00usb_free_reg(rt2x00dev);
-
-	return -ENOMEM;
-}
-
 int rt2x00usb_probe(struct usb_interface *usb_intf,
 		    const struct rt2x00_ops *ops)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(usb_intf);
-	struct ieee80211_hw *hw;
 	struct rt2x00_dev *rt2x00dev;
+	struct ieee80211_hw *hw;
+	__le16 *eeprom;
+	void *cache;
 	int retval;
+	u32 *rf;
 
 	usb_reset_device(usb_dev);
+
+	cache = devm_kzalloc(&usb_intf->dev, CSR_CACHE_SIZE, GFP_KERNEL);
+	if (!cache)
+		return -ENOMEM;
+
+	eeprom = devm_kzalloc(&usb_intf->dev, ops->eeprom_size, GFP_KERNEL);
+	if (!eeprom)
+		return -ENOMEM;
+
+	rf = devm_kzalloc(&usb_intf->dev, ops->rf_size, GFP_KERNEL);
+	if (!rf)
+		return -ENOMEM;
 
 	hw = ieee80211_alloc_hw(struct_size(rt2x00dev, anchor, 1), ops->hw);
 	if (!hw) {
@@ -816,15 +792,14 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	rt2x00dev->dev = &usb_intf->dev;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
+	rt2x00dev->csr.cache = cache;
+	rt2x00dev->eeprom = eeprom;
+	rt2x00dev->rf = rf;
 
 	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_USB);
 
 	INIT_WORK(&rt2x00dev->rxdone_work, rt2x00usb_work_rxdone);
 	INIT_WORK(&rt2x00dev->txdone_work, rt2x00usb_work_txdone);
-
-	retval = rt2x00usb_alloc_reg(rt2x00dev);
-	if (retval)
-		goto exit_free_device;
 
 	init_usb_anchor(rt2x00dev->anchor);
 
@@ -836,9 +811,6 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 
 exit_free_anchor:
 	usb_kill_anchored_urbs(rt2x00dev->anchor);
-	rt2x00usb_free_reg(rt2x00dev);
-
-exit_free_device:
 	ieee80211_free_hw(hw);
 	usb_set_intfdata(usb_intf, NULL);
 
@@ -855,7 +827,6 @@ void rt2x00usb_disconnect(struct usb_interface *usb_intf)
 	 * Free all allocated data.
 	 */
 	rt2x00lib_remove_dev(rt2x00dev);
-	rt2x00usb_free_reg(rt2x00dev);
 	ieee80211_free_hw(hw);
 
 	usb_set_intfdata(usb_intf, NULL);

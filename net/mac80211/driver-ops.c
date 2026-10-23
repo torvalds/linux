@@ -633,3 +633,79 @@ int drv_change_sta_links(struct ieee80211_local *local,
 
 	return 0;
 }
+
+int drv_sta_statistics(struct ieee80211_local *local,
+		       struct ieee80211_sub_if_data *sdata,
+		       struct ieee80211_sta *sta,
+		       struct station_info *sinfo,
+		       bool locked)
+{
+	int ret;
+
+	sdata = get_bss_sdata(sdata);
+	if (!check_sdata_in_driver(sdata))
+		return 0;
+
+	trace_drv_sta_statistics(local, sdata, sta);
+
+	if (locked) {
+		might_sleep();
+		lockdep_assert_wiphy(local->hw.wiphy);
+
+		ret = 0;
+
+		if (local->ops->sta_statistics)
+			local->ops->sta_statistics(&local->hw,
+						   &sdata->vif,
+						   sta, sinfo);
+	} else {
+		ret = -EAGAIN;
+
+		if (local->ops->sta_statistics_atomic)
+			ret = local->ops->sta_statistics_atomic(&local->hw,
+								&sdata->vif,
+								sta, sinfo);
+	}
+
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+int drv_link_sta_statistics(struct ieee80211_local *local,
+			    struct ieee80211_sub_if_data *sdata,
+			    struct ieee80211_link_sta *link_sta,
+			    struct link_station_info *link_sinfo,
+			    bool locked)
+{
+	int ret;
+
+	sdata = get_bss_sdata(sdata);
+	if (!check_sdata_in_driver(sdata))
+		return 0;
+
+	if (locked) {
+		might_sleep();
+		lockdep_assert_wiphy(local->hw.wiphy);
+
+		ret = 0;
+
+		if (local->ops->link_sta_statistics)
+			local->ops->link_sta_statistics(&local->hw,
+							&sdata->vif,
+							link_sta,
+							link_sinfo);
+	} else {
+		ret = -EAGAIN;
+
+		if (local->ops->sta_statistics_atomic)
+			ret = local->ops->link_sta_statistics_atomic(&local->hw,
+								     &sdata->vif,
+								     link_sta,
+								     link_sinfo);
+	}
+
+	trace_drv_return_int(local, ret);
+
+	return 0;
+}

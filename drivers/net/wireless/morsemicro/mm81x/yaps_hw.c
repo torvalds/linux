@@ -401,16 +401,17 @@ exit:
 static bool mm81x_read_pkts_h_is_valid_delim(u32 delim)
 {
 	u8 calc_crc = mm81x_yaps_hw_crc(delim);
-	int pkt_size = YAPS_DELIM_GET_PHANDLE_SIZE(delim);
+	int pkt_size = YAPS_DELIM_GET_PKT_SIZE(delim);
 	int padding = YAPS_DELIM_GET_PADDING(delim);
 
 	if (calc_crc != YAPS_DELIM_GET_CRC(delim))
 		return false;
 
-	if (pkt_size == 0)
+	if (pkt_size <= 0)
 		return false;
 
-	if ((pkt_size + padding) > YAPS_MAX_PKT_SIZE_BYTES)
+	if ((pkt_size + YAPS_RESERVED_PAGE_SIZE + padding) >
+	    YAPS_MAX_PKT_SIZE_BYTES)
 		return false;
 
 	/* Pkt length + padding should not require more padding */
@@ -455,6 +456,10 @@ static int mm81x_yaps_hw_read_pkts(struct mm81x_yaps *yaps,
 		return 0;
 	if (bytes_remaining < 0)
 		return bytes_remaining;
+	if (!IS_ALIGNED(bytes_remaining, sizeof(u32))) {
+		dev_warn(yaps->mors->dev, "yaps truncated delimiter");
+		return -EIO;
+	}
 
 	if (bytes_remaining > YAPS_HW_WINDOW_SIZE_BYTES) {
 		bytes_remaining = YAPS_HW_WINDOW_SIZE_BYTES;
@@ -485,6 +490,9 @@ static int mm81x_yaps_hw_read_pkts(struct mm81x_yaps *yaps,
 		u32 delim;
 		int total_len;
 		int pkt_size;
+
+		if (bytes_remaining < (int)sizeof(delim))
+			break;
 
 		delim = le32_to_cpu(*((__le32 *)read_ptr));
 		read_ptr += sizeof(delim);

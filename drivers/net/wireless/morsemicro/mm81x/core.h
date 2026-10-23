@@ -192,7 +192,12 @@ struct mm81x_sta {
 	bool tid_tx[IEEE80211_NUM_TIDS];
 	bool tid_start_tx[IEEE80211_NUM_TIDS];
 	u8 tid_params[IEEE80211_NUM_TIDS];
-	int max_bw_mhz;
+
+	/*
+	 * We really should be using link_sta::bandwidth but
+	 * that requires non-trivial work.
+	 */
+	int max_rx_bw_mhz;
 	struct mm81x_rc_sta rc;
 	struct mmrc_rate last_sta_tx_rate;
 	s16 avg_rssi;
@@ -220,7 +225,7 @@ struct mm81x_stale_tx_status {
 	struct timer_list timer;
 };
 
-struct mcast_filter {
+struct mm81x_mcast_filter {
 	u8 count;
 	/*
 	 * Integer representation of the last four bytes of a multicast MAC
@@ -330,6 +335,18 @@ struct mm81x {
 
 	struct ieee80211_vif __rcu *vifs[MM81X_MAX_IF];
 
+	/*
+	 * Groups A-MPDU subframes for monitor reporting. The firmware stamps
+	 * every subframe of an A-MPDU with the same receive timestamp, so a
+	 * change in timestamp starts a new reference.
+	 */
+	struct {
+		u64 timestamp;
+		u32 reference;
+	} rx_ampdu;
+
+	bool monitor_en;
+
 	/* @mm81x_state_flags */
 	unsigned long state_flags;
 
@@ -372,7 +389,7 @@ struct mm81x {
 	wait_queue_head_t tx_empty_waitq;
 
 	struct cfg80211_chan_def chandef;
-	struct mcast_filter *mcast_filter;
+	struct mm81x_mcast_filter *mcast_filter;
 	atomic_t num_bcn_vifs;
 	unsigned long beacon_irqs_enabled;
 	u8 drv_priv[] __aligned(sizeof(void *));

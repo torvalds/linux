@@ -125,8 +125,6 @@ static int aq_pci_func_init(struct pci_dev *pdev)
 	int err;
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (err)
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
 		err = -ENOSR;
 		goto err_exit;

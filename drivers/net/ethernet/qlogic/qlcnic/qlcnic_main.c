@@ -640,7 +640,7 @@ static int qlcnic_max_rings(struct qlcnic_adapter *adapter, u8 ring_cnt,
 
 void qlcnic_set_tx_ring_count(struct qlcnic_adapter *adapter, u8 tx_cnt)
 {
-	/* 83xx adapter does not have max_tx_rings intialized in probe */
+	/* 83xx adapter does not have max_tx_rings initialized in probe */
 	if (adapter->max_tx_rings)
 		adapter->drv_tx_rings = qlcnic_max_rings(adapter, tx_cnt,
 							 QLCNIC_TX_QUEUE);
@@ -650,7 +650,7 @@ void qlcnic_set_tx_ring_count(struct qlcnic_adapter *adapter, u8 tx_cnt)
 
 void qlcnic_set_sds_ring_count(struct qlcnic_adapter *adapter, u8 rx_cnt)
 {
-	/* 83xx adapter does not have max_sds_rings intialized in probe */
+	/* 83xx adapter does not have max_sds_rings initialized in probe */
 	if (adapter->max_sds_rings)
 		adapter->drv_sds_rings = qlcnic_max_rings(adapter, rx_cnt,
 							  QLCNIC_RX_QUEUE);

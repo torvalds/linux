@@ -205,6 +205,10 @@ ieee80211_parse_extension_element(u32 *crc,
 			elems->ttlm_num++;
 		}
 		break;
+	case WLAN_EID_EXT_CIP_CAPA:
+		if (len >= sizeof(*elems->cip_cap))
+			elems->cip_cap = data;
+		break;
 	case WLAN_EID_EXT_UHR_OPER:
 		if (params->mode < IEEE80211_CONN_MODE_UHR)
 			break;
@@ -445,12 +449,15 @@ _ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params,
 					IEEE80211_PARSE_ERR_BAD_ELEM_SIZE;
 			break;
 		case WLAN_EID_TIM:
-			if (elen >= sizeof(struct ieee80211_tim_ie)) {
+			if ((params->mode == IEEE80211_CONN_MODE_S1G &&
+			     elen >= 2 /* control/PVB are optional */) ||
+			    elen >= sizeof(struct ieee80211_tim_ie)) {
 				elems->tim = (void *)pos;
 				elems->tim_len = elen;
-			} else
+			} else {
 				elem_parse_failed =
 					IEEE80211_PARSE_ERR_BAD_ELEM_SIZE;
+			}
 			break;
 		case WLAN_EID_VENDOR_SPECIFIC:
 			if (elems_parse->skip_vendor)
@@ -688,9 +695,8 @@ _ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params,
 						IEEE80211_PARSE_ERR_BAD_ELEM_SIZE;
 			}
 
-			subelem = cfg80211_find_ext_elem(WLAN_EID_TX_POWER_ENVELOPE,
-							 pos, elen);
-			if (subelem)
+			for_each_element_id(subelem, WLAN_EID_TX_POWER_ENVELOPE,
+					    pos, elen)
 				ieee80211_parse_tpe(&elems->csa_tpe,
 						    subelem->data + 1,
 						    subelem->datalen - 1);

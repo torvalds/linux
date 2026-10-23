@@ -381,7 +381,7 @@ static int mm81x_sdio_dm_read(struct mm81x *mors, u32 address, u8 *data,
 
 static int mm81x_sdio_reg32_write(struct mm81x *mors, u32 address, u32 val)
 {
-	ssize_t ret = 0;
+	int ret = 0;
 	u32 original_address = address;
 	struct mm81x_sdio *sdio = (struct mm81x_sdio *)mors->drv_priv;
 	struct sdio_func *func1 = sdio->func->card->sdio_func[0];
@@ -391,7 +391,7 @@ static int mm81x_sdio_reg32_write(struct mm81x *mors, u32 address, u32 val)
 
 	address &= 0x0000FFFF;
 	sdio_writel(func1, (__force u32)cpu_to_le32(val),
-		    (__force u32)cpu_to_le32(address), (int *)&ret);
+		    (__force u32)cpu_to_le32(address), &ret);
 	if (ret)
 		goto error;
 
@@ -411,7 +411,7 @@ error:
 static int mm81x_sdio_reg32_read(struct mm81x *mors, u32 address, u32 *val)
 {
 	u32 value;
-	ssize_t ret = 0;
+	int ret = 0;
 	struct mm81x_sdio *sdio = (struct mm81x_sdio *)mors->drv_priv;
 	struct sdio_func *func1 = sdio->func->card->sdio_func[0];
 
@@ -419,8 +419,7 @@ static int mm81x_sdio_reg32_read(struct mm81x *mors, u32 address, u32 *val)
 					 MM81X_CONFIG_ACCESS_4BYTE);
 
 	address &= 0x0000FFFF;
-	value = sdio_readl(func1, (__force u32)cpu_to_le32(address),
-			   (int *)&ret);
+	value = sdio_readl(func1, (__force u32)cpu_to_le32(address), &ret);
 	if (ret)
 		return ret;
 

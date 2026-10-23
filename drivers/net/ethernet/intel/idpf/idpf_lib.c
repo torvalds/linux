@@ -817,6 +817,21 @@ static void idpf_attach_and_open(struct idpf_adapter *adapter)
 	}
 }
 
+static void idpf_vport_set_pacing_offload(struct idpf_vport *vport,
+					  struct net_device *netdev)
+{
+	struct idpf_adapter *adapter = vport->adapter;
+	u32 max_horizon = 0;
+
+	if (adapter->edt_caps.time_horizon_ns &&
+	    idpf_is_queue_model_split(vport->dflt_qv_rsrc.txq_model) &&
+	    !idpf_is_cap_ena(adapter, IDPF_OTHER_CAPS,
+			     VIRTCHNL2_CAP_SPLITQ_QSCHED))
+		max_horizon = adapter->edt_caps.time_horizon_ns;
+
+	WRITE_ONCE(netdev->max_pacing_offload_horizon, max_horizon);
+}
+
 /**
  * idpf_cfg_netdev - Allocate, configure and register a netdev
  * @vport: main vport structure
@@ -849,6 +864,8 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 		np->vport_id = vport->vport_id;
 		np->max_tx_hdr_size = idpf_get_max_tx_hdr_size(adapter);
 		vport->netdev = netdev;
+
+		idpf_vport_set_pacing_offload(vport, netdev);
 
 		return idpf_init_mac_addr(vport, netdev);
 	}
@@ -889,6 +906,8 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 	/* configure default MTU size */
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = vport->max_mtu;
+
+	idpf_vport_set_pacing_offload(vport, netdev);
 
 	dflt_features = NETIF_F_SG	|
 			NETIF_F_HIGHDMA;

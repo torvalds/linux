@@ -1158,10 +1158,7 @@ static int i40e_alloc_vf_res(struct i40e_vf *vf)
 		pf->queues_left -=
 			total_queue_pairs - I40E_DEFAULT_QUEUES_PER_VF;
 
-	if (vf->trusted)
-		set_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps);
-	else
-		clear_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps);
+	assign_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps, vf->trusted);
 
 	/* store the total qps number for the runtime
 	 * VF req validation

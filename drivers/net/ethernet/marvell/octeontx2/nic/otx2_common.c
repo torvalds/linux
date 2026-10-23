@@ -732,7 +732,6 @@ int otx2_txschq_config(struct otx2_nic *pfvf, int lvl, int prio, bool txschq_for
 
 	return otx2_sync_mbox_msg(&pfvf->mbox);
 }
-EXPORT_SYMBOL(otx2_txschq_config);
 
 int otx2_smq_flush(struct otx2_nic *pfvf, int smq)
 {
@@ -756,7 +755,6 @@ int otx2_smq_flush(struct otx2_nic *pfvf, int smq)
 	mutex_unlock(&pfvf->mbox.lock);
 	return rc;
 }
-EXPORT_SYMBOL(otx2_smq_flush);
 
 int otx2_txsch_alloc(struct otx2_nic *pfvf)
 {
@@ -828,7 +826,6 @@ void otx2_txschq_free_one(struct otx2_nic *pfvf, u16 lvl, u16 schq)
 
 	mutex_unlock(&pfvf->mbox.lock);
 }
-EXPORT_SYMBOL(otx2_txschq_free_one);
 
 void otx2_txschq_stop(struct otx2_nic *pfvf)
 {
@@ -1834,7 +1831,6 @@ int otx2_nix_config_bp(struct otx2_nic *pfvf, bool enable)
 
 	return otx2_sync_mbox_msg(&pfvf->mbox);
 }
-EXPORT_SYMBOL(otx2_nix_config_bp);
 
 int otx2_nix_cpt_config_bp(struct otx2_nic *pfvf, bool enable)
 {
@@ -1859,7 +1855,6 @@ int otx2_nix_cpt_config_bp(struct otx2_nic *pfvf, bool enable)
 
 	return otx2_sync_mbox_msg(&pfvf->mbox);
 }
-EXPORT_SYMBOL(otx2_nix_cpt_config_bp);
 
 /* Mbox message handlers */
 void mbox_handler_cgx_stats(struct otx2_nic *pfvf,
@@ -2106,8 +2101,7 @@ otx2_mbox_up_handler_ ## _fn_name(struct otx2_nic *pfvf,		\
 {									\
 	/* Nothing to do here */					\
 	return 0;							\
-}									\
-EXPORT_SYMBOL(otx2_mbox_up_handler_ ## _fn_name);
+}
 MBOX_UP_CGX_MESSAGES
 MBOX_UP_MCS_MESSAGES
 #undef M
@@ -2123,7 +2117,7 @@ dma_addr_t otx2_dma_map_skb_frag(struct otx2_nic *pfvf,
 	/* Crypto hardware need write permission for ipsec crypto offload */
 	if (unlikely(xfrm_offload(skb))) {
 		dir = DMA_BIDIRECTIONAL;
-		skb = skb_unshare(skb, GFP_ATOMIC);
+		skb = skb_unclone_full(skb, GFP_ATOMIC);
 	}
 
 	/* First segment is always skb->data */

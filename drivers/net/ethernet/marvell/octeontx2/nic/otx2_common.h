@@ -42,7 +42,6 @@
 /* PCI device IDs */
 #define PCI_DEVID_OCTEONTX2_RVU_PF              0xA063
 #define PCI_DEVID_OCTEONTX2_RVU_VF		0xA064
-#define PCI_DEVID_OCTEONTX2_RVU_AFVF		0xA0F8
 
 #define PCI_SUBSYS_DEVID_96XX_RVU_PFVF		0xB200
 #define PCI_SUBSYS_DEVID_CN10K_A_RVU_PFVF	0xB900
@@ -786,7 +785,7 @@ static inline u64 otx2_atomic64_add(u64 incr, void __iomem *addr)
 	u64 __iomem *ptr = addr;
 	u64 result;
 
-	__asm__ volatile(".cpu   generic+lse\n"
+	__asm__ volatile(".arch_extension lse\n"
 			 "ldadd %x[i], %x[r], [%[b]]"
 			 : [r]"=r"(result), "+m"(*ptr)
 			 : [i]"r"(incr), [b]"r"(ptr)

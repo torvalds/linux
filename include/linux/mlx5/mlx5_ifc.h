@@ -929,7 +929,7 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 struct mlx5_ifc_port_selection_cap_bits {
 	u8         reserved_at_0[0x10];
 	u8         port_select_flow_table[0x1];
-	u8         reserved_at_11[0x1];
+	u8         port_select_eswitch[0x1];
 	u8         port_select_flow_table_bypass[0x1];
 	u8         reserved_at_13[0xd];
 
@@ -1070,7 +1070,9 @@ struct mlx5_ifc_e_switch_cap_bits {
 	u8         root_ft_on_other_esw[0x1];
 	u8         reserved_at_a[0x1];
 	u8         esw_vport_state_max_tx_speed[0x1];
-	u8         reserved_at_c[0xd];
+	u8         esw_vport_state_cap_tx_speed[0x1];
+	u8         esw_vport_state_effective_tx_speed[0x1];
+	u8         reserved_at_e[0xb];
 	u8         esw_functions_changed[0x1];
 	u8         reserved_at_1a[0x1];
 	u8         ecpf_vport_exists[0x1];
@@ -2008,7 +2010,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_3b0[0x2];
 	u8         qp_latency_sensitive_disable[0x1];
 	u8         log_max_stride_sz_sq[0x5];
-	u8         reserved_at_3b8[0x3];
+	u8         reserved_at_3b8[0x1];
+	u8         multi_uplink_eswitch[0x1];
+	u8         reserved_at_3ba[0x1];
 	u8         log_min_stride_sz_sq[0x5];
 
 	u8         hairpin[0x1];
@@ -5492,6 +5496,9 @@ struct mlx5_ifc_query_vport_state_out_bits {
 	u8         reserved_at_70[0x8];
 	u8         admin_state[0x4];
 	u8         state[0x4];
+
+	u8         cap_tx_speed[0x10];
+	u8         effective_tx_speed[0x10];
 };
 
 struct mlx5_ifc_array1024_auto_bits {
@@ -7840,6 +7847,9 @@ struct mlx5_ifc_modify_vport_state_in_bits {
 	u8         reserved_at_74[0x4];
 	u8         admin_state[0x4];
 	u8         reserved_at_7c[0x4];
+
+	u8         cap_tx_speed[0x10];
+	u8         effective_tx_speed[0x10];
 };
 
 struct mlx5_ifc_modify_tis_out_bits {

@@ -1153,16 +1153,16 @@ struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			continue;
 
 		if (smp_ltk_is_sc(k) || ltk_role(k->type) == role) {
-			rcu_read_unlock();
-
 			if (hci_is_blocked_key(hdev, HCI_BLOCKED_KEY_TYPE_LTK,
 					       k->val)) {
 				bt_dev_warn_ratelimited(hdev,
 							"LTK blocked for %pMR",
 							&k->bdaddr);
+				rcu_read_unlock();
 				return NULL;
 			}
 
+			rcu_read_unlock();
 			return k;
 		}
 	}
@@ -1617,7 +1617,7 @@ int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
 	if (hdev->cur_adv_instance == instance) {
 		if (hdev->adv_instance_timeout) {
 			cancel_delayed_work(&hdev->adv_instance_expire);
-			hdev->adv_instance_timeout = 0;
+			hdev->adv_instance_timeout = false;
 		}
 		hdev->cur_adv_instance = 0x00;
 	}
@@ -1647,7 +1647,7 @@ void hci_adv_instances_clear(struct hci_dev *hdev)
 
 	if (hdev->adv_instance_timeout) {
 		disable_delayed_work(&hdev->adv_instance_expire);
-		hdev->adv_instance_timeout = 0;
+		hdev->adv_instance_timeout = false;
 	}
 
 	list_for_each_entry_safe(adv_instance, n, &hdev->adv_instances, list) {
@@ -2437,7 +2437,7 @@ struct hci_dev *hci_alloc_dev_priv(int sizeof_priv)
 	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
 	hdev->adv_instance_cnt = 0;
 	hdev->cur_adv_instance = 0x00;
-	hdev->adv_instance_timeout = 0;
+	hdev->adv_instance_timeout = false;
 
 	hdev->advmon_allowlist_duration = 300;
 	hdev->advmon_no_filter_duration = 500;
@@ -2929,6 +2929,8 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 	case HCI_ISODATA_PKT:
 		break;
+	case HCI_VENDOR_PKT:
+		break;
 	case HCI_DRV_PKT:
 		break;
 	default:
@@ -3064,6 +3066,41 @@ static int hci_send_conn_frame(struct hci_dev *hdev, struct hci_conn *conn,
 	hci_conn_tx_queue(conn, skb);
 	return hci_send_frame(hdev, skb);
 }
+
+/**
+ * hci_send_vendor_frame - Send an HCI_VENDOR_PKT frame to the HCI driver
+ * @hdev: The HCI device
+ * @iter: iov_iter carrying the frame
+ *
+ * Return: 0 on success, or a negative errno on failure.
+ */
+int hci_send_vendor_frame(struct hci_dev *hdev, struct iov_iter *iter)
+{
+	struct sk_buff *skb;
+	unsigned int len;
+
+	if (WARN_ON(!iov_iter_is_kvec(iter)))
+		return -EINVAL;
+
+	/* Vendor frames are opaque, the caller guarantees the size. */
+	len = (unsigned int)iov_iter_count(iter);
+	if (!len)
+		return -EINVAL;
+
+	skb = bt_skb_alloc(len, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	if (!copy_from_iter_full(skb_put(skb, len), len, iter)) {
+		kfree_skb(skb);
+		return -EFAULT;
+	}
+
+	hci_skb_pkt_type(skb) = HCI_VENDOR_PKT;
+
+	return hci_send_frame(hdev, skb);
+}
+EXPORT_SYMBOL(hci_send_vendor_frame);
 
 /* Send HCI command */
 int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
@@ -4102,6 +4139,14 @@ static void hci_rx_work(struct work_struct *work)
 			hci_isodata_packet(hdev, skb);
 			break;
 
+		case HCI_VENDOR_PKT:
+			BT_DBG("%s Vendor packet", hdev->name);
+			if (hdev->recv_vendor_pkt)
+				hdev->recv_vendor_pkt(hdev, skb);
+			else
+				kfree_skb(skb);
+			break;
+
 		default:
 			kfree_skb(skb);
 			break;
@@ -4123,7 +4168,7 @@ static int hci_send_cmd_sync(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!hdev->sent_cmd) {
 		skb_queue_head(&hdev->cmd_q, skb);
 		queue_work(hdev->workqueue, &hdev->cmd_work);
-		return -EINVAL;
+		return -ENOMEM;
 	}
 
 	if (hci_skb_opcode(skb) != HCI_OP_NOP) {

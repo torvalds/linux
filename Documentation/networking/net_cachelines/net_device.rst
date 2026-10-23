@@ -11,6 +11,7 @@ Type                                Name                        fastpath_tx_acce
 unsigned_long:32                    priv_flags                  read_mostly                             __dev_queue_xmit(tx)
 unsigned_long:1                     lltx                        read_mostly                             HARD_TX_LOCK,HARD_TX_TRYLOCK,HARD_TX_UNLOCK(tx)
 unsigned_long:2                     netmem_tx:2;                read_mostly
+unsigned_long:1                     pacing_offload              read_mostly                             sch_fq
 char                                name[16]
 struct netdev_name_node*            name_node
 struct dev_ifalias*                 ifalias

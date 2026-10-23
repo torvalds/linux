@@ -1356,6 +1356,18 @@ void rvu_mac_reset(struct rvu *rvu, u16 pcifunc)
 		dev_err(rvu->dev, "Failed to reset MAC\n");
 }
 
+u64 rvu_cgx_get_dmacflt_dropped_pktcnt(void *cgxd, int lmac_id)
+{
+	struct mac_ops *mac_ops;
+
+	mac_ops = get_mac_ops(cgxd);
+
+	if (!mac_ops || !mac_ops->get_dmacflt_dropped_pktcnt)
+		return 0;
+
+	return mac_ops->get_dmacflt_dropped_pktcnt(cgxd, lmac_id);
+}
+
 /* Do not allow CGX-mapped VFs to overwrite PKIND when special parse kinds
  * (HiGig, EDSA, etc.) are in use on the shared LMAC. VFs must not program
  * NPC_TX_DEF_PKIND on NIX_AF_LFX_TX_PARSE_CFG in that case: the PF owns

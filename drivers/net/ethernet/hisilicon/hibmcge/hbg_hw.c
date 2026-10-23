@@ -190,8 +190,8 @@ void hbg_hw_set_mtu(struct hbg_priv *priv, u16 mtu)
 	hbg_hw_set_pcu_max_frame_len(priv, frame_len);
 	hbg_hw_set_mac_max_frame_len(priv, frame_len);
 
-	hbg_reg_write_field(priv, HBG_REG_BRUST_LENGTH_ADDR,
-			    HBG_REG_BRUST_LENGTH_B, burst_len_bit);
+	hbg_reg_write_field(priv, HBG_REG_BURST_LENGTH_ADDR,
+			    HBG_REG_BURST_LENGTH_B, burst_len_bit);
 }
 
 void hbg_hw_mac_enable(struct hbg_priv *priv, u32 enable)

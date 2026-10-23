@@ -139,8 +139,9 @@ static int ieee802154_dev_ioctl(struct sock *sk, struct ifreq __user *arg,
 	if (!dev)
 		return -ENODEV;
 
-	if (dev->type == ARPHRD_IEEE802154 && dev->netdev_ops->ndo_do_ioctl)
-		ret = dev->netdev_ops->ndo_do_ioctl(dev, &ifr, cmd);
+	if (dev->type == ARPHRD_IEEE802154 && dev->ieee802154_ptr &&
+	    dev->ieee802154_ptr->ops)
+		ret = dev->ieee802154_ptr->ops->ioctl(dev, &ifr, cmd);
 
 	if (!ret && put_user_ifreq(&ifr, arg))
 		ret = -EFAULT;

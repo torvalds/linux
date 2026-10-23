@@ -17,7 +17,7 @@
 #define otx2_lmt_flush(ioaddr)                          \
 ({                                                      \
 	u64 result = 0;                                 \
-	__asm__ volatile(".cpu  generic+lse\n"          \
+	__asm__ volatile(".arch_extension lse\n"	\
 			 "ldeor xzr, %x[rf], [%[rs]]"   \
 			 : [rf]"=r" (result)            \
 			 : [rs]"r" (ioaddr));           \
@@ -30,7 +30,7 @@
  */
 #define cn10k_lmt_flush(val, addr)			\
 ({							\
-	__asm__ volatile(".cpu  generic+lse\n"		\
+	__asm__ volatile(".arch_extension lse\n"	\
 			 "steorl %x[rf],[%[rs]]"		\
 			 : [rf] "+r"(val)		\
 			 : [rs] "r"(addr));		\
@@ -40,7 +40,7 @@ static inline u64 otx2_atomic64_fetch_add(u64 incr, u64 *ptr)
 {
 	u64 result;
 
-	asm volatile (".cpu  generic+lse\n"
+	asm volatile (".arch_extension lse\n"
 		      "ldadda %x[i], %x[r], [%[b]]"
 		      : [r] "=r" (result), "+m" (*ptr)
 		      : [i] "r" (incr), [b] "r" (ptr)

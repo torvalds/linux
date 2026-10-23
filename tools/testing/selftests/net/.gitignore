@@ -41,6 +41,7 @@ skf_net_off
 socket
 so_incoming_cpu
 so_netns_cookie
+so_reserve_mem
 so_rcv_listener
 stress_reuseport_listen
 tap

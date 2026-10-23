@@ -32,6 +32,9 @@ struct mac80211_hwsim_nan_data {
 	/* Later members are protected by this lock */
 	spinlock_t state_lock;
 
+	const u8 *extra_nan_attrs;
+	u16 extra_nan_attrs_len;
+
 	u8 master_pref;
 	u8 random_factor;
 
@@ -53,12 +56,18 @@ struct mac80211_hwsim_nan_data {
 	bool tsf_adjusted;
 	bool tsf_discontinuity;
 
+	bool instant_comm;
+	u8 discovery_beacon_interval;
+
 	/*
 	 * Local schedule - stores channel definition for each 16TU slot.
 	 * Derived from NMI vif->cfg.nan_schedule. chan == NULL means not
 	 * available in that slot (except DW which is implicit).
 	 */
 	struct cfg80211_chan_def local_sched[CFG80211_NAN_SCHED_NUM_TIME_SLOTS];
+
+	/* Simulates the firmware completing a deferred schedule update */
+	struct wiphy_delayed_work sched_update_work;
 };
 
 enum hrtimer_restart
@@ -90,6 +99,7 @@ void mac80211_hwsim_nan_get_tx_chandef(struct ieee80211_hw *hw,
 				       struct cfg80211_chan_def *chandef);
 
 bool mac80211_hwsim_nan_receive(struct ieee80211_hw *hw,
+				struct sk_buff *skb,
 				struct ieee80211_channel *channel,
 				struct ieee80211_rx_status *rx_status);
 

@@ -16,4 +16,10 @@ int xdp_dummy_prog_frags(struct xdp_md *ctx)
 	return XDP_PASS;
 }
 
+SEC("xdp_tx")
+int xdp_dummy_tx(struct xdp_md *ctx)
+{
+	return XDP_TX;
+}
+
 char _license[] SEC("license") = "GPL";

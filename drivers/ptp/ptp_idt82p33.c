@@ -918,6 +918,13 @@ static void idt82p33_ptp_clock_unregister_all(struct idt82p33 *idt82p33)
 	struct idt82p33_channel *channel;
 	u8 i;
 
+	mutex_lock(idt82p33->lock);
+	idt82p33->stopping = true;
+	idt82p33->extts_mask = 0;
+	mutex_unlock(idt82p33->lock);
+
+	cancel_delayed_work_sync(&idt82p33->extts_work);
+
 	for (i = 0; i < MAX_PHC_PLL; i++) {
 		channel = &idt82p33->channel[i];
 		cancel_delayed_work_sync(&channel->adjtime_work);
@@ -937,6 +944,10 @@ static int idt82p33_enable(struct ptp_clock_info *ptp,
 	int err = -EOPNOTSUPP;
 
 	mutex_lock(idt82p33->lock);
+	if (idt82p33->stopping) {
+		err = -ENODEV;
+		goto out;
+	}
 
 	switch (rq->type) {
 	case PTP_CLK_REQ_PEROUT:
@@ -958,6 +969,7 @@ static int idt82p33_enable(struct ptp_clock_info *ptp,
 		break;
 	}
 
+out:
 	mutex_unlock(idt82p33->lock);
 
 	if (err)
@@ -1044,11 +1056,14 @@ static int idt82p33_adjtime(struct ptp_clock_info *ptp, s64 delta_ns)
 		return -EBUSY;
 
 	mutex_lock(idt82p33->lock);
+	if (idt82p33->stopping) {
+		err = -ENODEV;
+		goto out;
+	}
 
 	if (abs(delta_ns) < phase_snap_threshold) {
 		err = idt82p33_start_ddco(channel, delta_ns);
-		mutex_unlock(idt82p33->lock);
-		return err;
+		goto out;
 	}
 
 	/* Use more accurate internal 1pps triggered write first */
@@ -1056,6 +1071,7 @@ static int idt82p33_adjtime(struct ptp_clock_info *ptp, s64 delta_ns)
 	if (err && delta_ns > IMMEDIATE_SNAP_THRESHOLD_NS)
 		err = _idt82p33_adjtime_immediate(channel, delta_ns);
 
+out:
 	mutex_unlock(idt82p33->lock);
 
 	if (err)
@@ -1342,6 +1358,8 @@ static void idt82p33_extts_check(struct work_struct *work)
 		return;
 
 	mutex_lock(idt82p33->lock);
+	if (idt82p33->stopping)
+		goto out;
 
 	for (i = 0; i < MAX_PHC_PLL; i++) {
 		mask = 1 << i;
@@ -1367,6 +1385,7 @@ static void idt82p33_extts_check(struct work_struct *work)
 		schedule_delayed_work(&idt82p33->extts_work,
 				      msecs_to_jiffies(EXTTS_PERIOD_MS));
 
+out:
 	mutex_unlock(idt82p33->lock);
 }
 
@@ -1441,8 +1460,6 @@ static int idt82p33_probe(struct platform_device *pdev)
 static void idt82p33_remove(struct platform_device *pdev)
 {
 	struct idt82p33 *idt82p33 = platform_get_drvdata(pdev);
-
-	cancel_delayed_work_sync(&idt82p33->extts_work);
 
 	idt82p33_ptp_clock_unregister_all(idt82p33);
 }

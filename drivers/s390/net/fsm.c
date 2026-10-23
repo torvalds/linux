@@ -171,11 +171,9 @@ fsm_addtimer(fsm_timer *this, int millisec, int event, void *arg)
 	       this->fi->name, this, millisec);
 #endif
 
-	timer_setup(&this->tl, fsm_expire_timer, 0);
 	this->expire_event = event;
 	this->event_arg = arg;
-	this->tl.expires = jiffies + (millisec * HZ) / 1000;
-	add_timer(&this->tl);
+	mod_timer(&this->tl, jiffies + msecs_to_jiffies(millisec));
 	return 0;
 }
 
@@ -189,12 +187,9 @@ fsm_modtimer(fsm_timer *this, int millisec, int event, void *arg)
 		this->fi->name, this, millisec);
 #endif
 
-	timer_delete(&this->tl);
-	timer_setup(&this->tl, fsm_expire_timer, 0);
 	this->expire_event = event;
 	this->event_arg = arg;
-	this->tl.expires = jiffies + (millisec * HZ) / 1000;
-	add_timer(&this->tl);
+	mod_timer(&this->tl, jiffies + msecs_to_jiffies(millisec));
 }
 
 EXPORT_SYMBOL(init_fsm);

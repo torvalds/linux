@@ -40,8 +40,8 @@ static void eea_get_drvinfo(struct net_device *netdev,
 	struct eea_net *enet = netdev_priv(netdev);
 	struct eea_device *edev = enet->edev;
 
-	strscpy(info->driver,   KBUILD_MODNAME,     sizeof(info->driver));
-	strscpy(info->bus_info, eea_pci_name(edev), sizeof(info->bus_info));
+	strscpy(info->driver, KBUILD_MODNAME);
+	strscpy(info->bus_info, eea_pci_name(edev));
 }
 
 static void eea_get_ringparam(struct net_device *netdev,

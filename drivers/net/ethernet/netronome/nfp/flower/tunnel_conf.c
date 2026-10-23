@@ -235,7 +235,7 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 		if (!netdev)
 			continue;
 
-		n = neigh_lookup(&arp_tbl, &ipv4_addr, netdev);
+		n = ipv4_neigh_lookup(netdev, &ipv4_addr);
 		if (!n)
 			continue;
 
@@ -277,7 +277,7 @@ void nfp_tunnel_keep_alive_v6(struct nfp_app *app, struct sk_buff *skb)
 		if (!netdev)
 			continue;
 
-		n = neigh_lookup(&nd_tbl, ipv6_add, netdev);
+		n = ipv6_neigh_lookup(netdev, ipv6_add);
 		if (!n)
 			continue;
 
@@ -729,12 +729,6 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 	default:
 		return NOTIFY_DONE;
 	}
-#if IS_ENABLED(CONFIG_IPV6)
-	if (n->tbl != &nd_tbl && n->tbl != &arp_tbl)
-#else
-	if (n->tbl != &arp_tbl)
-#endif
-		return NOTIFY_DONE;
 
 	app_priv = container_of(nb, struct nfp_flower_priv, tun.neigh_nb);
 	app = app_priv->app;

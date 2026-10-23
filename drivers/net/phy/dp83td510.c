@@ -30,6 +30,12 @@
 #define DP83TD510E_INT1_LINK			BIT(13)
 #define DP83TD510E_INT1_LINK_EN			BIT(5)
 
+#define DP83TD510E_RCSR				0x17
+#define DP83TD510E_RMII_MODE_EN			BIT(5)
+#define DP83TD510E_RGMII_MODE_EN		BIT(9)
+#define DP83TD510E_TX_CLK_SHIFT			BIT(11)
+#define DP83TD510E_RX_CLK_SHIFT			BIT(12)
+
 #define DP83TD510E_CTRL				0x1f
 #define DP83TD510E_CTRL_HW_RESET		BIT(15)
 #define DP83TD510E_CTRL_SW_RESET		BIT(14)
@@ -649,6 +655,71 @@ static int dp83td510_config_aneg(struct phy_device *phydev)
 	return genphy_c45_check_and_restart_aneg(phydev, changed);
 }
 
+static bool dp83td510_config_rgmii_rx_delay(struct phy_device *phydev)
+{
+	return phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+	       phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID;
+}
+
+static bool dp83td510_config_rgmii_tx_delay(struct phy_device *phydev)
+{
+	return phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+	       phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID;
+}
+
+static int dp83td510_config_init(struct phy_device *phydev)
+{
+	int rgmii_delay = 0;
+	bool rx_int_delay;
+	bool tx_int_delay;
+	int ret;
+
+	if (phy_interface_is_rgmii(phydev)) {
+		rx_int_delay = dp83td510_config_rgmii_rx_delay(phydev);
+		if (rx_int_delay)
+			rgmii_delay |= DP83TD510E_RX_CLK_SHIFT;
+
+		tx_int_delay = dp83td510_config_rgmii_tx_delay(phydev);
+
+		if (tx_int_delay)
+			rgmii_delay |= DP83TD510E_TX_CLK_SHIFT;
+
+		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_RCSR,
+				     DP83TD510E_RX_CLK_SHIFT |
+				     DP83TD510E_TX_CLK_SHIFT,
+				     rgmii_delay);
+		if (ret)
+			return ret;
+
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_VEND2,
+				       DP83TD510E_RCSR, DP83TD510E_RGMII_MODE_EN);
+
+		if (ret)
+			return ret;
+
+	} else if (phydev->interface == PHY_INTERFACE_MODE_RMII) {
+		/* set RMII_MODE_EN, clear RGMII_MODE_EN. We need to clear RGMII
+		 * here because otherwise, RMII/MII configuration would be
+		 * ignored as RGMII would be selected.
+		 */
+		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_RCSR,
+				     DP83TD510E_RMII_MODE_EN |
+				     DP83TD510E_RGMII_MODE_EN,
+				     DP83TD510E_RMII_MODE_EN);
+		if (ret)
+			return ret;
+	} else {
+		/* may be MII, which is supported, or something else. Just
+		 * return success to keep the old behavior and not break
+		 * anything. Configuration may have been done by straps so
+		 * it's better to not touch it.
+		 */
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static int dp83td510_get_sqi(struct phy_device *phydev)
 {
 	int sqi, ret;
@@ -942,6 +1013,7 @@ static struct phy_driver dp83td510_driver[] = {
 	.name		= "TI DP83TD510E",
 
 	.flags          = PHY_POLL_CABLE_TEST,
+	.config_init	= dp83td510_config_init,
 	.probe		= dp83td510_probe,
 	.config_aneg	= dp83td510_config_aneg,
 	.read_status	= dp83td510_read_status,

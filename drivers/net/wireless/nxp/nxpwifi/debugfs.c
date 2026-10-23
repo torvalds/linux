@@ -6,6 +6,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/string_choices.h>
 
 #include "main.h"
 #include "cmdevt.h"
@@ -98,8 +99,8 @@ nxpwifi_info_read(struct file *file, char __user *ubuf,
 	p += sprintf(p, "num_rx_pkts_dropped = %lu\n", priv->stats.rx_dropped);
 	p += sprintf(p, "num_tx_pkts_err = %lu\n", priv->stats.tx_errors);
 	p += sprintf(p, "num_rx_pkts_err = %lu\n", priv->stats.rx_errors);
-	p += sprintf(p, "carrier %s\n", ((netif_carrier_ok(priv->netdev))
-					 ? "on" : "off"));
+	p += sprintf(p, "carrier %s\n",
+		     str_on_off(netif_carrier_ok(priv->netdev)));
 	p += sprintf(p, "tx queue");
 	for (i = 0; i < netdev->num_tx_queues; i++) {
 		txq = netdev_get_tx_queue(netdev, i);
@@ -211,25 +212,26 @@ nxpwifi_histogram_read(struct file *file, char __user *ubuf,
 
 	phist_data = priv->hist_data;
 
-	p += sprintf(p, "\n"
+	p += scnprintf(p, PAGE_SIZE - (p - (char *)page), "\n"
 		     "total samples = %d\n",
 		     atomic_read(&phist_data->num_samples));
 
-	p += sprintf(p,
+	p += scnprintf(p, PAGE_SIZE - (p - (char *)page),
 		     "rx rates (in Mbps): 0=1M   1=2M 2=5.5M  3=11M   4=6M   5=9M  6=12M\n"
 		     "7=18M  8=24M  9=36M  10=48M  11=54M 12-27=MCS0-15(BW20) 28-43=MCS0-15(BW40)\n");
 
 	if (ISSUPP_11ACENABLED(priv->adapter->fw_cap_info)) {
-		p += sprintf(p,
+		p += scnprintf(p, PAGE_SIZE - (p - (char *)page),
 			     "44-53=MCS0-9(VHT:BW20) 54-63=MCS0-9(VHT:BW40) 64-73=MCS0-9(VHT:BW80)\n\n");
 	} else {
-		p += sprintf(p, "\n");
+		p += scnprintf(p, PAGE_SIZE - (p - (char *)page), "\n");
 	}
 
 	for (i = 0; i < NXPWIFI_MAX_RX_RATES; i++) {
 		value = atomic_read(&phist_data->rx_rate[i]);
 		if (value)
-			p += sprintf(p, "rx_rate[%02d] = %d\n", i, value);
+			p += scnprintf(p, PAGE_SIZE - (p - (char *)page),
+				       "rx_rate[%02d] = %d\n", i, value);
 	}
 
 	if (ISSUPP_11ACENABLED(priv->adapter->fw_cap_info)) {
@@ -237,27 +239,31 @@ nxpwifi_histogram_read(struct file *file, char __user *ubuf,
 		     i++) {
 			value = atomic_read(&phist_data->rx_rate[i]);
 			if (value)
-				p += sprintf(p, "rx_rate[%02d] = %d\n",
-					   i, value);
+				p += scnprintf(p, PAGE_SIZE - (p - (char *)page),
+					       "rx_rate[%02d] = %d\n",
+					       i, value);
 		}
 	}
 
 	for (i = 0; i < NXPWIFI_MAX_SNR; i++) {
 		value =  atomic_read(&phist_data->snr[i]);
 		if (value)
-			p += sprintf(p, "snr[%02ddB] = %d\n", i, value);
+			p += scnprintf(p, PAGE_SIZE - (p - (char *)page),
+				       "snr[%02ddB] = %d\n", i, value);
 	}
 	for (i = 0; i < NXPWIFI_MAX_NOISE_FLR; i++) {
 		value = atomic_read(&phist_data->noise_flr[i]);
 		if (value)
-			p += sprintf(p, "noise_flr[%02ddBm] = %d\n",
-				     (int)(i - 128), value);
+			p += scnprintf(p, PAGE_SIZE - (p - (char *)page),
+				       "noise_flr[%02ddBm] = %d\n",
+				       (int)(i - 128), value);
 	}
 	for (i = 0; i < NXPWIFI_MAX_SIG_STRENGTH; i++) {
 		value = atomic_read(&phist_data->sig_str[i]);
 		if (value)
-			p += sprintf(p, "sig_strength[-%02ddBm] = %d\n",
-				i, value);
+			p += scnprintf(p, PAGE_SIZE - (p - (char *)page),
+				       "sig_strength[-%02ddBm] = %d\n",
+				       i, value);
 	}
 
 	ret = simple_read_from_buffer(ubuf, count, ppos, (char *)page,
@@ -299,7 +305,7 @@ nxpwifi_debug_read(struct file *file, char __user *ubuf,
 	if (ret)
 		goto free_and_exit;
 
-	p += nxpwifi_debug_info_to_buffer(priv, p, &info);
+	p += nxpwifi_debug_info_to_buffer(priv, p, PAGE_SIZE, &info);
 
 	ret = simple_read_from_buffer(ubuf, count, ppos, (char *)page,
 				      (unsigned long)p - page);

@@ -343,7 +343,7 @@ extern struct wlan_pwr_cfg  rtl8812_leave_lps_flow
  *	4: LPS--Low Power State
  *	5: SUS--Suspend
  *
- *	The transision from different states are defined below
+ *	The transition from different states are defined below
  *	TRANS_CARDEMU_TO_ACT
  *	TRANS_ACT_TO_CARDEMU
  *	TRANS_CARDEMU_TO_SUS

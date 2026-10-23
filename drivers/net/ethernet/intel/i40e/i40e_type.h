@@ -4,6 +4,7 @@
 #ifndef _I40E_TYPE_H_
 #define _I40E_TYPE_H_
 
+#include <linux/bits.h>
 #include <uapi/linux/if_ether.h>
 #include "i40e_adminq.h"
 #include "i40e_hmc.h"
@@ -698,6 +699,10 @@ enum i40e_rx_desc_status_bits {
 	I40E_RX_DESC_STATUS_INT_UDP_0_SHIFT	= 18,
 	I40E_RX_DESC_STATUS_LAST /* this entry must be last!!! */
 };
+
+#define I40E_RX_DESC_STATUS_FLTSTAT_MASK                   \
+	GENMASK_ULL(I40E_RX_DESC_STATUS_FLTSTAT_SHIFT + 1, \
+		    I40E_RX_DESC_STATUS_FLTSTAT_SHIFT)
 
 #define I40E_RXD_QW1_STATUS_SHIFT	0
 #define I40E_RXD_QW1_STATUS_MASK	((BIT(I40E_RX_DESC_STATUS_LAST) - 1) \

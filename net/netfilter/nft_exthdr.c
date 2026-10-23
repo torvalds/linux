@@ -233,14 +233,21 @@ static void nft_exthdr_tcp_set_eval(const struct nft_expr *expr,
 				    struct nft_regs *regs,
 				    const struct nft_pktinfo *pkt)
 {
-	u8 buff[sizeof(struct tcphdr) + MAX_TCP_OPTION_SPACE];
 	struct nft_exthdr *priv = nft_expr_priv(expr);
 	unsigned int i, optl, tcphdr_len, offset;
-	struct tcphdr *tcph;
+	struct tcphdr *tcph, _tcph;
 	u8 *opt;
 
-	tcph = nft_tcp_header_pointer(pkt, sizeof(buff), buff, &tcphdr_len);
+	if (pkt->tprot != IPPROTO_TCP || pkt->fragoff)
+		goto err;
+
+	tcph = skb_header_pointer(pkt->skb, nft_thoff(pkt), sizeof(_tcph), &_tcph);
 	if (!tcph)
+		goto err;
+
+	tcphdr_len = __tcp_hdrlen(tcph);
+	if (tcphdr_len < sizeof(*tcph) ||
+	    tcphdr_len > sizeof(*tcph) + MAX_TCP_OPTION_SPACE)
 		goto err;
 
 	if (skb_ensure_writable(pkt->skb, nft_thoff(pkt) + tcphdr_len))
@@ -313,14 +320,21 @@ static void nft_exthdr_tcp_strip_eval(const struct nft_expr *expr,
 				      struct nft_regs *regs,
 				      const struct nft_pktinfo *pkt)
 {
-	u8 buff[sizeof(struct tcphdr) + MAX_TCP_OPTION_SPACE];
 	struct nft_exthdr *priv = nft_expr_priv(expr);
 	unsigned int i, tcphdr_len, optl;
-	struct tcphdr *tcph;
+	struct tcphdr *tcph, _tcph;
 	u8 *opt;
 
-	tcph = nft_tcp_header_pointer(pkt, sizeof(buff), buff, &tcphdr_len);
+	if (pkt->tprot != IPPROTO_TCP || pkt->fragoff)
+		goto err;
+
+	tcph = skb_header_pointer(pkt->skb, nft_thoff(pkt), sizeof(_tcph), &_tcph);
 	if (!tcph)
+		goto err;
+
+	tcphdr_len = __tcp_hdrlen(tcph);
+	if (tcphdr_len < sizeof(*tcph) ||
+	    tcphdr_len > sizeof(*tcph) + MAX_TCP_OPTION_SPACE)
 		goto err;
 
 	if (skb_ensure_writable(pkt->skb, nft_thoff(pkt) + tcphdr_len))
@@ -551,7 +565,7 @@ static int nft_exthdr_tcp_set_init(const struct nft_ctx *ctx,
 				   const struct nlattr * const tb[])
 {
 	struct nft_exthdr *priv = nft_expr_priv(expr);
-	u32 offset, len, flags = 0, op = NFT_EXTHDR_OP_IPV6;
+	u32 offset, len, flags = 0;
 	int err;
 
 	if (!tb[NFTA_EXTHDR_SREG] ||
@@ -581,15 +595,11 @@ static int nft_exthdr_tcp_set_init(const struct nft_ctx *ctx,
 		return -EOPNOTSUPP;
 	}
 
-	err = nft_parse_u32_check(tb[NFTA_EXTHDR_OP], U8_MAX, &op);
-	if (err < 0)
-		return err;
-
 	priv->type   = nla_get_u8(tb[NFTA_EXTHDR_TYPE]);
 	priv->offset = offset;
 	priv->len    = len;
 	priv->flags  = flags;
-	priv->op     = op;
+	priv->op     = NFT_EXTHDR_OP_TCPOPT;
 
 	return nft_parse_register_load(ctx, tb[NFTA_EXTHDR_SREG], &priv->sreg,
 				       priv->len);

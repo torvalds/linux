@@ -1717,10 +1717,7 @@ int aq_nic_setup_tc_min_rate(struct aq_nic_s *self, const unsigned int tc,
 	if (tc >= AQ_CFG_TCS_MAX)
 		return -EINVAL;
 
-	if (min_rate)
-		set_bit(tc, &cfg->tc_min_rate_msk);
-	else
-		clear_bit(tc, &cfg->tc_min_rate_msk);
+	assign_bit(tc, &cfg->tc_min_rate_msk, min_rate);
 
 	if (min_rate && min_rate < 20) {
 		netdev_warn(self->ndev,

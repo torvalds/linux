@@ -2,11 +2,13 @@
 /* Copyright(c) 2020 - 2025 Mucse Corporation. */
 
 #include <linux/pci.h>
+#include <linux/skbuff.h>
 #include <net/rtnetlink.h>
 #include <linux/etherdevice.h>
 
 #include "rnpgbe.h"
 #include "rnpgbe_hw.h"
+#include "rnpgbe_lib.h"
 #include "rnpgbe_mbx_fw.h"
 
 static const char rnpgbe_driver_name[] = "rnpgbe";
@@ -26,17 +28,86 @@ static struct pci_device_id rnpgbe_pci_tbl[] = {
 };
 
 /**
+ * rnpgbe_configure - Configure the hardware
+ * @mucse: pointer to private structure
+ *
+ * Configure Tx and Rx registers in hardware.
+ *
+ * Return: 0 on success, negative errno if hardware configuration fails
+ **/
+static int rnpgbe_configure(struct mucse *mucse)
+{
+	int err;
+
+	err = rnpgbe_configure_tx(mucse);
+	if (err)
+		return err;
+
+	netif_addr_lock_bh(mucse->netdev);
+	err = rnpgbe_set_rx_mode(mucse->netdev, &mucse->netdev->uc,
+				 &mucse->netdev->mc);
+	netif_addr_unlock_bh(mucse->netdev);
+	if (err)
+		return err;
+
+	return rnpgbe_configure_rx(mucse);
+}
+
+/**
  * rnpgbe_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
  * The open entry point is called when a network interface is made
  * active by the system (IFF_UP).
  *
- * Return: 0
+ * Return: 0 on success, negative value on failure
  **/
 static int rnpgbe_open(struct net_device *netdev)
 {
+	struct mucse *mucse = netdev_priv(netdev);
+	int err;
+
+	if (test_bit(__MUCSE_AXI_FAULT, &mucse->state))
+		return -EIO;
+
+	netif_carrier_off(netdev);
+	err = rnpgbe_request_irq(mucse);
+	if (err)
+		return err;
+
+	err = netif_set_real_num_queues(netdev, mucse->num_tx_queues,
+					mucse->num_rx_queues);
+	if (err)
+		goto err_free_irqs;
+
+	err = rnpgbe_setup_all_tx_resources(mucse);
+	if (err)
+		goto err_free_irqs;
+	err = rnpgbe_setup_all_rx_resources(mucse);
+	if (err)
+		goto err_free_tx;
+
+	err = rnpgbe_configure(mucse);
+	if (err)
+		goto err_free_rx;
+	err = rnpgbe_up_complete(mucse);
+	if (err)
+		goto err_down;
+
 	return 0;
+err_down:
+	rnpgbe_down(mucse);
+	rnpgbe_free_all_rx_resources(mucse);
+	rnpgbe_free_all_tx_resources(mucse);
+	goto err_free_irqs;
+err_free_rx:
+	rnpgbe_free_all_rx_resources(mucse);
+err_free_tx:
+	rnpgbe_clean_all_tx_rings(mucse);
+	rnpgbe_free_all_tx_resources(mucse);
+err_free_irqs:
+	rnpgbe_free_irq(mucse);
+	return err;
 }
 
 /**
@@ -50,6 +121,13 @@ static int rnpgbe_open(struct net_device *netdev)
  **/
 static int rnpgbe_close(struct net_device *netdev)
 {
+	struct mucse *mucse = netdev_priv(netdev);
+
+	rnpgbe_down(mucse);
+	rnpgbe_free_irq(mucse);
+	rnpgbe_free_all_tx_resources(mucse);
+	rnpgbe_free_all_rx_resources(mucse);
+
 	return 0;
 }
 
@@ -58,24 +136,47 @@ static int rnpgbe_close(struct net_device *netdev)
  * @skb: skb structure to be sent
  * @netdev: network interface device structure
  *
- * Return: NETDEV_TX_OK
+ * Return: NETDEV_TX_OK or NETDEV_TX_BUSY when insufficient descriptors
  **/
 static netdev_tx_t rnpgbe_xmit_frame(struct sk_buff *skb,
 				     struct net_device *netdev)
 {
 	struct mucse *mucse = netdev_priv(netdev);
+	struct mucse_ring *tx_ring;
 
-	dev_kfree_skb_any(skb);
-	mucse->stats.tx_dropped++;
+	tx_ring = mucse->tx_ring[skb_get_queue_mapping(skb)];
 
-	return NETDEV_TX_OK;
+	if (unlikely(skb_put_padto(skb, RNPGBE_TX_MIN_PKT_LEN))) {
+		atomic64_inc(&tx_ring->stats->dropped);
+		return NETDEV_TX_OK;
+	}
+
+	return rnpgbe_xmit_frame_ring(skb, tx_ring);
 }
 
 static const struct net_device_ops rnpgbe_netdev_ops = {
-	.ndo_open       = rnpgbe_open,
-	.ndo_stop       = rnpgbe_close,
-	.ndo_start_xmit = rnpgbe_xmit_frame,
+	.ndo_open		 = rnpgbe_open,
+	.ndo_stop		 = rnpgbe_close,
+	.ndo_start_xmit		 = rnpgbe_xmit_frame,
+	.ndo_set_rx_mode_async = rnpgbe_set_rx_mode,
+	.ndo_get_stats64	 = rnpgbe_get_stats64,
 };
+
+static void rnpgbe_sw_init(struct mucse *mucse)
+{
+	int i;
+
+	mucse->tx_ring_item_count = M_DEFAULT_TXD;
+	mucse->rx_ring_item_count = M_DEFAULT_RXD;
+	mucse->tx_work_limit = M_DEFAULT_TX_WORK;
+
+	for (i = 0; i < RNPGBE_MAX_QUEUES; i++) {
+		u64_stats_init(&mucse->tx_stats[i].syncp);
+		atomic64_set(&mucse->tx_stats[i].dropped, 0);
+		u64_stats_init(&mucse->rx_stats[i].syncp);
+		atomic64_set(&mucse->rx_stats[i].dropped, 0);
+	}
+}
 
 /**
  * rnpgbe_add_adapter - Add netdev for this pci_dev
@@ -149,9 +250,16 @@ static int rnpgbe_add_adapter(struct pci_dev *pdev,
 	}
 
 	netdev->netdev_ops = &rnpgbe_netdev_ops;
+	netdev->priv_flags |= IFF_UNICAST_FLT;
+	rnpgbe_sw_init(mucse);
 	err = rnpgbe_reset_hw(hw);
 	if (err) {
 		dev_err(&pdev->dev, "Hw reset failed %d\n", err);
+		goto err_powerdown;
+	}
+	err = rnpgbe_setup_default_link(hw);
+	if (err) {
+		dev_err(&pdev->dev, "Setup link failed %d\n", err);
 		goto err_powerdown;
 	}
 
@@ -166,11 +274,46 @@ static int rnpgbe_add_adapter(struct pci_dev *pdev,
 		goto err_powerdown;
 	}
 
+	INIT_DELAYED_WORK(&mucse->serv_task, rnpgbe_service_task);
+	spin_lock_init(&mucse->link_lock);
+	mucse->link_event_ready = false;
+	mucse->link_pending = false;
+
+	err = rnpgbe_init_interrupt_scheme(mucse);
+	if (err) {
+		dev_err(&pdev->dev, "init interrupt failed %d\n", err);
+		goto err_powerdown;
+	}
+
+	err = netif_set_real_num_queues(netdev, mucse->num_tx_queues,
+					mucse->num_rx_queues);
+	if (err)
+		goto err_clear_interrupt;
+
+	err = rnpgbe_request_mbx_irq(mucse);
+	if (err) {
+		dev_err(&pdev->dev, "register mbx irq failed %d\n", err);
+		goto err_clear_interrupt;
+	}
+
+	netdev->features |= NETIF_F_SG;
+	netdev->hw_features |= NETIF_F_SG;
+	if (dma_get_mask(&pdev->dev) > DMA_BIT_MASK(32)) {
+		netdev->features |= NETIF_F_HIGHDMA;
+		netdev->hw_features |= NETIF_F_HIGHDMA;
+	}
+
+	netif_carrier_off(netdev);
 	err = register_netdev(netdev);
 	if (err)
-		goto err_powerdown;
+		goto err_remove_mbx;
 
 	return 0;
+
+err_remove_mbx:
+	rnpgbe_free_mbx_irq(mucse);
+err_clear_interrupt:
+	rnpgbe_clear_interrupt_scheme(mucse);
 err_powerdown:
 	/* notify powerdown only powerup ok */
 	if (!err_notify) {
@@ -203,12 +346,7 @@ static int rnpgbe_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		return err;
 
-	err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(56));
-	if (err) {
-		dev_err(&pdev->dev,
-			"No usable DMA configuration, aborting %d\n", err);
-		goto err_disable_dev;
-	}
+	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(56));
 
 	err = pci_request_mem_regions(pdev, rnpgbe_driver_name);
 	if (err) {
@@ -237,6 +375,26 @@ err_disable_dev:
 }
 
 /**
+ * rnpgbe_notify_powerdown - Notify firmware that the driver is going down
+ * @mucse: pointer to private structure
+ *
+ * Skip the mailbox access if an earlier shutdown has already disabled the
+ * PCI device.
+ **/
+static void rnpgbe_notify_powerdown(struct mucse *mucse)
+{
+	int err;
+
+	if (!pci_is_enabled(mucse->pdev))
+		return;
+
+	err = rnpgbe_send_notify(&mucse->hw, false, mucse_fw_powerup);
+	if (err)
+		dev_warn(&mucse->pdev->dev,
+			 "Send powerdown to hw failed %d\n", err);
+}
+
+/**
  * rnpgbe_rm_adapter - Remove netdev for this mucse structure
  * @pdev: PCI device information struct
  *
@@ -245,17 +403,15 @@ err_disable_dev:
 static void rnpgbe_rm_adapter(struct pci_dev *pdev)
 {
 	struct mucse *mucse = pci_get_drvdata(pdev);
-	struct mucse_hw *hw = &mucse->hw;
 	struct net_device *netdev;
-	int err;
 
 	if (!mucse)
 		return;
 	netdev = mucse->netdev;
 	unregister_netdev(netdev);
-	err = rnpgbe_send_notify(hw, false, mucse_fw_powerup);
-	if (err)
-		dev_warn(&pdev->dev, "Send powerdown to hw failed %d\n", err);
+	rnpgbe_free_mbx_irq(mucse);
+	rnpgbe_notify_powerdown(mucse);
+	rnpgbe_clear_interrupt_scheme(mucse);
 	free_netdev(netdev);
 }
 
@@ -272,7 +428,8 @@ static void rnpgbe_remove(struct pci_dev *pdev)
 {
 	rnpgbe_rm_adapter(pdev);
 	pci_release_mem_regions(pdev);
-	pci_disable_device(pdev);
+	if (pci_is_enabled(pdev))
+		pci_disable_device(pdev);
 }
 
 /**
@@ -287,9 +444,14 @@ static void rnpgbe_dev_shutdown(struct pci_dev *pdev)
 	rtnl_lock();
 	netif_device_detach(netdev);
 	if (netif_running(netdev))
-		rnpgbe_close(netdev);
+		dev_close(netdev);
 	rtnl_unlock();
-	pci_disable_device(pdev);
+
+	rnpgbe_free_mbx_irq(mucse);
+	rnpgbe_notify_powerdown(mucse);
+	rnpgbe_clear_interrupt_scheme(mucse);
+	if (pci_is_enabled(pdev))
+		pci_disable_device(pdev);
 }
 
 /**

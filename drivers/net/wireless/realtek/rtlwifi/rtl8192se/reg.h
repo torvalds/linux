@@ -303,7 +303,7 @@
 
 #define	RPWM					PCI_RPWM
 
-/* Regsiter Bit and Content definition  */
+/* Register Bit and Content definition */
 
 #define	ISO_MD2PP				BIT(0)
 #define	ISO_PA2PCIE				BIT(3)

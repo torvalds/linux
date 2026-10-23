@@ -70,7 +70,7 @@ struct oct_iq_stats {
 
 /** The instruction (input) queue.
  *  The input queue is used to post raw (instruction) mode data or packet
- *  data to Octeon device from the host. Each input queue (upto 4) for
+ *  data to Octeon device from the host. Each input queue (up to 4) for
  *  a Octeon device has one such structure to represent it.
  */
 struct octeon_instr_queue {

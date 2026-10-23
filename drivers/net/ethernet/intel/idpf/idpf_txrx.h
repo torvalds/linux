@@ -161,6 +161,7 @@ union idpf_tx_flex_desc {
  * @tso_segs: Number of segments to be sent
  * @tso_hdr_len: Length of headers to be duplicated
  * @td_cmd: Command field to be inserted into descriptor
+ * @desc_ts: Flow scheduling offload timestamp
  */
 struct idpf_tx_offload_params {
 	u32 tx_flags;
@@ -174,6 +175,7 @@ struct idpf_tx_offload_params {
 	u16 tso_hdr_len;
 
 	u16 td_cmd;
+	u8 desc_ts[3];
 };
 
 /**
@@ -608,6 +610,7 @@ libeth_cacheline_set_assert(struct idpf_rx_queue,
  *	 hot path TX pointers stored in vport. Used in both singleq/splitq.
  * @desc_count: Number of descriptors
  * @tx_min_pkt_len: Min supported packet length
+ * @ts_gran_pow2: Txtime timestamp granularity in nanoseconds (log2).
  * @thresh: XDP queue cleaning threshold
  * @netdev: &net_device corresponding to this queue
  * @next_to_use: Next descriptor to use
@@ -666,7 +669,10 @@ struct idpf_tx_queue {
 	u16 desc_count;
 
 	union {
-		u16 tx_min_pkt_len;
+		struct {
+			u16 tx_min_pkt_len;
+			u8 ts_gran_pow2;
+		};
 		u32 thresh;
 	};
 

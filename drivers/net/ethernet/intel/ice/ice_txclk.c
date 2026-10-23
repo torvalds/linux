@@ -286,12 +286,9 @@ void ice_txclk_update_and_notify(struct ice_pf *pf)
 			if (ctrl_pf != pf)
 				mutex_lock(&ctrl_pf->dplls.lock);
 			for (int i = 0; i < ICE_REF_CLK_MAX; i++) {
-				if (clk == i)
-					set_bit(ptp_port->port_num,
-						&ctrl_pf->ptp.tx_refclks[phy][i]);
-				else
-					clear_bit(ptp_port->port_num,
-						  &ctrl_pf->ptp.tx_refclks[phy][i]);
+				assign_bit(ptp_port->port_num,
+					   &ctrl_pf->ptp.tx_refclks[phy][i],
+					   clk == i);
 			}
 			if (ctrl_pf != pf)
 				mutex_unlock(&ctrl_pf->dplls.lock);
@@ -315,13 +312,10 @@ void ice_txclk_update_and_notify(struct ice_pf *pf)
 	 */
 	if (ctrl_pf != pf)
 		mutex_lock(&ctrl_pf->dplls.lock);
-	for (int i = 0; i < ICE_REF_CLK_MAX; i++)
-		if (clk == i)
-			set_bit(ptp_port->port_num,
-				&ctrl_pf->ptp.tx_refclks[phy][i]);
-		else
-			clear_bit(ptp_port->port_num,
-				  &ctrl_pf->ptp.tx_refclks[phy][i]);
+	for (int i = 0; i < ICE_REF_CLK_MAX; i++) {
+		assign_bit(ptp_port->port_num,
+			   &ctrl_pf->ptp.tx_refclks[phy][i], clk == i);
+	}
 	if (ctrl_pf != pf)
 		mutex_unlock(&ctrl_pf->dplls.lock);
 

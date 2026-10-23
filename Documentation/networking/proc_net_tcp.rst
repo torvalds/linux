@@ -30,16 +30,16 @@ up into 3 parts because of the length of the line)::
       |        |----------------------> receive-queue
       |-------------------------------> transmit-queue
 
-   1000        0 54165785 4 cd1e6040 25 4 27 3 -1
-    |          |    |     |    |     |  | |  | |--> slow start size threshold,
-    |          |    |     |    |     |  | |  |      or -1 if the threshold
-    |          |    |     |    |     |  | |  |      is >= 0xFFFF
-    |          |    |     |    |     |  | |  |----> sending congestion window
-    |          |    |     |    |     |  | |-------> (ack.quick<<1)|ack.pingpong
-    |          |    |     |    |     |  |---------> Predicted tick of soft clock
-    |          |    |     |    |     |              (delayed ACK control data)
-    |          |    |     |    |     |------------> retransmit timeout
-    |          |    |     |    |------------------> location of socket in memory
+   1000        0 54165785 4  0  25 4 27 3 -1
+    |          |    |     |  |  |  | |  | |-------> slow start size threshold,
+    |          |    |     |  |  |  | |  |           or -1 if the threshold
+    |          |    |     |  |  |  | |  |           is >= 0xFFFF
+    |          |    |     |  |  |  | |  |---------> sending congestion window
+    |          |    |     |  |  |  | |------------> (ack.quick<<1)|ack.pingpong
+    |          |    |     |  |  |  |--------------> Predicted tick of soft clock
+    |          |    |     |  |  |                   (delayed ACK control data)
+    |          |    |     |  |  |-----------------> retransmit timeout
+    |          |    |     |  |--------------------> always 0 (was memory location).
     |          |    |     |-----------------------> socket reference count
     |          |    |-----------------------------> inode
     |          |----------------------------------> unanswered 0-window probes

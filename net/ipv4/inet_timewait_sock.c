@@ -105,10 +105,12 @@ void inet_twsk_hashdance_schedule(struct inet_timewait_sock *tw,
 				  struct inet_hashinfo *hashinfo,
 				  int timeo)
 {
-	const struct inet_sock *inet = inet_sk(sk);
-	const struct inet_connection_sock *icsk = inet_csk(sk);
 	spinlock_t *lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_bind_hashbucket *bhead, *bhead2;
+	const struct inet_sock *inet = inet_sk(sk);
+
+	icsk->unhashed_state = sk->sk_state;
 
 	/* Put TW into bind hash. Original socket stays there too.
 	 * Note, that any socket with inet->num != 0 MUST be bound in

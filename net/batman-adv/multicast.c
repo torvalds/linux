@@ -368,9 +368,9 @@ batadv_mcast_mla_meshif_get_ipv4(struct net_device *dev,
 				 struct hlist_head *mcast_list,
 				 struct batadv_mcast_mla_flags *flags)
 {
+	u8 mcast_addr[ETH_ALEN] __aligned(2);
 	struct batadv_hw_addr *new;
 	struct in_device *in_dev;
-	u8 mcast_addr[ETH_ALEN];
 	struct ip_mc_list *pmc;
 	int ret = 0;
 
@@ -435,9 +435,9 @@ batadv_mcast_mla_meshif_get_ipv6(struct net_device *dev,
 				 struct hlist_head *mcast_list,
 				 struct batadv_mcast_mla_flags *flags)
 {
+	u8 mcast_addr[ETH_ALEN] __aligned(2);
 	struct batadv_hw_addr *new;
 	struct inet6_dev *in6_dev;
-	u8 mcast_addr[ETH_ALEN];
 	struct ifmcaddr6 *pmc6;
 	int ret = 0;
 
@@ -587,10 +587,10 @@ static int batadv_mcast_mla_bridge_get(struct net_device *dev,
 				       struct batadv_mcast_mla_flags *flags)
 {
 	struct list_head bridge_mcast_list = LIST_HEAD_INIT(bridge_mcast_list);
+	u8 mcast_addr[ETH_ALEN] __aligned(2);
 	u8 tvlv_flags = flags->tvlv_flags;
 	struct br_ip_list *br_ip_entry;
 	struct batadv_hw_addr *new;
-	u8 mcast_addr[ETH_ALEN];
 	struct br_ip_list *tmp;
 	int ret;
 

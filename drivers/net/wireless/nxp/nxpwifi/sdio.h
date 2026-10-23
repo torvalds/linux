@@ -11,6 +11,7 @@
 #include "main.h"
 
 #define IW61X_SDIO_FW_NAME     "nxp/sd_w61x_v1.bin.se"
+#define IW610_SDIO_FW_NAME     "nxp/sd_iw610.bin.se"
 
 #define BLOCK_MODE	1
 #define BYTE_MODE	0

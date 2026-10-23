@@ -159,7 +159,7 @@ static void vcc_info(struct seq_file *seq, struct atm_vcc *vcc)
 {
 	struct sock *sk = sk_atm(vcc);
 
-	seq_printf(seq, "%pK ", vcc);
+	seq_puts(seq, "      0 ");
 	if (!vcc->dev)
 		seq_printf(seq, "Unassigned    ");
 	else
@@ -228,9 +228,8 @@ static const struct seq_operations pvc_seq_ops = {
 static int vcc_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, sizeof(void *) == 4 ? "%-8s%s" : "%-16s%s",
-			"Address ", "Itf VPI VCI   Fam Flags Reply "
-			"Send buffer     Recv buffer      [refcnt]\n");
+		seq_puts(seq, "Address Itf VPI VCI   Fam Flags Reply "
+			 "Send buffer     Recv buffer     [refcnt]\n");
 	} else {
 		struct vcc_state *state = seq->private;
 		struct atm_vcc *vcc = atm_sk(state->sk);

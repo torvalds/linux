@@ -1299,7 +1299,7 @@ static void a5psw_shutdown(struct platform_device *pdev)
 
 static const struct of_device_id a5psw_of_mtable[] = {
 	{ .compatible = "renesas,rzn1-a5psw", },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, a5psw_of_mtable);
 

@@ -28,6 +28,13 @@
 #define NAN_MAX_CONN_CFG		8
 #define NAN_MAX_NDP_CXT			4
 
+#define MT7925_NAN_ENABLE_MAX_SIZE					\
+	(sizeof(struct mt7925_nan_common_hdr) +				\
+	 sizeof(struct mt7925_nan_enable_req_tlv) +			\
+	 sizeof(struct mt7925_nan_dw_interval_tlv) +			\
+	 sizeof(struct mt7925_nan_cluster_id_tlv) +			\
+	 sizeof(struct mt7925_nan_sync_rssi_tlv))
+
 #define MT7925_NAN_CONF_MAX_SIZE					\
 	(sizeof(struct mt7925_nan_common_hdr) +				\
 	 sizeof(struct mt7925_nan_master_preference_tlv) +		\
@@ -44,7 +51,8 @@
 	(sizeof(struct mt7925_nan_common_hdr) +				\
 	 sizeof(struct mt7925_nan_sched_manage_peer_rec_tlv) +		\
 	 sizeof(struct mt7925_nan_sched_update_peer_cap_tlv) +		\
-	 sizeof(struct mt7925_nan_sched_update_crb_tlv))
+	 sizeof(struct mt7925_nan_sched_update_crb_tlv) +		\
+	 sizeof(struct mt7925_nan_update_ulw_tlv))
 
 /* NAN Availability Attribute */
 #define NAN_AVAIL_ATTR_ID_OFFSET	0
@@ -65,6 +73,8 @@
 #define UNII3_LOWER_BOUND	149
 #define UNII3_UPPER_BOUND	165
 
+#define NAN_BSS_INDEX_BAND0 0
+
 enum nan_uni_cmd_tag {
 	NAN_UNI_CMD_SET_MASTER_PREFERENCE	= 0,
 	NAN_UNI_CMD_ENABLE_REQUEST		= 7,
@@ -73,6 +83,8 @@ enum nan_uni_cmd_tag {
 	NAN_UNI_CMD_UPDATE_CRB			= 10,
 	NAN_UNI_CMD_MANAGE_PEER_SCH_RECORD	= 12,
 	NAN_UNI_CMD_MAP_STA_RECORD		= 13,
+	NAN_UNI_CMD_UPDATE_ULW			= 16,
+	NAN_UNI_CMD_UPDATE_PHY_SETTING		= 18,
 	NAN_UNI_CMD_UPDATE_AVAILABILITY_CTRL	= 20,
 	NAN_UNI_CMD_UPDATE_PEER_CAPABILITY	= 21,
 	NAN_UNI_CMD_CHANGE_NMI_ADDRESS		= 24,
@@ -84,12 +96,24 @@ enum nan_uni_cmd_tag {
 
 enum nan_uni_event_tag {
 	NAN_UNI_EVENT_ID_DE_EVENT_IND		= 19,
+	NAN_UNI_EVENT_ID_ULW_UPDATE		= 39,
+	NAN_UNI_EVENT_ID_SCHED_UPDATE_DONE	= 43,
+	NAN_UNI_EVENT_REPORT_DW_START		= 59,
 	NAN_UNI_EVENT_REPORT_DW_END		= 60,
 };
 
 enum nan_disc_event_type {
 	NAN_EVENT_ID_DISC_MAC_ADDR		= 0,
+	NAN_EVENT_ID_STARTED_CLUSTER		= 1,
 	NAN_EVENT_ID_JOINED_CLUSTER		= 2,
+};
+
+/* bit indices into mt792x_dev->nan_deferred_pending, set from the atomic
+ * MCU-event RX path and consumed by mt7925_nan_deferred_work()
+ */
+enum mt7925_nan_deferred_event {
+	MT7925_NAN_DEFERRED_STARTED_CLUSTER,
+	MT7925_NAN_DEFERRED_SCHED_UPDATE_DONE,
 };
 
 /* NAN 4.0 Table 79. Device Capability attribute format, Supported Bands */
@@ -108,11 +132,14 @@ enum nan_peer_supported_bands {
 	NAN_SUPPORTED_BN_NUM
 };
 
+#define NAN_CH_CTRL_CH_TYPE		BIT(0)
 #define NAN_CH_CTRL_OP_CLASS		GENMASK(15, 8)
 #define NAN_CH_CTRL_PRIMARY_CH		GENMASK(23, 16)
 
 #define NAN_CRB_USE_DATA_PATH		BIT(0)
 #define NAN_CRB_AVAIL_6G_FORMAT		GENMASK(2, 1)
+
+#define NAN_BAND_CHANNEL_ENTRY_LIST_TYPE_CHANNEL	1
 
 struct mt7925_nan_social_ch_scan_params {
 	u8 dwell_time[NAN_MAX_SOCIAL_CHANNELS];
@@ -152,6 +179,32 @@ struct nan_rpt_dw_evt {
 	__le16 channel;
 	__le16 dw_num;
 };
+
+#define NAN_ULW_ATTR_ID		0x17
+#define NAN_ULW_FIXED_PAYLOAD	16	/* Table 109 fixed fields */
+
+struct mt7925_nan_ulw_event {
+	u8 sched_id;
+	u8 seq_id;
+	u8 count_down;
+	u8 ulw_overwrite;
+	__le32 start_time;
+	__le32 duration;
+	__le32 period;
+} __packed;
+
+/* ULW attribute laid out in NAN spec Table 109 field order */
+struct mt7925_nan_ulw_attr {
+	u8 attr_id;
+	__le16 length;
+	u8 sched_id;
+	u8 seq_id;
+	__le32 start_time;
+	__le32 duration;
+	__le32 period;
+	u8 count_down;
+	u8 ulw_overwrite;
+} __packed;
 
 struct mt7925_nan_conf_dw {
 	u8 config_2dot4g_dw_band;
@@ -302,7 +355,7 @@ struct mt7925_nan_avail_ctrl_tlv {
 	__le16 len;
 	__le16 avail_ctrl;
 	u8 seq_id;
-	u8 reserved[1];
+	u8 is_deferred;
 } __packed __aligned(4);
 
 struct mt7925_nan_ch_timeline {
@@ -346,8 +399,7 @@ struct mt7925_nan_sched_update_peer_cap_tlv {
 
 struct mt7925_nan_sched_timeline {
 	u8 map_id;
-	u8 local_map_id;
-	u8 reserved[2];
+	u8 reserved[3];
 	union {
 		__le32 avail_map[NAN_TOTAL_DW];
 		u8 avail_block[NAN_TOTAL_DW * 4];
@@ -378,6 +430,15 @@ struct mt7925_nan_sched_update_crb_tlv {
 	struct mt7925_nan_sched_faw_ndc_timeline faw_ndc_timeline[NAN_TIMELINE_MGMT_SIZE];
 } __packed __aligned(4);
 
+#define NAN_ULW_MAX_SIZE	256
+
+struct mt7925_nan_update_ulw_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 nmi_addr[ETH_ALEN];
+	u8 ulw_attr[NAN_ULW_MAX_SIZE];
+} __packed __aligned(4);
+
 struct mt7925_nan_sched_map_sta_rec_tlv {
 	__le16 tag;
 	__le16 len;
@@ -389,6 +450,38 @@ struct mt7925_nan_sched_map_sta_rec_tlv {
 	u8 ndi_addr[ETH_ALEN];
 	u8 reserved[2];
 } __packed __aligned(4);
+
+/* Matches FW NAN_PHY_SETTING_T (enum fields are 4 bytes on ARM) */
+struct mt7925_nan_phy_setting {
+	u8 phy_type_set;
+	u8 non_ht_basic_phy_type;
+	u8 use_short_preamble;
+	u8 use_short_slot_time;
+	__le16 operational_rate_set;
+	__le16 bss_basic_rate_set;
+	__le16 vht_basic_mcs_set;
+	u8 erp_protect_mode;
+	u8 ht_op_info1;
+	__le16 ht_op_info2;
+	__le16 ht_op_info3;
+	__le32 ht_protect_mode;
+	__le32 gf_operation_mode;
+	__le32 rifs_operation_mode;
+} __packed;
+
+/* Matches FW NAN_SCHED_CMD_UPDATE_PHY_PARAM_T */
+struct mt7925_nan_update_phy_setting_tlv {
+	__le16 tag;
+	__le16 len;
+	struct mt7925_nan_phy_setting phy_2g;
+	struct mt7925_nan_phy_setting phy_5g;
+} __packed __aligned(4);
+
+int mt7925_nan_update_phy_setting(struct mt792x_dev *dev);
+
+struct ieee80211_chanctx_conf *
+mt7925_nan_seed_link_sta(struct mt792x_dev *dev,
+			 struct ieee80211_link_sta *link_sta);
 
 int mt7925_nan_enable(struct ieee80211_vif *vif,
 		      struct mt792x_dev *dev,
@@ -402,8 +495,6 @@ int mt7925_nan_change_configure(struct ieee80211_vif *vif,
 				struct cfg80211_nan_conf *conf);
 
 void mt7925_nan_mcu_event(struct mt792x_dev *dev, struct sk_buff *skb);
-
-int mt7925_nan_set_nmi_addr(struct mt792x_dev *dev, const u8 *addr);
 
 void mt7925_nan_local_sched_changed(struct mt792x_dev *dev,
 				    struct ieee80211_vif *vif);

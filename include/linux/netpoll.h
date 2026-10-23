@@ -16,11 +16,6 @@
 #include <linux/ip.h>
 #include <linux/udp.h>
 
-union inet_addr {
-	__be32		ip;
-	struct in6_addr	in6;
-};
-
 struct netpoll {
 	struct net_device *dev;
 	netdevice_tracker dev_tracker;

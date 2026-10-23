@@ -279,6 +279,7 @@ static int wfx_sdio_probe(struct sdio_func *func, const struct sdio_device_id *i
 		goto sdio_release;
 	}
 
+	bus->core->poll_irq = !!bus->of_irq;
 	ret = wfx_probe(bus->core);
 	if (ret)
 		goto sdio_release;

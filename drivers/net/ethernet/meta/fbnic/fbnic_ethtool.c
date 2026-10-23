@@ -246,6 +246,7 @@ static int fbnic_get_coalesce(struct net_device *netdev,
 	ec->tx_coalesce_usecs = fbn->tx_usecs;
 	ec->rx_coalesce_usecs = fbn->rx_usecs;
 	ec->rx_max_coalesced_frames = fbn->rx_max_frames;
+	kernel_coal->rx_cqe_nsecs = fbn->fbd->rx_cqe_nsecs;
 
 	return 0;
 }
@@ -256,6 +257,7 @@ static int fbnic_set_coalesce(struct net_device *netdev,
 			      struct netlink_ext_ack *extack)
 {
 	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_dev *fbd = fbn->fbd;
 
 	/* Verify against hardware limits */
 	if (ec->rx_coalesce_usecs > FIELD_MAX(FBNIC_INTR_CQ_REARM_RCQ_TIMEOUT)) {
@@ -272,10 +274,20 @@ static int fbnic_set_coalesce(struct net_device *netdev,
 		NL_SET_ERR_MSG_MOD(extack, "rx_frames is above device max");
 		return -EINVAL;
 	}
+	if (kernel_coal->rx_cqe_nsecs < FBNIC_RX_CQE_NSECS_MIN ||
+	    kernel_coal->rx_cqe_nsecs > FBNIC_RX_CQE_NSECS_MAX) {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "rx-cqe-nsecs must be between %u and %u",
+				       FBNIC_RX_CQE_NSECS_MIN,
+				       FBNIC_RX_CQE_NSECS_MAX);
+		return -EINVAL;
+	}
 
 	fbn->tx_usecs = ec->tx_coalesce_usecs;
 	fbn->rx_usecs = ec->rx_coalesce_usecs;
 	fbn->rx_max_frames = ec->rx_max_coalesced_frames;
+	fbd->rx_cqe_nsecs = kernel_coal->rx_cqe_nsecs;
+	fbnic_config_rx_cqe_nsecs(fbd);
 
 	if (netif_running(netdev)) {
 		int i;
@@ -2021,7 +2033,8 @@ static void fbnic_get_link_ext_stats(struct net_device *netdev,
 static const struct ethtool_ops fbnic_ethtool_ops = {
 	.cap_link_lanes_supported	= true,
 	.supported_coalesce_params	= ETHTOOL_COALESCE_USECS |
-					  ETHTOOL_COALESCE_RX_MAX_FRAMES,
+					  ETHTOOL_COALESCE_RX_MAX_FRAMES |
+					  ETHTOOL_COALESCE_RX_CQE_NSECS,
 	.supported_ring_params		= ETHTOOL_RING_USE_TCP_DATA_SPLIT |
 					  ETHTOOL_RING_USE_HDS_THRS,
 	.rxfh_max_num_contexts		= FBNIC_RPC_RSS_TBL_COUNT,

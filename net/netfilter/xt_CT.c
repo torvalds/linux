@@ -91,7 +91,7 @@ xt_ct_set_helper(struct nf_conn *ct, const char *helper_name,
 		return -ENOENT;
 	}
 
-	help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
+	help = nf_ct_helper_ext_add(ct, GFP_KERNEL_ACCOUNT);
 	if (help == NULL) {
 		nf_conntrack_helper_put(helper);
 		return -ENOMEM;
@@ -182,7 +182,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	if (info->flags & XT_CT_ZONE_MARK)
 		zone.flags |= NF_CT_FLAG_MARK;
 
-	ct = nf_ct_tmpl_alloc(par->net, &zone, GFP_KERNEL);
+	ct = nf_ct_tmpl_alloc(par->net, &zone, GFP_KERNEL_ACCOUNT);
 	if (!ct) {
 		ret = -ENOMEM;
 		goto err2;
@@ -190,7 +190,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 
 	if ((info->ct_events || info->exp_events) &&
 	    !nf_ct_ecache_ext_add(ct, info->ct_events, info->exp_events,
-				  GFP_KERNEL)) {
+				  GFP_KERNEL_ACCOUNT)) {
 		ret = -EINVAL;
 		goto err3;
 	}

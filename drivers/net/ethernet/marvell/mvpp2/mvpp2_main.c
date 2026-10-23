@@ -5875,7 +5875,7 @@ static int mvpp2_simple_queue_vectors_init(struct mvpp2_port *port,
 	v->sw_thread_mask = *cpumask_bits(cpu_online_mask);
 	v->port = port;
 	v->irq = irq_of_parse_and_map(port_node, 0);
-	if (v->irq <= 0)
+	if (!v->irq)
 		return -EINVAL;
 	netif_napi_add(port->dev, &v->napi, mvpp2_poll);
 

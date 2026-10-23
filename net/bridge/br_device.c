@@ -65,9 +65,10 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
-	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid,
-				&state, &vlan))
+	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &state,
+				&vlan))
 		goto out;
+	vid = vlan ? vlan->vid : 0;
 
 	if (IS_ENABLED(CONFIG_INET) &&
 	    (eth_hdr(skb)->h_proto == htons(ETH_P_ARP) ||
@@ -89,10 +90,10 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dest = eth_hdr(skb)->h_dest;
 	if (is_broadcast_ether_addr(dest)) {
-		br_flood(br, skb, BR_PKT_BROADCAST, false, true, vid);
+		br_flood(br, vlan, skb, BR_PKT_BROADCAST, false, true);
 	} else if (is_multicast_ether_addr(dest)) {
 		if (unlikely(netpoll_tx_running(dev))) {
-			br_flood(br, skb, BR_PKT_MULTICAST, false, true, vid);
+			br_flood(br, vlan, skb, BR_PKT_MULTICAST, false, true);
 			goto out;
 		}
 		if (br_multicast_rcv(&brmctx, &pmctx_null, vlan, skb, vid)) {
@@ -105,11 +106,11 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		    br_multicast_querier_exists(brmctx, eth_hdr(skb), mdst))
 			br_multicast_flood(mdst, skb, brmctx, false, true);
 		else
-			br_flood(br, skb, BR_PKT_MULTICAST, false, true, vid);
+			br_flood(br, vlan, skb, BR_PKT_MULTICAST, false, true);
 	} else if ((dst = br_fdb_find_rcu(br, dest, vid)) != NULL) {
-		br_forward(READ_ONCE(dst->dst), skb, false, true);
+		br_forward(br_fdb_dst_read(dst), skb, false, true);
 	} else {
-		br_flood(br, skb, BR_PKT_UNICAST, false, true, vid);
+		br_flood(br, vlan, skb, BR_PKT_UNICAST, false, true);
 	}
 out:
 	rcu_read_unlock();
@@ -400,7 +401,7 @@ static int br_fill_forward_path(struct net_device_path_ctx *ctx,
 	if (!f)
 		return -1;
 
-	dst = READ_ONCE(f->dst);
+	dst = br_fdb_dst_port(f);
 	if (!dst)
 		return -1;
 

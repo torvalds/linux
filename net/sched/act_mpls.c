@@ -438,12 +438,23 @@ static int tcf_mpls_offload_act_setup(struct tc_action *act, void *entry_data,
 	return 0;
 }
 
+static size_t tcf_mpls_get_fill_size(const struct tc_action *act)
+{
+	return nla_total_size(sizeof(struct tc_mpls)) /* TCA_MPLS_PARMS */
+		+ nla_total_size(sizeof(u32)) /* TCA_MPLS_LABEL */
+		+ nla_total_size(sizeof(u8)) /* TCA_MPLS_TC */
+		+ nla_total_size(sizeof(u8)) /* TCA_MPLS_TTL */
+		+ nla_total_size(sizeof(u8)) /* TCA_MPLS_BOS */
+		+ nla_total_size(sizeof(u16)); /* TCA_MPLS_PROTO */
+}
+
 static struct tc_action_ops act_mpls_ops = {
 	.kind		=	"mpls",
 	.id		=	TCA_ID_MPLS,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_mpls_act,
 	.dump		=	tcf_mpls_dump,
+	.get_fill_size	=	tcf_mpls_get_fill_size,
 	.init		=	tcf_mpls_init,
 	.cleanup	=	tcf_mpls_cleanup,
 	.offload_act_setup =	tcf_mpls_offload_act_setup,

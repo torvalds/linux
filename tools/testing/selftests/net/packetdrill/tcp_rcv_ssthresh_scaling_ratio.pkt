@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: GPL-2.0
+// tcp_measure_rcv_mss() lowers tp->window_clamp when a segment carries less
+// payload per byte of memory than the ratio it had assumed. Test that it does
+// not lower tp->rcv_ssthresh as well: rcv_ssthresh is cut back under
+// memory pressure, and it only grows back slowly, through tcp_grow_window().
+
+--mss=1000
+
+`./defaults.sh`
+
+// A fixed SO_RCVBUF keeps sk_rcvbuf from moving, so window_clamp can only
+// change when the ratio does. The MSS of 88 (TCP_MIN_MSS) is the smallest
+// segment size TCP will measure, and window scaling lets rcv_ssthresh start
+// well above 64 KB. The window the peer announces does not matter here, this
+// side never sends data.
+   +0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 setsockopt(3, SOL_SOCKET, SO_RCVBUF, [262144], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 65535 <mss 88,nop,nop,sackOK,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <...>
+  +.1 < . 1:1(0) ack 1 win 65535
+
+   +0 accept(3, ..., ...) = 4
+
+// Only segments of at least rcv_mss bytes are measured. Note it down, along
+// with the rcv_ssthresh the connection starts with.
+   +0 %{
+assert tcpi_rcv_mss == 88, tcpi_rcv_mss
+ssthresh_0 = tcpi_rcv_ssthresh
+}%
+
+// One segment, one byte above that threshold. 89 bytes of payload sit in an
+// skb of about 900 bytes, far below the 50% ratio TCP assumes by default, so
+// window_clamp drops sharply.
+   +0 < P. 1:90(89) ack 1 win 65535
+   +0 > . 1:1(0) ack 90
+
+// rcv_mss is only updated by the code that recomputes the ratio, so 89 here
+// means the segment was measured. rcv_ssthresh must have been left alone.
+   +0 %{
+assert tcpi_rcv_mss == 89, tcpi_rcv_mss
+assert tcpi_rcv_ssthresh >= ssthresh_0, (tcpi_rcv_ssthresh, ssthresh_0)
+}%

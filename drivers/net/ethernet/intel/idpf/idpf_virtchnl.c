@@ -3,6 +3,7 @@
 
 #include <linux/export.h>
 #include <linux/net/intel/libie/pci.h>
+#include <linux/log2.h>
 #include <net/libeth/rx.h>
 
 #include "idpf.h"
@@ -553,7 +554,8 @@ static int idpf_send_get_caps_msg(struct idpf_adapter *adapter)
 			    VIRTCHNL2_CAP_SPLITQ_QSCHED		|
 			    VIRTCHNL2_CAP_PROMISC		|
 			    VIRTCHNL2_CAP_LOOPBACK		|
-			    VIRTCHNL2_CAP_PTP);
+			    VIRTCHNL2_CAP_PTP			|
+			    VIRTCHNL2_CAP_EDT);
 
 	err = idpf_send_mb_msg_stack(adapter, &xn_params, &caps);
 	if (err)
@@ -566,6 +568,54 @@ static int idpf_send_get_caps_msg(struct idpf_adapter *adapter)
 
 	memcpy(&adapter->caps, xn_params.recv_mem.iov_base,
 	       sizeof(adapter->caps));
+
+free_rx_buf:
+	libie_ctlq_release_rx_buf(&xn_params.recv_mem);
+
+	return err;
+}
+
+/**
+ * idpf_send_get_edt_caps_msg - Send virtchnl get EDT caps msg
+ * @adapter: Driver specific private struct
+ *
+ * Return: 0 on success or error code on failure.
+ */
+static int idpf_send_get_edt_caps_msg(struct idpf_adapter *adapter)
+{
+	struct libie_ctlq_xn_send_params xn_params = {
+		.timeout_ms	= IDPF_VC_XN_DEFAULT_TIMEOUT_MSEC,
+		.chnl_opcode	= VIRTCHNL2_OP_GET_EDT_CAPS,
+	};
+	struct virtchnl2_edt_caps caps = {};
+	u64 gran_ns, horizon_ns;
+	int err;
+
+	err = idpf_send_mb_msg_stack(adapter, &xn_params, &caps);
+	if (err)
+		return err;
+
+	if (xn_params.recv_mem.iov_len < sizeof(caps)) {
+		err = -EIO;
+		goto free_rx_buf;
+	}
+
+	memcpy(&caps, xn_params.recv_mem.iov_base, sizeof(caps));
+	horizon_ns = le64_to_cpu(caps.time_horizon_ns);
+	gran_ns = le64_to_cpu(caps.tstamp_granularity_ns);
+	if (horizon_ns > U32_MAX) {
+		dev_warn(&adapter->pdev->dev, "EDT horizon exceeds U32\n");
+		err = -EINVAL;
+		goto free_rx_buf;
+	}
+	if (!gran_ns || !is_power_of_2(gran_ns)) {
+		dev_warn(&adapter->pdev->dev, "Invalid EDT granularity\n");
+		err = -EINVAL;
+		goto free_rx_buf;
+	}
+
+	adapter->edt_caps.time_horizon_ns = horizon_ns;
+	adapter->edt_caps.tstamp_granularity_pow2 = ilog2(gran_ns);
 
 free_rx_buf:
 	libie_ctlq_release_rx_buf(&xn_params.recv_mem);
@@ -3083,6 +3133,14 @@ restart:
 				err);
 			return err;
 		}
+	}
+
+	memset(&adapter->edt_caps, 0, sizeof(adapter->edt_caps));
+	if (idpf_is_cap_ena(adapter, IDPF_OTHER_CAPS, VIRTCHNL2_CAP_EDT)) {
+		err = idpf_send_get_edt_caps_msg(adapter);
+		if (err)
+			dev_err(&adapter->pdev->dev,
+				"EDT init failed, err=%d\n", err);
 	}
 
 	pci_sriov_set_totalvfs(adapter->pdev, idpf_get_max_vfs(adapter));

@@ -238,6 +238,14 @@ static int rds_rdma_listen_init_common(rdma_cm_event_handler handler,
 		return ret;
 	}
 
+	/* Only the IB transport is left, so only listen on IB devices */
+	ret = rdma_restrict_node_type(cm_id, RDMA_NODE_IB_CA);
+	if (ret) {
+		pr_err("RDS/RDMA: failed to setup listener, rdma_restrict_node_type() returned %d\n",
+		       ret);
+		goto out;
+	}
+
 	/*
 	 * XXX I bet this binds the cm_id to a device.  If we want to support
 	 * fail-over we'll have to take this into consideration.
@@ -256,7 +264,10 @@ static int rds_rdma_listen_init_common(rdma_cm_event_handler handler,
 		goto out;
 	}
 
-	rdsdebug("cm %p listening on port %u\n", cm_id, RDS_PORT);
+	rdsdebug("cm %p listening on port %u\n", cm_id,
+		 ntohs(sa->sa_family == AF_INET6 ?
+		       ((struct sockaddr_in6 *)sa)->sin6_port :
+		       ((struct sockaddr_in *)sa)->sin_port));
 
 	*ret_cm_id = cm_id;
 	cm_id = NULL;

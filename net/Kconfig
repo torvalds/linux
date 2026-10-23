@@ -68,7 +68,6 @@ config SKB_EXTENSIONS
 
 config NET_DEVMEM
 	def_bool y
-	select GENERIC_ALLOCATOR
 	depends on DMA_SHARED_BUFFER
 	depends on PAGE_POOL
 

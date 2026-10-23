@@ -278,6 +278,11 @@ int gve_add_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd)
 		goto out;
 
 	err = gve_adminq_add_flow_rule(priv, rule, fsp->location);
+	if (err == -ETIME) {
+		dev_err(&priv->pdev->dev,
+			"Timeout to add flow rule, trigger reset.");
+		gve_reset(priv, false);
+	}
 
 out:
 	kvfree(rule);
@@ -290,9 +295,17 @@ out:
 int gve_del_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd)
 {
 	struct ethtool_rx_flow_spec *fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
+	int err;
 
 	if (!priv->max_flow_rules)
 		return -EOPNOTSUPP;
 
-	return gve_adminq_del_flow_rule(priv, fsp->location);
+	err = gve_adminq_del_flow_rule(priv, fsp->location);
+	if (err == -ETIME) {
+		dev_err(&priv->pdev->dev,
+			"Timeout to delete flow rule, trigger reset.");
+		gve_reset(priv, false);
+	}
+
+	return err;
 }

@@ -1131,6 +1131,8 @@ static inline void sk_forward_alloc_add(struct sock *sk, int val)
 }
 
 void sk_stream_write_space(struct sock *sk);
+void sk_set_nospace(struct sock *sk);
+void sk_clear_nospace(struct sock *sk);
 
 /* OOB backlog add */
 static inline void __sk_add_backlog(struct sock *sk, struct sk_buff *skb)

@@ -21,10 +21,7 @@ static int lowpan_ctx_flag_active_set(void *data, u64 val)
 	if (val != 0 && val != 1)
 		return -EINVAL;
 
-	if (val)
-		set_bit(LOWPAN_IPHC_CTX_FLAG_ACTIVE, &ctx->flags);
-	else
-		clear_bit(LOWPAN_IPHC_CTX_FLAG_ACTIVE, &ctx->flags);
+	assign_bit(LOWPAN_IPHC_CTX_FLAG_ACTIVE, &ctx->flags, val);
 
 	return 0;
 }
@@ -46,10 +43,7 @@ static int lowpan_ctx_flag_c_set(void *data, u64 val)
 	if (val != 0 && val != 1)
 		return -EINVAL;
 
-	if (val)
-		set_bit(LOWPAN_IPHC_CTX_FLAG_COMPRESSION, &ctx->flags);
-	else
-		clear_bit(LOWPAN_IPHC_CTX_FLAG_COMPRESSION, &ctx->flags);
+	assign_bit(LOWPAN_IPHC_CTX_FLAG_COMPRESSION, &ctx->flags, val);
 
 	return 0;
 }

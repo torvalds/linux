@@ -1260,6 +1260,10 @@ static int nfp_ct_do_nft_merge(struct nfp_fl_ct_zone_entry *zt,
 err_nft_ct_offload:
 	nfp_fl_ct_del_offload(zt->priv->app, nft_m_entry->tc_flower_cookie,
 			      nft_m_entry->netdev);
+	WARN_ON_ONCE(rhashtable_remove_fast(&zt->nft_merge_tb,
+					    &nft_m_entry->hash_node,
+					    nfp_nft_ct_merge_params));
+	zt->nft_merge_count--;
 err_nft_ct_merge_insert:
 	list_del(&nft_m_entry->tc_merge_list);
 	list_del(&nft_m_entry->nft_flow_list);

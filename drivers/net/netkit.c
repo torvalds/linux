@@ -1209,12 +1209,12 @@ static size_t netkit_get_size(const struct net_device *dev)
 
 static int netkit_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
-	struct netkit *nk = netkit_priv(dev);
-	struct net_device *peer = rtnl_dereference(nk->peer);
+	const struct netkit *nk = netkit_priv(dev);
+	const struct net_device *peer;
 
 	if (nla_put_u8(skb, IFLA_NETKIT_PRIMARY, nk->primary))
 		return -EMSGSIZE;
-	if (nla_put_u32(skb, IFLA_NETKIT_POLICY, nk->policy))
+	if (nla_put_u32(skb, IFLA_NETKIT_POLICY, READ_ONCE(nk->policy)))
 		return -EMSGSIZE;
 	if (nla_put_u32(skb, IFLA_NETKIT_MODE, nk->mode))
 		return -EMSGSIZE;
@@ -1228,13 +1228,18 @@ static int netkit_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (nla_put_u32(skb, IFLA_NETKIT_PAIRING, nk->pair))
 		return -EMSGSIZE;
 
+	rcu_read_lock();
+	peer = rcu_dereference(nk->peer);
 	if (peer) {
 		nk = netkit_priv(peer);
-		if (nla_put_u32(skb, IFLA_NETKIT_PEER_POLICY, nk->policy))
+		if (nla_put_u32(skb, IFLA_NETKIT_PEER_POLICY,
+				READ_ONCE(nk->policy)) ||
+		    nla_put_u32(skb, IFLA_NETKIT_PEER_SCRUB, nk->scrub)) {
+			rcu_read_unlock();
 			return -EMSGSIZE;
-		if (nla_put_u32(skb, IFLA_NETKIT_PEER_SCRUB, nk->scrub))
-			return -EMSGSIZE;
+		}
 	}
+	rcu_read_unlock();
 
 	return 0;
 }

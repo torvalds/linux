@@ -316,10 +316,8 @@ tcf_exts_hw_stats_update(const struct tcf_exts *exts,
 				continue;
 		}
 
-		preempt_disable();
 		tcf_action_stats_update(a, stats->bytes, stats->pkts, stats->drops,
 					stats->lastused, true);
-		preempt_enable();
 
 		a->used_hw_stats = stats->used_hw_stats;
 		a->used_hw_stats_valid = stats->used_hw_stats_valid;

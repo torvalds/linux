@@ -270,6 +270,8 @@ int mt7925_register_device(struct mt792x_dev *dev)
 
 	INIT_WORK(&dev->reset_work, mt7925_mac_reset_work);
 	INIT_WORK(&dev->init_work, mt7925_init_work);
+	INIT_WORK(&dev->nan_deferred_work, mt7925_nan_deferred_work);
+	spin_lock_init(&dev->nan_deferred_lock);
 
 	INIT_WORK(&dev->phy.roc_work, mt7925_roc_work);
 	timer_setup(&dev->phy.roc_timer, mt792x_roc_timer, 0);

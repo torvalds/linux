@@ -2709,8 +2709,8 @@ done:
 		err = ip_mc_leave_group(sk, &imr);
 	return err;
 }
-int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
-		 sockptr_t optval, sockptr_t optlen)
+
+int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf, sockopt_t *opt)
 {
 	int err, len, count, copycount, msf_size;
 	struct ip_mreqn	imr;
@@ -2755,14 +2755,19 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 	len = flex_array_size(psl, sl_addr, copycount);
 	msf->imsf_numsrc = count;
 	msf_size = IP_MSFILTER_SIZE(copycount);
-	if (copy_to_sockptr(optlen, &msf_size, sizeof(int)) ||
-	    copy_to_sockptr(optval, msf, IP_MSFILTER_SIZE(0))) {
+
+	/* The source list is sized by the imsf_numsrc the caller left in
+	 * optval, not by optlen, which only has to cover the fixed part.
+	 */
+	err = sockopt_expand_out(opt, msf_size);
+	if (err)
+		return err;
+
+	opt->optlen = msf_size;
+	if (copy_to_iter(msf, IP_MSFILTER_SIZE(0), &opt->iter_out) !=
+	    IP_MSFILTER_SIZE(0))
 		return -EFAULT;
-	}
-	if (len &&
-	    copy_to_sockptr_offset(optval,
-				   offsetof(struct ip_msfilter, imsf_slist_flex),
-				   psl->sl_addr, len))
+	if (len && copy_to_iter(psl->sl_addr, len, &opt->iter_out) != len)
 		return -EFAULT;
 	return 0;
 done:

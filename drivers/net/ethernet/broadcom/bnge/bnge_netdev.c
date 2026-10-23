@@ -1243,7 +1243,7 @@ static int bnge_alloc_core(struct bnge_net *bn)
 
 	bn->rx_ring = kzalloc_objs(struct bnge_rx_ring_info, bd->rx_nr_rings);
 	if (!bn->rx_ring)
-		goto err_free_core;
+		goto err_free_bnapi;
 
 	for (i = 0; i < bd->rx_nr_rings; i++) {
 		struct bnge_rx_ring_info *rxr = &bn->rx_ring[i];
@@ -1258,12 +1258,12 @@ static int bnge_alloc_core(struct bnge_net *bn)
 
 	bn->tx_ring = kzalloc_objs(struct bnge_tx_ring_info, bd->tx_nr_rings);
 	if (!bn->tx_ring)
-		goto err_free_core;
+		goto err_free_rx_ring;
 
 	bn->tx_ring_map = kcalloc(bd->tx_nr_rings, sizeof(u16),
 				  GFP_KERNEL);
 	if (!bn->tx_ring_map)
-		goto err_free_core;
+		goto err_free_tx_ring;
 
 	if (bd->flags & BNGE_EN_SHARED_CHNL)
 		j = 0;
@@ -1289,42 +1289,64 @@ static int bnge_alloc_core(struct bnge_net *bn)
 
 	rc = bnge_alloc_ring_stats(bn);
 	if (rc)
-		goto err_free_core;
+		goto err_free_tx_ring_map;
 
 	bnge_init_stats(bn);
 
 	rc = bnge_alloc_vnics(bn);
 	if (rc)
-		goto err_free_core;
+		goto err_free_ring_stats;
 
 	rc = bnge_alloc_nq_arrays(bn);
 	if (rc)
-		goto err_free_core;
+		goto err_free_vnics;
 
 	bnge_init_ring_struct(bn);
 
 	rc = bnge_alloc_rx_rings(bn);
 	if (rc)
-		goto err_free_core;
+		goto err_free_nq_arrays;
 
 	rc = bnge_alloc_tx_rings(bn);
 	if (rc)
-		goto err_free_core;
+		goto err_free_rx_rings;
 
 	rc = bnge_alloc_nq_tree(bn);
 	if (rc)
-		goto err_free_core;
+		goto err_free_tx_rings;
 
 	bn->vnic_info[BNGE_VNIC_DEFAULT].flags |= BNGE_VNIC_RSS_FLAG |
 						  BNGE_VNIC_MCAST_FLAG |
 						  BNGE_VNIC_UCAST_FLAG;
 	rc = bnge_alloc_vnic_attributes(bn);
 	if (rc)
-		goto err_free_core;
+		goto err_free_nq_tree;
 	return 0;
 
-err_free_core:
-	bnge_free_core(bn);
+err_free_nq_tree:
+	bnge_free_nq_tree(bn);
+err_free_tx_rings:
+	bnge_free_tx_rings(bn);
+err_free_rx_rings:
+	bnge_free_rx_rings(bn);
+err_free_nq_arrays:
+	bnge_free_nq_arrays(bn);
+err_free_vnics:
+	bnge_free_vnics(bn);
+err_free_ring_stats:
+	bnge_free_ring_stats(bn);
+err_free_tx_ring_map:
+	kfree(bn->tx_ring_map);
+	bn->tx_ring_map = NULL;
+err_free_tx_ring:
+	kfree(bn->tx_ring);
+	bn->tx_ring = NULL;
+err_free_rx_ring:
+	kfree(bn->rx_ring);
+	bn->rx_ring = NULL;
+err_free_bnapi:
+	kfree(bn->bnapi);
+	bn->bnapi = NULL;
 	return rc;
 }
 
@@ -2182,19 +2204,21 @@ static bool bnge_uc_list_updated(struct bnge_net *bn,
 				 const struct netdev_hw_addr_list *uc)
 {
 	struct bnge_vnic_info *vnic = &bn->vnic_info[BNGE_VNIC_DEFAULT];
+	struct net_device *dev = bn->netdev;
 	struct netdev_hw_addr *ha;
-	int off = 0;
-
-	if (netdev_hw_addr_list_count(uc) != (vnic->uc_filter_count - 1))
-		return true;
+	int off = 0, count = 0;
 
 	netdev_hw_addr_list_for_each(ha, uc) {
+		if (ether_addr_equal(ha->addr, dev->dev_addr))
+			continue;
+		if (count >= vnic->uc_filter_count - 1)
+			return true;
 		if (!ether_addr_equal(ha->addr, vnic->uc_list + off))
 			return true;
-
 		off += ETH_ALEN;
+		count++;
 	}
-	return false;
+	return count != vnic->uc_filter_count - 1;
 }
 
 static bool bnge_promisc_ok(struct bnge_net *bn)
@@ -2207,9 +2231,9 @@ static int bnge_cfg_rx_mode(struct bnge_net *bn, struct netdev_hw_addr_list *uc,
 {
 	struct bnge_vnic_info *vnic = &bn->vnic_info[BNGE_VNIC_DEFAULT];
 	struct net_device *dev = bn->netdev;
+	int i, off = 0, rc, uc_count = 0;
 	struct bnge_dev *bd = bn->bd;
 	struct netdev_hw_addr *ha;
-	int i, off = 0, rc;
 
 	if (!uc_update)
 		goto skip_uc;
@@ -2225,10 +2249,20 @@ static int bnge_cfg_rx_mode(struct bnge_net *bn, struct netdev_hw_addr_list *uc,
 
 	if (!snapshot)
 		netif_addr_lock_bh(dev);
-	if (netdev_hw_addr_list_count(uc) > (BNGE_MAX_UC_ADDRS - 1)) {
+	/* dev_addr is already programmed as L2 filter 0, so it takes neither a
+	 * uc_list slot nor an l2_filters[] slot. Count only the entries that
+	 * will actually be programmed so the overflow check matches the fill
+	 * loop below (and bnge_uc_list_updated()).
+	 */
+	netdev_hw_addr_list_for_each(ha, uc)
+		if (!ether_addr_equal(ha->addr, dev->dev_addr))
+			uc_count++;
+	if (uc_count > BNGE_MAX_UC_ADDRS - 1) {
 		vnic->rx_mask |= CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS;
 	} else {
 		netdev_hw_addr_list_for_each(ha, uc) {
+			if (ether_addr_equal(ha->addr, dev->dev_addr))
+				continue;
 			memcpy(vnic->uc_list + off, ha->addr, ETH_ALEN);
 			off += ETH_ALEN;
 			vnic->uc_filter_count++;
@@ -2644,12 +2678,10 @@ static int bnge_request_irq(struct bnge_net *bn)
 			irq->have_cpumask = 1;
 			cpumask_set_cpu(cpumask_local_spread(i, numa_node),
 					irq->cpu_mask);
-			rc = irq_set_affinity_hint(irq->vector, irq->cpu_mask);
-			if (rc) {
+			if (irq_set_affinity_hint(irq->vector, irq->cpu_mask)) {
 				netdev_warn(bn->netdev,
 					    "Set affinity failed, IRQ = %d\n",
 					    irq->vector);
-				goto err_free_irq;
 			}
 		}
 	}
@@ -3531,6 +3563,7 @@ err_free_workq:
 	destroy_workqueue(bn->bnge_pf_wq);
 err_netdev:
 	free_netdev(netdev);
+	bd->netdev = NULL;
 	return rc;
 }
 

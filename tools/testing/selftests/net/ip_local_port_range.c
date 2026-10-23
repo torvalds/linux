@@ -301,7 +301,27 @@ TEST_F(ip_local_port_range, single_port_range)
 	}
 }
 
-TEST_F(ip_local_port_range, exhaust_8_port_range)
+#define REUSEADDR	0x1
+#define REUSEPORT	0x2
+
+static int set_reuse_opts(int fd, unsigned int flags)
+{
+	int one = 1;
+
+	if ((flags & REUSEADDR) &&
+	    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)))
+		return -1;
+
+	if ((flags & REUSEPORT) &&
+	    setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)))
+		return -1;
+
+	return 0;
+}
+
+static void exhaust_8_port_range(struct __test_metadata *_metadata,
+				 const FIXTURE_VARIANT(ip_local_port_range) *variant,
+				 unsigned int flags)
 {
 	__u8 port_set = 0;
 	int i, fd, err;
@@ -312,6 +332,9 @@ TEST_F(ip_local_port_range, exhaust_8_port_range)
 	for (i = 0; i < ARRAY_SIZE(fds); i++) {
 		fd = socket(variant->so_domain, variant->so_type, variant->so_protocol);
 		ASSERT_GE(fd, 0) TH_LOG("socket failed");
+
+		err = set_reuse_opts(fd, flags);
+		ASSERT_TRUE(!err) TH_LOG("setsockopt(SO_REUSE*) failed");
 
 		range = pack_port_range(40000, 40007);
 		err = setsockopt(fd, SOL_IP, IP_LOCAL_PORT_RANGE, &range, sizeof(range));
@@ -335,6 +358,9 @@ TEST_F(ip_local_port_range, exhaust_8_port_range)
 	fd = socket(variant->so_domain, variant->so_type, variant->so_protocol);
 	ASSERT_GE(fd, 0) TH_LOG("socket failed");
 
+	err = set_reuse_opts(fd, flags);
+	ASSERT_TRUE(!err) TH_LOG("setsockopt(SO_REUSE*) failed");
+
 	range = pack_port_range(40000, 40007);
 	err = setsockopt(fd, SOL_IP, IP_LOCAL_PORT_RANGE, &range, sizeof(range));
 	ASSERT_TRUE(!err) TH_LOG("setsockopt(IP_LOCAL_PORT_RANGE) failed");
@@ -350,6 +376,30 @@ TEST_F(ip_local_port_range, exhaust_8_port_range)
 		err = close(fds[i]);
 		ASSERT_TRUE(!err) TH_LOG("close failed");
 	}
+}
+
+TEST_F(ip_local_port_range, exhaust_8_port_range)
+{
+	exhaust_8_port_range(_metadata, variant, 0);
+}
+
+/* Auto-selected port must not land on a port already taken by another
+ * socket, whatever reuse options both of them have, so all 8 sockets
+ * must get distinct ports.
+ */
+TEST_F(ip_local_port_range, exhaust_8_port_range_reuseport)
+{
+	exhaust_8_port_range(_metadata, variant, REUSEPORT);
+}
+
+TEST_F(ip_local_port_range, exhaust_8_port_range_reuseaddr)
+{
+	exhaust_8_port_range(_metadata, variant, REUSEADDR);
+}
+
+TEST_F(ip_local_port_range, exhaust_8_port_range_reuseaddr_reuseport)
+{
+	exhaust_8_port_range(_metadata, variant, REUSEADDR | REUSEPORT);
 }
 
 TEST_F(ip_local_port_range, late_bind)

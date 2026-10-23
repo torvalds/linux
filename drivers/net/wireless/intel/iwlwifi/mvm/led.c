@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2025-2026 Intel Corporation
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
 #include <linux/leds.h>
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "mvm.h"
 
@@ -38,8 +38,8 @@ static void iwl_mvm_led_set(struct iwl_mvm *mvm, bool on)
 		return;
 	}
 
-	iwl_write32(mvm->trans, CSR_LED_REG,
-		    on ? CSR_LED_REG_TURN_ON : CSR_LED_REG_TURN_OFF);
+	iwl_trans_write32(mvm->trans, CSR_LED_REG,
+			  on ? CSR_LED_REG_TURN_ON : CSR_LED_REG_TURN_OFF);
 }
 
 static void iwl_led_brightness_set(struct led_classdev *led_cdev,

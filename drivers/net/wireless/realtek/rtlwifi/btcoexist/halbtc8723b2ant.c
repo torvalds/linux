@@ -1894,7 +1894,7 @@ static void btc8723b2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 		result = 0;
 		wait_count = 0;
 	} else {
-		/*accquire the BT TRx retry count from BT_Info byte2*/
+		/* acquire the BT TRx retry count from BT_Info byte2 */
 		retry_count = coex_sta->bt_retry_cnt;
 
 		if ((coex_sta->low_priority_tx) > 1050 ||

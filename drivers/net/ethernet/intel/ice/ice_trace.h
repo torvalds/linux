@@ -261,6 +261,24 @@ DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_fw_req);
 DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_fw_done);
 DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_complete);
 
+/* Trace event for Rx timestamp */
+TRACE_EVENT(ice_rx_hwtstamp,
+	    TP_PROTO(u64 cached_time, u32 ts_high, u64 ts_ns),
+
+	    TP_ARGS(cached_time, ts_high, ts_ns),
+
+	    TP_STRUCT__entry(__field(u64, cached_time)
+			     __field(u32, ts_high)
+			     __field(u64, ts_ns)),
+
+	    TP_fast_assign(__entry->cached_time = cached_time;
+			   __entry->ts_high = ts_high;
+			   __entry->ts_ns = ts_ns;),
+
+	    TP_printk("cached_time=%llu ts_high=%u ts_ns=%llu",
+		      __entry->cached_time, __entry->ts_high, __entry->ts_ns)
+);
+
 DECLARE_EVENT_CLASS(ice_esw_br_fdb_template,
 		    TP_PROTO(struct ice_esw_br_fdb_entry *fdb),
 		    TP_ARGS(fdb),

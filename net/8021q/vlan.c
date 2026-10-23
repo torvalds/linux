@@ -49,7 +49,7 @@ const char vlan_version[] = DRV_VERSION;
 static int vlan_group_prealloc_vid(struct vlan_group *vg,
 				   __be16 vlan_proto, u16 vlan_id)
 {
-	struct net_device **array;
+	struct net_device __rcu **array;
 	unsigned int vidx;
 	unsigned int size;
 	int pidx;
@@ -70,10 +70,8 @@ static int vlan_group_prealloc_vid(struct vlan_group *vg,
 	if (array == NULL)
 		return -ENOBUFS;
 
-	/* paired with smp_rmb() in __vlan_group_get_device() */
-	smp_wmb();
-
-	vg->vlan_devices_arrays[pidx][vidx] = array;
+	/* paired with smp_load_acquire() in __vlan_group_get_device() */
+	smp_store_release(&vg->vlan_devices_arrays[pidx][vidx], array);
 	return 0;
 }
 

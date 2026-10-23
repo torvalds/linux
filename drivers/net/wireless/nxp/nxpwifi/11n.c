@@ -349,6 +349,7 @@ nxpwifi_cmd_append_11n_tlv(struct nxpwifi_private *priv,
 			nxpwifi_band_to_radio_type((u8)bss_desc->bss_band);
 
 		if (ISSUPP_11ACENABLED(priv->adapter->fw_cap_info) &&
+		    !ISSUPP_NO_80MHZ(priv->adapter->fw_cap_ext) &&
 		    bss_desc->bcn_vht_oper &&
 		    bss_desc->bcn_vht_oper->chan_width ==
 		    IEEE80211_VHT_CHANWIDTH_80MHZ) {
@@ -359,7 +360,8 @@ nxpwifi_cmd_append_11n_tlv(struct nxpwifi_private *priv,
 				((CHAN_BW_80MHZ <<
 				  BAND_CFG_CHAN_WIDTH_SHIFT_BIT) &
 				 BAND_CFG_CHAN_WIDTH_MASK);
-		} else if (sband->ht_cap.cap &
+		} else if (ISSUPP_40MHZ_ENABLED(priv->adapter->fw_cap_ext) &&
+			   sband->ht_cap.cap &
 			   IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
 			   bss_desc->bcn_ht_oper->ht_param &
 			   IEEE80211_HT_PARAM_CHAN_WIDTH_ANY) {

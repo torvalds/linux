@@ -115,7 +115,7 @@ static int limit_mt_check(const struct xt_mtchk_param *par)
 		return -ERANGE;
 	}
 
-	priv = kmalloc_obj(*priv);
+	priv = kmalloc_obj(*priv, GFP_KERNEL_ACCOUNT);
 	if (priv == NULL)
 		return -ENOMEM;
 

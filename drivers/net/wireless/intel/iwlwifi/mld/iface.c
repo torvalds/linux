@@ -241,6 +241,8 @@ static void iwl_mld_fill_mac_cmd_sta(struct iwl_mld *mld,
 				     struct ieee80211_vif *vif, u32 action,
 				     struct iwl_mac_config_cmd *cmd)
 {
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct ieee80211_sta *ap_sta = mld_vif->ap_sta;
 	struct ieee80211_bss_conf *link;
 	u32 twt_policy = 0;
 	int link_id;
@@ -290,7 +292,7 @@ static void iwl_mld_fill_mac_cmd_sta(struct iwl_mld *mld,
 
 		if (link->twt_requester)
 			twt_policy |= TWT_SUPPORTED;
-		if (link->twt_protected)
+		if (ap_sta && ap_sta->twt_protected)
 			twt_policy |= PROTECTED_TWT_SUPPORTED;
 		if (link->twt_broadcast)
 			twt_policy |= BROADCAST_TWT_SUPPORTED;

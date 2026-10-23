@@ -54,7 +54,7 @@ def check_kernel_config(option: str) -> bool | None:
                 return False
         except OSError:
             continue
-        return None
+    return None
 
 
 def assert_debug_kernel() -> None:
@@ -71,7 +71,8 @@ def assert_debug_kernel() -> None:
 
 def check_dmesg_clean(func: str) -> bool:
     '''
-    Check if the given function produced a WARN in dmesg.
+    Check if the given function produced a WARN in dmesg. Returns True if dmesg
+    is clean, i.e. doesn't contain traces of a WARNING in the given function.
     '''
 
     with subprocess.Popen(['dmesg'], stdout=subprocess.PIPE) as dmesg:

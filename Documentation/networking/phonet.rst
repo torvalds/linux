@@ -172,7 +172,7 @@ two endpoints directly, using connect() on the active side. This is
 intended to support the newer Nokia Wireless Modem API, as found in
 e.g. the Nokia Slim Modem in the ST-Ericsson U8500 platform::
 
-  struct sockaddr_spn spn;
+  struct sockaddr_pn spn;
   int fd;
 
   fd = socket(PF_PHONET, SOCK_SEQPACKET, PN_PROTO_PIPE);

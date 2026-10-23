@@ -82,7 +82,6 @@
 	FN(DEV_READY)			\
 	FN(FULL_RING)			\
 	FN(NOMEM)			\
-	FN(HDR_TRUNC)			\
 	FN(TAP_FILTER)			\
 	FN(TAP_TXFILTER)		\
 	FN(ICMP_CSUM)			\
@@ -93,6 +92,7 @@
 	FN(IP_INVALID_SOURCE)		\
 	FN(IP_LOCALNET)			\
 	FN(IP_INVALID_DEST)		\
+	FN(IP_TTL_EXCEEDED)		\
 	FN(PKT_TOO_BIG)			\
 	FN(DUP_FRAG)			\
 	FN(FRAG_REASM_TIMEOUT)		\
@@ -110,8 +110,8 @@
 	FN(PACKET_SOCK_ERROR)		\
 	FN(TC_CHAIN_NOTFOUND)		\
 	FN(TC_RECLASSIFY_LOOP)		\
-	FN(VXLAN_INVALID_HDR)		\
-	FN(VXLAN_VNI_NOT_FOUND)		\
+	FN(TUNNEL_INVALID_HDR)		\
+	FN(TUNNEL_NOT_FOUND)		\
 	FN(MAC_INVALID_SOURCE)		\
 	FN(VXLAN_ENTRY_EXISTS)		\
 	FN(NO_TX_TARGET)		\
@@ -427,12 +427,6 @@ enum skb_drop_reason {
 	/** @SKB_DROP_REASON_NOMEM: error due to OOM */
 	SKB_DROP_REASON_NOMEM,
 	/**
-	 * @SKB_DROP_REASON_HDR_TRUNC: failed to trunc/extract the header from
-	 * networking data, e.g., failed to pull the protocol header from
-	 * frags via pskb_may_pull()
-	 */
-	SKB_DROP_REASON_HDR_TRUNC,
-	/**
 	 * @SKB_DROP_REASON_TAP_FILTER: dropped by (ebpf) filter directly attached
 	 * to tun/tap, e.g., via TUNSETFILTEREBPF
 	 */
@@ -474,6 +468,11 @@ enum skb_drop_reason {
 	 * 1) dest ip is 0
 	 */
 	SKB_DROP_REASON_IP_INVALID_DEST,
+	/**
+	 * @SKB_DROP_REASON_IP_TTL_EXCEEDED: IPv4 TTL or IPv6 hop limit <= 1
+	 * (see IPSTATS_MIB_INHDRERRORS)
+	 */
+	SKB_DROP_REASON_IP_TTL_EXCEEDED,
 	/**
 	 * @SKB_DROP_REASON_PKT_TOO_BIG: packet size is too big (maybe exceed the
 	 * MTU)
@@ -533,13 +532,16 @@ enum skb_drop_reason {
 	 */
 	SKB_DROP_REASON_TC_RECLASSIFY_LOOP,
 	/**
-	 * @SKB_DROP_REASON_VXLAN_INVALID_HDR: VXLAN header is invalid. E.g.:
-	 * 1) reserved fields are not zero
-	 * 2) "I" flag is not set
+	 * @SKB_DROP_REASON_TUNNEL_INVALID_HDR: tunnel header is invalid. E.g.:
+	 * 1) VXLAN reserved fields are not zero
+	 * 2) VXLAN "I" flag is not set
 	 */
-	SKB_DROP_REASON_VXLAN_INVALID_HDR,
-	/** @SKB_DROP_REASON_VXLAN_VNI_NOT_FOUND: no VXLAN device found for VNI */
-	SKB_DROP_REASON_VXLAN_VNI_NOT_FOUND,
+	SKB_DROP_REASON_TUNNEL_INVALID_HDR,
+	/**
+	 * @SKB_DROP_REASON_TUNNEL_NOT_FOUND: no tunnel device found for the
+	 * packet, e.g. no VXLAN device for its VNI
+	 */
+	SKB_DROP_REASON_TUNNEL_NOT_FOUND,
 	/** @SKB_DROP_REASON_MAC_INVALID_SOURCE: source mac is invalid */
 	SKB_DROP_REASON_MAC_INVALID_SOURCE,
 	/**
@@ -604,7 +606,11 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_PSP_INPUT,
 	/** @SKB_DROP_REASON_PSP_OUTPUT: PSP output checks failed */
 	SKB_DROP_REASON_PSP_OUTPUT,
-	/** @SKB_DROP_REASON_RECURSION_LIMIT: Dead loop on virtual device. */
+	/**
+	 * @SKB_DROP_REASON_RECURSION_LIMIT: Dead loop on virtual device, e.g. a
+	 * tunnel whose route to its remote end goes out of the tunnel device
+	 * itself.
+	 */
 	SKB_DROP_REASON_RECURSION_LIMIT,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of core drop reasons, which

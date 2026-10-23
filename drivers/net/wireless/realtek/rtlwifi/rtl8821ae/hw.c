@@ -1019,7 +1019,7 @@ static void _rtl8821ae_hw_configure(struct ieee80211_hw *hw)
 	/* ARFB table 12 for 11ac 24G 1SS */
 	rtl_write_dword(rtlpriv, REG_ARFR3, 0x00000015);
 	rtl_write_dword(rtlpriv, REG_ARFR3 + 4, 0xffcff000);
-	/* 0x420[7] = 0 , enable retry AMPDU in new AMPD not singal MPDU. */
+	/* 0x420[7] = 0 , enable retry AMPDU in new AMPD not signal MPDU. */
 	rtl_write_word(rtlpriv, REG_FWHW_TXQ_CTRL, 0x1F00);
 	rtl_write_byte(rtlpriv, REG_AMPDU_MAX_TIME, 0x70);
 
@@ -3468,7 +3468,6 @@ static void rtl8821ae_update_hal_rate_mask(struct ieee80211_hw *hw,
 	bool b_shortgi = false;
 	u8 rate_mask[7];
 	u8 macid = 0;
-	u8 mimo_ps = IEEE80211_SMPS_OFF;
 	u8 rf_type;
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
@@ -3535,47 +3534,37 @@ static void rtl8821ae_update_hal_rate_mask(struct ieee80211_hw *hw,
 		else
 			ratr_index = RATR_INX_WIRELESS_NG;
 
-		if (mimo_ps == IEEE80211_SMPS_STATIC
-			|| mimo_ps == IEEE80211_SMPS_DYNAMIC) {
-			if (rssi_level == 1)
-				ratr_bitmap &= 0x000f0000;
-			else if (rssi_level == 2)
-				ratr_bitmap &= 0x000ff000;
-			else
-				ratr_bitmap &= 0x000ff005;
-		} else {
-			if (rf_type == RF_1T1R) {
-				if (curtxbw_40mhz) {
-					if (rssi_level == 1)
-						ratr_bitmap &= 0x000f0000;
-					else if (rssi_level == 2)
-						ratr_bitmap &= 0x000ff000;
-					else
-						ratr_bitmap &= 0x000ff015;
-				} else {
-					if (rssi_level == 1)
-						ratr_bitmap &= 0x000f0000;
-					else if (rssi_level == 2)
-						ratr_bitmap &= 0x000ff000;
-					else
-						ratr_bitmap &= 0x000ff005;
-				}
+		if (rf_type == RF_1T1R) {
+			if (curtxbw_40mhz) {
+				if (rssi_level == 1)
+					ratr_bitmap &= 0x000f0000;
+				else if (rssi_level == 2)
+					ratr_bitmap &= 0x000ff000;
+				else
+					ratr_bitmap &= 0x000ff015;
 			} else {
-				if (curtxbw_40mhz) {
-					if (rssi_level == 1)
-						ratr_bitmap &= 0x0fff0000;
-					else if (rssi_level == 2)
-						ratr_bitmap &= 0x0ffff000;
-					else
-						ratr_bitmap &= 0x0ffff015;
-				} else {
-					if (rssi_level == 1)
-						ratr_bitmap &= 0x0fff0000;
-					else if (rssi_level == 2)
-						ratr_bitmap &= 0x0ffff000;
-					else
-						ratr_bitmap &= 0x0ffff005;
-				}
+				if (rssi_level == 1)
+					ratr_bitmap &= 0x000f0000;
+				else if (rssi_level == 2)
+					ratr_bitmap &= 0x000ff000;
+				else
+					ratr_bitmap &= 0x000ff005;
+			}
+		} else {
+			if (curtxbw_40mhz) {
+				if (rssi_level == 1)
+					ratr_bitmap &= 0x0fff0000;
+				else if (rssi_level == 2)
+					ratr_bitmap &= 0x0ffff000;
+				else
+					ratr_bitmap &= 0x0ffff015;
+			} else {
+				if (rssi_level == 1)
+					ratr_bitmap &= 0x0fff0000;
+				else if (rssi_level == 2)
+					ratr_bitmap &= 0x0ffff000;
+				else
+					ratr_bitmap &= 0x0ffff005;
 			}
 		}
 		break;

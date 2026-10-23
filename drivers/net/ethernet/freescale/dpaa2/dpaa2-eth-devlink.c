@@ -213,19 +213,60 @@ void dpaa2_eth_dl_unregister(struct dpaa2_eth_priv *priv)
 	devlink_unregister(priv->devlink);
 }
 
+static u32 dpaa2_eth_dl_port_number(struct dpaa2_eth_priv *priv)
+{
+	lockdep_assert_held(&priv->mac_lock);
+
+	return dpaa2_eth_has_mac(priv) ? priv->mac->mc_dev->obj_desc.id : 0;
+}
+
 int dpaa2_eth_dl_port_add(struct dpaa2_eth_priv *priv)
 {
 	struct devlink_port *devlink_port = &priv->devlink_port;
 	struct devlink_port_attrs attrs = {};
+	u32 port_number;
+	int err;
 
-	attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
+	mutex_lock(&priv->mac_lock);
+	port_number = dpaa2_eth_dl_port_number(priv);
+	priv->dl_port_number = port_number;
+	priv->dl_port_valid = true;
+	mutex_unlock(&priv->mac_lock);
+
+	if (port_number)
+		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
+	else
+		attrs.flavour = DEVLINK_PORT_FLAVOUR_VIRTUAL;
+	attrs.phys.port_number = port_number;
 	devlink_port_attrs_set(devlink_port, &attrs);
-	return devlink_port_register(priv->devlink, devlink_port, 0);
+	err = devlink_port_register(priv->devlink, devlink_port, 0);
+	if (err) {
+		mutex_lock(&priv->mac_lock);
+		priv->dl_port_valid = false;
+		mutex_unlock(&priv->mac_lock);
+	}
+
+	return err;
+}
+
+void dpaa2_eth_dl_port_check(struct dpaa2_eth_priv *priv)
+{
+	mutex_lock(&priv->mac_lock);
+	if (priv->dl_port_valid &&
+	    priv->dl_port_number != dpaa2_eth_dl_port_number(priv))
+		netdev_warn(priv->net_dev,
+			    "devlink port number %u is stale, rebind to update\n",
+			    priv->dl_port_number);
+	mutex_unlock(&priv->mac_lock);
 }
 
 void dpaa2_eth_dl_port_del(struct dpaa2_eth_priv *priv)
 {
 	struct devlink_port *devlink_port = &priv->devlink_port;
+
+	mutex_lock(&priv->mac_lock);
+	priv->dl_port_valid = false;
+	mutex_unlock(&priv->mac_lock);
 
 	devlink_port_unregister(devlink_port);
 }

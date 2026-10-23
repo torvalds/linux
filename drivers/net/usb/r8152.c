@@ -1432,24 +1432,15 @@ static int generic_ocp_read(struct r8152 *tp, u16 index, u16 size,
 		return -EPERM;
 
 	while (size) {
-		if (size > limit) {
-			ret = get_registers(tp, index, type, limit, data);
-			if (ret < 0)
-				break;
+		u16 n = min(size, limit);
 
-			index += limit;
-			data += limit;
-			size -= limit;
-		} else {
-			ret = get_registers(tp, index, type, size, data);
-			if (ret < 0)
-				break;
-
-			index += size;
-			data += size;
-			size = 0;
+		ret = get_registers(tp, index, type, n, data);
+		if (ret < 0)
 			break;
-		}
+
+		index += n;
+		data += n;
+		size -= n;
 	}
 
 	if (ret == -ENODEV)
@@ -1499,28 +1490,16 @@ static int generic_ocp_write(struct r8152 *tp, u16 index, u16 byteen,
 			size -= 4;
 
 		while (size) {
-			if (size > limit) {
-				ret = set_registers(tp, index,
-						    type | BYTE_EN_DWORD,
-						    limit, data);
-				if (ret < 0)
-					goto error1;
+			u16 n = min(size, limit);
 
-				index += limit;
-				data += limit;
-				size -= limit;
-			} else {
-				ret = set_registers(tp, index,
-						    type | BYTE_EN_DWORD,
-						    size, data);
-				if (ret < 0)
-					goto error1;
+			ret = set_registers(tp, index, type | BYTE_EN_DWORD,
+					    n, data);
+			if (ret < 0)
+				goto error1;
 
-				index += size;
-				data += size;
-				size = 0;
-				break;
-			}
+			index += n;
+			data += n;
+			size -= n;
 		}
 
 		/* Set the last DWORD */

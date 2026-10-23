@@ -38,7 +38,7 @@ ip_vs_lc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	 */
 
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
-		if ((dest->flags & IP_VS_DEST_F_OVERLOAD) ||
+		if (ip_vs_dest_is_overloaded(dest) ||
 		    atomic_read(&dest->weight) == 0)
 			continue;
 		doh = ip_vs_dest_conn_overhead(dest);

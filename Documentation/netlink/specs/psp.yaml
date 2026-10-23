@@ -38,6 +38,8 @@ attribute-sets:
         doc: |
           ifindex of the main netdevice linked to the PSP device,
           or the ifindex to associate with the PSP device.
+          Only reported to the network namespace the main netdevice
+          lives in, an ifindex has no meaning outside of it.
         type: u32
       -
         name: psp-versions-cap

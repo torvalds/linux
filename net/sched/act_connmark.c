@@ -236,12 +236,18 @@ static void tcf_connmark_cleanup(struct tc_action *a)
 		kfree_rcu(parms, rcu);
 }
 
+static size_t tcf_connmark_get_fill_size(const struct tc_action *act)
+{
+	return nla_total_size(sizeof(struct tc_connmark)); /* TCA_CONNMARK_PARMS */
+}
+
 static struct tc_action_ops act_connmark_ops = {
 	.kind		=	"connmark",
 	.id		=	TCA_ID_CONNMARK,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_connmark_act,
 	.dump		=	tcf_connmark_dump,
+	.get_fill_size	=	tcf_connmark_get_fill_size,
 	.init		=	tcf_connmark_init,
 	.cleanup	=	tcf_connmark_cleanup,
 	.size		=	sizeof(struct tcf_connmark_info),

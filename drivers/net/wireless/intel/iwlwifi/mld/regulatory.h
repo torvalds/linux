@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #ifndef __iwl_mld_regulatory_h__
 #define __iwl_mld_regulatory_h__
@@ -18,6 +18,6 @@ int iwl_mld_init_sgom(struct iwl_mld *mld);
 
 int iwl_mld_init_sar(struct iwl_mld *mld);
 
-int iwl_mld_config_sar_profile(struct iwl_mld *mld, int prof_a, int prof_b);
+int iwl_mld_config_sar_profiles(struct iwl_mld *mld, int prof_a, int prof_b);
 
 #endif /* __iwl_mld_regulatory_h__ */

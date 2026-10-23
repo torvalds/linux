@@ -129,6 +129,7 @@
 #include <net/request_sock.h>
 #include <net/sock.h>
 #include <net/proto_memory.h>
+#include <net/page_pool/types.h>
 #include <linux/net_tstamp.h>
 #include <net/xfrm.h>
 #include <linux/ipsec.h>
@@ -769,9 +770,10 @@ bool sk_mc_loop(const struct sock *sk)
 {
 	if (dev_recursion_level())
 		return false;
+	sk = sk_const_to_full_sk(sk);
 	if (!sk)
 		return true;
-	/* IPV6_ADDRFORM can change sk->sk_family under us. */
+
 	switch (READ_ONCE(sk->sk_family)) {
 	case AF_INET:
 		return inet_test_bit(MC_LOOP, sk);
@@ -1086,7 +1088,7 @@ success:
 static noinline_for_stack int
 sock_devmem_dontneed(struct sock *sk, sockptr_t optval, unsigned int optlen)
 {
-	unsigned int num_tokens, i, j, k, netmem_num = 0;
+	unsigned int num_tokens, i, j, netmem_num = 0;
 	struct dmabuf_token *tokens;
 	int ret = 0, num_frags = 0;
 	netmem_ref netmems[16];
@@ -1123,8 +1125,8 @@ sock_devmem_dontneed(struct sock *sk, sockptr_t optval, unsigned int optlen)
 			netmems[netmem_num++] = netmem;
 			if (netmem_num == ARRAY_SIZE(netmems)) {
 				xa_unlock_bh(&sk->sk_user_frags);
-				for (k = 0; k < netmem_num; k++)
-					WARN_ON_ONCE(!napi_pp_put_page(netmems[k]));
+				page_pool_put_netmem_bulk(netmems,
+							  ARRAY_SIZE(netmems));
 				netmem_num = 0;
 				xa_lock_bh(&sk->sk_user_frags);
 			}
@@ -1134,8 +1136,7 @@ sock_devmem_dontneed(struct sock *sk, sockptr_t optval, unsigned int optlen)
 
 frag_limit_reached:
 	xa_unlock_bh(&sk->sk_user_frags);
-	for (k = 0; k < netmem_num; k++)
-		WARN_ON_ONCE(!napi_pp_put_page(netmems[k]));
+	page_pool_put_netmem_bulk(netmems, netmem_num);
 
 	kvfree(tokens);
 	return ret;
@@ -2524,7 +2525,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority,
 	RCU_INIT_POINTER(newsk->sk_bpf_storage, NULL);
 #endif
 #if IS_ENABLED(CONFIG_INET_PSP)
-	RCU_INIT_POINTER(newsk->psp_assoc, NULL);
+	DEBUG_NET_WARN_ON_ONCE(rcu_access_pointer(sk->psp_assoc));
 #endif
 
 	/* SANITY */
@@ -2985,6 +2986,48 @@ void sock_kzfree_s(struct sock *sk, void *mem, int size)
 }
 EXPORT_SYMBOL(sock_kzfree_s);
 
+/**
+ *	sk_set_nospace - tell the transport a writer is waiting for space
+ *	@sk: socket
+ *
+ *	Must be called before the final check of the available send space,
+ *	so that the transport can not miss the request and forget to call
+ *	sk->sk_write_space() once space is available again.
+ */
+void sk_set_nospace(struct sock *sk)
+{
+	struct socket *sock = sk->sk_socket;
+
+	if (!sock)
+		return;
+	/* Set SOCK_NOSPACE before tp->tcp_nospace (paired with
+	 * sk_clear_nospace() clearing tp->tcp_nospace before SOCK_NOSPACE)
+	 * so a concurrent clear cannot leave SOCK_NOSPACE set with
+	 * tp->tcp_nospace cleared.
+	 */
+	set_bit(SOCK_NOSPACE, &sock->flags);
+	tcp_set_nospace(sk);
+}
+EXPORT_SYMBOL(sk_set_nospace);
+
+/**
+ *	sk_clear_nospace - tell the transport no writer is waiting for space
+ *	@sk: socket
+ *
+ *	Called from ->sk_write_space() handlers, once send space has been
+ *	made available to writers.
+ */
+void sk_clear_nospace(struct sock *sk)
+{
+	struct socket *sock = sk->sk_socket;
+
+	if (!sock)
+		return;
+	tcp_clear_nospace(sk);
+	clear_bit(SOCK_NOSPACE, &sock->flags);
+}
+EXPORT_SYMBOL(sk_clear_nospace);
+
 /* It is almost wait_for_tcp_memory minus release_sock/lock_sock.
    I think, these locks should be removed for datagram sockets.
  */
@@ -2998,7 +3041,7 @@ static long sock_wait_for_wmem(struct sock *sk, long timeo)
 			break;
 		if (signal_pending(current))
 			break;
-		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		sk_set_nospace(sk);
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 		if (refcount_read(&sk->sk_wmem_alloc) < READ_ONCE(sk->sk_sndbuf))
 			break;
@@ -3039,7 +3082,7 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 			break;
 
 		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
-		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		sk_set_nospace(sk);
 		err = -EAGAIN;
 		if (!timeo)
 			goto failure;
@@ -4052,7 +4095,6 @@ int sock_common_getsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 
-	/* IPV6_ADDRFORM can change sk->sk_prot under us. */
 	return READ_ONCE(sk->sk_prot)->getsockopt(sk, level, optname, optval, optlen);
 }
 EXPORT_SYMBOL(sock_common_getsockopt);
@@ -4074,7 +4116,6 @@ int sock_common_setsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 
-	/* IPV6_ADDRFORM can change sk->sk_prot under us. */
 	return READ_ONCE(sk->sk_prot)->setsockopt(sk, level, optname, optval, optlen);
 }
 EXPORT_SYMBOL(sock_common_setsockopt);

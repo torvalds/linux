@@ -150,6 +150,8 @@ static void _rtl_reg_apply_beaconing_flags(struct wiphy *wiphy,
 			    (ch->flags & IEEE80211_CHAN_RADAR))
 				continue;
 			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
+				guard(rcu)();
+
 				reg_rule = freq_reg_info(wiphy,
 							 ch->center_freq);
 				if (IS_ERR(reg_rule))
@@ -211,6 +213,8 @@ static void _rtl_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	 *would have been enforced by the initial processing of our
 	 *custom regulatory domain.
 	 */
+
+	guard(rcu)();
 
 	ch = &sband->channels[11];	/* CH 12 */
 	reg_rule = freq_reg_info(wiphy, ch->center_freq);

@@ -224,18 +224,31 @@ struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_phys = {
 	.deconfigure = mlxsw_sp_span_entry_phys_deconfigure,
 };
 
-static int mlxsw_sp_span_dmac(struct neigh_table *tbl,
+static int mlxsw_sp_span_dmac(int family,
 			      const void *pkey,
 			      struct net_device *dev,
 			      unsigned char dmac[ETH_ALEN])
 {
-	struct neighbour *neigh = neigh_lookup(tbl, pkey, dev);
+	struct neighbour *neigh;
 	int err = 0;
 
-	if (!neigh) {
-		neigh = neigh_create(tbl, pkey, dev);
-		if (IS_ERR(neigh))
-			return PTR_ERR(neigh);
+#if IS_ENABLED(CONFIG_IPV6_GRE)
+	if (family == AF_INET6) {
+		neigh = ipv6_neigh_lookup(dev, pkey);
+		if (!neigh) {
+			neigh = ipv6_neigh_create(dev, pkey);
+			if (IS_ERR(neigh))
+				return PTR_ERR(neigh);
+		}
+	} else
+#endif
+	{
+		neigh = ipv4_neigh_lookup(dev, pkey);
+		if (!neigh) {
+			neigh = ipv4_neigh_create(dev, pkey);
+			if (IS_ERR(neigh))
+				return PTR_ERR(neigh);
+		}
 	}
 
 	neigh_event_send(neigh, NULL);
@@ -355,8 +368,7 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 					union mlxsw_sp_l3addr saddr,
 					union mlxsw_sp_l3addr daddr,
 					union mlxsw_sp_l3addr gw,
-					__u8 ttl,
-					struct neigh_table *tbl,
+					__u8 ttl, int family,
 					struct mlxsw_sp_span_parms *sparmsp)
 {
 	unsigned char dmac[ETH_ALEN];
@@ -365,7 +377,7 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 	if (mlxsw_sp_l3addr_is_zero(gw))
 		gw = daddr;
 
-	if (!edev || mlxsw_sp_span_dmac(tbl, &gw, edev, dmac))
+	if (!edev || mlxsw_sp_span_dmac(family, &gw, edev, dmac))
 		goto unoffloadable;
 
 	if (is_vlan_dev(edev))
@@ -469,9 +481,10 @@ mlxsw_sp_span_entry_gretap4_parms(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
 
 	l3edev = mlxsw_sp_span_gretap4_route(to_dev, &saddr.addr4, &gw.addr4);
+
 	return mlxsw_sp_span_entry_tunnel_parms_common(l3edev, saddr, daddr, gw,
 						       tparm.iph.ttl,
-						       &arp_tbl, sparmsp);
+						       AF_INET, sparmsp);
 }
 
 static int
@@ -574,9 +587,10 @@ mlxsw_sp_span_entry_gretap6_parms(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
 
 	l3edev = mlxsw_sp_span_gretap6_route(to_dev, &saddr.addr6, &gw.addr6);
+
 	return mlxsw_sp_span_entry_tunnel_parms_common(l3edev, saddr, daddr, gw,
 						       tparm.hop_limit,
-						       &nd_tbl, sparmsp);
+						       AF_INET6, sparmsp);
 }
 
 static int
@@ -1720,7 +1734,7 @@ static int mlxsw_sp2_span_init(struct mlxsw_sp *mlxsw_sp)
 static int mlxsw_sp2_span_policer_id_base_set(struct mlxsw_sp *mlxsw_sp,
 					      u16 policer_id_base)
 {
-	char mogcr_pl[MLXSW_REG_MOGCR_LEN];
+	char mogcr_pl[MLXSW_REG_MOGCR_LEN] = {0};
 	int err;
 
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(mogcr), mogcr_pl);

@@ -33,6 +33,12 @@ static_assert(DW0_TSF_MASK + 1 == 8192 * 1024);
 #define NAN_RSSI_CLOSE (-60)
 #define NAN_RSSI_MIDDLE (-75)
 
+/* Size of the NAN vendor element carrying the mandatory attributes */
+#define NAN_BEACON_ELEM_LEN		27
+
+/* Space left in the NAN vendor element for the configured attributes */
+#define NAN_BEACON_EXTRA_ATTRS_LEN	(255 - (NAN_BEACON_ELEM_LEN - 2))
+
 /* Quiet time at the end of each slot where TX is suppressed */
 #define NAN_CHAN_SWITCH_TIME_US		256
 
@@ -213,6 +219,37 @@ mac80211_hwsim_nan_schedule_slot(struct mac80211_hwsim_data *data, u8 slot,
 			    mac80211_hwsim_tsf_to_boottime(data, tsf));
 }
 
+static bool hwsim_nan_beacon_has_service_ids(struct sk_buff *skb)
+{
+	const struct ieee80211_mgmt *mgmt = (void *)skb->data;
+	const struct ieee80211_nan_attr *nan_attr;
+	const struct element *elem;
+	size_t len;
+
+	if (skb->len < offsetofend(struct ieee80211_mgmt, u.beacon) ||
+	    !ieee80211_is_beacon(mgmt->frame_control))
+		return false;
+
+	len = skb->len - offsetofend(struct ieee80211_mgmt, u.beacon);
+
+	/* TODO: fragmented NAN elements are not supported */
+	for_each_element_id(elem, WLAN_EID_VENDOR_SPECIFIC,
+			    mgmt->u.beacon.variable, len) {
+		if (elem->datalen < 4 ||
+		    get_unaligned_be32(elem->data) !=
+		    (WLAN_OUI_WFA << 8 | WLAN_OUI_TYPE_WFA_NAN))
+			continue;
+
+		for_each_nan_attr(nan_attr, elem->data + 4, elem->datalen - 4)
+			if (nan_attr->attr == NAN_ATTR_SERVICE_ID_LIST ||
+			    nan_attr->attr ==
+			    NAN_ATTR_SUBSCRIBE_SERVICE_ID_LIST)
+				return true;
+	}
+
+	return false;
+}
+
 void mac80211_hwsim_nan_rx(struct ieee80211_hw *hw,
 			   struct sk_buff *skb)
 {
@@ -230,9 +267,7 @@ void mac80211_hwsim_nan_rx(struct ieee80211_hw *hw,
 	ssize_t data_len;
 	u8 slot;
 
-	/* Need a NAN vendor element at the start */
-	if (skb->len < (offsetofend(struct ieee80211_mgmt, u.beacon) + 6) ||
-	    !ieee80211_is_beacon(mgmt->frame_control))
+	if (!ieee80211_is_nan_beacon(mgmt, skb->len))
 		return;
 
 	data_len = skb->len - offsetofend(struct ieee80211_mgmt, u.beacon);
@@ -266,28 +301,34 @@ void mac80211_hwsim_nan_rx(struct ieee80211_hw *hw,
 	}
 
 	/*
-	 * (overly) simplify things, only track 2.4 GHz here. Also, ignore
-	 * frames outside of the 2.4 GHz DW slot, unless in the initial SCAN
-	 * phase.
+	 * Only sync on 2.4 GHz, which all NAN devices attend. The slot number
+	 * is derived from the local TSF, so before being synchronized a 5 GHz
+	 * beacon from a different device may fall into the local 2.4 GHz DW
+	 * slot. Filter by frequency to keep such beacons out of master
+	 * selection and synchronization.
 	 */
-	if ((slot != SLOT_24GHZ_DW &&
-	     data->nan.phase != MAC80211_HWSIM_NAN_PHASE_SCAN) ||
-	    rx_status.freq != 2437)
+	if (rx_status.freq != 2437)
 		return;
+
+	/*
+	 * Ignore frames outside of the 2.4 GHz DW slot, unless in the initial
+	 * SCAN phase or in Instant Communication, where discovery beacons are
+	 * received outside the DW.
+	 */
+	if (slot != SLOT_24GHZ_DW) {
+		bool rx_outside_dw;
+
+		scoped_guard(spinlock_bh, &data->nan.state_lock)
+			rx_outside_dw = data->nan.instant_comm ||
+				data->nan.phase ==
+				MAC80211_HWSIM_NAN_PHASE_SCAN;
+
+		if (!rx_outside_dw)
+			return;
+	}
 
 	/* Just ignore low RSSI beacons that we cannot sync to */
 	if (rx_status.signal < NAN_RSSI_MIDDLE)
-		return;
-
-	/* Needs to be a valid NAN cluster ID in A3 */
-	if (get_unaligned_be32(mgmt->bssid) != ((WLAN_OUI_WFA << 8) | 0x01))
-		return;
-
-	/* We are only interested in NAN beacons */
-	if (nan_elem->id != WLAN_EID_VENDOR_SPECIFIC ||
-	    nan_elem->datalen < 4 ||
-	    get_unaligned_be32(nan_elem->data) !=
-	    (WLAN_OUI_WFA << 8 | WLAN_OUI_TYPE_WFA_NAN))
 		return;
 
 	u8 *nan_defragmented __free(kfree) = kzalloc(data_len, GFP_ATOMIC);
@@ -636,10 +677,12 @@ mac80211_hwsim_nan_exec_state_transitions(struct mac80211_hwsim_data *data)
 
 	/*
 	 * The discovery beacon timer will stop automatically. Make sure it is
-	 * running if we are master. Do not bother with a proper alignment it
-	 * will sync itself to the TSF after the first TX.
+	 * running if we are master or if Instant Communication is enabled. Do
+	 * not bother with a proper alignment it will sync itself to the TSF
+	 * after the first TX.
 	 */
-	if (data->nan.role == MAC80211_HWSIM_NAN_ROLE_MASTER &&
+	if ((data->nan.role == MAC80211_HWSIM_NAN_ROLE_MASTER ||
+	     data->nan.instant_comm) &&
 	    !hrtimer_active(&data->nan.discovery_beacon_timer))
 		hrtimer_start(&data->nan.discovery_beacon_timer,
 			      ns_to_ktime(10 * NSEC_PER_USEC),
@@ -698,7 +741,7 @@ mac80211_hwsim_nan_tx_beacon(struct mac80211_hwsim_data *data,
 {
 	struct ieee80211_vendor_ie nan_ie = {
 		.element_id = WLAN_EID_VENDOR_SPECIFIC,
-		.len = 27 - 2,
+		.len = NAN_BEACON_ELEM_LEN - 2,
 		.oui = { u32_get_bits(WLAN_OUI_WFA, 0xff0000),
 			 u32_get_bits(WLAN_OUI_WFA, 0xff00),
 			 u32_get_bits(WLAN_OUI_WFA, 0xff) },
@@ -707,22 +750,33 @@ mac80211_hwsim_nan_tx_beacon(struct mac80211_hwsim_data *data,
 	size_t alloc_size =
 		IEEE80211_TX_STATUS_HEADROOM +
 		offsetofend(struct ieee80211_mgmt, u.beacon) +
-		27 /* size of NAN vendor element */;
+		NAN_BEACON_ELEM_LEN;
 	struct ieee80211_nan_master_indication master_indication;
 	struct ieee80211_nan_attr nan_attr;
 	struct ieee80211_mgmt *mgmt;
 	struct sk_buff *skb;
 
 	/*
-	 * TODO: Should the configured vendor elements or NAN attributes be
-	 * included in some of these beacons?
+	 * TODO: Should the configured vendor elements be included in some of
+	 * these beacons?
 	 */
+
+	/* Allocate maximal size for NAN IE */
+	if (is_discovery)
+		alloc_size += NAN_BEACON_EXTRA_ATTRS_LEN;
 
 	skb = alloc_skb(alloc_size, GFP_ATOMIC);
 	if (!skb)
 		return;
 
 	spin_lock(&data->nan.state_lock);
+
+	/*
+	 * The attributes configured by user space are appended to the
+	 * mandatory ones.
+	 */
+	if (is_discovery)
+		nan_ie.len += data->nan.extra_nan_attrs_len;
 
 	skb_reserve(skb, IEEE80211_TX_STATUS_HEADROOM);
 	mgmt = skb_put(skb, offsetofend(struct ieee80211_mgmt, u.beacon));
@@ -734,7 +788,9 @@ mac80211_hwsim_nan_tx_beacon(struct mac80211_hwsim_data *data,
 
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_BEACON);
-	mgmt->u.beacon.beacon_int = cpu_to_le16(is_discovery ? 100 : DWST_TU);
+	mgmt->u.beacon.beacon_int =
+		cpu_to_le16(is_discovery ? data->nan.discovery_beacon_interval :
+			    DWST_TU);
 	mgmt->u.beacon.capab_info =
 		cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME |
 			    WLAN_CAPABILITY_SHORT_PREAMBLE);
@@ -764,6 +820,10 @@ mac80211_hwsim_nan_tx_beacon(struct mac80211_hwsim_data *data,
 	skb_put_data(skb, &nan_attr, sizeof(nan_attr));
 	skb_put_data(skb, &data->nan.current_ami,
 		     sizeof(data->nan.current_ami));
+
+	if (is_discovery && data->nan.extra_nan_attrs_len)
+		skb_put_data(skb, data->nan.extra_nan_attrs,
+			     data->nan.extra_nan_attrs_len);
 
 	spin_unlock(&data->nan.state_lock);
 
@@ -877,7 +937,15 @@ mac80211_hwsim_nan_discovery_beacon_timer(struct hrtimer *timer)
 		return HRTIMER_NORESTART;
 
 	scoped_guard(spinlock, &data->nan.state_lock) {
-		if (data->nan.phase == MAC80211_HWSIM_NAN_PHASE_SCAN ||
+		if (data->nan.phase == MAC80211_HWSIM_NAN_PHASE_SCAN)
+			return HRTIMER_NORESTART;
+
+		/*
+		 * With Instant Communication the discovery beacons are
+		 * transmitted disregarding the role and the state, see
+		 * Wi-Fi Aware version 4.0 section 13.
+		 */
+		if (!data->nan.instant_comm &&
 		    data->nan.role != MAC80211_HWSIM_NAN_ROLE_MASTER)
 			return HRTIMER_NORESTART;
 	}
@@ -894,10 +962,11 @@ mac80211_hwsim_nan_discovery_beacon_timer(struct hrtimer *timer)
 	tsf_now = mac80211_hwsim_get_tsf(data->hw, data->nan.device_vif);
 
 	/* Wrap value to be after the next TBTT */
-	tbtt = tsf_now + ieee80211_tu_to_usec(100);
+	tbtt = tsf_now + ieee80211_tu_to_usec(data->nan.discovery_beacon_interval);
 
 	/* Round TBTT down to the correct time */
-	div_u64_rem(tbtt, ieee80211_tu_to_usec(100), &remainder);
+	div_u64_rem(tbtt, ieee80211_tu_to_usec(data->nan.discovery_beacon_interval),
+		    &remainder);
 	tbtt = tbtt - remainder;
 
 	hrtimer_set_expires(&data->nan.discovery_beacon_timer,
@@ -906,11 +975,63 @@ mac80211_hwsim_nan_discovery_beacon_timer(struct hrtimer *timer)
 	return HRTIMER_RESTART;
 }
 
+static void
+mac80211_hwsim_nan_sched_update_work(struct wiphy *wiphy,
+				     struct wiphy_work *work)
+{
+	struct mac80211_hwsim_data *data =
+		container_of(work, struct mac80211_hwsim_data,
+			     nan.sched_update_work.work);
+
+	if (data->nan.device_vif)
+		ieee80211_nan_sched_update_done(data->nan.device_vif);
+}
+
+static int mac80211_hwsim_nan_set_config(struct mac80211_hwsim_data *data,
+					 struct cfg80211_nan_conf *conf)
+{
+	const u8 *extra_nan_attrs = NULL;
+	const u8 *old;
+
+	if (conf->extra_nan_attrs_len > NAN_BEACON_EXTRA_ATTRS_LEN)
+		return -EINVAL;
+
+	if (conf->extra_nan_attrs_len) {
+		extra_nan_attrs = kmemdup(conf->extra_nan_attrs,
+					  conf->extra_nan_attrs_len,
+					  GFP_KERNEL);
+		if (!extra_nan_attrs)
+			return -ENOMEM;
+	}
+
+	data->nan.notify_dw = conf->enable_dw_notification;
+
+	scoped_guard(spinlock_bh, &data->nan.state_lock) {
+		/*
+		 * Fall back to the device default if user space did not
+		 * configure it
+		 */
+		data->nan.discovery_beacon_interval =
+			conf->discovery_beacon_interval ? : 100;
+
+		data->nan.instant_comm = conf->instant_comm;
+
+		old = data->nan.extra_nan_attrs;
+		data->nan.extra_nan_attrs = extra_nan_attrs;
+		data->nan.extra_nan_attrs_len = conf->extra_nan_attrs_len;
+	}
+
+	kfree(old);
+
+	return 0;
+}
+
 int mac80211_hwsim_nan_start(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct cfg80211_nan_conf *conf)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
+	int err;
 
 	if (vif->type != NL80211_IFTYPE_NAN)
 		return -EINVAL;
@@ -918,14 +1039,25 @@ int mac80211_hwsim_nan_start(struct ieee80211_hw *hw,
 	if (data->nan.device_vif)
 		return -EALREADY;
 
+	err = mac80211_hwsim_nan_set_config(data, conf);
+	if (err)
+		return err;
+
 	/* set this before starting the timer, as preemption might occur */
 	data->nan.device_vif = vif;
 	data->nan.bands = conf->bands;
 
+	wiphy_delayed_work_init(&data->nan.sched_update_work,
+				mac80211_hwsim_nan_sched_update_work);
+
 	scoped_guard(spinlock_bh, &data->nan.state_lock) {
-		/* Start in the "scan" phase and stay there for a little bit */
+		/*
+		 * Start in the "scan" phase and stay there for a little bit,
+		 * unless Instant Communication is configured, in which case an
+		 * own cluster is started immediately.
+		 */
 		data->nan.phase = MAC80211_HWSIM_NAN_PHASE_SCAN;
-		data->nan.random_factor_valid_dwst = 1;
+		data->nan.random_factor_valid_dwst = conf->instant_comm ? 0 : 1;
 		data->nan.random_factor = 0;
 		data->nan.master_pref = conf->master_pref;
 		data->nan.role = MAC80211_HWSIM_NAN_ROLE_MASTER;
@@ -943,8 +1075,6 @@ int mac80211_hwsim_nan_start(struct ieee80211_hw *hw,
 
 	ether_addr_copy(data->nan.cluster_id, conf->cluster_id);
 
-	data->nan.notify_dw = conf->enable_dw_notification;
-
 	return 0;
 }
 
@@ -952,6 +1082,7 @@ int mac80211_hwsim_nan_stop(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
+	const u8 *old;
 
 	if (vif->type != NL80211_IFTYPE_NAN || !data->nan.device_vif ||
 	    data->nan.device_vif != vif)
@@ -960,7 +1091,17 @@ int mac80211_hwsim_nan_stop(struct ieee80211_hw *hw,
 	hrtimer_cancel(&data->nan.slot_timer);
 	hrtimer_cancel(&data->nan.resume_txqs_timer);
 	hrtimer_cancel(&data->nan.discovery_beacon_timer);
+	wiphy_delayed_work_cancel(hw->wiphy, &data->nan.sched_update_work);
 	data->nan.device_vif = NULL;
+
+	scoped_guard(spinlock_bh, &data->nan.state_lock) {
+		old = data->nan.extra_nan_attrs;
+		data->nan.extra_nan_attrs = NULL;
+		data->nan.extra_nan_attrs_len = 0;
+		data->nan.instant_comm = false;
+	}
+
+	kfree(old);
 
 	return 0;
 }
@@ -980,12 +1121,26 @@ int mac80211_hwsim_nan_change_config(struct ieee80211_hw *hw,
 
 	wiphy_debug(hw->wiphy, "nan_config_changed: changes=0x%x\n", changes);
 
+	if (changes & CFG80211_NAN_CONF_CHANGED_CONFIG) {
+		int err = mac80211_hwsim_nan_set_config(data, conf);
+
+		if (err)
+			return err;
+
+		/*
+		 * When Instant Communication is enabled discovery beacons are
+		 * transmitted regardless of the role and the state.
+		 */
+		if (conf->instant_comm &&
+		    !hrtimer_active(&data->nan.discovery_beacon_timer))
+			hrtimer_start(&data->nan.discovery_beacon_timer,
+				      ns_to_ktime(10 * NSEC_PER_USEC),
+				      HRTIMER_MODE_REL_SOFT);
+	}
+
 	/* Handle only the changes we care about for simulation purposes */
 	if (changes & CFG80211_NAN_CONF_CHANGED_BANDS)
 		data->nan.bands = conf->bands;
-
-	if (changes & CFG80211_NAN_CONF_CHANGED_CONFIG)
-		data->nan.notify_dw = conf->enable_dw_notification;
 
 	if (changes & CFG80211_NAN_CONF_CHANGED_PREF) {
 		scoped_guard(spinlock_bh, &data->nan.state_lock)
@@ -1169,9 +1324,16 @@ bool mac80211_hwsim_nan_txq_transmitting(struct ieee80211_hw *hw,
 	is_dw_slot = mac80211_hwsim_nan_is_dw_slot(data, slot);
 
 	if (!txq->sta) {
-		/* Non-STA TXQ: allow management frames during DW */
-		if (txq->vif->type == NL80211_IFTYPE_NAN)
-			return is_dw_slot;
+		/* Non-STA TXQ: allow management frames during DW or IC */
+		if (txq->vif->type == NL80211_IFTYPE_NAN) {
+			if (is_dw_slot)
+				return true;
+
+			/* Outside the DW the local schedule must allow it */
+			guard(spinlock_bh)(&data->nan.state_lock);
+			return data->nan.instant_comm &&
+				data->nan.local_sched[slot].chan;
+		}
 
 		/* Allow multicast data when all the peers are available
 		 * on this slot
@@ -1224,14 +1386,31 @@ void mac80211_hwsim_nan_get_tx_chandef(struct ieee80211_hw *hw,
 }
 
 bool mac80211_hwsim_nan_receive(struct ieee80211_hw *hw,
+				struct sk_buff *skb,
 				struct ieee80211_channel *channel,
 				struct ieee80211_rx_status *rx_status)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
+	bool instant_comm;
 	u8 slot;
 
 	if (WARN_ON_ONCE(!data->nan.device_vif))
 		return false;
+
+	scoped_guard(spinlock_bh, &data->nan.state_lock)
+		instant_comm = data->nan.instant_comm;
+
+	/*
+	 * During Instant Communication a peer advertises its services in the
+	 * discovery beacons, which are transmitted disregarding the roles and
+	 * the states, see Section 13 in Wi-Fi Aware v4.0.
+	 * Note that while according to the specification Instant communication
+	 * should be enabled only on the NAN discovery channels, do not force
+	 * this here, and allow receiving NAN frames on any channel if Instant
+	 * Communication is enabled.
+	 */
+	if (instant_comm && hwsim_nan_beacon_has_service_ids(skb))
+		return true;
 
 	if (data->nan.phase == MAC80211_HWSIM_NAN_PHASE_SCAN)
 		return channel->center_freq == 2437;
@@ -1296,6 +1475,12 @@ void mac80211_hwsim_nan_local_sched_changed(struct ieee80211_hw *hw,
 	}
 
 	spin_unlock_bh(&data->nan.state_lock);
+
+	/* Simulate firmware completing a deferred schedule update */
+	if (vif->cfg.nan_sched.deferred)
+		wiphy_delayed_work_queue(hw->wiphy,
+					 &data->nan.sched_update_work,
+					 msecs_to_jiffies(10));
 }
 
 int mac80211_hwsim_nan_peer_sched_changed(struct ieee80211_hw *hw,

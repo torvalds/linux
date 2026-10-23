@@ -57,7 +57,6 @@ void rate_control_rate_init(struct link_sta_info *link_sta)
 
 	/* TODO: check for minstrel_s1g ? */
 	if (sband->band == NL80211_BAND_S1GHZ) {
-		ieee80211_s1g_sta_rate_init(sta);
 		rcu_read_unlock();
 		return;
 	}
@@ -1001,11 +1000,6 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 				 const char *name)
 {
 	struct rate_control_ref *ref;
-
-	ASSERT_RTNL();
-
-	if (local->open_count)
-		return -EBUSY;
 
 	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL)) {
 		if (WARN_ON(!local->ops->set_rts_threshold))

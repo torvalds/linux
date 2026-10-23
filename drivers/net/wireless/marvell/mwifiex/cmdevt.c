@@ -1494,6 +1494,7 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 	struct hw_spec_max_conn *max_conn;
 	u16 resp_size, api_id;
 	int i, left_len, parsed_len = 0;
+	int tlv_len;
 
 	adapter->fw_cap_info = le32_to_cpu(hw_spec->fw_cap_info);
 
@@ -1559,8 +1560,16 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 		left_len = resp_size - sizeof(struct host_cmd_ds_get_hw_spec);
 		while (left_len > sizeof(struct mwifiex_ie_types_header)) {
 			tlv = (void *)&hw_spec->tlvs + parsed_len;
+			tlv_len = sizeof(*tlv) + le16_to_cpu(tlv->len);
+
+			if (tlv_len > left_len)
+				break;
+
 			switch (le16_to_cpu(tlv->type)) {
 			case TLV_TYPE_API_REV:
+				if (tlv_len < sizeof(struct hw_spec_api_rev))
+					break;
+
 				api_rev = (struct hw_spec_api_rev *)tlv;
 				api_id = le16_to_cpu(api_rev->api_id);
 				switch (api_id) {
@@ -1594,11 +1603,17 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 						    api_rev->major_ver,
 						    api_rev->minor_ver);
 					break;
-				case FW_HOTFIX_VER_ID:
+				case FW_HOTFIX_VER_ID: {
+					struct hw_spec_fw_hotfix_ver *hf;
+
+					hf = (void *)tlv;
+					adapter->fw_hotfix_ver =
+						le16_to_cpu(hf->hotfix_ver);
 					mwifiex_dbg(adapter, INFO,
 						    "Firmware hotfix version %d\n",
-						    api_rev->major_ver);
+						    adapter->fw_hotfix_ver);
 					break;
+				}
 				default:
 					mwifiex_dbg(adapter, FATAL,
 						    "Unknown api_id: %d\n",
@@ -1607,6 +1622,9 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 				}
 				break;
 			case TLV_TYPE_MAX_CONN:
+				if (tlv_len < sizeof(struct hw_spec_max_conn))
+					break;
+
 				max_conn = (struct hw_spec_max_conn *)tlv;
 				adapter->max_p2p_conn = max_conn->max_p2p_conn;
 				adapter->max_sta_conn = max_conn->max_sta_conn;

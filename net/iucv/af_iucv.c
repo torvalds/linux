@@ -90,7 +90,7 @@ do {									\
 static struct sock *iucv_accept_dequeue(struct sock *parent,
 					struct socket *newsock);
 static void iucv_sock_kill(struct sock *sk);
-static void iucv_sock_close(struct sock *sk);
+static void __iucv_sock_close(struct sock *sk);
 
 static void afiucv_hs_callback_txnotify(struct sock *sk, enum iucv_tx_notify);
 
@@ -302,7 +302,9 @@ static void iucv_sock_cleanup_listen(struct sock *parent)
 
 	/* Close non-accepted connections */
 	while ((sk = iucv_accept_dequeue(parent, NULL))) {
-		iucv_sock_close(sk);
+		lock_sock(sk);
+		__iucv_sock_close(sk);
+		release_sock(sk);
 		iucv_sock_kill(sk);
 	}
 
@@ -394,14 +396,15 @@ static int iucv_send_ctrl(struct sock *sk, u8 flags)
 	return err;
 }
 
-/* Close an IUCV socket */
-static void iucv_sock_close(struct sock *sk)
+/**
+ * __iucv_sock_close() - close socket, caller holds lock_sock(sk)
+ * @sk: network socket
+ */
+static void __iucv_sock_close(struct sock *sk)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
 	unsigned long timeo;
 	int err = 0;
-
-	lock_sock(sk);
 
 	switch (sk->sk_state) {
 	case IUCV_LISTEN:
@@ -454,7 +457,12 @@ static void iucv_sock_close(struct sock *sk)
 
 	/* mark socket for deletion by iucv_sock_kill() */
 	sock_set_flag(sk, SOCK_ZAPPED);
+}
 
+static void iucv_sock_close(struct sock *sk)
+{
+	lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
+	__iucv_sock_close(sk);
 	release_sock(sk);
 }
 

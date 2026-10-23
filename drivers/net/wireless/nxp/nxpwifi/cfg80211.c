@@ -99,12 +99,14 @@ static void *nxpwifi_cfg80211_get_adapter(struct wiphy *wiphy)
 /* cfg80211 operation handler to delete a network key. */
 static int
 nxpwifi_cfg80211_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-			 int link_id, u8 key_index, bool pairwise,
+			 int link_id, u8 key_index,
+			 enum nl80211_key_type type,
 			 const u8 *mac_addr)
 {
 	struct nxpwifi_private *priv = nxpwifi_netdev_get_priv(wdev->netdev);
 	static const u8 bc_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	const u8 *peer_mac = pairwise ? mac_addr : bc_mac;
+	const u8 *peer_mac =
+		(type == NL80211_KEYTYPE_PAIRWISE) ? mac_addr : bc_mac;
 	int ret;
 
 	ret = nxpwifi_set_encode(priv, NULL, NULL, 0, key_index, peer_mac, 1);
@@ -426,7 +428,8 @@ nxpwifi_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 /* cfg80211 handler for adding an 802.11 encryption key. */
 static int
 nxpwifi_cfg80211_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-			 int link_id, u8 key_index, bool pairwise,
+			 int link_id, u8 key_index,
+			 enum nl80211_key_type type,
 			 const u8 *mac_addr, struct key_params *params)
 {
 	struct nxpwifi_private *priv = nxpwifi_netdev_get_priv(wdev->netdev);
@@ -436,7 +439,7 @@ nxpwifi_cfg80211_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 	int ret;
 
 	eth_broadcast_addr(bc_mac);
-	peer_mac = pairwise ? mac_addr : bc_mac;
+	peer_mac = (type == NL80211_KEYTYPE_PAIRWISE) ? mac_addr : bc_mac;
 
 	if (GET_BSS_ROLE(priv) == NXPWIFI_BSS_ROLE_UAP &&
 	    (params->cipher == WLAN_CIPHER_SUITE_WEP40 ||
@@ -844,8 +847,7 @@ nxpwifi_change_vif_to_sta(struct net_device *dev,
 	update_vif_type_counter(adapter, type, 1);
 	dev->ieee80211_ptr->iftype = type;
 
-	if (nxpwifi_set_bss_mode(priv))
-		return -1;
+	ret = nxpwifi_set_bss_mode(priv);
 
 	if (ret)
 		goto done;
@@ -888,8 +890,7 @@ nxpwifi_change_vif_to_ap(struct net_device *dev,
 	update_vif_type_counter(adapter, type, 1);
 	dev->ieee80211_ptr->iftype = type;
 
-	if (nxpwifi_set_bss_mode(priv))
-		return -1;
+	ret = nxpwifi_set_bss_mode(priv);
 
 	if (ret)
 		goto done;

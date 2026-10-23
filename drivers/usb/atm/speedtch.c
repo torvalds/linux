@@ -241,7 +241,7 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 
 	usb_dbg(usbatm, "%s entered\n", __func__);
 
-	buffer = (unsigned char *)__get_free_page(GFP_KERNEL);
+	buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buffer) {
 		ret = -ENOMEM;
 		usb_dbg(usbatm, "%s: no memory for buffer!\n", __func__);
@@ -340,7 +340,7 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 	ret = 0;
 
 out_free:
-	free_page((unsigned long)buffer);
+	kfree(buffer);
 out:
 	return ret;
 }
@@ -357,15 +357,15 @@ static int speedtch_find_firmware(struct usbatm_data *usbatm, struct usb_interfa
 	sprintf(buf, "speedtch-%d.bin.%x.%02x", phase, major_revision, minor_revision);
 	usb_dbg(usbatm, "%s: looking for %s\n", __func__, buf);
 
-	if (request_firmware(fw_p, buf, dev)) {
+	if (request_firmware_direct(fw_p, buf, dev)) {
 		sprintf(buf, "speedtch-%d.bin.%x", phase, major_revision);
 		usb_dbg(usbatm, "%s: looking for %s\n", __func__, buf);
 
-		if (request_firmware(fw_p, buf, dev)) {
+		if (request_firmware_direct(fw_p, buf, dev)) {
 			sprintf(buf, "speedtch-%d.bin", phase);
 			usb_dbg(usbatm, "%s: looking for %s\n", __func__, buf);
 
-			if (request_firmware(fw_p, buf, dev)) {
+			if (request_firmware_direct(fw_p, buf, dev)) {
 				usb_err(usbatm, "%s: no stage %d firmware found!\n", __func__, phase);
 				return -ENOENT;
 			}

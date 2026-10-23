@@ -36,6 +36,8 @@ static inline struct _strp_msg *_strp_msg(struct sk_buff *skb)
 /* Lower lock held */
 static void strp_abort_strp(struct strparser *strp, int err)
 {
+	struct sock *sk = strp->sk;
+
 	/* Unrecoverable error in receive */
 
 	cancel_delayed_work(&strp->msg_timer_work);
@@ -53,13 +55,9 @@ static void strp_abort_strp(struct strparser *strp, int err)
 	strp->skb_nextp = NULL;
 	strp->need_bytes = 0;
 
-	if (strp->sk) {
-		struct sock *sk = strp->sk;
-
-		/* Report an error on the lower socket */
-		sk->sk_err = -err;
-		sk_error_report(sk);
-	}
+	/* Report an error on the lower socket */
+	sk->sk_err = -err;
+	sk_error_report(sk);
 }
 
 static void strp_start_timer(struct strparser *strp, long timeo)
@@ -75,30 +73,22 @@ static void strp_parser_err(struct strparser *strp, int err,
 	desc->error = err;
 	kfree_skb(strp->skb_head);
 	strp->skb_head = NULL;
-	strp->cb.abort_parser(strp, err);
+	strp_abort_strp(strp, err);
 }
 
 static inline int strp_peek_len(struct strparser *strp)
 {
-	if (strp->sk) {
-		struct socket *sock = strp->sk->sk_socket;
+	struct socket *sock = strp->sk->sk_socket;
 
-		return sock->ops->peek_len(sock);
-	}
-
-	/* If we don't have an associated socket there's nothing to peek.
-	 * Return int max to avoid stopping the strparser.
-	 */
-
-	return INT_MAX;
+	return sock->ops->peek_len(sock);
 }
 
 /* Lower socket lock held */
-static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
-		       unsigned int orig_offset, size_t orig_len,
-		       size_t max_msg_size, long timeo)
+static int strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
+		     unsigned int orig_offset, size_t orig_len)
 {
 	struct strparser *strp = (struct strparser *)desc->arg.data;
+	long timeo = READ_ONCE(strp->sk->sk_rcvtimeo);
 	struct _strp_msg *stm;
 	struct sk_buff *head, *skb;
 	size_t eaten = 0, cand_len;
@@ -240,7 +230,7 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 				}
 				strp_parser_err(strp, len, desc);
 				break;
-			} else if (len > max_msg_size) {
+			} else if (len > strp->sk->sk_rcvbuf) {
 				/* Message length exceeds maximum allowed */
 				STRP_STATS_INCR(strp->stats.msg_too_big);
 				strp_parser_err(strp, -EMSGSIZE, desc);
@@ -322,28 +312,6 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 	return eaten;
 }
 
-int strp_process(struct strparser *strp, struct sk_buff *orig_skb,
-		 unsigned int orig_offset, size_t orig_len,
-		 size_t max_msg_size, long timeo)
-{
-	read_descriptor_t desc; /* Dummy arg to strp_recv */
-
-	desc.arg.data = strp;
-
-	return __strp_recv(&desc, orig_skb, orig_offset, orig_len,
-			   max_msg_size, timeo);
-}
-EXPORT_SYMBOL_GPL(strp_process);
-
-static int strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
-		     unsigned int orig_offset, size_t orig_len)
-{
-	struct strparser *strp = (struct strparser *)desc->arg.data;
-
-	return __strp_recv(desc, orig_skb, orig_offset, orig_len,
-			   strp->sk->sk_rcvbuf, READ_ONCE(strp->sk->sk_rcvtimeo));
-}
-
 static int default_read_sock_done(struct strparser *strp, int err)
 {
 	return err;
@@ -409,7 +377,7 @@ static void do_strp_work(struct strparser *strp)
 	/* We need the read lock to synchronize with strp_data_ready. We
 	 * need the socket lock for calling strp_read_sock.
 	 */
-	strp->cb.lock(strp);
+	lock_sock(strp->sk);
 
 	if (unlikely(strp->stopped))
 		goto out;
@@ -421,7 +389,7 @@ static void do_strp_work(struct strparser *strp)
 		queue_work(strp_wq, &strp->work);
 
 out:
-	strp->cb.unlock(strp);
+	release_sock(strp->sk);
 }
 
 static void strp_work(struct work_struct *w)
@@ -436,18 +404,8 @@ static void strp_msg_timeout(struct work_struct *w)
 
 	/* Message assembly timed out */
 	STRP_STATS_INCR(strp->stats.msg_timeouts);
-	strp->cb.lock(strp);
-	strp->cb.abort_parser(strp, -ETIMEDOUT);
-	strp->cb.unlock(strp);
-}
-
-static void strp_sock_lock(struct strparser *strp)
-{
 	lock_sock(strp->sk);
-}
-
-static void strp_sock_unlock(struct strparser *strp)
-{
+	strp_abort_strp(strp, -ETIMEDOUT);
 	release_sock(strp->sk);
 }
 
@@ -455,36 +413,17 @@ int strp_init(struct strparser *strp, struct sock *sk,
 	      const struct strp_callbacks *cb)
 {
 
-	if (!cb || !cb->rcv_msg || !cb->parse_msg)
+	if (!cb || !cb->rcv_msg || !cb->parse_msg || !sk)
 		return -EINVAL;
-
-	/* The sk (sock) arg determines the mode of the stream parser.
-	 *
-	 * If the sock is set then the strparser is in receive callback mode.
-	 * The upper layer calls strp_data_ready to kick receive processing
-	 * and strparser calls the read_sock function on the socket to
-	 * get packets.
-	 *
-	 * If the sock is not set then the strparser is in general mode.
-	 * The upper layer calls strp_process for each skb to be parsed.
-	 */
-
-	if (!sk) {
-		if (!cb->lock || !cb->unlock)
-			return -EINVAL;
-	}
 
 	memset(strp, 0, sizeof(*strp));
 
 	strp->sk = sk;
 
-	strp->cb.lock = cb->lock ? : strp_sock_lock;
-	strp->cb.unlock = cb->unlock ? : strp_sock_unlock;
 	strp->cb.rcv_msg = cb->rcv_msg;
 	strp->cb.parse_msg = cb->parse_msg;
 	strp->cb.read_sock = cb->read_sock;
 	strp->cb.read_sock_done = cb->read_sock_done ? : default_read_sock_done;
-	strp->cb.abort_parser = cb->abort_parser ? : strp_abort_strp;
 
 	INIT_DELAYED_WORK(&strp->msg_timer_work, strp_msg_timeout);
 	INIT_WORK(&strp->work, strp_work);

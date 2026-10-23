@@ -1706,6 +1706,8 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_MSFILTER:
 	{
 		struct ip_msfilter msf;
+		struct kvec kvec;
+		sockopt_t opt;
 
 		if (len < IP_MSFILTER_SIZE(0)) {
 			err = -EINVAL;
@@ -1715,7 +1717,13 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			err = -EFAULT;
 			goto out;
 		}
-		err = ip_mc_msfget(sk, &msf, optval, optlen);
+		err = sockptr_to_sockopt(&opt, optval, optlen, &kvec);
+		if (err)
+			goto out;
+
+		err = ip_mc_msfget(sk, &msf, &opt);
+		if (!err && copy_to_sockptr(optlen, &opt.optlen, sizeof(int)))
+			err = -EFAULT;
 		goto out;
 	}
 	case MCAST_MSFILTER:

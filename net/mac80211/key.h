@@ -2,7 +2,7 @@
 /*
  * Copyright 2002-2004, Instant802 Networks, Inc.
  * Copyright 2005, Devicescape Software, Inc.
- * Copyright (C) 2019, 2022-2023 Intel Corporation
+ * Copyright (C) 2019, 2022-2023, 2026 Intel Corporation
  */
 
 #ifndef IEEE80211_KEY_H
@@ -19,6 +19,7 @@
 #define NUM_DEFAULT_KEYS 4
 #define NUM_DEFAULT_MGMT_KEYS 2
 #define NUM_DEFAULT_BEACON_KEYS 2
+#define NUM_CTRL_KEYS 2
 #define INVALID_PTK_KEYIDX 2 /* Keyidx always pointing to a NULL key for PTK */
 
 struct ieee80211_local;

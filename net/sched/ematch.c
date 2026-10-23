@@ -470,9 +470,12 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 				goto nla_put_failure;
 		} else if (tcf_em_is_container(em) || tcf_em_is_simple(em)) {
 			u32 u = em->data;
-			nla_put_nohdr(skb, sizeof(u), &u);
-		} else if (em->datalen > 0)
-			nla_put_nohdr(skb, em->datalen, (void *) em->data);
+			if (nla_put_nohdr(skb, sizeof(u), &u))
+				goto nla_put_failure;
+		} else if (em->datalen > 0) {
+			if (nla_put_nohdr(skb, em->datalen, (void *)em->data))
+				goto nla_put_failure;
+		}
 
 		tail = skb_tail_pointer(skb);
 		match_start->nla_len = tail - (u8 *)match_start;

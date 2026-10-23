@@ -174,7 +174,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 		sk = ep->base.sk;
 		if (!net_eq(sock_net(sk), seq_file_net(seq)))
 			continue;
-		seq_printf(seq, "%8pK %8pK %-3d %-3d %-4d %-5d %5u %5llu ", ep, sk,
+		seq_printf(seq, "%8d %8d %-3d %-3d %-4d %-5d %5u %5llu ", 0, 0,
 			   sctp_sk(sk)->type, sk->sk_state, hash,
 			   ep->base.bind_addr.port,
 			   from_kuid_munged(seq_user_ns(seq), sk_uid(sk)),
@@ -260,9 +260,9 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	sk = epb->sk;
 
 	seq_printf(seq,
-		   "%8pK %8pK %-3d %-3d %-2d %-4d "
+		   "%8d %8d %-3d %-3d %-2d %-4d "
 		   "%4d %8d %8d %7u %5llu %-5d %5d ",
-		   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
+		   0, 0, sctp_sk(sk)->type, sk->sk_state,
 		   assoc->state, 0,
 		   assoc->assoc_id,
 		   assoc->sndbuf_used,

@@ -239,7 +239,7 @@ static const struct platform_device_id c_can_id_table[] = {
 		.name = "d_can",
 		.driver_data = (kernel_ulong_t)&d_can_drvdata,
 	},
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, c_can_id_table);
 
@@ -249,7 +249,7 @@ static const struct of_device_id c_can_of_table[] = {
 	{ .compatible = "ti,dra7-d_can", .data = &dra7_dcan_drvdata },
 	{ .compatible = "ti,am3352-d_can", .data = &am3352_dcan_drvdata },
 	{ .compatible = "ti,am4372-d_can", .data = &am3352_dcan_drvdata },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, c_can_of_table);
 

@@ -147,44 +147,61 @@ static void hsr_dellink(struct net_device *dev, struct list_head *head)
 	unregister_netdevice_queue(dev, head);
 }
 
-static int hsr_fill_info(struct sk_buff *skb, const struct net_device *dev)
+/* RCU variant of hsr_port_get_hsr() */
+static struct hsr_port *hsr_port_get_hsr_rcu(const struct hsr_priv *hsr,
+					     enum hsr_port_type pt)
 {
-	struct hsr_priv *hsr = netdev_priv(dev);
-	u8 proto = HSR_PROTOCOL_HSR;
 	struct hsr_port *port;
 
-	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
+	hsr_for_each_port(hsr, port)
+		if (port->type == pt)
+			return port;
+	return NULL;
+}
+
+static int hsr_fill_info(struct sk_buff *skb, const struct net_device *dev)
+{
+	const struct hsr_priv *hsr = netdev_priv(dev);
+	const struct hsr_port *port;
+	u8 proto = HSR_PROTOCOL_HSR;
+
+	rcu_read_lock();
+
+	port = hsr_port_get_hsr_rcu(hsr, HSR_PT_SLAVE_A);
 	if (port) {
 		if (nla_put_u32(skb, IFLA_HSR_SLAVE1, port->dev->ifindex))
 			goto nla_put_failure;
 	}
 
-	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
+	port = hsr_port_get_hsr_rcu(hsr, HSR_PT_SLAVE_B);
 	if (port) {
 		if (nla_put_u32(skb, IFLA_HSR_SLAVE2, port->dev->ifindex))
 			goto nla_put_failure;
 	}
 
-	port = hsr_port_get_hsr(hsr, HSR_PT_INTERLINK);
+	port = hsr_port_get_hsr_rcu(hsr, HSR_PT_INTERLINK);
 	if (port) {
 		if (nla_put_u32(skb, IFLA_HSR_INTERLINK, port->dev->ifindex))
 			goto nla_put_failure;
 	}
 
+	rcu_read_unlock();
+
 	if (nla_put(skb, IFLA_HSR_SUPERVISION_ADDR, ETH_ALEN,
 		    hsr->sup_multicast_addr) ||
-	    nla_put_u16(skb, IFLA_HSR_SEQ_NR, hsr->sequence_nr))
-		goto nla_put_failure;
+	    nla_put_u16(skb, IFLA_HSR_SEQ_NR, READ_ONCE(hsr->sequence_nr)))
+		return -EMSGSIZE;
 	if (hsr->prot_version == PRP_V1)
 		proto = HSR_PROTOCOL_PRP;
 	else if (nla_put_u8(skb, IFLA_HSR_VERSION, hsr->prot_version))
-		goto nla_put_failure;
+		return -EMSGSIZE;
 	if (nla_put_u8(skb, IFLA_HSR_PROTOCOL, proto))
-		goto nla_put_failure;
+		return -EMSGSIZE;
 
 	return 0;
 
 nla_put_failure:
+	rcu_read_unlock();
 	return -EMSGSIZE;
 }
 

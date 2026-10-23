@@ -3001,7 +3001,6 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct device *dev = &pdev->dev;
 	struct net_device *netdev;
 	struct enic *enic;
-	int using_dac = 0;
 	unsigned int i;
 	int err;
 #ifdef CONFIG_PCI_IOV
@@ -3044,20 +3043,11 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	/* Query PCI controller on system for DMA addressing
-	 * limitation for the device.  Try 47-bit first, and
-	 * fail to 32-bit.
-	 */
-
+	/* The device supports DMA addresses up to 47 bits. */
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(47));
 	if (err) {
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(dev, "No usable DMA configuration, aborting\n");
-			goto err_out_release_regions;
-		}
-	} else {
-		using_dac = 1;
+		dev_err(dev, "No usable DMA configuration, aborting\n");
+		goto err_out_release_regions;
 	}
 
 	/* Map vNIC resources from BAR0-5
@@ -3330,8 +3320,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->hw_features |= NETIF_F_NTUPLE;
 #endif
 
-	if (using_dac)
-		netdev->features |= NETIF_F_HIGHDMA;
+	netdev->features |= NETIF_F_HIGHDMA;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 

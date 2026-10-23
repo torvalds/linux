@@ -158,7 +158,6 @@ struct stmmac_extra_stats {
 	unsigned long fatal_bus_error_irq;
 	/* Tx/Rx IRQ Events */
 	unsigned long rx_early_irq;
-	unsigned long threshold;
 	unsigned long irq_receive_pmt_irq_n;
 	/* MMC info */
 	unsigned long mmc_tx_irq_n;
@@ -419,6 +418,8 @@ struct dma_features {
 	unsigned int half_duplex;
 	unsigned int hash_filter;
 	unsigned int multi_addr;
+	unsigned int additional_32_addr;
+	unsigned int additional_64_addr;
 	unsigned int pcs;
 	unsigned int sma_mdio;
 	unsigned int pmt_remote_wake_up;
@@ -627,6 +628,7 @@ struct mac_device_info {
 	void __iomem *pcsr;     /* vpointer to device CSRs */
 	unsigned int multicast_filter_bins;
 	unsigned int unicast_filter_entries;
+	unsigned int multi_addr;
 	unsigned int mcast_bits_log2;
 	unsigned int rx_csum;
 	unsigned int num_vlan;
@@ -635,6 +637,8 @@ struct mac_device_info {
 	u8 vlan_fail_q;
 	bool hw_vlan_en;
 	bool reverse_sgmii_enable;
+	bool additional_32_addr;
+	bool additional_64_addr;
 
 	/* This spinlock protects read-modify-write of the interrupt
 	 * mask/enable registers.

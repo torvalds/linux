@@ -117,13 +117,15 @@ static int mm81x_fw_load_fw(struct mm81x *mors, const struct firmware *fw)
 
 	if (mm81x_fw_get_header(fw->data, &ehdr)) {
 		dev_err(mors->dev, "Wrong file format");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_free;
 	}
 
 	if (mm81x_fw_get_section_header(fw->data, &ehdr, &sh_strtab,
 					ehdr.e_shstrndx)) {
 		dev_err(mors->dev, "Invalid firmware. Missing string table");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto out_free;
 	}
 
 	sh_strs = (const char *)fw->data + sh_strtab.sh_offset;
@@ -160,7 +162,7 @@ static int mm81x_fw_load_fw(struct mm81x *mors, const struct firmware *fw)
 			mm81x_release_bus(mors);
 			if (status) {
 				ret = -EIO;
-				break;
+				goto out_free;
 			}
 		}
 	}
@@ -179,6 +181,7 @@ static int mm81x_fw_load_fw(struct mm81x *mors, const struct firmware *fw)
 	if (ehdr.e_entry)
 		ret = mm81x_fw_set_boot_addr(mors, ehdr.e_entry);
 
+out_free:
 	devm_kfree(mors->dev, fw_buf);
 	return ret;
 }

@@ -689,7 +689,7 @@ static void _rtl92s_phy_init_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_C].rfintfe = RFPGA0_XC_RFINTERFACEOE;
 	rtlphy->phyreg_def[RF90_PATH_D].rfintfe = RFPGA0_XD_RFINTERFACEOE;
 
-	/* Addr of LSSI. Wirte RF register by driver */
+	/* Addr of LSSI. Write RF register by driver */
 	rtlphy->phyreg_def[RF90_PATH_A].rf3wire_offset =
 						 RFPGA0_XA_LSSIPARAMETER;
 	rtlphy->phyreg_def[RF90_PATH_B].rf3wire_offset =
@@ -711,13 +711,13 @@ static void _rtl92s_phy_init_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_C].rftxgain_stage = RFPGA0_TXGAINSTAGE;
 	rtlphy->phyreg_def[RF90_PATH_D].rftxgain_stage = RFPGA0_TXGAINSTAGE;
 
-	/* Tranceiver A~D HSSI Parameter-1 */
+	/* Transceiver A~D HSSI Parameter-1 */
 	rtlphy->phyreg_def[RF90_PATH_A].rfhssi_para1 = RFPGA0_XA_HSSIPARAMETER1;
 	rtlphy->phyreg_def[RF90_PATH_B].rfhssi_para1 = RFPGA0_XB_HSSIPARAMETER1;
 	rtlphy->phyreg_def[RF90_PATH_C].rfhssi_para1 = RFPGA0_XC_HSSIPARAMETER1;
 	rtlphy->phyreg_def[RF90_PATH_D].rfhssi_para1 = RFPGA0_XD_HSSIPARAMETER1;
 
-	/* Tranceiver A~D HSSI Parameter-2 */
+	/* Transceiver A~D HSSI Parameter-2 */
 	rtlphy->phyreg_def[RF90_PATH_A].rfhssi_para2 = RFPGA0_XA_HSSIPARAMETER2;
 	rtlphy->phyreg_def[RF90_PATH_B].rfhssi_para2 = RFPGA0_XB_HSSIPARAMETER2;
 	rtlphy->phyreg_def[RF90_PATH_C].rfhssi_para2 = RFPGA0_XC_HSSIPARAMETER2;
@@ -765,13 +765,13 @@ static void _rtl92s_phy_init_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_C].rftx_afe = ROFDM0_XCTXAFE;
 	rtlphy->phyreg_def[RF90_PATH_D].rftx_afe = ROFDM0_XDTXAFE;
 
-	/* Tranceiver LSSI Readback */
+	/* Transceiver LSSI Readback */
 	rtlphy->phyreg_def[RF90_PATH_A].rf_rb = RFPGA0_XA_LSSIREADBACK;
 	rtlphy->phyreg_def[RF90_PATH_B].rf_rb = RFPGA0_XB_LSSIREADBACK;
 	rtlphy->phyreg_def[RF90_PATH_C].rf_rb = RFPGA0_XC_LSSIREADBACK;
 	rtlphy->phyreg_def[RF90_PATH_D].rf_rb = RFPGA0_XD_LSSIREADBACK;
 
-	/* Tranceiver LSSI Readback PI mode  */
+	/* Transceiver LSSI Readback PI mode */
 	rtlphy->phyreg_def[RF90_PATH_A].rf_rbpi = TRANSCEIVERA_HSPI_READBACK;
 	rtlphy->phyreg_def[RF90_PATH_B].rf_rbpi = TRANSCEIVERB_HSPI_READBACK;
 }

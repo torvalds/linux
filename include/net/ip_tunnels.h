@@ -127,6 +127,7 @@ struct ip_tunnel_6rd_parm {
 	__be32			relay_prefix;
 	u16			prefixlen;
 	u16			relay_prefixlen;
+	struct rcu_head		rcu;
 };
 #endif
 
@@ -148,6 +149,7 @@ struct ip_tunnel_parm_kern {
 	__be32			o_key;
 	int			link;
 	struct iphdr		iph;
+	struct rcu_head		rcu;
 };
 
 struct ip_tunnel {
@@ -185,10 +187,11 @@ struct ip_tunnel {
 
 	/* for SIT */
 #ifdef CONFIG_IPV6_SIT_6RD
-	struct ip_tunnel_6rd_parm ip6rd;
+	struct ip_tunnel_6rd_parm __rcu *ip6rd;
 #endif
 	struct ip_tunnel_prl_entry __rcu *prl;	/* potential router list */
 	unsigned int		prl_count;	/* # of entries in PRL */
+	struct ip_tunnel_parm_kern __rcu *sit_parms;
 	unsigned int		ip_tnl_net_id;
 	struct gro_cells	gro_cells;
 	__u32			fwmark;
@@ -215,6 +218,7 @@ struct ip_tunnel_net {
 	struct net_device *fb_tunnel_dev;
 	struct rtnl_link_ops *rtnl_link_ops;
 	struct hlist_head tunnels[IP_TNL_HASH_SIZE];
+	struct mutex tunnels_lock;
 	struct ip_tunnel __rcu *collect_md_tun;
 	int type;
 };
@@ -398,7 +402,6 @@ int ip_tunnel_get_iflink(const struct net_device *dev);
 int ip_tunnel_init_net(struct net *net, unsigned int ip_tnl_net_id,
 		       struct rtnl_link_ops *ops, char *devname);
 void ip_tunnel_delete_net(struct net *net, unsigned int id,
-			  struct rtnl_link_ops *ops,
 			  struct list_head *dev_to_kill);
 
 void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
@@ -611,11 +614,13 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 	return INET_ECN_encapsulate(tos, inner);
 }
 
-int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
-			   __be16 inner_proto, bool raw_proto, bool xnet);
+enum skb_drop_reason
+__iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
+		       __be16 inner_proto, bool raw_proto, bool xnet);
 
-static inline int iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
-				       __be16 inner_proto, bool xnet)
+static inline enum skb_drop_reason
+iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
+		     __be16 inner_proto, bool xnet)
 {
 	return __iptunnel_pull_header(skb, hdr_len, inner_proto, false, xnet);
 }

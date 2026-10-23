@@ -245,6 +245,9 @@ int cfg80211_mgd_wext_siwap(struct net_device *dev,
 	if (is_zero_ether_addr(bssid) || is_broadcast_ether_addr(bssid))
 		bssid = NULL;
 
+	if (bssid && !is_valid_ether_addr(bssid))
+		return -EINVAL;
+
 	if (wdev->conn) {
 		/* both automatic */
 		if (!bssid && !wdev->wext.connect.bssid)

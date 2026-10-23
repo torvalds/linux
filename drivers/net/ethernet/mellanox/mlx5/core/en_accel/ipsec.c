@@ -364,9 +364,9 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	return;
 
 neigh:
-	n = neigh_lookup(&arp_tbl, pkey, netdev);
+	n = ipv4_neigh_lookup(netdev, pkey);
 	if (!n) {
-		n = neigh_create(&arp_tbl, pkey, netdev);
+		n = ipv4_neigh_create(netdev, pkey);
 		if (IS_ERR(n))
 			return;
 		neigh_event_send(n, NULL);

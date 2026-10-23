@@ -286,10 +286,9 @@ msg_bytes_ready:
 		if (sock_flag(sk, SOCK_DONE))
 			goto out;
 
-		if (sk->sk_err) {
-			copied = sock_error(sk);
+		copied = sock_error(sk);
+		if (copied)
 			goto out;
-		}
 
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			goto out;
@@ -553,10 +552,9 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 		bool enospc = false;
 		u32 copy, osize;
 
-		if (sk->sk_err) {
-			err = -sk->sk_err;
+		err = -READ_ONCE(sk->sk_err);
+		if (err)
 			goto out_err;
-		}
 
 		copy = msg_data_left(msg);
 		if (!sk_stream_memory_free(sk))
@@ -581,6 +579,7 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 					       copy);
 		if (ret < 0) {
 			sk_msg_trim(sk, msg_tx, osize);
+			err = ret;
 			goto out_err;
 		}
 
@@ -602,7 +601,7 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 			goto out_err;
 		continue;
 wait_for_sndbuf:
-		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		sk_set_nospace(sk);
 wait_for_memory:
 		err = sk_stream_wait_memory(sk, &timeo);
 		if (err) {

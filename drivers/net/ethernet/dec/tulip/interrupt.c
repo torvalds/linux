@@ -177,7 +177,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
 			   pkt_len > 1518) {
 			       if ((status & (RxLengthOver2047 |
 					      RxWholePkt)) != RxWholePkt) {
-                                /* Ingore earlier buffers. */
+                                /* Ignore earlier buffers. */
                                        if ((status & 0xffff) != 0x7fff) {
                                                if (tulip_debug > 1)
                                                        dev_warn(&dev->dev,
@@ -408,7 +408,7 @@ static int tulip_rx(struct net_device *dev)
 		    pkt_len > 1518) {
 			if ((status & (RxLengthOver2047 |
 			     RxWholePkt))         != RxWholePkt) {
-				/* Ingore earlier buffers. */
+				/* Ignore earlier buffers. */
 				if ((status & 0xffff) != 0x7fff) {
 					if (tulip_debug > 1)
 						netdev_warn(dev,

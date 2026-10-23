@@ -1532,10 +1532,8 @@ static int ath10k_snoc_modem_notify(struct notifier_block *nb, unsigned long act
 	case QCOM_SSR_BEFORE_SHUTDOWN:
 		ath10k_dbg(ar, ATH10K_DBG_SNOC, "received modem %s event\n",
 			   notify_data->crashed ? "crashed" : "stopping");
-		if (!notify_data->crashed)
-			set_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags);
-		else
-			clear_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags);
+		assign_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags,
+			   !notify_data->crashed);
 		break;
 
 	case QCOM_SSR_AFTER_SHUTDOWN:

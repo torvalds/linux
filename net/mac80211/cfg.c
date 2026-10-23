@@ -368,6 +368,7 @@ static int ieee80211_nan_conf_copy(struct cfg80211_nan_conf *dst,
 		dst->discovery_beacon_interval =
 			src->discovery_beacon_interval;
 		dst->enable_dw_notification = src->enable_dw_notification;
+		dst->instant_comm = src->instant_comm;
 		memcpy(&dst->band_cfgs, &src->band_cfgs,
 		       sizeof(dst->band_cfgs));
 
@@ -615,12 +616,15 @@ static int ieee80211_set_tx(struct ieee80211_sub_if_data *sdata,
 }
 
 static int ieee80211_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-			     int link_id, u8 key_idx, bool pairwise,
+			     int link_id, u8 key_idx,
+			     enum nl80211_key_type type,
 			     const u8 *mac_addr, struct key_params *params)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_link_data *link =
 		ieee80211_link_or_deflink(sdata, link_id, false);
+	bool pairwise = type == NL80211_KEYTYPE_PAIRWISE;
+	bool cigtk = type == NL80211_KEYTYPE_CIGTK;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta = NULL;
 	struct ieee80211_key *key;
@@ -664,6 +668,9 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 		key->conf.link_id = -1;
 	} else {
 		key->conf.link_id = link->link_id;
+
+		if (cigtk)
+			key->conf.flags |= IEEE80211_KEY_FLAG_CIP;
 	}
 
 	if (params->mode == NL80211_KEY_NO_TX)
@@ -741,10 +748,13 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 static struct ieee80211_key *
 ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata, int link_id,
-		     u8 key_idx, bool pairwise, const u8 *mac_addr)
+		     u8 key_idx, enum nl80211_key_type type,
+		     const u8 *mac_addr)
 {
 	struct ieee80211_local *local __maybe_unused = sdata->local;
 	struct ieee80211_link_data *link = &sdata->deflink;
+	bool pairwise = type == NL80211_KEYTYPE_PAIRWISE;
+	bool cigtk = type == NL80211_KEYTYPE_CIGTK;
 	struct ieee80211_key *key;
 
 	if (link_id >= 0) {
@@ -774,7 +784,11 @@ ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata, int link_id,
 			return wiphy_dereference(local->hw.wiphy,
 						 sta->ptk[key_idx]);
 
-		if (!pairwise &&
+		if (cigtk && key_idx < NUM_CTRL_KEYS)
+			return wiphy_dereference(local->hw.wiphy,
+						 link_sta->cigtk[key_idx]);
+
+		if (!pairwise && !cigtk &&
 		    key_idx < NUM_DEFAULT_KEYS +
 			      NUM_DEFAULT_MGMT_KEYS +
 			      NUM_DEFAULT_BEACON_KEYS)
@@ -786,6 +800,9 @@ ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata, int link_id,
 
 	if (pairwise && key_idx < NUM_DEFAULT_KEYS)
 		return wiphy_dereference(local->hw.wiphy, sdata->keys[key_idx]);
+
+	if (cigtk)
+		return wiphy_dereference(local->hw.wiphy, link->cigtk[key_idx]);
 
 	key = wiphy_dereference(local->hw.wiphy, link->gtk[key_idx]);
 	if (key)
@@ -799,8 +816,8 @@ ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata, int link_id,
 }
 
 static int ieee80211_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-			     int link_id, u8 key_idx, bool pairwise,
-			     const u8 *mac_addr)
+			     int link_id, u8 key_idx,
+			     enum nl80211_key_type type, const u8 *mac_addr)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
@@ -808,7 +825,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	key = ieee80211_lookup_key(sdata, link_id, key_idx, pairwise, mac_addr);
+	key = ieee80211_lookup_key(sdata, link_id, key_idx, type, mac_addr);
 	if (!key)
 		return -ENOENT;
 
@@ -818,7 +835,8 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 }
 
 static int ieee80211_get_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-			     int link_id, u8 key_idx, bool pairwise,
+			     int link_id, u8 key_idx,
+			     enum nl80211_key_type type,
 			     const u8 *mac_addr, void *cookie,
 			     void (*callback)(void *cookie,
 					      struct key_params *params))
@@ -837,7 +855,7 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	rcu_read_lock();
 
-	key = ieee80211_lookup_key(sdata, link_id, key_idx, pairwise, mac_addr);
+	key = ieee80211_lookup_key(sdata, link_id, key_idx, type, mac_addr);
 	if (!key)
 		goto out;
 
@@ -1000,31 +1018,63 @@ void sta_set_rate_info_tx(struct sta_info *sta,
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
 }
 
+static int __ieee80211_dump_station(struct ieee80211_sub_if_data *sdata,
+				    int idx, u8 *mac,
+				    struct station_info *sinfo, bool locked)
+{
+	struct sta_info *sta;
+	int ret;
+
+	sta = sta_info_get_by_idx(sdata, idx);
+	if (!sta)
+		return -ENOENT;
+
+	memcpy(mac, sta->sta.addr, ETH_ALEN);
+	ret = __sta_set_sinfo(sta, sinfo, true, locked);
+	if (ret)
+		return ret;
+
+	/*
+	 * Add accumulated removed link data to sinfo data for
+	 * consistency for MLO
+	 */
+	if (sinfo->valid_links)
+		sta_set_accumulated_removed_links_sinfo(sta, sinfo);
+
+	return 0;
+}
+
 static int ieee80211_dump_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 				  int idx, u8 *mac, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
-	int ret = -ENOENT;
 
-	lockdep_assert_wiphy(local->hw.wiphy);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
-	sta = sta_info_get_by_idx(sdata, idx);
-	if (sta) {
-		ret = 0;
-		memcpy(mac, sta->sta.addr, ETH_ALEN);
-		sta_set_sinfo(sta, sinfo, true);
+	return __ieee80211_dump_station(sdata, idx, mac, sinfo, true);
+}
 
-		/* Add accumulated removed link data to sinfo data for
-		 * consistency for MLO
-		 */
-		if (sinfo->valid_links)
-			sta_set_accumulated_removed_links_sinfo(sta, sinfo);
+/* driver must have atomic ops (or none), otherwise we need the mutex */
+static bool ieee80211_sta_stats_need_mtx(struct ieee80211_local *local)
+{
+	const struct ieee80211_ops *ops = local->ops;
 
-	}
+	return (ops->sta_statistics && !ops->sta_statistics_atomic) ||
+	       (ops->link_sta_statistics && !ops->link_sta_statistics_atomic);
+}
 
-	return ret;
+static int ieee80211_dump_station_unlocked(struct wiphy *wiphy,
+					   struct wireless_dev *wdev,
+					   int idx, u8 *mac,
+					   struct station_info *sinfo)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+
+	if (ieee80211_sta_stats_need_mtx(sdata->local))
+		return -EAGAIN;
+
+	guard(rcu)();
+	return __ieee80211_dump_station(sdata, idx, mac, sinfo, false);
 }
 
 static int ieee80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
@@ -1035,30 +1085,54 @@ static int ieee80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	return drv_get_survey(local, idx, survey);
 }
 
+static int __ieee80211_get_station(struct ieee80211_sub_if_data *sdata,
+				   const u8 *mac, struct station_info *sinfo,
+				   bool locked)
+{
+	struct sta_info *sta;
+	int ret;
+
+	sta = sta_info_get_bss(sdata, mac);
+	if (!sta)
+		return -ENOENT;
+
+	ret = __sta_set_sinfo(sta, sinfo, true, locked);
+	if (ret)
+		return ret;
+
+	/*
+	 * Add accumulated removed link data to sinfo data for
+	 * consistency for MLO
+	 */
+	if (sinfo->valid_links)
+		sta_set_accumulated_removed_links_sinfo(sta, sinfo);
+
+	return 0;
+}
+
 static int ieee80211_get_station(struct wiphy *wiphy,
 				 struct wireless_dev *wdev,
 				 const u8 *mac, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
-	int ret = -ENOENT;
 
-	lockdep_assert_wiphy(local->hw.wiphy);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
-	sta = sta_info_get_bss(sdata, mac);
-	if (sta) {
-		ret = 0;
-		sta_set_sinfo(sta, sinfo, true);
+	return __ieee80211_get_station(sdata, mac, sinfo, true);
+}
 
-		/* Add accumulated removed link data to sinfo data for
-		 * consistency for MLO
-		 */
-		if (sinfo->valid_links)
-			sta_set_accumulated_removed_links_sinfo(sta, sinfo);
-	}
+static int ieee80211_get_station_unlocked(struct wiphy *wiphy,
+					  struct wireless_dev *wdev,
+					  const u8 *mac,
+					  struct station_info *sinfo)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
-	return ret;
+	if (ieee80211_sta_stats_need_mtx(sdata->local))
+		return -EAGAIN;
+
+	guard(rcu)();
+	return __ieee80211_get_station(sdata, mac, sinfo, false);
 }
 
 static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
@@ -1105,12 +1179,10 @@ ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 			 const struct ieee80211_color_change_settings *cca,
 			 struct ieee80211_link_data *link)
 {
-	struct probe_resp *new, *old;
+	struct probe_resp *new;
 
 	if (!resp || !resp_len)
 		return 1;
-
-	old = sdata_dereference(link->u.ap.probe_resp, sdata);
 
 	new = kzalloc(sizeof(struct probe_resp) + resp_len, GFP_KERNEL);
 	if (!new)
@@ -1126,9 +1198,7 @@ ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 	else if (cca)
 		new->cntdwn_counter_offsets[0] = cca->counter_offset_presp;
 
-	rcu_assign_pointer(link->u.ap.probe_resp, new);
-	if (old)
-		kfree_rcu(old, rcu_head);
+	ap_tmpl_replace(link, link->u.ap.probe_resp, new);
 
 	return 0;
 }
@@ -1139,30 +1209,33 @@ static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_bss_conf *link_conf,
 					u64 *changed)
 {
-	struct fils_discovery_data *new, *old = NULL;
+	struct fils_discovery_data *new = NULL;
 	struct ieee80211_fils_discovery *fd;
 
-	if (!params->update)
+	/*
+	 * This configuration is only applicable to transmitting BSSes.
+	 *
+	 * Current user-space version may also set this for non-transmitting
+	 * BSSes. While this is not a valid configuration, to maintain the
+	 * compatibility with the existing user-space ignore the configuration
+	 * for non-transmitting BSS silently.
+	 */
+	if (!params->update || link_conf->nontransmitted)
 		return 0;
 
 	fd = &link_conf->fils_discovery;
 	fd->min_interval = params->min_interval;
 	fd->max_interval = params->max_interval;
 
-	old = sdata_dereference(link->u.ap.fils_discovery, sdata);
 	if (params->tmpl && params->tmpl_len) {
 		new = kzalloc(sizeof(*new) + params->tmpl_len, GFP_KERNEL);
 		if (!new)
 			return -ENOMEM;
 		new->len = params->tmpl_len;
 		memcpy(new->data, params->tmpl, params->tmpl_len);
-		rcu_assign_pointer(link->u.ap.fils_discovery, new);
-	} else {
-		RCU_INIT_POINTER(link->u.ap.fils_discovery, NULL);
 	}
 
-	if (old)
-		kfree_rcu(old, rcu_head);
+	ap_tmpl_replace(link, link->u.ap.fils_discovery, new);
 
 	*changed |= BSS_CHANGED_FILS_DISCOVERY;
 	return 0;
@@ -1175,14 +1248,20 @@ ieee80211_set_unsol_bcast_probe_resp(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_bss_conf *link_conf,
 				     u64 *changed)
 {
-	struct unsol_bcast_probe_resp_data *new, *old = NULL;
+	struct unsol_bcast_probe_resp_data *new = NULL;
 
-	if (!params->update)
+	/*
+	 * This configuration is only applicable to transmitting BSSes.
+	 *
+	 * Current user-space version may also set this for non-transmitting
+	 * BSSes. While this is not a valid configuration, to maintain the
+	 * compatibility with the existing user-space ignore the configuration
+	 * for non-transmitting BSS silently.
+	 */
+	if (!params->update || link_conf->nontransmitted)
 		return 0;
 
 	link_conf->unsol_bcast_probe_resp_interval = params->interval;
-
-	old = sdata_dereference(link->u.ap.unsol_bcast_probe_resp, sdata);
 
 	if (params->tmpl && params->tmpl_len) {
 		new = kzalloc(sizeof(*new) + params->tmpl_len, GFP_KERNEL);
@@ -1190,13 +1269,9 @@ ieee80211_set_unsol_bcast_probe_resp(struct ieee80211_sub_if_data *sdata,
 			return -ENOMEM;
 		new->len = params->tmpl_len;
 		memcpy(new->data, params->tmpl, params->tmpl_len);
-		rcu_assign_pointer(link->u.ap.unsol_bcast_probe_resp, new);
-	} else {
-		RCU_INIT_POINTER(link->u.ap.unsol_bcast_probe_resp, NULL);
 	}
 
-	if (old)
-		kfree_rcu(old, rcu_head);
+	ap_tmpl_replace(link, link->u.ap.unsol_bcast_probe_resp, new);
 
 	*changed |= BSS_CHANGED_UNSOL_BCAST_PROBE_RESP;
 	return 0;
@@ -1464,6 +1539,74 @@ static void ieee80211_update_ap_bandwidth(struct ieee80211_link_data *link,
 	ieee80211_recalc_chanctx_min_def(local, chanctx);
 }
 
+static struct beacon_data *
+ieee80211_alloc_beacon(struct cfg80211_mbssid_elems *mbssid,
+		       struct cfg80211_rnr_elems *rnr,
+		       int head_len, int tail_len)
+{
+	struct beacon_data *new;
+	int size;
+	u8 *pos;
+
+	size = sizeof(*new) + head_len + tail_len;
+
+	if (mbssid) {
+		size += struct_size(new->mbssid_ies, elem, mbssid->cnt);
+		if (rnr)
+			size += struct_size(new->rnr_ies, elem, rnr->cnt);
+		size += ieee80211_get_mbssid_beacon_len(mbssid, rnr,
+							mbssid->cnt);
+	}
+
+	new = kzalloc(size, GFP_KERNEL);
+	if (!new)
+		return NULL;
+
+	/*
+	 * pointers go into the block we allocated, the order in memory is
+	 *  - struct beacon_data
+	 *  - struct mbssid_ies (including variable array)
+	 *  - struct rnr_ies (including variable array)
+	 *  - beacon head
+	 *  - beacon tail
+	 *  - mbssid/rnr elements
+	 * so that the structs (which contain pointers) are all aligned
+	 */
+	pos = (u8 *)(new + 1);
+	if (mbssid) {
+		new->mbssid_ies = (void *)pos;
+		pos += struct_size(new->mbssid_ies, elem, mbssid->cnt);
+		if (rnr) {
+			new->rnr_ies = (void *)pos;
+			pos += struct_size(new->rnr_ies, elem, rnr->cnt);
+		}
+	}
+
+	new->head = pos;
+	new->head_len = head_len;
+	pos += head_len;
+	new->tail = pos;
+	new->tail_len = tail_len;
+	pos += tail_len;
+
+	/* copy in optional mbssid_ies */
+	if (mbssid) {
+		pos += ieee80211_copy_mbssid_beacon(pos, new->mbssid_ies,
+						    mbssid);
+		if (rnr)
+			ieee80211_copy_rnr_beacon(pos, new->rnr_ies, rnr);
+	}
+
+	return new;
+}
+
+static u8 ieee80211_beacon_bssid_indicator(struct beacon_data *beacon)
+{
+	if (beacon->mbssid_ies->cnt && beacon->mbssid_ies->elem[0].len > 2)
+		return *(beacon->mbssid_ies->elem[0].data + 2);
+	return 0;
+}
+
 static int
 ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 			struct ieee80211_link_data *link,
@@ -1472,19 +1615,25 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 			const struct ieee80211_color_change_settings *cca,
 			u64 *changed)
 {
-	struct cfg80211_mbssid_elems *mbssid = NULL;
-	struct cfg80211_rnr_elems *rnr = NULL;
-	struct beacon_data *new, *old;
+	struct cfg80211_mbssid_elems *mbssid = params->mbssid_ies;
+	struct cfg80211_rnr_elems *rnr = mbssid ? params->rnr_ies : NULL;
+	struct beacon_data *new = NULL, *old;
 	int new_head_len, new_tail_len;
-	int size, err;
+	int err;
 	u64 _changed = BSS_CHANGED_BEACON;
 	struct ieee80211_bss_conf *link_conf = link->conf;
 
-	old = sdata_dereference(link->u.ap.beacon, sdata);
+	/* grab old and make lockless updates return -EAGAIN */
+	spin_lock(&link->ap_tmpl_lock);
+	old = ap_tmpl_dereference(link, link->u.ap.beacon);
+	link->u.ap.bss_update_in_progress = true;
+	spin_unlock(&link->ap_tmpl_lock);
 
 	/* Need to have a beacon head if we don't have one yet */
-	if (!params->head && !old)
-		return -EINVAL;
+	if (!params->head && !old) {
+		err = -EINVAL;
+		goto error;
+	}
 
 	/* new or old head? */
 	if (params->head)
@@ -1499,53 +1648,21 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 	else
 		new_tail_len = old->tail_len;
 
-	size = sizeof(*new) + new_head_len + new_tail_len;
-
-	if (params->mbssid_ies) {
-		mbssid = params->mbssid_ies;
-		size += struct_size(new->mbssid_ies, elem, mbssid->cnt);
-		if (params->rnr_ies) {
-			rnr = params->rnr_ies;
-			size += struct_size(new->rnr_ies, elem, rnr->cnt);
-		}
-		size += ieee80211_get_mbssid_beacon_len(mbssid, rnr,
-							mbssid->cnt);
+	/* new or old multiple BSSID elements? */
+	if (!mbssid && old && old->mbssid_ies) {
+		mbssid = old->mbssid_ies;
+		rnr = old->rnr_ies;
 	}
 
-	new = kzalloc(size, GFP_KERNEL);
-	if (!new)
-		return -ENOMEM;
-
-	/* start filling the new info now */
-
-	/*
-	 * pointers go into the block we allocated,
-	 * memory is | beacon_data | head | tail | mbssid_ies | rnr_ies
-	 */
-	new->head = ((u8 *) new) + sizeof(*new);
-	new->tail = new->head + new_head_len;
-	new->head_len = new_head_len;
-	new->tail_len = new_tail_len;
-	/* copy in optional mbssid_ies */
-	if (mbssid) {
-		u8 *pos = new->tail + new->tail_len;
-
-		new->mbssid_ies = (void *)pos;
-		pos += struct_size(new->mbssid_ies, elem, mbssid->cnt);
-		pos += ieee80211_copy_mbssid_beacon(pos, new->mbssid_ies,
-						    mbssid);
-		if (rnr) {
-			new->rnr_ies = (void *)pos;
-			pos += struct_size(new->rnr_ies, elem, rnr->cnt);
-			ieee80211_copy_rnr_beacon(pos, new->rnr_ies, rnr);
-		}
-		/* update bssid_indicator */
-		if (new->mbssid_ies->cnt && new->mbssid_ies->elem[0].len > 2)
-			link_conf->bssid_indicator =
-					*(new->mbssid_ies->elem[0].data + 2);
-		else
-			link_conf->bssid_indicator = 0;
+	new = ieee80211_alloc_beacon(mbssid, rnr, new_head_len, new_tail_len);
+	if (!new) {
+		err = -ENOMEM;
+		goto error;
 	}
+
+	if (new->mbssid_ies)
+		link_conf->bssid_indicator =
+			ieee80211_beacon_bssid_indicator(new);
 
 	if (csa) {
 		new->cntdwn_current_counter = csa->count;
@@ -1572,10 +1689,8 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 
 	err = ieee80211_set_probe_resp(sdata, params->probe_resp,
 				       params->probe_resp_len, csa, cca, link);
-	if (err < 0) {
-		kfree(new);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 	if (err == 0)
 		_changed |= BSS_CHANGED_AP_PROBE_RESP;
 
@@ -1588,15 +1703,16 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 							 params->civicloc_len,
 							 link_conf);
 
-		if (err < 0) {
-			kfree(new);
-			return err;
-		}
+		if (err < 0)
+			goto error;
 
 		_changed |= BSS_CHANGED_FTM_RESPONDER;
 	}
 
+	spin_lock(&link->ap_tmpl_lock);
 	rcu_assign_pointer(link->u.ap.beacon, new);
+	link->u.ap.bss_update_in_progress = false;
+	spin_unlock(&link->ap_tmpl_lock);
 	sdata->u.ap.active = true;
 
 	if (old)
@@ -1606,6 +1722,12 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 
 	*changed |= _changed;
 	return 0;
+error:
+	spin_lock(&link->ap_tmpl_lock);
+	link->u.ap.bss_update_in_progress = false;
+	spin_unlock(&link->ap_tmpl_lock);
+	kfree(new);
+	return err;
 }
 
 static u8 ieee80211_num_beaconing_links(struct ieee80211_sub_if_data *sdata)
@@ -1903,11 +2025,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	err = drv_start_ap(sdata->local, sdata, link_conf);
 	if (err) {
-		old = sdata_dereference(link->u.ap.beacon, sdata);
-
-		if (old)
-			kfree_rcu(old, rcu_head);
-		RCU_INIT_POINTER(link->u.ap.beacon, NULL);
+		ap_tmpl_replace(link, link->u.ap.beacon, NULL);
 
 		if (ieee80211_num_beaconing_links(sdata) == 0)
 			sdata->u.ap.active = false;
@@ -2004,6 +2122,184 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static int ieee80211_update_beacon(struct wiphy *wiphy, struct net_device *dev,
+				   struct cfg80211_ap_update *params)
+{
+	struct cfg80211_unsol_bcast_probe_resp *ubpr =
+		&params->unsol_bcast_probe_resp;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct cfg80211_fils_discovery *fd = &params->fils_discovery;
+	struct unsol_bcast_probe_resp_data *new_ubpr = NULL, *old_ubpr = NULL;
+	struct cfg80211_beacon_data *beacon = &params->beacon;
+	struct fils_discovery_data *new_fd = NULL, *old_fd = NULL;
+	struct probe_resp *new_presp = NULL, *old_presp = NULL;
+	struct ieee80211_local *local = sdata->local;
+	struct beacon_data *new, *old = NULL;
+	struct ieee80211_bss_conf *link_conf;
+	struct ieee80211_link_data *link;
+	struct ieee80211_channel *chan;
+	u64 changed = BSS_CHANGED_BEACON;
+	int err = 0;
+
+	if (READ_ONCE(local->in_reconfig) || READ_ONCE(local->quiescing))
+		return -EAGAIN;
+
+	new = ieee80211_alloc_beacon(beacon->mbssid_ies,
+				     beacon->mbssid_ies ? beacon->rnr_ies : NULL,
+				     beacon->head_len, beacon->tail_len);
+	if (!new)
+		return -ENOMEM;
+	memcpy(new->head, beacon->head, beacon->head_len);
+	memcpy(new->tail, beacon->tail, beacon->tail_len);
+
+	if (beacon->probe_resp && beacon->probe_resp_len) {
+		new_presp = kzalloc(sizeof(*new_presp) + beacon->probe_resp_len,
+				    GFP_KERNEL);
+		if (!new_presp) {
+			err = -ENOMEM;
+			goto free;
+		}
+		new_presp->len = beacon->probe_resp_len;
+		memcpy(new_presp->data, beacon->probe_resp,
+		       beacon->probe_resp_len);
+		changed |= BSS_CHANGED_AP_PROBE_RESP;
+	}
+
+	if (fd->update && fd->tmpl && fd->tmpl_len) {
+		new_fd = kzalloc(sizeof(*new_fd) + fd->tmpl_len, GFP_KERNEL);
+		if (!new_fd) {
+			err = -ENOMEM;
+			goto free;
+		}
+		new_fd->len = fd->tmpl_len;
+		memcpy(new_fd->data, fd->tmpl, fd->tmpl_len);
+	}
+
+	if (ubpr->update && ubpr->tmpl && ubpr->tmpl_len) {
+		new_ubpr = kzalloc(sizeof(*new_ubpr) + ubpr->tmpl_len,
+				   GFP_KERNEL);
+		if (!new_ubpr) {
+			err = -ENOMEM;
+			goto free;
+		}
+		new_ubpr->len = ubpr->tmpl_len;
+		memcpy(new_ubpr->data, ubpr->tmpl, ubpr->tmpl_len);
+	}
+
+	rcu_read_lock();
+
+	/* do_stop() synchronizes RCU before the interface type can change */
+	if (!ieee80211_sdata_running(sdata) ||
+	    (sdata->vif.type != NL80211_IFTYPE_AP &&
+	     sdata->vif.type != NL80211_IFTYPE_P2P_GO)) {
+		err = -ENETDOWN;
+		goto unlock;
+	}
+
+	link = rcu_dereference(sdata->link[beacon->link_id]);
+	if (!link) {
+		err = -ENOLINK;
+		goto unlock;
+	}
+	link_conf = link->conf;
+
+	/* configuration changes need the wiphy mutex, let cfg80211 retry */
+	err = -EAGAIN;
+
+	if (READ_ONCE(link_conf->csa_active) ||
+	    READ_ONCE(link_conf->color_change_active))
+		goto unlock;
+
+	if (new->mbssid_ies &&
+	    ieee80211_beacon_bssid_indicator(new) !=
+			READ_ONCE(link_conf->bssid_indicator))
+		goto unlock;
+
+	if (fd->update &&
+	    (fd->min_interval != READ_ONCE(link_conf->fils_discovery.min_interval) ||
+	     fd->max_interval != READ_ONCE(link_conf->fils_discovery.max_interval)))
+		goto unlock;
+
+	if (ubpr->update &&
+	    ubpr->interval !=
+			READ_ONCE(link_conf->unsol_bcast_probe_resp_interval))
+		goto unlock;
+
+	chan = READ_ONCE(link_conf->chanreq.oper.chan);
+	if (!chan)
+		goto unlock;
+
+	if (chan->band != NL80211_BAND_S1GHZ) {
+		enum ieee80211_sta_rx_bandwidth he_and_lower;
+
+		he_and_lower = ieee80211_calc_ap_he_and_lower(beacon);
+		if (he_and_lower != READ_ONCE(link->bss_bw.he_and_lower) ||
+		    ieee80211_calc_ap_eht_bw(beacon, he_and_lower) !=
+				READ_ONCE(link->bss_bw.eht))
+			goto unlock;
+	}
+
+	spin_lock(&link->ap_tmpl_lock);
+	old = ap_tmpl_dereference(link, link->u.ap.beacon);
+	if (!old) {
+		err = -ENOENT;
+	} else if (link->u.ap.bss_update_in_progress) {
+		/* a locked update is in progress */
+		old = NULL;
+	} else if (READ_ONCE(old->cntdwn_current_counter)) {
+		/* a countdown just started, must keep the offsets */
+		old = NULL;
+	} else if (old->mbssid_ies && !new->mbssid_ies) {
+		/* only locked path copies old MBSSID data */
+		old = NULL;
+	} else {
+		rcu_assign_pointer(link->u.ap.beacon, new);
+		new = NULL;
+
+		if (new_presp)
+			old_presp = rcu_replace_pointer(link->u.ap.probe_resp,
+							new_presp,
+							lockdep_is_held(&link->ap_tmpl_lock));
+		new_presp = NULL;
+
+		if (fd->update) {
+			old_fd = rcu_replace_pointer(link->u.ap.fils_discovery,
+						     new_fd,
+						     lockdep_is_held(&link->ap_tmpl_lock));
+			changed |= BSS_CHANGED_FILS_DISCOVERY;
+		}
+		new_fd = NULL;
+
+		if (ubpr->update) {
+			old_ubpr = rcu_replace_pointer(link->u.ap.unsol_bcast_probe_resp,
+						       new_ubpr,
+						       lockdep_is_held(&link->ap_tmpl_lock));
+			changed |= BSS_CHANGED_UNSOL_BCAST_PROBE_RESP;
+		}
+		new_ubpr = NULL;
+
+		drv_update_beacon(local, sdata, link_conf, changed);
+		err = 0;
+	}
+	spin_unlock(&link->ap_tmpl_lock);
+unlock:
+	rcu_read_unlock();
+free:
+	kfree(new);
+	kfree(new_presp);
+	kfree(new_fd);
+	kfree(new_ubpr);
+	if (old)
+		kfree_rcu(old, rcu_head);
+	if (old_presp)
+		kfree_rcu(old_presp, rcu_head);
+	if (old_fd)
+		kfree_rcu(old_fd, rcu_head);
+	if (old_ubpr)
+		kfree_rcu(old_ubpr, rcu_head);
+	return err;
+}
+
 static void ieee80211_free_next_beacon(struct ieee80211_link_data *link)
 {
 	if (!link->u.ap.next_beacon)
@@ -2035,16 +2331,8 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	old_beacon = sdata_dereference(link->u.ap.beacon, sdata);
-	if (!old_beacon)
+	if (!sdata_dereference(link->u.ap.beacon, sdata))
 		return -ENOENT;
-	old_probe_resp = sdata_dereference(link->u.ap.probe_resp,
-					   sdata);
-	old_fils_discovery = sdata_dereference(link->u.ap.fils_discovery,
-					       sdata);
-	old_unsol_bcast_probe_resp =
-		sdata_dereference(link->u.ap.unsol_bcast_probe_resp,
-				  sdata);
 	old_s1g_short_beacon =
 		sdata_dereference(link->u.ap.s1g_short_beacon, sdata);
 
@@ -2065,10 +2353,20 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	/* remove beacon and probe response */
-	RCU_INIT_POINTER(link->u.ap.beacon, NULL);
-	RCU_INIT_POINTER(link->u.ap.probe_resp, NULL);
-	RCU_INIT_POINTER(link->u.ap.fils_discovery, NULL);
-	RCU_INIT_POINTER(link->u.ap.unsol_bcast_probe_resp, NULL);
+	scoped_guard(spinlock, &link->ap_tmpl_lock) {
+		old_beacon = ap_tmpl_dereference(link, link->u.ap.beacon);
+		old_probe_resp = ap_tmpl_dereference(link,
+						     link->u.ap.probe_resp);
+		old_fils_discovery =
+			ap_tmpl_dereference(link, link->u.ap.fils_discovery);
+		old_unsol_bcast_probe_resp =
+			ap_tmpl_dereference(link,
+					    link->u.ap.unsol_bcast_probe_resp);
+		RCU_INIT_POINTER(link->u.ap.beacon, NULL);
+		RCU_INIT_POINTER(link->u.ap.probe_resp, NULL);
+		RCU_INIT_POINTER(link->u.ap.fils_discovery, NULL);
+		RCU_INIT_POINTER(link->u.ap.unsol_bcast_probe_resp, NULL);
+	}
 	RCU_INIT_POINTER(link->u.ap.s1g_short_beacon, NULL);
 	kfree_rcu(old_beacon, rcu_head);
 	if (old_probe_resp)
@@ -2296,6 +2594,8 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 	case STA_LINK_MODE_NEW:
 		if (!params->link_mac)
 			return -EINVAL;
+		if (sta->sta.cip && !params->cip_cap_set)
+			return -EINVAL;
 		break;
 	case STA_LINK_MODE_LINK_MODIFY:
 		break;
@@ -2417,6 +2717,9 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 	if (params->s1g_capa)
 		ieee80211_s1g_cap_to_sta_s1g_cap(sdata, params->s1g_capa,
 						 link_sta);
+
+	if (params->cip_cap_set)
+		link_sta->pub->cip_cap = params->cip_cap;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_NAN:
@@ -2579,6 +2882,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 	if (params->eml_cap_present)
 		sta->sta.eml_cap = params->eml_cap;
+
+	if (params->sta_flags_set & BIT(NL80211_STA_FLAG_CIP))
+		sta->sta.cip = true;
 
 	ret = sta_link_apply_parameters(local, sta, STA_LINK_MODE_STA_MODIFY,
 					&params->link_sta_params);
@@ -4973,11 +5279,17 @@ static int ieee80211_probe_peer(struct wiphy *wiphy, struct net_device *dev,
 	int size;
 	int ret;
 
-	/* the lock is needed to assign the cookie later */
-	lockdep_assert_wiphy(local->hw.wiphy);
+	guard(rcu)();
+
+	/* do_stop() synchronizes RCU before the interface type can change */
+	if (!ieee80211_sdata_running(sdata))
+		return -ENETDOWN;
 
 	switch (ieee80211_vif_type_p2p(&sdata->vif)) {
 	case NL80211_IFTYPE_AP:
+		/* NULL if the interface was a station when checked */
+		if (!peer)
+			return -EINVAL;
 		fromds = true;
 		break;
 	case NL80211_IFTYPE_STATION:
@@ -5003,8 +5315,7 @@ static int ieee80211_probe_peer(struct wiphy *wiphy, struct net_device *dev,
 			 * per-link address for the client's link.
 			 */
 			link_id = sta->deflink.link_id;
-			conf = wiphy_dereference(local->hw.wiphy,
-						 sdata->vif.link_conf[link_id]);
+			conf = rcu_dereference(sdata->vif.link_conf[link_id]);
 			if (!conf)
 				return -ENOLINK;
 			src_addr = conf->addr;
@@ -5019,9 +5330,8 @@ static int ieee80211_probe_peer(struct wiphy *wiphy, struct net_device *dev,
 		/* MLD transmissions must not rely on the band */
 		band = 0;
 	} else {
-		chanctx_conf = wiphy_dereference(local->hw.wiphy,
-						 sdata->vif.bss_conf.chanctx_conf);
-		if (WARN_ON(!chanctx_conf))
+		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+		if (!chanctx_conf)
 			return -EINVAL;
 		band = chanctx_conf->def.chan->band;
 		link_id = 0;
@@ -5068,9 +5378,7 @@ static int ieee80211_probe_peer(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	local_bh_disable();
-	rcu_read_lock();
 	ieee80211_xmit(sdata, sta, skb);
-	rcu_read_unlock();
 	local_bh_enable();
 
 	return 0;
@@ -5779,7 +6087,9 @@ ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
 	cfg80211_color_change_started_notify(sdata->dev, params->count, link_id);
 
 	if (changed)
-		ieee80211_color_change_bss_config_notify(link, 0, 0, changed);
+		ieee80211_color_change_bss_config_notify(link,
+							 link_conf->he_bss_color.color,
+							 0, changed);
 	else
 		/* if the beacon didn't change, we can finalize immediately */
 		ieee80211_color_change_finalize(link);
@@ -5987,6 +6297,18 @@ ieee80211_set_peer_nan_sched(struct wiphy *wiphy,
 	return ieee80211_nan_set_peer_sched(sdata, sched);
 }
 
+static int
+ieee80211_set_nan_non_evac_channels(struct wiphy *wiphy,
+				    struct wireless_dev *wdev,
+				    struct cfg80211_nan_non_evac_channels *channels)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+
+	lockdep_assert_wiphy(wiphy);
+
+	return ieee80211_nan_set_non_evac_channels(sdata, channels);
+}
+
 const struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -6001,12 +6323,15 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.set_default_beacon_key = ieee80211_config_default_beacon_key,
 	.start_ap = ieee80211_start_ap,
 	.change_beacon = ieee80211_change_beacon,
+	.update_beacon = ieee80211_update_beacon,
 	.stop_ap = ieee80211_stop_ap,
 	.add_station = ieee80211_add_station,
 	.del_station = ieee80211_del_station,
 	.change_station = ieee80211_change_station,
 	.get_station = ieee80211_get_station,
+	.get_station_unlocked = ieee80211_get_station_unlocked,
 	.dump_station = ieee80211_dump_station,
+	.dump_station_unlocked = ieee80211_dump_station_unlocked,
 	.dump_survey = ieee80211_dump_survey,
 #ifdef CONFIG_MAC80211_MESH
 	.add_mpath = ieee80211_add_mpath,
@@ -6051,6 +6376,7 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.remain_on_channel = ieee80211_remain_on_channel,
 	.cancel_remain_on_channel = ieee80211_cancel_remain_on_channel,
 	.mgmt_tx = ieee80211_mgmt_tx,
+	.mgmt_tx_unlocked = ieee80211_mgmt_tx_unlocked,
 	.mgmt_tx_cancel_wait = ieee80211_mgmt_tx_cancel_wait,
 	.set_cqm_rssi_config = ieee80211_set_cqm_rssi_config,
 	.set_cqm_rssi_range_config = ieee80211_set_cqm_rssi_range_config,
@@ -6105,4 +6431,5 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.set_epcs = ieee80211_set_epcs,
 	.nan_set_local_sched = ieee80211_set_local_nan_sched,
 	.nan_set_peer_sched = ieee80211_set_peer_nan_sched,
+	.nan_set_non_evac_channels = ieee80211_set_nan_non_evac_channels,
 };

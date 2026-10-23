@@ -43,7 +43,7 @@ bool br_vlan_opts_eq_range(const struct net_bridge_vlan *v_curr,
 	u8 range_mc_rtr = br_vlan_multicast_router(range_end);
 	u8 curr_mc_rtr = br_vlan_multicast_router(v_curr);
 
-	if (v_curr->state != range_end->state)
+	if (br_vlan_get_state(v_curr) != br_vlan_get_state(range_end))
 		return false;
 
 	if (!__vlan_tun_can_enter_range(v_curr, range_end))
@@ -110,8 +110,7 @@ size_t br_vlan_opts_nl_size(void)
 	       + 0;
 }
 
-static int br_vlan_modify_state(struct net_bridge_vlan_group *vg,
-				struct net_bridge_vlan *v,
+static int br_vlan_modify_state(struct net_bridge_vlan *v,
 				u8 state,
 				bool *changed,
 				struct netlink_ext_ack *extack)
@@ -142,9 +141,6 @@ static int br_vlan_modify_state(struct net_bridge_vlan_group *vg,
 
 	if (v->state == state)
 		return 0;
-
-	if (v->vid == br_get_pvid(vg))
-		br_vlan_set_pvid_state(vg, state);
 
 	br_vlan_set_state(v, state);
 	*changed = true;
@@ -216,7 +212,6 @@ static int br_vlan_modify_tunnel(const struct net_bridge_port *p,
 
 static int br_vlan_process_one_opts(const struct net_bridge *br,
 				    const struct net_bridge_port *p,
-				    struct net_bridge_vlan_group *vg,
 				    struct net_bridge_vlan *v,
 				    struct nlattr **tb,
 				    bool *changed,
@@ -228,7 +223,7 @@ static int br_vlan_process_one_opts(const struct net_bridge *br,
 	if (tb[BRIDGE_VLANDB_ENTRY_STATE]) {
 		u8 state = nla_get_u8(tb[BRIDGE_VLANDB_ENTRY_STATE]);
 
-		err = br_vlan_modify_state(vg, v, state, changed, extack);
+		err = br_vlan_modify_state(v, state, changed, extack);
 		if (err)
 			return err;
 	}
@@ -276,7 +271,8 @@ static int br_vlan_process_one_opts(const struct net_bridge *br,
 		}
 
 		if (val != enabled) {
-			v->priv_flags ^= BR_VLFLAG_NEIGH_SUPPRESS_ENABLED;
+			WRITE_ONCE(v->priv_flags, v->priv_flags ^
+				   BR_VLFLAG_NEIGH_SUPPRESS_ENABLED);
 			*changed = true;
 		}
 	}
@@ -292,7 +288,8 @@ static int br_vlan_process_one_opts(const struct net_bridge *br,
 		}
 
 		if (val != enabled) {
-			v->priv_flags ^= BR_VLFLAG_NEIGH_FORWARD_GRAT_ENABLED;
+			WRITE_ONCE(v->priv_flags, v->priv_flags ^
+				   BR_VLFLAG_NEIGH_FORWARD_GRAT_ENABLED);
 			*changed = true;
 		}
 	}
@@ -337,8 +334,7 @@ int br_vlan_process_options(const struct net_bridge *br,
 			break;
 		}
 
-		err = br_vlan_process_one_opts(br, p, vg, v, tb, &changed,
-					       extack);
+		err = br_vlan_process_one_opts(br, p, v, tb, &changed, extack);
 		if (err)
 			break;
 

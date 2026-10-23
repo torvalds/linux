@@ -10,20 +10,19 @@
 int nf_ct_seqadj_init(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 		      s32 off)
 {
+	struct nf_conn_seqadj *seqadj = nfct_seqadj(ct);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-	struct nf_conn_seqadj *seqadj;
 	struct nf_ct_seqadj *this_way;
 
 	if (off == 0)
 		return 0;
 
-	spin_lock_bh(&ct->lock);
-	seqadj = nfct_seqadj(ct);
-	if (!seqadj) {
-		spin_unlock_bh(&ct->lock);
+	if (unlikely(!seqadj))
 		return 0;
-	}
+
 	set_bit(IPS_SEQ_ADJUST_BIT, &ct->status);
+
+	spin_lock_bh(&ct->lock);
 	this_way = &seqadj->seq[dir];
 	this_way->offset_before	 = off;
 	this_way->offset_after	 = off;
@@ -31,6 +30,23 @@ int nf_ct_seqadj_init(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_ct_seqadj_init);
+
+void nf_ct_seqadj_reset(struct nf_conn *ct, enum ip_conntrack_info ctinfo)
+{
+	struct nf_conn_seqadj *seqadj = nfct_seqadj(ct);
+	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
+	struct nf_ct_seqadj *this_way;
+
+	if (unlikely(!seqadj))
+		return;
+
+	spin_lock_bh(&ct->lock);
+	this_way = &seqadj->seq[dir];
+	this_way->offset_before	 = 0;
+	this_way->offset_after	 = 0;
+	spin_unlock_bh(&ct->lock);
+}
+EXPORT_SYMBOL_GPL(nf_ct_seqadj_reset);
 
 int nf_ct_seqadj_set(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 		     __be32 seq, s32 off)

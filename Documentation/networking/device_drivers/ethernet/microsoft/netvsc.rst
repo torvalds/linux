@@ -116,5 +116,3 @@ XDP support
   before running XDP::
 
 	ethtool -K eth0 lro off
-
-  XDP_REDIRECT action is not yet supported.

@@ -256,7 +256,8 @@ static int ism_alloc_dmb(struct ism_dev *ism, struct dibs_dmb *dmb)
 		return -EINVAL;
 
 	folio = folio_alloc(GFP_KERNEL | __GFP_NOWARN | __GFP_NOMEMALLOC |
-			    __GFP_NORETRY, get_order(dmb->dmb_len));
+			    __GFP_NORETRY | __GFP_ZERO,
+			    get_order(dmb->dmb_len));
 
 	if (!folio) {
 		rc = -ENOMEM;

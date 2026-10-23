@@ -3207,7 +3207,8 @@ static void b43legacy_wireless_core_exit(struct b43legacy_wldev *dev)
 	ssb_bus_may_powerdown(dev->dev->bus);
 }
 
-static void prepare_phy_data_for_init(struct b43legacy_wldev *dev)
+static noinline_for_stack void
+prepare_phy_data_for_init(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_phy *phy = &dev->phy;
 	int i;

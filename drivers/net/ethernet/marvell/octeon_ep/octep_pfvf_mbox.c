@@ -274,7 +274,6 @@ int octep_setup_pfvf_mbox(struct octep_device *oct)
 		if (!oct->mbox[ring])
 			goto free_mbox;
 
-		memset(oct->mbox[ring], 0, sizeof(struct octep_mbox));
 		memset(&oct->vf_info[i], 0, sizeof(struct octep_pfvf_info));
 		mutex_init(&oct->mbox[ring]->lock);
 		INIT_WORK(&oct->mbox[ring]->wk.work, octep_pfvf_mbox_work);

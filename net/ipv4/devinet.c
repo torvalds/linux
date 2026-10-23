@@ -265,7 +265,9 @@ EXPORT_SYMBOL(in_dev_finish_destroy);
 
 static struct in_device *inetdev_init(struct net_device *dev)
 {
+	struct net *net = dev_net(dev);
 	struct in_device *in_dev;
+	struct neigh_table *tbl;
 	int err = -ENOMEM;
 
 	ASSERT_RTNL();
@@ -273,11 +275,12 @@ static struct in_device *inetdev_init(struct net_device *dev)
 	in_dev = kzalloc_obj(*in_dev);
 	if (!in_dev)
 		goto out;
-	memcpy(&in_dev->cnf, dev_net(dev)->ipv4.devconf_dflt,
-			sizeof(in_dev->cnf));
+
+	tbl = arp_table(net);
+	memcpy(&in_dev->cnf, net->ipv4.devconf_dflt, sizeof(in_dev->cnf));
 	in_dev->cnf.sysctl = NULL;
 	in_dev->dev = dev;
-	in_dev->arp_parms = neigh_parms_alloc(dev, &arp_tbl);
+	in_dev->arp_parms = neigh_parms_alloc(dev, tbl);
 	if (!in_dev->arp_parms)
 		goto out_kfree;
 	if (IPV4_DEVCONF(in_dev->cnf, FORWARDING))
@@ -291,7 +294,7 @@ static struct in_device *inetdev_init(struct net_device *dev)
 		err = devinet_sysctl_register(in_dev);
 		if (err) {
 			in_dev->dead = 1;
-			neigh_parms_release(&arp_tbl, in_dev->arp_parms);
+			neigh_parms_release(tbl, in_dev->arp_parms);
 			in_dev_put(in_dev);
 			in_dev = NULL;
 			goto out;
@@ -313,12 +316,11 @@ out_kfree:
 
 static void inetdev_destroy(struct in_device *in_dev)
 {
-	struct net_device *dev;
+	struct net_device *dev = in_dev->dev;
+	struct net *net = dev_net(dev);
 	struct in_ifaddr *ifa;
 
 	ASSERT_RTNL();
-
-	dev = in_dev->dev;
 
 	in_dev->dead = 1;
 
@@ -332,23 +334,11 @@ static void inetdev_destroy(struct in_device *in_dev)
 	}
 
 	devinet_sysctl_unregister(in_dev);
-	neigh_parms_release(&arp_tbl, in_dev->arp_parms);
+	neigh_parms_release(arp_table(net), in_dev->arp_parms);
 	arp_ifdown(dev);
 
 	in_dev_put(in_dev);
 }
-
-static int __init inet_blackhole_dev_init(void)
-{
-	struct in_device *in_dev;
-
-	rtnl_lock();
-	in_dev = inetdev_init(blackhole_netdev);
-	rtnl_unlock();
-
-	return PTR_ERR_OR_ZERO(in_dev);
-}
-late_initcall(inet_blackhole_dev_init);
 
 int inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b)
 {
@@ -2379,8 +2369,8 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 	struct net *net = sock_net(in_skb->sk);
 	struct nlattr *tb[NETCONFA_MAX + 1];
 	const struct ipv4_devconf *devconf;
-	struct in_device *in_dev = NULL;
-	struct net_device *dev = NULL;
+	struct in_device *in_dev;
+	struct net_device *dev;
 	struct sk_buff *skb;
 	int ifindex;
 	int err;
@@ -2392,7 +2382,13 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 	if (!tb[NETCONFA_IFINDEX])
 		return -EINVAL;
 
+	skb = nlmsg_new(inet_netconf_msgsize_devconf(NETCONFA_ALL), GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
 	ifindex = nla_get_s32(tb[NETCONFA_IFINDEX]);
+
+	rcu_read_lock();
 	switch (ifindex) {
 	case NETCONFA_IFINDEX_ALL:
 		devconf = net->ipv4.devconf_all;
@@ -2402,36 +2398,29 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 		break;
 	default:
 		err = -ENODEV;
-		dev = dev_get_by_index(net, ifindex);
-		if (dev)
-			in_dev = in_dev_get(dev);
+		dev = dev_get_by_index_rcu(net, ifindex);
+		if (!dev)
+			goto out_unlock;
+		in_dev = __in_dev_get_rcu(dev);
 		if (!in_dev)
-			goto errout;
+			goto out_unlock;
 		devconf = &in_dev->cnf;
 		break;
 	}
-
-	err = -ENOBUFS;
-	skb = nlmsg_new(inet_netconf_msgsize_devconf(NETCONFA_ALL), GFP_KERNEL);
-	if (!skb)
-		goto errout;
 
 	err = inet_netconf_fill_devconf(skb, ifindex, devconf,
 					NETLINK_CB(in_skb).portid,
 					nlh->nlmsg_seq, RTM_NEWNETCONF, 0,
 					NETCONFA_ALL);
+out_unlock:
+	rcu_read_unlock();
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in inet_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
-		goto errout;
+		return err;
 	}
-	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
-errout:
-	if (in_dev)
-		in_dev_put(in_dev);
-	dev_put(dev);
-	return err;
+	return rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
 }
 
 static int inet_netconf_dump_devconf(struct sk_buff *skb,
@@ -2972,4 +2961,9 @@ void __init devinet_init(void)
 		panic("Unable to register inet_af_ops\n");
 
 	rtnl_register_many(devinet_rtnl_msg_handlers);
+
+	rtnl_lock();
+	if (IS_ERR(inetdev_init(blackhole_netdev)))
+		panic("IP: failed to allocate in_device for blackhole_netdev\n");
+	rtnl_unlock();
 }

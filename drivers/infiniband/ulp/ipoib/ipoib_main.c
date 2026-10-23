@@ -1385,7 +1385,8 @@ out_unlock:
 	return neigh;
 }
 
-static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
+static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv,
+			       int gc_interval)
 {
 	struct ipoib_neigh_table *ntbl = &priv->ntbl;
 	struct ipoib_neigh_hash *htbl;
@@ -1404,7 +1405,7 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 		goto out_unlock;
 
 	/* neigh is obsolete if it was idle for two GC periods */
-	dt = 2 * arp_tbl.gc_interval;
+	dt = 2 * gc_interval;
 	neigh_obsolete = jiffies - dt;
 
 	for (i = 0; i < htbl->size; i++) {
@@ -1440,11 +1441,16 @@ static void ipoib_reap_neigh(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv =
 		container_of(work, struct ipoib_dev_priv, neigh_reap_task.work);
+	struct net_device *dev = priv->dev;
+	struct net *net = dev_net(dev);
+	struct neigh_table *tbl;
+	int gc_interval;
 
-	__ipoib_reap_neigh(priv);
+	tbl = arp_table(net);
+	gc_interval = tbl->gc_interval;
+	__ipoib_reap_neigh(priv, gc_interval);
 
-	queue_delayed_work(priv->wq, &priv->neigh_reap_task,
-			   arp_tbl.gc_interval);
+	queue_delayed_work(priv->wq, &priv->neigh_reap_task, gc_interval);
 }
 
 
@@ -1597,8 +1603,11 @@ void ipoib_neigh_free(struct ipoib_neigh *neigh)
 static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 {
 	struct ipoib_neigh_table *ntbl = &priv->ntbl;
-	struct ipoib_neigh_hash *htbl;
 	struct ipoib_neigh __rcu **buckets;
+	struct net_device *dev = priv->dev;
+	struct net *net = dev_net(dev);
+	struct ipoib_neigh_hash *htbl;
+	struct neigh_table *tbl;
 	u32 size;
 
 	clear_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
@@ -1606,7 +1615,9 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 	htbl = kzalloc_obj(*htbl);
 	if (!htbl)
 		return -ENOMEM;
-	size = roundup_pow_of_two(arp_tbl.gc_thresh3);
+
+	tbl = arp_table(net);
+	size = roundup_pow_of_two(tbl->gc_thresh3);
 	buckets = kvzalloc_objs(*buckets, size);
 	if (!buckets) {
 		kfree(htbl);
@@ -1621,7 +1632,7 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 
 	/* start garbage collection */
 	queue_delayed_work(priv->wq, &priv->neigh_reap_task,
-			   arp_tbl.gc_interval);
+			   tbl->gc_interval);
 
 	return 0;
 }

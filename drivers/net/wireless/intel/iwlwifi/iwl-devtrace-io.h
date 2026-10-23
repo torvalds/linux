@@ -3,6 +3,7 @@
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2016-2017 Intel Deutschland GmbH
+ * Copyright (C) 2026 Intel Corporation
  *****************************************************************************/
 
 #if !defined(__IWLWIFI_DEVICE_TRACE_IO) || defined(TRACE_HEADER_MULTI_READ)
@@ -62,23 +63,6 @@ TRACE_EVENT(iwlwifi_dev_iowrite32,
 		__entry->val = val;
 	),
 	TP_printk("[%s] write io[%#x] = %#x)",
-		  __get_str(dev), __entry->offs, __entry->val)
-);
-
-TRACE_EVENT(iwlwifi_dev_iowrite64,
-	TP_PROTO(const struct device *dev, u64 offs, u64 val),
-	TP_ARGS(dev, offs, val),
-	TP_STRUCT__entry(
-		DEV_ENTRY
-		__field(u64, offs)
-		__field(u64, val)
-	),
-	TP_fast_assign(
-		DEV_ASSIGN;
-		__entry->offs = offs;
-		__entry->val = val;
-	),
-	TP_printk("[%s] write io[%llu] = %llu)",
 		  __get_str(dev), __entry->offs, __entry->val)
 );
 

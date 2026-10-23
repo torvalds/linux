@@ -48,9 +48,14 @@ static void dwmac4_core_init(struct mac_device_info *hw,
 	value = readl(ioaddr + GMAC_CONFIG);
 	writel(value | GMAC_CORE_INIT, ioaddr + GMAC_CONFIG);
 
-	/* Configure LPI 1us counter to number of CSR clock ticks in 1us - 1 */
+	/* Configure LPI 1us counter to number of CSR clock ticks in 1us - 1.
+	 * Platforms with firmware-managed clocks may not expose the CSR clock
+	 * to linux, in which case there's no meaningful value to program.
+	 */
 	clk_rate = clk_get_rate(priv->plat->stmmac_clk);
-	writel((clk_rate / 1000000) - 1, ioaddr + GMAC4_MAC_ONEUS_TIC_COUNTER);
+	if (clk_rate >= 1000000)
+		writel((clk_rate / 1000000) - 1,
+		       ioaddr + GMAC4_MAC_ONEUS_TIC_COUNTER);
 
 	/* Enable GMAC interrupts */
 	writel(GMAC_INT_DEFAULT_ENABLE, ioaddr + GMAC_INT_EN);
@@ -365,22 +370,63 @@ static void dwmac4_pmt(struct mac_device_info *hw, unsigned long mode)
 	writel(pmt, ioaddr + GMAC_PMT);
 }
 
+/**
+ * dwmac4_umac_addr_slot - Get the UC filter slot for the Nth MAC address
+ * @hw: The MAC device info
+ * @reg_n: The MAC address's index in the UC list
+ *
+ * On dwmac4 the slots available for Unicast MAC filtering are configured when
+ * integrating the IP.
+ *
+ *  - Slot 0 is always available, used to store the primary MAC address
+ *  - From 1 to 31, the number of implemented slots is set in hw->multi_addr
+ *  - From 32 to 63, the range is available if hw->additional_32_addr
+ *    is set
+ *  - From 64 to 127, the range is available if hw->additional_64_addr is set
+ *
+ * All the ranges can be configured independently (e.g. 64 -> 127 can be
+ * available, but not 32 -> 63)
+ *
+ * Returns: The physical slot index in the UC filter
+ */
+static unsigned int dwmac4_umac_addr_slot(struct mac_device_info *hw,
+					  unsigned int reg_n)
+{
+	unsigned int empty_slots = 0;
+
+	/* reg_n is in the 1-31 bank : 1 to 1 mapping */
+	if (reg_n < (hw->multi_addr + 1))
+		return reg_n;
+
+	/* Gap between the last address in the 1->31 range and the next slot */
+	if (hw->additional_32_addr)
+		empty_slots = 32 - (hw->multi_addr + 1);
+	else if (hw->additional_64_addr)
+		empty_slots = 64 - (hw->multi_addr + 1);
+
+	return reg_n + empty_slots;
+}
+
 static void dwmac4_set_umac_addr(struct mac_device_info *hw,
 				 const unsigned char *addr, unsigned int reg_n)
 {
 	void __iomem *ioaddr = hw->pcsr;
+	unsigned int slot;
 
-	stmmac_dwmac4_set_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
-				   GMAC_ADDR_LOW(reg_n));
+	slot = dwmac4_umac_addr_slot(hw, reg_n);
+	stmmac_dwmac4_set_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(slot),
+				   GMAC_ADDR_LOW(slot));
 }
 
 static void dwmac4_get_umac_addr(struct mac_device_info *hw,
 				 unsigned char *addr, unsigned int reg_n)
 {
 	void __iomem *ioaddr = hw->pcsr;
+	unsigned int slot;
 
-	stmmac_get_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
-			    GMAC_ADDR_LOW(reg_n));
+	slot = dwmac4_umac_addr_slot(hw, reg_n);
+	stmmac_get_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(slot),
+			    GMAC_ADDR_LOW(slot));
 }
 
 static int dwmac4_set_lpi_mode(struct mac_device_info *hw,
@@ -522,9 +568,6 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 
 	/* Handle multiple unicast addresses */
 	if (netdev_uc_count(dev) + 1 > hw->unicast_filter_entries) {
-		/* Switch to promiscuous mode if more than 128 addrs
-		 * are required
-		 */
 		value |= GMAC_PACKET_FILTER_PR;
 	} else {
 		struct netdev_hw_addr *ha;
@@ -535,9 +578,11 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 			reg++;
 		}
 
-		while (reg < GMAC_MAX_PERFECT_ADDRESSES) {
-			writel(0, ioaddr + GMAC_ADDR_HIGH(reg));
-			writel(0, ioaddr + GMAC_ADDR_LOW(reg));
+		while (reg < hw->unicast_filter_entries) {
+			unsigned int slot = dwmac4_umac_addr_slot(hw, reg);
+
+			writel(0, ioaddr + GMAC_ADDR_HIGH(slot));
+			writel(0, ioaddr + GMAC_ADDR_LOW(slot));
 			reg++;
 		}
 	}
@@ -779,22 +824,6 @@ static void dwmac4_sarc_configure(void __iomem *ioaddr, int val)
 	writel(value, ioaddr + GMAC_CONFIG);
 }
 
-static void dwmac4_set_arp_offload(struct mac_device_info *hw, bool en,
-				   u32 addr)
-{
-	void __iomem *ioaddr = hw->pcsr;
-	u32 value;
-
-	writel(addr, ioaddr + GMAC_ARP_ADDR);
-
-	value = readl(ioaddr + GMAC_CONFIG);
-	if (en)
-		value |= GMAC_CONFIG_ARPEN;
-	else
-		value &= ~GMAC_CONFIG_ARPEN;
-	writel(value, ioaddr + GMAC_CONFIG);
-}
-
 static int dwmac4_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
 				   bool en, bool ipv6, bool sa, bool inv,
 				   u32 match)
@@ -926,7 +955,6 @@ const struct stmmac_ops dwmac4_ops = {
 	.set_filter = dwmac4_set_filter,
 	.set_mac_loopback = dwmac4_set_mac_loopback,
 	.sarc_configure = dwmac4_sarc_configure,
-	.set_arp_offload = dwmac4_set_arp_offload,
 	.config_l3_filter = dwmac4_config_l3_filter,
 	.config_l4_filter = dwmac4_config_l4_filter,
 };
@@ -963,7 +991,6 @@ const struct stmmac_ops dwmac410_ops = {
 	.flex_pps_config = dwmac5_flex_pps_config,
 	.set_mac_loopback = dwmac4_set_mac_loopback,
 	.sarc_configure = dwmac4_sarc_configure,
-	.set_arp_offload = dwmac4_set_arp_offload,
 	.config_l3_filter = dwmac4_config_l3_filter,
 	.config_l4_filter = dwmac4_config_l4_filter,
 	.fpe_map_preemption_class = dwmac5_fpe_map_preemption_class,
@@ -1005,7 +1032,6 @@ const struct stmmac_ops dwmac510_ops = {
 	.flex_pps_config = dwmac5_flex_pps_config,
 	.set_mac_loopback = dwmac4_set_mac_loopback,
 	.sarc_configure = dwmac4_sarc_configure,
-	.set_arp_offload = dwmac4_set_arp_offload,
 	.config_l3_filter = dwmac4_config_l3_filter,
 	.config_l4_filter = dwmac4_config_l4_filter,
 	.fpe_map_preemption_class = dwmac5_fpe_map_preemption_class,

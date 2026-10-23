@@ -97,7 +97,6 @@ struct realtek_priv {
 	int			vlan_enabled;
 	int			vlan4k_enabled;
 
-	char			buf[4096];
 	void			*chip_data; /* Per-chip extra variant data */
 };
 
@@ -156,6 +155,10 @@ struct realtek_ops {
 	int	(*phy_read)(struct realtek_priv *priv, int phy, int regnum);
 	int	(*phy_write)(struct realtek_priv *priv, int phy, int regnum,
 			     u16 val);
+	int	(*phy_read_c45)(struct realtek_priv *priv, int phy, int devad,
+				int regnum);
+	int	(*phy_write_c45)(struct realtek_priv *priv, int phy, int devad,
+				 int regnum, u16 val);
 };
 
 struct realtek_variant {
@@ -166,6 +169,9 @@ struct realtek_variant {
 	u8 cmd_read;
 	u8 cmd_write;
 	size_t chip_data_sz;
+	/* Regulator supplies to enable at probe, or NULL */
+	const char *const *supplies;
+	int num_supplies;
 };
 
 /* RTL8366 library helpers */

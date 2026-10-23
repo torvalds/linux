@@ -1959,8 +1959,9 @@ static int npc_apply_custom_kpu_from_fs(struct rvu *rvu,
 	fw = rvu->kpu_fwdata;
 
 	/* Binary blob contains ikpu actions entries at start of data[0] */
-	profile->ikpu2 = devm_kcalloc(rvu->dev, 1,
-				      sizeof(ikpu_action_entries),
+	profile->ikpu2 = devm_kcalloc(rvu->dev,
+				      ARRAY_SIZE(ikpu_action_entries),
+				      sizeof(*profile->ikpu2),
 				      GFP_KERNEL);
 	if (!profile->ikpu2)
 		return -ENOMEM;

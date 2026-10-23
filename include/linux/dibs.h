@@ -261,12 +261,12 @@ struct dibs_dev_ops {
 	 *	@vlan_id: deprecated, ignored if device does not support vlan
 	 * Upon return in addition the following fields will be valid:
 	 *	@dmb_tok: for usage by remote and local devices and clients
-	 *	@cpu_addr: allocated buffer
+	 *	@cpu_addr: allocated, zerorized buffer
 	 *	@idx: dmb index, unique per dibs device
 	 *	@dma_addr: to be used by device driver,if applicable
 	 *
-	 * Allocate a dmb buffer and register it with this device and for this
-	 * client.
+	 * Allocate and zerorize a dmb buffer and register it with this device
+	 * and for this client.
 	 * Return: zero on success
 	 */
 	int (*register_dmb)(struct dibs_dev *dev, struct dibs_dmb *dmb,

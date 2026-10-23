@@ -284,10 +284,10 @@ void wfx_bh_request_tx(struct wfx_dev *wdev)
 }
 
 /* If IRQ is not available, this function allow to manually poll the control register and simulate
- * an IRQ ahen an event happened.
+ * an IRQ when an event happened.
  *
- * Note that the device has a bug: If an IRQ raise while host read control register, the IRQ is
- * lost. So, use this function carefully (only duing device initialisation).
+ * Note that the device has a bug: If an IRQ raise while host read control register, the device is
+ * lost. Unfortunately, this is the only way to initialize the SDIO with out-of-band IRQ.
  */
 void wfx_bh_poll_irq(struct wfx_dev *wdev)
 {

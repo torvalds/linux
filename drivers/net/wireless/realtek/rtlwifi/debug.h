@@ -18,7 +18,7 @@
 /*#define DBG_EMERG			0 */
 
 /*
- *Abnormal, rare, or unexpeted cases.
+ *Abnormal, rare, or unexpected cases.
  *For example, Packet/IO Ctl canceled,
  *device suprisely unremoved and so on.
  */

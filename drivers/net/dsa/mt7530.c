@@ -155,97 +155,6 @@ core_clear(struct mt7530_priv *priv, u32 reg, u32 val)
 }
 
 static int
-mt7530_mii_write(struct mt7530_priv *priv, u32 reg, u32 val)
-{
-	int ret;
-
-	ret = regmap_write(priv->regmap, reg, val);
-
-	if (ret < 0)
-		dev_err(priv->dev,
-			"failed to write mt7530 register\n");
-
-	return ret;
-}
-
-static u32
-mt7530_mii_read(struct mt7530_priv *priv, u32 reg)
-{
-	int ret;
-	u32 val;
-
-	ret = regmap_read(priv->regmap, reg, &val);
-	if (ret) {
-		WARN_ON_ONCE(1);
-		dev_err(priv->dev,
-			"failed to read mt7530 register\n");
-		return 0;
-	}
-
-	return val;
-}
-
-static int
-mt7530_write(struct mt7530_priv *priv, u32 reg, u32 val)
-{
-	int ret;
-
-	mt7530_mutex_lock(priv);
-
-	ret = mt7530_mii_write(priv, reg, val);
-
-	mt7530_mutex_unlock(priv);
-
-	return ret;
-}
-
-static u32
-_mt7530_read(struct mt7530_dummy_poll *p)
-{
-	u32 val;
-
-	mt7530_mutex_lock(p->priv);
-
-	val = mt7530_mii_read(p->priv, p->reg);
-
-	mt7530_mutex_unlock(p->priv);
-
-	return val;
-}
-
-static u32
-mt7530_read(struct mt7530_priv *priv, u32 reg)
-{
-	struct mt7530_dummy_poll p;
-
-	INIT_MT7530_DUMMY_POLL(&p, priv, reg);
-	return _mt7530_read(&p);
-}
-
-static void
-mt7530_rmw(struct mt7530_priv *priv, u32 reg,
-	   u32 mask, u32 set)
-{
-	mt7530_mutex_lock(priv);
-
-	regmap_update_bits(priv->regmap, reg, mask, set);
-
-	mt7530_mutex_unlock(priv);
-}
-
-static void
-mt7530_set(struct mt7530_priv *priv, u32 reg, u32 val)
-{
-	mt7530_rmw(priv, reg, val, val);
-}
-
-static void
-mt7530_clear(struct mt7530_priv *priv, u32 reg, u32 val)
-{
-	mt7530_rmw(priv, reg, val, 0);
-}
-
-static int
 mt7530_fdb_cmd(struct mt7530_priv *priv, enum mt7530_fdb_cmd cmd, u32 *rsp)
 {
 	u32 val;
@@ -253,18 +162,14 @@ mt7530_fdb_cmd(struct mt7530_priv *priv, enum mt7530_fdb_cmd cmd, u32 *rsp)
 
 	/* Set the command operating upon the MAC address entries */
 	val = ATC_BUSY | ATC_MAT(0) | cmd;
-	ret = mt7530_write(priv, MT7530_ATC, val);
+	ret = regmap_write(priv->regmap, MT7530_ATC, val);
 	if (ret)
 		return ret;
-
-	mt7530_mutex_lock(priv);
 
 	ret = regmap_read_poll_timeout(priv->regmap, MT7530_ATC, val,
 				       !(val & ATC_BUSY), 20, 20000);
 	if (!ret)
 		ret = regmap_read(priv->regmap, MT7530_ATC, &val);
-
-	mt7530_mutex_unlock(priv);
 
 	if (ret < 0) {
 		dev_err(priv->dev, "reset timeout\n");
@@ -283,6 +188,26 @@ mt7530_fdb_cmd(struct mt7530_priv *priv, enum mt7530_fdb_cmd cmd, u32 *rsp)
 	return 0;
 }
 
+static void mt7530_port_fast_age(struct dsa_switch *ds, int port)
+{
+	struct mt7530_priv *priv = ds->priv;
+	u32 val;
+	int ret;
+
+	mutex_lock(&priv->reg_mutex);
+
+	/* Flush all non-static MAC address entries */
+	val = ATC_BUSY | ATC_MAT_NON_STATIC_MAC | MT7530_FDB_FLUSH;
+	ret = regmap_write(priv->regmap, MT7530_ATC, val);
+	if (!ret)
+		ret = regmap_read_poll_timeout(priv->regmap, MT7530_ATC, val,
+					       !(val & ATC_BUSY), 20, 20000);
+	if (ret < 0)
+		dev_err(priv->dev, "fast age failed: %d\n", ret);
+
+	mutex_unlock(&priv->reg_mutex);
+}
+
 static void
 mt7530_fdb_read(struct mt7530_priv *priv, struct mt7530_fdb *fdb)
 {
@@ -291,22 +216,23 @@ mt7530_fdb_read(struct mt7530_priv *priv, struct mt7530_fdb *fdb)
 
 	/* Read from ARL table into an array */
 	for (i = 0; i < 3; i++) {
-		reg[i] = mt7530_read(priv, MT7530_TSRA1 + (i * 4));
+		regmap_read(priv->regmap, MT7530_TSRA1 + (i * 4),
+			    &reg[i]);
 
 		dev_dbg(priv->dev, "%s(%d) reg[%d]=0x%x\n",
 			__func__, __LINE__, i, reg[i]);
 	}
 
-	fdb->vid = (reg[1] >> CVID) & CVID_MASK;
-	fdb->aging = (reg[2] >> AGE_TIMER) & AGE_TIMER_MASK;
-	fdb->port_mask = (reg[2] >> PORT_MAP) & PORT_MAP_MASK;
-	fdb->mac[0] = (reg[0] >> MAC_BYTE_0) & MAC_BYTE_MASK;
-	fdb->mac[1] = (reg[0] >> MAC_BYTE_1) & MAC_BYTE_MASK;
-	fdb->mac[2] = (reg[0] >> MAC_BYTE_2) & MAC_BYTE_MASK;
-	fdb->mac[3] = (reg[0] >> MAC_BYTE_3) & MAC_BYTE_MASK;
-	fdb->mac[4] = (reg[1] >> MAC_BYTE_4) & MAC_BYTE_MASK;
-	fdb->mac[5] = (reg[1] >> MAC_BYTE_5) & MAC_BYTE_MASK;
-	fdb->noarp = ((reg[2] >> ENT_STATUS) & ENT_STATUS_MASK) == STATIC_ENT;
+	fdb->vid = FIELD_GET(CVID_MASK, reg[1]);
+	fdb->aging = FIELD_GET(AGE_TIMER_MASK, reg[2]);
+	fdb->port_mask = FIELD_GET(PORT_MAP_MASK, reg[2]);
+	fdb->mac[0] = FIELD_GET(MAC_BYTE_0_MASK, reg[0]);
+	fdb->mac[1] = FIELD_GET(MAC_BYTE_1_MASK, reg[0]);
+	fdb->mac[2] = FIELD_GET(MAC_BYTE_2_MASK, reg[0]);
+	fdb->mac[3] = FIELD_GET(MAC_BYTE_3_MASK, reg[0]);
+	fdb->mac[4] = FIELD_GET(MAC_BYTE_4_MASK, reg[1]);
+	fdb->mac[5] = FIELD_GET(MAC_BYTE_5_MASK, reg[1]);
+	fdb->noarp = FIELD_GET(ENT_STATUS_MASK, reg[2]) == STATIC_ENT;
 }
 
 static void
@@ -317,26 +243,26 @@ mt7530_fdb_write(struct mt7530_priv *priv, u16 vid,
 	u32 reg[3] = { 0 };
 	int i;
 
-	reg[1] |= vid & CVID_MASK;
+	reg[1] |= FIELD_PREP(CVID_MASK, vid);
 	reg[1] |= ATA2_IVL;
 	reg[1] |= ATA2_FID(FID_BRIDGED);
-	reg[2] |= (aging & AGE_TIMER_MASK) << AGE_TIMER;
-	reg[2] |= (port_mask & PORT_MAP_MASK) << PORT_MAP;
+	reg[2] |= FIELD_PREP(AGE_TIMER_MASK, aging);
+	reg[2] |= FIELD_PREP(PORT_MAP_MASK, port_mask);
 	/* STATIC_ENT indicate that entry is static wouldn't
 	 * be aged out and STATIC_EMP specified as erasing an
 	 * entry
 	 */
-	reg[2] |= (type & ENT_STATUS_MASK) << ENT_STATUS;
-	reg[1] |= mac[5] << MAC_BYTE_5;
-	reg[1] |= mac[4] << MAC_BYTE_4;
-	reg[0] |= mac[3] << MAC_BYTE_3;
-	reg[0] |= mac[2] << MAC_BYTE_2;
-	reg[0] |= mac[1] << MAC_BYTE_1;
-	reg[0] |= mac[0] << MAC_BYTE_0;
+	reg[2] |= FIELD_PREP(ENT_STATUS_MASK, type);
+	reg[1] |= FIELD_PREP(MAC_BYTE_5_MASK, mac[5]);
+	reg[1] |= FIELD_PREP(MAC_BYTE_4_MASK, mac[4]);
+	reg[0] |= FIELD_PREP(MAC_BYTE_3_MASK, mac[3]);
+	reg[0] |= FIELD_PREP(MAC_BYTE_2_MASK, mac[2]);
+	reg[0] |= FIELD_PREP(MAC_BYTE_1_MASK, mac[1]);
+	reg[0] |= FIELD_PREP(MAC_BYTE_0_MASK, mac[0]);
 
 	/* Write array into the ARL table */
 	for (i = 0; i < 3; i++)
-		mt7530_write(priv, MT7530_ATA1 + (i * 4), reg[i]);
+		regmap_write(priv->regmap, MT7530_ATA1 + (i * 4), reg[i]);
 }
 
 /* Set up switch core clock for MT7530 */
@@ -390,14 +316,16 @@ mt7530_setup_port6(struct dsa_switch *ds, phy_interface_t interface)
 	core_clear(priv, CORE_TRGMII_GSW_CLK_CG, REG_TRGMIICK_EN);
 
 	if (interface == PHY_INTERFACE_MODE_RGMII) {
-		mt7530_rmw(priv, MT7530_P6ECR, P6_INTF_MODE_MASK,
-			   P6_INTF_MODE(0));
+		regmap_update_bits(priv->regmap, MT7530_P6ECR,
+				   P6_INTF_MODE_MASK, P6_INTF_MODE(0));
 		return;
 	}
 
-	mt7530_rmw(priv, MT7530_P6ECR, P6_INTF_MODE_MASK, P6_INTF_MODE(1));
+	regmap_update_bits(priv->regmap, MT7530_P6ECR, P6_INTF_MODE_MASK,
+			   P6_INTF_MODE(1));
 
-	xtal = mt7530_read(priv, MT753X_MTRAP) & MT7530_XTAL_MASK;
+	regmap_read(priv->regmap, MT753X_MTRAP, &xtal);
+	xtal &= MT7530_XTAL_MASK;
 
 	if (xtal == MT7530_XTAL_25MHZ)
 		ssc_delta = 0x57;
@@ -441,9 +369,9 @@ mt7531_pll_setup(struct mt7530_priv *priv)
 	u32 hwstrap;
 	u32 val;
 
-	val = mt7530_read(priv, MT7531_CREV);
-	top_sig = mt7530_read(priv, MT7531_TOP_SIG_SR);
-	hwstrap = mt7530_read(priv, MT753X_TRAP);
+	regmap_read(priv->regmap, MT7531_CREV, &val);
+	regmap_read(priv->regmap, MT7531_TOP_SIG_SR, &top_sig);
+	regmap_read(priv->regmap, MT753X_TRAP, &hwstrap);
 	if ((val & CHIP_REV_M) > 0)
 		xtal = (top_sig & PAD_MCM_SMI_EN) ? MT7531_XTAL_FSEL_40MHZ :
 						    MT7531_XTAL_FSEL_25MHZ;
@@ -452,72 +380,72 @@ mt7531_pll_setup(struct mt7530_priv *priv)
 						   MT7531_XTAL_FSEL_40MHZ;
 
 	/* Step 1 : Disable MT7531 COREPLL */
-	val = mt7530_read(priv, MT7531_PLLGP_EN);
+	regmap_read(priv->regmap, MT7531_PLLGP_EN, &val);
 	val &= ~EN_COREPLL;
-	mt7530_write(priv, MT7531_PLLGP_EN, val);
+	regmap_write(priv->regmap, MT7531_PLLGP_EN, val);
 
 	/* Step 2: switch to XTAL output */
-	val = mt7530_read(priv, MT7531_PLLGP_EN);
+	regmap_read(priv->regmap, MT7531_PLLGP_EN, &val);
 	val |= SW_CLKSW;
-	mt7530_write(priv, MT7531_PLLGP_EN, val);
+	regmap_write(priv->regmap, MT7531_PLLGP_EN, val);
 
-	val = mt7530_read(priv, MT7531_PLLGP_CR0);
+	regmap_read(priv->regmap, MT7531_PLLGP_CR0, &val);
 	val &= ~RG_COREPLL_EN;
-	mt7530_write(priv, MT7531_PLLGP_CR0, val);
+	regmap_write(priv->regmap, MT7531_PLLGP_CR0, val);
 
 	/* Step 3: disable PLLGP and enable program PLLGP */
-	val = mt7530_read(priv, MT7531_PLLGP_EN);
+	regmap_read(priv->regmap, MT7531_PLLGP_EN, &val);
 	val |= SW_PLLGP;
-	mt7530_write(priv, MT7531_PLLGP_EN, val);
+	regmap_write(priv->regmap, MT7531_PLLGP_EN, val);
 
 	/* Step 4: program COREPLL output frequency to 500MHz */
-	val = mt7530_read(priv, MT7531_PLLGP_CR0);
-	val &= ~RG_COREPLL_POSDIV_M;
-	val |= 2 << RG_COREPLL_POSDIV_S;
-	mt7530_write(priv, MT7531_PLLGP_CR0, val);
+	regmap_read(priv->regmap, MT7531_PLLGP_CR0, &val);
+	val &= ~RG_COREPLL_POSDIV_MASK;
+	val |= RG_COREPLL_POSDIV(2);
+	regmap_write(priv->regmap, MT7531_PLLGP_CR0, val);
 	usleep_range(25, 35);
 
 	switch (xtal) {
 	case MT7531_XTAL_FSEL_25MHZ:
-		val = mt7530_read(priv, MT7531_PLLGP_CR0);
-		val &= ~RG_COREPLL_SDM_PCW_M;
-		val |= 0x140000 << RG_COREPLL_SDM_PCW_S;
-		mt7530_write(priv, MT7531_PLLGP_CR0, val);
+		regmap_read(priv->regmap, MT7531_PLLGP_CR0, &val);
+		val &= ~RG_COREPLL_SDM_PCW_MASK;
+		val |= RG_COREPLL_SDM_PCW(0x140000);
+		regmap_write(priv->regmap, MT7531_PLLGP_CR0, val);
 		break;
 	case MT7531_XTAL_FSEL_40MHZ:
-		val = mt7530_read(priv, MT7531_PLLGP_CR0);
-		val &= ~RG_COREPLL_SDM_PCW_M;
-		val |= 0x190000 << RG_COREPLL_SDM_PCW_S;
-		mt7530_write(priv, MT7531_PLLGP_CR0, val);
+		regmap_read(priv->regmap, MT7531_PLLGP_CR0, &val);
+		val &= ~RG_COREPLL_SDM_PCW_MASK;
+		val |= RG_COREPLL_SDM_PCW(0x190000);
+		regmap_write(priv->regmap, MT7531_PLLGP_CR0, val);
 		break;
 	}
 
 	/* Set feedback divide ratio update signal to high */
-	val = mt7530_read(priv, MT7531_PLLGP_CR0);
+	regmap_read(priv->regmap, MT7531_PLLGP_CR0, &val);
 	val |= RG_COREPLL_SDM_PCW_CHG;
-	mt7530_write(priv, MT7531_PLLGP_CR0, val);
+	regmap_write(priv->regmap, MT7531_PLLGP_CR0, val);
 	/* Wait for at least 16 XTAL clocks */
 	usleep_range(10, 20);
 
 	/* Step 5: set feedback divide ratio update signal to low */
-	val = mt7530_read(priv, MT7531_PLLGP_CR0);
+	regmap_read(priv->regmap, MT7531_PLLGP_CR0, &val);
 	val &= ~RG_COREPLL_SDM_PCW_CHG;
-	mt7530_write(priv, MT7531_PLLGP_CR0, val);
+	regmap_write(priv->regmap, MT7531_PLLGP_CR0, val);
 
 	/* Enable 325M clock for SGMII */
-	mt7530_write(priv, MT7531_ANA_PLLGP_CR5, 0xad0000);
+	regmap_write(priv->regmap, MT7531_ANA_PLLGP_CR5, 0xad0000);
 
 	/* Enable 250SSC clock for RGMII */
-	mt7530_write(priv, MT7531_ANA_PLLGP_CR2, 0x4f40000);
+	regmap_write(priv->regmap, MT7531_ANA_PLLGP_CR2, 0x4f40000);
 
 	/* Step 6: Enable MT7531 PLL */
-	val = mt7530_read(priv, MT7531_PLLGP_CR0);
+	regmap_read(priv->regmap, MT7531_PLLGP_CR0, &val);
 	val |= RG_COREPLL_EN;
-	mt7530_write(priv, MT7531_PLLGP_CR0, val);
+	regmap_write(priv->regmap, MT7531_PLLGP_CR0, val);
 
-	val = mt7530_read(priv, MT7531_PLLGP_EN);
+	regmap_read(priv->regmap, MT7531_PLLGP_EN, &val);
 	val |= EN_COREPLL;
-	mt7530_write(priv, MT7531_PLLGP_EN, val);
+	regmap_write(priv->regmap, MT7531_PLLGP_EN, val);
 	usleep_range(25, 35);
 }
 
@@ -526,8 +454,8 @@ mt7530_mib_reset(struct dsa_switch *ds)
 {
 	struct mt7530_priv *priv = ds->priv;
 
-	mt7530_write(priv, MT7530_MIB_CCR, CCR_MIB_FLUSH);
-	mt7530_write(priv, MT7530_MIB_CCR, CCR_MIB_ACTIVATE);
+	regmap_write(priv->regmap, MT7530_MIB_CCR, CCR_MIB_FLUSH);
+	regmap_write(priv->regmap, MT7530_MIB_CCR, CCR_MIB_ACTIVATE);
 }
 
 static int mt7530_phy_read_c22(struct mt7530_priv *priv, int port, int regnum)
@@ -560,7 +488,7 @@ mt7531_ind_c45_phy_read(struct mt7530_priv *priv, int port, int devad,
 	u32 reg, val;
 	int ret;
 
-	mt7530_mutex_lock(priv);
+	mutex_lock(&priv->reg_mutex);
 
 	ret = regmap_read_poll_timeout(priv->regmap, MT7531_PHY_IAC, val,
 				       !(val & MT7531_PHY_ACS_ST), 20, 100000);
@@ -571,7 +499,8 @@ mt7531_ind_c45_phy_read(struct mt7530_priv *priv, int port, int devad,
 
 	reg = MT7531_MDIO_CL45_ADDR | MT7531_MDIO_PHY_ADDR(port) |
 	      MT7531_MDIO_DEV_ADDR(devad) | regnum;
-	ret = mt7530_mii_write(priv, MT7531_PHY_IAC, reg | MT7531_PHY_ACS_ST);
+	ret = regmap_write(priv->regmap, MT7531_PHY_IAC,
+			   reg | MT7531_PHY_ACS_ST);
 	if (ret < 0)
 		goto out;
 
@@ -584,7 +513,8 @@ mt7531_ind_c45_phy_read(struct mt7530_priv *priv, int port, int devad,
 
 	reg = MT7531_MDIO_CL45_READ | MT7531_MDIO_PHY_ADDR(port) |
 	      MT7531_MDIO_DEV_ADDR(devad);
-	ret = mt7530_mii_write(priv, MT7531_PHY_IAC, reg | MT7531_PHY_ACS_ST);
+	ret = regmap_write(priv->regmap, MT7531_PHY_IAC,
+			   reg | MT7531_PHY_ACS_ST);
 	if (ret < 0)
 		goto out;
 
@@ -597,7 +527,7 @@ mt7531_ind_c45_phy_read(struct mt7530_priv *priv, int port, int devad,
 
 	ret = val & MT7531_MDIO_RW_DATA_MASK;
 out:
-	mt7530_mutex_unlock(priv);
+	mutex_unlock(&priv->reg_mutex);
 
 	return ret;
 }
@@ -609,7 +539,7 @@ mt7531_ind_c45_phy_write(struct mt7530_priv *priv, int port, int devad,
 	u32 val, reg;
 	int ret;
 
-	mt7530_mutex_lock(priv);
+	mutex_lock(&priv->reg_mutex);
 
 	ret = regmap_read_poll_timeout(priv->regmap, MT7531_PHY_IAC, val,
 				       !(val & MT7531_PHY_ACS_ST), 20, 100000);
@@ -620,7 +550,8 @@ mt7531_ind_c45_phy_write(struct mt7530_priv *priv, int port, int devad,
 
 	reg = MT7531_MDIO_CL45_ADDR | MT7531_MDIO_PHY_ADDR(port) |
 	      MT7531_MDIO_DEV_ADDR(devad) | regnum;
-	ret = mt7530_mii_write(priv, MT7531_PHY_IAC, reg | MT7531_PHY_ACS_ST);
+	ret = regmap_write(priv->regmap, MT7531_PHY_IAC,
+			   reg | MT7531_PHY_ACS_ST);
 	if (ret < 0)
 		goto out;
 
@@ -633,7 +564,8 @@ mt7531_ind_c45_phy_write(struct mt7530_priv *priv, int port, int devad,
 
 	reg = MT7531_MDIO_CL45_WRITE | MT7531_MDIO_PHY_ADDR(port) |
 	      MT7531_MDIO_DEV_ADDR(devad) | data;
-	ret = mt7530_mii_write(priv, MT7531_PHY_IAC, reg | MT7531_PHY_ACS_ST);
+	ret = regmap_write(priv->regmap, MT7531_PHY_IAC,
+			   reg | MT7531_PHY_ACS_ST);
 	if (ret < 0)
 		goto out;
 
@@ -645,7 +577,7 @@ mt7531_ind_c45_phy_write(struct mt7530_priv *priv, int port, int devad,
 	}
 
 out:
-	mt7530_mutex_unlock(priv);
+	mutex_unlock(&priv->reg_mutex);
 
 	return ret;
 }
@@ -656,7 +588,7 @@ mt7531_ind_c22_phy_read(struct mt7530_priv *priv, int port, int regnum)
 	int ret;
 	u32 val;
 
-	mt7530_mutex_lock(priv);
+	mutex_lock(&priv->reg_mutex);
 
 	ret = regmap_read_poll_timeout(priv->regmap, MT7531_PHY_IAC, val,
 				       !(val & MT7531_PHY_ACS_ST), 20, 100000);
@@ -668,7 +600,8 @@ mt7531_ind_c22_phy_read(struct mt7530_priv *priv, int port, int regnum)
 	val = MT7531_MDIO_CL22_READ | MT7531_MDIO_PHY_ADDR(port) |
 	      MT7531_MDIO_REG_ADDR(regnum);
 
-	ret = mt7530_mii_write(priv, MT7531_PHY_IAC, val | MT7531_PHY_ACS_ST);
+	ret = regmap_write(priv->regmap, MT7531_PHY_IAC,
+			   val | MT7531_PHY_ACS_ST);
 	if (ret < 0)
 		goto out;
 
@@ -681,7 +614,7 @@ mt7531_ind_c22_phy_read(struct mt7530_priv *priv, int port, int regnum)
 
 	ret = val & MT7531_MDIO_RW_DATA_MASK;
 out:
-	mt7530_mutex_unlock(priv);
+	mutex_unlock(&priv->reg_mutex);
 
 	return ret;
 }
@@ -693,7 +626,7 @@ mt7531_ind_c22_phy_write(struct mt7530_priv *priv, int port, int regnum,
 	int ret;
 	u32 reg;
 
-	mt7530_mutex_lock(priv);
+	mutex_lock(&priv->reg_mutex);
 
 	ret = regmap_read_poll_timeout(priv->regmap, MT7531_PHY_IAC, reg,
 				       !(reg & MT7531_PHY_ACS_ST), 20, 100000);
@@ -705,7 +638,8 @@ mt7531_ind_c22_phy_write(struct mt7530_priv *priv, int port, int regnum,
 	reg = MT7531_MDIO_CL22_WRITE | MT7531_MDIO_PHY_ADDR(port) |
 	      MT7531_MDIO_REG_ADDR(regnum) | data;
 
-	ret = mt7530_mii_write(priv, MT7531_PHY_IAC, reg | MT7531_PHY_ACS_ST);
+	ret = regmap_write(priv->regmap, MT7531_PHY_IAC,
+			   reg | MT7531_PHY_ACS_ST);
 	if (ret < 0)
 		goto out;
 
@@ -717,7 +651,7 @@ mt7531_ind_c22_phy_write(struct mt7530_priv *priv, int port, int regnum,
 	}
 
 out:
-	mt7530_mutex_unlock(priv);
+	mutex_unlock(&priv->reg_mutex);
 
 	return ret;
 }
@@ -774,11 +708,11 @@ mt7530_read_port_stats(struct mt7530_priv *priv, int port,
 {
 	u32 val, reg = MT7530_PORT_MIB_COUNTER(port) + offset;
 
-	val = mt7530_read(priv, reg);
+	regmap_read(priv->regmap, reg, &val);
 	*data = val;
 
 	if (size == 2) {
-		val = mt7530_read(priv, reg + 4);
+		regmap_read(priv->regmap, reg + 4, &val);
 		*data |= (u64)val << 32;
 	}
 }
@@ -1060,7 +994,8 @@ mt7530_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
 		}
 	}
 
-	mt7530_write(priv, MT7530_AAC, AGE_CNT(age_count) | AGE_UNIT(age_unit));
+	regmap_write(priv->regmap, MT7530_AAC,
+		     AGE_CNT(age_count) | AGE_UNIT(age_unit));
 
 	return 0;
 }
@@ -1081,11 +1016,11 @@ static void mt7530_setup_port5(struct dsa_switch *ds, phy_interface_t interface)
 {
 	struct mt7530_priv *priv = ds->priv;
 	u8 tx_delay = 0;
-	int val;
+	u32 val;
 
 	mutex_lock(&priv->reg_mutex);
 
-	val = mt7530_read(priv, MT753X_MTRAP);
+	regmap_read(priv->regmap, MT753X_MTRAP, &val);
 
 	val &= ~MT7530_P5_PHY0_SEL & ~MT7530_P5_MAC_SEL & ~MT7530_P5_RGMII_MODE;
 
@@ -1098,7 +1033,7 @@ static void mt7530_setup_port5(struct dsa_switch *ds, phy_interface_t interface)
 	/* MUX_PHY_P4: P4 -> P5 -> SoC MAC */
 	case MUX_PHY_P4:
 		/* Setup the MAC by default for the cpu port */
-		mt7530_write(priv, MT753X_PMCR_P(5), 0x56300);
+		regmap_write(priv->regmap, MT753X_PMCR_P(5), 0x56300);
 		break;
 
 	/* GMAC5: P5 -> SoC MAC or external PHY */
@@ -1112,7 +1047,8 @@ static void mt7530_setup_port5(struct dsa_switch *ds, phy_interface_t interface)
 		val |= MT7530_P5_RGMII_MODE;
 
 		/* P5 RGMII RX Clock Control: delay setting for 1000M */
-		mt7530_write(priv, MT7530_P5RGMIIRXCR, CSR_RGMII_EDGE_ALIGN);
+		regmap_write(priv->regmap, MT7530_P5RGMIIRXCR,
+			     CSR_RGMII_EDGE_ALIGN);
 
 		/* Don't set delay in DSA mode */
 		if (!dsa_is_dsa_port(priv->ds, 5) &&
@@ -1121,15 +1057,15 @@ static void mt7530_setup_port5(struct dsa_switch *ds, phy_interface_t interface)
 			tx_delay = 4; /* n * 0.5 ns */
 
 		/* P5 RGMII TX Clock Control: delay x */
-		mt7530_write(priv, MT7530_P5RGMIITXCR,
+		regmap_write(priv->regmap, MT7530_P5RGMIITXCR,
 			     CSR_RGMII_TXC_CFG(0x10 + tx_delay));
 
 		/* reduce P5 RGMII Tx driving, 8mA */
-		mt7530_write(priv, MT7530_IO_DRV_CR,
+		regmap_write(priv->regmap, MT7530_IO_DRV_CR,
 			     P5_IO_CLK_DRV(1) | P5_IO_DATA_DRV(1));
 	}
 
-	mt7530_write(priv, MT753X_MTRAP, val);
+	regmap_write(priv->regmap, MT753X_MTRAP, val);
 
 	dev_dbg(ds->dev, "Setup P5, HWTRAP=0x%x, mode=%s, phy-mode=%s\n", val,
 		mt7530_p5_mode_str(priv->p5_mode), phy_modes(interface));
@@ -1314,35 +1250,35 @@ mt753x_trap_frames(struct mt7530_priv *priv)
 	 * switch egress VLAN tag processing. This preserves VLAN tags
 	 * for reception on VLAN sub-interfaces.
 	 */
-	mt7530_rmw(priv, MT753X_BPC,
-		   PAE_BPDU_FR | PAE_EG_TAG_MASK | PAE_PORT_FW_MASK |
-			   BPDU_EG_TAG_MASK | BPDU_PORT_FW_MASK,
-		   PAE_BPDU_FR | PAE_EG_TAG(MT7530_VLAN_EG_DISABLED) |
-			   PAE_PORT_FW(TO_CPU_FW_CPU_ONLY) |
-			   BPDU_EG_TAG(MT7530_VLAN_EG_DISABLED) |
-			   TO_CPU_FW_CPU_ONLY);
+	regmap_update_bits(priv->regmap, MT753X_BPC,
+			   PAE_BPDU_FR | PAE_EG_TAG_MASK | PAE_PORT_FW_MASK |
+				   BPDU_EG_TAG_MASK | BPDU_PORT_FW_MASK,
+			   PAE_BPDU_FR | PAE_EG_TAG(MT7530_VLAN_EG_DISABLED) |
+				   PAE_PORT_FW(TO_CPU_FW_CPU_ONLY) |
+				   BPDU_EG_TAG(MT7530_VLAN_EG_DISABLED) |
+				   TO_CPU_FW_CPU_ONLY);
 
 	/* Trap frames with :01 and :02 MAC DAs to the CPU port(s) and
 	 * egress them with EG_TAG disabled.
 	 */
-	mt7530_rmw(priv, MT753X_RGAC1,
-		   R02_BPDU_FR | R02_EG_TAG_MASK | R02_PORT_FW_MASK |
-			   R01_BPDU_FR | R01_EG_TAG_MASK | R01_PORT_FW_MASK,
-		   R02_BPDU_FR | R02_EG_TAG(MT7530_VLAN_EG_DISABLED) |
-			   R02_PORT_FW(TO_CPU_FW_CPU_ONLY) | R01_BPDU_FR |
-			   R01_EG_TAG(MT7530_VLAN_EG_DISABLED) |
-			   TO_CPU_FW_CPU_ONLY);
+	regmap_update_bits(priv->regmap, MT753X_RGAC1,
+			   R02_BPDU_FR | R02_EG_TAG_MASK | R02_PORT_FW_MASK |
+				   R01_BPDU_FR | R01_EG_TAG_MASK | R01_PORT_FW_MASK,
+			   R02_BPDU_FR | R02_EG_TAG(MT7530_VLAN_EG_DISABLED) |
+				   R02_PORT_FW(TO_CPU_FW_CPU_ONLY) | R01_BPDU_FR |
+				   R01_EG_TAG(MT7530_VLAN_EG_DISABLED) |
+				   TO_CPU_FW_CPU_ONLY);
 
 	/* Trap frames with :03 and :0E MAC DAs to the CPU port(s) and
 	 * egress them with EG_TAG disabled.
 	 */
-	mt7530_rmw(priv, MT753X_RGAC2,
-		   R0E_BPDU_FR | R0E_EG_TAG_MASK | R0E_PORT_FW_MASK |
-			   R03_BPDU_FR | R03_EG_TAG_MASK | R03_PORT_FW_MASK,
-		   R0E_BPDU_FR | R0E_EG_TAG(MT7530_VLAN_EG_DISABLED) |
-			   R0E_PORT_FW(TO_CPU_FW_CPU_ONLY) | R03_BPDU_FR |
-			   R03_EG_TAG(MT7530_VLAN_EG_DISABLED) |
-			   TO_CPU_FW_CPU_ONLY);
+	regmap_update_bits(priv->regmap, MT753X_RGAC2,
+			   R0E_BPDU_FR | R0E_EG_TAG_MASK | R0E_PORT_FW_MASK |
+				   R03_BPDU_FR | R03_EG_TAG_MASK | R03_PORT_FW_MASK,
+			   R0E_BPDU_FR | R0E_EG_TAG(MT7530_VLAN_EG_DISABLED) |
+				   R0E_PORT_FW(TO_CPU_FW_CPU_ONLY) | R03_BPDU_FR |
+				   R03_EG_TAG(MT7530_VLAN_EG_DISABLED) |
+				   TO_CPU_FW_CPU_ONLY);
 }
 
 static void
@@ -1351,12 +1287,11 @@ mt753x_cpu_port_enable(struct dsa_switch *ds, int port)
 	struct mt7530_priv *priv = ds->priv;
 
 	/* Enable Mediatek header mode on the cpu port */
-	mt7530_write(priv, MT7530_PVC_P(port),
-		     PORT_SPEC_TAG);
+	regmap_write(priv->regmap, MT7530_PVC_P(port), PORT_SPEC_TAG);
 
 	/* Enable flooding on the CPU port */
-	mt7530_set(priv, MT753X_MFC, BC_FFP(BIT(port)) | UNM_FFP(BIT(port)) |
-		   UNU_FFP(BIT(port)));
+	regmap_set_bits(priv->regmap, MT753X_MFC,
+			BC_FFP(BIT(port)) | UNM_FFP(BIT(port)) | UNU_FFP(BIT(port)));
 
 	/* Add the CPU port to the CPU port bitmap for MT7531 and the switch on
 	 * the MT7988 SoC. Trapped frames will be forwarded to the CPU port that
@@ -1364,17 +1299,18 @@ mt753x_cpu_port_enable(struct dsa_switch *ds, int port)
 	 */
 	if (priv->id == ID_MT7531 || priv->id == ID_MT7988 ||
 	    priv->id == ID_EN7581 || priv->id == ID_AN7583)
-		mt7530_set(priv, MT7531_CFC, MT7531_CPU_PMAP(BIT(port)));
+		regmap_set_bits(priv->regmap, MT7531_CFC,
+				MT7531_CPU_PMAP(BIT(port)));
 
 	/* CPU port gets connected to all user ports of
 	 * the switch.
 	 */
-	mt7530_write(priv, MT7530_PCR_P(port),
+	regmap_write(priv->regmap, MT7530_PCR_P(port),
 		     PCR_MATRIX(dsa_user_ports(priv->ds)));
 
 	/* Set to fallback mode for independent VLAN learning */
-	mt7530_rmw(priv, MT7530_PCR_P(port), PCR_PORT_VLAN_MASK,
-		   MT7530_PORT_FALLBACK_MODE);
+	regmap_update_bits(priv->regmap, MT7530_PCR_P(port),
+			   PCR_PORT_VLAN_MASK, MT7530_PORT_FALLBACK_MODE);
 }
 
 static int
@@ -1396,8 +1332,8 @@ mt7530_port_enable(struct dsa_switch *ds, int port,
 		priv->ports[port].pm |= PCR_MATRIX(BIT(cpu_dp->index));
 	}
 	priv->ports[port].enable = true;
-	mt7530_rmw(priv, MT7530_PCR_P(port), PCR_MATRIX_MASK,
-		   priv->ports[port].pm);
+	regmap_update_bits(priv->regmap, MT7530_PCR_P(port), PCR_MATRIX_MASK,
+			   priv->ports[port].pm);
 
 	mutex_unlock(&priv->reg_mutex);
 
@@ -1405,9 +1341,9 @@ mt7530_port_enable(struct dsa_switch *ds, int port,
 		return 0;
 
 	if (port == 5)
-		mt7530_clear(priv, MT753X_MTRAP, MT7530_P5_DIS);
+		regmap_clear_bits(priv->regmap, MT753X_MTRAP, MT7530_P5_DIS);
 	else if (port == 6)
-		mt7530_clear(priv, MT753X_MTRAP, MT7530_P6_DIS);
+		regmap_clear_bits(priv->regmap, MT753X_MTRAP, MT7530_P6_DIS);
 
 	return 0;
 }
@@ -1423,8 +1359,8 @@ mt7530_port_disable(struct dsa_switch *ds, int port)
 	 * enablement for the port.
 	 */
 	priv->ports[port].enable = false;
-	mt7530_rmw(priv, MT7530_PCR_P(port), PCR_MATRIX_MASK,
-		   PCR_MATRIX_CLR);
+	regmap_update_bits(priv->regmap, MT7530_PCR_P(port), PCR_MATRIX_MASK,
+			   PCR_MATRIX_CLR);
 
 	mutex_unlock(&priv->reg_mutex);
 
@@ -1433,9 +1369,9 @@ mt7530_port_disable(struct dsa_switch *ds, int port)
 
 	/* Do not set MT7530_P5_DIS when port 5 is being used for PHY muxing. */
 	if (port == 5 && priv->p5_mode == GMAC5)
-		mt7530_set(priv, MT753X_MTRAP, MT7530_P5_DIS);
+		regmap_set_bits(priv->regmap, MT753X_MTRAP, MT7530_P5_DIS);
 	else if (port == 6)
-		mt7530_set(priv, MT753X_MTRAP, MT7530_P6_DIS);
+		regmap_set_bits(priv->regmap, MT753X_MTRAP, MT7530_P6_DIS);
 }
 
 static int
@@ -1452,9 +1388,7 @@ mt7530_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 	if (!dsa_is_cpu_port(ds, port))
 		return 0;
 
-	mt7530_mutex_lock(priv);
-
-	val = mt7530_mii_read(priv, MT7530_GMACCR);
+	regmap_read(priv->regmap, MT7530_GMACCR, &val);
 	val &= ~MAX_RX_PKT_LEN_MASK;
 
 	/* RX length also includes Ethernet header, MTK tag, and FCS length */
@@ -1471,9 +1405,7 @@ mt7530_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 		val |= MAX_RX_PKT_LEN_JUMBO;
 	}
 
-	mt7530_mii_write(priv, MT7530_GMACCR, val);
-
-	mt7530_mutex_unlock(priv);
+	regmap_write(priv->regmap, MT7530_GMACCR, val);
 
 	return 0;
 }
@@ -1509,8 +1441,9 @@ mt7530_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 		break;
 	}
 
-	mt7530_rmw(priv, MT7530_SSP_P(port), FID_PST_MASK(FID_BRIDGED),
-		   FID_PST(FID_BRIDGED, stp_state));
+	regmap_update_bits(priv->regmap, MT7530_SSP_P(port),
+			   FID_PST_MASK(FID_BRIDGED),
+			   FID_PST(FID_BRIDGED, stp_state));
 }
 
 static void mt7530_update_port_member(struct mt7530_priv *priv, int port,
@@ -1549,8 +1482,9 @@ static void mt7530_update_port_member(struct mt7530_priv *priv, int port,
 		}
 
 		if (other_p->enable)
-			mt7530_rmw(priv, MT7530_PCR_P(other_port),
-				   PCR_MATRIX_MASK, other_p->pm);
+			regmap_update_bits(priv->regmap,
+					   MT7530_PCR_P(other_port),
+					   PCR_MATRIX_MASK, other_p->pm);
 	}
 
 	/* Add/remove the all other ports to this port matrix. For !join
@@ -1559,7 +1493,8 @@ static void mt7530_update_port_member(struct mt7530_priv *priv, int port,
 	 */
 	p->pm = PCR_MATRIX(port_bitmap);
 	if (priv->ports[port].enable)
-		mt7530_rmw(priv, MT7530_PCR_P(port), PCR_MATRIX_MASK, p->pm);
+		regmap_update_bits(priv->regmap, MT7530_PCR_P(port),
+				   PCR_MATRIX_MASK, p->pm);
 }
 
 static int
@@ -1582,20 +1517,23 @@ mt7530_port_bridge_flags(struct dsa_switch *ds, int port,
 	struct mt7530_priv *priv = ds->priv;
 
 	if (flags.mask & BR_LEARNING)
-		mt7530_rmw(priv, MT7530_PSC_P(port), SA_DIS,
-			   flags.val & BR_LEARNING ? 0 : SA_DIS);
+		regmap_update_bits(priv->regmap, MT7530_PSC_P(port), SA_DIS,
+				   flags.val & BR_LEARNING ? 0 : SA_DIS);
 
 	if (flags.mask & BR_FLOOD)
-		mt7530_rmw(priv, MT753X_MFC, UNU_FFP(BIT(port)),
-			   flags.val & BR_FLOOD ? UNU_FFP(BIT(port)) : 0);
+		regmap_update_bits(priv->regmap, MT753X_MFC,
+				   UNU_FFP(BIT(port)),
+				   flags.val & BR_FLOOD ? UNU_FFP(BIT(port)) : 0);
 
 	if (flags.mask & BR_MCAST_FLOOD)
-		mt7530_rmw(priv, MT753X_MFC, UNM_FFP(BIT(port)),
-			   flags.val & BR_MCAST_FLOOD ? UNM_FFP(BIT(port)) : 0);
+		regmap_update_bits(priv->regmap, MT753X_MFC,
+				   UNM_FFP(BIT(port)),
+				   flags.val & BR_MCAST_FLOOD ? UNM_FFP(BIT(port)) : 0);
 
 	if (flags.mask & BR_BCAST_FLOOD)
-		mt7530_rmw(priv, MT753X_MFC, BC_FFP(BIT(port)),
-			   flags.val & BR_BCAST_FLOOD ? BC_FFP(BIT(port)) : 0);
+		regmap_update_bits(priv->regmap, MT753X_MFC,
+				   BC_FFP(BIT(port)),
+				   flags.val & BR_BCAST_FLOOD ? BC_FFP(BIT(port)) : 0);
 
 	if (flags.mask & BR_ISOLATED) {
 		struct dsa_port *dp = dsa_to_port(ds, port);
@@ -1623,8 +1561,8 @@ mt7530_port_bridge_join(struct dsa_switch *ds, int port,
 	mt7530_update_port_member(priv, port, bridge.dev, true);
 
 	/* Set to fallback mode for independent VLAN learning */
-	mt7530_rmw(priv, MT7530_PCR_P(port), PCR_PORT_VLAN_MASK,
-		   MT7530_PORT_FALLBACK_MODE);
+	regmap_update_bits(priv->regmap, MT7530_PCR_P(port),
+			   PCR_PORT_VLAN_MASK, MT7530_PORT_FALLBACK_MODE);
 
 	mutex_unlock(&priv->reg_mutex);
 
@@ -1637,19 +1575,15 @@ mt7530_vlan_cmd(struct mt7530_priv *priv, enum mt7530_vlan_cmd cmd, u16 vid)
 	u32 val;
 	int ret;
 
-	val = VTCR_BUSY | VTCR_FUNC(cmd) | vid;
-	ret = mt7530_write(priv, MT7530_VTCR, val);
+	val = VTCR_BUSY | VTCR_FUNC(cmd) | VTCR_VID(vid);
+	ret = regmap_write(priv->regmap, MT7530_VTCR, val);
 	if (ret)
 		return ret;
-
-	mt7530_mutex_lock(priv);
 
 	ret = regmap_read_poll_timeout(priv->regmap, MT7530_VTCR, val,
 				       !(val & VTCR_BUSY), 20, 20000);
 	if (!ret)
 		ret = regmap_read(priv->regmap, MT7530_VTCR, &val);
-
-	mt7530_mutex_unlock(priv);
 
 	if (ret < 0) {
 		dev_err(priv->dev, "poll timeout\n");
@@ -1674,8 +1608,8 @@ mt7530_setup_vlan0(struct mt7530_priv *priv)
 	 */
 	val = IVL_MAC | EG_CON | PORT_MEM(MT7530_ALL_MEMBERS) | FID(FID_BRIDGED) |
 	      VLAN_VALID;
-	mt7530_write(priv, MT7530_VAWD1, val);
-	mt7530_write(priv, MT7530_VAWD2, 0);
+	regmap_write(priv->regmap, MT7530_VAWD1, val);
+	regmap_write(priv->regmap, MT7530_VAWD2, 0);
 
 	return mt7530_vlan_cmd(priv, MT7530_VTCR_WR_VID, 0);
 }
@@ -1691,18 +1625,19 @@ mt7530_port_set_vlan_unaware(struct dsa_switch *ds, int port)
 	 * bridge. Don't set standalone ports to fallback mode.
 	 */
 	if (dsa_port_bridge_dev_get(dsa_to_port(ds, port)))
-		mt7530_rmw(priv, MT7530_PCR_P(port), PCR_PORT_VLAN_MASK,
-			   MT7530_PORT_FALLBACK_MODE);
+		regmap_update_bits(priv->regmap, MT7530_PCR_P(port),
+				   PCR_PORT_VLAN_MASK,
+				   MT7530_PORT_FALLBACK_MODE);
 
-	mt7530_rmw(priv, MT7530_PVC_P(port),
-		   VLAN_ATTR_MASK | PVC_EG_TAG_MASK | ACC_FRM_MASK,
-		   VLAN_ATTR(MT7530_VLAN_TRANSPARENT) |
-		   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT) |
-		   MT7530_VLAN_ACC_ALL);
+	regmap_update_bits(priv->regmap, MT7530_PVC_P(port),
+			   VLAN_ATTR_MASK | PVC_EG_TAG_MASK | ACC_FRM_MASK,
+			   VLAN_ATTR(MT7530_VLAN_TRANSPARENT) |
+			   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT) |
+			   MT7530_VLAN_ACC_ALL);
 
 	/* Set PVID to 0 */
-	mt7530_rmw(priv, MT7530_PPBV1_P(port), G0_PORT_VID_MASK,
-		   G0_PORT_VID_DEF);
+	regmap_update_bits(priv->regmap, MT7530_PPBV1_P(port),
+			   G0_PORT_VID_MASK, G0_PORT_VID_DEF);
 
 	for (i = 0; i < priv->ds->num_ports; i++) {
 		if (i == port)
@@ -1733,24 +1668,27 @@ mt7530_port_set_vlan_aware(struct dsa_switch *ds, int port)
 	 * table lookup.
 	 */
 	if (dsa_is_user_port(ds, port)) {
-		mt7530_rmw(priv, MT7530_PCR_P(port), PCR_PORT_VLAN_MASK,
-			   MT7530_PORT_SECURITY_MODE);
-		mt7530_rmw(priv, MT7530_PPBV1_P(port), G0_PORT_VID_MASK,
-			   G0_PORT_VID(priv->ports[port].pvid));
+		regmap_update_bits(priv->regmap, MT7530_PCR_P(port),
+				   PCR_PORT_VLAN_MASK,
+				   MT7530_PORT_SECURITY_MODE);
+		regmap_update_bits(priv->regmap, MT7530_PPBV1_P(port),
+				   G0_PORT_VID_MASK,
+				   G0_PORT_VID(priv->ports[port].pvid));
 
 		/* Only accept tagged frames if PVID is not set */
 		if (!priv->ports[port].pvid)
-			mt7530_rmw(priv, MT7530_PVC_P(port), ACC_FRM_MASK,
-				   MT7530_VLAN_ACC_TAGGED);
+			regmap_update_bits(priv->regmap, MT7530_PVC_P(port),
+					   ACC_FRM_MASK,
+					   MT7530_VLAN_ACC_TAGGED);
 
 		/* Set the port as a user port which is to be able to recognize
 		 * VID from incoming packets before fetching entry within the
 		 * VLAN table.
 		 */
-		mt7530_rmw(priv, MT7530_PVC_P(port),
-			   VLAN_ATTR_MASK | PVC_EG_TAG_MASK,
-			   VLAN_ATTR(MT7530_VLAN_USER) |
-			   PVC_EG_TAG(MT7530_VLAN_EG_DISABLED));
+		regmap_update_bits(priv->regmap, MT7530_PVC_P(port),
+				   VLAN_ATTR_MASK | PVC_EG_TAG_MASK,
+				   VLAN_ATTR(MT7530_VLAN_USER) |
+				   PVC_EG_TAG(MT7530_VLAN_EG_DISABLED));
 	} else {
 		/* Also set CPU ports to the "user" VLAN port attribute, to
 		 * allow VLAN classification, but keep the EG_TAG attribute as
@@ -1759,8 +1697,9 @@ mt7530_port_set_vlan_aware(struct dsa_switch *ds, int port)
 		 * are forwarded to user ports as tagged, and untagged as
 		 * untagged.
 		 */
-		mt7530_rmw(priv, MT7530_PVC_P(port), VLAN_ATTR_MASK,
-			   VLAN_ATTR(MT7530_VLAN_USER));
+		regmap_update_bits(priv->regmap, MT7530_PVC_P(port),
+				   VLAN_ATTR_MASK,
+				   VLAN_ATTR(MT7530_VLAN_USER));
 	}
 }
 
@@ -1778,8 +1717,8 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 	 * back to the default as is at initial boot which is a VLAN-unaware
 	 * port.
 	 */
-	mt7530_rmw(priv, MT7530_PCR_P(port), PCR_PORT_VLAN_MASK,
-		   MT7530_PORT_MATRIX_MODE);
+	regmap_update_bits(priv->regmap, MT7530_PCR_P(port),
+			   PCR_PORT_VLAN_MASK, MT7530_PORT_MATRIX_MODE);
 
 	mutex_unlock(&priv->reg_mutex);
 }
@@ -1862,14 +1801,16 @@ mt7530_port_mdb_add(struct dsa_switch *ds, int port,
 	const u8 *addr = mdb->addr;
 	u16 vid = mdb->vid;
 	u8 port_mask = 0;
+	u32 val;
 	int ret;
 
 	mutex_lock(&priv->reg_mutex);
 
 	mt7530_fdb_write(priv, vid, 0, addr, 0, STATIC_EMP);
-	if (!mt7530_fdb_cmd(priv, MT7530_FDB_READ, NULL))
-		port_mask = (mt7530_read(priv, MT7530_ATRD) >> PORT_MAP)
-			    & PORT_MAP_MASK;
+	if (!mt7530_fdb_cmd(priv, MT7530_FDB_READ, NULL)) {
+		regmap_read(priv->regmap, MT7530_ATRD, &val);
+		port_mask = FIELD_GET(PORT_MAP_MASK, val);
+	}
 
 	port_mask |= BIT(port);
 	mt7530_fdb_write(priv, vid, port_mask, addr, -1, STATIC_ENT);
@@ -1889,14 +1830,16 @@ mt7530_port_mdb_del(struct dsa_switch *ds, int port,
 	const u8 *addr = mdb->addr;
 	u16 vid = mdb->vid;
 	u8 port_mask = 0;
+	u32 val;
 	int ret;
 
 	mutex_lock(&priv->reg_mutex);
 
 	mt7530_fdb_write(priv, vid, 0, addr, 0, STATIC_EMP);
-	if (!mt7530_fdb_cmd(priv, MT7530_FDB_READ, NULL))
-		port_mask = (mt7530_read(priv, MT7530_ATRD) >> PORT_MAP)
-			    & PORT_MAP_MASK;
+	if (!mt7530_fdb_cmd(priv, MT7530_FDB_READ, NULL)) {
+		regmap_read(priv->regmap, MT7530_ATRD, &val);
+		port_mask = FIELD_GET(PORT_MAP_MASK, val);
+	}
 
 	port_mask &= ~BIT(port);
 	mt7530_fdb_write(priv, vid, port_mask, addr, -1,
@@ -1945,7 +1888,7 @@ mt7530_hw_vlan_add(struct mt7530_priv *priv,
 	 */
 	val = IVL_MAC | VTAG_EN | PORT_MEM(new_members) | FID(FID_BRIDGED) |
 	      VLAN_VALID;
-	mt7530_write(priv, MT7530_VAWD1, val);
+	regmap_write(priv->regmap, MT7530_VAWD1, val);
 
 	/* Decide whether adding tag or not for those outgoing packets from the
 	 * port inside the VLAN.
@@ -1960,9 +1903,9 @@ mt7530_hw_vlan_add(struct mt7530_priv *priv,
 		val = MT7530_VLAN_EGRESS_UNTAG;
 	else
 		val = MT7530_VLAN_EGRESS_TAG;
-	mt7530_rmw(priv, MT7530_VAWD2,
-		   ETAG_CTRL_P_MASK(entry->port),
-		   ETAG_CTRL_P(entry->port, val));
+	regmap_update_bits(priv->regmap, MT7530_VAWD2,
+			   ETAG_CTRL_P_MASK(entry->port),
+			   ETAG_CTRL_P(entry->port, val));
 }
 
 static void
@@ -1974,7 +1917,7 @@ mt7530_hw_vlan_del(struct mt7530_priv *priv,
 
 	new_members = entry->old_members & ~BIT(entry->port);
 
-	val = mt7530_read(priv, MT7530_VAWD1);
+	regmap_read(priv->regmap, MT7530_VAWD1, &val);
 	if (!(val & VLAN_VALID)) {
 		dev_err(priv->dev,
 			"Cannot be deleted due to invalid entry\n");
@@ -1984,10 +1927,10 @@ mt7530_hw_vlan_del(struct mt7530_priv *priv,
 	if (new_members) {
 		val = IVL_MAC | VTAG_EN | PORT_MEM(new_members) |
 		      VLAN_VALID;
-		mt7530_write(priv, MT7530_VAWD1, val);
+		regmap_write(priv->regmap, MT7530_VAWD1, val);
 	} else {
-		mt7530_write(priv, MT7530_VAWD1, 0);
-		mt7530_write(priv, MT7530_VAWD2, 0);
+		regmap_write(priv->regmap, MT7530_VAWD1, 0);
+		regmap_write(priv->regmap, MT7530_VAWD2, 0);
 	}
 }
 
@@ -2001,9 +1944,9 @@ mt7530_hw_vlan_update(struct mt7530_priv *priv, u16 vid,
 	/* Fetch entry */
 	mt7530_vlan_cmd(priv, MT7530_VTCR_RD_VID, vid);
 
-	val = mt7530_read(priv, MT7530_VAWD1);
+	regmap_read(priv->regmap, MT7530_VAWD1, &val);
 
-	entry->old_members = (val >> PORT_MEM_SHFT) & PORT_MEM_MASK;
+	entry->old_members = FIELD_GET(PORT_MEM_MASK, val);
 
 	/* Manipulate entry */
 	vlan_op(priv, entry);
@@ -2040,25 +1983,26 @@ skip_vlan_table:
 		priv->ports[port].pvid = vlan->vid;
 
 		/* Accept all frames if PVID is set */
-		mt7530_rmw(priv, MT7530_PVC_P(port), ACC_FRM_MASK,
-			   MT7530_VLAN_ACC_ALL);
+		regmap_update_bits(priv->regmap, MT7530_PVC_P(port),
+				   ACC_FRM_MASK, MT7530_VLAN_ACC_ALL);
 
 		/* Only configure PVID if VLAN filtering is enabled */
 		if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
-			mt7530_rmw(priv, MT7530_PPBV1_P(port),
-				   G0_PORT_VID_MASK,
-				   G0_PORT_VID(vlan->vid));
+			regmap_update_bits(priv->regmap, MT7530_PPBV1_P(port),
+					   G0_PORT_VID_MASK,
+					   G0_PORT_VID(vlan->vid));
 	} else if (vlan->vid && priv->ports[port].pvid == vlan->vid) {
 		/* This VLAN is overwritten without PVID, so unset it */
 		priv->ports[port].pvid = G0_PORT_VID_DEF;
 
 		/* Only accept tagged frames if the port is VLAN-aware */
 		if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
-			mt7530_rmw(priv, MT7530_PVC_P(port), ACC_FRM_MASK,
-				   MT7530_VLAN_ACC_TAGGED);
+			regmap_update_bits(priv->regmap, MT7530_PVC_P(port),
+					   ACC_FRM_MASK,
+					   MT7530_VLAN_ACC_TAGGED);
 
-		mt7530_rmw(priv, MT7530_PPBV1_P(port), G0_PORT_VID_MASK,
-			   G0_PORT_VID_DEF);
+		regmap_update_bits(priv->regmap, MT7530_PPBV1_P(port),
+				   G0_PORT_VID_MASK, G0_PORT_VID_DEF);
 	}
 
 	mutex_unlock(&priv->reg_mutex);
@@ -2092,11 +2036,12 @@ skip_vlan_table:
 
 		/* Only accept tagged frames if the port is VLAN-aware */
 		if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
-			mt7530_rmw(priv, MT7530_PVC_P(port), ACC_FRM_MASK,
-				   MT7530_VLAN_ACC_TAGGED);
+			regmap_update_bits(priv->regmap, MT7530_PVC_P(port),
+					   ACC_FRM_MASK,
+					   MT7530_VLAN_ACC_TAGGED);
 
-		mt7530_rmw(priv, MT7530_PPBV1_P(port), G0_PORT_VID_MASK,
-			   G0_PORT_VID_DEF);
+		regmap_update_bits(priv->regmap, MT7530_PPBV1_P(port),
+				   G0_PORT_VID_MASK, G0_PORT_VID_DEF);
 	}
 
 
@@ -2117,7 +2062,7 @@ static int mt753x_port_mirror_add(struct dsa_switch *ds, int port,
 	if ((ingress ? priv->mirror_rx : priv->mirror_tx) & BIT(port))
 		return -EEXIST;
 
-	val = mt7530_read(priv, MT753X_MIRROR_REG(priv->id));
+	regmap_read(priv->regmap, MT753X_MIRROR_REG(priv->id), &val);
 
 	/* MT7530 only supports one monitor port */
 	monitor_port = MT753X_MIRROR_PORT_GET(priv->id, val);
@@ -2128,9 +2073,9 @@ static int mt753x_port_mirror_add(struct dsa_switch *ds, int port,
 	val |= MT753X_MIRROR_EN(priv->id);
 	val &= ~MT753X_MIRROR_PORT_MASK(priv->id);
 	val |= MT753X_MIRROR_PORT_SET(priv->id, mirror->to_local_port);
-	mt7530_write(priv, MT753X_MIRROR_REG(priv->id), val);
+	regmap_write(priv->regmap, MT753X_MIRROR_REG(priv->id), val);
 
-	val = mt7530_read(priv, MT7530_PCR_P(port));
+	regmap_read(priv->regmap, MT7530_PCR_P(port), &val);
 	if (ingress) {
 		val |= PORT_RX_MIR;
 		priv->mirror_rx |= BIT(port);
@@ -2138,7 +2083,7 @@ static int mt753x_port_mirror_add(struct dsa_switch *ds, int port,
 		val |= PORT_TX_MIR;
 		priv->mirror_tx |= BIT(port);
 	}
-	mt7530_write(priv, MT7530_PCR_P(port), val);
+	regmap_write(priv->regmap, MT7530_PCR_P(port), val);
 
 	return 0;
 }
@@ -2149,7 +2094,7 @@ static void mt753x_port_mirror_del(struct dsa_switch *ds, int port,
 	struct mt7530_priv *priv = ds->priv;
 	u32 val;
 
-	val = mt7530_read(priv, MT7530_PCR_P(port));
+	regmap_read(priv->regmap, MT7530_PCR_P(port), &val);
 	if (mirror->ingress) {
 		val &= ~PORT_RX_MIR;
 		priv->mirror_rx &= ~BIT(port);
@@ -2157,12 +2102,12 @@ static void mt753x_port_mirror_del(struct dsa_switch *ds, int port,
 		val &= ~PORT_TX_MIR;
 		priv->mirror_tx &= ~BIT(port);
 	}
-	mt7530_write(priv, MT7530_PCR_P(port), val);
+	regmap_write(priv->regmap, MT7530_PCR_P(port), val);
 
 	if (!priv->mirror_rx && !priv->mirror_tx) {
-		val = mt7530_read(priv, MT753X_MIRROR_REG(priv->id));
+		regmap_read(priv->regmap, MT753X_MIRROR_REG(priv->id), &val);
 		val &= ~MT753X_MIRROR_EN(priv->id);
-		mt7530_write(priv, MT753X_MIRROR_REG(priv->id), val);
+		regmap_write(priv->regmap, MT753X_MIRROR_REG(priv->id), val);
 	}
 }
 
@@ -2192,8 +2137,11 @@ mt7530_gpio_get(struct gpio_chip *gc, unsigned int offset)
 {
 	struct mt7530_priv *priv = gpiochip_get_data(gc);
 	u32 bit = mt7530_gpio_to_bit(offset);
+	u32 val;
 
-	return !!(mt7530_read(priv, MT7530_LED_GPIO_DATA) & bit);
+	regmap_read(priv->regmap, MT7530_LED_GPIO_DATA, &val);
+
+	return !!(val & bit);
 }
 
 static int
@@ -2202,10 +2150,7 @@ mt7530_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 	struct mt7530_priv *priv = gpiochip_get_data(gc);
 	u32 bit = mt7530_gpio_to_bit(offset);
 
-	if (value)
-		mt7530_set(priv, MT7530_LED_GPIO_DATA, bit);
-	else
-		mt7530_clear(priv, MT7530_LED_GPIO_DATA, bit);
+	regmap_assign_bits(priv->regmap, MT7530_LED_GPIO_DATA, bit, value);
 
 	return 0;
 }
@@ -2215,8 +2160,11 @@ mt7530_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
 	struct mt7530_priv *priv = gpiochip_get_data(gc);
 	u32 bit = mt7530_gpio_to_bit(offset);
+	u32 val;
 
-	return (mt7530_read(priv, MT7530_LED_GPIO_DIR) & bit) ?
+	regmap_read(priv->regmap, MT7530_LED_GPIO_DIR, &val);
+
+	return (val & bit) ?
 		GPIO_LINE_DIRECTION_OUT : GPIO_LINE_DIRECTION_IN;
 }
 
@@ -2226,8 +2174,8 @@ mt7530_gpio_direction_input(struct gpio_chip *gc, unsigned int offset)
 	struct mt7530_priv *priv = gpiochip_get_data(gc);
 	u32 bit = mt7530_gpio_to_bit(offset);
 
-	mt7530_clear(priv, MT7530_LED_GPIO_OE, bit);
-	mt7530_clear(priv, MT7530_LED_GPIO_DIR, bit);
+	regmap_clear_bits(priv->regmap, MT7530_LED_GPIO_OE, bit);
+	regmap_clear_bits(priv->regmap, MT7530_LED_GPIO_DIR, bit);
 
 	return 0;
 }
@@ -2238,14 +2186,11 @@ mt7530_gpio_direction_output(struct gpio_chip *gc, unsigned int offset, int valu
 	struct mt7530_priv *priv = gpiochip_get_data(gc);
 	u32 bit = mt7530_gpio_to_bit(offset);
 
-	mt7530_set(priv, MT7530_LED_GPIO_DIR, bit);
+	regmap_set_bits(priv->regmap, MT7530_LED_GPIO_DIR, bit);
 
-	if (value)
-		mt7530_set(priv, MT7530_LED_GPIO_DATA, bit);
-	else
-		mt7530_clear(priv, MT7530_LED_GPIO_DATA, bit);
+	regmap_assign_bits(priv->regmap, MT7530_LED_GPIO_DATA, bit, value);
 
-	mt7530_set(priv, MT7530_LED_GPIO_OE, bit);
+	regmap_set_bits(priv->regmap, MT7530_LED_GPIO_OE, bit);
 
 	return 0;
 }
@@ -2260,9 +2205,9 @@ mt7530_setup_gpio(struct mt7530_priv *priv)
 	if (!gc)
 		return -ENOMEM;
 
-	mt7530_write(priv, MT7530_LED_GPIO_OE, 0);
-	mt7530_write(priv, MT7530_LED_GPIO_DIR, 0);
-	mt7530_write(priv, MT7530_LED_IO_MODE, 0);
+	regmap_write(priv->regmap, MT7530_LED_GPIO_OE, 0);
+	regmap_write(priv->regmap, MT7530_LED_GPIO_DIR, 0);
+	regmap_write(priv->regmap, MT7530_LED_IO_MODE, 0);
 
 	gc->label = "mt7530";
 	gc->parent = dev;
@@ -2319,21 +2264,6 @@ static const struct regmap_irq mt7530_irqs[] = {
 	REGMAP_IRQ_REG_LINE(31, 32), /* ACL */
 };
 
-/* Serialize regmap-irq's mask sync like every other regmap user */
-static int mt7530_irq_mask_sync(int index, unsigned int mask_buf_def,
-				unsigned int mask_buf, void *irq_drv_data)
-{
-	struct mt7530_priv *priv = irq_drv_data;
-	int ret;
-
-	mt7530_mutex_lock(priv);
-	ret = regmap_update_bits(priv->regmap, MT7530_SYS_INT_EN,
-				 mask_buf_def, ~mask_buf);
-	mt7530_mutex_unlock(priv);
-
-	return ret;
-}
-
 static const struct regmap_irq_chip mt7530_regmap_irq_chip = {
 	.name = KBUILD_MODNAME,
 	.status_base = MT7530_SYS_INT_STS,
@@ -2343,14 +2273,12 @@ static const struct regmap_irq_chip mt7530_regmap_irq_chip = {
 	.irqs = mt7530_irqs,
 	.num_irqs = ARRAY_SIZE(mt7530_irqs),
 	.num_regs = 1,
-	.handle_mask_sync = mt7530_irq_mask_sync,
 };
 
 static int
 mt7530_setup_irq(struct mt7530_priv *priv)
 {
 	struct regmap_irq_chip_data *irq_data;
-	struct regmap_irq_chip *chip;
 	struct device *dev = priv->dev;
 	struct device_node *np = dev->of_node;
 	int irq, ret;
@@ -2368,19 +2296,13 @@ mt7530_setup_irq(struct mt7530_priv *priv)
 
 	/* This register must be set for MT7530 to properly fire interrupts */
 	if (priv->id == ID_MT7530 || priv->id == ID_MT7621)
-		mt7530_set(priv, MT7530_TOP_SIG_CTRL, TOP_SIG_CTRL_NORMAL);
-
-	chip = devm_kmemdup(dev, &mt7530_regmap_irq_chip, sizeof(*chip),
-			    GFP_KERNEL);
-	if (!chip)
-		return -ENOMEM;
-
-	chip->irq_drv_data = priv;
+		regmap_set_bits(priv->regmap, MT7530_TOP_SIG_CTRL,
+				TOP_SIG_CTRL_NORMAL);
 
 	ret = devm_regmap_add_irq_chip_fwnode(dev, dev_fwnode(dev),
 					      priv->regmap, irq,
 					      IRQF_ONESHOT,
-					      0, chip,
+					      0, &mt7530_regmap_irq_chip,
 					      &irq_data);
 	if (ret)
 		return ret;
@@ -2461,7 +2383,6 @@ mt7530_setup(struct dsa_switch *ds)
 	struct device_node *dn = NULL;
 	struct device_node *phy_node;
 	struct device_node *mac_np;
-	struct mt7530_dummy_poll p;
 	phy_interface_t interface;
 	struct dsa_port *cpu_dp;
 	u32 id, val;
@@ -2522,16 +2443,15 @@ mt7530_setup(struct dsa_switch *ds)
 	}
 
 	/* Waiting for MT7530 got to stable */
-	INIT_MT7530_DUMMY_POLL(&p, priv, MT753X_TRAP);
-	ret = readx_poll_timeout(_mt7530_read, &p, val, val != 0,
-				 20, 1000000);
+	ret = regmap_read_poll_timeout(priv->regmap, MT753X_TRAP, val,
+				       val != 0, 20, 1000000);
 	if (ret < 0) {
 		dev_err(priv->dev, "reset timeout\n");
 		return ret;
 	}
 
-	id = mt7530_read(priv, MT7530_CREV);
-	id >>= CHIP_NAME_SHIFT;
+	regmap_read(priv->regmap, MT7530_CREV, &id);
+	id = FIELD_GET(CHIP_NAME_MASK, id);
 	if (id != MT7530_ID) {
 		dev_err(priv->dev, "chip %x can't be supported\n", id);
 		return -ENODEV;
@@ -2544,24 +2464,24 @@ mt7530_setup(struct dsa_switch *ds)
 	}
 
 	/* Reset the switch through internal reset */
-	mt7530_write(priv, MT7530_SYS_CTRL,
-		     SYS_CTRL_PHY_RST | SYS_CTRL_SW_RST |
-		     SYS_CTRL_REG_RST);
+	regmap_write(priv->regmap, MT7530_SYS_CTRL,
+		     SYS_CTRL_PHY_RST | SYS_CTRL_SW_RST | SYS_CTRL_REG_RST);
 
 	/* Lower Tx driving for TRGMII path */
 	for (i = 0; i < NUM_TRGMII_CTRL; i++)
-		mt7530_write(priv, MT7530_TRGMII_TD_ODT(i),
+		regmap_write(priv->regmap, MT7530_TRGMII_TD_ODT(i),
 			     TD_DM_DRVP(8) | TD_DM_DRVN(8));
 
 	for (i = 0; i < NUM_TRGMII_CTRL; i++)
-		mt7530_rmw(priv, MT7530_TRGMII_RD(i),
-			   RD_TAP_MASK, RD_TAP(16));
+		regmap_update_bits(priv->regmap, MT7530_TRGMII_RD(i),
+				   RD_TAP_MASK, RD_TAP(16));
 
 	/* Allow modifying the trap and directly access PHY registers via the
 	 * MDIO bus the switch is on.
 	 */
-	mt7530_rmw(priv, MT753X_MTRAP, MT7530_CHG_TRAP |
-		   MT7530_PHY_INDIRECT_ACCESS, MT7530_CHG_TRAP);
+	regmap_update_bits(priv->regmap, MT753X_MTRAP,
+			   MT7530_CHG_TRAP | MT7530_PHY_INDIRECT_ACCESS,
+			   MT7530_CHG_TRAP);
 
 	if ((val & MT7530_XTAL_MASK) == MT7530_XTAL_40MHZ)
 		mt7530_pll_setup(priv);
@@ -2575,17 +2495,16 @@ mt7530_setup(struct dsa_switch *ds)
 		/* Clear link settings and enable force mode to force link down
 		 * on all ports until they're enabled later.
 		 */
-		mt7530_rmw(priv, MT753X_PMCR_P(i),
-			   PMCR_LINK_SETTINGS_MASK |
-			   MT753X_FORCE_MODE(priv->id),
-			   MT753X_FORCE_MODE(priv->id));
+		regmap_update_bits(priv->regmap, MT753X_PMCR_P(i),
+				   PMCR_LINK_SETTINGS_MASK | MT753X_FORCE_MODE(priv->id),
+				   MT753X_FORCE_MODE(priv->id));
 
 		/* Disable forwarding by default on all ports */
-		mt7530_rmw(priv, MT7530_PCR_P(i), PCR_MATRIX_MASK,
-			   PCR_MATRIX_CLR);
+		regmap_update_bits(priv->regmap, MT7530_PCR_P(i),
+				   PCR_MATRIX_MASK, PCR_MATRIX_CLR);
 
 		/* Disable learning by default on all ports */
-		mt7530_set(priv, MT7530_PSC_P(i), SA_DIS);
+		regmap_set_bits(priv->regmap, MT7530_PSC_P(i), SA_DIS);
 
 		if (dsa_is_cpu_port(ds, i)) {
 			mt753x_cpu_port_enable(ds, i);
@@ -2593,16 +2512,17 @@ mt7530_setup(struct dsa_switch *ds)
 			mt7530_port_disable(ds, i);
 
 			/* Set default PVID to 0 on all user ports */
-			mt7530_rmw(priv, MT7530_PPBV1_P(i), G0_PORT_VID_MASK,
-				   G0_PORT_VID_DEF);
+			regmap_update_bits(priv->regmap, MT7530_PPBV1_P(i),
+					   G0_PORT_VID_MASK, G0_PORT_VID_DEF);
 		}
 		/* Enable consistent egress tag */
-		mt7530_rmw(priv, MT7530_PVC_P(i), PVC_EG_TAG_MASK,
-			   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT));
+		regmap_update_bits(priv->regmap, MT7530_PVC_P(i),
+				   PVC_EG_TAG_MASK,
+				   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT));
 	}
 
 	/* Allow mirroring frames received on the local port (monitor port). */
-	mt7530_set(priv, MT753X_AGC, LOCAL_EN);
+	regmap_set_bits(priv->regmap, MT753X_AGC, LOCAL_EN);
 
 	/* Setup VLAN ID 0 for VLAN-unaware bridges */
 	ret = mt7530_setup_vlan0(priv);
@@ -2649,7 +2569,8 @@ mt7530_setup(struct dsa_switch *ds)
 
 		if (priv->p5_mode == MUX_PHY_P0 ||
 		    priv->p5_mode == MUX_PHY_P4) {
-			mt7530_clear(priv, MT753X_MTRAP, MT7530_P5_DIS);
+			regmap_clear_bits(priv->regmap, MT753X_MTRAP,
+					  MT7530_P5_DIS);
 			mt7530_setup_port5(ds, interface);
 		}
 	}
@@ -2688,26 +2609,26 @@ mt7531_setup_common(struct dsa_switch *ds)
 	mt7530_mib_reset(ds);
 
 	/* Disable flooding on all ports */
-	mt7530_clear(priv, MT753X_MFC, BC_FFP_MASK | UNM_FFP_MASK |
-		     UNU_FFP_MASK);
+	regmap_clear_bits(priv->regmap, MT753X_MFC,
+			  BC_FFP_MASK | UNM_FFP_MASK | UNU_FFP_MASK);
 
 	for (i = 0; i < priv->ds->num_ports; i++) {
 		/* Clear link settings and enable force mode to force link down
 		 * on all ports until they're enabled later.
 		 */
-		mt7530_rmw(priv, MT753X_PMCR_P(i),
-			   PMCR_LINK_SETTINGS_MASK |
-			   MT753X_FORCE_MODE(priv->id),
-			   MT753X_FORCE_MODE(priv->id));
+		regmap_update_bits(priv->regmap, MT753X_PMCR_P(i),
+				   PMCR_LINK_SETTINGS_MASK | MT753X_FORCE_MODE(priv->id),
+				   MT753X_FORCE_MODE(priv->id));
 
 		/* Disable forwarding by default on all ports */
-		mt7530_rmw(priv, MT7530_PCR_P(i), PCR_MATRIX_MASK,
-			   PCR_MATRIX_CLR);
+		regmap_update_bits(priv->regmap, MT7530_PCR_P(i),
+				   PCR_MATRIX_MASK, PCR_MATRIX_CLR);
 
 		/* Disable learning by default on all ports */
-		mt7530_set(priv, MT7530_PSC_P(i), SA_DIS);
+		regmap_set_bits(priv->regmap, MT7530_PSC_P(i), SA_DIS);
 
-		mt7530_set(priv, MT7531_DBG_CNT(i), MT7531_DIS_CLR);
+		regmap_set_bits(priv->regmap, MT7531_DBG_CNT(i),
+				MT7531_DIS_CLR);
 
 		if (dsa_is_cpu_port(ds, i)) {
 			mt753x_cpu_port_enable(ds, i);
@@ -2715,21 +2636,22 @@ mt7531_setup_common(struct dsa_switch *ds)
 			mt7530_port_disable(ds, i);
 
 			/* Set default PVID to 0 on all user ports */
-			mt7530_rmw(priv, MT7530_PPBV1_P(i), G0_PORT_VID_MASK,
-				   G0_PORT_VID_DEF);
+			regmap_update_bits(priv->regmap, MT7530_PPBV1_P(i),
+					   G0_PORT_VID_MASK, G0_PORT_VID_DEF);
 		}
 
 		/* Enable consistent egress tag */
-		mt7530_rmw(priv, MT7530_PVC_P(i), PVC_EG_TAG_MASK,
-			   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT));
+		regmap_update_bits(priv->regmap, MT7530_PVC_P(i),
+				   PVC_EG_TAG_MASK,
+				   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT));
 	}
 
 	/* Allow mirroring frames received on the local port (monitor port). */
-	mt7530_set(priv, MT753X_AGC, LOCAL_EN);
+	regmap_set_bits(priv->regmap, MT753X_AGC, LOCAL_EN);
 
 	/* Enable Special Tag for rx frames */
 	if (priv->id == ID_EN7581 || priv->id == ID_AN7583)
-		mt7530_write(priv, MT753X_CPORT_SPTAG_CFG,
+		regmap_write(priv->regmap, MT753X_CPORT_SPTAG_CFG,
 			     CPORT_SW2FE_STAG_EN | CPORT_FE2SW_STAG_EN);
 
 	/* Flush the FDB table */
@@ -2745,7 +2667,6 @@ static int
 mt7531_setup(struct dsa_switch *ds)
 {
 	struct mt7530_priv *priv = ds->priv;
-	struct mt7530_dummy_poll p;
 	u32 val, id;
 	int ret, i;
 
@@ -2763,16 +2684,15 @@ mt7531_setup(struct dsa_switch *ds)
 	}
 
 	/* Waiting for MT7530 got to stable */
-	INIT_MT7530_DUMMY_POLL(&p, priv, MT753X_TRAP);
-	ret = readx_poll_timeout(_mt7530_read, &p, val, val != 0,
-				 20, 1000000);
+	ret = regmap_read_poll_timeout(priv->regmap, MT753X_TRAP, val,
+				       val != 0, 20, 1000000);
 	if (ret < 0) {
 		dev_err(priv->dev, "reset timeout\n");
 		return ret;
 	}
 
-	id = mt7530_read(priv, MT7531_CREV);
-	id >>= CHIP_NAME_SHIFT;
+	regmap_read(priv->regmap, MT7531_CREV, &id);
+	id = FIELD_GET(CHIP_NAME_MASK, id);
 
 	if (id != MT7531_ID) {
 		dev_err(priv->dev, "chip %x can't be supported\n", id);
@@ -2782,15 +2702,17 @@ mt7531_setup(struct dsa_switch *ds)
 	/* MT7531AE has got two SGMII units. One for port 5, one for port 6.
 	 * MT7531BE has got only one SGMII unit which is for port 6.
 	 */
-	val = mt7530_read(priv, MT7531_TOP_SIG_SR);
+	regmap_read(priv->regmap, MT7531_TOP_SIG_SR, &val);
 	priv->p5_sgmii = !!(val & PAD_DUAL_SGMII_EN);
 
 	/* Force link down on all ports before internal reset */
 	for (i = 0; i < priv->ds->num_ports; i++)
-		mt7530_write(priv, MT753X_PMCR_P(i), MT7531_FORCE_MODE_LNK);
+		regmap_write(priv->regmap, MT753X_PMCR_P(i),
+			     MT7531_FORCE_MODE_LNK);
 
 	/* Reset the switch through internal reset */
-	mt7530_write(priv, MT7530_SYS_CTRL, SYS_CTRL_SW_RST | SYS_CTRL_REG_RST);
+	regmap_write(priv->regmap, MT7530_SYS_CTRL,
+		     SYS_CTRL_SW_RST | SYS_CTRL_REG_RST);
 
 	if (!priv->p5_sgmii) {
 		mt7531_pll_setup(priv);
@@ -2799,14 +2721,16 @@ mt7531_setup(struct dsa_switch *ds)
 		 * MT7531AE. Set the GPIO 11-12 pins to function as MDC and MDIO
 		 * to expose the MDIO bus of the switch.
 		 */
-		mt7530_rmw(priv, MT7531_GPIO_MODE1, MT7531_GPIO11_RG_RXD2_MASK,
-			   MT7531_EXT_P_MDC_11);
-		mt7530_rmw(priv, MT7531_GPIO_MODE1, MT7531_GPIO12_RG_RXD3_MASK,
-			   MT7531_EXT_P_MDIO_12);
+		regmap_update_bits(priv->regmap, MT7531_GPIO_MODE1,
+				   MT7531_GPIO11_RG_RXD2_MASK,
+				   MT7531_EXT_P_MDC_11);
+		regmap_update_bits(priv->regmap, MT7531_GPIO_MODE1,
+				   MT7531_GPIO12_RG_RXD3_MASK,
+				   MT7531_EXT_P_MDIO_12);
 	}
 
-	mt7530_rmw(priv, MT7531_GPIO_MODE0, MT7531_GPIO0_MASK,
-		   MT7531_GPIO0_INTERRUPT);
+	regmap_update_bits(priv->regmap, MT7531_GPIO_MODE0, MT7531_GPIO0_MASK,
+			   MT7531_GPIO0_INTERRUPT);
 
 	/* Enable Energy-Efficient Ethernet (EEE) and PHY core PLL, since
 	 * phy_device has not yet been created provided for
@@ -2998,7 +2922,7 @@ static void mt7531_rgmii_setup(struct mt7530_priv *priv,
 {
 	u32 val;
 
-	val = mt7530_read(priv, MT7531_CLKGEN_CTRL);
+	regmap_read(priv->regmap, MT7531_CLKGEN_CTRL, &val);
 	val |= GP_CLK_EN;
 	val &= ~GP_MODE_MASK;
 	val |= GP_MODE(MT7531_GP_MODE_RGMII);
@@ -3029,7 +2953,7 @@ static void mt7531_rgmii_setup(struct mt7530_priv *priv,
 		}
 	}
 
-	mt7530_write(priv, MT7531_CLKGEN_CTRL, val);
+	regmap_write(priv->regmap, MT7531_CLKGEN_CTRL, val);
 }
 
 static void
@@ -3082,7 +3006,8 @@ mt753x_phylink_mac_config(struct phylink_config *config, unsigned int mode,
 
 	/* Are we connected to external phy */
 	if (port == 5 && dsa_is_user_port(ds, 5))
-		mt7530_set(priv, MT753X_PMCR_P(port), PMCR_EXT_PHY);
+		regmap_set_bits(priv->regmap, MT753X_PMCR_P(port),
+				PMCR_EXT_PHY);
 }
 
 static void mt753x_phylink_mac_link_down(struct phylink_config *config,
@@ -3092,7 +3017,8 @@ static void mt753x_phylink_mac_link_down(struct phylink_config *config,
 	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct mt7530_priv *priv = dp->ds->priv;
 
-	mt7530_clear(priv, MT753X_PMCR_P(dp->index), PMCR_LINK_SETTINGS_MASK);
+	regmap_clear_bits(priv->regmap, MT753X_PMCR_P(dp->index),
+			  PMCR_LINK_SETTINGS_MASK);
 }
 
 static void mt753x_phylink_mac_link_up(struct phylink_config *config,
@@ -3126,7 +3052,7 @@ static void mt753x_phylink_mac_link_up(struct phylink_config *config,
 			mcr |= PMCR_FORCE_RX_FC_EN;
 	}
 
-	mt7530_set(priv, MT753X_PMCR_P(dp->index), mcr);
+	regmap_set_bits(priv->regmap, MT753X_PMCR_P(dp->index), mcr);
 }
 
 static void mt753x_phylink_mac_disable_tx_lpi(struct phylink_config *config)
@@ -3134,8 +3060,8 @@ static void mt753x_phylink_mac_disable_tx_lpi(struct phylink_config *config)
 	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct mt7530_priv *priv = dp->ds->priv;
 
-	mt7530_clear(priv, MT753X_PMCR_P(dp->index),
-		     PMCR_FORCE_EEE1G | PMCR_FORCE_EEE100);
+	regmap_clear_bits(priv->regmap, MT753X_PMCR_P(dp->index),
+			  PMCR_FORCE_EEE1G | PMCR_FORCE_EEE100);
 }
 
 static int mt753x_phylink_mac_enable_tx_lpi(struct phylink_config *config,
@@ -3156,11 +3082,11 @@ static int mt753x_phylink_mac_enable_tx_lpi(struct phylink_config *config,
 	else
 		val = LPI_THRESH_MASK;
 
-	mt7530_rmw(priv, MT753X_PMEEECR_P(dp->index),
-		   LPI_THRESH_MASK | LPI_MODE_EN, val);
+	regmap_update_bits(priv->regmap, MT753X_PMEEECR_P(dp->index),
+			   LPI_THRESH_MASK | LPI_MODE_EN, val);
 
-	mt7530_set(priv, MT753X_PMCR_P(dp->index),
-		   PMCR_FORCE_EEE1G | PMCR_FORCE_EEE100);
+	regmap_set_bits(priv->regmap, MT753X_PMCR_P(dp->index),
+			PMCR_FORCE_EEE1G | PMCR_FORCE_EEE100);
 
 	return 0;
 }
@@ -3182,7 +3108,9 @@ static void mt753x_phylink_get_caps(struct dsa_switch *ds, int port,
 	 */
 	if (priv->id != ID_EN7528 &&
 	    config->mac_capabilities & (MAC_100FD | MAC_1000FD)) {
-		u32 eeecr = mt7530_read(priv, MT753X_PMEEECR_P(port));
+		u32 eeecr;
+
+		regmap_read(priv->regmap, MT753X_PMEEECR_P(port), &eeecr);
 
 		/* LPI above 1 Gbps is not supported */
 		config->lpi_capabilities = config->mac_capabilities &
@@ -3218,7 +3146,7 @@ static void mt7530_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 	int port = pcs_to_mt753x_pcs(pcs)->port;
 	u32 pmsr;
 
-	pmsr = mt7530_read(priv, MT7530_PMSR_P(port));
+	regmap_read(priv->regmap, MT7530_PMSR_P(port), &pmsr);
 
 	state->link = (pmsr & PMSR_LINK);
 	state->an_complete = state->link;
@@ -3323,6 +3251,43 @@ static int mt753x_set_mac_eee(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static int
+mt753x_port_change_conduit(struct dsa_switch *ds, int port,
+			   struct net_device *conduit,
+			   struct netlink_ext_ack *extack)
+{
+	struct dsa_port *new_cpu_dp = conduit->dsa_ptr;
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct mt7530_priv *priv = ds->priv;
+
+	if (priv->id != ID_MT7531) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Changing DSA conduit is only supported on MT7531");
+		return -EOPNOTSUPP;
+	}
+
+	if (new_cpu_dp->ds != ds) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot assign a conduit on a different switch");
+		return -EOPNOTSUPP;
+	}
+
+	mutex_lock(&priv->reg_mutex);
+
+	/* dp->cpu_dp still points to the old CPU port */
+	priv->ports[port].pm &= ~PCR_MATRIX(BIT(dp->cpu_dp->index));
+	priv->ports[port].pm |= PCR_MATRIX(BIT(new_cpu_dp->index));
+	if (priv->ports[port].enable)
+		regmap_update_bits(priv->regmap, MT7530_PCR_P(port),
+				   PCR_MATRIX_MASK, priv->ports[port].pm);
+
+	mutex_unlock(&priv->reg_mutex);
+
+	mt7530_port_fast_age(ds, port);
+
+	return 0;
+}
+
 static void
 mt753x_conduit_state_change(struct dsa_switch *ds,
 			    const struct net_device *conduit,
@@ -3353,7 +3318,8 @@ mt753x_conduit_state_change(struct dsa_switch *ds,
 		      MT7530_CPU_PORT(__ffs(priv->active_cpu_ports));
 	}
 
-	mt7530_rmw(priv, MT753X_MFC, MT7530_CPU_EN | MT7530_CPU_PORT_MASK, val);
+	regmap_update_bits(priv->regmap, MT753X_MFC,
+			   MT7530_CPU_EN | MT7530_CPU_PORT_MASK, val);
 }
 
 static int mt753x_tc_setup_qdisc_tbf(struct dsa_switch *ds, int port,
@@ -3370,8 +3336,8 @@ static int mt753x_tc_setup_qdisc_tbf(struct dsa_switch *ds, int port,
 	case TC_TBF_DESTROY: {
 		u32 val, tick;
 
-		mt7530_rmw(priv, MT753X_GERLCR, EGR_BC_MASK,
-			   EGR_BC_CRC_IPG_PREAMBLE);
+		regmap_update_bits(priv->regmap, MT753X_GERLCR, EGR_BC_MASK,
+				   EGR_BC_CRC_IPG_PREAMBLE);
 
 		/* if rate is greater than 10Mbps tick is 1/32 ms,
 		 * 1ms otherwise
@@ -3382,7 +3348,7 @@ static int mt753x_tc_setup_qdisc_tbf(struct dsa_switch *ds, int port,
 		      FIELD_PREP(ERLCR_EXP_MASK, tick) |
 		      ERLCR_TBF_MODE_MASK |
 		      FIELD_PREP(ERLCR_MANT_MASK, 0xf);
-		mt7530_write(priv, MT753X_ERLCR_P(port), val);
+		regmap_write(priv->regmap, MT753X_ERLCR_P(port), val);
 		break;
 	}
 	default:
@@ -3415,16 +3381,16 @@ static int mt7988_setup(struct dsa_switch *ds)
 
 	/* AN7583 require additional tweak to CONN_CFG */
 	if (priv->id == ID_AN7583)
-		mt7530_rmw(priv, AN7583_GEPHY_CONN_CFG,
-			   AN7583_CSR_DPHY_CKIN_SEL |
-			   AN7583_CSR_PHY_CORE_REG_CLK_SEL |
-			   AN7583_CSR_ETHER_AFE_PWD,
-			   AN7583_CSR_DPHY_CKIN_SEL |
-			   AN7583_CSR_PHY_CORE_REG_CLK_SEL |
-			   FIELD_PREP(AN7583_CSR_ETHER_AFE_PWD, 0));
+		regmap_update_bits(priv->regmap, AN7583_GEPHY_CONN_CFG,
+				   AN7583_CSR_DPHY_CKIN_SEL |
+				   AN7583_CSR_PHY_CORE_REG_CLK_SEL |
+				   AN7583_CSR_ETHER_AFE_PWD,
+				   AN7583_CSR_DPHY_CKIN_SEL |
+				   AN7583_CSR_PHY_CORE_REG_CLK_SEL |
+				   FIELD_PREP(AN7583_CSR_ETHER_AFE_PWD, 0));
 
 	/* Reset the switch PHYs */
-	mt7530_write(priv, MT7530_SYS_CTRL, SYS_CTRL_PHY_RST);
+	regmap_write(priv->regmap, MT7530_SYS_CTRL, SYS_CTRL_PHY_RST);
 
 	return mt7531_setup_common(ds);
 }
@@ -3434,6 +3400,7 @@ static const struct dsa_switch_ops mt7530_switch_ops = {
 	.setup			= mt753x_setup,
 	.teardown		= mt753x_teardown,
 	.preferred_default_local_cpu_port = mt753x_preferred_default_local_cpu_port,
+	.port_change_conduit	= mt753x_port_change_conduit,
 	.get_strings		= mt7530_get_strings,
 	.get_ethtool_stats	= mt7530_get_ethtool_stats,
 	.get_sset_count		= mt7530_get_sset_count,
@@ -3451,6 +3418,7 @@ static const struct dsa_switch_ops mt7530_switch_ops = {
 	.port_bridge_flags	= mt7530_port_bridge_flags,
 	.port_bridge_join	= mt7530_port_bridge_join,
 	.port_bridge_leave	= mt7530_port_bridge_leave,
+	.port_fast_age		= mt7530_port_fast_age,
 	.port_fdb_add		= mt7530_port_fdb_add,
 	.port_fdb_del		= mt7530_port_fdb_del,
 	.port_fdb_dump		= mt7530_port_fdb_dump,

@@ -585,6 +585,8 @@ static void __net_exit devlink_pernet_pre_exit(struct net *net)
 					     DEVLINK_RELOAD_ACTION_DRIVER_REINIT,
 					     DEVLINK_RELOAD_LIMIT_UNSPEC,
 					     &actions_performed, NULL);
+		if (err && net_eq(devlink_net(devlink), net))
+			devlink_reload_netns_change(devlink, net, &init_net);
 		devl_dev_unlock(devlink, true);
 		devlink_put(devlink);
 		if (err && err != -EOPNOTSUPP)

@@ -1025,7 +1025,9 @@ struct kernel_ethtool_ts_info {
  *	types should be set in @supported_coalesce_params.
  *	Returns a negative error code or zero.
  * @get_ringparam: Report ring sizes
- * @set_ringparam: Set ring sizes.  Returns a negative error code or zero.
+ * @set_ringparam: Set ring sizes. The &struct ethtool_ringparam argument is
+ *	also an output; drivers which normalize requested sizes must update it
+ *	with the applied sizes. Returns a negative error code or zero.
  * @get_pause_stats: Report pause frame statistics. Drivers must not zero
  *	statistics which they don't report. The stats structure is initialized
  *	to ETHTOOL_STAT_NOT_SET indicating driver does not report statistics.

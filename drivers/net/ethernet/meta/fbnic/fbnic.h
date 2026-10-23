@@ -57,6 +57,7 @@ struct fbnic_dev {
 	u64 dsn;
 	u32 mps;
 	u32 readrq;
+	u32 rx_cqe_nsecs;
 	u8 relaxed_ord;
 
 	/* Local copy of the devices TCAM */
@@ -160,7 +161,12 @@ void fbnic_fw_wr32(struct fbnic_dev *fbd, u32 reg, u32 val);
 
 static inline bool fbnic_bmc_present(struct fbnic_dev *fbd)
 {
-	return fbd->fw_cap.bmc_present;
+	return test_bit(FBNIC_FW_CAP_F_BMC_PRESENT, &fbd->fw_cap.state);
+}
+
+static inline bool fbnic_bmc_all_multi(struct fbnic_dev *fbd)
+{
+	return test_bit(FBNIC_FW_CAP_F_BMC_ALL_MULTI, &fbd->fw_cap.state);
 }
 
 static inline bool fbnic_init_failure(struct fbnic_dev *fbd)
@@ -250,6 +256,7 @@ int fbnic_csr_regs_len(struct fbnic_dev *fbd);
 
 void fbnic_config_txrx_usecs(struct fbnic_napi_vector *nv, u32 arm);
 void fbnic_config_rx_frames(struct fbnic_napi_vector *nv);
+void fbnic_config_rx_cqe_nsecs(struct fbnic_dev *fbd);
 
 enum fbnic_boards {
 	fbnic_board_asic

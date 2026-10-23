@@ -24,11 +24,6 @@ int psp_dev_rcv(struct sk_buff *skb, u16 dev_id, u8 generation, bool strip_icv);
 /* Kernel-facing API */
 void psp_assoc_put(struct psp_assoc *pas);
 
-static inline void *psp_assoc_drv_data(struct psp_assoc *pas)
-{
-	return pas->drv_data;
-}
-
 #if IS_ENABLED(CONFIG_INET_PSP)
 unsigned int psp_key_size(u32 version);
 void psp_sk_assoc_free(struct sock *sk);

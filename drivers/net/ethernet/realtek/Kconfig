@@ -86,8 +86,8 @@ config R8169
 	depends on PCI
 	select FW_LOADER
 	select CRC32
-	select PHYLIB
 	select REALTEK_PHY
+	select PHYLINK
 	help
 	  Say Y here if you have a Realtek Ethernet adapter belonging to
 	  the following families:

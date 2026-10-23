@@ -65,12 +65,7 @@ static const struct nla_policy dpll_pin_id_get_nl_policy[DPLL_A_PIN_TYPE + 1] = 
 };
 
 /* DPLL_CMD_PIN_GET - do */
-static const struct nla_policy dpll_pin_get_do_nl_policy[DPLL_A_PIN_ID + 1] = {
-	[DPLL_A_PIN_ID] = { .type = NLA_U32, },
-};
-
-/* DPLL_CMD_PIN_GET - dump */
-static const struct nla_policy dpll_pin_get_dump_nl_policy[DPLL_A_PIN_ID + 1] = {
+static const struct nla_policy dpll_pin_get_nl_policy[DPLL_A_PIN_ID + 1] = {
 	[DPLL_A_PIN_ID] = { .type = NLA_U32, },
 };
 
@@ -78,9 +73,6 @@ static const struct nla_policy dpll_pin_get_dump_nl_policy[DPLL_A_PIN_ID + 1] = 
 static const struct nla_policy dpll_pin_set_nl_policy[DPLL_A_PIN_REFERENCE_SYNC + 1] = {
 	[DPLL_A_PIN_ID] = { .type = NLA_U32, },
 	[DPLL_A_PIN_FREQUENCY] = { .type = NLA_U64, },
-	[DPLL_A_PIN_DIRECTION] = NLA_POLICY_RANGE(NLA_U32, 1, 2),
-	[DPLL_A_PIN_PRIO] = { .type = NLA_U32, },
-	[DPLL_A_PIN_STATE] = NLA_POLICY_RANGE(NLA_U32, 1, 3),
 	[DPLL_A_PIN_PARENT_DEVICE] = NLA_POLICY_NESTED(dpll_pin_parent_device_nl_policy),
 	[DPLL_A_PIN_PARENT_PIN] = NLA_POLICY_NESTED(dpll_pin_parent_pin_nl_policy),
 	[DPLL_A_PIN_PHASE_ADJUST] = { .type = NLA_S32, },
@@ -136,16 +128,14 @@ static const struct genl_split_ops dpll_nl_ops[] = {
 		.pre_doit	= dpll_pin_pre_doit,
 		.doit		= dpll_nl_pin_get_doit,
 		.post_doit	= dpll_pin_post_doit,
-		.policy		= dpll_pin_get_do_nl_policy,
+		.policy		= dpll_pin_get_nl_policy,
 		.maxattr	= DPLL_A_PIN_ID,
 		.flags		= GENL_ADMIN_PERM | GENL_CMD_CAP_DO,
 	},
 	{
-		.cmd		= DPLL_CMD_PIN_GET,
-		.dumpit		= dpll_nl_pin_get_dumpit,
-		.policy		= dpll_pin_get_dump_nl_policy,
-		.maxattr	= DPLL_A_PIN_ID,
-		.flags		= GENL_ADMIN_PERM | GENL_CMD_CAP_DUMP,
+		.cmd	= DPLL_CMD_PIN_GET,
+		.dumpit	= dpll_nl_pin_get_dumpit,
+		.flags	= GENL_ADMIN_PERM | GENL_CMD_CAP_DUMP,
 	},
 	{
 		.cmd		= DPLL_CMD_PIN_SET,

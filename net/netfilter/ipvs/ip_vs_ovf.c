@@ -33,7 +33,7 @@ ip_vs_ovf_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	*/
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
 		w = atomic_read(&dest->weight);
-		if ((dest->flags & IP_VS_DEST_F_OVERLOAD) ||
+		if (ip_vs_dest_is_overloaded(dest) ||
 		    atomic_read(&dest->activeconns) > w ||
 		    w == 0)
 			continue;

@@ -63,6 +63,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/reciprocal_div.h>
+#include <linux/u64_stats_sync.h>
 #include <net/netlink.h>
 #include <linux/if_vlan.h>
 #include <net/gso.h>
@@ -234,8 +235,10 @@ struct cake_sched_data {
 	u16		tin_cnt;
 
 	/* resource tracking */
-	u32		buffer_used;
-	u32		buffer_max_used;
+
+	struct u64_stats_sync buffer_max_used_sync;
+	u64_stats_t	buffer_max_used;
+	u64		buffer_used;
 	u32		buffer_limit;
 
 	/* indices for dequeue */
@@ -1850,7 +1853,8 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			qdisc_qstats_drop(sch);
 			ack_pkt_len = qdisc_pkt_len(ack);
 			WRITE_ONCE(b->bytes, b->bytes + ack_pkt_len);
-			q->buffer_used += skb->truesize - ack->truesize;
+			q->buffer_used += skb->truesize;
+			q->buffer_used -= ack->truesize;
 			if (q->config->rate_flags & CAKE_FLAG_INGRESS)
 				cake_advance_shaper(q, b, ack, now, true);
 
@@ -1906,7 +1910,8 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			if (ktime_after(now,
 					ktime_add_ms(q->last_reconfig_time,
 						     250))) {
-				q->config->rate_bps = (q->avg_peak_bandwidth * 15) >> 4;
+				WRITE_ONCE(q->config->rate_bps,
+					   (q->avg_peak_bandwidth * 15) >> 4);
 				q->last_reconfig_time = now;
 				cake_reconfigure(sch);
 			}
@@ -1940,8 +1945,11 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		cake_inc_dsthost_bulk_flow_count(b, flow, q->config->flow_mode);
 	}
 
-	if (q->buffer_used > q->buffer_max_used)
-		WRITE_ONCE(q->buffer_max_used, q->buffer_used);
+	if (q->buffer_used > u64_stats_read(&q->buffer_max_used)) {
+		u64_stats_update_begin(&q->buffer_max_used_sync);
+		u64_stats_set(&q->buffer_max_used, q->buffer_used);
+		u64_stats_update_end(&q->buffer_max_used_sync);
+	}
 
 	if (q->buffer_used <= q->buffer_limit)
 		return NET_XMIT_SUCCESS;
@@ -2019,9 +2027,9 @@ static struct sk_buff *cake_dequeue(struct Qdisc *sch)
 
 	if (q->config->is_shared && q->rate_ns &&
 	    now - q->last_checked_active >= q->config->sync_time) {
+		u64 new_rate = READ_ONCE(q->config->rate_bps);
 		struct net_device *dev = qdisc_dev(sch);
 		struct cake_sched_data *other_priv;
-		u64 new_rate = q->config->rate_bps;
 		u64 other_qlen, other_last_active;
 		struct Qdisc *other_sch;
 		u32 num_active_qs = 1;
@@ -2042,7 +2050,7 @@ static struct sk_buff *cake_dequeue(struct Qdisc *sch)
 		}
 
 		if (num_active_qs > 1)
-			new_rate = div64_u64(q->config->rate_bps, num_active_qs);
+			new_rate = div64_u64(new_rate, num_active_qs);
 
 		cake_configure_rates(sch, new_rate, true);
 		q->last_checked_active = now;
@@ -2610,10 +2618,17 @@ static void cake_configure_rates(struct Qdisc *sch, u64 rate, bool rate_adjust)
 	}
 
 	if (!rate_adjust) {
+		u32 backlog = sch->qstats.backlog, qlen = sch->q.qlen;
+
 		for (c = qd->tin_cnt; c < CAKE_MAX_TINS; c++) {
 			cake_clear_tin(sch, c);
 			qd->tins[c].cparams.mtu_time = qd->tins[ft].cparams.mtu_time;
 		}
+
+		backlog -= sch->qstats.backlog;
+		qlen -= sch->q.qlen;
+		if (qlen)
+			qdisc_tree_reduce_backlog(sch, qlen, backlog);
 	}
 
 	qd->rate_ns   = qd->tins[ft].tin_rate_ns;
@@ -2625,13 +2640,15 @@ static void cake_reconfigure(struct Qdisc *sch)
 	struct cake_sched_data *qd = qdisc_priv(sch);
 	struct cake_sched_config *q = qd->config;
 	u32 buffer_limit;
+	u64 rate_bps;
 
-	cake_configure_rates(sch, qd->config->rate_bps, false);
+	rate_bps = READ_ONCE(qd->config->rate_bps);
+	cake_configure_rates(sch, rate_bps, false);
 
 	if (q->buffer_config_limit) {
 		buffer_limit = q->buffer_config_limit;
-	} else if (q->rate_bps) {
-		u64 t = q->rate_bps * q->interval;
+	} else if (rate_bps) {
+		u64 t = rate_bps * q->interval;
 
 		do_div(t, USEC_PER_SEC / 4);
 		buffer_limit = max_t(u32, t, 4U << 20);
@@ -2784,9 +2801,16 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 		return -EOPNOTSUPP;
 	}
 
+	/* Once the qdisc is live, commit and reconfigure under the lock that
+	 * serializes the datapath, so a concurrent 'tc qdisc change' and the
+	 * autorate update cannot lose the configured rate.
+	 */
+	if (qd->tins)
+		sch_tree_lock(sch);
+
 	ret = cake_config_change(q, opt, extack, &overhead_changed);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	if (overhead_changed) {
 		WRITE_ONCE(qd->max_netlen, 0);
@@ -2795,13 +2819,13 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 		WRITE_ONCE(qd->min_adjlen, ~0);
 	}
 
-	if (qd->tins) {
-		sch_tree_lock(sch);
+	if (qd->tins)
 		cake_reconfigure(sch);
+unlock:
+	if (qd->tins)
 		sch_tree_unlock(sch);
-	}
 
-	return 0;
+	return ret;
 }
 
 static void cake_destroy(struct Qdisc *sch)
@@ -2845,6 +2869,7 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	qd->cur_flow  = 0;
 	qd->config = q;
 
+	u64_stats_init(&qd->buffer_max_used_sync);
 	qdisc_watchdog_init(&qd->watchdog, sch);
 
 	if (opt) {
@@ -2995,6 +3020,8 @@ static int cake_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	struct nlattr *stats = nla_nest_start_noflag(d->skb, TCA_STATS_APP);
 	struct cake_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tstats, *ts;
+	u64 buffer_max_used;
+	unsigned int start;
 	int i;
 
 	if (!stats)
@@ -3010,9 +3037,14 @@ static int cake_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 			goto nla_put_failure;			       \
 	} while (0)
 
+	do {
+		start = u64_stats_fetch_begin(&q->buffer_max_used_sync);
+		buffer_max_used = u64_stats_read(&q->buffer_max_used);
+	} while (u64_stats_fetch_retry(&q->buffer_max_used_sync, start));
+
 	PUT_STAT_U64(CAPACITY_ESTIMATE64, READ_ONCE(q->avg_peak_bandwidth));
 	PUT_STAT_U32(MEMORY_LIMIT, READ_ONCE(q->buffer_limit));
-	PUT_STAT_U32(MEMORY_USED, READ_ONCE(q->buffer_max_used));
+	PUT_STAT_U32(MEMORY_USED, min_t(u64, buffer_max_used, U32_MAX));
 	PUT_STAT_U32(AVG_NETOFF, ((READ_ONCE(q->avg_netoff) + 0x8000) >> 16));
 	PUT_STAT_U32(MAX_NETLEN, READ_ONCE(q->max_netlen));
 	PUT_STAT_U32(MAX_ADJLEN, READ_ONCE(q->max_adjlen));
@@ -3194,8 +3226,7 @@ static int cake_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 						       READ_ONCE(flow->cvars.drop_next))));
 		}
 
-		if (nla_nest_end(d->skb, stats) < 0)
-			return -1;
+		nla_nest_end(d->skb, stats);
 	}
 
 	return 0;

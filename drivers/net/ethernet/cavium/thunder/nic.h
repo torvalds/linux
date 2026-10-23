@@ -97,7 +97,7 @@
  * This value ensures that once a packet has been "accepted"
  * for reception it will not get dropped due to non-availability
  * of CQ descriptor. An errata in HW mandates this value to be
- * atleast 0x100.
+ * at least 0x100.
  */
 #define NICPF_CQM_MIN_DROP_LEVEL       0x100
 

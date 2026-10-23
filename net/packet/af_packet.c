@@ -398,6 +398,10 @@ static inline struct page * __pure pgv_to_page(void *addr)
 	return virt_to_page(addr);
 }
 
+/* Timestamp bits that may be set in addition to the frame state */
+static const u32 tp_status_ts_mask = TP_STATUS_TS_SOFTWARE |
+				     TP_STATUS_TS_RAW_HARDWARE;
+
 static void __packet_set_status(struct packet_sock *po, void *frame, int status)
 {
 	union tpacket_uhdr h;
@@ -519,6 +523,7 @@ static void *packet_lookup_frame(const struct packet_sock *po,
 {
 	unsigned int pg_vec_pos, frame_offset;
 	union tpacket_uhdr h;
+	u32 mask = 0;
 
 	pg_vec_pos = position / rb->frames_per_block;
 	frame_offset = position % rb->frames_per_block;
@@ -526,7 +531,10 @@ static void *packet_lookup_frame(const struct packet_sock *po,
 	h.raw = rb->pg_vec[pg_vec_pos].buffer +
 		(frame_offset * rb->frame_size);
 
-	if (status != __packet_get_status(po, h.raw))
+	if (rb == &po->tx_ring && status == TP_STATUS_AVAILABLE)
+		mask = tp_status_ts_mask;
+
+	if (status != (__packet_get_status(po, h.raw) & ~mask))
 		return NULL;
 
 	return h.raw;
@@ -2950,7 +2958,7 @@ tpacket_error:
 		if (unlikely(err != 0)) {
 			if (err > 0)
 				err = net_xmit_errno(err);
-			if (err && __packet_get_status(po, ph) ==
+			if (err && (__packet_get_status(po, ph) & ~tp_status_ts_mask) ==
 				   TP_STATUS_AVAILABLE) {
 				/* skb was destructed already */
 				skb = NULL;
@@ -4863,16 +4871,13 @@ static void packet_seq_stop(struct seq_file *seq, void *v)
 static int packet_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN)
-		seq_printf(seq,
-			   "%*sRefCnt Type Proto  Iface R Rmem   User   Inode\n",
-			   IS_ENABLED(CONFIG_64BIT) ? -17 : -9, "sk");
+		seq_puts(seq, "sk RefCnt Type Proto  Iface R Rmem   User   Inode\n");
 	else {
 		struct sock *s = sk_entry(v);
 		const struct packet_sock *po = pkt_sk(s);
 
 		seq_printf(seq,
-			   "%pK %-6d %-4d %04x   %-5d %1d %-6u %-6u %-6llu\n",
-			   s,
+			   "0  %-6d %-4d %04x   %-5d %1d %-6u %-6u %-6llu\n",
 			   refcount_read(&s->sk_refcnt),
 			   s->sk_type,
 			   ntohs(READ_ONCE(po->num)),

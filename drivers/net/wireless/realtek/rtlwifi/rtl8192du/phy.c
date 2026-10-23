@@ -764,7 +764,7 @@ static void _rtl92du_phy_switch_rf_setting(struct ieee80211_hw *hw, u8 channel)
 		    rtlhal->interfaceindex == 1) {
 			need_pwr_down = rtl92du_phy_enable_anotherphy(hw, false);
 			rtlhal->during_mac1init_radioa = true;
-			/* asume no this case */
+			/* assume no this case */
 			if (need_pwr_down)
 				rtl92d_phy_enable_rf_env(hw, path,
 							 &u4regvalue);
@@ -2248,7 +2248,7 @@ static void _rtl92du_phy_reload_lck_setting(struct ieee80211_hw *hw, u8 channel)
 			bneed_powerdown_radio =
 				rtl92du_phy_enable_anotherphy(hw, false);
 			rtlpriv->rtlhal.during_mac1init_radioa = true;
-			/* asume no this case */
+			/* assume no this case */
 			if (bneed_powerdown_radio)
 				rtl92d_phy_enable_rf_env(hw, erfpath,
 							 &u4regvalue);

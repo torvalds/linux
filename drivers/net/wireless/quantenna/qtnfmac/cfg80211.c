@@ -531,10 +531,12 @@ qtnf_dump_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 }
 
 static int qtnf_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-			int link_id, u8 key_index, bool pairwise,
+			int link_id, u8 key_index,
+			enum nl80211_key_type type,
 			const u8 *mac_addr, struct key_params *params)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
+	bool pairwise = type == NL80211_KEYTYPE_PAIRWISE;
 	int ret;
 
 	ret = qtnf_cmd_send_add_key(vif, key_index, pairwise, mac_addr, params);
@@ -547,10 +549,12 @@ static int qtnf_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 }
 
 static int qtnf_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-			int link_id, u8 key_index, bool pairwise,
+			int link_id, u8 key_index,
+			enum nl80211_key_type type,
 			const u8 *mac_addr)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
+	bool pairwise = type == NL80211_KEYTYPE_PAIRWISE;
 	int ret;
 
 	ret = qtnf_cmd_send_del_key(vif, key_index, pairwise, mac_addr);

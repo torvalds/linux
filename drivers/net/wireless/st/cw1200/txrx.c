@@ -1050,7 +1050,7 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 		schedule_work(&priv->linkid_reset_work);
 	}
 
-	if (link_id && p2p &&
+	if (link_id && link_id <= CW1200_MAX_STA_IN_AP_MODE && p2p &&
 	    ieee80211_is_action(frame->frame_control) &&
 	    (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC)) {
 		/* Link ID already exists for the ACTION frame.

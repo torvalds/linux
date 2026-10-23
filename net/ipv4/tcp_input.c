@@ -5840,6 +5840,7 @@ skip_this:
 			break;
 
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
+		TCP_SKB_CB(nskb)->has_rxtstamp = false;
 		skb_copy_decrypted(nskb, skb);
 		TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(nskb)->end_seq = start;
 		if (list)
@@ -5860,6 +5861,12 @@ skip_this:
 				if (skb_copy_bits(skb, offset, skb_put(nskb, size), size))
 					BUG();
 				TCP_SKB_CB(nskb)->end_seq += size;
+				if (TCP_SKB_CB(skb)->has_rxtstamp) {
+					TCP_SKB_CB(nskb)->has_rxtstamp = true;
+					nskb->tstamp = skb->tstamp;
+					skb_hwtstamps(nskb)->hwtstamp =
+						skb_hwtstamps(skb)->hwtstamp;
+				}
 				copy -= size;
 				start += size;
 			}
@@ -6104,8 +6111,14 @@ static void tcp_new_space(struct sock *sk)
  */
 void __tcp_check_space(struct sock *sk)
 {
+	struct socket *sock = sk->sk_socket;
+
+	/* tp->tcp_nospace is only a hint, SOCK_NOSPACE is authoritative. */
+	if (!sock || !test_bit(SOCK_NOSPACE, &sock->flags))
+		return;
+
 	tcp_new_space(sk);
-	if (!test_bit(SOCK_NOSPACE, &sk->sk_socket->flags))
+	if (!test_bit(SOCK_NOSPACE, &sock->flags))
 		tcp_chrono_stop(sk, TCP_CHRONO_SNDBUF_LIMITED);
 }
 
@@ -7239,19 +7252,14 @@ tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 				  FLAG_UPDATE_TS_RECENT |
 				  FLAG_NO_CHALLENGE_ACK);
 
-	if ((int)reason <= 0) {
-		if (sk->sk_state == TCP_SYN_RECV) {
+	/* accept old ack (reason == 0) during closing */
+	if ((int)reason < 0) {
+		reason = -reason;
+		if (sk->sk_state == TCP_SYN_RECV)
 			/* send one RST */
-			if (!reason)
-				return SKB_DROP_REASON_TCP_OLD_ACK;
-			return -reason;
-		}
-		/* accept old ack during closing */
-		if ((int)reason < 0) {
-			tcp_send_challenge_ack(sk, false);
-			reason = -reason;
-			goto discard;
-		}
+			return reason;
+		tcp_send_challenge_ack(sk, false);
+		goto discard;
 	}
 	SKB_DR_SET(reason, NOT_SPECIFIED);
 	switch (sk->sk_state) {

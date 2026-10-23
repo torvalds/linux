@@ -636,6 +636,7 @@ static void rtw8852bt_rfk_track(struct rtw89_dev *rtwdev)
 static void rtw8852bt_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc_module *md = &rtwdev->btc.mdinfo;
+	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
 
 	md->rfe_type = rtwdev->efuse.rfe_type;
 	md->kt_ver = rtwdev->hal.cv;
@@ -653,6 +654,10 @@ static void rtw8852bt_btc_set_rfe(struct rtw89_dev *rtwdev)
 	md->ant.single_pos = RF_PATH_A;
 	md->ant.btg_pos = RF_PATH_B;
 
+	memset(dm->ant_xmap, 0, sizeof(dm->ant_xmap));
+	/* the only BT shares the BTG antenna with WL path B */
+	dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 1;
+
 	if (md->rfe_type == 0) {
 		rtwdev->btc.dm.error.map.rfe_type0 = true;
 		return;
@@ -669,6 +674,7 @@ static void rtw8852bt_btc_set_rfe(struct rtw89_dev *rtwdev)
 	} else {
 		md->ant.type = BTC_ANT_DEDICATED;
 		md->bt0_pos = BTC_BT_ALONE;
+		dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 0;
 	}
 }
 

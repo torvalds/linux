@@ -113,7 +113,7 @@ struct hw_modul {
 	struct	s_mbuf_pool	mbuf_pool ;
 	struct	hwm_r	r ;
 
-	union s_fp_descr volatile *descr_p ; /* points to the desriptor area */
+	union s_fp_descr volatile *descr_p ; /* points to the descriptor area */
 
 	u_short pass_SMT ;		/* pass SMT frames */
 	u_short pass_NSA ;		/* pass all NSA frames */

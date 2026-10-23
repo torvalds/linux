@@ -54,7 +54,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	u16 vlan_tci = 0;
 	int rc;
 
-	if (!(vlan->flags & VLAN_FLAG_REORDER_HDR)) {
+	if (!(READ_ONCE(vlan->flags) & VLAN_FLAG_REORDER_HDR)) {
 		unsigned int hlen = READ_ONCE(dev->hard_header_len) +
 				    READ_ONCE(dev->needed_headroom);
 
@@ -110,21 +110,52 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	unsigned int len;
 	int ret;
 
+	len = skb->len;
+
 	/* Handle non-VLAN frames if they are sent to us, for example by DHCP.
 	 *
 	 * NOTE: THIS ASSUMES DIX ETHERNET, SPECIFICALLY NOT SUPPORTING
 	 * OTHER THINGS LIKE FDDI/TokenRing/802.3 SNAPs...
 	 */
-	if (vlan->flags & VLAN_FLAG_REORDER_HDR ||
+	if (READ_ONCE(vlan->flags) & VLAN_FLAG_REORDER_HDR ||
 	    veth->h_vlan_proto != vlan->vlan_proto) {
 		u16 vlan_tci;
 		vlan_tci = vlan->vlan_id;
 		vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb->priority);
 		__vlan_hwaccel_put_tag(skb, vlan->vlan_proto, vlan_tci);
+	} else if (skb_headlen(skb) >= VLAN_ETH_HLEN + sizeof(__be16) &&
+		   !skb_shared(skb) && !skb_vlan_tag_present(skb) &&
+		   !skb_metadata_len(skb) &&
+		   (skb->ip_summed != CHECKSUM_PARTIAL ||
+		    skb_checksum_start_offset(skb) >= VLAN_ETH_HLEN) &&
+		   vlan_hw_offload_capable(READ_ONCE(vlan->real_dev->features),
+					   vlan->vlan_proto)) {
+		u16 vlan_tci;
+
+		/* The frame carries its outer tag in-band, either inserted
+		 * by vlan_dev_hard_header() or provided by the sender.
+		 * Let the real device insert it: some NICs can not offload
+		 * checksum or TSO for frames carrying an in-band tag.
+		 * Not all ndo_start_xmit() callers set the mac header.
+		 * vlan_set_encap_proto() may read two bytes after the vlan
+		 * header, so frames with a shorter linear part are sent
+		 * unchanged, as are shared skbs (e.g. from pktgen), skbs
+		 * already carrying a hwaccel tag (e.g. from generic XDP
+		 * redirect), skbs carrying XDP metadata, and CHECKSUM_PARTIAL
+		 * skbs whose checksum starts within the header to be popped.
+		 * On allocation failure, drop the frame rather than handing
+		 * it to the real device with an in-band tag.
+		 */
+		skb_reset_mac_header(skb);
+		if (unlikely(__skb_vlan_pop(skb, &vlan_tci))) {
+			dev_kfree_skb_any(skb);
+			this_cpu_inc(vlan->vlan_pcpu_stats->tx_dropped);
+			return NETDEV_TX_OK;
+		}
+		__vlan_hwaccel_put_tag(skb, vlan->vlan_proto, vlan_tci);
 	}
 
 	skb->dev = vlan->real_dev;
-	len = skb->len;
 	if (unlikely(netpoll_tx_running(dev)))
 		return vlan_netpoll_send_skb(vlan, skb);
 
@@ -164,13 +195,16 @@ void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, u16 vlan_prio)
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
+	u32 *map = &vlan->ingress_priority_map[vlan_prio & 0x7];
 
-	if (vlan->ingress_priority_map[vlan_prio & 0x7] && !skb_prio)
-		vlan->nr_ingress_mappings--;
-	else if (!vlan->ingress_priority_map[vlan_prio & 0x7] && skb_prio)
-		vlan->nr_ingress_mappings++;
+	if (*map && !skb_prio)
+		WRITE_ONCE(vlan->nr_ingress_mappings,
+			   vlan->nr_ingress_mappings - 1);
+	else if (!*map && skb_prio)
+		WRITE_ONCE(vlan->nr_ingress_mappings,
+			   vlan->nr_ingress_mappings + 1);
 
-	vlan->ingress_priority_map[vlan_prio & 0x7] = skb_prio;
+	WRITE_ONCE(*map, skb_prio);
 }
 
 int vlan_dev_set_egress_priority(const struct net_device *dev,
@@ -190,7 +224,8 @@ int vlan_dev_set_egress_priority(const struct net_device *dev,
 		if (mp->priority == skb_prio) {
 			if (!vlan_qos) {
 				rcu_assign_pointer(*mpp, rtnl_dereference(mp->next));
-				vlan->nr_egress_mappings--;
+				WRITE_ONCE(vlan->nr_egress_mappings,
+					   vlan->nr_egress_mappings - 1);
 				kfree_rcu(mp, rcu);
 			} else {
 				WRITE_ONCE(mp->vlan_qos, vlan_qos);
@@ -214,7 +249,8 @@ int vlan_dev_set_egress_priority(const struct net_device *dev,
 	RCU_INIT_POINTER(np->next, rtnl_dereference(vlan->egress_priority_map[bucket]));
 	rcu_assign_pointer(vlan->egress_priority_map[bucket], np);
 	if (vlan_qos)
-		vlan->nr_egress_mappings++;
+		WRITE_ONCE(vlan->nr_egress_mappings,
+			   vlan->nr_egress_mappings + 1);
 	return 0;
 }
 
@@ -225,23 +261,25 @@ int vlan_dev_change_flags(const struct net_device *dev, u32 flags, u32 mask)
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	u32 old_flags = vlan->flags;
+	u32 new_flags;
 
 	if (mask & ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP |
 		     VLAN_FLAG_LOOSE_BINDING | VLAN_FLAG_MVRP |
 		     VLAN_FLAG_BRIDGE_BINDING))
 		return -EINVAL;
 
-	vlan->flags = (old_flags & ~mask) | (flags & mask);
+	new_flags = (old_flags & ~mask) | (flags & mask);
+	WRITE_ONCE(vlan->flags, new_flags);
 
-	if (netif_running(dev) && (vlan->flags ^ old_flags) & VLAN_FLAG_GVRP) {
-		if (vlan->flags & VLAN_FLAG_GVRP)
+	if (netif_running(dev) && (new_flags ^ old_flags) & VLAN_FLAG_GVRP) {
+		if (new_flags & VLAN_FLAG_GVRP)
 			vlan_gvrp_request_join(dev);
 		else
 			vlan_gvrp_request_leave(dev);
 	}
 
-	if (netif_running(dev) && (vlan->flags ^ old_flags) & VLAN_FLAG_MVRP) {
-		if (vlan->flags & VLAN_FLAG_MVRP)
+	if (netif_running(dev) && (new_flags ^ old_flags) & VLAN_FLAG_MVRP) {
+		if (new_flags & VLAN_FLAG_MVRP)
 			vlan_mvrp_request_join(dev);
 		else
 			vlan_mvrp_request_leave(dev);
@@ -604,7 +642,7 @@ void vlan_dev_free_egress_priority(const struct net_device *dev)
 			pm = next;
 		}
 	}
-	vlan->nr_egress_mappings = 0;
+	WRITE_ONCE(vlan->nr_egress_mappings, 0);
 }
 
 static void vlan_dev_uninit(struct net_device *dev)

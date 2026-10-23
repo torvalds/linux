@@ -3,7 +3,7 @@
  * mac80211_hwsim - software simulator of 802.11 radio(s) for mac80211
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2011, Javier Lopez <jlopex@gmail.com>
- * Copyright (C) 2020, 2022-2025 Intel Corporation
+ * Copyright (C) 2020, 2022-2026 Intel Corporation
  */
 
 #ifndef __MAC80211_HWSIM_H
@@ -162,6 +162,8 @@ enum hwsim_commands {
  *	each radio instead of for the wiphy.
  * @HWSIM_ATTR_SUPPORT_NAN_DEVICE: support NAN Device virtual interface (flag)
  * @HWSIM_ATTR_SUPPORT_BACKGROUND_RADAR: background radar/CAC support (flag)
+ * @HWSIM_ATTR_NO_MONITOR: skip monitor report for this TX status, e.g. in case
+ *	the frame was never reported to any receiver (flag)
  * @__HWSIM_ATTR_MAX: enum limit
  */
 enum hwsim_attrs {
@@ -197,6 +199,7 @@ enum hwsim_attrs {
 	HWSIM_ATTR_MULTI_RADIO,
 	HWSIM_ATTR_SUPPORT_NAN_DEVICE,
 	HWSIM_ATTR_SUPPORT_BACKGROUND_RADAR,
+	HWSIM_ATTR_NO_MONITOR,
 	__HWSIM_ATTR_MAX,
 };
 #define HWSIM_ATTR_MAX (__HWSIM_ATTR_MAX - 1)

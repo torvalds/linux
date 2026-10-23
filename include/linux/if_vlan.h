@@ -427,8 +427,8 @@ static inline int __vlan_insert_tag(struct sk_buff *skb,
  * Inserts the VLAN tag into @skb as part of the payload at offset mac_len
  * Returns a VLAN tagged skb. This might change skb->head.
  *
- * Following the skb_unshare() example, in case of error, the calling function
- * doesn't have to worry about freeing the original skb.
+ * Following the skb_unclone_full() example, in case of error, the calling
+ * function doesn't have to worry about freeing the original skb.
  *
  * Does not change skb->protocol so this function can be used during receive.
  *
@@ -458,8 +458,8 @@ static inline struct sk_buff *vlan_insert_inner_tag(struct sk_buff *skb,
  * Inserts the VLAN tag into @skb as part of the payload
  * Returns a VLAN tagged skb. This might change skb->head.
  *
- * Following the skb_unshare() example, in case of error, the calling function
- * doesn't have to worry about freeing the original skb.
+ * Following the skb_unclone_full() example, in case of error, the calling
+ * function doesn't have to worry about freeing the original skb.
  *
  * Does not change skb->protocol so this function can be used during receive.
  *
@@ -480,8 +480,8 @@ static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb,
  * Inserts the VLAN tag into @skb as part of the payload
  * Returns a VLAN tagged skb. This might change skb->head.
  *
- * Following the skb_unshare() example, in case of error, the calling function
- * doesn't have to worry about freeing the original skb.
+ * Following the skb_unclone_full() example, in case of error, the calling
+ * function doesn't have to worry about freeing the original skb.
  *
  * Return: modified @skb on success, NULL on error (@skb is freed).
  */
@@ -524,8 +524,8 @@ static inline void __vlan_hwaccel_copy_tag(struct sk_buff *dst, const struct sk_
  *
  * Pushes the VLAN tag from @skb->vlan_tci inside to the payload.
  *
- * Following the skb_unshare() example, in case of error, the calling function
- * doesn't have to worry about freeing the original skb.
+ * Following the skb_unclone_full() example, in case of error, the calling
+ * function doesn't have to worry about freeing the original skb.
  */
 static inline struct sk_buff *__vlan_hwaccel_push_inside(struct sk_buff *skb)
 {
@@ -698,7 +698,6 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 					struct vlan_hdr *vhdr)
 {
 	__be16 proto;
-	unsigned short *rawp;
 
 	/*
 	 * Was a VLAN packet, grab the encapsulated protocol, which the layer
@@ -711,21 +710,8 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 		return;
 	}
 
-	rawp = (unsigned short *)(vhdr + 1);
-	if (*rawp == 0xFFFF)
-		/*
-		 * This is a magic hack to spot IPX packets. Older Novell
-		 * breaks the protocol design and runs IPX over 802.3 without
-		 * an 802.2 LLC layer. We look for FFFF which isn't a used
-		 * 802.2 SSAP/DSAP. This won't work for fault tolerant netware
-		 * but does for the rest.
-		 */
-		skb->protocol = htons(ETH_P_802_3);
-	else
-		/*
-		 * Real 802.2 LLC
-		 */
-		skb->protocol = htons(ETH_P_802_2);
+	/* No ethertype: this is an 802.2 LLC frame (length field). */
+	skb->protocol = htons(ETH_P_802_2);
 }
 
 /**

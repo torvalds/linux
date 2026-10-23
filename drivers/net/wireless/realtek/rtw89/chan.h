@@ -185,6 +185,7 @@ void rtw89_query_mr_chanctx_info(struct rtw89_dev *rtwdev, u8 inst_idx,
 void rtw89_chanctx_track(struct rtw89_dev *rtwdev);
 void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
 			 const struct rtw89_chanctx_pause_parm *parm);
+bool __must_check rtw89_chanctx_paused(struct rtw89_dev *rtwdev);
 void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev,
 			   const struct rtw89_chanctx_cb_parm *cb_parm);
 

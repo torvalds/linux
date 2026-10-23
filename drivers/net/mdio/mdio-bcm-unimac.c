@@ -345,7 +345,7 @@ static const struct of_device_id unimac_mdio_ids[] = {
 	{ .compatible = "brcm,genet-mdio-v2", },
 	{ .compatible = "brcm,genet-mdio-v1", },
 	{ .compatible = "brcm,unimac-mdio", },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, unimac_mdio_ids);
 

@@ -248,6 +248,35 @@ ieee80211_nan_find_free_channel(struct ieee80211_nan_sched_cfg *sched_cfg)
 	return NULL;
 }
 
+int
+ieee80211_nan_set_non_evac_channels(struct ieee80211_sub_if_data *sdata,
+				    struct cfg80211_nan_non_evac_channels *channels)
+{
+	struct ieee80211_nan_sched_cfg *sched_cfg = &sdata->vif.cfg.nan_sched;
+
+	/*
+	 * cfg80211 already validated that all provided channels belong to the
+	 * current schedule, so just clear all non-evacuable flags and set the
+	 * ones in the list.
+	 */
+	for (int j = 0; j < ARRAY_SIZE(sched_cfg->channels); j++)
+		sched_cfg->channels[j].no_evacuate = false;
+
+	for (int i = 0; i < channels->n_channels; i++) {
+		for (int j = 0; j < ARRAY_SIZE(sched_cfg->channels); j++) {
+			if (!sched_cfg->channels[j].chanreq.oper.chan)
+				continue;
+			if (cfg80211_chandef_identical(&sched_cfg->channels[j].chanreq.oper,
+						       &channels->chandefs[i])) {
+				sched_cfg->channels[j].no_evacuate = true;
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
 int ieee80211_nan_set_local_sched(struct ieee80211_sub_if_data *sdata,
 				  struct cfg80211_nan_local_sched *sched)
 {
@@ -784,6 +813,10 @@ ieee80211_nan_find_evac_chan(struct ieee80211_local *local,
 			continue;
 
 		usable_channels++;
+
+		/* No-evacuate channel is usable but cannot be evacuated */
+		if (chan->no_evacuate)
+			continue;
 
 		chan_ctx = container_of(chan->chanctx_conf,
 					struct ieee80211_chanctx, conf);

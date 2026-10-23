@@ -65,7 +65,7 @@ properties:
         const: 0
 
     patternProperties:
-      "^pin@[0-9]+$":
+      "^pin@[0-9a-f]+$":
         $ref: /schemas/dpll/dpll-pin.yaml
         unevaluatedProperties: false
 

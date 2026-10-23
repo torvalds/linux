@@ -505,6 +505,11 @@ static int rvu_nix_register_reporters(struct rvu_devlink *rvu_dl)
 		return -ENOMEM;
 
 	rvu_reporters->nix_event_ctx = nix_event_context;
+	INIT_WORK(&rvu_reporters->intr_work, rvu_nix_intr_work);
+	INIT_WORK(&rvu_reporters->gen_work, rvu_nix_gen_work);
+	INIT_WORK(&rvu_reporters->err_work, rvu_nix_err_work);
+	INIT_WORK(&rvu_reporters->ras_work, rvu_nix_ras_work);
+
 	rvu_reporters->rvu_hw_nix_intr_reporter =
 		devlink_health_reporter_create(rvu_dl->dl,
 					       &rvu_hw_nix_intr_reporter_ops,
@@ -545,14 +550,10 @@ static int rvu_nix_register_reporters(struct rvu_devlink *rvu_dl)
 		return PTR_ERR(rvu_reporters->rvu_hw_nix_ras_reporter);
 	}
 
-	rvu_dl->devlink_wq = create_workqueue("rvu_devlink_wq");
+	if (!rvu_dl->devlink_wq)
+		rvu_dl->devlink_wq = create_workqueue("rvu_devlink_wq");
 	if (!rvu_dl->devlink_wq)
 		return -ENOMEM;
-
-	INIT_WORK(&rvu_reporters->intr_work, rvu_nix_intr_work);
-	INIT_WORK(&rvu_reporters->gen_work, rvu_nix_gen_work);
-	INIT_WORK(&rvu_reporters->err_work, rvu_nix_err_work);
-	INIT_WORK(&rvu_reporters->ras_work, rvu_nix_ras_work);
 
 	return 0;
 }
@@ -582,6 +583,13 @@ static void rvu_nix_health_reporters_destroy(struct rvu_devlink *rvu_dl)
 
 	if (!nix_reporters->rvu_hw_nix_ras_reporter)
 		return;
+
+	rvu_nix_unregister_interrupts(rvu);
+	cancel_work_sync(&nix_reporters->intr_work);
+	cancel_work_sync(&nix_reporters->gen_work);
+	cancel_work_sync(&nix_reporters->err_work);
+	cancel_work_sync(&nix_reporters->ras_work);
+
 	if (!IS_ERR_OR_NULL(nix_reporters->rvu_hw_nix_intr_reporter))
 		devlink_health_reporter_destroy(nix_reporters->rvu_hw_nix_intr_reporter);
 
@@ -594,7 +602,6 @@ static void rvu_nix_health_reporters_destroy(struct rvu_devlink *rvu_dl)
 	if (!IS_ERR_OR_NULL(nix_reporters->rvu_hw_nix_ras_reporter))
 		devlink_health_reporter_destroy(nix_reporters->rvu_hw_nix_ras_reporter);
 
-	rvu_nix_unregister_interrupts(rvu);
 	kfree(rvu_dl->rvu_nix_health_reporter->nix_event_ctx);
 	kfree(rvu_dl->rvu_nix_health_reporter);
 }
@@ -1059,6 +1066,11 @@ static int rvu_npa_register_reporters(struct rvu_devlink *rvu_dl)
 		return -ENOMEM;
 
 	rvu_reporters->npa_event_ctx = npa_event_context;
+	INIT_WORK(&rvu_reporters->intr_work, rvu_npa_intr_work);
+	INIT_WORK(&rvu_reporters->err_work, rvu_npa_err_work);
+	INIT_WORK(&rvu_reporters->gen_work, rvu_npa_gen_work);
+	INIT_WORK(&rvu_reporters->ras_work, rvu_npa_ras_work);
+
 	rvu_reporters->rvu_hw_npa_intr_reporter =
 		devlink_health_reporter_create(rvu_dl->dl,
 					       &rvu_hw_npa_intr_reporter_ops,
@@ -1099,14 +1111,10 @@ static int rvu_npa_register_reporters(struct rvu_devlink *rvu_dl)
 		return PTR_ERR(rvu_reporters->rvu_hw_npa_ras_reporter);
 	}
 
-	rvu_dl->devlink_wq = create_workqueue("rvu_devlink_wq");
+	if (!rvu_dl->devlink_wq)
+		rvu_dl->devlink_wq = create_workqueue("rvu_devlink_wq");
 	if (!rvu_dl->devlink_wq)
 		return -ENOMEM;
-
-	INIT_WORK(&rvu_reporters->intr_work, rvu_npa_intr_work);
-	INIT_WORK(&rvu_reporters->err_work, rvu_npa_err_work);
-	INIT_WORK(&rvu_reporters->gen_work, rvu_npa_gen_work);
-	INIT_WORK(&rvu_reporters->ras_work, rvu_npa_ras_work);
 
 	return 0;
 }
@@ -1136,6 +1144,13 @@ static void rvu_npa_health_reporters_destroy(struct rvu_devlink *rvu_dl)
 
 	if (!npa_reporters->rvu_hw_npa_ras_reporter)
 		return;
+
+	rvu_npa_unregister_interrupts(rvu);
+	cancel_work_sync(&npa_reporters->intr_work);
+	cancel_work_sync(&npa_reporters->gen_work);
+	cancel_work_sync(&npa_reporters->err_work);
+	cancel_work_sync(&npa_reporters->ras_work);
+
 	if (!IS_ERR_OR_NULL(npa_reporters->rvu_hw_npa_intr_reporter))
 		devlink_health_reporter_destroy(npa_reporters->rvu_hw_npa_intr_reporter);
 
@@ -1148,7 +1163,6 @@ static void rvu_npa_health_reporters_destroy(struct rvu_devlink *rvu_dl)
 	if (!IS_ERR_OR_NULL(npa_reporters->rvu_hw_npa_ras_reporter))
 		devlink_health_reporter_destroy(npa_reporters->rvu_hw_npa_ras_reporter);
 
-	rvu_npa_unregister_interrupts(rvu);
 	kfree(rvu_dl->rvu_npa_health_reporter->npa_event_ctx);
 	kfree(rvu_dl->rvu_npa_health_reporter);
 }
@@ -1176,6 +1190,10 @@ static void rvu_health_reporters_destroy(struct rvu *rvu)
 	rvu_dl = rvu->rvu_dl;
 	rvu_npa_health_reporters_destroy(rvu_dl);
 	rvu_nix_health_reporters_destroy(rvu_dl);
+	if (rvu_dl->devlink_wq) {
+		destroy_workqueue(rvu_dl->devlink_wq);
+		rvu_dl->devlink_wq = NULL;
+	}
 }
 
 /* Devlink Params APIs */

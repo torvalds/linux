@@ -117,6 +117,9 @@ static int dp83848_config_init(struct phy_device *phydev)
 	 * we check initial value of BMCR Auto negotiation enable bit
 	 */
 	val = phy_read(phydev, MII_BMCR);
+	if (val < 0)
+		return val;
+
 	if (!(val & BMCR_ANENABLE))
 		phydev->autoneg = AUTONEG_DISABLE;
 

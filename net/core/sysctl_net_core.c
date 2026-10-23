@@ -21,6 +21,7 @@
 
 #include <net/ip.h>
 #include <net/sock.h>
+#include <net/neighbour.h>
 #include <net/net_ratelimit.h>
 #include <net/busy_poll.h>
 #include <net/pkt_sched.h>
@@ -336,10 +337,15 @@ static int proc_do_rss_key(const struct ctl_table *table, int write,
 {
 	char buf[NETDEV_RSS_KEY_LEN * 3];
 	struct ctl_table fake_table;
+	bool initialized;
 	char *pos = buf;
 
+	initialized = READ_ONCE(netdev_rss_key_initialized);
+	/* Pair with smp_wmb() in netdev_rss_key_fill(). */
+	smp_rmb();
+
 	for (int i = 0; i < NETDEV_RSS_KEY_LEN; i++) {
-		pos = hex_byte_pack(pos, netdev_rss_key[i]);
+		pos = hex_byte_pack(pos, initialized ? netdev_rss_key[i] : 0);
 		*pos++ = ':';
 	}
 	*(--pos) = 0;
@@ -675,6 +681,15 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_do_skb_defer_max,
 		.extra1		= SYSCTL_ZERO,
+	},
+	{
+		.procname	= "neigh_inherit_init_net",
+		.data		= &sysctl_neigh_inherit_init_net,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 };
 

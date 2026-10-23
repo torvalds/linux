@@ -410,7 +410,7 @@ struct batadv_orig_bat_iv {
  */
 struct batadv_orig_node {
 	/** @orig: originator ethernet address */
-	u8 orig[ETH_ALEN];
+	u8 orig[ETH_ALEN] __aligned(2);
 
 	/** @ifinfo_list: list for routers per outgoing interface */
 	struct hlist_head ifinfo_list;
@@ -634,12 +634,12 @@ struct batadv_hardif_neigh_node {
 	struct hlist_node list;
 
 	/** @addr: the MAC address of the neighboring interface */
-	u8 addr[ETH_ALEN];
+	u8 addr[ETH_ALEN] __aligned(2);
 
 	/**
 	 * @orig: the address of the originator this neighbor node belongs to
 	 */
-	u8 orig[ETH_ALEN];
+	u8 orig[ETH_ALEN] __aligned(2);
 
 	/** @if_incoming: pointer to incoming hard-interface */
 	struct batadv_hard_iface *if_incoming;
@@ -677,7 +677,7 @@ struct batadv_neigh_node {
 #endif
 
 	/** @addr: the MAC address of the neighboring interface */
-	u8 addr[ETH_ALEN];
+	u8 addr[ETH_ALEN] __aligned(2);
 
 	/** @ifinfo_list: list for routing metrics per outgoing interface */
 	struct hlist_head ifinfo_list;
@@ -777,7 +777,7 @@ struct batadv_neigh_ifinfo {
  */
 struct batadv_bcast_duplist_entry {
 	/** @orig: mac address of orig node originating the broadcast */
-	u8 orig[ETH_ALEN];
+	u8 orig[ETH_ALEN] __aligned(2);
 
 	/** @crc: crc32 checksum of broadcast payload */
 	u32 crc;
@@ -1055,6 +1055,25 @@ struct batadv_priv_tt {
 	 */
 	spinlock_t commit_lock;
 
+	/**
+	 * @reserved_entries: number of local TT entries which are currently
+	 *  allocated or about to be allocated. Together with @reserved_vlans it
+	 *  describes the worst case size of a full table response.
+	 */
+	u16 reserved_entries;
+
+	/**
+	 * @reserved_vlans: number of mesh interface VLANs which are currently
+	 *  allocated or about to be allocated. Together with @reserved_entries
+	 *  it describes the worst case size of a full table response.
+	 */
+	u16 reserved_vlans;
+
+	/**
+	 * @reserve_lock: lock protecting @reserved_entries & @reserved_vlans
+	 */
+	spinlock_t reserve_lock;
+
 	/** @work: work queue callback item for translation table purging */
 	struct delayed_work work;
 };
@@ -1085,7 +1104,7 @@ struct batadv_priv_bla {
 	struct batadv_hashtable *backbone_hash;
 
 	/** @loopdetect_addr: MAC address used for own loopdetection frames */
-	u8 loopdetect_addr[ETH_ALEN];
+	u8 loopdetect_addr[ETH_ALEN] __aligned(2);
 
 	/**
 	 * @loopdetect_lasttime: time when the loopdetection frames were sent
@@ -1352,7 +1371,7 @@ struct batadv_tp_vars_common {
 	struct batadv_priv *bat_priv;
 
 	/** @other_end: mac address of remote */
-	u8 other_end[ETH_ALEN];
+	u8 other_end[ETH_ALEN] __aligned(2);
 
 	/** @session: TP session identifier */
 	u8 session[2];
@@ -1765,7 +1784,7 @@ struct batadv_bla_backbone_gw {
 	 * @orig: originator address of backbone node (mac address of primary
 	 *  iface)
 	 */
-	u8 orig[ETH_ALEN];
+	u8 orig[ETH_ALEN] __aligned(2);
 
 	/** @vid: vlan id this gateway was detected on */
 	unsigned short vid;
@@ -1810,7 +1829,7 @@ struct batadv_bla_backbone_gw {
  */
 struct batadv_bla_claim {
 	/** @addr: mac address of claimed non-mesh client */
-	u8 addr[ETH_ALEN];
+	u8 addr[ETH_ALEN] __aligned(2);
 
 	/** @vid: vlan id this client was detected on */
 	unsigned short vid;
@@ -1840,7 +1859,7 @@ struct batadv_bla_claim {
  */
 struct batadv_tt_common_entry {
 	/** @addr: mac address of non-mesh client */
-	u8 addr[ETH_ALEN];
+	u8 addr[ETH_ALEN] __aligned(2);
 
 	/** @vid: VLAN identifier */
 	unsigned short vid;
@@ -1851,11 +1870,20 @@ struct batadv_tt_common_entry {
 	 */
 	struct hlist_node hash_entry;
 
-	/** @flags: various state handling flags (see batadv_tt_client_flags) */
+	/**
+	 * @flags: various state handling flags (see batadv_tt_client_flags),
+	 * protected by @flags_lock
+	 */
 	u16 flags;
 
 	/** @added_at: timestamp used for purging stale tt common entries */
 	unsigned long added_at;
+
+	/**
+	 * @flags_lock: protect modifications of @flags and
+	 *  @batadv_tt_global_entry.roam_at
+	 */
+	spinlock_t flags_lock;
 
 	/** @refcount: number of contexts the object is used */
 	struct kref refcount;
@@ -1942,7 +1970,7 @@ struct batadv_tt_req_node {
 	/**
 	 * @addr: mac address of the originator this request was sent to
 	 */
-	u8 addr[ETH_ALEN];
+	u8 addr[ETH_ALEN] __aligned(2);
 
 	/** @issued_at: timestamp used for purging stale tt requests */
 	unsigned long issued_at;
@@ -1959,7 +1987,7 @@ struct batadv_tt_req_node {
  */
 struct batadv_tt_roam_node {
 	/** @addr: mac address of the client in the roaming phase */
-	u8 addr[ETH_ALEN];
+	u8 addr[ETH_ALEN] __aligned(2);
 
 	/** @vid: VLAN identifier */
 	u16 vid;
@@ -2087,14 +2115,14 @@ struct batadv_algo_neigh_ops {
 		   struct batadv_hard_iface *if_outgoing2);
 
 	/**
-	 * @is_similar_or_better: check if neigh1 is equally similar or better
-	 *  than neigh2 for their respective outgoing interface from the metric
+	 * @is_similar_or_better: check if @candidate is equally similar or better
+	 *  than @reference for their respective outgoing interface from the metric
 	 *  prospective
 	 */
-	bool (*is_similar_or_better)(struct batadv_neigh_node *neigh1,
-				     struct batadv_hard_iface *if_outgoing1,
-				     struct batadv_neigh_node *neigh2,
-				     struct batadv_hard_iface *if_outgoing2);
+	bool (*is_similar_or_better)(struct batadv_neigh_node *candidate,
+				     struct batadv_hard_iface *if_outgoing_cand,
+				     struct batadv_neigh_node *reference,
+				     struct batadv_hard_iface *if_outgoing_ref);
 
 	/** @dump: dump neighbors to a netlink socket (optional) */
 	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
@@ -2204,7 +2232,7 @@ struct batadv_hw_addr {
 	struct hlist_node list;
 
 	/** @addr: the MAC address of this list entry */
-	unsigned char addr[ETH_ALEN];
+	unsigned char addr[ETH_ALEN] __aligned(2);
 };
 
 /**

@@ -219,12 +219,16 @@ struct psp_dev_ops {
 	 * @tx_key_add: add a Tx key to the device
 	 * Install an association in the device. Core will allocate space
 	 * for the driver to use at drv_data.
+	 * Can be left NULL if device does not store Tx keys and @tx_key_del
+	 * is also NULL.
 	 */
 	int (*tx_key_add)(struct psp_dev *psd, struct psp_assoc *pas,
 			  struct netlink_ext_ack *extack);
 	/**
 	 * @tx_key_del: remove a Tx key from the device
 	 * Remove an association from the device.
+	 * Can be left NULL if device does not store Tx keys and @tx_key_add
+	 * is also NULL.
 	 */
 	void (*tx_key_del)(struct psp_dev *psd, struct psp_assoc *pas);
 

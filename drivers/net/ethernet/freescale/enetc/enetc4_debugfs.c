@@ -6,24 +6,48 @@
 #include <linux/seq_file.h>
 #include <linux/string_choices.h>
 
-#include "enetc_pf.h"
+#include "enetc_pf_common.h"
 #include "enetc4_debugfs.h"
 
-static void enetc_show_si_mac_hash_filter(struct seq_file *s, int i)
+static void enetc_vf_state_lock(struct enetc_pf *pf, int vf_id)
 {
-	struct enetc_si *si = s->private;
-	struct enetc_hw *hw = &si->hw;
+	struct enetc_vf_state *vf_state;
+
+	if (vf_id < 0)
+		return;
+
+	vf_state = &pf->vf_state[vf_id];
+	mutex_lock(&vf_state->lock);
+}
+
+static void enetc_vf_state_unlock(struct enetc_pf *pf, int vf_id)
+{
+	struct enetc_vf_state *vf_state;
+
+	if (vf_id < 0)
+		return;
+
+	vf_state = &pf->vf_state[vf_id];
+	mutex_unlock(&vf_state->lock);
+}
+
+static void enetc_show_si_mac_hash_filter(struct seq_file *s, int si_id)
+{
+	struct enetc_pf *pf = enetc_si_priv(s->private);
+	struct enetc_hw *hw = &pf->si->hw;
 	u32 hash_h, hash_l;
 
-	hash_l = enetc_port_rd(hw, ENETC4_PSIUMHFR0(i));
-	hash_h = enetc_port_rd(hw, ENETC4_PSIUMHFR1(i));
+	enetc_vf_state_lock(pf, si_id - 1);
+	hash_l = enetc_port_rd(hw, ENETC4_PSIUMHFR0(si_id));
+	hash_h = enetc_port_rd(hw, ENETC4_PSIUMHFR1(si_id));
 	seq_printf(s, "SI %d unicast MAC hash filter: 0x%08x%08x\n",
-		   i, hash_h, hash_l);
+		   si_id, hash_h, hash_l);
 
-	hash_l = enetc_port_rd(hw, ENETC4_PSIMMHFR0(i));
-	hash_h = enetc_port_rd(hw, ENETC4_PSIMMHFR1(i));
+	hash_l = enetc_port_rd(hw, ENETC4_PSIMMHFR0(si_id));
+	hash_h = enetc_port_rd(hw, ENETC4_PSIMMHFR1(si_id));
 	seq_printf(s, "SI %d multicast MAC hash filter: 0x%08x%08x\n",
-		   i, hash_h, hash_l);
+		   si_id, hash_h, hash_l);
+	enetc_vf_state_unlock(pf, si_id - 1);
 }
 
 static int enetc_mac_filter_show(struct seq_file *s, void *data)
@@ -37,7 +61,11 @@ static int enetc_mac_filter_show(struct seq_file *s, void *data)
 	int err = 0;
 	int i;
 
+	/* Prevent concurrent access from causing PSIPMMR to be modified */
+	spin_lock(&pf->si->gen_lock);
 	val = enetc_port_rd(hw, ENETC4_PSIPMMR);
+	spin_unlock(&pf->si->gen_lock);
+
 	for (i = 0; i < num_si; i++) {
 		seq_printf(s, "SI %d Unicast Promiscuous mode: %s\n", i,
 			   str_enabled_disabled(PSIPMMR_SI_MAC_UP(i) & val));
@@ -45,13 +73,12 @@ static int enetc_mac_filter_show(struct seq_file *s, void *data)
 			   str_enabled_disabled(PSIPMMR_SI_MAC_MP(i) & val));
 	}
 
+	rtnl_lock();
 	/* MAC hash filter table */
 	for (i = 0; i < num_si; i++)
 		enetc_show_si_mac_hash_filter(s, i);
 
 	user = &pf->si->ntmp_user;
-	rtnl_lock();
-
 	if (bitmap_empty(user->maft_eid_bitmap, user->maft_num_entries))
 		goto unlock_rtnl;
 

@@ -1418,9 +1418,9 @@ static netdev_tx_t __dpaa2_eth_tx(struct sk_buff *skb,
 	/* We'll be holding a back-reference to the skb until Tx Confirmation;
 	 * we don't want that overwritten by a concurrent Tx with a cloned skb.
 	 */
-	skb = skb_unshare(skb, GFP_ATOMIC);
+	skb = skb_unclone_full(skb, GFP_ATOMIC);
 	if (unlikely(!skb)) {
-		/* skb_unshare() has already freed the skb */
+		/* skb_unclone_full() has already freed the skb */
 		percpu_stats->tx_dropped++;
 		return NETDEV_TX_OK;
 	}
@@ -4771,6 +4771,8 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 			dpaa2_eth_disconnect_mac(priv);
 		else
 			dpaa2_eth_connect_mac(priv);
+
+		dpaa2_eth_dl_port_check(priv);
 	}
 
 	return IRQ_HANDLED;

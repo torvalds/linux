@@ -12,6 +12,7 @@
 #define NXP_ENETC_VENDOR_ID		0x1131
 #define NXP_ENETC_PF_DEV_ID		0xe101
 #define NXP_ENETC_PPM_DEV_ID		0xe110
+#define NXP_ENETC_VF_DEV_ID		0xef00
 
 /**********************Station interface registers************************/
 /* Station interface LSO segmentation flag mask register 0/1 */

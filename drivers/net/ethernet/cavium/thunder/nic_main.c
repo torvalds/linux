@@ -595,7 +595,7 @@ static void nic_config_rss(struct nicpf *nic, struct rss_cfg_msg *cfg)
 	nic_reg_write(nic, idx_addr | (cpi_base << 3), cpi_cfg);
 }
 
-/* 4 level transmit side scheduler configutation
+/* 4 level transmit side scheduler configuration
  * for TNS bypass mode
  *
  * Sample configuration for SQ0 on 88xx

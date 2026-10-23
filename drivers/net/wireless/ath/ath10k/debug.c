@@ -2004,10 +2004,7 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 		ath10k_core_start_recovery(ar);
 	}
 
-	if (val)
-		set_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
-	else
-		clear_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
+	assign_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags, val);
 
 	ret = count;
 
@@ -2118,10 +2115,7 @@ static ssize_t ath10k_write_peer_stats(struct file *file,
 		goto exit;
 	}
 
-	if (val)
-		set_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags);
-	else
-		clear_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags);
+	assign_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags, val);
 
 	ath10k_info(ar, "restarting firmware due to Peer stats change");
 
