@@ -243,7 +243,7 @@ static struct kparam_string quirks_param_string = {
 	.string = quirks_param,
 };
 
-module_param_cb(quirks, &quirks_param_ops, &quirks_param_string, 0444);
+device_param_cb(quirks, &quirks_param_ops, &quirks_param_string, 0444);
 MODULE_PARM_DESC(quirks, "Enable/disable NVMe quirks by specifying "
 						"quirks=VID:DID:quirk_names");
 
