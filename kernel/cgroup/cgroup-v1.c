@@ -2,7 +2,7 @@
 #include "cgroup-internal.h"
 
 #include <linux/ctype.h>
-#include <linux/kmod.h>
+#include <linux/umh.h>
 #include <linux/sort.h>
 #include <linux/delay.h>
 #include <linux/mm.h>

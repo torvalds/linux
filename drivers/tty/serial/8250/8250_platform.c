@@ -16,6 +16,7 @@
 #include <linux/moduleparam.h>
 #include <linux/once.h>
 #include <linux/platform_device.h>
+#include <linux/stringify.h>
 
 #include <linux/serial_8250.h>
 
@@ -382,6 +383,6 @@ module_param_hw(share_irqs, bool, other, 0644);
 MODULE_PARM_DESC(share_irqs, "Share IRQs with other non-8250/16x50 devices (unsafe)");
 
 module_param(nr_uarts, uint, 0644);
-MODULE_PARM_DESC(nr_uarts, "Maximum number of UARTs supported. (1-" __MODULE_STRING(CONFIG_SERIAL_8250_NR_UARTS) ")");
+MODULE_PARM_DESC(nr_uarts, "Maximum number of UARTs supported. (1-" __stringify(CONFIG_SERIAL_8250_NR_UARTS) ")");
 
 MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);
