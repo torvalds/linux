@@ -912,7 +912,7 @@ static void iso_sock_disconn(struct sock *sk)
 	struct sock *bis_sk;
 	struct hci_conn *hcon = iso_pi(sk)->conn->hcon;
 
-	if (test_bit(HCI_CONN_BIG_CREATED, &hcon->flags)) {
+	if (test_bit(HCI_CONN_BIG_CREATED, hcon->flags)) {
 		bis_sk = iso_get_sock_big(sk, &iso_pi(sk)->src,
 					  &iso_pi(sk)->dst,
 					  iso_pi(sk)->qos.bcast.big);
@@ -957,8 +957,8 @@ static void __iso_sock_close(struct sock *sk)
 
 	case BT_CONNECT2:
 		if (iso_pi(sk)->conn->hcon &&
-		    (test_bit(HCI_CONN_PA_SYNC, &iso_pi(sk)->conn->hcon->flags) ||
-		    test_bit(HCI_CONN_PA_SYNC_FAILED, &iso_pi(sk)->conn->hcon->flags)))
+		    (test_bit(HCI_CONN_PA_SYNC, iso_pi(sk)->conn->hcon->flags) ||
+		    test_bit(HCI_CONN_PA_SYNC_FAILED, iso_pi(sk)->conn->hcon->flags)))
 			iso_sock_disconn(sk);
 		else
 			iso_chan_del(sk, ECONNRESET);
@@ -2289,7 +2289,7 @@ static void iso_conn_ready(struct iso_conn *conn)
 
 		hdev = hcon->hdev;
 
-		if (test_bit(HCI_CONN_BIG_SYNC, &hcon->flags)) {
+		if (test_bit(HCI_CONN_BIG_SYNC, hcon->flags)) {
 			/* A BIS slave hcon is notified to the ISO layer
 			 * after the Command Complete for the LE Setup
 			 * ISO Data Path command is received. Get the
@@ -2298,7 +2298,7 @@ static void iso_conn_ready(struct iso_conn *conn)
 			parent = iso_get_sock(hdev, &hcon->src, &hcon->dst,
 					      BT_LISTEN, iso_match_big_hcon,
 					      hcon);
-		} else if (test_bit(HCI_CONN_BIG_SYNC_FAILED, &hcon->flags)) {
+		} else if (test_bit(HCI_CONN_BIG_SYNC_FAILED, hcon->flags)) {
 			ev = hci_recv_event_data(hcon->hdev,
 						 HCI_EVT_LE_BIG_SYNC_ESTABLISHED);
 
@@ -2312,7 +2312,7 @@ static void iso_conn_ready(struct iso_conn *conn)
 						      &hcon->dst,
 						      BT_LISTEN,
 						      iso_match_big, ev);
-		} else if (test_bit(HCI_CONN_PA_SYNC_FAILED, &hcon->flags)) {
+		} else if (test_bit(HCI_CONN_PA_SYNC_FAILED, hcon->flags)) {
 			ev2 = hci_recv_event_data(hcon->hdev,
 						  HCI_EV_LE_PA_SYNC_ESTABLISHED);
 			if (ev2)
@@ -2320,7 +2320,7 @@ static void iso_conn_ready(struct iso_conn *conn)
 						      &hcon->dst,
 						      BT_LISTEN,
 						      iso_match_sid, ev2);
-		} else if (test_bit(HCI_CONN_PA_SYNC, &hcon->flags)) {
+		} else if (test_bit(HCI_CONN_PA_SYNC, hcon->flags)) {
 			ev3 = hci_recv_event_data(hcon->hdev,
 						  HCI_EV_LE_PER_ADV_REPORT);
 			if (ev3)
@@ -2376,7 +2376,7 @@ static void iso_conn_ready(struct iso_conn *conn)
 			hcon->dst_type = le_addr_type(iso_pi(parent)->dst_type);
 		}
 
-		if (test_bit(HCI_CONN_PA_SYNC, &hcon->flags)) {
+		if (test_bit(HCI_CONN_PA_SYNC, hcon->flags)) {
 			iso_pi(sk)->qos = iso_pi(parent)->qos;
 			hcon->iso_qos = iso_pi(sk)->qos;
 			iso_pi(sk)->bc_sid = iso_pi(parent)->bc_sid;
@@ -2676,8 +2676,8 @@ static void iso_connect_cfm(struct hci_conn *hcon, __u8 status)
 	 * into the accept queue of the listening socket and wake up
 	 * userspace, to inform the user about the event.
 	 */
-	if (!status || test_bit(HCI_CONN_BIG_SYNC_FAILED, &hcon->flags) ||
-	    test_bit(HCI_CONN_PA_SYNC_FAILED, &hcon->flags)) {
+	if (!status || test_bit(HCI_CONN_BIG_SYNC_FAILED, hcon->flags) ||
+	    test_bit(HCI_CONN_PA_SYNC_FAILED, hcon->flags)) {
 		struct iso_conn *conn;
 
 		conn = iso_conn_add(hcon);

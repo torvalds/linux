@@ -984,12 +984,12 @@ static u8 smp_random(struct smp_chan *smp)
 
 		smp_s1(smp->tk, smp->rrnd, smp->prnd, stk);
 
-		if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags))
+		if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, hcon->flags))
 			return SMP_UNSPECIFIED;
 
 		hci_le_start_enc(hcon, ediv, rand, stk, smp->enc_key_size);
 		hcon->enc_key_size = smp->enc_key_size;
-		set_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags);
+		set_bit(HCI_CONN_STK_ENCRYPT, hcon->flags);
 	} else {
 		u8 stk[16], auth;
 		__le64 rand = 0;
@@ -1028,7 +1028,7 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 			persistent = false;
 		else
 			persistent = !test_bit(HCI_CONN_FLUSH_KEY,
-					       &hcon->flags);
+					       hcon->flags);
 	} else {
 		/* The LTKs, IRKs and CSRKs should be persistent only if
 		 * both sides had the bonding bit set in their
@@ -1753,7 +1753,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	/* SMP over BR/EDR requires special treatment */
 	if (conn->hcon->type == ACL_LINK) {
 		/* We must have a BR/EDR SC link */
-		if (!test_bit(HCI_CONN_AES_CCM, &conn->hcon->flags) &&
+		if (!test_bit(HCI_CONN_AES_CCM, conn->hcon->flags) &&
 		    !hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
 			return SMP_CROSS_TRANSP_NOT_ALLOWED;
 
@@ -2210,14 +2210,14 @@ static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 	if (smp_ltk_sec_level(key) < sec_level)
 		return false;
 
-	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags))
+	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, hcon->flags))
 		return true;
 
 	hci_le_start_enc(hcon, key->ediv, key->rand, key->val, key->enc_size);
 	hcon->enc_key_size = key->enc_size;
 
 	/* We never store STKs for initiator role, so clear this flag */
-	clear_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags);
+	clear_bit(HCI_CONN_STK_ENCRYPT, hcon->flags);
 
 	return true;
 }
@@ -2235,7 +2235,7 @@ bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level,
 	 * don't have an LTK (e.g. because of key distribution bits).
 	 */
 	if (key_pref == SMP_USE_LTK &&
-	    test_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags) &&
+	    test_bit(HCI_CONN_STK_ENCRYPT, hcon->flags) &&
 	    hci_find_ltk(hcon->hdev, &hcon->dst, hcon->dst_type, hcon->role))
 		return false;
 
@@ -3084,11 +3084,11 @@ static void bredr_pairing(struct l2cap_chan *chan)
 	bt_dev_dbg(hdev, "chan %p", chan);
 
 	/* Only new pairings are interesting */
-	if (!test_bit(HCI_CONN_NEW_LINK_KEY, &hcon->flags))
+	if (!test_bit(HCI_CONN_NEW_LINK_KEY, hcon->flags))
 		return;
 
 	/* Don't bother if we're not encrypted */
-	if (!test_bit(HCI_CONN_ENCRYPT, &hcon->flags))
+	if (!test_bit(HCI_CONN_ENCRYPT, hcon->flags))
 		return;
 
 	/* Only initiator may initiate SMP over BR/EDR */
@@ -3100,7 +3100,7 @@ static void bredr_pairing(struct l2cap_chan *chan)
 		return;
 
 	/* BR/EDR must use Secure Connections for SMP */
-	if (!test_bit(HCI_CONN_AES_CCM, &hcon->flags) &&
+	if (!test_bit(HCI_CONN_AES_CCM, hcon->flags) &&
 	    !hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
 		return;
 
@@ -3149,7 +3149,7 @@ static void smp_resume_cb(struct l2cap_chan *chan)
 	if (!smp)
 		return;
 
-	if (!test_bit(HCI_CONN_ENCRYPT, &hcon->flags))
+	if (!test_bit(HCI_CONN_ENCRYPT, hcon->flags))
 		return;
 
 	cancel_delayed_work(&smp->security_timer);
@@ -3172,7 +3172,7 @@ static void smp_ready_cb(struct l2cap_chan *chan)
 	 */
 	conn->smp = chan;
 
-	if (hcon->type == ACL_LINK && test_bit(HCI_CONN_ENCRYPT, &hcon->flags))
+	if (hcon->type == ACL_LINK && test_bit(HCI_CONN_ENCRYPT, hcon->flags))
 		bredr_pairing(chan);
 }
 
