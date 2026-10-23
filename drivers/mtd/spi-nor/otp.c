@@ -175,24 +175,24 @@ static int spi_nor_otp_lock_bit_cr(unsigned int region)
  */
 int spi_nor_otp_lock_sr2(struct spi_nor *nor, unsigned int region)
 {
-	u8 *cr = nor->bouncebuf;
 	int ret, lock_bit;
+	u8 sr[2];
 
 	lock_bit = spi_nor_otp_lock_bit_cr(region);
 	if (lock_bit < 0)
 		return lock_bit;
 
-	ret = spi_nor_read_cr(nor, cr);
+	ret = spi_nor_read_sr1_and_sr2(nor, sr);
 	if (ret)
 		return ret;
 
 	/* no need to write the register if region is already locked */
-	if (cr[0] & lock_bit)
+	if (sr[1] & lock_bit)
 		return 0;
 
-	cr[0] |= lock_bit;
+	sr[1] |= lock_bit;
 
-	return spi_nor_write_16bit_cr_and_check(nor, cr[0]);
+	return spi_nor_write_sr1_and_sr2_and_check(nor, sr);
 }
 
 /**
@@ -207,18 +207,18 @@ int spi_nor_otp_lock_sr2(struct spi_nor *nor, unsigned int region)
  */
 int spi_nor_otp_is_locked_sr2(struct spi_nor *nor, unsigned int region)
 {
-	u8 *cr = nor->bouncebuf;
 	int ret, lock_bit;
+	u8 sr2;
 
 	lock_bit = spi_nor_otp_lock_bit_cr(region);
 	if (lock_bit < 0)
 		return lock_bit;
 
-	ret = spi_nor_read_cr(nor, cr);
+	ret = spi_nor_read_sr2(nor, &sr2);
 	if (ret)
 		return ret;
 
-	return cr[0] & lock_bit;
+	return sr2 & lock_bit;
 }
 
 static loff_t spi_nor_otp_region_start(const struct spi_nor *nor, unsigned int region)
