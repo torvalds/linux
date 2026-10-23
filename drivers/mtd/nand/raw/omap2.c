@@ -666,9 +666,7 @@ static void gen_true_ecc(u8 *ecc_buf)
  * If there is no error, %0 is returned. If there is an error but it
  * was corrected, %1 is returned. Otherwise, %-1 is returned.
  */
-static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
-			    u8 *ecc_data2,	/* read from register */
-			    u8 *page_data)
+static int omap_compare_ecc(u8 *ecc_data1, u8 *ecc_data2, u8 *page_data)
 {
 	uint	i;
 	u8	tmp0_bit[8], tmp1_bit[8], tmp2_bit[8];
