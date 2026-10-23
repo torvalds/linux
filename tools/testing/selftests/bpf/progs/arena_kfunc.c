@@ -192,20 +192,61 @@ int arena_arg_unpopulated(void *ctx)
 	return 0;
 }
 
+/*
+ * A subprogram whose only arena use is the argument of a kfunc needs the
+ * arena base too, the JIT rebases the argument on it. The address arrives
+ * as a number, so no cast marks the subprogram either.
+ */
+__noinline int arena_arg_from_subprog(unsigned long addr)
+{
+	return bpf_kfunc_arena_arg_test((u64 *)addr) != 41;
+}
+
+/*
+ * A NULL constant for the __arena argument takes an early exit in the
+ * verifier; the call needs the arena base all the same, the JIT rebases
+ * the argument with a NULL test.
+ */
 SEC("syscall")
 __arch_x86_64
 __arch_arm64
-__failure __msg("arena pointer requires a program with an associated arena")
-int arena_arg_no_arena(void *ctx)
+__success __retval(0)
+int arena_arg_null(void *ctx)
 {
-	bpf_kfunc_arena_arg_test((u64 *)1);
-	return 0;
+	return bpf_kfunc_arena_cap_nullable_test(NULL) != 0;
 }
 
 SEC("syscall")
 __arch_x86_64
 __arch_arm64
-__failure __msg("is not a pointer to arena or scalar")
+__success __retval(0)
+int arena_arg_subprog(void *ctx)
+{
+#if defined(__BPF_FEATURE_ADDR_SPACE_CAST)
+	u64 __arena *val;
+	int ret;
+
+	val = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	if (!val)
+		return 1;
+
+	*val = 41;
+	if (arena_arg_from_subprog((unsigned long)val))
+		ret = 2;
+	else
+		ret = *val != 42 ? 3 : 0;
+
+	bpf_arena_free_pages(&arena, (void __arena *)val, 1);
+	return ret;
+#else
+	return 0;
+#endif
+}
+
+SEC("syscall")
+__arch_x86_64
+__arch_arm64
+__failure __msg("R1 type=fp expected=arena, scalar")
 int arena_arg_bad_reg(void *ctx)
 {
 	u64 buf = 0;
@@ -228,13 +269,29 @@ int arena_arg_stack(void *ctx)
 	bpf_kfunc_arena_stack_arg_test(1, 2, 3, 4, 5, (u64 *)1);
 	return 0;
 }
+
+#if defined(__clang__)
+/* The struct takes two slots, so the arena pointer is the sixth. */
+SEC("syscall")
+__arch_x86_64 __arch_arm64
+__failure __msg("arena pointer cannot be a stack argument")
+int arena_arg_stack_after_pair(void *ctx)
+{
+	struct prog_test_pair_arg s = { .lo = 1, .hi = 2 };
+
+	bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	bpf_kfunc_call_test_pair_arena_arg(1, 2, 3, s, (u64 *)1);
+	return 0;
+}
+#endif
 #else
 SEC("syscall")
 __arch_x86_64
 __arch_arm64
 __description("arena_arg_stack: not supported, dummy test")
+__skip("arena_arg_stack: not supported")
 __success
-int arena_arg_stack(void *ctx)
+int dummy_test(void *ctx)
 {
 	return 0;
 }

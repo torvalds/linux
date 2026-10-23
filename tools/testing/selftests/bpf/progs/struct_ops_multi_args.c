@@ -17,7 +17,6 @@ struct {
 } prog_array SEC(".maps");
 
 SEC("struct_ops/test_refcounted_multi")
-__failure __msg("program with __ref argument cannot tail call")
 int test_refcounted_multi(unsigned long long *ctx)
 {
 	/* ctx[2] is used because the refcounted variable is the third argument */
@@ -29,7 +28,20 @@ int test_refcounted_multi(unsigned long long *ctx)
 	return 0;
 }
 
+__u64 trampoline_stack_arg9 = 0;
+
+SEC("struct_ops/test_trampoline_stack_args")
+int BPF_PROG(test_trampoline_stack_args, int arg1, int arg2, int arg3,
+					 int arg4, int arg5, int arg6,
+					 int arg7, int arg8, int arg9)
+{
+	trampoline_stack_arg9 = arg9;
+
+	return 0;
+}
+
 SEC(".struct_ops.link")
 struct bpf_testmod_ops testmod_ref_acquire = {
 	.test_refcounted_multi = (void *)test_refcounted_multi,
+	.test_trampoline_stack_args = (void *)test_trampoline_stack_args,
 };

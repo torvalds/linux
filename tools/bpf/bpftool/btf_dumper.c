@@ -524,6 +524,15 @@ static int btf_dumper_var(const struct btf_dumper *d, __u32 type_id,
 	return ret;
 }
 
+/*
+ * The compiler splits a variable into pieces. Every piece is a VAR with the
+ * type of the whole variable, so there is less data than the type takes.
+ */
+bool btf_var_is_piece(const struct btf *btf, const struct btf_var_secinfo *vsi)
+{
+	return btf__resolve_size(btf, vsi->type) > vsi->size;
+}
+
 static int btf_dumper_datasec(const struct btf_dumper *d, __u32 type_id,
 			      const void *data)
 {
@@ -542,6 +551,8 @@ static int btf_dumper_datasec(const struct btf_dumper *d, __u32 type_id,
 	jsonw_name(d->jw, btf__name_by_offset(d->btf, t->name_off));
 	jsonw_start_array(d->jw);
 	for (i = 0; i < vlen; i++) {
+		if (btf_var_is_piece(d->btf, &vsi[i]))
+			continue;
 		ret = btf_dumper_do_type(d, vsi[i].type, 0, data + vsi[i].offset);
 		if (ret)
 			break;

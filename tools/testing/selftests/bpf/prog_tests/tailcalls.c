@@ -6,9 +6,11 @@
 #include "tailcall_bpf2bpf_hierarchy2.skel.h"
 #include "tailcall_bpf2bpf_hierarchy3.skel.h"
 #include "tailcall_freplace.skel.h"
+#include "tailcall_freplace_multi.skel.h"
 #include "tc_bpf2bpf.skel.h"
 #include "tailcall_fail.skel.h"
 #include "tailcall_cgrp_storage_owner.skel.h"
+#include "tailcall_large_stack.skel.h"
 #include "tailcall_cgrp_storage_no_storage.skel.h"
 #include "tailcall_cgrp_storage.skel.h"
 #include "tailcall_sleepable.skel.h"
@@ -1655,6 +1657,77 @@ out:
 	tc_bpf2bpf__destroy(tc_skel);
 }
 
+static void test_tailcall_freplace_multi(void)
+{
+	struct tailcall_freplace_multi *freplace_skel = NULL;
+	struct bpf_link *link_subprog = NULL, *link_entry = NULL;
+	struct tc_bpf2bpf *tc_skel = NULL;
+	int tc_prog_fd, map_fd, key = 0, err;
+
+	tc_skel = tc_bpf2bpf__open_and_load();
+	if (!ASSERT_OK_PTR(tc_skel, "tc_bpf2bpf__open_and_load"))
+		return;
+
+	tc_prog_fd = bpf_program__fd(tc_skel->progs.entry_tc);
+
+	freplace_skel = tailcall_freplace_multi__open();
+	if (!ASSERT_OK_PTR(freplace_skel, "tailcall_freplace_multi__open"))
+		goto out;
+
+	err = bpf_program__set_attach_target(freplace_skel->progs.subprog_freplace,
+					     tc_prog_fd, "subprog_tc");
+	if (!ASSERT_OK(err, "set_attach_target subprog_tc"))
+		goto out;
+
+	err = bpf_program__set_attach_target(freplace_skel->progs.entry_freplace,
+					     tc_prog_fd, "entry_tc");
+	if (!ASSERT_OK(err, "set_attach_target entry_tc"))
+		goto out;
+
+	err = tailcall_freplace_multi__load(freplace_skel);
+	if (!ASSERT_OK(err, "tailcall_freplace_multi__load"))
+		goto out;
+
+	map_fd = bpf_map__fd(freplace_skel->maps.jmp_table);
+
+	link_subprog = bpf_program__attach_freplace(freplace_skel->progs.subprog_freplace,
+						    tc_prog_fd, "subprog_tc");
+	if (!ASSERT_OK_PTR(link_subprog, "attach_freplace subprog_tc"))
+		goto out;
+
+	link_entry = bpf_program__attach_freplace(freplace_skel->progs.entry_freplace,
+						  tc_prog_fd, "entry_tc");
+	if (!ASSERT_OK_PTR(link_entry, "attach_freplace entry_tc"))
+		goto out;
+
+	err = bpf_map_update_elem(map_fd, &key, &tc_prog_fd, BPF_ANY);
+	if (!ASSERT_ERR(err, "update jmp_table with extended prog"))
+		goto out;
+
+	err = bpf_link__destroy(link_entry);
+	link_entry = NULL;
+	if (!ASSERT_OK(err, "destroy entry link"))
+		goto out;
+
+	err = bpf_map_update_elem(map_fd, &key, &tc_prog_fd, BPF_ANY);
+	if (!ASSERT_ERR(err, "update jmp_table with still extended prog"))
+		goto out;
+
+	err = bpf_link__destroy(link_subprog);
+	link_subprog = NULL;
+	if (!ASSERT_OK(err, "destroy subprog link"))
+		goto out;
+
+	err = bpf_map_update_elem(map_fd, &key, &tc_prog_fd, BPF_ANY);
+	ASSERT_OK(err, "update jmp_table");
+
+out:
+	bpf_link__destroy(link_subprog);
+	bpf_link__destroy(link_entry);
+	tailcall_freplace_multi__destroy(freplace_skel);
+	tc_bpf2bpf__destroy(tc_skel);
+}
+
 static void test_tailcall_failure()
 {
 	RUN_TESTS(tailcall_fail);
@@ -1953,6 +2026,45 @@ out:
 	tailcall_bpf2bpf2__destroy(skel_tc);
 }
 
+/*
+ * test_tailcall_large_stack runs a tail call made from a subprog with a 1536
+ * byte frame, under a 240-byte caller, into a program with a 2 KiB frame:
+ *
+ * entry (240) --call-> subprog_tail (1536) --tailcall-> classifier_0 (2048)
+ */
+static void test_tailcall_large_stack(void)
+{
+	struct tailcall_large_stack *skel;
+	int err, prog_fd, map_fd, key = 0;
+	char buff[128] = {};
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		    .data_in = buff,
+		    .data_size_in = sizeof(buff),
+		    .repeat = 1,
+	);
+
+	if (!is_large_stack_supported()) {
+		test__skip();
+		return;
+	}
+
+	skel = tailcall_large_stack__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "tailcall_large_stack__open_and_load"))
+		return;
+
+	prog_fd = bpf_program__fd(skel->progs.classifier_0);
+	map_fd = bpf_map__fd(skel->maps.jmp_table);
+	err = bpf_map_update_elem(map_fd, &key, &prog_fd, BPF_ANY);
+	if (!ASSERT_OK(err, "update jmp_table"))
+		goto out;
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.entry), &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 42 + 7, "retval");
+out:
+	tailcall_large_stack__destroy(skel);
+}
+
 void test_tailcalls(void)
 {
 	if (test__start_subtest("tailcall_1"))
@@ -2005,6 +2117,8 @@ void test_tailcalls(void)
 		test_tailcall_freplace();
 	if (test__start_subtest("tailcall_bpf2bpf_freplace"))
 		test_tailcall_bpf2bpf_freplace();
+	if (test__start_subtest("tailcall_freplace_multi"))
+		test_tailcall_freplace_multi();
 	if (test__start_subtest("tailcall_failure"))
 		test_tailcall_failure();
 	if (test__start_subtest("tailcall_sleepable"))
@@ -2022,4 +2136,6 @@ void test_tailcalls(void)
 	test_tailcall_callback();
 	if (test__start_subtest("tailcall_bpf2bpf_fexit_links"))
 		test_tailcall_bpf2bpf_fexit_links();
+	if (test__start_subtest("tailcall_large_stack"))
+		test_tailcall_large_stack();
 }

@@ -46,6 +46,17 @@ int iter_next_trusted_or_null(const void *ctx)
 	return 0;
 }
 
+SEC("syscall")
+__success
+int trusted_nullable_kfunc(const void *ctx)
+{
+	struct task_struct *task;
+
+	task = bpf_kfunc_trusted_null_test();
+	bpf_kfunc_trusted_nullable_test(task);
+	return 0;
+}
+
 SEC("raw_tp/sys_enter")
 __success
 int iter_next_rcu(const void *ctx)
@@ -105,8 +116,7 @@ out:
 }
 
 SEC("raw_tp/sys_enter")
-__failure __msg("R1 cannot write into rdonly_mem")
-/* Message should not be 'R1 cannot write into rdonly_trusted_mem' */
+__failure __msg("R1 type=rdonly_mem expected=fp")
 int iter_next_ptr_mem_not_trusted(const void *ctx)
 {
 	struct bpf_iter_num num_it;
@@ -135,7 +145,7 @@ int iter_ret_rcu_test_protected(const void *ctx)
 }
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
-__failure __msg("R1 type=rcu_ptr_or_null_ expected=")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 int iter_ret_rcu_test_type(const void *ctx)
 {
 	struct task_struct *p;
@@ -158,7 +168,7 @@ int iter_ret_rcu_test_protected_nostruct(const void *ctx)
 }
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
-__failure __msg("R1 type=rdonly_rcu_mem_or_null expected=")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 int iter_ret_rcu_test_type_nostruct(const void *ctx)
 {
 	void *p;

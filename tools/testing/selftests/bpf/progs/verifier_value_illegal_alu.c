@@ -22,8 +22,8 @@ struct {
 
 SEC("socket")
 __description("map element value illegal alu op, 1")
-__failure __msg("R0 bitwise operator &= on pointer")
-__failure_unpriv
+__failure __msg("R0 invalid mem access 'scalar'")
+__failure_unpriv __msg_unpriv("R0 bitwise operator &= on pointer")
 __naked void value_illegal_alu_op_1(void)
 {
 	asm volatile ("					\
@@ -70,8 +70,8 @@ l0_%=:	exit;						\
 
 SEC("socket")
 __description("map element value illegal alu op, 3")
-__failure __msg("R0 pointer arithmetic with /= operator")
-__failure_unpriv
+__failure __msg("R0 invalid mem access 'scalar'")
+__failure_unpriv __msg_unpriv("R0 pointer arithmetic with /= operator")
 __naked void value_illegal_alu_op_3(void)
 {
 	asm volatile ("					\
@@ -162,6 +162,171 @@ __naked void map_ptr_illegal_alu_op(void)
 	exit;						\
 "	:
 	: __imm_addr(map_hash_48b)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("tag in the low bit of a pointer, and, shift")
+__success __retval(0)
+__failure_unpriv __msg_unpriv("R1 bitwise operator &= on pointer")
+__naked void ptr_tag_and_shift(void)
+{
+	asm volatile ("					\
+	r2 = r10;					\
+	r2 += -8;					\
+	r1 = 0;						\
+	*(u64*)(r2 + 0) = r1;				\
+	r1 = %[map_hash_48b] ll;			\
+	call %[bpf_map_lookup_elem];			\
+	if r0 == 0 goto l0_%=;				\
+	r1 = r0;					\
+	r1 &= 1;					\
+	r2 = r0;					\
+	r2 >>= 1;					\
+	r3 = r0;					\
+	r3 |= 1;					\
+	r3 ^= 1;					\
+	r0 = *(u32*)(r0 + 0);				\
+	r0 = 0;						\
+l0_%=:	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_48b)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("tag in the low bit of a pointer, CAP_BPF without CAP_PERFMON")
+__success __retval(0)
+__failure_unpriv __msg_unpriv("R1 bitwise operator &= on pointer")
+__caps_unpriv(CAP_BPF)
+__naked void ptr_tag_cap_bpf(void)
+{
+	asm volatile ("					\
+	r2 = r10;					\
+	r2 += -8;					\
+	r1 = 0;						\
+	*(u64*)(r2 + 0) = r1;				\
+	r1 = %[map_hash_48b] ll;			\
+	call %[bpf_map_lookup_elem];			\
+	if r0 == 0 goto l0_%=;				\
+	r1 = r0;					\
+	r1 &= 1;					\
+	r0 = 0;						\
+l0_%=:	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_48b)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("number op= pointer")
+__success __retval(0)
+__failure_unpriv __msg_unpriv("R1 pointer arithmetic with *= operator")
+__naked void number_mul_ptr(void)
+{
+	asm volatile ("					\
+	r2 = r10;					\
+	r2 += -8;					\
+	r1 = 0;						\
+	*(u64*)(r2 + 0) = r1;				\
+	r1 = %[map_hash_48b] ll;			\
+	call %[bpf_map_lookup_elem];			\
+	if r0 == 0 goto l0_%=;				\
+	r1 = 7;						\
+	r1 *= r0;					\
+	r0 = 0;						\
+l0_%=:	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_48b)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("pointer with the tag cleared is a number")
+__failure __msg("R0 invalid mem access 'scalar'")
+__failure_unpriv __msg_unpriv("R0 bitwise operator |= on pointer")
+__naked void ptr_tag_cleared_deref(void)
+{
+	asm volatile ("					\
+	r2 = r10;					\
+	r2 += -8;					\
+	r1 = 0;						\
+	*(u64*)(r2 + 0) = r1;				\
+	r1 = %[map_hash_48b] ll;			\
+	call %[bpf_map_lookup_elem];			\
+	if r0 == 0 goto l0_%=;				\
+	r0 |= 1;					\
+	r0 ^= 1;					\
+	r0 = *(u32*)(r0 + 0);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_48b)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("shift of a pointer that may be NULL")
+__failure __msg("R0 pointer arithmetic on map_value_or_null prohibited, null-check it first")
+__failure_unpriv
+__naked void ptr_or_null_shift(void)
+{
+	asm volatile ("					\
+	r2 = r10;					\
+	r2 += -8;					\
+	r1 = 0;						\
+	*(u64*)(r2 + 0) = r1;				\
+	r1 = %[map_hash_48b] ll;			\
+	call %[bpf_map_lookup_elem];			\
+	r0 >>= 1;					\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_48b)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("and of a pointer to map")
+__failure __msg("R0 pointer arithmetic on map_ptr prohibited")
+__failure_unpriv
+__naked void map_ptr_and(void)
+{
+	asm volatile ("					\
+	r0 = %[map_hash_48b] ll;			\
+	r0 &= 1;					\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_addr(map_hash_48b)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("32-bit and of a pointer")
+__success __retval(0)
+__failure_unpriv __msg_unpriv("R0 32-bit pointer arithmetic prohibited")
+__naked void ptr_and32(void)
+{
+	asm volatile ("					\
+	r2 = r10;					\
+	r2 += -8;					\
+	r1 = 0;						\
+	*(u64*)(r2 + 0) = r1;				\
+	r1 = %[map_hash_48b] ll;			\
+	call %[bpf_map_lookup_elem];			\
+	if r0 == 0 goto l0_%=;				\
+	w0 &= 1;					\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_48b)
 	: __clobber_all);
 }
 

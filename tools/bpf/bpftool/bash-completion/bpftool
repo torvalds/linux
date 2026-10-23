@@ -50,12 +50,19 @@ _bpftool_get_map_ids()
         command sed -n 's/.*"id": \(.*\),$/\1/p' )" -- "$cur" ) )
 }
 
-# Takes map type and adds matching map ids to the list of suggestions.
-_bpftool_get_map_ids_for_type()
+# Takes map types and prints a pattern matching their JSON type fields.
+_bpftool_build_type_pattern()
 {
-    local type="$1"
+    local IFS='|'
+    printf '"type": "(%s)"\n' "$*"
+}
+
+# Takes map types and adds matching map ids to the list of suggestions.
+_bpftool_get_map_ids_for_types()
+{
+    local types=$(_bpftool_build_type_pattern "$@")
     COMPREPLY+=( $( compgen -W "$( bpftool -jp map  2>&1 | \
-        command grep -C2 "$type" | \
+        command grep -C2 -E "$types" | \
         command sed -n 's/.*"id": \(.*\),$/\1/p' )" -- "$cur" ) )
 }
 
@@ -65,12 +72,12 @@ _bpftool_get_map_names()
         command sed -n 's/.*"name": \(.*\),$/\1/p' )" -- "$cur" ) )
 }
 
-# Takes map type and adds matching map names to the list of suggestions.
-_bpftool_get_map_names_for_type()
+# Takes map types and adds matching map names to the list of suggestions.
+_bpftool_get_map_names_for_types()
 {
-    local type="$1"
+    local types=$(_bpftool_build_type_pattern "$@")
     COMPREPLY+=( $( compgen -W "$( bpftool -jp map  2>&1 | \
-        command grep -C2 "$type" | \
+        command grep -C2 -E "$types" | \
         command sed -n 's/.*"name": \(.*\),$/\1/p' )" -- "$cur" ) )
 }
 
@@ -139,7 +146,7 @@ _bpftool_map_guess_map_type()
     local keyword idx ref=""
     for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
         case "${words[$((idx-2))]}" in
-            lookup|update)
+            lookup|update|event_pipe)
                 keyword=${words[$((idx-1))]}
                 ref=${words[$((idx))]}
                 ;;
@@ -177,10 +184,10 @@ _bpftool_map_update_get_id()
     if [[ $value -eq 0 ]]; then
         case "$command" in
             push)
-                _bpftool_get_map_ids_for_type stack
+                _bpftool_get_map_ids_for_types stack
                 ;;
             enqueue)
-                _bpftool_get_map_ids_for_type queue
+                _bpftool_get_map_ids_for_types queue
                 ;;
             *)
                 _bpftool_get_map_ids
@@ -223,10 +230,10 @@ _bpftool_map_update_get_name()
     if [[ $value -eq 0 ]]; then
         case "$command" in
             push)
-                _bpftool_get_map_names_for_type stack
+                _bpftool_get_map_names_for_types stack
                 ;;
             enqueue)
-                _bpftool_get_map_names_for_type queue
+                _bpftool_get_map_names_for_types queue
                 ;;
             *)
                 _bpftool_get_map_names
@@ -262,7 +269,7 @@ _bpftool()
     # Deal with options
     if [[ ${words[cword]} == -* ]]; then
         local c='--version --json --pretty --bpffs --mapcompat --debug \
-            --use-loader --base-btf --sign -i -k'
+            --use-loader --base-btf --sign -i -k --wait'
         COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
         return 0
     fi
@@ -617,10 +624,10 @@ _bpftool()
                             COMPREPLY=( $( compgen -W "$STRUCT_OPS_TYPE" -- "$cur" ) )
                             ;;
                         id)
-                            _bpftool_get_map_ids_for_type struct_ops
+                            _bpftool_get_map_ids_for_types struct_ops
                             ;;
                         name)
-                            _bpftool_get_map_names_for_type struct_ops
+                            _bpftool_get_map_names_for_types struct_ops
                             ;;
                     esac
                     return 0
@@ -679,14 +686,13 @@ _bpftool()
                         id)
                             case "$command" in
                                 peek)
-                                    _bpftool_get_map_ids_for_type stack
-                                    _bpftool_get_map_ids_for_type queue
+                                    _bpftool_get_map_ids_for_types stack queue
                                     ;;
                                 pop)
-                                    _bpftool_get_map_ids_for_type stack
+                                    _bpftool_get_map_ids_for_types stack
                                     ;;
                                 dequeue)
-                                    _bpftool_get_map_ids_for_type queue
+                                    _bpftool_get_map_ids_for_types queue
                                     ;;
                                 *)
                                     _bpftool_get_map_ids
@@ -697,14 +703,13 @@ _bpftool()
                         name)
                             case "$command" in
                                 peek)
-                                    _bpftool_get_map_names_for_type stack
-                                    _bpftool_get_map_names_for_type queue
+                                    _bpftool_get_map_names_for_types stack queue
                                     ;;
                                 pop)
-                                    _bpftool_get_map_names_for_type stack
+                                    _bpftool_get_map_names_for_types stack
                                     ;;
                                 dequeue)
-                                    _bpftool_get_map_names_for_type queue
+                                    _bpftool_get_map_names_for_types queue
                                     ;;
                                 *)
                                     _bpftool_get_map_names
@@ -878,11 +883,11 @@ _bpftool()
                             return 0
                             ;;
                         id)
-                            _bpftool_get_map_ids_for_type perf_event_array
+                            _bpftool_get_map_ids_for_types perf_event_array ringbuf
                             return 0
                             ;;
                         name)
-                            _bpftool_get_map_names_for_type perf_event_array
+                            _bpftool_get_map_names_for_types perf_event_array ringbuf
                             return 0
                             ;;
                         cpu)
@@ -892,7 +897,9 @@ _bpftool()
                             return 0
                             ;;
                         *)
-                            _bpftool_once_attr 'cpu index'
+                            if [[ $(_bpftool_map_guess_map_type) != ringbuf ]]; then
+                                _bpftool_once_attr 'cpu index'
+                            fi
                             return 0
                             ;;
                     esac
@@ -1057,7 +1064,6 @@ _bpftool()
                 attach|detach)
                     local BPFTOOL_CGROUP_ATTACH_TYPES="$(bpftool feature list_builtins attach_types 2>/dev/null | \
                         grep '^cgroup_')"
-                    local ATTACH_FLAGS='multi override'
                     # Check for $prev = $command first
                     if [ $prev = $command ]; then
                         _filedir
@@ -1087,7 +1093,8 @@ _bpftool()
                                 # "id|pinned|tag|name" (we already checked for
                                 # that). This should only leave the case when
                                 # we need attach flags for "attach" commamnd.
-                                _bpftool_one_of_list "$ATTACH_FLAGS"
+                                _bpftool_one_of_list 'multi override'
+                                _bpftool_once_attr 'preorder'
                             fi
                             return 0
                             ;;

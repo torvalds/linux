@@ -134,4 +134,6 @@ static inline bool tnum_subreg_is_const(struct tnum a)
 /* Returns the smallest member of t larger than z */
 u64 tnum_step(struct tnum t, u64 z);
 
+u32 tnum_alignment(struct tnum a);
+
 #endif /* _LINUX_TNUM_H */

@@ -406,6 +406,7 @@ __naked void zero_sized_access_max_out_of_bound(void)
 
 SEC("lwt_in")
 __description("indirect variable-offset stack access, min out of bound")
+__load_if_no_large_stack()
 __failure __msg("invalid variable-offset read from stack R2")
 __naked void access_min_out_of_bound(void)
 {
@@ -419,6 +420,37 @@ __naked void access_min_out_of_bound(void)
 	r2 &= 4;					\
 	r2 -= 516;					\
 	/* add it to fp.  We now have either fp-516 or fp-512, but\
+	 * we don't know which				\
+	 */						\
+	r2 += r10;					\
+	/* dereference it indirectly */			\
+	r1 = %[map_hash_8b] ll;				\
+	call %[bpf_map_lookup_elem];			\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_8b)
+	: __clobber_all);
+}
+
+SEC("lwt_in")
+__description("indirect variable-offset stack access, min out of bound, large stack")
+__load_if_large_stack()
+__failure __msg("invalid variable-offset read from stack R2")
+__naked void access_min_out_of_bound_large(void)
+{
+	asm volatile ("					\
+	/* Fill the top 8 bytes of the stack */		\
+	r2 = 0;						\
+	*(u64*)(r10 - 8) = r2;				\
+	/* Get an unknown value */			\
+	r2 = *(u32*)(r1 + 0);				\
+	/* Make it small and 4-byte aligned */		\
+	r2 &= 4;					\
+	r2 -= 2052;					\
+	/*						\
+	 * add it to fp.  We now have either fp-2052 or fp-2048, but\
 	 * we don't know which				\
 	 */						\
 	r2 += r10;					\

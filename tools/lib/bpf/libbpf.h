@@ -224,10 +224,24 @@ struct bpf_object_open_opts {
 	 * point (/sys/fs/bpf), in case this default behavior is undesirable.
 	 */
 	const char *bpf_token_path;
+	/*
+	 * Optional allowlist of kernel module names whose BTFs libbpf is
+	 * allowed to load. The allowlist limits which kernel module BTFs libbpf
+	 * will consult wherever module BTF might be needed.
+	 *
+	 * When the option is not specified, the existing behavior remains
+	 * unchanged. An explicitly specified empty list prevents libbpf from
+	 * consulting any kernel module BTFs.
+	 *
+	 * The list must contain valid, non-empty module names and must not
+	 * contain duplicate entries; otherwise -EINVAL is returned.
+	 */
+	const char **btf_module_allowlist;
+	size_t btf_module_allowlist_cnt;
 
 	size_t :0;
 };
-#define bpf_object_open_opts__last_field bpf_token_path
+#define bpf_object_open_opts__last_field btf_module_allowlist_cnt
 
 /**
  * @brief **bpf_object__open()** creates a bpf_object by opening
@@ -960,6 +974,9 @@ bpf_program__attach_cgroup_opts(const struct bpf_program *prog, int cgroup_fd,
 struct bpf_map;
 
 LIBBPF_API struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map);
+LIBBPF_API struct bpf_link *bpf_map__attach_cgroup_opts(const struct bpf_map *map,
+							int cgroup_fd,
+							const struct bpf_cgroup_opts *opts);
 LIBBPF_API int bpf_link__update_map(struct bpf_link *link, const struct bpf_map *map);
 
 struct bpf_iter_attach_opts {
@@ -1010,6 +1027,28 @@ bpf_program__set_expected_attach_type(struct bpf_program *prog,
 
 LIBBPF_API __u32 bpf_program__flags(const struct bpf_program *prog);
 LIBBPF_API int bpf_program__set_flags(struct bpf_program *prog, __u32 flags);
+
+/**
+ * @brief **bpf_program__add_flags()** adds one or more flags to the BPF
+ * program, preserving any existing flags.
+ *
+ * @param prog BPF program
+ * @param flags the flags to add
+ *
+ * @return 0, on success; negative error code, otherwise
+ */
+LIBBPF_API int bpf_program__add_flags(struct bpf_program *prog, __u32 flags);
+
+/**
+ * @brief **bpf_program__clear_flags()** clears one or more flags from the BPF
+ * program, preserving any other flags not explicitly cleared.
+ *
+ * @param prog BPF program
+ * @param flags the flags to clear
+ *
+ * @return 0, on success; negative error code, otherwise
+ */
+LIBBPF_API int bpf_program__clear_flags(struct bpf_program *prog, __u32 flags);
 
 /* Per-program log level and log buffer getters/setters.
  * See bpf_object_open_opts comments regarding log_level and log_buf

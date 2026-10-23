@@ -28,7 +28,7 @@ authorityKeyIdentifier=keyid
 
 usage()
 {
-	echo "Usage: $0 <setup|cleanup <existing_tmp_dir>"
+	echo "Usage: $0 <setup-rsa|setup-mldsa|cleanup <existing_tmp_dir>"
 	exit 1
 }
 
@@ -47,12 +47,63 @@ genkey()
 		${tmp_dir}/signing_key.der -outform der
 }
 
-setup()
+setup_rsa()
 {
 	local tmp_dir="$1"
 
 	genkey "${tmp_dir}"
 	key_id=$(cat ${tmp_dir}/signing_key.der | keyctl padd asymmetric ebpf_testing_key @s)
+	keyring_id=$(keyctl newring ebpf_testing_keyring @s)
+	keyctl link $key_id $keyring_id
+}
+
+mldsa_supported()
+{
+	local tmp_dir="$1"
+
+	genkey_mldsa "${tmp_dir}" || return 1
+	: > ${tmp_dir}/probe
+	# Same digest as the caller signs with, see sign_buf_digest().
+	./sign-file -d sha512 ${tmp_dir}/signing_key.pem \
+		${tmp_dir}/signing_key.pem ${tmp_dir}/probe || return 1
+	rm -f ${tmp_dir}/probe ${tmp_dir}/probe.p7s
+}
+
+genkey_mldsa()
+{
+	local tmp_dir="$1"
+
+	echo "${x509_genkey_content}" > ${tmp_dir}/x509.genkey
+
+	# No -<digest> here: ML-DSA hashes the message itself, so openssl
+	# ignores an explicit digest for it.
+	openssl req -new -nodes -utf8 -days 36500 \
+			-batch -x509 -newkey ML-DSA-87 \
+			-config ${tmp_dir}/x509.genkey \
+			-outform PEM -out ${tmp_dir}/signing_key.pem \
+			-keyout ${tmp_dir}/signing_key.pem 2>&1
+
+	openssl x509 -in ${tmp_dir}/signing_key.pem -out \
+		${tmp_dir}/signing_key.der -outform der
+}
+
+mldsa_skip()
+{
+	local tmp_dir="$1"
+
+	rm -f ${tmp_dir}/x509.genkey ${tmp_dir}/signing_key.pem \
+		${tmp_dir}/signing_key.der ${tmp_dir}/probe \
+		${tmp_dir}/probe.p7s
+	exit 77
+}
+
+setup_mldsa()
+{
+	local tmp_dir="$1"
+
+	mldsa_supported "${tmp_dir}" || mldsa_skip "${tmp_dir}"
+	key_id=$(cat ${tmp_dir}/signing_key.der |
+		 keyctl padd asymmetric ebpf_testing_key @s)
 	keyring_id=$(keyctl newring ebpf_testing_keyring @s)
 	keyctl link $key_id $keyring_id
 }
@@ -91,7 +142,7 @@ catch()
 	local exit_code="$1"
 	local log_file="$2"
 
-	if [[ "${exit_code}" -ne 0 ]]; then
+	if [[ "${exit_code}" -ne 0 && "${exit_code}" -ne 77 ]]; then
 		cat "${log_file}" >&3
 	fi
 
@@ -108,8 +159,10 @@ main()
 
 	[[ ! -d "${tmp_dir}" ]] && echo "Directory ${tmp_dir} doesn't exist" && exit 1
 
-	if [[ "${action}" == "setup" ]]; then
-		setup "${tmp_dir}"
+	if [[ "${action}" == "setup-rsa" ]]; then
+		setup_rsa "${tmp_dir}"
+	elif [[ "${action}" == "setup-mldsa" ]]; then
+		setup_mldsa "${tmp_dir}"
 	elif [[ "${action}" == "genkey" ]]; then
 		genkey "${tmp_dir}"
 	elif [[ "${action}" == "cleanup" ]]; then

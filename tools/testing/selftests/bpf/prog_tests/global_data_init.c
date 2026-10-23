@@ -68,12 +68,9 @@ static void test_percpu_data_on_cpus(struct bpf_map *map, int map_fd, int prog_f
 {
 	struct test_global_percpu_data__percpu *data = NULL;
 	int i, err, key = 0, num_online, run = 0;
-	__u64 args[2] = {0x1234ULL, 0x5678ULL};
 	size_t data_sz;
 	bool *online;
 	LIBBPF_OPTS(bpf_test_run_opts, topts,
-		    .ctx_in = args,
-		    .ctx_size_in = sizeof(args),
 		    .flags = BPF_F_TEST_RUN_ON_CPU,
 	);
 
@@ -81,7 +78,7 @@ static void test_percpu_data_on_cpus(struct bpf_map *map, int map_fd, int prog_f
 	if (!ASSERT_OK(err, "parse_cpu_mask_file"))
 		return;
 
-	data_sz = map ? bpf_map__value_size(map) : sizeof(*data);
+	data_sz = sizeof(*data);
 	data = calloc(1, data_sz);
 	if (!ASSERT_OK_PTR(data, "calloc percpu data"))
 		goto out;
@@ -109,7 +106,7 @@ static void test_percpu_data_on_cpus(struct bpf_map *map, int map_fd, int prog_f
 			break;
 
 		ASSERT_EQ(*runp, ++run, "run");
-		ASSERT_EQ(data->cpu_id[0], i, "cpu_id");
+		ASSERT_EQ(data->cpu_id, i, "cpu_id");
 		ASSERT_EQ(data->data, 1, "data");
 		ASSERT_TRUE(data->set, "set");
 		ASSERT_EQ(data->nums[6], 0xc0de, "nums[6]");
@@ -127,7 +124,6 @@ static void test_global_percpu_data_init(void)
 {
 	struct test_global_percpu_data__percpu init_value = {};
 	struct test_global_percpu_data__percpu *init_data;
-	const __u32 desired_sz = sysconf(_SC_PAGE_SIZE);
 	struct test_global_percpu_data *skel = NULL;
 	size_t init_data_sz;
 	struct bpf_map *map;
@@ -163,9 +159,11 @@ static void test_global_percpu_data_init(void)
 	if (!ASSERT_EQ(bpf_map__type(map), BPF_MAP_TYPE_PERCPU_ARRAY, "bpf_map__type"))
 		goto out;
 
+	init_value.set = 1;
 	init_value.data = 2;
 	init_value.nums[6] = -1;
 	init_value.struct_data.i = 2;
+	init_value.struct_data.set = 1;
 	init_value.struct_data.nums[6] = -1;
 	err = bpf_map__set_initial_value(map, &init_value, sizeof(init_value));
 	if (!ASSERT_OK(err, "bpf_map__set_initial_value"))
@@ -177,34 +175,23 @@ static void test_global_percpu_data_init(void)
 
 	ASSERT_EQ(init_data->data, init_value.data, "init_value data");
 	ASSERT_EQ(init_data->set, init_value.set, "init_value set");
+	ASSERT_EQ(init_data->nums[6], init_value.nums[6], "init_value nums[6]");
 	ASSERT_EQ(init_data->struct_data.i, init_value.struct_data.i, "init_value struct_data.i");
+	ASSERT_EQ(init_data->struct_data.set, init_value.struct_data.set,
+		  "init_value struct_data.set");
 	ASSERT_EQ(init_data->struct_data.nums[6], init_value.struct_data.nums[6],
 		  "init_value struct_data.nums[6]");
 	ASSERT_EQ(init_data_sz, sizeof(init_value), "init_value size");
 	ASSERT_EQ((void *) init_data, (void *) skel->percpu, "skel->percpu eq init_data");
 	ASSERT_EQ(skel->percpu->data, init_value.data, "skel->percpu->data");
 	ASSERT_EQ(skel->percpu->set, init_value.set, "skel->percpu->set");
+	ASSERT_EQ(skel->percpu->nums[6], init_value.nums[6], "skel->percpu->nums[6]");
 	ASSERT_EQ(skel->percpu->struct_data.i, init_value.struct_data.i,
 		  "skel->percpu->struct_data.i");
+	ASSERT_EQ(skel->percpu->struct_data.set, init_value.struct_data.set,
+		  "skel->percpu->struct_data.set");
 	ASSERT_EQ(skel->percpu->struct_data.nums[6], init_value.struct_data.nums[6],
 		  "skel->percpu->struct_data.nums[6]");
-
-	ASSERT_GT(desired_sz, sizeof(init_value), "desired_sz");
-	err = bpf_map__set_value_size(map, desired_sz);
-	if (!ASSERT_OK(err, "bpf_map__set_value_size"))
-		goto out;
-	if (!ASSERT_EQ(bpf_map__value_size(map), desired_sz, "percpu value size"))
-		goto out;
-	if (!ASSERT_NEQ(bpf_map__btf_value_type_id(map), 0, "percpu BTF value type"))
-		goto out;
-
-	init_data = bpf_map__initial_value(map, &init_data_sz);
-	if (!ASSERT_OK_PTR(init_data, "resized bpf_map__initial_value"))
-		goto out;
-	if (!ASSERT_EQ(init_data_sz, desired_sz, "resized initial value size"))
-		goto out;
-	if (!ASSERT_EQ(init_data->data, init_value.data, "resized initial value data"))
-		goto out;
 
 	err = test_global_percpu_data__load(skel);
 	if (!ASSERT_OK(err, "test_global_percpu_data__load"))
@@ -234,6 +221,67 @@ static void test_global_percpu_data_lskel(void)
 
 out:
 	test_global_percpu_data_lskel__destroy(lskel);
+}
+
+#define PCPU_MIN_UNIT_SIZE (32 << 10)
+
+static void test_global_percpu_data_map_resize(void)
+{
+	const __u32 page_size = sysconf(_SC_PAGE_SIZE);
+	const __u32 pcpu_max_value_size = ALIGN(PCPU_MIN_UNIT_SIZE, page_size);
+	const __u32 desired_sz = page_size * 2;
+	struct test_global_percpu_data *skel;
+	const int arr_value = -1;
+	struct bpf_map *map;
+	int err, prog_fd;
+	size_t data_sz;
+
+	skel = test_global_percpu_data__open();
+	if (!ASSERT_OK_PTR(skel, "test_global_percpu_data__open"))
+		return;
+
+	map = skel->maps.percpu_arr;
+	skel->percpu_arr->arr[0] = arr_value;
+	err = bpf_map__set_value_size(map, desired_sz);
+	if (!ASSERT_OK(err, "bpf_map__set_value_size"))
+		goto out;
+	if (!ASSERT_EQ(bpf_map__value_size(map), desired_sz, "bpf_map__value_size"))
+		goto out;
+	if (!ASSERT_NEQ(bpf_map__btf_value_type_id(map), 0, "bpf_map__btf_value_type_id"))
+		goto out;
+
+	skel->percpu_arr = bpf_map__initial_value(map, &data_sz);
+	if (!ASSERT_EQ(data_sz, desired_sz, "data_sz"))
+		goto out;
+	if (!ASSERT_OK_PTR(skel->percpu_arr, "skel->percpu_arr"))
+		goto out;
+	if (!ASSERT_EQ(skel->percpu_arr->arr[0], arr_value, "arr[0]"))
+		goto out;
+
+	err = test_global_percpu_data__load(skel);
+	if (bpf_map__value_size(map) > pcpu_max_value_size) {
+		if (ASSERT_EQ(err, -E2BIG, "test_global_percpu_data__load E2BIG"))
+			/*
+			 * When the PAGE_SIZE is 64KiB, the new value size will
+			 * be 128KiB. Creating a percpu_array map with the new
+			 * value size will fail with -E2BIG due to percpu_array
+			 * map value size limit 64KiB, which is calculated by
+			 * PFN_ALIGN(32KiB).
+			 * Let's skip the test for such case.
+			 */
+			test__skip();
+		goto out;
+	}
+	if (!ASSERT_OK(err, "test_global_percpu_data__load"))
+		goto out;
+
+	map = skel->maps.percpu;
+	prog_fd = bpf_program__fd(skel->progs.update_percpu_data);
+	test_percpu_data_on_cpus(map, bpf_map__fd(map), prog_fd, &skel->bss->run);
+	ASSERT_EQ(skel->bss->arr_sum, arr_value * skel->bss->run, "arr_sum");
+
+out:
+	test_global_percpu_data__destroy(skel);
 }
 
 static int create_rdonly_percpu_array(void)
@@ -388,6 +436,8 @@ void test_global_percpu_data(void)
 		test_global_percpu_data_init();
 	if (test__start_subtest("lskel"))
 		test_global_percpu_data_lskel();
+	if (test__start_subtest("map_resize"))
+		test_global_percpu_data_map_resize();
 	if (test__start_subtest("rdonly_direct_read"))
 		test_global_percpu_data_rdonly_direct_read();
 	if (test__start_subtest("rdonly_direct_write"))

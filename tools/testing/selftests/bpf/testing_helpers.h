@@ -61,6 +61,17 @@ struct bpf_insn;
 int get_xlated_program(int fd_prog, struct bpf_insn **buf, __u32 *cnt);
 int testing_prog_flags(void);
 bool is_jit_enabled(void);
+bool is_large_stack_supported(void);
 int stack_mprotect(void);
+
+/* Runs diff(1) on mismatch */
+int compare_text_to_expected(const char *actual, const char *expected);
+
+/*
+ * Whether @member of struct @struct_name in the BTF of bpf_testmod carries
+ * the BTF type tag @tag: 1 if so, 0 if not, negative on a BTF error or when
+ * the struct or the member is missing.
+ */
+int testmod_member_has_type_tag(const char *struct_name, const char *member, const char *tag);
 
 #endif /* __TESTING_HELPERS_H */

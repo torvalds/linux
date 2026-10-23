@@ -77,6 +77,11 @@ struct btf_dump_data {
 	bool is_array_char;
 };
 
+struct decl_tag_desc {
+	__u32 target_id;
+	__u32 tag_id;
+};
+
 struct btf_dump {
 	const struct btf *btf;
 	btf_dump_printf_fn_t printf_fn;
@@ -92,6 +97,11 @@ struct btf_dump {
 	/* per-type optional cached unique name, must be freed, if present */
 	const char **cached_names;
 	size_t cached_names_cap;
+
+	/* decl tags, sorted by (target ID, tag ID) */
+	struct decl_tag_desc *decl_tags;
+	size_t decl_tag_cnt;
+	size_t decl_tag_cap;
 
 	/* topo-sorted list of dependent type definitions */
 	__u32 *emit_queue;
@@ -143,7 +153,7 @@ static void btf_dump_printf(const struct btf_dump *d, const char *fmt, ...)
 	va_end(args);
 }
 
-static int btf_dump_mark_referenced(struct btf_dump *d);
+static int btf_dump_mark_referenced(struct btf_dump *d, const struct btf_type *t);
 static int btf_dump_resize(struct btf_dump *d);
 
 struct btf_dump *btf_dump__new(const struct btf *btf,
@@ -192,9 +202,36 @@ err:
 	return libbpf_err_ptr(err);
 }
 
+static int btf_dump_cmp_decl_tags(const void *a, const void *b)
+{
+	const struct decl_tag_desc *x = a, *y = b;
+
+	if (x->target_id != y->target_id)
+		return x->target_id < y->target_id ? -1 : 1;
+	if (x->tag_id != y->tag_id)
+		return x->tag_id < y->tag_id ? -1 : 1;
+	return 0;
+}
+
+static int btf_dump_push_decl_tag(struct btf_dump *d, __u32 id, const struct btf_type *t)
+{
+	if (libbpf_ensure_mem((void **)&d->decl_tags, &d->decl_tag_cap,
+			      sizeof(*d->decl_tags), d->decl_tag_cnt + 1))
+		return -ENOMEM;
+
+	d->decl_tags[d->decl_tag_cnt++] = (struct decl_tag_desc) {
+		.target_id = t->type,
+		.tag_id = id,
+	};
+	return 0;
+}
+
 static int btf_dump_resize(struct btf_dump *d)
 {
 	int err, last_id = btf__type_cnt(d->btf) - 1;
+	size_t cnt = d->decl_tag_cnt;
+	const struct btf_type *t;
+	__u32 i;
 
 	if (last_id <= d->last_id)
 		return 0;
@@ -212,13 +249,30 @@ static int btf_dump_resize(struct btf_dump *d)
 		d->type_states[0].emit_state = EMITTED;
 	}
 
-	/* eagerly determine referenced types for anon enums */
-	err = btf_dump_mark_referenced(d);
-	if (err)
-		return err;
+	for (i = d->last_id + 1; i <= last_id; i++) {
+		t = btf__type_by_id(d->btf, i);
+
+		err = btf_dump_mark_referenced(d, t);
+		if (err)
+			goto out_err;
+
+		if (btf_is_decl_tag(t)) {
+			err = btf_dump_push_decl_tag(d, i, t);
+			if (err)
+				goto out_err;
+		}
+	}
+
+	if (d->decl_tag_cnt != cnt)
+		qsort(d->decl_tags, d->decl_tag_cnt, sizeof(*d->decl_tags),
+		      btf_dump_cmp_decl_tags);
 
 	d->last_id = last_id;
 	return 0;
+
+out_err:
+	d->decl_tag_cnt = cnt;
+	return err;
 }
 
 static void btf_dump_free_names(struct hashmap *map)
@@ -251,6 +305,7 @@ void btf_dump__free(struct btf_dump *d)
 		}
 	}
 	free(d->cached_names);
+	free(d->decl_tags);
 	free(d->emit_queue);
 	free(d->decl_stack);
 	btf_dump_free_names(d->type_names);
@@ -312,68 +367,64 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
  * top-level anonymous enum won't be referenced by anything, while embedded
  * one will.
  */
-static int btf_dump_mark_referenced(struct btf_dump *d)
+static int btf_dump_mark_referenced(struct btf_dump *d, const struct btf_type *t)
 {
-	int i, j, n = btf__type_cnt(d->btf);
-	const struct btf_type *t;
-	__u32 vlen;
+	__u32 j, vlen = btf_vlen(t);
 
-	for (i = d->last_id + 1; i < n; i++) {
-		t = btf__type_by_id(d->btf, i);
-		vlen = btf_vlen(t);
+	switch (btf_kind(t)) {
+	case BTF_KIND_INT:
+	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
+	case BTF_KIND_FWD:
+	case BTF_KIND_FLOAT:
+	case BTF_KIND_LOC_PARAM:
+	case BTF_KIND_LOC_PROTO:
+	case BTF_KIND_LOCSEC:
+		break;
 
-		switch (btf_kind(t)) {
-		case BTF_KIND_INT:
-		case BTF_KIND_ENUM:
-		case BTF_KIND_ENUM64:
-		case BTF_KIND_FWD:
-		case BTF_KIND_FLOAT:
-			break;
+	case BTF_KIND_VOLATILE:
+	case BTF_KIND_CONST:
+	case BTF_KIND_RESTRICT:
+	case BTF_KIND_PTR:
+	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_FUNC:
+	case BTF_KIND_VAR:
+	case BTF_KIND_DECL_TAG:
+	case BTF_KIND_TYPE_TAG:
+		d->type_states[t->type].referenced = 1;
+		break;
 
-		case BTF_KIND_VOLATILE:
-		case BTF_KIND_CONST:
-		case BTF_KIND_RESTRICT:
-		case BTF_KIND_PTR:
-		case BTF_KIND_TYPEDEF:
-		case BTF_KIND_FUNC:
-		case BTF_KIND_VAR:
-		case BTF_KIND_DECL_TAG:
-		case BTF_KIND_TYPE_TAG:
-			d->type_states[t->type].referenced = 1;
-			break;
+	case BTF_KIND_ARRAY: {
+		const struct btf_array *a = btf_array(t);
 
-		case BTF_KIND_ARRAY: {
-			const struct btf_array *a = btf_array(t);
+		d->type_states[a->index_type].referenced = 1;
+		d->type_states[a->type].referenced = 1;
+		break;
+	}
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION: {
+		const struct btf_member *m = btf_members(t);
 
-			d->type_states[a->index_type].referenced = 1;
-			d->type_states[a->type].referenced = 1;
-			break;
-		}
-		case BTF_KIND_STRUCT:
-		case BTF_KIND_UNION: {
-			const struct btf_member *m = btf_members(t);
+		for (j = 0; j < vlen; j++, m++)
+			d->type_states[m->type].referenced = 1;
+		break;
+	}
+	case BTF_KIND_FUNC_PROTO: {
+		const struct btf_param *p = btf_params(t);
 
-			for (j = 0; j < vlen; j++, m++)
-				d->type_states[m->type].referenced = 1;
-			break;
-		}
-		case BTF_KIND_FUNC_PROTO: {
-			const struct btf_param *p = btf_params(t);
+		for (j = 0; j < vlen; j++, p++)
+			d->type_states[p->type].referenced = 1;
+		break;
+	}
+	case BTF_KIND_DATASEC: {
+		const struct btf_var_secinfo *v = btf_var_secinfos(t);
 
-			for (j = 0; j < vlen; j++, p++)
-				d->type_states[p->type].referenced = 1;
-			break;
-		}
-		case BTF_KIND_DATASEC: {
-			const struct btf_var_secinfo *v = btf_var_secinfos(t);
-
-			for (j = 0; j < vlen; j++, v++)
-				d->type_states[v->type].referenced = 1;
-			break;
-		}
-		default:
-			return -EINVAL;
-		}
+		for (j = 0; j < vlen; j++, v++)
+			d->type_states[v->type].referenced = 1;
+		break;
+	}
+	default:
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -609,6 +660,9 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	case BTF_KIND_VAR:
 	case BTF_KIND_DATASEC:
 	case BTF_KIND_DECL_TAG:
+	case BTF_KIND_LOC_PARAM:
+	case BTF_KIND_LOC_PROTO:
+	case BTF_KIND_LOCSEC:
 		d->type_states[id].order_state = ORDERED;
 		return 0;
 
@@ -964,6 +1018,44 @@ static void btf_dump_emit_struct_fwd(struct btf_dump *d, __u32 id,
 			btf_dump_type_name(d, id));
 }
 
+static void btf_dump_emit_decl_tag(struct btf_dump *d, const struct btf_type *t)
+{
+	const char *name = btf_name_of(d, t->name_off);
+
+	if (btf_kflag(t))
+		btf_dump_printf(d, " __attribute__((%s))", name);
+	else
+		btf_dump_printf(d, " __attribute__((btf_decl_tag(\"%s\")))", name);
+}
+
+/*
+ * btf_dump_resize() keeps d->decl_tags sorted by (target ID, tag ID), so the
+ * tags of one type form a run that binary search finds the start of, in a
+ * fixed order so that the same BTF always renders the same C.
+ */
+static void btf_dump_emit_decl_tags(struct btf_dump *d, __u32 id, int comp_idx)
+{
+	size_t i, lo = 0, hi = d->decl_tag_cnt, mid;
+	const struct btf_type *t;
+
+	/* lower bound on target_id */
+	while (lo < hi) {
+		mid = lo + (hi - lo) / 2;
+
+		if (d->decl_tags[mid].target_id < id)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+
+	for (i = lo; i < d->decl_tag_cnt && d->decl_tags[i].target_id == id; i++) {
+		t = btf__type_by_id(d->btf, d->decl_tags[i].tag_id);
+
+		if (btf_decl_tag(t)->component_idx == comp_idx)
+			btf_dump_emit_decl_tag(d, t);
+	}
+}
+
 static void btf_dump_emit_struct_def(struct btf_dump *d,
 				     __u32 id,
 				     const struct btf_type *t,
@@ -1009,6 +1101,8 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 			prev_bitfield = false;
 		}
 
+		/* after the bit-field width */
+		btf_dump_emit_decl_tags(d, id, i);
 		btf_dump_printf(d, ";");
 	}
 
@@ -1028,6 +1122,7 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 	}
 	if (packed)
 		btf_dump_printf(d, " __attribute__((packed))");
+	btf_dump_emit_decl_tags(d, id, -1);
 }
 
 static const char *missing_base_types[][2] = {
@@ -1205,6 +1300,7 @@ static void btf_dump_emit_typedef_def(struct btf_dump *d, __u32 id,
 
 	btf_dump_printf(d, "typedef ");
 	btf_dump_emit_type_decl(d, t->type, name, lvl);
+	btf_dump_emit_decl_tags(d, id, -1);
 }
 
 static int btf_dump_push_decl_stack_id(struct btf_dump *d, __u32 id)
@@ -1499,6 +1595,9 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			name = btf_name_of(d, t->name_off);
 			if (btf_kflag(t))
 				btf_dump_printf(d, " __attribute__((%s))", name);
+			else if (strcmp(name, "arena") == 0)
+				/* the tag denotes a pointer into the BPF arena address space */
+				btf_dump_printf(d, " __attribute__((address_space(1))) __attribute__((btf_type_tag(\"arena\")))");
 			else
 				btf_dump_printf(d, " __attribute__((btf_type_tag(\"%s\")))", name);
 			break;
@@ -2525,6 +2624,9 @@ static int btf_dump_dump_type_data(struct btf_dump *d,
 	case BTF_KIND_FUNC:
 	case BTF_KIND_FUNC_PROTO:
 	case BTF_KIND_DECL_TAG:
+	case BTF_KIND_LOC_PARAM:
+	case BTF_KIND_LOC_PROTO:
+	case BTF_KIND_LOCSEC:
 		err = btf_dump_unsupported_data(d, t, id);
 		break;
 	case BTF_KIND_INT:

@@ -24,6 +24,7 @@ struct val_600b_t {
 struct elem {
 	long sum;
 	struct val_t __percpu_kptr *pc;
+	struct val_t __percpu_kptr *pc2;
 };
 
 struct {
@@ -46,6 +47,8 @@ struct {
 
 struct task_struct *bpf_task_from_pid(s32 pid) __ksym;
 void bpf_task_release(struct task_struct *p) __ksym;
+void bpf_rcu_read_lock(void) __ksym;
+void bpf_rcu_read_unlock(void) __ksym;
 
 long ret;
 
@@ -120,6 +123,38 @@ int BPF_PROG(test_array_map_3)
 
 	v = bpf_this_cpu_ptr(p);
 	ret = v->b;
+	return 0;
+}
+
+SEC("?fentry.s/bpf_fentry_test1")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
+int BPF_PROG(reject_nullable_percpu_xchg_alias)
+{
+	struct val_t __percpu_kptr *p1, *p2, *old;
+	struct val_t *v;
+	struct elem *e;
+	int index = 0;
+
+	e = bpf_map_lookup_elem(&array, &index);
+	if (!e)
+		return 0;
+
+	p1 = bpf_percpu_obj_new(struct val_t);
+	p2 = bpf_percpu_obj_new(struct val_t);
+
+	bpf_rcu_read_lock();
+	old = bpf_kptr_xchg(&e->pc, p1);
+	if (old)
+		bpf_percpu_obj_drop(old);
+	old = bpf_kptr_xchg(&e->pc2, p2);
+	if (old)
+		bpf_percpu_obj_drop(old);
+
+	if (p1) {
+		v = bpf_this_cpu_ptr(p2);
+		v->b = 1;
+	}
+	bpf_rcu_read_unlock();
 	return 0;
 }
 

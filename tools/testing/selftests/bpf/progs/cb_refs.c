@@ -2,6 +2,7 @@
 #include <vmlinux.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
+#include "bpf_misc.h"
 #include "../test_kmods/bpf_testmod_kfunc.h"
 
 struct map_value {
@@ -24,6 +25,7 @@ static __noinline int cb1(void *map, void *key, void *value, void *ctx)
 }
 
 SEC("?tc")
+__failure __msg("R1 type=scalar expected=ptr_, trusted_ptr_, rcu_ptr_")
 int underflow_prog(void *ctx)
 {
 	struct prog_test_ref_kfunc *p;
@@ -47,6 +49,7 @@ static __always_inline int cb2(void *map, void *key, void *value, void *ctx)
 }
 
 SEC("?tc")
+__failure __msg("Unreleased reference id={{[0-9]+}} alloc_insn=3") /* alloc_insn=3{0,2,3} */
 int leak_prog(void *ctx)
 {
 	struct prog_test_ref_kfunc *p;
@@ -83,6 +86,7 @@ static __always_inline int cb3(void *map, void *key, void *value, void *ctx)
 }
 
 SEC("?tc")
+__failure __msg("Unreleased reference id={{[0-9]+}} alloc_insn=2") /* alloc_insn=2{2,4,5} */
 int nested_cb(void *ctx)
 {
 	struct prog_test_ref_kfunc *p;
@@ -98,6 +102,7 @@ int nested_cb(void *ctx)
 }
 
 SEC("?tc")
+__failure __msg("Unreleased reference id={{[0-9]+}} alloc_insn=1") /* alloc_insn=1{1,2} */
 int non_cb_transfer_ref(void *ctx)
 {
 	struct prog_test_ref_kfunc *p;

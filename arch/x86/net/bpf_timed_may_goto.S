@@ -11,12 +11,6 @@
 SYM_FUNC_START(arch_bpf_timed_may_goto)
 	ANNOTATE_NOENDBR
 
-	/*
-	 * r10 passes us stack depth, load the pointer to count and timestamp
-	 * into r10 by adding it to BPF frame pointer.
-	 */
-	leaq (%rbp, %r10, 1), %r10
-
 	/* Setup frame. */
 	pushq %rbp
 	movq %rsp, %rbp
@@ -30,8 +24,8 @@ SYM_FUNC_START(arch_bpf_timed_may_goto)
 	pushq %r8
 
 	/*
-	 * r10 has the pointer to count and timestamp, pass it as first
-	 * argument.
+	 * r10 has the pointer to count and timestamp. JIT added the frame
+	 * pointer to the offset. Pass it as first argument.
 	 */
 	movq %r10, %rdi
 

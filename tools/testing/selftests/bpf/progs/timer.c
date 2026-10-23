@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include "bpf_experimental.h"
 
 #define CLOCK_MONOTONIC 1
 #define CLOCK_BOOTTIME 7
@@ -57,9 +58,12 @@ struct {
 	__type(key, int);
 	__type(value, struct elem);
 } abs_timer SEC(".maps"), soft_timer_pinned SEC(".maps"), abs_timer_pinned SEC(".maps"),
-	race_array SEC(".maps");
+	race_array SEC(".maps"), loop_array SEC(".maps");
 
 __u64 bss_data;
+__u64 loop_sum;
+int loop_rearm;		/* number of times loop_cb() re-arms itself */
+__u64 zero;
 __u64 abs_data;
 __u64 err;
 __u64 ok;
@@ -136,6 +140,60 @@ static int timer_cb1(void *map, int *key, struct bpf_timer *timer)
 			err |= 4;
 		ok |= 1;
 	}
+	return 0;
+}
+
+/*
+ * Static and not inlined, so the loop is walked in a frame below the
+ * callback's rather than in a separately verified global subprog.
+ */
+static __noinline int sum_to(__u64 n)
+{
+	__u64 i, sum = 0;
+
+	for (i = zero; i < n && can_loop; i++)
+		sum += i;
+
+	return sum;
+}
+
+static int loop_cb(void *map, int *key, struct elem *val);
+
+/*
+ * Re-arms from a frame below the callback's, where the caller frame carries
+ * no async_entry_cnt of its own.
+ */
+static __noinline void rearm(struct elem *val)
+{
+	if (loop_rearm > 0) {
+		loop_rearm--;
+		/* set_callback is what starts another async callback entry */
+		bpf_timer_set_callback(&val->t, loop_cb);
+		bpf_timer_start(&val->t, 0, 0);
+	}
+}
+
+/* Re-arms itself and reaches a bounded loop through a call. */
+static int loop_cb(void *map, int *key, struct elem *val)
+{
+	loop_sum += sum_to(16);
+	rearm(val);
+	return 0;
+}
+
+SEC("fentry/bpf_fentry_test1")
+int BPF_PROG2(test_loop_rearm, int, a)
+{
+	struct bpf_timer *timer;
+	int key = 0;
+
+	timer = bpf_map_lookup_elem(&loop_array, &key);
+	if (!timer)
+		return 0;
+
+	bpf_timer_init(timer, &loop_array, CLOCK_MONOTONIC);
+	bpf_timer_set_callback(timer, loop_cb);
+	bpf_timer_start(timer, 0, 0);
 	return 0;
 }
 

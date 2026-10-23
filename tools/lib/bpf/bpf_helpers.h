@@ -249,12 +249,20 @@ enum libbpf_tristate {
 	___bpf_apply(___bpf_fill, ___bpf_narg(args))(arr, 0, args)
 
 /*
+ * Format strings are in a section of their own. When global data of the object
+ * is in arena (the object has .arena.data section) libbpf keeps .rodata.str*
+ * sections in read-only maps, which is where helpers and kfuncs take strings
+ * from.
+ */
+#define ___bpf_fmt_sec __attribute__((section(".rodata.str")))
+
+/*
  * BPF_SEQ_PRINTF to wrap bpf_seq_printf to-be-printed values
  * in a structure.
  */
 #define BPF_SEQ_PRINTF(seq, fmt, args...)			\
 ({								\
-	static const char ___fmt[] = fmt;			\
+	static const char ___fmt[] ___bpf_fmt_sec = fmt;	\
 	unsigned long long ___param[___bpf_narg(args)];		\
 								\
 	_Pragma("GCC diagnostic push")				\
@@ -272,7 +280,7 @@ enum libbpf_tristate {
  */
 #define BPF_SNPRINTF(out, out_size, fmt, args...)		\
 ({								\
-	static const char ___fmt[] = fmt;			\
+	static const char ___fmt[] ___bpf_fmt_sec = fmt;	\
 	unsigned long long ___param[___bpf_narg(args)];		\
 								\
 	_Pragma("GCC diagnostic push")				\
@@ -287,7 +295,7 @@ enum libbpf_tristate {
 #ifdef BPF_NO_GLOBAL_DATA
 #define BPF_PRINTK_FMT_MOD
 #else
-#define BPF_PRINTK_FMT_MOD static const
+#define BPF_PRINTK_FMT_MOD static const ___bpf_fmt_sec
 #endif
 
 #define __bpf_printk(fmt, ...)				\
@@ -303,7 +311,7 @@ enum libbpf_tristate {
  */
 #define __bpf_vprintk(fmt, args...)				\
 ({								\
-	static const char ___fmt[] = fmt;			\
+	static const char ___fmt[] ___bpf_fmt_sec = fmt;	\
 	unsigned long long ___param[___bpf_narg(args)];		\
 								\
 	_Pragma("GCC diagnostic push")				\
@@ -317,7 +325,7 @@ enum libbpf_tristate {
 
 #define bpf_stream_printk(stream_id, fmt, args...)					\
 ({											\
-	static const char ___fmt[] = fmt;						\
+	static const char ___fmt[] ___bpf_fmt_sec = fmt;				\
 	unsigned long long ___param[___bpf_narg(args)];					\
 											\
 	_Pragma("GCC diagnostic push")							\

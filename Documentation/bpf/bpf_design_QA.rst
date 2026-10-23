@@ -221,9 +221,14 @@ newer kernels. BPF programs need to change accordingly when this happens.
 
 Q: How much stack space a BPF program uses?
 -------------------------------------------
-A: Currently all program types are limited to 512 bytes of stack
-space, but the verifier computes the actual amount of stack used
-and both interpreter and most JITed code consume necessary amount.
+A: A program may use up to 2 KiB of stack, combined over its call
+chain, when the JIT of the architecture reports support for large
+stacks (currently x86-64 and arm64); a single function may use all of
+it, and every frame of a program running on a private stack gets the
+whole amount. Elsewhere, and for programs verified for the interpreter,
+the limit is 512 bytes; the interpreter itself never runs a frame
+larger than that. The verifier computes the actual amount of stack
+used and both interpreter and most JITed code consume necessary amount.
 
 Q: Can BPF be offloaded to HW?
 ------------------------------

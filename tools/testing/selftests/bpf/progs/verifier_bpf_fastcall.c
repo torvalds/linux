@@ -502,6 +502,175 @@ __naked void bad_helper_write(void)
 	: __clobber_all);
 }
 
+/*
+ * A helper buffer or a callee's pointer that reaches a fastcall spill slot
+ * must keep the spill/fill pair and the stack that covers it. Only load
+ * these programs: without the fix, they access kernel stack outside their
+ * frame.
+ *
+ * Uninitialized outputs without CAP_PERFMON have no explicit stack accesses.
+ */
+SEC("tc")
+__log_level(4)
+__msg_unpriv("subprog 0 (helper_uninit_stack) main {{.*}} stack 64")
+__xlated_unpriv("*(u64 *)(r10 -8) = r1")
+__xlated_unpriv("...")
+__xlated_unpriv("r1 = *(u64 *)(r10 -8)")
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__success_unpriv
+__naked void helper_uninit_stack(void)
+{
+	asm volatile (
+	"*(u64 *)(r10 - 8) = r1;"
+	"call %[bpf_get_smp_processor_id];"
+	"r1 = *(u64 *)(r10 - 8);"
+	"r2 = 0;"
+	"r3 = r10;"
+	"r3 += -64;"
+	"r4 = 8;"
+	"call %[bpf_skb_load_bytes];"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm(bpf_get_smp_processor_id),
+	  __imm(bpf_skb_load_bytes)
+	: __clobber_all);
+}
+
+/* Same output in the caller's stack, passed to the helper by a callee. */
+static __used __naked void helper_uninit_stack_callee(void)
+{
+	asm volatile (
+	"r3 = r2;"
+	"r2 = 0;"
+	"r4 = 8;"
+	"call %[bpf_skb_load_bytes];"
+	"exit;"
+	:
+	: __imm(bpf_skb_load_bytes)
+	: __clobber_all);
+}
+
+SEC("tc")
+__log_level(4)
+__msg_unpriv("subprog 0 (helper_uninit_stack_caller) main {{.*}} stack 64")
+__xlated_unpriv("*(u64 *)(r10 -8) = r1")
+__xlated_unpriv("...")
+__xlated_unpriv("r1 = *(u64 *)(r10 -8)")
+__caps_unpriv(CAP_BPF | CAP_NET_ADMIN)
+__success_unpriv
+__naked void helper_uninit_stack_caller(void)
+{
+	asm volatile (
+	"*(u64 *)(r10 - 8) = r1;"
+	"call %[bpf_get_smp_processor_id];"
+	"r1 = *(u64 *)(r10 - 8);"
+	"r2 = r10;"
+	"r2 += -64;"
+	"call helper_uninit_stack_callee;"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm(bpf_get_smp_processor_id)
+	: __clobber_all);
+}
+
+/* A helper input whose only initialization is the fastcall spill. */
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u64);
+} fastcall_map SEC(".maps");
+
+SEC("tc")
+__log_level(4)
+__msg("subprog 0 (helper_reads_fastcall_spill) main {{.*}} stack 8")
+__xlated("*(u64 *)(r10 -8) = r1")
+__xlated("...")
+__xlated("r1 = *(u64 *)(r10 -8)")
+__success
+__naked void helper_reads_fastcall_spill(void)
+{
+	asm volatile (
+	"r1 = 0;"
+	"*(u64 *)(r10 - 8) = r1;"
+	"call %[bpf_get_smp_processor_id];"
+	"r1 = *(u64 *)(r10 - 8);"
+	"r1 = %[fastcall_map] ll;"
+	"r2 = r10;"
+	"r2 += -8;"
+	"call %[bpf_map_lookup_elem];"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm(bpf_get_smp_processor_id),
+	  __imm(bpf_map_lookup_elem),
+	  __imm_addr(fastcall_map)
+	: __clobber_all);
+}
+
+/* A callee load from the caller's fastcall spill slot. */
+static __used __naked void read_caller_stack_callee(void)
+{
+	asm volatile (
+	"r0 = *(u64 *)(r1 + 0);"
+	"exit;"
+	::: __clobber_all);
+}
+
+SEC("raw_tp")
+__log_level(4)
+__msg("subprog 0 (callee_reads_fastcall_spill) main {{.*}} stack 8")
+__xlated("*(u64 *)(r10 -8) = r1")
+__xlated("...")
+__xlated("r1 = *(u64 *)(r10 -8)")
+__success
+__naked void callee_reads_fastcall_spill(void)
+{
+	asm volatile (
+	"r1 = 1;"
+	"*(u64 *)(r10 - 8) = r1;"
+	"call %[bpf_get_smp_processor_id];"
+	"r1 = *(u64 *)(r10 - 8);"
+	"r1 = r10;"
+	"r1 += -8;"
+	"call read_caller_stack_callee;"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm(bpf_get_smp_processor_id)
+	: __clobber_all);
+}
+
+/* A zero-sized buffer touches no stack, the rewrite is still applied. */
+SEC("raw_tp")
+__arch_x86_64
+__log_level(4)
+__msg("subprog 0 (helper_zero_size_buffer) main {{.*}} stack 0")
+__xlated("0: r1 = 1")
+__xlated("1: r0 =")
+__success
+__naked void helper_zero_size_buffer(void)
+{
+	asm volatile (
+	"r1 = 1;"
+	"*(u64 *)(r10 - 8) = r1;"
+	"call %[bpf_get_smp_processor_id];"
+	"r1 = *(u64 *)(r10 - 8);"
+	"r1 = r10;"
+	"r1 += -64;"
+	"r2 = 0;"
+	"r3 = 0;"
+	"call %[bpf_probe_read_kernel];"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm(bpf_get_smp_processor_id),
+	  __imm(bpf_probe_read_kernel)
+	: __clobber_all);
+}
+
 SEC("raw_tp")
 __arch_x86_64
 /* main, not patched */

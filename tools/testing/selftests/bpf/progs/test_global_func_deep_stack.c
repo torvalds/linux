@@ -67,12 +67,30 @@ int XCAT(f, n)(unsigned long a)                  \
 #define F_31 F_30       FN(31, 30)
 #define F_32 F_31       FN(32, 31)
 
+/* Same, with a 480-byte frame, to exceed the 2 KiB budget of large stacks. */
+#define FNB(n, prev) \
+__attribute__((noinline))                        \
+int XCAT(f, n)(unsigned long a)                  \
+{                                                \
+	volatile char buf[480] = {};             \
+	volatile long b = XCAT(f, prev)(a - 1);  \
+	if (!b)                                  \
+		return 0;                        \
+	return b + buf[479] + 1;                 \
+}
+
+#define F_33 F_32       FNB(33, 32)
+#define F_34 F_33       FNB(34, 33)
+#define F_35 F_34       FNB(35, 34)
+#define F_36 F_35       FNB(36, 35)
+#define F_37 F_36       FNB(37, 36)
+
 #define CAT2(a, b) a ## b
 #define XCAT2(a, b) CAT2(a, b)
 
 #define F(n) XCAT2(F_, n)
 
-F(32)
+F(37)
 
 /* Ensure that even 32 levels deep, the function verifies. */
 SEC("syscall")
@@ -88,8 +106,21 @@ int global_func_deep_stack_success(struct __sk_buff *skb)
  * the size.
  */
 SEC("syscall")
+__load_if_no_large_stack()
 __failure __msg("combined stack size of 34 calls")
 int global_func_deep_stack_fail(struct __sk_buff *skb)
 {
 	return f32(123);
+}
+
+/*
+ * Five 480-byte frames on top of the chain: 5 * 480 + 33 * 16 = 2928 bytes,
+ * more than the 2 KiB budget of JITs with large stacks, and more than 512
+ * bytes after the second frame everywhere else.
+ */
+SEC("syscall")
+__failure __msg("combined stack size of {{[0-9]+}} calls")
+int global_func_deep_stack_fail_large(struct __sk_buff *skb)
+{
+	return f37(123);
 }

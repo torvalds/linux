@@ -6,7 +6,8 @@
 #include "../test_kmods/bpf_testmod_kfunc.h"
 #include "bpf_misc.h"
 
-#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)) && \
+#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || \
+	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)) && \
 	defined(__BPF_FEATURE_STACK_ARGUMENT)
 
 /* Force kfunc extern BTF generation for inline asm call below.
@@ -73,7 +74,7 @@ __msg("mark_precise: frame1: parent state regs= stack=:  frame1: R10=fp0")
 __msg("mark_precise: frame0: parent state regs= stack=:  R10=fp0")
 __msg("mark_precise: frame1: last_idx 11 first_idx 11 subseq_idx 13")
 __msg("mark_precise: frame1: regs= stack= before 11: (85) call pc+1")
-__msg("mark_precise: frame0: parent state regs= stack=:  R1=1 R2=2 R3=3 R4=4 R5=5 R10=fp0")
+__msg("mark_precise: frame0: parent state regs= stack=:  R10=fp0")
 __msg("mark_precise: frame0: last_idx 9 first_idx 7 subseq_idx 11")
 __msg("mark_precise: frame0: regs= stack= before 9: (05) goto pc+1")
 __msg("mark_precise: frame0: regs= stack= before 8: (7a) *(u64 *)(r11 -8) = 4")
@@ -94,7 +95,7 @@ __msg("mark_precise: frame1: parent state regs= stack=:  frame1: R10=fp0")
 __msg("mark_precise: frame0: parent state regs= stack=:  R10=fp0")
 __msg("mark_precise: frame1: last_idx 11 first_idx 11 subseq_idx 13 ")
 __msg("mark_precise: frame1: regs= stack= before 11: (85) call pc+1")
-__msg("mark_precise: frame0: parent state regs= stack=:  R1=1 R2=2 R3=3 R4=4 R5=5 R10=fp0")
+__msg("mark_precise: frame0: parent state regs= stack=:  R10=fp0")
 __msg("mark_precise: frame0: last_idx 10 first_idx 10 subseq_idx 11 ")
 __msg("mark_precise: frame0: regs= stack= before 10: (7a) *(u64 *)(r11 -8) = 6")
 __naked void stack_arg_precision_bpf2bpf(void)
@@ -124,6 +125,7 @@ __naked void stack_arg_precision_bpf2bpf(void)
 
 SEC("socket")
 __description("stack_arg_precision: not supported, dummy test")
+__skip("stack_arg_precision: not supported")
 __success
 int dummy_test(void)
 {

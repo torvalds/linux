@@ -11,6 +11,7 @@
 #include <linux/fsnotify.h>
 #include <linux/file.h>
 #include <linux/kernfs.h>
+#include <linux/lsm_hooks.h>
 #include <linux/mm.h>
 #include <linux/net.h>
 #include <linux/xattr.h>
@@ -328,6 +329,89 @@ __bpf_kfunc int bpf_remove_dentry_xattr(struct dentry *dentry, const char *name_
 	return ret;
 }
 
+static int bpf_inode_init_xattrs_claimed(const struct xattr *xattrs, int xattr_count)
+{
+	const size_t suffix_len = sizeof(XATTR_BPF_LSM_SUFFIX) - 1;
+	int i, claimed = 0;
+
+	for (i = 0; i < xattr_count; i++) {
+		const char *name = xattrs[i].name;
+
+		if (name && !strncmp(name, XATTR_BPF_LSM_SUFFIX, suffix_len))
+			claimed++;
+	}
+	return claimed;
+}
+
+/**
+ * bpf_inode_init_xattr - attach a xattr to an inode that is being created
+ * @xattrs: xattr array the inode_init_security hook was handed
+ * @xattr_count__ctx_out: xattr count the inode_init_security hook was handed
+ * @name__str: name of the xattr
+ * @value_p: xattr value
+ *
+ * Claim one of the slots the BPF LSM reserved in the xattr array, so that
+ * the xattr is written out as part of the transaction creating the inode.
+ *
+ * For security reasons, only *name__str* with prefix "security.bpf." is
+ * allowed. The slot stores the name without that "security." prefix, which
+ * the filesystem's initxattrs() callback puts back.
+ *
+ * At most BPF_LSM_INODE_INIT_XATTRS xattrs can be attached to one inode,
+ * matching the number of slots the BPF LSM reserves.
+ *
+ * Return: 0 on success, a negative value on error.
+ */
+__bpf_kfunc int bpf_inode_init_xattr(struct xattr *xattrs,
+				     int *xattr_count__ctx_out,
+				     const char *name__str,
+				     const struct bpf_dynptr *value_p)
+{
+	const struct bpf_dynptr_kern *value_ptr = (struct bpf_dynptr_kern *)value_p;
+	int *xattr_count = xattr_count__ctx_out;
+	const char *suffix;
+	struct xattr *slot;
+	const void *value;
+	size_t name_len;
+	u32 value_len;
+	char *buf;
+
+	if (!match_security_bpf_prefix(name__str))
+		return -EPERM;
+	if (bpf_inode_init_xattrs_claimed(xattrs, *xattr_count) >=
+	    BPF_LSM_INODE_INIT_XATTRS)
+		return -ENOSPC;
+
+	suffix = name__str + XATTR_SECURITY_PREFIX_LEN;
+	name_len = strlen(suffix);
+	if (name_len <= sizeof(XATTR_BPF_LSM_SUFFIX) - 1 ||
+	    name_len > XATTR_NAME_MAX - XATTR_SECURITY_PREFIX_LEN)
+		return -EINVAL;
+
+	value_len = __bpf_dynptr_size(value_ptr);
+	value = __bpf_dynptr_data(value_ptr, value_len);
+	if (!value)
+		return -EINVAL;
+	if (value_len > XATTR_SIZE_MAX)
+		return -E2BIG;
+
+	buf = kmalloc(value_len + name_len + 1, GFP_NOWAIT | __GFP_NOWARN);
+	if (!buf)
+		return -ENOMEM;
+	memcpy(buf, value, value_len);
+	memcpy(buf + value_len, suffix, name_len + 1);
+
+	slot = lsm_get_xattr_slot(xattrs, xattr_count);
+	if (!slot) {
+		kfree(buf);
+		return -ENOSPC;
+	}
+	slot->value = buf;
+	slot->value_len = value_len;
+	slot->name = buf + value_len;
+	return 0;
+}
+
 #ifdef CONFIG_CGROUPS
 /**
  * bpf_cgroup_read_xattr - read xattr of a cgroup's node in cgroupfs
@@ -425,6 +509,7 @@ BTF_ID_FLAGS(func, bpf_get_file_xattr, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_set_dentry_xattr, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_remove_dentry_xattr, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_real_data_inode, KF_SLEEPABLE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_inode_init_xattr)
 #ifdef CONFIG_NET
 BTF_ID_FLAGS(func, bpf_sock_read_xattr, KF_RCU)
 #endif
@@ -436,10 +521,24 @@ BTF_ID(func, bpf_set_dentry_xattr)
 BTF_ID(func, bpf_remove_dentry_xattr)
 BTF_SET_END(bpf_fs_kfunc_lsm_only_ids)
 
+BTF_ID_LIST_SINGLE(bpf_inode_init_xattr_ids, func, bpf_inode_init_xattr)
+
+BTF_SET_START(bpf_inode_init_xattr_hooks)
+BTF_ID(func, bpf_lsm_inode_init_security)
+BTF_SET_END(bpf_inode_init_xattr_hooks)
+
 static int bpf_fs_kfuncs_filter(const struct bpf_prog *prog, u32 kfunc_id)
 {
 	if (!btf_id_set8_contains(&bpf_fs_kfunc_set_ids, kfunc_id))
 		return 0;
+	if (kfunc_id == bpf_inode_init_xattr_ids[0]) {
+		if (prog->type != BPF_PROG_TYPE_LSM ||
+		    prog->expected_attach_type != BPF_LSM_MAC ||
+		    !btf_id_set_contains(&bpf_inode_init_xattr_hooks,
+					 prog->aux->attach_btf_id))
+			return -EACCES;
+		return 0;
+	}
 	if (prog->type == BPF_PROG_TYPE_LSM)
 		return 0;
 	if (prog->type != BPF_PROG_TYPE_STRUCT_OPS)

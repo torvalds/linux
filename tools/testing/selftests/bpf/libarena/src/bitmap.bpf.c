@@ -35,24 +35,6 @@ void bmp_free(struct arena_bitmap __arena *bmp)
 }
 
 __weak
-void __bmp_set_bit(u32 bit, struct arena_bitmap __arena *bmp)
-{
-	bmp->bits[BIT_WORD(bit)] |= BIT_MASK(bit);
-}
-
-__weak
-void __bmp_clear_bit(u32 bit, struct arena_bitmap __arena *bmp)
-{
-	bmp->bits[BIT_WORD(bit)] &= ~BIT_MASK(bit);
-}
-
-__weak
-bool bmp_test_bit(u32 bit, struct arena_bitmap __arena *bmp)
-{
-	return bmp->bits[BIT_WORD(bit)] & BIT_MASK(bit);
-}
-
-__weak
 bool bmp_test_and_clear_bit(u32 bit, struct arena_bitmap __arena *bmp)
 {
 	u64 val = BIT_MASK(bit);

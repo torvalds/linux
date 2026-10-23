@@ -71,6 +71,7 @@ obj-$(CONFIG_TCP_AO) += tcp_ao.o
 
 ifeq ($(CONFIG_BPF_JIT),y)
 obj-$(CONFIG_BPF_SYSCALL) += bpf_tcp_ca.o
+obj-$(CONFIG_CGROUP_BPF) += bpf_tcp_ops.o
 endif
 
 ifdef CONFIG_GCOV_PROFILE_NETFILTER

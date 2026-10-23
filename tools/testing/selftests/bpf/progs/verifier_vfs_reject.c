@@ -28,7 +28,7 @@ int BPF_PROG(get_task_exe_file_kfunc_null)
 }
 
 SEC("lsm.s/inode_getxattr")
-__failure __msg("R1 is fp expected STRUCT task_struct")
+__failure __msg("R1 type=fp expected=ptr_, trusted_ptr_, rcu_ptr_")
 int BPF_PROG(get_task_exe_file_kfunc_fp)
 {
 	u64 x;
@@ -80,7 +80,7 @@ int BPF_PROG(get_task_exe_file_kfunc_unreleased)
 }
 
 SEC("lsm.s/file_open")
-__failure __msg("release kfunc bpf_put_file expects referenced PTR_TO_BTF_ID passed to R1")
+__failure __msg("release function bpf_put_file expects referenced PTR_TO_BTF_ID passed to R1")
 int BPF_PROG(put_file_kfunc_unacquired, struct file *file)
 {
 	/* Can't release an unacquired pointer. */
@@ -128,7 +128,7 @@ int BPF_PROG(path_d_path_kfunc_untrusted_from_current)
 }
 
 SEC("lsm.s/file_open")
-__failure __msg("kernel function bpf_path_d_path R1 expected pointer to STRUCT path but R1 has a pointer to STRUCT file")
+__failure __msg("bpf_path_d_path R1 expected pointer to STRUCT path but R1 has a pointer to STRUCT file")
 int BPF_PROG(path_d_path_kfunc_type_mismatch, struct file *file)
 {
 	bpf_path_d_path((struct path *)&file->f_task_work, buf, sizeof(buf));

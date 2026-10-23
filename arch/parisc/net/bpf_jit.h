@@ -467,6 +467,8 @@ static inline u32 hppa_t21_insn(u8 opcode, u8 r2, u8 r1, u8 ext8, u8 t)
 
 u64 hppa_div64(u64 div, u64 divisor);
 u64 hppa_div64_rem(u64 div, u64 divisor);
+u64 hppa_sdiv64(u64 div, u64 divisor);
+u64 hppa_sdiv64_rem(u64 div, u64 divisor);
 
 /* Helper functions that emit HPPA instructions when possible. */
 

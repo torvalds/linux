@@ -173,4 +173,125 @@ __naked void timed_may_goto_preserves_regs(void)
 	: __clobber_all);
 }
 
+__used __naked static void mg_ret1(void)
+{
+	asm volatile (
+	"r0 = 1;"
+	"exit;"
+	::: __clobber_all);
+}
+
+__used __naked static void mg_ret2(void)
+{
+	asm volatile (
+	"r0 = 2;"
+	"exit;"
+	::: __clobber_all);
+}
+
+__used __naked static void mg_call_first(void)
+{
+	asm volatile (
+	"call mg_ret1;"
+	"r1 = 0;"
+"1:"
+	".8byte %[may_goto];"
+	"r1 += 1;"
+	"if r1 < 10 goto 1b;"
+	"exit;"
+	:
+	: __imm_insn(may_goto, BPF_RAW_INSN(BPF_JMP | BPF_JCOND, 0, 0, 2, 0))
+	: __clobber_all);
+}
+
+/*
+ * mg_ret1 and mg_ret2 are placed in front of mg_call_first,
+ * so the offset of its call is negative.
+ */
+SEC("socket")
+__description("may_goto in subprog that starts with a call")
+__success
+__retval(1)
+__naked void may_goto_subprog_call_first(void)
+{
+	asm volatile (
+	"call mg_ret1;"
+	"call mg_ret2;"
+	"call mg_call_first;"
+	"exit;"
+	::: __clobber_all);
+}
+
+__used __naked static void mg_cb_stop(void)
+{
+	asm volatile (
+	"r0 = 1;"
+	"exit;"
+	::: __clobber_all);
+}
+
+__used __naked static void mg_cb_cont(void)
+{
+	asm volatile (
+	"r0 = 0;"
+	"exit;"
+	::: __clobber_all);
+}
+
+/* r1 is zero, but not a constant, so that bpf_loop() is not inlined */
+__used __naked static void mg_func_first(void)
+{
+	asm volatile (
+	"r2 = %[mg_cb_stop] ll;"
+	"r4 = r1;"
+	"r1 = 2;"
+	"r3 = 0;"
+	"call %[bpf_loop];"
+	"r1 = 0;"
+"1:"
+	".8byte %[may_goto];"
+	"r1 += 1;"
+	"if r1 < 10 goto 1b;"
+	"exit;"
+	:
+	: __imm_addr(mg_cb_stop),
+	  __imm(bpf_loop),
+	  __imm_insn(may_goto, BPF_RAW_INSN(BPF_JMP | BPF_JCOND, 0, 0, 2, 0))
+	: __clobber_all);
+}
+
+/*
+ * mg_cb_stop stops bpf_loop() after the first iteration,
+ * mg_cb_cont lets it do both.
+ */
+SEC("socket")
+__description("may_goto in subprog that starts with ld_imm64 of a func")
+__success
+__retval(1)
+__naked void may_goto_subprog_func_first(void)
+{
+	asm volatile (
+	"r1 = 1;"
+	"r2 = %[mg_cb_stop] ll;"
+	"r3 = 0;"
+	"r4 = 0;"
+	"call %[bpf_loop];"
+	"r1 = 1;"
+	"r2 = %[mg_cb_cont] ll;"
+	"r3 = 0;"
+	"r4 = 0;"
+	"call %[bpf_loop];"
+	"call %[bpf_ktime_get_ns];"
+	"r1 = r0;"
+	"r1 >>= 63;"
+	"call mg_func_first;"
+	"exit;"
+	:
+	: __imm_addr(mg_cb_stop),
+	  __imm_addr(mg_cb_cont),
+	  __imm(bpf_loop),
+	  __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

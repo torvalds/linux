@@ -26,6 +26,12 @@ struct prog_test_ref_kfunc {
 };
 #endif
 
+#if __has_attribute(btf_type_tag)
+#define __arena_tag __attribute__((btf_type_tag("arena")))
+#else
+#define __arena_tag
+#endif
+
 struct bpf_iter_testmod_seq;
 
 struct prog_test_pass1 {
@@ -53,6 +59,100 @@ struct prog_test_pass2 {
 struct prog_test_big_arg {
 	__u64 a;
 	__u64 b;
+};
+
+struct prog_test_pair_arg {	/* 16 bytes: two argument registers */
+	__u64 lo;
+	__u64 hi;
+};
+
+#ifdef __SIZEOF_INT128__
+struct prog_test_i128_arg {	/* 16 bytes, aligned to 16 like its member */
+	__int128 v;
+};
+#endif
+
+struct prog_test_ptr_arg {	/* 16 bytes, but holds a pointer */
+	void *p;
+	__u64 x;
+};
+
+struct prog_test_ret_pair {	/* 16 bytes: R0:R2 */
+	__u64 lo;
+	__u64 hi;
+};
+
+struct prog_test_ret_ii {	/* 8 bytes: R0 only */
+	int a;
+	int b;
+};
+
+struct prog_test_ret_ptr {	/* 16 bytes: contains a pointer */
+	void *p;
+	__u64 tag;
+};
+
+struct prog_test_ret_arena {	/* 16 bytes: two arena pointers */
+	void __arena_tag *a;
+	void __arena_tag *b;
+};
+
+struct prog_test_ret_arena_mixed {	/* 16 bytes: an arena pointer and a scalar */
+	void __arena_tag *p;
+	__u64 tag;
+};
+
+struct prog_test_ret_arena_untagged {	/* 16 bytes: 'b' lacks the arena tag */
+	void __arena_tag *a;
+	void *b;
+};
+
+union prog_test_ret_arena_union {	/* 8 bytes: 'b' lacks the arena tag */
+	void __arena_tag *a;
+	void *b;
+};
+
+struct prog_test_ret_nested {	/* 16 bytes: the pointer hides one level down */
+	struct {
+		void *p;
+	} in;
+	__u64 tag;
+};
+
+struct prog_test_ret_ptr_arr {	/* 16 bytes: an array of pointers */
+	void *p[2];
+};
+
+struct prog_test_ret_arr_struct {	/* 16 bytes: the pointer is under an array of structs */
+	struct {
+		struct {
+			void *p;
+		} in2;
+	} in1[2];
+};
+
+struct prog_test_ret_arr2d {	/* 16 bytes: a two dimensional array of structs */
+	struct {
+		void *p;
+	} a[1][2];
+};
+
+struct prog_test_ret_deep {	/* 8 bytes, but nested past the 4-level walk limit */
+	struct {
+		struct {
+			struct {
+				struct {
+					__u64 v;
+				} l4;
+			} l3;
+		} l2;
+	} l1;
+};
+
+struct prog_test_ret_big {	/* 24 bytes: too large for R0:R2 */
+	__u64 a;
+	__u64 b;
+	__u64 c;
 };
 
 struct prog_test_fail1 {
@@ -124,6 +224,8 @@ int bpf_testmod_ops3_call_test_arena(__u64 *ptr__arena) __ksym;
 int bpf_testmod_ops3_call_test_arena_nullable(__u64 *ptr__arena__nullable) __ksym;
 int bpf_testmod_ops3_call_test_arena_stack(__u64 *ptr__arena) __ksym;
 int bpf_testmod_ops3_call_test_arena_multislot(__u64 *ptr__arena) __ksym;
+int bpf_testmod_ops3_call_test_arena_member(__u64 *ptr__arena) __ksym;
+int bpf_testmod_ops3_call_test_nullable(void) __ksym;
 
 __u64 bpf_kfunc_call_test1(struct sock *sk, __u32 a, __u64 b,
 				__u32 c, __u64 d) __ksym;
@@ -131,6 +233,47 @@ int bpf_kfunc_call_test2(struct sock *sk, __u32 a, __u32 b) __ksym;
 struct sock *bpf_kfunc_call_test3(struct sock *sk) __ksym;
 long bpf_kfunc_call_test4(signed char a, short b, int c, long d) __ksym;
 int bpf_kfunc_call_test5(__u8 a, __u16 b, __u32 c) __ksym;
+#ifdef __SIZEOF_INT128__
+__int128 bpf_kfunc_call_test_i128(__u64 a, __u64 b) __ksym;
+#endif
+struct prog_test_ret_pair bpf_kfunc_call_test_ret_pair(__u64 a, __u64 b) __ksym;
+struct prog_test_ret_pair bpf_kfunc_call_test_ret_fastcall(__u64 a, __u64 b) __ksym;
+struct prog_test_ret_ii bpf_kfunc_call_test_ret_ii(int a, int b) __ksym;
+__u64 bpf_kfunc_call_test_pair_arg(__u64 a, struct prog_test_pair_arg s, __u64 b) __ksym;
+#ifdef __SIZEOF_INT128__
+__u64 bpf_kfunc_call_test_i128_arg(__u64 a, __u64 b, __int128 v) __ksym;
+__u64 bpf_kfunc_call_test_i128_arg_odd(__u64 a, __int128 v, __u64 b) __ksym;
+__u64 bpf_kfunc_call_test_i128_arg_odd_many(__u64 a, __int128 v, __u64 b, __u64 c,
+					    __u64 d, __u64 e, __u64 f, __int128 w) __ksym;
+__u64 bpf_kfunc_call_test_i128_arg_stack_hole(__u64 a, __u64 b, __u64 c, __u64 d,
+					      __u64 e, struct prog_test_pair_arg s,
+					      __u64 f, __u64 g,
+					      struct prog_test_i128_arg w) __ksym;
+__u64 bpf_kfunc_call_test_i128_arg_pad(__u64 a, __u64 b, __u64 c, __u64 d, __u64 e,
+				       __u64 f, __u64 g, __int128 v) __ksym;
+#endif
+__u64 bpf_kfunc_call_test_pair_arg_nofit(__u64 a, __u64 b, __u64 c, __u64 d,
+					 struct prog_test_pair_arg s) __ksym;
+__u64 bpf_kfunc_call_test_pair_arg_tail(__u64 a, __u64 b, __u64 c, __u64 d, __u64 e,
+					struct prog_test_pair_arg s, __u64 f) __ksym;
+__u64 bpf_kfunc_call_test_pair_arg_split8(__u64 a, __u64 b, __u64 c, __u64 d, __u64 e,
+					  __u64 f, __u64 g,
+					  struct prog_test_pair_arg s) __ksym;
+__u64 bpf_kfunc_call_test_ptr_arg(struct prog_test_ptr_arg s) __ksym;
+__u64 bpf_kfunc_call_test_pair_arena_arg(__u64 a, __u64 b, __u64 c,
+					 struct prog_test_pair_arg s,
+					 __u64 *f__arena) __ksym;
+struct prog_test_ret_ptr bpf_kfunc_call_test_ret_ptr(__u64 tag) __ksym;
+struct prog_test_ret_nested bpf_kfunc_call_test_ret_nested(__u64 tag) __ksym;
+struct prog_test_ret_ptr_arr bpf_kfunc_call_test_ret_ptr_arr(void) __ksym;
+struct prog_test_ret_arr_struct bpf_kfunc_call_test_ret_arr_struct(void) __ksym;
+struct prog_test_ret_arr2d bpf_kfunc_call_test_ret_arr2d(void) __ksym;
+struct prog_test_ret_arena bpf_kfunc_call_test_ret_arena(__u64 addr) __ksym;
+struct prog_test_ret_arena_mixed bpf_kfunc_call_test_ret_arena_mixed(__u64 addr) __ksym;
+struct prog_test_ret_arena_untagged bpf_kfunc_call_test_ret_arena_untagged(__u64 addr) __ksym;
+union prog_test_ret_arena_union bpf_kfunc_call_test_ret_arena_union(__u64 addr) __ksym;
+struct prog_test_ret_deep bpf_kfunc_call_test_ret_deep(__u64 v) __ksym;
+struct prog_test_ret_big bpf_kfunc_call_test_ret_big(void) __ksym;
 __u64 bpf_kfunc_call_stack_arg(__u64 a, __u64 b, __u64 c, __u64 d,
 			       __u64 e, __u64 f, __u64 g, __u64 h,
 			       __u64 i, __u64 j) __ksym;
@@ -161,6 +304,14 @@ __u64 bpf_kfunc_call_stack_arg_big(__u64 a, __u64 b, __u64 c, __u64 d, __u64 e,
 void bpf_kfunc_call_test_pass_ctx(struct __sk_buff *skb) __ksym;
 void bpf_kfunc_call_test_pass1(struct prog_test_pass1 *p) __ksym;
 void bpf_kfunc_call_test_pass2(struct prog_test_pass2 *p) __ksym;
+void bpf_kfunc_test_uninit_struct(struct prog_test_pass1 *out__uninit) __ksym;
+void bpf_kfunc_test_uninit_mem(void *out__uninit, __u32 out__sz) __ksym;
+void bpf_kfunc_test_uninit_partial(void *out__uninit, __u32 out__sz) __ksym;
+int bpf_kfunc_test_uninit_alias(int *out__uninit, const int *in) __ksym;
+void bpf_kfunc_test_uninit_multi(int *a__uninit, void *b__uninit, __u32 b__sz) __ksym;
+void bpf_kfunc_test_uninit_pair(struct prog_test_pair_arg p, int *out__uninit) __ksym;
+void bpf_kfunc_test_uninit_stack(__u64 a, __u64 b, __u64 c, __u64 d, __u64 e,
+				 int *out__uninit) __ksym;
 void bpf_kfunc_call_test_mem_len_fail2(__u64 *mem, int len) __ksym;
 
 void bpf_kfunc_call_test_destructive(void) __ksym;
@@ -204,6 +355,8 @@ int bpf_kfunc_st_ops_inc10(struct st_ops_args *args) __ksym;
 
 void bpf_kfunc_trusted_vma_test(struct vm_area_struct *ptr) __ksym;
 void bpf_kfunc_trusted_task_test(struct task_struct *ptr) __ksym;
+struct task_struct *bpf_kfunc_trusted_null_test(void) __ksym;
+void bpf_kfunc_trusted_nullable_test(struct task_struct *ptr__nullable) __ksym;
 void bpf_kfunc_trusted_num_test(int *ptr) __ksym;
 void bpf_kfunc_rcu_task_test(struct task_struct *ptr) __ksym;
 struct task_struct *bpf_kfunc_ret_rcu_test(void) __ksym;

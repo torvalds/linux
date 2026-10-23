@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include <net/if.h>
 #include <netinet/in.h>
+#include <sys/ioctl.h>
 
 #include "network_helpers.h"
 #include "test_progs.h"
@@ -139,6 +141,54 @@ static int set_bottom_addr(const char *ns1, const char *ns2, const char *ns3)
 	return 0;
 fail:
 	return 1;
+}
+
+/*
+ * A veth whose peer sits in another netns with the same ifindex gets its
+ * carrier-on handled as a non-urgent linkwatch event, i.e. up to 1s late.
+ * Until then IPv6 considers the link not ready (no ff00::/8 route, no
+ * link-local address) and silently drops neighbour solicitations, so wait
+ * for all links to be operationally up (IFF_RUNNING) before sending traffic.
+ */
+static int wait_for_oper_up(const char *ns, const char *dev)
+{
+	struct nstoken *nstoken;
+	struct ifreq ifr = {};
+	int i, fd, ret = -1;
+
+	nstoken = open_netns(ns);
+	if (!ASSERT_OK_PTR(nstoken, "open ns"))
+		return -1;
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (!ASSERT_OK_FD(fd, "socket"))
+		goto out;
+
+	strncpy(ifr.ifr_name, dev, IFNAMSIZ - 1);
+	for (i = 0; i < 50; i++) {
+		if (!ASSERT_OK(ioctl(fd, SIOCGIFFLAGS, &ifr), "SIOCGIFFLAGS"))
+			break;
+		if (ifr.ifr_flags & IFF_RUNNING) {
+			ret = 0;
+			break;
+		}
+		usleep(100000);
+	}
+	close(fd);
+out:
+	ASSERT_OK(ret, dev);
+	close_netns(nstoken);
+	return ret;
+}
+
+static int wait_for_links(const char *ns1, const char *ns2, const char *ns3)
+{
+	if (wait_for_oper_up(ns1, "veth1") || wait_for_oper_up(ns1, "veth5") ||
+	    wait_for_oper_up(ns2, "veth2") || wait_for_oper_up(ns2, "veth3") ||
+	    wait_for_oper_up(ns2, "veth6") || wait_for_oper_up(ns2, "veth7") ||
+	    wait_for_oper_up(ns3, "veth4") || wait_for_oper_up(ns3, "veth8"))
+		return -1;
+	return 0;
 }
 
 static int configure_vrf(const char *ns1, const char *ns2)
@@ -302,6 +352,9 @@ static int setup_network(char *ns1, char *ns2, char *ns3, const char *vrf)
 		goto fail;
 
 	if (!ASSERT_OK(configure_ns3(ns3), "configure ns3 routes"))
+		goto fail;
+
+	if (!ASSERT_OK(wait_for_links(ns1, ns2, ns3), "wait for links"))
 		goto fail;
 
 	/* Link bottom route to the GRE tunnels */

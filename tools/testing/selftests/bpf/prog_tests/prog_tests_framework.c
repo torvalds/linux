@@ -13,6 +13,7 @@ static void clear_test_state(struct test_state *state)
 void test_prog_tests_framework(void)
 {
 	struct test_state *state = env.test_state;
+	int subtest_cnt;
 
 	/* in all the ASSERT calls below we need to return on the first
 	 * error due to the fact that we are cleaning the test state after
@@ -30,25 +31,30 @@ void test_prog_tests_framework(void)
 		return;
 	clear_test_state(state);
 
+	subtest_cnt = 0;
 	if (test__start_subtest("test_skip_subtest")) {
 		test__skip();
 		test__end_subtest();
+		subtest_cnt++;
 	}
 	if (test__start_subtest("test_skip_subtest")) {
 		test__skip();
 		test__end_subtest();
+		subtest_cnt++;
 	}
-	if (!ASSERT_EQ(state->skip_cnt, 2, "skip_cnt_check"))
+	if (!ASSERT_EQ(state->skip_cnt, subtest_cnt, "skip_cnt_check"))
 		return;
 	if (!ASSERT_EQ(state->subtest_num, 3, "subtest_num_check"))
 		return;
 	clear_test_state(state);
 
+	subtest_cnt = 0;
 	if (test__start_subtest("test_fail_subtest")) {
 		test__fail();
 		test__end_subtest();
+		subtest_cnt++;
 	}
-	if (!ASSERT_EQ(state->error_cnt, 1, "error_cnt_check"))
+	if (!ASSERT_EQ(state->error_cnt, subtest_cnt, "error_cnt_check"))
 		return;
 	if (!ASSERT_EQ(state->subtest_num, 4, "subtest_num_check"))
 		return;
@@ -163,6 +169,12 @@ void test_prog_tests_framework_expected_msgs(void)
 
 	for (i = 0; i < ARRAY_SIZE(cases); i++) {
 		if (test__start_subtest(cases[i].name)) {
+			if (!env.subtest_state->stdout_saved) {
+				test__skip();
+				test__end_subtest();
+				continue;
+			}
+
 			error_cnt = env.subtest_state->error_cnt;
 			msgs.patterns = cases[i].pats;
 			msgs.cnt = 0;
@@ -177,5 +189,32 @@ void test_prog_tests_framework_expected_msgs(void)
 				ASSERT_STREQ(env.subtest_state->log_buf, "", "expected no output");
 			test__end_subtest();
 		}
+	}
+}
+
+void test_prog_tests_framework_compare_text(void)
+{
+	int err;
+
+	if (test__start_subtest("compare_text_match")) {
+		err = compare_text_to_expected("same\n", "same\n");
+		ASSERT_EQ(err, 0, "match_rc");
+		test__end_subtest();
+	}
+
+	if (test__start_subtest("compare_text_mismatch")) {
+		if (!env.subtest_state->stdout_saved) {
+			test__skip();
+		} else {
+			err = compare_text_to_expected("line two\n", "line one\n");
+			fflush(stdout);
+
+			ASSERT_EQ(err, -1, "mismatch_rc");
+			ASSERT_HAS_SUBSTR(env.subtest_state->log_buf, "-line one",
+					  "diff_has_expected");
+			ASSERT_HAS_SUBSTR(env.subtest_state->log_buf, "+line two",
+					  "diff_has_actual");
+		}
+		test__end_subtest();
 	}
 }

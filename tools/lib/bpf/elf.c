@@ -115,7 +115,7 @@ static int elf_sym_iter_new(struct elf_sym_iter *iter,
 		return -ENOENT;
 	}
 
-	if (!gelf_getshdr(scn, &sh))
+	if (!gelf_getshdr(scn, &sh) || !sh.sh_entsize)
 		return -EINVAL;
 
 	iter->strtabidx = sh.sh_link;

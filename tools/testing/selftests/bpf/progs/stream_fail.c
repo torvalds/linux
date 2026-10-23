@@ -23,7 +23,7 @@ int stream_vprintk_scalar_arg(void *ctx)
 }
 
 SEC("syscall")
-__failure __msg("R2 doesn't point to a const string")
+__failure __msg("R2 type=ctx expected=map_value")
 int stream_vprintk_string_arg(void *ctx)
 {
 	bpf_stream_vprintk(BPF_STDOUT, ctx, NULL, 0);

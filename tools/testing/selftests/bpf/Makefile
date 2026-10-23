@@ -3,92 +3,17 @@ include ../../../build/Build.include
 include ../../../scripts/Makefile.arch
 include ../../../scripts/Makefile.include
 
-OBJCOPY ?= $(CROSS_COMPILE)objcopy
-
-CURDIR := $(abspath .)
-TOOLSDIR := $(abspath ../../..)
-LIBDIR := $(TOOLSDIR)/lib
-BPFDIR := $(LIBDIR)/bpf
-TOOLSINCDIR := $(TOOLSDIR)/include
-TOOLSARCHINCDIR := $(TOOLSDIR)/arch/$(SRCARCH)/include
-BPFTOOLDIR := $(TOOLSDIR)/bpf/bpftool
-APIDIR := $(TOOLSINCDIR)/uapi
-ifneq ($(O),)
-GENDIR := $(O)/include/generated
-else
-GENDIR := $(abspath ../../../../include/generated)
-endif
-GENHDR := $(GENDIR)/autoconf.h
-PKG_CONFIG ?= $(CROSS_COMPILE)pkg-config
-
-ifneq ($(wildcard $(GENHDR)),)
-  GENFLAGS := -DHAVE_GENHDR
-endif
-
 BPF_GCC		?= $(shell command -v bpf-gcc;)
-ifdef ASAN
-SAN_CFLAGS 	?= -fsanitize=address -fno-omit-frame-pointer
-else
-SAN_CFLAGS	?=
-endif
-SAN_LDFLAGS	?= $(SAN_CFLAGS)
-RELEASE		?=
-OPT_FLAGS	?= $(if $(RELEASE),-O2,-O0)
-
-LIBELF_CFLAGS	:= $(shell $(PKG_CONFIG) libelf --cflags 2>/dev/null)
-LIBELF_LIBS	:= $(shell $(PKG_CONFIG) libelf --libs 2>/dev/null || echo -lelf)
 
 SKIP_DOCS	?=
 SKIP_LLVM	?=
 SKIP_LIBBFD	?=
 SKIP_CRYPTO	?=
 
-# When BPF_STRICT_BUILD is 1, any BPF object, skeleton, test object, or
-# benchmark compilation failure is fatal. Set to 0 to tolerate failures
-# and continue building the remaining tests.
-BPF_STRICT_BUILD ?= 1
-PERMISSIVE := $(filter 0,$(BPF_STRICT_BUILD))
-
-ifeq ($(srctree),)
-srctree := $(patsubst %/,%,$(dir $(CURDIR)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-endif
-
-COMMON_CFLAGS = -g $(OPT_FLAGS) -rdynamic -std=gnu11				\
-	  -Wall -Werror -fno-omit-frame-pointer				\
-	  -Wno-unused-but-set-variable					\
-	  $(GENFLAGS) $(SAN_CFLAGS) $(LIBELF_CFLAGS)			\
-	  -I$(CURDIR) -I$(INCLUDE_DIR) -I$(GENDIR) -I$(LIBDIR)		\
-	  -I$(TOOLSINCDIR) -I$(TOOLSARCHINCDIR) -I$(APIDIR) -I$(OUTPUT)	\
-	  -I$(CURDIR)/libarena/include
-LDFLAGS += $(SAN_LDFLAGS)
-LDLIBS += $(LIBELF_LIBS) -lz -lrt -lpthread
-
-PCAP_CFLAGS	:= $(shell $(PKG_CONFIG) --cflags libpcap 2>/dev/null && echo "-DTRAFFIC_MONITOR=1")
-PCAP_LIBS	:= $(shell $(PKG_CONFIG) --libs libpcap 2>/dev/null)
-LDLIBS += $(PCAP_LIBS)
-CFLAGS += $(COMMON_CFLAGS) $(PCAP_CFLAGS)
-
-# Some utility functions use LLVM libraries
-jit_disasm_helpers.c-CFLAGS = $(LLVM_CFLAGS)
-
-ifneq ($(LLVM),)
-# Silence some warnings when compiled with clang
-CFLAGS += -Wno-unused-command-line-argument
-endif
-
 # Check whether bpf cpu=v4 is supported or not by clang
 ifneq ($(shell $(CLANG) --target=bpf -mcpu=help 2>&1 | grep 'v4'),)
 CLANG_CPUV4 := 1
 endif
-
-# Check whether clang supports BPF address sanitizer (requires LLVM 22+)
-CLANG_HAS_ARENA_ASAN := $(shell echo 'int x;' | \
-	$(CLANG) --target=bpf -fsanitize=kernel-address \
-	-mllvm -asan-shadow-addr-space=1 \
-	-x c -c - -o /dev/null 2>/dev/null && echo 1)
 
 # Order correspond to 'make run_tests' order
 TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_progs \
@@ -101,16 +26,6 @@ TEST_INST_SUBDIRS := no_alu32
 ifneq ($(BPF_GCC),)
 TEST_GEN_PROGS += test_progs-bpf_gcc
 TEST_INST_SUBDIRS += bpf_gcc
-
-# The following tests contain C code that, although technically legal,
-# triggers GCC warnings that cannot be disabled: declaration of
-# anonymous struct types in function parameter lists.
-progs/btf_dump_test_case_bitfields.c-bpf_gcc-CFLAGS := -Wno-error
-progs/btf_dump_test_case_namespacing.c-bpf_gcc-CFLAGS := -Wno-error
-progs/btf_dump_test_case_packing.c-bpf_gcc-CFLAGS := -Wno-error
-progs/btf_dump_test_case_padding.c-bpf_gcc-CFLAGS := -Wno-error
-progs/btf_dump_test_case_syntax.c-bpf_gcc-CFLAGS := -Wno-error
-
 endif
 
 ifneq ($(CLANG_CPUV4),)
@@ -118,12 +33,12 @@ TEST_GEN_PROGS += test_progs-cpuv4
 TEST_INST_SUBDIRS += cpuv4
 endif
 
-TEST_FILES = xsk_prereqs.sh $(wildcard progs/btf_dump_test_case_*.c)
+TEST_FILES = xsk_prereqs.sh $(wildcard progs/btf_dump_test_case_*.c)	\
+	     bpftool_btf_dump_sorted.expected					\
+	     bpftool_btf_dump_unsorted.expected
 
 # Order correspond to 'make run_tests' order
-TEST_PROGS := test_kmod.sh \
-	test_lirc_mode2.sh \
-	test_bpftool_build.sh \
+TEST_PROGS := test_bpftool_build.sh \
 	test_doc_build.sh \
 	test_xsk.sh \
 	test_xdp_features.sh
@@ -140,7 +55,6 @@ TEST_GEN_PROGS_EXTENDED = \
 	bench \
 	flow_dissector_load \
 	test_cpp \
-	test_lirc_mode2_user \
 	veristat \
 	xdp_features \
 	xdp_hw_metadata \
@@ -167,7 +81,17 @@ override define CLEAN
 	$(Q)$(MAKE) docs-clean
 endef
 
+# Append build flags before lib.mk's user flags. References to
+# Makefile.buildvars definitions expand when the flags are used.
+# The arena-ASAN define is appended after lib.mk.
+CFLAGS += $(COMMON_CFLAGS) $(PCAP_CFLAGS) $(CLANG_WARN_CFLAGS)
+LDFLAGS += $(SAN_LDFLAGS)
 include ../lib.mk
+include Makefile.buildvars
+
+BPFTOOLDIR := $(TOOLSDIR)/bpf/bpftool
+HOST_BPFOBJ := $(HOST_BUILD_DIR)/libbpf/libbpf.a
+BPF_TARGET_ENDIAN:=$(if $(IS_LITTLE_ENDIAN),--target=bpfel,--target=bpfeb)
 
 NON_CHECK_FEAT_TARGETS := clean docs-clean emit_tests
 CHECK_FEAT := $(filter-out $(NON_CHECK_FEAT_TARGETS),$(or $(MAKECMDGOALS), "none"))
@@ -212,21 +136,9 @@ ifeq ($(feature-llvm),1)
 endif
 endif
 
-SCRATCH_DIR := $(OUTPUT)/tools
-BUILD_DIR := $(SCRATCH_DIR)/build
-INCLUDE_DIR := $(SCRATCH_DIR)/include
-BPFOBJ := $(BUILD_DIR)/libbpf/libbpf.a
-ifneq ($(CROSS_COMPILE),)
-HOST_BUILD_DIR		:= $(BUILD_DIR)/host
-HOST_SCRATCH_DIR	:= $(OUTPUT)/host-tools
-HOST_INCLUDE_DIR	:= $(HOST_SCRATCH_DIR)/include
-else
-HOST_BUILD_DIR		:= $(BUILD_DIR)
-HOST_SCRATCH_DIR	:= $(SCRATCH_DIR)
-HOST_INCLUDE_DIR	:= $(INCLUDE_DIR)
-endif
-HOST_BPFOBJ := $(HOST_BUILD_DIR)/libbpf/libbpf.a
-RESOLVE_BTFIDS := $(HOST_BUILD_DIR)/resolve_btfids/resolve_btfids
+# Some utility functions use LLVM libraries
+$(OUTPUT)/jit_disasm_helpers.o: CFLAGS += $(LLVM_CFLAGS)
+
 VMLINUX_BTF_PATHS ?= $(if $(O),$(O)/vmlinux)				\
 		     $(if $(KBUILD_OUTPUT),$(KBUILD_OUTPUT)/vmlinux)	\
 		     ../../../../vmlinux				\
@@ -245,7 +157,7 @@ $(notdir $(TEST_GEN_PROGS) $(TEST_KMODS)				\
 	 $(TEST_GEN_PROGS_EXTENDED)): %: $(OUTPUT)/% ;
 
 # sort removes libbpf duplicates when not cross-building
-MAKE_DIRS := $(sort $(BUILD_DIR)/libbpf $(HOST_BUILD_DIR)/libbpf	\
+MAKE_DIRS := $(sort $(OUTPUT) $(BUILD_DIR)/libbpf $(HOST_BUILD_DIR)/libbpf \
 	       $(BUILD_DIR)/bpftool $(HOST_BUILD_DIR)/bpftool		\
 	       $(HOST_BUILD_DIR)/resolve_btfids				\
 	       $(INCLUDE_DIR))
@@ -257,9 +169,11 @@ $(OUTPUT)/%.o: %.c
 	$(call msg,CC,,$@)
 	$(Q)$(CC) $(CFLAGS) -c $(filter %.c,$^) $(LDLIBS) -o $@
 
+# Keep header prerequisites off the link command: clang treats
+# bare headers as precompiled-header jobs and refuses -o.
 $(OUTPUT)/%:%.c
 	$(call msg,BINARY,,$@)
-	$(Q)$(LINK.c) $^ $(LDLIBS) -o $@
+	$(Q)$(LINK.c) $(filter-out %.h,$^) $(LDLIBS) -o $@
 
 # LLVM's ld.lld doesn't support all the architectures, so use it only on x86
 ifeq ($(SRCARCH),$(filter $(SRCARCH),x86 riscv))
@@ -312,17 +226,6 @@ $(TEST_KMOD_TARGETS): $(addprefix test_kmods/,$(TEST_KMODS))
 	$(call msg,MOD,,$@)
 	$(Q)$(if $(PERMISSIVE),if [ -f test_kmods/$(@F) ]; then )cp test_kmods/$(@F) $@$(if $(PERMISSIVE),; fi)
 
-
-DEFAULT_BPFTOOL := $(HOST_SCRATCH_DIR)/sbin/bpftool
-ifneq ($(CROSS_COMPILE),)
-CROSS_BPFTOOL := $(SCRATCH_DIR)/sbin/bpftool
-TRUNNER_BPFTOOL := $(CROSS_BPFTOOL)
-USE_BOOTSTRAP := ""
-else
-TRUNNER_BPFTOOL := $(DEFAULT_BPFTOOL)
-USE_BOOTSTRAP := "bootstrap/"
-endif
-
 $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED): $(BPFOBJ)
 
 TESTING_HELPERS	:= $(OUTPUT)/testing_helpers.o
@@ -337,13 +240,29 @@ $(OUTPUT)/test_sockmap: $(CGROUP_HELPERS) $(TESTING_HELPERS)
 $(OUTPUT)/test_tcpnotify_user: $(CGROUP_HELPERS) $(TESTING_HELPERS) $(TRACE_HELPERS)
 $(OUTPUT)/test_sock_fields: $(CGROUP_HELPERS) $(TESTING_HELPERS)
 $(OUTPUT)/test_tag: $(TESTING_HELPERS)
-$(OUTPUT)/test_lirc_mode2_user: $(TESTING_HELPERS)
-$(OUTPUT)/flow_dissector_load: $(TESTING_HELPERS)
-$(OUTPUT)/test_maps: $(TESTING_HELPERS)
+$(OUTPUT)/flow_dissector_load: $(TESTING_HELPERS) flow_dissector_load.h
 $(OUTPUT)/test_verifier: $(TESTING_HELPERS) $(CAP_HELPERS) $(UNPRIV_HELPERS)
-$(OUTPUT)/xsk.o: $(BPFOBJ)
 
-BPFTOOL ?= $(DEFAULT_BPFTOOL)
+# Defined ahead of the first rule that lists it as a prerequisite.
+VERIFY_SIG_HDR := verification_cert.h
+
+# The userspace objects the runner instances link (RUNNER_OBJS, see
+# Makefile.buildvars) are built here, once, so that no runner sub-make
+# ever writes a file this Makefile also builds.
+#
+# Helper C files include headers installed to $(INCLUDE_DIR) by the
+# $(TRUNNER_BPFTOOL) and $(BPFOBJ) targets.
+RUNNER_OBJS := $(sort $(RUNNER_OBJS-test_progs) $(RUNNER_OBJS-test_maps))
+$(RUNNER_OBJS): $(VERIFY_SIG_HDR) $(BPFOBJ) $(TRUNNER_BPFTOOL)
+$(OUTPUT)/test_progs.o: prog_tests/tests.h
+$(OUTPUT)/test_maps.o: map_tests/tests.h
+
+# find_bit.c is the only runner source outside this directory, so it
+# needs a rule of its own.
+$(OUTPUT)/find_bit.o: $(TOOLSDIR)/lib/find_bit.c
+	$(call msg,CC,,$@)
+	$(Q)$(CC) $(CFLAGS) -c $< $(LDLIBS) -o $@
+
 $(DEFAULT_BPFTOOL): $(wildcard $(BPFTOOLDIR)/*.[ch] $(BPFTOOLDIR)/Makefile)    \
 		    $(HOST_BPFOBJ) | $(HOST_BUILD_DIR)/bpftool
 	$(Q)$(MAKE) $(submake_extras)  -C $(BPFTOOLDIR)			       \
@@ -411,7 +330,7 @@ endif
 
 # vmlinux.h is first dumped to a temporary file and then compared to
 # the previous version. This helps to avoid unnecessary re-builds of
-# $(TRUNNER_BPF_OBJS)
+# BPF objects.
 $(INCLUDE_DIR)/vmlinux.h: $(VMLINUX_BTF) $(BPFTOOL) | $(INCLUDE_DIR)
 ifeq ($(VMLINUX_H),)
 	$(call msg,GEN,,$@)
@@ -423,7 +342,9 @@ else
 endif
 
 $(RESOLVE_BTFIDS): $(HOST_BPFOBJ) | $(HOST_BUILD_DIR)/resolve_btfids	\
-		       $(TOOLSDIR)/bpf/resolve_btfids/main.c	\
+		       $(TOOLSDIR)/bpf/resolve_btfids/main.c		\
+		       $(TOOLSDIR)/bpf/resolve_btfids/btf_colors.c	\
+		       $(TOOLSDIR)/bpf/resolve_btfids/btf_colors.h	\
 		       $(TOOLSDIR)/lib/rbtree.c			\
 		       $(TOOLSDIR)/lib/zalloc.c			\
 		       $(TOOLSDIR)/lib/string.c			\
@@ -450,360 +371,17 @@ $(shell $(1) $(2) -dM -E - </dev/null | grep '__loongarch_grlen ' | awk '{printf
 $(shell $(1) $(2) -dM -E - </dev/null | grep -E 'MIPS(EL|EB)|_MIPS_SZ(PTR|LONG) |_MIPS_SIM |_ABI(O32|N32|64) ' | awk '{printf("-D%s=%s ", $$2, $$3)}')
 endef
 
-# Determine target endianness.
-IS_LITTLE_ENDIAN := $(shell $(CC) -dM -E - </dev/null | \
-			grep 'define __BYTE_ORDER__ __ORDER_LITTLE_ENDIAN__')
-MENDIAN:=$(if $(IS_LITTLE_ENDIAN),-mlittle-endian,-mbig-endian)
-BPF_TARGET_ENDIAN:=$(if $(IS_LITTLE_ENDIAN),--target=bpfel,--target=bpfeb)
-
 ifneq ($(CROSS_COMPILE),)
 CLANG_TARGET_ARCH = --target=$(notdir $(CROSS_COMPILE:%-=%))
 endif
 
 CLANG_SYS_INCLUDES = $(call get_sys_includes,$(CLANG),$(CLANG_TARGET_ARCH))
-BPF_CFLAGS = -g -Wall -Werror -D__TARGET_ARCH_$(SRCARCH) $(MENDIAN)	\
-	     -I$(INCLUDE_DIR) -I$(CURDIR) -I$(APIDIR)			\
-	     -I$(TOOLSINCDIR) -I$(CURDIR)/libarena/include		\
-	     -I$(abspath $(OUTPUT)/../usr/include)			\
-	     -std=gnu11		 					\
-	     -fno-strict-aliasing 					\
-	     -Wno-microsoft-anon-tag					\
-	     -fms-extensions						\
-	     -Wno-compare-distinct-pointer-types			\
-	     -Wno-initializer-overrides					\
-	     #
-# TODO: enable me -Wsign-compare
-
 CLANG_CFLAGS = $(CLANG_SYS_INCLUDES)
 
-$(OUTPUT)/test_l4lb_noinline.o: BPF_CFLAGS += -fno-inline
-$(OUTPUT)/test_xdp_noinline.o: BPF_CFLAGS += -fno-inline
-
-$(OUTPUT)/flow_dissector_load.o: flow_dissector_load.h
-$(OUTPUT)/cgroup_getset_retval_hooks.o: cgroup_getset_retval_hooks.h
-
-# Build BPF object using Clang
-# $1 - input .c file
-# $2 - output .o file
-# $3 - CFLAGS
-# $4 - binary name
-define CLANG_BPF_BUILD_RULE
-	$(call msg,CLNG-BPF,$4,$2)
-	$(Q)$(CLANG) $3 -O2 $(BPF_TARGET_ENDIAN) -c $1 -mcpu=v3 -o $2 $(if $(PERMISSIVE),|| \
-		($(RM) $2; printf '  %-12s %s\n' 'SKIP-BPF' '$(notdir $2)' 1>&2))
-endef
-# Similar to CLANG_BPF_BUILD_RULE, but with disabled alu32
-define CLANG_NOALU32_BPF_BUILD_RULE
-	$(call msg,CLNG-BPF,$4,$2)
-	$(Q)$(CLANG) $3 -O2 $(BPF_TARGET_ENDIAN) -c $1 -mcpu=v2 -o $2 $(if $(PERMISSIVE),|| \
-		($(RM) $2; printf '  %-12s %s\n' 'SKIP-BPF' '$(notdir $2)' 1>&2))
-endef
-# Similar to CLANG_BPF_BUILD_RULE, but with cpu-v4
-define CLANG_CPUV4_BPF_BUILD_RULE
-	$(call msg,CLNG-BPF,$4,$2)
-	$(Q)$(CLANG) $3 -O2 $(BPF_TARGET_ENDIAN) -c $1 -mcpu=v4 -o $2 $(if $(PERMISSIVE),|| \
-		($(RM) $2; printf '  %-12s %s\n' 'SKIP-BPF' '$(notdir $2)' 1>&2))
-endef
-# Build BPF object using GCC
-define GCC_BPF_BUILD_RULE
-	$(call msg,GCC-BPF,$4,$2)
-	$(Q)$(BPF_GCC) $3 -DBPF_NO_PRESERVE_ACCESS_INDEX -Wno-attributes -O2 -c $1 -o $2 $(if $(PERMISSIVE),|| \
-		($(RM) $2; printf '  %-12s %s\n' 'SKIP-BPF' '$(notdir $2)' 1>&2))
-endef
-
-SKEL_BLACKLIST := btf__% test_pinning_invalid.c test_sk_assign.c
-
-LINKED_SKELS := test_static_linked.skel.h linked_funcs.skel.h		\
-		linked_vars.skel.h linked_maps.skel.h 			\
-		test_subskeleton.skel.h test_subskeleton_lib.skel.h	\
-		test_usdt.skel.h tracing_multi.skel.h			\
-		tracing_multi_module.skel.h				\
-		tracing_multi_intersect.skel.h				\
-		tracing_multi_session.skel.h
-
-LSKELS := fexit_sleep.c trace_printk.c trace_vprintk.c map_ptr_kern.c 	\
-	core_kern.c core_kern_overflow.c test_ringbuf.c			\
-	test_ringbuf_n.c test_ringbuf_map_key.c test_ringbuf_write.c    \
-	test_ringbuf_overwrite.c
-
-LSKELS_SIGNED := fentry_test.c fexit_test.c atomics.c
-
-# Generate both light skeleton and libbpf skeleton for these
-LSKELS_EXTRA := test_ksyms_module.c test_ksyms_weak.c kfunc_call_test.c \
-	kfunc_call_test_subprog.c test_global_percpu_data.c
-SKEL_BLACKLIST += $$(LSKELS) $$(LSKELS_SIGNED)
-
-test_static_linked.skel.h-deps := test_static_linked1.bpf.o test_static_linked2.bpf.o
-linked_funcs.skel.h-deps := linked_funcs1.bpf.o linked_funcs2.bpf.o
-linked_vars.skel.h-deps := linked_vars1.bpf.o linked_vars2.bpf.o
-linked_maps.skel.h-deps := linked_maps1.bpf.o linked_maps2.bpf.o
-# In the subskeleton case, we want the test_subskeleton_lib.subskel.h file
-# but that's created as a side-effect of the skel.h generation.
-test_subskeleton.skel.h-deps := test_subskeleton_lib2.bpf.o test_subskeleton_lib.bpf.o test_subskeleton.bpf.o
-test_subskeleton_lib.skel.h-deps := test_subskeleton_lib2.bpf.o test_subskeleton_lib.bpf.o
-test_usdt.skel.h-deps := test_usdt.bpf.o test_usdt_multispec.bpf.o
-xsk_xdp_progs.skel.h-deps := xsk_xdp_progs.bpf.o
-xdp_hw_metadata.skel.h-deps := xdp_hw_metadata.bpf.o
-xdp_features.skel.h-deps := xdp_features.bpf.o
-tracing_multi.skel.h-deps := tracing_multi_attach.bpf.o tracing_multi_check.bpf.o
-tracing_multi_module.skel.h-deps := tracing_multi_attach_module.bpf.o tracing_multi_check.bpf.o
-tracing_multi_intersect.skel.h-deps := tracing_multi_intersect_attach.bpf.o tracing_multi_check.bpf.o
-tracing_multi_session.skel.h-deps := tracing_multi_session_attach.bpf.o tracing_multi_check.bpf.o
-
-LINKED_BPF_OBJS := $(foreach skel,$(LINKED_SKELS),$($(skel)-deps))
-LINKED_BPF_SRCS := $(patsubst %.bpf.o,%.c,$(LINKED_BPF_OBJS))
-
-HEADERS_FOR_BPF_OBJS := $(wildcard $(BPFDIR)/*.bpf.h)		\
-			$(wildcard $(CURDIR)/libarena/include/*.[ch])	\
-			$(addprefix $(BPFDIR)/,	bpf_core_read.h	\
-			                        bpf_endian.h	\
-						bpf_helpers.h	\
-			                        bpf_tracing.h)
-
-# Set up extra TRUNNER_XXX "temporary" variables in the environment (relies on
-# $eval()) and pass control to DEFINE_TEST_RUNNER_RULES.
-# Parameters:
-# $1 - test runner base binary name (e.g., test_progs)
-# $2 - test runner extra "flavor" (e.g., no_alu32, cpuv4, bpf_gcc, etc)
-define DEFINE_TEST_RUNNER
-
-LSKEL_SIGN := -S -k $(PRIVATE_KEY) -i $(VERIFICATION_CERT)
-TRUNNER_OUTPUT := $(OUTPUT)$(if $2,/)$2
-TRUNNER_BINARY := $1$(if $2,-)$2
-TRUNNER_TEST_OBJS := $$(patsubst %.c,$$(TRUNNER_OUTPUT)/%.test.o,	\
-				 $$(notdir $$(wildcard $(TRUNNER_TESTS_DIR)/*.c)))
-TRUNNER_EXTRA_OBJS := $$(patsubst %.c,$$(TRUNNER_OUTPUT)/%.o,		\
-				 $$(filter %.c,$(TRUNNER_EXTRA_SOURCES)))
-TRUNNER_LIB_OBJS := $$(patsubst %.c,$$(TRUNNER_OUTPUT)/%.o,		\
-				 $$(filter %.c,$(TRUNNER_LIB_SOURCES)))
-TRUNNER_EXTRA_HDRS := $$(filter %.h,$(TRUNNER_EXTRA_SOURCES))
-TRUNNER_TESTS_HDR := $(TRUNNER_TESTS_DIR)/tests.h
-TRUNNER_BPF_SRCS := $$(notdir $$(wildcard $(TRUNNER_BPF_PROGS_DIR)/*.c))
-TRUNNER_BPF_OBJS := $$(patsubst %.c,$$(TRUNNER_OUTPUT)/%.bpf.o, $$(TRUNNER_BPF_SRCS))
-TRUNNER_BPF_SKELS := $$(patsubst %.c,$$(TRUNNER_OUTPUT)/%.skel.h,	\
-				 $$(filter-out $(SKEL_BLACKLIST) $(LINKED_BPF_SRCS),\
-					       $$(TRUNNER_BPF_SRCS)))
-TRUNNER_BPF_LSKELS := $$(patsubst %.c,$$(TRUNNER_OUTPUT)/%.lskel.h, $$(LSKELS) $$(LSKELS_EXTRA))
-TRUNNER_BPF_SKELS_LINKED := $$(addprefix $$(TRUNNER_OUTPUT)/,$(LINKED_SKELS))
-TRUNNER_BPF_LSKELS_SIGNED := $$(patsubst %.c,$$(TRUNNER_OUTPUT)/%.lskel.h, $$(LSKELS_SIGNED))
-TEST_GEN_FILES += $$(TRUNNER_BPF_OBJS)
-
-# Evaluate rules now with extra TRUNNER_XXX variables above already defined
-$$(eval $$(call DEFINE_TEST_RUNNER_RULES,$1,$2))
-
-endef
-
-# Using TRUNNER_XXX variables, provided by callers of DEFINE_TEST_RUNNER and
-# set up by DEFINE_TEST_RUNNER itself, create test runner build rules with:
-# $1 - test runner base binary name (e.g., test_progs)
-# $2 - test runner extra "flavor" (e.g., no_alu32, cpuv4, bpf_gcc, etc)
-define DEFINE_TEST_RUNNER_RULES
-
-# Permissive build behaviour (skip-on-failure compile, partial-link) only
-# applies to test_progs and its flavors; runners that use strong cross-object
-# references (e.g. test_maps) keep strict semantics even when permissive.
-# The check is inlined per-runner so $1 is substituted at $(call) time and
-# the result is baked into each rule's recipe.
-
-ifeq ($($(TRUNNER_OUTPUT)-dir),)
-$(TRUNNER_OUTPUT)-dir := y
-$(TRUNNER_OUTPUT):
-	$$(call msg,MKDIR,,$$@)
-	$(Q)mkdir -p $$@
-endif
-
-# ensure we set up BPF objects generation rule just once for a given
-# input/output directory combination
-ifeq ($($(TRUNNER_BPF_PROGS_DIR)$(if $2,-)$2-bpfobjs),)
-$(TRUNNER_BPF_PROGS_DIR)$(if $2,-)$2-bpfobjs := y
-$(TRUNNER_BPF_OBJS): $(TRUNNER_OUTPUT)/%.bpf.o:				\
-		     $(TRUNNER_BPF_PROGS_DIR)/%.c			\
-		     $(TRUNNER_BPF_PROGS_DIR)/*.h			\
-		     $$(INCLUDE_DIR)/vmlinux.h				\
-		     $(HEADERS_FOR_BPF_OBJS)				\
-		     | $(TRUNNER_OUTPUT) $$(BPFOBJ)
-	$$(call $(TRUNNER_BPF_BUILD_RULE),$$<,$$@,			\
-					  $(TRUNNER_BPF_CFLAGS)         \
-					  $$($$<-CFLAGS)		\
-					  $$($$<-$2-CFLAGS),$(TRUNNER_BINARY))
-
-$(TRUNNER_BPF_SKELS): %.skel.h: %.bpf.o $(BPFTOOL) | $(TRUNNER_OUTPUT)
-	$(Q)$(if $(PERMISSIVE),if [ ! -f $$< ]; then			\
-		$$(RM) $$@ $$(@:.skel.h=.subskel.h);			\
-		printf '  %-12s %s\n' 'SKIP-SKEL' '$$(notdir $$@)' 1>&2; \
-		exit 0;							\
-	fi;)								\
-	printf '  %-12s %s\n' 'GEN-SKEL' '[$(TRUNNER_BINARY)] $$(notdir $$@)' 1>&2; \
-	$$(BPFTOOL) gen object $$(<:.o=.linked1.o) $$< &&		\
-	$$(BPFTOOL) gen object $$(<:.o=.linked2.o) $$(<:.o=.linked1.o) && \
-	$$(BPFTOOL) gen object $$(<:.o=.linked3.o) $$(<:.o=.linked2.o) && \
-	diff $$(<:.o=.linked2.o) $$(<:.o=.linked3.o) &&		\
-	$$(BPFTOOL) gen skeleton $$(<:.o=.linked3.o) name $$(notdir $$(<:.bpf.o=)) > $$@ && \
-	$$(BPFTOOL) gen subskeleton $$(<:.o=.linked3.o) name $$(notdir $$(<:.bpf.o=)) > $$(@:.skel.h=.subskel.h) $(if $(PERMISSIVE),|| { \
-		$$(RM) $$@ $$(@:.skel.h=.subskel.h); \
-		printf '  %-12s %s\n' 'SKIP-SKEL' '$$(notdir $$@)' 1>&2; \
-	}) && \
-	rm -f $$(<:.o=.linked1.o) $$(<:.o=.linked2.o) $$(<:.o=.linked3.o)
-
-$(TRUNNER_BPF_LSKELS): %.lskel.h: %.bpf.o $(BPFTOOL) | $(TRUNNER_OUTPUT)
-	$(Q)$(if $(PERMISSIVE),if [ ! -f $$< ]; then			\
-		$$(RM) $$@;						\
-		printf '  %-12s %s\n' 'SKIP-SKEL' '$$(notdir $$@)' 1>&2; \
-		exit 0;							\
-	fi;)								\
-	printf '  %-12s %s\n' 'GEN-SKEL' '[$(TRUNNER_BINARY)] $$(notdir $$@)' 1>&2; \
-	$$(BPFTOOL) gen object $$(<:.o=.llinked1.o) $$< &&		\
-	$$(BPFTOOL) gen object $$(<:.o=.llinked2.o) $$(<:.o=.llinked1.o) && \
-	$$(BPFTOOL) gen object $$(<:.o=.llinked3.o) $$(<:.o=.llinked2.o) && \
-	diff $$(<:.o=.llinked2.o) $$(<:.o=.llinked3.o) &&		\
-	$$(BPFTOOL) gen skeleton -L $$(<:.o=.llinked3.o) name $$(notdir $$(<:.bpf.o=_lskel)) > $$@ $(if $(PERMISSIVE),|| { \
-		$$(RM) $$@; \
-		printf '  %-12s %s\n' 'SKIP-SKEL' '$$(notdir $$@)' 1>&2; \
-	}) && \
-	rm -f $$(<:.o=.llinked1.o) $$(<:.o=.llinked2.o) $$(<:.o=.llinked3.o)
-
-$(TRUNNER_BPF_LSKELS_SIGNED): %.lskel.h: %.bpf.o $(BPFTOOL) | $(TRUNNER_OUTPUT)
-	$(Q)$(if $(PERMISSIVE),if [ ! -f $$< ]; then			\
-		$$(RM) $$@;						\
-		printf '  %-12s %s\n' 'SKIP-SKEL' '$$(notdir $$@)' 1>&2; \
-		exit 0;							\
-	fi;)								\
-	printf '  %-12s %s\n' 'GEN-SKEL' '[$(TRUNNER_BINARY) (signed)] $$(notdir $$@)' 1>&2; \
-	$$(BPFTOOL) gen object $$(<:.o=.llinked1.o) $$< &&		\
-	$$(BPFTOOL) gen object $$(<:.o=.llinked2.o) $$(<:.o=.llinked1.o) && \
-	$$(BPFTOOL) gen object $$(<:.o=.llinked3.o) $$(<:.o=.llinked2.o) && \
-	diff $$(<:.o=.llinked2.o) $$(<:.o=.llinked3.o) &&		\
-	$$(BPFTOOL) gen skeleton $(LSKEL_SIGN) $$(<:.o=.llinked3.o) name $$(notdir $$(<:.bpf.o=_lskel)) > $$@ $(if $(PERMISSIVE),|| { \
-		$$(RM) $$@; \
-		printf '  %-12s %s\n' 'SKIP-SKEL' '$$(notdir $$@)' 1>&2; \
-	}) && \
-	rm -f $$(<:.o=.llinked1.o) $$(<:.o=.llinked2.o) $$(<:.o=.llinked3.o)
-
-$(LINKED_BPF_OBJS): %: $(TRUNNER_OUTPUT)/%
-
-# .SECONDEXPANSION here allows to correctly expand %-deps variables as prerequisites
-.SECONDEXPANSION:
-$(TRUNNER_BPF_SKELS_LINKED): $(TRUNNER_OUTPUT)/%: $$$$(%-deps) $(BPFTOOL) | $(TRUNNER_OUTPUT)
-	$(Q)$(if $(PERMISSIVE),for f in $$(addprefix $(TRUNNER_OUTPUT)/,$$($$(@F)-deps)); do \
-		if [ ! -f $$$$f ]; then						\
-			$$(RM) $$@ $$(@:.skel.h=.subskel.h);		\
-			printf '  %-12s %s\n' 'SKIP-SKEL' '$$(notdir $$@)' 1>&2; \
-			exit 0;							\
-		fi;								\
-	done;)									\
-	printf '  %-12s %s\n' 'LINK-BPF' '[$(TRUNNER_BINARY)] $$(notdir $$(@:.skel.h=.bpf.o))' 1>&2; \
-	$$(BPFTOOL) gen object $$(@:.skel.h=.linked1.o) $$(addprefix $(TRUNNER_OUTPUT)/,$$($$(@F)-deps)) && \
-	$$(BPFTOOL) gen object $$(@:.skel.h=.linked2.o) $$(@:.skel.h=.linked1.o) && \
-	$$(BPFTOOL) gen object $$(@:.skel.h=.linked3.o) $$(@:.skel.h=.linked2.o) && \
-	diff $$(@:.skel.h=.linked2.o) $$(@:.skel.h=.linked3.o) &&	\
-	printf '  %-12s %s\n' 'GEN-SKEL' '[$(TRUNNER_BINARY)] $$(notdir $$@)' 1>&2 && \
-	$$(BPFTOOL) gen skeleton $$(@:.skel.h=.linked3.o) name $$(notdir $$(@:.skel.h=)) > $$@ && \
-	$$(BPFTOOL) gen subskeleton $$(@:.skel.h=.linked3.o) name $$(notdir $$(@:.skel.h=)) > $$(@:.skel.h=.subskel.h) $(if $(PERMISSIVE),|| { \
-		$$(RM) $$@ $$(@:.skel.h=.subskel.h);			\
-		printf '  %-12s %s\n' 'SKIP-SKEL' '$$(notdir $$@)' 1>&2; \
-	}) &&									\
-	rm -f $$(@:.skel.h=.linked1.o) $$(@:.skel.h=.linked2.o) $$(@:.skel.h=.linked3.o)
-
-# When the compiler generates a %.d file, only skel basenames (not
-# full paths) are specified as prerequisites for corresponding %.o
-# file. vpath directives below instruct make to search for skel files
-# in TRUNNER_OUTPUT, if they are not present in the working directory.
-vpath %.skel.h $(TRUNNER_OUTPUT)
-vpath %.lskel.h $(TRUNNER_OUTPUT)
-vpath %.subskel.h $(TRUNNER_OUTPUT)
-
-endif
-
-# ensure we set up tests.h header generation rule just once
-ifeq ($($(TRUNNER_TESTS_DIR)-tests-hdr),)
-$(TRUNNER_TESTS_DIR)-tests-hdr := y
-$(TRUNNER_TESTS_HDR): $(TRUNNER_TESTS_DIR)/*.c
-	$$(call msg,TEST-HDR,$(TRUNNER_BINARY),$$@)
-	$$(shell (echo '/* Generated header, do not edit */';					\
-		  sed -n -E 's/^void (serial_)?test_([a-zA-Z0-9_]+)\((void)?\).*/DEFINE_TEST(\2)/p'	\
-			$(TRUNNER_TESTS_DIR)/*.c | sort ;	\
-		 ) > $$@)
-endif
-
-$(TRUNNER_OUTPUT)/resolve_btfids.test.o: $(RESOLVE_BTFIDS) $(TRUNNER_OUTPUT)/btf_data.bpf.o
-$(TRUNNER_OUTPUT)/resolve_btfids.test.o: private TEST_NEEDS_BTFIDS = 1
-
-# compile individual test files
-# Note: we cd into output directory to ensure embedded BPF object is found
-$(TRUNNER_TEST_OBJS): $(TRUNNER_OUTPUT)/%.test.o:			\
-		      $(TRUNNER_TESTS_DIR)/%.c				\
-		      | $(TRUNNER_OUTPUT)/%.test.d
-	$$(call msg,TEST-OBJ,$(TRUNNER_BINARY),$$@)
-	$(Q)(cd $$(@D) && $$(CC) -I. $$(CFLAGS) -MMD -MT $$@ -c $(CURDIR)/$$< $$(LDLIBS) -o $$(@F)) $(if $(filter test_progs%,$1),$(if $(PERMISSIVE),|| \
-		($(RM) $$@; printf '  %-12s %s\n' 'SKIP-TEST' '$$(notdir $$@)' 1>&2)))
-	$$(if $$(TEST_NEEDS_BTFIDS),						\
-		$(Q)if [ -f $$@ ]; then						\
-		$(if $(filter 1,$(V)),true,printf '  %-8s%s %s\n' "BTFIDS" " [$(TRUNNER_BINARY)]" "$$(notdir $$@)"); \
-		$(RESOLVE_BTFIDS) --btf $(TRUNNER_OUTPUT)/btf_data.bpf.o $$@;	\
-		$(RESOLVE_BTFIDS) --patch_btfids $$@.BTF_ids $$@;		\
-		fi)
-
-$(TRUNNER_TEST_OBJS:.o=.d): $(TRUNNER_OUTPUT)/%.test.d:			\
-			    $(TRUNNER_TESTS_DIR)/%.c			\
-			    $(TRUNNER_EXTRA_HDRS)			\
-			    $$(BPFOBJ) | $(TRUNNER_OUTPUT)		\
-			    $(TRUNNER_BPF_SKELS)			\
-			    $(TRUNNER_BPF_LSKELS)			\
-			    $(TRUNNER_BPF_LSKELS_SIGNED)		\
-			    $(TRUNNER_BPF_SKELS_LINKED)
-
-ifeq ($(filter clean docs-clean emit_tests,$(MAKECMDGOALS)),)
-include $(wildcard $(TRUNNER_TEST_OBJS:.o=.d))
-endif
-
-# add per extra obj CFGLAGS definitions
-$(foreach N,$(patsubst $(TRUNNER_OUTPUT)/%.o,%,$(TRUNNER_EXTRA_OBJS)),	\
-	$(eval $(TRUNNER_OUTPUT)/$(N).o: CFLAGS += $($(N).c-CFLAGS)))
-
-$(TRUNNER_EXTRA_OBJS): $(TRUNNER_OUTPUT)/%.o:				\
-		       %.c						\
-		       $(TRUNNER_EXTRA_HDRS)				\
-		       $(VERIFY_SIG_HDR)				\
-		       $(TRUNNER_TESTS_HDR)				\
-		       $$(BPFOBJ) | $(TRUNNER_OUTPUT)
-	$$(call msg,EXT-OBJ,$(TRUNNER_BINARY),$$@)
-	$(Q)$$(CC) $$(CFLAGS) -c $$< $$(LDLIBS) -o $$@
-
-$(TRUNNER_LIB_OBJS): $(TRUNNER_OUTPUT)/%.o:$(TOOLSDIR)/lib/%.c
-	$$(call msg,LIB-OBJ,$(TRUNNER_BINARY),$$@)
-	$(Q)$$(CC) $$(CFLAGS) -c $$< $$(LDLIBS) -o $$@
-
-# non-flavored in-srctree builds receive special treatment, in particular, we
-# do not need to copy extra resources (see e.g. test_btf_dump_case())
-$(TRUNNER_BINARY)-extras: $(TRUNNER_EXTRA_FILES) | $(TRUNNER_OUTPUT)
-ifneq ($2:$(OUTPUT),:$(shell pwd))
-	$$(call msg,EXT-COPY,$(TRUNNER_BINARY),$(TRUNNER_EXTRA_FILES))
-	$(Q)rsync -aq $(if $(PERMISSIVE),--ignore-missing-args) $$^ $(TRUNNER_OUTPUT)/
-endif
-
-# some X.test.o files have runtime dependencies on Y.bpf.o files
-$(OUTPUT)/$(TRUNNER_BINARY): | $(TRUNNER_BPF_OBJS)
-
-$(OUTPUT)/$(TRUNNER_BINARY): $(if $(filter test_progs%,$1),$(if $(PERMISSIVE),$$(wildcard $(TRUNNER_TEST_OBJS)),$(TRUNNER_TEST_OBJS)),$(TRUNNER_TEST_OBJS))	\
-			     $(TRUNNER_EXTRA_OBJS) $$(BPFOBJ)		\
-			     $(TRUNNER_LIB_OBJS)			\
-			     $(TRUNNER_BPFTOOL)				\
-			     $(OUTPUT)/veristat				\
-			     | $(TRUNNER_BINARY)-extras			\
-			     $(if $(filter test_progs%,$1),$(if $(PERMISSIVE),$(TRUNNER_TEST_OBJS)))
-	$$(call msg,BINARY,,$$@)
-	$(Q)$$(CC) $$(CFLAGS) $(if $(filter test_progs%,$1),$(if $(PERMISSIVE),$$(filter %.a %.o,$$(wildcard $(TRUNNER_TEST_OBJS)) $$(filter-out $(TRUNNER_TEST_OBJS),$$^)),$$(filter %.a %.o,$$^)),$$(filter %.a %.o,$$^)) $$(LDLIBS) $$(LLVM_LDLIBS) $$(LDFLAGS) $$(LLVM_LDFLAGS) -o $$@
-	$(Q)ln -sf $(if $2,..,.)/tools/build/bpftool/$(USE_BOOTSTRAP)bpftool \
-		   $(OUTPUT)/$(if $2,$2/)bpftool
-
-endef
-
-VERIFY_SIG_SETUP := $(CURDIR)/verify_sig_setup.sh
-VERIFY_SIG_HDR := verification_cert.h
-VERIFICATION_CERT   := $(BUILD_DIR)/signing_key.der
-PRIVATE_KEY := $(BUILD_DIR)/signing_key.pem
-
-$(VERIFICATION_CERT) $(PRIVATE_KEY): $(VERIFY_SIG_SETUP)
+# genkey writes both outputs. Pattern rules group them even on make
+# versions before 4.3, preventing concurrent genkey invocations.
+# Restrict the pattern to *_key files because genkey uses fixed names.
+$(BUILD_DIR)/%_key.pem $(BUILD_DIR)/%_key.der: $(VERIFY_SIG_SETUP)
 	$(Q)mkdir -p $(BUILD_DIR)
 	$(Q)$(VERIFY_SIG_SETUP) genkey $(BUILD_DIR)
 
@@ -825,108 +403,179 @@ LIBARENA_MAKE_ARGS = \
 		BPF_TARGET_ENDIAN="$(BPF_TARGET_ENDIAN)" \
 		Q="$(Q)"
 
-LIBARENA_BPF_DEPS := $(wildcard libarena/Makefile		\
-				 libarena/include/*		\
-				 libarena/include/libarena/*	\
-				 libarena/src/*			\
-				 libarena/selftests/*		\
-				 libarena/*.bpf.o)
+LIBARENA_COMMON_DEPS := $(wildcard libarena/Makefile		\
+				    libarena/include/*		\
+				    libarena/include/libarena/*	\
+				    libarena/src/*)
+LIBARENA_BPF_DEPS := $(LIBARENA_COMMON_DEPS) $(wildcard libarena/selftests/*)
+LIBARENA_BENCH_BPF_DEPS := $(LIBARENA_COMMON_DEPS) $(wildcard libarena/benchs/*)
 
-LIBARENA_SKEL := libarena/libarena.skel.h
+LIBARENA_BENCH_SKEL := libarena/libarena_bench.skel.h
 
 $(LIBARENA_SKEL): $(INCLUDE_DIR)/vmlinux.h $(BPFOBJ) $(LIBARENA_BPF_DEPS)
 	+$(MAKE) -C libarena libarena.skel.h $(LIBARENA_MAKE_ARGS)
 
-ifneq ($(CLANG_HAS_ARENA_ASAN),)
-LIBARENA_ASAN_SKEL := libarena/libarena_asan.skel.h
-CFLAGS += -DHAS_BPF_ARENA_ASAN
+$(LIBARENA_BENCH_SKEL): $(INCLUDE_DIR)/vmlinux.h $(BPFOBJ) $(LIBARENA_BENCH_BPF_DEPS) | $(LIBARENA_SKEL)
+	+$(MAKE) -C libarena benchmarks $(LIBARENA_MAKE_ARGS)
 
+ifneq ($(CLANG_HAS_ARENA_ASAN),)
 $(LIBARENA_ASAN_SKEL): $(INCLUDE_DIR)/vmlinux.h $(BPFOBJ) $(LIBARENA_BPF_DEPS)
 	+$(MAKE) -C libarena libarena_asan.skel.h $(LIBARENA_MAKE_ARGS)
 endif
 
-# Define test_progs test runner.
-TRUNNER_TESTS_DIR := prog_tests
-TRUNNER_BPF_PROGS_DIR := progs
-TRUNNER_EXTRA_SOURCES := test_progs.c		\
-			 cgroup_helpers.c	\
-			 trace_helpers.c	\
-			 network_helpers.c	\
-			 testing_helpers.c	\
-			 btf_helpers.c		\
-			 cap_helpers.c		\
-			 unpriv_helpers.c 	\
-			 sysctl_helpers.c	\
-			 netlink_helpers.c	\
-			 jit_disasm_helpers.c	\
-			 io_helpers.c		\
-			 test_loader.c		\
-			 xsk.c			\
-			 disasm.c		\
-			 disasm_helpers.c	\
-			 json_writer.c 		\
-			 $(VERIFY_SIG_HDR)		\
-			 flow_dissector_load.h	\
-			 ip_check_defrag_frags.h	\
-			 bpftool_helpers.c	\
-			 usdt_1.c usdt_2.c	\
-			 $(LIBARENA_SKEL)	\
-			 $(LIBARENA_ASAN_SKEL)
-TRUNNER_LIB_SOURCES := find_bit.c
-TRUNNER_EXTRA_FILES := $(OUTPUT)/urandom_read				\
-		       $(OUTPUT)/liburandom_read.so			\
-		       $(OUTPUT)/xdp_synproxy				\
-		       $(OUTPUT)/sign-file				\
-		       $(OUTPUT)/uprobe_multi				\
-		       $(TEST_KMOD_TARGETS)				\
-		       ima_setup.sh 					\
-		       $(VERIFY_SIG_SETUP)				\
-		       $(wildcard progs/btf_dump_test_case_*.c)		\
-		       $(wildcard progs/*.bpf.o)
-TRUNNER_BPF_BUILD_RULE := CLANG_BPF_BUILD_RULE
-TRUNNER_BPF_CFLAGS := $(BPF_CFLAGS) $(CLANG_CFLAGS) -DENABLE_ATOMICS_TESTS
-$(eval $(call DEFINE_TEST_RUNNER,test_progs))
+# #![no_std] looks for compiler_builtins too. Nothing of it is used.
+ifneq ($(RUST_CORE),)
+$(RUST_CORE): $(RUST_CORE_SRC)
+	$(call msg,RUSTC,,$@)
+	$(Q)mkdir -p $(@D)
+	+$(Q)$(RUSTC_BPF) -A warnings --edition 2024 --crate-name core --out-dir $(@D) $<
+	+$(Q)echo '#![feature(compiler_builtins)] #![compiler_builtins] #![no_std]' | \
+		$(RUSTC_BPF) -A warnings --crate-name compiler_builtins --out-dir $(@D) -
+endif
 
-# Define test_progs-no_alu32 test runner.
-TRUNNER_BPF_BUILD_RULE := CLANG_NOALU32_BPF_BUILD_RULE
-TRUNNER_BPF_CFLAGS := $(BPF_CFLAGS) $(CLANG_CFLAGS)
-$(eval $(call DEFINE_TEST_RUNNER,test_progs,no_alu32))
+# Generated test list headers
 
-# Define test_progs-cpuv4 test runner.
+define gen_tests_hdr
+	$(call msg,TEST-HDR,,$@)
+	$(Q)(echo '/* Generated header, do not edit */';		\
+		  sed -n -E 's/^void (serial_)?test_([a-zA-Z0-9_]+)\((void)?\).*/DEFINE_TEST(\2)/p'	\
+		$(@D)/*.c | sort) > $@
+endef
+
+prog_tests/tests.h: $(wildcard prog_tests/*.c)
+	$(gen_tests_hdr)
+
+map_tests/tests.h: $(wildcard map_tests/*.c)
+	$(gen_tests_hdr)
+
+# Test runner instances, one sub-make each (see Makefile.runner).
+
+# Share LLVM probe results with runners. Pass CC explicitly to
+# runners so it does not affect libbpf's compiler selection.
+export LLVM_LDLIBS LLVM_LDFLAGS
+
+# Pass assembled flags on the command line so runner assignments
+# cannot append them again.
+RUNNER_MAKE := $(MAKE) --no-print-directory -f Makefile.runner	\
+	       OUTPUT=$(OUTPUT) CC='$(CC)' CLANG='$(CLANG)'	\
+	       CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS)'
+
+# Shared inputs prepared before runner sub-makes start.
+# Also build veristat, which test_veristat executes.
+RUNNER_PREREQS := $(INCLUDE_DIR)/vmlinux.h $(BPFOBJ) $(BPFTOOL)		\
+		  $(TRUNNER_BPFTOOL) $(RESOLVE_BTFIDS)			\
+		  $(OUTPUT)/veristat					\
+		  $(VERIFY_SIG_HDR) $(PRIVATE_KEY) $(VERIFICATION_CERT)	\
+		  $(LIBARENA_SKEL) $(LIBARENA_ASAN_SKEL)		\
+		  prog_tests/tests.h map_tests/tests.h			\
+		  $(RUNNER_OBJS) $(RUST_CORE)
+
+# Runtime fixtures for each test_progs flavor.
+RUNNER_EXTRA_FILES := $(OUTPUT)/urandom_read				\
+		      $(OUTPUT)/liburandom_read.so			\
+		      $(OUTPUT)/xdp_synproxy				\
+		      $(OUTPUT)/sign-file				\
+		      $(OUTPUT)/uprobe_multi				\
+		      $(TEST_KMOD_TARGETS)				\
+		      ima_setup.sh					\
+		      $(VERIFY_SIG_SETUP)				\
+		      $(wildcard progs/btf_dump_test_case_*.c)		\
+		      $(wildcard progs/*.bpf.o)				\
+		      bpftool_btf_dump_sorted.expected			\
+		      bpftool_btf_dump_unsorted.expected
+
+# Prepare fixtures in parallel with runner compilation.
+# Copy into flavor and out-of-tree directories; the in-tree
+# default runner uses the originals.
+RUNNER_EXTRA_DIRS := $(addprefix $(OUTPUT)/,$(TEST_INST_SUBDIRS))
+ifneq ($(realpath $(OUTPUT)),$(CURDIR))
+RUNNER_EXTRA_DIRS += $(OUTPUT)
+test_progs: $(OUTPUT)/runner-extras
+else
+test_progs: $(RUNNER_EXTRA_FILES)
+endif
+RUNNER_EXTRAS := $(addsuffix /runner-extras,$(RUNNER_EXTRA_DIRS))
+
+.PHONY: $(RUNNER_EXTRAS)
+$(RUNNER_EXTRAS): $(RUNNER_EXTRA_FILES)
+	$(Q)mkdir -p $(@D)
+	$(Q)rsync -aq $(if $(PERMISSIVE),--ignore-missing-args)	\
+		$(RUNNER_EXTRA_FILES) $(@D)/
+
+all: $(RUNNER_EXTRAS)
+$(addprefix test_progs-,$(TEST_INST_SUBDIRS)): test_progs-%:		\
+	$(OUTPUT)/%/runner-extras
+
+# The main Makefile cannot tell whether $(OUTPUT)/test_progs is stale -
+# only the runner sub-make knows its full dependency graph. FORCE makes
+# the delegating rules below always run; their dependents still rebuild
+# on mtime only.
+FORCE:
+
+# Build default BPF outputs here for standalone consumers and install.
+# Standalone consumers depend on individual skeletons; unflavored
+# runners depend on the complete set before their sub-makes start.
+RDIR := $(OUTPUT)
+FLAVOR :=
+BINARY := test_progs
+BPF_CC := $(CLANG)
+BPF_CC_MSG := CLNG-BPF
+BPF_SYS_INCLUDES := $(CLANG_SYS_INCLUDES)
+BPF_CC_FLAGS := -O2 $(BPF_TARGET_ENDIAN) -mcpu=v3
+BPF_DEFINES := -DENABLE_ATOMICS_TESTS
+include Makefile.skel
+
+DEFAULT_RUNNER_ARGS := RUNNER=test_progs FLAVOR= TESTS_DIR=prog_tests	\
+	BPF_CC='$(BPF_CC)' BPF_CC_MSG=$(BPF_CC_MSG)			\
+	BPF_SYS_INCLUDES='$(BPF_SYS_INCLUDES)'				\
+	BPF_CC_FLAGS='$(BPF_CC_FLAGS)' BPF_DEFINES=$(BPF_DEFINES)
+CLANG_RUNNER_ARGS := BPF_CC='$(CLANG)' BPF_CC_MSG=CLNG-BPF		\
+	BPF_SYS_INCLUDES='$(CLANG_SYS_INCLUDES)'
+
+$(OUTPUT)/test_progs: $(RUNNER_PREREQS) $(BPF_OBJS) $(ALL_SKELS) FORCE
+	+$(Q)$(RUNNER_MAKE) $(DEFAULT_RUNNER_ARGS)
+
+$(OUTPUT)/test_progs-no_alu32: $(RUNNER_PREREQS) FORCE
+	+$(Q)$(RUNNER_MAKE) RUNNER=test_progs FLAVOR=no_alu32 TESTS_DIR=prog_tests \
+		$(CLANG_RUNNER_ARGS) BPF_CC_FLAGS='-O2 $(BPF_TARGET_ENDIAN) -mcpu=v2'
+
 ifneq ($(CLANG_CPUV4),)
-TRUNNER_BPF_BUILD_RULE := CLANG_CPUV4_BPF_BUILD_RULE
-TRUNNER_BPF_CFLAGS := $(BPF_CFLAGS) $(CLANG_CFLAGS) -DENABLE_ATOMICS_TESTS
-$(eval $(call DEFINE_TEST_RUNNER,test_progs,cpuv4))
+$(OUTPUT)/test_progs-cpuv4: $(RUNNER_PREREQS) FORCE
+	+$(Q)$(RUNNER_MAKE) RUNNER=test_progs FLAVOR=cpuv4 TESTS_DIR=prog_tests \
+		$(CLANG_RUNNER_ARGS) BPF_CC_FLAGS='-O2 $(BPF_TARGET_ENDIAN) -mcpu=v4' \
+		BPF_DEFINES=-DENABLE_ATOMICS_TESTS
 endif
 
-# Define test_progs BPF-GCC-flavored test runner.
 ifneq ($(BPF_GCC),)
-TRUNNER_BPF_BUILD_RULE := GCC_BPF_BUILD_RULE
-TRUNNER_BPF_CFLAGS := $(BPF_CFLAGS) $(call get_sys_includes,gcc,)
-$(eval $(call DEFINE_TEST_RUNNER,test_progs,bpf_gcc))
+# Sys includes come from the *host* gcc, not $(BPF_GCC), as the rule
+# this replaces had it.
+GCC_SYS_INCLUDES := $(call get_sys_includes,gcc,)
+
+$(OUTPUT)/test_progs-bpf_gcc: $(RUNNER_PREREQS) FORCE
+	+$(Q)$(RUNNER_MAKE) RUNNER=test_progs FLAVOR=bpf_gcc TESTS_DIR=prog_tests \
+		BPF_CC='$(BPF_GCC)' BPF_CC_MSG=GCC-BPF				\
+		BPF_SYS_INCLUDES='$(GCC_SYS_INCLUDES)'				\
+		BPF_CC_FLAGS='-DBPF_NO_PRESERVE_ACCESS_INDEX -Wno-attributes -O2'
 endif
 
-# Define test_maps test runner.
-TRUNNER_TESTS_DIR := map_tests
-TRUNNER_BPF_PROGS_DIR := progs
-TRUNNER_EXTRA_SOURCES := test_maps.c
-TRUNNER_LIB_SOURCES :=
-TRUNNER_EXTRA_FILES :=
-TRUNNER_BPF_BUILD_RULE := $$(error no BPF objects should be built)
-TRUNNER_BPF_CFLAGS :=
-$(eval $(call DEFINE_TEST_RUNNER,test_maps))
+# test_maps compiles map_tests/*.c against the default flavor's skeletons
+$(OUTPUT)/test_maps: $(RUNNER_PREREQS) $(BPF_OBJS)	\
+		     $(ALL_SKELS) FORCE
+	+$(Q)$(RUNNER_MAKE) RUNNER=test_maps FLAVOR= TESTS_DIR=map_tests
+
+TEST_GEN_FILES += $(BPF_OBJS)
 
 # Define test_verifier test runner.
 # It is much simpler than test_maps/test_progs and sufficiently different from
 # them (e.g., test.h is using completely pattern), that it's worth just
 # explicitly defining all the rules explicitly.
 verifier/tests.h: verifier/*.c
-	$(shell ( cd verifier/; \
+	$(Q)( cd verifier/; \
 		  echo '/* Generated header, do not edit */'; \
 		  echo '#ifdef FILL_ARRAY'; \
 		  ls *.c 2> /dev/null | sed -e 's@\(.*\)@#include \"\1\"@'; \
 		  echo '#endif' \
-		) > verifier/tests.h)
+		) > verifier/tests.h
 $(OUTPUT)/test_verifier: test_verifier.c verifier/tests.h $(BPFOBJ) | $(OUTPUT)
 	$(call msg,BINARY,,$@)
 	$(Q)$(CC) $(CFLAGS) $(filter %.a %.o %.c,$^) $(LDLIBS) -o $@
@@ -962,11 +611,11 @@ $(OUTPUT)/test_cpp: test_cpp.cpp $(OUTPUT)/test_core_extern.skel.h $(BPFOBJ)
 	$(call msg,CXX,,$@)
 	$(Q)$(CXX) $(CXXFLAGS) $(filter %.a %.o %.cpp,$^) $(LDLIBS) -o $@
 
-# Benchmark runner
+# Benchmark runner. Every benchs/bench_*.c is compiled and linked in.
+BENCH_OBJS := $(sort $(patsubst benchs/%.c,$(OUTPUT)/%.o,$(wildcard benchs/bench_*.c)))
 $(OUTPUT)/bench_%.o: benchs/bench_%.c bench.h $(BPFOBJ)
 	$(call msg,CC,,$@)
-	$(Q)$(CC) $(CFLAGS) -O2 -c $(filter %.c,$^) $(LDLIBS) -o $@ $(if $(PERMISSIVE),|| \
-		($(RM) $@; printf '  %-12s %s\n' 'SKIP-BENCH' '$(notdir $@)' 1>&2))
+	$(Q)$(CC) $(CFLAGS) -O2 -c $(filter %.c,$^) $(LDLIBS) -o $@ $(call skip_on_fail,BENCH)
 $(OUTPUT)/bench_rename.o: $(OUTPUT)/test_overhead.skel.h
 $(OUTPUT)/bench_trigger.o: $(OUTPUT)/trigger_bench.skel.h
 $(OUTPUT)/bench_ringbufs.o: $(OUTPUT)/ringbuf_bench.skel.h \
@@ -986,6 +635,7 @@ $(OUTPUT)/bench_sockmap.o: $(OUTPUT)/bench_sockmap_prog.skel.h
 $(OUTPUT)/bench_lpm_trie_map.o: $(OUTPUT)/lpm_trie_bench.skel.h $(OUTPUT)/lpm_trie_map.skel.h
 $(OUTPUT)/bench_bpf_nop.o: $(OUTPUT)/bpf_nop_bench.skel.h bench_bpf_timing.h
 $(OUTPUT)/bench_xdp_lb.o: $(OUTPUT)/xdp_lb_bench.skel.h bench_bpf_timing.h
+$(OUTPUT)/bench_libarena.o: $(LIBARENA_BENCH_SKEL)
 $(OUTPUT)/bench_bpf_timing.o: bench_bpf_timing.h
 $(OUTPUT)/bench.o: bench.h testing_helpers.h $(BPFOBJ)
 $(OUTPUT)/bench: LDLIBS += -lm
@@ -993,32 +643,11 @@ $(OUTPUT)/bench: $(OUTPUT)/bench.o \
 		 $(TESTING_HELPERS) \
 		 $(TRACE_HELPERS) \
 		 $(CGROUP_HELPERS) \
-		 $(OUTPUT)/bench_count.o \
-		 $(OUTPUT)/bench_rename.o \
-		 $(OUTPUT)/bench_trigger.o \
-		 $(OUTPUT)/bench_ringbufs.o \
-		 $(OUTPUT)/bench_bloom_filter_map.o \
-		 $(OUTPUT)/bench_bpf_loop.o \
-		 $(OUTPUT)/bench_bpf_for.o \
-		 $(OUTPUT)/bench_strncmp.o \
-		 $(OUTPUT)/bench_bpf_hashmap_full_update.o \
-		 $(OUTPUT)/bench_local_storage.o \
-		 $(OUTPUT)/bench_local_storage_rcu_tasks_trace.o \
-		 $(OUTPUT)/bench_bpf_hashmap_lookup.o \
-		 $(OUTPUT)/bench_local_storage_create.o \
-		 $(OUTPUT)/bench_htab_mem.o \
-		 $(OUTPUT)/bench_bpf_crypto.o \
-		 $(OUTPUT)/bench_sockmap.o \
-		 $(OUTPUT)/bench_lpm_trie_map.o \
-		 $(OUTPUT)/bench_bpf_timing.o \
-		 $(OUTPUT)/bench_bpf_nop.o \
-		 $(OUTPUT)/bench_xdp_lb.o \
+		 $(BENCH_OBJS) \
 		 $(OUTPUT)/usdt_1.o \
-		 $(OUTPUT)/usdt_2.o \
-		 #
+		 $(OUTPUT)/usdt_2.o
 	$(call msg,BINARY,,$@)
-	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(filter %.a %.o,$^) $(LDLIBS) -o $@ $(if $(PERMISSIVE),|| \
-		($(RM) $@; printf '  %-12s %s\n' 'SKIP-LINK' '$(notdir $@) (some benchmarks may have been skipped)' 1>&2))
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(filter %.a %.o,$^) $(LDLIBS) -o $@ $(call skip_on_fail,LINK,,(some benchmarks may have been skipped))
 
 # This works around GCC warning about snprintf truncating strings like:
 #

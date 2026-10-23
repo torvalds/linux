@@ -49,6 +49,7 @@ extern volatile u64 asan_violated;
 int arena_fls(__u64 word);
 
 void __arena *arena_malloc(size_t size);
+void __arena *arena_calloc(size_t ncount, size_t size);
 void arena_free(void __arena *ptr);
 
 /*
@@ -60,6 +61,76 @@ void arena_free(void __arena *ptr);
  * access the arena and help the verifier.
  */
 #define arena_subprog_init() do { asm volatile ("" :: "r"(&arena)); } while (0)
+
+/*
+ * BPF does not currently support the memset intrinsics. for large
+ * sequential copies, or assignments of large data structures,
+ * the frontend will generate an intrinsic that causes the BPF
+ * backend to exit due to a missing implementation. Provide
+ * implementations for the intrinsic.
+ */
+static inline int arena_memset(s8 __arena *dst, s8 val, size_t size)
+{
+	size_t headalign;
+	size_t tailalign;
+	u8 uval = (u8)val;
+	size_t val64;
+	size_t i;
+
+	/*
+	 * Calculate how many bytes to the next word-aligned one.
+	 * We get this by truncating the 2s complement of the
+	 * pointer to the last 3 bits. Intuitively, since
+	 *
+	 * The N LSBs of dst and -dst add to 1 << N, which
+	 * is why dst + (-dst) = 0x0ULL through overflow. So the
+	 * last N = 3 bits of the negative are the number of
+	 * bytes to align dst on the last 3 bits.
+	 *
+	 */
+	headalign = -(u64)dst & (sizeof(u64) - 1);
+	if (!headalign || size < headalign)
+		goto ptraligned;
+
+	for (i = zero; i < headalign && can_loop; i++)
+		dst[i] = uval;
+
+	dst += headalign;
+	size -= headalign;
+
+ptraligned:
+
+	/*
+	 * Make a word with all bytes equal to the byte we are setting.
+	 * Since 1 byte -> 2 hex digits.
+	 *
+	 * Shifting the value by a 0 bytes is equal to multiplication by 0x01
+	 * Shifting by 1 bytes is equal to multiplication by 0x01 << 8,
+	 * ...
+	 * Shifting by 7 bytes is equal to multiplication by 0x01 << 56.
+	 *
+	 * End operation to replicate the byte into all the bytes of a word
+	 * is (since a | b = a + b when a & b == 0):
+	 *
+	 * val + val * (1UL << 8) + val * (1UL << 16) + .. + val * (1UL << 56)
+	 * = val * (1UL << 56 + 1UL << 48 + ... + 1UL << 0)
+	 * = val * (0x01UL << 56 | 0x01UL << 48 + ... + 1UL << 0)
+	 * = val * 0x0101 0101 0101 0101
+	 */
+	val64 = (u8)val * 0x0101010101010101ULL;
+
+	/* Pointer is now aligned, use word-aligned assignments. */
+	for (i = zero; i < size / sizeof(u64) && can_loop; i++)
+		((u64 __arena *)dst)[i] = val64;
+
+	/* Go back to byte-aligned for the tail. */
+	tailalign = size % sizeof(u64);
+	dst += size - tailalign;
+	for (i = zero; i < tailalign && can_loop; i++)
+		dst[i] = uval;
+
+	return 0;
+}
 
 #else /* ! __BPF__ */
 

@@ -250,6 +250,7 @@ cleanup:
 #ifdef __x86_64__
 extern void usdt_1(void);
 extern void usdt_2(void);
+extern void usdt_2_cross_page(void);
 extern void usdt_red_zone_trigger(void);
 
 static unsigned char nop1[1] = { 0x90 };
@@ -337,6 +338,57 @@ static void subtest_optimized_attach(void)
 
 	ASSERT_MEMEQ(addr_2 + 1, expected, sizeof(expected), "lea_and_call");
 	ASSERT_EQ(skel->bss->executed, 4, "executed");
+
+cleanup:
+	test_usdt__destroy(skel);
+}
+
+/*
+ * Test attachment to a USDT probe whose nop10 crosses a page boundary.
+ * The kernel can't optimize such nop10, so libbpf keeps the uprobe on
+ * the preceding 1-byte nop. Do not assume any particular placement
+ * here, though: however the probe ends up attached, the attachment
+ * must succeed and the probe must fire.
+ */
+static void subtest_optimized_attach_cross_page(void)
+{
+	long page_sz = sysconf(_SC_PAGESIZE);
+	struct test_usdt *skel;
+	__u8 *addr = NULL;
+	long i;
+
+	/* combo is placed up to a page of padding after the function start */
+	for (i = 0; i < 2 * page_sz; i++) {
+		if (!memcmp((void *)usdt_2_cross_page + i, nop1_nop10_combo, 11)) {
+			addr = (void *)usdt_2_cross_page + i;
+			break;
+		}
+	}
+	if (!ASSERT_OK_PTR(addr, "find_nop1_nop10_combo"))
+		return;
+
+	/* layout sanity check: the nop10 must cross the page boundary */
+	if (!ASSERT_GT((unsigned long)(addr + 1) % page_sz + 10, page_sz,
+		       "nop10_crosses_page"))
+		return;
+
+	skel = test_usdt__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_usdt__open_and_load"))
+		return;
+
+	skel->bss->my_pid = getpid();
+
+	skel->links.usdt0 = bpf_program__attach_usdt(skel->progs.usdt0,
+						     0 /*self*/, "/proc/self/exe",
+						     "optimized_attach",
+						     "usdt_2_cross_page", NULL);
+	if (!ASSERT_OK_PTR(skel->links.usdt0, "bpf_program__attach_usdt"))
+		goto cleanup;
+
+	usdt_2_cross_page();
+	usdt_2_cross_page();
+
+	ASSERT_EQ(skel->bss->usdt0_called, 2, "usdt0_called");
 
 cleanup:
 	test_usdt__destroy(skel);
@@ -660,6 +712,8 @@ void test_usdt(void)
 		subtest_basic_usdt(true);
 	if (test__start_subtest("optimized_attach"))
 		subtest_optimized_attach();
+	if (test__start_subtest("optimized_attach_cross_page"))
+		subtest_optimized_attach_cross_page();
 	if (test__start_subtest("optimized_red_zone"))
 		subtest_optimized_red_zone();
 #endif

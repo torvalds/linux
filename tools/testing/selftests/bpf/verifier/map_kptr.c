@@ -311,7 +311,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.fixup_map_kptr = { 1 },
 	.result = REJECT,
-	.errstr = "R1 type=rcu_ptr_or_null_ expected=percpu_ptr_",
+	.errstr = "Possibly NULL pointer passed to trusted R1",
 },
 {
 	"map_kptr: ref: reject off != 0",
@@ -342,7 +342,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.fixup_map_kptr = { 1 },
 	.result = REJECT,
-	.errstr = "invalid kptr access, R2 type=ptr_prog_test_ref_kfunc expected=ptr_prog_test_member",
+	.errstr = "R2 must have zero offset when passed to release func",
 },
 {
 	"map_kptr: ref: reference state created and released on xchg",

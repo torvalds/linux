@@ -354,6 +354,9 @@ int next_after_destroy_fail(void *ctx)
 
 SEC("?raw_tp")
 __failure __msg("invalid read from stack")
+__msg("Verification failed: Memory Safety: Direct read of iterator stack state")
+__msg("verifier-managed iterator state")
+__msg("Use iterator kfuncs")
 int __naked read_from_iter_slot_fail(void)
 {
 	asm volatile (

@@ -7,7 +7,7 @@
 #define BTF_END_RAW 0xdeadbeef
 
 #define BTF_INFO_ENC(kind, kind_flag, vlen)			\
-	((!!(kind_flag) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
+	(((__u32)(!!(kind_flag)) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
 
 #define BTF_TYPE_ENC(name, info, size_or_type)	\
 	(name), (info), (size_or_type)

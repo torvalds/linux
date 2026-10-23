@@ -190,3 +190,17 @@ u64 hppa_div64_rem(u64 div, u64 divisor)
 	div64_u64_rem(div, divisor, &rem);
 	return rem;
 }
+
+u64 hppa_sdiv64(u64 div, u64 divisor)
+{
+	s64 sdiv = div64_s64((s64)div, (s64)divisor);
+
+	return (u64)sdiv;
+}
+
+u64 hppa_sdiv64_rem(u64 div, u64 divisor)
+{
+	s64 sdiv = div64_s64((s64)div, (s64)divisor);
+
+	return (u64)((s64)div - sdiv * (s64)divisor);
+}

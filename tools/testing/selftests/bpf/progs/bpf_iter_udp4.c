@@ -57,13 +57,13 @@ int dump_udp4(struct bpf_iter__udp *ctx)
 	BPF_SEQ_PRINTF(seq, "%5d: %08X:%04X %08X:%04X ",
 		       ctx->bucket, src, srcp, dest, destp);
 
-	BPF_SEQ_PRINTF(seq, "%02X %08X:%08X %02X:%08lX %08X %5u %8d %lu %d %pK %u\n",
+	BPF_SEQ_PRINTF(seq, "%02X %08X:%08X %02X:%08lX %08X %5u %8d %lu %d 0 %u\n",
 		       inet->sk.sk_state,
 		       inet->sk.sk_wmem_alloc.refs.counter - 1,
 		       rqueue,
 		       0, 0L, 0, ctx->uid, 0,
 		       sock_i_ino(&inet->sk),
-		       inet->sk.sk_refcnt.refs.counter, udp_sk,
+		       inet->sk.sk_refcnt.refs.counter,
 		       udp_sk->drop_counters.drops0.counter +
 		       udp_sk->drop_counters.drops1.counter);
 

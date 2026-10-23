@@ -61,6 +61,7 @@ __naked void percpu_addr(void)
 
 SEC("raw_tp")
 __description("percpu addr dummy")
+__skip("percpu addr tests need x86")
 __success
 int dummy_test(void)
 {

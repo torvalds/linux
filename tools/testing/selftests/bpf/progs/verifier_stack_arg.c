@@ -12,7 +12,8 @@ struct {
 	__type(value, long long);
 } map_hash_8b SEC(".maps");
 
-#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)) && \
+#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || \
+	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)) && \
 	defined(__BPF_FEATURE_STACK_ARGUMENT)
 
 __noinline __used
@@ -116,8 +117,8 @@ SEC("tc")
 __description("stack_arg: pruning with different stack arg types")
 __failure __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
-__msg("arg JOIN insn 9 -> 10 r1: fp0-8 + _ => fp0-8|fp0+0")
-__msg("arg JOIN insn 9 -> 10 sa0: fp0-8 + _ => fp0-8|fp0+0")
+__msg("arg JOIN insn 8 -> 10 r1: _ + fp0-8 => fp0-8|fp0+0")
+__msg("arg JOIN insn 8 -> 10 sa0: _ + fp0-8 => fp0-8|fp0+0")
 __msg("R{{[0-9]}} invalid mem access 'scalar'")
 __naked void stack_arg_pruning_type_mismatch(void)
 {
@@ -436,6 +437,7 @@ __naked void stack_arg_sequential_calls(void)
 
 SEC("socket")
 __description("stack_arg is not supported by compiler or jit, use a dummy test")
+__skip("stack_arg is not supported by compiler or jit")
 __success
 int dummy_test(void)
 {

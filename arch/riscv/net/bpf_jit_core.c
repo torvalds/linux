@@ -26,10 +26,13 @@ static int build_body(struct rv_jit_context *ctx, bool extra_pass, int *offset)
 		int ret;
 
 		ret = bpf_jit_emit_insn(insn, ctx, extra_pass);
-		if (ret > 0)
-			i++; /* skip the next instruction */
 		if (offset)
 			offset[i] = ctx->ninsns;
+		if (ret > 0) {
+			i++; /* skip the next instruction */
+			if (offset)
+				offset[i] = ctx->ninsns;
+		}
 		if (ret < 0)
 			return ret;
 	}
@@ -48,6 +51,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 	int pass = 0, prev_ninsns = 0, i;
 	struct rv_jit_data *jit_data;
 	struct rv_jit_context *ctx;
+	u16 stack_arg_cnt;
 
 	if (!prog->jit_requested)
 		return prog;
@@ -69,8 +73,16 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 		goto skip_init_ctx;
 	}
 
-	ctx->arena_vm_start = bpf_arena_get_kern_vm_start(prog->aux->arena);
-	ctx->user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
+	if (bpf_prog_uses_arena_insns(prog)) {
+		ctx->arena_vm_start = bpf_arena_get_kern_vm_start(prog->aux->arena);
+		ctx->user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
+	}
+
+	stack_arg_cnt = bpf_out_stack_arg_cnt(env, prog);
+	/* First 3 stack args in regs, rest on stack */
+	ctx->stack_arg_sz = stack_arg_cnt > RV_EXTRA_STK_ARGS ?
+			    round_up((stack_arg_cnt - RV_EXTRA_STK_ARGS) * 8, STACK_ALIGN) : 0;
+
 	ctx->prog = prog;
 	ctx->offset = kvzalloc_objs(int, prog->len);
 	if (!ctx->offset)
@@ -169,6 +181,15 @@ skip_init_ctx:
 		for (i = 0; i < prog->len; i++)
 			ctx->offset[i] = ninsns_rvoff(ctx->offset[i]);
 		bpf_prog_fill_jited_linfo(prog, ctx->offset);
+
+		/*
+		 * bpf_prog_update_insn_ptrs() wants the start of each insn, so
+		 * shift ctx->offset[] by one and get insn 0 from the prologue.
+		 */
+		for (i = prog->len - 1; i > 0; i--)
+			ctx->offset[i] = ctx->offset[i - 1];
+		ctx->offset[0] = ninsns_rvoff(ctx->prologue_len);
+		bpf_prog_update_insn_ptrs(prog, ctx->offset, jit_data->ro_image);
 out_offset:
 		kvfree(ctx->offset);
 		kfree(jit_data);
@@ -237,6 +258,7 @@ void bpf_jit_free(struct bpf_prog *prog)
 			kvfree(jit_data->ctx.offset);
 			kfree(jit_data);
 		}
+		prog->bpf_func = (void *)prog->bpf_func - cfi_get_offset();
 		hdr = bpf_jit_binary_pack_hdr(prog);
 		bpf_jit_binary_pack_free(hdr, NULL);
 		WARN_ON_ONCE(!bpf_prog_kallsyms_verify_off(prog));

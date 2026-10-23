@@ -56,6 +56,19 @@
 
 enum bpf_cond_pseudo_jmp {
 	BPF_MAY_GOTO = 0,
+	/*
+	 * Follows a call of a bpf subprog. Taken when the subprog left with
+	 * BPF_EXIT that has src_reg == BPF_UNWIND_EXIT.
+	 */
+	BPF_UNWIND_GOTO = 1,
+};
+
+enum bpf_pseudo_exit {
+	/*
+	 * When bpf_exit->src_reg == BPF_UNWIND_EXIT, it's the same as bpf_exit,
+	 * except that BPF_UNWIND_GOTO after the call is taken.
+	 */
+	BPF_UNWIND_EXIT = 1,
 };
 
 /* Register numbers */
@@ -936,6 +949,33 @@ union bpf_iter_link_info {
  * 		0 on success or -1 if an error occurred (in which case,
  * 		*errno* is set appropriately).
  *
+ * BPF_PROG_STREAM_OPEN
+ *	Description
+ *		Open a file descriptor for one of the BPF streams associated
+ *		with the program identified by *prog_fd*. The stream is selected
+ *		by *stream_id*.
+ *
+ *		The returned file descriptor supports **read**\ (2) and
+ *		**poll**\ (2). Reads block while the stream is empty unless
+ *		**BPF_F_STREAM_NONBLOCK** is specified in *flags*. A non-blocking
+ *		read of an empty stream fails with **EAGAIN**.
+ *
+ *		**poll**\ (2) reports **POLLIN** when data is available and
+ *		**POLLHUP** once the program has been freed, that is, after every
+ *		reference to it, including links and other file descriptors, has
+ *		been dropped. Hangup may lag the final release because program
+ *		teardown is deferred. Buffered data remains readable after
+ *		**POLLHUP** and a read returns zero after all such data has been
+ *		consumed.
+ *
+ *		The file descriptor is read-only and has the close-on-exec flag
+ *		set. It is not seekable and **lseek**\ (2) fails with **ESPIPE**.
+ *		*flags* may only contain **BPF_F_STREAM_NONBLOCK**.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
  * NOTES
  *	eBPF objects (maps and programs) can be shared between processes.
  *
@@ -993,6 +1033,7 @@ enum bpf_cmd {
 	BPF_TOKEN_CREATE,
 	BPF_PROG_STREAM_READ_BY_FD,
 	BPF_PROG_ASSOC_STRUCT_OPS,
+	BPF_PROG_STREAM_OPEN,
 	__MAX_BPF_CMD,
 	BPF_COMMON_ATTRS = 1 << 16, /* Indicate carrying syscall common attrs. */
 };
@@ -1316,6 +1357,12 @@ enum bpf_perf_event_type {
 /* The verifier internal test flag. Behavior is undefined */
 #define BPF_F_TEST_REG_INVARIANTS	(1U << 7)
 
+/*
+ * Load and store through a number is an access to the arena of the program
+ * at the low 32 bits of the number. It's for programs written in Rust.
+ */
+#define BPF_F_ARENA_SCALAR	(1U << 8)
+
 /* link_create.kprobe_multi.flags used in LINK_CREATE command for
  * BPF_TRACE_KPROBE_MULTI attach type to create return probe.
  */
@@ -1522,6 +1569,11 @@ struct bpf_common_attr {
 enum {
 	BPF_STREAM_STDOUT = 1,
 	BPF_STREAM_STDERR = 2,
+};
+
+/* flags for BPF_PROG_STREAM_OPEN command */
+enum {
+	BPF_F_STREAM_NONBLOCK = (1U << 0),
 };
 
 union bpf_attr {
@@ -1756,7 +1808,7 @@ union bpf_attr {
 			__u32	prog_cnt;
 			__u32	count;
 		};
-		__u32		:32;
+		__u32		type_id;
 		/* output: per-program attach_flags.
 		 * not allowed to be set during effective query.
 		 */
@@ -1949,6 +2001,12 @@ union bpf_attr {
 		__u32		prog_fd;
 		__u32		flags;
 	} prog_assoc_struct_ops;
+
+	struct {
+		__u32		prog_fd;
+		__u32		stream_id;
+		__u32		flags;
+	} prog_stream_open;
 
 } __attribute__((aligned(8)));
 
@@ -4867,15 +4925,18 @@ union bpf_attr {
  * 		The non-negative copied *buf* length equal to or less than
  * 		*size* on success, or a negative error in case of failure.
  *
- * long bpf_load_hdr_opt(struct bpf_sock_ops *skops, void *searchby_res, u32 len, u64 flags)
+ * long bpf_load_hdr_opt(void *ctx, void *searchby_res, u32 len, u64 flags)
  *	Description
  *		Load header option.  Support reading a particular TCP header
- *		option for bpf program (**BPF_PROG_TYPE_SOCK_OPS**).
+ *		option for bpf program (**BPF_PROG_TYPE_SOCK_OPS**).  For the
+ *		**bpf_tcp_ops** struct_ops, this helper can be called from the
+ *		**parse_hdr**\ () and **write_hdr_opt**\ () operators.
  *
- *		If *flags* is 0, it will search the option from the
- *		*skops*\ **->skb_data**.  The comment in **struct bpf_sock_ops**
- *		has details on what skb_data contains under different
- *		*skops*\ **->op**.
+ *		If *flags* is 0, it will search the option from the packet
+ *		associated with the current operation.  For
+ *		**BPF_PROG_TYPE_SOCK_OPS**, the comment in
+ *		**struct bpf_sock_ops** has details on what skb_data
+ *		contains under different *op*.
  *
  *		The first byte of the *searchby_res* specifies the
  *		kind that it wants to search.
@@ -4908,6 +4969,8 @@ union bpf_attr {
  *
  *		* **BPF_LOAD_HDR_OPT_TCP_SYN** to search from the
  *		  saved_syn packet or the just-received syn packet.
+ *		  Not supported by the **bpf_tcp_ops** struct_ops, which
+ *		  rejects all flags.
  *
  *	Return
  *		> 0 when found, the header option is copied to *searchby_res*.
@@ -4928,9 +4991,9 @@ union bpf_attr {
  *		packet.
  *
  *		**-EPERM** if the helper cannot be used under the current
- *		*skops*\ **->op**.
+ *		operation.
  *
- * long bpf_store_hdr_opt(struct bpf_sock_ops *skops, const void *from, u32 len, u64 flags)
+ * long bpf_store_hdr_opt(void *ctx, const void *from, u32 len, u64 flags)
  *	Description
  *		Store header option.  The data will be copied
  *		from buffer *from* with length *len* to the TCP header.
@@ -4946,7 +5009,9 @@ union bpf_attr {
  *		by searching the same option in the outgoing skb.
  *
  *		This helper can only be called during
- *		**BPF_SOCK_OPS_WRITE_HDR_OPT_CB**.
+ *		**BPF_SOCK_OPS_WRITE_HDR_OPT_CB**, or from the
+ *		**write_hdr_opt**\ () operator of the **bpf_tcp_ops**
+ *		struct_ops.
  *
  *	Return
  *		0 on success, or negative error in case of failure:
@@ -4961,9 +5026,9 @@ union bpf_attr {
  *		**-EFAULT** on failure to parse the existing header options.
  *
  *		**-EPERM** if the helper cannot be used under the current
- *		*skops*\ **->op**.
+ *		operation.
  *
- * long bpf_reserve_hdr_opt(struct bpf_sock_ops *skops, u32 len, u64 flags)
+ * long bpf_reserve_hdr_opt(void *ctx, u32 len, u64 flags)
  *	Description
  *		Reserve *len* bytes for the bpf header option.  The
  *		space will be used by **bpf_store_hdr_opt**\ () later in
@@ -4973,7 +5038,9 @@ union bpf_attr {
  *		the total number of bytes will be reserved.
  *
  *		This helper can only be called during
- *		**BPF_SOCK_OPS_HDR_OPT_LEN_CB**.
+ *		**BPF_SOCK_OPS_HDR_OPT_LEN_CB**, or from the
+ *		**hdr_opt_len**\ () operator of the **bpf_tcp_ops**
+ *		struct_ops.
  *
  *	Return
  *		0 on success, or negative error in case of failure:
@@ -4983,7 +5050,7 @@ union bpf_attr {
  *		**-ENOSPC** if there is not enough space in the header.
  *
  *		**-EPERM** if the helper cannot be used under the current
- *		*skops*\ **->op**.
+ *		operation.
  *
  * void *bpf_inode_storage_get(struct bpf_map *map, void *inode, void *value, u64 flags)
  *	Description
@@ -6890,6 +6957,8 @@ struct bpf_link_info {
 		} xdp;
 		struct {
 			__u32 map_id;
+			__u32 :32;
+			__u64 cgroup_id;
 		} struct_ops;
 		struct {
 			__u32 pf;
@@ -7284,6 +7353,31 @@ enum {
 					 */
 };
 
+/*
+ * Most callbacks of struct bpf_tcp_ops are placed in the slow
+ * path (e.g., one-shot connection setup or unlikely events like
+ * timers) and are invoked simply by defining non-NULL callbacks.
+ *
+ * Callbacks in the fast path, however, would incur noticeable
+ * overhead even when set to NULL, so they are disabled by default
+ * and must be explicitly enabled per socket via bpf_tcp_ops_set_flags().
+ *
+ * The flags are per-socket and shared by all effective bpf_tcp_ops
+ * programs.
+ */
+enum {
+	/* .rtt() */
+	BPF_TCP_OPS_FLAG_RTT			= (1 << 0),
+	/* .parse_hdr() */
+	BPF_TCP_OPS_FLAG_PARSE_HDR_OPT_ALL	= (1 << 1),
+	BPF_TCP_OPS_FLAG_PARSE_HDR_OPT_UNKNOWN	= (1 << 2),
+	/* .hdr_opt_len() and .write_hdr_opt() */
+	BPF_TCP_OPS_FLAG_WRITE_HDR_OPT		= (1 << 3),
+	/* .enqueue_rcvq() and .dequeue_rcvq() */
+	BPF_TCP_OPS_FLAG_RCVQ			= (1 << 4),
+	BPF_TCP_OPS_FLAG_ALL			= (1 << 5) - 1,
+};
+
 /* List of TCP states. There is a build check in net/ipv4/tcp.c to detect
  * changes between the TCP and BPF versions. Ideally this should never happen.
  * If it does, we need to add code to convert them before calling
@@ -7598,6 +7692,10 @@ struct bpf_timer {
 
 struct bpf_task_work {
 	__u64 __opaque;
+} __attribute__((aligned(8)));
+
+struct bpf_rcu_head {
+	__u64 __opaque[6];
 } __attribute__((aligned(8)));
 
 struct bpf_wq {

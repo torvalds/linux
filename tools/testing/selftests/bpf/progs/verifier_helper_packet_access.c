@@ -258,7 +258,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("tc")
 __description("helper access to packet: test11, cls unsuitable helper 1")
-__failure __msg("helper access to the packet")
+__failure __msg("function access to the packet")
 __naked void test11_cls_unsuitable_helper_1(void)
 {
 	asm volatile ("					\
@@ -283,7 +283,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("tc")
 __description("helper access to packet: test12, cls unsuitable helper 2")
-__failure __msg("helper access to the packet")
+__failure __msg("function access to the packet")
 __naked void test12_cls_unsuitable_helper_2(void)
 {
 	asm volatile ("					\

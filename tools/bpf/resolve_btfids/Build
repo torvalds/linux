@@ -1,6 +1,7 @@
 hostprogs := resolve_btfids
 
 resolve_btfids-y += main.o
+resolve_btfids-y += btf_colors.o
 resolve_btfids-y += rbtree.o
 resolve_btfids-y += zalloc.o
 resolve_btfids-y += string.o

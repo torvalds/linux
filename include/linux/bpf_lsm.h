@@ -21,6 +21,13 @@ extern bool bpf_lsm_initialized __ro_after_init;
 #include <linux/lsm_hook_defs.h>
 #undef LSM_HOOK
 
+/*
+ * Number of xattr slots the BPF LSM reserves in the array handed to
+ * security_inode_init_security(), i.e. the maximum number of labels
+ * a policy may attach to an inode while it is being created.
+ */
+#define BPF_LSM_INODE_INIT_XATTRS	2
+
 struct bpf_storage_blob {
 	struct bpf_local_storage __rcu *storage;
 };
@@ -28,7 +35,7 @@ struct bpf_storage_blob {
 extern struct lsm_blob_sizes bpf_lsm_blob_sizes;
 
 int bpf_lsm_verify_prog(struct bpf_verifier_log *vlog,
-			const struct bpf_prog *prog);
+			struct bpf_prog *prog);
 
 bool bpf_lsm_is_sleepable_hook(u32 btf_id);
 bool bpf_lsm_is_trusted(const struct bpf_prog *prog);
@@ -71,7 +78,7 @@ static inline bool bpf_lsm_is_trusted(const struct bpf_prog *prog)
 }
 
 static inline int bpf_lsm_verify_prog(struct bpf_verifier_log *vlog,
-				      const struct bpf_prog *prog)
+				      struct bpf_prog *prog)
 {
 	return -EOPNOTSUPP;
 }

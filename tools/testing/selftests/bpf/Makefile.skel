@@ -1,0 +1,167 @@
+# SPDX-License-Identifier: GPL-2.0
+# BPF object and skeleton rules for one flavor.
+# Included by the main Makefile for default outputs and by runners
+# for their flavor. Unflavored runners require the default outputs first.
+#
+# Parameters (variables defined by the includer):
+#   RDIR             output directory of this flavor
+#   FLAVOR           flavor name, empty for the default
+#   BINARY           runner binary name, for build-log messages
+#   BPF_CC           BPF compiler
+#   BPF_CC_MSG       build-log tag (CLNG-BPF/GCC-BPF)
+#   BPF_CC_FLAGS     per-flavor compiler flags
+#   BPF_SYS_INCLUDES system include flags for $(BPF_CC)
+#   BPF_DEFINES      extra defines (-DENABLE_ATOMICS_TESTS)
+
+# BPF objects and skeletons
+
+ifneq ($(BPF_CC),)
+
+BPF_SRCS := $(notdir $(wildcard progs/*.c))
+BPF_OBJS := $(patsubst %.c,$(RDIR)/%.bpf.o,$(BPF_SRCS))
+
+SKEL_BLACKLIST := btf__% test_pinning_invalid.c test_sk_assign.c	\
+		  data_in_arena_extern.c data_in_arena_nomap.c
+
+LINKED_SKELS := test_static_linked.skel.h linked_funcs.skel.h		\
+		linked_vars.skel.h linked_maps.skel.h linked_arena.skel.h \
+		test_subskeleton.skel.h test_subskeleton_lib.skel.h	\
+		test_usdt.skel.h tracing_multi.skel.h			\
+		tracing_multi_module.skel.h				\
+		tracing_multi_intersect.skel.h				\
+		tracing_multi_session.skel.h
+
+LSKELS := fexit_sleep.c trace_printk.c trace_vprintk.c map_ptr_kern.c 	\
+	core_kern.c core_kern_overflow.c test_ringbuf.c			\
+	test_ringbuf_n.c test_ringbuf_map_key.c test_ringbuf_write.c    \
+	test_ringbuf_overwrite.c callx_rodata.c
+
+LSKELS_SIGNED := fentry_test.c fexit_test.c atomics.c
+
+# Generate both light skeleton and libbpf skeleton for these
+LSKELS_EXTRA := test_ksyms_module.c test_ksyms_weak.c kfunc_call_test.c \
+	kfunc_call_test_subprog.c test_global_percpu_data.c
+SKEL_BLACKLIST += $(LSKELS) $(LSKELS_SIGNED)
+
+test_static_linked.skel.h-deps := test_static_linked1.bpf.o test_static_linked2.bpf.o
+linked_funcs.skel.h-deps := linked_funcs1.bpf.o linked_funcs2.bpf.o
+linked_vars.skel.h-deps := linked_vars1.bpf.o linked_vars2.bpf.o
+linked_maps.skel.h-deps := linked_maps1.bpf.o linked_maps2.bpf.o
+linked_arena.skel.h-deps := linked_arena1.bpf.o linked_arena2.bpf.o
+# In the subskeleton case, we want the test_subskeleton_lib.subskel.h file
+# but that's created as a side-effect of the skel.h generation.
+test_subskeleton.skel.h-deps := test_subskeleton_lib2.bpf.o test_subskeleton_lib.bpf.o test_subskeleton.bpf.o
+test_subskeleton_lib.skel.h-deps := test_subskeleton_lib2.bpf.o test_subskeleton_lib.bpf.o
+test_usdt.skel.h-deps := test_usdt.bpf.o test_usdt_multispec.bpf.o
+tracing_multi.skel.h-deps := tracing_multi_attach.bpf.o tracing_multi_check.bpf.o
+tracing_multi_module.skel.h-deps := tracing_multi_attach_module.bpf.o tracing_multi_check.bpf.o
+tracing_multi_intersect.skel.h-deps := tracing_multi_intersect_attach.bpf.o tracing_multi_check.bpf.o
+tracing_multi_session.skel.h-deps := tracing_multi_session_attach.bpf.o tracing_multi_check.bpf.o
+
+LINKED_BPF_OBJS := $(foreach skel,$(LINKED_SKELS),$($(skel)-deps))
+LINKED_BPF_SRCS := $(patsubst %.bpf.o,%.c,$(LINKED_BPF_OBJS))
+
+SKELS := $(patsubst %.c,$(RDIR)/%.skel.h,				\
+	   $(filter-out $(SKEL_BLACKLIST) $(LINKED_BPF_SRCS),$(BPF_SRCS)))
+LSKELS_H        := $(patsubst %.c,$(RDIR)/%.lskel.h,$(LSKELS) $(LSKELS_EXTRA))
+LSKELS_SIGNED_H := $(patsubst %.c,$(RDIR)/%.lskel.h,$(LSKELS_SIGNED))
+LINKED_SKELS_H  := $(addprefix $(RDIR)/,$(LINKED_SKELS))
+ALL_SKELS := $(SKELS) $(LSKELS_H) $(LSKELS_SIGNED_H) $(LINKED_SKELS_H)
+
+HEADERS_FOR_BPF_OBJS := $(wildcard $(BPFDIR)/*.bpf.h)		\
+			$(wildcard $(CURDIR)/libarena/include/*.[ch])	\
+			$(addprefix $(BPFDIR)/,	bpf_core_read.h	\
+			                        bpf_endian.h	\
+						bpf_helpers.h	\
+			                        bpf_tracing.h)
+
+# The following tests contain C code that, although technically legal,
+# triggers GCC warnings that cannot be disabled: declaration of
+# anonymous struct types in function parameter lists.
+progs/btf_dump_test_case_bitfields.c-bpf_gcc-CFLAGS := -Wno-error
+progs/btf_dump_test_case_namespacing.c-bpf_gcc-CFLAGS := -Wno-error
+progs/btf_dump_test_case_packing.c-bpf_gcc-CFLAGS := -Wno-error
+progs/btf_dump_test_case_padding.c-bpf_gcc-CFLAGS := -Wno-error
+progs/btf_dump_test_case_syntax.c-bpf_gcc-CFLAGS := -Wno-error
+
+cmd_bpf_compile = $(BPF_CC) $(BPF_CFLAGS) $(BPF_SYS_INCLUDES) $(BPF_DEFINES) \
+	$($<-CFLAGS) $($<-$(FLAVOR)-CFLAGS) $(BPF_CC_FLAGS) -c $< -o $@ $(call skip_on_fail,BPF)
+
+$(BPF_OBJS): $(RDIR)/%.bpf.o: progs/%.c progs/*.h			\
+	     $(INCLUDE_DIR)/vmlinux.h $(HEADERS_FOR_BPF_OBJS)		\
+	     | $(RDIR) $(BPFOBJ)
+	$(call msg,$(BPF_CC_MSG),$(BINARY),$@)
+	$(Q)$(cmd_bpf_compile)
+
+GEN_SKEL := ./gen_bpf_skel.sh
+
+cmd_bpf_gen_skel = $(call skip_if_missing,SKEL,$<,$(@:.skel.h=.subskel.h))printf \
+	'  %-8s%s %s\n' 'GEN-SKEL' ' [$(BINARY)]' '$(notdir $@)'; \
+	BPFTOOL=$(BPFTOOL) $(GEN_SKEL) --name $* \
+	--skel $@ --subskel $(@:.skel.h=.subskel.h) $< $(call \
+	skip_on_fail,SKEL,$(@:.skel.h=.subskel.h))
+
+$(SKELS): $(RDIR)/%.skel.h: $(RDIR)/%.bpf.o $(BPFTOOL) $(GEN_SKEL) | $(RDIR)
+	$(Q)$(cmd_bpf_gen_skel)
+
+cmd_bpf_gen_lskel = $(call skip_if_missing,SKEL,$<)printf \
+	'  %-8s%s %s\n' 'GEN-SKEL' ' [$(BINARY)]' '$(notdir $@)'; \
+	BPFTOOL=$(BPFTOOL) $(GEN_SKEL) --name $*_lskel --lskel \
+	--skel $@ $< $(call skip_on_fail,SKEL)
+
+$(LSKELS_H): $(RDIR)/%.lskel.h: $(RDIR)/%.bpf.o $(BPFTOOL) $(GEN_SKEL) | $(RDIR)
+	$(Q)$(cmd_bpf_gen_lskel)
+
+cmd_bpf_gen_signed_lskel = $(call skip_if_missing,SKEL,$<)printf \
+	'  %-8s%s %s\n' 'GEN-SKEL' ' [$(BINARY) (signed)]' '$(notdir $@)'; \
+	BPFTOOL=$(BPFTOOL) PRIVATE_KEY=$(PRIVATE_KEY) \
+	VERIFICATION_CERT=$(VERIFICATION_CERT) \
+	$(GEN_SKEL) --sign --name $*_lskel \
+	--skel $@ $< $(call skip_on_fail,SKEL)
+
+$(LSKELS_SIGNED_H): $(RDIR)/%.lskel.h: $(RDIR)/%.bpf.o $(BPFTOOL)	\
+		    $(GEN_SKEL) $(PRIVATE_KEY) $(VERIFICATION_CERT) | $(RDIR)
+	$(Q)$(cmd_bpf_gen_signed_lskel)
+
+cmd_bpf_link_skel = $(call skip_if_missing,SKEL,$(addprefix $(RDIR)/,\
+	$($*.skel.h-deps)),$(@:.skel.h=.subskel.h))printf \
+	'  %-8s%s %s\n' 'LINK-BPF' ' [$(BINARY)]' '$(notdir $(@:.skel.h=.bpf.o))'; \
+	printf '  %-8s%s %s\n' 'GEN-SKEL' ' [$(BINARY)]' '$(notdir $@)'; \
+	BPFTOOL=$(BPFTOOL) $(GEN_SKEL) --name $* \
+	--skel $@ --subskel $(@:.skel.h=.subskel.h) \
+	$(addprefix $(RDIR)/,$($*.skel.h-deps)) $(call \
+	skip_on_fail,SKEL,$(@:.skel.h=.subskel.h))
+
+# .SECONDEXPANSION here allows to correctly expand %-deps variables as prerequisites
+.SECONDEXPANSION:
+$(LINKED_SKELS_H): $(RDIR)/%.skel.h: $$(addprefix $(RDIR)/,$$($$*.skel.h-deps)) \
+		   $(BPFTOOL) $(GEN_SKEL) | $(RDIR)
+	$(Q)$(cmd_bpf_link_skel)
+
+# Programs in Rust, see Makefile.buildvars. No skeletons: the objects may be absent.
+ifneq ($(RUST_CORE),)
+ifeq ($(BPF_CC),$(CLANG))
+RUST_OBJS := $(patsubst progs/%.rs,$(RDIR)/%.bpf.o,$(wildcard progs/*.rs))
+BPF_OBJS += $(RUST_OBJS)
+
+$(RUST_OBJS): $(RDIR)/%.bpf.o: progs/%.rs $(RUST_CORE) | $(RDIR)
+	$(call msg,RUSTC,$(BINARY),$@)
+	+$(Q)$(RUSTC_BPF) --edition 2021 -C debuginfo=2 --emit=llvm-bc			\
+		$(patsubst -mcpu=%,-C target-cpu=%,$(filter -mcpu=%,$(BPF_CC_FLAGS)))	\
+		-o $(dir $(RUST_CORE))$(BINARY)-$*.bc $< &&				\
+	$(BPF_CC) $(BPF_CC_FLAGS) -c $(dir $(RUST_CORE))$(BINARY)-$*.bc -o $@ $(call skip_on_fail,BPF)
+endif
+endif
+
+# Programs in C++. No skeletons: gcc doesn't build them.
+ifeq ($(BPF_CC),$(CLANG))
+CXX_OBJS := $(patsubst progs/%.cpp,$(RDIR)/%.bpf.o,$(wildcard progs/*.cpp))
+BPF_OBJS += $(CXX_OBJS)
+
+$(CXX_OBJS): $(RDIR)/%.bpf.o: progs/%.cpp | $(RDIR)
+	$(call msg,$(BPF_CC_MSG),$(BINARY),$@)
+	$(Q)$(BPF_CC) -x c++ -g -Wall -Werror -fexceptions -funwind-tables -fno-rtti	\
+		$(BPF_CC_FLAGS) -c $< -o $@ $(call skip_on_fail,BPF)
+endif
+
+endif # BPF_CC

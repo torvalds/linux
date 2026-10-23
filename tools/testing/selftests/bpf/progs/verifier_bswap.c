@@ -8,7 +8,7 @@
 	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64) || \
 	defined(__TARGET_ARCH_arm) || defined(__TARGET_ARCH_s390) || \
 	defined(__TARGET_ARCH_loongarch)) && \
-	__clang_major__ >= 18
+	(__clang_major__ >= 18 || defined(__BPF_FEATURE_BSWAP))
 
 SEC("socket")
 __description("BSWAP, 16")
@@ -117,6 +117,7 @@ l0_%=:							\
 
 SEC("socket")
 __description("cpuv4 is not supported by compiler or jit, use a dummy test")
+__skip("cpuv4 is not supported by compiler or jit")
 __success
 int dummy_test(void)
 {

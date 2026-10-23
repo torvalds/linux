@@ -169,8 +169,11 @@ int bpf_token_create(union bpf_attr *attr)
 	FD_PREPARE(fdf, O_CLOEXEC,
 		   alloc_file_pseudo(inode, path.mnt, BPF_TOKEN_INODE_NAME,
 				     O_RDWR, &bpf_token_fops));
-	if (fdf->fd < 0)
+	if (fdf->fd < 0) {
+		/* no file took over the inode reference */
+		iput(inode);
 		return fdf->fd;
+	}
 
 	token = kzalloc_obj(*token, GFP_USER);
 	if (!token)

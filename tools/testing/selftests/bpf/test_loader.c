@@ -33,6 +33,7 @@ static inline const char *str_has_pfx(const char *str, const char *pfx)
 #endif
 
 static int sysctl_unpriv_disabled = -1;
+static int unpriv_mitigations_disabled = -1;
 
 enum mode {
 	PRIV = 1,
@@ -42,6 +43,11 @@ enum mode {
 enum load_mode {
 	JITED		= 1 << 0,
 	NO_JITED	= 1 << 1,
+};
+
+enum stack_mode {
+	LARGE_STACK	= 1 << 0,
+	SMALL_STACK	= 1 << 1,
 };
 
 struct test_subspec {
@@ -69,7 +75,10 @@ struct test_spec {
 	int mode_mask;
 	int arch_mask;
 	int load_mask;
+	int stack_mask;
 	int linear_sz;
+	const char *skip_reason;
+	bool prepare_priv;
 	bool auxiliary;
 	bool valid;
 };
@@ -422,6 +431,7 @@ static int parse_test_spec(struct test_loader *tester,
 	int err = 0;
 	u32 arch_mask = 0;
 	u32 load_mask = 0;
+	u32 stack_mask = 0;
 	struct btf *btf;
 	enum arch arch;
 
@@ -456,6 +466,8 @@ static int parse_test_spec(struct test_loader *tester,
 			continue;
 		if ((val = str_has_pfx(s, "test_description="))) {
 			description = val;
+		} else if ((val = str_has_pfx(s, "test_skip="))) {
+			spec->skip_reason = val;
 		} else if (strcmp(s, "test_expect_failure") == 0) {
 			spec->priv.expect_failure = true;
 			spec->mode_mask |= PRIV;
@@ -493,6 +505,16 @@ static int parse_test_spec(struct test_loader *tester,
 			spec->mode_mask |= UNPRIV;
 		} else if ((msg = str_has_pfx(s, "test_expect_not_msg_unpriv="))) {
 			err = push_msg(msg, true, &spec->unpriv.expect_msgs);
+			if (err)
+				goto cleanup;
+			spec->mode_mask |= UNPRIV;
+		} else if ((msg = str_has_pfx(s, "test_expect_msg_next="))) {
+			err = __push_msg(msg, true, false, &spec->priv.expect_msgs);
+			if (err)
+				goto cleanup;
+			spec->mode_mask |= PRIV;
+		} else if ((msg = str_has_pfx(s, "test_expect_msg_next_unpriv="))) {
+			err = __push_msg(msg, true, false, &spec->unpriv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
@@ -568,6 +590,8 @@ static int parse_test_spec(struct test_loader *tester,
 				update_flags(&spec->prog_flags, BPF_F_XDP_HAS_FRAGS, clear);
 			} else if (strcmp(val, "BPF_F_TEST_REG_INVARIANTS") == 0) {
 				update_flags(&spec->prog_flags, BPF_F_TEST_REG_INVARIANTS, clear);
+			} else if (strcmp(val, "BPF_F_ARENA_SCALAR") == 0) {
+				update_flags(&spec->prog_flags, BPF_F_ARENA_SCALAR, clear);
 			} else /* assume numeric value */ {
 				err = parse_int(val, &flags, "test prog flags");
 				if (err)
@@ -603,6 +627,8 @@ static int parse_test_spec(struct test_loader *tester,
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
+		} else if (strcmp(s, "test_prepare_priv") == 0) {
+			spec->prepare_priv = true;
 		} else if ((val = str_has_pfx(s, "load_mode="))) {
 			if (strcmp(val, "jited") == 0) {
 				load_mask = JITED;
@@ -610,6 +636,16 @@ static int parse_test_spec(struct test_loader *tester,
 				load_mask = NO_JITED;
 			} else {
 				PRINT_FAIL("bad load spec: '%s'", val);
+				err = -EINVAL;
+				goto cleanup;
+			}
+		} else if ((val = str_has_pfx(s, "stack_mode="))) {
+			if (strcmp(val, "large") == 0) {
+				stack_mask = LARGE_STACK;
+			} else if (strcmp(val, "small") == 0) {
+				stack_mask = SMALL_STACK;
+			} else {
+				PRINT_FAIL("bad stack spec: '%s'", val);
 				err = -EINVAL;
 				goto cleanup;
 			}
@@ -652,6 +688,7 @@ static int parse_test_spec(struct test_loader *tester,
 
 	spec->arch_mask = arch_mask ?: -1;
 	spec->load_mask = load_mask ?: (JITED | NO_JITED);
+	spec->stack_mask = stack_mask ?: (LARGE_STACK | SMALL_STACK);
 
 	if (spec->mode_mask == 0)
 		spec->mode_mask = PRIV;
@@ -745,7 +782,7 @@ static void prepare_case(struct test_loader *tester,
 			 struct bpf_object *obj,
 			 struct bpf_program *prog)
 {
-	int min_log_level = 0, prog_flags;
+	int min_log_level = 0;
 
 	if (env.verbosity > VERBOSE_NONE)
 		min_log_level = 1;
@@ -763,8 +800,7 @@ static void prepare_case(struct test_loader *tester,
 	else
 		bpf_program__set_log_level(prog, spec->log_level);
 
-	prog_flags = bpf_program__flags(prog);
-	bpf_program__set_flags(prog, prog_flags | spec->prog_flags);
+	bpf_program__add_flags(prog, spec->prog_flags);
 
 	tester->log_buf[0] = '\0';
 }
@@ -972,6 +1008,7 @@ void validate_msgs(const char *log_buf, struct expected_msgs *msgs,
 
 		no_match   = !msg->negative && !match->start;
 		wrong_line = !msg->negative &&
+			     match->start &&
 			     msg->on_next_line &&
 			     prev_match && prev_match->line + 1 != match->line;
 		unexpected = msg->negative && match->start;
@@ -1013,10 +1050,10 @@ struct cap_state {
 	bool initialized;
 };
 
-static int drop_capabilities(struct cap_state *caps)
+static int drop_capabilities(struct cap_state *caps, __u64 keep_caps)
 {
 	const __u64 caps_to_drop = (1ULL << CAP_SYS_ADMIN | 1ULL << CAP_NET_ADMIN |
-				    1ULL << CAP_PERFMON   | 1ULL << CAP_BPF);
+				    1ULL << CAP_PERFMON   | 1ULL << CAP_BPF) & ~keep_caps;
 	int err;
 
 	err = cap_disable_effective(caps_to_drop, &caps->old_caps);
@@ -1026,6 +1063,13 @@ static int drop_capabilities(struct cap_state *caps)
 	}
 
 	caps->initialized = true;
+	if (keep_caps) {
+		err = cap_enable_effective(keep_caps, NULL);
+		if (err) {
+			PRINT_FAIL("failed to set capabilities: %i, %s\n", err, strerror(-err));
+			return err;
+		}
+	}
 	return 0;
 }
 
@@ -1046,8 +1090,12 @@ static int restore_capabilities(struct cap_state *caps)
 static bool can_execute_unpriv(struct test_loader *tester, struct test_spec *spec)
 {
 	if (sysctl_unpriv_disabled < 0)
-		sysctl_unpriv_disabled = get_unpriv_disabled() ? 1 : 0;
-	if (sysctl_unpriv_disabled)
+		sysctl_unpriv_disabled = get_unpriv_sysctl_disabled();
+	if (sysctl_unpriv_disabled && !(spec->unpriv.caps & (1ULL << CAP_BPF)))
+		return false;
+	if (unpriv_mitigations_disabled < 0)
+		unpriv_mitigations_disabled = get_unpriv_mitigations_disabled();
+	if (unpriv_mitigations_disabled)
 		return false;
 	if ((spec->prog_flags & BPF_F_ANY_ALIGNMENT) && !EFFICIENT_UNALIGNED_ACCESS)
 		return false;
@@ -1314,6 +1362,7 @@ void run_subtest(struct test_loader *tester,
 {
 	struct test_subspec *subspec = unpriv ? &spec->unpriv : &spec->priv;
 	int current_runtime = is_jit_enabled() ? JITED : NO_JITED;
+	int current_stack = is_large_stack_supported() ? LARGE_STACK : SMALL_STACK;
 	struct bpf_program *tprog = NULL, *tprog_iter;
 	struct bpf_link *link, *links[32] = {};
 	struct test_spec *spec_iter;
@@ -1327,6 +1376,12 @@ void run_subtest(struct test_loader *tester,
 	if (!test__start_subtest_with_desc(subspec->name, subspec->description))
 		return;
 
+	if (spec->skip_reason) {
+		printf("%s:SKIP: %s\n", __func__, spec->skip_reason);
+		test__skip();
+		return;
+	}
+
 	if ((get_current_arch() & spec->arch_mask) == 0) {
 		test__skip();
 		return;
@@ -1337,23 +1392,19 @@ void run_subtest(struct test_loader *tester,
 		return;
 	}
 
+	if ((current_stack & spec->stack_mask) == 0) {
+		test__skip();
+		return;
+	}
+
 	if (unpriv) {
 		if (!can_execute_unpriv(tester, spec)) {
 			test__skip();
 			test__end_subtest();
 			return;
 		}
-		if (drop_capabilities(&caps)) {
-			test__end_subtest();
-			return;
-		}
-		if (subspec->caps) {
-			err = cap_enable_effective(subspec->caps, NULL);
-			if (err) {
-				PRINT_FAIL("failed to set capabilities: %i, %s\n", err, strerror(-err));
-				goto subtest_cleanup;
-			}
-		}
+		if (!spec->prepare_priv && drop_capabilities(&caps, subspec->caps))
+			goto subtest_cleanup;
 	}
 
 	/* Implicitly reset to NULL if next test case doesn't specify.
@@ -1405,6 +1456,18 @@ void run_subtest(struct test_loader *tester,
 	 */
 	bpf_object__for_each_map(map, tobj)
 		bpf_map__set_autocreate(map, !unpriv || is_unpriv_capable_map(map));
+
+	if (unpriv && spec->prepare_priv) {
+		/*
+		 * Module BTF lookup needs CAP_SYS_ADMIN. Allow tests to prepare
+		 * their objects first, then verify programs with the requested caps.
+		 */
+		err = bpf_object__prepare(tobj);
+		if (!ASSERT_OK(err, "obj_prepare"))
+			goto tobj_cleanup;
+		if (drop_capabilities(&caps, subspec->caps))
+			goto tobj_cleanup;
+	}
 
 	err = bpf_object__load(tobj);
 	if (subspec->expect_failure) {
@@ -1483,7 +1546,8 @@ void run_subtest(struct test_loader *tester,
 		}
 
 		err = do_prog_test_run(bpf_program__fd(tprog), &retval,
-				       bpf_program__type(tprog) == BPF_PROG_TYPE_SYSCALL ? true : false,
+				       bpf_program__type(tprog) == BPF_PROG_TYPE_SYSCALL ||
+				       bpf_program__type(tprog) == BPF_PROG_TYPE_RAW_TRACEPOINT,
 				       spec->linear_sz);
 		if (!err && retval != subspec->retval && subspec->retval != POINTER_VALUE) {
 			PRINT_FAIL("Unexpected retval: %d != %d\n", retval, subspec->retval);

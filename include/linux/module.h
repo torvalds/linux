@@ -503,6 +503,10 @@ struct module {
 	void *btf_data;
 	void *btf_base_data;
 #endif
+#if IS_ENABLED(CONFIG_DEBUG_INFO_BTF_INLINE)
+	unsigned int btf_inline_data_size;
+	void *btf_inline_data;
+#endif
 #ifdef CONFIG_JUMP_LABEL
 	struct jump_entry *jump_entries;
 	unsigned int num_jump_entries;

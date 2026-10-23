@@ -5,7 +5,8 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)) && \
+#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || \
+	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)) && \
 	defined(__BPF_FEATURE_STACK_ARGUMENT)
 
 __noinline __used __naked
@@ -115,8 +116,8 @@ __naked void stack_arg_pruning_load_after_call(void)
 /*
  * "bad_ptr": the first arg is 'long *', which is not a recognized pointer
  * type for static subprogs (not ctx, dynptr, or tagged).  btf_prepare_func_args()
- * sets arg_cnt = 7 / stack_arg_cnt = 2, then fails with -EINVAL.  The subprog
- * is marked unreliable but the call still proceeds for static subprogs.
+ * sets arg_slot_cnt = 7 / stack_arg_cnt = 2, then fails with -EINVAL.  The
+ * subprog is marked unreliable but the call still proceeds for static subprogs.
  */
 __noinline __used __naked
 static void subprog_bad_ptr_7args(long *a, int b, int c, int d, int e, int f, int g)
@@ -174,6 +175,7 @@ __naked void stack_arg_read_without_write_2(void)
 
 SEC("socket")
 __description("stack_arg order is not supported by compiler or jit, use a dummy test")
+__skip("stack_arg order is not supported by compiler or jit")
 __success
 int dummy_test(void)
 {

@@ -121,4 +121,31 @@ l0_%=:	r0 = 42;					\
 "	::: __clobber_all);
 }
 
+SEC("tc")
+__description("xadd with variable stack offset")
+__failure
+__msg("variable offset stack pointer cannot be passed into helper function")
+__msg("Verification failed: Memory Safety: Variable-offset stack access")
+__msg("The instruction would access the stack")
+__msg("Use a fixed stack offset for the instruction")
+__naked void xadd_variable_stack_offset(void)
+{
+	asm volatile ("					\
+	r1 = 0;						\
+	*(u64 *)(r10 - 16) = r1;			\
+	*(u64 *)(r10 - 8) = r1;				\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 8;					\
+	r1 = r10;					\
+	r1 += -16;					\
+	r1 += r0;					\
+	r2 = 1;						\
+	lock *(u64 *)(r1 + 0) += r2;			\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

@@ -112,13 +112,23 @@ static void emit2(struct bpf_gen *gen, struct bpf_insn insn1, struct bpf_insn in
 static int add_data(struct bpf_gen *gen, const void *data, __u32 size);
 static void emit_sys_close_blob(struct bpf_gen *gen, int blob_off);
 
-void bpf_gen__init(struct bpf_gen *gen, int log_level, int nr_progs, int nr_maps)
+void bpf_gen__init(struct bpf_gen *gen, int log_level, int nr_progs, int nr_maps,
+		   int max_func_ptr_maps)
 {
 	size_t stack_sz = sizeof(struct loader_stack), nr_progs_sz;
 	int i;
 
 	gen->fd_array = add_data(gen, NULL, MAX_FD_ARRAY_SZ * sizeof(int));
 	gen->log_level = log_level;
+	gen->nr_obj_maps = nr_maps;
+	gen->max_func_ptr_maps = max_func_ptr_maps;
+	if (nr_maps + max_func_ptr_maps > MAX_USED_MAPS) {
+		pr_warn("Total maps exceeds %d\n", MAX_USED_MAPS);
+		gen->error = -E2BIG;
+		return;
+	}
+	/* their fds are closed like the fds of the maps of the object when loading fails */
+	nr_maps += max_func_ptr_maps;
 	/* save ctx pointer into R6 */
 	emit(gen, BPF_MOV64_REG(BPF_REG_6, BPF_REG_1));
 
@@ -385,6 +395,9 @@ int bpf_gen__finish(struct bpf_gen *gen, int nr_progs, int nr_maps)
 		return gen->error;
 	}
 	emit_sys_close_stack(gen, stack_off(btf_fd));
+	/* programs hold their maps with pointers to functions, nothing else needs them */
+	for (i = 0; i < gen->nr_func_ptr_maps; i++)
+		emit_sys_close_blob(gen, blob_fd_array_off(gen, gen->nr_obj_maps + i));
 	for (i = 0; i < gen->nr_progs; i++)
 		move_stack2ctx(gen,
 			       sizeof(struct bpf_loader_ctx) +
@@ -1127,52 +1140,41 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 	gen->nr_progs++;
 }
 
-void bpf_gen__map_update_elem(struct bpf_gen *gen, int map_idx, void *pvalue,
-			      __u32 value_size, __u64 flags)
+/*
+ * if (map_desc[map_idx].initial_value) {
+ *    if (ctx->flags & BPF_SKEL_KERNEL)
+ *        bpf_probe_read_kernel(value, value_size, initial_value);
+ *    else
+ *        bpf_copy_from_user(value, value_size, initial_value);
+ *    nr_more_insns that the caller emits
+ * }
+ */
+static void emit_copy_initial_value(struct bpf_gen *gen, int map_idx, int value,
+				    __u32 value_size, int nr_more_insns)
 {
-	int attr_size = offsetofend(union bpf_attr, flags);
-	int map_update_attr, value, key;
-	union bpf_attr attr;
-	int zero = 0;
+	emit(gen, BPF_LDX_MEM(BPF_DW, BPF_REG_3, BPF_REG_6,
+			      sizeof(struct bpf_loader_ctx) +
+			      sizeof(struct bpf_map_desc) * map_idx +
+			      offsetof(struct bpf_map_desc, initial_value)));
+	emit(gen, BPF_JMP_IMM(BPF_JEQ, BPF_REG_3, 0, 8 + nr_more_insns));
+	emit2(gen, BPF_LD_IMM64_RAW_FULL(BPF_REG_1, BPF_PSEUDO_MAP_IDX_VALUE,
+					 0, 0, 0, value));
+	emit(gen, BPF_MOV64_IMM(BPF_REG_2, value_size));
+	emit(gen, BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_6,
+			      offsetof(struct bpf_loader_ctx, flags)));
+	emit(gen, BPF_JMP_IMM(BPF_JSET, BPF_REG_0, BPF_SKEL_KERNEL, 2));
+	emit(gen, BPF_EMIT_CALL(BPF_FUNC_copy_from_user));
+	emit(gen, BPF_JMP_IMM(BPF_JA, 0, 0, 1));
+	emit(gen, BPF_EMIT_CALL(BPF_FUNC_probe_read_kernel));
+}
 
-	memset(&attr, 0, attr_size);
-	attr.flags = tgt_endian(flags);
+/* Update the element of the map whose fd is in the slot map_idx of fd_array */
+static void emit_map_update_elem(struct bpf_gen *gen, int map_idx, union bpf_attr *attr,
+				 int attr_size, int key, int value, __u32 value_size)
+{
+	int map_update_attr;
 
-	value = add_data(gen, pvalue, value_size);
-	key = add_data(gen, &zero, sizeof(zero));
-
-	/*
-	 * if (map_desc[map_idx].initial_value) {
-	 *    if (ctx->flags & BPF_SKEL_KERNEL)
-	 *        bpf_probe_read_kernel(value, value_size, initial_value);
-	 *    else
-	 *        bpf_copy_from_user(value, value_size, initial_value);
-	 * }
-	 *
-	 * The runtime initial_value comes from the host-supplied loader
-	 * ctx and would overwrite the blob value that the program signature
-	 * covers and the kernel verifies at load time. For a signed loader
-	 * (gen_hash) the attested blob value must be authoritative, so skip
-	 * the override and leave the signed value in place.
-	 */
-	if (!OPTS_GET(gen->opts, gen_hash, false)) {
-		emit(gen, BPF_LDX_MEM(BPF_DW, BPF_REG_3, BPF_REG_6,
-				      sizeof(struct bpf_loader_ctx) +
-				      sizeof(struct bpf_map_desc) * map_idx +
-				      offsetof(struct bpf_map_desc, initial_value)));
-		emit(gen, BPF_JMP_IMM(BPF_JEQ, BPF_REG_3, 0, 8));
-		emit2(gen, BPF_LD_IMM64_RAW_FULL(BPF_REG_1, BPF_PSEUDO_MAP_IDX_VALUE,
-						 0, 0, 0, value));
-		emit(gen, BPF_MOV64_IMM(BPF_REG_2, value_size));
-		emit(gen, BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_6,
-				      offsetof(struct bpf_loader_ctx, flags)));
-		emit(gen, BPF_JMP_IMM(BPF_JSET, BPF_REG_0, BPF_SKEL_KERNEL, 2));
-		emit(gen, BPF_EMIT_CALL(BPF_FUNC_copy_from_user));
-		emit(gen, BPF_JMP_IMM(BPF_JA, 0, 0, 1));
-		emit(gen, BPF_EMIT_CALL(BPF_FUNC_probe_read_kernel));
-	}
-
-	map_update_attr = add_data(gen, &attr, attr_size);
+	map_update_attr = add_data(gen, attr, attr_size);
 	pr_debug("gen: map_update_elem: idx %d, value: off %d size %u, attr: off %d size %d\n",
 		 map_idx, value, value_size, map_update_attr, attr_size);
 	move_blob2blob(gen, attr_field(map_update_attr, map_fd), 4,
@@ -1183,6 +1185,33 @@ void bpf_gen__map_update_elem(struct bpf_gen *gen, int map_idx, void *pvalue,
 	emit_sys_bpf(gen, BPF_MAP_UPDATE_ELEM, map_update_attr, attr_size);
 	debug_ret(gen, "update_elem idx %d value_size %d", map_idx, value_size);
 	emit_check_err(gen);
+}
+
+void bpf_gen__map_update_elem(struct bpf_gen *gen, int map_idx, void *pvalue,
+			      __u32 value_size, __u64 flags)
+{
+	int attr_size = offsetofend(union bpf_attr, flags);
+	union bpf_attr attr;
+	int value, key;
+	int zero = 0;
+
+	memset(&attr, 0, attr_size);
+	attr.flags = tgt_endian(flags);
+
+	value = add_data(gen, pvalue, value_size);
+	key = add_data(gen, &zero, sizeof(zero));
+
+	/*
+	 * The runtime initial_value comes from the host-supplied loader
+	 * ctx and would overwrite the blob value that the program signature
+	 * covers and the kernel verifies at load time. For a signed loader
+	 * (gen_hash) the attested blob value must be authoritative, so skip
+	 * the override and leave the signed value in place.
+	 */
+	if (!OPTS_GET(gen->opts, gen_hash, false))
+		emit_copy_initial_value(gen, map_idx, value, value_size, 0);
+
+	emit_map_update_elem(gen, map_idx, &attr, attr_size, key, value, value_size);
 }
 
 void bpf_gen__populate_outer_map(struct bpf_gen *gen, int outer_map_idx, int slot,
@@ -1212,6 +1241,77 @@ void bpf_gen__populate_outer_map(struct bpf_gen *gen, int outer_map_idx, int slo
 	debug_ret(gen, "populate_outer_map outer %d key %d inner %d",
 		  outer_map_idx, slot, inner_map_idx);
 	emit_check_err(gen);
+}
+
+/*
+ * A copy of the read-only data map obj_map_idx for a program, with the offsets
+ * of its functions in it, see create_func_ptr_map() in libbpf.c. It's not
+ * a map of the object: it's not in the loader ctx. Its content is the content
+ * of obj_map_idx, that the host may supply when the skeleton is loaded, with
+ * ptr_cnt 64-bit ptr_vals at ptr_offs.
+ * Return the index of the map in fd_array for instructions to refer to.
+ */
+int bpf_gen__func_ptr_map_create(struct bpf_gen *gen, const char *map_name, int obj_map_idx,
+				 void *pvalue, __u32 value_size, const __u32 *ptr_offs,
+				 const __u64 *ptr_vals, int ptr_cnt)
+{
+	int attr_size = offsetofend(union bpf_attr, map_extra);
+	int map_create_attr, map_idx, key, value, zero = 0, i;
+	union bpf_attr attr;
+
+	if (gen->nr_func_ptr_maps == gen->max_func_ptr_maps) {
+		gen->error = -EDOM; /* internal bug */
+		return 0;
+	}
+	map_idx = gen->nr_obj_maps + gen->nr_func_ptr_maps++;
+
+	memset(&attr, 0, attr_size);
+	attr.map_type = tgt_endian(BPF_MAP_TYPE_ARRAY);
+	attr.key_size = tgt_endian((__u32)sizeof(int));
+	attr.value_size = tgt_endian(value_size);
+	attr.max_entries = tgt_endian((__u32)1);
+	attr.map_flags = tgt_endian((__u32)BPF_F_RDONLY_PROG);
+	if (map_name)
+		libbpf_strlcpy(attr.map_name, map_name, sizeof(attr.map_name));
+
+	map_create_attr = add_data(gen, &attr, attr_size);
+	pr_debug("gen: func_ptr_map_create: %s idx %d value_size %u, attr: off %d size %d\n",
+		 map_name, map_idx, value_size, map_create_attr, attr_size);
+	emit_sys_bpf(gen, BPF_MAP_CREATE, map_create_attr, attr_size);
+	debug_ret(gen, "func_ptr_map_create %s idx %d value_size %d", map_name, map_idx,
+		  value_size);
+	emit_check_err(gen);
+	/* remember map_fd in fd_array */
+	emit2(gen, BPF_LD_IMM64_RAW_FULL(BPF_REG_1, BPF_PSEUDO_MAP_IDX_VALUE,
+					 0, 0, 0, blob_fd_array_off(gen, map_idx)));
+	emit(gen, BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_7, 0));
+
+	/* pvalue has the pointers already */
+	value = add_data(gen, pvalue, value_size);
+	key = add_data(gen, &zero, sizeof(zero));
+
+	/* see bpf_gen__map_update_elem() */
+	if (!OPTS_GET(gen->opts, gen_hash, false)) {
+		/* the jump over these instructions has 16-bit offset */
+		if (ptr_cnt > 10000) {
+			gen->error = -E2BIG;
+			return 0;
+		}
+		emit_copy_initial_value(gen, obj_map_idx, value, value_size, 3 * ptr_cnt);
+		/* the content that the host supplied doesn't have them */
+		for (i = 0; i < ptr_cnt; i++) {
+			emit2(gen, BPF_LD_IMM64_RAW_FULL(BPF_REG_1, BPF_PSEUDO_MAP_IDX_VALUE,
+							 0, 0, 0, value + ptr_offs[i]));
+			emit(gen, BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, ptr_vals[i]));
+		}
+	}
+
+	attr_size = offsetofend(union bpf_attr, flags);
+	memset(&attr, 0, attr_size);
+	emit_map_update_elem(gen, map_idx, &attr, attr_size, key, value, value_size);
+
+	bpf_gen__map_freeze(gen, map_idx);
+	return map_idx;
 }
 
 void bpf_gen__map_freeze(struct bpf_gen *gen, int map_idx)

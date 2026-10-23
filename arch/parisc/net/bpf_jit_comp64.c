@@ -502,14 +502,19 @@ static void emit_call(u64 addr, bool fixed, struct hppa_jit_context *ctx)
 	emit_hppa_copy(HPPA_REG_RET0, regmap[BPF_REG_0], ctx);
 }
 
-static void emit_call_libgcc_ll(void *func, const s8 arg0,
-		const s8 arg1, u8 opcode, struct hppa_jit_context *ctx)
+static void emit_call_libgcc_ll(void *func, const s8 arg0, const s8 arg1,
+		u8 opcode, bool is_signed, struct hppa_jit_context *ctx)
 {
 	u64 func_addr;
 
 	if (BPF_CLASS(opcode) == BPF_ALU) {
-		emit_hppa64_zext32(arg0, HPPA_REG_ARG0, ctx);
-		emit_hppa64_zext32(arg1, HPPA_REG_ARG1, ctx);
+		if (is_signed) {
+			emit_hppa64_sext32(arg0, HPPA_REG_ARG0, ctx);
+			emit_hppa64_sext32(arg1, HPPA_REG_ARG1, ctx);
+		} else {
+			emit_hppa64_zext32(arg0, HPPA_REG_ARG0, ctx);
+			emit_hppa64_zext32(arg1, HPPA_REG_ARG1, ctx);
+		}
 	} else {
 		emit_hppa_copy(arg0, HPPA_REG_ARG0, ctx);
 		emit_hppa_copy(arg1, HPPA_REG_ARG1, ctx);
@@ -600,6 +605,8 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct hppa_jit_context *ctx,
 	u8 rd = -1, rs = -1, code = insn->code;
 	s16 off = insn->off;
 	s32 imm = insn->imm;
+	bool is_signed;
+	void *func;
 
 	init_regs(&rd, &rs, insn, ctx);
 
@@ -656,29 +663,39 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct hppa_jit_context *ctx,
 		fallthrough;
 	case BPF_ALU | BPF_MUL | BPF_X:
 	case BPF_ALU64 | BPF_MUL | BPF_X:
-		emit_call_libgcc_ll(__muldi3, rd, rs, code, ctx);
+		emit_call_libgcc_ll(__muldi3, rd, rs, code, false, ctx);
 		if (!is64 && !aux->verifier_zext)
 			emit_zext_32(rd, ctx);
 		break;
 	case BPF_ALU | BPF_DIV | BPF_K:
 	case BPF_ALU64 | BPF_DIV | BPF_K:
-		emit_imm(HPPA_REG_T1, is64 ? (s64)(s32)imm : (u32)imm, HPPA_REG_T2, ctx);
+		is_signed = (off == 1);
+		emit_imm(HPPA_REG_T1,
+			 is64 || is_signed ? (s64)(s32)imm : (u32)imm,
+			 HPPA_REG_T2, ctx);
 		rs = HPPA_REG_T1;
 		fallthrough;
 	case BPF_ALU | BPF_DIV | BPF_X:
 	case BPF_ALU64 | BPF_DIV | BPF_X:
-		emit_call_libgcc_ll(&hppa_div64, rd, rs, code, ctx);
+		is_signed = (off == 1);
+		func = is_signed ? &hppa_sdiv64 : &hppa_div64;
+		emit_call_libgcc_ll(func, rd, rs, code, is_signed, ctx);
 		if (!is64 && !aux->verifier_zext)
 			emit_zext_32(rd, ctx);
 		break;
 	case BPF_ALU | BPF_MOD | BPF_K:
 	case BPF_ALU64 | BPF_MOD | BPF_K:
-		emit_imm(HPPA_REG_T1, is64 ? (s64)(s32)imm : (u32)imm, HPPA_REG_T2, ctx);
+		is_signed = (off == 1);
+		emit_imm(HPPA_REG_T1,
+			 is64 || is_signed ? (s64)(s32)imm : (u32)imm,
+			 HPPA_REG_T2, ctx);
 		rs = HPPA_REG_T1;
 		fallthrough;
 	case BPF_ALU | BPF_MOD | BPF_X:
 	case BPF_ALU64 | BPF_MOD | BPF_X:
-		emit_call_libgcc_ll(&hppa_div64_rem, rd, rs, code, ctx);
+		is_signed = (off == 1);
+		func = is_signed ? &hppa_sdiv64_rem : &hppa_div64_rem;
+		emit_call_libgcc_ll(func, rd, rs, code, is_signed, ctx);
 		if (!is64 && !aux->verifier_zext)
 			emit_zext_32(rd, ctx);
 		break;

@@ -31,7 +31,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "R1 is fp expected STRUCT prog_test_fail1",
+	.errstr = "R1 type=fp expected=ptr_, trusted_ptr_, rcu_ptr_",
 	.fixup_kfunc_btf_id = {
 		{ "bpf_kfunc_call_test_fail1", 2 },
 	},
@@ -46,7 +46,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "max struct nesting depth exceeded\nR1 is fp expected STRUCT prog_test_fail2",
+	.errstr = "max struct nesting depth exceeded\nR1 type=fp expected=ptr_, trusted_ptr_, rcu_ptr_",
 	.fixup_kfunc_btf_id = {
 		{ "bpf_kfunc_call_test_fail2", 2 },
 	},
@@ -61,7 +61,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "R1 is fp expected STRUCT prog_test_fail3",
+	.errstr = "R1 type=fp expected=ptr_, trusted_ptr_, rcu_ptr_",
 	.fixup_kfunc_btf_id = {
 		{ "bpf_kfunc_call_test_fail3", 2 },
 	},
@@ -76,7 +76,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "R1 expected pointer to ctx, but got fp",
+	.errstr = "R1 type=fp expected=ctx",
 	.fixup_kfunc_btf_id = {
 		{ "bpf_kfunc_call_test_pass_ctx", 2 },
 	},
@@ -152,7 +152,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "kernel function bpf_kfunc_call_memb1_release R1 expected pointer",
+	.errstr = "bpf_kfunc_call_memb1_release R1 expected pointer",
 	.fixup_kfunc_btf_id = {
 		{ "bpf_kfunc_call_memb_acquire", 1 },
 		{ "bpf_kfunc_call_memb1_release", 5 },
@@ -1037,15 +1037,34 @@
 	.result = ACCEPT,
 },
 {
-	"calls: stack overflow using two frames (pre-call access)",
+	/*
+	 * Five 480-byte frames exceed the 2 KiB budget of JITs with large
+	 * stacks, and two of them the 512 bytes allowed elsewhere.
+	 */
+	"calls: stack overflow using five frames (pre-call access)",
 	.insns = {
 	/* prog 1 */
-	BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
 	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 1),
 	BPF_EXIT_INSN(),
 
 	/* prog 2 */
-	BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 1),
+	BPF_EXIT_INSN(),
+
+	/* prog 3 */
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 1),
+	BPF_EXIT_INSN(),
+
+	/* prog 4 */
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 1),
+	BPF_EXIT_INSN(),
+
+	/* prog 5 */
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	},
@@ -1054,15 +1073,30 @@
 	.result = REJECT,
 },
 {
-	"calls: stack overflow using two frames (post-call access)",
+	"calls: stack overflow using five frames (post-call access)",
 	.insns = {
 	/* prog 1 */
 	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 2),
-	BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
 	BPF_EXIT_INSN(),
 
 	/* prog 2 */
-	BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 2),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_EXIT_INSN(),
+
+	/* prog 3 */
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 2),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_EXIT_INSN(),
+
+	/* prog 4 */
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 2),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_EXIT_INSN(),
+
+	/* prog 5 */
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	},
@@ -1127,7 +1161,7 @@
 	.result = ACCEPT,
 },
 {
-	"calls: stack depth check using three frames. test3",
+	"calls: stack depth check using five frames. test3",
 	.insns = {
 	/* main */
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
@@ -1135,66 +1169,104 @@
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
 	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 8), /* call B */
 	BPF_JMP_IMM(BPF_JGE, BPF_REG_6, 0, 1),
-	BPF_ST_MEM(BPF_B, BPF_REG_10, -64, 0),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	/* A */
 	BPF_JMP_IMM(BPF_JLT, BPF_REG_1, 10, 1),
 	BPF_EXIT_INSN(),
-	BPF_ST_MEM(BPF_B, BPF_REG_10, -224, 0),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
 	BPF_JMP_IMM(BPF_JA, 0, 0, -3),
 	/* B */
 	BPF_JMP_IMM(BPF_JGT, BPF_REG_1, 2, 1),
-	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, -6), /* call A */
-	BPF_ST_MEM(BPF_B, BPF_REG_10, -256, 0),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 2), /* call C */
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_EXIT_INSN(),
+	/* C */
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 2), /* call D */
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_EXIT_INSN(),
+	/* D */
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, -12), /* call A */
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_XDP,
-	/* stack_main=64, stack_A=224, stack_B=256
-	 * and max(main+A, main+A+B) > 512
+	/*
+	 * every frame is 480 bytes, main+A = 960 > 512 and
+	 * max(main+A, main+B+C+D+A) = 2400 > 2048
 	 */
 	.errstr = "combined stack",
 	.result = REJECT,
 },
 {
-	"calls: stack depth check using three frames. test4",
-	/* void main(void) {
+	"calls: stack depth check using five frames. test4",
+	/*
+	 * void main(void) {
 	 *   func1(0);
 	 *   func1(1);
 	 *   func2(1);
 	 * }
-	 * void func1(int alloc_or_recurse) {
+	 * void funcN(int alloc_or_recurse) {   N = 1..4
 	 *   if (alloc_or_recurse) {
-	 *     frame_pointer[-300] = 1;
+	 *     frame_pointer[-480] = 1;
 	 *   } else {
-	 *     func2(alloc_or_recurse);
+	 *     funcN+1(alloc_or_recurse);
 	 *   }
 	 * }
-	 * void func2(int alloc_or_recurse) {
+	 * void func5(int alloc_or_recurse) {
 	 *   if (alloc_or_recurse) {
-	 *     frame_pointer[-300] = 1;
+	 *     frame_pointer[-480] = 1;
 	 *   }
 	 * }
+	 * main also calls func2 to func5 with 1 so that every function has a
+	 * path allocating its 480 bytes, and the chain adds up to 2400 bytes,
+	 * more than the 2 KiB budget of JITs with large stacks, and to 960
+	 * bytes after two frames, more than the 512 bytes allowed elsewhere.
 	 */
 	.insns = {
 	/* main */
 	BPF_MOV64_IMM(BPF_REG_1, 0),
-	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 6), /* call A */
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 12), /* call A */
 	BPF_MOV64_IMM(BPF_REG_1, 1),
-	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 4), /* call A */
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 10), /* call A */
 	BPF_MOV64_IMM(BPF_REG_1, 1),
-	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 7), /* call B */
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 13), /* call B */
+	BPF_MOV64_IMM(BPF_REG_1, 1),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 16), /* call C */
+	BPF_MOV64_IMM(BPF_REG_1, 1),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 19), /* call D */
+	BPF_MOV64_IMM(BPF_REG_1, 1),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 22), /* call E */
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	/* A */
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 2),
-	BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
 	BPF_EXIT_INSN(),
 	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 1), /* call B */
 	BPF_EXIT_INSN(),
 	/* B */
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 2),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_EXIT_INSN(),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 1), /* call C */
+	BPF_EXIT_INSN(),
+	/* C */
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 2),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_EXIT_INSN(),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 1), /* call D */
+	BPF_EXIT_INSN(),
+	/* D */
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 2),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
+	BPF_EXIT_INSN(),
+	BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 1), /* call E */
+	BPF_EXIT_INSN(),
+	/* E */
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 1),
-	BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+	BPF_ST_MEM(BPF_B, BPF_REG_10, -480, 0),
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_XDP,

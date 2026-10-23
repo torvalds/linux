@@ -90,7 +90,7 @@ static void cleanup(void)
 	remove_netns(SERVER_NS);
 }
 
-static void run_test(void)
+static void run_test(struct test_tc_edt *skel)
 {
 	int server_fd, client_fd, err;
 	double rate_mbps, rate_error;
@@ -113,11 +113,18 @@ static void run_test(void)
 	if (!ASSERT_OK_FD(client_fd, "connect client"))
 		return;
 
-	ts_start = get_time_ns();
 	err = send_recv_data(server_fd, client_fd, TX_BYTES_COUNT);
 	ts_end = get_time_ns();
 	close_netns(nstoken);
 	ASSERT_OK(err, "send_recv_data");
+
+	/*
+	 * Start from the first packet with data rather than before
+	 * send_recv_data(), which also sets up the sender.
+	 */
+	ts_start = skel->bss->tx_start_ns;
+	if (!ASSERT_GT(ts_start, 0, "tx_start_ns"))
+		return;
 
 	rate_mbps = TX_BYTES_COUNT / ((ts_end - ts_start) / 1000.0);
 	rate_error =
@@ -138,7 +145,7 @@ void test_tc_edt(void)
 	if (!ASSERT_OK(setup(skel), "global setup"))
 		return;
 
-	run_test();
+	run_test(skel);
 
 	cleanup();
 	test_tc_edt__destroy(skel);

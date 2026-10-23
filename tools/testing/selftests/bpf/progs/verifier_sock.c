@@ -148,7 +148,7 @@ l0_%=:	r0 = *(u32*)(r1 + %[bpf_sock_type]);		\
 
 SEC("cgroup/skb")
 __description("bpf_sk_fullsock(skb->sk): no !skb->sk check")
-__failure __msg("type=sock_common_or_null expected=sock_common")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 __failure_unpriv
 __naked void sk_no_skb_sk_check_1(void)
 {
@@ -504,7 +504,7 @@ l1_%=:	r0 = *(u32*)(r0 + %[bpf_sock_rx_queue_mapping__end]);\
 
 SEC("cgroup/skb")
 __description("bpf_tcp_sock(skb->sk): no !skb->sk check")
-__failure __msg("type=sock_common_or_null expected=sock_common")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 __failure_unpriv
 __naked void sk_no_skb_sk_check_2(void)
 {
@@ -612,6 +612,54 @@ l1_%=:	r0 = *(u64*)(r0 + %[bpf_tcp_sock_bytes_acked__end]);\
 }
 
 SEC("cgroup/skb")
+__description("bpf_tcp_sock(skb->sk): narrow load of tp->bytes_received")
+__failure __msg("invalid tcp_sock access")
+__failure_unpriv
+__naked void skb_sk_tp_bytes_received_narrow(void)
+{
+	asm volatile ("					\
+	r1 = *(u64*)(r1 + %[__sk_buff_sk]);		\
+	if r1 != 0 goto l0_%=;				\
+	r0 = 0;						\
+	exit;						\
+l0_%=:	call %[bpf_tcp_sock];				\
+	if r0 != 0 goto l1_%=;				\
+	exit;						\
+l1_%=:	r0 = *(u32*)(r0 + %[off]);			\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_tcp_sock),
+	  __imm_const(__sk_buff_sk, offsetof(struct __sk_buff, sk)),
+	  __imm_const(off, offsetof(struct bpf_tcp_sock, bytes_received) + 4)
+	: __clobber_all);
+}
+
+SEC("cgroup/skb")
+__description("bpf_tcp_sock(skb->sk): narrow load of tp->bytes_acked")
+__failure __msg("invalid tcp_sock access")
+__failure_unpriv
+__naked void skb_sk_tp_bytes_acked_narrow(void)
+{
+	asm volatile ("					\
+	r1 = *(u64*)(r1 + %[__sk_buff_sk]);		\
+	if r1 != 0 goto l0_%=;				\
+	r0 = 0;						\
+	exit;						\
+l0_%=:	call %[bpf_tcp_sock];				\
+	if r0 != 0 goto l1_%=;				\
+	exit;						\
+l1_%=:	r0 = *(u32*)(r0 + %[off]);			\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_tcp_sock),
+	  __imm_const(__sk_buff_sk, offsetof(struct __sk_buff, sk)),
+	  __imm_const(off, offsetof(struct bpf_tcp_sock, bytes_acked) + 4)
+	: __clobber_all);
+}
+
+SEC("cgroup/skb")
 __description("bpf_tcp_sock(bpf_sk_fullsock(skb->sk)): tp->snd_cwnd")
 __success __success_unpriv __retval(0)
 __naked void skb_sk_tp_snd_cwnd_2(void)
@@ -641,7 +689,7 @@ l2_%=:	r0 = *(u32*)(r0 + %[bpf_tcp_sock_snd_cwnd]);	\
 
 SEC("tc")
 __description("bpf_sk_release(skb->sk)")
-__failure __msg("release helper bpf_sk_release expects referenced PTR_TO_BTF_ID passed to R1")
+__failure __msg("release function bpf_sk_release expects referenced PTR_TO_BTF_ID passed to R1")
 __naked void bpf_sk_release_skb_sk(void)
 {
 	asm volatile ("					\
@@ -658,7 +706,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("tc")
 __description("bpf_sk_release(bpf_sk_fullsock(skb->sk))")
-__failure __msg("release helper bpf_sk_release expects referenced PTR_TO_BTF_ID passed to R1")
+__failure __msg("release function bpf_sk_release expects referenced PTR_TO_BTF_ID passed to R1")
 __naked void bpf_sk_fullsock_skb_sk(void)
 {
 	asm volatile ("					\
@@ -682,7 +730,7 @@ l1_%=:	r1 = r0;					\
 
 SEC("tc")
 __description("bpf_sk_release(bpf_tcp_sock(skb->sk))")
-__failure __msg("release helper bpf_sk_release expects referenced PTR_TO_BTF_ID passed to R1")
+__failure __msg("release function bpf_sk_release expects referenced PTR_TO_BTF_ID passed to R1")
 __naked void bpf_tcp_sock_skb_sk(void)
 {
 	asm volatile ("					\

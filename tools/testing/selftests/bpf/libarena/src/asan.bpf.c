@@ -103,23 +103,6 @@ volatile bool asan_inited = false;
  */
 volatile bool asan_report_once = false;
 
-/*
- * BPF does not currently support the memset/memcpy/memcmp intrinsics.
- * For large sequential copies, or assignments of large data structures,
- * the frontend will generate an intrinsic that causes the BPF backend
- * to exit due to a missing implementation. Provide a simple implementation
- * just for memset to use it for poisoning/unpoisoning the map.
- */
-__weak int asan_memset(s8 __arena *dst, s8 val, size_t size)
-{
-	size_t i;
-
-	for (i = zero; i < size && can_loop; i++)
-		dst[i] = val;
-
-	return 0;
-}
-
 /* Validate a 1-byte access, always within a single byte. */
 static __always_inline bool memory_is_poisoned_1(s8 __arena *addr)
 {
@@ -422,7 +405,7 @@ __hidden __noasan int asan_poison(void __arena *addr, s8 val, size_t size)
 	shadow = mem_to_shadow(addr);
 	len = size >> ASAN_SHADOW_SHIFT;
 
-	asan_memset(shadow, val, len);
+	arena_memset(shadow, val, len);
 
 	return 0;
 }
@@ -463,7 +446,7 @@ __hidden __noasan int asan_unpoison(void __arena *addr, size_t size)
 	shadow = mem_to_shadow(addr);
 	len = size >> ASAN_SHADOW_SHIFT;
 
-	asan_memset(shadow, 0, len);
+	arena_memset(shadow, 0, len);
 
 	/*
 	 * If we are allocating a non-granule aligned region, we need to adjust

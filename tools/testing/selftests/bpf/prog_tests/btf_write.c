@@ -606,6 +606,38 @@ cleanup:
 	btf__free(base);
 }
 
+static void test_btf_attrs(void)
+{
+	struct btf *btf;
+
+	btf = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf, "new_empty"))
+		return;
+
+	btf__add_int(btf, "int", 4, BTF_INT_SIGNED);
+	btf__add_struct(btf, "s", 4);
+	btf__add_field(btf, "f", 1, 0, 0);
+
+	btf__add_decl_tag(btf, "tag", 2, -1);
+	btf__add_decl_attr(btf, "tag", 2, -1);
+	btf__add_decl_attr(btf, "member_attr", 2, 0);
+	btf__add_type_tag(btf, "tag", 1);
+	btf__add_type_attr(btf, "tag", 1);
+
+	VALIDATE_RAW_BTF(
+		btf,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] STRUCT 's' size=4 vlen=1\n"
+		"\t'f' type_id=1 bits_offset=0",
+		"[3] DECL_TAG 'tag' type_id=2 component_idx=-1",
+		"[4] DECL_TAG 'tag' type_id=2 component_idx=-1 kflag=1",
+		"[5] DECL_TAG 'member_attr' type_id=2 component_idx=0 kflag=1",
+		"[6] TYPE_TAG 'tag' type_id=1",
+		"[7] TYPE_TAG 'tag' type_id=1 kflag=1");
+
+	btf__free(btf);
+}
+
 void test_btf_write()
 {
 	if (test__start_subtest("btf_add"))
@@ -614,4 +646,6 @@ void test_btf_write()
 		test_btf_add_btf();
 	if (test__start_subtest("btf_add_btf_split"))
 		test_btf_add_btf_split();
+	if (test__start_subtest("btf_attrs"))
+		test_btf_attrs();
 }

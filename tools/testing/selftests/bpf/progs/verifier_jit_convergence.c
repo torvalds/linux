@@ -68,6 +68,13 @@ __naked void btf_jit_convergence_je_jmp(void)
 	"r3 &= 0x1;"
 	"r2 *= 0xa8;"
 	"if r3 == 0x0 goto l2_%=;"
+	/*
+	 * The x86-64 code from the je to l0 up to l0 has to be 125 bytes with
+	 * the last goto l9 at two bytes and 128 with it at five, so that the
+	 * je fits into an imm8 only while the jmp does not and the two keep
+	 * flipping each other's size. The mov pads the region to that.
+	 */
+	"r3 = 0x1234;"
 	"r1 += r2;"
 	"r1 -= r7;"
 	"r1 += 0x8;"

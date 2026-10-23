@@ -39,6 +39,7 @@ u32 cnum32_umin(struct cnum32 cnum);
 u32 cnum32_umax(struct cnum32 cnum);
 s32 cnum32_smin(struct cnum32 cnum);
 s32 cnum32_smax(struct cnum32 cnum);
+struct cnum32 cnum32_union(struct cnum32 a, struct cnum32 b);
 struct cnum32 cnum32_intersect(struct cnum32 a, struct cnum32 b);
 void cnum32_intersect_with(struct cnum32 *dst, struct cnum32 src);
 void cnum32_intersect_with_urange(struct cnum32 *dst, u32 min, u32 max);
@@ -65,6 +66,7 @@ u64 cnum64_umin(struct cnum64 cnum);
 u64 cnum64_umax(struct cnum64 cnum);
 s64 cnum64_smin(struct cnum64 cnum);
 s64 cnum64_smax(struct cnum64 cnum);
+struct cnum64 cnum64_union(struct cnum64 a, struct cnum64 b);
 struct cnum64 cnum64_intersect(struct cnum64 a, struct cnum64 b);
 void cnum64_intersect_with(struct cnum64 *dst, struct cnum64 src);
 void cnum64_intersect_with_urange(struct cnum64 *dst, u64 min, u64 max);
@@ -78,5 +80,6 @@ bool cnum64_is_subset(struct cnum64 outer, struct cnum64 inner);
 
 struct cnum32 cnum32_from_cnum64(struct cnum64 cnum);
 struct cnum64 cnum64_cnum32_intersect(struct cnum64 a, struct cnum32 b);
+struct cnum64 cnum64_intersect_linear(struct cnum64 in, u16 base, u16 step);
 
 #endif /* _LINUX_CNUM_H */

@@ -163,7 +163,7 @@ void emit_mov_i(struct jit_context *ctx, u8 dst, s32 imm);
 void emit_mov_r(struct jit_context *ctx, u8 dst, u8 src);
 
 /* Validate ALU/ALU64 immediate range */
-bool valid_alu_i(u8 op, s32 imm);
+bool valid_alu_i(u8 op, s32 imm, s16 off);
 
 /* Rewrite ALU/ALU64 immediate operation */
 bool rewrite_alu_i(u8 op, s32 imm, u8 *alu, s32 *val);
@@ -172,7 +172,7 @@ bool rewrite_alu_i(u8 op, s32 imm, u8 *alu, s32 *val);
 void emit_alu_i(struct jit_context *ctx, u8 dst, s32 imm, u8 op);
 
 /* ALU register operation (32-bit) */
-void emit_alu_r(struct jit_context *ctx, u8 dst, u8 src, u8 op);
+void emit_alu_r(struct jit_context *ctx, u8 dst, u8 src, u8 op, s16 off);
 
 /* Atomic read-modify-write (32-bit) */
 void emit_atomic_r(struct jit_context *ctx, u8 dst, u8 src, s16 off, u8 code);
@@ -204,7 +204,7 @@ void emit_jmp_i(struct jit_context *ctx, u8 dst, s32 imm, s32 off, u8 op);
 void emit_jmp_r(struct jit_context *ctx, u8 dst, u8 src, s32 off, u8 op);
 
 /* Jump always */
-int emit_ja(struct jit_context *ctx, s16 off);
+int emit_ja(struct jit_context *ctx, s32 off);
 
 /* Jump to epilogue */
 int emit_exit(struct jit_context *ctx);

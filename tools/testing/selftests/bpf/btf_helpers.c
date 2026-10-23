@@ -27,11 +27,14 @@ static const char * const btf_kind_str_mapping[] = {
 	[BTF_KIND_DECL_TAG]	= "DECL_TAG",
 	[BTF_KIND_TYPE_TAG]	= "TYPE_TAG",
 	[BTF_KIND_ENUM64]	= "ENUM64",
+	[BTF_KIND_LOC_PARAM]	= "LOC_PARAM",
+	[BTF_KIND_LOC_PROTO]	= "LOC_PROTO",
+	[BTF_KIND_LOCSEC]	= "LOCSEC",
 };
 
 static const char *btf_kind_str(__u16 kind)
 {
-	if (kind > BTF_KIND_ENUM64)
+	if (kind > BTF_KIND_LOCSEC)
 		return "UNKNOWN";
 	return btf_kind_str_mapping[kind];
 }
@@ -111,8 +114,11 @@ int fprintf_btf_type_raw(FILE *out, const struct btf *btf, __u32 id)
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_RESTRICT:
 	case BTF_KIND_TYPEDEF:
-	case BTF_KIND_TYPE_TAG:
 		fprintf(out, " type_id=%u", t->type);
+		break;
+	case BTF_KIND_TYPE_TAG:
+		fprintf(out, " type_id=%u%s", t->type,
+			btf_kflag(t) ? " kflag=1" : "");
 		break;
 	case BTF_KIND_ARRAY: {
 		const struct btf_array *arr = btf_array(t);
@@ -200,9 +206,40 @@ int fprintf_btf_type_raw(FILE *out, const struct btf *btf, __u32 id)
 		fprintf(out, " size=%u", t->size);
 		break;
 	case BTF_KIND_DECL_TAG:
-		fprintf(out, " type_id=%u component_idx=%d",
-			t->type, btf_decl_tag(t)->component_idx);
+		fprintf(out, " type_id=%u component_idx=%d%s",
+			t->type, btf_decl_tag(t)->component_idx,
+			btf_kflag(t) ? " kflag=1" : "");
 		break;
+	case BTF_KIND_LOC_PARAM: {
+		struct btf_loc_param *p = btf_loc_param(t);
+
+		fprintf(out, " size=%u flags=0x%x vlen=%u", t->size, p->flags, vlen);
+		for (i = 0; i < vlen; i++) {
+			if (p->flags & BTF_LOC_PARAM_SIGNED)
+				fprintf(out, "\n\tvalue=%d", (__s32)p->values[i]);
+			else
+				fprintf(out, "\n\tvalue=%u", p->values[i]);
+		}
+		break;
+	}
+	case BTF_KIND_LOC_PROTO: {
+		const __u32 *p = btf_loc_proto_params(t);
+
+		fprintf(out, " vlen=%u", vlen);
+		for (i = 0; i < vlen; i++, p++)
+			fprintf(out, "\n\ttype_id=%u", *p);
+		break;
+	}
+	case BTF_KIND_LOCSEC: {
+		const struct btf_loc *l = btf_locsec_locs(t);
+
+		fprintf(out, " vlen=%u", vlen);
+		for (i = 0; i < vlen; i++, l++) {
+			fprintf(out, "\n\tfunc_type_id=%u loc_proto_type_id=%u offset=%u",
+				l->func, l->loc_proto, l->offset);
+		}
+		break;
+	}
 	default:
 		break;
 	}

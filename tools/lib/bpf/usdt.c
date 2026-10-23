@@ -608,8 +608,12 @@ static bool has_nop_combo(int fd, long off)
 	unsigned char nop_combo[11] = {
 		0x90, 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00,
 	};
+	long page_sz = getpagesize();
 	unsigned char buf[11];
 
+	/* the kernel can't attach to a nop10 that crosses a page boundary */
+	if ((off + 1) % page_sz + 10 > page_sz)
+		return false;
 	if (pread(fd, buf, 11, off) != 11)
 		return false;
 	return memcmp(buf, nop_combo, 11) == 0;

@@ -62,7 +62,7 @@ static __u32 get_ubuntu_kernel_version(void)
  */
 static __u32 get_debian_kernel_version(struct utsname *info)
 {
-	__u32 major, minor, patch;
+	__u32 major, minor, patch = 0;
 	char *p;
 
 	p = strstr(info->version, "Debian ");
@@ -71,10 +71,13 @@ static __u32 get_debian_kernel_version(struct utsname *info)
 		return 0;
 	}
 
-	if (sscanf(p, "Debian %u.%u.%u", &major, &minor, &patch) != 3)
-		return 0;
+	if (sscanf(p, "Debian %u.%u.%u", &major, &minor, &patch) == 3)
+		return KERNEL_VERSION(major, minor, patch);
 
-	return KERNEL_VERSION(major, minor, patch);
+	if (sscanf(p, "Debian %u.%u", &major, &minor) == 2)
+		return KERNEL_VERSION(major, minor, patch);
+
+	return 0;
 }
 
 __u32 get_kernel_version(void)

@@ -637,9 +637,10 @@ struct bpf_prog_query_opts {
 	__u32 *link_ids;
 	__u32 *link_attach_flags;
 	__u64 revision;
+	__u32 type_id;
 	size_t :0;
 };
-#define bpf_prog_query_opts__last_field revision
+#define bpf_prog_query_opts__last_field type_id
 
 /**
  * @brief **bpf_prog_query_opts()** queries the BPF programs and BPF links
@@ -758,9 +759,33 @@ struct bpf_prog_stream_read_opts {
  *
  * @return The number of bytes read, on success; negative error code, otherwise
  * (errno is also set to the error code)
+ *
+ * For blocking reads and polling, prefer **bpf_prog_stream_open**.
  */
 LIBBPF_API int bpf_prog_stream_read(int prog_fd, __u32 stream_id, void *buf, __u32 buf_len,
 				    struct bpf_prog_stream_read_opts *opts);
+
+struct bpf_prog_stream_open_opts {
+	size_t sz;
+	__u32 flags;
+	size_t :0;
+};
+#define bpf_prog_stream_open_opts__last_field flags
+
+/**
+ * @brief **bpf_prog_stream_open** opens a file descriptor for a BPF stream of
+ * a given BPF program.
+ *
+ * @param prog_fd FD for the BPF program whose BPF stream is to be opened.
+ * @param stream_id ID of the BPF stream to be opened.
+ * @param opts optional options, can be NULL. BPF_F_STREAM_NONBLOCK requests a
+ * non-blocking descriptor.
+ *
+ * @return A new stream FD, on success; negative error code, otherwise (errno
+ * is also set to the error code)
+ */
+LIBBPF_API int bpf_prog_stream_open(int prog_fd, __u32 stream_id,
+				    const struct bpf_prog_stream_open_opts *opts);
 
 struct bpf_prog_assoc_struct_ops_opts {
 	size_t sz;

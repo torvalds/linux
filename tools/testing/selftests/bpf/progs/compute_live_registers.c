@@ -299,7 +299,15 @@ __naked void gotol(void)
 		"r3 = 24;"
 		"if r1 > 0x7 goto +2;"
 		"r0 = r2;"
+#ifdef __clang__
 		"gotol +1;"
+#else
+		/*
+		 * gas mis-parses 'gotol +1' as 'goto l+1', same encoding
+		 * without the sign (binutils PR gas/34558).
+		 */
+		"gotol 1;"
+#endif
 		"r0 = r3;"
 		"exit;"
 		:
@@ -406,13 +414,42 @@ static __used __naked int aux1(void)
 		::: __clobber_all);
 }
 
+static __noinline __used int static_two(int a, int b)
+{
+	return a;
+}
+
+__noinline __used int global_two(int a, int b)
+{
+	return a;
+}
+
 SEC("socket")
 __log_level(2)
-__msg("0: ....45.... (b7) r1 = 1")
-__msg("1: .1..45.... (b7) r2 = 2")
-__msg("2: .12.45.... (b7) r3 = 3")
-/* Conservative liveness for subprog parameters. */
-__msg("3: .12345.... (85) call pc+2")
+/* a static callee reads r1 only, a global callee its declared arguments */
+__msg("2: .1........ (85) call pc+")
+__msg("5: .12....... (85) call pc+")
+__naked void subprog_declared_args(void)
+{
+	asm volatile (
+		"r1 = 1;"
+		"r2 = 2;"
+		"call static_two;"
+		"r1 = 1;"
+		"r2 = 2;"
+		"call global_two;"
+		"r0 = 0;"
+		"exit;"
+		::: __clobber_all);
+}
+
+SEC("socket")
+__log_level(2)
+__msg("0: .......... (b7) r1 = 1")
+__msg("1: .1........ (b7) r2 = 2")
+__msg("2: .12....... (b7) r3 = 3")
+/* A static callee reads what its code reads: aux1 reads r1 and r2. */
+__msg("3: .12....... (85) call pc+2")
 __msg("4: .......... (b7) r0 = 0")
 __msg("5: 0......... (95) exit")
 __msg("6: .12....... (bf) r0 = r1")
@@ -431,7 +468,36 @@ __naked void subprog1(void)
 		::: __clobber_all);
 }
 
-#if defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)
+static __used __naked unsigned __int128 aux2(void)
+{
+	asm volatile (
+		"r0 = 1;"
+		"r2 = 2;"
+		"exit;"
+		::: __clobber_all);
+}
+
+SEC("socket")
+/* A program observing the pair needs the JIT; see bpf_compute_subprog_ret_regs(). */
+__load_if_JITed()
+__log_level(2)
+__msg("0: .......... (85) call pc+2")
+__msg("1: ..2....... (bf) r0 = r2")
+__msg("2: 0......... (95) exit")
+__msg("3: .......... (b7) r0 = 1")
+__msg("4: 0......... (b7) r2 = 2")
+__msg("5: 0.2....... (95) exit")
+__naked void subprog_ret_reg_pair(void)
+{
+	asm volatile (
+		"call aux2;"
+		"r0 = r2;"
+		"exit;"
+		::: __clobber_all);
+}
+
+#if defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || \
+	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)
 
 SEC("socket")
 __log_level(2)
@@ -470,7 +536,7 @@ void gotox(void)
 	: __clobber_all);
 }
 
-#endif /* __TARGET_ARCH_x86 || __TARGET_ARCH_arm64 */
+#endif /* gotox: x86, arm64, riscv64 */
 
 /* to retain debug info for BTF generation */
 void kfunc_root(void)

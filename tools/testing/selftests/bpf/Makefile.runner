@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Build one test_progs flavor or test_maps.
+# Invoked by the main Makefile after shared build inputs are ready.
+# Flavored outputs live in $(OUTPUT)/$(FLAVOR); unflavored outputs
+# share $(OUTPUT) with the main Makefile.
+#
+# Command-line parameters:
+#   OUTPUT         selftests output directory, resolved by lib.mk
+#   RUNNER         test_progs | test_maps
+#   FLAVOR         empty | no_alu32 | cpuv4 | bpf_gcc
+#   TESTS_DIR      prog_tests | map_tests
+#   BPF_*          see Makefile.skel; BPF_CC is empty for test_maps
+#   CC, CLANG      compilers resolved by the main Makefile
+#   CFLAGS, LDFLAGS assembled flags, including lib.mk's additions
+#
+# Exported by the main Makefile:
+#   LLVM_LDLIBS, LLVM_LDFLAGS: LLVM feature-probe results
+
+include ../../../build/Build.include
+include ../../../scripts/Makefile.arch
+include ../../../scripts/Makefile.include
+
+# Same message helpers as ../lib.mk, which only the top level includes.
+ifeq ($(V),1)
+Q =
+msg =
+else
+Q = @
+msg = @printf '  %-8s%s %s%s\n' "$(1)" "$(if $(2), [$(2)])" "$(notdir $(3))" "$(if $(4), $(4))";
+MAKEFLAGS += --no-print-directory
+endif
+
+include Makefile.buildvars
+
+BINARY := $(RUNNER)$(if $(FLAVOR),-$(FLAVOR))
+RDIR   := $(OUTPUT)$(if $(FLAVOR),/$(FLAVOR))
+
+all: $(OUTPUT)/$(BINARY)
+.PHONY: all
+
+# Delete partially updated (corrupted) files on error
+.DELETE_ON_ERROR:
+
+# No built-in rules: every file built here has an explicit rule, and the
+# objects that come from the main Makefile have to be an error when
+# missing rather than a silent rebuild by the built-in %.o recipes.
+MAKEFLAGS += -r
+
+# Permissive build behaviour (skip-on-failure compile, partial-link) only
+# applies to test_progs and its flavors; runners that use strong cross-object
+# references (e.g. test_maps) keep strict semantics even when permissive.
+PERMISSIVE_TESTS := $(if $(filter test_progs,$(RUNNER)),$(PERMISSIVE))
+
+$(RDIR):
+	$(call msg,MKDIR,,$@)
+	$(Q)mkdir -p $@
+
+# Per-runner sources
+
+ifeq ($(RUNNER),test_progs)
+GENERATED_HDRS := $(LIBARENA_SKEL) $(LIBARENA_ASAN_SKEL)
+endif
+
+TEST_SRCS  := $(notdir $(wildcard $(TESTS_DIR)/*.c))
+TEST_OBJS  := $(patsubst %.c,$(RDIR)/%.test.o,$(TEST_SRCS))
+TEST_DEPS  := $(TEST_OBJS:.o=.d)
+
+# BPF objects and skeletons - rules shared with the main Makefile
+
+include Makefile.skel
+
+# When the compiler generates a %.d file, only skel basenames (not
+# full paths) are specified as prerequisites for corresponding %.o
+# file. vpath directives below instruct make to search for skel files
+# in $(RDIR), if they are not present in the working directory.
+vpath %.skel.h $(RDIR)
+vpath %.lskel.h $(RDIR)
+vpath %.subskel.h $(RDIR)
+
+# Test objects and runner binary
+
+$(RDIR)/resolve_btfids.test.o: $(RESOLVE_BTFIDS) $(RDIR)/btf_data.bpf.o
+$(RDIR)/resolve_btfids.test.o: private TEST_NEEDS_BTFIDS = 1
+
+# compile individual test files
+# Note: we cd into output directory to ensure embedded BPF object is found
+# The %.test.d dependency files are a side effect of the -MMD below; the
+# separate no-recipe rule for them orders the first compilation after
+# skeleton generation and re-orders test object compilation when headers
+# change.
+$(TEST_OBJS): $(RDIR)/%.test.o: $(TESTS_DIR)/%.c | $(RDIR)/%.test.d
+	$(call msg,TEST-OBJ,$(BINARY),$@)
+	$(Q)(cd $(@D) && $(CC) -I. $(CFLAGS) -MMD -MT $@ -c $(CURDIR)/$< $(LDLIBS) -o $(@F)) $(if \
+		$(PERMISSIVE_TESTS),$(call skip_on_fail,TEST))
+	$(if $(TEST_NEEDS_BTFIDS),					\
+		$(Q)if [ -f $@ ]; then					\
+		$(if $(filter 1,$(V)),true,printf '  %-8s%s %s\n' "BTFIDS" " [$(BINARY)]" "$(notdir $@)"); \
+		$(RESOLVE_BTFIDS) --btf $(RDIR)/btf_data.bpf.o $@;	\
+		$(RESOLVE_BTFIDS) --patch_btfids $@.BTF_ids $@;		\
+		fi)
+
+$(TEST_DEPS): $(RDIR)/%.test.d: $(TESTS_DIR)/%.c $(GENERATED_HDRS) $(BPFOBJ) \
+	      | $(RDIR) $(ALL_SKELS)
+
+include $(wildcard $(TEST_DEPS))
+
+cmd_runner_link = $(CC) $(CFLAGS) \
+	$(if $(PERMISSIVE_TESTS),$(wildcard $(TEST_OBJS)) \
+		$(filter-out $(TEST_OBJS),$(filter %.a %.o,$^)), \
+		$(filter %.a %.o,$^)) \
+	$(LDLIBS) $(LLVM_LDLIBS) $(LDFLAGS) $(LLVM_LDFLAGS) -o $@
+
+# BPF objects are also needed at runtime.
+# In permissive mode, existing test objects are normal prerequisites
+# so edits trigger relinking. Order-only prerequisites attempt all
+# tests; the recipe links the objects that exist afterward.
+$(OUTPUT)/$(BINARY): $(if $(PERMISSIVE_TESTS),$(wildcard $(TEST_OBJS)),$(TEST_OBJS)) \
+		     $(RUNNER_OBJS-$(RUNNER)) $(BPFOBJ)			\
+		     $(TRUNNER_BPFTOOL)					\
+		     | $(BPF_OBJS)					\
+		     $(if $(PERMISSIVE_TESTS),$(TEST_OBJS))
+	$(call msg,BINARY,,$@)
+	$(Q)$(cmd_runner_link)
+	$(Q)ln -sf $(if $(FLAVOR),..,.)/tools/build/bpftool/$(USE_BOOTSTRAP)bpftool $(RDIR)/bpftool

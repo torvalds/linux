@@ -3,15 +3,21 @@
 
 #include <test_progs.h>
 #include <bpf/btf.h>
+#include <dirent.h>
+#include <limits.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
 
+#define BTF_SYSFS_DIR		"/sys/kernel/btf"
+#define BTF_INLINE_SUFFIX	".inline"
+
 static void test_btf_mmap_sysfs(const char *path, struct btf *base)
 {
 	struct stat st;
 	__u64 btf_size, end;
+	size_t mmap_len = 0;
 	void *raw_data = NULL;
 	int fd = -1;
 	long page_size;
@@ -26,6 +32,7 @@ static void test_btf_mmap_sysfs(const char *path, struct btf *base)
 
 	btf_size = st.st_size;
 	end = (btf_size + page_size - 1) / page_size * page_size;
+	mmap_len = btf_size;
 
 	fd = open(path, O_RDONLY);
 	if (!ASSERT_GE(fd, 0, "open_btf"))
@@ -39,11 +46,13 @@ static void test_btf_mmap_sysfs(const char *path, struct btf *base)
 	if (!ASSERT_EQ(raw_data, MAP_FAILED, "mmap_btf_shared"))
 		goto cleanup;
 
-	raw_data = mmap(NULL, end + 1, PROT_READ, MAP_PRIVATE, fd, 0);
+	mmap_len = end + 1;
+	raw_data = mmap(NULL, mmap_len, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (!ASSERT_EQ(raw_data, MAP_FAILED, "mmap_btf_invalid_size"))
 		goto cleanup;
 
-	raw_data = mmap(NULL, end, PROT_READ, MAP_PRIVATE, fd, 0);
+	mmap_len = end;
+	raw_data = mmap(NULL, mmap_len, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (!ASSERT_OK_PTR(raw_data, "mmap_btf"))
 		goto cleanup;
 
@@ -70,12 +79,84 @@ static void test_btf_mmap_sysfs(const char *path, struct btf *base)
 cleanup:
 	btf__free(btf);
 	if (raw_data && raw_data != MAP_FAILED)
-		munmap(raw_data, btf_size);
+		munmap(raw_data, mmap_len);
 	if (fd >= 0)
 		close(fd);
+}
+
+static void test_btf_inline_sysfs_all(void)
+{
+	struct btf *vmlinux_btf;
+	struct dirent *dentry;
+	DIR *dir;
+	int err = 0;
+
+	dir = opendir(BTF_SYSFS_DIR);
+	if (!ASSERT_OK_PTR(dir, "open_btf_sysfs"))
+		return;
+
+	vmlinux_btf = btf__parse(BTF_SYSFS_DIR "/vmlinux", NULL);
+	if (!ASSERT_OK_PTR(vmlinux_btf, "parse_vmlinux_btf")) {
+		closedir(dir);
+		return;
+	}
+
+	while ((dentry = readdir(dir)) != NULL) {
+		struct btf *base_btf = NULL, *module_btf = NULL, *inline_btf = NULL;
+		char btf_path[PATH_MAX], inline_path[PATH_MAX];
+		struct stat st;
+
+		/* Skip ".", ".." and "foo.inline" */
+		if (strstr(dentry->d_name, "."))
+			continue;
+
+		if (strcmp(dentry->d_name, "vmlinux") == 0)
+			base_btf = vmlinux_btf;
+
+		if (snprintf(btf_path, sizeof(btf_path), "%s/%s",
+			     BTF_SYSFS_DIR, dentry->d_name) >= sizeof(btf_path) ||
+		    snprintf(inline_path, sizeof(inline_path), "%s/%s%s",
+			     BTF_SYSFS_DIR, dentry->d_name, BTF_INLINE_SUFFIX) >=
+			     sizeof(inline_path)) {
+			ASSERT_FAIL("BTF sysfs path is too long\n");
+			break;
+		}
+
+		if (!base_btf) {
+			module_btf = btf__parse_split(btf_path, vmlinux_btf);
+			err = libbpf_get_error(module_btf);
+			if (err) {
+				/* A module can be unloaded while its sysfs entry is iterated. */
+				if (err == -ENOENT)
+					continue;
+				ASSERT_OK(err, "parse_module_btf");
+				continue;
+			}
+			base_btf = module_btf;
+		}
+		if (stat(inline_path, &st)) {
+			err = errno;
+			if (err != ENOENT)
+				ASSERT_OK(err, "stat_inline_btf");
+			btf__free(module_btf);
+			continue;
+		}
+		if (base_btf == vmlinux_btf)
+			test_btf_mmap_sysfs(inline_path, base_btf);
+		inline_btf = btf__parse_split(inline_path, base_btf);
+		err = libbpf_get_error(inline_btf);
+		if (!err)
+			btf__free(inline_btf);
+		ASSERT_OK(err, "parse_inline_btf");
+		btf__free(module_btf);
+	}
+	closedir(dir);
+
+	btf__free(vmlinux_btf);
 }
 
 void test_btf_sysfs(void)
 {
 	test_btf_mmap_sysfs("/sys/kernel/btf/vmlinux", NULL);
+	test_btf_inline_sysfs_all();
 }

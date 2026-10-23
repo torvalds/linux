@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include <bpf/btf.h>
-
-static int duration = 0;
+#include "testing_helpers.h"
 
 void btf_dump_printf(void *ctx, const char *fmt, va_list args)
 {
@@ -45,12 +44,75 @@ done:
 	return err;
 }
 
+/*
+ * Expected output is embedded in the test case source, between
+ * START-EXPECTED-OUTPUT and END-EXPECTED-OUTPUT markers. A region is either
+ * plain C, where a declaration doubles as its own expectation, or C wrapped in
+ * a block comment, where the rendered form differs from the source. All
+ * regions of a file concatenate into one expectation, compared against one
+ * whole-file dump.
+ *
+ * Returns a malloc'd buffer for the caller to free, or NULL on failure.
+ */
+static char *read_expected_output(const char *path)
+{
+	size_t out_sz = 0, line_cap = 0;
+	char *out = NULL, *line = NULL;
+	bool in_region = false;
+	FILE *f, *out_file;
+
+	f = fopen(path, "r");
+	if (!f)
+		return NULL;
+
+	out_file = open_memstream(&out, &out_sz);
+	if (!out_file) {
+		fclose(f);
+		return NULL;
+	}
+
+	while (getline(&line, &line_cap, f) > 0) {
+		const char *p;
+
+		if (strstr(line, "START-EXPECTED-OUTPUT")) {
+			in_region = true;
+			continue;
+		}
+		if (strstr(line, "END-EXPECTED-OUTPUT"))
+			in_region = false;
+		if (!in_region)
+			continue;
+
+		p = line + strspn(line, " \t");
+
+		/* opening or closing line of a commented out region */
+		if (!strncmp(p, "/*", 2) || !strncmp(p, "*/", 2))
+			continue;
+
+		/*
+		 * Only a '*' directly after the indentation is a comment
+		 * prefix. Without one the line is taken as it is, leading
+		 * whitespace included.
+		 */
+		p = *p == '*' ? p + 1 : line;
+
+		fputs(p, out_file);
+	}
+
+	free(line);
+	fclose(f);
+	fclose(out_file);
+	return out;
+}
+
 static int test_btf_dump_case(int n, struct btf_dump_test_case *t)
 {
-	char test_file[256], out_file[256], diff_cmd[1024];
+	char *dump = NULL, *expected = NULL;
 	struct btf *btf = NULL;
-	int err = 0, fd = -1;
-	FILE *f = NULL;
+	char test_file[256];
+	size_t dump_sz = 0;
+	int err = 0;
+	FILE *f;
 
 	snprintf(test_file, sizeof(test_file), "%s.bpf.o", t->file);
 
@@ -69,29 +131,21 @@ static int test_btf_dump_case(int n, struct btf_dump_test_case *t)
 	if (!t->known_ptr_sz) {
 		btf__set_pointer_size(btf, 8);
 	} else {
-		CHECK(btf__pointer_size(btf) != 8, "ptr_sz", "exp %d, got %zu\n",
-		      8, btf__pointer_size(btf));
+		size_t ptr_sz = btf__pointer_size(btf);
+
+		ASSERT_EQ(ptr_sz, (size_t)8, "ptr_sz");
 	}
 
-	snprintf(out_file, sizeof(out_file), "/tmp/%s.output.XXXXXX", t->file);
-	fd = mkstemp(out_file);
-	if (!ASSERT_GE(fd, 0, "create_tmp")) {
-		err = fd;
-		goto done;
-	}
-	f = fdopen(fd, "w");
-	if (CHECK(f == NULL, "open_tmp",  "failed to open file: %s(%d)\n",
-		  strerror(errno), errno)) {
-		close(fd);
+	f = open_memstream(&dump, &dump_sz);
+	if (!ASSERT_OK_PTR(f, "open_memstream")) {
+		err = -errno;
 		goto done;
 	}
 
 	err = btf_dump_all_types(btf, f);
 	fclose(f);
-	close(fd);
-	if (CHECK(err, "btf_dump", "failure during C dumping: %d\n", err)) {
+	if (!ASSERT_OK(err, "btf_dump"))
 		goto done;
-	}
 
 	snprintf(test_file, sizeof(test_file), "progs/%s.c", t->file);
 	if (access(test_file, R_OK) == -1)
@@ -100,28 +154,18 @@ static int test_btf_dump_case(int n, struct btf_dump_test_case *t)
 		 * without preserving the directory structure.
 		 */
 		snprintf(test_file, sizeof(test_file), "%s.c", t->file);
-	/*
-	 * Diff test output and expected test output, contained between
-	 * START-EXPECTED-OUTPUT and END-EXPECTED-OUTPUT lines in test case.
-	 * For expected output lines, everything before '*' is stripped out.
-	 * Also lines containing comment start and comment end markers are
-	 * ignored. 
-	 */
-	snprintf(diff_cmd, sizeof(diff_cmd),
-		 "awk '/START-EXPECTED-OUTPUT/{out=1;next} "
-		 "/END-EXPECTED-OUTPUT/{out=0} "
-		 "/\\/\\*|\\*\\//{next} " /* ignore comment start/end lines */
-		 "out {sub(/^[ \\t]*\\*/, \"\"); print}' '%s' | diff -u - '%s'",
-		 test_file, out_file);
-	err = system(diff_cmd);
-	if (CHECK(err, "diff",
-		  "differing test output, output=%s, err=%d, diff cmd:\n%s\n",
-		  out_file, err, diff_cmd))
-		goto done;
 
-	remove(out_file);
+	expected = read_expected_output(test_file);
+	if (!ASSERT_OK_PTR(expected, "read_expected_output")) {
+		err = -errno;
+		goto done;
+	}
+
+	ASSERT_TEXT_EQ(dump, expected, "compare_text_to_expected");
 
 done:
+	free(expected);
+	free(dump);
 	btf__free(btf);
 	return err;
 }
@@ -175,7 +219,7 @@ static void test_ctx__dump_and_compare(struct test_ctx *t,
 	fflush(t->dump_buf_file);
 	t->dump_buf[t->dump_buf_sz] = 0; /* some libc implementations don't do this */
 
-	ASSERT_STREQ(t->dump_buf, expected_output, message);
+	ASSERT_TEXT_EQ(t->dump_buf, expected_output, message);
 }
 
 static void test_btf_dump_incremental(void)
@@ -266,6 +310,8 @@ static void test_btf_dump_incremental(void)
 	ASSERT_OK(err, "field_ok");
 	err = btf__add_field(btf, "s", 6, 64, 0);
 	ASSERT_OK(err, "field_ok");
+	/* attribute on a type added after the first dump: the later walk indexes it */
+	ASSERT_EQ(btf__add_decl_attr(btf, "round2", 7, -1), 8, "round2_attr");
 
 	test_ctx__dump_and_compare(&t,
 "struct s___2 {\n"
@@ -274,7 +320,270 @@ static void test_btf_dump_incremental(void)
 "		Y___2 = 1,\n"
 "	} y;\n"
 "	struct s s;\n"
-"};\n\n" , "c_dump1");
+"} __attribute__((round2));\n\n", "c_dump1");
+
+	test_ctx__free(&t);
+}
+
+static void test_btf_dump_decl_tags(void)
+{
+	struct test_ctx t = {};
+	struct btf *btf;
+	int id;
+
+	if (test_ctx__init(&t))
+		return;
+
+	btf = t.btf;
+
+	/*
+	 * Generate BTF corresponding to the following C code:
+	 *
+	 * struct s1 { int f; } __attribute__((attr1))
+	 *                      __attribute__((btf_decl_tag("plain_tag")));
+	 * typedef struct { int f; } __attribute__((a1)) __attribute__((a2)) t1;
+	 * union u1 { int f; } __attribute__((uattr));
+	 * struct p1 { char c; int i; } __attribute__((packed)) __attribute__((pattr));
+	 * struct outer { struct { int g; } __attribute__((inner)) in; };
+	 * struct s2 { int f; } __attribute__((on_s2));
+	 * struct s3 { int f; } __attribute__((on_s3));
+	 *
+	 * plus attributes on a var and a func, which btf_dump does not declare.
+	 */
+	id = btf__add_int(btf, "int", 4, BTF_INT_SIGNED);
+	ASSERT_EQ(id, 1, "int_id");
+	id = btf__add_int(btf, "char", 1, BTF_INT_CHAR);
+	ASSERT_EQ(id, 2, "char_id");
+
+	/* a named record with one attribute of each form */
+	id = btf__add_struct(btf, "s1", 4);
+	ASSERT_EQ(id, 3, "s1_id");
+	ASSERT_OK(btf__add_field(btf, "f", 1, 0, 0), "s1_field");
+	ASSERT_EQ(btf__add_decl_attr(btf, "attr1", 3, -1), 4, "s1_attr");
+	/* no kflag: rendered as a btf_decl_tag(), not as a bare attribute */
+	ASSERT_EQ(btf__add_decl_tag(btf, "plain_tag", 3, -1), 5, "s1_plain_tag");
+
+	/*
+	 * an anonymous record behind a typedef, with two attributes. This is
+	 * the case that cannot be expressed by a caller appending to the dump:
+	 * the attribute has to go before the declarator.
+	 */
+	id = btf__add_struct(btf, NULL, 4);
+	ASSERT_EQ(id, 6, "anon_id");
+	ASSERT_OK(btf__add_field(btf, "f", 1, 0, 0), "anon_field");
+	ASSERT_EQ(btf__add_decl_attr(btf, "a1", 6, -1), 7, "anon_attr1");
+	ASSERT_EQ(btf__add_decl_attr(btf, "a2", 6, -1), 8, "anon_attr2");
+	id = btf__add_typedef(btf, "t1", 6);
+	ASSERT_EQ(id, 9, "typedef_id");
+
+	/* unions are records too */
+	id = btf__add_union(btf, "u1", 4);
+	ASSERT_EQ(id, 10, "u1_id");
+	ASSERT_OK(btf__add_field(btf, "f", 1, 0, 0), "u1_field");
+	ASSERT_EQ(btf__add_decl_attr(btf, "uattr", 10, -1), 11, "u1_attr");
+
+	/* composes with the packed attribute, which is derived from layout */
+	id = btf__add_struct(btf, "p1", 5);
+	ASSERT_EQ(id, 12, "p1_id");
+	ASSERT_OK(btf__add_field(btf, "c", 2, 0, 0), "p1_field_c");
+	ASSERT_OK(btf__add_field(btf, "i", 1, 8, 0), "p1_field_i");
+	ASSERT_EQ(btf__add_decl_attr(btf, "pattr", 12, -1), 13, "p1_attr");
+
+	/* an anonymous record inlined at a member, the third emission position */
+	id = btf__add_struct(btf, NULL, 4);
+	ASSERT_EQ(id, 14, "inner_id");
+	ASSERT_OK(btf__add_field(btf, "g", 1, 0, 0), "inner_field");
+	ASSERT_EQ(btf__add_decl_attr(btf, "inner", 14, -1), 15, "inner_attr");
+	id = btf__add_struct(btf, "outer", 4);
+	ASSERT_EQ(id, 16, "outer_id");
+	ASSERT_OK(btf__add_field(btf, "in", 14, 0, 0), "outer_field");
+
+	/* not rendered: a var has no declaration in the C output */
+	id = btf__add_var(btf, "v", BTF_VAR_GLOBAL_ALLOCATED, 3);
+	ASSERT_EQ(id, 17, "var_id");
+	ASSERT_EQ(btf__add_decl_attr(btf, "var_attr", 17, -1), 18, "var_attr");
+	/* not rendered: neither does a func */
+	id = btf__add_func_proto(btf, 1);
+	ASSERT_EQ(id, 19, "proto_id");
+	id = btf__add_func(btf, "fn", BTF_FUNC_GLOBAL, 19);
+	ASSERT_EQ(id, 20, "func_id");
+	ASSERT_EQ(btf__add_decl_attr(btf, "func_attr", 20, -1), 21, "func_attr");
+
+	/*
+	 * Tags added in reverse target order: the tag with the lower type ID
+	 * names the record with the higher one, so the index is in emission
+	 * order only once btf_dump_resize() has sorted it. Without the sort
+	 * the lookups land outside their runs and the records lose their
+	 * attributes.
+	 */
+	id = btf__add_struct(btf, "s2", 4);
+	ASSERT_EQ(id, 22, "s2_id");
+	ASSERT_OK(btf__add_field(btf, "f", 1, 0, 0), "s2_field");
+	id = btf__add_struct(btf, "s3", 4);
+	ASSERT_EQ(id, 23, "s3_id");
+	ASSERT_OK(btf__add_field(btf, "f", 1, 0, 0), "s3_field");
+	ASSERT_EQ(btf__add_decl_attr(btf, "on_s3", 23, -1), 24, "s3_attr");
+	ASSERT_EQ(btf__add_decl_attr(btf, "on_s2", 22, -1), 25, "s2_attr");
+
+	test_ctx__dump_and_compare(&t,
+"struct s1 {\n"
+"	int f;\n"
+"} __attribute__((attr1)) __attribute__((btf_decl_tag(\"plain_tag\")));\n"
+"\n"
+"typedef struct {\n"
+"	int f;\n"
+"} __attribute__((a1)) __attribute__((a2)) t1;\n"
+"\n"
+"union u1 {\n"
+"	int f;\n"
+"} __attribute__((uattr));\n"
+"\n"
+"struct p1 {\n"
+"	char c;\n"
+"	int i;\n"
+"} __attribute__((packed)) __attribute__((pattr));\n"
+"\n"
+"struct outer {\n"
+"	struct {\n"
+"		int g;\n"
+"	} __attribute__((inner)) in;\n"
+"};\n"
+"\n"
+"struct s2 {\n"
+"	int f;\n"
+"} __attribute__((on_s2));\n"
+"\n"
+"struct s3 {\n"
+"	int f;\n"
+"} __attribute__((on_s3));\n"
+"\n", "dump_and_compare");
+
+	test_ctx__free(&t);
+}
+
+/*
+ * An attribute on a member is emitted at the member declaration, and one on
+ * the record at the closing brace. Both are keyed by the record in the index,
+ * so this also checks that they do not leak into each other's position.
+ */
+static void test_btf_dump_decl_tags_members(void)
+{
+	struct test_ctx t = {};
+	struct btf *btf;
+	int id;
+
+	if (test_ctx__init(&t))
+		return;
+
+	btf = t.btf;
+
+	/*
+	 * Generate BTF corresponding to the following C code:
+	 *
+	 * struct m1 {
+	 *	int (*fp)(void) __attribute__((fp_attr));
+	 *	int a;
+	 *	int b __attribute__((b1)) __attribute__((b2));
+	 *	int arr[4] __attribute__((arr_attr));
+	 * } __attribute__((rec));
+	 * struct bits { int x : 3 __attribute__((x_attr)); int y : 29; };
+	 */
+	id = btf__add_int(btf, "int", 4, BTF_INT_SIGNED);
+	ASSERT_EQ(id, 1, "int_id");
+	id = btf__add_array(btf, 1, 1, 4);
+	ASSERT_EQ(id, 2, "array_id");
+	id = btf__add_func_proto(btf, 1);
+	ASSERT_EQ(id, 3, "proto_id");
+	id = btf__add_ptr(btf, 3);
+	ASSERT_EQ(id, 4, "ptr_id");
+
+	id = btf__add_struct(btf, "m1", 32);
+	ASSERT_EQ(id, 5, "m1_id");
+	ASSERT_OK(btf__add_field(btf, "fp", 4, 0, 0), "m1_fp");
+	ASSERT_OK(btf__add_field(btf, "a", 1, 64, 0), "m1_a");
+	ASSERT_OK(btf__add_field(btf, "b", 1, 96, 0), "m1_b");
+	ASSERT_OK(btf__add_field(btf, "arr", 2, 128, 0), "m1_arr");
+	ASSERT_EQ(btf__add_decl_attr(btf, "rec", 5, -1), 6, "m1_rec_attr");
+	/* the attribute follows the whole declarator, pointer and array alike */
+	ASSERT_EQ(btf__add_decl_attr(btf, "fp_attr", 5, 0), 7, "m1_fp_attr");
+	/* two on one member, to pin the ordering */
+	ASSERT_EQ(btf__add_decl_attr(btf, "b1", 5, 2), 8, "m1_b1");
+	ASSERT_EQ(btf__add_decl_attr(btf, "b2", 5, 2), 9, "m1_b2");
+	ASSERT_EQ(btf__add_decl_attr(btf, "arr_attr", 5, 3), 10, "m1_arr_attr");
+
+	/* a bit-field: the attribute has to follow the width */
+	id = btf__add_struct(btf, "bits", 4);
+	ASSERT_EQ(id, 11, "bits_id");
+	ASSERT_OK(btf__add_field(btf, "x", 1, 0, 3), "bits_x");
+	ASSERT_OK(btf__add_field(btf, "y", 1, 3, 29), "bits_y");
+	ASSERT_EQ(btf__add_decl_attr(btf, "x_attr", 11, 0), 12, "bits_x_attr");
+
+	test_ctx__dump_and_compare(&t,
+"struct m1 {\n"
+"	int (*fp)(void) __attribute__((fp_attr));\n"
+"	int a;\n"
+"	int b __attribute__((b1)) __attribute__((b2));\n"
+"	int arr[4] __attribute__((arr_attr));\n"
+"} __attribute__((rec));\n"
+"\n"
+"struct bits {\n"
+"	int x: 3 __attribute__((x_attr));\n"
+"	int y: 29;\n"
+"};\n"
+"\n", "dump_and_compare");
+
+	test_ctx__free(&t);
+}
+
+/*
+ * A typedef is the third and last kind btf_dump declares. Its attributes go
+ * after the declarator, so a typedef of an anonymous record can carry three
+ * groups in one declaration, binding to three different entities.
+ */
+static void test_btf_dump_decl_tags_typedef(void)
+{
+	struct test_ctx t = {};
+	struct btf *btf;
+	int id;
+
+	if (test_ctx__init(&t))
+		return;
+
+	btf = t.btf;
+
+	/*
+	 * Generate BTF corresponding to the following C code:
+	 *
+	 * typedef int td __attribute__((t1))
+	 *                __attribute__((btf_decl_tag("t2")));
+	 * typedef struct {
+	 *	int f __attribute__((memb_attr));
+	 * } __attribute__((rec_attr)) both __attribute__((both_attr));
+	 */
+	id = btf__add_int(btf, "int", 4, BTF_INT_SIGNED);
+	ASSERT_EQ(id, 1, "int_id");
+	id = btf__add_typedef(btf, "td", 1);
+	ASSERT_EQ(id, 2, "td_id");
+	ASSERT_EQ(btf__add_decl_attr(btf, "t1", 2, -1), 3, "td_attr1");
+	/* no kflag: rendered as a btf_decl_tag(), not as a bare attribute */
+	ASSERT_EQ(btf__add_decl_tag(btf, "t2", 2, -1), 4, "td_attr2");
+
+	id = btf__add_struct(btf, NULL, 4);
+	ASSERT_EQ(id, 5, "anon_id");
+	ASSERT_OK(btf__add_field(btf, "f", 1, 0, 0), "anon_field");
+	ASSERT_EQ(btf__add_decl_attr(btf, "rec_attr", 5, -1), 6, "anon_rec_attr");
+	ASSERT_EQ(btf__add_decl_attr(btf, "memb_attr", 5, 0), 7, "anon_memb_attr");
+	id = btf__add_typedef(btf, "both", 5);
+	ASSERT_EQ(id, 8, "both_id");
+	ASSERT_EQ(btf__add_decl_attr(btf, "both_attr", 8, -1), 9, "both_attr");
+
+	test_ctx__dump_and_compare(&t,
+"typedef int td __attribute__((t1)) __attribute__((btf_decl_tag(\"t2\")));\n"
+"\n"
+"typedef struct {\n"
+"	int f __attribute__((memb_attr));\n"
+"} __attribute__((rec_attr)) both __attribute__((both_attr));\n"
+"\n", "dump_and_compare");
 
 	test_ctx__free(&t);
 }
@@ -295,8 +604,10 @@ static void test_btf_dump_type_tags(void)
 	 * struct s {
 	 *   void __attribute__((btf_type_tag(\"void_tag\"))) *p1;
 	 *   void __attribute__((void_attr)) *p2;
+	 *   void __arena *p3;
 	 * };
 	 *
+	 * The arena tag is rendered with the address space it denotes.
 	 */
 
 	id = btf__add_type_tag(btf, "void_tag", 0);
@@ -309,17 +620,25 @@ static void test_btf_dump_type_tags(void)
 	id = btf__add_ptr(btf, id);
 	ASSERT_EQ(id, 4, "void_ptr_id2");
 
-	id = btf__add_struct(btf, "s", 8);
-	ASSERT_EQ(id, 5, "struct_id");
+	id = btf__add_type_tag(btf, "arena", 0);
+	ASSERT_EQ(id, 5, "arena_tag_id");
+	id = btf__add_ptr(btf, id);
+	ASSERT_EQ(id, 6, "void_ptr_id3");
+
+	id = btf__add_struct(btf, "s", 24);
+	ASSERT_EQ(id, 7, "struct_id");
 	err = btf__add_field(btf, "p1", 2, 0, 0);
 	ASSERT_OK(err, "field_ok1");
-	err = btf__add_field(btf, "p2", 4, 0, 0);
+	err = btf__add_field(btf, "p2", 4, 64, 0);
 	ASSERT_OK(err, "field_ok2");
+	err = btf__add_field(btf, "p3", 6, 128, 0);
+	ASSERT_OK(err, "field_ok3");
 
 	test_ctx__dump_and_compare(&t,
 "struct s {\n"
 "	void __attribute__((btf_type_tag(\"void_tag\"))) *p1;\n"
 "	void __attribute__((void_attr)) *p2;\n"
+"	void __attribute__((address_space(1))) __attribute__((btf_type_tag(\"arena\"))) *p3;\n"
 "};\n\n", "dump_and_compare");
 
 	test_ctx__free(&t);
@@ -1059,6 +1378,15 @@ void test_btf_dump() {
 	}
 	if (test__start_subtest("btf_dump: incremental"))
 		test_btf_dump_incremental();
+
+	if (test__start_subtest("btf_dump: decl_tags"))
+		test_btf_dump_decl_tags();
+
+	if (test__start_subtest("btf_dump: decl_tags_members"))
+		test_btf_dump_decl_tags_members();
+
+	if (test__start_subtest("btf_dump: decl_tags_typedef"))
+		test_btf_dump_decl_tags_typedef();
 
 	if (test__start_subtest("btf_dump: type_tags"))
 		test_btf_dump_type_tags();

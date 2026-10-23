@@ -56,6 +56,46 @@ __naked void out_of_range_jump2(void)
 "	::: __clobber_all);
 }
 
+static __naked __noinline __used int cross_subprog_target(void)
+{
+	asm volatile ("					\
+	r0 = 0;						\
+	exit;						\
+"	::: __clobber_all);
+}
+
+SEC("socket")
+__description("jump across subprogram boundary")
+__failure __msg("jump out of range from insn 1")
+__msg("jump_across_subprog_boundary @ verifier_cfg.c")
+__naked void jump_across_subprog_boundary(void)
+{
+	asm volatile ("					\
+	call cross_subprog_target;			\
+	goto +1;					\
+	exit;						\
+"	::: __clobber_all);
+}
+
+static __naked __noinline __used int fallthrough_subprog(void)
+{
+	asm volatile ("					\
+	r0 = 0;						\
+"	::: __clobber_all);
+}
+
+SEC("socket")
+__description("subprogram fallthrough")
+__failure __msg("last insn is not an exit or jmp")
+__msg("fallthrough_subprog @ verifier_cfg.c")
+__naked void subprog_fallthrough(void)
+{
+	asm volatile ("					\
+	call fallthrough_subprog;			\
+	exit;						\
+"	::: __clobber_all);
+}
+
 SEC("socket")
 __description("invalid DW LDSX instruction in diagnostics")
 __failure __msg("BUG_ldx_99")
@@ -170,6 +210,45 @@ __naked void uncond_loop_in_subprog_after_cond_jmp(void)
 l0_%=:	r0 += 1;					\
 	call never_ending_subprog;			\
 l1_%=:	exit;						\
+"	::: __clobber_all);
+}
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u32);
+} map_array SEC(".maps");
+
+extern void bpf_throw(__u64 cookie) __ksym;
+
+/*
+ * The subprogram leaves through the tail call or the exception and never
+ * reaches an exit insn, so the hidden edge of the tail call has no exit to
+ * point at. The stack access makes the liveness pass walk the subprogram,
+ * and the loop compiles to a single jump back onto itself.
+ */
+__noinline __used
+static int tail_call_or_throw_subprog(void *ctx)
+{
+	volatile __u32 idx = 0;
+
+	bpf_tail_call(ctx, &map_array, idx);
+	bpf_throw(0);
+	for (;;) {}
+	return 0;
+}
+
+SEC("tc")
+__description("tail call in a subprogram without an exit")
+__arch_x86_64
+__arch_arm64
+__success
+__naked void tail_call_in_subprog_without_exit(void)
+{
+	asm volatile ("					\
+	call tail_call_or_throw_subprog;		\
+	exit;						\
 "	::: __clobber_all);
 }
 

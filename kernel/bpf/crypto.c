@@ -1,19 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2024 Meta, Inc */
 #include <linux/bpf.h>
-#include <linux/bpf_crypto.h>
 #include <linux/bpf_mem_alloc.h>
 #include <linux/btf.h>
 #include <linux/btf_ids.h>
 #include <linux/filter.h>
-#include <linux/scatterlist.h>
 #include <linux/skbuff.h>
-#include <crypto/skcipher.h>
-
-struct bpf_crypto_type_list {
-	const struct bpf_crypto_type *type;
-	struct list_head list;
-};
+#include <crypto/aes-cbc.h>
+#include <crypto/aes-ecb.h>
 
 /* BPF crypto initialization parameters struct */
 /**
@@ -36,93 +30,52 @@ struct bpf_crypto_params {
 	u32 authsize;
 };
 
-static LIST_HEAD(bpf_crypto_types);
-static DECLARE_RWSEM(bpf_crypto_types_sem);
+enum bpf_crypto_algo_id {
+	BPF_ALGO_AES_CBC,
+	BPF_ALGO_AES_ECB,
+};
+
+static const struct {
+	const char *type_name;
+	const char *algo_name;
+	enum bpf_crypto_algo_id algo;
+} bpf_crypto_algos[] = {
+	{ "skcipher", "cbc(aes)", BPF_ALGO_AES_CBC },
+	{ "skcipher", "ecb(aes)", BPF_ALGO_AES_ECB },
+};
+
+static bool bpf_crypto_find_algo(const struct bpf_crypto_params *params,
+				 enum bpf_crypto_algo_id *id_ret)
+{
+	for (size_t i = 0; i < ARRAY_SIZE(bpf_crypto_algos); i++) {
+		if (strncmp(bpf_crypto_algos[i].type_name, params->type,
+			    sizeof(params->type)) == 0 &&
+		    strncmp(bpf_crypto_algos[i].algo_name, params->algo,
+			    sizeof(params->algo)) == 0) {
+			*id_ret = bpf_crypto_algos[i].algo;
+			return true;
+		}
+	}
+	return false;
+}
 
 /**
  * struct bpf_crypto_ctx - refcounted BPF crypto context structure
- * @type:	The pointer to bpf crypto type
- * @tfm:	The pointer to instance of crypto API struct.
- * @siv_len:    Size of IV and state storage for cipher
+ * @key:	The crypto key
+ * @algo:	The crypto algorithm ID
  * @rcu:	The RCU head used to free the crypto context with RCU safety.
  * @usage:	Object reference counter. When the refcount goes to 0, the
  *		memory is released back to the BPF allocator, which provides
  *		RCU safety.
  */
 struct bpf_crypto_ctx {
-	const struct bpf_crypto_type *type;
-	void *tfm;
-	u32 siv_len;
+	union {
+		struct aes_key aes;
+	} key;
+	enum bpf_crypto_algo_id algo;
 	struct rcu_head rcu;
 	refcount_t usage;
 };
-
-int bpf_crypto_register_type(const struct bpf_crypto_type *type)
-{
-	struct bpf_crypto_type_list *node;
-	int err = -EBUSY;
-
-	down_write(&bpf_crypto_types_sem);
-	list_for_each_entry(node, &bpf_crypto_types, list) {
-		if (!strcmp(node->type->name, type->name))
-			goto unlock;
-	}
-
-	node = kmalloc_obj(*node);
-	err = -ENOMEM;
-	if (!node)
-		goto unlock;
-
-	node->type = type;
-	list_add(&node->list, &bpf_crypto_types);
-	err = 0;
-
-unlock:
-	up_write(&bpf_crypto_types_sem);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(bpf_crypto_register_type);
-
-int bpf_crypto_unregister_type(const struct bpf_crypto_type *type)
-{
-	struct bpf_crypto_type_list *node;
-	int err = -ENOENT;
-
-	down_write(&bpf_crypto_types_sem);
-	list_for_each_entry(node, &bpf_crypto_types, list) {
-		if (strcmp(node->type->name, type->name))
-			continue;
-
-		list_del(&node->list);
-		kfree(node);
-		err = 0;
-		break;
-	}
-	up_write(&bpf_crypto_types_sem);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(bpf_crypto_unregister_type);
-
-static const struct bpf_crypto_type *bpf_crypto_get_type(const char *name)
-{
-	const struct bpf_crypto_type *type = ERR_PTR(-ENOENT);
-	struct bpf_crypto_type_list *node;
-
-	down_read(&bpf_crypto_types_sem);
-	list_for_each_entry(node, &bpf_crypto_types, list) {
-		if (strcmp(node->type->name, name))
-			continue;
-
-		if (try_module_get(node->type->owner))
-			type = node->type;
-		break;
-	}
-	up_read(&bpf_crypto_types_sem);
-
-	return type;
-}
 
 __bpf_kfunc_start_defs();
 
@@ -132,93 +85,70 @@ __bpf_kfunc_start_defs();
  * Allocates a crypto context that can be used, acquired, and released by
  * a BPF program. The crypto context returned by this function must either
  * be embedded in a map as a kptr, or freed with bpf_crypto_ctx_release().
- * As crypto API functions use GFP_KERNEL allocations, this function can
- * only be used in sleepable BPF programs.
+ * As this uses a GFP_KERNEL allocation, this function can only be used in
+ * sleepable BPF programs.
  *
  * bpf_crypto_ctx_create() allocates memory for crypto context.
  * It may return NULL if no memory is available.
  * @params:	pointer to struct bpf_crypto_params which contains all the
  *		details needed to initialise crypto context.
- * @params__sz:	size of steuct bpf_crypto_params usef by bpf program
- * @err:	integer to store error code when NULL is returned.
+ * @params__sz:	size of struct bpf_crypto_params used by bpf program
+ * @err_ret:	integer to store error code when NULL is returned.
  */
 __bpf_kfunc struct bpf_crypto_ctx *
 bpf_crypto_ctx_create(const struct bpf_crypto_params *params, u32 params__sz,
-		      int *err)
+		      int *err_ret)
 {
-	const struct bpf_crypto_type *type;
 	struct bpf_crypto_ctx *ctx;
+	int err;
 
 	if (!params ||
 	    params__sz != sizeof(struct bpf_crypto_params) ||
 	    params->reserved[0] || params->reserved[1]) {
-		*err = -EINVAL;
+		*err_ret = -EINVAL;
 		return NULL;
-	}
-
-	type = bpf_crypto_get_type(params->type);
-	if (IS_ERR(type)) {
-		*err = PTR_ERR(type);
-		return NULL;
-	}
-
-	if (!type->has_algo(params->algo)) {
-		*err = -EOPNOTSUPP;
-		goto err_module_put;
-	}
-
-	if (!!params->authsize ^ !!type->setauthsize) {
-		*err = -EOPNOTSUPP;
-		goto err_module_put;
 	}
 
 	if (!params->key_len || params->key_len > sizeof(params->key)) {
-		*err = -EINVAL;
-		goto err_module_put;
+		*err_ret = -EINVAL;
+		return NULL;
 	}
 
 	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
-		*err = -ENOMEM;
-		goto err_module_put;
+		*err_ret = -ENOMEM;
+		return NULL;
 	}
 
-	ctx->type = type;
-	ctx->tfm = type->alloc_tfm(params->algo);
-	if (IS_ERR(ctx->tfm)) {
-		*err = PTR_ERR(ctx->tfm);
-		goto err_free_ctx;
+	if (!bpf_crypto_find_algo(params, &ctx->algo)) {
+		err = -EOPNOTSUPP;
+		goto out;
 	}
 
-	if (params->authsize) {
-		*err = type->setauthsize(ctx->tfm, params->authsize);
-		if (*err)
-			goto err_free_tfm;
+	switch (ctx->algo) {
+	case BPF_ALGO_AES_CBC:
+	case BPF_ALGO_AES_ECB:
+		if (params->authsize)
+			err = -EOPNOTSUPP;
+		else
+			err = aes_preparekey(&ctx->key.aes, params->key,
+					     params->key_len);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		err = -EOPNOTSUPP;
+		break;
 	}
 
-	*err = type->setkey(ctx->tfm, params->key, params->key_len);
-	if (*err)
-		goto err_free_tfm;
-
-	if (type->get_flags(ctx->tfm) & CRYPTO_TFM_NEED_KEY) {
-		*err = -EINVAL;
-		goto err_free_tfm;
+out:
+	if (err) {
+		kfree_sensitive(ctx);
+		*err_ret = err;
+		return NULL;
 	}
-
-	ctx->siv_len = type->ivsize(ctx->tfm) + type->statesize(ctx->tfm);
-
 	refcount_set(&ctx->usage, 1);
-
+	*err_ret = 0;
 	return ctx;
-
-err_free_tfm:
-	type->free_tfm(ctx->tfm);
-err_free_ctx:
-	kfree(ctx);
-err_module_put:
-	module_put(type->owner);
-
-	return NULL;
 }
 
 static void crypto_free_cb(struct rcu_head *head)
@@ -226,9 +156,7 @@ static void crypto_free_cb(struct rcu_head *head)
 	struct bpf_crypto_ctx *ctx;
 
 	ctx = container_of(head, struct bpf_crypto_ctx, rcu);
-	ctx->type->free_tfm(ctx->tfm);
-	module_put(ctx->type->owner);
-	kfree(ctx);
+	kfree_sensitive(ctx);
 }
 
 /**
@@ -268,27 +196,53 @@ __bpf_kfunc void bpf_crypto_ctx_release_dtor(void *ctx)
 }
 CFI_NOSEAL(bpf_crypto_ctx_release_dtor);
 
+static int bpf_aes_cbc_crypt(u8 *dst, u32 dst_len, const u8 *src, u32 src_len,
+			     u8 *iv, u32 iv_len,
+			     const struct bpf_crypto_ctx *ctx, bool decrypt)
+{
+	if (iv_len != AES_BLOCK_SIZE)
+		return -EINVAL;
+	if (src_len % AES_BLOCK_SIZE || dst_len < src_len)
+		return -EINVAL;
+	if (decrypt)
+		aes_cbc_decrypt(dst, src, src_len, iv, &ctx->key.aes);
+	else
+		aes_cbc_encrypt(dst, src, src_len, iv, &ctx->key.aes);
+	return 0;
+}
+
+static int bpf_aes_ecb_crypt(u8 *dst, u32 dst_len, const u8 *src, u32 src_len,
+			     u8 *iv, u32 iv_len,
+			     const struct bpf_crypto_ctx *ctx, bool decrypt)
+{
+	if (iv_len != 0)
+		return -EINVAL;
+	if (src_len % AES_BLOCK_SIZE || dst_len < src_len)
+		return -EINVAL;
+	if (decrypt)
+		aes_ecb_decrypt(dst, src, src_len, &ctx->key.aes);
+	else
+		aes_ecb_encrypt(dst, src, src_len, &ctx->key.aes);
+	return 0;
+}
+
 static int bpf_crypto_crypt(const struct bpf_crypto_ctx *ctx,
 			    const struct bpf_dynptr_kern *src,
 			    const struct bpf_dynptr_kern *dst,
-			    const struct bpf_dynptr_kern *siv,
+			    const struct bpf_dynptr_kern *iv,
 			    bool decrypt)
 {
-	u32 src_len, dst_len, siv_len;
+	u32 src_len, dst_len, iv_len;
 	const u8 *psrc;
 	u8 *pdst, *piv;
-	int err;
 
 	if (__bpf_dynptr_is_rdonly(dst))
 		return -EINVAL;
 
-	siv_len = siv ? __bpf_dynptr_size(siv) : 0;
+	iv_len = iv ? __bpf_dynptr_size(iv) : 0;
 	src_len = __bpf_dynptr_size(src);
 	dst_len = __bpf_dynptr_size(dst);
-	if (!src_len || !dst_len || src_len > dst_len)
-		return -EINVAL;
-
-	if (siv_len != ctx->siv_len)
+	if (!src_len || !dst_len)
 		return -EINVAL;
 
 	psrc = __bpf_dynptr_data(src, src_len);
@@ -298,14 +252,20 @@ static int bpf_crypto_crypt(const struct bpf_crypto_ctx *ctx,
 	if (!pdst)
 		return -EINVAL;
 
-	piv = siv_len ? __bpf_dynptr_data_rw(siv, siv_len) : NULL;
-	if (siv_len && !piv)
+	piv = iv_len ? __bpf_dynptr_data_rw(iv, iv_len) : NULL;
+	if (iv_len && !piv)
 		return -EINVAL;
 
-	err = decrypt ? ctx->type->decrypt(ctx->tfm, psrc, pdst, src_len, piv)
-		      : ctx->type->encrypt(ctx->tfm, psrc, pdst, src_len, piv);
-
-	return err;
+	switch (ctx->algo) {
+	case BPF_ALGO_AES_CBC:
+		return bpf_aes_cbc_crypt(pdst, dst_len, psrc, src_len, piv,
+					 iv_len, ctx, decrypt);
+	case BPF_ALGO_AES_ECB:
+		return bpf_aes_ecb_crypt(pdst, dst_len, psrc, src_len, piv,
+					 iv_len, ctx, decrypt);
+	default:
+		return -EINVAL;
+	}
 }
 
 /**
@@ -313,20 +273,20 @@ static int bpf_crypto_crypt(const struct bpf_crypto_ctx *ctx,
  * @ctx:		The crypto context being used. The ctx must be a trusted pointer.
  * @src:		bpf_dynptr to the encrypted data. Must be a trusted pointer.
  * @dst:		bpf_dynptr to the buffer where to store the result. Must be a trusted pointer.
- * @siv__nullable:	bpf_dynptr to IV data and state data to be used by decryptor. May be NULL.
+ * @iv__nullable:	bpf_dynptr to the initialization vector. May be NULL.
  *
  * Decrypts provided buffer using IV data and the crypto context. Crypto context must be configured.
  */
 __bpf_kfunc int bpf_crypto_decrypt(struct bpf_crypto_ctx *ctx,
 				   const struct bpf_dynptr *src,
 				   const struct bpf_dynptr *dst,
-				   const struct bpf_dynptr *siv__nullable)
+				   const struct bpf_dynptr *iv__nullable)
 {
 	const struct bpf_dynptr_kern *src_kern = (struct bpf_dynptr_kern *)src;
 	const struct bpf_dynptr_kern *dst_kern = (struct bpf_dynptr_kern *)dst;
-	const struct bpf_dynptr_kern *siv_kern = (struct bpf_dynptr_kern *)siv__nullable;
+	const struct bpf_dynptr_kern *iv_kern = (struct bpf_dynptr_kern *)iv__nullable;
 
-	return bpf_crypto_crypt(ctx, src_kern, dst_kern, siv_kern, true);
+	return bpf_crypto_crypt(ctx, src_kern, dst_kern, iv_kern, true);
 }
 
 /**
@@ -334,20 +294,20 @@ __bpf_kfunc int bpf_crypto_decrypt(struct bpf_crypto_ctx *ctx,
  * @ctx:		The crypto context being used. The ctx must be a trusted pointer.
  * @src:		bpf_dynptr to the plain data. Must be a trusted pointer.
  * @dst:		bpf_dynptr to the buffer where to store the result. Must be a trusted pointer.
- * @siv__nullable:	bpf_dynptr to IV data and state data to be used by decryptor. May be NULL.
+ * @iv__nullable:	bpf_dynptr to the initialization vector. May be NULL.
  *
  * Encrypts provided buffer using IV data and the crypto context. Crypto context must be configured.
  */
 __bpf_kfunc int bpf_crypto_encrypt(struct bpf_crypto_ctx *ctx,
 				   const struct bpf_dynptr *src,
 				   const struct bpf_dynptr *dst,
-				   const struct bpf_dynptr *siv__nullable)
+				   const struct bpf_dynptr *iv__nullable)
 {
 	const struct bpf_dynptr_kern *src_kern = (struct bpf_dynptr_kern *)src;
 	const struct bpf_dynptr_kern *dst_kern = (struct bpf_dynptr_kern *)dst;
-	const struct bpf_dynptr_kern *siv_kern = (struct bpf_dynptr_kern *)siv__nullable;
+	const struct bpf_dynptr_kern *iv_kern = (struct bpf_dynptr_kern *)iv__nullable;
 
-	return bpf_crypto_crypt(ctx, src_kern, dst_kern, siv_kern, false);
+	return bpf_crypto_crypt(ctx, src_kern, dst_kern, iv_kern, false);
 }
 
 __bpf_kfunc_end_defs();

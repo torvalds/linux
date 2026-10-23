@@ -208,7 +208,7 @@ __naked void null_check_7_ctx_bind(void)
 
 SEC("cgroup/post_bind4")
 __description("pass ctx or null check, 8: null (bind)")
-__failure __msg("R1 type=scalar expected=ctx")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 __naked void null_check_8_null_bind(void)
 {
 	asm volatile ("					\
