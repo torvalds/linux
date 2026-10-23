@@ -48,6 +48,9 @@ static void (*access_kernels[2])(void);
 
 static struct task_struct **threads; /* Lists of threads. */
 static unsigned long end_time;       /* End time of test. */
+static unsigned long end_time_max;   /* Upper bound for end time of test. */
+static unsigned long report_budget;  /* Time left when report printing began. */
+static bool report_paused;           /* Paused while a report is printing. */
 
 /* Report as observed from console. */
 static struct {
@@ -69,17 +72,46 @@ begin_test_checks(void (*func1)(void), void (*func2)(void))
 	 * least one race is reported.
 	 */
 	end_time = jiffies + msecs_to_jiffies(CONFIG_KCSAN_REPORT_ONCE_IN_MS + 500);
+	end_time_max = end_time + msecs_to_jiffies(10000);
+	report_paused = false;
 
 	/* Signal start; release potential initialization of shared data. */
 	smp_store_release(&access_kernels[0], func1);
 	smp_store_release(&access_kernels[1], func2);
 }
 
+/*
+ * Printing a report may take a while, e.g. if a printk emergency section (such
+ * as with CONFIG_KCSAN_VERBOSE) flushes a console backlog synchronously. Do not
+ * count the time a test-related report is being printed against the test's
+ * time budget, so that a slow report is neither missed, nor prevents observing
+ * other reports. Returns true if checking must continue.
+ */
+static __no_kcsan bool pause_for_report(void)
+{
+	const int nlines = READ_ONCE(observed.nlines);
+	const bool in_progress = nlines == 1 || nlines == 2;
+
+	if (in_progress && !report_paused) {
+		report_paused = true;
+		report_budget = time_before(jiffies, end_time) ? end_time - jiffies : 0;
+	} else if (!in_progress && report_paused) {
+		report_paused = false;
+		end_time = jiffies + report_budget;
+		if (time_after(end_time, end_time_max))
+			end_time = end_time_max;
+		/* Check the now complete report at least once. */
+		return true;
+	}
+
+	return report_paused && time_before(jiffies, end_time_max);
+}
+
 /* End test checking loop. */
 static __no_kcsan inline bool
 end_test_checks(bool stop)
 {
-	if (!stop && time_before(jiffies, end_time)) {
+	if (!stop && (pause_for_report() || time_before(jiffies, end_time))) {
 		/* Continue checking */
 		might_sleep();
 		return false;
