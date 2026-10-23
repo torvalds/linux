@@ -439,13 +439,12 @@ static enum desc_state get_desc_state(unsigned long id,
 }
 
 /*
- * Get a copy of a specified descriptor and return its queried state. If the
- * descriptor is in an inconsistent state (miss or reserved), the caller can
- * only expect the descriptor's @state_var field to be valid.
+ * Get the state of a specified descriptor.
  *
- * The sequence number and caller_id can be optionally retrieved. Like all
- * non-state_var data, they are only valid if the descriptor is in a
- * consistent state.
+ * Optionally, a copy of the descriptor, sequence number and/or caller ID can
+ * be retrieved. However, (with the exception of @desc_out->state_var) all
+ * retrieved values are invalid if the descriptor is in an inconsistent state
+ * (miss or reserved).
  */
 static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 				 unsigned long id, struct prb_desc *desc_out,
@@ -1335,7 +1334,6 @@ static struct prb_desc *desc_reopen_last(struct prb_desc_ring *desc_ring,
 {
 	unsigned long prev_state_val;
 	enum desc_state d_state;
-	struct prb_desc desc;
 	struct prb_desc *d;
 	unsigned long id;
 	u32 cid;
@@ -1346,7 +1344,7 @@ static struct prb_desc *desc_reopen_last(struct prb_desc_ring *desc_ring,
 	 * To reduce unnecessarily reopening, first check if the descriptor
 	 * state and caller ID are correct.
 	 */
-	d_state = desc_read(desc_ring, id, &desc, NULL, &cid);
+	d_state = desc_read(desc_ring, id, NULL, NULL, &cid);
 	if (d_state != desc_committed || cid != caller_id)
 		return NULL;
 
@@ -2007,14 +2005,13 @@ u64 prb_first_seq(struct printk_ringbuffer *rb)
 {
 	struct prb_desc_ring *desc_ring = &rb->desc_ring;
 	enum desc_state d_state;
-	struct prb_desc desc;
 	unsigned long id;
 	u64 seq;
 
 	for (;;) {
 		id = atomic_long_read(&rb->desc_ring.tail_id); /* LMM(prb_first_seq:A) */
 
-		d_state = desc_read(desc_ring, id, &desc, &seq, NULL); /* LMM(prb_first_seq:B) */
+		d_state = desc_read(desc_ring, id, NULL, &seq, NULL); /* LMM(prb_first_seq:B) */
 
 		/*
 		 * This loop will not be infinite because the tail is
