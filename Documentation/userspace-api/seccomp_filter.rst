@@ -281,6 +281,43 @@ process will ignore non-fatal signals until the response is sent. Signals that
 are sent prior to the notification being received by userspace are handled
 normally.
 
+``SECCOMP_FILTER_FLAG_RESTART_BEFORE_RECV`` can be set at filter installation
+to restart a syscall interrupted while its notification is still awaiting
+receipt, even if the signal handler was installed without ``SA_RESTART``.
+The handler runs, and if it returns normally, syscall entry and the seccomp
+filter are evaluated again. The abandoned notification is removed; a new
+notification is queued if the filter again returns ``SECCOMP_RET_USER_NOTIF``.
+This avoids returning ``EINTR`` before the syscall has executed, including
+for calls such as ``close`` where callers do not retry on ``EINTR``.
+A failed notification receive that resets the notification to its initial
+state is also eligible for restart.
+
+Each restart withdraws the pending notification, so a supervisor woken by
+``poll()``, or blocked in ``ioctl(SECCOMP_IOCTL_NOTIF_RECV)``, may find
+nothing left to receive, and the ioctl then fails with ``ENOENT``. This
+already happens whenever a notifying process is interrupted before receipt,
+but with this flag it becomes routine under repeated signals. Supervisors
+should treat ``ENOENT`` from ``SECCOMP_IOCTL_NOTIF_RECV`` as a reason to wait
+again, not as an error.
+
+The flag requires ``SECCOMP_FILTER_FLAG_NEW_LISTENER`` and can be used with
+or without ``SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV``. Using both flags allows
+handlers to run before receipt and defers non-fatal signals during supervisor
+processing after receipt. Without ``SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV``,
+interruptions after receipt retain the existing ``SA_RESTART`` behavior.
+Fatal signals still terminate the notifying process. Neither flag changes
+supervisor-supplied errors or the native syscall's restart behavior after a
+``SECCOMP_USER_NOTIF_FLAG_CONTINUE`` response.
+
+Unconditional restart before receipt is opt-in: a normally returning signal
+handler can no longer cancel that wait with ``EINTR``. Native syscall timeout
+and signal-mask handling have not started during mediation. Repeated signals
+can therefore extend elapsed time and, as restarted notifications join the
+tail of the queue, delay receipt indefinitely. Handlers can also modify memory
+referenced by syscall arguments, so the restarted call must be authorized
+afresh; this flag does not provide an argument snapshot or prevent TOCTOU.
+Existing behavior is unchanged when the flag is absent.
+
 It is worth noting that ``struct seccomp_data`` contains the values of register
 arguments to the syscall, but does not contain pointers to memory. The task's
 memory is accessible to suitably privileged traces via ``ptrace()`` or

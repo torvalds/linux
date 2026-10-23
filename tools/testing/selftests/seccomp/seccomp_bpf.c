@@ -309,6 +309,10 @@ struct seccomp_notif_addfd_big {
 #define SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV (1UL << 5)
 #endif
 
+#ifndef SECCOMP_FILTER_FLAG_RESTART_BEFORE_RECV
+#define SECCOMP_FILTER_FLAG_RESTART_BEFORE_RECV (1UL << 6)
+#endif
+
 #ifndef seccomp
 int seccomp(unsigned int op, unsigned int flags, void *args)
 {
@@ -4324,6 +4328,65 @@ TEST(user_notification_addfd)
 	close(memfd);
 }
 
+TEST(user_notification_addfd_opath)
+{
+	struct seccomp_notif req = {};
+	struct seccomp_notif_addfd addfd = {};
+	struct seccomp_notif_resp resp = {};
+	pid_t pid;
+	int listener, pathfd, fd, status;
+
+	pathfd = open("/dev/null", O_PATH | O_CLOEXEC);
+	ASSERT_GE(pathfd, 0);
+	ASSERT_EQ(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0), 0);
+	listener = user_notif_syscall(__NR_getppid,
+				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	ASSERT_GE(listener, 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+	if (pid == 0) {
+		int flags;
+		char byte;
+
+		close(pathfd);
+		fd = syscall(__NR_getppid);
+		if (fd < 0)
+			_exit(1);
+		flags = fcntl(fd, F_GETFL);
+		if (flags < 0 || !(flags & O_PATH))
+			_exit(2);
+		flags = fcntl(fd, F_GETFD);
+		if (flags < 0 || !(flags & FD_CLOEXEC))
+			_exit(3);
+		errno = 0;
+		if (read(fd, &byte, 1) != -1 || errno != EBADF)
+			_exit(4);
+		_exit(0);
+	}
+
+	ASSERT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	addfd.id = req.id;
+	addfd.flags = SECCOMP_ADDFD_FLAG_SEND;
+	addfd.srcfd = pathfd;
+	addfd.newfd_flags = O_CLOEXEC;
+	fd = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd);
+	if (fd < 0) {
+		resp.id = req.id;
+		resp.error = -errno;
+		TH_LOG("ADDFD failed with errno %d", -resp.error);
+		ASSERT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0);
+	}
+
+	ASSERT_EQ(waitpid(pid, &status, 0), pid);
+	EXPECT_GE(fd, 0);
+	EXPECT_EQ(true, WIFEXITED(status));
+	if (WIFEXITED(status))
+		EXPECT_EQ(0, WEXITSTATUS(status));
+	close(pathfd);
+	close(listener);
+}
+
 TEST(user_notification_addfd_rlimit)
 {
 	pid_t pid;
@@ -4391,6 +4454,185 @@ TEST(user_notification_addfd_rlimit)
 	EXPECT_EQ(true, WIFEXITED(status));
 	EXPECT_EQ(0, WEXITSTATUS(status));
 
+	close(memfd);
+}
+
+/* Just take a signal and do nothing else. */
+static void empty_handler(int signo)
+{
+}
+
+/*
+ * Verify that when SECCOMP_IOCTL_NOTIF_ADDFD with SECCOMP_ADDFD_FLAG_SEND is
+ * interrupted by a signal before the tracee dequeues the addfd request,
+ * knotif->state is restored from SECCOMP_NOTIFY_REPLIED back to
+ * SECCOMP_NOTIFY_SENT so that:
+ *   1. The woken tracee sees knotif->state == SECCOMP_NOTIFY_SENT in
+ *      do_user_notif() and goes back to sleep instead of prematurely
+ *      returning 0 from the trapped syscall without the FD installed.
+ *   2. The supervisor can retry SECCOMP_IOCTL_NOTIF_ADDFD (or
+ *      SECCOMP_IOCTL_NOTIF_SEND) instead of failing with -EINPROGRESS.
+ *
+ * To deterministically hit the race window where the supervisor sleeps in
+ * wait_for_completion_interruptible(&kaddfd.completion) after waking the
+ * tracee (complete(&knotif->ready)) but before the tracee runs
+ * seccomp_handle_addfd(), pin all processes to a single CPU and enforce a
+ * strict 3-tier scheduling priority hierarchy on that CPU:
+ *   - Supervisor:            SCHED_FIFO priority 99 (highest)
+ *   - Signal helper (sig_pid): SCHED_FIFO priority 50 (middle)
+ *   - Tracee (pid):          SCHED_IDLE             (lowest)
+ */
+TEST(user_notification_addfd_send_interrupted)
+{
+	/*
+	 * Save parent_pid before user_notif_syscall(__NR_getppid, ...) installs
+	 * the seccomp filter on the calling process; children inherit that
+	 * filter, so sig_pid must not call getppid().
+	 */
+	pid_t tracee_pid, sig_pid, parent_pid = getpid();
+	long ret;
+	int status, listener, memfd, err;
+	struct seccomp_notif_addfd addfd = {};
+	struct seccomp_notif req = {};
+	struct sigaction sa = {};
+	struct sched_param sp_zero = { .sched_priority = 0 };
+	struct sched_param sp_fifo_high = { .sched_priority = 99 };
+	struct sched_param sp_fifo_mid = { .sched_priority = 50 };
+	struct timespec delay = { .tv_nsec = 15000000 };
+	cpu_set_t cpuset;
+	int cpu;
+
+	/* Pin the supervisor (and its future child processes) to one CPU. */
+	cpu = sched_getcpu();
+	if (cpu >= 0) {
+		CPU_ZERO(&cpuset);
+		CPU_SET(cpu, &cpuset);
+		sched_setaffinity(0, sizeof(cpuset), &cpuset);
+	}
+
+	sa.sa_handler = empty_handler;
+	ASSERT_EQ(sigaction(SIGUSR1, &sa, NULL), 0);
+
+	memfd = memfd_create("test", 0);
+	ASSERT_GE(memfd, 0);
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret) {
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
+	/*
+	 * Follow the convention of other user_notification_* tests in this
+	 * file by trapping __NR_getppid: because the filter is installed on
+	 * the supervisor before fork(), the trapped syscall must be a
+	 * side-effect-free syscall that the supervisor itself never invokes.
+	 * Even though getppid() does not normally return an FD,
+	 * SECCOMP_ADDFD_FLAG_SEND replaces the trapped syscall's return value
+	 * with the newly installed FD number (42).
+	 */
+	listener = user_notif_syscall(__NR_getppid,
+				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	ASSERT_GE(listener, 0);
+
+	tracee_pid = fork();
+	ASSERT_GE(tracee_pid, 0);
+
+	if (tracee_pid == 0) {
+		/*
+		 * Tracee: invoke __NR_getppid as a dummy trigger syscall to
+		 * trap into do_user_notif(). Verify that the syscall returns
+		 * the injected FD number (42) and that FD 42 is open.
+		 */
+		ret = syscall(__NR_getppid);
+		exit(ret != 42 || fcntl(42, F_GETFD) < 0);
+	}
+
+	/* Wait for the tracee to trap in do_user_notif(). */
+	ASSERT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+
+	/*
+	 * Demote the tracee to SCHED_IDLE and promote the supervisor to
+	 * SCHED_FIFO(99) on the same CPU.
+	 */
+	ASSERT_EQ(sched_setscheduler(tracee_pid, SCHED_IDLE, &sp_zero), 0);
+	if (sched_setscheduler(0, SCHED_FIFO, &sp_fifo_high) != 0) {
+		kill(tracee_pid, SIGKILL);
+		waitpid(tracee_pid, NULL, 0);
+		SKIP(return, "SCHED_FIFO requires CAP_SYS_NICE");
+	}
+
+	addfd.srcfd = memfd;
+	addfd.newfd_flags = O_CLOEXEC;
+	addfd.newfd = 42;
+	addfd.id = req.id;
+	addfd.flags = SECCOMP_ADDFD_FLAG_SETFD | SECCOMP_ADDFD_FLAG_SEND;
+
+	/*
+	 * Fork a signal helper on the same CPU and set it to SCHED_FIFO(50).
+	 * Because the supervisor is currently running at SCHED_FIFO(99) on
+	 * this CPU, sig_pid is queued on the runqueue but cannot run until the
+	 * supervisor blocks inside the kernel.
+	 *
+	 * When the supervisor invokes ioctl(SECCOMP_IOCTL_NOTIF_ADDFD) below:
+	 *   1. seccomp_notify_addfd() sets knotif->state = SECCOMP_NOTIFY_REPLIED,
+	 *      wakes the tracee (SCHED_IDLE), and blocks in
+	 *      wait_for_completion_interruptible(&kaddfd.completion).
+	 *   2. The CPU scheduler immediately runs sig_pid (SCHED_FIFO 50)
+	 *      ahead of the woken tracee (SCHED_IDLE).
+	 *   3. sig_pid sends SIGUSR1 to parent_pid, waking the supervisor
+	 *      (SCHED_FIFO 99), which immediately preempts sig_pid, aborts the
+	 *      wait with -ERESTARTSYS (-EINTR), removes kaddfd from
+	 *      knotif->addfd, and restores knotif->state = SECCOMP_NOTIFY_SENT
+	 *      before the tracee has executed a single instruction.
+	 */
+	sig_pid = fork();
+	if (sig_pid < 0) {
+		sched_setscheduler(0, SCHED_OTHER, &sp_zero);
+		kill(tracee_pid, SIGKILL);
+		waitpid(tracee_pid, NULL, 0);
+	}
+	ASSERT_GE(sig_pid, 0);
+	if (sig_pid == 0) {
+		if (sched_setscheduler(0, SCHED_FIFO, &sp_fifo_mid) != 0)
+			_exit(1);
+		kill(parent_pid, SIGUSR1);
+		_exit(0);
+	}
+
+	ret = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd);
+	err = errno;
+
+	/*
+	 * Restore normal scheduling ASAP so the supervisor does not remain
+	 * SCHED_FIFO on a single-CPU machine/VM/CI, then sleep briefly so the
+	 * woken tracee runs in do_user_notif(). With knotif->state restored to
+	 * SECCOMP_NOTIFY_SENT, the tracee must loop back to sleep waiting for
+	 * the notification reply rather than returning 0 from __NR_getppid.
+	 */
+	ASSERT_EQ(sched_setscheduler(0, SCHED_OTHER, &sp_zero), 0);
+	ASSERT_EQ(sched_setscheduler(tracee_pid, SCHED_OTHER, &sp_zero), 0);
+
+	EXPECT_EQ(ret, -1);
+	EXPECT_EQ(err, EINTR);
+	EXPECT_EQ(waitpid(sig_pid, &status, 0), sig_pid);
+	EXPECT_EQ(true, WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	nanosleep(&delay, NULL);
+
+	/*
+	 * Retry SECCOMP_IOCTL_NOTIF_ADDFD. Because knotif->state is
+	 * SECCOMP_NOTIFY_SENT, the retry succeeds (returns 42) instead of
+	 * failing with -EINPROGRESS, installs FD 42 into the tracee, and wakes
+	 * the tracee to complete the syscall with return value 42.
+	 */
+	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd), 42);
+
+	EXPECT_EQ(waitpid(tracee_pid, &status, 0), tracee_pid);
+	EXPECT_EQ(true, WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	close(listener);
 	close(memfd);
 }
 
@@ -4663,6 +4905,406 @@ static long get_proc_syscall(struct __test_metadata *_metadata, int pid)
 
 	free(line);
 	return ret;
+}
+
+
+static void notification_restart_handler(int sig)
+{
+	char c;
+	int saved_errno = errno;
+
+	if (write(handled, "s", 1) != 1 || read(handled, &c, 1) != 1)
+		_exit(1);
+	errno = saved_errno;
+}
+
+FIXTURE(notification_restart) {
+	int listener;
+	int sync[2];
+	pid_t pid;
+};
+
+FIXTURE_VARIANT(notification_restart) {
+	bool restart;
+	bool killable;
+};
+
+FIXTURE_VARIANT_ADD(notification_restart, neither) {
+	.restart = false, .killable = false,
+};
+FIXTURE_VARIANT_ADD(notification_restart, restart) {
+	.restart = true, .killable = false,
+};
+FIXTURE_VARIANT_ADD(notification_restart, killable) {
+	.restart = false, .killable = true,
+};
+FIXTURE_VARIANT_ADD(notification_restart, both) {
+	.restart = true, .killable = true,
+};
+
+static unsigned int
+notification_restart_flags(const FIXTURE_VARIANT(notification_restart) *variant)
+{
+	unsigned int flags = SECCOMP_FILTER_FLAG_NEW_LISTENER;
+
+	if (variant->restart)
+		flags |= SECCOMP_FILTER_FLAG_RESTART_BEFORE_RECV;
+	if (variant->killable)
+		flags |= SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV;
+	return flags;
+}
+
+FIXTURE_SETUP(notification_restart)
+{
+	self->pid = -1;
+	self->listener = -1;
+	self->sync[0] = self->sync[1] = -1;
+	ASSERT_EQ(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0), 0);
+	ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, self->sync), 0);
+	self->listener = user_notif_syscall(__NR_getppid,
+					    notification_restart_flags(variant));
+	ASSERT_GE(self->listener, 0);
+}
+
+FIXTURE_TEARDOWN(notification_restart)
+{
+	if (self->pid > 0) {
+		kill(self->pid, SIGKILL);
+		waitpid(self->pid, NULL, 0);
+	}
+	close(self->listener);
+	close(self->sync[0]);
+	close(self->sync[1]);
+}
+
+/*
+ * Fork the notifying child with SIGUSR1 handled. Returns true in the
+ * child, which sends its result with notification_report().
+ */
+static bool notification_restart_fork(struct __test_metadata *_metadata,
+				      struct _test_data_notification_restart *self)
+{
+	struct sigaction action = { .sa_handler = notification_restart_handler };
+
+	self->pid = fork();
+	ASSERT_GE(self->pid, 0);
+	if (self->pid)
+		return false;
+
+	close(self->sync[0]);
+	handled = self->sync[1];
+	if (sigemptyset(&action.sa_mask) || sigaction(SIGUSR1, &action, NULL))
+		_exit(1);
+	return true;
+}
+
+/* Send the child's syscall result to notification_result(), and exit. */
+static __noreturn void notification_report(long ret, int err)
+{
+	long result[2] = { ret, err };
+
+	if (write(handled, result, sizeof(result)) != sizeof(result))
+		_exit(1);
+	_exit(0);
+}
+
+static void notification_restart_child(struct __test_metadata *_metadata,
+				       struct _test_data_notification_restart *self)
+{
+	long ret;
+
+	if (!notification_restart_fork(_metadata, self))
+		return;
+
+	close(self->listener);
+	ret = syscall(__NR_getppid);
+	notification_report(ret, errno);
+}
+
+static void notification_pending(struct __test_metadata *_metadata, int fd)
+{
+	struct pollfd pfd = { .fd = fd, .events = POLLIN };
+
+	ASSERT_EQ(poll(&pfd, 1, 5000), 1);
+	ASSERT_TRUE(pfd.revents & POLLIN);
+}
+
+static void notification_signal(struct __test_metadata *_metadata,
+				struct _test_data_notification_restart *self)
+{
+	struct pollfd pfd = { .fd = self->sync[0], .events = POLLIN };
+	char c;
+
+	ASSERT_EQ(kill(self->pid, SIGUSR1), 0);
+	ASSERT_EQ(poll(&pfd, 1, 5000), 1);
+	ASSERT_EQ(read(self->sync[0], &c, 1), 1);
+	ASSERT_EQ(c, 's');
+	/* The handler holds the task until the abandoned request is checked. */
+	pfd.fd = self->listener;
+	ASSERT_EQ(poll(&pfd, 1, 0), 0);
+	ASSERT_EQ(write(self->sync[0], "r", 1), 1);
+}
+
+static void notification_result(struct __test_metadata *_metadata,
+				struct _test_data_notification_restart *self,
+				long value, int error)
+{
+	long result[2];
+	int status;
+
+	ASSERT_EQ(read(self->sync[0], result, sizeof(result)), sizeof(result));
+	EXPECT_EQ(result[0], value);
+	if (value == -1)
+		EXPECT_EQ(result[1], error);
+	ASSERT_EQ(waitpid(self->pid, &status, 0), self->pid);
+	self->pid = -1;
+	ASSERT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_F(notification_restart, before_receive)
+{
+	struct seccomp_notif req = {};
+	struct seccomp_notif_resp resp = {};
+	int i;
+
+	notification_restart_child(_metadata, self);
+	for (i = 0; i < 3; i++) {
+		notification_pending(_metadata, self->listener);
+		notification_signal(_metadata, self);
+		if (!variant->restart) {
+			notification_result(_metadata, self, -1, EINTR);
+			return;
+		}
+	}
+	notification_pending(_metadata, self->listener);
+	ASSERT_EQ(ioctl(self->listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	resp.id = req.id;
+	resp.flags = SECCOMP_USER_NOTIF_FLAG_CONTINUE;
+	ASSERT_EQ(ioctl(self->listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0);
+	notification_result(_metadata, self, getpid(), 0);
+}
+
+TEST_F(notification_restart, failed_receive)
+{
+	struct seccomp_notif_resp resp = {};
+	struct seccomp_notif req = {};
+	void *buf;
+
+	buf = mmap(NULL, sizeof(req), PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	ASSERT_NE(buf, MAP_FAILED);
+	notification_restart_child(_metadata, self);
+	notification_pending(_metadata, self->listener);
+	ASSERT_EQ(ioctl(self->listener, SECCOMP_IOCTL_NOTIF_RECV, buf), -1);
+	ASSERT_EQ(errno, EFAULT);
+	ASSERT_EQ(munmap(buf, sizeof(req)), 0);
+	notification_signal(_metadata, self);
+	if (!variant->restart) {
+		notification_result(_metadata, self, -1, EINTR);
+		return;
+	}
+	notification_pending(_metadata, self->listener);
+	ASSERT_EQ(ioctl(self->listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	resp.id = req.id;
+	resp.error = -EAGAIN;
+	ASSERT_EQ(ioctl(self->listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0);
+	notification_result(_metadata, self, -1, EAGAIN);
+}
+
+TEST_F(notification_restart, after_receive)
+{
+	struct seccomp_notif req = {};
+	struct seccomp_notif_resp resp = {};
+	char c;
+
+	notification_restart_child(_metadata, self);
+	notification_pending(_metadata, self->listener);
+	ASSERT_EQ(ioctl(self->listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	if (!variant->killable) {
+		notification_signal(_metadata, self);
+		notification_result(_metadata, self, -1, EINTR);
+		ASSERT_EQ(ioctl(self->listener, SECCOMP_IOCTL_NOTIF_ID_VALID, &req.id), -1);
+		EXPECT_EQ(errno, ENOENT);
+		return;
+	}
+	ASSERT_EQ(kill(self->pid, SIGUSR1), 0);
+	/* Either ordering of signal delivery and reply must preserve the response. */
+	resp.id = req.id;
+	resp.val = USER_NOTIF_MAGIC;
+	ASSERT_EQ(ioctl(self->listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0);
+	ASSERT_EQ(read(self->sync[0], &c, 1), 1);
+	ASSERT_EQ(c, 's');
+	ASSERT_EQ(write(self->sync[0], "r", 1), 1);
+	notification_result(_metadata, self, USER_NOTIF_MAGIC, 0);
+}
+
+/*
+ * Fork a child that installs its own filter notifying on @nr, so that the
+ * test process is not mediated, and receive the child's listener. Returns
+ * true in the child.
+ */
+static bool
+notification_restart_filtered(struct __test_metadata *_metadata,
+			      struct _test_data_notification_restart *self,
+			      const FIXTURE_VARIANT(notification_restart) *variant,
+			      int nr)
+{
+	char control[CMSG_SPACE(sizeof(int))] = {};
+	char c = 'f';
+	struct iovec iov = { .iov_base = &c, .iov_len = 1 };
+	struct msghdr msg = {
+		.msg_iov = &iov, .msg_iovlen = 1,
+		.msg_control = control, .msg_controllen = sizeof(control),
+	};
+	struct cmsghdr *cmsg;
+	int listener;
+
+	/* A filter chain may hold only one listener. */
+	ASSERT_EQ(close(self->listener), 0);
+	self->listener = -1;
+	if (notification_restart_fork(_metadata, self)) {
+		listener = user_notif_syscall(nr, notification_restart_flags(variant));
+		if (listener < 0)
+			_exit(1);
+		cmsg = CMSG_FIRSTHDR(&msg);
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_RIGHTS;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(listener));
+		memcpy(CMSG_DATA(cmsg), &listener, sizeof(listener));
+		if (sendmsg(handled, &msg, 0) != 1)
+			_exit(1);
+		return true;
+	}
+
+	ASSERT_EQ(recvmsg(self->sync[0], &msg, 0), 1);
+	ASSERT_FALSE(msg.msg_flags & MSG_CTRUNC);
+	cmsg = CMSG_FIRSTHDR(&msg);
+	ASSERT_NE(cmsg, NULL);
+	ASSERT_EQ(cmsg->cmsg_level, SOL_SOCKET);
+	ASSERT_EQ(cmsg->cmsg_type, SCM_RIGHTS);
+	ASSERT_EQ(cmsg->cmsg_len, CMSG_LEN(sizeof(listener)));
+	memcpy(&self->listener, CMSG_DATA(cmsg), sizeof(self->listener));
+	return false;
+}
+
+/*
+ * Interrupt the child's notification before it is received. Without the
+ * restart flag the syscall fails with EINTR. With it, the restarted
+ * syscall is notified again, allowed to continue, and succeeds.
+ */
+static void
+notification_restart_interrupt(struct __test_metadata *_metadata,
+			       struct _test_data_notification_restart *self,
+			       const FIXTURE_VARIANT(notification_restart) *variant)
+{
+	struct seccomp_notif req = {};
+	struct seccomp_notif_resp resp = {};
+
+	notification_pending(_metadata, self->listener);
+	notification_signal(_metadata, self);
+	if (!variant->restart) {
+		notification_result(_metadata, self, -1, EINTR);
+		return;
+	}
+	notification_pending(_metadata, self->listener);
+	ASSERT_EQ(ioctl(self->listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	EXPECT_EQ(req.pid, self->pid);
+	resp.id = req.id;
+	resp.flags = SECCOMP_USER_NOTIF_FLAG_CONTINUE;
+	ASSERT_EQ(ioctl(self->listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0);
+	notification_result(_metadata, self, 0, 0);
+}
+
+/* A successful clone3() must have created exactly one child. */
+static __noreturn void notification_restart_clone_child(void)
+{
+	/*
+	 * glibc's fork() blocks all signals across clone(), so the
+	 * notification wait could not be interrupted: call clone3()
+	 * directly instead.
+	 */
+	struct __clone_args args = { .exit_signal = SIGCHLD };
+	int status;
+	long ret;
+
+	ret = sys_clone3(&args, sizeof(args));
+	if (ret == 0)
+		_exit(0);
+	if (ret > 0) {
+		if (waitpid(ret, &status, 0) != ret || !WIFEXITED(status) ||
+		    WEXITSTATUS(status) != 0)
+			_exit(2);
+		if (waitpid(-1, NULL, WNOHANG) != -1 || errno != ECHILD)
+			_exit(3);
+		ret = 0;
+	}
+	notification_report(ret, errno);
+}
+
+/* close() must release the descriptor exactly when it succeeds. */
+static __noreturn void notification_restart_close_child(void)
+{
+	int fd, err;
+	long ret;
+
+	fd = open("/dev/null", O_RDONLY);
+	if (fd < 0)
+		_exit(1);
+	ret = close(fd);
+	err = errno;
+	if ((fcntl(fd, F_GETFD) == -1) != (ret == 0))
+		_exit(2);
+	notification_report(ret, err);
+}
+
+TEST_F(notification_restart, clone)
+{
+	if (__NR_clone3 < 0)
+		SKIP(return, "Test not built with clone3 support");
+	/* Some container profiles reject clone3() with ENOSYS. */
+	if (sys_clone3(NULL, 0) == -1 && errno == ENOSYS)
+		SKIP(return, "clone3() is not available");
+
+	if (notification_restart_filtered(_metadata, self, variant, __NR_clone3))
+		notification_restart_clone_child();
+	notification_restart_interrupt(_metadata, self, variant);
+}
+
+TEST_F(notification_restart, close)
+{
+	if (notification_restart_filtered(_metadata, self, variant, __NR_close))
+		notification_restart_close_child();
+	notification_restart_interrupt(_metadata, self, variant);
+}
+
+TEST_F(notification_restart, fatal_signal)
+{
+	int status;
+
+	notification_restart_child(_metadata, self);
+	notification_pending(_metadata, self->listener);
+	ASSERT_EQ(kill(self->pid, SIGKILL), 0);
+	ASSERT_EQ(waitpid(self->pid, &status, 0), self->pid);
+	self->pid = -1;
+	ASSERT_TRUE(WIFSIGNALED(status));
+	EXPECT_EQ(WTERMSIG(status), SIGKILL);
+}
+
+TEST_F(notification_restart, listener_closed)
+{
+	notification_restart_child(_metadata, self);
+	notification_pending(_metadata, self->listener);
+	ASSERT_EQ(close(self->listener), 0);
+	self->listener = -1;
+	notification_result(_metadata, self, -1, ENOSYS);
+}
+
+TEST(user_notification_restart_requires_listener)
+{
+	ASSERT_EQ(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0), 0);
+	EXPECT_EQ(user_notif_syscall(__NR_getppid,
+				   SECCOMP_FILTER_FLAG_RESTART_BEFORE_RECV), -1);
+	EXPECT_EQ(errno, EINVAL);
 }
 
 /* Ensure non-fatal signals prior to receive are unmodified */

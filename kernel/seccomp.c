@@ -205,6 +205,7 @@ static inline void seccomp_cache_prepare(struct seccomp_filter *sfilter)
  * @log: true if all actions except for SECCOMP_RET_ALLOW should be logged
  * @wait_killable_recv: Put notifying process in killable state once the
  *			notification is received by the userspace listener.
+ * @restart_before_recv: Restart interrupted syscalls before notification receipt.
  * @prev: points to a previously installed, or inherited, filter
  * @prog: the BPF program to evaluate
  * @notif: the struct that holds all notification related information
@@ -226,6 +227,7 @@ struct seccomp_filter {
 	refcount_t users;
 	bool log;
 	bool wait_killable_recv;
+	bool restart_before_recv;
 	struct action_cache cache;
 	struct seccomp_filter *prev;
 	struct bpf_prog *prog;
@@ -953,6 +955,8 @@ static long seccomp_attach_filter(unsigned int flags,
 	/* Set wait killable flag, if present. */
 	if (flags & SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV)
 		filter->wait_killable_recv = true;
+	if (flags & SECCOMP_FILTER_FLAG_RESTART_BEFORE_RECV)
+		filter->restart_before_recv = true;
 
 	/*
 	 * If there is an existing filter, make it the prev and don't drop its
@@ -1208,8 +1212,12 @@ static int seccomp_do_user_notification(int this_syscall,
 			 * Check to see whether we should switch to wait
 			 * killable. Only return the interrupted error if not.
 			 */
-			if (!(!wait_killable && should_sleep_killable(match, &n)))
+			if (!(!wait_killable && should_sleep_killable(match, &n))) {
+				if (err == -ERESTARTSYS && match->restart_before_recv &&
+				    n.state == SECCOMP_NOTIFY_INIT)
+					err = -ERESTARTNOINTR;
 				goto interrupted;
+			}
 		}
 
 		addfd = list_first_entry_or_null(&n.addfd,
@@ -1735,7 +1743,8 @@ static long seccomp_notify_addfd(struct seccomp_filter *filter,
 	if (addfd.newfd && !(addfd.flags & SECCOMP_ADDFD_FLAG_SETFD))
 		return -EINVAL;
 
-	kaddfd.file = fget(addfd.srcfd);
+	/* Allow O_PATH files, as SCM_RIGHTS and pidfd_getfd() do. */
+	kaddfd.file = fget_raw(addfd.srcfd);
 	if (!kaddfd.file)
 		return -EBADF;
 
@@ -1808,10 +1817,13 @@ static long seccomp_notify_addfd(struct seccomp_filter *filter,
 	 * We need to check again if the addfd request has been handled,
 	 * and if not, we will remove it from the queue.
 	 */
-	if (list_empty(&kaddfd.list))
+	if (list_empty(&kaddfd.list)) {
 		ret = kaddfd.ret;
-	else
+	} else {
 		list_del(&kaddfd.list);
+		if (addfd.flags & SECCOMP_ADDFD_FLAG_SEND)
+			knotif->state = SECCOMP_NOTIFY_SENT;
+	}
 
 out_unlock:
 	mutex_unlock(&filter->notify_lock);
@@ -1977,10 +1989,10 @@ static long seccomp_set_mode_filter(unsigned int flags,
 		return -EINVAL;
 
 	/*
-	 * The SECCOMP_FILTER_FLAG_WAIT_KILLABLE_SENT flag doesn't make sense
-	 * without the SECCOMP_FILTER_FLAG_NEW_LISTENER flag.
+	 * Notification wait flags require a userspace listener.
 	 */
-	if ((flags & SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV) &&
+	if ((flags & (SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV |
+		      SECCOMP_FILTER_FLAG_RESTART_BEFORE_RECV)) &&
 	    ((flags & SECCOMP_FILTER_FLAG_NEW_LISTENER) == 0))
 		return -EINVAL;
 
