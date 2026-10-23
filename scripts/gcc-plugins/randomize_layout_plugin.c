@@ -22,7 +22,7 @@
 #define ORIG_TYPE_NAME(node) \
 	(TYPE_NAME(TYPE_MAIN_VARIANT(node)) != NULL_TREE ? ((const unsigned char *)IDENTIFIER_POINTER(TYPE_NAME(TYPE_MAIN_VARIANT(node)))) : (const unsigned char *)"anonymous")
 
-#define INFORM(loc, msg, ...)	inform(loc, "randstruct: " msg, ##__VA_ARGS__)
+#define INFORM(loc, msg, ...)	warning_at(loc, 0, "randstruct: " msg, ##__VA_ARGS__)
 #define MISMATCH(loc, how, ...)	INFORM(loc, "casting between randomized structure pointer types (" how "): %qT and %qT\n", __VA_ARGS__)
 
 __visible int plugin_is_GPL_compatible;
@@ -699,6 +699,63 @@ static void handle_local_var_initializers(void)
 }
 
 /*
+ * Does @container reach a field of type @member_type by a chain of
+ * by-value members? That is the relationship container_of() expresses --
+ * its @member argument may be a dotted path, e.g.
+ * container_of(inode, struct ceph_inode_info, netfs.inode) -- so a cast
+ * from @member_type * to @container * is legitimate rather than a
+ * layout-confusing one.
+ *
+ * container_of() used to leave a "void *__mptr" temporary behind, and this
+ * pass recognised such casts by that name. Commit f9e7a7564834
+ * ("container_of: remove local __mptr variable") removed it to stop nested
+ * container_of() shadowing itself, and the cast now folds to a bare SSA
+ * copy when the member sits at offset 0, leaving nothing syntactic to key
+ * on. Match the type relationship instead.
+ *
+ * The depth bound keeps this cheap; container_of() paths are one or two
+ * members deep in practice.
+ */
+#define CONTAINER_OF_MAX_DEPTH 4
+
+static bool is_container_of_cast(const_tree container, const_tree member_type,
+				 int depth)
+{
+	const_tree field;
+
+	if (container == NULL_TREE || depth > CONTAINER_OF_MAX_DEPTH)
+		return false;
+
+	if (TREE_CODE(container) != RECORD_TYPE &&
+	    TREE_CODE(container) != UNION_TYPE)
+		return false;
+
+	for (field = TYPE_FIELDS(container); field; field = DECL_CHAIN(field)) {
+		const_tree field_type;
+
+		if (TREE_CODE(field) != FIELD_DECL)
+			continue;
+
+		/*
+		 * Only a member at offset 0 can reach here: for any other
+		 * offset container_of()'s subtraction survives folding, the
+		 * cast's rhs stays void *, and the caller skipped it above.
+		 */
+		if (!integer_zerop(byte_position(field)))
+			continue;
+
+		field_type = TYPE_MAIN_VARIANT(TREE_TYPE(field));
+		if (field_type == member_type)
+			return true;
+
+		if (is_container_of_cast(field_type, member_type, depth + 1))
+			return true;
+	}
+
+	return false;
+}
+
+/*
  * iterate over all statements to find "bad" casts:
  * those where the address of the start of a structure is cast
  * to a pointer of a structure of a different type, or a
@@ -799,10 +856,8 @@ static unsigned int find_bad_casts_execute(void)
 #endif
 				MISMATCH(gimple_location(stmt), "op0", ptr_lhs_type, op0_type);
 			} else {
-				const_tree ssa_name_var = SSA_NAME_VAR(rhs1);
 				/* skip bogus type casts introduced by container_of */
-				if (ssa_name_var != NULL_TREE && DECL_NAME(ssa_name_var) && 
-				    !strcmp((const char *)DECL_NAME_POINTER(ssa_name_var), "__mptr"))
+				if (is_container_of_cast(ptr_lhs_type, ptr_rhs_type, 0))
 					continue;
 #ifndef __DEBUG_PLUGIN
 				if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(ptr_rhs_type)))

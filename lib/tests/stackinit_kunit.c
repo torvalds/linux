@@ -369,17 +369,24 @@ union test_small_end {
 	char four;
 };
 
-#define ALWAYS_PASS	WANT_SUCCESS
-#define ALWAYS_FAIL	XFAIL
+#define ALWAYS_PASS		WANT_SUCCESS
+#define ALWAYS_FAIL		XFAIL
 
 #ifdef CONFIG_INIT_STACK_NONE
-# define USER_PASS	XFAIL
-# define BYREF_PASS	XFAIL
-# define STRONG_PASS	XFAIL
+# define INSTRUMENTED_PASS	XFAIL
 #else
-# define USER_PASS	WANT_SUCCESS
-# define BYREF_PASS	WANT_SUCCESS
-# define STRONG_PASS	WANT_SUCCESS
+# define INSTRUMENTED_PASS	WANT_SUCCESS
+#endif
+
+/*
+ * Clang 24 and later emit initialization on the jumps that bypass the
+ * declaration. GCC still initializes only at the declaration. Track
+ * test expectation based on CONFIG_INIT_STACK_NONE above.
+ */
+#if defined(CONFIG_CC_IS_CLANG) && CONFIG_CLANG_VERSION >= 240000
+# define BYPASS_PASS	INSTRUMENTED_PASS
+#else
+# define BYPASS_PASS	XFAIL
 #endif
 
 #define DEFINE_SCALAR_TEST(name, init, xfail)			\
@@ -432,23 +439,23 @@ DEFINE_STRUCT_TESTS(old_zero, ALWAYS_PASS);
 DEFINE_UNION_TESTS(zero, ALWAYS_PASS);
 DEFINE_UNION_TESTS(old_zero, ALWAYS_PASS);
 /* Struct initializers: padding may be left uninitialized. */
-DEFINE_STRUCT_INITIALIZER_TESTS(static, STRONG_PASS);
-DEFINE_STRUCT_INITIALIZER_TESTS(dynamic, STRONG_PASS);
-DEFINE_STRUCT_INITIALIZER_TESTS(runtime, STRONG_PASS);
-DEFINE_STRUCT_INITIALIZER_TESTS(assigned_static, STRONG_PASS);
-DEFINE_STRUCT_INITIALIZER_TESTS(assigned_dynamic, STRONG_PASS);
+DEFINE_STRUCT_INITIALIZER_TESTS(static, INSTRUMENTED_PASS);
+DEFINE_STRUCT_INITIALIZER_TESTS(dynamic, INSTRUMENTED_PASS);
+DEFINE_STRUCT_INITIALIZER_TESTS(runtime, INSTRUMENTED_PASS);
+DEFINE_STRUCT_INITIALIZER_TESTS(assigned_static, INSTRUMENTED_PASS);
+DEFINE_STRUCT_INITIALIZER_TESTS(assigned_dynamic, INSTRUMENTED_PASS);
 DEFINE_STRUCT_TESTS(assigned_copy, ALWAYS_FAIL);
-DEFINE_UNION_INITIALIZER_TESTS(static, STRONG_PASS);
-DEFINE_UNION_INITIALIZER_TESTS(dynamic, STRONG_PASS);
-DEFINE_UNION_INITIALIZER_TESTS(runtime, STRONG_PASS);
-DEFINE_UNION_INITIALIZER_TESTS(assigned_static, STRONG_PASS);
-DEFINE_UNION_INITIALIZER_TESTS(assigned_dynamic, STRONG_PASS);
+DEFINE_UNION_INITIALIZER_TESTS(static, INSTRUMENTED_PASS);
+DEFINE_UNION_INITIALIZER_TESTS(dynamic, INSTRUMENTED_PASS);
+DEFINE_UNION_INITIALIZER_TESTS(runtime, INSTRUMENTED_PASS);
+DEFINE_UNION_INITIALIZER_TESTS(assigned_static, INSTRUMENTED_PASS);
+DEFINE_UNION_INITIALIZER_TESTS(assigned_dynamic, INSTRUMENTED_PASS);
 DEFINE_UNION_TESTS(assigned_copy, ALWAYS_FAIL);
 /* No initialization without compiler instrumentation. */
-DEFINE_SCALAR_TESTS(none, STRONG_PASS);
-DEFINE_STRUCT_TESTS(none, BYREF_PASS);
+DEFINE_SCALAR_TESTS(none, INSTRUMENTED_PASS);
+DEFINE_STRUCT_TESTS(none, INSTRUMENTED_PASS);
 /* Initialization of members with __user attribute. */
-DEFINE_TEST(user, struct test_user, STRUCT, none, USER_PASS);
+DEFINE_TEST(user, struct test_user, STRUCT, none, INSTRUMENTED_PASS);
 
 /*
  * Check two uses through a variable declaration outside either path,
@@ -493,6 +500,36 @@ static int noinline __leaf_switch_none(int path, bool fill)
 	return 0;
 }
 
+static noinline int __leaf_goto_none(bool fill)
+{
+	goto bypass;
+	/*
+	 * This declaration is jumped over by the goto above, so it is
+	 * never reached. Compilers that initialize only at the point of
+	 * declaration leave this variable untouched.
+	 */
+	uint64_t var[10];
+
+bypass:
+	target_start = &var;
+	target_size = sizeof(var);
+	if (fill) {
+		fill_start = &var;
+		fill_size = sizeof(var);
+
+		memset(fill_start, (forced_mask | 0x55) & FILL_BYTE, fill_size);
+	}
+	memcpy(check_buf, target_start, target_size);
+
+	return 0;
+}
+
+static noinline int leaf_goto_none(unsigned long sp, bool fill,
+					  uint64_t *arg)
+{
+	return __leaf_goto_none(fill);
+}
+
 static noinline int leaf_switch_1_none(unsigned long sp, bool fill,
 					      uint64_t *arg)
 {
@@ -506,13 +543,14 @@ static noinline int leaf_switch_2_none(unsigned long sp, bool fill,
 }
 
 /*
- * These are expected to fail for most configurations because neither
- * GCC nor Clang have a way to perform initialization of variables in
- * non-code areas (i.e. in a switch statement before the first "case").
- * https://llvm.org/pr44916
+ * A declaration whose definition point is jumped over, either by a switch
+ * dispatch reaching a "case" label below it or by a goto, used to be left
+ * uninitialized: the initialization is emitted where the variable is
+ * declared, and that point is never reached.
  */
-DEFINE_TEST_DRIVER(switch_1_none, uint64_t, SCALAR, ALWAYS_FAIL);
-DEFINE_TEST_DRIVER(switch_2_none, uint64_t, SCALAR, ALWAYS_FAIL);
+DEFINE_TEST_DRIVER(switch_1_none, uint64_t, SCALAR, BYPASS_PASS);
+DEFINE_TEST_DRIVER(switch_2_none, uint64_t, SCALAR, BYPASS_PASS);
+DEFINE_TEST_DRIVER(goto_none, uint64_t, SCALAR, BYPASS_PASS);
 
 #define KUNIT_test_scalars(init)			\
 		KUNIT_CASE(test_u8_ ## init),		\
@@ -568,6 +606,7 @@ static struct kunit_case stackinit_test_cases[] = {
 	KUNIT_test_scalars(none),
 	KUNIT_CASE(test_switch_1_none),
 	KUNIT_CASE(test_switch_2_none),
+	KUNIT_CASE(test_goto_none),
 	/* STRUCTLEAK_BYREF should cover from here down. */
 	KUNIT_test_structs(none),
 	/* STRUCTLEAK will only cover this. */

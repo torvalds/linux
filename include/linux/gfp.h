@@ -13,10 +13,6 @@
 struct vm_area_struct;
 struct mempolicy;
 
-/* Helper macro to avoid gfp flags if they are the default one */
-#define __default_gfp(a,b,...) b
-#define default_gfp(...) __default_gfp(,##__VA_ARGS__,GFP_KERNEL)
-
 static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
 {
 	return !!(gfp_flags & __GFP_DIRECT_RECLAIM);

@@ -14231,6 +14231,7 @@ F:	include/linux/ucopysize.h
 F:	kernel/configs/hardening.config
 F:	kernel/kstack_erase.c
 F:	lib/tests/randstruct_kunit.c
+F:	lib/tests/stackinit_kunit.c
 F:	lib/tests/usercopy_kunit.c
 F:	mm/usercopy.c
 F:	scripts/Makefile.kstack_erase

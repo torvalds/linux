@@ -490,9 +490,6 @@ set_register:
 			  bits_changed);
 	}
 }
-#if IS_MODULE(CONFIG_LKDTM)
-EXPORT_SYMBOL_GPL(native_write_cr4);
-#endif
 
 void cr4_update_irqsoff(unsigned long set, unsigned long clear)
 {

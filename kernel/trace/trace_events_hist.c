@@ -2985,8 +2985,7 @@ find_synthetic_field_var(struct hist_trigger_data *target_hist_data,
 	seq_buf_init(&s, synthetic_name, MAX_FILTER_STR_VAL);
 	seq_buf_printf(&s, "synthetic_%s", field_name);
 
-	/* Terminate synthetic_name with a NUL. */
-	seq_buf_str(&s);
+	seq_buf_terminate(&s);
 
 	if (seq_buf_has_overflowed(&s)) {
 		kfree(synthetic_name);
@@ -3103,8 +3102,7 @@ create_field_var_hist(struct hist_trigger_data *target_hist_data,
 	if (saved_filter)
 		seq_buf_printf(&s, " if %s", saved_filter);
 
-	/* Terminate cmd with a NUL. */
-	seq_buf_str(&s);
+	seq_buf_terminate(&s);
 
 	if (seq_buf_has_overflowed(&s)) {
 		kfree(cmd);

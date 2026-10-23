@@ -86,7 +86,10 @@ static inline bool trace_seq_has_overflowed(struct trace_seq *s)
  *
  * Removes the last written character to the trace_seq @s.
  *
- * Returns the last character or -1 if it is empty.
+ * Returns the last character, or -1 if the underlying seq_buf is empty or
+ * has overflowed. Note that only that buffer is consulted: a @s marked
+ * full by a write that did not fit, which trace_seq_has_overflowed()
+ * reports as overflowed, still pops the last character written.
  */
 static inline int trace_seq_pop(struct trace_seq *s)
 {
