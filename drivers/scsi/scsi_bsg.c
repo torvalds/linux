@@ -41,7 +41,7 @@ static void scsi_bsg_uring_task_cb(struct io_tw_req tw_req, io_tw_token_t tw)
 	u8 sense_len_wr = 0;
 
 	if (pdu->bio)
-		blk_rq_unmap_user(pdu->bio);
+		ret = blk_rq_unmap_user(pdu->bio);
 
 	if (scsi_status_is_check_condition(scmd->result)) {
 		driver_status = DRIVER_SENSE;
