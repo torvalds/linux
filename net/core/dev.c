@@ -3478,6 +3478,9 @@ static void __netif_reschedule(struct Qdisc *q)
 
 void __netif_schedule(struct Qdisc *q)
 {
+	if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state)))
+		return;
+
 	/* If q->defer_list is not empty, at least one thread is
 	 * in __dev_xmit_skb() before llist_del_all(&q->defer_list).
 	 * This thread will attempt to run the queue.

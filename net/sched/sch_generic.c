@@ -1280,6 +1280,10 @@ static void transition_one_qdisc(struct net_device *dev,
 	if (need_watchdog_p) {
 		WRITE_ONCE(dev_queue->trans_start, jiffies);
 		*need_watchdog_p = 1;
+
+		/* Resume backlog left by a suppressed schedule while deactivated. */
+		if (!qdisc_is_empty(new_qdisc))
+			netif_schedule_queue(dev_queue);
 	}
 }
 
