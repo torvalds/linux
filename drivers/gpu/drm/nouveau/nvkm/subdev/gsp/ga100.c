@@ -27,6 +27,7 @@ ga100_gsp_flcn = {
 	.enable = gm200_flcn_enable,
 	.addr2 = 0x1000,
 	.riscv_irqmask = 0x2b4,
+	.riscv_irqdest = 0x2b8,
 	.reset_eng = gp102_flcn_reset_eng,
 	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
 	.bind_inst = gm200_flcn_bind_inst,
