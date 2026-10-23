@@ -5327,9 +5327,9 @@ F:	drivers/net/ethernet/broadcom/bnx2.*
 F:	drivers/net/ethernet/broadcom/bnx2_*
 
 BROADCOM BNX2FC 10 GIGABIT FCOE DRIVER
-M:	Saurav Kashyap <skashyap@marvell.com>
-M:	Javed Hasan <jhasan@marvell.com>
-M:	GR-QLogic-Storage-Upstream@marvell.com
+M:	Nilesh Javali <njavali@marvell.com>
+M:	Manish Rangankar <mrangankar@marvell.com>
+M:	GR-ETH-Storage-Upstream@marvell.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/bnx2fc/
@@ -5337,7 +5337,7 @@ F:	drivers/scsi/bnx2fc/
 BROADCOM BNX2I 1/10 GIGABIT iSCSI DRIVER
 M:	Nilesh Javali <njavali@marvell.com>
 M:	Manish Rangankar <mrangankar@marvell.com>
-M:	GR-QLogic-Storage-Upstream@marvell.com
+M:	GR-ETH-Storage-Upstream@marvell.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/bnx2i/
@@ -22145,9 +22145,9 @@ S:	Maintained
 F:	drivers/power/reset/qemu-virt-ctrl.c
 
 QLOGIC QL41xxx FCOE DRIVER
-M:	Saurav Kashyap <skashyap@marvell.com>
-M:	Javed Hasan <jhasan@marvell.com>
-M:	GR-QLogic-Storage-Upstream@marvell.com
+M:	Nilesh Javali <njavali@marvell.com>
+M:	Manish Rangankar <mrangankar@marvell.com>
+M:	GR-ETH-Storage-Upstream@marvell.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/qedf/
@@ -22155,7 +22155,7 @@ F:	drivers/scsi/qedf/
 QLOGIC QL41xxx ISCSI DRIVER
 M:	Nilesh Javali <njavali@marvell.com>
 M:	Manish Rangankar <mrangankar@marvell.com>
-M:	GR-QLogic-Storage-Upstream@marvell.com
+M:	GR-ETH-Storage-Upstream@marvell.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/qedi/
