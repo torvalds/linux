@@ -921,10 +921,6 @@ static int ncm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 				return PTR_ERR(net);
 			ncm->netdev = net;
 		}
-
-		spin_lock(&ncm->lock);
-		ncm_notify(ncm);
-		spin_unlock(&ncm->lock);
 	} else
 		goto fail;
 
