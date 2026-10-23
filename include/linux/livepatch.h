@@ -33,6 +33,7 @@
  * @kobj:	kobject for sysfs resources
  * @node:	list node for klp_object func_list
  * @stack_node:	list node for klp_ops func_stack list
+ * @obj:	back pointer to the owning object
  * @old_size:	size of the old function
  * @new_size:	size of the new function
  * @nop:        temporary patch to use the original code again; dyn. allocated
@@ -72,6 +73,7 @@ struct klp_func {
 	struct kobject kobj;
 	struct list_head node;
 	struct list_head stack_node;
+	struct klp_object *obj;
 	unsigned long old_size, new_size;
 	bool nop;
 	bool patched;
@@ -86,6 +88,7 @@ struct klp_func {
  * @kobj:	kobject for sysfs resources
  * @func_list:	dynamic list of the function entries
  * @node:	list node for klp_patch obj_list
+ * @patch:	back pointer to the owning patch
  * @mod:	kernel module associated with the patched object
  *		(NULL for vmlinux)
  * @dynamic:    temporary object for nop functions; dynamically allocated
@@ -101,6 +104,7 @@ struct klp_object {
 	struct kobject kobj;
 	struct list_head func_list;
 	struct list_head node;
+	struct klp_patch *patch;
 	struct module *mod;
 	bool dynamic;
 	bool patched;

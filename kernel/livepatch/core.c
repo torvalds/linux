@@ -646,12 +646,15 @@ static const struct kobj_type klp_ktype_patch = {
 
 static void klp_kobj_release_object(struct kobject *kobj)
 {
+	struct klp_patch *patch;
 	struct klp_object *obj;
 
 	obj = container_of(kobj, struct klp_object, kobj);
+	patch = obj->patch;
 
 	if (obj->dynamic)
 		klp_free_object_dynamic(obj);
+	kobject_put(&patch->kobj);
 }
 
 static const struct kobj_type klp_ktype_object = {
@@ -662,12 +665,15 @@ static const struct kobj_type klp_ktype_object = {
 
 static void klp_kobj_release_func(struct kobject *kobj)
 {
+	struct klp_object *obj;
 	struct klp_func *func;
 
 	func = container_of(kobj, struct klp_func, kobj);
+	obj = func->obj;
 
 	if (func->nop)
 		klp_free_func_nop(func);
+	kobject_put(&obj->kobj);
 }
 
 static const struct kobj_type klp_ktype_func = {
@@ -943,7 +949,9 @@ static void klp_init_func_early(struct klp_object *obj,
 				struct klp_func *func)
 {
 	kobject_init(&func->kobj, &klp_ktype_func);
+	kobject_get(&obj->kobj);
 	list_add_tail(&func->node, &obj->func_list);
+	func->obj = obj;
 }
 
 static void klp_init_object_early(struct klp_patch *patch,
@@ -951,7 +959,9 @@ static void klp_init_object_early(struct klp_patch *patch,
 {
 	INIT_LIST_HEAD(&obj->func_list);
 	kobject_init(&obj->kobj, &klp_ktype_object);
+	kobject_get(&patch->kobj);
 	list_add_tail(&obj->node, &patch->obj_list);
+	obj->patch = patch;
 }
 
 static void klp_init_patch_early(struct klp_patch *patch)

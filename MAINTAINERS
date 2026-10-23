@@ -15230,10 +15230,10 @@ N:	litex
 
 LIVE PATCHING
 M:	Josh Poimboeuf <jpoimboe@kernel.org>
-M:	Jiri Kosina <jikos@kernel.org>
 M:	Miroslav Benes <mbenes@suse.cz>
 M:	Petr Mladek <pmladek@suse.com>
-R:	Joe Lawrence <joe.lawrence@redhat.com>
+M:	Joe Lawrence <joe.lawrence@redhat.com>
+M:	Song Liu <song@kernel.org>
 L:	live-patching@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/livepatching/livepatching.git
