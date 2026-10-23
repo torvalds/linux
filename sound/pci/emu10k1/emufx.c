@@ -2423,12 +2423,12 @@ static int snd_emu10k1_fx8010_open(struct snd_hwdep * hw, struct file *file)
 	return 0;
 }
 
-static void copy_string(char *dst, const char *src, const char *null, int idx)
+static void copy_string(char *dst, size_t size, const char *src, const char *null, int idx)
 {
 	if (src == NULL)
-		sprintf(dst, "%s %02X", null, idx);
+		snprintf(dst, size, "%s %02X", null, idx);
 	else
-		strcpy(dst, src);
+		strscpy(dst, src, size);
 }
 
 static void snd_emu10k1_fx8010_info(struct snd_emu10k1 *emu,
@@ -2446,12 +2446,16 @@ static void snd_emu10k1_fx8010_info(struct snd_emu10k1 *emu,
 	extin_mask = emu->audigy ? ~0 : emu->fx8010.extin_mask;
 	extout_mask = emu->audigy ? ~0 : emu->fx8010.extout_mask;
 	for (res = 0; res < 16; res++, fxbus++, extin++, extout++) {
-		copy_string(info->fxbus_names[res], *fxbus, "FXBUS", res);
-		copy_string(info->extin_names[res], extin_mask & (1 << res) ? *extin : NULL, "Unused", res);
-		copy_string(info->extout_names[res], extout_mask & (1 << res) ? *extout : NULL, "Unused", res);
+		copy_string(info->fxbus_names[res], sizeof(info->fxbus_names[res]),
+			    *fxbus, "FXBUS", res);
+		copy_string(info->extin_names[res], sizeof(info->extin_names[res]),
+			    extin_mask & (1 << res) ? *extin : NULL, "Unused", res);
+		copy_string(info->extout_names[res], sizeof(info->extout_names[res]),
+			    extout_mask & (1 << res) ? *extout : NULL, "Unused", res);
 	}
 	for (res = 16; res < 32; res++, extout++)
-		copy_string(info->extout_names[res], extout_mask & (1 << res) ? *extout : NULL, "Unused", res);
+		copy_string(info->extout_names[res], sizeof(info->extout_names[res]),
+			    extout_mask & (1 << res) ? *extout : NULL, "Unused", res);
 	info->gpr_controls = emu->fx8010.gpr_count;
 }
 
