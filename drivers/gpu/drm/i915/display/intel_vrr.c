@@ -1202,9 +1202,13 @@ int intel_vrr_safe_window_start(const struct intel_crtc_state *crtc_state)
 static int
 intel_vrr_dcb_vmin_vblank_start(const struct intel_crtc_state *crtc_state)
 {
-	return (intel_vrr_dcb_vmin_vblank_start_next(crtc_state) < 0) ?
-		intel_vrr_dcb_vmin_vblank_start_final(crtc_state) :
-		intel_vrr_dcb_vmin_vblank_start_next(crtc_state);
+	int vblank_start;
+
+	vblank_start = intel_vrr_dcb_vmin_vblank_start_next(crtc_state);
+	if (vblank_start < 0)
+		vblank_start = intel_vrr_dcb_vmin_vblank_start_final(crtc_state);
+
+	return vblank_start;
 }
 
 int intel_vrr_vmin_safe_window_end(const struct intel_crtc_state *crtc_state)
