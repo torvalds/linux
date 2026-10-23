@@ -121,6 +121,7 @@ static ftrace_func_t select_trace_function(u32 flags_val)
 	case TRACE_FUNC_OPT_ARGS:
 		return function_args_trace_call;
 	case TRACE_FUNC_OPT_STACK:
+	case TRACE_FUNC_OPT_STACK | TRACE_FUNC_OPT_ARGS:
 		return function_stack_trace_call;
 	case TRACE_FUNC_OPT_NO_REPEATS:
 		return function_no_repeats_trace_call;
@@ -295,7 +296,9 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
 
 	if (likely(disabled == 1)) {
 		trace_ctx = tracing_gen_ctx_flags(flags);
-		trace_function(tr, ip, parent_ip, trace_ctx, NULL);
+		if (!(tr->current_trace_flags->val & TRACE_FUNC_OPT_ARGS))
+			fregs = NULL;
+		trace_function(tr, ip, parent_ip, trace_ctx, fregs);
 #ifdef CONFIG_UNWINDER_FRAME_POINTER
 		if (ftrace_pids_enabled(op))
 			skip++;
