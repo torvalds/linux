@@ -244,7 +244,7 @@ enum {
  * definitely preferable to use the flag rather than opencode endless
  * loop around allocator.
  * Allocating pages from the buddy with __GFP_NOFAIL and order > 1 is
- * not supported. Please consider using kvmalloc() instead.
+ * discouraged. Please consider using kvmalloc() instead if possible.
  */
 #define __GFP_IO	((__force gfp_t)___GFP_IO)
 #define __GFP_FS	((__force gfp_t)___GFP_FS)

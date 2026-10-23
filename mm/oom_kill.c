@@ -230,7 +230,7 @@ long oom_badness(struct task_struct *p, unsigned long totalpages)
 	task_unlock(p);
 
 	/* Normalize to oom_score_adj units */
-	adj *= totalpages / 1000;
+	adj *= totalpages / OOM_SCORE_ADJ_MAX;
 	points += adj;
 
 	return points;
@@ -267,18 +267,11 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
 
 	if (!oc->zonelist)
 		return CONSTRAINT_NONE;
-	/*
-	 * Reach here only when __GFP_NOFAIL is used. So, we should avoid
-	 * to kill current.We have to random task kill in this case.
-	 * Hopefully, CONSTRAINT_THISNODE...but no way to handle it, now.
-	 */
-	if (oc->gfp_mask & __GFP_THISNODE)
-		return CONSTRAINT_NONE;
 
 	/*
-	 * This is not a __GFP_THISNODE allocation, so a truncated nodemask in
-	 * the page allocator means a mempolicy is in effect.  Cpuset policy
-	 * is enforced in get_page_from_freelist().
+	 * A truncated nodemask in the page allocator means a mempolicy
+	 * is in effect.  Cpuset policy is enforced in
+	 * get_page_from_freelist().
 	 */
 	if (oc->nodemask &&
 	    !nodes_subset(node_states[N_MEMORY], *oc->nodemask)) {

@@ -103,13 +103,6 @@ extern pte_t *va_to_pte(unsigned long address);
 #define USER_PGD_PTRS (PAGE_OFFSET >> PGDIR_SHIFT)
 #define KERNEL_PGD_PTRS (PTRS_PER_PGD-USER_PGD_PTRS)
 
-#define pte_ERROR(e) \
-	printk(KERN_ERR "%s:%d: bad pte "PTE_FMT".\n", \
-		__FILE__, __LINE__, pte_val(e))
-#define pgd_ERROR(e) \
-	printk(KERN_ERR "%s:%d: bad pgd %08lx.\n", \
-		__FILE__, __LINE__, pgd_val(e))
-
 /*
  * Bits in a linux-style PTE.  These match the bits in the
  * (hardware-defined) PTE as closely as possible.

@@ -67,11 +67,8 @@
  *  - tlb_remove_table()
  *
  *    tlb_remove_table() is the basic primitive to free page-table directories
- *    (__p*_free_tlb()).  In it's most primitive form it is an alias for
- *    tlb_remove_page() below, for when page directories are pages and have no
- *    additional constraints.
- *
- *    See also MMU_GATHER_TABLE_FREE and MMU_GATHER_RCU_TABLE_FREE.
+ *    (__p*_free_tlb()).  Page directories are freed after an RCU grace
+ *    period - see the comment in mm/mmu_gather.c.
  *
  *  - tlb_remove_page() / tlb_remove_page_size()
  *  - __tlb_remove_folio_pages() / __tlb_remove_page_size()
@@ -151,24 +148,15 @@
  *  This might be useful if your architecture has size specific TLB
  *  invalidation instructions.
  *
- *  MMU_GATHER_TABLE_FREE
+ *  Page directories (__p*_free_tlb()) are always freed via tlb_remove_table(),
+ *  after an RCU grace period (see mm/mmu_gather.c).
  *
- *  This provides tlb_remove_table(), to be used instead of tlb_remove_page()
- *  for page directores (__p*_free_tlb()).
+ *  This serialises against software page-table walkers, including architectures
+ *  which do not use IPIs for remote TLB invalidates.
  *
- *  Useful if your architecture has non-page page directories.
- *
- *  When used, an architecture is expected to provide __tlb_remove_table() or
- *  use the generic __tlb_remove_table(), which does the actual freeing of these
- *  pages.
- *
- *  MMU_GATHER_RCU_TABLE_FREE
- *
- *  Like MMU_GATHER_TABLE_FREE, and adds semi-RCU semantics to the free (see
- *  comment below).
- *
- *  Useful if your architecture doesn't use IPIs for remote TLB invalidates
- *  and therefore doesn't naturally serialize with software page-table walkers.
+ *  An architecture is expected to provide __tlb_remove_table() (see
+ *  HAVE_ARCH_TLB_REMOVE_TABLE) or use the generic __tlb_remove_table(), which
+ *  does the actual freeing of these pages.
  *
  *  MMU_GATHER_NO_FLUSH_CACHE
  *
@@ -200,12 +188,8 @@
  *  various ptep_get_and_clear() functions.
  */
 
-#ifdef CONFIG_MMU_GATHER_TABLE_FREE
-
 struct mmu_table_batch {
-#ifdef CONFIG_MMU_GATHER_RCU_TABLE_FREE
 	struct rcu_head		rcu;
-#endif
 	unsigned int		nr;
 	void			*tables[];
 };
@@ -224,23 +208,6 @@ static inline void __tlb_remove_table(void *table)
 
 extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
 
-#else /* !CONFIG_MMU_GATHER_TABLE_FREE */
-
-static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page);
-/*
- * Without MMU_GATHER_TABLE_FREE the architecture is assumed to have page based
- * page directories and we can use the normal page batching to free them.
- */
-static inline void tlb_remove_table(struct mmu_gather *tlb, void *table)
-{
-	struct ptdesc *ptdesc = (struct ptdesc *)table;
-
-	pagetable_dtor(ptdesc);
-	tlb_remove_page(tlb, ptdesc_page(ptdesc));
-}
-#endif /* CONFIG_MMU_GATHER_TABLE_FREE */
-
-#ifdef CONFIG_MMU_GATHER_RCU_TABLE_FREE
 /*
  * This allows an architecture that does not use the linux page-tables for
  * hardware to skip the TLBI when freeing page tables.
@@ -252,19 +219,6 @@ static inline void tlb_remove_table(struct mmu_gather *tlb, void *table)
 void tlb_remove_table_sync_one(void);
 
 void tlb_remove_table_sync_rcu(void);
-
-#else
-
-#ifdef tlb_needs_table_invalidate
-#error tlb_needs_table_invalidate() requires MMU_GATHER_RCU_TABLE_FREE
-#endif
-
-static inline void tlb_remove_table_sync_one(void) { }
-
-static inline void tlb_remove_table_sync_rcu(void) { }
-
-#endif /* CONFIG_MMU_GATHER_RCU_TABLE_FREE */
-
 
 #ifndef CONFIG_MMU_GATHER_NO_GATHER
 /*
@@ -325,9 +279,7 @@ static inline void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct
 struct mmu_gather {
 	struct mm_struct	*mm;
 
-#ifdef CONFIG_MMU_GATHER_TABLE_FREE
 	struct mmu_table_batch	*batch;
-#endif
 
 	unsigned long		start;
 	unsigned long		end;

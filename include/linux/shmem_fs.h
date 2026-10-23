@@ -11,6 +11,7 @@
 #include <linux/fs_parser.h>
 #include <linux/userfaultfd_k.h>
 #include <linux/bits.h>
+#include <linux/list_lru.h>
 
 /* inode in-kernel data */
 
@@ -54,6 +55,11 @@ struct shmem_inode_info {
 	struct dquot __rcu	*i_dquot[MAXQUOTAS];
 #endif
 	struct inode		vfs_inode;
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	struct obj_cgroup	*shrinklist_objcg;
+	int			shrinklist_nid;
+#endif
 };
 
 #define SHMEM_FL_USER_VISIBLE		(FS_FL_USER_VISIBLE | FS_CASEFOLD_FL)
@@ -83,9 +89,9 @@ struct shmem_sb_info {
 	ino_t next_ino;		    /* The next per-sb inode number to use */
 	ino_t __percpu *ino_batch;  /* The next per-cpu inode number to use */
 	struct mempolicy *mpol;     /* default memory policy for mappings */
-	spinlock_t shrinklist_lock;   /* Protects shrinklist */
-	struct list_head shrinklist;  /* List of shinkable inodes */
-	unsigned long shrinklist_len; /* Length of shrinklist */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	struct list_lru shrinklist; /* List of shrinkable inodes */
+#endif
 	struct shmem_quota_limits qlimits; /* Default quota limits */
 	struct simple_xattr_cache xa_cache;
 };

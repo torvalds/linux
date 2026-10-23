@@ -25,9 +25,6 @@
 
 #define PTRS_PER_PMD	((1 << PGDIR_SHIFT) / PMD_SIZE)
 
-#define pmd_ERROR(e) \
-	printk("%s:%d: bad pmd %016llx.\n", __FILE__, __LINE__, pmd_val(e))
-
 typedef union {
 	struct {
 		unsigned long pmd_low;

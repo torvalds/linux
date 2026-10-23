@@ -3197,7 +3197,6 @@ static int kcompactd(void *p)
 	long default_timeout = msecs_to_jiffies(HPAGE_FRAG_CHECK_INTERVAL_MSEC);
 	long timeout = default_timeout;
 
-	current->flags |= PF_KCOMPACTD;
 	set_freezable();
 
 	pgdat->kcompactd_max_order = 0;
@@ -3254,10 +3253,14 @@ static int kcompactd(void *p)
 			pgdat->proactive_compact_trigger = false;
 	}
 
-	current->flags &= ~PF_KCOMPACTD;
-
 	return 0;
 }
+
+bool current_is_kcompactd(void)
+{
+	return kthread_func(current) == kcompactd;
+}
+EXPORT_SYMBOL_GPL(current_is_kcompactd);
 
 /*
  * This kcompactd start function will be called by init and node-hot-add.

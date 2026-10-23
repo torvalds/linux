@@ -142,6 +142,7 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw, unsigned long pte_nr)
 	return true;
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /* Returns true if the two ranges overlap.  Careful to not overflow. */
 static bool check_pmd(unsigned long pfn, struct page_vma_mapped_walk *pvmw)
 {
@@ -151,6 +152,12 @@ static bool check_pmd(unsigned long pfn, struct page_vma_mapped_walk *pvmw)
 		return false;
 	return true;
 }
+#else
+static bool check_pmd(unsigned long pfn, struct page_vma_mapped_walk *pvmw)
+{
+	return false;
+}
+#endif
 
 static void step_forward(struct page_vma_mapped_walk *pvmw, unsigned long size)
 {

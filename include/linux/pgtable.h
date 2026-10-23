@@ -490,35 +490,35 @@ static inline int pudp_set_access_flags(struct vm_area_struct *vma,
 #endif
 
 #ifndef ptep_get
-static inline pte_t ptep_get(pte_t *ptep)
+static inline pte_t ptep_get(const pte_t *ptep)
 {
 	return READ_ONCE(*ptep);
 }
 #endif
 
 #ifndef pmdp_get
-static inline pmd_t pmdp_get(pmd_t *pmdp)
+static inline pmd_t pmdp_get(const pmd_t *pmdp)
 {
 	return READ_ONCE(*pmdp);
 }
 #endif
 
 #ifndef pudp_get
-static inline pud_t pudp_get(pud_t *pudp)
+static inline pud_t pudp_get(const pud_t *pudp)
 {
 	return READ_ONCE(*pudp);
 }
 #endif
 
 #ifndef p4dp_get
-static inline p4d_t p4dp_get(p4d_t *p4dp)
+static inline p4d_t p4dp_get(const p4d_t *p4dp)
 {
 	return READ_ONCE(*p4dp);
 }
 #endif
 
 #ifndef pgdp_get
-static inline pgd_t pgdp_get(pgd_t *pgdp)
+static inline pgd_t pgdp_get(const pgd_t *pgdp)
 {
 	return READ_ONCE(*pgdp);
 }
@@ -2313,6 +2313,20 @@ static inline const char *pgtable_level_to_str(enum pgtable_level level)
 	}
 }
 
+void ptval_bytes_to_hex_str(char *buf, size_t buf_size, const void *entry, size_t entry_size);
+
+#define ptval_to_str(buf, val)								\
+	do {										\
+		auto __val = (val);							\
+											\
+		ptval_bytes_to_hex_str((buf), sizeof(buf), &__val, sizeof(__val));	\
+	} while (0)
+
+#if defined(__SIZEOF_INT128__)
+#define PTVAL_STR_MAX	(32 + 1) /* Max 128-bit value in hex + NUL */
+#else
+#define PTVAL_STR_MAX	(16 + 1) /* Max 64-bit value in hex + NUL */
+#endif
 #endif /* !__ASSEMBLER__ */
 
 #if !defined(MAX_POSSIBLE_PHYSMEM_BITS) && !defined(CONFIG_64BIT)

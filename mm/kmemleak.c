@@ -238,7 +238,7 @@ static struct task_struct *scan_thread;
 static unsigned long jiffies_min_age;
 /* consecutive scans an object must stay unreferenced before reporting */
 static unsigned int min_unref_scans =
-	IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_VERBOSE) ? 2 : 1;
+	IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_VERBOSE) ? 3 : 1;
 module_param(min_unref_scans, uint, 0644);
 static unsigned long jiffies_last_scan;
 /* delay between automatic memory scannings */
@@ -1856,6 +1856,52 @@ static void dedup_flush(struct xarray *dedup)
 }
 
 /*
+ * Scan the struct pages of a zone, skipping memory holes, pages that belong to
+ * another zone and pages that are not in use. Returns 1 if the scan should be
+ * stopped.
+ */
+static int scan_zone_pages(struct zone *zone)
+{
+	const unsigned int max_batch = MAX_SCAN_SIZE / sizeof(struct page);
+	unsigned long start_pfn = zone->zone_start_pfn;
+	unsigned long end_pfn = zone_end_pfn(zone);
+	struct page *first = NULL, *last = NULL;
+	unsigned int batch = 0;
+	unsigned long pfn;
+
+	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+		struct page *page = pfn_to_online_page(pfn);
+
+		if (!(pfn & 63))
+			cond_resched_tasks_rcu_qs();
+
+		/* only scan in-use pages belonging to this zone */
+		if (page && (page_zone(page) != zone ||
+			     page_count(page) == 0))
+			page = NULL;
+
+		if (page && first && page == last + 1 &&
+		    batch < max_batch) {
+			last = page;
+			batch++;
+			continue;
+		}
+
+		if (first && scan_block(first, last + 1, NULL))
+			return 1;
+
+		first = page;
+		last = page;
+		batch = page ? 1 : 0;
+	}
+
+	if (first && scan_block(first, last + 1, NULL))
+		return 1;
+
+	return 0;
+}
+
+/*
  * Scan data sections and all the referenced memory blocks allocated via the
  * kernel's standard allocators. This function must be called with the
  * scan_mutex held.
@@ -1928,29 +1974,7 @@ static int __kmemleak_scan(bool full)
 	 */
 	get_online_mems();
 	for_each_populated_zone(zone) {
-		unsigned long start_pfn = zone->zone_start_pfn;
-		unsigned long end_pfn = zone_end_pfn(zone);
-		unsigned long pfn;
-
-		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-			struct page *page = pfn_to_online_page(pfn);
-
-			if (!(pfn & 63))
-				cond_resched_tasks_rcu_qs();
-
-			if (!page)
-				continue;
-
-			/* only scan pages belonging to this zone */
-			if (page_zone(page) != zone)
-				continue;
-			/* only scan if page is in use */
-			if (page_count(page) == 0)
-				continue;
-			stop = scan_block(page, page + 1, NULL);
-			if (stop)
-				break;
-		}
+		stop = scan_zone_pages(zone);
 		if (stop)
 			break;
 	}

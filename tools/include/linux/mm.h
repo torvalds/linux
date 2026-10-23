@@ -33,10 +33,6 @@ static inline phys_addr_t virt_to_phys(volatile void *address)
 	return (phys_addr_t)address;
 }
 
-static inline void totalram_pages_inc(void)
-{
-}
-
 static inline void totalram_pages_add(long count)
 {
 }

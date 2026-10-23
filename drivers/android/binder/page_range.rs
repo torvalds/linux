@@ -439,22 +439,9 @@ impl ShrinkablePageRange {
         // workqueue.
         let mm = MmWithUser::into_mmput_async(self.mm.mmget_not_zero().ok_or(ESRCH)?);
         {
-            let vma_read;
-            let mmap_read;
-            let vma = if let Some(ret) = mm.lock_vma_under_rcu(vma_addr) {
-                vma_read = ret;
-                check_vma(&vma_read, self)
-            } else {
-                mmap_read = mm.mmap_read_lock();
-                mmap_read
-                    .vma_lookup(vma_addr)
-                    .and_then(|vma| check_vma(vma, self))
-            };
-
-            match vma {
-                Some(vma) => vma.vm_insert_page(user_page_addr, &new_page)?,
-                None => return Err(ESRCH),
-            }
+            let vma_read_guard = mm.vma_start_read_unlocked(vma_addr).ok_or(ESRCH)?;
+            let vma = check_vma(&vma_read_guard, self).ok_or(ESRCH)?;
+            vma.vm_insert_page(user_page_addr, &new_page)?;
         }
 
         let inner = self.lock.lock();

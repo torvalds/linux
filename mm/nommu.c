@@ -1674,6 +1674,9 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
 	struct vm_area_struct *vma;
 	int write = gup_flags & FOLL_WRITE;
 
+	if (addr + len < addr)
+		return 0;
+
 	if (mmap_read_lock_killable(mm))
 		return 0;
 
@@ -1726,9 +1729,6 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 		unsigned int gup_flags)
 {
 	struct mm_struct *mm;
-
-	if (addr + len < addr)
-		return 0;
 
 	mm = get_task_mm(tsk);
 	if (!mm)

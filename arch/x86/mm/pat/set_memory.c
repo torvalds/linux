@@ -2700,22 +2700,14 @@ static int __set_pages_np(struct page *page, int numpages, unsigned int cpa_flag
 	return __change_page_attr_set_clr(&cpa, 1);
 }
 
-int set_direct_map_invalid_noflush(struct page *page)
+int set_direct_map_invalid_noflush(struct page *page, unsigned int nr)
 {
-	return __set_pages_np(page, 1, 0);
-}
-
-int set_direct_map_default_noflush(struct page *page)
-{
-	return __set_pages_p(page, 1, 0);
-}
-
-int set_direct_map_valid_noflush(struct page *page, unsigned nr, bool valid)
-{
-	if (valid)
-		return __set_pages_p(page, nr, 0);
-
 	return __set_pages_np(page, nr, 0);
+}
+
+int set_direct_map_default_noflush(struct page *page, unsigned int nr)
+{
+	return __set_pages_p(page, nr, 0);
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC

@@ -2,14 +2,24 @@
 #ifndef __MM_CMA_H__
 #define __MM_CMA_H__
 
+#include <linux/atomic.h>
 #include <linux/cma.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
+
+#ifdef CONFIG_CMA_DEBUGFS
 #include <linux/debugfs.h>
+#endif
+
+#ifdef CONFIG_CMA_SYSFS
 #include <linux/kobject.h>
 
 struct cma_kobject {
 	struct kobject kobj;
 	struct cma *cma;
 };
+#endif
 
 /*
  * Multi-range support. This can be useful if the size of the allocation
@@ -38,10 +48,10 @@ struct cma_memrange {
 #define CMA_MAX_RANGES 8
 
 struct cma {
-	unsigned long   count;
-	unsigned long	available_count;
+	unsigned long count;
+	unsigned long available_count;
 	unsigned int order_per_bit; /* Order of pages represented by one bit */
-	spinlock_t	lock;
+	spinlock_t lock;
 	struct mutex alloc_mutex;
 #ifdef CONFIG_CMA_DEBUGFS
 	struct hlist_head mem_head;
@@ -87,10 +97,11 @@ void cma_sysfs_account_fail_pages(struct cma *cma, unsigned long nr_pages);
 void cma_sysfs_account_release_pages(struct cma *cma, unsigned long nr_pages);
 #else
 static inline void cma_sysfs_account_success_pages(struct cma *cma,
-						   unsigned long nr_pages) {};
+						   unsigned long nr_pages) {}
 static inline void cma_sysfs_account_fail_pages(struct cma *cma,
-						unsigned long nr_pages) {};
+						unsigned long nr_pages) {}
 static inline void cma_sysfs_account_release_pages(struct cma *cma,
-						   unsigned long nr_pages) {};
+						   unsigned long nr_pages) {}
 #endif
+
 #endif

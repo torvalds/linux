@@ -869,7 +869,7 @@ __bpf_kfunc int bpf_iter_task_vma_new(struct bpf_iter_task_vma *it,
 	BUILD_BUG_ON(sizeof(struct bpf_iter_task_vma_kern) != sizeof(struct bpf_iter_task_vma));
 	BUILD_BUG_ON(__alignof__(struct bpf_iter_task_vma_kern) != __alignof__(struct bpf_iter_task_vma));
 
-	if (!IS_ENABLED(CONFIG_PER_VMA_LOCK)) {
+	if (!IS_ENABLED(CONFIG_MMU)) {
 		kit->data = NULL;
 		return -EOPNOTSUPP;
 	}

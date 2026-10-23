@@ -385,10 +385,8 @@ struct mem_size_stats;
 
 struct proc_maps_locking_ctx {
 	struct mm_struct *mm;
-#ifdef CONFIG_PER_VMA_LOCK
 	bool mmap_locked;
 	struct vm_area_struct *locked_vma;
-#endif
 };
 
 struct proc_maps_private {

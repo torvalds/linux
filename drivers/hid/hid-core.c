@@ -944,7 +944,7 @@ static int hid_scan_report(struct hid_device *hid)
 		hid_parser_reserved
 	};
 
-	struct hid_parser *parser __free(kvfree) = vzalloc(sizeof(*parser));
+	struct hid_parser *parser __free(vfree) = vzalloc(sizeof(*parser));
 	if (!parser)
 		return -ENOMEM;
 
@@ -1265,7 +1265,7 @@ static int hid_parse_collections(struct hid_device *device)
 		hid_parser_reserved
 	};
 
-	struct hid_parser *parser __free(kvfree) = vzalloc(sizeof(*parser));
+	struct hid_parser *parser __free(vfree) = vzalloc(sizeof(*parser));
 	if (!parser)
 		return -ENOMEM;
 

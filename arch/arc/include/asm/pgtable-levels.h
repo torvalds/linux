@@ -98,8 +98,6 @@
 /*
  * 1st level paging: pgd
  */
-#define pgd_ERROR(e) \
-	pr_crit("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 #if CONFIG_PGTABLE_LEVELS > 3
 
@@ -115,9 +113,6 @@
 /*
  * 2nd level paging: pud
  */
-#define pud_ERROR(e) \
-	pr_crit("%s:%d: bad pud %08lx.\n", __FILE__, __LINE__, pud_val(e))
-
 #endif
 
 #if CONFIG_PGTABLE_LEVELS > 2
@@ -137,9 +132,6 @@
 /*
  * 3rd level paging: pmd
  */
-#define pmd_ERROR(e) \
-	pr_crit("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
-
 #define pmd_pfn(pmd)		((pmd_val(pmd) & PMD_MASK) >> PAGE_SHIFT)
 #define pfn_pmd(pfn,prot)	__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
@@ -165,9 +157,6 @@
 /*
  * 4th level paging: pte
  */
-#define pte_ERROR(e) \
-	pr_crit("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
-
 #define PFN_PTE_SHIFT		PAGE_SHIFT
 #define pte_none(x)		(!pte_val(x))
 #define pte_present(x)		(pte_val(x) & _PAGE_PRESENT)
