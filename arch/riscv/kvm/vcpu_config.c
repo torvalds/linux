@@ -82,9 +82,11 @@ void kvm_riscv_vcpu_config_load(struct kvm_vcpu *vcpu)
 		nsh = nacl_shmem();
 		nacl_csr_write(nsh, CSR_HEDELEG, cfg->hedeleg);
 		nacl_csr_write(nsh, CSR_HIDELEG, cfg->hideleg);
-		nacl_csr_write(nsh, CSR_HENVCFG, cfg->henvcfg);
-		if (IS_ENABLED(CONFIG_32BIT))
-			nacl_csr_write(nsh, CSR_HENVCFGH, cfg->henvcfg >> 32);
+		if (!static_branch_unlikely(&kvm_riscv_no_xenvcfg)) {
+			nacl_csr_write(nsh, CSR_HENVCFG, cfg->henvcfg);
+			if (IS_ENABLED(CONFIG_32BIT))
+				nacl_csr_write(nsh, CSR_HENVCFGH, cfg->henvcfg >> 32);
+		}
 		if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SMSTATEEN)) {
 			nacl_csr_write(nsh, CSR_HSTATEEN0, cfg->hstateen0);
 			if (IS_ENABLED(CONFIG_32BIT))
@@ -93,9 +95,11 @@ void kvm_riscv_vcpu_config_load(struct kvm_vcpu *vcpu)
 	} else {
 		csr_write(CSR_HEDELEG, cfg->hedeleg);
 		csr_write(CSR_HIDELEG, cfg->hideleg);
-		csr_write(CSR_HENVCFG, cfg->henvcfg);
-		if (IS_ENABLED(CONFIG_32BIT))
-			csr_write(CSR_HENVCFGH, cfg->henvcfg >> 32);
+		if (!static_branch_unlikely(&kvm_riscv_no_xenvcfg)) {
+			csr_write(CSR_HENVCFG, cfg->henvcfg);
+			if (IS_ENABLED(CONFIG_32BIT))
+				csr_write(CSR_HENVCFGH, cfg->henvcfg >> 32);
+		}
 		if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SMSTATEEN)) {
 			csr_write(CSR_HSTATEEN0, cfg->hstateen0);
 			if (IS_ENABLED(CONFIG_32BIT))

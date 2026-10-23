@@ -132,6 +132,12 @@ static long kvm_sbi_fwft_envcfg_flag_get(struct kvm_vcpu *vcpu,
 	return SBI_SUCCESS;
 }
 
+/* Features implemented by setting bits in henvcfg need the CSR to exist */
+static inline bool kvm_sbi_fwft_have_henvcfg(void)
+{
+	return !static_branch_unlikely(&kvm_riscv_no_xenvcfg);
+}
+
 static bool kvm_sbi_fwft_misaligned_delegation_supported(struct kvm_vcpu *vcpu)
 {
 	return misaligned_traps_can_delegate();
@@ -208,7 +214,8 @@ static long kvm_sbi_fwft_set_cfi(struct kvm_vcpu *vcpu,
 
 static bool kvm_sbi_fwft_landing_pad_supported(struct kvm_vcpu *vcpu)
 {
-	return riscv_isa_extension_available(vcpu->arch.isa, ZICFILP);
+	return kvm_sbi_fwft_have_henvcfg() &&
+	       riscv_isa_extension_available(vcpu->arch.isa, ZICFILP);
 }
 
 static void kvm_sbi_fwft_reset_landing_pad(struct kvm_vcpu *vcpu)
@@ -236,7 +243,8 @@ static long kvm_sbi_fwft_get_landing_pad(struct kvm_vcpu *vcpu,
 
 static bool kvm_sbi_fwft_shadow_stack_supported(struct kvm_vcpu *vcpu)
 {
-	return riscv_isa_extension_available(vcpu->arch.isa, ZICFISS);
+	return kvm_sbi_fwft_have_henvcfg() &&
+	       riscv_isa_extension_available(vcpu->arch.isa, ZICFISS);
 }
 
 static void kvm_sbi_fwft_reset_shadow_stack(struct kvm_vcpu *vcpu)
@@ -264,8 +272,9 @@ static long kvm_sbi_fwft_get_shadow_stack(struct kvm_vcpu *vcpu,
 
 static bool kvm_sbi_fwft_pte_ad_hw_updating_supported(struct kvm_vcpu *vcpu)
 {
-	return riscv_isa_extension_available(vcpu->arch.isa, SVADU) &&
-		riscv_isa_extension_available(vcpu->arch.isa, SVADE);
+	return kvm_sbi_fwft_have_henvcfg() &&
+	       riscv_isa_extension_available(vcpu->arch.isa, SVADU) &&
+	       riscv_isa_extension_available(vcpu->arch.isa, SVADE);
 }
 
 static void kvm_sbi_fwft_reset_pte_ad_hw_updating(struct kvm_vcpu *vcpu)
@@ -305,7 +314,8 @@ static bool try_to_set_pmm(unsigned long value)
 
 static bool kvm_sbi_fwft_pointer_masking_pmlen_supported(struct kvm_vcpu *vcpu)
 {
-	return riscv_isa_extension_available(vcpu->arch.isa, SMNPM);
+	return kvm_sbi_fwft_have_henvcfg() &&
+	       riscv_isa_extension_available(vcpu->arch.isa, SMNPM);
 }
 
 static bool kvm_sbi_fwft_pointer_masking_pmlen_init(struct kvm_vcpu *vcpu)
