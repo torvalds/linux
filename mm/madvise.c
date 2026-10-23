@@ -158,7 +158,7 @@ static int madvise_update_vma(vm_flags_t new_flags,
 	bool set_new_anon_name = madv_behavior->behavior == __MADV_SET_ANON_VMA_NAME;
 	VMA_ITERATOR(vmi, madv_behavior->mm, range->start);
 
-	if (vma_flags_same_mask(&vma->flags, new_vma_flags) &&
+	if (vma_flags_same_pair(&vma->flags, &new_vma_flags) &&
 	    (!set_new_anon_name ||
 	     anon_vma_name_eq(anon_vma_name(vma), anon_name)))
 		return 0;
@@ -177,7 +177,7 @@ static int madvise_update_vma(vm_flags_t new_flags,
 
 	/* vm_flags is protected by the mmap_lock held in write mode. */
 	vma_start_write(vma);
-	vma->flags = new_vma_flags;
+	vma_overwrite_flags(vma, new_vma_flags);
 	/*
 	 * If the vma become good for khugepaged to scan,
 	 * register it here without waiting a page fault that

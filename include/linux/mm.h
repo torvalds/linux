@@ -602,7 +602,7 @@ enum {
 #define VMA_LOCKED_MASK	mk_vma_flags(VMA_LOCKED_BIT, VMA_LOCKONFAULT_BIT)
 
 /* These flags can be updated atomically via VMA/mmap read lock. */
-#define VM_ATOMIC_SET_ALLOWED VM_MAYBE_GUARD
+#define VMA_ATOMIC_SET_ALLOWED mk_vma_flags(VMA_MAYBE_GUARD_BIT)
 
 /* Arch-specific flags to clear when updating VM flags on protection change */
 #ifndef VM_ARCH_CLEAR
@@ -987,22 +987,6 @@ static inline void vm_flags_reset(struct vm_area_struct *vma,
 	vm_flags_init(vma, flags);
 }
 
-static inline void vma_flags_reset_once(struct vm_area_struct *vma,
-					vma_flags_t *flags)
-{
-	const unsigned long word = flags->__vma_flags[0];
-
-	/* It is assumed only the first system word must be written once. */
-	vma_flags_overwrite_word_once(&vma->flags, word);
-	/* The remainder can be copied normally. */
-	if (NUM_VMA_FLAG_BITS > BITS_PER_LONG) {
-		unsigned long *dst = &vma->flags.__vma_flags[1];
-		const unsigned long *src = &flags->__vma_flags[1];
-
-		bitmap_copy(dst, src, NUM_VMA_FLAG_BITS - BITS_PER_LONG);
-	}
-}
-
 static inline void vm_flags_set(struct vm_area_struct *vma,
 				vm_flags_t flags)
 {
@@ -1037,48 +1021,6 @@ static inline void vm_flags_mod(struct vm_area_struct *vma,
 {
 	vma_start_write(vma);
 	__vm_flags_mod(vma, set, clear);
-}
-
-static __always_inline bool __vma_atomic_valid_flag(struct vm_area_struct *vma,
-		vma_flag_t bit)
-{
-	const vm_flags_t mask = BIT((__force int)bit);
-
-	/* Only specific flags are permitted */
-	if (WARN_ON_ONCE(!(mask & VM_ATOMIC_SET_ALLOWED)))
-		return false;
-
-	return true;
-}
-
-/*
- * Set VMA flag atomically. Requires only VMA/mmap read lock. Only specific
- * valid flags are allowed to do this.
- */
-static __always_inline void vma_set_atomic_flag(struct vm_area_struct *vma,
-		vma_flag_t bit)
-{
-	unsigned long *bitmap = vma->flags.__vma_flags;
-
-	vma_assert_stabilised(vma);
-	if (__vma_atomic_valid_flag(vma, bit))
-		set_bit((__force int)bit, bitmap);
-}
-
-/*
- * Test for VMA flag atomically. Requires no locks. Only specific valid flags
- * are allowed to do this.
- *
- * This is necessarily racey, so callers must ensure that serialisation is
- * achieved through some other means, or that races are permissible.
- */
-static __always_inline bool vma_test_atomic_flag(struct vm_area_struct *vma,
-		vma_flag_t bit)
-{
-	if (__vma_atomic_valid_flag(vma, bit))
-		return test_bit((__force int)bit, &vma->vm_flags);
-
-	return false;
 }
 
 /* Set an individual VMA flag in flags, non-atomically. */
@@ -1302,33 +1244,23 @@ static __always_inline vma_flags_t vma_flags_diff_pair(const vma_flags_t *flags,
 	return dst;
 }
 
-/* Determine if flags and flags_other have precisely the same flags set. */
-static __always_inline bool vma_flags_same_pair(const vma_flags_t *flags,
-						const vma_flags_t *flags_other)
-{
-	const unsigned long *bitmap = flags->__vma_flags;
-	const unsigned long *bitmap_other = flags_other->__vma_flags;
-
-	return bitmap_equal(bitmap, bitmap_other, NUM_VMA_FLAG_BITS);
-}
-
-/* Determine if flags and flags_other have precisely the same flags set.  */
-static __always_inline bool vma_flags_same_mask(const vma_flags_t *flags,
-						vma_flags_t flags_other)
-{
-	const unsigned long *bitmap = flags->__vma_flags;
-	const unsigned long *bitmap_other = flags_other.__vma_flags;
-
-	return bitmap_equal(bitmap, bitmap_other, NUM_VMA_FLAG_BITS);
-}
-
 /*
- * Helper macro to determine if only the specific flags are set, e.g.:
- *
- * if (vma_flags_same(&flags, VMA_WRITE_BIT) { ... }
+ * Determine if flags and flags_other have precisely the same flags set,
+ * excluding atomic VMA flags.
  */
-#define vma_flags_same(flags, ...) \
-	vma_flags_same_mask(flags, mk_vma_flags(__VA_ARGS__))
+static __always_inline bool vma_flags_same_pair(const vma_flags_t *flags,
+		const vma_flags_t *flags_other)
+{
+	vma_flags_t diff = vma_flags_diff_pair(flags, flags_other);
+
+	/*
+	 * Atomic VMA flags may be set concurrently under the VMA read lock, so
+	 * are disregarded for equality testing purposes.
+	 */
+	vma_flags_clear_mask(&diff, VMA_ATOMIC_SET_ALLOWED);
+
+	return vma_flags_empty(&diff);
+}
 
 /*
  * Test whether a specific flag in the VMA is set, e.g.:
@@ -1435,6 +1367,78 @@ static __always_inline void vma_clear_flags_mask(struct vm_area_struct *vma,
  */
 #define vma_clear_flags(vma, ...) \
 	vma_clear_flags_mask(vma, mk_vma_flags(__VA_ARGS__))
+
+static __always_inline bool __vma_atomic_valid_flag(struct vm_area_struct *vma,
+		vma_flag_t bit)
+{
+	const vma_flags_t mask = VMA_ATOMIC_SET_ALLOWED;
+
+	/* Is this flag allowed to be set atomically? */
+	if (WARN_ON_ONCE(!vma_flags_test(&mask, bit)))
+		return false;
+
+	return true;
+}
+
+/*
+ * Set VMA flag atomically. Requires only VMA/mmap read lock. Only specific
+ * valid flags are allowed to do this.
+ */
+static __always_inline void vma_set_atomic_flag(struct vm_area_struct *vma,
+		vma_flag_t bit)
+{
+	unsigned long *bitmap = vma->flags.__vma_flags;
+
+	vma_assert_stabilised(vma);
+	if (__vma_atomic_valid_flag(vma, bit))
+		set_bit((__force int)bit, bitmap);
+}
+
+/*
+ * Test for VMA flag atomically. Requires no locks. Only specific valid flags
+ * are allowed to do this.
+ *
+ * This is necessarily racey, so callers must ensure that serialisation is
+ * achieved through some other means, or that races are permissible.
+ */
+static __always_inline bool vma_test_atomic_flag(struct vm_area_struct *vma,
+		vma_flag_t bit)
+{
+	if (__vma_atomic_valid_flag(vma, bit))
+		return test_bit((__force int)bit, &vma->vm_flags);
+
+	return false;
+}
+
+/*
+ * Overwrite the VMA's flags with new ones, preserving atomic VMA flags in the
+ * process. The write is done once and once only.
+ */
+static inline void vma_overwrite_flags(struct vm_area_struct *vma,
+		vma_flags_t new_flags)
+{
+	vma_flags_t atomic;
+
+	vma_assert_write_locked(vma);
+
+	/*
+	 * Preserve the VMA's atomic flags, which are kept stable by the VMA
+	 * write lock.
+	 */
+	atomic = vma_flags_and_mask(&vma->flags, VMA_ATOMIC_SET_ALLOWED);
+	vma_flags_clear_mask(&new_flags, VMA_ATOMIC_SET_ALLOWED);
+	vma_flags_set_mask(&new_flags, atomic);
+
+	/* It is assumed only the first system word must be written once. */
+	vma_flags_overwrite_word_once(&vma->flags, new_flags.__vma_flags[0]);
+	/* The remainder can be copied normally. */
+	if (NUM_VMA_FLAG_BITS > BITS_PER_LONG) {
+		unsigned long *dst = &vma->flags.__vma_flags[1];
+		const unsigned long *src = &new_flags.__vma_flags[1];
+
+		bitmap_copy(dst, src, NUM_VMA_FLAG_BITS - BITS_PER_LONG);
+	}
+}
 
 /*
  * Test whether a specific VMA flag is set in a VMA descriptor, e.g.:

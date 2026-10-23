@@ -833,7 +833,7 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	 * held in write mode.
 	 */
 	vma_start_write(vma);
-	vma_flags_reset_once(vma, &new_vma_flags);
+	vma_overwrite_flags(vma, new_vma_flags);
 	if (vma_wants_manual_pte_write_upgrade(vma))
 		mm_cp_flags |= MM_CP_TRY_CHANGE_WRITABLE;
 	vma_set_page_prot(vma);

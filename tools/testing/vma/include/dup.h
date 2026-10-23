@@ -366,6 +366,9 @@ enum {
 
 #define VMA_LOCKED_MASK	mk_vma_flags(VMA_LOCKED_BIT, VMA_LOCKONFAULT_BIT)
 
+/* These flags can be updated atomically via VMA/mmap read lock. */
+#define VMA_ATOMIC_SET_ALLOWED mk_vma_flags(VMA_MAYBE_GUARD_BIT)
+
 #define RLIMIT_STACK		3	/* max stack size */
 #define RLIMIT_MEMLOCK		8	/* max locked-in-memory address space */
 
@@ -895,22 +898,6 @@ static inline void vm_flags_reset(struct vm_area_struct *vma,
 	vm_flags_init(vma, flags);
 }
 
-static inline void vma_flags_reset_once(struct vm_area_struct *vma,
-					vma_flags_t *flags)
-{
-	const unsigned long word = flags->__vma_flags[0];
-
-	/* It is assumed only the first system word must be written once. */
-	vma_flags_overwrite_word_once(&vma->flags, word);
-	/* The remainder can be copied normally. */
-	if (NUM_VMA_FLAG_BITS > BITS_PER_LONG) {
-		unsigned long *dst = &vma->flags.__vma_flags[1];
-		const unsigned long *src = &flags->__vma_flags[1];
-
-		bitmap_copy(dst, src, NUM_VMA_FLAG_BITS - BITS_PER_LONG);
-	}
-}
-
 static inline void vm_flags_set(struct vm_area_struct *vma,
 				vm_flags_t flags)
 {
@@ -1037,26 +1024,23 @@ static __always_inline vma_flags_t vma_flags_diff_pair(const vma_flags_t *flags,
 	return dst;
 }
 
+/*
+ * Determine if flags and flags_other have precisely the same flags set,
+ * excluding atomic VMA flags.
+ */
 static __always_inline bool vma_flags_same_pair(const vma_flags_t *flags,
-						const vma_flags_t *flags_other)
+		const vma_flags_t *flags_other)
 {
-	const unsigned long *bitmap = flags->__vma_flags;
-	const unsigned long *bitmap_other = flags_other->__vma_flags;
+	vma_flags_t diff = vma_flags_diff_pair(flags, flags_other);
 
-	return bitmap_equal(bitmap, bitmap_other, NUM_VMA_FLAG_BITS);
+	/*
+	 * Atomic VMA flags may be set concurrently under the VMA read lock, so
+	 * are disregarded for equality testing purposes.
+	 */
+	vma_flags_clear_mask(&diff, VMA_ATOMIC_SET_ALLOWED);
+
+	return vma_flags_empty(&diff);
 }
-
-static __always_inline bool vma_flags_same_mask(const vma_flags_t *flags,
-						vma_flags_t flags_other)
-{
-	const unsigned long *bitmap = flags->__vma_flags;
-	const unsigned long *bitmap_other = flags_other.__vma_flags;
-
-	return bitmap_equal(bitmap, bitmap_other, NUM_VMA_FLAG_BITS);
-}
-
-#define vma_flags_same(flags, ...) \
-	vma_flags_same_mask(flags, mk_vma_flags(__VA_ARGS__))
 
 static __always_inline bool vma_test(const struct vm_area_struct *vma,
 		vma_flag_t bit)
@@ -1105,6 +1089,36 @@ static __always_inline void vma_clear_flags_mask(struct vm_area_struct *vma,
 
 #define vma_clear_flags(vma, ...) \
 	vma_clear_flags_mask(vma, mk_vma_flags(__VA_ARGS__))
+
+/*
+ * Overwrite the VMA's flags with new ones, preserving atomic VMA flags in the
+ * process. The write is done once and once only.
+ */
+static inline void vma_overwrite_flags(struct vm_area_struct *vma,
+				       vma_flags_t new_flags)
+{
+	vma_flags_t atomic;
+
+	vma_assert_write_locked(vma);
+
+	/*
+	 * Preserve the VMA's atomic flags, which are kept stable by the VMA
+	 * write lock.
+	 */
+	atomic = vma_flags_and_mask(&vma->flags, VMA_ATOMIC_SET_ALLOWED);
+	vma_flags_clear_mask(&new_flags, VMA_ATOMIC_SET_ALLOWED);
+	vma_flags_set_mask(&new_flags, atomic);
+
+	/* It is assumed only the first system word must be written once. */
+	vma_flags_overwrite_word_once(&vma->flags, new_flags.__vma_flags[0]);
+	/* The remainder can be copied normally. */
+	if (NUM_VMA_FLAG_BITS > BITS_PER_LONG) {
+		unsigned long *dst = &vma->flags.__vma_flags[1];
+		const unsigned long *src = &new_flags.__vma_flags[1];
+
+		bitmap_copy(dst, src, NUM_VMA_FLAG_BITS - BITS_PER_LONG);
+	}
+}
 
 static __always_inline bool vma_desc_test(const struct vm_area_desc *desc,
 		vma_flag_t bit)
