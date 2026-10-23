@@ -562,14 +562,6 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	WRITE_ONCE(rbi->ring_buffer->read_index, rbi->priv_read_index);
 
 	/*
-	 * Older versions of Hyper-V (before WS2102 and Win8) do not
-	 * implement pending_send_sz and simply poll if the host->guest
-	 * ring buffer is full.  No signaling is needed or expected.
-	 */
-	if (!rbi->ring_buffer->feature_bits.feat_pending_send_sz)
-		return;
-
-	/*
 	 * Issue a full memory barrier before making the signaling decision.
 	 * If reading pending_send_sz were to be reordered and happen
 	 * before we commit the new read_index, a race could occur.  If the
