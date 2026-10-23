@@ -145,7 +145,7 @@ static DEFINE_PER_CPU(long, nr_dentry_unused);
 static DEFINE_PER_CPU(long, nr_dentry_negative);
 static int dentry_negative_policy;
 
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
+#ifdef CONFIG_SYSCTL
 /* Statistics gathering. */
 static struct dentry_stat_t dentry_stat = {
 	.age_limit = 45,
