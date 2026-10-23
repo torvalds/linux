@@ -394,8 +394,10 @@ static int opt_event_cb(const struct option *opt, const char *arg, int unset)
 	if (!tevent)
 		fatal("Error alloc trace event");
 
-	if (*events)
+	if (*events) {
 		tevent->next = *events;
+		(*events)->prev = tevent;
+	}
 	*events = tevent;
 
 	return 0;
@@ -496,6 +498,9 @@ static int opt_filter_cb(const struct option *opt, const char *arg, int unset)
 
 #define OSNOISE_OPT_THRESHOLD RTLA_OPT_LLONG('T', "threshold", &params->threshold, "us", \
 	"the minimum delta to be considered a noise")
+
+#define OSNOISE_OPT_IPI OPT_BOOLEAN(0, "ipi", &params->common.ipi, \
+	"track sources of IPIs")
 
 /*
  * Callback functions for command line options for osnoise tools

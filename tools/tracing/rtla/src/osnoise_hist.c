@@ -397,6 +397,7 @@ osnoise_print_stats(struct osnoise_tool *tool)
 	trace_seq_reset(trace->seq);
 
 	osnoise_print_summary(params, trace, data);
+	osnoise_report_invalid_events(tool);
 	osnoise_report_missed_events(tool);
 }
 

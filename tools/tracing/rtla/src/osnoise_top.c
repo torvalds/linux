@@ -8,6 +8,7 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <errno.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -25,6 +26,7 @@ struct osnoise_top_cpu {
 	unsigned long long	irq_count;
 	unsigned long long	softirq_count;
 	unsigned long long	thread_count;
+	unsigned long long	ipi_count;
 
 	int			sum_cycles;
 };
@@ -164,6 +166,8 @@ static void osnoise_top_header(struct osnoise_tool *top)
 		goto eol;
 
 	trace_seq_printf(s, "          IRQ      Softirq       Thread");
+	if (params->common.ipi)
+		trace_seq_printf(s, "          IPI");
 
 eol:
 	if (pretty)
@@ -218,7 +222,10 @@ static void osnoise_top_print(struct osnoise_tool *tool, int cpu)
 
 	trace_seq_printf(s, "%12llu ", cpu_data->irq_count);
 	trace_seq_printf(s, "%12llu ", cpu_data->softirq_count);
-	trace_seq_printf(s, "%12llu\n", cpu_data->thread_count);
+	trace_seq_printf(s, "%12llu", cpu_data->thread_count);
+	if (params->common.ipi)
+		trace_seq_printf(s, " %12llu", cpu_data->ipi_count);
+	trace_seq_printf(s, "\n");
 }
 
 /*
@@ -242,6 +249,7 @@ osnoise_print_stats(struct osnoise_tool *top)
 
 	trace_seq_do_printf(trace->seq);
 	trace_seq_reset(trace->seq);
+	osnoise_report_invalid_events(top);
 	osnoise_report_missed_events(top);
 }
 
@@ -275,12 +283,119 @@ out_err:
 	return -1;
 }
 
+static void account_ipi(struct osnoise_tool *tool, unsigned long long dst_cpu)
+{
+	struct osnoise_top_cpu *cpu_data;
+	struct osnoise_top_data *data;
+	unsigned long long inc = 1;
+
+	data = tool->data;
+	cpu_data = &data->cpu_data[dst_cpu];
+
+	update_sum(&cpu_data->ipi_count, &inc);
+}
+
+/*
+ * osnoise_ipi_cpu_handler - this is the handler for single CPU IPI events.
+ */
+static int
+osnoise_ipi_cpu_handler(struct trace_seq *s, struct tep_record *record,
+		     struct tep_event *event, void *context)
+{
+	struct osnoise_tool *tool;
+	unsigned long long dst_cpu;
+	struct trace_instance *trace = context;
+
+	tool = container_of(trace, struct osnoise_tool, trace);
+	tep_get_field_val(s, event, "cpu", record, &dst_cpu, 1);
+
+	account_ipi(tool, dst_cpu);
+
+	return 0;
+}
+
+/*
+ * osnoise_ipi_cpu_unfiltered_handler - this is the handler for single CPU IPI
+ *                                      events. Slightly less optimized than
+ *                                      the filtered variant.
+ */
+static int
+osnoise_ipi_cpu_unfiltered_handler(struct trace_seq *s, struct tep_record *record,
+		     struct tep_event *event, void *context)
+{
+	struct osnoise_tool *tool;
+	unsigned long long dst_cpu;
+	struct osnoise_params *params;
+	struct trace_instance *trace = context;
+
+	tool = container_of(trace, struct osnoise_tool, trace);
+	params = to_osnoise_params(tool->params);
+	tep_get_field_val(s, event, "cpu", record, &dst_cpu, 1);
+
+	if (CPU_ISSET(dst_cpu, &params->common.monitored_cpus))
+		account_ipi(tool, dst_cpu);
+
+	return 0;
+}
+
+static cpu_set_t cpumask_tmp_cpus;
+
+/*
+ * osnoise_ipi_cpumask_handler - this is the handler for broadcasted IPI events.
+ */
+static int
+osnoise_ipi_cpumask_handler(struct trace_seq *s, struct tep_record *record,
+			 struct tep_event *event, void *context)
+{
+	struct trace_instance *trace = context;
+	struct osnoise_tool *tool;
+	struct osnoise_params *params;
+	struct tep_format_field *field;
+	cpu_set_t *event_cpus;
+	int len;
+
+	tool = container_of(trace, struct osnoise_tool, trace);
+	params = to_osnoise_params(tool->params);
+
+	field = tep_find_field(event, "cpumask");
+	if (!field)
+		return 0;
+
+	event_cpus = tep_get_field_raw(s, event, "cpumask", record, &len, 1);
+	if (!event_cpus) {
+		err_msg("Failed to get cpumask field\n");
+		return 0;
+	}
+
+	/*
+	 * Even if already filtering for such an intersection, we need to compute
+	 * the intersection here as the @cpumask field may contain non-monitored
+	 * CPUs.
+	 */
+	CPU_AND(&cpumask_tmp_cpus, event_cpus, &params->common.monitored_cpus);
+
+	/*
+	 * Computing the mask weight is overkill but there is no leaner option
+	 * provided by glibc, e.g cpumask_first() or somesuch.
+	 */
+	if (CPU_COUNT(&cpumask_tmp_cpus)) {
+		for (int cpu = 0; cpu < nr_cpus; cpu++) {
+			if (CPU_ISSET(cpu, &cpumask_tmp_cpus))
+				account_ipi(tool, cpu);
+		}
+	}
+
+	return 0;
+}
+
 /*
  * osnoise_init_top - initialize a osnoise top tool with parameters
  */
 struct osnoise_tool *osnoise_init_top(struct common_params *params)
 {
+	bool ipi_filters_enabled;
 	struct osnoise_tool *tool;
+	int retval;
 
 	tool = osnoise_init_tool("osnoise_top");
 	if (!tool)
@@ -295,7 +410,46 @@ struct osnoise_tool *osnoise_init_top(struct common_params *params)
 	tep_register_event_handler(tool->trace.tep, -1, "ftrace", "osnoise",
 				   osnoise_top_handler, NULL);
 
+	if (!params->ipi)
+		goto out;
+
+	retval = tracefs_event_enable(tool->trace.inst, "ipi", "ipi_send_cpu");
+	if (retval < 0 && !errno) {
+		err_msg("Could not find ipi_send_cpu event\n");
+		goto out_err;
+	}
+
+	retval = tracefs_event_enable(tool->trace.inst, "ipi", "ipi_send_cpumask");
+	if (retval < 0 && !errno) {
+		err_msg("Could not find ipi_send_cpumask event\n");
+		goto out_err;
+	}
+
+	if (params->cpus) {
+		retval = osnoise_init_ipi_filters(tool, params, &ipi_filters_enabled);
+		if (retval < 0)
+			goto out_err;
+	}
+
+	/*
+	 * If no filtering is available and we're tracing all CPUs, we can still
+	 * use the filtered callback since stats are collected for all CPUs.
+	 */
+	tep_register_event_handler(tool->trace.tep, -1, "ipi", "ipi_send_cpu",
+				   (!params->cpus || ipi_filters_enabled) ?
+				   osnoise_ipi_cpu_handler :
+				   osnoise_ipi_cpu_unfiltered_handler,
+				   NULL);
+
+	tep_register_event_handler(tool->trace.tep, -1, "ipi", "ipi_send_cpumask",
+				   osnoise_ipi_cpumask_handler, NULL);
+
+out:
 	return tool;
+out_err:
+	osnoise_free_top_tool(tool);
+	osnoise_destroy_tool(tool);
+	return NULL;
 }
 
 struct tool_ops osnoise_top_ops = {

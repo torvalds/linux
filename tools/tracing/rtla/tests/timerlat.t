@@ -136,6 +136,8 @@ check_top_q_hist "with conditional continue" \
 	"timerlat TOOL -T 2 --on-threshold shell,command='if [ -f a ]; then echo 2; exit 1; else echo -n 1; touch a; fi' --on-threshold continue" 2 "^12$" "^2$"
 check_top_hist "with trace output at end" \
 	"timerlat TOOL -d 1s --on-end trace" 0 "^  Saving trace to timerlat_trace.txt$"
+check_top_q_hist "action with no threshold" \
+	"timerlat TOOL -d 1s --on-threshold shell,command='echo BAD'" 0 "" "BAD"
 
 # BPF action program tests
 if [ "$option" -eq 0 ]

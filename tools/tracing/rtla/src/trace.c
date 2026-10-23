@@ -138,6 +138,12 @@ collect_registered_events(struct tep_event *event, struct tep_record *record,
 	struct trace_instance *trace = context;
 	struct trace_seq *s = trace->seq;
 
+	if (cpu >= nr_cpus) {
+		/* Kernel reports event on CPU we don't see, corrupt data? */
+		trace->invalid_events++;
+		return 0;
+	}
+
 	trace->processed_events++;
 
 	if (!event->handler)
@@ -236,6 +242,7 @@ int trace_instance_init(struct trace_instance *trace, char *tool_name)
 				     trace);
 
 	trace->processed_events = 0;
+	trace->invalid_events = 0;
 
 	return 0;
 
@@ -440,6 +447,21 @@ static void trace_event_disable_trigger(struct trace_instance *instance,
 			tevent->event ? : "*", tevent->trigger);
 }
 
+static inline struct trace_events *trace_events_tail(struct trace_events *tevent)
+{
+	while (tevent && tevent->next)
+		tevent = tevent->next;
+
+	return tevent;
+}
+
+/*
+ * Events are stashed in LIFO order; flip that to FIFO to process them in the
+ * same order as they are defined by the user on the command line.
+ */
+#define for_each_trace_event(tevent) \
+	for (tevent = trace_events_tail(tevent); tevent; tevent = tevent->prev)
+
 /*
  * trace_events_disable - disable all trace events
  */
@@ -451,7 +473,7 @@ void trace_events_disable(struct trace_instance *instance,
 	if (!events)
 		return;
 
-	while (tevent) {
+	for_each_trace_event(tevent) {
 		debug_msg("Disabling event %s:%s\n", tevent->system, tevent->event ? : "*");
 		if (tevent->enabled) {
 			trace_event_disable_filter(instance, tevent);
@@ -460,7 +482,6 @@ void trace_events_disable(struct trace_instance *instance,
 		}
 
 		tevent->enabled = 0;
-		tevent = tevent->next;
 	}
 }
 
@@ -472,6 +493,10 @@ static int trace_event_enable_filter(struct trace_instance *instance,
 {
 	char filter[MAX_PATH];
 	int retval;
+
+	/* Unconditionally clean any pre-existing filters */
+	tracefs_event_file_write(instance->inst, tevent->system,
+				 tevent->event, "filter", "0");
 
 	if (!tevent->filter)
 		return 0;
@@ -544,7 +569,10 @@ int trace_events_enable(struct trace_instance *instance,
 	struct trace_events *tevent = events;
 	int retval;
 
-	while (tevent) {
+	if (!events)
+		return 0;
+
+	for_each_trace_event(tevent) {
 		debug_msg("Enabling event %s:%s\n", tevent->system, tevent->event ? : "*");
 		retval = tracefs_event_enable(instance->inst, tevent->system, tevent->event);
 		if (retval < 0) {
@@ -562,7 +590,6 @@ int trace_events_enable(struct trace_instance *instance,
 			return 1;
 
 		tevent->enabled = 1;
-		tevent = tevent->next;
 	}
 
 	return 0;
