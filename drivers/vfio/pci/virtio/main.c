@@ -18,6 +18,9 @@
 
 #include "common.h"
 
+VFIO_PCI_CORE_DEFINE_CALLBACKS(virtiovf, struct virtiovf_pci_core_device,
+			       core_device)
+
 static int virtiovf_pci_open_device(struct vfio_device *core_vdev)
 {
 	struct virtiovf_pci_core_device *virtvdev = container_of(core_vdev,
@@ -174,7 +177,7 @@ static int virtiovf_pci_probe(struct pci_dev *pdev,
 	if (sup_lm)
 		virtiovf_set_migratable(virtvdev);
 
-	dev_set_drvdata(&pdev->dev, &virtvdev->core_device);
+	dev_set_drvdata(&pdev->dev, virtvdev);
 	ret = vfio_pci_core_register_device(&virtvdev->core_device);
 	if (ret)
 		goto out;
@@ -211,7 +214,7 @@ static void virtiovf_pci_aer_reset_done(struct pci_dev *pdev)
 
 static const struct pci_error_handlers virtiovf_err_handlers = {
 	.reset_done = virtiovf_pci_aer_reset_done,
-	.error_detected = vfio_pci_core_aer_err_detected,
+	.error_detected = virtiovf_aer_err_detected,
 };
 
 static struct pci_driver virtiovf_pci_driver = {
@@ -219,6 +222,7 @@ static struct pci_driver virtiovf_pci_driver = {
 	.id_table = virtiovf_pci_table,
 	.probe = virtiovf_pci_probe,
 	.remove = virtiovf_pci_remove,
+	.driver = { .pm = pm_ptr(&virtiovf_pm_ops) },
 	.err_handler = &virtiovf_err_handlers,
 	.driver_managed_dma = true,
 };

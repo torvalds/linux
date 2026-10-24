@@ -254,7 +254,7 @@ lsdc_create_device(struct pci_dev *pdev,
 
 /* For multiple GPU driver instance co-exixt in the system */
 
-static unsigned int lsdc_vga_set_decode(struct pci_dev *pdev, bool state)
+static unsigned int lsdc_vga_set_decode(void *data, bool state)
 {
 	return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
@@ -291,7 +291,7 @@ static int lsdc_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, ddev);
 
-	vga_client_register(pdev, lsdc_vga_set_decode);
+	vga_client_register(pdev, lsdc_vga_set_decode, NULL);
 
 	drmm_kms_helper_poll_init(ddev);
 

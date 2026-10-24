@@ -15,6 +15,7 @@ LIBVFIO_C += drivers/ioat/ioat.c
 LIBVFIO_C += drivers/dsa/dsa.c
 endif
 
+LIBVFIO_C += drivers/mlx5/mlx5.c
 LIBVFIO_C += drivers/nv_falcon/nv_falcon.c
 LIBVFIO_C += drivers/igb/igb.c
 

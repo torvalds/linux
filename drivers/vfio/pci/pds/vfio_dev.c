@@ -20,10 +20,7 @@ struct device *pds_vfio_to_dev(struct pds_vfio_pci_device *pds_vfio)
 
 struct pds_vfio_pci_device *pds_vfio_pci_drvdata(struct pci_dev *pdev)
 {
-	struct vfio_pci_core_device *core_device = dev_get_drvdata(&pdev->dev);
-
-	return container_of(core_device, struct pds_vfio_pci_device,
-			    vfio_coredev);
+	return pci_get_drvdata(pdev);
 }
 
 void pds_vfio_reset(struct pds_vfio_pci_device *pds_vfio,

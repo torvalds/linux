@@ -1,0 +1,5 @@
+# Extend kselftest default 45s timeout based on worst case test runtime,
+# currently vfio:vfio_pci_driver_test running on physical NIC, battling
+# SMIs due to invoked firmware-first error handling from bad DMAs and
+# device wedging.  Observed worst case ~450s, extend to 600s.
+timeout=600

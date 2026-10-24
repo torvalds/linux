@@ -12,6 +12,7 @@
 
 #include <linux/stringify.h>
 #include <linux/types.h>
+#include <asm/barrier.h>
 #include <asm/brk-imm.h>
 #include <asm/esr.h>
 #include <asm/sysreg.h>
@@ -191,10 +192,7 @@ static inline void cpu_relax(void)
 #define dsb(opt)	asm volatile("dsb " #opt : : : "memory")
 #define dmb(opt)	asm volatile("dmb " #opt : : : "memory")
 
-#define dma_wmb()	dmb(oshst)
 #define __iowmb()	dma_wmb()
-
-#define dma_rmb()	dmb(oshld)
 
 #define __iormb(v)							\
 ({									\

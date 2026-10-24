@@ -73,6 +73,9 @@ struct nvgrace_gpu_pci_core_device {
 	int cxl_dvsec;
 };
 
+VFIO_PCI_CORE_DEFINE_CALLBACKS(nvgrace_gpu, struct nvgrace_gpu_pci_core_device,
+			       core_device)
+
 static void nvgrace_gpu_init_fake_bar_emu_regs(struct vfio_device *core_vdev)
 {
 	struct nvgrace_gpu_pci_core_device *nvdev =
@@ -185,10 +188,8 @@ static int nvgrace_gpu_open_device(struct vfio_device *core_vdev)
 	if (ret)
 		return ret;
 
-	if (nvdev->usemem.memlength) {
-		nvgrace_gpu_init_fake_bar_emu_regs(core_vdev);
-		mutex_init(&nvdev->remap_lock);
-	}
+	nvgrace_gpu_init_fake_bar_emu_regs(core_vdev);
+	mutex_init(&nvdev->remap_lock);
 
 	/*
 	 * GPU readiness is checked by reading the BAR0 registers.
@@ -1083,6 +1084,21 @@ static const struct vfio_device_ops nvgrace_gpu_pci_ops = {
 	.detach_ioas	= vfio_iommufd_physical_detach_ioas,
 };
 
+static int nvgrace_gpu_core_open_device(struct vfio_device *core_vdev)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+	int ret;
+
+	ret = vfio_pci_core_enable(vdev);
+	if (ret)
+		return ret;
+
+	vfio_pci_core_finish_enable(vdev);
+
+	return 0;
+}
+
 static const struct vfio_pci_device_ops nvgrace_gpu_pci_dev_core_ops = {
 	.get_dmabuf_phys = vfio_pci_core_get_dmabuf_phys,
 };
@@ -1091,7 +1107,7 @@ static const struct vfio_device_ops nvgrace_gpu_pci_core_ops = {
 	.name		= "nvgrace-gpu-vfio-pci-core",
 	.init		= vfio_pci_core_init_dev,
 	.release	= vfio_pci_core_release_dev,
-	.open_device	= nvgrace_gpu_open_device,
+	.open_device	= nvgrace_gpu_core_open_device,
 	.close_device	= vfio_pci_core_close_device,
 	.ioctl		= vfio_pci_core_ioctl,
 	.get_region_info_caps = vfio_pci_ioctl_get_region_info,
@@ -1341,7 +1357,7 @@ static int nvgrace_gpu_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_put_vdev;
 
-	dev_set_drvdata(&pdev->dev, &nvdev->core_device);
+	dev_set_drvdata(&pdev->dev, nvdev);
 
 	if (ops == &nvgrace_gpu_pci_ops) {
 		nvdev->has_mig_hw_bug = nvgrace_gpu_has_mig_hw_bug(pdev);
@@ -1372,10 +1388,10 @@ out_put_vdev:
 
 static void nvgrace_gpu_remove(struct pci_dev *pdev)
 {
-	struct vfio_pci_core_device *core_device = dev_get_drvdata(&pdev->dev);
+	struct nvgrace_gpu_pci_core_device *nvdev = pci_get_drvdata(pdev);
 
-	vfio_pci_core_unregister_device(core_device);
-	vfio_put_device(&core_device->vdev);
+	vfio_pci_core_unregister_device(&nvdev->core_device);
+	vfio_put_device(&nvdev->core_device.vdev);
 }
 
 static const struct pci_device_id nvgrace_gpu_vfio_pci_table[] = {
@@ -1407,17 +1423,14 @@ MODULE_DEVICE_TABLE(pci, nvgrace_gpu_vfio_pci_table);
  */
 static void nvgrace_gpu_vfio_pci_reset_done(struct pci_dev *pdev)
 {
-	struct vfio_pci_core_device *core_device = dev_get_drvdata(&pdev->dev);
-	struct nvgrace_gpu_pci_core_device *nvdev =
-		container_of(core_device, struct nvgrace_gpu_pci_core_device,
-			     core_device);
+	struct nvgrace_gpu_pci_core_device *nvdev = pci_get_drvdata(pdev);
 
 	nvdev->reset_done = true;
 }
 
 static const struct pci_error_handlers nvgrace_gpu_vfio_pci_err_handlers = {
 	.reset_done = nvgrace_gpu_vfio_pci_reset_done,
-	.error_detected = vfio_pci_core_aer_err_detected,
+	.error_detected = nvgrace_gpu_aer_err_detected,
 };
 
 static struct pci_driver nvgrace_gpu_vfio_pci_driver = {
@@ -1425,6 +1438,7 @@ static struct pci_driver nvgrace_gpu_vfio_pci_driver = {
 	.id_table = nvgrace_gpu_vfio_pci_table,
 	.probe = nvgrace_gpu_probe,
 	.remove = nvgrace_gpu_remove,
+	.driver = { .pm = pm_ptr(&nvgrace_gpu_pm_ops) },
 	.err_handler = &nvgrace_gpu_vfio_pci_err_handlers,
 	.driver_managed_dma = true,
 };

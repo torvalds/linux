@@ -50,7 +50,7 @@ static int mdev_device_remove_cb(struct device *dev, void *data)
  * @types: Array of supported mdev types
  * @nr_types: Number of entries in @types
  *
- * Registers the @parent stucture as a parent for mdev types and thus mdev
+ * Registers the @parent structure as a parent for mdev types and thus mdev
  * devices.  The caller needs to hold a reference on @dev that must not be
  * released until after the call to mdev_unregister_parent().
  *

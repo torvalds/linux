@@ -8,3 +8,4 @@
 !*.mk
 !.gitignore
 !Makefile
+!settings

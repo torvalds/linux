@@ -775,6 +775,7 @@ static int nv_falcon_memcpy_wait(struct vfio_pci_device *device)
 
 const struct vfio_pci_driver_ops nv_falcon_ops = {
 	.name = "nv_falcon",
+	.region_size = sizeof(struct gpu_device),
 	.probe = nv_falcon_probe,
 	.init = nv_falcon_init,
 	.remove = nv_falcon_remove,

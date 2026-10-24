@@ -87,7 +87,8 @@ FIXTURE_SETUP(vfio_pci_driver_test)
 	driver = &self->device->driver;
 
 	region_setup(self->iommu, self->iova_allocator, &self->memcpy_region, SZ_1G);
-	region_setup(self->iommu, self->iova_allocator, &driver->region, SZ_2M);
+	region_setup(self->iommu, self->iova_allocator, &driver->region,
+		     driver->region.size);
 
 	/* Any IOVA that doesn't overlap memcpy_region and driver->region. */
 	self->unmapped_iova = iova_allocator_alloc(self->iova_allocator, SZ_1G);
@@ -190,7 +191,7 @@ TEST_F(vfio_pci_driver_test, send_msi)
 	ASSERT_EQ(1, value);
 }
 
-TEST_F(vfio_pci_driver_test, mix_and_match)
+TEST_F_TIMEOUT(vfio_pci_driver_test, mix_and_match, 90)
 {
 	u64 value;
 	int i;
