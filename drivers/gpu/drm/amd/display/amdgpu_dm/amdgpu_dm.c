@@ -4733,6 +4733,11 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_commit *state,
 	dc_exit_ips_for_hw_access(dm->dc);
 	WARN_ON(!dc_commit_streams(dm->dc, &params));
 
+	/* Allow idle optimization when vblank count is 0 for display off */
+	if (dm->active_vblank_irq_count == 0 && amdgpu_dm_is_headless(dm->adev))
+		dc_allow_idle_optimizations(dm->dc, true);
+	mutex_unlock(&dm->dc_lock);
+
 	bool frl_stream_found = false;
 
 	for (i = 0; i < params.stream_count; i++) {
@@ -4743,6 +4748,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_commit *state,
 			break;
 		}
 	}
+
 	if (frl_stream_found) {
 		if (queue_delayed_work(dm->hdmi_frl_status_polling_wq,
 				       &dm->hdmi_frl_status_polling_work,
@@ -4752,10 +4758,6 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_commit *state,
 		if (cancel_delayed_work_sync(&dm->hdmi_frl_status_polling_work))
 			drm_dbg_kms(dev, "200ms frl status polling stops ...\n");
 	}
-	/* Allow idle optimization when vblank count is 0 for display off */
-	if ((dm->active_vblank_irq_count == 0) && amdgpu_dm_is_headless(dm->adev))
-		dc_allow_idle_optimizations(dm->dc, true);
-	mutex_unlock(&dm->dc_lock);
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
