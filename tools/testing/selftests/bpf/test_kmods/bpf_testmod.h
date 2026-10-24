@@ -31,6 +31,10 @@ struct bpf_iter_testmod_seq {
 	int cnt;
 };
 
+struct bpf_iter_testmod_current {
+	u64 remaining;
+};
+
 struct bpf_testmod_ops {
 	int (*test_1)(void);
 	void (*test_2)(int a, int b);
