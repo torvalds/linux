@@ -33,7 +33,7 @@ static void cleanup_unstripe(struct unstripe_c *uc, struct dm_target *ti)
 }
 
 /*
- * Contruct an unstriped mapping.
+ * Construct an unstriped mapping.
  * <number of stripes> <chunk size> <stripe #> <dev_path> <offset>
  */
 static int unstripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)

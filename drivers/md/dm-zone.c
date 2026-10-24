@@ -447,10 +447,8 @@ void dm_finalize_zone_settings(struct dm_table *t, struct queue_limits *lim)
 	struct mapped_device *md = t->md;
 
 	if (lim->features & BLK_FEAT_ZONED) {
-		if (dm_table_supports_zone_append(t))
-			clear_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
-		else
-			set_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
+		assign_bit(DMF_EMULATE_ZONE_APPEND, &md->flags,
+			   !dm_table_supports_zone_append(t));
 	} else {
 		clear_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
 		md->disk->nr_zones = 0;

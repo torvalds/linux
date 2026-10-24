@@ -610,6 +610,20 @@ config DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING
 
 	  If unsure, say N.
 
+config DM_VERITY_VERIFY_ROOTHASH_SIG_FORCE
+	bool "Require dm-verity root hash signature verification"
+	depends on DM_VERITY_VERIFY_ROOTHASH_SIG
+	help
+	  Reject dm-verity devices that are created without a valid root hash
+	  signature.  Without this, whether a signature is required is decided
+	  at boot time by the dm_verity.require_signatures parameter which
+	  defaults to off.
+
+	  Enabling this makes that parameter default to on and it can then no
+	  longer be turned off.
+
+	  If unsure, say N.
+
 config DM_VERITY_FEC
 	bool "Verity forward error correction support"
 	depends on DM_VERITY

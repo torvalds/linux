@@ -135,7 +135,7 @@ struct dm_dev *dm_snap_origin(struct dm_snapshot *snap);
 struct dm_dev *dm_snap_cow(struct dm_snapshot *snap);
 
 /*
- * Funtions to manipulate consecutive chunks
+ * Functions to manipulate consecutive chunks
  */
 #define DM_CHUNK_CONSECUTIVE_BITS 8
 #define DM_CHUNK_NUMBER_BITS 56

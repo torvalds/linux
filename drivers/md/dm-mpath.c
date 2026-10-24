@@ -1604,10 +1604,7 @@ static void pg_init_done(void *data, int errors)
 		goto out;
 
 	if (test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags)) {
-		if (delay_retry)
-			set_bit(MPATHF_PG_INIT_DELAY_RETRY, &m->flags);
-		else
-			clear_bit(MPATHF_PG_INIT_DELAY_RETRY, &m->flags);
+		assign_bit(MPATHF_PG_INIT_DELAY_RETRY, &m->flags, delay_retry);
 
 		if (__pg_init_all_paths(m))
 			goto out;

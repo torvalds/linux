@@ -300,9 +300,6 @@ static void __prepare_superblock(struct dm_clone_metadata *cmd,
 {
 	sb->flags = cpu_to_le32(0UL);
 
-	/* FIXME: UUID is currently unused */
-	memset(sb->uuid, 0, sizeof(sb->uuid));
-
 	sb->magic = cpu_to_le64(SUPERBLOCK_MAGIC);
 	sb->version = cpu_to_le32(DM_CLONE_MAX_METADATA_VERSION);
 

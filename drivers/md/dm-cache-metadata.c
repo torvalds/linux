@@ -49,7 +49,7 @@ enum superblock_flag_bits {
 enum mapping_bits {
 	/*
 	 * A valid mapping.  Because we're using an array we clear this
-	 * flag for an non existant mapping.
+	 * flag for an non existent mapping.
 	 */
 	M_VALID = 1,
 

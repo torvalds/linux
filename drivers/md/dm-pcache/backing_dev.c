@@ -68,7 +68,7 @@ void backing_dev_stop(struct dm_pcache *pcache)
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
 
 	/*
-	 * There should not be any new request comming, just wait
+	 * There should not be any new request coming, just wait
 	 * inflight requests done.
 	 */
 	wait_event(backing_dev->inflight_wq,

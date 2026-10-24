@@ -1393,7 +1393,7 @@ static void mirror_resume(struct dm_target *ti)
  * we have encountered.
  *    A => Alive - No failures
  *    D => Dead - A write failure occurred leaving mirror out-of-sync
- *    S => Sync - A sychronization failure occurred, mirror out-of-sync
+ *    S => Sync - A synchronization failure occurred, mirror out-of-sync
  *    R => Read - A read failure occurred, mirror data unaffected
  *
  * Returns: <char>

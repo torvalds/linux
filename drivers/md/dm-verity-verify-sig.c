@@ -21,8 +21,8 @@ static bool dm_verity_keyring_unsealed __ro_after_init;
 module_param_named(keyring_unsealed, dm_verity_keyring_unsealed, bool, 0444);
 MODULE_PARM_DESC(keyring_unsealed, "Leave the dm-verity keyring unsealed");
 
-static bool require_signatures;
-module_param(require_signatures, bool, 0444);
+static bool require_signatures = IS_ENABLED(CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_FORCE);
+module_param(require_signatures, bool_enable_only, 0444);
 MODULE_PARM_DESC(require_signatures,
 		"Verify the roothash of dm-verity hash tree");
 

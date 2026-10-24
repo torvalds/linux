@@ -31,7 +31,7 @@
  * least MIN_ENTRIES + 1.  We do this in the following ways:
  *
  * [A] No siblings => this can only happen if the node is the root, in which
- *     case we copy the childs contents over the root.
+ *     case we copy the children contents over the root.
  *
  * [B] No left sibling
  *     ==> rebalance(node, right sibling)

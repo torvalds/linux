@@ -443,7 +443,7 @@ static int __must_check parse_slab_size(const char *slab_str, block_count_t *sla
 
 	result = kstrtoull(slab_str, 10, &value);
 	if (result) {
-		vdo_log_error("optional parameter error: invalid slab size, must be a postive integer");
+		vdo_log_error("optional parameter error: invalid slab size, must be a positive integer");
 		return -EINVAL;
 	}
 

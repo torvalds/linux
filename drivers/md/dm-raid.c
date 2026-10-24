@@ -1784,7 +1784,7 @@ static int rs_check_takeover(struct raid_set *rs)
 
 		/* raid10* -> raid0 */
 		if (mddev->new_level == 0) {
-			/* Can takeover raid10_near with raid disks divisable by data copies! */
+			/* Can takeover raid10_near with raid disks divisible by data copies! */
 			if (near_copies > 1 &&
 			    !(mddev->raid_disks % near_copies)) {
 				mddev->raid_disks /= near_copies;

@@ -240,7 +240,7 @@ static int __must_check allocate_cache_components(struct vdo_page_cache *cache)
  * assert_on_cache_thread() - Assert that a function has been called on the VDO page cache's
  *                            thread.
  * @cache: The page cache.
- * @function_name: The funtion name to report if the assertion fails.
+ * @function_name: The function name to report if the assertion fails.
  */
 static inline void assert_on_cache_thread(struct vdo_page_cache *cache,
 					  const char *function_name)
