@@ -210,24 +210,21 @@ static const char *cdns_pcie_hpa_ltssm_status_string(enum cdns_pcie_hpa_ltssm lt
 static int ltssm_status_show(struct seq_file *s, void *v)
 {
 	struct cdns_pcie *pci = s->private;
-	enum cdns_pcie_lga_ltssm lga_ltssm;
-	enum cdns_pcie_hpa_ltssm hpa_ltssm;
 	const char *str_ltssm;
-	u32 val;
+	u32 val, ltssm_val;
 
 	if (pci->is_hpa) {
 		val = cdns_pcie_hpa_readl(pci, REG_BANK_IP_REG,
 					  CDNS_PCIE_HPA_PHY_DBG_STS_REG0);
-		hpa_ltssm = FIELD_GET(CDNS_PCIE_HPA_LTSSM_STATUS_MASK, val);
-		str_ltssm = cdns_pcie_hpa_ltssm_status_string(hpa_ltssm);
+		ltssm_val = FIELD_GET(CDNS_PCIE_HPA_LTSSM_STATUS_MASK, val);
+		str_ltssm = cdns_pcie_hpa_ltssm_status_string(ltssm_val);
 	} else {
 		val = cdns_pcie_readl(pci, CDNS_PCIE_LM_BASE);
-		lga_ltssm = FIELD_GET(CDNS_PCIE_LGA_LTSSM_STATUS_MASK, val);
-		str_ltssm = cdns_pcie_lga_ltssm_status_string(lga_ltssm);
+		ltssm_val = FIELD_GET(CDNS_PCIE_LGA_LTSSM_STATUS_MASK, val);
+		str_ltssm = cdns_pcie_lga_ltssm_status_string(ltssm_val);
 	}
 
-	seq_printf(s, "%s (0x%02x)\n", str_ltssm,
-		   pci->is_hpa ? hpa_ltssm : lga_ltssm);
+	seq_printf(s, "%s (0x%02x)\n", str_ltssm, ltssm_val);
 
 	return 0;
 }

@@ -215,9 +215,9 @@ static int fu740_pcie_start_link(struct dw_pcie *pci)
 		tmp |= orig;
 		dw_pcie_writel_dbi(pci, cap_exp + PCI_EXP_LNKCAP, tmp);
 
-		tmp = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
-		tmp |= PORT_LOGIC_SPEED_CHANGE;
-		dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, tmp);
+		tmp = dw_pcie_readl_dbi(pci, LINK_WIDTH_SPEED_CTRL);
+		tmp |= SPEED_CHANGE;
+		dw_pcie_writel_dbi(pci, LINK_WIDTH_SPEED_CTRL, tmp);
 
 		ret = dw_pcie_wait_for_link(pci);
 		if (ret) {

@@ -52,18 +52,18 @@ static int ultrarisc_pcie_host_init(struct dw_pcie_rp *pp)
 	val &= ~FAST_LINK_MODE;
 	dw_pcie_writel_dbi(pci, PCIE_CUS_CORE, val);
 
-	val = dw_pcie_readl_dbi(pci, PCIE_TIMER_CTRL_MAX_FUNC_NUM);
+	val = dw_pcie_readl_dbi(pci, TIMER_CTRL_MAX_FUNC_NUM);
 	FIELD_MODIFY(PORT_FLT_SF_MASK, &val, PORT_FLT_SF_VAL_64);
-	dw_pcie_writel_dbi(pci, PCIE_TIMER_CTRL_MAX_FUNC_NUM, val);
+	dw_pcie_writel_dbi(pci, TIMER_CTRL_MAX_FUNC_NUM, val);
 
 	cap_exp = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 	val = dw_pcie_readl_dbi(pci, cap_exp + PCI_EXP_LNKCTL2);
 	FIELD_MODIFY(PCI_EXP_LNKCTL2_TLS, &val, PCI_EXP_LNKCTL2_TLS_16_0GT);
 	dw_pcie_writel_dbi(pci, cap_exp + PCI_EXP_LNKCTL2, val);
 
-	val = dw_pcie_readl_dbi(pci, PCIE_PORT_FORCE);
-	FIELD_MODIFY(PORT_LINK_NUM_MASK, &val, 0);
-	dw_pcie_writel_dbi(pci, PCIE_PORT_FORCE, val);
+	val = dw_pcie_readl_dbi(pci, PORT_FORCE_LINK);
+	FIELD_MODIFY(PORT_FORCE_LINK_NUM_MASK, &val, 0);
+	dw_pcie_writel_dbi(pci, PORT_FORCE_LINK, val);
 
 	val = dw_pcie_readl_dbi(pci, cap_exp + PCI_EXP_DEVCTL2);
 	FIELD_MODIFY(PCI_EXP_DEVCTL2_COMP_TIMEOUT, &val,
@@ -153,6 +153,12 @@ static int ultrarisc_pcie_probe(struct platform_device *pdev)
 	pci->atu_size = SZ_8K;
 
 	pp = &pci->pp;
+
+	/*
+	 * DP1000 routes MEM transactions without outbound iATU windows, which
+	 * avoids the 16-window/4GB-per-window aperture limit.
+	 */
+	pp->bypass_ob_mem_iatu = true;
 
 	platform_set_drvdata(pdev, ultra);
 
