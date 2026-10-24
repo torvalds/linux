@@ -1190,6 +1190,12 @@ STATIC_IFN_KUNIT uint8_t get_max_frl_rate(uint8_t max_lanes, uint8_t max_rate_pe
 		max_frl_rate = 5;
 	else if ((max_lanes == 4) && (max_rate_per_lane == 12))
 		max_frl_rate = 6;
+	else if ((max_lanes == 4) && (max_rate_per_lane == 16))
+		max_frl_rate = 7;
+	else if ((max_lanes == 4) && (max_rate_per_lane == 20))
+		max_frl_rate = 8;
+	else if ((max_lanes == 4) && (max_rate_per_lane == 24))
+		max_frl_rate = 9;
 	else
 		max_frl_rate = 0;
 
