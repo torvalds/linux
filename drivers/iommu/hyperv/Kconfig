@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Hyper-V para-virtualized IOMMU driver for Linux guests
+config HYPERV_PVIOMMU
+	bool "Microsoft Hyper-V para-virtualized IOMMU driver for Linux guests"
+	depends on X86_64 && HYPERV && PCI
+	select IOMMU_DMA
+	select GENERIC_PT
+	select IOMMU_PT
+	select IOMMU_PT_X86_64
+	default HYPERV
+	help
+	  Para-virtualized IOMMU driver for Linux guests running on
+	  Microsoft Hyper-V. Provides DMA remapping and IOTLB
+	  flush support to enable DMA isolation for PCI devices
+	  assigned to the guest.

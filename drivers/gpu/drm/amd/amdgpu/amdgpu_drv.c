@@ -185,6 +185,7 @@ char *amdgpu_disable_cu;
 char *amdgpu_virtual_display;
 int amdgpu_enforce_isolation = -1;
 int amdgpu_modeset = -1;
+int amdgpu_iommu_perfopt = -1;
 
 /* Specifies the default granularity for SVM, used in buffer
  * migration and restoration of backing memory when handling
@@ -391,6 +392,17 @@ module_param_named(fw_load_type, amdgpu_fw_load_type, int, 0444);
  */
 MODULE_PARM_DESC(aspm, "ASPM support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(aspm, amdgpu_aspm, int, 0444);
+
+/**
+ * DOC: iommu_perfopt (int)
+ * Control the AMD IOMMU PerfOpt DMA-latency optimization
+ * (0 = disable; -1 = enable on supported devices).
+ * This arms the IOMMU PerfOpt control (IOMMU spec, MMIO Offset 016Ch, EFR PerfOptSup / PerfOptEn)
+ * Arming it disables ATS, PRI, PASID and SVA for the GPU and removes IOMMU DMA containment for it,
+ * trading isolation for lower DMA latency.
+ */
+MODULE_PARM_DESC(iommu_perfopt, "Control IOMMU PerfOpt DMA-latency optimization (-1 = enable on supported devices, 0 = disable)");
+module_param_named(iommu_perfopt, amdgpu_iommu_perfopt, int, 0444);
 
 /**
  * DOC: runpm (int)

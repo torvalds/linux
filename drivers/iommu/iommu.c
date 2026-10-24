@@ -4243,6 +4243,10 @@ int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
 	if (!group)
 		return 0;
 
+	ret = iommu_deferred_attach(dev, iommu_get_domain_for_dev(dev));
+	if (ret)
+		return ret;
+
 	mutex_lock(&group->mutex);
 	/* An IDENTITY domain must pass through */
 	if (group->domain && group->domain->type != IOMMU_DOMAIN_IDENTITY) {

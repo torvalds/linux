@@ -346,6 +346,18 @@ struct pt_iommu_x86_64_hw_info {
 
 IOMMU_FORMAT(x86_64, x86_64_pt);
 
+struct pt_iommu_bcm2712_cfg {
+	struct pt_iommu_cfg common;
+	u8 bigpage_lg2;
+	u8 superpage_lg2;
+};
+
+struct pt_iommu_bcm2712_hw_info {
+	phys_addr_t pt_base;
+};
+
+IOMMU_FORMAT(bcm2712, bcm2712pt);
+
 #undef IOMMU_PROTOTYPES
 #undef IOMMU_FORMAT
 #endif

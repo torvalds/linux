@@ -1299,6 +1299,14 @@ struct hv_device {
 #define device_to_hv_device(d)	container_of_const(d, struct hv_device, device)
 #define drv_to_hv_drv(d)	container_of_const(d, struct hv_driver, driver)
 
+static inline u32 hv_build_logical_dev_id_prefix(struct hv_device *hdev)
+{
+	return ((u32)hdev->dev_instance.b[5] << 24) |
+	       ((u32)hdev->dev_instance.b[4] << 16) |
+	       ((u32)hdev->dev_instance.b[7] << 8) |
+	       (hdev->dev_instance.b[6] & 0xf8u);
+}
+
 static inline void hv_set_drvdata(struct hv_device *dev, void *data)
 {
 	dev_set_drvdata(&dev->device, data);

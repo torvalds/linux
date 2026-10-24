@@ -72,6 +72,15 @@ config IOMMU_PT_X86_64
 
 	  Selected automatically by an IOMMU driver that uses this format.
 
+config IOMMU_PT_BCM2712
+	tristate "IOMMU page table for Broadcom BCM2712"
+	help
+	  iommu_domain implementation for the Broadcom BCM2712 IOMMU found on
+	  Raspberry Pi 5. It supports 4K page sizes over a 2-level page table
+	  format.
+
+	  Selected automatically by an IOMMU driver that uses this format.
+
 config IOMMU_PT_KUNIT_TEST
 	tristate "IOMMU Page Table KUnit Test" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -79,6 +88,7 @@ config IOMMU_PT_KUNIT_TEST
 	depends on IOMMU_PT_RISCV64 || !IOMMU_PT_RISCV64
 	depends on IOMMU_PT_X86_64 || !IOMMU_PT_X86_64
 	depends on IOMMU_PT_VTDSS || !IOMMU_PT_VTDSS
+	depends on IOMMU_PT_BCM2712 || !IOMMU_PT_BCM2712
 	default KUNIT_ALL_TESTS
 	help
 	  Enable kunit tests for GENERIC_PT and IOMMU_PT that covers all the

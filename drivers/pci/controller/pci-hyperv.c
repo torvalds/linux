@@ -641,10 +641,7 @@ static void hv_irq_retarget_interrupt(struct irq_data *data)
 	params->int_entry.source = HV_INTERRUPT_SOURCE_MSI;
 	params->int_entry.msi_entry.address.as_uint32 = int_desc->address & 0xffffffff;
 	params->int_entry.msi_entry.data.as_uint32 = int_desc->data;
-	params->device_id = (hbus->hdev->dev_instance.b[5] << 24) |
-			   (hbus->hdev->dev_instance.b[4] << 16) |
-			   (hbus->hdev->dev_instance.b[7] << 8) |
-			   (hbus->hdev->dev_instance.b[6] & 0xf8) |
+	params->device_id = hv_build_logical_dev_id_prefix(hbus->hdev) |
 			   PCI_FUNC(pdev->devfn);
 	params->int_target.vector = hv_msi_get_int_vector(data);
 
@@ -3742,6 +3739,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 	struct hv_pcibus_device *hbus;
 	int ret, dom;
 	u16 dom_req;
+	u32 prefix;
 	char *name;
 
 	bridge = devm_pci_alloc_host_bridge(&hdev->device, 0);
@@ -3884,13 +3882,22 @@ static int hv_pci_probe(struct hv_device *hdev,
 
 	hbus->state = hv_pcibus_probed;
 
-	ret = create_root_hv_pci_bus(hbus);
+	/* Register the bus before scanning any devices on it. */
+	prefix = hv_build_logical_dev_id_prefix(hdev);
+
+	ret = hv_pci_register_dev_id(dom, prefix);
 	if (ret)
 		goto free_windows;
+
+	ret = create_root_hv_pci_bus(hbus);
+	if (ret)
+		goto unregister_pci_bus;
 
 	mutex_unlock(&hbus->state_lock);
 	return 0;
 
+unregister_pci_bus:
+	hv_pci_unregister_dev_id(dom);
 free_windows:
 	hv_pci_free_bridge_windows(hbus);
 exit_d0:
@@ -4004,6 +4011,8 @@ static void hv_pci_remove(struct hv_device *hdev)
 
 	hbus = hv_get_drvdata(hdev);
 	if (hbus->state == hv_pcibus_installed) {
+		int dom = hbus->bridge->domain_nr;
+
 		tasklet_disable(&hdev->channel->callback_event);
 		hbus->state = hv_pcibus_removing;
 		tasklet_enable(&hdev->channel->callback_event);
@@ -4021,6 +4030,8 @@ static void hv_pci_remove(struct hv_device *hdev)
 		hv_pci_remove_slots(hbus);
 		pci_remove_root_bus(hbus->bridge->bus);
 		pci_unlock_rescan_remove();
+
+		hv_pci_unregister_dev_id(dom);
 	}
 
 	hv_pci_bus_exit(hdev, false);

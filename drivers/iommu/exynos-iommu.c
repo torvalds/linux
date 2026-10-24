@@ -8,6 +8,7 @@
 #define DEBUG
 #endif
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
@@ -143,6 +144,10 @@ static u32 lv2ent_offset(sysmmu_iova_t iova)
 #define CTRL_VM_FAULT_MODE_STALL	BIT(3)
 #define CAPA0_CAPA1_EXIST		BIT(11)
 #define CAPA1_VCR_ENABLED		BIT(14)
+#define CAPA1_NO_BLOCK_MODE		BIT(15)
+#define FAULT_INFO_AXID			GENMASK(15, 0)
+#define FAULT_INFO_AXLEN		GENMASK(19, 16)
+#define FAULT_INFO_WRITE		BIT(20)
 
 /* common registers */
 #define REG_MMU_CTRL		0x000
@@ -193,6 +198,7 @@ struct sysmmu_fault {
 	sysmmu_iova_t addr;	/* IOVA address that caused fault */
 	const char *name;	/* human readable fault name */
 	unsigned int type;	/* fault type for report_iommu_fault() */
+	u32 info;		/* raw transaction info (v7+ only) */
 };
 
 struct sysmmu_v1_fault_info {
@@ -306,6 +312,7 @@ struct sysmmu_drvdata {
 
 	/* v7 fields */
 	bool has_vcr;			/* virtual machine control register */
+	bool no_block;			/* BLOCK mode not implemented */
 };
 
 #define SYSMMU_REG(data, reg) ((data)->sfrbase + (data)->variant->reg)
@@ -358,7 +365,8 @@ static int exynos_sysmmu_v7_get_fault_info(struct sysmmu_drvdata *data,
 
 	fault->addr = readl(SYSMMU_REG(data, fault_va));
 	fault->name = sysmmu_v7_fault_names[itype % 4];
-	fault->type = (info & BIT(20)) ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ;
+	fault->type = (info & FAULT_INFO_WRITE) ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ;
+	fault->info = info;
 
 	return 0;
 }
@@ -511,6 +519,7 @@ static void __sysmmu_get_vcr(struct sysmmu_drvdata *data)
 	u32 capa1 = readl(data->sfrbase + REG_V7_CAPA1);
 
 	data->has_vcr = capa1 & CAPA1_VCR_ENABLED;
+	data->no_block = capa1 & CAPA1_NO_BLOCK_MODE;
 }
 
 static void __sysmmu_get_version(struct sysmmu_drvdata *data)
@@ -555,6 +564,12 @@ static void show_fault_information(struct sysmmu_drvdata *data,
 		dev_name(data->master),
 		fault->type == IOMMU_FAULT_READ ? "READ" : "WRITE",
 		fault->name, fault->addr);
+	/* AxID identifies the issuing port inside the master */
+	if (data->variant->fault_info)
+		dev_err(data->sysmmu, "transaction info %#010x: AxID %#lx, AxLEN %lu\n",
+			fault->info,
+			FIELD_GET(FAULT_INFO_AXID, fault->info),
+			FIELD_GET(FAULT_INFO_AXLEN, fault->info));
 	dev_dbg(data->sysmmu, "Page table base: %pa\n", &data->pgtable);
 	ent = section_entry(phys_to_virt(data->pgtable), fault->addr);
 	dev_dbg(data->sysmmu, "\tLv1 entry: %#x\n", *ent);
@@ -652,7 +667,12 @@ static void __sysmmu_enable(struct sysmmu_drvdata *data)
 	__sysmmu_enable_clocks(data);
 
 	spin_lock_irqsave(&data->lock, flags);
-	writel(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
+	/*
+	 * On no-block hardware CTRL_BLOCK acts as a plain enable; keep the
+	 * MMU disabled until it is fully programmed.
+	 */
+	if (!data->no_block)
+		writel(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
 	__sysmmu_init_config(data);
 	__sysmmu_set_ptbase(data, data->pgtable);
 	__sysmmu_enable_vid(data);
@@ -677,7 +697,14 @@ static void sysmmu_tlb_invalidate_flpdcache(struct sysmmu_drvdata *data,
 	spin_lock_irqsave(&data->lock, flags);
 	if (data->active && data->version >= MAKE_MMU_VER(3, 3)) {
 		clk_enable(data->clk_master);
-		if (sysmmu_block(data)) {
+		/*
+		 * No-block hardware accepts invalidation writes while the
+		 * MMU is running; it is also v7+, so flush-all covers the
+		 * FLPD cache.
+		 */
+		if (data->no_block) {
+			__sysmmu_tlb_invalidate(data);
+		} else if (sysmmu_block(data)) {
 			if (data->version >= MAKE_MMU_VER(5, 0))
 				__sysmmu_tlb_invalidate(data);
 			else
@@ -713,7 +740,9 @@ static void sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
 		if (MMU_MAJ_VER(data->version) == 2)
 			num_inv = min_t(unsigned int, size / SPAGE_SIZE, 64);
 
-		if (sysmmu_block(data)) {
+		if (data->no_block) {
+			__sysmmu_tlb_invalidate_entry(data, iova, num_inv);
+		} else if (sysmmu_block(data)) {
 			__sysmmu_tlb_invalidate_entry(data, iova, num_inv);
 			sysmmu_unblock(data);
 		}
