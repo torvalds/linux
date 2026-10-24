@@ -180,6 +180,7 @@ static int io_region_allocate_pages(struct io_mapped_region *mr,
 	size_t size = io_region_size(mr);
 	unsigned long nr_allocated;
 	struct page **pages;
+	struct page *page;
 
 	pages = kvmalloc_objs(*pages, mr->nr_pages, gfp);
 	if (!pages)
@@ -192,6 +193,13 @@ static int io_region_allocate_pages(struct io_mapped_region *mr,
 
 	nr_allocated = alloc_pages_bulk_node(gfp, NUMA_NO_NODE,
 					     mr->nr_pages, pages);
+	while (nr_allocated < mr->nr_pages) {
+		page = alloc_page(gfp);
+		if (!page)
+			break;
+
+		pages[nr_allocated++] = page;
+	}
 	if (nr_allocated != mr->nr_pages) {
 		if (nr_allocated)
 			release_pages(pages, nr_allocated);

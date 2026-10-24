@@ -56,6 +56,33 @@ static inline void __io_req_set_refcount(struct io_kiocb *req, int nr)
 	}
 }
 
+/*
+ * io-wq may still hold a reference if the issue completed async. If so, the
+ * last put completes the request, so that file drop and CQE visibility are
+ * ordered. The last reference stays for the free path to put, a linked
+ * timeout may still look at the request until then.
+ */
+static inline bool io_req_complete_ready(struct io_kiocb *req)
+{
+	if (!(req->flags & REQ_F_REFCOUNT) || (req->flags & REQ_F_REISSUE))
+		return true;
+	if (atomic_read(&req->refs) == 1)
+		return true;
+	if (!req_ref_put_and_test(req))
+		return false;
+	/* the other put raced us, ours was the last after all */
+	atomic_set(&req->refs, 1);
+	return true;
+}
+
+/* io-wq still holds a reference, the request can't be completed yet */
+static inline bool io_req_shared(struct io_kiocb *req)
+{
+	if (!(req->flags & REQ_F_REFCOUNT) || (req->flags & REQ_F_REISSUE))
+		return false;
+	return atomic_read(&req->refs) > 1;
+}
+
 static inline void io_req_set_refcount(struct io_kiocb *req)
 {
 	__io_req_set_refcount(req, 1);

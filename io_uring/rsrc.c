@@ -174,8 +174,8 @@ static void io_free_imu(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 		kvfree(imu);
 }
 
-static unsigned long io_buffer_unaccount_pages(struct io_ring_ctx *ctx,
-					       struct io_mapped_ubuf *imu)
+static unsigned long io_imu_unaccount_hpages(struct io_ring_ctx *ctx,
+					     struct io_mapped_ubuf *imu)
 {
 	struct page *seen = NULL;
 	unsigned long acct = 0;
@@ -188,17 +188,14 @@ static unsigned long io_buffer_unaccount_pages(struct io_ring_ctx *ctx,
 		struct page *page = imu->bvec[i].bv_page;
 		struct page *hpage;
 
-		if (!PageCompound(page)) {
-			acct++;
+		if (!PageCompound(page))
 			continue;
-		}
 
 		hpage = compound_head(page);
 		if (hpage == seen)
 			continue;
 		seen = hpage;
 
-		/* Unaccount on last reference */
 		if (hpage_acct_unref(ctx, hpage))
 			acct += page_size(hpage) >> PAGE_SHIFT;
 		cond_resched();
@@ -207,18 +204,38 @@ static unsigned long io_buffer_unaccount_pages(struct io_ring_ctx *ctx,
 	return acct;
 }
 
+static unsigned long io_imu_unaccount_reg_pages(struct io_ring_ctx *ctx,
+						struct io_mapped_ubuf *imu)
+{
+	unsigned long acct = 0;
+	int i;
+
+	if (imu->flags & IO_REGBUF_F_KBUF || !ctx->user)
+		return 0;
+
+	for (i = 0; i < imu->nr_bvecs; i++) {
+		if (!PageCompound(imu->bvec[i].bv_page))
+			acct++;
+	}
+	return acct;
+}
+
 static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 {
-	unsigned long acct_pages = 0;
+	unsigned long acct_pages;
 
-	/* Always decrement, so it works for cloned buffers too */
-	acct_pages = io_buffer_unaccount_pages(ctx, imu);
+	/* Compound hpages are accounted per-ring in ctx->hpage_acct */
+	acct_pages = io_imu_unaccount_hpages(ctx, imu);
 
 	if (unlikely(refcount_read(&imu->refs) > 1)) {
-		if (!refcount_dec_and_test(&imu->refs))
+		if (!refcount_dec_and_test(&imu->refs)) {
+			if (acct_pages)
+				io_unaccount_mem(ctx->user, ctx->mm_account, acct_pages);
 			return;
+		}
 	}
 
+	acct_pages += io_imu_unaccount_reg_pages(ctx, imu);
 	if (acct_pages)
 		io_unaccount_mem(ctx->user, ctx->mm_account, acct_pages);
 	imu->release(imu->priv);
@@ -1280,6 +1297,7 @@ static int io_buffer_acct_cloned_hpages(struct io_ring_ctx *ctx,
 					struct io_mapped_ubuf *imu)
 {
 	struct page *seen = NULL;
+	unsigned long acct = 0;
 	int i, ret = 0;
 
 	if (imu->flags & IO_REGBUF_F_KBUF || !ctx->user)
@@ -1302,10 +1320,14 @@ static int io_buffer_acct_cloned_hpages(struct io_ring_ctx *ctx,
 		ret = hpage_acct_ref(ctx, hpage, &acct_new);
 		if (ret)
 			break;
+		if (acct_new)
+			acct += page_size(hpage) >> PAGE_SHIFT;
 
 		cond_resched();
 	}
 
+	if (!ret && acct)
+		ret = io_account_mem(ctx->user, ctx->mm_account, acct);
 	if (!ret)
 		return 0;
 

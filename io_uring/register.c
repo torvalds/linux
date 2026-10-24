@@ -496,6 +496,17 @@ static void io_register_free_rings(struct io_ring_ctx *ctx,
 			 IORING_SETUP_CQE32 | IORING_SETUP_NO_MMAP | \
 			 IORING_SETUP_CQE_MIXED | IORING_SETUP_SQE_MIXED)
 
+static bool io_sqe_is_128(struct io_ring_ctx *ctx,
+			  const struct io_uring_sqe *sqe)
+{
+	u8 opcode = READ_ONCE(sqe->opcode);
+
+	if (!(ctx->flags & IORING_SETUP_SQE_MIXED) || opcode >= IORING_OP_LAST)
+		return false;
+	opcode = array_index_nospec(opcode, IORING_OP_LAST);
+	return io_issue_defs[opcode].is_128;
+}
+
 static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 {
 	struct io_ctx_config config;
@@ -505,6 +516,8 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	struct io_uring_params *p = &config.p;
 	struct io_rings_layout *rl = &config.layout;
 	u32 *o_sq_array, *n_sq_array = NULL;
+	bool cqe32_tail = false;
+	unsigned int sqe128_src = 0;
 	int ret;
 
 	memset(&config, 0, sizeof(config));
@@ -603,19 +616,39 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	old_head = READ_ONCE(o.rings->sq.head);
 	if (tail - old_head > p->sq_entries)
 		goto overflow;
-	for (i = old_head; i < tail; i++) {
+	for (i = old_head; i != tail; i++) {
+		bool sqe128_tail = sqe128_src;
 		unsigned int dst, src;
 		size_t sq_size;
 
 		dst = i & (p->sq_entries - 1);
 		src = i & (ctx->sq_entries - 1);
-		if (n_sq_array) {
+		if (sqe128_tail) {
+			/* it follows the first half, whatever the array says */
+			src = sqe128_src;
+			sqe128_src = 0;
+			if (n_sq_array)
+				WRITE_ONCE(n_sq_array[dst], dst);
+		} else if (n_sq_array) {
 			src = READ_ONCE(o_sq_array[src]);
 			if (unlikely(src >= ctx->sq_entries)) {
 				WRITE_ONCE(n_sq_array[dst], UINT_MAX);
 				continue;
 			}
 			WRITE_ONCE(n_sq_array[dst], dst);
+		}
+
+		/*
+		 * A 128b SQE on a SQE_MIXED ring takes two contiguous entries
+		 * and must not wrap. A smaller ring may place it on the last
+		 * entry, fail the resize if that happens.
+		 */
+		if (!sqe128_tail && i + 1 != tail &&
+		    src < ctx->sq_entries - 1 &&
+		    io_sqe_is_128(ctx, &o.sq_sqes[src])) {
+			if (dst == p->sq_entries - 1)
+				goto overflow;
+			sqe128_src = src + 1;
 		}
 
 		sq_size = sizeof(struct io_uring_sqe);
@@ -640,7 +673,7 @@ overflow:
 		ret = -EOVERFLOW;
 		goto out;
 	}
-	for (i = old_head; i < tail; i++) {
+	for (i = old_head; i != tail; i++) {
 		unsigned index, dst_mask, src_mask;
 		size_t cq_size;
 
@@ -653,6 +686,21 @@ overflow:
 			cq_size <<= 1;
 			src_mask = (ctx->cq_entries << 1) - 1;
 			dst_mask = (p->cq_entries << 1) - 1;
+		}
+		/*
+		 * A 32b CQE on a CQE_MIXED ring takes two contiguous entries
+		 * and must not wrap. A smaller ring may place it on the last
+		 * entry, fail the resize if that happens.
+		 */
+		if (ctx->flags & IORING_SETUP_CQE_MIXED) {
+			if (cqe32_tail) {
+				cqe32_tail = false;
+			} else if (READ_ONCE(o.rings->cqes[index & src_mask].flags) &
+				   IORING_CQE_F_32) {
+				if ((index & dst_mask) == dst_mask)
+					goto overflow;
+				cqe32_tail = true;
+			}
 		}
 		memcpy(&n.rings->cqes[index & dst_mask], &o.rings->cqes[index & src_mask], cq_size);
 	}

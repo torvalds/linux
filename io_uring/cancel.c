@@ -72,7 +72,16 @@ static bool io_cancel_cb(struct io_wq_work *work, void *data)
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
 	struct io_cancel_data *cd = data;
 
-	return io_cancel_req_match(req, cd);
+	if (!io_cancel_req_match(req, cd))
+		return false;
+	/*
+	 * Pending work is gone once it has matched. Work that is running may
+	 * park the request where the same cancellation looks next. Don't make
+	 * it skip the request as one that it has dealt with.
+	 */
+	if (cd->flags & (IORING_ASYNC_CANCEL_ALL | IORING_ASYNC_CANCEL_ANY))
+		req->cancel_seq_set = false;
+	return true;
 }
 
 static int io_async_cancel_one(struct io_uring_task *tctx,
@@ -117,6 +126,8 @@ int io_try_cancel(struct io_uring_task *tctx, struct io_cancel_data *cd,
 	 */
 	if (!ret)
 		return 0;
+	if (ret == -EALREADY)
+		cd->running = true;
 
 	ret = io_poll_cancel(ctx, cd, issue_flags);
 	if (ret != -ENOENT)
@@ -180,6 +191,7 @@ static int __io_async_cancel(struct io_cancel_data *cd,
 	struct io_tctx_node *node;
 	int ret, nr = 0;
 
+	cd->running = false;
 	do {
 		ret = io_try_cancel(tctx, cd, issue_flags);
 		if (ret == -ENOENT)
@@ -195,6 +207,9 @@ static int __io_async_cancel(struct io_cancel_data *cd,
 	mutex_lock(&ctx->tctx_lock);
 	ret = -ENOENT;
 	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
+		/* has been done above, don't count what is running there */
+		if (all && node->task->io_uring == tctx)
+			continue;
 		ret = io_async_cancel_one(node->task->io_uring, cd);
 		if (ret != -ENOENT) {
 			if (!all)
@@ -204,7 +219,15 @@ static int __io_async_cancel(struct io_cancel_data *cd,
 	}
 	mutex_unlock(&ctx->tctx_lock);
 	io_ring_submit_unlock(ctx, issue_flags);
-	return all ? nr : ret;
+	if (all)
+		return nr;
+	/*
+	 * The worker may be done with the work that was found running, and
+	 * flagged, above. That isn't the same as not having found it.
+	 */
+	if (ret == -ENOENT && cd->running)
+		ret = -EALREADY;
+	return ret;
 }
 
 int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
@@ -308,7 +331,7 @@ int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg)
 	if (ret != -EALREADY)
 		goto out;
 
-	if (sc.timeout.tv_sec != -1UL || sc.timeout.tv_nsec != -1UL) {
+	if (sc.timeout.tv_sec != -1 || sc.timeout.tv_nsec != -1) {
 		struct timespec64 ts = {
 			.tv_sec		= sc.timeout.tv_sec,
 			.tv_nsec	= sc.timeout.tv_nsec
@@ -514,8 +537,9 @@ static __cold bool io_uring_try_cancel_iowq(struct io_ring_ctx *ctx)
 
 __cold bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct io_uring_task *tctx,
-					 bool cancel_all, bool is_sqpoll_thread)
+					 unsigned int flags)
 {
+	bool cancel_all = flags & IO_CANCEL_ALL;
 	struct io_task_cancel cancel = { .tctx = tctx, .all = cancel_all, };
 	enum io_wq_cancel cret;
 	bool ret = false;
@@ -544,7 +568,7 @@ __cold bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 
 	/* SQPOLL thread does its own polling */
 	if ((!(ctx->flags & IORING_SETUP_SQPOLL) && cancel_all) ||
-	    is_sqpoll_thread) {
+	    (flags & IO_CANCEL_SQPOLL)) {
 		while (!list_empty(&ctx->iopoll_list)) {
 			io_iopoll_try_reap_events(ctx);
 			ret = true;
@@ -560,7 +584,9 @@ __cold bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 	ret |= io_poll_remove_all(ctx, tctx, cancel_all);
 	ret |= io_waitid_remove_all(ctx, tctx, cancel_all);
 	ret |= io_futex_remove_all(ctx, tctx, cancel_all);
-	ret |= io_uring_try_cancel_uring_cmd(ctx, tctx, cancel_all);
+	ret |= io_uring_try_cancel_uring_cmd(ctx, tctx);
+	if (flags & IO_CANCEL_KEEP_TIMEOUTS)
+		cancel_all = false;
 	ret |= io_kill_timeouts(ctx, tctx, cancel_all);
 	mutex_unlock(&ctx->uring_lock);
 	if (tctx)
@@ -576,6 +602,44 @@ static s64 tctx_inflight(struct io_uring_task *tctx, bool tracked)
 }
 
 /*
+ * If true, whole thread group is exiting, at which point no task is left that
+ * can reap completions and care about requests in-flight.
+ */
+static bool io_task_group_exiting(void)
+{
+	return current->signal->flags & SIGNAL_GROUP_EXIT;
+}
+
+/*
+ * Return a count of requests an exiting task should wait for. 
+ */
+static s64 tctx_inflight_exit(struct io_uring_task *tctx)
+{
+	struct io_tctx_node *node;
+	unsigned long index;
+	s64 inflight;
+
+	inflight = tctx_inflight(tctx, false);
+	xa_for_each(&tctx->xa, index, node) {
+		/* unlocked read is fine, the caller re-evaluates until done */
+		inflight -= data_race(node->ctx->nr_notifs);
+		/* takes ->uring_lock, we hold nothing on the group exit path */
+		inflight -= io_timeouts_armed(node->ctx, tctx);
+	}
+	return inflight;
+}
+
+static bool io_tctx_cancel_done(struct io_uring_task *tctx, bool cancel_all,
+				bool group_exit)
+{
+	if (cancel_all)
+		return !tctx_inflight(tctx, false);
+	if (tctx_inflight(tctx, true))
+		return false;
+	return !group_exit || tctx_inflight_exit(tctx) <= 0;
+}
+
+/*
  * Find any io_uring ctx that this task has registered or done IO on, and cancel
  * requests. @sqd should be not-null IFF it's an SQPOLL thread cancellation.
  */
@@ -584,7 +648,9 @@ __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 	struct io_uring_task *tctx = current->io_uring;
 	struct io_ring_ctx *ctx;
 	struct io_tctx_node *node;
+	unsigned int flags = 0;
 	unsigned long index;
+	bool group_exit;
 	s64 inflight;
 	DEFINE_WAIT(wait);
 
@@ -595,18 +661,30 @@ __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 	if (tctx->io_wq)
 		io_wq_exit_start(tctx->io_wq);
 
+	/*
+	 * If a whole thread group is exiting, nobody will look at completions.
+	 * If a single thread is exiting, cancel only those that belong to that
+	 * thread.
+	 */
+	group_exit = !cancel_all && io_task_group_exiting();
+	if (cancel_all)
+		flags = IO_CANCEL_ALL;
+	else if (group_exit)
+		flags = IO_CANCEL_ALL | IO_CANCEL_KEEP_TIMEOUTS;
+	if (sqd)
+		flags |= IO_CANCEL_SQPOLL;
+
 	atomic_inc(&tctx->in_cancel);
 	do {
 		bool loop = false;
+		unsigned int state;
 
 		io_uring_drop_tctx_refs(current);
-		if (!tctx_inflight(tctx, !cancel_all))
+		if (io_tctx_cancel_done(tctx, cancel_all, group_exit))
 			break;
 
 		/* read completions before cancelations */
 		inflight = tctx_inflight(tctx, false);
-		if (!inflight)
-			break;
 
 		if (!sqd) {
 			xa_for_each(&tctx->xa, index, node) {
@@ -615,15 +693,13 @@ __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 					continue;
 				loop |= io_uring_try_cancel_requests(node->ctx,
 							current->io_uring,
-							cancel_all,
-							false);
+							flags);
 			}
 		} else {
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 				loop |= io_uring_try_cancel_requests(ctx,
 								     current->io_uring,
-								     cancel_all,
-								     true);
+								     flags);
 		}
 
 		if (loop) {
@@ -631,13 +707,28 @@ __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 			continue;
 		}
 
-		prepare_to_wait(&tctx->wait, &wait, TASK_INTERRUPTIBLE);
+		state = TASK_INTERRUPTIBLE;
+		if (task_sigpending(current))
+			state = TASK_UNINTERRUPTIBLE;
+		if (!cancel_all)
+			state |= TASK_FREEZABLE;
+		prepare_to_wait(&tctx->wait, &wait, state);
 		io_run_task_work();
 		io_uring_drop_tctx_refs(current);
 		/* only skip the sleep for local work this task may run */
 		xa_for_each(&tctx->xa, index, node) {
-			if (io_local_work_pending(node->ctx) &&
-			    io_allowed_defer_tw_run(node->ctx))
+			if (!(node->ctx->flags & IORING_SETUP_DEFER_TASKRUN) ||
+			    !io_allowed_defer_tw_run(node->ctx))
+				continue;
+			/*
+			 * The wake up io_uring_try_cancel_requests() asked for
+			 * may have been issued while we were still running. Ask
+			 * again now that it can't be missed.
+			 */
+			atomic_set(&node->ctx->cq_wait_nr, 1);
+			/* pairs with the xchg() in mpscq_push() */
+			smp_mb();
+			if (io_local_work_pending(node->ctx))
 				goto end_wait;
 		}
 		/*
@@ -645,8 +736,13 @@ __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 		 * avoids a race where a completion comes in before we did
 		 * prepare_to_wait().
 		 */
-		if (inflight == tctx_inflight(tctx, !cancel_all))
-			schedule();
+		if (inflight == tctx_inflight(tctx, false)) {
+			unsigned long timeout = 1;
+
+			if (state & TASK_INTERRUPTIBLE)
+				timeout = MAX_SCHEDULE_TIMEOUT;
+			schedule_timeout(timeout);
+		}
 end_wait:
 		finish_wait(&tctx->wait, &wait);
 	} while (1);

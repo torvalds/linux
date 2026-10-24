@@ -121,14 +121,15 @@ struct io_uring_sqe {
 
 /* sqe->attr_type_mask flags */
 #define IORING_RW_ATTR_FLAG_PI	(1U << 0)
-/* PI attribute information */
+
+/* PI attribute information in sqe->attr_ptr for IORING_RW_ATTR_FLAG_PI: */
 struct io_uring_attr_pi {
-		__u16	flags;
-		__u16	app_tag;
-		__u32	len;
-		__u64	addr;
-		__u64	seed;
-		__u64	rsvd;
+	__u16	flags;
+	__u16	app_tag;
+	__u32	len;
+	__u64	addr;
+	__u64	seed;
+	__u64	rsvd;
 };
 
 /*
