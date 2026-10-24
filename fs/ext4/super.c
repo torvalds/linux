@@ -5854,6 +5854,7 @@ failed_mount_wq:
 failed_mount3a:
 	/* Drain deferred EA inode iputs from journal replay */
 	flush_delayed_work(&sbi->s_ea_inode_work);
+	ext4_fc_replay_cleanup(sb);
 	ext4_es_unregister_shrinker(sbi);
 	ext4_es_destroy_stats(sbi);
 failed_mount3:

@@ -2413,7 +2413,9 @@ void ext4_fc_replay_cleanup(struct super_block *sb)
 
 	sbi->s_mount_state &= ~EXT4_FC_REPLAY;
 	kfree(sbi->s_fc_replay_state.fc_regions);
+	sbi->s_fc_replay_state.fc_regions = NULL;
 	kfree(sbi->s_fc_replay_state.fc_modified_inodes);
+	sbi->s_fc_replay_state.fc_modified_inodes = NULL;
 }
 
 static bool ext4_fc_value_len_isvalid(struct ext4_sb_info *sbi,
