@@ -1794,7 +1794,7 @@ int snd_usb_apply_boot_quirk_once(struct usb_device *dev,
 		/* the quirk seems breaking on some Behringer devices */
 		switch (id) {
 		case USB_ID(0x1397, 0x0508): /* UMC204HD */
-		case USB_ID(0x1397, 0x0509): /* UMC204HD */
+		case USB_ID(0x1397, 0x0509): /* UMC404HD */
 			return 0;
 		}
 		return snd_usb_cm1a_boot_quirk(dev);
