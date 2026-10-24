@@ -6194,6 +6194,18 @@ void drm_get_max_frl_rate(int max_frl_rate, u8 *max_lanes, u8 *max_rate_per_lane
 		*max_lanes = 4;
 		*max_rate_per_lane = 12;
 		break;
+	case 7:
+		*max_lanes = 4;
+		*max_rate_per_lane = 16;
+		break;
+	case 8:
+		*max_lanes = 4;
+		*max_rate_per_lane = 20;
+		break;
+	case 9:
+		*max_lanes = 4;
+		*max_rate_per_lane = 24;
+		break;
 	case 0:
 	default:
 		*max_lanes = 0;
