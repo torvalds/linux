@@ -489,8 +489,10 @@ static int active_cacheline_insert(struct dma_debug_entry *entry,
 	/* If the device is not writing memory then we don't have any
 	 * concerns about the cpu consuming stale data.  This mitigates
 	 * legitimate usages of overlapping mappings.
+	 * MMIO mappings are never CPU-cacheable and do not need tracking either.
 	 */
-	if (entry->direction == DMA_TO_DEVICE)
+	if (entry->direction == DMA_TO_DEVICE ||
+	    entry->attrs & DMA_ATTR_MMIO)
 		return 0;
 
 	spin_lock_irqsave(&radix_lock, flags);
@@ -519,7 +521,8 @@ static void active_cacheline_remove(struct dma_debug_entry *entry)
 	unsigned long flags;
 
 	/* ...mirror the insert case */
-	if (entry->direction == DMA_TO_DEVICE)
+	if (entry->direction == DMA_TO_DEVICE ||
+	    entry->attrs & DMA_ATTR_MMIO)
 		return;
 
 	spin_lock_irqsave(&radix_lock, flags);

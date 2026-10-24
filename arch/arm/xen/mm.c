@@ -125,7 +125,7 @@ static int __init xen_mm_init(void)
 		return 0;
 
 	/* we can work with the default swiotlb */
-	rc = swiotlb_init_late(swiotlb_size_or_default(),
+	rc = swiotlb_init_late(swiotlb_default_pool_size(),
 			       xen_swiotlb_gfp(), NULL);
 	if (rc < 0)
 		return rc;

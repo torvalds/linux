@@ -7772,6 +7772,7 @@ F:	include/linux/dma-direct.h
 F:	include/linux/dma-map-ops.h
 F:	include/linux/dma-mapping.h
 F:	include/linux/swiotlb.h
+F:	include/trace/events/dma.h
 F:	kernel/dma/
 
 DMA MAPPING & SCATTERLIST API [RUST]

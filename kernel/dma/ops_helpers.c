@@ -67,10 +67,13 @@ struct page *dma_common_alloc_pages(struct device *dev, size_t size,
 	phys_addr_t phys;
 
 	page = dma_alloc_contiguous(dev, size, gfp);
-	if (!page)
-		page = alloc_pages_node(dev_to_node(dev), gfp, get_order(size));
-	if (!page)
-		return NULL;
+	if (!page) {
+		void *va = alloc_pages_exact_nid(dev_to_node(dev), size, gfp);
+
+		if (!va)
+			return NULL;
+		page = virt_to_page(va);
+	}
 
 	phys = page_to_phys(page);
 	if (use_dma_iommu(dev))
