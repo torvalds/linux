@@ -632,6 +632,21 @@ static void snd_opl3_kill_voice(struct snd_opl3 *opl3, int voice)
 
 }
 
+void snd_opl3_clear_voices(struct snd_opl3 *opl3)
+{
+	int i;
+
+	guard(spinlock_irqsave)(&opl3->voice_lock);
+	/* A 4-op primary clears its higher-numbered partner's state. */
+	for (i = MAX_OPL3_VOICES - 1; i >= 0; i--) {
+		if (opl3->voices[i].state > 0)
+			snd_opl3_kill_voice(opl3, i);
+		opl3->voices[i].chan = NULL;
+		opl3->voices[i].note_off_check = 0;
+		opl3->voices[i].state = SNDRV_OPL3_ST_OFF;
+	}
+}
+
 /*
  * Release a note in response to a midi note off.
  */
