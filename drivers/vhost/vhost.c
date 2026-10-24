@@ -731,7 +731,7 @@ static void vhost_worker_destroy(struct vhost_dev *dev,
 	kfree(worker);
 }
 
-static void vhost_workers_free(struct vhost_dev *dev)
+static void vhost_workers_free(struct vhost_dev *dev, bool sync)
 {
 	struct vhost_worker *worker;
 	unsigned long i;
@@ -741,6 +741,21 @@ static void vhost_workers_free(struct vhost_dev *dev)
 
 	for (i = 0; i < dev->nvqs; i++)
 		rcu_assign_pointer(dev->vqs[i]->worker, NULL);
+
+	/*
+	 * This path can be reached by lockless work queuers.  In this case
+	 * vhost_vq_work_queue() reads vq->worker under rcu_read_lock(), so a
+	 * RCU reader that fetched a worker before we cleared the pointers above
+	 * may still be queueing work on it.  Wait for those readers to finish,
+	 * then flush so any work they queued runs (clearing VHOST_WORK_QUEUED)
+	 * before the workers are freed.  Notably, that is the case for the
+	 * vsock RESET_OWNER path.
+	 */
+	if (sync) {
+		synchronize_rcu();
+		vhost_dev_flush(dev);
+	}
+
 	/*
 	 * Free the default worker we created and cleanup workers userspace
 	 * created but couldn't clean up (it forgot or crashed).
@@ -1163,11 +1178,12 @@ struct vhost_iotlb *vhost_dev_reset_owner_prepare(void)
 EXPORT_SYMBOL_GPL(vhost_dev_reset_owner_prepare);
 
 /* Caller should have device mutex */
-void vhost_dev_reset_owner(struct vhost_dev *dev, struct vhost_iotlb *umem)
+void vhost_dev_reset_owner(struct vhost_dev *dev, struct vhost_iotlb *umem,
+			   bool sync)
 {
 	int i;
 
-	vhost_dev_cleanup(dev);
+	vhost_dev_cleanup(dev, sync);
 
 	dev->fork_owner = fork_from_owner_default;
 	dev->umem = umem;
@@ -1227,7 +1243,7 @@ void vhost_clear_msg(struct vhost_dev *dev)
 }
 EXPORT_SYMBOL_GPL(vhost_clear_msg);
 
-void vhost_dev_cleanup(struct vhost_dev *dev)
+void vhost_dev_cleanup(struct vhost_dev *dev, bool sync)
 {
 	int i;
 
@@ -1251,7 +1267,7 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 	dev->iotlb = NULL;
 	vhost_clear_msg(dev);
 	wake_up_interruptible_poll(&dev->wait, EPOLLIN | EPOLLRDNORM);
-	vhost_workers_free(dev);
+	vhost_workers_free(dev, sync);
 	vhost_detach_mm(dev);
 }
 EXPORT_SYMBOL_GPL(vhost_dev_cleanup);

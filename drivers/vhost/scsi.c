@@ -2390,7 +2390,7 @@ static int vhost_scsi_release(struct inode *inode, struct file *f)
 	mutex_unlock(&vs->dev.mutex);
 	vhost_scsi_clear_endpoint(vs, &t);
 	vhost_dev_stop(&vs->dev);
-	vhost_dev_cleanup(&vs->dev);
+	vhost_dev_cleanup(&vs->dev, false);
 	kfree(vs->dev.vqs);
 	kvfree(vs->vqs);
 	kfree(vs->old_inflight);
