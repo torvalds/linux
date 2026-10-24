@@ -23,6 +23,87 @@
 #define FN(reg_name, field_name) \
 	optc1->tg_shift->field_name, optc1->tg_mask->field_name
 
+/*
+ * apply_front_porch_workaround
+ *
+ * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
+ */
+static void apply_front_porch_workaround(
+	struct dc_crtc_timing *timing)
+{
+	if (timing->flags.INTERLACE == 1) {
+		if (timing->v_front_porch < 2)
+			timing->v_front_porch = 2;
+	} else {
+		if (timing->v_front_porch < 1)
+			timing->v_front_porch = 1;
+	}
+}
+
+/**
+ * optc60_set_vtg_params - Set Vertical Timing Generator (VTG) parameters
+ *
+ * @optc: timing_generator struct used to extract the optc parameters
+ * @dc_crtc_timing: Timing parameters configured
+ * @program_fp2: Boolean value indicating if FP2 will be programmed or not
+ *
+ * OTG is responsible for generating the global sync signals, including
+ * vertical timing information for each HUBP in the dcfclk domain. Each VTG is
+ * associated with one OTG that provides HUBP with vertical timing information
+ * (i.e., there is 1:1 correspondence between OTG and VTG). This function is
+ * responsible for setting the OTG parameters to the VTG during the pipe
+ * programming.
+ */
+static void optc60_set_vtg_params(struct timing_generator *optc,
+		const struct dc_crtc_timing *dc_crtc_timing, bool program_fp2)
+{
+	struct dc_crtc_timing patched_crtc_timing;
+	uint32_t v_bp;
+	uint32_t v_init;
+	uint32_t v_fp2;
+	bool vstartup_after_vsync;
+
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	patched_crtc_timing = *dc_crtc_timing;
+	apply_front_porch_workaround(&patched_crtc_timing);
+
+	/* v_bp (end of blank): lines from vsync (0) to end of blank */
+	v_bp = patched_crtc_timing.v_total - patched_crtc_timing.v_front_porch -
+			patched_crtc_timing.v_border_bottom -
+			patched_crtc_timing.v_addressable -
+			patched_crtc_timing.v_border_top;
+
+	vstartup_after_vsync = (uint32_t)optc1->vstartup_start < v_bp;
+
+	/* if vstartup is before vsync, fp2 is the offset, otherwise 0 */
+	v_fp2 = !vstartup_after_vsync ?
+			optc1->vstartup_start - v_bp :
+			0;
+
+	/* vcount_init should be OTG SOF (vstartup) position from vsync (0) or
+	 * vtotal depending on the position of vstartup.
+	 */
+	v_init = !vstartup_after_vsync ?
+			patched_crtc_timing.v_total - v_fp2 - 1 : // OTG SOF before VSYNC
+			patched_crtc_timing.v_total - 1; // OTG SOF is VSYNC
+
+	/* Interlace */
+	if (REG(OTG_INTERLACE_CONTROL)) {
+		if (patched_crtc_timing.flags.INTERLACE == 1) {
+			v_init = v_init / 2;
+			if ((uint32_t)((optc1->vstartup_start/2)*2) > v_bp)
+				v_fp2 = v_fp2 / 2;
+		}
+	}
+
+	if (program_fp2)
+		REG_UPDATE_2(CONTROL,
+				VTG0_FP2, v_fp2,
+				VTG0_VCOUNT_INIT, v_init);
+	else
+		REG_UPDATE(CONTROL, VTG0_VCOUNT_INIT, v_init);
+}
 static const struct timing_generator_funcs dcn60_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
@@ -78,7 +159,7 @@ static const struct timing_generator_funcs dcn60_tg_funcs = {
 		.set_vtotal_change_limit = optc3_set_vtotal_change_limit,
 		.set_gsl = optc2_set_gsl,
 		.set_gsl_source_select = NULL,
-		.set_vtg_params = optc1_set_vtg_params,
+		.set_vtg_params = optc60_set_vtg_params,
 		.program_manual_trigger = optc2_program_manual_trigger,
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,

@@ -112,24 +112,24 @@ examples:
         mediatek,syscon-hdmi = <&mmsys 0x900>;
 
         ports {
-          #address-cells = <1>;
-          #size-cells = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-          port@0 {
-            reg = <0>;
+            port@0 {
+                reg = <0>;
 
-            hdmi0_in: endpoint {
-              remote-endpoint = <&dpi0_out>;
+                hdmi0_in: endpoint {
+                    remote-endpoint = <&dpi0_out>;
+                };
             };
-          };
 
-          port@1 {
-            reg = <1>;
+            port@1 {
+                reg = <1>;
 
-            hdmi0_out: endpoint {
-              remote-endpoint = <&hdmi_con_in>;
+                hdmi0_out: endpoint {
+                    remote-endpoint = <&hdmi_con_in>;
+                };
             };
-          };
         };
     };
 

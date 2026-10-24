@@ -1816,11 +1816,10 @@ int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
 	return -EINVAL;
 }
 
-void intel_mpllb_enable(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state)
+void intel_mpllb_enable_phy(struct intel_encoder *encoder,
+			    const struct intel_mpllb_state *pll_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	const struct intel_mpllb_state *pll_state = &crtc_state->dpll_hw_state.mpllb;
 	enum phy phy = intel_encoder_to_phy(encoder);
 	intel_reg_t enable_reg = (phy <= PHY_D ?
 				 DG2_PLL_ENABLE(phy) : MG_PLL_ENABLE(0));
@@ -1873,6 +1872,12 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	 *
 	 * We handle this step in bxt_set_cdclk().
 	 */
+}
+
+void intel_mpllb_enable(struct intel_encoder *encoder,
+			const struct intel_crtc_state *crtc_state)
+{
+	intel_mpllb_enable_phy(encoder, &crtc_state->dpll_hw_state.mpllb);
 }
 
 void intel_mpllb_disable(struct intel_encoder *encoder)
@@ -1976,53 +1981,4 @@ void intel_mpllb_readout_hw_state(struct intel_encoder *encoder,
 	 * software state.
 	 */
 	pll_state->mpllb_div &= ~SNPS_PHY_MPLLB_FORCE_EN;
-}
-
-void intel_mpllb_state_verify(struct intel_atomic_state *state,
-			      struct intel_crtc *crtc)
-{
-	struct intel_display *display = to_intel_display(state);
-	const struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_mpllb_state mpllb_hw_state = {};
-	const struct intel_mpllb_state *mpllb_sw_state = &new_crtc_state->dpll_hw_state.mpllb;
-	struct intel_encoder *encoder;
-
-	if (!display->platform.dg2)
-		return;
-
-	if (!new_crtc_state->hw.active)
-		return;
-
-	/* intel_get_crtc_new_encoder() only works for modeset/fastset commits */
-	if (!intel_crtc_needs_modeset(new_crtc_state) &&
-	    !intel_crtc_needs_fastset(new_crtc_state))
-		return;
-
-	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
-	intel_mpllb_readout_hw_state(encoder, &mpllb_hw_state);
-
-#define MPLLB_CHECK(__name)						\
-	INTEL_DISPLAY_STATE_WARN(display, mpllb_sw_state->__name != mpllb_hw_state.__name, \
-				 "[CRTC:%d:%s] mismatch in MPLLB: %s (expected 0x%08x, found 0x%08x)", \
-				 crtc->base.base.id, crtc->base.name,	\
-				 __stringify(__name),			\
-				 mpllb_sw_state->__name, mpllb_hw_state.__name)
-
-	MPLLB_CHECK(mpllb_cp);
-	MPLLB_CHECK(mpllb_div);
-	MPLLB_CHECK(mpllb_div2);
-	MPLLB_CHECK(mpllb_fracn1);
-	MPLLB_CHECK(mpllb_fracn2);
-	MPLLB_CHECK(mpllb_sscen);
-	MPLLB_CHECK(mpllb_sscstep);
-
-	/*
-	 * ref_control is handled by the hardware/firemware and never
-	 * programmed by the software, but the proper values are supplied
-	 * in the bspec for verification purposes.
-	 */
-	MPLLB_CHECK(ref_control);
-
-#undef MPLLB_CHECK
 }

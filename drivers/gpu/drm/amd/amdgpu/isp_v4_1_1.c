@@ -235,7 +235,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 
 	r = amdgpu_acpi_get_isp4_dev(&acpi_dev);
 	if (r) {
-		drm_dbg(&adev->ddev, "Invalid isp platform detected (%d)", r);
+		drm_dbg(&adev->ddev, "Invalid isp platform detected (%d)\n", r);
 		/* allow GPU init to progress */
 		return 0;
 	}

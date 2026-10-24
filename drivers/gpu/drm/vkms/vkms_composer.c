@@ -187,6 +187,12 @@ static void apply_colorop(struct pixel_argb_s32 *pixel, struct drm_colorop *colo
 		if (colorop_state->data)
 			apply_3x4_matrix(pixel,
 					 (struct drm_color_ctm_3x4 *)colorop_state->data->data);
+	} else if (colorop->type == DRM_COLOROP_FIXED_MATRIX) {
+		/*
+		 * Fixed Matrix is a no-op here. YUV-to-RGB conversion
+		 * is handled at format read time via the
+		 * conversion_matrix set in vkms_plane_atomic_update().
+		 */
 	}
 }
 
@@ -305,7 +311,7 @@ static void clamp_line_coordinates(enum pixel_read_direction direction,
 	/* By default the start points are correct */
 	*src_x_start = src_line->x1;
 	*src_y_start = src_line->y1;
-	*dst_x_start = current_plane->frame_info->dst.x1;
+	*dst_x_start = current_plane->frame_info.dst.x1;
 
 	/* Get the correct number of pixel to blend, it depends of the direction */
 	switch (direction) {
@@ -333,8 +339,8 @@ static void clamp_line_coordinates(enum pixel_read_direction direction,
 			*dst_x_start -= *src_x_start;
 			*src_x_start = 0;
 		}
-		if (*src_x_start + *pixel_count > current_plane->frame_info->fb->width)
-			*pixel_count = max(0, (int)current_plane->frame_info->fb->width -
+		if (*src_x_start + *pixel_count > current_plane->frame_info.fb->width)
+			*pixel_count = max(0, (int)current_plane->frame_info.fb->width -
 				*src_x_start);
 		break;
 	case READ_BOTTOM_TO_TOP:
@@ -344,8 +350,8 @@ static void clamp_line_coordinates(enum pixel_read_direction direction,
 			*dst_x_start -= *src_y_start;
 			*src_y_start = 0;
 		}
-		if (*src_y_start + *pixel_count > current_plane->frame_info->fb->height)
-			*pixel_count = max(0, (int)current_plane->frame_info->fb->height -
+		if (*src_y_start + *pixel_count > current_plane->frame_info.fb->height)
+			*pixel_count = max(0, (int)current_plane->frame_info.fb->height -
 				*src_y_start);
 		break;
 	}
@@ -368,8 +374,8 @@ static void blend_line(struct vkms_plane_state *current_plane, int y,
 	struct drm_rect dst_line, tmp_src, src_line;
 
 	/* Avoid rendering useless lines */
-	if (y < current_plane->frame_info->dst.y1 ||
-	    y >= current_plane->frame_info->dst.y2)
+	if (y < current_plane->frame_info.dst.y1 ||
+	    y >= current_plane->frame_info.dst.y2)
 		return;
 
 	/*
@@ -377,11 +383,11 @@ static void blend_line(struct vkms_plane_state *current_plane, int y,
 	 * destination framebuffer, and then drm_rect_* helpers are used to
 	 * compute the correct position into the source framebuffer.
 	 */
-	dst_line = DRM_RECT_INIT(current_plane->frame_info->dst.x1, y,
-				 drm_rect_width(&current_plane->frame_info->dst),
+	dst_line = DRM_RECT_INIT(current_plane->frame_info.dst.x1, y,
+				 drm_rect_width(&current_plane->frame_info.dst),
 				 1);
 
-	drm_rect_fp_to_int(&tmp_src, &current_plane->frame_info->src);
+	drm_rect_fp_to_int(&tmp_src, &current_plane->frame_info.src);
 
 	/*
 	 * [1]: Clamping src_line to the crtc_x_limit to avoid writing outside of
@@ -405,17 +411,17 @@ static void blend_line(struct vkms_plane_state *current_plane, int y,
 	 *   same size, but can be rotated).
 	 * - Apply the offset of the source rectangle to the coordinate.
 	 */
-	drm_rect_translate(&src_line, -current_plane->frame_info->dst.x1,
-			   -current_plane->frame_info->dst.y1);
+	drm_rect_translate(&src_line, -current_plane->frame_info.dst.x1,
+			   -current_plane->frame_info.dst.y1);
 	drm_rect_rotate_inv(&src_line, drm_rect_width(&tmp_src),
 			    drm_rect_height(&tmp_src),
-			    current_plane->frame_info->rotation);
+			    current_plane->frame_info.rotation);
 	drm_rect_translate(&src_line, tmp_src.x1, tmp_src.y1);
 
 	/* Get the correct reading direction in the source buffer. */
 
 	enum pixel_read_direction direction =
-		direction_for_rotation(current_plane->frame_info->rotation);
+		direction_for_rotation(current_plane->frame_info.rotation);
 
 	/* [2]: Compute and clamp the number of pixel to read */
 	clamp_line_coordinates(direction, current_plane, &src_line, &src_x_start, &src_y_start,
@@ -533,7 +539,7 @@ static int check_iosys_map(struct vkms_crtc_state *crtc_state)
 	u32 n_active_planes = crtc_state->num_active_planes;
 
 	for (size_t i = 0; i < n_active_planes; i++)
-		if (iosys_map_is_null(&plane_state[i]->frame_info->map[0]))
+		if (iosys_map_is_null(&plane_state[i]->frame_info.map[0]))
 			return -1;
 
 	return 0;

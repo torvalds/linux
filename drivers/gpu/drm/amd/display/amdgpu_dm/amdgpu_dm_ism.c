@@ -647,9 +647,26 @@ void amdgpu_dm_ism_init(struct amdgpu_dm_ism *ism,
 EXPORT_IF_KUNIT(amdgpu_dm_ism_init);
 
 
-void amdgpu_dm_ism_fini(struct amdgpu_dm_ism *ism)
+/**
+ * amdgpu_dm_ism_flush - Cancel any pending, or wait out in-flight ISM work
+ *
+ * @ism: The CRTC's idle state manager
+ *
+ * Cancels the hysteresis and SSO timers and waits for a running worker to
+ * finish. Callers that are about to drop the CRTC's stream use this so that a
+ * timer armed while the stream was still around cannot allow idle afterwards.
+ *
+ * Must not be called with dc_lock held: the workers take dc_lock themselves,
+ * so waiting for them under it would deadlock.
+ */
+void amdgpu_dm_ism_flush(struct amdgpu_dm_ism *ism)
 {
+	struct amdgpu_crtc *acrtc = ism_to_amdgpu_crtc(ism);
+	struct amdgpu_device *adev = drm_to_adev(acrtc->base.dev);
+
+	lockdep_assert_not_held(&adev->dm.dc_lock);
+
 	cancel_delayed_work_sync(&ism->sso_delayed_work);
 	cancel_delayed_work_sync(&ism->delayed_work);
 }
-EXPORT_IF_KUNIT(amdgpu_dm_ism_fini);
+EXPORT_IF_KUNIT(amdgpu_dm_ism_flush);

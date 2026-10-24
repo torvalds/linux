@@ -56,4 +56,14 @@ enum amdxdna_error_module {
 	(FIELD_PREP(AMDXDNA_EXTRA_ERR_COL_MASK, col) |			\
 	 FIELD_PREP(AMDXDNA_EXTRA_ERR_ROW_MASK, row))
 
+/*
+ * Maximum number of async event buffers. This value is used in two places:
+ * (1) to size the management mailbox channel, which must happen before
+ * total_col is known from firmware; (2) to allocate the async event pool,
+ * which runs after total_col is known. Both counts must match. The channel
+ * is sized AMDXDNA_MAX_ASYNC_EVENT_BUFS + 1 (one extra for other management
+ * commands), so the pool cannot exceed AMDXDNA_MAX_ASYNC_EVENT_BUFS slots.
+ */
+#define AMDXDNA_MAX_ASYNC_EVENT_BUFS	4
+
 #endif /* _AMDXDNA_ERROR_H_ */

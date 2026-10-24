@@ -1035,6 +1035,7 @@
 # define DP_EDP_14a                         0x04    /* eDP 1.4a */
 # define DP_EDP_14b                         0x05    /* eDP 1.4b */
 # define DP_EDP_15			    0x06    /* eDP 1.5 */
+# define DP_EDP_20			    0x07    /* eDP 2.0 */
 
 #define DP_EDP_GENERAL_CAP_1		    0x701
 # define DP_EDP_TCON_BACKLIGHT_ADJUSTMENT_CAP		(1 << 0)

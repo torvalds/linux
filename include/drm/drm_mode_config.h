@@ -495,8 +495,8 @@ struct drm_mode_config {
 	 *
 	 * Raw spinlock used to protect critical sections of code that access
 	 * the display hardware or modeset software state, which the panic
-	 * printing code must be protected against. See drm_panic_trylock(),
-	 * drm_panic_lock() and drm_panic_unlock().
+	 * printing code must be protected against. See the documentation on
+	 * DRM panic handling for more information.
 	 */
 	struct raw_spinlock panic_lock;
 

@@ -21,6 +21,7 @@
  *
  */
 
+#include <linux/bitmap.h>
 #include <linux/sort.h>
 #include "amdgpu.h"
 #include "umc_v6_7.h"
@@ -230,6 +231,13 @@ int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
 			pasid_notify pasid_fn, void *data, uint32_t reset)
 {
 	int ret = AMDGPU_RAS_SUCCESS;
+	struct ras_ih_info ih_info = {
+		.block = block,
+		.pasid = pasid,
+		.reset = reset,
+		.pasid_fn = pasid_fn,
+		.data = data,
+	};
 
 	if (adev->gmc.xgmi.connected_to_cpu ||
 		adev->gmc.is_app_apu) {
@@ -264,17 +272,13 @@ int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
 
 			amdgpu_ras_error_data_fini(&err_data);
 		} else {
-			struct ras_ih_info ih_info = {0};
-
-			ih_info.block = block;
-			ih_info.pasid = pasid;
-			ih_info.reset = reset;
-			ih_info.pasid_fn = pasid_fn;
-			ih_info.data = data;
-			amdgpu_ras_mgr_handle_consumer_interrupt(adev, &ih_info);
+			amdgpu_ras_mgr_dispatch_interrupt(adev, &ih_info);
 		}
 	} else {
-		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
+		if (amdgpu_uniras_enabled(adev) &&
+		    (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 1, 0)))
+			amdgpu_ras_mgr_dispatch_interrupt(adev, &ih_info);
+		else if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
 			adev->virt.ops->ras_poison_handler(adev, block);
 		else
 			dev_warn(adev->dev,
@@ -423,6 +427,7 @@ static int amdgpu_umc_loop_all_aid(struct amdgpu_device *adev, umc_func func,
 	uint32_t node_inst;
 	uint32_t umc_inst;
 	uint32_t ch_inst;
+	DECLARE_BITMAP(umc_bitmap, 64);
 	int ret;
 
 	/*
@@ -432,9 +437,10 @@ static int amdgpu_umc_loop_all_aid(struct amdgpu_device *adev, umc_func func,
 	 * umc.node_inst_num = maximum number of node instances
 	 * Channel instances are not assumed to be harvested.
 	 */
-	dev_dbg(adev->dev, "active umcs :%lx umc_inst per node: %d",
+	dev_dbg(adev->dev, "active umcs :%llx umc_inst per node: %d",
 		adev->umc.active_mask, adev->umc.umc_inst_num);
-	for_each_set_bit(umc_node_inst, &(adev->umc.active_mask),
+	bitmap_from_u64(umc_bitmap, adev->umc.active_mask);
+	for_each_set_bit(umc_node_inst, umc_bitmap,
 			 adev->umc.node_inst_num * adev->umc.umc_inst_num) {
 		node_inst = umc_node_inst / adev->umc.umc_inst_num;
 		umc_inst = umc_node_inst % adev->umc.umc_inst_num;
@@ -467,12 +473,18 @@ int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 		return amdgpu_umc_loop_all_aid(adev, func, data);
 
 	if (adev->umc.node_inst_num) {
-		LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
-			ret = func(adev, node_inst, umc_inst, ch_inst, data);
-			if (ret) {
-				dev_err(adev->dev, "Node %d umc %d ch %d func returns %d\n",
-					node_inst, umc_inst, ch_inst, ret);
-				return ret;
+		DECLARE_BITMAP(umc_bitmap, 64);
+
+		bitmap_from_u64(umc_bitmap, adev->umc.active_mask);
+		for_each_set_bit(node_inst, umc_bitmap, adev->umc.node_inst_num) {
+			LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
+				ret = func(adev, node_inst, umc_inst, ch_inst, data);
+				if (ret) {
+					dev_err(adev->dev,
+						"Node %d umc %d ch %d func returns %d\n",
+						node_inst, umc_inst, ch_inst, ret);
+					return ret;
+				}
 			}
 		}
 	} else {

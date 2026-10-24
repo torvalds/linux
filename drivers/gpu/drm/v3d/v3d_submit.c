@@ -357,22 +357,28 @@ v3d_attach_perfmon_to_jobs(struct v3d_submit *submit, u32 perfmon_id)
  *
  * We don't serialize the jobs when using a global perfmon as it's expected to
  * track concurrent activity from all jobs.
+ *
+ * Keeping track of the in-flight jobs costs a fence merge per job, so it is
+ * only done while at least one perfmon is alive, and is skipped for the jobs
+ * carrying no perfmon while a global perfmon is set. Jobs submitted while
+ * tracking is off go untracked and may overlap the first measured job.
  */
 static int
 v3d_serialize_for_perfmon(struct v3d_job *job)
 {
 	struct v3d_dev *v3d = job->v3d;
 	struct dma_fence *merged;
-	bool is_global_perfmon;
 	int ret;
 
 	lockdep_assert_held(&v3d->sched_lock);
 
-	scoped_guard(spinlock_irqsave, &v3d->perfmon_state.lock)
-		is_global_perfmon = !!v3d->global_perfmon;
+	if (!atomic_read(&v3d->perfmon_state.nperfmons))
+		return 0;
 
-	if (is_global_perfmon)
-		goto publish;
+	scoped_guard(spinlock_irqsave, &v3d->perfmon_state.lock) {
+		if (!job->perfmon && v3d->global_perfmon)
+			return 0;
+	}
 
 	if (job->perfmon) {
 		for (enum v3d_queue q = 0; q < V3D_MAX_QUEUES; q++) {
@@ -393,7 +399,6 @@ v3d_serialize_for_perfmon(struct v3d_job *job)
 			return ret;
 	}
 
-publish:
 	/*
 	 * Accumulate every in-flight job on this queue into one merged fence.
 	 * A HW queue is fed by several scheduler entities (one per-fd), so jobs
@@ -407,7 +412,7 @@ publish:
 	dma_fence_put(v3d->perfmon_state.last_hw_fence[job->queue]);
 	v3d->perfmon_state.last_hw_fence[job->queue] = merged;
 
-	if (job->perfmon && !is_global_perfmon) {
+	if (job->perfmon) {
 		dma_fence_put(v3d->perfmon_state.fence);
 		v3d->perfmon_state.fence = dma_fence_get(job->done_fence);
 	}

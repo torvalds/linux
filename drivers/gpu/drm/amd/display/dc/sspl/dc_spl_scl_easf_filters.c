@@ -2194,19 +2194,19 @@ static struct scale_ratio_to_reg_value_lookup easf_3tap_uptilt2_offset_lookup[] 
 
 static const uint16_t *spl_get_easf_filter_3tap_64p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(3, 10)).value)
+	if (ratio.value < spl_fixpt_from_fraction(3, 10).value)
 		return easf_filter_3tap_64p_ratio_0_30_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(4, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 10).value)
 		return easf_filter_3tap_64p_ratio_0_40_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(5, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 10).value)
 		return easf_filter_3tap_64p_ratio_0_50_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(6, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(6, 10).value)
 		return easf_filter_3tap_64p_ratio_0_60_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(7, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(7, 10).value)
 		return easf_filter_3tap_64p_ratio_0_70_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(8, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(8, 10).value)
 		return easf_filter_3tap_64p_ratio_0_80_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(9, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(9, 10).value)
 		return easf_filter_3tap_64p_ratio_0_90_s1_12;
 	else
 		return easf_filter_3tap_64p_ratio_1_00_s1_12;
@@ -2214,19 +2214,19 @@ static const uint16_t *spl_get_easf_filter_3tap_64p(struct spl_fixed31_32 ratio)
 
 static const uint16_t *spl_get_easf_filter_4tap_64p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(3, 10)).value)
+	if (ratio.value < spl_fixpt_from_fraction(3, 10).value)
 		return easf_filter_4tap_64p_ratio_0_30_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(4, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 10).value)
 		return easf_filter_4tap_64p_ratio_0_40_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(5, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 10).value)
 		return easf_filter_4tap_64p_ratio_0_50_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(6, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(6, 10).value)
 		return easf_filter_4tap_64p_ratio_0_60_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(7, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(7, 10).value)
 		return easf_filter_4tap_64p_ratio_0_70_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(8, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(8, 10).value)
 		return easf_filter_4tap_64p_ratio_0_80_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(9, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(9, 10).value)
 		return easf_filter_4tap_64p_ratio_0_90_s1_12;
 	else
 		return easf_filter_4tap_64p_ratio_1_00_s1_12;
@@ -2234,19 +2234,19 @@ static const uint16_t *spl_get_easf_filter_4tap_64p(struct spl_fixed31_32 ratio)
 
 static const uint16_t *spl_get_easf_filter_6tap_64p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(3, 10)).value)
+	if (ratio.value < spl_fixpt_from_fraction(3, 10).value)
 		return easf_filter_6tap_64p_ratio_0_30_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(4, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 10).value)
 		return easf_filter_6tap_64p_ratio_0_40_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(5, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 10).value)
 		return easf_filter_6tap_64p_ratio_0_50_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(6, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(6, 10).value)
 		return easf_filter_6tap_64p_ratio_0_60_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(7, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(7, 10).value)
 		return easf_filter_6tap_64p_ratio_0_70_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(8, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(8, 10).value)
 		return easf_filter_6tap_64p_ratio_0_80_s1_12;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(9, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(9, 10).value)
 		return easf_filter_6tap_64p_ratio_0_90_s1_12;
 	else
 		return easf_filter_6tap_64p_ratio_1_00_s1_12;
@@ -2270,19 +2270,19 @@ const uint16_t *SPL_NAMESPACE(spl_dscl_get_easf_filter_coeffs_64p(
 
 static const uint16_t *spl_get_easf_filter_3tap_64p_s1_10(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(3, 10)).value)
+	if (ratio.value < spl_fixpt_from_fraction(3, 10).value)
 		return easf_filter_3tap_64p_ratio_0_30;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(4, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 10).value)
 		return easf_filter_3tap_64p_ratio_0_40;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(5, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 10).value)
 		return easf_filter_3tap_64p_ratio_0_50;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(6, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(6, 10).value)
 		return easf_filter_3tap_64p_ratio_0_60;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(7, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(7, 10).value)
 		return easf_filter_3tap_64p_ratio_0_70;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(8, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(8, 10).value)
 		return easf_filter_3tap_64p_ratio_0_80;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(9, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(9, 10).value)
 		return easf_filter_3tap_64p_ratio_0_90;
 	else
 		return easf_filter_3tap_64p_ratio_1_00;
@@ -2290,19 +2290,19 @@ static const uint16_t *spl_get_easf_filter_3tap_64p_s1_10(struct spl_fixed31_32 
 
 static const uint16_t *spl_get_easf_filter_4tap_64p_s1_10(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(3, 10)).value)
+	if (ratio.value < spl_fixpt_from_fraction(3, 10).value)
 		return easf_filter_4tap_64p_ratio_0_30;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(4, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 10).value)
 		return easf_filter_4tap_64p_ratio_0_40;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(5, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 10).value)
 		return easf_filter_4tap_64p_ratio_0_50;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(6, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(6, 10).value)
 		return easf_filter_4tap_64p_ratio_0_60;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(7, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(7, 10).value)
 		return easf_filter_4tap_64p_ratio_0_70;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(8, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(8, 10).value)
 		return easf_filter_4tap_64p_ratio_0_80;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(9, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(9, 10).value)
 		return easf_filter_4tap_64p_ratio_0_90;
 	else
 		return easf_filter_4tap_64p_ratio_1_00;
@@ -2310,19 +2310,19 @@ static const uint16_t *spl_get_easf_filter_4tap_64p_s1_10(struct spl_fixed31_32 
 
 static const uint16_t *spl_get_easf_filter_6tap_64p_s1_10(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(3, 10)).value)
+	if (ratio.value < spl_fixpt_from_fraction(3, 10).value)
 		return easf_filter_6tap_64p_ratio_0_30;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(4, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 10).value)
 		return easf_filter_6tap_64p_ratio_0_40;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(5, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 10).value)
 		return easf_filter_6tap_64p_ratio_0_50;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(6, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(6, 10).value)
 		return easf_filter_6tap_64p_ratio_0_60;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(7, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(7, 10).value)
 		return easf_filter_6tap_64p_ratio_0_70;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(8, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(8, 10).value)
 		return easf_filter_6tap_64p_ratio_0_80;
-	else if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(9, 10)).value)
+	else if (ratio.value < spl_fixpt_from_fraction(9, 10).value)
 		return easf_filter_6tap_64p_ratio_0_90;
 	else
 		return easf_filter_6tap_64p_ratio_1_00;
@@ -2397,9 +2397,9 @@ static uint32_t spl_easf_get_scale_ratio_to_reg_value(struct spl_fixed31_32 rati
 		if (lookup_table_index_ptr->numer < 0)
 			break;
 
-		if (ratio.value < SPL_NAMESPACE(spl_fixpt_from_fraction(
+		if (ratio.value < spl_fixpt_from_fraction(
 			lookup_table_index_ptr->numer,
-			lookup_table_index_ptr->denom)).value) {
+			lookup_table_index_ptr->denom).value) {
 			value = lookup_table_index_ptr->reg_value;
 			break;
 		}

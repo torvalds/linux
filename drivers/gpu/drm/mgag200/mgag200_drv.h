@@ -17,6 +17,7 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_shmem_helper.h>
+#include <drm/drm_panic_helper.h>
 #include <drm/drm_plane.h>
 
 #include "mgag200_reg.h"
@@ -386,7 +387,8 @@ int mgag200_primary_plane_helper_get_scanout_buffer(struct drm_plane *plane,
 	.update_plane = drm_atomic_helper_update_plane, \
 	.disable_plane = drm_atomic_helper_disable_plane, \
 	.destroy = drm_plane_cleanup, \
-	DRM_GEM_SHADOW_PLANE_FUNCS
+	DRM_GEM_SHADOW_PLANE_FUNCS, \
+	DRM_PANIC_PLANE_FUNCS
 
 void mgag200_crtc_fill_gamma(struct mga_device *mdev, const struct drm_format_info *format);
 void mgag200_crtc_load_gamma(struct mga_device *mdev,
@@ -407,15 +409,15 @@ void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic
 	.atomic_enable = mgag200_crtc_helper_atomic_enable, \
 	.atomic_disable = mgag200_crtc_helper_atomic_disable
 
-void mgag200_crtc_reset(struct drm_crtc *crtc);
+struct drm_crtc_state *mgag200_crtc_atomic_create_state(struct drm_crtc *crtc);
 struct drm_crtc_state *mgag200_crtc_atomic_duplicate_state(struct drm_crtc *crtc);
 void mgag200_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_state *crtc_state);
 
 #define MGAG200_CRTC_FUNCS \
-	.reset = mgag200_crtc_reset, \
 	.destroy = drm_crtc_cleanup, \
 	.set_config = drm_atomic_helper_set_config, \
 	.page_flip = drm_atomic_helper_page_flip, \
+	.atomic_create_state = mgag200_crtc_atomic_create_state, \
 	.atomic_duplicate_state = mgag200_crtc_atomic_duplicate_state, \
 	.atomic_destroy_state = mgag200_crtc_atomic_destroy_state
 

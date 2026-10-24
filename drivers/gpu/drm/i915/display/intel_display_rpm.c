@@ -46,6 +46,13 @@ bool intel_display_rpm_suspended(struct intel_display *display)
 	return display->parent->rpm->suspended(display->drm);
 }
 
+bool intel_display_rpm_pme_enabled(struct intel_display *display)
+{
+	const struct intel_display_rpm_interface *rpm = display->parent->rpm;
+
+	return rpm->pme_enabled && rpm->pme_enabled(display->drm);
+}
+
 void assert_display_rpm_held(struct intel_display *display)
 {
 	display->parent->rpm->assert_held(display->drm);

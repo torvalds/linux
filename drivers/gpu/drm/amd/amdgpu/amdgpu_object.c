@@ -204,6 +204,14 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		c++;
 	}
 
+	if (domain & AMDGPU_GEM_DOMAIN_NPA) {
+		places[c].fpfn = 0;
+		places[c].lpfn = 0;
+		places[c].mem_type = AMDGPU_PL_NPA;
+		places[c].flags = 0;
+		c++;
+	}
+
 	if (!c) {
 		places[c].fpfn = 0;
 		places[c].lpfn = 0;
@@ -1052,7 +1060,8 @@ static const char * const amdgpu_vram_names[] = {
 	"LPDDR4",
 	"LPDDR5",
 	"HBM3E",
-	"HBM4"
+	"HBM4",
+	"GDDR7"
 };
 
 /**
@@ -1662,6 +1671,9 @@ u64 amdgpu_bo_print_info(int id, struct amdgpu_bo *bo, struct seq_file *m)
 				break;
 			case AMDGPU_PL_MMIO_REMAP:
 				placement = "MMIO REMAP";
+				break;
+			case AMDGPU_PL_NPA:
+				placement = "NPA";
 				break;
 			case TTM_PL_SYSTEM:
 			default:

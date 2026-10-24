@@ -311,10 +311,11 @@ const void *xe_pci_id_gen_param(struct kunit *test, const void *prev, char *desc
 EXPORT_SYMBOL_IF_KUNIT(xe_pci_id_gen_param);
 
 static int fake_probe_info(struct xe_device *xe,
-			   const struct xe_device_desc *desc,
 			   struct xe_pci_fake_data *data,
 			   struct xe_probed_info *probed_info)
 {
+	const struct xe_device_desc *desc = xe->desc;
+
 	probed_info->tile_count = 1 + desc->max_remote_tiles;
 
 	if (!data || desc->pre_gmdid_graphics_ip) {
@@ -351,7 +352,7 @@ int xe_pci_fake_device_init(struct xe_device *xe)
 
 	if (!data) {
 		desc = (const void *)ent->driver_data;
-		subplatform_desc = NULL;
+		subplatform_desc = desc->subplatforms;
 		goto done;
 	}
 
@@ -364,25 +365,37 @@ int xe_pci_fake_device_init(struct xe_device *xe)
 	if (!ent->device)
 		return -ENODEV;
 
+	if (data->subplatform == XE_SUBPLATFORM_NONE) {
+		subplatform_desc = NULL;
+		goto done;
+	}
+
+	if (data->subplatform == XE_SUBPLATFORM_UNINITIALIZED) {
+		subplatform_desc = desc->subplatforms;
+		goto done;
+	}
+
 	for (subplatform_desc = desc->subplatforms;
 	     subplatform_desc && subplatform_desc->subplatform;
 	     subplatform_desc++)
 		if (subplatform_desc->subplatform == data->subplatform)
 			break;
 
-	if (data->subplatform != XE_SUBPLATFORM_NONE && !subplatform_desc)
+	if (!subplatform_desc || !subplatform_desc->subplatform)
 		return -ENODEV;
 
 done:
+	xe->desc = desc;
+	xe->subplatform_desc = subplatform_desc;
 	xe->sriov.__mode = data && data->sriov_mode ?
 			   data->sriov_mode : XE_SRIOV_MODE_NONE;
 
-	err = fake_probe_info(xe, desc, data, &probed_info);
+	err = fake_probe_info(xe, data, &probed_info);
 	if (err)
 		return err;
 
-	xe_info_init_early(xe, desc, subplatform_desc, &probed_info);
-	xe_info_init(xe, desc, &probed_info);
+	xe_info_init_early(xe, &probed_info);
+	xe_info_init(xe, &probed_info);
 
 	return 0;
 }

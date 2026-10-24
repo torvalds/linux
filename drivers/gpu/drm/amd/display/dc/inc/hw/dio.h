@@ -17,6 +17,7 @@ struct dio_funcs {
 struct dio {
 	const struct dio_funcs *funcs;
 	struct dc_context *ctx;
+	unsigned int inst;
 };
 
 #endif /* __DC_DIO_H__ */

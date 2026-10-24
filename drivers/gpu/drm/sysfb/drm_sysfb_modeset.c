@@ -375,31 +375,27 @@ void drm_sysfb_plane_helper_atomic_disable(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
-	struct iosys_map dst = sysfb->fb_addr;
-	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
-	void __iomem *dst_vmap = dst.vaddr_iomem; /* TODO: Use mapping abstraction */
 	unsigned int dst_pitch = sysfb->fb_pitch;
 	const struct drm_format_info *dst_format = sysfb->fb_format;
 	struct drm_rect dst_clip;
-	unsigned long lines, linepixels, i;
+	unsigned long lines, linepixels, dst_size, i;
 	int idx;
 
-	drm_rect_init(&dst_clip,
-		      plane_state->src_x >> 16, plane_state->src_y >> 16,
-		      plane_state->src_w >> 16, plane_state->src_h >> 16);
+	drm_rect_init(&dst_clip, 0, 0,
+		      sysfb->fb_mode.hdisplay, sysfb->fb_mode.vdisplay);
 
 	lines = drm_rect_height(&dst_clip);
 	linepixels = drm_rect_width(&dst_clip);
+	dst_size = min_t(unsigned long,
+			 drm_format_info_min_pitch(dst_format, 0, linepixels),
+			 dst_pitch);
 
 	if (!drm_dev_enter(dev, &idx))
 		return;
 
 	/* Clear buffer to black if disabled */
-	dst_vmap += drm_fb_clip_offset(dst_pitch, dst_format, &dst_clip);
-	for (i = 0; i < lines; ++i) {
-		memset_io(dst_vmap, 0, linepixels * dst_format->cpp[0]);
-		dst_vmap += dst_pitch;
-	}
+	for (i = 0; i < lines; ++i)
+		iosys_map_memset(&sysfb->fb_addr, dst_pitch * i, 0, dst_size);
 
 	drm_dev_exit(idx);
 }
@@ -420,20 +416,32 @@ int drm_sysfb_plane_helper_get_scanout_buffer(struct drm_plane *plane,
 }
 EXPORT_SYMBOL(drm_sysfb_plane_helper_get_scanout_buffer);
 
-void drm_sysfb_plane_reset(struct drm_plane *plane)
+/**
+ * drm_sysfb_plane_atomic_create_state - creates sysfb plane state
+ * @plane: the plane
+ *
+ * This function implements struct &drm_plane_funcs.atomic_create_state for
+ * sysfb planes. It allocates the plane state of type
+ * struct drm_sysfb_plane_state.
+ *
+ * Returns:
+ * A pointer to a new plane state on success, or an ERR_PTR()-encoded
+ * error code otherwise.
+ */
+struct drm_plane_state *
+drm_sysfb_plane_atomic_create_state(struct drm_plane *plane)
 {
 	struct drm_sysfb_plane_state *sysfb_plane_state;
 
-	if (plane->state)
-		drm_sysfb_plane_state_destroy(to_drm_sysfb_plane_state(plane->state));
-
 	sysfb_plane_state = kzalloc_obj(*sysfb_plane_state);
-	if (sysfb_plane_state)
-		__drm_gem_reset_shadow_plane(plane, &sysfb_plane_state->base);
-	else
-		__drm_gem_reset_shadow_plane(plane, NULL);
+	if (!sysfb_plane_state)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_gem_shadow_plane_state_init(plane, &sysfb_plane_state->base);
+
+	return &sysfb_plane_state->base.base;
 }
-EXPORT_SYMBOL(drm_sysfb_plane_reset);
+EXPORT_SYMBOL(drm_sysfb_plane_atomic_create_state);
 
 struct drm_plane_state *drm_sysfb_plane_atomic_duplicate_state(struct drm_plane *plane)
 {
@@ -515,23 +523,21 @@ int drm_sysfb_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_
 }
 EXPORT_SYMBOL(drm_sysfb_crtc_helper_atomic_check);
 
-void drm_sysfb_crtc_reset(struct drm_crtc *crtc)
+struct drm_crtc_state *drm_sysfb_crtc_create_state(struct drm_crtc *crtc)
 {
 	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(crtc->dev);
 	struct drm_sysfb_crtc_state *sysfb_crtc_state;
 
-	if (crtc->state)
-		drm_sysfb_crtc_state_destroy(to_drm_sysfb_crtc_state(crtc->state));
-
 	sysfb_crtc_state = kzalloc_obj(*sysfb_crtc_state);
-	if (sysfb_crtc_state) {
-		sysfb_crtc_state->format = sysfb->fb_format;
-		__drm_atomic_helper_crtc_reset(crtc, &sysfb_crtc_state->base);
-	} else {
-		__drm_atomic_helper_crtc_reset(crtc, NULL);
-	}
+	if (!sysfb_crtc_state)
+		return ERR_PTR(-ENOMEM);
+
+	sysfb_crtc_state->format = sysfb->fb_format;
+	__drm_atomic_helper_crtc_state_init(&sysfb_crtc_state->base, crtc);
+
+	return &sysfb_crtc_state->base;
 }
-EXPORT_SYMBOL(drm_sysfb_crtc_reset);
+EXPORT_SYMBOL(drm_sysfb_crtc_create_state);
 
 struct drm_crtc_state *drm_sysfb_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 {

@@ -7,10 +7,10 @@ use kernel::{
         Io,
         Mmio, //
     },
-    prelude::*,
     sizes::SizeConstants,
     time, //
 };
+use pin_init::Zeroable;
 
 use crate::{
     driver::NovaRegisters,
@@ -27,84 +27,8 @@ use crate::{
         PFalconRegisters,
         PeregrineCoreSelect, //
     },
-    gpu::{
-        Architecture,
-        Chipset, //
-    },
+    mm::tlb::TlbAckMode, //
 };
-
-// PMC
-
-register! {
-    base: NovaRegisters;
-
-    /// Basic revision information about the GPU.
-    pub(crate) NV_PMC_BOOT_0(u32) @ 0x00000000 {
-        /// Lower bits of the architecture.
-        28:24   architecture_0;
-        /// Implementation version of the architecture.
-        23:20   implementation;
-        /// MSB of the architecture.
-        8:8     architecture_1;
-        /// Major revision of the chip.
-        7:4     major_revision;
-        /// Minor revision of the chip.
-        3:0     minor_revision;
-    }
-
-    /// Extended architecture information.
-    pub(crate) NV_PMC_BOOT_42(u32) @ 0x00000a00 {
-        /// Architecture value.
-        29:24   architecture ?=> Architecture;
-        /// Implementation version of the architecture.
-        23:20   implementation;
-        /// Major revision of the chip.
-        19:16   major_revision;
-        /// Minor revision of the chip.
-        15:12   minor_revision;
-    }
-}
-
-impl NV_PMC_BOOT_0 {
-    pub(crate) fn is_older_than_fermi(self) -> bool {
-        // From https://github.com/NVIDIA/open-gpu-doc/tree/master/manuals :
-        const NV_PMC_BOOT_0_ARCHITECTURE_GF100: u32 = 0xc;
-
-        // Older chips left arch1 zeroed out. That, combined with an arch0 value that is less than
-        // GF100, means "older than Fermi".
-        self.architecture_1() == 0 && self.architecture_0() < NV_PMC_BOOT_0_ARCHITECTURE_GF100
-    }
-}
-
-impl NV_PMC_BOOT_42 {
-    /// Combines `architecture` and `implementation` to obtain a code unique to the chipset.
-    pub(crate) fn chipset(self) -> Result<Chipset> {
-        self.architecture()
-            .map(|arch| {
-                ((arch as u32) << Self::IMPLEMENTATION_RANGE.len())
-                    | u32::from(self.implementation())
-            })
-            .and_then(Chipset::try_from)
-    }
-
-    /// Returns the raw architecture value from the register.
-    fn architecture_raw(self) -> u8 {
-        ((self.into_raw() >> Self::ARCHITECTURE_RANGE.start())
-            & ((1 << Self::ARCHITECTURE_RANGE.len()) - 1)) as u8
-    }
-}
-
-impl kernel::fmt::Display for NV_PMC_BOOT_42 {
-    fn fmt(&self, f: &mut kernel::fmt::Formatter<'_>) -> kernel::fmt::Result {
-        write!(
-            f,
-            "boot42 = 0x{:08x} (architecture 0x{:x}, implementation 0x{:x})",
-            self.inner,
-            self.architecture_raw(),
-            self.implementation()
-        )
-    }
-}
 
 // PBUS
 
@@ -200,9 +124,23 @@ register! {
 register! {
     base: PFalconRegisters;
 
+    /// Clears the latch of every cause whose bit is written as `1`. Write-only.
+    ///
+    /// The write ends the latch and not the source, so a cause driven from outside the falcon
+    /// stays set. "Retriggering a falcon" in `Documentation/gpu/nova/core/interrupts.rst` names
+    /// those causes.
     pub(crate) NV_PFALCON_FALCON_IRQSCLR(u32) @ 0x00000004 {
         6:6     swgen0 => bool;
         4:4     halt => bool;
+    }
+
+    /// Interrupt causes latched in the falcon, one bit per cause, whichever target each is routed
+    /// to.
+    ///
+    /// The causes routed to the host are the ones also set in `NV_PRISCV_RISCV_IRQMASK` and
+    /// `NV_PRISCV_RISCV_IRQDEST`.
+    pub(crate) NV_PFALCON_FALCON_IRQSTAT(u32) @ 0x00000008 {
+        6:6     swgen0 => bool;
     }
 
     pub(crate) NV_PFALCON_FALCON_MAILBOX0(u32) @ 0x00000040 {
@@ -330,6 +268,16 @@ register! {
     /// falcon instance.
     pub(crate) NV_PFALCON_FALCON_ENGINE(u32) @ 0x000003c0 {
         0:0     reset => bool;
+    }
+
+    /// Makes the falcon re-emit its host-routed causes into the interrupt tree. Write-only.
+    ///
+    /// Present from GA100 on. See "Retriggering a falcon" in
+    /// `Documentation/gpu/nova/core/interrupts.rst`.
+    ///
+    /// The hardware headers declare two elements, and OpenRM writes only the first.
+    pub(crate) NV_PFALCON_FALCON_INTR_RETRIGGER(u32)[2] @ 0x000003e8 {
+        0:0     trigger => bool;
     }
 
     pub(crate) NV_PFALCON_FBIF_TRANSCFG(u32)[8] @ 0x00000600 {
@@ -490,6 +438,29 @@ pub(crate) mod gm107 {
     }
 }
 
+pub(crate) mod tu102 {
+    use kernel::io::register;
+
+    use crate::falcon::PFalcon2Registers;
+
+    // The RISC-V interrupt routing registers, at the offsets that Turing and GA100 use.
+
+    register! {
+        base: PFalcon2Registers;
+
+        /// Enabled causes, one bit per cause. Read-only to the host.
+        pub(crate) NV_PRISCV_RISCV_IRQMASK(u32) @ 0x000002b4 {
+            31:0    value => u32;
+        }
+
+        /// Causes routed to the host, one bit per cause. A clear bit routes the cause to the
+        /// RISC-V core.
+        pub(crate) NV_PRISCV_RISCV_IRQDEST(u32) @ 0x000002b8 {
+            31:0    value => u32;
+        }
+    }
+}
+
 pub(crate) mod ga100 {
     use kernel::io::register;
 
@@ -502,6 +473,28 @@ pub(crate) mod ga100 {
 
         pub(crate) NV_FUSE_STATUS_OPT_DISPLAY(u32) @ 0x00820c04 {
             0:0     display_disabled => bool;
+        }
+    }
+}
+
+pub(crate) mod ga102 {
+    use kernel::io::register;
+
+    use crate::falcon::PFalcon2Registers;
+
+    // The RISC-V interrupt routing registers, at the offsets that GA102 and later use.
+
+    register! {
+        base: PFalcon2Registers;
+
+        /// Same as [`super::tu102::NV_PRISCV_RISCV_IRQMASK`], at the GA102 offset.
+        pub(crate) NV_PRISCV_RISCV_IRQMASK(u32) @ 0x00000528 {
+            31:0    value => u32;
+        }
+
+        /// Same as [`super::tu102::NV_PRISCV_RISCV_IRQDEST`], at the GA102 offset.
+        pub(crate) NV_PRISCV_RISCV_IRQDEST(u32) @ 0x0000052c {
+            31:0    value => u32;
         }
     }
 }
@@ -547,5 +540,71 @@ pub(crate) mod gb202 {
         pub(crate) NV_THERM_I2CS_SCRATCH_FSP_BOOT_COMPLETE(u32) => NV_THERM_I2CS_SCRATCH {
             31:0    fsp_boot_complete;
         }
+    }
+}
+
+// MMU TLB
+
+register! {
+    base: NovaRegisters;
+
+    /// TLB flush register: PDB address lower bits.
+    pub(crate) NV_TLB_FLUSH_PDB_LO(u32) @ 0x00b830a0 {
+        /// PDB address bits [39:8].
+        31:0    pdb_lo => u32;
+    }
+
+    /// TLB flush register: PDB address higher bits.
+    pub(crate) NV_TLB_FLUSH_PDB_HI(u32) @ 0x00b830a4 {
+        /// PDB address bits [47:40].
+        7:0     pdb_hi => u8;
+    }
+
+    /// TLB flush control register.
+    pub(crate) NV_TLB_FLUSH_CTRL(u32) @ 0x00b830b0 {
+        /// Invalidate every VA in the PDB selected by `NV_TLB_FLUSH_PDB_LO/HI`.
+        0:0     all_va => bool;
+        /// Invalidate TLBs for all PDBs (ignores `NV_TLB_FLUSH_PDB_LO/HI`).
+        1:1     all_pdb => bool;
+        /// Restrict the flush to the HUB MMU's TLBs; skip broadcasting to the
+        /// per-GPC L2 TLBs.
+        ///
+        /// The GPU MMU has a two-level TLB hierarchy:
+        /// 1. The *HUB MMU* sits at the top and serves memory requests from
+        ///    "host-side" engines: the host/channel interface, copy engines,
+        ///    display, and BAR1/BAR2 accesses.
+        /// 2. Each GPC (Graphics Processing Cluster — the block that houses
+        ///    shader cores / SMs) has its own L2 TLB that serves requests from
+        ///    the compute and graphics engines inside the cluster.
+        ///
+        /// When set, only the HUB TLBs are invalidated. This is a performance
+        /// optimization for flushes that only affect HUB-side mappings (e.g.
+        /// BAR1/BAR2 windows), where fanning the invalidation out to every
+        /// GPC's L2 TLB would be wasted work. Must be false when flushing
+        /// mappings that may be cached by compute/graphics engines.
+        2:2     hubtlb_only => bool;
+        /// Invalidation acknowledgment scope. See [`TlbAckMode`] for details.
+        8:7     ack ?=> TlbAckMode;
+        /// Write 1 to kick off the flush. Hardware clears this bit when the
+        /// flush completes; reads as 1 while the flush is in progress.
+        31:31   trigger => bool;
+    }
+}
+
+impl NV_TLB_FLUSH_PDB_LO {
+    /// Create a register value from a PDB address.
+    ///
+    /// Extracts bits [39:8] of the address and shifts it right by 8 bits.
+    pub(crate) fn from_pdb_addr(addr: u64) -> Self {
+        Self::zeroed().with_pdb_lo(((addr >> 8) & 0xFFFF_FFFF) as u32)
+    }
+}
+
+impl NV_TLB_FLUSH_PDB_HI {
+    /// Create a register value from a PDB address.
+    ///
+    /// Extracts bits [47:40] of the address and shifts it right by 40 bits.
+    pub(crate) fn from_pdb_addr(addr: u64) -> Self {
+        Self::zeroed().with_pdb_hi(((addr >> 40) & 0xFF) as u8)
     }
 }

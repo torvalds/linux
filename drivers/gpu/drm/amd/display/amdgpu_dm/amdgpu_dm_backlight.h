@@ -53,6 +53,7 @@ bool amdgpu_dm_should_create_sysfs(struct amdgpu_dm_connector *aconnector);
 extern const struct attribute_group amdgpu_group;
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+void amdgpu_dm_validate_backlight_caps(struct amdgpu_display_manager *dm, int bl_idx);
 struct dc_stream_state *dm_find_stream_with_link(struct amdgpu_display_manager *dm,
 						 struct dc_link *link);
 int amdgpu_dm_backlight_update_status(struct backlight_device *bd);

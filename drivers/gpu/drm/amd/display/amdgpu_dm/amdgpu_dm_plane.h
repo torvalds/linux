@@ -117,7 +117,7 @@ int amdgpu_dm_plane_atomic_async_check(struct drm_plane *plane,
 int amdgpu_dm_plane_atomic_check(struct drm_plane *plane,
 				 struct drm_atomic_commit *state);
 void amdgpu_dm_plane_panic_flush(struct drm_plane *plane);
-void amdgpu_dm_plane_drm_plane_reset(struct drm_plane *plane);
+struct drm_plane_state *amdgpu_dm_plane_drm_plane_create_state(struct drm_plane *plane);
 struct drm_plane_state *amdgpu_dm_plane_drm_plane_duplicate_state(struct drm_plane *plane);
 void amdgpu_dm_plane_drm_plane_destroy_state(struct drm_plane *plane,
 					     struct drm_plane_state *state);
@@ -125,5 +125,17 @@ void amdgpu_dm_plane_add_modifier_dedup(uint64_t **mods, uint64_t *size,
 					uint64_t *cap, uint64_t mod);
 int amdgpu_dm_plane_fill_gfx6_tiling_info_from_modifier(struct dc_tiling_info *tiling_info,
 							uint64_t modifier);
+u32 amdgpu_dm_plane_get_gfx6_tile_idx(const struct amdgpu_device *adev, const u32 bpp,
+				      const enum array_mode_values arr);
+u32 amdgpu_dm_plane_calc_gfx7_tile_split(const struct amdgpu_device *adev, const u32 bpp,
+					 const u32 gb_tile_mode);
+u32 amdgpu_dm_plane_get_gfx7_macro_tile_idx(const u32 bpp, const u32 tile_split_bytes);
+u64 amdgpu_dm_plane_calc_gfx6_mod(const struct amdgpu_device *adev, const u32 bpp,
+				  const enum array_mode_values arr);
+bool amdgpu_dm_plane_gfx6_format_mod_supported(const struct amdgpu_device *adev, const u32 bpp,
+					       const u64 modifier);
+int amdgpu_dm_plane_helper_prepare_fb(struct drm_plane *plane, struct drm_plane_state *new_state);
+void amdgpu_dm_plane_helper_cleanup_fb(struct drm_plane *plane, struct drm_plane_state *old_state);
+void amdgpu_dm_plane_atomic_async_update(struct drm_plane *plane, struct drm_atomic_commit *state);
 #endif
 #endif

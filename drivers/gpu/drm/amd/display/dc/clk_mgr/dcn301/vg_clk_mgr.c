@@ -26,8 +26,8 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 
-// For dce12_get_dp_ref_freq_khz
-#include "dce100/dce_clk_mgr.h"
+// For dcn10_get_dp_ref_freq_khz
+#include "dcn10/dcn10_clk_mgr.h"
 
 // For dcn20_update_clocks_update_dpp_dto
 #include "dcn20/dcn20_clk_mgr.h"
@@ -482,7 +482,7 @@ static bool vg_are_clock_states_equal(struct dc_clocks *a,
 
 
 static struct clk_mgr_funcs vg_funcs = {
-	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 	.update_clocks = vg_update_clocks,
 	.init_clocks = vg_init_clocks,
 	.enable_pme_wa = vg_enable_pme_wa,
@@ -748,7 +748,7 @@ void vg_clk_mgr_construct(
 	vg_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, &clk_mgr->base.base, &log_info);
 
 	clk_mgr->base.base.dprefclk_khz = 600000;
-	dce_clock_read_ss_info(&clk_mgr->base);
+	dcn10_clock_read_ss_info(&clk_mgr->base);
 
 	clk_mgr->base.base.bw_params = &vg_bw_params;
 

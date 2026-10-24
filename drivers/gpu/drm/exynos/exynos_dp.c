@@ -26,7 +26,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/exynos_drm.h>
@@ -147,7 +146,6 @@ static const struct component_ops exynos_dp_ops = {
 static int exynos_dp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
 	struct exynos_dp_device *dp;
 
 	dp = devm_kzalloc(&pdev->dev, sizeof(struct exynos_dp_device),
@@ -163,18 +161,6 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	 */
 	platform_set_drvdata(pdev, dp);
 
-	/* This is for the backward compatibility. */
-	np = of_parse_phandle(dev->of_node, "panel", 0);
-	if (np) {
-		dp->plat_data.panel = of_drm_find_panel(np);
-
-		of_node_put(np);
-		if (IS_ERR(dp->plat_data.panel))
-			return PTR_ERR(dp->plat_data.panel);
-
-		goto out;
-	}
-
 	if (of_get_display_timings(dev->of_node)) {
 		dp->plat_data.next_bridge = devm_drm_of_display_mode_bridge(dp->dev,
 									dp->dev->of_node,
@@ -189,19 +175,11 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	dp->plat_data.power_off = exynos_dp_poweroff;
 	dp->plat_data.ops = &exynos_dp_ops;
 
-out:
 	dp->adp = analogix_dp_probe(dev, &dp->plat_data);
-	if (IS_ERR(dp->adp)) {
-		/*
-		 * The driver core does not invoke remove() for failed probes,
-		 * so release the probe-time panel reference here.
-		 */
-		if (dp->plat_data.panel)
-			drm_panel_put(dp->plat_data.panel);
+	if (IS_ERR(dp->adp))
 		return PTR_ERR(dp->adp);
-	}
 
-	if (dp->plat_data.panel || dp->plat_data.next_bridge)
+	if (dp->plat_data.next_bridge)
 		return component_add(&pdev->dev, &exynos_dp_ops);
 	else
 		return analogix_dp_finish_probe(dp->adp);
@@ -209,16 +187,6 @@ out:
 
 static void exynos_dp_remove(struct platform_device *pdev)
 {
-	struct exynos_dp_device *dp = platform_get_drvdata(pdev);
-
-	/*
-	 * Release the probe-time reference from of_drm_find_panel(). If bind
-	 * ran, the panel_bridge holds a second reference that devm cleanup
-	 * will release when the bridge is destroyed after remove() returns.
-	 */
-	if (dp->plat_data.panel)
-		drm_panel_put(dp->plat_data.panel);
-
 	component_del(&pdev->dev, &exynos_dp_ops);
 }
 

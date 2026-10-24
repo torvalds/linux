@@ -8,10 +8,12 @@
 #include <drm/drm_managed.h>
 
 #include <generated/xe_wa_oob.h>
+#include <linux/iopoll.h>
 #include "xe_force_wake.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_idle.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_sysfs.h"
 #include "xe_guc_pc.h"
 #include "regs/xe_gt_regs.h"
@@ -208,26 +210,34 @@ int xe_gt_idle_pg_print(struct xe_gt *gt, struct drm_printer *p)
 	/*
 	 * Media Slices
 	 *
-	 * Slice 0: VCS0, VCS1, VECS0
-	 * Slice 1: VCS2, VCS3, VECS1
-	 * Slice 2: VCS4, VCS5, VECS2
-	 * Slice 3: VCS6, VCS7, VECS3
+	 * Prior to MEDIA_VER 35		Post MEDIA_VER 35
+	 *
+	 * Slice 0: VCS0, VCS1, VECS0, VECS2	Slice 0: VCS0, VCS1, VECS0, VECS1
+	 * Slice 1: VCS2, VCS3, VECS1, VECS3	Slice 1: VCS2, VCS3, VECS2, VECS3
 	 */
-	static const struct {
+	struct media_slice {
 		u64 engines;
 		u32 status_bit;
-	} media_slices[] = {
+	};
+
+	static const struct media_slice media_slices_pre_35[] = {
 		{(BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS1) |
-		  BIT(XE_HW_ENGINE_VECS0)), MEDIA_SLICE0_AWAKE_STATUS},
+		  BIT(XE_HW_ENGINE_VECS0) | BIT(XE_HW_ENGINE_VECS2)),
+		 MEDIA_SLICE0_AWAKE_STATUS},
 
 		{(BIT(XE_HW_ENGINE_VCS2) | BIT(XE_HW_ENGINE_VCS3) |
-		   BIT(XE_HW_ENGINE_VECS1)), MEDIA_SLICE1_AWAKE_STATUS},
+		   BIT(XE_HW_ENGINE_VECS1) | BIT(XE_HW_ENGINE_VECS3)),
+		 MEDIA_SLICE1_AWAKE_STATUS},
+	};
 
-		{(BIT(XE_HW_ENGINE_VCS4) | BIT(XE_HW_ENGINE_VCS5) |
-		   BIT(XE_HW_ENGINE_VECS2)), MEDIA_SLICE2_AWAKE_STATUS},
+	static const struct media_slice media_slices_post_35[] = {
+		{(BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS1) |
+		  BIT(XE_HW_ENGINE_VECS0) | BIT(XE_HW_ENGINE_VECS1)),
+		 MEDIA_SLICE0_AWAKE_STATUS},
 
-		{(BIT(XE_HW_ENGINE_VCS6) | BIT(XE_HW_ENGINE_VCS7) |
-		   BIT(XE_HW_ENGINE_VECS3)), MEDIA_SLICE3_AWAKE_STATUS},
+		{(BIT(XE_HW_ENGINE_VCS2) | BIT(XE_HW_ENGINE_VCS3) |
+		   BIT(XE_HW_ENGINE_VECS2) | BIT(XE_HW_ENGINE_VECS3)),
+		 MEDIA_SLICE1_AWAKE_STATUS},
 	};
 
 	if (xe->info.platform == XE_PVC) {
@@ -262,10 +272,21 @@ int xe_gt_idle_pg_print(struct xe_gt *gt, struct drm_printer *p)
 
 	/* Print media CPG status only if media is present */
 	if (vcs_mask || vecs_mask) {
+		const struct media_slice *media_slices;
+		int num_media_slices;
+
+		if (MEDIA_VERx100(gt_to_xe(gt)) < 3500) {
+			media_slices = media_slices_pre_35;
+			num_media_slices = ARRAY_SIZE(media_slices_pre_35);
+		} else {
+			media_slices = media_slices_post_35;
+			num_media_slices = ARRAY_SIZE(media_slices_post_35);
+		}
+
 		drm_printf(p, "Media Power Gating Enabled: %s\n",
 			   str_yes_no(pg_enabled & MEDIA_POWERGATE_ENABLE));
 
-		for (n = 0; n < ARRAY_SIZE(media_slices); n++)
+		for (n = 0; n < num_media_slices; n++)
 			if (gt->info.engine_mask & media_slices[n].engines)
 				drm_printf(p, "Media Slice%d Power Gate Status: %s\n", n,
 					   str_up_down(pg_status & media_slices[n].status_bit));
@@ -429,6 +450,43 @@ int xe_gt_idle_disable_c6(struct xe_gt *gt)
 
 	xe_mmio_write32(&gt->mmio, RC_CONTROL, 0);
 	xe_mmio_write32(&gt->mmio, RC_STATE, 0);
+
+	return 0;
+}
+
+static int wait_for_gt_c6_state(struct xe_gt *gt, u32 timeout_ms)
+{
+	struct xe_guc_pc *pc = &gt->uc.guc.pc;
+	enum xe_gt_idle_state state;
+
+	return poll_timeout_us(state = gt->gtidle.idle_status(pc),
+			       state == GT_IDLE_C6,
+			       20,
+			       timeout_ms * USEC_PER_MSEC,
+			       false);
+}
+
+/**
+ * xe_gt_idle_wait_for_c6 - Poll for GT C6
+ * @gt: GT object
+ * @timeout_ms: wait time in ms
+ *
+ * This function waits for GT to enter C6.
+ *
+ * Return: 0 on success, -EAGAIN otherwise
+ */
+int xe_gt_idle_wait_for_c6(struct xe_gt *gt, u32 timeout_ms)
+{
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return 0;
+
+	if (gt_to_xe(gt)->info.platform == XE_PVC)
+		return 0;
+
+	if (wait_for_gt_c6_state(gt, timeout_ms)) {
+		xe_gt_dbg(gt, "GT is not in C6\n");
+		return -EAGAIN;
+	}
 
 	return 0;
 }

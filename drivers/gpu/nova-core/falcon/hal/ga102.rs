@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
 use core::marker::PhantomData;
 
@@ -168,5 +169,21 @@ impl<E: FalconEngine> FalconHal<E> for Ga102<E> {
 
     fn load_method(&self) -> LoadMethod {
         LoadMethod::Dma
+    }
+
+    fn host_routed_causes(
+        &self,
+        falcon: &Falcon<'_, E>,
+        latched: regs::NV_PFALCON_FALCON_IRQSTAT,
+    ) -> regs::NV_PFALCON_FALCON_IRQSTAT {
+        let pfalcon2 = falcon.pfalcon2;
+        let mask = pfalcon2.read(regs::ga102::NV_PRISCV_RISCV_IRQMASK).value();
+        let dest = pfalcon2.read(regs::ga102::NV_PRISCV_RISCV_IRQDEST).value();
+
+        regs::NV_PFALCON_FALCON_IRQSTAT::from(latched.into_raw() & mask & dest)
+    }
+
+    fn retrigger(&self, falcon: &Falcon<'_, E>) {
+        super::tu102::retrigger_ga100(falcon);
     }
 }

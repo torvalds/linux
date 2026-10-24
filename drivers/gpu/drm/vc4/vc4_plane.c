@@ -363,20 +363,17 @@ static void vc4_plane_destroy_state(struct drm_plane *plane,
 }
 
 /* Called during init to allocate the plane's atomic state. */
-static void vc4_plane_reset(struct drm_plane *plane)
+static struct drm_plane_state *vc4_plane_create_state(struct drm_plane *plane)
 {
 	struct vc4_plane_state *vc4_state;
 
-	if (plane->state)
-		__drm_atomic_helper_plane_destroy_state(plane->state);
-
-	kfree(plane->state);
-
 	vc4_state = kzalloc_obj(*vc4_state);
 	if (!vc4_state)
-		return;
+		return ERR_PTR(-ENOMEM);
 
-	__drm_atomic_helper_plane_reset(plane, &vc4_state->base);
+	__drm_atomic_helper_plane_state_init(&vc4_state->base, plane);
+
+	return &vc4_state->base;
 }
 
 static void vc4_dlist_counter_increment(struct vc4_plane_state *vc4_state)
@@ -2495,7 +2492,7 @@ static bool vc4_format_mod_supported(struct drm_plane *plane,
 static const struct drm_plane_funcs vc4_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.reset = vc4_plane_reset,
+	.atomic_create_state = vc4_plane_create_state,
 	.atomic_duplicate_state = vc4_plane_duplicate_state,
 	.atomic_destroy_state = vc4_plane_destroy_state,
 	.format_mod_supported = vc4_format_mod_supported,

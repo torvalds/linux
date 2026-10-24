@@ -509,7 +509,7 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	if (!ipc->mem_rx) {
 		ivpu_err(vdev, "Failed to allocate mem_rx\n");
 		ret = -ENOMEM;
-		goto err_free_tx;
+		goto err_free_bo;
 	}
 
 	ipc->mm_tx = devm_gen_pool_create(vdev->drm.dev, __ffs(IVPU_IPC_ALIGNMENT),
@@ -517,13 +517,13 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	if (IS_ERR(ipc->mm_tx)) {
 		ret = PTR_ERR(ipc->mm_tx);
 		ivpu_err(vdev, "Failed to create gen pool, %pe\n", ipc->mm_tx);
-		goto err_free_rx;
+		goto err_free_bo;
 	}
 
 	ret = gen_pool_add(ipc->mm_tx, ipc->mem_tx->vpu_addr, ivpu_bo_size(ipc->mem_tx), -1);
 	if (ret) {
 		ivpu_err(vdev, "gen_pool_add failed, ret %d\n", ret);
-		goto err_free_rx;
+		goto err_free_bo;
 	}
 
 	spin_lock_init(&ipc->cons_lock);
@@ -532,14 +532,13 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	ret = drmm_mutex_init(&vdev->drm, &ipc->lock);
 	if (ret) {
 		ivpu_err(vdev, "Failed to initialize ipc->lock, ret %d\n", ret);
-		goto err_free_rx;
+		goto err_free_bo;
 	}
 	ivpu_ipc_reset(vdev);
 	return 0;
 
-err_free_rx:
+err_free_bo:
 	ivpu_bo_free(ipc->mem_rx);
-err_free_tx:
 	ivpu_bo_free(ipc->mem_tx);
 err_destroy_cache:
 	kmem_cache_destroy(ipc->rx_msg_cache);

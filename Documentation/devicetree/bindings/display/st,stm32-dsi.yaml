@@ -101,35 +101,35 @@ examples:
         #size-cells = <0>;
 
         ports {
-              #address-cells = <1>;
-              #size-cells = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-              port@0 {
-                    reg = <0>;
-                    dsi_in: endpoint {
-                        remote-endpoint = <&ltdc_ep1_out>;
-                    };
-              };
+            port@0 {
+                reg = <0>;
+                dsi_in: endpoint {
+                    remote-endpoint = <&ltdc_ep1_out>;
+                };
+            };
 
-              port@1 {
-                    reg = <1>;
-                    dsi_out: endpoint {
-                        remote-endpoint = <&panel_in>;
-                    };
-              };
+            port@1 {
+                reg = <1>;
+                dsi_out: endpoint {
+                    remote-endpoint = <&panel_in>;
+                };
+            };
         };
 
         panel@0 {
-              compatible = "orisetech,otm8009a";
-              reg = <0>;
-              reset-gpios = <&gpioe 4 GPIO_ACTIVE_LOW>;
-              power-supply = <&v3v3>;
+            compatible = "orisetech,otm8009a";
+            reg = <0>;
+            reset-gpios = <&gpioe 4 GPIO_ACTIVE_LOW>;
+            power-supply = <&v3v3>;
 
-              port {
-                    panel_in: endpoint {
-                        remote-endpoint = <&dsi_out>;
-                    };
-              };
+            port {
+                panel_in: endpoint {
+                    remote-endpoint = <&dsi_out>;
+                };
+            };
         };
     };
 

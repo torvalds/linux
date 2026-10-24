@@ -112,7 +112,7 @@ static int pf_reprovision_default(struct xe_device *xe)
 	int result = 0;
 	int err;
 
-	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+	lockdep_assert_held(xe_sriov_pf_master_mutex(xe));
 
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_sriov_pf_policy_set_sched_if_idle_locked(gt, false);
@@ -137,6 +137,8 @@ static int pf_reprovision_default(struct xe_device *xe)
 int xe_sriov_pf_reprovision_default(struct xe_device *xe)
 {
 	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
 
 	if (!pf_auto_provisioning_mode(xe))
 		return 0;

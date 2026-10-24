@@ -305,29 +305,17 @@ static int ili9805_dsi_probe(struct mipi_dsi_device *dsi)
 	if (ret)
 		return ret;
 
-	drm_panel_add(&ctx->panel);
+	ret = devm_drm_panel_add(&dsi->dev, &ctx->panel);
+	if (ret)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(&dsi->dev, dsi);
 	if (ret < 0) {
 		dev_err(&dsi->dev, "mipi_dsi_attach failed: %d\n", ret);
-		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void ili9805_dsi_remove(struct mipi_dsi_device *dsi)
-{
-	struct ili9805 *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret < 0)
-		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n",
-			ret);
-
-	drm_panel_remove(&ctx->panel);
 }
 
 static const struct ili9805_desc gpm1780a0_desc = {
@@ -353,7 +341,6 @@ MODULE_DEVICE_TABLE(of, ili9805_of_match);
 
 static struct mipi_dsi_driver ili9805_dsi_driver = {
 	.probe		= ili9805_dsi_probe,
-	.remove		= ili9805_dsi_remove,
 	.driver = {
 		.name		= "ili9805-dsi",
 		.of_match_table	= ili9805_of_match,

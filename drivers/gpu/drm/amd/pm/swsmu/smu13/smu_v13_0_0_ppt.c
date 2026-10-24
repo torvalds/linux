@@ -3077,7 +3077,7 @@ static int smu_v13_0_0_set_ppt_limit(struct smu_context *smu,
 				return ret;
 			}
 		}
-			return smu_v13_0_set_ppt_limit(smu, limit_type, limit);
+		return smu_v13_0_set_ppt_limit(smu, limit_type, limit);
 	} else if (smu->od_enabled) {
 		ret = smu_v13_0_set_ppt_limit(smu, limit_type, msg_limit);
 		if (ret)

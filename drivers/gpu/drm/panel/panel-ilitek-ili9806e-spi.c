@@ -124,11 +124,6 @@ static int ili9806e_spi_probe(struct spi_device *spi)
 			      DRM_MODE_CONNECTOR_DPI);
 }
 
-static void ili9806e_spi_remove(struct spi_device *spi)
-{
-	ili9806e_remove(&spi->dev);
-}
-
 static void rk050hr345_ct106a_init(struct ili9806e_spi_panel *ctx)
 {
 	struct mipi_dbi *dbi = &ctx->dbi;
@@ -313,7 +308,6 @@ static struct spi_driver ili9806e_spi_driver = {
 		.of_match_table = ili9806e_spi_of_match,
 	},
 	.probe = ili9806e_spi_probe,
-	.remove = ili9806e_spi_remove,
 	.id_table = ili9806e_spi_ids,
 };
 module_spi_driver(ili9806e_spi_driver);

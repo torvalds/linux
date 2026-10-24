@@ -87,6 +87,7 @@ struct dml2_sop_constraint {
 			struct dml2_memory_path_latency latency;
 			struct dml2_soc_operating_point clocks;
 			double min_available_urgent_bandwidth_KBps; // minimum guaranteed urgent bandwidth at active
+			double min_available_non_urgent_bandwidth_KBps; // minimum guaranteed nominal bandwidth at active
 		} dcn5;
 	};
 };
@@ -95,6 +96,7 @@ struct dml2_sop_table {
 	bool is_initialized;
 	const struct utm_qos_model *model;
 	uint32_t sop_min_available_urgent_bandwidths_KBps[MAX_UTM_SOP_COUNT];
+	uint32_t sop_min_available_non_urgent_bandwidths_KBps[MAX_UTM_SOP_COUNT];
 	uint32_t sop_optimal_dcfclks_khz[MAX_UTM_SOP_COUNT];
 	unsigned int (*get_highest_sop_index)(const struct dml2_sop_table *sop_table);
 	void (*get_sop_constraint_at_index)(const struct dml2_sop_table *sop_table, unsigned int index, struct dml2_sop_constraint *constraint);
@@ -117,6 +119,8 @@ struct dml2_utm_soc_bb {
 	double lower_bound_bandwidth_dchub;
 	double fraction_of_urgent_bandwidth_nominal_target;
 	double fraction_of_urgent_bandwidth_flip_target;
+	double hostvm_inefficiency_fraction;
+	unsigned int max_lsdma_bandwidth_kbps;
 	unsigned int dchub_refclk_mhz;
 	unsigned int max_outstanding_reqs;
 	unsigned long return_bus_width_bytes;
@@ -246,6 +250,7 @@ struct dml2_dpmm_map_mode_to_soc_dpm_params_in_out {
 	* Output
 	*/
 	struct dml2_display_cfg_programming *programming;
+	int derate_dpm_index;
 };
 
 struct dml2_dpmm_map_watermarks_params_in_out {
@@ -829,6 +834,17 @@ struct dml2_core_internal_state_inputs {
 struct dml2_core_internal_state_intermediates {
 	unsigned int dummy;
 };
+/*
+ * Per-generation table of DML2 core "calcs" (leaf computation) functions.
+ * Each generation registers exactly one table pointer in this union.  The funcs
+ * layer reaches the active table through get_calcs(ctx), keeping it free of
+ * direct references to generation-specific calcs symbols.
+ */
+struct dml2_core_dcn6_calcs;
+
+union dml2_core_calcs {
+	const struct dml2_core_dcn6_calcs *dcn6;
+};
 
 struct dml2_core_calculate_mp_context {
 	const struct dml2_display_cfg *display_cfg;
@@ -837,6 +853,7 @@ struct dml2_core_calculate_mp_context {
 	const struct dml2_core_internal_mode_support *ms;
 	struct dml2_core_calcs_mode_programming_locals *dummies;
 	struct dml2_core_internal_scratch *func_params;
+	union dml2_core_calcs *calcs;
 };
 struct dml2_core_calculate_ms_context {
 	const struct dml2_display_cfg *display_cfg;
@@ -845,6 +862,7 @@ struct dml2_core_calculate_ms_context {
 	const struct dml2_clock_granularity_adjuster *clock_adjuster;
 	struct dml2_core_calcs_mode_support_locals *dummies;
 	struct dml2_core_internal_scratch *func_params;
+	union dml2_core_calcs *calcs;
 };
 
 struct dml2_core_mode_support_locals {
@@ -899,6 +917,7 @@ struct dml2_core_instance {
 	struct {
 		struct dml2_core_internal_display_mode_lib mode_lib;
 	} clean_me_up;
+	union dml2_core_calcs calcs;
 };
 
 /*

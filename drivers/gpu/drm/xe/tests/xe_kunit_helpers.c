@@ -39,6 +39,10 @@ struct xe_device *xe_kunit_helper_alloc_xe_device(struct kunit *test,
 					       struct xe_device,
 					       drm, DRIVER_GEM);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
+
+	dev_set_drvdata(xe->drm.dev, &xe->drm);
+	KUNIT_ASSERT_PTR_EQ(test, xe, kdev_to_xe_device(dev));
+
 	return xe;
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_kunit_helper_alloc_xe_device);

@@ -34,6 +34,7 @@
 #include "kfd_svm.h"
 #include "kfd_migrate.h"
 #include "amdgpu.h"
+#include "amdgpu_ip.h"
 #include "amdgpu_xcp.h"
 
 #define MQD_SIZE_ALIGNED 768
@@ -952,7 +953,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	svm_range_set_max_pages(kfd->adev);
 
-	kfd->init_complete = true;
+	/* Release pairs with the acquire in kfd_init_apertures(). */
+	smp_store_release(&kfd->init_complete, true);
 	dev_info(kfd_device, "added device %x:%x\n", kfd->adev->pdev->vendor,
 		 kfd->adev->pdev->device);
 
@@ -977,7 +979,7 @@ out:
 	return kfd->init_complete;
 }
 
-void kgd2kfd_device_exit(struct kfd_dev *kfd)
+void kgd2kfd_device_fini(struct kfd_dev *kfd)
 {
 	if (kfd->init_complete) {
 		/* Cleanup KFD nodes */
@@ -991,6 +993,11 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 	}
 
 	kfree(kfd);
+}
+
+void kgd2kfd_device_exit(struct kfd_dev *kfd)
+{
+	kgd2kfd_device_fini(kfd);
 
 	/* after remove a kfd device unlock kfd driver */
 	kgd2kfd_unlock_kfd(NULL);
@@ -1032,6 +1039,9 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 
 	if (!kfd->init_complete)
 		return 0;
+
+	for (i = 0; i < kfd->num_nodes; i++)
+		kfd_dqm_set_queues_as_reset(kfd->nodes[i]->dqm);
 
 	for (i = 0; i < kfd->num_nodes; i++) {
 		ret = kfd_resume(kfd->nodes[i]);
@@ -1512,8 +1522,11 @@ void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
  */
 unsigned int kfd_get_num_sdma_engines(struct kfd_node *node)
 {
-	/* If XGMI is not supported, all SDMA engines are PCIe */
-	if (!node->adev->gmc.xgmi.supported)
+	/* If XGMI is not supported, all SDMA engines are PCIe.
+	 * Also, on GC 12.1, all SDMA engines are the same.
+	 */
+	if (!node->adev->gmc.xgmi.supported ||
+	    KFD_GC_VERSION(node->kfd) == IP_VERSION(12, 1, 0))
 		return node->adev->sdma.num_instances/(int)node->kfd->num_nodes;
 
 	return min(node->adev->sdma.num_instances/(int)node->kfd->num_nodes, 2);

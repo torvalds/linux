@@ -160,4 +160,17 @@ static inline bool xe_gt_supports_multi_queue(const struct xe_gt *gt,
 	return gt->info.multi_queue_engine_class_mask & BIT(class);
 }
 
+/**
+ * xe_gt_has_multi_queue() - Check if gt supports multi-queue on
+ * any engine class.
+ *
+ * @gt: the GT object (may be NULL)
+ *
+ * Return: true if any engine class on @gt supports multi queue, else false
+ */
+static inline bool xe_gt_has_multi_queue(const struct xe_gt *gt)
+{
+	return gt && gt->info.multi_queue_engine_class_mask;
+}
+
 #endif

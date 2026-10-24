@@ -59,6 +59,7 @@ extern "C" {
 #define DRM_AMDGPU_USERQ_WAIT		0x18
 #define DRM_AMDGPU_GEM_LIST_HANDLES	0x19
 #define DRM_AMDGPU_PROC_OPTIONS		0x1A
+#define DRM_AMDGPU_UALINK_HANDLE	0x1B
 
 #define DRM_IOCTL_AMDGPU_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_CREATE, union drm_amdgpu_gem_create)
 #define DRM_IOCTL_AMDGPU_GEM_MMAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_MMAP, union drm_amdgpu_gem_mmap)
@@ -81,6 +82,7 @@ extern "C" {
 #define DRM_IOCTL_AMDGPU_USERQ_WAIT	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_USERQ_WAIT, struct drm_amdgpu_userq_wait)
 #define DRM_IOCTL_AMDGPU_GEM_LIST_HANDLES DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_LIST_HANDLES, struct drm_amdgpu_gem_list_handles)
 #define DRM_IOCTL_AMDGPU_PROC_OPTIONS	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_PROC_OPTIONS, struct drm_amdgpu_proc_options)
+#define DRM_IOCTL_AMDGPU_UALINK_HANDLE DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_UALINK_HANDLE, union drm_amdgpu_ualink_handle)
 
 /**
  * DOC: memory domains
@@ -115,6 +117,12 @@ extern "C" {
 #define AMDGPU_GEM_DOMAIN_GWS		0x10
 #define AMDGPU_GEM_DOMAIN_OA		0x20
 #define AMDGPU_GEM_DOMAIN_DOORBELL	0x40
+#define AMDGPU_GEM_DOMAIN_MMIO_REMAP	0x80
+#define AMDGPU_GEM_DOMAIN_NPA		0x100
+
+/* User-mode is not allowed to allocate NPA space. As a result,
+ * we don't add AMDGPU_GEM_DOMAIN_NPA in the DOMAIN_MASK below.
+ */
 #define AMDGPU_GEM_DOMAIN_MASK		(AMDGPU_GEM_DOMAIN_CPU | \
 					 AMDGPU_GEM_DOMAIN_GTT | \
 					 AMDGPU_GEM_DOMAIN_VRAM | \
@@ -504,6 +512,11 @@ struct drm_amdgpu_userq_signal {
 	 * @bo_write_handles.
 	 */
 	__u32	num_bo_write_handles;
+	/**
+	 * @syncobj_points: The list of syncobj points submitted by the user queue job
+	 * for the corresponding @syncobj_handles.
+	 */
+	__u64	syncobj_points;
 };
 
 struct drm_amdgpu_userq_fence_info {
@@ -1170,6 +1183,8 @@ struct drm_amdgpu_cs_chunk_cp_gfx_shadow {
 	#define AMDGPU_INFO_FW_IMU		0x1b
 	/* Subquery id: Query VPE firmware version */
 	#define AMDGPU_INFO_FW_VPE		0x1c
+	/* Subquery id: Query MP5 firmware version */
+	#define AMDGPU_INFO_FW_MP5		0x1d
 
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
@@ -1692,6 +1707,34 @@ struct drm_amdgpu_proc_options {
 	struct {
 		__u32 value;
 	} kfd_sigbus_delay;
+};
+
+#define DRM_AMDGPU_UALINK_HANDLE_OP_EXPORT		0
+#define DRM_AMDGPU_UALINK_HANDLE_OP_IMPORT		1
+
+struct drm_amdgpu_ualink_handle_in {
+	/* Export or import */
+	__u32 op;
+	/* For future use, no flags defined so far */
+	__u32 flags;
+	union {
+		/* GEM handle of the BO to export */
+		__u32 gem_handle;
+		/* UALink handle to import */
+		__u64 import_ualink_handle[2];
+	};
+};
+
+union drm_amdgpu_ualink_handle_out {
+	/* Exported UALink handle */
+	__u64 export_ualink_handle[2];
+	/** DMABuf representing the imported UALink handle */
+	__u32 import_dmabuf_handle;
+};
+
+union drm_amdgpu_ualink_handle {
+	struct drm_amdgpu_ualink_handle_in in;
+	union drm_amdgpu_ualink_handle_out out;
 };
 
 #if defined(__cplusplus)

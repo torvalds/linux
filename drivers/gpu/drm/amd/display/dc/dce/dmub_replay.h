@@ -13,6 +13,7 @@ struct dmub_replay_funcs;
 struct dmub_replay {
 	struct dc_context *ctx;
 	const struct dmub_replay_funcs *funcs;
+	uint32_t inst;
 };
 
 struct dmub_replay_funcs {
@@ -33,6 +34,8 @@ struct dmub_replay_funcs {
 	void (*replay_set_power_opt_and_coasting_vtotal)(struct dmub_replay *dmub,
 		unsigned int power_opt, uint8_t panel_inst, uint32_t coasting_vtotal,
 		uint16_t frame_skip_number);
+	bool (*replay_get_cumulative_residency)(struct dmub_replay *dmub,
+		uint8_t panel_inst, uint32_t *residency_milli_pct);
 };
 
 struct dmub_replay *dmub_replay_create(struct dc_context *ctx);

@@ -110,7 +110,7 @@ examples:
 
         port {
             parallel_out: endpoint {
-              remote-endpoint = <&panel_in>;
+                remote-endpoint = <&panel_in>;
             };
         };
     };

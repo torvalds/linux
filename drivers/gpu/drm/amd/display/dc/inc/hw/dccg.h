@@ -193,21 +193,13 @@ struct dcn_dccg_reg_state {
 struct dccg {
 	struct dc_context *ctx;
 	const struct dccg_funcs *funcs;
+	int inst;
 	int pipe_dppclk_khz[MAX_PIPES];
 	int ref_dppclk;
 	bool dpp_clock_gated[MAX_PIPES];
 	//int dtbclk_khz[MAX_PIPES];/* TODO needs to be removed */
 	//int audio_dtbclk_khz;/* TODO needs to be removed */
 	//int ref_dtbclk_khz;/* TODO needs to be removed */
-};
-struct dtbclk_dto_params {
-	const struct dc_crtc_timing *timing;
-	int otg_inst;
-	int pixclk_khz;
-	int req_audio_dtbclk_khz;
-	int num_odm_segments;
-	int ref_dtbclk_khz;
-	bool is_hdmi;
 };
 
 struct dccg_funcs {

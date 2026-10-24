@@ -56,6 +56,7 @@ static void malidp_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	if (err < 0) {
 		DRM_DEBUG_DRIVER("Failed to enable runtime power management: %d\n", err);
+		pm_runtime_put_noidle(crtc->dev->dev);
 		return;
 	}
 
@@ -476,17 +477,17 @@ static void malidp_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(mali_state);
 }
 
-static void malidp_crtc_reset(struct drm_crtc *crtc)
+static struct drm_crtc_state *malidp_crtc_create_state(struct drm_crtc *crtc)
 {
-	struct malidp_crtc_state *state = kzalloc_obj(*state);
+	struct malidp_crtc_state *state;
 
-	if (crtc->state)
-		malidp_crtc_destroy_state(crtc, crtc->state);
+	state = kzalloc_obj(*state);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
 
-	if (state)
-		__drm_atomic_helper_crtc_reset(crtc, &state->base);
-	else
-		__drm_atomic_helper_crtc_reset(crtc, NULL);
+	__drm_atomic_helper_crtc_state_init(&state->base, crtc);
+
+	return &state->base;
 }
 
 static int malidp_crtc_enable_vblank(struct drm_crtc *crtc)
@@ -511,7 +512,7 @@ static void malidp_crtc_disable_vblank(struct drm_crtc *crtc)
 static const struct drm_crtc_funcs malidp_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
-	.reset = malidp_crtc_reset,
+	.atomic_create_state = malidp_crtc_create_state,
 	.atomic_duplicate_state = malidp_crtc_duplicate_state,
 	.atomic_destroy_state = malidp_crtc_destroy_state,
 	.enable_vblank = malidp_crtc_enable_vblank,

@@ -28,7 +28,6 @@
 
 #include "dcn10_fpu.h"
 #include "resource.h"
-#include "amdgpu_dm/dc_fpu.h"
 
 /**
  * DOC: DCN10 FPU manipulation Overview

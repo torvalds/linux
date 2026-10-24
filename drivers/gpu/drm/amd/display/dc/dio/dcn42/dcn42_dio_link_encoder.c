@@ -58,8 +58,8 @@ bool dcn42_program_hpd_filter(struct link_encoder *enc, int delay_on_connect_in_
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 
 	HPD_REG_SET_2(DC_HPD_TOGGLE_FILT_CNTL, 0,
-			DC_HPD_CONNECT_INT_DELAY, delay_on_connect_in_ms,
-			DC_HPD_DISCONNECT_INT_DELAY, delay_on_disconnect_in_ms);
+			DC_HPD_CONNECT_INT_DELAY, delay_on_connect_in_ms / 10,
+			DC_HPD_DISCONNECT_INT_DELAY, delay_on_disconnect_in_ms / 10);
 
 	return true;
 }
@@ -223,4 +223,6 @@ void dcn42_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_FRL_10G_CAPABLE = 1;
 		enc10->base.features.flags.bits.IS_FRL_12G_CAPABLE = 1;
 	}
+
+	enc10->base.inst = (unsigned int)enc10->base.preferred_engine;
 }

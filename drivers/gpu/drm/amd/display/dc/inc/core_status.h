@@ -72,6 +72,8 @@ enum dc_status {
 	/// Handshake failed, programming aborted, DCN may be in inconsistent state.
 	DC_DPMS_FAILED_INCOMPLETE = 33,
 
+	DC_NO_DRAM_BUFFER_RESOURCE = 34,
+
 	DC_ERROR_UNEXPECTED = -1
 };
 

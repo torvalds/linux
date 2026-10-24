@@ -241,11 +241,6 @@ static void pp_late_fini(struct amdgpu_ip_block *ip_block)
 }
 
 
-static bool pp_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	return false;
-}
-
 static int pp_set_powergating_state(struct amdgpu_ip_block *ip_block,
 				    enum amd_powergating_state state)
 {
@@ -286,7 +281,6 @@ static const struct amd_ip_funcs pp_ip_funcs = {
 	.late_fini = pp_late_fini,
 	.suspend = pp_suspend,
 	.resume = pp_resume,
-	.is_idle = pp_is_idle,
 	.set_clockgating_state = pp_set_clockgating_state,
 	.set_powergating_state = pp_set_powergating_state,
 };

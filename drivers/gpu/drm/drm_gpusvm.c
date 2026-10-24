@@ -80,6 +80,13 @@
  *			};
  *		};
  *
+ *		static struct drm_gpusvm_pages *
+ *		driver_pages(struct driver_range *drange)
+ *		{
+ *			return drange->num_pages == 1 ? &drange->inline_pages :
+ *							drange->pages;
+ *		}
+ *
  *	In the N:1 case the driver allocates the pages array with a zeroing
  *	allocator (e.g. kcalloc(num_pages, ...)), initialises each entry with
  *	drm_gpusvm_init_pages(), and frees each entry with
@@ -88,6 +95,28 @@
  *	drm_device.
  *	Each drm_gpusvm_pages must be zero-initialised and initialised with
  *	drm_gpusvm_init_pages(), called once per entry.
+ *
+ *	The 1:1 examples below pass @num_pages == 1 and &drange->pages. In the
+ *	N:1 case the driver instead passes the whole array and its count, so a
+ *	single call faults the CPU range once and DMA maps it for every owning
+ *	drm_device, e.g.:
+ *
+ *	.. code-block:: c
+ *
+ *		// GPU fault handler: one fault, one DMA mapping per device
+ *		err = drm_gpusvm_get_pages(gpusvm, driver_pages(drange),
+ *					   drange->num_pages, gpusvm->mm,
+ *					   &range->notifier->notifier,
+ *					   drm_gpusvm_range_start(range),
+ *					   drm_gpusvm_range_end(range), &ctx);
+ *
+ *		// Notifier callback: mark every instance unmapped in one call
+ *		drm_gpusvm_range_set_unmapped(range, driver_pages(drange),
+ *					      drange->num_pages, mmu_range);
+ *
+ *	The unmap and free paths stay per-instance: iterate @num_pages over
+ *	driver_pages(drange) and call drm_gpusvm_unmap_pages() /
+ *	drm_gpusvm_free_pages() for each entry.
  *
  * - Operations:
  *	Define the interface for driver-specific GPU SVM operations such as
@@ -232,7 +261,7 @@
  *				goto retry;
  *		}
  *
- *		err = drm_gpusvm_get_pages(gpusvm, &drange->pages,
+ *		err = drm_gpusvm_get_pages(gpusvm, &drange->pages, 1,
  *					   gpusvm->mm, &range->notifier->notifier,
  *					   drm_gpusvm_range_start(range),
  *					   drm_gpusvm_range_end(range), &ctx);
@@ -1212,6 +1241,8 @@ static void __drm_gpusvm_unmap_pages(struct drm_gpusvm *gpusvm,
 		struct drm_gpusvm_pages_flags flags = {
 			.__flags = svm_pages->flags.__flags,
 		};
+		const struct drm_pagemap_addr *addrs =
+			drm_gpusvm_pages_first_dma(svm_pages, NULL);
 		bool use_iova = dma_use_iova(&svm_pages->state);
 
 		/*
@@ -1224,12 +1255,20 @@ static void __drm_gpusvm_unmap_pages(struct drm_gpusvm *gpusvm,
 			if (svm_pages->state_offset)
 				dma_iova_unlink(dev, &svm_pages->state, 0,
 						svm_pages->state_offset,
-						svm_pages->dma_addr[0].dir, 0);
+						addrs[0].dir, 0);
 			dma_iova_free(dev, &svm_pages->state);
 		}
 
-		for (i = 0, j = 0; i < npages; j++) {
-			struct drm_pagemap_addr *addr = &svm_pages->dma_addr[j];
+		/*
+		 * With IOVA and no device page the unlink above tore every
+		 * entry down, and that is also when the range may be folded
+		 * to one entry, which must not be walked per entry. dpagemap
+		 * is set before the first device_map(), so it is also right
+		 * on the error path, where the flags are not published yet.
+		 */
+		for (i = 0, j = 0;
+		     (!use_iova || dpagemap) && i < npages; j++) {
+			const struct drm_pagemap_addr *addr = &addrs[j];
 
 			if (addr->proto == DRM_INTERCONNECT_SYSTEM) {
 				/*
@@ -1269,6 +1308,18 @@ static void __drm_gpusvm_free_pages(struct drm_gpusvm *gpusvm,
 				    struct drm_gpusvm_pages *svm_pages)
 {
 	lockdep_assert_held(&gpusvm->notifier_lock);
+
+	if (svm_pages->flags.inline_dma_mapping) {
+		struct drm_gpusvm_pages_flags flags = {
+			.__flags = svm_pages->flags.__flags,
+		};
+
+		svm_pages->inline_addr = (struct drm_pagemap_addr){};
+		flags.inline_dma_mapping = false;
+		/* WRITE_ONCE pairs with READ_ONCE for opportunistic checks */
+		WRITE_ONCE(svm_pages->flags.__flags, flags.__flags);
+		return;
+	}
 
 	if (svm_pages->dma_addr) {
 		kvfree(svm_pages->dma_addr);
@@ -1417,144 +1468,147 @@ EXPORT_SYMBOL_GPL(drm_gpusvm_pages_valid);
 /**
  * drm_gpusvm_pages_valid_unlocked() - GPU SVM pages valid unlocked
  * @gpusvm: Pointer to the GPU SVM structure
- * @svm_pages: Pointer to the GPU SVM pages structure
+ * @svm_pages: Array of GPU SVM pages structures
+ * @num_pages: Number of drm_gpusvm_pages instances in @svm_pages
  *
- * This function determines if a GPU SVM pages are valid. Expected be called
- * without holding gpusvm->notifier_lock.
+ * This function determines if every GPU SVM pages instance is valid, resetting
+ * every instance which is not so that get_pages() maps it afresh. It therefore
+ * has to walk them all. Expected be called without holding
+ * gpusvm->notifier_lock.
  *
- * Return: True if GPU SVM pages are valid, False otherwise
+ * Return: True if all GPU SVM pages are valid, False otherwise
  */
 static bool drm_gpusvm_pages_valid_unlocked(struct drm_gpusvm *gpusvm,
-					    struct drm_gpusvm_pages *svm_pages)
+					    struct drm_gpusvm_pages *svm_pages,
+					    unsigned int num_pages)
 {
-	bool pages_valid;
-
-	if (!svm_pages->dma_addr)
-		return false;
+	bool pages_valid = true;
+	unsigned int p;
 
 	drm_gpusvm_notifier_lock(gpusvm);
-	pages_valid = drm_gpusvm_pages_valid(gpusvm, svm_pages);
-	if (!pages_valid)
-		__drm_gpusvm_free_pages(gpusvm, svm_pages);
+	for (p = 0; p < num_pages; ++p) {
+		if (drm_gpusvm_pages_valid(gpusvm, &svm_pages[p]))
+			continue;
+		__drm_gpusvm_free_pages(gpusvm, &svm_pages[p]);
+		pages_valid = false;
+	}
 	drm_gpusvm_notifier_unlock(gpusvm);
 
 	return pages_valid;
 }
 
 /**
- * drm_gpusvm_get_pages() - Get pages and populate GPU SVM pages struct
- * @gpusvm: Pointer to the GPU SVM structure
- * @svm_pages: The SVM pages to populate. This will contain the dma-addresses
- * @mm: The mm corresponding to the CPU range
- * @notifier: The corresponding notifier for the given CPU range
- * @pages_start: Start CPU address for the pages
- * @pages_end: End CPU address for the pages (exclusive)
- * @ctx: GPU SVM context
+ * drm_gpusvm_pages_inlinable() - Whether the dma address can be inlined
+ * @svm_pages: The SVM pages instance that was just mapped
+ * @nentries: Number of entries the mapping loop produced
+ * @npages: Number of pages in the CPU range
  *
- * This function gets and maps pages for CPU range and ensures they are
- * mapped for DMA access.
+ * A THP maps as one huge page, and an IOVA reservation links every page of
+ * the range at the next offset, so the device addresses run contiguously from
+ * entry 0. Either way one entry describes the whole range, so the dma_addr
+ * array can be freed and the address kept inline.
+ *
+ * state_offset advances only on the IOVA branch, so reaching the full range
+ * length proves no device page was mapped in between. Only single page
+ * entries fold, so the order kept is 0 and describes the range truthfully.
+ * Larger chunks, several huge pages among them, stay an array that is
+ * already short and that a consumer places with one PTE each.
+ *
+ * Return: True if the mapping fits in a single drm_pagemap_addr.
+ */
+static bool drm_gpusvm_pages_inlinable(struct drm_gpusvm_pages *svm_pages,
+				       unsigned long nentries,
+				       unsigned long npages)
+{
+	if (nentries == 1)
+		return true;
+
+	return nentries == npages && dma_use_iova(&svm_pages->state) &&
+	       svm_pages->state_offset == npages * PAGE_SIZE;
+}
+
+/**
+ * drm_gpusvm_walk_devmem() - Invoke the devmem callback across faulted pages
+ * @gpusvm: Pointer to the GPU SVM structure
+ * @pfns: The already-faulted pfn array (size @npages)
+ * @npages: Number of pages in the CPU range
+ * @ctx: GPU SVM context, with a non-NULL &drm_gpusvm_ctx.devmem_fn
+ *
+ * Invoke &drm_gpusvm_ctx.devmem_fn once per contiguous run of @pfns backed by
+ * the same device-memory allocation. Must be called under the notifier lock.
+ */
+static void drm_gpusvm_walk_devmem(struct drm_gpusvm *gpusvm,
+				   unsigned long *pfns,
+				   unsigned long npages,
+				   const struct drm_gpusvm_ctx *ctx)
+{
+	struct drm_pagemap_devmem *last = NULL;
+	unsigned int order = 0;
+	unsigned long i;
+
+	lockdep_assert_held(&gpusvm->notifier_lock);
+
+	for (i = 0; i < npages; i += 1 << order) {
+		struct page *page = hmm_pfn_to_page(pfns[i]);
+		struct drm_pagemap_devmem *devmem;
+
+		order = drm_gpusvm_hmm_pfn_to_order(pfns[i], i, npages);
+
+		if (!is_device_private_page(page) &&
+		    !is_device_coherent_page(page)) {
+			last = NULL;
+			continue;
+		}
+
+		devmem = drm_pagemap_page_to_devmem(page);
+		if (devmem == last)
+			continue;
+
+		last = devmem;
+		ctx->devmem_fn(devmem);
+	}
+}
+
+/**
+ * drm_gpusvm_dma_map_pages() - Walk and DMA map one drm_gpusvm_pages instance
+ * @gpusvm: Pointer to the GPU SVM structure
+ * @svm_pages: The SVM pages instance to populate with dma-addresses
+ * @pfns: The already-faulted pfn array (size @npages)
+ * @npages: Number of pages in the CPU range
+ * @ctx: GPU SVM context
+ * @dma_dir: DMA data direction for the mappings
+ *
+ * Walk the faulted @pfns and map them into @svm_pages for DMA access through
+ * its owning drm_device. Must be called under the notifier lock and only for
+ * an instance without a live mapping. On failure this unwinds the partial
+ * mapping of this instance before returning.
  *
  * Return: 0 on success, negative error code on failure.
  */
-int drm_gpusvm_get_pages(struct drm_gpusvm *gpusvm,
-			 struct drm_gpusvm_pages *svm_pages,
-			 struct mm_struct *mm,
-			 struct mmu_interval_notifier *notifier,
-			 unsigned long pages_start, unsigned long pages_end,
-			 const struct drm_gpusvm_ctx *ctx)
+static int drm_gpusvm_dma_map_pages(struct drm_gpusvm *gpusvm,
+				    struct drm_gpusvm_pages *svm_pages,
+				    unsigned long *pfns,
+				    unsigned long npages,
+				    const struct drm_gpusvm_ctx *ctx,
+				    enum dma_data_direction dma_dir)
 {
-	struct hmm_range hmm_range = {
-		.default_flags = HMM_PFN_REQ_FAULT | (ctx->read_only ? 0 :
-			HMM_PFN_REQ_WRITE),
-		.notifier = notifier,
-		.start = pages_start,
-		.end = pages_end,
-		.dev_private_owner = ctx->device_private_page_owner,
-	};
-	void *zdd;
-	unsigned long timeout =
-		jiffies + msecs_to_jiffies(HMM_RANGE_DEFAULT_TIMEOUT);
-	unsigned long remaining;
+	void *zdd = NULL;
 	unsigned long i, j;
-	unsigned long npages = npages_in_range(pages_start, pages_end);
-	unsigned long num_dma_mapped;
+	unsigned long num_dma_mapped = 0;
 	unsigned int order = 0;
-	unsigned long *pfns;
 	int err = 0;
-	struct dev_pagemap *pagemap;
+	struct dev_pagemap *pagemap = NULL;
 	struct drm_pagemap *dpagemap;
 	struct drm_gpusvm_pages_flags flags;
-	enum dma_data_direction dma_dir = ctx->read_only ? DMA_TO_DEVICE :
-							   DMA_BIDIRECTIONAL;
 	struct dma_iova_state *state = &svm_pages->state;
 
-	if (!svm_pages->drm)
-		return -EINVAL;
-
-retry:
-	remaining = timeout - jiffies;
-
-	if (time_after_eq(jiffies, timeout))
-		return -EBUSY;
-
-	hmm_range.notifier_seq = mmu_interval_read_begin(notifier);
-	if (drm_gpusvm_pages_valid_unlocked(gpusvm, svm_pages))
-		goto set_seqno;
-
-	pfns = kvmalloc_array(npages, sizeof(*pfns), GFP_KERNEL);
-	if (!pfns)
-		return -ENOMEM;
-
-	if (!mmget_not_zero(mm)) {
-		err = -EFAULT;
-		goto err_free;
-	}
-
-	hmm_range.hmm_pfns = pfns;
-	err = hmm_range_fault_unlocked_timeout(&hmm_range, remaining);
-	mmput(mm);
-	if (err)
-		goto err_free;
+	lockdep_assert_held(&gpusvm->notifier_lock);
 
 	*state = (struct dma_iova_state){};
 	svm_pages->state_offset = 0;
 
-map_pages:
-	/*
-	 * Perform all dma mappings under the notifier lock to not
-	 * access freed pages. A notifier will either block on
-	 * the notifier lock or unmap dma.
-	 */
-	drm_gpusvm_notifier_lock(gpusvm);
-
 	flags.__flags = svm_pages->flags.__flags;
-	if (flags.unmapped) {
-		drm_gpusvm_notifier_unlock(gpusvm);
-		err = -EFAULT;
-		goto err_free;
-	}
 
-	if (mmu_interval_read_retry(notifier, hmm_range.notifier_seq)) {
-		drm_gpusvm_notifier_unlock(gpusvm);
-		kvfree(pfns);
-		goto retry;
-	}
-
-	if (!svm_pages->dma_addr) {
-		/* Unlock and restart mapping to allocate memory. */
-		drm_gpusvm_notifier_unlock(gpusvm);
-		svm_pages->dma_addr =
-			kvzalloc_objs(*svm_pages->dma_addr, npages);
-		if (!svm_pages->dma_addr) {
-			err = -ENOMEM;
-			goto err_free;
-		}
-		goto map_pages;
-	}
-
-	zdd = NULL;
-	pagemap = NULL;
-	num_dma_mapped = 0;
 	for (i = 0, j = 0; i < npages; ++j) {
 		struct page *page = hmm_pfn_to_page(pfns[i]);
 
@@ -1667,20 +1721,199 @@ map_pages:
 	if (pagemap)
 		flags.has_devmem_pages = true;
 
+	if (drm_gpusvm_pages_inlinable(svm_pages, j, npages)) {
+		struct drm_pagemap_addr addr = svm_pages->dma_addr[0];
+
+		kvfree(svm_pages->dma_addr);
+		svm_pages->inline_addr = addr;
+		flags.inline_dma_mapping = true;
+	}
+
 	/* WRITE_ONCE pairs with READ_ONCE for opportunistic checks */
 	WRITE_ONCE(svm_pages->flags.__flags, flags.__flags);
-
-	drm_gpusvm_notifier_unlock(gpusvm);
-	kvfree(pfns);
-set_seqno:
-	svm_pages->notifier_seq = hmm_range.notifier_seq;
 
 	return 0;
 
 err_unmap:
 	svm_pages->flags.has_dma_mapping = true;
 	__drm_gpusvm_unmap_pages(gpusvm, svm_pages, num_dma_mapped);
+	return err;
+}
+
+/**
+ * drm_gpusvm_get_pages() - Get pages and populate GPU SVM pages struct
+ * @gpusvm: Pointer to the GPU SVM structure
+ * @svm_pages: Array of SVM pages instances to populate with dma addresses
+ * @num_pages: Number of drm_gpusvm_pages instances in @svm_pages, must not be 0
+ * @mm: The mm corresponding to the CPU range
+ * @notifier: The corresponding notifier for the given CPU range
+ * @pages_start: Start CPU address for the pages
+ * @pages_end: End CPU address for the pages (exclusive)
+ * @ctx: GPU SVM context
+ *
+ * This function gets and maps pages for a CPU range and ensures they are
+ * mapped for DMA access. The HMM fault for the CPU range is performed once,
+ * the DMA mapping by drm_gpusvm_dma_map_pages() is then done per instance,
+ * one per owning drm_device. The retry against notifier races is kept here
+ * in common code so drivers never open code it.
+ *
+ * On error the instances mapped before the failing one stay mapped, so the
+ * caller must unmap and free every instance regardless of the return value.
+ *
+ * With &drm_gpusvm_ctx.no_dma_map no mapping state is recorded, so
+ * drm_gpusvm_pages_valid() never returns true and success is only a snapshot:
+ * the caller must recheck mmu_interval_read_retry() against the recorded
+ * &drm_gpusvm_pages.notifier_seq under the notifier lock, and hold it until
+ * its work is visible to invalidation.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int drm_gpusvm_get_pages(struct drm_gpusvm *gpusvm,
+			 struct drm_gpusvm_pages *svm_pages,
+			 unsigned int num_pages,
+			 struct mm_struct *mm,
+			 struct mmu_interval_notifier *notifier,
+			 unsigned long pages_start, unsigned long pages_end,
+			 const struct drm_gpusvm_ctx *ctx)
+{
+	struct hmm_range hmm_range = {
+		.default_flags = HMM_PFN_REQ_FAULT | (ctx->read_only ? 0 :
+			HMM_PFN_REQ_WRITE),
+		.notifier = notifier,
+		.start = pages_start,
+		.end = pages_end,
+		.dev_private_owner = ctx->device_private_page_owner,
+	};
+	unsigned long timeout =
+		jiffies + msecs_to_jiffies(HMM_RANGE_DEFAULT_TIMEOUT);
+	unsigned long remaining;
+	unsigned long npages = npages_in_range(pages_start, pages_end);
+	unsigned long *pfns;
+	int err = 0;
+	enum dma_data_direction dma_dir = ctx->read_only ? DMA_TO_DEVICE :
+							   DMA_BIDIRECTIONAL;
+	const bool map_dma = !ctx->no_dma_map;
+	unsigned int p;
+
+	if (!num_pages)
+		return -EINVAL;
+
+	if (ctx->no_dma_map && ctx->devmem_only)
+		return -EINVAL;
+
+	if (map_dma) {
+		for (p = 0; p < num_pages; ++p) {
+			if (!svm_pages[p].drm)
+				return -EINVAL;
+		}
+	}
+
+retry:
+	remaining = timeout - jiffies;
+
+	if (time_after_eq(jiffies, timeout))
+		return -EBUSY;
+
+	hmm_range.notifier_seq = mmu_interval_read_begin(notifier);
+
+	/*
+	 * drm_gpusvm_pages_valid_unlocked() also resets any instance whose
+	 * mapping was invalidated, so it must run on the map_dma path even when
+	 * devmem_fn suppresses the fast path; otherwise a stale inline mapping
+	 * is later mistaken for a dma_addr array by drm_gpusvm_dma_map_pages().
+	 */
+	if (map_dma) {
+		bool pages_valid = drm_gpusvm_pages_valid_unlocked(gpusvm,
+								   svm_pages,
+								   num_pages);
+
+		if (!ctx->devmem_fn && pages_valid)
+			goto set_seqno;
+	}
+
+	pfns = kvmalloc_array(npages, sizeof(*pfns), GFP_KERNEL);
+	if (!pfns)
+		return -ENOMEM;
+
+	if (!mmget_not_zero(mm)) {
+		err = -EFAULT;
+		goto err_free;
+	}
+
+	hmm_range.hmm_pfns = pfns;
+	err = hmm_range_fault_unlocked_timeout(&hmm_range, remaining);
+	mmput(mm);
+	if (err)
+		goto err_free;
+
+	if (map_dma) {
+		for (p = 0; p < num_pages; ++p) {
+			if (drm_gpusvm_pages_first_dma(&svm_pages[p], NULL))
+				continue;
+			svm_pages[p].dma_addr =
+				kvzalloc_objs(*svm_pages[p].dma_addr, npages);
+			if (!svm_pages[p].dma_addr) {
+				err = -ENOMEM;
+				goto err_free;
+			}
+		}
+	}
+
+	/*
+	 * Perform all dma mappings under the notifier lock to not
+	 * access freed pages. A notifier will either block on
+	 * the notifier lock or unmap dma.
+	 */
+	drm_gpusvm_notifier_lock(gpusvm);
+
+	/*
+	 * drm_gpusvm_range_set_unmapped() flags the whole array in one go under
+	 * the write lock, so any instance answers for all of them here.
+	 */
+	if (svm_pages[0].flags.unmapped) {
+		drm_gpusvm_notifier_unlock(gpusvm);
+		err = -EFAULT;
+		goto err_free;
+	}
+
+	if (mmu_interval_read_retry(notifier, hmm_range.notifier_seq)) {
+		drm_gpusvm_notifier_unlock(gpusvm);
+		kvfree(pfns);
+		goto retry;
+	}
+
+	if (ctx->devmem_fn)
+		drm_gpusvm_walk_devmem(gpusvm, pfns, npages, ctx);
+
+	if (map_dma) {
+		for (p = 0; p < num_pages; ++p) {
+			if (drm_gpusvm_pages_valid(gpusvm, &svm_pages[p]))
+				continue;
+
+			err = drm_gpusvm_dma_map_pages(gpusvm, &svm_pages[p], pfns,
+						       npages, ctx, dma_dir);
+			if (err) {
+				/*
+				 * The failing instance was unwound by the
+				 * helper. Keep the ones mapped earlier: the
+				 * -EAGAIN retry reuses them, and the driver
+				 * unmaps every instance with the range on the
+				 * other error paths.
+				 */
+				drm_gpusvm_notifier_unlock(gpusvm);
+				goto err_free;
+			}
+		}
+	}
+
 	drm_gpusvm_notifier_unlock(gpusvm);
+	kvfree(pfns);
+set_seqno:
+	for (p = 0; p < num_pages; ++p)
+		svm_pages[p].notifier_seq = hmm_range.notifier_seq;
+
+	return 0;
+
 err_free:
 	kvfree(pfns);
 	if (err == -EAGAIN)

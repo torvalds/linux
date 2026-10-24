@@ -56,8 +56,9 @@ struct panthor_pwr {
 	wait_queue_head_t reqs_acked;
 };
 
-static void panthor_pwr_irq_handler(struct panthor_device *ptdev, u32 status)
+static void panthor_pwr_irq_handler(struct panthor_irq *pirq, u32 status)
 {
+	struct panthor_device *ptdev = pirq->ptdev;
 	struct panthor_pwr *pwr = ptdev->pwr;
 
 	spin_lock(&ptdev->pwr->reqs_lock);
@@ -75,7 +76,11 @@ static void panthor_pwr_irq_handler(struct panthor_device *ptdev, u32 status)
 	}
 	spin_unlock(&ptdev->pwr->reqs_lock);
 }
-PANTHOR_IRQ_HANDLER(pwr, panthor_pwr_irq_handler);
+
+static irqreturn_t panthor_pwr_irq_threaded_handler(int irq, void *data)
+{
+	return panthor_irq_default_threaded_handler(data, panthor_pwr_irq_handler);
+}
 
 static void panthor_pwr_write_command(struct panthor_device *ptdev, u32 command, u64 args)
 {
@@ -454,7 +459,7 @@ void panthor_pwr_unplug(struct panthor_device *ptdev)
 
 	/* Make sure the IRQ handler is not running after that point. */
 	if (!IS_ENABLED(CONFIG_PM) || pm_runtime_active(ptdev->base.dev))
-		panthor_pwr_irq_suspend(&ptdev->pwr->irq);
+		panthor_irq_suspend(&ptdev->pwr->irq);
 
 	/* Wake-up all waiters. */
 	spin_lock_irqsave(&ptdev->pwr->reqs_lock, flags);
@@ -484,13 +489,14 @@ int panthor_pwr_init(struct panthor_device *ptdev)
 	if (irq < 0)
 		return irq;
 
-	err = panthor_request_pwr_irq(ptdev, &pwr->irq, irq,
-				      pwr->iomem + PWR_INT_BASE);
+	err = panthor_irq_request(ptdev, &pwr->irq, irq,
+				  pwr->iomem + PWR_INT_BASE, "pwr",
+				  panthor_pwr_irq_threaded_handler);
 	if (err)
 		return err;
 
-	panthor_pwr_irq_enable_events(&pwr->irq, PWR_INTERRUPTS_MASK);
-	panthor_pwr_irq_resume(&pwr->irq);
+	panthor_irq_enable_events(&pwr->irq, PWR_INTERRUPTS_MASK);
+	panthor_irq_resume(&pwr->irq);
 	return 0;
 }
 
@@ -566,7 +572,7 @@ void panthor_pwr_suspend(struct panthor_device *ptdev)
 	if (!ptdev->pwr)
 		return;
 
-	panthor_pwr_irq_suspend(&ptdev->pwr->irq);
+	panthor_irq_suspend(&ptdev->pwr->irq);
 }
 
 void panthor_pwr_resume(struct panthor_device *ptdev)
@@ -574,5 +580,5 @@ void panthor_pwr_resume(struct panthor_device *ptdev)
 	if (!ptdev->pwr)
 		return;
 
-	panthor_pwr_irq_resume(&ptdev->pwr->irq);
+	panthor_irq_resume(&ptdev->pwr->irq);
 }

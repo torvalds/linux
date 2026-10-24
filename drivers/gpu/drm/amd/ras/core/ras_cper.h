@@ -23,6 +23,7 @@
  */
 #ifndef __RAS_CPER_H__
 #define __RAS_CPER_H__
+#include "log_ring.h"
 
 #define CPER_UUID_MAX_SIZE 16
 struct ras_cper_guid {
@@ -30,15 +31,17 @@ struct ras_cper_guid {
 };
 
 #define CPER_GUID__INIT(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7)			\
-	((struct ras_cper_guid)								\
+	(struct ras_cper_guid)								\
 	{{ (a) & 0xff, ((a) >> 8) & 0xff, ((a) >> 16) & 0xff, ((a) >> 24) & 0xff, \
 		(b) & 0xff, ((b) >> 8) & 0xff,					\
 		(c) & 0xff, ((c) >> 8) & 0xff,					\
-		(d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7) }})
+		(d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7) }}
 
 #define CPER_HDR__REV_1          (0x100)
+#define CPER_HDR__REV_AMD_CPU    (0x101)
 #define CPER_SEC__MINOR_REV_1    (0x01)
 #define CPER_SEC__MAJOR_REV_22   (0x22)
+#define CPER_SEC__REV_AMD_CPU    (0x0100)
 #define CPER_OAM_MAX_COUNT      (8)
 
 #define CPER_CTX_TYPE__CRASH     (1)
@@ -46,6 +49,7 @@ struct ras_cper_guid {
 
 #define CPER_CREATOR_ID__AMDGPU	"amdgpu"
 
+/* Cper Notification Type */
 #define CPER_NOTIFY__MCE                                               \
 	CPER_GUID__INIT(0xE8F56FFE, 0x919C, 0x4cc5, 0xBA, 0x88, 0x65, 0xAB, \
 		  0xE1, 0x49, 0x13, 0xBB)
@@ -56,6 +60,7 @@ struct ras_cper_guid {
 	CPER_GUID__INIT(0x3D61A466, 0xAB40, 0x409a, 0xA6, 0x98, 0xF3, 0x62, \
 		  0xD4, 0x64, 0xB3, 0x8F)
 
+/* Cper Section Type */
 #define GPU__CRASHDUMP                                                 \
 	CPER_GUID__INIT(0x32AC0C78, 0x2623, 0x48F6, 0xB0, 0xD0, 0x73, 0x65, \
 		  0x72, 0x5F, 0xD6, 0xAE)
@@ -65,6 +70,43 @@ struct ras_cper_guid {
 #define PROC_ERR__SECTION_TYPE                                         \
 	CPER_GUID__INIT(0xDC3EA0B0, 0xA144, 0x4797, 0xB9, 0x5B, 0x53, 0xFA, \
 		  0x24, 0x2B, 0x6E, 0x1D)
+#define PROC_ERR__MS_CHECK_TYPE                                        \
+	CPER_GUID__INIT(0x48AB7F57, 0xDC34, 0x4F6C, 0xA7, 0xD3, 0xB0, 0xB5, \
+		  0xB0, 0xA7, 0x43, 0x14)
+#define PLATFORM_MEM__SECTION_TYPE                                     \
+	CPER_GUID__INIT(0xA5BC1114, 0x6F64, 0x4EDE, 0xB8, 0x63, 0x3E, 0x83, \
+		  0xED, 0x7C, 0x83, 0xB1)
+#define PCIE_ERR__SECTION_TYPE                                         \
+	CPER_GUID__INIT(0xD995E954, 0xBBC1, 0x430F, 0xAD, 0x91, 0xB4, 0x4D, \
+		  0xCB, 0x3C, 0x6F, 0x35)
+#define SMN_ERR__SECTION_TYPE                                          \
+	CPER_GUID__INIT(0xA2860CC1, 0x8987, 0x4B7C, 0xB8, 0x6A, 0xD5, 0x08, \
+		  0xB1, 0x76, 0xBA, 0x70)
+
+#define CPER_PROC_VALID_APIC_ID		BIT_ULL(0)
+#define CPER_PROC_ERR_INFO_COUNT(x)	(((u64)(x) & 0x3f) << 2)
+#define CPER_PROC_CONTEXT_COUNT(x)	(((u64)(x) & 0x3f) << 8)
+#define CPER_AMD_CONTEXT_COUNT(x)	(((u64)(x) & 0x3f) << 8)
+#define CPER_AMD_ERR_INFO_COUNT(x)	(((u64)(x) & 0x3f) << 2)
+
+#define CPER_PROC_INFO_VALID_CHECK_INFO	BIT_ULL(0)
+
+#define CPER_MS_CHECK_VALID_ERR_TYPE	BIT_ULL(0)
+#define CPER_MS_CHECK_VALID_PCC		BIT_ULL(1)
+#define CPER_MS_CHECK_VALID_UNCORRECTED	BIT_ULL(2)
+#define CPER_MS_CHECK_VALID_OVERFLOW	BIT_ULL(5)
+#define CPER_MS_CHECK_ERR_TYPE_INTERNAL	(5ULL << 16)
+#define CPER_MS_CHECK_PCC		BIT_ULL(19)
+#define CPER_MS_CHECK_UNCORRECTED	BIT_ULL(20)
+#define CPER_MS_CHECK_OVERFLOW		BIT_ULL(23)
+
+#define CPER_MCA_STATUS_OVERFLOW	BIT_ULL(62)
+#define CPER_MCA_STATUS_UNCORRECTED	BIT_ULL(61)
+#define CPER_MCA_STATUS_PCC		BIT_ULL(57)
+#define CPER_MCA_STATUS_DEFERRED	BIT_ULL(44)
+
+#define CPER_SMCA_MC0_STATUS_MSR	(0xc0002001U)
+#define CPER_SMCA_BANK_STRIDE		(0x10U)
 
 enum ras_cper_type {
 	RAS_CPER_TYPE_RUNTIME,
@@ -73,6 +115,7 @@ enum ras_cper_type {
 	RAS_CPER_TYPE_RMA,
 };
 
+/* Cper Error Severity */
 enum ras_cper_severity {
 	RAS_CPER_SEV_NON_FATAL_UE   = 0,
 	RAS_CPER_SEV_FATAL_UE       = 1,
@@ -137,7 +180,7 @@ struct cper_section_hdr {
 	uint8_t			reserved[12];     /* Reserved */
 };
 
-struct cper_section_descriptor {
+struct cper_section_desc {
 	uint32_t sec_offset;     /* Offset from the start of CPER entry */
 	uint32_t sec_length;
 	uint8_t  revision_minor; /* CPER_SEC_MINOR_REV_1 */
@@ -234,10 +277,10 @@ struct cper_section_runtime {
 };
 
 struct crashdump_hdr {
-	uint64_t reserved1;
-	uint64_t reserved2;
+	u64 valid_bits;
+	u32 pcie_device_id;
+	u32 pldm_bundle;
 	char     fw_id[48];
-	uint64_t reserved3[8];
 };
 
 struct fatal_reg_info {
@@ -263,29 +306,121 @@ struct crashdump_boot {
 	uint64_t msg[CPER_OAM_MAX_COUNT];
 };
 
+struct crashdump_error_info {
+	struct ras_cper_guid error_type;
+	u64 valid_bits;
+	u64 check_info;
+	u8 fru_part_number[16];
+	u8 redfish_event_id[16];
+};
+
 struct cper_section_fatal {
-	struct crashdump_hdr    hdr;
-	struct crashdump_fatal  data;
+	struct crashdump_hdr hdr;
+	struct crashdump_error_info error_info;
+	struct crashdump_fatal data;
 };
 
 struct cper_section_boot {
-	struct crashdump_hdr  hdr;
+	struct crashdump_hdr hdr;
+	struct crashdump_error_info error_info;
 	struct crashdump_boot data;
+};
+
+struct cper_processor_section {
+	u64 valid_bits;
+	u64 apic_id;
+	u8 cpuid[48];
+};
+
+struct cper_processor_error_info {
+	struct ras_cper_guid error_type;
+	u64 valid_bits;
+	u64 check_info;
+	u64 target_id;
+	u64 requester_id;
+	u64 responder_id;
+	u64 instruction_pointer;
+};
+
+struct cper_processor_context {
+	u16 reg_ctx_type;
+	u16 reg_arr_size;
+	u32 msr_addr;
+	u64 mm_reg_addr;
+	u64 reg_dump[RAS_CPER_ACA_REG_COUNT];
+};
+
+struct cper_section_processor {
+	struct cper_processor_section processor;
+	struct cper_processor_error_info error_info;
+	struct cper_processor_context context;
 };
 
 struct ras_cper_fatal_record {
 	struct cper_section_hdr hdr;
-	struct cper_section_descriptor descriptor;
+	struct cper_section_desc descriptor;
 	struct cper_section_fatal fatal;
 };
+
+struct ras_cper_boot_record {
+	struct cper_section_hdr hdr;
+	struct cper_section_desc descriptor;
+	struct cper_section_boot boot;
+};
+
+struct ras_cper_processor_record {
+	struct cper_section_hdr hdr;
+	struct cper_section_desc descriptor;
+	struct cper_section_processor processor;
+};
+
 #pragma pack(pop)
 
-#define RAS_HDR_LEN				(sizeof(struct cper_section_hdr))
-#define RAS_SEC_DESC_LEN			(sizeof(struct cper_sec_desc))
+struct ras_core_context;
+struct ras_log_info;
+enum ras_log_event;
+/*
+ * Per-event description of how to build its CPER record(s).
+ *
+ * Fixed fields (severity/notify_type/sec_type) are used as-is unless the matching
+ * optional hook (get_severity/get_notify_type/get_sec_type) is provided.
+ */
+struct ras_cper_profile {
+	enum ras_cper_type     cper_type;
+	enum ras_cper_severity severity;
+	struct ras_cper_guid   notify_type;
+	struct ras_cper_guid   sec_type;
+	uint32_t section_size;
+	/* true: one CPER record per log */
+	bool build_record_per_log;
 
-#define RAS_BOOT_SEC_LEN			(sizeof(struct cper_sec_crashdump_boot))
-#define RAS_FATAL_SEC_LEN			(sizeof(struct cper_sec_crashdump_fatal))
-#define RAS_NONSTD_SEC_LEN			(sizeof(struct cper_sec_nonstd_err))
+	int (*get_severity)(struct ras_log_info *log, enum ras_cper_severity *out);
+	int (*get_notify_type)(struct ras_log_info *log, struct ras_cper_guid *out);
+	int (*get_sec_type)(struct ras_log_info *log, struct ras_cper_guid *out);
+
+	/* Required: fill the error-type specific section body for one log */
+	int (*fill_section)(struct ras_core_context *ras_core, void *section,
+			    struct ras_log_info *log, enum ras_cper_severity sev);
+};
+
+struct ras_event_profile_map {
+	uint32_t event;
+	struct ras_cper_profile *profile;
+};
+
+struct ras_cper {
+	struct ras_cper_profile *profiles;
+	uint32_t nr_profiles;
+	struct mutex profile_mutex;
+};
+
+#define RAS_HDR_LEN				(sizeof(struct cper_section_hdr))
+#define RAS_SEC_DESC_LEN			(sizeof(struct cper_section_desc))
+
+#define RAS_BOOT_SEC_LEN			(sizeof(struct cper_section_boot))
+#define RAS_FATAL_SEC_LEN			(sizeof(struct cper_section_fatal))
+#define RAS_NONSTD_SEC_LEN			(sizeof(struct cper_section_runtime))
+#define RAS_PROC_SEC_LEN			(sizeof(struct cper_section_processor))
 
 #define RAS_SEC_DESC_OFFSET(idx)		(RAS_HDR_LEN + (RAS_SEC_DESC_LEN * idx))
 
@@ -296,9 +431,13 @@ struct ras_cper_fatal_record {
 #define RAS_NONSTD_SEC_OFFSET(count, idx) \
 	(RAS_HDR_LEN + (RAS_SEC_DESC_LEN * count) + (RAS_NONSTD_SEC_LEN * idx))
 
-struct ras_core_context;
-struct ras_log_info;
-int ras_cper_generate_cper(struct ras_core_context *ras_core,
-		struct ras_log_info *trace_list, uint32_t count,
+int ras_cper_sw_init(struct ras_core_context *ras_core);
+int ras_cper_sw_fini(struct ras_core_context *ras_core);
+int ras_cper_generate_batch_cper(struct ras_core_context *ras_core,
+		struct ras_log_info *batch_logs, uint32_t nr_batch_logs,
 		uint8_t *buf, uint32_t buf_len, uint32_t *real_data_len);
+int ras_cper_register_profile(struct ras_core_context *ras_core,
+	enum ras_log_event event, struct ras_cper_profile *profile);
+int ras_cper_unregister_profile(struct ras_core_context *ras_core,
+	enum ras_log_event event);
 #endif

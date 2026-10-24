@@ -285,6 +285,7 @@
 	__SMU_DUMMY_MAP(GetStaticMetricsTable), \
 	__SMU_DUMMY_MAP(GetSystemMetricsTable), \
 	__SMU_DUMMY_MAP(GetRASTableVersion), \
+	__SMU_DUMMY_MAP(GetRmaStatus),    \
 	__SMU_DUMMY_MAP(GetBadPageCount), \
 	__SMU_DUMMY_MAP(GetBadPageMcaAddr), \
 	__SMU_DUMMY_MAP(SetTimestamp), \

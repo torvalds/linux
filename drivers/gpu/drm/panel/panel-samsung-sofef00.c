@@ -18,6 +18,8 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 
+#include "panel-samsung-dsi.h"
+
 struct sofef00_panel {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
@@ -36,11 +38,6 @@ struct sofef00_panel *to_sofef00_panel(struct drm_panel *panel)
 {
 	return container_of(panel, struct sofef00_panel, panel);
 }
-
-#define sofef00_test_key_on_lvl2(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0xf0, 0x5a, 0x5a)
-#define sofef00_test_key_off_lvl2(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0xf0, 0xa5, 0xa5)
 
 static void sofef00_panel_reset(struct sofef00_panel *ctx)
 {
@@ -62,14 +59,14 @@ static int sofef00_panel_on(struct sofef00_panel *ctx)
 	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 11000);
 
-	sofef00_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_set_tear_on_multi(&dsi_ctx, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
-	sofef00_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 
-	sofef00_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x07);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb6, 0x12);
-	sofef00_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MIPI_DCS_WRITE_CONTROL_DISPLAY, 0x20);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MIPI_DCS_WRITE_POWER_SAVE, 0x00);
@@ -250,28 +247,17 @@ static int sofef00_panel_probe(struct mipi_dsi_device *dsi)
 		return dev_err_probe(dev, PTR_ERR(ctx->panel.backlight),
 				     "Failed to create backlight\n");
 
-	drm_panel_add(&ctx->panel);
+	ret = devm_drm_panel_add(dev, &ctx->panel);
+	if (ret)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "Failed to attach to DSI host: %d\n", ret);
-		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void sofef00_panel_remove(struct mipi_dsi_device *dsi)
-{
-	struct sofef00_panel *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
-
-	drm_panel_remove(&ctx->panel);
 }
 
 static const struct of_device_id sofef00_panel_of_match[] = {
@@ -283,7 +269,6 @@ MODULE_DEVICE_TABLE(of, sofef00_panel_of_match);
 
 static struct mipi_dsi_driver sofef00_panel_driver = {
 	.probe = sofef00_panel_probe,
-	.remove = sofef00_panel_remove,
 	.driver = {
 		.name = "panel-samsung-sofef00",
 		.of_match_table = sofef00_panel_of_match,

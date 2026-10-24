@@ -7,6 +7,7 @@
 
 #include <kunit/test.h>
 #include <linux/dma-buf.h>
+#include <linux/dynamic_debug.h>
 #include <linux/pci-p2pdma.h>
 
 #include <drm/drm_device.h>
@@ -22,13 +23,29 @@
 
 MODULE_IMPORT_NS("DMA_BUF");
 
+#if defined(CONFIG_DYNAMIC_DEBUG) || \
+	(defined(CONFIG_DYNAMIC_DEBUG_CORE) && defined(DYNAMIC_DEBUG_MODULE))
+static void xe_ddebug_flip_bool(const struct _ddebug *desc, bool *flag)
+{
+	*flag = true;
+}
+
+#define xe_dma_buf_p2p_debug_flip(flag) \
+	_dynamic_func_call("xe dma-buf p2p debug", xe_ddebug_flip_bool, flag)
+#else
+#define xe_dma_buf_p2p_debug_flip(flag) do { } while (0)
+#endif
+
 static int xe_dma_buf_attach(struct dma_buf *dmabuf,
 			     struct dma_buf_attachment *attach)
 {
 	struct drm_gem_object *obj = attach->dmabuf->priv;
+	bool verbose_p2p_dist = drm_debug_enabled(DRM_UT_DRIVER);
+
+	xe_dma_buf_p2p_debug_flip(&verbose_p2p_dist);
 
 	if (attach->peer2peer &&
-	    pci_p2pdma_distance(to_pci_dev(obj->dev->dev), attach->dev, false) < 0)
+	    pci_p2pdma_distance(to_pci_dev(obj->dev->dev), attach->dev, verbose_p2p_dist) < 0)
 		attach->peer2peer = false;
 
 	if (!attach->peer2peer && !xe_bo_can_migrate(gem_to_xe_bo(obj), XE_PL_TT))
@@ -103,6 +120,9 @@ static struct sg_table *xe_dma_buf_map(struct dma_buf_attachment *attach,
 	struct drm_exec *exec = XE_VALIDATION_UNSUPPORTED;
 	struct sg_table *sgt;
 	int r = 0;
+
+	if (xe_bo_is_purged(bo))
+		return ERR_PTR(-ENOENT);
 
 	if (!attach->peer2peer && !xe_bo_can_migrate(bo, XE_PL_TT))
 		return ERR_PTR(-EOPNOTSUPP);

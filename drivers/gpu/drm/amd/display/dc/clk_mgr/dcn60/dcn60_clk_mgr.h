@@ -17,14 +17,20 @@ union dcn60_clk_mgr_block_sequence_params {
 		uint16_t freq_mhz;
 		/* outputs */
 		int *response;
-	} update_hardmin_params;
+	} set_ppclk_params;
 	struct {
 		/* inputs */
 		uint32_t ppclk;
 		int freq_khz;
 		/* outputs */
 		int *response;
-	} update_hardmin_optimized_params;
+	} set_ppclk_optimized_params;
+	struct {
+		/* inputs */
+		uint16_t freq_mhz;
+		/* outputs */
+		int *response;
+	} update_hardmin_dcfclk_params;
 	struct {
 		/* inputs */
 		uint16_t freq_mhz;
@@ -72,8 +78,7 @@ union dcn60_clk_mgr_block_sequence_params {
 
 enum dcn60_clk_mgr_block_sequence_func {
 	CLK_MGR60_READ_CLOCKS_FROM_DENTIST,
-	CLK_MGR60_UPDATE_HARDMIN_PPCLK,
-	CLK_MGR60_UPDATE_HARDMIN_PPCLK_OPTIMIZED,
+	CLK_MGR60_UPDATE_HARDMIN_DCFCLK,
 	CLK_MGR60_UPDATE_DEEP_SLEEP_DCFCLK,
 	CLK_MGR60_INDICATE_PSTATE_STATUS,
 	CLK_MGR60_UPDATE_DPPCLK_DTO,
@@ -81,7 +86,9 @@ enum dcn60_clk_mgr_block_sequence_func {
 	CLK_MGR60_UPDATE_DENTIST,
 	CLK_MGR60_UPDATE_PSR_WAIT_LOOP,
 	CLK_MGR60_UPDATE_STUTTER_EFFICIENCY,
-	CLK_MGR60_UPDATE_UTM_QOS_REQUEST
+	CLK_MGR60_UPDATE_UTM_QOS_REQUEST,
+	CLK_MGR60_SET_PPCLK,
+	CLK_MGR60_SET_PPCLK_OPTIMIZED,
 };
 
 struct dcn60_clk_mgr_block_sequence {

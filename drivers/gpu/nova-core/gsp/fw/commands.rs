@@ -131,6 +131,29 @@ impl GspStaticConfigInfo {
         self.0.gpuNameString
     }
 
+    /// Returns a bytes array containing the (hopefully) zero-terminated short name of this GPU.
+    pub(crate) fn gpu_short_name_str(&self) -> [u8; 64] {
+        self.0.gpuShortNameString
+    }
+
+    /// Returns the 16-byte SHA-1 GPU identifier supplied by GSP-RM.
+    ///
+    /// GSP-RM reports the GID in binary SHA-1 form, which occupies the first 16 bytes of the
+    /// GID info payload.
+    pub(crate) fn gpu_gid(&self) -> [u8; 16] {
+        let mut gid = [0u8; 16];
+        gid.copy_from_slice(&self.0.gidInfo.data[..16]);
+        gid
+    }
+
+    /// Returns the BAR1 Page Directory Entry base address.
+    ///
+    /// This is the root page table address for BAR1 virtual memory,
+    /// set up by GSP-RM firmware.
+    pub(crate) fn bar1_pde_base(&self) -> u64 {
+        self.0.bar1PdeBase
+    }
+
     /// Returns an iterator over valid FB regions from GSP firmware data.
     fn fb_regions(
         &self,
@@ -164,6 +187,11 @@ impl GspStaticConfigInfo {
                 None
             }
         })
+    }
+
+    /// Computes the exclusive end of the FB physical address space.
+    pub(crate) fn total_fb_end(&self) -> Option<u64> {
+        self.fb_regions().map(|reg| reg.limit).max()?.checked_add(1)
     }
 }
 

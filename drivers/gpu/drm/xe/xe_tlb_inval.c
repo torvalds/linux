@@ -5,6 +5,7 @@
 
 #include <drm/drm_managed.h>
 
+#include "xe_devcoredump.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
 #include "xe_gt_stats.h"
@@ -13,6 +14,7 @@
 #include "xe_guc_tlb_inval.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
+#include "xe_printk.h"
 #include "xe_tlb_inval.h"
 #include "xe_trace.h"
 
@@ -28,6 +30,12 @@
  */
 
 #define FENCE_STACK_BIT		DMA_FENCE_FLAG_USER_BITS
+
+/* The frontend is only ever embedded in a GT */
+static struct xe_gt *tlb_inval_to_gt(struct xe_tlb_inval *tlb_inval)
+{
+	return container_of(tlb_inval, struct xe_gt, tlb_inval);
+}
 
 static void xe_tlb_inval_fence_fini(struct xe_tlb_inval_fence *fence)
 {
@@ -73,6 +81,7 @@ static void xe_tlb_inval_fence_timeout(struct work_struct *work)
 	struct xe_device *xe = tlb_inval->xe;
 	struct xe_tlb_inval_fence *fence, *next;
 	long timeout_delay = tlb_inval->ops->timeout_delay(tlb_inval);
+	int timedout_seqno = 0, seqno_recv = 0;
 
 	tlb_inval->ops->flush(tlb_inval);
 
@@ -90,13 +99,45 @@ static void xe_tlb_inval_fence_timeout(struct work_struct *work)
 			"TLB invalidation fence timeout, seqno=%d recv=%d",
 			fence->seqno, tlb_inval->seqno_recv);
 
+		if (!timedout_seqno) {
+			/*
+			 * Hold a PM reference across the capture below. Every
+			 * pending fence holds one, so the device is awake
+			 * here, but signalling them may drop the last
+			 * reference and let it autosuspend before the
+			 * snapshot touches the hardware.
+			 */
+			xe_pm_runtime_get_noresume(xe);
+		}
+
+		timedout_seqno = fence->seqno;
+		if (!tlb_inval->timedout_seqno) {
+			tlb_inval->timedout_seqno = fence->seqno;
+			tlb_inval->timedout_inval_time = fence->inval_time;
+			tlb_inval->timedout_time = ktime_get();
+		}
+
 		fence->base.error = -ETIME;
 		xe_tlb_inval_fence_signal(fence);
 	}
 	if (!list_empty(&tlb_inval->pending_fences))
 		queue_delayed_work(tlb_inval->timeout_wq, &tlb_inval->fence_tdr,
 				   timeout_delay);
+	seqno_recv = tlb_inval->seqno_recv;
 	spin_unlock_irq(&tlb_inval->pending_lock);
+
+	/*
+	 * Capture the GuC log and CT state so the firmware side of the hang
+	 * can be inspected; there is no queue or job to blame here. Must be
+	 * outside pending_lock as the capture takes sleeping locks, hence
+	 * @seqno_recv is sampled above while the lock is still held.
+	 */
+	if (timedout_seqno) {
+		xe_devcoredump_gt(tlb_inval_to_gt(tlb_inval),
+				  "TLB invalidation fence timeout, seqno=%d recv=%d",
+				  timedout_seqno, seqno_recv);
+		xe_pm_runtime_put(xe);
+	}
 }
 
 /**
@@ -207,6 +248,7 @@ void xe_tlb_inval_reset(struct xe_tlb_inval *tlb_inval)
 	else
 		pending_seqno = tlb_inval->seqno - 1;
 	WRITE_ONCE(tlb_inval->seqno_recv, pending_seqno);
+	tlb_inval->timedout_seqno = 0;
 
 	list_for_each_entry_safe(fence, next,
 				 &tlb_inval->pending_fences, link)
@@ -302,6 +344,26 @@ int xe_tlb_inval_all(struct xe_tlb_inval *tlb_inval,
 }
 
 /**
+ * xe_tlb_inval_issue_op_wait() - Issue a TLB invalidation and wait
+ * @tlb_inval: TLB invalidation client
+ * @op: backend invalidation hook to issue
+ *
+ * Return: 0 on success, negative error code on error
+ */
+static int xe_tlb_inval_issue_op_wait(struct xe_tlb_inval *tlb_inval,
+				      int (*op)(struct xe_tlb_inval *tlb_inval, u32 seqno))
+{
+	struct xe_tlb_inval_fence fence, *fence_ptr = &fence;
+	int ret;
+
+	xe_tlb_inval_fence_init(tlb_inval, fence_ptr, true);
+	ret = xe_tlb_inval_issue(tlb_inval, fence_ptr, op);
+	xe_tlb_inval_fence_wait(fence_ptr);
+
+	return ret;
+}
+
+/**
  * xe_tlb_inval_ggtt() - Issue a TLB invalidation for the GGTT
  * @tlb_inval: TLB invalidation client
  *
@@ -312,14 +374,24 @@ int xe_tlb_inval_all(struct xe_tlb_inval *tlb_inval,
  */
 int xe_tlb_inval_ggtt(struct xe_tlb_inval *tlb_inval)
 {
-	struct xe_tlb_inval_fence fence, *fence_ptr = &fence;
-	int ret;
+	return xe_tlb_inval_issue_op_wait(tlb_inval, tlb_inval->ops->ggtt);
+}
 
-	xe_tlb_inval_fence_init(tlb_inval, fence_ptr, true);
-	ret = xe_tlb_inval_issue(tlb_inval, fence_ptr, tlb_inval->ops->ggtt);
-	xe_tlb_inval_fence_wait(fence_ptr);
+/**
+ * xe_tlb_inval_ggtt_full() - Full engine TLB invalidation within a VF
+ * @tlb_inval: TLB invalidation client
+ *
+ * Issue INVAL_FULL (intra vf) to flush engine TLBs across all engines
+ * within the requesting VF.
+ *
+ * Return: 0 on success, negative error code on error
+ */
+int xe_tlb_inval_ggtt_full(struct xe_tlb_inval *tlb_inval)
+{
+	if (!tlb_inval->ops->ggtt_full)
+		return -EOPNOTSUPP;
 
-	return ret;
+	return xe_tlb_inval_issue_op_wait(tlb_inval, tlb_inval->ops->ggtt_full);
 }
 
 /**
@@ -404,6 +476,18 @@ void xe_tlb_inval_done_handler(struct xe_tlb_inval *tlb_inval, int seqno)
 	}
 
 	WRITE_ONCE(tlb_inval->seqno_recv, seqno);
+
+	if (tlb_inval->timedout_seqno &&
+	    xe_tlb_inval_seqno_past(tlb_inval, tlb_inval->timedout_seqno)) {
+		ktime_t now = ktime_get();
+
+		xe_warn(xe,
+			"TLB invalidation late ack: seqno=%d recv=%d, request-to-ack=%lldms, timeout-to-ack=%lldms",
+			tlb_inval->timedout_seqno, seqno,
+			ktime_ms_delta(now, tlb_inval->timedout_inval_time),
+			ktime_ms_delta(now, tlb_inval->timedout_time));
+		tlb_inval->timedout_seqno = 0;
+	}
 
 	list_for_each_entry_safe(fence, next,
 				 &tlb_inval->pending_fences, link) {

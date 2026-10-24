@@ -74,5 +74,5 @@ examples:
             dc-gpios = <&gpio0 25 GPIO_ACTIVE_HIGH>;
             rotation = <90>;
             backlight = <&backlight>;
-       };
+        };
     };

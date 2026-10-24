@@ -403,7 +403,7 @@ init_table_(struct nvbios_init *init, u16 offset, const char *name)
 #define init_io_condition_table(b) init_table_((b), 0x08, "io condition table")
 #define init_io_flag_condition_table(b) init_table_((b), 0x0a, "io flag condition table")
 #define init_function_table(b) init_table_((b), 0x0c, "function table")
-#define init_xlat_table(b) init_table_((b), 0x10, "xlat table");
+#define init_xlat_table(b) init_table_((b), 0x10, "xlat table")
 
 static u16
 init_script(struct nvkm_bios *bios, int index)

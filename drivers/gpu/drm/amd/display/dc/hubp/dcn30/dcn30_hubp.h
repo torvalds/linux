@@ -260,7 +260,8 @@ void hubp3_set_vm_system_aperture_settings(struct hubp *hubp,
 bool hubp3_program_surface_flip_and_addr(
 	struct hubp *hubp,
 	const struct dc_plane_address *address,
-	bool flip_immediate);
+	bool flip_immediate,
+	bool dcc);
 
 void hubp3_program_surface_config(
 	struct hubp *hubp,

@@ -173,9 +173,7 @@ impl<'a> Falcon<'a, Fsp> {
             return Err(EMSGSIZE);
         }
 
-        let mut buffer = KVec::<u8>::new();
-        buffer.resize(msg_size, 0, GFP_KERNEL)?;
-
+        let mut buffer = KVec::zeroed(msg_size, GFP_KERNEL)?;
         self.read_emem(&mut buffer)?;
 
         // Reset message queue pointers after reading.

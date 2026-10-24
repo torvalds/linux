@@ -143,6 +143,7 @@ struct dcn_hubbub_registers {
 	uint32_t DCHVM_CLK_CTRL;
 	uint32_t DCHVM_RIOMMU_CTRL0;
 	uint32_t DCHVM_RIOMMU_STAT0;
+	uint32_t DCHVM_PREFETCH_VFID;
 	uint32_t DCHUBBUB_DET0_CTRL;
 	uint32_t DCHUBBUB_DET1_CTRL;
 	uint32_t DCHUBBUB_DET2_CTRL;
@@ -215,6 +216,7 @@ struct dcn_hubbub_registers {
 	uint32_t DC_PERFMON5_PERFMON_HI;
 	uint32_t DC_PERFMON5_PERFMON_LOW;
 	uint32_t FMON_CTRL;
+	uint32_t UTM_CLIENT_TO_SYSTEM_PROFILE_MAPPING_0;
 };
 
 #define HUBBUB_REG_FIELD_LIST_DCN32(type) \
@@ -397,7 +399,8 @@ struct dcn_hubbub_registers {
 		type HOSTVM_PREFETCH_REQ; \
 		type HOSTVM_POWERSTATUS; \
 		type RIOMMU_ACTIVE; \
-		type HOSTVM_PREFETCH_DONE
+		type HOSTVM_PREFETCH_DONE; \
+		type HOSTVM_PREFETCH_VFID
 
 #define HUBBUB_RET_REG_FIELD_LIST(type) \
 		type DET_DEPTH;\
@@ -545,7 +548,11 @@ struct dcn_hubbub_registers {
 
 #define HUBBUB_REG_FIELD_LIST_DCN60(type) \
 		type DCHUBBUB_ARB_BUFFER_FULLNESS_WATERMARK_A;\
-		type DCHUBBUB_ARB_BUFFER_FULLNESS_WATERMARK_B
+		type DCHUBBUB_ARB_BUFFER_FULLNESS_WATERMARK_B;\
+		type SYSTEM_PROFILE_QC0;\
+		type SYSTEM_PROFILE_QC1;\
+		type SYSTEM_PROFILE_QC2;\
+		type SYSTEM_PROFILE_QC3
 
 struct dcn_hubbub_shift {
 	DCN_HUBBUB_REG_FIELD_LIST(uint8_t);

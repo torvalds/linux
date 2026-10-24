@@ -334,6 +334,9 @@ void xe_sysctrl_create_command(struct xe_sysctrl_mailbox_command *command, u8 gr
  * If a response is expected, @cmd->data_out must point to a buffer of
  * size @cmd->data_out_len supplied by caller.
  *
+ * @cmd->timeout_ms specifies the response timeout in milliseconds.
+ * A value of 0 uses %XE_SYSCTRL_MB_DEFAULT_TIMEOUT_MS.
+ *
  * On success, @rdata_len is updated with number of valid response bytes
  * returned by firmware, bounded by @cmd->data_out_len.
  *
@@ -347,6 +350,7 @@ int xe_sysctrl_send_command(struct xe_sysctrl *sc,
 	u8 group_id, command_code;
 	u8 *mbox_cmd = NULL;
 	size_t cmd_size = 0;
+	unsigned int timeout_ms;
 	int ret;
 
 	guard(xe_pm_runtime_noresume)(xe);
@@ -360,6 +364,7 @@ int xe_sysctrl_send_command(struct xe_sysctrl *sc,
 
 	group_id = XE_SYSCTRL_APP_HDR_GROUP_ID(&cmd->header);
 	command_code = XE_SYSCTRL_APP_HDR_COMMAND(&cmd->header);
+	timeout_ms = cmd->timeout_ms ?: XE_SYSCTRL_MB_DEFAULT_TIMEOUT_MS;
 
 	might_sleep();
 
@@ -375,7 +380,7 @@ int xe_sysctrl_send_command(struct xe_sysctrl *sc,
 
 	ret = sysctrl_send_command(sc, mbox_cmd, cmd_size,
 				   cmd->data_out, cmd->data_out_len, rdata_len,
-				   XE_SYSCTRL_MB_DEFAULT_TIMEOUT_MS);
+				   timeout_ms);
 	if (ret)
 		xe_err(xe, "sysctrl: Mailbox command failed: %pe\n", ERR_PTR(ret));
 

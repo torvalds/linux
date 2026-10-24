@@ -465,8 +465,8 @@ static int s6e63j0x03_probe(struct mipi_dsi_device *dsi)
 
 	ctx->panel.prepare_prev_first = true;
 
-	ctx->bl_dev = backlight_device_register("s6e63j0x03", dev, ctx,
-						&s6e63j0x03_bl_ops, NULL);
+	ctx->bl_dev = devm_backlight_device_register(dev, "s6e63j0x03", dev, ctx,
+						     &s6e63j0x03_bl_ops, NULL);
 	if (IS_ERR(ctx->bl_dev))
 		return dev_err_probe(dev, PTR_ERR(ctx->bl_dev),
 				     "failed to register backlight device\n");
@@ -475,29 +475,11 @@ static int s6e63j0x03_probe(struct mipi_dsi_device *dsi)
 	ctx->bl_dev->props.brightness = DEFAULT_BRIGHTNESS;
 	ctx->bl_dev->props.power = BACKLIGHT_POWER_OFF;
 
-	drm_panel_add(&ctx->panel);
+	ret = devm_drm_panel_add(dev, &ctx->panel);
+	if (ret)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
-	if (ret < 0)
-		goto remove_panel;
-
-	return ret;
-
-remove_panel:
-	drm_panel_remove(&ctx->panel);
-	backlight_device_unregister(ctx->bl_dev);
-
-	return ret;
-}
-
-static void s6e63j0x03_remove(struct mipi_dsi_device *dsi)
-{
-	struct s6e63j0x03 *ctx = mipi_dsi_get_drvdata(dsi);
-
-	mipi_dsi_detach(dsi);
-	drm_panel_remove(&ctx->panel);
-
-	backlight_device_unregister(ctx->bl_dev);
+	return devm_mipi_dsi_attach(dev, dsi);
 }
 
 static const struct of_device_id s6e63j0x03_of_match[] = {
@@ -508,7 +490,6 @@ MODULE_DEVICE_TABLE(of, s6e63j0x03_of_match);
 
 static struct mipi_dsi_driver s6e63j0x03_driver = {
 	.probe = s6e63j0x03_probe,
-	.remove = s6e63j0x03_remove,
 	.driver = {
 		.name = "panel_samsung_s6e63j0x03",
 		.of_match_table = s6e63j0x03_of_match,

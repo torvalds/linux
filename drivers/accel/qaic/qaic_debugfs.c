@@ -5,6 +5,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/device-id/mhi.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/mhi.h>

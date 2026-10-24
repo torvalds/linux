@@ -113,8 +113,6 @@ int smu_v15_0_init_microcode(struct smu_context *smu);
 
 void smu_v15_0_fini_microcode(struct smu_context *smu);
 
-int smu_v15_0_load_microcode(struct smu_context *smu);
-
 int smu_v15_0_init_smc_tables(struct smu_context *smu);
 
 int smu_v15_0_fini_smc_tables(struct smu_context *smu);
@@ -182,10 +180,6 @@ int smu_v15_0_set_performance_level(struct smu_context *smu,
 
 int smu_v15_0_set_power_source(struct smu_context *smu,
 			       enum smu_power_src_type power_src);
-
-int smu_v15_0_set_single_dpm_table(struct smu_context *smu,
-				   enum smu_clk_type clk_type,
-				   struct smu_dpm_table *single_dpm_table);
 
 int smu_v15_0_gfx_ulv_control(struct smu_context *smu,
 			      bool enablement);

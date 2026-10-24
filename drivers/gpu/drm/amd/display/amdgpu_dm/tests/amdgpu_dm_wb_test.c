@@ -23,6 +23,151 @@
 #include "amdgpu_dm_wb.h"
 #include "amdgpu_dm_kunit_test_helpers.h"
 
+struct dm_wb_test_bo {
+	struct amdgpu_bo bo;
+	struct amdgpu_device *adev;
+	int reserve_ret;
+	int reserve_fences_ret;
+	int pin_ret;
+	int alloc_gart_ret;
+	u64 gpu_offset;
+	unsigned int reserve_count;
+	unsigned int reserve_fences_count;
+	unsigned int pin_count;
+	unsigned int alloc_gart_count;
+	unsigned int unreserve_count;
+	unsigned int ref_count;
+	unsigned int unpin_count;
+	unsigned int unref_count;
+	unsigned int call_seq;
+	unsigned int reserve_seq;
+	unsigned int unreserve_seq;
+	unsigned int unpin_seq;
+	unsigned int unref_seq;
+};
+
+static struct dm_wb_test_bo *to_dm_wb_test_bo(struct amdgpu_bo *bo)
+{
+	return container_of(bo, struct dm_wb_test_bo, bo);
+}
+
+static int dm_wb_test_reserve(struct amdgpu_bo *bo, bool interruptible)
+{
+	struct dm_wb_test_bo *test_bo = to_dm_wb_test_bo(bo);
+
+	test_bo->reserve_count++;
+	test_bo->reserve_seq = ++test_bo->call_seq;
+	return test_bo->reserve_ret;
+}
+
+static int dm_wb_test_reserve_fences(struct dma_resv *resv,
+				     unsigned int num_fences)
+{
+	struct dm_wb_test_bo *test_bo;
+
+	test_bo = container_of(resv, struct dm_wb_test_bo, bo.tbo.base._resv);
+	test_bo->reserve_fences_count++;
+	return test_bo->reserve_fences_ret;
+}
+
+static int dm_wb_test_pin(struct amdgpu_bo *bo, u32 domain)
+{
+	struct dm_wb_test_bo *test_bo = to_dm_wb_test_bo(bo);
+
+	test_bo->pin_count++;
+	return test_bo->pin_ret;
+}
+
+static int dm_wb_test_alloc_gart(struct ttm_buffer_object *tbo)
+{
+	struct dm_wb_test_bo *test_bo = to_dm_wb_test_bo(ttm_to_amdgpu_bo(tbo));
+
+	test_bo->alloc_gart_count++;
+	return test_bo->alloc_gart_ret;
+}
+
+static void dm_wb_test_unreserve(struct amdgpu_bo *bo)
+{
+	struct dm_wb_test_bo *test_bo = to_dm_wb_test_bo(bo);
+
+	test_bo->unreserve_count++;
+	test_bo->unreserve_seq = ++test_bo->call_seq;
+}
+
+static u64 dm_wb_test_gpu_offset(struct amdgpu_bo *bo)
+{
+	return to_dm_wb_test_bo(bo)->gpu_offset;
+}
+
+static struct amdgpu_bo *dm_wb_test_ref(struct amdgpu_bo *bo)
+{
+	to_dm_wb_test_bo(bo)->ref_count++;
+	return bo;
+}
+
+static void dm_wb_test_unpin(struct amdgpu_bo *bo)
+{
+	struct dm_wb_test_bo *test_bo = to_dm_wb_test_bo(bo);
+
+	test_bo->unpin_count++;
+	test_bo->unpin_seq = ++test_bo->call_seq;
+}
+
+static void dm_wb_test_unref(struct amdgpu_bo **bo)
+{
+	struct dm_wb_test_bo *test_bo = to_dm_wb_test_bo(*bo);
+
+	test_bo->unref_count++;
+	test_bo->unref_seq = ++test_bo->call_seq;
+	*bo = NULL;
+}
+
+static const struct amdgpu_dm_wb_kunit_ops dm_wb_test_ops = {
+	.reserve = dm_wb_test_reserve,
+	.reserve_fences = dm_wb_test_reserve_fences,
+	.pin = dm_wb_test_pin,
+	.alloc_gart = dm_wb_test_alloc_gart,
+	.unreserve = dm_wb_test_unreserve,
+	.gpu_offset = dm_wb_test_gpu_offset,
+	.ref = dm_wb_test_ref,
+	.unpin = dm_wb_test_unpin,
+	.unref = dm_wb_test_unref,
+};
+
+static void dm_wb_test_reset_ops(void *unused)
+{
+	amdgpu_dm_wb_kunit_set_ops(NULL);
+}
+
+static struct drm_writeback_job *dm_wb_test_alloc_job(struct kunit *test,
+						      struct dm_wb_test_bo **test_bo)
+{
+	struct amdgpu_framebuffer *afb;
+	struct drm_writeback_job *job;
+
+	*test_bo = kunit_kzalloc(test, sizeof(**test_bo), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, *test_bo);
+	(*test_bo)->adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_NULL(test, (*test_bo)->adev);
+
+	/* Let the driver's real BO and device lookups resolve to the fake BO. */
+	(*test_bo)->bo.tbo.bdev = &(*test_bo)->adev->mman.bdev;
+	(*test_bo)->bo.tbo.base.resv = &(*test_bo)->bo.tbo.base._resv;
+
+	afb = kunit_kzalloc(test, sizeof(*afb), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, afb);
+	afb->base.obj[0] = &(*test_bo)->bo.tbo.base;
+
+	job = kunit_kzalloc(test, sizeof(*job), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, job);
+	job->fb = &afb->base;
+
+	amdgpu_dm_wb_kunit_set_ops(&dm_wb_test_ops);
+	KUNIT_ASSERT_EQ(test, kunit_add_action_or_reset(test, dm_wb_test_reset_ops, NULL), 0);
+
+	return job;
+}
+
 
 /* Helper functions */
 
@@ -273,7 +418,9 @@ static void dm_test_wb_get_modes_returns_modes(struct kunit *test)
 	drmm_connector_init(drm, connector, &dm_wb_test_connector_funcs,
 			    DRM_MODE_CONNECTOR_VIRTUAL, NULL);
 
+	mutex_lock(&drm->mode_config.mutex);
 	count = amdgpu_dm_wb_connector_get_modes(connector);
+	mutex_unlock(&drm->mode_config.mutex);
 
 	/* drm_add_modes_noedid should return at least one mode */
 	KUNIT_EXPECT_GT(test, count, 0);
@@ -308,7 +455,9 @@ static void dm_test_wb_get_modes_bounded_by_max(struct kunit *test)
 	drmm_connector_init(drm, connector, &dm_wb_test_connector_funcs,
 			    DRM_MODE_CONNECTOR_VIRTUAL, NULL);
 
+	mutex_lock(&drm->mode_config.mutex);
 	amdgpu_dm_wb_connector_get_modes(connector);
+	mutex_unlock(&drm->mode_config.mutex);
 
 	/* All modes must fit within 3840x2160 */
 	list_for_each_entry(mode, &connector->probed_modes, head) {
@@ -388,6 +537,134 @@ static void dm_test_wb_prepare_job_no_fb(struct kunit *test)
 }
 
 /**
+ * dm_test_wb_prepare_job_success - Verify successful BO preparation
+ * @test: KUnit test context
+ *
+ * The writeback BO should be reserved, pinned, mapped into GART, referenced,
+ * and assigned its GPU address.
+ */
+static void dm_test_wb_prepare_job_success(struct kunit *test)
+{
+	struct dm_wb_test_bo *test_bo;
+	struct drm_writeback_job *job;
+	struct amdgpu_framebuffer *afb;
+	int ret;
+
+	job = dm_wb_test_alloc_job(test, &test_bo);
+	afb = to_amdgpu_framebuffer(job->fb);
+	test_bo->gpu_offset = 0x12340000;
+
+	ret = amdgpu_dm_wb_prepare_job(NULL, job);
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, test_bo->reserve_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->reserve_fences_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->pin_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->alloc_gart_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->unreserve_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->ref_count, 1);
+	KUNIT_EXPECT_EQ(test, afb->address, test_bo->gpu_offset);
+	KUNIT_EXPECT_TRUE(test, test_bo->bo.flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS);
+}
+
+/**
+ * dm_test_wb_prepare_job_reserve_failure - Verify reserve errors are returned
+ * @test: KUnit test context
+ *
+ * A BO reserve failure should stop preparation without attempting cleanup on
+ * a BO that was never reserved.
+ */
+static void dm_test_wb_prepare_job_reserve_failure(struct kunit *test)
+{
+	struct dm_wb_test_bo *test_bo;
+	struct drm_writeback_job *job;
+	int ret;
+
+	job = dm_wb_test_alloc_job(test, &test_bo);
+	test_bo->reserve_ret = -EBUSY;
+
+	ret = amdgpu_dm_wb_prepare_job(NULL, job);
+
+	KUNIT_EXPECT_EQ(test, ret, -EBUSY);
+	KUNIT_EXPECT_EQ(test, test_bo->reserve_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->reserve_fences_count, 0);
+	KUNIT_EXPECT_EQ(test, test_bo->unreserve_count, 0);
+}
+
+/**
+ * dm_test_wb_prepare_job_fence_failure - Verify fence reservation cleanup
+ * @test: KUnit test context
+ *
+ * Failure to reserve fence slots should release the BO reservation without
+ * attempting to pin the BO.
+ */
+static void dm_test_wb_prepare_job_fence_failure(struct kunit *test)
+{
+	struct dm_wb_test_bo *test_bo;
+	struct drm_writeback_job *job;
+	int ret;
+
+	job = dm_wb_test_alloc_job(test, &test_bo);
+	test_bo->reserve_fences_ret = -ENOMEM;
+
+	ret = amdgpu_dm_wb_prepare_job(NULL, job);
+
+	KUNIT_EXPECT_EQ(test, ret, -ENOMEM);
+	KUNIT_EXPECT_EQ(test, test_bo->reserve_fences_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->pin_count, 0);
+	KUNIT_EXPECT_EQ(test, test_bo->unreserve_count, 1);
+}
+
+/**
+ * dm_test_wb_prepare_job_pin_failure - Verify pin failure cleanup
+ * @test: KUnit test context
+ *
+ * A pin failure should release the BO reservation without trying to unpin a
+ * BO that was not successfully pinned.
+ */
+static void dm_test_wb_prepare_job_pin_failure(struct kunit *test)
+{
+	struct dm_wb_test_bo *test_bo;
+	struct drm_writeback_job *job;
+	int ret;
+
+	job = dm_wb_test_alloc_job(test, &test_bo);
+	test_bo->pin_ret = -EINVAL;
+
+	ret = amdgpu_dm_wb_prepare_job(NULL, job);
+
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+	KUNIT_EXPECT_EQ(test, test_bo->pin_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->alloc_gart_count, 0);
+	KUNIT_EXPECT_EQ(test, test_bo->unpin_count, 0);
+	KUNIT_EXPECT_EQ(test, test_bo->unreserve_count, 1);
+}
+
+/**
+ * dm_test_wb_prepare_job_gart_failure - Verify GART allocation cleanup
+ * @test: KUnit test context
+ *
+ * A GART allocation failure should unpin and unreserve the BO.
+ */
+static void dm_test_wb_prepare_job_gart_failure(struct kunit *test)
+{
+	struct dm_wb_test_bo *test_bo;
+	struct drm_writeback_job *job;
+	int ret;
+
+	job = dm_wb_test_alloc_job(test, &test_bo);
+	test_bo->alloc_gart_ret = -ENOMEM;
+
+	ret = amdgpu_dm_wb_prepare_job(NULL, job);
+
+	KUNIT_EXPECT_EQ(test, ret, -ENOMEM);
+	KUNIT_EXPECT_EQ(test, test_bo->alloc_gart_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->unpin_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->unreserve_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->ref_count, 0);
+}
+
+/**
  * dm_test_wb_cleanup_job_no_fb - Verify cleanup_job early return without a framebuffer
  * @test: KUnit test context
  *
@@ -406,6 +683,56 @@ static void dm_test_wb_cleanup_job_no_fb(struct kunit *test)
 	amdgpu_dm_wb_cleanup_job(NULL, job);
 }
 
+/**
+ * dm_test_wb_cleanup_job_success - Verify successful BO cleanup
+ * @test: KUnit test context
+ *
+ * Cleanup should reserve, unpin, unreserve, and drop the writeback BO
+ * reference in order.
+ */
+static void dm_test_wb_cleanup_job_success(struct kunit *test)
+{
+	struct dm_wb_test_bo *test_bo;
+	struct drm_writeback_job *job;
+
+	job = dm_wb_test_alloc_job(test, &test_bo);
+
+	amdgpu_dm_wb_cleanup_job(NULL, job);
+
+	KUNIT_EXPECT_EQ(test, test_bo->reserve_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->unpin_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->unreserve_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->unref_count, 1);
+
+	/* The BO stays reserved across the unpin, and is released last. */
+	KUNIT_EXPECT_LT(test, test_bo->reserve_seq, test_bo->unpin_seq);
+	KUNIT_EXPECT_LT(test, test_bo->unpin_seq, test_bo->unreserve_seq);
+	KUNIT_EXPECT_LT(test, test_bo->unreserve_seq, test_bo->unref_seq);
+}
+
+/**
+ * dm_test_wb_cleanup_job_reserve_failure - Verify cleanup reserve failure
+ * @test: KUnit test context
+ *
+ * If cleanup cannot reserve the BO, it should leave the pin and reference
+ * untouched for a later cleanup attempt.
+ */
+static void dm_test_wb_cleanup_job_reserve_failure(struct kunit *test)
+{
+	struct dm_wb_test_bo *test_bo;
+	struct drm_writeback_job *job;
+
+	job = dm_wb_test_alloc_job(test, &test_bo);
+	test_bo->reserve_ret = -EBUSY;
+
+	amdgpu_dm_wb_cleanup_job(NULL, job);
+
+	KUNIT_EXPECT_EQ(test, test_bo->reserve_count, 1);
+	KUNIT_EXPECT_EQ(test, test_bo->unpin_count, 0);
+	KUNIT_EXPECT_EQ(test, test_bo->unreserve_count, 0);
+	KUNIT_EXPECT_EQ(test, test_bo->unref_count, 0);
+}
+
 static struct kunit_case dm_wb_test_cases[] = {
 	/* amdgpu_dm_wb_encoder_atomic_check */
 	KUNIT_CASE(dm_test_wb_atomic_check_no_job),
@@ -422,7 +749,14 @@ static struct kunit_case dm_wb_test_cases[] = {
 	KUNIT_CASE(dm_test_wb_connector_init_success),
 	/* amdgpu_dm_wb_prepare_job / amdgpu_dm_wb_cleanup_job */
 	KUNIT_CASE(dm_test_wb_prepare_job_no_fb),
+	KUNIT_CASE(dm_test_wb_prepare_job_success),
+	KUNIT_CASE(dm_test_wb_prepare_job_reserve_failure),
+	KUNIT_CASE(dm_test_wb_prepare_job_fence_failure),
+	KUNIT_CASE(dm_test_wb_prepare_job_pin_failure),
+	KUNIT_CASE(dm_test_wb_prepare_job_gart_failure),
 	KUNIT_CASE(dm_test_wb_cleanup_job_no_fb),
+	KUNIT_CASE(dm_test_wb_cleanup_job_success),
+	KUNIT_CASE(dm_test_wb_cleanup_job_reserve_failure),
 	{}
 };
 

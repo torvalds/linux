@@ -301,30 +301,27 @@ fail:
 	return ret;
 }
 
-static void armada_overlay_reset(struct drm_plane *plane)
+static struct drm_plane_state *armada_overlay_create_state(struct drm_plane *plane)
 {
 	struct armada_overlay_state *state;
 
-	if (plane->state)
-		__drm_atomic_helper_plane_destroy_state(plane->state);
-	kfree(plane->state);
-	plane->state = NULL;
-
 	state = kzalloc_obj(*state);
-	if (state) {
-		state->colorkey_yr = 0xfefefe00;
-		state->colorkey_ug = 0x01010100;
-		state->colorkey_vb = 0x01010100;
-		state->colorkey_mode = CFG_CKMODE(CKMODE_RGB) |
-				       CFG_ALPHAM_GRA | CFG_ALPHA(0);
-		state->colorkey_enable = ADV_GRACOLORKEY;
-		state->brightness = DEFAULT_BRIGHTNESS;
-		state->contrast = DEFAULT_CONTRAST;
-		state->saturation = DEFAULT_SATURATION;
-		__drm_atomic_helper_plane_reset(plane, &state->base.base);
-		state->base.base.color_encoding = DEFAULT_ENCODING;
-		state->base.base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
-	}
+	if (!state)
+		return ERR_PTR(-ENOMEM);
+
+	state->colorkey_yr = 0xfefefe00;
+	state->colorkey_ug = 0x01010100;
+	state->colorkey_vb = 0x01010100;
+	state->colorkey_mode = CFG_CKMODE(CKMODE_RGB) | CFG_ALPHAM_GRA | CFG_ALPHA(0);
+	state->colorkey_enable = ADV_GRACOLORKEY;
+	state->brightness = DEFAULT_BRIGHTNESS;
+	state->contrast = DEFAULT_CONTRAST;
+	state->saturation = DEFAULT_SATURATION;
+	__drm_atomic_helper_plane_state_init(&state->base.base, plane);
+	state->base.base.color_encoding = DEFAULT_ENCODING;
+	state->base.base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+
+	return &state->base.base;
 }
 
 static struct drm_plane_state *
@@ -466,7 +463,7 @@ static const struct drm_plane_funcs armada_ovl_plane_funcs = {
 	.update_plane	= armada_overlay_plane_update,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_plane_helper_destroy,
-	.reset		= armada_overlay_reset,
+	.atomic_create_state = armada_overlay_create_state,
 	.atomic_duplicate_state = armada_overlay_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 	.atomic_set_property = armada_overlay_set_property,

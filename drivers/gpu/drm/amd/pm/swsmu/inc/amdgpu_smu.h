@@ -486,7 +486,6 @@ struct smu_power_gate {
 
 struct smu_power_context {
 	void *power_context;
-	uint32_t power_context_size;
 	struct smu_power_gate power_gate;
 };
 
@@ -1621,14 +1620,27 @@ struct pptable_funcs {
 	ssize_t (*get_xcp_metrics)(struct smu_context *smu, int xcp_id,
 				   void *table);
 	/**
+	 * @get_npm_cap: Return NPM sysfs capability bitmap.
+	 *
+	 * Two bits per field (R then W). Both 0 means the field is
+	 * unsupported.
+	 */
+	u64 (*get_npm_cap)(struct smu_context *smu);
+	/**
 	 * @ras_send_msg: Send a message with a parameter from Ras
 	 * &msg: Type of message.
 	 * &param: Message parameter.
 	 * &read_arg: SMU response (optional).
 	 */
-	int (*ras_send_msg)(struct smu_context *smu,
-			    enum smu_message_type msg, uint32_t param, uint32_t *read_arg);
+	int (*ras_send_msg)(struct smu_context *smu, enum smu_message_type msg,
+				const uint32_t *params, size_t num_params,
+				uint32_t *read_args, size_t num_read_args);
 
+	/**
+	 * @get_ras_smu_drv: Get RAS smu driver interface
+	 * Return: ras_smu_drv *
+	 */
+	int (*get_ras_smu_drv)(struct smu_context *smu, const struct ras_smu_drv **ras_smu_drv);
 	/**
 	 * @set_power_dep: Create or destroy a power dependency link
 	 * from an integrated xHCI controller to the GPU so that the GPU is
@@ -1952,8 +1964,6 @@ int smu_set_soft_freq_range(struct smu_context *smu, enum pp_clock_type clk_type
 
 int smu_set_gfx_power_up_by_imu(struct smu_context *smu);
 
-int smu_set_ac_dc(struct smu_context *smu, bool restore_ppt_policy);
-
 int smu_set_xgmi_plpd_mode(struct smu_context *smu,
 			   enum pp_xgmi_plpd_mode mode);
 
@@ -1985,7 +1995,8 @@ ssize_t smu_get_pm_policy_info(struct smu_context *smu,
 			       enum pp_pm_policy p_type, char *sysbuf);
 
 int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type msg,
-			    uint32_t param, uint32_t *readarg);
+			const uint32_t *params, size_t num_params,
+			uint32_t *read_args, size_t num_read_args);
 int amdgpu_smu_ras_feature_is_enabled(struct amdgpu_device *adev,
 						enum smu_feature_mask mask);
 #endif

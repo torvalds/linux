@@ -433,6 +433,7 @@ struct clk_mgr_funcs {
 struct clk_mgr {
 	struct dc_context *ctx;
 	struct clk_mgr_funcs *funcs;
+	int inst;
 	struct dc_clocks clks;
 	bool psr_allow_active_cache;
 	bool force_smu_not_present;

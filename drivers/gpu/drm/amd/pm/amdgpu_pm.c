@@ -2266,16 +2266,15 @@ static ssize_t amdgpu_show_npm_status(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	u32 npower;
+	u32 npm_status;
 	int r;
 
-	/* get the node power */
-	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_NODEPOWER,
-					 (void *)&npower);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_NPMSTATUS,
+					 (void *)&npm_status);
 	if (r)
 		return r;
 
-	return sysfs_emit(buf, "%s\n", str_enabled_disabled(npower));
+	return sysfs_emit(buf, "%s\n", str_enabled_disabled(npm_status));
 }
 
 /**
@@ -4726,6 +4725,37 @@ err_out:
 	return ret;
 }
 
+static void amdgpu_pm_npm_sysfs_init(struct amdgpu_device *adev)
+{
+	static const struct {
+		struct device_attribute *attr;
+		unsigned int field;
+	} files[] = {
+		{ &dev_attr_cur_node_power_limit, AMDGPU_NPM_CAP_CUR_NODE_POWER_LIMIT },
+		{ &dev_attr_node_power, AMDGPU_NPM_CAP_NODE_POWER },
+		{ &dev_attr_global_ppt_resid, AMDGPU_NPM_CAP_GLOBAL_PPT_RESID },
+		{ &dev_attr_max_node_power_limit, AMDGPU_NPM_CAP_MAX_NODE_POWER_LIMIT },
+		{ &dev_attr_npm_status, AMDGPU_NPM_CAP_NPM_STATUS },
+	};
+	u64 cap = amdgpu_dpm_get_npm_cap(adev);
+	int i;
+
+	if (!cap)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(files); i++) {
+		unsigned int bits = (cap >> (files[i].field * 2)) & 0x3;
+		struct device_attribute *attr = files[i].attr;
+
+		if (!bits)
+			continue;
+
+		attr->attr.mode = ((bits & BIT(1)) && attr->store) ? 0644 : 0444;
+		sysfs_add_file_to_group(&adev->dev->kobj, &attr->attr,
+					amdgpu_board_attr_group.name);
+	}
+}
+
 int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 {
 	enum amdgpu_sriov_vf_mode mode;
@@ -4797,21 +4827,7 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 					    &amdgpu_board_attr_group);
 		if (ret)
 			goto err_out1;
-		if (amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT,
-						 (void *)&tmp) != -EOPNOTSUPP) {
-			sysfs_add_file_to_group(&adev->dev->kobj,
-						&dev_attr_cur_node_power_limit.attr,
-						amdgpu_board_attr_group.name);
-			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_node_power.attr,
-						amdgpu_board_attr_group.name);
-			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_global_ppt_resid.attr,
-						amdgpu_board_attr_group.name);
-			sysfs_add_file_to_group(&adev->dev->kobj,
-						&dev_attr_max_node_power_limit.attr,
-						amdgpu_board_attr_group.name);
-			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_npm_status.attr,
-						amdgpu_board_attr_group.name);
-		}
+		amdgpu_pm_npm_sysfs_init(adev);
 		if (amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_UBB_POWER_LIMIT,
 						 (void *)&tmp) != -EOPNOTSUPP) {
 			sysfs_add_file_to_group(&adev->dev->kobj,

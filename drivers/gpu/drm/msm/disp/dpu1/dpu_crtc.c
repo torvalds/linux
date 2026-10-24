@@ -1140,17 +1140,17 @@ end:
 	DPU_ATRACE_END("crtc_commit");
 }
 
-static void dpu_crtc_reset(struct drm_crtc *crtc)
+static struct drm_crtc_state *dpu_crtc_create_state(struct drm_crtc *crtc)
 {
-	struct dpu_crtc_state *cstate = kzalloc_obj(*cstate);
+	struct dpu_crtc_state *cstate;
 
-	if (crtc->state)
-		dpu_crtc_destroy_state(crtc, crtc->state);
+	cstate = kzalloc_obj(*cstate);
+	if (!cstate)
+		return ERR_PTR(-ENOMEM);
 
-	if (cstate)
-		__drm_atomic_helper_crtc_reset(crtc, &cstate->base);
-	else
-		__drm_atomic_helper_crtc_reset(crtc, NULL);
+	__drm_atomic_helper_crtc_state_init(&cstate->base, crtc);
+
+	return &cstate->base;
 }
 
 /**
@@ -1843,7 +1843,7 @@ static int dpu_crtc_late_register(struct drm_crtc *crtc)
 static const struct drm_crtc_funcs dpu_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
-	.reset = dpu_crtc_reset,
+	.atomic_create_state = dpu_crtc_create_state,
 	.atomic_duplicate_state = dpu_crtc_duplicate_state,
 	.atomic_destroy_state = dpu_crtc_destroy_state,
 	.atomic_print_state = dpu_crtc_atomic_print_state,

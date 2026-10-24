@@ -89,25 +89,21 @@ static void drm_log_blit(struct iosys_map *dst, unsigned int dst_pitch,
 	}
 }
 
-static void drm_log_clear_line(struct drm_log_scanout *scanout, u32 line)
+static void drm_log_clear_line(struct drm_log_scanout *scanout, u32 line,
+			       struct iosys_map map)
 {
 	struct drm_framebuffer *fb = scanout->buffer->fb;
 	unsigned long height = scanout->scaled_font_h;
-	struct iosys_map map;
 	struct drm_rect r = DRM_RECT_INIT(0, line * height, fb->width, height);
 
-	if (drm_client_buffer_vmap_local(scanout->buffer, &map))
-		return;
 	iosys_map_memset(&map, r.y1 * fb->pitches[0], 0, height * fb->pitches[0]);
-	drm_client_buffer_vunmap_local(scanout->buffer);
-	drm_client_buffer_flush(scanout->buffer, &r);
 }
 
 static void drm_log_draw_line(struct drm_log_scanout *scanout, const char *s,
-			      unsigned int len, unsigned int prefix_len)
+			      unsigned int len, unsigned int prefix_len,
+			      struct iosys_map map)
 {
 	struct drm_framebuffer *fb = scanout->buffer->fb;
-	struct iosys_map map;
 	const struct font_desc *font = scanout->font;
 	size_t font_pitch = DIV_ROUND_UP(font->width, 8);
 	const u8 *src;
@@ -116,10 +112,9 @@ static void drm_log_draw_line(struct drm_log_scanout *scanout, const char *s,
 					  fb->width, (scanout->line + 1) * scanout->scaled_font_h);
 	u32 i;
 
-	if (drm_client_buffer_vmap_local(scanout->buffer, &map))
-		return;
 
 	iosys_map_incr(&map, r.y1 * fb->pitches[0]);
+
 	for (i = 0; i < len && i < scanout->columns; i++) {
 		u32 color = (i < prefix_len) ? scanout->prefix_color : scanout->front_color;
 		src = font_data_glyph_buf(font->data, font->width, font->height,
@@ -134,21 +129,40 @@ static void drm_log_draw_line(struct drm_log_scanout *scanout, const char *s,
 	scanout->line++;
 	if (scanout->line >= scanout->rows)
 		scanout->line = 0;
-	drm_client_buffer_vunmap_local(scanout->buffer);
-	drm_client_buffer_flush(scanout->buffer, &r);
 }
 
 static void drm_log_draw_new_line(struct drm_log_scanout *scanout,
-				  const char *s, unsigned int len, unsigned int prefix_len)
+				  const char *s, unsigned int len,
+				  unsigned int prefix_len)
 {
-	if (scanout->line == 0) {
-		drm_log_clear_line(scanout, 0);
-		drm_log_clear_line(scanout, 1);
-		drm_log_clear_line(scanout, 2);
-	} else if (scanout->line + 2 < scanout->rows)
-		drm_log_clear_line(scanout, scanout->line + 2);
+	struct iosys_map map;
+	struct drm_framebuffer *fb = scanout->buffer->fb;
+	u32 height = scanout->scaled_font_h;
+	u32 line = scanout->line;
+	u32 y2;
+	struct drm_rect dirty;
 
-	drm_log_draw_line(scanout, s, len, prefix_len);
+	if (drm_client_buffer_vmap_local(scanout->buffer, &map))
+		return;
+
+	if (scanout->line == 0) {
+		drm_log_clear_line(scanout, 0, map);
+		drm_log_clear_line(scanout, 1, map);
+		drm_log_clear_line(scanout, 2, map);
+		y2 = min(3, scanout->rows) * height;
+	} else if (scanout->line + 2 < scanout->rows) {
+		drm_log_clear_line(scanout, scanout->line + 2, map);
+		y2 = (line + 3) * height;
+	} else {
+		y2 = (line + 1) * height;
+	}
+
+	drm_log_draw_line(scanout, s, len, prefix_len, map);
+
+	drm_client_buffer_vunmap_local(scanout->buffer);
+
+	dirty = DRM_RECT_INIT(0, line * height, fb->width, y2 - line * height);
+	drm_client_buffer_flush(scanout->buffer, &dirty);
 }
 
 /*

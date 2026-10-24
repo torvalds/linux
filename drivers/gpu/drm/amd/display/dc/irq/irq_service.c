@@ -28,14 +28,18 @@
 #include "include/irq_service_interface.h"
 #include "include/logger_interface.h"
 
+#if defined(CONFIG_DRM_AMD_DC_DCE)
 #include "dce110/irq_service_dce110.h"
+#endif
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 #include "dce60/irq_service_dce60.h"
 #endif
 
+#if defined(CONFIG_DRM_AMD_DC_DCE)
 #include "dce80/irq_service_dce80.h"
 #include "dce120/irq_service_dce120.h"
+#endif
 #include "dcn10/irq_service_dcn10.h"
 
 #include "reg_helper.h"
@@ -103,6 +107,30 @@ void dal_irq_service_set_generic(
 	value = (value & ~info->enable_mask) |
 		(info->enable_value[enable ? 0 : 1] & info->enable_mask);
 	dm_write_reg(irq_service->ctx, addr, value);
+}
+
+/*
+ * Base "non-implemented source" irq handlers referenced by irq_service.c and
+ * every DCN irq vtable.
+ */
+bool dal_irq_service_dummy_set(struct irq_service *irq_service,
+			       const struct irq_source_info *info,
+			       bool enable)
+{
+	(void)enable;
+	DC_LOG_ERROR("%s: called for non-implemented irq source, src_id=%u, ext_id=%u\n",
+		     __func__, info->src_id, info->ext_id);
+
+	return false;
+}
+
+bool dal_irq_service_dummy_ack(struct irq_service *irq_service,
+			       const struct irq_source_info *info)
+{
+	DC_LOG_ERROR("%s: called for non-implemented irq source, src_id=%u, ext_id=%u\n",
+		     __func__, info->src_id, info->ext_id);
+
+	return false;
 }
 
 bool dal_irq_service_set(

@@ -30,12 +30,41 @@
 extern const u64 amdgpu_dm_supported_degam_tfs;
 extern const u64 amdgpu_dm_supported_shaper_tfs;
 extern const u64 amdgpu_dm_supported_blnd_tfs;
+extern const u64 amdgpu_dm_supported_fm;
 
 int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_prop_enum_list *list);
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+#include <drm/drm_colorop.h>
+
+struct amdgpu_dm_colorop_kunit_ops {
+	struct drm_colorop *(*colorop_kzalloc_obj)(void);
+	int (*curve_1d_init)(struct drm_device *dev, struct drm_colorop *colorop,
+			     struct drm_plane *plane, const struct drm_colorop_funcs *funcs,
+			     u64 supported_tfs, uint32_t flags);
+	int (*curve_1d_lut_init)(struct drm_device *dev, struct drm_colorop *colorop,
+				 struct drm_plane *plane,
+				 const struct drm_colorop_funcs *funcs,
+				 uint32_t lut_size,
+				 enum drm_colorop_lut1d_interpolation_type interpolation,
+				 uint32_t flags);
+	int (*ctm_3x4_init)(struct drm_device *dev, struct drm_colorop *colorop,
+			    struct drm_plane *plane, const struct drm_colorop_funcs *funcs,
+			    uint32_t flags);
+	int (*mult_init)(struct drm_device *dev, struct drm_colorop *colorop,
+			 struct drm_plane *plane, const struct drm_colorop_funcs *funcs,
+			 uint32_t flags);
+	int (*lut3d_init)(struct drm_device *dev, struct drm_colorop *colorop,
+			  struct drm_plane *plane,
+			  const struct drm_colorop_funcs *funcs,
+			  uint32_t lut_size,
+			  enum drm_colorop_lut3d_interpolation_type interpolation,
+			  uint32_t flags);
+};
+
 int amdgpu_dm_build_default_pipeline(struct drm_device *dev, struct drm_plane *plane,
 				      bool hw_3d_lut, struct drm_prop_enum_list *list);
+void amdgpu_dm_colorop_kunit_set_ops(const struct amdgpu_dm_colorop_kunit_ops *ops);
 #endif
 
 #endif /* __AMDGPU_DM_COLOROP_H__*/

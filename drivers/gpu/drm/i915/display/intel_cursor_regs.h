@@ -81,7 +81,7 @@
 #define   CUR_WM_EN				REG_BIT(31)
 #define   CUR_WM_IGNORE_LINES			REG_BIT(30)
 #define   CUR_WM_LINES_MASK			REG_GENMASK(26, 14)
-#define   CUR_WM_BLOCKS_MASK			REG_GENMASK(11, 0)
+#define   CUR_WM_BLOCKS_MASK			REG_GENMASK(12, 0)
 
 #define _CUR_WM_SAGV_A		0x70158
 #define _CUR_WM_SAGV_B		0x71158
@@ -98,10 +98,10 @@
 #define _CUR_BUF_CFG_A		0x7017c
 #define _CUR_BUF_CFG_B		0x7117c
 #define CUR_BUF_CFG(pipe)	_MMIO_PIPE((pipe), _CUR_BUF_CFG_A, _CUR_BUF_CFG_B)
-/* skl+: 10 bits, icl+ 11 bits, adlp+ 12 bits */
-#define   CUR_BUF_END_MASK		REG_GENMASK(27, 16)
+/* skl+: 10 bits, icl+ 11 bits, adlp+ 12 bits, xe3plpd+ 13 bits */
+#define   CUR_BUF_END_MASK		REG_GENMASK(28, 16)
 #define   CUR_BUF_END(end)		REG_FIELD_PREP(CUR_BUF_END_MASK, (end))
-#define   CUR_BUF_START_MASK		REG_GENMASK(11, 0)
+#define   CUR_BUF_START_MASK		REG_GENMASK(12, 0)
 #define   CUR_BUF_START(start)		REG_FIELD_PREP(CUR_BUF_START_MASK, (start))
 
 /* tgl+ */

@@ -1589,6 +1589,7 @@ void dcn30_mpc_construct(struct dcn30_mpc *mpc30,
 	int i;
 
 	mpc30->base.ctx = ctx;
+	mpc30->base.inst = 0;
 
 	mpc30->base.funcs = &dcn30_mpc_funcs;
 

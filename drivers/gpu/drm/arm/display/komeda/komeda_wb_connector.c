@@ -128,7 +128,7 @@ static void komeda_wb_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs komeda_wb_connector_funcs = {
-	.reset			= drm_atomic_helper_connector_reset,
+	.atomic_create_state	= drm_atomic_helper_connector_create_state,
 	.detect			= komeda_wb_connector_detect,
 	.fill_modes		= komeda_wb_connector_fill_modes,
 	.destroy		= komeda_wb_connector_destroy,
@@ -143,11 +143,16 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 	struct komeda_wb_connector *kwb_conn;
 	struct drm_writeback_connector *wb_conn;
 	struct drm_display_info *info;
+	struct drm_encoder *encoder;
+	struct drm_encoder *wb_encoder;
 	u32 *formats, n_formats = 0;
+	u32 crtc_mask;
 	int err;
 
 	if (!kcrtc->master->wb_layer)
 		return 0;
+
+	crtc_mask = drm_crtc_mask(&kcrtc->base);
 
 	kwb_conn = kzalloc_obj(*kwb_conn);
 	if (!kwb_conn)
@@ -174,6 +179,34 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 	if (err) {
 		kfree(kwb_conn);
 		return err;
+	}
+
+	wb_encoder = &wb_conn->encoder;
+
+	/*
+	 * The writeback connector is associated with a single CRTC. Make its
+	 * encoder clone-compatible only with encoders that can drive that CRTC.
+	 *
+	 * possible_clones must contain the encoder's own bit whenever it is
+	 * non-zero. Add both the encoder itself and the writeback encoder when
+	 * updating the reciprocal clone relationship.
+	 */
+	wb_encoder->possible_clones = drm_encoder_mask(wb_encoder);
+
+	drm_for_each_encoder(encoder, &kms->base) {
+		u32 encoder_mask;
+
+		if (encoder == wb_encoder)
+			continue;
+
+		if (!(encoder->possible_crtcs & crtc_mask))
+			continue;
+
+		encoder_mask = drm_encoder_mask(encoder);
+
+		wb_encoder->possible_clones |= encoder_mask;
+		encoder->possible_clones |= encoder_mask |
+					    drm_encoder_mask(wb_encoder);
 	}
 
 	drm_connector_helper_add(&wb_conn->base, &komeda_wb_conn_helper_funcs);

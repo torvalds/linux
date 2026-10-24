@@ -905,7 +905,8 @@ void hubp_reset(struct hubp *hubp);
 bool hubp1_program_surface_flip_and_addr(
 	struct hubp *hubp,
 	const struct dc_plane_address *address,
-	bool flip_immediate);
+	bool flip_immediate,
+	bool dcc);
 
 bool hubp1_is_flip_pending(struct hubp *hubp);
 

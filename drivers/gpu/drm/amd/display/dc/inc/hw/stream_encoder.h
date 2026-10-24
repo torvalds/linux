@@ -126,6 +126,7 @@ struct stream_encoder {
 	struct dc_bios *bp;
 	enum engine_id id;
 	uint32_t stream_enc_inst;
+	unsigned int inst;
 	struct vpg *vpg;
 	struct afmt *afmt;
 	struct apg *apg;
@@ -319,6 +320,7 @@ struct hpo_frl_stream_encoder {
 	 * @stream_enc_inst: Instance ID reference.
 	 */
 	uint32_t stream_enc_inst;
+	unsigned int inst;
 
 	/**
 	 * @ctx: DC context.

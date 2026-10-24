@@ -73,6 +73,7 @@ struct link_training_settings {
 	enum dc_pre_emphasis *pre_emphasis;
 	enum dc_post_cursor2 *post_cursor2;
 	bool should_set_fec_ready;
+	bool skip_link_bw_clear;
 	union dc_dp_ffe_preset *ffe_preset;
 
 	uint16_t cr_pattern_time;

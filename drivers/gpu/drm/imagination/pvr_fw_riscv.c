@@ -23,27 +23,33 @@ static int
 pvr_riscv_wrapper_init(struct pvr_device *pvr_dev)
 {
 	const u64 common_opts =
-		((u64)(ROGUE_FW_HEAP_RISCV_SIZE >> FWCORE_ADDR_REMAP_CONFIG0_SIZE_ALIGNSHIFT)
-		 << ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG0_SIZE_SHIFT) |
+		((u64)(ROGUE_FW_HEAP_RISCV_SIZE
+		       >> ROGUE_CR_FWCORE_ADDR_REMAP_CONFIGx_SIZE_ALIGNSHIFT)
+		 << ROGUE_CR_FWCORE_ADDR_REMAP_CONFIGx_SIZE_SHIFT) |
 		((u64)MMU_CONTEXT_MAPPING_FWPRIV
-		 << FWCORE_ADDR_REMAP_CONFIG0_MMU_CONTEXT_SHIFT);
+		 << ROGUE_CR_FWCORE_ADDR_REMAP_CONFIGx_CBASE_SHIFT);
 
 	u64 code_addr = pvr_fw_obj_get_gpu_addr(pvr_dev->fw_dev.mem.code_obj);
 	u64 data_addr = pvr_fw_obj_get_gpu_addr(pvr_dev->fw_dev.mem.data_obj);
 
 	/* This condition allows us to OR the addresses into the register directly. */
-	static_assert(ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG1_DEVVADDR_SHIFT ==
-		      ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG1_DEVVADDR_ALIGNSHIFT);
+	static_assert(ROGUE_CR_FWCORE_ADDR_REMAP_CONFIGx_DEVVADDR_SHIFT ==
+		      ROGUE_CR_FWCORE_ADDR_REMAP_CONFIGx_DEVVADDR_ALIGNSHIFT);
 
-	WARN_ON(code_addr & ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG1_DEVVADDR_CLRMSK);
-	WARN_ON(data_addr & ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG1_DEVVADDR_CLRMSK);
+	WARN_ON(code_addr & ROGUE_CR_FWCORE_ADDR_REMAP_CONFIGx_DEVVADDR_CLRMSK);
+	WARN_ON(data_addr & ROGUE_CR_FWCORE_ADDR_REMAP_CONFIGx_DEVVADDR_CLRMSK);
 
-	pvr_cr_write64(pvr_dev, ROGUE_RISCVFW_REGION_REMAP_CR(BOOTLDR_CODE),
-		       code_addr | common_opts | ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG0_FETCH_EN_EN);
+	pvr_cr_write64(pvr_dev,
+		       PVR_CR_REPEAT_X(ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG,
+				       ROGUE_RISCV_REGION_BOOTLDR_CODE),
+		       code_addr | common_opts |
+		       ROGUE_CR_FWCORE_ADDR_REMAP_CONFIGx_FETCH_EN_EN);
 
-	pvr_cr_write64(pvr_dev, ROGUE_RISCVFW_REGION_REMAP_CR(BOOTLDR_DATA),
+	pvr_cr_write64(pvr_dev,
+		       PVR_CR_REPEAT_X(ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG,
+				       ROGUE_RISCV_REGION_BOOTLDR_DATA),
 		       data_addr | common_opts |
-			       ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG0_LOAD_STORE_EN_EN);
+		       ROGUE_CR_FWCORE_ADDR_REMAP_CONFIGx_LOAD_STORE_EN_EN);
 
 	/* Garten IDLE bit controlled by RISC-V. */
 	pvr_cr_write64(pvr_dev, ROGUE_CR_MTS_GARTEN_WRAPPER_CONFIG,
@@ -103,7 +109,18 @@ pvr_riscv_init(struct pvr_device *pvr_dev)
 {
 	pvr_fw_heap_info_init(pvr_dev, ROGUE_FW_HEAP_RISCV_SHIFT, 0);
 
+	pvr_dev->kernel_vm_ctx = pvr_vm_create_context(pvr_dev, false);
+	if (IS_ERR(pvr_dev->kernel_vm_ctx))
+		return PTR_ERR(pvr_dev->kernel_vm_ctx);
+
 	return 0;
+}
+
+static void
+pvr_riscv_fini(struct pvr_device *pvr_dev)
+{
+	WARN_ON(!pvr_vm_context_put(pvr_dev->kernel_vm_ctx));
+	pvr_dev->kernel_vm_ctx = NULL;
 }
 
 static u32
@@ -154,6 +171,7 @@ pvr_riscv_irq_clear(struct pvr_device *pvr_dev)
 
 const struct pvr_fw_defs pvr_fw_defs_riscv = {
 	.init = pvr_riscv_init,
+	.fini = pvr_riscv_fini,
 	.fw_process = pvr_riscv_fw_process,
 	.vm_map = pvr_riscv_vm_map,
 	.vm_unmap = pvr_riscv_vm_unmap,

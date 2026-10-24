@@ -123,7 +123,8 @@ void resource_build_test_pattern_params(
 		struct resource_context *res_ctx,
 		struct pipe_ctx *pipe_ctx);
 
-enum upsp_mode resource_is_upsp_required(enum surface_pixel_format format);
+enum upsp_mode resource_is_upsp_required(enum surface_pixel_format format,
+		enum dc_scaling_linearity scaling_linearity);
 
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx);
 
@@ -171,7 +172,7 @@ bool resource_attach_surfaces_to_context(
 		struct dc_state *context,
 		const struct resource_pool *pool);
 
-bool resource_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx);
+bool resource_can_pipe_disable_cursor(const struct pipe_ctx *pipe_ctx);
 
 #define FREE_PIPE_INDEX_NOT_FOUND -1
 
@@ -334,6 +335,21 @@ void resource_remove_dpp_pipes_for_plane_composition(
 		struct dc_state *context,
 		const struct resource_pool *pool,
 		const struct dc_plane_state *plane_state);
+
+/*
+ * RMCM resource management. Instances are handed out for a whole context at once so that a
+ * plane that is only now asking cannot evict one that is already using an instance.
+ * Tracking is via res_ctx->rmcm_in_use[].
+ */
+void resource_assign_rmcm(
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		const struct resource_pool *pool);
+
+void resource_release_rmcm(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct rmcm **rmcm);
 
 /*
  * Update ODM slice count by acquiring or releasing pipes. If new slices need

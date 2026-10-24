@@ -10,7 +10,7 @@
 
 #include <drm/drm_file.h>
 #include <drm/drm_syncobj.h>
-#include <drm/drm_utils.h>
+#include <drm/drm_timeout.h>
 
 #include <drm/lima_drm.h>
 

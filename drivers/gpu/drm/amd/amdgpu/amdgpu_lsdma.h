@@ -24,8 +24,12 @@
 #ifndef __AMDGPU_LSDMA_H__
 #define __AMDGPU_LSDMA_H__
 
+#define AMDGPU_MAX_LSDMA_INSTANCES 2
+
 struct amdgpu_lsdma {
+	struct mutex lock;
 	const struct amdgpu_lsdma_funcs      *funcs;
+	uint32_t inst_mask;
 };
 
 struct amdgpu_lsdma_funcs {

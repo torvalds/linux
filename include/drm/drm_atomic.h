@@ -159,7 +159,23 @@ struct drm_crtc_commit {
 
 struct __drm_colorops_state {
 	struct drm_colorop *ptr;
-	struct drm_colorop_state *state, *old_state, *new_state;
+
+	/**
+	 * @state_to_destroy:
+	 *
+	 * Used to track the @drm_colorop_state we will need to free
+	 * when tearing down the associated &drm_atomic_commit in
+	 * $drm_mode_config_funcs.atomic_state_clear or
+	 * drm_atomic_commit_default_clear().
+	 *
+	 * Before a commit, and the call to
+	 * drm_atomic_helper_swap_state() in particular, it points to
+	 * the same state than @new_state. After a commit, it points to
+	 * the same state than @old_state.
+	 */
+	struct drm_colorop_state *state_to_destroy;
+
+	struct drm_colorop_state *old_state, *new_state;
 };
 
 struct __drm_planes_state {
@@ -951,9 +967,11 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)								\
 		for_each_if ((__state)->connectors[__i].ptr &&			\
 			     ((connector) = (__state)->connectors[__i].ptr,	\
-			     (void)(connector) /* Only to avoid unused-but-set-variable warning */, \
-			     (old_connector_state) = (__state)->connectors[__i].old_state,	\
-			     (new_connector_state) = (__state)->connectors[__i].new_state, 1))
+			      (void)(connector) /* Only to avoid unused-but-set-variable warning */, \
+			      (old_connector_state) = (__state)->connectors[__i].old_state,	\
+			      (void)(old_connector_state) /* Only to avoid unused-but-set-variable warning */, \
+			      (new_connector_state) = (__state)->connectors[__i].new_state,	\
+			      (void)(new_connector_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_old_connector_in_state - iterate over all connectors in an atomic update
@@ -973,8 +991,9 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)								\
 		for_each_if ((__state)->connectors[__i].ptr &&			\
 			     ((connector) = (__state)->connectors[__i].ptr,	\
-			     (void)(connector) /* Only to avoid unused-but-set-variable warning */, \
-			     (old_connector_state) = (__state)->connectors[__i].old_state, 1))
+			      (void)(connector) /* Only to avoid unused-but-set-variable warning */, \
+			      (old_connector_state) = (__state)->connectors[__i].old_state, \
+			      (void)(old_connector_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_new_connector_in_state - iterate over all connectors in an atomic update
@@ -994,9 +1013,9 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)								\
 		for_each_if ((__state)->connectors[__i].ptr &&			\
 			     ((connector) = (__state)->connectors[__i].ptr,	\
-			     (void)(connector) /* Only to avoid unused-but-set-variable warning */, \
-			     (new_connector_state) = (__state)->connectors[__i].new_state, \
-			     (void)(new_connector_state) /* Only to avoid unused-but-set-variable warning */, 1))
+			      (void)(connector) /* Only to avoid unused-but-set-variable warning */, \
+			      (new_connector_state) = (__state)->connectors[__i].new_state, \
+			      (void)(new_connector_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_oldnew_crtc_in_state - iterate over all CRTCs in an atomic update
@@ -1017,10 +1036,10 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 		for_each_if ((__state)->crtcs[__i].ptr &&		\
 			     ((crtc) = (__state)->crtcs[__i].ptr,	\
 			      (void)(crtc) /* Only to avoid unused-but-set-variable warning */, \
-			     (old_crtc_state) = (__state)->crtcs[__i].old_state, \
-			     (void)(old_crtc_state) /* Only to avoid unused-but-set-variable warning */, \
-			     (new_crtc_state) = (__state)->crtcs[__i].new_state, \
-			     (void)(new_crtc_state) /* Only to avoid unused-but-set-variable warning */, 1))
+			      (old_crtc_state) = (__state)->crtcs[__i].old_state, \
+			      (void)(old_crtc_state) /* Only to avoid unused-but-set-variable warning */, \
+			      (new_crtc_state) = (__state)->crtcs[__i].new_state, \
+			      (void)(new_crtc_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_old_crtc_in_state - iterate over all CRTCs in an atomic update
@@ -1040,7 +1059,8 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 		for_each_if ((__state)->crtcs[__i].ptr &&		\
 			     ((crtc) = (__state)->crtcs[__i].ptr,	\
 			     (void)(crtc) /* Only to avoid unused-but-set-variable warning */, \
-			     (old_crtc_state) = (__state)->crtcs[__i].old_state, 1))
+			     (old_crtc_state) = (__state)->crtcs[__i].old_state, \
+			     (void)(old_crtc_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_new_crtc_in_state - iterate over all CRTCs in an atomic update
@@ -1126,8 +1146,10 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 		for_each_if ((__state)->planes[__i].ptr &&		\
 			     ((plane) = (__state)->planes[__i].ptr,	\
 			      (void)(plane) /* Only to avoid unused-but-set-variable warning */, \
-			      (old_plane_state) = (__state)->planes[__i].old_state,\
-			      (new_plane_state) = (__state)->planes[__i].new_state, 1))
+			      (old_plane_state) = (__state)->planes[__i].old_state, \
+			      (void)(old_plane_state) /* Only to avoid unused-but-set-variable warning */, \
+			      (new_plane_state) = (__state)->planes[__i].new_state, \
+			      (void)(new_plane_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_oldnew_plane_in_state_reverse - iterate over all planes in an atomic
@@ -1148,8 +1170,11 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)--)							\
 		for_each_if ((__state)->planes[__i].ptr &&		\
 			     ((plane) = (__state)->planes[__i].ptr,	\
-			      (old_plane_state) = (__state)->planes[__i].old_state,\
-			      (new_plane_state) = (__state)->planes[__i].new_state, 1))
+			      (void)(plane) /* Only to avoid unused-but-set-variable warning */, \
+			      (old_plane_state) = (__state)->planes[__i].old_state, \
+			      (void)(old_plane_state) /* Only to avoid unused-but-set-variable warning */, \
+			      (new_plane_state) = (__state)->planes[__i].new_state, \
+			      (void)(new_plane_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_new_plane_in_state_reverse - other than only tracking new state,
@@ -1165,7 +1190,9 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)--)							\
 		for_each_if ((__state)->planes[__i].ptr &&		\
 			     ((plane) = (__state)->planes[__i].ptr,	\
-			      (new_plane_state) = (__state)->planes[__i].new_state, 1))
+			      (void)(plane) /* Only to avoid unused-but-set-variable warning */, \
+			      (new_plane_state) = (__state)->planes[__i].new_state, \
+			      (void)(new_plane_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_old_plane_in_state - iterate over all planes in an atomic update
@@ -1184,7 +1211,10 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if ((__state)->planes[__i].ptr &&		\
 			     ((plane) = (__state)->planes[__i].ptr,	\
-			      (old_plane_state) = (__state)->planes[__i].old_state, 1))
+			      (void)(plane) /* Only to avoid unused-but-set-variable warning */, \
+			      (old_plane_state) = (__state)->planes[__i].old_state, \
+			      (void)(old_plane_state) /* Only to avoid unused-but-set-variable warning */, 1))
+
 /**
  * for_each_new_plane_in_state - iterate over all planes in an atomic update
  * @__state: &struct drm_atomic_commit pointer
@@ -1222,8 +1252,11 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	for ((__i) = 0; \
 	     (__i) < (__state)->num_private_objs && \
 		     ((obj) = (__state)->private_objs[__i].ptr, \
+		      (void)(obj) /* Only to avoid unused-but-set-variable warning */, \
 		      (old_obj_state) = (__state)->private_objs[__i].old_state,	\
-		      (new_obj_state) = (__state)->private_objs[__i].new_state, 1); \
+		      (void)(old_obj_state) /* Only to avoid unused-but-set-variable warning */, \
+		      (new_obj_state) = (__state)->private_objs[__i].new_state, \
+		      (void)(new_obj_state) /* Only to avoid unused-but-set-variable warning */, 1); \
 	     (__i)++)
 
 /**
@@ -1241,7 +1274,9 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	for ((__i) = 0; \
 	     (__i) < (__state)->num_private_objs && \
 		     ((obj) = (__state)->private_objs[__i].ptr, \
-		      (old_obj_state) = (__state)->private_objs[__i].old_state, 1); \
+		      (void)(obj) /* Only to avoid unused-but-set-variable warning */, \
+		      (old_obj_state) = (__state)->private_objs[__i].old_state, \
+		      (void)(old_obj_state) /* Only to avoid unused-but-set-variable warning */, 1); \
 	     (__i)++)
 
 /**
@@ -1260,7 +1295,8 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i) < (__state)->num_private_objs && \
 		     ((obj) = (__state)->private_objs[__i].ptr, \
 		      (void)(obj) /* Only to avoid unused-but-set-variable warning */, \
-		      (new_obj_state) = (__state)->private_objs[__i].new_state, 1); \
+		      (new_obj_state) = (__state)->private_objs[__i].new_state, \
+		      (void)(new_obj_state) /* Only to avoid unused-but-set-variable warning */, 1); \
 	     (__i)++)
 
 /**
@@ -1361,11 +1397,8 @@ struct drm_bridge_state {
 	struct drm_bus_cfg output_bus_cfg;
 };
 
-static inline struct drm_bridge_state *
-drm_priv_to_bridge_state(struct drm_private_state *priv)
-{
-	return container_of(priv, struct drm_bridge_state, base);
-}
+#define drm_priv_to_bridge_state(priv)		\
+	container_of_const(priv, struct drm_bridge_state, base)
 
 struct drm_bridge_state *
 drm_atomic_get_bridge_state(struct drm_atomic_commit *state,

@@ -536,7 +536,7 @@ enum dsc_pixel_format {
 	DSC_PIXFMT_UNKNOWN
 };
 
-struct dsc_reg_values {
+struct dsc20_reg_values {
 	/* PPS registers */
 	struct drm_dsc_config pps;
 
@@ -564,7 +564,7 @@ struct dcn20_dsc {
 	const struct dcn20_dsc_shift *dsc_shift;
 	const struct dcn20_dsc_mask *dsc_mask;
 
-	struct dsc_reg_values reg_vals;
+	struct dsc20_reg_values reg_vals;
 
 	int max_image_width;
 };
@@ -579,7 +579,7 @@ void dsc_override_rc_params(struct rc_params *rc,
 		const struct dc_dsc_rc_params_override *override);
 
 bool dsc_prepare_config(const struct dsc_config *dsc_cfg,
-		struct dsc_reg_values *dsc_reg_vals,
+		struct dsc20_reg_values *dsc_reg_vals,
 		struct dsc_optc_config *dsc_optc_cfg);
 
 enum dsc_pixel_format dsc_dc_pixel_encoding_to_dsc_pixel_format(enum dc_pixel_encoding dc_pix_enc,
@@ -587,9 +587,9 @@ enum dsc_pixel_format dsc_dc_pixel_encoding_to_dsc_pixel_format(enum dc_pixel_en
 
 enum dsc_bits_per_comp dsc_dc_color_depth_to_dsc_bits_per_comp(enum dc_color_depth dc_color_depth);
 
-void dsc_init_reg_values(struct dsc_reg_values *reg_vals);
+void dsc_init_reg_values(struct dsc20_reg_values *reg_vals);
 
-void dsc_update_from_dsc_parameters(struct dsc_reg_values *reg_vals, const struct dsc_parameters *dsc_params);
+void dsc_update_from_dsc_parameters(struct dsc20_reg_values *reg_vals, const struct dsc_parameters *dsc_params);
 
 void dsc2_construct(struct dcn20_dsc *dsc,
 		struct dc_context *ctx,
@@ -608,8 +608,9 @@ bool dsc2_get_packed_pps(struct display_stream_compressor *dsc,
 void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
 void dsc2_read_reg_state(struct display_stream_compressor *dsc, struct dcn_dsc_reg_state *dccg_reg_state);
 bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
-void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+bool dsc2_prepare_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 		struct dsc_optc_config *dsc_optc_cfg);
+void dsc2_set_config(struct display_stream_compressor *dsc);
 void dsc2_enable(struct display_stream_compressor *dsc, int opp_pipe);
 void dsc2_disable(struct display_stream_compressor *dsc);
 void dsc2_disconnect(struct display_stream_compressor *dsc);

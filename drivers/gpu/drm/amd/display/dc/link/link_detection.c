@@ -934,7 +934,7 @@ static void verify_link_capability_non_destructive(struct dc_link *link)
 		else
 			link->verified_link_cap = dp_get_max_link_cap(link);
 	} else if (dc_is_hdmi_signal(link->local_sink->sink_signal)) {
-		link->verified_link_cap = link->reported_link_cap;
+		link->frl_verified_link_cap = link->frl_reported_link_cap;
 
 		if (is_hdmi_frl_in_use(link)) {
 			link->local_sink->sink_signal = SIGNAL_TYPE_HDMI_TYPE_A;
@@ -995,6 +995,8 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
 					}
 				}
 			}
+		} else if (link->dc->debug.skip_detection_link_training) {
+			destrictive = false;
 		}
 	}
 
@@ -1389,8 +1391,10 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			read_idcc_data(link->ddc, HDMI_IDCC_SCOPE_RW_CA,
 				link->hdmi_cable_id.raw, 0, 4);
 		}
-		if (sink->edid_caps.rr_capable)
+
+		if (sink->edid_caps.rr_capable && !dc->debug.skip_hdmi_rr_enable)
 			hdmi_frl_write_read_request_enable(link->ddc);
+
 		/* When FreeSync is toggled through OSD,
 		 * we see same EDID no matter what. Check MCCS caps
 		 * to see if we should update FreeSync caps now.

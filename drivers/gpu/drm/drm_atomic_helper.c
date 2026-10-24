@@ -41,7 +41,6 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_panic.h>
 #include <drm/drm_print.h>
 #include <drm/drm_self_refresh_helper.h>
 #include <drm/drm_vblank.h>
@@ -49,6 +48,7 @@
 
 #include "drm_crtc_helper_internal.h"
 #include "drm_crtc_internal.h"
+#include "drm_panic_internal.h"
 
 /**
  * DOC: overview
@@ -2037,7 +2037,7 @@ void drm_atomic_helper_commit_tail_rpm(struct drm_atomic_commit *state)
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_tail_rpm);
 
-static void commit_tail(struct drm_atomic_commit *state)
+static void commit_tail(struct drm_atomic_commit *state, bool nonblock)
 {
 	struct drm_device *dev = state->dev;
 	const struct drm_mode_config_helper_funcs *funcs;
@@ -2095,7 +2095,7 @@ static void commit_work(struct work_struct *work)
 	struct drm_atomic_commit *state = container_of(work,
 						      struct drm_atomic_commit,
 						      commit_work);
-	commit_tail(state);
+	commit_tail(state, true);
 }
 
 /**
@@ -2315,7 +2315,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	if (nonblock)
 		queue_work(system_dfl_wq, &state->commit_work);
 	else
-		commit_tail(state);
+		commit_tail(state, false);
 
 	return 0;
 
@@ -3351,7 +3351,7 @@ int drm_atomic_helper_swap_state(struct drm_atomic_commit *state,
 		old_colorop_state->state = state;
 		new_colorop_state->state = NULL;
 
-		state->colorops[i].state = old_colorop_state;
+		state->colorops[i].state_to_destroy = old_colorop_state;
 		colorop->state = new_colorop_state;
 	}
 

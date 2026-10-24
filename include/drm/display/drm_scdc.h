@@ -29,6 +29,8 @@
 #define SCDC_SOURCE_VERSION 0x02
 
 #define SCDC_UPDATE_0 0x10
+#define  SCDC_RSED_UPDATE (1 << 6)
+#define  SCDC_FLT_UPDATE (1 << 5)
 #define  SCDC_READ_REQUEST_TEST (1 << 2)
 #define  SCDC_CED_UPDATE (1 << 1)
 #define  SCDC_STATUS_UPDATE (1 << 0)
@@ -46,14 +48,25 @@
 #define SCDC_CONFIG_0 0x30
 #define  SCDC_READ_REQUEST_ENABLE (1 << 0)
 
+#define SCDC_CONFIG_1 0x31
+#define  SCDC_FRL_RATE   0x0f
+#define  SCDC_FFE_LEVELS 0xf0
+
 #define SCDC_STATUS_FLAGS_0 0x40
+#define  SCDC_DSC_FAIL (1 << 7)
+#define  SCDC_FLT_READY (1 << 6)
+#define  SCDC_LN3_LOCK (1 << 4)
 #define  SCDC_CH2_LOCK (1 << 3)
 #define  SCDC_CH1_LOCK (1 << 2)
 #define  SCDC_CH0_LOCK (1 << 1)
-#define  SCDC_CH_LOCK_MASK (SCDC_CH2_LOCK | SCDC_CH1_LOCK | SCDC_CH0_LOCK)
+#define  SCDC_CH_LOCK_MASK (SCDC_LN3_LOCK | SCDC_CH2_LOCK | SCDC_CH1_LOCK | \
+			    SCDC_CH0_LOCK)
 #define  SCDC_CLOCK_DETECT (1 << 0)
 
 #define SCDC_STATUS_FLAGS_1 0x41
+#define  SCDC_LN_EVEN_TRAIN_PTRN 0x0f
+#define  SCDC_LN_ODD_TRAIN_PTRN 0xf0
+#define SCDC_STATUS_FLAGS_2 0x42
 
 #define SCDC_ERR_DET_0_L 0x50
 #define SCDC_ERR_DET_0_H 0x51
@@ -64,6 +77,12 @@
 #define  SCDC_CHANNEL_VALID (1 << 7)
 
 #define SCDC_ERR_DET_CHECKSUM 0x56
+
+#define SCDC_ERR_DET_3_L 0x57
+#define SCDC_ERR_DET_3_H 0x58
+
+#define SCDC_ERR_DET_RS_L 0x59
+#define SCDC_ERR_DET_RS_H 0x5a
 
 #define SCDC_TEST_CONFIG_0 0xc0
 #define  SCDC_TEST_READ_REQUEST (1 << 7)

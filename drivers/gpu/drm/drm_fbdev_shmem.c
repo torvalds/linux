@@ -3,9 +3,9 @@
 #include <linux/export.h>
 #include <linux/fb.h>
 
+#include <drm/clients/drm_fbdev_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_shmem.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>

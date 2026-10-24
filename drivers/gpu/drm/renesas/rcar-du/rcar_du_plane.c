@@ -16,6 +16,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_panic_helper.h>
 
 #include "rcar_du_drv.h"
 #include "rcar_du_group.h"
@@ -712,24 +713,21 @@ static void rcar_du_plane_atomic_destroy_state(struct drm_plane *plane,
 	kfree(to_rcar_plane_state(state));
 }
 
-static void rcar_du_plane_reset(struct drm_plane *plane)
+static struct drm_plane_state *rcar_du_plane_create_state(struct drm_plane *plane)
 {
 	struct rcar_du_plane_state *state;
 
-	if (plane->state) {
-		rcar_du_plane_atomic_destroy_state(plane, plane->state);
-		plane->state = NULL;
-	}
-
 	state = kzalloc_obj(*state);
-	if (state == NULL)
-		return;
+	if (!state)
+		return ERR_PTR(-ENOMEM);
 
-	__drm_atomic_helper_plane_reset(plane, &state->state);
+	__drm_atomic_helper_plane_state_init(&state->state, plane);
 
 	state->hwindex = -1;
 	state->source = RCAR_DU_PLANE_MEMORY;
 	state->colorkey = RCAR_DU_COLORKEY_NONE;
+
+	return &state->state;
 }
 
 static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
@@ -767,12 +765,13 @@ static int rcar_du_plane_atomic_get_property(struct drm_plane *plane,
 static const struct drm_plane_funcs rcar_du_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.reset = rcar_du_plane_reset,
+	.atomic_create_state = rcar_du_plane_create_state,
 	.destroy = drm_plane_cleanup,
 	.atomic_duplicate_state = rcar_du_plane_atomic_duplicate_state,
 	.atomic_destroy_state = rcar_du_plane_atomic_destroy_state,
 	.atomic_set_property = rcar_du_plane_atomic_set_property,
 	.atomic_get_property = rcar_du_plane_atomic_get_property,
+	DRM_PANIC_PLANE_FUNCS,
 };
 
 static const uint32_t formats[] = {

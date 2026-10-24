@@ -123,7 +123,7 @@ static enum dml2_status dml2_top_perform_stage_optimization(struct dml2_instance
 	DML_ASSERT_MSG(worksheet->validation_result.is_mode_support_valid
 			&& worksheet->validation_result.is_mcache_allocation_valid
 			&& worksheet->validation_result.is_prefetch_valid,
-			"worksheet must be valid on exit independent from optmization resul!\n");
+			"worksheet must be valid on exit independent from optimization result!\n");
 //	DML_ASSERT_MSG(iteration <= MAX_OPTIMIZATION_ITERATIONS,
 //			"exceeds max optimization iterations!\n"
 //			"\t is_permissible_found = %s\n"
@@ -290,7 +290,7 @@ static bool dml2_top_utm_check_mode_supported(struct dml2_check_mode_supported_i
 	DML_LOG_INFO("%s exit with %s\n", __func__, dml2_status_str(status));
 	DML_LOG_TOP_IF_EXIT();
 
-	return true;
+	return status == DML2_STATUS_OK;
 }
 
 static bool dml2_top_utm_build_mode_programming(struct dml2_build_mode_programming_in_out *in_out)

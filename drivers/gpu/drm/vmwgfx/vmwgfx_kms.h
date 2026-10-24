@@ -411,7 +411,7 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 				      struct drm_atomic_commit *state);
 void vmw_du_plane_cleanup_fb(struct drm_plane *plane,
 			     struct drm_plane_state *old_state);
-void vmw_du_plane_reset(struct drm_plane *plane);
+struct drm_plane_state *vmw_du_plane_create_state(struct drm_plane *plane);
 struct drm_plane_state *vmw_du_plane_duplicate_state(struct drm_plane *plane);
 void vmw_du_plane_destroy_state(struct drm_plane *plane,
 				struct drm_plane_state *state);
@@ -421,7 +421,7 @@ int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
 			     struct drm_atomic_commit *state);
 void vmw_du_crtc_atomic_begin(struct drm_crtc *crtc,
 			      struct drm_atomic_commit *state);
-void vmw_du_crtc_reset(struct drm_crtc *crtc);
+struct drm_crtc_state *vmw_du_crtc_create_state(struct drm_crtc *crtc);
 struct drm_crtc_state *vmw_du_crtc_duplicate_state(struct drm_crtc *crtc);
 void vmw_du_crtc_destroy_state(struct drm_crtc *crtc,
 				struct drm_crtc_state *state);

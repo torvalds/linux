@@ -394,24 +394,43 @@ static int pf_descriptor_init(struct xe_device *xe, unsigned int vfid)
 static int descriptor_decoder(void *arg, u16 key, u16 len, const u32 *value)
 {
 	struct xe_device *xe = arg;
+	int err;
 
 	xe_sriov_dbg_verbose(xe, "found KLV %#x %s\n", key, xe_guc_klv_key_to_string(key));
 
 	switch (key) {
-	case MIGRATION_KLV_DEVICE_DEVID_KEY:
-		if (*value != xe->info.devid) {
+	case MIGRATION_KLV_DEVICE_DEVID_KEY: {
+		u16 devid;
+
+		err = xe_guc_klv_decode_u16(value, len, &devid);
+		if (err) {
+			xe_sriov_warn(xe, "Aborting migration, corrupted key %#x (%pe)\n",
+				      key, ERR_PTR(err));
+			return err;
+		}
+		if (devid != xe->info.devid) {
 			xe_sriov_warn(xe, "Aborting migration, devid mismatch %#06x!=%#06x\n",
-				      *value, xe->info.devid);
+				      devid, xe->info.devid);
 			return -ENODEV;
 		}
 		break;
-	case MIGRATION_KLV_DEVICE_REVID_KEY:
-		if (*value != xe->info.revid) {
+	}
+	case MIGRATION_KLV_DEVICE_REVID_KEY: {
+		u16 revid;
+
+		err = xe_guc_klv_decode_u16(value, len, &revid);
+		if (err) {
+			xe_sriov_warn(xe, "Aborting migration, corrupted key %#x (%pe)\n",
+				      key, ERR_PTR(err));
+			return err;
+		}
+		if (revid != xe->info.revid) {
 			xe_sriov_warn(xe, "Aborting migration, revid mismatch %#06x!=%#06x\n",
-				      *value, xe->info.revid);
+				      revid, xe->info.revid);
 			return -ENODEV;
 		}
 		break;
+	}
 	default:
 		if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
 			struct drm_printer p = xe_dbg_printer(xe);

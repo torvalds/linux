@@ -40,12 +40,12 @@ struct amdgpu_tlb_fence {
 
 static const char *amdgpu_tlb_fence_get_driver_name(struct dma_fence *fence)
 {
-	return "amdgpu tlb fence";
+	return "amdgpu_tlb_fence";
 }
 
 static const char *amdgpu_tlb_fence_get_timeline_name(struct dma_fence *f)
 {
-	return "amdgpu tlb timeline";
+	return "amdgpu_tlb_timeline";
 }
 
 static void amdgpu_tlb_fence_work(struct work_struct *work)

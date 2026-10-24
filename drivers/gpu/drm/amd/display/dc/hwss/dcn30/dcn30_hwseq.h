@@ -56,12 +56,10 @@ bool dcn30_mmhubbub_warmup(
 void dcn30_log_color_state(struct dc *dc,
 			   struct dc_log_buffer_ctx *log_ctx);
 
-bool dcn30_set_blend_lut(struct pipe_ctx *pipe_ctx,
-		const struct dc_plane_state *plane_state);
+bool dcn30_set_blend_lut(struct dpp *dpp,
+		struct dc_plane_state *plane_state);
 
-bool dcn30_set_input_transfer_func(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_plane_state *plane_state);
+bool dcn30_set_input_transfer_func(struct set_input_transfer_func_params *params);
 
 void dcn30_program_gamut_remap(struct program_gamut_remap_params *params);
 

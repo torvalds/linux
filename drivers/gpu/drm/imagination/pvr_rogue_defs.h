@@ -93,26 +93,8 @@
 #define MMU_CONTEXT_MAPPING_FWPRIV (0x0) /* FW code/private data */
 #define MMU_CONTEXT_MAPPING_FWIF (0x0) /* Host/FW data */
 
-/*
- * Utility macros to calculate CAT_BASE register addresses
- */
-#define BIF_CAT_BASEX(n)          \
-	(ROGUE_CR_BIF_CAT_BASE0 + \
-	 (n) * (ROGUE_CR_BIF_CAT_BASE1 - ROGUE_CR_BIF_CAT_BASE0))
-
-#define FWCORE_MEM_CAT_BASEX(n)                 \
-	(ROGUE_CR_FWCORE_MEM_CAT_BASE0 +        \
-	 (n) * (ROGUE_CR_FWCORE_MEM_CAT_BASE1 - \
-		ROGUE_CR_FWCORE_MEM_CAT_BASE0))
-
-/*
- * FWCORE wrapper register defines
- */
-#define FWCORE_ADDR_REMAP_CONFIG0_MMU_CONTEXT_SHIFT \
-	ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG0_CBASE_SHIFT
-#define FWCORE_ADDR_REMAP_CONFIG0_MMU_CONTEXT_CLRMSK \
-	ROGUE_CR_FWCORE_ADDR_REMAP_CONFIG0_CBASE_CLRMSK
-#define FWCORE_ADDR_REMAP_CONFIG0_SIZE_ALIGNSHIFT (12U)
+/* Utility macro for accessing instances of repeated registers */
+#define PVR_CR_REPEAT_X(REG, N) ((REG##_REPEAT_BASE) + (N) * (REG##_REPEAT_OFFSET))
 
 #define ROGUE_MAX_COMPUTE_SHARED_REGISTERS (2 * 1024)
 #define ROGUE_MAX_VERTEX_SHARED_REGISTERS 1024

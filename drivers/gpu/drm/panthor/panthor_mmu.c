@@ -601,17 +601,13 @@ static u32 panthor_mmu_as_fault_mask(struct panthor_device *ptdev, u32 as)
 	return BIT(as);
 }
 
-/* Forward declaration to call helpers within as_enable/disable */
-static void panthor_mmu_irq_handler(struct panthor_device *ptdev, u32 status);
-PANTHOR_IRQ_HANDLER(mmu, panthor_mmu_irq_handler);
-
 static int panthor_mmu_as_enable(struct panthor_device *ptdev, u32 as_nr,
 				 u64 transtab, u64 transcfg, u64 memattr)
 {
 	struct panthor_mmu *mmu = ptdev->mmu;
 
-	panthor_mmu_irq_enable_events(&ptdev->mmu->irq,
-				      panthor_mmu_as_fault_mask(ptdev, as_nr));
+	panthor_irq_enable_events(&ptdev->mmu->irq,
+				  panthor_mmu_as_fault_mask(ptdev, as_nr));
 
 	gpu_write64(mmu->iomem, AS_TRANSTAB(as_nr), transtab);
 	gpu_write64(mmu->iomem, AS_MEMATTR(as_nr), memattr);
@@ -629,8 +625,8 @@ static int panthor_mmu_as_disable(struct panthor_device *ptdev, u32 as_nr,
 
 	lockdep_assert_held(&ptdev->mmu->as.slots_lock);
 
-	panthor_mmu_irq_disable_events(&ptdev->mmu->irq,
-				       panthor_mmu_as_fault_mask(ptdev, as_nr));
+	panthor_irq_disable_events(&ptdev->mmu->irq,
+				   panthor_mmu_as_fault_mask(ptdev, as_nr));
 
 	/* Flush+invalidate RW caches, invalidate RO ones. */
 	ret = panthor_gpu_flush_caches(ptdev, CACHE_CLEAN | CACHE_INV,
@@ -1859,8 +1855,9 @@ static void panthor_vm_unlock_region(struct panthor_vm *vm)
 	mutex_unlock(&ptdev->mmu->as.slots_lock);
 }
 
-static void panthor_mmu_irq_handler(struct panthor_device *ptdev, u32 status)
+static void panthor_mmu_irq_handler(struct panthor_irq *pirq, u32 status)
 {
+	struct panthor_device *ptdev = pirq->ptdev;
 	struct panthor_mmu *mmu = ptdev->mmu;
 	bool has_unhandled_faults = false;
 
@@ -1923,6 +1920,11 @@ static void panthor_mmu_irq_handler(struct panthor_device *ptdev, u32 status)
 		panthor_sched_report_mmu_fault(ptdev);
 }
 
+static irqreturn_t panthor_mmu_irq_threaded_handler(int irq, void *data)
+{
+	return panthor_irq_default_threaded_handler(data, panthor_mmu_irq_handler);
+}
+
 /**
  * panthor_mmu_suspend() - Suspend the MMU logic
  * @ptdev: Device.
@@ -1947,7 +1949,7 @@ void panthor_mmu_suspend(struct panthor_device *ptdev)
 	}
 	mutex_unlock(&ptdev->mmu->as.slots_lock);
 
-	panthor_mmu_irq_suspend(&ptdev->mmu->irq);
+	panthor_irq_suspend(&ptdev->mmu->irq);
 }
 
 /**
@@ -1966,7 +1968,7 @@ void panthor_mmu_resume(struct panthor_device *ptdev)
 	ptdev->mmu->as.faulty_mask = 0;
 	mutex_unlock(&ptdev->mmu->as.slots_lock);
 
-	panthor_mmu_irq_resume(&ptdev->mmu->irq);
+	panthor_irq_resume(&ptdev->mmu->irq);
 }
 
 /**
@@ -1983,7 +1985,7 @@ void panthor_mmu_pre_reset(struct panthor_device *ptdev)
 {
 	struct panthor_vm *vm;
 
-	panthor_mmu_irq_suspend(&ptdev->mmu->irq);
+	panthor_irq_suspend(&ptdev->mmu->irq);
 
 	mutex_lock(&ptdev->mmu->vm.lock);
 	ptdev->mmu->vm.reset_in_progress = true;
@@ -2020,7 +2022,7 @@ void panthor_mmu_post_reset(struct panthor_device *ptdev)
 
 	mutex_unlock(&ptdev->mmu->as.slots_lock);
 
-	panthor_mmu_irq_resume(&ptdev->mmu->irq);
+	panthor_irq_resume(&ptdev->mmu->irq);
 
 	/* Restart the VM_BIND queues. */
 	mutex_lock(&ptdev->mmu->vm.lock);
@@ -3278,8 +3280,7 @@ int panthor_vm_prepare_mapped_bos_resvs(struct drm_exec *exec, struct panthor_vm
 unsigned long
 panthor_mmu_reclaim_priv_bos(struct panthor_device *ptdev,
 			     unsigned int nr_to_scan, unsigned long *remaining,
-			     bool (*shrink)(struct drm_gem_object *,
-					    struct ww_acquire_ctx *))
+			     bool (*shrink)(struct drm_gem_object *))
 {
 	unsigned long freed = 0;
 	LIST_HEAD(remaining_vms);
@@ -3305,7 +3306,7 @@ panthor_mmu_reclaim_priv_bos(struct panthor_device *ptdev,
 
 		freed += drm_gem_lru_scan(&ptdev->base, &vm->reclaim.lru,
 					  nr_to_scan - freed,
-					  remaining, shrink, NULL);
+					  remaining, shrink);
 
 		mutex_lock(&ptdev->base.gem_lru_mutex);
 
@@ -3353,7 +3354,7 @@ panthor_mmu_reclaim_priv_bos(struct panthor_device *ptdev,
 void panthor_mmu_unplug(struct panthor_device *ptdev)
 {
 	if (!IS_ENABLED(CONFIG_PM) || pm_runtime_active(ptdev->base.dev))
-		panthor_mmu_irq_suspend(&ptdev->mmu->irq);
+		panthor_irq_suspend(&ptdev->mmu->irq);
 
 	mutex_lock(&ptdev->mmu->as.slots_lock);
 	for (u32 i = 0; i < ARRAY_SIZE(ptdev->mmu->as.slots); i++) {
@@ -3414,8 +3415,9 @@ int panthor_mmu_init(struct panthor_device *ptdev)
 	if (irq <= 0)
 		return -ENODEV;
 
-	ret = panthor_request_mmu_irq(ptdev, &mmu->irq, irq,
-				      ptdev->iomem + MMU_INT_BASE);
+	ret = panthor_irq_request(ptdev, &mmu->irq, irq,
+				  ptdev->iomem + MMU_INT_BASE, "mmu",
+				  panthor_mmu_irq_threaded_handler);
 	if (ret)
 		return ret;
 
@@ -3436,8 +3438,8 @@ int panthor_mmu_init(struct panthor_device *ptdev)
 	if (ret)
 		return ret;
 
-	panthor_mmu_irq_enable_events(&mmu->irq, panthor_mmu_fault_mask(ptdev, ~0));
-	panthor_mmu_irq_resume(&mmu->irq);
+	panthor_irq_enable_events(&mmu->irq, panthor_mmu_fault_mask(ptdev, ~0));
+	panthor_irq_resume(&mmu->irq);
 	return 0;
 }
 

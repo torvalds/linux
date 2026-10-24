@@ -4,10 +4,8 @@
  */
 
 #include <drm/intel/display_parent_interface.h>
+#include <drm/intel/gtt_view_types.h>
 #include <drm/ttm/ttm_bo.h>
-
-/* FIXME move the types to parent interface? */
-#include "i915_gtt_view_types.h"
 
 /* FIXME move intel_remapped_info_size() & co. to parent interface? */
 #include "intel_fb.h"
@@ -150,13 +148,13 @@ static int __xe_pin_fb_vma_dpt(struct drm_gem_object *obj,
 	struct xe_device *xe = to_xe_device(obj->dev);
 	struct xe_tile *tile0 = xe_device_get_root_tile(xe);
 	struct xe_ggtt *ggtt = tile0->mem.ggtt;
-	const struct i915_gtt_view *view = pin_params->view;
+	const struct intel_gtt_view *view = pin_params->view;
 	struct xe_bo *bo = gem_to_xe_bo(obj), *dpt;
 	u32 dpt_size, size = bo->ttm.base.size;
 
-	if (view->type == I915_GTT_VIEW_NORMAL)
+	if (intel_gtt_view_is_normal(view))
 		dpt_size = ALIGN(size / XE_PAGE_SIZE * 8, XE_PAGE_SIZE);
-	else if (view->type == I915_GTT_VIEW_REMAPPED)
+	else if (intel_gtt_view_is_remapped(view))
 		dpt_size = ALIGN(intel_remapped_info_size(&view->remapped) * 8,
 				 XE_PAGE_SIZE);
 	else
@@ -175,7 +173,7 @@ static int __xe_pin_fb_vma_dpt(struct drm_gem_object *obj,
 	if (IS_ERR(dpt))
 		return PTR_ERR(dpt);
 
-	if (view->type == I915_GTT_VIEW_NORMAL) {
+	if (intel_gtt_view_is_normal(view)) {
 		u64 pte = xe_ggtt_encode_pte_flags(ggtt, bo, xe_cache_pat_idx(xe, XE_CACHE_NONE));
 		u32 x;
 
@@ -184,7 +182,7 @@ static int __xe_pin_fb_vma_dpt(struct drm_gem_object *obj,
 
 			iosys_map_wr(&dpt->vmap, x * 8, u64, pte | addr);
 		}
-	} else if (view->type == I915_GTT_VIEW_REMAPPED) {
+	} else if (intel_gtt_view_is_remapped(view)) {
 		write_dpt_remapped(bo, &view->remapped, &dpt->vmap);
 	} else {
 		const struct intel_rotation_info *rot_info = &view->rotated;
@@ -203,7 +201,7 @@ static int __xe_pin_fb_vma_dpt(struct drm_gem_object *obj,
 	vma->node = dpt->ggtt_node[tile0->id];
 
 	/* Ensure DPT writes are flushed */
-	xe_device_l2_flush(xe);
+	xe_device_l2_flush(xe, false);
 	return 0;
 }
 
@@ -233,7 +231,7 @@ write_ggtt_rotated(struct xe_ggtt *ggtt, u32 *ggtt_ofs,
 }
 
 struct fb_rotate_args {
-	const struct i915_gtt_view *view;
+	const struct intel_gtt_view *view;
 	struct xe_bo *bo;
 };
 
@@ -258,7 +256,7 @@ static int __xe_pin_fb_vma_ggtt(struct drm_gem_object *obj,
 				const struct intel_fb_pin_params *pin_params,
 				struct i915_vma *vma)
 {
-	const struct i915_gtt_view *view = pin_params->view;
+	const struct intel_gtt_view *view = pin_params->view;
 	struct xe_bo *bo = gem_to_xe_bo(obj);
 	struct xe_device *xe = to_xe_device(obj->dev);
 	struct xe_tile *tile0 = xe_device_get_root_tile(xe);
@@ -277,7 +275,7 @@ static int __xe_pin_fb_vma_ggtt(struct drm_gem_object *obj,
 		align = max(align, SZ_64K);
 
 	/* Fast case, preallocated GGTT view? */
-	if (bo->ggtt_node[tile0->id] && view->type == I915_GTT_VIEW_NORMAL) {
+	if (bo->ggtt_node[tile0->id] && intel_gtt_view_is_normal(view)) {
 		vma->node = bo->ggtt_node[tile0->id];
 		return 0;
 	}
@@ -285,7 +283,7 @@ static int __xe_pin_fb_vma_ggtt(struct drm_gem_object *obj,
 	/* TODO: Consider sharing framebuffer mapping?
 	 * embed i915_vma inside intel_framebuffer
 	 */
-	if (view->type == I915_GTT_VIEW_NORMAL)
+	if (intel_gtt_view_is_normal(view))
 		size = xe_bo_size(bo);
 	else
 		/* display uses tiles instead of bytes here, so convert it back.. */
@@ -294,7 +292,7 @@ static int __xe_pin_fb_vma_ggtt(struct drm_gem_object *obj,
 	pte = xe_ggtt_encode_pte_flags(ggtt, bo, xe_cache_pat_idx(xe, XE_CACHE_NONE));
 	vma->node = xe_ggtt_insert_node_transform(ggtt, bo, pte,
 						  ALIGN(size, align), align,
-						  view->type == I915_GTT_VIEW_NORMAL ?
+						  intel_gtt_view_is_normal(view) ?
 						  NULL : write_ggtt_rotated_node,
 						  &(struct fb_rotate_args){view, bo});
 	if (IS_ERR(vma->node))
@@ -459,9 +457,9 @@ static void xe_fb_pin_dpt_unpin(struct intel_dpt *dpt,
 static struct i915_vma *
 xe_fb_pin_reuse_vma(struct i915_vma *old_ggtt_vma,
 		    struct drm_gem_object *old_obj,
-		    const struct i915_gtt_view *old_view,
+		    const struct intel_gtt_view *old_view,
 		    struct drm_gem_object *new_obj,
-		    const struct i915_gtt_view *new_view,
+		    const struct intel_gtt_view *new_view,
 		    u32 *out_offset)
 {
 	if (old_ggtt_vma && old_obj == new_obj &&

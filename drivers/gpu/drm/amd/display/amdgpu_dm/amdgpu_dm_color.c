@@ -1551,6 +1551,8 @@ __set_colorop_in_tf_1d_curve(struct dc_plane_state *dc_plane_state,
 	struct dc_transfer_func *tf = &dc_plane_state->in_transfer_func;
 	struct drm_colorop *colorop = colorop_state->colorop;
 	struct drm_device *drm = colorop->dev;
+	struct dc_color_caps *color_caps = NULL;
+	bool is_subsampled_format;
 
 	if (colorop->type != DRM_COLOROP_1D_CURVE)
 		return -EINVAL;
@@ -1564,13 +1566,81 @@ __set_colorop_in_tf_1d_curve(struct dc_plane_state *dc_plane_state,
 	}
 
 	drm_dbg(drm, "Degamma colorop with ID: %d\n", colorop->base.id);
-
 	tf->type = TF_TYPE_PREDEFINED;
+
+	/* Check if format requires post-scale color processing (subsampled formats) */
+	is_subsampled_format = (dc_plane_state->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN &&
+				dc_plane_state->format < SURFACE_PIXEL_FORMAT_SUBSAMPLE_END);
+
 	tf->tf = amdgpu_colorop_tf_to_dc_tf(colorop_state->curve_1d_type);
+
+	if (dc_plane_state->ctx && dc_plane_state->ctx->dc)
+		color_caps = &dc_plane_state->ctx->dc->caps.color;
+
+	if (!mod_color_calculate_degamma_params(color_caps, tf, NULL,
+						is_subsampled_format)) {
+		drm_err(drm, "Failed to calculate degamma params\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
 EXPORT_IF_KUNIT(__set_colorop_in_tf_1d_curve);
+
+static int
+__set_dm_plane_colorop_fixed_matrix(struct drm_plane_state *plane_state,
+				    struct dc_plane_state *dc_plane_state,
+				    struct drm_colorop *colorop)
+{
+	struct drm_colorop *old_colorop;
+	struct drm_colorop_state *colorop_state = NULL, *new_colorop_state;
+	struct drm_atomic_commit *state = plane_state->state;
+	int i = 0;
+
+	old_colorop = colorop;
+
+	for_each_new_colorop_in_state(state, colorop, new_colorop_state, i) {
+		if (new_colorop_state->colorop == old_colorop) {
+			colorop_state = new_colorop_state;
+			break;
+		}
+	}
+
+	if (!colorop_state)
+		return -EINVAL;
+
+	if (colorop_state->bypass) {
+		dc_plane_state->color_space = COLOR_SPACE_SRGB;
+		return 0;
+	}
+
+	switch (colorop_state->fixed_matrix_type) {
+	case DRM_COLOROP_FM_YCBCR601_FULL_RGB:
+		dc_plane_state->color_space = COLOR_SPACE_YCBCR601;
+		break;
+	case DRM_COLOROP_FM_YCBCR601_LIMITED_RGB:
+		dc_plane_state->color_space = COLOR_SPACE_YCBCR601_LIMITED;
+		break;
+	case DRM_COLOROP_FM_YCBCR709_FULL_RGB:
+		dc_plane_state->color_space = COLOR_SPACE_YCBCR709;
+		break;
+	case DRM_COLOROP_FM_YCBCR709_LIMITED_RGB:
+		dc_plane_state->color_space = COLOR_SPACE_YCBCR709_LIMITED;
+		break;
+	case DRM_COLOROP_FM_YCBCR2020_NC_FULL_RGB:
+		dc_plane_state->color_space = COLOR_SPACE_2020_YCBCR_FULL;
+		break;
+	case DRM_COLOROP_FM_YCBCR2020_NC_LIMITED_RGB:
+		dc_plane_state->color_space = COLOR_SPACE_2020_YCBCR_LIMITED;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dc_plane_state->update_bits.full_update = 1;
+
+	return 0;
+}
 
 STATIC_IFN_KUNIT int
 __set_dm_plane_colorop_degamma(struct drm_plane_state *plane_state,
@@ -1837,6 +1907,7 @@ __set_dm_plane_colorop_3dlut(struct drm_plane_state *plane_state,
 			tf->tf = TRANSFER_FUNCTION_LINEAR;
 			tf->sdr_ref_white_level = SDR_WHITE_LEVEL_INIT_VALUE;
 			ret = __set_output_tf_32(tf, NULL, 0, false);
+			dc_plane_state->cm.flags.bits.shaper_enable = 1;
 		}
 	} else {
 		dc_plane_state->cm.flags.bits.lut3d_enable = 0;
@@ -1976,9 +2047,20 @@ amdgpu_dm_plane_set_colorop_properties(struct drm_plane_state *plane_state,
 	bool has_3dlut = adev->dm.dc->caps.color.dpp.hw_3d_lut || adev->dm.dc->caps.color.mpc.preblend;
 	int ret;
 
-	/* 1D Curve - DEGAM TF */
+	/* Fixed Matrix (YUV to RGB) */
 	if (!colorop)
 		return -EINVAL;
+
+	ret = __set_dm_plane_colorop_fixed_matrix(plane_state, dc_plane_state, colorop);
+	if (ret)
+		return ret;
+
+	/* 1D Curve - DEGAM TF */
+	colorop = colorop->next;
+	if (!colorop) {
+		drm_dbg(dev, "no degamma colorop found\n");
+		return -EINVAL;
+	}
 
 	ret = __set_dm_plane_colorop_degamma(plane_state, dc_plane_state, colorop);
 	if (ret)

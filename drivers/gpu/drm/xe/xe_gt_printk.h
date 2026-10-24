@@ -35,6 +35,9 @@
 #define xe_gt_dbg(_gt, _fmt, ...) \
 	xe_gt_printk((_gt), dbg, _fmt, ##__VA_ARGS__)
 
+#define xe_gt_dbg_ratelimited(_gt, _fmt, ...) \
+	xe_gt_printk((_gt), dbg_ratelimited, _fmt, ##__VA_ARGS__)
+
 #define xe_gt_WARN_type(_gt, _type, _condition, _fmt, ...) \
 	xe_tile_WARN##_type((_gt)->tile, _condition, _fmt, ## __VA_ARGS__)
 

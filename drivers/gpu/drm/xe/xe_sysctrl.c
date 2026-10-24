@@ -13,9 +13,11 @@
 #include "xe_device.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
+#include "xe_printk.h"
 #include "xe_soc_remapper.h"
 #include "xe_sysctrl.h"
 #include "xe_sysctrl_mailbox.h"
+#include "xe_sysctrl_mailbox_types.h"
 #include "xe_sysctrl_types.h"
 
 /**
@@ -29,6 +31,21 @@
  * This module provides initialization and support code for interacting
  * with System Controller through the mailbox interface.
  */
+
+/* Application status flags reported in xe_sysctrl_app_status_resp.flags */
+#define XE_SYSCTRL_APP_RESP_VALID		BIT(0)
+#define XE_SYSCTRL_APP_RESP_BOOTED		BIT(1)
+#define XE_SYSCTRL_APP_RESP_INITIALIZED	BIT(2)
+
+/*
+ * Known System Controller application identifiers, keyed by firmware
+ * application ID.
+ */
+enum xe_sysctrl_app_id {
+	XE_SYSCTRL_APP_OCODE	= 0x0C,
+	XE_SYSCTRL_APP_DIAG	= 0x0D,
+};
+
 static void sysctrl_fini(void *arg)
 {
 	struct xe_device *xe = arg;
@@ -124,4 +141,79 @@ void xe_sysctrl_pm_resume(struct xe_device *xe)
 		return;
 
 	xe->soc_remapper.set_sysctrl_region(xe, SYSCTRL_MAILBOX_INDEX);
+}
+
+static enum xe_sysctrl_fw_status
+xe_sysctrl_check_app_status(struct xe_device *xe, enum xe_sysctrl_app_id app_id)
+{
+	struct xe_sysctrl_app_status_req req = {};
+	struct xe_sysctrl_app_status_resp resp = {};
+	struct xe_sysctrl_mailbox_command cmd = {};
+	size_t out_len = 0;
+	u32 flags;
+	int ret;
+
+	req.app_id = (u8)app_id;
+
+	xe_sysctrl_create_command(&cmd, XE_SYSCTRL_GROUP_CORE, XE_SYSCTRL_CMD_GET_APP_STATUS_BY_ID,
+				  &req, sizeof(req), &resp, sizeof(resp));
+
+	ret = xe_sysctrl_send_command(&xe->sc, &cmd, &out_len);
+	if (ret)
+		return XE_SYSCTRL_FIRMWARE_COMM_FAILURE;
+
+	if (out_len != sizeof(resp)) {
+		xe_err(xe, "sysctrl: unexpected get app status response length %zu (expected %zu)\n",
+		       out_len, sizeof(resp));
+		return XE_SYSCTRL_FIRMWARE_COMM_FAILURE;
+	}
+
+	flags = resp.flags;
+
+	if (!(flags & XE_SYSCTRL_APP_RESP_VALID))
+		return XE_SYSCTRL_FIRMWARE_APP_INVALID;
+
+	if (!(flags & XE_SYSCTRL_APP_RESP_BOOTED))
+		return XE_SYSCTRL_FIRMWARE_APP_NOT_LOADED;
+
+	if (!(flags & XE_SYSCTRL_APP_RESP_INITIALIZED))
+		return XE_SYSCTRL_FIRMWARE_APP_BOOTED;
+
+	return XE_SYSCTRL_FIRMWARE_APP_INITIALIZED;
+}
+
+/**
+ * xe_sysctrl_is_oobmsm_fw_ready() - Check if oCode firmware is fully initialized
+ * @xe: xe device instance
+ *
+ * Returns true if oCode firmware has reached the initialized state, indicating
+ * it is ready to handle requests.
+ *
+ * Callers must only invoke this on platforms where System Controller is
+ * present (xe->info.has_sysctrl).
+ *
+ * Return: true if oCode firmware is initialized, false otherwise
+ */
+bool xe_sysctrl_is_oobmsm_fw_ready(struct xe_device *xe)
+{
+	return xe_sysctrl_check_app_status(xe, XE_SYSCTRL_APP_OCODE) ==
+	       XE_SYSCTRL_FIRMWARE_APP_INITIALIZED;
+}
+
+/**
+ * xe_sysctrl_is_diag_fw_ready() - Check if diag firmware is fully initialized
+ * @xe: xe device instance
+ *
+ * Returns true if diag firmware has reached the initialized state, indicating
+ * it is ready to handle requests.
+ *
+ * Callers must only invoke this on platforms where System Controller is
+ * present (xe->info.has_sysctrl).
+ *
+ * Return: true if diag firmware is initialized, false otherwise
+ */
+bool xe_sysctrl_is_diag_fw_ready(struct xe_device *xe)
+{
+	return xe_sysctrl_check_app_status(xe, XE_SYSCTRL_APP_DIAG) ==
+	       XE_SYSCTRL_FIRMWARE_APP_INITIALIZED;
 }

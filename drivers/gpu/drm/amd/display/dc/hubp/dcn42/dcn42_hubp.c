@@ -398,9 +398,12 @@ void hubp42_program_3dlut_fl_config(struct hubp *hubp,
 static bool hubp42_program_surface_flip_and_addr(
 	struct hubp *hubp,
 	const struct dc_plane_address *address,
-	bool flip_immediate)
+	bool flip_immediate,
+	bool dcc)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	(void)dcc;
 
 	//program flip type
 	REG_UPDATE(DCSURF_FLIP_CONTROL,
@@ -732,7 +735,6 @@ struct hubp_funcs dcn42_hubp_funcs = {
 	.hubp_program_3dlut_fl_crossbar = hubp42_program_3dlut_fl_crossbar,
 	.hubp_get_3dlut_fl_done = hubp401_get_3dlut_fl_done,
 	.hubp_clear_tiling = hubp3_clear_tiling,
-	.hubp_program_3dlut_fl_config = hubp401_program_3dlut_fl_config,
 	.hubp_read_reg_state = hubp3_read_reg_state
 };
 

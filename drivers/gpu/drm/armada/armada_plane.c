@@ -256,15 +256,16 @@ static const struct drm_plane_helper_funcs armada_primary_plane_helper_funcs = {
 	.atomic_disable	= armada_drm_primary_plane_atomic_disable,
 };
 
-void armada_plane_reset(struct drm_plane *plane)
+struct drm_plane_state *armada_plane_create_state(struct drm_plane *plane)
 {
 	struct armada_plane_state *st;
-	if (plane->state)
-		__drm_atomic_helper_plane_destroy_state(plane->state);
-	kfree(plane->state);
 	st = kzalloc_obj(*st);
-	if (st)
-		__drm_atomic_helper_plane_reset(plane, &st->base);
+	if (!st)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_atomic_helper_plane_state_init(&st->base, plane);
+
+	return &st->base;
 }
 
 struct drm_plane_state *armada_plane_duplicate_state(struct drm_plane *plane)
@@ -285,7 +286,7 @@ static const struct drm_plane_funcs armada_primary_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_plane_helper_destroy,
-	.reset		= armada_plane_reset,
+	.atomic_create_state = armada_plane_create_state,
 	.atomic_duplicate_state = armada_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };

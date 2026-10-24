@@ -24,28 +24,24 @@ static void tegra_plane_destroy(struct drm_plane *plane)
 	kfree(p);
 }
 
-static void tegra_plane_reset(struct drm_plane *plane)
+static struct drm_plane_state *tegra_plane_atomic_create_state(struct drm_plane *plane)
 {
 	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_plane_state *state;
 	unsigned int i;
 
-	if (plane->state)
-		__drm_atomic_helper_plane_destroy_state(plane->state);
-
-	kfree(plane->state);
-	plane->state = NULL;
-
 	state = kzalloc_obj(*state);
-	if (state) {
-		plane->state = &state->base;
-		plane->state->plane = plane;
-		plane->state->zpos = p->index;
-		plane->state->normalized_zpos = p->index;
+	if (!state)
+		return ERR_PTR(-ENOMEM);
 
-		for (i = 0; i < 3; i++)
-			state->iova[i] = DMA_MAPPING_ERROR;
-	}
+	state->base.plane = plane;
+	state->base.zpos = p->index;
+	state->base.normalized_zpos = p->index;
+
+	for (i = 0; i < 3; i++)
+		state->iova[i] = DMA_MAPPING_ERROR;
+
+	return &state->base;
 }
 
 static struct drm_plane_state *
@@ -131,7 +127,7 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = tegra_plane_destroy,
-	.reset = tegra_plane_reset,
+	.atomic_create_state = tegra_plane_atomic_create_state,
 	.atomic_duplicate_state = tegra_plane_atomic_duplicate_state,
 	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
 	.format_mod_supported = tegra_plane_format_mod_supported,

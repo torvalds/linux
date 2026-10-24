@@ -20,6 +20,7 @@
 #include "regs/xe_regs.h"
 #include "xe_assert.h"
 #include "xe_bo.h"
+#include "xe_gt.h"
 #include "xe_gt_printk.h"
 #include "xe_gt_types.h"
 #include "xe_map.h"
@@ -450,6 +451,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 ALLOW_ERROR_INJECTION(xe_ggtt_init_early, ERRNO); /* See xe_pci_probe() */
 
 static void xe_ggtt_invalidate(struct xe_ggtt *ggtt);
+static void xe_ggtt_invalidate_engine(struct xe_ggtt *ggtt);
 
 static void xe_ggtt_initial_clear(struct xe_ggtt *ggtt)
 {
@@ -481,8 +483,11 @@ static void ggtt_node_remove(struct xe_ggtt_node *node)
 		xe_ggtt_clear(ggtt, xe_ggtt_node_addr(node), xe_ggtt_node_size(node));
 	drm_mm_remove_node(&node->base);
 	node->base.size = 0;
-	if (bound && node->invalidate_on_remove)
+	if (bound && node->invalidate_on_remove) {
 		xe_ggtt_invalidate(ggtt);
+		/* Drain engine TLBs so a recycled range can't hit a stale entry. */
+		xe_ggtt_invalidate_engine(ggtt);
+	}
 	mutex_unlock(&ggtt->lock);
 
 	ggtt_node_fini(node);
@@ -533,27 +538,36 @@ void xe_ggtt_node_remove(struct xe_ggtt_node *node, bool invalidate)
 int xe_ggtt_init(struct xe_ggtt *ggtt)
 {
 	struct xe_device *xe = tile_to_xe(ggtt->tile);
-	unsigned int flags;
 	int err;
 
 	/*
-	 * So we don't need to worry about 64K GGTT layout when dealing with
-	 * scratch entries, rather keep the scratch page in system memory on
-	 * platforms where 64K pages are needed for VRAM.
+	 * Multi-queue misses engine GGTT TLB invalidations (GuC lite-restore
+	 * skips the full context restore), so skip scratch: a stale translation
+	 * to a freed range then faults instead of silently reading scratch.
 	 */
-	flags = 0;
-	if (ggtt->flags & XE_GGTT_FLAGS_64K)
-		flags |= XE_BO_FLAG_SYSTEM;
-	else
-		flags |= XE_BO_FLAG_VRAM_IF_DGFX(ggtt->tile);
+	if (!xe_gt_has_multi_queue(ggtt->tile->primary_gt)) {
+		unsigned int flags = 0;
 
-	ggtt->scratch = xe_managed_bo_create_pin_map(xe, ggtt->tile, XE_PAGE_SIZE, flags);
-	if (IS_ERR(ggtt->scratch)) {
-		err = PTR_ERR(ggtt->scratch);
-		goto err;
+		/*
+		 * So we don't need to worry about 64K GGTT layout when dealing
+		 * with scratch entries, rather keep the scratch page in system
+		 * memory on platforms where 64K pages are needed for VRAM.
+		 */
+		if (ggtt->flags & XE_GGTT_FLAGS_64K)
+			flags |= XE_BO_FLAG_SYSTEM;
+		else
+			flags |= XE_BO_FLAG_VRAM_IF_DGFX(ggtt->tile);
+
+		ggtt->scratch = xe_managed_bo_create_pin_map(xe, ggtt->tile,
+							     XE_PAGE_SIZE, flags);
+		if (IS_ERR(ggtt->scratch)) {
+			err = PTR_ERR(ggtt->scratch);
+			goto err;
+		}
+
+		xe_map_memset(xe, &ggtt->scratch->vmap, 0, 0,
+			      xe_bo_size(ggtt->scratch));
 	}
-
-	xe_map_memset(xe, &ggtt->scratch->vmap, 0, 0, xe_bo_size(ggtt->scratch));
 
 	xe_ggtt_initial_clear(ggtt);
 
@@ -589,6 +603,34 @@ static void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
 	/* Each GT in a tile has its own TLB to cache GGTT lookups */
 	ggtt_invalidate_gt_tlb(ggtt->tile->primary_gt);
 	ggtt_invalidate_gt_tlb(ggtt->tile->media_gt);
+}
+
+static void ggtt_invalidate_gt_engine_tlb(struct xe_gt *gt)
+{
+	int err;
+
+	/*
+	 * Multi-queue GTs miss engine GGTT TLB invalidations (GuC
+	 * lite-restore skips the full context restore), so the engine
+	 * flush is needed there.
+	 */
+	if (!gt || !xe_gt_has_multi_queue(gt))
+		return;
+
+	err = xe_tlb_inval_ggtt_full(&gt->tlb_inval);
+	xe_gt_WARN(gt, err, "Failed to invalidate engine GGTT TLBs (%pe)",
+		   ERR_PTR(err));
+}
+
+/*
+ * Drain engine-side GGTT TLBs on teardown so a recycled range's next
+ * occupant can't hit a predecessor's cached translation.
+ */
+static void xe_ggtt_invalidate_engine(struct xe_ggtt *ggtt)
+{
+	/* Each GT in a tile has its own engine TLBs to drain */
+	ggtt_invalidate_gt_engine_tlb(ggtt->tile->primary_gt);
+	ggtt_invalidate_gt_engine_tlb(ggtt->tile->media_gt);
 }
 
 /**

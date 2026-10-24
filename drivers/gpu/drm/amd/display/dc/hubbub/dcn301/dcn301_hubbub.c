@@ -74,6 +74,8 @@ void hubbub301_construct(struct dcn20_hubbub *hubbub3,
 	const struct dcn_hubbub_mask *hubbub_mask)
 {
 	hubbub3->base.ctx = ctx;
+
+	hubbub3->base.inst = 0;
 	hubbub3->base.funcs = &hubbub301_funcs;
 	hubbub3->regs = hubbub_regs;
 	hubbub3->shifts = hubbub_shift;

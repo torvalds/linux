@@ -40,6 +40,7 @@ struct xe_device_desc {
 
 	u8 has_cached_pt:1;
 	u8 has_display:1;
+	u8 has_device_uid:1;
 	u8 has_drm_ras:1;
 	u8 has_fan_control:1;
 	u8 has_flat_ccs:1;
@@ -52,8 +53,9 @@ struct xe_device_desc {
 	u8 has_mbx_power_limits:1;
 	u8 has_mbx_thermal_info:1;
 	u8 has_mert:1;
-	u8 has_pre_prod_wa:1;
 	u8 has_page_reclaim_hw_assist:1;
+	u8 has_pre_prod_wa:1;
+	u8 has_pt_mirror:1;
 	u8 has_pxp:1;
 	u8 has_soc_remapper_sysctrl:1;
 	u8 has_soc_remapper_telem:1;

@@ -27,6 +27,15 @@ struct msm_dp_panel_psr {
 	u8 capabilities;
 };
 
+/* stream id */
+enum msm_dp_stream_id {
+	DP_STREAM_0,
+	DP_STREAM_1,
+	DP_STREAM_2,
+	DP_STREAM_3,
+	DP_STREAM_MAX,
+};
+
 struct msm_dp_panel {
 	/* dpcd raw data */
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
@@ -39,6 +48,8 @@ struct msm_dp_panel {
 	bool video_test;
 	bool vsc_sdp_supported;
 	u32 hw_revision;
+
+	enum msm_dp_stream_id stream_id;
 
 	u32 max_bw_code;
 };
@@ -88,8 +99,12 @@ static inline bool is_lane_count_valid(u32 lane_count)
 		lane_count == 4);
 }
 
+u32 msm_dp_stream_reg(enum msm_dp_stream_id id, u32 reg);
+
 struct msm_dp_panel *msm_dp_panel_get(struct device *dev, struct drm_dp_aux *aux,
 			      struct msm_dp_link *link,
 			      void __iomem *link_base,
-			      void __iomem *p0_base);
+			      void __iomem *mst2link_base,
+			      void __iomem *mst3link_base,
+			      void __iomem *pixel_base);
 #endif /* _DP_PANEL_H_ */

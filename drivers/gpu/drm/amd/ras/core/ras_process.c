@@ -88,7 +88,8 @@ static int ras_process_umc_event(struct ras_core_context *ras_core,
 		if (ret)
 			return ret;
 
-		ret = ras_core_query_block_ecc_data(ras_core, RAS_BLOCK_ID__UMC, &ecc_data);
+		ret = ras_core_query_block_ecc_data(ras_core,
+				RAS_BLOCK_ID__UMC, &ecc_data, true);
 		if (ret)
 			return ret;
 
@@ -170,6 +171,17 @@ int ras_process_handle_ras_event(struct ras_core_context *ras_core)
 	ras_aca_clear_fatal_flag(ras_core);
 	ras_umc_log_pending_bad_bank(ras_core);
 
+	if (ras_eeprom_mgr_fw_record_enabled(ras_core))
+		ras_umc_dump_fw_records(ras_core);
+
+	if (ras_eeprom_mgr_get_gpu_op_status(ras_core) == RAS_GPU_OP_STATUS_RMA) {
+		uint32_t rma_reset = GPU_RESET_CAUSE_RMA;
+
+		RAS_DEV_ERR(ras_core->dev, "Device is RMA, stop gpu work!\n");
+		ras_core_event_notify(ras_core, RAS_EVENT_ID__RESET_GPU, &rma_reset);
+		return -ERESTART;
+	}
+
 	do {
 		umc_event_count = atomic_read(&ras_proc->umc_interrupt_count);
 		ret = ras_process_umc_event(ras_core, umc_event_count);
@@ -207,6 +219,7 @@ static int ras_process_thread(void *context)
 {
 	struct ras_core_context *ras_core = (struct ras_core_context *)context;
 	struct ras_process *ras_proc = &ras_core->ras_proc;
+	int ret;
 
 	while (!kthread_should_stop()) {
 		ras_wait_event_interruptible_timeout(&ras_proc->ras_process_wq,
@@ -225,9 +238,13 @@ static int ras_process_thread(void *context)
 			continue;
 
 		if (ras_core->sys_fn && ras_core->sys_fn->async_handle_ras_event)
-			ras_core->sys_fn->async_handle_ras_event(ras_core, NULL);
+			ret = ras_core->sys_fn->async_handle_ras_event(ras_core, NULL);
 		else
-			ras_process_handle_ras_event(ras_core);
+			ret = ras_process_handle_ras_event(ras_core);
+
+		/* GPU Device is RMA */
+		if (ret == -ERESTART)
+			break;
 	}
 
 	return 0;
@@ -294,13 +311,16 @@ static int ras_process_add_non_umc_interrupt_req(struct ras_core_context *ras_co
 	struct ras_process *ras_proc = &ras_core->ras_proc;
 	int ret;
 
-	ret = ras_process_put_event(ras_core, req);
-	if (!ret) {
-		atomic_inc(&ras_proc->ras_interrupt_req);
-		wake_up(&ras_proc->ras_process_wq);
+	if (req) {
+		ret = ras_process_put_event(ras_core, req);
+		if (ret)
+			return ret;
 	}
 
-	return ret;
+	atomic_inc(&ras_proc->ras_interrupt_req);
+	wake_up(&ras_proc->ras_process_wq);
+
+	return 0;
 }
 
 int ras_process_add_interrupt_req(struct ras_core_context *ras_core,

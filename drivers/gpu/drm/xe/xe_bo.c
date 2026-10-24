@@ -28,6 +28,7 @@
 #include "xe_ggtt.h"
 #include "xe_map.h"
 #include "xe_migrate.h"
+#include "xe_mmio_gem.h"
 #include "xe_pat.h"
 #include "xe_pm.h"
 #include "xe_preempt_fence.h"
@@ -104,13 +105,16 @@ static bool resource_is_vram(struct ttm_resource *res)
 
 bool xe_bo_is_vram(struct xe_bo *bo)
 {
-	return resource_is_vram(bo->ttm.resource) ||
-		resource_is_stolen_vram(xe_bo_device(bo), bo->ttm.resource);
+	struct ttm_resource *res = bo->ttm.resource;
+
+	return  res && (resource_is_vram(res) || resource_is_stolen_vram(xe_bo_device(bo), res));
 }
 
 bool xe_bo_is_stolen(struct xe_bo *bo)
 {
-	return bo->ttm.resource->mem_type == XE_PL_STOLEN;
+	struct ttm_resource *res = bo->ttm.resource;
+
+	return res && res->mem_type == XE_PL_STOLEN;
 }
 
 /**
@@ -158,7 +162,13 @@ bool xe_bo_is_vm_bound(struct xe_bo *bo)
 	return !list_empty(&bo->ttm.base.gpuva.list);
 }
 
-static bool xe_bo_is_user(struct xe_bo *bo)
+/**
+ * xe_bo_is_user - Check if BO is user-created
+ * @bo: The BO
+ *
+ * Returns: true if @bo was created by userspace
+ */
+bool xe_bo_is_user(struct xe_bo *bo)
 {
 	return bo->flags & XE_BO_FLAG_USER;
 }
@@ -1024,16 +1034,13 @@ void xe_bo_set_purgeable_state(struct xe_bo *bo,
  *
  * Return: 0 on success, negative error code on failure
  */
-static int xe_ttm_bo_purge(struct ttm_buffer_object *ttm_bo, struct ttm_operation_ctx *ctx)
+int xe_ttm_bo_purge(struct ttm_buffer_object *ttm_bo, struct ttm_operation_ctx *ctx)
 {
 	struct xe_bo *bo = ttm_to_xe_bo(ttm_bo);
 	struct ttm_placement place = {};
 	int ret;
 
 	xe_bo_assert_held(bo);
-
-	if (!ttm_bo->ttm)
-		return 0;
 
 	if (!xe_bo_madv_is_dontneed(bo))
 		return 0;
@@ -1976,7 +1983,7 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 		xe_drm_client_remove_bo(bo);
 #endif
 
-	if (bo->vm && xe_bo_is_user(bo))
+	if (bo->vm && (xe_bo_is_user(bo) || bo->flags & XE_BO_FLAG_PAGETABLE))
 		xe_vm_put(bo->vm);
 
 	if (bo->parent_obj)
@@ -2663,7 +2670,7 @@ __xe_bo_create_locked(struct xe_device *xe,
 	 * by having all the vm's bo refereferences released at vm close
 	 * time.
 	 */
-	if (vm && xe_bo_is_user(bo))
+	if (vm && (xe_bo_is_user(bo) || bo->flags & XE_BO_FLAG_PAGETABLE))
 		xe_vm_get(vm);
 	bo->vm = vm;
 
@@ -3353,6 +3360,9 @@ void xe_bo_unpin(struct xe_bo *bo)
 	struct ttm_place *place = &bo->placements[0];
 	struct xe_device *xe = xe_bo_device(bo);
 
+	if (xe_bo_is_purged(bo))
+		return;
+
 	xe_assert(xe, !bo->ttm.base.import_attach);
 	xe_assert(xe, xe_bo_is_pinned(bo));
 
@@ -3742,6 +3752,39 @@ out_vm:
 	return err;
 }
 
+static int xe_gem_pci_barrier_mmap_offset(struct xe_device *xe, struct drm_file *file,
+					  struct drm_xe_gem_mmap_offset *args)
+{
+	struct xe_file *xef = file->driver_priv;
+	struct xe_mmio_gem **barrier = &xef->mmio_gem.pci_barrier;
+
+	if (XE_IOCTL_DBG(xe, !IS_DGFX(xe)))
+		return -EINVAL;
+
+	if (XE_IOCTL_DBG(xe, args->handle))
+		return -EINVAL;
+
+	scoped_guard(mutex, &xef->mmio_gem.lock) {
+		if (!*barrier) {
+			phys_addr_t phys_addr;
+
+#define LAST_DB_PAGE_OFFSET 0x7ff000
+			phys_addr = pci_resource_start(to_pci_dev(xe->drm.dev), 0) +
+				LAST_DB_PAGE_OFFSET;
+			*barrier = xe_mmio_gem_create(xe, file, phys_addr, SZ_4K);
+			if (IS_ERR(*barrier)) {
+				int err = PTR_ERR(*barrier);
+
+				*barrier = NULL;
+				return err;
+			}
+		}
+
+		args->offset = xe_mmio_gem_mmap_offset(*barrier);
+	}
+	return 0;
+}
+
 int xe_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file)
 {
@@ -3757,21 +3800,8 @@ int xe_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 			 ~DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER))
 		return -EINVAL;
 
-	if (args->flags & DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER) {
-		if (XE_IOCTL_DBG(xe, !IS_DGFX(xe)))
-			return -EINVAL;
-
-		if (XE_IOCTL_DBG(xe, args->handle))
-			return -EINVAL;
-
-		if (XE_IOCTL_DBG(xe, PAGE_SIZE > SZ_4K))
-			return -EINVAL;
-
-		BUILD_BUG_ON(((XE_PCI_BARRIER_MMAP_OFFSET >> XE_PTE_SHIFT) +
-			      SZ_4K) >= DRM_FILE_PAGE_OFFSET_START);
-		args->offset = XE_PCI_BARRIER_MMAP_OFFSET;
-		return 0;
-	}
+	if (args->flags & DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER)
+		return xe_gem_pci_barrier_mmap_offset(xe, file, args);
 
 	gem_obj = drm_gem_object_lookup(file, args->handle);
 	if (XE_IOCTL_DBG(xe, !gem_obj))

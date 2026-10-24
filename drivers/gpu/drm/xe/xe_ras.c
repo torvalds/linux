@@ -3,8 +3,11 @@
  * Copyright © 2026 Intel Corporation
  */
 
+#include "xe_configfs.h"
+#include "xe_debugfs.h"
 #include "xe_device.h"
 #include "xe_drm_ras.h"
+#include "xe_log.h"
 #include "xe_pm.h"
 #include "xe_printk.h"
 #include "xe_ras.h"
@@ -44,6 +47,16 @@ enum xe_ras_component {
 	XE_RAS_COMP_SOC_INTERNAL,
 	XE_RAS_COMP_MAX
 };
+
+#define CHECK_COMPONENT(RAS_COMP, LOG_COMP) \
+	static_assert(MAKE_XE_LOG_COMPONENT(HARDWARE, (RAS_COMP)) == (LOG_COMP))
+	/* make sure components definitions maintain stable relation */
+	CHECK_COMPONENT(XE_RAS_COMP_DEVICE_MEMORY, XE_LOG_COMPONENT_DEVICE_MEMORY);
+	CHECK_COMPONENT(XE_RAS_COMP_CORE_COMPUTE, XE_LOG_COMPONENT_CORE_COMPUTE);
+	CHECK_COMPONENT(XE_RAS_COMP_PCIE, XE_LOG_COMPONENT_PCIE);
+	CHECK_COMPONENT(XE_RAS_COMP_FABRIC, XE_LOG_COMPONENT_FABRIC);
+	CHECK_COMPONENT(XE_RAS_COMP_SOC_INTERNAL, XE_LOG_COMPONENT_SOC_INTERNAL);
+#undef CHECK_COMPONENT
 
 /* RAS response status codes */
 enum xe_ras_response_status {
@@ -90,6 +103,8 @@ static const char * const gpu_health_states[] = {
 };
 static_assert(ARRAY_SIZE(gpu_health_states) == XE_RAS_HEALTH_MAX);
 
+static int get_counter(struct xe_device *xe, struct xe_ras_error_class *counter, u32 *value);
+
 static u8 drm_to_xe_ras_severity(u8 severity)
 {
 	switch (severity) {
@@ -99,6 +114,18 @@ static u8 drm_to_xe_ras_severity(u8 severity)
 		return XE_RAS_SEV_UNCORRECTABLE;
 	default:
 		return XE_RAS_SEV_NOT_SUPPORTED;
+	}
+}
+
+static u8 xe_to_drm_ras_severity(u8 severity)
+{
+	switch (severity) {
+	case XE_RAS_SEV_CORRECTABLE:
+		return DRM_XE_RAS_ERR_SEV_CORRECTABLE;
+	case XE_RAS_SEV_UNCORRECTABLE:
+		return DRM_XE_RAS_ERR_SEV_UNCORRECTABLE;
+	default:
+		return DRM_XE_RAS_ERR_SEV_MAX;
 	}
 }
 
@@ -117,6 +144,24 @@ static u8 drm_to_xe_ras_component(u8 component)
 		return XE_RAS_COMP_FABRIC;
 	default:
 		return XE_RAS_COMP_NOT_SUPPORTED;
+	}
+}
+
+static u8 xe_to_drm_ras_component(u8 component)
+{
+	switch (component) {
+	case XE_RAS_COMP_DEVICE_MEMORY:
+		return DRM_XE_RAS_ERR_COMP_DEVICE_MEMORY;
+	case XE_RAS_COMP_CORE_COMPUTE:
+		return DRM_XE_RAS_ERR_COMP_CORE_COMPUTE;
+	case XE_RAS_COMP_PCIE:
+		return DRM_XE_RAS_ERR_COMP_PCIE;
+	case XE_RAS_COMP_FABRIC:
+		return DRM_XE_RAS_ERR_COMP_FABRIC;
+	case XE_RAS_COMP_SOC_INTERNAL:
+		return DRM_XE_RAS_ERR_COMP_SOC_INTERNAL;
+	default:
+		return DRM_XE_RAS_ERR_COMP_MAX;
 	}
 }
 
@@ -154,6 +199,24 @@ static inline const char *comp_to_str(u8 component)
 		component = XE_RAS_COMP_NOT_SUPPORTED;
 
 	return xe_ras_components[component];
+}
+
+static bool ras_counter_is_valid(struct xe_device *xe, struct xe_ras_error_class *counter)
+{
+	u8 severity = counter->common.severity;
+	u8 component = counter->common.component;
+
+	if (!in_range(severity, XE_RAS_SEV_NOT_SUPPORTED + 1, XE_RAS_SEV_MAX - 1)) {
+		xe_err(xe, "sysctrl: unexpected severity %u\n", severity);
+		return false;
+	}
+
+	if (!in_range(component, XE_RAS_COMP_NOT_SUPPORTED + 1, XE_RAS_COMP_MAX - 1)) {
+		xe_err(xe, "sysctrl: unexpected component %u\n", component);
+		return false;
+	}
+
+	return true;
 }
 
 static struct pci_dev *find_usp_dev(struct pci_dev *pdev)
@@ -218,6 +281,26 @@ static void ras_usp_aer_init(struct xe_device *xe)
 	dev_dbg(&usp->dev, "Uncorrectable Internal Errors downgraded and unmasked\n");
 }
 
+static void ras_send_error_event(struct xe_device *xe, u8 severity, u8 component)
+{
+	struct xe_ras_error_class counter = {0};
+	u8 drm_severity, drm_component;
+	u32 value;
+	int ret;
+
+	counter.common.severity = severity;
+	counter.common.component = component;
+
+	ret = get_counter(xe, &counter, &value);
+	if (ret)
+		return;
+
+	drm_severity = xe_to_drm_ras_severity(severity);
+	drm_component = xe_to_drm_ras_component(component);
+
+	xe_drm_ras_event(xe, drm_component, drm_severity, value);
+}
+
 static u8 handle_core_compute_errors(struct xe_ras_error_array *arr)
 {
 	struct xe_ras_compute_error *error_info = (void *)arr->details;
@@ -234,6 +317,12 @@ static u8 handle_core_compute_errors(struct xe_ras_error_array *arr)
 	 * Local errors are recovered using an engine reset by GuC.
 	 */
 	return XE_RAS_RECOVERY_ACTION_RECOVERED;
+}
+
+static void punit_error_handler(struct xe_device *xe)
+{
+	xe_device_set_wedged_method(xe, DRM_WEDGE_RECOVERY_COLD_RESET);
+	xe_device_declare_wedged(xe);
 }
 
 static u8 handle_soc_internal_errors(struct xe_device *xe, struct xe_ras_error_array *arr)
@@ -267,7 +356,7 @@ static u8 handle_soc_internal_errors(struct xe_device *xe, struct xe_ras_error_a
 			xe_err(xe, "[RAS]: PUNIT %s detected: 0x%x\n",
 			       sev_to_str(counter->common.severity),
 			       ieh_error->global_error_status);
-			/* TODO: Add PUNIT error handling */
+			punit_error_handler(xe);
 			return XE_RAS_RECOVERY_ACTION_DISCONNECT;
 		}
 	}
@@ -312,8 +401,10 @@ void xe_ras_counter_threshold_crossed(struct xe_device *xe,
 	struct xe_ras_threshold_crossed *pending = (void *)&response->data;
 	struct xe_ras_error_class *errors = pending->counters;
 	u32 id, ncounters = pending->ncounters;
+	u8 sent = 0;
 
 	BUILD_BUG_ON(sizeof(response->data) < sizeof(*pending));
+	BUILD_BUG_ON(BITS_PER_TYPE(sent) < XE_RAS_COMP_MAX);
 	xe_device_assert_mem_access(xe);
 
 	if (!ncounters || ncounters > XE_RAS_NUM_COUNTERS)
@@ -327,8 +418,18 @@ void xe_ras_counter_threshold_crossed(struct xe_device *xe,
 		severity = errors[id].common.severity;
 		component = errors[id].common.component;
 
+		if (!ras_counter_is_valid(xe, &errors[id]))
+			continue;
+
 		xe_warn(xe, "[RAS]: %s %s detected\n",
 			comp_to_str(component), sev_to_str(severity));
+
+		/* Send event once per component */
+		if (sent & BIT(component))
+			continue;
+		sent |= BIT(component);
+
+		ras_send_error_event(xe, severity, component);
 	}
 }
 
@@ -358,6 +459,9 @@ static int get_counter(struct xe_device *xe, struct xe_ras_error_class *counter,
 		return -EIO;
 	}
 
+	if (!ras_counter_is_valid(xe, &response.counter))
+		return -EBADMSG;
+
 	common = &response.counter.common;
 	*value = response.value;
 
@@ -382,12 +486,20 @@ enum xe_ras_recovery_action xe_ras_process_errors(struct xe_device *xe)
 	enum xe_ras_recovery_action final_action;
 	u32 remaining = XE_SYSCTRL_FLOOD_LIMIT;
 	struct xe_ras_get_soc_error response;
+	u8 sent = 0;
 	size_t rlen;
 	int ret;
+
+	if (xe_fault_wedge_cold_reset()) {
+		xe_err(xe, "[RAS]: cold-reset wedge injected\n");
+		punit_error_handler(xe);
+		return XE_RAS_RECOVERY_ACTION_DISCONNECT;
+	}
 
 	if (!xe->info.has_sysctrl)
 		return XE_RAS_RECOVERY_ACTION_RESET;
 
+	BUILD_BUG_ON(BITS_PER_TYPE(sent) < XE_RAS_COMP_MAX);
 	/* Default action */
 	final_action = XE_RAS_RECOVERY_ACTION_RECOVERED;
 
@@ -422,8 +534,17 @@ enum xe_ras_recovery_action xe_ras_process_errors(struct xe_device *xe)
 			component = arr->counter.common.component;
 			severity = arr->counter.common.severity;
 
+			if (!ras_counter_is_valid(xe, &arr->counter))
+				continue;
+
 			xe_info(xe, "[RAS]: %s %s detected\n", comp_to_str(component),
 				sev_to_str(severity));
+
+			/* Send event once per component */
+			if (!(sent & BIT(component))) {
+				sent |= BIT(component);
+				ras_send_error_event(xe, severity, component);
+			}
 
 			switch (component) {
 			case XE_RAS_COMP_CORE_COMPUTE:
@@ -532,9 +653,123 @@ int xe_ras_clear_counter(struct xe_device *xe, u8 severity, u8 component)
 
 	counter = &response.counter;
 
+	if (!ras_counter_is_valid(xe, counter))
+		return -EBADMSG;
+
 	xe_dbg(xe, "[RAS]: clear counter for %s %s\n", comp_to_str(counter->common.component),
 	       sev_to_str(counter->common.severity));
 
+	return 0;
+}
+
+/**
+ * xe_ras_get_threshold() - Get error counter threshold
+ * @xe: Xe device instance
+ * @severity: Error severity to be queried (&enum drm_xe_ras_error_severity)
+ * @component: Error component to be queried (&enum drm_xe_ras_error_component)
+ * @threshold: Counter threshold
+ *
+ * This function retrieves the error threshold of a specific counter based on
+ * severity and component.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int xe_ras_get_threshold(struct xe_device *xe, u8 severity, u8 component, u32 *threshold)
+{
+	struct xe_ras_get_threshold_response response = {};
+	struct xe_ras_get_threshold_request request = {};
+	struct xe_sysctrl_mailbox_command command = {};
+	struct xe_ras_error_class *counter;
+	size_t len;
+	int ret;
+
+	counter = &request.counter;
+	counter->common.severity = drm_to_xe_ras_severity(severity);
+	counter->common.component = drm_to_xe_ras_component(component);
+
+	xe_sysctrl_create_command(&command, XE_SYSCTRL_GROUP_GFSP, XE_SYSCTRL_CMD_GET_THRESHOLD,
+				  &request, sizeof(request), &response, sizeof(response));
+
+	guard(xe_pm_runtime)(xe);
+	ret = xe_sysctrl_send_command(&xe->sc, &command, &len);
+	if (ret) {
+		xe_err(xe, "sysctrl: failed to get threshold %d\n", ret);
+		return ret;
+	}
+
+	if (len != sizeof(response)) {
+		xe_err(xe, "sysctrl: unexpected get threshold response length %zu (expected %zu)\n",
+		       len, sizeof(response));
+		return -EIO;
+	}
+
+	if (!ras_counter_is_valid(xe, &response.counter))
+		return -EBADMSG;
+
+	counter = &response.counter;
+	*threshold = response.threshold;
+
+	xe_dbg(xe, "[RAS]: get threshold %u for %s %s\n", *threshold,
+	       comp_to_str(counter->common.component), sev_to_str(counter->common.severity));
+	return 0;
+}
+
+/**
+ * xe_ras_set_threshold() - Set error counter threshold
+ * @xe: Xe device instance
+ * @severity: Error severity to be set (&enum drm_xe_ras_error_severity)
+ * @component: Error component to be set (&enum drm_xe_ras_error_component)
+ * @threshold: Counter threshold
+ *
+ * This function sets the error threshold of a specific counter based on
+ * severity and component.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int xe_ras_set_threshold(struct xe_device *xe, u8 severity, u8 component, u32 threshold)
+{
+	struct xe_ras_set_threshold_response response = {};
+	struct xe_ras_set_threshold_request request = {};
+	struct xe_sysctrl_mailbox_command command = {};
+	struct xe_ras_error_class *counter;
+	size_t len;
+	int ret;
+
+	counter = &request.counter;
+	counter->common.severity = drm_to_xe_ras_severity(severity);
+	counter->common.component = drm_to_xe_ras_component(component);
+	request.threshold = threshold;
+
+	xe_sysctrl_create_command(&command, XE_SYSCTRL_GROUP_GFSP, XE_SYSCTRL_CMD_SET_THRESHOLD,
+				  &request, sizeof(request), &response, sizeof(response));
+
+	guard(xe_pm_runtime)(xe);
+	ret = xe_sysctrl_send_command(&xe->sc, &command, &len);
+	if (ret) {
+		xe_err(xe, "sysctrl: failed to set threshold %d\n", ret);
+		return ret;
+	}
+
+	if (len != sizeof(response)) {
+		xe_err(xe, "sysctrl: unexpected set threshold response length %zu (expected %zu)\n",
+		       len, sizeof(response));
+		return -EIO;
+	}
+
+	ret = ras_status_to_errno(response.status);
+	if (ret) {
+		xe_err(xe, "sysctrl: set threshold command failed with status %#x\n",
+		       response.status);
+		return ret;
+	}
+
+	counter = &response.counter;
+
+	if (!ras_counter_is_valid(xe, counter))
+		return -EBADMSG;
+
+	xe_dbg(xe, "[RAS]: set threshold %u for %s %s\n", response.threshold,
+	       comp_to_str(counter->common.component), sev_to_str(counter->common.severity));
 	return 0;
 }
 
@@ -680,6 +915,14 @@ static const struct attribute_group gpu_health_group = {
 void xe_ras_init(struct xe_device *xe)
 {
 	int ret;
+
+	/*
+	 * TODO: Replace platform check with xe->info.has_disable_vram_page_offline
+	 * once the feature flag is plumbed through device info.
+	 */
+	if (xe->info.platform == XE_CRESCENTISLAND)
+		xe->ras.disable_vram_page_offline =
+			xe_configfs_get_disable_vram_page_offline(to_pci_dev(xe->drm.dev));
 
 	xe_drm_ras_init(xe);
 

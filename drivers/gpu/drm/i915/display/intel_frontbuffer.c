@@ -66,7 +66,6 @@
 #include "intel_frontbuffer.h"
 #include "intel_parent.h"
 #include "intel_psr.h"
-#include "intel_tdf.h"
 
 /**
  * frontbuffer_flush - flush frontbuffer
@@ -95,7 +94,7 @@ static void frontbuffer_flush(struct intel_display *display,
 	trace_intel_frontbuffer_flush(display, frontbuffer_bits, origin);
 
 	might_sleep();
-	intel_td_flush(display);
+	intel_parent_transient_data_flush(display);
 	intel_drrs_flush(display, frontbuffer_bits);
 	intel_psr_flush(display, frontbuffer_bits, origin);
 	intel_fbc_flush(display, frontbuffer_bits, origin);

@@ -161,7 +161,10 @@ pub(crate) struct Gsp<'gsp> {
 
 impl<'gsp> Gsp<'gsp> {
     // Creates an in-place initializer for a `Gsp` manager for `pdev`.
-    pub(crate) fn new(pdev: &'gsp pci::Device<device::Bound>) -> impl PinInit<Self, Error> + 'gsp {
+    pub(crate) fn new(
+        pdev: &'gsp pci::Device<device::Bound>,
+        bar: Bar0<'gsp>,
+    ) -> impl PinInit<Self, Error> + 'gsp {
         pin_init::pin_init_scope(move || {
             let dev = pdev.as_ref();
 
@@ -173,7 +176,7 @@ impl<'gsp> Gsp<'gsp> {
             // _kgspInitLibosLoggingStructures (allocates memory for buffers)
             // kgspSetupLibosInitArgs_IMPL (creates pLibosInitArgs[] array)
             Ok(try_pin_init!(Self {
-                cmdq <- Cmdq::new(dev),
+                cmdq <- Cmdq::new(dev, bar),
                 rmargs: Coherent::init(dev, GFP_KERNEL, GspArgumentsPadded::new(&cmdq))?,
                 libos: {
                     let mut libos = CoherentBox::zeroed_slice(
@@ -217,8 +220,8 @@ impl<'gsp> Gsp<'gsp> {
     }
 
     /// Query the GSP for the static GPU information.
-    pub(crate) fn get_static_info(&self, bar: Bar0<'_>) -> Result<commands::GetGspStaticInfoReply> {
-        self.cmdq.send_command(bar, commands::GetGspStaticInfo)
+    pub(crate) fn get_static_info(&self) -> Result<commands::GetGspStaticInfoReply> {
+        self.cmdq.send_command(commands::GetGspStaticInfo)
     }
 }
 

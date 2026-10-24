@@ -25,6 +25,7 @@
 
 #include <linux/firmware.h>
 #include "amdgpu.h"
+#include "amdgpu_ip.h"
 #include "amdgpu_smu.h"
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
@@ -1677,6 +1678,7 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 	case AMDGPU_PP_SENSOR_NODEPOWER:
 	case AMDGPU_PP_SENSOR_GPPTRESIDENCY:
 	case AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT:
+	case AMDGPU_PP_SENSOR_NPMSTATUS:
 		ret = smu_v13_0_12_get_npm_data(smu, sensor, (uint32_t *)data);
 		if (ret)
 			return ret;
@@ -3215,7 +3217,9 @@ static int smu_v13_0_6_reset_vcn(struct smu_context *smu, uint32_t inst_mask)
 	return ret;
 }
 
-static int smu_v13_0_6_ras_send_msg(struct smu_context *smu, enum smu_message_type msg, uint32_t param, uint32_t *read_arg)
+static int smu_v13_0_6_ras_send_msg(struct smu_context *smu, enum smu_message_type msg,
+			const uint32_t *params, size_t num_params,
+			uint32_t *read_args, size_t num_read_args)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret;
@@ -3236,7 +3240,8 @@ static int smu_v13_0_6_ras_send_msg(struct smu_context *smu, enum smu_message_ty
 	case SMU_MSG_GetTimestamp:
 	case SMU_MSG_GetBadPageIpid:
 	case SMU_MSG_EraseRasTable:
-		ret = smu_cmn_send_smc_msg_with_param(smu, msg, param, read_arg);
+		ret = smu_cmn_send_smc_msg_with_params(smu, msg,
+				params, num_params, read_args, num_read_args);
 		break;
 	default:
 		ret = -EPERM;
@@ -3308,6 +3313,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.get_gpu_metrics = smu_v13_0_6_get_gpu_metrics,
 	.get_pm_metrics = smu_v13_0_6_get_pm_metrics,
 	.get_xcp_metrics = smu_v13_0_6_get_xcp_metrics,
+	.get_npm_cap = smu_v13_0_12_get_npm_cap,
 	.get_thermal_temperature_range = smu_v13_0_6_get_thermal_temperature_range,
 	.mode1_reset_is_support = smu_v13_0_6_is_mode1_reset_supported,
 	.mode1_reset = smu_v13_0_6_mode1_reset,

@@ -179,7 +179,7 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	int pin_count = 0;
 
-	seq_printf(m, "%pK: %c%c%c %8zdKiB %02x %02x %s%s%s",
+	seq_printf(m, "%p: %c%c%c %8zdKiB %02x %02x %s%s%s",
 		   &obj->base,
 		   get_tiling_flag(obj),
 		   get_global_flag(obj),
@@ -209,18 +209,13 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 			   stringify_page_sizes(vma->resource->page_sizes_gtt,
 						NULL, 0));
 		if (i915_vma_is_ggtt(vma) || i915_vma_is_dpt(vma)) {
-			switch (vma->gtt_view.type) {
-			case I915_GTT_VIEW_NORMAL:
+			if (intel_gtt_view_is_normal(&vma->gtt_view)) {
 				seq_puts(m, ", normal");
-				break;
-
-			case I915_GTT_VIEW_PARTIAL:
+			} else if (intel_gtt_view_is_partial(&vma->gtt_view)) {
 				seq_printf(m, ", partial [%08llx+%x]",
 					   vma->gtt_view.partial.offset << PAGE_SHIFT,
 					   vma->gtt_view.partial.size << PAGE_SHIFT);
-				break;
-
-			case I915_GTT_VIEW_ROTATED:
+			} else if (intel_gtt_view_is_rotated(&vma->gtt_view)) {
 				seq_printf(m, ", rotated [(%ux%u, src_stride=%u, dst_stride=%u, offset=%u), (%ux%u, src_stride=%u, dst_stride=%u, offset=%u)]",
 					   vma->gtt_view.rotated.plane[0].width,
 					   vma->gtt_view.rotated.plane[0].height,
@@ -232,9 +227,7 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 					   vma->gtt_view.rotated.plane[1].src_stride,
 					   vma->gtt_view.rotated.plane[1].dst_stride,
 					   vma->gtt_view.rotated.plane[1].offset);
-				break;
-
-			case I915_GTT_VIEW_REMAPPED:
+			} else if (intel_gtt_view_is_remapped(&vma->gtt_view)) {
 				seq_printf(m, ", remapped [(%ux%u, src_stride=%u, dst_stride=%u, offset=%u), (%ux%u, src_stride=%u, dst_stride=%u, offset=%u)]",
 					   vma->gtt_view.remapped.plane[0].width,
 					   vma->gtt_view.remapped.plane[0].height,
@@ -246,11 +239,8 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 					   vma->gtt_view.remapped.plane[1].src_stride,
 					   vma->gtt_view.remapped.plane[1].dst_stride,
 					   vma->gtt_view.remapped.plane[1].offset);
-				break;
-
-			default:
+			} else {
 				MISSING_CASE(vma->gtt_view.type);
-				break;
 			}
 		}
 		if (vma->fence)

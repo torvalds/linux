@@ -6,22 +6,30 @@
 #include "xe_gt_debugfs.h"
 
 #include <linux/debugfs.h>
+#include <linux/panic.h>
+#include <linux/string.h>
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_managed.h>
+#include <linux/math.h>
 
+#include "regs/xe_engine_regs.h"
+#include "regs/xe_gt_regs.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_idle.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_sriov_pf_debugfs.h"
 #include "xe_gt_sriov_vf_debugfs.h"
 #include "xe_gt_stats.h"
 #include "xe_gt_topology.h"
 #include "xe_guc_hwconfig.h"
+#include "xe_guc_submit.h"
 #include "xe_hw_engine.h"
 #include "xe_lrc.h"
+#include "xe_mmio.h"
 #include "xe_mocs.h"
 #include "xe_pat.h"
 #include "xe_pm.h"
@@ -111,6 +119,38 @@ int xe_gt_debugfs_show_with_rpm(struct seq_file *m, void *data)
 
 static int hw_engines(struct xe_gt *gt, struct drm_printer *p)
 {
+	static const struct {
+		struct xe_reg reg;
+		bool has_fw;
+	} msg_idle_reg[XE_NUM_HW_ENGINES] = {
+		[XE_HW_ENGINE_RCS0] = { MSG_IDLE_CS, true },
+		[XE_HW_ENGINE_BCS0] = { MSG_IDLE_BCS0, true },
+		[XE_HW_ENGINE_BCS1] = { MSG_IDLE_BCS1, false },
+		[XE_HW_ENGINE_BCS2] = { MSG_IDLE_BCS2, false },
+		[XE_HW_ENGINE_BCS3] = { MSG_IDLE_BCS3, false },
+		[XE_HW_ENGINE_BCS4] = { MSG_IDLE_BCS4, false },
+		[XE_HW_ENGINE_BCS5] = { MSG_IDLE_BCS5, false },
+		[XE_HW_ENGINE_BCS6] = { MSG_IDLE_BCS6, false },
+		[XE_HW_ENGINE_BCS7] = { MSG_IDLE_BCS7, false },
+		[XE_HW_ENGINE_BCS8] = { MSG_IDLE_BCS8, false },
+		[XE_HW_ENGINE_VCS0] = { MSG_IDLE_VCS0, true },
+		[XE_HW_ENGINE_VCS1] = { MSG_IDLE_VCS1, true },
+		[XE_HW_ENGINE_VCS2] = { MSG_IDLE_VCS2, true },
+		[XE_HW_ENGINE_VCS3] = { MSG_IDLE_VCS3, true },
+		[XE_HW_ENGINE_VCS4] = { MSG_IDLE_VCS4, true },
+		[XE_HW_ENGINE_VCS5] = { MSG_IDLE_VCS5, true },
+		[XE_HW_ENGINE_VCS6] = { MSG_IDLE_VCS6, true },
+		[XE_HW_ENGINE_VCS7] = { MSG_IDLE_VCS7, true },
+		[XE_HW_ENGINE_VECS0] = { MSG_IDLE_VECS0, true },
+		[XE_HW_ENGINE_VECS1] = { MSG_IDLE_VECS1, true },
+		[XE_HW_ENGINE_VECS2] = { MSG_IDLE_VECS2, true },
+		[XE_HW_ENGINE_VECS3] = { MSG_IDLE_VECS3, true },
+		[XE_HW_ENGINE_CCS0] = { MSG_IDLE_CS, true },
+		[XE_HW_ENGINE_CCS1] = { MSG_IDLE_CS, true },
+		[XE_HW_ENGINE_CCS2] = { MSG_IDLE_CS, true },
+		[XE_HW_ENGINE_CCS3] = { MSG_IDLE_CS, true },
+		[XE_HW_ENGINE_GSCCS0] = { MSG_IDLE_GSCCS0, false },
+	};
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
 
@@ -118,8 +158,68 @@ static int hw_engines(struct xe_gt *gt, struct drm_printer *p)
 	if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FORCEWAKE_ALL))
 		return -ETIMEDOUT;
 
-	for_each_hw_engine(hwe, gt, id)
+	for_each_hw_engine(hwe, gt, id) {
+		struct xe_reg reg = msg_idle_reg[id].reg;
+		u32 val;
+
 		xe_hw_engine_print(hwe, p);
+
+		val = xe_mmio_read32(&gt->mmio, reg);
+
+		if (msg_idle_reg[id].has_fw)
+			drm_printf(p, "\tpipe %s, C6 %s, fw_req 0x%02x\n",
+				   val & MSG_IDLE_INDICATION ? "idle" : "busy",
+				   val & MSG_IDLE_C6_ALLOWED ? "allowed" : "not allowed",
+				   REG_FIELD_GET(MSG_IDLE_FW_REQ, val));
+		else
+			drm_printf(p, "\tpipe %s, C6 %s\n",
+				   val & MSG_IDLE_INDICATION ? "idle" : "busy",
+				   val & MSG_IDLE_C6_ALLOWED ? "allowed" : "not allowed");
+
+		drm_puts(p, "\n");
+	}
+
+	return 0;
+}
+
+static int multi_queue_active_lrca(struct xe_gt *gt, struct drm_printer *p)
+{
+	struct xe_guc *guc = &gt->uc.guc;
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+
+	for_each_hw_engine(hwe, gt, id) {
+		u32 cur_lrca, active_id, lrca;
+		unsigned int fw_ref;
+
+		if (!xe_gt_supports_multi_queue(gt, hwe->class))
+			continue;
+
+		/*
+		 * Forcewake is dropped before xe_guc_submit_active_multi_queue_lrca()
+		 * below, which takes guc->submission_state.lock, to avoid holding a
+		 * GT forcewake ref across a mutex acquired elsewhere in the opposite
+		 * order.
+		 */
+		fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+		if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
+			drm_printf(p, "%s\tforcewake failed, skipping\n", hwe->name);
+			xe_force_wake_put(gt_to_fw(gt), fw_ref);
+			continue;
+		}
+
+		cur_lrca = xe_mmio_read32(&gt->mmio,
+					  RING_CURRENT_LRCA(hwe->mmio_base));
+		active_id = xe_lrc_get_multi_queue_active_queue_id(hwe);
+
+		xe_force_wake_put(gt_to_fw(gt), fw_ref);
+
+		lrca = xe_guc_submit_active_multi_queue_lrca(guc, hwe, cur_lrca,
+							     active_id);
+
+		drm_printf(p, "%s\tactive_queue_id %u\tcurrent_lrca 0x%08x\tactive_lrca 0x%08x\n",
+			   hwe->name, active_id, cur_lrca, lrca);
+	}
 
 	return 0;
 }
@@ -248,6 +348,11 @@ static const struct drm_info_list pf_only_debugfs_list[] = {
 	{ "steering", .show = xe_gt_debugfs_show_with_rpm, .data = steering },
 };
 
+static const struct drm_info_list multi_queue_debugfs_list[] = {
+	{ "multi_queue_active_lrca",
+		.show = xe_gt_debugfs_show_with_rpm, .data = multi_queue_active_lrca },
+};
+
 static ssize_t write_to_gt_call(const char __user *userbuf, size_t count, loff_t *ppos,
 				void (*call)(struct xe_gt *), struct xe_gt *gt)
 {
@@ -336,6 +441,139 @@ static int force_reset_sync_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_STORE_ATTRIBUTE(force_reset_sync);
 
+#define U1_15_ONE		0x8000
+#define U1_15_INT_BITS		GENMASK(15, 15)
+#define U1_15_FRACTION_BITS	GENMASK(14, 0)
+
+static void u1_15_decode(u16 num, u16 *i, u32 *frac)
+{
+	/*
+	 * In U1.15 format, uppermost bit is integer value and the
+	 * rest 15 are the fraction.
+	 */
+
+	*i = FIELD_GET(U1_15_INT_BITS, num);
+	*frac = FIELD_GET(U1_15_FRACTION_BITS, num);
+}
+
+static void u1_15_decode_decimal(u16 value, u16 *i, u32 *frac, int digits)
+{
+	u1_15_decode(value, i, frac);
+	*frac = (*frac * int_pow(10, digits)) / (FIELD_MAX(U1_15_FRACTION_BITS) + 1);
+}
+
+static int gt_ia_bias_show(struct seq_file *s, void *unused)
+{
+	struct xe_gt *gt = s->private;
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 val;
+	u32 ia_frac, gt_frac;
+	u16 ia_raw, gt_raw;
+	u16 ia_int, gt_int;
+
+	guard(xe_pm_runtime)(xe);
+	val = xe_mmio_read32(&gt->mmio, GT_IA_PERF_BIAS_REG);
+
+	ia_raw = REG_FIELD_GET(IA_BIAS, val);
+	gt_raw = REG_FIELD_GET(GT_BIAS, val);
+
+	u1_15_decode_decimal(ia_raw, &ia_int, &ia_frac, 4);
+	u1_15_decode_decimal(gt_raw, &gt_int, &gt_frac, 4);
+
+	seq_printf(s, "0x%x (GT: %u.%04u, IA: %u.%04u)\n",
+		   val, gt_int, gt_frac, ia_int, ia_frac);
+
+	return 0;
+}
+
+static ssize_t gt_ia_bias_write(struct file *file,
+				const char __user *userbuf,
+				size_t count, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct xe_gt *gt = s->private;
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 val;
+	int ret;
+
+	ret = kstrtou32_from_user(userbuf, count, 0, &val);
+	if (ret)
+		return ret;
+
+	if (REG_FIELD_GET(IA_BIAS, val) > U1_15_ONE ||
+	    REG_FIELD_GET(GT_BIAS, val) > U1_15_ONE)
+		return -EINVAL;
+
+	if (REG_FIELD_GET(IA_BIAS, val) < IA_BIAS_DEFAULT ||
+	    REG_FIELD_GET(GT_BIAS, val) < GT_BIAS_DEFAULT)
+		return -EINVAL;
+
+	guard(xe_pm_runtime)(xe);
+	xe_mmio_write32(&gt->mmio, GT_IA_PERF_BIAS_REG, val);
+
+	return count;
+}
+DEFINE_SHOW_STORE_ATTRIBUTE(gt_ia_bias);
+
+static const char * const gpgpu_preemption_level_names[] = {
+	[XE_GPGPU_PREEMPT_DEFAULT]      = "default",
+	[XE_GPGPU_PREEMPT_MID_THREAD]   = "mid-thread",
+	[XE_GPGPU_PREEMPT_THREAD_GROUP] = "thread-group",
+	[XE_GPGPU_PREEMPT_COMMAND]      = "command",
+};
+
+static int gpgpu_preemption_level_show(struct seq_file *m, void *unused)
+{
+	struct xe_gt *gt = m->private;
+
+	seq_printf(m, "%s\n", gpgpu_preemption_level_names[gt->gpgpu_preemption_level]);
+
+	return 0;
+}
+
+static ssize_t gpgpu_preemption_level_write(struct file *file,
+					    const char __user *ubuf,
+					    size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct xe_gt *gt = m->private;
+	enum xe_gpgpu_preempt_level new_level;
+	char buf[16];
+	ssize_t copied;
+	int idx;
+
+	if (*offp)
+		return -EINVAL;
+
+	copied = simple_write_to_buffer(buf, sizeof(buf) - 1, offp, ubuf, len);
+	if (copied < 0)
+		return copied;
+
+	buf[copied] = '\0';
+	idx = sysfs_match_string(gpgpu_preemption_level_names, strim(buf));
+	if (idx < 0)
+		return idx;
+
+	new_level = (enum xe_gpgpu_preempt_level)idx;
+
+	if (new_level == XE_GPGPU_PREEMPT_MID_THREAD && gt->info.has_wmtp_disabled) {
+		xe_gt_warn(gt, "MTP fused off in hardware, cannot select mid-thread\n");
+		return -EINVAL;
+	}
+
+	if (new_level != XE_GPGPU_PREEMPT_DEFAULT) {
+		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+		xe_gt_notice(gt,
+			     "GPGPU preemption overridden to '%s' (applies to new LRCs only)\n",
+			     gpgpu_preemption_level_names[new_level]);
+	}
+
+	gt->gpgpu_preemption_level = new_level;
+
+	return copied;
+}
+DEFINE_SHOW_STORE_ATTRIBUTE(gpgpu_preemption_level);
+
 void xe_gt_debugfs_register(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
@@ -369,6 +607,10 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 	debugfs_create_file("force_reset", 0600, root, gt, &force_reset_fops);
 	debugfs_create_file("force_reset_sync", 0600, root, gt, &force_reset_sync_fops);
 
+	if (GRAPHICS_VER(xe) >= 20 && (gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK))
+		debugfs_create_file("gpgpu_preemption_level", 0600, root,
+				    gt, &gpgpu_preemption_level_fops);
+
 	drm_debugfs_create_files(vf_safe_debugfs_list,
 				 ARRAY_SIZE(vf_safe_debugfs_list),
 				 root, minor);
@@ -377,6 +619,14 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 		drm_debugfs_create_files(pf_only_debugfs_list,
 					 ARRAY_SIZE(pf_only_debugfs_list),
 					 root, minor);
+
+	if (!IS_SRIOV_VF(xe) && xe_gt_has_multi_queue(gt))
+		drm_debugfs_create_files(multi_queue_debugfs_list,
+					 ARRAY_SIZE(multi_queue_debugfs_list),
+					 root, minor);
+
+	if (xe_gt_is_main_type(gt) && !IS_DGFX(xe) && !IS_SRIOV_VF(xe))
+		debugfs_create_file("gt_ia_bias", 0600, root, gt, &gt_ia_bias_fops);
 
 	xe_uc_debugfs_register(&gt->uc, root);
 

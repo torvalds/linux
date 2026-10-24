@@ -293,7 +293,7 @@ static const struct drm_plane_funcs sun8i_vi_layer_funcs = {
 	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
 	.destroy		= drm_plane_cleanup,
 	.disable_plane		= drm_atomic_helper_disable_plane,
-	.reset			= drm_atomic_helper_plane_reset,
+	.atomic_create_state = drm_atomic_helper_plane_create_state,
 	.update_plane		= drm_atomic_helper_update_plane,
 };
 

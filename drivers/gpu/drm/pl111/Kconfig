@@ -9,6 +9,7 @@ config DRM_PL111
 	select DRM_KMS_HELPER
 	select DRM_GEM_DMA_HELPER
 	select DRM_BRIDGE
+	select DRM_PANEL
 	select DRM_PANEL_BRIDGE
 	help
 	  Choose this option for DRM support for the PL111 CLCD controller.

@@ -36,12 +36,26 @@ struct cpu_gpu_lock {
 	uint64_t regs[];
 };
 
+struct a6xx_limits_tbl {
+	/** @tbl: List of limits table **/
+	struct a6xx_hfi_limits_tbl *tbl;
+	/** @count: Number of entries in the list **/
+	u32 count;
+};
+
+#define DECLARE_ADRENO_LIMITS_TABLE(name)	\
+static const struct a6xx_limits_tbl name = {	\
+	.tbl = name ## _tbl,			\
+	.count = ARRAY_SIZE(name ## _tbl),	\
+}
+
 /**
  * struct a6xx_info - a6xx specific information from device table
  *
  * @hwcg: hw clock gating register sequence
  * @protect: CP_PROTECT settings
  * @pwrup_reglist pwrup reglist for preemption
+ * @thinmem_config: GMU thinmem configuration
  */
 struct a6xx_info {
 	const struct adreno_reglist *hwcg;
@@ -56,6 +70,9 @@ struct a6xx_info {
 	u32 gmu_cgc_mode;
 	u32 prim_fifo_threshold;
 	const struct a6xx_bcm *bcms;
+	const struct a6xx_hfi_clx_table_v2_cmd *clx_tbl;
+	const struct a6xx_limits_tbl *limits_tbl;
+	u32 thinmem_config;
 };
 
 struct a6xx_gpu {

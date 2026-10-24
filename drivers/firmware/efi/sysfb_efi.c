@@ -302,15 +302,6 @@ static const struct dmi_system_id efifb_dmi_swap_width_height[] __initconst = {
 		.callback = efifb_swap_width_height,
 	},
 	{
-		/* Lenovo D330 with 800x1280 or 1200x1920 portrait screen */
-		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION,
-					"Lenovo ideapad D330-10IGM"),
-		},
-		.callback = efifb_swap_width_height,
-	},
-	{
 		/*
 		 * Lenovo IdeaPad Duet 3 10IGL5 and 10IGL5-LTE with
 		 * 1200x1920 portrait screen

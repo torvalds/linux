@@ -52,7 +52,7 @@ static void __get_nps_pa_flip_bits(struct ras_core_context *ras_core,
 			enum umc_memory_partition_mode nps,
 			struct umc_flip_bits *flip_bits)
 {
-	uint32_t vram_type = ras_core->ras_umc.umc_vram_type;
+	uint32_t vram_type = ras_core_get_vram_type(ras_core);
 	u32 num_umc = ras_core->ras_umc.num_umc;
 
 	/* default setting */
@@ -148,21 +148,31 @@ static void __get_nps_pa_flip_bits(struct ras_core_context *ras_core,
 	}
 }
 
+static uint64_t __get_nps_pa_flip_mask(struct ras_core_context *ras_core,
+		enum umc_memory_partition_mode nps)
+{
+	struct umc_flip_bits flip_bits = {0};
+	uint64_t flip_mask = 0;
+	int i;
+
+	__get_nps_pa_flip_bits(ras_core, nps, &flip_bits);
+
+	for (i = 0; i < flip_bits.bit_num; i++)
+		flip_mask |= BIT_ULL(flip_bits.flip_bits_in_pa[i]);
+
+	return flip_mask;
+}
+
 static uint64_t umc_v12_0_nps_pa_to_row_pa(struct ras_core_context *ras_core,
 		uint64_t pa, enum umc_memory_partition_mode nps, bool zero_pfn_ok)
 {
 	struct umc_flip_bits flip_bits = {0};
 	uint64_t row_pa;
-	int i;
 
 	__get_nps_pa_flip_bits(ras_core, nps, &flip_bits);
+	row_pa = pa & ~__get_nps_pa_flip_mask(ras_core, nps);
 
-	row_pa = pa;
-	/* clear loop bits in soc physical address */
-	for (i = 0; i < flip_bits.bit_num; i++)
-		row_pa &= ~BIT_ULL(flip_bits.flip_bits_in_pa[i]);
-
-	if (!zero_pfn_ok && !RAS_ADDR_TO_PFN(row_pa))
+	if (!zero_pfn_ok && !RAS_ADDR_TO_PFN(row_pa) && flip_bits.bit_num > 2)
 		row_pa |= BIT_ULL(flip_bits.flip_bits_in_pa[2]);
 
 	return row_pa;
@@ -176,13 +186,15 @@ static int lookup_bad_pages_in_a_row(struct ras_core_context *ras_core,
 	uint32_t col, col_lower, row, row_lower, idx, row_high;
 	uint64_t soc_pa, row_pa, column, err_addr;
 	uint64_t retired_addr = RAS_PFN_TO_ADDR(record->cur_nps_retired_row_pfn);
+	uint64_t flip_mask = 0;
 	struct umc_flip_bits flip_bits = {0};
 	uint32_t retire_unit;
 	uint32_t i;
 
 	__get_nps_pa_flip_bits(ras_core, nps, &flip_bits);
 
-	row_pa = umc_v12_0_nps_pa_to_row_pa(ras_core, retired_addr, nps, true);
+	flip_mask = __get_nps_pa_flip_mask(ras_core, nps);
+	row_pa = retired_addr & ~(flip_mask);
 
 	err_addr = record->address;
 	/* get column bit 0 and 1 in mca address */
@@ -243,6 +255,8 @@ static int umc_v12_0_ma2pa(struct ras_core_context *ras_core,
 	uint32_t socket_id = addr_in->socket_id;
 	uint32_t channel_index;
 	uint64_t err_addr = addr_in->err_addr;
+	uint64_t pa_base = ras_core->ras_umc.pa_base;
+	uint64_t lfb_size = ras_core->ras_umc.lfb_size;
 
 	if (node_inst != UMC_INV_AID_NODE) {
 		if (ch_inst >= UMC_V12_0_CHANNEL_INSTANCE_NUM ||
@@ -318,11 +332,11 @@ static int umc_v12_0_ma2pa(struct ras_core_context *ras_core,
 		OFFSET_IN_256B_BLOCK(na);
 
 	/* calc channel hash based on absolute address */
-	soc_pa += socket_id * SOCKET_LFB_SIZE;
+	soc_pa += pa_base;
 	/* the umc channel bits are not original values, they are hashed */
 	UMC_V12_0_SET_CHANNEL_HASH(channel_index, soc_pa);
 	/* restore pa */
-	soc_pa -= socket_id * SOCKET_LFB_SIZE;
+	soc_pa -= pa_base;
 
 	/* get some channel bits from na_nps directly and
 	 * add nps section offset
@@ -330,16 +344,16 @@ static int umc_v12_0_ma2pa(struct ras_core_context *ras_core,
 	if (nps == UMC_MEMORY_PARTITION_MODE_NPS2) {
 		soc_pa &= ~(0x1ULL << UMC_V12_0_PA_CH5_BIT);
 		soc_pa |= ((na_nps & 0x100) << 5);
-		soc_pa += (node_inst >> 1) * (SOCKET_LFB_SIZE >> 1);
+		soc_pa += (node_inst >> 1) * (lfb_size >> 1);
 	} else if (nps == UMC_MEMORY_PARTITION_MODE_NPS4) {
 		soc_pa &= ~(0x3ULL << UMC_V12_0_PA_CH4_BIT);
 		soc_pa |= ((na_nps & 0x300) << 4);
-		soc_pa += node_inst * (SOCKET_LFB_SIZE >> 2);
+		soc_pa += node_inst * (lfb_size >> 2);
 	} else if (nps == UMC_MEMORY_PARTITION_MODE_NPS8) {
 		soc_pa &= ~(0x7ULL << UMC_V12_0_PA_CH4_BIT);
 		soc_pa |= ((na_nps & 0x700) << 4);
-		soc_pa += node_inst * (SOCKET_LFB_SIZE >> 2) +
-			(channel_index >> 4) * (SOCKET_LFB_SIZE >> 3);
+		soc_pa += node_inst * (lfb_size >> 2) +
+			(channel_index >> 4) * (lfb_size >> 3);
 	}
 
 	addr_out->pa = soc_pa;
@@ -348,7 +362,24 @@ static int umc_v12_0_ma2pa(struct ras_core_context *ras_core,
 
 	return 0;
 }
+static int convert_ma_to_pa(struct ras_core_context *ras_core,
+			struct umc_mca_addr *addr_in, struct umc_phy_addr *addr_out,
+			uint32_t nps)
+{
+	int ret;
 
+	if (ras_psp_check_supported_cmd(ras_core, RAS_TA_CMD_ID__QUERY_ADDRESS))
+		ret = ras_umc_ras_ta_translate_addr(ras_core,
+				addr_in, addr_out, nps);
+	else
+		ret = umc_v12_0_ma2pa(ras_core,
+				addr_in, addr_out, nps);
+
+	if (!addr_out->pa_flip_mask)
+		addr_out->pa_flip_mask = __get_nps_pa_flip_mask(ras_core, nps);
+
+	return ret;
+}
 static int convert_bank_to_nps_addr(struct ras_core_context *ras_core,
 			struct ras_bank_ecc *bank, struct umc_phy_addr *pa_addr, uint32_t nps)
 {
@@ -365,10 +396,10 @@ static int convert_bank_to_nps_addr(struct ras_core_context *ras_core,
 	addr_in.node_inst = ACA_IPID_2_DIE_ID(bank->ipid);
 	addr_in.socket_id = ACA_IPID_2_SOCKET_ID(bank->ipid);
 
-	ret = ras_umc_ma2pa(ras_core, &addr_in, &addr_out, nps);
+	ret = convert_ma_to_pa(ras_core, &addr_in, &addr_out, nps);
 	if (!ret) {
-		pa_addr->pa =
-			umc_v12_0_nps_pa_to_row_pa(ras_core, addr_out.pa, nps, false);
+		pa_addr->pa_flip_mask = addr_out.pa_flip_mask;
+		pa_addr->pa = addr_out.pa | pa_addr->pa_flip_mask;
 		pa_addr->channel_idx = addr_out.channel_idx;
 		pa_addr->bank = addr_out.bank;
 	}
@@ -393,8 +424,14 @@ static int umc_v12_0_bank_to_eeprom_record(struct ras_core_context *ras_core,
 		ACA_ADDR_2_ERR_ADDR(bank->addr), ACA_IPID_2_UMC_INST(bank->ipid),
 		&nps_addr, bank->nps, record);
 
-	if (ras_fw_eeprom_supported(ras_core) && bank->ts)
+	if (bank->ts)
 		record->ts = bank->ts;
+
+	/* If the bank being converted already has a timestamp,
+	 * then use the bank's timestamp.
+	 */
+	if (bank->timestamp)
+		record->ts = bank->timestamp;
 
 	lookup_bad_pages_in_a_row(ras_core, record,
 		bank->nps, NULL, 0, bank->seq_no, true);
@@ -402,12 +439,62 @@ static int umc_v12_0_bank_to_eeprom_record(struct ras_core_context *ras_core,
 	return 0;
 }
 
-static int umc_v12_0_eeprom_record_to_nps_pages(struct ras_core_context *ras_core,
-			struct eeprom_umc_record *record, uint32_t nps,
-			uint64_t *pfns, uint32_t num)
+static int convert_eeprom_record_to_nps_addr(struct ras_core_context *ras_core,
+	struct eeprom_umc_record *record, uint64_t *pa, uint64_t *pa_flip_mask, uint32_t nps)
 {
-	return lookup_bad_pages_in_a_row(ras_core,
-				record, nps, pfns, num, 0, false);
+	struct device_system_info dev_info = {0};
+	struct umc_mca_addr addr_in;
+	struct umc_phy_addr addr_out;
+	int ret;
+
+	memset(&addr_in, 0, sizeof(addr_in));
+	memset(&addr_out, 0, sizeof(addr_out));
+
+	ras_core_get_device_system_info(ras_core, &dev_info);
+
+	addr_in.err_addr = record->address;
+	addr_in.ch_inst = record->mem_channel;
+	addr_in.umc_inst = record->mcumc_id;
+	addr_in.node_inst = UMC_INV_AID_NODE;
+	addr_in.socket_id = dev_info.socket_id;
+
+	ret = convert_ma_to_pa(ras_core, &addr_in, &addr_out, nps);
+	if (ret)
+		return ret;
+
+	*pa_flip_mask = addr_out.pa_flip_mask;
+	*pa = addr_out.pa | addr_out.pa_flip_mask;
+
+	return 0;
+}
+
+static int umc_v12_0_eeprom_record_to_nps_record(struct ras_core_context *ras_core,
+				struct eeprom_umc_record *record, uint32_t nps)
+{
+	uint64_t pa = 0, flip_mask = 0;
+	uint64_t row_pfn;
+	int ret = 0;
+
+	if (!record || !nps)
+		return -EINVAL;
+
+	if (nps == EEPROM_RECORD_UMC_NPS_MODE(record)) {
+		record->cur_nps_pa_flip_mask = __get_nps_pa_flip_mask(ras_core, nps);
+		row_pfn = EEPROM_RECORD_UMC_ADDR_PFN(record);
+		record->cur_nps_retired_row_pfn =
+			RAS_ADDR_TO_PFN(RAS_PFN_TO_ADDR(row_pfn) | record->cur_nps_pa_flip_mask);
+	} else {
+		ret = convert_eeprom_record_to_nps_addr(ras_core,
+				record, &pa, &flip_mask, nps);
+		if (!ret) {
+			record->cur_nps_retired_row_pfn = RAS_ADDR_TO_PFN(pa);
+			record->cur_nps_pa_flip_mask = flip_mask;
+		}
+	}
+
+	record->cur_nps = nps;
+
+	return ret;
 }
 
 static int umc_12_0_soc_pa_to_bank(struct ras_core_context *ras_core,
@@ -496,9 +583,13 @@ static void umc_v12_0_mca_ipid_parse(struct ras_core_context *ras_core, uint64_t
  * umc number: 16
  * hbm type: UMC_VRAM_TYPE_HBM
  */
-static uint32_t umc_v12_0_get_die_id(uint64_t mca_addr, uint64_t pa)
+static uint32_t umc_v12_0_get_die_id(struct ras_core_context *ras_core,
+		uint64_t mca_addr, uint64_t pa)
 {
 	uint32_t die = 0;
+
+	/* use absolute PA */
+	pa += ras_core->ras_umc.pa_base;
 
 	/* we only calculate die id for nps1 mode(save_nps == ch_idx_v2 == 0) */
 	die += (((pa >> 12) & 0x1ULL) ^
@@ -521,7 +612,7 @@ static uint32_t umc_v12_0_get_die_id(uint64_t mca_addr, uint64_t pa)
 
 const struct ras_umc_ip_func ras_umc_func_v12_0 = {
 	.bank_to_eeprom_record = umc_v12_0_bank_to_eeprom_record,
-	.eeprom_record_to_nps_pages = umc_v12_0_eeprom_record_to_nps_pages,
+	.eeprom_record_to_nps_record = umc_v12_0_eeprom_record_to_nps_record,
 	.bank_to_soc_pa = umc_12_0_bank_to_soc_pa,
 	.soc_pa_to_bank = umc_12_0_soc_pa_to_bank,
 	.mca_ipid_parse = umc_v12_0_mca_ipid_parse,

@@ -1228,10 +1228,15 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="0x0c86" name="PA_SU_FACE_DATA">
 		<bitfield name="BASE_ADDR" low="5" high="31" type="uint"/>
 	</reg32>
+	<reg32 offset="0x0d03" name="SQ_RESOURCE_MANAGMENT">
+		<bitfield name="VTX_THREAD_BUF_ENTRIES" low="0" high="7" type="uint"/>
+		<bitfield name="PIX_THREAD_BUF_ENTRIES" low="8" high="15" type="uint"/>
+		<bitfield name="EXPORT_BUF_ENTRIES" low="16" high="24" type="uint"/>
+	</reg32>
 	<reg32 offset="0x0d00" name="SQ_GPR_MANAGEMENT">
 		<bitfield name="REG_DYNAMIC" pos="0" type="boolean"/>
-		<bitfield name="REG_SIZE_PIX" low="4" high="11" type="uint"/>
-		<bitfield name="REG_SIZE_VTX" low="12" high="19" type="uint"/>
+		<bitfield name="REG_SIZE_PIX" low="4" high="10" type="uint"/>
+		<bitfield name="REG_SIZE_VTX" low="12" high="18" type="uint"/>
 	</reg32>
 	<reg32 offset="0x0d01" name="SQ_FLOW_CONTROL"/>
 	<reg32 offset="0x0d02" name="SQ_INST_STORE_MANAGMENT">
@@ -1527,12 +1532,12 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	</reg32>
 	<reg32 offset="0x2293" name="PA_SC_VIZ_QUERY">
 		<bitfield name="VIZ_QUERY_ENA" pos="0" type="boolean"/>
-		<bitfield name="VIZ_QUERY_ID" low="1" high="6" type="uint"/>
-		<bitfield name="KILL_PIX_POST_EARLY_Z" pos="8" type="boolean"/>
+		<bitfield name="VIZ_QUERY_ID" low="1" high="5" type="uint"/>
+		<bitfield name="KILL_PIX_POST_EARLY_Z" pos="7" type="boolean"/>
 	</reg32>
 	<reg32 offset="0x2294" name="VGT_ENHANCE"/>
 	<reg32 offset="0x2300" name="PA_SC_LINE_CNTL">
-		<bitfield name="BRES_CNTL" low="0" high="15" type="uint"/>
+		<bitfield name="BRES_CNTL" low="0" high="7" type="uint"/>
 		<bitfield name="USE_BRES_CNTL" pos="8" type="boolean"/>
 		<bitfield name="EXPAND_LINE_WIDTH" pos="9" type="boolean"/>
 		<bitfield name="LAST_PIXEL" pos="10" type="boolean"/>
@@ -1544,7 +1549,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="0x2302" name="PA_SU_VTX_CNTL">
 		<bitfield name="PIX_CENTER" pos="0" type="a2xx_pa_pixcenter"/>
 		<bitfield name="ROUND_MODE" low="1" high="2" type="a2xx_pa_roundmode"/>
-		<bitfield name="QUANT_MODE" low="7" high="9" type="a2xx_pa_quantmode"/>
+		<bitfield name="QUANT_MODE" low="3" high="5" type="a2xx_pa_quantmode"/>
 	</reg32>
 	<reg32 offset="0x2303" name="PA_CL_GB_VERT_CLIP_ADJ" type="float"/>
 	<reg32 offset="0x2304" name="PA_CL_GB_VERT_DISC_ADJ" type="float"/>
@@ -1796,10 +1801,10 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<value name="SQ_TEX_NUM_FORMAT_INT" value="1"/>
 	</enum>
 	<enum name="sq_tex_type">
-		<value name="SQ_TEX_TYPE_0" value="0"/>
-		<value name="SQ_TEX_TYPE_1" value="1"/>
-		<value name="SQ_TEX_TYPE_2" value="2"/>
-		<value name="SQ_TEX_TYPE_3" value="3"/>
+		<value name="SQ_TEX_TYPE_INVALID_TEXTURE" value="0"/>
+		<value name="SQ_TEX_TYPE_INVALID_BUFFER" value="1"/>
+		<value name="SQ_TEX_TYPE_VALID_TEXTURE" value="2"/>
+		<value name="SQ_TEX_TYPE_VALID_BUFFER" value="3"/>
 	</enum>
 	<reg32 offset="0" name="0">
 		<bitfield name="TYPE" low="0" high="1" type="sq_tex_type"/>

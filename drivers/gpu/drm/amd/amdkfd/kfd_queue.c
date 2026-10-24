@@ -197,18 +197,18 @@ int kfd_queue_buffer_get(struct amdgpu_vm *vm, void __user *addr, struct amdgpu_
 			 u64 expected_size)
 {
 	struct amdgpu_bo_va_mapping *mapping;
-	u64 user_addr;
+	u64 user_pfn;
 	u64 size;
 
-	user_addr = (u64)addr >> AMDGPU_GPU_PAGE_SHIFT;
 	size = expected_size >> AMDGPU_GPU_PAGE_SHIFT;
 
-	mapping = amdgpu_vm_bo_lookup_mapping(vm, user_addr);
+	mapping = amdgpu_vm_bo_lookup_mapping(vm, (u64)(uintptr_t)addr);
 	if (!mapping)
 		goto out_err;
 
-	if (user_addr != mapping->start ||
-	    (size != 0 && user_addr + size - 1 != mapping->last)) {
+	user_pfn = (u64)(uintptr_t)addr >> AMDGPU_GPU_PAGE_SHIFT;
+	if (user_pfn != mapping->start ||
+	    (size != 0 && user_pfn + size - 1 != mapping->last)) {
 		pr_debug("expected size 0x%llx not equal to mapping addr 0x%llx size 0x%llx\n",
 			expected_size, mapping->start << AMDGPU_GPU_PAGE_SHIFT,
 			(mapping->last - mapping->start + 1) << AMDGPU_GPU_PAGE_SHIFT);

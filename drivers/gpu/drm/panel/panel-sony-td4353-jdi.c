@@ -214,28 +214,17 @@ static int sony_td4353_jdi_probe(struct mipi_dsi_device *dsi)
 
 	ctx->panel.prepare_prev_first = true;
 
-	drm_panel_add(&ctx->panel);
+	ret = devm_drm_panel_add(dev, &ctx->panel);
+	if (ret)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "Failed to attach to DSI host: %d\n", ret);
-		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void sony_td4353_jdi_remove(struct mipi_dsi_device *dsi)
-{
-	struct sony_td4353_jdi *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
-
-	drm_panel_remove(&ctx->panel);
 }
 
 static const struct of_device_id sony_td4353_jdi_of_match[] = {
@@ -246,7 +235,6 @@ MODULE_DEVICE_TABLE(of, sony_td4353_jdi_of_match);
 
 static struct mipi_dsi_driver sony_td4353_jdi_driver = {
 	.probe = sony_td4353_jdi_probe,
-	.remove = sony_td4353_jdi_remove,
 	.driver = {
 		.name = "panel-sony-td4353-jdi",
 		.of_match_table = sony_td4353_jdi_of_match,

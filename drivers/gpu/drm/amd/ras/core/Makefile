@@ -22,11 +22,16 @@
 RAS_CORE_FILES = core.o \
 			ras_mp1.o \
 			ras_mp1_v13_0.o \
+			ras_mp1_v15_0.o \
 			aca.o  \
 			aca_v1_0.o \
+			aca_v5_0.o \
+			ras_eeprom_mgr.o \
 			eeprom.o \
 			ras_umc.o \
 			ras_umc_v12_0.o \
+			ras_umc_v13_0.o \
+			ras_umc_v15_0.o \
 			cmd.o \
 			ras_gfx.o \
 			ras_gfx_v9_0.o \
@@ -34,10 +39,14 @@ RAS_CORE_FILES = core.o \
 			ras_nbio.o \
 			ras_nbio_v7_9.o \
 			log_ring.o \
+			ras_bert.o \
 			ras_cper.o \
 			ras_psp.o \
 			ras_psp_v13_0.o \
-			eeprom_fw.o
+			ras_psp_v15_0.o \
+			ras_psp_v15_0_3.o \
+			eeprom_fw.o \
+			ras_mce.o
 
 
 RAS_CORE = $(addprefix $(AMD_GPU_RAS_PATH)/core/,$(RAS_CORE_FILES))

@@ -554,7 +554,6 @@ static int lt8713sx_probe(struct i2c_client *client)
 
 	lt8713sx_reset(lt8713sx);
 
-	lt8713sx->bridge.funcs = &lt8713sx_bridge_funcs;
 	lt8713sx->bridge.of_node = dev->of_node;
 	lt8713sx->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
 	drm_bridge_add(&lt8713sx->bridge);
@@ -572,7 +571,7 @@ static void lt8713sx_remove(struct i2c_client *client)
 }
 
 static struct i2c_device_id lt8713sx_id[] = {
-	{ .name = "lontium,lt8713sx" },
+	{ .name = "lt8713sx" },
 	{ /* sentinel */ }
 };
 

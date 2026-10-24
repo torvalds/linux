@@ -67,9 +67,6 @@ static void wa_init(struct ivpu_device *vdev)
 	vdev->wa.punit_disabled = false;
 	vdev->wa.clear_runtime_mem = false;
 
-	if (ivpu_hw_btrs_gen(vdev) == IVPU_HW_BTRS_MTL)
-		vdev->wa.interrupt_clear_with_0 = ivpu_hw_btrs_irqs_clear_with_0_mtl(vdev);
-
 	if ((ivpu_device_id(vdev) == PCI_DEVICE_ID_LNL &&
 	     ivpu_revision(vdev) < IVPU_HW_IP_REV_LNL_B0) ||
 	    (ivpu_device_id(vdev) == PCI_DEVICE_ID_NVL &&
@@ -90,7 +87,6 @@ static void wa_init(struct ivpu_device *vdev)
 
 	IVPU_PRINT_WA(punit_disabled);
 	IVPU_PRINT_WA(clear_runtime_mem);
-	IVPU_PRINT_WA(interrupt_clear_with_0);
 	IVPU_PRINT_WA(disable_clock_relinquish);
 	IVPU_PRINT_WA(wp0_during_power_up);
 	IVPU_PRINT_WA(disable_d0i2);
@@ -98,14 +94,22 @@ static void wa_init(struct ivpu_device *vdev)
 
 static void timeouts_init(struct ivpu_device *vdev)
 {
-	if (ivpu_test_mode & IVPU_TEST_MODE_DISABLE_TIMEOUTS) {
+	if (ivpu_test_mode & (IVPU_TEST_MODE_DISABLE_TIMEOUTS | IVPU_TEST_MODE_FW_TEST)) {
+		/* in milliseconds, negative value disables the timeout */
 		vdev->timeout.boot = -1;
 		vdev->timeout.jsm = -1;
 		vdev->timeout.tdr = -1;
 		vdev->timeout.inference = -1;
 		vdev->timeout.autosuspend = -1;
 		vdev->timeout.d0i3_entry_msg = -1;
+		/* fixed delay, not a timeout - has to remain finite */
+		vdev->timeout.state_dump_msg = 100;
+		/* in microseconds, zero disables the timeout */
+		vdev->timeout.mmu_reg = 0;
+		vdev->timeout.mmu_queue = 0;
+		vdev->timeout.pwr_island_status = 0;
 	} else if (ivpu_is_fpga(vdev)) {
+		/* in milliseconds */
 		vdev->timeout.boot = 50;
 		vdev->timeout.jsm = 15000;
 		vdev->timeout.tdr = 30000;
@@ -113,7 +117,12 @@ static void timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.autosuspend = -1;
 		vdev->timeout.d0i3_entry_msg = 500;
 		vdev->timeout.state_dump_msg = 10000;
+		/* in microseconds */
+		vdev->timeout.mmu_reg = 100 * USEC_PER_MSEC;
+		vdev->timeout.mmu_queue = 1000 * USEC_PER_MSEC;
+		vdev->timeout.pwr_island_status = 5 * USEC_PER_MSEC;
 	} else if (ivpu_is_simics(vdev)) {
+		/* in milliseconds */
 		vdev->timeout.boot = 50;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 10000;
@@ -121,7 +130,12 @@ static void timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.autosuspend = 100;
 		vdev->timeout.d0i3_entry_msg = 100;
 		vdev->timeout.state_dump_msg = 10;
+		/* in microseconds */
+		vdev->timeout.mmu_reg = 10 * USEC_PER_MSEC;
+		vdev->timeout.mmu_queue = 100 * USEC_PER_MSEC;
+		vdev->timeout.pwr_island_status = 5 * USEC_PER_MSEC;
 	} else {
+		/* in milliseconds */
 		vdev->timeout.boot = 1000;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 2000;
@@ -132,6 +146,10 @@ static void timeouts_init(struct ivpu_device *vdev)
 			vdev->timeout.autosuspend = 100;
 		vdev->timeout.d0i3_entry_msg = 5;
 		vdev->timeout.state_dump_msg = 100;
+		/* in microseconds */
+		vdev->timeout.mmu_reg = 10 * USEC_PER_MSEC;
+		vdev->timeout.mmu_queue = 100 * USEC_PER_MSEC;
+		vdev->timeout.pwr_island_status = 5 * USEC_PER_MSEC;
 	}
 }
 
@@ -356,11 +374,6 @@ void ivpu_hw_profiling_freq_drive(struct ivpu_device *vdev, bool enable)
 
 void ivpu_irq_handlers_init(struct ivpu_device *vdev)
 {
-	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX)
-		vdev->hw->irq.ip_irq_handler = ivpu_hw_ip_irq_handler_37xx;
-	else
-		vdev->hw->irq.ip_irq_handler = ivpu_hw_ip_irq_handler_40xx;
-
 	if (ivpu_hw_btrs_gen(vdev) == IVPU_HW_BTRS_MTL)
 		vdev->hw->irq.btrs_irq_handler = ivpu_hw_btrs_irq_handler_mtl;
 	else

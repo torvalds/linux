@@ -81,7 +81,7 @@ examples:
                 port@1 {
                     reg = <1>;
                     lvds_ep: endpoint {
-                      remote-endpoint = <&panel_ep>;
+                        remote-endpoint = <&panel_ep>;
                     };
                 };
             };

@@ -511,6 +511,45 @@ pub trait Io<'a>: IoBase<'a> {
         self.len() == 0
     }
 
+    /// Convert into a different typed I/O view.
+    ///
+    /// The target type must be known (statically) to be of the same or smaller size to current
+    /// type, and the current view must be properly aligned for the target type.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     io_project,
+    ///     Mmio,
+    ///     Io,
+    ///     Region,
+    /// };
+    /// #[derive(FromBytes, IntoBytes)]
+    /// #[repr(C)]
+    /// struct MyStruct { field: u32, }
+    ///
+    /// # fn test(mmio: &Mmio<'_, Region<0x1000>>) {
+    /// // let mmio: Mmio<'_, Region<0x1000>>;
+    /// let whole: Mmio<'_, MyStruct> = mmio.cast();
+    /// # }
+    /// ```
+    #[inline]
+    fn cast<U>(self) -> <Self::Backend as IoBackend>::View<'a, U>
+    where
+        Self::Target: FromBytes + IntoBytes,
+        U: FromBytes + IntoBytes,
+    {
+        let view = self.as_view();
+        let ptr = Self::Backend::as_ptr(view);
+
+        const_assert!(size_of::<U>() <= Self::Target::MIN_SIZE);
+        const_assert!(align_of::<U>() <= Self::Target::MIN_ALIGN.as_usize());
+
+        // SAFETY: We have checked bounds and alignment, so this is a valid projection.
+        unsafe { Self::Backend::project_view(view, ptr.cast()) }
+    }
+
     /// Try to convert into a different typed I/O view.
     ///
     /// A runtime check is performed to ensure that the target type is of same or smaller size to

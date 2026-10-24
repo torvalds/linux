@@ -12,7 +12,10 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/pm_runtime.h>
@@ -207,11 +210,41 @@ static void mxsfb_irq_uninstall(struct drm_device *dev)
 	free_irq(mxsfb->irq, dev);
 }
 
+static int mxsfb_of_bus_fmt(const struct device_node *ep, u32 *bus_format)
+{
+	u32 bus_width;
+	int ret;
+
+	ret = of_property_read_u32(ep, "bus-width", &bus_width);
+	if (ret == -EINVAL)
+		return 0;
+	if (ret)
+		return ret;
+
+	switch (bus_width) {
+	case 16:
+		*bus_format = MEDIA_BUS_FMT_RGB565_1X16;
+		break;
+	case 18:
+		*bus_format = MEDIA_BUS_FMT_RGB666_1X18;
+		break;
+	case 24:
+		*bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int mxsfb_load(struct drm_device *drm,
 		      const struct mxsfb_devdata *devdata)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
+	struct device_node *np = pdev->dev.of_node;
 	struct mxsfb_drm_private *mxsfb;
+	struct device_node *ep;
 	int ret;
 
 	mxsfb = devm_kzalloc(&pdev->dev, sizeof(*mxsfb), GFP_KERNEL);
@@ -237,6 +270,16 @@ static int mxsfb_load(struct drm_device *drm,
 	mxsfb->clk_disp_axi = devm_clk_get(drm->dev, "disp_axi");
 	if (IS_ERR(mxsfb->clk_disp_axi))
 		mxsfb->clk_disp_axi = NULL;
+
+	ep = of_graph_get_next_endpoint(np, NULL);
+	if (ep) {
+		ret = mxsfb_of_bus_fmt(ep, &mxsfb->bus_format);
+		of_node_put(ep);
+		if (ret) {
+			dev_err(drm->dev, "Invalid bus-width endpoint property\n");
+			return ret;
+		}
+	}
 
 	ret = dma_set_mask_and_coherent(drm->dev, DMA_BIT_MASK(32));
 	if (ret)

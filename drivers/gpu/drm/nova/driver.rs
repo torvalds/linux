@@ -18,12 +18,23 @@ use kernel::{
 use crate::file::File;
 use crate::gem::NovaObject;
 
+use nova_core::api::{
+    NovaCoreApi,
+    NovaCoreApiHandle, //
+};
+
 pub(crate) struct NovaDriver;
 
+#[pin_data]
 pub(crate) struct Nova<'bound> {
-    #[expect(unused)]
     drm: ARef<drm::Device<NovaDriver>>,
-    _reg: drm::Registration<'bound, NovaDriver>,
+    #[pin]
+    reg: drm::Registration<'bound, NovaDriver>,
+}
+
+/// DRM registration data, accessible from ioctl handlers via the registration guard.
+pub(crate) struct DrmRegData<'bound> {
+    pub(crate) api: NovaCoreApiHandle<'bound>,
 }
 
 /// Convienence type alias for the DRM device type for this driver
@@ -58,14 +69,19 @@ impl auxiliary::Driver for NovaDriver {
         adev: &'bound auxiliary::Device<Core<'_>>,
         _info: &'bound Self::IdInfo,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
-        let drm = drm::UnregisteredDevice::<Self>::new(adev, Ok(()))?;
-        // SAFETY: `reg` is stored in `Nova` and dropped when the driver is unbound; it is
-        // never forgotten.
-        let reg = unsafe { drm::Registration::new(adev.as_ref(), drm, (), 0)? };
+        try_pin_init!(Self::Data {
+            reg <- {
+                let drm = drm::UnregisteredDevice::<Self>::new(adev, Ok(()))?;
 
-        Ok(Nova {
+                let reg_data = DrmRegData {
+                    api: NovaCoreApi::of(adev)?,
+                };
+
+                // SAFETY: `reg` is stored in `Self::Data` and dropped when the driver is unbound;
+                // it is never forgotten.
+                unsafe { drm::Registration::new(adev.as_ref(), drm, reg_data) }
+            },
             drm: reg.device().into(),
-            _reg: reg,
         })
     }
 }
@@ -73,15 +89,16 @@ impl auxiliary::Driver for NovaDriver {
 #[vtable]
 impl drm::Driver for NovaDriver {
     type Data = ();
-    type RegistrationData<'a> = ();
+    type RegistrationData<'a> = DrmRegData<'a>;
     type File = File;
     type Object = gem::Object<NovaObject>;
     type ParentDevice<Ctx: DeviceContext> = auxiliary::Device<Ctx>;
 
     const INFO: drm::DriverInfo = INFO;
+    const FEAT_RENDER: bool = true;
 
     kernel::declare_drm_ioctls! {
-        (NOVA_GETPARAM, drm_nova_getparam, ioctl::RENDER_ALLOW, File::get_param),
+        (NOVA_INFO, drm_nova_info, ioctl::RENDER_ALLOW, File::info),
         (NOVA_GEM_CREATE, drm_nova_gem_create, ioctl::AUTH | ioctl::RENDER_ALLOW, File::gem_create),
         (NOVA_GEM_INFO, drm_nova_gem_info, ioctl::AUTH | ioctl::RENDER_ALLOW, File::gem_info),
     }

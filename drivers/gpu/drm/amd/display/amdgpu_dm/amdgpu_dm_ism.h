@@ -142,7 +142,7 @@ struct amdgpu_dm_ism {
 
 void amdgpu_dm_ism_init(struct amdgpu_dm_ism *ism,
 			struct amdgpu_dm_ism_config *config);
-void amdgpu_dm_ism_fini(struct amdgpu_dm_ism *ism);
+void amdgpu_dm_ism_flush(struct amdgpu_dm_ism *ism);
 void amdgpu_dm_ism_commit_event(struct amdgpu_dm_ism *ism,
 				enum amdgpu_dm_ism_event event);
 void amdgpu_dm_ism_disable(struct amdgpu_display_manager *dm);

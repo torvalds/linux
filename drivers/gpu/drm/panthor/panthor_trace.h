@@ -76,6 +76,44 @@ TRACE_EVENT(gpu_job_irq,
 		  __entry->events, __entry->duration_ns)
 );
 
+/**
+ * gpu_cache_flush - emitted after cache flush completes
+ * @dev: pointer to the &struct device, for printing the device name
+ * @l2: "l2" flush flags
+ * @lsc: "lsc" flush flags
+ * @other: "other" flush flags
+ * @duration_ns: how long the cache flush operation took, in nanoseconds
+ * @ret: return status, 0 == success, negative errno on error
+ *
+ * Begins measuring after any initial lock contention around the locks needed
+ * for flushing caches, but before the actual cache flush is requested. Stops
+ * measuring and is emitted after flush operation is over.
+ */
+TRACE_EVENT(gpu_cache_flush,
+	    TP_PROTO(const struct device *dev, u32 l2, u32 lsc, u32 other,
+		     u32 duration_ns, int ret),
+	    TP_ARGS(dev, l2, lsc, other, duration_ns, ret),
+	    TP_STRUCT__entry(
+		    __string(dev_name, dev_name(dev))
+		    __field(u32, l2)
+		    __field(u32, lsc)
+		    __field(u32, other)
+		    __field(u32, duration_ns)
+		    __field(int, ret)
+	    ),
+	    TP_fast_assign(
+		    __assign_str(dev_name);
+		    __entry->l2          = l2;
+		    __entry->lsc         = lsc;
+		    __entry->other       = other;
+		    __entry->duration_ns = duration_ns;
+		    __entry->ret         = ret;
+	    ),
+	    TP_printk("%s: l2=0x%x lsc=0x%x other=0x%x duration_ns=%u ret=%d",
+		      __get_str(dev_name), __entry->l2, __entry->lsc,
+		      __entry->other, __entry->duration_ns, __entry->ret)
+);
+
 #endif /* __PANTHOR_TRACE_H__ */
 
 #undef TRACE_INCLUDE_PATH

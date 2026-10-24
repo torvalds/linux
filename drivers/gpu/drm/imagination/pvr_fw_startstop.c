@@ -43,19 +43,25 @@ rogue_bif_init(struct pvr_device *pvr_dev)
 	pc_dma_addr = pvr_vm_get_page_table_root_addr(pvr_dev->kernel_vm_ctx);
 
 	/* Write the kernel catalogue base. */
-	pc_addr = ((((u64)pc_dma_addr >> ROGUE_CR_BIF_CAT_BASE0_ADDR_ALIGNSHIFT)
-		    << ROGUE_CR_BIF_CAT_BASE0_ADDR_SHIFT) &
-		   ~ROGUE_CR_BIF_CAT_BASE0_ADDR_CLRMSK);
+	pc_addr = ((((u64)pc_dma_addr >> ROGUE_CR_BIF_CAT_BASEx_ADDR_ALIGNSHIFT)
+		    << ROGUE_CR_BIF_CAT_BASEx_ADDR_SHIFT) &
+		   ~ROGUE_CR_BIF_CAT_BASEx_ADDR_CLRMSK);
 
-	pvr_cr_write64(pvr_dev, BIF_CAT_BASEX(MMU_CONTEXT_MAPPING_FWPRIV),
+	pvr_cr_write64(pvr_dev,
+		       PVR_CR_REPEAT_X(ROGUE_CR_BIF_CAT_BASE,
+				       MMU_CONTEXT_MAPPING_FWPRIV),
 		       pc_addr);
 
 	if (pvr_dev->fw_dev.processor_type == PVR_FW_PROCESSOR_TYPE_RISCV) {
-		pc_addr = (((u64)pc_dma_addr >> ROGUE_CR_FWCORE_MEM_CAT_BASE0_ADDR_ALIGNSHIFT)
-			   << ROGUE_CR_FWCORE_MEM_CAT_BASE0_ADDR_SHIFT) &
-			  ~ROGUE_CR_FWCORE_MEM_CAT_BASE0_ADDR_CLRMSK;
+		pc_addr = (((u64)pc_dma_addr
+			    >> ROGUE_CR_FWCORE_MEM_CAT_BASEx_ADDR_ALIGNSHIFT)
+			   << ROGUE_CR_FWCORE_MEM_CAT_BASEx_ADDR_SHIFT) &
+			  ~ROGUE_CR_FWCORE_MEM_CAT_BASEx_ADDR_CLRMSK;
 
-		pvr_cr_write64(pvr_dev, FWCORE_MEM_CAT_BASEX(MMU_CONTEXT_MAPPING_FWPRIV), pc_addr);
+		pvr_cr_write64(pvr_dev,
+			       PVR_CR_REPEAT_X(ROGUE_CR_FWCORE_MEM_CAT_BASE,
+					       MMU_CONTEXT_MAPPING_FWPRIV),
+			       pc_addr);
 	}
 }
 

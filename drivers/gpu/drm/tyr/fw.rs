@@ -14,6 +14,7 @@
 //! [`Section`]: crate::fw::Section
 
 use kernel::{
+    bitfield,
     device::{
         Bound,
         Device, //
@@ -27,7 +28,6 @@ use kernel::{
     },
     num::Bounded,
     prelude::*,
-    register,
     str::CString,
     sync::{
         Arc,
@@ -39,8 +39,7 @@ use kernel::{
 use crate::{
     driver::{
         IoMem,
-        TyrDrmDevice,
-        TyrRegisters, //
+        TyrDrmDevice, //
     },
     fw::parser::{
         FwParser,
@@ -101,11 +100,8 @@ impl From<CacheMode> for Bounded<u32, 2> {
     }
 }
 
-register! {
-    base: TyrRegisters;
-
-     #[allow(non_upper_case_globals)]
-    pub(super) SectionFlags(u32) @ 0x0 {
+bitfield! {
+    pub(super) struct SectionFlags(u32) {
         0:0 read => bool;
         1:1 write => bool;
         2:2 exec => bool;

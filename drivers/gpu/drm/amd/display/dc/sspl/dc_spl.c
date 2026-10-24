@@ -7,8 +7,22 @@
 #include "dc_spl_isharp_filters.h"
 #include "spl_debug.h"
 
-#define IDENTITY_RATIO(ratio) (SPL_NAMESPACE(spl_fixpt_u3d19(ratio)) == (1 << 19))
+/*
+ * Custom float is provided by the parent repo's custom_float.h. It is included
+ * here (after dc_spl.h -> dc_spl_types.h, which fully defines struct
+ * dscl_prog_data) so the opp.h -> transform.h -> dc_spl_types.h chain that
+ * custom_float.h drags in does not re-enter dc_spl_types.h before
+ * dscl_prog_data is complete.
+ */
+#define spl_div64_s64 div64_s64
+#define spl_swap      swap
+#include "custom_float.h"
+#define spl_custom_float_format custom_float_format
+#define spl_convert_to_custom_float_format convert_to_custom_float_format
+
+#define IDENTITY_RATIO(ratio) (spl_fixpt_u3d19(ratio) == (1 << 19))
 #define MIN_VIEWPORT_SIZE 12
+
 static bool spl_is_yuv420(enum spl_pixel_format format)
 {
 	if ((format >= SPL_PIXEL_FORMAT_420BPP8) &&
@@ -169,24 +183,24 @@ static struct spl_rect calculate_plane_rec_in_timing_active(
 	struct spl_fixed31_32 temp;
 
 
-	temp = SPL_NAMESPACE(spl_fixpt_from_fraction(
+	temp = spl_fixpt_from_fraction(
 			rec_in->x * (long long)stream_dst->width,
-			stream_src->width));
+			stream_src->width);
 	rec_out.x = stream_dst->x + spl_fixpt_round(temp);
 
-	temp = SPL_NAMESPACE(spl_fixpt_from_fraction(
+	temp = spl_fixpt_from_fraction(
 			(rec_in->x + rec_in->width) * (long long)stream_dst->width,
-			stream_src->width));
+			stream_src->width);
 	rec_out.width = stream_dst->x + spl_fixpt_round(temp) - rec_out.x;
 
-	temp = SPL_NAMESPACE(spl_fixpt_from_fraction(
+	temp = spl_fixpt_from_fraction(
 			rec_in->y * (long long)stream_dst->height,
-			stream_src->height));
+			stream_src->height);
 	rec_out.y = stream_dst->y + spl_fixpt_round(temp);
 
-	temp = SPL_NAMESPACE(spl_fixpt_from_fraction(
+	temp = spl_fixpt_from_fraction(
 			(rec_in->y + rec_in->height) * (long long)stream_dst->height,
-			stream_src->height));
+			stream_src->height);
 	rec_out.height = stream_dst->y + spl_fixpt_round(temp) - rec_out.y;
 
 	return rec_out;
@@ -453,12 +467,12 @@ static void spl_calculate_scaling_ratios(struct spl_in *spl_in,
 		spl_in->basic_in.rotation == SPL_ROTATION_ANGLE_270)
 		spl_swap(surf_src.height, surf_src.width);
 
-	spl_scratch->scl_data.ratios.horz = SPL_NAMESPACE(spl_fixpt_from_fraction(
+	spl_scratch->scl_data.ratios.horz = spl_fixpt_from_fraction(
 					surf_src.width,
-					spl_in->basic_in.dst_rect.width));
-	spl_scratch->scl_data.ratios.vert = SPL_NAMESPACE(spl_fixpt_from_fraction(
+					spl_in->basic_in.dst_rect.width);
+	spl_scratch->scl_data.ratios.vert = spl_fixpt_from_fraction(
 					surf_src.height,
-					spl_in->basic_in.dst_rect.height));
+					spl_in->basic_in.dst_rect.height);
 
 	if (spl_in->basic_out.view_format == SPL_VIEW_3D_SIDE_BY_SIDE)
 		spl_scratch->scl_data.ratios.horz.value *= 2;
@@ -497,14 +511,14 @@ static void spl_calculate_scaling_ratios(struct spl_in *spl_in,
 	 * that is output/input.  Currently we calculate input/output
 	 * Store 1/ratio in recip_ratio for those lookups
 	 */
-	spl_scratch->scl_data.recip_ratios.horz = SPL_NAMESPACE(spl_fixpt_recip(
-			spl_scratch->scl_data.ratios.horz));
-	spl_scratch->scl_data.recip_ratios.vert = SPL_NAMESPACE(spl_fixpt_recip(
-			spl_scratch->scl_data.ratios.vert));
-	spl_scratch->scl_data.recip_ratios.horz_c = SPL_NAMESPACE(spl_fixpt_recip(
-			spl_scratch->scl_data.ratios.horz_c));
-	spl_scratch->scl_data.recip_ratios.vert_c = SPL_NAMESPACE(spl_fixpt_recip(
-			spl_scratch->scl_data.ratios.vert_c));
+	spl_scratch->scl_data.recip_ratios.horz = spl_fixpt_recip(
+			spl_scratch->scl_data.ratios.horz);
+	spl_scratch->scl_data.recip_ratios.vert = spl_fixpt_recip(
+			spl_scratch->scl_data.ratios.vert);
+	spl_scratch->scl_data.recip_ratios.horz_c = spl_fixpt_recip(
+			spl_scratch->scl_data.ratios.horz_c);
+	spl_scratch->scl_data.recip_ratios.vert_c = spl_fixpt_recip(
+			spl_scratch->scl_data.ratios.vert_c);
 }
 
 /* Calculate Viewport size */
@@ -664,11 +678,11 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 
 		switch (spl_in->basic_in.cositing) {
 		case CHROMA_COSITING_TOPLEFT:
-			init_adj_h = SPL_NAMESPACE(spl_fixpt_from_fraction(h_sign, 4));
-			init_adj_v = SPL_NAMESPACE(spl_fixpt_from_fraction(v_sign, 4));
+			init_adj_h = spl_fixpt_from_fraction(h_sign, 4);
+			init_adj_v = spl_fixpt_from_fraction(v_sign, 4);
 			break;
 		case CHROMA_COSITING_LEFT:
-			init_adj_h = SPL_NAMESPACE(spl_fixpt_from_fraction(h_sign, 4));
+			init_adj_h = spl_fixpt_from_fraction(h_sign, 4);
 			init_adj_v = spl_fixpt_zero;
 			break;
 		case CHROMA_COSITING_NONE:
@@ -961,16 +975,16 @@ static void spl_get_taps_non_adaptive_scaler(
 	 * Max downscale supported is 6.0x.  Add ASSERT to catch if go beyond that
 	 */
 	check_max_downscale = spl_fixpt_le(spl_scratch->scl_data.ratios.horz,
-		SPL_NAMESPACE(spl_fixpt_from_fraction(6, 1)));
+		spl_fixpt_from_fraction(6, 1));
 	SPL_ASSERT(check_max_downscale);
 	check_max_downscale = spl_fixpt_le(spl_scratch->scl_data.ratios.vert,
-		SPL_NAMESPACE(spl_fixpt_from_fraction(6, 1)));
+		spl_fixpt_from_fraction(6, 1));
 	SPL_ASSERT(check_max_downscale);
 	check_max_downscale = spl_fixpt_le(spl_scratch->scl_data.ratios.horz_c,
-		SPL_NAMESPACE(spl_fixpt_from_fraction(6, 1)));
+		spl_fixpt_from_fraction(6, 1));
 	SPL_ASSERT(check_max_downscale);
 	check_max_downscale = spl_fixpt_le(spl_scratch->scl_data.ratios.vert_c,
-		SPL_NAMESPACE(spl_fixpt_from_fraction(6, 1)));
+		spl_fixpt_from_fraction(6, 1));
 	SPL_ASSERT(check_max_downscale);
 
 
@@ -1216,39 +1230,39 @@ static void spl_set_manual_ratio_init_data(struct dscl_prog_data *dscl_prog_data
 {
 	struct spl_fixed31_32 bot;
 
-	dscl_prog_data->ratios.h_scale_ratio = SPL_NAMESPACE(spl_fixpt_u3d19(
-			scl_data->ratios.horz)) << 5;
-	dscl_prog_data->ratios.v_scale_ratio = SPL_NAMESPACE(spl_fixpt_u3d19(
-			scl_data->ratios.vert)) << 5;
-	dscl_prog_data->ratios.h_scale_ratio_c = SPL_NAMESPACE(spl_fixpt_u3d19(
-			scl_data->ratios.horz_c)) << 5;
-	dscl_prog_data->ratios.v_scale_ratio_c = SPL_NAMESPACE(spl_fixpt_u3d19(
-			scl_data->ratios.vert_c)) << 5;
+	dscl_prog_data->ratios.h_scale_ratio = spl_fixpt_u3d19(
+			scl_data->ratios.horz) << 5;
+	dscl_prog_data->ratios.v_scale_ratio = spl_fixpt_u3d19(
+			scl_data->ratios.vert) << 5;
+	dscl_prog_data->ratios.h_scale_ratio_c = spl_fixpt_u3d19(
+			scl_data->ratios.horz_c) << 5;
+	dscl_prog_data->ratios.v_scale_ratio_c = spl_fixpt_u3d19(
+			scl_data->ratios.vert_c) << 5;
 	/*
 	 * 0.24 format for fraction, first five bits zeroed
 	 */
 	dscl_prog_data->init.h_filter_init_frac =
-			SPL_NAMESPACE(spl_fixpt_u0d19(scl_data->inits.h)) << 5;
+			spl_fixpt_u0d19(scl_data->inits.h) << 5;
 	dscl_prog_data->init.h_filter_init_int =
 			spl_fixpt_floor(scl_data->inits.h);
 	dscl_prog_data->init.h_filter_init_frac_c =
-			SPL_NAMESPACE(spl_fixpt_u0d19(scl_data->inits.h_c)) << 5;
+			spl_fixpt_u0d19(scl_data->inits.h_c) << 5;
 	dscl_prog_data->init.h_filter_init_int_c =
 			spl_fixpt_floor(scl_data->inits.h_c);
 	dscl_prog_data->init.v_filter_init_frac =
-			SPL_NAMESPACE(spl_fixpt_u0d19(scl_data->inits.v)) << 5;
+			spl_fixpt_u0d19(scl_data->inits.v) << 5;
 	dscl_prog_data->init.v_filter_init_int =
 			spl_fixpt_floor(scl_data->inits.v);
 	dscl_prog_data->init.v_filter_init_frac_c =
-			SPL_NAMESPACE(spl_fixpt_u0d19(scl_data->inits.v_c)) << 5;
+			spl_fixpt_u0d19(scl_data->inits.v_c) << 5;
 	dscl_prog_data->init.v_filter_init_int_c =
 			spl_fixpt_floor(scl_data->inits.v_c);
 
 	bot = spl_fixpt_add(scl_data->inits.v, scl_data->ratios.vert);
-	dscl_prog_data->init.v_filter_init_bot_frac = SPL_NAMESPACE(spl_fixpt_u0d19(bot)) << 5;
+	dscl_prog_data->init.v_filter_init_bot_frac = spl_fixpt_u0d19(bot) << 5;
 	dscl_prog_data->init.v_filter_init_bot_int = spl_fixpt_floor(bot);
 	bot = spl_fixpt_add(scl_data->inits.v_c, scl_data->ratios.vert_c);
-	dscl_prog_data->init.v_filter_init_bot_frac_c = SPL_NAMESPACE(spl_fixpt_u0d19(bot)) << 5;
+	dscl_prog_data->init.v_filter_init_bot_frac_c = spl_fixpt_u0d19(bot) << 5;
 	dscl_prog_data->init.v_filter_init_bot_int_c = spl_fixpt_floor(bot);
 }
 
@@ -1312,31 +1326,31 @@ static void spl_calculate_c0_c3_hdr(struct dscl_prog_data *dscl_prog_data, uint3
 	else
 		hdr_multx100_int = 100; /* default for 80 nits otherwise */
 
-	hdr_mult = SPL_NAMESPACE(spl_fixpt_from_fraction((long long)hdr_multx100_int, 100LL));
-	c0_mult = SPL_NAMESPACE(spl_fixpt_from_fraction(2126LL, 10000LL));
-	c1_mult = SPL_NAMESPACE(spl_fixpt_from_fraction(7152LL, 10000LL));
-	c2_mult = SPL_NAMESPACE(spl_fixpt_from_fraction(722LL, 10000LL));
+	hdr_mult = spl_fixpt_from_fraction((long long)hdr_multx100_int, 100LL);
+	c0_mult = spl_fixpt_from_fraction(2126LL, 10000LL);
+	c1_mult = spl_fixpt_from_fraction(7152LL, 10000LL);
+	c2_mult = spl_fixpt_from_fraction(722LL, 10000LL);
 
-	c0_calc = SPL_NAMESPACE(spl_fixpt_mul(hdr_mult, SPL_NAMESPACE(spl_fixpt_mul(c0_mult,
-		SPL_NAMESPACE(spl_fixpt_from_fraction(16384LL, 125LL))))));
-	c1_calc = SPL_NAMESPACE(spl_fixpt_mul(hdr_mult, SPL_NAMESPACE(spl_fixpt_mul(c1_mult,
-		SPL_NAMESPACE(spl_fixpt_from_fraction(16384LL, 125LL))))));
-	c2_calc = SPL_NAMESPACE(spl_fixpt_mul(hdr_mult, SPL_NAMESPACE(spl_fixpt_mul(c2_mult,
-		SPL_NAMESPACE(spl_fixpt_from_fraction(16384LL, 125LL))))));
+	c0_calc = spl_fixpt_mul(hdr_mult, spl_fixpt_mul(c0_mult,
+		spl_fixpt_from_fraction(16384LL, 125LL)));
+	c1_calc = spl_fixpt_mul(hdr_mult, spl_fixpt_mul(c1_mult,
+		spl_fixpt_from_fraction(16384LL, 125LL)));
+	c2_calc = spl_fixpt_mul(hdr_mult, spl_fixpt_mul(c2_mult,
+		spl_fixpt_from_fraction(16384LL, 125LL)));
 
 	fmt.exponenta_bits = 5;
 	fmt.mantissa_bits = 10;
 	fmt.sign = true;
 
 	// fp1.5.10, C0 coefficient (LN_rec709:  HDR_MULT * 0.212600 * 2^14/125)
-	SPL_NAMESPACE(spl_convert_to_custom_float_format(c0_calc, &fmt,
-		&dscl_prog_data->easf_matrix_c0));
+	spl_convert_to_custom_float_format(c0_calc, &fmt,
+		&dscl_prog_data->easf_matrix_c0);
 	// fp1.5.10, C1 coefficient (LN_rec709:  HDR_MULT * 0.715200 * 2^14/125)
-	SPL_NAMESPACE(spl_convert_to_custom_float_format(c1_calc, &fmt,
-		&dscl_prog_data->easf_matrix_c1));
+	spl_convert_to_custom_float_format(c1_calc, &fmt,
+		&dscl_prog_data->easf_matrix_c1);
 	// fp1.5.10, C2 coefficient (LN_rec709:  HDR_MULT * 0.072200 * 2^14/125)
-	SPL_NAMESPACE(spl_convert_to_custom_float_format(c2_calc, &fmt,
-		&dscl_prog_data->easf_matrix_c2));
+	spl_convert_to_custom_float_format(c2_calc, &fmt,
+		&dscl_prog_data->easf_matrix_c2);
 	dscl_prog_data->easf_matrix_c3 = 0x0; // fp1.5.10, C3 coefficient
 }
 

@@ -196,6 +196,33 @@
 #define   MSC_MSAA_REODER_BUF_BYPASS_DISABLE	REG_BIT(14)
 #define   FAST_CLEAR_VALIGN_FIX			REG_BIT(13)
 
+#define MSG_IDLE_CS				XE_REG(0x8000)
+#define MSG_IDLE_VCS0				XE_REG(0x8004)
+#define MSG_IDLE_VCS1				XE_REG(0x8008)
+#define MSG_IDLE_VCS2				XE_REG(0x80C0)
+#define MSG_IDLE_VCS3				XE_REG(0x80C4)
+#define MSG_IDLE_VCS4				XE_REG(0x80C8)
+#define MSG_IDLE_VCS5				XE_REG(0x80CC)
+#define MSG_IDLE_VCS6				XE_REG(0x80D0)
+#define MSG_IDLE_VCS7				XE_REG(0x80D4)
+#define MSG_IDLE_VECS0				XE_REG(0x8010)
+#define MSG_IDLE_VECS1				XE_REG(0x80D8)
+#define MSG_IDLE_VECS2				XE_REG(0x80DC)
+#define MSG_IDLE_VECS3				XE_REG(0x80E0)
+#define MSG_IDLE_BCS0				XE_REG(0x800C)
+#define MSG_IDLE_BCS1				XE_REG(0x8680)
+#define MSG_IDLE_BCS2				XE_REG(0x8684)
+#define MSG_IDLE_BCS3				XE_REG(0x8688)
+#define MSG_IDLE_BCS4				XE_REG(0x868C)
+#define MSG_IDLE_BCS5				XE_REG(0x8690)
+#define MSG_IDLE_BCS6				XE_REG(0x8694)
+#define MSG_IDLE_BCS7				XE_REG(0x8698)
+#define MSG_IDLE_BCS8				XE_REG(0x869C)
+#define MSG_IDLE_GSCCS0				XE_REG(0xA62C)
+#define   MSG_IDLE_INDICATION			REG_BIT(0)
+#define   MSG_IDLE_C6_ALLOWED			REG_BIT(1)
+#define   MSG_IDLE_FW_REQ			REG_GENMASK(13, 9)
+
 #define XE2LPM_CCCHKNREG1			XE_REG(0x82a8)
 
 #define VF_PREEMPTION				XE_REG(0x83a4, XE_REG_OPTION_MASKED)
@@ -441,6 +468,7 @@
 #define   L3_SQ_DISABLE_COAMA_2WAY_COH		REG_BIT(30)
 #define   L3_SQ_DISABLE_COAMA			REG_BIT(22)
 #define   COMPMEMRD256BOVRFETCHEN		REG_BIT(20)
+#define   NONCOMPMEMRD256BOVRFETCHEN		REG_BIT(14)
 
 #define L3SQCREG3				XE_REG_MCR(0xb108)
 #define   COMPPWOVERFETCHEN			REG_BIT(28)
@@ -609,7 +637,7 @@
  *   [4-6]     RSVD
  *   [7]       Disabled
  */
-#define CCS_MODE				XE_REG(0x14804, XE_REG_OPTION_MASKED)
+#define CCS_MODE				XE_REG(0x14804)
 #define   CCS_MODE_CSLICE_0_3_MASK		REG_GENMASK(11, 0) /* 3 bits per cslice */
 #define   CCS_MODE_CSLICE_MASK			0x7 /* CCS0-3 + rsvd */
 #define   CCS_MODE_CSLICE_WIDTH			ilog2(CCS_MODE_CSLICE_MASK + 1)
@@ -633,6 +661,12 @@
 
 #define GT_GFX_RC6_LOCKED			XE_REG(0x138104)
 #define GT_GFX_RC6				XE_REG(0x138108)
+
+#define GT_IA_PERF_BIAS_REG			XE_REG(0x138158)
+#define   GT_BIAS				REG_GENMASK(31, 16)
+#define   IA_BIAS				REG_GENMASK(15, 0)
+#define   GT_BIAS_DEFAULT			0x10
+#define   IA_BIAS_DEFAULT			0x10
 
 #define GT0_PERF_LIMIT_REASONS			XE_REG(0x1381a8)
 /* Common performance limit reason bits - available on all platforms */

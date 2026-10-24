@@ -57,6 +57,23 @@ int __xe_vm_userptr_needs_repin(struct xe_vm *vm)
 		list_empty(&vm->userptr.invalidated)) ? 0 : -EAGAIN;
 }
 
+#if IS_ENABLED(CONFIG_PROVE_LOCKING)
+static bool __xe_vma_userptr_lockdep(struct xe_userptr_vma *uvma)
+{
+	struct xe_vma *vma = &uvma->vma;
+	struct xe_vm *vm = xe_vma_vm(vma);
+
+	return lockdep_is_held_type(&vm->lock, 0) ||
+		(lockdep_is_held_type(&vm->lock, 1) &&
+		 lockdep_is_held_type(&vma->fault_lock, 0));
+}
+
+#define xe_vma_userptr_lockdep(uvma)	\
+	lockdep_assert(__xe_vma_userptr_lockdep(uvma))
+#else
+#define xe_vma_userptr_lockdep(uvma)
+#endif
+
 int xe_vma_userptr_pin_pages(struct xe_userptr_vma *uvma)
 {
 	struct xe_vma *vma = &uvma->vma;
@@ -68,13 +85,13 @@ int xe_vma_userptr_pin_pages(struct xe_userptr_vma *uvma)
 		.allow_mixed = true,
 	};
 
-	lockdep_assert_held(&vm->lock);
+	xe_vma_userptr_lockdep(uvma);
 	xe_assert(xe, xe_vma_is_userptr(vma));
 
 	if (vma->gpuva.flags & XE_VMA_DESTROYED)
 		return 0;
 
-	return drm_gpusvm_get_pages(&vm->svm.gpusvm, &uvma->userptr.pages,
+	return drm_gpusvm_get_pages(&vm->svm.gpusvm, &uvma->userptr.pages, 1,
 				    uvma->userptr.notifier.mm,
 				    &uvma->userptr.notifier,
 				    xe_vma_userptr(vma),

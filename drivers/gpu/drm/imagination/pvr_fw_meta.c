@@ -500,7 +500,18 @@ pvr_meta_init(struct pvr_device *pvr_dev)
 {
 	pvr_fw_heap_info_init(pvr_dev, ROGUE_FW_HEAP_META_SHIFT, 0);
 
+	pvr_dev->kernel_vm_ctx = pvr_vm_create_context(pvr_dev, false);
+	if (IS_ERR(pvr_dev->kernel_vm_ctx))
+		return PTR_ERR(pvr_dev->kernel_vm_ctx);
+
 	return 0;
+}
+
+static void
+pvr_meta_fini(struct pvr_device *pvr_dev)
+{
+	WARN_ON(!pvr_vm_context_put(pvr_dev->kernel_vm_ctx));
+	pvr_dev->kernel_vm_ctx = NULL;
 }
 
 static u32
@@ -509,9 +520,13 @@ pvr_meta_get_fw_addr_with_offset(struct pvr_fw_object *fw_obj, u32 offset)
 	u32 fw_addr = fw_obj->fw_addr_offset + offset + ROGUE_FW_SEGMMU_DATA_BASE_ADDRESS;
 
 	/* META cacheability is determined by address. */
-	if (fw_obj->gem->flags & PVR_BO_FW_FLAGS_DEVICE_UNCACHED)
+	if (fw_obj->gem->flags & PVR_BO_FW_FLAGS_DEVICE_UNCACHED) {
 		fw_addr |= ROGUE_FW_SEGMMU_DATA_META_UNCACHED |
 			   ROGUE_FW_SEGMMU_DATA_VIVT_SLC_UNCACHED;
+	} else {
+		fw_addr |= ROGUE_FW_SEGMMU_DATA_META_CACHED |
+			   ROGUE_FW_SEGMMU_DATA_VIVT_SLC_CACHED;
+	}
 
 	return fw_addr;
 }
@@ -550,6 +565,7 @@ pvr_meta_irq_clear(struct pvr_device *pvr_dev)
 
 const struct pvr_fw_defs pvr_fw_defs_meta = {
 	.init = pvr_meta_init,
+	.fini = pvr_meta_fini,
 	.fw_process = pvr_meta_fw_process,
 	.vm_map = pvr_meta_vm_map,
 	.vm_unmap = pvr_meta_vm_unmap,

@@ -346,15 +346,9 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 			return ERR_PTR(-EOPNOTSUPP);
 
 	if (q->flags & EXEC_QUEUE_FLAG_VM) {
-		struct xe_exec_queue *__q;
-		struct xe_tile *tile;
-		u8 id;
-
-		for_each_tile(tile, vm->xe, id) {
+		num_fence++;
+		for_each_tlb_inval(q, i)
 			num_fence++;
-			for_each_tlb_inval(i)
-				num_fence++;
-		}
 
 		fences = kmalloc_objs(*fences, num_fence);
 		if (!fences)
@@ -362,17 +356,9 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 
 		fences[current_fence++] =
 			xe_exec_queue_last_fence_get(q, vm);
-		for_each_tlb_inval(i)
+		for_each_tlb_inval(q, i)
 			fences[current_fence++] =
 				xe_exec_queue_tlb_inval_last_fence_get(q, vm, i);
-		list_for_each_entry(__q, &q->multi_gt_list,
-				    multi_gt_link) {
-			fences[current_fence++] =
-				xe_exec_queue_last_fence_get(__q, vm);
-			for_each_tlb_inval(i)
-				fences[current_fence++] =
-					xe_exec_queue_tlb_inval_last_fence_get(__q, vm, i);
-		}
 
 		xe_assert(vm->xe, current_fence == num_fence);
 		cf = dma_fence_array_create(num_fence, fences,

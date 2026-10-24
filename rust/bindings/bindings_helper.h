@@ -53,6 +53,7 @@
 #include <linux/debugfs.h>
 #include <linux/device/faux.h>
 #include <linux/dma-direction.h>
+#include <linux/dma-fence.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-resv.h>
 #include <linux/errname.h>
@@ -106,8 +107,8 @@
 #include <../../drivers/base/base.h>
 
 #if defined(CONFIG_DRM_PANIC_SCREEN_QR_CODE)
-// Used by `#[export]` in `drivers/gpu/drm/drm_panic_qr.rs`.
-#include <drm/drm_panic.h>
+// Used by `#[export]` in `drivers/gpu/drm/drm_panic_helper_qr.rs`.
+#include <drm/drm_panic_helper.h>
 #endif
 
 /* `bindgen` gets confused at certain things. */

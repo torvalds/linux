@@ -29,10 +29,57 @@
 
 #include "soc15_common.h"
 #include "soc24_enum.h"
+#include "soc_v1_0.h"
 
 #define regMMVM_L2_CNTL3_DEFAULT				0x80100007
 #define regMMVM_L2_CNTL4_DEFAULT				0x000000c1
 #define regMMVM_L2_CNTL5_DEFAULT				0x00003fe0
+#define MMHUB_V4_2_0_MID1_EXT_ID				0x3
+
+static u64 mmhub_v4_2_0_get_reg_addr(int inst, u32 reg_offset)
+{
+	int ext_id = inst ? MMHUB_V4_2_0_MID1_EXT_ID : 0;
+
+	return (u64)reg_offset * 4 +
+	       soc_v1_0_encode_ext_smn_addressing(ext_id);
+}
+
+static u32 mmhub_v4_2_0_rreg(struct amdgpu_device *adev, int inst,
+			     u32 reg_offset)
+{
+	u64 reg_addr;
+
+	reg_addr = mmhub_v4_2_0_get_reg_addr(inst, reg_offset);
+
+	return RREG32_PCIE_EXT(reg_addr);
+}
+
+static void mmhub_v4_2_0_wreg(struct amdgpu_device *adev, int inst,
+			      u32 reg_offset, u32 value)
+{
+	u64 reg_addr;
+
+	reg_addr = mmhub_v4_2_0_get_reg_addr(inst, reg_offset);
+
+	WREG32_PCIE_EXT(reg_addr, value);
+}
+
+#define RREG32_MMHUB(inst, reg) \
+	mmhub_v4_2_0_rreg(adev, inst, \
+		(adev->reg_offset[MMHUB_HWIP][GET_INST(MMHUB, 0)] \
+				 [reg##_BASE_IDX] + (reg)))
+#define RREG32_MMHUB_OFFSET(inst, reg, offset) \
+	mmhub_v4_2_0_rreg(adev, inst, \
+		(adev->reg_offset[MMHUB_HWIP][GET_INST(MMHUB, 0)] \
+				 [reg##_BASE_IDX] + (reg) + (offset)))
+#define WREG32_MMHUB(inst, reg, value) \
+	mmhub_v4_2_0_wreg(adev, inst, \
+		(adev->reg_offset[MMHUB_HWIP][GET_INST(MMHUB, 0)] \
+				 [reg##_BASE_IDX] + (reg)), value)
+#define WREG32_MMHUB_OFFSET(inst, reg, offset, value) \
+	mmhub_v4_2_0_wreg(adev, inst, \
+		(adev->reg_offset[MMHUB_HWIP][GET_INST(MMHUB, 0)] \
+				 [reg##_BASE_IDX] + (reg) + (offset)), value)
 
 static const char *mmhub_client_ids_v4_2_0[][2] = {
 	[0][0] = "VMC",
@@ -107,7 +154,10 @@ static int mmhub_v4_2_0_get_xgmi_info(struct amdgpu_device *adev)
 	if (adev->gmc.xgmi.physical_node_id > max_physical_node_id)
 		return -EINVAL;
 
-	adev->gmc.xgmi.node_segment_size = seg_size;
+	if (amdgpu_virt_vram_is_spm(adev) && adev->gmc.aper_size)
+		adev->gmc.xgmi.node_segment_size = adev->gmc.aper_size;
+	else
+		adev->gmc.xgmi.node_segment_size = seg_size;
 
 	return 0;
 }
@@ -137,22 +187,22 @@ static u64 mmhub_v4_2_0_get_mc_fb_offset(struct amdgpu_device *adev)
 static void mmhub_v4_2_0_mid_setup_vm_pt_regs(struct amdgpu_device *adev,
 					      uint32_t vmid,
 					      uint64_t page_table_base,
-					      uint32_t mid_mask)
+					      uint32_t inst_mask)
 {
 	struct amdgpu_vmhub *hub;
 	int i;
 
-	for_each_inst(i, mid_mask) {
+	for_each_inst(i, inst_mask) {
 		hub = &adev->vmhub[AMDGPU_MMHUB0(i)];
-		WREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, i),
-				    regMMVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
-				    hub->ctx_addr_distance * vmid,
-				    lower_32_bits(page_table_base));
+		WREG32_MMHUB_OFFSET(i,
+				   regMMVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
+				   hub->ctx_addr_distance * vmid,
+				   lower_32_bits(page_table_base));
 
-		WREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, i),
-				    regMMVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
-				    hub->ctx_addr_distance * vmid,
-				    upper_32_bits(page_table_base));
+		WREG32_MMHUB_OFFSET(i,
+				   regMMVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
+				   hub->ctx_addr_distance * vmid,
+				   upper_32_bits(page_table_base));
 	}
 }
 
@@ -160,16 +210,13 @@ static void mmhub_v4_2_0_setup_vm_pt_regs(struct amdgpu_device *adev,
 					  uint32_t vmid,
 					  uint64_t page_table_base)
 {
-	uint32_t mid_mask;
-
-	mid_mask = adev->aid_mask;
 	mmhub_v4_2_0_mid_setup_vm_pt_regs(adev, vmid,
 					  page_table_base,
-					  mid_mask);
+					  adev->mmhub.inst_mask);
 }
 
 static void mmhub_v4_2_0_mid_init_gart_aperture_regs(struct amdgpu_device *adev,
-						     uint32_t mid_mask)
+						     uint32_t inst_mask)
 {
 	uint64_t pt_base;
 	int i;
@@ -179,35 +226,35 @@ static void mmhub_v4_2_0_mid_init_gart_aperture_regs(struct amdgpu_device *adev,
 	else
 		pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
 
-	mmhub_v4_2_0_mid_setup_vm_pt_regs(adev, 0, pt_base, mid_mask);
+	mmhub_v4_2_0_mid_setup_vm_pt_regs(adev, 0, pt_base, inst_mask);
 
-	for_each_inst(i, mid_mask) {
+	for_each_inst(i, inst_mask) {
 		if (adev->gmc.pdb0_bo) {
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
 				     (u32)(adev->gmc.fb_start >> 12));
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
 				     (u32)(adev->gmc.fb_start >> 44));
 
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
 				     (u32)(adev->gmc.gart_end >> 12));
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
 				     (u32)(adev->gmc.gart_end >> 44));
 		} else {
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
 				     (u32)(adev->gmc.gart_start >> 12));
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
 				     (u32)(adev->gmc.gart_start >> 44));
 
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
 				     (u32)(adev->gmc.gart_end >> 12));
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
 				     (u32)(adev->gmc.gart_end >> 44));
 		}
@@ -215,7 +262,7 @@ static void mmhub_v4_2_0_mid_init_gart_aperture_regs(struct amdgpu_device *adev,
 }
 
 static void mmhub_v4_2_0_mid_init_system_aperture_regs(struct amdgpu_device *adev,
-						       uint32_t mid_mask)
+						       uint32_t inst_mask)
 {
 	uint64_t value;
 	uint32_t tmp;
@@ -229,71 +276,71 @@ static void mmhub_v4_2_0_mid_init_system_aperture_regs(struct amdgpu_device *ade
 	if (amdgpu_sriov_vf(adev))
 		return;
 
-	for_each_inst(i, mid_mask) {
+	for_each_inst(i, inst_mask) {
 		if (adev->gmc.pdb0_bo) {
 			/* Disable agp and system aperture
 			 * when vmid0 page table is enabled */
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_FB_LOCATION_TOP_LO32, 0);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_FB_LOCATION_TOP_HI32, 0);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_FB_LOCATION_BASE_LO32,
 				     0xFFFFFFFF);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_FB_LOCATION_BASE_HI32, 1);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_AGP_TOP_LO32, 0);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_AGP_TOP_HI32, 0);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_AGP_BOT_LO32,
 				     0xFFFFFFFF);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_AGP_BOT_HI32, 1);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_LO32,
 				     0xFFFFFFFF);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_HI32,
 				     0x7F);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_LO32, 0);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_HI32, 0);
 		} else {
 			/* Program the AGP BAR */
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_AGP_BASE_LO32, 0);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_AGP_BASE_HI32, 0);
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_AGP_BOT_LO32,
 				     lower_32_bits(adev->gmc.agp_start >> 24));
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_AGP_BOT_HI32,
 				     upper_32_bits(adev->gmc.agp_start >> 24));
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_AGP_TOP_LO32,
 				     lower_32_bits(adev->gmc.agp_end >> 24));
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_AGP_TOP_HI32,
 				     upper_32_bits(adev->gmc.agp_end >> 24));
 
 			/* Program the system aperture low logical page number. */
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_LO32,
 				     lower_32_bits(min(adev->gmc.fb_start,
 						   adev->gmc.agp_start) >> 18));
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_HI32,
 				     upper_32_bits(min(adev->gmc.fb_start,
 						   adev->gmc.agp_start) >> 18));
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_LO32,
 				     lower_32_bits(max(adev->gmc.fb_end,
 						   adev->gmc.agp_end) >> 18));
-			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+			WREG32_MMHUB(i,
 				     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_HI32,
 				     upper_32_bits(max(adev->gmc.fb_end,
 						   adev->gmc.agp_end) >> 18));
@@ -301,42 +348,40 @@ static void mmhub_v4_2_0_mid_init_system_aperture_regs(struct amdgpu_device *ade
 
 		/* Set default page address. */
 		value = amdgpu_gmc_vram_mc2pa(adev, adev->mem_scratch.gpu_addr);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
 			     (u32)(value >> 12));
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
 			     (u32)(value >> 44));
 
 		/* Program "protection fault". */
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32,
 			     (u32)(adev->dummy_page_addr >> 12));
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32,
 			     (u32)((u64)adev->dummy_page_addr >> 44));
 
-		tmp = RREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-				   regMMVM_L2_PROTECTION_FAULT_CNTL2);
+		tmp = RREG32_MMHUB(i, regMMVM_L2_PROTECTION_FAULT_CNTL2);
 		tmp = REG_SET_FIELD(tmp, MMVM_L2_PROTECTION_FAULT_CNTL2,
 				    ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY, 1);
 		tmp = REG_SET_FIELD(tmp, MMVM_L2_PROTECTION_FAULT_CNTL2,
 				    ENABLE_RETRY_FAULT_INTERRUPT, 0x1);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMVM_L2_PROTECTION_FAULT_CNTL2, tmp);
 	}
 }
 
 static void mmhub_v4_2_0_mid_init_tlb_regs(struct amdgpu_device *adev,
-					   uint32_t mid_mask)
+					   uint32_t inst_mask)
 {
 	uint32_t tmp;
 	int i;
 
-	for_each_inst(i, mid_mask) {
+	for_each_inst(i, inst_mask) {
 		/* Setup TLB control */
-		tmp = RREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-				   regMMMC_VM_MX_L1_TLB_CNTL);
+		tmp = RREG32_MMHUB(i, regMMMC_VM_MX_L1_TLB_CNTL);
 
 		tmp = REG_SET_FIELD(tmp, MMMC_VM_MX_L1_TLB_CNTL, ENABLE_L1_TLB, 1);
 		tmp = REG_SET_FIELD(tmp, MMMC_VM_MX_L1_TLB_CNTL, SYSTEM_ACCESS_MODE, 3);
@@ -344,17 +389,16 @@ static void mmhub_v4_2_0_mid_init_tlb_regs(struct amdgpu_device *adev,
 				    ENABLE_ADVANCED_DRIVER_MODEL, 1);
 		tmp = REG_SET_FIELD(tmp, MMMC_VM_MX_L1_TLB_CNTL,
 				    SYSTEM_APERTURE_UNMAPPED_ACCESS, 0);
-		tmp = REG_SET_FIELD(tmp, MMMC_VM_MX_L1_TLB_CNTL, ECO_BITS, 0);
 		tmp = REG_SET_FIELD(tmp, MMMC_VM_MX_L1_TLB_CNTL,
 				    MTYPE, MTYPE_UC); /* UC, uncached */
 
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMMC_VM_MX_L1_TLB_CNTL, tmp);
 	}
 }
 
 static void mmhub_v4_2_0_mid_init_cache_regs(struct amdgpu_device *adev,
-					     uint32_t mid_mask)
+					     uint32_t inst_mask)
 {
 	uint32_t tmp;
 	int i;
@@ -365,11 +409,10 @@ static void mmhub_v4_2_0_mid_init_cache_regs(struct amdgpu_device *adev,
 	if (amdgpu_sriov_vf(adev))
 		return;
 
-	for_each_inst(i, mid_mask) {
+	for_each_inst(i, inst_mask) {
 		/* Setup L2 cache */
-		tmp = RREG32_SOC15(MMHUB, GET_INST(MMHUB, i), regMMVM_L2_CNTL);
+		tmp = RREG32_MMHUB(i, regMMVM_L2_CNTL);
 		tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, ENABLE_L2_CACHE, 1);
-		tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, ENABLE_L2_FRAGMENT_PROCESSING, 0);
 		tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL,
 				    ENABLE_DEFAULT_PAGE_OUT_TO_SYSTEM_MEMORY, 1);
 		/* XXX for emulation, Refer to closed source code.*/
@@ -381,14 +424,7 @@ static void mmhub_v4_2_0_mid_init_cache_regs(struct amdgpu_device *adev,
 				    CONTEXT1_IDENTITY_ACCESS_MODE, 1);
 		tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL,
 				    IDENTITY_MODE_FRAGMENT_SIZE, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i), regMMVM_L2_CNTL, tmp);
-
-		tmp = RREG32_SOC15(MMHUB, GET_INST(MMHUB, i), regMMVM_L2_CNTL2);
-		tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL2,
-				    INVALIDATE_ALL_L1_TLBS, 1);
-		tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL2,
-				    INVALIDATE_L2_CACHE, 1);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i), regMMVM_L2_CNTL2, tmp);
+		WREG32_MMHUB(i, regMMVM_L2_CNTL, tmp);
 
 		tmp = regMMVM_L2_CNTL3_DEFAULT;
 		if (adev->gmc.translate_further) {
@@ -400,7 +436,7 @@ static void mmhub_v4_2_0_mid_init_cache_regs(struct amdgpu_device *adev,
 			tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL3,
 					    L2_CACHE_BIGK_FRAGMENT_SIZE, 6);
 		}
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i), regMMVM_L2_CNTL3, tmp);
+		WREG32_MMHUB(i, regMMVM_L2_CNTL3, tmp);
 
 		tmp = regMMVM_L2_CNTL4_DEFAULT;
 		/* For AMD APP APUs setup WC memory */
@@ -415,24 +451,23 @@ static void mmhub_v4_2_0_mid_init_cache_regs(struct amdgpu_device *adev,
 			tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL4,
 					    VMC_TAP_PTE_REQUEST_PHYSICAL, 0);
 		}
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i), regMMVM_L2_CNTL4, tmp);
+		WREG32_MMHUB(i, regMMVM_L2_CNTL4, tmp);
 
 		tmp = regMMVM_L2_CNTL5_DEFAULT;
 		tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL5,
 				    L2_CACHE_SMALLK_FRAGMENT_SIZE, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i), regMMVM_L2_CNTL5, tmp);
+		WREG32_MMHUB(i, regMMVM_L2_CNTL5, tmp);
 	}
 }
 
 static void mmhub_v4_2_0_mid_enable_system_domain(struct amdgpu_device *adev,
-						  uint32_t mid_mask)
+						  uint32_t inst_mask)
 {
 	uint32_t tmp;
 	int i;
 
-	for_each_inst(i, mid_mask) {
-		tmp = RREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-				   regMMVM_CONTEXT0_CNTL);
+	for_each_inst(i, inst_mask) {
+		tmp = RREG32_MMHUB(i, regMMVM_CONTEXT0_CNTL);
 		tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT0_CNTL,
 				    ENABLE_CONTEXT, 1);
 		tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT0_CNTL,
@@ -442,13 +477,13 @@ static void mmhub_v4_2_0_mid_enable_system_domain(struct amdgpu_device *adev,
 				    adev->gmc.vmid0_page_table_block_size);
 		tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT0_CNTL,
 				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMVM_CONTEXT0_CNTL, tmp);
 	}
 }
 
 static void mmhub_v4_2_0_mid_disable_identity_aperture(struct amdgpu_device *adev,
-						       uint32_t mid_mask)
+						       uint32_t inst_mask)
 {
 	int i;
 
@@ -458,46 +493,53 @@ static void mmhub_v4_2_0_mid_disable_identity_aperture(struct amdgpu_device *ade
 	if (amdgpu_sriov_vf(adev))
 		return;
 
-	for_each_inst(i, mid_mask) {
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+	for_each_inst(i, inst_mask) {
+		WREG32_MMHUB(i,
 			     regMMVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_LO32,
 			     0xFFFFFFFF);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_HI32,
 			     0x00001FFF);
 
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMVM_L2_CONTEXT1_IDENTITY_APERTURE_HIGH_ADDR_LO32,
 			     0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMVM_L2_CONTEXT1_IDENTITY_APERTURE_HIGH_ADDR_HI32,
 			     0);
 
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMVM_L2_CONTEXT_IDENTITY_PHYSICAL_OFFSET_LO32,
 			     0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+		WREG32_MMHUB(i,
 			     regMMVM_L2_CONTEXT_IDENTITY_PHYSICAL_OFFSET_HI32,
 			     0);
 	}
 }
 
 static void mmhub_v4_2_0_mid_setup_vmid_config(struct amdgpu_device *adev,
-					       uint32_t mid_mask)
+					       uint32_t inst_mask)
 {
 	struct amdgpu_vmhub *hub;
+	u32 num_level, block_size;
 	uint32_t tmp;
 	int i, j;
 
-	for_each_inst(j, mid_mask) {
+	num_level = adev->vm_manager.num_level;
+	block_size = adev->vm_manager.block_size;
+	if (adev->gmc.translate_further)
+		num_level -= 1;
+	else
+		block_size -= 9;
+
+	for_each_inst(j, inst_mask) {
 		hub = &adev->vmhub[AMDGPU_MMHUB0(j)];
 		for (i = 0; i <= 14; i++) {
-			tmp = RREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, j),
-					          regMMVM_CONTEXT1_CNTL,
-						  i * hub->ctx_distance);
+			tmp = RREG32_MMHUB_OFFSET(j, regMMVM_CONTEXT1_CNTL,
+						 i * hub->ctx_distance);
 			tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
 			tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH,
-					    adev->vm_manager.num_level);
+					    num_level);
 			tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL,
 					    RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 			tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL,
@@ -514,24 +556,27 @@ static void mmhub_v4_2_0_mid_setup_vmid_config(struct amdgpu_device *adev,
 			tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL,
 					    EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 			tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL,
-					    PAGE_TABLE_BLOCK_SIZE,
-					    adev->vm_manager.block_size - 9);
+					    PAGE_TABLE_BLOCK_SIZE, block_size);
 			/* Send no-retry XNACK on fault to suppress VM fault storm. */
 			tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL,
 					    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
 					    !adev->gmc.noretry);
-			WREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, j), regMMVM_CONTEXT1_CNTL,
-					    i * hub->ctx_distance, tmp);
-			WREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, j), regMMVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32,
-					    i * hub->ctx_addr_distance, 0);
-			WREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, j), regMMVM_CONTEXT1_PAGE_TABLE_START_ADDR_HI32,
-					    i * hub->ctx_addr_distance, 0);
-			WREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, j), regMMVM_CONTEXT1_PAGE_TABLE_END_ADDR_LO32,
-					    i * hub->ctx_addr_distance,
-					    lower_32_bits(adev->vm_manager.max_pfn - 1));
-			WREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, j), regMMVM_CONTEXT1_PAGE_TABLE_END_ADDR_HI32,
-					    i * hub->ctx_addr_distance,
-					    upper_32_bits(adev->vm_manager.max_pfn - 1));
+			WREG32_MMHUB_OFFSET(j, regMMVM_CONTEXT1_CNTL,
+					   i * hub->ctx_distance, tmp);
+			WREG32_MMHUB_OFFSET(j,
+					   regMMVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32,
+					   i * hub->ctx_addr_distance, 0);
+			WREG32_MMHUB_OFFSET(j,
+					   regMMVM_CONTEXT1_PAGE_TABLE_START_ADDR_HI32,
+					   i * hub->ctx_addr_distance, 0);
+			WREG32_MMHUB_OFFSET(j,
+					   regMMVM_CONTEXT1_PAGE_TABLE_END_ADDR_LO32,
+					   i * hub->ctx_addr_distance,
+					   lower_32_bits(adev->vm_manager.max_pfn - 1));
+			WREG32_MMHUB_OFFSET(j,
+					   regMMVM_CONTEXT1_PAGE_TABLE_END_ADDR_HI32,
+					   i * hub->ctx_addr_distance,
+					   upper_32_bits(adev->vm_manager.max_pfn - 1));
 		}
 	}
 
@@ -539,93 +584,84 @@ static void mmhub_v4_2_0_mid_setup_vmid_config(struct amdgpu_device *adev,
 }
 
 static void mmhub_v4_2_0_mid_program_invalidation(struct amdgpu_device *adev,
-						  uint32_t mid_mask)
+						  uint32_t inst_mask)
 {
 	struct amdgpu_vmhub *hub;
 	unsigned int i, j;
 
-	for_each_inst(j, mid_mask) {
+	for_each_inst(j, inst_mask) {
 		hub = &adev->vmhub[AMDGPU_MMHUB0(j)];
 
 		for (i = 0; i < 18; ++i) {
-			WREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, j),
-					    regMMVM_INVALIDATE_ENG0_ADDR_RANGE_LO32,
-					    i * hub->eng_addr_distance, 0xffffffff);
-			WREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, j),
-					    regMMVM_INVALIDATE_ENG0_ADDR_RANGE_HI32,
-					    i * hub->eng_addr_distance, 0x3fff);
+			WREG32_MMHUB_OFFSET(j,
+					   regMMVM_INVALIDATE_ENG0_ADDR_RANGE_LO32,
+					   i * hub->eng_addr_distance, 0xffffffff);
+			WREG32_MMHUB_OFFSET(j,
+					   regMMVM_INVALIDATE_ENG0_ADDR_RANGE_HI32,
+					   i * hub->eng_addr_distance, 0x3fff);
 		}
 	}
 }
 
 static int mmhub_v4_2_0_mid_gart_enable(struct amdgpu_device *adev,
-					uint32_t mid_mask)
+					uint32_t inst_mask)
 {
 	/* GART Enable. */
-	mmhub_v4_2_0_mid_init_gart_aperture_regs(adev, mid_mask);
-	mmhub_v4_2_0_mid_init_system_aperture_regs(adev, mid_mask);
-	mmhub_v4_2_0_mid_init_tlb_regs(adev, mid_mask);
-	mmhub_v4_2_0_mid_init_cache_regs(adev, mid_mask);
+	mmhub_v4_2_0_mid_init_gart_aperture_regs(adev, inst_mask);
+	mmhub_v4_2_0_mid_init_system_aperture_regs(adev, inst_mask);
+	mmhub_v4_2_0_mid_init_tlb_regs(adev, inst_mask);
+	mmhub_v4_2_0_mid_init_cache_regs(adev, inst_mask);
 
-	mmhub_v4_2_0_mid_enable_system_domain(adev, mid_mask);
-	mmhub_v4_2_0_mid_disable_identity_aperture(adev, mid_mask);
-	mmhub_v4_2_0_mid_setup_vmid_config(adev, mid_mask);
-	mmhub_v4_2_0_mid_program_invalidation(adev, mid_mask);
+	mmhub_v4_2_0_mid_enable_system_domain(adev, inst_mask);
+	mmhub_v4_2_0_mid_disable_identity_aperture(adev, inst_mask);
+	mmhub_v4_2_0_mid_setup_vmid_config(adev, inst_mask);
+	mmhub_v4_2_0_mid_program_invalidation(adev, inst_mask);
 
 	return 0;
 }
 static int mmhub_v4_2_0_gart_enable(struct amdgpu_device *adev)
 {
-	uint32_t mid_mask;
-
-	mid_mask = adev->aid_mask;
-	return mmhub_v4_2_0_mid_gart_enable(adev, mid_mask);
+	return mmhub_v4_2_0_mid_gart_enable(adev, adev->mmhub.inst_mask);
 }
 
 static void mmhub_v4_2_0_mid_gart_disable(struct amdgpu_device *adev,
-					  uint32_t mid_mask)
+					  uint32_t inst_mask)
 {
 	struct amdgpu_vmhub *hub;
 	u32 tmp;
 	u32 i, j;
 
-	for_each_inst(j, mid_mask) {
+	for_each_inst(j, inst_mask) {
 		hub = &adev->vmhub[AMDGPU_MMHUB0(j)];
 		/* Disable all tables */
 		for (i = 0; i < 16; i++)
-			WREG32_SOC15_OFFSET(MMHUB, GET_INST(MMHUB, j),
-					    regMMVM_CONTEXT0_CNTL,
-					    i * hub->ctx_distance, 0);
+			WREG32_MMHUB_OFFSET(j, regMMVM_CONTEXT0_CNTL,
+					   i * hub->ctx_distance, 0);
 
 		/* Setup TLB control */
-		tmp = RREG32_SOC15(MMHUB, GET_INST(MMHUB, j),
-				   regMMMC_VM_MX_L1_TLB_CNTL);
+		tmp = RREG32_MMHUB(j, regMMMC_VM_MX_L1_TLB_CNTL);
 		tmp = REG_SET_FIELD(tmp, MMMC_VM_MX_L1_TLB_CNTL,
 				    ENABLE_L1_TLB, 0);
 		tmp = REG_SET_FIELD(tmp, MMMC_VM_MX_L1_TLB_CNTL,
 				    ENABLE_ADVANCED_DRIVER_MODEL, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, j),
-			     regMMMC_VM_MX_L1_TLB_CNTL, tmp);
+		WREG32_MMHUB(j, regMMMC_VM_MX_L1_TLB_CNTL, tmp);
 
 		/* Setup L2 cache */
-		tmp = RREG32_SOC15(MMHUB, GET_INST(MMHUB, j), regMMVM_L2_CNTL);
+		tmp = RREG32_MMHUB(j, regMMVM_L2_CNTL);
 		tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, ENABLE_L2_CACHE, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, j), regMMVM_L2_CNTL, tmp);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, j), regMMVM_L2_CNTL3, 0);
+		WREG32_MMHUB(j, regMMVM_L2_CNTL, tmp);
+		WREG32_MMHUB(j, regMMVM_L2_CNTL3, 0);
 	}
 }
 
 static void mmhub_v4_2_0_gart_disable(struct amdgpu_device *adev)
 {
-	uint32_t mid_mask;
-
-	mid_mask = adev->aid_mask;
-	mmhub_v4_2_0_mid_gart_disable(adev, mid_mask);
+	mmhub_v4_2_0_mid_gart_disable(adev, adev->mmhub.inst_mask);
 }
 
 static void
 mmhub_v4_2_0_mid_set_fault_enable_default(struct amdgpu_device *adev,
-					  bool value, uint32_t mid_mask)
+					  bool value, uint32_t inst_mask)
 {
 	u32 tmp;
 	int i;
@@ -636,9 +672,8 @@ mmhub_v4_2_0_mid_set_fault_enable_default(struct amdgpu_device *adev,
 	if (amdgpu_sriov_vf(adev))
 		return;
 
-	for_each_inst(i, mid_mask) {
-		tmp = RREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-				   regMMVM_L2_PROTECTION_FAULT_CNTL_LO32);
+	for_each_inst(i, inst_mask) {
+		tmp = RREG32_MMHUB(i, regMMVM_L2_PROTECTION_FAULT_CNTL_LO32);
 		tmp = REG_SET_FIELD(tmp, MMVM_L2_PROTECTION_FAULT_CNTL_LO32,
 				    RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
 		tmp = REG_SET_FIELD(tmp, MMVM_L2_PROTECTION_FAULT_CNTL_LO32,
@@ -666,8 +701,7 @@ mmhub_v4_2_0_mid_set_fault_enable_default(struct amdgpu_device *adev,
 			tmp = REG_SET_FIELD(tmp, MMVM_L2_PROTECTION_FAULT_CNTL_LO32,
 					    CRASH_ON_NO_RETRY_FAULT, 1);
 		}
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMVM_L2_PROTECTION_FAULT_CNTL_LO32, tmp);
+		WREG32_MMHUB(i, regMMVM_L2_PROTECTION_FAULT_CNTL_LO32, tmp);
 	}
 }
 
@@ -682,10 +716,8 @@ static void
 mmhub_v4_2_0_set_fault_enable_default(struct amdgpu_device *adev,
 				      bool value)
 {
-	uint32_t mid_mask;
-
-	mid_mask = adev->aid_mask;
-	mmhub_v4_2_0_mid_set_fault_enable_default(adev, value, mid_mask);
+	mmhub_v4_2_0_mid_set_fault_enable_default(adev, value,
+						  adev->mmhub.inst_mask);
 }
 
 static uint32_t mmhub_v4_2_0_get_invalidate_req(unsigned int vmid,
@@ -710,8 +742,18 @@ static uint32_t mmhub_v4_2_0_get_invalidate_req(unsigned int vmid,
 	return req;
 }
 
-/*TODO: l2 protection fault status is increased to 64bits.
- * some critical fields like FED are moved to STATUS_HI32 */
+static void
+mmhub_v4_2_0_print_l2_protection_fault_status_hi(struct amdgpu_device *adev,
+						 uint32_t status)
+{
+	dev_err(adev->dev,
+		"MMVM_L2_PROTECTION_FAULT_STATUS_HI32:0x%08X\n",
+		status);
+	dev_err(adev->dev, "\t FED: 0x%lx\n",
+		REG_GET_FIELD(status,
+			      MMVM_L2_PROTECTION_FAULT_STATUS_HI32, FED));
+}
+
 static void
 mmhub_v4_2_0_print_l2_protection_fault_status(struct amdgpu_device *adev,
 					      uint32_t status)
@@ -748,16 +790,18 @@ mmhub_v4_2_0_print_l2_protection_fault_status(struct amdgpu_device *adev,
 
 static const struct amdgpu_vmhub_funcs mmhub_v4_2_0_vmhub_funcs = {
 	.print_l2_protection_fault_status = mmhub_v4_2_0_print_l2_protection_fault_status,
+	.print_l2_protection_fault_status_hi =
+		mmhub_v4_2_0_print_l2_protection_fault_status_hi,
 	.get_invalidate_req = mmhub_v4_2_0_get_invalidate_req,
 };
 
 static void mmhub_v4_2_0_mid_init(struct amdgpu_device *adev,
-				  uint32_t mid_mask)
+				  uint32_t inst_mask)
 {
 	struct amdgpu_vmhub *hub;
 	int i;
 
-	for_each_inst(i, mid_mask) {
+	for_each_inst(i, inst_mask) {
 		hub = &adev->vmhub[AMDGPU_MMHUB0(i)];
 
 		hub->ctx0_ptb_addr_lo32 =
@@ -778,10 +822,12 @@ static void mmhub_v4_2_0_mid_init(struct amdgpu_device *adev,
 		hub->vm_context0_cntl =
 			SOC15_REG_OFFSET(MMHUB, GET_INST(MMHUB, i),
 					 regMMVM_CONTEXT0_CNTL);
-		/* TODO: add a new member to accomandate additional fault status/cntl reg */
 		hub->vm_l2_pro_fault_status =
 			SOC15_REG_OFFSET(MMHUB, GET_INST(MMHUB, i),
 					 regMMVM_L2_PROTECTION_FAULT_STATUS_LO32);
+		hub->vm_l2_pro_fault_status_hi =
+			SOC15_REG_OFFSET(MMHUB, GET_INST(MMHUB, i),
+					 regMMVM_L2_PROTECTION_FAULT_STATUS_HI32);
 		hub->vm_l2_pro_fault_cntl =
 			SOC15_REG_OFFSET(MMHUB, GET_INST(MMHUB, i),
 					 regMMVM_L2_PROTECTION_FAULT_CNTL_LO32);
@@ -814,10 +860,7 @@ static void mmhub_v4_2_0_mid_init(struct amdgpu_device *adev,
 
 static void mmhub_v4_2_0_init(struct amdgpu_device *adev)
 {
-	uint32_t mid_mask;
-
-	mid_mask = adev->aid_mask;
-	mmhub_v4_2_0_mid_init(adev, mid_mask);
+	mmhub_v4_2_0_mid_init(adev, adev->mmhub.inst_mask);
 
 	amdgpu_mmhub_init_client_info(&adev->mmhub,
 				     mmhub_client_ids_v4_2_0,

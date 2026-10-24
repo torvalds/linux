@@ -712,6 +712,8 @@ void hubbub21_construct(struct dcn20_hubbub *hubbub,
 {
 	hubbub->base.ctx = ctx;
 
+	hubbub->base.inst = 0;
+
 	hubbub->base.funcs = &hubbub21_funcs;
 
 	hubbub->regs = hubbub_regs;

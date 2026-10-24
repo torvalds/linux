@@ -83,6 +83,21 @@ static u32 nbio_v6_3_2_get_memsize(struct amdgpu_device *adev)
 	return RREG32_SOC15(NBIO, 0, regRCC_DEV0_EPF0_RCC_CONFIG_MEMSIZE);
 }
 
+static u32 nbio_v6_3_2_get_rom_offset(struct amdgpu_device *adev)
+{
+	u32 data, rom_offset;
+
+	data = RREG32_SOC15(NBIO, 0, regREGS_ROM_OFFSET_CTRL);
+	rom_offset = REG_GET_FIELD(data, REGS_ROM_OFFSET_CTRL, ROM_OFFSET);
+
+	/* Temp W/A for nbio v6.3.2. Retrieving rom_offset as 1 but vbios
+	 * image is actually located from offset 2
+	 */
+	rom_offset += 1;
+
+	return rom_offset;
+}
+
 static void nbio_v6_3_2_enable_doorbell_aperture(struct amdgpu_device *adev,
 						 bool enable)
 {
@@ -266,7 +281,7 @@ static void nbio_v6_3_2_vcn_doorbell_range(struct amdgpu_device *adev,
 		doorbell_range = REG_SET_FIELD(doorbell_range,
 					       GDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL,
 					       S2A_DOORBELL_PORT2_RANGE_SIZE,
-					       8);
+					       11);
 		doorbell_range = REG_SET_FIELD(doorbell_range,
 					       GDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL,
 					       S2A_DOORBELL_PORT2_AWADDR_31_28_VALUE,
@@ -366,4 +381,5 @@ const struct amdgpu_nbio_funcs nbio_v6_3_2_funcs = {
 	.sdma_doorbell_range = nbio_v6_3_2_sdma_doorbell_range,
 	.vcn_doorbell_range = nbio_v6_3_2_vcn_doorbell_range,
 	.init_registers = nbio_v6_3_2_init_registers,
+	.get_rom_offset = nbio_v6_3_2_get_rom_offset,
 };

@@ -32,8 +32,6 @@
 #include "gc/gc_12_1_0_sh_mask.h"
 #include "mmhub/mmhub_4_2_0_offset.h"
 
-MODULE_FIRMWARE("amdgpu/gc_12_1_0_imu.bin");
-
 #define TRANSFER_RAM_MASK	0x001c0000
 
 static int imu_v12_1_init_microcode(struct amdgpu_device *adev)
@@ -133,24 +131,111 @@ static int imu_v12_1_load_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
+#define regGFX_IMU_PARTITION_SWITCH		0x5f8c
+#define regGFX_IMU_PARTITION_SWITCH_BASE_IDX	1
+#define GFX_IMU_PARTITION_SWITCH__PARTITION_MODE__SHIFT		0x0
+#define GFX_IMU_PARTITION_SWITCH__TOTAL_XCCS_IN_XCP__SHIFT	0x2
+#define GFX_IMU_PARTITION_SWITCH__VIRTUAL_XCC_ID__SHIFT		0x9
+#define GFX_IMU_PARTITION_SWITCH__PHYSICAL_XCC_MASK__SHIFT	0x10
+#define GFX_IMU_PARTITION_SWITCH__PARTITION_MODE_MASK		0x00000003L
+#define GFX_IMU_PARTITION_SWITCH__TOTAL_XCCS_IN_XCP_MASK	0x0000003CL
+#define GFX_IMU_PARTITION_SWITCH__VIRTUAL_XCC_ID_MASK		0x00000E00L
+#define GFX_IMU_PARTITION_SWITCH__PHYSICAL_XCC_MASK_MASK	0x00FF0000L
+
 static int imu_v12_1_switch_compute_partition(struct amdgpu_device *adev,
 					      int num_xccs_per_xcp,
 					      int compute_partition_mode)
 {
-	int ret;
+	int ret, i, num_xcc;
+	u32 tmp = 0, physical_xcc_mask = 0;
 
 	if (adev->psp.funcs) {
 		ret = psp_spatial_partition(&adev->psp, compute_partition_mode);
 		if (ret)
 			return ret;
+	} else {
+		num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+		/* 00 - SPX; 01 - DPX; 10 - QPX; 11 - CPX */
+		switch (compute_partition_mode) {
+		case AMDGPU_SPX_PARTITION_MODE:
+			compute_partition_mode = 0;
+			break;
+		case AMDGPU_DPX_PARTITION_MODE:
+			compute_partition_mode = 1;
+			break;
+		case AMDGPU_QPX_PARTITION_MODE:
+			compute_partition_mode = 2;
+			break;
+		case AMDGPU_CPX_PARTITION_MODE:
+			compute_partition_mode = 3;
+			break;
+		default:
+			dev_err(adev->dev, "Invalid compute partition mode\n");
+			return -EINVAL;
+		}
+
+		num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+		for(i = 0; i < num_xcc; i++) {
+			if (i % num_xccs_per_xcp == 0) {
+				physical_xcc_mask =
+					adev->gfx.xcc_mask &
+					(GENMASK(GET_INST(GC, i + num_xccs_per_xcp - 1),
+						 GET_INST(GC, i)));
+			}
+			tmp = REG_SET_FIELD(tmp, GFX_IMU_PARTITION_SWITCH,
+					    PARTITION_MODE, compute_partition_mode);
+			tmp = REG_SET_FIELD(tmp, GFX_IMU_PARTITION_SWITCH,
+					    TOTAL_XCCS_IN_XCP, num_xccs_per_xcp);
+			tmp = REG_SET_FIELD(tmp, GFX_IMU_PARTITION_SWITCH,
+					    VIRTUAL_XCC_ID, i % num_xccs_per_xcp);
+			tmp = REG_SET_FIELD(tmp, GFX_IMU_PARTITION_SWITCH,
+					    PHYSICAL_XCC_MASK, physical_xcc_mask);
+			WREG32_SOC15(GC, GET_INST(GC, i), regGFX_IMU_PARTITION_SWITCH, tmp);
+		}
+		ret = 0;
 	}
 
 	adev->gfx.num_xcc_per_xcp = num_xccs_per_xcp;
 	return 0;
 }
 
+#define regGFX_IMU_MCM_ADDR_LUT_PF		0x5f8d
+#define regGFX_IMU_MCM_ADDR_LUT_PF_BASE_IDX	1
+
+static void imu_v12_1_init_mcm_addr_lut(struct amdgpu_device *adev)
+{
+	/* Encoding mcm_addr_lut in SPX mode for now
+	 * I've noticed variations in encoding
+	 * Need to revisit the configuration later
+	 * XCD0:: Bits-[3:0 ] AID-01 XCD-00
+	 * XCD1:: Bits-[7:4 ] AID-01 XCD-01
+	 * XCD2:: Bits-[11:8 ] AID-01 XCD-10
+	 * XCD3:: Bits-[15:12] AID-01 XCD-11
+	 * XCD4:: Bits-[19:16] AID-10 XCD-00
+	 * XCD5:: Bits-[23:20] AID-10 XCD-01
+	 * XCD6:: Bits-[27:24] AID-10 XCD-10
+	 * XCD7:: Bits-[31:28] AID-10 XCD-11
+	 */
+	int data, encode_data;
+	int i, j, num_xcc;
+
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < (num_xcc / adev->gfx.num_xcc_per_xcp); i++) {
+		encode_data = 0;
+		for (j = 0; j < adev->gfx.num_xcc_per_xcp; j++) {
+			data = ((GET_INST(GC, i * adev->gfx.num_xcc_per_xcp + j) / 4 + 1) << 2) |
+			        (GET_INST(GC, i * adev->gfx.num_xcc_per_xcp + j) % 4);
+			encode_data |= data << (j * 4);
+		}
+		for (j = 0; j < adev->gfx.num_xcc_per_xcp; j++)
+			WREG32_SOC15(GC, GET_INST(GC, i * adev->gfx.num_xcc_per_xcp + j),
+					regGFX_IMU_MCM_ADDR_LUT_PF, encode_data);
+	}
+}
+
 const struct amdgpu_imu_funcs gfx_v12_1_imu_funcs = {
 	.init_microcode = imu_v12_1_init_microcode,
 	.load_microcode = imu_v12_1_load_microcode,
 	.switch_compute_partition = imu_v12_1_switch_compute_partition,
+	.init_mcm_addr_lut = imu_v12_1_init_mcm_addr_lut,
 };

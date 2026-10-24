@@ -24,6 +24,7 @@
 #ifndef __LOG_RING_H__
 #define __LOG_RING_H__
 #include "aca.h"
+#include "ras_cper.h"
 
 #define MAX_RECORD_PER_BATCH 32
 
@@ -37,6 +38,9 @@ enum ras_log_event {
 	RAS_LOG_EVENT_POISON_CREATION,
 	RAS_LOG_EVENT_POISON_CONSUMPTION,
 	RAS_LOG_EVENT_RMA,
+	RAS_LOG_EVENT_MCE,
+	RAS_LOG_EVENT_BOOT,
+	RAS_LOG_EVENT_CPU_RAS,
 	RAS_LOG_EVENT_COUNT_MAX,
 };
 
@@ -44,13 +48,44 @@ struct ras_aca_reg {
 	uint64_t regs[ACA_REG_MAX_COUNT];
 };
 
+struct ras_cpu_mce {
+	u64 regs[ACA_REG_MAX_COUNT - 1];
+	u32 apic_id;
+	u16 bank;
+	u16 reserved;
+};
+
+#define RAS_CPER_BOOT_RAW_DATA_SIZE	80
+#define RAS_BOOT_CTX_VALID_APIC_ID	BIT(0)
+
+struct ras_boot_err_ctx {
+	u8 section_type[16];
+	u32 error_severity;
+	u16 reg_ctx_type;
+	u16 reg_arr_size;
+	u32 msr_addr;
+	u16 raw_data_size;
+	u16 flags;
+	u64 apic_id;
+	u64 mm_reg_addr;
+	union {
+		u64 regs[CPER_OAM_MAX_COUNT];
+		u8 raw_data[RAS_CPER_BOOT_RAW_DATA_SIZE];
+	};
+};
+
+union ras_log_body {
+	struct ras_aca_reg aca_reg;
+	struct ras_cpu_mce cpu_mce;
+	struct ras_boot_err_ctx boot_err_ctx;
+};
+
 struct ras_log_info {
 	uint64_t seqno;
 	uint64_t timestamp;
 	enum ras_log_event event;
-	union {
-		struct ras_aca_reg aca_reg;
-	};
+	uint32_t size;
+	union ras_log_body body;
 };
 
 struct ras_log_batch_tag {
@@ -82,8 +117,9 @@ int ras_log_ring_sw_fini(struct ras_core_context *ras_core);
 struct ras_log_batch_tag *ras_log_ring_create_batch_tag(struct ras_core_context *ras_core);
 void ras_log_ring_destroy_batch_tag(struct ras_core_context *ras_core,
 			struct ras_log_batch_tag *tag);
-void ras_log_ring_add_log_event(struct ras_core_context *ras_core,
-		enum ras_log_event event, void *data, struct ras_log_batch_tag *tag);
+int ras_log_ring_add_log_event(struct ras_core_context *ras_core,
+		enum ras_log_event event,
+		void *data, uint32_t size, struct ras_log_batch_tag *batch_tag);
 
 int ras_log_ring_get_batch_records(struct ras_core_context *ras_core, uint64_t batch_idx,
 		struct ras_log_info *log_arr, uint32_t arr_num);

@@ -219,8 +219,9 @@ static int amdgpu_check_address_validity(struct amdgpu_device *adev,
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct amdgpu_vram_block_info blk_info;
-	uint64_t page_pfns[32] = {0};
-	int i, ret, count;
+	uint64_t *page_pfns = NULL;
+	u32 nr_page_pfns = 256;
+	int i, ret = 0, count;
 	bool hit = false;
 
 	if (amdgpu_ip_version(adev, UMC_HWIP, 0) < IP_VERSION(12, 0, 0))
@@ -243,15 +244,21 @@ static int amdgpu_check_address_validity(struct amdgpu_device *adev,
 	    (address >= RAS_UMC_INJECT_ADDR_LIMIT))
 		return -EFAULT;
 
+	page_pfns = kcalloc(nr_page_pfns, sizeof(*page_pfns), GFP_KERNEL);
+	if (!page_pfns)
+		return -ENOMEM;
+
 	if (amdgpu_sriov_vf(adev))
 		count = amdgpu_virt_ras_convert_retired_address(adev, address,
-			page_pfns, ARRAY_SIZE(page_pfns));
+			page_pfns, nr_page_pfns);
 	else
 		count = amdgpu_ras_mgr_lookup_bad_pages_in_a_row(adev, address,
-			page_pfns, ARRAY_SIZE(page_pfns));
+			page_pfns, nr_page_pfns);
 
-	if (count <= 0)
-		return -EPERM;
+	if (count <= 0) {
+		ret = -EPERM;
+		goto out;
+	}
 
 	for (i = 0; i < count; i++) {
 		memset(&blk_info, 0, sizeof(blk_info));
@@ -264,16 +271,23 @@ static int amdgpu_check_address_validity(struct amdgpu_device *adev,
 			 */
 			if ((flags == BYPASS_ALLOCATED_ADDRESS) &&
 			    ((blk_info.task.pid != task_pid_nr(current)) ||
-				strncmp(blk_info.task.comm, current->comm, TASK_COMM_LEN)))
-				return -EACCES;
-			else if ((flags == BYPASS_INITIALIZATION_ADDRESS) &&
+				strncmp(blk_info.task.comm, current->comm, TASK_COMM_LEN))) {
+				ret = -EACCES;
+				goto out;
+			} else if ((flags == BYPASS_INITIALIZATION_ADDRESS) &&
 				(blk_info.task.pid == con->init_task_pid) &&
-				!strncmp(blk_info.task.comm, con->init_task_comm, TASK_COMM_LEN))
-				return -EACCES;
+				!strncmp(blk_info.task.comm, con->init_task_comm, TASK_COMM_LEN)) {
+				ret = -EACCES;
+				goto out;
+			}
 		}
 	}
 
-	return 0;
+	ret = 0;
+
+out:
+	kfree(page_pfns);
+	return ret;
 }
 
 static ssize_t amdgpu_ras_debugfs_read(struct file *f, char __user *buf,
@@ -919,7 +933,14 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 			};
 		}
 
-		ret = psp_ras_enable_features(&adev->psp, info, enable);
+		if (amdgpu_uniras_enabled(adev))
+			ret = amdgpu_ras_mgr_enable_feature(adev,
+					amdgpu_ras_block_to_ta(head->block),
+					amdgpu_ras_error_to_ta(head->type),
+					enable);
+		else
+			ret = psp_ras_enable_features(&adev->psp, info, enable);
+
 		if (ret) {
 			dev_err(adev->dev, "ras %s %s failed poison:%d ret:%d\n",
 				enable ? "enable":"disable",
@@ -1820,8 +1841,12 @@ static ssize_t amdgpu_ras_sysfs_features_read(struct device *dev,
 {
 	struct amdgpu_ras *con =
 		container_of(attr, struct amdgpu_ras, features_attr);
+	u64 ras_features;
 
-	return sysfs_emit(buf, "feature mask: 0x%x\n", con->features);
+	ras_features = amdgpu_uniras_enabled(con->adev) ?
+		amdgpu_uniras_get_ras_caps(con->adev) : con->features;
+
+	return sysfs_emit(buf, "feature mask: 0x%llx\n", ras_features);
 }
 
 static bool amdgpu_ras_get_version_info(struct amdgpu_device *adev, u32 *major,
@@ -2186,6 +2211,9 @@ static int amdgpu_ras_fs_fini(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *con_obj, *ip_obj, *tmp;
 
+	if (!con)
+		return 0;
+
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
 		list_for_each_entry_safe(con_obj, tmp, &con->head, node) {
 			ip_obj = amdgpu_ras_find_obj(adev, &con_obj->head);
@@ -2393,9 +2421,7 @@ int amdgpu_ras_interrupt_dispatch(struct amdgpu_device *adev,
 
 		memset(&ih_info, 0, sizeof(ih_info));
 		ih_info.block = info->head.block;
-		memcpy(&ih_info.iv_entry, info->entry, sizeof(struct amdgpu_iv_entry));
-
-		return amdgpu_ras_mgr_handle_controller_interrupt(adev, &ih_info);
+		return amdgpu_ras_mgr_dispatch_interrupt(adev, &ih_info);
 	}
 
 	obj = amdgpu_ras_find_obj(adev, &info->head);
@@ -3303,6 +3329,7 @@ static bool amdgpu_ras_asic_supported(struct amdgpu_device *adev)
 		case IP_VERSION(13, 0, 14):
 		case IP_VERSION(13, 0, 15):
 		case IP_VERSION(14, 0, 3):
+		case IP_VERSION(15, 0, 8):
 			return true;
 		default:
 			return false;
@@ -3464,7 +3491,7 @@ init_ras_enabled_flag:
 	adev->ras_hw_enabled &= AMDGPU_RAS_BLOCK_MASK;
 
 	adev->ras_enabled = amdgpu_ras_enable == 0 ? 0 :
-		adev->ras_hw_enabled & amdgpu_ras_mask;
+		(uint32_t)(adev->ras_hw_enabled & amdgpu_ras_mask);
 
 	/* bad page feature is not applicable to specific app platform */
 	if (adev->gmc.is_app_apu &&
@@ -3565,6 +3592,7 @@ static void amdgpu_ras_init_reserved_vram_size(struct amdgpu_device *adev)
 int amdgpu_ras_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_module_param param = {0};
 	int r;
 
 	if (con)
@@ -3588,7 +3616,13 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	amdgpu_ras_check_supported(adev);
 
-	if (!adev->ras_enabled || adev->asic_type == CHIP_VEGA10) {
+	param.ras_feature_enable = amdgpu_ras_enable;
+	param.ras_feature_mask = amdgpu_ras_mask;
+	param.ras_bad_page_threshold = amdgpu_bad_page_threshold;
+	amdgpu_ras_mgr_sw_init(adev, &param);
+
+	if (!con->uniras_enabled &&
+	    (!adev->ras_enabled || adev->asic_type == CHIP_VEGA10)) {
 		/* set gfx block ras context feature for VEGA20 Gaming
 		 * send ras disable cmd to ras ta during ras late init.
 		 */
@@ -3788,7 +3822,8 @@ int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
 	    ras_obj->hw_ops->query_ras_error_status)) ||
 	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14) ||
 	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 12) ||
-	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)) {
+	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)  ||
+	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 15)) {
 		r = amdgpu_ras_sysfs_create(adev, ras_block);
 		if (r)
 			goto interrupt;
@@ -3860,6 +3895,8 @@ void amdgpu_ras_resume(struct amdgpu_device *adev)
 		return;
 	}
 
+	amdgpu_ras_mgr_set_debug_mode(adev, false);
+
 	if (con->flags & AMDGPU_RAS_FLAG_INIT_BY_VBIOS) {
 		/* Set up all other IPs which are not implemented. There is a
 		 * tricky thing that IP's actual ras error type should be
@@ -3920,9 +3957,6 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_ras_telemetry_en(adev))
 		return 0;
 
-	if (amdgpu_uniras_enabled(adev))
-		amdgpu_ras_mgr_set_debug_mode(adev, false);
-
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
 		obj = node->ras_obj;
 		if (!obj) {
@@ -3978,6 +4012,10 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 	struct amdgpu_ras_block_object *obj = NULL;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
+	amdgpu_ras_mgr_sw_fini(adev);
+
+	amdgpu_ras_fs_fini(adev);
+
 	if (!adev->ras_enabled || !con)
 		return 0;
 
@@ -4000,7 +4038,6 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 		kfree(ras_node);
 	}
 
-	amdgpu_ras_fs_fini(adev);
 	amdgpu_ras_interrupt_remove_all(adev);
 
 	WARN(AMDGPU_RAS_GET_FEATURES(con->features), "Feature mask is not cleared");
@@ -4369,7 +4406,7 @@ int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 	     block == AMDGPU_RAS_BLOCK__SDMA ||
 	     block == AMDGPU_RAS_BLOCK__VCN ||
 	     block == AMDGPU_RAS_BLOCK__JPEG) &&
-		(amdgpu_ras_mask & (1 << block)) &&
+		(amdgpu_ras_mask & BIT_ULL(block)) &&
 	    amdgpu_ras_is_poison_mode_supported(adev) &&
 	    amdgpu_ras_get_ras_block(adev, block, 0))
 		ret = 1;
@@ -5004,4 +5041,30 @@ int amdgpu_ras_resume_after_reset(struct amdgpu_device *adev)
 		return r;
 
 	return amdgpu_cper_deferred_init(adev);
+}
+
+uint64_t amdgpu_uniras_get_ras_caps(struct amdgpu_device *adev)
+{
+	struct ras_cmd_get_ras_cap_req req = {0};
+	struct ras_cmd_get_ras_cap_rsp rsp = {0};
+	union ras_feature feature = {0};
+	u32 socket_id = 0;
+
+	if (amdgpu_ras_mgr_handle_ras_cmd(adev, RAS_CMD__GET_RAS_CAP,
+			&req, sizeof(struct ras_cmd_get_ras_cap_req),
+			&rsp, sizeof(struct ras_cmd_get_ras_cap_rsp)))
+		return 0;
+
+	if (adev->smuio.funcs && adev->smuio.funcs->get_socket_id)
+		socket_id = adev->smuio.funcs->get_socket_id(adev);
+
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(12, 1, 0))
+		return AMDGPU_RAS_GET_FEATURES(lower_32_bits(rsp.ras_block_mask)) |
+		       (socket_id << AMDGPU_RAS_FEATURES_SOCKETID_SHIFT);
+
+	feature.block_mask = rsp.ras_block_mask;
+	feature.en = !!adev->ras_enabled;
+	feature.tag = socket_id;
+
+	return feature.value;
 }

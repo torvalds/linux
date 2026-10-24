@@ -2647,11 +2647,6 @@ static int si_common_resume(struct amdgpu_ip_block *ip_block)
 	return si_common_hw_init(ip_block);
 }
 
-static bool si_common_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	return true;
-}
-
 static int si_common_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 					    enum amd_clockgating_state state)
 {
@@ -2670,7 +2665,6 @@ static const struct amd_ip_funcs si_common_ip_funcs = {
 	.hw_init = si_common_hw_init,
 	.hw_fini = si_common_hw_fini,
 	.resume = si_common_resume,
-	.is_idle = si_common_is_idle,
 	.set_clockgating_state = si_common_set_clockgating_state,
 	.set_powergating_state = si_common_set_powergating_state,
 };

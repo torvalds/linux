@@ -6,6 +6,7 @@
 #include "core_types.h"
 #include "dcn42_pg_cntl.h"
 #include "dccg.h"
+#include "resource.h"
 
 #define TO_DCN_PG_CNTL(pg_cntl)\
 	container_of(pg_cntl, struct dcn_pg_cntl, base)
@@ -582,7 +583,10 @@ void pg_cntl42_init_pg_status(struct pg_cntl *pg_cntl)
 		block_enabled = pg_cntl42_hubp_dpp_pg_status(pg_cntl, i);
 		pg_cntl->pg_pipe_res_enable[PG_HUBP][i] = block_enabled;
 		pg_cntl->pg_pipe_res_enable[PG_DPP][i] = block_enabled;
+	}
 
+	/* DSC count can be lower than pipe count (e.g. DCN42B has 4 pipes, 3 DSCs) */
+	for (i = 0; i < (unsigned int)pg_cntl->ctx->dc->res_pool->res_cap->num_dsc; i++) {
 		block_enabled = pg_cntl42_dsc_pg_status(pg_cntl, i);
 		pg_cntl->pg_pipe_res_enable[PG_DSC][i] = block_enabled;
 	}
@@ -626,6 +630,7 @@ struct pg_cntl *pg_cntl42_create(
 	base = &pg_cntl_dcn->base;
 	base->ctx = ctx;
 	base->funcs = &pg_cntl42_funcs;
+	base->inst = 0;
 
 	pg_cntl_dcn->regs = regs;
 	pg_cntl_dcn->pg_cntl_shift = pg_cntl_shift;

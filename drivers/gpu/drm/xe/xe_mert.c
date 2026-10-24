@@ -77,7 +77,7 @@ static void mert_handle_cat_error(struct xe_device *xe)
 		xe_device_declare_wedged(xe);
 		break;
 	case CATERR_LMTT_FAULT:
-		xe_sriov_dbg(xe, "MERT: CAT_ERR: VF%u LMTT fault!\n", vfid);
+		xe_sriov_dbg_ratelimited(xe, "MERT: CAT_ERR: VF%u LMTT fault!\n", vfid);
 		/* XXX: track/report malicious VF activity */
 		break;
 	default:

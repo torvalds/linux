@@ -11,17 +11,10 @@ static const struct dml2_soc_qos_parameters dml_dcn42_variant_a_soc_qos_params =
 	.derate_table = {
 		.system_active_urgent = {
 			.dram_derate_percent_pixel = 65,
-			.dram_derate_percent_vm = 30,
+			.dram_derate_percent_vm = 50,
 			.dram_derate_percent_pixel_and_vm = 60,
 			.fclk_derate_percent = 80,
 			.dcfclk_derate_percent = 80,
-		},
-		.system_active_average = {
-			.dram_derate_percent_pixel = 30,
-			.dram_derate_percent_vm = 30,
-			.dram_derate_percent_pixel_and_vm = 30,
-			.fclk_derate_percent = 60,
-			.dcfclk_derate_percent = 60,
 		},
 		.dcn_mall_prefetch_urgent = {
 			.dram_derate_percent_pixel = 65,
@@ -31,11 +24,11 @@ static const struct dml2_soc_qos_parameters dml_dcn42_variant_a_soc_qos_params =
 			.dcfclk_derate_percent = 80,
 		},
 		.dcn_mall_prefetch_average = {
-			.dram_derate_percent_pixel = 30,
+			.dram_derate_percent_pixel = 33,
 			.dram_derate_percent_vm = 30,
 			.dram_derate_percent_pixel_and_vm = 30,
-			.fclk_derate_percent = 60,
-			.dcfclk_derate_percent = 60,
+			.fclk_derate_percent = 66,
+			.dcfclk_derate_percent = 66,
 		},
 		.system_idle_average = {
 			.dram_derate_percent_pixel = 30,
@@ -43,6 +36,21 @@ static const struct dml2_soc_qos_parameters dml_dcn42_variant_a_soc_qos_params =
 			.dram_derate_percent_pixel_and_vm = 30,
 			.fclk_derate_percent = 60,
 			.dcfclk_derate_percent = 60,
+		},
+	},
+	.derate_table_per_dpm = {
+		// DPM0 can have slightly higher derate values. Rest of the DPMs should match the global values.
+		.dram_per_dpm_derate_pixel = {
+			{.derate_percent = 33, .clk_upperbound_threshold_khz = 400000},
+			{.derate_percent = 30, .clk_upperbound_threshold_khz = 0},
+		},
+		.fclk_per_dpm_derate = {
+			{.derate_percent = 66, .clk_upperbound_threshold_khz = 400000},
+			{.derate_percent = 60, .clk_upperbound_threshold_khz = 0},
+		},
+		.dcfclk_per_dpm_derate = {
+			{.derate_percent = 66, .clk_upperbound_threshold_khz = 200000},
+			{.derate_percent = 60, .clk_upperbound_threshold_khz = 0},
 		},
 	},
 	.writeback = {
@@ -134,13 +142,6 @@ static const struct dml2_soc_bb dml2_socbb_dcn42 = {
 				.fclk_derate_percent = 80,
 				.dcfclk_derate_percent = 80,
 			},
-			.system_active_average = {
-				.dram_derate_percent_pixel = 30,
-				.dram_derate_percent_vm = 30,
-				.dram_derate_percent_pixel_and_vm = 30,
-				.fclk_derate_percent = 60,
-				.dcfclk_derate_percent = 60,
-			},
 			.dcn_mall_prefetch_urgent = {
 				.dram_derate_percent_pixel = 65,
 				.dram_derate_percent_vm = 30,
@@ -219,7 +220,7 @@ static const struct dml2_soc_bb dml2_socbb_dcn42 = {
 };
 
 /* DCN42 params for DDR5 */
-struct dml2_soc_power_management_parameters dcn42_ddr5_power_management_parameters = {
+static struct dml2_soc_power_management_parameters dcn42_ddr5_power_management_parameters = {
 	.dram_clk_change_blackout_us = 36,
 	.fclk_change_blackout_us = 0,
 	.g7_ppt_blackout_us = 0,

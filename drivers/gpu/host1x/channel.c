@@ -121,13 +121,13 @@ EXPORT_SYMBOL(host1x_channel_put);
 static struct host1x_channel *acquire_unused_channel(struct host1x *host)
 {
 	struct host1x_channel_list *chlist = &host->channel_list;
-	unsigned int max_channels = host->info->nb_channels;
 	unsigned int index;
 
 	mutex_lock(&chlist->lock);
 
-	index = find_first_zero_bit(chlist->allocated_channels, max_channels);
-	if (index >= max_channels) {
+	index = find_next_zero_bit(chlist->allocated_channels,
+				   host->channel_end, host->channel_base);
+	if (index >= host->channel_end) {
 		mutex_unlock(&chlist->lock);
 		dev_err(host->dev, "failed to find free channel\n");
 		return NULL;

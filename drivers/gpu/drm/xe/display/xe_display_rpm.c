@@ -3,8 +3,6 @@
 
 #include <drm/intel/display_parent_interface.h>
 
-#include "intel_display_core.h"
-#include "intel_display_rpm.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_pm.h"
@@ -47,6 +45,11 @@ static bool xe_display_rpm_suspended(const struct drm_device *drm)
 	return pm_runtime_suspended(xe->drm.dev);
 }
 
+static bool xe_display_rpm_pme_enabled(const struct drm_device *drm)
+{
+	return xe_pm_pme_enabled(to_xe_device(drm));
+}
+
 static void xe_display_rpm_assert_held(const struct drm_device *drm)
 {
 	/* FIXME */
@@ -71,6 +74,7 @@ const struct intel_display_rpm_interface xe_display_rpm_interface = {
 	.put_raw = xe_display_rpm_put,
 	.put_unchecked = xe_display_rpm_put_unchecked,
 	.suspended = xe_display_rpm_suspended,
+	.pme_enabled = xe_display_rpm_pme_enabled,
 	.assert_held = xe_display_rpm_assert_held,
 	.assert_block = xe_display_rpm_assert_block,
 	.assert_unblock = xe_display_rpm_assert_unblock

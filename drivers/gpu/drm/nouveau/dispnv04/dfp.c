@@ -344,9 +344,8 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 		regp->fp_control |= (2 << 24);
 	if (nv_encoder->dcb->type == DCB_OUTPUT_LVDS) {
 		bool duallink = false, dummy;
-		if (nv_connector->edid &&
-		    nv_connector->type == DCB_CONNECTOR_LVDS_SPWG) {
-			duallink = (((u8 *)nv_connector->edid)[121] == 2);
+		if (nv_connector->spwg_links) {
+			duallink = nv_connector->spwg_links == 2;
 		} else {
 			nouveau_bios_parse_lvds_table(dev, output_mode->clock,
 						      &duallink, &dummy);

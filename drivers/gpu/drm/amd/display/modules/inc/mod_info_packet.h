@@ -67,6 +67,10 @@ struct AS_Df_params {
 	struct frame_duration_op decrease;
 };
 
+void mod_build_infopacket_vtem(const struct dc_stream_state *stream,
+		const struct mod_vrr_params *vrr, int fva_factor,
+		struct dc_info_packet *infopacket);
+
 void mod_build_adaptive_sync_infopacket(const struct dc_stream_state *stream,
 		enum adaptive_sync_type asType, const struct AS_Df_params *param,
 		struct dc_info_packet *info_packet);

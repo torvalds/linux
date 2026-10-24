@@ -302,9 +302,6 @@
 #define UMC_V12_0_TOTAL_CHANNEL_NUM \
 	(UMC_V12_0_AID_NUM_MAX * UMC_V12_0_UMC_INSTANCE_NUM * UMC_V12_0_CHANNEL_INSTANCE_NUM)
 
-/* one device has 192GB HBM */
-#define SOCKET_LFB_SIZE   0x3000000000ULL
-
 extern const struct ras_umc_ip_func ras_umc_func_v12_0;
 
 int ras_umc_get_badpage_count(struct ras_core_context *ras_core);

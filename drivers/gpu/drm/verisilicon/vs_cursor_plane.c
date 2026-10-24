@@ -13,6 +13,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -177,7 +178,8 @@ static void vs_cursor_plane_atomic_update(struct drm_plane *plane,
 		break;
 	}
 
-	dma_addr = vs_fb_get_dma_addr(fb, &state->src);
+	/* hardware handles clipping as seen below */
+	dma_addr = drm_fb_dma_get_gem_addr(fb, state, 0);
 
 	regmap_write(dc->regs, VSDC_CURSOR_ADDRESS(output),
 		     lower_32_bits(dma_addr));
@@ -200,7 +202,7 @@ static void vs_cursor_plane_atomic_update(struct drm_plane *plane,
 	} else {
 		regmap_update_bits(dc->regs, VSDC_CURSOR_CONFIG(output),
 				   VSDC_CURSOR_CONFIG_X_OFF_MASK,
-				   -state->crtc_x);
+				   VSDC_CURSOR_CONFIG_X_OFF(-state->crtc_x));
 		regmap_update_bits(dc->regs, VSDC_CURSOR_LOCATION(output),
 				   VSDC_CURSOR_LOCATION_X_MASK, 0);
 	}
@@ -214,7 +216,7 @@ static void vs_cursor_plane_atomic_update(struct drm_plane *plane,
 	} else {
 		regmap_update_bits(dc->regs, VSDC_CURSOR_CONFIG(output),
 				   VSDC_CURSOR_CONFIG_Y_OFF_MASK,
-				   -state->crtc_y);
+				   VSDC_CURSOR_CONFIG_Y_OFF(-state->crtc_y));
 		regmap_update_bits(dc->regs, VSDC_CURSOR_LOCATION(output),
 				   VSDC_CURSOR_LOCATION_Y_MASK, 0);
 	}
@@ -230,10 +232,10 @@ static const struct drm_plane_helper_funcs vs_cursor_plane_helper_funcs = {
 };
 
 static const struct drm_plane_funcs vs_cursor_plane_funcs = {
+	.atomic_create_state	= drm_atomic_helper_plane_create_state,
 	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
 	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
 	.disable_plane		= drm_atomic_helper_disable_plane,
-	.reset			= drm_atomic_helper_plane_reset,
 	.update_plane		= drm_atomic_helper_update_plane,
 };
 

@@ -117,16 +117,18 @@ void enable_hpo_dp_link_output(struct dc_link *link,
 		return;
 	}
 
-	if (link->dc->res_pool->dccg->funcs->set_symclk32_le_root_clock_gating)
-		link->dc->res_pool->dccg->funcs->set_symclk32_le_root_clock_gating(
-				link->dc->res_pool->dccg,
-				link_res->hpo_dp_link_enc->inst,
-				true);
-	link_res->hpo_dp_link_enc->funcs->enable_link_phy(
-			link_res->hpo_dp_link_enc,
-			link_settings,
-			link->link_enc->transmitter,
-			link->link_enc->hpd_source);
+	{
+		if (link->dc->res_pool->dccg->funcs->set_symclk32_le_root_clock_gating)
+			link->dc->res_pool->dccg->funcs->set_symclk32_le_root_clock_gating(
+					link->dc->res_pool->dccg,
+					link_res->hpo_dp_link_enc->inst,
+					true);
+		link_res->hpo_dp_link_enc->funcs->enable_link_phy(
+				link_res->hpo_dp_link_enc,
+				link_settings,
+				link->link_enc->transmitter,
+				link->link_enc->hpd_source);
+	}
 }
 
 void disable_hpo_dp_link_output(struct dc_link *link,
@@ -231,4 +233,3 @@ const struct link_hwss *get_hpo_dp_link_hwss(void)
 {
 	return &hpo_dp_link_hwss;
 }
-

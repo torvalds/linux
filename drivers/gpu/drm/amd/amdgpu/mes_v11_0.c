@@ -257,14 +257,17 @@ static int mes_v11_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	if (r < 1 || !*status_ptr) {
 
 		if (misc_op_str)
-			dev_err(adev->dev, "MES failed to respond to msg=%s (%s)\n",
-				op_str, misc_op_str);
+			dev_err(adev->dev,
+				"MES failed to respond to msg=%s (%s) fence_wait_ret=%ld status=0x%llx\n",
+				op_str, misc_op_str, r, *status_ptr);
 		else if (op_str)
-			dev_err(adev->dev, "MES failed to respond to msg=%s\n",
-				op_str);
+			dev_err(adev->dev,
+				"MES failed to respond to msg=%s fence_wait_ret=%ld status=0x%llx\n",
+				op_str, r, *status_ptr);
 		else
-			dev_err(adev->dev, "MES failed to respond to msg=%d\n",
-				x_pkt->header.opcode);
+			dev_err(adev->dev,
+				"MES failed to respond to msg=%d fence_wait_ret=%ld status=0x%llx\n",
+				x_pkt->header.opcode, r, *status_ptr);
 
 		while (halt_if_hws_hang)
 			schedule();
@@ -404,24 +407,83 @@ static int mes_v11_0_remove_hw_queue(struct amdgpu_mes *mes,
 			offsetof(union MESAPI__REMOVE_QUEUE, api_status));
 }
 
-static bool mes_v11_0_pipe_reset_support(struct amdgpu_device *adev)
+/* Use MES callbacks directly while holding the MES lock. */
+static int mes_v11_0_restore_gfx_kernel_queue(struct amdgpu_device *adev,
+					      u32 me, u32 pipe, u32 guilty_queue,
+					      bool is_kq)
 {
-	/* Disable the pipe reset until the CPFW fully support it.*/
-	dev_warn_once(adev->dev, "The CPFW hasn't support pipe reset yet.\n");
-	return false;
+	struct amdgpu_ring *ring;
+	int i, j, r;
+
+	/*
+	 * Only the guilty HQD was dequeued; stop collateral HQDs before rebuild.
+	 * The outer reset helper restores the guilty kernel queue.
+	 */
+	for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+		struct mes_unmap_legacy_queue_input unmap = { 0 };
+		struct mes_map_legacy_queue_input map = { 0 };
+
+		ring = &adev->gfx.gfx_ring[i];
+		if (ring->me != me || ring->pipe != pipe ||
+		    (is_kq && ring->queue == guilty_queue))
+			continue;
+
+		unmap.action = PREEMPT_QUEUES;
+		unmap.queue_type = ring->funcs->type;
+		unmap.doorbell_offset = ring->doorbell_index;
+		unmap.pipe_id = ring->pipe;
+		unmap.queue_id = ring->queue;
+		r = adev->mes.funcs->unmap_legacy_queue(&adev->mes, &unmap);
+		if (r)
+			return r;
+
+		amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
+		mutex_lock(&adev->srbm_mutex);
+		soc21_grbm_select(adev, me, pipe, ring->queue, 0);
+		for (j = 0; j < adev->usec_timeout; j++) {
+			if (!(RREG32_SOC15(GC, 0, regCP_GFX_HQD_ACTIVE) & 1))
+				break;
+			udelay(1);
+		}
+		soc21_grbm_select(adev, 0, 0, 0, 0);
+		mutex_unlock(&adev->srbm_mutex);
+		amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
+		if (j == adev->usec_timeout)
+			return -ETIMEDOUT;
+
+		amdgpu_gfx_mqd_reset_restore(ring);
+
+		map.queue_type = ring->funcs->type;
+		map.doorbell_offset = ring->doorbell_index;
+		map.pipe_id = ring->pipe;
+		map.queue_id = ring->queue;
+		map.mqd_addr = amdgpu_bo_gpu_offset(ring->mqd_obj);
+		map.wptr_addr = ring->wptr_gpu_addr;
+		r = adev->mes.funcs->map_legacy_queue(&adev->mes, &map);
+		if (r)
+			return r;
+	}
+
+	return 0;
 }
+
 static int mes_v11_0_reset_gfx_pipe_mmio(struct amdgpu_device *adev,
-					 u32 me, u32 pipe, u32 queue)
+					 u32 me, u32 pipe, u32 queue,
+					 bool is_kq)
 {
-	uint32_t reset_pipe = 0, clean_pipe = 0;
-	int r;
+	/* gfx11 keeps a setup ring object even when kernel queues are disabled. */
+	bool has_kq = !adev->gfx.disable_kq && adev->gfx.num_gfx_rings >= 1;
+	uint32_t reset_pipe, clean_pipe;
+	int i;
 
-	if (!mes_v11_0_pipe_reset_support(adev))
+	if (!amdgpu_gfx_me_pipe_reset_supported(adev))
 		return -EOPNOTSUPP;
-
 	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 	mutex_lock(&adev->srbm_mutex);
 	soc21_grbm_select(adev, me, pipe, queue, 0);
+
+	reset_pipe = RREG32_SOC15(GC, 0, regCP_ME_CNTL);
+	clean_pipe = reset_pipe;
 
 	switch (pipe) {
 	case 0:
@@ -448,21 +510,35 @@ static int mes_v11_0_reset_gfx_pipe_mmio(struct amdgpu_device *adev,
 		break;
 	}
 
+	/* Preserve ACTIVE/DEQUEUE so warm firmware can complete queue release. */
 	WREG32_SOC15(GC, 0, regCP_ME_CNTL, reset_pipe);
+	soc21_grbm_select(adev, me, pipe, queue, 0);
 	WREG32_SOC15(GC, 0, regCP_ME_CNTL, clean_pipe);
 
-	r = (RREG32(SOC15_REG_OFFSET(GC, 0, regCP_GFX_RS64_INSTR_PNTR1)) << 2) -
-						RS64_FW_UC_START_ADDR_LO;
+	/* CP firmware releases only the queue named in CP_VMID_RESET. */
+	soc21_grbm_select(adev, me, pipe, queue, 0);
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (!(RREG32_SOC15(GC, 0, regCP_VMID_RESET) &
+		      BIT(16 + pipe * 8 + queue)) &&
+		    !(RREG32_SOC15(GC, 0, regCP_GFX_HQD_ACTIVE) & 1))
+			break;
+		udelay(1);
+	}
+
 	soc21_grbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
 	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
-	dev_info(adev->dev, "The gfx pipe reset to the ME firmware start PC: %s\n",
-			r == 0 ? "successfully" : "failed");
-	/* FIXME: Sometimes driver can't cache the ME firmware start PC correctly,
-	 * so the pipe reset status relies on the later gfx ring test result.
-	 */
-	return 0;
+	if (i >= adev->usec_timeout) {
+		dev_err(adev->dev,
+			"gfx pipe reset: CP front-end still busy, CP still wedged\n");
+		return -ETIMEDOUT;
+	}
+
+	if (!has_kq)
+		return 0;
+
+	return mes_v11_0_restore_gfx_kernel_queue(adev, me, pipe, queue, is_kq);
 }
 
 /*
@@ -614,23 +690,10 @@ static int mes_v11_0_reset_compute_pipe_mmio(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int mes_v11_0_reset_pipe_mmio(struct amdgpu_mes *mes, uint32_t queue_type,
-				     uint32_t me_id, uint32_t pipe_id,
-				     uint32_t queue_id, uint32_t vmid)
-{
-	struct amdgpu_device *adev = mes->adev;
-
-	if (queue_type == AMDGPU_RING_TYPE_GFX)
-		return mes_v11_0_reset_gfx_pipe_mmio(adev, me_id, pipe_id, queue_id);
-	else if (queue_type == AMDGPU_RING_TYPE_COMPUTE)
-		return mes_v11_0_reset_compute_pipe_mmio(adev, me_id, pipe_id, queue_id);
-	else
-		return -EOPNOTSUPP;
-}
-
 static int mes_v11_0_reset_queue_mmio(struct amdgpu_mes *mes, uint32_t queue_type,
 				      uint32_t me_id, uint32_t pipe_id,
-				      uint32_t queue_id, uint32_t vmid)
+				      uint32_t queue_id, uint32_t vmid,
+				      bool is_kq)
 {
 	struct amdgpu_device *adev = mes->adev;
 	uint32_t value, reg;
@@ -639,11 +702,15 @@ static int mes_v11_0_reset_queue_mmio(struct amdgpu_mes *mes, uint32_t queue_typ
 	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	if (queue_type == AMDGPU_RING_TYPE_GFX) {
-		dev_info(adev->dev, "reset gfx queue (%d:%d:%d: vmid:%d)\n",
-			 me_id, pipe_id, queue_id, vmid);
-
 		mutex_lock(&adev->gfx.reset_sem_mutex);
 		gfx_v11_0_request_gfx_index_mutex(adev, true);
+		mutex_lock(&adev->srbm_mutex);
+		soc21_grbm_select(adev, me_id, pipe_id, queue_id, 0);
+		/* Userq VMIDs are assigned by MES; KGQ uses the supplied IB VMID. */
+		if (!is_kq) {
+			value = RREG32_SOC15(GC, 0, regCP_GFX_HQD_VMID);
+			vmid = REG_GET_FIELD(value, CP_GFX_HQD_VMID, VMID);
+		}
 		/* all se allow writes */
 		WREG32_SOC15(GC, 0, regGRBM_GFX_INDEX,
 			     (uint32_t)(0x1 << GRBM_GFX_INDEX__SE_BROADCAST_WRITES__SHIFT));
@@ -653,6 +720,8 @@ static int mes_v11_0_reset_queue_mmio(struct amdgpu_mes *mes, uint32_t queue_typ
 		else
 			value = REG_SET_FIELD(value, CP_VMID_RESET, PIPE1_QUEUES, 1 << queue_id);
 		WREG32_SOC15(GC, 0, regCP_VMID_RESET, value);
+		soc21_grbm_select(adev, 0, 0, 0, 0);
+		mutex_unlock(&adev->srbm_mutex);
 		gfx_v11_0_request_gfx_index_mutex(adev, false);
 		mutex_unlock(&adev->gfx.reset_sem_mutex);
 
@@ -720,6 +789,22 @@ static int mes_v11_0_reset_queue_mmio(struct amdgpu_mes *mes, uint32_t queue_typ
 
 	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 	return r;
+}
+
+static int mes_v11_0_reset_pipe_mmio(struct amdgpu_mes *mes, uint32_t queue_type,
+				     uint32_t me_id, uint32_t pipe_id,
+				     uint32_t queue_id, uint32_t vmid,
+				     bool is_kq)
+{
+	struct amdgpu_device *adev = mes->adev;
+
+	if (queue_type == AMDGPU_RING_TYPE_GFX)
+		return mes_v11_0_reset_gfx_pipe_mmio(adev, me_id, pipe_id,
+						  queue_id, is_kq);
+	else if (queue_type == AMDGPU_RING_TYPE_COMPUTE)
+		return mes_v11_0_reset_compute_pipe_mmio(adev, me_id, pipe_id, queue_id);
+	else
+		return -EOPNOTSUPP;
 }
 
 static int mes_v11_0_map_legacy_queue(struct amdgpu_mes *mes,
@@ -957,7 +1042,22 @@ static int mes_v11_0_misc_op(struct amdgpu_mes *mes,
 		misc_pkt.change_config.option.bits.limit_single_process =
 				input->change_config.option.limit_single_process;
 		break;
-
+	case MES_MISC_OP_NOTIFY_WORK_ON_UNMAPPED_QUEUE:
+		if ((mes->adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) < 0x70) {
+			dev_warn_once(mes->adev->dev,
+				      "MES FW version must be larger than 0x70 to support notify work on unmapped queue.\n");
+			return 0;
+		}
+		misc_pkt.opcode = MESAPI_MISC__NOTIFY_WORK_ON_UNMAPPED_QUEUE;
+		misc_pkt.queue_sch_level = AMD_PRIORITY_LEVEL_NORMAL;
+		break;
+	case MES_MISC_OP_SETUP_MES_DBGEXT:
+		misc_pkt.opcode = MESAPI_MISC__SETUP_MES_DBGEXT;
+		misc_pkt.dbgext_init_data.dbg_ext_mc_addr =
+				input->setup_mes_dbgext.log_buffer_mc_addr;
+		misc_pkt.dbgext_init_data.u64_all =
+				input->setup_mes_dbgext.log_options;
+		break;
 	default:
 		drm_err(adev_to_drm(mes->adev), "unsupported misc op (%d)\n", input->op);
 		return -EINVAL;
@@ -980,8 +1080,8 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.header.opcode = MES_SCH_API_SET_HW_RSRC;
 	mes_set_hw_res_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 
-	mes_set_hw_res_pkt.vmid_mask_mmhub = mes->vmid_mask_mmhub;
-	mes_set_hw_res_pkt.vmid_mask_gfxhub = mes->vmid_mask_gfxhub;
+	mes_set_hw_res_pkt.vmid_mask_mmhub = adev->vm_manager.vmid_uq_mask_mmhub;
+	mes_set_hw_res_pkt.vmid_mask_gfxhub = adev->vm_manager.vmid_uq_mask_gfxhub;
 	mes_set_hw_res_pkt.gds_size = adev->gds.gds_size;
 	mes_set_hw_res_pkt.paging_vmid = 0;
 	mes_set_hw_res_pkt.g_sch_ctx_gpu_mc_ptr = mes->sch_ctx_gpu_addr[0];
@@ -1016,7 +1116,15 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.use_different_vmid_compute = 1;
 	mes_set_hw_res_pkt.enable_reg_active_poll = 1;
 	mes_set_hw_res_pkt.enable_level_process_quantum_check = 1;
-	mes_set_hw_res_pkt.oversubscription_timer = 50;
+	/*
+	 * Bare metal: disabled here, KFD arms a software replacement only
+	 * while oversubscribed (see kfd_device_queue_manager.c). SR-IOV
+	 * guests keep the firmware timer instead of the KFD-side one, since
+	 * the notify round-trip is much slower under SR-IOV and would
+	 * otherwise stall remapping queues.
+	 */
+	if (amdgpu_sriov_vf(adev))
+		mes_set_hw_res_pkt.oversubscription_timer = 50;
 	if (adev->mes.use_rs64mem)
 		mes_set_hw_res_pkt.use_rs64mem_for_proc_gang_ctx = 1;
 
@@ -1064,11 +1172,13 @@ static int mes_v11_0_reset_hw_queue(struct amdgpu_mes *mes,
 	if (input->use_mmio) {
 		int r = mes_v11_0_reset_queue_mmio(mes, input->queue_type,
 						   input->me_id, input->pipe_id,
-						   input->queue_id, input->vmid);
+						   input->queue_id, input->vmid,
+						   input->is_kq);
 		if (r)
 			return mes_v11_0_reset_pipe_mmio(mes, input->queue_type,
 							 input->me_id, input->pipe_id,
-							 input->queue_id, input->vmid);
+							 input->queue_id, input->vmid,
+							 input->is_kq);
 		return 0;
 	}
 
@@ -1125,6 +1235,32 @@ static int mes_v11_0_detect_and_reset_hung_queues(struct amdgpu_mes *mes,
 			offsetof(union MESAPI__RESET, api_status));
 }
 
+/*
+ * Enable/disable delivery of the MES firmware host interrupts at the CP.  The
+ * MES firmware debug-message interrupt is delivered as a CP EOP from the MES
+ * pipe (me 3) and handled in gfx_v11_0_eop_irq(); it is gated by CPC_INT_CNTL
+ * in that ME/pipe context, selected via GRBM_GFX_CNTL.  Mirrors the Windows KMD
+ * MES interrupt-enable path.  Must run in process context (takes srbm_mutex).
+ */
+static int mes_v11_0_enable_dbgext_irq(struct amdgpu_mes *mes, bool enable)
+{
+	struct amdgpu_device *adev = mes->adev;
+	u32 cp_int_cntl;
+
+	mutex_lock(&adev->srbm_mutex);
+	soc21_grbm_select(adev, 3, AMDGPU_MES_SCHED_PIPE, 0, 0);
+
+	cp_int_cntl = RREG32_SOC15(GC, 0, regCPC_INT_CNTL);
+	cp_int_cntl = REG_SET_FIELD(cp_int_cntl, CPC_INT_CNTL,
+					TIME_STAMP_INT_ENABLE, enable ? 1 : 0);
+	WREG32_SOC15(GC, 0, regCPC_INT_CNTL, cp_int_cntl);
+
+	soc21_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+
+	return 0;
+}
+
 static const struct amdgpu_mes_funcs mes_v11_0_funcs = {
 	.add_hw_queue = mes_v11_0_add_hw_queue,
 	.remove_hw_queue = mes_v11_0_remove_hw_queue,
@@ -1133,6 +1269,7 @@ static const struct amdgpu_mes_funcs mes_v11_0_funcs = {
 	.suspend_gang = mes_v11_0_suspend_gang,
 	.resume_gang = mes_v11_0_resume_gang,
 	.misc_op = mes_v11_0_misc_op,
+	.enable_dbgext_irq = mes_v11_0_enable_dbgext_irq,
 	.reset_hw_queue = mes_v11_0_reset_hw_queue,
 	.detect_and_reset_hung_queues = mes_v11_0_detect_and_reset_hung_queues,
 };
@@ -2030,6 +2167,8 @@ out:
 	adev->gfx.kiq[0].ring.sched.ready = false;
 	adev->mes.ring[0].sched.ready = true;
 
+	amdgpu_mes_dbgext_start(adev);
+
 	return 0;
 
 failure:
@@ -2039,6 +2178,10 @@ failure:
 
 static int mes_v11_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
+	struct amdgpu_device *adev = ip_block->adev;
+
+	amdgpu_mes_dbgext_stop(adev);
+
 	return 0;
 }
 

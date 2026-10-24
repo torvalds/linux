@@ -18,10 +18,9 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_print.h>
 #include <drm/drm_syncobj.h>
-#include <drm/drm_utils.h>
+#include <drm/drm_timeout.h>
 
 #include "panfrost_device.h"
-#include "panfrost_drv.h"
 #include "panfrost_gem.h"
 #include "panfrost_mmu.h"
 #include "panfrost_job.h"
@@ -42,9 +41,12 @@ static int panfrost_ioctl_query_timestamp(struct panfrost_device *pfdev,
 	if (ret)
 		return ret;
 
-	panfrost_cycle_counter_get(pfdev);
-	*arg = panfrost_timestamp_read(pfdev);
-	panfrost_cycle_counter_put(pfdev);
+	/* We should not read timestamp register while the GPU  is being reset */
+	scoped_guard(rwsem_read, &pfdev->reset.lock) {
+		panfrost_cycle_counter_get(pfdev);
+		*arg = panfrost_timestamp_read(pfdev);
+		panfrost_cycle_counter_put(pfdev);
+	}
 
 	pm_runtime_put(pfdev->base.dev);
 	return 0;
@@ -662,7 +664,7 @@ static int panfrost_ioctl_query_bo_info(struct drm_device *dev, void *data,
 		if (bo->is_heap)
 			args->create_flags |= PANFROST_BO_HEAP;
 
-		if (!bo->base.map_wc)
+		if (bo->wb_mmap)
 			args->create_flags |= PANFROST_BO_WB_MMAP;
 	}
 
@@ -793,133 +795,6 @@ static const struct file_operations panfrost_drm_driver_fops = {
 	.show_fdinfo = drm_show_fdinfo,
 };
 
-#ifdef CONFIG_DEBUG_FS
-static int panthor_gems_show(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = m->private;
-	struct panfrost_device *pfdev = to_panfrost_device(node->minor->dev);
-
-	panfrost_gem_debugfs_print_bos(pfdev, m);
-
-	return 0;
-}
-
-static void show_panfrost_jm_ctx(struct panfrost_jm_ctx *jm_ctx, u32 handle,
-				 struct seq_file *m)
-{
-	struct drm_device *ddev = ((struct drm_info_node *)m->private)->minor->dev;
-	const char *prio = "UNKNOWN";
-
-	static const char * const prios[] = {
-		[DRM_SCHED_PRIORITY_HIGH] = "HIGH",
-		[DRM_SCHED_PRIORITY_NORMAL] = "NORMAL",
-		[DRM_SCHED_PRIORITY_LOW] = "LOW",
-	};
-
-	if (jm_ctx->slot_entity[0].priority !=
-	    jm_ctx->slot_entity[1].priority)
-		drm_warn(ddev, "Slot priorities should be the same in a single context");
-
-	if (jm_ctx->slot_entity[0].priority < ARRAY_SIZE(prios))
-		prio = prios[jm_ctx->slot_entity[0].priority];
-
-	seq_printf(m, " JM context %u: priority %s\n", handle, prio);
-}
-
-static int show_file_jm_ctxs(struct panfrost_file_priv *pfile,
-			     struct seq_file *m)
-{
-	struct panfrost_jm_ctx *jm_ctx;
-	unsigned long i;
-
-	xa_lock(&pfile->jm_ctxs);
-	xa_for_each(&pfile->jm_ctxs, i, jm_ctx) {
-		jm_ctx = panfrost_jm_ctx_get(jm_ctx);
-		xa_unlock(&pfile->jm_ctxs);
-		show_panfrost_jm_ctx(jm_ctx, i, m);
-		panfrost_jm_ctx_put(jm_ctx);
-		xa_lock(&pfile->jm_ctxs);
-	}
-	xa_unlock(&pfile->jm_ctxs);
-
-	return 0;
-}
-
-static struct drm_info_list panthor_debugfs_list[] = {
-	{"gems",
-	 panthor_gems_show, 0, NULL},
-};
-
-static int panthor_gems_debugfs_init(struct drm_minor *minor)
-{
-	drm_debugfs_create_files(panthor_debugfs_list,
-				 ARRAY_SIZE(panthor_debugfs_list),
-				 minor->debugfs_root, minor);
-
-	return 0;
-}
-
-static int show_each_file(struct seq_file *m, void *arg)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *ddev = node->minor->dev;
-	int (*show)(struct panfrost_file_priv *, struct seq_file *) =
-		node->info_ent->data;
-	struct drm_file *file;
-	int ret;
-
-	ret = mutex_lock_interruptible(&ddev->filelist_mutex);
-	if (ret)
-		return ret;
-
-	list_for_each_entry(file, &ddev->filelist, lhead) {
-		struct task_struct *task;
-		struct panfrost_file_priv *pfile = file->driver_priv;
-		struct pid *pid;
-
-		/*
-		 * Although we have a valid reference on file->pid, that does
-		 * not guarantee that the task_struct who called get_pid() is
-		 * still alive (e.g. get_pid(current) => fork() => exit()).
-		 * Therefore, we need to protect this ->comm access using RCU.
-		 */
-		rcu_read_lock();
-		pid = rcu_dereference(file->pid);
-		task = pid_task(pid, PIDTYPE_TGID);
-		seq_printf(m, "client_id %8llu pid %8d command %s:\n",
-			   file->client_id, pid_nr(pid),
-			   task ? task->comm : "<unknown>");
-		rcu_read_unlock();
-
-		ret = show(pfile, m);
-		if (ret < 0)
-			break;
-
-		seq_puts(m, "\n");
-	}
-
-	mutex_unlock(&ddev->filelist_mutex);
-	return ret;
-}
-
-static struct drm_info_list panfrost_sched_debugfs_list[] = {
-	{ "sched_ctxs", show_each_file, 0, show_file_jm_ctxs },
-};
-
-static void panfrost_sched_debugfs_init(struct drm_minor *minor)
-{
-	drm_debugfs_create_files(panfrost_sched_debugfs_list,
-				 ARRAY_SIZE(panfrost_sched_debugfs_list),
-				 minor->debugfs_root, minor);
-}
-
-static void panfrost_debugfs_init(struct drm_minor *minor)
-{
-	panthor_gems_debugfs_init(minor);
-	panfrost_sched_debugfs_init(minor);
-}
-#endif
-
 /*
  * Panfrost driver version:
  * - 1.0 - initial interface
@@ -933,6 +808,7 @@ static void panfrost_debugfs_init(struct drm_minor *minor)
  * - 1.6 - adds PANFROST_BO_MAP_WB, PANFROST_IOCTL_SYNC_BO,
  *	   PANFROST_IOCTL_QUERY_BO_INFO and
  *	   DRM_PANFROST_PARAM_SELECTED_COHERENCY
+ * - 1.7 - adds PERFCNT_DUMP state field
  */
 static const struct drm_driver panfrost_drm_driver = {
 	.driver_features	= DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
@@ -945,26 +821,19 @@ static const struct drm_driver panfrost_drm_driver = {
 	.name			= "panfrost",
 	.desc			= "panfrost DRM",
 	.major			= 1,
-	.minor			= 6,
+	.minor			= 7,
 
 	.gem_create_object	= panfrost_gem_create_object,
 	.gem_prime_import	= panfrost_gem_prime_import,
 	.gem_prime_import_sg_table = panfrost_gem_prime_import_sg_table,
 #ifdef CONFIG_DEBUG_FS
-	.debugfs_init = panfrost_debugfs_init,
+	.debugfs_init = panfrost_device_debugfs_init,
 #endif
 };
-
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-bool panfrost_transparent_hugepage = true;
-module_param_named(transparent_hugepage, panfrost_transparent_hugepage, bool, 0400);
-MODULE_PARM_DESC(transparent_hugepage, "Use a dedicated tmpfs mount point with Transparent Hugepage enabled (true = default)");
-#endif
 
 static int panfrost_probe(struct platform_device *pdev)
 {
 	struct panfrost_device *pfdev;
-	int err;
 
 	pfdev = devm_drm_dev_alloc(&pdev->dev, &panfrost_drm_driver,
 				   struct panfrost_device, base);
@@ -973,50 +842,7 @@ static int panfrost_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pfdev);
 
-	pfdev->comp = of_device_get_match_data(&pdev->dev);
-	if (!pfdev->comp)
-		return -ENODEV;
-
-	pfdev->coherent = device_get_dma_attr(&pdev->dev) == DEV_DMA_COHERENT;
-
-	mutex_init(&pfdev->shrinker_lock);
-	INIT_LIST_HEAD(&pfdev->shrinker_list);
-
-	err = panfrost_device_init(pfdev);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Fatal error during GPU init\n");
-		goto err_out0;
-	}
-
-	pm_runtime_set_active(pfdev->base.dev);
-	pm_runtime_mark_last_busy(pfdev->base.dev);
-	pm_runtime_enable(pfdev->base.dev);
-	pm_runtime_set_autosuspend_delay(pfdev->base.dev, 50); /* ~3 frames */
-	pm_runtime_use_autosuspend(pfdev->base.dev);
-
-	/*
-	 * Register the DRM device with the core and the connectors with
-	 * sysfs
-	 */
-	err = drm_dev_register(&pfdev->base, 0);
-	if (err < 0)
-		goto err_out1;
-
-	err = panfrost_gem_shrinker_init(&pfdev->base);
-	if (err)
-		goto err_out2;
-
-	return 0;
-
-err_out2:
-	drm_dev_unregister(&pfdev->base);
-err_out1:
-	pm_runtime_disable(pfdev->base.dev);
-	panfrost_device_fini(pfdev);
-	pm_runtime_set_suspended(pfdev->base.dev);
-err_out0:
-	return err;
+	return panfrost_device_init(pfdev);
 }
 
 static void panfrost_remove(struct platform_device *pdev)
@@ -1024,12 +850,8 @@ static void panfrost_remove(struct platform_device *pdev)
 	struct panfrost_device *pfdev = platform_get_drvdata(pdev);
 
 	drm_dev_unregister(&pfdev->base);
-	panfrost_gem_shrinker_cleanup(&pfdev->base);
 
-	pm_runtime_get_sync(pfdev->base.dev);
-	pm_runtime_disable(pfdev->base.dev);
 	panfrost_device_fini(pfdev);
-	pm_runtime_set_suspended(pfdev->base.dev);
 }
 
 static ssize_t profiling_show(struct device *dev,

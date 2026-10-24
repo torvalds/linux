@@ -1811,6 +1811,8 @@ void dcn5_calculate_urgent_burst_factor(
 		double VRatioC,
 		double BytePerPixelInDETY,
 		double BytePerPixelInDETC,
+		bool UnboundedRequestEnabled,
+		unsigned int CompressedBufferSizeInkByte,
 		unsigned int DETBufferSizeY,
 		unsigned int DETBufferSizeC,
 		// Output
@@ -1837,7 +1839,9 @@ void dcn5_calculate_urgent_burst_factor(
 	DML_LOG_VERBOSE("DML::%s: LineTime = %f\n", __func__, LineTime);
 	DML_ASSERT(VRatio > 0);
 
-	LinesInDETLuma = DETBufferSizeY / BytePerPixelInDETY / swath_width_luma_ub;
+	unsigned int EffectiveBufferY = DETBufferSizeY + (UnboundedRequestEnabled ? CompressedBufferSizeInkByte * 1024 : 0);
+
+	LinesInDETLuma = EffectiveBufferY / BytePerPixelInDETY / swath_width_luma_ub;
 
 	DETBufferSizeInTimeLuma = math_floor2(LinesInDETLuma, SwathHeightY) * LineTime / VRatio;
 	if (DETBufferSizeInTimeLuma - UrgentLatency <= 0) {
@@ -2419,7 +2423,7 @@ void dcn5_calculate_tdlut_setting(
 	else
 		tdlut_footprint_bytes = tdlut_pitch_bytes;
 
-	if (!p->gpuvm_enable) {
+	if (!p->gpuvm_enable || vmpg_bytes == 0) {
 		tdlut_vmpg_per_frame = 0;
 		tdlut_pte_req_per_frame = 0;
 	} else {
@@ -2632,7 +2636,7 @@ double dcn5_calculate_t_wait(
 	return TWait;
 }
 
-static void dcn5_calculate_v_update_and_dynamic_metadata_parameters(
+void dcn5_calculate_v_update_and_dynamic_metadata_parameters(
 		unsigned int MaxInterDCNTileRepeaters,
 		double Dppclk,
 		double Dispclk,
@@ -4102,10 +4106,10 @@ void dcn5_calculate_flip_schedule(
 					DML_LOG_VERBOSE("DML::%s: Tvm_trips_flip_rounded + 2*Tr0_trips_flip_rounded = %f\n", __func__, (Tvm_trips_flip_rounded + 2 * Tr0_trips_flip_rounded));
 				}
 				l->lb_flip_bw = math_max3(l->lb_flip_bw,
-						l->hvm_scaled_vm_bytes / (31 * LineTime) - Tno_bw_flip,
+						l->hvm_scaled_vm_bytes / ((31 * LineTime) - Tno_bw_flip),
 						(l->dpte_row_bytes * HostVMInefficiencyFactor + meta_row_bytes) / (15 * LineTime));
 
-				DML_LOG_VERBOSE("DML::%s: lb_flip_bw for vm reg limit = %f\n", __func__, l->hvm_scaled_vm_bytes / (31 * LineTime) - Tno_bw_flip);
+				DML_LOG_VERBOSE("DML::%s: lb_flip_bw for vm reg limit = %f\n", __func__, l->hvm_scaled_vm_bytes / ((31 * LineTime) - Tno_bw_flip));
 				DML_LOG_VERBOSE("DML::%s: lb_flip_bw for row reg limit = %f\n", __func__, (l->dpte_row_bytes * HostVMInefficiencyFactor + meta_row_bytes) / (15 * LineTime));
 			}
 
@@ -4225,9 +4229,9 @@ static double dcn5_calculate_writeback_latency_hiding_us(
 		unsigned int dwb_index)
 {
 	double byte_per_pixel_luma_in_buffer = 1.0;
-	double buffer_for_luma_bytes = (double)writeback_buffer_size_bytes * 1024.0;
+	double buffer_for_luma_bytes = (double)writeback_buffer_size_bytes;
 	double line_time_us = (double)display_cfg->stream_descriptors[stream_index].timing.h_total /
-			(double)display_cfg->stream_descriptors[stream_index].timing.pixel_clock_khz / 1000.0;
+			((double)display_cfg->stream_descriptors[stream_index].timing.pixel_clock_khz / 1000.0);
 
 	if (display_cfg->stream_descriptors[stream_index].writeback.writeback_stream[dwb_index].pixel_format == dml2_444_64) {
 		byte_per_pixel_luma_in_buffer = 8.0;

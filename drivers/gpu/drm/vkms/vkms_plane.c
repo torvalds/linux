@@ -6,6 +6,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_blend.h>
+#include <drm/drm_colorop.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -54,20 +55,10 @@ static struct drm_plane_state *
 vkms_plane_duplicate_state(struct drm_plane *plane)
 {
 	struct vkms_plane_state *vkms_state;
-	struct vkms_frame_info *frame_info;
 
 	vkms_state = kzalloc_obj(*vkms_state);
 	if (!vkms_state)
 		return NULL;
-
-	frame_info = kzalloc_obj(*frame_info);
-	if (!frame_info) {
-		DRM_DEBUG_KMS("Couldn't allocate frame_info\n");
-		kfree(vkms_state);
-		return NULL;
-	}
-
-	vkms_state->frame_info = frame_info;
 
 	__drm_gem_duplicate_shadow_plane_state(plane, &vkms_state->base);
 
@@ -80,43 +71,37 @@ static void vkms_plane_destroy_state(struct drm_plane *plane,
 	struct vkms_plane_state *vkms_state = to_vkms_plane_state(old_state);
 	struct drm_crtc *crtc = vkms_state->base.base.crtc;
 
-	if (crtc && vkms_state->frame_info->fb) {
+	if (crtc && vkms_state->frame_info.fb) {
 		/* dropping the reference we acquired in
 		 * vkms_primary_plane_update()
 		 */
-		if (drm_framebuffer_read_refcount(vkms_state->frame_info->fb))
-			drm_framebuffer_put(vkms_state->frame_info->fb);
+		if (drm_framebuffer_read_refcount(vkms_state->frame_info.fb))
+			drm_framebuffer_put(vkms_state->frame_info.fb);
 	}
-
-	kfree(vkms_state->frame_info);
-	vkms_state->frame_info = NULL;
 
 	__drm_gem_destroy_shadow_plane_state(&vkms_state->base);
 	kfree(vkms_state);
 }
 
-static void vkms_plane_reset(struct drm_plane *plane)
+static struct drm_plane_state *vkms_plane_create_state(struct drm_plane *plane)
 {
 	struct vkms_plane_state *vkms_state;
-
-	if (plane->state) {
-		vkms_plane_destroy_state(plane, plane->state);
-		plane->state = NULL; /* must be set to NULL here */
-	}
 
 	vkms_state = kzalloc_obj(*vkms_state);
 	if (!vkms_state) {
 		DRM_ERROR("Cannot allocate vkms_plane_state\n");
-		return;
+		return ERR_PTR(-ENOMEM);
 	}
 
-	__drm_gem_reset_shadow_plane(plane, &vkms_state->base);
+	__drm_gem_shadow_plane_state_init(plane, &vkms_state->base);
+
+	return &(&vkms_state->base)->base;
 }
 
 static const struct drm_plane_funcs vkms_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
-	.reset			= vkms_plane_reset,
+	.atomic_create_state = vkms_plane_create_state,
 	.atomic_duplicate_state = vkms_plane_duplicate_state,
 	.atomic_destroy_state	= vkms_plane_destroy_state,
 };
@@ -131,6 +116,9 @@ static void vkms_plane_atomic_update(struct drm_plane *plane,
 	struct drm_framebuffer *fb = new_state->fb;
 	struct vkms_frame_info *frame_info;
 	u32 fmt;
+	enum drm_color_encoding encoding = new_state->color_encoding;
+	enum drm_color_range range = new_state->color_range;
+	bool bypass = false;
 
 	if (!new_state->crtc || !fb)
 		return;
@@ -139,7 +127,7 @@ static void vkms_plane_atomic_update(struct drm_plane *plane,
 	vkms_plane_state = to_vkms_plane_state(new_state);
 	shadow_plane_state = &vkms_plane_state->base;
 
-	frame_info = vkms_plane_state->frame_info;
+	frame_info = &vkms_plane_state->frame_info;
 	memcpy(&frame_info->src, &new_state->src, sizeof(struct drm_rect));
 	memcpy(&frame_info->dst, &new_state->dst, sizeof(struct drm_rect));
 	frame_info->fb = fb;
@@ -148,7 +136,49 @@ static void vkms_plane_atomic_update(struct drm_plane *plane,
 	frame_info->rotation = new_state->rotation;
 
 	vkms_plane_state->pixel_read_line = get_pixel_read_line_function(fmt);
-	get_conversion_matrix_to_argb_u16(fmt, new_state->color_encoding, new_state->color_range,
+
+	if (new_state->color_pipeline) {
+		struct drm_colorop *colorop = new_state->color_pipeline;
+		struct drm_colorop_state *colorop_state;
+
+		colorop_state = drm_atomic_get_new_colorop_state(state, colorop);
+		bypass = !colorop_state || colorop_state->bypass;
+
+		if (!bypass) {
+			switch (colorop_state->fixed_matrix_type) {
+			case DRM_COLOROP_FM_YCBCR601_FULL_RGB:
+				encoding = DRM_COLOR_YCBCR_BT601;
+				range = DRM_COLOR_YCBCR_FULL_RANGE;
+				break;
+			case DRM_COLOROP_FM_YCBCR601_LIMITED_RGB:
+				encoding = DRM_COLOR_YCBCR_BT601;
+				range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+				break;
+			case DRM_COLOROP_FM_YCBCR709_FULL_RGB:
+				encoding = DRM_COLOR_YCBCR_BT709;
+				range = DRM_COLOR_YCBCR_FULL_RANGE;
+				break;
+			case DRM_COLOROP_FM_YCBCR709_LIMITED_RGB:
+				encoding = DRM_COLOR_YCBCR_BT709;
+				range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+				break;
+			case DRM_COLOROP_FM_YCBCR2020_NC_FULL_RGB:
+				encoding = DRM_COLOR_YCBCR_BT2020;
+				range = DRM_COLOR_YCBCR_FULL_RANGE;
+				break;
+			case DRM_COLOROP_FM_YCBCR2020_NC_LIMITED_RGB:
+				encoding = DRM_COLOR_YCBCR_BT2020;
+				range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+				break;
+			default:
+				encoding = DRM_COLOR_YCBCR_BT709;
+				range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+				break;
+			}
+		}
+	}
+
+	get_conversion_matrix_to_argb_u16(fmt, encoding, range, bypass,
 					  &vkms_plane_state->conversion_matrix);
 }
 
@@ -174,6 +204,13 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 						  true, true);
 	if (ret != 0)
 		return ret;
+
+	if (new_plane_state->color_pipeline && new_plane_state->fb->format->is_yuv) {
+		struct drm_colorop *colorop = new_plane_state->color_pipeline;
+
+		if (colorop->type != DRM_COLOROP_FIXED_MATRIX)
+			return -EINVAL;
+	}
 
 	return 0;
 }

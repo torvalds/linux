@@ -84,8 +84,8 @@ examples:
                 };
 
                 mipi_lvds_0_pxl2dpi_dc_pixel_link1: endpoint@1 {
-                     reg = <1>;
-                     remote-endpoint = <&dc_pixel_link1_mipi_lvds_0_pxl2dpi>;
+                    reg = <1>;
+                    remote-endpoint = <&dc_pixel_link1_mipi_lvds_0_pxl2dpi>;
                 };
             };
 

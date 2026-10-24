@@ -10,10 +10,13 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_kunit_helpers.h>
 #include <drm/drm_vblank.h>
+#include <linux/debugfs.h>
 
 #include "dc.h"
 #include "inc/core_types.h"
 #include "irq/irq_service.h"
+#include "inc/hw/timing_generator.h"
+#include "inc/link_service.h"
 #include "amdgpu.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
@@ -39,10 +42,10 @@ static void dm_test_crtc_modeset_required_active_mode_changed(struct kunit *test
 }
 
 /**
- * dm_test_crtc_modeset_required_active_active_changed - Test Crtc modeset required active active changed
+ * dm_test_crtc_modeset_required_active_state_changed - Test modeset required when the active state changes
  * @test: The KUnit test context
  */
-static void dm_test_crtc_modeset_required_active_active_changed(struct kunit *test)
+static void dm_test_crtc_modeset_required_active_state_changed(struct kunit *test)
 {
 	struct drm_crtc_state state = {};
 
@@ -874,9 +877,38 @@ static bool dm_test_crtc_get_vblank_timestamp(struct drm_crtc *crtc,
 	return false;
 }
 
+static int dm_test_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	return 0;
+}
+
+static void dm_test_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+}
+
+static u32 dm_test_crtc_get_vblank_counter(struct drm_crtc *crtc)
+{
+	return 0;
+}
+
 static const struct drm_crtc_funcs dm_test_crtc_funcs = {
+	.destroy = amdgpu_dm_crtc_destroy,
+	.atomic_duplicate_state = amdgpu_dm_crtc_duplicate_state,
+	.atomic_destroy_state = amdgpu_dm_crtc_destroy_state,
+	.enable_vblank = dm_test_crtc_enable_vblank,
+	.disable_vblank = dm_test_crtc_disable_vblank,
+	.get_vblank_counter = dm_test_crtc_get_vblank_counter,
 	.get_vblank_timestamp = dm_test_crtc_get_vblank_timestamp,
 };
+
+static void dm_test_crtc_cleanup(void *data)
+{
+	struct amdgpu_crtc *acrtc = data;
+
+	if (acrtc->base.dev && drm_dev_has_vblank(acrtc->base.dev))
+		drm_crtc_vblank_off(&acrtc->base);
+	list_del_init(&acrtc->base.head);
+}
 
 /*
  * dm_test_crtc_arm_irq_src - Prime an IRQ source so get()/put() short-circuit.
@@ -944,8 +976,13 @@ dm_test_crtc_setup_enable(struct kunit *test, struct amdgpu_device **adev_out,
 	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
 	acrtc->base.dev = &adev->ddev;
+	acrtc->base.funcs = &dm_test_crtc_funcs;
 	acrtc->base.enabled = true;
 	acrtc->crtc_id = 0;
+	INIT_LIST_HEAD(&acrtc->base.head);
+	list_add_tail(&acrtc->base.head, &adev->ddev.mode_config.crtc_list);
+	KUNIT_ASSERT_EQ(test,
+			kunit_add_action_or_reset(test, dm_test_crtc_cleanup, acrtc), 0);
 
 	link = dm_kunit_alloc_link(test);
 	stream = dm_kunit_alloc_stream(test, link);
@@ -1227,6 +1264,103 @@ static void dm_test_crtc_enable_vblank_ips_restore_replay(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_enable_vblank(&acrtc->base), 0);
 }
 
+/* Tests for amdgpu_dm_crtc_set_vline0_irq() */
+
+/*
+ * dm_test_crtc_setup_vline0 - Build an adev/CRTC for the vline0 IRQ helper.
+ * @test: The KUnit test context
+ * @adev_out: Receives the allocated device
+ * @ip_version: DCE IP version stamped on the device (0 selects the DCE path)
+ *
+ * Returns a bare CRTC attached to the device. The IRQ subsystem is left
+ * uninstalled for callers to arm.
+ */
+static struct drm_crtc *dm_test_crtc_setup_vline0(struct kunit *test,
+						  struct amdgpu_device **adev_out,
+						  uint32_t ip_version)
+{
+	struct amdgpu_device *adev;
+	struct drm_crtc *crtc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	crtc->dev = &adev->ddev;
+
+	adev->ip_versions[DCE_HWIP][0] = ip_version;
+
+	*adev_out = adev;
+	return crtc;
+}
+
+/**
+ * dm_test_crtc_set_vline0_irq_dce_noop - Test vline0 irq is skipped on DCE
+ * @test: The KUnit test context
+ *
+ * VLINE0 only exists on DCN+. With no DCE IP version stamped the helper must
+ * return 0 without touching the IRQ source, even though the IRQ subsystem is
+ * uninstalled (which would otherwise make amdgpu_irq_get() fail).
+ */
+static void dm_test_crtc_set_vline0_irq_dce_noop(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct drm_crtc *crtc;
+
+	crtc = dm_test_crtc_setup_vline0(test, &adev, 0);
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_crtc_set_vline0_irq(crtc, AMDGPU_CRTC_IRQ_VBLANK1, true), 0);
+}
+
+/**
+ * dm_test_crtc_set_vline0_irq_error - Test vline0 irq failure is propagated
+ * @test: The KUnit test context
+ *
+ * On DCN with the IRQ subsystem uninstalled, amdgpu_irq_get() returns -ENOENT
+ * and the helper must propagate it.
+ */
+static void dm_test_crtc_set_vline0_irq_error(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct drm_crtc *crtc;
+
+	crtc = dm_test_crtc_setup_vline0(test, &adev, IP_VERSION(3, 5, 0));
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_crtc_set_vline0_irq(crtc, AMDGPU_CRTC_IRQ_VBLANK1, true),
+			-ENOENT);
+}
+
+/**
+ * dm_test_crtc_set_vline0_irq_enable_disable - Test vline0 irq refcounting
+ * @test: The KUnit test context
+ *
+ * On DCN with an armed IRQ source, enabling takes a vline0 reference and
+ * disabling drops it again.
+ */
+static void dm_test_crtc_set_vline0_irq_enable_disable(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct drm_crtc *crtc;
+	atomic_t *refcount;
+
+	crtc = dm_test_crtc_setup_vline0(test, &adev, IP_VERSION(3, 5, 0));
+
+	adev->irq.installed = true;
+	dm_test_crtc_arm_irq_src(test, &adev->vline0_irq, 1);
+	refcount = &adev->vline0_irq.enabled_types[AMDGPU_CRTC_IRQ_VBLANK1];
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_crtc_set_vline0_irq(crtc, AMDGPU_CRTC_IRQ_VBLANK1, true), 0);
+	KUNIT_EXPECT_EQ(test, atomic_read(refcount), 2);
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_crtc_set_vline0_irq(crtc, AMDGPU_CRTC_IRQ_VBLANK1, false), 0);
+	KUNIT_EXPECT_EQ(test, atomic_read(refcount), 1);
+}
+
 /* Tests for amdgpu_dm_crtc_update_crtc_active_planes() */
 
 /**
@@ -1408,18 +1542,118 @@ static void dm_test_crtc_duplicate_state_copies_fields(struct kunit *test)
 	amdgpu_dm_crtc_destroy_state(crtc, dup);
 }
 
-/* Tests for amdgpu_dm_crtc_reset_state() */
-
 /**
- * dm_test_crtc_reset_state_allocates_state - Test reset installs a fresh state
+ * dm_test_crtc_duplicate_state_retains_stream - Test duplicate retains the stream
  * @test: The KUnit test context
  *
- * Resetting a CRTC with no existing state must allocate and install a new
- * drm_crtc_state.
+ * When the current CRTC state carries a DC stream, duplicating the state must
+ * copy the stream pointer and take an additional reference on it. Destroying
+ * the duplicate then drops that reference back to the KUnit-managed one.
  */
-static void dm_test_crtc_reset_state_allocates_state(struct kunit *test)
+static void dm_test_crtc_duplicate_state_retains_stream(struct kunit *test)
+{
+	struct dc_stream_state *stream;
+	struct drm_crtc *crtc;
+	struct dm_crtc_state *cur;
+	struct drm_crtc_state *dup;
+	struct dm_crtc_state *dm_dup;
+	struct dc_link *link;
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	cur = kunit_kzalloc(test, sizeof(*cur), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cur);
+
+	link = dm_kunit_alloc_link(test);
+	stream = dm_kunit_alloc_stream(test, link);
+
+	cur->stream = stream;
+	crtc->state = &cur->base;
+
+	dup = amdgpu_dm_crtc_duplicate_state(crtc);
+	KUNIT_ASSERT_NOT_NULL(test, dup);
+
+	dm_dup = to_dm_crtc_state(dup);
+	KUNIT_EXPECT_PTR_EQ(test, dm_dup->stream, stream);
+	/* The duplicate took a second reference on top of the managed one. */
+	KUNIT_EXPECT_EQ(test, kref_read(&stream->refcount), 2);
+
+	/* Destroying the duplicate drops back to the KUnit-managed reference. */
+	amdgpu_dm_crtc_destroy_state(crtc, dup);
+	KUNIT_EXPECT_EQ(test, kref_read(&stream->refcount), 1);
+}
+
+/**
+ * dm_test_crtc_duplicate_state_null_state_returns_null - Test guard on missing state
+ * @test: The KUnit test context
+ *
+ * Duplicating a CRTC whose current state is NULL must trip the WARN_ON guard
+ * and return NULL without allocating a new state.
+ */
+static void dm_test_crtc_duplicate_state_null_state_returns_null(struct kunit *test)
+{
+	struct drm_crtc *crtc;
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	crtc->state = NULL;
+
+	KUNIT_EXPECT_NULL(test, amdgpu_dm_crtc_duplicate_state(crtc));
+}
+
+/* Tests for amdgpu_dm_crtc_destroy() */
+
+/**
+ * dm_test_crtc_destroy_cleans_up_and_frees - Test destroy tears down the CRTC
+ * @test: The KUnit test context
+ *
+ * amdgpu_dm_crtc_destroy() is the drm_crtc .destroy callback: it must run
+ * drm_crtc_cleanup() and free the CRTC. Initialise a CRTC with a primary plane
+ * so it is registered on the device (num_crtc == 1), then destroy it and verify
+ * the CRTC was unregistered (num_crtc back to 0). The CRTC is a plain (unmanaged)
+ * allocation because amdgpu_dm_crtc_destroy() kfree()s it.
+ */
+static void dm_test_crtc_destroy_cleans_up_and_frees(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+	struct drm_plane *plane;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	plane = drm_kunit_helper_create_primary_plane(test, &adev->ddev,
+						      NULL, NULL, NULL, 0, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, plane);
+
+	/* amdgpu_dm_crtc_destroy() kfree()s the CRTC, so use a plain alloc. */
+	acrtc = kzalloc_obj(*acrtc, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+
+	ret = drm_crtc_init_with_planes(&adev->ddev, &acrtc->base, plane,
+					NULL, &dm_test_crtc_funcs, NULL);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, adev->ddev.mode_config.num_crtc, 1);
+
+	amdgpu_dm_crtc_destroy(&acrtc->base);
+
+	/* drm_crtc_cleanup() ran: the CRTC was unregistered from the device. */
+	KUNIT_EXPECT_EQ(test, adev->ddev.mode_config.num_crtc, 0);
+}
+
+/* Tests for amdgpu_dm_crtc_create_state() */
+
+/**
+ * dm_test_crtc_create_state_allocates_state - Test create_state allocates a fresh state
+ * @test: The KUnit test context
+ *
+ * Creating state for a CRTC must allocate a new drm_crtc_state.
+ */
+static void dm_test_crtc_create_state_allocates_state(struct kunit *test)
 {
 	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
 
 	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
@@ -1427,8 +1661,49 @@ static void dm_test_crtc_reset_state_allocates_state(struct kunit *test)
 	crtc->dev = &adev->ddev;
 	crtc->state = NULL;
 
-	amdgpu_dm_crtc_reset_state(crtc);
+	crtc_state = amdgpu_dm_crtc_create_state(crtc);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, crtc_state);
 
+	if (!IS_ERR(crtc_state))
+		amdgpu_dm_crtc_destroy_state(crtc, crtc_state);
+}
+
+/**
+ * dm_test_crtc_reset_state_replaces_existing - Test reset frees the old state
+ * @test: The KUnit test context
+ *
+ * Resetting a CRTC that already carries a state must destroy the existing
+ * state before installing a fresh one. The old state holds a stream reference,
+ * so a successful reset drops that reference (via amdgpu_dm_crtc_destroy_state)
+ * and leaves the CRTC with a new, non-NULL state.
+ */
+static void dm_test_crtc_reset_state_replaces_existing(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream;
+	struct dm_crtc_state *old;
+	struct drm_crtc *crtc;
+	struct dc_link *link;
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	crtc->dev = &adev->ddev;
+
+	link = dm_kunit_alloc_link(test);
+	stream = dm_kunit_alloc_stream(test, link);
+	/* Extra ref so destroying the old state drops back to the managed one. */
+	kref_get(&stream->refcount);
+
+	/* reset_state kfree()s the old state, so use a plain (unmanaged) alloc. */
+	old = kzalloc_obj(*old, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, old);
+	old->stream = stream;
+	crtc->state = &old->base;
+
+	amdgpu_dm_crtc_create_state(crtc);
+
+	/* Old state was destroyed (stream ref dropped) and a new one installed. */
+	KUNIT_EXPECT_EQ(test, kref_read(&stream->refcount), 1);
 	KUNIT_EXPECT_NOT_NULL(test, crtc->state);
 
 	if (crtc->state)
@@ -1541,6 +1816,11 @@ static void dm_test_crtc_handle_vblank_skips_when_flip_submitted(struct kunit *t
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, event);
 
 	acrtc->base.dev = &adev->ddev;
+	acrtc->base.funcs = &dm_test_crtc_funcs;
+	INIT_LIST_HEAD(&acrtc->base.head);
+	list_add_tail(&acrtc->base.head, &adev->ddev.mode_config.crtc_list);
+	KUNIT_ASSERT_EQ(test,
+			kunit_add_action_or_reset(test, dm_test_crtc_cleanup, acrtc), 0);
 	acrtc->event = event;
 	acrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
 
@@ -1577,6 +1857,11 @@ static void dm_test_crtc_handle_vblank_completes_cursor_only(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, event);
 
 	acrtc->base.dev = &adev->ddev;
+	acrtc->base.funcs = &dm_test_crtc_funcs;
+	INIT_LIST_HEAD(&acrtc->base.head);
+	list_add_tail(&acrtc->base.head, &adev->ddev.mode_config.crtc_list);
+	KUNIT_ASSERT_EQ(test,
+			kunit_add_action_or_reset(test, dm_test_crtc_cleanup, acrtc), 0);
 	acrtc->event = event;
 	acrtc->pflip_status = AMDGPU_FLIP_NONE;
 
@@ -1852,10 +2137,491 @@ static void dm_test_crtc_disable_vblank_queues_work(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, adev->dm.active_vblank_irq_count, 1);
 }
 
+#ifdef CONFIG_DEBUG_FS
+/**
+ * dm_test_crtc_late_register_inits_debugfs - Test late_register succeeds
+ * @test: The KUnit test context
+ *
+ * amdgpu_dm_crtc_late_register populates the CRTC's debugfs entries via
+ * crtc_debugfs_init and must return 0. Provide a debugfs parent so the
+ * helper attaches its files there, then tear it down.
+ */
+static void dm_test_crtc_late_register_inits_debugfs(struct kunit *test)
+{
+	struct drm_crtc *crtc;
+	int ret;
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+
+	crtc->debugfs_entry = debugfs_create_dir("dm_test_crtc", NULL);
+
+	ret = amdgpu_dm_crtc_late_register(crtc);
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+
+	debugfs_remove_recursive(crtc->debugfs_entry);
+}
+#endif
+
+/* Tests for amdgpu_dm_crtc_init() */
+
+/**
+ * dm_test_crtc_init_registers_crtc - Test amdgpu_dm_crtc_init success path
+ * @test: The KUnit test context
+ *
+ * amdgpu_dm_crtc_init allocates an amdgpu_crtc, wires it up with the primary
+ * and a new cursor plane, resets its state, and records it in mode_info. It
+ * must return 0, register the CRTC with the DRM device, and initialize the
+ * CRTC's identifying fields and cursor size limits.
+ */
+static void dm_test_crtc_init_registers_crtc(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+	struct drm_plane *cursor;
+	struct drm_plane *plane;
+	struct dc *dc;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	dc = dm_kunit_alloc_dc_with_ctx(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc);
+	dc->caps.max_cursor_size = 256;
+
+	adev->dm.adev = adev;
+	adev->dm.ddev = &adev->ddev;
+	adev->dm.dc = dc;
+
+	plane = drm_kunit_helper_create_primary_plane(test, &adev->ddev,
+						      NULL, NULL, NULL, 0, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, plane);
+
+	ret = amdgpu_dm_crtc_init(&adev->dm, plane, 0);
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, adev->ddev.mode_config.num_crtc, 1);
+
+	acrtc = adev->mode_info.crtcs[0];
+	KUNIT_ASSERT_NOT_NULL(test, acrtc);
+	KUNIT_EXPECT_EQ(test, acrtc->crtc_id, 0);
+	KUNIT_EXPECT_EQ(test, acrtc->otg_inst, -1);
+	KUNIT_EXPECT_FALSE(test, acrtc->base.enabled);
+	KUNIT_EXPECT_EQ(test, acrtc->max_cursor_width, 256);
+	KUNIT_EXPECT_EQ(test, acrtc->max_cursor_height, 256);
+
+	/*
+	 * Clean up the objects created inside amdgpu_dm_crtc_init(): free the
+	 * reset-installed CRTC state, destroy the CRTC (which kfree()s it), then
+	 * destroy the cursor plane it allocated.
+	 */
+	cursor = acrtc->base.cursor;
+	if (acrtc->base.state) {
+		amdgpu_dm_crtc_destroy_state(&acrtc->base, acrtc->base.state);
+		acrtc->base.state = NULL;
+	}
+	amdgpu_dm_crtc_destroy(&acrtc->base);
+	if (cursor)
+		cursor->funcs->destroy(cursor);
+}
+
+/**
+ * dm_test_crtc_init_enables_degamma - Test amdgpu_dm_crtc_init degamma path
+ * @test: The KUnit test context
+ *
+ * When the DPP reports a DCN architecture (and the ASIC is not DCN 4.01),
+ * amdgpu_dm_crtc_init must enable the DRM CRTC degamma LUT. Exercise that
+ * has_degamma == true branch and confirm the CRTC is still initialized and
+ * registered successfully.
+ */
+static void dm_test_crtc_init_enables_degamma(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+	struct drm_plane *cursor;
+	struct drm_plane *plane;
+	struct dc *dc;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	dc = dm_kunit_alloc_dc_with_ctx(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc);
+	/* DCN DPP with a non-4.01 ASIC selects the degamma-enabled path. */
+	dc->caps.color.dpp.dcn_arch = 1;
+	dc->ctx->dce_version = DCN_VERSION_3_0;
+
+	adev->dm.adev = adev;
+	adev->dm.ddev = &adev->ddev;
+	adev->dm.dc = dc;
+
+	plane = drm_kunit_helper_create_primary_plane(test, &adev->ddev,
+						      NULL, NULL, NULL, 0, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, plane);
+
+	ret = amdgpu_dm_crtc_init(&adev->dm, plane, 0);
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, adev->ddev.mode_config.num_crtc, 1);
+
+	acrtc = adev->mode_info.crtcs[0];
+	KUNIT_ASSERT_NOT_NULL(test, acrtc);
+	KUNIT_EXPECT_EQ(test, acrtc->otg_inst, -1);
+
+	/* Free the reset state, destroy the CRTC, then the cursor plane. */
+	cursor = acrtc->base.cursor;
+	if (acrtc->base.state) {
+		amdgpu_dm_crtc_destroy_state(&acrtc->base, acrtc->base.state);
+		acrtc->base.state = NULL;
+	}
+	amdgpu_dm_crtc_destroy(&acrtc->base);
+	if (cursor)
+		cursor->funcs->destroy(cursor);
+}
+
+/* Tests for amdgpu_dm_crtc_helper_atomic_check() */
+
+/**
+ * dm_test_crtc_atomic_check_no_stream_passes - Test atomic_check with no stream
+ * @test: The KUnit test context
+ *
+ * A CRTC state without a stream (as during reset) and with no modeset
+ * requirement must pass atomic_check and return 0 before reaching DC stream
+ * validation.
+ */
+static void dm_test_crtc_atomic_check_no_stream_passes(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dm_crtc_state *dm_crtc_state;
+	struct drm_atomic_commit *state;
+	struct drm_crtc *crtc;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	crtc->dev = &adev->ddev;
+
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_crtc_state);
+	dm_crtc_state->base.crtc = crtc;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	state->dev = &adev->ddev;
+	state->crtcs = kunit_kzalloc(test, sizeof(*state->crtcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state->crtcs);
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+	dm_crtc_state->base.state = state;
+
+	ret = amdgpu_dm_crtc_helper_atomic_check(crtc, state);
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+}
+
+/* Stubs for the DC stream validation branches of atomic_check. */
+static bool dm_test_atomic_check_validate_timing_ok(struct timing_generator *tg,
+						    const struct dc_crtc_timing *timing)
+{
+	return true;
+}
+
+static bool dm_test_atomic_check_validate_timing_fail(struct timing_generator *tg,
+						      const struct dc_crtc_timing *timing)
+{
+	return false;
+}
+
+static enum dc_status dm_test_atomic_check_validate_mode_timing_ok(const struct dc_stream_state *stream,
+								  struct dc_link *link,
+								  const struct dc_crtc_timing *timing)
+{
+	return DC_OK;
+}
+
+/**
+ * dm_test_crtc_atomic_check_enable_without_primary_fails - Enabled CRTC needs primary
+ * @test: The KUnit test context
+ *
+ * An enabled CRTC whose primary plane is not part of the plane mask must be
+ * rejected with -EINVAL.
+ */
+static void dm_test_crtc_atomic_check_enable_without_primary_fails(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dm_crtc_state *dm_crtc_state;
+	struct drm_atomic_commit *state;
+	struct drm_plane *primary;
+	struct drm_crtc *crtc;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	primary = kunit_kzalloc(test, sizeof(*primary), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, primary);
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	crtc->dev = &adev->ddev;
+	crtc->primary = primary;
+
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_crtc_state);
+	dm_crtc_state->base.crtc = crtc;
+	dm_crtc_state->base.enable = true;
+	dm_crtc_state->base.plane_mask = 0;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	state->dev = &adev->ddev;
+	state->crtcs = kunit_kzalloc(test, sizeof(*state->crtcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state->crtcs);
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+	dm_crtc_state->base.state = state;
+
+	ret = amdgpu_dm_crtc_helper_atomic_check(crtc, state);
+
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+}
+
+/**
+ * dm_test_crtc_atomic_check_async_flip_non_fast_fails - Async flip needs fast update
+ * @test: The KUnit test context
+ *
+ * An async flip is only permitted for fast updates; a non-fast update type must
+ * be rejected with -EINVAL.
+ */
+static void dm_test_crtc_atomic_check_async_flip_non_fast_fails(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct dm_crtc_state *dm_crtc_state;
+	struct drm_atomic_commit *state;
+	struct drm_crtc *crtc;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	crtc->dev = &adev->ddev;
+
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_crtc_state);
+	dm_crtc_state->base.crtc = crtc;
+	dm_crtc_state->base.async_flip = true;
+	dm_crtc_state->update_type = UPDATE_TYPE_FULL;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	state->dev = &adev->ddev;
+	state->crtcs = kunit_kzalloc(test, sizeof(*state->crtcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state->crtcs);
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+	dm_crtc_state->base.state = state;
+
+	ret = amdgpu_dm_crtc_helper_atomic_check(crtc, state);
+
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+}
+
+/**
+ * dm_test_crtc_atomic_check_vrr_pulls_primary - VRR path pulls in primary plane
+ * @test: The KUnit test context
+ *
+ * When VRR is active and the update is not a legacy cursor update, atomic_check
+ * pulls in the primary plane state. With an existing primary plane state already
+ * present and no stream attached, the check returns 0.
+ */
+static void dm_test_crtc_atomic_check_vrr_pulls_primary(struct kunit *test)
+{
+	struct drm_plane_state *primary_plane_state;
+	struct amdgpu_device *adev;
+	struct dm_crtc_state *dm_crtc_state;
+	struct drm_atomic_commit *state;
+	struct drm_plane *primary;
+	struct drm_crtc *crtc;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	primary = kunit_kzalloc(test, sizeof(*primary), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, primary);
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	crtc->dev = &adev->ddev;
+	crtc->primary = primary;
+
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_crtc_state);
+	dm_crtc_state->base.crtc = crtc;
+	dm_crtc_state->freesync_config.state = VRR_STATE_ACTIVE_VARIABLE;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	state->dev = &adev->ddev;
+	state->crtcs = kunit_kzalloc(test, sizeof(*state->crtcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state->crtcs);
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+	dm_crtc_state->base.state = state;
+
+	/* acquire ctx must be set; existing plane state avoids taking a lock. */
+	state->acquire_ctx = kunit_kzalloc(test, sizeof(*state->acquire_ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state->acquire_ctx);
+	state->planes = kunit_kzalloc(test, sizeof(*state->planes), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state->planes);
+	primary_plane_state = kunit_kzalloc(test, sizeof(*primary_plane_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, primary_plane_state);
+	state->planes[0].new_state = primary_plane_state;
+
+	ret = amdgpu_dm_crtc_helper_atomic_check(crtc, state);
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+}
+
+/**
+ * dm_test_crtc_atomic_check_valid_stream_passes - Valid DC stream passes
+ * @test: The KUnit test context
+ *
+ * With a stream attached and DC stream validation returning DC_OK, atomic_check
+ * must return 0.
+ */
+static void dm_test_crtc_atomic_check_valid_stream_passes(struct kunit *test)
+{
+	struct timing_generator_funcs *tg_funcs;
+	struct timing_generator *tg;
+	struct resource_pool *res_pool;
+	struct link_service *link_srv;
+	struct amdgpu_device *adev;
+	struct dm_crtc_state *dm_crtc_state;
+	struct drm_atomic_commit *state;
+	struct dc_stream_state *stream;
+	struct dc_link *link;
+	struct drm_crtc *crtc;
+	struct dc *dc;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	dc = dm_kunit_alloc_dc_with_ctx(test);
+	res_pool = kunit_kzalloc(test, sizeof(*res_pool), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, res_pool);
+	tg = kunit_kzalloc(test, sizeof(*tg), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, tg);
+	tg_funcs = kunit_kzalloc(test, sizeof(*tg_funcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, tg_funcs);
+	tg_funcs->validate_timing = dm_test_atomic_check_validate_timing_ok;
+	tg->funcs = tg_funcs;
+	res_pool->timing_generators[0] = tg;
+	dc->res_pool = res_pool;
+
+	link_srv = kunit_kzalloc(test, sizeof(*link_srv), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, link_srv);
+	link_srv->validate_mode_timing = dm_test_atomic_check_validate_mode_timing_ok;
+	dc->link_srv = link_srv;
+	adev->dm.dc = dc;
+
+	link = dm_kunit_alloc_link(test);
+	link->ep_type = DISPLAY_ENDPOINT_UNKNOWN;
+	stream = dm_kunit_alloc_stream(test, link);
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	crtc->dev = &adev->ddev;
+
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_crtc_state);
+	dm_crtc_state->base.crtc = crtc;
+	dm_crtc_state->stream = stream;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	state->dev = &adev->ddev;
+	state->crtcs = kunit_kzalloc(test, sizeof(*state->crtcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state->crtcs);
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+	dm_crtc_state->base.state = state;
+
+	ret = amdgpu_dm_crtc_helper_atomic_check(crtc, state);
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+}
+
+/**
+ * dm_test_crtc_atomic_check_invalid_stream_fails - Invalid DC stream fails
+ * @test: The KUnit test context
+ *
+ * With a stream attached but DC stream validation failing (timing rejected),
+ * atomic_check must return -EINVAL.
+ */
+static void dm_test_crtc_atomic_check_invalid_stream_fails(struct kunit *test)
+{
+	struct timing_generator_funcs *tg_funcs;
+	struct timing_generator *tg;
+	struct resource_pool *res_pool;
+	struct amdgpu_device *adev;
+	struct dm_crtc_state *dm_crtc_state;
+	struct drm_atomic_commit *state;
+	struct dc_stream_state *stream;
+	struct dc_link *link;
+	struct drm_crtc *crtc;
+	struct dc *dc;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	dc = dm_kunit_alloc_dc_with_ctx(test);
+	res_pool = kunit_kzalloc(test, sizeof(*res_pool), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, res_pool);
+	tg = kunit_kzalloc(test, sizeof(*tg), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, tg);
+	tg_funcs = kunit_kzalloc(test, sizeof(*tg_funcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, tg_funcs);
+	tg_funcs->validate_timing = dm_test_atomic_check_validate_timing_fail;
+	tg->funcs = tg_funcs;
+	res_pool->timing_generators[0] = tg;
+	dc->res_pool = res_pool;
+	adev->dm.dc = dc;
+
+	link = dm_kunit_alloc_link(test);
+	stream = dm_kunit_alloc_stream(test, link);
+
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	crtc->dev = &adev->ddev;
+
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_crtc_state);
+	dm_crtc_state->base.crtc = crtc;
+	dm_crtc_state->stream = stream;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	state->dev = &adev->ddev;
+	state->crtcs = kunit_kzalloc(test, sizeof(*state->crtcs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state->crtcs);
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+	dm_crtc_state->base.state = state;
+
+	ret = amdgpu_dm_crtc_helper_atomic_check(crtc, state);
+
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+}
+
 static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	/* amdgpu_dm_crtc_modeset_required */
 	KUNIT_CASE(dm_test_crtc_modeset_required_active_mode_changed),
-	KUNIT_CASE(dm_test_crtc_modeset_required_active_active_changed),
+	KUNIT_CASE(dm_test_crtc_modeset_required_active_state_changed),
 	KUNIT_CASE(dm_test_crtc_modeset_required_active_connectors_changed),
 	KUNIT_CASE(dm_test_crtc_modeset_required_inactive),
 	KUNIT_CASE(dm_test_crtc_modeset_required_no_changes),
@@ -1904,6 +2670,10 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_enable_vblank_queues_work),
 	KUNIT_CASE(dm_test_crtc_enable_vblank_ips_restore),
 	KUNIT_CASE(dm_test_crtc_enable_vblank_ips_restore_replay),
+	/* amdgpu_dm_crtc_set_vline0_irq */
+	KUNIT_CASE(dm_test_crtc_set_vline0_irq_dce_noop),
+	KUNIT_CASE(dm_test_crtc_set_vline0_irq_error),
+	KUNIT_CASE(dm_test_crtc_set_vline0_irq_enable_disable),
 	/* amdgpu_dm_crtc_update_crtc_active_planes */
 	KUNIT_CASE(dm_test_crtc_update_active_planes_no_stream),
 	/* amdgpu_dm_crtc_count_crtc_active_planes */
@@ -1911,8 +2681,13 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_count_crtc_active_planes_mixed),
 	/* amdgpu_dm_crtc_duplicate_state */
 	KUNIT_CASE(dm_test_crtc_duplicate_state_copies_fields),
-	/* amdgpu_dm_crtc_reset_state */
-	KUNIT_CASE(dm_test_crtc_reset_state_allocates_state),
+	KUNIT_CASE(dm_test_crtc_duplicate_state_retains_stream),
+	KUNIT_CASE(dm_test_crtc_duplicate_state_null_state_returns_null),
+	/* amdgpu_dm_crtc_destroy */
+	KUNIT_CASE(dm_test_crtc_destroy_cleans_up_and_frees),
+	/* amdgpu_dm_crtc_create_state */
+	KUNIT_CASE(dm_test_crtc_create_state_allocates_state),
+	KUNIT_CASE(dm_test_crtc_reset_state_replaces_existing),
 	/* amdgpu_dm_crtc_destroy_state */
 	KUNIT_CASE(dm_test_crtc_destroy_state_no_stream),
 	KUNIT_CASE(dm_test_crtc_destroy_state_releases_stream),
@@ -1928,6 +2703,20 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_disable_vblank_no_irq_installed),
 	KUNIT_CASE(dm_test_crtc_disable_vblank_vrr),
 	KUNIT_CASE(dm_test_crtc_disable_vblank_queues_work),
+#ifdef CONFIG_DEBUG_FS
+	/* amdgpu_dm_crtc_late_register */
+	KUNIT_CASE(dm_test_crtc_late_register_inits_debugfs),
+#endif
+	/* amdgpu_dm_crtc_init */
+	KUNIT_CASE(dm_test_crtc_init_registers_crtc),
+	KUNIT_CASE(dm_test_crtc_init_enables_degamma),
+	/* amdgpu_dm_crtc_helper_atomic_check */
+	KUNIT_CASE(dm_test_crtc_atomic_check_no_stream_passes),
+	KUNIT_CASE(dm_test_crtc_atomic_check_enable_without_primary_fails),
+	KUNIT_CASE(dm_test_crtc_atomic_check_async_flip_non_fast_fails),
+	KUNIT_CASE(dm_test_crtc_atomic_check_vrr_pulls_primary),
+	KUNIT_CASE(dm_test_crtc_atomic_check_valid_stream_passes),
+	KUNIT_CASE(dm_test_crtc_atomic_check_invalid_stream_fails),
 	{}
 };
 

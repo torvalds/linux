@@ -36,6 +36,9 @@
 #define xe_sriov_dbg(xe, fmt, ...) \
 	xe_sriov_printk((xe), dbg, fmt, ##__VA_ARGS__)
 
+#define xe_sriov_dbg_ratelimited(xe, fmt, ...) \
+	xe_sriov_printk((xe), dbg_ratelimited, fmt, ##__VA_ARGS__)
+
 /* for low level noisy debug messages */
 #ifdef CONFIG_DRM_XE_DEBUG_SRIOV
 #define xe_sriov_dbg_verbose(xe, fmt, ...) xe_sriov_dbg(xe, fmt, ##__VA_ARGS__)

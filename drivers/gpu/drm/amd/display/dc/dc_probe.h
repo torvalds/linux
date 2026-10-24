@@ -20,6 +20,7 @@ enum dc_probe_type {
 	DC_PROBE_URGENT_RAMP_LATENCY,
 	DC_PROBE_URGENT_ASSERTION_COUNT,
 	DC_PROBE_PREFETCH_DATA_SIZE,
+	DC_PROBE_PEAK_MEM_BW_STRESSED, /* peak BW under synthetic memory contention */
 };
 
 /**

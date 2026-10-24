@@ -26,7 +26,7 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 
-#include "dce100/dce_clk_mgr.h"
+#include "dcn10/dcn10_clk_mgr.h"
 #include "dcn20_clk_mgr.h"
 #include "reg_helper.h"
 #include "core_types.h"
@@ -436,8 +436,8 @@ void dcn2_read_clocks_from_hw_dentist(struct clk_mgr *clk_mgr_base)
 	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, &dispclk_wdivider);
 	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, &dppclk_wdivider);
 
-	disp_divider = dentist_get_divider_from_did(dispclk_wdivider);
-	dpp_divider = dentist_get_divider_from_did(dppclk_wdivider);
+	disp_divider = dcn10_dentist_get_divider_from_did(dispclk_wdivider);
+	dpp_divider = dcn10_dentist_get_divider_from_did(dppclk_wdivider);
 
 	if (disp_divider && dpp_divider) {
 		/* Calculate the current DFS clock, in kHz.*/
@@ -518,7 +518,7 @@ static void dcn2_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct dc
 }
 
 static struct clk_mgr_funcs dcn2_funcs = {
-	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 	.update_clocks = dcn2_update_clocks,
 	.init_clocks = dcn2_init_clocks,
 	.enable_pme_wa = dcn2_enable_pme_wa,
@@ -558,7 +558,7 @@ void dcn20_clk_mgr_construct(
 	/* DFS Slice 2 should be used for DPREFCLK */
 	dprefclk_did = REG_READ(CLK3_CLK2_DFS_CNTL);
 	/* Convert DPREFCLK DFS Slice DID to actual divider */
-	target_div = dentist_get_divider_from_did(dprefclk_did);
+	target_div = dcn10_dentist_get_divider_from_did(dprefclk_did);
 	/* get FbMult value */
 	pll_req_reg = REG_READ(CLK3_CLK_PLL_REQ);
 
@@ -588,5 +588,5 @@ void dcn20_clk_mgr_construct(
 	//Also there is no plan for now that DFS BYPASS will be used on NV10/12/14.
 	clk_mgr->dfs_bypass_enabled = false;
 
-	dce_clock_read_ss_info(clk_mgr);
+	dcn10_clock_read_ss_info(clk_mgr);
 }

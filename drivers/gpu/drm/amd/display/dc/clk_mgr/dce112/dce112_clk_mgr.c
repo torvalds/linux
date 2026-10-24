@@ -107,7 +107,7 @@ int dce112_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_clk_khz)
 	struct dc_bios *bp = clk_mgr->base.ctx->dc_bios;
 	struct dc *dc = clk_mgr->base.ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
-	int actual_clock = requested_clk_khz;
+	int actual_clock;
 	/* Prepare to program display clock*/
 	memset(&dce_clk_params, 0, sizeof(dce_clk_params));
 
@@ -123,11 +123,11 @@ int dce112_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_clk_khz)
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 	actual_clock = dce_clk_params.target_clock_frequency;
 
-	if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
-		if (clk_mgr->dfs_bypass_disp_clk != actual_clock)
-			dmcu->funcs->set_psr_wait_loop(dmcu,
-					actual_clock / 1000 / 7);
-	}
+		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
+			if (clk_mgr->dfs_bypass_disp_clk != actual_clock)
+				dmcu->funcs->set_psr_wait_loop(dmcu,
+						actual_clock / 1000 / 7);
+		}
 
 	clk_mgr->dfs_bypass_disp_clk = actual_clock;
 	return actual_clock;

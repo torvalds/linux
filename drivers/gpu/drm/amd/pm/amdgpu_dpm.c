@@ -509,9 +509,6 @@ void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 		    adev->powerplay.pp_funcs->notify_ac_dc)
 			amdgpu_dpm_notify_ac_dc(adev);
 
-		if (is_support_sw_smu(adev))
-			smu_set_ac_dc(adev->powerplay.pp_handle, true);
-
 		mutex_unlock(&adev->pm.mutex);
 	}
 }
@@ -2102,6 +2099,29 @@ bool amdgpu_dpm_is_temp_metrics_supported(struct amdgpu_device *adev,
 	}
 
 	return support_temp_metrics;
+}
+
+/**
+ * amdgpu_dpm_get_npm_cap - Return NPM sysfs capability bitmap
+ * @adev: Pointer to the device.
+ *
+ * Two bits per field (R then W). Both 0 means the field is unsupported.
+ *
+ * Return: Capability bitmap, or 0 if NPM is not supported.
+ */
+u64 amdgpu_dpm_get_npm_cap(struct amdgpu_device *adev)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	u64 cap = 0;
+
+	if (!pp_funcs || !pp_funcs->get_npm_cap)
+		return 0;
+
+	mutex_lock(&adev->pm.mutex);
+	cap = pp_funcs->get_npm_cap(adev->powerplay.pp_handle);
+	mutex_unlock(&adev->pm.mutex);
+
+	return cap;
 }
 
 /**

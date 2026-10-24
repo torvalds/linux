@@ -30,15 +30,24 @@ static bool hubbub42_program_urgent_watermarks(
 		bool safe_to_lower)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+	const unsigned int urgent_floor = hubbub->ctx->dc->debug.urgent_watermark_override;
+	const unsigned int urgent_a = max(urgent_floor,
+		watermarks->dcn4x.a.urgent);
+	const unsigned int urgent_b = max(urgent_floor,
+		watermarks->dcn4x.b.urgent);
+	const unsigned int urgent_c = max(urgent_floor,
+		watermarks->dcn4x.c.urgent);
+	const unsigned int urgent_d = max(urgent_floor,
+		watermarks->dcn4x.d.urgent);
 	bool wm_pending = false;
 
 	/* Repeat for water mark set A, B, C and D. */
 	/* clock state A */
-	if (safe_to_lower || watermarks->dcn4x.a.urgent > hubbub2->watermarks.dcn4x.a.urgent) {
-		hubbub2->watermarks.dcn4x.a.urgent = watermarks->dcn4x.a.urgent;
+	if (safe_to_lower || urgent_a > hubbub2->watermarks.dcn4x.a.urgent) {
+		hubbub2->watermarks.dcn4x.a.urgent = urgent_a;
 		REG_SET(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, 0,
-				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, watermarks->dcn4x.a.urgent);
-	} else if (watermarks->dcn4x.a.urgent < hubbub2->watermarks.dcn4x.a.urgent)
+				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, urgent_a);
+	} else if (urgent_a < hubbub2->watermarks.dcn4x.a.urgent)
 		wm_pending = true;
 
 	/* determine the transfer time for a quantity of data for a particular requestor.*/
@@ -64,11 +73,11 @@ static bool hubbub42_program_urgent_watermarks(
 		wm_pending = true;
 
 	/* clock state B */
-	if (safe_to_lower || watermarks->dcn4x.b.urgent > hubbub2->watermarks.dcn4x.b.urgent) {
-		hubbub2->watermarks.dcn4x.b.urgent = watermarks->dcn4x.b.urgent;
+	if (safe_to_lower || urgent_b > hubbub2->watermarks.dcn4x.b.urgent) {
+		hubbub2->watermarks.dcn4x.b.urgent = urgent_b;
 		REG_SET(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, 0,
-				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, watermarks->dcn4x.b.urgent);
-	} else if (watermarks->dcn4x.b.urgent < hubbub2->watermarks.dcn4x.b.urgent)
+				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, urgent_b);
+	} else if (urgent_b < hubbub2->watermarks.dcn4x.b.urgent)
 		wm_pending = true;
 
 	/* determine the transfer time for a quantity of data for a particular requestor.*/
@@ -94,11 +103,11 @@ static bool hubbub42_program_urgent_watermarks(
 		wm_pending = true;
 
 	/* clock state C */
-	if (safe_to_lower || watermarks->dcn4x.c.urgent > hubbub2->watermarks.dcn4x.c.urgent) {
-		hubbub2->watermarks.dcn4x.c.urgent = watermarks->dcn4x.c.urgent;
+	if (safe_to_lower || urgent_c > hubbub2->watermarks.dcn4x.c.urgent) {
+		hubbub2->watermarks.dcn4x.c.urgent = urgent_c;
 		REG_SET(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, 0,
-				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, watermarks->dcn4x.c.urgent);
-	} else if (watermarks->dcn4x.c.urgent < hubbub2->watermarks.dcn4x.c.urgent)
+				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, urgent_c);
+	} else if (urgent_c < hubbub2->watermarks.dcn4x.c.urgent)
 		wm_pending = true;
 
 	/* determine the transfer time for a quantity of data for a particular requestor.*/
@@ -124,11 +133,11 @@ static bool hubbub42_program_urgent_watermarks(
 		wm_pending = true;
 
 	/* clock state D */
-	if (safe_to_lower || watermarks->dcn4x.d.urgent > hubbub2->watermarks.dcn4x.d.urgent) {
-		hubbub2->watermarks.dcn4x.d.urgent = watermarks->dcn4x.d.urgent;
+	if (safe_to_lower || urgent_d > hubbub2->watermarks.dcn4x.d.urgent) {
+		hubbub2->watermarks.dcn4x.d.urgent = urgent_d;
 		REG_SET(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, 0,
-				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, watermarks->dcn4x.d.urgent);
-	} else if (watermarks->dcn4x.d.urgent < hubbub2->watermarks.dcn4x.d.urgent)
+				DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, urgent_d);
+	} else if (urgent_d < hubbub2->watermarks.dcn4x.d.urgent)
 		wm_pending = true;
 
 	/* determine the transfer time for a quantity of data for a particular requestor.*/
@@ -431,13 +440,6 @@ static void hubbub42_allow_self_refresh_control(struct hubbub *hubbub, bool allo
 			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_VALUE, 0,
 			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, !allow);
 }
-static void hubbub42_set_sdp_control(struct hubbub *hubbub, bool dc_control)
-{
-	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
-
-	REG_UPDATE(DCHUBBUB_SDPIF_CFG0,
-			SDPIF_PORT_CONTROL, dc_control);
-}
 
 static bool hubbub42_program_watermarks(
 		struct hubbub *hubbub,
@@ -449,9 +451,8 @@ static bool hubbub42_program_watermarks(
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 
 	if (!safe_to_lower && hubbub->ctx->dc->debug.disable_stutter_for_wm_program) {
-		/* before raising watermarks, SDP control give to DF, stutter must be disabled */
+		/* before raising watermarks, stutter must be disabled */
 		wm_pending = true;
-		hubbub42_set_sdp_control(hubbub, false);
 		hubbub42_allow_self_refresh_control(hubbub, false);
 	}
 	if (hubbub42_program_urgent_watermarks(hubbub, watermarks, safe_to_lower))
@@ -478,9 +479,6 @@ static bool hubbub42_program_watermarks(
 
 	if (safe_to_lower || hubbub->ctx->dc->debug.disable_stutter)
 		hubbub42_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
-	if (safe_to_lower && hubbub->ctx->dc->debug.disable_stutter_for_wm_program) {
-		hubbub42_set_sdp_control(hubbub, true);
-	}
 	hubbub32_force_usr_retraining_allow(hubbub, hubbub->ctx->dc->debug.force_usr_allow);
 
 	return wm_pending;
@@ -541,6 +539,7 @@ static const struct hubbub_funcs hubbub42_funcs = {
 	.program_watermarks = hubbub42_program_watermarks,
 	.allow_self_refresh_control = hubbub42_allow_self_refresh_control,
 	.is_allow_self_refresh_enabled = hubbub1_is_allow_self_refresh_enabled,
+	.soft_reset = hubbub1_soft_reset,
 	.force_wm_propagate_to_pipes = hubbub32_force_wm_propagate_to_pipes,
 	.force_pstate_change_control = hubbub3_force_pstate_change_control,
 	.init_watermarks = hubbub35_init_watermarks,
@@ -566,6 +565,8 @@ void hubbub42_construct(struct dcn20_hubbub *hubbub2,
 	int config_return_buffer_size_kb)
 {
 	hubbub2->base.ctx = ctx;
+
+	hubbub2->base.inst = 0;
 	hubbub2->base.funcs = &hubbub42_funcs;
 	hubbub2->regs = hubbub_regs;
 	hubbub2->shifts = hubbub_shift;

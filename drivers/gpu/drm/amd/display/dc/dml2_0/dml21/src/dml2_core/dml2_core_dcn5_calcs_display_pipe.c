@@ -648,7 +648,7 @@ void dcn5_calculate_odm_mode(
 	*ODMMode = DecidedODMMode;
 	*TotalAvailablePipesSupport = success;
 	*NumberOfDPP = NumberOfDPPRequired;
-	*RequiredDISPCLKPerSurface = success ? DISPCLKRequired : 0;
+	*RequiredDISPCLKPerSurface = DISPCLKRequired;
 #ifdef __DML_VBA_DEBUG__
 	DML_LOG_VERBOSE("DML::%s: ODMMode = %d\n", __func__, *ODMMode);
 	DML_LOG_VERBOSE("DML::%s: NumberOfDPP = %d\n", __func__, *NumberOfDPP);

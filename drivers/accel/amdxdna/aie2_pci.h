@@ -107,7 +107,7 @@ struct amdxdna_hwctx_priv {
 	struct amdxdna_gem_obj		*heap;
 	void				*mbox_chann;
 
-	struct drm_gpu_scheduler	sched;
+	struct drm_gpu_scheduler	*sched;
 	struct drm_sched_entity		entity;
 
 	struct mutex			io_lock; /* protect seq and cmd order */
@@ -152,6 +152,8 @@ struct amdxdna_dev_hdl {
 	u32				total_col;
 	struct amdxdna_drm_query_aie_version version;
 	struct aie2_exec_msg_ops	*exec_msg_ops;
+	struct drm_gpu_scheduler	*hwctx_sched;
+	struct ida			hwctx_sched_ida;
 
 	/* power management and clock*/
 	enum amdxdna_power_mode_type	pw_mode;
@@ -242,7 +244,7 @@ int aie2_pm_set_mode(struct amdxdna_dev_hdl *ndev, enum amdxdna_power_mode_type 
 int aie2_pm_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level);
 
 /* aie2_error.c */
-int aie2_error_async_events_alloc(struct amdxdna_dev_hdl *ndev);
+int aie2_error_async_events_alloc(struct amdxdna_dev_hdl *ndev, u32 num_events);
 void aie2_error_async_events_free(struct amdxdna_dev_hdl *ndev);
 int aie2_error_async_msg_thread(void *data);
 int aie2_get_array_async_error(struct amdxdna_dev_hdl *ndev,
@@ -294,6 +296,8 @@ int aie2_update_prop_time_quota(struct amdxdna_dev_hdl *ndev, u32 us);
 /* aie2_hwctx.c */
 int aie2_hwctx_init(struct amdxdna_hwctx *hwctx);
 void aie2_hwctx_fini(struct amdxdna_hwctx *hwctx);
+int aie2_hwctx_sched_init(struct amdxdna_dev_hdl *ndev);
+void aie2_hwctx_sched_fini(struct amdxdna_dev_hdl *ndev);
 int aie2_hwctx_config(struct amdxdna_hwctx *hwctx, u32 type, u64 value, void *buf, u32 size);
 int aie2_hwctx_sync_debug_bo(struct amdxdna_hwctx *hwctx, u32 debug_bo_hdl);
 void aie2_hwctx_suspend(struct amdxdna_client *client);

@@ -18,6 +18,7 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_panic.h>
+#include <drm/drm_panic_helper.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
@@ -65,7 +66,7 @@ static const struct drm_connector_helper_funcs hv_drm_connector_helper_funcs = {
 static const struct drm_connector_funcs hv_drm_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
-	.reset = drm_atomic_helper_connector_reset,
+	.atomic_create_state = drm_atomic_helper_connector_create_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
@@ -126,7 +127,7 @@ static const struct drm_crtc_helper_funcs hv_drm_crtc_helper_funcs = {
 };
 
 static const struct drm_crtc_funcs hv_drm_crtc_funcs = {
-	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_create_state = drm_atomic_helper_crtc_create_state,
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
@@ -237,6 +238,7 @@ static const struct drm_plane_funcs hv_drm_plane_funcs = {
 	.disable_plane		= drm_atomic_helper_disable_plane,
 	.destroy		= drm_plane_cleanup,
 	DRM_GEM_SHADOW_PLANE_FUNCS,
+	DRM_PANIC_PLANE_FUNCS,
 };
 
 static const struct drm_encoder_funcs hv_drm_simple_encoder_funcs_cleanup = {

@@ -153,6 +153,7 @@ const struct amdxdna_rev_vbnv npu4_rev_vbnv_tbl[] = {
 	{ AIE2_DEV_REVISION_GPT1, "NPU Gorgon Point 1" },
 	{ AIE2_DEV_REVISION_GPT2, "NPU Gorgon Point 2" },
 	{ AIE2_DEV_REVISION_GPT3, "NPU Gorgon Point 3" },
+	{ AIE2_DEV_REVISION_GRGH, "NPU Gorgon Halo" },
 	{ 0 }
 };
 

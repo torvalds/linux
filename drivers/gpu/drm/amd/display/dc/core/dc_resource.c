@@ -55,11 +55,13 @@
 #if defined(CONFIG_DRM_AMD_DC_SI)
 #include "dce60/dce60_resource.h"
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCE)
 #include "dce80/dce80_resource.h"
 #include "dce100/dce100_resource.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
 #include "dce120/dce120_resource.h"
+#endif
 #include "dcn10/dcn10_resource.h"
 #include "dcn20/dcn20_resource.h"
 #include "dcn21/dcn21_resource.h"
@@ -100,7 +102,7 @@
 #define DC_LOGGER_INIT(logger)
 #include "link/hwss/link_hwss_hpo_frl.h"
 #include "dml/dml1_frl_cap_chk.h"
-#include "dml2_0/dml2_wrapper.h"
+#include "dml2_wrapper/dml2_wrapper.h"
 
 #define UNABLE_TO_SPLIT -1
 
@@ -293,6 +295,7 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 			init_data->num_virtual_links, dc);
 		break;
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCE)
 	case DCE_VERSION_8_0:
 		res_pool = dce80_create_resource_pool(
 				(uint8_t)init_data->num_virtual_links, dc);
@@ -324,6 +327,7 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		res_pool = dce120_create_resource_pool(
 				(uint8_t)init_data->num_virtual_links, dc);
 		break;
+#endif
 
 #if defined(CONFIG_DRM_AMD_DC_FP)
 	case DCN_VERSION_1_0:
@@ -1045,7 +1049,7 @@ static struct rect calculate_mpc_slice_in_timing_active(
 	return mpc_rec;
 }
 
-static void calculate_adjust_recout_for_visual_confirm(struct pipe_ctx *pipe_ctx,
+static void calculate_adjust_recout_for_visual_confirm(const struct pipe_ctx *pipe_ctx,
 	unsigned int *base_offset, unsigned int *dpp_offset)
 {
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
@@ -1066,7 +1070,7 @@ static void calculate_adjust_recout_for_visual_confirm(struct pipe_ctx *pipe_ctx
 }
 
 static void reverse_adjust_recout_for_visual_confirm(struct rect *recout,
-		struct pipe_ctx *pipe_ctx)
+		const struct pipe_ctx *pipe_ctx)
 {
 	unsigned int dpp_offset, base_offset;
 
@@ -1553,11 +1557,21 @@ void resource_build_test_pattern_params(struct resource_context *res_ctx,
 	}
 }
 
-enum upsp_mode resource_is_upsp_required(enum surface_pixel_format format)
+enum upsp_mode resource_is_upsp_required(enum surface_pixel_format format,
+		enum dc_scaling_linearity scaling_linearity)
 {
-	if (format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN && format <= SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb) //420 Formats
+	bool scaling_in_linear = (scaling_linearity == DC_SCALING_LINEARITY_LINEAR);
+	bool is_420_format = (format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN &&
+			format <= SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb);
+	bool is_422_format = (format > SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb &&
+			format < SURFACE_PIXEL_FORMAT_SUBSAMPLE_END);
+
+	/* UPSP (chroma upsampling) is only needed when subsampled YUV is scaled in
+	 * linear space.
+	 */
+	if (scaling_in_linear && is_420_format)
 		return UPSP_HORIZONTAL_VERTICAL_UPSAMPLING;
-	if (format > SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb && format < SURFACE_PIXEL_FORMAT_SUBSAMPLE_END) //422 Formats
+	if (scaling_in_linear && is_422_format)
 		return UPSP_HORIZONTAL_UPSAMPLING_ONLY;
 	return UPSP_BYPASS;
 }
@@ -1607,7 +1621,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 
 		pipe_ctx->plane_res.scl_data.lb_params.alpha_en = plane_state->per_pixel_alpha;
-		pipe_ctx->plane_res.scl_data.upsp = resource_is_upsp_required(plane_state->format);
+		pipe_ctx->plane_res.scl_data.upsp = resource_is_upsp_required(plane_state->format, plane_state->scaling_linearity);
 
 		// Convert pipe_ctx to respective input params for SPL
 		translate_SPL_in_params_from_pipe_ctx(pipe_ctx, spl_in);
@@ -1761,7 +1775,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	return res;
 }
 
-bool resource_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
+bool resource_can_pipe_disable_cursor(const struct pipe_ctx *pipe_ctx)
 {
 	struct pipe_ctx *test_pipe, *split_pipe;
 	struct rect r1 = pipe_ctx->plane_res.scl_data.recout;
@@ -3003,6 +3017,11 @@ static inline int find_acquired_dio_link_enc_for_link(
 
 static inline int find_fixed_dio_link_enc(const struct dc_link *link)
 {
+	/* virtual links own their link encoder directly and are never
+	 * registered into pool->link_encoders[]. */
+	if (link->link_id.id == CONNECTOR_ID_VIRTUAL)
+		return -1;
+
 	/* the 8b10b dp phy can only use fixed link encoder */
 	return link->eng_id;
 }
@@ -3148,6 +3167,8 @@ static bool add_dio_link_enc_to_ctx(const struct dc *dc,
 
 	if (enc_index >= 0)
 		pipe_ctx->link_res.dio_link_enc = pool->link_encoders[enc_index];
+	else
+		pipe_ctx->link_res.dio_link_enc = stream->link->link_enc;
 
 	return pipe_ctx->link_res.dio_link_enc != NULL;
 }
@@ -3368,6 +3389,95 @@ static bool acquire_secondary_dpp_pipes_and_add_plane(
 	return true;
 }
 
+/*
+ * resource_assign_rmcm() - Assign the RMCM instances for a whole context
+ *
+ * RMCM is pre-blend, so every pipe asking for one needs its own instance. Ownership is
+ * tracked per instance in res_ctx->rmcm_in_use[]; the owning pipe is the one holding the
+ * matching plane_res.rmcm pointer.
+ *
+ * A pipe that already drives an RMCM keeps it, so a plane that is only now asking never
+ * evicts one that is already using an instance - it simply gets none when the pool is
+ * exhausted. This has to see the finished context, hence one pass over all pipes rather
+ * than one per appended plane.
+ */
+void resource_assign_rmcm(
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		const struct resource_pool *pool)
+{
+	struct rmcm *held[MAX_PIPES] = { NULL };
+	unsigned int p;
+	int i;
+
+	/* new_ctx and cur_ctx can be the same object, so snapshot before clearing */
+	for (p = 0; p < pool->pipe_count && p < MAX_PIPES; p++)
+		held[p] = cur_ctx ? cur_ctx->res_ctx.pipe_ctx[p].plane_res.rmcm : NULL;
+
+	for (p = 0; p < pool->pipe_count && p < MAX_PIPES; p++)
+		new_ctx->res_ctx.pipe_ctx[p].plane_res.rmcm = NULL;
+
+	for (i = 0; i < MAX_RMCM_INST; i++)
+		new_ctx->res_ctx.rmcm_in_use[i] = false;
+
+	/* incumbents first, so a later pipe cannot take an instance out from under them */
+	for (p = 0; p < pool->pipe_count && p < MAX_PIPES; p++) {
+		struct pipe_ctx *pipe = &new_ctx->res_ctx.pipe_ctx[p];
+
+		if (!pipe->plane_state || !pipe->plane_state->cm.flags.bits.rmcm_enable)
+			continue;
+
+		if (!held[p] || new_ctx->res_ctx.rmcm_in_use[held[p]->inst])
+			continue;
+
+		pipe->plane_res.rmcm = held[p];
+		new_ctx->res_ctx.rmcm_in_use[held[p]->inst] = true;
+	}
+
+	for (p = 0; p < pool->pipe_count && p < MAX_PIPES; p++) {
+		struct pipe_ctx *pipe = &new_ctx->res_ctx.pipe_ctx[p];
+
+		if (!pipe->plane_state || !pipe->plane_state->cm.flags.bits.rmcm_enable)
+			continue;
+
+		if (pipe->plane_res.rmcm)
+			continue;
+
+		for (i = 0; i < pool->res_cap->num_rmcm && i < MAX_RMCM_INST; i++) {
+			if (!pool->rmcm[i] || new_ctx->res_ctx.rmcm_in_use[i])
+				continue;
+
+			pipe->plane_res.rmcm = pool->rmcm[i];
+			new_ctx->res_ctx.rmcm_in_use[i] = true;
+			break;
+		}
+	}
+}
+
+/*
+ * resource_release_rmcm() - Release an RMCM instance for a pipe.
+ *
+ * Marks the instance free and NULLs the caller's pointer.
+ */
+void resource_release_rmcm(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct rmcm **rmcm)
+{
+	int i;
+
+	if (!*rmcm)
+		return;
+
+	for (i = 0; i < pool->res_cap->num_rmcm && i < MAX_RMCM_INST; i++) {
+		if (pool->rmcm[i] == *rmcm) {
+			res_ctx->rmcm_in_use[i] = false;
+			*rmcm = NULL;
+			return;
+		}
+	}
+}
+
 bool resource_append_dpp_pipes_for_plane_composition(
 		struct dc_state *new_ctx,
 		struct dc_state *cur_ctx,
@@ -3393,6 +3503,12 @@ bool resource_append_dpp_pipes_for_plane_composition(
 					pool, plane_state);
 	}
 
+	/* Idempotent, so the last append of a commit leaves the final assignment behind.
+	 * Releasing is driven by the MPC_RMCM_CNTL mirror (see dcn42_release_rmcm_from_mpcc).
+	 */
+	if (success)
+		resource_assign_rmcm(new_ctx, cur_ctx, pool);
+
 	return success;
 }
 
@@ -3407,6 +3523,12 @@ void resource_remove_dpp_pipes_for_plane_composition(
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->plane_state == plane_state) {
+			/* Release RMCM instance for this pipe */
+			if (pipe_ctx->plane_res.rmcm)
+				resource_release_rmcm(&context->res_ctx,
+						pool,
+						&pipe_ctx->plane_res.rmcm);
+
 			if (pipe_ctx->top_pipe)
 				pipe_ctx->top_pipe->bottom_pipe = pipe_ctx->bottom_pipe;
 
@@ -4459,11 +4581,35 @@ enum dc_status resource_validate_probe_set(struct dc *dc,
 		return DC_NOT_SUPPORTED;
 
 	for (i = 0; i < probe_count; i++) {
-		if (probes[i].target_state == DC_PROBE_MEASURING)
+		switch (probes[i].type) {
+		/* These global probes support a one-frame measurement and reset. */
+		case DC_PROBE_PEAK_MEM_BW:
+		case DC_PROBE_PEAK_MEM_BW_STRESSED:
+		case DC_PROBE_AVG_MEM_BW:
+		case DC_PROBE_MEM_LATENCY:
+		case DC_PROBE_PREFETCH_DATA_SIZE:
+			if (probes[i].scope.type != DC_PROBE_SCOPE_GLOBAL)
+				return DC_NOT_SUPPORTED;
+			if (probes[i].target_state != DC_PROBE_NOT_MEASURING &&
+					probes[i].target_state != DC_PROBE_MEASURED)
+				return DC_NOT_SUPPORTED;
+			break;
+		/* The global urgent assertion counter additionally supports polling. */
+		case DC_PROBE_URGENT_ASSERTION_COUNT:
+			if (probes[i].scope.type != DC_PROBE_SCOPE_GLOBAL)
+				return DC_NOT_SUPPORTED;
+			if (probes[i].target_state != DC_PROBE_NOT_MEASURING &&
+					probes[i].target_state != DC_PROBE_MEASURING &&
+					probes[i].target_state != DC_PROBE_MEASURED)
+				return DC_NOT_SUPPORTED;
+			break;
+		default:
 			return DC_NOT_SUPPORTED;
+		}
 
-		if (probes[i].scope.type != DC_PROBE_SCOPE_GLOBAL)
-			return DC_NOT_SUPPORTED;
+		if (probes[i].type == DC_PROBE_PEAK_MEM_BW_STRESSED &&
+				!dc->res_pool->lsdma_scratch.buffer)
+			return DC_NO_DRAM_BUFFER_RESOURCE;
 	}
 
 	return DC_OK;
@@ -4740,7 +4886,7 @@ static void calculate_timing_params_for_dsc_with_padding(struct pipe_ctx *pipe_c
 #if defined(CONFIG_DRM_AMD_DC_FP)
 	uint32_t hactive;
 	uint32_t ceil_slice_width;
-	if (stream && stream->timing.flags.DSC) {
+	if (stream && stream->timing.flags.DSC && stream->signal == SIGNAL_TYPE_HDMI_FRL) {
 		hactive = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
 
 		/* Assume if determined slices does not divide Hactive evenly, Hborrow is needed for padding*/
@@ -5304,6 +5450,81 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	}
 
 	patch_gamut_packet_checksum(&info->gamut);
+}
+
+/*
+ * Physical-clock resource mapping used by the DCE and DCN resource pools.
+ * Unit tests provide their own stub (see dc_resource_ut_helpers.c).
+ */
+enum {
+	CLK_SRC_PLL0 = 0,
+	CLK_SRC_PLL1,
+	CLK_SRC_PLL2,
+	CLK_SRC_PLL3,
+	CLK_SRC_PLL4,
+	CLK_SRC_PLL5,
+};
+
+static struct clock_source *find_matching_pll(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		const struct dc_stream_state *const stream)
+{
+	(void)res_ctx;
+	switch (stream->link->link_enc->transmitter) {
+	case TRANSMITTER_UNIPHY_A:
+		return pool->clock_sources[CLK_SRC_PLL0];
+	case TRANSMITTER_UNIPHY_B:
+		return pool->clock_sources[CLK_SRC_PLL1];
+	case TRANSMITTER_UNIPHY_C:
+		return pool->clock_sources[CLK_SRC_PLL2];
+	case TRANSMITTER_UNIPHY_D:
+		return pool->clock_sources[CLK_SRC_PLL3];
+	case TRANSMITTER_UNIPHY_E:
+		return pool->clock_sources[CLK_SRC_PLL4];
+	case TRANSMITTER_UNIPHY_F:
+		return pool->clock_sources[CLK_SRC_PLL5];
+	default:
+		return NULL;
+	}
+}
+
+enum dc_status resource_map_phy_clock_resources(
+		const struct dc *dc,
+		struct dc_state *context,
+		struct dc_stream_state *stream)
+{
+
+	/* acquire new resources */
+	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(
+			&context->res_ctx, stream);
+
+	if (!pipe_ctx)
+		return DC_ERROR_UNEXPECTED;
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal)
+		|| dc_is_virtual_signal(pipe_ctx->stream->signal))
+		pipe_ctx->clock_source =
+				dc->res_pool->dp_clock_source;
+	else if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_FRL)
+			pipe_ctx->clock_source =
+				dc->res_pool->dp_clock_source;
+	else {
+		if (stream && stream->link && stream->link->link_enc)
+			pipe_ctx->clock_source = find_matching_pll(
+				&context->res_ctx, dc->res_pool,
+				stream);
+	}
+
+	if (pipe_ctx->clock_source == NULL)
+		return DC_NO_CLOCK_SOURCE_RESOURCE;
+
+	resource_reference_clock_source(
+		&context->res_ctx,
+		dc->res_pool,
+		pipe_ctx->clock_source);
+
+	return DC_OK;
 }
 
 enum dc_status resource_map_clock_resources(

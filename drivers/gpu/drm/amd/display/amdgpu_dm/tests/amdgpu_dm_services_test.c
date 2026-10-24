@@ -277,6 +277,212 @@ static void dm_test_query_brightness_caps_non_lcd1_uses_second_slot(struct kunit
 	KUNIT_EXPECT_EQ(test, caps.data_points[0].signal_level, 0);
 }
 
+/* Tests for dm_allocate_gpu_mem() and dm_free_gpu_mem() */
+
+#define DM_TEST_FAKE_GPU_ADDR 0xF00DBEEFULL
+
+struct dm_test_bo_ops_ctx {
+	void *cpu_ptr;
+	u64 gpu_addr;
+	int create_ret;
+	unsigned long create_size;
+	int create_align;
+	u32 create_domain;
+	unsigned int create_calls;
+	unsigned int free_calls;
+};
+
+static struct dm_test_bo_ops_ctx dm_test_bo_ctx;
+
+static int dm_test_bo_create_kernel(struct amdgpu_device *adev, unsigned long size,
+				    int align, u32 domain, struct amdgpu_bo **bo_ptr,
+				    u64 *gpu_addr, void **cpu_addr)
+{
+	dm_test_bo_ctx.create_calls++;
+	dm_test_bo_ctx.create_size = size;
+	dm_test_bo_ctx.create_align = align;
+	dm_test_bo_ctx.create_domain = domain;
+
+	if (dm_test_bo_ctx.create_ret)
+		return dm_test_bo_ctx.create_ret;
+
+	*gpu_addr = dm_test_bo_ctx.gpu_addr;
+	*cpu_addr = dm_test_bo_ctx.cpu_ptr;
+
+	return 0;
+}
+
+static void dm_test_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr, void **cpu_addr)
+{
+	dm_test_bo_ctx.free_calls++;
+
+	*bo = NULL;
+	*gpu_addr = 0;
+	*cpu_addr = NULL;
+}
+
+static const struct amdgpu_dm_services_kunit_ops dm_test_bo_ops = {
+	.bo_create_kernel = dm_test_bo_create_kernel,
+	.bo_free_kernel = dm_test_bo_free_kernel,
+};
+
+/**
+ * dm_test_gpu_mem_init - Install the fake buffer object ops
+ * @test: The KUnit test context
+ *
+ * amdgpu_bo_create_kernel() and amdgpu_bo_free_kernel() need a live TTM
+ * device, so route them through a fake table for the duration of the test.
+ */
+static int dm_test_gpu_mem_init(struct kunit *test)
+{
+	void *cpu_ptr;
+
+	cpu_ptr = kunit_kzalloc(test, sizeof(cpu_ptr), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cpu_ptr);
+
+	dm_test_bo_ctx = (struct dm_test_bo_ops_ctx) {
+		.cpu_ptr = cpu_ptr,
+		.gpu_addr = DM_TEST_FAKE_GPU_ADDR,
+	};
+
+	amdgpu_dm_services_kunit_set_ops(&dm_test_bo_ops);
+
+	return 0;
+}
+
+static void dm_test_gpu_mem_exit(struct kunit *test)
+{
+	amdgpu_dm_services_kunit_set_ops(NULL);
+}
+
+static struct amdgpu_device *dm_test_alloc_adev(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev);
+	INIT_LIST_HEAD(&adev->dm.da_list);
+
+	return adev;
+}
+
+/**
+ * dm_test_allocate_gpu_mem_gart - Test Allocate gpu mem gart
+ * @test: The KUnit test context
+ */
+static void dm_test_allocate_gpu_mem_gart(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev(test);
+	long long addr = 0;
+	void *mem;
+
+	mem = dm_allocate_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, 4096, &addr);
+
+	KUNIT_EXPECT_PTR_EQ(test, mem, dm_test_bo_ctx.cpu_ptr);
+	KUNIT_EXPECT_EQ(test, addr, (long long)DM_TEST_FAKE_GPU_ADDR);
+	KUNIT_EXPECT_EQ(test, dm_test_bo_ctx.create_calls, 1U);
+	KUNIT_EXPECT_EQ(test, dm_test_bo_ctx.create_size, 4096UL);
+	KUNIT_EXPECT_EQ(test, dm_test_bo_ctx.create_align, (int)PAGE_SIZE);
+	KUNIT_EXPECT_EQ(test, dm_test_bo_ctx.create_domain, (u32)AMDGPU_GEM_DOMAIN_GTT);
+	KUNIT_EXPECT_FALSE(test, list_empty(&adev->dm.da_list));
+
+	dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, mem);
+}
+
+/**
+ * dm_test_allocate_gpu_mem_frame_buffer - Test Allocate gpu mem frame buffer
+ * @test: The KUnit test context
+ *
+ * Any non-GART allocation type must land in the VRAM domain.
+ */
+static void dm_test_allocate_gpu_mem_frame_buffer(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev(test);
+	long long addr = 0;
+	void *mem;
+
+	mem = dm_allocate_gpu_mem(adev, DC_MEM_ALLOC_TYPE_FRAME_BUFFER, 8192, &addr);
+
+	KUNIT_EXPECT_PTR_EQ(test, mem, dm_test_bo_ctx.cpu_ptr);
+	KUNIT_EXPECT_EQ(test, dm_test_bo_ctx.create_domain, (u32)AMDGPU_GEM_DOMAIN_VRAM);
+	KUNIT_EXPECT_EQ(test, dm_test_bo_ctx.create_size, 8192UL);
+
+	dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_FRAME_BUFFER, mem);
+}
+
+/**
+ * dm_test_allocate_gpu_mem_create_fails - Test Allocate gpu mem create fails
+ * @test: The KUnit test context
+ */
+static void dm_test_allocate_gpu_mem_create_fails(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev(test);
+	long long addr = 0;
+	void *mem;
+
+	dm_test_bo_ctx.create_ret = -ENOMEM;
+
+	mem = dm_allocate_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, 4096, &addr);
+
+	KUNIT_EXPECT_NULL(test, mem);
+	KUNIT_EXPECT_EQ(test, dm_test_bo_ctx.create_calls, 1U);
+	KUNIT_EXPECT_TRUE(test, list_empty(&adev->dm.da_list));
+}
+
+/**
+ * dm_test_free_gpu_mem_matching - Test Free gpu mem matching
+ * @test: The KUnit test context
+ */
+static void dm_test_free_gpu_mem_matching(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev(test);
+	long long addr = 0;
+	void *mem;
+
+	mem = dm_allocate_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, 4096, &addr);
+	KUNIT_ASSERT_NOT_NULL(test, mem);
+
+	dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, mem);
+
+	KUNIT_EXPECT_EQ(test, dm_test_bo_ctx.free_calls, 1U);
+	KUNIT_EXPECT_TRUE(test, list_empty(&adev->dm.da_list));
+}
+
+/**
+ * dm_test_free_gpu_mem_no_match - Test Free gpu mem no match
+ * @test: The KUnit test context
+ */
+static void dm_test_free_gpu_mem_no_match(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev(test);
+	long long addr = 0;
+	void *mem;
+
+	mem = dm_allocate_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, 4096, &addr);
+	KUNIT_ASSERT_NOT_NULL(test, mem);
+
+	dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, (char *)mem + 1);
+
+	KUNIT_EXPECT_EQ(test, dm_test_bo_ctx.free_calls, 0U);
+	KUNIT_EXPECT_FALSE(test, list_empty(&adev->dm.da_list));
+
+	dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, mem);
+}
+
+/**
+ * dm_test_free_gpu_mem_empty_list - Test Free gpu mem empty list
+ * @test: The KUnit test context
+ */
+static void dm_test_free_gpu_mem_empty_list(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev(test);
+
+	dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, dm_test_bo_ctx.cpu_ptr);
+
+	KUNIT_EXPECT_EQ(test, dm_test_bo_ctx.free_calls, 0U);
+	KUNIT_EXPECT_TRUE(test, list_empty(&adev->dm.da_list));
+}
+
 static struct kunit_case amdgpu_dm_services_test_cases[] = {
 	/* dm_get_elapse_time_in_ns */
 	KUNIT_CASE(dm_test_get_elapse_time_zero_delta),
@@ -307,7 +513,27 @@ static struct kunit_suite amdgpu_dm_services_test_suite = {
 	.test_cases = amdgpu_dm_services_test_cases,
 };
 
-kunit_test_suite(amdgpu_dm_services_test_suite);
+static struct kunit_case amdgpu_dm_services_gpu_mem_test_cases[] = {
+	/* dm_allocate_gpu_mem */
+	KUNIT_CASE(dm_test_allocate_gpu_mem_gart),
+	KUNIT_CASE(dm_test_allocate_gpu_mem_frame_buffer),
+	KUNIT_CASE(dm_test_allocate_gpu_mem_create_fails),
+	/* dm_free_gpu_mem */
+	KUNIT_CASE(dm_test_free_gpu_mem_matching),
+	KUNIT_CASE(dm_test_free_gpu_mem_no_match),
+	KUNIT_CASE(dm_test_free_gpu_mem_empty_list),
+	{}
+};
+
+static struct kunit_suite amdgpu_dm_services_gpu_mem_test_suite = {
+	.name = "amdgpu_dm_services_gpu_mem",
+	.init = dm_test_gpu_mem_init,
+	.exit = dm_test_gpu_mem_exit,
+	.test_cases = amdgpu_dm_services_gpu_mem_test_cases,
+};
+
+kunit_test_suites(&amdgpu_dm_services_test_suite,
+		  &amdgpu_dm_services_gpu_mem_test_suite);
 
 MODULE_DESCRIPTION("KUnit tests for amdgpu_dm_services");
 MODULE_LICENSE("Dual MIT/GPL");

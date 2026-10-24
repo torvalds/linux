@@ -410,6 +410,10 @@ static u32 ih_v6_1_get_wptr(struct amdgpu_device *adev,
 	struct amdgpu_ih_regs *ih_regs;
 
 	wptr = le32_to_cpu(*ih->wptr_cpu);
+
+	if (ih == &adev->irq.ih_soft)
+		goto out;
+
 	ih_regs = &ih->ih_regs;
 
 	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
@@ -481,6 +485,9 @@ static void ih_v6_1_irq_rearm(struct amdgpu_device *adev,
 static void ih_v6_1_set_rptr(struct amdgpu_device *adev,
 			       struct amdgpu_ih_ring *ih)
 {
+	if (ih == &adev->irq.ih_soft)
+		return;
+
 	struct amdgpu_ih_regs *ih_regs;
 
 	if (ih->use_doorbell) {
@@ -583,7 +590,7 @@ static int ih_v6_1_sw_init(struct amdgpu_ip_block *ip_block)
 	/* initialize ih control register offset */
 	ih_v6_1_init_register_offset(adev);
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, true);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, IH_SW_RING_SIZE, true);
 	if (r)
 		return r;
 
@@ -630,22 +637,10 @@ static int ih_v6_1_resume(struct amdgpu_ip_block *ip_block)
 	return ih_v6_1_hw_init(ip_block);
 }
 
-static bool ih_v6_1_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	/* todo */
-	return true;
-}
-
 static int ih_v6_1_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* todo */
 	return -ETIMEDOUT;
-}
-
-static int ih_v6_1_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	/* todo */
-	return 0;
 }
 
 static void ih_v6_1_update_clockgating_state(struct amdgpu_device *adev,
@@ -767,9 +762,7 @@ static const struct amd_ip_funcs ih_v6_1_ip_funcs = {
 	.hw_fini = ih_v6_1_hw_fini,
 	.suspend = ih_v6_1_suspend,
 	.resume = ih_v6_1_resume,
-	.is_idle = ih_v6_1_is_idle,
 	.wait_for_idle = ih_v6_1_wait_for_idle,
-	.soft_reset = ih_v6_1_soft_reset,
 	.set_clockgating_state = ih_v6_1_set_clockgating_state,
 	.set_powergating_state = ih_v6_1_set_powergating_state,
 	.get_clockgating_state = ih_v6_1_get_clockgating_state,

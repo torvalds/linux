@@ -234,7 +234,7 @@ void drm_mipi_dbi_plane_helper_atomic_update(struct drm_plane *plane,
  */
 
 #define DRM_MIPI_DBI_CRTC_FUNCS \
-	.reset = drm_atomic_helper_crtc_reset, \
+	.atomic_create_state = drm_atomic_helper_crtc_create_state, \
 	.set_config = drm_atomic_helper_set_config, \
 	.page_flip = drm_atomic_helper_page_flip, \
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state, \

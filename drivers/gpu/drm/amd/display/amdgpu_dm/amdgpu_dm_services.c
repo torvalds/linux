@@ -38,6 +38,31 @@
 #include "amdgpu_dm_trace.h"
 #include "dm_helpers.h"
 
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+static const struct amdgpu_dm_services_kunit_ops amdgpu_dm_services_default_ops = {
+	.bo_create_kernel = amdgpu_bo_create_kernel,
+	.bo_free_kernel = amdgpu_bo_free_kernel,
+};
+
+static const struct amdgpu_dm_services_kunit_ops *amdgpu_dm_services_ops =
+	&amdgpu_dm_services_default_ops;
+
+void amdgpu_dm_services_kunit_set_ops(const struct amdgpu_dm_services_kunit_ops *ops)
+{
+	amdgpu_dm_services_ops = ops ? ops : &amdgpu_dm_services_default_ops;
+}
+EXPORT_IF_KUNIT(amdgpu_dm_services_kunit_set_ops);
+
+#define services_bo_create_kernel	amdgpu_dm_services_ops->bo_create_kernel
+#define services_bo_free_kernel		amdgpu_dm_services_ops->bo_free_kernel
+
+#else
+
+#define services_bo_create_kernel	amdgpu_bo_create_kernel
+#define services_bo_free_kernel		amdgpu_bo_free_kernel
+
+#endif
+
 	unsigned long long
 	dm_get_elapse_time_in_ns(struct dc_context *ctx,
 				 unsigned long long current_time_stamp,
@@ -113,9 +138,9 @@ dm_allocate_gpu_mem(
 	if (!da)
 		return NULL;
 
-	ret = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
-				      domain, &da->bo,
-				      &da->gpu_addr, &da->cpu_ptr);
+	ret = services_bo_create_kernel(adev, size, PAGE_SIZE,
+					domain, &da->bo,
+					&da->gpu_addr, &da->cpu_ptr);
 
 	*addr = da->gpu_addr;
 
@@ -129,6 +154,7 @@ dm_allocate_gpu_mem(
 
 	return da->cpu_ptr;
 }
+EXPORT_IF_KUNIT(dm_allocate_gpu_mem);
 
 void
 dm_free_gpu_mem(
@@ -141,7 +167,7 @@ dm_free_gpu_mem(
 	/* walk the da list in DM */
 	list_for_each_entry(da, &adev->dm.da_list, list) {
 		if (pvMem == da->cpu_ptr) {
-			amdgpu_bo_free_kernel(&da->bo, &da->gpu_addr, &da->cpu_ptr);
+			services_bo_free_kernel(&da->bo, &da->gpu_addr, &da->cpu_ptr);
 			list_del(&da->list);
 			kfree(da);
 			break;
@@ -149,3 +175,4 @@ dm_free_gpu_mem(
 	}
 
 }
+EXPORT_IF_KUNIT(dm_free_gpu_mem);

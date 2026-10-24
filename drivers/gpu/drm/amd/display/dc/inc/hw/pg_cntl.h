@@ -34,6 +34,7 @@ struct pg_cntl {
 	const struct pg_cntl_funcs *funcs;
 	bool pg_pipe_res_enable[PG_HW_PIPE_RESOURCES_NUM_ELEMENT][MAX_PIPES];
 	bool pg_res_enable[PG_HW_RESOURCES_NUM_ELEMENT];
+	unsigned int inst;
 };
 
 struct pg_cntl_funcs {

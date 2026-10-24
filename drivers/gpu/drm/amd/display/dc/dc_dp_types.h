@@ -203,6 +203,7 @@ struct dc_link_training_overrides {
 	bool *enhanced_framing;
 	bool *mst_enable;
 	bool *fec_enable;
+	bool skip_link_bw_clear;
 };
 
 union payload_table_update_status {

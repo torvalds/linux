@@ -713,12 +713,6 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 
 	attr_type = array_index_nospec(args->type, ARRAY_SIZE(madvise_funcs));
 
-	/* Ensure the madvise function exists for this type */
-	if (!madvise_funcs[attr_type]) {
-		err = -EINVAL;
-		goto err_fini;
-	}
-
 	madvise_funcs[attr_type](xe, vm, madvise_range.vmas, madvise_range.num_vmas, args,
 				 &details);
 

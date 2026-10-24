@@ -106,6 +106,8 @@ All FSP messages share a common header format consisting of two 32-bit words:
 - Bit 30: EOM (End of Message)
 - Bits 29:28: Packet sequence number
 - Bits 23:16: Source Endpoint ID
+- Bits 15:8: Destination Endpoint ID
+- Bits 3:0: MCTP header version (1)
 
 **NVDM header** (NVIDIA Vendor Defined Message):
 

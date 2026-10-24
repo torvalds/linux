@@ -38,11 +38,11 @@
 
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
+#include <drm/clients/drm_fbdev_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_modeset_helper.h>
@@ -1428,7 +1428,7 @@ static int amdgpu_display_framebuffer_init(struct drm_device *dev,
 			ret = convert_tiling_flags_to_modifier_gfx6(rfb);
 
 		if (ret) {
-			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier",
+			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier\n",
 				    rfb->tiling_flags);
 			return ret;
 		}

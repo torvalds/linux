@@ -3,6 +3,7 @@
 // Copyright 2024 Advanced Micro Devices, Inc.
 
 #include "dml2_core_dcn6_funcs_initialize.h"
+#include "dml2_core_dcn6_calcs.h"
 #include "dml2_debug.h"
 
 struct dml2_core_ip_params core_dcn6_ip_caps_base = {
@@ -24,6 +25,7 @@ struct dml2_core_ip_params core_dcn6_ip_caps_base = {
 	.writeback_interface_buffer_size_kbytes = 90,
 	//Number of pipes after DCN Pipe harvesting
 	.max_num_dpp = 4,
+	.max_num_opp = 4,
 	.max_num_otg = 4,
 	.max_num_wb = 1,
 	.zero_size_buffer_entries = 512,
@@ -111,6 +113,7 @@ static void patch_ip_caps_with_explicit_ip_params(struct dml2_ip_capabilities *i
 static void patch_ip_params_with_ip_caps(struct dml2_core_ip_params *ip_params, const struct dml2_ip_capabilities *ip_caps)
 {
 	ip_params->max_num_dpp = ip_caps->pipe_count;
+	ip_params->max_num_opp = ip_caps->otg_count;
 	ip_params->max_num_otg = ip_caps->otg_count;
 	ip_params->TDLUT_33cube_count = ip_caps->TDLUT_33cube_count;
 	ip_params->num_dsc = ip_caps->num_dsc;
@@ -158,6 +161,7 @@ bool dml2_core_dcn6_funcs_initialize(struct dml2_core_initialize_in_out *in_out)
 	memcpy(&core->clean_me_up.mode_lib.ip_caps, in_out->ip_caps, sizeof(struct dml2_ip_capabilities));
 	core->utm_soc_bb = in_out->utm_soc_bb;
 	core->clock_adjuster = in_out->clock_adjuster;
+	dml2_core_dcn6_calcs_init(&core->calcs);
 
 	DML_LOG_DEBUG("%s exit with true\n", __func__);
 	DML_LOG_COMP_IF_EXIT();

@@ -14,7 +14,7 @@ static const struct drm_crtc_helper_funcs vc4_dummy_crtc_helper_funcs = {
 static const struct drm_crtc_funcs vc4_dummy_crtc_funcs = {
 	.atomic_destroy_state	= vc4_crtc_destroy_state,
 	.atomic_duplicate_state	= vc4_crtc_duplicate_state,
-	.reset			= vc4_crtc_reset,
+	.atomic_create_state	= vc4_crtc_create_state,
 };
 
 struct vc4_dummy_crtc *vc4_mock_pv(struct kunit *test,

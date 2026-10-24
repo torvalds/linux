@@ -394,9 +394,11 @@ static inline bool msm_dp_wide_bus_available(const struct msm_dp *dp_display)
 #ifdef CONFIG_DRM_MSM_MDP4
 void msm_mdp4_register(void);
 void msm_mdp4_unregister(void);
+int msm_count_mdp4(void);
 #else
 static inline void msm_mdp4_register(void) {}
 static inline void msm_mdp4_unregister(void) {}
+static inline int msm_count_mdp4(void) { return 0; }
 #endif
 
 #ifdef CONFIG_DRM_MSM_MDP5
@@ -418,9 +420,11 @@ static inline void msm_dpu_unregister(void) {}
 #ifdef CONFIG_DRM_MSM_MDSS
 void msm_mdss_register(void);
 void msm_mdss_unregister(void);
+int msm_count_mdss(void);
 #else
 static inline void msm_mdss_register(void) {}
 static inline void msm_mdss_unregister(void) {}
+static inline int msm_count_mdss(void) { return 0; }
 #endif
 
 #ifdef CONFIG_DEBUG_FS
@@ -534,6 +538,6 @@ void msm_kms_shutdown(struct platform_device *pdev);
 
 bool msm_disp_drv_should_bind(struct device *dev, bool dpu_driver);
 
-bool msm_gpu_no_components(void);
+bool msm_separate_gpu_kms_components(void);
 
 #endif /* __MSM_DRV_H__ */

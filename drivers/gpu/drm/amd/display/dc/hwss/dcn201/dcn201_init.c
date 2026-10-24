@@ -23,6 +23,7 @@
  *
  */
 
+#include "dce/dce_hwseq.h"
 #include "dce110/dce110_hwseq.h"
 #include "dcn10/dcn10_hwseq.h"
 #include "dcn20/dcn20_hwseq.h"
@@ -40,6 +41,7 @@ static const struct hw_sequencer_funcs dcn201_funcs = {
 	.wait_for_pending_cleared = dcn10_wait_for_pending_cleared,
 	.post_unlock_program_front_end = dcn10_post_unlock_program_front_end,
 	.update_plane_addr = dcn201_update_plane_addr,
+	.prepare_plane_addr_update = dcn201_prepare_plane_addr_update,
 	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
 	.program_output_csc = dcn20_program_output_csc,
@@ -55,7 +57,8 @@ static const struct hw_sequencer_funcs dcn201_funcs = {
 	.enable_audio_stream = dce110_enable_audio_stream,
 	.disable_audio_stream = dce110_disable_audio_stream,
 	.disable_plane = dcn10_disable_plane,
-	.pipe_control_lock = dcn201_pipe_control_lock,
+	.build_pipe_control_lock_sequence = dce_build_pipe_control_lock_sequence,
+	.tg_lock = dcn201_tg_lock,
 	.interdependent_update_lock = dcn10_lock_all_pipes,
 	.cursor_lock = dcn10_cursor_lock,
 	.prepare_bandwidth = dcn20_prepare_bandwidth,
@@ -96,6 +99,7 @@ static const struct hw_sequencer_funcs dcn201_funcs = {
 };
 
 static const struct hwseq_private_funcs dcn201_private_funcs = {
+	.build_cursor_pos_update_params = dcn10_build_cursor_pos_update_params,
 	.init_pipes = NULL,
 	.plane_atomic_disconnect = dcn201_plane_atomic_disconnect,
 	.program_pipe = dcn10_program_pipe,

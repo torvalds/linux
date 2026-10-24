@@ -178,9 +178,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 
 	if (adev->kfd.dev) {
 		struct kgd2kfd_shared_resources gpu_resources = {
-			.compute_vmid_bitmap =
-				((1 << AMDGPU_NUM_VMID) - 1) -
-				((1 << adev->vm_manager.first_kfd_vmid) - 1),
+			.compute_vmid_bitmap = adev->vm_manager.vmid_uq_mask_gfxhub,
 			.num_pipe_per_mec = adev->gfx.mec.num_pipe_per_mec,
 			.num_queue_per_pipe = adev->gfx.mec.num_queue_per_pipe,
 			.gpuvm_size = min(adev->vm_manager.max_pfn
@@ -243,6 +241,25 @@ void amdgpu_amdkfd_device_fini_sw(struct amdgpu_device *adev)
 		adev->kfd.dev = NULL;
 		amdgpu_amdkfd_total_mem_size -= adev->gmc.real_vram_size;
 	}
+}
+
+int amdgpu_amdkfd_prepare_partition_switch(struct amdgpu_device *adev)
+{
+	struct kfd_dev *kfd = adev->kfd.dev;
+	int r;
+
+	if (!kfd)
+		return 0;
+	r = kgd2kfd_check_and_lock_kfd(kfd);
+	if (r)
+		return r;
+
+	adev->kfd.init_complete = false;
+	kgd2kfd_device_fini(kfd);
+	adev->kfd.dev = NULL;
+	amdgpu_amdkfd_total_mem_size -= adev->gmc.real_vram_size;
+
+	return 0;
 }
 
 void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
@@ -731,7 +748,7 @@ int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
 	job->vmid = vmid;
 	job->num_ibs = 1;
 
-	ret = amdgpu_ib_schedule(ring, 1, ib, job, &f);
+	ret = amdgpu_ib_schedule(ring, job, &f);
 
 	if (ret) {
 		drm_err(adev_to_drm(adev), "failed to schedule IB.\n");
@@ -819,16 +836,6 @@ int amdgpu_amdkfd_send_close_event_drain_irq(struct amdgpu_device *adev,
 	amdgpu_amdkfd_interrupt(adev, payload);
 
 	return 0;
-}
-
-int amdgpu_amdkfd_check_and_lock_kfd(struct amdgpu_device *adev)
-{
-	return kgd2kfd_check_and_lock_kfd(adev->kfd.dev);
-}
-
-void amdgpu_amdkfd_unlock_kfd(struct amdgpu_device *adev)
-{
-	kgd2kfd_unlock_kfd(adev->kfd.dev);
 }
 
 

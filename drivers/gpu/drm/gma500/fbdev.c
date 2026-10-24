@@ -7,9 +7,9 @@
 
 #include <linux/fb.h>
 
+#include <drm/clients/drm_fbdev_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_framebuffer.h>
 
 #include "gem.h"

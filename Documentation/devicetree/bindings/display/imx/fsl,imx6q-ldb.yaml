@@ -150,44 +150,44 @@ examples:
 
         /* Using an of-graph endpoint link to connect the panel */
         lvds-channel@0 {
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
                 reg = <0>;
-                #address-cells = <1>;
-                #size-cells = <0>;
 
-                port@0 {
-                    reg = <0>;
-
-                    endpoint {
-                        remote-endpoint = <&ipu_di0_lvds0>;
-                    };
+                endpoint {
+                    remote-endpoint = <&ipu_di0_lvds0>;
                 };
+            };
 
-                port@2 {
-                    reg = <2>;
+            port@2 {
+                reg = <2>;
 
-                    endpoint {
-                        remote-endpoint = <&panel_in>;
-                    };
-               };
+                endpoint {
+                    remote-endpoint = <&panel_in>;
+                };
+            };
         };
 
         /* Using display-timings and fsl,data-mapping/width instead */
         lvds-channel@1 {
+            reg = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            fsl,data-mapping = "spwg";
+            fsl,data-width = <24>;
+
+            display-timings {/* ... */
+            };
+
+            port@1 {
                 reg = <1>;
-                #address-cells = <1>;
-                #size-cells = <0>;
-                fsl,data-mapping = "spwg";
-                fsl,data-width = <24>;
 
-                display-timings {/* ... */
+                endpoint {
+                    remote-endpoint = <&ipu_di1_lvds1>;
                 };
-
-                port@1 {
-                     reg = <1>;
-
-                     endpoint {
-                         remote-endpoint = <&ipu_di1_lvds1>;
-                     };
-                };
+            };
         };
     };

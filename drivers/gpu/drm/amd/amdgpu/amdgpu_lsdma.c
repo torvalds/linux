@@ -48,23 +48,27 @@ int amdgpu_lsdma_copy_mem(struct amdgpu_device *adev,
 			  uint64_t dst_addr,
 			  uint64_t mem_size)
 {
-	int ret;
+	int ret = 0;
 
 	if (mem_size == 0)
 		return -EINVAL;
+
+	mutex_lock(&adev->lsdma.lock);
 
 	while (mem_size > 0) {
 		uint64_t current_copy_size = min(mem_size, AMDGPU_LSDMA_MAX_SIZE);
 
 		ret = adev->lsdma.funcs->copy_mem(adev, src_addr, dst_addr, current_copy_size);
 		if (ret)
-			return ret;
+			goto out_unlock;
 		src_addr += current_copy_size;
 		dst_addr += current_copy_size;
 		mem_size -= current_copy_size;
 	}
 
-	return 0;
+out_unlock:
+	mutex_unlock(&adev->lsdma.lock);
+	return ret;
 }
 
 int amdgpu_lsdma_fill_mem(struct amdgpu_device *adev,
@@ -72,20 +76,24 @@ int amdgpu_lsdma_fill_mem(struct amdgpu_device *adev,
 			  uint32_t data,
 			  uint64_t mem_size)
 {
-	int ret;
+	int ret = 0;
 
 	if (mem_size == 0)
 		return -EINVAL;
+
+	mutex_lock(&adev->lsdma.lock);
 
 	while (mem_size > 0) {
 		uint64_t current_fill_size = min(mem_size, AMDGPU_LSDMA_MAX_SIZE);
 
 		ret = adev->lsdma.funcs->fill_mem(adev, dst_addr, data, current_fill_size);
 		if (ret)
-			return ret;
+			goto out_unlock;
 		dst_addr += current_fill_size;
 		mem_size -= current_fill_size;
 	}
 
-	return 0;
+out_unlock:
+	mutex_unlock(&adev->lsdma.lock);
+	return ret;
 }

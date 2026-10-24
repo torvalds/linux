@@ -26,11 +26,9 @@
 
 /* GET_INST returns the physical instance corresponding to a logical instance */
 #define GET_INST(ip, inst) \
-	(adev->ip_map.logical_to_dev_inst ? \
-	adev->ip_map.logical_to_dev_inst(adev, ip##_HWIP, inst) : inst)
+	amdgpu_ip_map_logical_to_dev_inst(&adev->ip_map, ip##_HWIP, inst)
 #define GET_MASK(ip, mask) \
-	(adev->ip_map.logical_to_dev_mask ? \
-	adev->ip_map.logical_to_dev_mask(adev, ip##_HWIP, mask) : mask)
+	amdgpu_ip_map_logical_to_dev_mask(&adev->ip_map, ip##_HWIP, mask)
 
 /* Register Access Macros */
 #define SOC15_REG_OFFSET(ip, inst, reg)	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg)

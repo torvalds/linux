@@ -274,6 +274,8 @@ char *dc_status_to_str(enum dc_status status)
 		return "HW Cursor not supported";
 	case DC_FAIL_DP_TUNNEL_BW_VALIDATE:
 		return "Fail DP Tunnel BW validation";
+	case DC_NO_DRAM_BUFFER_RESOURCE:
+		return "No DRAM buffer resource";
 	case DC_ERROR_UNEXPECTED:
 		return "Unexpected error";
 	default:

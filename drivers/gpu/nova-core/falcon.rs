@@ -401,9 +401,10 @@ impl<'a, E: FalconEngine + 'static> Falcon<'a, E> {
         self.hal.select_core(self)?;
         self.hal.reset_wait_mem_scrubbing(self)?;
 
-        self.pfalcon.write_reg(regs::NV_PFALCON_FALCON_RM::from(
-            self.bar.read(regs::NV_PMC_BOOT_0).into_raw(),
-        ));
+        self.pfalcon
+            .write_reg(regs::NV_PFALCON_FALCON_RM::from(crate::gpu::boot_0_raw(
+                self.bar,
+            )));
 
         Ok(())
     }

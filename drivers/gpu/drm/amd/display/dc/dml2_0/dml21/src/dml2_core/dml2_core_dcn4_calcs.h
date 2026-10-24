@@ -20,6 +20,7 @@ unsigned int dml2_core_calcs_mode_support_ex(struct dml2_core_calcs_mode_support
 bool dml2_core_calcs_mode_programming_ex(struct dml2_core_calcs_mode_programming_ex *in_out_params);
 void dml2_core_calcs_get_watermarks(const struct dml2_display_cfg *display_cfg, const struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_dchub_watermark_regs *out);
 void dml2_core_calcs_get_mcif_arb_params(const struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_mcif_global_register_set *out);
+void dml2_core_calcs_get_z8_stutter_support(const struct dml2_core_internal_display_mode_lib *mode_lib, bool *out);
 void dml2_core_calcs_get_arb_params(const struct dml2_display_cfg *display_cfg, const struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_display_arb_regs *out);
 void dml2_core_calcs_get_pipe_regs(const struct dml2_display_cfg *dml2_display_cfg, struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_dchub_per_pipe_register_set *out, int pipe_index);
 void dml2_core_calcs_get_stream_programming(const struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_per_stream_programming *out, int pipe_index);

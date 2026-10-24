@@ -27,4 +27,6 @@
 void gmc_v12_1_set_gmc_funcs(struct amdgpu_device *adev);
 void gmc_v12_1_set_irq_funcs(struct amdgpu_device *adev);
 void gmc_v12_1_init_vram_info(struct amdgpu_device *adev);
+void gmc_v12_1_init_nps_details(struct amdgpu_device *adev);
+u32 gmc_v12_1_get_coherent_aql_mtype(struct amdgpu_device *adev);
 #endif

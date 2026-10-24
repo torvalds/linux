@@ -24,39 +24,16 @@
 #include "amdgpu.h"
 #include "amdgpu_ip.h"
 
-static int8_t amdgpu_logical_to_dev_inst(struct amdgpu_device *adev,
-					 enum amd_hw_ip_block_type block,
-					 int8_t inst)
+u32 amdgpu_ip_map_logical_to_dev_mask(struct amdgpu_ip_map_info *ip_map,
+				      enum amd_hw_ip_block_type block,
+				      u32 mask)
 {
-	int8_t dev_inst;
-
-	switch (block) {
-	case GC_HWIP:
-	case SDMA0_HWIP:
-	/* Both JPEG and VCN as JPEG is only alias of VCN */
-	case VCN_HWIP:
-		dev_inst = adev->ip_map.dev_inst[block][inst];
-		break;
-	default:
-		/* For rest of the IPs, no look up required.
-		 * Assume 'logical instance == physical instance' for all configs. */
-		dev_inst = inst;
-		break;
-	}
-
-	return dev_inst;
-}
-
-static uint32_t amdgpu_logical_to_dev_mask(struct amdgpu_device *adev,
-					   enum amd_hw_ip_block_type block,
-					   uint32_t mask)
-{
-	uint32_t dev_mask = 0;
-	int8_t log_inst, dev_inst;
+	unsigned int log_inst, dev_inst;
+	u32 dev_mask = 0;
 
 	while (mask) {
 		log_inst = ffs(mask) - 1;
-		dev_inst = amdgpu_logical_to_dev_inst(adev, block, log_inst);
+		dev_inst = ip_map->dev_inst[block][log_inst];
 		dev_mask |= (1 << dev_inst);
 		mask &= ~(1 << log_inst);
 	}
@@ -64,35 +41,15 @@ static uint32_t amdgpu_logical_to_dev_mask(struct amdgpu_device *adev,
 	return dev_mask;
 }
 
-static void amdgpu_populate_ip_map(struct amdgpu_device *adev,
-				   enum amd_hw_ip_block_type ip_block,
-				   uint32_t inst_mask)
-{
-	int l = 0, i;
-
-	while (inst_mask) {
-		i = ffs(inst_mask) - 1;
-		adev->ip_map.dev_inst[ip_block][l++] = i;
-		inst_mask &= ~(1 << i);
-	}
-	for (; l < HWIP_MAX_INSTANCE; l++)
-		adev->ip_map.dev_inst[ip_block][l] = -1;
-}
-
 void amdgpu_ip_map_init(struct amdgpu_device *adev)
 {
-	u32 ip_map[][2] = {
-		{ GC_HWIP, adev->gfx.xcc_mask },
-		{ SDMA0_HWIP, adev->sdma.sdma_mask },
-		{ VCN_HWIP, adev->vcn.inst_mask },
-	};
-	int i;
+	int i, j;
 
-	for (i = 0; i < ARRAY_SIZE(ip_map); ++i)
-		amdgpu_populate_ip_map(adev, ip_map[i][0], ip_map[i][1]);
-
-	adev->ip_map.logical_to_dev_inst = amdgpu_logical_to_dev_inst;
-	adev->ip_map.logical_to_dev_mask = amdgpu_logical_to_dev_mask;
+	/* Assume 'logical instance == physical instance' unless overridden. */
+	for (i = 0; i < MAX_HWIP; i++) {
+		for (j = 0; j < HWIP_MAX_INSTANCE; j++)
+			adev->ip_map.dev_inst[i][j] = j;
+	}
 }
 
 int amdgpu_ip_block_suspend(struct amdgpu_ip_block *ip_block)
@@ -198,6 +155,7 @@ static const char *const ip_block_names[] = {
 	[AMD_IP_BLOCK_TYPE_UMSCH_MM] = "umsch_mm",
 	[AMD_IP_BLOCK_TYPE_ISP] = "isp",
 	[AMD_IP_BLOCK_TYPE_RAS] = "ras",
+	[AMD_IP_BLOCK_TYPE_UALINK] = "ualink",
 };
 
 static const char *ip_block_name(struct amdgpu_device *adev,

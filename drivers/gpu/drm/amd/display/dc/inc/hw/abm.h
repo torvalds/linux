@@ -33,6 +33,7 @@ struct abm {
 	struct dc_context *ctx;
 	const struct abm_funcs *funcs;
 	bool dmcu_is_running;
+	unsigned int inst;
 };
 
 struct abm_funcs {

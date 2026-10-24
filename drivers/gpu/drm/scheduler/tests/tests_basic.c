@@ -90,7 +90,7 @@ static const struct drm_sched_basic_params drm_sched_basic_cases[] = {
 		.num_entities = 1,
 	},
 	{
-		.description = "A chain of dependent jobs across multiple entities",
+		.description = "A chain of dependent jobs in a single entity",
 		.queue_depth = 100,
 		.job_us = 1000,
 		.num_entities = 1,

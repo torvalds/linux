@@ -2161,6 +2161,9 @@ ssize_t drm_dp_mst_dpcd_read(struct drm_dp_aux *aux,
 	struct drm_dp_mst_port *port = container_of(aux, struct drm_dp_mst_port,
 						    aux);
 
+	if (!port->ddps)
+		return -EIO;
+
 	return drm_dp_send_dpcd_read(port->mgr, port,
 				     offset, size, buffer);
 }
@@ -2183,6 +2186,9 @@ ssize_t drm_dp_mst_dpcd_write(struct drm_dp_aux *aux,
 {
 	struct drm_dp_mst_port *port = container_of(aux, struct drm_dp_mst_port,
 						    aux);
+
+	if (!port->ddps)
+		return -EIO;
 
 	return drm_dp_send_dpcd_write(port->mgr, port,
 				      offset, size, buffer);

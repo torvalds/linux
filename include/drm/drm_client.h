@@ -67,6 +67,20 @@ struct drm_client_funcs {
 	int (*restore)(struct drm_client_dev *client, bool force);
 
 	/**
+	 * @acquire_outputs:
+	 *
+	 * Called by vga-switcheroo. Informs the client that the outputs will
+	 * be switched to its device. When @acquire_outputs runs, the outputs
+	 * have not been switched yet. The client should only prepare the software
+	 * state. After the switch happened, the client might get a hotplug
+	 * event to update the hardware state.
+	 *
+	 * This callback exists for remapping framebuffers to virtual terminals
+	 * in fbcon.
+	 */
+	void (*acquire_outputs)(struct drm_client_dev *client);
+
+	/**
 	 * @hotplug:
 	 *
 	 * Called on drm_kms_helper_hotplug_event().

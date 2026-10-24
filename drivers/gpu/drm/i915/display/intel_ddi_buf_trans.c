@@ -1784,6 +1784,70 @@ xe3plpd_get_lt_buf_trans(struct intel_encoder *encoder,
 		return intel_get_buf_trans(&xe3plpd_lt_trans_dp14, n_entries);
 }
 
+static const struct intel_ddi_buf_trans *
+jsl_get_combo_buf_trans_override(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *crtc_state,
+				 int *n_entries)
+{
+	const struct intel_bios_encoder_data *devdata = encoder->devdata;
+	bool has_edp, has_dp;
+	int port_clock;
+
+	has_edp = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP);
+	has_dp = intel_crtc_has_dp_encoder(crtc_state);
+	port_clock = crtc_state->port_clock;
+
+	return intel_bios_get_jsl_combo_vspeo(devdata, has_dp, port_clock,
+					      has_edp && use_edp_low_vswing(encoder));
+}
+
+static const struct intel_ddi_buf_trans *
+ehl_get_combo_buf_trans_override(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *crtc_state,
+				 int *n_entries)
+{
+	const struct intel_bios_encoder_data *devdata = encoder->devdata;
+	bool has_edp, has_dp;
+	int port_clock;
+
+	has_edp = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP);
+	has_dp = intel_crtc_has_dp_encoder(crtc_state);
+	port_clock = crtc_state->port_clock;
+
+	return intel_bios_get_ehl_combo_vspeo(devdata, has_dp, port_clock,
+					      has_edp && use_edp_low_vswing(encoder));
+}
+
+static const struct intel_ddi_buf_trans *
+mtl_get_c10_buf_trans_override(struct intel_encoder *encoder,
+			       const struct intel_crtc_state *crtc_state,
+			       int *n_entries)
+{
+	const struct intel_bios_encoder_data *devdata = encoder->devdata;
+	bool has_edp, has_dp;
+	int port_clock;
+
+	has_edp = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP);
+	has_dp = intel_crtc_has_dp_encoder(crtc_state);
+	port_clock = crtc_state->port_clock;
+
+	return intel_bios_get_c10_vspeo(devdata, has_dp, port_clock, has_edp);
+}
+
+static const struct intel_ddi_buf_trans *
+mtl_get_c20_buf_trans_override(struct intel_encoder *encoder,
+			       const struct intel_crtc_state *crtc_state,
+			       int *n_entries)
+{
+	const struct intel_bios_encoder_data *devdata = encoder->devdata;
+	bool has_dp, is_uhbr;
+
+	has_dp = intel_crtc_has_dp_encoder(crtc_state);
+	is_uhbr = intel_dp_is_uhbr(crtc_state);
+
+	return intel_bios_get_c20_vspeo(devdata, has_dp, is_uhbr);
+}
+
 void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
@@ -1791,10 +1855,13 @@ void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 	if (HAS_LT_PHY(display)) {
 		encoder->get_buf_trans = xe3plpd_get_lt_buf_trans;
 	} else if (DISPLAY_VER(display) >= 14) {
-		if (intel_encoder_is_c10phy(encoder))
+		if (intel_encoder_is_c10phy(encoder)) {
 			encoder->get_buf_trans = mtl_get_c10_buf_trans;
-		else
+			encoder->get_buf_trans_override = mtl_get_c10_buf_trans_override;
+		} else {
 			encoder->get_buf_trans = mtl_get_c20_buf_trans;
+			encoder->get_buf_trans_override = mtl_get_c20_buf_trans_override;
+		}
 	} else if (display->platform.dg2) {
 		encoder->get_buf_trans = dg2_get_snps_buf_trans;
 	} else if (display->platform.alderlake_p) {
@@ -1814,14 +1881,17 @@ void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 		else
 			encoder->get_buf_trans = tgl_get_dkl_buf_trans;
 	} else if (DISPLAY_VER(display) == 11) {
-		if (display->platform.jasperlake)
+		if (display->platform.jasperlake) {
 			encoder->get_buf_trans = jsl_get_combo_buf_trans;
-		else if (display->platform.elkhartlake)
+			encoder->get_buf_trans_override = jsl_get_combo_buf_trans_override;
+		} else if (display->platform.elkhartlake) {
 			encoder->get_buf_trans = ehl_get_combo_buf_trans;
-		else if (intel_encoder_is_combo(encoder))
+			encoder->get_buf_trans_override = ehl_get_combo_buf_trans_override;
+		} else if (intel_encoder_is_combo(encoder)) {
 			encoder->get_buf_trans = icl_get_combo_buf_trans;
-		else
+		} else {
 			encoder->get_buf_trans = icl_get_mg_buf_trans;
+		}
 	} else if (display->platform.geminilake || display->platform.broxton) {
 		encoder->get_buf_trans = bxt_get_buf_trans;
 	} else if (display->platform.cometlake_ulx ||
@@ -1857,5 +1927,13 @@ const struct intel_ddi_buf_trans *intel_ddi_buf_trans_get(struct intel_encoder *
 							  const struct intel_crtc_state *crtc_state,
 							  int *n_entries)
 {
+	if (encoder->get_buf_trans_override) {
+		const struct intel_ddi_buf_trans *override;
+
+		override = encoder->get_buf_trans_override(encoder, crtc_state, n_entries);
+		if (override)
+			return intel_get_buf_trans(override, n_entries);
+	}
+
 	return encoder->get_buf_trans(encoder, crtc_state, n_entries);
 }

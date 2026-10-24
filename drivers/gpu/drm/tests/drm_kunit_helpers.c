@@ -142,7 +142,7 @@ static const struct drm_plane_helper_funcs default_plane_helper_funcs = {
 static const struct drm_plane_funcs default_plane_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
 	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
-	.reset			= drm_atomic_helper_plane_reset,
+	.atomic_create_state = drm_atomic_helper_plane_create_state,
 };
 
 /**
@@ -217,7 +217,7 @@ static const struct drm_crtc_helper_funcs default_crtc_helper_funcs = {
 static const struct drm_crtc_funcs default_crtc_funcs = {
 	.atomic_destroy_state   = drm_atomic_helper_crtc_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.reset                  = drm_atomic_helper_crtc_reset,
+	.atomic_create_state = drm_atomic_helper_crtc_create_state,
 };
 
 /**

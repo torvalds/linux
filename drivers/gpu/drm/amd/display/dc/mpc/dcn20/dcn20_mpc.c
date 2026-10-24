@@ -588,6 +588,7 @@ void dcn20_mpc_construct(struct dcn20_mpc *mpc20,
 	int i;
 
 	mpc20->base.ctx = ctx;
+	mpc20->base.inst = 0;
 
 	mpc20->base.funcs = &dcn20_mpc_funcs;
 

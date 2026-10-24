@@ -49,12 +49,19 @@ bool amdgpu_dm_crtc_helper_mode_fixup(struct drm_crtc *crtc,
 void amdgpu_dm_crtc_destroy_state(struct drm_crtc *crtc,
 				  struct drm_crtc_state *state);
 struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *crtc);
-void amdgpu_dm_crtc_reset_state(struct drm_crtc *crtc);
+struct drm_crtc_state *amdgpu_dm_crtc_create_state(struct drm_crtc *crtc);
+void amdgpu_dm_crtc_destroy(struct drm_crtc *crtc);
 int amdgpu_dm_crtc_count_crtc_active_planes(struct drm_crtc_state *new_crtc_state);
 void amdgpu_dm_crtc_update_crtc_active_planes(struct drm_crtc *crtc,
 					      struct drm_crtc_state *new_crtc_state);
 void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work);
 void amdgpu_dm_idle_worker(struct work_struct *work);
+int amdgpu_dm_crtc_set_vline0_irq(struct drm_crtc *crtc, int irq_type, bool enable);
+int amdgpu_dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
+				       struct drm_atomic_commit *state);
+#ifdef CONFIG_DEBUG_FS
+int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc);
+#endif
 #endif
 
 bool amdgpu_dm_crtc_vrr_active(const struct dm_crtc_state *dm_state);

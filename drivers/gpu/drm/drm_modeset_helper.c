@@ -27,6 +27,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_panic_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -113,6 +114,7 @@ static const uint32_t safe_modeset_formats[] = {
 
 static const struct drm_plane_funcs primary_plane_funcs = {
 	DRM_PLANE_NON_ATOMIC_FUNCS,
+	DRM_PANIC_PLANE_FUNCS,
 };
 
 /**

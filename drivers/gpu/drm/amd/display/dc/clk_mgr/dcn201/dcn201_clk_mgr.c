@@ -28,8 +28,8 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 #include "dcn201_clk_mgr.h"
+#include "dcn10/dcn10_clk_mgr.h"
 #include "dcn20/dcn20_clk_mgr.h"
-#include "dce100/dce_clk_mgr.h"
 #include "dm_helpers.h"
 #include "dm_services.h"
 
@@ -170,7 +170,7 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 }
 
 static struct clk_mgr_funcs dcn201_funcs = {
-	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 	.update_clocks = dcn201_update_clocks,
 	.init_clocks = dcn201_init_clocks,
 	.get_clock = dcn2_get_clock,
@@ -213,5 +213,5 @@ void dcn201_clk_mgr_construct(struct dc_context *ctx,
 		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)
 			clk_mgr->dfs_bypass_enabled = true;
 
-	dce_clock_read_ss_info(clk_mgr);
+	dcn10_clock_read_ss_info(clk_mgr);
 }

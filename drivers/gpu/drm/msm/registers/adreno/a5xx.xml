@@ -1804,6 +1804,9 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 
 
 	<reg32 offset="0xe000" name="GRAS_CL_CNTL">
+		<bitfield name="ZNEAR_CLIP_DISABLE" pos="1" type="boolean"/>
+		<bitfield name="ZFAR_CLIP_DISABLE" pos="2" type="boolean"/>
+		<bitfield name="Z_CLAMP_ENABLE" pos="5" type="boolean"/>
 		<bitfield name="ZERO_GB_SCALE_Z" pos="6" type="boolean"/>
 	</reg32>
 	<bitset name="a5xx_gras_xs_cl_cntl" inline="yes">
@@ -1832,6 +1835,13 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="0xe013" name="GRAS_CL_VPORT_YSCALE_0" type="float"/>
 	<reg32 offset="0xe014" name="GRAS_CL_VPORT_ZOFFSET_0" type="float"/>
 	<reg32 offset="0xe015" name="GRAS_CL_VPORT_ZSCALE_0" type="float"/>
+	<doc>
+		The range GRAS_CL_CNTL.Z_CLAMP_ENABLE clamps to.  Near and far, not
+		sorted as the a6xx equivalents are: a reversed depth range is written
+		reversed.
+	</doc>
+	<reg32 offset="0xe070" name="GRAS_CL_VIEWPORT_ZCLAMP_NEAR_0" type="float"/>
+	<reg32 offset="0xe071" name="GRAS_CL_VIEWPORT_ZCLAMP_FAR_0" type="float"/>
 	<reg32 offset="0xe090" name="GRAS_SU_CNTL">
 		<bitfield name="CULL_FRONT" pos="0" type="boolean"/>
 		<bitfield name="CULL_BACK" pos="1" type="boolean"/>
@@ -1976,6 +1986,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 	<reg32 offset="0xe146" name="RB_FS_OUTPUT_CNTL">
 		<!-- bit0 set except for binning pass.. -->
 		<bitfield name="MRT" low="0" high="3" type="uint"/>
+		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="4" type="boolean"/>
 		<bitfield name="FRAG_WRITES_Z" pos="5" type="boolean"/>
 	</reg32>
 	<reg32 offset="0xe147" name="RB_RENDER_COMPONENTS">
@@ -2058,6 +2069,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<!-- per-mrt enable bit -->
 		<bitfield name="ENABLE_BLEND" low="0" high="7"/>
 		<bitfield name="INDEPENDENT_BLEND" pos="8" type="boolean"/>
+		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="9" type="boolean"/>
 		<bitfield name="ALPHA_TO_COVERAGE" pos="10" type="boolean"/>
 		<!-- a guess? -->
 		<bitfield name="SAMPLE_MASK" low="16" high="31"/>
@@ -2070,6 +2082,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<bitfield name="Z_TEST_ENABLE" pos="0" type="boolean"/>
 		<bitfield name="Z_WRITE_ENABLE" pos="1" type="boolean"/>
 		<bitfield name="ZFUNC" low="2" high="4" type="adreno_compare_func"/>
+		<bitfield name="Z_CLAMP_ENABLE" pos="5" type="boolean"/>
 		<doc>Z_READ_ENABLE bit is set for zfunc other than GL_ALWAYS or GL_NEVER</doc>
 		<bitfield name="Z_READ_ENABLE" pos="6" type="boolean"/>
 	</reg32>
@@ -2114,6 +2127,8 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 	<reg32 offset="0xe1d1" name="RB_SAMPLE_COUNT_CONTROL">
 		<bitfield name="COPY" pos="1" type="boolean"/>
 	</reg32>
+	<reg32 offset="0xe200" name="RB_VIEWPORT_ZCLAMP_NEAR" type="float"/>
+	<reg32 offset="0xe201" name="RB_VIEWPORT_ZCLAMP_FAR" type="float"/>
 
 	<doc>
 		Blits:
@@ -2523,10 +2538,12 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<!-- per-mrt enable bit -->
 		<bitfield name="ENABLE_BLEND" low="0" high="7"/>
 		<bitfield name="UNK8" pos="8" type="boolean"/>
+		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="9" type="boolean"/>
 		<bitfield name="ALPHA_TO_COVERAGE" pos="10" type="boolean"/>
 	</reg32>
 	<reg32 offset="0xe5ca" name="SP_FS_OUTPUT_CNTL">
 		<bitfield name="MRT" low="0" high="3" type="uint"/>
+		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="4" type="boolean"/>
 		<bitfield name="DEPTH_REGID" low="5" high="12" type="a3xx_regid"/>
 		<bitfield name="SAMPLEMASK_REGID" low="13" high="20" type="a3xx_regid"/>
 	</reg32>

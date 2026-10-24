@@ -373,6 +373,305 @@ static void test_encode_object_basic(struct kunit *test)
 						     obj_echo_encoder));
 }
 
+static const struct {
+	u32 klvs[4];
+	int expected_err;
+	u16 expected_val;
+	const char *name;
+} decode_u16_params[] = {
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 0), ~0 },
+		.expected_err = -ENODATA,
+		.expected_val = 0xdead,
+		.name = "empty",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 1), 1, ~0 },
+		.expected_err = 0,
+		.expected_val = 1,
+		.name = "valid",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 1), U16_MAX, ~0 },
+		.expected_err = 0,
+		.expected_val = U16_MAX,
+		.name = "max",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 1), U16_MAX + 1, ~0 },
+		.expected_err = -EOVERFLOW,
+		.expected_val = 0xdead,
+		.name = "big",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 2), 1, 2, ~0 },
+		.expected_err = -ENOMSG,
+		.expected_val = 0xdead,
+		.name = "long",
+	},
+};
+
+KUNIT_ARRAY_PARAM_DESC(decode_u16, decode_u16_params, name);
+
+static void test_decode_u16(struct kunit *test)
+{
+	typeof(decode_u16_params[0]) *param = test->param_value;
+	const u32 *klvs = param->klvs;
+	const u32 *value = klvs + GUC_KLV_LEN_MIN;
+	u16 len = FIELD_GET(GUC_KLV_0_LEN, klvs[0]);
+	u16 data = 0xdead;
+
+	KUNIT_ASSERT_EQ(test, param->expected_err, xe_guc_klv_decode_u16(value, len, &data));
+	KUNIT_ASSERT_EQ(test, param->expected_val, data);
+}
+
+static const struct {
+	u32 klvs[4];
+	int expected_err;
+	u32 expected_val;
+	const char *name;
+} decode_u32_params[] = {
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 0), ~0 },
+		.expected_err = -ENODATA,
+		.expected_val = 0xdead,
+		.name = "empty",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 1), 1, ~0 },
+		.expected_err = 0,
+		.expected_val = 1,
+		.name = "valid",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 1), U32_MAX, ~0 },
+		.expected_err = 0,
+		.expected_val = U32_MAX,
+		.name = "max",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 2), 1, 2, ~0 },
+		.expected_err = -ENOMSG,
+		.expected_val = 0xdead,
+		.name = "long",
+	},
+};
+
+KUNIT_ARRAY_PARAM_DESC(decode_u32, decode_u32_params, name);
+
+static void test_decode_u32(struct kunit *test)
+{
+	typeof(decode_u32_params[0]) *param = test->param_value;
+	const u32 *klvs = param->klvs;
+	const u32 *value = klvs + GUC_KLV_LEN_MIN;
+	u16 len = FIELD_GET(GUC_KLV_0_LEN, klvs[0]);
+	u32 data = 0xdead;
+
+	KUNIT_ASSERT_EQ(test, param->expected_err, xe_guc_klv_decode_u32(value, len, &data));
+	KUNIT_ASSERT_EQ(test, param->expected_val, data);
+}
+
+static const struct {
+	u32 klvs[4];
+	int expected_err;
+	u64 expected_val;
+	const char *name;
+} decode_u64_params[] = {
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 0), ~0 },
+		.expected_err = -ENODATA,
+		.expected_val = 0xdead,
+		.name = "empty",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 1), 1, ~0, },
+		.expected_err = -ENODATA,
+		.expected_val = 0xdead,
+		.name = "short",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 2), 1, 2, ~0 },
+		.expected_err = 0,
+		.expected_val = 0x200000001,
+		.name = "valid",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 2), U32_MAX, U32_MAX, 3 },
+		.expected_err = 0,
+		.expected_val = U64_MAX,
+		.name = "max",
+	},
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 3), 1, 2, 3, },
+		.expected_err = -ENOMSG,
+		.expected_val = 0xdead,
+		.name = "long",
+	},
+};
+
+KUNIT_ARRAY_PARAM_DESC(decode_u64, decode_u64_params, name);
+
+static void test_decode_u64(struct kunit *test)
+{
+	typeof(decode_u64_params[0]) *param = test->param_value;
+	const u32 *klvs = param->klvs;
+	const u32 *value = klvs + GUC_KLV_LEN_MIN;
+	u16 len = FIELD_GET(GUC_KLV_0_LEN, klvs[0]);
+	u64 data = 0xdead;
+
+	KUNIT_ASSERT_EQ(test, param->expected_err, xe_guc_klv_decode_u64(value, len, &data));
+	KUNIT_ASSERT_EQ(test, param->expected_val, data);
+}
+
+#define make_u32(a, b, c, d) \
+	(FIELD_PREP_CONST(GENMASK_U32(31, 24), (a)) | \
+	 FIELD_PREP_CONST(GENMASK_U32(23, 16), (b)) | \
+	 FIELD_PREP_CONST(GENMASK_U32(15, 8), (c)) | \
+	 FIELD_PREP_CONST(GENMASK_U32(7, 0), (d)))
+
+static const struct {
+	u32 klvs[4];
+	int expected_err;
+	const char *expected_str;
+	const char *name;
+} decode_str_params[] = {
+	{
+		.klvs = { PREP_GUC_KLV_CONST(TEST_KEY, 0), 'a', ~0 },
+		.expected_err = -ENOMSG,
+		.expected_str = NULL,
+		.name = "empty",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 1),
+				make_u32(0, 0, 0, '1'),
+			},
+		.expected_err = 0,
+		.expected_str = "1",
+		.name = "one",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 1),
+				make_u32('3', '2', 0, '1'),
+				'4', ~0
+			},
+		.expected_err = 0,
+		.expected_str = "1",
+		.name = "one_trash",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 1),
+				make_u32(0, 0, '2', '1'),
+				'3', ~0
+			},
+		.expected_err = 0,
+		.expected_str = "12",
+		.name = "two",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 1),
+				make_u32('3', 0, '2', '1'),
+				'4', ~0
+			},
+		.expected_err = 0,
+		.expected_str = "12",
+		.name = "two_trash",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 1),
+				make_u32(0, '3', '2', '1'),
+				'4', ~0
+			},
+		.expected_err = 0,
+		.expected_str = "123",
+		.name = "three",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 1),
+				make_u32('4', '3', '2', '1'),
+				'5', ~0
+			},
+		.expected_err = 0,
+		.expected_str = "1234",
+		.name = "dword",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 2),
+				make_u32('4', '3', '2', '1'),
+				0, ~0
+			},
+		.expected_err = 0,
+		.expected_str = "1234",
+		.name = "four",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 2),
+				make_u32('4', '3', '2', '1'),
+				make_u32(0, 0, 0, '5'),
+				~0,
+			},
+		.expected_err = 0,
+		.expected_str = "12345",
+		.name = "five",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 2),
+				make_u32('4', '3', '2', '1'),
+				make_u32(0, 0, '6', '5'),
+				~0,
+			},
+		.expected_err = 0,
+		.expected_str = "123456",
+		.name = "six",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 2),
+				make_u32('4', '3', '2', '1'),
+				make_u32(0, '7', '6', '5'),
+				~0,
+			},
+		.expected_err = 0,
+		.expected_str = "1234567",
+		.name = "seven",
+	},
+	{
+		.klvs = {
+				PREP_GUC_KLV_CONST(TEST_KEY, 2),
+				make_u32('4', '3', '2', '1'),
+				make_u32('8', '7', '6', '5'),
+				~0,
+			},
+		.expected_err = 0,
+		.expected_str = "12345678",
+		.name = "qword",
+	},
+};
+
+KUNIT_ARRAY_PARAM_DESC(decode_str, decode_str_params, name);
+
+static void test_decode_str(struct kunit *test)
+{
+	typeof(decode_str_params[0]) *param = test->param_value;
+	const u32 *klvs = param->klvs;
+	const u32 *value = klvs + GUC_KLV_LEN_MIN;
+	u16 len = FIELD_GET(GUC_KLV_0_LEN, klvs[0]);
+	char *data = NULL;
+
+	KUNIT_EXPECT_EQ(test, param->expected_err, xe_guc_klv_decode_string(value, len, &data));
+	if (!param->expected_err)
+		KUNIT_EXPECT_STREQ(test, param->expected_str, data);
+	kfree(data);
+}
+
 static void __drm_printfn_kunit(struct drm_printer *p, struct va_format *vaf)
 {
 	struct kunit *test = p->arg;
@@ -417,6 +716,10 @@ static struct kunit_case guc_klv_helpers_test_cases[] = {
 	KUNIT_CASE(test_encode_object_klv),
 	KUNIT_CASE(test_encode_object_nested),
 	KUNIT_CASE(test_encode_object_basic),
+	KUNIT_CASE_PARAM(test_decode_u16, decode_u16_gen_params),
+	KUNIT_CASE_PARAM(test_decode_u32, decode_u32_gen_params),
+	KUNIT_CASE_PARAM(test_decode_u64, decode_u64_gen_params),
+	KUNIT_CASE_PARAM(test_decode_str, decode_str_gen_params),
 	KUNIT_CASE(test_print),
 	{}
 };

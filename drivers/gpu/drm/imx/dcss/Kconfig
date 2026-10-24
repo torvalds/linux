@@ -6,6 +6,7 @@ config DRM_IMX_DCSS
 	select DRM_DISPLAY_HELPER
 	select DRM_BRIDGE_CONNECTOR
 	select DRM_GEM_DMA_HELPER
+	select DRM_PANEL
 	select VIDEOMODE_HELPERS
 	depends on DRM && ((ARCH_MXC && ARM64) || COMPILE_TEST)
 	help

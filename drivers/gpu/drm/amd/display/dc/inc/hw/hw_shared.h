@@ -153,13 +153,6 @@ struct dc_rgb {
 	uint32_t blue;
 };
 
-struct tetrahedral_33x33x33 {
-	struct dc_rgb lut0[8985];
-	struct dc_rgb lut1[8984];
-	struct dc_rgb lut2[8984];
-	struct dc_rgb lut3[8984];
-};
-
 struct tetrahedral_17x17x17 {
 	struct dc_rgb lut0[1229];
 	struct dc_rgb lut1[1228];
@@ -182,14 +175,11 @@ enum lut_dimension {
 
 struct tetrahedral_params {
 	union {
-//TODO: Uncomment when in use.
-//		struct tetrahedral_33x33x33 tetrahedral_33;
 		struct tetrahedral_17x17x17 tetrahedral_17;
 		struct tetrahedral_9x9x9 tetrahedral_9;
 	};
 	bool use_tetrahedral_9;
 	bool use_12bits;
-	enum lut_dimension lut_dim;
 };
 
 /* arr_curve_points - regamma regions/segments specification

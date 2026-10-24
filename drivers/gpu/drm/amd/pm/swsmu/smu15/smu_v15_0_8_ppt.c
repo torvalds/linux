@@ -72,6 +72,9 @@
 
 #define NUM_JPEG_RINGS_FW	10
 
+/* Custom 5-second timeout (in us) for unload messages */
+#define SMU_V15_0_8_MSG_TIMEOUT_US	(5 * 1000 * 1000)
+
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
 #define SMU_15_0_8_FEA_MAP(smu_feature, smu_15_0_8_feature)                    \
@@ -123,6 +126,7 @@ static const struct cmn2asic_msg_mapping smu_v15_0_8_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(GetTimestamp,                        PPSMC_MSG_GetTimestamp,                    0),
 	MSG_MAP(GetBadPageIpid,                      PPSMC_MSG_GetBadPageIpIdLoHi,              0),
 	MSG_MAP(EraseRasTable,                       PPSMC_MSG_EraseRasTable,                   0),
+	MSG_MAP(GetRmaStatus,                        PPSMC_MSG_GetRmaStatus,                    0),
 	MSG_MAP(GetStaticMetricsTable,               PPSMC_MSG_GetStaticMetricsTable,		1),
 	MSG_MAP(GetSystemMetricsTable,               PPSMC_MSG_GetSystemMetricsTable,           1),
 	MSG_MAP(GetSystemMetricsVersion,             PPSMC_MSG_GetSystemMetricsVersion,		0),
@@ -614,6 +618,9 @@ static int smu_v15_0_8_get_npm_data(struct smu_context *smu,
 	case AMDGPU_PP_SENSOR_NODEPOWER:
 		*value = SMUQ10_ROUND(metrics->NodePower);
 		break;
+	case AMDGPU_PP_SENSOR_NPMSTATUS:
+		*value = !!SMUQ10_ROUND(metrics->NodePower);
+		break;
 	case AMDGPU_PP_SENSOR_GPPTRESIDENCY:
 		*value = SMUQ10_ROUND(metrics->GlobalPPTResidencyAcc);
 		break;
@@ -677,6 +684,7 @@ static int smu_v15_0_8_read_sensor(struct smu_context *smu,
 	case AMDGPU_PP_SENSOR_NODEPOWER:
 	case AMDGPU_PP_SENSOR_GPPTRESIDENCY:
 	case AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT:
+	case AMDGPU_PP_SENSOR_NPMSTATUS:
 		ret = smu_v15_0_8_get_npm_data(smu, sensor, (uint32_t *)data);
 		if (ret)
 			return ret;
@@ -1279,12 +1287,18 @@ static int smu_v15_0_8_register_irq_handler(struct smu_context *smu)
 
 static int smu_v15_0_8_notify_unload(struct smu_context *smu)
 {
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
+	struct smu_msg_args args = {
+		.msg     = SMU_MSG_PrepareMp1ForUnload,
+		.timeout = SMU_V15_0_8_MSG_TIMEOUT_US,
+	};
+
 	if (amdgpu_in_reset(smu->adev))
 		return 0;
 
 	dev_dbg(smu->adev->dev, "Notify PMFW about driver unload");
 	/* Ignore return, just intimate FW that driver is not going to be there */
-	smu_cmn_send_smc_msg(smu, SMU_MSG_PrepareMp1ForUnload, NULL);
+	ctl->ops->send_msg(ctl, &args);
 
 	return 0;
 }
@@ -1756,7 +1770,8 @@ static ssize_t smu_v15_0_8_get_gpu_metrics(struct smu_context *smu, void **table
 	gpu_metrics->mem_max_bandwidth = SMUQ10_ROUND(metrics->MaxDramBandwidth);
 
 	/* Energy counter reported in 15.259uJ (2^-16) units */
-	gpu_metrics->energy_accumulator = metrics->SocketEnergyAcc;
+	gpu_metrics->energy_accumulator =
+		SMUQ10_ROUND(metrics->SocketEnergyAcc);
 
 	for (i = 0; i < NUM_XCC(adev->gfx.xcc_mask); ++i) {
 		xcc_id = GET_INST(GC, i);
@@ -1834,7 +1849,7 @@ static ssize_t smu_v15_0_8_get_gpu_metrics(struct smu_context *smu, void **table
 	}
 
 	gpu_metrics->xgmi_link_width = metrics->XgmiWidth;
-	gpu_metrics->xgmi_link_speed = metrics->XgmiBitrate;
+	gpu_metrics->xgmi_link_speed = SMUQ10_ROUND(metrics->XgmiBitrate);
 
 	gpu_metrics->firmware_timestamp = metrics->Timestamp;
 

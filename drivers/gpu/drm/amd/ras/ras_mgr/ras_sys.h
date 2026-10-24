@@ -28,7 +28,10 @@
 #include <linux/printk.h>
 #include <linux/dev_printk.h>
 #include <linux/mempool.h>
+#include <linux/math64.h>
+#include <linux/time.h>
 #include "amdgpu.h"
+#include "amdgpu_ip.h"
 
 /* inject address is 52 bits */
 #define RAS_UMC_INJECT_ADDR_LIMIT       (0x1ULL << 52)
@@ -94,15 +97,13 @@
 #define RAS_GET_INST(dev, ip, inst) \
 ({ \
 	struct amdgpu_device *adev = (struct amdgpu_device *)dev; \
-	adev->ip_map.logical_to_dev_inst ? \
-		adev->ip_map.logical_to_dev_inst(adev, ip##_HWIP, inst) : inst; \
+	amdgpu_ip_map_logical_to_dev_inst(&adev->ip_map, ip##_HWIP, inst); \
 })
 
 #define RAS_GET_MASK(dev, ip, mask) \
 ({ \
 	struct amdgpu_device *adev = (struct amdgpu_device *)dev; \
-	(adev->ip_map.logical_to_dev_mask ? \
-		adev->ip_map.logical_to_dev_mask(adev, ip##_HWIP, mask) : mask); \
+	amdgpu_ip_map_logical_to_dev_mask(&adev->ip_map, ip##_HWIP, mask); \
 })
 
 static inline void *ras_radix_tree_delete_iter(struct radix_tree_root *root, void *iter)

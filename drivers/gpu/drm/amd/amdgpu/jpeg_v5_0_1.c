@@ -22,6 +22,7 @@
  */
 
 #include "amdgpu.h"
+#include "amdgpu_ip.h"
 #include "amdgpu_jpeg.h"
 #include "amdgpu_pm.h"
 #include "soc15.h"
@@ -772,7 +773,7 @@ static int jpeg_v5_0_1_set_ras_interrupt_state(struct amdgpu_device *adev,
 
 
 
-int jpeg_v5_0_1_process_interrupt(struct amdgpu_device *adev,
+static int jpeg_v5_0_1_process_interrupt(struct amdgpu_device *adev,
 					 struct amdgpu_irq_src *source,
 					 struct amdgpu_iv_entry *entry)
 {
@@ -886,7 +887,6 @@ static const struct amd_ip_funcs jpeg_v5_0_1_ip_funcs = {
 	.hw_fini = jpeg_v5_0_1_hw_fini,
 	.suspend = jpeg_v5_0_1_suspend,
 	.resume = jpeg_v5_0_1_resume,
-	.is_idle = jpeg_v5_0_1_is_idle,
 	.wait_for_idle = jpeg_v5_0_1_wait_for_idle,
 	.soft_reset = NULL,
 	.set_clockgating_state = jpeg_v5_0_1_set_clockgating_state,

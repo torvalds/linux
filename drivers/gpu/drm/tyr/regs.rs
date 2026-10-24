@@ -986,6 +986,7 @@ pub(crate) mod mmu_control {
     /// This array contains 16 instances of the MMU_AS_CONTROL register page.
     pub(crate) mod mmu_as_control {
         use kernel::{
+            bitfield,
             num::Bounded,
             prelude::*,
             register, //
@@ -1130,14 +1131,12 @@ pub(crate) mod mmu_control {
             }
         }
 
-        register! {
-            base: TyrRegisters;
-
+        bitfield! {
             /// Stage 1 memory attributes (8-bit bitfield).
             ///
-            /// This is not an actual register, but a bitfield definition used by the MEMATTR
-            /// register. Each of the 8 bytes in MEMATTR follows this layout.
-            MMU_MEMATTR_STAGE1(u8) @ 0x0 {
+            /// Each of the 8 bytes in MEMATTR follows this layout.
+            #[allow(non_camel_case_types)]
+            struct MMU_MEMATTR_STAGE1(u8) {
                 /// Inner cache write allocation policy.
                 0:0     alloc_w => bool;
                 /// Inner cache read allocation policy.
@@ -1802,7 +1801,10 @@ pub(crate) mod doorbell_block {
     use crate::driver::TyrRegisters;
 
     /// Number of doorbells available.
-    pub(crate) const NUM_DOORBELLS: usize = 64;
+    /// The architectural maximum is 64 but this full array does not
+    /// fit in the 2 MiB iomem region. Panthor currently uses a maximum of
+    /// 17 doorbells so do the same here.
+    pub(crate) const NUM_DOORBELLS: usize = 17;
 
     /// Doorbell block stride (64KiB).
     ///

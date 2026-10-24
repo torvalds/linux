@@ -77,6 +77,7 @@ enum ras_cmd_id {
 	RAS_CMD__SET_CMD_AUTO_UPDATE,
 	RAS_CMD__CHECK_ADDRESS_VALIDITY,
 	RAS_CMD__CONVERT_RETIRED_ADDRESS,
+	RAS_CMD__GET_RAS_CAP,
 	RAS_CMD__SUPPORTED_MAX = RAS_CMD_ID_COMMON_END,
 };
 
@@ -92,6 +93,13 @@ enum ras_cmd_response {
 	RAS_CMD__ERROR_ACCESS_DENIED,
 	RAS_CMD__ERROR_GENERIC,
 	RAS_CMD__ERROR_TIMEOUT,
+	RAS_CMD__ERROR_UNSUPPORT,
+};
+
+enum ras_ecc_type {
+	RAS_ECC_TYPE_MEM = 0,
+	RAS_ECC_TYPE_SRAM,
+	RAS_ECC_TYPE_POISON,
 };
 
 enum ras_error_type {
@@ -203,12 +211,12 @@ struct ras_cmd_inject_error_rsp {
 struct ras_cmd_dev_info {
 	uint64_t dev_handle;
 	uint32_t location_id;
-	uint32_t ecc_enabled;
-	uint32_t ecc_supported;
+	uint32_t ecc_type;
+	uint64_t block_mask_bits;
 	uint32_t vf_num;
 	uint32_t asic_type;
 	uint32_t oam_id;
-	uint32_t reserved[8];
+	uint32_t reserved[7];
 };
 
 struct ras_cmd_devices_info_rsp {
@@ -351,6 +359,8 @@ struct ras_cmd_cper_snapshot_rsp {
 	uint64_t latest_cper_id;
 };
 
+#define RAS_CMD_MAX_CPER_BUF_SZ	(2 * 1024U * 1024U) /* 2 MiB */
+
 struct ras_cmd_cper_record_req {
 	struct ras_cmd_dev_handle dev;
 	uint64_t cper_start_id;
@@ -444,7 +454,7 @@ struct ras_cmd_convert_retired_address_req {
 	uint32_t reserved[6];
 };
 
-#define RAS_CMD_MAX_RETIRED_ADDR_COUNT  32
+#define RAS_CMD_MAX_RETIRED_ADDR_COUNT  128
 struct ras_cmd_convert_retired_address_rsp {
 	uint32_t version;
 	uint32_t retired_count;
@@ -466,6 +476,20 @@ struct ras_cmd_blocks_ecc_rsp {
 	uint32_t version;
 	uint32_t reserved[5];
 	struct ras_cmd_block_ecc blocks[MAX_RAS_BLOCK_NUM];
+};
+
+struct ras_cmd_get_ras_cap_req {
+	struct ras_cmd_dev_handle dev;
+	uint32_t reserved[4];
+};
+
+struct ras_cmd_get_ras_cap_rsp {
+	uint32_t version;
+	uint32_t ecc_type;
+	uint32_t poison;
+	uint32_t flex_mca;
+	uint64_t ras_block_mask;
+	uint32_t reserved[8];
 };
 
 #pragma pack(pop)

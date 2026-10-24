@@ -33,13 +33,12 @@ void dcn201_init_hw(struct dc *dc);
 void dcn201_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings);
 void dcn201_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn201_prepare_plane_addr_update(const struct dc *dc, struct pipe_ctx *pipe_ctx,
+		struct dc_plane_address *addr_to_program, bool *flip_immediate);
 void dcn201_plane_atomic_disconnect(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx);
 void dcn201_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx);
 void dcn201_set_cursor_attribute(struct pipe_ctx *pipe_ctx);
-void dcn201_pipe_control_lock(
-	struct dc *dc,
-	struct pipe_ctx *pipe,
-	bool lock);
+void dcn201_tg_lock(struct tg_lock_params *params);
 void dcn201_init_blank(
 		struct dc *dc,
 		struct timing_generator *tg);

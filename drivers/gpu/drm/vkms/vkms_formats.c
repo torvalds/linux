@@ -321,10 +321,10 @@ static void function_name(const struct vkms_plane_state *plane, int x_start,			\
 			      struct pixel_argb_u16 out_pixel[])				\
 {												\
 	struct pixel_argb_u16 *end = out_pixel + count;						\
-	int step = get_block_step_bytes(plane->frame_info->fb, direction, 0);			\
+	int step = get_block_step_bytes(plane->frame_info.fb, direction, 0);			\
 	u8 *src_pixels;										\
 												\
-	packed_pixels_addr_1x1(plane->frame_info, x_start, y_start, 0, &src_pixels);		\
+	packed_pixels_addr_1x1(&plane->frame_info, x_start, y_start, 0, &src_pixels);		\
 												\
 	while (out_pixel < end) {								\
 		pixel_type *(pixel_name) = (pixel_type *)src_pixels;				\
@@ -379,16 +379,16 @@ static void Rx_read_line(const struct vkms_plane_state *plane, int x_start,
 			 struct pixel_argb_u16 out_pixel[])
 {
 	struct pixel_argb_u16 *end = out_pixel + count;
-	int bits_per_pixel = drm_format_info_bpp(plane->frame_info->fb->format, 0);
+	int bits_per_pixel = drm_format_info_bpp(plane->frame_info.fb->format, 0);
 	u8 *src_pixels;
 	int rem_x, rem_y;
 
-	WARN_ONCE(drm_format_info_block_height(plane->frame_info->fb->format, 0) != 1,
+	WARN_ONCE(drm_format_info_block_height(plane->frame_info.fb->format, 0) != 1,
 		  "%s() only support formats with block_h == 1", __func__);
 
-	packed_pixels_addr(plane->frame_info, x_start, y_start, 0, &src_pixels, &rem_x, &rem_y);
+	packed_pixels_addr(&plane->frame_info, x_start, y_start, 0, &src_pixels, &rem_x, &rem_y);
 	int bit_offset = (8 - bits_per_pixel) - rem_x * bits_per_pixel;
-	int step = get_block_step_bytes(plane->frame_info->fb, direction, 0);
+	int step = get_block_step_bytes(plane->frame_info.fb, direction, 0);
 	int mask = (0x1 << bits_per_pixel) - 1;
 	int lum_per_level = 0xFFFF / mask;
 
@@ -503,15 +503,15 @@ static void function_name(const struct vkms_plane_state *plane, int x_start,			\
 	u8 *plane_1;										\
 	u8 *plane_2;										\
 												\
-	packed_pixels_addr_1x1(plane->frame_info, x_start, y_start, 0,				\
+	packed_pixels_addr_1x1(&plane->frame_info, x_start, y_start, 0,				\
 			       &plane_1);							\
-	packed_pixels_addr_1x1(plane->frame_info,						\
-			       x_start / plane->frame_info->fb->format->hsub,			\
-			       y_start / plane->frame_info->fb->format->vsub, 1,		\
+	packed_pixels_addr_1x1(&plane->frame_info,						\
+			       x_start / plane->frame_info.fb->format->hsub,			\
+			       y_start / plane->frame_info.fb->format->vsub, 1,			\
 			       &plane_2);							\
-	int step_1 = get_block_step_bytes(plane->frame_info->fb, direction, 0);			\
-	int step_2 = get_block_step_bytes(plane->frame_info->fb, direction, 1);			\
-	int subsampling = get_subsampling(plane->frame_info->fb->format, direction);		\
+	int step_1 = get_block_step_bytes(plane->frame_info.fb, direction, 0);			\
+	int step_2 = get_block_step_bytes(plane->frame_info.fb, direction, 1);			\
+	int subsampling = get_subsampling(plane->frame_info.fb->format, direction);		\
 	int subsampling_offset = get_subsampling_offset(direction, x_start, y_start);		\
 	const struct conversion_matrix *conversion_matrix = &plane->conversion_matrix;		\
 												\
@@ -548,20 +548,20 @@ static void planar_yuv_read_line(const struct vkms_plane_state *plane, int x_sta
 	u8 *channel_1_plane;
 	u8 *channel_2_plane;
 
-	packed_pixels_addr_1x1(plane->frame_info, x_start, y_start, 0,
+	packed_pixels_addr_1x1(&plane->frame_info, x_start, y_start, 0,
 			       &y_plane);
-	packed_pixels_addr_1x1(plane->frame_info,
-			       x_start / plane->frame_info->fb->format->hsub,
-			       y_start / plane->frame_info->fb->format->vsub, 1,
+	packed_pixels_addr_1x1(&plane->frame_info,
+			       x_start / plane->frame_info.fb->format->hsub,
+			       y_start / plane->frame_info.fb->format->vsub, 1,
 			       &channel_1_plane);
-	packed_pixels_addr_1x1(plane->frame_info,
-			       x_start / plane->frame_info->fb->format->hsub,
-			       y_start / plane->frame_info->fb->format->vsub, 2,
+	packed_pixels_addr_1x1(&plane->frame_info,
+			       x_start / plane->frame_info.fb->format->hsub,
+			       y_start / plane->frame_info.fb->format->vsub, 2,
 			       &channel_2_plane);
-	int step_y = get_block_step_bytes(plane->frame_info->fb, direction, 0);
-	int step_channel_1 = get_block_step_bytes(plane->frame_info->fb, direction, 1);
-	int step_channel_2 = get_block_step_bytes(plane->frame_info->fb, direction, 2);
-	int subsampling = get_subsampling(plane->frame_info->fb->format, direction);
+	int step_y = get_block_step_bytes(plane->frame_info.fb, direction, 0);
+	int step_channel_1 = get_block_step_bytes(plane->frame_info.fb, direction, 1);
+	int step_channel_2 = get_block_step_bytes(plane->frame_info.fb, direction, 2);
+	int subsampling = get_subsampling(plane->frame_info.fb->format, direction);
 	int subsampling_offset = get_subsampling_offset(direction, x_start, y_start);
 	const struct conversion_matrix *conversion_matrix = &plane->conversion_matrix;
 
@@ -788,15 +788,36 @@ static const struct conversion_matrix yuv_bt601_full = {
 };
 
 /*
- * numpy.around(colour.matrix_YCbCr(K=colour.WEIGHTS_YCBCR["ITU-R BT.601"],
- *                                  is_legal = True,
- *                                  bits = 8) * 2**32).astype(int)
+ * BT.601 limited-/studio-range YCbCr to full-range RGB.
+ *
+ * The coefficients are derived as follows:
+ *
+ *  1. Take the standard ITU-R YCbCr -> RGB relations for luma weights
+ *     Kr, Kb (Kg = 1 - Kr - Kb), with Y in [0, 1] and Cb, Cr in
+ *     [-0.5, 0.5]. For BT.601 Kr = 0.299 and Kb = 0.114:
+ *
+ *       R = Y                                + 2 * (1 - Kr)          * Cr
+ *       G = Y - 2 * (1 - Kb) * Kb / Kg * Cb - 2 * (1 - Kr) * Kr / Kg * Cr
+ *       B = Y + 2 * (1 - Kb)          * Cb
+ *
+ *     These are exactly the yuv_bt601_full coefficients above.
+ *
+ *  2. Expand the studio input range to full range, relative to a
+ *     full-range maximum of 2^n - 1 (255 for 8-bit): the luma
+ *     coefficient is scaled by 255/(235 - 16) and the chroma
+ *     coefficients by 255/(240 - 16). This matches the DRM UAPI
+ *     definition and IGT's igt_ycbcr_to_rgb_matrix(). Note this differs
+ *     from colour.matrix_YCbCr(is_legal=True), which normalises by 2^n
+ *     and is thus off by a factor of 256/255.
+ *
+ *  3. Convert each coefficient to S31.32 fixed point, i.e.
+ *     round(coeff * 2^32).
  */
 static const struct conversion_matrix yuv_bt601_limited = {
 	.matrix = {
-		{ 5020601039, 0,           6881764740 },
-		{ 5020601039, -1689204679, -3505362278 },
-		{ 5020601039, 8697922339,  0 },
+		{ 5000989317, 0,           6854882848 },
+		{ 5000989317, -1682606224, -3491669458 },
+		{ 5000989317, 8663946082,  0 },
 	},
 	.y_offset = 16,
 };
@@ -816,15 +837,14 @@ static const struct conversion_matrix yuv_bt709_full = {
 };
 
 /*
- * numpy.around(colour.matrix_YCbCr(K=colour.WEIGHTS_YCBCR["ITU-R BT.709"],
- *                                  is_legal = True,
- *                                  bits = 8) * 2**32).astype(int)
+ * BT.709 limited-range YCbCr to full-range RGB (Kr = 0.2126, Kb = 0.0722).
+ * Derived as described for yuv_bt601_limited.
  */
 static const struct conversion_matrix yuv_bt709_limited = {
 	.matrix = {
-		{ 5020601039, 0,          7729959424 },
-		{ 5020601039, -919487572, -2297803934 },
-		{ 5020601039, 9108275786, 0 },
+		{ 5000989317, 0,          7699764272 },
+		{ 5000989317, -915895824, -2288828138 },
+		{ 5000989317, 9072696586, 0 },
 	},
 	.y_offset = 16,
 };
@@ -844,15 +864,14 @@ static const struct conversion_matrix yuv_bt2020_full = {
 };
 
 /*
- * numpy.around(colour.matrix_YCbCr(K=colour.WEIGHTS_YCBCR["ITU-R BT.2020"],
- *                                  is_legal = True,
- *                                  bits = 8) * 2**32).astype(int)
+ * BT.2020 non-constant-luminance limited-range YCbCr to full-range RGB
+ * (Kr = 0.2627, Kb = 0.0593). Derived as described for yuv_bt601_limited.
  */
 static const struct conversion_matrix yuv_bt2020_limited = {
 	.matrix = {
-		{ 5020601039, 0,          7238124312 },
-		{ 5020601039, -807714626, -2804506279 },
-		{ 5020601039, 9234915964, 0 },
+		{ 5000989317, 0,          7209850391 },
+		{ 5000989317, -804559491, -2793551177 },
+		{ 5000989317, 9198842076, 0 },
 	},
 	.y_offset = 16,
 };
@@ -876,15 +895,24 @@ static void swap_uv_columns(struct conversion_matrix *matrix)
  * @format: DRM_FORMAT_* value for which to obtain a conversion function (see [drm_fourcc.h])
  * @encoding: DRM_COLOR_* value for which to obtain a conversion matrix
  * @range: DRM_COLOR_*_RANGE value for which to obtain a conversion matrix
+ * @bypass: If true, return an identity (no-op) matrix that passes the samples
+ *          through unchanged, ignoring @encoding and @range. Used when a fixed
+ *          matrix colorop is present but bypassed.
  * @matrix: Pointer to store the value into
  */
 void get_conversion_matrix_to_argb_u16(u32 format,
 				       enum drm_color_encoding encoding,
 				       enum drm_color_range range,
+				       bool bypass,
 				       struct conversion_matrix *matrix)
 {
 	const struct conversion_matrix *matrix_to_copy;
 	bool limited_range;
+
+	if (bypass) {
+		memcpy(matrix, &no_operation, sizeof(no_operation));
+		return;
+	}
 
 	switch (range) {
 	case DRM_COLOR_YCBCR_LIMITED_RANGE:

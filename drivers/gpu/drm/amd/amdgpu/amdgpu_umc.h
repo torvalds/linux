@@ -45,12 +45,6 @@
 #define LOOP_UMC_CH_INST(ch_inst) for ((ch_inst) = 0; (ch_inst) < adev->umc.channel_inst_num; (ch_inst)++)
 #define LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) LOOP_UMC_INST((umc_inst)) LOOP_UMC_CH_INST((ch_inst))
 
-#define LOOP_UMC_NODE_INST(node_inst) \
-		for_each_set_bit((node_inst), &(adev->umc.active_mask), adev->umc.node_inst_num)
-
-#define LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) \
-		LOOP_UMC_NODE_INST((node_inst)) LOOP_UMC_INST_AND_CH((umc_inst), (ch_inst))
-
 /* Page retirement tag */
 #define UMC_ECC_NEW_DETECTED_TAG       0x1
 /*
@@ -117,7 +111,7 @@ struct amdgpu_umc {
 	struct amdgpu_umc_ras *ras;
 
 	/* active mask for umc node instance */
-	unsigned long active_mask;
+	u64 active_mask;
 
 	unsigned long err_addr_cnt;
 };

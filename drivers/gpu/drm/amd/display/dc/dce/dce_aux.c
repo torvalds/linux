@@ -432,14 +432,24 @@ static bool acquire_aux_engine_without_ddc_pin(
 	struct dce_aux *engine,
 	struct ddc *ddc)
 {
-	(void)ddc;
 	if ((engine == NULL) || !is_engine_available(engine))
 		return false;
 
+	/* Open the DDC in AUX mode so the I3C PAD set_config hook runs and
+	 * enables the PAD RX (disabled by default); otherwise DPCD reads time
+	 * out even though the connector has no native I2C/DDC pin. */
+	if (ddc != NULL &&
+		dal_ddc_open(ddc, GPIO_MODE_HARDWARE,
+			GPIO_DDC_CONFIG_TYPE_MODE_AUX) != GPIO_RESULT_OK)
+		return false;
+
 	if (!acquire_engine(engine)) {
+		engine->ddc = ddc;
 		release_engine(engine);
 		return false;
 	}
+
+	engine->ddc = ddc;
 	return true;
 }
 

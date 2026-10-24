@@ -92,6 +92,7 @@ static inline void amdgpu_res_first(struct ttm_resource *res,
 	case TTM_PL_TT:
 	case AMDGPU_PL_DOORBELL:
 	case AMDGPU_PL_MMIO_REMAP:
+	case AMDGPU_PL_NPA:
 		node = to_ttm_range_mgr_node(res)->mm_nodes;
 		while (start >= node->size << PAGE_SHIFT)
 			start -= node++->size << PAGE_SHIFT;

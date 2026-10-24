@@ -120,8 +120,8 @@ intel_dp_aux_supports_hdr_backlight(struct intel_connector *connector)
 
 	intel_dp_wait_source_oui(intel_dp);
 
-	ret = drm_dp_dpcd_read(aux, INTEL_EDP_HDR_TCON_CAP0, tcon_cap, sizeof(tcon_cap));
-	if (ret != sizeof(tcon_cap))
+	ret = drm_dp_dpcd_read_data(aux, INTEL_EDP_HDR_TCON_CAP0, tcon_cap, sizeof(tcon_cap));
+	if (ret < 0)
 		return false;
 
 	drm_dbg_kms(display->drm,
@@ -178,11 +178,13 @@ intel_dp_aux_hdr_get_backlight(struct intel_connector *connector, enum pipe pipe
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
 	u8 tmp;
 	u8 buf[2] = {};
+	int ret;
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, INTEL_EDP_HDR_GETSET_CTRL_PARAMS, &tmp) != 1) {
+	ret = drm_dp_dpcd_read_byte(&intel_dp->aux, INTEL_EDP_HDR_GETSET_CTRL_PARAMS, &tmp);
+	if (ret < 0) {
 		drm_err(display->drm,
-			"[CONNECTOR:%d:%s] Failed to read current backlight mode from DPCD\n",
-			connector->base.base.id, connector->base.name);
+			"[CONNECTOR:%d:%s] Failed to read current backlight mode from DPCD (%pe)\n",
+			connector->base.base.id, connector->base.name, ERR_PTR(ret));
 		return 0;
 	}
 
@@ -197,11 +199,12 @@ intel_dp_aux_hdr_get_backlight(struct intel_connector *connector, enum pipe pipe
 		return panel->backlight.max;
 	}
 
-	if (drm_dp_dpcd_read(&intel_dp->aux, INTEL_EDP_BRIGHTNESS_NITS_LSB, buf,
-			     sizeof(buf)) != sizeof(buf)) {
+	ret = drm_dp_dpcd_read_data(&intel_dp->aux, INTEL_EDP_BRIGHTNESS_NITS_LSB, buf,
+				    sizeof(buf));
+	if (ret < 0) {
 		drm_err(display->drm,
-			"[CONNECTOR:%d:%s] Failed to read brightness from DPCD\n",
-			connector->base.base.id, connector->base.name);
+			"[CONNECTOR:%d:%s] Failed to read brightness from DPCD (%pe)\n",
+			connector->base.base.id, connector->base.name, ERR_PTR(ret));
 		return 0;
 	}
 
@@ -215,14 +218,16 @@ intel_dp_aux_hdr_set_aux_backlight(const struct drm_connector_state *conn_state,
 	struct drm_device *dev = connector->base.dev;
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
 	u8 buf[4] = {};
+	int ret;
 
 	buf[0] = level & 0xFF;
 	buf[1] = (level & 0xFF00) >> 8;
 
-	if (drm_dp_dpcd_write(&intel_dp->aux, INTEL_EDP_BRIGHTNESS_NITS_LSB, buf,
-			      sizeof(buf)) != sizeof(buf))
-		drm_err(dev, "[CONNECTOR:%d:%s] Failed to write brightness level to DPCD\n",
-			connector->base.base.id, connector->base.name);
+	ret = drm_dp_dpcd_write_data(&intel_dp->aux, INTEL_EDP_BRIGHTNESS_NITS_LSB, buf,
+				     sizeof(buf));
+	if (ret < 0)
+		drm_err(dev, "[CONNECTOR:%d:%s] Failed to write brightness level to DPCD (%pe)\n",
+			connector->base.base.id, connector->base.name, ERR_PTR(ret));
 }
 
 static void
@@ -258,13 +263,12 @@ intel_dp_aux_write_content_luminance(struct intel_connector *connector,
 	buf[2] = hdr_metadata->hdmi_metadata_type1.max_fall & 0xFF;
 	buf[3] = (hdr_metadata->hdmi_metadata_type1.max_fall & 0xFF00) >> 8;
 
-	ret = drm_dp_dpcd_write(&intel_dp->aux,
-				INTEL_EDP_HDR_CONTENT_LUMINANCE,
-				buf, sizeof(buf));
+	ret = drm_dp_dpcd_write_data(&intel_dp->aux,
+				     INTEL_EDP_HDR_CONTENT_LUMINANCE,
+				     buf, sizeof(buf));
 	if (ret < 0)
 		drm_dbg_kms(display->drm,
-			    "Content Luminance DPCD reg write failed, err:-%d\n",
-			    ret);
+			    "Content Luminance DPCD reg write failed (%pe)\n", ERR_PTR(ret));
 }
 
 static void
@@ -313,11 +317,11 @@ intel_dp_aux_hdr_enable_backlight(const struct intel_crtc_state *crtc_state,
 
 	intel_dp_wait_source_oui(intel_dp);
 
-	ret = drm_dp_dpcd_readb(&intel_dp->aux, INTEL_EDP_HDR_GETSET_CTRL_PARAMS, &old_ctrl);
-	if (ret != 1) {
+	ret = drm_dp_dpcd_read_byte(&intel_dp->aux, INTEL_EDP_HDR_GETSET_CTRL_PARAMS, &old_ctrl);
+	if (ret < 0) {
 		drm_err(display->drm,
-			"[CONNECTOR:%d:%s] Failed to read current backlight control mode: %d\n",
-			connector->base.base.id, connector->base.name, ret);
+			"[CONNECTOR:%d:%s] Failed to read current backlight control mode (%pe)\n",
+			connector->base.base.id, connector->base.name, ERR_PTR(ret));
 		return;
 	}
 
@@ -337,11 +341,14 @@ intel_dp_aux_hdr_enable_backlight(const struct intel_crtc_state *crtc_state,
 
 	intel_dp_aux_fill_hdr_tcon_params(conn_state, &ctrl);
 
-	if (ctrl != old_ctrl &&
-	    drm_dp_dpcd_writeb(&intel_dp->aux, INTEL_EDP_HDR_GETSET_CTRL_PARAMS, ctrl) != 1)
-		drm_err(display->drm,
-			"[CONNECTOR:%d:%s] Failed to configure DPCD brightness controls\n",
-			connector->base.base.id, connector->base.name);
+	if (ctrl != old_ctrl) {
+		ret = drm_dp_dpcd_write_byte(&intel_dp->aux,
+					     INTEL_EDP_HDR_GETSET_CTRL_PARAMS, ctrl);
+		if (ret < 0)
+			drm_err(display->drm,
+				"[CONNECTOR:%d:%s] Failed to configure DPCD brightness controls (%pe)\n",
+				connector->base.base.id, connector->base.name, ERR_PTR(ret));
+	}
 
 	if (intel_dp_in_hdr_mode(conn_state)) {
 		hdr_metadata = conn_state->hdr_output_metadata->data;
@@ -392,13 +399,12 @@ intel_dp_aux_write_panel_luminance_override(struct intel_connector *connector)
 	buf[2] = panel->backlight.max & 0xFF;
 	buf[3] = (panel->backlight.max & 0xFF00) >> 8;
 
-	ret = drm_dp_dpcd_write(&intel_dp->aux,
-				INTEL_EDP_HDR_PANEL_LUMINANCE_OVERRIDE,
-				buf, sizeof(buf));
+	ret = drm_dp_dpcd_write_data(&intel_dp->aux,
+				     INTEL_EDP_HDR_PANEL_LUMINANCE_OVERRIDE,
+				     buf, sizeof(buf));
 	if (ret < 0)
 		drm_dbg_kms(display->drm,
-			    "Panel Luminance DPCD reg write failed, err:-%d\n",
-			    ret);
+			    "Panel Luminance DPCD reg write failed (%pe)\n", ERR_PTR(ret));
 }
 
 static int
@@ -456,12 +462,12 @@ static u32 intel_dp_aux_vesa_get_backlight(struct intel_connector *connector, en
 	int ret;
 
 	if (panel->backlight.edp.vesa.luminance_control_support) {
-		ret = drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_PANEL_TARGET_LUMINANCE_VALUE, buf,
-				       sizeof(buf));
+		ret = drm_dp_dpcd_read_data(&intel_dp->aux, DP_EDP_PANEL_TARGET_LUMINANCE_VALUE, buf,
+					    sizeof(buf));
 		if (ret < 0) {
 			drm_err(intel_dp->aux.drm_dev,
-				"[CONNECTOR:%d:%s] Failed to read Luminance from DPCD\n",
-				connector->base.base.id, connector->base.name);
+				"[CONNECTOR:%d:%s] Failed to read Luminance from DPCD (%pe)\n",
+				connector->base.base.id, connector->base.name, ERR_PTR(ret));
 			return 0;
 		}
 

@@ -47,11 +47,54 @@ impl FalconEngine for Gsp {
 }
 
 impl<'a> Falcon<'a, Gsp> {
-    /// Clears the SWGEN0 bit in the Falcon's IRQ status clear register to
-    /// allow GSP to signal CPU for processing new messages in message queue.
+    /// Clears the SWGEN0 latch in the GSP falcon.
+    ///
+    /// While the latch is set, no later message signals the tree, so a caller that consumed a
+    /// notification by polling must clear it.
     pub(crate) fn clear_swgen0_intr(&self) {
         self.pfalcon
             .write_reg(regs::NV_PFALCON_FALCON_IRQSCLR::zeroed().with_swgen0(true));
+    }
+
+    /// Reads the GSP falcon causes that are routed to the host, without clearing any latch.
+    ///
+    /// Every one of them other than SWGEN0 reports a GSP fault.
+    pub(crate) fn read_host_intr(&self) -> regs::NV_PFALCON_FALCON_IRQSTAT {
+        let latched = self.pfalcon.read(regs::NV_PFALCON_FALCON_IRQSTAT);
+
+        self.hal.host_routed_causes(self, latched)
+    }
+
+    /// Reads the host-routed causes and clears the SWGEN0 latch if it was set.
+    ///
+    /// Returns the causes as read, before the clear. No other latch changes.
+    pub(crate) fn take_host_intr(&self) -> regs::NV_PFALCON_FALCON_IRQSTAT {
+        let status = self.read_host_intr();
+
+        if status.swgen0() {
+            self.clear_swgen0_intr();
+        }
+
+        status
+    }
+
+    /// Clears the latch of every interrupt cause set in `status`.
+    ///
+    /// A cause driven from outside the falcon is still set on return, and
+    /// [`Self::read_host_intr`] reports the causes that remain.
+    pub(crate) fn clear_intr(&self, status: regs::NV_PFALCON_FALCON_IRQSTAT) {
+        self.pfalcon
+            .write_reg(regs::NV_PFALCON_FALCON_IRQSCLR::from(status.into_raw()));
+    }
+
+    /// Retriggers the GSP falcon, which then re-emits its host-routed causes into the tree.
+    ///
+    /// Call this only once every host cause is clear. A cause still set is re-emitted at once, and
+    /// its vector arrives again as soon as delivery is rearmed.
+    ///
+    /// Does nothing on Turing, whose falcons have no retrigger register.
+    pub(crate) fn retrigger_intr(&self) {
+        self.hal.retrigger(self);
     }
 
     /// Checks if GSP reload/resume has completed during the boot process.

@@ -97,7 +97,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 {
 	const unsigned long npages = obj->base.size / PAGE_SIZE;
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_gtt_view view;
+	struct intel_gtt_view view;
 	struct i915_vma *vma;
 	unsigned long offset;
 	unsigned long page;
@@ -214,7 +214,7 @@ static int check_partial_mappings(struct drm_i915_gem_object *obj,
 	}
 
 	for_each_prime_number_from(page, 1, npages) {
-		struct i915_gtt_view view =
+		struct intel_gtt_view view =
 			compute_partial_view(obj, page, MIN_CHUNK_PAGES);
 		unsigned long offset;
 		u32 __iomem *io;

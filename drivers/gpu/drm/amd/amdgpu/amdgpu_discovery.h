@@ -25,8 +25,10 @@
 #define __AMDGPU_DISCOVERY__
 
 #include <linux/debugfs.h>
+#include "discovery.h"
 
 #define DISCOVERY_TMR_SIZE      (10 << 10)
+#define DISCOVERY_TMR_SIZE_SRIOV (16 << 10)
 #define DISCOVERY_TMR_OFFSET    (64 << 10)
 
 struct ip_discovery_top;
@@ -39,6 +41,7 @@ struct amdgpu_discovery_info {
 	uint32_t size;
 	uint8_t *bin;
 	bool reserve_tmr;
+	struct mem_reserved_info_table_v1_0 *mem_reserved_table;
 };
 
 void amdgpu_discovery_sysfs_fini(struct amdgpu_device *adev);
@@ -51,6 +54,8 @@ int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
 				  int *range_cnt, bool refresh);
 int amdgpu_discovery_get_gc_major_minor_version(struct amdgpu_device *adev,
 						uint16_t *major, uint16_t *minor);
+int amdgpu_discovery_get_die_rev_id(struct amdgpu_device *adev,
+				    uint16_t *die_rev_id);
 
 void amdgpu_discovery_dump(struct amdgpu_device *adev, struct drm_printer *p);
 
@@ -58,5 +63,14 @@ void amdgpu_discovery_dump(struct amdgpu_device *adev, struct drm_printer *p);
 int amdgpu_discovery_sysfs_early_init(struct amdgpu_device *adev,
 				       struct pci_dev *pdev);
 void amdgpu_discovery_sysfs_early_fini(struct pci_dev *pdev);
+
+int amdgpu_discovery_get_mem_reserved_info_table(struct amdgpu_device *adev);
+
+int amdgpu_discovery_get_mem_reserved_region_by_id(struct amdgpu_device *adev,
+						   u32 reserved_region_id,
+						   struct mem_reserved_info *info);
+
+int amdgpu_discovery_mem_reserved_info_sysfs_init(struct amdgpu_device *adev);
+void amdgpu_discovery_mem_reserved_info_sysfs_fini(struct amdgpu_device *adev);
 
 #endif /* __AMDGPU_DISCOVERY__ */

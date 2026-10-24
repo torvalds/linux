@@ -114,6 +114,7 @@ struct dccg *dccg3_create(
 	base->ctx = ctx;
 	base->funcs = &dccg3_funcs;
 
+	base->inst = 0;
 	dccg_dcn->regs = regs;
 	dccg_dcn->dccg_shift = dccg_shift;
 	dccg_dcn->dccg_mask = dccg_mask;
@@ -139,6 +140,7 @@ struct dccg *dccg30_create(
 	base->ctx = ctx;
 	base->funcs = &dccg3_funcs;
 
+	base->inst = 0;
 	dccg_dcn->regs = regs;
 	dccg_dcn->dccg_shift = dccg_shift;
 	dccg_dcn->dccg_mask = dccg_mask;

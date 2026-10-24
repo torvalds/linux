@@ -10,6 +10,7 @@
 #include <drm/intel/intel_pcode_regs.h>
 #include <drm/intel/step.h>
 
+#include "intel_alpm.h"
 #include "intel_backlight_regs.h"
 #include "intel_cdclk.h"
 #include "intel_clock_gating.h"
@@ -487,6 +488,14 @@ void intel_display_power_dc3co_compute(struct intel_atomic_state *state)
 		trigger |= DC3CO_TRIGGER_PANEL_REPLAY;
 	if (crtc_state->has_sel_update)
 		trigger |= DC3CO_TRIGGER_PSR2;
+
+	/*
+	 * Periodic AS SDP (skip frames) needs the AS SDP to keep flowing during
+	 * PR active, which is incompatible with DC3co. Keep DC3co disabled while
+	 * skip frames is enabled.
+	 */
+	if (intel_alpm_pr_as_sdp_skip_frames_enabled(intel_dp, crtc_state))
+		trigger = DC3CO_TRIGGER_NONE;
 
 done:
 	intel_display_power_dc3co_update(display, trigger);

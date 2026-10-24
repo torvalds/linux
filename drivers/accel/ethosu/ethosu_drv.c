@@ -12,10 +12,10 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_ioctl.h>
-#include <drm/drm_utils.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_accel.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_timeout.h>
 #include <drm/ethosu_accel.h>
 
 #include "ethosu_drv.h"

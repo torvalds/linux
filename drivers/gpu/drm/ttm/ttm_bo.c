@@ -506,7 +506,6 @@ struct ttm_bo_alloc_state {
  *
  * @bo: The buffer to allocate the backing store of
  * @place: The place to attempt allocation in
- * @ctx: ttm_operation_ctx associated with this allocation
  * @force_space: If we should evict buffers to force space
  * @res: On allocation success, the resulting struct ttm_resource.
  * @alloc_state: Object holding allocation state such as charged cgroups.
@@ -1450,7 +1449,7 @@ out:
 	return ret;
 }
 
-const struct ttm_lru_walk_ops ttm_swap_ops = {
+static const struct ttm_lru_walk_ops ttm_swap_ops = {
 	.process_bo = ttm_bo_swapout_cb,
 };
 

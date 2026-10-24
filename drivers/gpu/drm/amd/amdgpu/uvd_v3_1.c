@@ -789,13 +789,6 @@ static int uvd_v3_1_resume(struct amdgpu_ip_block *ip_block)
 	return uvd_v3_1_hw_init(ip_block);
 }
 
-static bool uvd_v3_1_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return !(RREG32(mmSRBM_STATUS) & SRBM_STATUS__UVD_BUSY_MASK);
-}
-
 static int uvd_v3_1_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
@@ -843,7 +836,6 @@ static const struct amd_ip_funcs uvd_v3_1_ip_funcs = {
 	.prepare_suspend = uvd_v3_1_prepare_suspend,
 	.suspend = uvd_v3_1_suspend,
 	.resume = uvd_v3_1_resume,
-	.is_idle = uvd_v3_1_is_idle,
 	.wait_for_idle = uvd_v3_1_wait_for_idle,
 	.soft_reset = uvd_v3_1_soft_reset,
 	.set_clockgating_state = uvd_v3_1_set_clockgating_state,

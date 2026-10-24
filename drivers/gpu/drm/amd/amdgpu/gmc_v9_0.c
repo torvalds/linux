@@ -63,6 +63,7 @@
 
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 
+#include "amdgpu_ip.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_xgmi.h"
 
@@ -2038,6 +2039,12 @@ static int gmc_v9_0_sw_init(struct amdgpu_ip_block *ip_block)
 			3 :
 			8;
 
+	amdgpu_vmid_mgr_set_vmid_mask(adev,
+				      GENMASK(adev->vm_manager.first_kfd_vmid - 1, 1),
+				      false);
+	amdgpu_vmid_mgr_set_vmid_mask(adev,
+				      GENMASK(adev->vm_manager.first_kfd_vmid - 1, 1),
+				      true);
 	amdgpu_vm_manager_init(adev);
 
 	gmc_v9_0_save_registers(adev);
@@ -2300,21 +2307,9 @@ static int gmc_v9_0_resume(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static bool gmc_v9_0_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	/* MC is always ready in GMC v9.*/
-	return true;
-}
-
 static int gmc_v9_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* There is no need to wait for MC idle in GMC v9.*/
-	return 0;
-}
-
-static int gmc_v9_0_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	/* XXX for emulation.*/
 	return 0;
 }
 
@@ -2355,9 +2350,7 @@ const struct amd_ip_funcs gmc_v9_0_ip_funcs = {
 	.hw_fini = gmc_v9_0_hw_fini,
 	.suspend = gmc_v9_0_suspend,
 	.resume = gmc_v9_0_resume,
-	.is_idle = gmc_v9_0_is_idle,
 	.wait_for_idle = gmc_v9_0_wait_for_idle,
-	.soft_reset = gmc_v9_0_soft_reset,
 	.set_clockgating_state = gmc_v9_0_set_clockgating_state,
 	.set_powergating_state = gmc_v9_0_set_powergating_state,
 	.get_clockgating_state = gmc_v9_0_get_clockgating_state,

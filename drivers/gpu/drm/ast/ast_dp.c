@@ -88,8 +88,14 @@ static int ast_astdp_read_edid_block(void *data, u8 *buf, unsigned int block, si
 	int ret = 0;
 	unsigned int i;
 
-	if (block > 0)
-		return -EIO; /* extension headers not supported */
+	if (block > 1) {
+		/* ASPEED DP's EDID buffer holds blocks 0 and 1 only (256
+		 * bytes). Report anything beyond that as an all-zero block
+		 * rather than a read failure.
+		 */
+		memset(buf, 0, len);
+		return 0;
+	}
 
 	/*
 	 * Protect access to I/O registers from concurrent modesetting
@@ -153,20 +159,6 @@ static int ast_astdp_read_edid_block(void *data, u8 *buf, unsigned int block, si
 		ediddata[1] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd9);
 		ediddata[2] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xda);
 		ediddata[3] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xdb);
-
-		if (i == 31) {
-			/*
-			 * For 128-bytes EDID_1.3,
-			 * 1. Add the value of Bytes-126 to Bytes-127.
-			 *		The Bytes-127 is Checksum. Sum of all 128bytes should
-			 *		equal 0	(mod 256).
-			 * 2. Modify Bytes-126 to be 0.
-			 *		The Bytes-126 indicates the Number of extensions to
-			 *		follow. 0 represents noextensions.
-			 */
-			ediddata[3] = ediddata[3] + ediddata[2];
-			ediddata[2] = 0;
-		}
 
 		memcpy(buf, ediddata, min((len - i), 4));
 		buf += 4;

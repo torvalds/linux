@@ -36,6 +36,7 @@
 #include <linux/mount.h>
 #include <linux/pseudo_fs.h>
 #include <linux/sched.h>
+#include <linux/seq_buf.h>
 #include <linux/slab.h>
 #include <linux/sprintf.h>
 #include <linux/srcu.h>
@@ -50,13 +51,13 @@
 #include <drm/drm_file.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mode_object.h>
-#include <drm/drm_panic.h>
 #include <drm/drm_print.h>
 #include <drm/drm_privacy_screen_machine.h>
 #include <drm/drm_ras_genl_family.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
+#include "drm_panic_internal.h"
 
 MODULE_AUTHOR("Gareth Hughes, Leif Delgass, José Fonseca, Jon Smirl");
 MODULE_DESCRIPTION("DRM shared core routines");
@@ -545,6 +546,8 @@ static const char *drm_get_wedge_recovery(unsigned int opt)
 		return "bus-reset";
 	case DRM_WEDGE_RECOVERY_VENDOR:
 		return "vendor-specific";
+	case DRM_WEDGE_RECOVERY_COLD_RESET:
+		return "cold-reset";
 	default:
 		return NULL;
 	}
@@ -574,27 +577,31 @@ static const char *drm_get_wedge_recovery(unsigned int opt)
 int drm_dev_wedged_event(struct drm_device *dev, unsigned long method,
 			 struct drm_wedge_task_info *info)
 {
-	char event_string[WEDGE_STR_LEN], pid_string[PID_STR_LEN], comm_string[COMM_STR_LEN];
-	char *envp[] = { event_string, NULL, NULL, NULL };
-	const char *recovery = NULL;
-	unsigned int len, opt;
+	DECLARE_SEQ_BUF(event_string, WEDGE_STR_LEN);
+	char pid_string[PID_STR_LEN], comm_string[COMM_STR_LEN];
+	char *envp[4] = { };
+	unsigned int len = 0, opt;
 
-	len = scnprintf(event_string, sizeof(event_string), "%s", "WEDGED=");
+	seq_buf_puts(&event_string, "WEDGED=");
+	envp[0] = event_string.buffer;
 
 	for_each_set_bit(opt, &method, BITS_PER_TYPE(method)) {
-		recovery = drm_get_wedge_recovery(opt);
+		const char *recovery = drm_get_wedge_recovery(opt);
 		if (drm_WARN_ONCE(dev, !recovery, "invalid recovery method %u\n", opt))
 			break;
 
-		len += scnprintf(event_string + len, sizeof(event_string) - len, "%s,", recovery);
+		if (drm_WARN_ON_ONCE(dev, seq_buf_printf(&event_string, "%s,", recovery)))
+			break;
+
+		len = seq_buf_used(&event_string);
 	}
 
-	if (recovery)
-		/* Get rid of trailing comma */
-		event_string[len - 1] = '\0';
+	if (len)
+		/* Strip trailing comma; also discards any partial overflow entry */
+		event_string.buffer[len - 1] = '\0';
 	else
-		/* Caller is unsure about recovery, do the best we can at this point. */
-		snprintf(event_string, sizeof(event_string), "%s", "WEDGED=unknown");
+		/* No complete entry written, do the best we can at this point. */
+		snprintf(event_string.buffer, event_string.size, "%s", "WEDGED=unknown");
 
 	drm_info(dev, "device wedged, %s\n", method == DRM_WEDGE_RECOVERY_NONE ?
 		 "but no recovery needed" : "needs recovery");
@@ -1248,7 +1255,6 @@ static void drm_core_exit(void)
 {
 	drm_ras_genl_family_unregister();
 	drm_privacy_screen_lookup_exit();
-	drm_panic_exit();
 	accel_core_exit();
 	unregister_chrdev(DRM_MAJOR, "drm");
 	drm_debugfs_remove_root();

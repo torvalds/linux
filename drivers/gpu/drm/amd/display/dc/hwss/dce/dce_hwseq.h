@@ -26,6 +26,7 @@
 #define __DCE_HWSEQ_H__
 
 #include "dc_types.h"
+#include "hw_sequencer_private.h"
 
 #define HWSEQ_DCEF_REG_LIST_DCE8() \
 	.DCFE_CLOCK_CONTROL[0] = mmCRTC0_CRTC_DCFE_CLOCK_CONTROL, \
@@ -1299,17 +1300,16 @@ struct clock_source;
 void dce_enable_fe_clock(struct dce_hwseq *hwss,
 		unsigned int inst, bool enable);
 
-void dce_pipe_control_lock(struct dc *dc,
-		struct pipe_ctx *pipe,
-		bool lock);
+bool dce_build_pipe_control_lock_sequence(struct dc *dc,
+		struct pipe_ctx *pipe, bool lock,
+		struct pipe_control_lock_params *params);
+void dce_tg_lock(struct tg_lock_params *params);
 
 void dce_set_blender_mode(struct dce_hwseq *hws,
 	unsigned int blnd_inst, enum blnd_mode mode);
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-void dce60_pipe_control_lock(struct dc *dc,
-		struct pipe_ctx *pipe,
-		bool lock);
+void dce60_tg_lock(struct tg_lock_params *params);
 #endif
 
 void dce_clock_gating_power_up(struct dce_hwseq *hws,

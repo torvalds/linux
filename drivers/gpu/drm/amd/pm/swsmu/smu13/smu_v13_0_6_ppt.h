@@ -111,6 +111,7 @@ void smu_v13_0_12_tables_fini(struct smu_context *smu);
 int smu_v13_0_12_get_npm_data(struct smu_context *smu,
 			      enum amd_pp_sensors sensor,
 			      uint32_t *value);
+u64 smu_v13_0_12_get_npm_cap(struct smu_context *smu);
 int smu_v13_0_12_get_system_power(struct smu_context *smu,
 				  enum amd_pp_sensors sensor,
 				  uint32_t *value);

@@ -38,7 +38,7 @@ static void gpu_test_buddy_subtree_offset_alignment_stress(struct kunit *test)
 	};
 	struct list_head allocated[ARRAY_SIZE(alignments)];
 	unsigned int i, max_subtree_align = 0;
-	int ret, tree, order;
+	int ret, order;
 	struct gpu_buddy mm;
 
 	KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_init(&mm, mm_size, SZ_4K),
@@ -78,15 +78,11 @@ static void gpu_test_buddy_subtree_offset_alignment_stress(struct kunit *test)
 		}
 
 		for (order = mm.max_order; order >= 0 && !root; order--) {
-			for (tree = 0; tree < 2; tree++) {
-				node = mm.free_trees[tree][order].rb_node;
-				if (node) {
-					root = container_of(node,
-							    struct gpu_buddy_block,
-							    rb);
-					break;
-				}
-			}
+			node = mm.free_tree[order].rb_node;
+			if (node)
+				root = container_of(node,
+						    struct gpu_buddy_block,
+						    rb);
 		}
 
 		KUNIT_ASSERT_NOT_NULL(test, root);
@@ -97,15 +93,13 @@ static void gpu_test_buddy_subtree_offset_alignment_stress(struct kunit *test)
 		gpu_buddy_free_list(&mm, &allocated[i], 0);
 
 		for (order = 0; order <= mm.max_order; order++) {
-			for (tree = 0; tree < 2; tree++) {
-				node = mm.free_trees[tree][order].rb_node;
-				if (!node)
-					continue;
+			node = mm.free_tree[order].rb_node;
+			if (!node)
+				continue;
 
-				block = container_of(node, struct gpu_buddy_block, rb);
-				max_subtree_align = max(max_subtree_align,
-							block->subtree_max_alignment);
-			}
+			block = container_of(node, struct gpu_buddy_block, rb);
+			max_subtree_align = max(max_subtree_align,
+						block->subtree_max_alignment);
 		}
 
 		KUNIT_EXPECT_GE(test, max_subtree_align, ilog2(alignments[i]));
@@ -286,6 +280,121 @@ static void gpu_test_buddy_fragmentation_performance(struct kunit *test)
 
 	kunit_info(test, "Reverse-ordered free took %lu ms\n", elapsed_ms);
 
+	gpu_buddy_fini(&mm);
+}
+
+static void gpu_test_buddy_dirty_tracker_performance(struct kunit *test)
+{
+	struct gpu_buddy_block *block, *tmp;
+	unsigned long elapsed_ms;
+	LIST_HEAD(clear_blocks);
+	LIST_HEAD(dirty_blocks);
+	LIST_HEAD(allocated);
+	struct gpu_buddy mm;
+	LIST_HEAD(results);
+	ktime_t start, end;
+	int i, count;
+
+	/*
+	 * Contiguous alloc latency after alternating clear/dirty fragmentation
+	 *
+	 * Fill a 4 GiB pool with 4 KiB allocations, partition them into
+	 * alternating cleared and dirty sets, then free both.  In the old
+	 * dual-tree design every adjacent buddy pair has one cleared half and
+	 * one dirty half, so the pair sits on opposite sides of the clear/dirty
+	 * merge barrier and cannot be coalesced at free() time.  The pool
+	 * stays fully fragmented and the subsequent contiguous 2 GiB allocation
+	 * (smaller than the 4 GiB span so it routes through the contiguous
+	 * allocator rather than the exact-range fast path) has to invoke
+	 * __force_merge() to rebuild a 2 GiB block before it can succeed.  With
+	 * the dirty-tracker design buddy pairs coalesce unconditionally during
+	 * free(), so the pool is already at max_order before the timed alloc
+	 * begins and __force_merge() is not needed.
+	 */
+	KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_init(&mm, SZ_4G, SZ_4K),
+			       "buddy_init failed\n");
+
+	for (i = 0; i < SZ_4G / SZ_4K; i++)
+		KUNIT_ASSERT_FALSE_MSG(test,
+				       gpu_buddy_alloc_blocks(&mm, 0, SZ_4G, SZ_4K, SZ_4K,
+							      &allocated, 0),
+				       "buddy_alloc hit an error size=%u\n", SZ_4K);
+
+	count = 0;
+	list_for_each_entry_safe(block, tmp, &allocated, link) {
+		if (count++ % 2 == 0)
+			list_move_tail(&block->link, &clear_blocks);
+		else
+			list_move_tail(&block->link, &dirty_blocks);
+	}
+
+	gpu_buddy_free_list(&mm, &clear_blocks, GPU_BUDDY_CLEARED);
+	gpu_buddy_free_list(&mm, &dirty_blocks, 0);
+
+	start = ktime_get();
+	KUNIT_ASSERT_FALSE_MSG(test,
+			       gpu_buddy_alloc_blocks(&mm, 0, SZ_4G, SZ_2G, SZ_2G,
+						      &results,
+						      GPU_BUDDY_CONTIGUOUS_ALLOCATION),
+			       "contiguous alloc failed\n");
+	end = ktime_get();
+	elapsed_ms = ktime_to_ms(ktime_sub(end, start));
+
+	kunit_info(test, "Contiguous alloc after fragmentation: %lu ms\n",
+		   elapsed_ms);
+
+	gpu_buddy_free_list(&mm, &results, 0);
+	gpu_buddy_fini(&mm);
+
+	/*
+	 * Repeated alloc throughput from a maximally fragmented pool
+	 *
+	 * Fill a 4 GiB pool with 4 KiB allocations, free even-indexed blocks
+	 * as cleared and odd-indexed blocks as dirty.  The alternating pattern
+	 * ensures every adjacent buddy pair has one cleared half and one dirty
+	 * half, so each pair lands on opposite sides of the old merge barrier.
+	 * Each of the 16 384 x 256 KiB allocations in the timed loop asks for a
+	 * single contiguous block (size == min_block_size, CONTIGUOUS flag), so
+	 * it cannot be satisfied by 64 stray 4 KiB blocks: under the old design
+	 * every alloc has to pay the __force_merge() cost to rebuild a 256 KiB
+	 * block.  With the dirty-tracker design the pool collapses to one
+	 * max_order block during free(), so each alloc is a simple O(log N)
+	 * split.
+	 */
+	KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_init(&mm, SZ_4G, SZ_4K),
+			       "buddy_init failed\n");
+
+	for (i = 0; i < SZ_4G / SZ_4K; i++)
+		KUNIT_ASSERT_FALSE_MSG(test,
+				       gpu_buddy_alloc_blocks(&mm, 0, SZ_4G, SZ_4K, SZ_4K,
+							      &allocated, 0),
+				       "buddy_alloc hit an error size=%u\n", SZ_4K);
+
+	count = 0;
+	list_for_each_entry_safe(block, tmp, &allocated, link) {
+		if (count++ % 2 == 0)
+			list_move_tail(&block->link, &clear_blocks);
+		else
+			list_move_tail(&block->link, &dirty_blocks);
+	}
+
+	gpu_buddy_free_list(&mm, &clear_blocks, GPU_BUDDY_CLEARED);
+	gpu_buddy_free_list(&mm, &dirty_blocks, 0);
+
+	start = ktime_get();
+	for (i = 0; i < SZ_4G / SZ_256K; i++)
+		KUNIT_ASSERT_FALSE_MSG(test,
+				       gpu_buddy_alloc_blocks(&mm, 0, SZ_4G, SZ_256K, SZ_256K,
+							      &results,
+							      GPU_BUDDY_CONTIGUOUS_ALLOCATION),
+				       "buddy_alloc hit an error size=%u\n", SZ_256K);
+	end = ktime_get();
+	elapsed_ms = ktime_to_ms(ktime_sub(end, start));
+
+	kunit_info(test, "Repeated 256 KiB allocs from fragmented pool: %lu ms\n",
+		   elapsed_ms);
+
+	gpu_buddy_free_list(&mm, &results, 0);
 	gpu_buddy_fini(&mm);
 }
 
@@ -931,10 +1040,12 @@ static void gpu_test_buddy_alloc_clear(struct kunit *test)
 	/*
 	 * Create a new mm. Intentionally fragment the address space by creating
 	 * two alternating lists. Free both lists, one as dirty the other as clean.
-	 * Try to allocate double the previous size with matching min_page_size. The
-	 * allocation should never fail as it calls the force_merge. Also check that
-	 * the page is always dirty after force_merge. Free the page as dirty, then
-	 * repeat the whole thing, increment the order until we hit the max_order.
+	 * Try to allocate double the previous size with matching min_page_size.
+	 * The allocation should never fail because buddy pairs coalesce
+	 * unconditionally at free() time, rebuilding the larger block. Also check
+	 * that the page is always dirty (a merged block spanning a dirty half is
+	 * dirty). Free the page as dirty, then repeat the whole thing, increment
+	 * the order until we hit the max_order.
 	 */
 
 	i = 0;
@@ -1027,7 +1138,7 @@ static void gpu_test_buddy_alloc_clear(struct kunit *test)
 	gpu_buddy_free_list(&mm, &clean, GPU_BUDDY_CLEARED);
 	gpu_buddy_free_list(&mm, &dirty, 0);
 	gpu_buddy_reset_clear(&mm, false);
-	KUNIT_EXPECT_EQ(test, mm.clear_avail, 0);
+	KUNIT_EXPECT_EQ(test, gpu_buddy_clear_avail(&mm), 0);
 	gpu_buddy_fini(&mm);
 
 	/*
@@ -1050,7 +1161,7 @@ static void gpu_test_buddy_alloc_clear(struct kunit *test)
 	gpu_buddy_free_list(&mm, &clean, GPU_BUDDY_CLEARED);
 	gpu_buddy_free_list(&mm, &dirty, 0);
 	gpu_buddy_reset_clear(&mm, true);
-	KUNIT_EXPECT_EQ(test, mm.clear_avail, mm_size);
+	KUNIT_EXPECT_EQ(test, gpu_buddy_clear_avail(&mm), mm_size);
 	gpu_buddy_fini(&mm);
 }
 
@@ -1496,6 +1607,7 @@ static struct kunit_case gpu_buddy_tests[] = {
 	KUNIT_CASE(gpu_test_buddy_alloc_range),
 	KUNIT_CASE(gpu_test_buddy_alloc_range_bias),
 	KUNIT_CASE_SLOW(gpu_test_buddy_fragmentation_performance),
+	KUNIT_CASE_SLOW(gpu_test_buddy_dirty_tracker_performance),
 	KUNIT_CASE(gpu_test_buddy_alloc_exceeds_max_order),
 	KUNIT_CASE(gpu_test_buddy_offset_aligned_allocation),
 	KUNIT_CASE(gpu_test_buddy_subtree_offset_alignment_stress),

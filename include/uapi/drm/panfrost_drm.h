@@ -47,7 +47,7 @@ extern "C" {
  * them for anything but debugging purpose.
  */
 #define DRM_IOCTL_PANFROST_PERFCNT_ENABLE	DRM_IOW(DRM_COMMAND_BASE + DRM_PANFROST_PERFCNT_ENABLE, struct drm_panfrost_perfcnt_enable)
-#define DRM_IOCTL_PANFROST_PERFCNT_DUMP		DRM_IOW(DRM_COMMAND_BASE + DRM_PANFROST_PERFCNT_DUMP, struct drm_panfrost_perfcnt_dump)
+#define DRM_IOCTL_PANFROST_PERFCNT_DUMP		DRM_IOWR(DRM_COMMAND_BASE + DRM_PANFROST_PERFCNT_DUMP, struct drm_panfrost_perfcnt_dump)
 
 #define PANFROST_JD_REQ_FS (1 << 0)
 #define PANFROST_JD_REQ_CYCLE_COUNT (1 << 1)
@@ -270,8 +270,35 @@ struct drm_panfrost_perfcnt_enable {
 	__u32 counterset;
 };
 
+/*
+ * The next two flags describe the state of a perfcnt dump request
+ * as influenced by a device reset. They are the only values the
+ * perfcnt_dump ioctl state field can take on.
+ * Only certain state and ioctl retval combinations are legitimate.
+ */
+
+/* A new perfcnt_enable ioctl should be issued before requesting
+ * more dumps, because a HW reset failed to recreate perfcnt's
+ * original state. Otherwise further perfcnt_dump's will fail.
+ * This flag being set means ioctl's retval is always -EIO.
+ */
+#define PANFROST_PERFCNT_SESSION_DEAD (1 << 0)
+
+/* A HW reset happened before or during a sample request, and
+ * perfcnt's internal state was successfully restored. There
+ * are two possible outcomes depending on the ioctl's retval:
+ *	0: A reset happened before a dump was requested, but did
+ * nonetheless succeed. Counter values are relative to last reset.
+ *	-EAGAIN: A reset happened when a counter values sampling
+ * request was ongoing. Values are undefined so a new dump ioctl
+ * should be issued.
+ */
+#define PANFROST_PERFCNT_SESSION_INTERRUPTED_BY_RESET (1 << 1)
+
 struct drm_panfrost_perfcnt_dump {
 	__u64 buf_ptr;
+	__u32 state;
+	__u32 pad;		/* MBZ */
 };
 
 /* madvise provides a way to tell the kernel in case a buffers contents

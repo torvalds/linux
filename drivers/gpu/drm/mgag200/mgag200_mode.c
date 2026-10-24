@@ -679,18 +679,17 @@ void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic
 	mgag200_disable_display(mdev);
 }
 
-void mgag200_crtc_reset(struct drm_crtc *crtc)
+struct drm_crtc_state *mgag200_crtc_atomic_create_state(struct drm_crtc *crtc)
 {
 	struct mgag200_crtc_state *mgag200_crtc_state;
 
-	if (crtc->state)
-		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
-
 	mgag200_crtc_state = kzalloc_obj(*mgag200_crtc_state);
-	if (mgag200_crtc_state)
-		__drm_atomic_helper_crtc_reset(crtc, &mgag200_crtc_state->base);
-	else
-		__drm_atomic_helper_crtc_reset(crtc, NULL);
+	if (!mgag200_crtc_state)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_atomic_helper_crtc_state_init(&mgag200_crtc_state->base, crtc);
+
+	return &mgag200_crtc_state->base;
 }
 
 struct drm_crtc_state *mgag200_crtc_atomic_duplicate_state(struct drm_crtc *crtc)

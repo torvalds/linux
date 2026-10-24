@@ -1183,36 +1183,31 @@ static void atmel_hlcdc_plane_atomic_destroy_state(struct drm_plane *p,
 	kfree(state);
 }
 
-static void atmel_hlcdc_plane_reset(struct drm_plane *p)
+static struct drm_plane_state *atmel_hlcdc_plane_create_state(struct drm_plane *p)
 {
 	struct atmel_hlcdc_plane_state *state;
-	struct atmel_hlcdc_dc *dc = p->dev->dev_private;
-	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
-
-	if (p->state) {
-		atmel_hlcdc_plane_atomic_destroy_state(p, p->state);
-		p->state = NULL;
-	}
+	int ret;
 
 	state = kzalloc_obj(*state);
-	if (state) {
-		if (atmel_hlcdc_plane_alloc_dscrs(p, state)) {
-			kfree(state);
-			drm_err(p->dev,
-				"Failed to allocate initial plane state\n");
-			return;
-		}
-		__drm_atomic_helper_plane_reset(p, &state->base);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
+
+	ret = atmel_hlcdc_plane_alloc_dscrs(p, state);
+	if (ret) {
+		kfree(state);
+		drm_err(p->dev, "Failed to allocate initial plane state\n");
+		return ERR_PTR(ret);
 	}
 
-	if (plane->layer.desc->layout.csc)
-		dc->desc->ops->lcdc_csc_init(plane, plane->layer.desc);
+	__drm_atomic_helper_plane_state_init(&state->base, p);
+
+	return &state->base;
 }
 
 static const struct drm_plane_funcs layer_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.reset = atmel_hlcdc_plane_reset,
+	.atomic_create_state = atmel_hlcdc_plane_create_state,
 	.atomic_duplicate_state = atmel_hlcdc_plane_atomic_duplicate_state,
 	.atomic_destroy_state = atmel_hlcdc_plane_atomic_destroy_state,
 };

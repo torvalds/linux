@@ -8,6 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/math64.h>
@@ -75,6 +76,9 @@ struct rcar_mipi_dsi {
 	unsigned long mode_flags;
 	unsigned int num_data_lanes;
 	unsigned int lanes;
+
+	void *cmd_axi_cpu;
+	dma_addr_t cmd_axi_dma;
 };
 
 struct dsi_setup_info {
@@ -957,6 +961,7 @@ static int rcar_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 
 	/* Initialize the DRM bridge. */
 	dsi->bridge.of_node = dsi->dev->of_node;
+	dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
 	drm_bridge_add(&dsi->bridge);
 
 	return 0;
@@ -977,6 +982,7 @@ static ssize_t rcar_mipi_dsi_host_tx_transfer(struct mipi_dsi_host *host,
 					      bool is_rx_xfer)
 {
 	const bool is_tx_long = mipi_dsi_packet_format_is_long(msg->type);
+	const bool is_tx_axi = !is_rx_xfer && is_tx_long && (msg->tx_len > 16);
 	struct rcar_mipi_dsi *dsi = host_to_rcar_mipi_dsi(host);
 	struct mipi_dsi_packet packet;
 	u8 payload[16] = { 0 };
@@ -987,9 +993,14 @@ static ssize_t rcar_mipi_dsi_host_tx_transfer(struct mipi_dsi_host *host,
 	if (ret)
 		return ret;
 
-	/* Configure LP or HS command transfer. */
-	rcar_mipi_dsi_write(dsi, TXCMSETR, (msg->flags & MIPI_DSI_MSG_USE_LPM) ?
-					   TXCMSETR_SPDTYP : 0);
+	/* Configure LP or HS and register or AXI command transfer. */
+	rcar_mipi_dsi_write(dsi, TXCMSETR, ((msg->flags & MIPI_DSI_MSG_USE_LPM) ?
+					    TXCMSETR_SPDTYP : 0) |
+					   (is_tx_axi ? TXCMSETR_LPPDACC : 0));
+
+	/* Configure DMA source address for AXI command transfer. */
+	if (is_tx_axi)
+		rcar_mipi_dsi_write(dsi, TXCMADDRSET0R, dsi->cmd_axi_dma);
 
 	/* Register access mode for RX transfer. */
 	if (is_rx_xfer)
@@ -1011,7 +1022,10 @@ static ssize_t rcar_mipi_dsi_host_tx_transfer(struct mipi_dsi_host *host,
 			    TXCMPHDR_DATA1(packet.header[2]) |
 			    TXCMPHDR_DATA0(packet.header[1]));
 
-	if (is_tx_long) {
+	if (is_tx_axi) {
+		memcpy(dsi->cmd_axi_cpu, packet.payload,
+		       min(msg->tx_len, 1024));
+	} else if (is_tx_long) {
 		memcpy(payload, packet.payload,
 		       min(msg->tx_len, sizeof(payload)));
 
@@ -1162,10 +1176,16 @@ static ssize_t rcar_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
 	struct rcar_mipi_dsi *dsi = host_to_rcar_mipi_dsi(host);
 	int ret;
 
-	if (msg->tx_len > 16 || msg->rx_len > 16) {
-		/* ToDo: Implement Memory on AXI bus command mode. */
+	if (msg->tx_len > 1024 || msg->rx_len > 16) {
+		/* ToDo: Implement Memory on AXI bus RX command mode. */
 		dev_warn(dsi->dev,
-			 "Register-based command mode supports only up to 16 Bytes long payload\n");
+			 "Command mode supports only up to 1024B long TX and 16B long RX payload\n");
+		return -EOPNOTSUPP;
+	}
+
+	if ((msg->flags & MIPI_DSI_MSG_USE_LPM) && msg->tx_len > 128) {
+		dev_warn(dsi->dev,
+			 "Command mode in LP supports only up to 128B long TX payload\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1266,6 +1286,10 @@ static int rcar_mipi_dsi_probe(struct platform_device *pdev)
 	struct rcar_mipi_dsi *dsi;
 	int ret;
 
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "No suitable DMA available\n");
+
 	dsi = devm_drm_bridge_alloc(&pdev->dev, struct rcar_mipi_dsi, bridge,
 				    &rcar_mipi_dsi_bridge_ops);
 	if (IS_ERR(dsi))
@@ -1295,12 +1319,21 @@ static int rcar_mipi_dsi_probe(struct platform_device *pdev)
 		return PTR_ERR(dsi->rstc);
 	}
 
+	dsi->cmd_axi_cpu = dma_alloc_coherent(&pdev->dev, SZ_4K, &dsi->cmd_axi_dma,
+					      GFP_KERNEL);
+	if (!dsi->cmd_axi_cpu) {
+		return dev_err_probe(&pdev->dev, -ENOMEM,
+				     "Failed to allocate DSI AXI Access command buffer\n");
+	}
+
 	/* Initialize the DSI host. */
 	dsi->host.dev = dsi->dev;
 	dsi->host.ops = &rcar_mipi_dsi_host_ops;
 	ret = mipi_dsi_host_register(&dsi->host);
-	if (ret < 0)
+	if (ret < 0) {
+		dma_free_coherent(&pdev->dev, SZ_4K, dsi->cmd_axi_cpu, dsi->cmd_axi_dma);
 		return ret;
+	}
 
 	return 0;
 }
@@ -1310,6 +1343,8 @@ static void rcar_mipi_dsi_remove(struct platform_device *pdev)
 	struct rcar_mipi_dsi *dsi = platform_get_drvdata(pdev);
 
 	mipi_dsi_host_unregister(&dsi->host);
+
+	dma_free_coherent(&pdev->dev, SZ_4K, dsi->cmd_axi_cpu, dsi->cmd_axi_dma);
 }
 
 static const struct rcar_mipi_dsi_device_info v3u_data = {

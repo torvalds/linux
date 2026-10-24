@@ -41,10 +41,16 @@
 
 #define SINGLE_STEP_MISSED_WORKAROUND 1	//workaround for lost TRAP_AFTER_INST exception when SAVECTX raised
 #define HAVE_VALU_SGPR_HAZARD (ASIC_FAMILY == CHIP_GFX12)
+#define HAVE_HT_TRAP_ID_WA (ASIC_FAMILY >= CHIP_GFX12)
 #define WAVE32_ONLY (ASIC_FAMILY == CHIP_GC_12_0_3)
 #define SAVE_TTMPS_IN_SGPR_BLOCK (ASIC_FAMILY >= CHIP_GC_12_0_3)
+#define VMEM_ON_TRAP_ENTRY_WA (ASIC_FAMILY == CHIP_GC_12_0_3)
 
 #if HAVE_XNACK && !WAVE32_ONLY
+# error
+#endif
+
+#if VMEM_ON_TRAP_ENTRY_WA && RELAXED_SCHEDULING_IN_TRAP
 # error
 #endif
 
@@ -60,6 +66,7 @@ var SQ_WAVE_STATE_PRIV_POISON_ERR_SHIFT		= 15
 var SQ_WAVE_STATUS_WAVE64_SHIFT			= 29
 var SQ_WAVE_STATUS_WAVE64_SIZE			= 1
 var SQ_WAVE_STATUS_NO_VGPRS_SHIFT		= 24
+var SQ_WAVE_STATUS_HALT_SHIFT			= 14
 var SQ_WAVE_STATUS_IN_WG_SHIFT			= 11
 var SQ_WAVE_STATE_PRIV_ALWAYS_CLEAR_MASK	= SQ_WAVE_STATE_PRIV_SYS_PRIO_MASK|SQ_WAVE_STATE_PRIV_POISON_ERR_MASK
 var S_SAVE_PC_HI_TRAP_ID_MASK			= 0xF0000000
@@ -87,6 +94,8 @@ var SQ_WAVE_EXCP_FLAG_PRIV_HOST_TRAP_SHIFT	= 7
 var SQ_WAVE_EXCP_FLAG_PRIV_WAVE_START_MASK	= 0x100
 var SQ_WAVE_EXCP_FLAG_PRIV_WAVE_START_SHIFT	= 8
 var SQ_WAVE_EXCP_FLAG_PRIV_WAVE_END_MASK	= 0x200
+var SQ_WAVE_EXCP_FLAG_PRIV_PERF_SNAPSHOT_SHIFT	= 10
+var SQ_WAVE_EXCP_FLAG_PRIV_PERF_SNAPSHOT_MASK	= 0x400
 var SQ_WAVE_EXCP_FLAG_PRIV_TRAP_AFTER_INST_MASK	= 0x800
 var SQ_WAVE_TRAP_CTRL_ADDR_WATCH_MASK		= 0x80
 var SQ_WAVE_TRAP_CTRL_TRAP_AFTER_INST_MASK	= 0x200
@@ -134,6 +143,10 @@ var SQ_WAVE_MODE_DST_SRC0_SRC1_VGPR_MSB_SHIFT	= 12
 var SQ_WAVE_MODE_DST_SRC0_SRC1_VGPR_MSB_SIZE	= 6
 #endif
 
+var TTMP11_STOCHASTIC_TRAP_ENABLED_SHIFT   	= 25
+var TTMP11_STOCHASTIC_TRAP_ENABLED_MASK    	= (1 << TTMP11_STOCHASTIC_TRAP_ENABLED_SHIFT)
+var TTMP11_HOST_TRAP_ENABLED_SHIFT		= 24
+var TTMP11_HOST_TRAP_ENABLED_MASK		= (1 << TTMP11_HOST_TRAP_ENABLED_SHIFT)
 var TTMP11_DEBUG_TRAP_ENABLED_SHIFT		= 23
 var TTMP11_DEBUG_TRAP_ENABLED_MASK		= 0x800000
 var TTMP11_FIRST_REPLAY_SHIFT			= 22
@@ -142,6 +155,9 @@ var TTMP11_REPLAY_W64H_SHIFT			= 21
 var TTMP11_REPLAY_W64H_MASK			= 0x200000
 var TTMP11_FXPTR_SHIFT				= 14
 var TTMP11_FXPTR_MASK				= 0x1FC000
+
+var TTMP11_FEATURES_ENABLED_FLAGS_SHIFT		= TTMP11_DEBUG_TRAP_ENABLED_SHIFT
+var TTMP11_FEATURES_ENABLED_FLAGS_MASK		= TTMP11_DEBUG_TRAP_ENABLED_MASK | TTMP11_HOST_TRAP_ENABLED_MASK | TTMP11_STOCHASTIC_TRAP_ENABLED_MASK
 
 // SQ_SEL_X/Y/Z/W, BUF_NUM_FORMAT_FLOAT, (0 for MUBUF stride[17:14]
 // when ADD_TID_ENABLE and BUF_DATA_FORMAT_32 for MTBUF), ADD_TID_ENABLE
@@ -227,6 +243,21 @@ L_JUMP_TO_RESTORE:
 	s_branch	L_RESTORE
 
 L_SKIP_RESTORE:
+	s_getreg_b32	s_save_state_priv, hwreg(HW_REG_WAVE_STATE_PRIV)	//save STATUS since we will change SCC
+
+#if VMEM_ON_TRAP_ENTRY_WA
+	s_mov_b32	ttmp14, exec_lo
+	s_mov_b32	exec_lo, 1
+
+	// No-op prefetch to random address 0xFFFFFFFFxxxxxxxx.
+	// Avoids user allocations which may be functionally affected by prefetch.
+	s_mov_b32	ttmp2, 0
+	s_mov_b32	ttmp3, 0xFFFFFFFF
+	global_prefetch_b8	v0, [ttmp2, ttmp3] scope:SCOPE_SE th:TH_LOAD_RT
+
+	s_mov_b32	exec_lo, ttmp14
+#endif
+
 #if RELAXED_SCHEDULING_IN_TRAP
 	// Assume most relaxed scheduling mode is set. Save and revert to normal mode.
 	s_getreg_b32	ttmp2, hwreg(HW_REG_WAVE_SCHED_MODE)
@@ -234,8 +265,6 @@ L_SKIP_RESTORE:
 	s_setreg_imm32_b32	hwreg(HW_REG_WAVE_SCHED_MODE, \
 		SQ_WAVE_SCHED_MODE_DEP_MODE_SHIFT, SQ_WAVE_SCHED_MODE_DEP_MODE_SIZE), 0
 #endif
-
-	s_getreg_b32	s_save_state_priv, hwreg(HW_REG_WAVE_STATE_PRIV)	//save STATUS since we will change SCC
 
 #if RELAXED_SCHEDULING_IN_TRAP
 	// Save SCHED_MODE[1:0] into ttmp11[27:26].
@@ -250,12 +279,54 @@ L_SKIP_RESTORE:
 
 	s_getreg_b32	s_save_excp_flag_priv, hwreg(HW_REG_WAVE_EXCP_FLAG_PRIV)
 
+#if HAVE_HT_TRAP_ID_WA
+	// If we have both TRAP_ID (ttmp1[31:28]) != 0, and
+	// EXCP_FLAG_PRIV.HOST_TRAP == 1, we cannot reliably know if we entered
+	// the trap handler for an s_trap or a host trap.
+	//
+	// In both cases, if we see HOST_TRAP == 1, we can clear the TRAP_ID
+	// bits:
+	// - If this was a host trap, all good, those bits should have been 0
+	//   anyway, so they can be cleared.
+	// - If this was an s_trap, ttmp[0:1] still points to the s_trap
+	//   instruction, and it will be the first to be executed after s_rfe.
+	//   We do not change the behavior of the program, by not handling the
+	//   trap just yet, assume this was just a host trap and deal with the
+	//   s_trap on next entry.
+	s_bitcmp0_b32   s_save_excp_flag_priv, SQ_WAVE_EXCP_FLAG_PRIV_HOST_TRAP_SHIFT
+	s_cbranch_scc1  L_NOT_HOST_TRAP_WA
+	s_andn2_b32     s_save_pc_hi, s_save_pc_hi, S_SAVE_PC_HI_TRAP_ID_MASK
+
+L_NOT_HOST_TRAP_WA:
+	// From now on in the trap handler, if we see TTMP1.TRAP_ID != 0, then it has
+	// to be because of a s_trap. If the second level trap handler sees
+	// both TRAP_ID != 0 and EXCP_FLAG_PRIV.HOST_TRAP == 1, it is because
+	// a HOST_TRAP was received while we were in the trap handler, future host
+	// trap can't influence ttmp1. So both the s_trap and host_trap can be handled
+	// in one go.
+#endif
+
+	// Ignore HOSTTRAP/PERF_SNAPSHOT if SAVECTX is also present
+	// Usually s_trap has a higher priority than context_save, HAVE_HT_TRAP_ID_WA
+	// will reverse these priority's order when s_trap, host_trap and context save
+	// are raised at the same time. We will end-up ignoring the s_trap (because of
+	// the ambiguity with the host trap), ignoring the host trap (to be sure high
+	// frequency sampling cannot prevent CWSR) and directly doing the context save.
+	// The s_trap will be re-executed after context save/restore.
+	s_bitcmp1_b32   s_save_excp_flag_priv, SQ_WAVE_EXCP_FLAG_PRIV_SAVE_CONTEXT_SHIFT
+	s_cbranch_scc0  L_NO_SAVE_AND_HT_ST
+	s_andn2_b32     s_save_excp_flag_priv, s_save_excp_flag_priv, \
+			SQ_WAVE_EXCP_FLAG_PRIV_HOST_TRAP_MASK | SQ_WAVE_EXCP_FLAG_PRIV_PERF_SNAPSHOT_MASK
+	s_setreg_imm32_b32 hwreg(HW_REG_WAVE_EXCP_FLAG_PRIV, SQ_WAVE_EXCP_FLAG_PRIV_HOST_TRAP_SHIFT, 1), 0
+	s_setreg_imm32_b32 hwreg(HW_REG_WAVE_EXCP_FLAG_PRIV, SQ_WAVE_EXCP_FLAG_PRIV_PERF_SNAPSHOT_SHIFT, 1), 0
+
+L_NO_SAVE_AND_HT_ST:
 	s_and_b32       ttmp2, s_save_state_priv, SQ_WAVE_STATE_PRIV_HALT_MASK
 	s_cbranch_scc0	L_NOT_HALTED
 
-L_HALTED:
-	// Host trap may occur while wave is halted.
-	s_and_b32	ttmp2, s_save_excp_flag_priv, SQ_WAVE_EXCP_FLAG_PRIV_HOST_TRAP_MASK
+	// Host trap / stochastic may occur while wave is halted.
+	s_and_b32	ttmp2, s_save_excp_flag_priv, SQ_WAVE_EXCP_FLAG_PRIV_HOST_TRAP_MASK |\
+					SQ_WAVE_EXCP_FLAG_PRIV_PERF_SNAPSHOT_MASK
 	s_cbranch_scc1	L_FETCH_2ND_TRAP
 
 L_CHECK_SAVE:
@@ -316,6 +387,7 @@ L_FETCH_2ND_TRAP:
 	// Read second-level TBA/TMA from first-level TMA and jump if available.
 	// ttmp[2:5] and ttmp12 can be used (others hold SPI-initialized debug data)
 	// ttmp12 holds SQ_WAVE_STATUS
+	s_mov_b32       ttmp3, s_save_excp_flag_priv
 	s_sendmsg_rtn_b64       [ttmp14, ttmp15], sendmsg(MSG_RTN_GET_TMA)
 	s_wait_idle
 	s_lshl_b64	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8
@@ -332,12 +404,46 @@ L_NO_SIGN_EXTEND_TMA:
 	s_or_b32	ttmp1, ttmp1, ttmp2
 #endif
 
-	s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 scope:SCOPE_SYS		// debug trap enabled flag
+	s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 scope:SCOPE_SYS           // trap enabled flag
 	s_wait_idle
-	s_lshl_b32      ttmp2, ttmp2, TTMP11_DEBUG_TRAP_ENABLED_SHIFT
-	s_andn2_b32     ttmp11, ttmp11, TTMP11_DEBUG_TRAP_ENABLED_MASK
+	s_lshl_b32      ttmp2, ttmp2, TTMP11_FEATURES_ENABLED_FLAGS_SHIFT
+	s_andn2_b32     ttmp11, ttmp11, TTMP11_FEATURES_ENABLED_FLAGS_MASK
 	s_or_b32        ttmp11, ttmp11, ttmp2
 
+	// If not a host / stochastic trap , then driver cannot mask this
+	s_and_b32	ttmp2, ttmp3, SQ_WAVE_EXCP_FLAG_PRIV_HOST_TRAP_MASK |\
+					SQ_WAVE_EXCP_FLAG_PRIV_PERF_SNAPSHOT_MASK
+	s_cbranch_scc0	L_NO_EXCEPTION_MASKING
+
+	s_bitcmp1_b32 s_save_state_priv, SQ_WAVE_STATUS_HALT_SHIFT
+	s_cbranch_scc1 L_MASK_HOST_TRAP
+
+	// Handle masking host traps if requested by the driver.
+	s_bitcmp1_b32   ttmp11, TTMP11_HOST_TRAP_ENABLED_SHIFT
+
+	// We got here because of either a non-maskable exception or a maskable
+	// one (HT).  The driver said the maskable HT should not be masked, so
+	// we can directly carry on to the 2nd level trap handler.
+	s_cbranch_scc1  L_CHECK_STOC
+
+L_MASK_HOST_TRAP:
+	// The driver asked to mask the HT, be sure to do so.
+	s_setreg_imm32_b32 hwreg(HW_REG_WAVE_EXCP_FLAG_PRIV, SQ_WAVE_EXCP_FLAG_PRIV_HOST_TRAP_SHIFT, 1), 0x0
+
+L_CHECK_STOC:
+	s_bitcmp1_b32 s_save_state_priv, SQ_WAVE_STATUS_HALT_SHIFT
+	s_cbranch_scc1 L_MASKED_STOC
+
+	// If stochastic sampling trap was requested, should it be masked by the driver?
+	s_bitcmp1_b32    ttmp11, TTMP11_STOCHASTIC_TRAP_ENABLED_SHIFT
+	// If driver said stochastic traps are OK, allow the 2nd-level handler to take stochastic trap
+	s_cbranch_scc1   L_NO_EXCEPTION_MASKING
+
+L_MASKED_STOC:
+	// Otherwise, zero out TRAPSTS.stochastic_perf_snapshot bit, so possible 2nd level does not handle it
+	s_setreg_imm32_b32 hwreg(HW_REG_WAVE_EXCP_FLAG_PRIV, SQ_WAVE_EXCP_FLAG_PRIV_PERF_SNAPSHOT_SHIFT, 1), 0x0
+
+L_NO_EXCEPTION_MASKING:
 	s_load_dwordx2	[ttmp2, ttmp3], [ttmp14, ttmp15], 0x0 scope:SCOPE_SYS	// second-level TBA
 	s_wait_idle
 	s_load_dwordx2	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8 scope:SCOPE_SYS	// second-level TMA

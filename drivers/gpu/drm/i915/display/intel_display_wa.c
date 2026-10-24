@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/intel/display_parent_interface.h>
 #include <drm/intel/step.h>
 
 #include "intel_de.h"
@@ -131,7 +132,8 @@ bool __intel_display_wa(struct intel_display *display, enum intel_display_wa wa,
 	case INTEL_DISPLAY_WA_16011863758:
 		return DISPLAY_VER(display) >= 11;
 	case INTEL_DISPLAY_WA_16023588340:
-		return intel_display_needs_wa_16023588340(display);
+		/* This is a GT workaround. */
+		return display->parent->wa && display->parent->wa->wa_16023588340(display->drm);
 	case INTEL_DISPLAY_WA_16025573575:
 		return intel_display_needs_wa_16025573575(display);
 	case INTEL_DISPLAY_WA_16025596647:

@@ -65,7 +65,6 @@ static int tve200_modeset_init(struct drm_device *dev)
 {
 	struct drm_mode_config *mode_config;
 	struct tve200_drm_dev_private *priv = dev->dev_private;
-	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	int ret;
 
@@ -77,19 +76,10 @@ static int tve200_modeset_init(struct drm_device *dev)
 	mode_config->min_height = 240;
 	mode_config->max_height = 576;
 
-	ret = drm_of_find_panel_or_bridge(dev->dev->of_node,
-					  0, 0, &panel, &bridge);
-	if (ret && ret != -ENODEV)
-		return ret;
-	if (panel) {
-		bridge = drm_panel_bridge_add_typed(panel,
-						    DRM_MODE_CONNECTOR_Unknown);
-		drm_panel_put(panel);
-		if (IS_ERR(bridge)) {
-			ret = PTR_ERR(bridge);
-			goto out_bridge;
-		}
-	} else {
+	bridge = of_drm_get_bridge_by_endpoint(dev->dev->of_node, 0, 0);
+	if (IS_ERR(bridge) && PTR_ERR(bridge) != -ENODEV)
+		return PTR_ERR(bridge);
+	if (IS_ERR(bridge) || !drm_bridge_is_panel(bridge)) {
 		/*
 		 * TODO: when we are using a different bridge than a panel
 		 * (such as a dumb VGA connector) we need to devise a different
@@ -100,25 +90,27 @@ static int tve200_modeset_init(struct drm_device *dev)
 		goto out_bridge;
 	}
 
+	bridge->type = DRM_MODE_CONNECTOR_Unknown;
+
 	ret = tve200_display_init(dev);
 	if (ret) {
 		dev_err(dev->dev, "failed to init display\n");
 		goto out_bridge;
 	}
 
-	ret = drm_simple_display_pipe_attach_bridge(&priv->pipe,
-						    bridge);
+	priv->bridge = bridge;
+
+	ret = drm_bridge_attach(&priv->encoder, bridge, NULL, 0);
 	if (ret) {
 		dev_err(dev->dev, "failed to attach bridge\n");
 		goto out_bridge;
 	}
 
-	priv->panel = panel;
 	priv->connector = drm_panel_bridge_connector(bridge);
-	priv->bridge = bridge;
-
-	dev_info(dev->dev, "attached to panel %s\n",
-		 dev_name(panel->dev));
+	if (!priv->connector) {
+		ret = -ENODEV;
+		goto out_bridge;
+	}
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret) {
@@ -132,8 +124,6 @@ static int tve200_modeset_init(struct drm_device *dev)
 	goto finish;
 
 out_bridge:
-	if (panel)
-		drm_panel_bridge_remove(bridge);
 	drm_mode_config_cleanup(dev);
 finish:
 	return ret;
@@ -229,8 +219,6 @@ static int tve200_probe(struct platform_device *pdev)
 	return 0;
 
 mode_config_cleanup:
-	if (priv->panel)
-		drm_panel_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);
 clk_disable:
 	clk_disable_unprepare(priv->pclk);
@@ -244,10 +232,9 @@ static void tve200_remove(struct platform_device *pdev)
 	struct drm_device *drm = platform_get_drvdata(pdev);
 	struct tve200_drm_dev_private *priv = drm->dev_private;
 
+	drm_bridge_put(priv->bridge);
 	drm_dev_unregister(drm);
 	drm_atomic_helper_shutdown(drm);
-	if (priv->panel)
-		drm_panel_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);
 	clk_disable_unprepare(priv->pclk);
 	drm_dev_put(drm);

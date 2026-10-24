@@ -20,6 +20,7 @@ enum dml2_project_id {
 	dml2_project_dcn4x_stage2,
 	dml2_project_dcn4x_stage2_auto_drr_svp,
 	dml2_project_dcn42,
+	dml2_project_dcn42b,
 	dml2_project_dcn4x_utm,
 	dml2_project_dcn5x,
 	dml2_project_dcn5x_utm,
@@ -380,6 +381,10 @@ struct dml2_mode_support_info {
 	bool temp_read_or_ppt_support;
 	bool qos_bandwidth_support;
 	bool dcfclk_support;
+	bool alternate_channel_size_support;
+	bool EnoughUrgentLatencyHidingSupport;
+	bool DSCSlicesODMModeSupported;
+	bool ODMSupport;
 }; // dml2_mode_support_info
 
 struct dml2_memory_path_latency {
@@ -402,6 +407,7 @@ struct dml2_memory_path_bandwidth {
 		struct {
 			double urgent_bandwidth_kbps; // kbytes per sec
 			double non_urgent_bandwidth_kbps; // kbytes per sec
+			double lsdma_bandwidth_kbps; // kbytes per sec
 		} dcn5;
 	};
 };
@@ -480,6 +486,7 @@ struct dml2_display_cfg_programming {
 	struct {
 		bool meets_eco; // Stutter cycles will meet Z8 ECO criteria
 		bool supported_in_blank; // Changing to configurations where this is false requires Z8 to be disabled during the transition
+		bool global_support; // Z8 supported in vblank or vactive
 	} z8_stutter;
 
 	struct dml2_dchub_global_register_set global_regs;
@@ -541,6 +548,14 @@ struct dml2_display_cfg_programming {
 			double fraction_of_urgent_bandwidth_mall;
 			double max_active_fclk_change_latency_supported;
 			unsigned int min_return_latency_in_dcfclk;
+
+			struct {
+				struct {
+					double sdp_bw_mbps;
+					double dram_bw_mbps;
+					double dram_vm_only_bw_mbps;
+				} sys_active;
+			} non_urg_bw_available;
 
 			struct {
 				struct {

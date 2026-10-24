@@ -99,7 +99,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_DPP_DCN50)
 
 ###############################################################################
 
-DPP_DCN60 = dcn60_dpp.o dcn60_dpp_dscl.o
+DPP_DCN60 = dcn60_dpp.o dcn60_dpp_dscl.o dcn60_dpp_cm.o
 
 AMD_DAL_DPP_DCN60 = $(addprefix $(AMDDALPATH)/dc/dpp/dcn60/,$(DPP_DCN60))
 

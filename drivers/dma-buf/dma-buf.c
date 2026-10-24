@@ -260,7 +260,7 @@ static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
 
 	/* only support discovering the end of the buffer,
 	 * but also allow SEEK_SET to maintain the idiomatic
-	 * SEEK_END(0), SEEK_CUR(0) pattern.
+	 * SEEK_END(0), SEEK_SET(0) pattern.
 	 */
 	if (whence == SEEK_END)
 		base = dmabuf->size;

@@ -102,6 +102,8 @@ int amdgpu_acpi_get_mem_info(struct amdgpu_device *adev, int xcc_id,
 
 void amdgpu_acpi_get_backlight_caps(struct amdgpu_dm_backlight_caps *caps);
 bool amdgpu_acpi_should_gpu_reset(struct amdgpu_device *adev);
+int amdgpu_acpi_find_gpu_memory_in_srat(struct amdgpu_device *adev,
+					uint64_t *base_addr, uint64_t *length);
 void amdgpu_acpi_detect(void);
 void amdgpu_acpi_release(void);
 #else
@@ -114,6 +116,11 @@ static inline int amdgpu_acpi_get_tmr_info(struct amdgpu_device *adev,
 static inline int amdgpu_acpi_get_mem_info(struct amdgpu_device *adev,
 					   int xcc_id,
 					   struct amdgpu_numa_info *numa_info)
+{
+	return -EINVAL;
+}
+static inline int amdgpu_acpi_find_gpu_memory_in_srat(struct amdgpu_device *adev,
+						      uint64_t *base_addr, uint64_t *length)
 {
 	return -EINVAL;
 }

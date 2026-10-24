@@ -18,8 +18,8 @@
 #include <linux/sysfb.h>
 #include <video/vga.h>
 #include <asm/efi.h>
-#include <drm/drm_utils.h> /* For drm_get_panel_orientation_quirk */
 #include <drm/drm_connector.h>  /* For DRM_MODE_PANEL_ORIENTATION_* */
+#include <drm/drm_panel_quirks.h> /* For drm_get_panel_orientation_quirk */
 
 struct bmp_file_header {
 	u16 id;

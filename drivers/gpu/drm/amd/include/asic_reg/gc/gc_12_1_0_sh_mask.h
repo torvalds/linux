@@ -20866,6 +20866,10 @@
 #define RLC_IMU_RESET_VECTOR__VECTOR_MASK                                                                     0x000000FCL
 #define RLC_IMU_RESET_VECTOR__RESERVED_MASK                                                                   0xFFFFFF00L
 
+//RLC_IMU_AID_CONFIG
+#define RLC_IMU_AID_CONFIG__TOTAL_XCCS_IN_XCP__SHIFT                                                          0x2
+#define RLC_IMU_AID_CONFIG__TOTAL_XCCS_IN_XCP_MASK                                                            0x0000003CL
+
 
 // addressBlock: CHIP_XCD_gfxip_xcc_gfx_cpwd_cpwd_rlcsdec
 //RLC_RLCS_DEC_START
@@ -23556,7 +23560,9 @@
 //GFX_IMU_I_RAM_DATA
 #define GFX_IMU_I_RAM_DATA__DATA__SHIFT                                                                       0x0
 #define GFX_IMU_I_RAM_DATA__DATA_MASK                                                                         0xFFFFFFFFL
-
+//GFX_IMU_PARTITION_SWITCH_SHADOW
+#define GFX_IMU_PARTITION_SWITCH_SHADOW__TOTAL_XCCS_IN_XCP__SHIFT                                             0x2
+#define GFX_IMU_PARTITION_SWITCH_SHADOW__TOTAL_XCCS_IN_XCP_MASK                                               0x0000003CL
 
 // addressBlock: CHIP_XCD_gfxip_xcc_gfx_se_gfx_se_grbmhdec
 //GRBMH_CNTL

@@ -29,9 +29,14 @@
 #include "dm_services_types.h"
 #include "dmub/dmub_srv.h"
 
+#define DMUB_CMD_DEFAULT_MAX_WAIT_US 500000
+
 struct dmub_srv;
 struct dc;
+struct dc_context;
 struct pipe_ctx;
+struct hubp;
+struct dpp;
 struct dc_crtc_timing_adjust;
 struct dc_crtc_timing;
 struct dc_state;
@@ -56,11 +61,17 @@ bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv);
 
 bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 		unsigned int count,
-		union dmub_rb_cmd *cmd_list);
+		const union dmub_rb_cmd *cmd_list);
+
+bool dc_dmub_srv_cmd_list_queue_execute_timeout(struct dc_dmub_srv *dc_dmub_srv,
+		unsigned int count,
+		const union dmub_rb_cmd *cmd_list,
+		unsigned int timeout_us);
 
 bool dc_dmub_srv_wait_for_idle(struct dc_dmub_srv *dc_dmub_srv,
 		enum dm_dmub_wait_type wait_type,
-		union dmub_rb_cmd *cmd_list);
+		union dmub_rb_cmd *cmd_list,
+		unsigned int timeout_us);
 
 bool dc_dmub_srv_cmd_run(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
 
@@ -91,7 +102,9 @@ bool dc_dmub_srv_get_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv);
 void dc_dmub_setup_subvp_dmub_command(struct dc *dc, struct dc_state *context, bool enable);
 void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv);
 
-void dc_send_update_cursor_info_to_dmu(struct pipe_ctx *pCtx, uint8_t pipe_idx);
+bool dc_dmub_should_update_cursor_data(struct pipe_ctx *pipe_ctx);
+void dc_send_update_cursor_info_to_dmu(const struct dc_context *ctx, uint8_t pipe_idx,
+		struct hubp *hubp, struct dpp *dpp, uint8_t otg_inst, uint8_t panel_inst);
 bool dc_dmub_check_min_version(struct dmub_srv *srv);
 
 void dc_dmub_srv_enable_dpia_trace(const struct dc *dc);
@@ -424,4 +437,43 @@ bool dc_dmub_srv_ihc_set_dig_hdcp_interrupt_dest(
  * @dc_dmub_srv - pointer to DMUB service object
  */
 void dc_dmub_srv_get_fams2_debug_meta(struct dc_dmub_srv *dc_dmub_srv);
+
+/**
+ * dc_dmub_srv_panel_polarity_set_enable() - Enables or disables panel polarity.
+ *
+ * @dc_dmub_srv: DMUB service handle
+ * @panel_inst: Panel instance
+ * @enable: true to enable, false to disable
+ */
+void dc_dmub_srv_panel_polarity_set_enable(struct dc_dmub_srv *dc_dmub_srv, uint8_t panel_inst, bool enable);
+
+/**
+ * dc_dmub_srv_panel_polarity_reset() - Resets panel polarity.
+ *
+ * @dc_dmub_srv: DMUB service handle
+ * @panel_inst: Panel instance
+ */
+void dc_dmub_srv_panel_polarity_reset(struct dc_dmub_srv *dc_dmub_srv, uint8_t panel_inst);
+
+/**
+ * dc_dmub_srv_panel_polarity_get_polarity() - Gets the current panel polarity.
+ *
+ * @dc_dmub_srv: DMUB service handle
+ * @panel_inst: Panel instance
+ * @polarity: Pointer to store the current polarity
+ */
+bool dc_dmub_srv_panel_polarity_get_polarity(struct dc_dmub_srv *dc_dmub_srv, uint8_t panel_inst, int32_t *polarity);
+
+/**
+ * dc_dmub_srv_hubbub_set_riommu_pctrl() - Program the RIOMMU PCTRL register via DMCUB.
+ *
+ * The RIOMMU PCTRL register (SMN address 0x16B0A100) controls the SDP port
+ * disconnection hysteresis between rIOMMU & DCHVM. It is not accessible from
+ * x86, so the write is offloaded to DMCUB.
+ *
+ * @ctx: dc context
+ * @value: value to program into the register (e.g. 0x20)
+ */
+void dc_dmub_srv_hubbub_set_riommu_pctrl(const struct dc_context *ctx, uint32_t value);
+
 #endif /* _DMUB_DC_SRV_H_ */

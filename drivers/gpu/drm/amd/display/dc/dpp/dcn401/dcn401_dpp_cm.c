@@ -144,6 +144,25 @@ void dpp401_set_cursor_position(
 	dpp_base->att.cur0_ctl.bits.cur0_enable = cur_en;
 }
 
+/* Resync the SW cursor cache from real hardware state. */
+void dpp401_cursor_refresh_state(struct dpp *dpp_base)
+{
+	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
+	uint32_t cur0_enable = 0, mode = 0, expansion_mode = 0, rom_en = 0;
+
+	REG_GET_4(CURSOR0_CONTROL,
+		CUR0_ENABLE, &cur0_enable,
+		CUR0_MODE, &mode,
+		CUR0_EXPANSION_MODE, &expansion_mode,
+		CUR0_ROM_EN, &rom_en);
+
+	dpp_base->pos.cur0_ctl.bits.cur0_enable = cur0_enable;
+	dpp_base->att.cur0_ctl.bits.cur0_enable = cur0_enable;
+	dpp_base->att.cur0_ctl.bits.mode = mode;
+	dpp_base->att.cur0_ctl.bits.expansion_mode = expansion_mode;
+	dpp_base->att.cur0_ctl.bits.cur0_rom_en = rom_en;
+}
+
 void dpp401_set_optional_cursor_attributes(
 	struct dpp *dpp_base,
 	struct dpp_cursor_attributes *attr)

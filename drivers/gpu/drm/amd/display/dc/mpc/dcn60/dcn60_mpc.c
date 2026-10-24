@@ -111,34 +111,6 @@ static struct mpcc *mpc60_insert_plane(
 	return new_mpcc;
 }
 
-void mpc60_program_rmcm_lut_read_write_control(struct mpc *mpc, const enum MCM_LUT_ID id,
-	bool lut_bank_a, bool enabled, int mpcc_id)
-{
-	struct dcn60_mpc *mpc60 = TO_DCN60_MPC(mpc);
-
-	switch (id) {
-	case MCM_LUT_3DLUT:
-		REG_UPDATE(MPC_RMCM_3DLUT_MODE[mpcc_id], MPC_RMCM_3DLUT_MODE,
-			(!enabled) ? 0 :
-			(lut_bank_a) ? 1 : 2);
-		break;
-
-	case MCM_LUT_SHAPER:
-		REG_UPDATE(MPC_RMCM_SHAPER_LUT_WRITE_EN_MASK[mpcc_id],
-			MPC_RMCM_SHAPER_LUT_WRITE_EN_MASK, 7);
-
-		REG_UPDATE(MPC_RMCM_SHAPER_LUT_WRITE_EN_MASK[mpcc_id],
-			MPC_RMCM_SHAPER_LUT_WRITE_SEL,
-			lut_bank_a == true ? 0 : 1);
-
-		REG_SET(MPC_RMCM_SHAPER_LUT_INDEX[mpcc_id], 0,
-			MPC_RMCM_SHAPER_LUT_INDEX, 0);
-		break;
-	default:
-		break;
-	}
-}
-
 static void mpc60_program_lut_read_write_control(struct mpc *mpc,
 		const enum MCM_LUT_ID id,
 		const bool lut_bank_a,
@@ -288,18 +260,6 @@ static const struct mpc_funcs dcn60_mpc_funcs = {
 	.program_lut_read_write_control = mpc60_program_lut_read_write_control,
 	.program_lut_mode = mpc60_program_lut_mode,
 	.get_lut_mode = mpc401_get_lut_mode,
-	.rmcm = {
-		.enable_3dlut_fl = mpc42_enable_3dlut_fl,
-		.update_3dlut_fast_load_select = mpc42_update_3dlut_fast_load_select,
-		.program_lut_read_write_control = mpc60_program_rmcm_lut_read_write_control,
-		.program_lut_mode = mpc42_program_lut_mode,
-		.program_3dlut_size = mpc42_program_rmcm_3dlut_size,
-		.program_bias_scale = mpc42_program_rmcm_3dlut_fast_load_bias_scale,
-		.program_bit_depth = mpc42_program_rmcm_bit_depth,
-		.power_on_shaper_3dlut = mpc42_power_on_rmcm_shaper_3dlut,
-		.populate_lut = mpc42_populate_rmcm_lut,
-		.get_3dlut_mode = mpc42_get_rmcm_3dlut_mode,
-	},
 };
 
 void dcn60_mpc_construct(struct dcn60_mpc *mpc60,
@@ -313,6 +273,7 @@ void dcn60_mpc_construct(struct dcn60_mpc *mpc60,
 	int i;
 
 	mpc60->base.ctx = ctx;
+	mpc60->base.inst = 0;
 
 	mpc60->base.funcs = &dcn60_mpc_funcs;
 

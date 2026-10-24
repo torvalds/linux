@@ -25,6 +25,7 @@
  *          Alex Deucher
  */
 
+#include <linux/of.h>
 #include <linux/pci.h>
 
 #include <drm/drm_device.h>
@@ -1512,6 +1513,14 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 			rdev->mode_info.connector_table = CT_RN50_POWER;
 		else
 #endif
+		if (of_node_name_prefix(rdev->pdev->dev.of_node, "SUNW,XVR-300"))
+			/* FireMV 2200 PCIe with FCode-only ROM, no COMBIOS
+			 * to parse; both XVR-300 SKUs share device ID 5b64
+			 * with an ATI subsystem ID, so match the OF node
+			 * name instead.
+			 */
+			rdev->mode_info.connector_table = CT_SUN_XVR300;
+		else
 			rdev->mode_info.connector_table = CT_GENERIC;
 	}
 
@@ -2185,6 +2194,48 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 					    DRM_MODE_CONNECTOR_SVIDEO,
 					    &ddc_i2c,
 					    CONNECTOR_OBJECT_ID_SVIDEO,
+					    &hpd);
+		break;
+	case CT_SUN_XVR300:
+		DRM_INFO("Connector Table: %d (sun xvr-300)\n",
+			 rdev->mode_info.connector_table);
+		/* DVI-I - internal tmds, tv dac */
+		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_DVI, 0, 0);
+		hpd.hpd = RADEON_HPD_1;
+		radeon_add_legacy_encoder(dev,
+					  radeon_get_encoder_enum(dev,
+								ATOM_DEVICE_DFP1_SUPPORT,
+								0),
+					  ATOM_DEVICE_DFP1_SUPPORT);
+		radeon_add_legacy_encoder(dev,
+					  radeon_get_encoder_enum(dev,
+								ATOM_DEVICE_CRT2_SUPPORT,
+								2),
+					  ATOM_DEVICE_CRT2_SUPPORT);
+		radeon_add_legacy_connector(dev, 0,
+					    ATOM_DEVICE_DFP1_SUPPORT |
+					    ATOM_DEVICE_CRT2_SUPPORT,
+					    DRM_MODE_CONNECTOR_DVII, &ddc_i2c,
+					    CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_I,
+					    &hpd);
+		/* DVI-I - sil164 dvo, primary dac */
+		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
+		hpd.hpd = RADEON_HPD_2;
+		radeon_add_legacy_encoder(dev,
+					  radeon_get_encoder_enum(dev,
+								ATOM_DEVICE_DFP2_SUPPORT,
+								0),
+					  ATOM_DEVICE_DFP2_SUPPORT);
+		radeon_add_legacy_encoder(dev,
+					  radeon_get_encoder_enum(dev,
+								ATOM_DEVICE_CRT1_SUPPORT,
+								1),
+					  ATOM_DEVICE_CRT1_SUPPORT);
+		radeon_add_legacy_connector(dev, 1,
+					    ATOM_DEVICE_DFP2_SUPPORT |
+					    ATOM_DEVICE_CRT1_SUPPORT,
+					    DRM_MODE_CONNECTOR_DVII, &ddc_i2c,
+					    CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_I,
 					    &hpd);
 		break;
 	default:

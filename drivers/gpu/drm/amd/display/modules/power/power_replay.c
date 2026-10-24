@@ -338,9 +338,11 @@ static bool mod_power_update_replay_active_status(unsigned int active_replay_eve
 
 	/* General UI scenario */
 	if (active_replay_events & replay_event_general_ui) {
-		if (replay_enable_option & pr_enable_option_general_ui)
+		if (replay_enable_option & pr_enable_option_general_ui) {
+			if (link->replay_settings.system_in_dc)
+				link->replay_settings.config.replay_timing_sync_supported = false;
 			return true;
-		else
+		} else
 			return false;
 	}
 
@@ -760,6 +762,19 @@ void mod_power_replay_residency(const struct dc_stream_state *stream,
 	if (link && link->dc && link->dc->link_srv)
 		link->dc->link_srv->edp_replay_residency(link, residency, is_start, mode);
 }
+
+bool mod_power_replay_get_cumulative_residency(const struct dc_stream_state *stream,
+	uint32_t *residency_milli_pct)
+{
+	const struct dc_link *link = dc_stream_get_link(stream);
+
+	if (!link || !link->dc || !link->dc->link_srv)
+		return false;
+
+	return link->dc->link_srv->edp_replay_get_cumulative_residency(
+		link, residency_milli_pct);
+}
+
 
 bool mod_power_replay_set_power_opt_and_coasting_vtotal(struct mod_power *mod_power,
 	const struct dc_stream_state *stream, unsigned int active_replay_events, uint32_t coasting_vtotal,

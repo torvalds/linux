@@ -16,8 +16,24 @@ struct host1x_memory_context;
 
 struct host1x_memory_context_list {
 	struct mutex lock;
-	struct host1x_memory_context *devs;
+	struct host1x_hw_memory_context *devs;
 	unsigned int len;
+	struct list_head waiters;
+};
+
+struct host1x_hw_memory_context {
+	struct host1x *host;
+
+	refcount_t ref;
+	struct pid *owner;
+
+	struct device_dma_parameters dma_parms;
+	struct device dev;
+	u64 dma_mask;
+	u32 stream_id;
+
+	struct list_head owners;
+	refcount_t active;
 };
 
 #ifdef CONFIG_IOMMU_API

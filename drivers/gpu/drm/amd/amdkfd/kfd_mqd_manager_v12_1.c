@@ -31,6 +31,7 @@
 #include "gc/gc_12_1_0_sh_mask.h"
 #include "amdgpu_amdkfd.h"
 #include "kfd_device_queue_manager.h"
+#include "gmc_v12_1.h"
 
 static void update_mqd(struct mqd_manager *mm, void *mqd,
 		       struct queue_properties *q,
@@ -143,12 +144,31 @@ static struct kfd_mem_obj *allocate_mqd(struct mqd_manager *mm,
 	u32 mqd_size = AMDGPU_MQD_SIZE_ALIGN(mm->mqd_size);
 	struct kfd_node *node = mm->dev;
 	struct kfd_mem_obj *mqd_mem_obj;
+	int retval;
 
 	if (q->type == KFD_QUEUE_TYPE_COMPUTE)
 		mqd_size *= NUM_XCC(node->xcc_mask);
 
-	if (kfd_gtt_sa_allocate(node, mqd_size, &mqd_mem_obj))
-		return NULL;
+	if (node->kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
+		mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+		if (!mqd_mem_obj)
+			return NULL;
+		retval = amdgpu_amdkfd_alloc_kernel_mem(node->adev,
+			mqd_size,
+			AMDGPU_GEM_DOMAIN_GTT,
+			&(mqd_mem_obj->mem),
+			&(mqd_mem_obj->gpu_addr),
+			(void *)&(mqd_mem_obj->cpu_ptr), false);
+
+		if (retval) {
+			kfree(mqd_mem_obj);
+			return NULL;
+		}
+	} else {
+		retval = kfd_gtt_sa_allocate(node, mqd_size, &mqd_mem_obj);
+		if (retval)
+			return NULL;
+	}
 
 	return mqd_mem_obj;
 }
@@ -216,6 +236,12 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 		m->cp_hqd_wg_state_offset = q->ctl_stack_size;
 	}
 
+	/*
+	 * coherent_aql_mtype (offset 509): program 0 when the driver maps local
+	 * or remote memory as MTYPE_NC, and 1 in all other cases.
+	 */
+	m->coherent_aql_mtype = gmc_v12_1_get_coherent_aql_mtype(mm->dev->adev);
+
 	*mqd = m;
 	if (gart_addr)
 		*gart_addr = addr;
@@ -248,6 +274,7 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_pq_control |=
 			ffs(q->queue_size / sizeof(unsigned int)) - 1 - 1;
 	m->cp_hqd_pq_control |= CP_HQD_PQ_CONTROL__UNORD_DISPATCH_MASK;
+	m->cp_hqd_pq_control |= 3 << CP_HQD_PQ_CONTROL__SCOPE__SHIFT;
 	pr_debug("cp_hqd_pq_control 0x%x\n", m->cp_hqd_pq_control);
 
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);

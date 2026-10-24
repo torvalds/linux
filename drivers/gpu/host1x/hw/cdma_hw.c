@@ -253,6 +253,9 @@ static void timeout_release_mlock(struct host1x_cdma *cdma)
 	struct host1x *host1x = cdma_to_host1x(cdma);
 	u32 offset;
 
+	if (!host1x->common_regs)
+		return;
+
 	switch (ch->client->class) {
 	case HOST1X_CLASS_VIC:
 		offset = HOST1X_COMMON_VIC_MLOCK;

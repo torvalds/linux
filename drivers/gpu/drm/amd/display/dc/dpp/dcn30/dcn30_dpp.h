@@ -587,6 +587,28 @@ bool dpp3_construct(struct dcn3_dpp *dpp3,
 bool dpp3_program_gamcor_lut(
 	struct dpp *dpp_base, const struct pwl_params *params);
 
+struct dcn3_xfer_func_reg;
+
+void dpp3_enable_cm_block(
+	struct dpp *dpp_base);
+
+enum dc_lut_mode dpp30_get_gamcor_current(
+	struct dpp *dpp_base);
+
+void dpp3_program_gammcor_lut(
+	struct dpp *dpp_base,
+	const struct pwl_result_data *rgb,
+	uint32_t num,
+	bool is_ram_a);
+
+void dpp3_gamcor_reg_field(
+	struct dcn3_dpp *dpp,
+	struct dcn3_xfer_func_reg *reg);
+
+void dpp3_configure_gamcor_lut(
+	struct dpp *dpp_base,
+	bool is_ram_a);
+
 void dpp3_program_CM_dealpha(
 		struct dpp *dpp_base,
 		uint32_t enable, uint32_t additive_blending);

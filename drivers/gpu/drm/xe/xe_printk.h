@@ -36,6 +36,9 @@
 #define xe_dbg(_xe, _fmt, ...) \
 	xe_printk((_xe), dbg, _fmt, ##__VA_ARGS__)
 
+#define xe_dbg_ratelimited(_xe, _fmt, ...) \
+	xe_printk((_xe), dbg_ratelimited, _fmt, ##__VA_ARGS__)
+
 #define xe_WARN_type(_xe, _type, _condition, _fmt, ...) \
 	drm_WARN##_type(&(_xe)->drm, _condition, _fmt, ## __VA_ARGS__)
 

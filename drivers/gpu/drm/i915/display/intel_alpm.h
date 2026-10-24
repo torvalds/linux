@@ -34,6 +34,9 @@ bool intel_alpm_aux_wake_supported(struct intel_dp *intel_dp);
 bool intel_alpm_aux_less_wake_supported(struct intel_dp *intel_dp);
 bool intel_alpm_is_alpm_aux_less(struct intel_dp *intel_dp,
 				 const struct intel_crtc_state *crtc_state);
+bool intel_alpm_pr_as_sdp_skip_frames_enabled(struct intel_dp *intel_dp,
+					      const struct intel_crtc_state *crtc_state);
+void intel_alpm_pr_as_sdp_update(const struct intel_crtc_state *crtc_state);
 void intel_alpm_disable(struct intel_dp *intel_dp);
 bool intel_alpm_get_error(struct intel_dp *intel_dp);
 void intel_alpm_lobf_compute_config_late(struct intel_dp *intel_dp,

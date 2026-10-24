@@ -114,6 +114,8 @@ struct amdgpu_gmc_fault {
 struct amdgpu_vmhub_funcs {
 	void (*print_l2_protection_fault_status)(struct amdgpu_device *adev,
 						 uint32_t status);
+	void (*print_l2_protection_fault_status_hi)(struct amdgpu_device *adev,
+						    uint32_t status);
 	uint32_t (*get_invalidate_req)(unsigned int vmid, uint32_t flush_type);
 };
 
@@ -125,6 +127,7 @@ struct amdgpu_vmhub {
 	uint32_t	vm_inv_eng0_ack;
 	uint32_t	vm_context0_cntl;
 	uint32_t	vm_l2_pro_fault_status;
+	uint32_t	vm_l2_pro_fault_status_hi;
 	uint32_t	vm_l2_pro_fault_cntl;
 
 	/*
@@ -441,9 +444,11 @@ int amdgpu_gmc_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev);
 void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 			      uint32_t vmhub, uint32_t flush_type);
-int amdgpu_gmc_flush_gpu_tlb_pasid(struct amdgpu_device *adev, uint16_t pasid,
-				   uint32_t flush_type, bool all_hub,
-				   uint32_t inst);
+int amdgpu_gmc_flush_gpu_tlb_pasid(struct amdgpu_device *adev, u16 pasid,
+				   u32 flush_type, bool all_hub, u32 inst);
+int amdgpu_gmc_flush_gpu_tlb_pasid_xccs(struct amdgpu_device *adev, u16 pasid,
+					u32 flush_type, bool all_hub,
+					u32 xcc_mask);
 void amdgpu_gmc_fw_reg_write_reg_wait(struct amdgpu_device *adev,
 				      uint32_t reg0, uint32_t reg1,
 				      uint32_t ref, uint32_t mask,

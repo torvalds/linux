@@ -86,7 +86,7 @@ struct pvr_fw_defs {
 	 * FW processor specific finalisation.
 	 * @pvr_dev: Target PowerVR device.
 	 *
-	 * This function is optional.
+	 * This function is mandatory.
 	 */
 	void (*fini)(struct pvr_device *pvr_dev);
 
@@ -349,29 +349,17 @@ struct pvr_fw_device {
 	/** @fw_mm_base: Base address of address space managed by @fw_mm. */
 	u64 fw_mm_base;
 
-	/**
-	 * @fwif_connection_ctl: Pointer to CPU mapping of FWIF connection
-	 *                       control structure.
-	 */
-	struct rogue_fwif_connection_ctl *fwif_connection_ctl;
-
 	/** @fwif_sysinit: Pointer to CPU mapping of FW SYSINIT structure. */
 	struct rogue_fwif_sysinit *fwif_sysinit;
 
 	/** @fwif_sysdata: Pointer to CPU mapping of FW SYSDATA structure. */
 	struct rogue_fwif_sysdata *fwif_sysdata;
 
-	/** @fwif_osinit: Pointer to CPU mapping of FW OSINIT structure. */
-	struct rogue_fwif_osinit *fwif_osinit;
-
 	/** @fwif_osdata: Pointer to CPU mapping of FW OSDATA structure. */
 	struct rogue_fwif_osdata *fwif_osdata;
 
 	/** @power_sync: Pointer to CPU mapping of power sync state. */
 	u32 *power_sync;
-
-	/** @hwrinfobuf: Pointer to CPU mapping of FW HWR info buffer. */
-	struct rogue_fwif_hwrinfobuf *hwrinfobuf;
 
 	/** @fw_trace: Device firmware trace buffer state. */
 	struct pvr_fw_trace fw_trace;
@@ -429,6 +417,12 @@ int pvr_fw_object_create(struct pvr_device *pvr_dev, size_t size, u64 flags,
 void *pvr_fw_object_create_and_map(struct pvr_device *pvr_dev, size_t size, u64 flags,
 				   void (*init)(void *cpu_ptr, void *priv),
 				   void *init_priv, struct pvr_fw_object **pvr_obj_out);
+
+int
+pvr_fw_object_create_offset(struct pvr_device *pvr_dev, u32 fw_addr,
+			    size_t size, u64 flags,
+			    void (*init)(void *cpu_ptr, void *priv),
+			    void *init_priv, struct pvr_fw_object **pvr_obj_out);
 
 void *
 pvr_fw_object_create_and_map_offset(struct pvr_device *pvr_dev, u32 dev_offset, size_t size,

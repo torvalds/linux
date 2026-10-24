@@ -217,15 +217,18 @@ static int find_free_gsl_group(const struct dc *dc)
  * gsl_0 <=> pipe_ctx->stream_res.gsl_group == 1
  * Using a magic value like -1 would require tracking all inits/resets
  */
-void dcn20_setup_gsl_group_as_lock(
+void dcn20_build_gsl_group_as_lock(
 		const struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
-		bool enable)
+		bool enable,
+		struct tg_set_gsl_params *gsl_params,
+		struct tg_set_gsl_source_select_params *gsl_source_select_params)
 {
-	struct gsl_params gsl;
 	int group_idx;
 
-	memset(&gsl, 0, sizeof(struct gsl_params));
+	memset(&gsl_params->gsl, 0, sizeof(gsl_params->gsl));
+	gsl_params->tg = pipe_ctx->stream_res.tg;
+	gsl_source_select_params->tg = pipe_ctx->stream_res.tg;
 
 	if (enable) {
 		/* return if group already assigned since GSL was set up
@@ -241,22 +244,22 @@ void dcn20_setup_gsl_group_as_lock(
 		/* set gsl group reg field and mark resource used */
 		switch (group_idx) {
 		case 1:
-			gsl.gsl0_en = 1;
+			gsl_params->gsl.gsl0_en = 1;
 			dc->res_pool->gsl_groups.gsl_0 = 1;
 			break;
 		case 2:
-			gsl.gsl1_en = 1;
+			gsl_params->gsl.gsl1_en = 1;
 			dc->res_pool->gsl_groups.gsl_1 = 1;
 			break;
 		case 3:
-			gsl.gsl2_en = 1;
+			gsl_params->gsl.gsl2_en = 1;
 			dc->res_pool->gsl_groups.gsl_2 = 1;
 			break;
 		default:
 			BREAK_TO_DEBUGGER();
 			return; // invalid case
 		}
-		gsl.gsl_master_en = 1;
+		gsl_params->gsl.gsl_master_en = 1;
 	} else {
 		group_idx = pipe_ctx->stream_res.gsl_group;
 		if (group_idx == 0)
@@ -267,32 +270,46 @@ void dcn20_setup_gsl_group_as_lock(
 		/* unset gsl group reg field and mark resource free */
 		switch (group_idx) {
 		case 1:
-			gsl.gsl0_en = 0;
 			dc->res_pool->gsl_groups.gsl_0 = 0;
 			break;
 		case 2:
-			gsl.gsl1_en = 0;
 			dc->res_pool->gsl_groups.gsl_1 = 0;
 			break;
 		case 3:
-			gsl.gsl2_en = 0;
 			dc->res_pool->gsl_groups.gsl_2 = 0;
 			break;
 		default:
 			BREAK_TO_DEBUGGER();
 			return;
 		}
-		gsl.gsl_master_en = 0;
 	}
+
+	gsl_source_select_params->group_idx = group_idx;
+	gsl_source_select_params->gsl_ready_signal = enable ? 4 : 0;
+}
+
+void dcn20_setup_gsl_group_as_lock(
+		const struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		bool enable)
+{
+	struct tg_set_gsl_params gsl_params = { 0 };
+	struct tg_set_gsl_source_select_params gsl_source_select_params = { 0 };
+
+	dcn20_build_gsl_group_as_lock(dc, pipe_ctx, enable,
+			&gsl_params, &gsl_source_select_params);
+	if (!gsl_source_select_params.group_idx)
+		return;
 
 	/* at this point we want to program whether it's to enable or disable */
 	if (pipe_ctx->stream_res.tg->funcs->set_gsl != NULL) {
 		pipe_ctx->stream_res.tg->funcs->set_gsl(
 			pipe_ctx->stream_res.tg,
-			&gsl);
+			&gsl_params.gsl);
 		if (pipe_ctx->stream_res.tg->funcs->set_gsl_source_select != NULL)
 			pipe_ctx->stream_res.tg->funcs->set_gsl_source_select(
-				pipe_ctx->stream_res.tg, group_idx, enable ? 4 : 0);
+				pipe_ctx->stream_res.tg, gsl_source_select_params.group_idx,
+				gsl_source_select_params.gsl_ready_signal);
 	} else
 		BREAK_TO_DEBUGGER();
 }
@@ -377,14 +394,12 @@ void dcn20_disable_vga(
 }
 
 void dcn20_program_triple_buffer(
-	const struct dc *dc,
-	struct pipe_ctx *pipe_ctx,
+	struct hubp *hubp,
 	bool enable_triple_buffer)
 {
-	(void)dc;
-	if (pipe_ctx->plane_res.hubp && pipe_ctx->plane_res.hubp->funcs) {
-		pipe_ctx->plane_res.hubp->funcs->hubp_enable_tripleBuffer(
-			pipe_ctx->plane_res.hubp,
+	if (hubp && hubp->funcs) {
+		hubp->funcs->hubp_enable_tripleBuffer(
+			hubp,
 			enable_triple_buffer);
 	}
 }
@@ -443,7 +458,8 @@ void dcn20_init_blank(
 			&black_color,
 			otg_active_width,
 			otg_active_height,
-			0);
+			0,
+			dc->debug.disable_dynamic_expansion_for_test_pattern);
 
 	if (num_opps == 2) {
 		bottom_opp->funcs->opp_set_disp_pattern_generator(
@@ -454,7 +470,8 @@ void dcn20_init_blank(
 				&black_color,
 				otg_active_width,
 				otg_active_height,
-				0);
+				0,
+				dc->debug.disable_dynamic_expansion_for_test_pattern);
 	}
 
 	hws->funcs.wait_for_blank_complete(opp);
@@ -701,6 +718,10 @@ void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
+
+	/* Clearing 3DLUT fast load writes to HUBP, so it must precede hubp_clk_cntl() below */
+	if (hws->funcs.disable_rmcm_luts)
+		hws->funcs.disable_rmcm_luts(dc, pipe_ctx->plane_res.rmcm, hubp, pipe_ctx->plane_res.mpcc_inst);
 
 	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
 
@@ -1065,9 +1086,8 @@ bool dcn20_set_output_transfer_func(struct set_output_transfer_func_params *otf_
 }
 
 bool dcn20_set_blend_lut(
-	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
+	struct dpp *dpp, struct dc_plane_state *plane_state)
 {
-	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	bool result = true;
 	const struct pwl_params *blend_lut = NULL;
 
@@ -1076,18 +1096,17 @@ bool dcn20_set_blend_lut(
 	else if (plane_state->cm.blend_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 		cm_helper_translate_curve_to_hw_format(plane_state->ctx,
 				&plane_state->cm.blend_func,
-				&dpp_base->regamma_params, false);
-		blend_lut = &dpp_base->regamma_params;
+				&dpp->regamma_params, false);
+		blend_lut = &dpp->regamma_params;
 	}
-	result = dpp_base->funcs->dpp_program_blnd_lut(dpp_base, blend_lut);
+	result = dpp->funcs->dpp_program_blnd_lut(dpp, blend_lut);
 
 	return result;
 }
 
 bool dcn20_set_shaper_3dlut(
-	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
+	struct dpp *dpp, struct dc_plane_state *plane_state)
 {
-	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	bool result = true;
 	const struct pwl_params *shaper_lut = NULL;
 
@@ -1096,35 +1115,34 @@ bool dcn20_set_shaper_3dlut(
 	else if (plane_state->cm.shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 		cm_helper_translate_curve_to_hw_format(plane_state->ctx,
 				&plane_state->cm.shaper_func,
-				&dpp_base->shaper_params, true);
-		shaper_lut = &dpp_base->shaper_params;
+				&dpp->shaper_params, true);
+		shaper_lut = &dpp->shaper_params;
 	}
 
-	result = dpp_base->funcs->dpp_program_shaper_lut(dpp_base, shaper_lut);
+	dpp->funcs->dpp_program_shaper_lut(dpp, shaper_lut);
 	if (plane_state->cm.lut3d_func.state.bits.initialized == 1)
-		result = dpp_base->funcs->dpp_program_3dlut(dpp_base,
+		result = dpp->funcs->dpp_program_3dlut(dpp,
 								&plane_state->cm.lut3d_func.lut_3d);
 	else
-		result = dpp_base->funcs->dpp_program_3dlut(dpp_base, NULL);
+		result = dpp->funcs->dpp_program_3dlut(dpp, NULL);
 
 	return result;
 }
 
-bool dcn20_set_input_transfer_func(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_plane_state *plane_state)
+bool dcn20_set_input_transfer_func(struct set_input_transfer_func_params *params)
 {
-	struct dce_hwseq *hws = dc->hwseq;
-	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
+	struct dpp *dpp = params->dpp;
+	struct dc_plane_state *plane_state = params->plane_state;
+	struct dce_hwseq *hws = params->dc->hwseq;
 	const struct dc_transfer_func *tf = NULL;
 	bool result = true;
 	bool use_degamma_ram = false;
 
-	if (dpp_base == NULL || plane_state == NULL)
+	if (dpp == NULL || plane_state == NULL)
 		return false;
 
-	hws->funcs.set_shaper_3dlut(pipe_ctx, plane_state);
-	hws->funcs.set_blend_lut(pipe_ctx, plane_state);
+	hws->funcs.set_shaper_3dlut(dpp, plane_state);
+	hws->funcs.set_blend_lut(dpp, plane_state);
 
 	tf = &plane_state->in_transfer_func;
 
@@ -1133,13 +1151,13 @@ bool dcn20_set_input_transfer_func(struct dc *dc,
 
 	if (use_degamma_ram == true) {
 		if (tf->type == TF_TYPE_HWPWL)
-			dpp_base->funcs->dpp_program_degamma_pwl(dpp_base,
+			dpp->funcs->dpp_program_degamma_pwl(dpp,
 					&tf->pwl);
 		else if (tf->type == TF_TYPE_DISTRIBUTED_POINTS) {
 			cm_helper_translate_curve_to_degamma_hw_format(tf,
-					&dpp_base->degamma_params);
-			dpp_base->funcs->dpp_program_degamma_pwl(dpp_base,
-				&dpp_base->degamma_params);
+					&dpp->degamma_params);
+			dpp->funcs->dpp_program_degamma_pwl(dpp,
+				&dpp->degamma_params);
 		}
 		return true;
 	}
@@ -1149,21 +1167,21 @@ bool dcn20_set_input_transfer_func(struct dc *dc,
 	if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
-			dpp_base->funcs->dpp_set_degamma(dpp_base,
+			dpp->funcs->dpp_set_degamma(dpp,
 					IPP_DEGAMMA_MODE_HW_sRGB);
 			break;
 		case TRANSFER_FUNCTION_BT709:
-			dpp_base->funcs->dpp_set_degamma(dpp_base,
+			dpp->funcs->dpp_set_degamma(dpp,
 					IPP_DEGAMMA_MODE_HW_xvYCC);
 			break;
 		case TRANSFER_FUNCTION_LINEAR:
-			dpp_base->funcs->dpp_set_degamma(dpp_base,
+			dpp->funcs->dpp_set_degamma(dpp,
 					IPP_DEGAMMA_MODE_BYPASS);
 			break;
 		case TRANSFER_FUNCTION_PQ:
-			dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_USER_PWL);
-			cm_helper_translate_curve_to_degamma_hw_format(tf, &dpp_base->degamma_params);
-			dpp_base->funcs->dpp_program_degamma_pwl(dpp_base, &dpp_base->degamma_params);
+			dpp->funcs->dpp_set_degamma(dpp, IPP_DEGAMMA_MODE_USER_PWL);
+			cm_helper_translate_curve_to_degamma_hw_format(tf, &dpp->degamma_params);
+			dpp->funcs->dpp_program_degamma_pwl(dpp, &dpp->degamma_params);
 			result = true;
 			break;
 		default:
@@ -1171,7 +1189,7 @@ bool dcn20_set_input_transfer_func(struct dc *dc,
 			break;
 		}
 	} else if (tf->type == TF_TYPE_BYPASS)
-		dpp_base->funcs->dpp_set_degamma(dpp_base,
+		dpp->funcs->dpp_set_degamma(dpp,
 				IPP_DEGAMMA_MODE_BYPASS);
 	else {
 		/*
@@ -1179,7 +1197,7 @@ bool dcn20_set_input_transfer_func(struct dc *dc,
 		 * fix is required for this use case
 		 */
 		BREAK_TO_DEBUGGER();
-		dpp_base->funcs->dpp_set_degamma(dpp_base,
+		dpp->funcs->dpp_set_degamma(dpp,
 				IPP_DEGAMMA_MODE_BYPASS);
 	}
 
@@ -1389,19 +1407,30 @@ void dcn20_enable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx,
 //	}
 }
 
-void dcn20_pipe_control_lock(
-	struct dc *dc,
-	struct pipe_ctx *pipe,
-	bool lock)
+bool dcn20_build_pipe_control_lock_sequence(
+		struct dc *dc,
+		struct pipe_ctx *pipe,
+		bool lock,
+		struct pipe_control_lock_params *params)
 {
 	struct pipe_ctx *temp_pipe;
 	bool flip_immediate = false;
+	unsigned int hubp_count = 0;
 
 	/* use TG master update lock to lock everything on the TG
 	 * therefore only top pipe need to lock
 	 */
 	if (!pipe || pipe->top_pipe)
-		return;
+		return false;
+
+	params->lock = lock;
+	params->tg_lock.dc = dc;
+	params->tg_lock.lock = lock;
+	params->tg_lock.tg = pipe->stream_res.tg;
+	params->tg_lock.use_dmub_inbox1 = pipe->stream &&
+			should_use_dmub_inbox1_lock(dc, pipe->stream->link);
+	params->tg_lock.triplebuffer_flips = pipe->plane_state &&
+			pipe->plane_state->triplebuffer_flips;
 
 	if (pipe->plane_state != NULL)
 		flip_immediate = pipe->plane_state->flip_immediate;
@@ -1416,22 +1445,10 @@ void dcn20_pipe_control_lock(
 	}
 
 	if (flip_immediate && lock) {
-		const unsigned int TIMEOUT_FOR_FLIP_PENDING_US = 100000U;
-		unsigned int polling_interval_us = 1;
-		unsigned int i;
-
 		temp_pipe = pipe;
 		while (temp_pipe) {
-			if (temp_pipe->plane_state && temp_pipe->plane_state->flip_immediate) {
-				for (i = 0; i < TIMEOUT_FOR_FLIP_PENDING_US / polling_interval_us; ++i) {
-					if (!temp_pipe->plane_res.hubp->funcs->hubp_is_flip_pending(temp_pipe->plane_res.hubp))
-						break;
-					udelay(polling_interval_us);
-				}
-
-				/* no reason it should take this long for immediate flips */
-				ASSERT(i != TIMEOUT_FOR_FLIP_PENDING_US);
-			}
+			if (temp_pipe->plane_state && temp_pipe->plane_state->flip_immediate)
+				params->hubps_to_wait_for_flip[hubp_count++] = temp_pipe->plane_res.hubp;
 			temp_pipe = temp_pipe->bottom_pipe;
 		}
 	}
@@ -1441,8 +1458,11 @@ void dcn20_pipe_control_lock(
 	 */
 	if (lock && (pipe->bottom_pipe != NULL || !flip_immediate))
 		if ((flip_immediate && pipe->stream_res.gsl_group == 0) ||
-		    (!flip_immediate && pipe->stream_res.gsl_group > 0))
-			dcn20_setup_gsl_group_as_lock(dc, pipe, flip_immediate);
+		    (!flip_immediate && pipe->stream_res.gsl_group > 0)) {
+			params->gsl_lock = true;
+			dcn20_build_gsl_group_as_lock(dc, pipe, flip_immediate,
+					&params->gsl, &params->gsl_source_select);
+		}
 
 	if (pipe->plane_state != NULL)
 		flip_immediate = pipe->plane_state->flip_immediate;
@@ -1455,37 +1475,53 @@ void dcn20_pipe_control_lock(
 	}
 
 	if (!lock && pipe->stream_res.gsl_group > 0 && pipe->plane_state &&
-		!flip_immediate)
-	    dcn20_setup_gsl_group_as_lock(dc, pipe, false);
+			!flip_immediate) {
+		params->gsl_lock = true;
+		dcn20_build_gsl_group_as_lock(dc, pipe, false,
+				&params->gsl, &params->gsl_source_select);
+	}
 
-	if (pipe->stream && should_use_dmub_inbox1_lock(dc, pipe->stream->link)) {
+	if (!lock && !params->tg_lock.use_dmub_inbox1 &&
+			!params->tg_lock.triplebuffer_flips &&
+			dc->hwseq->funcs.perform_3dlut_wa_unlock) {
+		const struct pipe_ctx *otg_master_pipe = resource_get_otg_master(pipe);
+		const struct pipe_ctx *primary_dpp_pipe = resource_is_pipe_type(pipe, DPP_PIPE) ?
+				resource_get_primary_dpp_pipe(pipe) : pipe;
+
+		if (otg_master_pipe && otg_master_pipe->stream_res.tg &&
+			 primary_dpp_pipe && primary_dpp_pipe->plane_state &&
+				primary_dpp_pipe->plane_state->cm.flags.bits.lut3d_enable &&
+				primary_dpp_pipe->plane_state->cm.flags.bits.lut3d_dma_enable) {
+			params->tg_3dlut_wa_unlock = true;
+			params->tg_3dlut_wa_unlock_params.tg = otg_master_pipe->stream_res.tg;
+			params->tg_3dlut_wa_unlock_params.hubp = primary_dpp_pipe->plane_res.hubp;
+		}
+	}
+
+	return true;
+}
+
+void dcn20_tg_lock(struct tg_lock_params *params)
+{
+	if (params->use_dmub_inbox1) {
 		union dmub_hw_lock_flags hw_locks = { 0 };
 		struct dmub_hw_lock_inst_flags inst_flags = { 0 };
 
 		hw_locks.bits.lock_pipe = 1;
-		inst_flags.otg_inst = (uint8_t)pipe->stream_res.tg->inst;
-
-		if (pipe->plane_state != NULL)
-			hw_locks.bits.triple_buffer_lock = pipe->plane_state->triplebuffer_flips;
-
-		dmub_hw_lock_mgr_cmd(dc->ctx->dmub_srv,
-					lock,
-					&hw_locks,
-					&inst_flags);
-	} else if (pipe->plane_state != NULL && pipe->plane_state->triplebuffer_flips) {
-		if (lock)
-			pipe->stream_res.tg->funcs->triplebuffer_lock(pipe->stream_res.tg);
+		inst_flags.otg_inst = (uint8_t)params->tg->inst;
+		hw_locks.bits.triple_buffer_lock = params->triplebuffer_flips;
+		dmub_hw_lock_mgr_cmd(params->dc->ctx->dmub_srv, params->lock,
+				&hw_locks, &inst_flags);
+	} else if (params->triplebuffer_flips) {
+		if (params->lock)
+			params->tg->funcs->triplebuffer_lock(params->tg);
 		else
-			pipe->stream_res.tg->funcs->triplebuffer_unlock(pipe->stream_res.tg);
+			params->tg->funcs->triplebuffer_unlock(params->tg);
 	} else {
-		if (lock)
-			pipe->stream_res.tg->funcs->lock(pipe->stream_res.tg);
-		else {
-			if (dc->hwseq->funcs.perform_3dlut_wa_unlock)
-				dc->hwseq->funcs.perform_3dlut_wa_unlock(pipe);
-			else
-				pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
-		}
+		if (params->lock)
+			params->tg->funcs->lock(params->tg);
+		else
+			params->tg->funcs->unlock(params->tg);
 	}
 }
 
@@ -1802,11 +1838,22 @@ void dcn20_update_dchubp_dpp(
 	if ((pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed ||
 			pipe_ctx->update_flags.bits.scaler || viewport_changed == true) &&
 			pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
-		if (dc->hwss.abort_cursor_offload_update)
-			dc->hwss.abort_cursor_offload_update(dc, pipe_ctx);
+		if (dc_dmub_srv_is_cursor_offload_enabled(dc) && dc->hwss.abort_cursor_offload_update) {
+			struct pipe_ctx *top_pipe = resource_get_otg_master(pipe_ctx);
+			struct dpp *dpp[MAX_PIPES];
+			struct hubp *hubp[MAX_PIPES];
+
+			if (top_pipe) {
+				uint8_t pipe_count =
+					hwss_build_cursor_offload_pipe_list(pipe_ctx, dpp, hubp);
+
+				dc->hwss.abort_cursor_offload_update(dc->ctx->dmub_srv->dmub,
+					dpp, hubp, pipe_count, top_pipe->pipe_idx);
+			}
+		}
 
 		dc->hwss.set_cursor_attribute(pipe_ctx);
-		dc->hwss.set_cursor_position(pipe_ctx);
+		hwss_program_cursor_position(dc, pipe_ctx);
 
 		if (dc->hwss.set_cursor_sdr_white_level)
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
@@ -1987,7 +2034,7 @@ static void dcn20_program_pipe(
 			pipe_ctx->plane_state->update_bits.gamma_change ||
 			pipe_ctx->plane_state->update_bits.lut_3d ||
 			pipe_ctx->update_flags.bits.enable))
-		hws->funcs.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
+		hwss_set_input_transfer_func(dc, pipe_ctx);
 
 	/* dcn10_translate_regamma_to_hw_format takes 750us to finish
 	 * only do gamma programming for powering on, internal memcmp to avoid
@@ -2068,7 +2115,7 @@ void dcn20_program_front_end_for_ctx(
 				ASSERT(!pipe->plane_state->triplebuffer_flips);
 				/*turn off triple buffer for full update*/
 				dc->hwss.program_triplebuffer(
-					dc, pipe, pipe->plane_state->triplebuffer_flips);
+					pipe->plane_res.hubp, pipe->plane_state->triplebuffer_flips);
 			}
 		}
 	}
@@ -2735,7 +2782,8 @@ static bool patch_address_for_sbs_tb_stereo(
 	return false;
 }
 
-void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn20_prepare_plane_addr_update(const struct dc *dc, struct pipe_ctx *pipe_ctx,
+		struct dc_plane_address *addr_to_program, bool *flip_immediate)
 {
 	bool addr_patched = false;
 	PHYSICAL_ADDRESS_LOC addr;
@@ -2750,10 +2798,8 @@ void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
 	vm_helper_mark_vmid_used(dc->vm_helper, plane_state->address.vmid,
 			(uint8_t)pipe_ctx->plane_res.hubp->inst);
 
-	pipe_ctx->plane_res.hubp->funcs->hubp_program_surface_flip_and_addr(
-			pipe_ctx->plane_res.hubp,
-			&plane_state->address,
-			plane_state->flip_immediate);
+	*addr_to_program = plane_state->address;
+	*flip_immediate = plane_state->flip_immediate;
 
 	plane_state->status.requested_address = plane_state->address;
 
@@ -2762,6 +2808,23 @@ void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	if (addr_patched)
 		pipe_ctx->plane_state->address.grph_stereo.left_addr = addr;
+}
+
+void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	struct dc_plane_address address;
+	bool flip_immediate;
+
+	if (pipe_ctx->plane_state == NULL)
+		return;
+
+	dcn20_prepare_plane_addr_update(dc, pipe_ctx, &address, &flip_immediate);
+
+	pipe_ctx->plane_res.hubp->funcs->hubp_program_surface_flip_and_addr(
+			pipe_ctx->plane_res.hubp,
+			&address,
+			flip_immediate,
+			pipe_ctx->plane_state->dcc.enable);
 }
 
 void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
@@ -2849,7 +2912,12 @@ void dcn20_reset_back_end_for_pipe(
 	 * screen only, the dpms_off would be true but
 	 * VBIOS lit up eDP, so check link status too.
 	 */
-	if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
+	if (link->connector_signal == SIGNAL_TYPE_EDP &&
+	    link->forced_psr_active) {
+		/* forced psr is active for seamless switch; skip dpms-off. */
+		if (pipe_ctx->stream_res.audio)
+			dc->hwss.disable_audio_stream(pipe_ctx);
+	} else if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
 		dc->link_srv->set_dpms_off(pipe_ctx);
 	else if (pipe_ctx->stream_res.audio)
 		dc->hwss.disable_audio_stream(pipe_ctx);
@@ -2874,12 +2942,14 @@ void dcn20_reset_back_end_for_pipe(
 	 * parent pipe.
 	 */
 	if (pipe_ctx->top_pipe == NULL) {
+		if (!(link->connector_signal == SIGNAL_TYPE_EDP &&
+				link->forced_psr_active)) {
+			dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
-		dc->hwss.set_abm_immediate_disable(pipe_ctx);
+			pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
 
-		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
-
-		pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
+			pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
+		}
 		if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
 			pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
@@ -3169,10 +3239,6 @@ void dcn20_fpga_init_hw(struct dc *dc)
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(hws, true);
 
-	// Specific to FPGA dccg and registers
-	REG_WRITE(RBBMIF_TIMEOUT_DIS, 0xFFFFFFFF);
-	REG_WRITE(RBBMIF_TIMEOUT_DIS_2, 0xFFFFFFFF);
-
 	dcn10_hubbub_global_timer_enable(dc->res_pool->hubbub, true, 2);
 
 	if (hws->funcs.dccg_init)
@@ -3280,7 +3346,7 @@ void dcn20_set_disp_pattern_generator(const struct dc *dc,
 		const struct tg_color *solid_color,
 		int width, int height, int offset)
 {
-	(void)dc;
 	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(pipe_ctx->stream_res.opp, test_pattern,
-			color_space, color_depth, solid_color, width, height, offset);
+			color_space, color_depth, solid_color, width, height, offset,
+			dc->debug.disable_dynamic_expansion_for_test_pattern);
 }

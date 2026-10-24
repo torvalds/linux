@@ -35,8 +35,6 @@ intel_fb_pin_to_dpt(struct drm_gem_object *_obj, struct intel_dpt *dpt,
 	if (WARN_ON(!i915_gem_object_is_framebuffer(obj)))
 		return ERR_PTR(-EINVAL);
 
-	atomic_inc(&i915->pending_fb_pin);
-
 	for_i915_gem_ww(&ww, ret, true) {
 		ret = i915_gem_object_lock(obj, &ww);
 		if (ret)
@@ -98,7 +96,6 @@ intel_fb_pin_to_dpt(struct drm_gem_object *_obj, struct intel_dpt *dpt,
 	 */
 	drm_WARN_ON(&i915->drm, i915_dpt_offset(vma));
 err:
-	atomic_dec(&i915->pending_fb_pin);
 
 	return vma;
 }
@@ -131,8 +128,6 @@ intel_fb_pin_to_ggtt(struct drm_gem_object *_obj,
 	 * pin/unpin/fence and not more.
 	 */
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
-	atomic_inc(&i915->pending_fb_pin);
 
 	pinctl = 0;
 	/* PIN_MAPPABLE limits the address to GMADR size */
@@ -206,7 +201,6 @@ err:
 	if (ret)
 		vma = ERR_PTR(ret);
 
-	atomic_dec(&i915->pending_fb_pin);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	return vma;
 }

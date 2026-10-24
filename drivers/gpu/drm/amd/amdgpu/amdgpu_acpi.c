@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/xarray.h>
 #include <linux/power_supply.h>
+#include <linux/numa.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
 #include <acpi/video.h>
@@ -1446,6 +1447,141 @@ bool amdgpu_acpi_should_gpu_reset(struct amdgpu_device *adev)
 	return true;
 #endif
 }
+
+#ifdef HAVE_ACPI_SRAT_GENERIC_AFFINITY
+static bool amdgpu_acpi_srat_pci_handle_match(struct pci_dev *pdev,
+					      struct acpi_srat_generic_affinity *gi)
+{
+	u16 segment = *(u16 *)&gi->device_handle[0];
+	u8 bus = gi->device_handle[2];
+	u8 devfn = gi->device_handle[3];
+
+	/* Only PCI device handles (ACPI 6.3: type 1; some firmware used 0) */
+	if (gi->device_handle_type != 0 && gi->device_handle_type != 1)
+		return false;
+
+	if (!(gi->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED))
+		return false;
+
+	/* ACPI 6.3 Table 5-80: segment + bus + devfn bytes */
+	return segment == pci_domain_nr(pdev->bus) &&
+	       bus == pdev->bus->number &&
+	       devfn == pdev->devfn;
+}
+
+int amdgpu_acpi_find_gpu_memory_in_srat(struct amdgpu_device *adev,
+					uint64_t *base_addr, uint64_t *length)
+{
+	struct acpi_srat_generic_affinity *gpu;
+	struct acpi_subtable_header *sub_header;
+	struct acpi_table_header *table_header;
+	struct acpi_srat_mem_affinity *mem;
+	struct pci_dev *pdev = adev->pdev;
+	unsigned long subtable_len;
+	unsigned long table_end;
+	acpi_status status;
+	bool pxm_found = false;
+	bool mem_found = false;
+	u64 mem_base = 0;
+	u64 mem_len = 0;
+	u32 gpu_pxm = 0;
+
+	if (!base_addr || !length)
+		return -EINVAL;
+
+	status = acpi_get_table(ACPI_SIG_SRAT, 0, &table_header);
+	if (ACPI_FAILURE(status))
+		return -ENOENT;
+
+	table_end = (unsigned long)table_header + table_header->length;
+
+	/* Pass 1: find GPU PXM from GENERIC_AFFINITY */
+	sub_header = (struct acpi_subtable_header *)
+		((unsigned long)table_header + sizeof(struct acpi_table_srat));
+	subtable_len = sub_header->length;
+
+	while (((unsigned long)sub_header) + subtable_len <= table_end) {
+		if (subtable_len == 0)
+			break;
+
+		if (sub_header->type == ACPI_SRAT_TYPE_GENERIC_AFFINITY) {
+			gpu = (struct acpi_srat_generic_affinity *)sub_header;
+			if (amdgpu_acpi_srat_pci_handle_match(pdev, gpu)) {
+				gpu_pxm = gpu->proximity_domain;
+				pxm_found = true;
+				break;
+			}
+		}
+
+		sub_header = (struct acpi_subtable_header *)
+			((unsigned long)sub_header + subtable_len);
+		subtable_len = sub_header->length;
+	}
+
+	if (!pxm_found) {
+		acpi_put_table(table_header);
+		dev_err(adev->dev, "SRAT: no acpi generic initiator found\n");
+		return -ENOENT;
+	}
+
+	/* Pass 2: find SPM memory for gpu_pxm */
+	sub_header = (struct acpi_subtable_header *)
+		((unsigned long)table_header + sizeof(struct acpi_table_srat));
+	subtable_len = sub_header->length;
+
+	while (((unsigned long)sub_header) + subtable_len <= table_end) {
+		if (subtable_len == 0)
+			break;
+
+		if (sub_header->type == ACPI_SRAT_TYPE_MEMORY_AFFINITY) {
+			bool enabled, hotplug;
+
+			mem = (struct acpi_srat_mem_affinity *)sub_header;
+			enabled = mem->flags & ACPI_SRAT_MEM_ENABLED;
+			hotplug = mem->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
+
+			/* MUST filter ENABLED && !HOTPLUGGABLE */
+			if (enabled && !hotplug &&
+			    mem->proximity_domain == gpu_pxm) {
+				/* [mem->base_address, mem->length] is the SPM range */
+				mem_base = mem->base_address;
+				mem_len = mem->length;
+				mem_found = true;
+				break;
+			}
+		}
+
+		sub_header = (struct acpi_subtable_header *)
+			((unsigned long)sub_header + subtable_len);
+		subtable_len = sub_header->length;
+	}
+
+	acpi_put_table(table_header);
+
+	if (!mem_found) {
+		dev_err(adev->dev, "SRAT: no memory affinity for pxm %u\n",
+			 gpu_pxm);
+		return -ENOENT;
+	}
+
+	dev_info(adev->dev, "SRAT: gpu pxm=%u base=%llx length=%llx\n",
+		 gpu_pxm, mem_base, mem_len);
+
+	*base_addr = mem_base;
+	*length = mem_len;
+
+	return 0;
+}
+#else
+int amdgpu_acpi_find_gpu_memory_in_srat(struct amdgpu_device *adev,
+					uint64_t *base_addr, uint64_t *length)
+{
+	if (!base_addr || !length)
+		return -EINVAL;
+
+	return -ENOENT;
+}
+#endif
 
 /*
  * amdgpu_acpi_detect - detect ACPI ATIF/ATCS methods

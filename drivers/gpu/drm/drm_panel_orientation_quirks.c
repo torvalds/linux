@@ -12,7 +12,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <drm/drm_connector.h>
-#include <drm/drm_utils.h>
+#include <drm/drm_panel_quirks.h>
 
 #ifdef CONFIG_DMI
 

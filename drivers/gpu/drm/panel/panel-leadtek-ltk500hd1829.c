@@ -649,28 +649,17 @@ static int ltk500hd1829_probe(struct mipi_dsi_device *dsi)
 	if (ret)
 		return ret;
 
-	drm_panel_add(&ctx->panel);
+	ret = devm_drm_panel_add(dev, &ctx->panel);
+	if (ret)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "mipi_dsi_attach failed: %d\n", ret);
-		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void ltk500hd1829_remove(struct mipi_dsi_device *dsi)
-{
-	struct ltk500hd1829 *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret < 0)
-		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", ret);
-
-	drm_panel_remove(&ctx->panel);
 }
 
 static const struct of_device_id ltk500hd1829_of_match[] = {
@@ -692,7 +681,6 @@ static struct mipi_dsi_driver ltk500hd1829_driver = {
 		.of_match_table = ltk500hd1829_of_match,
 	},
 	.probe = ltk500hd1829_probe,
-	.remove = ltk500hd1829_remove,
 };
 module_mipi_dsi_driver(ltk500hd1829_driver);
 

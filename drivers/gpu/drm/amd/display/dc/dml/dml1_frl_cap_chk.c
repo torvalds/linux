@@ -680,11 +680,17 @@ static double calculate_compressed_active_time(uint32_t h_active,
 		r_bit_nominal = 8.0e9;
 		break;
 	case FRL_LINK_RATE_10GBPS:
-	default:
 		r_bit_nominal = 10.0e9;
 		break;
 	case FRL_LINK_RATE_12GBPS:
 		r_bit_nominal = 12.0e9;
+		break;
+	case FRL_LINK_RATE_16GBPS:
+		r_bit_nominal = 16.0e9;
+		break;
+	case FRL_LINK_RATE_20GBPS:
+	default:
+		r_bit_nominal = 20.0e9;
 		break;
 	}
 

@@ -28,8 +28,8 @@
 
 #include "amdgpu.h"
 #include <drm/amdgpu_drm.h>
+#include <drm/clients/drm_fbdev_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_vblank.h>
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
@@ -48,6 +48,7 @@
 #include "amd_pcie.h"
 #include "amdgpu_userq.h"
 #include "amdgpu_video_codecs.h"
+#include "amdgpu_ras_mgr.h"
 
 void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
 {
@@ -285,6 +286,10 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->ver = adev->pm.fw_version;
 		fw_info->feature = 0;
 		break;
+	case AMDGPU_INFO_FW_MP5:
+		fw_info->ver = adev->pm.mp5_fw_version;
+		fw_info->feature = 0;
+		break;
 	case AMDGPU_INFO_FW_TA:
 		switch (query_fw->index) {
 		case TA_FW_TYPE_PSP_XGMI:
@@ -349,8 +354,8 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->feature = adev->psp.toc.feature_version;
 		break;
 	case AMDGPU_INFO_FW_CAP:
-		fw_info->ver = adev->psp.cap_fw_version;
-		fw_info->feature = adev->psp.cap_feature_version;
+		fw_info->ver = adev->psp.cap.fw_version;
+		fw_info->feature = adev->psp.cap.feature_version;
 		break;
 	case AMDGPU_INFO_FW_MES_KIQ:
 		fw_info->ver = adev->mes.kiq_version & AMDGPU_MES_VERSION_MASK;
@@ -1291,7 +1296,11 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 		if (!ras)
 			return -EINVAL;
-		ras_mask = (uint64_t)adev->ras_enabled << 32 | ras->features;
+
+		if (amdgpu_uniras_enabled(adev))
+			ras_mask = amdgpu_uniras_get_ras_caps(adev);
+		else
+			ras_mask = (uint64_t)adev->ras_enabled << 32 | ras->features;
 
 		return copy_to_user(out, &ras_mask,
 				min_t(u64, size, sizeof(ras_mask))) ?
@@ -1936,6 +1945,14 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 	smu_debug = (fw_info.ver >> 0) & 0xff;
 	seq_printf(m, "SMC feature version: %u, program: %d, firmware version: 0x%08x (%d.%d.%d)\n",
 		   fw_info.feature, smu_program, fw_info.ver, smu_major, smu_minor, smu_debug);
+
+	/* MP5 */
+	query_fw.fw_type = AMDGPU_INFO_FW_MP5;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "MP5 feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
 
 	/* SDMA */
 	query_fw.fw_type = AMDGPU_INFO_FW_SDMA;

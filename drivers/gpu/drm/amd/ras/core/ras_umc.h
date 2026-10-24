@@ -104,10 +104,13 @@ struct umc_mca_addr {
 	uint32_t umc_inst;
 	uint32_t node_inst;
 	uint32_t socket_id;
+	uint64_t mca_addr;
+	uint64_t ipid;
 };
 
 struct umc_phy_addr {
 	uint64_t pa;
+	uint64_t pa_flip_mask;
 	uint32_t bank;
 	uint32_t channel_idx;
 };
@@ -125,9 +128,8 @@ struct umc_bank_addr {
 struct ras_umc_ip_func {
 	int (*bank_to_eeprom_record)(struct ras_core_context *ras_core,
 			struct ras_bank_ecc *bank, struct eeprom_umc_record *record);
-	int (*eeprom_record_to_nps_pages)(struct ras_core_context *ras_core,
-			struct eeprom_umc_record *record, uint32_t nps,
-			uint64_t *pfns, uint32_t num);
+	int (*eeprom_record_to_nps_record)(struct ras_core_context *ras_core,
+			struct eeprom_umc_record *record, uint32_t nps);
 	int (*bank_to_soc_pa)(struct ras_core_context *ras_core,
 			struct umc_bank_addr bank_addr, uint64_t *soc_pa);
 	int (*soc_pa_to_bank)(struct ras_core_context *ras_core,
@@ -139,7 +141,8 @@ struct ras_umc_ip_func {
 		uint32_t nps);
 	uint64_t (*nps_pa_to_row_pa)(struct ras_core_context *ras_core,
 		uint64_t pa, enum umc_memory_partition_mode nps, bool zero_pfn_ok);
-	uint32_t (*get_die_id)(uint64_t mca_addr, uint64_t pa);
+	uint32_t (*get_die_id)(struct ras_core_context *ras_core,
+		uint64_t mca_addr, uint64_t pa);
 };
 
 struct eeprom_store_record {
@@ -149,25 +152,21 @@ struct eeprom_store_record {
 	int count;
 	/* the space can place new entries */
 	int space_left;
-	/* logical bad page number */
-	int bad_page_num;
-	/* the bad page number is ras_num_recs or
-	 * ras_num_recs * retire_unit
-	 */
-	int bad_page_num_old;
+	uint64_t umc_channel_bitmap;
 };
 
 struct ras_umc_err_data {
 	struct eeprom_store_record rom_data;
 	struct eeprom_store_record ram_data;
-	enum umc_memory_partition_mode umc_nps_mode;
-	uint64_t last_retired_pfn;
 };
 
 struct ras_umc {
 	u32 umc_ip_version;
-	u32 umc_vram_type;
 	u32 num_umc;
+	/* this node's base in the hive PA space: physical_node_id * lfb_size */
+	u64 pa_base;
+	/* local frame buffer size */
+	u64 lfb_size;
 	const struct ras_umc_ip_func *ip_func;
 	struct radix_tree_root root;
 	struct mutex  tree_lock;
@@ -180,6 +179,11 @@ struct ras_umc {
 	u32 pending_ecc_count;
 	/* number of entries dropped because pending_ecc_list was full */
 	u32 pending_ecc_dropped;
+
+	u32 last_record_count;
+	u64 last_channel_bitmap;
+
+	u32 max_pages_per_row;
 };
 
 /*
@@ -194,7 +198,10 @@ int ras_umc_sw_init(struct ras_core_context *ras);
 int ras_umc_sw_fini(struct ras_core_context *ras);
 int ras_umc_hw_init(struct ras_core_context *ras);
 int ras_umc_hw_fini(struct ras_core_context *ras);
-int ras_umc_psp_ma2pa(struct ras_core_context *ras_core,
+int ras_umc_ras_ta_translate_addr(struct ras_core_context *ras_core,
+		struct umc_mca_addr *in, struct umc_phy_addr *out,
+		uint32_t nps);
+int ras_umc_psp_translate_addr(struct ras_core_context *ras_core,
 		struct umc_mca_addr *in, struct umc_phy_addr *out,
 		uint32_t nps);
 int ras_umc_handle_bad_pages(struct ras_core_context *ras_core, void *data);
@@ -203,6 +210,8 @@ int ras_umc_log_bad_bank_pending(struct ras_core_context *ras_core, struct ras_b
 int ras_umc_log_pending_bad_bank(struct ras_core_context *ras_core);
 int ras_umc_clear_logged_ecc(struct ras_core_context *ras_core);
 int ras_umc_load_bad_pages(struct ras_core_context *ras_core);
+int ras_umc_add_bad_pages(struct ras_core_context *ras_core,
+	struct eeprom_umc_record *bps, uint32_t bps_sz, uint32_t *valid_sz);
 int ras_umc_get_saved_eeprom_count(struct ras_core_context *ras_core);
 int ras_umc_clean_badpage_data(struct ras_core_context *ras_core);
 int ras_umc_fill_eeprom_record(struct ras_core_context *ras_core,
@@ -214,11 +223,20 @@ int ras_umc_get_badpage_record(struct ras_core_context *ras_core, uint32_t index
 bool ras_umc_check_retired_addr(struct ras_core_context *ras_core, uint64_t addr);
 int ras_umc_translate_soc_pa_and_bank(struct ras_core_context *ras_core,
 			uint64_t *soc_pa, struct umc_bank_addr *bank_addr, bool bank_to_pa);
-int ras_umc_convert_record_to_nps_pages(struct ras_core_context *ras_core,
-		struct eeprom_umc_record *record, uint32_t nps,
-		uint64_t *page_pfn, uint32_t max_pages);
+int ras_umc_convert_record_to_row_pages(struct ras_core_context *ras_core,
+	struct eeprom_umc_record *record, uint64_t *page_addrs, uint32_t nr_page_addrs);
 uint32_t ras_umc_bit_wise_xor(uint32_t val);
 int ras_umc_ma2pa(struct ras_core_context *ras_core,
 	struct umc_mca_addr *addr_in, struct umc_phy_addr *addr_out,
 	uint32_t nps);
+int ras_umc_bank_to_umc_record(struct ras_core_context *ras_core,
+		struct ras_bank_ecc *bank, struct eeprom_umc_record *record);
+int ras_umc_record_to_nps_record(struct ras_core_context *ras_core,
+		struct eeprom_umc_record *record,  uint32_t nps);
+int ras_umc_dump_fw_records(struct ras_core_context *ras_core);
+void ras_umc_report_badpage_info(struct ras_core_context *ras_core);
+int ras_umc_alloc_row_pages(struct ras_core_context *ras_core,
+		uint64_t **page_pfns, uint32_t *nr_page_pfns);
+int ras_umc_free_row_pages(struct ras_core_context *ras_core,
+		uint64_t *page_pfns);
 #endif

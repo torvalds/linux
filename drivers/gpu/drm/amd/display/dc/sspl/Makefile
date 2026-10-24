@@ -23,7 +23,10 @@
 # Makefile for the 'spl' sub-component of DAL.
 # It provides the scaling library interface.
 
-SPL = dc_spl.o dc_spl_scl_filters.o dc_spl_scl_easf_filters.o dc_spl_isharp_filters.o dc_spl_filters.o spl_fixpt31_32.o spl_custom_float.o
+# spl_fixpt31_32 and spl_custom_float are now provided by the host driver
+# (dc_fixpt_* / convert_to_custom_float_format) via the shim headers
+# spl_fixpt31_32.h / spl_custom_float.h.
+SPL = dc_spl.o dc_spl_scl_filters.o dc_spl_scl_easf_filters.o dc_spl_isharp_filters.o dc_spl_filters.o
 
 AMD_DAL_SPL = $(addprefix $(AMDDALPATH)/dc/sspl/,$(SPL))
 

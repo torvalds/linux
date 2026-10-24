@@ -8,6 +8,7 @@
 #include <linux/pci.h>
 #include <linux/sysfs.h>
 
+#include "regs/xe_regs.h"
 #include "xe_device.h"
 #include "xe_device_sysfs.h"
 #include "xe_mmio.h"
@@ -264,6 +265,35 @@ static const struct attribute_group auto_link_downgrade_attr_group = {
 	.attrs = auto_link_downgrade_attrs,
 };
 
+/**
+ * DOC: Device Unique ID
+ *
+ * On supported platforms, Xe driver exposes a unique 64-bit GPU SOC
+ * device identifier through the 'device_uid' sysfs entry.
+ *
+ * See Documentation/ABI/testing/sysfs-driver-intel-xe-gpu for the ABI
+ * specification.
+ */
+
+static ssize_t
+device_uid_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct xe_device *xe = pdev_to_xe_device(pdev);
+
+	return sysfs_emit(buf, "0x%016llx\n", xe->device_uid);
+}
+static DEVICE_ATTR_ADMIN_RO(device_uid);
+
+static struct attribute *device_uid_attrs[] = {
+	&dev_attr_device_uid.attr,
+	NULL
+};
+
+static const struct attribute_group device_uid_attr_group = {
+	.attrs = device_uid_attrs,
+};
+
 int xe_device_sysfs_init(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
@@ -281,6 +311,12 @@ int xe_device_sysfs_init(struct xe_device *xe)
 			return ret;
 
 		ret = devm_device_add_group(dev, &late_bind_attr_group);
+		if (ret)
+			return ret;
+	}
+
+	if (xe->info.has_device_uid) {
+		ret = devm_device_add_group(dev, &device_uid_attr_group);
 		if (ret)
 			return ret;
 	}

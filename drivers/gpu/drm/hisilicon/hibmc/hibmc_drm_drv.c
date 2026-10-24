@@ -49,9 +49,10 @@ static irqreturn_t hibmc_interrupt(int irq, void *arg)
 		writel(HIBMC_RAW_INTERRUPT_VBLANK(1),
 		       priv->mmio + HIBMC_RAW_INTERRUPT);
 		drm_handle_vblank(dev, 0);
+		return IRQ_HANDLED;
 	}
 
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 static irqreturn_t hibmc_dp_interrupt(int irq, void *arg)
@@ -67,7 +68,7 @@ static irqreturn_t hibmc_dp_interrupt(int irq, void *arg)
 		return IRQ_WAKE_THREAD;
 	}
 
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 static int hibmc_dumb_create(struct drm_file *file, struct drm_device *dev,

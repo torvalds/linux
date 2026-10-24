@@ -657,5 +657,7 @@ void dcn20_stream_encoder_construct(
 	enc1->se_shift = se_shift;
 	enc1->se_mask = se_mask;
 	enc1->base.stream_enc_inst = eng_id - ENGINE_ID_DIGA;
+	enc1->base.inst = enc1->base.stream_enc_inst;
+
 }
 

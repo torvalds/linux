@@ -22,6 +22,7 @@
  */
 
 #include "amdgpu.h"
+#include "amdgpu_ip.h"
 #include "amdgpu_jpeg.h"
 #include "amdgpu_pm.h"
 #include "soc15.h"
@@ -806,7 +807,6 @@ static const struct amd_ip_funcs jpeg_v4_0_5_ip_funcs = {
 	.hw_fini = jpeg_v4_0_5_hw_fini,
 	.suspend = jpeg_v4_0_5_suspend,
 	.resume = jpeg_v4_0_5_resume,
-	.is_idle = jpeg_v4_0_5_is_idle,
 	.wait_for_idle = jpeg_v4_0_5_wait_for_idle,
 	.set_clockgating_state = jpeg_v4_0_5_set_clockgating_state,
 	.set_powergating_state = jpeg_v4_0_5_set_powergating_state,

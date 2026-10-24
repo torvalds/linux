@@ -34,6 +34,7 @@
 #include "dc_dmub_srv.h"
 #include "dc_state_priv.h"
 #include "dc_stream_priv.h"
+#include "dce/dmub_hw_lock_mgr.h"
 
 #define DC_LOGGER dc->ctx->logger
 #ifndef MIN
@@ -284,6 +285,21 @@ struct dc_link *dc_stream_get_link(
 	return stream->link;
 }
 
+static void update_cursor_info_to_dmu(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	unsigned int panel_inst;
+
+	if (!dc->ctx->dmub_srv || !dc_dmub_should_update_cursor_data(pipe_ctx))
+		return;
+
+	if (!dc_get_edp_link_panel_inst(dc, pipe_ctx->stream->link, &panel_inst))
+		panel_inst = 0;
+
+	dc_send_update_cursor_info_to_dmu(pipe_ctx->stream->ctx, pipe_ctx->pipe_idx,
+			pipe_ctx->plane_res.hubp, pipe_ctx->plane_res.dpp,
+			(uint8_t)pipe_ctx->stream_res.tg->inst, (uint8_t)panel_inst);
+}
+
 void program_cursor_attributes(
 	struct dc *dc,
 	struct dc_stream_state *stream)
@@ -292,6 +308,10 @@ void program_cursor_attributes(
 	struct resource_context *res_ctx;
 	struct pipe_ctx *pipe_to_program = NULL;
 	bool enable_cursor_offload = dc_dmub_srv_is_cursor_offload_enabled(dc);
+	bool unlock_dmub = false;
+	struct dpp *dpp[MAX_PIPES];
+	struct hubp *hubp[MAX_PIPES];
+	uint8_t pipe_count = 0;
 
 	if (!stream)
 		return;
@@ -308,8 +328,22 @@ void program_cursor_attributes(
 			pipe_to_program = pipe_ctx;
 
 			if (enable_cursor_offload && dc->hwss.begin_cursor_offload_update) {
-				dc->hwss.begin_cursor_offload_update(dc, pipe_ctx);
+				struct pipe_ctx *top_pipe = resource_get_otg_master(pipe_ctx);
+
+				if (top_pipe) {
+					pipe_count =
+						hwss_build_cursor_offload_pipe_list(pipe_ctx, dpp, hubp);
+
+					dc->hwss.begin_cursor_offload_update(dc->ctx->dmub_srv->dmub,
+						dpp, hubp, pipe_count, top_pipe->pipe_idx);
+				}
 			} else {
+				if (dc->hwss.dmub_hw_control_lock && pipe_ctx->stream &&
+				    should_use_dmub_inbox0_lock_for_link(dc, pipe_ctx->stream->link)) {
+					dc->hwss.dmub_hw_control_lock(dc, dc->current_state, true);
+					unlock_dmub = true;
+				}
+
 				dc->hwss.cursor_lock(dc, pipe_to_program, true);
 				if (pipe_to_program->next_odm_pipe)
 					dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, true);
@@ -317,21 +351,34 @@ void program_cursor_attributes(
 		}
 
 		dc->hwss.set_cursor_attribute(pipe_ctx);
-		if (dc->ctx->dmub_srv)
-			dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
+		update_cursor_info_to_dmu(dc, pipe_ctx);
 		if (dc->hwss.set_cursor_sdr_white_level)
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
-		if (enable_cursor_offload && dc->hwss.update_cursor_offload_pipe)
-			dc->hwss.update_cursor_offload_pipe(dc, pipe_ctx);
+		if (enable_cursor_offload && dc->hwss.update_cursor_offload_pipe) {
+			struct pipe_ctx *top_pipe = resource_get_otg_master(pipe_ctx);
+
+			if (top_pipe)
+				dc->hwss.update_cursor_offload_pipe(dc->ctx->dmub_srv->dmub,
+					top_pipe->pipe_idx, pipe_ctx->pipe_idx,
+					pipe_ctx->plane_res.dpp, pipe_ctx->plane_res.hubp);
+		}
 	}
 
 	if (pipe_to_program) {
 		if (enable_cursor_offload && dc->hwss.commit_cursor_offload_update) {
-			dc->hwss.commit_cursor_offload_update(dc, pipe_to_program);
+			struct pipe_ctx *top_pipe = resource_get_otg_master(pipe_to_program);
+
+			if (top_pipe) {
+				dc->hwss.commit_cursor_offload_update(dc->ctx->dmub_srv->dmub,
+					dpp, hubp, pipe_count, top_pipe->pipe_idx);
+			}
 		} else {
 			dc->hwss.cursor_lock(dc, pipe_to_program, false);
 			if (pipe_to_program->next_odm_pipe)
 				dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, false);
+
+			if (unlock_dmub)
+				dc->hwss.dmub_hw_control_lock(dc, dc->current_state, false);
 		}
 	}
 }
@@ -451,6 +498,10 @@ void program_cursor_position(
 	struct resource_context *res_ctx;
 	struct pipe_ctx *pipe_to_program = NULL;
 	bool enable_cursor_offload = dc_dmub_srv_is_cursor_offload_enabled(dc);
+	bool unlock_dmub = false;
+	struct dpp *dpp[MAX_PIPES];
+	struct hubp *hubp[MAX_PIPES];
+	uint8_t pipe_count = 0;
 
 	if (!stream)
 		return;
@@ -470,25 +521,54 @@ void program_cursor_position(
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
 
-			if (enable_cursor_offload && dc->hwss.begin_cursor_offload_update)
-				dc->hwss.begin_cursor_offload_update(dc, pipe_ctx);
-			else
+			if (enable_cursor_offload && dc->hwss.begin_cursor_offload_update) {
+				struct pipe_ctx *top_pipe = resource_get_otg_master(pipe_ctx);
+
+				if (top_pipe) {
+					pipe_count =
+						hwss_build_cursor_offload_pipe_list(pipe_ctx, dpp, hubp);
+
+					dc->hwss.begin_cursor_offload_update(dc->ctx->dmub_srv->dmub,
+						dpp, hubp, pipe_count, top_pipe->pipe_idx);
+				}
+			} else {
+				if (dc->hwss.dmub_hw_control_lock && pipe_ctx->stream &&
+				    should_use_dmub_inbox0_lock_for_link(dc, pipe_ctx->stream->link)) {
+					dc->hwss.dmub_hw_control_lock(dc, dc->current_state, true);
+					unlock_dmub = true;
+				}
+
 				dc->hwss.cursor_lock(dc, pipe_to_program, true);
+			}
 		}
 
-		dc->hwss.set_cursor_position(pipe_ctx);
-		if (enable_cursor_offload && dc->hwss.update_cursor_offload_pipe)
-			dc->hwss.update_cursor_offload_pipe(dc, pipe_ctx);
+		hwss_program_cursor_position(dc, pipe_ctx);
+		if (enable_cursor_offload && dc->hwss.update_cursor_offload_pipe) {
+			struct pipe_ctx *top_pipe = resource_get_otg_master(pipe_ctx);
 
-		if (dc->ctx->dmub_srv)
-			dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
+			if (top_pipe)
+				dc->hwss.update_cursor_offload_pipe(dc->ctx->dmub_srv->dmub,
+					top_pipe->pipe_idx, pipe_ctx->pipe_idx,
+					pipe_ctx->plane_res.dpp, pipe_ctx->plane_res.hubp);
+		}
+
+		update_cursor_info_to_dmu(dc, pipe_ctx);
 	}
 
 	if (pipe_to_program) {
-		if (enable_cursor_offload && dc->hwss.commit_cursor_offload_update)
-			dc->hwss.commit_cursor_offload_update(dc, pipe_to_program);
-		else
+		if (enable_cursor_offload && dc->hwss.commit_cursor_offload_update) {
+			struct pipe_ctx *top_pipe = resource_get_otg_master(pipe_to_program);
+
+			if (top_pipe) {
+				dc->hwss.commit_cursor_offload_update(dc->ctx->dmub_srv->dmub,
+					dpp, hubp, pipe_count, top_pipe->pipe_idx);
+			}
+		} else {
 			dc->hwss.cursor_lock(dc, pipe_to_program, false);
+
+			if (unlock_dmub)
+				dc->hwss.dmub_hw_control_lock(dc, dc->current_state, false);
+		}
 	}
 }
 
@@ -988,72 +1068,6 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 					stream->sink->edid_caps.manufacturer_id,
 					stream->sink->edid_caps.product_id);
 		}
-	}
-}
-
-/* TODO - move to per plane ownership? */
-/*
-*	dc_stream_get_3dlut()
-*	Requirements:
-*	1. Is stream already owns an RMCM instance, return it.
-*	2. If it doesn't and we don't need to allocate, return NULL.
-*	3. If there's a free RMCM instance, assign to stream and return it.
-*	4. If no free RMCM instances, return NULL.
-*/
-
-struct dc_rmcm_3dlut *dc_stream_get_3dlut_for_stream(
-	const struct dc *dc,
-	const struct dc_stream_state *stream,
-	bool allocate_one)
-{
-	unsigned int num_rmcm = dc->caps.color.mpc.num_rmcm_3dluts;
-
-	// see if one is allocated for this stream
-	for (unsigned int i = 0; i < num_rmcm; i++) {
-		if (dc->res_pool->rmcm_3dlut[i].isInUse &&
-			dc->res_pool->rmcm_3dlut[i].stream == stream)
-			return &dc->res_pool->rmcm_3dlut[i];
-	}
-
-	//case: not found one, and dont need to allocate
-	if (!allocate_one)
-		return NULL;
-
-	//see if there is an unused 3dlut, allocate
-	for (unsigned int i = 0; i < num_rmcm; i++) {
-		if (!dc->res_pool->rmcm_3dlut[i].isInUse) {
-			dc->res_pool->rmcm_3dlut[i].isInUse = true;
-			dc->res_pool->rmcm_3dlut[i].stream = stream;
-			return &dc->res_pool->rmcm_3dlut[i];
-		}
-	}
-
-	//dont have a 3dlut
-	return NULL;
-}
-
-
-void dc_stream_release_3dlut_for_stream(
-	const struct dc *dc,
-	const struct dc_stream_state *stream)
-{
-	struct dc_rmcm_3dlut *rmcm_3dlut =
-		dc_stream_get_3dlut_for_stream(dc, stream, false);
-
-	if (rmcm_3dlut) {
-		rmcm_3dlut->isInUse = false;
-		rmcm_3dlut->stream  = NULL;
-	}
-}
-
-
-void dc_stream_init_rmcm_3dlut(struct dc *dc)
-{
-	unsigned int num_rmcm = dc->caps.color.mpc.num_rmcm_3dluts;
-
-	for (unsigned int i = 0; i < num_rmcm; i++) {
-		dc->res_pool->rmcm_3dlut[i].isInUse = false;
-		dc->res_pool->rmcm_3dlut[i].stream = NULL;
 	}
 }
 

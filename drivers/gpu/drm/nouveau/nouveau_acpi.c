@@ -360,9 +360,10 @@ void nouveau_unregister_dsm_handler(void) {}
 void nouveau_switcheroo_optimus_dsm(void) {}
 #endif
 
-void *
+const struct drm_edid *
 nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 {
+	const struct drm_edid *drm_edid;
 	struct acpi_device *acpidev;
 	int type, ret;
 	void *edid;
@@ -384,7 +385,34 @@ nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 	if (ret < 0)
 		return NULL;
 
-	return edid;
+	/* Take what _DDC returned as-is first as its length is the only one that
+	 * can describe an HF-EEODB EDID, whose block count is not the byte 126
+	 * one. Only if that does not validate fall back to trimming the buffer
+	 * to the byte 126 size, which is what the padding some firmware appends
+	 * needs.
+	 */
+	drm_edid = drm_edid_alloc(edid, ret);
+	if (drm_edid && !drm_edid_valid(drm_edid)) {
+		drm_edid_free(drm_edid);
+		drm_edid = NULL;
+
+		if (ret > EDID_LENGTH) {
+			int trimmed = EDID_LENGTH *
+				      (1 + ((const struct edid *)edid)->extensions);
+
+			if (trimmed < ret)
+				drm_edid = drm_edid_alloc(edid, trimmed);
+			if (drm_edid && !drm_edid_valid(drm_edid)) {
+				drm_edid_free(drm_edid);
+				drm_edid = NULL;
+			}
+		}
+	}
+	kfree(edid);
+
+	if (!drm_edid)
+		drm_dbg_kms(dev, "Invalid EDID from ACPI _DDC\n");
+	return drm_edid;
 }
 
 bool nouveau_acpi_video_backlight_use_native(void)

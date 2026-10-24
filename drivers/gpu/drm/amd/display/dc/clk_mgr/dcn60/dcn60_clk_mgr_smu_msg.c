@@ -8,9 +8,9 @@
 #include "reg_helper.h"
 
 #include "dalsmc.h"
-#include "dcn401/dcn401_smu14_driver_if.h"
+#include "dcn60/dcn60_smu_driver_if.h"
 
-/* MMIO = MP1_BASE__INST0_SEG1 (0x16200 from at2_offset.h)
+/* MMIO = MP1_BASE__INST0_SEG1 (0x16200 from <dgpu>_offset.h)
  *      + regMP1_SMN_C2PMSG_N  (sequential from 0xA2)
  * MSG=C2PMSG_98, RESP=C2PMSG_99, ARG0..3=C2PMSG_100..103
  */
@@ -159,11 +159,9 @@ static unsigned int dcn60_smu_get_hard_min_status(struct clk_mgr_internal *clk_m
 }
 
 
-static bool dcn60_smu_wait_hard_min_status(struct clk_mgr_internal *clk_mgr, uint32_t ppclk)
+static bool dcn60_smu_wait_hard_min_status(struct clk_mgr_internal *clk_mgr)
 {
 	const unsigned int max_delay_us = 1000000;
-
-	unsigned int hardmin_status_mask = (1 << ppclk);
 	unsigned int total_delay_us = 0;
 	bool hardmin_done = false;
 
@@ -182,35 +180,181 @@ static bool dcn60_smu_wait_hard_min_status(struct clk_mgr_internal *clk_mgr, uin
 
 		hardmin_status = dcn60_smu_get_hard_min_status(clk_mgr, &no_timeout, &read_total_delay_us);
 		total_delay_us += read_total_delay_us;
-		hardmin_done = hardmin_status & hardmin_status_mask;
+		hardmin_done = hardmin_status;
 	}
 
 	return hardmin_done;
 }
 
-/* TODO: update callers to pass kHz directly for finer granularity
- * now that the DALSMC interface supports 24-bit kHz encoding.
+/*
+ * DCFCLK still uses a hard-min arbiter request. Send the DCFCLK-specific
+ * hard-min message and poll ReturnHardMinStatus until the arbiter reports the
+ * minimum has been satisfied. PMFW returns the actual configured freq (kHz).
  */
-unsigned int dcn60_smu_set_hard_min_by_freq(struct clk_mgr_internal *clk_mgr, uint32_t clk, uint16_t freq_mhz)
+unsigned int dcn60_smu_set_hard_min_dcfclk_by_freq(struct clk_mgr_internal *clk_mgr, uint16_t freq_mhz)
 {
-	DALSMC_SetHardMinByFreq_arg_t arg = {};
+	DALSMC_SetClockFreq_arg_t arg = {};
 	uint32_t response = 0;
 	bool hard_min_done = false;
 
-	smu_print("SMU Set hard min by freq: clk = %d, freq_mhz = %d MHz\n", clk, freq_mhz);
+	smu_print("SMU Set DCFCLK hard min by freq: freq_mhz = %d MHz\n", freq_mhz);
 
-	/* New interface encodes frequency in kHz (24-bit) and PPCLK in bits [31:24] */
-	arg.FreqKhz = (uint32_t)freq_mhz * 1000;
-	arg.Ppclk   = clk;
+	arg.FreqMhz = freq_mhz;
 
 	dcn60_smu_send_msg_with_args(clk_mgr,
-			DALSMC_MSG_SetHardMinByFreq, arg.Args, &response, NULL);
+			DALSMC_MSG_SetHardMinDcfclkByFreq, arg.Args, &response, NULL);
 
 	/* wait until hardmin acknowledged */
-	hard_min_done = dcn60_smu_wait_hard_min_status(clk_mgr, clk);
-	smu_print("SMU Frequency set = %d KHz hard_min_done %d\n", response, hard_min_done);
+	hard_min_done = dcn60_smu_wait_hard_min_status(clk_mgr);
+	smu_print("SMU DCFCLK set = %d KHz hard_min_done %d\n", response, hard_min_done);
 
 	return response;
+}
+
+/*
+ * DISPCLK / DPPCLK / DTBCLK are programmed directly (not via a hard-min arbiter
+ * request). PMFW returns the actual configured frequency in kHz.
+ */
+static unsigned int dcn60_smu_set_dispclk_freq(struct clk_mgr_internal *clk_mgr, uint16_t freq_mhz)
+{
+	DALSMC_SetClockFreq_arg_t arg = {};
+	uint32_t response = 0;
+
+	arg.FreqMhz = freq_mhz;
+	dcn60_smu_send_msg_with_args(clk_mgr,
+			DALSMC_MSG_SetDispclkFreq, arg.Args, &response, NULL);
+
+	return response;
+}
+
+static unsigned int dcn60_smu_set_dppclk_freq(struct clk_mgr_internal *clk_mgr, uint16_t freq_mhz)
+{
+	DALSMC_SetClockFreq_arg_t arg = {};
+	uint32_t response = 0;
+
+	arg.FreqMhz = freq_mhz;
+	dcn60_smu_send_msg_with_args(clk_mgr,
+			DALSMC_MSG_SetDppclkFreq, arg.Args, &response, NULL);
+
+	return response;
+}
+
+static unsigned int dcn60_smu_set_dtb_clk(struct clk_mgr_internal *clk_mgr, uint16_t freq_mhz)
+{
+	DALSMC_SetClockFreq_arg_t arg = {};
+	uint32_t response = 0;
+
+	arg.FreqMhz = freq_mhz;
+	dcn60_smu_send_msg_with_args(clk_mgr,
+			DALSMC_MSG_SetDtbClk, arg.Args, &response, NULL);
+
+	return response;
+}
+
+static unsigned int dcn60_smu_get_dispclk_freq_khz(struct clk_mgr_internal *clk_mgr)
+{
+	DALSMC_args_t args = {};
+	uint32_t response = 0;
+
+	dcn60_smu_send_msg_with_args(clk_mgr,
+			DALSMC_MSG_GetDispclkFreq, args, &response, NULL);
+
+	return response;
+}
+
+static unsigned int dcn60_smu_get_dppclk_freq_khz(struct clk_mgr_internal *clk_mgr)
+{
+	DALSMC_args_t args = {};
+	uint32_t response = 0;
+
+	dcn60_smu_send_msg_with_args(clk_mgr,
+			DALSMC_MSG_GetDppclkFreq, args, &response, NULL);
+
+	return response;
+}
+
+static unsigned int dcn60_smu_get_dtbclk_freq_khz(struct clk_mgr_internal *clk_mgr)
+{
+	DALSMC_args_t args = {};
+	uint32_t response = 0;
+
+	dcn60_smu_send_msg_with_args(clk_mgr,
+			DALSMC_MSG_GetDtbclkFreq, args, &response, NULL);
+
+	return response;
+}
+
+/* Return the current frequency (KHz) for a display-domain clock. */
+static unsigned int dcn60_smu_get_clock_freq_khz(struct clk_mgr_internal *clk_mgr, uint32_t clk)
+{
+	switch (clk) {
+	case PPCLK_DISPCLK:
+		return dcn60_smu_get_dispclk_freq_khz(clk_mgr);
+	case PPCLK_DPPCLK:
+		return dcn60_smu_get_dppclk_freq_khz(clk_mgr);
+	case PPCLK_DTBCLK:
+		return dcn60_smu_get_dtbclk_freq_khz(clk_mgr);
+	default:
+		return 0;
+	}
+}
+
+/*
+ * Poll the matching Get*Freq message until the reported frequency reaches the
+ * requested target. Replaces the ReturnHardMinStatus poll used for hard-mins.
+ */
+static bool dcn60_smu_wait_clock_freq(struct clk_mgr_internal *clk_mgr,
+		uint32_t clk, uint16_t target_mhz)
+{
+	const unsigned int max_delay_us = 1000000;
+	unsigned int total_delay_us = 0;
+	bool done = false;
+
+	while (!done && total_delay_us < max_delay_us) {
+		done = khz_to_mhz_ceil(dcn60_smu_get_clock_freq_khz(clk_mgr, clk)) >= target_mhz;
+		if (!done) {
+			udelay(500);
+			total_delay_us += 500;
+		}
+	}
+
+	return done;
+}
+
+/*
+ * Set a display-domain clock (DISPCLK, DPPCLK or DTBCLK) frequency and poll the
+ * matching Get*Freq message until the clock reaches the requested target.
+ * Only these three clocks are handled here.
+ */
+unsigned int dcn60_smu_set_clock_freq(struct clk_mgr_internal *clk_mgr,
+		uint32_t clk, uint16_t freq_mhz)
+{
+	unsigned int actual_clk_khz = 0;
+
+	smu_print("SMU Set clock freq: clk = %d, freq_mhz = %d MHz\n", clk, freq_mhz);
+
+	switch (clk) {
+	case PPCLK_DISPCLK:
+		actual_clk_khz = dcn60_smu_set_dispclk_freq(clk_mgr, freq_mhz);
+		break;
+	case PPCLK_DPPCLK:
+		actual_clk_khz = dcn60_smu_set_dppclk_freq(clk_mgr, freq_mhz);
+		break;
+	case PPCLK_DTBCLK:
+		actual_clk_khz = dcn60_smu_set_dtb_clk(clk_mgr, freq_mhz);
+		break;
+	default:
+		/* set_clock_freq only handles DISPCLK, DPPCLK and DTBCLK */
+		smu_print("SMU Set clock freq: unsupported clk %d\n", clk);
+		return 0;
+	}
+
+	/* confirm the clock reached the requested target */
+	dcn60_smu_wait_clock_freq(clk_mgr, clk, freq_mhz);
+
+	smu_print("SMU Clock set = %d KHz\n", actual_clk_khz);
+
+	return actual_clk_khz;
 }
 
 
@@ -225,7 +369,7 @@ void dcn60_smu_set_stutter_efficiency(struct clk_mgr_internal *clk_mgr, uint8_t 
 	arg.LowPowerEfficiencyPct = low_power_efficiency;
 
 	dcn60_smu_send_msg_with_args(clk_mgr,
-			DALSMC_MSG_SetStutterEfficiency, arg.Args, NULL, NULL);
+			DALSMC_MSG_StutterEfficiency, arg.Args, NULL, NULL);
 }
 
 void dcn60_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr, uint32_t freq_mhz)
@@ -247,7 +391,7 @@ void dcn60_smu_set_pme_workaround(struct clk_mgr_internal *clk_mgr)
 	smu_print("SMU Set PME workaround (BacoAudioD3PME)\n");
 
 	dcn60_smu_send_msg_with_args(clk_mgr,
-			DALSMC_MSG_BacoAudioD3PME, args, NULL, NULL);
+			DALSMC_MSG_SacoAudioD3PME, args, NULL, NULL);
 }
 
 void dcn60_smu_indicate_pstate_status(struct clk_mgr_internal *clk_mgr,
@@ -341,7 +485,7 @@ bool dcn60_smu_update_utm_qos_request(struct clk_mgr_internal *clk_mgr,
 	arg.LsdmaBandwidthKBps   = lsdma_bandwidth_KBps;
 
 	return dcn60_smu_send_msg_with_args(clk_mgr,
-			DALSMC_MSG_UpdateUTMQoSRequest, arg.Args, NULL, NULL);
+			DALSMC_MSG_UpdateUtmQosParams, arg.Args, NULL, NULL);
 }
 
 bool dcn60_smu_get_msg_header_version(struct clk_mgr_internal *clk_mgr,

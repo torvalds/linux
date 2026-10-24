@@ -16,6 +16,7 @@
 
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_panel.h>
 
 #define IMX93_DISPLAY_MUX_REG		0x60
 #define PARALLEL_DISP_FORMAT		GENMASK(10, 8)
