@@ -721,6 +721,8 @@ static int mcp3911_probe(struct spi_device *spi)
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
 	adc->chip = spi_get_device_match_data(spi);
+	if (!adc->chip)
+		return -ENODATA;
 
 	ret = devm_regulator_get_enable_read_voltage(dev, "vref");
 	if (ret < 0 && ret != -ENODEV)

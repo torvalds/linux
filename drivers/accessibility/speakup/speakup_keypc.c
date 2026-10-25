@@ -306,7 +306,6 @@ static int synth_probe(struct spk_synth *synth)
 
 static void keynote_release(struct spk_synth *synth)
 {
-	spk_stop_serial_interrupt();
 	if (synth_port)
 		synth_release_region(synth_port, SYNTH_IO_EXTENT);
 	synth_port = 0;

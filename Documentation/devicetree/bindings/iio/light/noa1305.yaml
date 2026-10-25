@@ -39,8 +39,8 @@ examples:
         #size-cells = <0>;
 
         light@39 {
-                compatible = "onnn,noa1305";
-                reg = <0x39>;
+            compatible = "onnn,noa1305";
+            reg = <0x39>;
         };
     };
 ...

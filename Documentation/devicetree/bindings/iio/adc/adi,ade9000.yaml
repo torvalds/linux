@@ -5,21 +5,23 @@
 $id: http://devicetree.org/schemas/iio/adc/adi,ade9000.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices ADE9000 High Performance, Polyphase Energy Metering
+title: Analog Devices ADE9000/ADE9078 High Performance, Polyphase Energy Metering
 
 maintainers:
   - Antoniu Miclaus <antoniu.miclaus@analog.com>
 
 description: |
-  The ADE9000 is a highly accurate, fully integrated, multiphase energy and power
-  quality monitoring device. Superior analog performance and a digital signal
-  processing (DSP) core enable accurate energy monitoring over a wide dynamic
-  range. An integrated high end reference ensures low drift over temperature
-  with a combined drift of less than ±25 ppm/°C maximum for the entire channel
-  including a programmable gain amplifier (PGA) and an analog-to-digital
-  converter (ADC).
+  The ADE9000 and ADE9078 are highly accurate, fully integrated, multiphase
+  energy and power quality monitoring devices. Superior analog performance and a
+  digital signal processing (DSP) core enable accurate energy monitoring over a
+  wide dynamic range. An integrated high end reference ensures low drift over
+  temperature with a combined drift of less than ±25 ppm/°C maximum for the
+  entire channel including a programmable gain amplifier (PGA) and an
+  analog-to-digital converter (ADC). The ADE9078 does not provide the on-chip
+  dip/swell detection available on the ADE9000.
 
   https://www.analog.com/media/en/technical-documentation/data-sheets/ADE9000.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/ADE9078.pdf
 
 $ref: /schemas/spi/spi-peripheral-props.yaml#
 
@@ -27,6 +29,7 @@ properties:
   compatible:
     enum:
       - adi,ade9000
+      - adi,ade9078
 
   reg:
     maxItems: 1
@@ -67,6 +70,17 @@ required:
   - reg
   - vdd-supply
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: adi,ade9078
+    then:
+      properties:
+        spi-max-frequency:
+          maximum: 10000000
+
 unevaluatedProperties: false
 
 examples:
@@ -75,20 +89,20 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     spi {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      adc@0 {
-          compatible = "adi,ade9000";
-          reg = <0>;
-          spi-max-frequency = <7000000>;
+        adc@0 {
+            compatible = "adi,ade9000";
+            reg = <0>;
+            spi-max-frequency = <7000000>;
 
-          #clock-cells = <0>;
-          reset-gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
-          interrupts = <2 IRQ_TYPE_EDGE_FALLING>, <3 IRQ_TYPE_EDGE_FALLING>, <4 IRQ_TYPE_EDGE_FALLING>;
-          interrupt-names = "irq0", "irq1", "dready";
-          interrupt-parent = <&gpio>;
-          clocks = <&ext_clock_24576khz>;
-          vdd-supply = <&vdd_reg>;
-      };
+            #clock-cells = <0>;
+            reset-gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
+            interrupts = <2 IRQ_TYPE_EDGE_FALLING>, <3 IRQ_TYPE_EDGE_FALLING>, <4 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-names = "irq0", "irq1", "dready";
+            interrupt-parent = <&gpio>;
+            clocks = <&ext_clock_24576khz>;
+            vdd-supply = <&vdd_reg>;
+        };
     };

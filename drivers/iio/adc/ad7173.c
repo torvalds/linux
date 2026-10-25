@@ -1801,8 +1801,7 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 	indio_dev->num_channels = num_channels;
 	st->num_channels = num_channels;
 
-	chan_arr = devm_kcalloc(dev, sizeof(*indio_dev->channels),
-				st->num_channels, GFP_KERNEL);
+	chan_arr = devm_kcalloc(dev, sizeof(*chan_arr), st->num_channels, GFP_KERNEL);
 	if (!chan_arr)
 		return -ENOMEM;
 

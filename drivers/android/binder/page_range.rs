@@ -66,7 +66,7 @@ impl Shrinker {
     }
 
     /// Register this shrinker with the kernel.
-    pub(crate) fn register(&'static self, name: &CStr) -> Result<()> {
+    pub(crate) fn register(&'static self, name: &CStr) -> Result {
         // SAFETY: These fields are not yet used, so it's okay to zero them.
         unsafe {
             self.inner.get().write(ptr::null_mut());
@@ -352,7 +352,7 @@ impl ShrinkablePageRange {
     /// Make sure that the given pages are allocated and mapped.
     ///
     /// Must not be called from an atomic context.
-    pub(crate) fn use_range(&self, start: usize, end: usize) -> Result<()> {
+    pub(crate) fn use_range(&self, start: usize, end: usize) -> Result {
         if start >= end {
             return Ok(());
         }
@@ -398,7 +398,7 @@ impl ShrinkablePageRange {
     ///
     /// Assumes that `i` is in bounds.
     #[cold]
-    unsafe fn use_page_slow(&self, i: usize) -> Result<()> {
+    unsafe fn use_page_slow(&self, i: usize) -> Result {
         let new_page = Page::alloc_page(GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO)?;
 
         let mm_mutex = self.mm_lock.lock();

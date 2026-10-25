@@ -30,6 +30,7 @@ use crate::{
     process::{GetWorkOrRegister, Process},
     ptr_align,
     stats::GLOBAL_STATS,
+    trace::{trace_transaction_alloc_buf, trace_transaction_buffer_release},
     transaction::{Transaction, TransactionFlag, TransactionFlags, TransactionInfo},
     BinderReturnWriter, DArc, DLArc, DTRWrap, DeliverCode, DeliverToRead,
 };
@@ -344,13 +345,13 @@ impl InnerThread {
         }
     }
 
-    fn push_return_work(&mut self, reply: u32) {
+    fn push_return_work(&mut self, reply: u32) -> PushWorkRes {
         if let Ok(work) = ListArc::try_from_arc(self.return_work.clone()) {
             work.set_error_code(reply);
-            // Not notifying: Reply to current thread.
-            let _ = self.push_work(work);
+            self.push_work(work)
         } else {
             pr_warn_ratelimited!("Thread return work is already in use.\n");
+            PushWorkRes::Ok
         }
     }
 
@@ -481,7 +482,7 @@ impl Thread {
     }
 
     #[inline(never)]
-    pub(crate) fn debug_print(self: &Arc<Self>, m: &SeqFile, print_all: bool) -> Result<()> {
+    pub(crate) fn debug_print(self: &Arc<Self>, m: &SeqFile, print_all: bool) -> Result {
         let inner = self.inner.lock();
 
         if print_all || inner.current_transaction.is_some() || !inner.work_list.is_empty() {
@@ -584,9 +585,21 @@ impl Thread {
     // mangled symbol names.
     #[export_name = "rust_binder_wait"]
     fn get_work(self: &Arc<Self>, wait: bool) -> Result<Option<DLArc<dyn DeliverToRead>>> {
+        let thread_has_deferred_work;
+
         // Try to get work from the thread's work queue, using only a local lock.
         {
             let mut inner = self.inner.lock();
+
+            // The process_work_list boolean is used to make us go to sleep even if there is work
+            // in the thread todo-list, but it doesn't apply to the process todo-list. Furthermore,
+            // work in the thread todo-list must still be delivered before the process list.
+            //
+            // Thus, in some scenarios we must return the thread work now even if we were requested
+            // to wait. Adjust `process_work_list` to `true` accordingly.
+            inner.process_work_list |= inner.looper_need_return;
+            inner.process_work_list |= !wait;
+
             if let Some(work) = inner.pop_work() {
                 return Ok(Some(work));
             }
@@ -594,18 +607,26 @@ impl Thread {
                 drop(inner);
                 return Ok(self.process.get_work());
             }
+
+            // Note that if the thread list is empty, then the call to `pop_work()` has changed
+            // `process_work_list` back to `false` even if we set it to `true` above.
+            thread_has_deferred_work = !inner.work_list.is_empty();
         }
 
         // If the caller doesn't want to wait, try to grab work from the process queue.
         //
         // We know nothing will have been queued directly to the thread queue because it is not in
-        // a transaction and it is not in the process' ready list.
+        // a transaction and it is not in the process' ready list. We also know the thread list has
+        // no deferred work due to the `inner.process_work_list |= !wait` call above.
         if !wait {
             return self.process.get_work().ok_or(EAGAIN).map(Some);
         }
 
         // Get work from the process queue. If none is available, atomically register as ready.
-        let reg = match self.process.get_work_or_register(self) {
+        let reg = match self
+            .process
+            .get_work_or_register(self, thread_has_deferred_work)
+        {
             GetWorkOrRegister::Work(work) => return Ok(Some(work)),
             GetWorkOrRegister::Register(reg) => reg,
         };
@@ -621,14 +642,18 @@ impl Thread {
             inner.looper_flags &= !(LooperFlag::Waiting | LooperFlag::WaitingProc);
 
             if signal_pending || inner.looper_need_return {
-                // We need to return now. We need to pull the thread off the list of ready threads
-                // (by dropping `reg`), then check the state again after it's off the list to
-                // ensure that something was not queued in the meantime. If something has been
-                // queued, we just return it (instead of the error).
+                // We need to return now.
+                //
+                // We need to pull the thread off the list of ready threads (by dropping `reg`),
+                // then check the state again after it's off the list to ensure that something was
+                // not queued in the meantime. If something has been queued (or if there is
+                // deferred work), we just return it (instead of the error).
                 drop(inner);
                 drop(reg);
 
-                let res = match self.inner.lock().pop_work() {
+                inner = self.inner.lock();
+                inner.process_work_list = true;
+                let res = match inner.pop_work() {
                     Some(work) => Ok(Some(work)),
                     None if signal_pending => Err(EINTR),
                     None => Ok(None),
@@ -669,8 +694,12 @@ impl Thread {
     pub(crate) fn push_work_if_looper(&self, work: DLArc<dyn DeliverToRead>) -> BinderResult {
         let mut inner = self.inner.lock();
         if inner.is_looper() && !inner.is_dead {
-            // Not notifying: Reply to current thread.
-            let _ = inner.push_work(work);
+            // Not notifying work_condvar: Reply to current thread.
+            let res = inner.push_work(work);
+            drop(inner);
+            if matches!(res, PushWorkRes::OkNotifyPoll) {
+                self.process.notify_poll(false);
+            }
             Ok(())
         } else {
             drop(inner);
@@ -683,7 +712,11 @@ impl Thread {
     }
 
     pub(crate) fn push_return_work(&self, reply: u32) {
-        self.inner.lock().push_return_work(reply);
+        // Not notifying work_condvar: Reply to current thread.
+        let res = self.inner.lock().push_return_work(reply);
+        if matches!(res, PushWorkRes::OkNotifyPoll) {
+            self.process.notify_poll(false);
+        }
     }
 
     pub(crate) fn pop_work_even_if_deferred(&self) -> Option<DLArc<dyn DeliverToRead>> {
@@ -1046,17 +1079,9 @@ impl Thread {
             size_of::<u64>(),
         );
         let secctx_off = aligned_data_size + offsets_size + buffers_size;
-        let mut alloc = match to_process.buffer_alloc(debug_id, len, info) {
-            Ok(alloc) => alloc,
-            Err(err) => {
-                pr_warn!(
-                    "Failed to allocate buffer. len:{}, is_oneway:{}",
-                    len,
-                    info.is_oneway(),
-                );
-                return Err(err);
-            }
-        };
+        let mut alloc = to_process.buffer_alloc(debug_id, len, info)?;
+
+        trace_transaction_alloc_buf(debug_id, data_size, offsets_size, buffers_size);
 
         let mut buffer_reader = UserSlice::new(info.data_ptr, data_size).reader();
         let mut end_of_previous_object = 0;
@@ -1262,7 +1287,7 @@ impl Thread {
         cmd: u32,
         reader: &mut UserSliceReader,
         info: &mut TransactionInfo,
-    ) -> Result<()> {
+    ) -> Result {
         let td = match cmd {
             BC_TRANSACTION | BC_REPLY => {
                 reader.read::<BinderTransactionData>()?.with_buffers_size(0)
@@ -1293,7 +1318,7 @@ impl Thread {
     }
 
     #[inline(never)]
-    fn transaction(self: &Arc<Self>, cmd: u32, reader: &mut UserSliceReader) -> Result<()> {
+    fn transaction(self: &Arc<Self>, cmd: u32, reader: &mut UserSliceReader) -> Result {
         let mut info = TransactionInfo::zeroed();
         self.read_transaction_info(cmd, reader, &mut info)?;
 
@@ -1307,47 +1332,57 @@ impl Thread {
             self.transaction_inner(&mut info)
         };
 
+        // This runs when return work is passed to the caller. This is not
+        // always the same as the transaction failing, as reply errors are
+        // delivered to the remote process.
         if let Err(err) = ret {
             self.push_return_work(err.reply);
             if err.reply != BR_TRANSACTION_COMPLETE {
                 info.reply = err.reply;
-                if let Some(source) = &err.source {
-                    info.errno = source.to_errno();
+                info.error_line = Some(err.line);
+                if let Some(source) = err.source {
+                    info.errno = Some(source);
 
-                    {
-                        let mut inner = self.inner.lock();
-                        inner.extended_error =
-                            ExtendedError::new(info.debug_id as u32, err.reply, source.to_errno());
-                    }
-
-                    binder_debug!(
-                        FailedTransaction,
-                        "transaction {} to {}:{} failed {:?}, code {} size {}-{}",
-                        if info.is_reply {
-                            "reply"
-                        } else if info.is_oneway() {
-                            "async"
-                        } else {
-                            "call"
-                        },
-                        info.to_pid,
-                        info.to_tid,
-                        err,
-                        info.code,
-                        info.data_size,
-                        info.offsets_size
-                    );
+                    self.inner.lock().extended_error =
+                        ExtendedError::new(info.debug_id as u32, err.reply, source.to_errno());
                 }
             }
         }
+
+        info.write_log(&self.process.ctx);
 
         if info.oneway_spam_suspect {
             // If this is both a oneway spam suspect and a failure, we report it twice. This is
             // useful in case the transaction failed with BR_TRANSACTION_PENDING_FROZEN.
             info.report_netlink(BR_ONEWAY_SPAM_SUSPECT, &self.process.ctx);
         }
+        // This runs when the transaction failed.
         if info.reply != 0 {
             info.report_netlink(info.reply, &self.process.ctx);
+            if let Some(errno) = info.errno {
+                let error_line: &dyn kernel::fmt::Display = match &info.error_line {
+                    Some(line) => line,
+                    None => &0,
+                };
+                binder_debug!(
+                    FailedTransaction,
+                    "transaction {} to {}:{} failed {:?}, code {} size {}-{} line {}",
+                    if info.is_reply {
+                        "reply"
+                    } else if info.is_oneway() {
+                        "async"
+                    } else {
+                        "call"
+                    },
+                    info.to_pid,
+                    info.to_tid,
+                    errno,
+                    info.code,
+                    info.data_size,
+                    info.offsets_size,
+                    error_line
+                );
+            }
         }
 
         Ok(())
@@ -1356,6 +1391,7 @@ impl Thread {
     fn transaction_inner(self: &Arc<Self>, info: &mut TransactionInfo) -> BinderResult {
         let node_ref = self.process.get_transaction_node(info.target_handle)?;
         info.to_pid = node_ref.node.owner.task.pid();
+        info.to_node_debug_id = node_ref.node.debug_id;
         security::binder_transaction(&self.process.cred, &node_ref.node.owner.cred)?;
         // TODO: We need to ensure that there isn't a pending transaction in the work queue. How
         // could this happen?
@@ -1422,8 +1458,17 @@ impl Thread {
             let process = orig.from.process.clone();
             let allow_fds = orig.flags.contains(TransactionFlag::AcceptFds);
             let reply = Transaction::new_reply(self, process, info, allow_fds)?;
-            // Not notifying: Reply to current thread.
-            let _ = self.inner.lock().push_work(completion);
+            if info.flags.contains(TransactionFlag::DeferComplete) {
+                // The flag is set. Perform a deferred push so that `read` can wait for the
+                // next incoming transaction without a userspace roundtrip.
+                self.inner.lock().push_work_deferred(completion);
+            } else {
+                // Not notifying work_condvar: Reply to current thread.
+                let res = self.inner.lock().push_work(completion);
+                if matches!(res, PushWorkRes::OkNotifyPoll) {
+                    self.process.notify_poll(false);
+                }
+            }
             orig.from.deliver_reply(Ok(reply), &orig, None);
             Ok(())
         })()
@@ -1431,17 +1476,13 @@ impl Thread {
             // At this point we only return `BR_TRANSACTION_COMPLETE` to the caller, and we must let
             // the sender know that the transaction has completed (with an error in this case).
 
-            pr_warn!(
-                "{}:{} reply to {} failed: {err:?}",
-                info.from_pid,
-                info.from_tid,
-                info.to_pid
-            );
             let param = err.source.as_ref().map_or(0, |e| e.to_errno());
             let ee = ExtendedError::new(info.debug_id as u32, err.reply, param);
             orig.from
                 .deliver_reply(Err(BR_FAILED_REPLY), &orig, Some(ee));
             info.reply = BR_FAILED_REPLY;
+            info.errno = err.source;
+            info.error_line = Some(err.line);
             err.reply = BR_TRANSACTION_COMPLETE;
             err
         });
@@ -1452,6 +1493,7 @@ impl Thread {
     fn oneway_transaction_inner(self: &Arc<Self>, info: &mut TransactionInfo) -> BinderResult {
         let node_ref = self.process.get_transaction_node(info.target_handle)?;
         info.to_pid = node_ref.node.owner.task.pid();
+        info.to_node_debug_id = node_ref.node.debug_id;
         security::binder_transaction(&self.process.cred, &node_ref.node.owner.cred)?;
         let transaction = Transaction::new(node_ref, None, self, info)?;
         let code = if self.process.is_oneway_spam_detection_enabled() && info.oneway_spam_suspect {
@@ -1462,10 +1504,15 @@ impl Thread {
         let list_completion =
             DTRWrap::arc_try_new(DeliverCode::new(code, self.process.task.pid()))?;
         let completion = list_completion.clone_arc();
-        // Not notifying: Reply to current thread.
-        let _ = self.inner.lock().push_work(list_completion);
+        // Not notifying work_condvar: Reply to current thread.
+        let res = self.inner.lock().push_work(list_completion);
         match transaction.submit(info) {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                if matches!(res, PushWorkRes::OkNotifyPoll) {
+                    self.process.notify_poll(false);
+                }
+                Ok(())
+            }
             Err(err) => {
                 completion.skip();
                 Err(err)
@@ -1495,6 +1542,7 @@ impl Thread {
                         if buffer.looper_need_return_on_free() {
                             self.inner.lock().looper_need_return = true;
                         }
+                        trace_transaction_buffer_release(buffer.debug_id);
                         drop(buffer);
                     }
                 }
@@ -1750,7 +1798,7 @@ impl DeliverToRead for ThreadError {
         false
     }
 
-    fn debug_print(&self, m: &SeqFile, prefix: &str, _tprefix: &str) -> Result<()> {
+    fn debug_print(&self, m: &SeqFile, prefix: &str, _tprefix: &str) -> Result {
         seq_print!(
             m,
             "{}transaction error: {}\n",

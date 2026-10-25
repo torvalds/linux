@@ -966,6 +966,13 @@ static irqreturn_t adxl380_irq_handler(int irq, void  *p)
 	if (ret)
 		return IRQ_HANDLED;
 
+	if (fifo_entries > ADXL380_FIFO_SAMPLES) {
+		dev_err_ratelimited(st->dev,
+				    "FIFO entry count %u exceeds FIFO size %lu\n",
+				    fifo_entries, ADXL380_FIFO_SAMPLES);
+		return IRQ_HANDLED;
+	}
+
 	fifo_entries = rounddown(fifo_entries, st->fifo_set_size);
 	ret = regmap_noinc_read(st->regmap, ADXL380_FIFO_DATA, &st->fifo_buf,
 				sizeof(*st->fifo_buf) * fifo_entries);

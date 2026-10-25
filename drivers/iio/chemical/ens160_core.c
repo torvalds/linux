@@ -283,12 +283,7 @@ static int ens160_set_trigger_state(struct iio_trigger *trig, bool state)
 				ENS160_REG_CONFIG_INTDAT |
 				ENS160_REG_CONFIG_INT_CFG;
 
-	if (state)
-		return regmap_set_bits(data->regmap, ENS160_REG_CONFIG,
-				       int_bits);
-	else
-		return regmap_clear_bits(data->regmap, ENS160_REG_CONFIG,
-					 int_bits);
+	return regmap_assign_bits(data->regmap, ENS160_REG_CONFIG, int_bits, state);
 }
 
 static const struct iio_trigger_ops ens160_trigger_ops = {

@@ -256,6 +256,8 @@ config HP_ILO
 config QCOM_COINCELL
 	tristate "Qualcomm coincell charger support"
 	depends on MFD_SPMI_PMIC || COMPILE_TEST
+	depends on SPMI
+	select REGMAP_SPMI
 	help
 	  This driver supports the coincell block found inside of
 	  Qualcomm PMICs.  The coincell charger provides a means to
@@ -567,6 +569,19 @@ config MCHP_LAN966X_PCI
 	    - lan966x-serdes (PHY_LAN966X_SERDES)
 	    - lan966x-miim (MDIO_MSCC_MIIM)
 	    - lan966x-switch (LAN966X_SWITCH)
+
+config TC9564_PCI
+	tristate "Toshiba TC9564 PCI function support"
+	depends on PCI_DYNAMIC_OF_NODES
+	depends on PCI_QUIRKS
+	default m
+	help
+	  This enables support for two PCI functions implemented by the
+	  embedded PCIe endpoint in the Toshiba TC9564 SoC.  A platform
+	  driver uses a pci-ep-bus node in devicetree to provide MMIO
+	  access to other SoC devices through PCI function BARs.  A PCI
+	  quirk causes the ranges property in the endpoint's devicetree
+	  node to be updated dynamically.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

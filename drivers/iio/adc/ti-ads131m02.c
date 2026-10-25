@@ -897,6 +897,8 @@ static int ads131m_probe(struct spi_device *spi)
 	indio_dev->info = &ads131m_info;
 
 	config = spi_get_device_match_data(spi);
+	if (!config)
+		return -ENODATA;
 
 	priv->config = config;
 	indio_dev->name = config->name;

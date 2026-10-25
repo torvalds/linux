@@ -199,7 +199,12 @@ pub mod code {
 ///
 /// The value is a valid `errno` (i.e. `>= -MAX_ERRNO && < 0`).
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
 pub struct Error(NonZeroI32);
+
+// SAFETY: `Error` is `repr(transparent)` over `NonZeroI32`, which is part of the option layout
+// optimization guarantee, so all zeroes is a valid representation for `None`.
+unsafe impl pin_init::ZeroableOption for Error {}
 
 impl Error {
     /// Creates an [`Error`] from a kernel error code.

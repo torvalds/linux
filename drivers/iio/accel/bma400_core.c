@@ -6,8 +6,6 @@
  *
  * TODO:
  *  - Support for power management
- *  - Support events and interrupts
- *  - Create channel for step count
  *  - Create channel for sensor time
  */
 

@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/mfd/core.h>
@@ -434,8 +435,9 @@ static ssize_t store_thresh_either_en(struct device *dev,
 	if (!als->irq)
 		return -EBUSY;
 
-	if (kstrtoul(buf, 0, &enable))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &enable);
+	if (ret)
+		return ret;
 
 	int_enabled = test_bit(LM3533_ALS_FLAG_INT_ENABLED, &als->flags);
 
@@ -542,8 +544,9 @@ static ssize_t store_als_attr(struct device *dev,
 	u8 val;
 	int ret;
 
-	if (kstrtou8(buf, 0, &val))
-		return -EINVAL;
+	ret = kstrtou8(buf, 0, &val);
+	if (ret)
+		return ret;
 
 	switch (als_attr->type) {
 	case LM3533_ATTR_TYPE_TARGET:

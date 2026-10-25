@@ -739,7 +739,7 @@ static int meson_sar_adc_clk_init(struct iio_dev *indio_dev,
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
-	struct clk_init_data init;
+	struct clk_init_data init = { };
 	const char *clk_parents[1];
 
 	init.name = devm_kasprintf(dev, GFP_KERNEL, "%s#adc_div", dev_name(dev));

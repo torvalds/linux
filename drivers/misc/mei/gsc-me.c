@@ -242,7 +242,7 @@ static int __maybe_unused mei_gsc_pm_runtime_resume(struct device *device)
 
 	if (mei_me_hw_use_polling(hw)) {
 		hw->is_active = true;
-		wake_up(&hw->wait_active);
+		wake_up_interruptible(&hw->wait_active);
 	}
 
 	mutex_unlock(&dev->device_lock);

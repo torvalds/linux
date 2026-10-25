@@ -213,6 +213,11 @@
 #define TRCACATRn_EXLEVEL_MASK			GENMASK(14, 8)
 
 #define TRCSSCSRn_STATUS			BIT(31)
+/*
+ * TRCSSCSR.PENDING is only implemented by ETE and is therefore not
+ * described in DEN0117. See Arm ARM (DDI0487) M.c, section D24.4.59.
+ */
+#define TRCSSCSRn_PENDING			BIT(30)
 #define TRCSSCCRn_SAC_ARC_RST_MASK		GENMASK(24, 0)
 
 #define TRCSSPCICRn_PC_MASK			GENMASK(7, 0)
@@ -814,14 +819,105 @@ enum etm_impdef_type {
 };
 
 /**
+ * struct etmv4_caps - specifics ETM capabilities
+ * @nr_pe:	The number of processing entity available for tracing.
+ * @nr_pe_cmp:	The number of processing entity comparator inputs that are
+ *		available for tracing.
+ * @nr_addr_cmp:Number of pairs of address comparators available
+ *		as found in ETMIDR4 0-3.
+ * @nr_cntr:    Number of counters as found in ETMIDR5 bit 28-30.
+ * @nr_ext_inp: Number of external input.
+ * @numcidc:	Number of contextID comparators.
+ * @numextinsel: Number of external input selector resources.
+ * @numvmidc:	Number of VMID comparators.
+ * @nrseqstate: The number of sequencer states that are implemented.
+ * @nr_seq_ctrls: The number of sequence state transition control registers.
+ * @nr_event:	Indicates how many events the trace unit support.
+ * @nr_resource:The number of resource selection pairs available for tracing.
+ * @nr_ss_cmp:	Number of single-shot comparator controls that are available.
+ * @trcid_size: Indicates the trace ID width.
+ * @ts_size:	Global timestamp size field.
+ * @ctxid_size:	Size of the context ID field to consider.
+ * @vmid_size:	Size of the VM ID comparator to consider.
+ * @ccsize:	Indicates the size of the cycle counter in bits.
+ * @ccitmin:	minimum value that can be programmed in
+ * @s_ex_level:	In secure state, indicates whether instruction tracing is
+ *		supported for the corresponding Exception level.
+ * @ns_ex_level:In non-secure state, indicates whether instruction tracing is
+ *		supported for the corresponding Exception level.
+ * @q_support:	Q element support characteristics.
+ * @os_lock_model: OSLock model.
+ * @instrp0:	Tracing of load and store instructions
+ *		as P0 elements is supported.
+ * @q_filt:	Q element filtering support, if Q elements are supported.
+ * @trcbb:	Indicates if the trace unit supports branch broadcast tracing.
+ * @trccond:	If the trace unit supports conditional
+ *		instruction tracing.
+ * @retstack:	Indicates if the implementation supports a return stack.
+ * @trccci:	Indicates if the trace unit supports cycle counting
+ *		for instruction.
+ * @trc_error:	Whether a trace unit can trace a system
+ *		error exception.
+ * @syncpr:	Indicates if an implementation has a fixed
+ *		synchronization period.
+ * @stallctl:	If functionality that prevents trace unit buffer overflows
+ *		is available.
+ * @sysstall:	Does the system support stall control of the PE?
+ * @nooverflow:	Indicate if overflow prevention is supported.
+ * @atbtrig:	If the implementation can support ATB triggers
+ * @lpoverride:	If the implementation can support low-power state over.
+ * @skip_power_up: Indicates if an implementation can skip powering up
+ *		   the trace unit.
+ */
+struct etmv4_caps {
+	u8	nr_pe;
+	u8	nr_pe_cmp;
+	u8	nr_addr_cmp;
+	u8	nr_cntr;
+	u8	nr_ext_inp;
+	u8	numcidc;
+	u8	numextinsel;
+	u8	numvmidc;
+	u8	nrseqstate;
+	u8	nr_seq_ctrls;
+	u8	nr_event;
+	u8	nr_resource;
+	u8	nr_ss_cmp;
+	u8	trcid_size;
+	u8	ts_size;
+	u8	ctxid_size;
+	u8	vmid_size;
+	u8	ccsize;
+	u16	ccitmin;
+	u8	s_ex_level;
+	u8	ns_ex_level;
+	u8	q_support;
+	u8	os_lock_model;
+	bool	instrp0 : 1;
+	bool	q_filt : 1;
+	bool	trcbb : 1;
+	bool	trccond : 1;
+	bool	retstack : 1;
+	bool	trccci : 1;
+	bool	trc_error : 1;
+	bool	syncpr : 1;
+	bool	stallctl : 1;
+	bool	sysstall : 1;
+	bool	nooverflow : 1;
+	bool	atbtrig : 1;
+	bool	lpoverride : 1;
+	bool	skip_power_up : 1;
+};
+
+/**
  * struct etmv4_config - configuration information related to an ETMv4
  * @mode:	Controls various modes supported by this ETM.
  * @pe_sel:	Controls which PE to trace.
  * @cfg:	Controls the tracing options.
  * @eventctrl0: Controls the tracing of arbitrary events.
  * @eventctrl1: Controls the behavior of the events that @event_ctrl0 selects.
- * @stallctl:	If functionality that prevents trace unit buffer overflows
- *		is available.
+ * @stall_ctrl:	Enables trace unit functionality that prevents trace
+ *		unit buffer overflows.
  * @ts_ctrl:	Controls the insertion of global timestamps in the
  *		trace streams.
  * @syncfreq:	Controls how often trace synchronization requests occur.
@@ -860,7 +956,6 @@ enum etm_impdef_type {
  * @vmid_mask0:	VM ID comparator mask for comparator 0-3.
  * @vmid_mask1:	VM ID comparator mask for comparator 4-7.
  * @ext_inp:	External input selection.
- * @s_ex_level: Secure ELs where tracing is supported.
  */
 struct etmv4_config {
 	u64				mode;
@@ -889,7 +984,6 @@ struct etmv4_config {
 	u32				res_ctrl[ETM_MAX_RES_SEL]; /* TRCRSCTLRn */
 	u8				ss_idx;
 	u32				ss_ctrl[ETM_MAX_SS_CMP];
-	u32				ss_status[ETM_MAX_SS_CMP];
 	u32				ss_pe_cmp[ETM_MAX_SS_CMP];
 	u8				addr_idx;
 	u64				addr_val[ETM_MAX_SINGLE_ADDR_CMP];
@@ -904,7 +998,6 @@ struct etmv4_config {
 	u32				vmid_mask0;
 	u32				vmid_mask1;
 	u32				ext_inp;
-	u8				s_ex_level;
 };
 
 /**
@@ -967,63 +1060,20 @@ struct etmv4_save_state {
  * @mode:	This tracer's mode, i.e sysFS, Perf or disabled.
  * @cpu:        The cpu this component is affined to.
  * @arch:       ETM architecture version.
- * @nr_pe:	The number of processing entity available for tracing.
- * @nr_pe_cmp:	The number of processing entity comparator inputs that are
- *		available for tracing.
- * @nr_addr_cmp:Number of pairs of address comparators available
- *		as found in ETMIDR4 0-3.
- * @nr_cntr:    Number of counters as found in ETMIDR5 bit 28-30.
- * @nr_ext_inp: Number of external input.
- * @numcidc:	Number of contextID comparators.
- * @numvmidc:	Number of VMID comparators.
- * @nrseqstate: The number of sequencer states that are implemented.
- * @nr_seq_ctrls: The number of sequence state transition control registers.
- * @nr_event:	Indicates how many events the trace unit support.
- * @nr_resource:The number of resource selection pairs available for tracing.
- * @nr_ss_cmp:	Number of single-shot comparator controls that are available.
+ * @caps:	ETM capabilities.
  * @trcid:	value of the current ID for this component.
- * @trcid_size: Indicates the trace ID width.
- * @ts_size:	Global timestamp size field.
- * @ctxid_size:	Size of the context ID field to consider.
- * @vmid_size:	Size of the VM ID comparator to consider.
- * @ccsize:	Indicates the size of the cycle counter in bits.
- * @ccitmin:	minimum value that can be programmed in
- * @s_ex_level:	In secure state, indicates whether instruction tracing is
- *		supported for the corresponding Exception level.
- * @ns_ex_level:In non-secure state, indicates whether instruction tracing is
- *		supported for the corresponding Exception level.
  * @sticky_enable: true if ETM base configuration has been done.
  * @boot_enable:True if we should start tracing at boot time.
  * @os_unlock:  True if access to management registers is allowed.
- * @instrp0:	Tracing of load and store instructions
- *		as P0 elements is supported.
- * @q_filt:	Q element filtering support, if Q elements are supported.
- * @trcbb:	Indicates if the trace unit supports branch broadcast tracing.
- * @trccond:	If the trace unit supports conditional
- *		instruction tracing.
- * @retstack:	Indicates if the implementation supports a return stack.
- * @trccci:	Indicates if the trace unit supports cycle counting
- *		for instruction.
- * @q_support:	Q element support characteristics.
- * @trc_error:	Whether a trace unit can trace a system
- *		error exception.
- * @syncpr:	Indicates if an implementation has a fixed
- *		synchronization period.
- * @stall_ctrl:	Enables trace unit functionality that prevents trace
- *		unit buffer overflows.
- * @sysstall:	Does the system support stall control of the PE?
- * @nooverflow:	Indicate if overflow prevention is supported.
- * @atbtrig:	If the implementation can support ATB triggers
- * @lpoverride:	If the implementation can support low-power state over.
  * @trfcr:	If the CPU supports FEAT_TRF, value of the TRFCR_ELx that
  *		allows tracing at all ELs. We don't want to compute this
  *		at runtime, due to the additional setting of TRFCR_CX when
  *		in EL2. Otherwise, 0.
- * @config:	structure holding configuration parameters.
+ * @curr_config:	structure holding current applied configuration.
+ * @sysfs_config:	structure holding sysfs mode configuration.
  * @save_state:	State to be preserved across power loss
- * @skip_power_up: Indicates if an implementation can skip powering up
- *		   the trace unit.
  * @paused:	Indicates if the trace unit is paused.
+ * @ss_status:	The status of the corresponding single-shot comparator.
  * @arch_features: Bitmap of arch features of etmv4 devices.
  */
 struct etmv4_drvdata {
@@ -1034,51 +1084,17 @@ struct etmv4_drvdata {
 	raw_spinlock_t			spinlock;
 	int				cpu;
 	u8				arch;
-	u8				nr_pe;
-	u8				nr_pe_cmp;
-	u8				nr_addr_cmp;
-	u8				nr_cntr;
-	u8				nr_ext_inp;
-	u8				numcidc;
-	u8				numextinsel;
-	u8				numvmidc;
-	u8				nrseqstate;
-	u8				nr_seq_ctrls;
-	u8				nr_event;
-	u8				nr_resource;
-	u8				nr_ss_cmp;
+	struct etmv4_caps		caps;
 	u8				trcid;
-	u8				trcid_size;
-	u8				ts_size;
-	u8				ctxid_size;
-	u8				vmid_size;
-	u8				ccsize;
-	u16				ccitmin;
-	u8				s_ex_level;
-	u8				ns_ex_level;
-	u8				q_support;
-	u8				os_lock_model;
 	bool				sticky_enable : 1;
 	bool				boot_enable : 1;
 	bool				os_unlock : 1;
-	bool				instrp0 : 1;
-	bool				q_filt : 1;
-	bool				trcbb : 1;
-	bool				trccond : 1;
-	bool				retstack : 1;
-	bool				trccci : 1;
-	bool				trc_error : 1;
-	bool				syncpr : 1;
-	bool				stallctl : 1;
-	bool				sysstall : 1;
-	bool				nooverflow : 1;
-	bool				atbtrig : 1;
-	bool				lpoverride : 1;
-	bool				skip_power_up : 1;
 	bool				paused : 1;
 	u64				trfcr;
-	struct etmv4_config		config;
+	struct etmv4_config		curr_config;
+	struct etmv4_config		sysfs_config;
 	struct etmv4_save_state		*save_state;
+	u32				ss_status[ETM_MAX_SS_CMP];
 	DECLARE_BITMAP(arch_features, ETM4_IMPDEF_FEATURE_MAX);
 };
 
@@ -1099,7 +1115,8 @@ enum etm_addr_ctxtype {
 };
 
 extern const struct attribute_group *coresight_etmv4_groups[];
-void etm4_config_trace_mode(struct etmv4_config *config);
+void etm4_config_trace_mode(struct etmv4_config *config,
+			    const struct etmv4_caps *caps);
 
 u64 etm4x_sysreg_read(u32 offset, bool _relaxed, bool _64bit);
 void etm4x_sysreg_write(u64 val, u32 offset, bool _relaxed, bool _64bit);

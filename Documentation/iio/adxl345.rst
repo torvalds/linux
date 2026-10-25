@@ -4,7 +4,7 @@
 ADXL345 driver
 ===============
 
-This driver supports Analog Device's ADXL345/375 on SPI/I2C bus.
+This driver supports Analog Devices' ADXL345/375 on SPI/I2C bus.
 
 1. Supported Devices
 ====================

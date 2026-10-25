@@ -548,7 +548,7 @@ impl Process {
     }
 
     #[inline(never)]
-    pub(crate) fn debug_print_stats(&self, m: &SeqFile, ctx: &Context) -> Result<()> {
+    pub(crate) fn debug_print_stats(&self, m: &SeqFile, ctx: &Context) -> Result {
         seq_print!(m, "proc {}\n", self.pid_in_current_ns());
         seq_print!(m, "context {}\n", &*ctx.name);
 
@@ -596,7 +596,7 @@ impl Process {
     }
 
     #[inline(never)]
-    pub(crate) fn debug_print(&self, m: &SeqFile, ctx: &Context, print_all: bool) -> Result<()> {
+    pub(crate) fn debug_print(&self, m: &SeqFile, ctx: &Context, print_all: bool) -> Result {
         seq_print!(m, "proc {}\n", self.pid_in_current_ns());
         seq_print!(m, "context {}\n", &*ctx.name);
 
@@ -686,8 +686,16 @@ impl Process {
     pub(crate) fn get_work_or_register<'a>(
         &'a self,
         thread: &'a Arc<Thread>,
+        thread_has_deferred_work: bool,
     ) -> GetWorkOrRegister<'a> {
         let mut inner = self.inner.lock();
+
+        if thread_has_deferred_work && !inner.work.is_empty() {
+            if let Some(work) = thread.pop_work_even_if_deferred() {
+                return GetWorkOrRegister::Work(work);
+            }
+        }
+
         // Try to get work from the process queue.
         if let Some(work) = inner.work.pop_front() {
             return GetWorkOrRegister::Work(work);
@@ -894,11 +902,8 @@ impl Process {
 
         let (info_proc, info_node) = {
             let info_init = NodeRefInfo::new(node_ref, handle, self.into());
-            match info.pin_init_with(info_init) {
-                Ok(info) => ListArc::pair_from_pin_unique(info),
-                // error is infallible
-                Err(err) => match err {},
-            }
+            let Ok(info) = info.pin_init_with(info_init);
+            ListArc::pair_from_pin_unique(info)
         };
 
         // Ensure the process is still alive while we insert a new reference.
@@ -1068,7 +1073,10 @@ impl Process {
 
         let (new_alloc, addr) = loop {
             let mut inner = self.inner.lock();
-            let mapping = inner.mapping.as_mut().ok_or_else(BinderError::new_dead)?;
+            let mapping = inner
+                .mapping
+                .as_mut()
+                .ok_or_else(|| BinderError::new_dead())?;
             let alloc_request = match mapping.alloc.reserve_new(reserve_new_args)? {
                 ReserveNew::Success(new_alloc) => break (new_alloc, mapping.address),
                 ReserveNew::NeedAlloc(request) => request,
@@ -1208,13 +1216,12 @@ impl Process {
         let ptr = reader.read::<BinderNodeDebugInfo>()?.ptr;
         let mut out = BinderNodeDebugInfo::default();
 
-        {
+        if let Some(start_ptr) = ptr.checked_add(1) {
             let inner = self.inner.lock();
-            for (node_ptr, node) in &inner.nodes {
-                if *node_ptr > ptr {
-                    node.populate_debug_info(&mut out, &inner);
-                    break;
-                }
+            // cursor_lower_bound retrieves the "key" passed or the next existing larger key
+            if let Some(cursor) = inner.nodes.cursor_lower_bound(&start_ptr) {
+                let (_, node) = cursor.current();
+                node.populate_debug_info(&mut out, &inner);
             }
         }
 
@@ -1296,14 +1303,8 @@ impl Process {
             return Ok(());
         }
 
-        let death = {
-            let death_init = NodeDeath::new(info.node_ref().node.clone(), self.clone(), cookie);
-            match death.pin_init_with(death_init) {
-                Ok(death) => death,
-                // error is infallible
-                Err(err) => match err {},
-            }
-        };
+        let death_init = NodeDeath::new(info.node_ref().node.clone(), self.clone(), cookie);
+        let Ok(death) = death.pin_init_with(death_init);
 
         // Register the death notification.
         {

@@ -1462,6 +1462,8 @@ static int sca3000_probe(struct spi_device *spi)
 	st->us = spi;
 	mutex_init(&st->lock);
 	st->info = spi_get_device_match_data(spi);
+	if (!st->info)
+		return -ENODATA;
 
 	indio_dev->name = st->info->name;
 	indio_dev->info = &sca3000_info;

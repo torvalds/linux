@@ -456,7 +456,11 @@ static const struct ad7606_bus_info ad7616_bus_info = {
 
 static int ad7606_spi_probe(struct spi_device *spi)
 {
-	const struct ad7606_bus_info *bus_info = spi_get_device_match_data(spi);
+	const struct ad7606_bus_info *bus_info;
+
+	bus_info = spi_get_device_match_data(spi);
+	if (!bus_info)
+		return -ENODATA;
 
 	return ad7606_probe(&spi->dev, spi->irq, NULL,
 			    bus_info->chip_info, bus_info->bops);

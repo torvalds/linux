@@ -105,7 +105,6 @@ static void lis302dl_spi_remove(struct spi_device *spi)
 	lis3lv02d_remove_fs(&lis3_dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int lis3lv02d_spi_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
@@ -127,15 +126,14 @@ static int lis3lv02d_spi_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(lis3lv02d_spi_pm, lis3lv02d_spi_suspend,
+static DEFINE_SIMPLE_DEV_PM_OPS(lis3lv02d_spi_pm, lis3lv02d_spi_suspend,
 			 lis3lv02d_spi_resume);
 
 static struct spi_driver lis302dl_spi_driver = {
 	.driver	 = {
 		.name   = DRV_NAME,
-		.pm	= &lis3lv02d_spi_pm,
+		.pm	= pm_sleep_ptr(&lis3lv02d_spi_pm),
 		.of_match_table = of_match_ptr(lis302dl_spi_dt_ids),
 	},
 	.probe	= lis302dl_spi_probe,

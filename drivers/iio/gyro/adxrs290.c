@@ -502,8 +502,8 @@ static irqreturn_t adxrs290_trigger_handler(int irq, void *p)
 		if (ret < 0)
 			break;
 
-		iio_push_to_buffers_with_timestamp(indio_dev, &st->buffer,
-						   pf->timestamp);
+		iio_push_to_buffers_with_ts(indio_dev, &st->buffer,
+					    sizeof(st->buffer), pf->timestamp);
 	} while (0);
 
 	iio_trigger_notify_done(indio_dev->trig);

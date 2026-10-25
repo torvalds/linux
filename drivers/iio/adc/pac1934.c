@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/kstrtox.h>
 #include <linux/unaligned.h>
 
 /*
@@ -494,11 +495,13 @@ static ssize_t pac1934_shunt_value_store(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct pac1934_chip_info *info = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int sh_val;
+	unsigned int sh_val;
+	int ret;
 
-	if (kstrtouint(buf, 10, &sh_val)) {
+	ret = kstrtouint(buf, 10, &sh_val);
+	if (ret) {
 		dev_err(dev, "Shunt value is not valid\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	scoped_guard(mutex, &info->lock)

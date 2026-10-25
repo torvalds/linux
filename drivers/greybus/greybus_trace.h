@@ -339,7 +339,7 @@ DEFINE_INTERFACE_EVENT(gb_interface_create);
 DEFINE_INTERFACE_EVENT(gb_interface_release);
 
 /*
- * Occurs after an interface been registerd.
+ * Occurs after an interface been registered.
  */
 DEFINE_INTERFACE_EVENT(gb_interface_add);
 

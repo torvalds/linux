@@ -74,13 +74,13 @@ examples:
         #size-cells = <0>;
 
         sensor@39 {
-                compatible = "amstaos,tsl2772";
-                reg = <0x39>;
-                interrupts-extended = <&msmgpio 61 IRQ_TYPE_EDGE_FALLING>;
-                vdd-supply = <&pm8941_l17>;
-                vddio-supply = <&pm8941_lvs1>;
-                amstaos,proximity-diodes = <0>;
-                led-max-microamp = <100000>;
+            compatible = "amstaos,tsl2772";
+            reg = <0x39>;
+            interrupts-extended = <&msmgpio 61 IRQ_TYPE_EDGE_FALLING>;
+            vdd-supply = <&pm8941_l17>;
+            vddio-supply = <&pm8941_lvs1>;
+            amstaos,proximity-diodes = <0>;
+            led-max-microamp = <100000>;
         };
     };
 ...

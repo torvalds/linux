@@ -4,7 +4,7 @@
 ADXL313 driver
 ===============
 
-This driver supports Analog Device's ADXL313 on SPI/I2C bus.
+This driver supports Analog Devices' ADXL313 on SPI/I2C bus.
 
 1. Supported devices
 ====================

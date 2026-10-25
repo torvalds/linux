@@ -116,7 +116,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		BIT(IIO_CHAN_INFO_OFFSET) |
 		/*
 		 * in_voltage0_scale
-		 * Multipler for userspace to apply post offset
+		 * Multiplier for userspace to apply post offset
 		 * when converting to standard units (microvolts)
 		 */
 		BIT(IIO_CHAN_INFO_SCALE),

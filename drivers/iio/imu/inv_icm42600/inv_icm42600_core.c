@@ -8,6 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
+#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
@@ -324,6 +325,15 @@ int inv_icm42600_set_accel_conf(struct inv_icm42600_state *st,
 		break;
 	}
 
+	/*
+	 * If we change mode from low-power to low-noise because of odr,
+	 * we need to force odr change.
+	 */
+	if (oldconf->mode == INV_ICM42600_SENSOR_MODE_LOW_POWER &&
+	    conf->mode == INV_ICM42600_SENSOR_MODE_LOW_NOISE &&
+	    conf->odr != oldconf->odr)
+		st->timestamp.accel_force_odr = true;
+
 	/* set ACCEL_CONFIG0 register (accel fullscale & odr) */
 	if (conf->fs != oldconf->fs || conf->odr != oldconf->odr) {
 		val = INV_ICM42600_ACCEL_CONFIG0_FS(conf->fs) |
@@ -509,10 +519,20 @@ static int inv_icm42600_setup(struct inv_icm42600_state *st,
 	ret = regmap_read(st->map, INV_ICM42600_REG_WHOAMI, &val);
 	if (ret)
 		return ret;
+
+	/*
+	 * SPI interface has no ack mechanism.
+	 * 0xFF or 0x00 whoami means no response from the device.
+	 */
+	if (val == U8_MAX || val == 0)
+		return dev_err_probe(dev, -ENODEV,
+				     "invalid whoami %#04x expected %#04x (%s)\n",
+				     val, hw->whoami, hw->name);
+
 	if (val != hw->whoami) {
-		dev_err(dev, "invalid whoami %#02x expected %#02x (%s)\n",
-			val, hw->whoami, hw->name);
-		return -ENODEV;
+		dev_info(dev,
+			 "device id %#04x is not the %#04x associated with the FW-specified device (%s), probably using a valid fallback compatible\n",
+			 val, hw->whoami, hw->name);
 	}
 	st->name = hw->name;
 

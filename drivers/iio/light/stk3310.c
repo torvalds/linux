@@ -40,7 +40,13 @@
 #define STK3310_REG_PS_DATA_LSB			0x12
 #define STK3310_REG_ALS_DATA_MSB		0x13
 #define STK3310_REG_ALS_DATA_LSB		0x14
+#define STK36C61_REG_RED_DATA_MSB		0x15
+#define STK36C61_REG_GREEN_DATA_MSB		0x17
+#define STK36C61_REG_BLUE_DATA_MSB		0x19
+#define STK36C61_REG_CLEAR_DATA_MSB		0x1B
+#define STK36C61_REG_CLEAR_DATA_LSB		0x1C
 #define STK3310_REG_ID				0x3E
+#define STK36C61_REG_GAINCTRL			0x4E
 #define STK3310_MAX_REG				0x80
 
 #define STK3310_STATE_EN_PS			BIT(0)
@@ -54,6 +60,7 @@
 #define STK3311S34_CHIP_ID_VAL			0x1E
 #define STK3311X_CHIP_ID_VAL			0x12
 #define STK3335_CHIP_ID_VAL			0x51
+#define STK36C61_CHIP_ID_VAL			0x95
 #define STK3310_PSINT_EN			0x01
 #define STK3310_PS_MAX_VAL			0xFFFF
 
@@ -83,6 +90,8 @@ static const struct reg_field stk3310_reg_field_als_gain =
 				REG_FIELD(STK3310_REG_ALSCTRL, 4, 5);
 static const struct reg_field stk3310_reg_field_ps_gain =
 				REG_FIELD(STK3310_REG_PSCTRL, 4, 5);
+static const struct reg_field stk3310_reg_field_clear_gain =
+				REG_FIELD(STK36C61_REG_GAINCTRL, 4, 5);
 static const struct reg_field stk3310_reg_field_als_it =
 				REG_FIELD(STK3310_REG_ALSCTRL, 0, 3);
 static const struct reg_field stk3310_reg_field_ps_it =
@@ -102,6 +111,7 @@ static const u8 stk3310_chip_ids[] = {
 	STK3311X_CHIP_ID_VAL,
 	STK3311_CHIP_ID_VAL,
 	STK3335_CHIP_ID_VAL,
+	STK36C61_CHIP_ID_VAL,
 };
 
 /* Estimate maximum proximity values with regard to measurement scale. */
@@ -132,6 +142,7 @@ struct stk3310_data {
 	struct regmap_field *reg_state;
 	struct regmap_field *reg_als_gain;
 	struct regmap_field *reg_ps_gain;
+	struct regmap_field *reg_clear_gain;
 	struct regmap_field *reg_als_it;
 	struct regmap_field *reg_ps_it;
 	struct regmap_field *reg_int_ps;
@@ -181,24 +192,78 @@ static const struct iio_chan_spec_ext_info stk3310_ext_info[] = {
 	{ }
 };
 
+#define STK3310_LIGHT_CHANNEL {				\
+	.type = IIO_LIGHT,				\
+	.address = STK3310_REG_ALS_DATA_MSB,		\
+	.info_mask_separate =				\
+		BIT(IIO_CHAN_INFO_RAW) |		\
+		BIT(IIO_CHAN_INFO_SCALE) |		\
+		BIT(IIO_CHAN_INFO_INT_TIME),		\
+}
+
+#define STK3310_PROXIMITY_CHANNEL {			\
+	.type = IIO_PROXIMITY,				\
+	.address = STK3310_REG_PS_DATA_MSB,		\
+	.info_mask_separate =				\
+		BIT(IIO_CHAN_INFO_RAW) |		\
+		BIT(IIO_CHAN_INFO_SCALE) |		\
+		BIT(IIO_CHAN_INFO_INT_TIME),		\
+	.event_spec = stk3310_events,			\
+	.num_event_specs = ARRAY_SIZE(stk3310_events),	\
+	.ext_info = stk3310_ext_info,			\
+}
+
+#define STK36C61_INTENSITY_CHANNEL(_mod, _reg) {	\
+	.type = IIO_INTENSITY,				\
+	.address = _reg,				\
+	.modified = 1,					\
+	.channel2 = IIO_MOD_LIGHT_##_mod,		\
+	.info_mask_separate =				\
+		BIT(IIO_CHAN_INFO_RAW) |		\
+		BIT(IIO_CHAN_INFO_SCALE),		\
+	.info_mask_shared_by_type =			\
+		BIT(IIO_CHAN_INFO_INT_TIME),		\
+	.info_mask_shared_by_type_available =		\
+		BIT(IIO_CHAN_INFO_SCALE) |		\
+		BIT(IIO_CHAN_INFO_INT_TIME),		\
+}
+
 static const struct iio_chan_spec stk3310_channels[] = {
-	{
-		.type = IIO_LIGHT,
-		.info_mask_separate =
-			BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_SCALE) |
-			BIT(IIO_CHAN_INFO_INT_TIME),
-	},
-	{
-		.type = IIO_PROXIMITY,
-		.info_mask_separate =
-			BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_SCALE) |
-			BIT(IIO_CHAN_INFO_INT_TIME),
-		.event_spec = stk3310_events,
-		.num_event_specs = ARRAY_SIZE(stk3310_events),
-		.ext_info = stk3310_ext_info,
-	}
+	STK3310_LIGHT_CHANNEL,
+	STK3310_PROXIMITY_CHANNEL,
+};
+
+static const struct iio_chan_spec stk36c61_channels[] = {
+	STK3310_LIGHT_CHANNEL,
+	STK3310_PROXIMITY_CHANNEL,
+	STK36C61_INTENSITY_CHANNEL(RED, STK36C61_REG_RED_DATA_MSB),
+	STK36C61_INTENSITY_CHANNEL(GREEN, STK36C61_REG_GREEN_DATA_MSB),
+	STK36C61_INTENSITY_CHANNEL(BLUE, STK36C61_REG_BLUE_DATA_MSB),
+	STK36C61_INTENSITY_CHANNEL(CLEAR, STK36C61_REG_CLEAR_DATA_MSB),
+};
+
+/**
+ * struct stk3310_chip_info - chip-specific data
+ * @name: device name reported to the IIO core
+ * @channels: channel specification
+ * @num_channels: number of channels
+ */
+struct stk3310_chip_info {
+	const char *name;
+	const struct iio_chan_spec *channels __counted_by_ptr(num_channels);
+	unsigned int num_channels;
+};
+
+static const struct stk3310_chip_info stk3310_chip_info = {
+	.name = STK3310_DRIVER_NAME,
+	.channels = stk3310_channels,
+	.num_channels = ARRAY_SIZE(stk3310_channels),
+};
+
+static const struct stk3310_chip_info stk36c61_chip_info = {
+	.name = "stk36c61",
+	.channels = stk36c61_channels,
+	.num_channels = ARRAY_SIZE(stk36c61_channels),
 };
 
 static IIO_CONST_ATTR(in_illuminance_scale_available, STK3310_SCALE_AVAILABLE);
@@ -370,25 +435,21 @@ static int stk3310_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int *val, int *val2, long mask)
 {
-	u8 reg;
 	__be16 buf;
 	int ret;
 	unsigned int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
+	struct regmap *map = data->regmap;
 
-	if (chan->type != IIO_LIGHT && chan->type != IIO_PROXIMITY)
+	if (chan->type != IIO_LIGHT && chan->type != IIO_PROXIMITY &&
+	    chan->type != IIO_INTENSITY)
 		return -EINVAL;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		if (chan->type == IIO_LIGHT)
-			reg = STK3310_REG_ALS_DATA_MSB;
-		else
-			reg = STK3310_REG_PS_DATA_MSB;
-
 		mutex_lock(&data->lock);
-		ret = regmap_bulk_read(data->regmap, reg, &buf, sizeof(buf));
+		ret = regmap_bulk_read(map, chan->address, &buf, sizeof(buf));
 		if (ret < 0) {
 			dev_err(&client->dev, "register read failed\n");
 			mutex_unlock(&data->lock);
@@ -398,10 +459,10 @@ static int stk3310_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&data->lock);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
-		if (chan->type == IIO_LIGHT)
-			ret = regmap_field_read(data->reg_als_it, &index);
-		else
+		if (chan->type == IIO_PROXIMITY)
 			ret = regmap_field_read(data->reg_ps_it, &index);
+		else
+			ret = regmap_field_read(data->reg_als_it, &index);
 		if (ret < 0)
 			return ret;
 
@@ -409,10 +470,12 @@ static int stk3310_read_raw(struct iio_dev *indio_dev,
 		*val2 = stk3310_it_table[index][1];
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SCALE:
-		if (chan->type == IIO_LIGHT)
-			ret = regmap_field_read(data->reg_als_gain, &index);
-		else
+		if (chan->type == IIO_PROXIMITY)
 			ret = regmap_field_read(data->reg_ps_gain, &index);
+		else if (chan->channel2 == IIO_MOD_LIGHT_CLEAR)
+			ret = regmap_field_read(data->reg_clear_gain, &index);
+		else
+			ret = regmap_field_read(data->reg_als_gain, &index);
 		if (ret < 0)
 			return ret;
 
@@ -432,7 +495,8 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 	int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
 
-	if (chan->type != IIO_LIGHT && chan->type != IIO_PROXIMITY)
+	if (chan->type != IIO_LIGHT && chan->type != IIO_PROXIMITY &&
+	    chan->type != IIO_INTENSITY)
 		return -EINVAL;
 
 	switch (mask) {
@@ -443,10 +507,10 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 		if (index < 0)
 			return -EINVAL;
 		mutex_lock(&data->lock);
-		if (chan->type == IIO_LIGHT)
-			ret = regmap_field_write(data->reg_als_it, index);
-		else
+		if (chan->type == IIO_PROXIMITY)
 			ret = regmap_field_write(data->reg_ps_it, index);
+		else
+			ret = regmap_field_write(data->reg_als_it, index);
 		if (ret < 0)
 			dev_err(&data->client->dev,
 				"sensor configuration failed\n");
@@ -460,10 +524,12 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 		if (index < 0)
 			return -EINVAL;
 		mutex_lock(&data->lock);
-		if (chan->type == IIO_LIGHT)
-			ret = regmap_field_write(data->reg_als_gain, index);
-		else
+		if (chan->type == IIO_PROXIMITY)
 			ret = regmap_field_write(data->reg_ps_gain, index);
+		else if (chan->channel2 == IIO_MOD_LIGHT_CLEAR)
+			ret = regmap_field_write(data->reg_clear_gain, index);
+		else
+			ret = regmap_field_write(data->reg_als_gain, index);
 		if (ret < 0)
 			dev_err(&data->client->dev,
 				"sensor configuration failed\n");
@@ -474,9 +540,31 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int stk3310_read_avail(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      const int **vals, int *type, int *length,
+			      long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		*vals = (const int *)stk3310_scale_table;
+		*length = 2 * ARRAY_SIZE(stk3310_scale_table);
+		*type = IIO_VAL_INT_PLUS_MICRO;
+		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_INT_TIME:
+		*vals = (const int *)stk3310_it_table;
+		*length = 2 * ARRAY_SIZE(stk3310_it_table);
+		*type = IIO_VAL_INT_PLUS_MICRO;
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct iio_info stk3310_info = {
 	.read_raw		= stk3310_read_raw,
 	.write_raw		= stk3310_write_raw,
+	.read_avail		= stk3310_read_avail,
 	.attrs			= &stk3310_attribute_group,
 	.read_event_value	= stk3310_read_event,
 	.write_event_value	= stk3310_write_event,
@@ -548,6 +636,7 @@ static bool stk3310_is_volatile_reg(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case STK3310_REG_ALS_DATA_MSB:
 	case STK3310_REG_ALS_DATA_LSB:
+	case STK36C61_REG_RED_DATA_MSB ... STK36C61_REG_CLEAR_DATA_LSB:
 	case STK3310_REG_PS_DATA_LSB:
 	case STK3310_REG_PS_DATA_MSB:
 	case STK3310_REG_FLAG:
@@ -582,6 +671,7 @@ static int stk3310_regmap_init(struct stk3310_data *data)
 	STK3310_REGFIELD(state);
 	STK3310_REGFIELD(als_gain);
 	STK3310_REGFIELD(ps_gain);
+	STK3310_REGFIELD(clear_gain);
 	STK3310_REGFIELD(als_it);
 	STK3310_REGFIELD(ps_it);
 	STK3310_REGFIELD(int_ps);
@@ -635,9 +725,15 @@ out:
 
 static int stk3310_probe(struct i2c_client *client)
 {
+	const struct stk3310_chip_info *chip_info;
+	struct device *dev = &client->dev;
 	int ret;
 	struct iio_dev *indio_dev;
 	struct stk3310_data *data;
+
+	chip_info = i2c_get_match_data(client);
+	if (!chip_info)
+		return dev_err_probe(dev, -ENODATA, "missing driver data\n");
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -657,10 +753,10 @@ static int stk3310_probe(struct i2c_client *client)
 		return ret;
 
 	indio_dev->info = &stk3310_info;
-	indio_dev->name = STK3310_DRIVER_NAME;
+	indio_dev->name = chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = stk3310_channels;
-	indio_dev->num_channels = ARRAY_SIZE(stk3310_channels);
+	indio_dev->channels = chip_info->channels;
+	indio_dev->num_channels = chip_info->num_channels;
 
 	ret = stk3310_init(indio_dev);
 	if (ret < 0)
@@ -766,28 +862,29 @@ static DEFINE_SIMPLE_DEV_PM_OPS(stk3310_pm_ops, stk3310_suspend,
 				stk3310_resume);
 
 static const struct i2c_device_id stk3310_i2c_id[] = {
-	{ .name = "STK3013" },
-	{ .name = "STK3310" },
-	{ .name = "STK3311" },
-	{ .name = "STK3335" },
+	{ .name = "stk3013", .driver_data = (kernel_ulong_t)&stk3310_chip_info },
+	{ .name = "stk3310", .driver_data = (kernel_ulong_t)&stk3310_chip_info },
+	{ .name = "stk3311", .driver_data = (kernel_ulong_t)&stk3310_chip_info },
+	{ .name = "stk3335", .driver_data = (kernel_ulong_t)&stk3310_chip_info },
+	{ .name = "stk36c61", .driver_data = (kernel_ulong_t)&stk36c61_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stk3310_i2c_id);
 
 static const struct acpi_device_id stk3310_acpi_id[] = {
-	{"STK3013", 0},
-	{"STK3310", 0},
-	{"STK3311", 0},
+	{ .id = "STK3013", .driver_data = (kernel_ulong_t)&stk3310_chip_info },
+	{ .id = "STK3310", .driver_data = (kernel_ulong_t)&stk3310_chip_info },
+	{ .id = "STK3311", .driver_data = (kernel_ulong_t)&stk3310_chip_info },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(acpi, stk3310_acpi_id);
 
 static const struct of_device_id stk3310_of_match[] = {
-	{ .compatible = "sensortek,stk3013", },
-	{ .compatible = "sensortek,stk3310", },
-	{ .compatible = "sensortek,stk3311", },
-	{ .compatible = "sensortek,stk3335", },
+	{ .compatible = "sensortek,stk3013", .data = &stk3310_chip_info },
+	{ .compatible = "sensortek,stk3310", .data = &stk3310_chip_info },
+	{ .compatible = "sensortek,stk3311", .data = &stk3310_chip_info },
+	{ .compatible = "sensortek,stk3335", .data = &stk3310_chip_info },
+	{ .compatible = "sensortek,stk36c61", .data = &stk36c61_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, stk3310_of_match);

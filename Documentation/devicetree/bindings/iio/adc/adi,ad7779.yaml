@@ -122,14 +122,14 @@ examples:
         #size-cells = <0>;
 
         adc@0 {
-          compatible = "adi,ad7779";
-          reg = <0>;
-          start-gpios = <&gpio0 87 GPIO_ACTIVE_LOW>;
-          reset-gpios = <&gpio0 93 GPIO_ACTIVE_LOW>;
-          interrupt-parent = <&intc>;
-          interrupts = <0 56 IRQ_TYPE_LEVEL_HIGH>;
-          interrupt-names = "adc_rdy";
-          clocks = <&adc_clk>;
+            compatible = "adi,ad7779";
+            reg = <0>;
+            start-gpios = <&gpio0 87 GPIO_ACTIVE_LOW>;
+            reset-gpios = <&gpio0 93 GPIO_ACTIVE_LOW>;
+            interrupt-parent = <&intc>;
+            interrupts = <0 56 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "adc_rdy";
+            clocks = <&adc_clk>;
         };
     };
 
@@ -140,13 +140,13 @@ examples:
         #size-cells = <0>;
 
         adc@0 {
-          compatible = "adi,ad7779";
-          reg = <0>;
-          start-gpios = <&gpio0 87 GPIO_ACTIVE_LOW>;
-          reset-gpios = <&gpio0 93 GPIO_ACTIVE_LOW>;
-          clocks = <&adc_clk>;
-          io-backends = <&iio_backend>;
-          adi,num-lanes = <4>;
+            compatible = "adi,ad7779";
+            reg = <0>;
+            start-gpios = <&gpio0 87 GPIO_ACTIVE_LOW>;
+            reset-gpios = <&gpio0 93 GPIO_ACTIVE_LOW>;
+            clocks = <&adc_clk>;
+            io-backends = <&iio_backend>;
+            adi,num-lanes = <4>;
         };
     };
 ...

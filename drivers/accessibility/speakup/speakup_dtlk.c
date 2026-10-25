@@ -377,7 +377,6 @@ static int synth_probe(struct spk_synth *synth)
 
 static void dtlk_release(struct spk_synth *synth)
 {
-	spk_stop_serial_interrupt();
 	if (speakup_info.port_tts)
 		synth_release_region(speakup_info.port_tts - 1,
 				     SYNTH_IO_EXTENT);

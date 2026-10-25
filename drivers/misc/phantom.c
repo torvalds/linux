@@ -459,7 +459,7 @@ static void phantom_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int __maybe_unused phantom_suspend(struct device *dev_d)
+static int phantom_suspend(struct device *dev_d)
 {
 	struct phantom_device *dev = dev_get_drvdata(dev_d);
 
@@ -471,7 +471,7 @@ static int __maybe_unused phantom_suspend(struct device *dev_d)
 	return 0;
 }
 
-static int __maybe_unused phantom_resume(struct device *dev_d)
+static int phantom_resume(struct device *dev_d)
 {
 	struct phantom_device *dev = dev_get_drvdata(dev_d);
 
@@ -488,14 +488,14 @@ static struct pci_device_id phantom_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, phantom_pci_tbl);
 
-static SIMPLE_DEV_PM_OPS(phantom_pm_ops, phantom_suspend, phantom_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(phantom_pm_ops, phantom_suspend, phantom_resume);
 
 static struct pci_driver phantom_pci_driver = {
 	.name = "phantom",
 	.id_table = phantom_pci_tbl,
 	.probe = phantom_probe,
 	.remove = phantom_remove,
-	.driver.pm = &phantom_pm_ops,
+	.driver.pm = pm_sleep_ptr(&phantom_pm_ops),
 };
 
 static CLASS_ATTR_STRING(version, 0444, PHANTOM_VERSION);

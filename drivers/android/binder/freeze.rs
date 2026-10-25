@@ -75,10 +75,8 @@ impl FreezeMessage {
     }
 
     fn init(ua: UninitFM, cookie: FreezeCookie, pid: i32) -> DLArc<FreezeMessage> {
-        match ua.pin_init_with(DTRWrap::new(FreezeMessage { cookie, pid })) {
-            Ok(msg) => ListArc::from(msg),
-            Err(err) => match err {},
-        }
+        let Ok(msg) = ua.pin_init_with(DTRWrap::new(FreezeMessage { cookie, pid }));
+        ListArc::from(msg)
     }
 }
 
@@ -155,7 +153,7 @@ impl DeliverToRead for FreezeMessage {
     }
 
     #[inline(never)]
-    fn debug_print(&self, m: &SeqFile, prefix: &str, _tprefix: &str) -> Result<()> {
+    fn debug_print(&self, m: &SeqFile, prefix: &str, _tprefix: &str) -> Result {
         seq_print!(m, "{}has frozen binder\n", prefix);
         Ok(())
     }
@@ -177,10 +175,7 @@ impl FreezeListener {
 }
 
 impl Process {
-    pub(crate) fn request_freeze_notif(
-        self: &Arc<Self>,
-        reader: &mut UserSliceReader,
-    ) -> Result<()> {
+    pub(crate) fn request_freeze_notif(self: &Arc<Self>, reader: &mut UserSliceReader) -> Result {
         let hc = reader.read::<BinderHandleCookie>()?;
         let handle = hc.handle;
         let cookie = FreezeCookie(hc.cookie);
@@ -272,7 +267,7 @@ impl Process {
         Ok(())
     }
 
-    pub(crate) fn freeze_notif_done(self: &Arc<Self>, reader: &mut UserSliceReader) -> Result<()> {
+    pub(crate) fn freeze_notif_done(self: &Arc<Self>, reader: &mut UserSliceReader) -> Result {
         let cookie = FreezeCookie(reader.read()?);
         let alloc = FreezeMessage::new(GFP_KERNEL)?;
         let mut node_refs_guard = self.node_refs.lock();
@@ -313,7 +308,7 @@ impl Process {
         Ok(())
     }
 
-    pub(crate) fn clear_freeze_notif(self: &Arc<Self>, reader: &mut UserSliceReader) -> Result<()> {
+    pub(crate) fn clear_freeze_notif(self: &Arc<Self>, reader: &mut UserSliceReader) -> Result {
         let hc = reader.read::<BinderHandleCookie>()?;
         let handle = hc.handle;
         let cookie = FreezeCookie(hc.cookie);

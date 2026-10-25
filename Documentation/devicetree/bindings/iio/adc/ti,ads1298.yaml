@@ -65,15 +65,15 @@ examples:
         #size-cells = <0>;
 
         adc@1 {
-          reg = <1>;
-          compatible = "ti,ads1298";
-          label = "ads1298-1-ecg";
-          avdd-supply = <&reg_iso_5v_a>;
-          clocks = <&clk_ads1298>;
-          interrupt-parent = <&gpio0>;
-          interrupts = <78 IRQ_TYPE_EDGE_FALLING>;
-          spi-max-frequency = <20000000>;
-          spi-cpha;
+            reg = <1>;
+            compatible = "ti,ads1298";
+            label = "ads1298-1-ecg";
+            avdd-supply = <&reg_iso_5v_a>;
+            clocks = <&clk_ads1298>;
+            interrupt-parent = <&gpio0>;
+            interrupts = <78 IRQ_TYPE_EDGE_FALLING>;
+            spi-max-frequency = <20000000>;
+            spi-cpha;
         };
     };
 ...

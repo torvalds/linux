@@ -4,7 +4,7 @@
 ADIS16550 driver
 ================
 
-This driver supports Analog Device's IMUs on SPI bus.
+This driver supports Analog Devices' IMUs on SPI bus.
 
 1. Supported devices
 ====================

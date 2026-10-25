@@ -188,7 +188,6 @@ static void alcor_pci_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int alcor_suspend(struct device *dev)
 {
 	return 0;
@@ -203,9 +202,8 @@ static int alcor_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(alcor_pci_pm_ops, alcor_suspend, alcor_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(alcor_pci_pm_ops, alcor_suspend, alcor_resume);
 
 static struct pci_driver alcor_driver = {
 	.name	=	DRV_NAME_ALCOR_PCI,
@@ -213,7 +211,7 @@ static struct pci_driver alcor_driver = {
 	.probe	=	alcor_pci_probe,
 	.remove =	alcor_pci_remove,
 	.driver	=	{
-		.pm	= &alcor_pci_pm_ops
+		.pm	= pm_sleep_ptr(&alcor_pci_pm_ops)
 	},
 };
 

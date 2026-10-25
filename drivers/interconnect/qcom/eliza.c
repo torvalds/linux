@@ -451,7 +451,7 @@ static struct qcom_icc_node qns_gem_noc_cnoc = {
 	.link_nodes = { &qnm_gemnoc_cnoc },
 };
 
-static struct qcom_icc_qosbox alm_gpu_tcu_qos = {
+static const struct qcom_icc_qosbox alm_gpu_tcu_qos = {
 	.num_ports = 1,
 	.port_offsets = { 0x155000 },
 	.prio = 1,
@@ -468,7 +468,7 @@ static struct qcom_icc_node alm_gpu_tcu = {
 	.link_nodes = { &qns_gem_noc_cnoc, &qns_llcc },
 };
 
-static struct qcom_icc_qosbox alm_sys_tcu_qos = {
+static const struct qcom_icc_qosbox alm_sys_tcu_qos = {
 	.num_ports = 1,
 	.port_offsets = { 0x157000 },
 	.prio = 6,
@@ -494,7 +494,7 @@ static struct qcom_icc_node chm_apps = {
 			&qns_pcie },
 };
 
-static struct qcom_icc_qosbox qnm_gpu_qos = {
+static const struct qcom_icc_qosbox qnm_gpu_qos = {
 	.num_ports = 2,
 	.port_offsets = { 0x31000, 0xb1000 },
 	.prio = 0,
@@ -511,7 +511,7 @@ static struct qcom_icc_node qnm_gpu = {
 	.link_nodes = { &qns_gem_noc_cnoc, &qns_llcc },
 };
 
-static struct qcom_icc_qosbox qnm_lpass_gemnoc_qos = {
+static const struct qcom_icc_qosbox qnm_lpass_gemnoc_qos = {
 	.num_ports = 1,
 	.port_offsets = { 0x159000 },
 	.prio = 0,
@@ -538,7 +538,7 @@ static struct qcom_icc_node qnm_mdsp = {
 			&qns_pcie },
 };
 
-static struct qcom_icc_qosbox qnm_mnoc_hf_qos = {
+static const struct qcom_icc_qosbox qnm_mnoc_hf_qos = {
 	.num_ports = 2,
 	.port_offsets = { 0x33000, 0xb3000 },
 	.prio = 0,
@@ -555,7 +555,7 @@ static struct qcom_icc_node qnm_mnoc_hf = {
 	.link_nodes = { &qns_gem_noc_cnoc, &qns_llcc },
 };
 
-static struct qcom_icc_qosbox qnm_mnoc_sf_qos = {
+static const struct qcom_icc_qosbox qnm_mnoc_sf_qos = {
 	.num_ports = 2,
 	.port_offsets = { 0x35000, 0xb5000 },
 	.prio = 0,
@@ -572,7 +572,7 @@ static struct qcom_icc_node qnm_mnoc_sf = {
 	.link_nodes = { &qns_gem_noc_cnoc, &qns_llcc },
 };
 
-static struct qcom_icc_qosbox qnm_nsp_gemnoc_qos = {
+static const struct qcom_icc_qosbox qnm_nsp_gemnoc_qos = {
 	.num_ports = 2,
 	.port_offsets = { 0x37000, 0xb7000 },
 	.prio = 0,
@@ -590,7 +590,7 @@ static struct qcom_icc_node qnm_nsp_gemnoc = {
 			&qns_pcie },
 };
 
-static struct qcom_icc_qosbox qnm_pcie_qos = {
+static const struct qcom_icc_qosbox qnm_pcie_qos = {
 	.num_ports = 1,
 	.port_offsets = { 0x15b000 },
 	.prio = 2,
@@ -688,7 +688,7 @@ static struct qcom_icc_node qnm_lpiaon_noc = {
 	.link_nodes = { &qns_lpass_ag_noc_gemnoc },
 };
 
-static struct qcom_icc_qosbox qnm_camnoc_nrt_icp_sf_qos = {
+static const struct qcom_icc_qosbox qnm_camnoc_nrt_icp_sf_qos = {
 	.num_ports = 1,
 	.port_offsets = { 0x25000 },
 	.prio = 4,

@@ -177,6 +177,48 @@ TRACE_EVENT(binder_return,
 			  "unknown")
 );
 
+
+TRACE_EVENT(binder_transaction_alloc_buf,
+	TP_PROTO(int debug_id, size_t data_size, size_t offsets_size, size_t extra_buffers_size),
+	TP_ARGS(debug_id, data_size, offsets_size, extra_buffers_size),
+	TP_STRUCT__entry(
+		__field(int, debug_id)
+		__field(size_t, data_size)
+		__field(size_t, offsets_size)
+		__field(size_t, extra_buffers_size)
+	),
+	TP_fast_assign(
+		__entry->debug_id = debug_id;
+		__entry->data_size = data_size;
+		__entry->offsets_size = offsets_size;
+		__entry->extra_buffers_size = extra_buffers_size;
+	),
+	TP_printk("transaction=%d data_size=%zd offsets_size=%zd extra_buffers_size=%zd",
+		  __entry->debug_id, __entry->data_size, __entry->offsets_size,
+		  __entry->extra_buffers_size)
+);
+
+DECLARE_EVENT_CLASS(binder_buffer_release_class,
+	TP_PROTO(int debug_id),
+	TP_ARGS(debug_id),
+	TP_STRUCT__entry(
+		__field(int, debug_id)
+	),
+	TP_fast_assign(
+		__entry->debug_id = debug_id;
+	),
+	TP_printk("transaction=%d", __entry->debug_id)
+);
+
+#define DEFINE_RBINDER_FUNCTION_BUFFER_EVENT(name)	\
+DEFINE_EVENT(binder_buffer_release_class, name,	\
+	TP_PROTO(int debug_id), \
+	TP_ARGS(debug_id))
+
+DEFINE_RBINDER_FUNCTION_BUFFER_EVENT(binder_transaction_buffer_release);
+DEFINE_RBINDER_FUNCTION_BUFFER_EVENT(binder_transaction_failed_buffer_release);
+DEFINE_RBINDER_FUNCTION_BUFFER_EVENT(binder_transaction_update_buffer_release);
+
 #endif /* _RUST_BINDER_TRACE_H */
 
 /* This part must be outside protection */

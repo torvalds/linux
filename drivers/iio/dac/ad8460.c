@@ -304,7 +304,7 @@ static ssize_t ad8460_write_powerdown(struct iio_dev *indio_dev, uintptr_t priva
 	 * If powerdown is set, HVDAC is enabled and the HV driver is
 	 * enabled via HV_RESET in case it is in shutdown mode,
 	 * If powerdown is cleared, HVDAC is set to shutdown state
-	 * as well as the HV driver. Quiescent current decreases and ouput is
+	 * as well as the HV driver. Quiescent current decreases and output is
 	 * floating (high impedance).
 	 */
 

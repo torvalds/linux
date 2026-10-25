@@ -207,7 +207,7 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 	spin_unlock_irqrestore(&fm->lock, flags);
 }
 
-static int __maybe_unused tifm_7xx1_suspend(struct device *dev_d)
+static int tifm_7xx1_suspend(struct device *dev_d)
 {
 	struct pci_dev *dev = to_pci_dev(dev_d);
 	struct tifm_adapter *fm = pci_get_drvdata(dev);
@@ -224,7 +224,7 @@ static int __maybe_unused tifm_7xx1_suspend(struct device *dev_d)
 	return 0;
 }
 
-static int __maybe_unused tifm_7xx1_resume(struct device *dev_d)
+static int tifm_7xx1_resume(struct device *dev_d)
 {
 	struct pci_dev *dev = to_pci_dev(dev_d);
 	struct tifm_adapter *fm = pci_get_drvdata(dev);
@@ -406,14 +406,14 @@ static const struct pci_device_id tifm_7xx1_pci_tbl[] = {
 	{ }
 };
 
-static SIMPLE_DEV_PM_OPS(tifm_7xx1_pm_ops, tifm_7xx1_suspend, tifm_7xx1_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tifm_7xx1_pm_ops, tifm_7xx1_suspend, tifm_7xx1_resume);
 
 static struct pci_driver tifm_7xx1_driver = {
 	.name = DRIVER_NAME,
 	.id_table = tifm_7xx1_pci_tbl,
 	.probe = tifm_7xx1_probe,
 	.remove = tifm_7xx1_remove,
-	.driver.pm = &tifm_7xx1_pm_ops,
+	.driver.pm = pm_sleep_ptr(&tifm_7xx1_pm_ops),
 };
 
 module_pci_driver(tifm_7xx1_driver);

@@ -179,6 +179,7 @@ struct inv_icm42600_state {
 	struct {
 		s64 gyro;
 		s64 accel;
+		bool accel_force_odr;
 	} timestamp;
 	struct inv_icm42600_apex apex;
 	struct inv_icm42600_fifo fifo;
@@ -356,8 +357,8 @@ struct inv_icm42600_sensor_state {
 		cpu_to_le16((_wm) & GENMASK(11, 0))
 /* FIFO is 2048 bytes, let 12 samples for reading latency */
 #define INV_ICM42600_FIFO_WATERMARK_MAX			(2048 - 12 * 16)
-/* INV_ICM42600_FIFO_WATERMARK_MAX / 8 = 232 */
-#define INV_ICM42600_FIFO_WATERMARK_MAX_SAMPLES		232
+/* INV_ICM42600_FIFO_WATERMARK_MAX / 16 = 116 */
+#define INV_ICM42600_FIFO_WATERMARK_MAX_SAMPLES		116
 
 #define INV_ICM42600_REG_INT_CONFIG1			0x0064
 #define INV_ICM42600_INT_CONFIG1_TPULSE_DURATION	BIT(6)

@@ -238,9 +238,9 @@ examples:
             };
 
             regulators {
-              vcm_reg: vcm-output {
-                regulator-name = "ad7768-1-vcm";
-              };
+                vcm_reg: vcm-output {
+                    regulator-name = "ad7768-1-vcm";
+                };
             };
         };
     };

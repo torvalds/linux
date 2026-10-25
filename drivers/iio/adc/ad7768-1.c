@@ -1829,6 +1829,9 @@ static int ad7768_probe(struct spi_device *spi)
 	}
 
 	st->chip = spi_get_device_match_data(spi);
+	if (!st->chip)
+		return -ENODATA;
+
 	st->spi = spi;
 
 	st->regmap = devm_regmap_init_spi(spi, &ad7768_regmap_config);

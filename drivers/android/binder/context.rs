@@ -134,13 +134,13 @@ impl Context {
     }
 
     pub(crate) fn get_manager_node(&self, strong: bool) -> Result<NodeRef, BinderError> {
-        self.manager
+        Ok(self
+            .manager
             .lock()
             .node
             .as_ref()
-            .ok_or_else(BinderError::new_dead)?
-            .clone(strong)
-            .map_err(BinderError::from)
+            .ok_or_else(|| BinderError::new_dead())?
+            .clone(strong)?)
     }
 
     pub(crate) fn for_each_proc<F>(&self, mut func: F)

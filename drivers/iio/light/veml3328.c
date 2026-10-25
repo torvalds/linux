@@ -32,6 +32,11 @@
 #define VEML3328_REG_DATA_B		0x07
 #define VEML3328_REG_DATA_IR		0x08
 
+#define VEML3328_CONT_IT_50MSECS	0
+#define VEML3328_CONT_IT_100MSECS	1
+#define VEML3328_CONT_IT_200MSECS	2
+#define VEML3328_CONT_IT_400MSECS	3
+
 #define VEML3328_CONF_IT_MASK		GENMASK(5, 4)
 #define VEML3328_CONF_GAIN_MASK		GENMASK(11, 10)
 
@@ -89,21 +94,40 @@ static const struct iio_chan_spec veml3328_channels[] = {
  * Precomputed scale values (micro units).
  * Formula for calculation: 0.384 * (50000 / IT_us) * (1 / Gain)
  * Gain indexes: 0 (x0.5), 1 (x1), 2 (x2), 3 (x4)
- * IT indexes: 0 (50ms), 1 (100ms), 2 (200ms), 3 (400ms)
  */
-static const int veml3328_scale_vals[4][8] = {
-	{ 0, 768000, 0, 384000, 0, 192000, 0, 96000 },
-	{ 0, 384000, 0, 192000, 0, 96000,  0, 48000 },
-	{ 0, 192000, 0, 96000,  0, 48000,  0, 24000 },
-	{ 0, 96000,  0, 48000,  0, 24000,  0, 12000 },
+static const int veml3328_scale_vals[4][4][2] = {
+	[VEML3328_CONT_IT_50MSECS] = {
+		{ 0, 768000 },
+		{ 0, 384000 },
+		{ 0, 192000 },
+		{ 0, 96000 },
+	},
+	[VEML3328_CONT_IT_100MSECS] = {
+		{ 0, 384000 },
+		{ 0, 192000 },
+		{ 0, 96000 },
+		{ 0, 48000 },
+	},
+	[VEML3328_CONT_IT_200MSECS] = {
+		{ 0, 192000 },
+		{ 0, 96000 },
+		{ 0, 48000 },
+		{ 0, 24000 },
+	},
+	[VEML3328_CONT_IT_400MSECS] = {
+		{ 0, 96000 },
+		{ 0, 48000 },
+		{ 0, 24000 },
+		{ 0, 12000 },
+	},
 };
 
 /* integration times in microseconds */
 static const int veml3328_it_times[][2] = {
-	{ 0, 50 * USEC_PER_MSEC },
-	{ 0, 100 * USEC_PER_MSEC },
-	{ 0, 200 * USEC_PER_MSEC },
-	{ 0, 400 * USEC_PER_MSEC },
+	[VEML3328_CONT_IT_50MSECS] = { 0, 50 * USEC_PER_MSEC },
+	[VEML3328_CONT_IT_100MSECS] = { 0, 100 * USEC_PER_MSEC },
+	[VEML3328_CONT_IT_200MSECS] = { 0, 200 * USEC_PER_MSEC },
+	[VEML3328_CONT_IT_400MSECS] = { 0, 400 * USEC_PER_MSEC },
 };
 
 static int veml3328_power_down(struct veml3328_data *data)
@@ -184,9 +208,8 @@ static int veml3328_read_raw(struct iio_dev *indio_dev,
 		if (it_inx >= ARRAY_SIZE(veml3328_it_times) || gain_inx >= 4)
 			return -EINVAL;
 
-		/* Stride by 2 through the flattened array to match (val, val2) */
-		*val = veml3328_scale_vals[it_inx][gain_inx * 2];
-		*val2 = veml3328_scale_vals[it_inx][gain_inx * 2 + 1];
+		*val = veml3328_scale_vals[it_inx][gain_inx][0];
+		*val2 = veml3328_scale_vals[it_inx][gain_inx][1];
 
 		return IIO_VAL_INT_PLUS_MICRO;
 
@@ -282,8 +305,8 @@ static int veml3328_write_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 
 		for (i = 0; i < 4; i++) {
-			if (val == veml3328_scale_vals[it_inx][i * 2] &&
-			    val2 == veml3328_scale_vals[it_inx][i * 2 + 1])
+			if (val == veml3328_scale_vals[it_inx][i][0] &&
+			    val2 == veml3328_scale_vals[it_inx][i][1])
 				break;
 		}
 

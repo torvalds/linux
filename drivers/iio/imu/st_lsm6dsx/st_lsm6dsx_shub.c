@@ -766,8 +766,8 @@ st_lsm6dsx_shub_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 			IIO_CHAN_SOFT_TIMESTAMP(3),
 		};
 
-		ext_channels = devm_kzalloc(hw->dev, sizeof(magn_channels),
-					    GFP_KERNEL);
+		ext_channels = devm_kcalloc(hw->dev, ARRAY_SIZE(magn_channels),
+					    sizeof(*ext_channels), GFP_KERNEL);
 		if (!ext_channels)
 			return NULL;
 

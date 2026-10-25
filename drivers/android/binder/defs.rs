@@ -77,7 +77,8 @@ pub_no_prefix!(
     TF_ONE_WAY,
     TF_ACCEPT_FDS,
     TF_CLEAR_BUF,
-    TF_UPDATE_TXN
+    TF_UPDATE_TXN,
+    TF_DEFER_COMPLETE,
 );
 
 pub(crate) use uapi::{

@@ -103,6 +103,12 @@ static unsigned int ad9834_calc_freqreg(unsigned long mclk, unsigned long fout)
 {
 	unsigned long long freqreg = (u64)fout * (u64)BIT(AD9834_FREQ_BITS);
 
+	/*
+	 * mclk is an unsigned long, which triggers a Coccinelle false positive
+	 * warning about using a do_div() for 64-by-32 division. However, mclk
+	 * for this hardware will always fit within 32 bits, so do_div() is
+	 * safe to use here.
+	 */
 	do_div(freqreg, mclk);
 	return freqreg;
 }

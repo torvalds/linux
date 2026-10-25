@@ -7,10 +7,11 @@
  * Copyright (c) 2016-2017 Brian Masney <masneyb@onstation.org>
  */
 
-#include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
 #include <linux/unistd.h>
@@ -483,9 +484,12 @@ static ssize_t in_illuminance_input_target_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	int value;
+	int value, ret;
 
-	if (kstrtoint(buf, 0, &value) || !value)
+	ret = kstrtoint(buf, 0, &value);
+	if (ret)
+		return ret;
+	if (!value)
 		return -EINVAL;
 
 	mutex_lock(&chip->als_mutex);
@@ -503,7 +507,10 @@ static ssize_t in_illuminance_calibrate_store(struct device *dev,
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	int value, ret;
 
-	if (kstrtoint(buf, 0, &value) || value != 1)
+	ret = kstrtoint(buf, 0, &value);
+	if (ret)
+		return ret;
+	if (value != 1)
 		return -EINVAL;
 
 	mutex_lock(&chip->als_mutex);

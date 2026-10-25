@@ -137,6 +137,7 @@
 #define AD4880_CHIP_ID						0x0059
 #define AD4883_CHIP_ID						0x005B
 #define AD4884_CHIP_ID						0x005C
+#define AD4885_CHIP_ID						0x005D
 
 #define AD4080_MAX_CHANNELS					2
 
@@ -144,6 +145,10 @@
 
 #define AD4080_MAX_SAMP_FREQ					40000000
 #define AD4080_MIN_SAMP_FREQ					1250000
+
+/* debugfs direct_reg_access channel windowing: 0x0RR = ch0, 0x1RR = ch1 */
+#define AD4080_DEBUGFS_REG_CH_MSK				GENMASK(15, 8)
+#define AD4080_DEBUGFS_REG_OFFSET_MSK				GENMASK(7, 0)
 
 enum ad4080_filter_type {
 	FILTER_NONE,
@@ -210,11 +215,16 @@ static int ad4080_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 			     unsigned int writeval, unsigned int *readval)
 {
 	struct ad4080_state *st = iio_priv(indio_dev);
+	unsigned int ch = FIELD_GET(AD4080_DEBUGFS_REG_CH_MSK, reg);
+	unsigned int offset = FIELD_GET(AD4080_DEBUGFS_REG_OFFSET_MSK, reg);
+
+	if (ch >= st->info->num_channels)
+		return -EINVAL;
 
 	if (readval)
-		return regmap_read(st->regmap[0], reg, readval);
+		return regmap_read(st->regmap[ch], offset, readval);
 
-	return regmap_write(st->regmap[0], reg, writeval);
+	return regmap_write(st->regmap[ch], offset, writeval);
 }
 
 static int ad4080_get_scale(struct ad4080_state *st, int *val, int *val2)
@@ -552,6 +562,11 @@ static const struct iio_chan_spec ad4884_channels[] = {
 	AD4880_CHANNEL_DEFINE(16, 16, 1),
 };
 
+static const struct iio_chan_spec ad4885_channels[] = {
+	AD4880_CHANNEL_DEFINE(16, 16, 0),
+	AD4880_CHANNEL_DEFINE(16, 16, 1),
+};
+
 static const struct ad4080_chip_info ad4080_chip_info = {
 	.name = "ad4080",
 	.product_id = AD4080_CHIP_ID,
@@ -672,6 +687,16 @@ static const struct ad4080_chip_info ad4884_chip_info = {
 	.lvds_cnv_clk_cnt_max = 2,
 };
 
+static const struct ad4080_chip_info ad4885_chip_info = {
+	.name = "ad4885",
+	.product_id = AD4885_CHIP_ID,
+	.scale_table = ad4080_scale_table,
+	.num_scales = ARRAY_SIZE(ad4080_scale_table),
+	.num_channels = 2,
+	.channels = ad4885_channels,
+	.lvds_cnv_clk_cnt_max = 8,
+};
+
 static int ad4080_setup_channel(struct ad4080_state *st, unsigned int ch)
 {
 	struct device *dev = regmap_get_device(st->regmap[ch]);
@@ -685,7 +710,8 @@ static int ad4080_setup_channel(struct ad4080_state *st, unsigned int ch)
 		return ret;
 
 	ret = regmap_write(st->regmap[ch], AD4080_REG_INTERFACE_CONFIG_A,
-			   AD4080_INTERFACE_CONFIG_A_SDO_ENABLE);
+			   AD4080_INTERFACE_CONFIG_A_SDO_ENABLE |
+			   AD4080_INTERFACE_CONFIG_A_ADDR_ASC);
 	if (ret)
 		return ret;
 
@@ -881,6 +907,7 @@ static const struct spi_device_id ad4080_id[] = {
 	{ .name = "ad4880", .driver_data = (kernel_ulong_t)&ad4880_chip_info },
 	{ .name = "ad4883", .driver_data = (kernel_ulong_t)&ad4883_chip_info },
 	{ .name = "ad4884", .driver_data = (kernel_ulong_t)&ad4884_chip_info },
+	{ .name = "ad4885", .driver_data = (kernel_ulong_t)&ad4885_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad4080_id);
@@ -898,6 +925,7 @@ static const struct of_device_id ad4080_of_match[] = {
 	{ .compatible = "adi,ad4880", &ad4880_chip_info },
 	{ .compatible = "adi,ad4883", &ad4883_chip_info },
 	{ .compatible = "adi,ad4884", &ad4884_chip_info },
+	{ .compatible = "adi,ad4885", &ad4885_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad4080_of_match);

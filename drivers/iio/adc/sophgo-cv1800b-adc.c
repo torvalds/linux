@@ -182,6 +182,8 @@ static int cv1800b_adc_probe(struct platform_device *pdev)
 		return PTR_ERR(saradc->regs);
 
 	saradc->irq = platform_get_irq_optional(pdev, 0);
+	if (saradc->irq < 0 && saradc->irq != -ENXIO)
+		return saradc->irq;
 	if (saradc->irq > 0) {
 		init_completion(&saradc->completion);
 		ret = devm_request_irq(dev, saradc->irq,

@@ -118,22 +118,22 @@ examples:
         #size-cells = <0>;
 
         adc@1e {
-              compatible = "maxim,max34409";
-              reg = <0x1e>;
-              powerdown-gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
-              powerdown-status-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+            compatible = "maxim,max34409";
+            reg = <0x1e>;
+            powerdown-gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
+            powerdown-status-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
 
-              #address-cells = <1>;
-              #size-cells = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-              channel@0 {
-                  reg = <0x0>;
-                  maxim,rsense-val-micro-ohms = <5000>;
-              };
+            channel@0 {
+                reg = <0x0>;
+                maxim,rsense-val-micro-ohms = <5000>;
+            };
 
-              channel@1 {
-                  reg = <0x1>;
-                  maxim,rsense-val-micro-ohms = <10000>;
-             };
+            channel@1 {
+                reg = <0x1>;
+                maxim,rsense-val-micro-ohms = <10000>;
+            };
         };
     };

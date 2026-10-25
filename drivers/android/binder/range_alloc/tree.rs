@@ -111,7 +111,7 @@ impl<T> TreeRangeAllocator<T> {
             .count()
     }
 
-    pub(crate) fn debug_print(&self, m: &SeqFile) -> Result<()> {
+    pub(crate) fn debug_print(&self, m: &SeqFile) -> Result {
         for desc in self.tree.values() {
             let state = match &desc.state {
                 Some(state) => &state.0,

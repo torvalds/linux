@@ -40,10 +40,10 @@ examples:
         #size-cells = <0>;
 
         adux1020@64 {
-                compatible = "adi,adux1020";
-                reg = <0x64>;
-                interrupt-parent = <&msmgpio>;
-                interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
+            compatible = "adi,adux1020";
+            reg = <0x64>;
+            interrupt-parent = <&msmgpio>;
+            interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
         };
     };
 ...

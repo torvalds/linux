@@ -604,7 +604,7 @@ static void nxp_sar_adc_dma_cb(void *data)
 
 	dma_buf = &info->dma_buf;
 	dma_samples = (u32 *)dma_buf->buf;
-	dev_dma = info->dma_chan->device->dev;
+	dev_dma = dmaengine_get_dma_device(info->dma_chan);
 
 	/*
 	 * DMA in some corner cases might have already be charged for
