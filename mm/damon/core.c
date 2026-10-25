@@ -3753,11 +3753,12 @@ static void damon_split_regions_of(struct damon_ctx *ctx,
 static void damon_split_some_regions(struct damon_ctx *ctx,
 				     unsigned long split_step)
 {
-	static unsigned long rotation;
 	struct damon_target *t;
 	struct damon_region *r, *next;
-	unsigned long offset = rotation++ % split_step;
+	unsigned long offset;
 	unsigned long idx = 0;
+
+	offset = ctx->region_split_rotation++ % split_step;
 
 	damon_for_each_target(t, ctx) {
 		damon_for_each_region_safe(r, next, t) {
