@@ -191,14 +191,17 @@ struct gendisk {
 #ifdef CONFIG_BLK_DEV_ZONED
 	/*
 	 * Zoned block device information. Reads of this information must be
-	 * protected with blk_queue_enter() / blk_queue_exit(). Modifying this
-	 * information is only allowed while no requests are being processed.
-	 * See also blk_mq_freeze_queue() and blk_mq_unfreeze_queue().
+	 * protected with blk_queue_enter() / blk_queue_exit() or by holding a
+	 * lock on zone_revalidate_mutex. blk_revalidate_disk_zones() may modify
+	 * this information while no requests are being processed (disk queue
+	 * frozen with blk_mq_freeze_queue()) and while holding a lock on
+	 * zone_revalidate_mutex.
 	 */
+	struct mutex		zone_revalidate_mutex;
 	unsigned int		nr_zones;
 	unsigned int		zone_capacity;
 	unsigned int		last_zone_capacity;
-	u8 __rcu		*zones_cond;
+	u8 __rcu		*zones_state;
 	unsigned int		zone_wplugs_hash_bits;
 	atomic_t		nr_zone_wplugs;
 	spinlock_t		zone_wplugs_hash_lock;

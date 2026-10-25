@@ -577,6 +577,7 @@ int blkdev_report_zones_ioctl(struct block_device *bdev, unsigned int cmd,
 		unsigned long arg);
 int blkdev_zone_mgmt_ioctl(struct block_device *bdev, blk_mode_t mode,
 		unsigned int cmd, unsigned long arg);
+bool bdev_zone_mgmt_allowed(struct block_device *bdev, sector_t sector);
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline void disk_init_zone_resources(struct gendisk *disk)
 {
@@ -618,6 +619,11 @@ static inline int blkdev_zone_mgmt_ioctl(struct block_device *bdev,
 		blk_mode_t mode, unsigned int cmd, unsigned long arg)
 {
 	return -ENOTTY;
+}
+static inline bool bdev_zone_mgmt_allowed(struct block_device *bdev,
+					  sector_t sector)
+{
+	return false;
 }
 #endif /* CONFIG_BLK_DEV_ZONED */
 

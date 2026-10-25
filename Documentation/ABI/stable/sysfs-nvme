@@ -326,6 +326,27 @@ Description:
 		currently selected path. Returns empty if iopolicy is not
 		"numa". Requires CONFIG_NVME_MULTIPATH.
 
+What:		/sys/block/nvmeXcYnZ/path_state
+Date:		September 2026
+KernelVersion:	7.4
+Contact:	Guixin Liu <kanie@linux.alibaba.com>
+Description:
+		Shows the current multipath path state for this namespace
+		path device. Possible values:
+
+		"enabled": the path is usable for I/O.
+
+		"ctrl-down": the path is disabled because the controller
+		is not live.
+
+		"ana-pending": the path is disabled because an ANA state
+		change is pending.
+
+		"ns-not-ready": the path is disabled because the namespace
+		is not ready.
+
+		Requires CONFIG_NVME_MULTIPATH.
+
 What:		/sys/block/nvmeXnY/delayed_removal_secs
 Date:		May 2025
 KernelVersion:	6.16
@@ -335,6 +356,22 @@ Description:
 		the multipath head device. When nonzero, I/O is queued
 		instead of failed when all paths are gone, and head removal
 		is deferred. Only visible on multipath head devices.
+		Requires CONFIG_NVME_MULTIPATH.
+
+What:		/sys/block/nvmeXnY/fail_on_ctrl_loss
+Date:		October 2026
+KernelVersion:	7.4
+Contact:	Krishna Iyer <kiyer@crusoe.ai>
+Description:
+		Shows or sets the fail-on-ctrl-loss policy of the multipath
+		head device ("on" or "off", default "off"). When on, I/O
+		queued or arriving while no usable path exists is failed
+		immediately instead of being queued. This is the opposite of
+		the queue-if-no-path behavior enabled by a nonzero
+		delayed_removal_secs: when both are set fail_on_ctrl_loss takes
+		precedence and the parked I/O is failed rather than held for
+		the delayed_removal_secs window. Reconnect attempts are not
+		affected. Only visible on multipath head devices.
 		Requires CONFIG_NVME_MULTIPATH.
 
 What:		/sys/block/nvmeXnY/csi
@@ -443,6 +480,21 @@ Description:
 		"queue-depth". Changing the policy clears all current path
 		selections. Only available when CONFIG_NVME_MULTIPATH is
 		enabled.
+
+		A discovery subsystem has no namespaces and hence no I/O
+		paths to select from: reading returns "none" and writing
+		fails with EOPNOTSUPP.
+
+What:		/sys/class/nvme-subsystem/nvme-subsysX/iopolicies
+Date:		September 2026
+KernelVersion:	7.4
+Contact:	Laurence Oberman <loberman@redhat.com>
+Description:
+		Shows the I/O path selection policies that may be written
+		to the iopolicy attribute of this subsystem, separated by
+		spaces: "numa round-robin queue-depth". A discovery
+		subsystem accepts no policy at all and reports "none".
+		Only available when CONFIG_NVME_MULTIPATH is enabled.
 
 What:		/sys/class/nvme-subsystem/nvme-subsysX/subsystype
 Date:		September 2021

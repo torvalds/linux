@@ -1397,6 +1397,7 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
 		   (!blk_queue_nomerges(rq->q) &&
 		    blk_rq_bytes(last) >= BLK_PLUG_FLUSH_SIZE)) {
 		blk_mq_flush_plug_list(plug, false);
+		blk_plug_invalidate_ts();
 		last = NULL;
 		trace_block_plug(rq->q);
 	}
@@ -3507,14 +3508,14 @@ void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 	 */
 }
 
-void blk_mq_free_rq_map(struct blk_mq_tag_set *set, struct blk_mq_tags *tags)
+void blk_mq_free_rq_map(struct blk_mq_tags *tags)
 {
 	kfree(tags->rqs);
 	tags->rqs = NULL;
 	kfree(tags->static_rqs);
 	tags->static_rqs = NULL;
 
-	blk_mq_free_tags(set, tags);
+	blk_mq_free_tags(tags);
 }
 
 static enum hctx_type hctx_idx_to_type(struct blk_mq_tag_set *set,
@@ -3576,7 +3577,7 @@ static struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 err_free_rqs:
 	kfree(tags->rqs);
 err_free_tags:
-	blk_mq_free_tags(set, tags);
+	blk_mq_free_tags(tags);
 	return NULL;
 }
 
@@ -3694,9 +3695,9 @@ static bool blk_mq_hctx_has_requests(struct blk_mq_hw_ctx *hctx)
 	};
 	int srcu_idx;
 
-	srcu_idx = srcu_read_lock(&hctx->queue->tag_set->tags_srcu);
+	srcu_idx = srcu_read_lock(&blk_mq_tags_srcu);
 	blk_mq_all_tag_iter(tags, blk_mq_has_request, &data);
-	srcu_read_unlock(&hctx->queue->tag_set->tags_srcu, srcu_idx);
+	srcu_read_unlock(&blk_mq_tags_srcu, srcu_idx);
 
 	return data.has_rq;
 }
@@ -3968,7 +3969,7 @@ static void blk_mq_exit_hctx(struct request_queue *q,
 	if (set->ops->exit_hctx)
 		set->ops->exit_hctx(hctx, hctx_idx);
 
-	call_srcu(&set->tags_srcu, &hctx->fq->rcu_head,
+	call_srcu(&blk_mq_tags_srcu, &hctx->fq->rcu_head,
 			blk_free_flush_queue_callback);
 	hctx->fq = NULL;
 
@@ -4002,6 +4003,7 @@ static int blk_mq_init_hctx(struct request_queue *q,
 		goto fail;
 
 	hctx->queue_num = hctx_idx;
+	clear_bit(BLK_MQ_S_INACTIVE, &hctx->state);
 
 	hctx->tags = set->tags[hctx_idx];
 
@@ -4129,7 +4131,7 @@ struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
 
 	ret = blk_mq_alloc_rqs(set, tags, hctx_idx, depth);
 	if (ret) {
-		blk_mq_free_rq_map(set, tags);
+		blk_mq_free_rq_map(tags);
 		return NULL;
 	}
 
@@ -4157,7 +4159,7 @@ void blk_mq_free_map_and_rqs(struct blk_mq_tag_set *set,
 {
 	if (tags) {
 		blk_mq_free_rqs(set, tags, hctx_idx);
-		blk_mq_free_rq_map(set, tags);
+		blk_mq_free_rq_map(tags);
 	}
 }
 
@@ -4895,9 +4897,6 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 		if (ret)
 			goto out_free_srcu;
 	}
-	ret = init_srcu_struct(&set->tags_srcu);
-	if (ret)
-		goto out_cleanup_srcu;
 
 	init_rwsem(&set->update_nr_hwq_lock);
 
@@ -4906,7 +4905,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 				 sizeof(struct blk_mq_tags *), GFP_KERNEL,
 				 set->numa_node);
 	if (!set->tags)
-		goto out_cleanup_tags_srcu;
+		goto out_cleanup_srcu;
 
 	for (i = 0; i < set->nr_maps; i++) {
 		set->map[i].mq_map = kcalloc_node(nr_cpu_ids,
@@ -4935,8 +4934,6 @@ out_free_mq_map:
 	}
 	kfree(set->tags);
 	set->tags = NULL;
-out_cleanup_tags_srcu:
-	cleanup_srcu_struct(&set->tags_srcu);
 out_cleanup_srcu:
 	if (set->flags & BLK_MQ_F_BLOCKING)
 		cleanup_srcu_struct(set->srcu);
@@ -4983,8 +4980,6 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 	kfree(set->tags);
 	set->tags = NULL;
 
-	srcu_barrier(&set->tags_srcu);
-	cleanup_srcu_struct(&set->tags_srcu);
 	if (set->flags & BLK_MQ_F_BLOCKING) {
 		srcu_barrier(set->srcu);
 		cleanup_srcu_struct(set->srcu);

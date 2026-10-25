@@ -294,6 +294,38 @@ struct ublk_dev {
 
 extern int ublk_queue_io_cmd(struct ublk_thread *t, struct ublk_io *io);
 
+static inline int ublk_setup_ring(struct io_uring *r, int depth,
+		int cq_depth, unsigned int flags)
+{
+	struct io_uring_params p;
+
+	memset(&p, 0, sizeof(p));
+	p.flags = flags | IORING_SETUP_CQSIZE;
+	p.cq_entries = cq_depth;
+
+	return io_uring_queue_init_params(depth, r, &p);
+}
+
+/* ctrl.c: control commands */
+struct ublk_dev *ublk_ctrl_init(void);
+void ublk_ctrl_deinit(struct ublk_dev *dev);
+int __ublk_ctrl_cmd(struct ublk_dev *dev, struct ublk_ctrl_cmd_data *data);
+int ublk_ctrl_add_dev(struct ublk_dev *dev);
+int ublk_ctrl_del_dev(struct ublk_dev *dev);
+int ublk_ctrl_get_info(struct ublk_dev *dev);
+int ublk_ctrl_set_params(struct ublk_dev *dev, struct ublk_params *params);
+int ublk_ctrl_get_params(struct ublk_dev *dev, struct ublk_params *params);
+int ublk_ctrl_get_features(struct ublk_dev *dev, __u64 *features);
+int ublk_ctrl_start_dev(struct ublk_dev *dev, int daemon_pid);
+int ublk_ctrl_stop_dev(struct ublk_dev *dev);
+int ublk_ctrl_try_stop_dev(struct ublk_dev *dev);
+int ublk_ctrl_start_user_recovery(struct ublk_dev *dev);
+int ublk_ctrl_end_user_recovery(struct ublk_dev *dev, int daemon_pid);
+int ublk_ctrl_update_size(struct ublk_dev *dev, __u64 nr_sects);
+int ublk_ctrl_quiesce_dev(struct ublk_dev *dev, unsigned int timeout_ms);
+int ublk_ctrl_reg_buf(struct ublk_dev *dev, void *addr, size_t size,
+		      __u32 flags);
+
 static inline int __ublk_use_batch_io(__u64 flags)
 {
 	return flags & UBLK_F_BATCH_IO;

@@ -26,12 +26,26 @@ static inline struct inode *bdev_file_inode(struct file *file)
 	return file->f_mapping->host;
 }
 
-static blk_opf_t dio_bio_write_op(struct kiocb *iocb)
+static bool blkdev_dio_fua(struct kiocb *iocb, struct block_device *bdev)
+{
+	if (!iocb_is_dsync(iocb))
+		return false;
+	/*
+	 * Async writes cannot fall back to generic_write_sync(), so they must
+	 * use FUA (emulated if needed); sync writes only need it when the
+	 * device supports FUA natively.
+	 */
+	if (!is_sync_kiocb(iocb))
+		return true;
+	return bdev_fua(bdev);
+}
+
+static blk_opf_t dio_bio_write_op(struct kiocb *iocb, struct block_device *bdev)
 {
 	blk_opf_t opf = REQ_OP_WRITE | REQ_SYNC | REQ_IDLE;
 
 	/* avoid the need for a I/O completion work item */
-	if (iocb_is_dsync(iocb))
+	if (blkdev_dio_fua(iocb, bdev))
 		opf |= REQ_FUA;
 	return opf;
 }
@@ -76,7 +90,8 @@ static ssize_t __blkdev_direct_IO_simple(struct kiocb *iocb,
 		if (user_backed_iter(iter))
 			should_dirty = true;
 	} else {
-		bio_init(&bio, bdev, vecs, nr_pages, dio_bio_write_op(iocb));
+		bio_init(&bio, bdev, vecs, nr_pages,
+			 dio_bio_write_op(iocb, bdev));
 	}
 	bio.bi_iter.bi_sector = pos >> SECTOR_SHIFT;
 	bio.bi_write_hint = file_inode(iocb->ki_filp)->i_write_hint;
@@ -180,7 +195,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	struct blkdev_dio *dio;
 	struct bio *bio;
 	bool is_read = (iov_iter_rw(iter) == READ), is_sync;
-	blk_opf_t opf = is_read ? REQ_OP_READ : dio_bio_write_op(iocb);
+	blk_opf_t opf = is_read ? REQ_OP_READ : dio_bio_write_op(iocb, bdev);
 	loff_t pos = iocb->ki_pos;
 	int ret = 0;
 
@@ -307,9 +322,6 @@ static void blkdev_bio_end_io_async(struct bio *bio)
 		ret = blk_status_to_errno(bio->bi_status);
 	}
 
-	if (bio_integrity(bio))
-		bio_integrity_unmap_user(bio);
-
 	iocb->ki_complete(iocb, ret);
 
 	if (dio->flags & DIO_SHOULD_DIRTY) {
@@ -326,7 +338,7 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
 					unsigned int nr_pages)
 {
 	bool is_read = iov_iter_rw(iter) == READ;
-	blk_opf_t opf = is_read ? REQ_OP_READ : dio_bio_write_op(iocb);
+	blk_opf_t opf = is_read ? REQ_OP_READ : dio_bio_write_op(iocb, bdev);
 	struct blkdev_dio *dio;
 	struct bio *bio;
 	loff_t pos = iocb->ki_pos;
@@ -342,6 +354,12 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
 	bio->bi_write_stream = iocb->ki_write_stream;
 	bio->bi_end_io = blkdev_bio_end_io_async;
 	bio->bi_ioprio = iocb->ki_ioprio;
+
+	if (iocb->ki_flags & IOCB_ATOMIC)
+		bio->bi_opf |= REQ_ATOMIC;
+
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		bio->bi_opf |= REQ_NOWAIT;
 
 	/*
 	 * Users don't rely on the iterator being in any particular
@@ -364,19 +382,6 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
 	} else {
 		task_io_account_write(bio->bi_iter.bi_size);
 	}
-
-	if (iocb->ki_flags & IOCB_HAS_METADATA) {
-		ret = bio_integrity_map_iter(bio, iocb->private);
-		WRITE_ONCE(iocb->private, NULL);
-		if (unlikely(ret))
-			goto out_bio_put;
-	}
-
-	if (iocb->ki_flags & IOCB_ATOMIC)
-		bio->bi_opf |= REQ_ATOMIC;
-
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		bio->bi_opf |= REQ_NOWAIT;
 
 	if (iocb->ki_flags & IOCB_HIPRI) {
 		bio->bi_opf |= REQ_POLLED;
@@ -566,7 +571,7 @@ static int blkdev_writepages(struct address_space *mapping,
 }
 
 const struct address_space_operations def_blk_aops = {
-	.dirty_folio	= filemap_dirty_folio,
+	.dirty_folio		= iomap_dirty_folio,
 	.release_folio		= iomap_release_folio,
 	.invalidate_folio	= iomap_invalidate_folio,
 	.read_folio		= blkdev_read_folio,
@@ -715,8 +720,22 @@ blkdev_direct_write(struct kiocb *iocb, struct iov_iter *from)
 
 static ssize_t blkdev_buffered_write(struct kiocb *iocb, struct iov_iter *from)
 {
-	return iomap_file_buffered_write(iocb, from, &blkdev_iomap_ops, NULL,
-			NULL);
+	struct inode *inode = bdev_file_inode(iocb->ki_filp);
+	ssize_t ret;
+
+	/* Buffered fallback waits for writeback, which NOWAIT cannot allow. */
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		return -EAGAIN;
+
+	/*
+	 * Take i_rwsem to avoid racing with set_blocksize() changing
+	 * i_blkbits/folio order and truncating the page cache.
+	 */
+	inode_lock_shared(inode);
+	ret = iomap_file_buffered_write(iocb, from, &blkdev_iomap_ops, NULL,
+					NULL);
+	inode_unlock_shared(inode);
+	return ret;
 }
 
 /*
@@ -734,6 +753,7 @@ static ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	bool atomic = iocb->ki_flags & IOCB_ATOMIC;
 	loff_t size = bdev_nr_bytes(bdev);
 	size_t shorted = 0;
+	bool need_sync = false;
 	ssize_t ret;
 
 	if (bdev_read_only(bdev))
@@ -771,21 +791,44 @@ static ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		ret = blkdev_direct_write(iocb, from);
-		if (ret >= 0 && iov_iter_count(from))
-			ret = direct_write_fallback(iocb, from, ret,
-					blkdev_buffered_write(iocb, from));
+		if (ret >= 0 && iov_iter_count(from)) {
+			if (iocb->ki_flags & (IOCB_NOWAIT | IOCB_ATOMIC)) {
+				/*
+				 * The buffered fallback blocks on i_rwsem and
+				 * on writeback of the data it copied, and
+				 * can't provide torn-write protection: return
+				 * the short direct write instead and let the
+				 * caller retry. The bytes already written
+				 * still need a flush if REQ_FUA was not set.
+				 */
+				if (!ret)
+					ret = -EAGAIN;
+				else if (!blkdev_dio_fua(iocb, bdev))
+					need_sync = true;
+			} else {
+				ssize_t ret2;
+
+				inode_lock_shared(bd_inode);
+				ret2 = blkdev_buffered_write(iocb, from);
+				inode_unlock_shared(bd_inode);
+				ret = direct_write_fallback(iocb, from, ret,
+							    ret2);
+				need_sync = true;
+			}
+		} else if (ret > 0 && !blkdev_dio_fua(iocb, bdev)) {
+			/*
+			 * The device does not support FUA, so REQ_FUA was not
+			 * set and the O_DSYNC direct write still needs a flush
+			 * to be made durable.
+			 */
+			need_sync = true;
+		}
 	} else {
-		/*
-		 * Take i_rwsem and invalidate_lock to avoid racing with
-		 * set_blocksize changing i_blkbits/folio order and punching
-		 * out the pagecache.
-		 */
-		inode_lock_shared(bd_inode);
 		ret = blkdev_buffered_write(iocb, from);
-		inode_unlock_shared(bd_inode);
+		need_sync = true;
 	}
 
-	if (ret > 0)
+	if (ret > 0 && need_sync)
 		ret = generic_write_sync(iocb, ret);
 	iov_iter_reexpand(from, iov_iter_count(from) + shorted);
 	return ret;
@@ -834,13 +877,37 @@ static ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	 * Take i_rwsem and invalidate_lock to avoid racing with set_blocksize
 	 * changing i_blkbits/folio order and punching out the pagecache.
 	 */
-	inode_lock_shared(bd_inode);
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (!inode_trylock_shared(bd_inode)) {
+			if (!ret)
+				ret = -EAGAIN;
+			goto reexpand;
+		}
+	} else {
+		inode_lock_shared(bd_inode);
+	}
 	ret = filemap_read(iocb, to, ret);
 	inode_unlock_shared(bd_inode);
 
 reexpand:
 	if (unlikely(shorted))
 		iov_iter_reexpand(to, iov_iter_count(to) + shorted);
+	return ret;
+}
+
+/*
+ * Take i_rwsem to avoid racing with set_blocksize changing i_blkbits/folio
+ * order and punching out the pagecache.
+ */
+static ssize_t blkdev_splice_read(struct file *in, loff_t *ppos,
+		struct pipe_inode_info *pipe, size_t len, unsigned int flags)
+{
+	struct inode *bd_inode = bdev_file_inode(in);
+	ssize_t ret;
+
+	inode_lock_shared(bd_inode);
+	ret = filemap_splice_read(in, ppos, pipe, len, flags);
+	inode_unlock_shared(bd_inode);
 	return ret;
 }
 
@@ -945,7 +1012,7 @@ const struct file_operations def_blk_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= compat_blkdev_ioctl,
 #endif
-	.splice_read	= filemap_splice_read,
+	.splice_read	= blkdev_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= blkdev_fallocate,
 	.uring_cmd	= blkdev_uring_cmd,
