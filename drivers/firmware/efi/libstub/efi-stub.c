@@ -79,9 +79,17 @@ err_free_primary_display:
 
 static void install_memreserve_table(void)
 {
+	static efi_guid_t memreserve_table_guid = LINUX_EFI_MEMRESERVE_TABLE_GUID;
 	struct linux_efi_memreserve *rsv;
-	efi_guid_t memreserve_table_guid = LINUX_EFI_MEMRESERVE_TABLE_GUID;
 	efi_status_t status;
+
+	/*
+	 * If an earlier boot stage installed a memreserve table already, e.g.,
+	 * a kexec loader passing on the persistent reservations made by the
+	 * previous kernel, use it as is: installing a new one would replace it.
+	 */
+	if (get_efi_config_table(memreserve_table_guid))
+		return;
 
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, sizeof(*rsv),
 			     (void **)&rsv);
@@ -165,6 +173,7 @@ efi_status_t efi_stub_common(efi_handle_t handle,
 	dpy = setup_primary_display();
 
 	efi_retrieve_eventlog();
+	efi_bli_set_variables(image);
 
 	/* Ask the firmware to clear memory on unclean shutdown */
 	efi_enable_reset_attack_mitigation();

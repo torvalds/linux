@@ -224,8 +224,8 @@ typedef void (__efiapi *efi_event_notify_t)(efi_event_t, void *);
  * efi_set_event_at() - add event to events array
  *
  * @events:	array of UEFI events
- * @ids:	index where to put the event in the array
- * @event:	event to add to the aray
+ * @idx:	index where to put the event in the array
+ * @event:	event to add to the array
  *
  * boottime->wait_for_event() takes an array of events as input.
  * Provide a helper to set it up correctly for mixed mode.
@@ -1072,17 +1072,21 @@ efi_status_t efi_random_alloc(unsigned long size, unsigned long align,
 			      int memory_type, unsigned long alloc_min,
 			      unsigned long alloc_max);
 
+void efi_bli_set_variables(const efi_loaded_image_t *image);
+
 efi_status_t efi_random_get_seed(void);
 
 efi_status_t check_platform_features(void);
 
 void *get_efi_config_table(efi_guid_t guid);
 
-/* NOTE: These functions do not print a trailing newline after the string */
 void efi_char16_puts(efi_char16_t *);
-void efi_puts(const char *str);
+
+int efi_vsnprintf(efi_char16_t *buf, size_t size, const char *fmt, va_list ap,
+		  bool crlf);
 
 __printf(1, 2) int efi_printk(char const *fmt, ...);
+__printf(3, 4) int efi_snprintf(efi_char16_t *buf, size_t size, const char *fmt, ...);
 
 void efi_free(unsigned long size, unsigned long addr);
 DEFINE_FREE(efi_pool, void *, if (_T) efi_bs_call(free_pool, _T));

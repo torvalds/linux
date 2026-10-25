@@ -116,9 +116,9 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
  */
 static void setup_efi_pci(struct boot_params *params)
 {
+	static efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
 	efi_status_t status;
 	efi_handle_t *pci_handle __free(efi_pool) = NULL;
-	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
 	struct setup_data *data;
 	unsigned long num;
 	efi_handle_t h;
@@ -157,7 +157,7 @@ static void setup_efi_pci(struct boot_params *params)
 
 static void retrieve_apple_device_properties(struct boot_params *boot_params)
 {
-	efi_guid_t guid = APPLE_PROPERTIES_PROTOCOL_GUID;
+	static efi_guid_t guid = APPLE_PROPERTIES_PROTOCOL_GUID;
 	struct setup_data *data, *new;
 	efi_status_t status;
 	u32 size = 0;
@@ -337,6 +337,7 @@ static bool apple_match_product_name(void)
 
 static void apple_set_os(void)
 {
+	static efi_guid_t apple_set_os_guid = APPLE_SET_OS_PROTOCOL_GUID;
 	struct {
 		unsigned long version;
 		efi_status_t (__efiapi *set_os_version)(const char *);
@@ -347,7 +348,7 @@ static void apple_set_os(void)
 	if (!efi_is_64bit() || !apple_match_product_name())
 		return;
 
-	status = efi_bs_call(locate_protocol, &APPLE_SET_OS_PROTOCOL_GUID, NULL,
+	status = efi_bs_call(locate_protocol, &apple_set_os_guid, NULL,
 			     (void **)&set_os);
 	if (status != EFI_SUCCESS)
 		return;
@@ -446,7 +447,7 @@ efi_status_t efi_adjust_memory_range_protection(unsigned long start,
 
 static void setup_unaccepted_memory(void)
 {
-	efi_guid_t mem_acceptance_proto = OVMF_SEV_MEMORY_ACCEPTANCE_PROTOCOL_GUID;
+	static efi_guid_t mem_acceptance_proto = OVMF_SEV_MEMORY_ACCEPTANCE_PROTOCOL_GUID;
 	sev_memory_acceptance_protocol_t *proto;
 	efi_status_t status;
 
@@ -509,7 +510,7 @@ static void __noreturn efi_exit(efi_handle_t handle, efi_status_t status)
 static efi_status_t efi_allocate_bootparams(efi_handle_t handle,
 					    struct boot_params **bp)
 {
-	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
+	static efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	struct boot_params *boot_params;
 	struct setup_header *hdr;
 	efi_status_t status;
@@ -650,7 +651,7 @@ setup_e820(struct boot_params *params, struct setup_data *e820ext, u32 e820ext_s
 		}
 
 		if (nr_entries == ARRAY_SIZE(params->e820_table)) {
-			u32 need = (nr_desc - i) * sizeof(struct e820_entry) +
+			u32 need = (nr_desc - i) * sizeof(struct boot_e820_entry) +
 				   sizeof(struct setup_data);
 
 			if (!e820ext || e820ext_size < need)
@@ -686,7 +687,7 @@ static efi_status_t alloc_e820ext(u32 nr_desc, struct setup_data **e820ext,
 	unsigned long size;
 
 	size = sizeof(struct setup_data) +
-		sizeof(struct e820_entry) * nr_desc;
+		sizeof(struct boot_e820_entry) * nr_desc;
 
 	if (*e820ext) {
 		efi_bs_call(free_pool, *e820ext);
@@ -911,12 +912,13 @@ static void __noreturn enter_kernel(unsigned long kernel_addr,
  * return.  On failure, it will exit to the firmware via efi_exit() instead of
  * returning.
  */
+MIXED_EXTERN
 void __noreturn efi_stub_entry(efi_handle_t handle,
 			       efi_system_table_t *sys_table_arg,
 			       struct boot_params *boot_params)
 
 {
-	efi_guid_t guid = EFI_MEMORY_ATTRIBUTE_PROTOCOL_GUID;
+	static efi_guid_t guid = EFI_MEMORY_ATTRIBUTE_PROTOCOL_GUID;
 	const struct linux_efi_initrd *initrd = NULL;
 	unsigned long kernel_entry;
 	struct setup_header *hdr;
@@ -1016,6 +1018,7 @@ void __noreturn efi_stub_entry(efi_handle_t handle,
 	efi_random_get_seed();
 
 	efi_retrieve_eventlog();
+	efi_bli_set_variables(image);
 
 	setup_graphics(boot_params);
 
@@ -1053,6 +1056,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 }
 
 #ifdef CONFIG_EFI_HANDOVER_PROTOCOL
+MIXED_EXTERN
 void efi_handover_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg,
 			struct boot_params *boot_params)
 {

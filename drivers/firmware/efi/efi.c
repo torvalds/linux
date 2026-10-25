@@ -8,7 +8,7 @@
  *
  * This code registers /sys/firmware/efi{,/efivars} when EFI is supported,
  * allowing the efivarfs to be mounted or the efivars module to be loaded.
- * The existance of /sys/firmware/efi may also be used by userspace to
+ * The existence of /sys/firmware/efi may also be used by userspace to
  * determine that the system supports EFI.
  */
 
@@ -46,20 +46,14 @@ struct efi __read_mostly efi = {
 	.tpm_log		= EFI_INVALID_TABLE_ADDR,
 	.tpm_final_log		= EFI_INVALID_TABLE_ADDR,
 	.ovmf_debug_log         = EFI_INVALID_TABLE_ADDR,
-#ifdef CONFIG_LOAD_UEFI_KEYS
+	.mem_reserve		= EFI_INVALID_TABLE_ADDR,
 	.mokvar_table		= EFI_INVALID_TABLE_ADDR,
-#endif
-#ifdef CONFIG_EFI_COCO_SECRET
 	.coco_secret		= EFI_INVALID_TABLE_ADDR,
-#endif
-#ifdef CONFIG_UNACCEPTED_MEMORY
 	.unaccepted		= EFI_INVALID_TABLE_ADDR,
-#endif
 };
 EXPORT_SYMBOL(efi);
 
 unsigned long __ro_after_init efi_rng_seed = EFI_INVALID_TABLE_ADDR;
-static unsigned long __initdata mem_reserve = EFI_INVALID_TABLE_ADDR;
 static unsigned long __initdata rt_prop = EFI_INVALID_TABLE_ADDR;
 static unsigned long __initdata initrd = EFI_INVALID_TABLE_ADDR;
 
@@ -131,45 +125,45 @@ struct kobject *efi_kobj;
  * one value per file rule!
  */
 static ssize_t systab_show(struct kobject *kobj,
-			   struct kobj_attribute *attr, char *buf)
+			   const struct kobj_attribute *attr, char *buf)
 {
-	char *str = buf;
+	int offset = 0;
 
 	if (!kobj || !buf)
 		return -EINVAL;
 
 	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "ACPI20=0x%lx\n", efi.acpi20);
+		offset = sysfs_emit(buf, "ACPI20=0x%lx\n", efi.acpi20);
 	if (efi.acpi != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "ACPI=0x%lx\n", efi.acpi);
+		offset += sysfs_emit_at(buf, offset, "ACPI=0x%lx\n", efi.acpi);
 	/*
 	 * If both SMBIOS and SMBIOS3 entry points are implemented, the
 	 * SMBIOS3 entry point shall be preferred, so we list it first to
 	 * let applications stop parsing after the first match.
 	 */
 	if (efi.smbios3 != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "SMBIOS3=0x%lx\n", efi.smbios3);
+		offset += sysfs_emit_at(buf, offset, "SMBIOS3=0x%lx\n", efi.smbios3);
 	if (efi.smbios != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "SMBIOS=0x%lx\n", efi.smbios);
+		offset += sysfs_emit_at(buf, offset, "SMBIOS=0x%lx\n", efi.smbios);
 
-	return str - buf;
+	return offset;
 }
 
-static struct kobj_attribute efi_attr_systab = __ATTR_RO_MODE(systab, 0400);
+static const struct kobj_attribute efi_attr_systab = __KOBJ_ATTR_RO_MODE(systab, 0400);
 
 static ssize_t fw_platform_size_show(struct kobject *kobj,
-				     struct kobj_attribute *attr, char *buf)
+				     const struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", efi_enabled(EFI_64BIT) ? 64 : 32);
+	return sysfs_emit(buf, "%d\n", efi_enabled(EFI_64BIT) ? 64 : 32);
 }
 
-extern __weak struct kobj_attribute efi_attr_fw_vendor;
-extern __weak struct kobj_attribute efi_attr_runtime;
-extern __weak struct kobj_attribute efi_attr_config_table;
-static struct kobj_attribute efi_attr_fw_platform_size =
-	__ATTR_RO(fw_platform_size);
+extern __weak const struct kobj_attribute efi_attr_fw_vendor;
+extern __weak const struct kobj_attribute efi_attr_runtime;
+extern __weak const struct kobj_attribute efi_attr_config_table;
+static const struct kobj_attribute efi_attr_fw_platform_size =
+	__KOBJ_ATTR_RO(fw_platform_size);
 
-static struct attribute *efi_subsys_attrs[] = {
+static const struct attribute *const efi_subsys_attrs[] = {
 	&efi_attr_systab.attr,
 	&efi_attr_fw_platform_size.attr,
 	&efi_attr_fw_vendor.attr,
@@ -178,15 +172,16 @@ static struct attribute *efi_subsys_attrs[] = {
 	NULL,
 };
 
-umode_t __weak efi_attr_is_visible(struct kobject *kobj, struct attribute *attr,
+umode_t __weak efi_attr_is_visible(struct kobject *kobj,
+				   const struct attribute *attr,
 				   int n)
 {
 	return attr->mode;
 }
 
 static const struct attribute_group efi_subsys_attr_group = {
-	.attrs = efi_subsys_attrs,
-	.is_visible = efi_attr_is_visible,
+	.attrs_const = efi_subsys_attrs,
+	.is_visible_const = efi_attr_is_visible,
 };
 
 struct blocking_notifier_head efivar_ops_nh;
@@ -401,6 +396,35 @@ static void __init efi_debugfs_init(void)
 static inline void efi_debugfs_init(void) {}
 #endif
 
+static ssize_t efi_runtime_show(struct kobject *kobj,
+				const struct kobj_attribute *attr,
+				char *buf)
+{
+	return sysfs_emit(buf, "%d\n", efi_enabled(EFI_RUNTIME_SERVICES));
+}
+
+static ssize_t efi_runtime_store(struct kobject *kobj,
+				 const struct kobj_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int ret;
+	bool enable;
+
+	ret = kstrtobool(buf, &enable);
+	if (ret)
+		return ret;
+
+	if (efi_runtime_set_enable_flag(enable) != EFI_SUCCESS) {
+		pr_warn("unable to enable/disable efi runtime service\n");
+		return -EAGAIN;
+	}
+
+	return count;
+}
+
+static const struct kobj_attribute efi_runtime_attr =
+	__KOBJ_ATTR(runtime_enable, 0644, efi_runtime_show, efi_runtime_store);
+
 static int __init efipostcore_init(void)
 {
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
@@ -444,6 +468,11 @@ static int __init efisubsys_init(void)
 		pr_err("efi: Firmware registration failed.\n");
 		error = -ENOMEM;
 		goto err_destroy_wq;
+	}
+
+	if (IS_ENABLED(CONFIG_PREEMPT_RT) && efi.runtime_supported_mask) {
+		if (sysfs_create_file(efi_kobj, &efi_runtime_attr.attr))
+			pr_warn("unable to register efi dynamic sysfs interface\n");
 	}
 
 	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE |
@@ -628,7 +657,7 @@ static const efi_config_table_type_t common_tables[] __initconst = {
 	{LINUX_EFI_TPM_EVENT_LOG_GUID,		&efi.tpm_log,		"TPMEventLog"	},
 	{EFI_TCG2_FINAL_EVENTS_TABLE_GUID,	&efi.tpm_final_log,	"TPMFinalLog"	},
 	{EFI_CC_FINAL_EVENTS_TABLE_GUID,	&efi.tpm_final_log,	"CCFinalLog"	},
-	{LINUX_EFI_MEMRESERVE_TABLE_GUID,	&mem_reserve,		"MEMRESERVE"	},
+	{LINUX_EFI_MEMRESERVE_TABLE_GUID,	&efi.mem_reserve,	"MEMRESERVE"	},
 	{LINUX_EFI_INITRD_MEDIA_GUID,		&initrd,		"INITRD"	},
 	{EFI_RT_PROPERTIES_TABLE_GUID,		&rt_prop,		"RTPROP"	},
 #ifdef CONFIG_OVMF_DEBUG_LOG
@@ -771,8 +800,8 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 
 	efi_tpm_eventlog_init();
 
-	if (mem_reserve != EFI_INVALID_TABLE_ADDR) {
-		unsigned long prsv = mem_reserve;
+	if (efi.mem_reserve != EFI_INVALID_TABLE_ADDR) {
+		unsigned long prsv = efi.mem_reserve;
 
 		while (prsv) {
 			struct linux_efi_memreserve *rsv;
@@ -1059,10 +1088,10 @@ static struct linux_efi_memreserve *efi_memreserve_root __ro_after_init;
 
 static int __init efi_memreserve_map_root(void)
 {
-	if (mem_reserve == EFI_INVALID_TABLE_ADDR)
+	if (efi.mem_reserve == EFI_INVALID_TABLE_ADDR)
 		return -ENODEV;
 
-	efi_memreserve_root = memremap(mem_reserve,
+	efi_memreserve_root = memremap(efi.mem_reserve,
 				       sizeof(*efi_memreserve_root),
 				       MEMREMAP_WB);
 	if (WARN_ON_ONCE(!efi_memreserve_root))

@@ -6,31 +6,31 @@
 # enabled, even if doing so doesn't break the build.
 #
 
-# non-x86 reuses KBUILD_CFLAGS, x86 does not
 cflags-y			:= $(KBUILD_CFLAGS)
 
-cflags-$(CONFIG_X86_32)		:= -march=i386
-cflags-$(CONFIG_X86_64)		:= -mcmodel=small
-cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ $(CC_FLAGS_DIALECT) \
-				   -fPIC -fno-strict-aliasing -mno-red-zone \
-				   -mno-mmx -mno-sse -fshort-wchar \
-				   -Wno-pointer-sign \
-				   $(call cc-disable-warning, address-of-packed-member) \
-				   -fno-asynchronous-unwind-tables \
-				   $(CLANG_FLAGS)
+# x86 links the stub into the decompressor rather than the kernel proper, so
+# drop the kernel's code model, calling convention, and stack alignment, and
+# the mitigations that rely on thunks and patch sites only the kernel has.
+cflags-$(CONFIG_X86)		:= $(filter-out -mcmodel=kernel \
+				     -mregparm=3 -freg-struct-return \
+				     -mpreferred-stack-boundary=% \
+				     -mstack-alignment=% \
+				     $(RETPOLINE_CFLAGS) $(RETHUNK_CFLAGS) \
+				     $(PADDING_CFLAGS), $(cflags-y))
+cflags-$(CONFIG_X86_32)		+= -march=i386
+cflags-$(CONFIG_X86_64)		+= -mcmodel=small
+cflags-$(CONFIG_X86)		+= -fPIC
+# Nothing enables IBT while the stub runs, so ENDBR would only take space.
+cflags-$(CONFIG_X86)		+= $(call cc-option,-fcf-protection=none)
 
-# arm64 uses the full KBUILD_CFLAGS so it's necessary to explicitly
-# disable the stackleak plugin
-cflags-$(CONFIG_ARM64)		+= -fpie $(DISABLE_KSTACK_ERASE) \
-				   -fno-unwind-tables -fno-asynchronous-unwind-tables
+cflags-$(CONFIG_ARM64)		+= -fpie -ffixed-x18 -fno-unwind-tables \
+				   -fno-asynchronous-unwind-tables
 cflags-$(CONFIG_ARM)		+= -DEFI_HAVE_STRLEN -DEFI_HAVE_STRNLEN \
 				   -DEFI_HAVE_MEMCHR -DEFI_HAVE_STRRCHR \
 				   -DEFI_HAVE_STRCMP -fno-builtin -fpic \
-				   $(call cc-option,-mno-single-pic-base) \
-				   $(DISABLE_KSTACK_ERASE)
-cflags-$(CONFIG_RISCV)		+= -fpic -DNO_ALTERNATIVE -mno-relax \
-				   $(DISABLE_KSTACK_ERASE)
-cflags-$(CONFIG_LOONGARCH)	+= -fpie $(DISABLE_KSTACK_ERASE)
+				   $(call cc-option,-mno-single-pic-base)
+cflags-$(CONFIG_RISCV)		+= -fpic -DNO_ALTERNATIVE -mno-relax
+cflags-$(CONFIG_LOONGARCH)	+= -fpie
 
 cflags-$(CONFIG_EFI_PARAMS_FROM_FDT)	+= -I$(srctree)/scripts/dtc/libfdt
 
@@ -40,6 +40,7 @@ KBUILD_CFLAGS			:= $(subst $(CC_FLAGS_FTRACE),,$(cflags-y)) \
 				   -D__NO_FORTIFY \
 				   -ffreestanding \
 				   -fno-stack-protector \
+				   $(DISABLE_KSTACK_ERASE) \
 				   $(CONFIG_CC_OPT_NO_ADDRSIG) \
 				   -D__DISABLE_EXPORTS
 
@@ -66,7 +67,8 @@ KBUILD_AFLAGS			:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
 lib-y				:= efi-stub-helper.o gop.o secureboot.o tpm.o \
 				   file.o mem.o random.o randomalloc.o pci.o \
 				   skip_spaces.o lib-cmdline.o lib-ctype.o \
-				   alignedmem.o printk.o vsprintf.o
+				   alignedmem.o printk.o vsprintf.o bli.o \
+				   lib-ucs2_string.o
 
 # include the stub's libfdt dependencies from lib/ when needed
 libfdt-deps			:= fdt_rw.c fdt_ro.c fdt_wip.c fdt.c \

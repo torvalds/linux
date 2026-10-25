@@ -45,7 +45,7 @@ static int get_boot_hartid_from_fdt(void)
 
 static efi_status_t get_boot_hartid_from_efi(void)
 {
-	efi_guid_t boot_protocol_guid = RISCV_EFI_BOOT_PROTOCOL_GUID;
+	static efi_guid_t boot_protocol_guid = RISCV_EFI_BOOT_PROTOCOL_GUID;
 	struct riscv_efi_boot_protocol *boot_protocol;
 	efi_status_t status;
 

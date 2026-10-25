@@ -37,6 +37,18 @@ accidentally.
           |4_bytes_of_attributes + efivar_data|
           +-----------------------------------+
 
+Mount options
+=============
+
+==========  ==================================================================
+(no)statfs  Control whether ``statfs(2)`` reports the variable-store
+            used/available. Disabling it skips the ``QueryVariableInfo()``
+            EFI runtime service call, which might block all CPUs for a few
+            milliseconds, and reports 0/0 for used/available instead.
+            Defaults to ``statfs``, except on ``CONFIG_PREEMPT_RT`` where
+            it defaults to ``nostatfs``.
+==========  ==================================================================
+
 *See also:*
 
 - Documentation/admin-guide/acpi/ssdt-overlays.rst

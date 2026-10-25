@@ -24,6 +24,8 @@ enum efi_cmdline_option {
 	EFI_CMDLINE_LIST
 };
 
+static efi_guid_t graphics_output_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+
 static struct {
 	enum efi_cmdline_option option;
 	union {
@@ -309,12 +311,12 @@ static u32 choose_mode_list(efi_graphics_output_protocol_t *gop)
 	efi_status_t status;
 
 	efi_printk("Available graphics modes are 0-%u\n", max_mode-1);
-	efi_puts("  * = current mode\n"
-		 "  - = unusable mode\n");
+	efi_char16_puts(L"  * = current mode\r\n"
+			 "  - = unusable mode\r\n");
 
 	choose_mode(gop, match_list, (void *)cur_mode);
 
-	efi_puts("\nPress any key to continue (or wait 10 seconds)\n");
+	efi_char16_puts(L"\r\nPress any key to continue (or wait 10 seconds)\r\n");
 	status = efi_wait_for_key(10 * EFI_USEC_PER_SEC, &key);
 	if (status != EFI_SUCCESS && status != EFI_TIMEOUT) {
 		efi_err("Unable to read key, continuing in 10 seconds\n");
@@ -425,6 +427,7 @@ static void setup_edid_info(struct edid_info *edid, u32 gop_size_of_edid, u8 *go
 static efi_handle_t find_handle_with_primary_gop(unsigned long num, const efi_handle_t handles[],
 						 efi_graphics_output_protocol_t **found_gop)
 {
+	static efi_guid_t console_out_device_guid = EFI_CONSOLE_OUT_DEVICE_GUID;
 	efi_graphics_output_protocol_t *first_gop;
 	efi_handle_t h, first_gop_handle;
 
@@ -439,8 +442,7 @@ static efi_handle_t find_handle_with_primary_gop(unsigned long num, const efi_ha
 		efi_graphics_output_mode_info_t *info;
 		void *dummy = NULL;
 
-		status = efi_bs_call(handle_protocol, h,
-				     &EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID,
+		status = efi_bs_call(handle_protocol, h, &graphics_output_guid,
 				     (void **)&gop);
 		if (status != EFI_SUCCESS)
 			continue;
@@ -462,7 +464,7 @@ static efi_handle_t find_handle_with_primary_gop(unsigned long num, const efi_ha
 		 * don't bother looking any further.
 		 */
 		status = efi_bs_call(handle_protocol, h,
-				     &EFI_CONSOLE_OUT_DEVICE_GUID, &dummy);
+				     &console_out_device_guid, &dummy);
 		if (status == EFI_SUCCESS) {
 			if (found_gop)
 				*found_gop = gop;
@@ -480,6 +482,8 @@ static efi_handle_t find_handle_with_primary_gop(unsigned long num, const efi_ha
 
 efi_status_t efi_setup_graphics(struct screen_info *si, struct edid_info *edid)
 {
+	static efi_guid_t edid_active_guid = EFI_EDID_ACTIVE_PROTOCOL_GUID;
+	static efi_guid_t edid_discovered_guid = EFI_EDID_DISCOVERED_PROTOCOL_GUID;
 	efi_handle_t *handles __free(efi_pool) = NULL;
 	efi_handle_t handle;
 	efi_graphics_output_protocol_t *gop;
@@ -487,8 +491,7 @@ efi_status_t efi_setup_graphics(struct screen_info *si, struct edid_info *edid)
 	unsigned long num;
 
 	status = efi_bs_call(locate_handle_buffer, EFI_LOCATE_BY_PROTOCOL,
-			      &EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID, NULL, &num,
-			      &handles);
+			      &graphics_output_guid, NULL, &num, &handles);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -510,14 +513,14 @@ efi_status_t efi_setup_graphics(struct screen_info *si, struct edid_info *edid)
 		u32 gop_size_of_edid = 0;
 		u8 *gop_edid = NULL;
 
-		status = efi_bs_call(handle_protocol, handle, &EFI_EDID_ACTIVE_PROTOCOL_GUID,
+		status = efi_bs_call(handle_protocol, handle, &edid_active_guid,
 				     (void **)&active_edid);
 		if (status == EFI_SUCCESS) {
 			gop_size_of_edid = efi_table_attr(active_edid, size_of_edid);
 			gop_edid = efi_table_attr(active_edid, edid);
 		} else {
 			status = efi_bs_call(handle_protocol, handle,
-					     &EFI_EDID_DISCOVERED_PROTOCOL_GUID,
+					     &edid_discovered_guid,
 					     (void **)&discovered_edid);
 			if (status == EFI_SUCCESS) {
 				gop_size_of_edid = efi_table_attr(discovered_edid, size_of_edid);

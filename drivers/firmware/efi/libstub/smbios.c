@@ -35,12 +35,13 @@ union efi_smbios_protocol {
 
 const struct efi_smbios_record *efi_get_smbios_record(u8 type)
 {
+	static efi_guid_t smbios_guid = EFI_SMBIOS_PROTOCOL_GUID;
 	struct efi_smbios_record *record;
 	efi_smbios_protocol_t *smbios;
 	efi_status_t status;
 	u16 handle = 0xfffe;
 
-	status = efi_bs_call(locate_protocol, &EFI_SMBIOS_PROTOCOL_GUID, NULL,
+	status = efi_bs_call(locate_protocol, &smbios_guid, NULL,
 			     (void **)&smbios) ?:
 		 efi_call_proto(smbios, get_next, &handle, &type, &record, NULL);
 	if (status != EFI_SUCCESS)
