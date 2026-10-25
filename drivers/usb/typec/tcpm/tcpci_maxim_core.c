@@ -542,8 +542,7 @@ static int max_tcpci_probe(struct i2c_client *client)
 					(IRQF_TRIGGER_LOW | IRQF_ONESHOT), dev_name(chip->dev),
 					chip);
 	if (ret < 0)
-		return dev_err_probe(&client->dev, ret,
-				     "IRQ initialization failed\n");
+		return ret;
 
 	ret = devm_device_init_wakeup(chip->dev);
 	if (ret)

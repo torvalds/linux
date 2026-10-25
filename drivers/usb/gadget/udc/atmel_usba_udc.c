@@ -2332,11 +2332,8 @@ static int usba_udc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, irq, usba_udc_irq, 0,
 				"atmel_usba_udc", udc);
-	if (ret) {
-		dev_err(&pdev->dev, "Cannot request irq %d (error %d)\n",
-			irq, ret);
+	if (ret)
 		return ret;
-	}
 	udc->irq = irq;
 
 	if (udc->vbus_pin) {

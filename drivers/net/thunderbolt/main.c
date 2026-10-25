@@ -540,11 +540,12 @@ static int tbnet_alloc_rx_buffers(struct tbnet *net, unsigned int nbuffers)
 		trace_tbnet_alloc_rx_frame(index, tf->page, dma_addr,
 					   DMA_FROM_DEVICE);
 
-		tb_ring_rx(ring->ring, &tf->frame);
+		tb_ring_rx_more(ring->ring, &tf->frame);
 
 		ring->prod++;
 	}
 
+	tb_ring_notify(ring->ring);
 	return 0;
 
 err_free:
@@ -1243,7 +1244,8 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 		goto err_drop;
 
 	for (i = 0; i < frame_index + 1; i++)
-		tb_ring_tx(net->tx_ring.ring, &frames[i]->frame);
+		tb_ring_tx_more(net->tx_ring.ring, &frames[i]->frame);
+	tb_ring_notify(net->tx_ring.ring);
 
 	if (net->svc->prtcstns & TBNET_MATCH_FRAGS_ID)
 		atomic_inc(&net->frame_id);

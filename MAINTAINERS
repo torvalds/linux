@@ -28514,6 +28514,28 @@ S:	Maintained
 F:	Documentation/usb/ehci.rst
 F:	drivers/usb/host/ehci*
 
+USB GADGET/PERIPHERAL SUBSYSTEM
+M:	Neill Kapron <nkapron@google.com>
+L:	linux-usb@vger.kernel.org
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/usb.git
+F:	Documentation/ABI/testing/configfs-usb-gadget*
+F:	Documentation/ABI/testing/sysfs-devices-platform-_UDC_-gadget
+F:	Documentation/driver-api/usb/gadget.rst
+F:	Documentation/usb/functionfs*
+F:	Documentation/usb/gadget*
+F:	Documentation/usb/mass-storage.rst
+F:	drivers/usb/gadget/
+F:	include/linux/usb/composite.h
+F:	include/linux/usb/func_utils.h
+F:	include/linux/usb/functionfs.h
+F:	include/linux/usb/g_hid.h
+F:	include/linux/usb/gadget*
+F:	include/uapi/linux/usb/functionfs.h
+F:	include/uapi/linux/usb/g_*.h
+F:	include/uapi/linux/usb/gadgetfs.h
+F:	tools/usb/ffs-*
+
 USB HID/HIDBP DRIVERS (USB KEYBOARDS, MICE, REMOTE CONTROLS, ...)
 M:	Jiri Kosina <jikos@kernel.org>
 M:	Benjamin Tissoires <bentiss@kernel.org>

@@ -297,11 +297,8 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, irq, gpio_vbus_irq, irqflags,
 			       "vbus_detect", pdev);
-	if (err) {
-		dev_err(&pdev->dev, "can't request irq %i, err: %d\n",
-			irq, err);
+	if (err)
 		return err;
-	}
 
 	INIT_DELAYED_WORK(&gpio_vbus->work, gpio_vbus_work);
 

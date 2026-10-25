@@ -41,6 +41,7 @@ static bool host_reset = true;
 module_param(host_reset, bool, 0444);
 MODULE_PARM_DESC(host_reset, "reset USB4 host router (default: true)");
 
+/* Returns absolute bit number of the ring in the interrupt registers */
 static int ring_interrupt_index(const struct tb_ring *ring)
 {
 	int bit = ring->hop;
@@ -49,24 +50,41 @@ static int ring_interrupt_index(const struct tb_ring *ring)
 	return bit;
 }
 
-static void nhi_mask_interrupt(struct tb_nhi *nhi, int mask, int ring)
+static void nhi_mask_interrupt(struct tb_nhi *nhi, u32 mask, int reg_index)
 {
-	if (nhi->quirks & QUIRK_AUTO_CLEAR_INT) {
-		u32 val;
+	int offset = reg_index * 4;
+	u32 val;
 
-		val = ioread32(nhi->iobase + REG_RING_INTERRUPT_BASE + ring);
-		iowrite32(val & ~mask, nhi->iobase + REG_RING_INTERRUPT_BASE + ring);
-	} else {
-		iowrite32(mask, nhi->iobase + REG_RING_INTERRUPT_MASK_CLEAR_BASE + ring);
-	}
+	/* Use shadow copy instead of reading the register */
+	val = nhi->interrupt_mask[reg_index] & ~mask;
+	nhi->interrupt_mask[reg_index] = val;
+
+	if (nhi->quirks & QUIRK_AUTO_CLEAR_INT)
+		iowrite32(val, nhi->iobase + REG_RING_INTERRUPT_BASE + offset);
+	else
+		iowrite32(mask, nhi->iobase + REG_RING_INTERRUPT_MASK_CLEAR_BASE + offset);
 }
 
-static void nhi_clear_interrupt(struct tb_nhi *nhi, int ring)
+static void nhi_unmask_interrupt(struct tb_nhi *nhi, u32 mask, int reg_index)
 {
+	int offset = reg_index * 4;
+	u32 val;
+
+	/* Use shadow copy instead of reading the register */
+	val = nhi->interrupt_mask[reg_index] | mask;
+	nhi->interrupt_mask[reg_index] = val;
+
+	iowrite32(val, nhi->iobase + REG_RING_INTERRUPT_BASE + offset);
+}
+
+static void nhi_clear_interrupt(struct tb_nhi *nhi, int reg_index)
+{
+	int offset = reg_index * 4;
+
 	if (nhi->quirks & QUIRK_AUTO_CLEAR_INT)
-		ioread32(nhi->iobase + REG_RING_NOTIFY_BASE + ring);
+		ioread32(nhi->iobase + REG_RING_NOTIFY_BASE + offset);
 	else
-		iowrite32(~0, nhi->iobase + REG_RING_INT_CLEAR + ring);
+		iowrite32(~0, nhi->iobase + REG_RING_INT_CLEAR + offset);
 }
 
 /*
@@ -76,22 +94,17 @@ static void nhi_clear_interrupt(struct tb_nhi *nhi, int ring)
  */
 static void ring_interrupt_active(struct tb_ring *ring, bool active)
 {
-	int index = ring_interrupt_index(ring) / 32 * 4;
-	int reg = REG_RING_INTERRUPT_BASE + index;
-	int interrupt_bit = ring_interrupt_index(ring) & 31;
-	int mask = 1 << interrupt_bit;
+	int interrupt_index = ring_interrupt_index(ring);
+	int reg_index = interrupt_index / 32;
+	int reg = REG_RING_INTERRUPT_BASE + reg_index * 4;
+	int interrupt_bit = interrupt_index % 32;
+	u32 mask = BIT(interrupt_bit);
 	u32 old, new;
 
 	if (ring->irq > 0) {
 		u32 step, shift, ivr, misc, itr;
 		void __iomem *ivr_base;
 		int auto_clear_bit;
-		int index;
-
-		if (ring->is_tx)
-			index = ring->hop;
-		else
-			index = ring->hop + ring->nhi->hop_count;
 
 		/*
 		 * Intel routers support a bit that isn't part of
@@ -114,8 +127,8 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 				  ring->nhi->iobase + REG_DMA_MISC);
 
 		ivr_base = ring->nhi->iobase + REG_INT_VEC_ALLOC_BASE;
-		step = index / REG_INT_VEC_ALLOC_REGS * REG_INT_VEC_ALLOC_BITS;
-		shift = index % REG_INT_VEC_ALLOC_REGS * REG_INT_VEC_ALLOC_BITS;
+		step = interrupt_index / REG_INT_VEC_ALLOC_REGS * REG_INT_VEC_ALLOC_BITS;
+		shift = interrupt_index % REG_INT_VEC_ALLOC_REGS * REG_INT_VEC_ALLOC_BITS;
 		ivr = ioread32(ivr_base + step);
 		ivr &= ~(REG_INT_VEC_ALLOC_MASK << shift);
 		if (active)
@@ -129,7 +142,7 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 			  ring->vector * 4);
 	}
 
-	old = ioread32(ring->nhi->iobase + reg);
+	old = ring->nhi->interrupt_mask[reg_index];
 	if (active)
 		new = old | mask;
 	else
@@ -139,15 +152,24 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 		"%s interrupt at register %#x bit %d (%#x -> %#x)\n",
 		active ? "enabling" : "disabling", reg, interrupt_bit, old, new);
 
-	if (new == old)
-		dev_WARN(ring->nhi->dev, "interrupt for %s %d is already %s\n",
-			 RING_TYPE(ring), ring->hop,
-			 str_enabled_disabled(active));
+	if (new == old) {
+		/*
+		 * Rings that are polled mask the interrupt while the
+		 * completions are being advanced (see __ring_interrupt())
+		 * so for those it can already be disabled by the time
+		 * the ring is stopped.
+		 */
+		if (active || !ring->start_poll)
+			dev_WARN(ring->nhi->dev,
+				 "interrupt for %s %d is already %s\n",
+				 RING_TYPE(ring), ring->hop,
+				 str_enabled_disabled(active));
+	}
 
 	if (active)
-		iowrite32(new, ring->nhi->iobase + reg);
+		nhi_unmask_interrupt(ring->nhi, mask, reg_index);
 	else
-		nhi_mask_interrupt(ring->nhi, mask, index);
+		nhi_mask_interrupt(ring->nhi, mask, reg_index);
 }
 
 /*
@@ -160,11 +182,11 @@ void nhi_disable_interrupts(struct tb_nhi *nhi)
 	int i = 0;
 	/* disable interrupts */
 	for (i = 0; i < RING_INTERRUPT_REG_COUNT(nhi); i++)
-		nhi_mask_interrupt(nhi, ~0, 4 * i);
+		nhi_mask_interrupt(nhi, ~0, i);
 
 	/* clear interrupt status bits */
 	for (i = 0; i < RING_NOTIFY_REG_COUNT(nhi); i++)
-		nhi_clear_interrupt(nhi, 4 * i);
+		nhi_clear_interrupt(nhi, i);
 }
 
 /* ring helper methods */
@@ -227,12 +249,37 @@ static bool ring_empty(struct tb_ring *ring)
 	return ring->head == ring->tail;
 }
 
+static void __ring_notify(struct tb_ring *ring)
+{
+	lockdep_assert_held(&ring->lock);
+
+	if (ring->notify_pending) {
+		/*
+		 * The doorbell carries the absolute index of the head
+		 * so a single write covers all the descriptors posted
+		 * since the previous one.
+		 */
+		if (ring->is_tx)
+			ring_iowrite_prod(ring, ring->head);
+		else
+			ring_iowrite_cons(ring, ring->head);
+	}
+	ring->notify_pending = false;
+}
+
 /*
  * ring_write_descriptors() - post frames from ring->queue to the controller
+ * @ring: Ring to post the frames to
+ * @notify: Notify the controller about the posted descriptors
+ *
+ * Unless @notify is %true the controller is not notified about the posted
+ * descriptors and the caller is expected to call tb_ring_notify() once it
+ * is done queuing frames. This allows batching of frames before
+ * updating the producer/consumer indices.
  *
  * ring->lock is held.
  */
-static void ring_write_descriptors(struct tb_ring *ring)
+static void ring_write_descriptors(struct tb_ring *ring, bool notify)
 {
 	struct ring_frame *frame, *n;
 	struct ring_desc *descriptor;
@@ -256,11 +303,11 @@ static void ring_write_descriptors(struct tb_ring *ring)
 			descriptor->sof = frame->sof;
 		}
 		ring->head = (ring->head + 1) % ring->size;
-		if (ring->is_tx)
-			ring_iowrite_prod(ring, ring->head);
-		else
-			ring_iowrite_cons(ring, ring->head);
+		ring->notify_pending = true;
 	}
+
+	if (notify)
+		__ring_notify(ring);
 }
 
 /*
@@ -305,7 +352,7 @@ static void ring_work(struct work_struct *work)
 		}
 		ring->tail = (ring->tail + 1) % ring->size;
 	}
-	ring_write_descriptors(ring);
+	ring_write_descriptors(ring, true);
 
 invoke_callback:
 	/* allow callbacks to schedule new work */
@@ -324,7 +371,7 @@ invoke_callback:
 	wake_up(&ring->wait);
 }
 
-int __tb_ring_enqueue(struct tb_ring *ring, struct ring_frame *frame)
+int __tb_ring_enqueue(struct tb_ring *ring, struct ring_frame *frame, bool more)
 {
 	unsigned long flags;
 	int ret = 0;
@@ -332,7 +379,7 @@ int __tb_ring_enqueue(struct tb_ring *ring, struct ring_frame *frame)
 	spin_lock_irqsave(&ring->lock, flags);
 	if (ring->running) {
 		list_add_tail(&frame->list, &ring->queue);
-		ring_write_descriptors(ring);
+		ring_write_descriptors(ring, !more);
 	} else {
 		ret = -ESHUTDOWN;
 	}
@@ -340,6 +387,22 @@ int __tb_ring_enqueue(struct tb_ring *ring, struct ring_frame *frame)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__tb_ring_enqueue);
+
+/**
+ * tb_ring_notify() - Notify the controller about the queued frames
+ * @ring: Ring to notify
+ *
+ * Notifies the controller about frames that were enqueued using
+ * tb_ring_tx_more() or tb_ring_rx_more(). Does nothing if there are no
+ * such frames pending.
+ */
+void tb_ring_notify(struct tb_ring *ring)
+{
+	guard(spinlock_irqsave)(&ring->lock);
+	if (ring->running)
+		__ring_notify(ring);
+}
+EXPORT_SYMBOL_GPL(tb_ring_notify);
 
 /**
  * tb_ring_poll() - Poll one completed frame from the ring
@@ -377,6 +440,13 @@ struct ring_frame *tb_ring_poll(struct tb_ring *ring)
 		}
 
 		ring->tail = (ring->tail + 1) % ring->size;
+
+		/*
+		 * There is one more slot available so we can push next
+		 * descriptor to the ring. This is needed when the ring
+		 * is created with %RING_FLAG_NO_INTERRUPT.
+		 */
+		ring_write_descriptors(ring, true);
 	}
 
 unlock:
@@ -385,19 +455,35 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(tb_ring_poll);
 
+/**
+ * tb_ring_poll_pending() - Does the ring have completed frame
+ * @ring: Ring to check
+ *
+ * Can be used to check whether there is a completed frame in the ring
+ * that next call to tb_ring_poll() returns.
+ *
+ * Return: %true if a completed frame is waiting, %false otherwise.
+ */
+bool tb_ring_poll_pending(struct tb_ring *ring)
+{
+	guard(spinlock_irqsave)(&ring->lock);
+
+	if (!ring->running || ring_empty(ring))
+		return false;
+	return !!(ring->descriptors[ring->tail].flags & RING_DESC_COMPLETED);
+}
+EXPORT_SYMBOL_GPL(tb_ring_poll_pending);
+
 static void __ring_interrupt_mask(struct tb_ring *ring, bool mask)
 {
-	int idx = ring_interrupt_index(ring);
-	int reg = REG_RING_INTERRUPT_BASE + idx / 32 * 4;
-	int bit = idx % 32;
-	u32 val;
+	int interrupt_index = ring_interrupt_index(ring);
+	int reg_index = interrupt_index / 32;
+	int interrupt_bit = interrupt_index % 32;
 
-	val = ioread32(ring->nhi->iobase + reg);
 	if (mask)
-		val &= ~BIT(bit);
+		nhi_mask_interrupt(ring->nhi, BIT(interrupt_bit), reg_index);
 	else
-		val |= BIT(bit);
-	iowrite32(val, ring->nhi->iobase + reg);
+		nhi_unmask_interrupt(ring->nhi, BIT(interrupt_bit), reg_index);
 }
 
 /* Both @nhi->lock and @ring->lock should be held */
@@ -788,6 +874,7 @@ void tb_ring_stop(struct tb_ring *ring)
 	ring_iowrite32desc(ring, 0, 12);
 	ring->head = 0;
 	ring->tail = 0;
+	ring->notify_pending = false;
 	ring->running = false;
 
 err:
@@ -1182,24 +1269,40 @@ static void nhi_reset(struct tb_nhi *nhi)
 
 static struct tb *nhi_select_cm(struct tb_nhi *nhi)
 {
+	bool linked = false;
 	struct tb *tb;
 
 	/*
 	 * USB4 case is simple. If we got control of any of the
 	 * capabilities, we use software CM.
 	 */
-	if (tb_acpi_is_native())
-		return tb_probe(nhi);
+	if (!tb_acpi_is_native()) {
+		/*
+		 * Either firmware based CM is running (we did not get
+		 * control from the firmware) or this is pre-USB4 PC so
+		 * try first firmware CM and then fallback to software CM.
+		 */
+		tb = icm_probe(nhi);
+		if (tb)
+			return tb;
+	}
 
-	/*
-	 * Either firmware based CM is running (we did not get control
-	 * from the firmware) or this is pre-USB4 PC so try first
-	 * firmware CM and then fallback to software CM.
-	 */
-	tb = icm_probe(nhi);
+	tb = tb_probe(nhi);
 	if (!tb)
-		tb = tb_probe(nhi);
+		return NULL;
 
+	if (nhi->ops->add_links)
+		linked = nhi->ops->add_links(nhi);
+	if (!linked)
+		linked = tb_acpi_add_links(nhi);
+	/*
+	 * Device links are needed to make sure we establish tunnels
+	 * before protocol stacks are resumed so complain here if we
+	 * found them missing.
+	 */
+	if (!linked)
+		dev_warn(nhi->dev,
+			 "device links to tunneled native ports are missing!\n");
 	return tb;
 }
 
@@ -1222,7 +1325,10 @@ int nhi_probe(struct tb_nhi *nhi)
 				     sizeof(*nhi->tx_rings), GFP_KERNEL);
 	nhi->rx_rings = devm_kcalloc(dev, nhi->hop_count,
 				     sizeof(*nhi->rx_rings), GFP_KERNEL);
-	if (!nhi->tx_rings || !nhi->rx_rings)
+	nhi->interrupt_mask = devm_kcalloc(dev, RING_INTERRUPT_REG_COUNT(nhi),
+					   sizeof(*nhi->interrupt_mask),
+					   GFP_KERNEL);
+	if (!nhi->tx_rings || !nhi->rx_rings || !nhi->interrupt_mask)
 		return -ENOMEM;
 
 	nhi_reset(nhi);

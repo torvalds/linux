@@ -49,6 +49,10 @@ properties:
               - ingenic,jz4740-ohci
               - rockchip,rk3588-ohci
               - snps,hsdk-v1.0-ohci
+              - st,stm32mp13-ohci
+              - st,stm32mp15-ohci
+              - st,stm32mp23-ohci
+              - st,stm32mp25-ohci
           - const: generic-ohci
       - enum:
           - generic-ohci
@@ -63,6 +67,9 @@ properties:
           - const: usb-ohci
 
   reg:
+    maxItems: 1
+
+  access-controllers:
     maxItems: 1
 
   dma-coherent: true
@@ -213,6 +220,23 @@ allOf:
         clocks:
           minItems: 1
           maxItems: 3
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - st,stm32mp23-ohci
+              - st,stm32mp25-ohci
+    then:
+      properties:
+        clocks:
+          items:
+            - description: PHY clock
+            - description: Bus clock
+
+      required:
+        - access-controllers
+        - clocks
 
 unevaluatedProperties: false
 

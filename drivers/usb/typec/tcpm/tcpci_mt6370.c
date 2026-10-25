@@ -168,7 +168,7 @@ static int mt6370_tcpc_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(dev, irq, NULL, mt6370_irq_handler,
 					IRQF_ONESHOT, dev_name(dev), priv);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to allocate irq\n");
+		return ret;
 
 	device_init_wakeup(dev, true);
 	dev_pm_set_wake_irq(dev, irq);

@@ -250,7 +250,7 @@ static int it5205_probe(struct i2c_client *client)
 		if (ret) {
 			typec_mux_unregister(it->mux);
 			typec_switch_unregister(it->sw);
-			return dev_err_probe(dev, ret, "Failed to request irq\n");
+			return ret;
 		}
 	}
 

@@ -142,13 +142,14 @@ out:
 EXPORT_SYMBOL_GPL(usb_ep_enable);
 
 /**
- * usb_ep_disable - endpoint is no longer usable
+ * usb_ep_disable - unconfigure an endpoint, making it no longer usable
  * @ep:the endpoint being unconfigured.  may not be the endpoint named "ep0".
  *
- * no other task may be using this endpoint when this is called.
- * any pending and uncompleted requests will complete with status
+ * Any pending and uncompleted requests will complete with status
  * indicating disconnect (-ESHUTDOWN) before this call returns.
- * gadget drivers must call usb_ep_enable() again before queueing
+ * (However, this call will not wait for requests whose completion
+ * handlers have already started running but not yet returned.)
+ * Gadget drivers must call usb_ep_enable() again before queuing
  * requests to the endpoint.
  *
  * This routine may be called in an atomic (interrupt) context.

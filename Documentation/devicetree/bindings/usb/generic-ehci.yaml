@@ -55,6 +55,10 @@ properties:
               - rockchip,rk3588-ehci
               - snps,hsdk-v1.0-ehci
               - socionext,uniphier-ehci
+              - st,stm32mp13-ehci
+              - st,stm32mp15-ehci
+              - st,stm32mp23-ehci
+              - st,stm32mp25-ehci
           - const: generic-ehci
       - items:
           - enum:
@@ -79,6 +83,9 @@ properties:
   reg:
     minItems: 1
     maxItems: 2
+
+  access-controllers:
+    maxItems: 1
 
   dma-coherent: true
 
@@ -193,6 +200,23 @@ allOf:
     else:
       properties:
         clock-names: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - st,stm32mp23-ehci
+              - st,stm32mp25-ehci
+    then:
+      properties:
+        clocks:
+          items:
+            - description: PHY clock
+            - description: Bus clock
+
+      required:
+        - access-controllers
+        - clocks
 
 unevaluatedProperties: false
 

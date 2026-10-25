@@ -131,14 +131,20 @@ struct tbstream_ring {
  * @ring_size: Size of the rings
  * @throttling: Interrupt throttling rate in ns
  * @busy_poll: Instead of interrupts, busy poll the rings
+ * @rx_pending: Receive ring has completions that need to be advanced
  * @users: Number of times @cdev has been opened
- * @closed: CLOSE packet was received
+ * @close_received: CLOSE packet appeared in the RX ring
+ * @closed: CLOSE packet was handled in the read side
  * @removed: Userspace removed the ConfigFS group underneath.
  * @wait: Waitqueue for open, read and write
  * @lock: Lock protecting this structure
  * @tx_ring: Transmit ring
  * @rx_ring: Receive ring
  * @list: Stream devices are linked through this
+ *
+ * @close_received is used on write side to notify the writer that the
+ * other side sent CLOSE. @closed on the other hand is used on the read
+ * side to make read(2) return EOF to the caller.
  */
 struct tbstream_dev {
 	struct config_group group;
@@ -151,7 +157,9 @@ struct tbstream_dev {
 	unsigned int ring_size;
 	unsigned int throttling;
 	bool busy_poll;
+	bool rx_pending;
 	int users;
+	bool close_received;
 	bool closed;
 	bool removed;
 	wait_queue_head_t wait;
@@ -278,6 +286,14 @@ static inline bool tbstream_ring_available(const struct tbstream_ring *ring)
 	return ring->prod > ring->cons;
 }
 
+static void tbstream_ring_poll(struct tbstream_ring *ring)
+{
+	struct ring_frame *frame;
+
+	while ((frame = tb_ring_poll(ring->ring)))
+		frame->callback(ring->ring, frame, false);
+}
+
 static inline struct tb_xdomain *tbstream_dev_xdomain(struct tbstream_dev *sdev)
 {
 	if (sdev->stream)
@@ -338,9 +354,19 @@ static inline bool tbstream_dev_removed(const struct tbstream_dev *sdev)
 	return sdev->removed;
 }
 
+static inline bool tbstream_dev_close_received(const struct tbstream_dev *sdev)
+{
+	return READ_ONCE(sdev->close_received);
+}
+
 static inline bool tbstream_dev_closed(const struct tbstream_dev *sdev)
 {
-	return sdev->closed;
+	return READ_ONCE(sdev->closed);
+}
+
+static inline bool tbstream_dev_rx_pending(const struct tbstream_dev *sdev)
+{
+	return READ_ONCE(sdev->rx_pending);
 }
 
 static void
@@ -349,6 +375,7 @@ tbstream_dev_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 {
 	struct tbstream_frame *sf = container_of(frame, typeof(*sf), frame);
 	struct tbstream_dev *sdev = sf->sdev;
+	__poll_t mask;
 
 	if (canceled)
 		return;
@@ -356,12 +383,17 @@ tbstream_dev_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 	sf->completed = true;
 	sdev->rx_ring.prod++;
 
-	if (sf->frame.flags & RING_DESC_CRC_ERROR)
-		pr_warn("RX CRC error\n");
-	else if (sf->frame.flags & RING_DESC_BUFFER_OVERRUN)
-		pr_warn("RX buffer overrun\n");
-	else
-		wake_up_interruptible_poll(&sdev->wait, EPOLLIN | EPOLLRDNORM);
+	mask = EPOLLIN | EPOLLRDNORM;
+	/*
+	 * The CLOSE packet does not have a payload so the flags do not
+	 * matter. The read_iter() deals with the flags.
+	 */
+	if (sf->frame.eof == TBSTREAM_CLOSE) {
+		WRITE_ONCE(sdev->close_received, true);
+		mask |= EPOLLHUP;
+	}
+
+	wake_up_interruptible_poll(&sdev->wait, mask);
 }
 
 static struct tbstream_frame *
@@ -538,38 +570,27 @@ tbstream_dev_send_data(struct tbstream_dev *sdev, struct iov_iter *from,
 	return tb_ring_tx(sdev->tx_ring.ring, &sf->frame);
 }
 
-static void
-tbstream_dev_poll_ring(struct tbstream_dev *sdev, struct tbstream_ring *ring)
-{
-	struct ring_frame *frame;
-
-	if (!sdev->busy_poll)
-		return;
-
-	while ((frame = tb_ring_poll(ring->ring)))
-		frame->callback(ring->ring, frame, false);
-}
-
 static int tbstream_dev_send_close(struct tbstream_dev *sdev)
 {
 	struct tbstream_frame *sf;
+	ktime_t timeout;
 
-	if (sdev->busy_poll) {
+	/*
+	 * Wait for the ring to have available slots before we send the
+	 * CLOSE packet.
+	 */
+	timeout = ktime_add_ms(ktime_get(), 500);
+	do {
+		if (tbstream_ring_available(&sdev->tx_ring))
+			break;
 		/*
-		 * When busy polling it's the write(2) path that
-		 * advances the completions so it is possible that the
-		 * ring is full at this point. Advance the ring here so
-		 * that there is room for the CLOSE packet to be sent.
+		 * For busy polling we need to advance the ring here as
+		 * well to make the slots available.
 		 */
-		ktime_t timeout = ktime_add_ms(ktime_get(), 500);
-
-		do {
-			if (tbstream_ring_available(&sdev->tx_ring))
-				break;
-			tbstream_dev_poll_ring(sdev, &sdev->tx_ring);
-			fsleep(15);
-		} while (ktime_before(ktime_get(), timeout));
-	}
+		if (sdev->busy_poll)
+			tbstream_ring_poll(&sdev->tx_ring);
+		fsleep(15);
+	} while (ktime_before(ktime_get(), timeout));
 
 	sf = tbstream_dev_alloc_tx(sdev, TBSTREAM_CLOSE, NULL, SZ_256);
 	if (IS_ERR(sf))
@@ -577,16 +598,45 @@ static int tbstream_dev_send_close(struct tbstream_dev *sdev)
 	return tb_ring_tx(sdev->tx_ring.ring, &sf->frame);
 }
 
+static void tbstream_dev_start_poll(void *data)
+{
+	struct tbstream_dev *sdev = data;
+
+	WRITE_ONCE(sdev->rx_pending, true);
+	wake_up_interruptible_poll(&sdev->wait, EPOLLIN | EPOLLRDNORM);
+}
+
+/* sdev->lock must be held */
+static void tbstream_dev_advance_rx(struct tbstream_dev *sdev)
+{
+	/*
+	 * Clear before running the completions so that an interrupt
+	 * that arrives while we are doing that is not missed.
+	 */
+	WRITE_ONCE(sdev->rx_pending, false);
+	tbstream_ring_poll(&sdev->rx_ring);
+}
+
+/* sdev->lock must be held */
+static void tbstream_dev_complete_rx(struct tbstream_dev *sdev)
+{
+	if (!sdev->busy_poll)
+		tb_ring_poll_complete(sdev->rx_ring.ring);
+}
+
 static int tbstream_dev_start(struct tbstream_dev *sdev)
 {
 	struct tb_xdomain *xd = tbstream_dev_xdomain(sdev);
 	unsigned int flags = RING_FLAG_FRAME | RING_FLAG_E2E;
+	void (*start_poll)(void *) = NULL;
 	u16 sof_mask, eof_mask;
 	struct tb_ring *ring;
 	int ret, e2e_tx_hop;
 
 	if (sdev->busy_poll)
 		flags |= RING_FLAG_NO_INTERRUPT;
+	else
+		start_poll = tbstream_dev_start_poll;
 
 	ring = tb_ring_alloc_tx(xd->tb->nhi, -1, sdev->ring_size, flags);
 	if (!ring)
@@ -602,7 +652,8 @@ static int tbstream_dev_start(struct tbstream_dev *sdev)
 	eof_mask = BIT(TBSTREAM_DATA) | BIT(TBSTREAM_CLOSE);
 
 	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, sdev->ring_size, flags,
-				e2e_tx_hop, sof_mask, eof_mask, NULL, NULL);
+				e2e_tx_hop, sof_mask, eof_mask, start_poll,
+				sdev);
 	if (!ring) {
 		ret = -ENOMEM;
 		goto err_free_tx_buffers;
@@ -618,6 +669,8 @@ static int tbstream_dev_start(struct tbstream_dev *sdev)
 
 	tb_ring_throttling(sdev->tx_ring.ring, sdev->throttling);
 	tb_ring_throttling(sdev->rx_ring.ring, sdev->throttling);
+
+	sdev->rx_pending = false;
 
 	tb_ring_start(sdev->tx_ring.ring);
 	tb_ring_start(sdev->rx_ring.ring);
@@ -665,18 +718,15 @@ static void tbstream_dev_stop(struct tbstream_dev *sdev)
 		do {
 			if (tbstream_dev_tx_drained(sdev))
 				break;
-			tbstream_dev_poll_ring(sdev, &sdev->tx_ring);
+			tbstream_ring_poll(&sdev->tx_ring);
 			fsleep(15);
 		} while (ktime_before(ktime_get(), timeout));
-
-		tb_ring_stop(sdev->tx_ring.ring);
-		tb_ring_stop(sdev->rx_ring.ring);
 	} else {
 		tb_ring_flush(sdev->tx_ring.ring, 500);
-		tb_ring_stop(sdev->tx_ring.ring);
-		tb_ring_flush(sdev->rx_ring.ring, 500);
-		tb_ring_stop(sdev->rx_ring.ring);
 	}
+
+	tb_ring_stop(sdev->tx_ring.ring);
+	tb_ring_stop(sdev->rx_ring.ring);
 
 	xd = tbstream_dev_xdomain(sdev);
 	if (xd) {
@@ -707,6 +757,45 @@ static int tbstream_dev_lock(struct tbstream_dev *sdev, bool nowait)
 	return 0;
 }
 
+/* Must not be called with @sdev->lock held */
+static int tbstream_dev_busy_poll_wait(struct tbstream_dev *sdev,
+				       struct tbstream_ring *ring)
+{
+	for (;;) {
+		if (signal_pending(current))
+			return -ERESTARTSYS;
+		if (tb_ring_poll_pending(ring->ring))
+			return 0;
+		/*
+		 * For TX ring we need to check the RX side too because
+		 * it might have received CLOSE packet.
+		 */
+		if (ring == &sdev->tx_ring &&
+		    tb_ring_poll_pending(sdev->rx_ring.ring))
+			return 0;
+		if (tbstream_dev_valid(sdev) != 0 ||
+		    tbstream_dev_closed(sdev) || tbstream_dev_removed(sdev))
+			return 0;
+		cond_resched();
+	}
+}
+
+static bool
+tbstream_dev_has_event(struct tbstream_dev *sdev, struct tbstream_ring *ring)
+{
+	if (tbstream_dev_valid(sdev) != 0)
+		return true;
+	if (tbstream_dev_closed(sdev))
+		return true;
+	if (tbstream_dev_removed(sdev))
+		return true;
+	if (tbstream_dev_rx_pending(sdev))
+		return true;
+	if (tbstream_ring_available(ring))
+		return true;
+	return tb_ring_poll_pending(sdev->rx_ring.ring);
+}
+
 static ssize_t
 tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 {
@@ -725,8 +814,8 @@ tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 		return ret;
 
 	for (;;) {
-		/* When busy polling, advance any completions manually */
-		tbstream_dev_poll_ring(sdev, &sdev->rx_ring);
+		/* Advance RX completions */
+		tbstream_dev_advance_rx(sdev);
 
 		ret = tbstream_dev_valid(sdev);
 		if (ret) {
@@ -742,21 +831,20 @@ tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 		if (tbstream_ring_available(&sdev->rx_ring))
 			break;
 
+		/* Polled all we could. Re-enable the interrupt now. */
+		tbstream_dev_complete_rx(sdev);
 		mutex_unlock(&sdev->lock);
 
 		if (nowait)
 			return -EAGAIN;
 
 		if (sdev->busy_poll) {
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-			cond_resched();
+			ret = tbstream_dev_busy_poll_wait(sdev, &sdev->rx_ring);
+			if (ret)
+				return ret;
 		} else {
 			ret = wait_event_interruptible(sdev->wait,
-					tbstream_ring_available(&sdev->rx_ring) ||
-					tbstream_dev_valid(sdev) != 0 ||
-					tbstream_dev_closed(sdev) ||
-					tbstream_dev_removed(sdev));
+				tbstream_dev_has_event(sdev, &sdev->rx_ring));
 			if (ret)
 				return ret;
 		}
@@ -783,7 +871,20 @@ tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 		if (sf->frame.eof == TBSTREAM_CLOSE) {
 			if (!nbytes) {
 				tbstream_dev_consume_rx(sdev);
-				sdev->closed = true;
+				WRITE_ONCE(sdev->closed, true);
+			}
+			break;
+		} else if (sf->frame.flags &
+			   (RING_DESC_CRC_ERROR | RING_DESC_BUFFER_OVERRUN)) {
+			/*
+			 * If something was already read return that now
+			 * and next read will report the error.
+			 */
+			if (!nbytes) {
+				pr_warn("corrupted frame received, flags %#x\n",
+					sf->frame.flags);
+				tbstream_dev_consume_rx(sdev);
+				ret = -EIO;
 			}
 			break;
 		}
@@ -819,6 +920,25 @@ tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	return nbytes;
 }
 
+static void tbstream_dev_advance_both(struct tbstream_dev *sdev)
+{
+	/*
+	 * When busy polling, advance TX completions manually.
+	 *
+	 * We also need to advance the RX side in both modes to be able
+	 * to receive CLOSE packet from the other peer if there is no
+	 * reader.
+	 */
+	if (sdev->busy_poll) {
+		tbstream_ring_poll(&sdev->tx_ring);
+		tbstream_dev_advance_rx(sdev);
+	} else if (tbstream_dev_rx_pending(sdev) ||
+		   tb_ring_poll_pending(sdev->rx_ring.ring)) {
+		tbstream_dev_advance_rx(sdev);
+		tbstream_dev_complete_rx(sdev);
+	}
+}
+
 static ssize_t
 tbstream_dev_fops_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 {
@@ -837,7 +957,8 @@ tbstream_dev_fops_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 		return ret;
 
 	for (;;) {
-		tbstream_dev_poll_ring(sdev, &sdev->tx_ring);
+		/* Advance TX (and RX) completions */
+		tbstream_dev_advance_both(sdev);
 
 		ret = tbstream_dev_valid(sdev);
 		if (ret) {
@@ -845,7 +966,12 @@ tbstream_dev_fops_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 			return ret;
 		}
 
-		if (tbstream_dev_closed(sdev) || tbstream_dev_removed(sdev)) {
+		if (tbstream_dev_close_received(sdev)) {
+			mutex_unlock(&sdev->lock);
+			return -EPIPE;
+		}
+
+		if (tbstream_dev_removed(sdev)) {
 			mutex_unlock(&sdev->lock);
 			return -ENXIO;
 		}
@@ -859,15 +985,13 @@ tbstream_dev_fops_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 			return -EAGAIN;
 
 		if (sdev->busy_poll) {
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-			cond_resched();
+			ret = tbstream_dev_busy_poll_wait(sdev, &sdev->tx_ring);
+			if (ret)
+				return ret;
 		} else {
 			ret = wait_event_interruptible(sdev->wait,
-					tbstream_ring_available(&sdev->tx_ring) ||
-					tbstream_dev_valid(sdev) != 0 ||
-					tbstream_dev_closed(sdev) ||
-					tbstream_dev_removed(sdev));
+				tbstream_dev_has_event(sdev, &sdev->tx_ring) ||
+				tbstream_dev_close_received(sdev));
 			if (ret)
 				return ret;
 		}
@@ -917,14 +1041,28 @@ tbstream_dev_fops_poll(struct file *file, struct poll_table_struct *wait)
 
 	poll_wait(file, &sdev->wait, wait);
 	guard(mutex)(&sdev->lock);
-	if (tbstream_dev_valid(sdev) != 0) {
-		mask |= EPOLLHUP | EPOLLERR;
+	if (tbstream_dev_valid(sdev) != 0)
+		return EPOLLHUP | EPOLLERR;
+
+	/*
+	 * The RX completions are only advanced from here and from
+	 * read(2) so do that now, otherwise we would never report
+	 * anything to be available.
+	 */
+	tbstream_dev_advance_rx(sdev);
+
+	if (tbstream_dev_close_received(sdev))
+		mask |= EPOLLHUP;
+	if (tbstream_ring_available(&sdev->tx_ring))
+		mask |= EPOLLOUT | EPOLLWRNORM;
+	if (tbstream_ring_available(&sdev->rx_ring)) {
+		mask |= EPOLLIN | EPOLLRDNORM;
 	} else {
-		if (tbstream_ring_available(&sdev->tx_ring))
-			mask |= EPOLLOUT | EPOLLWRNORM;
-		if (tbstream_ring_available(&sdev->rx_ring))
+		tbstream_dev_complete_rx(sdev);
+		if (tb_ring_poll_pending(sdev->rx_ring.ring))
 			mask |= EPOLLIN | EPOLLRDNORM;
 	}
+
 	return mask;
 }
 
@@ -974,6 +1112,8 @@ static int tbstream_dev_fops_open(struct inode *inode, struct file *file)
 			sdev->users--;
 			goto err_unlock;
 		}
+
+		sdev->close_received = false;
 		sdev->closed = false;
 	}
 
@@ -998,11 +1138,18 @@ static int tbstream_dev_fops_release(struct inode *inode, struct file *file)
 	mutex_lock(&sdev->lock);
 	if (--sdev->users == 0) {
 		/*
-		 * Send CLOSE tunneled packet to notify the other end
-		 * that we are closing the file. We do this twice if the
-		 * first one fails.
+		 * Advance now in case there is CLOSE waiting in the RX
+		 * ring.
 		 */
-		tbstream_dev_send_close(sdev);
+		tbstream_dev_advance_both(sdev);
+		/*
+		 * Send CLOSE tunneled packet to notify the other end
+		 * that we are closing the file, if it is not closed
+		 * already.
+		 */
+		if (!tbstream_dev_close_received(sdev) &&
+		    tbstream_dev_valid(sdev) == 0)
+			tbstream_dev_send_close(sdev);
 		tbstream_dev_stop(sdev);
 	}
 	mutex_unlock(&sdev->lock);

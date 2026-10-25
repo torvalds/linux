@@ -17,7 +17,9 @@ description: |
 
 properties:
   compatible:
-    const: nvidia,tegra234-xusb
+    enum:
+      - nvidia,tegra234-xusb
+      - nvidia,tegra264-xusb
 
   reg:
     items:
@@ -43,6 +45,7 @@ properties:
       - description: USB wake event 4
       - description: USB wake event 5
       - description: USB wake event 6
+      - description: USB wake event 7
     description: |
       The first two interrupts are required for the USB host controller. The
       remaining USB wake event interrupts are optional. Each USB wake event is
@@ -50,10 +53,9 @@ properties:
       platform. The USB host controller can function even if no wake-up events
       are defined. The USB wake event interrupts are handled by the Tegra PMC;
       hence, the interrupt controller for these is the PMC and the interrupt
-      IDs correspond to the PMC wake event IDs. A complete list of wake event
-      IDs is provided below, and this information is also present in the Tegra
-      TRM document.
+      IDs correspond to the PMC wake event IDs.
 
+      Tegra234 PMC wake events:
         PMC wake-up 76 for USB3 port 0 wakeup
         PMC wake-up 77 for USB3 port 1 wakeup
         PMC wake-up 78 for USB3 port 2 and port 3 wakeup
@@ -61,6 +63,16 @@ properties:
         PMC wake-up 80 for USB2 port 1 wakeup
         PMC wake-up 81 for USB2 port 2 wakeup
         PMC wake-up 82 for USB2 port 3 wakeup
+
+      Tegra264 PMC wake events:
+        PMC wake-up 79 for USB3 port 0 wakeup
+        PMC wake-up 80 for USB3 port 1 wakeup
+        PMC wake-up 81 for USB3 port 2 wakeup
+        PMC wake-up 82 for USB3 port 3 wakeup
+        PMC wake-up 83 for USB2 port 0 wakeup
+        PMC wake-up 84 for USB2 port 1 wakeup
+        PMC wake-up 85 for USB2 port 2 wakeup
+        PMC wake-up 86 for USB2 port 3 wakeup
 
   clocks:
     items:
@@ -97,7 +109,13 @@ properties:
       - const: write
 
   iommus:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: XUSB host stream ID
+      - description: XUSB host stream ID for virtual function 1
+      - description: XUSB host stream ID for virtual function 2
+      - description: XUSB host stream ID for virtual function 3
+      - description: XUSB host stream ID for virtual function 4
 
   nvidia,xusb-padctl:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -136,6 +154,30 @@ properties:
 
 allOf:
   - $ref: usb-xhci.yaml
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra234-xusb
+    then:
+      properties:
+        interrupts:
+          maxItems: 9
+        iommus:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra264-xusb
+    then:
+      properties:
+        interrupts:
+          maxItems: 10
+        iommus:
+          minItems: 5
 
 unevaluatedProperties: false
 

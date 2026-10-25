@@ -235,10 +235,8 @@ static int dwc3_google_request_irq(struct dwc3_google *google, struct platform_d
 					dwc3_google_resume_irq,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 					req_name, google);
-	if (ret < 0) {
-		dev_err(google->dev, "failed to request irq %s\n", req_name);
+	if (ret < 0)
 		return ret;
-	}
 
 	return irq;
 }

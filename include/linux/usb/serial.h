@@ -305,9 +305,17 @@ struct usb_serial_driver {
 	void (*write_bulk_callback)(struct urb *urb);
 	/* Called by the generic read bulk callback */
 	void (*process_read_urb)(struct urb *urb);
+	/*
+	 * Called with port->lock held before preparing another write URB.
+	 * Drivers returning false must restart the generic write path when
+	 * writes may proceed again.
+	 */
+	bool (*write_ready)(struct usb_serial_port *port);
 	/* Called by the generic write implementation */
 	int (*prepare_write_buffer)(struct usb_serial_port *port,
 						void *dest, size_t size);
+	/* Called with port->lock held to roll back a failed write submission */
+	void (*write_rollback)(struct usb_serial_port *port, int count);
 };
 #define to_usb_serial_driver(d) \
 	container_of(d, struct usb_serial_driver, driver)

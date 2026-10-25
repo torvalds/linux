@@ -245,7 +245,7 @@ static struct usb_device_driver mfi_fc_driver = {
 
 static int __init mfi_fc_driver_init(void)
 {
-	return usb_register_device_driver(&mfi_fc_driver, THIS_MODULE);
+	return usb_register_device_driver(&mfi_fc_driver);
 }
 
 static void __exit mfi_fc_driver_exit(void)

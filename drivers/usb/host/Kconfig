@@ -211,6 +211,19 @@ config USB_EHCI_PCI
 	depends on USB_PCI
 	default y
 
+config USB_EHCI_DEVIANT_PORT_STATUS_REG
+	bool
+	# Used for hosts with a deviant port status register location
+
+config USB_EHCI_PORT_RESET_HOOKS
+	bool
+	# Used for hosts with controller-specific port reset sequencing
+
+config USB_EHCI_PORT_SPEED_HOOK
+	bool
+	depends on USB_EHCI_ROOT_HUB_TT
+	# Used for hosts with controller-specific port speed reporting
+
 config XPS_USB_HCD_XILINX
 	bool "Use Xilinx usb host EHCI controller core"
 	depends on (PPC32 || MICROBLAZE)

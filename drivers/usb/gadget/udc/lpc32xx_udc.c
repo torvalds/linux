@@ -2889,7 +2889,6 @@ static int lpc32xx_start(struct usb_gadget *gadget,
 	}
 
 	udc->driver = driver;
-	udc->gadget.dev.of_node = udc->dev->of_node;
 	udc->enabled = 1;
 	udc->gadget.is_selfpowered = 1;
 	udc->vbus = 0;

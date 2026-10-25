@@ -215,17 +215,17 @@ static void dma_test_stop_rings(struct dma_test *dt)
 {
 	int ret;
 
-	if (dt->rx_ring)
-		tb_ring_stop(dt->rx_ring);
-	if (dt->tx_ring)
-		tb_ring_stop(dt->tx_ring);
-
 	ret = tb_xdomain_disable_paths(dt->xd, dt->tx_hopid,
 				       dt->tx_ring ? dt->tx_ring->hop : -1,
 				       dt->rx_hopid,
 				       dt->rx_ring ? dt->rx_ring->hop : -1);
 	if (ret)
 		dev_warn(&dt->svc->dev, "failed to disable DMA paths\n");
+
+	if (dt->rx_ring)
+		tb_ring_stop(dt->rx_ring);
+	if (dt->tx_ring)
+		tb_ring_stop(dt->tx_ring);
 
 	dma_test_free_rings(dt);
 }

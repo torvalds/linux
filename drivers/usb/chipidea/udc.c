@@ -1862,7 +1862,7 @@ static int ci_udc_get_frame(struct usb_gadget *_gadget)
 }
 
 /*
- * ci_hdrc_gadget_connect: caller makes sure gadget driver is binded
+ * ci_hdrc_gadget_connect: caller makes sure gadget driver is bound
  */
 static void ci_hdrc_gadget_connect(struct usb_gadget *_gadget, int is_active)
 {

@@ -19,9 +19,9 @@ properties:
           - enum:
               - marvell,armada-375-xhci
               - marvell,armada-380-xhci
-      - description: Armada 37xx/8k SoCs
-        items:
+      - items:
           - enum:
+              - axiado,ax3005-xhci
               - marvell,armada3700-xhci
               - marvell,armada-8k-xhci
           - const: generic-xhci

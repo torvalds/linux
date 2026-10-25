@@ -973,10 +973,8 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 
 	ret = devm_request_threaded_irq(dev, mtu->irq, NULL, mtu3_irq,
 					IRQF_ONESHOT, dev_name(dev), mtu);
-	if (ret) {
-		dev_err(dev, "request irq %d failed!\n", mtu->irq);
+	if (ret)
 		goto irq_err;
-	}
 
 	/* power down device IP for power saving by default */
 	mtu3_stop(mtu);

@@ -509,10 +509,8 @@ int cdns_drd_init(struct cdns *cdns)
 					cdns_drd_thread_irq,
 					IRQF_SHARED,
 					dev_name(cdns->dev), cdns);
-	if (ret) {
-		dev_err(cdns->dev, "couldn't get otg_irq\n");
+	if (ret)
 		return ret;
-	}
 
 	state = readl(&cdns->otg_regs->sts);
 	if (OTGSTS_OTG_NRDY(state)) {

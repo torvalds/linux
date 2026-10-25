@@ -41,9 +41,11 @@ properties:
           - qcom,maili-dwc3
           - qcom,milos-dwc3
           - qcom,msm8953-dwc3
+          - qcom,msm8974-dwc3
           - qcom,msm8994-dwc3
           - qcom,msm8996-dwc3
           - qcom,msm8998-dwc3
+          - qcom,nord-dwc3
           - qcom,qcm2290-dwc3
           - qcom,qcs404-dwc3
           - qcom,qcs615-dwc3
@@ -270,6 +272,7 @@ allOf:
           contains:
             enum:
               - qcom,ipq8074-dwc3
+              - qcom,msm8974-dwc3
               - qcom,qdu1000-dwc3
     then:
       properties:
@@ -361,6 +364,7 @@ allOf:
             enum:
               - qcom,eliza-dwc3
               - qcom,milos-dwc3
+              - qcom,nord-dwc3
               - qcom,qcm2290-dwc3
               - qcom,qcs615-dwc3
               - qcom,sar2130p-dwc3
@@ -454,6 +458,23 @@ allOf:
             - const: pwr_event
             - const: qusb2_phy
             - const: ss_phy_irq
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8974-dwc3
+    then:
+      properties:
+        interrupts:
+          minItems: 3
+          maxItems: 3
+        interrupt-names:
+          items:
+            - const: dwc_usb3
+            - const: pwr_event
+            - const: hs_phy_irq
 
   - if:
       properties:
@@ -554,6 +575,7 @@ allOf:
               - qcom,ipq8064-dwc3
               - qcom,kaanapali-dwc3
               - qcom,maili-dwc3
+              - qcom,nord-dwc3
               - qcom,qcs615-dwc3
               - qcom,qcs8300-dwc3
               - qcom,qdu1000-dwc3

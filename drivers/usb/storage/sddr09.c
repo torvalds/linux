@@ -1339,6 +1339,15 @@ sddr09_read_map(struct us_data *us) {
 
 		lba += 1000*(i/0x400);
 
+		/* The LBA comes from the card and may exceed the table size */
+		if (lba >= numblocks) {
+			dev_warn_ratelimited(&us->pusb_dev->dev,
+					"sddr09: Bad LBA %d for block %d exceeds the translation table size %d\n",
+					lba, i, numblocks);
+			info->pba_to_lba[i] = UNUSABLE;
+			continue;
+		}
+
 		if (info->lba_to_pba[lba] != UNDEF) {
 			printk(KERN_WARNING
 			       "sddr09: LBA %d seen for PBA %d and %d\n",

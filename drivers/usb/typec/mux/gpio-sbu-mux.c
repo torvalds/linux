@@ -17,6 +17,7 @@ struct gpio_sbu_mux {
 
 	struct typec_switch_dev *sw;
 	struct typec_mux_dev *mux;
+	bool mode_switch;
 
 	struct mutex lock; /* protect enabled and swapped */
 	bool enabled;
@@ -40,18 +41,23 @@ static int gpio_sbu_switch_set(struct typec_switch_dev *sw,
 		enabled = false;
 		break;
 	case TYPEC_ORIENTATION_NORMAL:
+		if (!sbu_mux->mode_switch)
+			enabled = true;
 		swapped = false;
 		break;
 	case TYPEC_ORIENTATION_REVERSE:
+		if (!sbu_mux->mode_switch)
+			enabled = true;
 		swapped = true;
 		break;
 	}
 
-	if (enabled != sbu_mux->enabled)
-		gpiod_set_value_cansleep(sbu_mux->enable_gpio, enabled);
-
 	if (swapped != sbu_mux->swapped)
 		gpiod_set_value_cansleep(sbu_mux->select_gpio, swapped);
+
+	/* If both enabled and swapped transition, set enable GPIO after to avoid glitches */
+	if (enabled != sbu_mux->enabled)
+		gpiod_set_value_cansleep(sbu_mux->enable_gpio, enabled);
 
 	sbu_mux->enabled = enabled;
 	sbu_mux->swapped = swapped;
@@ -120,6 +126,7 @@ static int gpio_sbu_mux_probe(struct platform_device *pdev)
 	sw_desc.fwnode = dev_fwnode(dev);
 	sw_desc.set = gpio_sbu_switch_set;
 
+	sbu_mux->mode_switch = device_property_read_bool(dev, "mode-switch");
 	sbu_mux->sw = typec_switch_register(dev, &sw_desc);
 	if (IS_ERR(sbu_mux->sw))
 		return dev_err_probe(dev, PTR_ERR(sbu_mux->sw),

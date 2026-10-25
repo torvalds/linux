@@ -37,6 +37,9 @@
 
 #define COUNTER_SET_LEN		3
 
+#define HW_MARGINING_DWORDS		3
+#define SW_MARGINING_DWORDS		4
+
 /*
  * USB4 spec doesn't specify dwell range, the range of 100 ms to 500 ms
  * probed to give good results.
@@ -494,7 +497,7 @@ struct tb_margining {
 	unsigned int gen;
 	bool asym_rx;
 	u32 caps[3];
-	u32 results[3];
+	u32 results[5];
 	enum usb4_margining_lane lanes;
 	unsigned int min_ber_level;
 	unsigned int max_ber_level;
@@ -612,6 +615,11 @@ supports_optional_voltage_offset_range(const struct tb_margining *margining)
 	return margining->caps[0] & USB4_MARGIN_CAP_0_OPT_VOLTAGE_SUPPORT;
 }
 
+static bool supports_extended_error_counter(const struct tb_margining *margining)
+{
+	return margining->caps[0] & USB4_MARGIN_CAP_0_EXT_ERR_COUNTER;
+}
+
 static ssize_t
 margining_ber_level_write(struct file *file, const char __user *user_buf,
 			   size_t count, loff_t *ppos)
@@ -701,6 +709,8 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 		ber_level_show(s, margining->max_ber_level);
 	} else {
 		seq_puts(s, "# hardware margining: no\n");
+		seq_printf(s, "# extended error counter: %s\n",
+			   str_yes_no(supports_extended_error_counter(margining)));
 	}
 
 	seq_printf(s, "# all lanes simultaneously: %s\n",
@@ -1150,36 +1160,91 @@ static int margining_mode_show(struct seq_file *s, void *not_used)
 }
 DEBUGFS_ATTR_RW(margining_mode);
 
+static u32 margining_get_lane_error(const u32 *results, unsigned int lane, bool extended)
+{
+	u32 error_count;
+
+	switch (lane) {
+	case USB4_MARGINING_LANE_RX0:
+		error_count = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_0_MASK, results[0]);
+		break;
+	case USB4_MARGINING_LANE_RX1:
+		error_count = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_1_MASK, results[0]);
+		break;
+	case USB4_MARGINING_LANE_RX2:
+		error_count = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_2_MASK, results[0]);
+		break;
+	default:
+		return 0;
+	}
+
+	if (extended)
+		error_count |= FIELD_PREP(USB4_MARGIN_SW_EXT_ERR_COUNTER_MASK, results[1 + lane]);
+
+	return error_count;
+}
+
 static int margining_run_sw(struct tb_margining *margining,
 			    struct usb4_port_margining_params *params)
 {
+	bool extended_err = supports_extended_error_counter(margining);
 	u32 nsamples = margining->dwell_time / DWELL_SAMPLE_INTERVAL;
 	int ret, i;
+	u32 dwords;
+
+	if (params->error_counter != USB4_MARGIN_SW_ERROR_COUNTER_START)
+		goto out_stop_or_clear;
+
+	if (extended_err)
+		dwords = SW_MARGINING_DWORDS;
+	else
+		dwords = 1;
 
 	ret = usb4_port_sw_margin(margining->port, margining->target, margining->index,
 				  params, margining->results);
 	if (ret)
-		goto out_stop;
+		return ret;
 
 	for (i = 0; i <= nsamples; i++) {
 		u32 errors = 0;
 
 		ret = usb4_port_sw_margin_errors(margining->port, margining->target,
-						 margining->index, &margining->results[1]);
-		if (ret)
+						 margining->index, &margining->results[1],
+						 dwords);
+		if (ret) {
+			tb_port_warn(margining->port, "failed to read margining error counters\n");
 			break;
+		}
 
-		if (margining->lanes == USB4_MARGINING_LANE_RX0)
-			errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_0_MASK,
-					   margining->results[1]);
-		else if (margining->lanes == USB4_MARGINING_LANE_RX1)
-			errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_1_MASK,
-					   margining->results[1]);
-		else if (margining->lanes == USB4_MARGINING_LANE_RX2)
-			errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_2_MASK,
-					   margining->results[1]);
-		else if (margining->lanes == USB4_MARGINING_LANE_ALL)
-			errors = margining->results[1];
+		if (margining->lanes == USB4_MARGINING_LANE_ALL) {
+			if (extended_err) {
+				/* Extended counters with all lanes: check each active lane */
+				int width = tb_port_get_link_width(margining->port);
+				unsigned int lane, max_lane = 2;
+
+				if (width == TB_LINK_WIDTH_ASYM_TX) {
+					max_lane = 1;
+				} else if ((width == TB_LINK_WIDTH_ASYM_RX) && margining->asym_rx) {
+					max_lane = 3;
+				} else if (width < 0) {
+					tb_port_warn(margining->port, "failed to read link width\n");
+					break;
+				}
+
+				for (lane = 0; lane < max_lane; lane++) {
+					errors = margining_get_lane_error(&margining->results[1],
+									  lane, extended_err);
+					if (errors)
+						break;
+				}
+			} else {
+				/* Standard counters: all lane errors fit in results[1]*/
+				errors = margining->results[1];
+			}
+		} else {
+			errors = margining_get_lane_error(&margining->results[1],
+							  margining->lanes, extended_err);
+		}
 
 		/* Any errors stop the test */
 		if (errors)
@@ -1187,15 +1252,15 @@ static int margining_run_sw(struct tb_margining *margining,
 
 		fsleep(DWELL_SAMPLE_INTERVAL * USEC_PER_MSEC);
 	}
+	params->error_counter = USB4_MARGIN_SW_ERROR_COUNTER_STOP;
 
-out_stop:
+out_stop_or_clear:
 	/*
-	 * Stop the counters but don't clear them to allow the
+	 * Stop the counters or clear them as per the
 	 * different error counter configurations.
 	 */
-	margining_modify_error_counter(margining, margining->lanes,
-				       USB4_MARGIN_SW_ERROR_COUNTER_STOP);
-	return ret;
+	return margining_modify_error_counter(margining, margining->lanes,
+					      params->error_counter);
 }
 
 static int validate_margining(struct tb_margining *margining)
@@ -1272,7 +1337,7 @@ static int margining_run_write(void *data, u64 val)
 
 	if (margining->software) {
 		struct usb4_port_margining_params params = {
-			.error_counter = USB4_MARGIN_SW_ERROR_COUNTER_CLEAR,
+			.error_counter = margining->error_counter,
 			.lanes = margining->lanes,
 			.time = margining->time,
 			.voltage_time_offset = margining->voltage_time_offset,
@@ -1303,7 +1368,7 @@ static int margining_run_write(void *data, u64 val)
 			    margining->lanes);
 
 		ret = usb4_port_hw_margin(port, margining->target, margining->index, &params,
-					  margining->results, ARRAY_SIZE(margining->results));
+					  margining->results, HW_MARGINING_DWORDS);
 	}
 
 	if (down_sw)
@@ -1425,7 +1490,7 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 	seq_printf(s, "0x%08x\n", margining->results[0]);
 	/* Only the hardware margining has two result dwords */
 	if (!margining->software) {
-		for (int i = 1; i < ARRAY_SIZE(margining->results); i++)
+		for (int i = 1; i < HW_MARGINING_DWORDS; i++)
 			seq_printf(s, "0x%08x\n", margining->results[i]);
 
 		if (margining->lanes == USB4_MARGINING_LANE_ALL) {
@@ -1444,18 +1509,30 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 		u32 lane_errors, result;
 
 		seq_printf(s, "0x%08x\n", margining->results[1]);
+		if (supports_extended_error_counter(margining)) {
+			seq_printf(s, "0x%08x\n", margining->results[2]);
+			seq_printf(s, "0x%08x\n", margining->results[3]);
+			seq_printf(s, "0x%08x\n", margining->results[4]);
+		}
+
 
 		result = FIELD_GET(USB4_MARGIN_SW_LANES_MASK, margining->results[0]);
 		if (result == USB4_MARGINING_LANE_RX0 ||
 		    result == USB4_MARGINING_LANE_ALL) {
 			lane_errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_0_MASK,
 						margining->results[1]);
+			if (supports_extended_error_counter(margining))
+				lane_errors |= FIELD_PREP(USB4_MARGIN_SW_EXT_ERR_COUNTER_MASK,
+							  margining->results[2]);
 			seq_printf(s, "# lane 0 errors: %u\n", lane_errors);
 		}
 		if (result == USB4_MARGINING_LANE_RX1 ||
 		    result == USB4_MARGINING_LANE_ALL) {
 			lane_errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_1_MASK,
 						margining->results[1]);
+			if (supports_extended_error_counter(margining))
+				lane_errors |= FIELD_PREP(USB4_MARGIN_SW_EXT_ERR_COUNTER_MASK,
+							  margining->results[3]);
 			seq_printf(s, "# lane 1 errors: %u\n", lane_errors);
 		}
 		if (margining->asym_rx &&
@@ -1463,6 +1540,9 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 		     result == USB4_MARGINING_LANE_ALL)) {
 			lane_errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_2_MASK,
 						margining->results[1]);
+			if (supports_extended_error_counter(margining))
+				lane_errors |= FIELD_PREP(USB4_MARGIN_SW_EXT_ERR_COUNTER_MASK,
+							  margining->results[4]);
 			seq_printf(s, "# lane 2 errors: %u\n", lane_errors);
 		}
 	}

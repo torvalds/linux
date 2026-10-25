@@ -1558,7 +1558,6 @@ static int at91_start(struct usb_gadget *gadget,
 
 	udc = container_of(gadget, struct at91_udc, gadget);
 	udc->driver = driver;
-	udc->gadget.dev.of_node = udc->pdev->dev.of_node;
 	udc->enabled = 1;
 	udc->gadget.is_selfpowered = 1;
 

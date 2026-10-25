@@ -225,7 +225,7 @@ static int eud_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(&pdev->dev, chip->irq, handle_eud_irq,
 			handle_eud_irq_thread, IRQF_ONESHOT, NULL, chip);
 	if (ret)
-		return dev_err_probe(chip->dev, ret, "failed to allocate irq\n");
+		return ret;
 
 	enable_irq_wake(chip->irq);
 

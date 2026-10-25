@@ -184,7 +184,7 @@ ohci_dump_status (struct ohci_hcd *controller, char **next, unsigned *size)
 		\
 		(temp & RH_PS_PES) ? " PES" : "", \
 		(temp & RH_PS_CCS) ? " CCS" : "" \
-		);
+		)
 
 
 static void

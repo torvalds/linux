@@ -449,10 +449,8 @@ int cdns_init(struct cdns *cdns)
 						IRQF_SHARED,
 						dev_name(cdns->dev), cdns);
 
-		if (ret) {
-			dev_err(cdns->dev, "couldn't register wakeup irq handler\n");
+		if (ret)
 			goto role_switch_unregister;
-		}
 	}
 
 	ret = cdns_drd_init(cdns);

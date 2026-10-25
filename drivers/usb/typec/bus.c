@@ -383,12 +383,14 @@ void typec_altmode_put_plug(struct typec_altmode *plug)
 EXPORT_SYMBOL_GPL(typec_altmode_put_plug);
 
 int __typec_altmode_register_driver(struct typec_altmode_driver *drv,
-				    struct module *module)
+				    struct module *module,
+				    const char *mod_name)
 {
 	if (!drv->probe)
 		return -EINVAL;
 
 	drv->driver.owner = module;
+	drv->driver.mod_name = mod_name;
 	drv->driver.bus = &typec_bus;
 
 	return driver_register(&drv->driver);

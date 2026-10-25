@@ -518,11 +518,8 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(dev, omap->irq, dwc3_omap_interrupt,
 					dwc3_omap_interrupt_thread, IRQF_SHARED,
 					"dwc3-omap", omap);
-	if (ret) {
-		dev_err(dev, "failed to request IRQ #%d --> %d\n",
-			omap->irq, ret);
+	if (ret)
 		goto err2;
-	}
 	dwc3_omap_enable_irqs(omap);
 	return 0;
 

@@ -51,8 +51,8 @@ struct ulpi_driver {
 /*
  * use a macro to avoid include chaining to get THIS_MODULE
  */
-#define ulpi_register_driver(drv) __ulpi_register_driver(drv, THIS_MODULE)
-int __ulpi_register_driver(struct ulpi_driver *drv, struct module *module);
+#define ulpi_register_driver(drv) __ulpi_register_driver(drv, THIS_MODULE, KBUILD_MODNAME)
+int __ulpi_register_driver(struct ulpi_driver *drv, struct module *module, const char *mod_name);
 void ulpi_unregister_driver(struct ulpi_driver *drv);
 
 #define module_ulpi_driver(__ulpi_driver) \
