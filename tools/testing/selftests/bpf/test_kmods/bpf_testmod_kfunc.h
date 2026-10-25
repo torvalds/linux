@@ -33,6 +33,11 @@ struct prog_test_ref_kfunc {
 #endif
 
 struct bpf_iter_testmod_seq;
+struct bpf_iter_testmod_current;
+
+int bpf_iter_testmod_current_new(struct bpf_iter_testmod_current *it) __ksym;
+struct task_struct *bpf_iter_testmod_current_next(struct bpf_iter_testmod_current *it) __ksym;
+void bpf_iter_testmod_current_destroy(struct bpf_iter_testmod_current *it) __ksym;
 
 struct prog_test_pass1 {
 	int x0;
