@@ -1642,9 +1642,9 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 			err = -ENODEV;
 		if (err < 0) {
 			if (!atomic_read(&ep->chip->shutdown))
-				usb_audio_err(ep->chip,
-					      "cannot submit urb %d, error %d: %s\n",
-					      i, err, usb_error_string(err));
+				usb_audio_err_ratelimited(ep->chip,
+							  "cannot submit urb %d, error %d: %s\n",
+							  i, err, usb_error_string(err));
 			goto __error;
 		}
 		set_bit(i, &ep->active_mask);
