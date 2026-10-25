@@ -34,7 +34,7 @@ static int a523_pinctrl_probe(struct platform_device *pdev)
 	return sunxi_pinctrl_dt_table_init(pdev, a523_nr_bank_pins,
 					   a523_irq_bank_muxes,
 					   &a523_pinctrl_data,
-					   SUNXI_PINCTRL_NEW_REG_LAYOUT |
+					   SUNXI_PINCTRL_NCAT2_REG_LAYOUT |
 					   SUNXI_PINCTRL_ELEVEN_BANKS);
 }
 

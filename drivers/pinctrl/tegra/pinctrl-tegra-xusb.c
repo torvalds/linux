@@ -248,10 +248,14 @@ static int tegra_xusb_padctl_dt_node_to_map(struct pinctrl_dev *pinctrl,
 						      &reserved_maps,
 						      num_maps);
 		if (err < 0)
-			return err;
+			goto err_free_map;
 	}
 
 	return 0;
+
+err_free_map:
+	pinctrl_utils_free_map(pinctrl, *maps, *num_maps);
+	return err;
 }
 
 static const struct pinctrl_ops tegra_xusb_padctl_pinctrl_ops = {

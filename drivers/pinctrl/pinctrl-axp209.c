@@ -442,9 +442,6 @@ static int axp20x_pctl_probe(struct platform_device *pdev)
 	struct pinctrl_desc *pctrl_desc;
 	int ret;
 
-	if (!of_device_is_available(pdev->dev.of_node))
-		return -ENODEV;
-
 	if (!axp20x) {
 		dev_err(&pdev->dev, "Parent drvdata not set\n");
 		return -EINVAL;

@@ -149,27 +149,30 @@ static inline u32 sppctl_prep_moon_reg_and_offset(unsigned int offset, u32 *reg_
 
 /**
  * sppctl_func_set() - Set pin of fully-pinmux function.
+ * @pctl: SP7021 pinctrl driver data
+ * @func: function number of the pinmux pin
+ * @val:  value to write to the control-field
  *
- * Mask-fields and control-fields of fully-pinmux function of SP7021 are
- * arranged as shown below:
+ * Mask-fields and control-fields of the fully-pinmux function of
+ * SP7021 are arranged like this:
  *
  *  func# | register |  mask-field  | control-field
  * -------+----------+--------------+---------------
  *    0   | base[0]  |  (22 : 16)   |   ( 6 : 0)
  *    1   | base[0]  |  (30 : 24)   |   (14 : 8)
  *    2   | base[1]  |  (22 : 16)   |   ( 6 : 0)
- *    3   | baeg[1]  |  (30 : 24)   |   (14 : 8)
+ *    3   | base[1]  |  (30 : 24)   |   (14 : 8)
  *    :   |    :     |      :       |       :
  *
- * where mask-fields are used to protect control-fields from write-in
- * accidentally. Set the corresponding bits in the mask-field before
- * you write a value into a control-field.
+ * where each mask-field protects its control-field from accidental
+ * writes. Set the corresponding bits in the mask-field when writing a
+ * value into a control-field.
  *
  * Control-fields are used to set where the function pin is going to
  * be routed to.
  *
- * Note that mask-fields and control-fields of even number of 'func'
- * are located at bits (22:16) and (6:0), while odd number of 'func's
+ * Note that mask-fields and control-fields of even number 'func's
+ * are located at bits (22:16) and (6:0), while odd number 'func's
  * are located at bits (30:24) and (14:8).
  */
 static void sppctl_func_set(struct sppctl_pdata *pctl, u8 func, u8 val)
@@ -206,9 +209,14 @@ static void sppctl_func_set(struct sppctl_pdata *pctl, u8 func, u8 val)
 
 /**
  * sppctl_gmx_set() - Set pin of group-pinmux.
+ * @pctl:    SP7021 pinctrl driver data
+ * @reg_off: register offset from the base register
+ * @bit_off: bit offset within the register
+ * @bit_sz:  size of the control-field in bits
+ * @val:     value to write to the control-field
  *
- * Mask-fields and control-fields of group-pinmux function of SP7021 are
- * arranged as shown below:
+ * Mask-fields and control-fields of the group-pinmux function of
+ * SP7021 are arranged like this:
  *
  *  register |  mask-fields | control-fields
  * ----------+--------------+----------------
@@ -217,9 +225,9 @@ static void sppctl_func_set(struct sppctl_pdata *pctl, u8 func, u8 val)
  *  base[2]  |  (31 : 24)   |   (15 : 0)
  *     :     |      :       |       :
  *
- * where mask-fields are used to protect control-fields from write-in
- * accidentally. Set the corresponding bits in the mask-field before
- * you write a value into a control-field.
+ * where each mask-field protects its control-field from accidental
+ * writes. Set the corresponding bits in the mask-field when writing a
+ * value into a control-field.
  *
  * Control-fields are used to set where the function pin is going to
  * be routed to. A control-field consists of one or more bits.
@@ -242,6 +250,8 @@ static void sppctl_gmx_set(struct sppctl_pdata *pctl, u8 reg_off, u8 bit_off, u8
 
 /**
  * sppctl_first_get() - get bit of FIRST register.
+ * @chip:   GPIO chip data
+ * @offset: pin offset within the GPIO chip
  *
  * There are 4 FIRST registers. Each has 32 control-bits.
  * Totally, there are 4 * 32 = 128 control-bits.
@@ -271,6 +281,8 @@ static int sppctl_first_get(struct gpio_chip *chip, unsigned int offset)
 
 /**
  * sppctl_master_get() - get bit of MASTER register.
+ * @chip:   GPIO chip data
+ * @offset: pin offset within the GPIO chip
  *
  * There are 8 MASTER registers. Each has 16 mask-bits and 16 control-bits.
  * Upper 16-bit of MASTER registers are mask-bits while lower 16-bit are
@@ -285,9 +297,9 @@ static int sppctl_first_get(struct gpio_chip *chip, unsigned int offset)
  *     :      |      :      |      :
  *  master[7] | (127 : 112) | (127 : 112)
  *
- * where mask-bits are used to protect control-bits from write-in
- * accidentally. Set the corresponding mask-bit before you write
- * a value into a control-bit.
+ * where each mask-field protects its control-field from accidental
+ * writes. Set the corresponding bits in the mask-field when writing a
+ * value into a control-field.
  *
  * Each control-bit sets type of a GPIO pin when FIRST bit is 1.
  *   0: a IOP pin
@@ -679,6 +691,7 @@ static int sppctl_get_function_groups(struct pinctrl_dev *pctldev, unsigned int 
 
 /**
  * sppctl_fully_pinmux_conv - Convert GPIO# to fully-pinmux control-field setting
+ * @offset: GPIO pin number to convert
  *
  * Each fully-pinmux function can be mapped to any of GPIO 8 ~ 71 by
  * settings its control-field. Refer to following table:

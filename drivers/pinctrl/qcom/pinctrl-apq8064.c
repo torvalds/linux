@@ -214,17 +214,17 @@ static const unsigned int sdc3_data_pins[] = { 95 };
 			gpio##id##_pins, 		\
 			ARRAY_SIZE(gpio##id##_pins)),	\
 		.funcs = (int[]){			\
-			APQ_MUX_gpio,			\
-			APQ_MUX_##f1,			\
-			APQ_MUX_##f2,			\
-			APQ_MUX_##f3,			\
-			APQ_MUX_##f4,			\
-			APQ_MUX_##f5,			\
-			APQ_MUX_##f6,			\
-			APQ_MUX_##f7,			\
-			APQ_MUX_##f8,			\
-			APQ_MUX_##f9,			\
-			APQ_MUX_##f10,			\
+			msm_mux_gpio,			\
+			msm_mux_##f1,			\
+			msm_mux_##f2,			\
+			msm_mux_##f3,			\
+			msm_mux_##f4,			\
+			msm_mux_##f5,			\
+			msm_mux_##f6,			\
+			msm_mux_##f7,			\
+			msm_mux_##f8,			\
+			msm_mux_##f9,			\
+			msm_mux_##f10,			\
 		},					\
 		.nfuncs = 11,				\
 		.ctl_reg = 0x1000 + 0x10 * id,		\
@@ -276,48 +276,48 @@ static const unsigned int sdc3_data_pins[] = { 95 };
 	}
 
 enum apq8064_functions {
-	APQ_MUX_cam_mclk,
-	APQ_MUX_codec_mic_i2s,
-	APQ_MUX_codec_spkr_i2s,
-	APQ_MUX_gp_clk_0a,
-	APQ_MUX_gp_clk_0b,
-	APQ_MUX_gp_clk_1a,
-	APQ_MUX_gp_clk_1b,
-	APQ_MUX_gp_clk_2a,
-	APQ_MUX_gp_clk_2b,
-	APQ_MUX_gpio,
-	APQ_MUX_gsbi1,
-	APQ_MUX_gsbi2,
-	APQ_MUX_gsbi3,
-	APQ_MUX_gsbi4,
-	APQ_MUX_gsbi4_cam_i2c,
-	APQ_MUX_gsbi5,
-	APQ_MUX_gsbi5_spi_cs1,
-	APQ_MUX_gsbi5_spi_cs2,
-	APQ_MUX_gsbi5_spi_cs3,
-	APQ_MUX_gsbi6,
-	APQ_MUX_gsbi6_spi_cs1,
-	APQ_MUX_gsbi6_spi_cs2,
-	APQ_MUX_gsbi6_spi_cs3,
-	APQ_MUX_gsbi7,
-	APQ_MUX_gsbi7_spi_cs1,
-	APQ_MUX_gsbi7_spi_cs2,
-	APQ_MUX_gsbi7_spi_cs3,
-	APQ_MUX_gsbi_cam_i2c,
-	APQ_MUX_hdmi,
-	APQ_MUX_mi2s,
-	APQ_MUX_riva_bt,
-	APQ_MUX_riva_fm,
-	APQ_MUX_riva_wlan,
-	APQ_MUX_sdc2,
-	APQ_MUX_sdc4,
-	APQ_MUX_slimbus,
-	APQ_MUX_spkr_i2s,
-	APQ_MUX_tsif1,
-	APQ_MUX_tsif2,
-	APQ_MUX_usb2_hsic,
-	APQ_MUX_ps_hold,
-	APQ_MUX_NA,
+	msm_mux_cam_mclk,
+	msm_mux_codec_mic_i2s,
+	msm_mux_codec_spkr_i2s,
+	msm_mux_gp_clk_0a,
+	msm_mux_gp_clk_0b,
+	msm_mux_gp_clk_1a,
+	msm_mux_gp_clk_1b,
+	msm_mux_gp_clk_2a,
+	msm_mux_gp_clk_2b,
+	msm_mux_gpio,
+	msm_mux_gsbi1,
+	msm_mux_gsbi2,
+	msm_mux_gsbi3,
+	msm_mux_gsbi4,
+	msm_mux_gsbi4_cam_i2c,
+	msm_mux_gsbi5,
+	msm_mux_gsbi5_spi_cs1,
+	msm_mux_gsbi5_spi_cs2,
+	msm_mux_gsbi5_spi_cs3,
+	msm_mux_gsbi6,
+	msm_mux_gsbi6_spi_cs1,
+	msm_mux_gsbi6_spi_cs2,
+	msm_mux_gsbi6_spi_cs3,
+	msm_mux_gsbi7,
+	msm_mux_gsbi7_spi_cs1,
+	msm_mux_gsbi7_spi_cs2,
+	msm_mux_gsbi7_spi_cs3,
+	msm_mux_gsbi_cam_i2c,
+	msm_mux_hdmi,
+	msm_mux_mi2s,
+	msm_mux_riva_bt,
+	msm_mux_riva_fm,
+	msm_mux_riva_wlan,
+	msm_mux_sdc2,
+	msm_mux_sdc4,
+	msm_mux_slimbus,
+	msm_mux_spkr_i2s,
+	msm_mux_tsif1,
+	msm_mux_tsif2,
+	msm_mux_usb2_hsic,
+	msm_mux_ps_hold,
+	msm_mux_NA,
 };
 
 static const char * const cam_mclk_groups[] = {
@@ -457,47 +457,47 @@ static const char * const usb2_hsic_groups[] = {
 };
 
 static const struct pinfunction apq8064_functions[] = {
-	APQ_PIN_FUNCTION(cam_mclk),
-	APQ_PIN_FUNCTION(codec_mic_i2s),
-	APQ_PIN_FUNCTION(codec_spkr_i2s),
-	APQ_PIN_FUNCTION(gp_clk_0a),
-	APQ_PIN_FUNCTION(gp_clk_0b),
-	APQ_PIN_FUNCTION(gp_clk_1a),
-	APQ_PIN_FUNCTION(gp_clk_1b),
-	APQ_PIN_FUNCTION(gp_clk_2a),
-	APQ_PIN_FUNCTION(gp_clk_2b),
-	APQ_PIN_FUNCTION(gpio),
-	APQ_PIN_FUNCTION(gsbi1),
-	APQ_PIN_FUNCTION(gsbi2),
-	APQ_PIN_FUNCTION(gsbi3),
-	APQ_PIN_FUNCTION(gsbi4),
-	APQ_PIN_FUNCTION(gsbi4_cam_i2c),
-	APQ_PIN_FUNCTION(gsbi5),
-	APQ_PIN_FUNCTION(gsbi5_spi_cs1),
-	APQ_PIN_FUNCTION(gsbi5_spi_cs2),
-	APQ_PIN_FUNCTION(gsbi5_spi_cs3),
-	APQ_PIN_FUNCTION(gsbi6),
-	APQ_PIN_FUNCTION(gsbi6_spi_cs1),
-	APQ_PIN_FUNCTION(gsbi6_spi_cs2),
-	APQ_PIN_FUNCTION(gsbi6_spi_cs3),
-	APQ_PIN_FUNCTION(gsbi7),
-	APQ_PIN_FUNCTION(gsbi7_spi_cs1),
-	APQ_PIN_FUNCTION(gsbi7_spi_cs2),
-	APQ_PIN_FUNCTION(gsbi7_spi_cs3),
-	APQ_PIN_FUNCTION(gsbi_cam_i2c),
-	APQ_PIN_FUNCTION(hdmi),
-	APQ_PIN_FUNCTION(mi2s),
-	APQ_PIN_FUNCTION(riva_bt),
-	APQ_PIN_FUNCTION(riva_fm),
-	APQ_PIN_FUNCTION(riva_wlan),
-	APQ_PIN_FUNCTION(sdc2),
-	APQ_PIN_FUNCTION(sdc4),
-	APQ_PIN_FUNCTION(slimbus),
-	APQ_PIN_FUNCTION(spkr_i2s),
-	APQ_PIN_FUNCTION(tsif1),
-	APQ_PIN_FUNCTION(tsif2),
-	APQ_PIN_FUNCTION(usb2_hsic),
-	APQ_PIN_FUNCTION(ps_hold),
+	MSM_PIN_FUNCTION(cam_mclk),
+	MSM_PIN_FUNCTION(codec_mic_i2s),
+	MSM_PIN_FUNCTION(codec_spkr_i2s),
+	MSM_PIN_FUNCTION(gp_clk_0a),
+	MSM_PIN_FUNCTION(gp_clk_0b),
+	MSM_PIN_FUNCTION(gp_clk_1a),
+	MSM_PIN_FUNCTION(gp_clk_1b),
+	MSM_PIN_FUNCTION(gp_clk_2a),
+	MSM_PIN_FUNCTION(gp_clk_2b),
+	MSM_PIN_FUNCTION(gpio),
+	MSM_PIN_FUNCTION(gsbi1),
+	MSM_PIN_FUNCTION(gsbi2),
+	MSM_PIN_FUNCTION(gsbi3),
+	MSM_PIN_FUNCTION(gsbi4),
+	MSM_PIN_FUNCTION(gsbi4_cam_i2c),
+	MSM_PIN_FUNCTION(gsbi5),
+	MSM_PIN_FUNCTION(gsbi5_spi_cs1),
+	MSM_PIN_FUNCTION(gsbi5_spi_cs2),
+	MSM_PIN_FUNCTION(gsbi5_spi_cs3),
+	MSM_PIN_FUNCTION(gsbi6),
+	MSM_PIN_FUNCTION(gsbi6_spi_cs1),
+	MSM_PIN_FUNCTION(gsbi6_spi_cs2),
+	MSM_PIN_FUNCTION(gsbi6_spi_cs3),
+	MSM_PIN_FUNCTION(gsbi7),
+	MSM_PIN_FUNCTION(gsbi7_spi_cs1),
+	MSM_PIN_FUNCTION(gsbi7_spi_cs2),
+	MSM_PIN_FUNCTION(gsbi7_spi_cs3),
+	MSM_PIN_FUNCTION(gsbi_cam_i2c),
+	MSM_PIN_FUNCTION(hdmi),
+	MSM_PIN_FUNCTION(mi2s),
+	MSM_PIN_FUNCTION(riva_bt),
+	MSM_PIN_FUNCTION(riva_fm),
+	MSM_PIN_FUNCTION(riva_wlan),
+	MSM_PIN_FUNCTION(sdc2),
+	MSM_PIN_FUNCTION(sdc4),
+	MSM_PIN_FUNCTION(slimbus),
+	MSM_PIN_FUNCTION(spkr_i2s),
+	MSM_PIN_FUNCTION(tsif1),
+	MSM_PIN_FUNCTION(tsif2),
+	MSM_PIN_FUNCTION(usb2_hsic),
+	MSM_PIN_FUNCTION(ps_hold),
 };
 
 static const struct msm_pingroup apq8064_groups[] = {

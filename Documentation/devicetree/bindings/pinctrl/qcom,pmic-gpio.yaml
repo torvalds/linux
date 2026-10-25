@@ -57,6 +57,7 @@ properties:
           - qcom,pm8994-gpio
           - qcom,pm8998-gpio
           - qcom,pma8084-gpio
+          - qcom,pmau0102-gpio
           - qcom,pmc8180-gpio
           - qcom,pmc8180c-gpio
           - qcom,pmc8380-gpio
@@ -281,6 +282,7 @@ allOf:
               - qcom,pm8150l-gpio
               - qcom,pm8550-gpio
               - qcom,pm8550b-gpio
+              - qcom,pmau0102-gpio
               - qcom,pmc8180c-gpio
               - qcom,pmp8074-gpio
               - qcom,pms405-gpio
@@ -496,6 +498,7 @@ $defs:
                  - gpio1-gpio22 for pm8994
                  - gpio1-gpio26 for pm8998
                  - gpio1-gpio22 for pma8084
+                 - gpio1-gpio12 for pmau0102
                  - gpio1-gpio14 for pmcx0102
                  - gpio1-gpio4 for pmd8028
                  - gpio1-gpio4 for pmg1110

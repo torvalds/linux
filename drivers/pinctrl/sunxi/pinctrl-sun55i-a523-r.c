@@ -35,11 +35,12 @@ static int a523_r_pinctrl_probe(struct platform_device *pdev)
 	return sunxi_pinctrl_dt_table_init(pdev, a523_r_nr_bank_pins,
 					   a523_r_irq_bank_muxes,
 					   &a523_r_pinctrl_data,
-					   SUNXI_PINCTRL_NEW_REG_LAYOUT);
+					   SUNXI_PINCTRL_NCAT2_REG_LAYOUT);
 }
 
 static const struct of_device_id a523_r_pinctrl_match[] = {
 	{ .compatible = "allwinner,sun55i-a523-r-pinctrl", },
+	{ .compatible = "allwinner,sun60i-a733-r-pinctrl", },
 	{}
 };
 

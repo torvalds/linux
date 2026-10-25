@@ -12,6 +12,7 @@
 #define __LINUX_PINCTRL_CONSUMER_H
 
 #include <linux/err.h>
+#include <linux/errno.h>
 #include <linux/types.h>
 
 #include <linux/pinctrl/pinctrl-state.h>
