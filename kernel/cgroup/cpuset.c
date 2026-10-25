@@ -255,15 +255,6 @@ static inline bool cs_is_member(const struct cpuset *cs)
 }
 
 /*
- * Callers should hold callback_lock to modify partition_root_state.
- */
-static inline void make_partition_invalid(struct cpuset *cs)
-{
-	if (cs->partition_root_state > 0)
-		cs->partition_root_state = -cs->partition_root_state;
-}
-
-/*
  * Send notification event of whenever partition_root_state changes.
  */
 static inline void notify_partition_change(struct cpuset *cs, int old_prs)
@@ -2153,8 +2144,6 @@ write_error:
  * or update_cpumasks_hier() where parent and children are modified
  * successively, we don't need to call update_parent_effective_cpumask()
  * and the child's effective_cpus will be updated in later iterations.
- *
- * Note that rcu_read_lock() is assumed to be held.
  */
 static void compute_partition_effective_cpumask(struct cpuset *cs,
 						struct cpumask *new_ecpus)
@@ -2166,15 +2155,16 @@ static void compute_partition_effective_cpumask(struct cpuset *cs,
 	WARN_ON_ONCE(!is_partition_valid(cs));
 
 	/*
-	 * Check child partition roots to see if they should be
-	 * invalidated when
-	 *  1) child effective_xcpus not a subset of new
-	 *     excluisve_cpus
-	 *  2) All the effective_cpus will be used up and cp
-	 *     has tasks
+	 * Check child partition roots to see if they should be invalidated
+	 * when all the effective_cpus will be used up and cs is populated.
+	 * It is better to sacrifice a child partition root than invalidating
+	 * the whole subtree.
+	 *
+	 * Return early if the effective_cpus is already empty.
 	 */
 	compute_excpus(cs, new_ecpus);
-	cpumask_and(new_ecpus, new_ecpus, cpu_active_mask);
+	if (!cpumask_and(new_ecpus, new_ecpus, cpu_active_mask))
+		return;
 
 	rcu_read_lock();
 	cpuset_for_each_child(child, css, cs) {
@@ -2186,22 +2176,20 @@ static void compute_partition_effective_cpumask(struct cpuset *cs,
 		 * partition root.
 		 */
 		WARN_ON_ONCE(is_remote_partition(child));
-		WRITE_ONCE(child->prs_err, 0);
-		if (!cpumask_subset(child->effective_xcpus,
-				    cs->effective_xcpus))
-			WRITE_ONCE(child->prs_err, PERR_INVCPUS);
-		else if (populated &&
-			 cpumask_subset(new_ecpus, child->effective_xcpus))
-			WRITE_ONCE(child->prs_err, PERR_NOCPUS);
-
-		if (child->prs_err) {
+		if (populated && cpumask_subset(new_ecpus, child->effective_xcpus)) {
 			int old_prs = child->partition_root_state;
+			int parent_prs = cs->partition_root_state;
 
 			/*
-			 * Invalidate child partition
+			 * Invalidate child partition and update isolated_cpus
+			 * if necessary.
 			 */
 			spin_lock_irq(&callback_lock);
-			make_partition_invalid(child);
+			WRITE_ONCE(child->prs_err, PERR_NOCPUS);
+			if ((old_prs == PRS_ISOLATED) && (parent_prs == PRS_ROOT))
+				isolated_cpus_update(PRS_ISOLATED, PRS_ROOT,
+						     child->effective_xcpus);
+			child->partition_root_state = -old_prs;
 			spin_unlock_irq(&callback_lock);
 			notify_partition_change(child, old_prs);
 			continue;
