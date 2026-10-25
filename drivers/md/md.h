@@ -989,6 +989,13 @@ static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 	}
 }
 
+static inline void rdev_record_write_error(struct md_rdev *rdev)
+{
+	set_bit(WriteErrorSeen, &rdev->flags);
+	if (!test_and_set_bit(WantReplacement, &rdev->flags))
+		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
+}
+
 static inline int mddev_is_clustered(struct mddev *mddev)
 {
 	return mddev->cluster_info && mddev->bitmap_info.nodes > 1;

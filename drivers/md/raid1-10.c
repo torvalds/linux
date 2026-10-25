@@ -155,6 +155,16 @@ static inline bool raid1_add_bio_to_plug(struct mddev *mddev, struct bio *bio,
 	return true;
 }
 
+/* Block size used when narrowing a write error down to badblocks granularity. */
+static inline int rdev_bb_block_sectors(struct md_rdev *rdev)
+{
+	int lbs = bdev_logical_block_size(rdev->bdev) >> 9;
+
+	if (rdev->badblocks.shift < 0)
+		return lbs;
+	return roundup(1 << rdev->badblocks.shift, lbs);
+}
+
 /*
  * current->bio_list will be set under submit_bio() context, in this case bitmap
  * io will be added to the list and wait for current io submission to finish,
@@ -164,6 +174,23 @@ static inline bool raid1_add_bio_to_plug(struct mddev *mddev, struct bio *bio,
 static inline void raid1_prepare_flush_writes(struct mddev *mddev)
 {
 	mddev->bitmap_ops->unplug(mddev, current->bio_list == NULL);
+}
+
+static inline void flush_bio_list(struct mddev *mddev, struct bio *bio,
+				  wait_queue_head_t *wait)
+{
+	/* flush any pending bitmap writes to disk before proceeding w/ I/O */
+	raid1_prepare_flush_writes(mddev);
+	if (wq_has_sleeper(wait))
+		wake_up(wait);
+
+	while (bio) { /* submit pending writes */
+		struct bio *next = bio->bi_next;
+
+		raid1_submit_write(bio);
+		bio = next;
+		cond_resched();
+	}
 }
 
 /*
