@@ -211,7 +211,7 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 		 * For 420 format since bits_per_pixel (bpp) is set to target bpp * 2,
 		 * QP table values for target bpp 4.0 to 4.4375 (rounded to 4.0) are
 		 * actually for bpp 8 to 8.875 (rounded to 4.0 * 2 i.e 8).
-		 * Similarly values for target bpp 4.5 to 4.8375 (rounded to 4.5)
+		 * Similarly values for target bpp 4.5 to 4.9375 (rounded to 4.5)
 		 * are for bpp 9 to 9.875 (rounded to 4.5 * 2 i.e 9), and so on.
 		 */
 		bpp_i  = bpp - 8;
@@ -239,7 +239,7 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 				range_bpg_offset & DSC_RANGE_BPG_OFFSET_MASK;
 		}
 	} else {
-		/* fractional bpp part * 10000 (for precision up to 4 decimal places) */
+		/* fractional bpp part, in Q4 format */
 		int fractional_bits = fxp_q4_to_frac(vdsc_cfg->bits_per_pixel);
 
 		static const s8 ofs_und6[] = {
@@ -259,9 +259,9 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 		 * QP table rows have values in increment of 0.5.
 		 * So 6.0 bpp to 6.4375 will have index 0, 6.5 to 6.9375 will have index 1,
 		 * and so on.
-		 * 0.5 fractional part with 4 decimal precision becomes 5000
+		 * 0.5 in Q4 fractional format is 8 (i.e. 8/16)
 		 */
-		bpp_i  = ((bpp - 6) + (fractional_bits < 5000 ? 0 : 1));
+		bpp_i  = (2 * (bpp - 6) + (fractional_bits < 8 ? 0 : 1));
 
 		for (buf_i = 0; buf_i < DSC_NUM_BUF_RANGES; buf_i++) {
 			u8 range_bpg_offset;
