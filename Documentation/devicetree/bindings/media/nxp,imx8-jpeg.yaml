@@ -95,7 +95,7 @@ examples:
 
     jpegdec: jpegdec@58400000 {
         compatible = "nxp,imx8qxp-jpgdec";
-        reg = <0x58400000 0x00050000 >;
+        reg = <0x58400000 0x00050000>;
         clocks = <&img_jpeg_dec_lpcg IMX_LPCG_CLK_0>,
                  <&img_jpeg_dec_lpcg IMX_LPCG_CLK_4>;
         interrupts = <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
@@ -111,7 +111,7 @@ examples:
 
     jpegenc: jpegenc@58450000 {
         compatible = "nxp,imx8qm-jpgenc", "nxp,imx8qxp-jpgenc";
-        reg = <0x58450000 0x00050000 >;
+        reg = <0x58450000 0x00050000>;
         clocks = <&img_jpeg_enc_lpcg IMX_LPCG_CLK_0>,
                  <&img_jpeg__lpcg IMX_LPCG_CLK_4>;
         interrupts = <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>,

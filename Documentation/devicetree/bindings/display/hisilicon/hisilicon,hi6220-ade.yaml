@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/hisilicon/hisilicon,hi6220-ade.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Hisilicon ADE Display Controller
+
+maintainers:
+  - Xinliang Liu <z.liuxinliang@hisilicon.com>
+
+description:
+  ADE (Advanced Display Engine) is the display controller which grab image
+  data from memory, do composition, do post image processing, generate RGB
+  timing stream and transfer to DSI.
+
+properties:
+  compatible:
+    const: hisilicon,hi6220-ade
+
+  reg:
+    maxItems: 1
+
+  reg-names:
+    items:
+      - const: ade_base
+
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: clk_ade_core
+      - const: clk_codec_jpeg
+      - const: clk_ade_pix
+
+  dma-coherent: true
+
+  interrupts:
+    items:
+      - description: LDI vblank interrupt specifier.
+
+  resets:
+    maxItems: 1
+
+  hisilicon,noc-syscon:
+    description: ADE NOC QoS syscon.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description: Output port containing an endpoint subnode.
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - interrupts
+  - resets
+  - hisilicon,noc-syscon
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/hi6220-clock.h>
+    #include <dt-bindings/reset/hisi,hi6220-resets.h>
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        ade@f4100000 {
+            compatible = "hisilicon,hi6220-ade";
+            reg = <0x0 0xf4100000 0x0 0x7800>;
+            reg-names = "ade_base";
+            clocks = <&media_ctrl HI6220_ADE_CORE>,
+                     <&media_ctrl HI6220_CODEC_JPEG>,
+                     <&media_ctrl HI6220_ADE_PIX_SRC>;
+            clock-names = "clk_ade_core", "clk_codec_jpeg", "clk_ade_pix";
+            dma-coherent;
+            interrupts = <0 115 4>;
+            resets = <&media_ctrl MEDIA_ADE>;
+            hisilicon,noc-syscon = <&medianoc_ade>;
+
+            port {
+                endpoint {
+                    remote-endpoint = <&dsi_in>;
+                };
+            };
+        };
+    };

@@ -117,11 +117,11 @@ examples:
         power-domains = <&power RPI_POWER_DOMAIN_UNICAM1>;
         brcm,num-data-lanes = <2>;
         port {
-                csi1_ep: endpoint {
-                        remote-endpoint = <&imx219_0>;
-                        bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
-                        data-lanes = <1 2>;
-                };
+            csi1_ep: endpoint {
+                remote-endpoint = <&imx219_0>;
+                bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+                data-lanes = <1 2>;
+            };
         };
     };
 ...

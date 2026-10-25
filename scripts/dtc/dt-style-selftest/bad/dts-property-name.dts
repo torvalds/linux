@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	foo {
+		compatible = "example,test-property-name";
+
+		property#foo;
+		property+foo;
+		property-foo;
+		property-foo-;
+		property.foo;
+		property?foo;
+		property_foo;
+
+		vendor,property#foo;
+		vendor,property+foo;
+		vendor,property,foo;
+		vendor,property-foo;
+		vendor,property-foo-;
+		vendor,property.foo;
+		vendor,property?foo;
+		vendor,property_foo;
+	};
+};

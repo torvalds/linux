@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/dts-v1/;
+
+/ {
+	compatible = "example,test-board";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	interrupt-controller@10000 {
+		compatible = "example,intc";
+
+		reg = <0x10000 0x1000>;
+
+		clocks = <1 2 3>,
+
+
+			 /* Comment is not a blank line */
+			 <4 5 6>,
+
+			 /* Comment is not a blank line */
+			 <7 8 9>;
+
+
+		interrupts = <1>;
+
+		/* Comment is not a blank line */
+		qcom,calibration-variant = "foo";
+	};
+
+
+	interrupt-controller@20000 {
+
+		compatible = "example,intc";
+		reg = <0x20000 0x1000>;
+
+	};
+};

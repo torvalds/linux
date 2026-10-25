@@ -44,6 +44,7 @@
 
 /* Gate clocks */
 #define AGILEX_MPU_CLK			30
+/* Legacy ABI ID; do not use in new DTs, use AGILEX_MPU_CCU_CLK */
 #define AGILEX_MPU_L2RAM_CLK		31
 #define AGILEX_MPU_PERIPH_CLK		32
 #define AGILEX_L4_MAIN_CLK		33

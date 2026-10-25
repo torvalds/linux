@@ -79,7 +79,7 @@ examples:
 
       port {
         isp_in: endpoint {
-            remote-endpoint = <&csi2_rx_out>;
+          remote-endpoint = <&csi2_rx_out>;
         };
       };
     };

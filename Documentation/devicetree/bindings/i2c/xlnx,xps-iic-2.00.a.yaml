@@ -52,8 +52,8 @@ examples:
     axi_iic_0: i2c@40800000 {
       compatible = "xlnx,xps-iic-2.00.a";
       clocks = <&clkc 15>;
-      interrupts = < 1 2 >;
-      reg = < 0x40800000 0x10000 >;
+      interrupts = <1 2>;
+      reg = <0x40800000 0x10000>;
 
       #size-cells = <0>;
       #address-cells = <1>;

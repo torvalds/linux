@@ -188,13 +188,13 @@ examples:
         /* ... CSIS 1 */
 
         fimc-lite@b90000 {
-              compatible = "samsung,exynos4212-fimc-lite";
-              reg = <0xb90000 0x1000>;
-              interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
-              power-domains = <&pd_isp>;
-              clocks = <&isp_clock CLK_ISP_FIMC_LITE0>;
-              clock-names = "flite";
-              iommus = <&sysmmu_fimc_lite0>;
+            compatible = "samsung,exynos4212-fimc-lite";
+            reg = <0xb90000 0x1000>;
+            interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+            power-domains = <&pd_isp>;
+            clocks = <&isp_clock CLK_ISP_FIMC_LITE0>;
+            clock-names = "flite";
+            iommus = <&sysmmu_fimc_lite0>;
         };
 
         /* ... FIMC-LITE 1 */

@@ -41,8 +41,7 @@ examples:
   - |
     keypad {
         /* ... */
-        linux,keymap = < 0x00030012
-                         0x0102003a >;
+        linux,keymap = <0x00030012 0x0102003a>;
         keypad,num-rows = <2>;
         keypad,num-columns = <8>;
     };

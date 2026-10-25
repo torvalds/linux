@@ -120,14 +120,14 @@ examples:
         dma-names = "tx";
 
         port {
-             dcmi_0: endpoint {
-                   remote-endpoint = <&ov5640_0>;
-                   bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
-                   bus-width = <8>;
-                   hsync-active = <0>;
-                   vsync-active = <0>;
-                   pclk-sample = <1>;
-             };
+            dcmi_0: endpoint {
+                remote-endpoint = <&ov5640_0>;
+                bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
+                bus-width = <8>;
+                hsync-active = <0>;
+                vsync-active = <0>;
+                pclk-sample = <1>;
+            };
         };
     };
 

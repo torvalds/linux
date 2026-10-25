@@ -115,10 +115,6 @@ The API is quite easy to use.
    previously created via the call to of_overlay_fdt_apply(). Removal of an
    overlay changeset that is stacked by another will not be permitted.
 
-Finally, if you need to remove all overlays in one-go, just call
-of_overlay_remove_all() which will remove every single one in the correct
-order.
-
 There is the option to register notifiers that get called on
 overlay operations. See of_overlay_notifier_register/unregister and
 enum of_overlay_notify_action for details.

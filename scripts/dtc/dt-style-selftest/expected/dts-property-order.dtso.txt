@@ -1,0 +1,12 @@
+# mode=strict
+bad/dts-property-order.dtso:11: [property-order] property 'model' out of canonical order (should sort before 'compatible')
+bad/dts-property-order.dtso:13: [property-order] property 'chassis-type' out of canonical order (should sort before 'qcom,board-id')
+bad/dts-property-order.dtso:21: [property-order] property 'compatible' out of canonical order (should sort before 'reg')
+bad/dts-property-order.dtso:22: [property-order] property 'device_type' out of canonical order (should sort before 'compatible')
+bad/dts-property-order.dtso:31: [property-order] property 'dma-coherent' out of canonical order (should sort before 'status')
+bad/dts-property-order.dtso:36: [property-order] property 'compatible' out of canonical order (should sort before 'ranges')
+bad/dts-property-order.dtso:46: [property-order] property 'compatible' out of canonical order (should sort before 'interrupts')
+bad/dts-property-order.dtso:48: [property-order] property 'clocks' out of canonical order (should sort before 'qcom,calibration-variant')
+bad/dts-property-order.dtso:54: [redundant-whitespace] extra whitespace before {
+bad/dts-property-order.dtso:56: [property-order] property 'model' out of canonical order (should sort before 'compatible')
+bad/dts-property-order.dtso:61: [property-order] property 'model' out of canonical order (should sort before 'compatible')

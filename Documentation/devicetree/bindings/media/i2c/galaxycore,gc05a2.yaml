@@ -88,7 +88,7 @@ examples:
         #size-cells = <0>;
 
         sensor@37 {
-            compatible =  "galaxycore,gc05a2";
+            compatible = "galaxycore,gc05a2";
             reg = <0x37>;
 
             clocks = <&gc05a2_clk>;

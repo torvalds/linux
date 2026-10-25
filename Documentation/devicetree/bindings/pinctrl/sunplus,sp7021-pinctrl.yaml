@@ -339,7 +339,7 @@ examples:
         sdcard-pins {
             function = "SD_CARD";
             groups = "SD_CARD";
-            sunplus,pins = < SPPCTL_IOPAD(91, SPPCTL_PCTL_G_GPIO, 0, 0) >;
+            sunplus,pins = <SPPCTL_IOPAD(91, SPPCTL_PCTL_G_GPIO, 0, 0)>;
         };
 
         hdmi_A_tx1-pins {

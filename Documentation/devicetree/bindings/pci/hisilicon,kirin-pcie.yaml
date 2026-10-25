@@ -160,7 +160,7 @@ examples:
               reg = <0x2800 0 0 0 0>;
               compatible = "pciclass,0604";
               device_type = "pci";
-              reset-gpios = <&gpio27 4 0 >;
+              reset-gpios = <&gpio27 4 0>;
               #address-cells = <3>;
               #size-cells = <2>;
               ranges;
@@ -170,7 +170,7 @@ examples:
               reg = <0x03800 0 0 0 0>;
               compatible = "pciclass,0604";
               device_type = "pci";
-              reset-gpios = <&gpio25 2 0 >;
+              reset-gpios = <&gpio25 2 0>;
               #address-cells = <3>;
               #size-cells = <2>;
               ranges;

@@ -116,9 +116,6 @@ DT中的适当位置。在这种情况下，可以提供目标路径。通过标
 2) 调用of_overlay_remove()来删除和清理先前通过调用of_overlay_fdt_apply()
    而创建的覆盖变更集。不允许删除一个被另一个覆盖的覆盖变化集。
 
-最后，如果你需要一次性删除所有的覆盖，只需调用of_overlay_remove_all()，
-它将以正确的顺序删除每一个覆盖。
-
 你可以选择注册在覆盖操作中被调用的通知器。详见
 of_overlay_notifier_register/unregister和enum of_overlay_notify_action。
 

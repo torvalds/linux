@@ -93,7 +93,7 @@ examples:
                    "mediatek,mtk-jpgenc";
       reg = <0x1500a000 0x1000>;
       interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_LOW>;
-      clocks =  <&imgsys CLK_IMG_VENC>;
+      clocks = <&imgsys CLK_IMG_VENC>;
       clock-names = "jpgenc";
       power-domains = <&scpsys MT2701_POWER_DOMAIN_ISP>;
       iommus = <&iommu MT2701_M4U_PORT_JPGENC_RDMA>,

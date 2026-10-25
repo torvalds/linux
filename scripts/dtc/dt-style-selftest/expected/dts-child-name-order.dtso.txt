@@ -1,0 +1,3 @@
+# mode=strict
+bad/dts-child-name-order.dtso:17: [child-name-order] child node 'bar' out of name order
+bad/dts-child-name-order.dtso:22: [child-name-order] child node 'memory' out of name order

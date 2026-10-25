@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/hisilicon/hisilicon,hi6220-dsi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HiSilicon DesignWare DSI Host Controller
+
+maintainers:
+  - Xinliang Liu <z.liuxinliang@hisilicon.com>
+
+properties:
+  compatible:
+    const: hisilicon,hi6220-dsi
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: pclk
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        description: Input port, connects to ADE output endpoint.
+        $ref: /schemas/graph.yaml#/properties/port
+
+      port@1:
+        description: Output port, connects to panel or bridge endpoints.
+        $ref: /schemas/graph.yaml#/properties/port
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/hi6220-clock.h>
+
+    dsi@f4107800 {
+        compatible = "hisilicon,hi6220-dsi";
+        reg = <0xf4107800 0x100>;
+        clocks = <&media_ctrl HI6220_DSI_PCLK>;
+        clock-names = "pclk";
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                reg = <0>;
+                dsi_in: endpoint {
+                    remote-endpoint = <&ade_out>;
+                };
+            };
+        };
+    };

@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/bus/ti,omap-ocp2scp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI OMAP OCP to SCP bus bridge
+
+maintainers:
+  - Kishon Vijay Abraham I <kishon@ti.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: ti,am437x-ocp2scp
+          - const: ti,omap-ocp2scp
+      - const: ti,omap-ocp2scp
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  ranges: true
+
+  ti,hwmods:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Name of the hwmod associated with the device.
+    deprecated: true
+
+required:
+  - compatible
+  - "#address-cells"
+  - "#size-cells"
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,am437x-ocp2scp
+    then:
+      properties:
+        reg: false
+    else:
+      required:
+        - reg
+
+additionalProperties:
+  type: object
+
+examples:
+  - |
+    ocp2scp@4a0ad000 {
+        compatible = "ti,omap-ocp2scp";
+        reg = <0x4a0ad000 0x1f>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        phy@80 {
+            compatible = "ti,omap-usb2";
+            reg = <0x80 0x58>;
+            ctrl-module = <&omap_control_usb2phy>;
+            clocks = <&usb_phy_cm_clk32k>;
+            clock-names = "wkupclk";
+            #phy-cells = <0>;
+        };
+    };

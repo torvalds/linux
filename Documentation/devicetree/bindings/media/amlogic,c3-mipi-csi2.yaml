@@ -96,8 +96,8 @@ examples:
                   <0x0 0xff01a000 0x0 0x100>;
             reg-names = "aphy", "dphy", "host";
             power-domains = <&pwrc PWRC_C3_MIPI_ISP_WRAP_ID>;
-            clocks =  <&clkc_periphs CLKID_VAPB>,
-                      <&clkc_periphs CLKID_CSI_PHY0>;
+            clocks = <&clkc_periphs CLKID_VAPB>,
+                     <&clkc_periphs CLKID_CSI_PHY0>;
             clock-names = "vapb", "phy0";
             assigned-clocks = <&clkc_periphs CLKID_VAPB>,
                               <&clkc_periphs CLKID_CSI_PHY0>;

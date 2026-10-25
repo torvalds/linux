@@ -1,0 +1,184 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/mediatek,mt2701-scpsys.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek SCPSYS
+
+maintainers:
+  - Matthias Brugger <matthias.bgg@gmail.com>
+  - AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+
+description: >
+  The System Control Processor System (SCPSYS) has several power management
+  related tasks in the system. The tasks include thermal measurement, dynamic
+  voltage frequency scaling (DVFS), interrupt filter and lowlevel sleep control.
+  The System Power Manager (SPM) inside the SCPSYS is for the MTCMOS power
+  domain control.
+
+  It provides the power domains defined in:
+    - include/dt-bindings/power/mt2701-power.h
+    - include/dt-bindings/power/mt2712-power.h
+    - include/dt-bindings/power/mt6797-power.h
+    - include/dt-bindings/power/mt7622-power.h
+    - include/dt-bindings/power/mt7623a-power.h
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - mediatek,mt7623a-scpsys
+          - mediatek,mt6797-scpsys
+      - items:
+          - enum:
+              - mediatek,mt2701-scpsys
+              - mediatek,mt2712-scpsys
+              - mediatek,mt7622-scpsys
+          - const: syscon
+      - items:
+          - const: mediatek,mt7623-scpsys
+          - const: mediatek,mt2701-scpsys
+          - const: syscon
+      - items:
+          - const: mediatek,mt7629-scpsys
+          - const: mediatek,mt7622-scpsys
+
+  '#power-domain-cells':
+    description: Always 1
+    const: 1
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 4
+
+  clocks:
+    minItems: 1
+    maxItems: 20
+
+  clock-names:
+    minItems: 1
+    maxItems: 6
+    items:
+      enum:
+        - mm
+        - mfg
+        - ethif
+        - venc
+        - jpgdec
+        - audio
+        - vdec
+        - hif_sel
+
+  vdec-supply: true
+  venc-supply: true
+  isp-supply: true
+  mm-supply: true
+  audio-supply: true
+  usb-supply: true
+  mfg_async-supply: true
+  mfg-supply: true
+
+  infracfg:
+    description: Infrastructure configuration controller phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - compatible
+  - '#power-domain-cells'
+  - reg
+  - infracfg
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt2701-scpsys
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 3
+        clock-names:
+          items:
+            - const: mm
+            - const: mfg
+            - const: ethif
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt7623a-scpsys
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          items:
+            - const: ethif
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt2712-scpsys
+    then:
+      properties:
+        clocks:
+          minItems: 6
+        clock-names:
+          items:
+            - const: mm
+            - const: mfg
+            - const: venc
+            - const: jpgdec
+            - const: audio
+            - const: vdec
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt7622-scpsys
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          items:
+            - const: hif_sel
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt6797-scpsys
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 3
+        clock-names:
+          items:
+            - const: mfg
+            - const: mm
+            - const: vdec
+
+examples:
+  - |
+    #include <dt-bindings/clock/mt2701-clk.h>
+
+    power-controller@10006000 {
+        #power-domain-cells = <1>;
+        compatible = "mediatek,mt2701-scpsys", "syscon";
+        reg = <0x10006000 0x1000>;
+        infracfg = <&infracfg>;
+        clocks = <&topckgen CLK_TOP_MM_SEL>,
+                  <&topckgen CLK_TOP_MFG_SEL>,
+                  <&topckgen CLK_TOP_ETHIF_SEL>;
+        clock-names = "mm", "mfg", "ethif";
+    };

@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/hisilicon/hisilicon,hip05-cpld.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HiSilicon HIP05 CPLD registers
+
+maintainers:
+  - Wei Xu <xuwei5@hisilicon.com>
+
+properties:
+  compatible:
+    const: hisilicon,hip05-cpld
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    local-bus {
+        #address-cells = <2>;
+        #size-cells = <1>;
+
+        cpld@100000000 {
+            compatible = "hisilicon,hip05-cpld";
+            reg = <0x1 0x0 0x100>;
+        };
+    };

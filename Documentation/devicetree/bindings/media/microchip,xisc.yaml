@@ -118,12 +118,12 @@ examples:
         clock-output-names = "isc-mck";
 
         port {
-                xisc_in: endpoint {
-                       bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
-                       remote-endpoint = <&csi2dc_out>;
-                       hsync-active = <1>;
-                       vsync-active = <1>;
-                       bus-width = <12>;
-                };
+            xisc_in: endpoint {
+                bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
+                remote-endpoint = <&csi2dc_out>;
+                hsync-active = <1>;
+                vsync-active = <1>;
+                bus-width = <12>;
+            };
         };
     };

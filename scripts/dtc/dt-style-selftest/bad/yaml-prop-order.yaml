@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Test fixture with reg before compatible
 
 maintainers:
-  - Test User <test@example.com>
+  - Rob Herring <robh@kernel.org>
 
 properties:
   compatible:
@@ -26,4 +26,9 @@ examples:
     device@1000 {
         reg = <0x1000 0x100>;
         compatible = "example,test-prop-order";
+
+        interrupts = <1>;
+        qcom,calibration-variant = "foo";
+        clocks = <6>;
+        qcom,opp-fuse-level = <1>;
     };

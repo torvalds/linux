@@ -1,0 +1,13 @@
+# mode=strict
+bad/dts-node-name.dts:8: [node-name] node name "foo_bar" is using discouraged style
+bad/dts-node-name.dts:12: [child-name-order] child node 'foo,bar' out of name order
+bad/dts-node-name.dts:12: [node-name] node name "foo,bar" is using discouraged style
+bad/dts-node-name.dts:16: [node-name] node name "foo.bar" is using discouraged style
+bad/dts-node-name.dts:20: [child-name-order] child node 'foo+bar' out of name order
+bad/dts-node-name.dts:20: [node-name] node name "foo+bar" is using discouraged style
+bad/dts-node-name.dts:24: [node-name] node name "foo-bar-" is using discouraged style
+bad/dts-node-name.dts:35: [node-name] node name "foo_bar" is using discouraged style
+bad/dts-node-name.dts:40: [node-name] node name "foo,bar" is using discouraged style
+bad/dts-node-name.dts:45: [node-name] node name "foo.bar" is using discouraged style
+bad/dts-node-name.dts:50: [node-name] node name "foo+bar" is using discouraged style
+bad/dts-node-name.dts:55: [node-name] node name "foo-bar-" is using discouraged style

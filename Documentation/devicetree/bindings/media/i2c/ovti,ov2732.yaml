@@ -94,9 +94,9 @@ examples:
 
             port {
                 camera_out: endpoint {
-                  data-lanes = <1 2>;
-                  link-frequencies = /bits/ 64 <360000000>;
-                  remote-endpoint = <&mipi_in_camera>;
+                    data-lanes = <1 2>;
+                    link-frequencies = /bits/ 64 <360000000>;
+                    remote-endpoint = <&mipi_in_camera>;
                 };
             };
         };

@@ -149,22 +149,22 @@ examples:
         clock-names = "pclk", "scck";
 
         ports {
-               #address-cells = <1>;
-               #size-cells = <0>;
-               port@0 {
-                       reg = <0>; /* must be 0, first child port */
-                       csi2dc_in: endpoint { /* input from IDI interface */
-                               bus-type = <4>; /* MIPI CSI2 D-PHY */
-                               remote-endpoint = <&csi2host_out>;
-                       };
-               };
+            #address-cells = <1>;
+            #size-cells = <0>;
+            port@0 {
+                reg = <0>; /* must be 0, first child port */
+                csi2dc_in: endpoint { /* input from IDI interface */
+                    bus-type = <4>; /* MIPI CSI2 D-PHY */
+                    remote-endpoint = <&csi2host_out>;
+                };
+            };
 
-               port@1 {
-                       reg = <1>; /* must be 1, second child port */
-                       csi2dc_out: endpoint {
-                               remote-endpoint = <&xisc_in>; /* output to sensor controller */
-                       };
-               };
+            port@1 {
+                reg = <1>; /* must be 1, second child port */
+                csi2dc_out: endpoint {
+                    remote-endpoint = <&xisc_in>; /* output to sensor controller */
+                };
+            };
         };
     };
 
@@ -181,18 +181,18 @@ examples:
         dma-names = "rx";
 
         ports {
-               #address-cells = <1>;
-               #size-cells = <0>;
-               port@0 {
-                       reg = <0>; /* must be 0, first child port */
-                       csi2dc_input: endpoint { /* input from IDI interface */
-                               remote-endpoint = <&csi2host_out>;
-                       };
-               };
+            #address-cells = <1>;
+            #size-cells = <0>;
+            port@0 {
+                reg = <0>; /* must be 0, first child port */
+                csi2dc_input: endpoint { /* input from IDI interface */
+                    remote-endpoint = <&csi2host_out>;
+                };
+            };
 
-               port@1 {
-                       reg = <1>;
-               };
+            port@1 {
+                reg = <1>;
+            };
         };
     };
 

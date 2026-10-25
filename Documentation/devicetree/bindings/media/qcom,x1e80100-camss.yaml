@@ -302,19 +302,19 @@ examples:
                           "vfe_lite_cphy_rx",
                           "vfe_lite_csid";
 
-           interrupts = <GIC_SPI 464 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 466 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 431 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 468 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 359 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 477 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 478 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 479 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 122 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 465 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 467 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 469 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 360 IRQ_TYPE_EDGE_RISING>;
+            interrupts = <GIC_SPI 464 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 466 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 431 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 468 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 359 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 477 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 478 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 479 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 122 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 465 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 467 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 469 IRQ_TYPE_EDGE_RISING>,
+                         <GIC_SPI 360 IRQ_TYPE_EDGE_RISING>;
 
             interrupt-names = "csid0",
                               "csid1",

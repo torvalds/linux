@@ -12085,7 +12085,7 @@ HISILICON SAS Controller
 M:	Xingui Yang <yangxingui@huawei.com>
 S:	Supported
 W:	http://www.hisilicon.com
-F:	Documentation/devicetree/bindings/scsi/hisilicon-sas.txt
+F:	Documentation/devicetree/bindings/scsi/hisilicon,hip05-sas-v1.yaml
 F:	drivers/scsi/hisi_sas/
 
 HISILICON SECURITY ENGINE V2 DRIVER (SEC2)
@@ -20834,6 +20834,8 @@ F:	Documentation/devicetree/
 F:	Documentation/process/maintainer-devicetree.rst
 F:	arch/*/boot/dts/
 F:	include/dt-bindings/
+F:	scripts/dtc/dt-check-style
+F:	scripts/dtc/dt-style-selftest/
 
 OPENCOMPUTE PTP CLOCK DRIVER
 M:	Vadim Fedorenko <vadim.fedorenko@linux.dev>

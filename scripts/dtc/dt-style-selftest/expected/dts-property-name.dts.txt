@@ -1,0 +1,14 @@
+# mode=strict
+bad/dts-property-name.dts:11: [property-name] property name "property#foo" is using discouraged style
+bad/dts-property-name.dts:12: [property-name] property name "property+foo" is using discouraged style
+bad/dts-property-name.dts:14: [property-name] property name "property-foo-" is using discouraged style
+bad/dts-property-name.dts:15: [property-name] property name "property.foo" is using discouraged style
+bad/dts-property-name.dts:16: [property-name] property name "property?foo" is using discouraged style
+bad/dts-property-name.dts:17: [property-name] property name "property_foo" is using discouraged style
+bad/dts-property-name.dts:19: [property-name] property name "vendor,property#foo" is using discouraged style
+bad/dts-property-name.dts:20: [property-name] property name "vendor,property+foo" is using discouraged style
+bad/dts-property-name.dts:21: [property-name] property name "vendor,property,foo" is using discouraged style
+bad/dts-property-name.dts:23: [property-name] property name "vendor,property-foo-" is using discouraged style
+bad/dts-property-name.dts:24: [property-name] property name "vendor,property.foo" is using discouraged style
+bad/dts-property-name.dts:25: [property-name] property name "vendor,property?foo" is using discouraged style
+bad/dts-property-name.dts:26: [property-name] property name "vendor,property_foo" is using discouraged style

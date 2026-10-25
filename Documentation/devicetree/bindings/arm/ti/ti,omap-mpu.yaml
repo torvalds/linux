@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/ti/ti,omap-mpu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI MPU (Main Processor Unit) subsystem
+
+maintainers:
+  - Benoit Cousson <b-cousson@ti.com>
+
+description:
+  The MPU subsystem contains one or several ARM cores depending on the version.
+  The MPU contains CPUs, GIC, L2 cache and a local PRCM.
+
+properties:
+  compatible:
+    enum:
+      - ti,omap3-mpu
+      - ti,omap4-mpu
+      - ti,omap5-mpu
+
+  ti,hwmods:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Name of the hwmod associated with the MPU
+    const: mpu
+    deprecated: true
+
+  sram:
+    description: ocmcram node
+
+  pm-sram:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: ocmcram nodes for power management. For am335x and am437x.
+    items:
+      - items:
+          - description: ocmcram node of type protect-exec for PM functions
+      - items:
+          - description: ocmcram node of regular pool to be used for data region
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    mpu {
+        compatible = "ti,omap5-mpu";
+        ti,hwmods = "mpu";
+    };
+
+  - |
+    mpu {
+        compatible = "ti,omap3-mpu";
+        ti,hwmods = "mpu";
+        pm-sram = <&pm_sram_code &pm_sram_data>;
+    };

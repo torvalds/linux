@@ -214,7 +214,7 @@ examples:
             compatible = "ti,tps65910";
             reg = <0x2d>;
             interrupt-parent = <&intc>;
-            interrupts = < 0 118 0x04 >;
+            interrupts = <0 118 0x04>;
 
             #gpio-cells = <2>;
             gpio-controller;

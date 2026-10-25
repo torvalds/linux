@@ -137,7 +137,7 @@ examples:
                 cooling-maps {
                     map0 {
                         trip = <&cpu_alert1>;
-                        cooling-device = <&cpu_b0_therm 0 15 >,
+                        cooling-device = <&cpu_b0_therm 0 15>,
                                          <&cpu_b1_therm 0 15>;
                     };
 
