@@ -797,6 +797,7 @@ static int rga_probe(struct platform_device *pdev)
 		ret = irq;
 		goto err_put_clk;
 	}
+	rga->irq = irq;
 
 	ret = devm_request_irq(rga->dev, irq, rga_isr,
 			       rga_has_internal_iommu(rga) ? 0 : IRQF_SHARED,
@@ -876,14 +877,15 @@ static void rga_remove(struct platform_device *pdev)
 
 	v4l2_info(&rga->v4l2_dev, "Removing\n");
 
-	v4l2_m2m_release(rga->m2m_dev);
 	video_unregister_device(rga->vfd);
+	devm_free_irq(rga->dev, rga->irq, rga);
+	v4l2_m2m_release(rga->m2m_dev);
 	v4l2_device_unregister(&rga->v4l2_dev);
 
 	pm_runtime_disable(rga->dev);
 }
 
-static int __maybe_unused rga_runtime_suspend(struct device *dev)
+static int rga_runtime_suspend(struct device *dev)
 {
 	struct rockchip_rga *rga = dev_get_drvdata(dev);
 
@@ -892,7 +894,7 @@ static int __maybe_unused rga_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rga_runtime_resume(struct device *dev)
+static int rga_runtime_resume(struct device *dev)
 {
 	struct rockchip_rga *rga = dev_get_drvdata(dev);
 
@@ -900,8 +902,7 @@ static int __maybe_unused rga_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rga_pm = {
-	SET_RUNTIME_PM_OPS(rga_runtime_suspend,
-			   rga_runtime_resume, NULL)
+	RUNTIME_PM_OPS(rga_runtime_suspend, rga_runtime_resume, NULL)
 };
 
 static const struct of_device_id rockchip_rga_match[] = {
@@ -927,7 +928,7 @@ static struct platform_driver rga_pdrv = {
 	.remove = rga_remove,
 	.driver = {
 		.name = RGA_NAME,
-		.pm = &rga_pm,
+		.pm = pm_ptr(&rga_pm),
 		.of_match_table = rockchip_rga_match,
 	},
 };

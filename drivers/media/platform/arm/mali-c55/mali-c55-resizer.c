@@ -715,6 +715,7 @@ static int mali_c55_rsz_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int mali_c55_rsz_set_sink_fmt(struct v4l2_subdev *sd,
+				     const struct v4l2_subdev_client_info *ci,
 				     struct v4l2_subdev_state *state,
 				     struct v4l2_subdev_format *format)
 {
@@ -773,6 +774,7 @@ static int mali_c55_rsz_set_sink_fmt(struct v4l2_subdev *sd,
 }
 
 static int mali_c55_rsz_set_source_fmt(struct v4l2_subdev *sd,
+				       const struct v4l2_subdev_client_info *ci,
 				       struct v4l2_subdev_state *state,
 				       struct v4l2_subdev_format *format)
 {
@@ -812,6 +814,7 @@ static int mali_c55_rsz_set_source_fmt(struct v4l2_subdev *sd,
 }
 
 static int mali_c55_rsz_set_fmt(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_format *format)
 {
@@ -826,12 +829,13 @@ static int mali_c55_rsz_set_fmt(struct v4l2_subdev *sd,
 
 	if (format->pad == MALI_C55_RSZ_SINK_PAD ||
 	    format->pad == MALI_C55_RSZ_SINK_BYPASS_PAD)
-		return mali_c55_rsz_set_sink_fmt(sd, state, format);
+		return mali_c55_rsz_set_sink_fmt(sd, ci, state, format);
 
-	return mali_c55_rsz_set_source_fmt(sd, state, format);
+	return mali_c55_rsz_set_source_fmt(sd, ci, state, format);
 }
 
 static int mali_c55_rsz_get_selection(struct v4l2_subdev *sd,
+				      const struct v4l2_subdev_client_info *ci,
 				      struct v4l2_subdev_state *state,
 				      struct v4l2_subdev_selection *sel)
 {
@@ -850,6 +854,7 @@ static int mali_c55_rsz_get_selection(struct v4l2_subdev *sd,
 }
 
 static int mali_c55_rsz_set_crop(struct v4l2_subdev *sd,
+				 const struct v4l2_subdev_client_info *ci,
 				 struct v4l2_subdev_state *state,
 				 struct v4l2_subdev_selection *sel)
 {
@@ -908,6 +913,7 @@ static int mali_c55_rsz_set_crop(struct v4l2_subdev *sd,
 }
 
 static int mali_c55_rsz_set_compose(struct v4l2_subdev *sd,
+				    const struct v4l2_subdev_client_info *ci,
 				    struct v4l2_subdev_state *state,
 				    struct v4l2_subdev_selection *sel)
 {
@@ -956,6 +962,7 @@ static int mali_c55_rsz_set_compose(struct v4l2_subdev *sd,
 }
 
 static int mali_c55_rsz_set_selection(struct v4l2_subdev *sd,
+				      const struct v4l2_subdev_client_info *ci,
 				      struct v4l2_subdev_state *state,
 				      struct v4l2_subdev_selection *sel)
 {
@@ -963,10 +970,10 @@ static int mali_c55_rsz_set_selection(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (sel->target == V4L2_SEL_TGT_CROP)
-		return mali_c55_rsz_set_crop(sd, state, sel);
+		return mali_c55_rsz_set_crop(sd, ci, state, sel);
 
 	if (sel->target == V4L2_SEL_TGT_COMPOSE)
-		return mali_c55_rsz_set_compose(sd, state, sel);
+		return mali_c55_rsz_set_compose(sd, ci, state, sel);
 
 	return -EINVAL;
 }

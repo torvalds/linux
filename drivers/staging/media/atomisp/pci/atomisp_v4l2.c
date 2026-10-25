@@ -913,7 +913,7 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.target = V4L2_SEL_TGT_NATIVE_SIZE;
-	err = v4l2_subdev_call(input->sensor, pad, get_selection,
+	err = v4l2_subdev_call(input->sensor, pad, get_selection, NULL,
 			       act_sd_state, &sel);
 	if (err)
 		goto unlock_act_sd_state;
@@ -922,7 +922,7 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.target = V4L2_SEL_TGT_CROP_DEFAULT;
-	err = v4l2_subdev_call(input->sensor, pad, get_selection,
+	err = v4l2_subdev_call(input->sensor, pad, get_selection, NULL,
 			       act_sd_state, &sel);
 	if (err)
 		goto unlock_act_sd_state;
@@ -968,7 +968,7 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 	if (!input->sensor->state_lock)
 		v4l2_subdev_lock_state(input->try_sd_state);
 
-	err = v4l2_subdev_call(input->sensor, pad, set_selection,
+	err = v4l2_subdev_call(input->sensor, pad, set_selection, NULL,
 			       input->try_sd_state, &sel);
 
 	if (!input->sensor->state_lock)
@@ -980,7 +980,7 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.target = V4L2_SEL_TGT_CROP;
 	sel.r = input->native_rect;
-	err = v4l2_subdev_call(input->sensor, pad, set_selection,
+	err = v4l2_subdev_call(input->sensor, pad, set_selection, NULL,
 			       act_sd_state, &sel);
 	if (err)
 		goto unlock_act_sd_state;
@@ -1239,7 +1239,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		}
 		isp->hpll_freq = HPLL_FREQ_1600MHZ;
 		break;
-	case ATOMISP_PCI_DEVICE_SOC_BYT:
+	case PCI_DEVICE_ID_INTEL_ISP_BYT:
 		isp->media_dev.hw_revision =
 		    (ATOMISP_HW_REVISION_ISP2400
 		     << ATOMISP_HW_REVISION_SHIFT) |
@@ -1284,7 +1284,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		isp->dfs = &dfs_config_merr;
 		isp->hpll_freq = HPLL_FREQ_1600MHZ;
 		break;
-	case ATOMISP_PCI_DEVICE_SOC_CHT:
+	case PCI_DEVICE_ID_INTEL_ISP_BSW:
 		isp->media_dev.hw_revision = (ATOMISP_HW_REVISION_ISP2401
 						 << ATOMISP_HW_REVISION_SHIFT);
 		isp->media_dev.hw_revision |= pdev->revision < 2 ?
@@ -1416,10 +1416,8 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	err = devm_request_threaded_irq(&pdev->dev, pdev->irq,
 					atomisp_isr, atomisp_isr_thread,
 					IRQF_SHARED, "isp_irq", isp);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to request irq (%d)\n", err);
+	if (err)
 		goto error_unregister_entities;
-	}
 
 	/* Load firmware into ISP memory */
 	err = atomisp_css_load_firmware(isp);
@@ -1487,12 +1485,12 @@ static const struct pci_device_id atomisp_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_MRFLD_1179)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_MRFLD_117A)},
 	/* Baytrail */
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_BYT)},
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ISP_BYT) },
 	/* Anniedale (Merrifield+ / Moorefield) */
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_ANN)},
 	/* Cherrytrail */
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_CHT)},
-	{0,}
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ISP_BSW) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, atomisp_pci_tbl);
 

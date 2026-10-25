@@ -3,6 +3,7 @@
  * Copyright (C) 2013--2024 Intel Corporation
  */
 
+#include <asm/cpu_device_id.h>
 #include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/completion.h>
@@ -55,16 +56,11 @@
 
 #define BUTTRESS_MAX_CONSECUTIVE_IRQS	100
 
-static const u32 ipu6_adev_irq_mask[2] = {
-	BUTTRESS_ISR_IS_IRQ,
-	BUTTRESS_ISR_PS_IRQ
-};
-
-int ipu6_buttress_ipc_reset(struct ipu6_device *isp,
-			    struct ipu6_buttress_ipc *ipc)
+int ipu6_buttress_ipc_reset(struct ipu6_device *isp)
 {
 	unsigned int retries = BUTTRESS_IPC_RESET_RETRY;
 	struct ipu6_buttress *b = &isp->buttress;
+	const struct ipu6_buttress_registers *regs = b->regs;
 	u32 val = 0, csr_in_clr;
 
 	if (!isp->secure_mode) {
@@ -75,11 +71,11 @@ int ipu6_buttress_ipc_reset(struct ipu6_device *isp,
 	mutex_lock(&b->ipc_mutex);
 
 	/* Clear-by-1 CSR (all bits), corresponding internal states. */
-	val = readl(isp->base + ipc->csr_in);
-	writel(val, isp->base + ipc->csr_in);
+	val = readl(isp->base + regs->csr_in);
+	writel(val, isp->base + regs->csr_in);
 
 	/* Set peer CSR bit IPC_PEER_COMP_ACTIONS_RST_PHASE1 */
-	writel(ENTRY, isp->base + ipc->csr_out);
+	writel(ENTRY, isp->base + regs->csr_out);
 	/*
 	 * Clear-by-1 all CSR bits EXCEPT following
 	 * bits:
@@ -94,7 +90,7 @@ int ipu6_buttress_ipc_reset(struct ipu6_device *isp,
 
 	do {
 		usleep_range(400, 500);
-		val = readl(isp->base + ipc->csr_in);
+		val = readl(isp->base + regs->csr_in);
 		switch (val) {
 		case ENTRY | EXIT:
 		case ENTRY | EXIT | QUERY:
@@ -105,8 +101,8 @@ int ipu6_buttress_ipc_reset(struct ipu6_device *isp,
 			 * 2) Set peer CSR bit
 			 * IPC_PEER_QUERIED_IP_COMP_ACTIONS_RST_PHASE.
 			 */
-			writel(ENTRY | EXIT, isp->base + ipc->csr_in);
-			writel(QUERY, isp->base + ipc->csr_out);
+			writel(ENTRY | EXIT, isp->base + regs->csr_in);
+			writel(QUERY, isp->base + regs->csr_out);
 			break;
 		case ENTRY:
 		case ENTRY | QUERY:
@@ -117,8 +113,8 @@ int ipu6_buttress_ipc_reset(struct ipu6_device *isp,
 			 * 2) Set peer CSR bit
 			 * IPC_PEER_COMP_ACTIONS_RST_PHASE1.
 			 */
-			writel(ENTRY | QUERY, isp->base + ipc->csr_in);
-			writel(ENTRY, isp->base + ipc->csr_out);
+			writel(ENTRY | QUERY, isp->base + regs->csr_in);
+			writel(ENTRY, isp->base + regs->csr_out);
 			break;
 		case EXIT:
 		case EXIT | QUERY:
@@ -135,17 +131,17 @@ int ipu6_buttress_ipc_reset(struct ipu6_device *isp,
 			 * 3) Set peer CSR bit
 			 * IPC_PEER_COMP_ACTIONS_RST_PHASE2.
 			 */
-			writel(EXIT, isp->base + ipc->csr_in);
-			writel(0, isp->base + ipc->db0_in);
-			writel(csr_in_clr, isp->base + ipc->csr_in);
-			writel(EXIT, isp->base + ipc->csr_out);
+			writel(EXIT, isp->base + regs->csr_in);
+			writel(0, isp->base + regs->db0_in);
+			writel(csr_in_clr, isp->base + regs->csr_in);
+			writel(EXIT, isp->base + regs->csr_out);
 
 			/*
 			 * Read csr_in again to make sure if RST_PHASE2 is done.
 			 * If csr_in is QUERY, it should be handled again.
 			 */
 			usleep_range(200, 300);
-			val = readl(isp->base + ipc->csr_in);
+			val = readl(isp->base + regs->csr_in);
 			if (val & QUERY) {
 				dev_dbg(&isp->pdev->dev,
 					"RST_PHASE2 retry csr_in = %x\n", val);
@@ -160,8 +156,8 @@ int ipu6_buttress_ipc_reset(struct ipu6_device *isp,
 			 * 2) Set peer CSR bit
 			 * IPC_PEER_COMP_ACTIONS_RST_PHASE1
 			 */
-			writel(QUERY, isp->base + ipc->csr_in);
-			writel(ENTRY, isp->base + ipc->csr_out);
+			writel(QUERY, isp->base + regs->csr_in);
+			writel(ENTRY, isp->base + regs->csr_out);
 			break;
 		default:
 			dev_dbg_ratelimited(&isp->pdev->dev,
@@ -176,42 +172,42 @@ int ipu6_buttress_ipc_reset(struct ipu6_device *isp,
 	return -ETIMEDOUT;
 }
 
-static void ipu6_buttress_ipc_validity_close(struct ipu6_device *isp,
-					     struct ipu6_buttress_ipc *ipc)
+static void ipu6_buttress_ipc_validity_close(struct ipu6_device *isp)
 {
 	writel(BUTTRESS_IU2CSECSR_IPC_PEER_DEASSERTED_REG_VALID_REQ,
-	       isp->base + ipc->csr_out);
+	       isp->base + isp->buttress.regs->csr_out);
 }
 
 static int
-ipu6_buttress_ipc_validity_open(struct ipu6_device *isp,
-				struct ipu6_buttress_ipc *ipc)
+ipu6_buttress_ipc_validity_open(struct ipu6_device *isp)
 {
 	unsigned int mask = BUTTRESS_IU2CSECSR_IPC_PEER_ACKED_REG_VALID;
+	const struct ipu6_buttress_registers *regs = isp->buttress.regs;
 	void __iomem *addr;
 	int ret;
 	u32 val;
 
 	writel(BUTTRESS_IU2CSECSR_IPC_PEER_ASSERTED_REG_VALID_REQ,
-	       isp->base + ipc->csr_out);
+	       isp->base + regs->csr_out);
 
-	addr = isp->base + ipc->csr_in;
+	addr = isp->base + regs->csr_in;
 	ret = readl_poll_timeout(addr, val, val & mask, 200,
 				 BUTTRESS_IPC_VALIDITY_TIMEOUT_US);
 	if (ret) {
 		dev_err(&isp->pdev->dev, "CSE validity timeout 0x%x\n", val);
-		ipu6_buttress_ipc_validity_close(isp, ipc);
+		ipu6_buttress_ipc_validity_close(isp);
 	}
 
 	return ret;
 }
 
-static void ipu6_buttress_ipc_recv(struct ipu6_device *isp,
-				   struct ipu6_buttress_ipc *ipc, u32 *ipc_msg)
+static void ipu6_buttress_ipc_recv(struct ipu6_device *isp, u32 *ipc_msg)
 {
+	const struct ipu6_buttress_registers *regs = isp->buttress.regs;
+
 	if (ipc_msg)
-		*ipc_msg = readl(isp->base + ipc->data0_in);
-	writel(0, isp->base + ipc->db0_in);
+		*ipc_msg = readl(isp->base + regs->data0_in);
+	writel(0, isp->base + regs->db0_in);
 }
 
 static int ipu6_buttress_ipc_send_bulk(struct ipu6_device *isp,
@@ -221,14 +217,15 @@ static int ipu6_buttress_ipc_send_bulk(struct ipu6_device *isp,
 	unsigned long tx_timeout_jiffies, rx_timeout_jiffies;
 	unsigned int i, retry = BUTTRESS_IPC_CMD_SEND_RETRY;
 	struct ipu6_buttress *b = &isp->buttress;
-	struct ipu6_buttress_ipc *ipc = &b->cse;
+	struct ipu6_buttress_ipc *ipc = &b->ipc;
+	const struct ipu6_buttress_registers *regs = b->regs;
 	u32 val;
 	int ret;
 	int tout;
 
 	mutex_lock(&b->ipc_mutex);
 
-	ret = ipu6_buttress_ipc_validity_open(isp, ipc);
+	ret = ipu6_buttress_ipc_validity_open(isp);
 	if (ret) {
 		dev_err(&isp->pdev->dev, "IPC validity open failed\n");
 		goto out;
@@ -244,9 +241,9 @@ static int ipu6_buttress_ipc_send_bulk(struct ipu6_device *isp,
 
 		dev_dbg(&isp->pdev->dev, "bulk IPC command: 0x%x\n",
 			msgs[i].cmd);
-		writel(msgs[i].cmd, isp->base + ipc->data0_out);
+		writel(msgs[i].cmd, isp->base + regs->data0_out);
 		val = BUTTRESS_IU2CSEDB0_BUSY | msgs[i].cmd_size;
-		writel(val, isp->base + ipc->db0_out);
+		writel(val, isp->base + regs->db0_out);
 
 		tout = wait_for_completion_timeout(&ipc->send_complete,
 						   tx_timeout_jiffies);
@@ -258,7 +255,7 @@ static int ipu6_buttress_ipc_send_bulk(struct ipu6_device *isp,
 			}
 
 			/* Try again if CSE is not responding on first try */
-			writel(0, isp->base + ipc->db0_out);
+			writel(0, isp->base + regs->db0_out);
 			i--;
 			continue;
 		}
@@ -276,8 +273,8 @@ static int ipu6_buttress_ipc_send_bulk(struct ipu6_device *isp,
 			goto out;
 		}
 
-		if (ipc->nack_mask &&
-		    (ipc->recv_data & ipc->nack_mask) == ipc->nack) {
+		if ((ipc->recv_data & BUTTRESS_CSE2IUDATA0_IPC_NACK_MASK) ==
+		     BUTTRESS_CSE2IUDATA0_IPC_NACK) {
 			dev_err(&isp->pdev->dev,
 				"IPC NACK for cmd 0x%x\n", msgs[i].cmd);
 			ret = -EIO;
@@ -296,7 +293,7 @@ static int ipu6_buttress_ipc_send_bulk(struct ipu6_device *isp,
 	dev_dbg(&isp->pdev->dev, "bulk IPC commands done\n");
 
 out:
-	ipu6_buttress_ipc_validity_close(isp, ipc);
+	ipu6_buttress_ipc_validity_close(isp);
 	mutex_unlock(&b->ipc_mutex);
 	return ret;
 }
@@ -337,7 +334,8 @@ irqreturn_t ipu6_buttress_isr(int irq, void *isp_ptr)
 	struct ipu6_device *isp = isp_ptr;
 	struct ipu6_bus_device *adev[] = { isp->isys, isp->psys };
 	struct ipu6_buttress *b = &isp->buttress;
-	u32 reg_irq_sts = BUTTRESS_REG_ISR_STATUS;
+	const struct ipu6_buttress_registers *regs = b->regs;
+	const u32 adev_irq_mask[] = { regs->irq_is, regs->irq_ps };
 	irqreturn_t ret = IRQ_NONE;
 	u32 disable_irqs = 0;
 	u32 irq_status;
@@ -348,7 +346,14 @@ irqreturn_t ipu6_buttress_isr(int irq, void *isp_ptr)
 	if (!active)
 		return IRQ_NONE;
 
-	irq_status = readl(isp->base + reg_irq_sts);
+	if (IS_IPU7(isp) || IS_IPU8(isp)) {
+		u32 pb_irq;
+
+		pb_irq = readl(isp->pb_base + IPU7_PB_INTERRUPT_STATUS);
+		writel(pb_irq, isp->pb_base + IPU7_PB_INTERRUPT_STATUS);
+	}
+
+	irq_status = readl(isp->base + regs->irq_status);
 	if (irq_status == 0 || WARN_ON_ONCE(irq_status == 0xffffffffu)) {
 		if (active > 0)
 			pm_runtime_put_noidle(&isp->pdev->dev);
@@ -356,39 +361,40 @@ irqreturn_t ipu6_buttress_isr(int irq, void *isp_ptr)
 	}
 
 	do {
-		writel(irq_status, isp->base + BUTTRESS_REG_ISR_CLEAR);
+		writel(irq_status, isp->base + regs->irq_clear);
 
-		for (i = 0; i < ARRAY_SIZE(ipu6_adev_irq_mask); i++) {
+		for (i = 0; i < ARRAY_SIZE(adev_irq_mask); i++) {
 			irqreturn_t r = ipu6_buttress_call_isr(adev[i]);
 
-			if (!(irq_status & ipu6_adev_irq_mask[i]))
+			if (!(irq_status & adev_irq_mask[i]))
 				continue;
 
 			if (r == IRQ_WAKE_THREAD) {
 				ret = IRQ_WAKE_THREAD;
-				disable_irqs |= ipu6_adev_irq_mask[i];
+				disable_irqs |= adev_irq_mask[i];
 			} else if (ret == IRQ_NONE && r == IRQ_HANDLED) {
 				ret = IRQ_HANDLED;
 			}
 		}
 
-		if ((irq_status & BUTTRESS_EVENT) && ret == IRQ_NONE)
+		if ((irq_status & regs->irq_events) && ret == IRQ_NONE)
 			ret = IRQ_HANDLED;
 
-		if (irq_status & BUTTRESS_ISR_IPC_FROM_CSE_IS_WAITING) {
+		if (irq_status & regs->irq_cse_ipc) {
 			dev_dbg(&isp->pdev->dev,
 				"BUTTRESS_ISR_IPC_FROM_CSE_IS_WAITING\n");
-			ipu6_buttress_ipc_recv(isp, &b->cse, &b->cse.recv_data);
-			complete(&b->cse.recv_complete);
+
+			ipu6_buttress_ipc_recv(isp, &b->ipc.recv_data);
+			complete(&b->ipc.recv_complete);
 		}
 
-		if (irq_status & BUTTRESS_ISR_IPC_EXEC_DONE_BY_CSE) {
+		if (irq_status & regs->irq_exec_done) {
 			dev_dbg(&isp->pdev->dev,
 				"BUTTRESS_ISR_IPC_EXEC_DONE_BY_CSE\n");
-			complete(&b->cse.send_complete);
+			complete(&b->ipc.send_complete);
 		}
 
-		if (irq_status & BUTTRESS_ISR_SAI_VIOLATION &&
+		if (irq_status & regs->irq_sai &&
 		    ipu6_buttress_get_secure_mode(isp))
 			dev_err(&isp->pdev->dev,
 				"BUTTRESS_ISR_SAI_VIOLATION\n");
@@ -407,12 +413,12 @@ irqreturn_t ipu6_buttress_isr(int irq, void *isp_ptr)
 			break;
 		}
 
-		irq_status = readl(isp->base + reg_irq_sts);
+		irq_status = readl(isp->base + regs->irq_status);
 	} while (irq_status);
 
 	if (disable_irqs)
-		writel(BUTTRESS_IRQS & ~disable_irqs,
-		       isp->base + BUTTRESS_REG_ISR_ENABLE);
+		writel(regs->irq_all & ~disable_irqs,
+		       isp->base + regs->irq_enable);
 
 	if (active > 0)
 		pm_runtime_put(&isp->pdev->dev);
@@ -423,12 +429,13 @@ irqreturn_t ipu6_buttress_isr(int irq, void *isp_ptr)
 irqreturn_t ipu6_buttress_isr_threaded(int irq, void *isp_ptr)
 {
 	struct ipu6_device *isp = isp_ptr;
+	const struct ipu6_buttress_registers *regs = isp->buttress.regs;
 	struct ipu6_bus_device *adev[] = { isp->isys, isp->psys };
 	const struct ipu6_auxdrv_data *drv_data = NULL;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(ipu6_adev_irq_mask) && adev[i]; i++) {
+	for (i = 0; i < ARRAY_SIZE(adev) && adev[i]; i++) {
 		drv_data = adev[i]->auxdrv_data;
 		if (!drv_data)
 			continue;
@@ -438,7 +445,178 @@ irqreturn_t ipu6_buttress_isr_threaded(int irq, void *isp_ptr)
 			ret = IRQ_HANDLED;
 	}
 
-	writel(BUTTRESS_IRQS, isp->base + BUTTRESS_REG_ISR_ENABLE);
+	writel(regs->irq_all, isp->base + regs->irq_enable);
+
+	return ret;
+}
+
+static int ipu7_isys_d2d_power(struct ipu6_device *isp, bool on)
+{
+	u32 target = on ? IPU7_BUTTRESS_D2D_PWR_ACK : 0U;
+	u32 val;
+	int ret;
+
+	val = readl(isp->base + IPU7_BUTTRESS_REG_D2D_CTL);
+	if ((val & IPU7_BUTTRESS_D2D_PWR_ACK) == target)
+		return 0;
+
+	if (on)
+		val |= IPU7_BUTTRESS_D2D_PWR_EN;
+	else
+		val &= ~IPU7_BUTTRESS_D2D_PWR_EN;
+	writel(val, isp->base + IPU7_BUTTRESS_REG_D2D_CTL);
+
+	ret = readl_poll_timeout(isp->base + IPU7_BUTTRESS_REG_D2D_CTL, val,
+				 (val & IPU7_BUTTRESS_D2D_PWR_ACK) == target,
+				 100, BUTTRESS_POWER_TIMEOUT_US);
+	if (ret)
+		dev_err(&isp->pdev->dev, "D2D power %s timeout: 0x%x\n",
+			on ? "up" : "down", val);
+
+	return ret;
+}
+
+static void ipu7_nde_control(struct ipu6_device *isp, bool on)
+{
+	u32 resvec = IS_IPU8(isp) ? IPU8_NDE_RESVEC : IPU7_NDE_RESVEC;
+	u32 reg = IS_IPU8(isp) ? IPU8_BUTTRESS_REG_NDE_CONTROL :
+					 IPU7_BUTTRESS_REG_NDE_CONTROL;
+	u32 val;
+
+	val = FIELD_PREP(IPU7_NDE_VAL_MASK,
+			 on ? IPU7_NDE_VAL_ACTIVE : IPU7_NDE_VAL_DEFAULT) |
+	      FIELD_PREP(IPU7_NDE_SCALE_MASK,
+			 on ? IPU7_NDE_SCALE_ACTIVE : IPU7_NDE_SCALE_DEFAULT) |
+	      FIELD_PREP(IPU7_NDE_VALID_MASK,
+			 on ? IPU7_NDE_VALID_ACTIVE : IPU7_NDE_VALID_DEFAULT) |
+	      FIELD_PREP(IPU7_NDE_RESVEC_MASK, resvec);
+	writel(val, isp->base + reg);
+}
+
+static int __ipu7_power_on(struct device *dev,
+			   const struct ipu6_buttress_ctrl *ctrl)
+{
+	struct ipu6_device *isp = to_ipu6_bus_device(dev)->isp;
+	bool is_isys = ctrl->subsys_id == IPU_ISYS;
+	u32 pwr_sts, val, ovrd_clk, slp, own_clk_ack;
+	int ret;
+
+	val = ctrl->ratio | (IPU7_FREQ_CTL_CDYN << IPU7_FREQ_CTL_CDYN_SHIFT);
+	pwr_sts = ctrl->pwr_sts_on << ctrl->pwr_sts_shift;
+
+	if (is_isys) {
+		ret = ipu7_isys_d2d_power(isp, true);
+		if (ret)
+			return ret;
+
+		ipu7_nde_control(isp, true);
+	}
+
+	/* IPU8 psys needs its PLL running above 400MHz. */
+	if (!is_isys && IS_IPU8(isp) && ctrl->ratio > IPU8_PS_FREQ_CTL_DEFAULT_RATIO) {
+		writel(1, isp->base + IPU7_BUTTRESS_REG_PS_PLL_ENABLE);
+		ret = readl_poll_timeout(isp->base + IPU7_BUTTRESS_REG_SLEEP_LEVEL_STS,
+					 val, (val & IPU7_BUTTRESS_OWN_ACK_PS_CLK),
+					 100, BUTTRESS_POWER_TIMEOUT_US);
+		if (ret)
+			dev_warn(&isp->pdev->dev,
+				 "ps_pll req ack timeout: 0x%x\n", val);
+	}
+
+	/* Request clock ownership. */
+	ovrd_clk = is_isys ? IPU7_BUTTRESS_OVERRIDE_IS_CLK :
+			     IPU7_BUTTRESS_OVERRIDE_PS_CLK;
+
+	slp = readl(isp->base + IPU7_BUTTRESS_REG_SLEEP_LEVEL_CFG);
+	writel(slp | ovrd_clk, isp->base + IPU7_BUTTRESS_REG_SLEEP_LEVEL_CFG);
+
+	own_clk_ack = is_isys ? IPU7_BUTTRESS_OWN_ACK_IS_CLK :
+				IPU7_BUTTRESS_OWN_ACK_PS_CLK;
+	ret = readl_poll_timeout(isp->base + IPU7_BUTTRESS_REG_SLEEP_LEVEL_STS,
+				 slp, (slp & own_clk_ack),
+				 100, BUTTRESS_POWER_TIMEOUT_US);
+	if (ret)
+		dev_warn(&isp->pdev->dev, "clock ownership timeout: 0x%x\n",
+			 slp);
+
+	writel(val, isp->base + ctrl->freq_ctl);
+
+	ret = readl_poll_timeout(isp->base + isp->buttress.regs->pwr_status,
+				 val, (val & ctrl->pwr_sts_mask) == pwr_sts,
+				 100, BUTTRESS_POWER_TIMEOUT_US);
+	if (ret) {
+		dev_err(&isp->pdev->dev,
+			"Change power status timeout with 0x%x\n", val);
+		return ret;
+	}
+
+	slp = readl(isp->base + IPU7_BUTTRESS_REG_SLEEP_LEVEL_CFG);
+	writel(slp & ~ovrd_clk, isp->base + IPU7_BUTTRESS_REG_SLEEP_LEVEL_CFG);
+
+	return 0;
+}
+
+static int __ipu7_power_off(struct device *dev,
+			    const struct ipu6_buttress_ctrl *ctrl)
+{
+	struct ipu6_device *isp = to_ipu6_bus_device(dev)->isp;
+	u32 pwr_sts, val;
+	int ret;
+
+	writel(0x8U, isp->base + ctrl->freq_ctl);
+
+	pwr_sts = ctrl->pwr_sts_off << ctrl->pwr_sts_shift;
+	ret = readl_poll_timeout(isp->base + isp->buttress.regs->pwr_status,
+				 val, (val & ctrl->pwr_sts_mask) == pwr_sts,
+				 100, BUTTRESS_POWER_TIMEOUT_US);
+	if (ret) {
+		dev_err(&isp->pdev->dev,
+			"Change power status timeout with 0x%x\n", val);
+		return ret;
+	}
+
+	if (ctrl->subsys_id == IPU_ISYS) {
+		ipu7_isys_d2d_power(isp, false);
+		ipu7_nde_control(isp, false);
+	}
+
+	if (ctrl->subsys_id == IPU_PSYS && IS_IPU8(isp)) {
+		val = readl(isp->base + IPU7_BUTTRESS_REG_SLEEP_LEVEL_STS);
+		if (val & IPU7_BUTTRESS_OWN_ACK_PS_CLK)
+			writel(0, isp->base + IPU7_BUTTRESS_REG_PS_PLL_ENABLE);
+	}
+
+	return 0;
+}
+
+static int __ipu6_power(struct device *dev,
+			const struct ipu6_buttress_ctrl *ctrl, bool on)
+{
+	struct ipu6_device *isp = to_ipu6_bus_device(dev)->isp;
+	u32 pwr_sts, val;
+	int ret;
+
+	if (!on) {
+		val = 0;
+		pwr_sts = ctrl->pwr_sts_off << ctrl->pwr_sts_shift;
+	} else {
+		val = BUTTRESS_FREQ_CTL_START |
+		      FIELD_PREP(BUTTRESS_FREQ_CTL_RATIO_MASK, ctrl->ratio) |
+		      FIELD_PREP(BUTTRESS_FREQ_CTL_QOS_FLOOR_MASK,
+				 ctrl->qos_floor) |
+		      BUTTRESS_FREQ_CTL_ICCMAX_LEVEL;
+
+		pwr_sts = ctrl->pwr_sts_on << ctrl->pwr_sts_shift;
+	}
+
+	writel(val, isp->base + ctrl->freq_ctl);
+
+	ret = readl_poll_timeout(isp->base + isp->buttress.regs->pwr_status,
+				 val, (val & ctrl->pwr_sts_mask) == pwr_sts,
+				 100, BUTTRESS_POWER_TIMEOUT_US);
+	if (ret)
+		dev_err(&isp->pdev->dev,
+			"Change power status timeout with 0x%x\n", val);
 
 	return ret;
 }
@@ -447,7 +625,6 @@ int ipu6_buttress_power(struct device *dev,
 			const struct ipu6_buttress_ctrl *ctrl, bool on)
 {
 	struct ipu6_device *isp = to_ipu6_bus_device(dev)->isp;
-	u32 pwr_sts, val;
 	int ret;
 
 	if (!ctrl)
@@ -455,28 +632,11 @@ int ipu6_buttress_power(struct device *dev,
 
 	mutex_lock(&isp->buttress.power_mutex);
 
-	if (!on) {
-		val = 0;
-		pwr_sts = ctrl->pwr_sts_off << ctrl->pwr_sts_shift;
-	} else {
-		val = BUTTRESS_FREQ_CTL_START |
-			FIELD_PREP(BUTTRESS_FREQ_CTL_RATIO_MASK,
-				   ctrl->ratio) |
-			FIELD_PREP(BUTTRESS_FREQ_CTL_QOS_FLOOR_MASK,
-				   ctrl->qos_floor) |
-			BUTTRESS_FREQ_CTL_ICCMAX_LEVEL;
-
-		pwr_sts = ctrl->pwr_sts_on << ctrl->pwr_sts_shift;
-	}
-
-	writel(val, isp->base + ctrl->freq_ctl);
-
-	ret = readl_poll_timeout(isp->base + BUTTRESS_REG_PWR_STATE,
-				 val, (val & ctrl->pwr_sts_mask) == pwr_sts,
-				 100, BUTTRESS_POWER_TIMEOUT_US);
-	if (ret)
-		dev_err(&isp->pdev->dev,
-			"Change power status timeout with 0x%x\n", val);
+	if (IS_IPU7(isp) || IS_IPU8(isp))
+		ret = on ? __ipu7_power_on(dev, ctrl) :
+			   __ipu7_power_off(dev, ctrl);
+	else
+		ret = __ipu6_power(dev, ctrl, on);
 
 	mutex_unlock(&isp->buttress.power_mutex);
 
@@ -487,7 +647,7 @@ bool ipu6_buttress_get_secure_mode(struct ipu6_device *isp)
 {
 	u32 val;
 
-	val = readl(isp->base + BUTTRESS_REG_SECURITY_CTL);
+	val = readl(isp->base + isp->buttress.regs->security_ctl);
 
 	return val & BUTTRESS_SECURITY_CTL_FW_SECURE_MODE;
 }
@@ -499,7 +659,7 @@ bool ipu6_buttress_auth_done(struct ipu6_device *isp)
 	if (!isp->secure_mode)
 		return true;
 
-	val = readl(isp->base + BUTTRESS_REG_SECURITY_CTL);
+	val = readl(isp->base + isp->buttress.regs->security_ctl);
 	val = FIELD_GET(BUTTRESS_SECURITY_CTL_FW_SETUP_MASK, val);
 
 	return val == BUTTRESS_SECURITY_CTL_AUTH_DONE;
@@ -517,10 +677,10 @@ int ipu6_buttress_reset_authentication(struct ipu6_device *isp)
 	}
 
 	writel(BUTTRESS_FW_RESET_CTL_START, isp->base +
-	       BUTTRESS_REG_FW_RESET_CTL);
+	       isp->buttress.regs->fw_reset_ctl);
 
-	ret = readl_poll_timeout(isp->base + BUTTRESS_REG_FW_RESET_CTL, val,
-				 val & BUTTRESS_FW_RESET_CTL_DONE, 500,
+	ret = readl_poll_timeout(isp->base + isp->buttress.regs->fw_reset_ctl,
+				 val, val & BUTTRESS_FW_RESET_CTL_DONE, 500,
 				 BUTTRESS_CSE_FWRESET_TIMEOUT_US);
 	if (ret) {
 		dev_err(&isp->pdev->dev,
@@ -529,62 +689,63 @@ int ipu6_buttress_reset_authentication(struct ipu6_device *isp)
 	}
 
 	dev_dbg(&isp->pdev->dev, "FW reset for authentication done\n");
-	writel(0, isp->base + BUTTRESS_REG_FW_RESET_CTL);
+	writel(0, isp->base + isp->buttress.regs->fw_reset_ctl);
+
 	/* leave some time for HW restore */
 	usleep_range(800, 1000);
 
 	return 0;
 }
 
-int ipu6_buttress_map_fw_image(struct ipu6_bus_device *sys,
-			       const struct firmware *fw, struct sg_table *sgt)
+int ipu6_map_fw_region(struct ipu6_bus_device *sys, const void *data,
+		       size_t size, enum dma_data_direction dir,
+		       unsigned long attrs)
 {
-	bool is_vmalloc = is_vmalloc_addr(fw->data);
+	bool is_vmalloc = is_vmalloc_addr(data);
 	struct pci_dev *pdev = sys->isp->pdev;
+	struct sg_table *sgt = &sys->fw_sgt;
 	struct page **pages;
-	const void *addr;
 	unsigned long n_pages;
 	unsigned int i;
 	int ret;
 
-	if (!is_vmalloc && !virt_addr_valid(fw->data))
+	if (!is_vmalloc && !virt_addr_valid(data))
 		return -EDOM;
 
-	n_pages = PFN_UP(fw->size);
+	n_pages = PFN_UP(size);
 
 	pages = kmalloc_objs(*pages, n_pages);
 	if (!pages)
 		return -ENOMEM;
 
-	addr = fw->data;
 	for (i = 0; i < n_pages; i++) {
 		struct page *p = is_vmalloc ?
-			vmalloc_to_page(addr) : virt_to_page(addr);
+			vmalloc_to_page(data) : virt_to_page(data);
 
 		if (!p) {
 			ret = -ENOMEM;
 			goto out;
 		}
 		pages[i] = p;
-		addr += PAGE_SIZE;
+		data += PAGE_SIZE;
 	}
 
-	ret = sg_alloc_table_from_pages(sgt, pages, n_pages, 0, fw->size,
+	ret = sg_alloc_table_from_pages(sgt, pages, n_pages, 0, size,
 					GFP_KERNEL);
 	if (ret) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	ret = dma_map_sgtable(&pdev->dev, sgt, DMA_TO_DEVICE, 0);
+	ret = dma_map_sgtable(&pdev->dev, sgt, dir, 0);
 	if (ret) {
 		sg_free_table(sgt);
 		goto out;
 	}
 
-	ret = ipu6_dma_map_sgtable(sys, sgt, DMA_TO_DEVICE, 0);
+	ret = ipu6_dma_map_sgtable(sys, sgt, dir, attrs);
 	if (ret) {
-		dma_unmap_sgtable(&pdev->dev, sgt, DMA_TO_DEVICE, 0);
+		dma_unmap_sgtable(&pdev->dev, sgt, dir, 0);
 		sg_free_table(sgt);
 		goto out;
 	}
@@ -596,18 +757,18 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_buttress_map_fw_image, "INTEL_IPU6");
+EXPORT_SYMBOL_NS_GPL(ipu6_map_fw_region, "INTEL_IPU6");
 
-void ipu6_buttress_unmap_fw_image(struct ipu6_bus_device *sys,
-				  struct sg_table *sgt)
+void ipu6_unmap_fw_region(struct ipu6_bus_device *sys,
+			  enum dma_data_direction dir)
 {
 	struct pci_dev *pdev = sys->isp->pdev;
 
-	ipu6_dma_unmap_sgtable(sys, sgt, DMA_TO_DEVICE, 0);
-	dma_unmap_sgtable(&pdev->dev, sgt, DMA_TO_DEVICE, 0);
-	sg_free_table(sgt);
+	ipu6_dma_unmap_sgtable(sys, &sys->fw_sgt, dir, 0);
+	dma_unmap_sgtable(&pdev->dev, &sys->fw_sgt, dir, 0);
+	sg_free_table(&sys->fw_sgt);
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_buttress_unmap_fw_image, "INTEL_IPU6");
+EXPORT_SYMBOL_NS_GPL(ipu6_unmap_fw_region, "INTEL_IPU6");
 
 int ipu6_buttress_authenticate(struct ipu6_device *isp)
 {
@@ -634,11 +795,18 @@ int ipu6_buttress_authenticate(struct ipu6_device *isp)
 	 * Write address of FIT table to FW_SOURCE register
 	 * Let's use fw address. I.e. not using FIT table yet
 	 */
-	data = lower_32_bits(isp->psys->pkg_dir_dma_addr);
-	writel(data, isp->base + BUTTRESS_REG_FW_SOURCE_BASE_LO);
+	if (IS_IPU7(isp) || IS_IPU8(isp)) {
+		writel(isp->cpd_fw->size,
+		       isp->base + IPU7_BUTTRESS_REG_FW_SOURCE_SIZE);
+		writel(sg_dma_address(isp->psys->fw_sgt.sgl),
+		       isp->base + IPU7_BUTTRESS_REG_FW_SOURCE_BASE);
+	} else {
+		data = lower_32_bits(isp->psys->pkg_dir_dma_addr);
+		writel(data, isp->base + BUTTRESS_REG_FW_SOURCE_BASE_LO);
 
-	data = upper_32_bits(isp->psys->pkg_dir_dma_addr);
-	writel(data, isp->base + BUTTRESS_REG_FW_SOURCE_BASE_HI);
+		data = upper_32_bits(isp->psys->pkg_dir_dma_addr);
+		writel(data, isp->base + BUTTRESS_REG_FW_SOURCE_BASE_HI);
+	}
 
 	/*
 	 * Write boot_load into IU2CSEDATA0
@@ -659,7 +827,7 @@ int ipu6_buttress_authenticate(struct ipu6_device *isp)
 	mask = BUTTRESS_SECURITY_CTL_FW_SETUP_MASK;
 	done = BUTTRESS_SECURITY_CTL_FW_SETUP_DONE;
 	fail = BUTTRESS_SECURITY_CTL_AUTH_FAILED;
-	ret = readl_poll_timeout(isp->base + BUTTRESS_REG_SECURITY_CTL, data,
+	ret = readl_poll_timeout(isp->base + b->regs->security_ctl, data,
 				 ((data & mask) == done ||
 				  (data & mask) == fail), 500,
 				 BUTTRESS_CSE_BOOTLOAD_TIMEOUT_US);
@@ -674,8 +842,11 @@ int ipu6_buttress_authenticate(struct ipu6_device *isp)
 		goto out_unlock;
 	}
 
-	ret = readl_poll_timeout(psys_pdata->base + BOOTLOADER_STATUS_OFFSET,
-				 data, data == BOOTLOADER_MAGIC_KEY, 500,
+	void __iomem *base = (IS_IPU7(isp) || IS_IPU8(isp)) ?
+			     isp->base + IPU7_BUTTRESS_REG_FW_BOOT_PARAMS7 :
+			     psys_pdata->base + BOOTLOADER_STATUS_OFFSET;
+
+	ret = readl_poll_timeout(base, data, data == BOOTLOADER_MAGIC_KEY, 500,
 				 BUTTRESS_CSE_BOOTLOAD_TIMEOUT_US);
 	if (ret) {
 		dev_err(&isp->pdev->dev, "Unexpected magic number 0x%x\n",
@@ -699,7 +870,7 @@ int ipu6_buttress_authenticate(struct ipu6_device *isp)
 	}
 
 	done = BUTTRESS_SECURITY_CTL_AUTH_DONE;
-	ret = readl_poll_timeout(isp->base + BUTTRESS_REG_SECURITY_CTL, data,
+	ret = readl_poll_timeout(isp->base + b->regs->security_ctl, data,
 				 ((data & mask) == done ||
 				  (data & mask) == fail), 500,
 				 BUTTRESS_CSE_AUTHENTICATE_TIMEOUT_US);
@@ -724,15 +895,16 @@ out_unlock:
 
 static int ipu6_buttress_send_tsc_request(struct ipu6_device *isp)
 {
+	const struct ipu6_buttress_registers *regs = isp->buttress.regs;
 	u32 val, mask, done;
 	int ret;
 
 	mask = BUTTRESS_PWR_STATE_HH_STATUS_MASK;
 
 	writel(BUTTRESS_FABRIC_CMD_START_TSC_SYNC,
-	       isp->base + BUTTRESS_REG_FABRIC_CMD);
+	       isp->base + regs->fabric_cmd);
 
-	val = readl(isp->base + BUTTRESS_REG_PWR_STATE);
+	val = readl(isp->base + regs->pwr_status);
 	val = FIELD_GET(mask, val);
 	if (val == BUTTRESS_PWR_STATE_HH_STATE_ERR) {
 		dev_err(&isp->pdev->dev, "Start tsc sync failed\n");
@@ -740,8 +912,8 @@ static int ipu6_buttress_send_tsc_request(struct ipu6_device *isp)
 	}
 
 	done = BUTTRESS_PWR_STATE_HH_STATE_DONE;
-	ret = readl_poll_timeout(isp->base + BUTTRESS_REG_PWR_STATE, val,
-				 FIELD_GET(mask, val) == done, 500,
+	ret = readl_poll_timeout(isp->base + regs->pwr_status,
+				 val, FIELD_GET(mask, val) == done, 500,
 				 BUTTRESS_TSC_SYNC_TIMEOUT_US);
 	if (ret)
 		dev_err(&isp->pdev->dev, "Start tsc sync timeout\n");
@@ -749,11 +921,47 @@ static int ipu6_buttress_send_tsc_request(struct ipu6_device *isp)
 	return ret;
 }
 
-int ipu6_buttress_start_tsc_sync(struct ipu6_device *isp)
+static int __ipu7p5_start_tsc_sync(struct ipu6_device *isp)
 {
-	unsigned int i;
+	u32 val;
 
-	for (i = 0; i < BUTTRESS_TSC_SYNC_RESET_TRIAL_MAX; i++) {
+	val = readl(isp->base + IPU7_BUTTRESS_REG_TSC_CTL);
+	val |= IPU7_BUTTRESS_SEL_PB_TIMESTAMP;
+	writel(val, isp->base + IPU7_BUTTRESS_REG_TSC_CTL);
+
+	for (unsigned int i = 0; i < BUTTRESS_TSC_SYNC_RESET_TRIAL_MAX; i++) {
+		val = readl(isp->base + IPU7_BUTTRESS_REG_PB_TIMESTAMP_VALID);
+		if (val == 1)
+			return 0;
+
+		usleep_range(40, 50);
+	}
+
+	dev_err(&isp->pdev->dev, "TSC sync failed (timeout)\n");
+
+	return -ETIMEDOUT;
+}
+
+static int __ipu8_start_tsc_sync(struct ipu6_device *isp)
+{
+	u32 val;
+
+	for (unsigned int i = 0; i < BUTTRESS_TSC_SYNC_RESET_TRIAL_MAX; i++) {
+		val = readl(isp->base + IPU7_BUTTRESS_REG_PB_TIMESTAMP_VALID);
+		if (val == 1)
+			return 0;
+
+		usleep_range(40, 50);
+	}
+
+	dev_err(&isp->pdev->dev, "TSC sync failed (timeout)\n");
+
+	return -ETIMEDOUT;
+}
+
+static int __ipu6_start_tsc_sync(struct ipu6_device *isp)
+{
+	for (unsigned int i = 0; i < BUTTRESS_TSC_SYNC_RESET_TRIAL_MAX; i++) {
 		u32 val;
 		int ret;
 
@@ -761,28 +969,42 @@ int ipu6_buttress_start_tsc_sync(struct ipu6_device *isp)
 		if (ret != -ETIMEDOUT)
 			return ret;
 
-		val = readl(isp->base + BUTTRESS_REG_TSW_CTL);
+		u32 tsw_ctl = isp->buttress.regs->tsw_ctl;
+
+		val = readl(isp->base + tsw_ctl);
 		val = val | BUTTRESS_TSW_CTL_SOFT_RESET;
-		writel(val, isp->base + BUTTRESS_REG_TSW_CTL);
+		writel(val, isp->base + tsw_ctl);
 		val = val & ~BUTTRESS_TSW_CTL_SOFT_RESET;
-		writel(val, isp->base + BUTTRESS_REG_TSW_CTL);
+		writel(val, isp->base + tsw_ctl);
 	}
 
 	dev_err(&isp->pdev->dev, "TSC sync failed (timeout)\n");
 
 	return -ETIMEDOUT;
 }
+
+int ipu6_buttress_start_tsc_sync(struct ipu6_device *isp)
+{
+	if (IS_IPU8(isp))
+		return __ipu8_start_tsc_sync(isp);
+
+	if (IS_IPU7P5(isp))
+		return __ipu7p5_start_tsc_sync(isp);
+
+	return __ipu6_start_tsc_sync(isp);
+}
 EXPORT_SYMBOL_NS_GPL(ipu6_buttress_start_tsc_sync, "INTEL_IPU6");
 
 void ipu6_buttress_tsc_read(struct ipu6_device *isp, u64 *val)
 {
+	void __iomem *tsc = isp->base + isp->buttress.regs->tsc_lo;
 	u32 tsc_hi_1, tsc_hi_2, tsc_lo;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	tsc_hi_1 = readl(isp->base + BUTTRESS_REG_TSC_HI);
-	tsc_lo = readl(isp->base + BUTTRESS_REG_TSC_LO);
-	tsc_hi_2 = readl(isp->base + BUTTRESS_REG_TSC_HI);
+	tsc_hi_1 = readl(tsc + BUTTRESS_TSC_HI_OFFSET);
+	tsc_lo = readl(tsc);
+	tsc_hi_2 = readl(tsc + BUTTRESS_TSC_HI_OFFSET);
 	if (tsc_hi_1 == tsc_hi_2) {
 		*val = (u64)tsc_hi_1 << 32 | tsc_lo;
 	} else {
@@ -811,13 +1033,102 @@ u64 ipu6_buttress_tsc_ticks_to_ns(u64 ticks, const struct ipu6_device *isp)
 }
 EXPORT_SYMBOL_NS_GPL(ipu6_buttress_tsc_ticks_to_ns, "INTEL_IPU6");
 
+/* trigger uc control to wakeup fw */
+void ipu7_buttress_wakeup_isys(const struct ipu6_device *isp)
+{
+	u32 val;
+
+	val = readl(isp->base + IPU7_BUTTRESS_REG_ISYS_UCX_CTRL_STATUS);
+	val |= IPU7_UCX_CTL_WAKEUP;
+	writel(val, isp->base + IPU7_BUTTRESS_REG_ISYS_UCX_CTRL_STATUS);
+}
+EXPORT_SYMBOL_NS_GPL(ipu7_buttress_wakeup_isys, "INTEL_IPU6");
+
+u32 ipu7_buttress_get_isys_freq(struct ipu6_device *isp)
+{
+	u32 val;
+
+	val = readl(isp->base + IPU7_BUTTRESS_REG_IS_WORKPOINT_REQ);
+	val &= IPU7_BUTTRESS_IS_FREQ_CTL_RATIO_MASK;
+
+	return val * 50 / 3;
+}
+EXPORT_SYMBOL_NS_GPL(ipu7_buttress_get_isys_freq, "INTEL_IPU6");
+
+/* trigger uc control to wakeup fw */
+void ipu7_buttress_wakeup_psys(const struct ipu6_device *isp)
+{
+	u32 val;
+
+	val = readl(isp->base + IPU7_BUTTRESS_REG_PSYS_UCX_CTRL_STATUS);
+	val |= IPU7_UCX_CTL_WAKEUP;
+	writel(val, isp->base + IPU7_BUTTRESS_REG_PSYS_UCX_CTRL_STATUS);
+}
+EXPORT_SYMBOL_NS_GPL(ipu7_buttress_wakeup_psys, "INTEL_IPU6");
+
+u32 ipu7_buttress_get_psys_freq(struct ipu6_device *isp)
+{
+	u32 val;
+
+	val = readl(isp->base + IPU7_BUTTRESS_REG_PS_WORKPOINT_REQ);
+	val &= IPU7_BUTTRESS_PS_FREQ_CTL_RATIO_MASK;
+
+	return val * IPU7_BUTTRESS_PS_FREQ_RATIO_STEP;
+}
+EXPORT_SYMBOL_NS_GPL(ipu7_buttress_get_psys_freq, "INTEL_IPU6");
+
+static const struct x86_cpu_id ipu7_misc_cfg_exclusion[] = {
+	X86_MATCH_VFM_STEPS(INTEL_PANTHERLAKE_L, 0x1, 0x1, 0),
+	{},
+};
+
+#define IPU7_WRXREQOP_OVRD_VAL_MASK  GENMASK(22, 19)
+
+static void ipu7_buttress_setup(struct ipu6_device *isp)
+{
+	struct ipu6_buttress *b = &isp->buttress;
+	u32 val;
+
+	/* program PB BAR */
+	writel(0, isp->pb_base + IPU7_GLOBAL_INTERRUPT_MASK);
+	val = readl(isp->pb_base + IPU7_BAR2_MISC_CONFIG);
+
+	val |= 0x100U;
+	if (!IS_IPU7_MTL(isp) && !x86_match_cpu(ipu7_misc_cfg_exclusion))
+		val |= FIELD_PREP(IPU7_WRXREQOP_OVRD_VAL_MASK, 0xf) | BIT(18);
+
+	writel(val, isp->pb_base + IPU7_BAR2_MISC_CONFIG);
+
+	if (IS_IPU8(isp)) {
+		writel(BIT(13), isp->pb_base + IPU7_TLBID_HASH_ENABLE_63_32);
+		writel(BIT(9), isp->pb_base + IPU7_TLBID_HASH_ENABLE_95_64);
+	} else if (IS_IPU7P5(isp)) {
+		writel(BIT(14), isp->pb_base + IPU7_TLBID_HASH_ENABLE_63_32);
+		writel(BIT(9), isp->pb_base + IPU7_TLBID_HASH_ENABLE_95_64);
+	} else {
+		writel(BIT(22), isp->pb_base + IPU7_TLBID_HASH_ENABLE_63_32);
+		writel(BIT(1), isp->pb_base + IPU7_TLBID_HASH_ENABLE_127_96);
+	}
+
+	writel(b->regs->irq_all, isp->base + b->regs->irq_clear);
+	writel(b->regs->irq_all, isp->base + IPU7_BUTTRESS_REG_IRQ_MASK);
+	writel(b->regs->irq_all, isp->base + b->regs->irq_enable);
+
+	/* LNL SW workaround for PS PD hang when PS sub-domain during PD */
+	writel(IPU7_BUTTRESS_CG_CTRL_PS_FSM_CG, isp->base + IPU7_BUTTRESS_REG_CG_CTRL_BITS);
+}
+
 void ipu6_buttress_restore(struct ipu6_device *isp)
 {
 	struct ipu6_buttress *b = &isp->buttress;
 
-	writel(BUTTRESS_IRQS, isp->base + BUTTRESS_REG_ISR_CLEAR);
-	writel(BUTTRESS_IRQS, isp->base + BUTTRESS_REG_ISR_ENABLE);
-	writel(b->wdt_cached_value, isp->base + BUTTRESS_REG_WDT);
+	if (IS_IPU7(isp) || IS_IPU8(isp)) {
+		ipu7_buttress_setup(isp);
+	} else {
+		writel(b->regs->irq_all, isp->base + b->regs->irq_clear);
+		writel(b->regs->irq_all, isp->base + b->regs->irq_enable);
+	}
+	writel(b->wdt_cached_value, isp->base + b->regs->wdt);
 }
 
 int ipu6_buttress_init(struct ipu6_device *isp)
@@ -830,54 +1141,52 @@ int ipu6_buttress_init(struct ipu6_device *isp)
 	mutex_init(&b->auth_mutex);
 	mutex_init(&b->cons_mutex);
 	mutex_init(&b->ipc_mutex);
-	init_completion(&b->cse.send_complete);
-	init_completion(&b->cse.recv_complete);
-
-	b->cse.nack = BUTTRESS_CSE2IUDATA0_IPC_NACK;
-	b->cse.nack_mask = BUTTRESS_CSE2IUDATA0_IPC_NACK_MASK;
-	b->cse.csr_in = BUTTRESS_REG_CSE2IUCSR;
-	b->cse.csr_out = BUTTRESS_REG_IU2CSECSR;
-	b->cse.db0_in = BUTTRESS_REG_CSE2IUDB0;
-	b->cse.db0_out = BUTTRESS_REG_IU2CSEDB0;
-	b->cse.data0_in = BUTTRESS_REG_CSE2IUDATA0;
-	b->cse.data0_out = BUTTRESS_REG_IU2CSEDATA0;
+	init_completion(&b->ipc.send_complete);
+	init_completion(&b->ipc.recv_complete);
 
 	INIT_LIST_HEAD(&b->constraints);
-
 	isp->secure_mode = ipu6_buttress_get_secure_mode(isp);
-	dev_dbg(&isp->pdev->dev, "IPU6 in %s mode touch 0x%x mask 0x%x\n",
-		isp->secure_mode ? "secure" : "non-secure",
-		readl(isp->base + BUTTRESS_REG_SECURITY_TOUCH),
-		readl(isp->base + BUTTRESS_REG_CAMERA_MASK));
 
-	b->wdt_cached_value = readl(isp->base + BUTTRESS_REG_WDT);
-	writel(BUTTRESS_IRQS, isp->base + BUTTRESS_REG_ISR_CLEAR);
-	writel(BUTTRESS_IRQS, isp->base + BUTTRESS_REG_ISR_ENABLE);
+	dev_dbg(&isp->pdev->dev, "IPU in %s mode\n",
+		isp->secure_mode ? "secure" : "non-secure");
 
-	/* get ref_clk frequency by reading the indication in btrs control */
-	val = readl(isp->base + BUTTRESS_REG_BTRS_CTRL);
-	val = FIELD_GET(BUTTRESS_REG_BTRS_CTRL_REF_CLK_IND, val);
-
-	switch (val) {
-	case 0x0:
-		b->ref_clk = 240;
-		break;
-	case 0x1:
-		b->ref_clk = 192;
-		break;
-	case 0x2:
+	if (IS_IPU7(isp) || IS_IPU8(isp)) {
+		ipu7_buttress_setup(isp);
 		b->ref_clk = 384;
-		break;
-	default:
-		dev_warn(&isp->pdev->dev,
-			 "Unsupported ref clock, use 19.2Mhz by default.\n");
-		b->ref_clk = 192;
-		break;
+	} else {
+		dev_dbg(&isp->pdev->dev, "IPU6 touch 0x%x mask 0x%x\n",
+			readl(isp->base + BUTTRESS_REG_SECURITY_TOUCH),
+			readl(isp->base + BUTTRESS_REG_CAMERA_MASK));
+
+		writel(b->regs->irq_all, isp->base + b->regs->irq_clear);
+		writel(b->regs->irq_all, isp->base + b->regs->irq_enable);
+
+		/* get ref_clk frequency by reading the indication in btrs control */
+		val = readl(isp->base + b->regs->btrs_ctrl);
+		val = FIELD_GET(BUTTRESS_REG_BTRS_CTRL_REF_CLK_IND, val);
+
+		switch (val) {
+		case 0x0:
+			b->ref_clk = 240;
+			break;
+		case 0x1:
+			b->ref_clk = 192;
+			break;
+		case 0x2:
+			b->ref_clk = 384;
+			break;
+		default:
+			dev_warn(&isp->pdev->dev,
+				 "Unsupported ref clock, use 19.2Mhz by default.\n");
+			b->ref_clk = 192;
+			break;
+		}
 	}
+	b->wdt_cached_value = readl(isp->base + b->regs->wdt);
 
 	/* Retry couple of times in case of CSE initialization is delayed */
 	do {
-		ret = ipu6_buttress_ipc_reset(isp, &b->cse);
+		ret = ipu6_buttress_ipc_reset(isp);
 		if (ret) {
 			dev_warn(&isp->pdev->dev,
 				 "IPC reset protocol failed, retrying\n");
@@ -901,7 +1210,7 @@ void ipu6_buttress_exit(struct ipu6_device *isp)
 {
 	struct ipu6_buttress *b = &isp->buttress;
 
-	writel(0, isp->base + BUTTRESS_REG_ISR_ENABLE);
+	writel(0, isp->base + b->regs->irq_enable);
 
 	mutex_destroy(&b->power_mutex);
 	mutex_destroy(&b->auth_mutex);

@@ -524,8 +524,8 @@ static int cobalt_subdevs_init(struct cobalt *cobalt)
 				&cobalt_edid);
 		if (err)
 			return err;
-		err = v4l2_subdev_call(s[i].sd, pad, set_fmt, NULL,
-				&sd_fmt);
+		err = v4l2_subdev_call(s[i].sd, pad, set_fmt, NULL, NULL,
+				       &sd_fmt);
 		if (err)
 			return err;
 		/* Reset channel video module */
@@ -608,8 +608,8 @@ static int cobalt_subdevs_hsma_init(struct cobalt *cobalt)
 
 		if (err)
 			return err;
-		err = v4l2_subdev_call(s->sd, pad, set_fmt, NULL,
-				&sd_fmt);
+		err = v4l2_subdev_call(s->sd, pad, set_fmt, NULL, NULL,
+				       &sd_fmt);
 		if (err)
 			return err;
 		cobalt->have_hsma_rx = true;

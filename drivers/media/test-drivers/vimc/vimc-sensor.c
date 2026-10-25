@@ -97,18 +97,14 @@ static void vimc_sensor_update_frame_timing(struct v4l2_subdev *sd,
 {
 	struct vimc_sensor_device *vsensor =
 		container_of(sd, struct vimc_sensor_device, sd);
-	u64 pixel_rate = vsensor->pixel_rate->val;
+	u32 pixel_rate = vsensor->pixel_rate->val;
 	u32 hts = width + vsensor->hblank->val;
 	u32 vts = height + vsensor->vblank->val;
 	u64 total_pixels = (u64)hts * vts;
 	u64 frame_interval_ns;
 
-	/* Sanity check, pixel rate is fixed and fits in 32 bits. */
-	if (WARN_ON(pixel_rate >= 0x100000000))
-		return;
-
 	frame_interval_ns = total_pixels * NSEC_PER_SEC;
-	do_div(frame_interval_ns, (u32)pixel_rate);
+	do_div(frame_interval_ns, pixel_rate);
 	vsensor->hw.fps_jiffies = nsecs_to_jiffies(frame_interval_ns);
 	if (vsensor->hw.fps_jiffies == 0)
 		vsensor->hw.fps_jiffies = 1;
@@ -154,6 +150,7 @@ static u32 vimc_calc_vblank(u32 width, u32 height,
 }
 
 static int vimc_sensor_set_fmt(struct v4l2_subdev *sd,
+			       const struct v4l2_subdev_client_info *ci,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt)
 {

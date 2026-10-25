@@ -44,6 +44,10 @@
 #define LNB_LOW_FREQ		9750000		/* low IF frequency */
 #define LNB_HIGH_FREQ		10600000	/* transition frequency */
 
+/* The Ku-band range covered by such an LNBf, in kHz */
+#define LNB_KU_BAND_MIN_FREQ	10700000
+#define LNB_KU_BAND_MAX_FREQ	12750000
+
 static unsigned int drop_tslock_prob_on_low_snr;
 module_param(drop_tslock_prob_on_low_snr, uint, 0444);
 MODULE_PARM_DESC(drop_tslock_prob_on_low_snr,
@@ -367,6 +371,36 @@ static int vidtv_bridge_probe_demod(struct vidtv_dvb *dvb, u32 n)
 	return 0;
 }
 
+/*
+ * Reject frequencies the simulation could never tune into, as the module
+ * would otherwise load just fine and then never lock on anything, leaving
+ * no clue about what went wrong.
+ */
+static int vidtv_bridge_check_freqs(struct vidtv_dvb *dvb,
+				    const unsigned int *freqs,
+				    u32 array_sz,
+				    u32 min_freq,
+				    u32 max_freq,
+				    const char *name)
+{
+	u32 i;
+
+	for (i = 0; i < array_sz; i++) {
+		/* a zeroed entry means an unused slot */
+		if (!freqs[i])
+			continue;
+
+		if (freqs[i] < min_freq || freqs[i] > max_freq) {
+			dev_err(&dvb->pdev->dev,
+				"%s[%u]: %u is out of range (%u..%u)\n",
+				name, i, freqs[i], min_freq, max_freq);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int vidtv_bridge_probe_tuner(struct vidtv_dvb *dvb, u32 n)
 {
 	struct vidtv_tuner_config cfg = {
@@ -374,10 +408,45 @@ static int vidtv_bridge_probe_tuner(struct vidtv_dvb *dvb, u32 n)
 		.mock_power_up_delay_msec = mock_power_up_delay_msec,
 		.mock_tune_delay_msec     = mock_tune_delay_msec,
 	};
+	u32 min_freq = dvb->fe[n]->ops.info.frequency_min_hz;
+	u32 max_freq = dvb->fe[n]->ops.info.frequency_max_hz;
 	u32 freq;
+	int ret;
 	int i;
 
-	/* TODO: check if the frequencies are at a valid range */
+	/*
+	 * Terrestrial and cable frequencies are given in Hz and are used as
+	 * is, so they have to fit within the range the demod reports to the
+	 * DVB core: the core rejects a tuning request outside of it before
+	 * the tuner is ever asked about the frequency.
+	 */
+	ret = vidtv_bridge_check_freqs(dvb, vidtv_valid_dvb_t_freqs,
+				       ARRAY_SIZE(vidtv_valid_dvb_t_freqs),
+				       min_freq, max_freq,
+				       "vidtv_valid_dvb_t_freqs");
+	if (ret)
+		return ret;
+
+	ret = vidtv_bridge_check_freqs(dvb, vidtv_valid_dvb_c_freqs,
+				       ARRAY_SIZE(vidtv_valid_dvb_c_freqs),
+				       min_freq, max_freq,
+				       "vidtv_valid_dvb_c_freqs");
+	if (ret)
+		return ret;
+
+	/*
+	 * Satellite frequencies are given in kHz at Ku-band and are
+	 * downconverted below, so check them against the band the simulated
+	 * LNBf covers instead. Doing so also ensures that the frequencies
+	 * are above the LNBf local oscillators.
+	 */
+	ret = vidtv_bridge_check_freqs(dvb, vidtv_valid_dvb_s_freqs,
+				       ARRAY_SIZE(vidtv_valid_dvb_s_freqs),
+				       LNB_KU_BAND_MIN_FREQ,
+				       LNB_KU_BAND_MAX_FREQ,
+				       "vidtv_valid_dvb_s_freqs");
+	if (ret)
+		return ret;
 
 	memcpy(cfg.vidtv_valid_dvb_t_freqs,
 	       vidtv_valid_dvb_t_freqs,
@@ -474,6 +543,7 @@ fail_dmx:
 fail_demod_probe:
 	for (i = i - 1; i >= 0; --i) {
 		dvb_unregister_frontend(dvb->fe[i]);
+		dvb_frontend_detach(dvb->fe[i]);
 fail_fe:
 		dvb_module_release(dvb->i2c_client_tuner[i]);
 fail_tuner_probe:
@@ -550,8 +620,11 @@ static void vidtv_bridge_remove(struct platform_device *pdev)
 
 	mutex_destroy(&dvb->feed_lock);
 
+	vidtv_stop_streaming(dvb);
+
 	for (i = 0; i < NUM_FE; ++i) {
 		dvb_unregister_frontend(dvb->fe[i]);
+		dvb_frontend_detach(dvb->fe[i]);
 		dvb_module_release(dvb->i2c_client_tuner[i]);
 		dvb_module_release(dvb->i2c_client_demod[i]);
 	}

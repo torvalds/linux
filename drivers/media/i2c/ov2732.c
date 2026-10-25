@@ -281,6 +281,7 @@ static int ov2732_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int ov2732_set_fmt(struct v4l2_subdev *sd,
+			  const struct v4l2_subdev_client_info *ci,
 			  struct v4l2_subdev_state *state,
 			  struct v4l2_subdev_format *fmt)
 {
@@ -317,6 +318,7 @@ static int ov2732_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov2732_get_selection(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_selection *sel)
 {
@@ -442,7 +444,7 @@ static int ov2732_init_state(struct v4l2_subdev *sd,
 		}
 	};
 
-	return ov2732_set_fmt(sd, sd_state, &fmt);
+	return ov2732_set_fmt(sd, NULL, sd_state, &fmt);
 }
 
 static const struct v4l2_subdev_internal_ops ov2732_internal_ops = {

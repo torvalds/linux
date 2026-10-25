@@ -259,7 +259,7 @@ static void cx88_ir_close(struct rc_dev *rc)
 int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 {
 	struct cx88_IR *ir;
-	struct rc_dev *dev;
+	struct rc_dev *dev = NULL;
 	char *ir_codes = NULL;
 	u64 rc_proto = RC_PROTO_BIT_OTHER;
 	int err = -ENOMEM;
@@ -268,11 +268,8 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 				 */
 
 	ir = kzalloc_obj(*ir);
-	dev = rc_allocate_device(RC_DRIVER_IR_RAW);
-	if (!ir || !dev)
-		goto err_out_free;
-
-	ir->dev = dev;
+	if (!ir)
+		return -ENOMEM;
 
 	/* detect & configure */
 	switch (core->boardnr) {
@@ -439,6 +436,13 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		goto err_out_free;
 	}
 
+	dev = rc_allocate_device(ir->sampling ?
+				 RC_DRIVER_IR_RAW : RC_DRIVER_SCANCODE);
+	if (!dev)
+		goto err_out_free;
+
+	ir->dev = dev;
+
 	/*
 	 * The usage of mask_keycode were very convenient, due to several
 	 * reasons. Among others, the scancode tables were using the scancode
@@ -477,12 +481,10 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	dev->close = cx88_ir_close;
 	dev->scancode_mask = hardware_mask;
 
-	if (ir->sampling) {
+	if (ir->sampling)
 		dev->timeout = MS_TO_US(10); /* 10 ms */
-	} else {
-		dev->driver_type = RC_DRIVER_SCANCODE;
+	else
 		dev->allowed_protocols = rc_proto;
-	}
 
 	ir->core = core;
 	core->ir = ir;

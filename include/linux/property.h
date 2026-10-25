@@ -547,6 +547,11 @@ unsigned int fwnode_graph_get_endpoint_count(const struct fwnode_handle *fwnode,
 	for (child = fwnode_graph_get_next_endpoint(fwnode, NULL); child;	\
 	     child = fwnode_graph_get_next_endpoint(fwnode, child))
 
+#define fwnode_graph_for_each_endpoint_scoped(fwnode, child)			\
+	for (struct fwnode_handle *child __free(fwnode_handle) =		\
+		fwnode_graph_get_next_endpoint(fwnode, NULL);			\
+	     child; child = fwnode_graph_get_next_endpoint(fwnode, child))
+
 int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 				struct fwnode_endpoint *endpoint);
 

@@ -4,6 +4,7 @@
 #ifndef IPU6_ISYS_H
 #define IPU6_ISYS_H
 
+#include <linux/idr.h>
 #include <linux/irqreturn.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -14,15 +15,33 @@
 #include <media/media-device.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-mediabus.h>
 
 #include "ipu6.h"
 #include "ipu6-fw-isys.h"
+#include "ipu7-fw-isys.h"
 #include "ipu6-isys-csi2.h"
 #include "ipu6-isys-video.h"
 
 struct ipu6_bus_device;
 
-#define IPU6_ISYS_ENTITY_PREFIX		"Intel IPU6"
+#define IPU6_ISYS_ENTITY_VERSION	"6"
+#define IPU7_ISYS_ENTITY_VERSION	"7"
+#define IPU7P5_ISYS_ENTITY_VERSION	"7.5"
+#define IPU8_ISYS_ENTITY_VERSION	"8"
+
+static inline const char *ipu6_isys_entity_version(struct ipu6_device *isp)
+{
+	if (IS_IPU8(isp))
+		return IPU8_ISYS_ENTITY_VERSION;
+	if (IS_IPU7P5(isp))
+		return IPU7P5_ISYS_ENTITY_VERSION;
+	if (IS_IPU7_MTL(isp))
+		return IPU7_ISYS_ENTITY_VERSION;
+
+	return IPU6_ISYS_ENTITY_VERSION;
+}
+
 /* FW support max 16 streams */
 #define IPU6_ISYS_MAX_STREAMS		16
 #define ISYS_UNISPART_IRQS	(IPU6_ISYS_UNISPART_IRQ_SW |	\
@@ -60,41 +79,10 @@ struct ipu6_bus_device;
 #define IPU6EP_MTL_LTR_VALUE			1023
 #define IPU6EP_MTL_MIN_MEMOPEN_TH		0xc
 
-struct ltr_did {
-	union {
-		u32 value;
-		struct {
-			u8 val0;
-			u8 val1;
-			u8 val2;
-			u8 val3;
-		} bits;
-	} lut_ltr;
-	union {
-		u32 value;
-		struct {
-			u8 th0;
-			u8 th1;
-			u8 th2;
-			u8 th3;
-		} bits;
-	} lut_fill_time;
-};
-
-struct isys_iwake_watermark {
-	bool iwake_enabled;
-	bool force_iwake_disable;
-	u32 iwake_threshold;
-	u64 isys_pixelbuffer_datarate;
-	struct ltr_did ltrdid;
-	struct mutex mutex; /* protect whole struct */
-	struct ipu6_isys *isys;
-	struct list_head video_list;
-};
-
 struct ipu6_isys_csi2_config {
 	u32 nlanes;
 	u32 port;
+	enum v4l2_mbus_type bus_type;
 };
 
 struct sensor_async_sd {
@@ -108,17 +96,12 @@ struct sensor_async_sd {
  * @media_dev: Media device
  * @v4l2_dev: V4L2 device
  * @adev: ISYS bus device
- * @power: Is ISYS powered on or not?
- * @isr_bits: Which bits does the ISR handle?
- * @power_lock: Serialise access to power (power state in general)
  * @csi2_rx_ctrl_cached: cached shared value between all CSI2 receivers
  * @streams_lock: serialise access to streams
  * @streams: streams per firmware stream ID
- * @fwcom: fw communication layer private pointer
- *         or optional external library private pointer
+ * @fwctx: fw communication layer context pointer
  * @phy_termcal_val: the termination calibration value, only used for DWC PHY
  * @need_reset: Isys requires d0i0->i3 transition
- * @ref_count: total number of callers fw open
  * @mutex: serialise access isys video open/release related operations
  * @stream_mutex: serialise stream start and stop, queueing requests
  * @pdata: platform data pointer
@@ -129,20 +112,17 @@ struct ipu6_isys {
 	struct v4l2_device v4l2_dev;
 	struct ipu6_bus_device *adev;
 
-	int power;
-	spinlock_t power_lock;
 	u32 isr_csi2_bits;
 	u32 csi2_rx_ctrl_cached;
 	spinlock_t streams_lock;
-	struct ipu6_isys_stream streams[IPU6_ISYS_MAX_STREAMS];
-	int streams_ref_count[IPU6_ISYS_MAX_STREAMS];
-	void *fwcom;
+	struct ipu6_isys_stream *streams_by_handle[IPU6_ISYS_MAX_STREAMS];
+	void *fwctx;
 	u32 phy_termcal_val;
+	u32 phy_rext_cal;
 	bool need_reset;
 	bool icache_prefetch;
 	bool csi2_cse_ipc_not_supported;
-	unsigned int ref_count;
-	unsigned int stream_opened;
+	bool iwake_watermark_enabled;
 	unsigned int sensor_type;
 
 	struct mutex mutex;
@@ -162,26 +142,68 @@ struct ipu6_isys {
 	struct list_head framebuflist;
 	struct list_head framebuflist_fw;
 	struct v4l2_async_notifier notifier;
-	struct isys_iwake_watermark iwake_watermark;
+	struct ida streams;
 };
 
 struct isys_fw_msgs {
 	union {
 		u64 dummy;
-		struct ipu6_fw_isys_frame_buff_set_abi frame;
-		struct ipu6_fw_isys_stream_cfg_data_abi stream;
-	} fw_msg;
+		union {
+			struct ipu6_fw_isys_frame_buff_set_abi frame;
+			struct ipu6_fw_isys_stream_cfg_data_abi stream;
+		} ipu6;
+		union {
+			struct ipu7_fw_isys_frame_buff_set frame;
+			struct ipu7_fw_isys_stream_cfg stream;
+			/* sizes the union for the larger IPU8 (ABI 1.0.14) layout */
+			struct ipu7_fw_isys_frame_buff_set_ipu8 frame_ipu8;
+			struct ipu7_fw_isys_stream_cfg_ipu8 stream_ipu8;
+		} ipu7;
+	};
 	struct list_head head;
 	dma_addr_t dma_addr;
 };
 
+struct ipu6_fw_isys_ops {
+	int (*init)(struct ipu6_isys *isys, unsigned int num_streams);
+	int (*close)(struct ipu6_isys *isys);
+	int (*send_cmd)(struct ipu6_isys *isys,
+			const unsigned int stream_handle,
+			void *cpu_mapped_buf,
+			dma_addr_t dma_mapped_buf,
+			size_t size, u16 send_type);
+	void (*cleanup)(struct ipu6_isys *isys);
+	int (*prepare_stream_cfg)(struct ipu6_isys_stream *stream,
+				  struct v4l2_mbus_frame_desc *desc,
+				  struct isys_fw_msgs *msg);
+	void (*prepare_buf_set)(struct isys_fw_msgs *msg,
+				struct ipu6_isys_stream *stream,
+				struct ipu6_isys_buffer_list *bl);
+	int (*stream_open)(struct ipu6_isys *isys,
+			   const unsigned int stream_handle,
+			   struct isys_fw_msgs *msg);
+	int (*stream_start)(struct ipu6_isys *isys,
+			    const unsigned int stream_handle,
+			    struct isys_fw_msgs *msg, bool capture);
+	int (*stream_capture)(struct ipu6_isys *isys,
+			      const unsigned int stream_handle,
+			      struct isys_fw_msgs *msg);
+	int (*stream_flush)(struct ipu6_isys *isys,
+			    const unsigned int stream_handle);
+	int (*stream_close)(struct ipu6_isys *isys,
+			    const unsigned int stream_handle);
+	void (*dump_stream_cfg)(struct device *dev, struct isys_fw_msgs *msg);
+	void (*dump_frame_buf_set)(struct device *dev, struct isys_fw_msgs *msg,
+				   unsigned int outputs);
+};
+
 struct isys_fw_msgs *ipu6_get_fw_msg_buf(struct ipu6_isys_stream *stream);
-void ipu6_put_fw_msg_buf(struct ipu6_isys *isys, uintptr_t data);
+void ipu6_put_fw_msg_buf(struct ipu6_isys *isys, struct isys_fw_msgs *msg);
 void ipu6_cleanup_fw_msg_bufs(struct ipu6_isys *isys);
 
 extern const struct v4l2_ioctl_ops ipu6_isys_ioctl_ops;
 
-void update_watermark_setting(struct ipu6_isys *isys);
+void ipu6_isys_update_watermark_setting(struct ipu6_isys *isys);
 
 int ipu6_isys_mcd_phy_set_power(struct ipu6_isys *isys,
 				struct ipu6_isys_csi2_config *cfg,

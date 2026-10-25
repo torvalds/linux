@@ -2702,6 +2702,7 @@ static int ov8865_get_fmt(struct v4l2_subdev *subdev,
 }
 
 static int ov8865_set_fmt(struct v4l2_subdev *subdev,
+			  const struct v4l2_subdev_client_info *ci,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
@@ -2810,6 +2811,7 @@ __ov8865_get_pad_crop(struct ov8865_sensor *sensor,
 }
 
 static int ov8865_get_selection(struct v4l2_subdev *subdev,
+				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_selection *sel)
 {

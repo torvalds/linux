@@ -98,8 +98,51 @@ struct ipu6_cpd_client_pkg_hdr {
 	u32 prog_bin_size;
 } __packed;
 
+/* IPU7 */
+
+struct ipu7_cpd_hdr {
+	u32 hdr_mark;
+	u32 ent_cnt;
+	u8 hdr_ver;
+	u8 ent_ver;
+	u8 hdr_len;
+	u8 rsvd;
+	u8 partition_name[4];
+	u32 crc32;
+} __packed;
+
+struct ipu7_cpd_metadata_hdr {
+	u32 type;
+	u32 len;
+} __packed;
+
+struct ipu7_cpd_metadata_attr {
+	struct ipu7_cpd_metadata_hdr hdr;
+	u8 compression_type;
+	u8 encryption_type;
+	u8 rsvd[2];
+	u32 uncompressed_size;
+	u32 compressed_size;
+	u32 module_id;
+	u8 hash[48];
+} __packed;
+
+struct ipu7_cpd_metadata_ipl {
+	struct ipu7_cpd_metadata_hdr hdr;
+	u32 param[4];
+	u8 rsvd[8];
+} __packed;
+
+struct ipu7_cpd_metadata {
+	struct ipu7_cpd_metadata_attr attr;
+	struct ipu7_cpd_metadata_ipl ipl;
+} __packed;
+
 int ipu6_cpd_create_pkg_dir(struct ipu6_bus_device *adev, const void *src);
 void ipu6_cpd_free_pkg_dir(struct ipu6_bus_device *adev);
 int ipu6_cpd_validate_cpd_file(struct ipu6_device *isp, const void *cpd_file,
 			       unsigned long cpd_file_size);
+int ipu6_ipu7_cpd_copy_binary(const void *cpd, const char *name, void *dst,
+			      u32 *entry);
+
 #endif /* IPU6_CPD_H */

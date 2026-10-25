@@ -588,6 +588,7 @@ static int imx412_get_pad_format(struct v4l2_subdev *sd,
 }
 
 static int imx412_set_pad_format(struct v4l2_subdev *sd,
+				 const struct v4l2_subdev_client_info *ci,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
@@ -621,7 +622,7 @@ static int imx412_init_state(struct v4l2_subdev *sd,
 	fmt.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
 	imx412_fill_pad_format(imx412, &supported_mode, &fmt);
 
-	return imx412_set_pad_format(sd, sd_state, &fmt);
+	return imx412_set_pad_format(sd, NULL, sd_state, &fmt);
 }
 
 /**

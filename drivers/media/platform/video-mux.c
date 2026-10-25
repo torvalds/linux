@@ -146,6 +146,7 @@ static const struct v4l2_subdev_video_ops video_mux_subdev_video_ops = {
 };
 
 static int video_mux_set_format(struct v4l2_subdev *sd,
+			    const struct v4l2_subdev_client_info *ci,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *sdformat)
 {

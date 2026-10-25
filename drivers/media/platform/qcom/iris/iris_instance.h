@@ -6,6 +6,8 @@
 #ifndef __IRIS_INSTANCE_H__
 #define __IRIS_INSTANCE_H__
 
+#include <linux/kref.h>
+
 #include <media/v4l2-ctrls.h>
 
 #include "iris_buffer.h"
@@ -17,24 +19,11 @@
 
 struct iris_hfi_session_ops;
 
-enum iris_fmt_type_out {
-	IRIS_FMT_H264,
-	IRIS_FMT_HEVC,
-	IRIS_FMT_VP9,
-	IRIS_FMT_AV1,
-};
-
-enum iris_fmt_type_cap {
-	IRIS_FMT_NV12,
-	IRIS_FMT_QC08C,
-	IRIS_FMT_TP10,
-	IRIS_FMT_QC10C,
-};
-
 /**
  * struct iris_inst - holds per video instance parameters
  *
  * @list: used for attach an instance to the core
+ * @kref: reference count, keeps the instance alive while the IRQ thread uses it
  * @core: pointer to core structure
  * @session_id: id of current video session
  * @hfi_session_ops: iris HFI session ops
@@ -82,6 +71,7 @@ enum iris_fmt_type_cap {
 
 struct iris_inst {
 	struct list_head		list;
+	struct kref			kref;
 	struct iris_core		*core;
 	u32				session_id;
 	const struct iris_hfi_session_ops	*hfi_session_ops;

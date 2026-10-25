@@ -431,6 +431,7 @@ static void em2828X_decoder_set_std(struct em28xx *dev, v4l2_std_id norm)
 		} else if (INPUT(dev->ctl_input)->vmux == EM2828X_TELEVISION) {
 			em28xx_write_reg(dev, 0x7A00, 0x32);
 			em28xx_write_reg(dev, 0x7A03, 0x09);
+			em28xx_write_reg(dev, 0x7A07, 0x2f);
 			em28xx_write_reg(dev, 0x7A30, 0x2a);
 			em28xx_write_reg(dev, 0x7A80, 0x03);
 			em28xx_write_reg(dev, 0x7A20, 0x35);
@@ -744,6 +745,27 @@ finish_field_prepare_next(struct em28xx *dev,
 }
 
 /*
+ * Set the parity of the field that starts with this header.
+ *
+ * Non-interlaced sources, such as the 240p output of classic game consoles,
+ * generate every field with the same parity, so the bridge reports the same
+ * field ID over and over. A top field never arrives and no frame is ever
+ * completed. Detect a repeated field ID and alternate the parity instead, so
+ * consecutive fields are woven into a frame like a genuine interlaced pair.
+ */
+static inline void em28xx_set_field_parity(struct em28xx_v4l2 *v4l2,
+					   int field_id)
+{
+	bool top_field = !(field_id & 1);
+
+	if (field_id == v4l2->last_field_id)
+		top_field = !v4l2->top_field;
+
+	v4l2->last_field_id = field_id;
+	v4l2->top_field = top_field;
+}
+
+/*
  * Process data packet according to the em2710/em2750/em28xx frame data format
  */
 static inline void process_frame_data_em28xx(struct em28xx *dev,
@@ -777,14 +799,14 @@ static inline void process_frame_data_em28xx(struct em28xx *dev,
 			v4l2->capture_type = 0;
 			v4l2->vbi_read = 0;
 			em28xx_isocdbg("VBI START HEADER !!!\n");
-			v4l2->top_field = !(data_pkt[2] & 1);
+			em28xx_set_field_parity(v4l2, data_pkt[2] & 1);
 			data_pkt += 4;
 			data_len -= 4;
 		} else if (data_pkt[0] == 0x22 && data_pkt[1] == 0x5a) {
 			/* Field start (VBI disabled) */
 			v4l2->capture_type = 2;
 			em28xx_isocdbg("VIDEO START HEADER !!!\n");
-			v4l2->top_field = !(data_pkt[2] & 1);
+			em28xx_set_field_parity(v4l2, data_pkt[2] & 1);
 			data_pkt += 4;
 			data_len -= 4;
 		}
@@ -1245,6 +1267,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 		em28xx_wake_i2c(dev);
 
 		v4l2->capture_type = -1;
+		v4l2->last_field_id = -1;
 		rc = em28xx_init_usb_xfer(dev, EM28XX_ANALOG_MODE,
 					  dev->analog_xfer_bulk,
 					  EM28XX_NUM_BUFS,
@@ -1409,6 +1432,9 @@ static int em28xx_vb2_setup(struct em28xx *dev)
 	rc = vb2_queue_init(q);
 	if (rc < 0)
 		return rc;
+
+	if (!em28xx_vbi_supported(dev))
+		return 0;
 
 	/* Setup Videobuf2 for VBI capture */
 	q = &v4l2->vb_vbiq;
@@ -2474,6 +2500,7 @@ static int em28xx_v4l2_resume(struct em28xx *dev)
  */
 static int em28xx_v4l2_close(struct file *filp)
 {
+	struct video_device   *vdev = video_devdata(filp);
 	struct em28xx         *dev  = video_drvdata(filp);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 	struct usb_device *udev = interface_to_usbdev(dev->intf);
@@ -2482,7 +2509,7 @@ static int em28xx_v4l2_close(struct file *filp)
 
 	mutex_lock(&dev->lock);
 	last_user = v4l2_fh_is_singular_file(filp);
-	_vb2_fop_release(filp, NULL);
+	_vb2_fop_release(filp, vdev->queue->lock);
 
 	if (last_user) {
 		/* No sense to try to write to the device */
@@ -2983,6 +3010,14 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	if (dev->chip_id == CHIP_ID_EM2828X || dev->board.decoder == EM28XX_BUILTIN)
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_ENUM_FRAMESIZES);
 
+	/* initialize videobuf2 stuff */
+	ret = em28xx_vb2_setup(dev);
+	if (ret) {
+		dev_err(&dev->intf->dev,
+			"unable to setup videobuf queues (error=%i).\n", ret);
+		goto unregister_dev;
+	}
+
 	/* register v4l2 video video_device */
 	ret = video_register_device(&v4l2->vdev, VFL_TYPE_VIDEO,
 				    video_nr[dev->devno]);
@@ -3001,7 +3036,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		v4l2->vbi_dev.queue->lock = &v4l2->vb_vbi_queue_lock;
 		v4l2->vbi_dev.device_caps = V4L2_CAP_STREAMING |
 			V4L2_CAP_READWRITE | V4L2_CAP_VBI_CAPTURE;
-		if ((v4l2->vdev.device_caps & V4L2_CAP_TUNER) == 0)
+		if (v4l2->vdev.device_caps & V4L2_CAP_TUNER)
 			v4l2->vbi_dev.device_caps |= V4L2_CAP_TUNER;
 
 		/* disable inapplicable ioctls */
@@ -3067,9 +3102,6 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 
 	/* Save some power by putting tuner to sleep */
 	v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, standby);
-
-	/* initialize videobuf2 stuff */
-	em28xx_vb2_setup(dev);
 
 	dev_info(&dev->intf->dev,
 		 "V4L2 extension successfully initialized\n");

@@ -4,6 +4,7 @@ config VIDEO_INTEL_CVS
 	tristate "Intel CVS CSI-2 bridge support"
 	depends on I2C && ACPI && VIDEO_DEV
 	depends on IPU_BRIDGE || !IPU_BRIDGE
+	default VIDEO_INTEL_IPU6
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE

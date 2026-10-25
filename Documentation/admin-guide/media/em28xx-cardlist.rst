@@ -450,3 +450,7 @@ EM28xx cards list
      - StarTech SVID2USB232
      - em28281
      - eb1a:8286
+   * - 114
+     - StarTech.com SVID2USB23
+     - em2860
+     - eb1a:5051

@@ -72,6 +72,7 @@ unevaluatedProperties: false
 examples:
   - |
       #include <dt-bindings/gpio/gpio.h>
+      #include <dt-bindings/media/video-interface-devices.h>
 
       i2c {
           #address-cells = <1>;
@@ -87,7 +88,7 @@ examples:
               powerdown-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
               reset-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
               rotation = <180>;
-              orientation = <2>;
+              orientation = <MEDIA_ORIENTATION_EXTERNAL>;
 
               port {
                   endpoint {

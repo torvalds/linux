@@ -1419,7 +1419,6 @@ static void atomisp_update_grid_info(struct atomisp_sub_device *asd,
 
 err:
 	atomisp_css_free_stat_buffers(asd);
-	return;
 }
 
 static void atomisp_curr_user_grid_info(struct atomisp_sub_device *asd,
@@ -3745,14 +3744,16 @@ static int atomisp_set_sensor_crop_and_fmt(struct atomisp_device *isp,
 	sel.r.left = ((input->native_rect.width - sel.r.width) / 2) & ~1;
 	sel.r.top = ((input->native_rect.height - sel.r.height) / 2) & ~1;
 
-	ret = v4l2_subdev_call(input->sensor, pad, set_selection, sd_state, &sel);
+	ret = v4l2_subdev_call(input->sensor, pad, set_selection, NULL,
+			       sd_state, &sel);
 	if (ret)
 		dev_err(isp->dev, "Error setting crop to (%d,%d)/%ux%u: %d\n",
 			sel.r.left, sel.r.top, sel.r.width, sel.r.height, ret);
 
 set_fmt:
 	if (ret == 0) {
-		ret = v4l2_subdev_call(input->sensor, pad, set_fmt, sd_state, &format);
+		ret = v4l2_subdev_call(input->sensor, pad, set_fmt, NULL,
+				       sd_state, &format);
 		dev_dbg(isp->dev, "Set sensor format ret: %d size %dx%d\n",
 			ret, format.format.width, format.format.height);
 	}
@@ -3765,13 +3766,16 @@ set_fmt:
 		sd_state = v4l2_subdev_lock_and_get_active_state(input->sensor_isp);
 
 		format.pad = SENSOR_ISP_PAD_SINK;
-		ret = v4l2_subdev_call(input->sensor_isp, pad, set_fmt, sd_state, &format);
+		ret = v4l2_subdev_call(input->sensor_isp, pad, set_fmt, NULL,
+				       sd_state, &format);
 		dev_dbg(isp->dev, "Set sensor ISP sink format ret: %d size %dx%d\n",
 			ret, format.format.width, format.format.height);
 
 		if (ret == 0) {
 			format.pad = SENSOR_ISP_PAD_SOURCE;
-			ret = v4l2_subdev_call(input->sensor_isp, pad, set_fmt, sd_state, &format);
+			ret = v4l2_subdev_call(input->sensor_isp, pad,
+					       set_fmt, NULL, sd_state,
+					       &format);
 			dev_dbg(isp->dev, "Set sensor ISP source format ret: %d size %dx%d\n",
 				ret, format.format.width, format.format.height);
 		}
@@ -3783,7 +3787,8 @@ set_fmt:
 	/* Propagate new fmt to CSI port */
 	if (ret == 0 && which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		format.pad = CSI2_PAD_SINK;
-		ret = v4l2_subdev_call(input->csi_port, pad, set_fmt, NULL, &format);
+		ret = v4l2_subdev_call(input->csi_port, pad, set_fmt, NULL,
+				       NULL, &format);
 		if (ret)
 			return ret;
 	}

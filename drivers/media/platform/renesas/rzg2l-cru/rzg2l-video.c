@@ -32,7 +32,6 @@
 #define RZG2L_CRU_DEFAULT_COLORSPACE	V4L2_COLORSPACE_SRGB
 
 #define RZG2L_CRU_STRIDE_MAX		32640
-#define RZG2L_CRU_STRIDE_ALIGN		128
 
 struct rzg2l_cru_buffer {
 	struct vb2_v4l2_buffer vb;
@@ -277,11 +276,11 @@ static void rzg2l_cru_initialize_axi(struct rzg2l_cru_dev *cru)
 		rzg2l_cru_fill_hw_slot(cru, cru->num_buf - 1);
 	}
 
-	if (info->has_stride) {
+	if (info->stride_align > 1) {
 		u32 stride = cru->format.bytesperline;
 		u32 amnis;
 
-		stride /= RZG2L_CRU_STRIDE_ALIGN;
+		stride /= info->stride_align;
 		amnis = rzg2l_cru_read(cru, AMnIS) & ~AMnIS_IS_MASK;
 		rzg2l_cru_write(cru, AMnIS, amnis | AMnIS_IS(stride));
 	}
@@ -849,12 +848,8 @@ static void rzg2l_cru_format_align(struct rzg2l_cru_dev *cru,
 	v4l_bound_align_image(&pix->width, 320, info->max_width, 1,
 			      &pix->height, 240, info->max_height, 2, 0);
 
-	v4l2_fill_pixfmt(pix, pix->pixelformat, pix->width, pix->height);
-
-	if (info->has_stride) {
-		pix->bytesperline = ALIGN(pix->bytesperline, RZG2L_CRU_STRIDE_ALIGN);
-		pix->sizeimage = pix->bytesperline * pix->height;
-	}
+	v4l2_fill_pixfmt_aligned(pix, pix->pixelformat, pix->width, pix->height,
+				 info->stride_align);
 
 	dev_dbg(cru->dev, "Format %ux%u bpl: %u size: %u\n",
 		pix->width, pix->height, pix->bytesperline, pix->sizeimage);

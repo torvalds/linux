@@ -649,7 +649,7 @@ static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
 	dl->post_cmd = NULL;
 
 	/*
-	 * body0 is reused as as an optimisation as presently every display list
+	 * body0 is reused as an optimisation as presently every display list
 	 * has at least one body, thus we reinitialise the entries list.
 	 */
 	dl->body0->num_entries = 0;

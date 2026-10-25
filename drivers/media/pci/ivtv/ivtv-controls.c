@@ -60,7 +60,7 @@ static int ivtv_s_video_encoding(struct cx2341x_handler *cxhdl, u32 val)
 	format.format.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
 	format.format.height = cxhdl->height;
 	format.format.code = MEDIA_BUS_FMT_FIXED;
-	v4l2_subdev_call(itv->sd_video, pad, set_fmt, NULL, &format);
+	v4l2_subdev_call(itv->sd_video, pad, set_fmt, NULL, NULL, &format);
 	return 0;
 }
 

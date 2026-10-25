@@ -1213,6 +1213,7 @@ ov7251_find_mode_by_ival(struct ov7251 *ov7251, struct v4l2_fract *timeperframe)
 }
 
 static int ov7251_set_format(struct v4l2_subdev *sd,
+			     const struct v4l2_subdev_client_info *ci,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *format)
 {
@@ -1295,12 +1296,13 @@ static int ov7251_init_state(struct v4l2_subdev *subdev,
 		}
 	};
 
-	ov7251_set_format(subdev, sd_state, &fmt);
+	ov7251_set_format(subdev, NULL, sd_state, &fmt);
 
 	return 0;
 }
 
 static int ov7251_get_selection(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {

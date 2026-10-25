@@ -848,6 +848,7 @@ static int ov5645_enum_frame_size(struct v4l2_subdev *subdev,
 }
 
 static int ov5645_set_format(struct v4l2_subdev *sd,
+			     const struct v4l2_subdev_client_info *ci,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *format)
 {
@@ -905,12 +906,13 @@ static int ov5645_init_state(struct v4l2_subdev *subdev,
 		},
 	};
 
-	ov5645_set_format(subdev, sd_state, &fmt);
+	ov5645_set_format(subdev, NULL, sd_state, &fmt);
 
 	return 0;
 }
 
 static int ov5645_get_selection(struct v4l2_subdev *sd,
+			   const struct v4l2_subdev_client_info *ci,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_selection *sel)
 {

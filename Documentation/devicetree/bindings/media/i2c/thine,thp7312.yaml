@@ -173,6 +173,7 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/media/video-interfaces.h>
+    #include <dt-bindings/media/video-interface-devices.h>
 
     i2c {
         #address-cells = <1>;
@@ -196,7 +197,7 @@ examples:
             vddgpio-0-supply = <&vsys_v4p2>;
             vddgpio-1-supply = <&vsys_v4p2>;
 
-            orientation = <0>;
+            orientation = <MEDIA_ORIENTATION_FRONT>;
             rotation = <0>;
 
             sensors {

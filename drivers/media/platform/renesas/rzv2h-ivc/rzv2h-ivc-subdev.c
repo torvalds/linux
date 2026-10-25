@@ -157,6 +157,7 @@ static int rzv2h_ivc_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int rzv2h_ivc_set_fmt(struct v4l2_subdev *sd,
+			     const struct v4l2_subdev_client_info *ci,
 			     struct v4l2_subdev_state *state,
 			     struct v4l2_subdev_format *format)
 {

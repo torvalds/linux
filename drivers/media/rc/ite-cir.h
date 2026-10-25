@@ -76,7 +76,6 @@ struct ite_dev_params {
 
 /* ITE CIR device structure */
 struct ite_dev {
-	struct pnp_dev *pdev;
 	struct rc_dev *rdev;
 
 	/* sync data */

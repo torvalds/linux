@@ -16,6 +16,9 @@ struct ipu6_isys_video;
 struct ipu6_isys;
 struct ipu6_isys_stream;
 
+#define PHY_MODE_DPHY		0
+#define PHY_MODE_CPHY		1
+
 #define NR_OF_CSI2_VC		16
 #define INVALID_VC_ID		-1
 #define NR_OF_CSI2_SINK_PADS	1
@@ -38,11 +41,22 @@ struct ipu6_isys_csi2 {
 	struct ipu6_isys_subdev asd;
 	struct ipu6_isys *isys;
 	struct ipu6_isys_video av[NR_OF_CSI2_SRC_PADS];
+	struct list_head av_head;
+	struct list_head streams;
+	struct ipu6_isys_stream *streams_by_vc[NR_OF_CSI2_VC];
 
 	void __iomem *base;
 	u32 receiver_errors;
 	unsigned int nlanes;
 	unsigned int port;
+	u32 legacy_irq_mask;
+	unsigned int phy_mode;
+	struct {
+		u32 stream_data_rate;
+		bool force_iwake_disable;
+	} watermark;
+	u32 streaming_vc;
+	u64 stream_ids;
 };
 
 struct ipu6_isys_csi2_timing {
@@ -70,9 +84,5 @@ void ipu6_isys_csi2_sof_event_by_stream(struct ipu6_isys_stream *stream);
 void ipu6_isys_csi2_eof_event_by_stream(struct ipu6_isys_stream *stream);
 void ipu6_isys_register_errors(struct ipu6_isys_csi2 *csi2);
 void ipu6_isys_csi2_error(struct ipu6_isys_csi2 *csi2);
-int ipu6_isys_csi2_get_remote_desc(u32 source_stream,
-				   struct ipu6_isys_csi2 *csi2,
-				   struct media_entity *source_entity,
-				   struct v4l2_mbus_frame_desc_entry *entry);
 
 #endif /* IPU6_ISYS_CSI2_H */

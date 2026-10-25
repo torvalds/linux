@@ -794,12 +794,14 @@ struct mali_c55_params_mesh_shading_selection {
  *		Q4.8 format
  * @gains:	Gains for red, green and blue channels in unsigned Q4.8 format
  * @offs:	Offsets for red, green and blue channels
+ * @__pad:	Reserved bytes
  */
 struct mali_c55_params_ccm {
 	struct v4l2_isp_params_block_header header;
 	__u16 coeffs[3][3];
 	__u16 gains[3];
 	__u16 offs[3];
+	__u16 __pad;
 };
 
 /**

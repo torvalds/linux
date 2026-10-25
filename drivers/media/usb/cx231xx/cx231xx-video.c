@@ -909,7 +909,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->format = format_by_fourcc(f->fmt.pix.pixelformat);
 
 	v4l2_fill_mbus_format(&format.format, &f->fmt.pix, MEDIA_BUS_FMT_FIXED);
-	call_all(dev, pad, set_fmt, NULL, &format);
+	call_all(dev, pad, set_fmt, NULL, NULL, &format);
 	v4l2_fill_pix_format(&f->fmt.pix, &format.format);
 
 	return rc;
@@ -950,7 +950,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	format.format.code = MEDIA_BUS_FMT_FIXED;
 	format.format.width = dev->width;
 	format.format.height = dev->height;
-	call_all(dev, pad, set_fmt, NULL, &format);
+	call_all(dev, pad, set_fmt, NULL, NULL, &format);
 
 	/* do mode control overrides */
 	cx231xx_do_mode_ctrl_overrides(dev);

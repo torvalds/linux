@@ -166,6 +166,10 @@ static const struct csi2rx_fmt formats[] = {
 	{ .code	= MEDIA_BUS_FMT_SGBRG10_1X10, .bpp = 10, .max_pixels = 2, },
 	{ .code	= MEDIA_BUS_FMT_SGRBG10_1X10, .bpp = 10, .max_pixels = 2, },
 	{ .code	= MEDIA_BUS_FMT_SRGGB10_1X10, .bpp = 10, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_SBGGR12_1X12, .bpp = 12, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_SGBRG12_1X12, .bpp = 12, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_SGRBG12_1X12, .bpp = 12, .max_pixels = 2, },
+	{ .code	= MEDIA_BUS_FMT_SRGGB12_1X12, .bpp = 12, .max_pixels = 2, },
 	{ .code	= MEDIA_BUS_FMT_RGB565_1X16,  .bpp = 16, .max_pixels = 1, },
 	{ .code	= MEDIA_BUS_FMT_RGB888_1X24,  .bpp = 24, .max_pixels = 1, },
 	{ .code	= MEDIA_BUS_FMT_BGR888_1X24,  .bpp = 24, .max_pixels = 1, },
@@ -622,6 +626,7 @@ static int csi2rx_set_routing(struct v4l2_subdev *subdev,
 }
 
 static int csi2rx_set_fmt(struct v4l2_subdev *subdev,
+			  const struct v4l2_subdev_client_info *ci,
 			  struct v4l2_subdev_state *state,
 			  struct v4l2_subdev_format *format)
 {

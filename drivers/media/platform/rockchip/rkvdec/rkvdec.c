@@ -1824,10 +1824,8 @@ static int rkvdec_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					rkvdec_irq_handler, IRQF_ONESHOT,
 					dev_name(&pdev->dev), rkvdec);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not request vdec IRQ\n");
+	if (ret)
 		return ret;
-	}
 
 	rkvdec->sram_pool = of_gen_pool_get(pdev->dev.of_node, "sram", 0);
 	if (!rkvdec->sram_pool && rkvdec->variant->num_rcb_sizes > 0)
@@ -1857,9 +1855,6 @@ err_disable_runtime_pm:
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	if (rkvdec->sram_pool)
-		gen_pool_destroy(rkvdec->sram_pool);
-
 	return ret;
 }
 
@@ -1877,7 +1872,6 @@ static void rkvdec_remove(struct platform_device *pdev)
 		iommu_domain_free(rkvdec->empty_domain);
 }
 
-#ifdef CONFIG_PM
 static int rkvdec_runtime_resume(struct device *dev)
 {
 	struct rkvdec_dev *rkvdec = dev_get_drvdata(dev);
@@ -1892,12 +1886,10 @@ static int rkvdec_runtime_suspend(struct device *dev)
 	clk_bulk_disable_unprepare(rkvdec->num_clocks, rkvdec->clocks);
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops rkvdec_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(rkvdec_runtime_suspend, rkvdec_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(rkvdec_runtime_suspend, rkvdec_runtime_resume, NULL)
 };
 
 static struct platform_driver rkvdec_driver = {
@@ -1906,7 +1898,7 @@ static struct platform_driver rkvdec_driver = {
 	.driver = {
 		   .name = "rkvdec",
 		   .of_match_table = of_rkvdec_match,
-		   .pm = &rkvdec_pm_ops,
+		   .pm = pm_ptr(&rkvdec_pm_ops),
 	},
 };
 module_platform_driver(rkvdec_driver);

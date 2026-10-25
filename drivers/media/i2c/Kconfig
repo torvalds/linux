@@ -137,6 +137,17 @@ config VIDEO_HI847
           To compile this driver as a module, choose M here: the
           module will be called hi847.
 
+config VIDEO_HM1246
+	tristate "Himax HM1246 sensor support"
+	depends on OF
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the Himax
+	  HM1246 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hm1246.
+
 config VIDEO_IMX111
 	tristate "Sony IMX111 sensor support"
 	select V4L2_CCI_I2C
@@ -299,6 +310,17 @@ config VIDEO_IMX471
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx471.
 
+config VIDEO_IMX576
+        tristate "Sony IMX576 sensor support"
+        select V4L2_CCI_I2C
+	select VIDEO_CCS_PLL
+        help
+          This is a Video4Linux2 sensor driver for the Sony
+          IMX576 camera.
+
+          To compile this driver as a module, choose M here: the
+          module will be called imx576.
+
 config VIDEO_IMX678
 	tristate "Sony IMX678 sensor support"
 	depends on GPIOLIB
@@ -396,6 +418,16 @@ config VIDEO_OG0VE1B
 	  To compile this driver as a module, choose M here: the
 	  module will be called og0ve1b.
 
+config VIDEO_OS02G10
+	tristate "OmniVision OS02G10 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for Omnivision
+	  OS02G10 camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called os02g10.
+
 config VIDEO_OS05B10
         tristate "OmniVision OS05B10 sensor support"
         select V4L2_CCI_I2C
@@ -444,6 +476,16 @@ config VIDEO_OV02C10
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov02c10.
+
+config VIDEO_OV05C10
+	tristate "OmniVision OV05C10 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV05C10 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov05c10.
 
 config VIDEO_OV08D10
         tristate "OmniVision OV08D10 sensor support"
@@ -826,6 +868,17 @@ config VIDEO_S5KJN1
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5kjn1.
 
+config VIDEO_S5KJN5
+	tristate "Samsung S5KJN5 sensor support"
+	depends on GPIOLIB
+	select V4L2_CCI_I2C
+	help
+	  This is a V4L2 sensor driver for Samsung S5KJN5 50MP
+	  10-bit RAW MIPI CSI-2 camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s5kjn5.
+
 config VIDEO_T4KA3
 	tristate "Toshiba T4KA3 sensor support"
 	depends on ACPI || COMPILE_TEST
@@ -989,14 +1042,12 @@ endmenu
 # V4L2 I2C drivers that aren't related with Camera support
 #
 
-comment "audio, video and radio I2C drivers auto-selected by 'Autoselect ancillary drivers'"
-	depends on MEDIA_HIDE_ANCILLARY_SUBDRV
+comment "audio, video and radio I2C drivers"
 #
 # Encoder / Decoder module configuration
 #
 
 menu "Audio decoders, processors and mixers"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_CS3308
 	tristate "Cirrus Logic CS3308 audio ADC"
@@ -1159,7 +1210,6 @@ config VIDEO_WM8775
 endmenu
 
 menu "RDS decoders"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_SAA6588
 	tristate "SAA6588 Radio Chip RDS decoder support"
@@ -1176,7 +1226,6 @@ config VIDEO_SAA6588
 endmenu
 
 menu "Video decoders"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_ADV7180
 	tristate "Analog Devices ADV7180 decoder"
@@ -1300,6 +1349,25 @@ config VIDEO_ISL7998X
 	help
 	  Support for Intersil ISL7998x analog to MIPI-CSI2 or
 	  BT.656 decoder.
+
+config VIDEO_IT6625
+	tristate "IT6625 HDMI to MIPI CSI bridge"
+	depends on VIDEO_DEV && I2C
+	depends on OF
+	select CEC_CORE
+	select HDMI
+	select MEDIA_CONTROLLER
+	select REGMAP_I2C
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  V4L2 subdevice driver for the ITE IT6625/IT6626 HDMI to MIPI
+	  CSI-2 bridge chips. IT6625 accepts an HDMI 2.0 input and
+	  IT6626 an HDMI 2.1 input, converting it to a MIPI CSI-2
+	  output. The driver also exposes an HDMI CEC adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called it6625.
 
 config VIDEO_LT6911UXE
 	tristate "Lontium LT6911UXE decoder"
@@ -1517,7 +1585,6 @@ source "drivers/media/i2c/cx25840/Kconfig"
 endmenu
 
 menu "Video encoders"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_ADV7170
 	tristate "Analog Devices ADV7170 video encoder"
@@ -1616,7 +1683,6 @@ config VIDEO_THS8200
 endmenu
 
 menu "Video improvement chips"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_UPD64031A
 	tristate "NEC Electronics uPD64031A Ghost Reduction"
@@ -1645,7 +1711,6 @@ config VIDEO_UPD64083
 endmenu
 
 menu "Audio/Video compression chips"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_SAA6752HS
 	tristate "Philips SAA6752HS MPEG-2 Audio/Video Encoder"
@@ -1661,7 +1726,6 @@ config VIDEO_SAA6752HS
 endmenu
 
 menu "SDR tuner chips"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config SDR_MAX2175
 	tristate "Maxim 2175 RF to Bits tuner"
@@ -1678,7 +1742,6 @@ config SDR_MAX2175
 endmenu
 
 menu "Miscellaneous helper chips"
-	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 source "drivers/media/i2c/cvs/Kconfig"
 
@@ -1777,39 +1840,7 @@ config VIDEO_DS90UB960
 	  Device driver for the Texas Instruments DS90UB954, DS90UB960
 	  FPD-Link III Deserializers and DS90UB9702 FPD-Link IV Deserializer.
 
-config VIDEO_MAX96714
-	tristate "Maxim MAX96714 GMSL2 deserializer"
-	depends on OF && I2C && VIDEO_DEV
-	select I2C_MUX
-	select MEDIA_CONTROLLER
-	select GPIOLIB
-	select V4L2_CCI_I2C
-	select V4L2_FWNODE
-	select VIDEO_V4L2_SUBDEV_API
-	help
-	  Device driver for the Maxim MAX96714 GMSL2 Deserializer.
-	  MAX96714 deserializers convert a GMSL2 input to MIPI CSI-2
-	  output.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called max96714.
-
-config VIDEO_MAX96717
-	tristate "Maxim MAX96717 GMSL2 Serializer support"
-	depends on I2C && VIDEO_DEV && COMMON_CLK
-	select I2C_MUX
-	select MEDIA_CONTROLLER
-	select GPIOLIB
-	select V4L2_CCI_I2C
-	select V4L2_FWNODE
-	select VIDEO_V4L2_SUBDEV_API
-	help
-	  Device driver for the Maxim MAX96717 GMSL2 Serializer.
-	  MAX96717 serializers convert video on a MIPI CSI-2
-	  input to a GMSL2 output.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called max96717.
+source "drivers/media/i2c/maxim-serdes/Kconfig"
 
 endmenu
 

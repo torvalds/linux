@@ -95,7 +95,7 @@ int uvc_query_ctrl(struct uvc_device *dev, u8 query, u8 unit,
 	 */
 	if (ret > 0 && query != UVC_GET_INFO) {
 		memset(data + ret, 0, size - ret);
-		dev_warn_once(&dev->intf->dev,
+		uvc_warn_once(dev, UVC_WARN_QUERY_CTRL,
 			      "UVC non compliance: %s control %u on unit %u returned %d bytes when we expected %u.\n",
 			      uvc_query_name(query), cs, unit, ret, size);
 		return 0;
@@ -2228,8 +2228,6 @@ int uvc_video_init(struct uvc_streaming *stream)
 			 "No supported video formats found.\n");
 		return -EINVAL;
 	}
-
-	atomic_set(&stream->active, 0);
 
 	/*
 	 * Alternate setting 0 should be the default, yet the XBox Live Vision

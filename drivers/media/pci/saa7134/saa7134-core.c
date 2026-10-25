@@ -1368,7 +1368,7 @@ static int __maybe_unused saa7134_buffer_requeue(struct saa7134_dev *dev,
 	return 0;
 }
 
-static int __maybe_unused saa7134_suspend(struct device *dev_d)
+static int saa7134_suspend(struct device *dev_d)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev_d);
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
@@ -1400,7 +1400,7 @@ static int __maybe_unused saa7134_suspend(struct device *dev_d)
 	return 0;
 }
 
-static int __maybe_unused saa7134_resume(struct device *dev_d)
+static int saa7134_resume(struct device *dev_d)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev_d);
 	struct saa7134_dev *dev = container_of(v4l2_dev, struct saa7134_dev, v4l2_dev);
@@ -1484,14 +1484,14 @@ EXPORT_SYMBOL(saa7134_ts_unregister);
 
 /* ----------------------------------------------------------- */
 
-static SIMPLE_DEV_PM_OPS(saa7134_pm_ops, saa7134_suspend, saa7134_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(saa7134_pm_ops, saa7134_suspend, saa7134_resume);
 
 static struct pci_driver saa7134_pci_driver = {
 	.name     = "saa7134",
 	.id_table = saa7134_pci_tbl,
 	.probe    = saa7134_initdev,
 	.remove   = saa7134_finidev,
-	.driver.pm = &saa7134_pm_ops,
+	.driver.pm = pm_sleep_ptr(&saa7134_pm_ops),
 };
 
 static int __init saa7134_init(void)

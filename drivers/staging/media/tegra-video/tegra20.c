@@ -429,12 +429,13 @@ static int tegra20_channel_host1x_syncpt_init(struct tegra_vi_channel *chan)
 	if (!out_sp)
 		return dev_err_probe(vi->dev, -EBUSY, "failed to request mw ack syncpoint\n");
 
-	chan->mw_ack_sp[0] = out_sp;
-
 	fs_sp = host1x_syncpt_request(&vi->client, HOST1X_SYNCPT_CLIENT_MANAGED);
-	if (!fs_sp)
+	if (!fs_sp) {
+		host1x_syncpt_put(out_sp);
 		return dev_err_probe(vi->dev, -EBUSY, "failed to request frame start syncpoint\n");
+	}
 
+	chan->mw_ack_sp[0] = out_sp;
 	chan->frame_start_sp[0] = fs_sp;
 
 	return 0;

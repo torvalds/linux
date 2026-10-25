@@ -69,6 +69,7 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/media/video-interfaces.h>
+    #include <dt-bindings/media/video-interface-devices.h>
 
     i2c {
         #address-cells = <1>;
@@ -84,7 +85,7 @@ examples:
             avdd-supply = <&ov08d10_vdda_2v8>;
             dvdd-supply = <&ov08d10_vddd_1v2>;
 
-            orientation = <2>;
+            orientation = <MEDIA_ORIENTATION_EXTERNAL>;
             rotation = <0>;
 
             reset-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;

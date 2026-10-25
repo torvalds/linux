@@ -410,6 +410,17 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_forma
 		f->fmt.pix.bytesperline = calc_bpl;
 
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * f->fmt.pix.height;
+
+	/*
+	 * The DMA page tables hold one entry per page and are exactly
+	 * PAGE_SIZE large. Reject formats whose buffer would need more
+	 * entries than the tables can hold.
+	 */
+	if (f->fmt.pix.sizeimage > PAGE_SIZE / sizeof(__le32) * PAGE_SIZE) {
+		DEB_D("sizeimage %d too large\n", f->fmt.pix.sizeimage);
+		return -EINVAL;
+	}
+
 	DEB_D("w:%d, h:%d, bytesperline:%d, sizeimage:%d\n",
 	      f->fmt.pix.width, f->fmt.pix.height,
 	      f->fmt.pix.bytesperline, f->fmt.pix.sizeimage);

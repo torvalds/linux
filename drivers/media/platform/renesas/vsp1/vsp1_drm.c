@@ -137,7 +137,8 @@ static int vsp1_du_insert_uif(struct vsp1_device *vsp1,
 
 	format.pad = UIF_PAD_SINK;
 
-	ret = v4l2_subdev_call(&uif->subdev, pad, set_fmt, NULL, &format);
+	ret = v4l2_subdev_call(&uif->subdev, pad, set_fmt, NULL, NULL,
+			       &format);
 	if (ret < 0)
 		return ret;
 
@@ -184,7 +185,7 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 	format.format.ycbcr_enc = input->ycbcr_enc;
 	format.format.quantization = input->quantization;
 
-	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_fmt, NULL, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;
@@ -199,6 +200,7 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 	sel.r = input->crop;
 
 	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_selection, NULL,
+			       NULL,
 			       &sel);
 	if (ret < 0)
 		return ret;
@@ -226,7 +228,7 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 
 	format.format.code = MEDIA_BUS_FMT_ARGB8888_1X32;
 
-	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_fmt, NULL, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;
@@ -240,7 +242,7 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 	/* BRx sink, propagate the format from the RPF source. */
 	format.pad = brx_input;
 
-	ret = v4l2_subdev_call(&pipe->brx->subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&pipe->brx->subdev, pad, set_fmt, NULL, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;
@@ -254,6 +256,7 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 	sel.r = vsp1->drm->inputs[rpf->entity.index].compose;
 
 	ret = v4l2_subdev_call(&pipe->brx->subdev, pad, set_selection, NULL,
+			       NULL,
 			       &sel);
 	if (ret < 0)
 		return ret;
@@ -387,7 +390,7 @@ static int vsp1_du_pipeline_setup_brx(struct vsp1_device *vsp1,
 	format.format.height = drm_pipe->height;
 	format.format.field = V4L2_FIELD_NONE;
 
-	ret = v4l2_subdev_call(&brx->subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&brx->subdev, pad, set_fmt, NULL, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;
@@ -538,7 +541,8 @@ static int vsp1_du_pipeline_setup_output(struct vsp1_device *vsp1,
 	format.format.code = MEDIA_BUS_FMT_ARGB8888_1X32;
 	format.format.field = V4L2_FIELD_NONE;
 
-	ret = v4l2_subdev_call(&pipe->output->entity.subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&pipe->output->entity.subdev, pad, set_fmt,
+			       NULL, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;
@@ -558,7 +562,7 @@ static int vsp1_du_pipeline_setup_output(struct vsp1_device *vsp1,
 		format.format.code, pipe->output->entity.index);
 
 	format.pad = LIF_PAD_SINK;
-	ret = v4l2_subdev_call(&pipe->lif->subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&pipe->lif->subdev, pad, set_fmt, NULL, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;

@@ -127,7 +127,7 @@ struct cafe_camera {
  * Debugging and related.
  */
 #define cam_err(cam, fmt, arg...) \
-	dev_err(&(cam)->pdev->dev, fmt, ##arg);
+	dev_err(&(cam)->pdev->dev, fmt, ##arg)
 #define cam_warn(cam, fmt, arg...) \
 	dev_warn(&(cam)->pdev->dev, fmt, ##arg);
 

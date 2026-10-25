@@ -162,6 +162,7 @@
 /* Params for validated field */
 #define EM28XX_BOARD_NOT_VALIDATED 1
 #define EM28XX_BOARD_VALIDATED	   0
+#define EM2860_BOARD_STARTECH_SVID2USB23          114
 
 /* Params for em28xx_cmd() audio */
 #define EM28XX_START_AUDIO      1
@@ -605,6 +606,7 @@ struct em28xx_v4l2 {
 	/* Capture state tracking */
 	int capture_type;
 	bool top_field;
+	int last_field_id;
 	int vbi_read;
 	unsigned int field_count;
 

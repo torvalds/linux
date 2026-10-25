@@ -15,6 +15,12 @@
 
 #include "risp-core.h"
 
+#define RISP_MIN_WIDTH 128
+#define RISP_MAX_WIDTH 5120
+#define RISP_MIN_HEIGHT 128
+#define RISP_MAX_HEIGHT 4096
+#define RISP_SIZE_ALIGNMENT 2 /* 2^2 = 4 */
+
 #define risp_io_err(d, fmt, arg...)         dev_err((d)->core->dev, fmt, ##arg)
 
 static struct risp_buffer *risp_io_vb2buf(struct vb2_v4l2_buffer *vb)
@@ -330,8 +336,9 @@ static void risp_io_input_try_format(struct rcar_isp_core_io *io,
 {
 	unsigned int bpp = 0;
 
-	v4l_bound_align_image(&pix->width, 128, 5120, 2,
-			      &pix->height, 128, 4096, 2, 0);
+	v4l_bound_align_image(&pix->width, RISP_MIN_WIDTH, RISP_MAX_WIDTH, RISP_SIZE_ALIGNMENT,
+			      &pix->height, RISP_MIN_HEIGHT, RISP_MAX_HEIGHT, RISP_SIZE_ALIGNMENT,
+			      0);
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(risp_io_input_formats); i++) {
 		if (risp_io_input_formats[i].fourcc == pix->pixelformat) {
@@ -423,13 +430,13 @@ static int risp_io_input_enum_framesizes(struct file *file, void *fh,
 
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
 
-	fsize->stepwise.min_width = 128;
-	fsize->stepwise.max_width = 5120;
-	fsize->stepwise.step_width = 2;
+	fsize->stepwise.min_width = RISP_MIN_WIDTH;
+	fsize->stepwise.max_width = RISP_MAX_WIDTH;
+	fsize->stepwise.step_width = 1u << RISP_SIZE_ALIGNMENT;
 
-	fsize->stepwise.min_height = 128;
-	fsize->stepwise.max_height = 4096;
-	fsize->stepwise.step_height = 2;
+	fsize->stepwise.min_height = RISP_MIN_HEIGHT;
+	fsize->stepwise.max_height = RISP_MAX_HEIGHT;
+	fsize->stepwise.step_height = 1u << RISP_SIZE_ALIGNMENT;
 
 	return 0;
 }
@@ -720,8 +727,9 @@ static const struct v4l2_pix_format_mplane risp_io_capture_default_format = {
 static void risp_io_capture_try_format(struct rcar_isp_core_io *io,
 				       struct v4l2_pix_format_mplane *pix)
 {
-	v4l_bound_align_image(&pix->width, 128, 5120, 2,
-			      &pix->height, 128, 4096, 2, 0);
+	v4l_bound_align_image(&pix->width, RISP_MIN_WIDTH, RISP_MAX_WIDTH, RISP_SIZE_ALIGNMENT,
+			      &pix->height, RISP_MIN_HEIGHT, RISP_MAX_HEIGHT, RISP_SIZE_ALIGNMENT,
+			      0);
 
 	pix->field = V4L2_FIELD_NONE;
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
@@ -824,13 +832,13 @@ static int risp_io_capture_enum_framesizes(struct file *file, void *fh,
 
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
 
-	fsize->stepwise.min_width = 128;
-	fsize->stepwise.max_width = 5120;
-	fsize->stepwise.step_width = 2;
+	fsize->stepwise.min_width = RISP_MIN_WIDTH;
+	fsize->stepwise.max_width = RISP_MAX_WIDTH;
+	fsize->stepwise.step_width = 1u << RISP_SIZE_ALIGNMENT;
 
-	fsize->stepwise.min_height = 128;
-	fsize->stepwise.max_height = 4096;
-	fsize->stepwise.step_height = 2;
+	fsize->stepwise.min_height = RISP_MIN_HEIGHT;
+	fsize->stepwise.max_height = RISP_MAX_HEIGHT;
+	fsize->stepwise.step_height = 1u << RISP_SIZE_ALIGNMENT;
 
 	return 0;
 }

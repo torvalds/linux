@@ -19,6 +19,8 @@
 #include "rcar-vin.h"
 
 #define RVIN_DEFAULT_FORMAT	V4L2_PIX_FMT_YUYV
+#define RVIN_MIN_WIDTH		5
+#define RVIN_MIN_HEIGHT		2
 #define RVIN_DEFAULT_WIDTH	800
 #define RVIN_DEFAULT_HEIGHT	600
 #define RVIN_DEFAULT_FIELD	V4L2_FIELD_NONE
@@ -187,6 +189,24 @@ static u32 rvin_format_sizeimage(struct v4l2_pix_format *pix)
 	}
 }
 
+static u32 rvin_format_width_alignment(u32 pixelformat)
+{
+	/* Hardware limits width alignment based on format. */
+	switch (pixelformat) {
+	/* Multiple of 32 (2^5) for NV12/16. */
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV16:
+		return 5;
+	/* Multiple of 2 (2^1) for YUV. */
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_UYVY:
+		return 1;
+	/* No multiple for RGB. */
+	default:
+		return 0;
+	}
+}
+
 static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 {
 	u32 walign;
@@ -208,27 +228,12 @@ static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 		break;
 	}
 
-	/* Hardware limits width alignment based on format. */
-	switch (pix->pixelformat) {
-	/* Multiple of 32 (2^5) for NV12/16. */
-	case V4L2_PIX_FMT_NV12:
-	case V4L2_PIX_FMT_NV16:
-		walign = 5;
-		break;
-	/* Multiple of 2 (2^1) for YUV. */
-	case V4L2_PIX_FMT_YUYV:
-	case V4L2_PIX_FMT_UYVY:
-		walign = 1;
-		break;
-	/* No multiple for RGB. */
-	default:
-		walign = 0;
-		break;
-	}
+	walign = rvin_format_width_alignment(pix->pixelformat);
 
 	/* Limit to VIN capabilities */
-	v4l_bound_align_image(&pix->width, 5, vin->info->max_width, walign,
-			      &pix->height, 2, vin->info->max_height, 0, 0);
+	v4l_bound_align_image(&pix->width, RVIN_MIN_WIDTH, vin->info->max_width, walign,
+			      &pix->height, RVIN_MIN_HEIGHT, vin->info->max_height, 0,
+			      0);
 
 	pix->bytesperline = rvin_format_bytesperline(vin, pix);
 	pix->sizeimage = rvin_format_sizeimage(pix);
@@ -341,6 +346,32 @@ static int rvin_enum_fmt_vid_cap(struct file *file, void *priv,
 	}
 
 	return -EINVAL;
+}
+
+static int rvin_enum_framesizes(struct file *file, void *priv,
+				struct v4l2_frmsizeenum *fsize)
+{
+	struct rvin_dev *vin = video_drvdata(file);
+	u32 wstep;
+
+	if (fsize->index != 0)
+		return -EINVAL;
+
+	if (!rvin_format_from_pixel(vin, fsize->pixel_format))
+		return -EINVAL;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+
+	wstep = 1u << rvin_format_width_alignment(fsize->pixel_format);
+	fsize->stepwise.min_width = round_up(RVIN_MIN_WIDTH, wstep);
+	fsize->stepwise.max_width = vin->info->max_width;
+	fsize->stepwise.step_width = wstep;
+
+	fsize->stepwise.min_height = RVIN_MIN_HEIGHT;
+	fsize->stepwise.max_height = vin->info->max_height;
+	fsize->stepwise.step_height = 1;
+
+	return 0;
 }
 
 static int rvin_remote_rectangle(struct rvin_dev *vin, struct v4l2_rect *rect)
@@ -564,6 +595,7 @@ static const struct v4l2_ioctl_ops rvin_mc_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap		= rvin_g_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= rvin_mc_s_fmt_vid_cap,
 	.vidioc_enum_fmt_vid_cap	= rvin_enum_fmt_vid_cap,
+	.vidioc_enum_framesizes		= rvin_enum_framesizes,
 
 	.vidioc_g_selection		= rvin_g_selection,
 	.vidioc_s_selection		= rvin_s_selection,

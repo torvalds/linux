@@ -11,13 +11,11 @@
 
 #include "assert_support.h"
 
-/*
- * Local function declarations
- */
-static inline void gdc_reg_store(
-    const gdc_ID_t		ID,
-    const unsigned int	reg,
-    const hrt_data		value);
+static inline void gdc_reg_store(const gdc_ID_t ID, const unsigned int reg,
+				 const hrt_data value)
+{
+	ia_css_device_store_uint32(GDC_BASE[ID] + reg * sizeof(hrt_data), value);
+}
 
 #ifndef __INLINE_GDC__
 #include "gdc_private.h"
@@ -85,16 +83,4 @@ int gdc_get_unity(const gdc_ID_t ID)
 	assert(ID < N_GDC_ID);
 	(void)ID;
 	return (int)(1UL << HRT_GDC_FRAC_BITS);
-}
-
-/*
- * Local function implementations
- */
-static inline void gdc_reg_store(
-    const gdc_ID_t		ID,
-    const unsigned int	reg,
-    const hrt_data		value)
-{
-	ia_css_device_store_uint32(GDC_BASE[ID] + reg * sizeof(hrt_data), value);
-	return;
 }

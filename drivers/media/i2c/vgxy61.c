@@ -652,6 +652,7 @@ static int vgxy61_try_fmt_internal(struct v4l2_subdev *sd,
 }
 
 static int vgxy61_get_selection(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
@@ -1197,6 +1198,7 @@ static int vgxy61_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 }
 
 static int vgxy61_set_fmt(struct v4l2_subdev *sd,
+			  const struct v4l2_subdev_client_info *ci,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
@@ -1260,7 +1262,7 @@ static int vgxy61_init_state(struct v4l2_subdev *sd,
 	vgxy61_fill_framefmt(sensor, sensor->current_mode, &fmt.format,
 			     VGXY61_MEDIA_BUS_FMT_DEF);
 
-	return vgxy61_set_fmt(sd, sd_state, &fmt);
+	return vgxy61_set_fmt(sd, NULL, sd_state, &fmt);
 }
 
 static int vgxy61_s_ctrl(struct v4l2_ctrl *ctrl)

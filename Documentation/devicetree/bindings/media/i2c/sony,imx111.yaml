@@ -69,6 +69,7 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/media/video-interfaces.h>
+    #include <dt-bindings/media/video-interface-devices.h>
 
     i2c {
         #address-cells = <1>;
@@ -84,7 +85,7 @@ examples:
             dvdd-supply = <&camera_vddd_1v2>;
             avdd-supply = <&camera_vdda_2v7>;
 
-            orientation = <1>;
+            orientation = <MEDIA_ORIENTATION_BACK>;
             rotation = <90>;
 
             nvmem = <&eeprom>;

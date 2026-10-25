@@ -172,7 +172,7 @@ static void cobalt_enable_output(struct cobalt_stream *s)
 		sd_fmt.format.code = MEDIA_BUS_FMT_RGB888_1X24;
 		break;
 	}
-	v4l2_subdev_call(s->sd, pad, set_fmt, NULL, &sd_fmt);
+	v4l2_subdev_call(s->sd, pad, set_fmt, NULL, NULL, &sd_fmt);
 
 	iowrite32(0, &vo->control);
 	/* 1080p60 */
@@ -223,14 +223,14 @@ static void cobalt_enable_input(struct cobalt_stream *s)
 		iowrite32(M00235_CONTROL_BITMAP_ENABLE_MSK |
 			  (1 << M00235_CONTROL_BITMAP_PACK_FORMAT_OFST),
 			  &packer->control);
-		v4l2_subdev_call(s->sd, pad, set_fmt, NULL,
+		v4l2_subdev_call(s->sd, pad, set_fmt, NULL, NULL,
 				 &sd_fmt_yuyv);
 		break;
 	case V4L2_PIX_FMT_RGB24:
 		iowrite32(M00235_CONTROL_BITMAP_ENABLE_MSK |
 			  (2 << M00235_CONTROL_BITMAP_PACK_FORMAT_OFST),
 			  &packer->control);
-		v4l2_subdev_call(s->sd, pad, set_fmt, NULL,
+		v4l2_subdev_call(s->sd, pad, set_fmt, NULL, NULL,
 				 &sd_fmt_rgb);
 		break;
 	case V4L2_PIX_FMT_BGR32:
@@ -238,7 +238,7 @@ static void cobalt_enable_input(struct cobalt_stream *s)
 			  M00235_CONTROL_BITMAP_ENDIAN_FORMAT_MSK |
 			  (3 << M00235_CONTROL_BITMAP_PACK_FORMAT_OFST),
 			  &packer->control);
-		v4l2_subdev_call(s->sd, pad, set_fmt, NULL,
+		v4l2_subdev_call(s->sd, pad, set_fmt, NULL, NULL,
 				 &sd_fmt_rgb);
 		break;
 	}
@@ -938,7 +938,7 @@ static int cobalt_s_fmt_vid_out(struct file *file, void *priv,
 	s->ycbcr_enc = pix->ycbcr_enc;
 	s->quantization = pix->quantization;
 	v4l2_fill_mbus_format(&sd_fmt.format, pix, code);
-	v4l2_subdev_call(s->sd, pad, set_fmt, NULL, &sd_fmt);
+	v4l2_subdev_call(s->sd, pad, set_fmt, NULL, NULL, &sd_fmt);
 	return 0;
 }
 

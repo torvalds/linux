@@ -1031,7 +1031,8 @@ static int cxusb_medion_try_s_fmt_vid_cap(struct file *file,
 	subfmt.format.field = field;
 	subfmt.format.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-	ret = v4l2_subdev_call(cxdev->cx25840, pad, set_fmt, NULL, &subfmt);
+	ret = v4l2_subdev_call(cxdev->cx25840, pad, set_fmt, NULL, NULL,
+			       &subfmt);
 	if (ret != 0)
 		return ret;
 
@@ -1513,7 +1514,8 @@ int cxusb_medion_analog_init(struct dvb_usb_device *dvbdev)
 	subfmt.format.field = V4L2_FIELD_SEQ_TB;
 	subfmt.format.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-	ret = v4l2_subdev_call(cxdev->cx25840, pad, set_fmt, NULL, &subfmt);
+	ret = v4l2_subdev_call(cxdev->cx25840, pad, set_fmt, NULL, NULL,
+			       &subfmt);
 	if (ret != 0)
 		dev_warn(&dvbdev->udev->dev,
 			 "cx25840 format set failed (%d)\n", ret);

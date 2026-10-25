@@ -1771,6 +1771,7 @@ static int cx25840_s_ctrl(struct v4l2_ctrl *ctrl)
 /* ----------------------------------------------------------------------- */
 
 static int cx25840_set_fmt(struct v4l2_subdev *sd,
+			   const struct v4l2_subdev_client_info *ci,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
@@ -2289,29 +2290,27 @@ static int cx25840_init(struct v4l2_subdev *sd, u32 val)
 {
 	struct cx25840_state *state = to_state(sd);
 
+	if (!is_cx2584x(state))
+		return -EOPNOTSUPP;
+
 	state->generic_mode = true;
 
-	if (is_cx2584x(state)) {
-		/* set datasheet video output defaults */
-		state->vid_config = CX25840_VCONFIG_FMT_BT656 |
-				    CX25840_VCONFIG_RES_8BIT |
-				    CX25840_VCONFIG_VBIRAW_DISABLED |
-				    CX25840_VCONFIG_ANCDATA_ENABLED |
-				    CX25840_VCONFIG_TASKBIT_ONE |
-				    CX25840_VCONFIG_ACTIVE_HORIZONTAL |
-				    CX25840_VCONFIG_VALID_NORMAL |
-				    CX25840_VCONFIG_HRESETW_NORMAL |
-				    CX25840_VCONFIG_CLKGATE_NONE |
-				    CX25840_VCONFIG_DCMODE_DWORDS |
-				    CX25840_VCONFIG_IDID0S_NORMAL |
-				    CX25840_VCONFIG_VIPCLAMP_DISABLED;
+	/* set datasheet video output defaults */
+	state->vid_config = CX25840_VCONFIG_FMT_BT656 |
+		CX25840_VCONFIG_RES_8BIT |
+		CX25840_VCONFIG_VBIRAW_DISABLED |
+		CX25840_VCONFIG_ANCDATA_ENABLED |
+		CX25840_VCONFIG_TASKBIT_ONE |
+		CX25840_VCONFIG_ACTIVE_HORIZONTAL |
+		CX25840_VCONFIG_VALID_NORMAL |
+		CX25840_VCONFIG_HRESETW_NORMAL |
+		CX25840_VCONFIG_CLKGATE_NONE |
+		CX25840_VCONFIG_DCMODE_DWORDS |
+		CX25840_VCONFIG_IDID0S_NORMAL |
+		CX25840_VCONFIG_VIPCLAMP_DISABLED;
 
-		/* add additional settings */
-		cx25840_vconfig_add(state, val);
-	} else {
-		/* TODO: generic mode needs to be developed for other chips */
-		WARN_ON(1);
-	}
+	/* add additional settings */
+	cx25840_vconfig_add(state, val);
 
 	return 0;
 }

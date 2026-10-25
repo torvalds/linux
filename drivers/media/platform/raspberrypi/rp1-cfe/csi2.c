@@ -404,6 +404,7 @@ static int csi2_init_state(struct v4l2_subdev *sd,
 }
 
 static int csi2_pad_set_fmt(struct v4l2_subdev *sd,
+			    const struct v4l2_subdev_client_info *ci,
 			    struct v4l2_subdev_state *state,
 			    struct v4l2_subdev_format *format)
 {

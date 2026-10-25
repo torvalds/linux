@@ -109,7 +109,8 @@ irqreturn_t iris_hfi_isr_handler(int irq, void *data)
 	iris_vpu_clear_interrupt(core);
 	mutex_unlock(&core->lock);
 
-	core->hfi_sys_ops->sys_hfi_response_handler(core);
+	if (core->hfi_sys_ops)
+		core->hfi_sys_ops->sys_hfi_response_handler(core);
 
 	if (!iris_vpu_watchdog(core, core->intr_status))
 		enable_irq(irq);
@@ -144,6 +145,7 @@ error:
 
 int iris_hfi_pm_resume(struct iris_core *core)
 {
+	const struct vpu_ops *vpu_ops = core->iris_platform_data->vpu_ops;
 	const struct iris_hfi_sys_ops *ops = core->hfi_sys_ops;
 	int ret;
 
@@ -162,6 +164,9 @@ int iris_hfi_pm_resume(struct iris_core *core)
 	ret = iris_vpu_switch_to_hwmode(core);
 	if (ret)
 		goto err_suspend_hw;
+
+	if (vpu_ops->disable_arp)
+		vpu_ops->disable_arp(core);
 
 	ret = ops->sys_interframe_powercollapse(core);
 	if (ret)

@@ -15,8 +15,7 @@
 
 #include "ia_css_debug.h"
 
-/* TODO: enable for other memory aswell
-	 now only for ia_css_ptr */
+/* TODO: enable for other memory as well, now only for ia_css_ptr */
 struct ia_css_refcount_entry {
 	u32 count;
 	ia_css_ptr data;

@@ -192,7 +192,7 @@ static int si4713_send_startup_command(struct si4713_usb_device *radio)
 		}
 		if (time_is_before_jiffies(until_jiffies))
 			return -EIO;
-		msleep(3);
+		usleep_range(3000, 4000);
 	}
 
 	return retval;
@@ -339,7 +339,7 @@ static int si4713_i2c_read(struct si4713_usb_device *radio, char *data, int len)
 			data[0] = 0;
 			return 0;
 		}
-		msleep(3);
+		usleep_range(3000, 4000);
 	}
 }
 

@@ -973,6 +973,13 @@ static int iris_hfi_gen1_set_bufsize(struct iris_inst *inst, u32 plane)
 	struct hfi_buffer_size_actual bufsz;
 	int ret;
 
+	if (inst->core->iris_firmware_data->query_buffer_requirements) {
+		ret = inst->hfi_session_ops->session_get_property(inst,
+								  HFI_PROPERTY_CONFIG_BUFFER_REQUIREMENTS);
+		if (ret)
+			return ret;
+	}
+
 	if (iris_split_mode_enabled(inst)) {
 		bufsz.type = HFI_BUFFER_OUTPUT;
 		bufsz.size = inst->core->iris_firmware_desc->get_vpu_buffer_size(inst, BUF_DPB);
@@ -1087,6 +1094,8 @@ static int iris_hfi_gen1_session_set_config_params(struct iris_inst *inst, u32 p
 			iris_hfi_gen1_set_raw_format},
 		{HFI_PROPERTY_PARAM_BUFFER_COUNT_ACTUAL,
 			iris_hfi_gen1_set_num_bufs},
+		{HFI_PROPERTY_PARAM_BUFFER_SIZE_ACTUAL,
+			iris_hfi_gen1_set_bufsize},
 	};
 
 	if (inst->domain == DECODER) {
@@ -1120,10 +1129,31 @@ static int iris_hfi_gen1_session_set_config_params(struct iris_inst *inst, u32 p
 	return 0;
 }
 
+static int iris_hfi_gen1_session_get_property(struct iris_inst *inst, u32 packet_type)
+{
+	struct hfi_session_get_property_pkt pkt;
+	int ret;
+
+	pkt.shdr.hdr.size = sizeof(pkt);
+	pkt.shdr.hdr.pkt_type = HFI_CMD_SESSION_GET_PROPERTY;
+	pkt.shdr.session_id = inst->session_id;
+	pkt.num_properties = 1;
+	pkt.data = packet_type;
+
+	reinit_completion(&inst->completion);
+
+	ret = iris_hfi_queue_cmd_write(inst->core, &pkt, pkt.shdr.hdr.size);
+	if (ret)
+		return ret;
+
+	return iris_wait_for_session_response(inst, false);
+}
+
 static const struct iris_hfi_session_ops iris_hfi_gen1_session_ops = {
 	.session_open = iris_hfi_gen1_session_open,
 	.session_set_config_params = iris_hfi_gen1_session_set_config_params,
 	.session_set_property = iris_hfi_gen1_session_set_property,
+	.session_get_property = iris_hfi_gen1_session_get_property,
 	.session_start = iris_hfi_gen1_session_start,
 	.session_queue_buf = iris_hfi_gen1_session_queue_buffer,
 	.session_release_buf = iris_hfi_gen1_session_unset_buffers,

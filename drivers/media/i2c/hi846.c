@@ -1688,6 +1688,7 @@ static int __maybe_unused hi846_resume(struct device *dev)
 }
 
 static int hi846_set_format(struct v4l2_subdev *sd,
+			    const struct v4l2_subdev_client_info *ci,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *format)
 {
@@ -1840,6 +1841,7 @@ static int hi846_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int hi846_get_selection(struct v4l2_subdev *sd,
+			       const struct v4l2_subdev_client_info *ci,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_selection *sel)
 {

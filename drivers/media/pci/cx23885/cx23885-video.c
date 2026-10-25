@@ -134,7 +134,7 @@ int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm)
 	format.format.width = dev->width;
 	format.format.height = dev->height;
 	format.format.field = dev->field;
-	call_all(dev, pad, set_fmt, NULL, &format);
+	call_all(dev, pad, set_fmt, NULL, NULL, &format);
 
 	return 0;
 }
@@ -619,7 +619,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dprintk(2, "%s() width=%d height=%d field=%d\n", __func__,
 		dev->width, dev->height, dev->field);
 	v4l2_fill_mbus_format(&format.format, &f->fmt.pix, MEDIA_BUS_FMT_FIXED);
-	call_all(dev, pad, set_fmt, NULL, &format);
+	call_all(dev, pad, set_fmt, NULL, NULL, &format);
 	v4l2_fill_pix_format(&f->fmt.pix, &format.format);
 	/* set_fmt overwrites f->fmt.pix.field, restore it */
 	f->fmt.pix.field = dev->field;

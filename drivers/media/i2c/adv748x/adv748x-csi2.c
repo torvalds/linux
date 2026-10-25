@@ -226,6 +226,7 @@ static bool adv748x_csi2_is_fmt_supported(struct adv748x_csi2 *tx, u32 code)
 }
 
 static int adv748x_csi2_set_format(struct v4l2_subdev *sd,
+				   const struct v4l2_subdev_client_info *ci,
 				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *sdformat)
 {

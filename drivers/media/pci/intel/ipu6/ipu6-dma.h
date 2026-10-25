@@ -10,6 +10,8 @@
 
 #include "ipu6-bus.h"
 
+#define DMA_ATTR_RESERVE_REGION		BIT(31)
+
 struct ipu6_mmu_info;
 
 struct ipu6_dma_mapping {

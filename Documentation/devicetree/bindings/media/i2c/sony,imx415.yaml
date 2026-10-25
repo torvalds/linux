@@ -86,6 +86,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/media/video-interface-devices.h>
 
     i2c {
         #address-cells = <1>;
@@ -98,7 +99,7 @@ examples:
             clocks = <&clock_cam>;
             dvdd-supply = <&vcc1v1_cam>;
             lens-focus = <&vcm>;
-            orientation = <2>;
+            orientation = <MEDIA_ORIENTATION_EXTERNAL>;
             ovdd-supply = <&vcc1v8_cam>;
             reset-gpios = <&gpio_expander 14 GPIO_ACTIVE_LOW>;
             rotation = <180>;

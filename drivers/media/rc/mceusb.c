@@ -484,7 +484,6 @@ struct mceusb_dev {
 	u8 cmd, rem;		/* Remaining IR data bytes in packet */
 
 	struct {
-		u32 connected:1;
 		u32 tx_mask_normal:1;
 		u32 microsoft_gen1:1;
 		u32 no_tx:1;

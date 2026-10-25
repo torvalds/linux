@@ -109,6 +109,7 @@
 /* CSI2 HW configuration */
 #define IMX334_LINK_FREQ_891M		891000000
 #define IMX334_LINK_FREQ_445M		445500000
+#define IMX334_LINK_FREQ_222M		222750000
 #define IMX334_NUM_DATA_LANES		4
 
 #define IMX334_REG_MIN			0x00
@@ -154,7 +155,6 @@ struct imx334_reg_list {
  * @vblank_min: Minimal vertical blanking in lines
  * @vblank_max: Maximum vertical blanking in lines
  * @pclk: Sensor pixel clock
- * @link_freq_idx: Link frequency index
  * @reg_list: Register list for sensor mode
  */
 struct imx334_mode {
@@ -165,7 +165,28 @@ struct imx334_mode {
 	u32 vblank_min;
 	u32 vblank_max;
 	u64 pclk;
-	u32 link_freq_idx;
+	struct imx334_reg_list reg_list;
+};
+
+/**
+ * struct imx334_clk_params - imx334 sensor clock parameters
+ * @data_rate_per_lane: Data rate per lane in bits per second
+ * @link_freq: Link frequency in Hz
+ * @width_max: Maximum image width in pixels
+ * @height_max: Maximum image height in pixels
+ * @width_min: Minimum image width in pixels
+ * @height_min: Minimum image height in pixels
+ * @default_mode: Pointer to the default sensor mode
+ * @reg_list: Register list for clock configuration
+ */
+struct imx334_clk_params {
+	u32 data_rate_per_lane;
+	u32 link_freq;
+	u32 width_max;
+	u32 height_max;
+	u32 width_min;
+	u32 height_min;
+	const struct imx334_mode *default_mode;
 	struct imx334_reg_list reg_list;
 };
 
@@ -216,6 +237,7 @@ struct imx334 {
 static const s64 link_freq[] = {
 	IMX334_LINK_FREQ_891M,
 	IMX334_LINK_FREQ_445M,
+	IMX334_LINK_FREQ_222M,
 };
 
 /* Sensor common mode registers values */
@@ -233,13 +255,6 @@ static const struct cci_reg_sequence common_mode_regs[] = {
 	{ IMX334_REG_UNREAD_PARAM6,	0x0008 },
 	{ IMX334_REG_XVS_XHS_OUTSEL,	0x20 },
 	{ IMX334_REG_XVS_XHS_DRV,	0x0f },
-	{ IMX334_REG_BCWAIT_TIME,	0x3b },
-	{ IMX334_REG_CPWAIT_TIME,	0x2a },
-	{ IMX334_REG_INCKSEL1,		0x0129 },
-	{ IMX334_REG_INCKSEL2,		0x06 },
-	{ IMX334_REG_INCKSEL3,		0xa0 },
-	{ IMX334_REG_INCKSEL4,		0x7e },
-	{ IMX334_REG_SYS_MODE,		0x02 },
 	{ IMX334_REG_HADD_VADD,		0x00 },
 	{ IMX334_REG_VALID_EXPAND,	0x03 },
 	{ IMX334_REG_TCYCLE,		0x00 },
@@ -397,6 +412,39 @@ static const struct cci_reg_sequence mode_3840x2160_regs[] = {
 	{ IMX334_REG_TPLX,		0x005f },
 };
 
+/* Data rate 1782Mbps per lane and 891Mhz link frequency */
+static const struct cci_reg_sequence link_freq_891m_regs[] = {
+	{ IMX334_REG_BCWAIT_TIME,	0x3b },
+	{ IMX334_REG_CPWAIT_TIME,	0x2a },
+	{ IMX334_REG_INCKSEL1,		0x0129 },
+	{ IMX334_REG_INCKSEL2,		0x02 },
+	{ IMX334_REG_INCKSEL3,		0xa0 },
+	{ IMX334_REG_INCKSEL4,		0x7e },
+	{ IMX334_REG_SYS_MODE,		0x00 },
+};
+
+/* Data rate 891Mbps per lane and 445Mhz link frequency */
+static const struct cci_reg_sequence link_freq_445m_regs[] = {
+	{ IMX334_REG_BCWAIT_TIME,	0x3b },
+	{ IMX334_REG_CPWAIT_TIME,	0x2a },
+	{ IMX334_REG_INCKSEL1,		0x0129 },
+	{ IMX334_REG_INCKSEL2,		0x06 },
+	{ IMX334_REG_INCKSEL3,		0xa0 },
+	{ IMX334_REG_INCKSEL4,		0x7e },
+	{ IMX334_REG_SYS_MODE,		0x02 },
+};
+
+/* Data rate 445Mbps per lane and 222Mhz link frequency */
+static const struct cci_reg_sequence link_freq_222m_regs[] = {
+	{ IMX334_REG_BCWAIT_TIME,	0x3b },
+	{ IMX334_REG_CPWAIT_TIME,	0x2a },
+	{ IMX334_REG_INCKSEL1,		0x0129 },
+	{ IMX334_REG_INCKSEL2,		0x0a },
+	{ IMX334_REG_INCKSEL3,		0xa0 },
+	{ IMX334_REG_INCKSEL4,		0x7e },
+	{ IMX334_REG_SYS_MODE,		0x02 },
+};
+
 static const char * const imx334_test_pattern_menu[] = {
 	"Disabled",
 	"Vertical Color Bars",
@@ -442,7 +490,6 @@ static const struct imx334_mode supported_modes[] = {
 		.vblank_min = 90,
 		.vblank_max = 132840,
 		.pclk = 594000000,
-		.link_freq_idx = 0,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_3840x2160_regs),
 			.regs = mode_3840x2160_regs,
@@ -455,7 +502,6 @@ static const struct imx334_mode supported_modes[] = {
 		.vblank_min = 45,
 		.vblank_max = 132840,
 		.pclk = 297000000,
-		.link_freq_idx = 1,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1920x1080_regs),
 			.regs = mode_1920x1080_regs,
@@ -468,7 +514,6 @@ static const struct imx334_mode supported_modes[] = {
 		.vblank_min = 45,
 		.vblank_max = 132840,
 		.pclk = 297000000,
-		.link_freq_idx = 1,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1280x720_regs),
 			.regs = mode_1280x720_regs,
@@ -481,12 +526,51 @@ static const struct imx334_mode supported_modes[] = {
 		.vblank_min = 45,
 		.vblank_max = 132840,
 		.pclk = 297000000,
-		.link_freq_idx = 1,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_640x480_regs),
 			.regs = mode_640x480_regs,
 		},
 	},
+};
+
+static const struct imx334_clk_params imx334_clk_params[] = {
+	{
+		.data_rate_per_lane = 1782000000,
+		.link_freq = IMX334_LINK_FREQ_891M,
+		.width_max = 3840,
+		.height_max = 2160,
+		.width_min = 3840,
+		.height_min = 2160,
+		.default_mode = &supported_modes[0], /* 3840x2160 */
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(link_freq_891m_regs),
+			.regs = link_freq_891m_regs,
+		},
+	}, {
+		.data_rate_per_lane = 891000000,
+		.link_freq = IMX334_LINK_FREQ_445M,
+		.width_max = 1920,
+		.height_max = 1080,
+		.width_min = 640,
+		.height_min = 480,
+		.default_mode = &supported_modes[1], /* 1920x1080 */
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(link_freq_445m_regs),
+			.regs = link_freq_445m_regs,
+		},
+	}, {
+		.data_rate_per_lane = 445500000,
+		.link_freq = IMX334_LINK_FREQ_222M,
+		.width_max = 1920,
+		.height_max = 1080,
+		.width_min = 640,
+		.height_min = 480,
+		.default_mode = &supported_modes[1], /* 1920x1080 */
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(link_freq_222m_regs),
+			.regs = link_freq_222m_regs,
+		},
+	}
 };
 
 /**
@@ -511,10 +595,6 @@ static int imx334_update_controls(struct imx334 *imx334,
 				  const struct imx334_mode *mode)
 {
 	int ret;
-
-	ret = __v4l2_ctrl_s_ctrl(imx334->link_freq_ctrl, mode->link_freq_idx);
-	if (ret)
-		return ret;
 
 	ret = __v4l2_ctrl_modify_range(imx334->pclk_ctrl, mode->pclk,
 				       mode->pclk, 1, mode->pclk);
@@ -741,17 +821,24 @@ static int imx334_get_pad_format(struct v4l2_subdev *sd,
 }
 
 static int imx334_set_pad_format(struct v4l2_subdev *sd,
+				 const struct v4l2_subdev_client_info *ci,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx334 *imx334 = to_imx334(sd);
 	const struct imx334_mode *mode;
+	const struct imx334_clk_params *clk_params;
 	int ret = 0;
 
 	mode = v4l2_find_nearest_size(supported_modes,
 				      ARRAY_SIZE(supported_modes),
 				      width, height,
 				      fmt->format.width, fmt->format.height);
+
+	clk_params = &imx334_clk_params[imx334->link_freq_ctrl->val];
+	if (mode->width > clk_params->width_max || mode->height > clk_params->height_max ||
+	    mode->width < clk_params->width_min || mode->height < clk_params->height_min)
+		mode = clk_params->default_mode;
 
 	imx334_fill_pad_format(imx334, mode, fmt);
 	fmt->format.code = imx334_get_format_code(imx334, fmt->format.code);
@@ -786,7 +873,7 @@ static int imx334_init_state(struct v4l2_subdev *sd,
 				 ~(imx334->link_freq_bitmap),
 				 __ffs(imx334->link_freq_bitmap));
 
-	return imx334_set_pad_format(sd, sd_state, &fmt);
+	return imx334_set_pad_format(sd, NULL, sd_state, &fmt);
 }
 
 static int imx334_set_framefmt(struct imx334 *imx334)
@@ -821,6 +908,15 @@ static int imx334_enable_streams(struct v4l2_subdev *sd,
 				  ARRAY_SIZE(common_mode_regs), NULL);
 	if (ret) {
 		dev_err(imx334->dev, "fail to write common registers\n");
+		goto err_rpm_put;
+	}
+
+	/* Write sensor link freq registers */
+	reg_list = &imx334_clk_params[imx334->link_freq_ctrl->val].reg_list;
+	ret = cci_multi_reg_write(imx334->cci, reg_list->regs,
+				  reg_list->num_of_regs, NULL);
+	if (ret) {
+		dev_err(imx334->dev, "fail to write initial registers\n");
 		goto err_rpm_put;
 	}
 
@@ -1095,9 +1191,6 @@ static int imx334_init_controls(struct imx334 *imx334)
 							__fls(imx334->link_freq_bitmap),
 							__ffs(imx334->link_freq_bitmap),
 							link_freq);
-
-	if (imx334->link_freq_ctrl)
-		imx334->link_freq_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	imx334->hblank_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
 						&imx334_ctrl_ops,
