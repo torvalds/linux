@@ -869,7 +869,11 @@ ext4_ext_binsearch(struct inode *inode,
 
 }
 
-void ext4_ext_tree_init(handle_t *handle, struct inode *inode)
+/*
+ * Initialize the extent tree of inode. This only changes the in-memory
+ * inode, the caller has to mark the inode dirty.
+ */
+void ext4_ext_init_root(struct inode *inode)
 {
 	struct ext4_extent_header *eh;
 
@@ -879,6 +883,11 @@ void ext4_ext_tree_init(handle_t *handle, struct inode *inode)
 	eh->eh_magic = EXT4_EXT_MAGIC;
 	eh->eh_max = cpu_to_le16(ext4_ext_space_root(inode, 0));
 	eh->eh_generation = 0;
+}
+
+void ext4_ext_tree_init(handle_t *handle, struct inode *inode)
+{
+	ext4_ext_init_root(inode);
 	ext4_mark_inode_dirty(handle, inode);
 }
 

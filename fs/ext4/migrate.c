@@ -326,6 +326,12 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 */
 	ext4_set_inode_flag(inode, EXT4_INODE_EXTENTS);
 	memcpy(ei->i_data, tmp_ei->i_data, sizeof(ei->i_data));
+	/*
+	 * The extent tree belongs to the inode now. Make tmp_inode's extent
+	 * tree empty, so that cleaning up tmp_inode can't free the tree
+	 * blocks, if we fail to finish the migration.
+	 */
+	ext4_ext_init_root(tmp_inode);
 
 	/*
 	 * Update i_blocks with the new blocks that got
@@ -335,10 +341,13 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * While converting to extents we need not
 	 * update the original inode i_blocks for extent blocks
 	 * via quota APIs. The quota update happened via tmp_inode already.
+	 * Clear tmp_inode i_blocks to avoid truncating original data blocks
+	 * in case we fail to finish the migration.
 	 */
 	spin_lock(&inode->i_lock);
 	inode->i_blocks += tmp_inode->i_blocks;
 	spin_unlock(&inode->i_lock);
+	tmp_inode->i_blocks = 0;
 	up_write(&EXT4_I(inode)->i_data_sem);
 
 	/*
@@ -565,7 +574,9 @@ err_out:
 		if (retval && !ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
 			/*
 			 * if we fail to swap inode data free the extent
-			 * details of the tmp inode
+			 * details of the tmp inode.  If the tree was already
+			 * moved to the original inode, the tmp_inode has an
+			 * empty tree and there is nothing to free.
 			 */
 			free_ext_block(handle, tmp_inode);
 	}
