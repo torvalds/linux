@@ -347,12 +347,18 @@ struct geni_se {
 #define QUP_SE_VERSION_2_5                  0x20050000
 
 /*
- * QUP Core 2X clock votes used by GENI clients through the "qup-core" ICC
- * path. Values are in Bps and must be converted with Bps_to_icc() before
- * setting avg_bw.
+ * ICC bandwidth values in Bps for the GENI_TO_CORE ("qup-core") path.
+ * Convert them with Bps_to_icc() before setting avg_bw. The QUP ICC provider
+ * maps each threshold to the Core 2X rate named by the macro suffix.
+ *
+ * These values are core clock votes, not GENI transfer bandwidths.
  */
 #define CORE_2X_19_2_MHZ		9600000
 #define CORE_2X_50_MHZ			25000000
+#define CORE_2X_100_MHZ			50000000
+#define CORE_2X_150_MHZ			75000000
+#define CORE_2X_200_MHZ			100000000
+#define CORE_2X_236_MHZ			118000000
 
 #define GENI_DEFAULT_BW			Bps_to_icc(1000)
 

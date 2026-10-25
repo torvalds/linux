@@ -138,10 +138,7 @@ static int pty_set_lock(struct tty_struct *tty, int __user *arg)
 
 	if (get_user(val, arg))
 		return -EFAULT;
-	if (val)
-		set_bit(TTY_PTY_LOCK, &tty->flags);
-	else
-		clear_bit(TTY_PTY_LOCK, &tty->flags);
+	assign_bit(TTY_PTY_LOCK, &tty->flags, val);
 	return 0;
 }
 

@@ -11,6 +11,7 @@
 #include <linux/acpi.h>
 #include <linux/array_size.h>
 #include <linux/cleanup.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -110,7 +111,7 @@ static int serial8250_probe_acpi(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *regs;
-	int ret, line;
+	int ret;
 
 	struct uart_8250_port *uart __free(kfree) = kzalloc_obj(*uart);
 	if (!uart)
@@ -146,16 +147,12 @@ static int serial8250_probe_acpi(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	line = serial8250_register_8250_port(uart);
-	if (line < 0)
-		return line;
-
-	return 0;
+	return PTR_ERR_OR_ZERO(serial8250_register_8250_port(uart));
 }
 
 static int serial8250_probe_platform(struct platform_device *dev, struct plat_serial8250_port *p)
 {
-	int ret, i;
+	int i;
 
 	struct uart_8250_port *uart __free(kfree) = kzalloc_obj(*uart);
 	if (!uart)
@@ -192,12 +189,12 @@ static int serial8250_probe_platform(struct platform_device *dev, struct plat_se
 		if (share_irqs)
 			uart->port.irqflags |= IRQF_SHARED;
 
-		ret = serial8250_register_8250_port(uart);
-		if (ret < 0) {
+		struct uart_8250_port *uport = serial8250_register_8250_port(uart);
+		if (IS_ERR(uport)) {
 			dev_err(&dev->dev, "unable to register port at index %d "
-				"(IO%lx MEM%llx IRQ%d): %d\n", i,
+				"(IO%lx MEM%llx IRQ%d): %pe\n", i,
 				p->iobase, (unsigned long long)p->mapbase,
-				p->irq, ret);
+				p->irq, uport);
 		}
 	}
 	return 0;
@@ -239,7 +236,7 @@ static void serial8250_remove(struct platform_device *dev)
 		struct uart_8250_port *up = serial8250_get_port(i);
 
 		if (up->port.dev == &dev->dev)
-			serial8250_unregister_port(i);
+			serial8250_unregister_port(up);
 	}
 }
 
@@ -265,7 +262,7 @@ static int serial8250_resume(struct platform_device *dev)
 		struct uart_8250_port *up = serial8250_get_port(i);
 
 		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev)
-			serial8250_resume_port(i);
+			serial8250_resume_port(up);
 	}
 
 	return 0;
@@ -320,10 +317,14 @@ static int __init serial8250_init(void)
 	if (ret)
 		goto unreg_uart_drv;
 
+	ret = serial8250_hub6_init();
+	if (ret)
+		goto unreg_pnp;
+
 	serial8250_isa_devs = platform_device_alloc("serial8250", PLAT8250_DEV_LEGACY);
 	if (!serial8250_isa_devs) {
 		ret = -ENOMEM;
-		goto unreg_pnp;
+		goto unreg_hub6;
 	}
 
 	ret = platform_device_add(serial8250_isa_devs);
@@ -339,6 +340,8 @@ static int __init serial8250_init(void)
 	platform_device_del(serial8250_isa_devs);
 put_dev:
 	platform_device_put(serial8250_isa_devs);
+unreg_hub6:
+	serial8250_hub6_exit();
 unreg_pnp:
 	serial8250_pnp_exit();
 unreg_uart_drv:
@@ -366,6 +369,7 @@ static void __exit serial8250_exit(void)
 	platform_driver_unregister(&serial8250_isa_driver);
 	platform_device_unregister(isa_dev);
 
+	serial8250_hub6_exit();
 	serial8250_pnp_exit();
 
 #ifdef CONFIG_SPARC

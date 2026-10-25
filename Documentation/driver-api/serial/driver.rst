@@ -70,7 +70,7 @@ Other functions
 
 .. kernel-doc:: drivers/tty/serial/serial_core.c
    :identifiers: uart_update_timeout uart_get_baud_rate uart_get_divisor
-           uart_match_port uart_write_wakeup uart_register_driver
+           uart_write_wakeup uart_register_driver
            uart_unregister_driver uart_suspend_port uart_resume_port
            uart_add_one_port uart_remove_one_port uart_console_write
            uart_parse_earlycon uart_parse_options uart_set_options

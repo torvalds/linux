@@ -2723,7 +2723,7 @@ static bool atmel_serial_clk_will_stop(void)
 #endif
 }
 
-static int __maybe_unused atmel_serial_suspend(struct device *dev)
+static int atmel_serial_suspend(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
@@ -2765,7 +2765,7 @@ static int __maybe_unused atmel_serial_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused atmel_serial_resume(struct device *dev)
+static int atmel_serial_resume(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
@@ -2996,7 +2996,7 @@ static void atmel_serial_remove(struct platform_device *pdev)
 	pdev->dev.of_node = NULL;
 }
 
-static SIMPLE_DEV_PM_OPS(atmel_serial_pm_ops, atmel_serial_suspend,
+static DEFINE_SIMPLE_DEV_PM_OPS(atmel_serial_pm_ops, atmel_serial_suspend,
 			 atmel_serial_resume);
 
 static struct platform_driver atmel_serial_driver = {
@@ -3005,7 +3005,7 @@ static struct platform_driver atmel_serial_driver = {
 	.driver		= {
 		.name			= "atmel_usart_serial",
 		.of_match_table		= of_match_ptr(atmel_serial_dt_ids),
-		.pm			= pm_ptr(&atmel_serial_pm_ops),
+		.pm			= pm_sleep_ptr(&atmel_serial_pm_ops),
 	},
 };
 

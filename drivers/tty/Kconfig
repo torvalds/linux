@@ -208,16 +208,6 @@ config SERIAL_NONSTANDARD
 
 	  Most people can say N here.
 
-config MOXA_INTELLIO
-	tristate "Moxa Intellio support"
-	depends on SERIAL_NONSTANDARD && PCI
-	select FW_LOADER
-	help
-	  Say Y here if you have a Moxa Intellio multiport serial card.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called moxa.
-
 config MOXA_SMARTIO
 	tristate "Moxa SmartIO support v. 2.0"
 	depends on SERIAL_NONSTANDARD && PCI && HAS_IOPORT

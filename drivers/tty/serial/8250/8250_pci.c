@@ -20,6 +20,7 @@
 #include <linux/8250_pci.h>
 #include <linux/bitops.h>
 #include <linux/bitfield.h>
+#include <linux/err.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -116,7 +117,7 @@ struct serial_private {
 	unsigned int		nr;
 	struct pci_serial_quirk	*quirk;
 	const struct pciserial_board *board;
-	int			line[];
+	struct uart_8250_port	*uport[];
 };
 
 #define PCI_DEVICE_ID_HPE_PCI_SERIAL	0x37e
@@ -3894,7 +3895,7 @@ static const struct pci_device_id blacklist[] = {
 	{ PCI_VDEVICE(ACCESSIO, PCI_ANY_ID), .driver_data = REPORT_8250_CONFIG(PERICOM), },
 
 	/* Moxa devices */
-	{ PCI_VDEVICE(MOXA, PCI_ANY_ID), REPORT_8250_CONFIG(MOXA), },
+	{ PCI_VDEVICE(MOXA, PCI_ANY_ID), .driver_data = REPORT_8250_CONFIG(MOXA), },
 
 	/* End of the black list */
 	{ }
@@ -4028,7 +4029,7 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 			nr_ports = rc;
 	}
 
-	priv = kzalloc_flex(*priv, line, nr_ports);
+	priv = kzalloc_flex(*priv, uport, nr_ports);
 	if (!priv) {
 		priv = ERR_PTR(-ENOMEM);
 		goto err_deinit;
@@ -4071,12 +4072,12 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 		pci_dbg(dev, "Setup PCI port: port %lx, irq %d, type %d\n",
 			uart.port.iobase, uart.port.irq, uart.port.iotype);
 
-		priv->line[i] = serial8250_register_8250_port(&uart);
-		if (priv->line[i] < 0) {
+		priv->uport[i] = serial8250_register_8250_port(&uart);
+		if (IS_ERR(priv->uport[i])) {
 			pci_err(dev,
-				"Couldn't register serial port %lx, irq %d, type %d, error %d\n",
+				"Couldn't register serial port %lx, irq %d, type %d, error %pe\n",
 				uart.port.iobase, uart.port.irq,
-				uart.port.iotype, priv->line[i]);
+				uart.port.iotype, priv->uport[i]);
 			break;
 		}
 	}
@@ -4098,7 +4099,7 @@ static void pciserial_detach_ports(struct serial_private *priv)
 	int i;
 
 	for (i = 0; i < priv->nr; i++)
-		serial8250_unregister_port(priv->line[i]);
+		serial8250_unregister_port(priv->uport[i]);
 
 	/*
 	 * Find the exit quirks.
@@ -4120,8 +4121,7 @@ void pciserial_suspend_ports(struct serial_private *priv)
 	int i;
 
 	for (i = 0; i < priv->nr; i++)
-		if (priv->line[i] >= 0)
-			serial8250_suspend_port(priv->line[i]);
+		serial8250_suspend_port(priv->uport[i]);
 
 	/*
 	 * Ensure that every init quirk is properly torn down
@@ -4142,8 +4142,7 @@ void pciserial_resume_ports(struct serial_private *priv)
 		priv->quirk->init(priv->dev);
 
 	for (i = 0; i < priv->nr; i++)
-		if (priv->line[i] >= 0)
-			serial8250_resume_port(priv->line[i]);
+		serial8250_resume_port(priv->uport[i]);
 }
 EXPORT_SYMBOL_GPL(pciserial_resume_ports);
 

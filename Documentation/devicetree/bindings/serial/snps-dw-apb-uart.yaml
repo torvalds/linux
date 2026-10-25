@@ -34,7 +34,16 @@ allOf:
       properties:
         resets:
           minItems: 2
-    else:
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - starfive,jh7110-uart
+                - syna,sl2610-uart
+    then:
       properties:
         resets:
           maxItems: 1
@@ -80,6 +89,8 @@ properties:
               - starfive,jh7100-hsuart
               - starfive,jh7100-uart
               - starfive,jh7110-uart
+              - syna,sl2610-uart
+              - ti,tda54-uart
               - ultrarisc,dp1000-uart
           - const: snps,dw-apb-uart
       - const: snps,dw-apb-uart

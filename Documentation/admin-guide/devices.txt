@@ -2388,18 +2388,9 @@
 
  171 char	Reserved for IEEE 1394 (Firewire)
 
- 172 char	Moxa Intellio serial card
-		  0 = /dev/ttyMX0	First Moxa port
-		  1 = /dev/ttyMX1	Second Moxa port
-		    ...
-		127 = /dev/ttyMX127	128th Moxa port
-		128 = /dev/moxactl	Moxa control port
+ 172 char
 
- 173 char	Moxa Intellio serial card - alternate devices
-		  0 = /dev/cumx0	Callout device for ttyMX0
-		  1 = /dev/cumx1	Callout device for ttyMX1
-		    ...
-		127 = /dev/cumx127	Callout device for ttyMX127
+ 173 char
 
  174 char	SmartIO serial card
 		  0 = /dev/ttySI0	First SmartIO port

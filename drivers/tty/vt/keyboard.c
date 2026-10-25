@@ -2002,7 +2002,9 @@ static int vt_kdskbent(unsigned char kbdmode, unsigned char idx,
 		return 0;
 #endif
 
-	unsigned short __free(kfree) *new_map = kmalloc(sizeof(plain_map), GFP_KERNEL);
+	unsigned short __free(kfree) *new_map =
+		kmalloc_array(ARRAY_SIZE(plain_map), sizeof(*new_map),
+			      GFP_KERNEL);
 	if (!new_map)
 		return -ENOMEM;
 

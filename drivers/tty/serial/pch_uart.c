@@ -811,7 +811,7 @@ static int dma_handle_rx(struct eg20t_port *priv)
 	priv->desc_rx = desc;
 	desc->callback = pch_dma_rx_complete;
 	desc->callback_param = priv;
-	desc->tx_submit(desc);
+	dmaengine_submit(desc);
 	dma_async_issue_pending(priv->chan_rx);
 
 	return PCH_UART_HANDLED_RX_INT;
@@ -971,7 +971,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 	desc->callback = pch_dma_tx_complete;
 	desc->callback_param = priv;
 
-	desc->tx_submit(desc);
+	dmaengine_submit(desc);
 
 	dma_async_issue_pending(priv->chan_tx);
 

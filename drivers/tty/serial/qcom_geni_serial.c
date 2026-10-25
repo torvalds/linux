@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/panic_notifier.h>
-#include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -288,6 +287,10 @@ static struct qcom_geni_serial_port *get_port_from_line(int line, bool console, 
 	} else {
 		int max_alias_num = of_alias_get_highest_id("serial");
 
+		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+		if (!port)
+			return ERR_PTR(-ENOMEM);
+
 		if (line < 0 || line >= nr_ports)
 			line = ida_alloc_range(&port_ida, max_alias_num + 1,
 					       nr_ports - 1, GFP_KERNEL);
@@ -297,10 +300,6 @@ static struct qcom_geni_serial_port *get_port_from_line(int line, bool console, 
 
 		if (line < 0)
 			return ERR_PTR(-ENXIO);
-
-		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
-		if (!port)
-			return ERR_PTR(-ENOMEM);
 
 		port->uport.iotype = UPIO_MEM;
 		port->uport.ops = &qcom_geni_uart_pops;
@@ -1293,7 +1292,6 @@ out_unlock:
 static int setup_fifos(struct qcom_geni_serial_port *port)
 {
 	struct uart_port *uport;
-	u32 old_rx_fifo_depth = port->rx_fifo_depth;
 
 	uport = &port->uport;
 	port->tx_fifo_depth = geni_se_get_tx_fifo_depth(&port->se);
@@ -1301,19 +1299,6 @@ static int setup_fifos(struct qcom_geni_serial_port *port)
 	port->rx_fifo_depth = geni_se_get_rx_fifo_depth(&port->se);
 	uport->fifosize =
 		(port->tx_fifo_depth * port->tx_fifo_width) / BITS_PER_BYTE;
-
-	if (port->rx_buf && (old_rx_fifo_depth != port->rx_fifo_depth) && port->rx_fifo_depth) {
-		/*
-		 * Use krealloc rather than krealloc_array because rx_buf is
-		 * accessed as 1 byte entries as well as 4 byte entries so it's
-		 * not necessarily an array.
-		 */
-		port->rx_buf = devm_krealloc(uport->dev, port->rx_buf,
-					     port->rx_fifo_depth * sizeof(u32),
-					     GFP_KERNEL);
-		if (!port->rx_buf)
-			return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -1484,7 +1469,7 @@ static int geni_serial_set_rate(struct geni_se *se, unsigned long baud)
 	 * Bump up BW vote on CPU and CORE path as driver supports FIFO mode
 	 * only.
 	 */
-	avg_bw_core = baud > 115200 ? CORE_2X_50_MHZ : CORE_2X_19_2_MHZ;
+	avg_bw_core = (baud > 115200) ? CORE_2X_50_MHZ : CORE_2X_19_2_MHZ;
 	port->se.icc_paths[GENI_TO_CORE].avg_bw = Bps_to_icc(avg_bw_core);
 	port->se.icc_paths[CPU_TO_GENI].avg_bw = Bps_to_icc(baud);
 	geni_icc_set_bw(&port->se);
@@ -1920,7 +1905,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 
 	ret = port->dev_data->resources_init(&port->se);
 	if (ret)
-		return ret;
+		goto error;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -1970,8 +1955,13 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	uport->irq = irq;
 	uport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_QCOM_GENI_CONSOLE);
 
-	if (!data->console)
+	if (!data->console) {
 		port->wakeup_irq = platform_get_irq_optional(pdev, 1);
+		if (port->wakeup_irq < 0 && port->wakeup_irq != -ENXIO) {
+			ret = port->wakeup_irq;
+			goto error;
+		}
+	}
 
 	if (of_property_read_bool(pdev->dev.of_node, "rx-tx-swap"))
 		port->rx_tx_swap = true;
@@ -2002,7 +1992,6 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 						port->wakeup_irq);
 		if (ret) {
 			device_init_wakeup(&pdev->dev, false);
-			ida_free(&port_ida, uport->line);
 			goto error;
 		}
 	}
@@ -2026,12 +2015,13 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	return 0;
 
 error:
+	if (!data->console)
+		ida_free(&port_ida, uport->line);
 	if (port->rx_dma_addr) {
 		dma_unmap_single(pdev->dev.parent, port->rx_dma_addr,
 				 DMA_RX_BUF_SIZE, DMA_FROM_DEVICE);
 		port->rx_dma_addr = 0;
 	}
-	dev_pm_domain_detach_list(port->se.pd_list);
 	return ret;
 }
 
@@ -2047,7 +2037,8 @@ static void qcom_geni_serial_remove(struct platform_device *pdev)
 	irq_work_sync(&port->tx_kick);
 	dev_pm_clear_wake_irq(&pdev->dev);
 	device_init_wakeup(&pdev->dev, false);
-	ida_free(&port_ida, uport->line);
+	if (!port->dev_data->console)
+		ida_free(&port_ida, uport->line);
 	uart_remove_one_port(drv, &port->uport);
 
 	if (port->rx_dma_addr) {
@@ -2055,8 +2046,6 @@ static void qcom_geni_serial_remove(struct platform_device *pdev)
 				 DMA_RX_BUF_SIZE, DMA_FROM_DEVICE);
 		port->rx_dma_addr = 0;
 	}
-
-	dev_pm_domain_detach_list(port->se.pd_list);
 }
 
 static int __maybe_unused qcom_geni_serial_runtime_suspend(struct device *dev)
@@ -2125,6 +2114,12 @@ static int qcom_geni_serial_resume(struct device *dev)
 	if (console_suspend_enabled || !uart_console(uport)) {
 		ret = pm_runtime_force_resume(dev);
 		if (ret)
+			return ret;
+	}
+
+	if (console_suspend_enabled && uart_console(uport)) {
+		ret = pm_runtime_resume(dev);
+		if (ret < 0)
 			return ret;
 	}
 

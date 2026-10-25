@@ -7,6 +7,8 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/rational.h>
@@ -40,7 +42,7 @@ struct mid8250_board {
 };
 
 struct mid8250 {
-	int line;
+	struct uart_8250_port *uport;
 	int dma_index;
 	struct pci_dev *dma_dev;
 	struct uart_8250_dma dma;
@@ -209,6 +211,7 @@ static void mid8250_set_termios(struct uart_port *p, struct ktermios *termios,
 				const struct ktermios *old)
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
+	struct uart_8250_port *up = up_to_u8250p(p);
 	struct mid8250 *mid = p->private_data;
 	unsigned short ps = 16;
 	unsigned long fuart = baud * ps;
@@ -231,11 +234,16 @@ static void mid8250_set_termios(struct uart_port *p, struct ktermios *termios,
 	}
 
 	rational_best_approximation(fuart, mid->board->freq, w, w, &mul, &div);
-	p->uartclk = fuart * 16 / ps;		/* core uses ps = 16 always */
 
-	writel(ps, p->membase + INTEL_MID_UART_PS);		/* set PS */
-	writel(mul, p->membase + INTEL_MID_UART_MUL);		/* set MUL */
-	writel(div, p->membase + INTEL_MID_UART_DIV);
+	scoped_guard(spinlock_irq, &p->lock) {
+		p->uartclk = fuart * 16 / ps;	/* core uses ps = 16 always */
+
+		serial8250_wait_for_xmitr(up, UART_LSR_BOTH_EMPTY);
+
+		writel(ps, p->membase + INTEL_MID_UART_PS);	/* set PS */
+		writel(mul, p->membase + INTEL_MID_UART_MUL);	/* set MUL */
+		writel(div, p->membase + INTEL_MID_UART_DIV);
+	}
 
 	serial8250_do_set_termios(p, termios, old);
 }
@@ -328,11 +336,11 @@ static int mid8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto err;
 
-	ret = serial8250_register_8250_port(&uart);
-	if (ret < 0)
+	mid->uport = serial8250_register_8250_port(&uart);
+	if (IS_ERR(mid->uport)) {
+		ret = PTR_ERR(mid->uport);
 		goto err;
-
-	mid->line = ret;
+	}
 
 	pci_set_drvdata(pdev, mid);
 	return 0;
@@ -347,7 +355,7 @@ static void mid8250_remove(struct pci_dev *pdev)
 {
 	struct mid8250 *mid = pci_get_drvdata(pdev);
 
-	serial8250_unregister_port(mid->line);
+	serial8250_unregister_port(mid->uport);
 
 	if (mid->board->exit)
 		mid->board->exit(mid);
@@ -408,3 +416,4 @@ module_pci_driver(mid8250_pci_driver);
 MODULE_AUTHOR("Intel Corporation");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel MID UART driver");
+MODULE_IMPORT_NS("SERIAL_8250");

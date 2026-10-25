@@ -18604,7 +18604,7 @@ F:	Documentation/devicetree/bindings/net/dsa/motorcomm,yt921x.yaml
 F:	drivers/net/dsa/motorcomm/
 F:	net/dsa/tag_yt921x.c
 
-MOXA SMARTIO/INDUSTIO/INTELLIO SERIAL CARD
+MOXA SMARTIO/INDUSTIO SERIAL CARD
 M:	Jiri Slaby <jirislaby@kernel.org>
 S:	Maintained
 F:	Documentation/driver-api/tty/moxa-smartio.rst
