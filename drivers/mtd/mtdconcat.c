@@ -31,7 +31,7 @@
  * Given a pointer to the MTD object in the mtd_concat structure,
  * we can retrieve the pointer to that structure with this macro.
  */
-#define CONCAT(x)  ((struct mtd_concat *)(x))
+#define CONCAT(x)  container_of_const(x, struct mtd_concat, mtd)
 
 /*
  * MTD methods which look up the relevant subdevice, translate the

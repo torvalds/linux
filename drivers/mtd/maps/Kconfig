@@ -161,6 +161,23 @@ config MTD_AMD76XROM
 
 	  BE VERY CAREFUL.
 
+config MTD_INT0800
+	tristate "Read-only BIOS/firmware flash via ACPI INT0800"
+	depends on X86 && ACPI
+	select MTD_ROM
+	help
+	  Support for reading the system firmware (BIOS/EFI) flash chip
+	  through the memory window described by the ACPI INT0800
+	  "82802 firmware hub" device, present on most x86 machines.
+
+	  The flash is exposed read-only via the ROM chip driver, e.g.
+	  for firmware analysis or extracting option ROMs (such as
+	  video BIOS images embedded in EFI firmware volumes). There is
+	  no write or erase support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called int0800.
+
 config MTD_ICHXROM
 	tristate "BIOS flash chip on Intel Controller Hub 2/3/4/5"
 	depends on X86 && MTD_JEDECPROBE

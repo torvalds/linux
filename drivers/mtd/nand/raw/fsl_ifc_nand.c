@@ -12,7 +12,6 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
@@ -50,7 +49,6 @@ struct fsl_ifc_nand_ctrl {
 	unsigned int index;	/* Pointer to next byte to 'read'	*/
 	unsigned int oob;	/* Non zero if operating on OOB data	*/
 	unsigned int eccread;	/* Non zero for a full-page ECC read	*/
-	unsigned int counter;	/* counter for the initializations	*/
 	unsigned int max_bitflips;  /* Saved during READ0 cmd		*/
 };
 
@@ -965,13 +963,6 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 static int fsl_ifc_chip_remove(struct fsl_ifc_mtd *priv)
 {
-	struct mtd_info *mtd = nand_to_mtd(&priv->chip);
-
-	kfree(mtd->name);
-
-	if (priv->vbase)
-		iounmap(priv->vbase);
-
 	ifc_nand_ctrl->chips[priv->bank] = NULL;
 
 	return 0;
@@ -996,12 +987,12 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 {
 	struct fsl_ifc_runtime __iomem *ifc;
 	struct fsl_ifc_mtd *priv;
-	struct resource res;
+	struct resource *res;
+	void __iomem *vbase;
 	static const char *part_probe_types[]
 		= { "cmdlinepart", "RedBoot", "ofpart", NULL };
 	int ret;
 	int bank;
-	struct device_node *node = dev->dev.of_node;
 	struct mtd_info *mtd;
 
 	if (!fsl_ifc_ctrl_dev || !fsl_ifc_ctrl_dev->rregs)
@@ -1009,15 +1000,13 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	ifc = fsl_ifc_ctrl_dev->rregs;
 
 	/* get, allocate and map the memory resource */
-	ret = of_address_to_resource(node, 0, &res);
-	if (ret) {
-		dev_err(&dev->dev, "%s: failed to get resource\n", __func__);
-		return ret;
-	}
+	vbase = devm_platform_get_and_ioremap_resource(dev, 0, &res);
+	if (IS_ERR(vbase))
+		return PTR_ERR(vbase);
 
 	/* find which chip select it is connected to */
 	for (bank = 0; bank < fsl_ifc_ctrl_dev->banks; bank++) {
-		if (match_bank(fsl_ifc_ctrl_dev->gregs, bank, res.start))
+		if (match_bank(fsl_ifc_ctrl_dev->gregs, bank, res->start))
 			break;
 	}
 
@@ -1033,15 +1022,13 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 
 	mutex_lock(&fsl_ifc_nand_mutex);
 	if (!fsl_ifc_ctrl_dev->nand) {
-		ifc_nand_ctrl = kzalloc_obj(*ifc_nand_ctrl);
+		ifc_nand_ctrl = devm_kzalloc(fsl_ifc_ctrl_dev->dev, sizeof(*ifc_nand_ctrl),
+					     GFP_KERNEL);
 		if (!ifc_nand_ctrl) {
 			mutex_unlock(&fsl_ifc_nand_mutex);
 			return -ENOMEM;
 		}
 
-		ifc_nand_ctrl->read_bytes = 0;
-		ifc_nand_ctrl->index = 0;
-		ifc_nand_ctrl->addr = NULL;
 		fsl_ifc_ctrl_dev->nand = ifc_nand_ctrl;
 
 		nand_controller_init(&ifc_nand_ctrl->controller);
@@ -1054,13 +1041,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	priv->bank = bank;
 	priv->ctrl = fsl_ifc_ctrl_dev;
 	priv->dev = &dev->dev;
-
-	priv->vbase = ioremap(res.start, resource_size(&res));
-	if (!priv->vbase) {
-		dev_err(priv->dev, "%s: failed to map chip region\n", __func__);
-		ret = -ENOMEM;
-		goto err;
-	}
+	priv->vbase = vbase;
 
 	dev_set_drvdata(priv->dev, priv);
 
@@ -1076,7 +1057,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		  &ifc->ifc_nand.nand_evter_intr_en);
 
 	mtd = nand_to_mtd(&priv->chip);
-	mtd->name = kasprintf(GFP_KERNEL, "%llx.flash", (u64)res.start);
+	mtd->name = devm_kasprintf(priv->dev, GFP_KERNEL, "%llx.flash", (u64)res->start);
 	if (!mtd->name) {
 		ret = -ENOMEM;
 		goto err;
@@ -1098,7 +1079,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		goto cleanup_nand;
 
 	dev_info(priv->dev, "IFC NAND device at 0x%llx, bank %d\n",
-		 (unsigned long long)res.start, priv->bank);
+		 (unsigned long long)res->start, priv->bank);
 
 	return 0;
 
@@ -1121,14 +1102,6 @@ static void fsl_ifc_nand_remove(struct platform_device *dev)
 	nand_cleanup(chip);
 
 	fsl_ifc_chip_remove(priv);
-
-	mutex_lock(&fsl_ifc_nand_mutex);
-	ifc_nand_ctrl->counter--;
-	if (!ifc_nand_ctrl->counter) {
-		fsl_ifc_ctrl_dev->nand = NULL;
-		kfree(ifc_nand_ctrl);
-	}
-	mutex_unlock(&fsl_ifc_nand_mutex);
 }
 
 static const struct of_device_id fsl_ifc_nand_match[] = {

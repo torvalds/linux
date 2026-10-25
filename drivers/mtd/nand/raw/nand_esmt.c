@@ -3,6 +3,9 @@
  * Copyright (C) 2018 Toradex AG
  *
  * Author: Marcel Ziswiler <marcel.ziswiler@toradex.com>
+ *
+ * ESMT and GigaDevice share the same JEDEC manufacturer ID (0xc8), so this
+ * file handles chips from both vendors.
  */
 
 #include <linux/mtd/rawnand.h>
@@ -38,6 +41,35 @@ static void esmt_nand_decode_id(struct nand_chip *chip)
 	nanddev_set_ecc_requirements(base, &requirements);
 }
 
+/*
+ * GigaDevice GD9FU2G8F3A does not implement the timing mode feature:
+ * GET_FEATURES does not report the mode that was written, and
+ * SET_FEATURES is ignored, even though the parameter page advertises
+ * support. The vendor confirmed the chip works at every advertised
+ * timing mode without being told, so unflag the feature and configure
+ * the host side only.
+ */
+static void esmt_nand_fix_broken_get_timings(struct nand_chip *chip)
+{
+	int i;
+	static const char * const broken_get_timings[] = {
+		"GD9FU2G8F3A",
+	};
+
+	if (!chip->parameters.supports_set_get_features)
+		return;
+
+	i = match_string(broken_get_timings, ARRAY_SIZE(broken_get_timings),
+			 chip->parameters.model);
+	if (i < 0)
+		return;
+
+	bitmap_clear(chip->parameters.get_feature_list,
+		     ONFI_FEATURE_ADDR_TIMING_MODE, 1);
+	bitmap_clear(chip->parameters.set_feature_list,
+		     ONFI_FEATURE_ADDR_TIMING_MODE, 1);
+}
+
 static int esmt_nand_init(struct nand_chip *chip)
 {
 	if (nand_is_slc(chip))
@@ -49,6 +81,8 @@ static int esmt_nand_init(struct nand_chip *chip)
 		 */
 		chip->options |= NAND_BBM_FIRSTPAGE | NAND_BBM_SECONDPAGE |
 				 NAND_BBM_LASTPAGE;
+
+	esmt_nand_fix_broken_get_timings(chip);
 
 	return 0;
 }

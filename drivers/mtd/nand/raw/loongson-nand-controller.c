@@ -391,7 +391,7 @@ static void loongson_nand_dma_callback(void *data)
 {
 	struct loongson_nand_host *host = (struct loongson_nand_host *)data;
 	struct dma_chan *chan = host->dma_chan;
-	struct device *dev = chan->device->dev;
+	struct device *dev = dmaengine_get_dma_device(chan);
 	enum dma_status status;
 
 	status = dmaengine_tx_status(chan, host->dma_cookie, NULL);
@@ -407,7 +407,7 @@ static int loongson_nand_dma_transfer(struct loongson_nand_host *host, struct lo
 {
 	struct nand_chip *chip = &host->chip;
 	struct dma_chan *chan = host->dma_chan;
-	struct device *dev = chan->device->dev;
+	struct device *dev = dmaengine_get_dma_device(chan);
 	struct dma_async_tx_descriptor *desc;
 	enum dma_data_direction data_dir = op->is_write ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	enum dma_transfer_direction xfer_dir = op->is_write ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;

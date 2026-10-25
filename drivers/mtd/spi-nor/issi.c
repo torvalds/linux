@@ -52,13 +52,11 @@ static const struct flash_info issi_nor_parts[] = {
 		.sector_size = SZ_32K,
 		.size = SZ_64K,
 		.no_sfdp_flags = SECT_4K,
-		.fixups = &pm25lv_nor_fixups
 	}, {
 		.name = "pm25lv010",
 		.sector_size = SZ_32K,
 		.size = SZ_128K,
 		.no_sfdp_flags = SECT_4K,
-		.fixups = &pm25lv_nor_fixups
 	}, {
 		.id = SNOR_ID(0x7f, 0x9d, 0x20),
 		.name = "is25cd512",
@@ -103,8 +101,6 @@ static const struct flash_info issi_nor_parts[] = {
 	}, {
 		.id = SNOR_ID(0x9d, 0x60, 0x19),
 		.name = "is25lp256",
-		.fixups = &is25lp256_fixups,
-		.fixup_flags = SPI_NOR_4B_OPCODES,
 	}, {
 		.id = SNOR_ID(0x9d, 0x70, 0x16),
 		.name = "is25wp032",
@@ -124,23 +120,40 @@ static const struct flash_info issi_nor_parts[] = {
 		.id = SNOR_ID(0x9d, 0x70, 0x19),
 		.name = "is25wp256",
 		.flags = SPI_NOR_QUAD_PP,
-		.fixups = &is25lp256_fixups,
-		.fixup_flags = SPI_NOR_4B_OPCODES,
 	}
 };
 
 static void issi_nor_default_init(struct spi_nor *nor)
 {
-	nor->params->quad_enable = spi_nor_sr1_bit6_quad_enable;
+	nor->params->qe_mask[0] = BIT(6);
+	nor->params->qe_mask[1] = 0;
 }
 
 static const struct spi_nor_fixups issi_fixups = {
 	.default_init = issi_nor_default_init,
 };
 
+/* PM25LV parts have no JEDEC ID and are likely matched by name */
+static bool issi_pm25lv_match(const struct spi_nor *nor)
+{
+	const char *name = nor->info ? nor->info->name : NULL;
+
+	return name && strstarts(name, "pm25lv");
+}
+
+static const struct spi_nor_fixup issi_fixup_list[] = {
+	{ .fixups = &issi_fixups },
+	{ .match = issi_pm25lv_match, .fixups = &pm25lv_nor_fixups },
+	{ .id = SNOR_ID(0x9d, 0x60, 0x19), .fixups = &is25lp256_fixups,
+	  .fixup_flags = SPI_NOR_4B_OPCODES },
+	{ .id = SNOR_ID(0x9d, 0x70, 0x19), .fixups = &is25lp256_fixups,
+	  .fixup_flags = SPI_NOR_4B_OPCODES },
+};
+
 const struct spi_nor_manufacturer spi_nor_issi = {
 	.name = "issi",
 	.parts = issi_nor_parts,
 	.nparts = ARRAY_SIZE(issi_nor_parts),
-	.fixups = &issi_fixups,
+	.fixups = issi_fixup_list,
+	.nfixups = ARRAY_SIZE(issi_fixup_list),
 };

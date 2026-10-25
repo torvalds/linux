@@ -59,7 +59,7 @@
 static u8 spi_nor_get_cmd_ext(const struct spi_nor *nor,
 			      const struct spi_mem_op *op)
 {
-	switch (nor->cmd_ext_type) {
+	switch (nor->params->cmd_ext_type) {
 	case SPI_NOR_EXT_INVERT:
 		return ~op->cmd.opcode;
 
@@ -83,6 +83,7 @@ void spi_nor_spimem_setup_op(const struct spi_nor *nor,
 			     struct spi_mem_op *op,
 			     const enum spi_nor_protocol proto)
 {
+	struct spi_nor_flash_parameter *params = nor->params;
 	u8 ext;
 
 	op->cmd.buswidth = spi_nor_get_protocol_inst_nbits(proto);
@@ -116,7 +117,7 @@ void spi_nor_spimem_setup_op(const struct spi_nor *nor,
 		op->cmd.nbytes = 2;
 	}
 
-	if (proto == SNOR_PROTO_8_8_8_DTR && nor->flags & SNOR_F_SWAP16)
+	if (proto == SNOR_PROTO_8_8_8_DTR && params->flags & SNOR_F_SWAP16)
 		op->data.swap16 = true;
 }
 
@@ -444,75 +445,6 @@ int spi_nor_read_id(struct spi_nor *nor, u8 naddr, u8 ndummy, u8 *id,
 }
 
 /**
- * spi_nor_read_sr() - Read the Status Register.
- * @nor:	pointer to 'struct spi_nor'.
- * @sr:		pointer to a DMA-able buffer where the value of the
- *              Status Register will be written. Should be at least 2 bytes.
- *
- * Return: 0 on success, -errno otherwise.
- */
-int spi_nor_read_sr(struct spi_nor *nor, u8 *sr)
-{
-	int ret;
-
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_RDSR_OP(sr);
-
-		if (nor->reg_proto == SNOR_PROTO_8_8_8_DTR) {
-			op.addr.nbytes = nor->params->rdsr_addr_nbytes;
-			op.dummy.nbytes = nor->params->rdsr_dummy;
-			/*
-			 * We don't want to read only one byte in DTR mode. So,
-			 * read 2 and then discard the second byte.
-			 */
-			op.data.nbytes = 2;
-		}
-
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
-
-		ret = spi_mem_exec_op(nor->spimem, &op);
-	} else {
-		ret = spi_nor_controller_ops_read_reg(nor, SPINOR_OP_RDSR, sr,
-						      1);
-	}
-
-	if (ret)
-		dev_dbg(nor->dev, "error %d reading SR\n", ret);
-
-	return ret;
-}
-
-/**
- * spi_nor_read_cr() - Read the Configuration Register using the
- * SPINOR_OP_RDCR (35h) command.
- * @nor:	pointer to 'struct spi_nor'
- * @cr:		pointer to a DMA-able buffer where the value of the
- *              Configuration Register will be written.
- *
- * Return: 0 on success, -errno otherwise.
- */
-int spi_nor_read_cr(struct spi_nor *nor, u8 *cr)
-{
-	int ret;
-
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_RDCR_OP(cr);
-
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
-
-		ret = spi_mem_exec_op(nor->spimem, &op);
-	} else {
-		ret = spi_nor_controller_ops_read_reg(nor, SPINOR_OP_RDCR, cr,
-						      1);
-	}
-
-	if (ret)
-		dev_dbg(nor->dev, "error %d reading CR\n", ret);
-
-	return ret;
-}
-
-/**
  * spi_nor_set_4byte_addr_mode_en4b_ex4b() - Enter/Exit 4-byte address mode
  *			using SPINOR_OP_EN4B/SPINOR_OP_EX4B. Typically used by
  *			Winbond and Macronix.
@@ -617,12 +549,13 @@ int spi_nor_set_4byte_addr_mode_brwr(struct spi_nor *nor, bool enable)
 int spi_nor_sr_ready(struct spi_nor *nor)
 {
 	int ret;
+	u8 sr;
 
-	ret = spi_nor_read_sr(nor, nor->bouncebuf);
+	ret = spi_nor_read_sr1(nor, &sr);
 	if (ret)
 		return ret;
 
-	return !(nor->bouncebuf[0] & SR_WIP);
+	return !(sr & SR_WIP);
 }
 
 /**
@@ -633,7 +566,7 @@ int spi_nor_sr_ready(struct spi_nor *nor)
  */
 static bool spi_nor_use_parallel_locking(struct spi_nor *nor)
 {
-	return nor->flags & SNOR_F_RWW;
+	return nor->params->flags & SNOR_F_RWW;
 }
 
 /* Locking helpers for status read operations */
@@ -784,343 +717,294 @@ int spi_nor_global_block_unlock(struct spi_nor *nor)
 }
 
 /**
- * spi_nor_write_sr() - Write the Status Register.
+ * spi_nor_read_sr_ll() - Low-level Status Registers read.
  * @nor:	pointer to 'struct spi_nor'.
- * @sr:		pointer to DMA-able buffer to write to the Status Register.
- * @len:	number of bytes to write to the Status Register.
+ * @opcode:	opcode for the status register read operation.
+ * @sr:		pointer to buffer for storing the content of the status registers.
+ * @len:	number of status registers to read (1 or 2).
  *
  * Return: 0 on success, -errno otherwise.
  */
-int spi_nor_write_sr(struct spi_nor *nor, const u8 *sr, size_t len)
+int spi_nor_read_sr_ll(struct spi_nor *nor, u8 opcode, u8 *sr,
+		       unsigned int len)
 {
-	int ret;
+	int ret, i;
 
-	ret = spi_nor_write_enable(nor);
-	if (ret)
-		return ret;
+	if (len > 2)
+		return -EINVAL;
+
+	for (i = 0; i < len; i++)
+		nor->bouncebuf[i] = 0;
 
 	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_WRSR_OP(sr, len);
+		struct spi_mem_op op = SPI_NOR_RDSR_OP(opcode, nor->bouncebuf, len);
+
+		if (nor->reg_proto == SNOR_PROTO_8_8_8_DTR) {
+			op.addr.nbytes = nor->params->rdsr_addr_nbytes;
+			op.dummy.nbytes = nor->params->rdsr_dummy;
+			/*
+			 * We don't want to read only one byte in DTR mode. So,
+			 * read 2 and then discard the second byte.
+			 */
+			op.data.nbytes = 2;
+		}
 
 		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
 
 		ret = spi_mem_exec_op(nor->spimem, &op);
 	} else {
-		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_WRSR, sr,
-						       len);
+		ret = spi_nor_controller_ops_read_reg(nor, opcode, nor->bouncebuf, len);
 	}
 
-	if (ret) {
-		dev_dbg(nor->dev, "error %d writing SR\n", ret);
-		return ret;
-	}
-
-	return spi_nor_wait_till_ready(nor);
-}
-
-/**
- * spi_nor_write_sr1_and_check() - Write one byte to the Status Register 1 and
- * ensure that the byte written match the received value.
- * @nor:	pointer to a 'struct spi_nor'.
- * @sr1:	byte value to be written to the Status Register.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int spi_nor_write_sr1_and_check(struct spi_nor *nor, u8 sr1)
-{
-	int ret;
-
-	nor->bouncebuf[0] = sr1;
-
-	ret = spi_nor_write_sr(nor, nor->bouncebuf, 1);
-	if (ret)
-		return ret;
-
-	ret = spi_nor_read_sr(nor, nor->bouncebuf);
-	if (ret)
-		return ret;
-
-	if (nor->bouncebuf[0] != sr1) {
-		dev_dbg(nor->dev, "SR1: read back test failed\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-/**
- * spi_nor_write_16bit_sr_and_check() - Write the Status Register 1 and the
- * Status Register 2 in one shot. Ensure that the byte written in the Status
- * Register 1 match the received value, and that the 16-bit Write did not
- * affect what was already in the Status Register 2.
- * @nor:	pointer to a 'struct spi_nor'.
- * @sr1:	byte value to be written to the Status Register 1.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int spi_nor_write_16bit_sr_and_check(struct spi_nor *nor, u8 sr1)
-{
-	int ret;
-	u8 *sr_cr = nor->bouncebuf;
-	u8 cr_written;
-
-	/* Make sure we don't overwrite the contents of Status Register 2. */
-	if (!(nor->flags & SNOR_F_NO_READ_CR)) {
-		ret = spi_nor_read_cr(nor, &sr_cr[1]);
-		if (ret)
-			return ret;
-	} else if ((spi_nor_get_protocol_width(nor->read_proto) == 4 ||
-		    spi_nor_get_protocol_width(nor->write_proto) == 4) &&
-		   nor->params->quad_enable) {
-		/*
-		 * If the Status Register 2 Read command (35h) is not
-		 * supported, we should at least be sure we don't
-		 * change the value of the SR2 Quad Enable bit.
-		 *
-		 * When the Quad Enable method is set and the buswidth is 4, we
-		 * can safely assume that the value of the QE bit is one, as a
-		 * consequence of the nor->params->quad_enable() call.
-		 *
-		 * According to the JESD216 revB standard, BFPT DWORDS[15],
-		 * bits 22:20, the 16-bit Write Status (01h) command is
-		 * available just for the cases in which the QE bit is
-		 * described in SR2 at BIT(1).
-		 */
-		sr_cr[1] = SR2_QUAD_EN_BIT1;
-	} else {
-		sr_cr[1] = 0;
-	}
-
-	sr_cr[0] = sr1;
-
-	ret = spi_nor_write_sr(nor, sr_cr, 2);
-	if (ret)
-		return ret;
-
-	ret = spi_nor_read_sr(nor, sr_cr);
-	if (ret)
-		return ret;
-
-	if (sr1 != sr_cr[0]) {
-		dev_dbg(nor->dev, "SR: Read back test failed\n");
-		return -EIO;
-	}
-
-	if (nor->flags & SNOR_F_NO_READ_CR)
-		return 0;
-
-	cr_written = sr_cr[1];
-
-	ret = spi_nor_read_cr(nor, &sr_cr[1]);
-	if (ret)
-		return ret;
-
-	if (cr_written != sr_cr[1]) {
-		dev_dbg(nor->dev, "CR: read back test failed\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-/**
- * spi_nor_write_16bit_cr_and_check() - Write the Status Register 1 and the
- * Configuration Register in one shot. Ensure that the byte written in the
- * Configuration Register match the received value, and that the 16-bit Write
- * did not affect what was already in the Status Register 1.
- * @nor:	pointer to a 'struct spi_nor'.
- * @cr:		byte value to be written to the Configuration Register.
- *
- * Return: 0 on success, -errno otherwise.
- */
-int spi_nor_write_16bit_cr_and_check(struct spi_nor *nor, u8 cr)
-{
-	int ret;
-	u8 *sr_cr = nor->bouncebuf;
-	u8 sr_written;
-
-	/* Keep the current value of the Status Register 1. */
-	ret = spi_nor_read_sr(nor, sr_cr);
-	if (ret)
-		return ret;
-
-	sr_cr[1] = cr;
-
-	ret = spi_nor_write_sr(nor, sr_cr, 2);
-	if (ret)
-		return ret;
-
-	sr_written = sr_cr[0];
-
-	ret = spi_nor_read_sr(nor, sr_cr);
-	if (ret)
-		return ret;
-
-	if (sr_written != sr_cr[0]) {
-		dev_dbg(nor->dev, "SR: Read back test failed\n");
-		return -EIO;
-	}
-
-	if (nor->flags & SNOR_F_NO_READ_CR)
-		return 0;
-
-	ret = spi_nor_read_cr(nor, &sr_cr[1]);
-	if (ret)
-		return ret;
-
-	if (cr != sr_cr[1]) {
-		dev_dbg(nor->dev, "CR: read back test failed\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-/**
- * spi_nor_write_16bit_sr_cr_and_check() - Write the Status Register 1 and the
- * Configuration Register in one shot. Ensure that the bytes written in both
- * registers match the received value.
- * @nor:	pointer to a 'struct spi_nor'.
- * @regs:	two-byte array with values to be written to the status and
- *		configuration registers.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int spi_nor_write_16bit_sr_cr_and_check(struct spi_nor *nor, const u8 *regs)
-{
-	u8 written_regs[2];
-	int ret;
-
-	written_regs[0] = regs[0];
-	written_regs[1] = regs[1];
-	nor->bouncebuf[0] = regs[0];
-	nor->bouncebuf[1] = regs[1];
-
-	ret = spi_nor_write_sr(nor, nor->bouncebuf, 2);
-	if (ret)
-		return ret;
-
-	ret = spi_nor_read_sr(nor, &nor->bouncebuf[0]);
-	if (ret)
-		return ret;
-
-	if (written_regs[0] != nor->bouncebuf[0]) {
-		dev_dbg(nor->dev, "SR: Read back test failed\n");
-		return -EIO;
-	}
-
-	if (nor->flags & SNOR_F_NO_READ_CR)
-		return 0;
-
-	ret = spi_nor_read_cr(nor, &nor->bouncebuf[1]);
-	if (ret)
-		return ret;
-
-	if (written_regs[1] != nor->bouncebuf[1]) {
-		dev_dbg(nor->dev, "CR: read back test failed\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-/**
- * spi_nor_write_sr_and_check() - Write the Status Register 1 and ensure that
- * the byte written match the received value without affecting other bits in the
- * Status Register 1 and 2.
- * @nor:	pointer to a 'struct spi_nor'.
- * @sr1:	byte value to be written to the Status Register.
- *
- * Return: 0 on success, -errno otherwise.
- */
-int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 sr1)
-{
-	if (nor->flags & SNOR_F_HAS_16BIT_SR)
-		return spi_nor_write_16bit_sr_and_check(nor, sr1);
-
-	return spi_nor_write_sr1_and_check(nor, sr1);
-}
-
-/**
- * spi_nor_write_sr_cr_and_check() - Write the Status Register 1 and ensure that
- * the byte written match the received value. Same for the Control Register if
- * available.
- * @nor:	pointer to a 'struct spi_nor'.
- * @regs:	byte array to be written to the registers.
- *
- * Return: 0 on success, -errno otherwise.
- */
-int spi_nor_write_sr_cr_and_check(struct spi_nor *nor, const u8 *regs)
-{
-	if (nor->flags & SNOR_F_HAS_16BIT_SR)
-		return spi_nor_write_16bit_sr_cr_and_check(nor, regs);
-
-	return spi_nor_write_sr1_and_check(nor, regs[0]);
-}
-
-/**
- * spi_nor_write_sr2() - Write the Status Register 2 using the
- * SPINOR_OP_WRSR2 (3eh) command.
- * @nor:	pointer to 'struct spi_nor'.
- * @sr2:	pointer to DMA-able buffer to write to the Status Register 2.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2)
-{
-	int ret;
-
-	ret = spi_nor_write_enable(nor);
-	if (ret)
-		return ret;
-
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_WRSR2_OP(sr2);
-
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
-
-		ret = spi_mem_exec_op(nor->spimem, &op);
-	} else {
-		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_WRSR2,
-						       sr2, 1);
-	}
-
-	if (ret) {
-		dev_dbg(nor->dev, "error %d writing SR2\n", ret);
-		return ret;
-	}
-
-	return spi_nor_wait_till_ready(nor);
-}
-
-/**
- * spi_nor_read_sr2() - Read the Status Register 2 using the
- * SPINOR_OP_RDSR2 (3fh) command.
- * @nor:	pointer to 'struct spi_nor'.
- * @sr2:	pointer to DMA-able buffer where the value of the
- *		Status Register 2 will be written.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
-{
-	int ret;
-
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_RDSR2_OP(sr2);
-
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
-
-		ret = spi_mem_exec_op(nor->spimem, &op);
-	} else {
-		ret = spi_nor_controller_ops_read_reg(nor, SPINOR_OP_RDSR2, sr2,
-						      1);
-	}
+	memcpy(sr, nor->bouncebuf, len);
 
 	if (ret)
-		dev_dbg(nor->dev, "error %d reading SR2\n", ret);
+		dev_dbg(nor->dev, "Error %d reading Status Registers\n", ret);
 
 	return ret;
+}
+
+/**
+ * spi_nor_write_sr_ll() - Low-level Status Registers write.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @opcode:	opcode for the status register write operation.
+ * @sr:		pointer to status registers buffer to write.
+ * @len:	number of status registers to write.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spi_nor_write_sr_ll(struct spi_nor *nor, u8 opcode,	const u8 *sr,
+			       unsigned int len)
+{
+	int ret, i;
+
+	if (len > 2)
+		return -EINVAL;
+
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < len; i++)
+		nor->bouncebuf[i] = sr[i];
+
+	if (nor->spimem) {
+		struct spi_mem_op op = SPI_NOR_WRSR_OP(opcode,
+						       nor->bouncebuf, len);
+
+		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = spi_nor_controller_ops_write_reg(nor, opcode,
+						       nor->bouncebuf, len);
+	}
+
+	if (ret) {
+		dev_dbg(nor->dev, "Error %d writing Status Registers\n", ret);
+		return ret;
+	}
+
+	return spi_nor_wait_till_ready(nor);
+}
+
+/**
+ * spi_nor_read_sr1() - Read SR1 only
+ * Useful for:
+ *   - The core to offer a generic "read SR1 and SR2" capability
+ *   - Manufacturer drivers (since they know the chip SR layout)
+ *   - Polling the BUSY bit in the core
+ *
+ * @nor: the spi_nor structure
+ * @sr1: pointer to a valid SR1 buffer
+ *
+ * Return 0 or errno.
+ */
+int spi_nor_read_sr1(struct spi_nor *nor, u8 *sr1)
+{
+	return spi_nor_read_sr_ll(nor, nor->params->opcodes.read_sr1, sr1, 1);
+}
+
+/**
+ * spi_nor_read_sr2() - Read SR2 only
+ * Useful for:
+ *   - The core to offer a generic "read SR1 and SR2" capability
+ *   - Manufacturer drivers (since they know the chip SR layout)
+ *   - SR2 based OTP configuration
+ *
+ * @nor: the spi_nor structure
+ * @sr2: pointer to a valid SR2 buffer
+ *
+ * Return 0 or errno.
+ */
+int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
+{
+	struct spi_nor_flash_parameter *params = nor->params;
+
+	if (!params->opcodes.read_sr2)
+		return -EINVAL;
+
+	return spi_nor_read_sr_ll(nor, params->opcodes.read_sr2, sr2, 1);
+}
+
+/**
+ * spi_nor_read_sr1_and_sr2() - Read SR1 then SR2
+ * General purpose helper, always safe to call. Will expectedly ignore
+ * SR2 on certain chips.
+ *
+ * @nor: the spi_nor structure
+ * @sr: pointer to a valid 2-byte array
+ *
+ * Return 0 or errno.
+ */
+int spi_nor_read_sr1_and_sr2(struct spi_nor *nor, u8 *sr)
+{
+	int ret;
+
+	ret = spi_nor_read_sr1(nor, &sr[0]);
+	if (ret)
+		return ret;
+
+	if (nor->params->opcodes.read_sr2)
+		ret = spi_nor_read_sr2(nor, &sr[1]);
+	else
+		sr[1] = 0;
+
+	return ret;
+}
+
+/**
+ * spi_nor_write_sr1() - Write SR1 only
+ * Useful for:
+ *   - Manufacturer drivers (since they know the chip SR layout)
+ *
+ * @nor: the spi_nor structure
+ * @sr1: pointer to a valid SR1 buffer
+ *
+ * Return 0 or errno.
+ */
+int spi_nor_write_sr1(struct spi_nor *nor, const u8 *sr1)
+{
+	if (WARN_ONCE(!nor->params->opcodes.write_sr1,
+		      "Restricted helper use, write SR1 not supported"))
+		return -EIO;
+
+	return spi_nor_write_sr_ll(nor, nor->params->opcodes.write_sr1, sr1, 1);
+}
+
+/**
+ * spi_nor_write_sr2() - Write SR2 only
+ * Useful for:
+ *   - Manufacturer drivers (since they know the chip SR layout)
+ *   - SR2 based OTP configuration
+ *
+ * @nor: the spi_nor structure
+ * @sr2: pointer to a valid SR2 buffer
+ *
+ * Return 0 or errno.
+ */
+int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2)
+{
+	if (WARN_ONCE(!nor->params->opcodes.write_sr2,
+		      "Restricted helper use, write SR2 not supported"))
+		return -EIO;
+
+	return spi_nor_write_sr_ll(nor, nor->params->opcodes.write_sr2, sr2, 1);
+}
+
+/**
+ * spi_nor_write_sr1_and_sr2() - Write SR1 then SR2
+ * General purpose helper, always safe to call. Will expectedly ignore
+ * SR2 on certain chips.
+ *
+ * @nor: the spi_nor structure
+ * @sr: pointer to a valid 2-byte array
+ *
+ * Return 0 or errno.
+ */
+static int spi_nor_write_sr1_and_sr2(struct spi_nor *nor, const u8 *sr)
+{
+	struct spi_nor_flash_parameter *params = nor->params;
+	int ret;
+
+	if (params->opcodes.write_sr1_and_sr2)
+		return spi_nor_write_sr_ll(nor,
+					   params->opcodes.write_sr1_and_sr2,
+					   sr, 2);
+
+	ret = spi_nor_write_sr1(nor, &sr[0]);
+	if (ret)
+		return ret;
+
+	if (params->opcodes.write_sr2)
+		return spi_nor_write_sr2(nor, &sr[1]);
+
+	return 0;
+}
+
+/**
+ * spi_nor_write_sr1_and_sr2_and_check() - Write SR1 then SR2, then read
+ *					   them back and verifies
+ * General purpose helper, always safe to call. Will expectedly ignore
+ * SR2 on certain chips.
+ *
+ * @nor: the spi_nor structure
+ * @sr: pointer to a valid 2-byte array
+ *
+ * Return 0 or errno.
+ */
+int spi_nor_write_sr1_and_sr2_and_check(struct spi_nor *nor, const u8 *sr)
+{
+	u8 tmp[2];
+	int ret;
+
+	ret = spi_nor_write_sr1_and_sr2(nor, sr);
+	if (ret)
+		return ret;
+
+	ret = spi_nor_read_sr1_and_sr2(nor, tmp);
+	if (ret)
+		return ret;
+
+	if (sr[0] != tmp[0])
+		return -EIO;
+
+	if (nor->params->opcodes.read_sr2 && sr[1] != tmp[1])
+		return -EIO;
+
+	return 0;
+}
+
+/**
+ * spi_nor_generic_quad_enable() - Read the status registers,
+ *				   apply the QE bit mask,
+ *				   write the status registers,
+ *				   read them back and check the content.
+ *
+ * @nor:	pointer to 'struct spi_nor'
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spi_nor_generic_quad_enable(struct spi_nor *nor)
+{
+	u8 *qe_mask = nor->params->qe_mask;
+	u8 sr[2] = {};
+	int ret;
+
+	if (!qe_mask[0] && !qe_mask[1])
+		return 0;
+
+	ret = spi_nor_read_sr1_and_sr2(nor, sr);
+	if (ret)
+		return ret;
+
+	if (sr[0] & qe_mask[0] || sr[1] & qe_mask[1])
+		return 0;
+
+	sr[0] |= qe_mask[0];
+	sr[1] |= qe_mask[1];
+
+	return spi_nor_write_sr1_and_sr2_and_check(nor, sr);
 }
 
 /**
@@ -1140,7 +1024,7 @@ static int spi_nor_erase_die(struct spi_nor *nor, loff_t addr, size_t die_size)
 
 	if (nor->spimem) {
 		struct spi_mem_op op =
-			SPI_NOR_DIE_ERASE_OP(nor->params->die_erase_opcode,
+			SPI_NOR_DIE_ERASE_OP(nor->params->opcodes.die_erase,
 					     nor->addr_nbytes, addr, multi_die);
 
 		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
@@ -1346,6 +1230,9 @@ int spi_nor_prep_and_lock(struct spi_nor *nor)
 		ret = wait_event_killable(nor->rww.wait,
 					  spi_nor_rww_start_exclusive(nor));
 
+	if (ret)
+		spi_nor_unprep(nor);
+
 	return ret;
 }
 
@@ -1416,6 +1303,9 @@ static int spi_nor_prep_and_lock_pe(struct spi_nor *nor, loff_t start, size_t le
 	else
 		ret = wait_event_killable(nor->rww.wait,
 					  spi_nor_rww_start_pe(nor, start, len));
+
+	if (ret)
+		spi_nor_unprep(nor);
 
 	return ret;
 }
@@ -1489,6 +1379,9 @@ static int spi_nor_prep_and_lock_rd(struct spi_nor *nor, loff_t start, size_t le
 	else
 		ret = wait_event_killable(nor->rww.wait,
 					  spi_nor_rww_start_rd(nor, start, len));
+
+	if (ret)
+		spi_nor_unprep(nor);
 
 	return ret;
 }
@@ -1852,8 +1745,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 		return ret;
 
 	/* chip (die) erase? */
-	if ((len == mtd->size && !(nor->flags & SNOR_F_NO_OP_CHIP_ERASE)) ||
-	    multi_die_erase) {
+	if (len == mtd->size || multi_die_erase) {
 		ret = spi_nor_erase_dice(nor, addr, len, die_size);
 		if (ret)
 			goto erase_err;
@@ -1902,106 +1794,6 @@ erase_err:
 	spi_nor_unlock_and_unprep_pe(nor, instr->addr, instr->len);
 
 	return ret;
-}
-
-/**
- * spi_nor_sr1_bit6_quad_enable() - Set the Quad Enable BIT(6) in the Status
- * Register 1.
- * @nor:	pointer to a 'struct spi_nor'
- *
- * Bit 6 of the Status Register 1 is the QE bit for Macronix like QSPI memories.
- *
- * Return: 0 on success, -errno otherwise.
- */
-int spi_nor_sr1_bit6_quad_enable(struct spi_nor *nor)
-{
-	int ret;
-
-	ret = spi_nor_read_sr(nor, nor->bouncebuf);
-	if (ret)
-		return ret;
-
-	if (nor->bouncebuf[0] & SR1_QUAD_EN_BIT6)
-		return 0;
-
-	nor->bouncebuf[0] |= SR1_QUAD_EN_BIT6;
-
-	return spi_nor_write_sr1_and_check(nor, nor->bouncebuf[0]);
-}
-
-/**
- * spi_nor_sr2_bit1_quad_enable() - set the Quad Enable BIT(1) in the Status
- * Register 2.
- * @nor:       pointer to a 'struct spi_nor'.
- *
- * Bit 1 of the Status Register 2 is the QE bit for Spansion like QSPI memories.
- *
- * Return: 0 on success, -errno otherwise.
- */
-int spi_nor_sr2_bit1_quad_enable(struct spi_nor *nor)
-{
-	int ret;
-
-	if (nor->flags & SNOR_F_NO_READ_CR)
-		return spi_nor_write_16bit_cr_and_check(nor, SR2_QUAD_EN_BIT1);
-
-	ret = spi_nor_read_cr(nor, nor->bouncebuf);
-	if (ret)
-		return ret;
-
-	if (nor->bouncebuf[0] & SR2_QUAD_EN_BIT1)
-		return 0;
-
-	nor->bouncebuf[0] |= SR2_QUAD_EN_BIT1;
-
-	return spi_nor_write_16bit_cr_and_check(nor, nor->bouncebuf[0]);
-}
-
-/**
- * spi_nor_sr2_bit7_quad_enable() - set QE bit in Status Register 2.
- * @nor:	pointer to a 'struct spi_nor'
- *
- * Set the Quad Enable (QE) bit in the Status Register 2.
- *
- * This is one of the procedures to set the QE bit described in the SFDP
- * (JESD216 rev B) specification but no manufacturer using this procedure has
- * been identified yet, hence the name of the function.
- *
- * Return: 0 on success, -errno otherwise.
- */
-int spi_nor_sr2_bit7_quad_enable(struct spi_nor *nor)
-{
-	u8 *sr2 = nor->bouncebuf;
-	int ret;
-	u8 sr2_written;
-
-	/* Check current Quad Enable bit value. */
-	ret = spi_nor_read_sr2(nor, sr2);
-	if (ret)
-		return ret;
-	if (*sr2 & SR2_QUAD_EN_BIT7)
-		return 0;
-
-	/* Update the Quad Enable bit. */
-	*sr2 |= SR2_QUAD_EN_BIT7;
-
-	ret = spi_nor_write_sr2(nor, sr2);
-	if (ret)
-		return ret;
-
-	sr2_written = *sr2;
-
-	/* Read back and check it. */
-	ret = spi_nor_read_sr2(nor, sr2);
-	if (ret)
-		return ret;
-
-	if (*sr2 != sr2_written) {
-		dev_dbg(nor->dev, "SR2: Read back test failed\n");
-		return -EIO;
-	}
-
-	return 0;
 }
 
 static const struct spi_nor_manufacturer *manufacturers[] = {
@@ -2494,6 +2286,7 @@ spi_nor_spimem_adjust_hwcaps(struct spi_nor *nor, u32 *hwcaps)
 {
 	struct spi_nor_flash_parameter *params = nor->params;
 	unsigned int cap;
+	u8 opcode;
 
 	/* X-X-X modes are not supported yet, mask them all. */
 	*hwcaps &= ~SNOR_HWCAPS_X_X_X;
@@ -2502,7 +2295,7 @@ spi_nor_spimem_adjust_hwcaps(struct spi_nor *nor, u32 *hwcaps)
 	 * If the reset line is broken, we do not want to enter a stateful
 	 * mode.
 	 */
-	if (nor->flags & SNOR_F_BROKEN_RESET)
+	if (params->flags & SNOR_F_BROKEN_RESET)
 		*hwcaps &= ~(SNOR_HWCAPS_X_X_X | SNOR_HWCAPS_X_X_X_DTR);
 
 	for (cap = 0; cap < sizeof(*hwcaps) * BITS_PER_BYTE; cap++) {
@@ -2525,14 +2318,15 @@ spi_nor_spimem_adjust_hwcaps(struct spi_nor *nor, u32 *hwcaps)
 			*hwcaps &= ~BIT(cap);
 	}
 
-	/* Some SPI controllers might not support CR read opcode. */
-	if (!(nor->flags & SNOR_F_NO_READ_CR)) {
-		struct spi_mem_op op = SPI_NOR_RDCR_OP(nor->bouncebuf);
+	/* Some SPI controllers might not support reading SR2 */
+	opcode = nor->params->opcodes.read_sr2;
+	if (opcode) {
+		struct spi_mem_op op = SPI_NOR_RDSR_OP(opcode, nor->bouncebuf, 1);
 
 		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
 
 		if (!spi_mem_supports_op(nor->spimem, &op))
-			nor->flags |= SNOR_F_NO_READ_CR;
+			nor->params->opcodes.read_sr2 = 0;
 	}
 }
 
@@ -2576,26 +2370,6 @@ void spi_nor_init_uniform_erase_map(struct spi_nor_erase_map *map,
 	map->uniform_region.erase_mask = erase_mask;
 	map->regions = &map->uniform_region;
 	map->n_regions = 1;
-}
-
-int spi_nor_post_bfpt_fixups(struct spi_nor *nor,
-			     const struct sfdp_parameter_header *bfpt_header,
-			     const struct sfdp_bfpt *bfpt)
-{
-	int ret;
-
-	if (nor->manufacturer && nor->manufacturer->fixups &&
-	    nor->manufacturer->fixups->post_bfpt) {
-		ret = nor->manufacturer->fixups->post_bfpt(nor, bfpt_header,
-							   bfpt);
-		if (ret)
-			return ret;
-	}
-
-	if (nor->info->fixups && nor->info->fixups->post_bfpt)
-		return nor->info->fixups->post_bfpt(nor, bfpt_header, bfpt);
-
-	return 0;
 }
 
 static int spi_nor_select_read(struct spi_nor *nor,
@@ -2749,6 +2523,8 @@ static int spi_nor_select_erase(struct spi_nor *nor)
 
 static int spi_nor_set_addr_nbytes(struct spi_nor *nor)
 {
+	struct spi_nor_flash_parameter *params = nor->params;
+
 	if (nor->params->addr_nbytes) {
 		nor->addr_nbytes = nor->params->addr_nbytes;
 	} else if (nor->read_proto == SNOR_PROTO_8_8_8_DTR) {
@@ -2783,8 +2559,8 @@ static int spi_nor_set_addr_nbytes(struct spi_nor *nor)
 	}
 
 	/* Set 4byte opcodes when possible. */
-	if (nor->addr_nbytes == 4 && nor->flags & SNOR_F_4B_OPCODES &&
-	    !(nor->flags & SNOR_F_HAS_4BAIT))
+	if (nor->addr_nbytes == 4 && params->flags & SNOR_F_4B_OPCODES &&
+	    !(params->flags & SNOR_F_HAS_4BAIT))
 		spi_nor_set_4byte_opcodes(nor);
 
 	return 0;
@@ -2851,6 +2627,26 @@ static int spi_nor_setup(struct spi_nor *nor,
 	return spi_nor_set_addr_nbytes(nor);
 }
 
+bool spi_nor_fixup_match(const struct spi_nor *nor,
+			 const struct spi_nor_fixup *fixup)
+{
+	const struct spi_nor_id *id = nor->info ? nor->info->id : NULL;
+
+	/* Filter by ID first, if available */
+	if (fixup->id) {
+		if (!id || fixup->id->len > id->len ||
+		    memcmp(id->bytes, fixup->id->bytes, fixup->id->len))
+			return false;
+	}
+
+	/* Further filter with the match callback, if provided */
+	if (fixup->match)
+		return fixup->match(nor);
+
+	/* Either there was an ID and it matched, or it is a catch-all entry */
+	return true;
+}
+
 /**
  * spi_nor_manufacturer_init_params() - Initialize the flash's parameters and
  * settings based on MFR register and ->default_init() hook.
@@ -2858,21 +2654,27 @@ static int spi_nor_setup(struct spi_nor *nor,
  */
 static void spi_nor_manufacturer_init_params(struct spi_nor *nor)
 {
-	if (nor->manufacturer && nor->manufacturer->fixups &&
-	    nor->manufacturer->fixups->default_init)
-		nor->manufacturer->fixups->default_init(nor);
+	const struct spi_nor_fixup *fixups;
+	unsigned int i;
 
-	if (nor->info->fixups && nor->info->fixups->default_init)
-		nor->info->fixups->default_init(nor);
+	if (!nor->manufacturer || !nor->manufacturer->fixups)
+		return;
+
+	fixups = nor->manufacturer->fixups;
+
+	for (i = 0; i < nor->manufacturer->nfixups; i++) {
+		if (fixups[i].fixups && fixups[i].fixups->default_init &&
+		    spi_nor_fixup_match(nor, &fixups[i]))
+			fixups[i].fixups->default_init(nor);
+	}
 }
 
 /**
  * spi_nor_no_sfdp_init_params() - Initialize the flash's parameters and
- * settings based on nor->info->sfdp_flags. This method should be called only by
- * flashes that do not define SFDP tables. If the flash supports SFDP but the
- * information is wrong and the settings from this function can not be retrieved
- * by parsing SFDP, one should instead use the fixup hooks and update the wrong
- * bits.
+ * settings based on nor->info->sfdp_flags.
+ * If the flash supports SFDP but the information is wrong and the settings from
+ * this function can not be retrieved by parsing SFDP, one should instead use
+ * the fixup hooks and update the wrong bits.
  * @nor:	pointer to a 'struct spi_nor'.
  */
 static void spi_nor_no_sfdp_init_params(struct spi_nor *nor)
@@ -2947,39 +2749,40 @@ static void spi_nor_no_sfdp_init_params(struct spi_nor *nor)
  */
 static void spi_nor_init_flags(struct spi_nor *nor)
 {
+	struct spi_nor_flash_parameter *params = nor->params;
 	struct device_node *np = spi_nor_get_flash_node(nor);
 	const u16 flags = nor->info->flags;
 
 	if (of_property_read_bool(np, "broken-flash-reset"))
-		nor->flags |= SNOR_F_BROKEN_RESET;
+		params->flags |= SNOR_F_BROKEN_RESET;
 
 	if (of_property_read_bool(np, "no-wp"))
-		nor->flags |= SNOR_F_NO_WP;
+		params->flags |= SNOR_F_NO_WP;
 
 	if (flags & SPI_NOR_SWP_IS_VOLATILE)
-		nor->flags |= SNOR_F_SWP_IS_VOLATILE;
+		params->flags |= SNOR_F_SWP_IS_VOLATILE;
 
 	if (flags & SPI_NOR_HAS_LOCK)
-		nor->flags |= SNOR_F_HAS_LOCK;
+		params->flags |= SNOR_F_HAS_LOCK;
 
 	if (flags & SPI_NOR_HAS_TB) {
-		nor->flags |= SNOR_F_HAS_SR_TB;
+		params->flags |= SNOR_F_HAS_SR_TB;
 		if (flags & SPI_NOR_TB_SR_BIT6)
-			nor->flags |= SNOR_F_HAS_SR_TB_BIT6;
+			params->flags |= SNOR_F_HAS_SR_TB_BIT6;
 	}
 
 	if (flags & SPI_NOR_4BIT_BP) {
-		nor->flags |= SNOR_F_HAS_4BIT_BP;
+		params->flags |= SNOR_F_HAS_4BIT_BP;
 		if (flags & SPI_NOR_BP3_SR_BIT6)
-			nor->flags |= SNOR_F_HAS_SR_BP3_BIT6;
+			params->flags |= SNOR_F_HAS_SR_BP3_BIT6;
 	}
 
 	if (flags & SPI_NOR_HAS_CMP)
-		nor->flags |= SNOR_F_HAS_SR2_CMP_BIT6;
+		params->flags |= SNOR_F_HAS_SR2_CMP_BIT6;
 
 	if (flags & SPI_NOR_RWW && nor->params->n_banks > 1 &&
 	    !nor->controller_ops)
-		nor->flags |= SNOR_F_RWW;
+		params->flags |= SNOR_F_RWW;
 }
 
 /**
@@ -2992,13 +2795,25 @@ static void spi_nor_init_flags(struct spi_nor *nor)
  */
 static void spi_nor_init_fixup_flags(struct spi_nor *nor)
 {
-	const u8 fixup_flags = nor->info->fixup_flags;
+	struct spi_nor_flash_parameter *params = nor->params;
+	const struct spi_nor_fixup *fixups;
+	unsigned int i;
 
-	if (fixup_flags & SPI_NOR_4B_OPCODES)
-		nor->flags |= SNOR_F_4B_OPCODES;
+	if (!nor->manufacturer || !nor->manufacturer->fixups)
+		return;
 
-	if (fixup_flags & SPI_NOR_IO_MODE_EN_VOLATILE)
-		nor->flags |= SNOR_F_IO_MODE_EN_VOLATILE;
+	fixups = nor->manufacturer->fixups;
+
+	for (i = 0; i < nor->manufacturer->nfixups; i++) {
+		if (!fixups[i].fixup_flags ||
+		    !spi_nor_fixup_match(nor, &fixups[i]))
+			continue;
+
+		if (fixups[i].fixup_flags & SPI_NOR_4B_OPCODES)
+			params->flags |= SNOR_F_4B_OPCODES;
+		if (fixups[i].fixup_flags & SPI_NOR_IO_MODE_EN_VOLATILE)
+			params->flags |= SNOR_F_IO_MODE_EN_VOLATILE;
+	}
 }
 
 /**
@@ -3012,26 +2827,28 @@ static void spi_nor_init_fixup_flags(struct spi_nor *nor)
 static int spi_nor_late_init_params(struct spi_nor *nor)
 {
 	struct spi_nor_flash_parameter *params = nor->params;
+	const struct spi_nor_fixup *fixups;
+	unsigned int i;
 	int ret;
 
-	if (nor->manufacturer && nor->manufacturer->fixups &&
-	    nor->manufacturer->fixups->late_init) {
-		ret = nor->manufacturer->fixups->late_init(nor);
-		if (ret)
-			return ret;
-	}
-
-	/* Needed by some flashes late_init hooks. */
+	/* Needed by some late_init hooks */
 	spi_nor_init_flags(nor);
 
-	if (nor->info->fixups && nor->info->fixups->late_init) {
-		ret = nor->info->fixups->late_init(nor);
-		if (ret)
-			return ret;
+	if (nor->manufacturer && nor->manufacturer->fixups) {
+		fixups = nor->manufacturer->fixups;
+
+		for (i = 0; i < nor->manufacturer->nfixups; i++) {
+			if (fixups[i].fixups && fixups[i].fixups->late_init &&
+			    spi_nor_fixup_match(nor, &fixups[i])) {
+				ret = fixups[i].fixups->late_init(nor);
+				if (ret)
+					return ret;
+			}
+		}
 	}
 
-	if (!nor->params->die_erase_opcode)
-		nor->params->die_erase_opcode = SPINOR_OP_CHIP_ERASE;
+	if (!nor->params->opcodes.die_erase)
+		nor->params->opcodes.die_erase = SPINOR_OP_CHIP_ERASE;
 
 	/* Default method kept for backward compatibility. */
 	if (!params->set_4byte_addr_mode)
@@ -3043,55 +2860,13 @@ static int spi_nor_late_init_params(struct spi_nor *nor)
 	 * NOR protection support. When locking_ops are not provided, we pick
 	 * the default ones.
 	 */
-	if (nor->flags & SNOR_F_HAS_LOCK && !nor->params->locking_ops)
+	if (params->flags & SNOR_F_HAS_LOCK && !nor->params->locking_ops)
 		spi_nor_init_default_locking_ops(nor);
 
 	if (params->n_banks > 1)
 		params->bank_size = div_u64(params->size, params->n_banks);
 
 	return 0;
-}
-
-/**
- * spi_nor_sfdp_init_params_deprecated() - Deprecated way of initializing flash
- * parameters and settings based on JESD216 SFDP standard.
- * @nor:	pointer to a 'struct spi_nor'.
- *
- * The method has a roll-back mechanism: in case the SFDP parsing fails, the
- * legacy flash parameters and settings will be restored.
- */
-static void spi_nor_sfdp_init_params_deprecated(struct spi_nor *nor)
-{
-	struct spi_nor_flash_parameter sfdp_params;
-
-	memcpy(&sfdp_params, nor->params, sizeof(sfdp_params));
-
-	if (spi_nor_parse_sfdp(nor)) {
-		memcpy(nor->params, &sfdp_params, sizeof(*nor->params));
-		nor->flags &= ~SNOR_F_4B_OPCODES;
-	}
-}
-
-/**
- * spi_nor_init_params_deprecated() - Deprecated way of initializing flash
- * parameters and settings.
- * @nor:	pointer to a 'struct spi_nor'.
- *
- * The method assumes that flash doesn't support SFDP so it initializes flash
- * parameters in spi_nor_no_sfdp_init_params() which later on can be overwritten
- * when parsing SFDP, if supported.
- */
-static void spi_nor_init_params_deprecated(struct spi_nor *nor)
-{
-	spi_nor_no_sfdp_init_params(nor);
-
-	spi_nor_manufacturer_init_params(nor);
-
-	if (nor->info->no_sfdp_flags & (SPI_NOR_DUAL_READ |
-					SPI_NOR_QUAD_READ |
-					SPI_NOR_OCTAL_READ |
-					SPI_NOR_OCTAL_DTR_READ))
-		spi_nor_sfdp_init_params_deprecated(nor);
 }
 
 /**
@@ -3106,11 +2881,14 @@ static void spi_nor_init_default_params(struct spi_nor *nor)
 	const struct flash_info *info = nor->info;
 	struct device_node *np = spi_nor_get_flash_node(nor);
 
-	params->quad_enable = spi_nor_sr2_bit1_quad_enable;
-	params->otp.org = info->otp;
+	/* Default to 16-bit Read/Write Status commands */
+	params->opcodes.read_sr1 = SPINOR_OP_RDSR;
+	params->opcodes.read_sr2 = SPINOR_OP_RDCR;
+	params->opcodes.write_sr1_and_sr2 = SPINOR_OP_WRSR;
+	params->quad_enable = spi_nor_generic_quad_enable;
+	params->qe_mask[1] = BIT(1);
 
-	/* Default to 16-bit Write Status (01h) Command */
-	nor->flags |= SNOR_F_HAS_16BIT_SR;
+	params->otp.org = info->otp;
 
 	/* Set SPI NOR sizes. */
 	params->writesize = 1;
@@ -3154,7 +2932,8 @@ static void spi_nor_init_default_params(struct spi_nor *nor)
  *
  * 1/ Default flash parameters initialization. The initializations are done
  *    based on nor->info data:
- *		spi_nor_info_init_params()
+ *		spi_nor_init_default_params()
+ *		spi_nor_no_sfdp_init_params()
  *
  * which can be overwritten by:
  * 2/ Manufacturer flash parameters initialization. The initializations are
@@ -3165,7 +2944,7 @@ static void spi_nor_init_default_params(struct spi_nor *nor)
  * which can be overwritten by:
  * 3/ SFDP flash parameters initialization. JESD216 SFDP is a standard and
  *    should be more accurate that the above.
- *		spi_nor_parse_sfdp() or spi_nor_no_sfdp_init_params()
+ *		spi_nor_parse_sfdp()
  *
  *    Please note that there is a ->post_bfpt() fixup hook that can overwrite
  *    the flash parameters and settings immediately after parsing the Basic
@@ -3191,17 +2970,14 @@ static int spi_nor_init_params(struct spi_nor *nor)
 		return -ENOMEM;
 
 	spi_nor_init_default_params(nor);
+	spi_nor_no_sfdp_init_params(nor);
+	spi_nor_manufacturer_init_params(nor);
 
-	if (spi_nor_needs_sfdp(nor)) {
-		ret = spi_nor_parse_sfdp(nor);
-		if (ret) {
-			dev_err(nor->dev, "BFPT parsing failed. Please consider using SPI_NOR_SKIP_SFDP when declaring the flash\n");
-			return ret;
-		}
-	} else if (nor->info->no_sfdp_flags & SPI_NOR_SKIP_SFDP) {
-		spi_nor_no_sfdp_init_params(nor);
-	} else {
-		spi_nor_init_params_deprecated(nor);
+	ret = spi_nor_parse_sfdp(nor);
+	if (ret && spi_nor_needs_sfdp(nor)) {
+		dev_err(nor->dev,
+			"SFDP parsing failed. You need to manually declare the flash parameters.\n");
+		return ret;
 	}
 
 	ret = spi_nor_late_init_params(nor);
@@ -3231,7 +3007,7 @@ static int spi_nor_set_octal_dtr(struct spi_nor *nor, bool enable)
 	      nor->write_proto == SNOR_PROTO_8_8_8_DTR))
 		return 0;
 
-	if (!(nor->flags & SNOR_F_IO_MODE_EN_VOLATILE))
+	if (!(nor->params->flags & SNOR_F_IO_MODE_EN_VOLATILE))
 		return 0;
 
 	ret = nor->params->set_octal_dtr(nor, enable);
@@ -3284,7 +3060,7 @@ int spi_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 		 * reboots (e.g., crashes). Warn the user (or hopefully, system
 		 * designer) that this is bad.
 		 */
-		WARN_ONCE(nor->flags & SNOR_F_BROKEN_RESET,
+		WARN_ONCE(nor->params->flags & SNOR_F_BROKEN_RESET,
 			  "enabling reset hack; may not recover from unexpected reboots\n");
 	}
 
@@ -3305,6 +3081,7 @@ int spi_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 
 static int spi_nor_init(struct spi_nor *nor)
 {
+	struct spi_nor_flash_parameter *params = nor->params;
 	int err;
 
 	err = spi_nor_set_octal_dtr(nor, true);
@@ -3332,13 +3109,13 @@ static int spi_nor_init(struct spi_nor *nor)
 	spi_nor_cache_sr_lock_bits(nor, NULL);
 	if (IS_ENABLED(CONFIG_MTD_SPI_NOR_SWP_DISABLE) ||
 	    (IS_ENABLED(CONFIG_MTD_SPI_NOR_SWP_DISABLE_ON_VOLATILE) &&
-	     nor->flags & SNOR_F_SWP_IS_VOLATILE)) {
+	     params->flags & SNOR_F_SWP_IS_VOLATILE)) {
 		spi_nor_try_unlock_all(nor);
 	}
 
 	if (nor->addr_nbytes == 4 &&
 	    nor->read_proto != SNOR_PROTO_8_8_8_DTR &&
-	    !(nor->flags & SNOR_F_4B_OPCODES))
+	    !(params->flags & SNOR_F_4B_OPCODES))
 		return spi_nor_set_4byte_addr_mode(nor, true);
 
 	return 0;
@@ -3453,11 +3230,12 @@ static void spi_nor_put_device(struct mtd_info *mtd)
 
 static void spi_nor_restore(struct spi_nor *nor)
 {
+	struct spi_nor_flash_parameter *params = nor->params;
 	int ret;
 
 	/* restore the addressing mode */
-	if (nor->addr_nbytes == 4 && !(nor->flags & SNOR_F_4B_OPCODES) &&
-	    nor->flags & SNOR_F_BROKEN_RESET) {
+	if (nor->addr_nbytes == 4 && !(params->flags & SNOR_F_4B_OPCODES) &&
+	    params->flags & SNOR_F_BROKEN_RESET) {
 		ret = spi_nor_set_4byte_addr_mode(nor, false);
 		if (ret)
 			/*
@@ -3468,7 +3246,7 @@ static void spi_nor_restore(struct spi_nor *nor)
 			dev_err(nor->dev, "Failed to exit 4-byte address mode, err = %d\n", ret);
 	}
 
-	if (nor->flags & SNOR_F_SOFT_RESET)
+	if (params->flags & SNOR_F_SOFT_RESET)
 		spi_nor_soft_reset(nor);
 }
 
@@ -3585,7 +3363,7 @@ static int spi_nor_set_mtd_info(struct spi_nor *nor)
 	mtd->type = MTD_NORFLASH;
 	mtd->flags = MTD_CAP_NORFLASH;
 	/* Unset BIT_WRITEABLE to enable JFFS2 write buffer for ECC'd NOR */
-	if (nor->flags & SNOR_F_ECC)
+	if (nor->params->flags & SNOR_F_ECC)
 		mtd->flags &= ~MTD_BIT_WRITEABLE;
 	if (nor->info->flags & SPI_NOR_NO_ERASE)
 		mtd->flags |= MTD_NO_ERASE;
@@ -3669,6 +3447,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 		return PTR_ERR(info);
 
 	nor->info = info;
+	nor->partname = info->name;
 
 	mutex_init(&nor->lock);
 

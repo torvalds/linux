@@ -290,6 +290,7 @@ static int ebu_dma_start(struct ebu_nand_controller *ebu_host, u32 dir,
 	struct dma_async_tx_descriptor *tx;
 	struct completion *dma_completion;
 	dma_async_tx_callback callback;
+	struct device *dma_dev;
 	struct dma_chan *chan;
 	dma_cookie_t cookie;
 	unsigned long flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
@@ -307,8 +308,9 @@ static int ebu_dma_start(struct ebu_nand_controller *ebu_host, u32 dir,
 		callback = ebu_dma_tx_callback;
 	}
 
-	buf_dma = dma_map_single(chan->device->dev, (void *)buf, len, dir);
-	if (dma_mapping_error(chan->device->dev, buf_dma)) {
+	dma_dev = dmaengine_get_dma_device(chan);
+	buf_dma = dma_map_single(dma_dev, (void *)buf, len, dir);
+	if (dma_mapping_error(dma_dev, buf_dma)) {
 		dev_err(ebu_host->dev, "Failed to map DMA buffer\n");
 		ret = -EIO;
 		goto err_unmap;
@@ -322,7 +324,7 @@ static int ebu_dma_start(struct ebu_nand_controller *ebu_host, u32 dir,
 
 	tx->callback = callback;
 	tx->callback_param = ebu_host;
-	cookie = tx->tx_submit(tx);
+	cookie = dmaengine_submit(tx);
 
 	ret = dma_submit_error(cookie);
 	if (ret) {

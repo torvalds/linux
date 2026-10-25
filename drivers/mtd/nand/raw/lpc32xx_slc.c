@@ -25,7 +25,6 @@
 #include <linux/dmaengine.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
-#include <linux/mtd/lpc32xx_slc.h>
 
 #define LPC32XX_MODNAME		"lpc32xx-nand"
 
@@ -213,7 +212,6 @@ struct lpc32xx_nand_cfg_slc {
 
 struct lpc32xx_nand_host {
 	struct nand_chip	nand_chip;
-	struct lpc32xx_slc_platform_data *pdata;
 	struct clk		*clk;
 	struct gpio_desc	*wp_gpio;
 	void __iomem		*io_base;
@@ -427,6 +425,7 @@ static int lpc32xx_xmit_dma(struct mtd_info *mtd, dma_addr_t dma,
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
+	struct device *dma_dev = dmaengine_get_dma_device(host->dma_chan);
 	struct dma_async_tx_descriptor *desc;
 	int flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 	int res;
@@ -448,8 +447,7 @@ static int lpc32xx_xmit_dma(struct mtd_info *mtd, dma_addr_t dma,
 
 	sg_init_one(&host->sgl, mem, len);
 
-	res = dma_map_sg(host->dma_chan->device->dev, &host->sgl, 1,
-			 DMA_BIDIRECTIONAL);
+	res = dma_map_sg(dma_dev, &host->sgl, 1, DMA_BIDIRECTIONAL);
 	if (res != 1) {
 		dev_err(mtd->dev.parent, "Failed to map sg list\n");
 		return -ENXIO;
@@ -477,13 +475,11 @@ static int lpc32xx_xmit_dma(struct mtd_info *mtd, dma_addr_t dma,
 		res = 0;
 	}
 
-	dma_unmap_sg(host->dma_chan->device->dev, &host->sgl, 1,
-		     DMA_BIDIRECTIONAL);
+	dma_unmap_sg(dma_dev, &host->sgl, 1, DMA_BIDIRECTIONAL);
 
 	return res;
 out1:
-	dma_unmap_sg(host->dma_chan->device->dev, &host->sgl, 1,
-		     DMA_BIDIRECTIONAL);
+	dma_unmap_sg(dma_dev, &host->sgl, 1, DMA_BIDIRECTIONAL);
 	return -ENXIO;
 }
 
@@ -727,24 +723,11 @@ static int lpc32xx_nand_write_page_raw_syndrome(struct nand_chip *chip,
 static int lpc32xx_nand_dma_setup(struct lpc32xx_nand_host *host)
 {
 	struct mtd_info *mtd = nand_to_mtd(&host->nand_chip);
-	dma_cap_mask_t mask;
 
 	host->dma_chan = dma_request_chan(mtd->dev.parent, "rx-tx");
 	if (IS_ERR(host->dma_chan)) {
-		/* fallback to request using platform data */
-		if (!host->pdata || !host->pdata->dma_filter) {
-			dev_err(mtd->dev.parent, "no DMA platform data\n");
-			return -ENOENT;
-		}
-
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-		host->dma_chan = dma_request_channel(mask, host->pdata->dma_filter, "nand-slc");
-
-		if (!host->dma_chan) {
-			dev_err(mtd->dev.parent, "Failed to request DMA channel\n");
-			return -EBUSY;
-		}
+		dev_err(mtd->dev.parent, "Failed to request DMA channel\n");
+		return PTR_ERR(host->dma_chan);
 	}
 
 	return 0;
@@ -872,8 +855,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 
 	gpiod_set_consumer_name(host->wp_gpio, "NAND WP");
-
-	host->pdata = dev_get_platdata(&pdev->dev);
 
 	chip = &host->nand_chip;
 	mtd = nand_to_mtd(chip);

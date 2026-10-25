@@ -2076,7 +2076,7 @@ static void stm32_fmc2_nfc_remove(struct platform_device *pdev)
 	stm32_fmc2_nfc_wp_enable(nand);
 }
 
-static int __maybe_unused stm32_fmc2_nfc_suspend(struct device *dev)
+static int stm32_fmc2_nfc_suspend(struct device *dev)
 {
 	struct stm32_fmc2_nfc *nfc = dev_get_drvdata(dev);
 	struct stm32_fmc2_nand *nand = &nfc->nand;
@@ -2090,7 +2090,7 @@ static int __maybe_unused stm32_fmc2_nfc_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused stm32_fmc2_nfc_resume(struct device *dev)
+static int stm32_fmc2_nfc_resume(struct device *dev)
 {
 	struct stm32_fmc2_nfc *nfc = dev_get_drvdata(dev);
 	struct stm32_fmc2_nand *nand = &nfc->nand;
@@ -2118,7 +2118,7 @@ static int __maybe_unused stm32_fmc2_nfc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(stm32_fmc2_nfc_pm_ops, stm32_fmc2_nfc_suspend,
+static DEFINE_SIMPLE_DEV_PM_OPS(stm32_fmc2_nfc_pm_ops, stm32_fmc2_nfc_suspend,
 			 stm32_fmc2_nfc_resume);
 
 static const struct stm32_fmc2_nfc_data stm32_fmc2_nfc_mp1_data = {
@@ -2153,7 +2153,7 @@ static struct platform_driver stm32_fmc2_nfc_driver = {
 	.driver	= {
 		.name = "stm32_fmc2_nfc",
 		.of_match_table = stm32_fmc2_nfc_match,
-		.pm = &stm32_fmc2_nfc_pm_ops,
+		.pm = pm_sleep_ptr(&stm32_fmc2_nfc_pm_ops),
 	},
 };
 module_platform_driver(stm32_fmc2_nfc_driver);

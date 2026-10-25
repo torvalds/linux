@@ -42,7 +42,7 @@
 #define		CON_BRD			BIT(8)  /* burst  read */
 #define		CON_BWR			BIT(9)	/* burst  write */
 #define		CON_SEC_SHIFT		(12)
-/* Timming control register */
+/* Timing control register */
 #define NFI_ACCCON		(0x0C)
 #define NFI_INTR_EN		(0x10)
 #define		INTR_AHB_DONE_EN	BIT(6)

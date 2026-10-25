@@ -19,6 +19,7 @@
 #define NAND_MFR_AMD		0x01
 #define NAND_MFR_ATO		0x9b
 #define NAND_MFR_EON		0x92
+/* ESMT and GigaDevice share the same manufacturer ID. */
 #define NAND_MFR_ESMT		0xc8
 #define NAND_MFR_FUJITSU	0x04
 #define NAND_MFR_HYNIX		0xad

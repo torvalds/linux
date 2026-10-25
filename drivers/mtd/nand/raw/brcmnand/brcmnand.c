@@ -3272,6 +3272,8 @@ static int brcmnand_edu_setup(struct platform_device *pdev)
 
 		ctrl->edu_irq = platform_get_irq_optional(pdev, 1);
 		if (ctrl->edu_irq < 0) {
+			if (ctrl->edu_irq != -ENXIO)
+				return ctrl->edu_irq;
 			dev_warn(dev,
 				 "FLASH EDU enabled, using ctlrdy irq\n");
 		} else {

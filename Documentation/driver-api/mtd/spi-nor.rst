@@ -118,7 +118,7 @@ section, after the ``---`` marker.
     write size		1
     page size		256
     address nbytes	3
-    flags		HAS_LOCK | HAS_16BIT_SR | SOFT_RESET | SWP_IS_VOLATILE
+    flags		HAS_LOCK | SOFT_RESET | SWP_IS_VOLATILE
 
     opcodes
      read		0xeb

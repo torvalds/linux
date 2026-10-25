@@ -78,14 +78,15 @@ static int am654_hbmc_dma_read(struct am654_hbmc_device_priv *priv, void *to,
 	struct dma_chan *rx_chan = priv->rx_chan;
 	struct dma_async_tx_descriptor *tx;
 	dma_addr_t dma_dst, dma_src;
+	struct device *rx_dev = dmaengine_get_dma_device(rx_chan);
 	dma_cookie_t cookie;
 	int ret;
 
 	if (!priv->rx_chan || !virt_addr_valid(to) || object_is_on_stack(to))
 		return -EINVAL;
 
-	dma_dst = dma_map_single(rx_chan->device->dev, to, len, DMA_FROM_DEVICE);
-	if (dma_mapping_error(rx_chan->device->dev, dma_dst)) {
+	dma_dst = dma_map_single(rx_dev, to, len, DMA_FROM_DEVICE);
+	if (dma_mapping_error(rx_dev, dma_dst)) {
 		dev_dbg(priv->ctlr->dev, "DMA mapping failed\n");
 		return -EIO;
 	}
@@ -117,7 +118,7 @@ static int am654_hbmc_dma_read(struct am654_hbmc_device_priv *priv, void *to,
 	}
 
 unmap_dma:
-	dma_unmap_single(rx_chan->device->dev, dma_dst, len, DMA_FROM_DEVICE);
+	dma_unmap_single(rx_dev, dma_dst, len, DMA_FROM_DEVICE);
 	return ret;
 }
 
