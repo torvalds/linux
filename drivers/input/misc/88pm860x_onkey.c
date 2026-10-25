@@ -85,7 +85,6 @@ static int pm860x_onkey_probe(struct platform_device *pdev)
 	info->idev->name = "88pm860x_on";
 	info->idev->phys = "88pm860x_on/input0";
 	info->idev->id.bustype = BUS_I2C;
-	info->idev->dev.parent = &pdev->dev;
 	info->idev->evbit[0] = BIT_MASK(EV_KEY);
 	info->idev->keybit[BIT_WORD(KEY_POWER)] = BIT_MASK(KEY_POWER);
 

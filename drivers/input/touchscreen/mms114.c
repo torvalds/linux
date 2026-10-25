@@ -626,7 +626,6 @@ static int mms114_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	input_dev->id.bustype = BUS_I2C;
-	input_dev->dev.parent = &client->dev;
 	input_dev->open = mms114_input_open;
 	input_dev->close = mms114_input_close;
 
@@ -679,6 +678,13 @@ static int mms114_suspend(struct device *dev)
 	struct input_dev *input_dev = data->input_dev;
 	int id;
 
+	guard(mutex)(&input_dev->mutex);
+
+	if (!input_device_enabled(input_dev))
+		return 0;
+
+	mms114_stop(data);
+
 	/* Release all touch */
 	for (id = 0; id < MMS114_MAX_TOUCH; id++) {
 		input_mt_slot(input_dev, id);
@@ -687,11 +693,6 @@ static int mms114_suspend(struct device *dev)
 
 	input_mt_report_pointer_emulation(input_dev, true);
 	input_sync(input_dev);
-
-	guard(mutex)(&input_dev->mutex);
-
-	if (input_device_enabled(input_dev))
-		mms114_stop(data);
 
 	return 0;
 }

@@ -77,7 +77,6 @@ static int ab8500_ponkey_probe(struct platform_device *pdev)
 	ponkey->irq_dbr = irq_dbr;
 
 	input->name = "AB8500 POn(PowerOn) Key";
-	input->dev.parent = &pdev->dev;
 
 	input_set_capability(input, EV_KEY, KEY_POWER);
 

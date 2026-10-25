@@ -113,7 +113,6 @@ static int jornada720_kbd_probe(struct platform_device *pdev)
 	input_dev->keycodesize = sizeof(unsigned short);
 	input_dev->keycodemax = ARRAY_SIZE(jornada_std_keymap);
 	input_dev->id.bustype = BUS_HOST;
-	input_dev->dev.parent = &pdev->dev;
 
 	for (i = 0; i < ARRAY_SIZE(jornadakbd->keymap); i++)
 		__set_bit(jornadakbd->keymap[i], input_dev->keybit);

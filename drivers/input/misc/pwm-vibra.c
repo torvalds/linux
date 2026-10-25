@@ -202,7 +202,6 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 
 	vibrator->input->name = "pwm-vibrator";
 	vibrator->input->id.bustype = BUS_HOST;
-	vibrator->input->dev.parent = &pdev->dev;
 	vibrator->input->close = pwm_vibrator_close;
 
 	input_set_drvdata(vibrator->input, vibrator);

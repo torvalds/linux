@@ -357,10 +357,7 @@ static void atkbd_calculate_xl_bit(struct atkbd *atkbd, u8 code)
 
 	for (i = 0; i < ARRAY_SIZE(xl_table); i++) {
 		if (!((code ^ xl_table[i]) & 0x7f)) {
-			if (code & 0x80)
-				__clear_bit(i, &atkbd->xl_bit);
-			else
-				__set_bit(i, &atkbd->xl_bit);
+			__assign_bit(i, &atkbd->xl_bit, !(code & 0x80));
 			break;
 		}
 	}

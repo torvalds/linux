@@ -58,6 +58,8 @@ static void dc_pad_callback(struct mapleq *mq)
 	input_report_abs(dev, ABS_Y,      res[13]);
 	input_report_abs(dev, ABS_RX,     res[14]);
 	input_report_abs(dev, ABS_RY,     res[15]);
+
+	input_sync(dev);
 }
 
 static int dc_pad_open(struct input_dev *dev)
@@ -74,8 +76,7 @@ static void dc_pad_close(struct input_dev *dev)
 {
 	struct dc_pad *pad = dev_get_platdata(&dev->dev);
 
-	maple_getcond_callback(pad->mdev, dc_pad_callback, 0,
-		MAPLE_FUNC_CONTROLLER);
+	maple_getcond_callback(pad->mdev, NULL, 0, MAPLE_FUNC_CONTROLLER);
 }
 
 /* allow the controller to be used */
@@ -96,7 +97,6 @@ static int probe_maple_controller(struct device *dev)
 	};
 
 	struct maple_device *mdev = to_maple_dev(dev);
-	struct maple_driver *mdrv = to_maple_driver(dev->driver);
 	int i, error;
 	struct dc_pad *pad;
 	struct input_dev *idev;
@@ -118,25 +118,18 @@ static int probe_maple_controller(struct device *dev)
 	idev->close = dc_pad_close;
 
 	for (i = 0; i < 32; i++) {
-		if (data & (1 << i)) {
+		if (data & BIT(i)) {
 			if (btn_bit[i] >= 0)
 				__set_bit(btn_bit[i], idev->keybit);
-			else if (abs_bit[i] >= 0)
-				__set_bit(abs_bit[i], idev->absbit);
+			else if (abs_bit[i] >= ABS_X && abs_bit[i] <= ABS_BRAKE)
+				input_set_abs_params(idev, abs_bit[i], 0, 255, 0, 0);
+			else if (abs_bit[i] >= ABS_HAT0X && abs_bit[i] <= ABS_HAT3Y)
+				input_set_abs_params(idev, abs_bit[i], -1, 1, 0, 0);
 		}
 	}
 
 	if (idev->keybit[BIT_WORD(BTN_JOYSTICK)])
 		idev->evbit[0] |= BIT_MASK(EV_KEY);
-
-	if (idev->absbit[0])
-		idev->evbit[0] |= BIT_MASK(EV_ABS);
-
-	for (i = ABS_X; i <= ABS_BRAKE; i++)
-		input_set_abs_params(idev, i, 0, 255, 0, 0);
-
-	for (i = ABS_HAT0X; i <= ABS_HAT3Y; i++)
-		input_set_abs_params(idev, i, 1, -1, 0, 0);
 
 	idev->dev.platform_data = pad;
 	idev->dev.parent = &mdev->dev;
@@ -146,15 +139,11 @@ static int probe_maple_controller(struct device *dev)
 	error = input_register_device(idev);
 	if (error)
 		goto fail;
-
-	mdev->driver = mdrv;
-
 	return 0;
 
 fail:
 	input_free_device(idev);
 	kfree(pad);
-	maple_set_drvdata(mdev, NULL);
 	return error;
 }
 
@@ -163,9 +152,7 @@ static int remove_maple_controller(struct device *dev)
 	struct maple_device *mdev = to_maple_dev(dev);
 	struct dc_pad *pad = maple_get_drvdata(mdev);
 
-	mdev->callback = NULL;
 	input_unregister_device(pad->dev);
-	maple_set_drvdata(mdev, NULL);
 	kfree(pad);
 
 	return 0;

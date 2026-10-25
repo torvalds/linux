@@ -458,7 +458,6 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	/* Init the Input device */
 	input_dev->name = pdev->name;
 	input_dev->id.bustype = BUS_HOST;
-	input_dev->dev.parent = &pdev->dev;
 	input_dev->open = imx_keypad_open;
 	input_dev->close = imx_keypad_close;
 

@@ -251,7 +251,6 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 
 	input_dev->name = "TPS6507x Touchscreen";
 	input_dev->phys = tsc->phys;
-	input_dev->dev.parent = tsc->dev;
 	input_dev->id.bustype = BUS_I2C;
 	if (init_data) {
 		input_dev->id.vendor = init_data->vendor;

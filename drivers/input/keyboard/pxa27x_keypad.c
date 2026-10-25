@@ -645,7 +645,6 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->open = pxa27x_keypad_open;
 	input_dev->close = pxa27x_keypad_close;
-	input_dev->dev.parent = &pdev->dev;
 
 	input_dev->keycode = keypad->keycodes;
 	input_dev->keycodesize = sizeof(keypad->keycodes[0]);

@@ -361,7 +361,6 @@ static int stmpe_keypad_probe(struct platform_device *pdev)
 
 	input->name = "STMPE keypad";
 	input->id.bustype = BUS_I2C;
-	input->dev.parent = &pdev->dev;
 
 	error = matrix_keypad_parse_properties(&pdev->dev, &rows, &cols);
 	if (error)

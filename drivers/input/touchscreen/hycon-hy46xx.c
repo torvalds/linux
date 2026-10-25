@@ -499,7 +499,6 @@ static int hycon_hy46xx_probe(struct i2c_client *client)
 
 	input->name = "Hycon Capacitive Touch";
 	input->id.bustype = BUS_I2C;
-	input->dev.parent = &client->dev;
 
 	input_set_abs_params(input, ABS_MT_POSITION_X, 0, -1, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, -1, 0, 0);
