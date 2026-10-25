@@ -342,27 +342,48 @@ static int sta32x_sync_coef_shadow(struct snd_soc_component *component)
 {
 	struct sta32x_priv *sta32x = snd_soc_component_get_drvdata(component);
 	unsigned int cfud;
-	int i;
+	int i, ret;
 
 	/* preserve reserved bits in STA32X_CFUD */
-	regmap_read(sta32x->regmap, STA32X_CFUD, &cfud);
+	ret = regmap_read(sta32x->regmap, STA32X_CFUD, &cfud);
+	if (ret)
+		return ret;
+
 	cfud &= 0xf0;
 
 	for (i = 0; i < STA32X_COEF_COUNT; i++) {
-		regmap_write(sta32x->regmap, STA32X_CFADDR2, i);
-		regmap_write(sta32x->regmap, STA32X_B1CF1,
-			     (sta32x->coef_shadow[i] >> 16) & 0xff);
-		regmap_write(sta32x->regmap, STA32X_B1CF2,
-			     (sta32x->coef_shadow[i] >> 8) & 0xff);
-		regmap_write(sta32x->regmap, STA32X_B1CF3,
-			     (sta32x->coef_shadow[i]) & 0xff);
+		ret = regmap_write(sta32x->regmap, STA32X_CFADDR2, i);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(sta32x->regmap, STA32X_B1CF1,
+				   (sta32x->coef_shadow[i] >> 16) & 0xff);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(sta32x->regmap, STA32X_B1CF2,
+				   (sta32x->coef_shadow[i] >> 8) & 0xff);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(sta32x->regmap, STA32X_B1CF3,
+				   sta32x->coef_shadow[i] & 0xff);
+		if (ret)
+			return ret;
+
 		/*
 		 * chip documentation does not say if the bits are
 		 * self-clearing, so do it explicitly
 		 */
-		regmap_write(sta32x->regmap, STA32X_CFUD, cfud);
-		regmap_write(sta32x->regmap, STA32X_CFUD, cfud | 0x01);
+		ret = regmap_write(sta32x->regmap, STA32X_CFUD, cfud);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(sta32x->regmap, STA32X_CFUD, cfud | 0x01);
+		if (ret)
+			return ret;
 	}
+
 	return 0;
 }
 
@@ -370,15 +391,24 @@ static int sta32x_cache_sync(struct snd_soc_component *component)
 {
 	struct sta32x_priv *sta32x = snd_soc_component_get_drvdata(component);
 	unsigned int mute;
-	int rc;
+	int restore_ret, ret;
 
 	/* mute during register sync */
-	regmap_read(sta32x->regmap, STA32X_MMUTE, &mute);
-	regmap_write(sta32x->regmap, STA32X_MMUTE, mute | STA32X_MMUTE_MMUTE);
-	sta32x_sync_coef_shadow(component);
-	rc = regcache_sync(sta32x->regmap);
-	regmap_write(sta32x->regmap, STA32X_MMUTE, mute);
-	return rc;
+	ret = regmap_read(sta32x->regmap, STA32X_MMUTE, &mute);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(sta32x->regmap, STA32X_MMUTE,
+			   mute | STA32X_MMUTE_MMUTE);
+	if (ret)
+		return ret;
+
+	ret = sta32x_sync_coef_shadow(component);
+	if (!ret)
+		ret = regcache_sync(sta32x->regmap);
+
+	restore_ret = regmap_write(sta32x->regmap, STA32X_MMUTE, mute);
+	return ret ?: restore_ret;
 }
 
 /* work around ESD issue where sta32x resets and loses all configuration */
@@ -461,8 +491,8 @@ SOC_SINGLE("Ch2 Tone Control Bypass Switch", STA32X_C2CFG, STA32X_CxCFG_TCB_SHIF
 SOC_SINGLE("Ch1 EQ Bypass Switch", STA32X_C1CFG, STA32X_CxCFG_EQBP_SHIFT, 1, 0),
 SOC_SINGLE("Ch2 EQ Bypass Switch", STA32X_C2CFG, STA32X_CxCFG_EQBP_SHIFT, 1, 0),
 SOC_SINGLE("Ch1 Master Volume Bypass Switch", STA32X_C1CFG, STA32X_CxCFG_VBP_SHIFT, 1, 0),
-SOC_SINGLE("Ch2 Master Volume Bypass Switch", STA32X_C1CFG, STA32X_CxCFG_VBP_SHIFT, 1, 0),
-SOC_SINGLE("Ch3 Master Volume Bypass Switch", STA32X_C1CFG, STA32X_CxCFG_VBP_SHIFT, 1, 0),
+SOC_SINGLE("Ch2 Master Volume Bypass Switch", STA32X_C2CFG, STA32X_CxCFG_VBP_SHIFT, 1, 0),
+SOC_SINGLE("Ch3 Master Volume Bypass Switch", STA32X_C3CFG, STA32X_CxCFG_VBP_SHIFT, 1, 0),
 SOC_ENUM("Ch1 Limiter Select", sta32x_limiter_ch1_enum),
 SOC_ENUM("Ch2 Limiter Select", sta32x_limiter_ch2_enum),
 SOC_ENUM("Ch3 Limiter Select", sta32x_limiter_ch3_enum),
@@ -477,21 +507,21 @@ SOC_ENUM("Limiter2 Release Rate (dB/ms)", sta32x_limiter2_release_rate_enum),
  * two different enum definitions; provide both
  */
 SOC_SINGLE_TLV("Limiter1 Attack Threshold (AC Mode)", STA32X_L1ATRT, STA32X_LxA_SHIFT,
-	       16, 0, sta32x_limiter_ac_attack_tlv),
+	       15, 0, sta32x_limiter_ac_attack_tlv),
 SOC_SINGLE_TLV("Limiter2 Attack Threshold (AC Mode)", STA32X_L2ATRT, STA32X_LxA_SHIFT,
-	       16, 0, sta32x_limiter_ac_attack_tlv),
+	       15, 0, sta32x_limiter_ac_attack_tlv),
 SOC_SINGLE_TLV("Limiter1 Release Threshold (AC Mode)", STA32X_L1ATRT, STA32X_LxR_SHIFT,
-	       16, 0, sta32x_limiter_ac_release_tlv),
+	       15, 0, sta32x_limiter_ac_release_tlv),
 SOC_SINGLE_TLV("Limiter2 Release Threshold (AC Mode)", STA32X_L2ATRT, STA32X_LxR_SHIFT,
-	       16, 0, sta32x_limiter_ac_release_tlv),
+	       15, 0, sta32x_limiter_ac_release_tlv),
 SOC_SINGLE_TLV("Limiter1 Attack Threshold (DRC Mode)", STA32X_L1ATRT, STA32X_LxA_SHIFT,
-	       16, 0, sta32x_limiter_drc_attack_tlv),
+	       15, 0, sta32x_limiter_drc_attack_tlv),
 SOC_SINGLE_TLV("Limiter2 Attack Threshold (DRC Mode)", STA32X_L2ATRT, STA32X_LxA_SHIFT,
-	       16, 0, sta32x_limiter_drc_attack_tlv),
+	       15, 0, sta32x_limiter_drc_attack_tlv),
 SOC_SINGLE_TLV("Limiter1 Release Threshold (DRC Mode)", STA32X_L1ATRT, STA32X_LxR_SHIFT,
-	       16, 0, sta32x_limiter_drc_release_tlv),
+	       15, 0, sta32x_limiter_drc_release_tlv),
 SOC_SINGLE_TLV("Limiter2 Release Threshold (DRC Mode)", STA32X_L2ATRT, STA32X_LxR_SHIFT,
-	       16, 0, sta32x_limiter_drc_release_tlv),
+	       15, 0, sta32x_limiter_drc_release_tlv),
 
 BIQUAD_COEFS("Ch1 - Biquad 1", 0),
 BIQUAD_COEFS("Ch1 - Biquad 2", 5),
@@ -794,9 +824,9 @@ static int sta32x_startup_sequence(struct sta32x_priv *sta32x)
 static int sta32x_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
-	int ret;
 	struct sta32x_priv *sta32x = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+	int cleanup_ret, ret;
 
 	dev_dbg(component->dev, "level = %d\n", level);
 	switch (level) {
@@ -820,15 +850,28 @@ static int sta32x_set_bias_level(struct snd_soc_component *component,
 				return ret;
 			}
 
-			sta32x_startup_sequence(sta32x);
-			sta32x_cache_sync(component);
+			ret = sta32x_startup_sequence(sta32x);
+			if (!ret)
+				ret = sta32x_cache_sync(component);
+			if (ret)
+				goto restore_failed;
+
+			ret = regmap_update_bits(sta32x->regmap, STA32X_CONFF,
+						 STA32X_CONFF_PWDN | STA32X_CONFF_EAPD,
+						 0);
+			if (ret)
+				goto restore_failed;
+
 			sta32x_watchdog_start(sta32x);
+			break;
 		}
 
 		/* Power down */
-		regmap_update_bits(sta32x->regmap, STA32X_CONFF,
-				   STA32X_CONFF_PWDN | STA32X_CONFF_EAPD,
-				   0);
+		ret = regmap_update_bits(sta32x->regmap, STA32X_CONFF,
+					 STA32X_CONFF_PWDN | STA32X_CONFF_EAPD,
+					 0);
+		if (ret)
+			return ret;
 
 		break;
 
@@ -846,12 +889,31 @@ static int sta32x_set_bias_level(struct snd_soc_component *component,
 		break;
 	}
 	return 0;
+
+restore_failed:
+	gpiod_set_value(sta32x->gpiod_nreset, 0);
+	regcache_mark_dirty(sta32x->regmap);
+	cleanup_ret = regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies),
+					     sta32x->supplies);
+	if (cleanup_ret)
+		dev_warn(component->dev, "Failed to disable supplies: %d\n",
+			 cleanup_ret);
+	return ret;
 }
+
+static const u64 sta32x_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF;
 
 static const struct snd_soc_dai_ops sta32x_dai_ops = {
 	.hw_params	= sta32x_hw_params,
 	.set_sysclk	= sta32x_set_dai_sysclk,
 	.set_fmt	= sta32x_set_dai_fmt,
+	.auto_selectable_formats	= &sta32x_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver sta32x_dai = {
@@ -1035,7 +1097,7 @@ static int sta32x_probe_dt(struct device *dev, struct sta32x_priv *sta32x)
 {
 	struct device_node *np = dev->of_node;
 	struct sta32x_platform_data *pdata;
-	u16 tmp;
+	u32 tmp;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -1060,8 +1122,8 @@ static int sta32x_probe_dt(struct device *dev, struct sta32x_priv *sta32x)
 		of_property_read_bool(np, "st,needs_esd_watchdog");
 
 	tmp = 140;
-	of_property_read_u16(np, "st,drop-compensation-ns", &tmp);
-	pdata->drop_compensation_ns = clamp_t(u16, tmp, 0, 300) / 20;
+	of_property_read_u32(np, "st,drop-compensation-ns", &tmp);
+	pdata->drop_compensation_ns = clamp_t(u32, tmp, 0, 300) / 20;
 
 	/* CONFE */
 	pdata->max_power_use_mpcc =

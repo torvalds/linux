@@ -22,6 +22,7 @@
 #include "midi.h"
 #include "control.h"
 #include "input.h"
+#include "lcd.h"
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("caiaq USB audio");
@@ -142,7 +143,7 @@ static void usb_ep1_command_reply_dispatch (struct urb* urb)
 		return;
 	}
 	if (urb->actual_length < 1)
-		return;
+		goto resubmit;
 
 	payload_len = urb->actual_length - 1;
 
@@ -192,6 +193,7 @@ static void usb_ep1_command_reply_dispatch (struct urb* urb)
 		break;
 	}
 
+ resubmit:
 	cdev->ep1_in_urb->actual_length = 0;
 	ret = usb_submit_urb(cdev->ep1_in_urb, GFP_ATOMIC);
 	if (ret < 0)
@@ -211,6 +213,8 @@ int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *cdev,
 
 	if (len > EP1_BUFSIZE - 1)
 		len = EP1_BUFSIZE - 1;
+
+	guard(mutex)(&cdev->ep1_out_mutex);
 
 	if (buffer && len > 0)
 		memcpy(cdev->ep1_out_buf+1, buffer, len);
@@ -234,6 +238,8 @@ int snd_usb_caiaq_send_command_bank(struct snd_usb_caiaqdev *cdev,
 
 	if (len > EP1_BUFSIZE - 2)
 		len = EP1_BUFSIZE - 2;
+
+	guard(mutex)(&cdev->ep1_out_mutex);
 
 	if (buffer && len > 0)
 		memcpy(cdev->ep1_out_buf+2, buffer, len);
@@ -383,16 +389,22 @@ static int setup_card(struct snd_usb_caiaqdev *cdev)
 	}
 #endif
 
-	/* finally, register the card and all its sub-instances */
-	ret = snd_card_register(cdev->chip.card);
+	ret = snd_usb_caiaq_lcd_init(cdev);
 	if (ret < 0) {
-		dev_err(dev, "snd_card_register() returned %d\n", ret);
+		dev_err(dev, "Unable to set up LCD (ret=%d)\n", ret);
 		return ret;
 	}
 
 	ret = snd_usb_caiaq_control_init(cdev);
 	if (ret < 0) {
 		dev_err(dev, "Unable to set up control system (ret=%d)\n", ret);
+		return ret;
+	}
+
+	/* finally, register the card and all its sub-instances */
+	ret = snd_card_register(cdev->chip.card);
+	if (ret < 0) {
+		dev_err(dev, "snd_card_register() returned %d\n", ret);
 		return ret;
 	}
 
@@ -443,6 +455,8 @@ static int create_card(struct usb_device *usb_dev,
 	cdev->chip.usb_id = USB_ID(le16_to_cpu(usb_dev->descriptor.idVendor),
 				  le16_to_cpu(usb_dev->descriptor.idProduct));
 	spin_lock_init(&cdev->spinlock);
+	spin_lock_init(&cdev->midi_lock);
+	mutex_init(&cdev->ep1_out_mutex);
 
 	*cardp = card;
 	return 0;

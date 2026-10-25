@@ -364,7 +364,7 @@ int lx_dsp_get_mac(struct lx6464es *chip)
 	macmsb = lx_dsp_reg_read(chip, eReg_ADMACESMSB) & 0x00FFFFFF;
 	maclsb = lx_dsp_reg_read(chip, eReg_ADMACESLSB) & 0x00FFFFFF;
 
-	/* todo: endianess handling */
+	/* todo: endianness handling */
 	chip->mac_address[5] = ((u8 *)(&maclsb))[0];
 	chip->mac_address[4] = ((u8 *)(&maclsb))[1];
 	chip->mac_address[3] = ((u8 *)(&maclsb))[2];

@@ -4,7 +4,7 @@
 #
 # Copyright(c) 2021, 2023, 2024 Advanced Micro Devices, Inc. All rights reserved.
 
-snd-sof-amd-acp-y := acp.o acp-loader.o acp-ipc.o acp-pcm.o acp-stream.o acp-trace.o acp-common.o
+snd-sof-amd-acp-y := acp.o acp-loader.o acp_asp_mailbox.o acp-ipc.o acp-pcm.o acp-stream.o acp-trace.o acp-common.o
 snd-sof-amd-acp-$(CONFIG_SND_SOC_SOF_ACP_PROBES) += acp-probes.o
 snd-sof-amd-renoir-y := pci-rn.o renoir.o
 snd-sof-amd-rembrandt-y := pci-rmb.o rembrandt.o

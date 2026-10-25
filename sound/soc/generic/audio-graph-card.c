@@ -629,6 +629,7 @@ static int graph_probe(struct platform_device *pdev)
 	card->dapm_widgets	= graph_dapm_widgets;
 	card->num_dapm_widgets	= ARRAY_SIZE(graph_dapm_widgets);
 	card->probe		= graph_util_card_probe;
+	card->remove		= graph_util_card_remove;
 
 	if (of_device_get_match_data(dev))
 		priv->dpcm_selectable = 1;

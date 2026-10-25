@@ -36,6 +36,13 @@ module_param_array(amidi_map, int, NULL, 0444);
 MODULE_PARM_DESC(amidi_map, "Raw MIDI device number assigned to 2nd OSS device.");
 #endif /* CONFIG_SND_OSSEMUL */
 
+/* upper bound for draining the output buffer */
+#define SNDRV_RAWMIDI_DRAIN_TIMEOUT	(10 * HZ)
+/* interval at which drain progress is re-checked */
+#define SNDRV_RAWMIDI_DRAIN_POLL	(HZ / 5)
+/* polls without progress before the drain is considered stalled */
+#define SNDRV_RAWMIDI_DRAIN_STALLS	5
+
 static int snd_rawmidi_dev_free(struct snd_device *device);
 static int snd_rawmidi_dev_register(struct snd_device *device);
 static int snd_rawmidi_dev_disconnect(struct snd_device *device);
@@ -208,14 +215,14 @@ static int snd_rawmidi_runtime_free(struct snd_rawmidi_substream *substream)
 
 static inline void snd_rawmidi_output_trigger(struct snd_rawmidi_substream *substream, int up)
 {
-	if (!substream->opened)
+	if (!substream->opened || substream->disconnected)
 		return;
 	substream->ops->trigger(substream, up);
 }
 
 static void snd_rawmidi_input_trigger(struct snd_rawmidi_substream *substream, int up)
 {
-	if (!substream->opened)
+	if (!substream->opened || substream->disconnected)
 		return;
 	substream->ops->trigger(substream, up);
 	if (!up)
@@ -246,31 +253,74 @@ int snd_rawmidi_drop_output(struct snd_rawmidi_substream *substream)
 }
 EXPORT_SYMBOL(snd_rawmidi_drop_output);
 
+static bool output_drained(struct snd_rawmidi_runtime *runtime)
+{
+	return runtime->avail >= runtime->buffer_size;
+}
+
 int snd_rawmidi_drain_output(struct snd_rawmidi_substream *substream)
 {
-	int err = 0;
-	long timeout;
 	struct snd_rawmidi_runtime *runtime;
+	size_t avail, prev_avail;
+	unsigned int stalls = 0;
+	unsigned long deadline;
+	long timeout, wait;
+	bool done;
+	int err = 0;
 
 	scoped_guard(spinlock_irq, &substream->lock) {
 		runtime = substream->runtime;
-		if (!substream->opened || !runtime || !runtime->buffer)
+		if (!substream->opened || !runtime || !runtime->buffer ||
+		    substream->disconnected)
 			return -EINVAL;
 		snd_rawmidi_buffer_ref(runtime);
 		runtime->drain = 1;
+		prev_avail = runtime->avail;
 	}
 
-	timeout = wait_event_interruptible_timeout(runtime->sleep,
-				(runtime->avail >= runtime->buffer_size),
-				10*HZ);
+	/*
+	 * Wait for the device to consume the buffer.  Rather than always
+	 * sleeping for the whole timeout, sample the free space and stop
+	 * early once it has not increased for a second.  A substream that
+	 * is still making progress is given as long as it needs, within the
+	 * same overall limit as before.
+	 */
+	deadline = jiffies + SNDRV_RAWMIDI_DRAIN_TIMEOUT;
+	for (;;) {
+		/* signed difference, so this is safe across a jiffies wrap */
+		wait = (long)(deadline - jiffies);
+		if (wait <= 0) {
+			timeout = 0;
+			break;
+		}
+		wait = min_t(long, SNDRV_RAWMIDI_DRAIN_POLL, wait);
+		timeout = wait_event_interruptible_timeout(runtime->sleep,
+							   output_drained(runtime), wait);
+		scoped_guard(spinlock_irq, &substream->lock) {
+			avail = runtime->avail;
+			done = output_drained(runtime);
+		}
+		if (done || signal_pending(current))
+			break;
+		if (avail == prev_avail) {
+			if (++stalls >= SNDRV_RAWMIDI_DRAIN_STALLS) {
+				timeout = 0;
+				break;
+			}
+		} else {
+			stalls = 0;
+			prev_avail = avail;
+		}
+	}
 
 	scoped_guard(spinlock_irq, &substream->lock) {
 		if (signal_pending(current))
 			err = -ERESTARTSYS;
 		if (runtime->avail < runtime->buffer_size && !timeout) {
-			rmidi_warn(substream->rmidi,
-				   "rawmidi drain error (avail = %li, buffer_size = %li)\n",
-				   (long)runtime->avail, (long)runtime->buffer_size);
+			dev_warn_ratelimited(substream->rmidi->dev,
+					     "rawmidi drain error (avail = %li, buffer_size = %li)\n",
+					     (long)runtime->avail,
+					     (long)runtime->buffer_size);
 			err = -EIO;
 		}
 		runtime->drain = 0;
@@ -537,7 +587,7 @@ static void close_substream(struct snd_rawmidi *rmidi,
 	if (--substream->use_count)
 		return;
 
-	if (cleanup) {
+	if (cleanup && !substream->disconnected) {
 		if (substream->stream == SNDRV_RAWMIDI_STREAM_INPUT)
 			snd_rawmidi_input_trigger(substream, 0);
 		else {
@@ -557,6 +607,9 @@ static void close_substream(struct snd_rawmidi *rmidi,
 		substream->opened = 0;
 		substream->append = 0;
 	}
+	/* Drain input work queued after the earlier cancellation. */
+	if (substream->stream == SNDRV_RAWMIDI_STREAM_INPUT)
+		cancel_work_sync(&substream->runtime->event_work);
 	substream->ops->close(substream);
 	if (substream->runtime->private_free)
 		substream->runtime->private_free(substream);
@@ -1151,7 +1204,7 @@ int snd_rawmidi_receive(struct snd_rawmidi_substream *substream,
 	struct snd_rawmidi_runtime *runtime;
 
 	guard(spinlock_irqsave)(&substream->lock);
-	if (!substream->opened)
+	if (!substream->opened || substream->disconnected)
 		return -EBADFD;
 	runtime = substream->runtime;
 	if (!runtime || !runtime->buffer) {
@@ -2063,8 +2116,13 @@ static int snd_rawmidi_dev_disconnect(struct snd_device *device)
 		struct snd_rawmidi_substream *s;
 
 		list_for_each_entry(s, &rmidi->streams[dir].substreams, list) {
-			if (s->runtime)
+			scoped_guard(spinlock_irq, &s->lock)
+				s->disconnected = true;
+			if (s->runtime) {
+				s->ops->trigger(s, 0);
+				cancel_work_sync(&s->runtime->event_work);
 				wake_up(&s->runtime->sleep);
+			}
 		}
 	}
 

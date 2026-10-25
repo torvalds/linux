@@ -633,8 +633,8 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 #define A_ADCCR_RCHANENABLE	0x00000020
 #define A_ADCCR_LCHANENABLE	0x00000010
 
-#define A_ADCCR_SAMPLERATE_MASK 0x0000000F      /* Audigy sample rate convertor output rate		*/
-#define ADCCR_SAMPLERATE_MASK	0x00000007	/* Sample rate convertor output rate			*/
+#define A_ADCCR_SAMPLERATE_MASK 0x0000000F      /* Audigy sample rate converter output rate		*/
+#define ADCCR_SAMPLERATE_MASK	0x00000007	/* Sample rate converter output rate			*/
 #define ADCCR_SAMPLERATE_48	0x00000000	/* 48kHz sample rate					*/
 #define ADCCR_SAMPLERATE_44	0x00000001	/* 44.1kHz sample rate					*/
 #define ADCCR_SAMPLERATE_32	0x00000002	/* 32kHz sample rate					*/

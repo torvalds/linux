@@ -1763,6 +1763,7 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 		/* Non-conforming _HID for Cirrus Logic already released */
 		{"CLSA0100", },
 		{"CLSA0101", },
+		{"CLSA0102", },
 	/*
 	 * Some ACPI devs contain SerialBus resources even though they are not
 	 * attached to a serial bus at all.

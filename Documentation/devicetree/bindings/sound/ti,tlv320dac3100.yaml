@@ -121,6 +121,6 @@ examples:
             AVDD-supply = <&regulator>;
             IOVDD-supply = <&regulator>;
             DVDD-supply = <&regulator>;
-       };
+        };
     };
 

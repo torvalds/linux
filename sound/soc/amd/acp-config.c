@@ -98,6 +98,13 @@ static const struct dmi_system_id acp70_acpi_flag_override_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "8EA2"),
 		},
 	},
+	{
+		/* Dell 14S DS14265 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Dell 14S DS14265"),
+		},
+	},
 	{}
 };
 
@@ -428,17 +435,29 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sof_machines[] = {
 };
 EXPORT_SYMBOL(snd_soc_acpi_amd_acp70_sof_machines);
 
-struct snd_soc_acpi_mach snd_soc_acpi_amd_acp7x_sof_machines[] = {
+struct snd_soc_acpi_mach snd_soc_acpi_amd_acp7f_sof_machines[] = {
 	{
 		.id = "AMDI1010",
-		.drv_name = "acp7x-dsp",
+		.drv_name = "acp7f-dsp",
 		.pdata = &acp_quirk_data,
-		.fw_filename = "sof-acp7x.ri",
-		.sof_tplg_filename = "sof-acp7x.tplg",
+		.fw_filename = "sof-acp7f.ri",
+		.sof_tplg_filename = "sof-acp7f.tplg",
 	},
 	{},
 };
-EXPORT_SYMBOL(snd_soc_acpi_amd_acp7x_sof_machines);
+EXPORT_SYMBOL(snd_soc_acpi_amd_acp7f_sof_machines);
+
+struct snd_soc_acpi_mach snd_soc_acpi_amd_acp7b_sof_machines[] = {
+	{
+		.id = "AMDI1010",
+		.drv_name = "acp7b-dsp",
+		.pdata = &acp_quirk_data,
+		.fw_filename = "sof-acp7b.ri",
+		.sof_tplg_filename = "sof-acp7b.tplg",
+	},
+	{},
+};
+EXPORT_SYMBOL(snd_soc_acpi_amd_acp7b_sof_machines);
 
 MODULE_DESCRIPTION("AMD ACP Machine Configuration Module");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -960,11 +960,19 @@ static int cs42l56_set_bias_level(struct snd_soc_component *component,
 			SNDRV_PCM_FMTBIT_S32_LE)
 
 
+static const u64 cs42l56_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF;
+
 static const struct snd_soc_dai_ops cs42l56_ops = {
 	.hw_params	= cs42l56_pcm_hw_params,
 	.mute_stream	= cs42l56_mute,
 	.set_fmt	= cs42l56_set_dai_fmt,
 	.set_sysclk	= cs42l56_set_sysclk,
+	.auto_selectable_formats	= &cs42l56_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 	.no_capture_mute = 1,
 };
 
@@ -1077,7 +1085,7 @@ static void cs42l56_init_beep(struct snd_soc_component *component)
 	struct cs42l56_private *cs42l56 = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	cs42l56->beep = devm_input_allocate_device(component->dev);
+	cs42l56->beep = input_allocate_device();
 	if (!cs42l56->beep) {
 		dev_err(component->dev, "Failed to allocate beep device\n");
 		return;
@@ -1098,8 +1106,10 @@ static void cs42l56_init_beep(struct snd_soc_component *component)
 
 	ret = input_register_device(cs42l56->beep);
 	if (ret != 0) {
+		input_free_device(cs42l56->beep);
 		cs42l56->beep = NULL;
 		dev_err(component->dev, "Failed to register beep device\n");
+		return;
 	}
 
 	ret = device_create_file(component->dev, &dev_attr_beep);
@@ -1115,7 +1125,10 @@ static void cs42l56_free_beep(struct snd_soc_component *component)
 
 	device_remove_file(component->dev, &dev_attr_beep);
 	cancel_work_sync(&cs42l56->beep_work);
-	cs42l56->beep = NULL;
+	if (cs42l56->beep) {
+		input_unregister_device(cs42l56->beep);
+		cs42l56->beep = NULL;
+	}
 
 	snd_soc_component_update_bits(component, CS42L56_BEEP_TONE_CFG,
 			    CS42L56_BEEP_EN_MASK, 0);

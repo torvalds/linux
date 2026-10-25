@@ -152,11 +152,11 @@ static inline int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev, i
 void snd_ymfpci_free_gameport(struct snd_ymfpci *chip) { }
 #endif /* SUPPORT_JOYSTICK */
 
-static int __snd_card_ymfpci_probe(struct pci_dev *pci,
-				   const struct pci_device_id *pci_id)
+static int snd_card_ymfpci_probe(struct pci_dev *pci,
+				 const struct pci_device_id *pci_id)
 {
 	static int dev;
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	struct resource *fm_res = NULL;
 	struct resource *mpu_res = NULL;
 	struct snd_ymfpci *chip;
@@ -344,14 +344,9 @@ static int __snd_card_ymfpci_probe(struct pci_dev *pci,
 		return err;
 
 	pci_set_drvdata(pci, card);
+	card = NULL; /* probe succeeded, don't release as error */
 	dev++;
 	return 0;
-}
-
-static int snd_card_ymfpci_probe(struct pci_dev *pci,
-				 const struct pci_device_id *pci_id)
-{
-	return snd_card_free_on_error(&pci->dev, __snd_card_ymfpci_probe(pci, pci_id));
 }
 
 static struct pci_driver ymfpci_driver = {

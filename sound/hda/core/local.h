@@ -16,6 +16,8 @@ int snd_hdac_bus_add_device(struct hdac_bus *bus, struct hdac_device *codec);
 void snd_hdac_bus_remove_device(struct hdac_bus *bus,
 				struct hdac_device *codec);
 void snd_hdac_bus_queue_event(struct hdac_bus *bus, u32 res, u32 res_ex);
+void snd_hdac_bus_reset_response_counter(struct hdac_bus *bus,
+					 unsigned int addr);
 int snd_hdac_bus_exec_verb(struct hdac_bus *bus, unsigned int addr,
 			   unsigned int cmd, unsigned int *res);
 

@@ -578,7 +578,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			| CS35L33_X_LOC);
 	}
 
-	/* disconnect {vp,vbst}_mon routes: eanble later if set in tx_mask*/
+	/* disconnect {vp,vbst}_mon routes: enable later if set in tx_mask*/
 	snd_soc_dapm_del_routes(dapm, cs35l33_vp_vbst_mon_route,
 		ARRAY_SIZE(cs35l33_vp_vbst_mon_route));
 
@@ -663,12 +663,18 @@ static int cs35l33_component_set_sysclk(struct snd_soc_component *component,
 	return 0;
 }
 
+static const u64 cs35l33_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A;
+
 static const struct snd_soc_dai_ops cs35l33_ops = {
 	.startup = cs35l33_pcm_startup,
 	.set_tristate = cs35l33_set_tristate,
 	.set_fmt = cs35l33_set_dai_fmt,
 	.hw_params = cs35l33_pcm_hw_params,
 	.set_tdm_slot = cs35l33_set_tdm_slot,
+	.auto_selectable_formats = &cs35l33_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver cs35l33_dai = {

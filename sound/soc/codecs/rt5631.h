@@ -415,7 +415,7 @@
 #define RT5631_ADDA_FILTER_CLK_SEL_256FS		(0 << 7) /* 256FS */
 #define RT5631_ADDA_FILTER_CLK_SEL_384FS		(1 << 7) /* 384FS */
 
-/* Power managment addition 1 (0x3A) */
+/* Power management addition 1 (0x3A) */
 #define RT5631_PWR_MAIN_I2S_EN			(0x1 << 15)
 #define RT5631_PWR_MAIN_I2S_BIT			15
 #define RT5631_PWR_CLASS_D				(0x1 << 12)
@@ -435,7 +435,7 @@
 #define RT5631_PWR_DAC_R_TO_MIXER			(0x1 << 5)
 #define RT5631_PWR_DAC_R_TO_MIXER_BIT		5
 
-/* Power managment addition 2 (0x3B) */
+/* Power management addition 2 (0x3B) */
 #define RT5631_PWR_OUTMIXER_L				(0x1 << 15)
 #define RT5631_PWR_OUTMIXER_L_BIT			15
 #define RT5631_PWR_OUTMIXER_R				(0x1 << 14)
@@ -461,7 +461,7 @@
 #define RT5631_PWR_PLL2				(0x1 << 0)
 #define RT5631_PWR_PLL2_BIT				0
 
-/* Power managment addition 3(0x3C) */
+/* Power management addition 3(0x3C) */
 #define RT5631_PWR_VREF				(0x1 << 15)
 #define RT5631_PWR_VREF_BIT				15
 #define RT5631_PWR_FAST_VREF_CTRL			(0x1 << 14)
@@ -489,7 +489,7 @@
 #define RT5631_PWR_HP_AMP_DRIVING			(0x1 << 0)
 #define RT5631_PWR_HP_AMP_DRIVING_BIT		0
 
-/* Power managment addition 4(0x3E) */
+/* Power management addition 4(0x3E) */
 #define RT5631_PWR_SPK_L_VOL				(0x1 << 15)
 #define RT5631_PWR_SPK_L_VOL_BIT			15
 #define RT5631_PWR_SPK_R_VOL				(0x1 << 14)

@@ -451,8 +451,8 @@ static struct aic32x4_clkdesc aic32x4_clkdesc_array[] = {
 static struct clk *aic32x4_register_clk(struct device *dev,
 					struct aic32x4_clkdesc *desc)
 {
-	struct clk_init_data init;
 	struct clk_aic32x4 *priv;
+	struct clk_init_data init = {};
 	const char *devname = dev_name(dev);
 
 	init.ops = desc->ops;

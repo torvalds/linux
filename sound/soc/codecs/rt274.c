@@ -1029,6 +1029,12 @@ static int rt274_resume(struct snd_soc_component *component)
 #define RT274_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
+static const u64 rt274_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B;
+
 static const struct snd_soc_dai_ops rt274_aif_dai_ops = {
 	.hw_params = rt274_hw_params,
 	.set_fmt = rt274_set_dai_fmt,
@@ -1036,6 +1042,8 @@ static const struct snd_soc_dai_ops rt274_aif_dai_ops = {
 	.set_pll = rt274_set_dai_pll,
 	.set_bclk_ratio = rt274_set_bclk_ratio,
 	.set_tdm_slot = rt274_set_tdm_slot,
+	.auto_selectable_formats = &rt274_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver rt274_dai[] = {

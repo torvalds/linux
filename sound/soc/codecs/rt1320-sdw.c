@@ -890,8 +890,9 @@ static bool rt1320_readable_register(struct device *dev, unsigned int reg)
 	case 0xf01e:
 	case 0xf717 ... 0xf719:
 	case 0xf720 ... 0xf723:
-	case 0x1000cd91 ... 0x1000cd96:
-	case RT1321_PATCH_MAIN_VER ... RT1321_PATCH_BETA_VER:
+	case 0x10000000 ... 0x10008fff:
+	case 0x1000c000 ... 0x1000cfff:
+	case 0x1000d800 ... 0x1000dfff:
 	case 0x1000f008:
 	case 0x1000f021:
 	case 0x20003000 ... 0x2000300f:
@@ -996,7 +997,8 @@ static bool rt1320_volatile_register(struct device *dev, unsigned int reg)
 	case 0xf717 ... 0xf719:
 	case 0xf720 ... 0xf723:
 	case 0x10000000 ... 0x10008fff:
-	case 0x1000c000 ... 0x1000dfff:
+	case 0x1000c000 ... 0x1000cfff:
+	case 0x1000d800 ... 0x1000dfff:
 	case 0x1000f008:
 	case 0x1000f021:
 	case 0x2000300e ... 0x2000300f:
@@ -2084,7 +2086,7 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 		regmap_update_bits(rt1320->regmap, 0x20005818, 0x80, 0x80);
 		/* RAE run */
 		regmap_update_bits(rt1320->regmap, 0x2000301c, 0x01, 0x01);
-		/* Phase sync eanble */
+		/* Phase sync enable */
 		regmap_update_bits(rt1320->regmap, 0xc047, 0x80, 0x80);
 		break;
 	}
@@ -2470,7 +2472,7 @@ static int rt1320_io_init(struct device *dev, struct sdw_slave *slave)
 	dev_dbg(dev, "%s amp func_status=0x%x\n", __func__, amp_func_status);
 
 	/* initialization write */
-	if ((amp_func_status & FUNCTION_NEEDS_INITIALIZATION) || !rt1320->first_hw_init) {
+	if ((amp_func_status & FUNCTION_NEEDS_INITIALIZATION)) {
 		switch (rt1320->dev_id) {
 		case RT1320_DEV_ID:
 			if (rt1320->version_id < RT1320_VC)

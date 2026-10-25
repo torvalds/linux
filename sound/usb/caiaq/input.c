@@ -41,17 +41,32 @@ static const unsigned short keycode_kore[] = {
 	BTN_3,
 	BTN_2,
 	BTN_1,
-	BTN_8,
-	BTN_7,
-	BTN_6,
 	BTN_5,
-	KEY_BRL_DOT4,   /* touch sensitive knobs */
+	BTN_6,
+	BTN_7,
+	BTN_8,
+	KEY_BRL_DOT4,   /* touch sensitive knobs (Kore 2 order) */
 	KEY_BRL_DOT3,
 	KEY_BRL_DOT2,
 	KEY_BRL_DOT1,
 	KEY_BRL_DOT8,
 	KEY_BRL_DOT7,
 	KEY_BRL_DOT6,
+	KEY_BRL_DOT5
+};
+
+/* index of the first touch sensor in keycode_kore */
+#define KORE_TOUCH_KEYS	24
+
+/* the first Kore controller reports its touch sensors in this order */
+static const unsigned short keycode_kore1_touch[] = {
+	KEY_BRL_DOT4,
+	KEY_BRL_DOT8,
+	KEY_BRL_DOT3,
+	KEY_BRL_DOT7,
+	KEY_BRL_DOT2,
+	KEY_BRL_DOT6,
+	KEY_BRL_DOT1,
 	KEY_BRL_DOT5
 };
 
@@ -605,13 +620,15 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 	struct usb_device *usb_dev = cdev->chip.dev;
 	struct input_dev *input;
 	int i, ret = 0;
+	int len;
 
 	input = input_allocate_device();
 	if (!input)
 		return -ENOMEM;
 
-	usb_make_path(usb_dev, cdev->phys, sizeof(cdev->phys));
-	strlcat(cdev->phys, "/input0", sizeof(cdev->phys));
+	len = usb_make_path(usb_dev, cdev->phys, sizeof(cdev->phys));
+	if (len >= 0)
+		strscpy(cdev->phys + len, "/input0", sizeof(cdev->phys) - len);
 
 	input->name = cdev->product_name;
 	input->phys = cdev->phys;
@@ -666,6 +683,12 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 		input->absbit[BIT_WORD(ABS_MISC)] |= BIT_MASK(ABS_MISC);
 		BUILD_BUG_ON(sizeof(cdev->keycode) < sizeof(keycode_kore));
 		memcpy(cdev->keycode, keycode_kore, sizeof(keycode_kore));
+		BUILD_BUG_ON(KORE_TOUCH_KEYS + ARRAY_SIZE(keycode_kore1_touch) >
+			     ARRAY_SIZE(keycode_kore));
+		if (cdev->chip.usb_id ==
+		    USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER))
+			memcpy(cdev->keycode + KORE_TOUCH_KEYS, keycode_kore1_touch,
+			       sizeof(keycode_kore1_touch));
 		input->keycodemax = ARRAY_SIZE(keycode_kore);
 		input_set_abs_params(input, ABS_HAT0X, 0, 999, 0, 10);
 		input_set_abs_params(input, ABS_HAT0Y, 0, 999, 0, 10);

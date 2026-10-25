@@ -25,16 +25,22 @@ static bool rt721_sdca_readable_register(struct device *dev, unsigned int reg)
 	case 0x2f50:
 	case 0x2f51:
 	case 0x2f58 ... 0x2f5d:
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT721_SDCA_ENT0,
+		RT721_SDCA_CTL_FUNC_STATUS, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT721_SDCA_ENT_XUV,
 		RT721_SDCA_CTL_XUV, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT721_SDCA_ENT_GE49,
 		RT721_SDCA_CTL_SELECTED_MODE, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT721_SDCA_ENT_GE49,
 		RT721_SDCA_CTL_DETECTED_MODE, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT721_SDCA_ENT0,
+		RT721_SDCA_CTL_FUNC_STATUS, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_HID, RT721_SDCA_ENT_HID01,
 		RT721_SDCA_CTL_HIDTX_CURRENT_OWNER, 0) ... SDW_SDCA_CTL(FUNC_NUM_HID,
 		RT721_SDCA_ENT_HID01, RT721_SDCA_CTL_HIDTX_MESSAGE_LENGTH, 0):
 	case RT721_BUF_ADDR_HID1 ... RT721_BUF_ADDR_HID2:
+	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT721_SDCA_ENT0,
+		RT721_SDCA_CTL_FUNC_STATUS, 0):
 		return true;
 	default:
 		return false;
@@ -46,14 +52,20 @@ static bool rt721_sdca_volatile_register(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case 0x2f01:
 	case 0x2f51:
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT721_SDCA_ENT0,
+		RT721_SDCA_CTL_FUNC_STATUS, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT721_SDCA_ENT_GE49,
 		RT721_SDCA_CTL_DETECTED_MODE, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT721_SDCA_ENT_XUV,
 		RT721_SDCA_CTL_XUV, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT721_SDCA_ENT0,
+		RT721_SDCA_CTL_FUNC_STATUS, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_HID, RT721_SDCA_ENT_HID01,
 		RT721_SDCA_CTL_HIDTX_CURRENT_OWNER, 0) ... SDW_SDCA_CTL(FUNC_NUM_HID,
 		RT721_SDCA_ENT_HID01, RT721_SDCA_CTL_HIDTX_MESSAGE_LENGTH, 0):
 	case RT721_BUF_ADDR_HID1 ... RT721_BUF_ADDR_HID2:
+	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT721_SDCA_ENT0,
+		RT721_SDCA_CTL_FUNC_STATUS, 0):
 		return true;
 	default:
 		return false;
@@ -64,9 +76,16 @@ static bool rt721_sdca_mbq_readable_register(struct device *dev, unsigned int re
 {
 	switch (reg) {
 	case 0x0900004 ... 0x0900009:
+	case 0x0910000:
+	case 0x0910001:
+	case 0x0910002:
+	case 0x0910003:
+	case 0x0910202:
 	case 0x0a00005:
 	case 0x0c00005:
 	case 0x0d00014:
+	case 0x0f00004:
+	case 0x0f00005:
 	case 0x0310100:
 	case 0x2000000 ... 0x2000003:
 	case 0x2000013:
@@ -75,17 +94,25 @@ static bool rt721_sdca_mbq_readable_register(struct device *dev, unsigned int re
 	case 0x200003c:
 	case 0x2000046:
 	case 0x5810000:
+	case 0x5810033:
 	case 0x5810036:
 	case 0x5810037:
 	case 0x5810038:
 	case 0x5810039:
-	case 0x5b10018:
-	case 0x5b10019:
+	case 0x581003a:
+	case 0x581003b:
+	case 0x5810100:
+	case 0x5b10000 ... 0x5b10026:
+	case 0x5b10100 ... 0x5b10103:
+	case 0x5f00010:
+	case 0x5f00043:
 	case 0x5f00045:
 	case 0x5f00048:
 	case 0x6100000:
+	case 0x6100002:
 	case 0x6100005:
 	case 0x6100006:
+	case 0x6100007:
 	case 0x610000d:
 	case 0x6100010:
 	case 0x6100011:
@@ -139,6 +166,7 @@ static bool rt721_sdca_mbq_volatile_register(struct device *dev, unsigned int re
 	case 0x0a00005:
 	case 0x0c00005:
 	case 0x0d00014:
+	case 0x0f00004:
 	case 0x2000000:
 	case 0x200000d:
 	case 0x2000019:
@@ -155,8 +183,11 @@ static bool rt721_sdca_mbq_volatile_register(struct device *dev, unsigned int re
 	case 0x5810037:
 	case 0x5810038:
 	case 0x5810039:
-	case 0x5b10018:
-	case 0x5b10019:
+	case 0x581003a:
+	case 0x581003b:
+	case 0x5810100:
+	case 0x5b10000 ... 0x5b10016:
+	case 0x5b10018 ... 0x5b10026:
 	case 0x6100006:
 		return true;
 	default:
@@ -304,6 +335,11 @@ static int rt721_sdca_interrupt_callback(struct sdw_slave *slave,
 	int count = 0, retry = 3;
 	unsigned int sdca_cascade, scp_sdca_stat1, scp_sdca_stat2 = 0;
 
+	if (rt721->imp_sensing_ongoing && rt721->wf_id == RT721_S)
+		dev_info(&slave->dev,
+			"%s: IRQ arrived DURING impedance sensing\n",
+			__func__);
+
 	if (cancel_delayed_work_sync(&rt721->jack_detect_work)) {
 		dev_warn(&slave->dev, "%s the pending delayed_work was cancelled", __func__);
 		/* avoid the HID owner doesn't change to device */
@@ -381,9 +417,15 @@ static int rt721_sdca_interrupt_callback(struct sdw_slave *slave,
 	ret = sdw_read_no_pm(rt721->slave, SDW_SCP_SDCA_INT1);
 	ret = sdw_read_no_pm(rt721->slave, SDW_SCP_SDCA_INT2);
 
-	if (status->sdca_cascade && !rt721->disable_irq)
+	if (status->sdca_cascade && !rt721->disable_irq) {
+		unsigned int delay_ms = 280;
+
+		if (rt721->imp_sensing_ongoing && rt721->wf_id == RT721_S)
+			delay_ms = 800;
+
 		mod_delayed_work(system_power_efficient_wq,
-			&rt721->jack_detect_work, msecs_to_jiffies(280));
+			&rt721->jack_detect_work, msecs_to_jiffies(delay_ms));
+	}
 
 	mutex_unlock(&rt721->disable_irq_lock);
 
@@ -422,10 +464,8 @@ static void rt721_sdca_sdw_remove(struct sdw_slave *slave)
 {
 	struct rt721_sdca_priv *rt721 = dev_get_drvdata(&slave->dev);
 
-	if (rt721->hw_init) {
-		cancel_delayed_work_sync(&rt721->jack_detect_work);
-		cancel_delayed_work_sync(&rt721->jack_btn_check_work);
-	}
+	cancel_delayed_work_sync(&rt721->jack_detect_work);
+	cancel_delayed_work_sync(&rt721->jack_btn_check_work);
 
 	if (rt721->first_hw_init)
 		pm_runtime_disable(&slave->dev);
@@ -436,6 +476,7 @@ static void rt721_sdca_sdw_remove(struct sdw_slave *slave)
 
 static const struct sdw_device_id rt721_sdca_id[] = {
 	SDW_SLAVE_ENTRY_EXT(0x025d, 0x721, 0x3, 0x1, 0),
+	SDW_SLAVE_ENTRY_EXT(0x025d, 0x718, 0x3, 0x1, 0),
 	{},
 };
 MODULE_DEVICE_TABLE(sdw, rt721_sdca_id);

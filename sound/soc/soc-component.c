@@ -8,10 +8,12 @@
 // Mark Brown <broonie@opensource.wolfsonmicro.com>
 // Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 //
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
 #include <linux/bitops.h>
+#include "soc-internal.h"
 
 #define soc_component_ret(dai, ret) _soc_component_ret(dai, __func__, ret)
 static inline int _soc_component_ret(struct snd_soc_component *component, const char *func, int ret)
@@ -29,24 +31,11 @@ static inline int _soc_component_ret_reg_rw(struct snd_soc_component *component,
 			   func, component->name, reg);
 }
 
-struct snd_soc_component *snd_soc_component_alloc(struct device *dev)
+static LIST_HEAD(component_list);
+struct list_head *snd_soc_component_get_list_head(void)
 {
-	struct snd_soc_component *component = devm_kzalloc(dev, sizeof(*component), GFP_KERNEL);
-
-	if (!component)
-		return NULL;
-
-	component->dev = dev;
-
-	return component;
+	return &component_list;
 }
-EXPORT_SYMBOL_GPL(snd_soc_component_alloc);
-
-void snd_soc_component_set_name(struct snd_soc_component *component, const char *name)
-{
-	component->name = name;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_set_name);
 
 const char *snd_soc_component_name(struct snd_soc_component *component)
 {
@@ -65,6 +54,18 @@ void *snd_soc_component_to_priv(struct snd_soc_component *component)
 	return component->priv;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_to_priv);
+
+struct snd_soc_dapm_context *snd_soc_component_to_dapm(struct snd_soc_component *component)
+{
+	return component->dapm;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_to_dapm);
+
+unsigned int snd_soc_component_active(struct snd_soc_component *component)
+{
+	return component->active;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_active);
 
 /*
  * We might want to check substream by using list.
@@ -315,8 +316,12 @@ void snd_soc_component_suspend(struct snd_soc_component *component)
 
 void snd_soc_component_resume(struct snd_soc_component *component)
 {
-	if (component->driver->resume)
-		component->driver->resume(component);
+	int ret;
+
+	if (component->driver->resume) {
+		ret = component->driver->resume(component);
+		soc_component_ret(component, ret);
+	}
 	component->suspended = 0;
 }
 
@@ -325,15 +330,25 @@ int snd_soc_component_is_suspended(struct snd_soc_component *component)
 	return component->suspended;
 }
 
-int snd_soc_component_probe(struct snd_soc_component *component)
+/**
+ * snd_soc_component_add_controls - Add an array of controls to a component.
+ *
+ * @component: Component to add controls to
+ * @controls: Array of controls to add
+ * @num_controls: Number of elements in the array
+ *
+ * Return: 0 for success, else error.
+ */
+int snd_soc_component_add_controls(struct snd_soc_component *component,
+				   const struct snd_kcontrol_new *controls,
+				   unsigned int num_controls)
 {
-	int ret = 0;
+	struct snd_card *card = component->card->snd_card;
 
-	if (component->driver->probe)
-		ret = component->driver->probe(component);
-
-	return soc_component_ret(component, ret);
+	return snd_soc_add_controls(card, component->dev, controls,
+				    num_controls, component->name_prefix, component);
 }
+EXPORT_SYMBOL_GPL(snd_soc_component_add_controls);
 
 int snd_soc_component_fixup_controls(struct snd_soc_component *component)
 {
@@ -343,12 +358,6 @@ int snd_soc_component_fixup_controls(struct snd_soc_component *component)
 		ret = component->driver->fixup_controls(component);
 
 	return soc_component_ret(component, ret);
-}
-
-void snd_soc_component_remove(struct snd_soc_component *component)
-{
-	if (component->driver->remove)
-		component->driver->remove(component);
 }
 
 int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
@@ -393,6 +402,35 @@ int snd_soc_component_regmap_val_bytes(struct snd_soc_component *component)
 	return val_bytes;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_regmap_val_bytes);
+
+/**
+ * snd_soc_component_regmap_cache_sync() - Sync the register cache with the hardware
+ * @component: COMPONENT to sync
+ *
+ * Note: This function will call regcache_sync()
+ */
+int snd_soc_component_regmap_cache_sync(struct snd_soc_component *component)
+{
+	if (!component->regmap)
+		return 0;
+
+	return regcache_sync(component->regmap);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_regmap_cache_sync);
+
+/**
+ * snd_soc_component_regmap_async_complete() - Ensure asynchronous I/O has completed
+ * @component: Component for which to wait
+ *
+ * This function blocks until all asynchronous I/O which has previously been
+ * scheduled using snd_soc_component_update_bits_async() has completed.
+ */
+void snd_soc_component_regmap_async_complete(struct snd_soc_component *component)
+{
+	if (component->regmap)
+		regmap_async_complete(component->regmap);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_regmap_async_complete);
 
 #ifdef CONFIG_REGMAP
 
@@ -899,20 +937,6 @@ int snd_soc_component_write_field(struct snd_soc_component *component,
 EXPORT_SYMBOL_GPL(snd_soc_component_write_field);
 
 /**
- * snd_soc_component_async_complete() - Ensure asynchronous I/O has completed
- * @component: Component for which to wait
- *
- * This function blocks until all asynchronous I/O which has previously been
- * scheduled using snd_soc_component_update_bits_async() has completed.
- */
-void snd_soc_component_async_complete(struct snd_soc_component *component)
-{
-	if (component->regmap)
-		regmap_async_complete(component->regmap);
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_async_complete);
-
-/**
  * snd_soc_component_test_bits - Test register for change
  * @component: component
  * @reg: Register to test
@@ -935,7 +959,7 @@ int snd_soc_component_test_bits(struct snd_soc_component *component,
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_test_bits);
 
-int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream)
+snd_pcm_uframes_t snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
@@ -1270,3 +1294,262 @@ int snd_soc_pcm_component_ack(struct snd_pcm_substream *substream)
 
 	return 0;
 }
+
+struct device_node *snd_soc_component_to_node(struct snd_soc_component *component)
+{
+	struct device_node *of_node;
+
+	of_node = component->dev->of_node;
+	if (!of_node && component->dev->parent)
+		of_node = component->dev->parent->of_node;
+
+	return of_node;
+}
+
+bool snd_soc_component_matches_dlc(struct snd_soc_component *component,
+				   const struct snd_soc_dai_link_component *dlc)
+{
+	struct device_node *component_of_node;
+
+	if (!dlc)
+		return false;
+
+	if (dlc->dai_args) {
+		struct snd_soc_dai *dai;
+
+		for_each_component_dais(component, dai)
+			if (snd_soc_dai_matches_dlc(dai, dlc))
+				return true;
+		return false;
+	}
+
+	component_of_node = snd_soc_component_to_node(component);
+
+	if (dlc->of_node && component_of_node != dlc->of_node)
+		return false;
+	if (dlc->name && strcmp(component->name, dlc->name))
+		return false;
+
+	return true;
+}
+
+#ifdef CONFIG_DEBUG_FS
+static void snd_soc_component_debugfs_init(struct snd_soc_component *component)
+{
+	if (!component->card->debugfs_card_root)
+		return;
+
+	if (component->driver->debugfs_prefix) {
+		char *name;
+
+		name = kasprintf(GFP_KERNEL, "%s:%s",
+				 component->driver->debugfs_prefix, component->name);
+		if (name) {
+			component->debugfs_root = debugfs_create_dir(name,
+							component->card->debugfs_card_root);
+			kfree(name);
+		}
+	} else {
+		component->debugfs_root = debugfs_create_dir(component->name,
+							     component->card->debugfs_card_root);
+	}
+
+	snd_soc_dapm_debugfs_init(snd_soc_component_to_dapm(component),
+				  component->debugfs_root);
+}
+
+static void snd_soc_component_debugfs_cleanup(struct snd_soc_component *component)
+{
+	if (!component->debugfs_root)
+		return;
+	debugfs_remove_recursive(component->debugfs_root);
+	component->debugfs_root = NULL;
+}
+#else
+static inline void snd_soc_component_debugfs_init(struct snd_soc_component *component) { }
+static inline void snd_soc_component_debugfs_cleanup(struct snd_soc_component *component) { }
+#endif /* CONFIG_DEBUG_FS */
+
+static void snd_soc_component_set_name_prefix(struct snd_soc_component *component)
+{
+	struct snd_soc_card *card = component->card;
+	struct device_node *of_node = snd_soc_component_to_node(component);
+	const char *str;
+	int ret, i;
+
+	for (i = 0; i < card->num_configs; i++) {
+		struct snd_soc_codec_conf *map = &card->codec_conf[i];
+
+		if (snd_soc_component_matches_dlc(component, &map->dlc) &&
+		    map->name_prefix) {
+			component->name_prefix = map->name_prefix;
+			return;
+		}
+	}
+
+	/*
+	 * If there is no configuration table or no match in the table,
+	 * check if a prefix is provided in the node
+	 */
+	ret = of_property_read_string(of_node, "sound-name-prefix", &str);
+	if (ret < 0)
+		return;
+
+	component->name_prefix = str;
+}
+
+void snd_soc_component_remove(struct snd_soc_component *component, int probed)
+{
+	if (!component->card)
+		return;
+
+	if (probed && component->driver->remove)
+		component->driver->remove(component);
+
+	list_del_init(&component->card_list);
+	snd_soc_dapm_free(snd_soc_component_to_dapm(component));
+	snd_soc_component_debugfs_cleanup(component);
+	component->card = NULL;
+	snd_soc_component_module_put_when_remove(component);
+}
+
+int snd_soc_component_probe(struct snd_soc_component *component, struct snd_soc_card *card)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+	struct snd_soc_dai *dai;
+	int probed = 0;
+	int ret;
+
+	if (snd_soc_component_is_dummy(component))
+		return 0;
+
+	if (component->card) {
+		if (component->card != card) {
+			dev_err(component->dev,
+				"Trying to bind component \"%s\" to card \"%s\" but is already bound to card \"%s\"\n",
+				component->name, card->name, component->card->name);
+			return -ENODEV;
+		}
+		return 0;
+	}
+
+	ret = snd_soc_component_module_get_when_probe(component);
+	if (ret < 0)
+		return ret;
+
+	component->card = card;
+	snd_soc_component_set_name_prefix(component);
+
+	snd_soc_component_debugfs_init(component);
+
+	snd_soc_dapm_init(dapm, card, component);
+
+	ret = snd_soc_dapm_new_controls(dapm,
+					component->driver->dapm_widgets,
+					component->driver->num_dapm_widgets);
+
+	if (ret != 0) {
+		dev_err(component->dev,
+			"Failed to create new controls %d\n", ret);
+		goto err_probe;
+	}
+
+	for_each_component_dais(component, dai) {
+		ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
+		if (ret != 0) {
+			dev_err(component->dev,
+				"Failed to create DAI widgets %d\n", ret);
+			goto err_probe;
+		}
+	}
+
+	if (component->driver->probe) {
+		ret = component->driver->probe(component);
+		if (ret < 0)
+			goto err_probe;
+	}
+
+	WARN(!snd_soc_dapm_get_idle_bias(dapm) &&
+	     snd_soc_dapm_get_bias_level(dapm) != SND_SOC_BIAS_OFF,
+	     "codec %s can not start from non-off bias with idle_bias_off==1\n",
+	     component->name);
+	probed = 1;
+
+	/*
+	 * machine specific init
+	 * see
+	 *	snd_soc_component_set_aux()
+	 */
+	ret = snd_soc_component_init(component);
+	if (ret < 0)
+		goto err_probe;
+
+	ret = snd_soc_component_add_controls(component,
+					     component->driver->controls,
+					     component->driver->num_controls);
+	if (ret < 0)
+		goto err_probe;
+
+	ret = snd_soc_dapm_add_routes(dapm,
+				      component->driver->dapm_routes,
+				      component->driver->num_dapm_routes);
+	if (ret < 0)
+		goto err_probe;
+
+	/* see for_each_card_components */
+	list_add(&component->card_list, &card->component_dev_list);
+
+err_probe:
+	if (ret < 0)
+		snd_soc_component_remove(component, probed);
+
+	return ret;
+}
+
+struct snd_soc_component
+*snd_soc_component_lookup_nolock(struct device *dev, const char *driver_name)
+{
+	struct snd_soc_component *component;
+
+	for_each_component(component) {
+		if (dev != component->dev)
+			continue;
+
+		if (!driver_name)
+			return component;
+
+		if (!component->driver->name)
+			continue;
+
+		if (component->driver->name == driver_name)
+			return component;
+
+		if (strcmp(component->driver->name, driver_name) == 0)
+			return component;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_lookup_nolock);
+
+struct snd_soc_component *snd_soc_component_lookup(struct device *dev,
+						   const char *driver_name)
+{
+	guard(mutex)(&client_mutex);
+
+	return snd_soc_component_lookup_nolock(dev, driver_name);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_lookup);
+
+struct snd_soc_component *snd_soc_component_lookup_by_name(const char *component_name)
+{
+	struct snd_soc_component *component;
+
+	guard(mutex)(&client_mutex);
+	for_each_component(component)
+		if (strstr(component->name, component_name))
+			return component;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_lookup_by_name);

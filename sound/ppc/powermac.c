@@ -39,18 +39,18 @@ static struct platform_device *device;
 
 static int snd_pmac_probe(struct platform_device *devptr)
 {
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	struct snd_pmac *chip;
 	char *name_ext;
 	int err;
 
-	err = snd_card_new(&devptr->dev, index, id, THIS_MODULE, 0, &card);
+	err = snd_devm_card_new(&devptr->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
 	err = snd_pmac_new(card, &chip);
 	if (err < 0)
-		goto __error;
+		return err;
 	card->private_data = chip;
 
 	switch (chip->model) {
@@ -61,7 +61,7 @@ static int snd_pmac_probe(struct platform_device *devptr)
 			card->shortname, chip->device_id, chip->subframe);
 		err = snd_pmac_burgundy_init(chip);
 		if (err < 0)
-			goto __error;
+			return err;
 		break;
 	case PMAC_DACA:
 		strscpy(card->driver, "PMac DACA");
@@ -70,7 +70,7 @@ static int snd_pmac_probe(struct platform_device *devptr)
 			card->shortname, chip->device_id, chip->subframe);
 		err = snd_pmac_daca_init(chip);
 		if (err < 0)
-			goto __error;
+			return err;
 		break;
 	case PMAC_TUMBLER:
 	case PMAC_SNAPPER:
@@ -81,10 +81,10 @@ static int snd_pmac_probe(struct platform_device *devptr)
 			card->shortname, chip->device_id, chip->subframe);
 		err = snd_pmac_tumbler_init(chip);
 		if (err < 0)
-			goto __error;
+			return err;
 		err = snd_pmac_tumbler_post_init();
 		if (err < 0)
-			goto __error;
+			return err;
 		break;
 	case PMAC_AWACS:
 	case PMAC_SCREAMER:
@@ -101,17 +101,16 @@ static int snd_pmac_probe(struct platform_device *devptr)
 			card->shortname, name_ext, chip->revision);
 		err = snd_pmac_awacs_init(chip);
 		if (err < 0)
-			goto __error;
+			return err;
 		break;
 	default:
 		dev_err(&devptr->dev, "unsupported hardware %d\n", chip->model);
-		err = -EINVAL;
-		goto __error;
+		return -EINVAL;
 	}
 
 	err = snd_pmac_pcm_new(chip);
 	if (err < 0)
-		goto __error;
+		return err;
 
 	chip->initialized = 1;
 	if (enable_beep)
@@ -119,20 +118,11 @@ static int snd_pmac_probe(struct platform_device *devptr)
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto __error;
+		return err;
 
 	platform_set_drvdata(devptr, card);
+	card = NULL; /* probe succeeded, don't release as error */
 	return 0;
-
-__error:
-	snd_card_free(card);
-	return err;
-}
-
-
-static void snd_pmac_remove(struct platform_device *devptr)
-{
-	snd_card_free(platform_get_drvdata(devptr));
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -160,7 +150,6 @@ static SIMPLE_DEV_PM_OPS(snd_pmac_pm, snd_pmac_driver_suspend, snd_pmac_driver_r
 
 static struct platform_driver snd_pmac_driver = {
 	.probe		= snd_pmac_probe,
-	.remove		= snd_pmac_remove,
 	.driver		= {
 		.name	= SND_PMAC_DRIVER,
 		.pm	= SND_PMAC_PM_OPS,

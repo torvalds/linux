@@ -198,6 +198,24 @@ static void alc897_fixup_lenovo_headset_mode(struct hda_codec *codec,
 	}
 }
 
+static void alc897_fixup_limit_linein_boost(struct hda_codec *codec,
+					    const struct hda_fixup *fix, int action)
+{
+	if (action != HDA_FIXUP_ACT_PROBE)
+		return;
+
+	snd_hda_override_amp_caps(codec, 0x1a, HDA_INPUT,
+				  (0x00 << AC_AMPCAP_OFFSET_SHIFT) |
+				  (0x01 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+				  (0x2f << AC_AMPCAP_STEP_SIZE_SHIFT) |
+				  (0 << AC_AMPCAP_MUTE_SHIFT));
+	snd_hda_override_amp_caps(codec, 0x08, HDA_INPUT,
+				  (0x00 << AC_AMPCAP_OFFSET_SHIFT) |
+				  (0x01 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+				  (0x02 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+				  (0 << AC_AMPCAP_MUTE_SHIFT));
+}
+
 static const struct coef_fw alc668_coefs[] = {
 	WRITE_COEF(0x01, 0xbebe), WRITE_COEF(0x02, 0xaaaa), WRITE_COEF(0x03,    0x0),
 	WRITE_COEF(0x04, 0x0180), WRITE_COEF(0x06,    0x0), WRITE_COEF(0x07, 0x0f80),
@@ -326,6 +344,7 @@ enum {
 	ALC897_FIXUP_HEADSET_MIC_PIN3,
 	ALC662_FIXUP_CSL_GPIO,
 	ALC897_FIXUP_BEELINK_SER6_AMP,
+	ALC897_FIXUP_LIMIT_LINEIN_BOOST,
 };
 
 static const struct hda_fixup alc662_fixups[] = {
@@ -787,6 +806,10 @@ static const struct hda_fixup alc662_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_gpio4,
 	},
+	[ALC897_FIXUP_LIMIT_LINEIN_BOOST] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc897_fixup_limit_linein_boost,
+	},
 };
 
 static const struct hda_quirk alc662_fixup_tbl[] = {
@@ -857,6 +880,7 @@ static const struct hda_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1b35, 0x1234, "CZC ET26", ALC662_FIXUP_CZC_ET26),
 	SND_PCI_QUIRK(0x1b35, 0x2206, "CZC P10T", ALC662_FIXUP_CZC_P10T),
 	SND_PCI_QUIRK(0x1c6c, 0x1239, "Compaq N14JP6-V2", ALC897_FIXUP_HP_HSMIC_VERB),
+	SND_PCI_QUIRK(0x1e0b, 0x1297, "DECENTA MATX03", ALC897_FIXUP_LIMIT_LINEIN_BOOST),
 	SND_PCI_QUIRK(0x1e63, 0x6d9a, "F+ FLAPTOP r", ALC897_FIXUP_HP_HSMIC_VERB),
 	SND_PCI_QUIRK(0x1f66, 0x0202, "Beelink SER6 Max 6900", ALC897_FIXUP_BEELINK_SER6_AMP),
 

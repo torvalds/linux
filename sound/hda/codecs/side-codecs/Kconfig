@@ -22,6 +22,7 @@ config SND_HDA_SCODEC_AW88399_I2C
 	depends on I2C
 	depends on ACPI
 	depends on SND_SOC
+	imply SERIAL_MULTI_INSTANTIATE
 	select SND_HDA_SCODEC_AW88399
 	select SND_SOC_AW88399_LIB
 	help

@@ -1908,6 +1908,22 @@ static void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 	else
 		f >>= -ep->freqshift;
 
+	if (unlikely(sender->snap_fb_quirk) &&
+	    (f < ep->freqn - ep->freqn / 128 ||
+	     f > ep->freqn + ep->freqn / 128)) {
+		/*
+		 * Feedback deviates from nominal far beyond what real
+		 * clock differences can explain.  This firmware can get
+		 * stuck at nominal+1 sample per frame, causing audible
+		 * pops.  Trust the nominal rate instead.
+		 */
+		dev_warn_ratelimited(&ep->chip->dev->dev,
+				     "EP 0x%x: ignoring implausible feedback 0x%x.%04x (nominal 0x%x.%04x)\n",
+				     ep->ep_num, f >> 16, f & 0xffff,
+				     ep->freqn >> 16, ep->freqn & 0xffff);
+		f = ep->freqn;
+	}
+
 	if (likely(f >= ep->freqn - ep->freqn / 8 && f <= ep->freqmax)) {
 		/*
 		 * If the frequency looks valid, set it.

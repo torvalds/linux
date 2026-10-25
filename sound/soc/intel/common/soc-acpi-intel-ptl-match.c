@@ -51,12 +51,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_machines[] = {
 		.drv_name = "ptl_es83x6_c1_h02",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &ptl_lt6911_hdmi,
+		.get_function_tplg_files = sof_i2s_get_tplg_files,
 		.sof_tplg_filename = "sof-ptl-es83x6-ssp1-hdmi-ssp02.tplg",
 	},
 	{
 		.comp_ids = &ptl_essx_83x6,
 		.drv_name = "sof-essx8336",
 		.sof_tplg_filename = "sof-ptl-es8336", /* the tplg suffix is added at run time */
+		.get_function_tplg_files = sof_i2s_get_tplg_files,
 		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
@@ -65,6 +67,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_machines[] = {
 	{
 		.id = "INTC10B0",
 		.drv_name = "ptl_lt6911_hdmi_ssp",
+		.get_function_tplg_files = sof_i2s_get_tplg_files,
 		.sof_tplg_filename = "sof-ptl-hdmi-ssp02.tplg",
 	},
 	{},
@@ -438,6 +441,66 @@ static const struct snd_soc_acpi_link_adr ptl_sdw_rt712_vb_l3_rt1320_l3[] = {
 };
 
 /* this table is used when there is no I2S codec present */
+
+/*
+ * Senary SN624x on Panther Lake: one multi-function device on link 3.
+ * Separate mach entries per part ID (adr_d[] is AND, not OR). ADR version
+ * nibble 0x3 matches the silicon SoundWire version. Amp endpoint is
+ * aggregated like the generic SOC_SDW_DAI_TYPE_AMP shape from
+ * find_acpi_adr_device().
+ */
+static const struct snd_soc_acpi_endpoint sn624x_endpoints[] = {
+	/* Jack */
+	{
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	/* Amp */
+	{
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 1,
+		.group_id = 1,
+	},
+	/* DMIC */
+	{
+		.num = 2,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
+#define SN624X_PTL_SINGLE_ADR(_sym, _adr)				\
+static const struct snd_soc_acpi_adr_device _sym[] = {			\
+	{								\
+		.adr = (_adr),						\
+		.num_endpoints = ARRAY_SIZE(sn624x_endpoints),		\
+		.endpoints = sn624x_endpoints,				\
+		.name_prefix = "sn624x",				\
+	},								\
+}
+
+#define SN624X_PTL_LINK(_sym, _adr_arr)					\
+static const struct snd_soc_acpi_link_adr _sym[] = {			\
+	{								\
+		.mask = BIT(3),						\
+		.num_adr = ARRAY_SIZE(_adr_arr),			\
+		.adr_d = _adr_arr,					\
+	},								\
+	{}								\
+}
+
+SN624X_PTL_SINGLE_ADR(sn6242_single_adr, 0x0003300496624201ull);
+SN624X_PTL_SINGLE_ADR(sn6244_single_adr, 0x0003300496624401ull);
+SN624X_PTL_SINGLE_ADR(sn6247_single_adr, 0x0003300496624701ull);
+
+SN624X_PTL_LINK(ptl_link_sn6242, sn6242_single_adr);
+SN624X_PTL_LINK(ptl_link_sn6244, sn6244_single_adr);
+SN624X_PTL_LINK(ptl_link_sn6247, sn6247_single_adr);
+
 struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 /* Order Priority: mockup > most links > most bit link-mask > alphabetical */
 	{
@@ -530,6 +593,28 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 		.drv_name = "sof_sdw",
 		.machine_check = snd_soc_acpi_intel_rt712_vb_no_function_topology,
 		.sof_tplg_filename = "sof-ptl-rt712-l3-rt1320-l3.tplg",
+	},
+
+	{
+		.link_mask = BIT(3),
+		.links = ptl_link_sn6242,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-sn624x.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(3),
+		.links = ptl_link_sn6244,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-sn624x.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(3),
+		.links = ptl_link_sn6247,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-sn624x.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{},
 };

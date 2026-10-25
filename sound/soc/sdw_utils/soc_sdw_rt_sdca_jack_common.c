@@ -70,6 +70,11 @@ static const struct snd_soc_dapm_route rt722_sdca_map[] = {
 	{ "rt722 MIC2", NULL, "Headset Mic" },
 };
 
+static const struct snd_soc_dapm_route rt766_sdca_map[] = {
+	{ "Headphone", NULL, "rt766 HP" },
+	{ "rt766 MIC2", NULL, "Headset Mic" },
+};
+
 static struct snd_soc_jack_pin rt_sdca_jack_pins[] = {
 	{
 		.pin    = "Headphone",
@@ -133,6 +138,9 @@ int asoc_sdw_rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_s
 	} else if (strstr(component->name_prefix, "rt722")) {
 		ret = snd_soc_dapm_add_routes(dapm, rt722_sdca_map,
 					      ARRAY_SIZE(rt722_sdca_map));
+	} else if (strstr(component->name_prefix, "rt766")) {
+		ret = snd_soc_dapm_add_routes(dapm, rt766_sdca_map,
+					      ARRAY_SIZE(rt766_sdca_map));
 	} else {
 		dev_err(card->dev, "%s is not supported\n", component->name_prefix);
 		return -EINVAL;

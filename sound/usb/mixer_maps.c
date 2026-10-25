@@ -505,6 +505,14 @@ static const struct usbmix_connector_map gigabyte_b450_connector_map[] = {
 	{}
 };
 
+/* Audient EVO4: Rename FU 10 from 'EVO4 ' to 'Master' according to the
+ * ALSA naming convention
+ */
+static const struct usbmix_name_map audient_evo4_map[] = {
+	{ 10, "Master Playback" },
+	{}
+};
+
 /* Audient iD14 MkI and MkII: FU 12 sits on the monitor mixer branch but is
  * traced through to the Speaker output terminal, so it is named "Speaker
  * Playback Volume".  On MkII it controls only 4 of 6 playback channels.  MkI
@@ -631,6 +639,11 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		/* Audient iD14 MkI */
 		.id = USB_ID(0x2708, 0x0002),
 		.map = audient_id14_map,
+	},
+	{
+		/* Audient EVO4 MkI */
+		.id = USB_ID(0x2708, 0x0006),
+		.map = audient_evo4_map,
 	},
 	{
 		/* Audient iD14 MkII */

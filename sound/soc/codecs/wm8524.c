@@ -190,6 +190,10 @@ static int wm8524_hw_params(struct snd_pcm_substream *substream,
 			SNDRV_PCM_FMTBIT_S24_LE |\
 			SNDRV_PCM_FMTBIT_S32_LE)
 
+static const u64 wm8525_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF;
+
 static const struct snd_soc_dai_ops wm8524_dai_ops = {
 	.startup	= wm8524_startup,
 	.shutdown	= wm8524_shutdown,
@@ -197,6 +201,8 @@ static const struct snd_soc_dai_ops wm8524_dai_ops = {
 	.set_fmt	= wm8524_set_fmt,
 	.mute_stream	= wm8524_mute_stream,
 	.hw_params	= wm8524_hw_params,
+	.auto_selectable_formats	= &wm8525_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver wm8524_dai = {

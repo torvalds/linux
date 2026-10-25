@@ -53,6 +53,76 @@ properties:
     maximum: 3
     default: 2
 
+  cirrus,sync-lsw-txid:
+    description:
+      Transmitter ID to use for long software (LSW) data packets
+      on the SYNC bus.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 7
+    default: 0
+
+  cirrus,sync-sw-txid:
+    description:
+      Transmitter ID to use for short software (SW) data packets
+      on the SYNC bus.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 7
+    default: 0
+
+  cirrus,ldpm-group1-boost-select:
+    type: boolean
+    description:
+      When in a valid group 1 level dependent power management (LDPM) state
+      the integrated boost converter will enter the configured low power mode.
+
+  cirrus,boost-low-power-mode:
+    description:
+      Configures the integrated boost converter reaction to a low power mode
+      request.
+      0 = No reaction
+      1 = Force boost DCM low power mode
+      2 = Force boost static bypass
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 2
+    enum:
+      - 0
+      - 1
+      - 2
+
+  cirrus,ldpm-group1-amp-select:
+    type: boolean
+    description:
+      When in a valid group 1 level dependent power management (LDPM) state
+      the amplifier will enter the configured low power mode.
+
+  cirrus,amplifier-low-power-mode:
+    description:
+      Configures the amplifier output stage reaction to a low power mode
+      request.
+      0 = Stop output switching (noise gate mode)
+      1 = Noise floor reduction mode
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 1
+    enum:
+      - 0
+      - 1
+
+  cirrus,ldpm-group2-vmon-select:
+    type: boolean
+    description:
+      When in a valid group 2 level dependent power management (LDPM) state
+      the voltage monitor (VMON) circuit is put into a low power operational
+      state.
+
+  cirrus,ldpm-group2-imon-select:
+    type: boolean
+    description:
+      When in a valid group 2 level dependent power management (LDPM) state
+      the current monitor (IMON) circuit is put into a low power operational
+      state.
+
 patternProperties:
   "^cirrus,gpio-ctrl[1-3]$":
     description:
@@ -121,6 +191,30 @@ patternProperties:
         minimum: 0
         maximum: 7
         default: 0
+
+  "^cirrus,ldpm-group[1-2]-pcm-threshold-db$":
+    description:
+      Amplifier level dependent power management (LDPM) threshold. Input
+      referred threshold of the PCM audio signal in which the level is low
+      enough for the LDPM group to engage after entry delay. A value of dB
+      -2147483648 is assumed to mean true zero data with an LSB dither.
+    $ref: /schemas/types.yaml#/definitions/int32-array
+    minItems: 1
+    maxItems: 1
+    items:
+      enum: [-2147483648, -102, -96, -90, -84, -78, -72, -66]
+
+  "^cirrus,ldpm-group[1-2]-delay-ms$":
+    description:
+      Amplifier level dependent power management (LDPM) state entry delay.
+      Time that the incoming audio signal must be below the PCM threshold
+      before the LDPM group engages.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 1
+    items:
+      enum: [5, 10, 25, 50, 100, 250, 500, 1000]
+
 required:
   - compatible
   - reg
@@ -135,25 +229,37 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        cs35l45: cs35l45@2 {
-          #sound-dai-cells = <1>;
-          compatible = "cirrus,cs35l45";
-          reg = <2>;
-          spi-max-frequency = <5000000>;
-          vdd-a-supply = <&dummy_vreg>;
-          vdd-batt-supply = <&dummy_vreg>;
-          reset-gpios = <&gpio 110 0>;
-          cirrus,asp-sdout-hiz-ctrl = <(CS35L45_ASP_TX_HIZ_UNUSED |
-                                        CS35L45_ASP_TX_HIZ_DISABLED)>;
-          cirrus,gpio-ctrl1 {
-             gpio-ctrl = <0x2>;
-          };
-          cirrus,gpio-ctrl2 {
-             gpio-ctrl = <0x2>;
-          };
-          cirrus,gpio-ctrl3 {
-             gpio-ctrl = <0x1>;
-             gpio-dir = <0x1>;
-          };
+        cs35l45: audio-codec@2 {
+            #sound-dai-cells = <1>;
+            compatible = "cirrus,cs35l45";
+            reg = <2>;
+            spi-max-frequency = <5000000>;
+            vdd-a-supply = <&dummy_vreg>;
+            vdd-batt-supply = <&dummy_vreg>;
+            reset-gpios = <&gpio 110 0>;
+            cirrus,asp-sdout-hiz-ctrl = <(CS35L45_ASP_TX_HIZ_UNUSED |
+                                          CS35L45_ASP_TX_HIZ_DISABLED)>;
+            cirrus,sync-lsw-txid = <0x1>;
+            cirrus,sync-sw-txid = <0x1>;
+            cirrus,ldpm-group1-pcm-threshold-db = <(-66)>;
+            cirrus,ldpm-group1-delay-ms = <500>;
+            cirrus,ldpm-group1-boost-select;
+            cirrus,boost-low-power-mode = <CS35L45_BST_LPMODE_DCM_MODE>;
+            cirrus,ldpm-group1-amp-select;
+            cirrus,amplifier-low-power-mode = <CS35L45_AMP_LPMODE_NFR_MODE>;
+            cirrus,ldpm-group2-pcm-threshold-db = <(-102)>;
+            cirrus,ldpm-group2-delay-ms = <1000>;
+            cirrus,ldpm-group2-vmon-select;
+            cirrus,ldpm-group2-imon-select;
+            cirrus,gpio-ctrl1 {
+                gpio-ctrl = <0x2>;
+            };
+            cirrus,gpio-ctrl2 {
+                gpio-ctrl = <0x2>;
+            };
+            cirrus,gpio-ctrl3 {
+                gpio-ctrl = <0x1>;
+                gpio-dir = <0x1>;
+            };
         };
     };

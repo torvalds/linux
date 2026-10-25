@@ -183,10 +183,7 @@ static void snd_serial_generic_input_trigger(struct snd_rawmidi_substream *subst
 {
 	struct snd_serial_generic *drvdata = substream->rmidi->card->private_data;
 
-	if (up)
-		set_bit(SERIAL_MODE_INPUT_TRIGGERED, &drvdata->filemode);
-	else
-		clear_bit(SERIAL_MODE_INPUT_TRIGGERED, &drvdata->filemode);
+	assign_bit(SERIAL_MODE_INPUT_TRIGGERED, &drvdata->filemode, up);
 }
 
 static int snd_serial_generic_output_open(struct snd_rawmidi_substream *substream)
@@ -230,10 +227,7 @@ static void snd_serial_generic_output_trigger(struct snd_rawmidi_substream *subs
 {
 	struct snd_serial_generic *drvdata = substream->rmidi->card->private_data;
 
-	if (up)
-		set_bit(SERIAL_MODE_OUTPUT_TRIGGERED, &drvdata->filemode);
-	else
-		clear_bit(SERIAL_MODE_OUTPUT_TRIGGERED, &drvdata->filemode);
+	assign_bit(SERIAL_MODE_OUTPUT_TRIGGERED, &drvdata->filemode, up);
 
 	if (up)
 		snd_serial_generic_tx_wakeup(drvdata);

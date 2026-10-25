@@ -572,14 +572,12 @@ EXPORT_SYMBOL_GPL(snd_hdac_power_up);
 /**
  * snd_hdac_power_down - power down the codec
  * @codec: the codec object
- *
- * Returns zero if successful, or a negative error code.
  */
-int snd_hdac_power_down(struct hdac_device *codec)
+void snd_hdac_power_down(struct hdac_device *codec)
 {
 	struct device *dev = &codec->dev;
 
-	return pm_runtime_put_autosuspend(dev);
+	pm_runtime_put_autosuspend(dev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_down);
 
@@ -624,14 +622,11 @@ int snd_hdac_keep_power_up(struct hdac_device *codec)
  *
  * Like snd_hdac_power_up_pm(), this function is used in a recursive
  * code path like init code which may be called by PM suspend/resume again.
- *
- * Returns zero if successful, or a negative error code.
  */
-int snd_hdac_power_down_pm(struct hdac_device *codec)
+void snd_hdac_power_down_pm(struct hdac_device *codec)
 {
 	if (atomic_dec_if_positive(&codec->in_pm) < 0)
-		return snd_hdac_power_down(codec);
-	return 0;
+		snd_hdac_power_down(codec);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_down_pm);
 #endif

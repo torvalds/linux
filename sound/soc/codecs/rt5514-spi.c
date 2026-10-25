@@ -43,6 +43,7 @@ struct rt5514_dsp {
 	struct snd_pcm_substream *substream;
 	unsigned int buf_base, buf_limit, buf_rp;
 	size_t buf_size, get_size, dma_offset;
+	int irq;
 };
 
 static const struct snd_pcm_hardware rt5514_spi_pcm_hardware = {
@@ -257,8 +258,7 @@ static int rt5514_spi_pcm_probe(struct snd_soc_component *component)
 	struct rt5514_dsp *rt5514_dsp;
 	int ret;
 
-	rt5514_dsp = devm_kzalloc(component->dev, sizeof(*rt5514_dsp),
-			GFP_KERNEL);
+	rt5514_dsp = kzalloc_obj(*rt5514_dsp);
 	if (!rt5514_dsp)
 		return -ENOMEM;
 
@@ -268,19 +268,39 @@ static int rt5514_spi_pcm_probe(struct snd_soc_component *component)
 	snd_soc_component_set_drvdata(component, rt5514_dsp);
 
 	if (rt5514_spi->irq) {
-		ret = devm_request_threaded_irq(&rt5514_spi->dev,
-			rt5514_spi->irq, NULL, rt5514_spi_irq,
-			IRQF_TRIGGER_RISING | IRQF_ONESHOT, "rt5514-spi",
-			rt5514_dsp);
-		if (ret)
+		ret = request_threaded_irq(rt5514_spi->irq, NULL,
+					   rt5514_spi_irq,
+					   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					   "rt5514-spi", rt5514_dsp);
+		if (ret) {
 			dev_err(&rt5514_spi->dev,
 				"%s Failed to request IRQ: %d\n", __func__,
 				ret);
-		else
+		} else {
+			rt5514_dsp->irq = rt5514_spi->irq;
 			device_init_wakeup(rt5514_dsp->dev, true);
+		}
 	}
 
 	return 0;
+}
+
+static void rt5514_spi_pcm_remove(struct snd_soc_component *component)
+{
+	struct rt5514_dsp *rt5514_dsp =
+		snd_soc_component_get_drvdata(component);
+
+	snd_soc_component_set_drvdata(component, NULL);
+
+	if (rt5514_dsp->irq) {
+		free_irq(rt5514_dsp->irq, rt5514_dsp);
+		device_init_wakeup(rt5514_dsp->dev, false);
+	}
+
+	cancel_delayed_work_sync(&rt5514_dsp->copy_work);
+
+	mutex_destroy(&rt5514_dsp->dma_lock);
+	kfree(rt5514_dsp);
 }
 
 static int rt5514_spi_pcm_new(struct snd_soc_component *component,
@@ -294,6 +314,7 @@ static int rt5514_spi_pcm_new(struct snd_soc_component *component,
 static const struct snd_soc_component_driver rt5514_spi_component = {
 	.name			= DRV_NAME,
 	.probe			= rt5514_spi_pcm_probe,
+	.remove			= rt5514_spi_pcm_remove,
 	.open			= rt5514_spi_pcm_open,
 	.hw_params		= rt5514_spi_hw_params,
 	.hw_free		= rt5514_spi_hw_free,

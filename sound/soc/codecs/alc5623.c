@@ -822,12 +822,23 @@ static int alc5623_set_bias_level(struct snd_soc_component *component,
 			| SNDRV_PCM_FMTBIT_S24_LE \
 			| SNDRV_PCM_FMTBIT_S32_LE)
 
+static const u64 alc5623_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF;
+
 static const struct snd_soc_dai_ops alc5623_dai_ops = {
 		.hw_params = alc5623_pcm_hw_params,
 		.mute_stream = alc5623_mute,
 		.set_fmt = alc5623_set_dai_fmt,
 		.set_sysclk = alc5623_set_dai_sysclk,
 		.set_pll = alc5623_set_dai_pll,
+		.auto_selectable_formats = &alc5623_selectable_formats,
+		.num_auto_selectable_formats = 1,
 		.no_capture_mute = 1,
 };
 

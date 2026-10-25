@@ -334,10 +334,16 @@ static const struct reg_sequence cp_config_stereo_bypass[] = {
 	{ 0x0202, 0x000F },	/* enable I2S1 + DAC   */
 };
 
+static const u64 zl38_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF;
+
 static const struct snd_soc_dai_ops zl38_dai_ops = {
 	.set_fmt = zl38_set_fmt,
 	.hw_params = zl38_hw_params,
 	.hw_free = zl38_hw_free,
+	.auto_selectable_formats = &zl38_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver zl38_dai = {

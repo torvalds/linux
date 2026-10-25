@@ -27,14 +27,17 @@ config SND_SEQ_DUMMY
 	  will be called snd-seq-dummy.
 
 config SND_SEQUENCER_OSS
-	tristate "OSS Sequencer API"
+	tristate "OSS Sequencer API (deprecated)"
 	depends on SND_OSSEMUL
 	select SND_SEQ_MIDI_EVENT
 	help
 	  Say Y here to enable OSS sequencer emulation (both
 	  /dev/sequencer and /dev/music interfaces).
 
-	  Many programs still use the OSS API, so say Y.
+	  The OSS sequencer API is almost nowhere used, hence this option will
+	  be dropped soon.
+	  Use user-space wrapper (alsa-oss) or CUSE daemon (oss-seq-emu)
+	  instead of the kernel-side emulation.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-seq-oss.

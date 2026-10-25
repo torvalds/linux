@@ -79,7 +79,7 @@ examples:
             sound-dai = <&i2s>;
         };
         codec {
-             sound-dai = <&es8323>;
+            sound-dai = <&es8323>;
         };
     };
 
@@ -104,6 +104,6 @@ examples:
         };
 
         codec {
-             sound-dai = <&es8388>;
+            sound-dai = <&es8388>;
         };
     };

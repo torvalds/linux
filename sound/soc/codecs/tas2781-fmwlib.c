@@ -110,7 +110,7 @@ struct tas2781_cali_specific {
 };
 
 static const char deviceNumber[TASDEVICE_DSP_TAS_MAX_DEVICE] = {
-	1, 2, 1, 2, 1, 1, 0, 2, 4, 3, 1, 2, 3, 4, 1, 2
+	1, 2, 1, 2, 1, 1, 0, 2, 4, 3, 1, 2, 3, 4, 1, 2, 1, 2, 3, 4,
 };
 
 /* fixed m68k compiling issue: mapping table can save code field */
@@ -199,15 +199,22 @@ static struct tasdevice_config_info *tasdevice_add_config(
 			dev_err(tas_priv->dev, "add conf: Out of boundary\n");
 			goto out;
 		}
-		/* If in the RCA bin file are several profiles with the
-		 * keyword "init", init_profile_id only store the last
-		 * init profile id.
+		/*
+		 * If in the RCA bin file are several profiles with the
+		 * keyword "init"/"calib", init_profile_id only store the last
+		 * init profile id, and same as calibration_profile_id.
 		 */
 		if (strnstr(&config_data[config_offset], "init", 64)) {
 			tas_priv->rcabin.init_profile_id =
 				tas_priv->rcabin.ncfgs - 1;
 			dev_dbg(tas_priv->dev, "%s: init profile id = %d\n",
 				__func__, tas_priv->rcabin.init_profile_id);
+		} else if (strnstr(&config_data[config_offset], "calib", 64)) {
+			tas_priv->rcabin.calibration_profile_id =
+				tas_priv->rcabin.ncfgs - 1;
+			dev_dbg(tas_priv->dev, "%s: calib profile id = %d\n",
+				__func__,
+				tas_priv->rcabin.calibration_profile_id);
 		}
 		config_offset += 64;
 	}
@@ -314,6 +321,7 @@ int tasdevice_rca_parser(void *context, const struct firmware *fmw)
 	rca = &(tas_priv->rcabin);
 	/* Initialize to none */
 	rca->init_profile_id = -1;
+	rca->calibration_profile_id = -1;
 	fw_hdr = &(rca->fw_hdr);
 	if (!fmw || !fmw->data) {
 		dev_err(tas_priv->dev, "Failed to read %s\n",
@@ -632,6 +640,17 @@ static int fw_parse_configuration_data_kernel(
 			goto out;
 		}
 		memcpy(config->name, &data[offset], 64);
+
+		/*
+		 * If in the coef bin file are several configs with the
+		 * keyword "calib", calibration_config_id only store the last
+		 * calibration profile id.
+		 */
+		if (strnstr(config->name, "calib", 64)) {
+			tas_fmw->calibration_config_id = i;
+			dev_dbg(tas_priv->dev, "%s: calib config = %d\n",
+				__func__, tas_fmw->calibration_config_id);
+		}
 		/*skip extra 16 bytes*/
 		offset += 80;
 
@@ -1412,6 +1431,17 @@ static int fw_parse_configuration_data(
 		memcpy(config->name, &data[offset], 64);
 		offset += 64;
 
+		/*
+		 * If in the coef bin file are several configs with the
+		 * keyword "calib", calibration_config_id only store the last
+		 * calibration profile id.
+		 */
+		if (strnstr(config->name, "calib", 64)) {
+			tas_fmw->calibration_config_id = i;
+			dev_dbg(tas_priv->dev, "%s: calib config id = %d\n",
+				__func__, tas_fmw->calibration_config_id);
+		}
+
 		n = tasdevice_fw_strnlen(fmw, offset);
 		if (n < 0) {
 			dev_err(tas_priv->dev, "Description err\n");
@@ -1959,8 +1989,11 @@ static void dspbin_type_check(struct tasdevice_priv *tas_priv,
 		else
 			tas_priv->dspbin_typ = TASDEV_ALPHA;
 	}
+	if (tas_priv->chip_id == TAS2573)
+		return;
 	if ((tas_priv->dspbin_typ != TASDEV_BASIC) &&
-		(ppcver < PPC3_VERSION_TAS5825_BASE))
+		(ppcver < PPC3_VERSION_TAS5825_BASE ||
+		tas_priv->chip_id == TAS2781))
 		tas_priv->fw_parse_fct_param_address =
 			fw_parse_fct_param_address;
 }
@@ -1971,7 +2004,8 @@ static int dspfw_default_callback(struct tasdevice_priv *tas_priv,
 	int rc = 0;
 
 	if (drv_ver == 0x100) {
-		if (ppcver >= PPC3_VERSION_TAS5825_BASE) {
+		if (ppcver >= PPC3_VERSION_TAS5825_BASE &&
+			tas_priv->chip_id == TAS5825) {
 			tas_priv->fw_parse_variable_header =
 				fw_parse_variable_header_kernel;
 			tas_priv->fw_parse_program_data =

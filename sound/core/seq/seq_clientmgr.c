@@ -95,23 +95,18 @@ static inline int snd_seq_write_pool_allocated(struct snd_seq_client *client)
 	return snd_seq_total_cells(client->pool) > 0;
 }
 
-/* return pointer to client structure for specified id; call under RCU read-lock */
-static struct snd_seq_client *__clientptr(int clientid)
+/* return pointer to client structure for specified id;
+ * the caller must guarantee the client's lifetime by itself, as neither RCU
+ * nor a use_lock reference is taken here.
+ */
+static struct snd_seq_client *clientptr(int clientid)
 {
 	if (clientid < 0 || clientid >= SNDRV_SEQ_MAX_CLIENTS) {
 		pr_debug("ALSA: seq: oops. Trying to get pointer to client %d\n",
 			   clientid);
 		return NULL;
 	}
-	return rcu_dereference_check(clienttab[clientid],
-				    lockdep_is_held(&clients_lock));
-}
-
-/* return pointer to client structure for specified id */
-static struct snd_seq_client *clientptr(int clientid)
-{
-	guard(rcu)();
-	return __clientptr(clientid);
+	return rcu_dereference_protected(clienttab[clientid], true);
 }
 
 static struct snd_seq_client *client_use_ptr(int clientid, bool load_module)
@@ -124,7 +119,7 @@ static struct snd_seq_client *client_use_ptr(int clientid, bool load_module)
 		return NULL;
 	}
 	scoped_guard(rcu) {
-		client = __clientptr(clientid);
+		client = rcu_dereference(clienttab[clientid]);
 		if (client)
 			return snd_seq_client_ref(client);
 		if (clienttablock[clientid])
@@ -159,7 +154,7 @@ static struct snd_seq_client *client_use_ptr(int clientid, bool load_module)
 			}
 		}
 		scoped_guard(rcu) {
-			client = __clientptr(clientid);
+			client = rcu_dereference(clienttab[clientid]);
 			if (client)
 				return snd_seq_client_ref(client);
 		}
@@ -485,11 +480,11 @@ static ssize_t snd_seq_read(struct file *file, char __user *buf, size_t count,
 	if (err < 0) {
 		if (cell)
 			snd_seq_fifo_cell_putback(fifo, cell);
-		if (err == -EAGAIN && result > 0)
-			err = 0;
 	}
 
-	return (err < 0) ? err : result;
+	if (result > 0)
+		return result;
+	return err < 0 ? err : 0;
 }
 
 

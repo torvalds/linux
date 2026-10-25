@@ -34,6 +34,12 @@ properties:
     $ref: audio-graph-port.yaml#
     unevaluatedProperties: false
 
+  powerdown-gpios:
+    maxItems: 1
+    description:
+      GPIO connected to the 'PDN' pin, if any. Needs to be set low to
+      power down the codec, hence the GPIO must be GPIO_ACTIVE_LOW.
+
 required:
   - compatible
   - reg
@@ -42,6 +48,8 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
+
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -49,14 +57,16 @@ examples:
             compatible = "asahi-kasei,ak4619";
             reg = <0x10>;
 
+            powerdown-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+
             clocks = <&rcar_sound>;
             clock-names = "mclk";
 
             #sound-dai-cells = <0>;
             port {
-                 ak4619_endpoint: endpoint {
-                       remote-endpoint = <&rsnd_endpoint>;
-                  };
+                ak4619_endpoint: endpoint {
+                    remote-endpoint = <&rsnd_endpoint>;
+                };
             };
         };
     };

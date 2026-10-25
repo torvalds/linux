@@ -582,10 +582,17 @@ static int ak4671_set_bias_level(struct snd_soc_component *component,
 
 #define AK4671_FORMATS		SNDRV_PCM_FMTBIT_S16_LE
 
+static const u64 ak4671_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A;
+
 static const struct snd_soc_dai_ops ak4671_dai_ops = {
 	.hw_params	= ak4671_hw_params,
 	.set_sysclk	= ak4671_set_dai_sysclk,
 	.set_fmt	= ak4671_set_dai_fmt,
+	.auto_selectable_formats	= &ak4671_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver ak4671_dai = {

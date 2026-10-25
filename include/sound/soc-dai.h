@@ -212,8 +212,11 @@ int snd_soc_dai_get_channel_map(const struct snd_soc_dai *dai,
 		unsigned int *tx_num, unsigned int *tx_slot,
 		unsigned int *rx_num, unsigned int *rx_slot);
 
+struct snd_soc_component *snd_soc_dai_to_component(const struct snd_soc_dai *dai);
+struct snd_soc_dai_driver *snd_soc_dai_to_driver(const struct snd_soc_dai *dai);
 int snd_soc_dai_is_dummy(const struct snd_soc_dai *dai);
-
+int snd_soc_dai_add_controls(struct snd_soc_dai *dai,
+			     const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
 			  struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params);
@@ -228,18 +231,7 @@ void snd_soc_dai_suspend(struct snd_soc_dai *dai);
 void snd_soc_dai_resume(struct snd_soc_dai *dai);
 int snd_soc_dai_compress_new(struct snd_soc_dai *dai, struct snd_soc_pcm_runtime *rtd);
 bool snd_soc_dai_stream_valid(const struct snd_soc_dai *dai, int stream);
-void snd_soc_dai_action(struct snd_soc_dai *dai,
-			int stream, int action);
-static inline void snd_soc_dai_activate(struct snd_soc_dai *dai,
-					int stream)
-{
-	snd_soc_dai_action(dai, stream,  1);
-}
-static inline void snd_soc_dai_deactivate(struct snd_soc_dai *dai,
-					  int stream)
-{
-	snd_soc_dai_action(dai, stream, -1);
-}
+
 int snd_soc_dai_active(const struct snd_soc_dai *dai);
 
 int snd_soc_pcm_dai_probe(struct snd_soc_pcm_runtime *rtd, int order);
@@ -277,7 +269,12 @@ int snd_soc_dai_compr_get_metadata(struct snd_soc_dai *dai,
 				   struct snd_compr_stream *cstream,
 				   struct snd_compr_metadata *metadata);
 
-const char *snd_soc_dai_name_get(const struct snd_soc_dai *dai);
+int snd_soc_dai_matches_args(const struct snd_soc_dai *dai,
+			     const struct of_phandle_args *args2);
+int snd_soc_dai_matches_dlc(struct snd_soc_dai *dai,
+			    const struct snd_soc_dai_link_component *dlc);
+const char *snd_soc_dai_name(const struct snd_soc_dai *dai);
+int snd_soc_dai_id(const struct snd_soc_dai *dai);
 
 struct snd_soc_dai_ops {
 	/* DAI driver callbacks */
@@ -489,69 +486,51 @@ struct snd_soc_dai {
 	void *priv;
 };
 
+const struct snd_soc_pcm_stream *
+snd_soc_dai_pcm_stream_get_i(const struct snd_soc_dai *dai, int stream);
 static inline const struct snd_soc_pcm_stream *
-snd_soc_dai_get_pcm_stream(const struct snd_soc_dai *dai, int stream)
+snd_soc_dai_pcm_stream_get_s(const struct snd_soc_dai *dai, struct snd_pcm_substream *substream)
 {
-	return (stream == SNDRV_PCM_STREAM_PLAYBACK) ?
-		&dai->driver->playback : &dai->driver->capture;
+	return snd_soc_dai_pcm_stream_get_i(dai, substream->stream);
 }
+#define snd_soc_dai_pcm_stream_get(dai, x) _Generic((x),		\
+	int :				snd_soc_dai_pcm_stream_get_i,	\
+	struct snd_pcm_substream * :	snd_soc_dai_pcm_stream_get_s)(dai, x)
 
-#define snd_soc_dai_get_widget_playback(dai)	snd_soc_dai_get_widget(dai, SNDRV_PCM_STREAM_PLAYBACK)
-#define snd_soc_dai_get_widget_capture(dai)	snd_soc_dai_get_widget(dai, SNDRV_PCM_STREAM_CAPTURE)
-static inline
-struct snd_soc_dapm_widget *snd_soc_dai_get_widget(struct snd_soc_dai *dai, int stream)
-{
-	return dai->stream[stream].widget;
-}
+#define snd_soc_dai_stream_widget_get_playback(dai)	snd_soc_dai_stream_widget_get(dai, SNDRV_PCM_STREAM_PLAYBACK)
+#define snd_soc_dai_stream_widget_get_capture(dai)	snd_soc_dai_stream_widget_get(dai, SNDRV_PCM_STREAM_CAPTURE)
+struct snd_soc_dapm_widget *snd_soc_dai_stream_widget_get(struct snd_soc_dai *dai, int stream);
 
-#define snd_soc_dai_set_widget_playback(dai, widget)	snd_soc_dai_set_widget(dai, SNDRV_PCM_STREAM_PLAYBACK, widget)
-#define snd_soc_dai_set_widget_capture(dai,  widget)	snd_soc_dai_set_widget(dai, SNDRV_PCM_STREAM_CAPTURE,  widget)
-static inline
-void snd_soc_dai_set_widget(struct snd_soc_dai *dai, int stream, struct snd_soc_dapm_widget *widget)
-{
-	dai->stream[stream].widget = widget;
-}
+#define snd_soc_dai_stream_widget_set_playback(dai, widget)	snd_soc_dai_stream_widget_set(dai, SNDRV_PCM_STREAM_PLAYBACK, widget)
+#define snd_soc_dai_stream_widget_set_capture(dai,  widget)	snd_soc_dai_stream_widget_set(dai, SNDRV_PCM_STREAM_CAPTURE,  widget)
+void snd_soc_dai_stream_widget_set(struct snd_soc_dai *dai, int stream, struct snd_soc_dapm_widget *widget);
 
-#define snd_soc_dai_dma_data_get_playback(dai)	snd_soc_dai_dma_data_get(dai, SNDRV_PCM_STREAM_PLAYBACK)
-#define snd_soc_dai_dma_data_get_capture(dai)	snd_soc_dai_dma_data_get(dai, SNDRV_PCM_STREAM_CAPTURE)
-#define snd_soc_dai_get_dma_data(dai, ss)	snd_soc_dai_dma_data_get(dai, ss->stream)
-static inline void *snd_soc_dai_dma_data_get(const struct snd_soc_dai *dai, int stream)
+#define snd_soc_dai_stream_dma_data_get_playback(dai)	snd_soc_dai_stream_dma_data_get(dai, SNDRV_PCM_STREAM_PLAYBACK)
+#define snd_soc_dai_stream_dma_data_get_capture(dai)	snd_soc_dai_stream_dma_data_get(dai, SNDRV_PCM_STREAM_CAPTURE)
+void *snd_soc_dai_stream_dma_data_get_i(const struct snd_soc_dai *dai, int stream);
+static inline void *snd_soc_dai_stream_dma_data_get_s(const struct snd_soc_dai *dai, struct snd_pcm_substream *substream)
 {
-	return dai->stream[stream].dma_data;
+	return snd_soc_dai_stream_dma_data_get_i(dai, substream->stream);
 }
+#define snd_soc_dai_stream_dma_data_get(dai, x) _Generic((x),			\
+	int :				snd_soc_dai_stream_dma_data_get_i,	\
+	struct snd_pcm_substream * :	snd_soc_dai_stream_dma_data_get_s)(dai, x)
 
-#define snd_soc_dai_dma_data_set_playback(dai, data)	snd_soc_dai_dma_data_set(dai, SNDRV_PCM_STREAM_PLAYBACK, data)
-#define snd_soc_dai_dma_data_set_capture(dai,  data)	snd_soc_dai_dma_data_set(dai, SNDRV_PCM_STREAM_CAPTURE,  data)
-#define snd_soc_dai_set_dma_data(dai, ss, data)		snd_soc_dai_dma_data_set(dai, ss->stream, data)
-static inline void snd_soc_dai_dma_data_set(struct snd_soc_dai *dai, int stream, void *data)
+#define snd_soc_dai_stream_dma_data_set_playback(dai, data)	snd_soc_dai_stream_dma_data_set(dai, SNDRV_PCM_STREAM_PLAYBACK, data)
+#define snd_soc_dai_stream_dma_data_set_capture(dai,  data)	snd_soc_dai_stream_dma_data_set(dai, SNDRV_PCM_STREAM_CAPTURE,  data)
+void snd_soc_dai_stream_dma_data_set_i(struct snd_soc_dai *dai, int stream, void *data);
+static inline void snd_soc_dai_stream_dma_data_set_s(struct snd_soc_dai *dai, struct snd_pcm_substream *substream, void *data)
 {
-	dai->stream[stream].dma_data = data;
+	snd_soc_dai_stream_dma_data_set_i(dai, substream->stream, data);
 }
+#define snd_soc_dai_stream_dma_data_set(dai, x, data) _Generic((x),		\
+	int :				snd_soc_dai_stream_dma_data_set_i,	\
+	struct snd_pcm_substream * :	snd_soc_dai_stream_dma_data_set_s)(dai, x, data)
 
-static inline void snd_soc_dai_init_dma_data(struct snd_soc_dai *dai, void *playback, void *capture)
-{
-	snd_soc_dai_dma_data_set_playback(dai, playback);
-	snd_soc_dai_dma_data_set_capture(dai,  capture);
-}
+unsigned int snd_soc_dai_stream_tdm_mask_get(const struct snd_soc_dai *dai, int stream);
+void snd_soc_dai_stream_tdm_mask_set(struct snd_soc_dai *dai, int stream, unsigned int tdm_mask);
 
-static inline unsigned int snd_soc_dai_tdm_mask_get(const struct snd_soc_dai *dai,
-						    int stream)
-{
-	return dai->stream[stream].tdm_mask;
-}
-
-static inline void snd_soc_dai_tdm_mask_set(struct snd_soc_dai *dai, int stream,
-					    unsigned int tdm_mask)
-{
-	dai->stream[stream].tdm_mask = tdm_mask;
-}
-
-static inline unsigned int snd_soc_dai_stream_active(const struct snd_soc_dai *dai,
-						     int stream)
-{
-	/* see snd_soc_dai_action() for setup */
-	return dai->stream[stream].active;
-}
+unsigned int snd_soc_dai_stream_active(const struct snd_soc_dai *dai, int stream);
 
 static inline void snd_soc_dai_set_drvdata(struct snd_soc_dai *dai,
 		void *data)
@@ -564,45 +543,43 @@ static inline void *snd_soc_dai_get_drvdata(struct snd_soc_dai *dai)
 	return dev_get_drvdata(dai->dev);
 }
 
-/**
- * snd_soc_dai_set_stream() - Configures a DAI for stream operation
- * @dai: DAI
- * @stream: STREAM (opaque structure depending on DAI type)
- * @direction: Stream direction(Playback/Capture)
- * Some subsystems, such as SoundWire, don't have a notion of direction and we reuse
- * the ASoC stream direction to configure sink/source ports.
- * Playback maps to source ports and Capture for sink ports.
- *
- * This should be invoked with NULL to clear the stream set previously.
- * Returns 0 on success, a negative error code otherwise.
- */
-static inline int snd_soc_dai_set_stream(struct snd_soc_dai *dai,
-					 void *stream, int direction)
-{
-	if (dai->driver->ops->set_stream)
-		return dai->driver->ops->set_stream(dai, stream, direction);
-	else
-		return -ENOTSUPP;
-}
+int snd_soc_dai_set_stream(struct snd_soc_dai *dai, void *stream, int direction);
+void *snd_soc_dai_get_stream(struct snd_soc_dai *dai, int direction);
 
-/**
- * snd_soc_dai_get_stream() - Retrieves stream from DAI
- * @dai: DAI
- * @direction: Stream direction(Playback/Capture)
- *
- * This routine only retrieves that was previously configured
- * with snd_soc_dai_get_stream()
- *
- * Returns pointer to stream or an ERR_PTR value, e.g.
- * ERR_PTR(-ENOTSUPP) if callback is not supported;
- */
-static inline void *snd_soc_dai_get_stream(struct snd_soc_dai *dai,
-					   int direction)
+struct snd_soc_dai *snd_soc_dai_register(struct snd_soc_component *component,
+					 struct snd_soc_dai_driver *dai_drv,
+					 bool legacy_dai_naming);
+void snd_soc_dai_unregister(struct snd_soc_dai *dai);
+struct snd_soc_dai *snd_soc_dai_from_list(struct list_head *list);
+struct list_head *snd_soc_dai_to_list(struct snd_soc_dai *dai);
+unsigned int snd_soc_dai_get_symmetric_rate(struct snd_soc_dai *dai);
+unsigned int snd_soc_dai_get_symmetric_channels(struct snd_soc_dai *dai);
+unsigned int snd_soc_dai_get_symmetric_sample_bits(struct snd_soc_dai *dai);
+void snd_soc_dai_set_priv(struct snd_soc_dai *dai, void *priv);
+void *snd_soc_dai_to_priv(struct snd_soc_dai *dai);
+
+/* REMOVE ME */
+#define snd_soc_dai_get_pcm_stream			snd_soc_dai_pcm_stream_get
+#define snd_soc_dai_get_widget_playback(dai)		snd_soc_dai_stream_widget_get(dai, SNDRV_PCM_STREAM_PLAYBACK)
+#define snd_soc_dai_get_widget_capture(dai)		snd_soc_dai_stream_widget_get(dai, SNDRV_PCM_STREAM_CAPTURE)
+#define snd_soc_dai_get_widget				snd_soc_dai_stream_widget_get
+#define snd_soc_dai_set_widget_playback(dai, widget)	snd_soc_dai_stream_widget_set(dai, SNDRV_PCM_STREAM_PLAYBACK, widget)
+#define snd_soc_dai_set_widget_capture(dai,  widget)	snd_soc_dai_stream_widget_set(dai, SNDRV_PCM_STREAM_CAPTURE,  widget)
+#define snd_soc_dai_set_widget				snd_soc_dai_stream_widget_set
+#define snd_soc_dai_dma_data_get_playback(dai)		snd_soc_dai_stream_dma_data_get(dai, SNDRV_PCM_STREAM_PLAYBACK)
+#define snd_soc_dai_dma_data_get_capture(dai)		snd_soc_dai_stream_dma_data_get(dai, SNDRV_PCM_STREAM_CAPTURE)
+#define snd_soc_dai_get_dma_data			snd_soc_dai_stream_dma_data_get
+#define snd_soc_dai_dma_data_get			snd_soc_dai_stream_dma_data_get
+#define snd_soc_dai_dma_data_set_playback(dai, data)	snd_soc_dai_stream_dma_data_set(dai, SNDRV_PCM_STREAM_PLAYBACK, data)
+#define snd_soc_dai_dma_data_set_capture(dai,  data)	snd_soc_dai_stream_dma_data_set(dai, SNDRV_PCM_STREAM_CAPTURE,  data)
+#define snd_soc_dai_set_dma_data			snd_soc_dai_stream_dma_data_set
+#define snd_soc_dai_dma_data_set			snd_soc_dai_stream_dma_data_set
+#define snd_soc_dai_tdm_mask_get			snd_soc_dai_stream_tdm_mask_get
+#define snd_soc_dai_tdm_mask_set			snd_soc_dai_stream_tdm_mask_set
+static inline void snd_soc_dai_init_dma_data(struct snd_soc_dai *dai, void *playback, void *capture)
 {
-	if (dai->driver->ops->get_stream)
-		return dai->driver->ops->get_stream(dai, direction);
-	else
-		return ERR_PTR(-ENOTSUPP);
+	snd_soc_dai_stream_dma_data_set_playback(dai, playback);
+	snd_soc_dai_stream_dma_data_set_capture(dai,  capture);
 }
 
 #endif

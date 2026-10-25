@@ -3,6 +3,7 @@
  */
 
 #include <linux/cleanup.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -871,6 +872,49 @@ static int snd_usb_cm1a_boot_quirk(struct usb_device *dev)
 }
 
 /*
+ * The Xiaomi audio connector ignores UAC2 volume changes after reconnecting
+ * until the device and configuration descriptors have been read again.
+ */
+#define XIAOMI_AUDIO_MAX_CONFIG_SIZE 1024
+
+static void snd_usb_xiaomi_boot_quirk(struct usb_device *dev)
+{
+	u8 *buf __free(kfree) = kmalloc(XIAOMI_AUDIO_MAX_CONFIG_SIZE, GFP_KERNEL);
+	struct usb_config_descriptor *config;
+	unsigned int length;
+	int ret;
+
+	if (!buf)
+		return;
+
+	ret = usb_get_descriptor(dev, USB_DT_DEVICE, 0, buf,
+				 USB_DT_DEVICE_SIZE);
+	if (ret != USB_DT_DEVICE_SIZE) {
+		dev_warn(&dev->dev, "device descriptor re-read failed: %d\n", ret);
+		return;
+	}
+
+	ret = usb_get_descriptor(dev, USB_DT_CONFIG, 0, buf,
+				 USB_DT_CONFIG_SIZE);
+	if (ret != USB_DT_CONFIG_SIZE) {
+		dev_warn(&dev->dev, "configuration header re-read failed: %d\n", ret);
+		return;
+	}
+
+	config = (struct usb_config_descriptor *)buf;
+	length = le16_to_cpu(config->wTotalLength);
+	if (length < USB_DT_CONFIG_SIZE ||
+	    length > XIAOMI_AUDIO_MAX_CONFIG_SIZE) {
+		dev_warn(&dev->dev, "unexpected configuration length: %u\n", length);
+		return;
+	}
+
+	ret = usb_get_descriptor(dev, USB_DT_CONFIG, 0, buf, length);
+	if (ret != (int)length)
+		dev_warn(&dev->dev, "configuration descriptor re-read failed: %d\n", ret);
+}
+
+/*
  * Some sound cards from Native Instruments are in fact compliant to the USB
  * audio standard of version 2 and other approved USB standards, even though
  * they come up as vendor-specific device when first connected.
@@ -1606,22 +1650,60 @@ static int s1810c_skip_setting_quirk(struct snd_usb_audio *chip,
 	return 0;
 }
 
+static int hp_elite_x3_lap_dock_skip_setting_quirk(struct snd_usb_audio *chip,
+						   int iface, int altno)
+{
+	/*
+	 * 1:1 - Capture, S16_LE, 8000/32000/44100/48000Hz
+	 * 2:1 - Playback, S16_LE, 48000Hz
+	 * 2:2 - Playback, S24_3LE, 48000Hz
+	 *
+	 * 2:2 is broken because:
+	 * - it doesn't accept SET_CUR(SAMPLE_RATE). QUIRK_FLAG_FIXED_RATE works
+	 *   around it, however...
+	 * - it constantly produces severe harmonic distortion once the capture
+	 *   stream is also opened. The interface 2 must be closed and reopened
+	 *   to make it recover. IOW, simply closing the capture stream makes no
+	 *   difference.
+	 *
+	 * Considering that S24_3LE offers no additional benefit on small
+	 * speakers compared to S16_LE, and 2:1 is always usable as an
+	 * alternative, skip 2:2 to get rid of the trouble.
+	 *
+	 * Setting chip->setup to any non-default value disables the fixup and
+	 * reenables 2:2 (in this case QUIRK_FLAG_FIXED_RATE is required).
+	 */
+	if (!chip->setup && iface == 2 && altno == 2) {
+		usb_audio_info(chip,
+			       "%d:%d: skipping broken altsetting on HP Elite x3 Lap Dock\n",
+			       iface, altno);
+		return 1;
+	}
+
+	return 0;
+}
+
 int snd_usb_apply_interface_quirk(struct snd_usb_audio *chip,
 				  int iface,
 				  int altno)
 {
-	/* audiophile usb: skip altsets incompatible with device_setup */
-	if (chip->usb_id == USB_ID(0x0763, 0x2003))
-		return audiophile_skip_setting_quirk(chip, iface, altno);
+	switch (chip->usb_id) {
+	/* HP Elite x3 Lap Dock: skip broken altsets */
+	case USB_ID(0x03f0, 0x0c56):
+		return hp_elite_x3_lap_dock_skip_setting_quirk(chip, iface, altno);
 	/* quattro usb: skip altsets incompatible with device_setup */
-	if (chip->usb_id == USB_ID(0x0763, 0x2001))
+	case USB_ID(0x0763, 0x2001):
 		return quattro_skip_setting_quirk(chip, iface, altno);
+	/* audiophile usb: skip altsets incompatible with device_setup */
+	case USB_ID(0x0763, 0x2003):
+		return audiophile_skip_setting_quirk(chip, iface, altno);
 	/* fasttrackpro usb: skip altsets incompatible with device_setup */
-	if (chip->usb_id == USB_ID(0x0763, 0x2012))
+	case USB_ID(0x0763, 0x2012):
 		return fasttrackpro_skip_setting_quirk(chip, iface, altno);
 	/* presonus studio 1810c: skip altsets incompatible with device_setup */
-	if (chip->usb_id == USB_ID(0x194f, 0x010c))
+	case USB_ID(0x194f, 0x010c):
 		return s1810c_skip_setting_quirk(chip, iface, altno);
+	}
 
 	return 0;
 }
@@ -1702,11 +1784,21 @@ int snd_usb_apply_boot_quirk_once(struct usb_device *dev,
 	switch (id) {
 	case USB_ID(0x07fd, 0x0008): /* MOTU M Series, 1st hardware version */
 		return snd_usb_motu_m_series_boot_quirk(dev);
+	case USB_ID(0x2717, 0xd005): /* Xiaomi audio connector */
+		snd_usb_xiaomi_boot_quirk(dev);
+		return 0;
 	}
 
 	/* Behringer devices may need explicit device descriptor read at boot */
-	if (USB_ID_VENDOR(id) == 0x1397)
+	if (USB_ID_VENDOR(id) == 0x1397) {
+		/* the quirk seems breaking on some Behringer devices */
+		switch (id) {
+		case USB_ID(0x1397, 0x0508): /* UMC204HD */
+		case USB_ID(0x1397, 0x0509): /* UMC204HD */
+			return 0;
+		}
 		return snd_usb_cm1a_boot_quirk(dev);
+	}
 
 	return 0;
 }
@@ -1789,6 +1881,62 @@ static void set_format_emu_quirk(struct snd_usb_substream *subs,
 	}
 	snd_emuusb_set_samplerate(subs->stream->chip, emu_samplerate_id);
 	subs->pkt_offset_adj = (emu_samplerate_id >= EMU_QUIRK_SR_176400HZ) ? 4 : 0;
+}
+
+/*
+ * The DDJ-SZ needs a vendor "arm" sequence before its capture path
+ * produces real audio; without it capture runs with no USB or ALSA error
+ * but delivers a hard zero on every channel. The sequence is replicated
+ * byte-for-byte from a USB capture of the Windows driver: each write is
+ * followed by a status read whose content is a fixed value regardless of
+ * what was written, but the read is replicated too, since it is unclear
+ * whether the device requires it to process the preceding write.
+ *
+ * This runs from snd_usb_set_format_quirk(), i.e. on every format setup
+ * rather than once per device. Re-arming is harmless in practice and
+ * keeps the device armed if it is reset behind our back.
+ */
+static void ddj_sz_arm_quirk(struct usb_device *dev)
+{
+	static const struct {
+		u16 value;
+		u16 index;
+		u8 read_len;
+	} cmds[] = {
+		{ 0x0100, 0x8002, 6 },
+		{ 0x0200, 0x8002, 6 },
+		{ 0x0303, 0x8002, 6 },
+		{ 0x0403, 0x8002, 6 },
+		{ 0x050a, 0x8002, 6 },
+		{ 0x0000, 0x8003, 2 },
+	};
+	u8 buf[6];
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < ARRAY_SIZE(cmds); i++) {
+		err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), 3,
+				      USB_DIR_OUT | USB_TYPE_VENDOR |
+				      USB_RECIP_DEVICE,
+				      cmds[i].value, cmds[i].index, NULL, 0);
+		if (err < 0)
+			goto err_out;
+
+		err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), 0,
+				      USB_DIR_IN | USB_TYPE_VENDOR |
+				      USB_RECIP_DEVICE,
+				      0x0000, cmds[i].index, buf,
+				      cmds[i].read_len);
+		if (err < 0)
+			goto err_out;
+	}
+
+	return;
+
+err_out:
+	dev_warn(&dev->dev,
+		 "DDJ-SZ: arm sequence step %u failed (%d), capture may be silent\n",
+		 i, err);
 }
 
 static int pioneer_djm_set_format_quirk(struct snd_usb_substream *subs,
@@ -1880,6 +2028,75 @@ static int rme_digiface_set_format_quirk(struct snd_usb_substream *subs)
 	return 0;
 }
 
+#define ROLAND_CAPTURE_RATE_REQUEST		3
+#define ROLAND_CAPTURE_RATE_READ_VALUE		0x0001
+#define ROLAND_CAPTURE_RATE_WRITE_VALUE		0x0008
+#define ROLAND_CAPTURE_RATE_WRITE_PREFIX	0x40
+#define ROLAND_CAPTURE_RATE_RETRIES		40
+#define ROLAND_CAPTURE_RATE_POLL_MS		25
+
+/*
+ * OCTA-CAPTURE and QUAD-CAPTURE use the same vendor request for their
+ * hardware clock.  A read returns the 24-bit little-endian rate followed by
+ * a transition-status byte.  A write carries 0x40 followed by the rate.
+ */
+static int roland_capture_read_rate(struct usb_device *dev, u32 *rate)
+{
+	u8 data[4];
+	int err;
+
+	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0),
+			      ROLAND_CAPTURE_RATE_REQUEST,
+			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      ROLAND_CAPTURE_RATE_READ_VALUE, 0,
+			      data, sizeof(data));
+	if (err != sizeof(data))
+		return err < 0 ? err : -EIO;
+
+	*rate = combine_triple(data);
+	return 0;
+}
+
+static void roland_capture_set_rate(struct snd_usb_substream *subs)
+{
+	struct snd_usb_audio *chip = subs->stream->chip;
+	struct usb_device *dev = chip->dev;
+	u32 rate = subs->data_endpoint->cur_rate;
+	u32 current_rate;
+	u8 data[4];
+	int err;
+	int i;
+
+	/* Serialize playback and capture endpoint starts during a clock change. */
+	guard(mutex)(&chip->mutex);
+	err = roland_capture_read_rate(dev, &current_rate);
+	if (!err && current_rate == rate)
+		return;
+
+	data[0] = ROLAND_CAPTURE_RATE_WRITE_PREFIX;
+	data[1] = rate;
+	data[2] = rate >> 8;
+	data[3] = rate >> 16;
+	err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0),
+			      ROLAND_CAPTURE_RATE_REQUEST,
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      ROLAND_CAPTURE_RATE_WRITE_VALUE, 0,
+			      data, sizeof(data));
+	if (err != sizeof(data)) {
+		usb_audio_warn(chip, "cannot set Roland sample rate to %u Hz: %d\n",
+			       rate, err < 0 ? err : -EIO);
+		return;
+	}
+
+	for (i = 0; i < ROLAND_CAPTURE_RATE_RETRIES; i++) {
+		err = roland_capture_read_rate(dev, &current_rate);
+		if (!err && current_rate == rate)
+			return;
+		msleep(ROLAND_CAPTURE_RATE_POLL_MS);
+	}
+	usb_audio_warn(chip, "Roland sample rate did not reach %u Hz\n", rate);
+}
+
 void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 			      const struct audioformat *fmt)
 {
@@ -1903,12 +2120,20 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 	case USB_ID(0x08e4, 0x0163): /* Pioneer DJM-850 */
 		pioneer_djm_set_format_quirk(subs, 0x0086);
 		break;
+	case USB_ID(0x08e4, 0x0191): /* Pioneer DDJ-SZ */
+		ddj_sz_arm_quirk(subs->dev);
+		pioneer_djm_set_format_quirk(subs, 0x0082);
+		break;
 	case USB_ID(0x0dba, 0x5000):
 		mbox3_set_format_quirk(subs, fmt); /* Digidesign Mbox 3 */
 		break;
 	case USB_ID(0x2a39, 0x3f8c): /* RME Digiface USB */
 	case USB_ID(0x2a39, 0x3fa0): /* RME Digiface USB (alternate) */
 		rme_digiface_set_format_quirk(subs);
+		break;
+	case USB_ID(0x0582, 0x0120): /* Roland OCTA-CAPTURE */
+	case USB_ID(0x0582, 0x012f): /* Roland QUAD-CAPTURE */
+		roland_capture_set_rate(subs);
 		break;
 	}
 }
@@ -1980,6 +2205,16 @@ void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
 	     ep->chip->usb_id == USB_ID(0x1852, 0x5034)) && /* T+A Dac8 */
 	    ep->syncmaxsize == 4)
 		ep->tenor_fb_quirk = 1;
+
+	/*
+	 * Mayflower ARC AMP DAC (MAG Technology USB front-end): the
+	 * feedback can get stuck at nominal+1 sample per frame, causing
+	 * pops every 1-2 sec until stream restart.  Snap implausible
+	 * feedback to nominal.
+	 */
+	if (ep->chip->usb_id == USB_ID(0x0493, 0x4170) &&
+	    ep->type == SND_USB_ENDPOINT_TYPE_SYNC)
+		ep->snap_fb_quirk = 1;
 }
 
 /* quirk applied after snd_usb_ctl_msg(); not applied during boot quirks */
@@ -2114,6 +2349,21 @@ void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
 					  int stream)
 {
 	switch (chip->usb_id) {
+	case USB_ID(0x0499, 0x5500): /* Yamaha 01V96i */
+		/*
+		 * The 01V96i declares its audio streaming interfaces as
+		 * vendor-specific (class 0xff) and provides no class-specific
+		 * endpoint descriptor.  parse_uac_endpoint_attributes() therefore
+		 * returns no attributes, and the driver never issues the SET_CUR
+		 * sampling-frequency request the hardware needs to engage its USB
+		 * stream: playback and capture PCMs report RUNNING, but the desk
+		 * passes no audio.
+		 *
+		 * Force the attribute on so the stream is initialised the same way
+		 * the Windows driver does it.
+		 */
+		fp->attributes |= UAC_EP_CS_ATTR_SAMPLE_RATE;
+		break;
 	case USB_ID(0x0a92, 0x0053): /* AudioTrak Optoplay */
 		/* Optoplay sets the sample rate attribute although
 		 * it seems not supporting it in fact.
@@ -2145,6 +2395,14 @@ void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
 		 * MaxPacketsOnly attribute is erroneously set in endpoint
 		 * descriptors. As a result this card produces noise with
 		 * all sample rates other than 96 kHz.
+		 */
+		fp->attributes &= ~UAC_EP_CS_ATTR_FILL_MAX;
+		break;
+	case USB_ID(0x0a12, 0x1244):  /* Shanling UP4 */
+		/*
+		 * MaxPacketsOnly is set, but the device expects nominal-size
+		 * packets. Filling 48 frames per packet at 44.1 kHz results
+		 * in silence. No effect at 48 kHz, where both sizes match.
 		 */
 		fp->attributes &= ~UAC_EP_CS_ATTR_FILL_MAX;
 		break;
@@ -2238,6 +2496,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
 	DEVICE_FLG(0x0124, 0x0c21, /* Generic USB Headphone */
 		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
+	DEVICE_FLG(0x03f0, 0x0c56, /* HP Elite x3 Lap Dock */
+		   QUIRK_FLAG_FIXED_RATE),
 	DEVICE_FLG(0x03f0, 0x654a, /* HP 320 FHD Webcam */
 		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_MIC_RES_16),
 	DEVICE_FLG(0x041e, 0x3000, /* Creative SB Extigy */
@@ -2251,6 +2511,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_DISABLE_AUTOSUSPEND),
 	DEVICE_FLG(0x045e, 0x070f, /* MS LifeChat LX-3000 Headset */
 		   QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE),
+	DEVICE_FLG(0x046d, 0x0802, /* Logitech Webcam C200 */
+		   QUIRK_FLAG_CTL_MSG_DELAY_1M | QUIRK_FLAG_MIC_RES_384),
 	DEVICE_FLG(0x046d, 0x0807, /* Logitech Webcam C500 */
 		   QUIRK_FLAG_CTL_MSG_DELAY_1M | QUIRK_FLAG_MIC_RES_384),
 	DEVICE_FLG(0x046d, 0x0808, /* Logitech Webcam C600 */
@@ -2270,6 +2532,10 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	DEVICE_FLG(0x046d, 0x084c, /* Logitech ConferenceCam Connect */
 		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_CTL_MSG_DELAY_1M),
 	DEVICE_FLG(0x046d, 0x08ca, /* Logitech Quickcam Fusion */
+		   QUIRK_FLAG_CTL_MSG_DELAY_1M | QUIRK_FLAG_MIC_RES_384),
+	DEVICE_FLG(0x046d, 0x08e5, /* Logitech HD Pro Webcam c920 */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x046d, 0x094c, /* Logitech Brio 100 */
 		   QUIRK_FLAG_CTL_MSG_DELAY_1M | QUIRK_FLAG_MIC_RES_384),
 	DEVICE_FLG(0x046d, 0x0991, /* Logitech QuickCam Pro */
 		   QUIRK_FLAG_CTL_MSG_DELAY_1M | QUIRK_FLAG_IGNORE_CTL_ERROR |
@@ -2323,6 +2589,9 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	DEVICE_FLG(0x0644, 0x8044, /* Esoteric D-05X */
 		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY |
 		   QUIRK_FLAG_IFACE_DELAY | QUIRK_FLAG_FORCE_IFACE_RESET),
+	DEVICE_FLG(0x0644, 0x8047, /* TASCAM US-16x08 */
+		   QUIRK_FLAG_CTL_MSG_DELAY | QUIRK_FLAG_IFACE_DELAY |
+		   QUIRK_FLAG_FORCE_IFACE_RESET),
 	DEVICE_FLG(0x0644, 0x804a, /* TEAC UD-301 */
 		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY |
 		   QUIRK_FLAG_IFACE_DELAY),
@@ -2404,6 +2673,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE),
 	DEVICE_FLG(0x1101, 0x0003, /* Audioengine D1 */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x1237, 0x17b8, /* rongyuan GS20 */
+		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
 	DEVICE_FLG(0x12d1, 0x3a07, /* HUAWEI USB-C HEADSET */
 		   QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE | QUIRK_FLAG_MIXER_CAPTURE_MIN_MUTE |
 		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
@@ -2459,6 +2730,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	DEVICE_FLG(0x1852, 0x5065, /* Luxman DA-06 */
 		   QUIRK_FLAG_ITF_USB_DSD_DAC | QUIRK_FLAG_CTL_MSG_DELAY),
 	DEVICE_FLG(0x1901, 0x0191, /* GE B850V3 CP2114 audio interface */
+		   QUIRK_FLAG_GET_SAMPLE_RATE),
+	DEVICE_FLG(0x194f, 0x0301, /* PreSonus AudioBox USB */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x19f7, 0x0003, /* RODE NT-USB */
 		   QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE),
@@ -2556,8 +2829,12 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE),
 	DEVICE_FLG(0x3443, 0x930d, /* NexiGo N930W 60fps Webcam */
 		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_MIC_RES_16),
+	DEVICE_FLG(0x35d8, 0x011d, /* MOONDROP DAWN PRO2 */
+		   QUIRK_FLAG_DSD_RAW),
 	DEVICE_FLG(0x36f9, 0xc009, /* XIBERIA K03S */
 		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
+	DEVICE_FLG(0x3703, 0x2000, /* NUX NAI-24 */
+		   QUIRK_FLAG_SWAP_RATES),
 	DEVICE_FLG(0x3c20, 0x3d21, /* AB13X USB Audio */
 		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
 	DEVICE_FLG(0x413c, 0xa506, /* Dell AE515 sound bar */
@@ -2685,6 +2962,7 @@ static const char *const snd_usb_audio_quirk_flag_names[] = {
 	QUIRK_STRING_ENTRY(MIXER_GET_CUR_OK),
 	QUIRK_STRING_ENTRY(PLAYBACK_URB_FIXUP),
 	QUIRK_STRING_ENTRY(ALWAYS_SET_RATE),
+	QUIRK_STRING_ENTRY(SWAP_RATES),
 	NULL
 };
 

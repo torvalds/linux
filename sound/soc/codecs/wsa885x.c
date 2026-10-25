@@ -896,7 +896,6 @@ static int wsa885x_codec_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 	regmap_write(wsa885x->regmap, WSA885X_DIG_CTRL0_SYS_CLK_SEL, 0x00);
 	regmap_write(wsa885x->regmap, WSA885X_DIG_CTRL0_POWER_FSM_CTL1, 0x01);
-	regmap_write(wsa885x->regmap, WSA885X_ANA_TOP_BG_TVP_OVRD_CTL, 0x00);
 
 	return 0;
 }
@@ -1006,6 +1005,16 @@ static int wsa885x_codec_hw_free(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	static const struct reg_sequence regs[] = {
+		{ WSA885X_DIG_CTRL1_I2S_RESET_CTL, 0x00 },
+		{ WSA885X_DIG_CTRL1_I2S_CFG0_TDM_TX, 0x00 },
+		{ WSA885X_DIG_CTRL1_I2S_CFG1_TDM_TX, 0x00 },
+		{ WSA885X_DIG_CTRL1_I2S_TDM_CTL1, 0x05 },
+		{ WSA885X_DIG_CTRL1_I2S_TDM_CTL0, 0x00 },
+		{ WSA885X_DIG_CTRL1_I2S_TDM_CH_TX, 0x00 },
+		{ WSA885X_DIG_CTRL1_I2S_CTL0, 0x06 },
+		{ WSA885X_DIG_CTRL1_I2S_TDM_CH_RX, 0x08 },
+		{ WSA885X_DIG_CTRL0_CLK_SOURCE_ENABLE, 0x00 },
+		{ WSA885X_ANA_TOP_BG_TVP_OVRD_CTL, 0x00 },
 		{ WSA885X_DIG_CTRL0_PA_FSM_CTL, 0x00 },
 	};
 	struct wsa885x_priv *wsa885x;

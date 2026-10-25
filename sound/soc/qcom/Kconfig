@@ -71,6 +71,16 @@ config SND_SOC_QCOM_COMMON
 config SND_SOC_QCOM_SDW
 	tristate
 
+config SND_SOC_QCOM_QAIF
+	tristate "Qualcomm QAIF audio interface support"
+	depends on COMMON_CLK
+	select REGMAP_MMIO
+	help
+	  Say Y or M to enable the Qualcomm Audio Interface (QAIF) driver
+	  for the Shikra audio platform. QAIF is a DMA-based audio
+	  subsystem that moves PCM data between memory and external serial
+	  audio interfaces (AIF) and internal codec interfaces (CIF).
+
 config SND_SOC_QDSP6_COMMON
 	tristate
 
@@ -102,6 +112,7 @@ config SND_SOC_QDSP6_ASM_DAI
 config SND_SOC_QDSP6_APM_DAI
 	tristate
 	select SND_SOC_COMPRESS
+	select QCOM_SCM
 
 config SND_SOC_QDSP6_APM_LPASS_DAI
 	tristate

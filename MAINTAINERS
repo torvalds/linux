@@ -779,6 +779,14 @@ F:	Documentation/devicetree/bindings/phy/airoha,en7581-pcie-phy.yaml
 F:	drivers/phy/phy-airoha-pcie-regs.h
 F:	drivers/phy/phy-airoha-pcie.c
 
+AIROHA SOUND DRIVER
+M:	Christian Marangi <ansuelsmth@gmail.com>
+L:	linux-sound@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/airoha,an7581-afe.yaml
+F:	Documentation/devicetree/bindings/sound/airoha,an7581-wm8960.yaml
+F:	sound/soc/mediatek/an7581/*
+
 AIROHA SPI SNFI DRIVER
 M:	Lorenzo Bianconi <lorenzo@kernel.org>
 M:	Ray Liu <ray.liu@airoha.com>
@@ -4399,6 +4407,13 @@ F:	drivers/net/ieee802154/at86rf230.h
 F:	drivers/net/ieee802154/atusb.c
 F:	drivers/net/ieee802154/atusb.h
 
+AUDIENT EVO MIXER DRIVER
+M:	Christian Ruppert <arc@gmx.li>
+L:	linux-sound@vger.kernel.org
+S:	Maintained
+F:	sound/usb/mixer_evo.c
+F:	sound/usb/mixer_evo.h
+
 AUDIT SUBSYSTEM
 M:	Paul Moore <paul@paul-moore.com>
 M:	Eric Paris <eparis@redhat.com>
@@ -4471,6 +4486,12 @@ M:	Ben Hoff <hoff.benjamin.k@gmail.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/pci/hws/
+
+AWINIC AW88399 HDA SIDE CODEC DRIVER
+M:	Marco Giunta <marco_giunta@outlook.it>
+L:	linux-sound@vger.kernel.org
+S:	Maintained
+F:	sound/hda/codecs/side-codecs/aw88399*
 
 AWINIC AW99706 WLED BACKLIGHT DRIVER
 M:	Junjie Cao <junjie.cao@linux.dev>
@@ -9873,6 +9894,13 @@ M:	Jeff Layton <jlayton@kernel.org>
 S:	Maintained
 F:	include/linux/errseq.h
 F:	lib/errseq.c
+
+ES9039Q2M AUDIO CODEC DRIVER
+M:	Karl Asseily <karl@asseily.com>
+L:	linux-sound@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/esstech,es9039q2m.yaml
+F:	sound/soc/codecs/es9039q2m.c
 
 ESD CAN NETWORK DRIVERS
 M:	Stefan Mätje <stefan.maetje@esd.eu>
@@ -22395,6 +22423,15 @@ F:	sound/soc/codecs/wcd93*.*
 F:	sound/soc/codecs/wsa88*.*
 F:	sound/soc/qcom/
 
+QCOM AUDIO INTERFACE (QAIF) DRIVER
+M:	Harendra Gautam <harendra.gautam@oss.qualcomm.com>
+M:	Srinivas Kandagatla <srini@kernel.org>
+L:	linux-sound@vger.kernel.org
+L:	linux-arm-msm@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/sound/qcom,shikra-qaif-cpu.yaml
+F:	sound/soc/qcom/qaif*
+
 QCOM EMBEDDED USB DEBUGGER (EUD)
 M:	Souradeep Chowdhury <quic_schowdhu@quicinc.com>
 L:	linux-arm-msm@vger.kernel.org
@@ -30630,9 +30667,12 @@ F:	tools/testing/selftests/cgroup/test_zswap.c
 
 SENARYTECH AUDIO CODEC DRIVER
 M:	bo liu <bo.liu@senarytech.com>
+M:	qianghua.wang <qianghua.wang@senarytech.com>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	sound/hda/codecs/senarytech.c
+F:	sound/soc/codecs/sn624x*
+F:	sound/soc/sdw_utils/soc_sdw_senary*
 
 ZTE DINGHAI ETHERNET DRIVER
 M:	Junyang Han <han.junyang@zte.com.cn>

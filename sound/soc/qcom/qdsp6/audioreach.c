@@ -593,10 +593,10 @@ EXPORT_SYMBOL_GPL(audioreach_alloc_graph_pkt);
 int audioreach_send_cmd_sync(struct device *dev, gpr_device_t *gdev,
 			     struct gpr_ibasic_rsp_result_t *result, struct mutex *cmd_lock,
 			     gpr_port_t *port, wait_queue_head_t *cmd_wait,
-			     const struct gpr_pkt *pkt, uint32_t rsp_opcode)
+			     struct gpr_pkt *pkt, uint32_t rsp_opcode)
 {
 
-	const struct gpr_hdr *hdr = &pkt->hdr;
+	struct gpr_hdr *hdr = &pkt->hdr;
 	int rc;
 
 	mutex_lock(cmd_lock);
@@ -636,9 +636,11 @@ err:
 }
 EXPORT_SYMBOL_GPL(audioreach_send_cmd_sync);
 
-int audioreach_graph_send_cmd_sync(struct q6apm_graph *graph, const struct gpr_pkt *pkt,
+int audioreach_graph_send_cmd_sync(struct q6apm_graph *graph, struct gpr_pkt *pkt,
 				   uint32_t rsp_opcode)
 {
+
+	pkt->hdr.dest_domain = audioreach_gpr_dest_domain(graph->apm->gdev);
 
 	return audioreach_send_cmd_sync(graph->dev, NULL,  &graph->result, &graph->lock,
 					graph->port, &graph->cmd_wait, pkt, rsp_opcode);
@@ -993,6 +995,8 @@ int audioreach_compr_set_param(struct q6apm_graph *graph,
 	rc = audioreach_set_compr_media_format(header, p, mcfg);
 	if (rc)
 		return rc;
+
+	pkt->hdr.dest_domain = audioreach_gpr_dest_domain(graph->apm->gdev);
 
 	return gpr_send_port_pkt(graph->port, pkt);
 }
@@ -1608,6 +1612,8 @@ int audioreach_shared_memory_send_eos(struct q6apm_graph *graph)
 	eos = (void *)pkt + GPR_HDR_SIZE + APM_CMD_HDR_SIZE;
 
 	eos->policy = WR_SH_MEM_EP_EOS_POLICY_LAST;
+
+	pkt->hdr.dest_domain = audioreach_gpr_dest_domain(graph->apm->gdev);
 
 	return gpr_send_port_pkt(graph->port, pkt);
 }

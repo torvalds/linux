@@ -56,7 +56,7 @@ static int
 ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	struct ct_atc *atc;
 	int err;
 
@@ -67,8 +67,8 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		dev++;
 		return -ENOENT;
 	}
-	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   0, &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+				0, &card);
 	if (err)
 		return err;
 	if ((reference_rate != 48000) && (reference_rate != 44100)) {
@@ -89,14 +89,14 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	err = ct_atc_create(card, pci, reference_rate, multiple,
 			    pci_id->driver_data, subsystem[dev], &atc);
 	if (err < 0)
-		goto error;
+		return err;
 
 	card->private_data = atc;
 
 	/* Create alsa devices supported by this card */
 	err = ct_atc_create_alsa_devs(atc);
 	if (err < 0)
-		goto error;
+		return err;
 
 	strscpy(card->driver, "SB-XFi");
 	strscpy(card->shortname, "Creative X-Fi");
@@ -105,21 +105,13 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto error;
+		return err;
 
 	pci_set_drvdata(pci, card);
+	card = NULL; /* probe succeeded, don't release as error */
 	dev++;
 
 	return 0;
-
-error:
-	snd_card_free(card);
-	return err;
-}
-
-static void ct_card_remove(struct pci_dev *pci)
-{
-	snd_card_free(pci_get_drvdata(pci));
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -149,7 +141,6 @@ static struct pci_driver ct_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = ct_pci_dev_ids,
 	.probe = ct_card_probe,
-	.remove = ct_card_remove,
 	.driver = {
 		.pm = CT_CARD_PM_OPS,
 	},

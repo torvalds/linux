@@ -50,6 +50,7 @@ struct  rt766_sdca_priv {
 #define RT766_DEV_ID1		0xc405
 #define RT766_DEV_ID0		0xc406
 #define RT766_BOND_LATCH_ID	0xc407
+#define RT766_GE_DET_IRQ_MNL	0xd203
 
 #define RT766_HP_POWER_STATE		0x1000004
 #define RT766_HP_FSM_CTL2_1		0x100000d

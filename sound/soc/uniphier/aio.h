@@ -183,7 +183,7 @@ struct uniphier_aio_selector {
  *
  * These are examples for sound data paths:
  *
- * For caputure device:
+ * For capture device:
  *   (outer of AIO) -> iport -> iif -> ch -> rb -> (CPU)
  * For playback device:
  *   (CPU) -> rb -> ch -> oif -> oport -> (outer of AIO)
