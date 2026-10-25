@@ -388,6 +388,15 @@ int fsverity_ensure_verity_info(struct inode *inode)
 	}
 
 	/*
+	 * Now that the signature (if any) has been verified, report it to LSMs.
+	 * Do this before inserting the fsverity_info into the hashtable, so
+	 * that anyone who concurrently retrieves the fsverity_info for the same
+	 * inode is guaranteed to see the LSM's signature status populated.
+	 */
+	fsverity_report_valid_sig(inode, desc->signature,
+				  le32_to_cpu(desc->sig_size));
+
+	/*
 	 * Multiple tasks may race to set the inode's verity info, in which case
 	 * we might find an existing fsverity_info in the hash table.
 	 */
