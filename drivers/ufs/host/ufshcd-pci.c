@@ -166,7 +166,8 @@ static int ufs_intel_lkf_pwr_change_notify(struct ufs_hba *hba,
 			ufs_intel_set_lanes(hba, 2);
 		break;
 	case POST_CHANGE:
-		if (ufshcd_is_hs_mode(dev_req_params)) {
+		/* NULL when the gear switch failed: nothing to apply */
+		if (dev_req_params && ufshcd_is_hs_mode(dev_req_params)) {
 			u32 peer_granularity;
 
 			usleep_range(1000, 1250);

@@ -401,8 +401,7 @@ static struct status_msg *stex_get_status(struct st_hba *hba)
 static void stex_invalid_field(struct scsi_cmnd *cmd,
 			       void (*done)(struct scsi_cmnd *))
 {
-	/* "Invalid field in cdb" */
-	scsi_build_sense(cmd, 0, ILLEGAL_REQUEST, 0x24, 0x0);
+	scsi_set_sense(cmd, 0, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB);
 	done(cmd);
 }
 
@@ -568,7 +567,7 @@ static void return_abnormal_state(struct st_hba *hba, int status)
 	unsigned long flags;
 	u16 tag;
 
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	spin_lock_irqsave(&hba->host->host_lock, flags);
 	for (tag = 0; tag < hba->host->can_queue; tag++) {
 		ccb = &hba->ccb[tag];
 		if (ccb->req == NULL)
@@ -581,7 +580,7 @@ static void return_abnormal_state(struct st_hba *hba, int status)
 			ccb->cmd = NULL;
 		}
 	}
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	spin_unlock_irqrestore(&hba->host->host_lock, flags);
 }
 static int
 stex_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
@@ -887,7 +886,7 @@ static irqreturn_t stex_intr(int irq, void *__hba)
 	u32 data;
 	unsigned long flags;
 
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	spin_lock_irqsave(&hba->host->host_lock, flags);
 
 	data = readl(base + ODBL);
 
@@ -896,14 +895,14 @@ static irqreturn_t stex_intr(int irq, void *__hba)
 		writel(data, base + ODBL);
 		readl(base + ODBL); /* flush */
 		stex_mu_intr(hba, data);
-		spin_unlock_irqrestore(hba->host->host_lock, flags);
+		spin_unlock_irqrestore(&hba->host->host_lock, flags);
 		if (unlikely(data & MU_OUTBOUND_DOORBELL_REQUEST_RESET &&
 			hba->cardtype == st_shasta))
 			queue_work(hba->work_q, &hba->reset_work);
 		return IRQ_HANDLED;
 	}
 
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	spin_unlock_irqrestore(&hba->host->host_lock, flags);
 
 	return IRQ_NONE;
 }
@@ -988,7 +987,7 @@ static irqreturn_t stex_ss_intr(int irq, void *__hba)
 	u32 data;
 	unsigned long flags;
 
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	spin_lock_irqsave(&hba->host->host_lock, flags);
 
 	if (hba->cardtype == st_yel) {
 		data = readl(base + YI2H_INT);
@@ -996,7 +995,7 @@ static irqreturn_t stex_ss_intr(int irq, void *__hba)
 			/* clear the interrupt */
 			writel(data, base + YI2H_INT_C);
 			stex_ss_mu_intr(hba);
-			spin_unlock_irqrestore(hba->host->host_lock, flags);
+			spin_unlock_irqrestore(&hba->host->host_lock, flags);
 			if (unlikely(data & SS_I2H_REQUEST_RESET))
 				queue_work(hba->work_q, &hba->reset_work);
 			return IRQ_HANDLED;
@@ -1010,14 +1009,14 @@ static irqreturn_t stex_ss_intr(int irq, void *__hba)
 				writel((1 << 22), base + YH2I_INT);
 			}
 			stex_ss_mu_intr(hba);
-			spin_unlock_irqrestore(hba->host->host_lock, flags);
+			spin_unlock_irqrestore(&hba->host->host_lock, flags);
 			if (unlikely(data & SS_I2H_REQUEST_RESET))
 				queue_work(hba->work_q, &hba->reset_work);
 			return IRQ_HANDLED;
 		}
 	}
 
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	spin_unlock_irqrestore(&hba->host->host_lock, flags);
 
 	return IRQ_NONE;
 }
@@ -1227,7 +1226,7 @@ static int stex_handshake(struct st_hba *hba)
 		err = stex_ss_handshake(hba);
 	else
 		err = stex_common_handshake(hba);
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	spin_lock_irqsave(&hba->host->host_lock, flags);
 	mu_status = hba->mu_status;
 	if (err == 0) {
 		hba->req_head = 0;
@@ -1240,7 +1239,7 @@ static int stex_handshake(struct st_hba *hba)
 		hba->mu_status = MU_STATE_FAILED;
 	if (mu_status == MU_STATE_RESETTING)
 		wake_up_all(&hba->reset_waitq);
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	spin_unlock_irqrestore(&hba->host->host_lock, flags);
 	return err;
 }
 
@@ -1257,7 +1256,7 @@ static int stex_abort(struct scsi_cmnd *cmd)
 	scmd_printk(KERN_INFO, cmd, "aborting command\n");
 
 	base = hba->mmio_base;
-	spin_lock_irqsave(host->host_lock, flags);
+	spin_lock_irqsave(&host->host_lock, flags);
 	if (tag < host->can_queue &&
 		hba->ccb[tag].req && hba->ccb[tag].cmd == cmd)
 		hba->wait_ccb = &hba->ccb[tag];
@@ -1301,7 +1300,7 @@ fail_out:
 	hba->wait_ccb = NULL;
 	result = FAILED;
 out:
-	spin_unlock_irqrestore(host->host_lock, flags);
+	spin_unlock_irqrestore(&host->host_lock, flags);
 	return result;
 }
 
@@ -1364,13 +1363,13 @@ static int stex_yos_reset(struct st_hba *hba)
 		msleep(1);
 	}
 
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	spin_lock_irqsave(&hba->host->host_lock, flags);
 	if (ret == -1)
 		hba->mu_status = MU_STATE_FAILED;
 	else
 		hba->mu_status = MU_STATE_STARTED;
 	wake_up_all(&hba->reset_waitq);
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	spin_unlock_irqrestore(&hba->host->host_lock, flags);
 
 	return ret;
 }
@@ -1393,29 +1392,29 @@ static int stex_do_reset(struct st_hba *hba)
 	unsigned long flags;
 	unsigned int mu_status = MU_STATE_RESETTING;
 
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	spin_lock_irqsave(&hba->host->host_lock, flags);
 	if (hba->mu_status == MU_STATE_STARTING) {
-		spin_unlock_irqrestore(hba->host->host_lock, flags);
+		spin_unlock_irqrestore(&hba->host->host_lock, flags);
 		printk(KERN_INFO DRV_NAME "(%s): request reset during init\n",
 			pci_name(hba->pdev));
 		return 0;
 	}
 	while (hba->mu_status == MU_STATE_RESETTING) {
-		spin_unlock_irqrestore(hba->host->host_lock, flags);
+		spin_unlock_irqrestore(&hba->host->host_lock, flags);
 		wait_event_timeout(hba->reset_waitq,
 				   hba->mu_status != MU_STATE_RESETTING,
 				   MU_MAX_DELAY * HZ);
-		spin_lock_irqsave(hba->host->host_lock, flags);
+		spin_lock_irqsave(&hba->host->host_lock, flags);
 		mu_status = hba->mu_status;
 	}
 
 	if (mu_status != MU_STATE_RESETTING) {
-		spin_unlock_irqrestore(hba->host->host_lock, flags);
+		spin_unlock_irqrestore(&hba->host->host_lock, flags);
 		return (mu_status == MU_STATE_STARTED) ? 0 : -1;
 	}
 
 	hba->mu_status = MU_STATE_RESETTING;
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	spin_unlock_irqrestore(&hba->host->host_lock, flags);
 
 	if (hba->cardtype == st_yosemite)
 		return stex_yos_reset(hba);
@@ -1858,12 +1857,12 @@ static void stex_hba_stop(struct st_hba *hba, int st_sleep_mic)
 	unsigned long before;
 	u16 tag = 0;
 
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	spin_lock_irqsave(&hba->host->host_lock, flags);
 
 	if ((hba->cardtype == st_yel || hba->cardtype == st_P3) &&
 		hba->supports_pm == 1) {
 		if (st_sleep_mic == ST_NOTHANDLED) {
-			spin_unlock_irqrestore(hba->host->host_lock, flags);
+			spin_unlock_irqrestore(&hba->host->host_lock, flags);
 			return;
 		}
 	}
@@ -1899,7 +1898,7 @@ static void stex_hba_stop(struct st_hba *hba, int st_sleep_mic)
 	hba->ccb[tag].sense_buffer = NULL;
 	hba->ccb[tag].req_type = PASSTHRU_REQ_TYPE;
 	hba->send(hba, req, tag);
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	spin_unlock_irqrestore(&hba->host->host_lock, flags);
 	before = jiffies;
 	while (hba->ccb[tag].req_type & PASSTHRU_REQ_TYPE) {
 		if (time_after(jiffies, before + ST_INTERNAL_TIMEOUT * HZ)) {

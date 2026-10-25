@@ -2507,9 +2507,9 @@ static irqreturn_t i91u_intr(int irqno, void *dev_id)
 	unsigned long flags;
 	int r;
 	
-	spin_lock_irqsave(dev->host_lock, flags);
+	spin_lock_irqsave(&dev->host_lock, flags);
 	r = initio_isr((struct initio_host *)dev->hostdata);
-	spin_unlock_irqrestore(dev->host_lock, flags);
+	spin_unlock_irqrestore(&dev->host_lock, flags);
 	if (r)
 		return IRQ_HANDLED;
 	else
@@ -2635,9 +2635,9 @@ static int i91u_bus_reset(struct scsi_cmnd * cmnd)
 
 	host = (struct initio_host *) cmnd->device->host->hostdata;
 
-	spin_lock_irq(cmnd->device->host->host_lock);
+	spin_lock_irq(&cmnd->device->host->host_lock);
 	initio_reset_scsi(host, 0);
-	spin_unlock_irq(cmnd->device->host->host_lock);
+	spin_unlock_irq(&cmnd->device->host->host_lock);
 
 	return SUCCESS;
 }

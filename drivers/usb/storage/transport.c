@@ -803,9 +803,9 @@ Retry_Sense:
 			     temp_result);
 		usb_stor_dbg(us, "-- code: 0x%x, key: 0x%x, ASC: 0x%x, ASCQ: 0x%x\n",
 			     sshdr.response_code, sshdr.sense_key,
-			     sshdr.asc, sshdr.ascq);
+			     scsi_sense_asc(&sshdr), scsi_sense_ascq(&sshdr));
 #ifdef CONFIG_USB_STORAGE_DEBUG
-		usb_stor_show_sense(us, sshdr.sense_key, sshdr.asc, sshdr.ascq);
+		usb_stor_show_sense(us, &sshdr);
 #endif
 
 		/* set the result so the higher layers expect this data */
@@ -820,7 +820,8 @@ Retry_Sense:
 		 * everything worked or that there was an unspecified
 		 * problem.  We have to decide which.
 		 */
-		if (sshdr.sense_key == 0 && sshdr.asc == 0 && sshdr.ascq == 0 &&
+		if (sshdr.sense_key == NO_SENSE &&
+		    sshdr.sense_code == NO_ADDITIONAL_SENSE_INFORMATION &&
 		    fm_ili == 0) {
 			/*
 			 * If things are really okay, then let's show that.

@@ -495,7 +495,7 @@ static ssize_t tw_show_stats(struct device *dev, struct device_attribute *attr,
 	unsigned long flags = 0;
 	ssize_t len;
 
-	spin_lock_irqsave(tw_dev->host->host_lock, flags);
+	spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 	len = sysfs_emit(buf, "3w-xxxx Driver version: %s\n"
 			 "Current commands posted:   %4d\n"
 			 "Max commands posted:       %4d\n"
@@ -518,7 +518,7 @@ static ssize_t tw_show_stats(struct device *dev, struct device_attribute *attr,
 			 tw_dev->max_sector_count,
 			 tw_dev->num_resets,
 			 tw_dev->aen_count);
-	spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+	spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 	return len;
 } /* End tw_show_stats() */
 
@@ -935,7 +935,7 @@ static long tw_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long a
 			dprintk(KERN_WARNING "3w-xxxx: tw_chrdev_ioctl(): caught TW_AEN_LISTEN.\n");
 			memset(tw_ioctl->data_buffer, 0, data_buffer_length);
 
-			spin_lock_irqsave(tw_dev->host->host_lock, flags);
+			spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 			if (tw_dev->aen_head == tw_dev->aen_tail) {
 				tw_aen_code = TW_AEN_QUEUE_EMPTY;
 			} else {
@@ -946,12 +946,12 @@ static long tw_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long a
 					tw_dev->aen_head = tw_dev->aen_head + 1;
 				}
 			}
-			spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+			spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 			memcpy(tw_ioctl->data_buffer, &tw_aen_code, sizeof(tw_aen_code));
 			break;
 		case TW_CMD_PACKET_WITH_DATA:
 			dprintk(KERN_WARNING "3w-xxxx: tw_chrdev_ioctl(): caught TW_CMD_PACKET_WITH_DATA.\n");
-			spin_lock_irqsave(tw_dev->host->host_lock, flags);
+			spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 
 			tw_state_request_start(tw_dev, &request_id);
 
@@ -983,7 +983,7 @@ static long tw_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long a
 
 			/* Now post the command packet to the controller */
 			tw_post_command_packet(tw_dev, request_id);
-			spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+			spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 
 			timeout = TW_IOCTL_CHRDEV_TIMEOUT*HZ;
 
@@ -1005,11 +1005,11 @@ static long tw_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long a
 			memcpy(&(tw_ioctl->firmware_command), tw_dev->command_packet_virtual_address[request_id], sizeof(TW_Command));
 
 			/* Now complete the io */
-			spin_lock_irqsave(tw_dev->host->host_lock, flags);
+			spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 			tw_dev->posted_request_count--;
 			tw_dev->state[request_id] = TW_S_COMPLETED;
 			tw_state_request_finish(tw_dev, request_id);
-			spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+			spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 			break;
 		default:
 			retval = -ENOTTY;
@@ -1296,7 +1296,7 @@ static int tw_reset_device_extension(TW_Device_Extension *tw_dev)
 	set_bit(TW_IN_RESET, &tw_dev->flags);
 	TW_DISABLE_INTERRUPTS(tw_dev);
 	TW_MASK_COMMAND_INTERRUPT(tw_dev);
-	spin_lock_irqsave(tw_dev->host->host_lock, flags);
+	spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 
 	/* Abort all requests that are in progress */
 	for (i=0;i<TW_Q_LENGTH;i++) {
@@ -1325,7 +1325,7 @@ static int tw_reset_device_extension(TW_Device_Extension *tw_dev)
 	tw_dev->pending_tail = TW_Q_START;
 	tw_dev->reset_print = 0;
 
-	spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+	spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 
 	if (tw_reset_sequence(tw_dev)) {
 		printk(KERN_WARNING "3w-xxxx: scsi%d: Reset sequence failed.\n", tw_dev->host->host_no);
@@ -1977,7 +1977,8 @@ static enum scsi_qc_status tw_scsi_queue_lck(struct scsi_cmnd *SCpnt)
 		printk(KERN_NOTICE "3w-xxxx: scsi%d: Unknown scsi opcode: 0x%x\n", tw_dev->host->host_no, *command);
 		tw_dev->state[request_id] = TW_S_COMPLETED;
 		tw_state_request_finish(tw_dev, request_id);
-		scsi_build_sense(SCpnt, 1, ILLEGAL_REQUEST, 0x20, 0);
+		scsi_set_sense(SCpnt, 1, ILLEGAL_REQUEST,
+			       INVALID_COMMAND_OP_CODE);
 		done(SCpnt);
 		retval = 0;
 	}
@@ -2005,7 +2006,7 @@ static irqreturn_t tw_interrupt(int irq, void *dev_instance)
 	int handled = 0;
 
 	/* Get the host lock for io completions */
-	spin_lock(tw_dev->host->host_lock);
+	spin_lock(&tw_dev->host->host_lock);
 
 	/* Read the registers */
 	status_reg_value = inl(TW_STATUS_REG_ADDR(tw_dev));
@@ -2185,7 +2186,7 @@ static irqreturn_t tw_interrupt(int irq, void *dev_instance)
 	}
 
 tw_interrupt_bail:
-	spin_unlock(tw_dev->host->host_lock);
+	spin_unlock(&tw_dev->host->host_lock);
 	return IRQ_RETVAL(handled);
 } /* End tw_interrupt() */
 

@@ -662,6 +662,7 @@ struct ufs_dev_info {
 	u8 rtt_cap; /* bDeviceRTTCap */
 
 	bool hid_sup;
+	bool timestamp_sup;
 
 	/* Unique device ID string (manufacturer+model+serial+version+date) */
 	char *device_id;

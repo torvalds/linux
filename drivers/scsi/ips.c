@@ -794,7 +794,7 @@ int ips_eh_abort(struct scsi_cmnd *SC)
 	if (!ha->active)
 		return (FAILED);
 
-	spin_lock(host->host_lock);
+	spin_lock(&host->host_lock);
 
 	/* See if the command is on the copp queue */
 	item = ha->copp_waitlist.head;
@@ -815,7 +815,7 @@ int ips_eh_abort(struct scsi_cmnd *SC)
 		ret = (FAILED);
 	}
 
-	spin_unlock(host->host_lock);
+	spin_unlock(&host->host_lock);
 	return ret;
 }
 
@@ -999,9 +999,9 @@ static int ips_eh_reset(struct scsi_cmnd *SC)
 {
 	int rc;
 
-	spin_lock_irq(SC->device->host->host_lock);
+	spin_lock_irq(&SC->device->host->host_lock);
 	rc = __ips_eh_reset(SC);
-	spin_unlock_irq(SC->device->host->host_lock);
+	spin_unlock_irq(&SC->device->host->host_lock);
 
 	return rc;
 }
@@ -1221,16 +1221,16 @@ do_ipsintr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	spin_lock(host->host_lock);
+	spin_lock(&host->host_lock);
 
 	if (!ha->active) {
-		spin_unlock(host->host_lock);
+		spin_unlock(&host->host_lock);
 		return IRQ_HANDLED;
 	}
 
 	irqstatus = (*ha->func.intr) (ha);
 
-	spin_unlock(host->host_lock);
+	spin_unlock(&host->host_lock);
 
 	/* start the next command */
 	ips_next(ha, IPS_INTR_ON);
@@ -2524,7 +2524,7 @@ ips_next(ips_ha_t * ha, int intr)
 	 * this command won't time out
 	 */
 	if (intr == IPS_INTR_ON)
-		spin_lock(host->host_lock);
+		spin_lock(&host->host_lock);
 
 	if ((ha->subsys->param[3] & 0x300000)
 	    && (ha->scb_activelist.count == 0)) {
@@ -2548,14 +2548,14 @@ ips_next(ips_ha_t * ha, int intr)
 		item = ips_removeq_copp_head(&ha->copp_waitlist);
 		ha->num_ioctl++;
 		if (intr == IPS_INTR_ON)
-			spin_unlock(host->host_lock);
+			spin_unlock(&host->host_lock);
 		scb->scsi_cmd = item->scsi_cmd;
 		kfree(item);
 
 		ret = ips_make_passthru(ha, scb->scsi_cmd, scb, intr);
 
 		if (intr == IPS_INTR_ON)
-			spin_lock(host->host_lock);
+			spin_lock(&host->host_lock);
 		switch (ret) {
 		case IPS_FAILURE:
 			if (scb->scsi_cmd) {
@@ -2625,7 +2625,7 @@ ips_next(ips_ha_t * ha, int intr)
 		SC = ips_removeq_wait(&ha->scb_waitlist, q);
 
 		if (intr == IPS_INTR_ON)
-			spin_unlock(host->host_lock);	/* Unlock HA after command is taken off queue */
+			spin_unlock(&host->host_lock);	/* Unlock HA after command is taken off queue */
 
 		SC->result = DID_OK;
 		SC->host_scribble = NULL;
@@ -2682,7 +2682,7 @@ ips_next(ips_ha_t * ha, int intr)
 			scb->dcdb.transfer_length = 0;
 		}
 		if (intr == IPS_INTR_ON)
-			spin_lock(host->host_lock);
+			spin_lock(&host->host_lock);
 
 		ret = ips_send_cmd(ha, scb);
 
@@ -2721,7 +2721,7 @@ ips_next(ips_ha_t * ha, int intr)
 	}			/* end while */
 
 	if (intr == IPS_INTR_ON)
-		spin_unlock(host->host_lock);
+		spin_unlock(&host->host_lock);
 }
 
 /****************************************************************************/

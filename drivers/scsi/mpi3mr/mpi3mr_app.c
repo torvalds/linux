@@ -141,25 +141,27 @@ void mpi3mr_alloc_diag_bufs(struct mpi3mr_ioc *mrioc)
 		trace_min_size = fw_min_size = MPI3MR_DEFAULT_HDB_MIN_SZ;
 
 	} else {
-		trace_size = driver_pg1.host_diag_trace_max_size * 1024;
-		trace_dec_size = driver_pg1.host_diag_trace_decrement_size
+		trace_size = le16_to_cpu(driver_pg1.host_diag_trace_max_size) * 1024;
+		trace_dec_size = le16_to_cpu(driver_pg1.host_diag_trace_decrement_size)
 			 * 1024;
-		trace_min_size = driver_pg1.host_diag_trace_min_size * 1024;
-		fw_size = driver_pg1.host_diag_fw_max_size * 1024;
-		fw_dec_size = driver_pg1.host_diag_fw_decrement_size * 1024;
-		fw_min_size = driver_pg1.host_diag_fw_min_size * 1024;
+		trace_min_size = le16_to_cpu(driver_pg1.host_diag_trace_min_size) * 1024;
+		fw_size = le16_to_cpu(driver_pg1.host_diag_fw_max_size) * 1024;
+		fw_dec_size = le16_to_cpu(driver_pg1.host_diag_fw_decrement_size) * 1024;
+		fw_min_size = le16_to_cpu(driver_pg1.host_diag_fw_min_size) * 1024;
 		dprint_init(mrioc,
 		    "%s:trace diag buffer sizes read from driver\n"
 		    "page1: maximum size = %dKB, decrement size = %dKB\n"
-		    ", minimum size = %dKB\n", __func__, driver_pg1.host_diag_trace_max_size,
-		    driver_pg1.host_diag_trace_decrement_size,
-		    driver_pg1.host_diag_trace_min_size);
+		    ", minimum size = %dKB\n", __func__,
+		    le16_to_cpu(driver_pg1.host_diag_trace_max_size),
+		    le16_to_cpu(driver_pg1.host_diag_trace_decrement_size),
+		    le16_to_cpu(driver_pg1.host_diag_trace_min_size));
 		dprint_init(mrioc,
 		    "%s:firmware diag buffer sizes read from driver\n"
 		    "page1: maximum size = %dKB, decrement size = %dKB\n"
-		    ", minimum size = %dKB\n", __func__, driver_pg1.host_diag_fw_max_size,
-		    driver_pg1.host_diag_fw_decrement_size,
-		    driver_pg1.host_diag_fw_min_size);
+		    ", minimum size = %dKB\n", __func__,
+		    le16_to_cpu(driver_pg1.host_diag_fw_max_size),
+		    le16_to_cpu(driver_pg1.host_diag_fw_decrement_size),
+		    le16_to_cpu(driver_pg1.host_diag_fw_min_size));
 		if ((trace_size == 0) && (fw_size == 0))
 			return;
 	}
@@ -179,6 +181,12 @@ retry_trace:
 		    mpi3mr_alloc_trace_buffer(mrioc, trace_size)) {
 
 			retry = true;
+
+			if (!trace_dec_size || trace_dec_size > trace_size) {
+				retry = false;
+				goto retry_fw;
+			}
+
 			trace_size -= trace_dec_size;
 			dprint_init(mrioc, "trace diag buffer allocation failed\n"
 			"retrying smaller size %dKB\n", trace_size / 1024);
@@ -211,11 +219,13 @@ retry_fw:
 			diag_buffer->size = fw_size;
 		} else {
 			retry = true;
-			fw_size -= fw_dec_size;
-			dprint_init(mrioc, "%s:trace diag buffer allocation failed,\n"
-					"retrying smaller size %dKB\n",
-					__func__, fw_size / 1024);
-			goto retry_fw;
+			if (fw_dec_size && fw_dec_size <= fw_size) {
+				fw_size -= fw_dec_size;
+				dprint_init(mrioc, "%s:trace diag buffer allocation failed,\n"
+						"retrying smaller size %dKB\n",
+						__func__, fw_size / 1024);
+				goto retry_fw;
+			}
 		}
 	}
 }
@@ -1244,7 +1254,7 @@ static long mpi3mr_bsg_query_hdb(struct mpi3mr_ioc *mrioc,
 
 	length = (sizeof(*hbd_status) + ((MPI3MR_MAX_NUM_HDB - 1) *
 		    sizeof(*hbd_status_entry)));
-	hbd_status = kmalloc(length, GFP_KERNEL);
+	hbd_status = kzalloc(length, GFP_KERNEL);
 	if (!hbd_status)
 		return -ENOMEM;
 	hbd_status_entry = &hbd_status->entry[0];
@@ -1466,7 +1476,8 @@ out:
 static long mpi3mr_get_all_tgt_info(struct mpi3mr_ioc *mrioc,
 	struct bsg_job *job)
 {
-	u16 num_devices = 0, i = 0, size;
+	u16 num_devices = 0, i = 0;
+	size_t size;
 	unsigned long flags;
 	struct mpi3mr_tgt_dev *tgtdev;
 	struct mpi3mr_device_map_info *devmap_info = NULL;
@@ -1492,8 +1503,8 @@ static long mpi3mr_get_all_tgt_info(struct mpi3mr_ioc *mrioc,
 		return 0;
 	}
 
-	kern_entrylen = num_devices * sizeof(*devmap_info);
-	size = sizeof(u64) + kern_entrylen;
+	kern_entrylen = (uint32_t)num_devices * sizeof(*devmap_info);
+	size = sizeof(u64) + (size_t)kern_entrylen;
 	alltgt_info = kzalloc(size, GFP_KERNEL);
 	if (!alltgt_info)
 		return -ENOMEM;
@@ -2384,7 +2395,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 	long rval = -EINVAL;
 	struct mpi3mr_ioc *mrioc = NULL;
 	u8 *mpi_req = NULL, *sense_buff_k = NULL;
-	u8 mpi_msg_size = 0;
+	u32 mpi_msg_size = 0;
 	struct mpi3mr_bsg_packet *bsg_req = NULL;
 	struct mpi3mr_bsg_mptcmd *karg;
 	struct mpi3mr_buf_entry *buf_entries = NULL;
@@ -2538,7 +2549,15 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 				rval = -EINVAL;
 				goto out;
 			}
-			memcpy(mpi_req, sgl_iter, buf_entries->buf_len);
+			if (sgl_iter + mpi_msg_size >
+			    dout_buf + job->request_payload.payload_len) {
+				dprint_bsg_err(mrioc, "%s: MPI request buf exceeds dout_buf\n",
+					       __func__);
+				mutex_unlock(&mrioc->bsg_cmds.mutex);
+				rval = -EINVAL;
+				goto out;
+			}
+			memcpy(mpi_req, sgl_iter, mpi_msg_size);
 			break;
 		default:
 			invalid_be = 1;
@@ -2737,10 +2756,12 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 	}
 	if (block_io) {
 		tgtdev = mpi3mr_get_tgtdev_by_handle(mrioc, dev_handle);
-		if (tgtdev && tgtdev->starget && tgtdev->starget->hostdata) {
-			stgt_priv = (struct mpi3mr_stgt_priv_data *)
-			    tgtdev->starget->hostdata;
-			atomic_inc(&stgt_priv->block_io);
+		if (tgtdev) {
+			if (tgtdev->starget && tgtdev->starget->hostdata) {
+				stgt_priv = (struct mpi3mr_stgt_priv_data *)
+				    tgtdev->starget->hostdata;
+				atomic_inc(&stgt_priv->block_io);
+			}
 			mpi3mr_tgtdev_put(tgtdev);
 		}
 	}
@@ -2774,6 +2795,8 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 		dprint_bsg_err(mrioc,
 		    "%s: posting bsg request is failed\n", __func__);
 		rval = -EAGAIN;
+		if (block_io && stgt_priv)
+			atomic_dec(&stgt_priv->block_io);
 		goto out_unlock;
 	}
 	wait_for_completion_timeout(&mrioc->bsg_cmds.done,
@@ -2935,7 +2958,8 @@ out:
 void mpi3mr_app_save_logdata_th(struct mpi3mr_ioc *mrioc, char *event_data,
 	u16 event_data_size)
 {
-	u32 index = mrioc->logdata_buf_idx, sz;
+	u32 index = mrioc->logdata_buf_idx;
+	size_t entry_payload_len, sz;
 	struct mpi3mr_logdata_entry *entry;
 
 	if (!(mrioc->logdata_buf))
@@ -2944,7 +2968,12 @@ void mpi3mr_app_save_logdata_th(struct mpi3mr_ioc *mrioc, char *event_data,
 	entry = (struct mpi3mr_logdata_entry *)
 		(mrioc->logdata_buf + (index * mrioc->logdata_entry_sz));
 	entry->valid_entry = 1;
-	sz = min(mrioc->logdata_entry_sz, event_data_size);
+	if (mrioc->logdata_entry_sz > MPI3MR_BSG_LOGDATA_ENTRY_HEADER_SZ)
+		entry_payload_len = (size_t)mrioc->logdata_entry_sz -
+		    MPI3MR_BSG_LOGDATA_ENTRY_HEADER_SZ;
+	else
+		entry_payload_len = 0;
+	sz = min_t(size_t, entry_payload_len, event_data_size);
 	memcpy(entry->data, event_data, sz);
 	mrioc->logdata_buf_idx =
 		((++index) % MPI3MR_BSG_LOGDATA_MAX_ENTRIES);

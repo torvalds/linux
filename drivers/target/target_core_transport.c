@@ -3555,7 +3555,8 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 	const struct sense_detail *sd;
 	u8 *buffer = cmd->sense_buffer;
 	int r = (__force int)reason;
-	u8 key, asc, ascq;
+	u16 code;
+	u8 key;
 	bool desc_format = target_sense_desc_format(cmd->se_dev);
 
 	if (r < ARRAY_SIZE(sense_detail_table) && sense_detail_table[r].key)
@@ -3566,21 +3567,19 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 
 	key = sd->key;
 	if (reason == TCM_CHECK_CONDITION_UNIT_ATTENTION) {
-		if (!core_scsi3_ua_for_check_condition(cmd, &key, &asc,
-						       &ascq)) {
+		if (!core_scsi3_ua_for_check_condition(cmd, &key, &code)) {
 			cmd->scsi_status = SAM_STAT_BUSY;
 			return;
 		}
 	} else {
 		WARN_ON_ONCE(sd->asc == 0);
-		asc = sd->asc;
-		ascq = sd->ascq;
+		code = scsi_sense_code(sd->asc, sd->ascq);
 	}
 
 	cmd->se_cmd_flags |= SCF_EMULATED_TASK_SENSE;
 	cmd->scsi_status = SAM_STAT_CHECK_CONDITION;
 	cmd->scsi_sense_length  = TRANSPORT_SENSE_BUFFER;
-	scsi_build_sense_buffer(desc_format, buffer, key, asc, ascq);
+	scsi_set_sense_buffer(desc_format, buffer, key, code);
 	if (sd->add_sense_info)
 		WARN_ON_ONCE(scsi_set_sense_information(buffer,
 							cmd->scsi_sense_length,

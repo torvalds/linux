@@ -96,7 +96,8 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 					    "ioctl_internal_command: "
 					    "ILLEGAL REQUEST "
 					    "asc=0x%x ascq=0x%x\n",
-					    sshdr.asc, sshdr.ascq);
+					    scsi_sense_asc(&sshdr),
+					    scsi_sense_ascq(&sshdr));
 			break;
 		case NOT_READY:	/* This happens if there is no disc in drive */
 			if (sdev->removable)

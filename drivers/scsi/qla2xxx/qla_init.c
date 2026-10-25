@@ -6247,9 +6247,9 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 		return;
 	}
 
-	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
+	spin_lock_irqsave(&fcport->vha->host->host_lock, flags);
 	*((fc_port_t **)rport->dd_data) = fcport;
-	spin_unlock_irqrestore(fcport->vha->host->host_lock, flags);
+	spin_unlock_irqrestore(&fcport->vha->host->host_lock, flags);
 	fcport->dev_loss_tmo = rport->dev_loss_tmo;
 
 	rport->supported_classes = fcport->supported_classes;

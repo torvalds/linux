@@ -606,7 +606,8 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 		return result;
 	if (result && scsi_sense_valid(&sshdr) &&
 	    sshdr.sense_key == ILLEGAL_REQUEST &&
-	    (sshdr.asc == 0x20 || sshdr.asc == 0x24) && sshdr.ascq == 0x00)
+	    (sshdr.sense_code == INVALID_COMMAND_OP_CODE ||
+	     sshdr.sense_code == INVALID_FIELD_IN_CDB))
 		return -EINVAL;
 
 	if ((buffer[1] & 3) == 3) /* Command supported */
@@ -842,7 +843,7 @@ struct scsi_device *__scsi_iterate_devices(struct Scsi_Host *shost,
 	struct scsi_device *next = NULL;
 	unsigned long flags;
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	while (list->next != &shost->__devices) {
 		next = list_entry(list->next, struct scsi_device, siblings);
 		/*
@@ -854,7 +855,7 @@ struct scsi_device *__scsi_iterate_devices(struct Scsi_Host *shost,
 		next = NULL;
 		list = list->next;
 	}
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	if (prev)
 		scsi_device_put(prev);
@@ -961,11 +962,11 @@ struct scsi_device *scsi_device_lookup_by_target(struct scsi_target *starget,
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	sdev = __scsi_device_lookup_by_target(starget, lun);
 	if (sdev && scsi_device_get(sdev))
 		sdev = NULL;
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	return sdev;
 }
@@ -1021,11 +1022,11 @@ struct scsi_device *scsi_device_lookup(struct Scsi_Host *shost,
 	struct scsi_device *sdev;
 	unsigned long flags;
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	sdev = __scsi_device_lookup(shost, channel, id, lun);
 	if (sdev && scsi_device_get(sdev))
 		sdev = NULL;
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	return sdev;
 }

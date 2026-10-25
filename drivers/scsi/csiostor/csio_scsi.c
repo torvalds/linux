@@ -2256,14 +2256,14 @@ csio_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	struct csio_lnode *ln = shost_priv(shost);
 	int rv = 1;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	if (!ln->hwp || csio_list_deleted(&ln->sm.sm_list))
 		goto out;
 
 	rv = csio_scan_done(ln, jiffies, time, csio_max_scan_tmo * HZ,
 			    csio_delta_scan_tmo * HZ);
 out:
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 
 	return rv;
 }

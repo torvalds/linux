@@ -418,13 +418,13 @@ static int scsifront_cmd_done(struct vscsifrnt_info *info,
 	int more_to_do;
 	unsigned long flags;
 
-	spin_lock_irqsave(info->host->host_lock, flags);
+	spin_lock_irqsave(&info->host->host_lock, flags);
 
 	more_to_do = scsifront_ring_drain(info, eoiflag);
 
 	info->wait_ring_available = 0;
 
-	spin_unlock_irqrestore(info->host->host_lock, flags);
+	spin_unlock_irqrestore(&info->host->host_lock, flags);
 
 	wake_up(&info->wq_sync);
 
@@ -620,9 +620,9 @@ static enum scsi_qc_status scsifront_queuecommand(struct Scsi_Host *shost,
 	shadow->sc  = sc;
 	shadow->act = VSCSIIF_ACT_SCSI_CDB;
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	if (scsifront_enter(info)) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
+		spin_unlock_irqrestore(&shost->host_lock, flags);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
@@ -630,7 +630,7 @@ static enum scsi_qc_status scsifront_queuecommand(struct Scsi_Host *shost,
 	if (err < 0) {
 		pr_debug("%s: err %d\n", __func__, err);
 		scsifront_return(info);
-		spin_unlock_irqrestore(shost->host_lock, flags);
+		spin_unlock_irqrestore(&shost->host_lock, flags);
 		if (err == -ENOMEM)
 			return SCSI_MLQUEUE_HOST_BUSY;
 		sc->result = DID_ERROR << 16;
@@ -644,13 +644,13 @@ static enum scsi_qc_status scsifront_queuecommand(struct Scsi_Host *shost,
 	}
 
 	scsifront_return(info);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	return 0;
 
 busy:
 	scsifront_return(info);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 	pr_debug("%s: busy\n", __func__);
 	return SCSI_MLQUEUE_HOST_BUSY;
 }
@@ -680,7 +680,7 @@ static int scsifront_action_handler(struct scsi_cmnd *sc, uint8_t act)
 	shadow->ref_rqid = s->rqid;
 	init_waitqueue_head(&shadow->wq_reset);
 
-	spin_lock_irq(host->host_lock);
+	spin_lock_irq(&host->host_lock);
 
 	for (;;) {
 		if (scsifront_enter(info))
@@ -693,15 +693,15 @@ static int scsifront_action_handler(struct scsi_cmnd *sc, uint8_t act)
 		if (err)
 			goto fail;
 		info->wait_ring_available = 1;
-		spin_unlock_irq(host->host_lock);
+		spin_unlock_irq(&host->host_lock);
 		err = wait_event_interruptible(info->wq_sync,
 					       !info->wait_ring_available);
-		spin_lock_irq(host->host_lock);
+		spin_lock_irq(&host->host_lock);
 	}
 
-	spin_unlock_irq(host->host_lock);
+	spin_unlock_irq(&host->host_lock);
 	err = wait_event_interruptible(shadow->wq_reset, shadow->wait_reset);
-	spin_lock_irq(host->host_lock);
+	spin_lock_irq(&host->host_lock);
 
 	if (!err) {
 		err = shadow->rslt_reset;
@@ -715,11 +715,11 @@ static int scsifront_action_handler(struct scsi_cmnd *sc, uint8_t act)
 	}
 
 	scsifront_return(info);
-	spin_unlock_irq(host->host_lock);
+	spin_unlock_irq(&host->host_lock);
 	return err;
 
 fail:
-	spin_unlock_irq(host->host_lock);
+	spin_unlock_irq(&host->host_lock);
 	kfree(shadow);
 	return FAILED;
 }
@@ -954,12 +954,12 @@ static int scsifront_resume(struct xenbus_device *dev)
 	struct Scsi_Host *host = info->host;
 	int err;
 
-	spin_lock_irq(host->host_lock);
+	spin_lock_irq(&host->host_lock);
 
 	/* Finish all still pending commands. */
 	scsifront_finish_all(info);
 
-	spin_unlock_irq(host->host_lock);
+	spin_unlock_irq(&host->host_lock);
 
 	/* Reconnect to dom0. */
 	scsifront_free_ring(info);
@@ -982,18 +982,18 @@ static int scsifront_suspend(struct xenbus_device *dev)
 	int err = 0;
 
 	/* No new commands for the backend. */
-	spin_lock_irq(host->host_lock);
+	spin_lock_irq(&host->host_lock);
 	info->pause = 1;
 	while (info->callers && !err) {
 		info->waiting_pause = 1;
 		info->wait_ring_available = 0;
-		spin_unlock_irq(host->host_lock);
+		spin_unlock_irq(&host->host_lock);
 		wake_up(&info->wq_sync);
 		err = wait_event_interruptible(info->wq_pause,
 					       !info->waiting_pause);
-		spin_lock_irq(host->host_lock);
+		spin_lock_irq(&host->host_lock);
 	}
-	spin_unlock_irq(host->host_lock);
+	spin_unlock_irq(&host->host_lock);
 	return err;
 }
 

@@ -1016,9 +1016,9 @@ static irqreturn_t do_mesh_interrupt(int irq, void *dev_id)
 	struct mesh_state *ms = dev_id;
 	struct Scsi_Host *dev = ms->host;
 	
-	spin_lock_irqsave(dev->host_lock, flags);
+	spin_lock_irqsave(&dev->host_lock, flags);
 	mesh_interrupt(ms);
-	spin_unlock_irqrestore(dev->host_lock, flags);
+	spin_unlock_irqrestore(&dev->host_lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -1708,7 +1708,7 @@ static int mesh_host_reset(struct scsi_cmnd *cmd)
 
 	printk(KERN_DEBUG "mesh_host_reset\n");
 
-	spin_lock_irqsave(ms->host->host_lock, flags);
+	spin_lock_irqsave(&ms->host->host_lock, flags);
 
 	if (ms->dma_started)
 		halt_dma(ms);
@@ -1734,7 +1734,7 @@ static int mesh_host_reset(struct scsi_cmnd *cmd)
 	/* Complete pending commands */
 	handle_reset(ms);
 	
-	spin_unlock_irqrestore(ms->host->host_lock, flags);
+	spin_unlock_irqrestore(&ms->host->host_lock, flags);
 	return SUCCESS;
 }
 
@@ -1771,14 +1771,14 @@ static int mesh_suspend(struct macio_dev *mdev, pm_message_t mesg)
 		return 0;
 
 	scsi_block_requests(ms->host);
-	spin_lock_irqsave(ms->host->host_lock, flags);
+	spin_lock_irqsave(&ms->host->host_lock, flags);
 	while(ms->phase != idle) {
-		spin_unlock_irqrestore(ms->host->host_lock, flags);
+		spin_unlock_irqrestore(&ms->host->host_lock, flags);
 		msleep(10);
-		spin_lock_irqsave(ms->host->host_lock, flags);
+		spin_lock_irqsave(&ms->host->host_lock, flags);
 	}
 	ms->phase = sleeping;
-	spin_unlock_irqrestore(ms->host->host_lock, flags);
+	spin_unlock_irqrestore(&ms->host->host_lock, flags);
 	disable_irq(ms->meshintr);
 	set_mesh_power(ms, 0);
 
@@ -1795,9 +1795,9 @@ static int mesh_resume(struct macio_dev *mdev)
 
 	set_mesh_power(ms, 1);
 	mesh_init(ms);
-	spin_lock_irqsave(ms->host->host_lock, flags);
+	spin_lock_irqsave(&ms->host->host_lock, flags);
 	mesh_start(ms);
-	spin_unlock_irqrestore(ms->host->host_lock, flags);
+	spin_unlock_irqrestore(&ms->host->host_lock, flags);
 	enable_irq(ms->meshintr);
 	scsi_unblock_requests(ms->host);
 
@@ -1818,7 +1818,7 @@ static int mesh_shutdown(struct macio_dev *mdev)
 	unsigned long flags;
 
        	printk(KERN_INFO "resetting MESH scsi bus(es)\n");
-	spin_lock_irqsave(ms->host->host_lock, flags);
+	spin_lock_irqsave(&ms->host->host_lock, flags);
        	mr = ms->mesh;
 	out_8(&mr->intr_mask, 0);
 	out_8(&mr->interrupt, INT_ERROR | INT_EXCEPTION | INT_CMDDONE);
@@ -1826,7 +1826,7 @@ static int mesh_shutdown(struct macio_dev *mdev)
 	mesh_flush_io(mr);
 	udelay(30);
 	out_8(&mr->bus_status1, 0);
-	spin_unlock_irqrestore(ms->host->host_lock, flags);
+	spin_unlock_irqrestore(&ms->host->host_lock, flags);
 
 	return 0;
 }

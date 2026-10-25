@@ -348,7 +348,7 @@ static struct se_device *pscsi_alloc_device(struct se_hba *hba,
  * Called with struct Scsi_Host->host_lock called.
  */
 static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
-	__releases(sh->host_lock)
+	__releases(&sh->host_lock)
 {
 	struct pscsi_hba_virt *phv = dev->se_hba->hba_ptr;
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(dev);
@@ -359,10 +359,10 @@ static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
 	if (scsi_device_get(sd)) {
 		pr_err("scsi_device_get() failed for %d:%d:%d:%llu\n",
 			sh->host_no, sd->channel, sd->id, sd->lun);
-		spin_unlock_irq(sh->host_lock);
+		spin_unlock_irq(&sh->host_lock);
 		return -EIO;
 	}
-	spin_unlock_irq(sh->host_lock);
+	spin_unlock_irq(&sh->host_lock);
 	/*
 	 * Claim exclusive struct block_device access to struct scsi_device
 	 * for TYPE_DISK and TYPE_ZBC using supplied udev_path
@@ -393,7 +393,7 @@ static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
  * Called with struct Scsi_Host->host_lock called.
  */
 static int pscsi_create_type_nondisk(struct se_device *dev, struct scsi_device *sd)
-	__releases(sh->host_lock)
+	__releases(&sh->host_lock)
 {
 	struct pscsi_hba_virt *phv = dev->se_hba->hba_ptr;
 	struct Scsi_Host *sh = sd->host;
@@ -402,10 +402,10 @@ static int pscsi_create_type_nondisk(struct se_device *dev, struct scsi_device *
 	if (scsi_device_get(sd)) {
 		pr_err("scsi_device_get() failed for %d:%d:%d:%llu\n",
 			sh->host_no, sd->channel, sd->id, sd->lun);
-		spin_unlock_irq(sh->host_lock);
+		spin_unlock_irq(&sh->host_lock);
 		return -EIO;
 	}
-	spin_unlock_irq(sh->host_lock);
+	spin_unlock_irq(&sh->host_lock);
 
 	ret = pscsi_add_device_to_list(dev, sd);
 	if (ret) {
@@ -491,7 +491,7 @@ static int pscsi_configure_device(struct se_device *dev)
 		}
 	}
 
-	spin_lock_irq(sh->host_lock);
+	spin_lock_irq(&sh->host_lock);
 	list_for_each_entry(sd, &sh->__devices, siblings) {
 		if ((pdv->pdv_channel_id != sd->channel) ||
 		    (pdv->pdv_target_id != sd->id) ||
@@ -524,7 +524,7 @@ static int pscsi_configure_device(struct se_device *dev)
 		}
 		return 0;
 	}
-	spin_unlock_irq(sh->host_lock);
+	spin_unlock_irq(&sh->host_lock);
 
 	pr_err("pSCSI: Unable to locate %d:%d:%d:%d\n", sh->host_no,
 		pdv->pdv_channel_id,  pdv->pdv_target_id, pdv->pdv_lun_id);

@@ -1340,9 +1340,9 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		}
 		clear_bit(FC_PT2PT, &phba->pport->fc_flag);
 		clear_bit(FC_PT2PT_PLOGI, &phba->pport->fc_flag);
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&shost->host_lock);
 		phba->pport->rcv_flogi_cnt = 0;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 	}
 	return 0;
 }
@@ -1406,9 +1406,9 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 	}
 	set_bit(FC_NDISC_ACTIVE, &vport->fc_flag);
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	vport->fc_ns_retry = 0;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 	lpfc_setup_fdmi_mask(vport);
 
 	lpfc_linkup_cleanup_nodes(vport);
@@ -1437,9 +1437,9 @@ lpfc_linkup(struct lpfc_hba *phba)
 	 * absorbed without an ACQE. No lock here - in worker thread
 	 * and discovery is synchronized.
 	 */
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	phba->pport->rcv_flogi_cnt = 0;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 
 	return 0;
 }
@@ -3400,9 +3400,9 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	set_bit(FC_VFI_REGISTERED, &vport->fc_flag);
 	clear_bit(FC_VPORT_NEEDS_REG_VPI, &vport->fc_flag);
 	clear_bit(FC_VPORT_NEEDS_INIT_VPI, &vport->fc_flag);
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	vport->vpi_state |= LPFC_VPI_REGISTERED;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 
 	/* In case SLI4 FC loopback test, we are ready */
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
@@ -3943,9 +3943,9 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	set_bit(FC_VPORT_NEEDS_REG_VPI, &vport->fc_flag);
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	vport->vpi_state &= ~LPFC_VPI_REGISTERED;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 	mempool_free(pmb, phba->mbox_mem_pool);
 	lpfc_cleanup_vports_rrqs(vport, NULL);
 	/*
@@ -4010,9 +4010,9 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	clear_bit(FC_VPORT_NEEDS_REG_VPI, &vport->fc_flag);
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	vport->vpi_state |= LPFC_VPI_REGISTERED;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 	vport->num_disc_nodes = 0;
 	/* go thru NPR list and issue ELS PLOGIs */
 	if (atomic_read(&vport->fc_npr_cnt))
@@ -5620,9 +5620,9 @@ lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
 	struct lpfc_nodelist *ndlp;
 	unsigned long iflags;
 
-	spin_lock_irqsave(shost->host_lock, iflags);
+	spin_lock_irqsave(&shost->host_lock, iflags);
 	ndlp = __lpfc_findnode_did(vport, did);
-	spin_unlock_irqrestore(shost->host_lock, iflags);
+	spin_unlock_irqrestore(&shost->host_lock, iflags);
 	return ndlp;
 }
 
@@ -6426,9 +6426,9 @@ lpfc_findnode_wwpn(struct lpfc_vport *vport, struct lpfc_name *wwpn)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	ndlp = __lpfc_find_node(vport, lpfc_filter_by_wwpn, wwpn);
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 	return ndlp;
 }
 
@@ -6444,9 +6444,9 @@ lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
 	struct lpfc_nodelist *ndlp;
 	unsigned long flags;
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	ndlp = __lpfc_findnode_rpi(vport, rpi);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 	return ndlp;
 }
 
@@ -6786,9 +6786,9 @@ lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
 				lpfc_sli4_unreg_all_rpis(vports[i]);
 			lpfc_mbx_unreg_vpi(vports[i]);
 			shost = lpfc_shost_from_vport(vports[i]);
-			spin_lock_irq(shost->host_lock);
+			spin_lock_irq(&shost->host_lock);
 			vports[i]->vpi_state &= ~LPFC_VPI_REGISTERED;
-			spin_unlock_irq(shost->host_lock);
+			spin_unlock_irq(&shost->host_lock);
 			set_bit(FC_VPORT_NEEDS_INIT_VPI, &vports[i]->fc_flag);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -6801,9 +6801,9 @@ lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
 			lpfc_sli4_unreg_all_rpis(phba->pport);
 		lpfc_mbx_unreg_vpi(phba->pport);
 		shost = lpfc_shost_from_vport(phba->pport);
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&shost->host_lock);
 		phba->pport->vpi_state &= ~LPFC_VPI_REGISTERED;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 		set_bit(FC_VPORT_NEEDS_INIT_VPI, &phba->pport->fc_flag);
 	}
 

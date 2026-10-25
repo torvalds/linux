@@ -41,9 +41,9 @@ static irqreturn_t a3000_intr(int irq, void *data)
 	if (!(status & ISTR_INT_P))
 		return IRQ_NONE;
 	if (status & ISTR_INTS) {
-		spin_lock_irqsave(instance->host_lock, flags);
+		spin_lock_irqsave(&instance->host_lock, flags);
 		wd33c93_intr(instance);
-		spin_unlock_irqrestore(instance->host_lock, flags);
+		spin_unlock_irqrestore(&instance->host_lock, flags);
 		return IRQ_HANDLED;
 	}
 	pr_warn("Non-serviced A3000 SCSI-interrupt? ISTR = %02x\n", status);

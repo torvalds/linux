@@ -1130,9 +1130,9 @@ static int uas_pre_reset(struct usb_interface *intf)
 		return 0;
 
 	/* Block new requests */
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	scsi_block_requests(shost);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	if (uas_wait_for_pending_cmnds(devinfo) != 0) {
 		shost_printk(KERN_ERR, shost, "%s: timed out\n", __func__);
@@ -1162,9 +1162,9 @@ static int uas_post_reset(struct usb_interface *intf)
 			     __func__, err);
 
 	/* we must unblock the host in every case lest we deadlock */
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	scsi_report_bus_reset(shost, 0);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	scsi_unblock_requests(shost);
 
@@ -1204,9 +1204,9 @@ static int uas_reset_resume(struct usb_interface *intf)
 		return -EIO;
 	}
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	scsi_report_bus_reset(shost, 0);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	return 0;
 }

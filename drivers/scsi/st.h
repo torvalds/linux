@@ -162,10 +162,12 @@ struct scsi_tape {
 	unsigned char in_use;
 	unsigned char blksize_changed;
 	unsigned char density_changed;
+	unsigned char drv_buffer_changed;
 	unsigned char compression_changed;
 	unsigned char drv_buffer;
 	unsigned char density;
 	unsigned char changed_density;
+	unsigned char changed_drv_buffer;
 	unsigned char door_locked;
 	unsigned char autorew_dev;   /* auto-rewind device */
 	unsigned char rew_at_close;  /* rewind necessary at close */

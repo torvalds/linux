@@ -781,10 +781,10 @@ static void imm_interrupt(struct work_struct *work)
 
 	imm_pb_dismiss(dev);
 
-	spin_lock_irqsave(host->host_lock, flags);
+	spin_lock_irqsave(&host->host_lock, flags);
 	dev->cur_cmd = NULL;
 	scsi_done(cmd);
-	spin_unlock_irqrestore(host->host_lock, flags);
+	spin_unlock_irqrestore(&host->host_lock, flags);
 	return;
 }
 

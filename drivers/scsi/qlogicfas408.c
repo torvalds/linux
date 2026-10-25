@@ -454,9 +454,9 @@ irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id)
 	unsigned long flags;
 	struct Scsi_Host *host = dev_id;
 
-	spin_lock_irqsave(host->host_lock, flags);
+	spin_lock_irqsave(&host->host_lock, flags);
 	ql_ihandl(dev_id);
-	spin_unlock_irqrestore(host->host_lock, flags);
+	spin_unlock_irqrestore(&host->host_lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -536,9 +536,9 @@ int qlogicfas408_host_reset(struct scsi_cmnd *cmd)
 
 	priv->qabort = 2;
 
-	spin_lock_irqsave(cmd->device->host->host_lock, flags);
+	spin_lock_irqsave(&cmd->device->host->host_lock, flags);
 	ql_zap(priv);
-	spin_unlock_irqrestore(cmd->device->host->host_lock, flags);
+	spin_unlock_irqrestore(&cmd->device->host->host_lock, flags);
 
 	return SUCCESS;
 }

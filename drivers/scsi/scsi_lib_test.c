@@ -17,42 +17,43 @@ static void scsi_lib_test_multiple_sense(struct kunit *test)
 {
 	struct scsi_failure multiple_sense_failure_defs[] = {
 		{
-			.sense = DATA_PROTECT,
-			.asc = 0x1,
-			.ascq = 0x1,
+			.sense_key = DATA_PROTECT,
+			.sense_code =
+				scsi_sense_code(ASC_NO_INDEX_SECTOR_SIGNAL,
+						0x1),
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		{
-			.sense = UNIT_ATTENTION,
-			.asc = 0x11,
-			.ascq = 0x0,
+			.sense_key = UNIT_ATTENTION,
+			.sense_code = UNRECOVERED_READ_ERROR,
 			.allowed = SCSI_LIB_TEST_MAX_ALLOWED,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		{
-			.sense = NOT_READY,
-			.asc = 0x11,
-			.ascq = 0x22,
+			.sense_key = NOT_READY,
+			.sense_code =
+				scsi_sense_code(ASC_UNRECOVERED_READ_ERROR,
+						0x22),
 			.allowed = SCSI_LIB_TEST_MAX_ALLOWED,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		{
-			.sense = ABORTED_COMMAND,
-			.asc = 0x11,
-			.ascq = SCMD_FAILURE_ASCQ_ANY,
+			.sense_key = ABORTED_COMMAND,
+			.sense_code =
+				scsi_sense_code(ASC_UNRECOVERED_READ_ERROR,
+						SCMD_FAILURE_ASCQ_ANY),
 			.allowed = SCSI_LIB_TEST_MAX_ALLOWED,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		{
-			.sense = HARDWARE_ERROR,
-			.asc = SCMD_FAILURE_ASC_ANY,
+			.sense_key = HARDWARE_ERROR,
+			.sense_code = scsi_sense_code(SCMD_FAILURE_ASC_ANY, 0),
 			.allowed = SCSI_LIB_TEST_MAX_ALLOWED,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		{
-			.sense = ILLEGAL_REQUEST,
-			.asc = 0x91,
-			.ascq = 0x36,
+			.sense_key = ILLEGAL_REQUEST,
+			.sense_code = scsi_sense_code(0x91, 0x36),
 			.allowed = SCSI_LIB_TEST_MAX_ALLOWED,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
@@ -72,32 +73,36 @@ static void scsi_lib_test_multiple_sense(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, &failures));
 	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, NULL));
 	/* Command failed but caller did not pass in a failures array */
-	scsi_build_sense(&sc, 0, ILLEGAL_REQUEST, 0x91, 0x36);
+	scsi_set_sense(&sc, 0, ILLEGAL_REQUEST, scsi_sense_code(0x91, 0x36));
 	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, NULL));
 	/* Match end of array */
-	scsi_build_sense(&sc, 0, ILLEGAL_REQUEST, 0x91, 0x36);
+	scsi_set_sense(&sc, 0, ILLEGAL_REQUEST, scsi_sense_code(0x91, 0x36));
 	KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc, &failures));
 	/* Basic match in array */
-	scsi_build_sense(&sc, 0, UNIT_ATTENTION, 0x11, 0x0);
+	scsi_set_sense(&sc, 0, UNIT_ATTENTION, UNRECOVERED_READ_ERROR);
 	KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc, &failures));
 	/* No matching sense entry */
-	scsi_build_sense(&sc, 0, MISCOMPARE, 0x11, 0x11);
+	scsi_set_sense(&sc, 0, MISCOMPARE, READ_ERROR_LOSS_OF_STREAMING);
 	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, &failures));
 	/* Match using SCMD_FAILURE_ASCQ_ANY */
-	scsi_build_sense(&sc, 0, ABORTED_COMMAND, 0x11, 0x22);
+	scsi_set_sense(&sc, 0, ABORTED_COMMAND,
+		       scsi_sense_code(ASC_UNRECOVERED_READ_ERROR, 0x22));
 	KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc, &failures));
 	/* Fail to match */
-	scsi_build_sense(&sc, 0, ABORTED_COMMAND, 0x22, 0x22);
+	scsi_set_sense(&sc, 0, ABORTED_COMMAND,
+		       scsi_sense_code(ASC_ILLEGAL_FUNCTION, 0x22));
 	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, &failures));
 	/* Match using SCMD_FAILURE_ASC_ANY */
-	scsi_build_sense(&sc, 0, HARDWARE_ERROR, 0x11, 0x22);
+	scsi_set_sense(&sc, 0, HARDWARE_ERROR,
+		       scsi_sense_code(ASC_UNRECOVERED_READ_ERROR, 0x22));
 	KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc, &failures));
 	/* No matching status entry */
 	sc.result = SAM_STAT_RESERVATION_CONFLICT;
 	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, &failures));
 
 	/* Test hitting allowed limit */
-	scsi_build_sense(&sc, 0, NOT_READY, 0x11, 0x22);
+	scsi_set_sense(&sc, 0, NOT_READY,
+		       scsi_sense_code(ASC_UNRECOVERED_READ_ERROR, 0x22));
 	for (i = 0; i < SCSI_LIB_TEST_MAX_ALLOWED; i++)
 		KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc,
 				&failures));
@@ -108,7 +113,8 @@ static void scsi_lib_test_multiple_sense(struct kunit *test)
 	scsi_failures_reset_retries(&failures);
 
 	/* Test no retries allowed */
-	scsi_build_sense(&sc, 0, DATA_PROTECT, 0x1, 0x1);
+	scsi_set_sense(&sc, 0, DATA_PROTECT,
+		       scsi_sense_code(ASC_NO_INDEX_SECTOR_SIGNAL, 0x1));
 	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, &failures));
 }
 
@@ -116,8 +122,9 @@ static void scsi_lib_test_any_sense(struct kunit *test)
 {
 	struct scsi_failure any_sense_failure_defs[] = {
 		{
-			.result = SCMD_FAILURE_SENSE_ANY,
+			.sense_key = SCMD_FAILURE_SENSE_KEY_ANY,
 			.allowed = SCSI_LIB_TEST_MAX_ALLOWED,
+			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		{}
 	};
@@ -129,9 +136,10 @@ static void scsi_lib_test_any_sense(struct kunit *test)
 		.sense_buffer = sense,
 	};
 
-	/* Match using SCMD_FAILURE_SENSE_ANY */
+	/* Match using SCMD_FAILURE_SENSE_KEY_ANY */
 	failures.failure_definitions = any_sense_failure_defs;
-	scsi_build_sense(&sc, 0, MEDIUM_ERROR, 0x11, 0x22);
+	scsi_set_sense(&sc, 0, MEDIUM_ERROR,
+		       scsi_sense_code(ASC_UNRECOVERED_READ_ERROR, 0x22));
 	KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc, &failures));
 }
 
@@ -215,14 +223,13 @@ static void scsi_lib_test_total_allowed(struct kunit *test)
 {
 	struct scsi_failure total_allowed_defs[] = {
 		{
-			.sense = UNIT_ATTENTION,
-			.asc = SCMD_FAILURE_ASC_ANY,
-			.ascq = SCMD_FAILURE_ASCQ_ANY,
+			.sense_key = UNIT_ATTENTION,
+			.sense_code = SCMD_FAILURE_SENSE_CODE_ANY,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		/* Fail all CCs except the UA above */
 		{
-			.sense = SCMD_FAILURE_SENSE_ANY,
+			.sense_key = SCMD_FAILURE_SENSE_KEY_ANY,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		/* Retry any other errors not listed above */
@@ -245,7 +252,8 @@ static void scsi_lib_test_total_allowed(struct kunit *test)
 	scsi_failures_reset_retries(&failures);
 	failures.total_allowed = SCSI_LIB_TEST_TOTAL_MAX_ALLOWED;
 
-	scsi_build_sense(&sc, 0, UNIT_ATTENTION, 0x28, 0x0);
+	scsi_set_sense(&sc, 0, UNIT_ATTENTION,
+		       NOT_READY_TO_READY_CHANGE_MEDIUM_MAY_HAVE_CHANGED);
 	for (i = 0; i < SCSI_LIB_TEST_TOTAL_MAX_ALLOWED; i++)
 		/* Retry since we under the total_allowed limit */
 		KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc,
@@ -259,13 +267,15 @@ static void scsi_lib_test_mixed_total(struct kunit *test)
 {
 	struct scsi_failure mixed_total_defs[] = {
 		{
-			.sense = UNIT_ATTENTION,
-			.asc = 0x28,
+			.sense_key = UNIT_ATTENTION,
+			.sense_code =
+				NOT_READY_TO_READY_CHANGE_MEDIUM_MAY_HAVE_CHANGED,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		{
-			.sense = UNIT_ATTENTION,
-			.asc = 0x29,
+			.sense_key = UNIT_ATTENTION,
+			.sense_code =
+				POWER_ON_RESET_OR_BUS_DEVICE_RESET_OCCURRED,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		{
@@ -291,7 +301,8 @@ static void scsi_lib_test_mixed_total(struct kunit *test)
 	scsi_failures_reset_retries(&failures);
 	failures.total_allowed = SCSI_LIB_TEST_TOTAL_MAX_ALLOWED;
 
-	scsi_build_sense(&sc, 0, UNIT_ATTENTION, 0x28, 0x0);
+	scsi_set_sense(&sc, 0, UNIT_ATTENTION,
+		       NOT_READY_TO_READY_CHANGE_MEDIUM_MAY_HAVE_CHANGED);
 	for (i = 0; i < SCSI_LIB_TEST_TOTAL_MAX_ALLOWED; i++)
 		/* Retry since we under the total_allowed limit */
 		KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc,
@@ -300,7 +311,8 @@ static void scsi_lib_test_mixed_total(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, &failures));
 
 	scsi_failures_reset_retries(&failures);
-	scsi_build_sense(&sc, 0, UNIT_ATTENTION, 0x28, 0x0);
+	scsi_set_sense(&sc, 0, UNIT_ATTENTION,
+		       NOT_READY_TO_READY_CHANGE_MEDIUM_MAY_HAVE_CHANGED);
 	for (i = 0; i < SCSI_LIB_TEST_TOTAL_MAX_ALLOWED; i++)
 		/* Retry since we under the total_allowed limit */
 		KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc,
@@ -308,7 +320,8 @@ static void scsi_lib_test_mixed_total(struct kunit *test)
 	sc.result = DID_TIME_OUT << 16;
 	/* Retry because this failure has a per failure limit */
 	KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc, &failures));
-	scsi_build_sense(&sc, 0, UNIT_ATTENTION, 0x29, 0x0);
+	scsi_set_sense(&sc, 0, UNIT_ATTENTION,
+		       POWER_ON_RESET_OR_BUS_DEVICE_RESET_OCCURRED);
 	/* total_allowed is now hit so no more retries */
 	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, &failures));
 }

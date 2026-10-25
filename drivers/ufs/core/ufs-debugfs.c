@@ -177,7 +177,7 @@ static ssize_t ufs_saved_err_write(struct file *file, const char __user *buf,
 	if (ret < 0)
 		return ret;
 
-	spin_lock_irq(hba->host->host_lock);
+	spin_lock_irq(&hba->host->host_lock);
 	if (strcmp(attr->name, "saved_err") == 0) {
 		hba->saved_err = val;
 	} else if (strcmp(attr->name, "saved_uic_err") == 0) {
@@ -187,7 +187,7 @@ static ssize_t ufs_saved_err_write(struct file *file, const char __user *buf,
 	}
 	if (ret == 0)
 		ufshcd_schedule_eh_work(hba);
-	spin_unlock_irq(hba->host->host_lock);
+	spin_unlock_irq(&hba->host->host_lock);
 
 	return ret < 0 ? ret : count;
 }

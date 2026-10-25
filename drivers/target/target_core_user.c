@@ -3006,10 +3006,7 @@ static ssize_t tcmu_tmr_notification_store(struct config_item *item,
 	if (val > 1)
 		return -EINVAL;
 
-	if (val)
-		set_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags);
-	else
-		clear_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags);
+	assign_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags, val);
 	return count;
 }
 CONFIGFS_ATTR(tcmu_, tmr_notification);

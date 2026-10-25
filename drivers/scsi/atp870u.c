@@ -225,7 +225,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			/*
 			 *	Issue more commands
 			 */
-			spin_lock_irqsave(dev->host->host_lock, flags);
+			spin_lock_irqsave(&dev->host->host_lock, flags);
 			if (((dev->quhd[c] != dev->quend[c]) ||
 			     (dev->last_cmd[c] != 0xff)) &&
 			    (dev->in_snd[c] == 0)) {
@@ -234,7 +234,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 #endif
 				send_s870(dev,c);
 			}
-			spin_unlock_irqrestore(dev->host->host_lock, flags);
+			spin_unlock_irqrestore(&dev->host->host_lock, flags);
 			/*
 			 *	Done
 			 */
@@ -511,7 +511,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			 */
 			scsi_dma_unmap(workreq);
 
-			spin_lock_irqsave(dev->host->host_lock, flags);
+			spin_lock_irqsave(&dev->host->host_lock, flags);
 			scsi_done(workreq);
 #ifdef ED_DBGP
 			   printk("workreq->scsi_done\n");
@@ -521,7 +521,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			 */
 			dev->id[c][target_id].curr_req = NULL;
 			dev->working[c]--;
-			spin_unlock_irqrestore(dev->host->host_lock, flags);
+			spin_unlock_irqrestore(&dev->host->host_lock, flags);
 			/*
 			 *      Take it back wide
 			 */
@@ -533,7 +533,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 			/*
 			 *	If there is stuff to send and nothing going then send it
 			 */
-			spin_lock_irqsave(dev->host->host_lock, flags);
+			spin_lock_irqsave(&dev->host->host_lock, flags);
 			if (((dev->last_cmd[c] != 0xff) ||
 			     (dev->quhd[c] != dev->quend[c])) &&
 			    (dev->in_snd[c] == 0)) {
@@ -542,7 +542,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 #endif
 			   send_s870(dev,c);
 			}
-			spin_unlock_irqrestore(dev->host->host_lock, flags);
+			spin_unlock_irqrestore(&dev->host->host_lock, flags);
 			dev->in_int[c] = 0;
 			return IRQ_HANDLED;
 		}

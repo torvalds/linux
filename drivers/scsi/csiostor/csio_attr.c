@@ -84,9 +84,9 @@ csio_reg_rnode(struct csio_rnode *rn)
 
 	ln->num_reg_rnodes++;
 	rport = rn->rport;
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	*((struct csio_rnode **)rport->dd_data) = rn;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 
 	sp = &rn->rn_sparm;
 	rport->maxframe_size = ntohs(sp->csp.sp_bb_data);

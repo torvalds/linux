@@ -2295,7 +2295,7 @@ static enum scsi_qc_status fas216_noqueue_command_lck(struct scsi_cmnd *SCpnt)
 	 * However, we must re-enable interrupts, or else we'll be
 	 * waiting forever.
 	 */
-	spin_unlock_irq(info->host->host_lock);
+	spin_unlock_irq(&info->host->host_lock);
 
 	while (!info->internal_done) {
 		/*
@@ -2307,13 +2307,13 @@ static enum scsi_qc_status fas216_noqueue_command_lck(struct scsi_cmnd *SCpnt)
 		 * to be some time (eg, disconnected).
 		 */
 		if (fas216_readb(info, REG_STAT) & STAT_INT) {
-			spin_lock_irq(info->host->host_lock);
+			spin_lock_irq(&info->host->host_lock);
 			fas216_intr(info);
-			spin_unlock_irq(info->host->host_lock);
+			spin_unlock_irq(&info->host->host_lock);
 		}
 	}
 
-	spin_lock_irq(info->host->host_lock);
+	spin_lock_irq(&info->host->host_lock);
 
 	scsi_done(SCpnt);
 
@@ -2662,7 +2662,7 @@ int fas216_eh_host_reset(struct scsi_cmnd *SCpnt)
 {
 	FAS216_Info *info = (FAS216_Info *)SCpnt->device->host->hostdata;
 
-	spin_lock_irq(info->host->host_lock);
+	spin_lock_irq(&info->host->host_lock);
 
 	fas216_checkmagic(info);
 
@@ -2679,9 +2679,9 @@ int fas216_eh_host_reset(struct scsi_cmnd *SCpnt)
 	 * IRQs if we sleep, but we must relock and disable
 	 * IRQs after the sleep.
 	 */
-	spin_unlock_irq(info->host->host_lock);
+	spin_unlock_irq(&info->host->host_lock);
 	msleep(50 * 1000/100);
-	spin_lock_irq(info->host->host_lock);
+	spin_lock_irq(&info->host->host_lock);
 
 	/*
 	 * Release the SCSI reset.
@@ -2690,7 +2690,7 @@ int fas216_eh_host_reset(struct scsi_cmnd *SCpnt)
 
 	fas216_init_chip(info);
 
-	spin_unlock_irq(info->host->host_lock);
+	spin_unlock_irq(&info->host->host_lock);
 	return SUCCESS;
 }
 
@@ -2917,9 +2917,9 @@ int fas216_add(struct Scsi_Host *host, struct device *dev)
 	/*
 	 * scsi standard says wait 250ms
 	 */
-	spin_unlock_irq(info->host->host_lock);
+	spin_unlock_irq(&info->host->host_lock);
 	msleep(100*1000/100);
-	spin_lock_irq(info->host->host_lock);
+	spin_lock_irq(&info->host->host_lock);
 
 	fas216_writeb(info, REG_CNTL1, info->scsi.cfg[0]);
 	fas216_readb(info, REG_INST);

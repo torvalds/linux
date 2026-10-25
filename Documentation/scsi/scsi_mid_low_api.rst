@@ -865,7 +865,7 @@ Details::
     *
     *      Other types of errors that are detected immediately may be
     *      flagged by setting scp->result to an appropriate value,
-    *      invoking the scp->scsi_done callback, and then returning 0
+    *      invoking the scsi_done() function, and then returning 0
     *      from this function. If the command is not performed
     *      immediately (and the LLD is starting (or will start) the given
     *      command) then this function should place 0 in scp->result and
@@ -873,11 +873,11 @@ Details::
     *
     *      Command ownership.  If the driver returns zero, it owns the
     *      command and must take responsibility for ensuring the
-    *      scp->scsi_done callback is executed.  Note: the driver may
-    *      call scp->scsi_done before returning zero, but after it has
-    *      called scp->scsi_done, it may not return any value other than
+    *      scsi_done() function is called.  Note: the driver may
+    *      call scsi_done() before returning zero, but after it has
+    *      called scsi_done(), it may not return any value other than
     *      zero.  If the driver makes a non-zero return, it must not
-    *      execute the command's scsi_done callback at any time.
+    *      call scsi_done(scp) at any time.
     *
     *      Locks: up to and including 2.6.36, struct Scsi_Host::host_lock
     *             held on entry (with "irqsave") and is expected to be
@@ -887,16 +887,16 @@ Details::
     *      Calling context: in interrupt (soft irq) or process context
     *
     *      Notes: This function should be relatively fast. Normally it
-    *      will not wait for IO to complete. Hence the scp->scsi_done
-    *      callback is invoked (often directly from an interrupt service
+    *      will not wait for IO to complete. Hence the scsi_done()
+    *      function is invoked (often directly from an interrupt service
     *      routine) some time after this function has returned. In some
     *      cases (e.g. pseudo adapter drivers that manufacture the
-    *      response to a SCSI INQUIRY) the scp->scsi_done callback may be
-    *      invoked before this function returns.  If the scp->scsi_done
-    *      callback is not invoked within a certain period the SCSI mid
+    *      response to a SCSI INQUIRY) the scsi_done() function may be
+    *      invoked before this function returns.  If the scsi_done()
+    *      function is not invoked within a certain period the SCSI mid
     *      level will commence error processing.  If a status of CHECK
-    *      CONDITION is placed in "result" when the scp->scsi_done
-    *      callback is invoked, then the LLD driver should perform
+    *      CONDITION is placed in "result" when the scsi_done()
+    *      function is invoked, then the LLD driver should perform
     *      autosense and fill in the struct scsi_cmnd::sense_buffer
     *      array. The scsi_cmnd::sense_buffer array is zeroed prior to
     *      the mid level queuing a command to an LLD.
@@ -1148,12 +1148,8 @@ The scsi_cmnd structure is defined in include/scsi/scsi_cmnd.h
 Locks
 =====
 Each struct Scsi_Host instance has a spin_lock called struct
-Scsi_Host::default_lock which is initialized in scsi_host_alloc() [found in
-hosts.c]. Within the same function the struct Scsi_Host::host_lock pointer
-is initialized to point at default_lock.  Thereafter lock and unlock
-operations performed by the mid level use the struct Scsi_Host::host_lock
-pointer.  Previously drivers could override the host_lock pointer but
-this is not allowed anymore.
+Scsi_Host::host_lock which is initialized in scsi_host_alloc() [found in
+hosts.c].
 
 
 Autosense

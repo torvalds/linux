@@ -497,10 +497,10 @@ static void pmcraid_clr_trans_op(
 	if (pinstance->reset_cmd != NULL) {
 		timer_delete(&pinstance->reset_cmd->timer);
 		spin_lock_irqsave(
-			pinstance->host->host_lock, lock_flags);
+			&pinstance->host->host_lock, lock_flags);
 		pinstance->reset_cmd->cmd_done(pinstance->reset_cmd);
 		spin_unlock_irqrestore(
-			pinstance->host->host_lock, lock_flags);
+			&pinstance->host->host_lock, lock_flags);
 	}
 }
 
@@ -562,9 +562,9 @@ static void pmcraid_bist_done(struct timer_list *t)
 	} else {
 		cmd->time_left = 0;
 		pmcraid_info("BIST is complete, proceeding with reset\n");
-		spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
+		spin_lock_irqsave(&pinstance->host->host_lock, lock_flags);
 		pmcraid_ioa_reset(cmd);
-		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+		spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 	}
 }
 
@@ -613,9 +613,9 @@ static void pmcraid_reset_alert_done(struct timer_list *t)
 	if (((status & INTRS_CRITICAL_OP_IN_PROGRESS) == 0) ||
 	    cmd->time_left <= 0) {
 		pmcraid_info("critical op is reset proceeding with reset\n");
-		spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
+		spin_lock_irqsave(&pinstance->host->host_lock, lock_flags);
 		pmcraid_ioa_reset(cmd);
-		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+		spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 	} else {
 		pmcraid_info("critical op is not yet reset waiting again\n");
 		/* restart timer if some more time is available to wait */
@@ -699,7 +699,7 @@ static void pmcraid_timeout_handler(struct timer_list *t)
 	 * reset is in progress. Otherwise fail this command and get a free
 	 * command block to restart the reset sequence.
 	 */
-	spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
+	spin_lock_irqsave(&pinstance->host->host_lock, lock_flags);
 	if (!pinstance->ioa_reset_in_progress) {
 		pinstance->ioa_reset_attempts = 0;
 		cmd = pmcraid_get_free_cmd(pinstance);
@@ -708,7 +708,7 @@ static void pmcraid_timeout_handler(struct timer_list *t)
 		 * Some other command's timeout handler can do the reset job
 		 */
 		if (cmd == NULL) {
-			spin_unlock_irqrestore(pinstance->host->host_lock,
+			spin_unlock_irqrestore(&pinstance->host->host_lock,
 					       lock_flags);
 			pmcraid_err("no free cmnd block for timeout handler\n");
 			return;
@@ -745,7 +745,7 @@ static void pmcraid_timeout_handler(struct timer_list *t)
 	pinstance->ioa_state = IOA_STATE_IN_RESET_ALERT;
 	scsi_block_requests(pinstance->host);
 	pmcraid_reset_alert(cmd);
-	spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+	spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 }
 
 /**
@@ -921,9 +921,9 @@ static void pmcraid_ioa_shutdown_done(struct pmcraid_cmd *cmd)
 	struct pmcraid_instance *pinstance = cmd->drv_inst;
 	unsigned long lock_flags;
 
-	spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
+	spin_lock_irqsave(&pinstance->host->host_lock, lock_flags);
 	pmcraid_ioa_reset(cmd);
-	spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+	spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 }
 
 /**
@@ -982,10 +982,10 @@ static void pmcraid_get_fwversion_done(struct pmcraid_cmd *cmd)
 	 */
 	if (ioasc) {
 		pmcraid_err("IOA Inquiry failed with %x\n", ioasc);
-		spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
+		spin_lock_irqsave(&pinstance->host->host_lock, lock_flags);
 		pinstance->ioa_state = IOA_STATE_IN_RESET_ALERT;
 		pmcraid_reset_alert(cmd);
-		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+		spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 	} else  {
 		pmcraid_querycfg(cmd);
 	}
@@ -1596,11 +1596,11 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 			spin_unlock_irqrestore(&pinstance->resource_lock,
 						lock_flags);
 			pmcraid_err("too many resources attached\n");
-			spin_lock_irqsave(pinstance->host->host_lock,
+			spin_lock_irqsave(&pinstance->host->host_lock,
 					  host_lock_flags);
 			pmcraid_send_hcam(pinstance,
 					  PMCRAID_HCAM_CODE_CONFIG_CHANGE);
-			spin_unlock_irqrestore(pinstance->host->host_lock,
+			spin_unlock_irqrestore(&pinstance->host->host_lock,
 					       host_lock_flags);
 			return;
 		}
@@ -1760,9 +1760,9 @@ static void pmcraid_process_ccn(struct pmcraid_cmd *cmd)
 	} else if (ioasc) {
 		dev_info(&pinstance->pdev->dev,
 			"Host RCB (CCN) failed with IOASC: 0x%08X\n", ioasc);
-		spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
+		spin_lock_irqsave(&pinstance->host->host_lock, lock_flags);
 		pmcraid_send_hcam(pinstance, PMCRAID_HCAM_CODE_CONFIG_CHANGE);
-		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+		spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 	} else {
 		pmcraid_handle_config_change(pinstance);
 	}
@@ -1800,10 +1800,10 @@ static void pmcraid_process_ldn(struct pmcraid_cmd *cmd)
 	} else if (!ioasc) {
 		pmcraid_handle_error_log(pinstance);
 		if (fd_ioasc == PMCRAID_IOASC_NR_IOA_RESET_REQUIRED) {
-			spin_lock_irqsave(pinstance->host->host_lock,
+			spin_lock_irqsave(&pinstance->host->host_lock,
 					  lock_flags);
 			pmcraid_initiate_reset(pinstance);
-			spin_unlock_irqrestore(pinstance->host->host_lock,
+			spin_unlock_irqrestore(&pinstance->host->host_lock,
 					       lock_flags);
 			return;
 		}
@@ -2322,17 +2322,17 @@ static int pmcraid_reset_reload(
 	unsigned long lock_flags;
 	int reset = 1;
 
-	spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
+	spin_lock_irqsave(&pinstance->host->host_lock, lock_flags);
 
 	if (pinstance->ioa_reset_in_progress) {
 		pmcraid_info("reset_reload: reset is already in progress\n");
 
-		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+		spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 
 		wait_event(pinstance->reset_wait_q,
 			   !pinstance->ioa_reset_in_progress);
 
-		spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
+		spin_lock_irqsave(&pinstance->host->host_lock, lock_flags);
 
 		if (pinstance->ioa_state == IOA_STATE_DEAD) {
 			pmcraid_info("reset_reload: IOA is dead\n");
@@ -2361,7 +2361,7 @@ static int pmcraid_reset_reload(
 	pinstance->force_ioa_reset = reset;
 	pmcraid_info("reset_reload: initiating reset\n");
 	pmcraid_ioa_reset(reset_cmd);
-	spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+	spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 	pmcraid_info("reset_reload: waiting for reset to complete\n");
 	wait_event(pinstance->reset_wait_q,
 		   !pinstance->ioa_reset_in_progress);
@@ -2371,7 +2371,7 @@ static int pmcraid_reset_reload(
 	return pinstance->ioa_state != target_state;
 
 out_unlock:
-	spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+	spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 	return reset;
 }
 
@@ -2719,10 +2719,10 @@ static int pmcraid_reset_device(
 	 * This will force the mid-layer to call _eh_bus/host reset, which
 	 * will then go to sleep and wait for the reset to complete
 	 */
-	spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
+	spin_lock_irqsave(&pinstance->host->host_lock, lock_flags);
 	if (pinstance->ioa_reset_in_progress ||
 	    pinstance->ioa_state == IOA_STATE_DEAD) {
-		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+		spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 		return FAILED;
 	}
 
@@ -2736,7 +2736,7 @@ static int pmcraid_reset_device(
 	cmd = pmcraid_get_free_cmd(pinstance);
 
 	if (cmd == NULL) {
-		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+		spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 		pmcraid_err("%s: no cmd blocks are available\n", __func__);
 		return FAILED;
 	}
@@ -2765,7 +2765,7 @@ static int pmcraid_reset_device(
 			 timeout,
 			 pmcraid_timeout_handler);
 
-	spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+	spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 
 	/* RESET_DEVICE command completes after all pending IOARCBs are
 	 * completed. Once this command is completed, pmcraind_internal_done
@@ -2960,11 +2960,11 @@ static int pmcraid_eh_abort_handler(struct scsi_cmnd *scsi_cmd)
 	 * pmcraid_eh_host_reset which will then go to sleep and wait for the
 	 * reset to complete
 	 */
-	spin_lock_irqsave(pinstance->host->host_lock, host_lock_flags);
+	spin_lock_irqsave(&pinstance->host->host_lock, host_lock_flags);
 
 	if (pinstance->ioa_reset_in_progress ||
 	    pinstance->ioa_state == IOA_STATE_DEAD) {
-		spin_unlock_irqrestore(pinstance->host->host_lock,
+		spin_unlock_irqrestore(&pinstance->host->host_lock,
 				       host_lock_flags);
 		return rc;
 	}
@@ -2992,7 +2992,7 @@ static int pmcraid_eh_abort_handler(struct scsi_cmnd *scsi_cmd)
 	if (cmd_found)
 		cancel_cmd = pmcraid_abort_cmd(cmd);
 
-	spin_unlock_irqrestore(pinstance->host->host_lock,
+	spin_unlock_irqrestore(&pinstance->host->host_lock,
 			       host_lock_flags);
 
 	if (cancel_cmd) {
@@ -3720,11 +3720,11 @@ static irqreturn_t pmcraid_isr_msix(int irq, void *dev_id)
 
 				pmcraid_err("ISR: error interrupts: %x \
 					initiating reset\n", intrs_val);
-				spin_lock_irqsave(pinstance->host->host_lock,
+				spin_lock_irqsave(&pinstance->host->host_lock,
 					lock_flags);
 				pmcraid_initiate_reset(pinstance);
 				spin_unlock_irqrestore(
-					pinstance->host->host_lock,
+					&pinstance->host->host_lock,
 					lock_flags);
 			}
 			/* If interrupt was as part of the ioa initialization,
@@ -3798,9 +3798,9 @@ static irqreturn_t pmcraid_isr(int irq, void *dev_id)
 			    intrs);
 		intrs = ioread32(
 				pinstance->int_regs.ioa_host_interrupt_clr_reg);
-		spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
+		spin_lock_irqsave(&pinstance->host->host_lock, lock_flags);
 		pmcraid_initiate_reset(pinstance);
-		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+		spin_unlock_irqrestore(&pinstance->host->host_lock, lock_flags);
 	} else {
 		/* If interrupt was as part of the ioa initialization,
 		 * clear. Delete the timer and wakeup the
@@ -3859,11 +3859,11 @@ static void pmcraid_worker_function(struct work_struct *workp)
 			/* host_lock must be held before calling
 			 * scsi_device_get
 			 */
-			spin_lock_irqsave(pinstance->host->host_lock,
+			spin_lock_irqsave(&pinstance->host->host_lock,
 					  host_lock_flags);
 			if (!scsi_device_get(sdev)) {
 				spin_unlock_irqrestore(
-						pinstance->host->host_lock,
+						&pinstance->host->host_lock,
 						host_lock_flags);
 				pmcraid_info("deleting %x from midlayer\n",
 					     res->cfg_entry.resource_address);
@@ -3879,7 +3879,7 @@ static void pmcraid_worker_function(struct work_struct *workp)
 				res->change_detected = 0;
 			} else {
 				spin_unlock_irqrestore(
-						pinstance->host->host_lock,
+						&pinstance->host->host_lock,
 						host_lock_flags);
 			}
 		}
@@ -3986,10 +3986,10 @@ static void pmcraid_tasklet_function(unsigned long instance)
 		atomic_dec(&pinstance->outstanding_cmds);
 
 		if (cmd->cmd_done == pmcraid_ioa_reset) {
-			spin_lock_irqsave(pinstance->host->host_lock,
+			spin_lock_irqsave(&pinstance->host->host_lock,
 					  host_lock_flags);
 			cmd->cmd_done(cmd);
-			spin_unlock_irqrestore(pinstance->host->host_lock,
+			spin_unlock_irqrestore(&pinstance->host->host_lock,
 					       host_lock_flags);
 		} else if (cmd->cmd_done != NULL) {
 			cmd->cmd_done(cmd);
@@ -4880,9 +4880,9 @@ static void pmcraid_complete_ioa_reset(struct pmcraid_cmd *cmd)
 	struct pmcraid_instance *pinstance = cmd->drv_inst;
 	unsigned long flags;
 
-	spin_lock_irqsave(pinstance->host->host_lock, flags);
+	spin_lock_irqsave(&pinstance->host->host_lock, flags);
 	pmcraid_ioa_reset(cmd);
-	spin_unlock_irqrestore(pinstance->host->host_lock, flags);
+	spin_unlock_irqrestore(&pinstance->host->host_lock, flags);
 	scsi_unblock_requests(pinstance->host);
 	schedule_work(&pinstance->worker_q);
 }

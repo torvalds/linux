@@ -849,14 +849,14 @@ void zfcp_scsi_set_prot(struct zfcp_adapter *adapter)
 /**
  * zfcp_scsi_dif_sense_error - Report DIF/DIX error as driver sense error
  * @scmd: The SCSI command to report the error for
- * @ascq: The ASCQ to put in the sense buffer
+ * @sense_code: The combined ASC and ASCQ to put in the sense buffer
  *
  * See the error handling in sd_done for the sense codes used here.
  * Set DID_SOFT_ERROR to retry the request, if possible.
  */
-void zfcp_scsi_dif_sense_error(struct scsi_cmnd *scmd, int ascq)
+void zfcp_scsi_dif_sense_error(struct scsi_cmnd *scmd, u16 sense_code)
 {
-	scsi_build_sense(scmd, 1, ILLEGAL_REQUEST, 0x10, ascq);
+	scsi_set_sense(scmd, 1, ILLEGAL_REQUEST, sense_code);
 	set_host_byte(scmd, DID_SOFT_ERROR);
 }
 

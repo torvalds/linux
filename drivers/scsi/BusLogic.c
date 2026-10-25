@@ -2744,7 +2744,7 @@ static irqreturn_t blogic_inthandler(int irq_ch, void *devid)
 	/*
 	   Acquire exclusive access to Host Adapter.
 	 */
-	spin_lock_irqsave(adapter->scsi_host->host_lock, processor_flag);
+	spin_lock_irqsave(&adapter->scsi_host->host_lock, processor_flag);
 	/*
 	   Handle Interrupts appropriately for each Host Adapter type.
 	 */
@@ -2812,7 +2812,7 @@ static irqreturn_t blogic_inthandler(int irq_ch, void *devid)
 	/*
 	   Release exclusive access to Host Adapter.
 	 */
-	spin_unlock_irqrestore(adapter->scsi_host->host_lock, processor_flag);
+	spin_unlock_irqrestore(&adapter->scsi_host->host_lock, processor_flag);
 	return IRQ_HANDLED;
 }
 
@@ -2864,12 +2864,12 @@ static int blogic_hostreset(struct scsi_cmnd *SCpnt)
 	struct blogic_tgt_stats *stats = &adapter->tgt_stats[id];
 	int rc;
 
-	spin_lock_irq(SCpnt->device->host->host_lock);
+	spin_lock_irq(&SCpnt->device->host->host_lock);
 
 	blogic_inc_count(&stats->adapter_reset_req);
 
 	rc = blogic_resetadapter(adapter, false);
-	spin_unlock_irq(SCpnt->device->host->host_lock);
+	spin_unlock_irq(&SCpnt->device->host->host_lock);
 	return rc;
 }
 
@@ -2915,9 +2915,9 @@ static enum scsi_qc_status blogic_qcmd_lck(struct scsi_cmnd *command)
 	 */
 	ccb = blogic_alloc_ccb(adapter);
 	if (ccb == NULL) {
-		spin_unlock_irq(adapter->scsi_host->host_lock);
+		spin_unlock_irq(&adapter->scsi_host->host_lock);
 		blogic_delay(1);
-		spin_lock_irq(adapter->scsi_host->host_lock);
+		spin_lock_irq(&adapter->scsi_host->host_lock);
 		ccb = blogic_alloc_ccb(adapter);
 		if (ccb == NULL) {
 			command->result = DID_ERROR << 16;
@@ -3062,10 +3062,10 @@ static enum scsi_qc_status blogic_qcmd_lck(struct scsi_cmnd *command)
 		   be initiated soon.
 		 */
 		if (!blogic_write_outbox(adapter, BLOGIC_MBOX_START, ccb)) {
-			spin_unlock_irq(adapter->scsi_host->host_lock);
+			spin_unlock_irq(&adapter->scsi_host->host_lock);
 			blogic_warn("Unable to write Outgoing Mailbox - Pausing for 1 second\n", adapter);
 			blogic_delay(1);
-			spin_lock_irq(adapter->scsi_host->host_lock);
+			spin_lock_irq(&adapter->scsi_host->host_lock);
 			if (!blogic_write_outbox(adapter, BLOGIC_MBOX_START,
 						ccb)) {
 				blogic_warn("Still unable to write Outgoing Mailbox - Host Adapter Dead?\n", adapter);
@@ -3212,9 +3212,9 @@ static int blogic_resetadapter(struct blogic_adapter *adapter, bool hard_reset)
 	 */
 
 	if (hard_reset) {
-		spin_unlock_irq(adapter->scsi_host->host_lock);
+		spin_unlock_irq(&adapter->scsi_host->host_lock);
 		blogic_delay(adapter->bus_settle_time);
-		spin_lock_irq(adapter->scsi_host->host_lock);
+		spin_lock_irq(&adapter->scsi_host->host_lock);
 	}
 
 	for (tgt_id = 0; tgt_id < adapter->maxdev; tgt_id++) {

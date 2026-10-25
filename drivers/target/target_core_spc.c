@@ -1226,9 +1226,9 @@ static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 {
 	unsigned char *cdb = cmd->t_task_cdb;
 	unsigned char *rbuf;
-	u8 ua_asc = 0, ua_ascq = 0;
 	unsigned char buf[SE_SENSE_BUF];
 	bool desc_format = target_sense_desc_format(cmd->se_dev);
+	u16 sense_code = NO_ADDITIONAL_SENSE_INFORMATION;
 
 	memset(buf, 0, SE_SENSE_BUF);
 
@@ -1242,11 +1242,12 @@ static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 	if (!rbuf)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
-	if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq))
-		scsi_build_sense_buffer(desc_format, buf, UNIT_ATTENTION,
-					ua_asc, ua_ascq);
+	if (!core_scsi3_ua_clear_for_request_sense(cmd, &sense_code))
+		scsi_set_sense_buffer(desc_format, buf, UNIT_ATTENTION,
+				      sense_code);
 	else
-		scsi_build_sense_buffer(desc_format, buf, NO_SENSE, 0x0, 0x0);
+		scsi_set_sense_buffer(desc_format, buf, NO_SENSE,
+				      NO_ADDITIONAL_SENSE_INFORMATION);
 
 	memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
 	transport_kunmap_data_sg(cmd);

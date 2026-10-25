@@ -42,9 +42,9 @@ static irqreturn_t gvp11_intr(int irq, void *data)
 	if (!(status & GVP11_DMAC_INT_PENDING))
 		return IRQ_NONE;
 
-	spin_lock_irqsave(instance->host_lock, flags);
+	spin_lock_irqsave(&instance->host_lock, flags);
 	wd33c93_intr(instance);
-	spin_unlock_irqrestore(instance->host_lock, flags);
+	spin_unlock_irqrestore(&instance->host_lock, flags);
 	return IRQ_HANDLED;
 }
 

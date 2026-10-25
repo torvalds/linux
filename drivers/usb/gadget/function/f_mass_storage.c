@@ -1103,9 +1103,9 @@ static int do_request_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 	 * FSG normally uses option a); enable this code to use option b).
 	 */
 #if 0
-	if (curlun && curlun->unit_attention_data != SS_NO_SENSE) {
+	if (curlun && curlun->unit_attention_data != NO_SENSE) {
 		curlun->sense_data = curlun->unit_attention_data;
-		curlun->unit_attention_data = SS_NO_SENSE;
+		curlun->unit_attention_data = NO_SENSE;
 	}
 #endif
 
@@ -1118,18 +1118,18 @@ static int do_request_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 		sd = curlun->sense_data;
 		sdinfo = curlun->sense_data_info;
 		valid = curlun->info_valid << 7;
-		curlun->sense_data = SS_NO_SENSE;
+		curlun->sense_data = NO_SENSE;
 		curlun->sense_data_info = 0;
 		curlun->info_valid = 0;
 	}
 
 	memset(buf, 0, 18);
 	buf[0] = valid | 0x70;			/* Valid, current error */
-	buf[2] = SK(sd);
+	buf[2] = usb_sense_key(sd);
 	put_unaligned_be32(sdinfo, &buf[3]);	/* Sense information */
 	buf[7] = 18 - 8;			/* Additional sense length */
-	buf[12] = ASC(sd);
-	buf[13] = ASCQ(sd);
+	buf[12] = usb_sense_asc(sd);
+	buf[13] = usb_sense_ascq(sd);
 	return 18;
 }
 
@@ -1678,21 +1678,23 @@ static void send_status(struct fsg_common *common)
 	if (curlun) {
 		sd = curlun->sense_data;
 		sdinfo = curlun->sense_data_info;
-	} else if (common->bad_lun_okay)
-		sd = SS_NO_SENSE;
-	else
+	} else if (common->bad_lun_okay) {
+		sd = NO_SENSE;
+	} else {
 		sd = SS_LOGICAL_UNIT_NOT_SUPPORTED;
+	}
 
 	if (common->phase_error) {
 		DBG(common, "sending phase-error status\n");
 		status = US_BULK_STAT_PHASE;
 		sd = SS_INVALID_COMMAND;
-	} else if (sd != SS_NO_SENSE) {
+	} else if (sd != NO_SENSE) {
 		DBG(common, "sending command-failure status\n");
 		status = US_BULK_STAT_FAIL;
 		VDBG(common, "  sense data: SK x%02x, ASC x%02x, ASCQ x%02x;"
 				"  info x%x\n",
-				SK(sd), ASC(sd), ASCQ(sd), sdinfo);
+		     usb_sense_key(sd), usb_sense_asc(sd),
+		     usb_sense_ascq(sd), sdinfo);
 	}
 
 	/* Store and send the Bulk-only CSW */
@@ -1798,7 +1800,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 	curlun = common->curlun;
 	if (curlun) {
 		if (common->cmnd[0] != REQUEST_SENSE) {
-			curlun->sense_data = SS_NO_SENSE;
+			curlun->sense_data = NO_SENSE;
 			curlun->sense_data_info = 0;
 			curlun->info_valid = 0;
 		}
@@ -1820,11 +1822,11 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 	 * If a unit attention condition exists, only INQUIRY and
 	 * REQUEST SENSE commands are allowed; anything else must fail.
 	 */
-	if (curlun && curlun->unit_attention_data != SS_NO_SENSE &&
+	if (curlun && curlun->unit_attention_data != NO_SENSE &&
 	    common->cmnd[0] != INQUIRY &&
 	    common->cmnd[0] != REQUEST_SENSE) {
 		curlun->sense_data = curlun->unit_attention_data;
-		curlun->unit_attention_data = SS_NO_SENSE;
+		curlun->unit_attention_data = NO_SENSE;
 		return -EINVAL;
 	}
 
@@ -2501,8 +2503,8 @@ static void handle_exception(struct fsg_common *common)
 			if (!curlun)
 				continue;
 			curlun->prevent_medium_removal = 0;
-			curlun->sense_data = SS_NO_SENSE;
-			curlun->unit_attention_data = SS_NO_SENSE;
+			curlun->sense_data = NO_SENSE;
+			curlun->unit_attention_data = NO_SENSE;
 			curlun->sense_data_info = 0;
 			curlun->info_valid = 0;
 		}

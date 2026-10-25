@@ -243,23 +243,23 @@ static int scsi_check_passthrough(struct scsi_cmnd *scmd,
 			continue;
 
 		if (status_byte(failure->result) != SAM_STAT_CHECK_CONDITION ||
-		    failure->sense == SCMD_FAILURE_SENSE_ANY)
+		    failure->sense_key == SCMD_FAILURE_SENSE_KEY_ANY)
 			goto maybe_retry;
 
 		if (!scsi_command_normalize_sense(scmd, &sshdr))
 			return 0;
 
-		if (failure->sense != sshdr.sense_key)
+		if (failure->sense_key != sshdr.sense_key)
 			continue;
 
-		if (failure->asc == SCMD_FAILURE_ASC_ANY)
+		if (scsi_failure_asc(failure) == SCMD_FAILURE_ASC_ANY)
 			goto maybe_retry;
 
-		if (failure->asc != sshdr.asc)
+		if (scsi_failure_asc(failure) != scsi_sense_asc(&sshdr))
 			continue;
 
-		if (failure->ascq == SCMD_FAILURE_ASCQ_ANY ||
-		    failure->ascq == sshdr.ascq)
+		if (scsi_failure_ascq(failure) == SCMD_FAILURE_ASCQ_ANY ||
+		    scsi_failure_ascq(failure) == scsi_sense_ascq(&sshdr))
 			goto maybe_retry;
 	}
 
@@ -388,10 +388,10 @@ static void scsi_dec_host_busy(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 
 		unsigned int busy = scsi_host_busy(shost);
 
-		spin_lock_irqsave(shost->host_lock, flags);
+		spin_lock_irqsave(&shost->host_lock, flags);
 		if (shost->host_failed || shost->host_eh_scheduled)
 			scsi_eh_wakeup(shost, busy);
-		spin_unlock_irqrestore(shost->host_lock, flags);
+		spin_unlock_irqrestore(&shost->host_lock, flags);
 	}
 	rcu_read_unlock();
 }
@@ -436,9 +436,9 @@ static void scsi_single_lun_run(struct scsi_device *current_sdev)
 	struct scsi_target *starget = scsi_target(current_sdev);
 	unsigned long flags;
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	starget->starget_sdev_user = NULL;
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	/*
 	 * Call blk_run_queue for all LUNs on the target, starting with
@@ -449,11 +449,11 @@ static void scsi_single_lun_run(struct scsi_device *current_sdev)
 	blk_mq_run_hw_queues(current_sdev->request_queue,
 			     shost->queuecommand_may_block);
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	if (!starget->starget_sdev_user)
 		__starget_for_each_device(starget, current_sdev,
 					  scsi_kick_sdev_queue);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 }
 
 static inline bool scsi_device_is_busy(struct scsi_device *sdev)
@@ -491,7 +491,7 @@ static void scsi_starved_list_run(struct Scsi_Host *shost)
 	struct scsi_device *sdev;
 	unsigned long flags;
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	list_splice_init(&shost->starved_list, &starved_list);
 
 	while (!list_empty(&starved_list)) {
@@ -532,16 +532,16 @@ static void scsi_starved_list_run(struct Scsi_Host *shost)
 		slq = sdev->request_queue;
 		if (!blk_get_queue(slq))
 			continue;
-		spin_unlock_irqrestore(shost->host_lock, flags);
+		spin_unlock_irqrestore(&shost->host_lock, flags);
 
 		blk_mq_run_hw_queues(slq, false);
 		blk_put_queue(slq);
 
-		spin_lock_irqsave(shost->host_lock, flags);
+		spin_lock_irqsave(&shost->host_lock, flags);
 	}
 	/* put any unprocessed entries back */
 	list_splice(&starved_list, &shost->starved_list);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 }
 
 /**
@@ -578,7 +578,7 @@ void scsi_run_host_queues(struct Scsi_Host *shost)
 	struct scsi_device *sdev, *prev = NULL;
 	unsigned long flags;
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	__shost_for_each_device(sdev, shost) {
 		/*
 		 * Only skip devices so deep into removal they will never need
@@ -589,7 +589,7 @@ void scsi_run_host_queues(struct Scsi_Host *shost)
 		if (sdev->sdev_state == SDEV_DEL ||
 		    !get_device(&sdev->sdev_gendev))
 			continue;
-		spin_unlock_irqrestore(shost->host_lock, flags);
+		spin_unlock_irqrestore(&shost->host_lock, flags);
 
 		if (prev)
 			put_device(&prev->sdev_gendev);
@@ -597,9 +597,9 @@ void scsi_run_host_queues(struct Scsi_Host *shost)
 
 		prev = sdev;
 
-		spin_lock_irqsave(shost->host_lock, flags);
+		spin_lock_irqsave(&shost->host_lock, flags);
 	}
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 	if (prev)
 		put_device(&prev->sdev_gendev);
 }
@@ -839,6 +839,8 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 		 */
 		action = ACTION_RETRY;
 	} else if (sense_valid && sense_current) {
+		u8 asc = scsi_sense_asc(&sshdr);
+
 		switch (sshdr.sense_key) {
 		case UNIT_ATTENTION:
 			if (cmd->device->removable) {
@@ -865,64 +867,72 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 			 * where READ CAPACITY failed, we may have
 			 * read past the end of the disk.
 			 */
-			if ((cmd->device->use_10_for_rw &&
-			    sshdr.asc == 0x20 && sshdr.ascq == 0x00) &&
+			if (cmd->device->use_10_for_rw &&
+			    sshdr.sense_code == INVALID_COMMAND_OP_CODE &&
 			    (cmd->cmnd[0] == READ_10 ||
 			     cmd->cmnd[0] == WRITE_10)) {
 				/* This will issue a new 6-byte command. */
 				cmd->device->use_10_for_rw = 0;
 				action = ACTION_REPREP;
-			} else if (sshdr.asc == 0x10) /* DIX */ {
+				break;
+			}
+			if (asc == ASC_ID_CRC_OR_ECC_ERROR) {
+				/* DIX */
 				action = ACTION_FAIL;
 				blk_stat = BLK_STS_PROTECTION;
-			/* INVALID COMMAND OPCODE or INVALID FIELD IN CDB */
-			} else if (sshdr.asc == 0x20 || sshdr.asc == 0x24) {
+				break;
+			}
+			if (asc == ASC_INVALID_COMMAND_OP_CODE ||
+			    asc == ASC_INVALID_FIELD_IN_CDB) {
 				action = ACTION_FAIL;
 				blk_stat = BLK_STS_TARGET;
-			} else
-				action = ACTION_FAIL;
+				break;
+			}
+			action = ACTION_FAIL;
 			break;
 		case ABORTED_COMMAND:
 			action = ACTION_FAIL;
-			if (sshdr.asc == 0x10) /* DIF */
+			if (asc == ASC_ID_CRC_OR_ECC_ERROR) /* DIF */
 				blk_stat = BLK_STS_PROTECTION;
 			break;
 		case NOT_READY:
 			/* If the device is in the process of becoming
 			 * ready, or has a temporary blockage, retry.
 			 */
-			if (sshdr.asc == 0x04) {
-				switch (sshdr.ascq) {
-				case 0x01: /* becoming ready */
-				case 0x04: /* format in progress */
-				case 0x05: /* rebuild in progress */
-				case 0x06: /* recalculation in progress */
-				case 0x07: /* operation in progress */
-				case 0x08: /* Long write in progress */
-				case 0x09: /* self test in progress */
-				case 0x11: /* notify (enable spinup) required */
-				case 0x14: /* space allocation in progress */
-				case 0x1a: /* start stop unit in progress */
-				case 0x1b: /* sanitize in progress */
-				case 0x1d: /* configuration in progress */
-					action = ACTION_DELAYED_RETRY;
-					break;
-				case 0x0a: /* ALUA state transition */
-					action = ACTION_DELAYED_REPREP;
-					break;
-				/*
-				 * Depopulation might take many hours,
-				 * thus it is not worthwhile to retry.
-				 */
-				case 0x24: /* depopulation in progress */
-				case 0x25: /* depopulation restore in progress */
-					fallthrough;
-				default:
-					action = ACTION_FAIL;
-					break;
-				}
-			} else
+			if (asc != ASC_LU_NOT_READY) {
 				action = ACTION_FAIL;
+				break;
+			}
+
+			switch (sshdr.sense_code) {
+			case LU_IS_IN_PROCESS_OF_BECOMING_READY:
+			case LU_NOT_READY_FORMAT_IN_PROGRESS:
+			case LU_NOT_READY_REBUILD_IN_PROGRESS:
+			case LU_NOT_READY_RECALCULATION_IN_PROGRESS:
+			case LU_NOT_READY_OP_IN_PROGRESS:
+			case LU_NOT_READY_LONG_WRITE_IN_PROGRESS:
+			case LU_NOT_READY_SELFTEST_IN_PROGRESS:
+			case LU_NOT_READY_NOTIFY_REQUIRED:
+			case LU_NOT_READY_SPACE_ALLOCATION_IN_PROGRESS:
+			case LU_NOT_READY_START_STOP_UNIT_COMMAND_IN_PROGRESS:
+			case LU_NOT_READY_SANITIZE_IN_PROGRESS:
+			case LU_NOT_READY_CONFIG_IN_PROGRESS:
+				action = ACTION_DELAYED_RETRY;
+				break;
+			case LU_NOT_ACCESSIBLE_ASYMMETRIC_ACCESS_STATE_TRANSITION:
+				action = ACTION_DELAYED_REPREP;
+				break;
+			/*
+			 * Depopulation might take many hours, thus it is not
+			 * worthwhile to retry.
+			 */
+			case DEPOPULATION_IN_PROGRESS:
+			case DEPOPULATION_RESTORATION_IN_PROGRESS:
+				fallthrough;
+			default:
+				action = ACTION_FAIL;
+				break;
+			}
 			break;
 		case VOLUME_OVERFLOW:
 			/* See SSC3rXX or current. */
@@ -930,11 +940,14 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 			break;
 		case DATA_PROTECT:
 			action = ACTION_FAIL;
-			if ((sshdr.asc == 0x0C && sshdr.ascq == 0x12) ||
-			    (sshdr.asc == 0x55 &&
-			     (sshdr.ascq == 0x0E || sshdr.ascq == 0x0F))) {
-				/* Insufficient zone resources */
+			switch (sshdr.sense_code) {
+			case WRITE_ERROR_INSUFFICIENT_ZONE_RESOURCES:
+			case INSUFFICIENT_ZONE_RESOURCES:
+			case INSUFFICIENT_ZONE_RESOURCES_TO_COMPLETE_WRITE:
 				blk_stat = BLK_STS_ZONE_OPEN_RESOURCE;
+				break;
+			default:
+				break;
 			}
 			break;
 		case COMPLETED:
@@ -1041,7 +1054,7 @@ static int scsi_io_completion_nz_result(struct scsi_cmnd *cmd, int result,
 		 * skip print since caller wants ATA registers. Only occurs
 		 * on SCSI ATA PASS_THROUGH commands when CK_COND=1
 		 */
-		if ((sshdr.asc == 0x0) && (sshdr.ascq == 0x1d))
+		if (sshdr.sense_code == ATA_PASS_THROUGH_INFORMATION_AVAILABLE)
 			do_print = false;
 		else if (req->rq_flags & RQF_QUIET)
 			do_print = false;
@@ -1309,7 +1322,6 @@ void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 	}
 
 	cmd->device = dev;
-	INIT_LIST_HEAD(&cmd->eh_entry);
 	INIT_DELAYED_WORK(&cmd->abort_work, scmd_eh_abort_handler);
 }
 
@@ -1433,14 +1445,14 @@ static inline int scsi_target_queue_ready(struct Scsi_Host *shost,
 	unsigned int busy;
 
 	if (starget->single_lun) {
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&shost->host_lock);
 		if (starget->starget_sdev_user &&
 		    starget->starget_sdev_user != sdev) {
-			spin_unlock_irq(shost->host_lock);
+			spin_unlock_irq(&shost->host_lock);
 			return 0;
 		}
 		starget->starget_sdev_user = sdev;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 	}
 
 	if (starget->can_queue <= 0)
@@ -1467,9 +1479,9 @@ static inline int scsi_target_queue_ready(struct Scsi_Host *shost,
 	return 1;
 
 starved:
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	list_move_tail(&sdev->starved_entry, &shost->starved_list);
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 out_dec:
 	if (starget->can_queue > 0)
 		atomic_dec(&starget->target_busy);
@@ -1506,10 +1518,10 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 
 	/* We're OK to process the command, so we can't be starved */
 	if (!list_empty(&sdev->starved_entry)) {
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&shost->host_lock);
 		if (!list_empty(&sdev->starved_entry))
 			list_del_init(&sdev->starved_entry);
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 	}
 
 	__set_bit(SCMD_STATE_INFLIGHT, &cmd->state);
@@ -1517,10 +1529,10 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 	return 1;
 
 starved:
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	if (list_empty(&sdev->starved_entry))
 		list_add_tail(&sdev->starved_entry, &shost->starved_list);
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 out_dec:
 	scsi_dec_host_busy(shost, cmd);
 	return 0;
@@ -1576,8 +1588,6 @@ static void scsi_complete(struct request *rq)
 		__blk_mq_end_request(rq, scsi_result_to_blk_status(cmd->result));
 		return;
 	}
-
-	INIT_LIST_HEAD(&cmd->eh_entry);
 
 	atomic_inc(&cmd->device->iodone_cnt);
 	if (cmd->result)
@@ -2372,9 +2382,8 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage, int subpage,
 	struct scsi_sense_hdr my_sshdr;
 	struct scsi_failure failure_defs[] = {
 		{
-			.sense = UNIT_ATTENTION,
-			.asc = SCMD_FAILURE_ASC_ANY,
-			.ascq = SCMD_FAILURE_ASCQ_ANY,
+			.sense_key = UNIT_ATTENTION,
+			.sense_code = SCMD_FAILURE_SENSE_CODE_ANY,
 			.allowed = retries,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
@@ -2432,8 +2441,8 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage, int subpage,
 
 	if (!scsi_status_is_good(result)) {
 		if (scsi_sense_valid(sshdr)) {
-			if ((sshdr->sense_key == ILLEGAL_REQUEST) &&
-			    (sshdr->asc == 0x20) && (sshdr->ascq == 0)) {
+			if (sshdr->sense_key == ILLEGAL_REQUEST &&
+			    sshdr->sense_code == INVALID_COMMAND_OP_CODE) {
 				/*
 				 * Invalid command operation code: retry using
 				 * MODE SENSE(6) if this was a MODE SENSE(10)
@@ -3573,21 +3582,20 @@ int scsi_vpd_tpg_id(struct scsi_device *sdev, int *rel_id)
 EXPORT_SYMBOL(scsi_vpd_tpg_id);
 
 /**
- * scsi_build_sense - build sense data for a command
+ * scsi_set_sense - build sense data for a command
  * @scmd:	scsi command for which the sense should be formatted
  * @desc:	Sense format (non-zero == descriptor format,
  *              0 == fixed format)
  * @key:	Sense key
- * @asc:	Additional sense code
- * @ascq:	Additional sense code qualifier
+ * @code:	Additional sense code and sense code qualifier
  *
  **/
-void scsi_build_sense(struct scsi_cmnd *scmd, int desc, u8 key, u8 asc, u8 ascq)
+void scsi_set_sense(struct scsi_cmnd *scmd, int desc, u8 key, u16 code)
 {
-	scsi_build_sense_buffer(desc, scmd->sense_buffer, key, asc, ascq);
+	scsi_set_sense_buffer(desc, scmd->sense_buffer, key, code);
 	scmd->result = SAM_STAT_CHECK_CONDITION;
 }
-EXPORT_SYMBOL_GPL(scsi_build_sense);
+EXPORT_SYMBOL_GPL(scsi_set_sense);
 
 #ifdef CONFIG_SCSI_LIB_KUNIT_TEST
 #include "scsi_lib_test.c"

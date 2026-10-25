@@ -397,11 +397,11 @@ static void scsi_target_destroy(struct scsi_target *starget)
 	BUG_ON(starget->state == STARGET_DEL);
 	starget->state = STARGET_DEL;
 	transport_destroy_device(dev);
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	if (shost->hostt->target_destroy)
 		shost->hostt->target_destroy(starget);
 	list_del_init(&starget->siblings);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 	put_device(dev);
 }
 
@@ -524,14 +524,14 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	starget->scsi_level = SCSI_2;
 	starget->max_target_blocked = SCSI_DEFAULT_TARGET_BLOCKED;
  retry:
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 
 	found_target = __scsi_find_target(parent, channel, id);
 	if (found_target)
 		goto found;
 
 	list_add_tail(&starget->siblings, &shost->__targets);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 	/* allocate and add */
 	transport_setup_device(dev);
 	if (shost->hostt->target_alloc) {
@@ -558,7 +558,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	 */
 	ref_got = kref_get_unless_zero(&found_target->reap_ref);
 
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 	if (ref_got) {
 		put_device(dev);
 		return found_target;
@@ -652,19 +652,18 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	int pass, count, result, resid;
 	struct scsi_failure failure_defs[] = {
 		/*
-		 * not-ready to ready transition [asc/ascq=0x28/0x0] or
-		 * power-on, reset [asc/ascq=0x29/0x0], continue. INQUIRY
-		 * should not yield UNIT_ATTENTION but many buggy devices do
-		 * so anyway.
+		 * not-ready to ready transition or power-on, reset, continue.
+		 * INQUIRY should not yield UNIT_ATTENTION but many buggy
+		 * devices do so anyway.
 		 */
 		{
-			.sense = UNIT_ATTENTION,
-			.asc = 0x28,
+			.sense_key = UNIT_ATTENTION,
+			.sense_code = NOT_READY_TO_READY_CHANGE_MEDIUM_MAY_HAVE_CHANGED,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		{
-			.sense = UNIT_ATTENTION,
-			.asc = 0x29,
+			.sense_key = UNIT_ATTENTION,
+			.sense_code = POWER_ON_RESET_OR_BUS_DEVICE_RESET_OCCURRED,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		{
@@ -1457,14 +1456,13 @@ static int scsi_report_lun_scan(struct Scsi_Host *shost,
 	struct scsi_device *sdev;
 	struct scsi_failure failure_defs[] = {
 		{
-			.sense = UNIT_ATTENTION,
-			.asc = SCMD_FAILURE_ASC_ANY,
-			.ascq = SCMD_FAILURE_ASCQ_ANY,
+			.sense_key = UNIT_ATTENTION,
+			.sense_code = SCMD_FAILURE_SENSE_CODE_ANY,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		/* Fail all CCs except the UA above */
 		{
-			.sense = SCMD_FAILURE_SENSE_ANY,
+			.sense_key = SCMD_FAILURE_SENSE_KEY_ANY,
 			.result = SAM_STAT_CHECK_CONDITION,
 		},
 		/* Retry any other errors not listed above */
@@ -2106,16 +2104,16 @@ void scsi_forget_host(struct Scsi_Host *shost)
 	unsigned long flags;
 
  restart:
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	list_for_each_entry(sdev, &shost->__devices, siblings) {
 		if (scsi_device_is_pseudo_dev(sdev) ||
 		    sdev->sdev_state == SDEV_DEL)
 			continue;
-		spin_unlock_irqrestore(shost->host_lock, flags);
+		spin_unlock_irqrestore(&shost->host_lock, flags);
 		__scsi_remove_device(sdev);
 		goto restart;
 	}
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	/*
 	 * Remove the pseudo device last since it may be needed during removal

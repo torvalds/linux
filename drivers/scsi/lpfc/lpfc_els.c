@@ -7917,15 +7917,15 @@ lpfc_els_flush_rscn(struct lpfc_vport *vport)
 	struct lpfc_hba  *phba = vport->phba;
 	int i;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	if (vport->fc_rscn_flush) {
 		/* Another thread is walking fc_rscn_id_list on this vport */
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 		return;
 	}
 	/* Indicate we are walking lpfc_els_flush_rscn on this vport */
 	vport->fc_rscn_flush = 1;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 
 	for (i = 0; i < vport->fc_rscn_id_cnt; i++) {
 		lpfc_in_buf_free(phba, vport->fc_rscn_id_list[i]);
@@ -7933,9 +7933,9 @@ lpfc_els_flush_rscn(struct lpfc_vport *vport)
 	}
 	clear_bit(FC_RSCN_MODE, &vport->fc_flag);
 	clear_bit(FC_RSCN_DISCOVERY, &vport->fc_flag);
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	vport->fc_rscn_id_cnt = 0;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 	lpfc_can_disctmo(vport);
 	/* Indicate we are done walking this fc_rscn_id_list */
 	vport->fc_rscn_flush = 0;
@@ -7972,15 +7972,15 @@ lpfc_rscn_payload_check(struct lpfc_vport *vport, uint32_t did)
 	if (test_bit(FC_RSCN_DISCOVERY, &vport->fc_flag))
 		return did;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	if (vport->fc_rscn_flush) {
 		/* Another thread is walking fc_rscn_id_list on this vport */
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 		return 0;
 	}
 	/* Indicate we are walking fc_rscn_id_list on this vport */
 	vport->fc_rscn_flush = 1;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 	for (i = 0; i < vport->fc_rscn_id_cnt; i++) {
 		lp = vport->fc_rscn_id_list[i]->virt;
 		payload_len = be32_to_cpu(*lp++ & ~ELS_CMD_MASK);
@@ -8234,10 +8234,10 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		}
 	}
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	if (vport->fc_rscn_flush) {
 		/* Another thread is walking fc_rscn_id_list on this vport */
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 		set_bit(FC_RSCN_DISCOVERY, &vport->fc_flag);
 		/* Send back ACC */
 		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
@@ -8245,7 +8245,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	}
 	/* Indicate we are walking fc_rscn_id_list on this vport */
 	vport->fc_rscn_flush = 1;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 	/* Get the array count after successfully have the token */
 	rscn_cnt = vport->fc_rscn_id_cnt;
 	/* If we are already processing an RSCN, save the received
@@ -8538,14 +8538,14 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	 * The vport state should go to LPFC_FLOGI only
 	 * AFTER we issue a FLOGI, not receive one.
 	 */
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	fc_flag = vport->fc_flag;
 	port_state = vport->port_state;
 	/* Acking an unsol FLOGI.  Count 1 for link bounce
 	 * work-around.
 	 */
 	vport->rcv_flogi_cnt++;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 	set_bit(FC_PT2PT, &vport->fc_flag);
 	clear_bit(FC_FABRIC, &vport->fc_flag);
 	clear_bit(FC_PUBLIC_LOOP, &vport->fc_flag);
@@ -11190,9 +11190,9 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			break;
 		}
 	} else {
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&shost->host_lock);
 		vport->vpi_state |= LPFC_VPI_REGISTERED;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 		if (vport == phba->pport) {
 			if (phba->sli_rev < LPFC_SLI_REV4)
 				lpfc_issue_fabric_reglogin(vport);

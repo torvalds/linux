@@ -1499,7 +1499,7 @@ NCR_700_intr(int irq, void *dev_id)
 	 * lock to enter the done routines.  When that happens, we
 	 * need to ensure that for this driver, the host lock and the
 	 * queue lock point to the same thing. */
-	spin_lock_irqsave(host->host_lock, flags);
+	spin_lock_irqsave(&host->host_lock, flags);
 	if((istat = NCR_700_readb(host, ISTAT_REG))
 	      & (SCSI_INT_PENDING | DMA_INT_PENDING)) {
 		__u32 dsps;
@@ -1747,7 +1747,7 @@ NCR_700_intr(int irq, void *dev_id)
 		}
 	}
  out_unlock:
-	spin_unlock_irqrestore(host->host_lock, flags);
+	spin_unlock_irqrestore(&host->host_lock, flags);
 	return IRQ_RETVAL(handled);
 }
 
@@ -1948,27 +1948,27 @@ NCR_700_host_reset(struct scsi_cmnd * SCp)
 	/* In theory, eh_complete should always be null because the
 	 * eh is single threaded, but just in case we're handling a
 	 * reset via sg or something */
-	spin_lock_irq(SCp->device->host->host_lock);
+	spin_lock_irq(&SCp->device->host->host_lock);
 	while (hostdata->eh_complete != NULL) {
-		spin_unlock_irq(SCp->device->host->host_lock);
+		spin_unlock_irq(&SCp->device->host->host_lock);
 		msleep_interruptible(100);
-		spin_lock_irq(SCp->device->host->host_lock);
+		spin_lock_irq(&SCp->device->host->host_lock);
 	}
 
 	hostdata->eh_complete = &complete;
 	NCR_700_internal_bus_reset(SCp->device->host);
 	NCR_700_chip_reset(SCp->device->host);
 
-	spin_unlock_irq(SCp->device->host->host_lock);
+	spin_unlock_irq(&SCp->device->host->host_lock);
 	wait_for_completion(&complete);
-	spin_lock_irq(SCp->device->host->host_lock);
+	spin_lock_irq(&SCp->device->host->host_lock);
 
 	hostdata->eh_complete = NULL;
 	/* Revalidate the transport parameters of the failing device */
 	if(hostdata->fast)
 		spi_schedule_dv_device(SCp->device);
 
-	spin_unlock_irq(SCp->device->host->host_lock);
+	spin_unlock_irq(&SCp->device->host->host_lock);
 	return SUCCESS;
 }
 

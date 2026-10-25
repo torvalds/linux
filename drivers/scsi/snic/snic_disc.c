@@ -160,9 +160,9 @@ snic_scsi_scan_tgt(struct work_struct *work)
 			 SCAN_WILD_CARD,
 			 SCSI_SCAN_RESCAN);
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	tgt->flags &= ~SNIC_TGT_SCAN_PENDING;
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 } /* end of snic_scsi_scan_tgt */
 
 /*
@@ -287,11 +287,11 @@ snic_tgt_create(struct snic *snic, struct snic_tgt_id *tgtid)
 		break;
 	}
 
-	spin_lock_irqsave(snic->shost->host_lock, flags);
+	spin_lock_irqsave(&snic->shost->host_lock, flags);
 	list_add_tail(&tgt->list, &snic->disc.tgt_list);
 	tgt->scsi_tgt_id = snic->disc.nxt_tgt_id++;
 	tgt->state = SNIC_TGT_STAT_ONLINE;
-	spin_unlock_irqrestore(snic->shost->host_lock, flags);
+	spin_unlock_irqrestore(&snic->shost->host_lock, flags);
 
 	SNIC_HOST_INFO(snic->shost,
 		       "Tgt %d, type = %s detected. Adding..\n",
@@ -304,9 +304,9 @@ snic_tgt_create(struct snic *snic, struct snic_tgt_id *tgtid)
 			      ret);
 
 		put_device(&snic->shost->shost_gendev);
-		spin_lock_irqsave(snic->shost->host_lock, flags);
+		spin_lock_irqsave(&snic->shost->host_lock, flags);
 		list_del(&tgt->list);
-		spin_unlock_irqrestore(snic->shost->host_lock, flags);
+		spin_unlock_irqrestore(&snic->shost->host_lock, flags);
 		put_device(&tgt->dev);
 		tgt = NULL;
 
@@ -537,7 +537,7 @@ snic_tgt_del_all(struct snic *snic)
 	scsi_flush_work(snic->shost);
 
 	mutex_lock(&snic->disc.mutex);
-	spin_lock_irqsave(snic->shost->host_lock, flags);
+	spin_lock_irqsave(&snic->shost->host_lock, flags);
 
 	list_for_each_safe(cur, nxt, &snic->disc.tgt_list) {
 		tgt = list_entry(cur, struct snic_tgt, list);
@@ -547,7 +547,7 @@ snic_tgt_del_all(struct snic *snic)
 		queue_work(snic_glob->event_q, &tgt->del_work);
 		tgt = NULL;
 	}
-	spin_unlock_irqrestore(snic->shost->host_lock, flags);
+	spin_unlock_irqrestore(&snic->shost->host_lock, flags);
 	mutex_unlock(&snic->disc.mutex);
 
 	flush_workqueue(snic_glob->event_q);

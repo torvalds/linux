@@ -38,7 +38,7 @@ static const char *scsi_cmd_list_info(struct scsi_cmnd *cmd)
 	struct Scsi_Host *shost = cmd->device->host;
 	struct scsi_cmnd *cmd2;
 
-	guard(spinlock_irq)(shost->host_lock);
+	guard(spinlock_irq)(&shost->host_lock);
 
 	list_for_each_entry(cmd2, &shost->eh_abort_list, eh_entry)
 		if (cmd == cmd2)

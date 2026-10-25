@@ -2705,7 +2705,7 @@ static void fcoe_vport_remove(struct fc_lport *lport)
 	fc_host = shost_to_fc_host(shost);
 
 	/* Loop through all the vports and mark them for deletion */
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	list_for_each_entry_safe(vport, next_vport, &fc_host->vports, peers) {
 		if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING)) {
 			continue;
@@ -2715,7 +2715,7 @@ static void fcoe_vport_remove(struct fc_lport *lport)
 				   &vport->vport_delete_work);
 		}
 	}
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	flush_workqueue(fc_host_work_q(shost));
 }
