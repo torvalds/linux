@@ -2966,7 +2966,7 @@ static int atyfb_setup_sparc(struct pci_dev *pdev, struct fb_info *info,
 
 	/*
 	 * Figure mmap addresses from PCI config space.
-	 * Split Framebuffer in big- and little-endian halfs.
+	 * Split Framebuffer in big- and little-endian halves.
 	 */
 	for (i = 0; i < 6 && pdev->resource[i].start; i++)
 		/* nothing */ ;
@@ -3387,7 +3387,7 @@ static int init_from_bios(struct atyfb_par *par)
 
 		PRINTKI("Mach64 BIOS is located at %x, mapped at %x.\n", rom_addr, bios_base);
 
-		/* check for frequncy table */
+		/* check for frequency table */
 		bios_ptr = (u8*)bios_base;
 		rom_table_offset = (u16)(bios_ptr[0x48] | (bios_ptr[0x49] << 8));
 		freq_table_offset = bios_ptr[rom_table_offset + 16] | (bios_ptr[rom_table_offset + 17] << 8);

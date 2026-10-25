@@ -400,7 +400,7 @@ s1d13xxxfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 /**
  *	bltbit_wait_bitclear - waits for change in register value
- *	@info : frambuffer structure
+ *	@info : framebuffer structure
  *	@bit  : value currently in register
  *	@timeout : ...
  *
@@ -426,7 +426,7 @@ bltbit_wait_bitclear(struct fb_info *info, u8 bit, int timeout)
  *	@info : framebuffer structure
  *	@area : fb_copyarea structure
  *
- *	supports (atleast) S1D13506
+ *	supports (at least) S1D13506
  *
  */
 static void
@@ -516,7 +516,7 @@ s1d13xxxfb_bitblt_copyarea(struct fb_info *info, const struct fb_copyarea *area)
  *	@info : framebuffer structure
  *	@rect : fb_fillrect structure
  *
- *	supports (atleast 13506)
+ *	supports (at least 13506)
  *
  **/
 static void

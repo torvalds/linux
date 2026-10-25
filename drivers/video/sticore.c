@@ -389,7 +389,7 @@ static int sti_font_setup(char *str)
  *	- sti_font=<number>	(<number> = 1,2,3,...)
  *		most STI ROMs have built-in HP specific fonts, which can be selected
  *		by giving the desired number to the sticon driver.
- *		NOTE: This number is machine and STI ROM dependend.
+ *		NOTE: This number is machine and STI ROM dependent.
  *	- sti_font=<height>x<width>  (e.g. sti_font=16x8)
  *		<height> and <width> gives hints to the height and width of the
  *		font which the user wants. The sticon driver will try to use

@@ -1089,7 +1089,7 @@ static int falcon_decode_var(struct fb_info *info, struct fb_var_screeninfo *var
 			/* Choose largest pixelclock <= wanted clock */
 			int i;
 			unsigned long pcl = ULONG_MAX;
-			pclock = 0;
+			pclock = NULL;
 			for (i = 1; i <= 4; i *= 2) {
 				if (f25.t * i >= var->pixclock &&
 				    f25.t * i < pcl) {
@@ -2454,7 +2454,7 @@ static void svblit_fillrect(struct fb_info *info,
 		((u32 *)info->pseudo_palette)[rect->color] : rect->color;
 
 	/* draw the first line with the CPU ... */
-	line = (u8 *)info->screen_base + rect->dy * pitch +
+	line = info->screen_buffer + rect->dy * pitch +
 	       rect->dx * bytespp;
 	switch (bytespp) {
 	case 1:
@@ -2818,29 +2818,6 @@ static void atafb_imageblit(struct fb_info *info, const struct fb_image *image)
 	}
 }
 
-static int
-atafb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-#ifdef FBCMD_GET_CURRENTPAR
-	case FBCMD_GET_CURRENTPAR:
-		if (copy_to_user((void *)arg, &current_par,
-				 sizeof(struct atafb_par)))
-			return -EFAULT;
-		return 0;
-#endif
-#ifdef FBCMD_SET_CURRENTPAR
-	case FBCMD_SET_CURRENTPAR:
-		if (copy_from_user(&current_par, (void *)arg,
-				   sizeof(struct atafb_par)))
-			return -EFAULT;
-		ata_set_par(&current_par);
-		return 0;
-#endif
-	}
-	return -EINVAL;
-}
-
 /* (un)blank/poweroff
  * 0 = unblank
  * 1 = blank
@@ -2922,7 +2899,6 @@ static struct fb_ops atafb_ops = {
 	.fb_fillrect	= atafb_fillrect,
 	.fb_copyarea	= atafb_copyarea,
 	.fb_imageblit	= atafb_imageblit,
-	.fb_ioctl =	atafb_ioctl,
 	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 

@@ -60,7 +60,7 @@ typedef struct _OVRL_SRC_DEST {
 	u32 ulDstX2;
 	u32 ulDstY2;
 
-	/*clipped pixel pos of source data within buffer thses need to be 128 bit word aligned */
+	/* clipped pixel pos of source data within buffer these need to be 128 bit word aligned */
 	u32 ulSrcX1;
 	u32 ulSrcY1;
 	u32 ulSrcX2;

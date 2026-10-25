@@ -753,7 +753,7 @@ static u32 depth_to_dst(u32 depth)
 }
 
 /*
- * PLL informations retreival
+ * PLL information retreival
  */
 
 

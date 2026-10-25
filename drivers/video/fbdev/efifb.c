@@ -97,7 +97,7 @@ static int efifb_setcolreg(unsigned regno, unsigned red, unsigned green,
 }
 
 /*
- * If fbcon deffered console takeover is configured, the intent is for the
+ * If fbcon deferred console takeover is configured, the intent is for the
  * framebuffer to show the boot graphics (e.g. vendor logo) until there is some
  * (error) message to display. But the boot graphics may have been destroyed by
  * e.g. option ROM output, detect this and restore the boot graphics.
@@ -421,7 +421,7 @@ static int efifb_probe(struct platform_device *dev)
 	size_vmode = efifb_defined.yres * efifb_fix.line_length;
 
 	/*   size_total -- all video memory we have. Used for
-	 *                 entries, ressource allocation and bounds
+	 *                 entries, resource allocation and bounds
 	 *                 checking. */
 	size_total = si->lfb_size;
 	if (size_total < size_vmode)

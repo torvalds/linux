@@ -2119,7 +2119,7 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 
 	/*
 	 * Pixel data should be prepared before visible display point starts.
-	 * So, atleast DS-2 lines must have already been fetched by DISPC
+	 * So, at least DS-2 lines must have already been fetched by DISPC
 	 * during nonactive - pos_x period.
 	 */
 	val = div_u64((u64)(nonactive - pos_x) * lclk, pclk);
@@ -2130,7 +2130,7 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 
 	/*
 	 * All lines need to be refilled during the nonactive period of which
-	 * only one line can be loaded during the active period. So, atleast
+	 * only one line can be loaded during the active period. So, at least
 	 * DS - 1 lines should be loaded during nonactive period.
 	 */
 	val =  div_u64((u64)nonactive * lclk, pclk);
