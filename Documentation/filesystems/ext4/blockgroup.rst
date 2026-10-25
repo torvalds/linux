@@ -83,11 +83,13 @@ flex_bg is given by 2 ^ ``sb.s_log_groups_per_flex``.
 Meta Block Groups
 ~~~~~~~~~~~~~~~~~
 
-Without the option META_BG, for safety concerns, all block group
-descriptors copies are kept in the first block group. Given the default
-128MiB(2^27 bytes) block group size and 64-byte group descriptors, ext4
-can have at most 2^27/64 = 2^21 block groups. This limits the entire
-filesystem size to 2^21 * 2^27 = 2^48bytes or 256TiB.
+Without the option META_BG, the group descriptors for all block groups
+are stored together in a single table that follows the superblock in
+the first block group, with a backup copy of the whole table following
+each superblock backup. Given the default 128MiB(2^27 bytes) block
+group size and 64-byte group descriptors, ext4 can have at most
+2^27/64 = 2^21 block groups. This limits the entire filesystem size to
+2^21 * 2^27 = 2^48bytes or 256TiB.
 
 The solution to this problem is to use the metablock group feature
 (META_BG), which is already in ext3 for all 2.6 releases. With the
@@ -104,17 +106,26 @@ to the hard limit 2^32, allowing support for a 512PiB filesystem.
 
 The change in the filesystem format replaces the current scheme where
 the superblock is followed by a variable-length set of block group
-descriptors. Instead, the superblock and a single block group descriptor
-block is placed at the beginning of the first, second, and last block
-groups in a meta-block group. A meta-block group is a collection of
-block groups which can be described by a single block group descriptor
-block. Since the size of the block group descriptor structure is 64
-bytes, a meta-block group contains 16 block groups for filesystems with
-a 1KB block size, and 64 block groups for filesystems with a 4KB
-blocksize. Filesystems can either be created using this new block group
-descriptor layout, or existing filesystems can be resized on-line, and
-the field s_first_meta_bg in the superblock will indicate the first
-block group using this new layout.
+descriptors. Instead, a single block group descriptor block is placed
+at the beginning of the first, second, and last block groups in a
+meta-block group (immediately after the superblock, if that group has
+one), regardless of the sparse_super feature. A meta-block group is a
+collection of block groups which can be described by a single block
+group descriptor block. Since the size of the block group descriptor
+structure is 64 bytes, a meta-block group contains 16 block groups for
+filesystems with a 1KB block size, and 64 block groups for filesystems
+with a 4KB blocksize. Filesystems can either be created using this new
+block group descriptor layout, or existing filesystems can be resized
+on-line, and the field s_first_meta_bg in the superblock will indicate
+the first block group using this new layout.
+
+Superblock backups continue to follow the ordinary sparse_super
+placement rule (block group 0, 1, or a power of 3, 5, or 7)
+independently of meta-block group boundaries; without sparse_super,
+every block group carries one. As a result, a block group at one of the
+three meta-block-group positions above will carry a superblock backup
+only if its group number also satisfies that rule; otherwise it holds
+only the group descriptor block.
 
 Please see an important note about ``BLOCK_UNINIT`` in the section about
 block and inode bitmaps.
