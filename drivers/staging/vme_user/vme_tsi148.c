@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/byteorder/generic.h>
+#include <linux/string_choices.h>
 
 #include "vme.h"
 #include "vme_bridge.h"
@@ -2458,7 +2459,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			 geoid);
 
 	dev_info(&pdev->dev, "VME Write and flush and error check is %s\n",
-		 err_chk ? "enabled" : "disabled");
+		 str_enabled_disabled(err_chk));
 
 	retval = tsi148_crcsr_init(tsi148_bridge, pdev);
 	if (retval) {

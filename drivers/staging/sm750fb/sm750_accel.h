@@ -195,7 +195,8 @@ int sm750_hw_fillrect(struct lynx_accel *accel,
 		      u32 color, u32 rop);
 
 /**
- * sm750_hm_copyarea
+ * sm750_hw_copyarea
+ * @accel: Acceleration device data
  * @source_base: Address of source: offset in frame buffer
  * @source_pitch: Pitch value of source surface in BYTE
  * @sx: Starting x coordinate of source surface
@@ -219,6 +220,7 @@ int sm750_hw_copyarea(struct lynx_accel *accel,
 
 /**
  * sm750_hw_imageblit
+ * @accel: Acceleration device data
  * @src_buf: pointer to start of source buffer in system memory
  * @start_bit: Mono data can start at any bit in a byte, this value should be
  *>-----      0 to 7

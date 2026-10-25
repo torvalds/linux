@@ -439,7 +439,6 @@ static int comp_register_videodev(struct most_video_dev *mdev)
 	mdev->vdev->release = video_device_release;
 
 	return 0;
-
 }
 
 static void comp_unregister_videodev(struct most_video_dev *mdev)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * FB driver for the uPD161704 LCD Controller
+ * FB driver for the BD663474 LCD Controller
  *
  * Copyright (C) 2014 Seong-Woo Kim
  *
@@ -166,6 +166,6 @@ MODULE_ALIAS("platform:" DRVNAME);
 MODULE_ALIAS("spi:bd663474");
 MODULE_ALIAS("platform:bd663474");
 
-MODULE_DESCRIPTION("FB driver for the uPD161704 LCD Controller");
+MODULE_DESCRIPTION("FB driver for the BD663474 LCD Controller");
 MODULE_AUTHOR("Seong-Woo Kim");
 MODULE_LICENSE("GPL");

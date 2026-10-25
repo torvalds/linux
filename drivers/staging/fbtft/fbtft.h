@@ -37,7 +37,7 @@ struct fbtft_par;
  * @write: Writes to interface bus
  * @read: Reads from interface bus
  * @write_vmem: Writes video memory to display
- * @write_reg: Writes to controller register
+ * @write_register: Writes to controller register
  * @set_addr_win: Set the GRAM update window
  * @reset: Reset the LCD controller
  * @mkdirty: Marks display lines for update
@@ -46,7 +46,6 @@ struct fbtft_par;
  * @blank: Blank the display (optional)
  * @request_gpios_match: Do pinname to gpio matching
  * @request_gpios: Request gpios from the kernel
- * @free_gpios: Free previously requested gpios
  * @verify_gpios: Verify that necessary gpios is present (optional)
  * @register_backlight: Used to register backlight device (optional)
  * @unregister_backlight: Unregister backlight device (optional)

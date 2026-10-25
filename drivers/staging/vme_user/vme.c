@@ -298,9 +298,9 @@ struct vme_resource *vme_slave_request(struct vme_dev *vdev, u32 address,
 
 err_alloc:
 	/* Unlock image */
-	mutex_lock(&slave_image->mtx);
-	slave_image->locked = 0;
-	mutex_unlock(&slave_image->mtx);
+	mutex_lock(&allocated_image->mtx);
+	allocated_image->locked = 0;
+	mutex_unlock(&allocated_image->mtx);
 err_image:
 err_bus:
 	return NULL;
@@ -495,9 +495,9 @@ struct vme_resource *vme_master_request(struct vme_dev *vdev, u32 address,
 
 err_alloc:
 	/* Unlock image */
-	spin_lock(&master_image->lock);
-	master_image->locked = 0;
-	spin_unlock(&master_image->lock);
+	spin_lock(&allocated_image->lock);
+	allocated_image->locked = 0;
+	spin_unlock(&allocated_image->lock);
 err_image:
 err_bus:
 	return NULL;
@@ -865,9 +865,9 @@ struct vme_resource *vme_dma_request(struct vme_dev *vdev, u32 route)
 
 err_alloc:
 	/* Unlock image */
-	mutex_lock(&dma_ctrlr->mtx);
-	dma_ctrlr->locked = 0;
-	mutex_unlock(&dma_ctrlr->mtx);
+	mutex_lock(&allocated_ctrlr->mtx);
+	allocated_ctrlr->locked = 0;
+	mutex_unlock(&allocated_ctrlr->mtx);
 err_ctrlr:
 err_bus:
 	return NULL;
@@ -1469,9 +1469,9 @@ struct vme_resource *vme_lm_request(struct vme_dev *vdev)
 
 err_alloc:
 	/* Unlock image */
-	mutex_lock(&lm->mtx);
-	lm->locked = 0;
-	mutex_unlock(&lm->mtx);
+	mutex_lock(&allocated_lm->mtx);
+	allocated_lm->locked = 0;
+	mutex_unlock(&allocated_lm->mtx);
 err_lm:
 err_bus:
 	return NULL;
