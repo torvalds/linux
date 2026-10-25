@@ -780,7 +780,7 @@ static struct platform_driver rockchip_vsi_iommu_driver = {
 	.driver = {
 		   .name = "vsi_iommu",
 		   .of_match_table = vsi_iommu_dt_ids,
-		   .pm = pm_sleep_ptr(&vsi_iommu_pm_ops),
+		   .pm = pm_ptr(&vsi_iommu_pm_ops),
 		   .suppress_bind_attrs = true,
 	},
 };
