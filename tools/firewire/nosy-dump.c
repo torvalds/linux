@@ -947,6 +947,8 @@ int main(int argc, const char *argv[])
 		output = fopen(option_output, "w");
 		if (output == NULL) {
 			fprintf(stderr, "Could not open %s, %m\n", option_output);
+			if (input != NULL)
+				fclose(input);
 			return -1;
 		}
 	}
@@ -973,7 +975,7 @@ int main(int argc, const char *argv[])
 	while (run) {
 		if (input != NULL) {
 			if (fread(&length, sizeof length, 1, input) != 1)
-				return 0;
+				break;
 			fread(buf, 1, length, input);
 		} else {
 			poll(pollfds, 2, -1);
@@ -1014,7 +1016,11 @@ int main(int argc, const char *argv[])
 	if (output != NULL)
 		fclose(output);
 
-	close(fd);
+	if (input != NULL)
+		fclose(input);
+
+	if (fd >= 0)
+		close(fd);
 
 	poptFreeContext(con);
 
