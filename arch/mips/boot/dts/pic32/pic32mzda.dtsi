@@ -76,8 +76,6 @@
 	};
 
 	pic32_pinctrl: pinctrl@1f801400 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		compatible = "microchip,pic32mzda-pinctrl";
 		reg = <0x1f801400 0x400>;
 		clocks = <&rootclk PB1CLK>;

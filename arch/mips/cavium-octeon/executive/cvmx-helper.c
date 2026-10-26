@@ -1014,7 +1014,6 @@ int cvmx_helper_initialize_packet_io_global(void)
 {
 	int result = 0;
 	int interface;
-	union cvmx_l2c_cfg l2c_cfg;
 	const int num_interfaces = cvmx_helper_get_number_of_interfaces();
 
 	/*
@@ -1029,10 +1028,21 @@ int cvmx_helper_initialize_packet_io_global(void)
 	 * to the cores. This avoids conditions where IO blocks might
 	 * be starved under very high L2 loads.
 	 */
-	l2c_cfg.u64 = cvmx_read_csr(CVMX_L2C_CFG);
-	l2c_cfg.s.lrf_arb_mode = 0;
-	l2c_cfg.s.rfb_arb_mode = 0;
-	cvmx_write_csr(CVMX_L2C_CFG, l2c_cfg.u64);
+	if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {
+		union cvmx_l2c_ctl l2c_ctl;
+
+		l2c_ctl.u64 = cvmx_read_csr(CVMX_L2C_CTL);
+		l2c_ctl.s.rsp_arb_mode = 1;
+		l2c_ctl.s.xmc_arb_mode = 0;
+		cvmx_write_csr(CVMX_L2C_CTL, l2c_ctl.u64);
+	} else {
+		union cvmx_l2c_cfg l2c_cfg;
+
+		l2c_cfg.u64 = cvmx_read_csr(CVMX_L2C_CFG);
+		l2c_cfg.s.lrf_arb_mode = 0;
+		l2c_cfg.s.rfb_arb_mode = 0;
+		cvmx_write_csr(CVMX_L2C_CFG, l2c_cfg.u64);
+	}
 
 	cvmx_pko_initialize_global();
 	for (interface = 0; interface < num_interfaces; interface++) {

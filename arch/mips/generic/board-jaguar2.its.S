@@ -28,13 +28,11 @@
 			description = "Jaguar2 Linux kernel";
 			kernel = "kernel";
 			fdt = "fdt-jaguar2_pcb110";
-			ramdisk = "ramdisk";
 		};
 		pcb111 {
 			description = "Jaguar2 Linux kernel";
 			kernel = "kernel";
 			fdt = "fdt-jaguar2_pcb111";
-			ramdisk = "ramdisk";
 		};
 	};
 };

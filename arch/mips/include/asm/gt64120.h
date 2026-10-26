@@ -45,8 +45,6 @@
 #define GT_PCI1M0HD_OFS		0x0a8
 #define GT_PCI1M1LD_OFS		0x0b0
 #define GT_PCI1M1HD_OFS		0x0b8
-#define GT_PCI1M1LD_OFS		0x0b0
-#define GT_PCI1M1HD_OFS		0x0b8
 
 #define GT_SCS10AR_OFS		0x0d0
 #define GT_SCS32AR_OFS		0x0d8

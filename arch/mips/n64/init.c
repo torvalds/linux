@@ -20,7 +20,7 @@
 #define IO_MEM_RESOURCE_END	0x1fffffffUL
 
 /*
- * System-specifc irq names for clarity
+ * System-specific irq names for clarity
  */
 #define MIPS_CPU_IRQ(x)		(MIPS_CPU_IRQ_BASE + (x))
 #define MIPS_SOFTINT0_IRQ	MIPS_CPU_IRQ(0)
