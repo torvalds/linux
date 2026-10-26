@@ -906,9 +906,12 @@ static int test__parsing_callback(const struct pmu_metric *pm,
 			struct metric_expr *mexp;
 
 			list_for_each_entry (mexp, &me->head, nd) {
+				double result;
+
 				if (strcmp(mexp->metric_name, pm->metric_name))
 					continue;
-				pr_debug("Result %f\n", test_generic_metric(mexp, 0));
+				result = test_generic_metric(mexp, 0);
+				pr_debug("Result %f\n", result);
 				err = 0;
 				(*failures)--;
 				goto out_err;
