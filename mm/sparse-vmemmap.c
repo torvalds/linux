@@ -62,7 +62,7 @@ void __ref *vmemmap_alloc_block(unsigned long size, int node)
 		}
 		return NULL;
 	} else
-		return memmap_alloc(size, size, __pa(MAX_DMA_ADDRESS), node, false);
+		return memmap_alloc(size, size, __pa(MAX_DMA_ADDRESS), node);
 }
 
 static void * __meminit altmap_alloc_block_buf(unsigned long size,
