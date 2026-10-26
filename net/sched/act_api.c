@@ -1560,6 +1560,9 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 					err = -EINVAL;
 					goto err;
 				}
+				/* Other filters share an existing action */
+				if (init_res[i - 1] != ACT_P_CREATED)
+					continue;
 				if (skip_sw)
 					act->tcfa_flags |= TCA_ACT_FLAGS_SKIP_SW;
 				if (skip_hw)
