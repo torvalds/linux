@@ -1592,7 +1592,7 @@ __msg_next("  r0=(+ r0 -1) / (linear (+ r0 -1) -1)")
 __msg("loop header at 1, header_count is 3 ")
 __msg("loop header at 1, widening r0 to 1..3 step 1")
 __msg("1: R0=scalar(smin=umin=smin32=umin32=1,smax=umax=smax32=umax32=3,var_off=(0x0; 0x3)) loop_stack=1")
-__msg("loop header at 1, clamping r0 to 1..2 (s32 1..2) step 1")
+__msg("loop header at 1, clamping r0 to 1..3 step 1")
 __msg("processed 5 insns")
 __naked void post_cond_jne_neg_step(void)
 {

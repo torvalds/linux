@@ -2896,12 +2896,6 @@ int bpf_clamp_scev_regs(struct bpf_verifier_env *env, struct bpf_func_state *cur
 			continue;
 
 		linear_bounds(entry_reg, max_header_count, &coefs, &bounds);
-		bounds.r64 = cnum64_intersect(reg->r64, bounds.r64);
-		bounds.r32 = cnum32_intersect(reg->r32, bounds.r32);
-		if (cnum64_is_empty(bounds.r64)) {
-			verifier_bug(env, "scev clamp produced empty range for r%d", r);
-			return -EFAULT;
-		}
 		if (log->level & BPF_LOG_LEVEL2) {
 			bpf_log(log, "loop header at %d, clamping ", insn_idx);
 			log_reg(env, r);
