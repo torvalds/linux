@@ -43,8 +43,18 @@ int __fdma_dcb_add(struct fdma *fdma, int dcb_idx, u64 info, u64 status,
 				u64 *dataptr))
 {
 	struct fdma_dcb *dcb = fdma_dcb_get(fdma, dcb_idx);
+	struct fdma_dcb *prev = fdma->last_dcb;
 	u64 nextptr;
 	int i, err;
+
+	/* Per the FDMA datasheet, adding a DCB to an active channel takes
+	 * three steps:
+	 * 1) Write NEXT_PTR of the current last DCB with the LSB forced to
+	 *    FDMA_DCB_INVALID_DATA, and flush that write.
+	 * 2) Clear the LSB to complete the link.
+	 * 3) Reload the channel (FDMA_CH_RELOAD); this is done by the caller
+	 *    once the chain has been extended.
+	 */
 
 	for (i = 0; i < fdma->n_dbs; i++) {
 		err = __fdma_db_add(fdma, dcb_idx, i, status, db_cb);
@@ -56,12 +66,24 @@ int __fdma_dcb_add(struct fdma *fdma, int dcb_idx, u64 info, u64 status,
 	if (unlikely(err))
 		return err;
 
-	fdma->last_dcb->nextptr = cpu_to_le64(nextptr);
-
-	fdma->last_dcb = dcb;
-
 	dcb->nextptr = cpu_to_le64(FDMA_DCB_INVALID_DATA);
 	dcb->info = cpu_to_le64(info);
+
+	/* On the first DCB of fdma_dcbs_init() prev is the DCB itself;
+	 * don't link it to itself.
+	 */
+	if (prev != dcb) {
+		/* Write NEXT_PTR of the current last DCB with the LSB forced
+		 * to FDMA_DCB_INVALID_DATA, and flush that write.
+		 */
+		prev->nextptr = cpu_to_le64(nextptr | FDMA_DCB_INVALID_DATA);
+		dma_wmb();
+
+		/* Clear the LSB to complete the link. */
+		prev->nextptr = cpu_to_le64(nextptr);
+	}
+
+	fdma->last_dcb = dcb;
 
 	return 0;
 }
