@@ -231,9 +231,13 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 		do_div(div_result, uac->p_interval);
 		do_div(div_result, 1000000);
 		if ((unsigned int) div_result >= uac->p_framesize) {
-			req->length += uac->p_framesize;
+			/* req->length is bounded by ep->maxpacket above. */
+			if (uac->p_framesize <= ep->maxpacket - req->length) {
+				req->length += uac->p_framesize;
+				pr_debug("increased req length to %d\n", req->length);
+			}
+
 			uac->p_residue_mil -= uac->p_framesize * p_interval_mil;
-			pr_debug("increased req length to %d\n", req->length);
 		}
 		pr_debug("remains uac->p_residue_mil %llu\n", uac->p_residue_mil);
 
