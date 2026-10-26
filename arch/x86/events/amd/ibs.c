@@ -1533,6 +1533,56 @@ fail:
 		throttle = perf_event_account_interrupt(event);
 		goto out;
 	}
+
+	/*
+	 * IBS captured RIP is out of sync with NMI pt_regs due to NMI
+	 * delivery latency. Use NMI pt_regs for PERF_SAMPLE_REGS_USER.
+	 *
+	 * Note: Valid user regs are required for PERF_SAMPLE_STACK_USER.
+	 */
+	if (event->attr.sample_type & (PERF_SAMPLE_REGS_USER |
+				       PERF_SAMPLE_STACK_USER)) {
+		perf_sample_regs_user(&data.regs_user, iregs);
+
+		/*
+		 * Don't update dyn_size if user has not requested for
+		 * PERF_SAMPLE_REGS_USER.
+		 */
+		if (event->attr.sample_type & PERF_SAMPLE_REGS_USER) {
+			/* regs dump ABI info */
+			int size = sizeof(u64);
+
+			if (data.regs_user.regs) {
+				u64 mask = event->attr.sample_regs_user;
+				size += hweight64(mask) * sizeof(u64);
+			}
+
+			data.dyn_size += size;
+		}
+
+		data.sample_flags |= PERF_SAMPLE_REGS_USER;
+	}
+
+	/*
+	 * IBS captured RIP is out of sync with NMI pt_regs due to NMI
+	 * delivery latency. Use NMI pt_regs for PERF_SAMPLE_REGS_INTR.
+	 */
+	if (event->attr.sample_type & PERF_SAMPLE_REGS_INTR) {
+		/* regs dump ABI info */
+		int size = sizeof(u64);
+
+		perf_sample_regs_intr(&data.regs_intr, iregs,
+				      event->attr.exclude_kernel);
+
+		if (data.regs_intr.regs) {
+			u64 mask = event->attr.sample_regs_intr;
+			size += hweight64(mask) * sizeof(u64);
+		}
+
+		data.dyn_size += size;
+		data.sample_flags |= PERF_SAMPLE_REGS_INTR;
+	}
+
 	/*
 	 * Prevent leaking physical addresses to unprivileged users. Skip
 	 * PERF_SAMPLE_PHYS_ADDR check since generic code prevents it for

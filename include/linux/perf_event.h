@@ -1814,6 +1814,12 @@ extern unsigned long perf_misc_flags(struct perf_event *event, struct pt_regs *r
 extern unsigned long perf_instruction_pointer(struct perf_event *event,
 					      struct pt_regs *regs);
 
+extern void perf_sample_regs_user(struct perf_regs *regs_user,
+				  struct pt_regs *regs);
+extern void perf_sample_regs_intr(struct perf_regs *regs_intr,
+				  struct pt_regs *regs,
+				  bool exclude_kernel);
+
 #ifndef perf_arch_misc_flags
 # define perf_arch_misc_flags(regs) \
 		(user_mode(regs) ? PERF_RECORD_MISC_USER : PERF_RECORD_MISC_KERNEL)
