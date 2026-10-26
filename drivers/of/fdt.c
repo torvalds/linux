@@ -929,7 +929,7 @@ void __init early_init_dt_check_for_usable_mem_range(void)
 static void __init early_init_dt_check_kho(void)
 {
 	unsigned long node = chosen_node_offset;
-	u64 fdt_start, fdt_size, scratch_start, scratch_size;
+	u64 fdt_start, fdt_size, bootmem_start, bootmem_size;
 
 	if (!IS_ENABLED(CONFIG_KEXEC_HANDOVER) || (long)node < 0)
 		return;
@@ -938,11 +938,11 @@ static void __init early_init_dt_check_kho(void)
 				      &fdt_start, &fdt_size))
 		return;
 
-	if (!of_flat_dt_get_addr_size(node, "linux,kho-scratch",
-				      &scratch_start, &scratch_size))
+	if (!of_flat_dt_get_addr_size(node, "linux,kho-bootmem",
+				      &bootmem_start, &bootmem_size))
 		return;
 
-	kho_populate(fdt_start, fdt_size, scratch_start, scratch_size);
+	kho_populate(fdt_start, fdt_size, bootmem_start, bootmem_size);
 }
 
 #ifdef CONFIG_SERIAL_EARLYCON

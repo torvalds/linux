@@ -19,8 +19,8 @@ struct kho_debugfs {
 struct kho_debugfs {};
 #endif
 
-extern struct kho_scratch *kho_scratch;
-extern unsigned int kho_scratch_cnt;
+extern struct kho_bootmem *kho_bootmem;
+extern unsigned int kho_bootmem_cnt;
 
 #ifdef CONFIG_KEXEC_HANDOVER_DEBUGFS
 int kho_debugfs_init(void);

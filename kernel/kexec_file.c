@@ -742,8 +742,8 @@ int kexec_locate_mem_hole(struct kexec_buf *kbuf)
 		return 0;
 
 	/*
-	 * If KHO is active, only use KHO scratch memory. All other memory
-	 * could potentially be handed over.
+	 * If KHO is active, only use KHO bootmem. All other memory could
+	 * potentially be handed over.
 	 */
 	ret = kho_locate_mem_hole(kbuf, locate_mem_hole_callback);
 	if (ret <= 0)

@@ -36,15 +36,15 @@ int kho_retrieve_subtree(const char *name, phys_addr_t *phys, size_t *size);
 void kho_memory_init(void);
 void kho_memory_init_early(void);
 
-void kho_populate(phys_addr_t fdt_phys, u64 fdt_len, phys_addr_t scratch_phys,
-		  u64 scratch_len);
+void kho_populate(phys_addr_t fdt_phys, u64 fdt_len, phys_addr_t bootmem_phys,
+		  u64 bootmem_len);
 
-bool kho_scratch_overlap(phys_addr_t phys, size_t size);
+bool kho_bootmem_overlap(phys_addr_t phys, size_t size);
 
-static inline enum migratetype kho_scratch_migratetype(unsigned long pfn,
+static inline enum migratetype kho_bootmem_migratetype(unsigned long pfn,
 						       enum migratetype mt)
 {
-	if (kho_scratch_overlap(PFN_PHYS(pfn), pageblock_nr_pages << PAGE_SHIFT))
+	if (kho_bootmem_overlap(PFN_PHYS(pfn), pageblock_nr_pages << PAGE_SHIFT))
 		return MIGRATE_CMA;
 	return mt;
 }
@@ -123,16 +123,16 @@ static inline void kho_memory_init(void) { }
 static inline void kho_memory_init_early(void) { }
 
 static inline void kho_populate(phys_addr_t fdt_phys, u64 fdt_len,
-				phys_addr_t scratch_phys, u64 scratch_len)
+				phys_addr_t bootmem_phys, u64 bootmem_len)
 {
 }
 
-static inline bool kho_scratch_overlap(phys_addr_t phys, size_t size)
+static inline bool kho_bootmem_overlap(phys_addr_t phys, size_t size)
 {
 	return false;
 }
 
-static inline enum migratetype kho_scratch_migratetype(unsigned long pfn,
+static inline enum migratetype kho_bootmem_migratetype(unsigned long pfn,
 						       enum migratetype mt)
 {
 	return mt;
