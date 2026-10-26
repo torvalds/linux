@@ -23,7 +23,8 @@ struct symbol;
  * finds the source line information for the given address, and optionally
  * resolves inline function call chains.
  *
- * Returns 1 on success (found), 0 on failure (not found).
+ * Returns 1 on success (found), 0 when DWARF/line info is conclusively
+ * missing, and < 0 on initialization or uncompiled error.
  */
 int libdw__addr2line(u64 addr, char **file,
 		     unsigned int *line_nr, struct dso *dso,
@@ -47,7 +48,7 @@ static inline int libdw__addr2line(u64 addr __maybe_unused, char **file __maybe_
 				   struct inline_node *node __maybe_unused,
 				   struct symbol *sym __maybe_unused)
 {
-	return 0;
+	return -1;
 }
 
 static inline void dso__free_libdw(struct dso *dso __maybe_unused)

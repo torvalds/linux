@@ -7,6 +7,7 @@
 #include "callchain.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 #include <elfutils/libdwfl.h>
 
 static const Dwfl_Callbacks offline_callbacks = {
@@ -175,10 +176,15 @@ int libdw__addr2line(u64 addr, char **file, unsigned int *line_nr,
 	int lineno = 0;
 	int ret = 0;
 
+	if (!dso__has_srcline(dso))
+		return 0;
+
 	mutex_lock(dso__lock(dso));
 	dwfl = dso__libdw_dwfl(dso);
-	if (!dwfl)
+	if (!dwfl) {
+		ret = -1;
 		goto out;
+	}
 
 	mod = dwfl_addrmodule(dwfl, addr);
 	if (!mod) {
@@ -192,14 +198,23 @@ int libdw__addr2line(u64 addr, char **file, unsigned int *line_nr,
 	 * libdw.
 	 */
 	if (!dwfl_module_getdwarf(mod, &bias)) {
-		ret = -1;
+		/*
+		 * Free the Dwfl session so the mmap'd ELF binary is unmapped
+		 * immediately, and mark the DSO as lacking srcline/DWARF info
+		 * so neither libdw nor slower fallback backends (addr2line
+		 * subprocess, libbfd) are repeatedly invoked on stripped DSOs.
+		 */
+		dso__free_libdw(dso);
+		dso__set_has_srcline(dso, false);
+		ret = 0;
 		goto out;
 	}
 
 	/* Find source line information for the address. */
 	dwline = dwfl_module_getsrc(mod, addr + bias);
 	if (!dwline) {
-		ret = -1;
+		/* conclusively missing information -> abort fallbacks */
+		ret = 0;
 		goto out;
 	}
 
@@ -228,7 +243,7 @@ int libdw__addr2line(u64 addr, char **file, unsigned int *line_nr,
 				free(*file);
 				*file = NULL;
 			}
-			ret = 0;
+			ret = -ENOMEM;
 			goto out;
 		}
 
@@ -245,7 +260,7 @@ int libdw__addr2line(u64 addr, char **file, unsigned int *line_nr,
 				*file = NULL;
 			}
 			inline_node__clear_frames(node);
-			ret = 0;
+			ret = args.err;
 			goto out;
 		}
 	}

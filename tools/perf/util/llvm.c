@@ -44,8 +44,11 @@ int llvm__addr2line(const char *dso_name __maybe_unused, u64 addr __maybe_unused
 	int num_frames = llvm_addr2line(dso_name, addr, file, line,
 					node && unwind_inlines, &inline_frames);
 
-	if (num_frames == 0 || !inline_frames) {
-		/* Error, or we didn't want inlines. */
+	if (num_frames <= 0 || !inline_frames) {
+		/*
+		 * Error (< 0 -> iterate fallbacks), missing line info (0), or
+		 * we resolved lines without wanting inlines (1).
+		 */
 		return num_frames;
 	}
 
@@ -60,8 +63,11 @@ int llvm__addr2line(const char *dso_name __maybe_unused, u64 addr __maybe_unused
 						      inline_frames[i].line);
 		}
 		if (inline_list__append(inline_sym, srcline, node) != 0) {
+			if (file)
+				zfree(file);
+			inline_node__clear_frames(node);
 			free_llvm_inline_frames(inline_frames, num_frames);
-			return 0;
+			return -1;
 		}
 	}
 	free_llvm_inline_frames(inline_frames, num_frames);

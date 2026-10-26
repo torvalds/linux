@@ -298,6 +298,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 	struct io io = { .eof = false };
 	enum cmd_a2l_style cmd_a2l_style;
 	const char *current_dso_name;
+	bool a2l_synced = false;
 
 	mutex_lock(dso__lock(dso));
 	current_dso_name = dso__symsrc_filename(dso) ?: dso_name;
@@ -316,11 +317,14 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 	if (a2l == NULL) {
 		if (!symbol_conf.addr2line_disable_warn)
 			pr_warning("%s %s: addr2line_subprocess_init failed\n", __func__, dso_name);
+		ret = -1;
 		goto out_unlock;
 	}
 	cmd_a2l_style = cmd_addr2line_configure(a2l, dso_name);
-	if (cmd_a2l_style == BROKEN)
+	if (cmd_a2l_style == BROKEN) {
+		ret = -1;
 		goto out_unlock;
+	}
 
 	/*
 	 * Take ownership of the a2l subprocess so we can safely perform
@@ -344,6 +348,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 	if (written != len) {
 		if (!symbol_conf.addr2line_disable_warn)
 			pr_warning("%s %s: could not send request\n", __func__, dso_name);
+		ret = -1;
 		goto out;
 	}
 	io__init(&io, a2l->out, buf, sizeof(buf));
@@ -353,6 +358,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 	case -1:
 		if (!symbol_conf.addr2line_disable_warn)
 			pr_warning("%s %s: could not read first record\n", __func__, dso_name);
+		ret = -1;
 		goto out;
 	case 0:
 		/*
@@ -373,6 +379,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 			break;
 		case 0:
 			/* The sentinel as expected. */
+			a2l_synced = true;
 			break;
 		default:
 			if (!symbol_conf.addr2line_disable_warn)
@@ -388,17 +395,23 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 
 	if (file) {
 		*file = strdup(record_filename);
-		ret = 1;
+		if (!*file) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 	if (line_nr)
 		*line_nr = record_line_nr;
+	ret = 1;
 
 	if (unwind_inlines) {
 		if (node && inline_list__append_record(dso, node, sym,
 						       record_function,
 						       record_filename,
 						       record_line_nr)) {
-			ret = 0;
+			if (file && *file)
+				zfree(file);
+			ret = -ENOMEM;
 			goto out;
 		}
 	}
@@ -421,12 +434,17 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 						       record_function,
 						       record_filename,
 						       record_line_nr)) {
-				ret = 0;
+				if (file && *file)
+					zfree(file);
+				inline_node__clear_frames(node);
+				ret = -ENOMEM;
 				goto out;
 			}
 			ret = 1; /* found at least one inline frame */
 		}
 	}
+	if (record_status == 0)
+		a2l_synced = true;
 
 out:
 	mutex_lock(dso__lock(dso));
@@ -434,7 +452,7 @@ out:
 	free(record_filename);
 
 	current_dso_name = dso__symsrc_filename(dso) ?: dso__long_name(dso);
-	if (!io.eof && dso__a2l(dso) == NULL && current_dso_name &&
+	if (a2l_synced && !io.eof && dso__a2l(dso) == NULL && current_dso_name &&
 	    !strcmp(current_dso_name, dso_name))
 		dso__set_a2l(dso, a2l);
 	else

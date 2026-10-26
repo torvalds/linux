@@ -760,7 +760,7 @@ static inline const char *dso__symsrc_filename(const struct dso *dso)
 	return RC_CHK_ACCESS(dso)->symsrc_filename;
 }
 
-void dso__set_symsrc_filename(struct dso *dso, char *val);
+void dso__set_symsrc_filename(struct dso *dso, char *val) EXCLUSIVE_LOCKS_REQUIRED(dso__lock(dso));
 
 static inline void dso__free_symsrc_filename(struct dso *dso)
 {
