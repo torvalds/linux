@@ -352,7 +352,7 @@ static int es9356_sdca_headset_detect(struct es9356_sdw_priv *es9356)
 	if (reg) {
 		regmap_write(es9356->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_UAJ, ES9356_SDCA_ENT_GE35, ES9356_SDCA_CTL_SELECTED_MODE, 0), reg);
-		regmap_write(es9356->regmap, ES9356_HP_DETECTTIME, 0x75);
+		regmap_write(es9356->regmap, ES9356_HP_DETECTTIME, 0x74);
 	} else {
 		regmap_write(es9356->regmap, ES9356_HP_DETECTTIME, 0xa4);
 	}
@@ -403,7 +403,7 @@ static void es9356_interrupt_handler(struct work_struct *work)
 			SND_JACK_BTN_2 | SND_JACK_BTN_3 |
 			SND_JACK_BTN_4);
 		mod_delayed_work(system_power_efficient_wq,
-			&es9356->button_detect_work, msecs_to_jiffies(280));
+			&es9356->button_detect_work, msecs_to_jiffies(50));
 	}
 }
 
@@ -450,7 +450,7 @@ static void es9356_button_detect_handler(struct work_struct *work)
 			SND_JACK_BTN_2 | SND_JACK_BTN_3 |
 			SND_JACK_BTN_4);
 		mod_delayed_work(system_power_efficient_wq,
-			&es9356->button_detect_work, msecs_to_jiffies(280));
+			&es9356->button_detect_work, msecs_to_jiffies(50));
 	}
 
 	return;
@@ -1000,10 +1000,10 @@ static int es9356_sdw_interrupt_callback(struct sdw_slave *slave,
 		count++;
 	} while (stat != 0 && count < retry);
 
-	/* The 280 ms figure was determined through testing */
+	/* The 50 ms figure was determined through testing */
 	if (status->sdca_cascade && !es9356->disable_irq)
 		mod_delayed_work(system_power_efficient_wq,
-			&es9356->interrupt_handle_work, msecs_to_jiffies(280));
+			&es9356->interrupt_handle_work, msecs_to_jiffies(50));
 
 	mutex_unlock(&es9356->disable_irq_lock);
 	return 0;
