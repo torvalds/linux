@@ -29,6 +29,7 @@ int __exfat_write_inode(struct inode *inode, int sync)
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	bool is_dir = (ei->type == TYPE_DIR);
+	loff_t valid_size = exfat_get_valid_size(ei);
 	struct timespec64 ts;
 
 	if (inode->i_ino == EXFAT_ROOT_INO)
@@ -81,7 +82,7 @@ int __exfat_write_inode(struct inode *inode, int sync)
 	 * preventing fsck from reporting "more clusters are allocated".
 	 */
 	on_disk_size = max_t(unsigned long long, i_size_read(inode),
-			ei->valid_size);
+			valid_size);
 
 	if (ei->start_clu == EXFAT_EOF_CLUSTER)
 		on_disk_size = 0;
@@ -89,7 +90,7 @@ int __exfat_write_inode(struct inode *inode, int sync)
 	 * valid_size on disk must reflect only confirmed data (up to i_size)
 	 * and must not exceed on_disk_size.
 	 */
-	on_disk_valid_size = min_t(unsigned long long, ei->valid_size,
+	on_disk_valid_size = min_t(unsigned long long, valid_size,
 			i_size_read(inode));
 	if (ei->start_clu == EXFAT_EOF_CLUSTER)
 		on_disk_valid_size = 0;
@@ -258,15 +259,16 @@ static void exfat_readahead(struct readahead_control *rac)
 	struct inode *inode = mapping->host;
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	loff_t pos = readahead_pos(rac);
+	loff_t valid_size = exfat_get_valid_size(ei);
 	struct iomap_read_folio_ctx ctx = {
 		.ops = &exfat_iomap_bio_read_ops,
 		.rac = rac,
 	};
 
 	/* Range cross valid_size, read it page by page. */
-	if (ei->valid_size < i_size_read(inode) &&
-	    pos <= ei->valid_size &&
-	    ei->valid_size < pos + readahead_length(rac))
+	if (valid_size < i_size_read(inode) &&
+	    pos <= valid_size &&
+	    valid_size < pos + readahead_length(rac))
 		return;
 
 	iomap_readahead(&exfat_iomap_ops, &ctx, NULL);
@@ -371,8 +373,8 @@ static int exfat_fill_inode(struct inode *inode, struct exfat_dir_entry *info)
 	ei->start_clu = info->start_clu;
 	ei->flags = info->flags;
 	ei->type = info->type;
-	ei->valid_size = info->valid_size;
-	ei->zeroed_size = info->valid_size;
+	exfat_set_valid_size(ei, info->valid_size);
+	exfat_set_zeroed_size(ei, info->valid_size);
 
 	ei->version = 0;
 	ei->hint_stat.eidx = 0;

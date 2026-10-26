@@ -418,14 +418,32 @@ int exfat_zeroed_cluster(struct inode *dir, unsigned int clu)
 	return 0;
 }
 
+/*
+ * Newly allocated clusters may still have dirty buffer_heads in the block
+ * device mapping, e.g. the dentries of a directory that was just removed.
+ * File data does not go through those buffers, so drop them; otherwise a
+ * later flush of the block device writes them over the new data.
+ */
+static void exfat_clean_bdev_aliases(struct super_block *sb,
+				     unsigned int clu, unsigned int count)
+{
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+
+	clean_bdev_aliases(sb->s_bdev, exfat_cluster_to_sector(sbi, clu),
+			   (sector_t)count << sbi->sect_per_clus_bits);
+}
+
 int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 		struct exfat_chain *p_chain, bool sync_bmap, bool contig)
 {
 	int ret = -ENOSPC;
 	unsigned int total_cnt;
 	unsigned int hint_clu, new_clu, last_clu = EXFAT_EOF_CLUSTER;
+	unsigned int run_clu = EXFAT_EOF_CLUSTER, run_len = 0;
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+
+	mutex_lock(&sbi->bitmap_lock);
 
 	total_cnt = EXFAT_DATA_CLUSTER_COUNT(sbi);
 
@@ -433,13 +451,14 @@ int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 		exfat_fs_error_ratelimit(sb,
 			"%s: invalid used clusters(t:%u,u:%u)\n",
 			__func__, total_cnt, sbi->used_clusters);
-		return -EIO;
+		ret = -EIO;
+		goto unlock;
 	}
 
-	if (num_alloc > total_cnt - sbi->used_clusters)
-		return -ENOSPC;
-
-	mutex_lock(&sbi->bitmap_lock);
+	if (num_alloc > total_cnt - sbi->used_clusters) {
+		ret = -ENOSPC;
+		goto unlock;
+	}
 
 	hint_clu = p_chain->dir;
 	/* find new cluster */
@@ -509,15 +528,26 @@ int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 			}
 		}
 		p_chain->size++;
+		sbi->used_clusters++;
+
+		/* clean stale buffers once per contiguous run of clusters */
+		if (run_len && new_clu == run_clu + run_len) {
+			run_len++;
+		} else {
+			if (run_len)
+				exfat_clean_bdev_aliases(sb, run_clu, run_len);
+			run_clu = new_clu;
+			run_len = 1;
+		}
 
 		last_clu = new_clu;
 
 		if (p_chain->size == num_alloc) {
 done:
+			exfat_clean_bdev_aliases(sb, run_clu, run_len);
 			sbi->clu_srch_ptr = hint_clu;
-			sbi->used_clusters += p_chain->size;
-			mutex_unlock(&sbi->bitmap_lock);
-			return 0;
+			ret = 0;
+			goto unlock;
 		}
 
 		hint_clu = new_clu + 1;
