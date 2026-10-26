@@ -397,17 +397,6 @@ int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 		path->reada = READA_FORWARD;
 
 	/*
-	 * the free space stuff is only read when it hasn't been
-	 * updated in the current transaction.  So, we can safely
-	 * read from the commit root and sidestep a nasty deadlock
-	 * between reading the free space cache and updating the csum tree.
-	 */
-	if (btrfs_is_free_space_inode(inode)) {
-		path->search_commit_root = true;
-		path->skip_locking = true;
-	}
-
-	/*
 	 * If we are searching for a csum of an extent from a past
 	 * transaction, we can search in the commit root and reduce
 	 * lock contention on the csum tree extent buffers.
