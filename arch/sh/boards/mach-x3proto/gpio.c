@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <mach/ilsel.h>
 #include <mach/hardware.h>
+#include <linux/property.h>
 
 #define KEYCTLR	0xb81c0000
 #define KEYOUTR	0xb81c0002
@@ -73,6 +74,10 @@ static void x3proto_gpio_irq_handler(struct irq_desc *desc)
 	chip->irq_unmask(data);
 }
 
+const struct software_node x3proto_gpiochip_node = {
+	.name = "x3proto-gpio",
+};
+
 struct gpio_chip x3proto_gpio_chip = {
 	.label			= "x3proto-gpio",
 	.direction_input	= x3proto_gpio_direction_input,
@@ -104,9 +109,15 @@ int __init x3proto_gpio_setup(void)
 	if (unlikely(ilsel < 0))
 		return ilsel;
 
+	ret = software_node_register(&x3proto_gpiochip_node);
+	if (ret)
+		goto err_gpio;
+
+	x3proto_gpio_chip.fwnode = software_node_fwnode(&x3proto_gpiochip_node);
+
 	ret = gpiochip_add_data(&x3proto_gpio_chip, NULL);
 	if (unlikely(ret))
-		goto err_gpio;
+		goto err_swnode;
 
 	x3proto_irq_domain = irq_domain_create_linear(NULL, NR_BASEBOARD_GPIOS,
 						   &x3proto_gpio_irq_ops, NULL);
@@ -127,6 +138,8 @@ int __init x3proto_gpio_setup(void)
 err_irq:
 	gpiochip_remove(&x3proto_gpio_chip);
 	ret = 0;
+err_swnode:
+	software_node_unregister(&x3proto_gpiochip_node);
 err_gpio:
 	synchronize_irq(ilsel);
 
