@@ -1604,6 +1604,61 @@ __naked void post_cond_jne_neg_step(void)
 "	::: __clobber_all);
 }
 
+/*
+ * r1 and r3 are widened independently, so the r3 == 5 path reaches the back
+ * edge with r3 past the last value it takes at the header.
+ */
+SEC("socket")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 2, header_count is 5 ")
+__msg("loop header at 2, widening r1 to 0..4 step 1")
+__msg("loop header at 2, widening r3 to 0..4 step 1")
+__msg("3: (55) if r3 != 0x5 goto pc+1 {{.*}}; R3=5")
+__msg("loop header at 2, clamping r3 to 0..4 step 1")
+__msg("from 6 to 2: safe")
+__naked void clamp_dependent_overshoot(void)
+{
+	asm volatile ("					\
+	r1 = 0;						\
+	r3 = 0;						\
+1:	r3 += 1;					\
+	if r3 != 5 goto 2f;				\
+	r2 = 0;						\
+2:	r1 += 1;					\
+	if r1 != 5 goto 1b;				\
+	r0 = 0;						\
+	exit;						\
+"	::: __clobber_all);
+}
+
+/* Same with a 32-bit dependent register, SCEV (zext32 (linear r3 1)) */
+SEC("socket")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 2, header_count is 5 ")
+__msg("loop header at 2, widening r1 to 0..4 step 1")
+__msg("loop header at 2, widening r3 to 0..4 step 1")
+__msg("3: (56) if w3 != 0x5 goto pc+1 {{.*}}; R3=5")
+__msg("loop header at 2, clamping r3 to 0..4 step 1")
+__msg("from 6 to 2: safe")
+__naked void clamp_dependent_overshoot32(void)
+{
+	asm volatile ("					\
+	r1 = 0;						\
+	w3 = 0;						\
+1:	w3 += 1;					\
+	if w3 != 5 goto 2f;				\
+	r2 = 0;						\
+2:	r1 += 1;					\
+	if r1 != 5 goto 1b;				\
+	r0 = 0;						\
+	exit;						\
+"	::: __clobber_all);
+}
+
 SEC("xdp")
 __success
 __log_level(2)
