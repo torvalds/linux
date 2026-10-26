@@ -1502,6 +1502,10 @@ static int simplify(struct scev *scev, u32 id, void *priv)
 		return t;
 	}
 
+	/* (zext32 (zext32 X)) -> (zext32 X) */
+	if (is_zext32(scev, id, &a) && is_zext32(scev, a, &b))
+		return a;
+
 	return id;
 }
 
