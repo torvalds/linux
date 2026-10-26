@@ -2456,11 +2456,13 @@ static void log_bounds(struct bpf_verifier_env *env, const struct bounds *bounds
 	bpf_verbose_snum(env, cnum64_smin(bounds->r64));
 	bpf_log(log, "..");
 	bpf_verbose_snum(env, cnum64_smax(bounds->r64));
-	if (bounds->r32.size < U32_MAX) {
+	if (bounds->r32.size < U32_MAX &&
+	    (cnum32_smin(bounds->r32) != cnum64_smin(bounds->r64) ||
+	     cnum32_smax(bounds->r32) != cnum64_smax(bounds->r64))) {
 		bpf_log(log, " (s32 ");
-		bpf_verbose_snum(env, cnum32_smin(bounds->r32));
+		bpf_verbose_snum32(env, cnum32_smin(bounds->r32));
 		bpf_log(log, "..");
-		bpf_verbose_snum(env, cnum32_smax(bounds->r32));
+		bpf_verbose_snum32(env, cnum32_smax(bounds->r32));
 		bpf_log(log, ")");
 	}
 	bpf_log(log, " step %u", bounds->step);

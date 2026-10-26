@@ -1771,7 +1771,7 @@ __success
 __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
 __msg("loop header at 1, header_count is 4")
-__msg("loop header at 1, widening r0 to 0..3 (s32 0..3) step 1")
+__msg("loop header at 1, widening r0 to 0..3 step 1")
 __msg("loop header at 1, clamping r0")
 __msg("4: R0=3")
 __naked void pre_cond_je32(void)
