@@ -173,7 +173,7 @@ static const struct i2c_device_id max77843_id[] = {
 	{ },
 };
 
-static int __maybe_unused max77843_suspend(struct device *dev)
+static int max77843_suspend(struct device *dev)
 {
 	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max77693_dev *max77843 = i2c_get_clientdata(i2c);
@@ -185,7 +185,7 @@ static int __maybe_unused max77843_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused max77843_resume(struct device *dev)
+static int max77843_resume(struct device *dev)
 {
 	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max77693_dev *max77843 = i2c_get_clientdata(i2c);
@@ -197,12 +197,12 @@ static int __maybe_unused max77843_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(max77843_pm, max77843_suspend, max77843_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(max77843_pm, max77843_suspend, max77843_resume);
 
 static struct i2c_driver max77843_i2c_driver = {
 	.driver	= {
 		.name = "max77843",
-		.pm = &max77843_pm,
+		.pm = pm_sleep_ptr(&max77843_pm),
 		.of_match_table = max77843_dt_match,
 		.suppress_bind_attrs = true,
 	},

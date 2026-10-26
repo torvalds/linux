@@ -57,6 +57,9 @@ properties:
   "#interrupt-cells":
     const: 2
 
+  "#sound-dai-cells":
+    const: 1
+
   rtc:
     type: object
     $ref: /schemas/rtc/rtc.yaml#
@@ -80,6 +83,15 @@ properties:
               - const: mediatek,mt6358-rtc
 
       start-year: true
+
+      nvmem-layout:
+        $ref: /schemas/nvmem/layouts/nvmem-layout.yaml
+        description:
+          The RTC carries four bytes of storage that neither the clock nor the
+          alarm uses, in the high half of four of the alarm registers, and
+          offers them as a battery-backed nvmem provider. MediaTek's
+          documentation names them RTC_NEW_SPARE0 to RTC_NEW_SPARE3 and gives
+          the first to a fuel gauge.
 
     required:
       - compatible

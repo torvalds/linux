@@ -313,7 +313,7 @@ static int __maybe_unused ti_tscadc_can_wakeup(struct device *dev, void *data)
 	return device_may_wakeup(dev);
 }
 
-static int __maybe_unused tscadc_suspend(struct device *dev)
+static int tscadc_suspend(struct device *dev)
 {
 	struct ti_tscadc_dev *tscadc = dev_get_drvdata(dev);
 
@@ -331,7 +331,7 @@ static int __maybe_unused tscadc_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tscadc_resume(struct device *dev)
+static int tscadc_resume(struct device *dev)
 {
 	struct ti_tscadc_dev *tscadc = dev_get_drvdata(dev);
 
@@ -345,7 +345,7 @@ static int __maybe_unused tscadc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(tscadc_pm_ops, tscadc_suspend, tscadc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tscadc_pm_ops, tscadc_suspend, tscadc_resume);
 
 static const struct ti_tscadc_data tscdata = {
 	.adc_feature_name = "TI-am335x-adc",
@@ -373,7 +373,7 @@ MODULE_DEVICE_TABLE(of, ti_tscadc_dt_ids);
 static struct platform_driver ti_tscadc_driver = {
 	.driver = {
 		.name   = "ti_am3359-tscadc",
-		.pm	= &tscadc_pm_ops,
+		.pm	= pm_sleep_ptr(&tscadc_pm_ops),
 		.of_match_table = ti_tscadc_dt_ids,
 	},
 	.probe	= ti_tscadc_probe,

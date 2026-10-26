@@ -58,6 +58,7 @@ properties:
     const: 2
 
   db8500-prcmu-regulators:
+    deprecated: true
     description: Node describing the DB8500 regulators. These are mainly
       power rails inside the silicon but some of those are also routed
       out to external pins.
@@ -207,26 +208,6 @@ properties:
 
     required:
       - compatible
-      - db8500_vape
-      - db8500_varm
-      - db8500_vmodem
-      - db8500_vpll
-      - db8500_vsmps1
-      - db8500_vsmps2
-      - db8500_vsmps3
-      - db8500_vrf1
-      - db8500_sva_mmdsp
-      - db8500_sva_mmdsp_ret
-      - db8500_sva_pipe
-      - db8500_sia_mmdsp
-      - db8500_sia_mmdsp_ret
-      - db8500_sia_pipe
-      - db8500_sga
-      - db8500_b2r2_mcde
-      - db8500_esram12
-      - db8500_esram12_ret
-      - db8500_esram34
-      - db8500_esram34_ret
 
     additionalProperties: false
 
@@ -294,6 +275,5 @@ required:
   - interrupts
   - interrupt-controller
   - '#interrupt-cells'
-  - db8500-prcmu-regulators
 
 additionalProperties: false

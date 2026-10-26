@@ -70,6 +70,13 @@
 #define KHADAS_MCU_WOL_INIT_START_REG		0x87 /* WO */
 #define KHADAS_MCU_CMD_FAN_STATUS_CTRL_REG	0x88 /* WO */
 
+/* VIM4 specific registers */
+#define KHADAS_MCU_VIM4_REST_CONF_REG		0x2c /* WO - reset EEPROM */
+#define KHADAS_MCU_VIM4_LED_ON_RAM_REG		0x89 /* WO - LED volatile */
+#define KHADAS_MCU_VIM4_FAN_CTRL_REG		0x8a /* WO */
+#define KHADAS_MCU_VIM4_WDT_EN_REG		0x8b /* WO */
+#define KHADAS_MCU_VIM4_SYS_RST_REG		0x91 /* WO */
+
 enum {
 	KHADAS_BOARD_VIM1 = 0x1,
 	KHADAS_BOARD_VIM2,
@@ -80,12 +87,22 @@ enum {
 
 /**
  * struct khadas_mcu - Khadas MCU structure
- * @device:		device reference used for logs
+ * @dev:		device reference used for logs
  * @regmap:		register map
  */
 struct khadas_mcu {
 	struct device *dev;
 	struct regmap *regmap;
+};
+
+/**
+ * enum khadas_mcu_type - Khadas MCU hardware variant
+ * @KHADAS_MCU_GENERIC: VIM1, VIM2, VIM3, Edge, Edge-V (shared register map)
+ * @KHADAS_MCU_VIM4: VIM4 (extended register map, distinct fan/LED/WDT regs)
+ */
+enum khadas_mcu_type {
+	KHADAS_MCU_GENERIC = 1,
+	KHADAS_MCU_VIM4,
 };
 
 #endif /* MFD_KHADAS_MCU_H */

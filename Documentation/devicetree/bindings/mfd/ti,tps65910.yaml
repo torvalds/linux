@@ -37,6 +37,8 @@ properties:
 
   interrupt-controller: true
 
+  wakeup-source: true
+
   '#interrupt-cells':
     description: Specifies the IRQ number and flags
     const: 2
@@ -168,6 +170,12 @@ patternProperties:
         vcc6-supply: LDO1 and LDO2 input.
         vcc7-supply: VRTC input.
         vccio-supply: VIO input.
+
+  "^.+-hog$":
+    type: object
+
+    required:
+      - gpio-hog
 
 required:
   - compatible
