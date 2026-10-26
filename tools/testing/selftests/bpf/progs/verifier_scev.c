@@ -3351,7 +3351,7 @@ SEC("xdp")
 __failure
 __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
-__msg("infinite loop detected at insn 6")
+__msg("The sequence of 8193 jumps is too complex.")
 __naked void nested_terminating_prune(void)
 {
 	asm volatile ("					\
