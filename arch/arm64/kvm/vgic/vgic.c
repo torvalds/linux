@@ -1071,11 +1071,10 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 static inline bool can_access_vgic_from_kernel(void)
 {
 	/*
-	 * GICv2 can always be accessed from the kernel because it is
-	 * memory-mapped, and VHE systems can access GICv3 EL2 system
-	 * registers.
+	 * GICv2 is memory-mapped. Every other CPU interface uses EL2 system
+	 * registers, which only VHE can access from the kernel.
 	 */
-	return !static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif) || has_vhe();
+	return has_vhe() || kvm_vgic_global_state.type == VGIC_V2;
 }
 
 static inline void vgic_save_state(struct kvm_vcpu *vcpu)
