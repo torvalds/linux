@@ -816,14 +816,14 @@ static void tpm_cr50_i2c_remove(struct i2c_client *client)
 	tpm_chip_unregister(chip);
 }
 
-static SIMPLE_DEV_PM_OPS(cr50_i2c_pm, tpm_pm_suspend, tpm_pm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(cr50_i2c_pm, tpm_pm_suspend, tpm_pm_resume);
 
 static struct i2c_driver cr50_i2c_driver = {
 	.probe = tpm_cr50_i2c_probe,
 	.remove = tpm_cr50_i2c_remove,
 	.driver = {
 		.name = "cr50_i2c",
-		.pm = &cr50_i2c_pm,
+		.pm = pm_sleep_ptr(&cr50_i2c_pm),
 		.acpi_match_table = ACPI_PTR(cr50_i2c_acpi_id),
 		.of_match_table = of_match_ptr(of_cr50_i2c_match),
 	},

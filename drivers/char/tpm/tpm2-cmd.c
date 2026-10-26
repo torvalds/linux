@@ -483,8 +483,9 @@ int tpm2_probe(struct tpm_chip *chip)
 		out = (struct tpm_header *)buf->data;
 		if (be16_to_cpu(out->tag) == TPM2_ST_NO_SESSIONS)
 			chip->flags |= TPM_CHIP_FLAG_TPM2;
+		return 0;
 	}
-	return 0;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm2_probe);
 
@@ -527,6 +528,7 @@ ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 	u32 rsp_len;
 	int rc;
 	int i = 0;
+	int j;
 
 	struct tpm_buf *buf __free(kfree) = kzalloc(TPM_BUFSIZE, GFP_KERNEL);
 	if (!buf)
@@ -569,6 +571,23 @@ ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 		pcr_select_offset = memchr_inv(pcr_selection.pcr_select, 0,
 					       pcr_selection.size_of_select);
 		if (pcr_select_offset) {
+			for (j = 0; j < nr_alloc_banks; j++) {
+				if (chip->allocated_banks[j].alg_id == hash_alg)
+					break;
+			}
+
+			/*
+			 * The TPM protocol does not allow the same hash
+			 * algorithm twice.  A duplicate means this device
+			 * is not behaving; do not enable it.
+			 */
+			if (j != nr_alloc_banks) {
+				pr_err("tpm: duplicate PCR bank for algorithm 0x%04x\n",
+				       hash_alg);
+				rc = -EIO;
+				break;
+			}
+
 			chip->allocated_banks[nr_alloc_banks].alg_id = hash_alg;
 
 			rc = tpm2_init_bank_info(chip, nr_alloc_banks);
