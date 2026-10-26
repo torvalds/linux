@@ -724,10 +724,25 @@ static bool es9356_sdca_volatile_register(struct device *dev, unsigned int reg)
 	}
 }
 
+static bool es9356_writeable_register(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case ES9356_VERSION:
+	case ES9356_BUF_ADDR_HID:
+	case ES9356_HID_BYTE2:
+	case ES9356_HID_BYTE3:
+	case ES9356_HID_BYTE4:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static const struct regmap_config es9356_sdca_regmap = {
 	.reg_bits = 32,
 	.val_bits = 16,
 	.volatile_reg = es9356_sdca_volatile_register,
+	.writeable_reg = es9356_writeable_register,
 	.max_register = 0x45ffffff,
 	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,

@@ -4,6 +4,7 @@
 #define __ES9356_H__
 
 /*ES9356 Implementation-define*/
+#define ES9356_VERSION                          0x2000
 #define ES9356_FLAGS_HP                         0x2003
 #define ES9356_CSM_RESET                        0x2020
 #define ES9356_FUC_RESET                        0x2021
