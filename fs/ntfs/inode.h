@@ -95,6 +95,7 @@ enum ntfs_inode_mutex_lock_class {
  *   belongs.
  * @i_dealloc_clusters: delayed allocated clusters.
  * @target: symlink buffer.
+ * @linuxflags: Linux-specific file attributes loaded from the $LINUXFLAGS EA.
  */
 struct ntfs_inode {
 	rwlock_t size_lock;
@@ -107,6 +108,7 @@ struct ntfs_inode {
 	__le32 type;
 	__le16 *name;
 	u32 name_len;
+	atomic_t stream_open_count;
 	struct runlist runlist;
 	s64 data_size;
 	s64 initialized_size;
@@ -145,6 +147,7 @@ struct ntfs_inode {
 	__le32 reparse_tag;
 	__le32 reparse_flags;
 	char *target;
+	u32 linuxflags;
 };
 
 /*
@@ -178,6 +181,7 @@ struct ntfs_inode {
  * NI_BeingCreated		ntfs inode is being created.
  * NI_HasEA			ntfs inode has EA attribute.
  * NI_RunlistDirty		runlist need to be updated.
+ * NI_StreamUnlinked		Named stream is unlinked but still open.
  */
 enum {
 	NI_Dirty,
@@ -199,6 +203,7 @@ enum {
 	NI_BeingCreated,
 	NI_HasEA,
 	NI_RunlistDirty,
+	NI_StreamUnlinked,
 };
 
 /*
@@ -259,6 +264,7 @@ TAS_NINO_FNS(FileNameDirty)
 NINO_FNS(BeingDeleted)
 NINO_FNS(HasEA)
 NINO_FNS(RunlistDirty)
+NINO_FNS(StreamUnlinked)
 
 /*
  * The full structure containing a ntfs_inode and a vfs struct inode. Used for
@@ -286,6 +292,20 @@ static inline struct inode *VFS_I(struct ntfs_inode *ni)
 	return &container_of(ni, struct big_ntfs_inode, ntfs_inode)->vfs_inode;
 }
 
+/* Return true when @ni represents a named $DATA attribute inode. */
+static inline bool ntfs_inode_is_named_stream(struct ntfs_inode *ni)
+{
+	return NInoAttr(ni) && ni->type == AT_DATA && ni->name_len;
+}
+
+/* Return the base MFT inode for an attribute inode, or @ni itself. */
+static inline struct ntfs_inode *ntfs_base_inode(struct ntfs_inode *ni)
+{
+	if (NInoAttr(ni) && ni->nr_extents == -1 && ni->ext.base_ntfs_ino)
+		return ni->ext.base_ntfs_ino;
+	return ni;
+}
+
 /*
  * ntfs_attr - ntfs in memory attribute structure
  *
@@ -304,6 +324,7 @@ struct ntfs_attr {
 };
 
 int ntfs_test_inode(struct inode *vi, void *data);
+int ntfs_test_inode_rcu(struct inode *vi, void *data);
 struct inode *ntfs_iget(struct super_block *sb, u64 mft_no);
 struct inode *ntfs_attr_iget(struct inode *base_vi, __le32 type,
 		__le16 *name, u32 name_len);

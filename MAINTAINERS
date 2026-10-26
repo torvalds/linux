@@ -19827,6 +19827,7 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linkinjeon/ntfs.git
 F:	Documentation/filesystems/ntfs.rst
 F:	fs/ntfs/
+F:	include/uapi/linux/ntfs.h
 
 NTFS3 FILESYSTEM
 M:	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>

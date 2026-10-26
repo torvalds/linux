@@ -14,8 +14,6 @@
 #include "attrlist.h"
 #include "lcnalloc.h"
 
-#define NTFS_MAX_ATTR_LIST_SIZE	(256 * 1024)
-
 /*
  * ntfs_attrlist_need - check whether inode need attribute list
  * @ni:	opened ntfs inode for which perform check
@@ -170,14 +168,18 @@ static int ntfs_attrlist_repack(struct inode *attr_vi,
 	return 0;
 
 restore_old_runlist:
+	/*
+	 * Restore allocated_size before dropping the runlist lock:
+	 * ntfs_attr_vcn_to_rl() fails a lookup below the allocated size that
+	 * falls past the end of the runlist.
+	 */
 	down_write(&attr_ni->runlist.lock);
 	attr_ni->runlist.rl = old_rl;
 	attr_ni->runlist.count = old_rl_count;
-	up_write(&attr_ni->runlist.lock);
-
 	write_lock_irqsave(&attr_ni->size_lock, flags);
 	attr_ni->allocated_size = old_alloc_size;
 	write_unlock_irqrestore(&attr_ni->size_lock, flags);
+	up_write(&attr_ni->runlist.lock);
 
 	restore_err = ntfs_attr_update_mapping_pairs_locked(
 			attr_ni, 0, locked_ni);
@@ -254,6 +256,9 @@ int ntfs_attrlist_update_locked(struct ntfs_inode *base_ni,
 		return err;
 	}
 
+	/* ntfs_attrlist_repack() below reads the list up to i_size. */
+	i_size_write(attr_vi, base_ni->attr_list_size);
+
 	/*
 	 * Reserve the maximum legal list size while the MFT metadata area is
 	 * still easy to allocate contiguously. This prevents a later list entry
@@ -280,8 +285,6 @@ int ntfs_attrlist_update_locked(struct ntfs_inode *base_ni,
 			return retry_err;
 		}
 	}
-
-	i_size_write(attr_vi, base_ni->attr_list_size);
 
 	if (NInoNonResident(attr_ni) && !NInoAttrListNonResident(base_ni))
 		NInoSetAttrListNonResident(base_ni);
@@ -335,8 +338,8 @@ int ntfs_attrlist_entry_add(struct ntfs_inode *ni, struct attr_record *attr)
 
 	ni_mrec = map_mft_record(ni);
 	if (IS_ERR(ni_mrec)) {
-		ntfs_debug("Invalid arguments.\n");
-		return -EIO;
+		ntfs_debug("Failed to map mft record.\n");
+		return PTR_ERR(ni_mrec);
 	}
 
 	mref = MK_LE_MREF(ni->mft_no, le16_to_cpu(ni_mrec->sequence_number));
@@ -371,7 +374,8 @@ int ntfs_attrlist_entry_add(struct ntfs_inode *ni, struct attr_record *attr)
 
 	err = ntfs_attr_lookup(attr->type, (attr->name_length) ? (__le16 *)
 			((u8 *)attr + le16_to_cpu(attr->name_offset)) :
-			AT_UNNAMED, attr->name_length, CASE_SENSITIVE,
+			AT_UNNAMED, attr->name_length,
+			CASE_SENSITIVE,
 			le64_to_cpu(lowest_vcn),
 			(attr->non_resident) ? NULL : ((u8 *)attr +
 			le16_to_cpu(attr->data.resident.value_offset)), (attr->non_resident) ?

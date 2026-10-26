@@ -80,6 +80,8 @@ enum {
 	NTFS_MAX_LABEL_LEN	= 128,
 };
 
+#define NTFS_MAX_ATTR_LIST_SIZE	(256 * 1024)
+
 enum {
 	CASE_SENSITIVE = 0,
 	IGNORE_CASE = 1,
@@ -183,6 +185,10 @@ extern const struct inode_operations ntfs_dir_inode_ops;
 extern const struct  file_operations ntfs_empty_file_ops;
 extern const struct inode_operations ntfs_empty_inode_ops;
 
+int ntfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
+int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
+		      struct file_kattr *fa);
+
 extern const struct export_operations ntfs_export_ops;
 
 /*
@@ -219,7 +225,6 @@ struct option_t {
 };
 extern const struct option_t on_errors_arr[];
 int ntfs_set_volume_flags(struct ntfs_volume *vol, __le16 flags);
-int ntfs_clear_volume_flags(struct ntfs_volume *vol, __le16 flags);
 int ntfs_write_volume_label(struct ntfs_volume *vol, char *label);
 
 /* From fs/ntfs/mst.c */
@@ -234,14 +239,14 @@ bool ntfs_are_names_equal(const __le16 *s1, size_t s1_len,
 		const __le16 *upcase, const u32 upcase_size);
 int ntfs_collate_names(const __le16 *name1, const u32 name1_len,
 		const __le16 *name2, const u32 name2_len,
-		const int err_val, const u32 ic,
+		const bool check_invalid, const u32 ic,
 		const __le16 *upcase, const u32 upcase_len);
 int ntfs_ucsncmp(const __le16 *s1, const __le16 *s2, size_t n);
 int ntfs_ucsncasecmp(const __le16 *s1, const __le16 *s2, size_t n,
 		const __le16 *upcase, const u32 upcase_size);
 int ntfs_file_compare_values(const struct file_name_attr *file_name_attr1,
 		const struct file_name_attr *file_name_attr2,
-		const int err_val, const u32 ic,
+		const bool check_invalid, const u32 ic,
 		const __le16 *upcase, const u32 upcase_len);
 int ntfs_nlstoucs(const struct ntfs_volume *vol, const char *ins,
 		const int ins_len, __le16 **outs, int max_name_len);

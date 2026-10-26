@@ -8,6 +8,7 @@
 
 #include <linux/exportfs.h>
 #include <linux/iversion.h>
+#include <linux/namei.h>
 
 #include "ntfs.h"
 #include "time.h"
@@ -15,6 +16,7 @@
 #include "reparse.h"
 #include "object_id.h"
 #include "ea.h"
+#include "stream.h"
 
 static const __le16 aux_name_le[3] = {
 	cpu_to_le16('A'), cpu_to_le16('U'), cpu_to_le16('X')
@@ -57,7 +59,18 @@ static inline int ntfs_check_bad_char(const __le16 *wc, unsigned int wc_len)
 	return 0;
 }
 
-static int ntfs_check_bad_windows_name(struct ntfs_volume *vol,
+/*
+ * ntfs_check_bad_windows_name() - Validate a name against Windows rules
+ * @vol: NTFS volume
+ * @wc: UTF-16LE name
+ * @wc_len: length of @wc in UTF-16 code units
+ *
+ * When Windows-name checks are enabled, reject disallowed characters,
+ * trailing spaces or dots, and reserved DOS device names.
+ *
+ * Return: 0 if valid, or -EINVAL otherwise.
+ */
+int ntfs_check_bad_windows_name(struct ntfs_volume *vol,
 				       const __le16 *wc,
 				       unsigned int wc_len)
 {
@@ -167,19 +180,29 @@ static int ntfs_check_bad_windows_name(struct ntfs_volume *vol,
  *
  * Locking: Caller must hold i_mutex on the directory.
  */
+
 static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 		unsigned int flags)
 {
 	struct ntfs_volume *vol = NTFS_SB(dir_ino->i_sb);
+	struct ntfs_stream_path stream_path;
 	struct inode *dent_inode;
 	__le16 *uname;
 	struct ntfs_name *name = NULL;
 	u64 mref;
 	unsigned long dent_ino;
 	int uname_len;
+	int stream_path_len;
 
 	ntfs_debug("Looking up %pd in directory inode 0x%llx.",
 			dent, NTFS_I(dir_ino)->mft_no);
+	stream_path_len = ntfs_stream_path_parse(vol, &dent->d_name,
+			&stream_path);
+	if (stream_path_len < 0)
+		return ERR_PTR(stream_path_len);
+	if (stream_path_len)
+		return ntfs_lookup_stream(dir_ino, dent, &stream_path);
+
 	/* Convert the name of the dentry to Unicode. */
 	uname_len = ntfs_nlstoucs(vol, dent->d_name.name, dent->d_name.len,
 				  &uname, NTFS_MAX_NAME_LEN);
@@ -405,6 +428,7 @@ static struct ntfs_inode *__ntfs_create(const struct mnt_idmap *idmap, struct in
 	struct inode *vi;
 	struct mft_record *ni_mrec, *dni_mrec;
 	struct super_block *sb = dir_ni->vol->sb;
+	struct inode *rollback_data_vi = NULL, *rollback_sd_vi = NULL;
 	__le64 parent_mft_ref;
 	u64 child_mft_ref;
 	__le16 ea_size;
@@ -433,9 +457,8 @@ static struct ntfs_inode *__ntfs_create(const struct mnt_idmap *idmap, struct in
 			ni->itype.index.vcn_size_bits =
 				vol->cluster_size_bits;
 		} else {
-			ni->itype.index.vcn_size = vol->sector_size;
-			ni->itype.index.vcn_size_bits =
-				vol->sector_size_bits;
+			ni->itype.index.vcn_size = NTFS_BLOCK_SIZE;
+			ni->itype.index.vcn_size_bits = NTFS_BLOCK_SIZE_BITS;
 		}
 	}
 
@@ -569,7 +592,7 @@ static struct ntfs_inode *__ntfs_create(const struct mnt_idmap *idmap, struct in
 				NTFS_B_TO_CLU(vol, ni->vol->index_record_size);
 		else
 			ir->clusters_per_index_block =
-				ni->vol->index_record_size >> ni->vol->sector_size_bits;
+				ni->vol->index_record_size >> NTFS_BLOCK_SIZE_BITS;
 		ir->index.entries_offset = cpu_to_le32(sizeof(struct index_header));
 		ir->index.index_length = cpu_to_le32(index_len);
 		ir->index.allocated_size = cpu_to_le32(index_len);
@@ -695,11 +718,25 @@ static struct ntfs_inode *__ntfs_create(const struct mnt_idmap *idmap, struct in
 	return ni;
 
 err_out:
-	if (rollback_sd)
-		ntfs_attr_remove(ni, AT_SECURITY_DESCRIPTOR, AT_UNNAMED, 0);
+	if (rollback_sd) {
+		int rollback_err;
 
-	if (rollback_data)
-		ntfs_attr_remove(ni, AT_DATA, AT_UNNAMED, 0);
+		rollback_err = ntfs_attr_remove(ni,
+				AT_SECURITY_DESCRIPTOR, AT_UNNAMED, 0,
+				&rollback_sd_vi);
+		if (rollback_err)
+			ntfs_error(sb,
+				"Failed to roll back security descriptor.\n");
+	}
+
+	if (rollback_data) {
+		int rollback_err;
+
+		rollback_err = ntfs_attr_remove(ni, AT_DATA, AT_UNNAMED,
+				0, &rollback_data_vi);
+		if (rollback_err)
+			ntfs_error(sb, "Failed to roll back DATA attribute.\n");
+	}
 
 	if (rollback_reparse)
 		ntfs_delete_reparse_index(ni);
@@ -727,6 +764,10 @@ err_out:
 	mutex_unlock(&dir_ni->mrec_lock);
 	mutex_unlock(&ni->mrec_lock);
 
+	if (rollback_data_vi)
+		iput(rollback_data_vi);
+	if (rollback_sd_vi)
+		iput(rollback_sd_vi);
 	remove_inode_hash(vi);
 	discard_new_inode(vi);
 	return ERR_PTR(err);
@@ -737,11 +778,34 @@ static int ntfs_create(const struct mnt_idmap *idmap, struct inode *dir,
 {
 	struct ntfs_volume *vol = NTFS_SB(dir->i_sb);
 	struct ntfs_inode *ni;
-	__le16 *uname;
-	int uname_len, err;
+	struct inode *stream_vi = NULL;
+	__le16 *uname, *base_name = NULL, *stream_name = NULL;
+	int uname_len, stream_len, path_result, err;
 
 	if (NVolShutdown(vol))
 		return -EIO;
+
+	path_result = ntfs_stream_path_names(vol, &dentry->d_name, &base_name,
+			&uname_len, &stream_name, &stream_len);
+	if (path_result) {
+		if (path_result < 0)
+			return path_result;
+		stream_vi = ntfs_create_named_stream(idmap, dir, base_name,
+				uname_len, stream_name, stream_len);
+		if (IS_ERR(stream_vi)) {
+			err = PTR_ERR(stream_vi);
+			goto out_free_stream_names;
+		}
+		kmem_cache_free(ntfs_name_cache, stream_name);
+		kmem_cache_free(ntfs_name_cache, base_name);
+		d_instantiate(dentry, stream_vi);
+		return 0;
+
+out_free_stream_names:
+		kmem_cache_free(ntfs_name_cache, stream_name);
+		kmem_cache_free(ntfs_name_cache, base_name);
+		return err;
+	}
 
 	uname_len = ntfs_nlstoucs(vol, dentry->d_name.name, dentry->d_name.len,
 				  &uname, NTFS_MAX_NAME_LEN);
@@ -757,10 +821,10 @@ static int ntfs_create(const struct mnt_idmap *idmap, struct inode *dir,
 		return err;
 	}
 
-	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
-		ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
+	ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
 
-	ni = __ntfs_create(idmap, dir, uname, uname_len, S_IFREG | mode, 0, NULL, 0);
+	ni = __ntfs_create(idmap, dir, uname, uname_len, S_IFREG | mode, 0,
+			NULL, 0);
 	kmem_cache_free(ntfs_name_cache, uname);
 	if (IS_ERR(ni))
 		return PTR_ERR(ni);
@@ -807,8 +871,29 @@ static int ntfs_test_inode_attr(struct inode *vi, void *data)
 		return 0;
 	if (NInoAttr(ni) || ni->nr_extents == -1)
 		return 1;
-	else
-		return 0;
+	return 0;
+}
+
+static void ntfs_cleanup_deleted_inode(struct ntfs_inode *ni)
+{
+	struct inode *attr_vi;
+	struct super_block *sb = VFS_I(ni)->i_sb;
+
+	if (!NInoBeingDeleted(ni))
+		return;
+
+	while ((attr_vi = ilookup5(sb, ni->mft_no, ntfs_test_inode_attr,
+			(void *)(uintptr_t)ni->mft_no))) {
+		struct ntfs_inode *attr_ni = NTFS_I(attr_vi);
+
+		if (ntfs_inode_is_named_stream(attr_ni)) {
+			if (atomic_read(&attr_ni->stream_open_count) > 0)
+				NInoSetStreamUnlinked(attr_ni);
+			remove_inode_hash(attr_vi);
+		}
+		clear_nlink(attr_vi);
+		iput(attr_vi);
+	}
 }
 
 /*
@@ -831,10 +916,10 @@ static int ntfs_delete(struct ntfs_inode *ni, struct ntfs_inode *dir_ni,
 	struct file_name_attr *fn = NULL;
 	bool looking_for_dos_name = false, looking_for_win32_name = false;
 	bool case_sensitive_match = true;
+	bool link_count_zero = false;
 	int err = 0;
 	struct mft_record *ni_mrec;
 	struct super_block *sb;
-	bool link_count_zero = false;
 
 	ntfs_debug("Entering.\n");
 
@@ -978,22 +1063,10 @@ search:
 	if (need_lock == true) {
 		mutex_unlock(&dir_ni->mrec_lock);
 		mutex_unlock(&ni->mrec_lock);
+		if (link_count_zero)
+			ntfs_cleanup_deleted_inode(ni);
 	}
 
-	/*
-	 * If hard link count is not equal to zero then we are done. In other
-	 * case there are no reference to this inode left, so we should free all
-	 * non-resident attributes and mark all MFT record as not in use.
-	 */
-	if (link_count_zero == true) {
-		struct inode *attr_vi;
-
-		while ((attr_vi = ilookup5(sb, ni->mft_no, ntfs_test_inode_attr,
-					   (void *)(uintptr_t)ni->mft_no)) != NULL) {
-			clear_nlink(attr_vi);
-			iput(attr_vi);
-		}
-	}
 	ntfs_debug("Done.\n");
 	return 0;
 err_out:
@@ -1018,6 +1091,11 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 	if (NVolShutdown(vol))
 		return -EIO;
 
+	if (ntfs_stream_path_has_colon(vol, &dentry->d_name))
+		return ntfs_unlink_named_stream(dir, dentry);
+	if (NInoAttr(ni))
+		return -EOPNOTSUPP;
+
 	uname_len = ntfs_nlstoucs(vol, dentry->d_name.name, dentry->d_name.len,
 				  &uname, NTFS_MAX_NAME_LEN);
 	if (uname_len < 0) {
@@ -1032,8 +1110,7 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 		return err;
 	}
 
-	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
-		ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
+	ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
 
 	err = ntfs_delete(ni, NTFS_I(dir), uname, uname_len, true);
 	if (err)
@@ -1062,6 +1139,10 @@ static struct dentry *ntfs_mkdir(const struct mnt_idmap *idmap, struct inode *di
 	if (NVolShutdown(vol))
 		return ERR_PTR(-EIO);
 
+	err = ntfs_stream_path_check(vol, &dentry->d_name);
+	if (err)
+		return ERR_PTR(err);
+
 	uname_len = ntfs_nlstoucs(vol, dentry->d_name.name, dentry->d_name.len,
 				  &uname, NTFS_MAX_NAME_LEN);
 	if (uname_len < 0) {
@@ -1076,10 +1157,10 @@ static struct dentry *ntfs_mkdir(const struct mnt_idmap *idmap, struct inode *di
 		return ERR_PTR(err);
 	}
 
-	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
-		ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
+	ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
 
-	ni = __ntfs_create(idmap, dir, uname, uname_len, mode, 0, NULL, 0);
+	ni = __ntfs_create(idmap, dir, uname, uname_len, mode, 0,
+			NULL, 0);
 	kmem_cache_free(ntfs_name_cache, uname);
 	if (IS_ERR(ni)) {
 		err = PTR_ERR(ni);
@@ -1103,6 +1184,10 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (NVolShutdown(vol))
 		return -EIO;
 
+	err = ntfs_stream_path_check(vol, &dentry->d_name);
+	if (err)
+		return err;
+
 	ni = NTFS_I(vi);
 	uname_len = ntfs_nlstoucs(vol, dentry->d_name.name, dentry->d_name.len,
 				  &uname, NTFS_MAX_NAME_LEN);
@@ -1118,8 +1203,7 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 		return err;
 	}
 
-	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
-		ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
+	ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
 
 	err = ntfs_delete(ni, NTFS_I(dir), uname, uname_len, true);
 	if (err)
@@ -1268,6 +1352,13 @@ static int ntfs_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 	if (NVolShutdown(old_dir_ni->vol))
 		return -EIO;
 
+	err = ntfs_stream_path_check(vol, &old_dentry->d_name);
+	if (err)
+		return err;
+	err = ntfs_stream_path_check(vol, &new_dentry->d_name);
+	if (err)
+		return err;
+
 	if (flags & (RENAME_EXCHANGE | RENAME_WHITEOUT))
 		return -EINVAL;
 
@@ -1305,8 +1396,7 @@ static int ntfs_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 		new_dir_first = is_subdir(new_dentry->d_parent,
 					  old_dentry->d_parent);
 
-	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
-		ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
+	ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
 
 	mutex_lock_nested(&old_ni->mrec_lock, NTFS_INODE_MUTEX_NORMAL);
 	if (new_ni)
@@ -1391,6 +1481,8 @@ err_out:
 	if (new_ni)
 		mutex_unlock(&new_ni->mrec_lock);
 	mutex_unlock(&old_ni->mrec_lock);
+	if (new_ni)
+		ntfs_cleanup_deleted_inode(new_ni);
 	if (uname_new)
 		kmem_cache_free(ntfs_name_cache, uname_new);
 	if (uname_old)
@@ -1414,6 +1506,10 @@ static int ntfs_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 	if (NVolShutdown(vol))
 		return -EIO;
 
+	err = ntfs_stream_path_check(vol, &dentry->d_name);
+	if (err)
+		return err;
+
 	usrc_len = ntfs_nlstoucs(vol, dentry->d_name.name,
 				 dentry->d_name.len, &usrc, NTFS_MAX_NAME_LEN);
 	if (usrc_len < 0) {
@@ -1429,8 +1525,7 @@ static int ntfs_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 		goto out;
 	}
 
-	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
-		ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
+	ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
 
 	ni = __ntfs_create(idmap, dir, usrc, usrc_len, S_IFLNK | 0777, 0,
 			   symname, symlen);
@@ -1460,6 +1555,10 @@ static int ntfs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 	if (NVolShutdown(vol))
 		return -EIO;
 
+	err = ntfs_stream_path_check(vol, &dentry->d_name);
+	if (err)
+		return err;
+
 	uname_len = ntfs_nlstoucs(vol, dentry->d_name.name,
 			dentry->d_name.len, &uname, NTFS_MAX_NAME_LEN);
 	if (uname_len < 0) {
@@ -1474,8 +1573,7 @@ static int ntfs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 		return err;
 	}
 
-	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
-		ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
+	ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
 
 	switch (mode & S_IFMT) {
 	case S_IFCHR:
@@ -1513,6 +1611,13 @@ static int ntfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (NVolShutdown(vol))
 		return -EIO;
 
+	if (NInoAttr(ni))
+		return -EOPNOTSUPP;
+
+	err = ntfs_stream_path_check(vol, &dentry->d_name);
+	if (err)
+		return err;
+
 	uname_len = ntfs_nlstoucs(vol, dentry->d_name.name,
 			dentry->d_name.len, &uname, NTFS_MAX_NAME_LEN);
 	if (uname_len < 0) {
@@ -1521,8 +1626,7 @@ static int ntfs_link(struct dentry *old_dentry, struct inode *dir,
 		return -ENOMEM;
 	}
 
-	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
-		ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
+	ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
 
 	ihold(vi);
 	mutex_lock_nested(&ni->mrec_lock, NTFS_INODE_MUTEX_NORMAL);
@@ -1567,6 +1671,8 @@ const struct inode_operations ntfs_dir_inode_ops = {
 	.listxattr	= ntfs_listxattr,
 	.setattr	= ntfs_setattr,
 	.getattr	= ntfs_getattr,
+	.fileattr_get	= ntfs_fileattr_get,
+	.fileattr_set	= ntfs_fileattr_set,
 	.symlink	= ntfs_symlink,
 	.mknod		= ntfs_mknod,
 	.link		= ntfs_link,
@@ -1667,11 +1773,19 @@ static struct dentry *ntfs_fh_to_parent(struct super_block *sb, struct fid *fid,
 				    ntfs_nfs_get_inode);
 }
 
+static int ntfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
+		struct inode *parent)
+{
+	if (ntfs_inode_is_named_stream(NTFS_I(inode)))
+		return -EOPNOTSUPP;
+	return generic_encode_ino32_fh(inode, fh, max_len, parent);
+}
+
 /*
  * Export operations allowing NFS exporting of mounted NTFS partitions.
  */
 const struct export_operations ntfs_export_ops = {
-	.encode_fh = generic_encode_ino32_fh,
+	.encode_fh	= ntfs_encode_fh,
 	.get_parent	= ntfs_get_parent,	/* Find the parent of a given directory. */
 	.fh_to_dentry	= ntfs_fh_to_dentry,
 	.fh_to_parent	= ntfs_fh_to_parent,

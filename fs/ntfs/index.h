@@ -37,7 +37,7 @@
  *		(maximum is MAX_PARENT_VCN)
  * @ib_dirty:	true if the current index block (@ia/@ib) was modified
  * @block_size:	size of index blocks in bytes (from $INDEX_ROOT or $Boot)
- * @vcn_size_bits: log2(cluster size)
+ * @vcn_size_bits: log2 of the VCN unit size
  * @sync_write:	true if synchronous writeback is requested for this context
  *
  * @idx_ni is the index inode this context belongs to.

@@ -9,6 +9,7 @@ The Linux NTFS filesystem driver
 
    - Overview
    - Utilities support
+   - Linux file attributes
    - Supported mount options
 
 
@@ -32,6 +33,34 @@ NTFS devices.
 The project is available at:
 
   https://github.com/ntfsprogs-plus/ntfsprogs-plus
+
+
+Linux file attributes
+=====================
+
+The driver supports lsattr(1) and chattr(1). Immutable, append-only, nodump
+and noatime are stored in a private ``$LINUXFLAGS`` extended attribute within the
+standard NTFS ``$EA``/``$EA_INFORMATION`` attributes. Its value is a
+32-bit little-endian bitmask: bit 0 is immutable, bit 1 is append-only,
+bit 2 is nodump, and bit 3 is noatime. Unknown bits are preserved when updating
+the flags; the entry is removed when the entire value becomes zero. These settings
+survive inode eviction, unmount and reboot. Direct writes to this EA
+through setxattr(2) or removexattr(2) are rejected; use chattr(1) instead.
+
+The noatime attribute (``chattr +A``) suppresses automatic access-time
+updates for the inode, including when mounted with ``strictatime``. It
+applies to directories as well as files, but is not inherited by newly
+created children. Use ``chattr -A`` to restore the mount's access-time policy.
+
+System metadata files and files protected by the ``sys_immutable`` mount
+option cannot have their immutable protection cleared with chattr(1).
+Protection derived solely from the mount option is not stored in the EA.
+Case folding is reported according to the mount options and cannot be
+configured per file. Compression and encryption are reported but cannot
+be changed through chattr(1).
+
+These Linux flags are enforced by Linux. Storing them in an NTFS EA does
+not make Windows enforce immutable, append-only, nodump or noatime semantics.
 
 
 Supported mount options
@@ -169,4 +198,40 @@ symlink=wsl|native      Configure how symbolic links are created. Under
                         Linux) compatible symlinks are created. Under
                         "native", Windows native symbolic links are
                         created.
+
+streams_interface=      Select the named-stream pathname interface:
+                        "none" (default) treats ':' as an ordinary filename
+                        character, while "windows" interprets the final
+                        component of a path such as "file:stream" as a named
+                        $DATA stream. In "windows" mode, filenames containing
+                        ':' are hidden from directory listings and cannot be
+                        addressed through the pathname interface. Only the
+                        file:stream form is recognized. Typed forms such
+                        as file::$DATA and file:stream:$DATA are not
+                        supported. The ioctl interface is available in both
+                        modes. The base file or directory must already exist
+                        before a pathname stream can be created. Creating
+                        file:stream does not create file. Removing a stream
+                        while it is open fails with -EBUSY. Removing the base
+                        file while a stream is open detaches the stream from
+                        the namespace; NTFS has no orphan-stream list, so a
+                        crash can leave that stream's data unreachable on
+                        disk.
 ======================= ====================================================
+
+Named-stream ioctls
+===================
+
+The named-stream ioctl interface is available regardless of
+streams_interface. Open the base regular file or directory and use
+NTFS_IOC_STREAM_READ and NTFS_IOC_STREAM_WRITE with a
+struct ntfs_stream request. The request contains the stream name,
+byte offset, and transfer length. Write requests create the stream when it
+does not exist. Writes are not atomic. Error can leave partial data
+changes, an extended stream size, or a newly created stream. bytes_returned
+is valid only on success. Failed write does not report a completed byte
+count. Use NTFS_IOC_STREAM_REMOVE to remove a stream and NTFS_IOC_LIST_STREAMS
+to enumerate streams. Stream names are encoded with
+the mounted NLS by default. Set NTFS_STREAM_FL_UTF16 to pass or receive
+raw UTF-16LE names. These ioctls transfer stream data directly and do not
+return a separate stream file descriptor.
