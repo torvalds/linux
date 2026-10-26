@@ -181,8 +181,27 @@ static int orangefs_writepages(struct address_space *mapping,
 {
 	struct orangefs_writepages *ow;
 	struct blk_plug plug;
-	int error;
+	int error = 0;
 	struct folio *folio = NULL;
+	int maxpages;
+
+	maxpages = orangefs_bufmap_size_query() / PAGE_SIZE;
+	if (maxpages < 1) {
+		/*
+		 * Probably the client is dead and there's no bufmap.
+		 * Walk writeback_iter anyway so each dirty folio is unlocked
+		 * and writeback is ended. wait_for_direct_io will fail; the
+		 * data is not written.
+		 */
+		gossip_err("%s: maxpages < 1. \n", __func__);
+		while ((folio = writeback_iter(mapping, wbc, folio, &error))) {
+			error = orangefs_writepage_locked(folio, wbc);
+			mapping_set_error(mapping, error);
+			folio_unlock(folio);
+			folio_end_writeback(folio);
+		}
+		return error;
+	}
 
 	ow = kzalloc_obj(struct orangefs_writepages);
 	if (!ow)
