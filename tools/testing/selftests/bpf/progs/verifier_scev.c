@@ -2567,6 +2567,104 @@ __naked void no_widen_any_stack_origin(void)
 "	::: __clobber_all);
 }
 
+__naked __noinline __used static int scrub_slot_callee(void)
+{
+	asm volatile ("					\
+	*(u32 *)(r1 + 4) = 1;				\
+	call %[bpf_get_prandom_u32];			\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/*
+ * The callee turns the caller's fp-8 into misc, so the states at the call site
+ * differ between the first and the second iteration, while the states inside
+ * the callee are identical. Verification fails with an infinite loop error if
+ * states.c:current_loop() does not search upper frames for active loops.
+ */
+SEC("socket")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 3, widening r6 to 0..9 step 1")
+__msg("loop header at 3, clamping r6 to 0..9 step 1")
+__msg("12: safe")
+__naked void clamp_callee_state_pruning(void)
+{
+	asm volatile ("					\
+	w1 = 1;						\
+	*(u32 *)(r10 - 8) = r1;				\
+	r6 = 0;						\
+1:	r1 = r10;					\
+	r1 += -8;					\
+	call scrub_slot_callee;				\
+	r6 += 1;					\
+	if r6 < 10 goto 1b;				\
+	r0 = *(u32 *)(r10 - 8);				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+/*
+ * The inner loop turns fp-8 from a spill into misc. On the next outer
+ * iteration, the states inside the inner loop match its first invocation.
+ */
+SEC("socket")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 3, widening r6 to 0..9 step 1")
+__msg("loop header at 4, widening r7 to 0..2 step 1")
+__msg("loop header at 3, clamping r6 to 0..9 step 1")
+__naked void clamp_nested_loop_state_pruning(void)
+{
+	asm volatile ("					\
+	w1 = 1;						\
+	*(u32 *)(r10 - 8) = r1;				\
+	r6 = 0;						\
+1:	r7 = 0;						\
+2:	*(u32 *)(r10 - 4) = 1;				\
+	r7 += 1;					\
+	if r7 < 3 goto 2b;				\
+	r6 += 1;					\
+	if r6 < 10 goto 1b;				\
+	r0 = *(u32 *)(r10 - 8);				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+/*
+ * Same as above, but the inner loop is not recognized by SCEV and is unrolled
+ * with a precise r7. The states at its header still match between the outer
+ * iterations and must not be reported as an infinite loop: the path between
+ * them crosses the back edge of the terminating outer loop.
+ */
+SEC("socket")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg("loop header at 3, widening r6 to 0..9 step 1")
+__msg("loop header at 5, can't compute iterations count")
+__msg("loop header at 3, clamping r6 to 0..9 step 1")
+__naked void clamp_nested_unrolled_loop_state_pruning(void)
+{
+	asm volatile ("					\
+	w1 = 1;						\
+	*(u32 *)(r10 - 8) = r1;				\
+	r6 = 0;						\
+1:	*(u32 *)(r10 - 4) = 1;				\
+	r7 = 1;						\
+2:	r7 *= 2;					\
+	if r7 < 4 goto 2b;				\
+	r6 += 1;					\
+	if r6 < 10 goto 1b;				\
+	r0 = *(u32 *)(r10 - 8);				\
+	exit;						\
+"	::: __clobber_all);
+}
+
 /*
  * r7 starts as 1 + 6*k and invariant r8 as 1 + 9*k (0 <= k <= 3).
  * The (any r7 r8) union must preserve base 1 and step gcd(6, 9) = 3.
