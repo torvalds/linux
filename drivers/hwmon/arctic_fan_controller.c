@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
 /*
  * Linux hwmon driver for ARCTIC Fan Controller
  *
@@ -35,6 +35,8 @@
  * Measured over 500 iterations: max ~563 ms. Keep 1 s as margin.
  */
 #define ARCTIC_ACK_TIMEOUT_MS		1000
+/* MCU factory default; 40% of 0-255 is 102. */
+#define ARCTIC_PWM_DEFAULT		102
 
 struct arctic_fan_data {
 	struct hid_device *hdev;
@@ -164,7 +166,7 @@ static int arctic_fan_write(struct device *dev, enum hwmon_sensor_types type,
 
 	/*
 	 * Build the buffer and arm write_pending under in_report_lock so that
-	 * reset_resume() cannot clear pwm_duty[] between the pwm_duty[] read
+	 * reset_resume() cannot replace pwm_duty[] between the pwm_duty[] read
 	 * and the buffer write, and raw_event() cannot deliver a stale ACK
 	 * from a previous write into this write's completion.
 	 *
@@ -256,14 +258,14 @@ static int arctic_fan_reset_resume(struct hid_device *hdev)
 	unsigned long flags;
 
 	/*
-	 * The device resets its PWM channels to hardware defaults on power
-	 * loss during suspend. Clear the cached duty values so they reflect
-	 * the unknown hardware state, consistent with probe-time behaviour
-	 * (the device has no GET_REPORT support). Hold in_report_lock so
-	 * this does not race with a concurrent pwm read or write callback.
+	 * The device resets its PWM channels to the MCU factory default
+	 * (40%) on power loss during suspend. Restore the cache to that
+	 * same default, consistent with probe-time behaviour (the device
+	 * has no GET_REPORT support). Hold in_report_lock so this does
+	 * not race with a concurrent pwm read or write callback.
 	 */
 	spin_lock_irqsave(&priv->in_report_lock, flags);
-	memset(priv->pwm_duty, 0, sizeof(priv->pwm_duty));
+	memset(priv->pwm_duty, ARCTIC_PWM_DEFAULT, sizeof(priv->pwm_duty));
 	spin_unlock_irqrestore(&priv->in_report_lock, flags);
 	return 0;
 }
@@ -288,6 +290,8 @@ static int arctic_fan_probe(struct hid_device *hdev,
 	priv->hdev = hdev;
 	spin_lock_init(&priv->in_report_lock);
 	init_completion(&priv->in_report_received);
+	/* Same MCU factory default as reset_resume(); see ARCTIC_PWM_DEFAULT above. */
+	memset(priv->pwm_duty, ARCTIC_PWM_DEFAULT, sizeof(priv->pwm_duty));
 	hid_set_drvdata(hdev, priv);
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DRIVER);
@@ -371,4 +375,4 @@ module_hid_driver(arctic_fan_driver);
 
 MODULE_AUTHOR("Aureo Serrano de Souza <aureo.serrano@arctic.de>");
 MODULE_DESCRIPTION("HID hwmon driver for ARCTIC Fan Controller");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual BSD/GPL");

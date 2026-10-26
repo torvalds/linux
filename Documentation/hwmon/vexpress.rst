@@ -38,4 +38,4 @@ via a custom interface, abstracted by the "vexpress_config" API.
 
 As these devices are non-discoverable, they must be described in a Device
 Tree passed to the kernel. Details of the DT binding for them can be found
-in Documentation/devicetree/bindings/hwmon/vexpress.txt.
+in Documentation/devicetree/bindings/arm/vexpress-config.yaml.

@@ -311,6 +311,29 @@ config SENSORS_AXI_FAN_CONTROL
 	  This driver can also be built as a module. If so, the module
 	  will be called axi-fan-control
 
+config SENSORS_AXIADO_PWM_FAN
+	tristate "Axiado PWM fan controller"
+	depends on ARCH_AXIADO || COMPILE_TEST
+	depends on PWM
+	help
+	  This driver supports the Axiado PWM fan controller. It uses a PWM
+	  output to control fan speed and a tachometer interrupt to report fan
+	  speed as RPM through the hardware monitoring sysfs interface.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called axiado-pwm-fan.
+
+config SENSORS_AXIADO_TSADC
+	tristate "Axiado AX3000 TSADC temperature sensor"
+	depends on ARCH_AXIADO || COMPILE_TEST
+	help
+	  If you say yes here you get support for the on-chip temperature
+	  sensor (TSADC) found on Axiado AX3000 and AX3005 SoCs. The die
+	  temperature is reported through the hwmon sysfs interface.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called axiado-tsadc.
+
 config SENSORS_K8TEMP
 	tristate "AMD Athlon64/FX or Opteron temperature sensor"
 	depends on X86 && PCI
@@ -1490,6 +1513,22 @@ config SENSORS_MENF21BMC_HWMON
 	  This driver can also be built as a module. If so the module
 	  will be called menf21bmc_hwmon.
 
+config SENSORS_MINISFORUM_UM780XTX
+	tristate "Minisforum UM780 XTX EC hardware monitoring"
+	depends on ACPI_EC && DMI && X86
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  features of the embedded controller in the Minisforum UM780 XTX.
+	  This includes CPU and system fan speeds, their control temperatures,
+	  two CPU fan profiles, system fan temperature thresholds, and
+	  preservation of the selected settings across suspend and resume.
+
+	  This driver only binds to explicitly supported board and firmware
+	  versions.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called minisforum-um780xtx.
+
 config SENSORS_MR75203
 	tristate "Moortec Semiconductor MR75203 PVT Controller"
 	select REGMAP_MMIO
@@ -1521,10 +1560,10 @@ config SENSORS_LM63
 	depends on I2C
 	help
 	  If you say yes here you get support for the National
-	  Semiconductor LM63, LM64, and LM96163 remote diode digital temperature
-	  sensors with integrated fan control.  Such chips are found
-	  on the Tyan S4882 (Thunder K8QS Pro) motherboard, among
-	  others.
+	  Semiconductor LM63, LM64, LM96163, and Sensylink CTF2301
+	  remote diode digital temperature sensors with integrated fan
+	  control. Such chips are found on the Tyan S4882 (Thunder K8QS
+	  Pro) motherboard, among others.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called lm63.
@@ -2826,6 +2865,16 @@ config SENSORS_ASUS_EC
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_ec_sensors.
+
+config SENSORS_HONOR_FMI
+	tristate "HONOR FMI-XX fan monitor"
+	depends on X86 && ACPI
+	help
+	  If you say yes here, you get support for fan speed monitoring on
+	  the HONOR FMI-XX laptop through its firmware ACPI method.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called honor-fmi.
 
 config SENSORS_HP_WMI
 	tristate "HP WMI Sensors"

@@ -619,7 +619,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	}
 
 	channels = devm_kcalloc(dev, channel_count + 1,
-				sizeof(struct hwmon_channel_info *), GFP_KERNEL);
+				sizeof(*channels), GFP_KERNEL);
 	if (!channels)
 		return -ENOMEM;
 

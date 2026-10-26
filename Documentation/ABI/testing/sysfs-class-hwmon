@@ -61,6 +61,18 @@ Description:
 		take drastic action such as power down or reset. At the very
 		least, it should report a fault.
 
+What:		/sys/class/hwmon/hwmonX/inY_lemergency
+Description:
+		Voltage emergency min value.
+
+		Unit: millivolt
+
+		RW
+
+		If voltage drops to or below this limit, the system is
+		expected to take drastic action such as immediate power
+		down or reset. At the very least, it should report a fault.
+
 What:		/sys/class/hwmon/hwmonX/inY_max
 Description:
 		Voltage max value.
@@ -80,6 +92,18 @@ Description:
 		If voltage reaches or exceeds this limit, the system may
 		take drastic action such as power down or reset. At the very
 		least, it should report a fault.
+
+What:		/sys/class/hwmon/hwmonX/inY_emergency
+Description:
+		Voltage emergency max value.
+
+		Unit: millivolt
+
+		RW
+
+		If voltage reaches or exceeds this limit, the system is expected
+		to take drastic action such as immediate power down or reset.
+		At the very least, it should report a fault.
 
 What:		/sys/class/hwmon/hwmonX/inY_input
 Description:
@@ -646,6 +670,18 @@ Description:
 		Unit: milliampere
 
 		RW
+
+What:		/sys/class/hwmon/hwmonX/currY_emergency
+Description:
+		Current emergency high value.
+
+		Unit: milliampere
+
+		RW
+
+		If a current reaches or exceeds this limit, the system is
+		expected to take drastic action such as immediate power down
+		or reset. At the very least, it should report a fault.
 
 What:		/sys/class/hwmon/hwmonX/currY_input
 Description:

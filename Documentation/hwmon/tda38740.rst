@@ -1,0 +1,65 @@
+.. SPDX-License-Identifier: GPL-2.0-only
+
+====================================
+Kernel driver tda38740
+====================================
+
+Supported chips:
+  * Infineon TDA38740
+  * Infineon TDA38725
+
+    Prefix: 'tda38740'
+
+    Addresses scanned: -
+
+    Datasheet:
+      https://www.infineon.com/row/public/documents/24/49/infineon-tda38740-tda38725-datasheet-en.pdf
+
+Author: Colin Huang <u8813345@gmail.com>
+
+Description
+-----------
+
+The TDA38740 and TDA38725 are single-output synchronous buck regulators with a
+PMBus interface. They expose basic voltage, current, power and temperature
+telemetry through the standard PMBus hwmon interfaces.
+
+Sysfs entries
+-------------
+
+======================= =======================================================
+curr1_alarm		Input current alarm
+curr1_input		Measured input current
+curr1_label		"iin"
+
+curr2_crit		Critical maximum output current
+curr2_crit_alarm	Output current critical high alarm
+curr2_input		Measured output current
+curr2_label		"iout"
+
+in1_crit		Critical maximum input voltage
+in1_crit_alarm		Input voltage critical high alarm
+in1_input		Measured input voltage
+in1_label		"vin"
+
+in2_crit		Critical maximum output voltage
+in2_crit_alarm		Output voltage critical high alarm
+in2_input		Measured output voltage
+in2_label		"vout"
+in2_lcrit		Critical minimum output voltage
+in2_lcrit_alarm		Output voltage critical low alarm
+
+power1_alarm		Input power alarm
+power1_input		Measured input power
+power1_label		"pin"
+
+power2_input		Measured output power
+power2_label		"pout"
+
+temp1_crit		Critical high temperature
+temp1_crit_alarm	Chip temperature critical high alarm
+temp1_input		Measured temperature
+temp1_max		Maximum temperature
+temp1_max_alarm		Chip temperature high alarm
+======================= =======================================================
+

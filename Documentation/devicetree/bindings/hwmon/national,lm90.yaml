@@ -114,6 +114,23 @@ allOf:
         ti,extended-range-enable: false
 
   - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - adi,adt7481
+                - dallas,max6695
+                - dallas,max6696
+    then:
+      patternProperties:
+        "^channel@[0-1]$":
+          properties:
+            reg:
+              enum: [0, 1]
+        "channel@2": false
+
+  - if:
       properties:
         compatible:
           contains:
@@ -134,6 +151,11 @@ allOf:
         "^channel@([0-2])$":
           properties:
             temperature-offset-millicelsius: false
+    else:
+      patternProperties:
+        "channel@0":
+          properties:
+            temperature-offset-millicelsius: false
 
   - if:
       properties:
@@ -149,7 +171,7 @@ allOf:
               - onnn,nct1008
     then:
       patternProperties:
-        "^channel@([0-2])$":
+        "^channel@([1-2])$":
           properties:
             temperature-offset-millicelsius:
               maximum: 127750
@@ -172,7 +194,7 @@ allOf:
               - winbond,w83l771
     then:
       patternProperties:
-        "^channel@([0-2])$":
+        "^channel@([1-2])$":
           properties:
             temperature-offset-millicelsius:
               maximum: 127875
@@ -186,7 +208,7 @@ allOf:
               - ti,tmp461
     then:
       patternProperties:
-        "^channel@([0-2])$":
+        "^channel@([1-2])$":
           properties:
             temperature-offset-millicelsius:
               maximum: 127937

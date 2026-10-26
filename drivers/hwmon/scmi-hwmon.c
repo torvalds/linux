@@ -305,7 +305,8 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 
 		scmi_sensors->info[type] =
 			devm_kcalloc(dev, nr_count[type],
-				     sizeof(*scmi_sensors->info), GFP_KERNEL);
+				     sizeof(*scmi_sensors->info[type]),
+				     GFP_KERNEL);
 		if (!scmi_sensors->info[type])
 			return -ENOMEM;
 	}
