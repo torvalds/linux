@@ -296,17 +296,7 @@ static struct platform_driver tcsr_cc_glymur_driver = {
 	},
 };
 
-static int __init tcsr_cc_glymur_init(void)
-{
-	return platform_driver_register(&tcsr_cc_glymur_driver);
-}
-subsys_initcall(tcsr_cc_glymur_init);
-
-static void __exit tcsr_cc_glymur_exit(void)
-{
-	platform_driver_unregister(&tcsr_cc_glymur_driver);
-}
-module_exit(tcsr_cc_glymur_exit);
+subsys_platform_driver(tcsr_cc_glymur_driver);
 
 MODULE_DESCRIPTION("QTI TCSRCC Glymur Driver");
 MODULE_LICENSE("GPL");

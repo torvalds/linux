@@ -37,6 +37,10 @@ static const struct pll_vco taycan_eko_t_vco[] = {
 	{ 249600000, 2500000000, 0 },
 };
 
+static const struct pll_vco lucid_ole_vco[] = {
+	{ 249600000, 2300000000, 0 },
+};
+
 /* 720.0 MHz Configuration */
 static const struct alpha_pll_config video_cc_pll0_config = {
 	.l = 0x25,
@@ -46,6 +50,21 @@ static const struct alpha_pll_config video_cc_pll0_config = {
 	.config_ctl_hi1_val = 0xf51dea20,
 	.user_ctl_val = 0x00000008,
 	.user_ctl_hi_val = 0x00000002,
+};
+
+/* 720.0 MHz Configuration */
+static const struct alpha_pll_config video_cc_pll0_config_nord = {
+	.l = 0x25,
+	.alpha = 0x8000,
+	.config_ctl_val = 0x20485699,
+	.config_ctl_hi_val = 0x00182261,
+	.config_ctl_hi1_val = 0x82aa299c,
+	.test_ctl_val = 0x00000000,
+	.test_ctl_hi_val = 0x00000003,
+	.test_ctl_hi1_val = 0x00009000,
+	.test_ctl_hi2_val = 0x00000034,
+	.user_ctl_val = 0x00000000,
+	.user_ctl_hi_val = 0x00400005,
 };
 
 static struct clk_alpha_pll video_cc_pll0 = {
@@ -110,6 +129,15 @@ static struct clk_rcg2 video_cc_ahb_clk_src = {
 		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_shared_ops,
 	},
+};
+
+static const struct freq_tbl ftbl_video_cc_mvs0_clk_src_nord[] = {
+	F(720000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1305000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1440000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1600000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1680000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	{ }
 };
 
 static const struct freq_tbl ftbl_video_cc_mvs0_clk_src[] = {
@@ -508,12 +536,22 @@ static const struct qcom_cc_desc video_cc_glymur_desc = {
 
 static const struct of_device_id video_cc_glymur_match_table[] = {
 	{ .compatible = "qcom,glymur-videocc" },
+	{ .compatible = "qcom,nord-videocc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, video_cc_glymur_match_table);
 
 static int video_cc_glymur_probe(struct platform_device *pdev)
 {
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,nord-videocc")) {
+		video_cc_pll0.vco_table = lucid_ole_vco;
+		video_cc_pll0.num_vco = ARRAY_SIZE(lucid_ole_vco);
+		video_cc_pll0.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE];
+		video_cc_pll0.config = &video_cc_pll0_config_nord;
+
+		video_cc_mvs0_clk_src.freq_tbl = ftbl_video_cc_mvs0_clk_src_nord;
+	}
+
 	return qcom_cc_probe(pdev, &video_cc_glymur_desc);
 }
 

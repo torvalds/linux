@@ -3841,17 +3841,7 @@ static struct platform_driver gcc_hawi_driver = {
 	},
 };
 
-static int __init gcc_hawi_init(void)
-{
-	return platform_driver_register(&gcc_hawi_driver);
-}
-subsys_initcall(gcc_hawi_init);
-
-static void __exit gcc_hawi_exit(void)
-{
-	platform_driver_unregister(&gcc_hawi_driver);
-}
-module_exit(gcc_hawi_exit);
+subsys_platform_driver(gcc_hawi_driver);
 
 MODULE_DESCRIPTION("QTI GCC HAWI Driver");
 MODULE_LICENSE("GPL");

@@ -191,6 +191,11 @@
 #define GCC_VIDEO_AXI0_CLK					181
 #define GCC_VIDEO_AXI1_CLK					182
 #define GCC_VIDEO_XO_CLK					183
+#define GCC_GPLL5						184
+#define GCC_TSCSS_AHB_CLK					185
+#define GCC_TSCSS_CNTR_CLK_SRC					186
+#define GCC_TSCSS_ETU_CLK					187
+#define GCC_TSCSS_GLOBAL_CNTR_CLK				188
 
 /* GCC power domains */
 #define GCC_EMAC0_GDSC						0
@@ -230,5 +235,6 @@
 #define GCC_VIDEO_BCR						26
 #define GCC_VIDEO_AXI0_CLK_ARES					27
 #define GCC_VIDEO_AXI1_CLK_ARES					28
+#define GCC_TSCSS_BCR						29
 
 #endif

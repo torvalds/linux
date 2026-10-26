@@ -65,5 +65,8 @@
 #define NW_GCC_GPU_2_BCR					6
 #define NW_GCC_GPU_BCR						7
 #define NW_GCC_VIDEO_BCR					8
+#define NW_GCC_VIDEO_AXI0_CLK_ARES				9
+#define NW_GCC_VIDEO_AXI0C_CLK_ARES				10
+#define NW_GCC_VIDEO_AXI1_CLK_ARES				11
 
 #endif
