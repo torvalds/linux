@@ -697,7 +697,7 @@ accepted:
 		lock_sock(sk);
 		tx->tracking->retry_after =
 			clamp_t(unsigned long, 6UL * inet_csk(sk)->icsk_rto,
-				msecs_to_jiffies(1200), 6 * HZ);
+				DIV_ROUND_UP(1200 * HZ, MSEC_PER_SEC), 6 * HZ);
 		release_sock(sk);
 		tx->tracking->valid = true;
 	}
