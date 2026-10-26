@@ -107,8 +107,18 @@ void cxl_handle_rdport_errors(struct cxl_dev_state *cxlds)
 	int severity;
 
 	struct cxl_port *port __free(put_cxl_port) =
-		cxl_pci_find_port(pdev, &dport);
+		cxl_pci_find_port(pdev);
 	if (!port)
+		return;
+
+	/*
+	 * The dport may have been freed since the lookup above, so take the
+	 * lock that pins it and find it again.
+	 */
+	guard(device)(cxl_port_dport_host(port));
+
+	dport = cxl_pci_find_dport(pdev, port);
+	if (!dport)
 		return;
 
 	if (!cxl_rch_get_aer_info(dport->regs.dport_aer, &aer_regs))

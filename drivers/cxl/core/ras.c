@@ -70,9 +70,9 @@ cxl_cper_trace_uncorr_prot_err(struct cxl_memdev *cxlmd,
 	trace_cxl_aer_uncorrectable_error(cxlmd, status, fe, hl);
 }
 
-static int match_memdev_by_parent(struct device *dev, const void *uport)
+static int match_memdev_by_parent(struct device *dev, const void *parent)
 {
-	if (is_cxl_memdev(dev) && dev->parent == uport)
+	if (is_cxl_memdev(dev) && dev->parent == parent)
 		return 1;
 	return 0;
 }
@@ -108,7 +108,7 @@ static void cxl_cper_handle_prot_err(struct cxl_cper_prot_err_work_data *data)
 		return;
 
 	struct device *mem_dev __free(put_device) = bus_find_device(
-		&cxl_bus_type, NULL, pdev, match_memdev_by_parent);
+		&cxl_bus_type, NULL, &pdev->dev, match_memdev_by_parent);
 	if (!mem_dev)
 		return;
 

@@ -277,6 +277,20 @@ static bool cxl_decode_regblock(struct pci_dev *pdev, u32 reg_lo, u32 reg_hi,
 	u64 offset = ((u64)reg_hi << 32) |
 		     (reg_lo & PCI_DVSEC_CXL_REG_LOCATOR_BLOCK_OFF_LOW);
 
+	if (reg_type == CXL_REGLOC_RBI_EMPTY)
+		return false;
+
+	/*
+	 * A BAR the PCI core could not place is reset to zero; decoding it
+	 * would map the block at physical address 0.
+	 */
+	if (!pci_resource_len(pdev, bar) ||
+	    (pci_resource_flags(pdev, bar) & IORESOURCE_UNSET)) {
+		dev_warn(&pdev->dev, "BAR%d: not assigned (type: %d)\n", bar,
+			 reg_type);
+		return false;
+	}
+
 	if (offset > pci_resource_len(pdev, bar)) {
 		dev_warn(&pdev->dev,
 			 "BAR%d: %pr: too small (offset: %pa, type: %d)\n", bar,

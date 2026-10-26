@@ -178,11 +178,7 @@ static inline struct device *port_to_host(struct cxl_port *port)
 
 static inline struct device *dport_to_host(struct cxl_dport *dport)
 {
-	struct cxl_port *port = dport->port;
-
-	if (is_cxl_root(port))
-		return port->uport_dev;
-	return &port->dev;
+	return cxl_port_dport_host(dport->port);
 }
 #ifdef CONFIG_CXL_RAS
 void cxl_ras_init(void);
@@ -217,10 +213,10 @@ int cxl_port_get_possible_dports(struct cxl_port *port);
 #ifdef CONFIG_CXL_FEATURES
 struct cxl_feat_entry *
 cxl_feature_info(struct cxl_features_state *cxlfs, const uuid_t *uuid);
-size_t cxl_get_feature(struct cxl_mailbox *cxl_mbox, const uuid_t *feat_uuid,
-		       enum cxl_get_feat_selection selection,
-		       void *feat_out, size_t feat_out_size, u16 offset,
-		       u16 *return_code);
+ssize_t cxl_get_feature(struct cxl_mailbox *cxl_mbox, const uuid_t *feat_uuid,
+			enum cxl_get_feat_selection selection,
+			void *feat_out, size_t feat_out_size, u16 offset,
+			u16 *return_code);
 int cxl_set_feature(struct cxl_mailbox *cxl_mbox, const uuid_t *feat_uuid,
 		    u8 feat_version, const void *feat_data,
 		    size_t feat_data_size, u32 feat_flag, u16 offset,
