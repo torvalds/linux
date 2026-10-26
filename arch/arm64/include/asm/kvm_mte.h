@@ -16,7 +16,7 @@ alternative_if_not ARM64_MTE
 	b	.L__skip_switch\@
 alternative_else_nop_endif
 	mrs	\reg1, hcr_el2
-	tbz	\reg1, #(HCR_ATA_SHIFT), .L__skip_switch\@
+	tbz	\reg1, #(HCR_EL2_ATA_SHIFT), .L__skip_switch\@
 
 	mrs_s	\reg1, SYS_RGSR_EL1
 	str	\reg1, [\h_ctxt, #CPU_RGSR_EL1]
@@ -36,7 +36,7 @@ alternative_if_not ARM64_MTE
 	b	.L__skip_switch\@
 alternative_else_nop_endif
 	mrs	\reg1, hcr_el2
-	tbz	\reg1, #(HCR_ATA_SHIFT), .L__skip_switch\@
+	tbz	\reg1, #(HCR_EL2_ATA_SHIFT), .L__skip_switch\@
 
 	mrs_s	\reg1, SYS_RGSR_EL1
 	str	\reg1, [\g_ctxt, #CPU_RGSR_EL1]
