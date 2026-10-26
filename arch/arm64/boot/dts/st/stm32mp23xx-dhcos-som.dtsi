@@ -24,12 +24,21 @@
 	interrupts-extended = <&gpiod 10 IRQ_TYPE_EDGE_FALLING>;
 };
 
-/* Bluetooth */
 &usart1 {
 	pinctrl-names = "default", "sleep", "idle";
 	pinctrl-0 = <&usart1_pins_a>;
 	pinctrl-1 = <&usart1_sleep_pins_a>;
 	pinctrl-2 = <&usart1_idle_pins_a>;
+	uart-has-rtscts;
+	status = "okay";
+};
+
+/* Bluetooth */
+&usart2 {
+	pinctrl-names = "default", "sleep", "idle";
+	pinctrl-0 = <&usart2_pins_b>;
+	pinctrl-1 = <&usart2_sleep_pins_b>;
+	pinctrl-2 = <&usart2_idle_pins_b>;
 	uart-has-rtscts;
 	status = "okay";
 
@@ -39,13 +48,4 @@
 		max-speed = <3000000>;
 		shutdown-gpios = <&ioexp 2 GPIO_ACTIVE_HIGH>;
 	};
-};
-
-&usart2 {
-	pinctrl-names = "default", "sleep", "idle";
-	pinctrl-0 = <&usart2_pins_b>;
-	pinctrl-1 = <&usart2_sleep_pins_b>;
-	pinctrl-2 = <&usart2_idle_pins_b>;
-	uart-has-rtscts;
-	status = "okay";
 };
