@@ -352,7 +352,7 @@ static int es9356_sdca_headset_detect(struct es9356_sdw_priv *es9356)
 	if (reg) {
 		regmap_write(es9356->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_UAJ, ES9356_SDCA_ENT_GE35, ES9356_SDCA_CTL_SELECTED_MODE, 0), reg);
-		regmap_write(es9356->regmap, ES9356_HP_DETECTTIME, 0x75);
+		regmap_write(es9356->regmap, ES9356_HP_DETECTTIME, 0x74);
 	} else {
 		regmap_write(es9356->regmap, ES9356_HP_DETECTTIME, 0xa4);
 	}
@@ -403,7 +403,7 @@ static void es9356_interrupt_handler(struct work_struct *work)
 			SND_JACK_BTN_2 | SND_JACK_BTN_3 |
 			SND_JACK_BTN_4);
 		mod_delayed_work(system_power_efficient_wq,
-			&es9356->button_detect_work, msecs_to_jiffies(280));
+			&es9356->button_detect_work, msecs_to_jiffies(50));
 	}
 }
 
@@ -450,7 +450,7 @@ static void es9356_button_detect_handler(struct work_struct *work)
 			SND_JACK_BTN_2 | SND_JACK_BTN_3 |
 			SND_JACK_BTN_4);
 		mod_delayed_work(system_power_efficient_wq,
-			&es9356->button_detect_work, msecs_to_jiffies(280));
+			&es9356->button_detect_work, msecs_to_jiffies(50));
 	}
 
 	return;
@@ -724,68 +724,122 @@ static bool es9356_sdca_volatile_register(struct device *dev, unsigned int reg)
 	}
 }
 
+static bool es9356_writeable_register(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case ES9356_VERSION:
+	case ES9356_BUF_ADDR_HID:
+	case ES9356_HID_BYTE2:
+	case ES9356_HID_BYTE3:
+	case ES9356_HID_BYTE4:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static const struct regmap_config es9356_sdca_regmap = {
 	.reg_bits = 32,
 	.val_bits = 16,
 	.volatile_reg = es9356_sdca_volatile_register,
+	.writeable_reg = es9356_writeable_register,
 	.max_register = 0x45ffffff,
 	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
 
-static void es9356_register_init(struct es9356_sdw_priv *es9356)
+static int es9356_register_init(struct es9356_sdw_priv *es9356)
 {
+	unsigned int version;
+	int ret;
+
+	ret = regmap_read(es9356->regmap, ES9356_VERSION, &version);
+	if (ret < 0) {
+		pr_err_ratelimited("IO error in %s, ret %d\n", __func__, ret);
+		return ret;
+	}
+
+	regmap_write(es9356->regmap, ES9356_SPKLDO_CTL, 0x2c);
+	if (!(version >> 1))
+		regmap_write(es9356->regmap, ES9356_HP_VOLUME, 0x11);
+	else
+		regmap_write(es9356->regmap, ES9356_HP_VOLUME, 0x00);
+
+	regmap_write(es9356->regmap, ES9356_SPKCLK_CTL, 0xc3);
 	regmap_write(es9356->regmap, ES9356_STATE, 0x02);
 	regmap_write(es9356->regmap, ES9356_ENDPOINT_MODE, 0x24);
 	regmap_write(es9356->regmap, ES9356_PRE_DIV_CTL, 0x00);
 	regmap_write(es9356->regmap, ES9356_ADC_OSR, 0x18);
-	regmap_write(es9356->regmap, ES9356_ADC_OSRGAIN, 0x13);
+	regmap_write(es9356->regmap, ES9356_ADC_OSRGAIN, 0x11);
 	regmap_write(es9356->regmap, ES9356_DAC_OSR, 0x16);
 	regmap_write(es9356->regmap, ES9356_CLK_CTL, 0x0f);
-	regmap_write(es9356->regmap, ES9356_CSM_RESET, 0x01);
-	regmap_write(es9356->regmap, ES9356_CLK_SEL, 0x30);
 
+	if (!(version >> 1))
+		regmap_write(es9356->regmap, ES9356_CLK_SEL, 0x30);
+	else
+		regmap_write(es9356->regmap, ES9356_CLK_SEL, 0x10);
+
+	regmap_write(es9356->regmap, ES9356_CSM_RESET, 0x01);
 	regmap_write(es9356->regmap, ES9356_DETCLK_CTL, 0x51);
-	regmap_write(es9356->regmap, ES9356_HP_TYPE, 0x10);
+	regmap_write(es9356->regmap, ES9356_HP_TYPE, 0x00);
 	regmap_write(es9356->regmap, ES9356_MICBIAS_CTL, 0x10);
 	regmap_write(es9356->regmap, ES9356_HPDETECT_CTL, 0x07);
 	regmap_write(es9356->regmap, ES9356_ADC_ANA, 0x30);
-	regmap_write(es9356->regmap, ES9356_PGA_CTL, 0xa8);
+	regmap_write(es9356->regmap, ES9356_PGA_CTL, 0xaa);
 	regmap_write(es9356->regmap, ES9356_ADC_INT, 0xaa);
 	regmap_write(es9356->regmap, ES9356_ADC_LP, 0x19);
 	regmap_write(es9356->regmap, ES9356_VMID1SEL, 0xbc);
 	regmap_write(es9356->regmap, ES9356_VMID_TIME, 0x0b);
 	regmap_write(es9356->regmap, ES9356_STATE_TIME, 0xbb);
-	regmap_write(es9356->regmap, ES9356_HP_SPK_TIME, 0x77);
+	regmap_write(es9356->regmap, ES9356_HP_SPK_TIME, 0x7a);
 	regmap_write(es9356->regmap, ES9356_HP_DETECTTIME, 0xa4);
-	regmap_write(es9356->regmap, ES9356_MICBIAS_SEL, 0x15);
+
+	if ((version & GENMASK(1, 0)) == 0x03)
+		regmap_write(es9356->regmap, ES9356_MICBIAS_SEL, 0x15);
+	else
+		regmap_write(es9356->regmap, ES9356_MICBIAS_SEL, 0x25);
+
+	regmap_write(es9356->regmap, ES9356_SPARE_REGISTER3, 0x00);
 	regmap_write(es9356->regmap, ES9356_KEY_PRESS_TIME, 0xff);
 	regmap_write(es9356->regmap, ES9356_KEY_RELEASE_TIME, 0xff);
 	regmap_write(es9356->regmap, ES9356_KEY_HOLD_TIME, 0x0f);
-	regmap_write(es9356->regmap, ES9356_BTSEL_REF, 0x00);
+
+	if ((version & GENMASK(1, 0)) == 0x03)
+		regmap_write(es9356->regmap, ES9356_BTSEL_REF, 0x04);
+	else
+		regmap_write(es9356->regmap, ES9356_BTSEL_REF, 0x00);
+
 	regmap_write(es9356->regmap, ES9356_KEYD_DETECT, 0x18);
 	regmap_write(es9356->regmap, ES9356_MICBIAS_RES, 0x03);
-	regmap_write(es9356->regmap, ES9356_BUTTON_CHARGE, 0x00);
-	regmap_write(es9356->regmap, ES9356_CALIBRATION_TIME, 0x13);
-	regmap_write(es9356->regmap, ES9356_CALIBRATION_SETTING, 0xf4);
+	regmap_write(es9356->regmap, ES9356_CALIBRATION_TIME, 0x1a);
+
+	if (!(version >> 1)) {
+		regmap_write(es9356->regmap, ES9356_CALIBRATION_SETTING, 0xc3);
+	} else {
+		regmap_write(es9356->regmap, ES9356_CALIBRATION_SETTING, 0xf4);
+		regmap_write(es9356->regmap, ES9356_SPK_SCP, 0x55);
+	}
 
 	regmap_write(es9356->regmap, ES9356_SPK_VOLUME, 0x33);
 	regmap_write(es9356->regmap, ES9356_DAC_VROI, 0x01);
 	regmap_write(es9356->regmap, ES9356_DAC_LP, 0x00);
 	regmap_write(es9356->regmap, ES9356_HP_IBIAS, 0x04);
 	regmap_write(es9356->regmap, ES9356_HP_LP, 0x03);
-	regmap_write(es9356->regmap, ES9356_SPKLDO_CTL, 0x65);
+	regmap_write(es9356->regmap, ES9356_SPKLDO_CTL, 0x6c);
 	regmap_write(es9356->regmap, ES9356_SPKBIAS_COMP, 0x09);
-	regmap_write(es9356->regmap, ES9356_VMID1STL, 0x00);
+	regmap_write(es9356->regmap, ES9356_VMID1STL, 0x01);
 	regmap_write(es9356->regmap, ES9356_VMID2STL, 0x00);
 	regmap_write(es9356->regmap, ES9356_VSEL, 0xfc);
 
 	regmap_write(es9356->regmap, ES9356_IBIASGEN, 0x10);
-	regmap_write(es9356->regmap, ES9356_ADC_AMIC_CTL, 0x0d);
+	regmap_write(es9356->regmap, ES9356_ADC_AMIC_CTL, 0x05);
 	regmap_write(es9356->regmap, ES9356_STATE, 0x0e);
 	regmap_write(es9356->regmap, ES9356_CSM_RESET, 0x00);
 	regmap_write(es9356->regmap, ES9356_HP_TYPE, 0x08);
+	regmap_write(es9356->regmap, ES9356_DAC_AUTOMUTE, 0x31);
+	regmap_write(es9356->regmap, ES9356_DAC_AUTOMUTE_WINSIZE, 0x3D);
+	regmap_write(es9356->regmap, ES9356_DAC_AUTOMUTE_RESULT1, 0x80);
 
 	regmap_write(es9356->regmap,
 		SDW_SDCA_CTL(FUNC_NUM_MIC, ES9356_SDCA_ENT_FU113, ES9356_SDCA_CTL_FU_VOLUME, CH_L), ES9356_DEFAULT_VOLUME);
@@ -806,11 +860,14 @@ static void es9356_register_init(struct es9356_sdw_priv *es9356)
 		SDW_SDCA_CTL(FUNC_NUM_UAJ, ES9356_SDCA_ENT_FU36, ES9356_SDCA_CTL_FU_VOLUME, CH_L), ES9356_DEFAULT_VOLUME);
 	regmap_write(es9356->regmap,
 		SDW_SDCA_CTL(FUNC_NUM_UAJ, ES9356_SDCA_ENT_FU36, ES9356_SDCA_CTL_FU_VOLUME, CH_R), ES9356_DEFAULT_VOLUME);
+
+	return 0;
 }
 
 static int es9356_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct es9356_sdw_priv *es9356 = dev_get_drvdata(&slave->dev);
+	int ret = 0;
 
 	if (es9356->hw_init)
 		return 0;
@@ -825,7 +882,11 @@ static int es9356_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
 
-		es9356_register_init(es9356);
+		ret = es9356_register_init(es9356);
+		if (ret < 0) {
+			regcache_cache_only(es9356->regmap, true);
+			goto err_out;
+		}
 	}
 	pm_runtime_get_noresume(&slave->dev);
 
@@ -852,10 +913,11 @@ static int es9356_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 
 	es9356->hw_init = true;
 
+err_out:
 	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put_autosuspend(&slave->dev);
 
-	return 0;
+	return ret;
 }
 
 static int es9356_sdw_update_status(struct sdw_slave *slave,
@@ -1000,10 +1062,10 @@ static int es9356_sdw_interrupt_callback(struct sdw_slave *slave,
 		count++;
 	} while (stat != 0 && count < retry);
 
-	/* The 280 ms figure was determined through testing */
+	/* The 50 ms figure was determined through testing */
 	if (status->sdca_cascade && !es9356->disable_irq)
 		mod_delayed_work(system_power_efficient_wq,
-			&es9356->interrupt_handle_work, msecs_to_jiffies(280));
+			&es9356->interrupt_handle_work, msecs_to_jiffies(50));
 
 	mutex_unlock(&es9356->disable_irq_lock);
 	return 0;
