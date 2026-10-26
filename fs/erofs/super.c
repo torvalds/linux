@@ -827,7 +827,8 @@ static int erofs_sb_share_test_super(struct super_block *sb,
 		return 0;
 	return file_inode(sbi->dif0.file) == file_inode(new_sbi->dif0.file) &&
 	       sbi->dif0.fsoff == new_sbi->dif0.fsoff &&
-	       !memcmp(&sbi->opt, &new_sbi->opt, sizeof(sbi->opt));
+	       !memcmp(&sbi->opt, &new_sbi->opt, sizeof(sbi->opt)) &&
+	       !new_sbi->devs->extra_devices;
 }
 
 static int erofs_file_get_tree(struct fs_context *fc)
