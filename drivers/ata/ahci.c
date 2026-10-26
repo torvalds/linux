@@ -26,6 +26,7 @@
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/gfp.h>
+#include <linux/pm_runtime.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
@@ -68,7 +69,6 @@ enum board_ids {
 	/* board IDs for specific chipsets in alphabetical order */
 	board_ahci_al,
 	board_ahci_avn,
-	board_ahci_jmb585,
 	board_ahci_mcp65,
 	board_ahci_mcp77,
 	board_ahci_mcp89,
@@ -212,15 +212,6 @@ static const struct ata_port_info ahci_port_info[] = {
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_avn_ops,
-	},
-	/* JMicron JMB582/585: 64-bit DMA is broken, force 32-bit */
-	[board_ahci_jmb585] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_IGN_IRQ_IF_ERR |
-				 AHCI_HFLAG_32BIT_ONLY),
-		.flags		= AHCI_FLAG_COMMON,
-		.pio_mask	= ATA_PIO4,
-		.udma_mask	= ATA_UDMA6,
-		.port_ops	= &ahci_ops,
 	},
 	[board_ahci_mcp65] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_NO_FPDMA_AA | AHCI_HFLAG_NO_PMP |
@@ -955,14 +946,6 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 		PCI_VDEVICE(INTEL, 0x4b63),
 		.driver_data = board_ahci_pcs_quirk,
 	}, {
-		/* JMicron JMB582/585: force 32-bit DMA (broken 64-bit implementation) */
-		PCI_VDEVICE(JMICRON, 0x0582),
-		.driver_data = board_ahci_jmb585,
-
-	}, {
-		PCI_VDEVICE(JMICRON, 0x0585),
-		.driver_data = board_ahci_jmb585,
-	}, {
 		/* JMicron 360/1/3/5/6, match class to avoid IDE function */
 		PCI_DEVICE(PCI_VENDOR_ID_JMICRON, PCI_ANY_ID),
 		.class = PCI_CLASS_STORAGE_SATA_AHCI,
@@ -1642,34 +1625,27 @@ MODULE_PARM_DESC(mask_port_ext,
 		 "where <pci_dev> is the PCI ID of an AHCI controller in the "
 		 "form \"domain:bus:dev.func\"");
 
-static u32 ahci_port_mask(struct device *dev, char *mask_s)
+static void ahci_port_mask(struct device *dev, char *mask_s, u32 *mask)
 {
-	unsigned int mask;
-
-	if (kstrtouint(mask_s, 0, &mask)) {
+	if (kstrtou32(mask_s, 0, mask))
 		dev_err(dev, "Invalid port map mask\n");
-		return 0;
-	}
-
-	return mask;
 }
 
-static u32 ahci_get_port_mask(struct device *dev, char *mask_p)
+static void ahci_get_port_mask(struct device *dev, char *mask_p, u32 *mask)
 {
 	char *param, *end, *str, *mask_s;
 	char *name;
-	u32 mask = 0;
 
 	if (!mask_p || !strlen(mask_p))
-		return 0;
+		return;
 
 	str = kstrdup(mask_p, GFP_KERNEL);
 	if (!str)
-		return 0;
+		return;
 
 	/* Handle single mask case */
 	if (!strchr(str, '=')) {
-		mask = ahci_port_mask(dev, str);
+		ahci_port_mask(dev, str, mask);
 		goto free;
 	}
 
@@ -1704,13 +1680,11 @@ static u32 ahci_get_port_mask(struct device *dev, char *mask_p)
 			param++;
 		}
 
-		mask = ahci_port_mask(dev, mask_s);
+		ahci_port_mask(dev, mask_s, mask);
 	}
 
 free:
 	kfree(str);
-
-	return mask;
 }
 
 static void ahci_pci_save_initial_config(struct pci_dev *pdev,
@@ -1736,10 +1710,10 @@ static void ahci_pci_save_initial_config(struct pci_dev *pdev,
 	}
 
 	/* Handle port map masks passed as module parameter. */
-	hpriv->mask_port_map =
-		ahci_get_port_mask(&pdev->dev, ahci_mask_port_map);
-	hpriv->mask_port_ext =
-		ahci_get_port_mask(&pdev->dev, ahci_mask_port_ext);
+	ahci_get_port_mask(&pdev->dev, ahci_mask_port_map,
+			   &hpriv->mask_port_map);
+	ahci_get_port_mask(&pdev->dev, ahci_mask_port_ext,
+			   &hpriv->mask_port_ext);
 
 	ahci_save_initial_config(&pdev->dev, hpriv);
 }
