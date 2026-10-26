@@ -15,6 +15,7 @@
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
 
+#ifdef CONFIG_PNFS_SCSI_LAYOUT
 static void bl_unregister_scsi(struct pnfs_block_dev *dev)
 {
 	struct block_device *bdev = file_bdev(dev->bdev_file);
@@ -45,6 +46,16 @@ static bool bl_register_scsi(struct pnfs_block_dev *dev)
 	trace_bl_pr_key_reg(bdev, dev->pr_key);
 	return true;
 }
+#else
+static void bl_unregister_scsi(struct pnfs_block_dev *dev)
+{
+}
+
+static bool bl_register_scsi(struct pnfs_block_dev *dev)
+{
+	return false;
+}
+#endif /* CONFIG_PNFS_SCSI_LAYOUT */
 
 static void bl_unregister_dev(struct pnfs_block_dev *dev)
 {
@@ -292,7 +303,7 @@ static int
 bl_parse_deviceid(struct nfs_server *server, struct pnfs_block_dev *d,
 		struct pnfs_block_volume *volumes, int idx, gfp_t gfp_mask);
 
-
+#ifdef CONFIG_PNFS_BLOCK_LAYOUT
 static int
 bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
 		struct pnfs_block_volume *volumes, int idx, gfp_t gfp_mask)
@@ -320,7 +331,17 @@ bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
 		file_bdev(bdev_file)->bd_disk->disk_name);
 	return 0;
 }
+#else
+static int
+bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
+                struct pnfs_block_volume *volumes, int idx, gfp_t gfp_mask)
+{
+	dprintk("unsupported volume type: %d\n", PNFS_BLOCK_VOLUME_SIMPLE);
+	return -EIO;
+}
+#endif /* CONFIG_PNFS_BLOCK_LAYOUT */
 
+#ifdef CONFIG_PNFS_SCSI_LAYOUT
 static bool
 bl_validate_designator(struct pnfs_block_volume *v)
 {
@@ -449,6 +470,15 @@ out_blkdev_put:
 	d->bdev_file = NULL;
 	return error;
 }
+#else
+static int
+bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
+		struct pnfs_block_volume *volumes, int idx, gfp_t gfp_mask)
+{
+	dprintk("unsupported volume type: %d\n", PNFS_BLOCK_VOLUME_SCSI);
+	return -EIO;
+}
+#endif /* CONFIG_PNFS_SCSI_LAYOUT */
 
 static int
 bl_parse_slice(struct nfs_server *server, struct pnfs_block_dev *d,

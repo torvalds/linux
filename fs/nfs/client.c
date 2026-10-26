@@ -191,6 +191,13 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 
 	clp->cl_principal = "*";
 	clp->cl_xprtsec = cl_init->xprtsec;
+	/*
+	 * Every client in a namespace names the same keyring, so
+	 * nfs_match_client() does not compare keyring_serial.
+	 */
+	if (clp->cl_xprtsec.policy == RPC_XPRTSEC_TLS_X509)
+		clp->cl_xprtsec.keyring_serial =
+			key_serial(nfs_net_keyring(clp->cl_net));
 	return clp;
 
 error_cleanup:
@@ -256,7 +263,7 @@ static void pnfs_init_server(struct nfs_server *server)
  */
 void nfs_free_client(struct nfs_client *clp)
 {
-	nfs_localio_disable_client(clp);
+	nfs_localio_free_client(clp);
 
 	/* -EIO all pending I/O */
 	if (!IS_ERR(clp->cl_rpcclient))
@@ -549,7 +556,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
 		.cred		= cl_init->cred,
-		.xprtsec	= cl_init->xprtsec,
+		.xprtsec	= clp->cl_xprtsec,
 		.connect_timeout = cl_init->connect_timeout,
 		.reconnect_timeout = cl_init->reconnect_timeout,
 	};
@@ -1295,7 +1302,8 @@ void nfs_clients_init(struct net *net)
 	INIT_LIST_HEAD(&nn->nfs_volume_list);
 #if IS_ENABLED(CONFIG_NFS_V4)
 	idr_init(&nn->cb_ident_idr);
-	INIT_LIST_HEAD(&nn->nfs4_data_server_cache);
+	for (int i = 0; i < NFS4_DS_CACHE_HASH_SIZE; i++)
+		INIT_HLIST_HEAD(&nn->nfs4_data_server_cache[i]);
 	spin_lock_init(&nn->nfs4_data_server_lock);
 #endif /* CONFIG_NFS_V4 */
 	spin_lock_init(&nn->nfs_client_lock);
@@ -1315,7 +1323,8 @@ void nfs_clients_exit(struct net *net)
 	WARN_ON_ONCE(!list_empty(&nn->nfs_client_list));
 	WARN_ON_ONCE(!list_empty(&nn->nfs_volume_list));
 #if IS_ENABLED(CONFIG_NFS_V4)
-	WARN_ON_ONCE(!list_empty(&nn->nfs4_data_server_cache));
+	for (int i = 0; i < NFS4_DS_CACHE_HASH_SIZE; i++)
+		WARN_ON_ONCE(!hlist_empty(&nn->nfs4_data_server_cache[i]));
 #endif /* CONFIG_NFS_V4 */
 }
 

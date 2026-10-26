@@ -145,6 +145,7 @@ struct xprtsec_parms {
 	enum xprtsec_policies	policy;
 
 	/* authentication material */
+	key_serial_t		keyring_serial;
 	key_serial_t		cert_serial;
 	key_serial_t		privkey_serial;
 };

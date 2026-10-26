@@ -74,6 +74,8 @@ struct nfs_client {
 	u64			cl_clientid;	/* constant */
 	nfs4_verifier		cl_confirm;	/* Clientid verifier */
 	unsigned long		cl_state;
+	/* bumped on each CB_NOTIFY_DEVICEID CHANGE for this client */
+	atomic_t		cl_deviceid_change_epoch;
 
 	spinlock_t		cl_lock;
 
@@ -101,6 +103,8 @@ struct nfs_client {
 	/* The flags used for obtaining the clientid during EXCHANGE_ID */
 	u32			cl_exchange_flags;
 	struct nfs4_session	*cl_session;	/* shared session */
+	/* CB_NOTIFY_DEVICEID DELETE suspects, protected by cl_lock */
+	struct list_head	cl_deviceid_deletes;
 	bool			cl_preserve_clid;
 	struct nfs41_server_owner *cl_serverowner;
 	struct nfs41_server_scope *cl_serverscope;
@@ -248,6 +252,10 @@ struct nfs_server {
 						   that are supported on this
 						   filesystem */
 	struct pnfs_layoutdriver_type  *pnfs_curr_ld; /* Active layout driver */
+	unsigned int		lg_reply_sz;	/* Learned LAYOUTGET reply
+						   buffer size, when the layout
+						   driver's default has proved
+						   too small */
 	struct rpc_wait_queue	roc_rpcwaitq;
 
 	/* the following fields are protected by nfs_client->cl_lock */

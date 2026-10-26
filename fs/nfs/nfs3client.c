@@ -84,7 +84,8 @@ struct nfs_server *nfs3_clone_server(struct nfs_server *source,
  */
 struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 		const struct sockaddr_storage *ds_addr, int ds_addrlen,
-		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans)
+		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans,
+		unsigned int ds_nconnect)
 {
 	struct rpc_timeout ds_timeout;
 	unsigned long connect_timeout = ds_timeo * (ds_retrans + 1) * HZ / 10;
@@ -101,6 +102,7 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 		.cred = mds_srv->cred,
 		.xprtsec = {
 			.policy = RPC_XPRTSEC_NONE,
+			.keyring_serial = TLS_NO_KEYRING,
 			.cert_serial = TLS_NO_CERT,
 			.privkey_serial = TLS_NO_PRIVKEY,
 		},
@@ -124,8 +126,12 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 		fallthrough;
 	case XPRT_TRANSPORT_RDMA:
 	case XPRT_TRANSPORT_TCP:
-		if (mds_clp->cl_nconnect > 1)
+		if (mds_clp->cl_nconnect > 1) {
 			cl_init.nconnect = mds_clp->cl_nconnect;
+			if (ds_nconnect)
+				cl_init.nconnect = min(cl_init.nconnect,
+						       ds_nconnect);
+		}
 	}
 
 	if (mds_srv->flags & NFS_MOUNT_NORESVPORT)

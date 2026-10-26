@@ -18,6 +18,7 @@ struct bl_dev_msg {
 	uint32_t major, minor;
 };
 
+struct key;
 struct nfs_netns_client;
 
 struct nfs_net {
@@ -34,11 +35,15 @@ struct nfs_net {
 	unsigned short nfs_callback_tcpport;
 	unsigned short nfs_callback_tcpport6;
 	int cb_users[NFS4_MAX_MINOR_VERSION + 1];
-	struct list_head nfs4_data_server_cache;
+#define NFS4_DS_CACHE_HASH_BITS 8
+#define NFS4_DS_CACHE_HASH_SIZE (1 << NFS4_DS_CACHE_HASH_BITS)
+	/* every entry is still in bucket 0 until the key is added */
+	struct hlist_head nfs4_data_server_cache[NFS4_DS_CACHE_HASH_SIZE];
 	spinlock_t nfs4_data_server_lock;
 #endif /* CONFIG_NFS_V4 */
 	struct nfs_netns_client *nfs_client;
 	spinlock_t nfs_client_lock;
+	struct key *nfs_keyring;
 	ktime_t boot_time;
 	struct rpc_stat rpcstats;
 #ifdef CONFIG_PROC_FS
@@ -47,5 +52,12 @@ struct nfs_net {
 };
 
 extern unsigned int nfs_net_id;
+
+static inline struct key *nfs_net_keyring(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
+	return nn->nfs_keyring;
+}
 
 #endif

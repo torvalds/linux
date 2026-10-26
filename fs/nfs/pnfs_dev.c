@@ -40,8 +40,11 @@
 
 /*
  * Device ID RCU cache. A device ID is unique per server and layout type.
+ *
+ * 256 buckets keeps the chains short at the 1024-or-more devices a
+ * striping deployment expects, for 2KB of BSS on 64-bit.
  */
-#define NFS4_DEVICE_ID_HASH_BITS	5
+#define NFS4_DEVICE_ID_HASH_BITS	8
 #define NFS4_DEVICE_ID_HASH_SIZE	(1 << NFS4_DEVICE_ID_HASH_BITS)
 #define NFS4_DEVICE_ID_HASH_MASK	(NFS4_DEVICE_ID_HASH_SIZE - 1)
 
@@ -181,6 +184,21 @@ __nfs4_find_get_deviceid(struct nfs_server *server,
 	return d;
 }
 
+/*
+ * Bumped before the stale entry is unhashed, so an insert serialised
+ * after the unhash by nfs4_deviceid_lock observes the new epoch.
+ */
+void
+nfs4_deviceid_bump_change_epoch(struct nfs_client *clp)
+{
+	atomic_inc(&clp->cl_deviceid_change_epoch);
+}
+
+/* Discarding a raced reply is an optimisation, not a correctness
+ * requirement, and the epoch moves at the server's rate: bound it.
+ */
+#define NFS4_DEVICEID_FETCH_RETRIES	3
+
 struct nfs4_deviceid_node *
 nfs4_find_get_deviceid(struct nfs_server *server,
 		const struct nfs4_deviceid *id, const struct cred *cred,
@@ -188,11 +206,14 @@ nfs4_find_get_deviceid(struct nfs_server *server,
 {
 	long hash = nfs4_deviceid_hash(id);
 	struct nfs4_deviceid_node *d, *new;
+	int epoch, tries = 0;
 
+retry:
 	d = __nfs4_find_get_deviceid(server, id, hash);
 	if (d)
 		goto found;
 
+	epoch = atomic_read(&server->nfs_client->cl_deviceid_change_epoch);
 	new = nfs4_get_device_info(server, id, cred, gfp_mask);
 	if (!new) {
 		trace_nfs4_find_deviceid(server, id, -ENOENT);
@@ -200,6 +221,13 @@ nfs4_find_get_deviceid(struct nfs_server *server,
 	}
 
 	spin_lock(&nfs4_deviceid_lock);
+	if (atomic_read(&server->nfs_client->cl_deviceid_change_epoch) != epoch &&
+	    ++tries <= NFS4_DEVICEID_FETCH_RETRIES) {
+		/* a mapping changed while we fetched; ours may be stale */
+		spin_unlock(&nfs4_deviceid_lock);
+		server->pnfs_curr_ld->free_deviceid_node(new);
+		goto retry;
+	}
 	d = __nfs4_find_get_deviceid(server, id, hash);
 	if (d) {
 		spin_unlock(&nfs4_deviceid_lock);
