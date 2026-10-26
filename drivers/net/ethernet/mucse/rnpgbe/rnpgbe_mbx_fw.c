@@ -392,8 +392,11 @@ static void mucse_mbx_fw_req_handler(struct mucse_hw *hw,
 		u16 speed = le16_to_cpu(req->link_stat.st.speed);
 
 		spin_lock_irqsave(&mucse->link_lock, flags);
-		if (magic != ST_VALID_MAGIC) {
-			/* Do not change the cached state for an invalid event.
+		/* Link-down events do not carry valid speed/duplex information
+		 * and may have a zero port_magic. Validate it only for link up.
+		 */
+		if (mucse_link_is_up(hw, req) && magic != ST_VALID_MAGIC) {
+			/* Keep the cached state for an invalid link-up event.
 			 * Use an invalid speed encoding to make firmware report
 			 * again.
 			 */
