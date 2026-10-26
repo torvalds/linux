@@ -43,7 +43,7 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 	return *(unsigned long *)((void *)regs + pt_regs_offset[idx]);
 }
 
-int perf_reg_validate(u64 mask)
+int perf_reg_validate(u64 mask, bool simd_enabled)
 {
 	if (!mask || mask & REG_RESERVED)
 		return -EINVAL;
