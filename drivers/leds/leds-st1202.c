@@ -12,9 +12,11 @@
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#define ST1202_BLINK_DEFAULT_DELAY         500
 #define ST1202_CHAN_DISABLE_ALL            0x00
 #define ST1202_CHAN_ENABLE_HIGH            0x03
 #define ST1202_CHAN_ENABLE_LOW             0x02
@@ -23,7 +25,8 @@
 #define ST1202_CONFIG_REG_PATS             BIT(7)
 /* PATSR: Pattern sequence runs (self-clear when sequence is finished) */
 #define ST1202_CONFIG_REG_PATSR            BIT(6)
-#define ST1202_CONFIG_REG_SHFT             BIT(3)
+/* SHFT: Phase-shift delay enable */
+#define ST1202_CONFIG_REG_PHASE_SHIFT      BIT(3)
 #define ST1202_DEV_ENABLE                  0x01
 #define ST1202_DEV_ENABLE_ON               BIT(0)
 #define ST1202_DEV_ENABLE_RESET            BIT(7)
@@ -57,7 +60,7 @@ static struct st1202_led *cdev_to_st1202_led(struct led_classdev *cdev)
 	return container_of(cdev, struct st1202_led, led_cdev);
 }
 
-static int st1202_read_reg(struct st1202_chip *chip, int reg, uint8_t *val)
+static int st1202_read_reg(struct st1202_chip *chip, int reg, u8 *val)
 {
 	struct device *dev = &chip->client->dev;
 	int ret;
@@ -68,11 +71,11 @@ static int st1202_read_reg(struct st1202_chip *chip, int reg, uint8_t *val)
 		return ret;
 	}
 
-	*val = (uint8_t)ret;
+	*val = (u8)ret;
 	return 0;
 }
 
-static int st1202_write_reg(struct st1202_chip *chip, int reg, uint8_t val)
+static int st1202_write_reg(struct st1202_chip *chip, int reg, u8 val)
 {
 	struct device *dev = &chip->client->dev;
 	int ret;
@@ -84,9 +87,25 @@ static int st1202_write_reg(struct st1202_chip *chip, int reg, uint8_t val)
 	return ret;
 }
 
-static uint8_t st1202_prescalar_to_miliseconds(unsigned int value)
+static u8 st1202_milliseconds_to_prescaler(unsigned int value)
 {
 	return value / ST1202_MILLIS_PATTERN_DUR_MIN;
+}
+
+/* The channel current register is 8 bits wide, whatever max-brightness says */
+static u8 st1202_iled_max(struct led_classdev *led_cdev)
+{
+	return min_t(unsigned int, led_cdev->max_brightness, U8_MAX);
+}
+
+static u16 st1202_brightness_to_pwm(int brightness, unsigned int max_brightness)
+{
+	if (!max_brightness)
+		return 0;
+
+	brightness = clamp_t(int, brightness, LED_OFF, max_brightness);
+
+	return brightness * ST1202_PATTERN_PWM_FULL / max_brightness;
 }
 
 static int st1202_pwm_pattern_write(struct st1202_chip *chip, int led_num,
@@ -125,7 +144,7 @@ static int st1202_duration_pattern_write(struct st1202_chip *chip, int pattern,
 					unsigned int value)
 {
 	return st1202_write_reg(chip, (ST1202_PATTERN_DUR + pattern),
-				st1202_prescalar_to_miliseconds(value));
+				st1202_milliseconds_to_prescaler(value));
 }
 
 static int __st1202_channel_set(struct st1202_chip *chip, int led_num, bool active)
@@ -160,27 +179,6 @@ static int __st1202_channel_set(struct st1202_chip *chip, int led_num, bool acti
 	return 0;
 }
 
-static int st1202_channel_set(struct st1202_chip *chip, int led_num, bool active)
-{
-	guard(mutex)(&chip->lock);
-
-	return __st1202_channel_set(chip, led_num, active);
-}
-
-static void st1202_brightness_set(struct led_classdev *led_cdev,
-				enum led_brightness value)
-{
-	struct st1202_led *led = cdev_to_st1202_led(led_cdev);
-	struct st1202_chip *chip = led->chip;
-
-	guard(mutex)(&chip->lock);
-
-	for (int patt = 0; patt < ST1202_MAX_PATTERNS; patt++)
-		st1202_pwm_pattern_write(chip, led->led_num, patt, ST1202_PATTERN_PWM_FULL);
-	st1202_write_reg(chip, ST1202_ILED_REG0 + led->led_num, value);
-	__st1202_channel_set(chip, led->led_num, !!value);
-}
-
 static enum led_brightness st1202_brightness_get(struct led_classdev *led_cdev)
 {
 	struct st1202_led *led = cdev_to_st1202_led(led_cdev);
@@ -197,8 +195,30 @@ static enum led_brightness st1202_brightness_get(struct led_classdev *led_cdev)
 static int st1202_led_set(struct led_classdev *ldev, enum led_brightness value)
 {
 	struct st1202_led *led = cdev_to_st1202_led(ldev);
+	struct st1202_chip *chip = led->chip;
+	int ret;
 
-	return st1202_channel_set(led->chip, led->led_num, !!value);
+	guard(mutex)(&chip->lock);
+
+	/*
+	 * The output of a channel is ILED x Pattern_PWM / 4095. Setting every
+	 * PWM slot to full scale makes it equal ILED whatever the state of the
+	 * sequencer, so the brightness takes effect without stopping the
+	 * sequencer, which is global and would disturb the other channels.
+	 */
+	for (int pattern = 0; pattern < ST1202_MAX_PATTERNS; pattern++) {
+		ret = st1202_pwm_pattern_write(chip, led->led_num, pattern,
+						ST1202_PATTERN_PWM_FULL);
+		if (ret)
+			return ret;
+	}
+
+	ret = st1202_write_reg(chip, ST1202_ILED_REG0 + led->led_num,
+				min_t(unsigned int, value, st1202_iled_max(ldev)));
+	if (ret)
+		return ret;
+
+	return __st1202_channel_set(chip, led->led_num, !!value);
 }
 
 static int st1202_led_pattern_clear(struct led_classdev *ldev)
@@ -209,16 +229,25 @@ static int st1202_led_pattern_clear(struct led_classdev *ldev)
 
 	guard(mutex)(&chip->lock);
 
-	ret = st1202_write_reg(chip, ST1202_CONFIG_REG, ST1202_CONFIG_REG_SHFT);
+	ret = st1202_write_reg(chip, ST1202_ILED_REG0 + led->led_num, LED_OFF);
 	if (ret != 0)
 		return ret;
 
-	for (int patt = 0; patt < ST1202_MAX_PATTERNS; patt++) {
-		ret = st1202_pwm_pattern_write(chip, led->led_num, patt, ST1202_PATTERN_PWM_FULL);
+	ret = __st1202_channel_set(chip, led->led_num, false);
+	if (ret != 0)
+		return ret;
+
+	ret = st1202_write_reg(chip, ST1202_CONFIG_REG, ST1202_CONFIG_REG_PHASE_SHIFT);
+	if (ret != 0)
+		return ret;
+
+	for (int pattern = 0; pattern < ST1202_MAX_PATTERNS; pattern++) {
+		ret = st1202_pwm_pattern_write(chip, led->led_num, pattern,
+						ST1202_PATTERN_PWM_FULL);
 		if (ret != 0)
 			return ret;
 
-		ret = st1202_write_reg(chip, ST1202_PATTERN_DUR + patt, 0);
+		ret = st1202_write_reg(chip, ST1202_PATTERN_DUR + pattern, 0);
 		if (ret != 0)
 			return ret;
 	}
@@ -227,34 +256,45 @@ static int st1202_led_pattern_clear(struct led_classdev *ldev)
 }
 
 static int st1202_led_pattern_set(struct led_classdev *ldev,
-				struct led_pattern *pattern,
+				struct led_pattern *patterns,
 				u32 len, int repeat)
 {
 	struct st1202_led *led = cdev_to_st1202_led(ldev);
 	struct st1202_chip *chip = led->chip;
+	unsigned int max_brightness;
 	int ret;
+
+	max_brightness = st1202_iled_max(ldev);
 
 	if (len > ST1202_MAX_PATTERNS)
 		return -EINVAL;
 
-	for (int patt = 0; patt < len; patt++) {
-		if (pattern[patt].delta_t < ST1202_MILLIS_PATTERN_DUR_MIN ||
-				pattern[patt].delta_t > ST1202_MILLIS_PATTERN_DUR_MAX)
+	for (int pattern = 0; pattern < len; pattern++) {
+		if (patterns[pattern].delta_t < ST1202_MILLIS_PATTERN_DUR_MIN ||
+				patterns[pattern].delta_t > ST1202_MILLIS_PATTERN_DUR_MAX)
 			return -EINVAL;
 	}
 
 	guard(mutex)(&chip->lock);
 
-	ret = st1202_write_reg(chip, ST1202_CONFIG_REG, ST1202_CONFIG_REG_SHFT);
+	ret = st1202_write_reg(chip, ST1202_CONFIG_REG, ST1202_CONFIG_REG_PHASE_SHIFT);
 	if (ret != 0)
 		return ret;
 
-	for (int patt = 0; patt < len; patt++) {
-		ret = st1202_pwm_pattern_write(chip, led->led_num, patt, pattern[patt].brightness);
+	for (int pattern = 0; pattern < len; pattern++) {
+		ret = st1202_pwm_pattern_write(chip, led->led_num, pattern,
+					st1202_brightness_to_pwm(patterns[pattern].brightness,
+								max_brightness));
 		if (ret != 0)
 			return ret;
 
-		ret = st1202_duration_pattern_write(chip, patt, pattern[patt].delta_t);
+		ret = st1202_duration_pattern_write(chip, pattern, patterns[pattern].delta_t);
+		if (ret != 0)
+			return ret;
+	}
+
+	for (int pattern = len; pattern < ST1202_MAX_PATTERNS; pattern++) {
+		ret = st1202_pwm_pattern_write(chip, led->led_num, pattern, LED_OFF);
 		if (ret != 0)
 			return ret;
 	}
@@ -263,16 +303,115 @@ static int st1202_led_pattern_set(struct led_classdev *ldev,
 	if (ret != 0)
 		return ret;
 
+	ret = st1202_write_reg(chip, ST1202_ILED_REG0 + led->led_num, max_brightness);
+	if (ret != 0)
+		return ret;
+
 	ret = __st1202_channel_set(chip, led->led_num, true);
 	if (ret != 0)
 		return ret;
 
-	ret = st1202_write_reg(chip, ST1202_CONFIG_REG, (ST1202_CONFIG_REG_PATSR |
-							ST1202_CONFIG_REG_PATS | ST1202_CONFIG_REG_SHFT));
+	ret = st1202_write_reg(chip, ST1202_CONFIG_REG,
+				ST1202_CONFIG_REG_PATSR | ST1202_CONFIG_REG_PATS |
+				ST1202_CONFIG_REG_PHASE_SHIFT);
 	if (ret != 0)
 		return ret;
 
 	return 0;
+}
+
+static int st1202_blink_set(struct led_classdev *led_cdev,
+			unsigned long *delay_on, unsigned long *delay_off)
+{
+	struct st1202_led *led = cdev_to_st1202_led(led_cdev);
+	struct st1202_chip *chip = led->chip;
+	unsigned long on, off;
+	int ret;
+
+	if (!*delay_on)
+		*delay_on = ST1202_BLINK_DEFAULT_DELAY;
+	if (!*delay_off)
+		*delay_off = ST1202_BLINK_DEFAULT_DELAY;
+
+	on = *delay_on;
+	off = *delay_off;
+
+	on = clamp_val(on, ST1202_MILLIS_PATTERN_DUR_MIN, ST1202_MILLIS_PATTERN_DUR_MAX);
+	off = clamp_val(off, ST1202_MILLIS_PATTERN_DUR_MIN, ST1202_MILLIS_PATTERN_DUR_MAX);
+	on = roundup(on, ST1202_MILLIS_PATTERN_DUR_MIN);
+	off = roundup(off, ST1202_MILLIS_PATTERN_DUR_MIN);
+
+	guard(mutex)(&chip->lock);
+
+	ret = st1202_write_reg(chip, ST1202_CONFIG_REG, ST1202_CONFIG_REG_PHASE_SHIFT);
+	if (ret)
+		return ret;
+
+	/* Zero out PWM for all other active channels to prevent them from blinking */
+	for (int chan = 0; chan < ST1202_MAX_LEDS; chan++) {
+		if (!chip->leds[chan].is_active || chan == led->led_num)
+			continue;
+
+		ret = st1202_pwm_pattern_write(chip, chan, 0, LED_OFF);
+		if (ret)
+			return ret;
+
+		ret = st1202_pwm_pattern_write(chip, chan, 1, LED_OFF);
+		if (ret)
+			return ret;
+	}
+
+	ret = st1202_pwm_pattern_write(chip, led->led_num, 0, ST1202_PATTERN_PWM_FULL);
+	if (ret)
+		return ret;
+
+	for (int pattern = 1; pattern < ST1202_MAX_PATTERNS; pattern++) {
+		ret = st1202_pwm_pattern_write(chip, led->led_num, pattern, LED_OFF);
+		if (ret)
+			return ret;
+	}
+
+	ret = st1202_duration_pattern_write(chip, 0, on);
+	if (ret)
+		return ret;
+
+	ret = st1202_duration_pattern_write(chip, 1, off);
+	if (ret)
+		return ret;
+
+	for (int pattern = 2; pattern < ST1202_MAX_PATTERNS; pattern++) {
+		ret = st1202_write_reg(chip, ST1202_PATTERN_DUR + pattern, 0);
+		if (ret)
+			return ret;
+	}
+
+	ret = st1202_write_reg(chip, ST1202_PATTERN_REP, U8_MAX);
+	if (ret)
+		return ret;
+
+	ret = st1202_write_reg(chip, ST1202_ILED_REG0 + led->led_num, st1202_iled_max(led_cdev));
+	if (ret)
+		return ret;
+
+	ret = __st1202_channel_set(chip, led->led_num, true);
+	if (ret)
+		return ret;
+
+	ret = st1202_write_reg(chip, ST1202_CONFIG_REG,
+				ST1202_CONFIG_REG_PATSR | ST1202_CONFIG_REG_PATS |
+				ST1202_CONFIG_REG_PHASE_SHIFT);
+	if (ret)
+		return ret;
+
+	*delay_on = on;
+	*delay_off = off;
+
+	return 0;
+}
+
+static void st1202_fwnode_put(void *data)
+{
+	fwnode_handle_put(data);
 }
 
 static int st1202_dt_init(struct st1202_chip *chip)
@@ -294,14 +433,18 @@ static int st1202_dt_init(struct st1202_chip *chip)
 
 		led = &chip->leds[reg];
 		led->is_active = true;
-		led->fwnode = of_fwnode_handle(child);
+		led->fwnode = fwnode_handle_get(of_fwnode_handle(child));
+
+		err = devm_add_action_or_reset(dev, st1202_fwnode_put, led->fwnode);
+		if (err)
+			return err;
 
 		led->led_cdev.max_brightness = U8_MAX;
 		led->led_cdev.brightness_set_blocking = st1202_led_set;
 		led->led_cdev.pattern_set = st1202_led_pattern_set;
 		led->led_cdev.pattern_clear = st1202_led_pattern_clear;
 		led->led_cdev.default_trigger = "pattern";
-		led->led_cdev.brightness_set = st1202_brightness_set;
+		led->led_cdev.blink_set = st1202_blink_set;
 		led->led_cdev.brightness_get = st1202_brightness_get;
 	}
 
@@ -330,7 +473,7 @@ static int st1202_setup(struct st1202_chip *chip)
 		return ret;
 
 	/* Enable phase-shift delay feature */
-	ret = st1202_write_reg(chip, ST1202_CONFIG_REG, ST1202_CONFIG_REG_SHFT);
+	ret = st1202_write_reg(chip, ST1202_CONFIG_REG, ST1202_CONFIG_REG_PHASE_SHIFT);
 	if (ret < 0)
 		return ret;
 
@@ -342,7 +485,7 @@ static int st1202_setup(struct st1202_chip *chip)
 	/* Duration of initialization */
 	usleep_range(6500, 10000);
 
-	/* Deactivate all LEDS (channels) and activate only the ones found in Device Tree */
+	/* Deactivate all LEDs (channels); each is enabled when it is lit */
 	ret = st1202_write_reg(chip, ST1202_CHAN_ENABLE_LOW, ST1202_CHAN_DISABLE_ALL);
 	if (ret < 0)
 		return ret;
@@ -388,11 +531,6 @@ static int st1202_probe(struct i2c_client *client)
 
 		if (!led->is_active)
 			continue;
-
-		ret = st1202_channel_set(led->chip, led->led_num, true);
-		if (ret < 0)
-			return dev_err_probe(&client->dev, ret,
-					"Failed to activate LED channel\n");
 
 		ret = st1202_led_pattern_clear(&led->led_cdev);
 		if (ret < 0)

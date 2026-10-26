@@ -339,7 +339,7 @@ static void ich7_lpc_cleanup(struct device *dev)
 
 /*
  * The OS has determined that the LPC of the Intel ICH7 Southbridge is present
- * so we can retrive the required operational information and prepare the GPIO.
+ * so we can retrieve the required operational information and prepare the GPIO.
  */
 static struct pci_dev *nas_gpio_pci_dev;
 static int ich7_lpc_probe(struct pci_dev *dev,

@@ -7,9 +7,13 @@
  * Author: Richard Purdie <rpurdie@openedhand.com>
  */
 
+#include <linux/bug.h>
+#include <linux/cleanup.h>
+#include <linux/compiler.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/timer.h>
@@ -33,9 +37,38 @@ trigger_relevant(struct led_classdev *led_cdev, struct led_trigger *trig)
 	return !trig->trigger_type || trig->trigger_type == led_cdev->trigger_type;
 }
 
-ssize_t led_trigger_write(struct file *filp, struct kobject *kobj,
-			  const struct bin_attribute *bin_attr, char *buf,
-			  loff_t pos, size_t count)
+static bool __led_trigger_is_hw_controlled(struct led_classdev *led_cdev)
+{
+	lockdep_assert_held(&led_cdev->trigger_lock);
+
+	if (!led_cdev->trigger)
+		return false;
+
+	if (!led_cdev->hw_control_trigger ||
+	    strcmp(led_cdev->hw_control_trigger, led_cdev->trigger->name))
+		return false;
+
+	if (led_cdev->trigger->hw_offloaded)
+		return led_cdev->trigger->hw_offloaded(led_cdev);
+
+	dev_warn_once(led_cdev->dev,
+		      "Hardware control trigger %s doesn't provide offloaded state\n",
+		      led_cdev->trigger->name);
+
+	/* Otherwise assume private triggers are always offloaded. */
+	return led_cdev->trigger->trigger_type;
+}
+
+bool led_trigger_is_hw_controlled(struct led_classdev *led_cdev)
+{
+	guard(rwsem_read)(&led_cdev->trigger_lock);
+	return __led_trigger_is_hw_controlled(led_cdev);
+}
+EXPORT_SYMBOL_GPL(led_trigger_is_hw_controlled);
+
+static ssize_t trigger_write(struct file *filp, struct kobject *kobj,
+			     const struct bin_attribute *bin_attr, char *buf,
+			     loff_t pos, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
@@ -78,7 +111,6 @@ unlock:
 	mutex_unlock(&led_cdev->led_access);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(led_trigger_write);
 
 __printf(3, 4)
 static int led_trigger_snprintf(char *buf, ssize_t size, const char *fmt, ...)
@@ -130,9 +162,9 @@ static int led_trigger_format(char *buf, size_t size,
  * attribute, which is not limited by length. This is _not_ good design, do not
  * copy it.
  */
-ssize_t led_trigger_read(struct file *filp, struct kobject *kobj,
-			const struct bin_attribute *attr, char *buf,
-			loff_t pos, size_t count)
+static ssize_t trigger_read(struct file *filp, struct kobject *kobj,
+			    const struct bin_attribute *attr, char *buf,
+			    loff_t pos, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
@@ -160,10 +192,53 @@ ssize_t led_trigger_read(struct file *filp, struct kobject *kobj,
 
 	return len;
 }
-EXPORT_SYMBOL_GPL(led_trigger_read);
+static const BIN_ATTR_RW(trigger, 0);
+
+static const struct bin_attribute *const led_trigger_bin_attrs[] = {
+	&bin_attr_trigger,
+	NULL
+};
+
+static ssize_t trigger_may_offload_to_hw_show(struct device *dev,
+					      const struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	bool offloaded = led_trigger_is_hw_controlled(led_cdev);
+
+	return sysfs_emit(buf, "%s%s%s\n",
+			  offloaded ? "[" : "",
+			  led_cdev->hw_control_trigger,
+			  offloaded ? "]" : "");
+}
+static const DEVICE_ATTR_RO(trigger_may_offload_to_hw);
+
+static const struct attribute *const led_trigger_attrs[] = {
+	&dev_attr_trigger_may_offload_to_hw.attr,
+	NULL
+};
+
+static umode_t led_trigger_is_visible(struct kobject *kobj,
+				      const struct attribute *attr, int idx)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+
+	if (attr == &dev_attr_trigger_may_offload_to_hw.attr)
+		return led_cdev->hw_control_trigger ? attr->mode : 0;
+
+	return attr->mode;
+}
+
+const struct attribute_group led_trigger_group = {
+	.bin_attrs = led_trigger_bin_attrs,
+	.attrs_const = led_trigger_attrs,
+	.is_visible_const = led_trigger_is_visible,
+};
+EXPORT_SYMBOL_GPL(led_trigger_group);
 
 /* Caller must ensure led_cdev->trigger_lock held */
-int led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
+static int __led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig,
+			     bool hw_triggered)
 {
 	char *event = NULL;
 	char *envp[2];
@@ -194,7 +269,21 @@ int led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 		led_cdev->trigger_data = NULL;
 		led_cdev->activated = false;
 		led_cdev->flags &= ~LED_INIT_DEFAULT_TRIGGER;
-		led_set_brightness(led_cdev, LED_OFF);
+
+		/*
+		 * Hardware may have selected a new brightness level during its
+		 * hardware control transition, so only reset brightness if we
+		 * are switching to another trigger or if the switching is not
+		 * hardware triggered.
+		 *
+		 * Note that this does not apply to the error path, as running
+		 * into the error path implies a none => private trigger
+		 * transition. This hints that the LED driver and its private
+		 * trigger must have some fundamental bugs, so the error path
+		 * always turns off the LED to reset it to a certain state.
+		 */
+		if (trig || !hw_triggered)
+			led_set_brightness(led_cdev, LED_OFF);
 	}
 	if (trig) {
 		spin_lock(&trig->leddev_list_lock);
@@ -258,6 +347,11 @@ err_activate:
 
 	return ret;
 }
+
+int led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
+{
+	return __led_trigger_set(led_cdev, trig, false);
+}
 EXPORT_SYMBOL_GPL(led_trigger_set);
 
 void led_trigger_remove(struct led_classdev *led_cdev)
@@ -267,6 +361,15 @@ void led_trigger_remove(struct led_classdev *led_cdev)
 	up_write(&led_cdev->trigger_lock);
 }
 EXPORT_SYMBOL_GPL(led_trigger_remove);
+
+void led_trigger_remove_hw_control(struct led_classdev *led_cdev)
+{
+	guard(rwsem_write)(&led_cdev->trigger_lock);
+
+	if (__led_trigger_is_hw_controlled(led_cdev))
+		led_trigger_set(led_cdev, NULL);
+}
+EXPORT_SYMBOL_GPL(led_trigger_remove_hw_control);
 
 static bool led_match_default_trigger(struct led_classdev *led_cdev,
 				      struct led_trigger *trig)
@@ -402,6 +505,60 @@ int devm_led_trigger_register(struct device *dev,
 	return rc;
 }
 EXPORT_SYMBOL_GPL(devm_led_trigger_register);
+
+#ifdef CONFIG_LEDS_TRIGGERS_HW_CHANGED
+
+static void led_trigger_do_hw_control_transition(struct led_classdev *led_cdev, bool activate,
+						 struct led_trigger *hc_trig)
+{
+	if (activate && !led_cdev->trigger) /* "none" => private trigger. */
+		__led_trigger_set(led_cdev, hc_trig, true);
+	else if (!activate && led_cdev->trigger == hc_trig) /* private trigger => "none". */
+		__led_trigger_set(led_cdev, NULL, true);
+
+	/* Already in the desired state, or another trigger is active, ignore. */
+}
+
+void led_trigger_hw_control_changed_worker(struct work_struct *work)
+{
+	struct led_classdev *led_cdev =
+		container_of(work, struct led_classdev, trigger_hw_changed_work);
+	bool activate = READ_ONCE(led_cdev->trigger_hw_changed);
+
+	scoped_guard(rwsem_read, &triggers_list_lock) {
+		struct led_trigger *trig;
+
+		list_for_each_entry(trig, &trigger_list, next_trig) {
+			if (trig->trigger_type == led_cdev->trigger_type &&
+			    !strcmp(trig->name, led_cdev->hw_control_trigger)) {
+				guard(rwsem_write)(&led_cdev->trigger_lock);
+
+				led_trigger_do_hw_control_transition(led_cdev, activate, trig);
+				return;
+			}
+		}
+	}
+
+	dev_warn(led_cdev->dev,
+		 "Private trigger %s is not registered, can't toggle hardware control\n",
+		 led_cdev->hw_control_trigger);
+}
+EXPORT_SYMBOL_GPL(led_trigger_hw_control_changed_worker);
+
+void led_trigger_notify_hw_control_changed(struct led_classdev *led_cdev, bool activate)
+{
+	/* Restricted to private triggers. */
+	if (WARN_ON(!(led_cdev->flags & LED_TRIG_HW_CHANGED) ||
+		    !led_cdev->hw_control_trigger || !led_cdev->trigger_type))
+		return;
+
+	WRITE_ONCE(led_cdev->trigger_hw_changed, activate);
+
+	schedule_work(&led_cdev->trigger_hw_changed_work);
+}
+EXPORT_SYMBOL_GPL(led_trigger_notify_hw_control_changed);
+
+#endif /* CONFIG_LEDS_TRIGGERS_HW_CHANGED */
 
 /* Simple LED Trigger Interface */
 

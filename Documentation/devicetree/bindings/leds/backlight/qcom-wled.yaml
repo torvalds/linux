@@ -280,4 +280,4 @@ examples:
         qcom,ovp = <29>;
         qcom,num-strings = <2>;
         qcom,enabled-strings = <0 1>;
-     };
+    };

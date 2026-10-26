@@ -267,10 +267,7 @@ void led_blink_set_oneshot(struct led_classdev *led_cdev,
 	set_bit(LED_BLINK_ONESHOT, &led_cdev->work_flags);
 	clear_bit(LED_BLINK_ONESHOT_STOP, &led_cdev->work_flags);
 
-	if (invert)
-		set_bit(LED_BLINK_INVERT, &led_cdev->work_flags);
-	else
-		clear_bit(LED_BLINK_INVERT, &led_cdev->work_flags);
+	assign_bit(LED_BLINK_INVERT, &led_cdev->work_flags, invert);
 
 	led_blink_setup(led_cdev, delay_on, delay_off);
 }

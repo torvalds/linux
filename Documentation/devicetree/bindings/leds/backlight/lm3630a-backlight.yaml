@@ -99,20 +99,20 @@ examples:
         #size-cells = <0>;
 
         led-controller@38 {
-                compatible = "ti,lm3630a";
-                reg = <0x38>;
-                enable-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+            compatible = "ti,lm3630a";
+            reg = <0x38>;
+            enable-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 
-                #address-cells = <1>;
-                #size-cells = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-                led@0 {
-                        reg = <0>;
-                        led-sources = <0 1>;
-                        label = "lcd-backlight";
-                        default-brightness = <200>;
-                        max-brightness = <255>;
-                };
+            led@0 {
+                reg = <0>;
+                led-sources = <0 1>;
+                label = "lcd-backlight";
+                default-brightness = <200>;
+                max-brightness = <255>;
+            };
         };
     };
   - |
@@ -121,22 +121,22 @@ examples:
         #size-cells = <0>;
 
         led-controller@38 {
-                compatible = "ti,lm3630a";
-                reg = <0x38>;
+            compatible = "ti,lm3630a";
+            reg = <0x38>;
 
-                #address-cells = <1>;
-                #size-cells = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-                led@0 {
-                        reg = <0>;
-                        default-brightness = <150>;
-                        ti,linear-mapping-mode;
-                };
+            led@0 {
+                reg = <0>;
+                default-brightness = <150>;
+                ti,linear-mapping-mode;
+            };
 
-                led@1 {
-                        reg = <1>;
-                        default-brightness = <225>;
-                        ti,linear-mapping-mode;
-                };
+            led@1 {
+                reg = <1>;
+                default-brightness = <225>;
+                ti,linear-mapping-mode;
+            };
         };
     };

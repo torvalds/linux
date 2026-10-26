@@ -79,6 +79,17 @@ struct pca955x_chipdef {
 	int			blink_div;	/* PSC divider */
 };
 
+struct pca955x_led {
+	struct pca955x	*pca955x;
+	struct led_classdev	led_cdev;
+	int			led_num;	/* 0 .. 15 potentially */
+	u32			type;
+	enum led_default_state	default_state;
+	struct fwnode_handle	*fwnode;
+};
+
+#define led_to_pca955x(l)	container_of(l, struct pca955x_led, led_cdev)
+
 static const struct pca955x_chipdef pca955x_chipdefs[] = {
 	[pca9550] = {
 		.bits		= 2,
@@ -114,7 +125,6 @@ static const struct pca955x_chipdef pca955x_chipdefs[] = {
 
 struct pca955x {
 	struct mutex lock;
-	struct pca955x_led *leds;
 	const struct pca955x_chipdef	*chipdef;
 	struct i2c_client	*client;
 	unsigned long active_blink;
@@ -123,22 +133,7 @@ struct pca955x {
 #ifdef CONFIG_LEDS_PCA955X_GPIO
 	struct gpio_chip gpio;
 #endif
-};
-
-struct pca955x_led {
-	struct pca955x	*pca955x;
-	struct led_classdev	led_cdev;
-	int			led_num;	/* 0 .. 15 potentially */
-	u32			type;
-	enum led_default_state	default_state;
-	struct fwnode_handle	*fwnode;
-};
-
-#define led_to_pca955x(l)	container_of(l, struct pca955x_led, led_cdev)
-
-struct pca955x_platform_data {
-	struct pca955x_led	*leds;
-	int			num_leds;
+	struct pca955x_led leds[];
 };
 
 /* 8 bits per input register */
@@ -530,37 +525,27 @@ static int pca955x_gpio_direction_output(struct gpio_chip *gc,
 }
 #endif /* CONFIG_LEDS_PCA955X_GPIO */
 
-static struct pca955x_platform_data *
-pca955x_get_pdata(struct i2c_client *client, const struct pca955x_chipdef *chip)
+static int pca955x_parse_fwnode(struct pca955x *pca955x)
 {
-	struct pca955x_platform_data *pdata;
+	struct device *dev = &pca955x->client->dev;
+	u8 bits = pca955x->chipdef->bits;
 	struct pca955x_led *led;
 	struct fwnode_handle *child;
 	int count;
 
-	count = device_get_child_node_count(&client->dev);
-	if (count > chip->bits)
-		return ERR_PTR(-ENODEV);
+	count = device_get_child_node_count(dev);
+	if (count > bits)
+		return -ENODEV;
 
-	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	pdata->leds = devm_kcalloc(&client->dev,
-				   chip->bits, sizeof(struct pca955x_led),
-				   GFP_KERNEL);
-	if (!pdata->leds)
-		return ERR_PTR(-ENOMEM);
-
-	device_for_each_child_node(&client->dev, child) {
+	device_for_each_child_node(dev, child) {
 		u32 reg;
 		int res;
 
 		res = fwnode_property_read_u32(child, "reg", &reg);
-		if ((res != 0) || (reg >= chip->bits))
+		if ((res != 0) || (reg >= bits))
 			continue;
 
-		led = &pdata->leds[reg];
+		led = &pca955x->leds[reg];
 		led->type = PCA955X_TYPE_LED;
 		led->fwnode = child;
 		led->default_state = led_init_default_state_get(child);
@@ -568,9 +553,7 @@ pca955x_get_pdata(struct i2c_client *client, const struct pca955x_chipdef *chip)
 		fwnode_property_read_u32(child, "type", &led->type);
 	}
 
-	pdata->num_leds = chip->bits;
-
-	return pdata;
+	return 0;
 }
 
 static int pca955x_probe(struct i2c_client *client)
@@ -584,7 +567,6 @@ static int pca955x_probe(struct i2c_client *client)
 	u8 i, nls, psc0;
 	u8 ls1[4];
 	u8 ls2[4];
-	struct pca955x_platform_data *pdata;
 	bool keep_psc0 = false;
 	bool set_default_label = false;
 	char default_label[4];
@@ -595,12 +577,6 @@ static int pca955x_probe(struct i2c_client *client)
 		return dev_err_probe(&client->dev, -ENODEV, "unknown chip\n");
 
 	adapter = client->adapter;
-	pdata = dev_get_platdata(&client->dev);
-	if (!pdata) {
-		pdata =	pca955x_get_pdata(client, chip);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-	}
 
 	/* Make sure the slave address / chip type combo given is possible */
 	if ((client->addr & ~((1 << chip->slv_addr_shift) - 1)) !=
@@ -616,20 +592,9 @@ static int pca955x_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	if (pdata->num_leds != chip->bits) {
-		dev_err(&client->dev,
-			"board info claims %d LEDs on a %u-bit chip\n",
-			pdata->num_leds, chip->bits);
-		return -ENODEV;
-	}
-
-	pca955x = devm_kzalloc(&client->dev, sizeof(*pca955x), GFP_KERNEL);
+	pca955x = devm_kzalloc(&client->dev,
+			       struct_size(pca955x, leds, chip->bits), GFP_KERNEL);
 	if (!pca955x)
-		return -ENOMEM;
-
-	pca955x->leds = devm_kcalloc(&client->dev, chip->bits,
-				     sizeof(*pca955x_led), GFP_KERNEL);
-	if (!pca955x->leds)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, pca955x);
@@ -638,6 +603,10 @@ static int pca955x_probe(struct i2c_client *client)
 	pca955x->client = client;
 	pca955x->chipdef = chip;
 	pca955x->blink_period = PCA955X_BLINK_DEFAULT_MS;
+
+	err = pca955x_parse_fwnode(pca955x);
+	if (err)
+		return err;
 
 	init_data.devname_mandatory = false;
 	init_data.devicename = "pca955x";
@@ -657,7 +626,6 @@ static int pca955x_probe(struct i2c_client *client)
 		pca955x_led = &pca955x->leds[i];
 		pca955x_led->led_num = i;
 		pca955x_led->pca955x = pca955x;
-		pca955x_led->type = pdata->leds[i].type;
 
 		switch (pca955x_led->type) {
 		case PCA955X_TYPE_NONE:
@@ -671,16 +639,16 @@ static int pca955x_probe(struct i2c_client *client)
 			led->brightness_get = pca955x_led_get;
 			led->blink_set = pca955x_led_blink;
 
-			if (pdata->leds[i].default_state == LEDS_DEFSTATE_OFF)
+			if (pca955x_led->default_state == LEDS_DEFSTATE_OFF)
 				ls2[reg] = pca955x_ledsel(ls2[reg], bit, PCA955X_LS_LED_OFF);
-			else if (pdata->leds[i].default_state == LEDS_DEFSTATE_ON)
+			else if (pca955x_led->default_state == LEDS_DEFSTATE_ON)
 				ls2[reg] = pca955x_ledsel(ls2[reg], bit, PCA955X_LS_LED_ON);
 			else if (pca955x_ledstate(ls2[reg], bit) == PCA955X_LS_BLINK0) {
 				keep_psc0 = true;
 				set_bit(i, &pca955x->active_blink);
 			}
 
-			init_data.fwnode = pdata->leds[i].fwnode;
+			init_data.fwnode = pca955x_led->fwnode;
 
 			if (is_of_node(init_data.fwnode)) {
 				if (to_of_node(init_data.fwnode)->name[0] ==

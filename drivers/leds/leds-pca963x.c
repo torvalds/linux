@@ -208,10 +208,7 @@ static void pca963x_track_power_state(struct pca963x_led *led, unsigned int led_
 {
 	unsigned long *leds_on = &led->chip->leds_on;
 
-	if (brightness)
-		set_bit(led_num, leds_on);
-	else
-		clear_bit(led_num, leds_on);
+	assign_bit(led_num, leds_on, brightness);
 }
 
 static int pca963x_sync_power_state(struct pca963x_led *led, unsigned long cached_leds)
