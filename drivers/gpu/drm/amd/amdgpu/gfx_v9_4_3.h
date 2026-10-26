@@ -28,4 +28,7 @@ extern const struct amdgpu_ip_block_version gfx_v9_4_3_ip_block;
 
 extern struct amdgpu_xcp_ip_funcs gfx_v9_4_3_xcp_funcs;
 
+extern const struct soc15_reg_entry gfx_v9_4_3_fault_cleaner_init_regs[];
+extern const size_t gfx_v9_4_3_fault_cleaner_init_regs_size;
+
 #endif /* __GFX_V9_4_3_H__ */

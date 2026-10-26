@@ -23,12 +23,14 @@
 #include "amdgpu.h"
 #include "soc15.h"
 #include "soc15d.h"
+#include "soc15_common.h"
 
 #include "gc/gc_9_4_2_offset.h"
 #include "gc/gc_9_4_2_sh_mask.h"
 #include "gfx_v9_0.h"
 
 #include "gfx_v9_4_2.h"
+#include "gfx_v9_4_3.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_gfx.h"
 
@@ -723,12 +725,28 @@ static int gfx_v9_clean_shaders(struct amdgpu_device *adev)
 	struct amdgpu_ib wb_ib;
 	struct amdgpu_ring *ring;
 	struct dma_fence *fence = NULL;
+	const struct soc15_reg_entry *init_regs;
+	u32 init_regs_size;
 	u32 pattern = 0xa;
 	int xcc_id;
 
 	if (adev->gfx.disable_kq) {
 		dev_warn(adev->dev, "Cannot run shader cleaner with kernel queues disabled");
 		return 0;
+	}
+
+	/* gfx943+ has different register layout compared to gfx942.*/
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
+		init_regs = gfx_v9_4_3_fault_cleaner_init_regs;
+		init_regs_size = gfx_v9_4_3_fault_cleaner_init_regs_size;
+		break;
+	default:
+		init_regs = fault_cleaner_init_regs_aldebaran;
+		init_regs_size = ARRAY_SIZE(fault_cleaner_init_regs_aldebaran);
+		break;
 	}
 
 	for_each_inst(xcc_id, adev->gfx.xcc_mask) {
@@ -752,9 +770,9 @@ static int gfx_v9_clean_shaders(struct amdgpu_device *adev)
 				ring,
 				fault_cleaner_compute_shader_aldebaran,
 				sizeof(fault_cleaner_compute_shader_aldebaran),
-				fault_cleaner_init_regs_aldebaran,
-				ARRAY_SIZE(fault_cleaner_init_regs_aldebaran),
-				adev->gfx.cu_info.number * 32,
+				init_regs,
+				init_regs_size,
+				adev->gfx.cu_info.number * SIMD_ID_MAX * WAVE_ID_MAX,
 				wb_ib.gpu_addr, pattern, &fence);
 
 		if (r) {
