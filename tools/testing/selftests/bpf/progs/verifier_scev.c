@@ -3710,4 +3710,31 @@ __naked void dominating_exit_bounds_count(void)
 "	::: __clobber_all);
 }
 
+/*
+ * The counter is copied to a callee-saved register for the call and the copy is compared.
+ */
+SEC("xdp")
+__success
+__log_level(2)
+__flag(BPF_F_TEST_STATE_FREQ)
+__msg(" scev at latch 5:")
+__msg("  r7=(zext32 r1) / (zext32 (linear r1 2))")
+__msg("loop header at 1, header_count is 100 ")
+__msg("loop header at 1, widening r1 to 0..198 step 2")
+__naked void post_cond_jlt32_copy(void)
+{
+	asm volatile ("					\
+	w1 = 0;						\
+1:	w7 = w1;					\
+	call %[bpf_get_prandom_u32];			\
+	w1 = w7;					\
+	w1 += 2;					\
+	if w7 < 198 goto 1b;				\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
