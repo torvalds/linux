@@ -2307,11 +2307,15 @@ static bool compute_max_iters(struct bpf_verifier_env *env,
 	if (!compute_backedge_taken_count(op, initial, step, bound, &backedge_taken_count))
 		return false;
 
+	/*
+	 * max_header_count is u32 and U32_MAX means "infinite",
+	 * check to avoid overflow below.
+	 */
+	if (backedge_taken_count >= U32_MAX - 1)
+		return false;
+
 	if (latch->zext32 || latch->jmp32) {
-		/*
-		 * compute_backedge_taken_count() guarantees that 'total_change'
-		 * does not overflow in 64-bit domain.
-		 */
+		/* total_change is guaranteed not to overflow at this point */
 		total_change = initial + step * backedge_taken_count;
 		if (latch->jmp32 && is_signed_op(op)) {
 			if ((s64)total_change < S32_MIN || (s64)total_change > S32_MAX)
@@ -2321,13 +2325,6 @@ static bool compute_max_iters(struct bpf_verifier_env *env,
 				return false;
 		}
 	}
-
-	/*
-	 * max_header_count is u32 and U32_MAX means "infinite",
-	 * check to avoid overflow below.
-	 */
-	if (backedge_taken_count >= U32_MAX - 1)
-		return false;
 
 	/* The header executes once on entry and once for each taken backedge, hence +1. */
 	iters->max_header_count = backedge_taken_count + 1;
