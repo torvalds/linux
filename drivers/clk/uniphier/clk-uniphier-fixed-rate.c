@@ -13,8 +13,8 @@ struct clk_hw *uniphier_clk_register_fixed_rate(struct device *dev,
 						const char *name,
 				const struct uniphier_clk_fixed_rate_data *data)
 {
+	struct clk_init_data init = {};
 	struct clk_fixed_rate *fixed;
-	struct clk_init_data init;
 	int ret;
 
 	/* allocate fixed-rate clock */

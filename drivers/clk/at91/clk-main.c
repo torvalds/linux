@@ -298,8 +298,8 @@ at91_clk_register_main_rc_osc(struct regmap *regmap,
 			      const char *name,
 			      u32 frequency, u32 accuracy)
 {
+	struct clk_init_data init = {};
 	struct clk_main_rc_osc *osc;
-	struct clk_init_data init;
 	struct clk_hw *hw;
 	int ret;
 

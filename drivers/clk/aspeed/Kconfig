@@ -15,6 +15,7 @@ config COMMON_CLK_ASPEED
 config COMMON_CLK_AST2700
         bool "Clock driver for AST2700 SoC"
         depends on ARCH_ASPEED || COMPILE_TEST
+        select AUXILIARY_BUS
         help
           This driver provides support for clock on AST2700 SoC.
           The driver is responsible for managing the various clocks required

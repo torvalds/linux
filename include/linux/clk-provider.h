@@ -7,6 +7,7 @@
 #define __LINUX_CLK_PROVIDER_H
 
 #include <dt-bindings/clock/clock.h>
+#include <linux/bits.h>
 #include <linux/of.h>
 #include <linux/of_clk.h>
 
@@ -50,6 +51,7 @@ struct clk;
 struct clk_hw;
 struct clk_core;
 struct dentry;
+struct module;
 
 /**
  * struct clk_rate_request - Structure encoding the clk constraints that
@@ -351,8 +353,9 @@ struct clk_init_data {
  * @core: pointer to the struct clk_core instance that points back to this
  * struct clk_hw instance
  *
- * @clk: pointer to the per-user struct clk instance that can be used to call
- * into the clk API
+ * @clk: pointer to the per-user struct clk instance. This will be removed at
+ * some point in the future, Please consider the field obsolete and do not use
+ * it. Use clk_hw_get_clk() to get a per-user struct clk from a struct clk_hw.
  *
  * @init: pointer to struct clk_init_data that contains the init data shared
  * with the common clock framework. This pointer will be set to NULL once
@@ -755,7 +758,7 @@ struct clk_divider {
 	spinlock_t	*lock;
 };
 
-#define clk_div_mask(width)	((1 << (width)) - 1)
+#define clk_div_mask(width)	GENMASK((width) - 1, 0)
 #define to_clk_divider(_hw) container_of(_hw, struct clk_divider, hw)
 
 #define CLK_DIVIDER_ONE_BASED		BIT(0)
@@ -1474,9 +1477,23 @@ static inline struct clk_hw *__clk_get_hw(struct clk *clk)
 }
 #endif
 
-struct clk *clk_hw_get_clk(struct clk_hw *hw, const char *con_id);
+struct clk *__clk_hw_get_clk(struct clk_hw *hw, const char *con_id,
+			     struct module *owner);
 struct clk *devm_clk_hw_get_clk(struct device *dev, struct clk_hw *hw,
 				const char *con_id);
+
+/**
+ * clk_hw_get_clk - get clk consumer given a clk_hw
+ * @hw: clk_hw associated with the clk being consumed
+ * @con_id: connection ID string on device
+ *
+ * Return: new clk consumer
+ * This is the function to be used by providers which need
+ * to get a consumer clk and act on the clock element
+ * Calls to this function must be balanced with calls to clk_put()
+ */
+#define clk_hw_get_clk(hw, con_id) \
+	__clk_hw_get_clk((hw), (con_id), THIS_MODULE)
 
 unsigned int clk_hw_get_num_parents(const struct clk_hw *hw);
 struct clk_hw *clk_hw_get_parent(const struct clk_hw *hw);

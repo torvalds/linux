@@ -278,9 +278,9 @@ struct clk_hw *zynqmp_clk_register_divider(const char *name,
 					   u8 num_parents,
 					   const struct clock_topology *nodes)
 {
+	struct clk_init_data init = {};
 	struct zynqmp_clk_divider *div;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	/* allocate the divider */

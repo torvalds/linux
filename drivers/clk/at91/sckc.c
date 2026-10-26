@@ -231,9 +231,9 @@ at91_clk_register_slow_rc_osc(void __iomem *sckcr,
 			      unsigned long startup,
 			      const struct clk_slow_bits *bits)
 {
+	struct clk_init_data init = {};
 	struct clk_slow_rc_osc *osc;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	if (!sckcr || !name)

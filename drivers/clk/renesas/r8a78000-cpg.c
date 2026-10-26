@@ -23,12 +23,14 @@ struct clk_map {
 
 enum fixed_clk {
 	FIXED_CLK_66M,
+	FIXED_CLK_133M,
 	FIXED_CLK_266M,
 	NUM_FIXED_CLKS
 };
 
 static const unsigned long fixed_clk_rates[NUM_FIXED_CLKS] = {
 	[FIXED_CLK_66M] = 66666000,
+	[FIXED_CLK_133M] = 133330000,
 	[FIXED_CLK_266M] = 266660000,
 };
 
@@ -140,6 +142,7 @@ static int r8a78000_cpg_probe(struct platform_device *pdev)
 
 static const struct clk_map r8a78000_cpg_default[] = {
 	{ R8A78000_CPG_SGASYNCD4_PERW_BUS,	FIXED_CLK(266M) },
+	{ R8A78000_CPG_SGASYNCD8_PERW_BUS,	FIXED_CLK(133M) },
 	{ R8A78000_CPG_SGASYNCD16_PERW_BUS,	FIXED_CLK(66M) },
 	{ -1 }
 };

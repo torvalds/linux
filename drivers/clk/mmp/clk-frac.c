@@ -171,8 +171,8 @@ struct clk *mmp_clk_register_factor(const char *name, const char *parent_name,
 		struct mmp_clk_factor_masks *masks,
 		struct u32_fract *ftbl, unsigned int ftbl_cnt, spinlock_t *lock)
 {
+	struct clk_init_data init = {};
 	struct mmp_clk_factor *factor;
-	struct clk_init_data init;
 	struct clk *clk;
 
 	if (!masks) {

@@ -259,10 +259,7 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
 /*
  * Z0, Z1 and ZG Clock
  */
-#define CPG_FRQCRB			0x00000804
 #define CPG_FRQCRB_KICK			BIT(31)
-#define CPG_FRQCRC0			0x00000808
-#define CPG_FRQCRC1			0x000008e0
 
 struct cpg_z_clk {
 	struct clk_hw hw;
@@ -384,17 +381,17 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
-	if (offset < 32) {
-		zclk->reg = reg + CPG_FRQCRC0;
-	} else if (offset < 64) {
-		zclk->reg = reg + CPG_FRQCRC1;
-		offset -= 32;
-	} else if (offset < 96) {
-		zclk->reg = reg + CPG_FRQCRB;
-		offset -= 64;
-	} else {
-		return ERR_PTR(-EINVAL);
-	}
+	/*
+	 * offset 0xAAABB
+	 * AAA : reg
+	 * BB  : pos
+	 *
+	 * see
+	 *	DEF_GEN4_Z()
+	 */
+	zclk->reg = reg + (offset >> FRQCR_offset);
+	offset &= 0x1f; /* 0 - 31 */
+
 	zclk->kick_reg = reg + CPG_FRQCRB;
 	zclk->hw.init = &init;
 	zclk->mask = GENMASK(offset + 4, offset);

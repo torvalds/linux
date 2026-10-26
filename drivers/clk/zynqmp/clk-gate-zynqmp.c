@@ -109,10 +109,10 @@ struct clk_hw *zynqmp_clk_register_gate(const char *name, u32 clk_id,
 					u8 num_parents,
 					const struct clock_topology *nodes)
 {
+	struct clk_init_data init = {};
 	struct zynqmp_clk_gate *gate;
 	struct clk_hw *hw;
 	int ret;
-	struct clk_init_data init;
 
 	/* allocate the gate */
 	gate = kzalloc_obj(*gate);

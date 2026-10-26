@@ -181,8 +181,8 @@ int __init berlin2_avpll_vco_register(void __iomem *base,
 			       const char *name, const char *parent_name,
 			       u8 vco_flags, unsigned long flags)
 {
+	struct clk_init_data init = {};
 	struct berlin2_avpll_vco *vco;
-	struct clk_init_data init;
 
 	vco = kzalloc_obj(*vco);
 	if (!vco)
@@ -358,7 +358,7 @@ int __init berlin2_avpll_channel_register(void __iomem *base,
 			   u8 ch_flags, unsigned long flags)
 {
 	struct berlin2_avpll_channel *ch;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	ch = kzalloc_obj(*ch);
 	if (!ch)

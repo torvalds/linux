@@ -902,8 +902,8 @@ static struct clk_hw *clk_register_pll(struct device *dev, const char *name,
 				       unsigned long flags,
 				       spinlock_t *lock)
 {
+	struct clk_init_data init = {};
 	struct stm32_pll_obj *element;
-	struct clk_init_data init;
 	struct clk_hw *hw;
 	int err;
 
@@ -1041,8 +1041,8 @@ static struct clk_hw *clk_register_cktim(struct device *dev, const char *name,
 					 void __iomem *timpre,
 					 spinlock_t *lock)
 {
+	struct clk_init_data init = {};
 	struct timer_cker *tim_ker;
-	struct clk_init_data init;
 	struct clk_hw *hw;
 	int err;
 

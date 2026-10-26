@@ -445,7 +445,7 @@ struct clk_hw *__imx_clk_scu(struct device *dev, const char *name,
 			     const char * const *parents, int num_parents,
 			     u32 rsrc_id, u8 clk_type)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_scu *clk;
 	struct clk_hw *hw;
 	int ret;
@@ -839,9 +839,9 @@ struct clk_hw *__imx_clk_gpr_scu(const char *name, const char * const *parent_na
 				 bool invert)
 {
 	struct imx_scu_clk_node *clk_node;
+	struct clk_init_data init = {};
 	struct clk_gpr_scu *clk;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	if (rsrc_id >= IMX_SC_R_LAST || gpr_id >= IMX_SC_C_LAST)

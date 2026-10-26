@@ -214,7 +214,7 @@ static void exynos_clkout_remove(struct platform_device *pdev)
 	iounmap(clkout->reg);
 }
 
-static int __maybe_unused exynos_clkout_suspend(struct device *dev)
+static int exynos_clkout_suspend(struct device *dev)
 {
 	struct exynos_clkout *clkout = dev_get_drvdata(dev);
 
@@ -223,7 +223,7 @@ static int __maybe_unused exynos_clkout_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused exynos_clkout_resume(struct device *dev)
+static int exynos_clkout_resume(struct device *dev)
 {
 	struct exynos_clkout *clkout = dev_get_drvdata(dev);
 
@@ -232,13 +232,13 @@ static int __maybe_unused exynos_clkout_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(exynos_clkout_pm_ops, exynos_clkout_suspend,
+static DEFINE_SIMPLE_DEV_PM_OPS(exynos_clkout_pm_ops, exynos_clkout_suspend,
 			 exynos_clkout_resume);
 
 static struct platform_driver exynos_clkout_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.pm = &exynos_clkout_pm_ops,
+		.pm = pm_sleep_ptr(&exynos_clkout_pm_ops),
 	},
 	.probe = exynos_clkout_probe,
 	.remove = exynos_clkout_remove,

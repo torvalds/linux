@@ -114,8 +114,8 @@ struct clk_hw *__imx_clk_lpcg_scu(struct device *dev, const char *name,
 				  const char *parent_name, unsigned long flags,
 				  void __iomem *reg, u8 bit_idx, bool hw_gate)
 {
+	struct clk_init_data init = {};
 	struct clk_lpcg_scu *clk;
-	struct clk_init_data init;
 	struct clk_hw *hw;
 	int ret;
 

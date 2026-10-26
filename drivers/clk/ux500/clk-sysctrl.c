@@ -127,8 +127,8 @@ static struct clk *clk_reg_sysctrl(struct device *dev,
 				unsigned long flags,
 				const struct clk_ops *clk_sysctrl_ops)
 {
+	struct clk_init_data clk_sysctrl_init = {};
 	struct clk_sysctrl *clk;
-	struct clk_init_data clk_sysctrl_init;
 	struct clk *clk_reg;
 	int i;
 

@@ -67,6 +67,17 @@
 #define CPG_PLL_MON_LOCK		BIT(4)
 #define CPG_PLL_MON_RESETB		BIT(0)
 
+#define DIV_DSI_A_SET    GENMASK(2, 0)
+#define DIV_DSI_B_SET    GENMASK(7, 4)
+
+#define RZG3L_SDIV_DIV_DSI_A_WEN	BIT(16)
+#define RZG3L_SDIV_DIV_DSI_B_WEN	BIT(20)
+
+#define CPG_PLL_CLK1_DIV_NF	GENMASK(12, 1)
+#define CPG_PLL_CLK1_DIV_NI	GENMASK(21, 13)
+#define CPG_PLL_CLK1_DIV_M	GENMASK(25, 22)
+#define CPG_PLL_CLK1_DIV_P	GENMASK(28, 26)
+
 #define CLK_ON_R(reg)		(reg)
 #define CLK_MON_R(reg)		(0x180 + (reg))
 #define CLK_RST_R(reg)		(reg)
@@ -91,6 +102,26 @@
 #define PLL5_INTIN_MAX		320
 #define PLL5_HSCLK_MIN		10000000
 #define PLL5_HSCLK_MAX		187500000
+
+#define RZG3L_OSC_CLK			(24 * MEGA)
+#define RZG3L_PLL7_FDCO_RANGE_0_MIN	(900 * MEGA)
+#define RZG3L_PLL7_FDCO_RANGE_0_MAX	(2000 * MEGA)
+#define RZG3L_PLL7_FDCO_RANGE_1_MIN	(2000 * MEGA)
+#define RZG3L_PLL7_FDCO_RANGE_1_MAX	(3000ULL * MEGA)
+#define RZG3L_PLL7_PR_MIN		(0)
+#define RZG3L_PLL7_PR_MAX		(4)
+#define RZG3L_PLL7_MR_MIN		(0)
+#define RZG3L_PLL7_MR_MAX		(11)
+#define RZG3L_PLL7_NIR_MIN		(55)
+#define RZG3L_PLL7_NIR_MAX		(374)
+#define RZG3L_PLL7_NFR_MIN		(0)
+#define RZG3L_PLL7_NFR_MAX		(4095)
+#define RZG3L_PLL7_NR_MIN		(56250)	 /* Multiplied value 56.25 * 1000 */
+#define RZG3L_PLL7_NR_MAX		(375000) /* Multiplied value 375 * 1000 */
+#define RZG3L_PLL7_MULT_MIN		(293)	 /* Multiplied value 0.293 * 1000 */
+#define RZG3L_PLL7_MULT_MAX		(375000) /* Multiplied value 375 * 1000 */
+#define RZG3L_PLL7_FSTD_DIV_MR_MIN	(8 * MEGA)
+#define RZG3L_PLL7_FSTD_DIV_MR_MAX	(16 * MEGA)
 
 /**
  * struct clk_hw_data - clock hardware data
@@ -402,7 +433,7 @@ rzg3s_cpg_div_clk_register(const struct cpg_core_clk *core, struct rzg2l_cpg_pri
 		return ERR_PTR(-ENOMEM);
 
 	init.name = core->name;
-	init.flags = core->flag;
+	init.flags = core->core_flags;
 	init.ops = &rzg3s_div_clk_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
@@ -456,20 +487,20 @@ rzg2l_cpg_div_clk_register(const struct cpg_core_clk *core,
 
 	if (core->dtable)
 		clk_hw = clk_hw_register_divider_table(dev, core->name,
-						       parent_name, 0,
+						       parent_name, core->core_flags,
 						       base + GET_REG_OFFSET(core->conf),
 						       GET_SHIFT(core->conf),
 						       GET_WIDTH(core->conf),
-						       core->flag,
+						       core->div_flags,
 						       core->dtable,
 						       &priv->rmw_lock);
 	else
 		clk_hw = clk_hw_register_divider(dev, core->name,
-						 parent_name, 0,
+						 parent_name, core->core_flags,
 						 base + GET_REG_OFFSET(core->conf),
 						 GET_SHIFT(core->conf),
 						 GET_WIDTH(core->conf),
-						 core->flag, &priv->rmw_lock);
+						 core->div_flags, &priv->rmw_lock);
 
 	if (IS_ERR(clk_hw))
 		return ERR_CAST(clk_hw);
@@ -485,7 +516,7 @@ rzg2l_cpg_mux_clk_register(const struct cpg_core_clk *core,
 
 	clk_hw = devm_clk_hw_register_mux(priv->dev, core->name,
 					  core->parent_names, core->num_parents,
-					  core->flag,
+					  core->core_flags,
 					  priv->base + GET_REG_OFFSET(core->conf),
 					  GET_SHIFT(core->conf),
 					  GET_WIDTH(core->conf),
@@ -549,7 +580,7 @@ rzg2l_cpg_sd_mux_clk_register(const struct cpg_core_clk *core,
 			      struct rzg2l_cpg_priv *priv)
 {
 	struct sd_mux_hw_data *sd_mux_hw_data;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *clk_hw;
 	int ret;
 
@@ -564,7 +595,7 @@ rzg2l_cpg_sd_mux_clk_register(const struct cpg_core_clk *core,
 
 	init.name = core->name;
 	init.ops = &rzg2l_cpg_sd_clk_mux_ops;
-	init.flags = core->flag;
+	init.flags = core->core_flags;
 	init.num_parents = core->num_parents;
 	init.parent_names = core->parent_names;
 
@@ -800,9 +831,9 @@ rzg2l_cpg_dsi_div_clk_register(const struct cpg_core_clk *core,
 			       struct rzg2l_cpg_priv *priv)
 {
 	struct dsi_div_hw_data *clk_hw_data;
+	struct clk_init_data init = {};
 	const struct clk *parent;
 	const char *parent_name;
-	struct clk_init_data init;
 	struct clk_hw *clk_hw;
 	int ret;
 
@@ -819,6 +850,207 @@ rzg2l_cpg_dsi_div_clk_register(const struct cpg_core_clk *core,
 	parent_name = __clk_get_name(parent);
 	init.name = core->name;
 	init.ops = &rzg2l_cpg_dsi_div_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	clk_hw = &clk_hw_data->hw;
+	clk_hw->init = &init;
+
+	ret = devm_clk_hw_register(priv->dev, clk_hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return clk_hw->clk;
+}
+
+static int rzg3l_cpg_lvds_div_determine_rate(struct clk_hw *hw,
+					     struct clk_rate_request *req)
+{
+	return clk_fixed_factor_ops.determine_rate(hw, req);
+}
+
+static int rzg3l_cpg_lvds_div_set_rate(struct clk_hw *hw, unsigned long rate,
+				       unsigned long parent_rate)
+{
+	return clk_fixed_factor_ops.set_rate(hw, rate, parent_rate);
+}
+
+static unsigned long rzg3l_cpg_lvds_div_recalc_rate(struct clk_hw *hw,
+						    unsigned long parent_rate)
+{
+	return clk_fixed_factor_ops.recalc_rate(hw, parent_rate);
+}
+
+static unsigned long rzg3l_cpg_lvds_div_recalc_accuracy(struct clk_hw *hw,
+							unsigned long parent_accuracy)
+{
+	return clk_fixed_factor_ops.recalc_accuracy(hw, parent_accuracy);
+}
+
+static int rzg3l_cpg_lvds_div_get_duty_cycle(struct clk_hw *hw,
+					     struct clk_duty *duty)
+{
+	struct clk_fixed_factor *fix = to_clk_fixed_factor(hw);
+
+	/*
+	 * An odd divider cannot generate a 50% duty cycle: the output stays
+	 * high for (div + 1) / 2 input clock cycles out of div, e.g. a divider
+	 * of 7 gives a duty cycle of 4/7.
+	 */
+	duty->num = DIV_ROUND_UP(fix->div, 2);
+	duty->den = fix->div;
+
+	return 0;
+}
+
+static const struct clk_ops rzg3l_cpg_lvds_div_ops = {
+	.determine_rate	= rzg3l_cpg_lvds_div_determine_rate,
+	.set_rate	= rzg3l_cpg_lvds_div_set_rate,
+	.recalc_rate	= rzg3l_cpg_lvds_div_recalc_rate,
+	.recalc_accuracy = rzg3l_cpg_lvds_div_recalc_accuracy,
+	.get_duty_cycle	= rzg3l_cpg_lvds_div_get_duty_cycle,
+};
+
+static struct clk * __init
+rzg3l_cpg_lvds_div_clk_register(const struct cpg_core_clk *core,
+				struct rzg2l_cpg_priv *priv)
+{
+	struct clk_init_data init = {};
+	struct clk_fixed_factor *ff;
+	const struct clk *parent;
+	const char *parent_name;
+	int ret;
+
+	parent = priv->clks[core->parent];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	ff = devm_kzalloc(priv->dev, sizeof(*ff), GFP_KERNEL);
+	if (!ff)
+		return ERR_PTR(-ENOMEM);
+
+	parent_name = __clk_get_name(parent);
+	init.name = core->name;
+	init.ops = &rzg3l_cpg_lvds_div_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	ff->hw.init = &init;
+	ff->mult = 1;
+	ff->div = core->conf;
+
+	ret = devm_clk_hw_register(priv->dev, &ff->hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return ff->hw.clk;
+}
+
+struct g3l_dsi_div_hw_data {
+	struct clk_hw hw;
+	struct rzg2l_cpg_priv *priv;
+	unsigned long rate;
+	u32 off;
+	u8 div_a;
+	u8 div_b;
+};
+
+#define to_g3l_dsi_div_hw_data(_hw)	container_of(_hw, struct g3l_dsi_div_hw_data, hw)
+
+static unsigned long rzg3l_cpg_dsi_div_recalc_rate(struct clk_hw *hw,
+						   unsigned long parent_rate)
+{
+	struct g3l_dsi_div_hw_data *dsi_div = to_g3l_dsi_div_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = dsi_div->priv;
+	int div_a, div_b, val;
+
+	val = readl(priv->base + dsi_div->off);
+	div_a = FIELD_GET(DIV_DSI_A_SET, val);
+	div_b = FIELD_GET(DIV_DSI_B_SET, val);
+
+	return DIV_ROUND_CLOSEST_ULL((u64)parent_rate, (div_b + 1) << div_a);
+}
+
+static int rzg3l_cpg_dsi_div_determine_rate(struct clk_hw *hw,
+					    struct clk_rate_request *req)
+{
+	struct g3l_dsi_div_hw_data *dsi_div = to_g3l_dsi_div_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = dsi_div->priv;
+	unsigned int divider = dsi_div_ab_desired;
+	unsigned int div_b_max = dsi_div_target ? 15 : 0;
+	bool divider_found = false;
+
+	for (unsigned int i = 0; i <= 5 && !divider_found; i++) {
+		unsigned int div_a = 5 - i;
+
+		for (unsigned int div_b = 0; div_b <= div_b_max; div_b++) {
+			divider = (div_b + 1) << div_a;
+			if (divider == dsi_div_ab_desired) {
+				dsi_div->div_a = div_a;
+				dsi_div->div_b = div_b;
+				divider_found = true;
+				break;
+			}
+		}
+	}
+
+	if (!divider_found) {
+		dev_err(priv->dev, "failed dsi div for: %u\n", divider);
+		return -EINVAL;
+	}
+
+	req->best_parent_rate = req->rate * divider;
+
+	return 0;
+}
+
+static int rzg3l_cpg_dsi_div_set_rate(struct clk_hw *hw, unsigned long rate,
+				      unsigned long parent_rate)
+{
+	struct g3l_dsi_div_hw_data *dsi_div = to_g3l_dsi_div_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = dsi_div->priv;
+
+	writel(RZG3L_SDIV_DIV_DSI_A_WEN | RZG3L_SDIV_DIV_DSI_B_WEN |
+	       FIELD_PREP(DIV_DSI_A_SET, dsi_div->div_a) |
+	       FIELD_PREP(DIV_DSI_B_SET, dsi_div->div_b),
+	       priv->base + dsi_div->off);
+
+	return 0;
+}
+
+static const struct clk_ops rzg3l_cpg_dsi_div_ops = {
+	.recalc_rate = rzg3l_cpg_dsi_div_recalc_rate,
+	.determine_rate = rzg3l_cpg_dsi_div_determine_rate,
+	.set_rate = rzg3l_cpg_dsi_div_set_rate,
+};
+
+static struct clk * __init
+rzg3l_cpg_dsi_div_clk_register(const struct cpg_core_clk *core,
+			       struct rzg2l_cpg_priv *priv)
+{
+	struct g3l_dsi_div_hw_data *clk_hw_data;
+	struct clk_init_data init = {};
+	const struct clk *parent;
+	const char *parent_name;
+	struct clk_hw *clk_hw;
+	int ret;
+
+	parent = priv->clks[core->parent];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	clk_hw_data = devm_kzalloc(priv->dev, sizeof(*clk_hw_data), GFP_KERNEL);
+	if (!clk_hw_data)
+		return ERR_PTR(-ENOMEM);
+
+	clk_hw_data->priv = priv;
+	clk_hw_data->off = core->conf;
+
+	parent_name = __clk_get_name(parent);
+	init.name = core->name;
+	init.ops = &rzg3l_cpg_dsi_div_ops;
 	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
@@ -896,7 +1128,7 @@ rzg2l_cpg_pll5_4_mux_clk_register(const struct cpg_core_clk *core,
 				  struct rzg2l_cpg_priv *priv)
 {
 	struct pll5_mux_hw_data *clk_hw_data;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *clk_hw;
 	int ret;
 
@@ -1023,8 +1255,8 @@ static struct clk * __init
 rzg2l_cpg_sipll5_register(const struct cpg_core_clk *core,
 			  struct rzg2l_cpg_priv *priv)
 {
+	struct clk_init_data init = {};
 	const struct clk *parent;
-	struct clk_init_data init;
 	const char *parent_name;
 	struct sipll5 *sipll5;
 	struct clk_hw *clk_hw;
@@ -1064,6 +1296,15 @@ rzg2l_cpg_sipll5_register(const struct cpg_core_clk *core,
 	return clk_hw->clk;
 }
 
+/* RZ/G3L PLL7 parameters */
+struct rzg3l_plldsi_parameters {
+	s64 error_millihz;
+	u64 freq_millihz;
+	u16 nir, nfr;
+	u8 rangesel;
+	u8 pr, mr;
+};
+
 struct pll_clk {
 	struct clk_hw hw;
 	unsigned long default_rate;
@@ -1071,6 +1312,7 @@ struct pll_clk {
 	unsigned int type;
 	void __iomem *base;
 	struct rzg2l_cpg_priv *priv;
+	struct rzg3l_plldsi_parameters pll7_dsi_params;
 };
 
 #define to_pll(_hw)	container_of(_hw, struct pll_clk, hw)
@@ -1139,9 +1381,9 @@ rzg2l_cpg_pll_clk_register(const struct cpg_core_clk *core,
 			   struct rzg2l_cpg_priv *priv,
 			   const struct clk_ops *ops)
 {
+	struct clk_init_data init = {};
 	struct device *dev = priv->dev;
 	const struct clk *parent;
-	struct clk_init_data init;
 	const char *parent_name;
 	struct pll_clk *pll_clk;
 	int ret;
@@ -1228,6 +1470,280 @@ static const struct clk_ops rzg3l_cpg_pll_ops = {
 	.is_enabled = rzg3l_cpg_pll_clk_is_enabled,
 	.enable = rzg3l_cpg_pll_clk_enable,
 	.recalc_rate = rzg3s_cpg_pll_clk_recalc_rate,
+};
+
+static u8 rzg3l_cpg_dsi_smux_get_parent(struct clk_hw *hw)
+{
+	return clk_mux_ops.get_parent(hw);
+}
+
+static int rzg3l_cpg_dsi_smux_set_parent(struct clk_hw *hw, u8 index)
+{
+	return clk_mux_ops.set_parent(hw, index);
+}
+
+static int rzg3l_cpg_dsi_smux_determine_rate(struct clk_hw *hw,
+					     struct clk_rate_request *req)
+{
+	return clk_mux_ops.determine_rate(hw, req);
+}
+
+static int rzg3l_cpg_dsi_smux_set_duty_cycle(struct clk_hw *hw,
+					     struct clk_duty *duty)
+{
+	struct clk_hw *parent_hw;
+	u8 parent_idx;
+
+	/*
+	 * Select parent based on requested duty cycle:
+	 * - If duty > 50% (num/den > 1/2), select LVDS path (parent 0)
+	 * - Otherwise, select DSI/RGB path (parent 1)
+	 */
+	if (duty->num * 2 > duty->den)
+		parent_idx = 0;
+	else
+		parent_idx = 1;
+
+	if (parent_idx >= clk_hw_get_num_parents(hw))
+		return -EINVAL;
+
+	parent_hw = clk_hw_get_parent_by_index(hw, parent_idx);
+	if (!parent_hw)
+		return -EINVAL;
+
+	return clk_hw_set_parent(hw, parent_hw);
+}
+
+static const struct clk_ops rzg3l_cpg_dsi_smux_ops = {
+	.determine_rate = rzg3l_cpg_dsi_smux_determine_rate,
+	.get_parent = rzg3l_cpg_dsi_smux_get_parent,
+	.set_parent = rzg3l_cpg_dsi_smux_set_parent,
+	.set_duty_cycle = rzg3l_cpg_dsi_smux_set_duty_cycle,
+};
+
+static struct clk * __init
+rzg3l_cpg_dsi_mux_clk_register(const struct cpg_core_clk *core,
+			       struct rzg2l_cpg_priv *priv)
+{
+	struct clk_init_data init = {};
+	struct clk_mux *mux_data;
+	int ret;
+
+	mux_data = devm_kzalloc(priv->dev, sizeof(*mux_data), GFP_KERNEL);
+	if (!mux_data)
+		return ERR_PTR(-ENOMEM);
+
+	init.name = core->name;
+	init.ops = &rzg3l_cpg_dsi_smux_ops;
+	init.flags = core->core_flags | CLK_SET_RATE_PARENT;
+	init.parent_names = core->parent_names;
+	init.num_parents = core->num_parents;
+
+	mux_data->reg = priv->base + GET_REG_OFFSET(core->conf);
+	mux_data->shift = GET_SHIFT(core->conf);
+	mux_data->mask = clk_div_mask(GET_WIDTH(core->conf));
+	mux_data->flags = core->mux_flags;
+	mux_data->lock = &priv->rmw_lock;
+	mux_data->hw.init = &init;
+
+	ret = devm_clk_hw_register(priv->dev, &mux_data->hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return mux_data->hw.clk;
+}
+
+static inline bool
+rzg3l_dsi_compute_pll_parameters(struct rzg3l_plldsi_parameters *pars,
+				 struct rzg3l_plldsi_parameters *p,
+				 struct rzg3l_plldsi_parameters *best,
+				 u64 freq_millihz, u32 fpfd, u32 pr)
+{
+	for (p->nir = RZG3L_PLL7_NIR_MIN; p->nir <= RZG3L_PLL7_NIR_MAX; p->nir++) {
+		u64 output_nir, output_nfr_range;
+		s64 nfr, output_nfr;
+		u64 fdco, output;
+		u64 nr_div_mr_pr;
+
+		/*
+		 * The frequency generated by the PLL is calculated as follows:
+		 *
+		 * With:
+		 * Freq = Ffout = Ffdco / pr
+		 * input frequency(fstd) = 24MHz
+		 * fpfd = fstd / mr
+		 * nr = nir + nfr / 4096
+		 * Ffdco = nr * fpfd
+		 * Ffdco = (nir + (nfr / 4096)) * fpfd
+		 *
+		 * Freq can also be rewritten as:
+		 * Freq = Ffdco / pr
+		 *      = (nir * fpfd) / pr + ((nfr / 4096) * fpfd) / pr
+		 *      = output_nir + output_nfr
+		 *
+		 * Every parameter has been determined at this point, but nfr.
+		 * Considering that:
+		 * 0 <= nfr <= 4095
+		 * Then:
+		 * 0 <= (nfr / 4096) < 1
+		 * Therefore:
+		 * 0 <= output_nfr < fpfd / pr
+		 */
+
+		/* Compute output nir component (in mHz) */
+		output_nir = DIV_ROUND_CLOSEST_ULL(mul_u32_u32((p->nir + 1) * MILLI, fpfd), pr);
+		/* Compute range for output nfr (in mHz) */
+		output_nfr_range = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(fpfd, MILLI), pr);
+		/* No point in continuing if we can't achieve the desired frequency */
+		if (freq_millihz < output_nir  || freq_millihz >= (output_nir + output_nfr_range))
+			continue;
+
+		/*
+		 * Compute the nfr component
+		 *
+		 * Since:
+		 * Freq = output_nir + output_nfr
+		 * Then:
+		 * output_nfr = Freq - output_nir
+		 *            = ((nfr / 4096) * fpfd) / pr
+		 * Therefore:
+		 * nfr = (output_nfr * 4096 * pr) / fpfd
+		 */
+		output_nfr = freq_millihz - output_nir;
+		nfr = div_s64(output_nfr * 4096 * pr, fpfd);
+		nfr = DIV_S64_ROUND_CLOSEST(nfr, 1000);
+
+		/* Validate nfr value within allowed limits */
+		if (nfr < RZG3L_PLL7_NFR_MIN || nfr > RZG3L_PLL7_NFR_MAX)
+			continue;
+
+		p->nfr = nfr;
+
+		/* Compute (Ffdco * 4096) */
+		output = mul_u32_u32(p->nir + 1, 4096);
+		fdco = (output + p->nfr) * fpfd;
+		if (fdco < (RZG3L_PLL7_FDCO_RANGE_0_MIN * 4096ULL) ||
+		    fdco > (RZG3L_PLL7_FDCO_RANGE_1_MAX * 4096ULL))
+			continue;
+
+		if (fdco <= (RZG3L_PLL7_FDCO_RANGE_0_MAX * 4096ULL))
+			p->rangesel = 0;
+		else
+			p->rangesel = 1;
+
+		/* compute the nr and magnify by 1000 */
+		output = mul_u32_u32(p->nir + 1, 4096);
+		output += p->nfr;
+		output *= 1000;
+		nr_div_mr_pr = div_u64(output, 4096);
+		if (nr_div_mr_pr < RZG3L_PLL7_NR_MIN || nr_div_mr_pr > RZG3L_PLL7_NR_MAX)
+			continue;
+
+		/* compute the magnified multipier = nr(magnified)/(mr *pr)  */
+		nr_div_mr_pr = div_u64(nr_div_mr_pr, (p->mr + 1) * pr);
+		if (nr_div_mr_pr < RZG3L_PLL7_MULT_MIN || nr_div_mr_pr > RZG3L_PLL7_MULT_MAX)
+			continue;
+
+		output *= RZG3L_OSC_CLK;
+		output = div_u64(output, (p->mr + 1) * pr * 4096);
+
+		p->error_millihz = freq_millihz - output;
+		p->freq_millihz = output;
+
+		/* If an exact match is found, return immediately */
+		if (p->error_millihz == 0) {
+			*pars = *p;
+			return true;
+		}
+
+		/* Update best match if error is smaller */
+		if (abs(p->error_millihz) < abs(best->error_millihz))
+			*best = *p;
+	}
+
+	return false;
+}
+
+static bool
+rzg3l_dsi_get_pll_parameters_values(struct rzg3l_plldsi_parameters *pars,
+				    u64 freq_millihz)
+{
+	struct rzg3l_plldsi_parameters p, best;
+
+	/* Initialize best error to maximum possible value */
+	best.error_millihz = S64_MAX;
+	p.error_millihz = S64_MAX;
+	for (p.mr = RZG3L_PLL7_MR_MIN; p.mr <= RZG3L_PLL7_MR_MAX; p.mr++) {
+		u32 fpfd = RZG3L_OSC_CLK / (p.mr + 1);
+
+		if (fpfd > RZG3L_PLL7_FSTD_DIV_MR_MAX || fpfd < RZG3L_PLL7_FSTD_DIV_MR_MIN)
+			continue;
+
+		for (p.pr = RZG3L_PLL7_PR_MIN; p.pr <= RZG3L_PLL7_PR_MAX; p.pr++)
+			if (rzg3l_dsi_compute_pll_parameters(pars, &p, &best,
+							     freq_millihz, fpfd, 1 << p.pr))
+				return true;
+	}
+
+	/* If no valid parameters were found, return false */
+	if (best.error_millihz == S64_MAX)
+		return false;
+
+	*pars = best;
+	return true;
+}
+
+static int rzg3l_cpg_plldsi_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
+{
+	struct pll_clk *pll_clk = to_pll(hw);
+	struct rzg2l_cpg_priv *priv = pll_clk->priv;
+	struct rzg3l_plldsi_parameters *pll7_dsi_params = &pll_clk->pll7_dsi_params;
+	u64 rate_millihz;
+
+	rate_millihz = mul_u32_u32(req->rate, MILLI);
+	if (rate_millihz == pll7_dsi_params->error_millihz + pll7_dsi_params->freq_millihz)
+		goto exit_determine_rate;
+
+	if (!rzg3l_dsi_get_pll_parameters_values(pll7_dsi_params, rate_millihz)) {
+		dev_err(priv->dev, "failed %s for req->rate: %lu\n", __func__, req->rate);
+		return -EINVAL;
+	}
+
+exit_determine_rate:
+	req->rate = DIV_ROUND_CLOSEST_ULL(pll7_dsi_params->freq_millihz, MILLI);
+	return 0;
+}
+
+static int rzg3l_cpg_plldsi_set_rate(struct clk_hw *hw, unsigned long rate,
+				     unsigned long parent_rate)
+{
+	struct pll_clk *pll_clk = to_pll(hw);
+	struct rzg3l_plldsi_parameters *dsi_dividers = &pll_clk->pll7_dsi_params;
+	u32 val;
+
+	/* Put PLL into standby mode */
+	rzg3l_cpg_pll_clk_endisable(hw, false);
+
+	/* Output clock setting 1 */
+	val = FIELD_PREP(CPG_PLL_CLK1_DIV_P, dsi_dividers->pr) |
+	      FIELD_PREP(CPG_PLL_CLK1_DIV_M, dsi_dividers->mr) |
+	      FIELD_PREP(CPG_PLL_CLK1_DIV_NI, dsi_dividers->nir) |
+	      FIELD_PREP(CPG_PLL_CLK1_DIV_NF, dsi_dividers->nfr) |
+	      dsi_dividers->rangesel;
+	writel(val, pll_clk->base + CPG_PLL_CLK1_OFFSET(pll_clk->conf));
+
+	/* Put PLL to normal mode */
+	rzg3l_cpg_pll_clk_endisable(hw, true);
+
+	return 0;
+};
+
+static const struct clk_ops rzg3l_cpg_plldsi_ops = {
+	.recalc_rate = rzg3s_cpg_pll_clk_recalc_rate,
+	.determine_rate = rzg3l_cpg_plldsi_determine_rate,
+	.set_rate = rzg3l_cpg_plldsi_set_rate,
+	.is_enabled = rzg3l_cpg_pll_clk_is_enabled,
+	.enable = rzg3l_cpg_pll_clk_enable,
 };
 
 static struct clk
@@ -1339,6 +1855,18 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 		break;
 	case CLK_TYPE_DSI_DIV:
 		clk = rzg2l_cpg_dsi_div_clk_register(core, priv);
+		break;
+	case CLK_TYPE_G3L_DSI_DIV:
+		clk = rzg3l_cpg_dsi_div_clk_register(core, priv);
+		break;
+	case CLK_TYPE_G3L_LVDS_DIV:
+		clk = rzg3l_cpg_lvds_div_clk_register(core, priv);
+		break;
+	case CLK_TYPE_G3L_PLLDSI:
+		clk = rzg2l_cpg_pll_clk_register(core, priv, &rzg3l_cpg_plldsi_ops);
+		break;
+	case CLK_TYPE_G3L_DSI_MUX:
+		clk = rzg3l_cpg_dsi_mux_clk_register(core, priv);
 		break;
 	default:
 		goto fail;
@@ -1736,10 +2264,10 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 			   const struct rzg2l_cpg_info *info,
 			   struct rzg2l_cpg_priv *priv)
 {
+	struct clk_init_data init = {};
 	struct mod_clock *clock = NULL;
 	struct device *dev = priv->dev;
 	unsigned int id = mod->id;
-	struct clk_init_data init;
 	struct clk *parent, *clk;
 	const char *parent_name;
 	unsigned int i;

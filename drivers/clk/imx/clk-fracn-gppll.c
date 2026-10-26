@@ -364,9 +364,9 @@ static struct clk_hw *_imx_clk_fracn_gppll(const char *name, const char *parent_
 					   const struct imx_fracn_gppll_clk *pll_clk,
 					   u32 pll_flags)
 {
+	struct clk_init_data init = {};
 	struct clk_fracn_gppll *pll;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	pll = kzalloc_obj(*pll);

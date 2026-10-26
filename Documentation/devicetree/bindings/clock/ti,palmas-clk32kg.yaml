@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti,palmas-clk32kg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments Palmas 32KHz Clocks
+
+maintainers:
+  - Eduard Bostina <egbostina@gmail.com>
+
+description:
+  The Palmas device family has two clock output pins for 32KHz,
+  KG and KG_AUDIO.
+
+allOf:
+  - $ref: /schemas/clock/clock.yaml#
+
+properties:
+  compatible:
+    enum:
+      - ti,palmas-clk32kg
+      - ti,palmas-clk32kgaudio
+
+  "#clock-cells":
+    const: 0
+
+  ti,external-sleep-control:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1, 2, 3 ]
+    description: |
+      The external enable input pins control the enable/disable of clocks.
+      The valid values (defined in dt-bindings/mfd/palmas.h) are:
+        1: PALMAS_EXT_CONTROL_PIN_ENABLE1
+        2: PALMAS_EXT_CONTROL_PIN_ENABLE2
+        3: PALMAS_EXT_CONTROL_PIN_NSLEEP
+      Option 0 or missing this property means the clock is enabled/disabled
+      via register access and these pins do not have any control.
+
+required:
+  - compatible
+  - "#clock-cells"
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/mfd/palmas.h>
+
+    pmic {
+        clock-controller {
+            compatible = "ti,palmas-clk32kg";
+            #clock-cells = <0>;
+            ti,external-sleep-control = <PALMAS_EXT_CONTROL_PIN_NSLEEP>;
+        };
+    };

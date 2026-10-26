@@ -23,6 +23,4 @@
 					      _flags),			\
 	}
 
-extern const struct clk_ops clk_fixed_factor_ops;
-
 #endif /* _OWL_FIXED_FACTOR_H_ */

@@ -221,6 +221,7 @@ config COMMON_CLK_EN7523
 	bool "Clock driver for Airoha/EcoNet SoC system clocks"
 	depends on OF
 	depends on ARCH_AIROHA || ECONET || COMPILE_TEST
+	select GENERIC_PHY
 	default ARCH_AIROHA
 	help
 	  This driver provides the fixed clocks and gates present on Airoha
@@ -450,14 +451,17 @@ config COMMON_CLK_STM32H7
 
 config COMMON_CLK_MMP2
 	def_bool COMMON_CLK && (MACH_MMP2_DT || MACH_MMP3_DT)
+	select COMMON_CLK_MMP
 	help
 	  Support for Marvell MMP2 and MMP3 SoC clocks
 
 config COMMON_CLK_MMP2_AUDIO
-        tristate "Clock driver for MMP2 Audio subsystem"
-        depends on COMMON_CLK_MMP2 || COMPILE_TEST
-        help
-          This driver supports clocks for Audio subsystem on MMP2 SoC.
+	tristate "Clock driver for MMP2 Audio subsystem"
+	depends on COMMON_CLK_MMP2 || COMPILE_TEST
+	depends on PM_CLK
+	select COMMON_CLK_MMP
+	help
+	  This driver supports clocks for Audio subsystem on MMP2 SoC.
 
 config COMMON_CLK_BD718XX
 	tristate "Clock driver for 32K clk gates on ROHM PMICs"
@@ -507,9 +511,11 @@ config COMMON_CLK_RPMI
 
 source "drivers/clk/actions/Kconfig"
 source "drivers/clk/analogbits/Kconfig"
+source "drivers/clk/anlogic/Kconfig"
 source "drivers/clk/aspeed/Kconfig"
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/cix/Kconfig"
+source "drivers/clk/davinci/Kconfig"
 source "drivers/clk/eswin/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
 source "drivers/clk/imgtec/Kconfig"
@@ -547,6 +553,7 @@ source "drivers/clk/uniphier/Kconfig"
 source "drivers/clk/visconti/Kconfig"
 source "drivers/clk/x86/Kconfig"
 source "drivers/clk/xilinx/Kconfig"
+source "drivers/clk/zte/Kconfig"
 source "drivers/clk/zynqmp/Kconfig"
 
 # Kunit test cases

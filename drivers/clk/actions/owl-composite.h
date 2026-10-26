@@ -119,6 +119,5 @@ extern const struct clk_ops owl_comp_div_ops;
 extern const struct clk_ops owl_comp_fact_ops;
 extern const struct clk_ops owl_comp_fix_fact_ops;
 extern const struct clk_ops owl_comp_pass_ops;
-extern const struct clk_ops clk_fixed_factor_ops;
 
 #endif /* _OWL_COMPOSITE_H_ */

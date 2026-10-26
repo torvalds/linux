@@ -644,8 +644,8 @@ static const struct clk_ops ingenic_clk_ops = {
 static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 {
 	const struct ingenic_cgu_clk_info *clk_info = &cgu->clock_info[idx];
-	struct clk_init_data clk_init;
 	struct ingenic_clk *ingenic_clk = NULL;
+	struct clk_init_data clk_init = {};
 	struct clk *clk, *parent;
 	const char *parent_names[4];
 	unsigned caps, i, num_possible;

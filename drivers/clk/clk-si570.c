@@ -412,7 +412,7 @@ static const struct regmap_config si570_regmap_config = {
 static int si570_probe(struct i2c_client *client)
 {
 	struct clk_si570 *data;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	u32 initial_fout, factory_fout, stability;
 	bool skip_recall;
 	int err;

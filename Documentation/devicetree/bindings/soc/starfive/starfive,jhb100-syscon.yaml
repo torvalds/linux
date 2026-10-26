@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/starfive/starfive,jhb100-syscon.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: StarFive JHB100 SoC system controller
+
+maintainers:
+  - Kevin Xie <kevin.xie@starfivetech.com>
+  - Changhuang Liang <changhuang.liang@starfivetech.com>
+
+description:
+  The StarFive JHB100 SoC system controller contains MMIO registers used by
+  other hardware modules (e.g., PLL, eMMC, PCIe). These modules access
+  specific register offsets, bit masks, and shifts within the system
+  controller region for configuration and status.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - starfive,jhb100-b2h-syscon
+          - starfive,jhb100-gpu-syscon
+          - starfive,jhb100-h2b-syscon
+          - starfive,jhb100-host-syscon
+          - starfive,jhb100-husb-syscon
+          - starfive,jhb100-husbcmn-syscon
+          - starfive,jhb100-husbd-syscon
+          - starfive,jhb100-npu-syscon
+          - starfive,jhb100-pcieep-ecsr-syscon
+          - starfive,jhb100-pcierp-ecsr-syscon
+          - starfive,jhb100-pcierp-syscon
+          - starfive,jhb100-per0-syscon
+          - starfive,jhb100-per1-syscon
+          - starfive,jhb100-per2-syscon
+          - starfive,jhb100-per3-syscon
+          - starfive,jhb100-sfc-filter-syscon
+          - starfive,jhb100-strap-syscon
+          - starfive,jhb100-sys0-syscon
+          - starfive,jhb100-sys1-syscon
+          - starfive,jhb100-sys2-syscon
+          - starfive,jhb100-usb-syscon
+          - starfive,jhb100-vout-syscon
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  '#reset-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - starfive,jhb100-per0-syscon
+              - starfive,jhb100-per1-syscon
+              - starfive,jhb100-sys0-syscon
+    then:
+      required:
+        - clocks
+        - '#clock-cells'
+    else:
+      properties:
+        clocks: false
+        '#clock-cells': false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: starfive,jhb100-pcierp-syscon
+    then:
+      required:
+        - '#reset-cells'
+    else:
+      properties:
+        '#reset-cells': false
+
+additionalProperties: false
+
+examples:
+  - |
+    syscon@13010000 {
+        compatible = "starfive,jhb100-sys0-syscon", "syscon";
+        reg = <0x13010000 0x2000>;
+        clocks = <&osc>;
+        #clock-cells = <1>;
+    };
+
+    syscon@13014000 {
+        compatible = "starfive,jhb100-sys1-syscon", "syscon";
+        reg = <0x13014000 0x4000>;
+    };
+
+    syscon@11719000 {
+        compatible = "starfive,jhb100-pcierp-syscon", "syscon";
+        reg = <0x11719000 0x1000>;
+        #reset-cells = <1>;
+    };
+
+...

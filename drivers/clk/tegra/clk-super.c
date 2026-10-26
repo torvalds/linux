@@ -204,8 +204,8 @@ struct clk *tegra_clk_register_super_mux(const char *name,
 		u8 width, u8 pllx_index, u8 div2_index, spinlock_t *lock)
 {
 	struct tegra_clk_super_mux *super;
+	struct clk_init_data init = {};
 	struct clk *clk;
-	struct clk_init_data init;
 
 	super = kzalloc_obj(*super);
 	if (!super)
@@ -240,8 +240,8 @@ struct clk *tegra_clk_register_super_clk(const char *name,
 		spinlock_t *lock)
 {
 	struct tegra_clk_super_mux *super;
+	struct clk_init_data init = {};
 	struct clk *clk;
-	struct clk_init_data init;
 
 	super = kzalloc_obj(*super);
 	if (!super)

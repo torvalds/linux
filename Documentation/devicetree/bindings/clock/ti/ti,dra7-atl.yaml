@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti/ti,dra7-atl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI DRA7 ATL (Audio Tracking Logic) Clock Controller
+
+maintainers:
+  - Peter Ujfalusi <peter.ujfalusi@ti.com>
+
+description:
+  The ATL IP is used to generate clock to be used to synchronize baseband and
+  audio codec. A single ATL IP provides four ATL clock instances sharing the
+  same functional clock but can be configured to provide different clocks.
+  ATL can maintain a clock averages to some desired frequency based on the
+  bws/aws signals - can compensate the drift between the two ws signal.
+
+  See also Documentation/devicetree/bindings/clock/ti/ti,dra7-atl-clock.yaml
+
+properties:
+  compatible:
+    const: ti,dra7-atl
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: fck
+
+  ti,provided-clocks:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      List of phandles to the clocks associated with the ATL.
+    minItems: 4
+    maxItems: 4
+    items:
+      maxItems: 1
+
+  ti,hwmods:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      Name of the hwmod associated with the ATL.
+    deprecated: true
+    const: atl
+
+patternProperties:
+  "^atl[0-3]$":
+    type: object
+    additionalProperties: false
+    description:
+      Configuration of ATL instances.
+
+    properties:
+      bws:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Baseband word select signal selection.
+        maximum: 15
+
+      aws:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Audio word select signal selection.
+        maximum: 15
+
+    required:
+      - bws
+      - aws
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - ti,provided-clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/ti-dra7-atl.h>
+
+    atl@4843c000 {
+        compatible = "ti,dra7-atl";
+        reg = <0x4843c000 0x3ff>;
+        clocks = <&atl_gfclk_mux>;
+        clock-names = "fck";
+        ti,provided-clocks = <&atl_clkin0_ck>, <&atl_clkin1_ck>,
+                             <&atl_clkin2_ck>, <&atl_clkin3_ck>;
+
+        atl2 {
+            bws = <DRA7_ATL_WS_MCASP2_FSX>;
+            aws = <DRA7_ATL_WS_MCASP3_FSX>;
+        };
+    };

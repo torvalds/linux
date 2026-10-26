@@ -192,7 +192,7 @@ struct clk_hw *s10_register_pll(const struct stratix10_pll_clock *clks,
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_pll *pll_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *name = clks->name;
 	int ret;
 
@@ -232,7 +232,7 @@ struct clk_hw *agilex_register_pll(const struct stratix10_pll_clock *clks,
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_pll *pll_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *name = clks->name;
 	int ret;
 
@@ -271,7 +271,7 @@ struct clk_hw *n5x_register_pll(const struct stratix10_pll_clock *clks,
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_pll *pll_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *name = clks->name;
 	int ret;
 
@@ -310,7 +310,7 @@ struct clk_hw *agilex5_register_pll(const struct agilex5_pll_clock *clks,
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_pll *pll_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *name = clks->name;
 	int ret;
 

@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	kunit_clock_provider1: kunit-clock-provider1 {
+		compatible = "test,clock-provider1";
+		#clock-cells = <1>;
+	};
+
+	kunit_clock_provider2: kunit-clock-provider2 {
+		compatible = "test,clock-provider2";
+		#clock-cells = <1>;
+	};
+
+	kunit-clock-consumer {
+		compatible = "test,clock-consumer";
+		clocks = <&kunit_clock_provider1 0>, <&kunit_clock_provider2 0>;
+		clock-names = "first_clock", "second_clock";
+	};
+
+	kunit_clock_nexus: kunit-clock-nexus {
+		clocks = <&kunit_clock_provider2 0>;
+		clock-map = <&kunit_clock_provider2 0>;
+		#clock-cells = <0>;
+
+		kunit-clock-nexus-child {
+			clocks = <&kunit_clock_nexus>;
+		};
+	};
+};

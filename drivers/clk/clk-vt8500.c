@@ -227,8 +227,8 @@ static __init void vtwm_device_clk_init(struct device_node *node)
 	struct clk_hw *hw;
 	struct clk_device *dev_clk;
 	const char *clk_name = node->name;
+	struct clk_init_data init = {};
 	const char *parent_name;
-	struct clk_init_data init;
 	int rc;
 	int clk_init_flags = 0;
 
@@ -687,8 +687,8 @@ static __init void vtwm_pll_clk_init(struct device_node *node, int pll_type)
 	struct clk_hw *hw;
 	struct clk_pll *pll_clk;
 	const char *clk_name = node->name;
+	struct clk_init_data init = {};
 	const char *parent_name;
-	struct clk_init_data init;
 	int rc;
 
 	if (!pmc_base)

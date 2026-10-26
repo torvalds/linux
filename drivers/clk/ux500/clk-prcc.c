@@ -97,8 +97,8 @@ static struct clk *clk_reg_prcc(const char *name,
 				unsigned long flags,
 				const struct clk_ops *clk_prcc_ops)
 {
+	struct clk_init_data clk_prcc_init = {};
 	struct clk_prcc *clk;
-	struct clk_init_data clk_prcc_init;
 	struct clk *clk_reg;
 
 	if (!name) {

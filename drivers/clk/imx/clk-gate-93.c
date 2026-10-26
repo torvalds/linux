@@ -158,9 +158,9 @@ struct clk_hw *imx93_clk_gate(struct device *dev, const char *name, const char *
 			      unsigned long flags, void __iomem *reg, u32 bit_idx, u32 val,
 			      u32 mask, u32 domain_id, unsigned int *share_count)
 {
+	struct clk_init_data init = {};
 	struct imx93_clk_gate *gate;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 	u32 authen;
 

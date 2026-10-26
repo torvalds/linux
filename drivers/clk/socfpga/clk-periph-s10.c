@@ -103,7 +103,7 @@ struct clk_hw *s10_register_periph(const struct stratix10_perip_c_clock *clks,
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_periph_clk *periph_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *name = clks->name;
 	const char *parent_name = clks->parent_name;
 	int ret;
@@ -139,7 +139,7 @@ struct clk_hw *n5x_register_periph(const struct n5x_perip_c_clock *clks,
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_periph_clk *periph_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *name = clks->name;
 	const char *parent_name = clks->parent_name;
 	int ret;
@@ -174,7 +174,7 @@ struct clk_hw *s10_register_cnt_periph(const struct stratix10_perip_cnt_clock *c
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_periph_clk *periph_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *name = clks->name;
 	const char *parent_name = clks->parent_name;
 	int ret;
@@ -220,7 +220,7 @@ struct clk_hw *agilex5_register_cnt_periph(const struct agilex5_perip_cnt_clock 
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_periph_clk *periph_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *name = clks->name;
 	int ret;
 

@@ -269,7 +269,7 @@ static void __init hb_clk_init(struct device_node *node, const struct clk_ops *o
 	struct hb_clk *hb_clk;
 	const char *clk_name = node->name;
 	const char *parent_name;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct device_node *srnp;
 	int rc;
 

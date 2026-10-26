@@ -62,9 +62,9 @@ static struct clk_hw *
 mtk_clk_register_cpumux(struct device *dev, const struct mtk_composite *mux,
 			struct regmap *regmap)
 {
+	struct clk_init_data init = {};
 	struct mtk_clk_cpumux *cpumux;
 	int ret;
-	struct clk_init_data init;
 
 	cpumux = kzalloc_obj(*cpumux);
 	if (!cpumux)
