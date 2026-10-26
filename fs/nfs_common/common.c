@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/module.h>
+#include <uapi/linux/nfs.h>
 #include <linux/nfs_common.h>
 #include <linux/nfs4.h>
 
@@ -53,12 +54,12 @@ static const struct {
  * Returns a local errno value, or -EIO if the NFS status code is
  * not recognized.  This function is used jointly by NFSv2 and NFSv3.
  */
-int nfs_stat_to_errno(enum nfs_stat status)
+int nfs_stat_to_errno(int status)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(nfs_errtbl); i++) {
-		if (nfs_errtbl[i].stat == (int)status)
+		if (nfs_errtbl[i].stat == status)
 			return nfs_errtbl[i].errno;
 	}
 	return -EIO;

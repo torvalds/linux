@@ -295,14 +295,17 @@ restart:
 	list_for_each_entry_safe(block, next, &file->f_blocks, b_flist) {
 		if (!match(block->b_host, host))
 			continue;
-		/* Do not destroy blocks that are not on
-		 * the global retry list - why? */
+		/*
+		 * nlmsvc_retry_blocked() holds f_mutex while the block
+		 * is off nlm_blocked, so a block off the list here has
+		 * been retired.
+		 */
 		if (list_empty(&block->b_list))
 			continue;
 		kref_get(&block->b_count);
 		spin_unlock(&nlm_blocked_lock);
-		mutex_unlock(&file->f_mutex);
 		nlmsvc_unlink_block(block);
+		mutex_unlock(&file->f_mutex);
 		nlmsvc_release_block(block);
 		goto restart;
 	}
@@ -1012,6 +1015,8 @@ nlmsvc_retry_blocked(struct svc_rqst *rqstp)
 {
 	unsigned long	timeout = MAX_SCHEDULE_TIMEOUT;
 	struct nlm_block *block;
+	struct nlm_file *file;
+	bool due;
 
 	spin_lock(&nlm_blocked_lock);
 	while (!list_empty(&nlm_blocked) && !svc_thread_should_stop(rqstp)) {
@@ -1023,7 +1028,27 @@ nlmsvc_retry_blocked(struct svc_rqst *rqstp)
 			timeout = block->b_when - jiffies;
 			break;
 		}
+		kref_get(&block->b_count);
 		spin_unlock(&nlm_blocked_lock);
+
+		/*
+		 * Hold f_mutex so nlmsvc_traverse_blocks() cannot scan
+		 * the file while the retry has the block off nlm_blocked.
+		 */
+		file = block->b_file;
+		mutex_lock(&file->f_mutex);
+		spin_lock(&nlm_blocked_lock);
+		due = !list_empty(&block->b_list) &&
+		      block->b_when != NLM_NEVER &&
+		      !time_after(block->b_when, jiffies);
+		spin_unlock(&nlm_blocked_lock);
+
+		if (!due) {
+			mutex_unlock(&file->f_mutex);
+			nlmsvc_release_block(block);
+			spin_lock(&nlm_blocked_lock);
+			continue;
+		}
 
 		dprintk("nlmsvc_retry_blocked(%p, when=%ld)\n",
 			block, block->b_when);
@@ -1033,6 +1058,8 @@ nlmsvc_retry_blocked(struct svc_rqst *rqstp)
 			retry_deferred_block(block);
 		} else
 			nlmsvc_grant_blocked(block);
+		mutex_unlock(&file->f_mutex);
+		nlmsvc_release_block(block);
 		spin_lock(&nlm_blocked_lock);
 	}
 	spin_unlock(&nlm_blocked_lock);

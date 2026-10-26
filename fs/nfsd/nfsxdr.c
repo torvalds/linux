@@ -8,18 +8,18 @@
 #include <linux/filelock.h>
 
 #include "vfs.h"
+#include "nfserr.h"
 #include "xdr.h"
+#include "nfs2xdr_gen.h"
 #include "auth.h"
+#include "trace.h"
 
 /*
- * Sun convention: a sattr time-useconds field of one full second (an
- * otherwise out-of-range value) means "set this time to the current
- * server time." It's needed to make permissions checks for the "touch"
- * program across NFSv2 mounts work correctly. See description of
- * sattr in section 6.1 of "NFS Illustrated" by Brent Callaghan,
- * Addison-Wesley, ISBN 0-201-32750-5
+ * Linux-internal ftype values for socket and unknown inodes, not
+ * in RFC 1094's wire enum; values match enum nfs_ftype.
  */
-#define NFS2_SATTR_SET_TO_SERVER_TIME	(1000000)
+#define NFBAD	(7)
+#define NFSOCK	(6)
 
 /*
  * Mapping of S_IF* types to NFS file types
@@ -82,19 +82,6 @@ svcxdr_decode_fhandle(struct xdr_stream *xdr, struct svc_fh *fhp)
 	return true;
 }
 
-static bool
-svcxdr_encode_fhandle(struct xdr_stream *xdr, const struct svc_fh *fhp)
-{
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, NFS_FHSIZE);
-	if (!p)
-		return false;
-	memcpy(p, &fhp->fh_handle.fh_raw, NFS_FHSIZE);
-
-	return true;
-}
-
 static __be32 *
 encode_timeval(__be32 *p, const struct timespec64 *time)
 {
@@ -104,113 +91,6 @@ encode_timeval(__be32 *p, const struct timespec64 *time)
 	else
 		*p++ = xdr_zero;
 	return p;
-}
-
-static bool
-svcxdr_decode_filename(struct xdr_stream *xdr, char **name, unsigned int *len)
-{
-	u32 size, i;
-	__be32 *p;
-	char *c;
-
-	if (xdr_stream_decode_u32(xdr, &size) < 0)
-		return false;
-	if (size == 0 || size > NFS_MAXNAMLEN)
-		return false;
-	p = xdr_inline_decode(xdr, size);
-	if (!p)
-		return false;
-
-	*len = size;
-	*name = (char *)p;
-	for (i = 0, c = *name; i < size; i++, c++)
-		if (*c == '\0' || *c == '/')
-			return false;
-
-	return true;
-}
-
-static bool
-svcxdr_decode_diropargs(struct xdr_stream *xdr, struct svc_fh *fhp,
-			char **name, unsigned int *len)
-{
-	return svcxdr_decode_fhandle(xdr, fhp) &&
-		svcxdr_decode_filename(xdr, name, len);
-}
-
-static bool
-svcxdr_decode_sattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
-		    struct iattr *iap)
-{
-	u32 tmp1, tmp2;
-	__be32 *p;
-
-	p = xdr_inline_decode(xdr, XDR_UNIT * 8);
-	if (!p)
-		return false;
-
-	iap->ia_valid = 0;
-
-	/*
-	 * Some Sun clients put 0xffff in the mode field when they
-	 * mean 0xffffffff.
-	 */
-	tmp1 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1 && tmp1 != 0xffff) {
-		iap->ia_valid |= ATTR_MODE;
-		iap->ia_mode = tmp1;
-	}
-
-	tmp1 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1) {
-		iap->ia_uid = make_kuid(nfsd_user_namespace(rqstp), tmp1);
-		if (uid_valid(iap->ia_uid))
-			iap->ia_valid |= ATTR_UID;
-	}
-
-	tmp1 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1) {
-		iap->ia_gid = make_kgid(nfsd_user_namespace(rqstp), tmp1);
-		if (gid_valid(iap->ia_gid))
-			iap->ia_valid |= ATTR_GID;
-	}
-
-	tmp1 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1) {
-		iap->ia_valid |= ATTR_SIZE;
-		iap->ia_size = tmp1;
-	}
-
-	tmp1 = be32_to_cpup(p++);
-	tmp2 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1 && tmp2 != (u32)-1) {
-		/*
-		 * Range test here to prevent the multiplication from
-		 * wrapping to a valid (but incorrect) value on 32-bit
-		 * platforms.
-		 */
-		if (tmp2 > NFS2_SATTR_SET_TO_SERVER_TIME)
-			return false;
-		iap->ia_valid |= ATTR_ATIME | ATTR_ATIME_SET;
-		iap->ia_atime.tv_sec = tmp1;
-		iap->ia_atime.tv_nsec = tmp2 * NSEC_PER_USEC;
-		if (tmp2 == NFS2_SATTR_SET_TO_SERVER_TIME)
-			iap->ia_valid &= ~ATTR_ATIME_SET;
-	}
-
-	tmp1 = be32_to_cpup(p++);
-	tmp2 = be32_to_cpup(p++);
-	if (tmp1 != (u32)-1 && tmp2 != (u32)-1) {
-		if (tmp2 > NFS2_SATTR_SET_TO_SERVER_TIME)
-			return false;
-		iap->ia_valid |= ATTR_MTIME | ATTR_MTIME_SET;
-		iap->ia_mtime.tv_sec = tmp1;
-		iap->ia_mtime.tv_nsec = tmp2 * NSEC_PER_USEC;
-		if (tmp2 == NFS2_SATTR_SET_TO_SERVER_TIME)
-			iap->ia_valid &= ~(ATTR_ATIME_SET|ATTR_MTIME_SET);
-	}
-
-	return true;
 }
 
 /**
@@ -294,145 +174,9 @@ nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	return svcxdr_decode_fhandle(xdr, &args->fh);
 }
 
-bool
-nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_sattrargs *args = rqstp->rq_argp;
-
-	return svcxdr_decode_fhandle(xdr, &args->fh) &&
-		svcxdr_decode_sattr(rqstp, xdr, &args->attrs);
-}
-
-bool
-nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_diropargs *args = rqstp->rq_argp;
-
-	return svcxdr_decode_diropargs(xdr, &args->fh, &args->name, &args->len);
-}
-
-bool
-nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_readargs *args = rqstp->rq_argp;
-	u32 totalcount;
-
-	if (!svcxdr_decode_fhandle(xdr, &args->fh))
-		return false;
-	if (xdr_stream_decode_u32(xdr, &args->offset) < 0)
-		return false;
-	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
-		return false;
-	/* totalcount is ignored */
-	if (xdr_stream_decode_u32(xdr, &totalcount) < 0)
-		return false;
-
-	return true;
-}
-
-bool
-nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_writeargs *args = rqstp->rq_argp;
-	u32 beginoffset, totalcount;
-
-	if (!svcxdr_decode_fhandle(xdr, &args->fh))
-		return false;
-	/* beginoffset is ignored */
-	if (xdr_stream_decode_u32(xdr, &beginoffset) < 0)
-		return false;
-	if (xdr_stream_decode_u32(xdr, &args->offset) < 0)
-		return false;
-	/* totalcount is ignored */
-	if (xdr_stream_decode_u32(xdr, &totalcount) < 0)
-		return false;
-
-	/* opaque data */
-	if (xdr_stream_decode_u32(xdr, &args->len) < 0)
-		return false;
-	if (args->len > NFS_MAXDATA)
-		return false;
-
-	return xdr_stream_subsegment(xdr, &args->payload, args->len);
-}
-
-bool
-nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_createargs *args = rqstp->rq_argp;
-
-	return svcxdr_decode_diropargs(xdr, &args->fh,
-				       &args->name, &args->len) &&
-		svcxdr_decode_sattr(rqstp, xdr, &args->attrs);
-}
-
-bool
-nfssvc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_renameargs *args = rqstp->rq_argp;
-
-	return svcxdr_decode_diropargs(xdr, &args->ffh,
-				       &args->fname, &args->flen) &&
-		svcxdr_decode_diropargs(xdr, &args->tfh,
-					&args->tname, &args->tlen);
-}
-
-bool
-nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_linkargs *args = rqstp->rq_argp;
-
-	return svcxdr_decode_fhandle(xdr, &args->ffh) &&
-		svcxdr_decode_diropargs(xdr, &args->tfh,
-					&args->tname, &args->tlen);
-}
-
-bool
-nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_symlinkargs *args = rqstp->rq_argp;
-	struct kvec *head = rqstp->rq_arg.head;
-
-	if (!svcxdr_decode_diropargs(xdr, &args->ffh, &args->fname, &args->flen))
-		return false;
-	if (xdr_stream_decode_u32(xdr, &args->tlen) < 0)
-		return false;
-	if (args->tlen == 0)
-		return false;
-
-	args->first.iov_len = head->iov_len - xdr_stream_pos(xdr);
-	args->first.iov_base = xdr_inline_decode(xdr, args->tlen);
-	if (!args->first.iov_base)
-		return false;
-	return svcxdr_decode_sattr(rqstp, xdr, &args->attrs);
-}
-
-bool
-nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_readdirargs *args = rqstp->rq_argp;
-
-	if (!svcxdr_decode_fhandle(xdr, &args->fh))
-		return false;
-	if (xdr_stream_decode_u32(xdr, &args->cookie) < 0)
-		return false;
-	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
-		return false;
-
-	return true;
-}
-
 /*
  * XDR encode functions
  */
-
-bool
-nfssvc_encode_statres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_stat *resp = rqstp->rq_resp;
-
-	return svcxdr_encode_stat(xdr, resp->status);
-}
 
 bool
 nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
@@ -451,205 +195,177 @@ nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	return true;
 }
 
-bool
-nfssvc_encode_diropres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_diropres *resp = rqstp->rq_resp;
-
-	if (!svcxdr_encode_stat(xdr, resp->status))
-		return false;
-	switch (resp->status) {
-	case nfs_ok:
-		if (!svcxdr_encode_fhandle(xdr, &resp->fh))
-			return false;
-		if (!svcxdr_encode_fattr(rqstp, xdr, &resp->fh, &resp->stat))
-			return false;
-		break;
-	}
-
-	return true;
-}
-
-bool
-nfssvc_encode_readlinkres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_readlinkres *resp = rqstp->rq_resp;
-	struct kvec *head = rqstp->rq_res.head;
-
-	if (!svcxdr_encode_stat(xdr, resp->status))
-		return false;
-	switch (resp->status) {
-	case nfs_ok:
-		if (xdr_stream_encode_u32(xdr, resp->len) < 0)
-			return false;
-		svcxdr_encode_opaque_pages(rqstp, xdr, &resp->page, 0,
-					   resp->len);
-		if (svc_encode_result_payload(rqstp, head->iov_len, resp->len) < 0)
-			return false;
-		break;
-	}
-
-	return true;
-}
-
-bool
-nfssvc_encode_readres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_readres *resp = rqstp->rq_resp;
-	struct kvec *head = rqstp->rq_res.head;
-
-	if (!svcxdr_encode_stat(xdr, resp->status))
-		return false;
-	switch (resp->status) {
-	case nfs_ok:
-		if (!svcxdr_encode_fattr(rqstp, xdr, &resp->fh, &resp->stat))
-			return false;
-		if (xdr_stream_encode_u32(xdr, resp->count) < 0)
-			return false;
-		svcxdr_encode_opaque_pages(rqstp, xdr, resp->pages,
-					   rqstp->rq_res.page_base,
-					   resp->count);
-		if (svc_encode_result_payload(rqstp, head->iov_len, resp->count) < 0)
-			return false;
-		break;
-	}
-
-	return true;
-}
-
-bool
-nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_readdirres *resp = rqstp->rq_resp;
-	struct xdr_buf *dirlist = &resp->dirlist;
-
-	if (!svcxdr_encode_stat(xdr, resp->status))
-		return false;
-	switch (resp->status) {
-	case nfs_ok:
-		svcxdr_encode_opaque_pages(rqstp, xdr, dirlist->pages, 0,
-					   dirlist->len);
-		/* no more entries */
-		if (xdr_stream_encode_item_absent(xdr) < 0)
-			return false;
-		if (xdr_stream_encode_bool(xdr, resp->common.err == nfserr_eof) < 0)
-			return false;
-		break;
-	}
-
-	return true;
-}
-
-bool
-nfssvc_encode_statfsres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
-{
-	struct nfsd_statfsres *resp = rqstp->rq_resp;
-	struct kstatfs	*stat = &resp->stats;
-	__be32 *p;
-
-	if (!svcxdr_encode_stat(xdr, resp->status))
-		return false;
-	switch (resp->status) {
-	case nfs_ok:
-		p = xdr_reserve_space(xdr, XDR_UNIT * 5);
-		if (!p)
-			return false;
-		*p++ = cpu_to_be32(NFS_MAXDATA);
-		*p++ = cpu_to_be32(stat->f_bsize);
-		*p++ = cpu_to_be32(stat->f_blocks);
-		*p++ = cpu_to_be32(stat->f_bfree);
-		*p = cpu_to_be32(stat->f_bavail);
-		break;
-	}
-
-	return true;
-}
+/*
+ * READDIR reply entry list (RFC 1094).  The entry list is the
+ * value-follows form of "entry *entries": each entry prefixed by TRUE,
+ * the sequence closed by FALSE.  xdrgen's aggregate codec owns that
+ * framing; the hooks below stream one entry at a time straight from the
+ * directory into the live reply, mirroring nfsd4_encode_dirlist4.  The
+ * directory was opened in nfsd_proc_readdir(), so reading and encoding
+ * happen together here during reply encoding.
+ */
 
 /**
- * nfssvc_encode_nfscookie - Encode a directory offset cookie
- * @resp: readdir result context
- * @offset: offset cookie to encode
+ * nfssvc_encode_nfscookie - Back-patch a directory entry cookie
+ * @xdr: stream holding the reserved cookie slot
+ * @pos: byte position of the cookie slot, or 0 when there is none
+ * @cookie: cookie value to write
  *
- * The buffer space for the offset cookie has already been reserved
- * by svcxdr_encode_entry_common().
+ * An NFSv2 entry's cookie is the offset at which the following entry is
+ * read.  That offset is not known until the following entry is pulled,
+ * so each entry is encoded with a placeholder cookie that a later call
+ * overwrites once the resume offset is known.
  */
-void nfssvc_encode_nfscookie(struct nfsd_readdirres *resp, u32 offset)
+void nfssvc_encode_nfscookie(struct xdr_stream *xdr, unsigned int pos,
+			     u32 cookie)
 {
-	__be32 cookie = cpu_to_be32(offset);
+	__be32 wire_cookie = cpu_to_be32(cookie);
 
-	if (!resp->cookie_offset)
+	if (!pos)
 		return;
-
-	write_bytes_to_xdr_buf(&resp->dirlist, resp->cookie_offset, &cookie,
-			       sizeof(cookie));
-	resp->cookie_offset = 0;
+	write_bytes_to_xdr_buf(xdr->buf, pos, &wire_cookie, XDR_UNIT);
 }
 
-static bool
-svcxdr_encode_entry_common(struct nfsd_readdirres *resp, const char *name,
-			   int namlen, loff_t offset, u64 ino)
+/**
+ * nfs2_readdirok_encode_begin - size the streaming entry budget
+ * @c: aggregate cursor for the entry list
+ *
+ * Derive the entry byte budget from the space left in the live reply
+ * and the client's count hint, reserving room for the list terminator
+ * and the eof flag that follow the entries.
+ *
+ * Return: true.
+ */
+bool nfs2_readdirok_encode_begin(struct xdrgen_aggregate_cursor *c)
 {
-	struct xdr_buf *dirlist = &resp->dirlist;
-	struct xdr_stream *xdr = &resp->xdr;
+	struct svc_rqst *rqstp = c->ctx;
+	struct readdirres_wrapper *resp = rqstp->rq_resp;
+	struct xdr_stream *xdr = c->xdr;
+	int bytes_left;
 
-	if (xdr_stream_encode_item_present(xdr) < 0)
-		return false;
-	/* fileid */
-	if (xdr_stream_encode_u32(xdr, (u32)ino) < 0)
-		return false;
-	/* name */
-	if (xdr_stream_encode_opaque(xdr, name, min(namlen, NFS2_MAXNAMLEN)) < 0)
-		return false;
-	/* cookie */
-	resp->cookie_offset = dirlist->len;
-	if (xdr_stream_encode_u32(xdr, ~0U) < 0)
-		return false;
-
+	/* Reserve the terminator FALSE and the eof bool (two words). */
+	bytes_left = xdr->buf->buflen - xdr->buf->len - XDR_UNIT * 2;
+	if (bytes_left < 0)
+		bytes_left = 0;
+	resp->space_left = min_t(u32, bytes_left,
+				 clamp(resp->count, (u32)(XDR_UNIT * 2),
+				       (u32)PAGE_SIZE) - XDR_UNIT * 2);
+	resp->cookie_offset = 0;
 	return true;
 }
 
 /**
- * nfssvc_encode_entry - encode one NFSv2 READDIR entry
- * @data: directory context
- * @name: name of the object to be encoded
- * @namlen: length of that name, in bytes
- * @offset: the offset of the previous entry
- * @ino: the fileid of this entry
- * @d_type: unused
+ * nfs2_readdirok_encode - stream the next READDIR entry
+ * @c: aggregate cursor for the entry list
+ * @out: OUT: entry the framing encodes when one is produced
  *
- * Return values:
- *   %0: Entry was successfully encoded.
- *   %-EINVAL: An encoding problem occurred, secondary status code in resp->common.err
+ * Back-patch the previous entry's placeholder cookie with this entry's
+ * resume offset, then, if the reply budget allows, project the next
+ * directory entry into @out for the generated per-entry encoder.
  *
- * On exit, the following fields are updated:
- *   - resp->xdr
- *   - resp->common.err
- *   - resp->cookie_offset
+ * Return: true when @out holds an entry to encode; false to end the
+ * list -- because the directory is exhausted, a host error struck, or
+ * the reply budget filled.  On budget exhaustion the previous entry's
+ * cookie already points at the rejected entry, the client's resume
+ * point.
  */
-int nfssvc_encode_entry(void *data, const char *name, int namlen,
-			loff_t offset, u64 ino, unsigned int d_type)
+bool nfs2_readdirok_encode(struct xdrgen_aggregate_cursor *c,
+			   struct entry *out)
 {
-	struct readdir_cd *ccd = data;
-	struct nfsd_readdirres *resp = container_of(ccd,
-						    struct nfsd_readdirres,
-						    common);
-	unsigned int starting_length = resp->dirlist.len;
+	struct svc_rqst *rqstp = c->ctx;
+	struct readdirres_wrapper *resp = rqstp->rq_resp;
+	struct xdr_stream *xdr = c->xdr;
+	struct buffered_dirent *de;
+	int namlen;
+	u32 need;
 
-	/* The offset cookie for the previous entry */
-	nfssvc_encode_nfscookie(resp, offset);
+	/*
+	 * The previous entry was just encoded; commit the stream and note
+	 * its cookie slot -- the entry's last XDR word -- so it can be
+	 * back-patched once this entry's resume offset is known.
+	 */
+	if (c->index) {
+		xdr_commit_encode(xdr);
+		resp->cookie_offset = xdr->buf->len - XDR_UNIT;
+	}
 
-	if (!svcxdr_encode_entry_common(resp, name, namlen, offset, ino))
-		goto out_toosmall;
+	de = nfsd_readdir_next(&resp->iter);
+	if (!de)
+		return false;
 
-	xdr_commit_encode(&resp->xdr);
-	resp->common.err = nfs_ok;
-	return 0;
+	/* The previous entry's cookie is this entry's resume offset. */
+	nfssvc_encode_nfscookie(xdr, resp->cookie_offset, (u32)de->offset);
 
-out_toosmall:
-	resp->cookie_offset = 0;
-	resp->common.err = nfserr_toosmall;
-	resp->dirlist.len = starting_length;
-	return -EINVAL;
+	namlen = min_t(int, de->namlen, NFS_MAXNAMLEN);
+
+	/* value-follows + fileid + name (length + data) + cookie */
+	need = XDR_UNIT * (4 + XDR_QUADLEN(namlen));
+	if (need > resp->space_left)
+		return false;
+	resp->space_left -= need;
+
+	out->fileid = (u32)de->ino;
+	out->name.len = namlen;
+	out->name.data = (unsigned char *)de->name;
+	memset(out->cookie, 0, sizeof(out->cookie));	/* back-patched later */
+
+	trace_nfsd_dirent(resp->iter.fhp, de->ino, de->name, namlen);
+	return true;
+}
+
+/**
+ * nfs2_readdirok_encode_end - finish the streamed entry list
+ * @c: aggregate cursor for the entry list
+ * @ok: false if the framing hit a wire error while encoding the list
+ *
+ * Back-patch the final entry's cookie with the directory's resume
+ * offset and report eof.  A list cut short by the reply budget or a
+ * host error reports eof false, so the client reads the rest with a
+ * follow-up request.
+ *
+ * Return: true.
+ */
+bool nfs2_readdirok_encode_end(struct xdrgen_aggregate_cursor *c, bool ok)
+{
+	struct svc_rqst *rqstp = c->ctx;
+	struct readdirres_wrapper *resp = rqstp->rq_resp;
+	struct xdr_stream *xdr = c->xdr;
+
+	if (ok)
+		nfssvc_encode_nfscookie(xdr, resp->cookie_offset,
+					(u32)resp->iter.offset);
+	resp->xdrgen.u.readdirok.eof = resp->iter.eof;
+
+	/*
+	 * The xdr_stream primitives don't manage rq_next_page, and
+	 * svcrdma retains only the pages below it for Send completion.
+	 * The eof word that follows starts a new page when this one is
+	 * full.
+	 */
+	rqstp->rq_next_page = xdr->page_ptr + 1;
+	if (xdr->p == xdr->end)
+		rqstp->rq_next_page++;
+	return true;
+}
+
+/*
+ * A server never decodes a READDIR result; these satisfy the linkage
+ * of the generated (unused) decoder.
+ */
+bool nfs2_readdirok_decode_begin(struct xdrgen_aggregate_cursor *c)
+{
+	return false;
+}
+
+bool nfs2_readdirok_decode(struct xdrgen_aggregate_cursor *c,
+			   const struct entry *in)
+{
+	return false;
+}
+
+bool nfs2_readdirok_decode_end(struct xdrgen_aggregate_cursor *c, bool ok)
+{
+	return false;
 }
 
 /*
@@ -662,16 +378,10 @@ void nfssvc_release_attrstat(struct svc_rqst *rqstp)
 	fh_put(&resp->fh);
 }
 
-void nfssvc_release_diropres(struct svc_rqst *rqstp)
+void nfssvc_release_readdirres(struct svc_rqst *rqstp)
 {
-	struct nfsd_diropres *resp = rqstp->rq_resp;
+	struct readdirres_wrapper *resp = rqstp->rq_resp;
 
-	fh_put(&resp->fh);
-}
-
-void nfssvc_release_readres(struct svc_rqst *rqstp)
-{
-	struct nfsd_readres *resp = rqstp->rq_resp;
-
+	nfsd_readdir_close(&resp->iter);
 	fh_put(&resp->fh);
 }

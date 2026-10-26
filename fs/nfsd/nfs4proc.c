@@ -38,19 +38,22 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/namei.h>
+#include <linux/pagemap.h>
 
 #include <linux/sunrpc/addr.h>
-#include <linux/nfs_ssc.h>
+#include <linux/nfsd_ssc.h>
 
 #include "attr4.h"
 #include "idmap.h"
 #include "cache.h"
 #include "xdr4.h"
+#include "nfs4ctl.h"
 #include "vfs.h"
 #include "current_stateid.h"
 #include "netns.h"
 #include "acl.h"
 #include "pnfs.h"
+#include "nfserr.h"
 #include "trace.h"
 
 static bool inter_copy_offload_enable;
@@ -68,6 +71,57 @@ MODULE_PARM_DESC(nfsd4_ssc_umount_timeout,
 #endif
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
+
+static const struct nfsd_access_map nfsd4_regaccess[] = {
+	{ NFS4_ACCESS_READ,	NFSD_MAY_READ				},
+	{ NFS4_ACCESS_EXECUTE,	NFSD_MAY_EXEC				},
+	{ NFS4_ACCESS_MODIFY,	NFSD_MAY_WRITE|NFSD_MAY_TRUNC		},
+	{ NFS4_ACCESS_EXTEND,	NFSD_MAY_WRITE				},
+	{ NFS4_ACCESS_XAREAD,	NFSD_MAY_READ				},
+	{ NFS4_ACCESS_XAWRITE,	NFSD_MAY_WRITE				},
+	{ NFS4_ACCESS_XALIST,	NFSD_MAY_READ				},
+	{ 0,			0					}
+};
+
+static const struct nfsd_access_map nfsd4_diraccess[] = {
+	{ NFS4_ACCESS_READ,	NFSD_MAY_READ				},
+	{ NFS4_ACCESS_LOOKUP,	NFSD_MAY_EXEC				},
+	{ NFS4_ACCESS_MODIFY,	NFSD_MAY_EXEC|NFSD_MAY_WRITE|NFSD_MAY_TRUNC },
+	{ NFS4_ACCESS_EXTEND,	NFSD_MAY_EXEC|NFSD_MAY_WRITE		},
+	{ NFS4_ACCESS_DELETE,	NFSD_MAY_REMOVE				},
+	{ NFS4_ACCESS_XAREAD,	NFSD_MAY_READ				},
+	{ NFS4_ACCESS_XAWRITE,	NFSD_MAY_WRITE				},
+	{ NFS4_ACCESS_XALIST,	NFSD_MAY_READ				},
+	{ 0,			0					}
+};
+
+static const struct nfsd_access_map nfsd4_otheraccess[] = {
+	{ NFS4_ACCESS_READ,	NFSD_MAY_READ				},
+	{ NFS4_ACCESS_EXECUTE,	NFSD_MAY_EXEC				},
+	{ NFS4_ACCESS_MODIFY,	NFSD_MAY_WRITE|NFSD_MAY_LOCAL_ACCESS	},
+	{ NFS4_ACCESS_EXTEND,	NFSD_MAY_WRITE|NFSD_MAY_LOCAL_ACCESS	},
+	{ 0,			0					}
+};
+
+static const struct nfsd_access_maps nfsd4_access_maps = {
+	.regular	= nfsd4_regaccess,
+	.directory	= nfsd4_diraccess,
+	.other		= nfsd4_otheraccess,
+};
+
+static int nfsd4_iocb_flags(enum stable_how4 how)
+{
+	switch (how) {
+	case FILE_SYNC4:
+		/* persist data and timestamps */
+		return IOCB_DSYNC | IOCB_SYNC;
+	case DATA_SYNC4:
+		/* persist data only */
+		return IOCB_DSYNC;
+	default:
+		return 0;
+	}
+}
 
 static u32 nfsd_attrmask[] = {
 	NFSD_WRITEABLE_ATTRS_WORD0,
@@ -169,23 +223,17 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 	return fh_verify(rqstp, current_fh, S_IFREG, accmode);
 }
 
-static __be32 nfsd_check_obj_isreg(struct svc_fh *fh, u32 minor_version)
+static int nfsd_check_obj_isreg(struct dentry *child)
 {
-	umode_t mode = d_inode(fh->fh_dentry)->i_mode;
+	umode_t mode = d_inode(child)->i_mode;
 
 	if (S_ISREG(mode))
-		return nfs_ok;
+		return 0;
 	if (S_ISDIR(mode))
-		return nfserr_isdir;
+		return -EISDIR;
 	if (S_ISLNK(mode))
-		return nfserr_symlink;
-
-	/* RFC 7530 - 16.16.6 */
-	if (minor_version == 0)
-		return nfserr_symlink;
-	else
-		return nfserr_wrong_type;
-
+		return -ELOOP;
+	return -EFTYPE;
 }
 
 static void nfsd4_set_open_owner_reply_cache(struct nfsd4_compound_state *cstate, struct nfsd4_open *open, struct svc_fh *resfh)
@@ -202,40 +250,50 @@ static inline bool nfsd4_create_is_exclusive(int createmode)
 		createmode == NFS4_CREATE_EXCLUSIVE4_1;
 }
 
-static __be32
-nfsd4_vfs_create(struct svc_fh *fhp, struct dentry **child,
-		 struct nfsd4_open *open)
+static struct file *do_lookup_open(struct path *parent,
+				   struct qstr *name,
+				   unsigned int oflags,
+				   umode_t mode)
 {
-	struct file *filp;
+	struct file *filp = NULL;
 	struct path path;
-	int oflags;
+	struct dentry *child;
+	int want_write_err = 0;
 
-	oflags = O_CREAT | O_LARGEFILE;
-	if (nfsd4_create_is_exclusive(open->op_createmode))
-		oflags |= O_EXCL;
+	want_write_err = mnt_want_write(parent->mnt);
 
-	switch (open->op_share_access & NFS4_SHARE_ACCESS_BOTH) {
-	case NFS4_SHARE_ACCESS_WRITE:
-		oflags |= O_WRONLY;
-		break;
-	case NFS4_SHARE_ACCESS_BOTH:
-		oflags |= O_RDWR;
-		break;
-	default:
-		oflags |= O_RDONLY;
+	child = start_creating(&nop_mnt_idmap, parent->dentry, name);
+	if (IS_ERR(child)) {
+		filp = ERR_CAST(child);
+		goto out;
 	}
+	path.mnt = parent->mnt;
+	path.dentry = child;
 
-	path.mnt = fhp->fh_export->ex_path.mnt;
-	path.dentry = *child;
-	filp = dentry_create(&path, oflags, open->op_iattr.ia_mode,
-			     current_cred());
-	*child = path.dentry;
+	if (d_really_is_positive(child)) {
+		/*
+		 * open the file so that we consistently have a valid
+		 * op_filp and consequently a valid ->f_path.dentry.
+		 */
+		int err = nfsd_check_obj_isreg(child);
 
-	if (IS_ERR(filp))
-		return nfserrno(PTR_ERR(filp));
-
-	open->op_filp = filp;
-	return nfs_ok;
+		if (err)
+			filp = ERR_PTR(err);
+		else
+			filp = dentry_open(&path, oflags, current_cred());
+	} else if (!(oflags & O_CREAT)) {
+		filp = ERR_PTR(-ENOENT);
+	} else if (want_write_err) {
+		filp = ERR_PTR(want_write_err);
+	} else {
+		filp = dentry_create(&path, oflags, mode, current_cred());
+		child = path.dentry;
+	}
+	end_creating(child);
+out:
+	if (!want_write_err)
+		mnt_drop_write(parent->mnt);
+	return filp;
 }
 
 /*
@@ -254,11 +312,15 @@ nfsd4_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		.na_iattr	= iap,
 		.na_seclabel	= &open->op_label,
 	};
-	struct dentry *parent, *child = ERR_PTR(-EINVAL);
+	int oflags = O_CREAT | O_LARGEFILE;
+	struct dentry *child = ERR_PTR(-EINVAL);
+	struct path parent = {
+		.mnt = fhp->fh_export->ex_path.mnt,
+		.dentry = fhp->fh_dentry,
+	};
 	__u32 v_mtime, v_atime;
-	struct inode *inode;
-	__be32 status;
-	int host_err;
+	__be32 status, create_status;
+	int want_write_err;
 
 	if (name_is_dot_dotdot(open->op_fname, open->op_fnamelen))
 		return nfserr_exist;
@@ -268,43 +330,69 @@ nfsd4_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	status = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_EXEC);
 	if (status != nfs_ok)
 		return status;
-	parent = fhp->fh_dentry;
-	inode = d_inode(parent);
 
-	host_err = fh_want_write(fhp);
-	if (host_err)
-		return nfserrno(host_err);
+	if (open->op_createmode == NFS4_CREATE_UNCHECKED) {
+		/*
+		 * If name is already in dcache we need to check for mountpoints
+		 */
+		child = try_lookup_noperm(&QSTR_LEN(open->op_fname,
+						    open->op_fnamelen),
+					  parent.dentry);
+		if (child && !IS_ERR(child) && d_is_reg(child) &&
+		    unlikely(nfsd_mountpoint(child, fhp->fh_export))) {
+			struct svc_export *exp = exp_get(fhp->fh_export);
 
-	if (open->op_acl) {
+			status = nfsd_cross_mnt(rqstp, &child, &exp);
+			if (status == nfs_ok)
+				status = fh_compose(resfhp, exp,
+						    child, fhp);
+			fh_fill_post_noop(fhp);
+			open->op_truncate =
+				(iap->ia_valid & ATTR_SIZE) &&
+				!iap->ia_size;
+			dput(child);
+			exp_put(exp);
+			return status;
+		}
+		if (!IS_ERR(child))
+			dput(child);
+	}
+
+	if (!IS_POSIXACL(d_inode(parent.dentry)))
+		iap->ia_mode &= ~current_umask();
+
+	/*
+	 * For the EXCLUSIVE modes we do our own uniqueness tests
+	 * so don't want O_EXCL.
+	 */
+	if (open->op_createmode == NFS4_CREATE_GUARDED)
+		oflags |= O_EXCL;
+
+	switch (open->op_share_access & NFS4_SHARE_ACCESS_BOTH) {
+	case NFS4_SHARE_ACCESS_WRITE:
+		oflags |= O_WRONLY;
+		break;
+	case NFS4_SHARE_ACCESS_BOTH:
+		oflags |= O_RDWR;
+		break;
+	default:
+		oflags |= O_RDONLY;
+	}
+
+	if (!is_create_with_attrs(open)) {
+		/* No attrs to check */
+	} else if (open->op_acl) {
 		if (open->op_dpacl || open->op_pacl) {
-			status = nfserr_inval;
-			goto out;
+			/* Cannot specify both NFSv4 and Posix ACLs */
+			return nfserr_inval;
 		}
-		if (is_create_with_attrs(open)) {
-			status = nfsd4_acl_to_attr(NF4REG, open->op_acl,
+		status = nfsd4_acl_to_attr(NF4REG, open->op_acl,
 						   &attrs);
-			if (status)
-				goto out;
-		}
-	} else if (is_create_with_attrs(open)) {
-		/* The dpacl and pacl will get released by nfsd_attrs_free(). */
-		attrs.na_dpacl = open->op_dpacl;
-		attrs.na_pacl = open->op_pacl;
-		open->op_dpacl = NULL;
-		open->op_pacl = NULL;
-	}
-
-	child = start_creating(&nop_mnt_idmap, parent,
-			       &QSTR_LEN(open->op_fname, open->op_fnamelen));
-	if (IS_ERR(child)) {
-		status = nfserrno(PTR_ERR(child));
-		goto out;
-	}
-
-	if (d_really_is_negative(child)) {
-		status = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_CREATE);
-		if (status != nfs_ok)
-			goto out;
+		if (status)
+			return status;
+	} else {
+		attrs.na_dpacl = posix_acl_dup(open->op_dpacl);
+		attrs.na_pacl = posix_acl_dup(open->op_pacl);
 	}
 
 	v_mtime = 0;
@@ -322,24 +410,63 @@ nfsd4_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		 */
 		v_mtime = verifier[0] & 0x7fffffff;
 		v_atime = verifier[1] & 0x7fffffff;
+
+		iap->ia_valid |= ATTR_MTIME | ATTR_ATIME |
+				 ATTR_MTIME_SET|ATTR_ATIME_SET;
+		iap->ia_mtime.tv_sec = v_mtime;
+		iap->ia_atime.tv_sec = v_atime;
+		iap->ia_mtime.tv_nsec = 0;
+		iap->ia_atime.tv_nsec = 0;
 	}
 
-	if (d_really_is_positive(child)) {
-		/* NFSv4 protocol requires change attributes even though
-		 * no change happened.
-		 */
-		status = fh_fill_both_attrs(fhp);
-		if (status != nfs_ok)
-			goto out;
+	create_status = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_CREATE);
+	if (create_status)
+		/* Might still succeed if no create is needed */
+		oflags &= ~O_CREAT;
 
-		status = fh_compose(resfhp, fhp->fh_export, child, fhp);
-		if (status != nfs_ok)
-			goto out;
+	open->op_filp = do_lookup_open(&parent,
+				       &QSTR_LEN(open->op_fname,
+						 open->op_fnamelen),
+				       oflags,
+				       open->op_iattr.ia_mode);
+	if (IS_ERR(open->op_filp)) {
+		int hosterr = PTR_ERR(open->op_filp);
 
-		switch (open->op_createmode) {
-		case NFS4_CREATE_UNCHECKED:
-			if (!d_is_reg(child))
-				break;
+		if (open->op_createmode != NFS4_CREATE_UNCHECKED) {
+			switch (hosterr) {
+			case -EISDIR:
+			case -ELOOP:
+			case -EFTYPE:
+				hosterr = -EEXIST;
+			}
+		}
+		status = nfserrno(hosterr);
+		open->op_filp = NULL;
+		if (status == nfserr_noent && create_status)
+			status = create_status;
+		goto out;
+	}
+
+	child = open->op_filp->f_path.dentry;
+	open->op_created = open->op_filp->f_mode & FMODE_CREATED;
+
+	status = fh_compose(resfhp, fhp->fh_export, child, fhp);
+	if (status != nfs_ok)
+		goto out;
+
+	if (!open->op_created &&
+	    nfsd4_create_is_exclusive(open->op_createmode) &&
+	    inode_get_mtime_sec(d_inode(child)) == v_mtime &&
+	    inode_get_atime_sec(d_inode(child)) == v_atime &&
+	    d_inode(child)->i_size == 0)
+		open->op_created = true;
+
+	if (!open->op_created) {
+		if (open->op_createmode == NFS4_CREATE_UNCHECKED) {
+			/* NFSv4 protocol requires change attributes
+			 * even though no change happened.
+			 */
+			fh_fill_post_noop(fhp);
 
 			/*
 			 * In NFSv4, we don't want to truncate the file
@@ -347,63 +474,30 @@ nfsd4_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			 * some other reason. Furthermore, if the size is
 			 * nonzero, we should ignore it according to spec!
 			 */
-			open->op_truncate = (iap->ia_valid & ATTR_SIZE) &&
-						!iap->ia_size;
-			break;
-		case NFS4_CREATE_GUARDED:
+			open->op_truncate = (d_is_reg(child) &&
+					     (iap->ia_valid & ATTR_SIZE) &&
+					     !iap->ia_size);
+		} else
 			status = nfserr_exist;
-			break;
-		case NFS4_CREATE_EXCLUSIVE:
-			if (inode_get_mtime_sec(d_inode(child)) == v_mtime &&
-			    inode_get_atime_sec(d_inode(child)) == v_atime &&
-			    d_inode(child)->i_size == 0) {
-				open->op_created = true;
-				break;		/* subtle */
-			}
-			status = nfserr_exist;
-			break;
-		case NFS4_CREATE_EXCLUSIVE4_1:
-			if (inode_get_mtime_sec(d_inode(child)) == v_mtime &&
-			    inode_get_atime_sec(d_inode(child)) == v_atime &&
-			    d_inode(child)->i_size == 0) {
-				open->op_created = true;
-				goto set_attr;	/* subtle */
-			}
-			status = nfserr_exist;
-		}
 		goto out;
 	}
-
-	if (!IS_POSIXACL(inode))
-		iap->ia_mode &= ~current_umask();
-
-	status = fh_fill_pre_attrs(fhp);
-	if (status != nfs_ok)
-		goto out;
-	status = nfsd4_vfs_create(fhp, &child, open);
-	if (status != nfs_ok)
-		goto out;
-	open->op_created = true;
+	/* file was created */
 	fh_fill_post_attrs(fhp);
-
-	status = fh_compose(resfhp, fhp->fh_export, child, fhp);
-	if (status != nfs_ok)
-		goto out;
 
 	/* A newly created file already has a file size of zero. */
 	if ((iap->ia_valid & ATTR_SIZE) && (iap->ia_size == 0))
 		iap->ia_valid &= ~ATTR_SIZE;
-	if (nfsd4_create_is_exclusive(open->op_createmode)) {
-		iap->ia_valid = ATTR_MTIME | ATTR_ATIME |
-				ATTR_MTIME_SET|ATTR_ATIME_SET;
-		iap->ia_mtime.tv_sec = v_mtime;
-		iap->ia_atime.tv_sec = v_atime;
-		iap->ia_mtime.tv_nsec = 0;
-		iap->ia_atime.tv_nsec = 0;
-	}
 
-set_attr:
-	status = nfsd_create_setattr(rqstp, fhp, resfhp, &attrs);
+	/* We will need write access to set the attrs */
+	want_write_err = fh_want_write(fhp);
+	if (!want_write_err) {
+		status = nfsd_create_setattr(rqstp, fhp,
+					     resfhp, &attrs);
+		fh_drop_write(fhp);
+	} else if (nfsd_attrs_valid(&attrs)) {
+		/* Needed write access */
+		status = nfserrno(want_write_err);
+	}
 
 	if (attrs.na_labelerr)
 		open->op_bmval[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
@@ -414,9 +508,7 @@ set_attr:
 	if (attrs.na_paclerr)
 		open->op_bmval[2] &= ~FATTR4_WORD2_POSIX_ACCESS_ACL;
 out:
-	end_creating(child);
 	nfsd_attrs_free(&attrs);
-	fh_drop_write(fhp);
 	return status;
 }
 
@@ -465,6 +557,9 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 	fh_init(*resfh, NFS4_FHSIZE);
 	open->op_truncate = false;
 
+	status = fh_fill_pre_attrs_unlocked(current_fh);
+	if (status)
+		goto out;
 	if (open->op_create) {
 		/* FIXME: check session persistence and pnfs flags.
 		 * The nfsv4.1 spec requires the following semantics:
@@ -496,15 +591,15 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 	} else {
 		status = nfsd_lookup(rqstp, current_fh,
 				     open->op_fname, open->op_fnamelen, *resfh);
-		if (status == nfs_ok)
-			/* NFSv4 protocol requires change attributes even though
-			 * no change happened.
-			 */
-			status = fh_fill_both_attrs(current_fh);
+		/*
+		 * NFSv4 protocol requires change attributes even though
+		 * no change happened.
+		 */
+		fh_fill_post_noop(current_fh);
 	}
 	if (status)
 		goto out;
-	status = nfsd_check_obj_isreg(*resfh, cstate->minorversion);
+	status = nfserrno(nfsd_check_obj_isreg((*resfh)->fh_dentry));
 	if (status)
 		goto out;
 
@@ -516,6 +611,10 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 	status = do_open_permission(rqstp, *resfh, open, accmode);
 	set_change_info(&open->op_cinfo, current_fh);
 out:
+	if (status == nfserr_wrong_type && cstate->minorversion == 0)
+		/* RFC 7530 - 16.16.6 */
+		return nfserr_symlink;
+
 	return status;
 }
 
@@ -703,13 +802,6 @@ static __be32 nfsd4_open_omfg(struct svc_rqst *rqstp, struct nfsd4_compound_stat
 	return nfsd4_open(rqstp, cstate, &op->u);
 }
 
-static void
-nfsd4_open_release(union nfsd4_op_u *u)
-{
-	posix_acl_release(u->open.op_dpacl);
-	posix_acl_release(u->open.op_pacl);
-}
-
 /*
  * filehandle-manipulating ops.
  */
@@ -788,17 +880,18 @@ nfsd4_access(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfsd4_access *access = &u->access;
 	u32 access_full;
 
-	access_full = NFS3_ACCESS_FULL;
+	access_full = NFS4_ACCESS_READ | NFS4_ACCESS_LOOKUP |
+		      NFS4_ACCESS_MODIFY | NFS4_ACCESS_EXTEND |
+		      NFS4_ACCESS_DELETE | NFS4_ACCESS_EXECUTE;
 	if (cstate->minorversion >= 2)
 		access_full |= NFS4_ACCESS_XALIST | NFS4_ACCESS_XAREAD |
 			       NFS4_ACCESS_XAWRITE;
 
 	if (access->ac_req_access & ~access_full)
 		return nfserr_inval;
-
 	access->ac_resp_access = access->ac_req_access;
-	return nfsd_access(rqstp, &cstate->current_fh, &access->ac_resp_access,
-			   &access->ac_supported);
+	return nfsd_access(rqstp, &cstate->current_fh, &nfsd4_access_maps,
+			   &access->ac_resp_access, &access->ac_supported);
 }
 
 static __be32
@@ -829,15 +922,12 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfsd_attrs attrs = {
 		.na_iattr	= &create->cr_iattr,
 		.na_seclabel	= &create->cr_label,
-		.na_dpacl	= create->cr_dpacl,
-		.na_pacl	= create->cr_pacl,
+		.na_dpacl	= posix_acl_dup(create->cr_dpacl),
+		.na_pacl	= posix_acl_dup(create->cr_pacl),
 	};
 	struct svc_fh resfh;
 	__be32 status;
 	dev_t rdev;
-
-	create->cr_dpacl = NULL;
-	create->cr_pacl = NULL;
 
 	fh_init(&resfh, NFS4_FHSIZE);
 
@@ -1248,18 +1338,14 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfsd_attrs attrs = {
 		.na_iattr	= &setattr->sa_iattr,
 		.na_seclabel	= &setattr->sa_label,
-		.na_pacl	= setattr->sa_pacl,
-		.na_dpacl	= setattr->sa_dpacl,
+		.na_pacl	= posix_acl_dup(setattr->sa_pacl),
+		.na_dpacl	= posix_acl_dup(setattr->sa_dpacl),
 	};
 	bool save_no_wcc, deleg_attrs;
 	struct nfs4_stid *st = NULL;
 	struct inode *inode;
 	__be32 status = nfs_ok;
 	int err;
-
-	/* Transfer ownership to attrs for cleanup via nfsd_attrs_free() */
-	setattr->sa_pacl = NULL;
-	setattr->sa_dpacl = NULL;
 
 	deleg_attrs = setattr->sa_bmval[2] & (FATTR4_WORD2_TIME_DELEG_ACCESS |
 					      FATTR4_WORD2_TIME_DELEG_MODIFY);
@@ -1377,7 +1463,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	write->wr_how_written = write->wr_stable_how;
 	status = nfsd_vfs_write(rqstp, &cstate->current_fh, nf,
 				write->wr_offset, &write->wr_payload,
-				&cnt, write->wr_how_written,
+				&cnt, nfsd4_iocb_flags(write->wr_how_written),
 				(__be32 *)write->wr_verifier.data);
 	nfsd_file_put(nf);
 
@@ -1431,16 +1517,37 @@ nfsd4_clone(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	struct nfsd4_clone *clone = &u->clone;
 	struct nfsd_file *src, *dst;
+	bool sync_failed = false;
+	errseq_t since;
 	__be32 status;
+	int host_err;
 
 	status = nfsd4_verify_copy(rqstp, cstate, &clone->cl_src_stateid, &src,
 				   &clone->cl_dst_stateid, &dst);
 	if (status)
 		goto out;
 
-	status = nfsd4_clone_file_range(rqstp, src, clone->cl_src_pos,
-			dst, clone->cl_dst_pos, clone->cl_count,
-			EX_ISSYNC(cstate->current_fh.fh_export));
+	host_err = nfsd_clone_file_range(src->nf_file, clone->cl_src_pos,
+					 dst->nf_file, clone->cl_dst_pos,
+					 clone->cl_count, &since);
+	if (!host_err && EX_ISSYNC(cstate->current_fh.fh_export)) {
+		host_err = nfsd_clone_sync_range(src->nf_file, dst->nf_file,
+						 clone->cl_dst_pos,
+						 clone->cl_count, since);
+		sync_failed = host_err < 0;
+	}
+	if (host_err < 0) {
+		trace_nfsd_clone_file_range_err(rqstp, &cstate->save_fh,
+				clone->cl_src_pos, &cstate->current_fh,
+				clone->cl_dst_pos, clone->cl_count, host_err);
+		if (sync_failed) {
+			struct nfsd_net *nn = net_generic(dst->nf_net,
+							  nfsd_net_id);
+
+			nfsd_maybe_reset_write_verifier(nn, rqstp, host_err);
+		}
+	}
+	status = nfserrno(host_err);
 
 	if (!status && (READ_ONCE(dst->nf_file->f_mode) & FMODE_NOCMTIME) != 0)
 		nfsd_update_cmtime_attr(dst->nf_file, 0);
@@ -1652,13 +1759,6 @@ void nfsd4_cancel_copy_by_sb(struct net *net, struct super_block *sb)
 }
 
 #ifdef CONFIG_NFSD_V4_2_INTER_SSC
-
-extern struct file *nfs42_ssc_open(struct vfsmount *ss_mnt,
-				   struct nfs_fh *src_fh,
-				   nfs4_stateid *stateid);
-extern void nfs42_ssc_close(struct file *filep);
-
-extern void nfs_sb_deactive(struct super_block *sb);
 
 #define NFSD42_INTERSSC_MOUNTOPS "vers=4.2,addr=%s,sec=sys"
 
@@ -1882,7 +1982,7 @@ nfsd4_cleanup_inter_ssc(struct nfsd4_ssc_umount_item *nsui, struct file *filp,
 	struct nfsd_net *nn = net_generic(dst->nf_net, nfsd_net_id);
 	long timeout = msecs_to_jiffies(nfsd4_ssc_umount_timeout);
 
-	nfs42_ssc_close(filp);
+	nfsd42_ssc_close(filp);
 	fput(filp);
 
 	spin_lock(&nn->nfsd_ssc_lock);
@@ -1914,12 +2014,6 @@ nfsd4_cleanup_inter_ssc(struct nfsd4_ssc_umount_item *nsui, struct file *filp,
 {
 }
 
-static struct file *nfs42_ssc_open(struct vfsmount *ss_mnt,
-				   struct nfs_fh *src_fh,
-				   nfs4_stateid *stateid)
-{
-	return NULL;
-}
 #endif /* CONFIG_NFSD_V4_2_INTER_SSC */
 
 static __be32
@@ -1974,7 +2068,7 @@ static void nfsd4_init_copy_res(struct nfsd4_copy *copy, bool sync)
 {
 	copy->cp_res.wr_stable_how =
 		test_bit(NFSD4_COPY_F_COMMITTED, &copy->cp_flags) ?
-			NFS_FILE_SYNC : NFS_UNSTABLE;
+			FILE_SYNC4 : UNSTABLE4;
 	nfsd4_copy_set_sync(copy, sync);
 }
 
@@ -2142,8 +2236,8 @@ static int nfsd4_do_async_copy(void *data)
 	if (nfsd4_ssc_is_inter(copy)) {
 		struct file *filp;
 
-		filp = nfs42_ssc_open(copy->ss_nsui->nsui_vfsmount,
-				      &copy->c_fh, &copy->stateid);
+		filp = nfsd42_ssc_open(copy->ss_nsui->nsui_vfsmount,
+				       &copy->c_fh, &copy->stateid);
 		if (IS_ERR(filp)) {
 			switch (PTR_ERR(filp)) {
 			case -EBADF:
@@ -3328,7 +3422,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 
 			if (current_fh->fh_export &&
 					need_wrongsec_check(rqstp))
-				op->status = check_nfsd_access(current_fh->fh_export, rqstp, false);
+				op->status = check_nfsd_access(current_fh->fh_export, rqstp);
 		}
 encode_op:
 		if (op->status == nfserr_replay_me) {
@@ -3842,7 +3936,6 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_OPEN] = {
 		.op_func = nfsd4_open,
-		.op_release = nfsd4_open_release,
 		.op_flags = OP_HANDLES_WRONGSEC | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_OPEN",
 		.op_rsize_bop = nfsd4_open_rsize,

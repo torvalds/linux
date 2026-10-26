@@ -42,6 +42,15 @@ definitions:
       - none
       - tls
       - mtls
+  -
+    type: flags
+    name: rpcbind-flags
+    doc: >-
+      Constraints that apply to an rpcbind registration. no-udp means the
+      kernel would not have registered this program and version over UDP,
+      so the caller must skip the udp and udp6 netids for it.
+    entries:
+      - no-udp
 
 attribute-sets:
   -
@@ -160,6 +169,23 @@ attribute-sets:
         name: transport-name
         type: string
   -
+    name: rpcbind
+    attributes:
+      -
+        name: program
+        type: u32
+        doc: RPC program number to register.
+      -
+        name: version
+        type: u32
+        doc: RPC version number to register.
+      -
+        name: flags
+        type: u32
+        enum: rpcbind-flags
+        enum-as-flags: true
+        doc: Constraints on the listeners this entry applies to.
+  -
     name: server-sock
     attributes:
       -
@@ -167,6 +193,24 @@ attribute-sets:
         type: nest
         nested-attributes: sock
         multi-attr: true
+      -
+        name: userspace-rpcbind
+        type: flag
+        doc: >-
+          The caller registers the listeners with rpcbind itself, so the
+          kernel must not do it. The kernel echoes this attribute in the
+          reply when it accepts the request. Ownership cannot change while
+          a server exists.
+      -
+        name: rpcbind
+        type: nest
+        nested-attributes: rpcbind
+        multi-attr: true
+        doc: >-
+          A program and version that the caller should register for every
+          listener reported in the same reply, except the netids that flags
+          rules out. Reply only. NLM is absent because lockd still
+          registers itself.
   -
     name: pool-mode
     attributes:
@@ -483,13 +527,22 @@ operations:
             - version
     -
       name: listener-set
-      doc: set nfs running sockets
+      doc: >-
+        set nfs running sockets. A request that carries userspace-rpcbind
+        is answered with a reply rather than a bare ack, and the addr list
+        in that reply names only the listeners that have an rpcbind netid.
       attribute-set: server-sock
       flags: [admin-perm]
       do:
         request:
           attributes:
             - addr
+            - userspace-rpcbind
+        reply:
+          attributes:
+            - addr
+            - userspace-rpcbind
+            - rpcbind
     -
       name: listener-get
       doc: get nfs running listeners

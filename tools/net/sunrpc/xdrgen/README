@@ -147,8 +147,94 @@ Pragmas
 -------
 
 Pragma directives specify exceptions to the normal generation of
-encoding and decoding functions. Currently one directive is
-implemented: "public".
+encoding and decoding functions. The directives are described
+below.
+
+Pragma aggregate
+------ ---------
+
+  pragma aggregate <struct> <member> ;
+
+A variable-length array member is normally encoded and decoded by
+staging it in a C array and walking that array. When the application
+object is not that array -- for instance when the member is a wire
+projection of a different in-kernel structure -- building it is
+wasted work. This directive marks such a member so that xdrgen emits a
+codec that owns only the wire framing (the length prefix, the bound
+check, and the per-element codec) and drives the application
+through begin/item/end hooks, processing one element at a time with
+no staged array. The marked member must be a struct member
+declared either as a variable-length array or as an optional-data
+list ("type *name"); xdrgen rejects a directive naming anything
+else, and generates the codec for the server side only.
+
+The two forms differ only in framing. A variable-length array
+carries a u32 element count, so the framing writes that count and
+bound-checks it. Its generated decoder hands each element to the
+ordinary element decoder from a local variable, so the element
+type may not contain a variable-length array or an optional-data
+member at any depth; xdrgen rejects a directive whose element type
+does. The array must declare a maximum size: the decoder hands the
+wire count to the begin hook before it decodes any element, and
+only the declared bound limits that count. xdrgen rejects a
+directive naming an unbounded array. An optional-data list carries
+no count: each element is prefixed by a value-follows TRUE and the
+sequence is closed by a FALSE, which the framing writes after the
+last element. The element type must therefore be a pointer type,
+whose codec owns that framing; xdrgen rejects any other element
+type. That form has no count to loop on, so its encoder pulls
+elements until the item hook returns false. False ends the list
+rather than failing the encode: a producer stops when its source
+is exhausted or when a reply budget fills. A producer that stops
+for an error records it in its own state and either fails the
+encode from the end hook or reports it in the procedure status.
+For the optional-data form xdrgen generates a working
+encoder only; the decoder it emits fails without consuming the
+list, so xdrgen also rejects the directive when the struct is
+reachable from an RPC argument.
+
+For example:
+
+  pragma aggregate secattr aclent;
+  pragma aggregate secattr dfaclent;
+
+The hooks are supplied by hand. Their names derive from the pragma
+header and the containing struct, so that two programs sharing a
+type name resolve to distinct symbols. All marked members of one
+struct share a hook set, so they share one element type as well;
+xdrgen rejects a marked member whose element type differs from
+that of a member already marked in the same struct. The cursor's
+member_id field selects the member:
+
+  nfs_acl2_secattr_encode_begin()
+  nfs_acl2_secattr_encode()
+  nfs_acl2_secattr_encode_end()
+  nfs_acl2_secattr_decode_begin()
+  nfs_acl2_secattr_decode()
+  nfs_acl2_secattr_decode_end()
+
+For a variable-length array, a decoder fills the cursor's count from
+the wire before calling the begin hook, and an encoder's begin hook
+sets that count for the framing to bound-check and emit. An
+optional-data list's encoder does not read the count and its
+decoder never fills it. Once a begin hook
+has succeeded its end hook runs, so that it can release what begin
+took; the end hook receives the running success flag.
+
+For each marked member xdrgen emits an enumeration constant -- the
+pragma header, struct, and member joined by underscores and
+upper-cased -- in the generated header, and the generated framing
+initializes the cursor's member_id with it. The hooks compare
+member_id against these constants rather than bare integers:
+
+  NFS_ACL2_SECATTR_ACLENT
+  NFS_ACL2_SECATTR_DFACLENT
+
+The hooks reach their application state through the xdr_stream's
+xdrgen_ctx pointer: svcxdr_init_decode() and svcxdr_init_encode()
+bind it to the svc_rqst, and the generated framing copies it into
+the cursor's ctx field, from which a hook reaches rq_argp or
+rq_resp. xdrgen emits the hook prototypes in the generated header.
 
 Pragma big_endian
 ------ ----------
@@ -230,6 +316,65 @@ Adds these prototypes in the generated header:
 And, in the generated source code, both of these functions appear
 without the "static __maybe_unused" modifiers.
 
+Pragma pages
+------ -----
+
+  pragma pages <type> <member> ;
+
+A variable-length opaque or string member is normally encoded by
+copying its content into the Reply buffer. When the member carries
+a bulk payload that a server-side read operation has already
+deposited in the pages of the Reply buffer, that copy is wasted
+work, and it prevents a transport capable of direct data placement
+from conveying the payload separately from the rest of the Reply.
+This directive marks such a member so that the emitted encoder
+inserts the payload pages into the encoding stream by reference and
+marks the byte range as a result payload.
+
+The marked member may be a member of a struct or an arm of a union,
+and its type may be named directly or reached through a typedef. A
+union arm declared directly as a string is the one exception: xdrgen
+generates such an arm as a char *, which carries no length field, so
+the directive is rejected there and the arm has to be declared
+through a typedef. For example:
+
+  pragma pages READ3resok data;
+  pragma pages readlinkres data;
+
+The first marks the opaque data member of struct READ3resok; the
+second marks the path arm of union readlinkres, where path is
+"typedef string path<NFS_MAXPATHLEN>".
+
+Whether the directive drives the encoder or the decoder follows
+from how the containing type is used. A server decodes arguments
+and encodes results, so the directive on a member of a result type
+(such as READ3resok) marks a payload to encode by reference, while
+the directive on a member of an argument type (such as the data
+member of an NFS WRITE argument) marks a payload to decode in place.
+
+An argument type here is the struct named as an RPC procedure
+argument, any aggregate reachable from it, and any typedef alias of
+either; a result type is defined the same way. A decoded member
+and an encoded one take different C representations, so a marked
+type that is reachable from both an argument and a result is
+rejected. The directive on a union arm of an argument type is
+rejected as well:
+the union generator emits only the ordinary copying decoder, so a
+page-resident union arm needs generator support that does not yet
+exist.
+
+The emitted encoder reads only the marked member's length field to
+determine how many octets of page content to insert; the member's
+data pointer is not read. The emitted decoder reads the length
+prefix and captures the payload octets by reference, leaving them in
+the pages of the Receive buffer. A decoded page-resident member is
+represented as a struct xdr_buf so that a later stage can hand the
+payload to the server's file system without a copy.
+
+The server and client manage payload pages differently, so this
+directive applies only to server-side code generation. Client-side
+handling of a page-resident member remains future work.
+
 
 Future Work
 -----------
@@ -242,10 +387,11 @@ Expand the README into a user guide similar to rpcgen(1)
 
 Add more pragma directives:
 
-  * @pages -- use xdr_read/write_pages() for the specified opaque
-    field
   * @skip -- do not decode, but rather skip, the specified argument
     field
+
+Extend pragma pages to client-side code generation, and to union
+arms of RPC procedure arguments
 
 Enable something like a #include to dynamically insert the content
 of other specification files

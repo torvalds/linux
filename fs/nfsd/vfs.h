@@ -37,6 +37,17 @@
 #define NFSD_MAY_CREATE		(NFSD_MAY_EXEC|NFSD_MAY_WRITE)
 #define NFSD_MAY_REMOVE		(NFSD_MAY_EXEC|NFSD_MAY_WRITE|NFSD_MAY_TRUNC)
 
+struct nfsd_access_map {
+	u32		access;
+	int		may;
+};
+
+struct nfsd_access_maps {
+	const struct nfsd_access_map	*regular;
+	const struct nfsd_access_map	*directory;
+	const struct nfsd_access_map	*other;
+};
+
 struct nfsd_file;
 
 /*
@@ -46,6 +57,41 @@ typedef int (*nfsd_filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 
 struct readdir_cd {
 	__be32			err;	/* nfs_ok, nfserr, or nfserr_eof */
+};
+
+/*
+ * One directory entry buffered out of the underlying filesystem.
+ * Buffering decouples the ->iterate_shared() call from the consumer,
+ * which may call ->lookup() and so must not run inside iterate_dir().
+ */
+struct buffered_dirent {
+	u64			ino;
+	loff_t			offset;
+	int			namlen;
+	unsigned int		d_type;
+	char			name[];
+};
+
+/*
+ * Streaming directory reader.  nfsd_readdir_open() opens the directory
+ * and seeks to the start cookie, nfsd_readdir_next() yields one entry
+ * at a time (refilling from the filesystem as needed), and
+ * nfsd_readdir_close() releases it.  The reader holds the open file, so
+ * a consumer can pull entries while a reply is being encoded.
+ */
+struct nfsd_readdir_iter {
+	struct dir_context	ctx;		/* drives iterate_dir() */
+	struct file		*file;		/* open directory */
+	struct svc_fh		*fhp;		/* directory file handle */
+	char			*page;		/* one batch of raw entries */
+	size_t			used;		/* bytes filled this batch */
+	int			full;		/* batch buffer filled up */
+	char			*pos;		/* next entry to yield */
+	int			remaining;	/* bytes left from @pos */
+	loff_t			offset;		/* resume cookie */
+	int			host_err;	/* set once iterate_dir() fails */
+	bool			batched;	/* a batch has been read */
+	bool			eof;		/* directory exhausted */
 };
 
 /* nfsd/vfs.c */
@@ -75,9 +121,14 @@ static inline bool nfsd_attrs_valid(struct nfsd_attrs *attrs)
 		attrs->na_pacl || attrs->na_dpacl);
 }
 
+struct nfsd_net;
+
 __be32		nfserrno (int errno);
-int		nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
-		                struct svc_export **expp);
+void		nfsd_maybe_reset_write_verifier(struct nfsd_net *nn,
+						struct svc_rqst *rqstp,
+						int err);
+__be32		nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
+			       struct svc_export **expp);
 __be32		nfsd_lookup(struct svc_rqst *, struct svc_fh *,
 				const char *, unsigned int, struct svc_fh *);
 __be32		 nfsd_lookup_dentry(struct svc_rqst *, struct svc_fh *,
@@ -89,10 +140,11 @@ int nfsd_mountpoint(struct dentry *, struct svc_export *);
 #ifdef CONFIG_NFSD_V4
 __be32		nfsd4_vfs_fallocate(struct svc_rqst *, struct svc_fh *,
 				    struct file *, loff_t, loff_t, int);
-__be32		nfsd4_clone_file_range(struct svc_rqst *rqstp,
-				       struct nfsd_file *nf_src, u64 src_pos,
-				       struct nfsd_file *nf_dst, u64 dst_pos,
-				       u64 count, bool sync);
+int		nfsd_clone_file_range(struct file *src, u64 src_pos,
+				      struct file *dst, u64 dst_pos,
+				      u64 count, errseq_t *since);
+int		nfsd_clone_sync_range(struct file *src, struct file *dst,
+				      u64 dst_pos, u64 count, errseq_t since);
 #endif /* CONFIG_NFSD_V4 */
 __be32		nfsd_create_locked(struct svc_rqst *, struct svc_fh *,
 				struct nfsd_attrs *attrs, int type, dev_t rdev,
@@ -100,7 +152,9 @@ __be32		nfsd_create_locked(struct svc_rqst *, struct svc_fh *,
 __be32		nfsd_create(struct svc_rqst *, struct svc_fh *,
 				char *name, int len, struct nfsd_attrs *attrs,
 				int type, dev_t rdev, struct svc_fh *res);
-__be32		nfsd_access(struct svc_rqst *, struct svc_fh *, u32 *, u32 *);
+__be32		nfsd_access(struct svc_rqst *rqstp, struct svc_fh *fhp,
+				const struct nfsd_access_maps *maps,
+				u32 *access, u32 *supported);
 __be32		nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				struct svc_fh *resfhp, struct nfsd_attrs *iap);
 __be32		nfsd_commit(struct svc_rqst *rqst, struct svc_fh *fhp,
@@ -135,11 +189,13 @@ __be32		nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				u32 *eof);
 __be32		nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				loff_t offset, const struct xdr_buf *payload,
-				unsigned long *cnt, int stable, __be32 *verf);
+				unsigned long *cnt, int iocb_flags,
+				__be32 *verf);
 __be32		nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				struct nfsd_file *nf, loff_t offset,
 				const struct xdr_buf *payload,
-				unsigned long *cnt, int stable, __be32 *verf);
+				unsigned long *cnt, int iocb_flags,
+				__be32 *verf);
 __be32		nfsd_readlink(struct svc_rqst *, struct svc_fh *,
 				char *, int *);
 __be32		nfsd_symlink(struct svc_rqst *, struct svc_fh *,
@@ -157,6 +213,11 @@ __be32		nfsd_unlink(struct svc_rqst *, struct svc_fh *, int type,
 				char *name, int len);
 __be32		nfsd_readdir(struct svc_rqst *, struct svc_fh *,
 			     loff_t *, struct readdir_cd *, nfsd_filldir_t);
+__be32		nfsd_readdir_open(struct svc_rqst *rqstp, struct svc_fh *fhp,
+				  loff_t *offsetp,
+				  struct nfsd_readdir_iter *iter);
+struct buffered_dirent *nfsd_readdir_next(struct nfsd_readdir_iter *iter);
+void		nfsd_readdir_close(struct nfsd_readdir_iter *iter);
 __be32		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 				struct kstatfs *, int access);
 int		nfsd_get_case_info(struct dentry *dentry,

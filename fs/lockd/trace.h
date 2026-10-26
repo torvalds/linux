@@ -7,7 +7,6 @@
 
 #include <linux/tracepoint.h>
 #include <linux/crc32.h>
-#include <linux/nfs.h>
 
 #include "lockd.h"
 

@@ -402,6 +402,7 @@ static void __nfs42_ssc_close(struct file *filep)
 }
 
 static const struct nfs4_ssc_client_ops nfs4_ssc_clnt_ops_tbl = {
+	.owner = THIS_MODULE,
 	.sco_open = __nfs42_ssc_open,
 	.sco_close = __nfs42_ssc_close,
 };

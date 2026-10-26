@@ -238,8 +238,21 @@ struct nfsd_net {
 	int			nfs4_max_clients;
 
 	atomic_t		nfsd_courtesy_clients;
-	struct shrinker		*nfsd_client_shrinker;
-	struct work_struct	nfsd_shrinker_work;
+	/* per-namespace; num_delegations in nfs4state.c is host-wide */
+	atomic_long_t		nfsd_delegations;
+	struct shrinker		*nfsd_courtesy_shrinker;
+	struct shrinker		*nfsd_deleg_shrinker;
+	struct work_struct	nfsd_courtesy_work;
+	struct work_struct	nfsd_deleg_work;
+
+	/* courtesy scan requests the reaper has not retired yet */
+	atomic_long_t		nfsd_shrink_backlog;
+
+	/* delegation scan requests the reaper has not retired yet */
+	atomic_long_t		nfsd_deleg_backlog;
+
+	/* when deleg_reaper() last swept the client list */
+	time64_t		nfsd_last_recall_any;
 
 	/* last time an admin-revoke happened for NFSv4.0 */
 	time64_t		nfs40_last_revoke;

@@ -37,6 +37,7 @@
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/slab.h>
 #include "nfsd.h"
+#include "nfserr.h"
 #include "state.h"
 #include "netns.h"
 #include "stats.h"
@@ -1529,12 +1530,14 @@ out:
 
 /**
  * nfsd41_cb_destroy_referring_call_list - release referring call info
- * @cb: context of a callback that has completed
+ * @cb: context of callback to release referring calls from
  *
  * Callers who allocate referring calls using nfsd41_cb_referring_call() must
  * release those resources by calling nfsd41_cb_destroy_referring_call_list.
  *
- * Caller serializes access to @cb.
+ * Caller serializes access to @cb. No CB_COMPOUND for @cb may be in
+ * flight, because encode_cb_sequence4args() walks this list as it
+ * encodes.
  */
 void nfsd41_cb_destroy_referring_call_list(struct nfsd4_callback *cb)
 {
@@ -1556,6 +1559,7 @@ void nfsd41_cb_destroy_referring_call_list(struct nfsd4_callback *cb)
 		list_del(&rcl->__list);
 		kfree(rcl);
 	}
+	cb->cb_nr_referring_call_list = 0;
 }
 
 static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)

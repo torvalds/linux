@@ -8,11 +8,15 @@
  */
 
 #include <linux/namei.h>
+#include <linux/nfs3.h>
 #include <linux/sunrpc/svc_xprt.h>
+
+#include "nfsd.h"
 #include "xdr3.h"
 #include "auth.h"
 #include "netns.h"
 #include "vfs.h"
+#include "nfserr.h"
 
 /*
  * Force construction of an empty post-op attr
@@ -555,6 +559,8 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
 		return false;
 	if (xdr_stream_decode_u32(xdr, &args->stable) < 0)
+		return false;
+	if (args->stable > NFS_FILE_SYNC)
 		return false;
 
 	/* opaque data */

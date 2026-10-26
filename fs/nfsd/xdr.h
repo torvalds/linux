@@ -1,84 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* XDR types for nfsd. This is mainly a typing exercise. */
 
-#ifndef LINUX_NFSD_H
-#define LINUX_NFSD_H
+#ifndef _LINUX_NFSD_XDR_H
+#define _LINUX_NFSD_XDR_H
 
 #include <linux/vfs.h>
-#include "nfsd.h"
-#include "nfsfh.h"
+
 #include "vfs.h"
-
-struct nfsd_fhandle {
-	struct svc_fh		fh;
-};
-
-struct nfsd_sattrargs {
-	struct svc_fh		fh;
-	struct iattr		attrs;
-};
-
-struct nfsd_diropargs {
-	struct svc_fh		fh;
-	char *			name;
-	unsigned int		len;
-};
-
-struct nfsd_readargs {
-	struct svc_fh		fh;
-	__u32			offset;
-	__u32			count;
-};
-
-struct nfsd_writeargs {
-	svc_fh			fh;
-	__u32			offset;
-	__u32			len;
-	struct xdr_buf		payload;
-};
-
-struct nfsd_createargs {
-	struct svc_fh		fh;
-	char *			name;
-	unsigned int		len;
-	struct iattr		attrs;
-};
-
-struct nfsd_renameargs {
-	struct svc_fh		ffh;
-	char *			fname;
-	unsigned int		flen;
-	struct svc_fh		tfh;
-	char *			tname;
-	unsigned int		tlen;
-};
-
-struct nfsd_linkargs {
-	struct svc_fh		ffh;
-	struct svc_fh		tfh;
-	char *			tname;
-	unsigned int		tlen;
-};
-
-struct nfsd_symlinkargs {
-	struct svc_fh		ffh;
-	char *			fname;
-	unsigned int		flen;
-	char *			tname;
-	unsigned int		tlen;
-	struct iattr		attrs;
-	struct kvec		first;
-};
-
-struct nfsd_readdirargs {
-	struct svc_fh		fh;
-	__u32			cookie;
-	__u32			count;
-};
-
-struct nfsd_stat {
-	__be32			status;
-};
 
 struct nfsd_attrstat {
 	__be32			status;
@@ -86,88 +14,39 @@ struct nfsd_attrstat {
 	struct kstat		stat;
 };
 
-struct nfsd_diropres  {
-	__be32			status;
-	struct svc_fh		fh;
-	struct kstat		stat;
-};
-
-struct nfsd_readlinkres {
-	__be32			status;
-	int			len;
-	struct page		*page;
-};
-
-struct nfsd_readres {
-	__be32			status;
-	struct svc_fh		fh;
-	unsigned long		count;
-	struct kstat		stat;
-	struct page		**pages;
-};
-
-struct nfsd_readdirres {
-	/* Components of the reply */
-	__be32			status;
-
-	int			count;
-
-	/* Used to encode the reply's entry list */
-	struct xdr_stream	xdr;
-	struct xdr_buf		dirlist;
-	struct readdir_cd	common;
-	unsigned int		cookie_offset;
-};
-
-struct nfsd_statfsres {
-	__be32			status;
-	struct kstatfs		stats;
-};
-
 /*
- * Storage requirements for XDR arguments and results.
+ * Declared here rather than in nfsproc.c with the other proc wrappers
+ * because READDIR's encode hooks in nfsxdr.c reference it. The xdrgen
+ * field must be first so the struct can be cast to its XDR type for the
+ * RPC dispatch layer.
+ *
+ * The file handle lives here rather than in an argument wrapper: the
+ * RPC layer zeroes the result before decode, so ->pc_release can run on
+ * a request that failed to decode.
  */
-union nfsd_xdrstore {
-	struct nfsd_sattrargs	sattr;
-	struct nfsd_diropargs	dirop;
-	struct nfsd_readargs	read;
-	struct nfsd_writeargs	write;
-	struct nfsd_createargs	create;
-	struct nfsd_renameargs	rename;
-	struct nfsd_linkargs	link;
-	struct nfsd_symlinkargs	symlink;
-	struct nfsd_readdirargs	readdir;
+struct readdirres_wrapper {
+	struct readdirres	xdrgen;
+	struct svc_fh		fh;
+
+	/* Streaming state for encoding the reply's entry list */
+	struct nfsd_readdir_iter iter;		/* directory reader */
+	u32			count;		/* client's reply size hint */
+	u32			space_left;	/* remaining entry budget */
+	unsigned int		cookie_offset;	/* prev entry's cookie slot */
 };
 
-#define NFS2_SVC_XDRSIZE	sizeof(union nfsd_xdrstore)
-
+static_assert(offsetof(struct readdirres_wrapper, xdrgen) == 0);
 
 bool nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
-bool nfssvc_encode_statres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_encode_diropres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_encode_readlinkres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_encode_readres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_encode_statfsres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
-void nfssvc_encode_nfscookie(struct nfsd_readdirres *resp, u32 offset);
-int nfssvc_encode_entry(void *data, const char *name, int namlen,
-			loff_t offset, u64 ino, unsigned int d_type);
+void nfssvc_encode_nfscookie(struct xdr_stream *xdr, unsigned int pos,
+			     u32 cookie);
+
+void nfssvc_release_readdirres(struct svc_rqst *rqstp);
 
 void nfssvc_release_attrstat(struct svc_rqst *rqstp);
-void nfssvc_release_diropres(struct svc_rqst *rqstp);
-void nfssvc_release_readres(struct svc_rqst *rqstp);
 
 /* Helper functions for NFSv2 ACL code */
 bool svcxdr_decode_fhandle(struct xdr_stream *xdr, struct svc_fh *fhp);
@@ -175,4 +54,4 @@ bool svcxdr_encode_stat(struct xdr_stream *xdr, __be32 status);
 bool svcxdr_encode_fattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 			 const struct svc_fh *fhp, const struct kstat *stat);
 
-#endif /* LINUX_NFSD_H */
+#endif /* _LINUX_NFSD_XDR_H */

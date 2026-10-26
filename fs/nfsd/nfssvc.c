@@ -25,7 +25,10 @@
 #include <net/addrconf.h>
 #include <net/ipv6.h>
 #include <net/net_namespace.h>
+
 #include "nfsd.h"
+#include "nfserr.h"
+#include "nfs4ctl.h"
 #include "cache.h"
 #include "vfs.h"
 #include "netns.h"
@@ -38,11 +41,6 @@
 atomic_t			nfsd_th_cnt = ATOMIC_INIT(0);
 static int			nfsd(void *vrqstp);
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
-static int			nfsd_acl_rpcbind_set(struct net *,
-						     const struct svc_program *,
-						     u32, int,
-						     unsigned short,
-						     unsigned short);
 static __be32			nfsd_acl_init_request(struct svc_rqst *,
 						const struct svc_program *,
 						struct svc_process_info *);
@@ -124,7 +122,7 @@ struct svc_program		nfsd_programs[] = {
 	.pg_class		= "nfsd",
 	.pg_authenticate	= svc_set_client,
 	.pg_init_request	= nfsd_acl_init_request,
-	.pg_rpcbind_set		= nfsd_acl_rpcbind_set,
+	.pg_rpcbind_set		= nfsd_rpcbind_set,
 	},
 #endif /* defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL) */
 #if IS_ENABLED(CONFIG_NFS_LOCALIO)
@@ -202,6 +200,11 @@ int nfsd_minorversion(struct nfsd_net *nn, u32 minorversion, enum vers_op change
 			nfsd_vers(nn, 4, NFSD_AVAIL);
 	}
 	return 0;
+}
+
+bool nfsd_v4client(struct svc_rqst *rqstp)
+{
+	return rqstp && rqstp->rq_prog == NFS_PROGRAM && rqstp->rq_vers == 4;
 }
 
 bool nfsd_net_try_get(struct net *net) __must_hold(rcu)
@@ -599,7 +602,14 @@ struct svc_rqst *nfsd_current_rqst(void)
 	return NULL;
 }
 
-int nfsd_create_serv(struct net *net)
+/**
+ * nfsd_create_serv - create the svc_serv for a namespace if it has none
+ * @net: network namespace to operate within
+ * @no_rpcbind: true if the caller registers the listeners with rpcbind
+ *
+ * Return: 0 on success or a negative errno.
+ */
+int nfsd_create_serv(struct net *net, bool no_rpcbind)
 {
 	int error;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
@@ -626,6 +636,9 @@ int nfsd_create_serv(struct net *net)
 		percpu_ref_exit(&nn->nfsd_net_ref);
 		return -ENOMEM;
 	}
+
+	/* svc_bind() reads this, so set it first. */
+	serv->sv_no_rpcbind = no_rpcbind;
 
 	error = svc_bind(serv, net);
 	if (error < 0) {
@@ -767,7 +780,7 @@ nfsd_svc(int n, int *nthreads, struct net *net, const struct cred *cred, const c
 	strscpy(nn->nfsd_name, scope ? scope : utsname()->nodename,
 		sizeof(nn->nfsd_name));
 
-	error = nfsd_create_serv(net);
+	error = nfsd_create_serv(net, false);
 	if (error)
 		goto out;
 	serv = nn->nfsd_serv;
@@ -793,18 +806,6 @@ nfsd_support_acl_version(int vers)
 	if (vers >= NFSD_ACL_MINVERS && vers < NFSD_ACL_NRVERS)
 		return nfsd_acl_version[vers] != NULL;
 	return false;
-}
-
-static int
-nfsd_acl_rpcbind_set(struct net *net, const struct svc_program *progp,
-		     u32 version, int family, unsigned short proto,
-		     unsigned short port)
-{
-	if (!nfsd_support_acl_version(version) ||
-	    !nfsd_vers(net_generic(net, nfsd_net_id), version, NFSD_TEST))
-		return 0;
-	return svc_generic_rpcbind_set(net, progp, version, family,
-			proto, port);
 }
 
 static __be32
@@ -841,12 +842,43 @@ nfsd_acl_init_request(struct svc_rqst *rqstp,
 }
 #endif
 
+/**
+ * nfsd_version_registerable - would nfsd register [@progp, @version]?
+ * @net: network namespace to query
+ * @progp: RPC program to query
+ * @version: RPC version to query
+ *
+ * Answers the question for a listener of any protocol. A caller that asks
+ * about one listener must apply vs_need_cong_ctrl itself.
+ *
+ * Return: true when the version is a candidate for rpcbind registration.
+ */
+bool nfsd_version_registerable(struct net *net,
+			       const struct svc_program *progp, u32 version)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	/*
+	 * nfsd_acl_version[] is built by CONFIG_NFSD_V2_ACL and
+	 * CONFIG_NFSD_V3_ACL, so a NULL entry already answers for nfsacl and
+	 * nfsd_support_acl_version() would add nothing here.
+	 */
+	if (version >= progp->pg_nvers || !progp->pg_vers[version])
+		return false;
+
+	/* nfslocalio is hidden and never reaches rpcbind. */
+	if (progp->pg_vers[version]->vs_hidden)
+		return false;
+
+	return nfsd_vers(nn, version, NFSD_TEST);
+}
+
 static int
 nfsd_rpcbind_set(struct net *net, const struct svc_program *progp,
 		 u32 version, int family, unsigned short proto,
 		 unsigned short port)
 {
-	if (!nfsd_vers(net_generic(net, nfsd_net_id), version, NFSD_TEST))
+	if (!nfsd_version_registerable(net, progp, version))
 		return 0;
 	return svc_generic_rpcbind_set(net, progp, version, family,
 			proto, port);

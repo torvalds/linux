@@ -1,0 +1,10 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+{# The element decoder does not report presence, so the value-follows
+   framing cannot be decoded. Failing here keeps a caller from decoding
+   the members that follow from the list's own data. This closes the
+   function, so the struct decoder emits nothing after it. #}
+{% if annotate %}
+	/* member {{ name }} (aggregate list): not decodable */
+{% endif %}
+	return false;
+}

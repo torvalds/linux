@@ -1,0 +1,37 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+{% if annotate %}
+	/* member {{ name }} (aggregate array) */
+{% endif %}
+	{
+		struct xdrgen_aggregate_cursor cursor = {
+			.xdr = xdr,
+			.member_id = {{ member_sym }},
+			.ctx = xdr->xdrgen_ctx,
+		};
+		bool ok = true;
+
+		if (!{{ hook }}_encode_begin(&cursor))
+			return false;
+		if (cursor.count > {{ maxsize }})
+			ok = false;
+		if (ok && xdr_stream_encode_u32(xdr, cursor.count) != XDR_UNIT)
+			ok = false;
+		for (cursor.index = 0; ok && cursor.index < cursor.count; cursor.index++) {
+			{{ classifier }}{{ c_type }} element = {};
+
+			if (!{{ hook }}_encode(&cursor, &element)) {
+				ok = false;
+				break;
+			}
+{% if type in pass_by_reference %}
+			if (!xdrgen_encode_{{ type }}(xdr, &element)) {
+{% else %}
+			if (!xdrgen_encode_{{ type }}(xdr, element)) {
+{% endif %}
+				ok = false;
+				break;
+			}
+		}
+		if (!{{ hook }}_encode_end(&cursor, ok) || !ok)
+			return false;
+	}
