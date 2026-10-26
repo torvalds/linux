@@ -686,7 +686,8 @@ int lan966x_fdma_xmit_xdpf(struct lan966x_port *port, void *ptr, u32 len)
 		       FDMA_DCB_STATUS_BLOCKO(0) |
 		       FDMA_DCB_STATUS_BLOCKL(next_dcb_buf->len),
 		       &fdma_nextptr_cb,
-		       &lan966x_fdma_xdp_tx_dataptr_cb);
+		       len ? &lan966x_fdma_xdp_tx_dataptr_cb :
+			     &lan966x_fdma_tx_dataptr_cb);
 
 	/* Start the transmission */
 	lan966x_fdma_tx_start(tx);
