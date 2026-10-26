@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/rwsem.h>
 #include <linux/parser.h>
+#include <linux/dcache.h>
 #include <linux/namei.h>
 #include <linux/fs_struct.h>
 #include <linux/sched.h>
@@ -108,6 +109,7 @@ static void kill_share(struct ksmbd_share_config *share)
 		path_put(&share->vfs_path);
 	kfree(share->name);
 	kfree(share->path);
+	kfree(share->real_path);
 	kfree(share);
 }
 
@@ -180,6 +182,43 @@ static int parse_veto_list(struct ksmbd_share_config *share,
 	}
 
 	return 0;
+}
+
+static int share_config_resolve_path(struct ksmbd_share_config *share)
+{
+	char *buf, *path;
+	int ret;
+
+	ret = kern_path(share->path, 0, &share->vfs_path);
+	if (ret)
+		return ret;
+
+	buf = kmalloc(PATH_MAX, KSMBD_DEFAULT_GFP);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	path = d_path(&share->vfs_path, buf, PATH_MAX);
+	if (IS_ERR(path)) {
+		ret = PTR_ERR(path);
+		goto out_buf;
+	}
+
+	path = kstrdup(path, KSMBD_DEFAULT_GFP);
+	if (!path) {
+		ret = -ENOMEM;
+		goto out_buf;
+	}
+
+	share->real_path = path;
+	share->real_path_sz = strlen(path);
+out_buf:
+	kfree(buf);
+out:
+	if (ret)
+		path_put(&share->vfs_path);
+	return ret;
 }
 
 static struct ksmbd_share_config *share_config_request(struct ksmbd_work *work,
@@ -272,12 +311,12 @@ static struct ksmbd_share_config *share_config_request(struct ksmbd_work *work,
 			}
 
 			scoped_with_init_fs()
-				ret = kern_path(share->path, 0, &share->vfs_path);
+				ret = share_config_resolve_path(share);
 			ksmbd_revert_fsids(work);
 			if (ret) {
 				ksmbd_debug(SMB, "failed to access '%s'\n",
 					    share->path);
-				/* Avoid put_path() */
+				/* No path reference is retained on failure. */
 				kfree(share->path);
 				share->path = NULL;
 			}

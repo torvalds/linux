@@ -43,6 +43,7 @@ struct smb_fattr {
 	kuid_t	cf_uid;
 	kgid_t	cf_gid;
 	umode_t	cf_mode;
+	bool	cf_posix_mode;
 	__le32 daccess;
 	struct posix_acl *cf_acls;
 	struct posix_acl *cf_dacls;
@@ -99,7 +100,8 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
 			bool strict);
 int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 		 const struct path *path, struct smb_ntsd *pntsd, int ntsd_len,
-		 bool type_check, bool get_write);
+		 bool type_check, bool get_write, bool posix_open,
+		 bool dacl_requested);
 void id_to_sid(unsigned int cid, uint sidtype, struct smb_sid *ssid);
 void ksmbd_init_domain(u32 *sub_auth);
 size_t smb_acl_sec_desc_scratch_len(struct smb_fattr *fattr,

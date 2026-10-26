@@ -133,6 +133,104 @@ struct file_id_both_directory_info {
 	char FileName[];
 } __packed;
 
+/* MS-FSCC 2.4.23 FileIdExtdDirectoryInformation */
+struct file_id_extd_directory_info {
+	__le32 NextEntryOffset;
+	__u32 FileIndex;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 ExtFileAttributes;
+	__le32 FileNameLength;
+	__le32 EaSize;
+	__le32 ReparsePointTag;
+	__u8 FileId[16];
+	char FileName[];
+} __packed;
+
+/* MS-FSCC 2.4.19 FileId64ExtdDirectoryInformation */
+struct file_id_64_extd_directory_info {
+	__le32 NextEntryOffset;
+	__u32 FileIndex;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 ExtFileAttributes;
+	__le32 FileNameLength;
+	__le32 EaSize;
+	__le32 ReparsePointTag;
+	__le64 FileId;
+	char FileName[];
+} __packed;
+
+/* MS-FSCC 2.4.18 FileId64ExtdBothDirectoryInformation */
+struct file_id_64_extd_both_directory_info {
+	__le32 NextEntryOffset;
+	__u32 FileIndex;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 ExtFileAttributes;
+	__le32 FileNameLength;
+	__le32 EaSize;
+	__le32 ReparsePointTag;
+	__le64 FileId;
+	__u8 ShortNameLength;
+	__u8 Reserved1;
+	__u8 ShortName[24];
+	char FileName[];
+} __packed;
+
+/* MS-FSCC 2.4.21 FileIdAllExtdDirectoryInformation */
+struct file_id_all_extd_directory_info {
+	__le32 NextEntryOffset;
+	__u32 FileIndex;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 ExtFileAttributes;
+	__le32 FileNameLength;
+	__le32 EaSize;
+	__le32 ReparsePointTag;
+	__le64 FileId;
+	__u8 FileId128[16];
+	char FileName[];
+} __packed;
+
+/* MS-FSCC 2.4.20 FileIdAllExtdBothDirectoryInformation */
+struct file_id_all_extd_both_directory_info {
+	__le32 NextEntryOffset;
+	__u32 FileIndex;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 EndOfFile;
+	__le64 AllocationSize;
+	__le32 ExtFileAttributes;
+	__le32 FileNameLength;
+	__le32 EaSize;
+	__le32 ReparsePointTag;
+	__le64 FileId;
+	__u8 FileId128[16];
+	__u8 ShortNameLength;
+	__u8 Reserved1;
+	__u8 ShortName[24];
+	char FileName[];
+} __packed;
+
 struct smb_version_ops {
 	u16 (*get_cmd_val)(struct ksmbd_work *swork);
 	void (*inc_reqs)(unsigned int cmd, __le32 status);

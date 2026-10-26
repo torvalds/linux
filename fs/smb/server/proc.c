@@ -161,6 +161,8 @@ static int proc_show_ksmbd_stats(struct seq_file *m, void *v)
 	seq_printf(m, "max_connections:\t%u\n", server_conf.max_connections);
 	seq_printf(m, "max_connections_per_ip:\t%u\n",
 		   server_conf.max_ip_connections);
+	seq_printf(m, "max_sessions_per_connection:\t%u\n",
+		   server_conf.max_sessions_per_connection);
 	seq_printf(m, "max_inflight_requests:\t%u\n",
 		   server_conf.max_inflight_req);
 	seq_printf(m, "deadtime_seconds:\t%lu\n", server_conf.deadtime / HZ);

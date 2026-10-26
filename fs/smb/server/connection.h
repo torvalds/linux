@@ -68,6 +68,9 @@ struct ksmbd_conn {
 		u8			inet6_addr[16];
 #endif
 	};
+#if IS_ENABLED(CONFIG_IPV6)
+	bool				is_ipv6;
+#endif
 	unsigned int			inet_hash;
 	char				*request_buf;
 	struct ksmbd_transport		*transport;
@@ -77,6 +80,8 @@ struct ksmbd_conn {
 	struct rw_semaphore		session_lock;
 	/* smb session 1 per user */
 	struct xarray			sessions;
+	/* New sessions and SMB3 channels each reserve one connection slot. */
+	atomic64_t			session_count;
 	unsigned long			creation_time;
 	unsigned long			last_active;
 	/* How many request are running currently */
@@ -100,6 +105,8 @@ struct ksmbd_conn {
 	wait_queue_head_t		r_count_q;
 	/* Lock to protect requests list*/
 	spinlock_t			request_lock;
+	/* Set under request_lock at teardown start and kept set thereafter. */
+	bool				releasing;
 	struct list_head		requests;
 	struct list_head		async_requests;
 	int				connection_type;
@@ -107,8 +114,6 @@ struct ksmbd_conn {
 	char				ClientGUID[SMB2_CLIENT_GUID_SIZE];
 	struct ntlmssp_auth		ntlmssp;
 
-	spinlock_t			llist_lock;
-	struct list_head		lock_list;
 
 	struct preauth_integrity_info	*preauth_info;
 
@@ -159,6 +164,13 @@ struct ksmbd_conn_ops {
 	int	(*terminate_fn)(struct ksmbd_conn *conn);
 };
 
+struct ksmbd_tx_tracking {
+	/* Required TCP byte count, including transport and socket queues. */
+	u64		end;
+	unsigned long	retry_after;
+	bool		valid;
+};
+
 struct ksmbd_transport_write {
 	struct kvec	*iov;
 	int		iov_cnt;
@@ -166,6 +178,7 @@ struct ksmbd_transport_write {
 	bool		need_invalidate_rkey;
 	unsigned int	remote_key;
 	int		msg_flags;
+	struct ksmbd_tx_tracking *tracking;
 };
 
 struct ksmbd_transport_ops {
@@ -173,8 +186,12 @@ struct ksmbd_transport_ops {
 	void (*shutdown)(struct ksmbd_transport *t);
 	int (*read)(struct ksmbd_transport *t, char *buf,
 		    unsigned int size, int max_retries);
+	/* Retained bytes must be privately owned before a full result is returned. */
 	int (*writev)(struct ksmbd_transport *t,
 		      const struct ksmbd_transport_write *tx);
+	/* Optional delivery tracking for nonblocking break sends. */
+	bool (*is_acked)(struct ksmbd_transport *t,
+			 const struct ksmbd_tx_tracking *tracking);
 	int (*rdma_read)(struct ksmbd_transport *t,
 			 void *buf, unsigned int len,
 			 struct smbdirect_buffer_descriptor_v1 *desc,
@@ -214,6 +231,8 @@ int ksmbd_conn_wq_init(void);
 void ksmbd_conn_wq_destroy(void);
 bool ksmbd_conn_lookup_dialect(struct ksmbd_conn *c);
 int ksmbd_conn_write(struct ksmbd_work *work);
+int ksmbd_conn_write_tracked(struct ksmbd_work *work,
+			     struct ksmbd_tx_tracking *tracking);
 int ksmbd_conn_write_eor(struct ksmbd_work *work);
 int ksmbd_conn_rdma_read(struct ksmbd_conn *conn,
 			 void *buf, unsigned int buflen,
@@ -232,6 +251,7 @@ void ksmbd_conn_transport_destroy(void);
 void ksmbd_conn_lock(struct ksmbd_conn *conn);
 void ksmbd_conn_unlock(struct ksmbd_conn *conn);
 void ksmbd_conn_r_count_inc(struct ksmbd_conn *conn);
+bool ksmbd_conn_r_count_inc_if_good(struct ksmbd_conn *conn);
 void ksmbd_conn_r_count_dec(struct ksmbd_conn *conn);
 
 /*
@@ -247,7 +267,8 @@ static inline bool ksmbd_conn_new(struct ksmbd_conn *conn)
 
 static inline bool ksmbd_conn_good(struct ksmbd_conn *conn)
 {
-	return READ_ONCE(conn->status) == KSMBD_SESS_GOOD;
+	return !READ_ONCE(conn->releasing) &&
+		READ_ONCE(conn->status) == KSMBD_SESS_GOOD;
 }
 
 static inline unsigned int
@@ -281,7 +302,8 @@ static inline bool ksmbd_conn_exiting(struct ksmbd_conn *conn)
 
 static inline bool ksmbd_conn_releasing(struct ksmbd_conn *conn)
 {
-	return READ_ONCE(conn->status) == KSMBD_SESS_RELEASING;
+	return READ_ONCE(conn->releasing) ||
+		READ_ONCE(conn->status) == KSMBD_SESS_RELEASING;
 }
 
 static inline void ksmbd_conn_set_new(struct ksmbd_conn *conn)
@@ -316,6 +338,7 @@ static inline void ksmbd_conn_set_exiting(struct ksmbd_conn *conn)
 
 static inline void ksmbd_conn_set_releasing(struct ksmbd_conn *conn)
 {
+	WRITE_ONCE(conn->releasing, true);
 	WRITE_ONCE(conn->status, KSMBD_SESS_RELEASING);
 }
 

@@ -114,7 +114,7 @@ static int proc_show_clients(struct seq_file *m, void *v)
 			sessions++;
 		rcu_read_unlock();
 #if IS_ENABLED(CONFIG_IPV6)
-		if (!conn->inet_addr)
+		if (conn->is_ipv6)
 			seq_printf(m, "client:\t%pI6c\n", &conn->inet6_addr);
 		else
 #endif
@@ -306,6 +306,7 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 	atomic_set(&conn->req_running, 0);
 	atomic_set(&conn->r_count, 0);
 	atomic_set(&conn->refcnt, 1);
+	atomic64_set(&conn->session_count, 0);
 	conn->total_credits = 1;
 	conn->outstanding_credits = 0;
 
@@ -327,8 +328,6 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 	ida_init(&conn->async_ida);
 	xa_init(&conn->sessions);
 
-	spin_lock_init(&conn->llist_lock);
-	INIT_LIST_HEAD(&conn->lock_list);
 
 	init_rwsem(&conn->session_lock);
 
@@ -457,17 +456,13 @@ void ksmbd_all_conn_set_status(struct ksmbd_session *sess, u32 status)
 
 void ksmbd_conn_abort(struct ksmbd_conn *conn)
 {
-	bool shutdown = false;
-
 	spin_lock(&conn->request_lock);
-	if (!ksmbd_conn_exiting(conn) && !ksmbd_conn_releasing(conn)) {
+	if (!ksmbd_conn_exiting(conn) && !ksmbd_conn_releasing(conn))
 		ksmbd_conn_set_exiting(conn);
-		shutdown = true;
-	}
 	spin_unlock(&conn->request_lock);
 	wake_up_all(&conn->req_running_q);
 
-	if (shutdown && conn->transport->ops->shutdown)
+	if (conn->transport->ops->shutdown)
 		conn->transport->ops->shutdown(conn->transport);
 }
 
@@ -534,12 +529,19 @@ static int __ksmbd_conn_write(struct ksmbd_work *work,
 	tx->need_invalidate_rkey = work->need_invalidate_rkey;
 	tx->remote_key = work->remote_key;
 
-	ksmbd_conn_lock(conn);
+	if (tx->tracking) {
+		/* A busy writer must not consume the break's retry budget. */
+		if (!mutex_trylock(&conn->srv_mutex))
+			return -EAGAIN;
+	} else {
+		ksmbd_conn_lock(conn);
+	}
 	sent = conn->transport->ops->writev(conn->transport, tx);
 	ksmbd_conn_unlock(conn);
 
 	if (sent < 0) {
-		pr_err("Failed to send message: %d\n", sent);
+		if (!tx->tracking || sent != -EAGAIN)
+			pr_err("Failed to send message: %d\n", sent);
 		return sent;
 	}
 
@@ -550,6 +552,20 @@ int ksmbd_conn_write(struct ksmbd_work *work)
 {
 	struct ksmbd_transport_write tx = {};
 
+	return __ksmbd_conn_write(work, &tx);
+}
+
+int ksmbd_conn_write_tracked(struct ksmbd_work *work,
+			     struct ksmbd_tx_tracking *tracking)
+{
+	struct ksmbd_transport_write tx = {};
+
+	tracking->valid = false;
+	/* Transports without delivery tracking keep their synchronous send path. */
+	if (work->conn->transport->ops->is_acked) {
+		tx.msg_flags = MSG_DONTWAIT;
+		tx.tracking = tracking;
+	}
 	return __ksmbd_conn_write(work, &tx);
 }
 
@@ -641,6 +657,7 @@ static void ksmbd_session_expiration_worker(struct work_struct *work)
 		goto reschedule;
 
 	ksmbd_expire_sessions();
+	ksmbd_reclaim_ended_sessions();
 
 	/*
 	 * An old connection without a Valid or Expired session must be
@@ -752,6 +769,7 @@ recheck:
 		if (!conn->request_buf)
 			break;
 
+		conn->request_buf[pdu_size + 4] = 0;
 		memcpy(conn->request_buf, hdr_buf, sizeof(hdr_buf));
 
 		/*
@@ -804,7 +822,12 @@ recheck:
 		}
 	}
 
+	/* Exclude new break senders before draining their work references. */
+	spin_lock(&conn->request_lock);
 	ksmbd_conn_set_releasing(conn);
+	spin_unlock(&conn->request_lock);
+	/* TCP writers waiting for queue space must release their work references. */
+	wake_up_all(&conn->req_running_q);
 	ksmbd_conn_cancel_async_requests(conn);
 	/* Wait till all reference dropped to the Server object*/
 	ksmbd_debug(CONN, "Wait for all pending requests(%d)\n", atomic_read(&conn->r_count));
@@ -829,6 +852,20 @@ void ksmbd_conn_init_server_callbacks(struct ksmbd_conn_ops *ops)
 void ksmbd_conn_r_count_inc(struct ksmbd_conn *conn)
 {
 	atomic_inc(&conn->r_count);
+}
+
+/* The caller already owns a connection reference. */
+bool ksmbd_conn_r_count_inc_if_good(struct ksmbd_conn *conn)
+{
+	bool ret = false;
+
+	spin_lock(&conn->request_lock);
+	if (ksmbd_conn_good(conn)) {
+		atomic_inc(&conn->r_count);
+		ret = true;
+	}
+	spin_unlock(&conn->request_lock);
+	return ret;
 }
 
 void ksmbd_conn_r_count_dec(struct ksmbd_conn *conn)

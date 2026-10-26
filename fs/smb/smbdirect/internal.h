@@ -74,6 +74,8 @@ void __smbdirect_socket_schedule_cleanup(struct smbdirect_socket *sc,
 
 void smbdirect_socket_destroy_sync(struct smbdirect_socket *sc);
 
+void smbdirect_listen_orphan_socket(struct smbdirect_socket *sc);
+
 int smbdirect_socket_wait_for_credits(struct smbdirect_socket *sc,
 				      enum smbdirect_socket_status expected_status,
 				      int unexpected_errno,

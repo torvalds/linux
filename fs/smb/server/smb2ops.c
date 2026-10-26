@@ -13,6 +13,35 @@
 #include "server.h"
 #include "stats.h"
 
+/*
+ * work->response_sz includes the RFC1002 length field while smb_get_msg()
+ * skips over it. Durable v1 and v2 response contexts are mutually exclusive,
+ * and POSIX CREATE contexts are only negotiated for SMB3.1.1.
+ */
+#define SMB2_CREATE_RSP_SIZE(lease_size, durable_size)			\
+	(sizeof(__be32) + offsetof(struct smb2_create_rsp, Buffer) +	\
+	 (lease_size) + (durable_size) +				\
+	 sizeof(struct create_mxac_rsp) +				\
+	 sizeof(struct create_disk_id_rsp) +				\
+	 AAPL_RSP_MAX_SIZE)
+
+#define SMB21_CREATE_RSP_SIZE						\
+	SMB2_CREATE_RSP_SIZE(sizeof(struct create_lease),		\
+			     sizeof(struct create_durable_rsp))
+
+#define SMB3_CREATE_DURABLE_RSP_SIZE					\
+	((sizeof(struct create_durable_rsp) >				\
+	  sizeof(struct create_durable_rsp_v2)) ?			\
+	 sizeof(struct create_durable_rsp) :				\
+	 sizeof(struct create_durable_rsp_v2))
+
+#define SMB3_CREATE_RSP_SIZE						\
+	SMB2_CREATE_RSP_SIZE(sizeof(struct create_lease_v2),		\
+			     SMB3_CREATE_DURABLE_RSP_SIZE)
+
+#define SMB311_CREATE_RSP_SIZE						\
+	(SMB3_CREATE_RSP_SIZE + sizeof(struct create_posix_rsp))
+
 static struct smb_version_values smb21_server_values = {
 	.version_string = SMB21_VERSION_STRING,
 	.protocol_id = SMB21_PROT_ID,
@@ -38,6 +67,7 @@ static struct smb_version_values smb21_server_values = {
 	.create_disk_id_size = sizeof(struct create_disk_id_rsp),
 	.create_posix_size = sizeof(struct create_posix_rsp),
 	.create_aapl_size = AAPL_RSP_MAX_SIZE,
+	.create_rsp_size = SMB21_CREATE_RSP_SIZE,
 };
 
 static struct smb_version_values smb30_server_values = {
@@ -66,6 +96,7 @@ static struct smb_version_values smb30_server_values = {
 	.create_disk_id_size = sizeof(struct create_disk_id_rsp),
 	.create_posix_size = sizeof(struct create_posix_rsp),
 	.create_aapl_size = AAPL_RSP_MAX_SIZE,
+	.create_rsp_size = SMB3_CREATE_RSP_SIZE,
 };
 
 static struct smb_version_values smb302_server_values = {
@@ -94,6 +125,7 @@ static struct smb_version_values smb302_server_values = {
 	.create_disk_id_size = sizeof(struct create_disk_id_rsp),
 	.create_posix_size = sizeof(struct create_posix_rsp),
 	.create_aapl_size = AAPL_RSP_MAX_SIZE,
+	.create_rsp_size = SMB3_CREATE_RSP_SIZE,
 };
 
 static struct smb_version_values smb311_server_values = {
@@ -122,6 +154,7 @@ static struct smb_version_values smb311_server_values = {
 	.create_disk_id_size = sizeof(struct create_disk_id_rsp),
 	.create_posix_size = sizeof(struct create_posix_rsp),
 	.create_aapl_size = AAPL_RSP_MAX_SIZE,
+	.create_rsp_size = SMB311_CREATE_RSP_SIZE,
 };
 
 static struct smb_version_ops smb2_0_server_ops = {
