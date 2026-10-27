@@ -1569,6 +1569,16 @@ static void apply_slice_vtime(struct task_struct *p, u64 slice, u64 vtime, u64 e
 		p->scx.dsq_vtime = vtime;
 }
 
+static void refill_task_slice_dfl(struct scx_sched *sch, struct task_struct *p)
+{
+	/*
+	 * A default refill is not an explicit request, so it must not drop a
+	 * pending out-of-band one, which is applied when @p next runs.
+	 */
+	set_task_slice_keep_oob(p, READ_ONCE(sch->slice_dfl));
+	__scx_add_event(sch, SCX_EV_REFILL_SLICE_DFL, 1);
+}
+
 static void update_curr_scx(struct rq *rq)
 {
 	struct task_struct *donor;
@@ -1660,16 +1670,6 @@ static void dsq_dec_nr(struct scx_dispatch_q *dsq, struct task_struct *p)
 
 		rq->scx.nr_immed--;
 	}
-}
-
-static void refill_task_slice_dfl(struct scx_sched *sch, struct task_struct *p)
-{
-	/*
-	 * A default refill is not an explicit request, so it must not drop a
-	 * pending out-of-band one, which is applied when @p next runs.
-	 */
-	set_task_slice_keep_oob(p, READ_ONCE(sch->slice_dfl));
-	__scx_add_event(sch, SCX_EV_REFILL_SLICE_DFL, 1);
 }
 
 /*
