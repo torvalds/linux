@@ -3618,17 +3618,6 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 	update_curr_scx(rq);
 
 	/*
-	 * If the slice is consumed, protection ends with it. A rescuee
-	 * preempted beforehand keeps going, see scx_rescue_keep().
-	 */
-	if (!p->scx.slice) {
-		if (unlikely(p == scx_rescuee(rq)))
-			rescue_keep = scx_rescue_keep(rq, p);
-		if (!rescue_keep)
-			scx_task_slice_ended(rq, p);
-	}
-
-	/*
 	 * Preserve the running session when proxy execution refreshes the same
 	 * donor around an execution-context switch on this rq.
 	 */
@@ -3638,6 +3627,18 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 			SCX_CALL_OP_TASK(sch, stopping, rq, p, !proxy_block);
 
 		p->scx.flags &= ~SCX_TASK_RUN_TRACKED;
+	}
+
+	/*
+	 * If the slice is consumed, protection ends with it. A rescuee keeps
+	 * going when a preemption or ops.stopping() zeroed its slice, see
+	 * scx_rescue_keep().
+	 */
+	if (!p->scx.slice) {
+		if (unlikely(p == scx_rescuee(rq)))
+			rescue_keep = scx_rescue_keep(rq, p);
+		if (!rescue_keep)
+			scx_task_slice_ended(rq, p);
 	}
 
 	if (p->scx.flags & SCX_TASK_QUEUED) {
@@ -3664,12 +3665,8 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 		 * The exception is an IMMED donor put by proxy_resched_idle():
 		 * the CPU isn't busy, proxy resolution is only retrying through
 		 * idle, so keep the donor where it can be picked again.
-		 *
-		 * An open rescue must keep @p on the local DSQ even if the
-		 * scheduler zeroed the slice in ops.stopping() above.
 		 */
-		if ((p->scx.slice || unlikely(p == scx_rescuee(rq))) &&
-		    !scx_bypassing(sch, cpu_of(rq))) {
+		if (p->scx.slice && !scx_bypassing(sch, cpu_of(rq))) {
 			if ((p->scx.flags & SCX_TASK_IMMED) && !proxy_put) {
 				p->scx.flags |= SCX_TASK_REENQ_PREEMPTED;
 				scx_do_enqueue_task(rq, p, SCX_ENQ_REENQ, -1);
