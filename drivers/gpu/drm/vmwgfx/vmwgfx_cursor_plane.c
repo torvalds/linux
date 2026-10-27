@@ -89,10 +89,26 @@ vmw_cursor_plane_update_legacy(struct vmw_private *vmw,
 	}
 }
 
-static enum vmw_cursor_update_type
-vmw_cursor_update_type(struct vmw_private *vmw, struct vmw_plane_state *vps)
+static struct vmw_user_object
+vmw_cursor_plane_user_object(struct drm_framebuffer *fb)
 {
-	struct vmw_surface *surface = vmw_user_object_surface(&vps->uo);
+	struct vmw_user_object uo = { 0 };
+
+	if (!fb)
+		return uo;
+
+	if (vmw_framebuffer_to_vfb(fb)->bo)
+		uo.buffer = vmw_framebuffer_to_vfbd(fb)->buffer;
+	else
+		uo = vmw_framebuffer_to_vfbs(fb)->uo;
+
+	return uo;
+}
+
+static enum vmw_cursor_update_type
+vmw_cursor_update_type(struct vmw_private *vmw, struct vmw_user_object *uo)
+{
+	struct vmw_surface *surface = vmw_user_object_surface(uo);
 
 	if (surface && surface->snooper.image)
 		return VMW_CURSOR_UPDATE_LEGACY;
@@ -642,17 +658,10 @@ int vmw_cursor_plane_prepare_fb(struct drm_plane *plane,
 	if (!vmw_user_object_is_null(&vps->uo))
 		vmw_user_object_unref(&vps->uo);
 
-	if (fb) {
-		if (vmw_framebuffer_to_vfb(fb)->bo) {
-			vps->uo.buffer = vmw_framebuffer_to_vfbd(fb)->buffer;
-			vps->uo.surface = NULL;
-		} else {
-			memcpy(&vps->uo, &vmw_framebuffer_to_vfbs(fb)->uo, sizeof(vps->uo));
-		}
-		vmw_user_object_ref(&vps->uo);
-	}
+	vps->uo = vmw_cursor_plane_user_object(fb);
+	vmw_user_object_ref(&vps->uo);
 
-	vps->cursor.update_type = vmw_cursor_update_type(vmw, vps);
+	vps->cursor.update_type = vmw_cursor_update_type(vmw, &vps->uo);
 	switch (vps->cursor.update_type) {
 	case VMW_CURSOR_UPDATE_LEGACY:
 		surface = vmw_user_object_surface(&vps->uo);
@@ -662,6 +671,9 @@ int vmw_cursor_plane_prepare_fb(struct drm_plane *plane,
 	case VMW_CURSOR_UPDATE_GB_ONLY:
 	case VMW_CURSOR_UPDATE_MOB: {
 		bo = vmw_user_object_buffer(&vps->uo);
+		if (fb && !bo)
+			return -EINVAL;
+
 		if (bo) {
 			struct ttm_operation_ctx ctx = { false, false };
 			size_t size = (size_t)new_state->crtc_w *
@@ -744,7 +756,7 @@ int vmw_cursor_plane_atomic_check(struct drm_plane *plane,
 	int ret = 0;
 	struct drm_crtc_state *crtc_state = NULL;
 	struct vmw_surface *surface = NULL;
-	struct vmw_plane_state *vps = vmw_plane_state_to_vps(new_state);
+	struct vmw_user_object uo;
 	enum vmw_cursor_update_type update_type;
 	struct drm_framebuffer *fb = new_state->fb;
 
@@ -763,7 +775,21 @@ int vmw_cursor_plane_atomic_check(struct drm_plane *plane,
 	if (!fb)
 		return 0;
 
-	update_type = vmw_cursor_update_type(vmw, vps);
+	if (!new_state->crtc_w || !new_state->crtc_h) {
+		drm_dbg_kms(&vmw->drm,
+			    "Cursor dimensions (%u, %u) must be nonzero\n",
+			    new_state->crtc_w, new_state->crtc_h);
+		return -EINVAL;
+	}
+
+	/* The duplicated plane state's user object still belongs to the old FB. */
+	uo = vmw_cursor_plane_user_object(fb);
+	update_type = vmw_cursor_update_type(vmw, &uo);
+	if ((update_type == VMW_CURSOR_UPDATE_GB_ONLY ||
+	     update_type == VMW_CURSOR_UPDATE_MOB) &&
+	    !vmw_user_object_buffer(&uo))
+		return -EINVAL;
+
 	if (update_type == VMW_CURSOR_UPDATE_LEGACY) {
 		if (new_state->crtc_w != VMW_CURSOR_SNOOP_WIDTH ||
 		    new_state->crtc_h != VMW_CURSOR_SNOOP_HEIGHT) {
@@ -772,7 +798,7 @@ int vmw_cursor_plane_atomic_check(struct drm_plane *plane,
 				 new_state->crtc_w, new_state->crtc_h);
 			return -EINVAL;
 		}
-		surface = vmw_user_object_surface(&vps->uo);
+		surface = vmw_user_object_surface(&uo);
 		if (!surface || !surface->snooper.image) {
 			drm_warn(&vmw->drm,
 				 "surface not suitable for cursor\n");
@@ -789,8 +815,7 @@ int vmw_cursor_plane_atomic_check(struct drm_plane *plane,
 					 SVGA_CB_MAX_COMMAND_SIZE -
 					 sizeof(struct vmw_svga_fifo_cmd_define_cursor));
 
-		if (!new_state->crtc_w || !new_state->crtc_h ||
-		    new_state->crtc_w > SVGA_MAX_CURSOR_CMD_DIMENSION ||
+		if (new_state->crtc_w > SVGA_MAX_CURSOR_CMD_DIMENSION ||
 		    new_state->crtc_h > SVGA_MAX_CURSOR_CMD_DIMENSION ||
 		    image_size > max_size) {
 			drm_dbg_kms(&vmw->drm,
