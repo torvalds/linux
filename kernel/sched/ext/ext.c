@@ -2217,10 +2217,30 @@ void scx_do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 	p->scx.flags &= ~SCX_TASK_IMMED;
 
 	/*
+	 * If !scx_rq_online(), we already told the BPF scheduler that the CPU
+	 * is offline and are just running the hotplug path. Don't bother the
+	 * BPF scheduler.
+	 */
+	if (!scx_rq_online(rq))
+		goto local;
+
+	if (scx_bypassing(sch, cpu_of(rq))) {
+		__scx_add_event(sch, SCX_EV_BYPASS_DISPATCH, 1);
+		goto bypass;
+	}
+
+	/*
 	 * A task reenqueued too many times without running means the scheduler
 	 * keeps re-deciding a placement it can't honor, e.g. re-inserting to a
 	 * cid it lacks caps on. Eject the owning scheduler and strand the task
 	 * to be picked up during sched exit.
+	 *
+	 * Bypass guarantees that every runnable task keeps running, and the
+	 * disable relies on that to take sleeping locks. The kernel places the
+	 * tasks of a bypassing scheduler and those on an offline rq, and
+	 * counting their reenqueues could strand a task under bypass and
+	 * deadlock the disable on a lock the task holds, so both tests stay
+	 * above the count.
 	 */
 	if (enq_flags & SCX_ENQ_REENQ) {
 		if (++p->scx.reenq_cnt > 1)
@@ -2232,19 +2252,6 @@ void scx_do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 				   p->comm, p->pid, p->scx.reenq_cnt);
 			goto out;
 		}
-	}
-
-	/*
-	 * If !scx_rq_online(), we already told the BPF scheduler that the CPU
-	 * is offline and are just running the hotplug path. Don't bother the
-	 * BPF scheduler.
-	 */
-	if (!scx_rq_online(rq))
-		goto local;
-
-	if (scx_bypassing(sch, cpu_of(rq))) {
-		__scx_add_event(sch, SCX_EV_BYPASS_DISPATCH, 1);
-		goto bypass;
 	}
 
 	if (p->scx.ddsp_dsq_id != SCX_DSQ_INVALID)
@@ -4993,7 +5000,8 @@ static void process_ddsp_deferred_locals(struct rq *rq)
  * %SCX_TASK_REENQ_IMMED. If the BPF scheduler dispatches back to the same local
  * DSQ with %SCX_ENQ_IMMED while the CPU is still unavailable, this triggers
  * another reenq cycle. Repetitions are bounded by %SCX_REENQ_MAX_REPEAT in
- * scx_do_enqueue_task(), which ejects the task's owning scheduler.
+ * scx_do_enqueue_task(), which ejects the task's owning scheduler. A bypassing
+ * scheduler's tasks are placed by the kernel instead and are not counted.
  */
 static bool local_task_should_reenq(struct rq *rq, struct task_struct *p,
 				    u64 *reenq_flags, u32 *reason)
@@ -5288,7 +5296,8 @@ static void process_deferred_reenq_users(struct rq *rq)
  *
  * A task can be re-rejected repeatedly. Reenqueues are bounded per task by
  * SCX_REENQ_MAX_REPEAT in scx_do_enqueue_task(), which ejects the owning
- * scheduler.
+ * scheduler. A bypassing scheduler's tasks are placed by the kernel instead and
+ * are not counted.
  */
 static void scx_reenq_reject(struct rq *rq)
 {
