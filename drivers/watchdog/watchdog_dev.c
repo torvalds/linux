@@ -1033,6 +1033,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 	wdd->wd_data = wd_data;
 
 	if (IS_ERR_OR_NULL(watchdog_kworker)) {
+		wdd->wd_data = NULL;
 		kfree(wd_data);
 		return -ENODEV;
 	}
@@ -1046,6 +1047,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 	dev_set_drvdata(&wd_data->dev, wdd);
 	err = dev_set_name(&wd_data->dev, "watchdog%d", wdd->id);
 	if (err) {
+		wdd->wd_data = NULL;
 		put_device(&wd_data->dev);
 		return err;
 	}
@@ -1066,6 +1068,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 				pr_err("%s: a legacy watchdog module is probably present.\n",
 					wdd->info->identity);
 			old_wd_data = NULL;
+			wdd->wd_data = NULL;
 			put_device(&wd_data->dev);
 			return err;
 		}
@@ -1084,6 +1087,10 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 			misc_deregister(&watchdog_miscdev);
 			old_wd_data = NULL;
 		}
+		mutex_lock(&wd_data->lock);
+		wd_data->wdd = NULL;
+		wdd->wd_data = NULL;
+		mutex_unlock(&wd_data->lock);
 		put_device(&wd_data->dev);
 		return err;
 	}
