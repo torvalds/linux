@@ -92,7 +92,6 @@ static bool rt721_sdca_mbq_readable_register(struct device *dev, unsigned int re
 	case 0x2000026:
 	case 0x200002c:
 	case 0x200003c:
-	case 0x2000046:
 	case 0x5810000:
 	case 0x5810033:
 	case 0x5810036:
@@ -174,7 +173,6 @@ static bool rt721_sdca_mbq_volatile_register(struct device *dev, unsigned int re
 	case 0x2000026:
 	case 0x200002c:
 	case 0x2000030:
-	case 0x2000046:
 	case 0x2000067:
 	case 0x2000084:
 	case 0x2000086:
