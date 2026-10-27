@@ -479,9 +479,13 @@ void scx_rescue_charge(struct rq *rq, s64 delta_exec)
 
 	rq->scx.rescue.budget -= delta_exec;
 
-	/* per-cpu usage average feeds the overload victim pick */
-	pcpu = per_cpu_ptr(scx_task_sched(rq->scx.rescue.curr)->pcpu,
-			   cpu_of(rq));
+	/*
+	 * The per-cpu usage average feeds the overload victim pick. Charge the
+	 * sched running the rescuee, which is the host while the rescuee's
+	 * owner is bypassing.
+	 */
+	pcpu = per_cpu_ptr(scx_exec_sched(scx_task_sched(rq->scx.rescue.curr),
+					  cpu_of(rq))->pcpu, cpu_of(rq));
 	pcpu->rescue_avg = scx_rescue_decay_avg(pcpu) + delta_exec;
 
 	if (!scx_rescue_slice_remaining(rq))
@@ -665,7 +669,8 @@ static bool scx_rescue_try_admit(struct rq *rq, struct task_struct *p)
  * If the oldest waiter on @rq's rescue DSQ has been queued for too long, rescue
  * demand on this cpu persistently exceeds the configured bandwidth. Eject the
  * sub with the highest recent rescue consumption instead of letting the
- * scheduler stall path blame the waiter's owner, who may just be crowded out.
+ * scheduler stall path blame the sched running the waiter, which may just be
+ * crowded out.
  */
 static void scx_rescue_check_overload(struct rq *rq)
 {
