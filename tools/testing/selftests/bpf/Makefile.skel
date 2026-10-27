@@ -20,8 +20,7 @@ ifneq ($(BPF_CC),)
 BPF_SRCS := $(notdir $(wildcard progs/*.c))
 BPF_OBJS := $(patsubst %.c,$(RDIR)/%.bpf.o,$(BPF_SRCS))
 
-SKEL_BLACKLIST := btf__% test_pinning_invalid.c test_sk_assign.c	\
-		  data_in_arena_extern.c data_in_arena_nomap.c
+SKEL_BLACKLIST := btf__% test_pinning_invalid.c test_sk_assign.c
 
 LINKED_SKELS := test_static_linked.skel.h linked_funcs.skel.h		\
 		linked_vars.skel.h linked_maps.skel.h linked_arena.skel.h \
@@ -137,21 +136,6 @@ cmd_bpf_link_skel = $(call skip_if_missing,SKEL,$(addprefix $(RDIR)/,\
 $(LINKED_SKELS_H): $(RDIR)/%.skel.h: $$(addprefix $(RDIR)/,$$($$*.skel.h-deps)) \
 		   $(BPFTOOL) $(GEN_SKEL) | $(RDIR)
 	$(Q)$(cmd_bpf_link_skel)
-
-# Programs in Rust, see Makefile.buildvars. No skeletons: the objects may be absent.
-ifneq ($(RUST_CORE),)
-ifeq ($(BPF_CC),$(CLANG))
-RUST_OBJS := $(patsubst progs/%.rs,$(RDIR)/%.bpf.o,$(wildcard progs/*.rs))
-BPF_OBJS += $(RUST_OBJS)
-
-$(RUST_OBJS): $(RDIR)/%.bpf.o: progs/%.rs $(RUST_CORE) | $(RDIR)
-	$(call msg,RUSTC,$(BINARY),$@)
-	+$(Q)$(RUSTC_BPF) --edition 2021 -C debuginfo=2 --emit=llvm-bc			\
-		$(patsubst -mcpu=%,-C target-cpu=%,$(filter -mcpu=%,$(BPF_CC_FLAGS)))	\
-		-o $(dir $(RUST_CORE))$(BINARY)-$*.bc $< &&				\
-	$(BPF_CC) $(BPF_CC_FLAGS) -c $(dir $(RUST_CORE))$(BINARY)-$*.bc -o $@ $(call skip_on_fail,BPF)
-endif
-endif
 
 # Programs in C++. No skeletons: gcc doesn't build them.
 ifeq ($(BPF_CC),$(CLANG))
