@@ -112,8 +112,7 @@ static void vmw_cursor_update_mob(struct vmw_private *vmw,
 {
 	SVGAGBCursorHeader *header;
 	SVGAGBAlphaCursorHeader *alpha_header;
-	struct vmw_bo *bo = vmw_user_object_buffer(&vps->uo);
-	u32 *image = vmw_bo_map_and_cache(bo);
+	u32 *image = vps->cursor.map.virtual;
 	const u32 image_size = vps->base.crtc_w * vps->base.crtc_h * sizeof(*image);
 
 	header = vmw_bo_map_and_cache(vps->cursor.mob);
@@ -132,7 +131,6 @@ static void vmw_cursor_update_mob(struct vmw_private *vmw,
 	memcpy(header + 1, image, image_size);
 	vmw_write(vmw, SVGA_REG_CURSOR_MOBID, vmw_bo_mobid(vps->cursor.mob));
 
-	vmw_bo_unmap(bo);
 	vmw_bo_unmap(vps->cursor.mob);
 }
 
@@ -490,9 +488,21 @@ vmw_cursor_plane_cleanup_fb(struct drm_plane *plane,
 {
 	struct vmw_cursor_plane *vcp = vmw_plane_to_vcp(plane);
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
+	struct vmw_bo *bo;
+	int ret;
 
-	if (!vmw_user_object_is_null(&vps->uo))
-		vmw_user_object_unmap(&vps->uo);
+	if (vps->cursor.map.bo) {
+		bo = to_vmw_bo(&vps->cursor.map.bo->base);
+		ret = ttm_bo_reserve(&bo->tbo, false, false, NULL);
+		if (WARN_ON_ONCE(ret))
+			return;
+
+		ttm_bo_kunmap(&vps->cursor.map);
+		vps->cursor.map.bo = NULL;
+		ttm_bo_unpin(&bo->tbo);
+		ttm_bo_unreserve(&bo->tbo);
+		vmw_bo_unreference(&bo);
+	}
 
 	vmw_cursor_mob_unmap(vps);
 	vmw_cursor_mob_put(vcp, vps);
@@ -625,10 +635,12 @@ int vmw_cursor_plane_prepare_fb(struct drm_plane *plane,
 	struct vmw_surface *surface;
 	int ret = 0;
 
-	if (!vmw_user_object_is_null(&vps->uo)) {
-		vmw_user_object_unmap(&vps->uo);
+	/*
+	 * A duplicated state only owns the user object reference. Its mappings
+	 * and pins belong to the old state until cleanup_fb().
+	 */
+	if (!vmw_user_object_is_null(&vps->uo))
 		vmw_user_object_unref(&vps->uo);
-	}
 
 	if (fb) {
 		if (vmw_framebuffer_to_vfb(fb)->bo) {
@@ -652,31 +664,34 @@ int vmw_cursor_plane_prepare_fb(struct drm_plane *plane,
 		bo = vmw_user_object_buffer(&vps->uo);
 		if (bo) {
 			struct ttm_operation_ctx ctx = { false, false };
+			size_t size = (size_t)new_state->crtc_w *
+				      new_state->crtc_h * sizeof(u32);
 
 			ret = ttm_bo_reserve(&bo->tbo, true, false, NULL);
 			if (ret != 0)
-				return -ENOMEM;
+				return ret;
 
 			ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 			if (ret != 0)
-				return -ENOMEM;
+				goto out_unreserve;
 
 			/*
-			 * vmw_bo_pin_reserved also validates, so to skip
-			 * the extra validation use ttm_bo_pin directly
+			 * vmw_bo_pin_reserved() also validates, so to skip
+			 * the extra validation use ttm_bo_pin directly.
+			 * Every state takes its own pin, the buffer can
+			 * still be in use by an older state whose commit
+			 * hasn't been cleaned up yet.
 			 */
-			if (!bo->tbo.pin_count)
-				ttm_bo_pin(&bo->tbo);
+			ttm_bo_pin(&bo->tbo);
 
-			if (vmw_framebuffer_to_vfb(fb)->bo) {
-				const u32 size = new_state->crtc_w *
-						 new_state->crtc_h *
-						 sizeof(u32);
-
-				(void)vmw_bo_map_and_cache_size(bo, size);
-			} else {
-				vmw_bo_map_and_cache(bo);
+			ret = ttm_bo_kmap(&bo->tbo, 0, PFN_UP(size),
+					  &vps->cursor.map);
+			if (ret) {
+				vps->cursor.map.bo = NULL;
+				ttm_bo_unpin(&bo->tbo);
+				goto out_unreserve;
 			}
+			vmw_bo_reference(bo);
 			ttm_bo_unreserve(&bo->tbo);
 		}
 		if (!vmw_user_object_is_null(&vps->uo)) {
@@ -703,6 +718,10 @@ int vmw_cursor_plane_prepare_fb(struct drm_plane *plane,
 	}
 
 	return 0;
+
+out_unreserve:
+	ttm_bo_unreserve(&bo->tbo);
+	return ret;
 }
 
 /**
@@ -796,7 +815,6 @@ void
 vmw_cursor_plane_atomic_update(struct drm_plane *plane,
 			       struct drm_atomic_commit *state)
 {
-	struct vmw_bo *bo;
 	struct drm_plane_state *new_state =
 		drm_atomic_get_new_plane_state(state, plane);
 	struct drm_plane_state *old_state =
@@ -823,9 +841,8 @@ vmw_cursor_plane_atomic_update(struct drm_plane *plane,
 		vmw_cursor_update_mob(dev_priv, vps);
 		break;
 	case VMW_CURSOR_UPDATE_GB_ONLY:
-		bo = vmw_user_object_buffer(&vps->uo);
-		if (bo)
-			vmw_send_define_cursor_cmd(dev_priv, bo->map.virtual,
+		if (vps->cursor.map.virtual)
+			vmw_send_define_cursor_cmd(dev_priv, vps->cursor.map.virtual,
 						   vps->base.crtc_w,
 						   vps->base.crtc_h,
 						   vps->base.hotspot_x,
