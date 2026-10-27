@@ -107,6 +107,17 @@ enum scx_ent_flags {
 	SCX_TASK_RUN_TRACKED	= 1 << 7, /* task is in an ops.running()/stopping() session */
 
 	/*
+	 * The kernel owns the slice, currently the rescue grant. While set:
+	 *
+	 * - refill_task_slice_dfl() and expire_task_slice() leave the slice
+	 *   alone.
+	 * - Reenqueue scans skip the task.
+	 * - put_prev_task_scx() keeps a preempted task on the local DSQ.
+	 * - Scheduler slice writes and preemption still apply.
+	 */
+	SCX_TASK_KERNEL_SLICE	= 1 << 8, /* slice owned by the kernel */
+
+	/*
 	 * The multi-bit fields are packed at the top, below SCX_TASK_CURSOR, so
 	 * that the single-bit flags stay contiguous from bit 0.
 	 *

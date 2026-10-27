@@ -254,12 +254,19 @@ static inline struct task_struct *scx_rescuee(struct rq *rq)
 	return rq->scx.rescue.curr;
 }
 
+/* does the kernel own @p's slice? see %SCX_TASK_KERNEL_SLICE */
+static inline bool scx_task_has_kernel_slice(const struct task_struct *p)
+{
+	return scx_has_subs() && (p->scx.flags & SCX_TASK_KERNEL_SLICE);
+}
+
 #else	/* CONFIG_EXT_SUB_SCHED */
 
 static inline u64 scx_missing_caps(struct scx_sched *sch, s32 cpu, u64 needed) { return 0; }
 static inline u64 scx_caps_for_preempt(struct scx_sched *sch, struct rq *rq, u64 enq_flags) { return 0; }
 static inline bool scx_task_can_stay_on_cpu(struct rq *rq, struct task_struct *p) { return true; }
 static inline struct task_struct *scx_rescuee(struct rq *rq) { return NULL; }
+static inline bool scx_task_has_kernel_slice(const struct task_struct *p) { return false; }
 
 #endif	/* CONFIG_EXT_SUB_SCHED */
 

@@ -1472,8 +1472,8 @@ bool scx_set_task_slice(struct task_struct *p, u64 slice)
  * @rq: rq @p is on
  * @p: task of interest
  *
- * End what rides on the slice - the protection, and the rescue if @p is being
- * rescued.
+ * End what rides on the slice - the protection, the kernel's ownership of the
+ * slice, and the rescue if @p is being rescued.
  *
  * A dequeue normally ends the slice too. The exception is a save/restore pair
  * on the running task. Attribute changes like renice cycle the task through
@@ -1485,7 +1485,7 @@ void scx_task_slice_ended(struct rq *rq, struct task_struct *p)
 {
 	lockdep_assert_rq_held(rq);
 
-	p->scx.flags &= ~SCX_TASK_PROTECTED;
+	p->scx.flags &= ~(SCX_TASK_PROTECTED | SCX_TASK_KERNEL_SLICE);
 	if (unlikely(p == scx_rescuee(rq)))
 		scx_rescue_end(rq);
 }
@@ -1569,14 +1569,33 @@ static void apply_slice_vtime(struct task_struct *p, u64 slice, u64 vtime, u64 e
 		p->scx.dsq_vtime = vtime;
 }
 
+/*
+ * refill_task_slice_dfl() supplies a slice when the scheduler left none and
+ * expire_task_slice() takes it away to force the task off the cpu. Neither
+ * touches a kernel slice, see %SCX_TASK_KERNEL_SLICE.
+ */
 static void refill_task_slice_dfl(struct scx_sched *sch, struct task_struct *p)
 {
+	if (scx_task_has_kernel_slice(p))
+		return;
+
 	/*
 	 * A default refill is not an explicit request, so it must not drop a
 	 * pending out-of-band one, which is applied when @p next runs.
 	 */
 	set_task_slice_keep_oob(p, READ_ONCE(sch->slice_dfl));
 	__scx_add_event(sch, SCX_EV_REFILL_SLICE_DFL, 1);
+}
+
+static void expire_task_slice(struct task_struct *p)
+{
+	/*
+	 * Unlike the refill above, an expiry supersedes a pending out-of-band
+	 * request. A kept request would be applied at the next
+	 * update_curr_scx() and undo the expiry.
+	 */
+	if (!scx_task_has_kernel_slice(p))
+		scx_set_task_slice(p, 0);
 }
 
 static void update_curr_scx(struct rq *rq)
@@ -3706,11 +3725,15 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 				u64 enq_flags = 0;
 
 				/*
-				 * Keep a preempted rescue going. If preempted
-				 * by another SCX task, append to the local DSQ,
-				 * see scx_rescue_keep().
+				 * The enqueue caps gate the scheduler's
+				 * placement. The kernel placed a kernel-slice
+				 * task here itself, so reinsert it without a
+				 * cap check, at the head like any preempted
+				 * task. When scx_rescue_keep() restored a slice
+				 * the scheduler zeroed, the scheduler wanted
+				 * something else to run first, so append.
 				 */
-				if (unlikely(p == scx_rescuee(rq))) {
+				if (unlikely(scx_task_has_kernel_slice(p))) {
 					enq_flags |= SCX_ENQ_IGNORE_CAPS;
 					if (!rescue_keep)
 						enq_flags |= SCX_ENQ_HEAD;
@@ -4417,7 +4440,7 @@ static void task_tick_scx(struct rq *rq, struct task_struct *donor, int queued)
 	 * management.
 	 */
 	if (scx_bypassing(sch, cpu_of(rq)))
-		scx_set_task_slice(donor, 0);
+		expire_task_slice(donor);
 	else if (SCX_HAS_OP(sch, tick))
 		SCX_CALL_OP_TASK(sch, tick, rq, donor);
 
@@ -5040,7 +5063,7 @@ static bool local_task_should_reenq(struct rq *rq, struct task_struct *p,
 	first = !(*reenq_flags & SCX_REENQ_TSR_NOT_FIRST);
 	*reenq_flags |= SCX_REENQ_TSR_NOT_FIRST;
 
-	if (unlikely((p->scx.flags & SCX_TASK_PROTECTED) || p == scx_rescuee(rq)))
+	if (unlikely((p->scx.flags & SCX_TASK_PROTECTED) || scx_task_has_kernel_slice(p)))
 		return false;
 
 	*reason = SCX_TASK_REENQ_KFUNC;
@@ -5143,7 +5166,7 @@ static u32 reenq_local(struct scx_sched *sch, struct rq *rq, u64 reenq_flags)
 	if ((reenq_flags & SCX_REENQ_CAP_REVOKE) &&
 	    rq->donor->sched_class == &ext_sched_class &&
 	    scx_task_reenq_on_cap_revoke(rq, rq->donor)) {
-		scx_set_task_slice(rq->donor, 0);
+		expire_task_slice(rq->donor);
 		resched_curr(rq);
 	}
 
@@ -6999,7 +7022,7 @@ void scx_bypass(struct scx_sched *sch, bool bypass)
 			if (bypass)
 				scx_task_slice_ended(rq, p);
 			else if (!scx_task_can_stay_on_cpu(rq, p))
-				scx_set_task_slice(p, 0);
+				expire_task_slice(p);
 		}
 
 		/*
