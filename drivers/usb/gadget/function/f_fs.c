@@ -1447,13 +1447,12 @@ static void ffs_dmabuf_signal_done(struct ffs_dma_fence *dma_fence, int ret)
 	struct dma_fence *fence = &dma_fence->base;
 	bool cookie = dma_fence_begin_signalling();
 
-	dma_fence_get(fence);
 	fence->error = ret;
 	dma_fence_signal(fence);
 	dma_fence_end_signalling(cookie);
 
 	/*
-	 * The fence will be unref'd in ffs_dmabuf_cleanup.
+	 * The reference of the request will be dropped in ffs_dmabuf_cleanup.
 	 * It can't be done here, as the unref functions might try to lock
 	 * the resv object, which would deadlock.
 	 */
@@ -1737,8 +1736,13 @@ static int ffs_dmabuf_transfer(struct file *file,
 
 	resv_dir = epfile->in ? DMA_RESV_USAGE_READ : DMA_RESV_USAGE_WRITE;
 
+	/*
+	 * The reservation object takes a reference of its own, and drops it as
+	 * soon as a later fence of this attachment takes the place of this
+	 * one. The initial reference stays with the request, which points to
+	 * the fence until ffs_dmabuf_cleanup() has run.
+	 */
 	dma_resv_add_fence(dmabuf->resv, &fence->base, resv_dir);
-	dma_fence_put(&fence->base);
 	dma_resv_unlock(dmabuf->resv);
 
 	/* Now that the dma_fence is in place, queue the transfer. */
