@@ -241,15 +241,15 @@ int xe_pm_resume(struct xe_device *xe)
 	drm_dbg(&xe->drm, "Resuming device\n");
 	trace_xe_pm_resume(xe, __builtin_return_address(0));
 
-	for_each_gt(gt, xe, id)
-		xe_gt_idle_disable_c6(gt);
-
 	for_each_tile(tile, xe, id)
 		xe_wa_apply_tile_workarounds(tile);
 
 	err = xe_pcode_ready(xe, true);
 	if (err)
 		return err;
+
+	for_each_gt(gt, xe, id)
+		xe_gt_idle_disable_c6(gt);
 
 	xe_display_pm_resume_early(xe);
 
@@ -698,12 +698,12 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	xe_rpm_lockmap_acquire(xe);
 
 	if (xe->d3cold.allowed) {
-		for_each_gt(gt, xe, id)
-			xe_gt_idle_disable_c6(gt);
-
 		err = xe_pcode_ready(xe, true);
 		if (err)
 			goto out;
+
+		for_each_gt(gt, xe, id)
+			xe_gt_idle_disable_c6(gt);
 
 		xe_display_pm_resume_early(xe);
 
