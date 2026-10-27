@@ -1215,7 +1215,15 @@ static struct sk_buff *bnxt_rx_multi_page_skb(struct bnxt *bp,
 				bp->rx_dir);
 	skb = napi_build_skb(frag_start, rxr->rx_page_size);
 	if (!skb) {
-		page_pool_recycle_direct(rxr->page_pool, page);
+		struct page *new_page;
+
+		new_page = rxr->rx_buf_ring[RING_RX(bp, prod)].data;
+		/* The caller may still need the XDP frags from shinfo at the
+		 * end of the head page. Release the new buffer instead and
+		 * put the head back on the ring.
+		 */
+		page_pool_recycle_direct(rxr->page_pool, new_page);
+		bnxt_reuse_rx_data(rxr, cons, data);
 		return NULL;
 	}
 	skb_mark_for_recycle(skb);
@@ -2313,17 +2321,8 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 			skb = bnxt_copy_xdp(bnapi, &bnxt_xdp.xdp, len,
 					    dma_addr);
 		bnxt_reuse_rx_data(rxr, cons, data);
-		if (!skb) {
-			if (agg_bufs) {
-				if (!xdp_active)
-					bnxt_reuse_rx_agg_bufs(cpr, cp_cons, 0,
-							       agg_bufs, false);
-				else
-					bnxt_xdp_buff_frags_free(rxr,
-								 &bnxt_xdp.xdp);
-			}
-			goto oom_next_rx;
-		}
+		if (!skb)
+			goto oom_next_rx_agg;
 	} else {
 		u32 payload;
 
@@ -2334,7 +2333,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		skb = bp->rx_skb_func(bp, rxr, cons, data, data_ptr, dma_addr,
 				      payload | len);
 		if (!skb)
-			goto oom_next_rx;
+			goto oom_next_rx_agg;
 	}
 
 	if (agg_bufs) {
@@ -2424,6 +2423,14 @@ next_rx_no_prod_no_len:
 
 	return rc;
 
+oom_next_rx_agg:
+	if (agg_bufs) {
+		if (!xdp_active)
+			bnxt_reuse_rx_agg_bufs(cpr, cp_cons, 0, agg_bufs,
+					       false);
+		else
+			bnxt_xdp_buff_frags_free(rxr, &bnxt_xdp.xdp);
+	}
 oom_next_rx:
 	cpr->sw_stats->rx.rx_oom_discards += 1;
 	rc = -ENOMEM;
