@@ -1205,6 +1205,15 @@ bool otx2_sq_append_skb(void *dev, struct netdev_queue *txq,
 	if (free_desc < otx2_get_sqe_count(pfvf, skb))
 		return false;
 
+	/* Crypto hardware need write permission for ipsec crypto offload */
+	if (unlikely(xfrm_offload(skb)) &&
+	    (skb_cloned(skb) || skb_is_nonlinear(skb)) &&
+	    skb_ensure_writable(skb, skb->len)) {
+		atomic_long_inc(&pfvf->hw.dev_stats.tx_discards);
+		dev_kfree_skb_any(skb);
+		return true;
+	}
+
 	num_segs = skb_shinfo(skb)->nr_frags + 1;
 
 	/* If SKB doesn't fit in a single SQE, linearize it.
