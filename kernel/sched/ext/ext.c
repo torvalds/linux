@@ -6620,35 +6620,75 @@ bool scx_hardlockup(int cpu)
 }
 
 /**
+ * bypass_lb_reenq_home - Reenqueue a task at its home from the balancer
+ * @rq: @p's home rq, locked
+ * @p: task off any DSQ, taken from the bypass DSQ of @dsq_cpu
+ * @dsq_cpu: cpu whose bypass DSQ gave up @p
+ *
+ * @p came off the bypass DSQ of @dsq_cpu with no donee able to take it. A drain
+ * sends a migration-disabled @p here unless the donee picked for it is its
+ * home, as every other cpu refuses it. The enqueue sends @p to rescue when the
+ * host lacks %SCX_CAP_BASE at home and rescue is enabled, and to the home's
+ * bypass DSQ otherwise. When @p must run at home, migration-disabled or with a
+ * migration pending, and the host lacks BASE there, it is admitted to the
+ * home's local DSQ in either case, see bypass_enq_target_dsq(). No DSQ lock may
+ * be held, as the enqueue takes one.
+ */
+static void bypass_lb_reenq_home(struct rq *rq, struct task_struct *p, s32 dsq_cpu)
+{
+	lockdep_assert_rq_held(rq);
+
+	WARN_ON_ONCE(p->scx.flags & SCX_TASK_REENQ_REASON_MASK);
+	p->scx.flags |= SCX_TASK_REENQ_CAP;
+	p->scx.reenq_reason_caps = SCX_CAP_BASE;
+	p->scx.reenq_reason_cid = __scx_cpu_to_cid(dsq_cpu);
+	scx_do_enqueue_task(rq, p, SCX_ENQ_REENQ, -1);
+}
+
+/**
+ * bypass_lb_can_move - Test whether @p can move to the bypass DSQ of @donee
+ * @sch: host sched whose bypass DSQs are balanced
+ * @p: task on a bypass DSQ of @sch, homed anywhere
+ * @donee: cpu whose bypass DSQ would receive @p, -1 for none
+ *
+ * @p's rq lock pins @p's affinity. Without it the answer is a hint. A task
+ * whose donee is its own cpu can always run there, and
+ * task_can_run_on_remote_rq() warns when asked about a task's own cpu.
+ */
+static bool bypass_lb_can_move(struct scx_sched *sch, struct task_struct *p, s32 donee)
+{
+	return donee >= 0 && (donee == task_cpu(p) ||
+			      task_can_run_on_remote_rq(sch, p, cpu_rq(donee), false));
+}
+
+/**
  * bypass_lb_move - Move one task off a bypass DSQ for the balancer
  * @sch: host sched whose bypass DSQs are balanced
  * @donor_rq: rq of the cpu whose bypass DSQ gives up @p, locked
  * @donor_dsq: @sch's bypass DSQ on @donor_rq's cpu, locked
  * @p: task on @donor_dsq, homed anywhere
- * @donee: cpu whose bypass DSQ receives @p
+ * @donee: cpu whose bypass DSQ receives @p, -1 for none
  *
  * Take @p off @donor_dsq and insert it into the bypass DSQ of @donee. The
- * caller picks @donee from @p's affinity alone and task_can_run_on_remote_rq()
- * can still refuse the move under @p's rq lock. @p then goes back to the head
- * of @donor_dsq.
+ * caller tests bypass_lb_can_move() without @p's rq lock for a task homed
+ * elsewhere, and not at all for a drain, so the test is repeated here under
+ * @p's rq lock. A task that fails it is not put back, as the host may no longer
+ * consume @donor_dsq. bypass_lb_reenq_home() reenqueues it at its home instead.
  *
- * The insert runs under @p's rq lock. A task homed on @donor_rq is dequeued in
- * place. unlink_dsq_and_switch_rq_lock() takes one homed elsewhere off and
- * switches the rq lock from @donor_rq to its own. The switch can lose to a
- * dequeue, and @p then belongs to the dequeuer.
+ * The insert and the reenqueue run under @p's rq lock. A task homed on
+ * @donor_rq is dequeued in place. unlink_dsq_and_switch_rq_lock() takes one
+ * homed elsewhere off and switches the rq lock from @donor_rq to its own. The
+ * switch can lose to a dequeue, and @p then belongs to the dequeuer.
  *
  * @donor_rq and @donor_dsq are locked on entry and on return. @donor_dsq is
  * unlocked in between, and @donor_rq too while the lock is switched, so the
  * caller's walk must find its place in @donor_dsq again after the call.
  *
- * Return the cpu that received @p, or -1 if @p went back onto @donor_dsq or was
- * lost to a dequeue.
+ * Return the cpu that received @p, or -1 if @p was lost to a dequeue.
  */
 static s32 bypass_lb_move(struct scx_sched *sch, struct rq *donor_rq,
 			  struct scx_dispatch_q *donor_dsq, struct task_struct *p, s32 donee)
 {
-	struct scx_dispatch_q *dst_dsq;
-	u64 enq_flags;
 	struct rq *rq = task_rq(p);
 	s32 ret;
 
@@ -6665,23 +6705,17 @@ static s32 bypass_lb_move(struct scx_sched *sch, struct rq *donor_rq,
 		goto out;
 	}
 
-	/*
-	 * @p's affinity is stable under its rq lock. A task whose donee is its
-	 * own cpu can always run there, and task_can_run_on_remote_rq() warns
-	 * when asked about a task's own cpu.
-	 */
-	if (donee == task_cpu(p) || task_can_run_on_remote_rq(sch, p, cpu_rq(donee), false)) {
-		dst_dsq = scx_bypass_dsq(sch, donee);
-		enq_flags = 0;
+	if (bypass_lb_can_move(sch, p, donee)) {
+		scx_dispatch_enqueue(sch, rq, scx_bypass_dsq(sch, donee), p, 0, 0, 0);
 		ret = donee;
 	} else {
-		/* back where it was, at the head so that the walk skips it */
-		dst_dsq = donor_dsq;
-		enq_flags = SCX_ENQ_HEAD;
-		ret = -1;
+		/*
+		 * No donee, or @p can't run on it. Reenqueue @p at home
+		 * instead, see bypass_lb_reenq_home().
+		 */
+		bypass_lb_reenq_home(rq, p, cpu_of(donor_rq));
+		ret = cpu_of(rq);
 	}
-
-	scx_dispatch_enqueue(sch, rq, dst_dsq, p, 0, 0, enq_flags);
 out:
 	if (rq != donor_rq)
 		switch_rq_lock(rq, donor_rq);
@@ -6704,10 +6738,11 @@ static u32 bypass_lb_cpu(struct scx_sched *sch, s32 donor,
 	 * All we want to guarantee is reasonable forward progress. No reason to
 	 * fine tune. Assuming every task on @donor_dsq runs their full slice,
 	 * consider offloading iff the total queued duration is over the
-	 * threshold.
+	 * threshold. A zero target is a drain and empties the DSQ regardless.
 	 */
 	min_delta_us = READ_ONCE(scx_bypass_lb_intv_us) / SCX_BYPASS_LB_MIN_DELTA_DIV;
-	if (delta < DIV_ROUND_UP(min_delta_us, READ_ONCE(scx_slice_bypass_us)))
+	if (nr_donor_target &&
+	    delta < DIV_ROUND_UP(min_delta_us, READ_ONCE(scx_slice_bypass_us)))
 		return 0;
 
 	raw_spin_rq_lock_irq(donor_rq);
@@ -6727,18 +6762,29 @@ resume:
 		if (donor_dsq->nr <= nr_donor_target)
 			break;
 
-		if (cpumask_empty(donee_mask))
+		/*
+		 * Without a donee, a balancing donor has nothing to do. A drain
+		 * still sends its tasks home.
+		 */
+		if (cpumask_empty(donee_mask) && nr_donor_target)
 			break;
 
 		/*
 		 * A task queued after the walk began, including one the walk
-		 * itself put back, is left for the next pass.
+		 * itself reenqueued, is left for the next pass.
 		 */
 		if (u32_before(cursor.priv, p->scx.dsq_seq))
 			continue;
 
+		/*
+		 * A balancing donor leaves a task that can't move where it is.
+		 * A home reenqueue would push one homed on the donor to the
+		 * back of @donor_dsq on every pass. A drain sends it home.
+		 */
 		donee = cpumask_any_and_distribute(donee_mask, p->cpus_ptr);
 		if (donee >= nr_cpu_ids)
+			donee = -1;
+		if (nr_donor_target && !bypass_lb_can_move(sch, p, donee))
 			continue;
 
 		/*
@@ -6795,6 +6841,7 @@ static void bypass_lb_node(struct scx_sched *sch, int node)
 	const struct cpumask *node_mask = cpumask_of_node(node);
 	struct cpumask *donee_mask = sch->bypass_lb_donee_cpumask;
 	struct cpumask *resched_mask = sch->bypass_lb_resched_cpumask;
+	u32 intv_us = READ_ONCE(scx_bypass_lb_intv_us);
 	u32 nr_tasks = 0, nr_cpus = 0, nr_balanced = 0;
 	u32 nr_target, nr_donor_target;
 	u32 before_min = U32_MAX, before_max = 0;
@@ -6814,7 +6861,7 @@ static void bypass_lb_node(struct scx_sched *sch, int node)
 		before_max = max(nr, before_max);
 	}
 
-	if (!nr_cpus)
+	if (!nr_tasks)
 		return;
 
 	/*
@@ -6822,7 +6869,7 @@ static void bypass_lb_node(struct scx_sched *sch, int node)
 	 * balancing to fill donee CPUs up to $nr_target. Once targets are
 	 * calculated, find the donee CPUs.
 	 */
-	nr_target = DIV_ROUND_UP(nr_tasks, nr_cpus);
+	nr_target = nr_cpus ? DIV_ROUND_UP(nr_tasks, nr_cpus) : 0;
 	nr_donor_target = DIV_ROUND_UP(nr_target * SCX_BYPASS_LB_DONOR_PCT, 100);
 
 	cpumask_clear(donee_mask);
@@ -6833,18 +6880,28 @@ static void bypass_lb_node(struct scx_sched *sch, int node)
 			cpumask_set_cpu(cpu, donee_mask);
 	}
 
-	/* iterate !donee CPUs and see if they should be offloaded */
+	/*
+	 * Offload the !donee cpus. A cpu where the host lost %SCX_CAP_BASE no
+	 * longer consumes its DSQ. Drain it as a donor with a target of zero. A
+	 * zero interval disables the balancing, not the drain.
+	 */
 	cpumask_clear(resched_mask);
 	for_each_cpu_and(cpu, cpu_online_mask, node_mask) {
-		if (cpumask_empty(donee_mask))
-			break;
-		if (cpumask_test_cpu(cpu, donee_mask))
+		u32 target = nr_donor_target;
+
+		if (unlikely(scx_missing_caps(sch, cpu, SCX_CAP_BASE))) {
+			/* the mask may predate the loss, keep this cpu out */
+			cpumask_clear_cpu(cpu, donee_mask);
+			target = 0;
+		} else if (!intv_us || cpumask_empty(donee_mask) ||
+			   cpumask_test_cpu(cpu, donee_mask)) {
 			continue;
-		if (READ_ONCE(scx_bypass_dsq(sch, cpu)->nr) <= nr_donor_target)
+		}
+		if (READ_ONCE(scx_bypass_dsq(sch, cpu)->nr) <= target)
 			continue;
 
 		nr_balanced += bypass_lb_cpu(sch, cpu, donee_mask, resched_mask,
-					     nr_donor_target, nr_target);
+					     target, nr_target);
 	}
 
 	for_each_cpu(cpu, resched_mask)
@@ -6883,9 +6940,28 @@ static void scx_bypass_lb_timerfn(struct timer_list *timer)
 	for_each_node_with_cpus(node)
 		bypass_lb_node(sch, node);
 
+	/*
+	 * A kick during this run can leave the timer pending at now, see
+	 * scx_bypass_lb_kick(). timer_reduce() only brings the expiry forward,
+	 * so that kick is kept.
+	 */
 	intv_us = READ_ONCE(scx_bypass_lb_intv_us);
 	if (intv_us)
-		mod_timer(timer, jiffies + usecs_to_jiffies(intv_us));
+		timer_reduce(timer, jiffies + usecs_to_jiffies(intv_us));
+}
+
+/**
+ * scx_bypass_lb_kick - Run the bypass load balancer now
+ * @sch: sched that lost %SCX_CAP_BASE on a cpu
+ *
+ * @sch no longer consumes its bypass DSQ on that cpu. Have the balancer drain
+ * it without waiting for the next interval, see bypass_lb_node(). A loss during
+ * a run leaves the timer pending at now, and the run that follows sees it.
+ */
+void scx_bypass_lb_kick(struct scx_sched *sch)
+{
+	if (scx_bypass_dsp_enabled(sch))
+		mod_timer(&sch->bypass_lb_timer, jiffies);
 }
 
 static bool inc_bypass_depth(struct scx_sched *sch)
@@ -6954,11 +7030,12 @@ static void enable_bypass_dsp(struct scx_sched *sch)
 
 	/*
 	 * The LB timer will stop running if bypass dispatch is disabled. Start
-	 * after enabling bypass dispatch.
+	 * after enabling bypass dispatch. A kick from a BASE loss can have set
+	 * the timer to expire now in the meantime, see scx_bypass_lb_kick().
+	 * timer_reduce() keeps that expiry.
 	 */
-	if (intv_us && !timer_pending(&host->bypass_lb_timer))
-		mod_timer(&host->bypass_lb_timer,
-			  jiffies + usecs_to_jiffies(intv_us));
+	if (intv_us)
+		timer_reduce(&host->bypass_lb_timer, jiffies + usecs_to_jiffies(intv_us));
 }
 
 /* may be called without holding scx_bypass_lock */

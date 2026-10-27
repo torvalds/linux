@@ -1244,6 +1244,14 @@ void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 		lost_all |= lost;
 
 		/*
+		 * The bypass DSQ on this cpu is no longer consumed, so drain
+		 * it. A bypassing sched's own bypass DSQs are empty, as its
+		 * tasks sit on the host's.
+		 */
+		if ((lost & SCX_CAP_BASE) && !scx_bypassing(pcpu->sch, cpu))
+			scx_bypass_lb_kick(pcpu->sch);
+
+		/*
 		 * Tell the sched and its parent that the sched's effective caps
 		 * on this cid changed. The invocations are equivalent to the
 		 * dispatch path and may drop and re-acquire the rq lock
