@@ -3517,21 +3517,23 @@ __naked void ptr_mem_other_reservation(void)
 	: __clobber_all);
 }
 
+/* An access to a buffer at a variable offset is rejected: the pointer must not be widened. */
 SEC("iter/bpf_map_elem")
 __success
 __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
 __msg("header_count is 4 ")
-__msg("widening r6 to 0..3 step 1")
+__msg("can't widen r6, expr is (+ r6 8)")
 __naked void ptr_buf(void)
 {
 	asm volatile ("					\
 	r6 = *(u64 *)(r1 + %[value]);			\
 	if r6 == 0 goto 2f;				\
-	r7 = r6;					\
-	r7 += 4;					\
-1:	r6 += 1;					\
-	if r6 < r7 goto 1b;				\
+	r7 = 0;						\
+1:	r0 = *(u32 *)(r6 + 0);				\
+	r6 += 8;					\
+	r7 += 1;					\
+	if r7 < 4 goto 1b;				\
 2:	r0 = 0;						\
 	exit;						\
 "	:
