@@ -1640,13 +1640,13 @@ static int isotp_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int l
 
 	/* register for echo skb's first (no echo traffic at this point) */
 	err = can_rx_register(net, dev, tx_id, SINGLE_MASK(tx_id),
-			      isotp_rcv_echo, sk, "isotpe", sk);
+			      isotp_rcv_echo, sk, sock_i_ino(sk), sk);
 	if (err)
 		goto out_put_dev;
 
 	if (isotp_register_rxid(so)) {
 		err = can_rx_register(net, dev, rx_id, SINGLE_MASK(rx_id),
-				      isotp_rcv, sk, "isotp", sk);
+				      isotp_rcv, sk, sock_i_ino(sk), sk);
 		if (err) {
 			/* unregister echo skb subscription */
 			can_rx_unregister(net, dev, tx_id, SINGLE_MASK(tx_id),
