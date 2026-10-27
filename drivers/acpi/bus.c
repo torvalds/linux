@@ -1449,6 +1449,7 @@ struct kobject *acpi_kobj;
 EXPORT_SYMBOL_GPL(acpi_kobj);
 
 void __weak __init acpi_arch_init(void) { }
+void __weak __init acpi_arch_late_init(void) { }
 
 static int __init acpi_init(void)
 {
@@ -1487,6 +1488,7 @@ static int __init acpi_init(void)
 	acpi_wakeup_device_init();
 	acpi_debugger_init();
 	acpi_setup_sb_notify_handler();
+	acpi_arch_late_init();
 	acpi_viot_init();
 	return 0;
 }
