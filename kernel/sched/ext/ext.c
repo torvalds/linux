@@ -2458,7 +2458,8 @@ static void ops_dequeue(struct rq *rq, struct task_struct *p, u64 deq_flags)
 	/*
 	 * Don't reset runnable_at. If @p is waiting, the wait continues across
 	 * temporary dequeues, e.g. for a migration or an attribute change.
-	 * scx_disable_task() ends it if @p leaves its scheduler.
+	 * scx_disable_task() ends it if @p leaves its scheduler. scx_bypass()
+	 * restarts it when its requeue can change the sched running @p.
 	 */
 	clr_task_runnable(p, false);
 
@@ -4298,23 +4299,16 @@ static bool check_rq_for_timeouts(struct rq *rq)
 		goto out_unlock;
 
 	list_for_each_entry(p, &rq->scx.runnable_list, scx.runnable_node) {
-		struct scx_sched *sch = scx_task_sched(p);
+		/*
+		 * @p's owner schedules @p, or its host while the owner is
+		 * bypassing. Test @p against that sched's timeout and blame it.
+		 */
+		struct scx_sched *sch = scx_exec_sched(scx_task_sched(p), cpu_of(rq));
 		unsigned long last_runnable = p->scx.runnable_at;
 
 		if (unlikely(time_after(jiffies,
 					last_runnable + READ_ONCE(sch->watchdog_timeout)))) {
-			struct scx_dispatch_q *dsq = READ_ONCE(p->scx.dsq);
 			u32 dur_ms = jiffies_to_msecs(jiffies - last_runnable);
-
-			/*
-			 * A task can be stuck on a DSQ that a sched other than
-			 * its owner is responsible for draining, e.g. an
-			 * ancestor's bypass DSQ while the owner is bypassing.
-			 * Blame the drainer. The local DSQ is consumed by the
-			 * cpu itself and keeps blame on the owner.
-			 */
-			if (dsq && dsq->sched && dsq->id != SCX_DSQ_LOCAL)
-				sch = dsq->sched;
 
 			__scx_exit(sch, SCX_EXIT_ERROR_STALL, 0, cpu_of(rq),
 				   "%s[%d] failed to run for %u.%03us",
@@ -6976,12 +6970,26 @@ void scx_bypass(struct scx_sched *sch, bool bypass)
 		 */
 		list_for_each_entry_safe_reverse(p, n, &rq->scx.runnable_list,
 						 scx.runnable_node) {
-			if (!scx_is_descendant(scx_task_sched(p), sch))
+			struct scx_sched *owner = scx_task_sched(p);
+
+			if (!scx_is_descendant(owner, sch))
 				continue;
 
 			/* cycling deq/enq is enough, see the function comment */
 			scoped_guard (sched_change, p, DEQUEUE_SAVE | DEQUEUE_MOVE) {
-				/* nothing */ ;
+				/*
+				 * The requeue can change the sched running @p,
+				 * and the watchdog counts @p's wait against
+				 * that sched. Restart the wait unless @owner is
+				 * the root, which runs its own tasks bypassing
+				 * or not.
+				 *
+				 * A dispatch in flight writes p->scx.flags
+				 * without @p's rq lock. The dequeue waits it
+				 * out, so set the flag after it.
+				 */
+				if (scx_parent(owner))
+					p->scx.flags |= SCX_TASK_RESET_RUNNABLE_AT;
 			}
 		}
 
