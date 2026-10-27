@@ -34,7 +34,7 @@ static void stop_udc(struct udc *udc)
 	int tmp;
 	u32 reg;
 
-	spin_lock(&udc->lock);
+	spin_lock_irq(&udc->lock);
 
 	/* Flush the receieve fifo */
 	reg = readl(&udc->regs->ctl);
@@ -53,9 +53,9 @@ static void stop_udc(struct udc *udc)
 
 	/* Disconnect gadget driver */
 	if (udc->driver) {
-		spin_unlock(&udc->lock);
+		spin_unlock_irq(&udc->lock);
 		udc->driver->disconnect(&udc->gadget);
-		spin_lock(&udc->lock);
+		spin_lock_irq(&udc->lock);
 
 		/* empty queues */
 		for (tmp = 0; tmp < UDC_EP_NUM; tmp++)
@@ -63,7 +63,7 @@ static void stop_udc(struct udc *udc)
 	}
 	udc->connected = 0;
 
-	spin_unlock(&udc->lock);
+	spin_unlock_irq(&udc->lock);
 	dev_info(udc->dev, "Device disconnected\n");
 }
 
