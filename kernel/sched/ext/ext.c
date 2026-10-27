@@ -12126,19 +12126,28 @@ static const struct btf_kfunc_id_set scx_kfunc_set_any = {
 };
 
 /*
- * Kfuncs which may take the rq lock on their unlocked path.
+ * Kfuncs that tracing programs can't call. A tracing program can run in any
+ * kernel context, including with an rq lock held. scx_locked_rq() only tracks
+ * rq locks held across SCX callbacks and returns NULL there.
  *
- * A tracing program can execute in any kernel context, including ones which
- * already hold the rq lock (e.g. sched_switch). scx_locked_rq() only tracks
- * rq locks taken for SCX callbacks, so from such a context it returns NULL
- * and these kfuncs would acquire the already held rq lock again and deadlock
- * the CPU. They cannot be made safe for tracing programs, so keep them off
- * the tracing hook. Members must also stay in scx_kfunc_ids_any so that
- * struct_ops and syscall programs keep their access.
+ * scx_bpf_cpuperf_set() and scx_bpf_cidperf_set() take the target cpu's rq lock
+ * when scx_locked_rq() returns NULL. Taking it while the context already holds
+ * an rq lock, the same one or another cpu's, can deadlock.
+ *
+ * Before returning, scx_bpf_sub_grant() and scx_bpf_sub_revoke() invoke
+ * ops.sub_caps_updated() of the sub-schedulers whose caps changed, so those ops
+ * run in the tracing program's context. No SCX op expects to run from an
+ * arbitrary tracing context. One that calls scx_bpf_cidperf_set() hits the
+ * deadlock above.
+ *
+ * Members must also stay in scx_kfunc_ids_any so that struct_ops and syscall
+ * programs keep their access.
  */
 BTF_KFUNCS_START(scx_kfunc_ids_no_tracing)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_set, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_cidperf_set, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_sub_grant, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_sub_revoke, KF_IMPLICIT_ARGS)
 BTF_KFUNCS_END(scx_kfunc_ids_no_tracing)
 
 /*
