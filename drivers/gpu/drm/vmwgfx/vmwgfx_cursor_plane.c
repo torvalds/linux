@@ -166,10 +166,17 @@ static u32 vmw_cursor_mob_size(enum vmw_cursor_update_type update_type,
 
 static void vmw_cursor_mob_destroy(struct vmw_bo **vbo)
 {
+	int ret;
+
 	if (!(*vbo))
 		return;
 
+	ret = ttm_bo_reserve(&(*vbo)->tbo, false, false, NULL);
+	if (WARN_ON_ONCE(ret))
+		return;
+
 	ttm_bo_unpin(&(*vbo)->tbo);
+	ttm_bo_unreserve(&(*vbo)->tbo);
 	vmw_bo_unreference(vbo);
 }
 
