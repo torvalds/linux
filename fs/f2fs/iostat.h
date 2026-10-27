@@ -60,6 +60,13 @@ static inline struct bio_post_read_ctx *get_post_read_ctx(struct bio *bio)
 	return iostat_ctx->post_read_ctx;
 }
 
+static inline void iostat_set_post_read_ctx(struct bio *bio, void *ctx)
+{
+	struct bio_iostat_ctx *iostat_ctx = bio->bi_private;
+
+	iostat_ctx->post_read_ctx = ctx;
+}
+
 extern void iostat_update_and_unbind_ctx(struct bio *bio);
 extern void iostat_alloc_and_bind_ctx(struct f2fs_sb_info *sbi,
 		struct bio *bio, struct bio_post_read_ctx *ctx);
@@ -80,6 +87,10 @@ static inline void iostat_update_submit_ctx(struct bio *bio,
 static inline struct bio_post_read_ctx *get_post_read_ctx(struct bio *bio)
 {
 	return bio->bi_private;
+}
+static inline void iostat_set_post_read_ctx(struct bio *bio, void *ctx)
+{
+	bio->bi_private = ctx;
 }
 static inline int f2fs_init_iostat_processing(void) { return 0; }
 static inline void f2fs_destroy_iostat_processing(void) {}

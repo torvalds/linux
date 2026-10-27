@@ -23,7 +23,7 @@ static unsigned long __count_nat_entries(struct f2fs_sb_info *sbi)
 
 static unsigned long __count_free_nids(struct f2fs_sb_info *sbi)
 {
-	long count = NM_I(sbi)->nid_cnt[FREE_NID] - MAX_FREE_NIDS;
+	long count = NM_I(sbi)->nid_cnt[FREE_NID] - MAX_FREE_NIDS(sbi);
 
 	return count > 0 ? count : 0;
 }
@@ -35,6 +35,13 @@ static unsigned long __count_extent_cache(struct f2fs_sb_info *sbi,
 
 	return atomic_read(&eti->total_zombie_tree) +
 				atomic_read(&eti->total_ext_node);
+}
+
+static unsigned long __count_cache(struct f2fs_sb_info *sbi)
+{
+	return META_CACHE(sbi)->num_entries +
+		NODE_CACHE(sbi)->num_entries +
+		COMPRESS_CACHE(sbi)->num_entries;
 }
 
 unsigned long f2fs_shrink_count(struct shrinker *shrink,
@@ -67,6 +74,9 @@ unsigned long f2fs_shrink_count(struct shrinker *shrink,
 
 		/* count free nids cache entries */
 		count += __count_free_nids(sbi);
+
+		/* count generic cache entries */
+		count += __count_cache(sbi);
 
 		spin_lock(&f2fs_list_lock);
 		p = p->next;
@@ -119,6 +129,10 @@ unsigned long f2fs_shrink_scan(struct shrinker *shrink,
 		/* shrink free nids cache entries */
 		if (freed < nr)
 			freed += f2fs_try_to_free_nids(sbi, nr - freed);
+
+		/* shrink generic cache entries */
+		if (freed < nr)
+			freed += f2fs_shrink_cache(sbi, nr - freed);
 
 		spin_lock(&f2fs_list_lock);
 		p = p->next;
