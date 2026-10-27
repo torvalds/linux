@@ -1377,6 +1377,40 @@ __naked __noinline __used static int probe_read_stack(void)
 	: __clobber_all);
 }
 
+/*
+ * r3 = r8 + 4 is linked to r8 when it enters the loop. Widening drops the link. If
+ * it leaves the 4 behind then r4 = r3 + 1 is taken for r3 - 3 when r3 is compared:
+ * r4 <= 7 instead of r4 <= 11, and the read of r9 looks like dead code.
+ */
+SEC("socket")
+__failure __msg("R9 !read_ok")
+__naked void widened_reg_is_not_linked(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r8 = r0;"
+	"r8 &= 0xff;"
+	"r3 = r8;"
+	"r3 += 4;"
+	"r1 = 0;"
+"1:"
+	"r4 = r3;"
+	"r4 += 1;"
+	"if r3 > 10 goto 3f;"
+	"if r4 <= 7 goto 2f;"
+	"r0 = *(u64 *)(r9 + 0);"
+"2:"
+	"r3 += 1;"
+	"r1 += 1;"
+	"if r1 < 2 goto 1b;"
+"3:"
+	"r0 = r8;"
+	"exit;"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 /* The unknown SCEV of an unbound STACK_MISC slot must not prevent widening. */
 SEC("tracepoint")
 __success
