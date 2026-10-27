@@ -1666,8 +1666,8 @@ static void scx_rehome_task(struct scx_sched *to, struct task_struct *p)
  * Used when @to must take over @p but failed to initialize it. Bypass keeps
  * scheduling decisions away from @to but @p can still trigger its task ops,
  * which may confuse the BPF side. @to is dying anyway. The exit paths call no
- * op on a %NONE task. __scx_disable_and_exit_task() skips it and
- * switched_from_scx() only ends its slice.
+ * op on a %NONE task. __scx_disable_and_exit_task() and switched_from_scx()
+ * only reset its fields, see scx_reset_task_fields().
  */
 static void scx_punt_task(struct scx_sched *to, struct task_struct *p)
 {

@@ -2511,8 +2511,9 @@ static void ops_dequeue(struct rq *rq, struct task_struct *p, u64 deq_flags)
 	/*
 	 * Don't reset runnable_at. If @p is waiting, the wait continues across
 	 * temporary dequeues, e.g. for a migration or an attribute change.
-	 * scx_disable_task() ends it if @p leaves its scheduler. scx_bypass()
-	 * restarts it when its requeue can change the sched running @p.
+	 * scx_reset_task_fields() ends it if @p leaves its sched's control.
+	 * scx_bypass() restarts it when its requeue can change the sched
+	 * running @p.
 	 */
 	clr_task_runnable(p, false);
 
@@ -4657,6 +4658,34 @@ void scx_enable_task(struct scx_sched *sch, struct task_struct *p)
 	scx_set_task_state(p, SCX_TASK_ENABLED);
 }
 
+/**
+ * scx_reset_task_fields - Reset what @p carries from its sched's control
+ * @rq: @p's rq, locked
+ * @p: task leaving its sched's control
+ *
+ * The vtime, the slice and what rides on it, the reenqueue count and the
+ * watchdog wait belong to the sched while it controls @p. The control ends when
+ * @p is taken off the sched or leaves the ext class while staying on the sched.
+ * Reset them so that @p starts clean wherever it goes.
+ */
+static void scx_reset_task_fields(struct rq *rq, struct task_struct *p)
+{
+	lockdep_assert_rq_held(rq);
+
+	p->scx.dsq_vtime = 0;
+	scx_task_slice_ended(rq, p);
+	scx_set_task_slice(p, 0);
+	p->scx.reenq_cnt = 0;
+
+	/*
+	 * If @p is runnable but not running, its wait started at runnable_at,
+	 * which ops_dequeue() didn't reset. Leaving the sched's control ends
+	 * the wait. Reset runnable_at the next time @p is enqueued on SCX, so
+	 * that the watchdog doesn't count the time @p spends elsewhere.
+	 */
+	p->scx.flags |= SCX_TASK_RESET_RUNNABLE_AT;
+}
+
 static void scx_disable_task(struct scx_sched *sch, struct task_struct *p)
 {
 	struct rq *rq = task_rq(p);
@@ -4669,23 +4698,6 @@ static void scx_disable_task(struct scx_sched *sch, struct task_struct *p)
 	if (SCX_HAS_OP(sch, disable))
 		SCX_CALL_OP_TASK(sch, disable, rq, p);
 	scx_set_task_state(p, SCX_TASK_READY);
-
-	/*
-	 * Reset the SCX-managed fields when @p leaves the BPF scheduler's
-	 * control, after ops.disable() has observed their final values.
-	 */
-	p->scx.dsq_vtime = 0;
-	scx_task_slice_ended(rq, p);
-	scx_set_task_slice(p, 0);
-	p->scx.reenq_cnt = 0;
-
-	/*
-	 * If @p is runnable but not running, its wait started at runnable_at,
-	 * which ops_dequeue() didn't reset. Leaving @sch ends the wait. Reset
-	 * runnable_at the next time @p is enqueued on SCX, so that the watchdog
-	 * doesn't count the time @p spends elsewhere.
-	 */
-	p->scx.flags |= SCX_TASK_RESET_RUNNABLE_AT;
 
 	/*
 	 * Verify the task is not in BPF scheduler's custody. If flag
@@ -4706,6 +4718,11 @@ void __scx_disable_and_exit_task(struct scx_sched *sch, struct task_struct *p)
 
 	switch (scx_get_task_state(p)) {
 	case SCX_TASK_NONE:
+		/*
+		 * No op to call, but @p may still carry @sch's state, e.g. a
+		 * task punted by scx_fail_parent() and being rescued.
+		 */
+		scx_reset_task_fields(task_rq(p), p);
 		return;
 	case SCX_TASK_INIT:
 		args.cancelled = true;
@@ -4714,6 +4731,8 @@ void __scx_disable_and_exit_task(struct scx_sched *sch, struct task_struct *p)
 		break;
 	case SCX_TASK_ENABLED:
 		scx_disable_task(sch, p);
+		/* after ops.disable() has seen the final values */
+		scx_reset_task_fields(task_rq(p), p);
 		break;
 	default:
 		WARN_ON_ONCE(true);
@@ -5022,13 +5041,12 @@ static void switched_from_scx(struct rq *rq, struct task_struct *p)
 	 * scx_disable_task() would WARN on the non-%ENABLED state and trigger a
 	 * NONE -> READY validation failure.
 	 *
-	 * @p can still be a rescuee under the parent. End its slice as
-	 * scx_disable_task() does for an enabled task.
+	 * Either way, reset @p after ops.disable() has seen the final values. A
+	 * %NONE @p can still be a rescuee under the parent.
 	 */
-	if (scx_get_task_state(p) == SCX_TASK_NONE)
-		scx_task_slice_ended(rq, p);
-	else
+	if (scx_get_task_state(p) != SCX_TASK_NONE)
 		scx_disable_task(scx_task_sched(p), p);
+	scx_reset_task_fields(rq, p);
 }
 
 static void switched_to_scx(struct rq *rq, struct task_struct *p) {}
