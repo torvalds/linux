@@ -84,6 +84,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_puts(m, " complex");
 	if (cpu_has_crypto)
 		seq_puts(m, " crypto");
+	if (cpu_has_div32)
+		seq_puts(m, " div32");
 	if (cpu_has_ptw)
 		seq_puts(m, " ptw");
 	if (cpu_has_lspw)

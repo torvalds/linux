@@ -45,6 +45,7 @@
 #define cpu_has_crc32		cpu_opt(LOONGARCH_CPU_CRC32)
 #define cpu_has_complex		cpu_opt(LOONGARCH_CPU_COMPLEX)
 #define cpu_has_crypto		cpu_opt(LOONGARCH_CPU_CRYPTO)
+#define cpu_has_div32		cpu_opt(LOONGARCH_CPU_DIV32)
 #define cpu_has_lvz		cpu_opt(LOONGARCH_CPU_LVZ)
 #define cpu_has_lbt_x86		cpu_opt(LOONGARCH_CPU_LBT_X86)
 #define cpu_has_lbt_arm		cpu_opt(LOONGARCH_CPU_LBT_ARM)
