@@ -428,7 +428,7 @@ unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
 		xa_for_each(&lru->xa, index, mlru) {
 			rcu_read_lock();
 			memcg = mem_cgroup_from_private_id(index);
-			if (!mem_cgroup_tryget(memcg)) {
+			if (!memcg || !mem_cgroup_tryget(memcg)) {
 				rcu_read_unlock();
 				continue;
 			}
@@ -587,7 +587,7 @@ static int __memcg_list_lru_alloc(struct mem_cgroup *memcg,
 	 */
 	do {
 		/*
-		 * Keep finding the farest parent that wasn't populated
+		 * Keep finding the farthest parent that wasn't populated
 		 * until found memcg itself.
 		 */
 		pos = memcg;

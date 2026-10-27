@@ -621,7 +621,7 @@ static struct page *no_page_table(struct vm_area_struct *vma,
 	 * But we can only make this optimization where a hole would surely
 	 * be zero-filled if handle_mm_fault() actually did handle it.
 	 */
-	if (is_vm_hugetlb_page(vma)) {
+	if (vma_is_hugetlb(vma)) {
 		struct hstate *h = hstate_vma(vma);
 
 		if (!hugetlbfs_pagecache_present(h, vma, address))
@@ -1213,7 +1213,7 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
 	if ((gup_flags & FOLL_LONGTERM) && vma_is_fsdax(vma))
 		return -EOPNOTSUPP;
 
-	if ((gup_flags & FOLL_SPLIT_PMD) && is_vm_hugetlb_page(vma))
+	if ((gup_flags & FOLL_SPLIT_PMD) && vma_is_hugetlb(vma))
 		return -EOPNOTSUPP;
 
 	if (vma_is_secretmem(vma))
@@ -1834,6 +1834,10 @@ long populate_vma_page_range(struct vm_area_struct *vma,
 
 	/* ... similarly, we've never faulted in PROT_NONE pages */
 	if (!vma_is_accessible(vma))
+		return -EFAULT;
+
+	/* Unreadable VMAs also cannot be faulted in. */
+	if (!vma_test(vma, VMA_MAYREAD_BIT))
 		return -EFAULT;
 
 	gup_flags = FOLL_TOUCH;

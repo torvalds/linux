@@ -349,7 +349,7 @@ pte_t *pte_offset_map_rw_nolock(struct mm_struct *mm, pmd_t *pmd,
  * pte_offset_map_lock(mm, pmd, addr, ptlp) is usually called with the pmd
  * pointer for addr, reached by walking down the mm's pgd, p4d, pud for addr:
  * either while holding mmap_lock or vma lock for read or for write; or in
- * truncate or rmap context, while holding file's i_mmap_lock or anon_vma lock
+ * truncate or rmap context, while holding file's i_mmap_lock or anon rmap lock
  * for read (or for write). In a few cases, it may be used with pmd pointing to
  * a pmd_t already copied to or constructed on the stack.
  *

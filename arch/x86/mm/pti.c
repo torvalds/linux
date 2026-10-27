@@ -688,5 +688,5 @@ void pti_finalize(void)
 	pti_clone_entry_text(true);
 	pti_clone_kernel_text();
 
-	debug_checkwx_user();
+	pgtable_checkwx_user();
 }

@@ -826,7 +826,7 @@ int fuse_vdax_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	file_accessed(file);
 	vma->vm_ops = &fuse_dax_vm_ops;
-	vm_flags_set(vma, VM_MIXEDMAP | VM_HUGEPAGE);
+	vma_set_flags(vma, VMA_HUGEPAGE_BIT);
 	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 	return 0;
 }

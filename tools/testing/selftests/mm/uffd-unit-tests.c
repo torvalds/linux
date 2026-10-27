@@ -1937,6 +1937,11 @@ uffd_move_test_common(uffd_global_test_opts_t *gopts,
 
 	args.gopts = gopts;
 
+	if (chunk_size > gopts->nr_pages * gopts->page_size) {
+		uffd_test_skip("chunk size does not fit in the test area");
+		return;
+	}
+
 	/* Prevent source pages from being mapped more than once */
 	if (madvise(gopts->area_src, gopts->nr_pages * gopts->page_size, MADV_DONTFORK))
 		err("madvise(MADV_DONTFORK) failure");

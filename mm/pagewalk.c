@@ -408,7 +408,7 @@ static int __walk_page_range(unsigned long start, unsigned long end,
 	int err = 0;
 	struct vm_area_struct *vma = walk->vma;
 	const struct mm_walk_ops *ops = walk->ops;
-	bool is_hugetlb = is_vm_hugetlb_page(vma);
+	bool is_hugetlb = vma_is_hugetlb(vma);
 
 	/* We do not support hugetlb PTE installation. */
 	if (ops->install_pte && is_hugetlb)

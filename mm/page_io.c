@@ -135,7 +135,7 @@ static bool is_folio_zero_filled(struct folio *folio)
 	for (i = 0; i < folio_nr_pages(folio); i++) {
 		data = kmap_local_folio(folio, i * PAGE_SIZE);
 		/*
-		 * Check last word first, incase the page is zero-filled at
+		 * Check last word first, in case the page is zero-filled at
 		 * the start and has non-zero data at the end, which is common
 		 * in real-world workloads.
 		 */

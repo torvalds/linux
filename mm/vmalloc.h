@@ -8,6 +8,7 @@
 #include <linux/vmalloc.h>
 
 #ifdef CONFIG_MMU
+struct page *__vmalloc_to_page(const void *vmalloc_addr);
 void __init vmalloc_init(void);
 int __must_check vmap_pages_range_noflush(unsigned long addr, unsigned long end,
 		pgprot_t prot, struct page **pages,

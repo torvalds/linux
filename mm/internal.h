@@ -7,6 +7,7 @@
 #ifndef __MM_INTERNAL_H
 #define __MM_INTERNAL_H
 
+#include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/khugepaged.h>
 #include <linux/mm.h>
@@ -218,36 +219,6 @@ static inline void *folio_raw_mapping(const struct folio *folio)
 }
 
 /*
- * This is a file-backed mapping, and is about to be memory mapped - invoke its
- * mmap hook and safely handle error conditions. On error, VMA hooks will be
- * mutated.
- *
- * @file: File which backs the mapping.
- * @vma:  VMA which we are mapping.
- *
- * Returns: 0 if success, error otherwise.
- */
-static inline int mmap_file(struct file *file, struct vm_area_struct *vma)
-{
-	int err = vfs_mmap(file, vma);
-
-	/*
-	 * Either we tried to call the file hook for mmap() and an error arose
-	 * or a driver set vma->vm_ops = NULL intending there to be no VMA
-	 * operations.
-	 *
-	 * In the former case the VMA is in an inconsistent state and we mustn't
-	 * invoke any further hooks on it, in the latter case the hook actually
-	 * wanted no further hooks to be invoked, so fix both by setting dummy
-	 * VMA ops.
-	 */
-	if (unlikely(err || !vma->vm_ops))
-		vma->vm_ops = &vma_dummy_vm_ops;
-
-	return err;
-}
-
-/*
  * If the VMA has a close hook then close it, and since closing it might leave
  * it in an inconsistent state which makes the use of any hooks suspect, clear
  * them down by installing dummy empty hooks.
@@ -263,6 +234,48 @@ static inline void vma_close(struct vm_area_struct *vma)
 		 */
 		vma->vm_ops = &vma_dummy_vm_ops;
 	}
+}
+
+/*
+ * This is a file-backed mapping, and is about to be memory mapped - invoke its
+ * mmap hook and safely handle error conditions. On error, VMA hooks will be
+ * mutated.
+ *
+ * @file: File which backs the mapping.
+ * @vma:  VMA which we are mapping.
+ *
+ * Returns: 0 if success, error otherwise.
+ */
+static inline int mmap_file(struct file *file, struct vm_area_struct *vma)
+{
+	const unsigned long orig_start = vma->vm_start;
+	const unsigned long orig_end = vma->vm_end;
+	const vma_flags_t orig_flags = vma->flags;
+	int err;
+
+	err = vfs_mmap(file, vma);
+	/*
+	 * Either we tried to call the file hook for mmap() and an error arose
+	 * or a driver set vma->vm_ops = NULL intending there to be no VMA
+	 * operations.
+	 *
+	 * In the former case the VMA is in an inconsistent state and we mustn't
+	 * invoke any further hooks on it, in the latter case the hook actually
+	 * wanted no further hooks to be invoked, so fix both by setting dummy
+	 * VMA ops.
+	 */
+	if (unlikely(err || !vma->vm_ops))
+		vma->vm_ops = &vma_dummy_vm_ops;
+	if (unlikely(err))
+		return err;
+
+	err = mmap_hook_validate(orig_start, orig_end, &orig_flags, vma);
+	if (unlikely(err)) {
+		vma->vm_start = orig_start;
+		vma->vm_end = orig_end;
+	}
+
+	return err;
 }
 
 /* unmap_vmas is in mm/memory.c */
@@ -330,7 +343,7 @@ void unlink_anon_vmas(struct vm_area_struct *vma);
 
 static inline int anon_vma_prepare(struct vm_area_struct *vma)
 {
-	if (likely(vma->anon_vma))
+	if (likely(vma_has_anon_rmap(vma)))
 		return 0;
 
 	return __anon_vma_prepare(vma);
@@ -616,8 +629,8 @@ unsigned find_lock_entries(struct address_space *mapping, pgoff_t *start,
 unsigned find_get_entries(struct address_space *mapping, pgoff_t *start,
 		pgoff_t end, struct folio_batch *fbatch, pgoff_t *indices);
 int truncate_inode_folio(struct address_space *mapping, struct folio *folio);
-bool truncate_inode_partial_folio(struct folio *folio, loff_t start,
-		loff_t end);
+bool truncate_inode_partial_folio(struct folio *folio, loff_t lstart,
+		loff_t lend, pgoff_t *pstart, pgoff_t *pend);
 long mapping_evict_folio(struct address_space *mapping, struct folio *folio);
 unsigned long mapping_try_invalidate(struct address_space *mapping,
 		pgoff_t start, pgoff_t end, unsigned long *nr_failed);
@@ -962,15 +975,7 @@ void mlock_folio(struct folio *folio);
 static inline void mlock_vma_folio(struct folio *folio,
 				struct vm_area_struct *vma)
 {
-	/*
-	 * The VM_SPECIAL check here serves two purposes.
-	 * 1) VM_IO check prevents migration from double-counting during mlock.
-	 * 2) Although mmap_region() and mlock_fixup() take care that VM_LOCKED
-	 *    is never left set on a VM_SPECIAL vma, there is an interval while
-	 *    file->f_op->mmap() is using vm_insert_page(s), when VM_LOCKED may
-	 *    still be set while VM_SPECIAL bits are added: so ignore it then.
-	 */
-	if (unlikely((vma->vm_flags & (VM_LOCKED|VM_SPECIAL)) == VM_LOCKED))
+	if (vma_test(vma, VMA_LOCKED_BIT))
 		mlock_folio(folio);
 }
 
@@ -987,7 +992,12 @@ static inline void munlock_vma_folio(struct folio *folio,
 	 * always munlock the folio and page reclaim will correct it
 	 * if it's wrong.
 	 */
-	if (unlikely(vma->vm_flags & VM_LOCKED))
+	/*
+	 * VMA_LOCKONFAULT_BIT alone marks an mlock walk in progress, see
+	 * mlock_vma_pages_range(). An unmap racing with the walk must still
+	 * munlock folios the walk has already counted.
+	 */
+	if (unlikely(vma_test_any_mask(vma, VMA_LOCKED_MASK)))
 		munlock_folio(folio);
 }
 
@@ -1107,11 +1117,12 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 
 static inline bool vma_supports_mlock(const struct vm_area_struct *vma)
 {
-	if (vma_test_any_mask(vma, VMA_SPECIAL_FLAGS))
+	if (!vma_is_mm_backed(vma))
 		return false;
+	/* Core mm may discard droppable memory at any time. */
 	if (vma_test_single_mask(vma, VMA_DROPPABLE))
 		return false;
-	if (vma_is_dax(vma) || is_vm_hugetlb_page(vma))
+	if (vma_is_dax(vma) || vma_is_hugetlb(vma))
 		return false;
 	return vma != get_gate_vma(current->mm);
 }
@@ -1506,6 +1517,12 @@ int remap_pfn_range_prepare(struct vm_area_desc *desc);
 int remap_pfn_range_complete(struct vm_area_struct *vma,
 			     struct mmap_action *action);
 int simple_ioremap_prepare(struct vm_area_desc *desc);
+int map_kernel_pages_prepare(struct vm_area_desc *desc);
+int map_kernel_pages_complete(struct vm_area_struct *vma,
+			      struct mmap_action *action);
+int map_discontig_kernel_pages_prepare(struct vm_area_desc *desc);
+int map_discontig_kernel_pages_complete(struct vm_area_struct *vma,
+					struct mmap_action *action);
 
 static inline int io_remap_pfn_range_prepare(struct vm_area_desc *desc)
 {

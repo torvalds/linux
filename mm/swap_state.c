@@ -92,17 +92,27 @@ void show_swap_cache_info(void)
  */
 struct folio *swap_cache_get_folio(swp_entry_t entry)
 {
+	struct swap_cluster_info *ci = __swap_entry_to_cluster(entry);
+	unsigned int ci_off = swp_cluster_offset(entry);
 	unsigned long swp_tb;
 	struct folio *folio;
 
 	for (;;) {
-		swp_tb = swap_table_get(__swap_entry_to_cluster(entry),
-					swp_cluster_offset(entry));
+		swp_tb = swap_table_get(ci, ci_off);
 		if (!swp_tb_is_folio(swp_tb))
 			return NULL;
 		folio = swp_tb_to_folio(swp_tb);
-		if (likely(folio_try_get(folio)))
+		if (!folio_try_get(folio))
+			continue;
+		/*
+		 * The folio may have been freed and its memory reused before
+		 * we got the reference. Make sure it is still in the slot.
+		 */
+		swp_tb = swap_table_get(ci, ci_off);
+		if (likely(swp_tb_is_folio(swp_tb) &&
+			   swp_tb_to_folio(swp_tb) == folio))
 			return folio;
+		folio_put(folio);
 	}
 
 	return NULL;
@@ -906,8 +916,8 @@ struct folio *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 			continue;
 		folio_put(folio);
 	}
-	blk_finish_plug(&plug);
 	swap_read_submit(&ctx);
+	blk_finish_plug(&plug);
 skip:
 	return swap_cache_read_folio_sync(entry, gfp_mask, mpol, ilx);
 }
@@ -1019,8 +1029,8 @@ static struct folio *swap_vma_readahead(swp_entry_t targ_entry, gfp_t gfp_mask,
 	}
 	if (pte)
 		pte_unmap(pte);
-	blk_finish_plug(&plug);
 	swap_read_submit(&ctx);
+	blk_finish_plug(&plug);
 skip:
 	/* The folio was likely read above, so no need for plugging here */
 	return swap_cache_read_folio_sync(targ_entry, gfp_mask, mpol, targ_ilx);

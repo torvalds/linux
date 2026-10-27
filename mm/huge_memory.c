@@ -110,14 +110,6 @@ static inline bool file_thp_enabled(const struct vm_area_struct *vma)
 	return S_ISREG(inode->i_mode);
 }
 
-/* If returns true, we are unable to access the VMA's folios. */
-static bool vma_is_special_huge(const struct vm_area_struct *vma)
-{
-	if (vma_is_dax(vma))
-		return false;
-	return vma_test_any(vma, VMA_PFNMAP_BIT, VMA_MIXEDMAP_BIT);
-}
-
 static bool vma_file_bypass_thp_tuneables(const struct vm_area_struct *vma,
 		enum tva_type type)
 {
@@ -192,7 +184,7 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
 	/* Check the intersection of requested and supported orders. */
 	if (vma_is_anonymous(vma))
 		supported_orders = THP_ORDERS_ALL_ANON;
-	else if (vma_is_dax(vma) || vma_is_special_huge(vma))
+	else if (vma_is_dax(vma) || !vma_is_mm_managed(vma))
 		supported_orders = THP_ORDERS_ALL_SPECIAL_DAX;
 	else
 		supported_orders = THP_ORDERS_ALL_FILE_DEFAULT;
@@ -212,11 +204,13 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
 		return in_pf ? orders : 0;
 
 	/*
-	 * khugepaged special VMA and hugetlb VMA.
-	 * Must be checked after dax since some dax mappings may have
-	 * VM_MIXEDMAP set.
+	 * khugepaged moves data from VMAs once collapsed, after they have been
+	 * faulted in, relying on refaulting for file-backed memory.
+	 *
+	 * Only mm-backed mappings can be reliably reconstructed from page
+	 * faults, and hugetlb mappings cannot be collapsed.
 	 */
-	if (!in_pf && !smaps && (vm_flags & VM_NO_KHUGEPAGED))
+	if (!in_pf && !smaps && (!vma_is_mm_backed(vma) || vma_is_hugetlb(vma)))
 		return 0;
 
 	/*
@@ -259,12 +253,12 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
 
 	/*
 	 * THPeligible bit of smaps should show 1 for proper VMAs even
-	 * though anon_vma is not initialized yet.
+	 * though they don't have an anon rmap yet.
 	 *
-	 * Allow page fault since anon_vma may be not initialized until
-	 * the first page fault.
+	 * Allow page fault since the VMA may not have an anon rmap until the
+	 * first page fault.
 	 */
-	if (!vma->anon_vma)
+	if (!vma_has_anon_rmap(vma))
 		return (smaps || in_pf) ? orders : 0;
 
 	return orders;
@@ -2179,7 +2173,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf)
 	pmd_t orig_pmd = vmf->orig_pmd;
 
 	vmf->ptl = pmd_lockptr(vma->vm_mm, vmf->pmd);
-	VM_BUG_ON_VMA(!vma->anon_vma, vma);
+	VM_BUG_ON_VMA(!vma_has_anon_rmap(vma), vma);
 
 	if (is_huge_zero_pmd(orig_pmd)) {
 		vm_fault_t ret = do_huge_zero_wp_pmd(vmf);
@@ -3053,7 +3047,7 @@ int zap_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	orig_pud = pudp_huge_get_and_clear_full(vma, addr, pud, tlb->fullmm);
 	arch_check_zapped_pud(vma, orig_pud);
 	tlb_remove_pud_tlb_entry(tlb, pud, addr);
-	if (vma_is_special_huge(vma)) {
+	if (!vma_is_mm_managed(vma)) {
 		spin_unlock(ptl);
 		/* No zero page support yet */
 	} else {
@@ -3209,7 +3203,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		 */
 		if (arch_needs_pgtable_deposit())
 			zap_deposited_table(mm, pmd);
-		if (vma_is_special_huge(vma))
+		if (!vma_is_mm_managed(vma))
 			return;
 		if (unlikely(pmd_is_migration_entry(old_pmd))) {
 			const softleaf_t old_entry = softleaf_from_pmd(old_pmd);
@@ -3420,7 +3414,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 				swp_entry = make_readable_device_private_entry(
 							page_to_pfn(page + i));
 			/*
-			 * Young and dirty bits are not progated via swp_entry
+			 * Young and dirty bits are not propagated via swp_entry
 			 */
 			entry = swp_entry_to_pte(swp_entry);
 			if (soft_dirty)
@@ -4378,7 +4372,7 @@ out:
  * THP pages in the middle of migration, due to allocation issues on either
  * side.
  *
- * anon_vma_lock is not required to be held, mmap_read_lock() or
+ * The anon rmap lock is not required to be held, mmap_read_lock() or
  * mmap_write_lock() should be held. @folio is expected to be locked by the
  * caller. device-private and non device-private folios are supported along
  * with folios that are in the swapcache. @folio should also be unmapped and
@@ -4776,11 +4770,9 @@ static inline bool vma_not_suitable_for_thp_split(struct vm_area_struct *vma)
 {
 	if (vma_is_dax(vma))
 		return true;
-	if (vma_is_special_huge(vma))
+	if (!vma_is_mm_managed(vma))
 		return true;
-	if (vma_test(vma, VMA_IO_BIT))
-		return true;
-	if (is_vm_hugetlb_page(vma))
+	if (vma_is_hugetlb(vma))
 		return true;
 
 	return false;

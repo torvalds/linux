@@ -351,24 +351,6 @@ err_out:
 	return entry;
 }
 
-static bool __check_pmd_huge(void *addr, char *pattern, int nr_hpages,
-		  uint64_t hpage_size)
-{
-	char buffer[MAX_LINE_LENGTH];
-	uint64_t thp = -1;
-	char *entry;
-
-	entry = __get_smap_entry(addr, pattern, buffer, sizeof(buffer));
-	if (!entry)
-		goto err_out;
-
-	if (sscanf(entry, "%9" SCNu64 " kB", &thp) != 1)
-		ksft_exit_fail_msg("Reading smap error\n");
-
-err_out:
-	return thp == (nr_hpages * (hpage_size >> 10));
-}
-
 static bool check_large_folios(void *addr, size_t len, int nr_hpages,
 		uint64_t hpage_size)
 {
@@ -410,43 +392,98 @@ out:
 	return ret;
 }
 
-bool check_huge_anon(void *addr, size_t len, int nr_hpages, uint64_t hpage_size)
-{
-	uint64_t pmd_pagesize = read_pmd_pagesize();
+enum check_type {
+	CHECK_TYPE_ANON,
+	CHECK_TYPE_FILE,
+};
 
+static bool __check_type(void *addr, size_t len, uint64_t page_size,
+		enum check_type type)
+{
+	bool ret = false;
+	int pagemap_fd;
+	char *start = addr;
+	char *end = start + len;
+	uint64_t categories;
+
+	pagemap_fd = open(PAGEMAP_PATH, O_RDONLY);
+	if (pagemap_fd < 0)
+		ksft_exit_fail_perror("open pagemap");
+
+	for (; start < end; start += page_size) {
+		categories = pagemap_scan_get_categories(pagemap_fd, start);
+		if ((categories & PAGE_IS_PRESENT) != PAGE_IS_PRESENT)
+			continue;
+
+		if ((type == CHECK_TYPE_FILE) != !!(categories & PAGE_IS_FILE))
+			goto out;
+	}
+
+	ret = true;
+
+out:
+	close(pagemap_fd);
+	return ret;
+}
+
+static bool __check_huge(void *addr, size_t len, int nr_hpages,
+		uint64_t hpage_size)
+{
+	bool ret = false;
+	int pagemap_fd;
+	int nr_pmd_mappings = 0;
+	uint64_t pmd_pagesize;
+	uint64_t categories;
+	char *start = addr;
+	char *end = start + len;
+
+	pmd_pagesize = read_pmd_pagesize();
 	if (!pmd_pagesize)
 		ksft_exit_fail_msg("reading PMD pagesize failed\n");
 
-	if (hpage_size == pmd_pagesize)
-		return __check_pmd_huge(addr, "AnonHugePages: ", nr_hpages, hpage_size);
+	pagemap_fd = open(PAGEMAP_PATH, O_RDONLY);
+	if (pagemap_fd < 0)
+		ksft_exit_fail_perror("open pagemap");
 
-	return check_large_folios(addr, len, nr_hpages, hpage_size);
+	if (hpage_size != pmd_pagesize) {
+		ret = check_large_folios(addr, len, nr_hpages, hpage_size);
+		goto out;
+	}
+
+	for (; start < end; start += hpage_size) {
+		categories = pagemap_scan_get_categories(pagemap_fd, start);
+		if (categories & PAGE_IS_HUGE)
+			nr_pmd_mappings++;
+	}
+
+	if (nr_pmd_mappings != nr_hpages)
+		goto out;
+
+	ret = true;
+
+out:
+	close(pagemap_fd);
+	return ret;
+}
+
+bool check_huge_anon(void *addr, size_t len, int nr_hpages, uint64_t hpage_size)
+{
+	const uint64_t scan_mapping_size = (nr_hpages > 0) ? hpage_size : psize();
+
+	if (!__check_huge(addr, len, nr_hpages, hpage_size))
+		return false;
+
+	return __check_type(addr, len, scan_mapping_size, CHECK_TYPE_ANON);
 }
 
 bool check_huge_file(void *addr, size_t len, int nr_hpages, uint64_t hpage_size)
 {
-	uint64_t pmd_pagesize = read_pmd_pagesize();
+	const uint64_t scan_mapping_size = (nr_hpages > 0) ? hpage_size : psize();
 
-	if (!pmd_pagesize)
-		ksft_exit_fail_msg("reading PMD pagesize failed\n");
+	if (!__check_huge(addr, len, nr_hpages, hpage_size))
+		return false;
 
-	if (hpage_size == pmd_pagesize)
-		return __check_pmd_huge(addr, "FilePmdMapped:", nr_hpages, hpage_size);
-
-	return check_large_folios(addr, len, nr_hpages, hpage_size);
-}
-
-bool check_huge_shmem(void *addr, size_t len, int nr_hpages, uint64_t hpage_size)
-{
-	uint64_t pmd_pagesize = read_pmd_pagesize();
-
-	if (!pmd_pagesize)
-		ksft_exit_fail_msg("reading PMD pagesize failed\n");
-
-	if (hpage_size == pmd_pagesize)
-		return __check_pmd_huge(addr, "ShmemPmdMapped:", nr_hpages, hpage_size);
-
-	return check_large_folios(addr, len, nr_hpages, hpage_size);
+	return __check_type(addr, len, scan_mapping_size, CHECK_TYPE_FILE);
 }
 
 int64_t allocate_transhuge(void *ptr, int pagemap_fd)

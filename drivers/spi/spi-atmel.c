@@ -624,7 +624,7 @@ static int atmel_spi_configure_dma(struct spi_controller *host,
 	if (IS_ENABLED(CONFIG_SOC_SAM_V4_V5)) {
 		as->addr_tx_bbuf = dma_alloc_coherent(dev, SPI_MAX_DMA_XFER,
 						      &as->dma_addr_tx_bbuf,
-						      GFP_KERNEL | GFP_DMA);
+						      GFP_KERNEL);
 		if (!as->addr_tx_bbuf) {
 			err = -ENOMEM;
 			goto err_release_dma;
@@ -632,7 +632,7 @@ static int atmel_spi_configure_dma(struct spi_controller *host,
 
 		as->addr_rx_bbuf = dma_alloc_coherent(dev, SPI_MAX_DMA_XFER,
 						      &as->dma_addr_rx_bbuf,
-						      GFP_KERNEL | GFP_DMA);
+						      GFP_KERNEL);
 		if (!as->addr_rx_bbuf) {
 			err = -ENOMEM;
 			goto err_release_dma;

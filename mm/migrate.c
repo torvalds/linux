@@ -1174,7 +1174,7 @@ static void migrate_folio_undo_src(struct folio *src, int was_mapped,
 {
 	if (was_mapped)
 		remove_migration_ptes(src, src, 0);
-	/* Drop an anon_vma reference if we took one */
+	/* Drop an anon rmap reference if we took one */
 	if (anon_vma)
 		put_anon_vma(anon_vma);
 	if (locked)
@@ -1281,15 +1281,15 @@ static int migrate_folio_unmap(new_folio_t get_new_folio,
 
 	/*
 	 * By try_to_migrate(), src->mapcount goes down to 0 here. In this case,
-	 * we cannot notice that anon_vma is freed while we migrate a page.
-	 * This get_anon_vma() delays freeing anon_vma pointer until the end
+	 * we cannot notice that the anon rmap is freed while we migrate a page.
+	 * This get_anon_vma() delays freeing the anon rmap until the end
 	 * of migration. File cache pages are no problem because of page_lock()
 	 * File Caches may use write_page() or lock_page() in migration, then,
 	 * just care Anon page here.
 	 *
 	 * Only folio_get_anon_vma() understands the subtleties of
-	 * getting a hold on an anon_vma from outside one of its mms.
-	 * But if we cannot get anon_vma, then we won't need it anyway,
+	 * getting a hold on an anon rmap from outside one of its mms.
+	 * But if we cannot get the anon rmap, then we won't need it anyway,
 	 * because that implies that the anon page is no longer mapped
 	 * (and cannot be remapped so long as we hold the page lock).
 	 */
@@ -1432,7 +1432,7 @@ out_unlock_both:
 	 * and will be freed.
 	 */
 	list_del(&src->lru);
-	/* Drop an anon_vma reference if we took one */
+	/* Drop an anon rmap reference if we took one */
 	if (anon_vma)
 		put_anon_vma(anon_vma);
 	folio_unlock(src);

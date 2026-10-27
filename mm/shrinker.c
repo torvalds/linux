@@ -12,6 +12,12 @@ DEFINE_MUTEX(shrinker_mutex);
 
 #ifdef CONFIG_MEMCG
 static int shrinker_nr_max;
+static struct kmem_cache *shrinker_unit_cachep;
+
+void __init shrinker_unit_cache_init(void)
+{
+	shrinker_unit_cachep = KMEM_CACHE(shrinker_info_unit, SLAB_PANIC);
+}
 
 static inline int shrinker_unit_size(int nr_items)
 {
@@ -33,7 +39,7 @@ static inline void shrinker_unit_free(struct shrinker_info *info, int start)
 		if (!unit[i])
 			break;
 
-		kfree(unit[i]);
+		kmem_cache_free(shrinker_unit_cachep, unit[i]);
 		unit[i] = NULL;
 	}
 }
@@ -47,7 +53,8 @@ static inline int shrinker_unit_alloc(struct shrinker_info *new,
 	int i;
 
 	for (i = start; i < nr; i++) {
-		unit = kzalloc_node(sizeof(*unit), GFP_KERNEL, nid);
+		unit = kmem_cache_alloc_node(shrinker_unit_cachep,
+					     GFP_KERNEL | __GFP_ZERO, nid);
 		if (!unit) {
 			shrinker_unit_free(new, start);
 			return -ENOMEM;

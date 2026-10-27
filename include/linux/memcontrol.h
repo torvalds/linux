@@ -180,6 +180,7 @@ struct obj_cgroup {
 	struct percpu_ref refcnt;
 	struct mem_cgroup *memcg;
 	atomic_t nr_charged_bytes;
+	refcount_t private_id_ref;
 	union {
 		struct list_head list; /* protected by objcg_lock */
 		struct rcu_head rcu;
@@ -224,9 +225,6 @@ struct mem_cgroup {
 
 	/* vmpressure notifications. Written on every reclaim iteration. */
 	struct vmpressure vmpressure;
-
-	/* Written on every swap charge and uncharge. */
-	refcount_t private_id_ref;
 
 #ifdef CONFIG_MEMCG_NMI_SAFETY_REQUIRES_ATOMIC
 	/* MEMCG_KMEM for nmi context */
@@ -323,6 +321,9 @@ struct mem_cgroup {
 #ifdef CONFIG_ZSWAP
 	unsigned long zswap_max;
 #endif
+
+	/* The objcg holding private memcg ID. */
+	struct obj_cgroup *private_id_objcg;
 
 	/* Private memcg ID. Used to ID objects that outlive the cgroup */
 	int private_id;
@@ -983,6 +984,9 @@ unsigned long lruvec_page_state_monotonic(const struct lruvec *lruvec,
 unsigned long lruvec_page_state_local(const struct lruvec *lruvec,
 				      enum node_stat_item idx);
 
+void mod_memcg_lruvec_state(struct lruvec *lruvec,
+			    enum node_stat_item idx, int val);
+
 void mem_cgroup_flush_stats(struct mem_cgroup *memcg);
 void mem_cgroup_flush_stats_ratelimited(struct mem_cgroup *memcg);
 
@@ -1451,6 +1455,11 @@ static inline unsigned long lruvec_page_state_local(const struct lruvec *lruvec,
 	return node_page_state(lruvec_pgdat(lruvec), idx);
 }
 
+static inline void mod_memcg_lruvec_state(struct lruvec *lruvec,
+					  enum node_stat_item idx, int val)
+{
+}
+
 static inline void mem_cgroup_flush_stats(struct mem_cgroup *memcg)
 {
 }
@@ -1708,6 +1717,7 @@ static inline u64 mem_cgroup_get_socket_pressure(const struct mem_cgroup *memcg)
 }
 #endif
 
+void shrinker_unit_cache_init(void);
 int alloc_shrinker_info(struct mem_cgroup *memcg);
 void free_shrinker_info(struct mem_cgroup *memcg);
 void set_shrinker_bit(struct mem_cgroup *memcg, int nid, int shrinker_id);

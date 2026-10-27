@@ -194,21 +194,38 @@ void __vma_exclude_readers_for_detach(struct vm_area_struct *vma)
 	WARN_ON_ONCE(!ves.detached);
 }
 
+/* Do the VMA, mm seqcounts indicate the VMA is write locked? */
+static bool vma_seqcount_is_write_locked(unsigned int vma_seq, unsigned int mm_seq)
+{
+	/* VMA and mm sequence numbers must match for a write lock. */
+	if (vma_seq != mm_seq)
+		return false;
+
+	/*
+	 * The VMA seqcount is always odd if locked. For an attached VMA an even
+	 * value can only be the zero stored by __mm_reset_vma_seqcounts(),
+	 * never a write lock.
+	 */
+	return vma_seq & 1;
+}
+
 /*
  * Try to read-lock a vma. The function is allowed to occasionally yield false
  * locked result to avoid performance overhead, in which case we fall back to
  * using mmap_lock. The function should never yield false unlocked result.
- * False locked result is possible if mm_lock_seq overflows or if vma gets
- * reused and attached to a different mm before we lock it.
+ * False locked result is possible if vma gets reused and attached to a
+ * different mm before we lock it.
  * Returns the vma on success, NULL on failure to lock and EAGAIN if vma got
  * detached.
  *
  * IMPORTANT: RCU lock must be held upon entering the function, but upon error
  *            IT IS RELEASED. The caller must handle this correctly.
  */
-static inline struct vm_area_struct *vma_start_read(struct mm_struct *mm,
-						    struct vm_area_struct *vma)
+static struct vm_area_struct *vma_start_read(struct mm_struct *mm,
+					     struct vm_area_struct *vma)
 {
+	unsigned int vma_seq;
+	unsigned int mm_seq;
 	struct mm_struct *other_mm;
 	int oldcnt;
 
@@ -220,7 +237,9 @@ static inline struct vm_area_struct *vma_start_read(struct mm_struct *mm,
 	 * we don't rely on for anything - the mm_lock_seq read against which we
 	 * need ordering is below.
 	 */
-	if (READ_ONCE(vma->vm_lock_seq) == READ_ONCE(mm->mm_lock_seq.sequence)) {
+	vma_seq = READ_ONCE(vma->vm_lock_seq);
+	mm_seq = READ_ONCE(mm->mm_lock_seq.sequence);
+	if (vma_seqcount_is_write_locked(vma_seq, mm_seq)) {
 		vma = NULL;
 		goto err;
 	}
@@ -246,17 +265,26 @@ static inline struct vm_area_struct *vma_start_read(struct mm_struct *mm,
 		goto err_unstable;
 
 	/*
-	 * Overflow of vm_lock_seq/mm_lock_seq might produce false locked result.
-	 * False unlocked result is impossible because we modify and check
+	 * False unlocked result is impossible because a write lock sets
 	 * vma->vm_lock_seq under vma->vm_refcnt protection and mm->mm_lock_seq
 	 * modification invalidates all existing locks.
 	 *
-	 * We must use ACQUIRE semantics for the mm_lock_seq so that if we are
-	 * racing with vma_end_write_all(), we only start reading from the VMA
-	 * after it has been unlocked.
-	 * This pairs with RELEASE semantics in vma_end_write_all().
+	 * ACQUIRE semantics are required for both reads.
+	 *
+	 * __mm_reset_vma_seqcounts() might reset vma->vm_lock_seq to zero
+	 * after an overflow. A reader observing that zero must also observe
+	 * the VMA modifications made under the write lock which just ended, so
+	 * the ACQUIRE pairs with the smp_wmb() in do_raw_write_seqcount_end()
+	 * that precedes the reset stores.
+	 *
+	 * The ACQUIRE semantics for the mm_lock_seq read is required so that,
+	 * if we are racing with vma_end_write_all(), we only start reading from
+	 * the VMA after it has been unlocked. This pairs with the RELEASE
+	 * semantics in vma_end_write_all().
 	 */
-	if (unlikely(vma->vm_lock_seq == raw_read_seqcount(&mm->mm_lock_seq))) {
+	vma_seq = smp_load_acquire(&vma->vm_lock_seq);
+	mm_seq = raw_read_seqcount(&mm->mm_lock_seq);
+	if (unlikely(vma_seqcount_is_write_locked(vma_seq, mm_seq))) {
 		vma_refcount_put(vma);
 		vma = NULL;
 		goto err;
@@ -465,6 +493,43 @@ fallback:
 
 	return vma;
 }
+
+/*
+ * Called with mmap write lock held after mm->mm_lock_seq just overflowed (and
+ * therefore zero), with all VMA write locks now released.
+ *
+ * The stores below follow the smp_wmb() in do_raw_write_seqcount_end(), so
+ * a reader that observes a reset value also observes this cycle's VMA
+ * modifications (ordered by the ACQUIRE on vma->vm_lock_seq in
+ * vma_start_read()).
+ */
+void __mm_reset_vma_seqcounts(struct mm_struct *mm)
+{
+	struct vm_area_struct *vma;
+	VMA_ITERATOR(vmi, mm, 0);
+
+	mmap_assert_write_locked(mm);
+	VM_WARN_ON_ONCE(mm->mm_lock_seq.sequence);
+
+	/*
+	 * Failing to reset means stale vma->vm_lock_seq values could result in
+	 * those VMAs becoming spuriously write locked when mm->mm_lock_seq
+	 * happens to match their values.
+	 *
+	 * This is problematic, as it causes the VMA write lock to not exclude
+	 * readers, which can result in concurrent readers while a VMA write
+	 * lock is held.
+	 *
+	 * Avoid this by resetting to an even value (indicates no write lock
+	 * held).
+	 *
+	 * Readers will either observe zero (not write locked) or the previous
+	 * value, so this is safe.
+	 */
+	for_each_vma(vmi, vma)
+		WRITE_ONCE(vma->vm_lock_seq, 0);
+}
+EXPORT_SYMBOL(__mm_reset_vma_seqcounts);
 
 #ifdef CONFIG_LOCK_MM_AND_FIND_VMA
 #include <linux/extable.h>

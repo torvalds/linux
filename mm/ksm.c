@@ -747,9 +747,10 @@ static bool ksm_compatible(const struct file *file, vma_flags_t vma_flags)
 	if (vma_flags_test_any(&vma_flags, VMA_SHARED_BIT, VMA_MAYSHARE_BIT,
 			       VMA_HUGETLB_BIT))
 		return false;
-	if (vma_flags_test_single_mask(&vma_flags, VMA_DROPPABLE))
+	if (!vma_flags_is_mm_backed(&vma_flags))
 		return false;
-	if (vma_flags_test_any_mask(&vma_flags, VMA_SPECIAL_FLAGS))
+	/* Core mm may discard droppable memory at any time. */
+	if (vma_flags_test_single_mask(&vma_flags, VMA_DROPPABLE))
 		return false;
 	if (file_is_dax(file))
 		return false;
@@ -777,7 +778,7 @@ static struct vm_area_struct *find_mergeable_vma(struct mm_struct *mm,
 	if (ksm_test_exit(mm))
 		return NULL;
 	vma = vma_lookup(mm, addr);
-	if (!vma || !(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
+	if (!vma || !(vma->vm_flags & VM_MERGEABLE) || !vma_has_anon_rmap(vma))
 		return NULL;
 	return vma;
 }
@@ -795,7 +796,7 @@ static void break_cow(struct ksm_rmap_item *rmap_item)
 
 	/*
 	 * It is not an accident that whenever we want to break COW
-	 * to undo, we also need to drop a reference to the anon_vma.
+	 * to undo, we also need to drop a reference to the anon rmap.
 	 */
 	put_anon_vma(rmap_item->anon_vma);
 	/*
@@ -1241,7 +1242,7 @@ static int unmerge_and_remove_all_rmap_items(void)
 			goto mm_exiting;
 
 		for_each_vma(vmi, vma) {
-			if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
+			if (!(vma->vm_flags & VM_MERGEABLE) || !vma_has_anon_rmap(vma))
 				continue;
 			err = break_ksm(vma, vma->vm_start, vma->vm_end, false);
 			if (err)
@@ -1415,7 +1416,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 		goto out;
 	/*
 	 * Some THP functions use the sequence pmdp_huge_clear_flush(), set_pmd_at()
-	 * without holding anon_vma lock for write.  So when looking for a
+	 * without holding the anon rmap lock for write.  So when looking for a
 	 * genuine pmde (in which to find pte), test present and !THP together.
 	 */
 	pmde = pmdp_get_lockless(pmd);
@@ -1619,7 +1620,7 @@ static int try_to_merge_with_ksm_page(struct ksm_rmap_item *rmap_item,
 
 	/*
 	 * We can consider the VMA only while still holding the mmap lock,
-	 * so lock, so reference the anon_vma and calculate the linear
+	 * so reference the anon rmap and calculate the linear
 	 * page index early, before stable_tree_append(). If anything goes
 	 * wrong that prevents the rmap_item from being added to the
 	 * stable_tree, break_cow() will clean it up.
@@ -2691,7 +2692,7 @@ next_mm:
 			continue;
 		if (ksm_scan.address < vma->vm_start)
 			ksm_scan.address = vma->vm_start;
-		if (!vma->anon_vma)
+		if (!vma_has_anon_rmap(vma))
 			ksm_scan.address = vma->vm_end;
 
 		while (ksm_scan.address < vma->vm_end) {
@@ -2882,7 +2883,7 @@ static int __ksm_del_vma(struct vm_area_struct *vma)
 	if (!(vma->vm_flags & VM_MERGEABLE))
 		return 0;
 
-	if (vma->anon_vma) {
+	if (vma_has_anon_rmap(vma)) {
 		err = break_ksm(vma, vma->vm_start, vma->vm_end, true);
 		if (err)
 			return err;
@@ -3034,7 +3035,7 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 		if (!(*vm_flags & VM_MERGEABLE))
 			return 0;		/* just ignore the advice */
 
-		if (vma->anon_vma) {
+		if (vma_has_anon_rmap(vma)) {
 			err = break_ksm(vma, start, end, true);
 			if (err)
 				return err;
