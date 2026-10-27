@@ -778,8 +778,27 @@ int vmw_cursor_plane_atomic_check(struct drm_plane *plane,
 				 "surface not suitable for cursor\n");
 			return -EINVAL;
 		}
-	} else if (update_type == VMW_CURSOR_UPDATE_GB_ONLY ||
-		   update_type == VMW_CURSOR_UPDATE_MOB) {
+	} else if (update_type == VMW_CURSOR_UPDATE_GB_ONLY) {
+		u64 image_size = (u64)new_state->crtc_w *
+				 new_state->crtc_h * sizeof(u32);
+		u32 max_size = SVGA_MAX_CURSOR_CMD_BYTES;
+
+		/* The command-buffer limit includes the define-cursor header. */
+		if (vmw->cman)
+			max_size = min_t(u32, max_size,
+					 SVGA_CB_MAX_COMMAND_SIZE -
+					 sizeof(struct vmw_svga_fifo_cmd_define_cursor));
+
+		if (!new_state->crtc_w || !new_state->crtc_h ||
+		    new_state->crtc_w > SVGA_MAX_CURSOR_CMD_DIMENSION ||
+		    new_state->crtc_h > SVGA_MAX_CURSOR_CMD_DIMENSION ||
+		    image_size > max_size) {
+			drm_dbg_kms(&vmw->drm,
+				    "Cursor dimensions (%u, %u) violate command limits\n",
+				    new_state->crtc_w, new_state->crtc_h);
+			return -EINVAL;
+		}
+	} else if (update_type == VMW_CURSOR_UPDATE_MOB) {
 		u32 cursor_max_dim =
 			vmw_read(vmw, SVGA_REG_CURSOR_MAX_DIMENSION);
 
