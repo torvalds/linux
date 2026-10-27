@@ -225,6 +225,11 @@ void serial_test_map_kptr(void)
 
 		/* Observe refcount dropping to 1 on map release. */
 		test_map_kptr_success(true);
+
+		/* The next test counts the same references */
+		ASSERT_OK(kern_sync_rcu_tasks_trace(skel), "sync rcu_tasks_trace");
+		ASSERT_OK(kern_sync_rcu(), "sync rcu");
+		wait_for_map_release();
 	}
 
 	rcu_tasks_trace_gp__destroy(skel);
