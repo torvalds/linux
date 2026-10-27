@@ -1794,6 +1794,7 @@ static int vmw_cmd_res_switch_backup(struct vmw_private *dev_priv,
 {
 	struct vmw_bo *vbo;
 	void *info;
+	u64 end;
 	int ret;
 
 	info = vmw_execbuf_info_from_res(sw_context, res);
@@ -1803,6 +1804,13 @@ static int vmw_cmd_res_switch_backup(struct vmw_private *dev_priv,
 	ret = vmw_translate_mob_ptr(dev_priv, sw_context, buf_id, &vbo);
 	if (ret)
 		return ret;
+
+	if (check_add_overflow((u64)backup_offset,
+			       (u64)res->guest_memory_size, &end) ||
+	    end > vbo->tbo.base.size) {
+		VMW_DEBUG_USER("Backup buffer too small for resource.\n");
+		return -EINVAL;
+	}
 
 	vmw_validation_res_switch_backup(sw_context->ctx, info, vbo,
 					 backup_offset);
