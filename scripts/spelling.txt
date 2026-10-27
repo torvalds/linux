@@ -872,8 +872,8 @@ infromation||information
 ingore||ignore
 inheritence||inheritance
 inital||initial
-initalised||initialized
-initalise||initialize
+initalised||initialised
+initalise||initialise
 initalized||initialized
 initalize||initialize
 initation||initiation

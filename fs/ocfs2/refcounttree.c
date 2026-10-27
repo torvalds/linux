@@ -118,6 +118,33 @@ static int ocfs2_validate_refcount_block(struct super_block *sb,
 	}
 
 	/*
+	 * Refcount blocks are allocated from a per-slot suballocator, so the
+	 * slot must be in range.  Otherwise freeing the block passes it to
+	 * get_local_system_inode(), which hits BUG_ON() for
+	 * OCFS2_INVALID_SLOT or computes an out-of-bounds index otherwise.
+	 */
+	if ((u32)le16_to_cpu(rb->rf_suballoc_slot) >= OCFS2_SB(sb)->max_slots) {
+		rc = ocfs2_error(sb,
+				 "Refcount block #%llu has an invalid rf_suballoc_slot of %u\n",
+				 (unsigned long long)bh->b_blocknr,
+				 le16_to_cpu(rb->rf_suballoc_slot));
+		goto out;
+	}
+
+	/*
+	 * Similarly the suballoc bit must fit in a block group bitmap.
+	 * Otherwise freeing the block will pass the oversized bit to
+	 * _ocfs2_free_suballoc_bits() and trigger ocfs2_error() there.
+	 */
+	if (le16_to_cpu(rb->rf_suballoc_bit) >= ocfs2_suballoc_bits_per_block(sb)) {
+		rc = ocfs2_error(sb,
+				 "Refcount block #%llu has an invalid rf_suballoc_bit of %u\n",
+				 (unsigned long long)bh->b_blocknr,
+				 le16_to_cpu(rb->rf_suballoc_bit));
+		goto out;
+	}
+
+	/*
 	 * rf_records (rl_count/rl_used/rl_recs[]) is only meaningful when
 	 * this block is not an interior tree block (OCFS2_REFCOUNT_TREE_FL);
 	 * in that case the same union bytes hold an extent list (rf_list)
@@ -348,8 +375,10 @@ ocfs2_allocate_refcount_tree(struct ocfs2_super *osb, u64 rf_blkno)
 	return new;
 }
 
+/* Callers without the refcount tree lock must request a reference. */
 static int ocfs2_get_refcount_tree(struct ocfs2_super *osb, u64 rf_blkno,
-				   struct ocfs2_refcount_tree **ret_tree)
+				   struct ocfs2_refcount_tree **ret_tree,
+				   bool get_ref)
 {
 	int ret = 0;
 	struct ocfs2_refcount_tree *tree, *new = NULL;
@@ -406,6 +435,8 @@ static int ocfs2_get_refcount_tree(struct ocfs2_super *osb, u64 rf_blkno,
 	new = NULL;
 
 out:
+	if (get_ref)
+		ocfs2_refcount_tree_get(tree);
 	*ret_tree = tree;
 
 	osb->osb_ref_tree_lru = tree;
@@ -479,13 +510,11 @@ int ocfs2_lock_refcount_tree(struct ocfs2_super *osb,
 	struct ocfs2_refcount_block *rb;
 
 again:
-	ret = ocfs2_get_refcount_tree(osb, ref_blkno, &tree);
+	ret = ocfs2_get_refcount_tree(osb, ref_blkno, &tree, true);
 	if (ret) {
 		mlog_errno(ret);
 		return ret;
 	}
-
-	ocfs2_refcount_tree_get(tree);
 
 	ret = __ocfs2_lock_refcount_tree(osb, tree, rw);
 	if (ret) {
@@ -2328,7 +2357,8 @@ int ocfs2_decrease_refcount(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_get_refcount_tree(OCFS2_SB(inode->i_sb), ref_blkno, &tree);
+	ret = ocfs2_get_refcount_tree(OCFS2_SB(inode->i_sb), ref_blkno,
+				      &tree, false);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -2563,7 +2593,7 @@ int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 	BUG_ON(!ocfs2_is_refcount_inode(inode));
 
 	ret = ocfs2_get_refcount_tree(OCFS2_SB(inode->i_sb),
-				      refcount_loc, &tree);
+				      refcount_loc, &tree, false);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;

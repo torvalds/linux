@@ -20,6 +20,7 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/unaligned.h>
+#include <linux/overflow.h>
 #include <linux/random.h>
 #include <linux/iversion.h>
 #include <linux/fs_struct.h>
@@ -101,16 +102,16 @@ static struct fat_floppy_defaults {
 },
 };
 
-int fat_add_cluster(struct inode *inode)
+int fat_add_clusters(struct inode *inode, int nr_cluster)
 {
 	int err, cluster;
 
-	err = fat_alloc_clusters(inode, &cluster, 1);
+	err = fat_alloc_chain(inode, &cluster, nr_cluster);
 	if (err)
 		return err;
 	/* FIXME: this cluster should be added after data of this
 	 * cluster is writed */
-	err = fat_chain_add(inode, cluster, 1);
+	err = fat_chain_add(inode, cluster, nr_cluster);
 	if (err)
 		fat_free_clusters(inode, cluster);
 	return err;
@@ -152,7 +153,7 @@ static inline int __fat_get_block(struct inode *inode, sector_t iblock,
 	 */
 	if (!offset && !(iblock < last_block)) {
 		/* TODO: multiple cluster allocation would be desirable. */
-		err = fat_add_cluster(inode);
+		err = fat_add_clusters(inode, 1);
 		if (err)
 			return err;
 	}
@@ -1577,6 +1578,7 @@ int fat_fill_super(struct super_block *sb, struct fs_context *fc,
 	struct msdos_sb_info *sbi;
 	u16 logical_sector_size;
 	u32 total_sectors, total_clusters, fat_clusters, rootdir_sectors;
+	u32 dir_start, data_start;
 	long error;
 	char buf[50];
 	struct timespec64 ts;
@@ -1752,7 +1754,6 @@ int fat_fill_super(struct super_block *sb, struct fs_context *fc,
 	sbi->dir_per_block = sb->s_blocksize / sizeof(struct msdos_dir_entry);
 	sbi->dir_per_block_bits = ffs(sbi->dir_per_block) - 1;
 
-	sbi->dir_start = sbi->fat_start + sbi->fats * sbi->fat_length;
 	sbi->dir_entries = bpb.fat_dir_entries;
 	if (sbi->dir_entries & (sbi->dir_per_block - 1)) {
 		if (!silent)
@@ -1763,20 +1764,30 @@ int fat_fill_super(struct super_block *sb, struct fs_context *fc,
 
 	rootdir_sectors = sbi->dir_entries
 		* sizeof(struct msdos_dir_entry) / sb->s_blocksize;
-	sbi->data_start = sbi->dir_start + rootdir_sectors;
+	if (check_mul_overflow(sbi->fats, sbi->fat_length, &dir_start) ||
+	    check_add_overflow(sbi->fat_start, dir_start, &dir_start) ||
+	    check_add_overflow(dir_start, rootdir_sectors, &data_start)) {
+		if (!silent)
+			fat_msg(sb, KERN_ERR,
+				"overflow of root dir or data layout");
+		goto out_invalid;
+	}
+
 	total_sectors = bpb.fat_sectors;
 	if (total_sectors == 0)
 		total_sectors = bpb.fat_total_sect;
 
-	if (total_sectors < sbi->data_start) {
+	if (total_sectors < data_start) {
 		if (!silent)
 			fat_msg(sb, KERN_ERR,
-				"data area starts beyond volume (%lu > %u)",
-				sbi->data_start, total_sectors);
+				"data area starts beyond volume (%u > %u)",
+				data_start, total_sectors);
 		goto out_invalid;
 	}
 
-	total_clusters = (total_sectors - sbi->data_start) / sbi->sec_per_clus;
+	sbi->dir_start = dir_start;
+	sbi->data_start = data_start;
+	total_clusters = (total_sectors - data_start) / sbi->sec_per_clus;
 
 	if (!is_fat32(sbi))
 		sbi->fat_bits = (total_clusters > MAX_FAT12) ? 16 : 12;

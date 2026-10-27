@@ -69,7 +69,7 @@ unsigned int _parse_integer_limit(const char *s, unsigned int base, unsigned lon
 		unsigned int lc = _tolower(c);
 		unsigned int val;
 
-		if ('0' <= c && c <= '9')
+		if (isdigit(c))
 			val = c - '0';
 		else if ('a' <= lc && lc <= 'f')
 			val = lc - 'a' + 10;

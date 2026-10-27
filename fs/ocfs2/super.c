@@ -387,6 +387,7 @@ static ssize_t ocfs2_debug_read(struct file *file, char __user *buf,
 #endif	/* CONFIG_DEBUG_FS */
 
 static const struct file_operations ocfs2_osb_debug_fops = {
+	.owner =	THIS_MODULE,
 	.open =		ocfs2_osb_debug_open,
 	.release =	ocfs2_debug_release,
 	.read =		ocfs2_debug_read,
@@ -1162,15 +1163,23 @@ static int ocfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 out_dismount:
 	atomic_set(&osb->vol_state, VOLUME_DISABLED);
 	wake_up(&osb->osb_mount_event);
-	ocfs2_free_replay_slots(osb);
 	ocfs2_dismount_volume(sb, 1);
 	goto out;
 
 out_debugfs:
 	debugfs_remove_recursive(osb->osb_debug_root);
 out_super:
+	/*
+	 * A recovery thread launched by a node failure event may still be
+	 * waiting for the volume to be mounted.  Set VOLUME_DISABLED and
+	 * wake it up, then wait for it to exit before osb is freed,
+	 * otherwise the kthread would leak and stay blocked on the wait
+	 * queue embedded in the freed osb.
+	 */
+	atomic_set(&osb->vol_state, VOLUME_DISABLED);
+	wake_up(&osb->osb_mount_event);
 	ocfs2_release_system_inodes(osb);
-	kfree(osb->recovery_map);
+	ocfs2_recovery_exit(osb);
 	ocfs2_delete_osb(osb);
 	kfree(osb);
 out:
@@ -1767,17 +1776,18 @@ static int ocfs2_mount_volume(struct super_block *sb)
 	status = ocfs2_truncate_log_init(osb);
 	if (status < 0) {
 		mlog_errno(status);
-		goto out_check_volume;
+		goto out_system_inodes;
 	}
 
 	ocfs2_super_unlock(osb, 1);
 	return 0;
 
-out_check_volume:
-	ocfs2_free_replay_slots(osb);
 out_system_inodes:
 	if (osb->local_alloc_state == OCFS2_LA_ENABLED)
 		ocfs2_shutdown_local_alloc(osb);
+	/* Drain pending suballoc reclaim work before the journal goes away */
+	if (osb->ocfs2_wq)
+		flush_workqueue(osb->ocfs2_wq);
 	ocfs2_release_system_inodes(osb);
 	/* before journal shutdown, we should release slot_info */
 	ocfs2_free_slot_info(osb);
@@ -1847,6 +1857,14 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	if (osb->cconn)
 		ocfs2_super_unlock(osb, 1);
+
+	/*
+	 * Drain pending suballoc reclaim work while the system inodes and
+	 * the journal are still alive, since the worker needs to look up
+	 * the global bitmap inode and start a transaction.
+	 */
+	if (osb->ocfs2_wq)
+		flush_workqueue(osb->ocfs2_wq);
 
 	ocfs2_release_system_inodes(osb);
 
@@ -2133,6 +2151,11 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	INIT_WORK(&osb->dquot_drop_work, ocfs2_drop_dquot_refs);
 	init_llist_head(&osb->dquot_drop_list);
+
+	spin_lock_init(&osb->os_suballoc_reclaim_lock);
+	INIT_LIST_HEAD(&osb->os_suballoc_reclaim_list);
+	INIT_WORK(&osb->os_suballoc_reclaim_work,
+		  ocfs2_suballoc_reclaim_worker);
 
 	/* get some pseudo constants for clustersize bits */
 	osb->s_clustersize_bits =

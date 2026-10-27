@@ -459,8 +459,9 @@ hung_task_warnings
 ==================
 
 The maximum number of warnings to report. During a check interval
-if a hung task is detected, this value is decreased by 1.
-When this value reaches 0, no more warnings will be reported.
+if a hung task is detected, the internal warning budget is decreased by 1.
+When this budget reaches 0, no more detailed warnings will be reported. The
+warning budget is reset to the configured limit when no hung task is found.
 This file shows up if ``CONFIG_DETECT_HUNG_TASK`` is enabled.
 
 -1: report an infinite number of warnings.

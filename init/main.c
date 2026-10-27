@@ -215,10 +215,6 @@ static bool __init obsolete_checksetup(char *line)
 				 * params and __setups of same names 8( */
 				if (line[n] == '\0' || line[n] == '=')
 					had_early_param = true;
-			} else if (!p->setup_func) {
-				pr_warn("Parameter %s is obsolete, ignored\n",
-					p->str);
-				return true;
 			} else if (p->setup_func(line + n))
 				return true;
 		}
@@ -609,12 +605,12 @@ static int __init unknown_bootoption(char *param, char *val,
 		/* Environment option */
 		unsigned int i;
 		for (i = 0; envp_init[i]; i++) {
+			if (!strncmp(param, envp_init[i], len+1))
+				break;
 			if (i == MAX_INIT_ENVS) {
 				panic_later = "env";
 				panic_param = param;
 			}
-			if (!strncmp(param, envp_init[i], len+1))
-				break;
 		}
 		envp_init[i] = param;
 	} else {
@@ -642,7 +638,7 @@ static int __init init_setup(char *str)
 	 * the shell think it should execute a script with such name.
 	 * So we ignore all arguments entered _before_ init=... [MJ]
 	 */
-	for (i = 1; i < MAX_INIT_ARGS; i++)
+	for (i = 1; i <= MAX_INIT_ARGS; i++)
 		argv_init[i] = NULL;
 	return 1;
 }
@@ -655,7 +651,7 @@ static int __init rdinit_setup(char *str)
 	ramdisk_execute_command = str;
 	ramdisk_execute_command_set = true;
 	/* See "auto" comment in init_setup */
-	for (i = 1; i < MAX_INIT_ARGS; i++)
+	for (i = 1; i <= MAX_INIT_ARGS; i++)
 		argv_init[i] = NULL;
 	return 1;
 }

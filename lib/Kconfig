@@ -219,29 +219,29 @@ source "lib/xz/Kconfig"
 #
 config DECOMPRESS_GZIP
 	select ZLIB_INFLATE
-	tristate
+	bool
 
 config DECOMPRESS_BZIP2
-	tristate
+	bool
 
 config DECOMPRESS_LZMA
-	tristate
+	bool
 
 config DECOMPRESS_XZ
 	select XZ_DEC
-	tristate
+	bool
 
 config DECOMPRESS_LZO
 	select LZO_DECOMPRESS
-	tristate
+	bool
 
 config DECOMPRESS_LZ4
 	select LZ4_DECOMPRESS
-	tristate
+	bool
 
 config DECOMPRESS_ZSTD
 	select ZSTD_DECOMPRESS
-	tristate
+	bool
 
 #
 # Generic allocator support is selected if needed

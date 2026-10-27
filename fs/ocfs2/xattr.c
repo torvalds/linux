@@ -237,6 +237,21 @@ static int namevalue_size_xe(struct ocfs2_xattr_entry *xe)
 	return namevalue_size(xe->xe_name_len, value_len);
 }
 
+static int ocfs2_validate_xattr_entry(struct super_block *sb, u64 blkno,
+				      struct ocfs2_xattr_entry *xe)
+{
+	u64 value_len = le64_to_cpu(xe->xe_value_size);
+
+	if (value_len > OCFS2_XATTR_INLINE_SIZE &&
+	    ocfs2_xattr_is_local(xe))
+		return ocfs2_error(sb,
+				   "Invalid local xattr in block %llu: value size %llu\n",
+				   (unsigned long long)blkno,
+				   (unsigned long long)value_len);
+
+	return 0;
+}
+
 
 static int ocfs2_xattr_bucket_get_name_value(struct super_block *sb,
 					     struct ocfs2_xattr_header *xh,
@@ -476,6 +491,7 @@ static int ocfs2_validate_xattr_block(struct super_block *sb,
 				      struct buffer_head *bh)
 {
 	int rc;
+	struct ocfs2_extent_list *el;
 	struct ocfs2_xattr_block *xb =
 		(struct ocfs2_xattr_block *)bh->b_data;
 
@@ -517,6 +533,31 @@ static int ocfs2_validate_xattr_block(struct super_block *sb,
 				   le32_to_cpu(xb->xb_fs_generation));
 	}
 
+	/*
+	 * Xattr blocks are allocated from a per-slot suballocator, so the
+	 * slot must be in range.  Otherwise freeing the block passes it to
+	 * get_local_system_inode(), which hits BUG_ON() for
+	 * OCFS2_INVALID_SLOT or computes an out-of-bounds index otherwise.
+	 */
+	if ((u32)le16_to_cpu(xb->xb_suballoc_slot) >= OCFS2_SB(sb)->max_slots) {
+		return ocfs2_error(sb,
+				   "Extended attribute block #%llu has an invalid xb_suballoc_slot of %u\n",
+				   (unsigned long long)bh->b_blocknr,
+				   le16_to_cpu(xb->xb_suballoc_slot));
+	}
+
+	/*
+	 * Similarly the suballoc bit must fit in a block group bitmap.
+	 * Otherwise freeing the block will pass the oversized bit to
+	 * _ocfs2_free_suballoc_bits() and trigger ocfs2_error() there.
+	 */
+	if (le16_to_cpu(xb->xb_suballoc_bit) >= ocfs2_suballoc_bits_per_block(sb)) {
+		return ocfs2_error(sb,
+				   "Extended attribute block #%llu has an invalid xb_suballoc_bit of %u\n",
+				   (unsigned long long)bh->b_blocknr,
+				   le16_to_cpu(xb->xb_suballoc_bit));
+	}
+
 	if (!(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED)) {
 		size_t region_offset =
 			offsetof(struct ocfs2_xattr_block, xb_attrs.xb_header);
@@ -531,6 +572,30 @@ static int ocfs2_validate_xattr_block(struct super_block *sb,
 							 &xb->xb_attrs.xb_header,
 							 bh->b_size -
 							 region_offset);
+	}
+
+	/*
+	 * An indexed xattr block carries the root of the xattr tree.  Its
+	 * record count is fixed by the block size and l_next_free_rec never
+	 * exceeds it.  A zero l_next_free_rec is valid: emptying the tree on
+	 * the inode deletion path leaves the root with no extents.
+	 */
+	el = &xb->xb_attrs.xb_root.xt_list;
+
+	if (le16_to_cpu(el->l_count) != ocfs2_xattr_recs_per_xb(sb)) {
+		return ocfs2_error(sb,
+				   "Xattr tree root #%llu has invalid l_count %u (expected %u)\n",
+				   (unsigned long long)bh->b_blocknr,
+				   le16_to_cpu(el->l_count),
+				   ocfs2_xattr_recs_per_xb(sb));
+	}
+
+	if (le16_to_cpu(el->l_next_free_rec) > le16_to_cpu(el->l_count)) {
+		return ocfs2_error(sb,
+				   "Xattr tree root #%llu has l_next_free_rec %u past the end of its list (l_count %u)\n",
+				   (unsigned long long)bh->b_blocknr,
+				   le16_to_cpu(el->l_next_free_rec),
+				   le16_to_cpu(el->l_count));
 	}
 
 	return 0;
@@ -561,9 +626,10 @@ static inline const char *ocfs2_xattr_prefix(int name_index)
 	return handler ? xattr_prefix(handler) : NULL;
 }
 
-static u32 ocfs2_xattr_name_hash(struct inode *inode,
-				 const char *name,
-				 int name_len)
+static u32 __ocfs2_xattr_name_hash(struct inode *inode,
+				   const char *name,
+				   int name_len,
+				   bool legacy_signed)
 {
 	/* Get hash value of uuid from super block */
 	u32 hash = OCFS2_SB(inode->i_sb)->uuid_hash;
@@ -572,11 +638,28 @@ static u32 ocfs2_xattr_name_hash(struct inode *inode,
 	/* hash extended attribute name */
 	for (i = 0; i < name_len; i++) {
 		hash = (hash << OCFS2_HASH_SHIFT) ^
-		       (hash >> (8*sizeof(hash) - OCFS2_HASH_SHIFT)) ^
-		       *name++;
+		       (hash >> (8*sizeof(hash) - OCFS2_HASH_SHIFT));
+		if (legacy_signed)
+			hash ^= (signed char)name[i];
+		else
+			hash ^= (unsigned char)name[i];
 	}
 
 	return hash;
+}
+
+static u32 ocfs2_xattr_name_hash(struct inode *inode,
+				 const char *name,
+				 int name_len)
+{
+	return __ocfs2_xattr_name_hash(inode, name, name_len, false);
+}
+
+static u32 ocfs2_xattr_name_hash_signed(struct inode *inode,
+					const char *name,
+					int name_len)
+{
+	return __ocfs2_xattr_name_hash(inode, name, name_len, true);
 }
 
 static int ocfs2_xattr_entry_real_size(int name_len, size_t value_len)
@@ -603,10 +686,15 @@ int ocfs2_calc_security_init(struct inode *dir,
 			     int *xattr_credits,
 			     struct ocfs2_alloc_context **xattr_ac)
 {
+	int i;
 	int ret = 0;
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
-	int s_size = ocfs2_xattr_entry_real_size(strlen(si->name),
-						 si->value_len);
+	int s_size = 0;
+
+	for (i = 0; i < si->count; i++)
+		s_size += ocfs2_xattr_entry_real_size(
+				strlen(si->xattrs[i].name),
+				si->xattrs[i].value_len);
 
 	/*
 	 * The max space of security xattr taken inline is
@@ -623,14 +711,27 @@ int ocfs2_calc_security_init(struct inode *dir,
 		*xattr_credits += OCFS2_XATTR_BLOCK_CREATE_CREDITS;
 	}
 
-	/* reserve clusters for xattr value which will be set in B tree*/
-	if (si->value_len > OCFS2_XATTR_INLINE_SIZE) {
-		int new_clusters = ocfs2_clusters_for_bytes(dir->i_sb,
-							    si->value_len);
+	/*
+	 * when blocksize = 512, the security xattrs may not fit in the
+	 * single block reserved above and a bucket has to be allocated
+	 * for them, so reserve the cluster it needs as well.
+	 */
+	if (dir->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE &&
+	    s_size > OCFS2_XATTR_FREE_IN_BLOCK(dir)) {
+		*want_clusters += 1;
+		*xattr_credits += ocfs2_blocks_per_xattr_bucket(dir->i_sb);
+	}
 
-		*xattr_credits += ocfs2_clusters_to_blocks(dir->i_sb,
-							   new_clusters);
-		*want_clusters += new_clusters;
+	/* reserve clusters for xattr value which will be set in B tree*/
+	for (i = 0; i < si->count; i++) {
+		if (si->xattrs[i].value_len > OCFS2_XATTR_INLINE_SIZE) {
+			int new_clusters = ocfs2_clusters_for_bytes(dir->i_sb,
+						si->xattrs[i].value_len);
+
+			*xattr_credits += ocfs2_clusters_to_blocks(dir->i_sb,
+								   new_clusters);
+			*want_clusters += new_clusters;
+		}
 	}
 	return ret;
 }
@@ -640,12 +741,16 @@ void ocfs2_calc_xattr_init(struct inode *dir, umode_t mode,
 			   int *want_clusters, int *xattr_credits,
 			   int *want_meta, struct ocfs2_acl_state *acl_state)
 {
+	int i;
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
 	int s_size = 0, a_size = 0, acl_len = 0, new_clusters;
 
-	if (si->enable)
-		s_size = ocfs2_xattr_entry_real_size(strlen(si->name),
-						     si->value_len);
+	if (si->enable) {
+		for (i = 0; i < si->count; i++)
+			s_size += ocfs2_xattr_entry_real_size(
+					strlen(si->xattrs[i].name),
+					si->xattrs[i].value_len);
+	}
 
 	if (osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) {
 		if (acl_state->default_acl && S_ISDIR(mode)) {
@@ -692,12 +797,14 @@ void ocfs2_calc_xattr_init(struct inode *dir, umode_t mode,
 	 * reserve credits and clusters for xattrs which has large value
 	 * and have to be set outside
 	 */
-	if (si->enable && si->value_len > OCFS2_XATTR_INLINE_SIZE) {
-		new_clusters = ocfs2_clusters_for_bytes(dir->i_sb,
-							si->value_len);
-		*xattr_credits += ocfs2_clusters_to_blocks(dir->i_sb,
-							   new_clusters);
-		*want_clusters += new_clusters;
+	for (i = 0; si->enable && i < si->count; i++) {
+		if (si->xattrs[i].value_len > OCFS2_XATTR_INLINE_SIZE) {
+			new_clusters = ocfs2_clusters_for_bytes(dir->i_sb,
+						si->xattrs[i].value_len);
+			*xattr_credits += ocfs2_clusters_to_blocks(dir->i_sb,
+								   new_clusters);
+			*want_clusters += new_clusters;
+		}
 	}
 	if (osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) {
 		if (acl_state->default_acl && S_ISDIR(mode)) {
@@ -989,7 +1096,7 @@ static int ocfs2_validate_xattr_entries_flat(struct super_block *sb, u64 blkno,
 	size_t entries_limit = region_size;
 	size_t nv_limit = region_size;
 	size_t max_entries;
-	int i;
+	int i, ret;
 
 	if (region_size < sizeof(*xh))
 		return ocfs2_error(sb,
@@ -1009,6 +1116,11 @@ static int ocfs2_validate_xattr_entries_flat(struct super_block *sb, u64 blkno,
 		struct ocfs2_xattr_entry *xe = &xh->xh_entries[i];
 		size_t name_offset = le16_to_cpu(xe->xe_name_offset);
 		size_t value_offset;
+		u64 value_len = le64_to_cpu(xe->xe_value_size);
+
+		ret = ocfs2_validate_xattr_entry(sb, blkno, xe);
+		if (ret)
+			return ret;
 
 		if (name_offset > nv_limit ||
 		    xe->xe_name_len > nv_limit - name_offset)
@@ -1023,8 +1135,7 @@ static int ocfs2_validate_xattr_entries_flat(struct super_block *sb, u64 blkno,
 					   (unsigned long long)blkno, i);
 
 		if (ocfs2_xattr_is_local(xe)) {
-			if (le64_to_cpu(xe->xe_value_size) >
-			    nv_limit - value_offset)
+			if (value_len > nv_limit - value_offset)
 				return ocfs2_error(sb,
 						   "Invalid xattr in block %llu: entry %d value is out of bounds\n",
 						   (unsigned long long)blkno,
@@ -1106,10 +1217,29 @@ static int ocfs2_validate_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 	struct ocfs2_xattr_header *xh = bucket_xh(bucket);
 	u16 xattr_count = le16_to_cpu(xh->xh_count);
 	size_t region_size = (size_t)sb->s_blocksize * bucket->bu_blocks;
-	size_t entries_limit = sb->s_blocksize;
+	/*
+	 * The entry array grows up from the header across the whole
+	 * bucket region, so it may extend beyond the first bucket block
+	 * when the blocksize is smaller than OCFS2_XATTR_BUCKET_SIZE.
+	 * Name/value pairs, however, always live within a single block.
+	 */
+	size_t entries_limit = region_size;
 	size_t nv_limit = sb->s_blocksize;
 	size_t max_entries;
-	int i;
+	int i, ret;
+
+	/*
+	 * The entry array is one contiguous region that may span the
+	 * bucket's buffer_heads.  Buckets are allocated within clusters,
+	 * so their first block is always aligned to
+	 * OCFS2_XATTR_BUCKET_SIZE and the whole bucket fits in one page.
+	 * A corrupted xattr tree can point a bucket at blocks straddling
+	 * a page, so reject it before touching the entry array.
+	 */
+	if (blkno & (bucket->bu_blocks - 1))
+		return ocfs2_error(sb,
+				   "Invalid xattr bucket %llu: unaligned block number\n",
+				   (unsigned long long)blkno);
 
 	if (region_size < sizeof(*xh))
 		return ocfs2_error(sb,
@@ -1137,6 +1267,11 @@ static int ocfs2_validate_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 		size_t block_off = name_offset >> sb->s_blocksize_bits;
 		size_t block_offset = name_offset % nv_limit;
 		size_t value_offset;
+		u64 value_len = le64_to_cpu(xe->xe_value_size);
+
+		ret = ocfs2_validate_xattr_entry(sb, blkno, xe);
+		if (ret)
+			return ret;
 
 		if (name_offset >= region_size || block_off >= bucket->bu_blocks)
 			return ocfs2_error(sb,
@@ -1155,8 +1290,7 @@ static int ocfs2_validate_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 					   (unsigned long long)blkno, i);
 
 		if (ocfs2_xattr_is_local(xe)) {
-			if (le64_to_cpu(xe->xe_value_size) >
-			    nv_limit - value_offset)
+			if (value_len > nv_limit - value_offset)
 				return ocfs2_error(sb,
 						   "Invalid xattr bucket %llu: entry %d value is out of bounds\n",
 						   (unsigned long long)blkno,
@@ -1304,7 +1438,7 @@ static int ocfs2_xattr_find_entry(struct inode *inode, int name_index,
 {
 	struct ocfs2_xattr_entry *entry;
 	size_t name_len;
-	int i, name_offset, cmp = 1;
+	int i, name_offset, cmp = 1, ret;
 
 	if (name == NULL)
 		return -EINVAL;
@@ -1327,6 +1461,12 @@ static int ocfs2_xattr_find_entry(struct inode *inode, int name_index,
 				return -EFSCORRUPTED;
 			}
 			cmp = memcmp(name, (xs->base + name_offset), name_len);
+			if (!cmp) {
+				ret = ocfs2_validate_xattr_entry(inode->i_sb,
+								 OCFS2_I(inode)->ip_blkno, entry);
+				if (ret)
+					return ret;
+			}
 		}
 		if (cmp == 0)
 			break;
@@ -2073,12 +2213,17 @@ static void ocfs2_xa_bucket_add_entry(struct ocfs2_xa_loc *loc, u32 name_hash)
 		}
 	}
 
+	/*
+	 * Increment xh_count before memmove() so __counted_by_le(xh_count)
+	 * includes the new entry in the destination bounds.
+	 */
+	le16_add_cpu(&xh->xh_count, 1);
+
 	if (low != count)
 		memmove(&xh->xh_entries[low + 1],
 			&xh->xh_entries[low],
 			((count - low) * sizeof(struct ocfs2_xattr_entry)));
 
-	le16_add_cpu(&xh->xh_count, 1);
 	loc->xl_entry = &xh->xh_entries[low];
 	memset(loc->xl_entry, 0, sizeof(struct ocfs2_xattr_entry));
 }
@@ -2909,6 +3054,9 @@ static int ocfs2_xattr_has_space_inline(struct inode *inode,
  *
  * Find extended attribute in inode block and
  * fill search info into struct ocfs2_xattr_search.
+ *
+ * The inline free-space check races with truncate and allocation, so
+ * callers must hold ip_alloc_sem for writing.
  */
 static int ocfs2_xattr_ibody_find(struct inode *inode,
 				  int name_index,
@@ -2920,13 +3068,13 @@ static int ocfs2_xattr_ibody_find(struct inode *inode,
 	int ret;
 	int has_space = 0;
 
+	lockdep_assert_held_write(&oi->ip_alloc_sem);
+
 	if (inode->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE)
 		return 0;
 
 	if (!(oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL)) {
-		down_read(&oi->ip_alloc_sem);
 		has_space = ocfs2_xattr_has_space_inline(inode, di);
-		up_read(&oi->ip_alloc_sem);
 		if (!has_space)
 			return 0;
 	}
@@ -3007,6 +3155,7 @@ out:
  *
  * Set, replace or remove an extended attribute into inode block.
  *
+ * Callers must hold ip_alloc_sem for writing.
  */
 static int ocfs2_xattr_ibody_set(struct inode *inode,
 				 struct ocfs2_xattr_info *xi,
@@ -3017,16 +3166,17 @@ static int ocfs2_xattr_ibody_set(struct inode *inode,
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_xa_loc loc;
 
+	lockdep_assert_held_write(&oi->ip_alloc_sem);
+
 	if (inode->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE)
 		return -ENOSPC;
 
-	down_write(&oi->ip_alloc_sem);
 	if (!(oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL)) {
 		ret = ocfs2_xattr_ibody_init(inode, xs->inode_bh, ctxt);
 		if (ret) {
 			if (ret != -ENOSPC)
 				mlog_errno(ret);
-			goto out;
+			return ret;
 		}
 	}
 
@@ -3036,12 +3186,9 @@ static int ocfs2_xattr_ibody_set(struct inode *inode,
 	if (ret) {
 		if (ret != -ENOSPC)
 			mlog_errno(ret);
-		goto out;
+		return ret;
 	}
 	xs->here = loc.xl_entry;
-
-out:
-	up_write(&oi->ip_alloc_sem);
 
 	return ret;
 }
@@ -3376,6 +3523,14 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 				credits += ocfs2_calc_extend_credits(
 							inode->i_sb,
 							&def_xv.xv.xr_list);
+			/*
+			 * A value too big to stay inline is only charged as
+			 * OCFS2_XATTR_ROOT_SIZE above, so it can still need a
+			 * value tree of its own.  No xattr block is allocated
+			 * on this path, so the tree is all we reserve for.
+			 */
+			if (xi->xi_value_len > OCFS2_XATTR_INLINE_SIZE)
+				meta_add += ocfs2_extend_meta_needed(&def_xv.xv.xr_list);
 			goto out;
 		}
 	}
@@ -3397,12 +3552,21 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 			credits += ocfs2_remove_extent_credits(inode->i_sb);
 			goto out;
 		} else {
-			meta_add += ocfs2_extend_meta_needed(&xv->xr_list);
 			clusters_add += new_clusters - old_clusters;
 			credits += ocfs2_calc_extend_credits(inode->i_sb,
 							     &xv->xr_list);
-			if (value_size >= OCFS2_XATTR_ROOT_SIZE)
+			/*
+			 * The old value occupies at least as much room as a
+			 * value root, whether it sat outside or inline, so the
+			 * new root fits where it was and no new xattr block or
+			 * bucket is needed -- only the metadata to extend the
+			 * tree hanging off it.  A smaller one is replaced
+			 * outright, which meta_guess below reserves for.
+			 */
+			if (value_size >= OCFS2_XATTR_ROOT_SIZE) {
+				meta_add += ocfs2_extend_meta_needed(&xv->xr_list);
 				goto out;
+			}
 		}
 	} else {
 		/*
@@ -3454,6 +3618,10 @@ meta_guess:
 		 * Reserve metadata for the new xattr's value extent tree.
 		 * The not_found path above adds credits for this tree but
 		 * omits meta_add, leaving meta_ac NULL for large values.
+		 *
+		 * This is all of meta_ac on this side beyond the xattr tree
+		 * above: no xattr block is allocated here, and a new bucket or
+		 * index block is paid for out of data_ac.
 		 */
 		if (xi->xi_value_len > OCFS2_XATTR_INLINE_SIZE)
 			meta_add += ocfs2_extend_meta_needed(&def_xv.xv.xr_list);
@@ -3476,7 +3644,13 @@ meta_guess:
 		credits += OCFS2_XATTR_BLOCK_CREATE_CREDITS;
 		if (xi->xi_value_len > OCFS2_XATTR_INLINE_SIZE) {
 			struct ocfs2_extent_list *el = &def_xv.xv.xr_list;
-			meta_add += ocfs2_extend_meta_needed(el);
+			/*
+			 * One block for the xattr block we may have to
+			 * allocate, the rest for growing the value tree it
+			 * would hold.  If ocfs2_xattr_ibody_set() succeeds
+			 * instead, that first block goes unused.
+			 */
+			meta_add += 1 + ocfs2_extend_meta_needed(el);
 			credits += ocfs2_calc_extend_credits(inode->i_sb,
 							     el);
 		} else {
@@ -3687,6 +3861,18 @@ out:
 }
 
 /*
+ * ip_alloc_sem subclass for inodes being initialized before publication.
+ * ocfs2_xattr_set_handle() runs inside the create transaction, so taking
+ * ip_alloc_sem there adds a transaction -> ip_alloc_sem order that would
+ * form a lockdep cycle with the ip_alloc_sem -> transaction order used
+ * elsewhere, if not for this separate subclass.  The inode is unpublished
+ * so the acquisition can never contend.
+ */
+enum {
+	OCFS2_IP_ALLOC_SEM_UNPUBLISHED = 1,
+};
+
+/*
  * This helper is only for setting initial ACL or security xattrs on an inode
  * that is still unpublished, unhashed, and unattached to a dentry.
  * Ordinary xattr updates must use ocfs2_xattr_set().
@@ -3747,6 +3933,13 @@ int ocfs2_xattr_set_handle(handle_t *handle,
 	xis.inode_bh = xbs.inode_bh = di_bh;
 	di = (struct ocfs2_dinode *)di_bh->b_data;
 
+	/*
+	 * The inode is unpublished and cannot contend, but take the
+	 * semaphore anyway so the helpers' lockdep assertions hold.
+	 */
+	down_write_nested(&OCFS2_I(inode)->ip_alloc_sem,
+			  OCFS2_IP_ALLOC_SEM_UNPUBLISHED);
+
 	ret = ocfs2_xattr_ibody_find(inode, name_index, name, &xis);
 	if (ret)
 		goto cleanup;
@@ -3759,6 +3952,7 @@ int ocfs2_xattr_set_handle(handle_t *handle,
 	ret = __ocfs2_xattr_set_handle(inode, di, &xi, &xis, &xbs, &ctxt);
 
 cleanup:
+	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 	brelse(xbs.xattr_bh);
 	ocfs2_xattr_bucket_free(xbs.bucket);
 
@@ -3828,29 +4022,37 @@ int ocfs2_xattr_set(struct inode *inode,
 
 	down_write(&OCFS2_I(inode)->ip_xattr_sem);
 	/*
+	 * The allocation and truncate paths take ip_alloc_sem before
+	 * starting a transaction, so take it here before xattr
+	 * preparation, allocation reservations and ocfs2_start_trans()
+	 * to keep that order.  The xattr helpers below no longer take
+	 * it themselves.
+	 */
+	down_write(&OCFS2_I(inode)->ip_alloc_sem);
+	/*
 	 * Scan inode and external block to find the same name
 	 * extended attribute and collect search information.
 	 */
 	ret = ocfs2_xattr_ibody_find(inode, name_index, name, &xis);
 	if (ret)
-		goto cleanup;
+		goto out_free_ac;
 	if (xis.not_found) {
 		ret = ocfs2_xattr_block_find(inode, name_index, name, &xbs);
 		if (ret)
-			goto cleanup;
+			goto out_free_ac;
 	}
 
 	if (xis.not_found && xbs.not_found) {
 		ret = -ENODATA;
 		if (flags & XATTR_REPLACE)
-			goto cleanup;
+			goto out_free_ac;
 		ret = 0;
 		if (!value)
-			goto cleanup;
+			goto out_free_ac;
 	} else {
 		ret = -EEXIST;
 		if (flags & XATTR_CREATE)
-			goto cleanup;
+			goto out_free_ac;
 	}
 
 	/* Check whether the value is refcounted and do some preparation. */
@@ -3861,7 +4063,7 @@ int ocfs2_xattr_set(struct inode *inode,
 						   &ref_meta, &ref_credits);
 		if (ret) {
 			mlog_errno(ret);
-			goto cleanup;
+			goto out_free_ac;
 		}
 	}
 
@@ -3872,7 +4074,7 @@ int ocfs2_xattr_set(struct inode *inode,
 		if (ret < 0) {
 			inode_unlock(tl_inode);
 			mlog_errno(ret);
-			goto cleanup;
+			goto out_free_ac;
 		}
 	}
 	inode_unlock(tl_inode);
@@ -3881,7 +4083,7 @@ int ocfs2_xattr_set(struct inode *inode,
 					&xbs, &ctxt, ref_meta, &credits);
 	if (ret) {
 		mlog_errno(ret);
-		goto cleanup;
+		goto out_free_ac;
 	}
 
 	/* we need to update inode's ctime field, so add credit for it. */
@@ -3899,6 +4101,7 @@ int ocfs2_xattr_set(struct inode *inode,
 	ocfs2_commit_trans(osb, ctxt.handle);
 
 out_free_ac:
+	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 	if (ctxt.data_ac)
 		ocfs2_free_alloc_context(ctxt.data_ac);
 	if (ctxt.meta_ac)
@@ -3907,7 +4110,6 @@ out_free_ac:
 		ocfs2_schedule_truncate_log_flush(osb, 1);
 	ocfs2_run_deallocs(osb, &ctxt.dealloc);
 
-cleanup:
 	if (ref_tree)
 		ocfs2_unlock_refcount_tree(osb, ref_tree, 1);
 	up_write(&OCFS2_I(inode)->ip_xattr_sem);
@@ -4038,6 +4240,10 @@ static int ocfs2_find_xe_in_bucket(struct inode *inode,
 
 		xe_name = bucket_block(bucket, block_off) + new_offset;
 		if (!memcmp(name, xe_name, name_len)) {
+			ret = ocfs2_validate_xattr_entry(inode->i_sb,
+							 OCFS2_I(inode)->ip_blkno, xe);
+			if (ret)
+				break;
 			*xe_index = i;
 			*found = 1;
 			ret = 0;
@@ -4168,11 +4374,12 @@ out:
 	return ret;
 }
 
-static int ocfs2_xattr_index_block_find(struct inode *inode,
-					struct buffer_head *root_bh,
-					int name_index,
-					const char *name,
-					struct ocfs2_xattr_search *xs)
+static int __ocfs2_xattr_index_block_find(struct inode *inode,
+					  struct buffer_head *root_bh,
+					  int name_index,
+					  const char *name,
+					  u32 name_hash,
+					  struct ocfs2_xattr_search *xs)
 {
 	int ret;
 	struct ocfs2_xattr_block *xb =
@@ -4181,7 +4388,6 @@ static int ocfs2_xattr_index_block_find(struct inode *inode,
 	struct ocfs2_extent_list *el = &xb_root->xt_list;
 	u64 p_blkno = 0;
 	u32 first_hash, num_clusters = 0;
-	u32 name_hash = ocfs2_xattr_name_hash(inode, name, strlen(name));
 
 	if (le16_to_cpu(el->l_next_free_rec) == 0)
 		return -ENODATA;
@@ -4210,6 +4416,59 @@ static int ocfs2_xattr_index_block_find(struct inode *inode,
 
 out:
 	return ret;
+}
+
+static int ocfs2_xattr_index_block_find(struct inode *inode,
+					struct buffer_head *root_bh,
+					int name_index,
+					const char *name,
+					struct ocfs2_xattr_search *xs)
+{
+	u32 name_hash, legacy_hash;
+	int name_len = strlen(name);
+	int ret;
+
+	name_hash = ocfs2_xattr_name_hash(inode, name, name_len);
+
+	ret = __ocfs2_xattr_index_block_find(inode, root_bh, name_index, name,
+					     name_hash, xs);
+	if (ret != -ENODATA)
+		return ret;
+
+	/*
+	 * Nothing under the current hash.  The entry may have been stored by
+	 * an older kernel, which sign-extended the name bytes when hashing.
+	 * Skip the retry when the two hashes are equal, so that a name made
+	 * only of ASCII does not have to walk the tree twice.
+	 */
+	legacy_hash = ocfs2_xattr_name_hash_signed(inode, name, name_len);
+	if (legacy_hash == name_hash)
+		return ret;
+
+	/*
+	 * A miss still leaves xs->bucket holding the bucket a new entry would
+	 * be inserted into, so drop it before searching again.
+	 */
+	ocfs2_xattr_bucket_relse(xs->bucket);
+
+	ret = __ocfs2_xattr_index_block_find(inode, root_bh, name_index, name,
+					     legacy_hash, xs);
+	if (!ret) {
+		pr_warn_once("ocfs2: xattr tree with signed name hash\n");
+		return ret;
+	}
+	if (ret != -ENODATA)
+		return ret;
+
+	/*
+	 * Not under either hash.  Restore the unsigned placement, since that
+	 * is where a new entry is stored: leaving the bucket where the legacy
+	 * hash put it would break the ordering the search relies on.
+	 */
+	ocfs2_xattr_bucket_relse(xs->bucket);
+
+	return __ocfs2_xattr_index_block_find(inode, root_bh, name_index, name,
+					      name_hash, xs);
 }
 
 static int ocfs2_iterate_xattr_buckets(struct inode *inode,
@@ -4390,7 +4649,8 @@ static int ocfs2_xattr_tree_list_index_block(struct inode *inode,
 	ret = ocfs2_iterate_xattr_index_block(inode, blk_bh,
 					      ocfs2_list_xattr_tree_rec, &xl);
 	if (ret) {
-		mlog_errno(ret);
+		if (ret != -ERANGE)
+			mlog_errno(ret);
 		goto out;
 	}
 
@@ -4508,6 +4768,10 @@ static void ocfs2_xattr_update_xattr_search(struct inode *inode,
 	xs->here = &xs->header->xh_entries[i];
 }
 
+/*
+ * Caller must hold ip_alloc_sem for writing, since a new xattr block
+ * is allocated and the xattr block header is rewritten.
+ */
 static int ocfs2_xattr_create_index_block(struct inode *inode,
 					  struct ocfs2_xattr_search *xs,
 					  struct ocfs2_xattr_set_ctxt *ctxt)
@@ -4523,18 +4787,13 @@ static int ocfs2_xattr_create_index_block(struct inode *inode,
 	struct ocfs2_xattr_tree_root *xr;
 	u16 xb_flags = le16_to_cpu(xb->xb_flags);
 
+	lockdep_assert_held_write(&oi->ip_alloc_sem);
+
 	trace_ocfs2_xattr_create_index_block_begin(
 				(unsigned long long)xb_bh->b_blocknr);
 
 	BUG_ON(xb_flags & OCFS2_XATTR_INDEXED);
 	BUG_ON(!xs->bucket);
-
-	/*
-	 * XXX:
-	 * We can use this lock for now, and maybe move to a dedicated mutex
-	 * if performance becomes a problem later.
-	 */
-	down_write(&oi->ip_alloc_sem);
 
 	ret = ocfs2_journal_access_xb(handle, INODE_CACHE(inode), xb_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
@@ -4597,8 +4856,6 @@ static int ocfs2_xattr_create_index_block(struct inode *inode,
 	ocfs2_journal_dirty(handle, xb_bh);
 
 out:
-	up_write(&oi->ip_alloc_sem);
-
 	return ret;
 }
 
@@ -4678,6 +4935,9 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 	xe = xh->xh_entries;
 	end = OCFS2_XATTR_BUCKET_SIZE;
 	for (i = 0; i < le16_to_cpu(xh->xh_count); i++, xe++) {
+		ret = ocfs2_validate_xattr_entry(inode->i_sb, blkno, xe);
+		if (ret)
+			goto out;
 		offset = le16_to_cpu(xe->xe_name_offset);
 		len = namevalue_size_xe(xe);
 
@@ -4694,16 +4954,22 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 			memmove(bucket_buf + end - len,
 				bucket_buf + offset, len);
 			xe->xe_name_offset = cpu_to_le16(end - len);
+		} else if (end < offset + len) {
+			ret = ocfs2_error(inode->i_sb,
+					  "Defrag check failed for bucket %llu\n",
+					  (unsigned long long)blkno);
+			goto out;
 		}
-
-		mlog_bug_on_msg(end < offset + len, "Defrag check failed for "
-				"bucket %llu\n", (unsigned long long)blkno);
 
 		end -= len;
 	}
 
-	mlog_bug_on_msg(xh_free_start > end, "Defrag check failed for "
-			"bucket %llu\n", (unsigned long long)blkno);
+	if (xh_free_start > end) {
+		ret = ocfs2_error(inode->i_sb,
+				  "Defrag check failed for bucket %llu\n",
+				  (unsigned long long)blkno);
+		goto out;
+	}
 
 	if (xh_free_start == end)
 		goto out;
@@ -4960,6 +5226,9 @@ static int ocfs2_divide_xattr_bucket(struct inode *inode,
 	name_value_len = 0;
 	for (i = 0; i < start; i++) {
 		xe = &xh->xh_entries[i];
+		ret = ocfs2_validate_xattr_entry(inode->i_sb, blk, xe);
+		if (ret)
+			goto out;
 		name_value_len += namevalue_size_xe(xe);
 		if (le16_to_cpu(xe->xe_name_offset) < name_offset)
 			name_offset = le16_to_cpu(xe->xe_name_offset);
@@ -5750,16 +6019,14 @@ out:
 
 /*
  * check whether the xattr bucket is filled up with the same hash value.
- * If we want to insert the xattr with the same hash, return -ENOSPC.
- * If we want to insert a xattr with different hash value, go ahead
- * and ocfs2_divide_xattr_bucket will handle this.
+ * If the entry being set carries that same hash, return -ENOSPC, since
+ * ocfs2_divide_xattr_bucket() has no divide position to work with.
+ * Otherwise go ahead and ocfs2_divide_xattr_bucket() will handle this.
  */
-static int ocfs2_check_xattr_bucket_collision(struct inode *inode,
-					      struct ocfs2_xattr_bucket *bucket,
-					      const char *name)
+static int ocfs2_check_xattr_bucket_collision(struct ocfs2_xattr_bucket *bucket,
+					      u32 name_hash)
 {
 	struct ocfs2_xattr_header *xh = bucket_xh(bucket);
-	u32 name_hash = ocfs2_xattr_name_hash(inode, name, strlen(name));
 
 	if (name_hash != le32_to_cpu(xh->xh_entries[0].xe_name_hash))
 		return 0;
@@ -5828,6 +6095,7 @@ static int ocfs2_xattr_set_entry_index_block(struct inode *inode,
 					     struct ocfs2_xattr_search *xs,
 					     struct ocfs2_xattr_set_ctxt *ctxt)
 {
+	u32 name_hash;
 	int ret;
 
 	trace_ocfs2_xattr_set_entry_index_block(xi->xi_name);
@@ -5847,10 +6115,18 @@ static int ocfs2_xattr_set_entry_index_block(struct inode *inode,
 	 * the maximum number of collisions we will allow for then is
 	 * one bucket's worth, so check it here whether we need to
 	 * add a new bucket for the insert.
+	 *
+	 * An existing entry keeps the hash it was stored under, and that is
+	 * the hash a split has to work with.  A new entry is stored under the
+	 * unsigned one, which is what ocfs2_xa_add_entry() will write.
 	 */
-	ret = ocfs2_check_xattr_bucket_collision(inode,
-						 xs->bucket,
-						 xi->xi_name);
+	if (xs->not_found)
+		name_hash = ocfs2_xattr_name_hash(inode, xi->xi_name,
+						  xi->xi_name_len);
+	else
+		name_hash = le32_to_cpu(xs->here->xe_name_hash);
+
+	ret = ocfs2_check_xattr_bucket_collision(xs->bucket, name_hash);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -7514,17 +7790,46 @@ static int ocfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array
 {
 	struct ocfs2_security_xattr_info *si = fs_info;
 	const struct xattr *xattr;
+	struct ocfs2_security_xattr *xattrs;
+	int count = 0, i;
 	int err = 0;
 
 	if (si) {
-		si->value = kmemdup(xattr_array->value, xattr_array->value_len,
-				    GFP_KERNEL);
-		if (!si->value)
+		for (xattr = xattr_array; xattr->name != NULL; xattr++)
+			count++;
+
+		xattrs = kcalloc(count, sizeof(*xattrs), GFP_NOFS);
+		if (!xattrs)
 			return -ENOMEM;
 
-		si->name = xattr_array->name;
-		si->value_len = xattr_array->value_len;
+		for (i = 0; i < count; i++) {
+			xattrs[i].name = kstrdup(xattr_array[i].name, GFP_NOFS);
+			if (!xattrs[i].name) {
+				err = -ENOMEM;
+				goto out_err;
+			}
+
+			xattrs[i].value = kmemdup(xattr_array[i].value,
+						  xattr_array[i].value_len,
+						  GFP_NOFS);
+			if (!xattrs[i].value) {
+				err = -ENOMEM;
+				goto out_err;
+			}
+			xattrs[i].value_len = xattr_array[i].value_len;
+		}
+
+		si->xattrs = xattrs;
+		si->count = count;
 		return 0;
+
+out_err:
+		for (; i >= 0; i--) {
+			kfree(xattrs[i].name);
+			kfree(xattrs[i].value);
+		}
+		kfree(xattrs);
+		return err;
 	}
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
@@ -7535,6 +7840,19 @@ static int ocfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array
 			break;
 	}
 	return err;
+}
+
+void ocfs2_free_security_xattrs(struct ocfs2_security_xattr_info *si)
+{
+	int i;
+
+	for (i = 0; i < si->count; i++) {
+		kfree(si->xattrs[i].name);
+		kfree(si->xattrs[i].value);
+	}
+	kfree(si->xattrs);
+	si->xattrs = NULL;
+	si->count = 0;
 }
 
 int ocfs2_init_security_get(struct inode *inode,
@@ -7554,7 +7872,7 @@ int ocfs2_init_security_get(struct inode *inode,
 		 * security_inode_init_security() does not return -EOPNOTSUPP,
 		 * we have to check the xattr ourselves.
 		 */
-		if (!ret && !si->name)
+		if (!ret && !si->count)
 			si->enable = 0;
 
 		return ret;
@@ -7571,10 +7889,21 @@ int ocfs2_init_security_set(handle_t *handle,
 			    struct ocfs2_alloc_context *xattr_ac,
 			    struct ocfs2_alloc_context *data_ac)
 {
-	return ocfs2_xattr_set_handle(handle, inode, di_bh,
-				     OCFS2_XATTR_INDEX_SECURITY,
-				     si->name, si->value, si->value_len, 0,
-				     xattr_ac, data_ac);
+	int i;
+	int ret = 0;
+
+	for (i = 0; i < si->count; i++) {
+		ret = ocfs2_xattr_set_handle(handle, inode, di_bh,
+					     OCFS2_XATTR_INDEX_SECURITY,
+					     si->xattrs[i].name,
+					     si->xattrs[i].value,
+					     si->xattrs[i].value_len, 0,
+					     xattr_ac, data_ac);
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
 
 const struct xattr_handler ocfs2_xattr_security_handler = {

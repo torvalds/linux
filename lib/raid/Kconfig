@@ -32,6 +32,7 @@ config XOR_KUNIT_TEST
 config XOR_BENCHMARK
 	bool "Benchmark for xor_gen"
 	depends on XOR_KUNIT_TEST
+	default y if KUNIT_ALL_TESTS=m
 	help
 	  Include benchmarks in the KUnit test suite for xor_gen.
 
@@ -63,6 +64,7 @@ config RAID6_PQ_KUNIT_TEST
 config RAID6_PQ_KUNIT_BENCHMARK
 	bool "Benchmark for RAID6 PQ"
 	depends on RAID6_PQ_KUNIT_TEST
+	default y if KUNIT_ALL_TESTS=m
 	help
 	  Include benchmarks in the KUnit test suite for raid P/Q generation.
 

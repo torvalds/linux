@@ -59,8 +59,7 @@ static DEFINE_PER_CPU(struct listener_list, listener_array);
 
 enum actions {
 	REGISTER,
-	DEREGISTER,
-	CPU_DONT_CARE
+	DEREGISTER
 };
 
 static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
@@ -473,7 +472,8 @@ static size_t taskstats_packet_size(void)
 	return size;
 }
 
-static int cmd_attr_pid(struct genl_info *info)
+static int cmd_attr_pid_tgid(struct genl_info *info, int attr,
+			     int (*fill)(pid_t, struct taskstats *))
 {
 	struct taskstats *stats;
 	struct sk_buff *rep_skb;
@@ -488,41 +488,15 @@ static int cmd_attr_pid(struct genl_info *info)
 		return rc;
 
 	rc = -EINVAL;
-	pid = nla_get_u32(info->attrs[TASKSTATS_CMD_ATTR_PID]);
-	stats = mk_reply(rep_skb, TASKSTATS_TYPE_PID, pid);
+	pid = nla_get_u32(info->attrs[attr]);
+	stats = mk_reply(rep_skb,
+			 attr == TASKSTATS_CMD_ATTR_PID
+				? TASKSTATS_TYPE_PID : TASKSTATS_TYPE_TGID,
+			 pid);
 	if (!stats)
 		goto err;
 
-	rc = fill_stats_for_pid(pid, stats);
-	if (rc < 0)
-		goto err;
-	return send_reply(rep_skb, info);
-err:
-	nlmsg_free(rep_skb);
-	return rc;
-}
-
-static int cmd_attr_tgid(struct genl_info *info)
-{
-	struct taskstats *stats;
-	struct sk_buff *rep_skb;
-	size_t size;
-	u32 tgid;
-	int rc;
-
-	size = taskstats_packet_size();
-
-	rc = prepare_reply(info, TASKSTATS_CMD_NEW, &rep_skb, size);
-	if (rc < 0)
-		return rc;
-
-	rc = -EINVAL;
-	tgid = nla_get_u32(info->attrs[TASKSTATS_CMD_ATTR_TGID]);
-	stats = mk_reply(rep_skb, TASKSTATS_TYPE_TGID, tgid);
-	if (!stats)
-		goto err;
-
-	rc = fill_stats_for_tgid(tgid, stats);
+	rc = fill(pid, stats);
 	if (rc < 0)
 		goto err;
 	return send_reply(rep_skb, info);
@@ -542,9 +516,11 @@ static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 					TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK,
 					DEREGISTER);
 	else if (info->attrs[TASKSTATS_CMD_ATTR_PID])
-		return cmd_attr_pid(info);
+		return cmd_attr_pid_tgid(info, TASKSTATS_CMD_ATTR_PID,
+					 fill_stats_for_pid);
 	else if (info->attrs[TASKSTATS_CMD_ATTR_TGID])
-		return cmd_attr_tgid(info);
+		return cmd_attr_pid_tgid(info, TASKSTATS_CMD_ATTR_TGID,
+					 fill_stats_for_tgid);
 	else
 		return -EINVAL;
 }
