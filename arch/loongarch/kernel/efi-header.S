@@ -51,7 +51,7 @@
 	.long	.Lefi_header_end - _head		/* SizeOfHeaders */
 	.long	0					/* CheckSum */
 	.short	IMAGE_SUBSYSTEM_EFI_APPLICATION		/* Subsystem */
-	.short	0					/* DllCharacteristics */
+	.short	IMAGE_DLLCHARACTERISTICS_NX_COMPAT	/* DllCharacteristics */
 	.quad	0					/* SizeOfStackReserve */
 	.quad	0					/* SizeOfStackCommit */
 	.quad	0					/* SizeOfHeapReserve */
