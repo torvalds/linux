@@ -3377,17 +3377,32 @@ static enum scx_dsp_verdict dispatch_one(struct rq *rq, struct task_struct *prev
 		update_curr_scx(rq);
 
 		/*
+		 * Under bypass, @prev's slice can't be trusted as a cpu-form
+		 * scheduler can write it directly from BPF. Skipping the keep
+		 * below is not enough as the post-dispatch test in
+		 * scx_dispatch_sched() would keep @prev on the same slice.
+		 *
+		 * Expire it as the bypass tick would, so that neither test
+		 * keeps @prev on it and @prev rotates through the bypass
+		 * enqueue. A kernel slice is left alone and the keep below
+		 * keeps @prev on it, see %SCX_TASK_KERNEL_SLICE.
+		 *
+		 * TODO: Once the cpu form is deprecated and the kfuncs refuse
+		 * slice raises from a bypassing scheduler, slices can be
+		 * trusted under bypass. This expiry, the bypass tick's zeroing
+		 * and the related slice handling can then be cleaned up.
+		 */
+		if (scx_bypassing(scx_task_sched(prev), cpu))
+			expire_task_slice(prev);
+
+		/*
 		 * If @prev is runnable & has slice left, it has priority and
 		 * fetching more just increases latency for the fetched tasks.
 		 * Tell pick_task_scx() to keep running @prev. If the BPF
 		 * scheduler wants to handle this explicitly, it should
 		 * implement ->cpu_release().
-		 *
-		 * See scx_disable_workfn() for the explanation on the bypassing
-		 * test.
 		 */
-		if ((prev->scx.flags & SCX_TASK_QUEUED) && prev->scx.slice &&
-		    !scx_bypassing(scx_task_sched(prev), cpu)) {
+		if ((prev->scx.flags & SCX_TASK_QUEUED) && prev->scx.slice) {
 			verdict = SCX_DSP_PREV;
 			goto has_tasks;
 		}
@@ -6917,9 +6932,10 @@ static void unbypass_renotify_idle(struct rq *rq, struct scx_sched *pos,
  * - ops.sub_ecaps_updated() and ops.sub_child_ecaps_updated() are still called.
  *   The bypassed tasks are on the bypass DSQs, out of their reach.
  *
- * - dispatch_one() does not report %SCX_DSP_PREV on non-zero slice as slice
- *   can't be trusted. Whenever a tick triggers, the running task is rotated to
- *   the tail of the queue.
+ * - dispatch_one() expires prev's slice before its keep test as the slice can't
+ *   be trusted. Each tick does the same and rotates the running task to the
+ *   tail of the queue. A kernel slice is left alone, see
+ *   %SCX_TASK_KERNEL_SLICE.
  *
  * - pick_next_task() suppresses zero slice warning.
  *
