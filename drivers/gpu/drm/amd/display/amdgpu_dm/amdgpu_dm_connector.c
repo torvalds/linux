@@ -942,7 +942,8 @@ STATIC_IFN_KUNIT void fill_stream_properties_from_drm_display_mode(
 		err = drm_hdmi_vendor_infoframe_from_display_mode(&hv_frame,
 								  (struct drm_connector *)connector,
 								  mode_in);
-		if (err < 0)
+		/* Sinks without HDMI infoframe support make it fail with -EINVAL. */
+		if (err < 0 && info->has_hdmi_infoframe)
 			drm_warn_once(connector->dev, "Failed to setup vendor infoframe on connector %s: %zd\n",
 				      connector->name, err);
 		timing_out->hdmi_vic = hv_frame.vic;
