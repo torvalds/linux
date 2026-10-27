@@ -66,6 +66,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_puts(m, " lam");
 	if (cpu_has_lam_bh)
 		seq_puts(m, " lam_bh");
+	if (cpu_has_lamcas)
+		seq_puts(m, " lamcas");
 	if (cpu_has_scq)
 		seq_puts(m, " scq");
 	if (cpu_has_ual)
