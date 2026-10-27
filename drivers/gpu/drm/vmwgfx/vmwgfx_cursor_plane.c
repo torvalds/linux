@@ -852,6 +852,10 @@ vmw_cursor_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
+	/* Include legacy Xorg cursor-bypass offsets in the image and position. */
+	hotspot_x = vps->cursor.legacy.hotspot_x + new_state->hotspot_x;
+	hotspot_y = vps->cursor.legacy.hotspot_y + new_state->hotspot_y;
+
 	switch (vps->cursor.update_type) {
 	case VMW_CURSOR_UPDATE_LEGACY:
 		vmw_cursor_plane_update_legacy(dev_priv, vps);
@@ -864,8 +868,7 @@ vmw_cursor_plane_atomic_update(struct drm_plane *plane,
 			vmw_send_define_cursor_cmd(dev_priv, vps->cursor.map.virtual,
 						   vps->base.crtc_w,
 						   vps->base.crtc_h,
-						   vps->base.hotspot_x,
-						   vps->base.hotspot_y);
+						   hotspot_x, hotspot_y);
 		break;
 	case VMW_CURSOR_UPDATE_NONE:
 		/* do nothing */
@@ -877,9 +880,6 @@ vmw_cursor_plane_atomic_update(struct drm_plane *plane,
 	 */
 	cursor_x = new_state->crtc_x + du->set_gui_x;
 	cursor_y = new_state->crtc_y + du->set_gui_y;
-
-	hotspot_x = vps->cursor.legacy.hotspot_x + new_state->hotspot_x;
-	hotspot_y = vps->cursor.legacy.hotspot_y + new_state->hotspot_y;
 
 	vmw_cursor_update_position(dev_priv, true, cursor_x + hotspot_x,
 				   cursor_y + hotspot_y);
