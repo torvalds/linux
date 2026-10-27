@@ -2639,8 +2639,7 @@ static bool bpf_prog_select_interpreter(struct bpf_prog *fp)
 /*
  * Whether a function has an insn that works with the arena base, which a JIT
  * sets up in the prologue when bpf_prog_uses_arena_insns() says so. Decided on
- * the final insns of the function: an access through an arena pointer, or
- * through a number in a program loaded with BPF_F_ARENA_SCALAR, has been
+ * the final insns of the function: an access through an arena pointer has been
  * rewritten to a BPF_PROBE_MEM32 form by then, a cast to the user address
  * space keeps BPF_ADDR_SPACE_CAST, and a kfunc call with an __arena argument,
  * which the JIT rebases, has a function model that says so. A load of an
@@ -3514,12 +3513,6 @@ bool __weak bpf_jit_supports_far_kfunc_call(void)
 }
 
 bool __weak bpf_jit_supports_arena(void)
-{
-	return false;
-}
-
-/* Whether JIT takes BPF_REG_AX as the address of arena access */
-bool __weak bpf_jit_supports_arena_scalar(void)
 {
 	return false;
 }

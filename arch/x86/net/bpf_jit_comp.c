@@ -5240,11 +5240,6 @@ bool bpf_jit_supports_arena(void)
 	return true;
 }
 
-bool bpf_jit_supports_arena_scalar(void)
-{
-	return true;
-}
-
 bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
 {
 	return true;

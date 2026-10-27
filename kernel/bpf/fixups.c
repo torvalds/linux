@@ -44,31 +44,6 @@ static bool is_addr_space_cast32(struct bpf_prog *prog, const struct bpf_insn *i
 	return false;
 }
 
-/*
- * The insn accesses arena through a number. JITs add the base of arena
- * to the register as it is, so the access goes through the low 32 bits of
- * the number in BPF_REG_AX. Registers of the program are not changed: the
- * number may be compared or stored later, and on another path the register
- * may be PTR_TO_ARENA.
- *
- * Constant blinding leaves insns that use BPF_REG_AX alone, so the immediate
- * of st through a number is not blinded.
- */
-static int arena_scalar_access(const struct bpf_insn *insn, struct bpf_insn *buf)
-{
-	bool load = BPF_CLASS(insn->code) == BPF_LDX || bpf_atomic_is_load_acq(insn);
-	struct bpf_insn *patch = buf;
-
-	*patch++ = BPF_MOV32_REG(BPF_REG_AX, load ? insn->src_reg : insn->dst_reg);
-	*patch = *insn;
-	if (load)
-		patch->src_reg = BPF_REG_AX;
-	else
-		patch->dst_reg = BPF_REG_AX;
-	patch++;
-	return patch - buf;
-}
-
 /* Return the regno defined by the insn, or -1. */
 static int insn_def_regno(const struct bpf_insn *insn)
 {
@@ -1879,20 +1854,6 @@ int bpf_do_misc_fixups(struct bpf_verifier_env *env)
 		if (env->insn_aux_data[i + delta].needs_zext)
 			/* Convert BPF_CLASS(insn->code) == BPF_ALU64 to 32-bit ALU */
 			insn->code = BPF_ALU | BPF_OP(insn->code) | BPF_SRC(insn->code);
-
-		if (env->insn_aux_data[i + delta].arena_scalar) {
-			cnt = arena_scalar_access(insn, insn_buf);
-
-			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
-			if (!new_prog)
-				return -ENOMEM;
-
-			delta += cnt - 1;
-			prog = new_prog;
-			env->prog = prog;
-			insn = prog->insnsi + i + delta;
-			goto next_insn;
-		}
 
 		/* Make sdiv/smod divide-by-minus-one exceptions impossible. */
 		if ((insn->code == (BPF_ALU64 | BPF_MOD | BPF_K) ||
