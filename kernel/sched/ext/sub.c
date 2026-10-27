@@ -428,9 +428,7 @@ void scx_init_root_caps(struct scx_sched *sch)
 /* unserved remainder of @rq's rescuee's admitted slice, 0 once fully served */
 static s64 scx_rescue_slice_remaining(struct rq *rq)
 {
-	s64 served = rq->scx.rescue.curr->se.sum_exec_runtime - rq->scx.rescue.exec_snap;
-
-	return max(rq->scx.rescue.slice - served, 0);
+	return max(rq->scx.rescue.slice - rq->scx.rescue.served, 0);
 }
 
 /*
@@ -464,6 +462,14 @@ void scx_rescue_charge(struct rq *rq, s64 delta_exec)
 	struct scx_sched_pcpu *pcpu;
 
 	lockdep_assert_rq_held(rq);
+
+	/*
+	 * Count @delta_exec as served before the clamp below, which bounds only
+	 * the budget charge. update_curr_scx() took the same delta off the
+	 * slice, so a slice set to the unserved remainder, as escalation does,
+	 * reaches zero when the remainder does, see scx_rescue_keep().
+	 */
+	rq->scx.rescue.served += delta_exec;
 
 	/*
 	 * A rescue slice is bounded by one quantum and tick-driven expiry can
@@ -525,7 +531,9 @@ bool scx_rescue_keep(struct rq *rq, struct task_struct *p)
 	    scx_bypassing(scx_task_sched(p), cpu_of(rq)))
 		return false;
 
-	scx_set_task_slice(p, remaining);
+	/* never called on a protected rescuee, so the write can't be refused */
+	if (WARN_ON_ONCE(!scx_set_task_slice(p, remaining)))
+		return false;
 	return true;
 }
 
@@ -608,10 +616,9 @@ static void scx_rescue_timer_arm(struct rq *rq)
  * @slice: CPU time to grant
  *
  * The schedulers keep their normal control over @p and may preempt or reslice
- * it. @slice is measured on served CPU time against the snapshot taken here, so
- * neither shortens the rescue, see scx_rescue_charge() and scx_rescue_keep().
- * Prolonged denial escalates into protected execution, see
- * scx_rescue_timerfn().
+ * it. @slice is measured on served CPU time, so neither shortens the rescue,
+ * see scx_rescue_charge() and scx_rescue_keep(). Prolonged denial escalates
+ * into protected execution, see scx_rescue_timerfn().
  */
 static void scx_rescue_admit(struct rq *rq, struct task_struct *p, s64 slice)
 {
@@ -620,7 +627,7 @@ static void scx_rescue_admit(struct rq *rq, struct task_struct *p, s64 slice)
 
 	rq->scx.rescue.curr = p;
 	rq->scx.rescue.slice = slice;
-	rq->scx.rescue.exec_snap = p->se.sum_exec_runtime;
+	rq->scx.rescue.served = 0;
 	scx_set_task_slice(p, slice);
 	scx_rescue_timer_arm(rq);
 }

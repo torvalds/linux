@@ -816,7 +816,7 @@ struct scx_rq_rescue {
 	u64			clock;			/* last budget accrual timestamp */
 	struct task_struct	*curr;			/* task being rescued, one at a time */
 	s64			slice;			/* curr's admitted slice */
-	u64			exec_snap;		/* sum_exec_runtime at admission */
+	s64			served;			/* curr's served time */
 	struct timer_list	timer;			/* paces admission and escalation */
 	u64			kill_at;		/* last ejection, init before any */
 };
