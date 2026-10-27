@@ -691,6 +691,9 @@ bool is_chained_smb2_message(struct ksmbd_work *work)
 	hdr = ksmbd_req_buf_next(work);
 	next_cmd = le32_to_cpu(hdr->NextCommand);
 	if (next_cmd > 0) {
+		size_t next_rsp_sz = MAX_CIFS_SMALL_BUFFER_SIZE;
+		struct smb2_hdr *next_hdr;
+
 		if ((u64)work->next_smb2_rcv_hdr_off + next_cmd +
 			__SMB2_HEADER_STRUCTURE_SIZE >
 		    get_rfc1002_len(work->request_buf)) {
@@ -699,8 +702,19 @@ bool is_chained_smb2_message(struct ksmbd_work *work)
 			return false;
 		}
 
-		if ((u64)get_rfc1002_len(work->response_buf) + MAX_CIFS_SMALL_BUFFER_SIZE >
-		    work->response_sz) {
+		/*
+		 * The next response starts at the 8-byte aligned end of this one.
+		 * smb2_open() appends create contexts without checking the space
+		 * left, so reserve the largest CREATE response for a chained
+		 * CREATE, as smb2_allocate_rsp_buf() does for a single one.
+		 */
+		next_hdr = (struct smb2_hdr *)((char *)hdr + next_cmd);
+		if (le16_to_cpu(next_hdr->Command) == SMB2_CREATE_HE)
+			next_rsp_sz = max_t(size_t, next_rsp_sz,
+					    work->conn->vals->create_rsp_size);
+
+		if ((u64)ALIGN(get_rfc1002_len(work->response_buf), 8) +
+		    next_rsp_sz > work->response_sz) {
 			pr_err("next response offset exceeds response buffer size\n");
 			return false;
 		}
