@@ -2071,11 +2071,22 @@ static void isp1760_endpoint_disable(struct usb_hcd *hcd,
 	struct isp1760_qh *qh, *qh_iter;
 	int i;
 
+rescan:
 	spin_lock_irqsave(&priv->lock, spinflags);
 
 	qh = ep->hcpriv;
 	if (!qh)
 		goto out;
+
+	/*
+	 * The hub driver still has a pointer to the endpoint. Wait until it
+	 * has called isp1760_clear_tt_buffer_complete().
+	 */
+	if (qh->tt_buffer_dirty) {
+		spin_unlock_irqrestore(&priv->lock, spinflags);
+		schedule_timeout_uninterruptible(1);
+		goto rescan;
+	}
 
 	WARN_ON(!list_empty(&qh->qtd_list));
 
