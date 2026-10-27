@@ -301,6 +301,7 @@ static void ksmbd_session_rpc_free(struct ksmbd_session_rpc *entry)
 {
 	if (refcount_dec_and_test(&entry->refcount)) {
 		ksmbd_rpc_id_free(entry->id);
+		kvfree(entry->pending);
 		kfree(entry);
 	}
 }

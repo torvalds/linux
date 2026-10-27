@@ -19,6 +19,7 @@
 #define PREAUTH_HASHVALUE_SIZE		64
 
 struct ksmbd_file_table;
+struct ksmbd_rpc_command;
 struct ksmbd_work;
 
 struct ksmbd_session_rpc {
@@ -27,6 +28,8 @@ struct ksmbd_session_rpc {
 	struct mutex		lock;
 	refcount_t		refcount;
 	bool			closed;
+	struct ksmbd_rpc_command *pending;
+	unsigned int		pending_offset;
 };
 
 struct channel {

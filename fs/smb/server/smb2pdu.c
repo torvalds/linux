@@ -9284,6 +9284,17 @@ static __le32 smb2_pipe_error_status(int err, __le32 fallback)
 	}
 }
 
+static void smb2_pipe_response_done(struct ksmbd_session_rpc *rpc,
+				    unsigned int nbytes)
+{
+	rpc->pending_offset += nbytes;
+	if (rpc->pending_offset == rpc->pending->payload_sz) {
+		kvfree(rpc->pending);
+		rpc->pending = NULL;
+		rpc->pending_offset = 0;
+	}
+}
+
 /**
  * smb2_read_pipe() - handler for smb2 read from IPC pipe
  * @work:	smb work containing read IPC pipe command buffer
@@ -9292,12 +9303,14 @@ static __le32 smb2_pipe_error_status(int err, __le32 fallback)
  */
 static noinline int smb2_read_pipe(struct ksmbd_work *work)
 {
-	int nbytes = 0, err;
+	unsigned int nbytes = 0, length;
 	u64 id;
 	struct ksmbd_rpc_command *rpc_resp;
 	struct ksmbd_session_rpc *rpc;
 	struct smb2_read_req *req;
 	struct smb2_read_rsp *rsp;
+	void *aux_payload_buf;
+	int err;
 
 	WORK_BUFFERS(work, req, rsp);
 
@@ -9316,46 +9329,61 @@ static noinline int smb2_read_pipe(struct ksmbd_work *work)
 	rpc = ksmbd_session_rpc_get(work, id);
 	if (IS_ERR(rpc)) {
 		err = PTR_ERR(rpc);
-		rpc_resp = NULL;
 		goto out;
 	}
-	rpc_resp = ksmbd_rpc_read(work->sess, rpc);
-	if (rpc_resp) {
-		void *aux_payload_buf;
 
+	length = le32_to_cpu(req->Length);
+	if (!length)
+		goto empty;
+
+	if (!rpc->pending) {
+		rpc_resp = ksmbd_rpc_read(work->sess, rpc);
+		if (!rpc_resp) {
+			err = -EIO;
+			goto out_put;
+		}
 		if (rpc_resp->flags != KSMBD_RPC_OK) {
+			kvfree(rpc_resp);
 			err = -EINVAL;
 			goto out_put;
 		}
-
-		aux_payload_buf =
-			kvmalloc(ALIGN(rpc_resp->payload_sz, 8),
-				 KSMBD_DEFAULT_GFP);
-		if (!aux_payload_buf) {
-			err = -ENOMEM;
-			goto out_put;
-		}
-
-		memcpy(aux_payload_buf, rpc_resp->payload, rpc_resp->payload_sz);
-		if (rpc_resp->payload_sz & 7)
-			memset(aux_payload_buf + rpc_resp->payload_sz, 0,
-			       ALIGN(rpc_resp->payload_sz, 8) -
-			       rpc_resp->payload_sz);
-
-		nbytes = rpc_resp->payload_sz;
-		err = ksmbd_iov_pin_rsp_read(work, (void *)rsp,
-					     offsetof(struct smb2_read_rsp, Buffer),
-					     aux_payload_buf, nbytes);
-		if (err) {
-			kvfree(aux_payload_buf);
-			goto out_put;
-		}
-		kvfree(rpc_resp);
-	} else {
-		err = -EIO;
-		goto out_put;
+		rpc->pending = rpc_resp;
 	}
 
+	rpc_resp = rpc->pending;
+	nbytes = min(length, rpc_resp->payload_sz - rpc->pending_offset);
+	if (!nbytes) {
+		smb2_pipe_response_done(rpc, 0);
+		goto empty;
+	}
+
+	aux_payload_buf = kvmalloc(ALIGN(nbytes, 8), KSMBD_DEFAULT_GFP);
+	if (!aux_payload_buf) {
+		err = -ENOMEM;
+		goto out_put;
+	}
+	memcpy(aux_payload_buf, rpc_resp->payload + rpc->pending_offset, nbytes);
+	if (nbytes & 7)
+		memset(aux_payload_buf + nbytes, 0, ALIGN(nbytes, 8) - nbytes);
+
+	err = ksmbd_iov_pin_rsp_read(work, rsp,
+				     offsetof(struct smb2_read_rsp, Buffer),
+				     aux_payload_buf, nbytes);
+	if (err) {
+		kvfree(aux_payload_buf);
+		goto out_put;
+	}
+	smb2_pipe_response_done(rpc, nbytes);
+	if (rpc->pending)
+		rsp->hdr.Status = STATUS_BUFFER_OVERFLOW;
+	goto done;
+
+empty:
+	err = ksmbd_iov_pin_rsp(work, rsp,
+				offsetof(struct smb2_read_rsp, Buffer));
+	if (err)
+		goto out_put;
+done:
 	rsp->StructureSize = cpu_to_le16(17);
 	rsp->DataOffset = 80;
 	rsp->Reserved = 0;
@@ -9371,7 +9399,6 @@ out:
 	rsp->hdr.Status = smb2_pipe_error_status(err,
 						STATUS_UNEXPECTED_IO_ERROR);
 	smb2_set_err_rsp(work);
-	kvfree(rpc_resp);
 	return err;
 }
 
@@ -9969,7 +9996,7 @@ static noinline int smb2_write_pipe(struct ksmbd_work *work)
 	if (IS_ERR(rpc)) {
 		err = PTR_ERR(rpc);
 		rsp->hdr.Status = smb2_pipe_error_status(err,
-							STATUS_INVALID_HANDLE);
+							 STATUS_INVALID_HANDLE);
 		smb2_set_err_rsp(work);
 		return err;
 	}
@@ -11462,14 +11489,21 @@ static int fsctl_pipe_transceive(struct ksmbd_work *work, u64 id,
 	struct ksmbd_rpc_command *rpc_resp;
 	struct ksmbd_session_rpc *rpc;
 	char *data_buf = (char *)req + le32_to_cpu(req->InputOffset);
-	unsigned int nbytes;
-	int err;
+	unsigned int nbytes = 0;
+	int ret;
 
 	rpc = ksmbd_session_rpc_get(work, id);
 	if (IS_ERR(rpc)) {
-		err = PTR_ERR(rpc);
-		rsp->hdr.Status = smb2_pipe_error_status(err,
-							STATUS_INVALID_PARAMETER);
+		ret = PTR_ERR(rpc);
+		rsp->hdr.Status = smb2_pipe_error_status(ret,
+						 STATUS_INVALID_PARAMETER);
+		smb2_set_err_rsp(work);
+		return 0;
+	}
+
+	if (rpc->pending) {
+		ksmbd_session_rpc_put(rpc);
+		rsp->hdr.Status = STATUS_PIPE_BUSY;
 		smb2_set_err_rsp(work);
 		return 0;
 	}
@@ -11484,39 +11518,36 @@ static int fsctl_pipe_transceive(struct ksmbd_work *work, u64 id,
 	}
 
 	if (rpc_resp->flags == KSMBD_RPC_SOME_NOT_MAPPED) {
-		/*
-		 * set STATUS_SOME_NOT_MAPPED response
-		 * for unknown domain sid.
-		 */
 		rsp->hdr.Status = STATUS_SOME_NOT_MAPPED;
 	} else if (rpc_resp->flags == KSMBD_RPC_ENOTIMPLEMENTED) {
 		rsp->hdr.Status = STATUS_NOT_SUPPORTED;
-		goto error;
+		goto free_resp;
 	} else if (rpc_resp->flags != KSMBD_RPC_OK) {
 		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
-		goto error;
-	}
-
-	nbytes = rpc_resp->payload_sz;
-	if (rpc_resp->payload_sz > out_buf_len) {
-		rsp->hdr.Status = STATUS_BUFFER_OVERFLOW;
-		nbytes = out_buf_len;
+		goto free_resp;
 	}
 
 	if (!rpc_resp->payload_sz) {
 		rsp->hdr.Status = STATUS_UNEXPECTED_IO_ERROR;
-		goto error;
+		goto free_resp;
 	}
-
-	memcpy((char *)rsp->Buffer, rpc_resp->payload, nbytes);
-	err = smb2_ioctl_rsp(work, rsp, FSCTL_PIPE_TRANSCEIVE, nbytes);
+	rpc->pending = rpc_resp;
+	nbytes = rpc_resp->payload_sz - rpc->pending_offset;
+	if (nbytes > out_buf_len) {
+		rsp->hdr.Status = STATUS_BUFFER_OVERFLOW;
+		nbytes = out_buf_len;
+	}
+	memcpy(rsp->Buffer, rpc_resp->payload + rpc->pending_offset, nbytes);
+	ret = smb2_ioctl_rsp(work, rsp, FSCTL_PIPE_TRANSCEIVE, nbytes);
+	if (!ret)
+		smb2_pipe_response_done(rpc, nbytes);
 	ksmbd_session_rpc_put(rpc);
-	kvfree(rpc_resp);
-	return err;
+	return ret;
 
-error:
-	ksmbd_session_rpc_put(rpc);
+free_resp:
 	kvfree(rpc_resp);
+	rsp->hdr.Status = smb2_pipe_error_status(-EINVAL, rsp->hdr.Status);
+	ksmbd_session_rpc_put(rpc);
 	smb2_set_err_rsp(work);
 	return 0;
 }
@@ -11851,7 +11882,7 @@ int smb2_ioctl(struct ksmbd_work *work)
 		rsp->VolatileFileId = id;
 		out_buf_len = min_t(u32, KSMBD_IPC_MAX_PAYLOAD, out_buf_len);
 		ret = fsctl_pipe_transceive(work, id, out_buf_len, req, rsp);
-		if (ret < 0)
+		if (ret)
 			goto out;
 		return 0;
 	case FSCTL_VALIDATE_NEGOTIATE_INFO:
@@ -12232,16 +12263,7 @@ dup_ext_out:
 		goto out;
 	}
 
-	rsp->CtlCode = cpu_to_le32(cnt_code);
-	rsp->InputCount = cpu_to_le32(0);
-	rsp->InputOffset = cpu_to_le32(112);
-	rsp->OutputOffset = cpu_to_le32(112);
-	rsp->OutputCount = cpu_to_le32(nbytes);
-	rsp->StructureSize = cpu_to_le16(49);
-	rsp->Reserved = cpu_to_le16(0);
-	rsp->Flags = cpu_to_le32(0);
-	rsp->Reserved2 = cpu_to_le32(0);
-	ret = ksmbd_iov_pin_rsp(work, rsp, sizeof(struct smb2_ioctl_rsp) + nbytes);
+	ret = smb2_ioctl_rsp(work, rsp, cnt_code, nbytes);
 	if (!ret)
 		return ret;
 
