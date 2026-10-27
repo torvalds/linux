@@ -876,6 +876,7 @@ static int fuse_create_open(const struct mnt_idmap *idmap, struct inode *dir,
 	args.out_args[0].value = &outentry;
 	/* Store outarg for fuse_finish_open() */
 	outopenp = &ff->args->open_outarg;
+	args.out_argvar = true; /* compat */
 	args.out_args[1].size = sizeof(*outopenp);
 	args.out_args[1].value = outopenp;
 
@@ -885,7 +886,7 @@ static int fuse_create_open(const struct mnt_idmap *idmap, struct inode *dir,
 
 	err = fuse_simple_idmap_request(idmap, fm, &args);
 	free_ext_value(&args);
-	if (err)
+	if (err < 0)
 		goto out_free_ff;
 
 	err = -EIO;
@@ -1031,7 +1032,6 @@ static struct dentry *create_new_entry(const struct mnt_idmap *idmap, struct fus
 	}
 	kfree(forget);
 
-	d_drop(entry);
 	d = d_splice_alias(inode, entry);
 	if (IS_ERR(d))
 		return d;
@@ -2175,12 +2175,15 @@ int fuse_do_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		is_truncate = true;
 	}
 
-	if (FUSE_IS_DAX(inode) && is_truncate) {
+	if (FUSE_IS_VDAX(inode) && is_truncate) {
 		filemap_invalidate_lock(mapping);
 		fault_blocked = true;
-		err = fuse_dax_break_layouts(inode, 0, -1);
+		err = fuse_vdax_break_layouts(inode, 0, -1);
 		if (err)
 			goto unlock;
+	} else if (IS_DAX(inode) && is_truncate) {
+		/* No truncate for DAX yet */
+		return -EINVAL;
 	}
 
 	if (attr->ia_valid & ATTR_OPEN) {

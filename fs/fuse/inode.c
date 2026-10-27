@@ -100,7 +100,7 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	if (!fi->forget)
 		goto out_free;
 
-	if (IS_ENABLED(CONFIG_FUSE_DAX) && !fuse_dax_inode_alloc(sb, fi))
+	if (IS_ENABLED(CONFIG_FUSE_VDAX) && !fuse_vdax_inode_alloc(sb, fi))
 		goto out_free_forget;
 
 	if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
@@ -121,12 +121,9 @@ static void fuse_free_inode(struct inode *inode)
 
 	mutex_destroy(&fi->mutex);
 	kfree(fi->forget);
-#ifdef CONFIG_FUSE_DAX
-	kfree(fi->dax);
+#ifdef CONFIG_FUSE_VDAX
+	kfree(fi->vdax);
 #endif
-	if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
-		fuse_backing_put(fuse_inode_backing(fi));
-
 	kmem_cache_free(fuse_inode_cachep, fi);
 }
 
@@ -148,7 +145,7 @@ static void fuse_evict_inode(struct inode *inode)
 	/* Will write inode on close/munmap and in all other dirtiers */
 	WARN_ON(inode_state_read_once(inode) & I_DIRTY_INODE);
 
-	if (FUSE_IS_DAX(inode))
+	if (IS_DAX(inode))
 		dax_break_layout_final(inode);
 
 	truncate_inode_pages_final(&inode->i_data);
@@ -156,8 +153,8 @@ static void fuse_evict_inode(struct inode *inode)
 	if (inode->i_sb->s_flags & SB_ACTIVE) {
 		struct fuse_conn *fc = get_fuse_conn(inode);
 
-		if (FUSE_IS_DAX(inode))
-			fuse_dax_inode_cleanup(inode);
+		if (FUSE_IS_VDAX(inode))
+			fuse_vdax_inode_cleanup(inode);
 		if (fi->nlookup) {
 			fuse_chan_queue_forget(fc->chan, fi->forget, fi->nodeid,
 					       fi->nlookup);
@@ -177,6 +174,9 @@ static void fuse_evict_inode(struct inode *inode)
 		if (inode->i_nlink > 0)
 			atomic64_inc(&fc->evict_ctr);
 	}
+	if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
+		fuse_backing_put(fuse_inode_backing(fi));
+
 	if (S_ISREG(inode->i_mode) && !fuse_is_bad(inode)) {
 		WARN_ON(fi->iocachectr != 0);
 		WARN_ON(!list_empty(&fi->write_files));
@@ -385,8 +385,8 @@ static void fuse_change_attributes_i(struct inode *inode, struct fuse_attr *attr
 			invalidate_inode_pages2(inode->i_mapping);
 	}
 
-	if (IS_ENABLED(CONFIG_FUSE_DAX))
-		fuse_dax_dontcache(inode, attr->flags);
+	if (IS_ENABLED(CONFIG_FUSE_VDAX))
+		fuse_vdax_dontcache(inode, attr->flags);
 }
 
 void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
@@ -403,6 +403,10 @@ static void fuse_init_submount_lookup(struct fuse_submount_lookup *sl,
 	refcount_set(&sl->count, 1);
 }
 
+static const struct address_space_operations fuse_dax_aops = {
+	.dirty_folio	= noop_dirty_folio,
+};
+
 static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr,
 			    struct fuse_conn *fc)
 {
@@ -413,6 +417,11 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr,
 	if (S_ISREG(inode->i_mode)) {
 		fuse_init_common(inode);
 		fuse_init_file_inode(inode, attr->flags);
+
+		if ((attr->flags & FUSE_ATTR_DAX) && !fuse_inode_vdax(inode)) {
+			inode->i_flags |= S_DAX;
+			inode->i_data.a_ops = &fuse_dax_aops;
+		}
 	} else if (S_ISDIR(inode->i_mode))
 		fuse_init_dir(inode);
 	else if (S_ISLNK(inode->i_mode))
@@ -803,6 +812,15 @@ static int fuse_opt_fd(struct fs_context *fsc, struct file *file)
 	if (file->f_cred->user_ns != fsc->user_ns)
 		return invalfc(fsc, "wrong user namespace for fuse device");
 
+	/*
+	 * Record whether the server opened /dev/fuse with CAP_SYS_ADMIN in the
+	 * initial user namespace -- the same privilege that mounting virtiofs
+	 * or fuseblk requires.  Only such servers are trusted to receive
+	 * FUSE_SYNCFS (see fuse_syncfs_enable()).
+	 */
+	ctx->syncfs_capable = file_ns_capable(file, &init_user_ns,
+					      CAP_SYS_ADMIN);
+
 	ctx->fud = fuse_dev_grab(file);
 
 	return 0;
@@ -944,12 +962,12 @@ static int fuse_show_options(struct seq_file *m, struct dentry *root)
 		if (sb->s_bdev && sb->s_blocksize != FUSE_DEFAULT_BLKSIZE)
 			seq_printf(m, ",blksize=%lu", sb->s_blocksize);
 	}
-#ifdef CONFIG_FUSE_DAX
-	if (fc->dax_mode == FUSE_DAX_ALWAYS)
+#ifdef CONFIG_FUSE_VDAX
+	if (fc->vdax_mode == FUSE_VDAX_ALWAYS)
 		seq_puts(m, ",dax=always");
-	else if (fc->dax_mode == FUSE_DAX_NEVER)
+	else if (fc->vdax_mode == FUSE_VDAX_NEVER)
 		seq_puts(m, ",dax=never");
-	else if (fc->dax_mode == FUSE_DAX_INODE_USER)
+	else if (fc->vdax_mode == FUSE_VDAX_INODE_USER)
 		seq_puts(m, ",dax=inode");
 #endif
 
@@ -1007,8 +1025,8 @@ void fuse_conn_put(struct fuse_conn *fc)
 	if (!refcount_dec_and_test(&fc->count))
 		return;
 
-	if (IS_ENABLED(CONFIG_FUSE_DAX))
-		fuse_dax_conn_free(fc);
+	if (IS_ENABLED(CONFIG_FUSE_VDAX))
+		fuse_vdax_conn_free(fc);
 	cancel_work_sync(&fc->epoch_work);
 	fuse_chan_release(fc->chan);
 	put_pid_ns(fc->pid_ns);
@@ -1269,6 +1287,16 @@ struct fuse_init_args {
 	struct fuse_mount *fm;
 };
 
+/*
+ * A server can stall syncfs()/sync(), so only honor FUSE_HAS_SYNCFS for
+ * servers that opened /dev/fuse with CAP_SYS_ADMIN in the initial user
+ * namespace -- the same privilege required to mount virtiofs or fuseblk.
+ */
+static bool fuse_syncfs_enable(struct fuse_conn *fc, u64 flags)
+{
+	return (flags & FUSE_HAS_SYNCFS) && fc->syncfs_capable;
+}
+
 static void process_init_reply(struct fuse_args *args, int error)
 {
 	struct fuse_init_args *ia = container_of(args, typeof(*ia), args);
@@ -1354,13 +1382,13 @@ static void process_init_reply(struct fuse_args *args, int error)
 				if (fc->max_pages > 1)
 					fc->name_max = FUSE_NAME_MAX;
 			}
-			if (IS_ENABLED(CONFIG_FUSE_DAX)) {
+			if (IS_ENABLED(CONFIG_FUSE_VDAX)) {
 				if (flags & FUSE_MAP_ALIGNMENT &&
-				    !fuse_dax_check_alignment(fc, arg->map_alignment)) {
+				    !fuse_vdax_check_alignment(fc, arg->map_alignment)) {
 					ok = false;
 				}
 				if (flags & FUSE_HAS_INODE_DAX)
-					fc->inode_dax = 1;
+					fc->inode_vdax = 1;
 			}
 			if (flags & FUSE_HANDLE_KILLPRIV_V2) {
 				fc->handle_killpriv_v2 = 1;
@@ -1389,13 +1417,17 @@ static void process_init_reply(struct fuse_args *args, int error)
 			 * them together.
 			 */
 			if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH) &&
-			    (flags & FUSE_PASSTHROUGH) &&
+			    (flags & (FUSE_PASSTHROUGH | FUSE_PASSTHROUGH_V2)) &&
 			    arg->max_stack_depth > 0 &&
 			    arg->max_stack_depth <= FILESYSTEM_MAX_STACK_DEPTH &&
 			    !(flags & FUSE_WRITEBACK_CACHE))  {
 				fc->passthrough = 1;
 				fc->max_stack_depth = arg->max_stack_depth;
 				fm->sb->s_stack_depth = arg->max_stack_depth;
+				if (flags & FUSE_PASSTHROUGH_V2) {
+					fc->backing_id_64 = true;
+					fuse_backing_files_init_64(fc);
+				}
 			}
 			if (flags & FUSE_NO_EXPORT_SUPPORT)
 				fm->sb->s_export_op = &fuse_export_fid_operations;
@@ -1410,6 +1442,9 @@ static void process_init_reply(struct fuse_args *args, int error)
 
 			if (flags & FUSE_REQUEST_TIMEOUT)
 				timeout = arg->request_timeout;
+
+			if (fuse_syncfs_enable(fc, flags))
+				fc->sync_fs = 1;
 		} else {
 			ra_pages = fc->max_read / PAGE_SIZE;
 			fc->no_lock = 1;
@@ -1469,16 +1504,21 @@ static struct fuse_init_args *fuse_new_init(struct fuse_mount *fm)
 		FUSE_HAS_EXPIRE_ONLY | FUSE_DIRECT_IO_ALLOW_MMAP |
 		FUSE_NO_EXPORT_SUPPORT | FUSE_HAS_RESEND | FUSE_ALLOW_IDMAP |
 		FUSE_REQUEST_TIMEOUT;
-#ifdef CONFIG_FUSE_DAX
-	if (fm->fc->dax)
+#ifdef CONFIG_FUSE_VDAX
+	if (fm->fc->vdax)
 		flags |= FUSE_MAP_ALIGNMENT;
-	if (fuse_is_inode_dax_mode(fm->fc->dax_mode))
+	if (fuse_is_inode_vdax_mode(fm->fc->vdax_mode))
 		flags |= FUSE_HAS_INODE_DAX;
 #endif
 	if (fm->fc->auto_submounts)
 		flags |= FUSE_SUBMOUNTS;
 	if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
-		flags |= FUSE_PASSTHROUGH;
+		flags |= FUSE_PASSTHROUGH | FUSE_PASSTHROUGH_V2;
+	/* Only offered to sufficiently privileged servers; see
+	 * fuse_syncfs_enable().
+	 */
+	if (fm->fc->syncfs_capable)
+		flags |= FUSE_HAS_SYNCFS;
 
 	if (fuse_uring_enabled())
 		flags |= FUSE_OVER_IO_URING | FUSE_HAS_IO_URING_BUFPOOL;
@@ -1629,6 +1669,8 @@ static int fuse_fill_super_submount(struct super_block *sb,
 	WARN_ON(sb->s_bdi != &noop_backing_dev_info);
 	sb->s_bdi = bdi_get(parent_sb->s_bdi);
 
+	sb->s_flags |= parent_sb->s_flags & SB_POSIXACL;
+
 	sb->s_xattr = parent_sb->s_xattr;
 	sb->s_export_op = parent_sb->s_export_op;
 	sb->s_time_gran = parent_sb->s_time_gran;
@@ -1751,8 +1793,8 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 
 	sb->s_subtype = ctx->subtype;
 	ctx->subtype = NULL;
-	if (IS_ENABLED(CONFIG_FUSE_DAX)) {
-		err = fuse_dax_conn_alloc(fc, ctx->dax_mode, ctx->dax_dev);
+	if (IS_ENABLED(CONFIG_FUSE_VDAX)) {
+		err = fuse_vdax_conn_alloc(fc, ctx->vdax_mode, ctx->vdax_dev);
 		if (err)
 			goto err;
 	}
@@ -1761,7 +1803,7 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	fm->sb = sb;
 	err = fuse_bdi_init(fc, sb);
 	if (err)
-		goto err_free_dax;
+		goto err_free_vdax;
 
 	/* Handle umasking inside the fuse code */
 	if (sb->s_flags & SB_POSIXACL)
@@ -1770,6 +1812,7 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 
 	fc->default_permissions = ctx->default_permissions;
 	fc->allow_other = ctx->allow_other;
+	fc->syncfs_capable = ctx->syncfs_capable;
 	fc->user_id = ctx->user_id;
 	fc->group_id = ctx->group_id;
 	fc->legacy_opts_show = ctx->legacy_opts_show;
@@ -1783,7 +1826,7 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	set_default_d_op(sb, &fuse_dentry_operations);
 	root_dentry = d_make_root(root);
 	if (!root_dentry)
-		goto err_free_dax;
+		goto err_free_vdax;
 
 	mutex_lock(&fuse_mutex);
 	err = -EINVAL;
@@ -1809,9 +1852,9 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
  err_unlock:
 	mutex_unlock(&fuse_mutex);
 	dput(root_dentry);
- err_free_dax:
-	if (IS_ENABLED(CONFIG_FUSE_DAX))
-		fuse_dax_conn_free(fc);
+ err_free_vdax:
+	if (IS_ENABLED(CONFIG_FUSE_VDAX))
+		fuse_vdax_conn_free(fc);
  err:
 	return err;
 }

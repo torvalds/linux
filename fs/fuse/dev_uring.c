@@ -893,6 +893,12 @@ static int fuse_uring_args_to_ring(struct fuse_req *req,
 	fuse_copy_finish(&cs);
 	if (err) {
 		pr_info_ratelimited("%s fuse_copy_args failed\n", __func__);
+		/*
+		 * fuse-uring does not use pipe buffers, so -EIO here can only
+		 * mean the in-args did not fit ent->payload
+		 */
+		if (err == -EIO && args->opcode == FUSE_SETXATTR)
+			err = -E2BIG;
 		return err;
 	}
 

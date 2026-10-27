@@ -106,8 +106,15 @@ TEST_F(fusectl, abort)
 	char path_buf[PATH_MAX];
 	int abort_fd, test_fd, ret;
 
-	sprintf(path_buf, "/sys/fs/fuse/connections/%d/abort", self->connection);
+	snprintf(path_buf, PATH_MAX, "%s/%d", FUSECTL_MOUNTPOINT,
+		 self->connection);
+	if (access(path_buf, F_OK) != 0)
+		SKIP(return,
+		     "fusectl doesn't seem to be mounted: %s",
+		     strerror(errno));
 
+	snprintf(path_buf, PATH_MAX, "%s/%d/abort", FUSECTL_MOUNTPOINT,
+		 self->connection);
 	ASSERT_EQ(0, access(path_buf, F_OK));
 
 	abort_fd = open(path_buf, O_WRONLY);

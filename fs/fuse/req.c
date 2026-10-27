@@ -11,12 +11,12 @@ static int fuse_fill_creds(struct fuse_mount *fm, struct fuse_args *args,
 	kuid_t fsuid = mapped_fsuid(idmap, fc->user_ns);
 	kgid_t fsgid = mapped_fsgid(idmap, fc->user_ns);
 
+	if (args->nocreds)
+		return 0;
+
 	args->pid = pid_nr_ns(task_pid(current), fc->pid_ns);
 
 	if (args->force) {
-		if (args->nocreds)
-			return 0;
-
 		if (no_idmap) {
 			args->uid = from_kuid_munged(fc->user_ns, current_fsuid());
 			args->gid = from_kgid_munged(fc->user_ns, current_fsgid());
@@ -27,7 +27,6 @@ static int fuse_fill_creds(struct fuse_mount *fm, struct fuse_args *args,
 		return 0;
 	}
 
-	WARN_ON(args->nocreds);
 	/*
 	 * Keep the old behavior when idmappings support was not
 	 * declared by a FUSE server.
