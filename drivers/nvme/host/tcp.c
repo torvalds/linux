@@ -2079,7 +2079,6 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl, int qid,
 		}
 	}
 
-	queue->hdr_digest = nctrl->opts->hdr_digest;
 	queue->data_digest = nctrl->opts->data_digest;
 
 	rcv_pdu_size = sizeof(struct nvme_tcp_rsp_pdu) +
@@ -3229,10 +3228,13 @@ static struct nvme_tcp_ctrl *nvme_tcp_alloc_ctrl(struct device *dev,
 	/*
 	 * The I/O tag set is allocated before the I/O queues, and initializing
 	 * its requests already allocates the PDUs from the page frag caches of
-	 * the queues, so initialize their locks here.
+	 * the queues, sized by their header digest setting, so set up the
+	 * locks and hdr_digest here.
 	 */
-	for (i = 0; i < ctrl->ctrl.queue_count; i++)
+	for (i = 0; i < ctrl->ctrl.queue_count; i++) {
 		mutex_init(&ctrl->queues[i].pf_cache_lock);
+		ctrl->queues[i].hdr_digest = opts->hdr_digest;
+	}
 
 	ctrl->net = get_net(current->nsproxy->net_ns);
 
