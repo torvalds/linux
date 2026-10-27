@@ -113,7 +113,7 @@ enum scx_ent_flags {
 	 *   alone.
 	 * - Reenqueue scans skip the task.
 	 * - put_prev_task_scx() keeps a preempted task on the local DSQ.
-	 * - Scheduler slice writes and preemption still apply.
+	 * - Schedulers may shorten the slice, never extend it.
 	 */
 	SCX_TASK_KERNEL_SLICE	= 1 << 8, /* slice owned by the kernel */
 

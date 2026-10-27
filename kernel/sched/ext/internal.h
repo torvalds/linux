@@ -1343,8 +1343,10 @@ struct scx_event_stats {
 	s64		SCX_EV_SLICE_CLAMPED;
 
 	/*
-	 * The number of times a slice extension was denied because the
-	 * scheduler lacked baseline cpu access on the task's cpu.
+	 * The number of times a slice write was refused. A raise is refused
+	 * without baseline cpu access on the task's cpu and on a kernel slice.
+	 * Every write is refused on a protected slice, a preemption's zeroing
+	 * included.
 	 */
 	s64		SCX_EV_SLICE_DENIED;
 
