@@ -81,6 +81,9 @@ static inline bool watchdog_need_worker(struct watchdog_device *wdd)
 	unsigned int hm = wdd->max_hw_heartbeat_ms;
 	unsigned int t = wdd->timeout * 1000;
 
+	if (test_bit(_WDOG_SUSPENDED, &wdd->wd_data->status))
+		return false;
+
 	/*
 	 * A worker to generate heartbeat requests is needed if all of the
 	 * following conditions are true.
@@ -154,9 +157,10 @@ static int __watchdog_ping(struct watchdog_device *wdd)
 	now = ktime_get();
 
 	if (ktime_after(earliest_keepalive, now)) {
-		hrtimer_start(&wd_data->timer,
-			      ktime_sub(earliest_keepalive, now),
-			      HRTIMER_MODE_REL_HARD);
+		if (!test_bit(_WDOG_SUSPENDED, &wd_data->status))
+			hrtimer_start(&wd_data->timer,
+				      ktime_sub(earliest_keepalive, now),
+				      HRTIMER_MODE_REL_HARD);
 		return 0;
 	}
 
@@ -207,7 +211,7 @@ static bool watchdog_worker_should_ping(struct watchdog_core_data *wd_data)
 {
 	struct watchdog_device *wdd = wd_data->wdd;
 
-	if (!wdd)
+	if (!wdd || test_bit(_WDOG_SUSPENDED, &wd_data->status))
 		return false;
 
 	if (watchdog_active(wdd))
@@ -1318,6 +1322,8 @@ int watchdog_dev_suspend(struct watchdog_device *wdd)
 	mutex_lock(&wd_data->lock);
 	if (watchdog_worker_should_ping(wd_data))
 		ret = __watchdog_ping(wd_data->wdd);
+	if (!ret)
+		set_bit(_WDOG_SUSPENDED, &wd_data->status);
 	mutex_unlock(&wd_data->lock);
 
 	if (ret)
@@ -1346,6 +1352,7 @@ int watchdog_dev_resume(struct watchdog_device *wdd)
 	 * ping worker if needed.
 	 */
 	mutex_lock(&wd_data->lock);
+	clear_bit(_WDOG_SUSPENDED, &wd_data->status);
 	if (watchdog_worker_should_ping(wd_data))
 		ret = __watchdog_ping(wd_data->wdd);
 	mutex_unlock(&wd_data->lock);
