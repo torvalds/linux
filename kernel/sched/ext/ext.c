@@ -3500,8 +3500,12 @@ has_tasks:
 	 *
 	 * - A non-IMMED HEAD task can get queued in front of an IMMED task
 	 *   between the IMMED queueing and the subsequent scheduling event.
+	 *
+	 * - When dispatch keeps @prev, even a lone IMMED task queued during the
+	 *   dispatch can't run right away.
 	 */
-	if (unlikely(rq->scx.local_dsq.nr > 1 && rq->scx.nr_immed))
+	if (unlikely((rq->scx.local_dsq.nr > 1 || verdict == SCX_DSP_PREV) &&
+		     rq->scx.nr_immed))
 		scx_schedule_reenq_local(rq, 0);
 
 	rq->scx.flags &= ~SCX_RQ_IN_DISPATCH;
