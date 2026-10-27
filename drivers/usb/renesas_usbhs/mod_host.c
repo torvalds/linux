@@ -633,6 +633,7 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
 	struct urb *urb = ureq->urb;
 	struct device *dev = usbhs_priv_to_dev(priv);
+	unsigned long flags;
 	int status = 0;
 
 	dev_dbg(dev, "%s\n", __func__);
@@ -652,7 +653,10 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 
 	usbhsh_pipe_detach(hpriv, usbhsh_ep_to_uep(urb->ep));
 
+	usbhs_lock(priv, flags);
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
+	usbhs_unlock(priv, flags);
+
 	usb_hcd_giveback_urb(hcd, urb, status);
 }
 
@@ -955,6 +959,7 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	struct usb_host_endpoint *ep = urb->ep;
 	struct usbhsh_device *new_udev = NULL;
 	int is_dir_in = usb_pipein(urb->pipe);
+	unsigned long flags;
 	int ret;
 
 	dev_dbg(dev, "%s (%s)\n", __func__, is_dir_in ? "in" : "out");
@@ -965,7 +970,9 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 		goto usbhsh_urb_enqueue_error_not_linked;
 	}
 
+	usbhs_lock(priv, flags);
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
+	usbhs_unlock(priv, flags);
 	if (ret) {
 		dev_err(dev, "urb link failed\n");
 		goto usbhsh_urb_enqueue_error_not_linked;
