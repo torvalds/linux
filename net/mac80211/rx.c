@@ -4233,6 +4233,7 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 
 	while ((skb = __skb_dequeue(frames))) {
 		struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+		int link_id;
 
 		/*
 		 * Most fields are valid across frames. However,
@@ -4241,18 +4242,27 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 		 * and link_sta accordingly.
 		 */
 		rx->skb = skb;
+		link_id = status->link_id == IEEE80211_LINK_UNSPECIFIED ? -1 : status->link_id;
 		if (ieee80211_vif_is_mld(&rx->sdata->vif) &&
-		    unlikely(rx->link_id != status->link_id)) {
-			if (rx->sta) {
-				rx->link_sta =
-					rcu_dereference(rx->sta->link[rx->link_id]);
+		    unlikely(rx->link_id != link_id)) {
+			rx->link_id = link_id;
 
-				/* Link got disabled, just use deflink */
+			if (link_id >= 0)
+				rx->link = rcu_dereference(rx->sdata->link[link_id]);
+			else
+				rx->link = &rx->sdata->deflink;
+
+			if (rx->sta) {
+				if (WARN_ON_ONCE(link_id < 0))
+					rx->link_sta = NULL;
+				else
+					rx->link_sta =
+						rcu_dereference(rx->sta->link[link_id]);
+
+				/* Link disabled or invalid, just use deflink */
 				if (!rx->link_sta)
 					rx->link_sta = &rx->sta->deflink;
 			}
-			rx->link_id = status->link_id;
-			rx->link = rcu_dereference(rx->sdata->link[status->link_id]);
 		}
 
 		if (WARN_ON_ONCE(!rx->link)) {
@@ -5185,7 +5195,8 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	}
 
 	status = IEEE80211_SKB_RXCB(skb);
-	status->link_id = rx->link_id < 0 ? 0 : rx->link_id;
+	status->link_id =
+		rx->link_id < 0 ? IEEE80211_LINK_UNSPECIFIED : rx->link_id;
 
 	ieee80211_rx_8023(rx, fast_rx, orig_len);
 
@@ -5256,7 +5267,8 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 	}
 
 	status = IEEE80211_SKB_RXCB(rx->skb);
-	status->link_id = rx->link_id < 0 ? 0 : rx->link_id;
+	status->link_id =
+		rx->link_id < 0 ? IEEE80211_LINK_UNSPECIFIED : rx->link_id;
 
 	if (ieee80211_is_s1g_beacon(hdr->frame_control)) {
 		ieee80211_invoke_rx_handlers(rx);
