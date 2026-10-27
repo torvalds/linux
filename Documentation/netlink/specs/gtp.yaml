@@ -194,3 +194,4 @@ mcast-groups:
   list:
     -
       name: gtp
+      flags: [uns-admin-perm]
