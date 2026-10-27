@@ -2391,7 +2391,7 @@ static void scratch_widened_reg_id(struct bpf_verifier_env *env, struct bpf_reg_
 {
 	switch (base_type(reg->type)) {
 	case SCALAR_VALUE:
-		reg->id = 0;
+		clear_scalar_id(reg);
 		break;
 	case PTR_TO_PACKET:
 	case PTR_TO_PACKET_META:

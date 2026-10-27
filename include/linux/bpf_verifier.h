@@ -1313,6 +1313,12 @@ static inline bool bpf_is_force_checkpoint(struct bpf_verifier_env *env, int ins
 	return env->insn_aux_data[insn_idx].force_checkpoint;
 }
 
+static inline void clear_scalar_id(struct bpf_reg_state *reg)
+{
+	reg->id = 0;
+	reg->delta = 0;
+}
+
 static inline void mark_calls_callback(struct bpf_verifier_env *env, int idx)
 {
 	env->insn_aux_data[idx].calls_callback = true;
