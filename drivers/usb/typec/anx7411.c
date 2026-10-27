@@ -552,7 +552,7 @@ static int anx7411_typec_register_altmode(struct anx7411_data *ctx,
 					  int svid, int vdo)
 {
 	struct device *dev = &ctx->spi_client->dev;
-	struct typec_altmode_desc desc;
+	struct typec_altmode_desc desc = {};
 	int err;
 	int i;
 
