@@ -2897,6 +2897,14 @@ int bpf_clamp_scev_regs(struct bpf_verifier_env *env, struct bpf_func_state *cur
 		    is_unbound_scev_reg(env, entry_st, r))
 			continue;
 
+		/*
+		 * A call in the loop can change the type: it invalidates packet pointers or
+		 * releases a reference. The bounds are the offsets of the pointer at the entry.
+		 * They say nothing about the value that is in the register now.
+		 */
+		if (reg->type != entry_reg->type)
+			continue;
+
 		linear_bounds(entry_reg, max_header_count, &coefs, &bounds);
 		if (log->level & BPF_LOG_LEVEL2) {
 			bpf_log(log, "loop header at %d, clamping ", insn_idx);
