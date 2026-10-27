@@ -43,11 +43,17 @@ static int tusb1046_mux_set(struct typec_mux_dev *mux,
 	struct tusb1046_priv *priv = typec_mux_get_drvdata(mux);
 	struct i2c_client *client = priv->client;
 	struct device *dev = &client->dev;
+	unsigned long req = state->mode;
 	int mode, val, ret = 0;
 
-	if (state->mode >= TYPEC_STATE_MODAL &&
-	    state->alt->svid != USB_TYPEC_DP_SID)
-		return -EINVAL;
+	if (req >= TYPEC_STATE_MODAL) {
+		/* USB and accessory modes: not the DP pin assignments */
+		if (!state->alt)
+			req = req == TYPEC_MODE_USB3 ? TYPEC_STATE_USB :
+						       TYPEC_STATE_SAFE;
+		else if (state->alt->svid != USB_TYPEC_DP_SID)
+			return -EINVAL;
+	}
 
 	dev_dbg(dev, "mux mode requested: %lu\n", state->mode);
 
@@ -60,7 +66,7 @@ static int tusb1046_mux_set(struct typec_mux_dev *mux,
 		goto out_unlock;
 	}
 
-	switch (state->mode) {
+	switch (req) {
 	case TYPEC_STATE_USB:
 		mode = TUSB1046_CTLSEL_USB3;
 		break;
