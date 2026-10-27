@@ -2379,7 +2379,6 @@ static bool is_widenable_reg_type(const struct bpf_reg_state *reg)
 	case PTR_TO_PACKET:
 	case PTR_TO_PACKET_META:
 	case PTR_TO_MEM:
-	case PTR_TO_BUF:
 	case PTR_TO_BTF_ID:
 		return true;
 	default:
