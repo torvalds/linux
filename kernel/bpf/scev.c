@@ -2914,6 +2914,13 @@ int bpf_clamp_scev_regs(struct bpf_verifier_env *env, struct bpf_func_state *cur
 			bpf_log(log, "\n");
 		}
 		scratch_widened_reg_id(env, reg);
+		/*
+		 * The range of a packet pointer goes together with its id and with the offsets
+		 * that it had in the compare with pkt_end. Both are replaced here. What holds for
+		 * the new offsets is the range at the entry.
+		 */
+		if (type_is_pkt_pointer(reg->type))
+			reg->range = max(entry_reg->range, 0);
 		err = bpf_set_reg_range(env, reg, bounds.r64, bounds.r32,
 					bounds.base, bounds.step);
 		if (err)
