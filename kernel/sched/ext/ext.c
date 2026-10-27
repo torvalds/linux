@@ -388,8 +388,12 @@ static const struct sched_class *scx_setscheduler_class(struct task_struct *p)
 	return __setscheduler_class(p->policy, p->prio);
 }
 
-static struct scx_dispatch_q *bypass_enq_target_dsq(struct scx_sched *sch, s32 cpu)
+static struct scx_dispatch_q *bypass_enq_target_dsq(struct scx_sched *sch, struct rq *rq,
+						    struct task_struct *p, u64 *enq_flags)
 {
+	struct scx_sched *host = scx_exec_sched(sch, cpu_of(rq));
+	struct scx_dispatch_q *dsq;
+
 	/*
 	 * If @sch is a sub-sched which is bypassing, its tasks should go into
 	 * the bypass DSQs of the nearest ancestor which is not bypassing. The
@@ -400,8 +404,29 @@ static struct scx_dispatch_q *bypass_enq_target_dsq(struct scx_sched *sch, s32 c
 	 * Whenever a sched starts bypassing, all runnable tasks in its subtree
 	 * are re-enqueued after scx_bypassing() is turned on, guaranteeing that
 	 * all tasks are transferred to the right DSQs.
+	 *
+	 * A cpu's dispatch only descends into a host holding %SCX_CAP_BASE on
+	 * it, so the bypass DSQ of a host without BASE here is never consumed.
+	 * Send @p to rescue on this cpu instead, resolving against @host.
+	 * scx_dispatch_enqueue() resolves a local DSQ again, against the
+	 * bypassing @sch. %SCX_ENQ_IGNORE_CAPS makes that second resolution
+	 * admit @p.
+	 *
+	 * A migration-disabled task can't leave this cpu, and a task with a
+	 * migration pending must run here until the migration moves it. Either
+	 * would wait on the unconsumed bypass DSQ until the host regains BASE.
+	 * Resolve them too when rescue is disabled. The resolution admits both
+	 * to the local DSQ, as it does any insert of such a task.
 	 */
-	return scx_bypass_dsq(scx_exec_sched(sch, cpu), cpu);
+	if (unlikely(scx_missing_caps(host, cpu_of(rq), SCX_CAP_BASE)) &&
+	    (scx_rescue_enabled() || is_migration_disabled(p) || p->migration_pending)) {
+		*enq_flags |= SCX_ENQ_RESCUE;
+		dsq = scx_resolve_local_dsq(host, rq, p, enq_flags);
+		*enq_flags |= SCX_ENQ_IGNORE_CAPS;
+	} else {
+		dsq = scx_bypass_dsq(host, cpu_of(rq));
+	}
+	return dsq;
 }
 
 /**
@@ -2353,7 +2378,7 @@ global:
 	dsq = find_global_dsq(sch, task_cpu(p));
 	goto enqueue;
 bypass:
-	dsq = bypass_enq_target_dsq(sch, task_cpu(p));
+	dsq = bypass_enq_target_dsq(sch, rq, p, &enq_flags);
 	goto enqueue;
 
 enqueue:
@@ -3735,8 +3760,13 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 		 * The exception is an IMMED donor put by proxy_resched_idle():
 		 * the CPU isn't busy, proxy resolution is only retrying through
 		 * idle, so keep the donor where it can be picked again.
+		 *
+		 * A task with a kernel slice stays on the local DSQ even while
+		 * @sch bypasses. Under bypass, rescue runs @p when the host
+		 * lacks %SCX_CAP_BASE, see bypass_enq_target_dsq().
 		 */
-		if (p->scx.slice && !scx_bypassing(sch, cpu_of(rq))) {
+		if (p->scx.slice && (!scx_bypassing(sch, cpu_of(rq)) ||
+				     scx_task_has_kernel_slice(p))) {
 			if ((p->scx.flags & SCX_TASK_IMMED) && !proxy_put) {
 				p->scx.flags |= SCX_TASK_REENQ_PREEMPTED;
 				scx_do_enqueue_task(rq, p, SCX_ENQ_REENQ, -1);
@@ -4987,11 +5017,14 @@ static void switched_from_scx(struct rq *rq, struct task_struct *p)
 	 * parent's own teardown). There is nothing to disable; calling
 	 * scx_disable_task() would WARN on the non-%ENABLED state and trigger a
 	 * NONE -> READY validation failure.
+	 *
+	 * @p can still be a rescuee under the parent. End its slice as
+	 * scx_disable_task() does for an enabled task.
 	 */
 	if (scx_get_task_state(p) == SCX_TASK_NONE)
-		return;
-
-	scx_disable_task(scx_task_sched(p), p);
+		scx_task_slice_ended(rq, p);
+	else
+		scx_disable_task(scx_task_sched(p), p);
 }
 
 static void switched_to_scx(struct rq *rq, struct task_struct *p) {}
@@ -6930,7 +6963,8 @@ static void unbypass_renotify_idle(struct rq *rq, struct scx_sched *pos,
  * - ops.dispatch() is ignored.
  *
  * - ops.sub_ecaps_updated() and ops.sub_child_ecaps_updated() are still called.
- *   The bypassed tasks are on the bypass DSQs, out of their reach.
+ *   The bypassed tasks are on the bypass DSQs, under rescue or admitted to a
+ *   local DSQ, out of their reach.
  *
  * - dispatch_one() expires prev's slice before its keep test as the slice can't
  *   be trusted. Each tick does the same and rotates the running task to the

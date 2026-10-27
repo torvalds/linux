@@ -36,7 +36,7 @@ static DEFINE_STATIC_KEY_FALSE(__scx_ops_cid_sched_updated_enabled);
 static s32 scx_nr_ops_cid_sched_updated;	/* such scheds, under scx_enable_mutex */
 
 /* latched at root enable before any rescue runs */
-static s32 scx_rescue_bw_1024;
+s32 scx_rescue_bw_1024;			/* 0 if disabled, see scx_rescue_enabled() */
 static s64 scx_rescue_quantum_ns;
 static s64 scx_rescue_sat_delta_ns;
 static unsigned long scx_rescue_decay_halflife;
@@ -519,8 +519,8 @@ void scx_rescue_end(struct rq *rq)
  * rescuee. dispatch_one() keeps it running and put_prev_task_scx() reinserts it
  * at the tail of the local DSQ, behind whatever preempted the rescuee.
  *
- * Return %false to end the rescue instead - the slice is already fully served,
- * @p is leaving the rq or bypass is dismantling rescues.
+ * Return %false to end the rescue instead - the slice is already fully served
+ * or @p is leaving the rq.
  */
 bool scx_rescue_keep(struct rq *rq, struct task_struct *p)
 {
@@ -528,8 +528,7 @@ bool scx_rescue_keep(struct rq *rq, struct task_struct *p)
 
 	lockdep_assert_rq_held(rq);
 
-	if (!remaining || !(p->scx.flags & SCX_TASK_QUEUED) ||
-	    scx_bypassing(scx_task_sched(p), cpu_of(rq)))
+	if (!remaining || !(p->scx.flags & SCX_TASK_QUEUED))
 		return false;
 
 	/* never called on a protected rescuee, so the write can't be refused */
@@ -887,9 +886,11 @@ void scx_rescue_init(struct rq *rq)
  * %SCX_ENQ_PREEMPT_LAZY are also cleared on a fallback migration-disabled
  * admission.
  *
- * Bypass doesn't need special-casing as a bypassing sched's tasks are enqueued
- * to and run by its nearest non-bypassing ancestor. If root is bypassing, it
- * always holds all caps.
+ * bypass_enq_target_dsq() also calls this with the host as @sch when the host
+ * lacks %SCX_CAP_BASE on @rq's cid, if rescue is enabled or @p must run on the
+ * cpu, migration-disabled or with a migration pending. The bypassed task is
+ * then admitted or diverted like a capless %SCX_ENQ_RESCUE insert by the host
+ * itself.
  */
 struct scx_dispatch_q *__scx_resolve_local_dsq(struct scx_sched *sch, struct rq *rq,
 					       struct task_struct *p, u64 *enq_flags)
@@ -932,7 +933,7 @@ struct scx_dispatch_q *__scx_resolve_local_dsq(struct scx_sched *sch, struct rq 
 	scx_divert_strip_flags(p, enq_flags);
 
 	/* the enqueuer opted for rescue instead of rejection and reenqueue */
-	if ((*enq_flags & SCX_ENQ_RESCUE) && likely(scx_rescue_bw_1024)) {
+	if (scx_rescue_enabled() && (*enq_flags & SCX_ENQ_RESCUE)) {
 		__scx_add_event(sch, SCX_EV_SUB_RESCUE, 1);
 		if (scx_rescue_try_admit(rq, p))
 			return &rq->scx.local_dsq;
@@ -1656,8 +1657,9 @@ static void scx_rehome_task(struct scx_sched *to, struct task_struct *p)
  *
  * Used when @to must take over @p but failed to initialize it. Bypass keeps
  * scheduling decisions away from @to but @p can still trigger its task ops,
- * which may confuse the BPF side. @to is dying anyway. The exit paths skip
- * %NONE tasks (see __scx_disable_and_exit_task() and switched_from_scx()).
+ * which may confuse the BPF side. @to is dying anyway. The exit paths call no
+ * op on a %NONE task. __scx_disable_and_exit_task() skips it and
+ * switched_from_scx() only ends its slice.
  */
 static void scx_punt_task(struct scx_sched *to, struct task_struct *p)
 {

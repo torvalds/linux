@@ -924,8 +924,9 @@ struct sched_ext_ops {
 	 * ops.sub_attach() and any change since are reported then. A cpu that
 	 * isn't online at that point reports them once it comes online.
 	 * Deliveries continue while this sched bypasses. Its tasks are then on
-	 * the bypass DSQs, where this op can't insert or move them. Deliveries
-	 * stop once this sched is being disabled.
+	 * the bypass DSQs, under rescue or admitted to a local DSQ, where this
+	 * op can't insert or move them. Deliveries stop once this sched is
+	 * being disabled.
 	 *
 	 * Until this sched is being disabled, whenever an op of this sched runs
 	 * under a cid's rq lock, its effective caps on the cid are the @after

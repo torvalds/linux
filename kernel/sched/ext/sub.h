@@ -14,6 +14,8 @@
 
 #ifdef CONFIG_EXT_SUB_SCHED
 
+extern s32 scx_rescue_bw_1024;
+
 struct scx_sched *scx_skip_subtree_pre(struct scx_sched *pos, struct scx_sched *root);
 struct scx_sched *scx_next_descendant_pre(struct scx_sched *pos, struct scx_sched *root);
 void scx_cid_sched_update(struct rq *rq, struct scx_sched *sch);
@@ -50,6 +52,12 @@ void scx_rescue_flush(struct rq *rq);
 void scx_rescue_dump(struct seq_buf *s, struct rq *rq);
 void scx_rescue_set_knobs(struct scx_sched *sch);
 void scx_rescue_init(struct rq *rq);
+
+/* false only when the root disabled rescue, see scx_rescue_set_knobs() */
+static inline bool scx_rescue_enabled(void)
+{
+	return likely(scx_rescue_bw_1024);
+}
 
 /*
  * cgrp->scx_sched is written by root/sub enable/disable under all of
@@ -128,6 +136,7 @@ static inline void scx_rescue_end(struct rq *rq) {}
 static inline bool scx_rescue_keep(struct rq *rq, struct task_struct *p) { return false; }
 static inline void scx_rescue_flush(struct rq *rq) {}
 static inline void scx_rescue_dump(struct seq_buf *s, struct rq *rq) {}
+static inline bool scx_rescue_enabled(void) { return false; }
 static inline void scx_rescue_set_knobs(struct scx_sched *sch) {}
 static inline void scx_rescue_init(struct rq *rq) {}
 static inline void scx_dec_has_subs(struct scx_sched *sch) {}
