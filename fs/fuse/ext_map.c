@@ -213,10 +213,6 @@ static int fuse_ext_map_iomap_begin(struct inode *inode, loff_t offset, loff_t l
 static DEFINE_IOMAP_ITER_NEXT(fuse_ext_map_iomap_next,
 			      fuse_ext_map_iomap_begin);
 
-static const struct iomap_ops fuse_ext_map_iomap_ops = {
-	.iomap_next		= fuse_ext_map_iomap_next,
-};
-
 static vm_fault_t fuse_ext_map_huge_fault(struct vm_fault *vmf, unsigned int order)
 {
 	struct inode *inode = file_inode(vmf->vma->vm_file);
@@ -237,7 +233,7 @@ static vm_fault_t fuse_ext_map_huge_fault(struct vm_fault *vmf, unsigned int ord
 
 	filemap_invalidate_lock_shared(inode->i_mapping);
 
-	ret = dax_iomap_fault(vmf, order, &pfn, NULL, &fuse_ext_map_iomap_ops);
+	ret = dax_iomap_fault(vmf, order, &pfn, NULL, fuse_ext_map_iomap_next);
 	if (ret & VM_FAULT_NEEDDSYNC)
 		ret = dax_finish_sync_fault(vmf, order, pfn);
 
@@ -286,7 +282,7 @@ ssize_t fuse_ext_map_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	if (!IS_ENABLED(CONFIG_FS_DAX))
 		return -EIO;
 
-	res = dax_iomap_rw(iocb, to, &fuse_ext_map_iomap_ops);
+	res = dax_iomap_rw(iocb, to, fuse_ext_map_iomap_next);
 
 	file_accessed(iocb->ki_filp);
 	return res;
@@ -312,7 +308,7 @@ ssize_t fuse_ext_map_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (!IS_ENABLED(CONFIG_FS_DAX))
 		return -EIO;
 
-	return dax_iomap_rw(iocb, from, &fuse_ext_map_iomap_ops);
+	return dax_iomap_rw(iocb, from, fuse_ext_map_iomap_next);
 }
 
 int fuse_ext_map_mmap(struct file *file, struct vm_area_struct *vma)

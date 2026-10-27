@@ -67,8 +67,4 @@ static int nilfs_iomap_begin(struct inode *inode, loff_t offset,
 	return 0;
 }
 
-static DEFINE_IOMAP_ITER_NEXT(nilfs_iomap_next, nilfs_iomap_begin);
-
-const struct iomap_ops nilfs_iomap_ops = {
-	.iomap_next = nilfs_iomap_next,
-};
+DEFINE_IOMAP_ITER_NEXT(nilfs_iomap_next, nilfs_iomap_begin);

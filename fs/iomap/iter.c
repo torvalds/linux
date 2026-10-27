@@ -101,7 +101,7 @@ EXPORT_SYMBOL_GPL(iomap_iter_continue);
 /**
  * iomap_iter - iterate over ranges in a file
  * @iter: iteration structure
- * @ops: iomap ops provided by the filesystem
+ * @next: the iomap iteration function for the filesystem
  *
  * Iterate over filesystem-provided space mappings for the provided file range.
  *
@@ -113,14 +113,13 @@ EXPORT_SYMBOL_GPL(iomap_iter_continue);
  * of the loop body:  leave @iter.status unchanged, or set it to a negative
  * errno.
  */
-int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops)
+int iomap_iter(struct iomap_iter *iter, iomap_iter_next_fn next)
 {
 	int ret;
 
-	trace_iomap_iter(iter, ops, _RET_IP_);
+	trace_iomap_iter(iter, next, _RET_IP_);
 
-	ret = ops->iomap_next(iter, &iter->iomap, &iter->srcmap);
-
+	ret = next(iter, &iter->iomap, &iter->srcmap);
 	iter->status = 0;
 	if (ret > 0)
 		iomap_iter_done(iter);

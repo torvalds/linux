@@ -851,7 +851,7 @@ retry:
 		goto out_uninit;
 	pagefault_disable();
 	to->nofault = true;
-	ret = iomap_dio_rw(iocb, to, &gfs2_iomap_ops, NULL,
+	ret = iomap_dio_rw(iocb, to, gfs2_iomap_next, NULL,
 			   IOMAP_DIO_PARTIAL, NULL, read);
 	to->nofault = false;
 	pagefault_enable();
@@ -917,7 +917,7 @@ retry:
 		goto out_unlock;
 
 	from->nofault = true;
-	ret = iomap_dio_rw(iocb, from, &gfs2_iomap_ops, NULL,
+	ret = iomap_dio_rw(iocb, from, gfs2_iomap_next, NULL,
 			   IOMAP_DIO_PARTIAL, NULL, written);
 	from->nofault = false;
 	if (ret <= 0) {
@@ -1069,7 +1069,7 @@ retry:
 		goto out_unlock;
 
 	pagefault_disable();
-	ret = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops,
+	ret = iomap_file_buffered_write(iocb, from, gfs2_iomap_next,
 			&gfs2_iomap_write_ops, NULL);
 	pagefault_enable();
 	if (ret > 0)
