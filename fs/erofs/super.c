@@ -851,8 +851,7 @@ static int erofs_fc_get_tree(struct fs_context *fc)
 			errorfc(fc, "source fd option not supported");
 			return -EINVAL;
 		}
-		if (!S_ISREG(file_inode(sbi->dif0.file)->i_mode) ||
-		    !sbi->dif0.file->f_mapping->a_ops->read_folio) {
+		if (!S_ISREG(file_inode(sbi->dif0.file)->i_mode)) {
 			errorfc(fc, "source is unsupported");
 			return -EINVAL;
 		}
@@ -872,8 +871,7 @@ static int erofs_fc_get_tree(struct fs_context *fc)
 			return PTR_ERR(file);
 		sbi->dif0.file = file;
 
-		if (S_ISREG(file_inode(sbi->dif0.file)->i_mode) &&
-		    sbi->dif0.file->f_mapping->a_ops->read_folio)
+		if (S_ISREG(file_inode(sbi->dif0.file)->i_mode))
 			return erofs_file_get_tree(fc);
 	}
 	return ret;
