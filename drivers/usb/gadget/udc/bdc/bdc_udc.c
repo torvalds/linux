@@ -218,7 +218,8 @@ static void handle_link_state_change(struct bdc *bdc, u32 uspc)
 	case BDC_LINK_STATE_RESUME:
 		dev_dbg(bdc->dev, "Resumed from Suspend\n");
 		if (bdc->devstatus & DEVICE_SUSPENDED) {
-			bdc->gadget_driver->resume(&bdc->gadget);
+			if (bdc->gadget_driver->resume)
+				bdc->gadget_driver->resume(&bdc->gadget);
 			bdc->devstatus &= ~DEVICE_SUSPENDED;
 		}
 		break;
