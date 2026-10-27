@@ -55,6 +55,7 @@
 static dev_t watchdog_devt;
 /* Reference to watchdog device behind /dev/watchdog */
 static struct watchdog_core_data *old_wd_data;
+static DEFINE_MUTEX(old_wd_data_lock);
 
 static struct kthread_worker *watchdog_kworker;
 
@@ -869,17 +870,32 @@ static int watchdog_open(struct inode *inode, struct file *file)
 	int err;
 
 	/* Get the corresponding watchdog device */
-	if (imajor(inode) == MISC_MAJOR)
+	if (imajor(inode) == MISC_MAJOR) {
+		mutex_lock(&old_wd_data_lock);
 		wd_data = old_wd_data;
-	else
+		if (!wd_data) {
+			mutex_unlock(&old_wd_data_lock);
+			return -ENODEV;
+		}
+		mutex_lock(&wd_data->lock);
+		mutex_unlock(&old_wd_data_lock);
+	} else {
 		wd_data = container_of(inode->i_cdev, struct watchdog_core_data,
 				       cdev);
+		mutex_lock(&wd_data->lock);
+	}
 
 	/* the watchdog is single open! */
-	if (test_and_set_bit(_WDOG_DEV_OPEN, &wd_data->status))
+	if (test_and_set_bit(_WDOG_DEV_OPEN, &wd_data->status)) {
+		mutex_unlock(&wd_data->lock);
 		return -EBUSY;
+	}
 
 	wdd = wd_data->wdd;
+	if (!wdd) {
+		err = -ENODEV;
+		goto out_clear;
+	}
 
 	/*
 	 * If the /dev/watchdog device is open, we don't want the module
@@ -909,6 +925,8 @@ static int watchdog_open(struct inode *inode, struct file *file)
 	 */
 	wd_data->open_deadline = KTIME_MAX;
 
+	mutex_unlock(&wd_data->lock);
+
 	/* dev/watchdog is a virtual (and thus non-seekable) filesystem */
 	return stream_open(inode, file);
 
@@ -916,6 +934,7 @@ out_mod:
 	module_put(wd_data->wdd->ops->owner);
 out_clear:
 	clear_bit(_WDOG_DEV_OPEN, &wd_data->status);
+	mutex_unlock(&wd_data->lock);
 	return err;
 }
 
@@ -1085,7 +1104,9 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 			wdd->id,  MAJOR(watchdog_devt), wdd->id);
 		if (wdd->id == 0) {
 			misc_deregister(&watchdog_miscdev);
+			mutex_lock(&old_wd_data_lock);
 			old_wd_data = NULL;
+			mutex_unlock(&old_wd_data_lock);
 		}
 		mutex_lock(&wd_data->lock);
 		wd_data->wdd = NULL;
@@ -1131,9 +1152,12 @@ static void watchdog_cdev_unregister(struct watchdog_device *wdd)
 	cdev_device_del(&wd_data->cdev, &wd_data->dev);
 	if (wdd->id == 0) {
 		misc_deregister(&watchdog_miscdev);
+		mutex_lock(&old_wd_data_lock);
 		old_wd_data = NULL;
+		mutex_unlock(&old_wd_data_lock);
 	}
 
+	mutex_lock(&wd_data->lock);
 	if (watchdog_active(wdd) &&
 	    test_bit(WDOG_STOP_ON_UNREGISTER, &wdd->status)) {
 		watchdog_stop(wdd);
@@ -1141,7 +1165,6 @@ static void watchdog_cdev_unregister(struct watchdog_device *wdd)
 
 	watchdog_hrtimer_pretimeout_stop(wdd);
 
-	mutex_lock(&wd_data->lock);
 	wd_data->wdd = NULL;
 	wdd->wd_data = NULL;
 	mutex_unlock(&wd_data->lock);
@@ -1208,20 +1231,27 @@ int watchdog_set_last_hw_keepalive(struct watchdog_device *wdd,
 {
 	struct watchdog_core_data *wd_data;
 	ktime_t now;
+	int ret = 0;
 
 	if (!wdd)
 		return -EINVAL;
 
 	wd_data = wdd->wd_data;
+	if (!wd_data)
+		return -ENODEV;
+
+	mutex_lock(&wd_data->lock);
 
 	now = ktime_get();
 
 	wd_data->last_hw_keepalive = ktime_sub(now, ms_to_ktime(last_ping_ms));
 
 	if (watchdog_hw_running(wdd) && handle_boot_enabled)
-		return __watchdog_ping(wdd);
+		ret = __watchdog_ping(wdd);
 
-	return 0;
+	mutex_unlock(&wd_data->lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(watchdog_set_last_hw_keepalive);
 
