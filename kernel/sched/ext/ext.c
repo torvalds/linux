@@ -11831,6 +11831,22 @@ static const struct btf_kfunc_id_set scx_kfunc_set_any = {
 };
 
 /*
+ * Kfuncs which may take the rq lock on their unlocked path.
+ *
+ * A tracing program can execute in any kernel context, including ones which
+ * already hold the rq lock (e.g. sched_switch). scx_locked_rq() only tracks
+ * rq locks taken for SCX callbacks, so from such a context it returns NULL
+ * and these kfuncs would acquire the already held rq lock again and deadlock
+ * the CPU. They cannot be made safe for tracing programs, so keep them off
+ * the tracing hook. Members must also stay in scx_kfunc_ids_any so that
+ * struct_ops and syscall programs keep their access.
+ */
+BTF_KFUNCS_START(scx_kfunc_ids_no_tracing)
+BTF_ID_FLAGS(func, scx_bpf_cpuperf_set, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_cidperf_set, KF_IMPLICIT_ARGS)
+BTF_KFUNCS_END(scx_kfunc_ids_no_tracing)
+
+/*
  * cpu-form kfuncs that are forbidden from cid-form schedulers
  * (bpf_sched_ext_ops_cid). Programs targeting the cid struct_ops type must
  * use the cid-form alternative (cid/cmask kfuncs).
@@ -11938,6 +11954,7 @@ int scx_kfunc_context_filter(const struct bpf_prog *prog, u32 kfunc_id)
 	bool in_any = btf_id_set8_contains(&scx_kfunc_ids_any, kfunc_id);
 	bool in_cpu_only = btf_id_set8_contains(&scx_kfunc_ids_cpu_only, kfunc_id);
 	bool in_cid = btf_id_set8_contains(&scx_kfunc_ids_cid, kfunc_id);
+	bool in_no_tracing = btf_id_set8_contains(&scx_kfunc_ids_no_tracing, kfunc_id);
 	u32 moff, flags;
 
 	/* Not an SCX kfunc - allow. */
@@ -11950,7 +11967,7 @@ int scx_kfunc_context_filter(const struct bpf_prog *prog, u32 kfunc_id)
 		return (in_unlocked || in_select_cpu || in_idle || in_any || in_cid) ? 0 : -EACCES;
 
 	if (prog->type != BPF_PROG_TYPE_STRUCT_OPS)
-		return (in_any || in_idle || in_cid) ? 0 : -EACCES;
+		return (!in_no_tracing && (in_any || in_idle || in_cid)) ? 0 : -EACCES;
 
 	/*
 	 * add_subprog_and_kfunc() collects all kfunc calls, including dead code
