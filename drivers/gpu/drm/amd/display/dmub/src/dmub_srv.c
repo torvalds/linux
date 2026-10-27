@@ -173,30 +173,43 @@ dmub_srv_get_fw_meta_info_from_raw_fw(struct dmub_srv_fw_meta_info_params *param
 	uint32_t inst_const_size_temp = params->inst_const_size;
 
 	/* First try custom psp footer size, if present */
-	if (params->custom_psp_footer_size) {
-		params->inst_const_size -= params->custom_psp_footer_size;
+	if (params->custom_psp_footer_size && inst_const_size_temp > params->custom_psp_footer_size) {
+		params->inst_const_size = inst_const_size_temp - params->custom_psp_footer_size;
 		fw_info = dmub_get_fw_meta_info(params);
 		if (fw_info) {
 			memcpy(fw_info_out, fw_info, sizeof(*fw_info));
 			return DMUB_STATUS_OK;
 		}
-		params->inst_const_size = inst_const_size_temp;
 	}
 
 	/* Try 256-byte psp footer size */
-	params->inst_const_size -= PSP_FOOTER_BYTES_256;
-	fw_info = dmub_get_fw_meta_info(params);
-	if (fw_info) {
-		memcpy(fw_info_out, fw_info, sizeof(*fw_info));
-		return DMUB_STATUS_OK;
+	if (inst_const_size_temp > PSP_FOOTER_BYTES_256) {
+		params->inst_const_size = inst_const_size_temp - PSP_FOOTER_BYTES_256;
+		fw_info = dmub_get_fw_meta_info(params);
+		if (fw_info) {
+			memcpy(fw_info_out, fw_info, sizeof(*fw_info));
+			return DMUB_STATUS_OK;
+		}
 	}
 
-	/* Try 512-byte psp footer size - final attempt */
-	params->inst_const_size -= PSP_FOOTER_BYTES_256; // 256 bytes already subtracted, subtract 256 again
-	fw_info = dmub_get_fw_meta_info(params);
-	if (fw_info) {
-		memcpy(fw_info_out, fw_info, sizeof(*fw_info));
-		return DMUB_STATUS_OK;
+	/* Try 512-byte psp footer size */
+	if (inst_const_size_temp > PSP_FOOTER_BYTES_512) {
+		params->inst_const_size = inst_const_size_temp - PSP_FOOTER_BYTES_512;
+		fw_info = dmub_get_fw_meta_info(params);
+		if (fw_info) {
+			memcpy(fw_info_out, fw_info, sizeof(*fw_info));
+			return DMUB_STATUS_OK;
+		}
+	}
+
+	/* Try 1932-byte psp footer size */
+	if (inst_const_size_temp > PSP_FOOTER_BYTES_1932) {
+		params->inst_const_size = inst_const_size_temp - PSP_FOOTER_BYTES_1932;
+		fw_info = dmub_get_fw_meta_info(params);
+		if (fw_info) {
+			memcpy(fw_info_out, fw_info, sizeof(*fw_info));
+			return DMUB_STATUS_OK;
+		}
 	}
 
 	/* Restore original inst_const_size and subtract default PSP footer size - default behaviour */

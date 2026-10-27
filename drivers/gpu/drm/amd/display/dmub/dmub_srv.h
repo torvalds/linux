@@ -76,6 +76,8 @@
 
 #define PSP_HEADER_BYTES_256 0x100 // 256 bytes
 #define PSP_FOOTER_BYTES_256 0x100 // 256 bytes
+#define PSP_FOOTER_BYTES_512 0x200 // 512 bytes
+#define PSP_FOOTER_BYTES_1932 0x78C // 1932 bytes
 
 /* Forward declarations */
 struct dmub_srv;
