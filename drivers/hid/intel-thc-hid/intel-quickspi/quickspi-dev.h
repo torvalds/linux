@@ -115,6 +115,7 @@ struct acpi_device;
  * @input_buf: store a copy of latest input report data
  * @input_len: the data size of the input report buffer
  * @report_buf: store a copy of latest input/output report packet from set/get feature
+ * @report_buf_size: the data size of input/output buffer
  * @report_len: the length of input/output report packet
  * @reset_ack_wq: workqueue for waiting reset response from device
  * @reset_ack: indicate reset response received or not
