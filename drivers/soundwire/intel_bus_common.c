@@ -202,11 +202,11 @@ int intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
 	return 0;
 }
 
-int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
+int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop, bool wake_enable)
 {
 	struct device *dev = sdw->cdns.dev;
 	struct sdw_cdns *cdns = &sdw->cdns;
-	bool wake_enable = false;
+	bool en = false;
 	int ret;
 
 	cancel_delayed_work_sync(&cdns->attach_dwork);
@@ -216,7 +216,7 @@ int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
 		if (ret < 0)
 			dev_err(dev, "%s: cannot stop clock: %d\n", __func__, ret);
 		else
-			wake_enable = true;
+			en = wake_enable;
 	}
 
 	ret = sdw_cdns_enable_interrupt(cdns, false);
@@ -231,7 +231,7 @@ int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
 		return ret;
 	}
 
-	sdw_intel_shim_wake(sdw, wake_enable);
+	sdw_intel_shim_wake(sdw, en);
 
 	return 0;
 }

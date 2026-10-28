@@ -25,7 +25,9 @@
 #define SWRM_COMP_SW_RESET					0x008
 #define SWRM_COMP_STATUS					0x014
 #define SWRM_LINK_MANAGER_EE					0x018
-#define SWRM_EE_CPU						1
+#define SWRM_EE_CPU0						0
+#define SWRM_EE_CPU1						1
+#define SWRM_EE_CPU						SWRM_EE_CPU1
 #define SWRM_FRM_GEN_ENABLED					BIT(0)
 #define SWRM_VERSION_1_3_0					0x01030000
 #define SWRM_VERSION_1_5_1					0x01050001
@@ -118,6 +120,7 @@
 #define SWRM_V2_0_CLK_CTRL					0x5060
 #define SWRM_V2_0_CLK_CTRL_CLK_START				BIT(0)
 #define SWRM_V2_0_LINK_STATUS					0x5064
+#define SWRM_V2_REG_EE_STRIDE					0x1000
 
 #define SWRM_DP_PORT_CTRL_EN_CHAN_SHFT				0x18
 #define SWRM_DP_PORT_CTRL_OFFSET2_SHFT				0x10
@@ -201,6 +204,7 @@ struct qcom_swrm_ctrl {
 	struct mutex port_lock;
 	struct clk *hclk;
 	int irq;
+	u32 ee;
 	unsigned int version;
 	int wake_irq;
 	int num_din_ports;
@@ -221,6 +225,10 @@ struct qcom_swrm_ctrl {
 	u32 slave_status;
 	u32 wr_fifo_depth;
 	bool clock_stop_not_supported;
+	/* Per-Slave SCP_ADDRPAGE1/2 shadow; -1 = unknown. */
+	s16 page1_cache[SDW_MAX_DEVICES + 1];
+	s16 page2_cache[SDW_MAX_DEVICES + 1];
+	unsigned int reg_layout_local[SWRM_OFFSET_DP_SAMPLECTRL2_BANK + 1];
 };
 
 struct qcom_swrm_data {
@@ -229,6 +237,7 @@ struct qcom_swrm_data {
 	bool sw_clk_gate_required;
 	u32 max_reg;
 	const unsigned int *reg_layout;
+	u32 ee;
 };
 
 static const unsigned int swrm_v1_3_reg_layout[] = {
@@ -255,6 +264,7 @@ static const struct qcom_swrm_data swrm_v1_3_data = {
 	.default_cols = 16,
 	.max_reg = SWR_V1_3_MSTR_MAX_REG_ADDR,
 	.reg_layout = swrm_v1_3_reg_layout,
+	.ee = SWRM_EE_CPU,
 };
 
 static const struct qcom_swrm_data swrm_v1_5_data = {
@@ -262,6 +272,7 @@ static const struct qcom_swrm_data swrm_v1_5_data = {
 	.default_cols = 16,
 	.max_reg = SWR_V1_3_MSTR_MAX_REG_ADDR,
 	.reg_layout = swrm_v1_3_reg_layout,
+	.ee = SWRM_EE_CPU,
 };
 
 static const struct qcom_swrm_data swrm_v1_6_data = {
@@ -270,6 +281,7 @@ static const struct qcom_swrm_data swrm_v1_6_data = {
 	.sw_clk_gate_required = true,
 	.max_reg = SWR_V1_3_MSTR_MAX_REG_ADDR,
 	.reg_layout = swrm_v1_3_reg_layout,
+	.ee = SWRM_EE_CPU,
 };
 
 static const unsigned int swrm_v2_0_reg_layout[] = {
@@ -297,6 +309,7 @@ static const struct qcom_swrm_data swrm_v2_0_data = {
 	.sw_clk_gate_required = true,
 	.max_reg = SWR_V2_0_MSTR_MAX_REG_ADDR,
 	.reg_layout = swrm_v2_0_reg_layout,
+	.ee = SWRM_EE_CPU,
 };
 
 static const unsigned int swrm_v3_0_reg_layout[] = {
@@ -324,8 +337,50 @@ static const struct qcom_swrm_data swrm_v3_0_data = {
 	.sw_clk_gate_required = true,
 	.max_reg = SWR_V2_0_MSTR_MAX_REG_ADDR,
 	.reg_layout = swrm_v3_0_reg_layout,
+	.ee = SWRM_EE_CPU,
+};
+
+static const struct qcom_swrm_data swrm_shikra_data = {
+	.default_rows = 50,
+	.default_cols = 16,
+	.sw_clk_gate_required = true,
+	.max_reg = SWR_V2_0_MSTR_MAX_REG_ADDR,
+	.reg_layout = swrm_v3_0_reg_layout,
+	.ee = SWRM_EE_CPU0,
 };
 #define to_qcom_sdw(b)	container_of(b, struct qcom_swrm_ctrl, bus)
+
+static void qcom_swrm_set_ee_register_layout(struct qcom_swrm_ctrl *ctrl,
+					     const struct qcom_swrm_data *data)
+{
+	int ee_offset;
+
+	memcpy(ctrl->reg_layout_local, data->reg_layout,
+	       sizeof(ctrl->reg_layout_local));
+	ctrl->reg_layout = ctrl->reg_layout_local;
+
+	if (ctrl->version < SWRM_VERSION_2_0_0)
+		return;
+
+	/*
+	 * The register layout constants are defined for EE1 (the default for
+	 * most Qualcomm SoCs). For SoCs where the SoundWire master is assigned
+	 * to EE0, the interrupt, FIFO and status register windows are shifted
+	 * by one EE stride (0x1000) relative to the EE1 base addresses.
+	 */
+	ee_offset = ((int)ctrl->ee - SWRM_EE_CPU) * SWRM_V2_REG_EE_STRIDE;
+	if (!ee_offset)
+		return;
+
+	ctrl->reg_layout_local[SWRM_REG_FRAME_GEN_ENABLED] += ee_offset;
+	ctrl->reg_layout_local[SWRM_REG_INTERRUPT_STATUS] += ee_offset;
+	ctrl->reg_layout_local[SWRM_REG_INTERRUPT_CLEAR] += ee_offset;
+	ctrl->reg_layout_local[SWRM_REG_INTERRUPT_CPU_EN] += ee_offset;
+	ctrl->reg_layout_local[SWRM_REG_CMD_FIFO_WR_CMD] += ee_offset;
+	ctrl->reg_layout_local[SWRM_REG_CMD_FIFO_RD_CMD] += ee_offset;
+	ctrl->reg_layout_local[SWRM_REG_CMD_FIFO_STATUS] += ee_offset;
+	ctrl->reg_layout_local[SWRM_REG_CMD_FIFO_RD_FIFO_ADDR] += ee_offset;
+}
 
 static int qcom_swrm_ahb_reg_read(struct qcom_swrm_ctrl *ctrl, int reg,
 				  u32 *val)
@@ -630,6 +685,10 @@ static void qcom_swrm_set_slave_dev_num(struct sdw_bus *bus,
 		mutex_lock(&bus->bus_lock);
 		set_bit(devnum, bus->assigned);
 		mutex_unlock(&bus->bus_lock);
+
+		/* Re-attach resets SCP_ADDRPAGE1/2 to defaults; invalidate. */
+		ctrl->page1_cache[devnum] = -1;
+		ctrl->page2_cache[devnum] = -1;
 	}
 }
 
@@ -903,12 +962,13 @@ static int qcom_swrm_init(struct qcom_swrm_ctrl *ctrl)
 	ctrl->reg_write(ctrl, SWRM_MCP_CFG_ADDR, val);
 
 	if (ctrl->version == SWRM_VERSION_1_7_0) {
-		ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, SWRM_EE_CPU);
+		ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, ctrl->ee);
 		ctrl->reg_write(ctrl, SWRM_MCP_BUS_CTRL,
-				SWRM_MCP_BUS_CLK_START << SWRM_EE_CPU);
+				SWRM_MCP_BUS_CLK_START << ctrl->ee);
 	} else if (ctrl->version >= SWRM_VERSION_2_0_0) {
-		ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, SWRM_EE_CPU);
-		ctrl->reg_write(ctrl, SWRM_V2_0_CLK_CTRL,
+		ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, ctrl->ee);
+		ctrl->reg_write(ctrl, SWRM_V2_0_CLK_CTRL +
+				((int)ctrl->ee - SWRM_EE_CPU) * SWRM_V2_REG_EE_STRIDE,
 				SWRM_V2_0_CLK_CTRL_CLK_START);
 	} else {
 		ctrl->reg_write(ctrl, SWRM_MCP_BUS_CTRL, SWRM_MCP_BUS_CLK_START);
@@ -934,11 +994,9 @@ static int qcom_swrm_init(struct qcom_swrm_ctrl *ctrl)
 	ctrl->reg_write(ctrl, ctrl->reg_layout[SWRM_REG_INTERRUPT_CLEAR],
 			0xFFFFFFFF);
 
-	/* enable CPU IRQs */
-	if (ctrl->mmio) {
-		ctrl->reg_write(ctrl, ctrl->reg_layout[SWRM_REG_INTERRUPT_CPU_EN],
-				SWRM_INTERRUPT_STATUS_RMSK);
-	}
+	/* enable CPU IRQs for the selected EE window */
+	ctrl->reg_write(ctrl, ctrl->reg_layout[SWRM_REG_INTERRUPT_CPU_EN],
+			SWRM_INTERRUPT_STATUS_RMSK);
 
 	/* Set IRQ to PULSE */
 	ctrl->reg_write(ctrl, SWRM_COMP_CFG_ADDR,
@@ -976,17 +1034,25 @@ static enum sdw_command_response qcom_swrm_xfer_msg(struct sdw_bus *bus,
 	int ret, i, len;
 
 	if (msg->page) {
-		ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->addr_page1,
-						msg->dev_num,
-						SDW_SCP_ADDRPAGE1);
-		if (ret)
-			return ret;
+		if (ctrl->page1_cache[msg->dev_num] != msg->addr_page1) {
+			ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->addr_page1,
+							msg->dev_num,
+							SDW_SCP_ADDRPAGE1);
+			if (ret)
+				return ret;
 
-		ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->addr_page2,
-						msg->dev_num,
-						SDW_SCP_ADDRPAGE2);
-		if (ret)
-			return ret;
+			ctrl->page1_cache[msg->dev_num] = msg->addr_page1;
+		}
+
+		if (ctrl->page2_cache[msg->dev_num] != msg->addr_page2) {
+			ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->addr_page2,
+							msg->dev_num,
+							SDW_SCP_ADDRPAGE2);
+			if (ret)
+				return ret;
+
+			ctrl->page2_cache[msg->dev_num] = msg->addr_page2;
+		}
 	}
 
 	if (msg->flags == SDW_MSG_FLAG_READ) {
@@ -1561,7 +1627,11 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 	if (!ctrl)
 		return -ENOMEM;
 
+	memset(ctrl->page1_cache, 0xff, sizeof(ctrl->page1_cache));
+	memset(ctrl->page2_cache, 0xff, sizeof(ctrl->page2_cache));
+
 	data = of_device_get_match_data(dev);
+	ctrl->ee = data->ee;
 	ctrl->max_reg = data->max_reg;
 	ctrl->reg_layout = data->reg_layout;
 	ctrl->rows_index = sdw_find_row_index(data->default_rows);
@@ -1641,6 +1711,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 	prop->default_row = data->default_rows;
 
 	ctrl->reg_read(ctrl, SWRM_COMP_HW_VERSION, &ctrl->version);
+	qcom_swrm_set_ee_register_layout(ctrl, data);
 
 	ret = devm_request_threaded_irq(dev, ctrl->irq, NULL,
 					qcom_swrm_irq_handler,
@@ -1751,16 +1822,19 @@ static int __maybe_unused swrm_runtime_resume(struct device *dev)
 		reset_control_reset(ctrl->audio_cgcr);
 
 		if (ctrl->version == SWRM_VERSION_1_7_0) {
-			ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, SWRM_EE_CPU);
+			ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, ctrl->ee);
 			ctrl->reg_write(ctrl, SWRM_MCP_BUS_CTRL,
-					SWRM_MCP_BUS_CLK_START << SWRM_EE_CPU);
+					SWRM_MCP_BUS_CLK_START << ctrl->ee);
 		} else if (ctrl->version >= SWRM_VERSION_2_0_0) {
-			ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, SWRM_EE_CPU);
-			ctrl->reg_write(ctrl, SWRM_V2_0_CLK_CTRL,
+			ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, ctrl->ee);
+			ctrl->reg_write(ctrl, SWRM_V2_0_CLK_CTRL +
+					((int)ctrl->ee - SWRM_EE_CPU) *
+					SWRM_V2_REG_EE_STRIDE,
 					SWRM_V2_0_CLK_CTRL_CLK_START);
 		} else {
 			ctrl->reg_write(ctrl, SWRM_MCP_BUS_CTRL, SWRM_MCP_BUS_CLK_START);
 		}
+
 		ctrl->reg_write(ctrl, ctrl->reg_layout[SWRM_REG_INTERRUPT_CLEAR],
 			SWRM_INTERRUPT_STATUS_MASTER_CLASH_DET);
 
@@ -1836,6 +1910,7 @@ static const struct of_device_id qcom_swrm_of_match[] = {
 	{ .compatible = "qcom,soundwire-v1.7.0", .data = &swrm_v1_5_data },
 	{ .compatible = "qcom,soundwire-v2.0.0", .data = &swrm_v2_0_data },
 	{ .compatible = "qcom,soundwire-v3.1.0", .data = &swrm_v3_0_data },
+	{ .compatible = "qcom,shikra-soundwire", .data = &swrm_shikra_data },
 	{/* sentinel */},
 };
 
