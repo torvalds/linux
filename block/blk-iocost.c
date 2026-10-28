@@ -2938,11 +2938,12 @@ static int blk_iocost_init(struct gendisk *disk)
 	struct ioc *ioc;
 	int i, cpu, ret;
 
-	ioc = kzalloc_obj(*ioc);
+	/* The caller holds rq_qos_mutex, which is taken with the queue frozen */
+	ioc = kzalloc_obj(*ioc, GFP_NOIO);
 	if (!ioc)
 		return -ENOMEM;
 
-	ioc->pcpu_stat = alloc_percpu(struct ioc_pcpu_stat);
+	ioc->pcpu_stat = alloc_percpu_gfp(struct ioc_pcpu_stat, GFP_NOIO);
 	if (!ioc->pcpu_stat) {
 		kfree(ioc);
 		return -ENOMEM;

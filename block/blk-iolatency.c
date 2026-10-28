@@ -761,7 +761,8 @@ static int blk_iolatency_init(struct gendisk *disk)
 	struct blk_iolatency *blkiolat;
 	int ret;
 
-	blkiolat = kzalloc_obj(*blkiolat);
+	/* The caller holds rq_qos_mutex, which is taken with the queue frozen */
+	blkiolat = kzalloc_obj(*blkiolat, GFP_NOIO);
 	if (!blkiolat)
 		return -ENOMEM;
 
