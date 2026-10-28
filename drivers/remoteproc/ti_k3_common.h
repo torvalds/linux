@@ -21,6 +21,10 @@
 #ifndef REMOTEPROC_TI_K3_COMMON_H
 #define REMOTEPROC_TI_K3_COMMON_H
 
+#include <linux/mailbox_client.h>
+#include <linux/platform_device.h>
+#include <linux/types.h>
+
 #define KEYSTONE_RPROC_LOCAL_ADDRESS_MASK	(SZ_16M - 1)
 
 /**

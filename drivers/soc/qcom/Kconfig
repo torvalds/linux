@@ -318,6 +318,18 @@ config QCOM_QMI_HELPERS
 	tristate
 	depends on NET
 
+config QCOM_QMI_TMD
+	tristate "Qualcomm remote subsystem TMD" if COMPILE_TEST
+	depends on NET
+	depends on ARCH_QCOM || COMPILE_TEST
+	select QRTR
+	select QCOM_QMI_HELPERS
+	help
+	  This enables Qualcomm Messaging Interface (QMI) based Thermal Mitigation
+	  Device (TMD) support for Qualcomm remote subsystems. It manages
+	  TMD messaging and handles QMI communication with remote processors
+	  to exchange mitigation state and apply thermal mitigation requests.
+
 config QCOM_UBWC_CONFIG
 	tristate
 	depends on QCOM_SMEM

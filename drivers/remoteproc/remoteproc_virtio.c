@@ -38,11 +38,12 @@ static int copy_dma_range_map(struct device *to, struct device *from)
 	for (r = map; r->size; r++)
 		num_ranges++;
 
-	new_map = kmemdup(map, array_size(num_ranges + 1, sizeof(*map)),
-			  GFP_KERNEL);
+	new_map = kmemdup_array(map, num_ranges + 1, sizeof(*map), GFP_KERNEL);
 	if (!new_map)
 		return -ENOMEM;
+
 	to->dma_range_map = new_map;
+
 	return 0;
 }
 
@@ -55,11 +56,21 @@ static struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 	return platform_get_drvdata(pdev);
 }
 
-static  struct rproc *vdev_to_rproc(struct virtio_device *vdev)
+static struct rproc *vdev_to_rproc(struct virtio_device *vdev)
 {
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 
 	return rvdev->rproc;
+}
+
+static struct fw_rsc_vdev *vdev_to_rsc(struct virtio_device *vdev)
+{
+	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
+	struct fw_rsc_vdev *rsc;
+
+	rsc = (void *)rvdev->rproc->table_ptr + rvdev->rsc_offset;
+
+	return rsc;
 }
 
 /* kick the remote processor, and let it know which virtqueue to poke at */
@@ -116,10 +127,10 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 {
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
+	struct fw_rsc_vdev *rsc = vdev_to_rsc(vdev);
 	struct device *dev = &rproc->dev;
 	struct rproc_mem_entry *mem;
 	struct rproc_vring *rvring;
-	struct fw_rsc_vdev *rsc;
 	struct virtqueue *vq;
 	void *addr;
 	int num, size;
@@ -166,7 +177,6 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	vq->priv = rvring;
 
 	/* Update vring in resource table */
-	rsc = (void *)rproc->table_ptr + rvdev->rsc_offset;
 	rsc->vring[id].da = mem->da;
 
 	return vq;
@@ -227,20 +237,14 @@ error:
 
 static u8 rproc_virtio_get_status(struct virtio_device *vdev)
 {
-	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
-	struct fw_rsc_vdev *rsc;
-
-	rsc = (void *)rvdev->rproc->table_ptr + rvdev->rsc_offset;
+	struct fw_rsc_vdev *rsc = vdev_to_rsc(vdev);
 
 	return rsc->status;
 }
 
 static void rproc_virtio_set_status(struct virtio_device *vdev, u8 status)
 {
-	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
-	struct fw_rsc_vdev *rsc;
-
-	rsc = (void *)rvdev->rproc->table_ptr + rvdev->rsc_offset;
+	struct fw_rsc_vdev *rsc = vdev_to_rsc(vdev);
 
 	rsc->status = status;
 	dev_dbg(&vdev->dev, "status: %d\n", status);
@@ -248,10 +252,7 @@ static void rproc_virtio_set_status(struct virtio_device *vdev, u8 status)
 
 static void rproc_virtio_reset(struct virtio_device *vdev)
 {
-	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
-	struct fw_rsc_vdev *rsc;
-
-	rsc = (void *)rvdev->rproc->table_ptr + rvdev->rsc_offset;
+	struct fw_rsc_vdev *rsc = vdev_to_rsc(vdev);
 
 	rsc->status = 0;
 	dev_dbg(&vdev->dev, "reset !\n");
@@ -267,10 +268,7 @@ static void rproc_virtio_synchronize_cbs(struct virtio_device *vdev)
 /* provide the vdev features as retrieved from the firmware */
 static u64 rproc_virtio_get_features(struct virtio_device *vdev)
 {
-	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
-	struct fw_rsc_vdev *rsc;
-
-	rsc = (void *)rvdev->rproc->table_ptr + rvdev->rsc_offset;
+	struct fw_rsc_vdev *rsc = vdev_to_rsc(vdev);
 
 	return rsc->dfeatures;
 }
@@ -287,10 +285,7 @@ static void rproc_transport_features(struct virtio_device *vdev)
 
 static int rproc_virtio_finalize_features(struct virtio_device *vdev)
 {
-	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
-	struct fw_rsc_vdev *rsc;
-
-	rsc = (void *)rvdev->rproc->table_ptr + rvdev->rsc_offset;
+	struct fw_rsc_vdev *rsc = vdev_to_rsc(vdev);
 
 	/* Give virtio_ring a chance to accept features */
 	vring_transport_features(vdev);
@@ -313,12 +308,8 @@ static int rproc_virtio_finalize_features(struct virtio_device *vdev)
 static void rproc_virtio_get(struct virtio_device *vdev, unsigned int offset,
 			     void *buf, unsigned int len)
 {
-	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
-	struct fw_rsc_vdev *rsc;
-	void *cfg;
-
-	rsc = (void *)rvdev->rproc->table_ptr + rvdev->rsc_offset;
-	cfg = &rsc->vring[rsc->num_of_vrings];
+	struct fw_rsc_vdev *rsc = vdev_to_rsc(vdev);
+	void *cfg = &rsc->vring[rsc->num_of_vrings];
 
 	if (offset + len > rsc->config_len || offset + len < len) {
 		dev_err(&vdev->dev, "rproc_virtio_get: access out of bounds\n");
@@ -331,12 +322,8 @@ static void rproc_virtio_get(struct virtio_device *vdev, unsigned int offset,
 static void rproc_virtio_set(struct virtio_device *vdev, unsigned int offset,
 			     const void *buf, unsigned int len)
 {
-	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
-	struct fw_rsc_vdev *rsc;
-	void *cfg;
-
-	rsc = (void *)rvdev->rproc->table_ptr + rvdev->rsc_offset;
-	cfg = &rsc->vring[rsc->num_of_vrings];
+	struct fw_rsc_vdev *rsc = vdev_to_rsc(vdev);
+	void *cfg = &rsc->vring[rsc->num_of_vrings];
 
 	if (offset + len > rsc->config_len || offset + len < len) {
 		dev_err(&vdev->dev, "rproc_virtio_set: access out of bounds\n");

@@ -6,8 +6,9 @@
 #ifndef OMAP_MAILBOX_H
 #define OMAP_MAILBOX_H
 
-typedef uintptr_t mbox_msg_t;
+typedef u32 mbox_msg_t;
 
-#define omap_mbox_message(data) (u32)(mbox_msg_t)(data)
+#define omap_mbox_to_message(data) ((void *)(uintptr_t)(data))
+#define omap_mbox_from_message(data) ((mbox_msg_t)(uintptr_t)(data))
 
 #endif /* OMAP_MAILBOX_H */
