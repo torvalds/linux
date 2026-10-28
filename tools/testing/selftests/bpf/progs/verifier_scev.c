@@ -1377,6 +1377,40 @@ __naked __noinline __used static int probe_read_stack(void)
 	: __clobber_all);
 }
 
+/*
+ * r3 = r8 + 4 is linked to r8 when it enters the loop. Widening drops the link. If
+ * it leaves the 4 behind then r4 = r3 + 1 is taken for r3 - 3 when r3 is compared:
+ * r4 <= 7 instead of r4 <= 11, and the read of r9 looks like dead code.
+ */
+SEC("socket")
+__failure __msg("R9 !read_ok")
+__naked void widened_reg_is_not_linked(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r8 = r0;"
+	"r8 &= 0xff;"
+	"r3 = r8;"
+	"r3 += 4;"
+	"r1 = 0;"
+"1:"
+	"r4 = r3;"
+	"r4 += 1;"
+	"if r3 > 10 goto 3f;"
+	"if r4 <= 7 goto 2f;"
+	"r0 = *(u64 *)(r9 + 0);"
+"2:"
+	"r3 += 1;"
+	"r1 += 1;"
+	"if r1 < 2 goto 1b;"
+"3:"
+	"r0 = r8;"
+	"exit;"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 /* The unknown SCEV of an unbound STACK_MISC slot must not prevent widening. */
 SEC("tracepoint")
 __success
@@ -3483,21 +3517,23 @@ __naked void ptr_mem_other_reservation(void)
 	: __clobber_all);
 }
 
+/* An access to a buffer at a variable offset is rejected: the pointer must not be widened. */
 SEC("iter/bpf_map_elem")
 __success
 __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
 __msg("header_count is 4 ")
-__msg("widening r6 to 0..3 step 1")
+__msg("can't widen r6, expr is (+ r6 8)")
 __naked void ptr_buf(void)
 {
 	asm volatile ("					\
 	r6 = *(u64 *)(r1 + %[value]);			\
 	if r6 == 0 goto 2f;				\
-	r7 = r6;					\
-	r7 += 4;					\
-1:	r6 += 1;					\
-	if r6 < r7 goto 1b;				\
+	r7 = 0;						\
+1:	r0 = *(u32 *)(r6 + 0);				\
+	r6 += 8;					\
+	r7 += 1;					\
+	if r7 < 4 goto 1b;				\
 2:	r0 = 0;						\
 	exit;						\
 "	:
@@ -3734,6 +3770,169 @@ __naked void post_cond_jlt32_copy(void)
 	exit;						\
 "	:
 	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/*
+ * r6 is a pointer to ringbuf memory with a step of 1. bpf_ringbuf_discard() in the first iteration
+ * makes a number of it. The offsets 0..1 of the pointer are not the range of this number: it's an
+ * address. The flag in the 32-bit spill is not widened, so the second iteration is verified
+ * on its own.
+ */
+SEC("socket")
+__failure __msg("math between map_value pointer and register with unbounded min value")
+__naked void clamp_released_pointer(void)
+{
+	asm volatile (
+	"r1 = 0;"
+	"*(u32 *)(r10 - 12) = r1;"
+	"r2 = r10;"
+	"r2 += -12;"
+	"r1 = %[small_map] ll;"
+	"call %[bpf_map_lookup_elem];"
+	"if r0 == 0 goto 9f;"
+	"r8 = r0;"
+	"r1 = %[ringbuf] ll;"
+	"r2 = 16;"
+	"r3 = 0;"
+	"call %[bpf_ringbuf_reserve];"
+	"if r0 == 0 goto 9f;"
+	"r6 = r0;"
+	"r7 = r0;"
+	"r9 = 0;"
+	"w1 = 0;"
+	"*(u32 *)(r10 - 8) = r1;"
+"1:"
+	"w4 = *(u32 *)(r10 - 8);"
+	"if w4 == 0 goto 2f;"
+	"r1 = r8;"
+	"r1 += r6;"
+	"r0 = *(u8 *)(r1 + 0);"
+	"goto 3f;"
+"2:"
+	"r1 = r7;"
+	"r2 = 0;"
+	"call %[bpf_ringbuf_discard];"
+"3:"
+	"w4 = 1;"
+	"*(u32 *)(r10 - 8) = r4;"
+	"r6 += 1;"
+	"r9 += 1;"
+	"if r9 < 2 goto 1b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm(bpf_map_lookup_elem), __imm(bpf_ringbuf_reserve), __imm(bpf_ringbuf_discard),
+	  __imm_addr(small_map), __imm_addr(ringbuf)
+	: __clobber_all);
+}
+
+/* The same with a packet pointer and bpf_skb_pull_data() */
+SEC("tc")
+__failure __msg("math between map_value pointer and register with unbounded min value")
+__naked void clamp_invalidated_pkt_pointer(void)
+{
+	asm volatile (
+	"r7 = r1;"
+	"r1 = 0;"
+	"*(u32 *)(r10 - 12) = r1;"
+	"r2 = r10;"
+	"r2 += -12;"
+	"r1 = %[small_map] ll;"
+	"call %[bpf_map_lookup_elem];"
+	"if r0 == 0 goto 9f;"
+	"r8 = r0;"
+	"r6 = *(u32 *)(r7 + %[data]);"
+	"r9 = 0;"
+	"w1 = 0;"
+	"*(u32 *)(r10 - 8) = r1;"
+"1:"
+	"w4 = *(u32 *)(r10 - 8);"
+	"if w4 == 0 goto 2f;"
+	"r1 = r8;"
+	"r1 += r6;"
+	"r0 = *(u8 *)(r1 + 0);"
+	"goto 3f;"
+"2:"
+	"r1 = r7;"
+	"r2 = 0;"
+	"call %[bpf_skb_pull_data];"
+"3:"
+	"w4 = 1;"
+	"*(u32 *)(r10 - 8) = r4;"
+	"r6 += 1;"
+	"r9 += 1;"
+	"if r9 < 2 goto 1b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm(bpf_map_lookup_elem), __imm(bpf_skb_pull_data), __imm_addr(small_map),
+	  __imm_const(data, offsetof(struct __sk_buff, data))
+	: __clobber_all);
+}
+
+/*
+ * The compare with data_end is for r6 of this iteration: 100 bytes from r6 are in the packet. Then
+ * r6 moves by 100. The range that the compare found is not for the r6 that returns to the head.
+ */
+SEC("tc")
+__failure __msg("invalid access to packet")
+__naked void clamp_pkt_pointer_keeps_no_range(void)
+{
+	asm volatile (
+	"r7 = *(u32 *)(r1 + %[data_end]);"
+	"r6 = *(u32 *)(r1 + %[data]);"
+	"r9 = 0;"
+	"w1 = 0;"
+	"*(u32 *)(r10 - 8) = r1;"
+"1:"
+	"w4 = *(u32 *)(r10 - 8);"
+	"if w4 == 0 goto 2f;"
+	/* second iteration: nothing compared this r6 with data_end */
+	"r0 = *(u64 *)(r6 + 56);"
+"2:"
+	"r5 = r6;"
+	"r5 += 100;"
+	"if r5 > r7 goto 9f;"
+	"w4 = 1;"
+	"*(u32 *)(r10 - 8) = r4;"
+	"r6 += 100;"
+	"r9 += 1;"
+	"if r9 < 2 goto 1b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_const(data, offsetof(struct __sk_buff, data)),
+	  __imm_const(data_end, offsetof(struct __sk_buff, data_end))
+	: __clobber_all);
+}
+
+/* A compare in front of the loop is for all iterations: the range at the entry stays */
+SEC("tc")
+__success __retval(0)
+__naked void clamp_pkt_pointer_keeps_range_of_entry(void)
+{
+	asm volatile (
+	"r7 = *(u32 *)(r1 + %[data_end]);"
+	"r6 = *(u32 *)(r1 + %[data]);"
+	"r5 = r6;"
+	"r5 += 40;"
+	"if r5 > r7 goto 9f;"
+	"r9 = 0;"
+"1:"
+	"r0 = *(u64 *)(r6 + 0);"
+	"r6 += 8;"
+	"r9 += 1;"
+	"if r9 < 4 goto 1b;"
+"9:"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_const(data, offsetof(struct __sk_buff, data)),
+	  __imm_const(data_end, offsetof(struct __sk_buff, data_end))
 	: __clobber_all);
 }
 

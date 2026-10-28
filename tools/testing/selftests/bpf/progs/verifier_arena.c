@@ -611,6 +611,21 @@ int mixed_arena_scalar_alu64_arena_first(void *ctx)
 }
 
 SEC("syscall")
+__description("arena: a number is not an address in arena")
+__failure __msg("R6 invalid mem access 'scalar'")
+__naked void access_through_number(void)
+{
+	asm volatile ("					\
+	r1 = %[arena] ll;				\
+	r6 = 0x100000000000 ll;				\
+	r0 = *(u64 *)(r6 + 0);				\
+	exit;						\
+"	:
+	: __imm_addr(arena)
+	: __clobber_all);
+}
+
+SEC("syscall")
 __success __retval(0)
 int scalar_xor_arena_ptr(void *ctx)
 {

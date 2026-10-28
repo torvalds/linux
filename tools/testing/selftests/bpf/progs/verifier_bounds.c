@@ -2160,6 +2160,47 @@ l0_%=:	r0 = 0;						\
 }
 
 /*
+ * The insn that forks is the head of a loop that scalar evolution counted. The state with
+ * [-1, 0] is kept there, and the state with 0 that is split off is within it.
+ */
+SEC("socket")
+__description("maybe_fork_scalars: AND at the head of a counted loop rejects OOB")
+__failure __msg("invalid access to map value")
+__naked void and_scalar_fork_at_long_loop_head_rejects_oob(void)
+{
+	asm volatile ("					\
+	r1 = 0;						\
+	*(u64*)(r10 - 8) = r1;				\
+	r2 = r10;					\
+	r2 += -8;					\
+	r1 = %[map_hash_8b] ll;				\
+	call %[bpf_map_lookup_elem];			\
+	if r0 == 0 goto l0_%=;				\
+	r9 = r0;					\
+	r7 = 0;						\
+	r6 = -1;					\
+l1_%=:	r6 &= 8;					\
+	/* r6 is 8 (current) or 0 (pushed) */		\
+	r6 ^= 8;					\
+	/* pushed path: r6 = 8, OOB for value_size=8 */	\
+	r1 = r9;					\
+	r1 += r6;					\
+	r0 = *(u8*)(r1 + 0);				\
+	r1 = *(u64*)(r9 + 0);				\
+	r6 = -1;					\
+	if r1 == 0 goto l2_%=;				\
+	r6 = 0;						\
+l2_%=:	r7 += 1;					\
+	if r7 < 100 goto l1_%=;				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_8b)
+	: __clobber_all);
+}
+
+/*
  * Last jump can be detected as always taken because the intersection of R5 and
  * R7 32bit tnums produces a constant that isn't within R7's s32 bounds.
  */

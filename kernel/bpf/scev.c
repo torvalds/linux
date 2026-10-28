@@ -2379,7 +2379,6 @@ static bool is_widenable_reg_type(const struct bpf_reg_state *reg)
 	case PTR_TO_PACKET:
 	case PTR_TO_PACKET_META:
 	case PTR_TO_MEM:
-	case PTR_TO_BUF:
 	case PTR_TO_BTF_ID:
 		return true;
 	default:
@@ -2391,7 +2390,7 @@ static void scratch_widened_reg_id(struct bpf_verifier_env *env, struct bpf_reg_
 {
 	switch (base_type(reg->type)) {
 	case SCALAR_VALUE:
-		reg->id = 0;
+		clear_scalar_id(reg);
 		break;
 	case PTR_TO_PACKET:
 	case PTR_TO_PACKET_META:
@@ -2898,6 +2897,14 @@ int bpf_clamp_scev_regs(struct bpf_verifier_env *env, struct bpf_func_state *cur
 		    is_unbound_scev_reg(env, entry_st, r))
 			continue;
 
+		/*
+		 * A call in the loop can change the type: it invalidates packet pointers or
+		 * releases a reference. The bounds are the offsets of the pointer at the entry.
+		 * They say nothing about the value that is in the register now.
+		 */
+		if (reg->type != entry_reg->type)
+			continue;
+
 		linear_bounds(entry_reg, max_header_count, &coefs, &bounds);
 		if (log->level & BPF_LOG_LEVEL2) {
 			bpf_log(log, "loop header at %d, clamping ", insn_idx);
@@ -2907,6 +2914,13 @@ int bpf_clamp_scev_regs(struct bpf_verifier_env *env, struct bpf_func_state *cur
 			bpf_log(log, "\n");
 		}
 		scratch_widened_reg_id(env, reg);
+		/*
+		 * The range of a packet pointer goes together with its id and with the offsets
+		 * that it had in the compare with pkt_end. Both are replaced here. What holds for
+		 * the new offsets is the range at the entry.
+		 */
+		if (type_is_pkt_pointer(reg->type))
+			reg->range = max(entry_reg->range, 0);
 		err = bpf_set_reg_range(env, reg, bounds.r64, bounds.r32,
 					bounds.base, bounds.step);
 		if (err)

@@ -423,16 +423,6 @@ $(LIBARENA_ASAN_SKEL): $(INCLUDE_DIR)/vmlinux.h $(BPFOBJ) $(LIBARENA_BPF_DEPS)
 	+$(MAKE) -C libarena libarena_asan.skel.h $(LIBARENA_MAKE_ARGS)
 endif
 
-# #![no_std] looks for compiler_builtins too. Nothing of it is used.
-ifneq ($(RUST_CORE),)
-$(RUST_CORE): $(RUST_CORE_SRC)
-	$(call msg,RUSTC,,$@)
-	$(Q)mkdir -p $(@D)
-	+$(Q)$(RUSTC_BPF) -A warnings --edition 2024 --crate-name core --out-dir $(@D) $<
-	+$(Q)echo '#![feature(compiler_builtins)] #![compiler_builtins] #![no_std]' | \
-		$(RUSTC_BPF) -A warnings --crate-name compiler_builtins --out-dir $(@D) -
-endif
-
 # Generated test list headers
 
 define gen_tests_hdr
@@ -468,7 +458,7 @@ RUNNER_PREREQS := $(INCLUDE_DIR)/vmlinux.h $(BPFOBJ) $(BPFTOOL)		\
 		  $(VERIFY_SIG_HDR) $(PRIVATE_KEY) $(VERIFICATION_CERT)	\
 		  $(LIBARENA_SKEL) $(LIBARENA_ASAN_SKEL)		\
 		  prog_tests/tests.h map_tests/tests.h			\
-		  $(RUNNER_OBJS) $(RUST_CORE)
+		  $(RUNNER_OBJS)
 
 # Runtime fixtures for each test_progs flavor.
 RUNNER_EXTRA_FILES := $(OUTPUT)/urandom_read				\
