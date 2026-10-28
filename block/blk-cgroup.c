@@ -2139,8 +2139,7 @@ static inline struct blkcg_gq *blkg_tryget_closest(struct bio *bio,
 void bio_associate_blkg_from_css(struct bio *bio,
 				 struct cgroup_subsys_state *css)
 {
-	if (bio->bi_blkg)
-		blkg_put(bio->bi_blkg);
+	struct blkcg_gq *old_blkg = bio->bi_blkg;
 
 	if (css && css->parent) {
 		bio->bi_blkg = blkg_tryget_closest(bio, css);
@@ -2148,6 +2147,10 @@ void bio_associate_blkg_from_css(struct bio *bio,
 		blkg_get(bdev_get_queue(bio->bi_bdev)->root_blkg);
 		bio->bi_blkg = bdev_get_queue(bio->bi_bdev)->root_blkg;
 	}
+
+	/* @old_blkg may be the only thing which pins @css */
+	if (old_blkg)
+		blkg_put(old_blkg);
 }
 EXPORT_SYMBOL_GPL(bio_associate_blkg_from_css);
 
