@@ -2920,7 +2920,8 @@ static void ioc_rqos_exit(struct rq_qos *rqos)
 
 	timer_shutdown_sync(&ioc->timer);
 	free_percpu(ioc->pcpu_stat);
-	kfree(ioc);
+	/* blkcg_print_blkgs() gets here from a pd with only RCU held */
+	kfree_rcu_mightsleep(ioc);
 }
 
 static const struct rq_qos_ops ioc_rqos_ops = {
