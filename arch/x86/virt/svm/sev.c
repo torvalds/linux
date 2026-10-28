@@ -669,10 +669,10 @@ void snp_enable_rmpopt(void)
 	u64 base;
 	int cpu;
 
-	if (!cpu_feature_enabled(X86_FEATURE_RMPOPT))
+	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
 		return;
 
-	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
+	if (!cpu_feature_enabled(X86_FEATURE_RMPOPT))
 		return;
 
 	if (!rmpopt_soft_init)
@@ -819,18 +819,11 @@ bool snp_probe_rmptable_info(void)
 {
 	if (cpu_feature_enabled(X86_FEATURE_SEGMENTED_RMP)) {
 		rdmsrq(MSR_AMD64_RMP_CFG, rmp_cfg);
-
-		if (rmp_cfg & MSR_AMD64_SEG_RMP_ENABLED) {
-			if (probe_segmented_rmptable_info())
-				return true;
-
-			setup_clear_cpu_cap(X86_FEATURE_RMPOPT);
-			return false;
-		}
-	} else {
-		setup_clear_cpu_cap(X86_FEATURE_RMPOPT);
+		if (rmp_cfg & MSR_AMD64_SEG_RMP_ENABLED)
+			return probe_segmented_rmptable_info();
 	}
 
+	setup_clear_cpu_cap(X86_FEATURE_RMPOPT);
 	return probe_contiguous_rmptable_info();
 }
 
