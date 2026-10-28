@@ -1871,8 +1871,8 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 				svm_range_lock(prange);
 				if (vma->vm_flags & VM_WRITE)
 					pr_debug("VM_WRITE without VM_READ is not supported");
-				s = max(start, prange->start);
-				e = min(end, prange->last);
+				s = max(addr >> PAGE_SHIFT, prange->start);
+				e = min((next >> PAGE_SHIFT) - 1, prange->last);
 				if (e >= s)
 					r = svm_range_unmap_from_gpus(prange, s, e,
 						       prange->bitmap_mapped,
