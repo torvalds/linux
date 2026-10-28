@@ -4606,6 +4606,14 @@ int smb2_open(struct ksmbd_work *work)
 				goto err_out2;
 			}
 		}
+
+		/* MS-FSA 2.1.5.1: delete-on-close requires DELETE access */
+		if (req->CreateOptions & FILE_DELETE_ON_CLOSE_LE &&
+		    !(smb_map_generic_desired_access(req->DesiredAccess) &
+		      FILE_DELETE_LE)) {
+			rc = -EINVAL;
+			goto err_out2;
+		}
 	}
 
 	if (le32_to_cpu(req->CreateDisposition) >
@@ -4873,6 +4881,13 @@ resolve_path:
 			already_permitted = true;
 		}
 		maximal_access = daccess;
+	}
+
+	/* MAXIMUM_ALLOWED may not have granted the requested DELETE */
+	if (req->CreateOptions & FILE_DELETE_ON_CLOSE_LE &&
+	    !(daccess & FILE_DELETE_LE)) {
+		rc = -EACCES;
+		goto err_out;
 	}
 
 	open_flags = smb2_create_open_flags(file_present, daccess,
