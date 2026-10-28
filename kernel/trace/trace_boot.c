@@ -94,7 +94,7 @@ trace_boot_enable_events(struct trace_array *tr, struct xbc_node *node)
 			continue;
 		}
 
-		if (ftrace_set_clr_event(tr, buf, 1) < 0)
+		if (ftrace_set_clr_event(tr, buf, 1, false) < 0)
 			pr_err("Failed to enable event: %s\n", p);
 	}
 }
