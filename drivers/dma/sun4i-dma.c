@@ -246,11 +246,6 @@ static struct sun4i_dma_contract *to_sun4i_dma_contract(struct virt_dma_desc *vd
 	return container_of(vd, struct sun4i_dma_contract, vd);
 }
 
-static struct device *chan2dev(struct dma_chan *chan)
-{
-	return &chan->dev->device;
-}
-
 static void set_dst_data_width_a10(u32 *p_cfg, s8 data_width)
 {
 	*p_cfg |= SUN4I_DMA_CFG_DST_DATA_WIDTH(data_width);
@@ -428,7 +423,7 @@ static int __execute_vchan_pending(struct sun4i_dma_dev *priv,
 	 * has already submitted some work, we can't do anything else
 	 */
 	if (vchan->processing) {
-		dev_dbg(chan2dev(&vchan->vc.chan),
+		dev_dbg(vchan_chan_dev(&vchan->vc),
 			"processing something to this endpoint already\n");
 		ret = -EBUSY;
 		goto release_pchan;
@@ -438,7 +433,7 @@ static int __execute_vchan_pending(struct sun4i_dma_dev *priv,
 		/* Figure out which contract we're working with today */
 		vd = vchan_next_desc(&vchan->vc);
 		if (!vd) {
-			dev_dbg(chan2dev(&vchan->vc.chan),
+			dev_dbg(vchan_chan_dev(&vchan->vc),
 				"No pending contract found");
 			ret = 0;
 			goto release_pchan;
@@ -449,7 +444,7 @@ static int __execute_vchan_pending(struct sun4i_dma_dev *priv,
 			/* The contract has been completed so mark it as such */
 			list_del(&contract->vd.node);
 			vchan_cookie_complete(&contract->vd);
-			dev_dbg(chan2dev(&vchan->vc.chan),
+			dev_dbg(vchan_chan_dev(&vchan->vc),
 				"Empty contract found and marked complete");
 		}
 	} while (list_empty(&contract->demands));
@@ -542,7 +537,7 @@ generate_ndma_promise(struct dma_chan *chan, dma_addr_t src, dma_addr_t dest,
 	promise->cfg = SUN4I_DMA_CFG_LOADING |
 		SUN4I_NDMA_CFG_BYTE_COUNT_MODE_REMAIN;
 
-	dev_dbg(chan2dev(chan),
+	dev_dbg(dmaengine_chan_dev(chan),
 		"src burst %d, dst burst %d, src buswidth %d, dst buswidth %d",
 		sconfig->src_maxburst, sconfig->dst_maxburst,
 		sconfig->src_addr_width, sconfig->dst_addr_width);
@@ -769,7 +764,7 @@ sun4i_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf, size_t len,
 	u8 ram_type, io_mode, linear_mode;
 
 	if (!is_slave_direction(dir)) {
-		dev_err(chan2dev(chan), "Invalid DMA direction\n");
+		dev_err(dmaengine_chan_dev(chan), "Invalid DMA direction\n");
 		return NULL;
 	}
 
@@ -894,7 +889,7 @@ sun4i_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		return NULL;
 
 	if (!is_slave_direction(dir)) {
-		dev_err(chan2dev(chan), "Invalid DMA direction\n");
+		dev_err(dmaengine_chan_dev(chan), "Invalid DMA direction\n");
 		return NULL;
 	}
 

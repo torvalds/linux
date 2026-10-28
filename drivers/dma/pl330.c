@@ -2953,8 +2953,8 @@ DEFINE_SHOW_ATTRIBUTE(pl330_debugfs);
 
 static inline void init_pl330_debugfs(struct pl330_dmac *pl330)
 {
-	pl330->dbgfs = debugfs_create_file(dev_name(pl330->ddma.dev),
-					   S_IFREG | 0444, NULL, pl330,
+	pl330->dbgfs = debugfs_create_file("stats", 0444,
+					   pl330->ddma.dbg_dev_root, pl330,
 					   &pl330_debugfs_fops);
 }
 

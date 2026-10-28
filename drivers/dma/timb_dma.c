@@ -90,14 +90,9 @@ struct timb_dma {
 	struct tasklet_struct	tasklet;
 	struct timb_dma_chan	channels[];
 };
-
-static struct device *chan2dev(struct dma_chan *chan)
-{
-	return &chan->dev->device;
-}
 static struct device *chan2dmadev(struct dma_chan *chan)
 {
-	return chan2dev(chan)->parent->parent;
+	return dmaengine_chan_dev(chan)->parent->parent;
 }
 
 static struct timb_dma *tdchantotd(struct timb_dma_chan *td_chan)
@@ -117,7 +112,7 @@ static void __td_enable_chan_irq(struct timb_dma_chan *td_chan)
 	/* enable interrupt for this channel */
 	ier = ioread32(td->membase + TIMBDMA_IER);
 	ier |= 1 << id;
-	dev_dbg(chan2dev(&td_chan->chan), "Enabling irq: %d, IER: 0x%x\n", id,
+	dev_dbg(dmaengine_chan_dev(&td_chan->chan), "Enabling irq: %d, IER: 0x%x\n", id,
 		ier);
 	iowrite32(ier, td->membase + TIMBDMA_IER);
 }
@@ -131,7 +126,7 @@ static bool __td_dma_done_ack(struct timb_dma_chan *td_chan)
 	u32 isr;
 	bool done = false;
 
-	dev_dbg(chan2dev(&td_chan->chan), "Checking irq: %d, td: %p\n", id, td);
+	dev_dbg(dmaengine_chan_dev(&td_chan->chan), "Checking irq: %d, td: %p\n", id, td);
 
 	isr = ioread32(td->membase + TIMBDMA_ISR) & (1 << id);
 	if (isr) {
@@ -146,18 +141,18 @@ static int td_fill_desc(struct timb_dma_chan *td_chan, u8 *dma_desc,
 	struct scatterlist *sg, bool last)
 {
 	if (sg_dma_len(sg) > USHRT_MAX) {
-		dev_err(chan2dev(&td_chan->chan), "Too big sg element\n");
+		dev_err(dmaengine_chan_dev(&td_chan->chan), "Too big sg element\n");
 		return -EINVAL;
 	}
 
 	/* length must be word aligned */
 	if (sg_dma_len(sg) % sizeof(u32)) {
-		dev_err(chan2dev(&td_chan->chan), "Incorrect length: %d\n",
+		dev_err(dmaengine_chan_dev(&td_chan->chan), "Incorrect length: %d\n",
 			sg_dma_len(sg));
 		return -EINVAL;
 	}
 
-	dev_dbg(chan2dev(&td_chan->chan), "desc: %p, addr: 0x%llx\n",
+	dev_dbg(dmaengine_chan_dev(&td_chan->chan), "desc: %p, addr: 0x%llx\n",
 		dma_desc, (unsigned long long)sg_dma_address(sg));
 
 	dma_desc[7] = (sg_dma_address(sg) >> 24) & 0xff;
@@ -180,7 +175,7 @@ static void __td_start_dma(struct timb_dma_chan *td_chan)
 	struct timb_dma_desc *td_desc;
 
 	if (td_chan->ongoing) {
-		dev_err(chan2dev(&td_chan->chan),
+		dev_err(dmaengine_chan_dev(&td_chan->chan),
 			"Transfer already ongoing\n");
 		return;
 	}
@@ -188,7 +183,7 @@ static void __td_start_dma(struct timb_dma_chan *td_chan)
 	td_desc = list_entry(td_chan->active_list.next, struct timb_dma_desc,
 		desc_node);
 
-	dev_dbg(chan2dev(&td_chan->chan),
+	dev_dbg(dmaengine_chan_dev(&td_chan->chan),
 		"td_chan: %p, chan: %d, membase: %p\n",
 		td_chan, td_chan->chan.chan_id, td_chan->membase);
 
@@ -230,7 +225,7 @@ static void __td_finish(struct timb_dma_chan *td_chan)
 		desc_node);
 	txd = &td_desc->txd;
 
-	dev_dbg(chan2dev(&td_chan->chan), "descriptor %u complete\n",
+	dev_dbg(dmaengine_chan_dev(&td_chan->chan), "descriptor %u complete\n",
 		txd->cookie);
 
 	/* make sure to stop the transfer */
@@ -284,7 +279,7 @@ static void __td_start_next(struct timb_dma_chan *td_chan)
 	td_desc = list_entry(td_chan->queue.next, struct timb_dma_desc,
 		desc_node);
 
-	dev_dbg(chan2dev(&td_chan->chan), "%s: started %u\n",
+	dev_dbg(dmaengine_chan_dev(&td_chan->chan), "%s: started %u\n",
 		__func__, td_desc->txd.cookie);
 
 	list_move(&td_desc->desc_node, &td_chan->active_list);
@@ -303,12 +298,12 @@ static dma_cookie_t td_tx_submit(struct dma_async_tx_descriptor *txd)
 	cookie = dma_cookie_assign(txd);
 
 	if (list_empty(&td_chan->active_list)) {
-		dev_dbg(chan2dev(txd->chan), "%s: started %u\n", __func__,
+		dev_dbg(dmaengine_chan_dev(txd->chan), "%s: started %u\n", __func__,
 			txd->cookie);
 		list_add_tail(&td_desc->desc_node, &td_chan->active_list);
 		__td_start_dma(td_chan);
 	} else {
-		dev_dbg(chan2dev(txd->chan), "tx_submit: queued %u\n",
+		dev_dbg(dmaengine_chan_dev(txd->chan), "tx_submit: queued %u\n",
 			txd->cookie);
 
 		list_add_tail(&td_desc->desc_node, &td_chan->queue);
@@ -344,7 +339,7 @@ static struct timb_dma_desc *td_alloc_init_desc(struct timb_dma_chan *td_chan)
 
 	err = dma_mapping_error(chan2dmadev(chan), td_desc->txd.phys);
 	if (err) {
-		dev_err(chan2dev(chan), "DMA mapping error: %d\n", err);
+		dev_err(dmaengine_chan_dev(chan), "DMA mapping error: %d\n", err);
 		goto err;
 	}
 
@@ -359,7 +354,7 @@ out:
 
 static void td_free_desc(struct timb_dma_desc *td_desc)
 {
-	dev_dbg(chan2dev(td_desc->txd.chan), "Freeing desc: %p\n", td_desc);
+	dev_dbg(dmaengine_chan_dev(td_desc->txd.chan), "Freeing desc: %p\n", td_desc);
 	dma_unmap_single(chan2dmadev(td_desc->txd.chan), td_desc->txd.phys,
 		td_desc->desc_list_len, DMA_TO_DEVICE);
 
@@ -370,7 +365,7 @@ static void td_free_desc(struct timb_dma_desc *td_desc)
 static void td_desc_put(struct timb_dma_chan *td_chan,
 	struct timb_dma_desc *td_desc)
 {
-	dev_dbg(chan2dev(&td_chan->chan), "Putting desc: %p\n", td_desc);
+	dev_dbg(dmaengine_chan_dev(&td_chan->chan), "Putting desc: %p\n", td_desc);
 
 	spin_lock_bh(&td_chan->lock);
 	list_add(&td_desc->desc_node, &td_chan->free_list);
@@ -390,7 +385,7 @@ static struct timb_dma_desc *td_desc_get(struct timb_dma_chan *td_chan)
 			ret = td_desc;
 			break;
 		}
-		dev_dbg(chan2dev(&td_chan->chan), "desc %p not ACKed\n",
+		dev_dbg(dmaengine_chan_dev(&td_chan->chan), "desc %p not ACKed\n",
 			td_desc);
 	}
 	spin_unlock_bh(&td_chan->lock);
@@ -404,7 +399,7 @@ static int td_alloc_chan_resources(struct dma_chan *chan)
 		container_of(chan, struct timb_dma_chan, chan);
 	int i;
 
-	dev_dbg(chan2dev(chan), "%s: entry\n", __func__);
+	dev_dbg(dmaengine_chan_dev(chan), "%s: entry\n", __func__);
 
 	BUG_ON(!list_empty(&td_chan->free_list));
 	for (i = 0; i < td_chan->descs; i++) {
@@ -413,7 +408,7 @@ static int td_alloc_chan_resources(struct dma_chan *chan)
 			if (i)
 				break;
 			else {
-				dev_err(chan2dev(chan),
+				dev_err(dmaengine_chan_dev(chan),
 					"Couldn't allocate any descriptors\n");
 				return -ENOMEM;
 			}
@@ -436,7 +431,7 @@ static void td_free_chan_resources(struct dma_chan *chan)
 	struct timb_dma_desc *td_desc, *_td_desc;
 	LIST_HEAD(list);
 
-	dev_dbg(chan2dev(chan), "%s: Entry\n", __func__);
+	dev_dbg(dmaengine_chan_dev(chan), "%s: Entry\n", __func__);
 
 	/* check that all descriptors are free */
 	BUG_ON(!list_empty(&td_chan->active_list));
@@ -447,7 +442,7 @@ static void td_free_chan_resources(struct dma_chan *chan)
 	spin_unlock_bh(&td_chan->lock);
 
 	list_for_each_entry_safe(td_desc, _td_desc, &list, desc_node) {
-		dev_dbg(chan2dev(chan), "%s: Freeing desc: %p\n", __func__,
+		dev_dbg(dmaengine_chan_dev(chan), "%s: Freeing desc: %p\n", __func__,
 			td_desc);
 		td_free_desc(td_desc);
 	}
@@ -458,11 +453,11 @@ static enum dma_status td_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 {
 	enum dma_status ret;
 
-	dev_dbg(chan2dev(chan), "%s: Entry\n", __func__);
+	dev_dbg(dmaengine_chan_dev(chan), "%s: Entry\n", __func__);
 
 	ret = dma_cookie_status(chan, cookie, txstate);
 
-	dev_dbg(chan2dev(chan), "%s: exit, ret: %d\n", 	__func__, ret);
+	dev_dbg(dmaengine_chan_dev(chan), "%s: exit, ret: %d\n", 	__func__, ret);
 
 	return ret;
 }
@@ -472,7 +467,7 @@ static void td_issue_pending(struct dma_chan *chan)
 	struct timb_dma_chan *td_chan =
 		container_of(chan, struct timb_dma_chan, chan);
 
-	dev_dbg(chan2dev(chan), "%s: Entry\n", __func__);
+	dev_dbg(dmaengine_chan_dev(chan), "%s: Entry\n", __func__);
 	spin_lock_bh(&td_chan->lock);
 
 	if (!list_empty(&td_chan->active_list))
@@ -499,20 +494,20 @@ static struct dma_async_tx_descriptor *td_prep_slave_sg(struct dma_chan *chan,
 	unsigned int desc_usage = 0;
 
 	if (!sgl || !sg_len) {
-		dev_err(chan2dev(chan), "%s: No SG list\n", __func__);
+		dev_err(dmaengine_chan_dev(chan), "%s: No SG list\n", __func__);
 		return NULL;
 	}
 
 	/* even channels are for RX, odd for TX */
 	if (td_chan->direction != direction) {
-		dev_err(chan2dev(chan),
+		dev_err(dmaengine_chan_dev(chan),
 			"Requesting channel in wrong direction\n");
 		return NULL;
 	}
 
 	td_desc = td_desc_get(td_chan);
 	if (!td_desc) {
-		dev_err(chan2dev(chan), "Not enough descriptors available\n");
+		dev_err(dmaengine_chan_dev(chan), "Not enough descriptors available\n");
 		return NULL;
 	}
 
@@ -521,14 +516,14 @@ static struct dma_async_tx_descriptor *td_prep_slave_sg(struct dma_chan *chan,
 	for_each_sg(sgl, sg, sg_len, i) {
 		int err;
 		if (desc_usage > td_desc->desc_list_len) {
-			dev_err(chan2dev(chan), "No descriptor space\n");
+			dev_err(dmaengine_chan_dev(chan), "No descriptor space\n");
 			return NULL;
 		}
 
 		err = td_fill_desc(td_chan, td_desc->desc_list + desc_usage, sg,
 			i == (sg_len - 1));
 		if (err) {
-			dev_err(chan2dev(chan), "Failed to update desc: %d\n",
+			dev_err(dmaengine_chan_dev(chan), "Failed to update desc: %d\n",
 				err);
 			td_desc_put(td_chan, td_desc);
 			return NULL;
@@ -548,7 +543,7 @@ static int td_terminate_all(struct dma_chan *chan)
 		container_of(chan, struct timb_dma_chan, chan);
 	struct timb_dma_desc *td_desc, *_td_desc;
 
-	dev_dbg(chan2dev(chan), "%s: Entry\n", __func__);
+	dev_dbg(dmaengine_chan_dev(chan), "%s: Entry\n", __func__);
 
 	/* first the easy part, put the queue into the free list */
 	spin_lock_bh(&td_chan->lock);

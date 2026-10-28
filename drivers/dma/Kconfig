@@ -85,6 +85,16 @@ config AMCC_PPC440SPE_ADMA
 	help
 	  Enable support for the AMCC PPC440SPe RAID engines.
 
+config AMLOGIC_DMA
+	tristate "Amlogic general DMA support"
+	depends on ARCH_MESON || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	select REGMAP_MMIO
+	help
+	  Enable support for the Amlogic general DMA engines. THis DMA
+	  controller is used some Amlogic SoCs, such as A9.
+
 config APPLE_ADMAC
 	tristate "Apple ADMAC support"
 	depends on ARCH_APPLE || COMPILE_TEST

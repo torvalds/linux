@@ -268,7 +268,7 @@ static int st_fdma_alloc_chan_res(struct dma_chan *chan)
 	struct st_fdma_chan *fchan = to_st_fdma_chan(chan);
 
 	/* Create the dma pool for descriptor allocation */
-	fchan->node_pool = dma_pool_create(dev_name(&chan->dev->device),
+	fchan->node_pool = dma_pool_create(dma_chan_name(chan),
 					    fchan->fdev->dev,
 					    sizeof(struct st_fdma_hw_node),
 					    __alignof__(struct st_fdma_hw_node),

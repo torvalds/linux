@@ -3,6 +3,7 @@
 // Copyright (c) 2013-2014 Freescale Semiconductor, Inc
 // Copyright (c) 2017 Sysam, Angelo Dureghello  <angelo@sysam.it>
 
+#include <linux/bitfield.h>
 #include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/dmapool.h>
@@ -55,10 +56,36 @@ void fsl_edma_tx_chan_handler(struct fsl_edma_chan *fsl_chan)
 	}
 
 	if (!fsl_chan->edesc->iscyclic) {
-		list_del(&fsl_chan->edesc->vdesc.node);
-		vchan_cookie_complete(&fsl_chan->edesc->vdesc);
+		u16 csr = edma_read_tcdreg(fsl_chan, csr);
+		u8 link_sg_id = FIELD_GET(EDMA_TCD_CSR_LINKCH, csr);
+		struct virt_dma_desc *vdesc, *tmp;
+
+		/* Channel is DONE when a TCD with D_REQ set completes */
+		if (!(fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_SPLIT_REG) ||
+		    (edma_readl_chreg(fsl_chan, ch_csr) & EDMA_V3_CH_CSR_DONE)) {
+			fsl_chan->status = DMA_COMPLETE;
+		}
+
+		list_for_each_entry_safe(vdesc, tmp, &fsl_chan->vchan.desc_issued, node) {
+			struct fsl_edma_desc *fsl_desc = to_fsl_edma_desc(vdesc);
+			bool id_match = (link_sg_id == fsl_desc->link_sg_id);
+
+			/*
+			 * If the transfer is still running,
+			 * don't mark as complete the current descriptor
+			 */
+			if (id_match && fsl_chan->status != DMA_COMPLETE)
+				break;
+
+			list_del(&vdesc->node);
+			vchan_cookie_complete(vdesc);
+
+			if (id_match)
+				break;
+		}
+
 		fsl_chan->edesc = NULL;
-		fsl_chan->status = DMA_COMPLETE;
+
 	} else {
 		vchan_cyclic_callback(&fsl_chan->edesc->vdesc);
 	}
@@ -673,6 +700,122 @@ struct dma_async_tx_descriptor *fsl_edma_prep_dma_cyclic(
 	return vchan_tx_prep(&fsl_chan->vchan, &fsl_desc->vdesc, flags);
 }
 
+struct dma_async_tx_descriptor *
+fsl_edma_prep_peripheral_dma_vec(struct dma_chan *chan, const struct dma_vec *vecs,
+				 size_t nb, enum dma_transfer_direction direction,
+				 unsigned long flags)
+{
+	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
+	dma_addr_t src_addr, dst_addr, last_sg;
+	struct fsl_edma_desc *fsl_desc;
+	u16 soff, doff, iter;
+	u32 nbytes;
+	int i;
+
+	if (!is_slave_direction(direction))
+		return NULL;
+
+	if (!fsl_edma_prep_slave_dma(fsl_chan, direction))
+		return NULL;
+
+	fsl_desc = fsl_edma_alloc_desc(fsl_chan, nb);
+	if (!fsl_desc)
+		return NULL;
+	fsl_desc->iscyclic = flags & DMA_PREP_REPEAT;
+	fsl_desc->dirn = direction;
+
+	if (direction == DMA_MEM_TO_DEV) {
+		if (!fsl_chan->cfg.src_addr_width)
+			fsl_chan->cfg.src_addr_width = fsl_chan->cfg.dst_addr_width;
+		fsl_chan->attr =
+			fsl_edma_get_tcd_attr(fsl_chan->cfg.src_addr_width,
+					      fsl_chan->cfg.dst_addr_width);
+		nbytes = fsl_chan->cfg.dst_addr_width * fsl_chan->cfg.dst_maxburst;
+	} else {
+		if (!fsl_chan->cfg.dst_addr_width)
+			fsl_chan->cfg.dst_addr_width = fsl_chan->cfg.src_addr_width;
+		fsl_chan->attr =
+			fsl_edma_get_tcd_attr(fsl_chan->cfg.src_addr_width,
+					      fsl_chan->cfg.dst_addr_width);
+		nbytes = fsl_chan->cfg.src_addr_width * fsl_chan->cfg.src_maxburst;
+	}
+
+	for (i = 0; i < nb; i++) {
+		if (direction == DMA_MEM_TO_DEV) {
+			src_addr = vecs[i].addr;
+			dst_addr = fsl_chan->dma_dev_addr;
+			soff = fsl_chan->cfg.dst_addr_width;
+			doff = 0;
+		} else if (direction == DMA_DEV_TO_MEM) {
+			src_addr = fsl_chan->dma_dev_addr;
+			dst_addr = vecs[i].addr;
+			soff = 0;
+			doff = fsl_chan->cfg.src_addr_width;
+		} else {
+			/* DMA_DEV_TO_DEV */
+			src_addr = fsl_chan->cfg.src_addr;
+			dst_addr = fsl_chan->cfg.dst_addr;
+			soff = 0;
+			doff = 0;
+		}
+
+		/*
+		 * Choose the suitable burst length if dma_vec length is not
+		 * multiple of burst length so that the whole transfer length is
+		 * multiple of minor loop(burst length).
+		 */
+		if (nbytes && vecs[i].len % nbytes) {
+			u32 width = (direction == DMA_DEV_TO_MEM) ? doff : soff;
+			u32 burst = (direction == DMA_DEV_TO_MEM) ?
+						fsl_chan->cfg.src_maxburst :
+						fsl_chan->cfg.dst_maxburst;
+			int j;
+
+			for (j = burst; j > 1; j--) {
+				if (!(vecs[i].len % (j * width))) {
+					nbytes = j * width;
+					break;
+				}
+			}
+			/* Set burst size as 1 if there's no suitable one */
+			if (j == 1)
+				nbytes = width;
+		}
+
+		if (!nbytes || vecs[i].len / nbytes > FIELD_MAX(EDMA_TCD_ITER_MASK))
+			goto err_free_desc;
+
+		iter = vecs[i].len / nbytes;
+		if (i < nb - 1) {
+			last_sg = fsl_desc->tcd[(i + 1)].ptcd;
+			fsl_edma_fill_tcd(fsl_chan, fsl_desc->tcd[i].vtcd, src_addr,
+					  dst_addr, fsl_chan->attr, soff,
+					  nbytes, 0, iter, iter, doff, last_sg,
+					  false, false, true);
+		} else {
+			if (fsl_desc->iscyclic) {
+				last_sg = fsl_desc->tcd[0].ptcd;
+				fsl_edma_fill_tcd(fsl_chan, fsl_desc->tcd[i].vtcd, src_addr,
+						  dst_addr, fsl_chan->attr, soff,
+						  nbytes, 0, iter, iter, doff, last_sg,
+						  true, false, true);
+			} else {
+				last_sg = 0;
+				fsl_edma_fill_tcd(fsl_chan, fsl_desc->tcd[i].vtcd, src_addr,
+						  dst_addr, fsl_chan->attr, soff,
+						  nbytes, 0, iter, iter, doff, last_sg,
+						  true, true, false);
+			}
+		}
+	}
+
+	return vchan_tx_prep(&fsl_chan->vchan, &fsl_desc->vdesc, flags);
+
+err_free_desc:
+	fsl_edma_free_desc(&fsl_desc->vdesc);
+	return NULL;
+}
+
 struct dma_async_tx_descriptor *fsl_edma_prep_slave_sg(
 		struct dma_chan *chan, struct scatterlist *sgl,
 		unsigned int sg_len, enum dma_transfer_direction direction,
@@ -815,14 +958,99 @@ void fsl_edma_xfer_desc(struct fsl_edma_chan *fsl_chan)
 	if (!vdesc)
 		return;
 	fsl_chan->edesc = to_fsl_edma_desc(vdesc);
-	fsl_edma_set_tcd_regs(fsl_chan, fsl_chan->edesc->tcd[0].vtcd);
-	fsl_edma_enable_request(fsl_chan);
-	fsl_chan->status = DMA_IN_PROGRESS;
+
+	if (fsl_chan->status != DMA_IN_PROGRESS) {
+		fsl_edma_set_tcd_regs(fsl_chan, fsl_chan->edesc->tcd[0].vtcd);
+		fsl_edma_enable_request(fsl_chan);
+		fsl_chan->status = DMA_IN_PROGRESS;
+	}
+}
+
+static void fsl_edma_link_sg(struct fsl_edma_chan *fsl_chan, struct fsl_edma_desc *fsl_desc)
+{
+	u32 flags = fsl_edma_drvflags(fsl_chan);
+	struct fsl_edma_hw_tcd *last_tcd;
+	struct fsl_edma_desc *prev_desc;
+	struct virt_dma_desc *vdesc;
+	u16 last_csr;
+
+	lockdep_assert_held(&fsl_chan->vchan.lock);
+
+	if (!(flags & FSL_EDMA_DRV_CSR_LINKCH) || fsl_desc->iscyclic)
+		return;
+
+	vdesc = list_last_entry_or_null(&fsl_chan->vchan.desc_issued,
+					struct virt_dma_desc, node);
+	if (!vdesc)
+		return;
+
+	prev_desc = to_fsl_edma_desc(vdesc);
+	if (prev_desc->iscyclic)
+		return;
+
+	last_tcd = prev_desc->tcd[prev_desc->n_tcds - 1].vtcd;
+	last_csr = fsl_edma_get_tcd_to_cpu(fsl_chan, last_tcd, csr);
+
+	for (unsigned int i = 0; i < fsl_desc->n_tcds; i++) {
+		struct fsl_edma_hw_tcd *tcd = fsl_desc->tcd[i].vtcd;
+
+		if (fsl_edma_get_tcd_to_cpu(fsl_chan, tcd, csr) & EDMA_TCD_CSR_E_LINK)
+			return;
+	}
+
+	if (!(last_csr & EDMA_TCD_CSR_D_REQ) ||
+	    last_csr & EDMA_TCD_CSR_E_LINK)
+		return;
+
+	/* Set a non-zero linked SG identifier to all TCD of the new descriptor */
+	fsl_chan->link_sg_id++;
+	if (fsl_chan->link_sg_id > FIELD_MAX(EDMA_TCD_CSR_LINKCH))
+		fsl_chan->link_sg_id = 1;
+
+	fsl_desc->link_sg_id = fsl_chan->link_sg_id;
+
+	for (unsigned int i = 0; i < fsl_desc->n_tcds; i++) {
+		struct fsl_edma_hw_tcd *tcd = fsl_desc->tcd[i].vtcd;
+		u16 csr = fsl_edma_get_tcd_to_cpu(fsl_chan, tcd, csr);
+
+		csr |= FIELD_PREP(EDMA_TCD_CSR_LINKCH, fsl_chan->link_sg_id);
+		fsl_edma_set_tcd_to_le(fsl_chan, tcd, csr, csr);
+	}
+
+	/*
+	 * Set DLAST_SGA before enabling E_SG in CSR: if the DMA engine
+	 * only picks up the former, it updates DADDR at end of transfer,
+	 * which is not reused.
+	 */
+	fsl_edma_set_tcd_to_le(fsl_chan, last_tcd, fsl_desc->tcd[0].ptcd, dlast_sga);
+
+	dma_wmb();
+
+	last_csr &= ~EDMA_TCD_CSR_D_REQ;
+	last_csr |= EDMA_TCD_CSR_E_SG;
+	fsl_edma_set_tcd_to_le(fsl_chan, last_tcd, last_csr, csr);
+
+	/*
+	 * Update the registers if the engine already loaded the TCD,
+	 * unless doing so requires clearing the DONE bit, as that could
+	 * lead to lost completion.
+	 */
+	if (prev_desc == fsl_chan->edesc &&
+	    prev_desc->n_tcds == 1 &&
+	    !(flags & FSL_EDMA_DRV_CLEAR_DONE_E_SG)) {
+		edma_cp_tcd_to_reg(fsl_chan, last_tcd, dlast_sga);
+		edma_cp_tcd_to_reg(fsl_chan, last_tcd, csr);
+	}
+
+	trace_edma_link_sg(fsl_chan, last_tcd);
 }
 
 void fsl_edma_issue_pending(struct dma_chan *chan)
 {
 	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
+	struct virt_dma_desc *vdesc, *tmp;
+	size_t issued_count = 0;
+	struct list_head *pos;
 	unsigned long flags;
 
 	spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
@@ -833,6 +1061,21 @@ void fsl_edma_issue_pending(struct dma_chan *chan)
 		return;
 	}
 
+	/* Count the issued desc up to the maximum number of linked SG id */
+	list_for_each(pos, &fsl_chan->vchan.desc_issued) {
+		if (++issued_count > FIELD_MAX(EDMA_TCD_CSR_LINKCH))
+			break;
+	}
+
+	/* Link the SG descriptors with the available identifiers */
+	list_for_each_entry_safe(vdesc, tmp, &fsl_chan->vchan.desc_submitted, node) {
+		if (++issued_count > FIELD_MAX(EDMA_TCD_CSR_LINKCH))
+			break;
+		fsl_edma_link_sg(fsl_chan, to_fsl_edma_desc(vdesc));
+		list_move_tail(&vdesc->node, &fsl_chan->vchan.desc_issued);
+	}
+
+	/* Issue the rest of the descriptors unlinked */
 	if (vchan_issue_pending(&fsl_chan->vchan) && !fsl_chan->edesc)
 		fsl_edma_xfer_desc(fsl_chan);
 

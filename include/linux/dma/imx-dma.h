@@ -57,15 +57,12 @@ struct imx_dma_data {
 	int priority;
 };
 
-static inline int imx_dma_is_ipu(struct dma_chan *chan)
-{
-	return !strcmp(dev_name(chan->device->dev), "ipu-core");
-}
-
 static inline int imx_dma_is_general_purpose(struct dma_chan *chan)
 {
-	return !strcmp(chan->device->dev->driver->name, "imx-sdma") ||
-		!strcmp(chan->device->dev->driver->name, "imx-dma");
+	struct device *dev = dmaengine_get_provider_device(chan);
+
+	return !strcmp(dev->driver->name, "imx-sdma") ||
+		!strcmp(dev->driver->name, "imx-dma");
 }
 
 /**

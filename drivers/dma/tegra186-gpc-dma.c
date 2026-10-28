@@ -1537,7 +1537,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	 * the channels available and registered for the DMA device are used.
 	 */
 	list_for_each_entry(chan, &tdma->dma_dev.channels, device_node) {
-		chdev = &chan->dev->device;
+		chdev = dmaengine_chan_dev(chan);
 		tdc = to_tegra_dma_chan(chan);
 
 		if (use_iommu_map) {
@@ -1554,7 +1554,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 				return dev_err_probe(chdev, -EINVAL,
 					   "Failed to get stream ID for channel %d\n", tdc->id);
 
-			chan->dev->chan_dma_dev = true;
+			chan->chan_dev->chan_dma_dev = true;
 		}
 
 		/* program stream-id for this channel */

@@ -149,7 +149,7 @@ struct pxad_device {
 	({								\
 		u32 _v;							\
 		_v = readl_relaxed((phy)->base + _reg((phy)->idx));	\
-		dev_vdbg(&phy->vchan->vc.chan.dev->device,		\
+		dev_vdbg(vchan_chan_dev(&phy->vchan->vc),		\
 			 "%s(): readl(%s): 0x%08x\n", __func__, #_reg,	\
 			  _v);						\
 		_v;							\
@@ -157,14 +157,14 @@ struct pxad_device {
 #define phy_writel(phy, val, _reg)					\
 	do {								\
 		writel((val), (phy)->base + _reg((phy)->idx));		\
-		dev_vdbg(&phy->vchan->vc.chan.dev->device,		\
+		dev_vdbg(vchan_chan_dev(&phy->vchan->vc),		\
 			 "%s(): writel(0x%08x, %s)\n",			\
 			 __func__, (u32)(val), #_reg);			\
 	} while (0)
 #define phy_writel_relaxed(phy, val, _reg)				\
 	do {								\
 		writel_relaxed((val), (phy)->base + _reg((phy)->idx));	\
-		dev_vdbg(&phy->vchan->vc.chan.dev->device,		\
+		dev_vdbg(vchan_chan_dev(&phy->vchan->vc),		\
 			 "%s(): writel_relaxed(0x%08x, %s)\n",		\
 			 __func__, (u32)(val), #_reg);			\
 	} while (0)
@@ -396,7 +396,7 @@ static struct pxad_phy *lookup_phy(struct pxad_chan *pchan)
 
 out_unlock:
 	spin_unlock_irqrestore(&pdev->phy_lock, flags);
-	dev_dbg(&pchan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&pchan->vc),
 		"%s(): phy=%p(%d)\n", __func__, found,
 		found ? found->idx : -1);
 
@@ -409,7 +409,7 @@ static void pxad_free_phy(struct pxad_chan *chan)
 	unsigned long flags;
 	u32 reg;
 
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): freeing\n", __func__);
 	if (!chan->phy)
 		return;
@@ -454,7 +454,7 @@ static void phy_enable(struct pxad_phy *phy, bool misaligned)
 	if (!phy->vchan)
 		return;
 
-	dev_dbg(&phy->vchan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&phy->vchan->vc),
 		"%s(); phy=%p(%d) misaligned=%d\n", __func__,
 		phy, phy->idx, misaligned);
 
@@ -483,7 +483,7 @@ static void phy_disable(struct pxad_phy *phy)
 		return;
 
 	dcsr = phy_readl_relaxed(phy, DCSR);
-	dev_dbg(&phy->vchan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&phy->vchan->vc),
 		"%s(): phy=%p(%d)\n", __func__, phy, phy->idx);
 	phy_writel(phy, dcsr & ~PXA_DCSR_RUN & ~PXA_DCSR_STOPIRQEN, DCSR);
 }
@@ -491,12 +491,12 @@ static void phy_disable(struct pxad_phy *phy)
 static void pxad_launch_chan(struct pxad_chan *chan,
 				 struct pxad_desc_sw *desc)
 {
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): desc=%p\n", __func__, desc);
 	if (!chan->phy) {
 		chan->phy = lookup_phy(chan);
 		if (!chan->phy) {
-			dev_dbg(&chan->vc.chan.dev->device,
+			dev_dbg(vchan_chan_dev(&chan->vc),
 				"%s(): no free dma channel\n", __func__);
 			return;
 		}
@@ -592,7 +592,7 @@ static unsigned int clear_chan_irq(struct pxad_phy *phy)
 	dcsr = phy_readl_relaxed(phy, DCSR);
 	phy_writel(phy, dcsr, DCSR);
 	if ((dcsr & PXA_DCSR_BUSERR) && (phy->vchan))
-		dev_warn(&phy->vchan->vc.chan.dev->device,
+		dev_warn(vchan_chan_dev(&phy->vchan->vc),
 			 "%s(chan=%p): PXA_DCSR_BUSERR\n",
 			 __func__, &phy->vchan);
 
@@ -617,7 +617,7 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 	spin_lock(&chan->vc.lock);
 	list_for_each_entry_safe(vd, tmp, &chan->vc.desc_issued, node) {
 		vd_completed = is_desc_completed(vd);
-		dev_dbg(&chan->vc.chan.dev->device,
+		dev_dbg(vchan_chan_dev(&chan->vc),
 			"%s(): checking txd %p[%x]: completed=%d dcsr=0x%x\n",
 			__func__, vd, vd->tx.cookie, vd_completed,
 			dcsr);
@@ -640,7 +640,7 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 	}
 
 	if (!chan->bus_error && dcsr & PXA_DCSR_STOPSTATE) {
-		dev_dbg(&chan->vc.chan.dev->device,
+		dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): channel stopped, submitted_empty=%d issued_empty=%d",
 			__func__,
 			list_empty(&chan->vc.desc_submitted),
@@ -694,7 +694,7 @@ static int pxad_alloc_chan_resources(struct dma_chan *dchan)
 					  __alignof__(struct pxad_desc_hw),
 					  0);
 	if (!chan->desc_pool) {
-		dev_err(&chan->vc.chan.dev->device,
+		dev_err(vchan_chan_dev(&chan->vc),
 			"%s(): unable to allocate descriptor pool\n",
 			__func__);
 		return -ENOMEM;
@@ -750,7 +750,7 @@ pxad_alloc_desc(struct pxad_chan *chan, unsigned int nb_hw_desc)
 	for (i = 0; i < nb_hw_desc; i++) {
 		desc = dma_pool_alloc(sw_desc->desc_pool, GFP_NOWAIT, &dma);
 		if (!desc) {
-			dev_err(&chan->vc.chan.dev->device,
+			dev_err(vchan_chan_dev(&chan->vc),
 				"%s(): Couldn't allocate the %dth hw_desc from dma_pool %p\n",
 				__func__, i, sw_desc->desc_pool);
 			sw_desc->nb_desc = i;
@@ -787,7 +787,7 @@ static dma_cookie_t pxad_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	if (list_empty(&vc->desc_submitted) && pxad_try_hotchain(vc, vd)) {
 		list_move_tail(&vd->node, &vc->desc_issued);
-		dev_dbg(&chan->vc.chan.dev->device,
+		dev_dbg(vchan_chan_dev(&chan->vc),
 			"%s(): txd %p[%x]: submitted (hot linked)\n",
 			__func__, vd, cookie);
 		goto out;
@@ -810,7 +810,7 @@ static dma_cookie_t pxad_tx_submit(struct dma_async_tx_descriptor *tx)
 		else
 			vd_chained = NULL;
 	}
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): txd %p[%x]: submitted (%s linked)\n",
 		__func__, vd, cookie, vd_chained ? "cold" : "not");
 	list_move_tail(&vd->node, &vc->desc_submitted);
@@ -833,7 +833,7 @@ static void pxad_issue_pending(struct dma_chan *dchan)
 
 	vd_first = list_first_entry(&chan->vc.desc_submitted,
 				    struct virt_dma_desc, node);
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): txd %p[%x]", __func__, vd_first, vd_first->tx.cookie);
 
 	vchan_issue_pending(&chan->vc);
@@ -853,7 +853,7 @@ pxad_tx_prep(struct virt_dma_chan *vc, struct virt_dma_desc *vd,
 	INIT_LIST_HEAD(&vd->node);
 	tx = vchan_tx_prep(vc, vd, tx_flags);
 	tx->tx_submit = pxad_tx_submit;
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): vc=%p txd=%p[%x] flags=0x%lx\n", __func__,
 		vc, vd, vd->tx.cookie,
 		tx_flags);
@@ -892,7 +892,7 @@ static void pxad_get_config(struct pxad_chan *chan,
 		*dcmd |= PXA_DCMD_BURST32 | PXA_DCMD_INCTRGADDR |
 			PXA_DCMD_INCSRCADDR;
 
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): dev_addr=0x%x maxburst=%d width=%d  dir=%d\n",
 		__func__, dev_addr, maxburst, width, dir);
 
@@ -926,7 +926,7 @@ pxad_prep_memcpy(struct dma_chan *dchan,
 	if (!dchan || !len)
 		return NULL;
 
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): dma_dst=0x%lx dma_src=0x%lx len=%zu flags=%lx\n",
 		__func__, (unsigned long)dma_dst, (unsigned long)dma_src,
 		len, flags);
@@ -975,7 +975,7 @@ pxad_prep_slave_sg(struct dma_chan *dchan, struct scatterlist *sgl,
 		return NULL;
 
 	pxad_get_config(chan, dir, &dcmd, &dsadr, &dtadr);
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): dir=%d flags=%lx\n", __func__, dir, flags);
 
 	nb_desc = sg_nents_for_dma(sgl, sg_len, PDMA_MAX_DESC_BYTES);
@@ -1022,7 +1022,7 @@ pxad_prep_dma_cyclic(struct dma_chan *dchan,
 	if (!dchan || !len || !period_len)
 		return NULL;
 	if ((dir != DMA_DEV_TO_MEM) && (dir != DMA_MEM_TO_DEV)) {
-		dev_err(&chan->vc.chan.dev->device,
+		dev_err(vchan_chan_dev(&chan->vc),
 			"Unsupported direction for cyclic DMA\n");
 		return NULL;
 	}
@@ -1033,7 +1033,7 @@ pxad_prep_dma_cyclic(struct dma_chan *dchan,
 
 	pxad_get_config(chan, dir, &dcmd, &dsadr, &dtadr);
 	dcmd |= PXA_DCMD_ENDIRQEN | (PXA_DCMD_LENGTH & period_len);
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): buf_addr=0x%lx len=%zu period=%zu dir=%d flags=%lx\n",
 		__func__, (unsigned long)buf_addr, len, period_len, dir, flags);
 
@@ -1081,14 +1081,14 @@ static int pxad_terminate_all(struct dma_chan *dchan)
 	struct pxad_phy *phy;
 	LIST_HEAD(head);
 
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): vchan %p: terminate all\n", __func__, &chan->vc);
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
 	vchan_get_all_descriptors(&chan->vc, &head);
 
 	list_for_each_entry(vd, &head, node) {
-		dev_dbg(&chan->vc.chan.dev->device,
+		dev_dbg(vchan_chan_dev(&chan->vc),
 			"%s(): cancelling txd %p[%x] (completed=%d)", __func__,
 			vd, vd->tx.cookie, is_desc_completed(vd));
 	}
@@ -1178,7 +1178,7 @@ static unsigned int pxad_residue(struct pxad_chan *chan,
 
 out:
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
-	dev_dbg(&chan->vc.chan.dev->device,
+	dev_dbg(vchan_chan_dev(&chan->vc),
 		"%s(): txd %p[%x] sw_desc=%p: %d\n",
 		__func__, vd, cookie, sw_desc, residue);
 	return residue;

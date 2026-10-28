@@ -321,7 +321,7 @@ to use.
 - DESC_METADATA_CLIENT
 
   The metadata buffer is allocated/provided by the client driver and it is
-  attached (via the dmaengine_desc_attach_metadata() helper to the descriptor.
+  attached (via the dmaengine_desc_attach_metadata() helper) to the descriptor.
 
   From the DMA driver the following is expected for this mode:
 
@@ -413,9 +413,11 @@ supported.
 
   - You'll also need to set following fields in this structure:
 
-    - flags:
-      TODO: Can it be modified by the driver itself, or
-      should it be always the flags passed in the arguments
+    - flags: this field belongs to the client. The driver stores the
+      flags passed in the arguments and must not modify them. It reads
+      the DMA_PREP_* bits while preparing the descriptor, and must only
+      test DMA_CTRL_ACK and DMA_CTRL_REUSE, which the client may change
+      after the descriptor has been prepared.
 
     - tx_submit: A pointer to a function you have to implement,
       that is supposed to push the current transaction descriptor to a
@@ -554,6 +556,11 @@ dma_cookie_t
 
 - Not really relevant any more since the introduction of ``virt-dma``
   that abstracts it away.
+
+- dmaengine drivers need to ensure buffers are flushed before invoking
+  vchan_cookie_complete() or dma_cookie_complete(). This would imply a call
+  to unmapping buffers or any such architecture calls to ensure caller seeing
+  buffers are flushed is done before invoking these calls.
 
 dma_vec
 

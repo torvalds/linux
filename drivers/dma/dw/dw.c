@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
+#include "../dmaengine.h"
 #include "internal.h"
 
 static void dw_dma_initialize_chan(struct dw_dma_chan *dwc)

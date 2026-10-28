@@ -69,8 +69,7 @@ struct axi_dma_chip {
 	int			irq[DMAC_MAX_CHANNELS];
 	void __iomem		*regs;
 	void __iomem		*apb_regs;
-	struct clk		*core_clk;
-	struct clk		*cfgr_clk;
+	struct clk_bulk_data	clks[2];
 	struct dw_axi_dma	*dw;
 };
 
@@ -118,16 +117,6 @@ struct axi_dma_chan_config {
 	u8 hs_sel_dst;
 	u8 hs_sel_src;
 };
-
-static inline struct device *dchan2dev(struct dma_chan *dchan)
-{
-	return &dchan->dev->device;
-}
-
-static inline struct device *chan2dev(struct axi_dma_chan *chan)
-{
-	return &chan->vc.chan.dev->device;
-}
 
 static inline struct axi_dma_desc *vd_to_axi_desc(struct virt_dma_desc *vd)
 {
@@ -234,9 +223,9 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 
 /* CH_CTL_H */
 #define CH_CTL_H_ARLEN_EN		BIT(6)
-#define CH_CTL_H_ARLEN_POS		7
+#define CH_CTL_H_ARLEN			GENMASK(14, 7)
 #define CH_CTL_H_AWLEN_EN		BIT(15)
-#define CH_CTL_H_AWLEN_POS		16
+#define CH_CTL_H_AWLEN			GENMASK(23, 16)
 
 enum {
 	DWAXIDMAC_ARWLEN_1		= 0,
@@ -258,8 +247,8 @@ enum {
 /* CH_CTL_L */
 #define CH_CTL_L_LAST_WRITE_EN		BIT(30)
 
-#define CH_CTL_L_DST_MSIZE_POS		18
-#define CH_CTL_L_SRC_MSIZE_POS		14
+#define CH_CTL_L_DST_MSIZE		GENMASK(21, 18)
+#define CH_CTL_L_SRC_MSIZE		GENMASK(17, 14)
 
 enum {
 	DWAXIDMAC_BURST_TRANS_LEN_1	= 0,
@@ -274,11 +263,11 @@ enum {
 	DWAXIDMAC_BURST_TRANS_LEN_1024
 };
 
-#define CH_CTL_L_DST_WIDTH_POS		11
-#define CH_CTL_L_SRC_WIDTH_POS		8
+#define CH_CTL_L_DST_WIDTH		GENMASK(13, 11)
+#define CH_CTL_L_SRC_WIDTH		GENMASK(10, 8)
 
-#define CH_CTL_L_DST_INC_POS		6
-#define CH_CTL_L_SRC_INC_POS		4
+#define CH_CTL_L_DST_INC		BIT(6)
+#define CH_CTL_L_SRC_INC		BIT(4)
 enum {
 	DWAXIDMAC_CH_CTL_L_INC		= 0,
 	DWAXIDMAC_CH_CTL_L_NOINC
@@ -288,17 +277,17 @@ enum {
 #define CH_CTL_L_SRC_MAST		BIT(0)
 
 /* CH_CFG_H */
-#define CH_CFG_H_PRIORITY_POS		17
-#define CH_CFG_H_DST_PER_POS		12
-#define CH_CFG_H_SRC_PER_POS		7
-#define CH_CFG_H_HS_SEL_DST_POS		4
-#define CH_CFG_H_HS_SEL_SRC_POS		3
+#define CH_CFG_H_PRIORITY		GENMASK(19, 17)
+#define CH_CFG_H_DST_PER		GENMASK(15, 12)
+#define CH_CFG_H_SRC_PER		GENMASK(10, 7)
+#define CH_CFG_H_HS_SEL_DST		BIT(4)
+#define CH_CFG_H_HS_SEL_SRC		BIT(3)
 enum {
 	DWAXIDMAC_HS_SEL_HW		= 0,
 	DWAXIDMAC_HS_SEL_SW
 };
 
-#define CH_CFG_H_TT_FC_POS		0
+#define CH_CFG_H_TT_FC			GENMASK(2, 0)
 enum {
 	DWAXIDMAC_TT_FC_MEM_TO_MEM_DMAC	= 0,
 	DWAXIDMAC_TT_FC_MEM_TO_PER_DMAC,
@@ -311,8 +300,8 @@ enum {
 };
 
 /* CH_CFG_L */
-#define CH_CFG_L_DST_MULTBLK_TYPE_POS	2
-#define CH_CFG_L_SRC_MULTBLK_TYPE_POS	0
+#define CH_CFG_L_DST_MULTBLK_TYPE	GENMASK(3, 2)
+#define CH_CFG_L_SRC_MULTBLK_TYPE	GENMASK(1, 0)
 enum {
 	DWAXIDMAC_MBLK_TYPE_CONTIGUOUS	= 0,
 	DWAXIDMAC_MBLK_TYPE_RELOAD,
@@ -321,13 +310,13 @@ enum {
 };
 
 /* CH_CFG2 */
-#define CH_CFG2_L_SRC_PER_POS		4
-#define CH_CFG2_L_DST_PER_POS		11
+#define CH_CFG2_L_SRC_PER		GENMASK(9, 4)
+#define CH_CFG2_L_DST_PER		GENMASK(16, 11)
 
-#define CH_CFG2_H_TT_FC_POS		0
-#define CH_CFG2_H_HS_SEL_SRC_POS	3
-#define CH_CFG2_H_HS_SEL_DST_POS	4
-#define CH_CFG2_H_PRIORITY_POS		20
+#define CH_CFG2_H_TT_FC			GENMASK(2, 0)
+#define CH_CFG2_H_HS_SEL_SRC		BIT(3)
+#define CH_CFG2_H_HS_SEL_DST		BIT(4)
+#define CH_CFG2_H_PRIORITY		GENMASK(19, 15)
 
 /**
  * DW AXI DMA channel interrupts

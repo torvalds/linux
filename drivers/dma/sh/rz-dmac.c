@@ -937,7 +937,7 @@ static u32 rz_dmac_calculate_residue_bytes_in_vd(struct rz_dmac_chan *channel,
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	u32 residue = 0, i = 0;
 
-	while (lmdesc->nxla != crla) {
+	while (rz_dmac_lmdesc_addr(channel, lmdesc) != crla) {
 		lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
 		if (++i >= DMAC_NR_LMDESC)
 			return 0;
@@ -948,13 +948,13 @@ static u32 rz_dmac_calculate_residue_bytes_in_vd(struct rz_dmac_chan *channel,
 		u32 start_lmdesc_addr = rz_dmac_lmdesc_addr(channel, desc->start_lmdesc);
 
 		while (lmdesc->nxla != start_lmdesc_addr) {
-			residue += lmdesc->tb;
 			lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
+			residue += lmdesc->tb;
 		}
 	} else {
 		while (lmdesc->chcfg & CHCFG_DEM) {
-			residue += lmdesc->tb;
 			lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
+			residue += lmdesc->tb;
 		}
 	}
 

@@ -564,8 +564,7 @@ static int mmp_pdma_alloc_chan_resources(struct dma_chan *dchan)
 	if (chan->desc_pool)
 		return 1;
 
-	chan->desc_pool = dma_pool_create(dev_name(&dchan->dev->device),
-					  chan->dev,
+	chan->desc_pool = dma_pool_create(dma_chan_name(dchan), chan->dev,
 					  sizeof(struct mmp_pdma_desc_sw),
 					  __alignof__(struct mmp_pdma_desc_sw),
 					  0);

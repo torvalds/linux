@@ -879,10 +879,10 @@ found:
 		return chan;
 	chan->slave = dev;
 
-	if (sysfs_create_link(&chan->dev->device.kobj, &dev->kobj,
+	if (sysfs_create_link(&dmaengine_chan_dev(chan)->kobj, &dev->kobj,
 			      DMA_SLAVE_NAME))
 		dev_warn(dev, "Cannot create DMA %s symlink\n", DMA_SLAVE_NAME);
-	if (sysfs_create_link(&dev->kobj, &chan->dev->device.kobj, chan->name))
+	if (sysfs_create_link(&dev->kobj, &dmaengine_chan_dev(chan)->kobj, chan->name))
 		dev_warn(dev, "Cannot create DMA %s symlink\n", chan->name);
 
 	return chan;
@@ -928,7 +928,7 @@ void dma_release_channel(struct dma_chan *chan)
 	dma_chan_put(chan);
 
 	if (chan->slave) {
-		sysfs_remove_link(&chan->dev->device.kobj, DMA_SLAVE_NAME);
+		sysfs_remove_link(&dmaengine_chan_dev(chan)->kobj, DMA_SLAVE_NAME);
 		sysfs_remove_link(&chan->slave->kobj, chan->name);
 		kfree(chan->name);
 		chan->name = NULL;
@@ -1089,22 +1089,25 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 					       struct dma_chan *chan,
 					       const char *name)
 {
+	unsigned int id;
 	int rc;
 
 	chan->local = alloc_percpu(typeof(*chan->local));
 	if (!chan->local)
 		return -ENOMEM;
-	chan->dev = kzalloc_obj(*chan->dev);
-	if (!chan->dev) {
+	chan->chan_dev = kzalloc_obj(*chan->chan_dev);
+	if (!chan->chan_dev) {
 		rc = -ENOMEM;
 		goto err_free_local;
 	}
 
-	/*
-	 * When the chan_id is a negative value, we are dynamically adding
-	 * the channel. Otherwise we are static enumerating.
-	 */
-	chan->chan_id = ida_alloc(&device->chan_ida, GFP_KERNEL);
+	if (chan->chan_id & DMA_CHAN_ID_STATIC) {
+		id = chan->chan_id & ~DMA_CHAN_ID_STATIC;
+		chan->chan_id = ida_alloc_range(&device->chan_ida, id, id,
+						GFP_KERNEL);
+	} else {
+		chan->chan_id = ida_alloc(&device->chan_ida, GFP_KERNEL);
+	}
 	if (chan->chan_id < 0) {
 		pr_err("%s: unable to alloc ida for chan: %d\n",
 		       __func__, chan->chan_id);
@@ -1112,17 +1115,17 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 		goto err_free_dev;
 	}
 
-	chan->dev->device.class = &dma_devclass;
-	chan->dev->device.parent = device->dev;
-	chan->dev->chan = chan;
-	chan->dev->dev_id = device->dev_id;
+	dmaengine_chan_dev(chan)->class = &dma_devclass;
+	dmaengine_chan_dev(chan)->parent = device->dev;
+	chan->chan_dev->chan = chan;
+	chan->chan_dev->dev_id = device->dev_id;
 	spin_lock_init(&chan->lock);
 
 	if (!name)
-		dev_set_name(&chan->dev->device, "dma%dchan%d", device->dev_id, chan->chan_id);
+		dev_set_name(dmaengine_chan_dev(chan), "dma%dchan%d", device->dev_id, chan->chan_id);
 	else
-		dev_set_name(&chan->dev->device, "%s", name);
-	rc = device_register(&chan->dev->device);
+		dev_set_name(dmaengine_chan_dev(chan), "%s", name);
+	rc = device_register(dmaengine_chan_dev(chan));
 	if (rc)
 		goto err_out_ida;
 	chan->client_count = 0;
@@ -1133,7 +1136,7 @@ static int __dma_async_device_channel_register(struct dma_device *device,
  err_out_ida:
 	ida_free(&device->chan_ida, chan->chan_id);
  err_free_dev:
-	kfree(chan->dev);
+	kfree(chan->chan_dev);
  err_free_local:
 	free_percpu(chan->local);
 	chan->local = NULL;
@@ -1166,10 +1169,10 @@ static void __dma_async_device_channel_unregister(struct dma_device *device,
 		  __func__, chan->client_count);
 	mutex_lock(&dma_list_mutex);
 	device->chancnt--;
-	chan->dev->chan = NULL;
+	chan->chan_dev->chan = NULL;
 	mutex_unlock(&dma_list_mutex);
 	ida_free(&device->chan_ida, chan->chan_id);
-	device_unregister(&chan->dev->device);
+	device_unregister(dmaengine_chan_dev(chan));
 	free_percpu(chan->local);
 }
 
@@ -1301,9 +1304,9 @@ err_out:
 		if (chan->local == NULL)
 			continue;
 		mutex_lock(&dma_list_mutex);
-		chan->dev->chan = NULL;
+		chan->chan_dev->chan = NULL;
 		mutex_unlock(&dma_list_mutex);
-		device_unregister(&chan->dev->device);
+		device_unregister(dmaengine_chan_dev(chan));
 		free_percpu(chan->local);
 	}
 	return rc;

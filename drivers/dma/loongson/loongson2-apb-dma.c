@@ -161,11 +161,6 @@ static inline struct ls2x_dma_priv *to_ldma_priv(struct dma_device *ddev)
 	return container_of(ddev, struct ls2x_dma_priv, ddev);
 }
 
-static struct device *chan2dev(struct dma_chan *chan)
-{
-	return &chan->dev->device;
-}
-
 static void ls2x_dma_desc_free(struct virt_dma_desc *vdesc)
 {
 	struct ls2x_dma_chan *lchan = to_ldma_chan(vdesc->tx.chan);
@@ -282,11 +277,11 @@ static int ls2x_dma_alloc_chan_resources(struct dma_chan *chan)
 	struct ls2x_dma_chan *lchan = to_ldma_chan(chan);
 
 	/* Create a pool of consistent memory blocks for hardware descriptors */
-	lchan->pool = dma_pool_create(dev_name(chan2dev(chan)),
+	lchan->pool = dma_pool_create(dma_chan_name(chan),
 				      chan->device->dev, PAGE_SIZE,
 				      __alignof__(struct ls2x_dma_hw_desc), 0);
 	if (!lchan->pool) {
-		dev_err(chan2dev(chan), "No memory for descriptors\n");
+		dev_err(dmaengine_chan_dev(chan), "No memory for descriptors\n");
 		return -ENOMEM;
 	}
 

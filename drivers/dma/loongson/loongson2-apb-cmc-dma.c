@@ -90,7 +90,7 @@ struct loongson2_cmc_dma_chan {
 	struct dma_slave_config	dma_sconfig;
 	struct loongson2_cmc_dma_desc *desc;
 	u32 id;
-	u32 irq;
+	int irq;
 	u32 next_sg;
 	struct loongson2_cmc_dma_chan_reg chan_reg;
 };
@@ -132,11 +132,6 @@ static struct loongson2_cmc_dma_chan *to_lmdma_chan(struct dma_chan *chan)
 static struct loongson2_cmc_dma_desc *to_lmdma_desc(struct virt_dma_desc *vdesc)
 {
 	return container_of(vdesc, struct loongson2_cmc_dma_desc, vdesc);
-}
-
-static struct device *chan2dev(struct loongson2_cmc_dma_chan *lchan)
-{
-	return &lchan->vchan.chan.dev->device;
 }
 
 static u32 loongson2_cmc_dma_read(struct loongson2_cmc_dma_dev *lddev, u32 reg, u32 id)
@@ -302,7 +297,7 @@ static irqreturn_t loongson2_cmc_dma_chan_irq(int irq, void *devid)
 {
 	struct loongson2_cmc_dma_chan *lchan = devid;
 	struct loongson2_cmc_dma_dev *lddev = lmdma_get_dev(lchan);
-	struct device *dev = chan2dev(lchan);
+	struct device *dev = vchan_chan_dev(&lchan->vchan);
 	u32 ists, status, ccr;
 
 	scoped_guard(spinlock, &lchan->vchan.lock) {
@@ -337,7 +332,7 @@ static void loongson2_cmc_dma_issue_pending(struct dma_chan *chan)
 	guard(spinlock_irqsave)(&lchan->vchan.lock);
 
 	if (vchan_issue_pending(&lchan->vchan) && !lchan->desc) {
-		dev_dbg(chan2dev(lchan), "vchan %pK: issued\n", &lchan->vchan);
+		dev_dbg(vchan_chan_dev(&lchan->vchan), "vchan %pK: issued\n", &lchan->vchan);
 		loongson2_cmc_dma_start_transfer(lchan);
 	}
 }
@@ -347,7 +342,7 @@ static int loongson2_cmc_dma_set_xfer_param(struct loongson2_cmc_dma_chan *lchan
 					    enum dma_slave_buswidth *buswidth, u32 buf_len)
 {
 	struct dma_slave_config	sconfig = lchan->dma_sconfig;
-	struct device *dev = chan2dev(lchan);
+	struct device *dev = vchan_chan_dev(&lchan->vchan);
 	int dev_width;
 	u32 ccr;
 
@@ -404,12 +399,14 @@ loongson2_cmc_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl, 
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		ret = loongson2_cmc_dma_set_xfer_param(lchan, direction, &buswidth, sg_dma_len(sg));
-		if (ret)
+		if (ret) {
+			kfree(desc);
 			return ERR_PTR(ret);
+		}
 
 		num_items = DIV_ROUND_UP(sg_dma_len(sg), buswidth);
 		if (num_items >= LOONSON2_CMCDMA_MAX_DATA_ITEMS) {
-			dev_err(chan2dev(lchan), "Number of items not supported\n");
+			dev_err(vchan_chan_dev(&lchan->vchan), "Number of items not supported\n");
 			kfree(desc);
 			return ERR_PTR(-EINVAL);
 		}
@@ -447,7 +444,7 @@ loongson2_cmc_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, si
 
 	num_items = DIV_ROUND_UP(period_len, buswidth);
 	if (num_items >= LOONSON2_CMCDMA_MAX_DATA_ITEMS) {
-		dev_err(chan2dev(lchan), "Number of items not supported\n");
+		dev_err(vchan_chan_dev(&lchan->vchan), "Number of items not supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -678,7 +675,7 @@ static int loongson2_cmc_dma_probe(struct platform_device *pdev)
 			return lchan->irq;
 
 		ret = devm_request_irq(dev, lchan->irq, loongson2_cmc_dma_chan_irq, IRQF_SHARED,
-				       dev_name(chan2dev(lchan)), lchan);
+				       vchan_chan_name(&lchan->vchan), lchan);
 		if (ret)
 			return ret;
 	}
@@ -709,8 +706,8 @@ static const struct of_device_id loongson2_cmc_dma_of_match[] = {
 MODULE_DEVICE_TABLE(of, loongson2_cmc_dma_of_match);
 
 static const struct acpi_device_id loongson2_cmc_dma_acpi_match[] = {
-	{ "LOON0014", .driver_data = (kernel_ulong_t)&ls2k3000_cmc_dma_config },
-	{ /* sentinel */ }
+	{ .id = "LOON0014", .driver_data = (kernel_ulong_t)&ls2k3000_cmc_dma_config },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, loongson2_cmc_dma_acpi_match);
 
