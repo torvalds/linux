@@ -72,24 +72,6 @@ static inline int epilogue_offset(const struct jit_ctx *ctx)
 	return (to - from);
 }
 
-/* Zero-extend 32 bits into 64 bits */
-static inline void emit_zext_32(struct jit_ctx *ctx, enum loongarch_gpr reg, bool is32)
-{
-	if (!is32)
-		return;
-
-	emit_insn(ctx, lu32id, reg, 0);
-}
-
-/* Signed-extend 32 bits into 64 bits */
-static inline void emit_sext_32(struct jit_ctx *ctx, enum loongarch_gpr reg, bool is32)
-{
-	if (!is32)
-		return;
-
-	emit_insn(ctx, addiw, reg, reg, 0);
-}
-
 /* Emit proper extension according to ABI requirements.
  * Note that it requires a value of size `size` already resides in register `reg`.
  */
