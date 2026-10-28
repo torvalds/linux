@@ -1430,6 +1430,11 @@ static int parse_map_size(char *str)
 	if (ret)
 		goto out;
 
+	if (!size) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	map_bits = ilog2(roundup_pow_of_two(size));
 	if (map_bits < TRACING_MAP_BITS_MIN ||
 	    map_bits > TRACING_MAP_BITS_MAX)
