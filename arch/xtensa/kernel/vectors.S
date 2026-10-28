@@ -21,7 +21,7 @@
  * use a first-level dispatch table to dispatch the exception to a registered
  * fast handler or the default handler, if no fast handler was registered.
  * The default handler sets up a C-stack and dispatches the exception to a
- * registerd C handler in the second-level dispatch table.
+ * registered C handler in the second-level dispatch table.
  *
  * Fast handler entry condition:
  *
