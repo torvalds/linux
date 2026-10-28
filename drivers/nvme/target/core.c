@@ -1821,6 +1821,9 @@ ssize_t nvmet_ctrl_host_traddr(struct nvmet_ctrl *ctrl,
 {
 	if (!ctrl->ops->host_traddr)
 		return -EOPNOTSUPP;
+	/* They all take the address from the admin queue */
+	if (!ctrl->sqs[0])
+		return -ENOTCONN;
 	return ctrl->ops->host_traddr(ctrl, traddr, traddr_len);
 }
 
