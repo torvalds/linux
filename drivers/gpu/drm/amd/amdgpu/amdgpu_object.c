@@ -923,6 +923,19 @@ void amdgpu_bo_unref(struct amdgpu_bo **bo)
 	*bo = NULL;
 }
 
+/* Map a BO onto vram_pin_size_xcp[]. bo->xcp_id < 0 means "any partition":
+ * such pins are not owned by a single partition and go to
+ * vram_pin_size_common, which every partition subtracts.
+ */
+static int amdgpu_bo_get_xcp(struct amdgpu_bo *bo)
+{
+	s8 xcp = bo->xcp_id;
+
+	if (xcp >= 0 && xcp < MAX_XCP)
+		return xcp;
+	return -1;
+}
+
 /**
  * amdgpu_bo_pin - pin an &amdgpu_bo buffer object
  * @bo: &amdgpu_bo buffer object to be pinned
@@ -1003,7 +1016,17 @@ int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain)
 	ttm_bo_pin(&bo->tbo);
 
 	if (bo->tbo.resource->mem_type == TTM_PL_VRAM) {
+		int xcp = amdgpu_bo_get_xcp(bo);
+
 		atomic64_add(amdgpu_bo_size(bo), &adev->vram_pin_size);
+		if (xcp >= 0) {
+			atomic64_add(amdgpu_bo_size(bo),
+				     &adev->vram_pin_size_xcp[xcp]);
+		} else {
+			atomic64_add(amdgpu_bo_size(bo),
+				     &adev->vram_pin_size_common);
+		}
+		amdgpu_amdkfd_account_vram_pin(bo, xcp);
 		atomic64_add(amdgpu_vram_mgr_bo_visible_size(bo),
 			     &adev->visible_pin_size);
 	} else if (bo->tbo.resource->mem_type == TTM_PL_TT) {
@@ -1036,7 +1059,17 @@ void amdgpu_bo_unpin(struct amdgpu_bo *bo)
 		dma_buf_unpin(bo->tbo.base.import_attach);
 
 	if (bo->tbo.resource->mem_type == TTM_PL_VRAM) {
+		int xcp = amdgpu_bo_get_xcp(bo);
+
 		atomic64_sub(amdgpu_bo_size(bo), &adev->vram_pin_size);
+		if (xcp >= 0) {
+			atomic64_sub(amdgpu_bo_size(bo),
+				     &adev->vram_pin_size_xcp[xcp]);
+		} else {
+			atomic64_sub(amdgpu_bo_size(bo),
+				     &adev->vram_pin_size_common);
+		}
+		amdgpu_amdkfd_account_vram_unpin(bo, xcp);
 		atomic64_sub(amdgpu_vram_mgr_bo_visible_size(bo),
 			     &adev->visible_pin_size);
 	} else if (bo->tbo.resource->mem_type == TTM_PL_TT) {

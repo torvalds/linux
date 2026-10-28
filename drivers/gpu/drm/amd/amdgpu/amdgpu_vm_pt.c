@@ -427,7 +427,7 @@ int amdgpu_vm_pt_clear(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (r)
 		goto exit;
 
-	r = vm->update_funcs->commit(&params, NULL);
+	r = vm->update_funcs->commit(&params, &vm->last_update);
 exit:
 	drm_dev_exit(idx);
 	return r;
@@ -531,13 +531,16 @@ static int amdgpu_vm_pt_alloc(struct amdgpu_vm_update_params *p,
 	r2 = amdgpu_vm_begin_critical(p);
 	if (r)
 		return r;
-	if (r2)
-		goto error_free_pt;
+
+	pt_bo = &pt->bo;
+	if (r2) {
+		r = r2;
+		goto error_unpin;
+	}
 
 	/* Keep a reference to the root directory to avoid
 	 * freeing them up in the wrong order.
 	 */
-	pt_bo = &pt->bo;
 	pt_bo->parent = amdgpu_bo_ref(cursor->parent->bo);
 	amdgpu_vm_bo_base_init(entry, p->vm, pt_bo);
 	r = amdgpu_vm_pt_clear(p->adev, p->vm, pt, p->immediate);
@@ -549,7 +552,6 @@ static int amdgpu_vm_pt_alloc(struct amdgpu_vm_update_params *p,
 error_unpin:
 	if (p->vm->is_npa)
 		amdgpu_bo_unpin(pt_bo);
-error_free_pt:
 	amdgpu_bo_unref(&pt_bo);
 	return r;
 }

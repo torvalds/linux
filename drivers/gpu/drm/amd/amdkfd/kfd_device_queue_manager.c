@@ -4215,6 +4215,15 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 		     queue++) {
 			r = dqm->dev->kfd2kgd->hqd_sdma_dump(
 				dqm->dev->adev, pipe, queue, &dump, &n_regs);
+			if (r == -EINVAL) {
+				/*
+				 * SDMA engine not present/mapped on this
+				 * device; skip it instead of aborting the
+				 * whole dump.
+				 */
+				r = 0;
+				break;
+			}
 			if (r)
 				break;
 

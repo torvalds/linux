@@ -137,14 +137,21 @@ static bool __check_vpod_info(struct amdgpu_device *adev,
 			 vpod->size, ppod->size);
 		return false;
 	}
-	if (vpod->addr_mode >= AMDGPU_UALINK_ADDR_MODE_MAX) {
+
+	switch (vpod->addr_mode) {
+	case AMDGPU_UALINK_ADDR_MODE_SOURCE_ALIAS:
+		break;
+	case AMDGPU_UALINK_ADDR_MODE_SOURCE_IDENT:
 		dev_warn(adev->dev,
-			 "UALINK: invalid addr mode %u\n",
+			 "UALINK: source-identification addr mode is not supported\n");
+		return false;
+	default:
+		dev_warn(adev->dev, "UALINK: invalid addr mode %u\n",
 			 vpod->addr_mode);
 		return false;
 	}
-	weight =
-		bitmap_weight(vpod->active_accel_bits, AMDGPU_UALINK_ACCEL_MAX);
+
+	weight = bitmap_weight(vpod->active_accel_bits, AMDGPU_UALINK_ACCEL_MAX);
 	if (weight != vpod->size) {
 		dev_warn(adev->dev,
 			 "UALINK: vPod size doesn't match vpod_active_accels list: %u != %u\n",
@@ -1351,8 +1358,7 @@ static ssize_t ualink_vpod_config_commit_store(struct kobject *kobj,
 	if (info->vpod.id != AMDGPU_UALINK_VPOD_ID_INVALID &&
 	    !__check_vpod_info(adev, info)) {
 		dev_err(adev->dev,
-			"UALINK: vpod-commit __check_vpod_info() failed: %d\n",
-			r);
+			"UALINK: vpod-commit __check_vpod_info() failed\n");
 		return -EINVAL;
 	}
 
@@ -6075,9 +6081,8 @@ static int amdgpu_ualink_remote_shootdown(struct amdgpu_device *adev,
 	struct amdgpu_ualink_ring *ring;
 	int r;
 
-	dev_dbg(adev->dev, "skip remote shootdown to remote_accel_id %u\n",
+	dev_dbg(adev->dev, "send remote shootdown to remote_accel_id %u\n",
 		remote_accel_id);
-	return 0;
 
 	peer = &remote->peer[remote_accel_id];
 	ring = &peer->shootdown;
