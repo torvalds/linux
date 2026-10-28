@@ -147,7 +147,8 @@ static int mana_get_sset_count(struct net_device *ndev, int stringset)
 		return ARRAY_SIZE(mana_eth_stats) +
 		       ARRAY_SIZE(mana_phy_stats) +
 		       ARRAY_SIZE(mana_hc_stats)  +
-		       num_queues * (MANA_STATS_RX_COUNT + MANA_STATS_TX_COUNT);
+		       num_queues * (MANA_STATS_RX_COUNT + MANA_STATS_TX_COUNT +
+				       MANA_STATS_EQ_COUNT);
 
 	case ETH_SS_PRIV_FLAGS:
 		return MANA_PRIV_FLAG_MAX;
@@ -198,6 +199,9 @@ static void mana_get_strings_stats(struct mana_port_context *apc, u8 **data)
 		ethtool_sprintf(data, "tx_%d_csum_partial", i);
 		ethtool_sprintf(data, "tx_%d_mana_map_err", i);
 	}
+
+	for (i = 0; i < num_queues; i++)
+		ethtool_sprintf(data, "eq_%d_throttle_events", i);
 }
 
 static void mana_get_strings_priv_flags(u8 **data)
@@ -234,6 +238,7 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 	void *phy_stats = &apc->phy_stats;
 	struct mana_stats_rx *rx_stats;
 	struct mana_stats_tx *tx_stats;
+	struct gdma_eq_stats *eq_stats;
 	unsigned int start;
 	u64 packets, bytes;
 	u64 xdp_redirect;
@@ -251,6 +256,7 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 	u64 csum_partial;
 	u64 mana_map_err;
 	int q, i = 0, j;
+	u64 throttled;
 
 	if (!apc->port_is_up)
 		return;
@@ -324,6 +330,17 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 		data[i++] = short_pkt_fmt;
 		data[i++] = csum_partial;
 		data[i++] = mana_map_err;
+	}
+
+	for (q = 0; q < num_queues; q++) {
+		eq_stats = &apc->eqs[q].eq->eq.stats;
+
+		do {
+			start = u64_stats_fetch_begin(&eq_stats->syncp);
+			throttled = u64_stats_read(&eq_stats->throttle_count);
+		} while (u64_stats_fetch_retry(&eq_stats->syncp, start));
+
+		data[i++] = throttled;
 	}
 }
 

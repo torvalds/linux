@@ -757,6 +757,27 @@ void mana_gd_free_service_wq(struct gdma_context *gc)
 	gc->service_wq = NULL;
 }
 
+static void mana_gd_schedule_eq_cqs(struct gdma_queue *eq)
+{
+	struct gdma_context *gc = eq->gdma_dev->gdma_context;
+	struct gdma_queue *cq;
+	u8 i;
+
+	for (i = 0; i < GDMA_EQ_MAX_CHILD_CQ; i++) {
+		cq = rcu_dereference(eq->eq.child_cq[i]);
+
+		if (!cq)
+			continue;
+
+		if (cq->id >= READ_ONCE(gc->max_num_cqs) ||
+		    !gc->cq_table || gc->cq_table[cq->id] != cq)
+			continue;
+
+		if (cq->cq.callback)
+			cq->cq.callback(cq->cq.context, cq);
+	}
+}
+
 static void mana_gd_process_eqe(struct gdma_queue *eq)
 {
 	u32 head = eq->head % (eq->queue_size / GDMA_EQE_SIZE);
@@ -785,6 +806,14 @@ static void mana_gd_process_eqe(struct gdma_queue *eq)
 		if (cq->cq.callback)
 			cq->cq.callback(cq->cq.context, cq);
 
+		break;
+
+	case GDMA_EQE_THROTTLE:
+		u64_stats_update_begin(&eq->eq.stats.syncp);
+		u64_stats_inc(&eq->eq.stats.throttle_count);
+		u64_stats_update_end(&eq->eq.stats.syncp);
+
+		mana_gd_schedule_eq_cqs(eq);
 		break;
 
 	case GDMA_EQE_TEST_EVENT:
@@ -1032,6 +1061,8 @@ static int mana_gd_create_eq(struct gdma_dev *gd,
 	queue->eq.msix_index = INVALID_PCI_MSIX_INDEX;
 	queue->id = INVALID_QUEUE_ID;
 
+	u64_stats_init(&queue->eq.stats.syncp);
+
 	log2_num_entries = ilog2(queue->queue_size / GDMA_EQE_SIZE);
 
 	if (spec->eq.log2_throttle_limit > log2_num_entries) {
@@ -1073,25 +1104,66 @@ static void mana_gd_create_cq(const struct gdma_queue_spec *spec,
 			      struct gdma_queue *queue)
 {
 	u32 log2_num_entries = ilog2(spec->queue_size / GDMA_CQE_SIZE);
+	struct gdma_queue *parent;
+	u8 i;
 
 	queue->head |= INITIALIZED_OWNER_BIT(log2_num_entries);
-	queue->cq.parent = spec->cq.parent_eq;
+	parent = spec->cq.parent_eq;
+	queue->cq.parent = parent;
 	queue->cq.context = spec->cq.context;
 	queue->cq.callback = spec->cq.callback;
+
+	if (!parent)
+		return;
+
+	/* For throttled EQE store the child CQ */
+	for (i = 0; i < GDMA_EQ_MAX_CHILD_CQ; i++) {
+		if (!rcu_access_pointer(parent->eq.child_cq[i])) {
+			rcu_assign_pointer(parent->eq.child_cq[i], queue);
+			return;
+		}
+	}
+
+	WARN_ONCE(1, "mana: EQ %u has no free child CQ slot\n", parent->id);
+}
+
+/* Unlink queue from its parent EQ's child_cq[] and from gc->cq_table[].
+ *
+ * Return: true if queue was in the parent EQ's child_cq[]. In that case the
+ * caller must wait for an RCU grace period before freeing queue, because
+ * mana_gd_intr() may still be handling a throttle EQE for it.
+ */
+bool mana_gd_detach_cq(struct gdma_context *gc, struct gdma_queue *queue)
+{
+	struct gdma_queue *eq = queue->cq.parent;
+	bool attached = false;
+	u32 id = queue->id;
+	u8 i;
+
+	if (eq) {
+		for (i = 0; i < GDMA_EQ_MAX_CHILD_CQ; i++) {
+			if (rcu_access_pointer(eq->eq.child_cq[i]) == queue) {
+				RCU_INIT_POINTER(eq->eq.child_cq[i], NULL);
+				attached = true;
+			}
+		}
+	}
+
+	/* Check if CQ might have been detached already, only clear if
+	 * it still points to same queue .
+	 */
+	if (id < gc->max_num_cqs && READ_ONCE(gc->cq_table[id]) == queue)
+		WRITE_ONCE(gc->cq_table[id], NULL);
+
+	return attached;
 }
 
 static void mana_gd_destroy_cq(struct gdma_context *gc,
 			       struct gdma_queue *queue)
 {
-	u32 id = queue->id;
-
-	if (id >= gc->max_num_cqs)
-		return;
-
-	if (!gc->cq_table[id])
-		return;
-
-	gc->cq_table[id] = NULL;
+	/* Wait for irq reader holding the cq */
+	if (mana_gd_detach_cq(gc, queue))
+		synchronize_net();
 }
 
 int mana_gd_create_hwc_queue(struct gdma_dev *gd,
