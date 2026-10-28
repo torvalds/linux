@@ -20476,7 +20476,7 @@ F:	drivers/net/dsa/ocelot/ocelot_ext.c
 F:	include/linux/mfd/ocelot.h
 
 OCXL (Open Coherent Accelerator Processor Interface OpenCAPI) DRIVER
-M:	Mahesh J Salgaonkar <mahesh@linux.ibm.com>
+M:	Madhavan Srinivasan <maddy@linux.ibm.com>
 R:	Andrew Donnellan <andrew+kernel@donnellan.id.au>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Odd Fixes
