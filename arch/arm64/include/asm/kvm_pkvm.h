@@ -17,7 +17,6 @@
 
 #define HYP_MEMBLOCK_REGIONS 128
 
-void pkvm_selftests(void);
 int pkvm_init_host_vm(struct kvm *kvm);
 int pkvm_create_hyp_vm(struct kvm *kvm);
 bool pkvm_hyp_vm_is_created(struct kvm *kvm);

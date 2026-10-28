@@ -464,7 +464,7 @@ bool __vgic_v3_get_gic_config(void)
 	if (has_vhe()) {
 		flags = local_daif_save();
 	} else {
-		sysreg_clear_set_hcr(0, HCR_AMO | HCR_FMO | HCR_IMO);
+		sysreg_clear_set_hcr(0, HCR_EL2_AMO | HCR_EL2_FMO | HCR_EL2_IMO);
 		isb();
 	}
 
@@ -479,7 +479,7 @@ bool __vgic_v3_get_gic_config(void)
 	if (has_vhe()) {
 		local_daif_restore(flags);
 	} else {
-		sysreg_clear_set_hcr(HCR_AMO | HCR_FMO | HCR_IMO, 0);
+		sysreg_clear_set_hcr(HCR_EL2_AMO | HCR_EL2_FMO | HCR_EL2_IMO, 0);
 		isb();
 	}
 

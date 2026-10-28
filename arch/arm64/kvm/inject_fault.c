@@ -228,7 +228,7 @@ static void __kvm_inject_sea(struct kvm_vcpu *vcpu, bool iabt, u64 addr)
 
 static bool kvm_sea_target_is_el2(struct kvm_vcpu *vcpu)
 {
-	if (__vcpu_sys_reg(vcpu, HCR_EL2) & (HCR_TGE | HCR_TEA))
+	if (__vcpu_sys_reg(vcpu, HCR_EL2) & (HCR_EL2_TGE | HCR_EL2_TEA))
 		return true;
 
 	if (!vcpu_mode_priv(vcpu))
@@ -272,7 +272,7 @@ int kvm_inject_dabt_excl_atomic(struct kvm_vcpu *vcpu, u64 addr)
 {
 	u64 esr;
 
-	if (is_nested_ctxt(vcpu) && (vcpu_read_sys_reg(vcpu, HCR_EL2) & HCR_VM))
+	if (is_nested_ctxt(vcpu) && (vcpu_read_sys_reg(vcpu, HCR_EL2) & HCR_EL2_VM))
 		return kvm_inject_nested_excl_atomic(vcpu, addr);
 
 	__kvm_inject_sea(vcpu, false, addr);
@@ -387,6 +387,6 @@ int kvm_inject_serror_esr(struct kvm_vcpu *vcpu, u64 esr)
 	}
 
 	vcpu_set_vsesr(vcpu, esr & ESR_ELx_ISS_MASK);
-	*vcpu_hcr(vcpu) |= HCR_VSE;
+	*vcpu_hcr(vcpu) |= HCR_EL2_VSE;
 	return 1;
 }
