@@ -662,7 +662,6 @@ static int __init rmpopt_init(void)
 
 	return 0;
 }
-device_initcall(rmpopt_init);
 
 void snp_enable_rmpopt(void)
 {
@@ -725,6 +724,8 @@ int __init snp_rmptable_init(void)
 	 * notifier is invoked to do SNP IOMMU shutdown before kdump.
 	 */
 	crash_kexec_post_notifiers = true;
+
+	rmpopt_init();
 
 	return 0;
 }
