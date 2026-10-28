@@ -108,6 +108,11 @@ patternProperties:
                 - PHY_TYPE_USB2
                 - PHY_TYPE_USB3
 
+      phys:
+        description:
+          eUSB2 repeater PHY connected between this port and the USB connector.
+        maxItems: 1
+
       # The following optional vendor properties are only for debug or HQA test
       mediatek,eye-src:
         description:

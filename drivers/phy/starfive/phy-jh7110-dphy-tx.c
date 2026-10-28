@@ -209,7 +209,7 @@ static u32 stf_dphy_get_config_index(u32 bitrate)
 	return 0;
 }
 
-static void stf_dphy_hw_reset(struct stf_dphy *dphy, int assert)
+static int stf_dphy_hw_reset(struct stf_dphy *dphy, int assert)
 {
 	int rc;
 	u32 status = 0;
@@ -224,8 +224,12 @@ static void stf_dphy_hw_reset(struct stf_dphy *dphy, int assert)
 					       !(FIELD_GET(STF_DPHY_RGS_CDTX_PLL_UNLOCK, status)),
 					       STF_DPHY_HW_DELAY_US, STF_DPHY_HW_TIMEOUT_US);
 		if (rc)
-			dev_err(dphy->dev, "MIPI dphy-tx # PLL Locked\n");
+			dev_err(dphy->dev, "MIPI dphy-tx PLL failed to lock\n");
+
+		return rc;
 	}
+
+	return 0;
 }
 
 static int stf_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
@@ -313,7 +317,9 @@ static int stf_dphy_init(struct phy *phy)
 	struct stf_dphy *dphy = phy_get_drvdata(phy);
 	int ret;
 
-	stf_dphy_hw_reset(dphy, 1);
+	ret = stf_dphy_hw_reset(dphy, 1);
+	if (ret)
+		return ret;
 
 	writel(FIELD_PREP(STF_DPHY_SCFG_PPI_C_READY_SEL, 0) |
 	       FIELD_PREP(STF_DPHY_SCFG_DSI_TXREADY_ESC_SEL, 0),
@@ -350,7 +356,9 @@ static int stf_dphy_exit(struct phy *phy)
 
 	clk_disable_unprepare(dphy->txesc_clk);
 
-	stf_dphy_hw_reset(dphy, 0);
+	ret = stf_dphy_hw_reset(dphy, 0);
+	if (ret)
+		return ret;
 
 	return 0;
 }

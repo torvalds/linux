@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+#
+# PHY drivers for ASPEED
+#
+
+config PHY_ASPEED_USB3
+	tristate "ASPEED USB3 PHY driver"
+	select GENERIC_PHY
+	depends on (ARCH_ASPEED || COMPILE_TEST)
+	help
+	  Enable this to support the USB 3.2 PHY on the Aspeed AST2700 SoC.
+	  It supports SuperSpeedPlus Gen2x1 (10 Gbps), SuperSpeed (5 Gbps),
+	  High Speed (480 Mbps), Full Speed (12 Mbps) and Low Speed
+	  (1.5 Mbps), and is paired with the DWC3 USB controller.

@@ -18,6 +18,10 @@ properties:
     oneOf:
       - items:
           - enum:
+              - qcom,maili-qmp-ufs-phy
+          - const: qcom,hawi-qmp-ufs-phy
+      - items:
+          - enum:
               - qcom,qcs8300-qmp-ufs-phy
           - const: qcom,sa8775p-qmp-ufs-phy
       - items:

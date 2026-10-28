@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/nvidia,tegra264-mphy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra264 MIPI M-PHY
+
+maintainers:
+  - Kartik Rajput <kkartik@nvidia.com>
+  - Thierry Reding <treding@nvidia.com>
+
+properties:
+  compatible:
+    const: nvidia,tegra264-mphy
+
+  reg:
+    items:
+      - description: Lane 0 register window
+      - description: Lane 1 register window
+
+  reg-names:
+    items:
+      - const: l0
+      - const: l1
+
+  clocks:
+    maxItems: 11
+
+  clock-names:
+    items:
+      - const: pll
+      - const: tx-ref
+      - const: l0-tx-sym
+      - const: l0-tx-ls
+      - const: l0-tx-hs
+      - const: l0-tx-fifo
+      - const: l0-rx-sym
+      - const: l0-rx-ana
+      - const: l0-rx-ls
+      - const: l0-rx-hs
+      - const: l1-rx-ana
+
+  resets:
+    maxItems: 5
+
+  reset-names:
+    items:
+      - const: clk-ctl
+      - const: l0-rx
+      - const: l0-tx
+      - const: l1-rx
+      - const: l1-tx
+
+  '#phy-cells':
+    description: |
+      The cell selects one M-PHY lane direction. Valid values are defined in
+      <dt-bindings/phy/nvidia,tegra264-mphy.h>: TEGRA_MPHY_L0_TX, TEGRA_MPHY_L0_RX,
+      TEGRA_MPHY_L1_TX and TEGRA_MPHY_L1_RX.
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/nvidia,tegra264.h>
+    #include <dt-bindings/reset/nvidia,tegra264.h>
+    #include <dt-bindings/phy/nvidia,tegra264-mphy.h>
+
+    mphy: phy@b910000 {
+        compatible = "nvidia,tegra264-mphy";
+        reg = <0xb910000 0x10000>,
+              <0xb920000 0x10000>;
+        reg-names = "l0", "l1";
+        clocks = <&bpmp TEGRA264_CLK_MPHY_CORE_PLL_FIXED>,
+                 <&bpmp TEGRA264_CLK_MPHY_TX_1MHZ_REF>,
+                 <&bpmp TEGRA264_CLK_MPHY_L0_TX_SYMB>,
+                 <&bpmp TEGRA264_CLK_MPHY_L0_TX_LS_3XBIT>,
+                 <&bpmp TEGRA264_CLK_MPHY_L0_TX_HS_SYMB_DIV>,
+                 <&bpmp TEGRA264_CLK_MPHY_L0_UPHY_TX_FIFO>,
+                 <&bpmp TEGRA264_CLK_MPHY_L0_RX_SYMB>,
+                 <&bpmp TEGRA264_CLK_MPHY_L0_RX_ANA>,
+                 <&bpmp TEGRA264_CLK_MPHY_L0_RX_LS_BIT>,
+                 <&bpmp TEGRA264_CLK_MPHY_L0_RX_HS_SYMB_DIV>,
+                 <&bpmp TEGRA264_CLK_MPHY_L1_RX_ANA>;
+        clock-names = "pll", "tx-ref",
+                      "l0-tx-sym", "l0-tx-ls", "l0-tx-hs", "l0-tx-fifo",
+                      "l0-rx-sym", "l0-rx-ana", "l0-rx-ls", "l0-rx-hs",
+                      "l1-rx-ana";
+        resets = <&bpmp TEGRA264_RESET_MPHY_CLK_CTL>,
+                 <&bpmp TEGRA264_RESET_MPHY_L0_RX>,
+                 <&bpmp TEGRA264_RESET_MPHY_L0_TX>,
+                 <&bpmp TEGRA264_RESET_MPHY_L1_RX>,
+                 <&bpmp TEGRA264_RESET_MPHY_L1_TX>;
+        reset-names = "clk-ctl", "l0-rx", "l0-tx", "l1-rx", "l1-tx";
+        #phy-cells = <1>;
+    };
+...

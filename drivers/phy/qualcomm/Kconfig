@@ -96,6 +96,7 @@ config PHY_QCOM_QMP_PCIE_MULTIPHY
 	tristate "Qualcomm QMP PCIe Multi PHY Driver"
 	depends on PCI || COMPILE_TEST
 	select GENERIC_PHY
+	select MFD_SYSCON
 	help
 	  Enable this to support the QMP PCIe PHY transceiver that is used
 	  with PCIe controllers on Qualcomm chips. This PHY is a single

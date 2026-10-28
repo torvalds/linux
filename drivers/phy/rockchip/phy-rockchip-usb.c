@@ -200,9 +200,9 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 				 struct device_node *child)
 {
 	struct rockchip_usb_phy *rk_phy;
+	struct clk_init_data init = {};
 	unsigned int reg_offset;
 	const char *clk_name;
-	struct clk_init_data init;
 	int err, i;
 
 	rk_phy = devm_kzalloc(base->dev, sizeof(*rk_phy), GFP_KERNEL);

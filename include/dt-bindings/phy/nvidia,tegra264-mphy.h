@@ -1,0 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause */
+/* Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
+
+#ifndef DT_BINDINGS_PHY_NVIDIA_TEGRA264_MPHY_H
+#define DT_BINDINGS_PHY_NVIDIA_TEGRA264_MPHY_H
+
+#define TEGRA_MPHY_L0_TX	0
+#define TEGRA_MPHY_L0_RX	1
+#define TEGRA_MPHY_L1_TX	2
+#define TEGRA_MPHY_L1_RX	3
+
+#endif /* DT_BINDINGS_PHY_NVIDIA_TEGRA264_MPHY_H */

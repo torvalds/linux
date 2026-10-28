@@ -18,3 +18,14 @@ config PHY_TEGRA194_P2U
 	help
 	  Enable this to support the P2U (PIPE to UPHY) that is part of Tegra 19x
 	  and 234 SOCs.
+
+config PHY_TEGRA_MPHY
+	tristate "NVIDIA Tegra264 MPHY driver"
+	depends on ARCH_TEGRA_264_SOC || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this to support the MIPI M-PHY on NVIDIA Tegra264 SoCs.
+	  The M-PHY provides the physical layer for the on-die UFS host
+	  controller. The driver manages the shared clock-control block
+	  and per-lane resets, exposing four sub-phys (L0-TX, L0-RX,
+	  L1-TX, L1-RX) consumed by the UFS host driver.
