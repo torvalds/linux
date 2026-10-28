@@ -1527,8 +1527,8 @@ static irqreturn_t vc4_dsi_irq_handler(int irq, void *data)
 		complete(&dsi->xfer_completion);
 		ret = IRQ_HANDLED;
 	} else if (stat & DSI_PORT_BIT(INT_HSTX_TO)) {
-		complete(&dsi->xfer_completion);
 		dsi->xfer_result = -ETIMEDOUT;
+		complete(&dsi->xfer_completion);
 		ret = IRQ_HANDLED;
 	}
 
