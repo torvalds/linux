@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Verify that non-SACK connections properly detect duplicate acks when mixed
+// with other data segments from peer.
+
+`./defaults.sh`
+
+    0     socket(..., SOCK_STREAM, IPPROTO_TCP) = 4
+   +0...0 connect(4, ..., ...) = 0
+
+   // Three-way handshake, SACK not supported by peer
+   +0 > S  0:0(0) <mss 1460,sackOK,TS val 0 ecr 0,nop,wscale 8>
+   +0 < S. 0:0(0) ack 1 win 65535 <mss 1000>
+   +0 > .  1:1(0) ack 1
+
+   // Send 1000 bytes, peer acks everything
+   +0 send(4, ..., 1000, 0) = 1000
+   +0 > P. 1:1001(1000) ack 1
+   +0 < .  1:1(0) ack 1001 win 65535
+
+   // Send 4000 more bytes
+   +0 send(4, ..., 4000, 0) = 4000
+   +0 > P. 1001:5001(4000) ack 1
+
+   // Receive first dup-ack (considering segment 1001-2001 was lost)
+   +0 < .  1:1(0) ack 1001 win 65535
+
+   // Receive unrelated data segment from peer and ack it
+   +0 < P. 1:11(10) ack 1001 win 65535
+   +0 > .  5001:5001(0) ack 11
+
+   // Receive second dup-ack
+   +0 < .  11:11(0) ack 1001 win 65535
+
+   // Receive another data segment from peer and ack it
+   +0 < P. 11:21(10) ack 1001 win 65535
+   +0 > .  5001:5001(0) ack 21
+
+   // Receive third dup-ack, which should trigger fast retransmit (without
+   // waiting for RTO)
+   +0 < .  21:21(0) ack 1001 win 65535
+   +0 > .  1001:2001(1000) ack 21
