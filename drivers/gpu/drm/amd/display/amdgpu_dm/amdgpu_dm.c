@@ -3858,6 +3858,25 @@ STATIC_IFN_KUNIT void dm_arm_vblank_event_pre_programming(struct amdgpu_crtc *ac
 }
 EXPORT_IF_KUNIT(dm_arm_vblank_event_pre_programming);
 
+/*
+ * FreeSync times each frame from the plane's previous flip, and a plane
+ * reset gives the new DC plane zeroed flip timing, so copy it over. Do
+ * this at commit time, not in atomic check: by then the previous commit
+ * has finished writing it.
+ */
+static void
+dm_plane_inherit_flip_time(struct dc_plane_state *dc_plane_state,
+			   struct drm_plane_state *old_plane_state,
+			   struct drm_plane_state *new_plane_state)
+{
+	struct dc_plane_state *old_dc_plane_state =
+		to_dm_plane_state(old_plane_state)->dc_state;
+
+	if (old_dc_plane_state && old_dc_plane_state != dc_plane_state &&
+	    old_plane_state->crtc == new_plane_state->crtc)
+		dc_plane_state->time = old_dc_plane_state->time;
+}
+
 static void amdgpu_dm_commit_planes(struct drm_atomic_commit *state,
 				    struct drm_device *dev,
 				    struct amdgpu_display_manager *dm,
@@ -3961,6 +3980,9 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_commit *state,
 		dc_plane = dm_new_plane_state->dc_state;
 		if (!dc_plane)
 			continue;
+
+		dm_plane_inherit_flip_time(dc_plane, old_plane_state,
+					   new_plane_state);
 
 		bundle->surface_updates[planes_count].surface = dc_plane;
 		if (new_pcrtc_state->color_mgmt_changed || new_plane_state->color_mgmt_changed) {
