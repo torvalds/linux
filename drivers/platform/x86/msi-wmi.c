@@ -33,25 +33,27 @@ MODULE_ALIAS("wmi:" MSIWMI_MSI_EVENT_GUID);
 MODULE_ALIAS("wmi:" MSIWMI_WIND_EVENT_GUID);
 
 enum msi_scancodes {
-	/* Generic MSI keys (not present on MSI Wind) */
-	MSI_KEY_BRIGHTNESSUP	= 0xD0,
-	MSI_KEY_BRIGHTNESSDOWN,
-	MSI_KEY_VOLUMEUP,
-	MSI_KEY_VOLUMEDOWN,
-	MSI_KEY_MUTE,
-	/* MSI Wind keys */
 	WIND_KEY_TOUCHPAD	= 0x08,	/* Fn+F3 touchpad toggle */
-	WIND_KEY_BLUETOOTH	= 0x56,	/* Fn+F11 Bluetooth toggle */
-	WIND_KEY_CAMERA,		/* Fn+F6 webcam toggle */
-	WIND_KEY_WLAN		= 0x5f,	/* Fn+F11 Wi-Fi toggle */
-	WIND_KEY_TURBO,			/* Fn+F10 turbo mode toggle */
-	WIND_KEY_ECO		= 0x69,	/* Fn+F10 ECO mode toggle */
-	/* MSI Claw keys */
+	WIND_KEY_FN_NB		= 0x0b,
+	WIND_KEY_MICMUTE_NB	= 0x19,
+	WIND_KEY_SETTINGS_NB	= 0x1d,
 	CLAW_KEY_VOLUMEDOWN	= 0x21,
+	WIND_KEY_MUTE_NB	= 0x23,
 	CLAW_KEY_CENTER		= 0x29,	/* MSI M-Center main menu */
 	CLAW_KEY_QUICK_LONG	= 0x2a,	/* MSI M-Center quick access long hold */
 	CLAW_KEY_VOLUMEUP	= 0x32,
+	WIND_KEY_BLUETOOTH	= 0x56,	/* Fn+F11 Bluetooth toggle */
+	WIND_KEY_CAMERA		= 0x57,	/* Fn+F6 webcam toggle */
 	CLAW_KEY_QUICK_SHORT	= 0x58,	/* MSI M-Center quick access short press */
+	WIND_KEY_WLAN		= 0x5f,	/* Fn+F11 Wi-Fi toggle */
+	WIND_KEY_TURBO		= 0x60,	/* Fn+F10 turbo mode toggle */
+	WIND_KEY_ECO		= 0x69,	/* Fn+F10 ECO mode toggle */
+	WIND_KEY_BLUETOOTH_NB	= 0x78,
+	MSI_KEY_BRIGHTNESSUP	= 0xd0,
+	MSI_KEY_BRIGHTNESSDOWN	= 0xd1,
+	MSI_KEY_VOLUMEUP	= 0xd2,
+	MSI_KEY_VOLUMEDOWN	= 0xd3,
+	MSI_KEY_MUTE		= 0xd4,
 };
 static struct key_entry msi_wmi_keymap[] = {
 	{ KE_KEY, MSI_KEY_BRIGHTNESSUP,		{KEY_BRIGHTNESSUP} },
@@ -65,6 +67,13 @@ static struct key_entry msi_wmi_keymap[] = {
 	{ KE_IGNORE, WIND_KEY_BLUETOOTH,	{KEY_BLUETOOTH} },
 	{ KE_IGNORE, WIND_KEY_CAMERA,		{KEY_CAMERA} },
 	{ KE_IGNORE, WIND_KEY_WLAN,		{KEY_WLAN} },
+
+	/* These MSI Notebook keys work without WMI. Ignore them to avoid double keycodes */
+	{ KE_IGNORE, WIND_KEY_FN_NB },
+	{ KE_IGNORE, WIND_KEY_MICMUTE_NB },
+	{ KE_IGNORE, WIND_KEY_SETTINGS_NB },
+	{ KE_IGNORE, WIND_KEY_MUTE_NB },
+	{ KE_IGNORE, WIND_KEY_BLUETOOTH_NB },
 
 	/* These are unknown WMI events found on MSI Wind */
 	{ KE_IGNORE, 0x00 },
@@ -236,9 +245,9 @@ static void msi_wmi_notify(union acpi_object *obj, void *context)
 	}
 
 	/* Brightness is served via acpi video driver */
-	if (key->type == KE_KEY &&
-	    (backlight || (key->code == MSI_KEY_BRIGHTNESSUP ||
-			   key->code == MSI_KEY_BRIGHTNESSDOWN)))
+	if (key->type == KE_KEY && !backlight &&
+	    (key->code == MSI_KEY_BRIGHTNESSUP ||
+	     key->code == MSI_KEY_BRIGHTNESSDOWN))
 		return;
 
 	pr_debug("Send key: 0x%X - Input layer keycode: %d\n", key->code, key->keycode);

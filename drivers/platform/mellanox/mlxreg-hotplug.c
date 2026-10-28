@@ -740,10 +740,8 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 	err = devm_request_irq(&pdev->dev, priv->irq,
 			       mlxreg_hotplug_irq_handler, IRQF_TRIGGER_FALLING
 			       | IRQF_SHARED, "mlxreg-hotplug", priv);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to request irq: %d\n", err);
+	if (err)
 		return err;
-	}
 
 	disable_irq(priv->irq);
 	spin_lock_init(&priv->lock);

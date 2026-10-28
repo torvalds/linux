@@ -514,7 +514,7 @@ static int aspire_ec_probe(struct i2c_client *client)
 					aspire_ec_irq_handler, IRQF_ONESHOT,
 					dev_name(dev), ec);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to request irq\n");
+		return ret;
 
 	return 0;
 }

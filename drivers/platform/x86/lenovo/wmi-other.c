@@ -1619,11 +1619,14 @@ static void lwmi_om_fw_attr_remove(struct lwmi_om_priv *priv)
  * lenovo-wmi-other master driver, with a callback to collect fan info from
  * capdata_fan. On success, assign the capability data list pointers to the
  * driver data struct for later access. These pointers are only valid while the
- * capdata interfaces exist. Finally, collect fan info from capdata00 and
- * register all firmware attribute groups. Note that the HWMON device is
- * registered only if all fan info is collected. Hence, it is not registered
- * here. See lwmi_om_fan_info_collect_cd00() and
- * lwmi_om_fan_info_collect_cd_fan().
+ * capdata interfaces exist.
+ *
+ * If capdata00 is bound, collect fan info from capdata00 and register the power
+ * supply extension. Note that the HWMON device is registered only if all fan
+ * info is collected. Hence, it is not registered here. See
+ * lwmi_om_fan_info_collect_cd00() and lwmi_om_fan_info_collect_cd_fan().
+ *
+ * If capdata01 is bound, register all firmware attribute groups.
  *
  * Return: 0 on success, or an error code.
  */
@@ -1643,16 +1646,19 @@ static int lwmi_om_master_bind(struct device *dev)
 
 	priv->cd00_list = binder.cd00_list;
 	priv->cd01_list = binder.cd01_list;
-	if (!priv->cd00_list || !priv->cd01_list) {
+	if (!priv->cd00_list && !priv->cd01_list) {
 		component_unbind_all(dev, NULL);
 
 		return -ENODEV;
 	}
 
-	lwmi_om_fan_info_collect_cd00(priv);
-	lwmi_om_psy_ext_init(priv);
+	if (priv->cd00_list) {
+		lwmi_om_fan_info_collect_cd00(priv);
+		lwmi_om_psy_ext_init(priv);
+	}
 
-	lwmi_om_fw_attr_add(priv);
+	if (priv->cd01_list)
+		lwmi_om_fw_attr_add(priv);
 
 	return 0;
 }

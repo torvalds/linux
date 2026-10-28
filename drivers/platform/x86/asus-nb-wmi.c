@@ -137,6 +137,10 @@ static struct quirk_entry quirk_asus_use_lid_flip_devid = {
 	.tablet_switch_mode = asus_wmi_lid_flip_devid,
 };
 
+static struct quirk_entry quirk_asus_proart_px13 = {
+	.tablet_switch_mode = asus_wmi_lid_flip_devid,
+};
+
 static struct quirk_entry quirk_asus_tablet_mode = {
 	.wmi_backlight_set_devstate = true,
 	.tablet_switch_mode = asus_wmi_lid_flip_rog_devid,
@@ -501,6 +505,16 @@ static const struct dmi_system_id asus_quirks[] = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "ASUS ROG FLOW X13",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			/* Match GV302X* */
+			DMI_MATCH(DMI_PRODUCT_NAME, "GV302X"),
+		},
+		.driver_data = &quirk_asus_tablet_mode,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "ASUS ROG FLOW X16",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
@@ -562,6 +576,15 @@ static const struct dmi_system_id asus_quirks[] = {
 		},
 		.driver_data = &quirk_asus_z13,
 	},
+	{
+		.callback = dmi_matched,
+		.ident = "ASUS ProArt PX13",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HN7306WV"),
+		},
+		.driver_data = &quirk_asus_proart_px13,
+	},
 	{},
 };
 
@@ -573,7 +596,7 @@ static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 	driver->quirks = quirks;
 	driver->panel_power = BACKLIGHT_POWER_ON;
 
-	/* overwrite the wapf setting if the wapf paramater is specified */
+	/* overwrite the wapf setting if the wapf parameter is specified */
 	if (wapf != -1)
 		quirks->wapf = wapf;
 	else

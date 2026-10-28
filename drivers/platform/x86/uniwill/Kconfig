@@ -28,6 +28,7 @@ config UNIWILL_LAPTOP
 	depends on DMI
 	select REGMAP
 	select INPUT_SPARSEKMAP
+	select LEDS_TRIGGERS
 	help
 	  This driver adds support for various extra features found on Uniwill laptops,
 	  like the lightbar, hwmon sensors and hotkeys. It also supports many OEM laptops

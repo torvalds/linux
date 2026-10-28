@@ -14,7 +14,7 @@
 /* PMC SSRAM PMT Telemetry GUIDS */
 #define PCDH_LPM_REQ_GUID 0x01093101
 #define PCHS_LPM_REQ_GUID 0x01092101
-#define PCDS_LPM_REQ_GUID 0x01091102
+#define PCDS_LPM_REQ_GUID 0x01091103
 
 /*
  * Die Mapping to Product.

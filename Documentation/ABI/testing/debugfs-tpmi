@@ -25,9 +25,11 @@ Description:
 Allows to write at any offset. It doesn't check for Read/Write access
 as hardware will not allow to write at read-only memory. This write is
 at offset multiples of 4. The format is instance,offset,contents.
-Example:
-echo 0,0x20,0xff > mem_write
-echo 1,64,64 > mem_write
+Example::
+
+  echo 0,0x20,0xff > mem_write
+  echo 1,64,64 > mem_write
+
 Users:		Debugging, any user space test suite
 
 What:		/sys/kernel/debug/tpmi-<n>/plr/domain<n>/status

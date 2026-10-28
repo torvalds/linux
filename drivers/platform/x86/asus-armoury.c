@@ -94,6 +94,7 @@ struct asus_armoury_priv {
 
 	u32 mini_led_dev_id;
 	u32 gpu_mux_dev_id;
+	u32 dgpu_disable_dev_id;
 
 	bool requires_fan_curve;
 };
@@ -108,11 +109,6 @@ struct fw_attrs_group {
 
 static struct fw_attrs_group fw_attrs = {
 	.pending_reboot = false,
-};
-
-struct asus_attr_group {
-	const struct attribute_group *attr_group;
-	u32 wmi_devid;
 };
 
 static void asus_set_reboot_and_signal_event(void)
@@ -458,6 +454,12 @@ static ssize_t mini_led_mode_possible_values_show(struct kobject *kobj,
 		return -ENODEV;
 	}
 }
+
+static bool mini_led_mode_group_visible(struct kobject *kobj)
+{
+	return asus_armoury.mini_led_dev_id;
+}
+
 ASUS_ATTR_GROUP_ENUM(mini_led_mode, "mini_led_mode", "Set the mini-LED backlight mode");
 
 static ssize_t gpu_mux_mode_current_value_store(struct kobject *kobj,
@@ -471,8 +473,8 @@ static ssize_t gpu_mux_mode_current_value_store(struct kobject *kobj,
 	if (err)
 		return err;
 
-	if (armoury_has_devstate(ASUS_WMI_DEVID_DGPU)) {
-		err = armoury_get_devstate(NULL, &result, ASUS_WMI_DEVID_DGPU);
+	if (asus_armoury.dgpu_disable_dev_id) {
+		err = armoury_get_devstate(NULL, &result, asus_armoury.dgpu_disable_dev_id);
 		if (err)
 			return err;
 		if (result && !optimus) {
@@ -502,6 +504,12 @@ static ssize_t gpu_mux_mode_current_value_store(struct kobject *kobj,
 	return count;
 }
 ASUS_WMI_SHOW_INT(gpu_mux_mode_current_value, asus_armoury.gpu_mux_dev_id);
+
+static bool gpu_mux_mode_group_visible(struct kobject *kobj)
+{
+	return asus_armoury.gpu_mux_dev_id;
+}
+
 ASUS_ATTR_GROUP_BOOL(gpu_mux_mode, "gpu_mux_mode", "Set the GPU display MUX mode");
 
 static ssize_t dgpu_disable_current_value_store(struct kobject *kobj,
@@ -515,18 +523,31 @@ static ssize_t dgpu_disable_current_value_store(struct kobject *kobj,
 	if (err)
 		return err;
 
-	if (asus_armoury.gpu_mux_dev_id) {
-		err = armoury_get_devstate(NULL, &result, asus_armoury.gpu_mux_dev_id);
-		if (err)
-			return err;
-		if (!result && disable) {
-			pr_warn("Cannot disable dGPU when the MUX is in dGPU mode\n");
-			return -EBUSY;
+	if (disable) {
+		if (asus_armoury.gpu_mux_dev_id) {
+			err = armoury_get_devstate(NULL, &result, asus_armoury.gpu_mux_dev_id);
+			if (err)
+				return err;
+			if (!result) {
+				pr_warn("Cannot disable dGPU when the MUX is in dGPU mode\n");
+				return -EBUSY;
+			}
+		}
+
+		if (armoury_has_devstate(ASUS_WMI_DEVID_DGPU_POWER_STATE)) {
+			err = armoury_get_devstate(NULL, &result, ASUS_WMI_DEVID_DGPU_POWER_STATE);
+			if (err)
+				return err;
+			if (result) {
+				pr_warn("Cannot disable dGPU when it is in use\n");
+				return -EBUSY;
+			}
 		}
 	}
 
 	scoped_guard(mutex, &asus_armoury.egpu_mutex) {
-		err = armoury_set_devstate(attr, disable ? 1 : 0, NULL, ASUS_WMI_DEVID_DGPU);
+		err = armoury_set_devstate(attr, disable ? 1 : 0, NULL,
+					   asus_armoury.dgpu_disable_dev_id);
 		if (err)
 			return err;
 	}
@@ -535,7 +556,13 @@ static ssize_t dgpu_disable_current_value_store(struct kobject *kobj,
 
 	return count;
 }
-ASUS_WMI_SHOW_INT(dgpu_disable_current_value, ASUS_WMI_DEVID_DGPU);
+
+static bool dgpu_disable_group_visible(struct kobject *kobj)
+{
+	return asus_armoury.dgpu_disable_dev_id;
+}
+
+ASUS_WMI_SHOW_INT(dgpu_disable_current_value, asus_armoury.dgpu_disable_dev_id);
 ASUS_ATTR_GROUP_BOOL(dgpu_disable, "dgpu_disable", "Disable the dGPU");
 
 /* Values map for eGPU activation requests. */
@@ -683,6 +710,12 @@ static ssize_t egpu_enable_possible_values_show(struct kobject *kobj, struct kob
 {
 	return armoury_attr_enum_list(buf, ARRAY_SIZE(egpu_status_map));
 }
+
+static bool egpu_enable_group_visible(struct kobject *kobj)
+{
+	return armoury_has_devstate(ASUS_WMI_DEVID_EGPU);
+}
+
 ASUS_ATTR_GROUP_ENUM(egpu_enable, "egpu_enable", "Enable the eGPU (also disables dGPU)");
 
 /* Device memory available to APU */
@@ -759,6 +792,12 @@ static ssize_t apu_mem_possible_values_show(struct kobject *kobj, struct kobj_at
 {
 	return armoury_attr_enum_list(buf, ARRAY_SIZE(apu_mem_map));
 }
+
+static bool apu_mem_group_visible(struct kobject *kobj)
+{
+	return armoury_has_devstate(ASUS_WMI_DEVID_APU_MEM);
+}
+
 ASUS_ATTR_GROUP_ENUM(apu_mem, "apu_mem", "Set available system RAM (in GB) for the APU to use");
 
 /* Define helper to access the current power mode tunable values */
@@ -768,92 +807,6 @@ static inline struct rog_tunables *get_current_tunables(void)
 		return asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_AC];
 
 	return asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_DC];
-}
-
-/* Simple attribute creation */
-ASUS_ATTR_GROUP_ENUM_INT_RO(charge_mode, "charge_mode", ASUS_WMI_DEVID_CHARGE_MODE, "0;1;2\n",
-			    "Show the current mode of charging");
-ASUS_ATTR_GROUP_BOOL_RW(boot_sound, "boot_sound", ASUS_WMI_DEVID_BOOT_SOUND,
-			"Set the boot POST sound");
-ASUS_ATTR_GROUP_BOOL_RW(mcu_powersave, "mcu_powersave", ASUS_WMI_DEVID_MCU_POWERSAVE,
-			"Set MCU powersaving mode");
-ASUS_ATTR_GROUP_BOOL_RW(panel_od, "panel_overdrive", ASUS_WMI_DEVID_PANEL_OD,
-			"Set the panel refresh overdrive");
-ASUS_ATTR_GROUP_BOOL_RW(panel_hd_mode, "panel_hd_mode", ASUS_WMI_DEVID_PANEL_HD,
-			"Set the panel HD mode to UHD<0> or FHD<1>");
-ASUS_ATTR_GROUP_BOOL_RW(screen_auto_brightness, "screen_auto_brightness",
-			ASUS_WMI_DEVID_SCREEN_AUTO_BRIGHTNESS,
-			"Set the panel brightness to Off<0> or On<1>");
-ASUS_ATTR_GROUP_BOOL_RO(egpu_connected, "egpu_connected", ASUS_WMI_DEVID_EGPU_CONNECTED,
-			"Show the eGPU connection status");
-ASUS_ATTR_GROUP_ROG_TUNABLE(ppt_pl1_spl, ATTR_PPT_PL1_SPL, ASUS_WMI_DEVID_PPT_PL1_SPL,
-			    "Set the CPU slow package limit");
-ASUS_ATTR_GROUP_ROG_TUNABLE(ppt_pl2_sppt, ATTR_PPT_PL2_SPPT, ASUS_WMI_DEVID_PPT_PL2_SPPT,
-			    "Set the CPU fast package limit");
-ASUS_ATTR_GROUP_ROG_TUNABLE(ppt_pl3_fppt, ATTR_PPT_PL3_FPPT, ASUS_WMI_DEVID_PPT_PL3_FPPT,
-			    "Set the CPU fastest package limit");
-ASUS_ATTR_GROUP_ROG_TUNABLE(ppt_apu_sppt, ATTR_PPT_APU_SPPT, ASUS_WMI_DEVID_PPT_APU_SPPT,
-			    "Set the APU package limit");
-ASUS_ATTR_GROUP_ROG_TUNABLE(ppt_platform_sppt, ATTR_PPT_PLATFORM_SPPT, ASUS_WMI_DEVID_PPT_PLAT_SPPT,
-			    "Set the platform package limit");
-ASUS_ATTR_GROUP_ROG_TUNABLE(nv_dynamic_boost, ATTR_NV_DYNAMIC_BOOST, ASUS_WMI_DEVID_NV_DYN_BOOST,
-			    "Set the Nvidia dynamic boost limit");
-ASUS_ATTR_GROUP_ROG_TUNABLE(nv_temp_target, ATTR_NV_TEMP_TARGET, ASUS_WMI_DEVID_NV_THERM_TARGET,
-			    "Set the Nvidia max thermal limit");
-ASUS_ATTR_GROUP_ROG_TUNABLE(nv_tgp, "nv_tgp", ASUS_WMI_DEVID_DGPU_SET_TGP,
-			    "Set the additional TGP on top of the base TGP");
-ASUS_ATTR_GROUP_INT_VALUE_ONLY_RO(nv_base_tgp, ATTR_NV_BASE_TGP, ASUS_WMI_DEVID_DGPU_BASE_TGP,
-				  "Read the base TGP value");
-
-/* If an attribute does not require any special case handling add it here */
-static const struct asus_attr_group armoury_attr_groups[] = {
-	{ &egpu_connected_attr_group, ASUS_WMI_DEVID_EGPU_CONNECTED },
-	{ &egpu_enable_attr_group, ASUS_WMI_DEVID_EGPU },
-	{ &dgpu_disable_attr_group, ASUS_WMI_DEVID_DGPU },
-	{ &apu_mem_attr_group, ASUS_WMI_DEVID_APU_MEM },
-
-	{ &ppt_pl1_spl_attr_group, ASUS_WMI_DEVID_PPT_PL1_SPL },
-	{ &ppt_pl2_sppt_attr_group, ASUS_WMI_DEVID_PPT_PL2_SPPT },
-	{ &ppt_pl3_fppt_attr_group, ASUS_WMI_DEVID_PPT_PL3_FPPT },
-	{ &ppt_apu_sppt_attr_group, ASUS_WMI_DEVID_PPT_APU_SPPT },
-	{ &ppt_platform_sppt_attr_group, ASUS_WMI_DEVID_PPT_PLAT_SPPT },
-	{ &nv_dynamic_boost_attr_group, ASUS_WMI_DEVID_NV_DYN_BOOST },
-	{ &nv_temp_target_attr_group, ASUS_WMI_DEVID_NV_THERM_TARGET },
-	{ &nv_base_tgp_attr_group, ASUS_WMI_DEVID_DGPU_BASE_TGP },
-	{ &nv_tgp_attr_group, ASUS_WMI_DEVID_DGPU_SET_TGP },
-
-	{ &charge_mode_attr_group, ASUS_WMI_DEVID_CHARGE_MODE },
-	{ &boot_sound_attr_group, ASUS_WMI_DEVID_BOOT_SOUND },
-	{ &mcu_powersave_attr_group, ASUS_WMI_DEVID_MCU_POWERSAVE },
-	{ &panel_od_attr_group, ASUS_WMI_DEVID_PANEL_OD },
-	{ &panel_hd_mode_attr_group, ASUS_WMI_DEVID_PANEL_HD },
-	{ &screen_auto_brightness_attr_group, ASUS_WMI_DEVID_SCREEN_AUTO_BRIGHTNESS },
-};
-
-/**
- * is_power_tunable_attr - Determines if an attribute is a power-related tunable
- * @name: The name of the attribute to check
- *
- * This function checks if the given attribute name is related to power tuning.
- *
- * Return: true if the attribute is a power-related tunable, false otherwise
- */
-static bool is_power_tunable_attr(const char *name)
-{
-	static const char * const power_tunable_attrs[] = {
-		ATTR_PPT_PL1_SPL,	ATTR_PPT_PL2_SPPT,
-		ATTR_PPT_PL3_FPPT,	ATTR_PPT_APU_SPPT,
-		ATTR_PPT_PLATFORM_SPPT, ATTR_NV_DYNAMIC_BOOST,
-		ATTR_NV_TEMP_TARGET,	ATTR_NV_BASE_TGP,
-		ATTR_NV_TGP
-	};
-
-	for (unsigned int i = 0; i < ARRAY_SIZE(power_tunable_attrs); i++) {
-		if (!strcmp(name, power_tunable_attrs[i]))
-			return true;
-	}
-
-	return false;
 }
 
 /**
@@ -894,14 +847,74 @@ static bool has_valid_limit(const char *name, const struct power_limits *limits)
 	return limit_value > 0;
 }
 
+/* Simple attribute creation */
+ASUS_ATTR_GROUP_ENUM_INT_RO(charge_mode, "charge_mode", ASUS_WMI_DEVID_CHARGE_MODE, "0;1;2\n",
+			    "Show the current mode of charging");
+ASUS_ATTR_GROUP_BOOL_RW(boot_sound, "boot_sound", ASUS_WMI_DEVID_BOOT_SOUND,
+			"Set the boot POST sound");
+ASUS_ATTR_GROUP_BOOL_RW(mcu_powersave, "mcu_powersave", ASUS_WMI_DEVID_MCU_POWERSAVE,
+			"Set MCU powersaving mode");
+ASUS_ATTR_GROUP_BOOL_RW(panel_od, "panel_overdrive", ASUS_WMI_DEVID_PANEL_OD,
+			"Set the panel refresh overdrive");
+ASUS_ATTR_GROUP_BOOL_RW(panel_hd_mode, "panel_hd_mode", ASUS_WMI_DEVID_PANEL_HD,
+			"Set the panel HD mode to UHD<0> or FHD<1>");
+ASUS_ATTR_GROUP_BOOL_RW(screen_auto_brightness, "screen_auto_brightness",
+			ASUS_WMI_DEVID_SCREEN_AUTO_BRIGHTNESS,
+			"Set the panel brightness to Off<0> or On<1>");
+ASUS_ATTR_GROUP_BOOL_RO(egpu_connected, "egpu_connected", ASUS_WMI_DEVID_EGPU_CONNECTED,
+			"Show the eGPU connection status");
+ASUS_ATTR_GROUP_BOOL_RO(dgpu_power_state, "dgpu_power_state", ASUS_WMI_DEVID_DGPU_POWER_STATE,
+			"Show the dGPU power state (0: D3 cold, 1: D0 active)");
+ASUS_ATTR_GROUP_ROG_TUNABLE(ppt_pl1_spl, ATTR_PPT_PL1_SPL, ASUS_WMI_DEVID_PPT_PL1_SPL,
+			    "Set the CPU slow package limit");
+ASUS_ATTR_GROUP_ROG_TUNABLE(ppt_pl2_sppt, ATTR_PPT_PL2_SPPT, ASUS_WMI_DEVID_PPT_PL2_SPPT,
+			    "Set the CPU fast package limit");
+ASUS_ATTR_GROUP_ROG_TUNABLE(ppt_pl3_fppt, ATTR_PPT_PL3_FPPT, ASUS_WMI_DEVID_PPT_PL3_FPPT,
+			    "Set the CPU fastest package limit");
+ASUS_ATTR_GROUP_ROG_TUNABLE(ppt_apu_sppt, ATTR_PPT_APU_SPPT, ASUS_WMI_DEVID_PPT_APU_SPPT,
+			    "Set the APU package limit");
+ASUS_ATTR_GROUP_ROG_TUNABLE(ppt_platform_sppt, ATTR_PPT_PLATFORM_SPPT, ASUS_WMI_DEVID_PPT_PLAT_SPPT,
+			    "Set the platform package limit");
+ASUS_ATTR_GROUP_ROG_TUNABLE(nv_dynamic_boost, ATTR_NV_DYNAMIC_BOOST, ASUS_WMI_DEVID_NV_DYN_BOOST,
+			    "Set the Nvidia dynamic boost limit");
+ASUS_ATTR_GROUP_ROG_TUNABLE(nv_temp_target, ATTR_NV_TEMP_TARGET, ASUS_WMI_DEVID_NV_THERM_TARGET,
+			    "Set the Nvidia max thermal limit");
+ASUS_ATTR_GROUP_ROG_TUNABLE(nv_tgp, "nv_tgp", ASUS_WMI_DEVID_DGPU_SET_TGP,
+			    "Set the additional TGP on top of the base TGP");
+ASUS_ATTR_GROUP_INT_VALUE_ONLY_RO(nv_base_tgp, ATTR_NV_BASE_TGP, ASUS_WMI_DEVID_DGPU_BASE_TGP,
+				  "Read the base TGP value");
+
+static const struct attribute_group *armoury_attr_groups[] = {
+	&mini_led_mode_attr_group,
+	&gpu_mux_mode_attr_group,
+	&egpu_connected_attr_group,
+	&egpu_enable_attr_group,
+	&dgpu_disable_attr_group,
+	&dgpu_power_state_attr_group,
+	&apu_mem_attr_group,
+
+	&ppt_pl1_spl_attr_group,
+	&ppt_pl2_sppt_attr_group,
+	&ppt_pl3_fppt_attr_group,
+	&ppt_apu_sppt_attr_group,
+	&ppt_platform_sppt_attr_group,
+	&nv_dynamic_boost_attr_group,
+	&nv_temp_target_attr_group,
+	&nv_base_tgp_attr_group,
+	&nv_tgp_attr_group,
+
+	&charge_mode_attr_group,
+	&boot_sound_attr_group,
+	&mcu_powersave_attr_group,
+	&panel_od_attr_group,
+	&panel_hd_mode_attr_group,
+	&screen_auto_brightness_attr_group,
+	NULL
+};
+
 static int asus_fw_attr_add(void)
 {
-	const struct rog_tunables *const ac_rog_tunables =
-		asus_armoury.rog_tunables[ASUS_ROG_TUNABLE_AC];
-	const struct power_limits *limits;
-	bool should_create;
-	const char *name;
-	int err, i;
+	int err;
 
 	asus_armoury.fw_attr_dev = device_create(&firmware_attributes_class, NULL, MKDEV(0, 0),
 						NULL, "%s", DRIVER_NAME);
@@ -929,72 +942,27 @@ static int asus_fw_attr_add(void)
 	else if (armoury_has_devstate(ASUS_WMI_DEVID_MINI_LED_MODE2))
 		asus_armoury.mini_led_dev_id = ASUS_WMI_DEVID_MINI_LED_MODE2;
 
-	if (asus_armoury.mini_led_dev_id) {
-		err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj,
-					 &mini_led_mode_attr_group);
-		if (err) {
-			pr_err("Failed to create sysfs-group for mini_led\n");
-			goto err_remove_file;
-		}
-	}
-
 	asus_armoury.gpu_mux_dev_id = 0;
 	if (armoury_has_devstate(ASUS_WMI_DEVID_GPU_MUX))
 		asus_armoury.gpu_mux_dev_id = ASUS_WMI_DEVID_GPU_MUX;
 	else if (armoury_has_devstate(ASUS_WMI_DEVID_GPU_MUX_VIVO))
 		asus_armoury.gpu_mux_dev_id = ASUS_WMI_DEVID_GPU_MUX_VIVO;
 
-	if (asus_armoury.gpu_mux_dev_id) {
-		err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj,
-					 &gpu_mux_mode_attr_group);
-		if (err) {
-			pr_err("Failed to create sysfs-group for gpu_mux\n");
-			goto err_remove_mini_led_group;
-		}
-	}
+	asus_armoury.dgpu_disable_dev_id = 0;
+	if (armoury_has_devstate(ASUS_WMI_DEVID_DGPU))
+		asus_armoury.dgpu_disable_dev_id = ASUS_WMI_DEVID_DGPU;
+	else if (armoury_has_devstate(ASUS_WMI_DEVID_GPU_MODE))
+		asus_armoury.dgpu_disable_dev_id = ASUS_WMI_DEVID_GPU_MODE;
 
-	for (i = 0; i < ARRAY_SIZE(armoury_attr_groups); i++) {
-		if (!armoury_has_devstate(armoury_attr_groups[i].wmi_devid))
-			continue;
-
-		/* Always create by default, unless PPT is not present */
-		should_create = true;
-		name = armoury_attr_groups[i].attr_group->name;
-
-		/* Check if this is a power-related tunable requiring limits */
-		if (ac_rog_tunables && ac_rog_tunables->power_limits &&
-		    is_power_tunable_attr(name)) {
-			limits = ac_rog_tunables->power_limits;
-			/* Check only AC: if not present then DC won't be either */
-			should_create = has_valid_limit(name, limits);
-			if (!should_create)
-				pr_debug("Missing max value for tunable %s\n", name);
-		}
-
-		if (should_create) {
-			err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj,
-						 armoury_attr_groups[i].attr_group);
-			if (err) {
-				pr_err("Failed to create sysfs-group for %s\n",
-				       armoury_attr_groups[i].attr_group->name);
-				goto err_remove_groups;
-			}
-		}
+	err = sysfs_create_groups(&asus_armoury.fw_attr_kset->kobj,
+				  armoury_attr_groups);
+	if (err) {
+		pr_err("Failed to create firmware attributes groups\n");
+		goto err_remove_file;
 	}
 
 	return 0;
 
-err_remove_groups:
-	while (i--) {
-		if (armoury_has_devstate(armoury_attr_groups[i].wmi_devid))
-			sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj,
-					   armoury_attr_groups[i].attr_group);
-	}
-	if (asus_armoury.gpu_mux_dev_id)
-		sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj, &gpu_mux_mode_attr_group);
-err_remove_mini_led_group:
-	if (asus_armoury.mini_led_dev_id)
-		sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj, &mini_led_mode_attr_group);
 err_remove_file:
 	sysfs_remove_file(&asus_armoury.fw_attr_kset->kobj, &pending_reboot.attr);
 err_destroy_kset:
@@ -1165,19 +1133,8 @@ err_free_tunables:
 
 static void __exit asus_fw_exit(void)
 {
-	int i;
-
-	for (i = ARRAY_SIZE(armoury_attr_groups) - 1; i >= 0; i--) {
-		if (armoury_has_devstate(armoury_attr_groups[i].wmi_devid))
-			sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj,
-					   armoury_attr_groups[i].attr_group);
-	}
-
-	if (asus_armoury.gpu_mux_dev_id)
-		sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj, &gpu_mux_mode_attr_group);
-
-	if (asus_armoury.mini_led_dev_id)
-		sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj, &mini_led_mode_attr_group);
+	sysfs_remove_groups(&asus_armoury.fw_attr_kset->kobj,
+			    armoury_attr_groups);
 
 	sysfs_remove_file(&asus_armoury.fw_attr_kset->kobj, &pending_reboot.attr);
 	kset_unregister(asus_armoury.fw_attr_kset);

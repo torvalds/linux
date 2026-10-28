@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/printk.h>
-#include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/wmi.h>
 #include "bioscfg.h"
 #include <linux/nls.h>
@@ -53,74 +53,44 @@ int hp_get_integer_from_buffer(u8 **buffer, u32 *buffer_size, u32 *integer)
 
 int hp_get_string_from_buffer(u8 **buffer, u32 *buffer_size, char *dst, u32 dst_size)
 {
+	char utf8_buf[MAX_BUFF_SIZE];
 	u16 *src = (u16 *)*buffer;
+	int escaped_len;
+	u16 orig_size;
 	u16 src_size;
-
-	u16 size;
-	int i;
-	int conv_dst_size;
+	int utf8_len;
 
 	if (*buffer_size < sizeof(u16))
 		return -EINVAL;
 
-	src_size = *(src++);
-	/* size value in u16 chars */
-	size = src_size / sizeof(u16);
+	src_size = *src;
 
-	/* Ensure there is enough space remaining to read and convert
-	 * the string
+	/*
+	 * Ensure there is enough space remaining for the length prefix
+	 * just read plus the string data it describes.
 	 */
-	if (*buffer_size < src_size)
+	if (*buffer_size < sizeof(u16) + src_size)
 		return -EINVAL;
 
-	for (i = 0; i < size; i++)
-		if (src[i] == '\\' ||
-		    src[i] == '\r' ||
-		    src[i] == '\n' ||
-		    src[i] == '\t')
-			size++;
+	src++;
+	/* size value in u16 chars */
+	orig_size = src_size / sizeof(u16);
 
-	/*
-	 * Conversion is limited to destination string max number of
-	 * bytes.
-	 */
-	conv_dst_size = size;
-	if (size >= dst_size)
-		conv_dst_size = dst_size - 1;
+	utf8_len = utf16s_to_utf8s(src, orig_size, UTF16_HOST_ENDIAN,
+				   utf8_buf, sizeof(utf8_buf));
 
-	/*
-	 * convert from UTF-16 unicode to ASCII
-	 */
-	utf16s_to_utf8s(src, src_size, UTF16_HOST_ENDIAN, dst, conv_dst_size);
-	dst[conv_dst_size] = 0;
+	escaped_len = string_escape_mem(utf8_buf, utf8_len, dst, dst_size - 1,
+					ESCAPE_SPACE | ESCAPE_SPECIAL,
+					"\\\r\n\t");
+	if (escaped_len > dst_size - 1)
+		escaped_len = dst_size - 1;
+	dst[escaped_len] = '\0';
+	strreplace(dst, '"', '\'');
 
-	for (i = 0; i < conv_dst_size; i++) {
-		if (*src == '\\' ||
-		    *src == '\r' ||
-		    *src == '\n' ||
-		    *src == '\t') {
-			dst[i++] = '\\';
-			if (i == conv_dst_size)
-				break;
-		}
+	*buffer += sizeof(u16) + src_size;
+	*buffer_size -= sizeof(u16) + src_size;
 
-		if (*src == '\r')
-			dst[i] = 'r';
-		else if (*src == '\n')
-			dst[i] = 'n';
-		else if (*src == '\t')
-			dst[i] = 't';
-		else if (*src == '"')
-			dst[i] = '\'';
-		else
-			dst[i] = *src;
-		src++;
-	}
-
-	*buffer = (u8 *)src;
-	*buffer_size -= size * sizeof(u16);
-
-	return size;
+	return escaped_len;
 }
 
 int hp_get_common_data_from_buffer(u8 **buffer_ptr, u32 *buffer_size,
@@ -442,7 +412,7 @@ int hp_convert_hexstr_to_str(const char *input, u32 input_len, char **str, int *
 	*len = 0;
 	*str = NULL;
 
-	new_str = kmalloc(input_len, GFP_KERNEL);
+	new_str = kzalloc(2 * DIV_ROUND_UP(input_len, 5) + 1, GFP_KERNEL);
 	if (!new_str)
 		return -ENOMEM;
 
@@ -482,6 +452,103 @@ int hp_convert_hexstr_to_str(const char *input, u32 input_len, char **str, int *
 	if (ret)
 		kfree(new_str);
 	return ret;
+}
+
+/**
+ * hp_get_common_data_from_package() - Parse the package elements shared
+ * by every attribute type (PATH..SECURITY_LEVEL)
+ * @obj: ACPI object package for this attribute instance
+ * @obj_count: Number of elements in @obj
+ * @elem: Current position in @obj; advanced in place when PREREQUISITES
+ *	  consumes additional array elements
+ * @eloc: Current common-element locator; advanced in place when
+ *	  PREREQUISITES_SIZE is zero, since PREREQUISITES is then omitted
+ *	  by BIOS
+ * @int_value: Integer value already decoded by the caller for *@eloc,
+ *	       when applicable
+ * @str_value: String value already decoded by the caller for *@eloc, when
+ *	       applicable; reused and reset to NULL while walking
+ *	       PREREQUISITES, same as the caller does with its own copy
+ * @common: Destination common_data struct for this attribute instance
+ *
+ * Called by each type's own hp_populate_*_elements_from_package()
+ * instead of duplicating this parsing per type, since every BIOS
+ * attribute package uses the same layout for these elements (see
+ * struct common_data).
+ *
+ * Return: 0 on success, or -EINVAL if @obj is too small for the
+ * declared PREREQUISITES_SIZE.
+ */
+int hp_get_common_data_from_package(union acpi_object *obj, int obj_count,
+				    int *elem, int *eloc, u32 int_value,
+				    char **str_value, struct common_data *common)
+{
+	int value_len;
+	int reqs;
+	int size;
+
+	switch (*eloc) {
+	case PATH:
+		strscpy(common->path, *str_value);
+		break;
+	case IS_READONLY:
+		common->is_readonly = int_value;
+		break;
+	case DISPLAY_IN_UI:
+		common->display_in_ui = int_value;
+		break;
+	case REQUIRES_PHYSICAL_PRESENCE:
+		common->requires_physical_presence = int_value;
+		break;
+	case SEQUENCE:
+		common->sequence = int_value;
+		break;
+	case PREREQUISITES_SIZE:
+		if (int_value > MAX_PREREQUISITES_SIZE) {
+			pr_warn("Prerequisites size value exceeded the maximum number of elements supported or data may be malformed\n");
+			int_value = MAX_PREREQUISITES_SIZE;
+		}
+		common->prerequisites_size = int_value;
+
+		/*
+		 * This step is needed to keep the expected
+		 * element list pointing to the right obj[elem].type
+		 * when the size is zero. PREREQUISITES
+		 * object is omitted by BIOS when the size is
+		 * zero.
+		 */
+		if (common->prerequisites_size == 0)
+			(*eloc)++;
+		break;
+	case PREREQUISITES:
+		size = min_t(u32, common->prerequisites_size, MAX_PREREQUISITES_SIZE);
+
+		for (reqs = 0; reqs < size; reqs++) {
+			if (*elem + reqs >= obj_count) {
+				pr_err("Error elem-objects package is too small\n");
+				return -EINVAL;
+			}
+
+			if (hp_convert_hexstr_to_str(obj[*elem + reqs].string.pointer,
+						     obj[*elem + reqs].string.length,
+						     str_value, &value_len))
+				continue;
+
+			strscpy(common->prerequisites[reqs], *str_value);
+			kfree(*str_value);
+			*str_value = NULL;
+		}
+		if (size)
+			*elem += size - 1;
+		break;
+	case SECURITY_LEVEL:
+		common->security_level = int_value;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 /* map output size to the corresponding WMI method id */

@@ -135,7 +135,7 @@ static int crystal_cove_charger_probe(struct platform_device *pdev)
 					crystal_cove_charger_irq,
 					IRQF_ONESHOT, KBUILD_MODNAME, charger);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "requesting irq\n");
+		return ret;
 
 	return 0;
 }

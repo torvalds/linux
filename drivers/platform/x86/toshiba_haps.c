@@ -244,18 +244,13 @@ static int toshiba_haps_suspend(struct device *device)
 static int toshiba_haps_resume(struct device *device)
 {
 	struct toshiba_haps_dev *haps = dev_get_drvdata(device);
-	int ret;
 
 	/* Set the stored protection level */
-	ret = toshiba_haps_protection_level(haps->acpi_dev->handle,
-					    haps->protection_level);
+	toshiba_haps_protection_level(haps->acpi_dev->handle,
+				      haps->protection_level);
 
 	/* Reset the protection on resume */
-	ret = toshiba_haps_reset_protection(haps->acpi_dev->handle);
-	if (ret != 0)
-		return ret;
-
-	return ret;
+	return toshiba_haps_reset_protection(haps->acpi_dev->handle);
 }
 #endif
 

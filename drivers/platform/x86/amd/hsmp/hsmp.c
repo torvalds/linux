@@ -10,7 +10,10 @@
 #include <asm/amd/hsmp.h>
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
+#include <linux/build_bug.h>
 #include <linux/cleanup.h>
+#include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
@@ -45,7 +48,99 @@
  */
 #define CHECK_GET_BIT		BIT(31)
 
+/* Catch a table left out of sync with its enum at build time */
+static_assert(ARRAY_SIZE(hsmp_msg_desc_table) == HSMP_MSG_ID_MAX);
+
+/* Per-platform message set: which table to use, and driver-issued msg IDs */
+struct hsmp_plat_desc {
+	const struct hsmp_msg_desc	*msg_desc;
+	u32				num_msgs;
+	u32				test_msg;
+	u32				proto_ver_msg;
+	u32				metric_tbl_msg;
+	u32				metric_dram_msg;
+};
+
+static const struct hsmp_plat_desc hsmp_desc_server = {
+	.msg_desc		= hsmp_msg_desc_table,
+	.num_msgs		= HSMP_MSG_ID_MAX,
+	.test_msg		= HSMP_TEST,
+	.proto_ver_msg		= HSMP_GET_PROTO_VER,
+	.metric_tbl_msg		= HSMP_GET_METRIC_TABLE,
+	.metric_dram_msg	= HSMP_GET_METRIC_TABLE_DRAM_ADDR,
+};
+
+/*
+ * The client drives a different mailbox with the Ryzen Master SMC message
+ * set. It has no per-message descriptor table: num_args/response_sz are
+ * bounded generically instead (see validate_message()), and an unsupported
+ * or malformed msg_id is rejected by firmware with its own SMU status code.
+ */
+static const struct hsmp_plat_desc hsmp_desc_client = {
+	.msg_desc		= NULL,
+	.num_msgs		= HSMP_CLIENT_MSG_ID_MAX,
+	.test_msg		= HSMP_CLIENT_TEST,
+	.proto_ver_msg		= HSMP_CLIENT_GET_INTERFACE_VER,
+	.metric_tbl_msg		= HSMP_CLIENT_GET_METRICS_TABLE,
+	.metric_dram_msg	= HSMP_CLIENT_GET_METRICS_TABLE_DRAM_ADDR,
+};
+
 static struct hsmp_plat_device hsmp_pdev;
+
+/* Cached on first use; READ_ONCE()/WRITE_ONCE() avoid a torn access */
+static const struct hsmp_plat_desc *hsmp_desc_cache;
+
+static const struct hsmp_plat_desc *hsmp_desc(void)
+{
+	const struct hsmp_plat_desc *desc = READ_ONCE(hsmp_desc_cache);
+
+	if (likely(desc))
+		return desc;
+
+	desc = is_client_platform() ? &hsmp_desc_client : &hsmp_desc_server;
+	WRITE_ONCE(hsmp_desc_cache, desc);
+
+	return desc;
+}
+
+/* Returns NULL if the platform has no descriptor table, or msg_id is out of range or reserved */
+static const struct hsmp_msg_desc *get_msg_desc(u32 msg_id)
+{
+	const struct hsmp_plat_desc *desc = hsmp_desc();
+
+	if (!desc->msg_desc)
+		return NULL;
+
+	if (msg_id < desc->test_msg || msg_id >= desc->num_msgs)
+		return NULL;
+
+	/*
+	 * Sanitize msg_id here rather than trusting a caller-side clamp: a
+	 * mispredicted branch upstream can still reach this function with
+	 * an unclamped msg_id (Spectre v1, CVE-2017-5753).
+	 */
+	msg_id = array_index_nospec(msg_id, desc->num_msgs);
+
+	if (desc->msg_desc[msg_id].type == HSMP_RSVD)
+		return NULL;
+
+	return &desc->msg_desc[msg_id];
+}
+
+/*
+ * Response size for a message the driver issues directly, such as the
+ * probe-time test, protocol-version and metric-table messages: the
+ * descriptor table entry for server, since these fixed, well-known message
+ * IDs always have one; the client protocol max otherwise, since the client
+ * set has no descriptor table and firmware reports no response length.
+ * Callers only consume the response words they expect.
+ */
+static u32 hsmp_msg_response_sz(u32 msg_id)
+{
+	const struct hsmp_msg_desc *desc = get_msg_desc(msg_id);
+
+	return desc ? desc->response_sz : HSMP_CLIENT_MAX_MSG_LEN;
+}
 
 /*
  * Gates the AMD HSMP data plane against socket bring-up and teardown.
@@ -184,30 +279,46 @@ static int __hsmp_send_message(struct hsmp_socket *sock, struct hsmp_message *ms
 
 static int validate_message(struct hsmp_message *msg)
 {
-	/* msg_id against valid range of message IDs */
-	if (msg->msg_id < HSMP_TEST || msg->msg_id >= HSMP_MSG_ID_MAX)
-		return -ENOMSG;
+	const struct hsmp_plat_desc *plat_desc = hsmp_desc();
+	const struct hsmp_msg_desc *desc;
 
-	/* msg_id is a reserved message ID */
-	if (hsmp_msg_desc_table[msg->msg_id].type == HSMP_RSVD)
+	if (!plat_desc->msg_desc) {
+		/*
+		 * The client message set has no per-message descriptor
+		 * table and no msg_id range to validate against; cap
+		 * num_args/response_sz to what the Ryzen Master mailbox
+		 * supports in each direction and leave msg_id correctness,
+		 * such as an unsupported or out-of-range value, to the SMU
+		 * status code __hsmp_send_message() already translates.
+		 */
+		if (msg->num_args > HSMP_CLIENT_MAX_MSG_LEN ||
+		    msg->response_sz > HSMP_CLIENT_MAX_MSG_LEN)
+			return -EINVAL;
+
+		return 0;
+	}
+
+	/* Out-of-range or reserved message ID for this platform */
+	desc = get_msg_desc(msg->msg_id);
+	if (!desc)
 		return -ENOMSG;
 
 	/*
 	 * num_args passed by user should match the num_args specified in
 	 * message description table.
 	 */
-	if (msg->num_args != hsmp_msg_desc_table[msg->msg_id].num_args)
+	if (msg->num_args != desc->num_args)
 		return -EINVAL;
 
 	/*
 	 * As the HSMP protocol evolves, newer platforms may define more
 	 * response arguments for existing messages.  Use an upper-bound
 	 * check so that older userspace callers requesting fewer response
-	 * words than what the current hsmp_msg_desc_table[] defines are
-	 * still accepted, while rejecting requests that exceed the
-	 * hardware capability.
+	 * words than what the current descriptor table defines are still
+	 * accepted, while rejecting requests that exceed the hardware
+	 * capability.
 	 */
-	if (msg->response_sz > hsmp_msg_desc_table[msg->msg_id].response_sz)
+	if (msg->response_sz > desc->response_sz)
 		return -EINVAL;
 
 	return 0;
@@ -316,7 +427,7 @@ int hsmp_test(u16 sock_ind, u32 value)
 	 * Test the hsmp port by performing TEST command. The test message
 	 * takes one argument and returns the value of that argument + 1.
 	 */
-	msg.msg_id	= HSMP_TEST;
+	msg.msg_id	= hsmp_desc()->test_msg;
 	msg.num_args	= 1;
 	msg.response_sz	= 1;
 	msg.args[0]	= value;
@@ -338,13 +449,12 @@ int hsmp_test(u16 sock_ind, u32 value)
 }
 EXPORT_SYMBOL_NS_GPL(hsmp_test, "AMD_HSMP");
 
-static bool is_get_msg(struct hsmp_message *msg)
+static bool is_get_msg(const struct hsmp_msg_desc *desc, struct hsmp_message *msg)
 {
-	if (hsmp_msg_desc_table[msg->msg_id].type == HSMP_GET)
+	if (desc->type == HSMP_GET)
 		return true;
 
-	if (hsmp_msg_desc_table[msg->msg_id].type == HSMP_SET_GET &&
-	    (msg->args[0] & CHECK_GET_BIT))
+	if (desc->type == HSMP_SET_GET && (msg->args[0] & CHECK_GET_BIT))
 		return true;
 
 	return false;
@@ -354,63 +464,65 @@ static long hsmp_ioctl_msg(struct file *fp, unsigned long arg)
 {
 	int __user *arguser = (int  __user *)arg;
 	struct hsmp_message msg = { 0 };
+	const struct hsmp_plat_desc *plat_desc = hsmp_desc();
+	const struct hsmp_msg_desc *desc = NULL;
 	int ret;
 
 	if (copy_struct_from_user(&msg, sizeof(msg), arguser, sizeof(struct hsmp_message)))
 		return -EFAULT;
 
 	/*
-	 * Check msg_id is within the range of supported msg ids
-	 * i.e within the array bounds of hsmp_msg_desc_table
+	 * The client message set has no per-message descriptor table to
+	 * bounds-check msg_id against or index into, and no per-message
+	 * type to gate fd mode on, so none of that applies here.
+	 * validate_message() (called via hsmp_send_message() below) still
+	 * bounds num_args/response_sz generically, and firmware is the
+	 * final arbiter of msg_id validity via its own response status.
 	 */
-	if (msg.msg_id < HSMP_TEST || msg.msg_id >= HSMP_MSG_ID_MAX)
-		return -ENOMSG;
+	if (plat_desc->msg_desc) {
+		/* Rejects out-of-range and reserved msg_ids */
+		desc = get_msg_desc(msg.msg_id);
+		if (!desc)
+			return -ENOMSG;
 
-	/*
-	 * Sanitize the user-controlled msg_id against speculative
-	 * execution.  The bounds check above retires the out-of-range
-	 * case with -ENOMSG, but a mispredicted branch can still let the
-	 * CPU speculatively use msg_id as an index into
-	 * hsmp_msg_desc_table[] (here and in validate_message() /
-	 * is_get_msg() called downstream via hsmp_send_message()), and
-	 * pull arbitrary kernel memory into the cache (Spectre v1,
-	 * CVE-2017-5753).  Clamp once into msg.msg_id so every downstream
-	 * dereference sees the sanitized value.
-	 */
-	msg.msg_id = array_index_nospec(msg.msg_id, HSMP_MSG_ID_MAX);
-
-	switch (fp->f_mode & (FMODE_WRITE | FMODE_READ)) {
-	case FMODE_WRITE:
-		/*
-		 * Device is opened in O_WRONLY mode
-		 * Execute only set/configure commands
-		 */
-		if (is_get_msg(&msg))
+		switch (fp->f_mode & (FMODE_WRITE | FMODE_READ)) {
+		case FMODE_WRITE:
+			/*
+			 * Device is opened in O_WRONLY mode
+			 * Execute only set/configure commands.
+			 */
+			if (is_get_msg(desc, &msg))
+				return -EPERM;
+			break;
+		case FMODE_READ:
+			/*
+			 * Device is opened in O_RDONLY mode
+			 * Execute only get/monitor commands.
+			 */
+			if (!is_get_msg(desc, &msg))
+				return -EPERM;
+			break;
+		case FMODE_READ | FMODE_WRITE:
+			/*
+			 * Device is opened in O_RDWR mode
+			 * Execute both get/monitor and set/configure commands
+			 */
+			break;
+		default:
 			return -EPERM;
-		break;
-	case FMODE_READ:
-		/*
-		 * Device is opened in O_RDONLY mode
-		 * Execute only get/monitor commands
-		 */
-		if (!is_get_msg(&msg))
-			return -EPERM;
-		break;
-	case FMODE_READ | FMODE_WRITE:
-		/*
-		 * Device is opened in O_RDWR mode
-		 * Execute both get/monitor and set/configure commands
-		 */
-		break;
-	default:
-		return -EPERM;
+		}
 	}
 
 	ret = hsmp_send_message(&msg);
 	if (ret)
 		return ret;
 
-	if (hsmp_msg_desc_table[msg.msg_id].response_sz > 0) {
+	/*
+	 * The client message set has no per-message response_sz to check
+	 * here (desc is NULL); validate_message() already bounded
+	 * msg.response_sz.
+	 */
+	if ((desc ? desc->response_sz : msg.response_sz) > 0) {
 		/* Copy results back to user for get/monitor commands */
 		if (copy_to_user(arguser, &msg, sizeof(struct hsmp_message)))
 			return -EFAULT;
@@ -565,11 +677,11 @@ static ssize_t hsmp_metric_tbl_read_locked(struct hsmp_socket *sock, char *buf,
 		return -EINVAL;
 	}
 
-	msg.msg_id	= HSMP_GET_METRIC_TABLE;
+	msg.msg_id	= hsmp_desc()->metric_tbl_msg;
 	msg.sock_ind	= sock->sock_ind;
 
 	/*
-	 * HSMP_GET_METRIC_TABLE makes firmware refill this socket's shared
+	 * The metric table message makes firmware refill this socket's shared
 	 * metric DRAM region, which is then copied out below.  Hold the
 	 * per-socket lock across the fill-and-copy so concurrent readers of the
 	 * same socket cannot return a torn snapshot.
@@ -635,8 +747,8 @@ int hsmp_get_tbl_dram_base(u16 sock_ind)
 	int ret;
 
 	msg.sock_ind	= sock_ind;
-	msg.response_sz	= hsmp_msg_desc_table[HSMP_GET_METRIC_TABLE_DRAM_ADDR].response_sz;
-	msg.msg_id	= HSMP_GET_METRIC_TABLE_DRAM_ADDR;
+	msg.msg_id	= hsmp_desc()->metric_dram_msg;
+	msg.response_sz	= hsmp_msg_response_sz(msg.msg_id);
 
 	ret = hsmp_send_message_locked(&msg);
 	if (ret)
@@ -687,9 +799,9 @@ int hsmp_cache_proto_ver(u16 sock_ind)
 	struct hsmp_message msg = { 0 };
 	int ret;
 
-	msg.msg_id	= HSMP_GET_PROTO_VER;
+	msg.msg_id	= hsmp_desc()->proto_ver_msg;
+	msg.response_sz	= hsmp_msg_response_sz(msg.msg_id);
 	msg.sock_ind	= sock_ind;
-	msg.response_sz = hsmp_msg_desc_table[HSMP_GET_PROTO_VER].response_sz;
 
 	ret = hsmp_send_message_locked(&msg);
 	if (!ret)
@@ -720,7 +832,13 @@ int hsmp_misc_register(struct device *dev)
 	 */
 	hsmp_pdev.mdev.parent	= dev;
 	hsmp_pdev.mdev.nodename	= HSMP_DEVNODE_NAME;
-	hsmp_pdev.mdev.mode	= 0644;
+	/*
+	 * hsmp_msg_desc_table[] only describes server messages. On client
+	 * platforms, msg_id mappings differ, making access checks unreliable.
+	 * Restrict /dev/hsmp to root until client-specific validation is
+	 * added.
+	 */
+	hsmp_pdev.mdev.mode	= is_client_platform() ? 0600 : 0644;
 
 	return misc_register(&hsmp_pdev.mdev);
 }

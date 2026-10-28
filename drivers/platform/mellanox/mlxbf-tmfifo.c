@@ -1405,7 +1405,6 @@ static int mlxbf_tmfifo_probe(struct platform_device *pdev)
 				      mlxbf_tmfifo_irq_handler, 0,
 				      "tmfifo", &fifo->irq_info[i]);
 		if (rc) {
-			dev_err(dev, "devm_request_irq failed\n");
 			fifo->irq_info[i].irq = 0;
 			return rc;
 		}

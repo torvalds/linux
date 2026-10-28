@@ -64,11 +64,8 @@ static int bxt_wcove_tmu_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(&pdev->dev, wctmu->irq,
 					NULL, bxt_wcove_tmu_irq_handler,
 					IRQF_ONESHOT, "bxt_wcove_tmu", wctmu);
-	if (ret) {
-		dev_err(&pdev->dev, "request irq failed: %d,virq: %d\n",
-			ret, wctmu->irq);
+	if (ret)
 		return ret;
-	}
 
 	/* Unmask TMU second level Wake & System alarm */
 	regmap_update_bits(wctmu->regmap, BXTWC_MTMUIRQ_REG,

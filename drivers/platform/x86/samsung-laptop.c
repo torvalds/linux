@@ -295,7 +295,7 @@ static const struct sabi_config sabi_configs[] = {
  *   d0, d1, d2, d3   - data fields
  *   call             - call SABI using command and data
  *
- * This allow to call arbitrary sabi commands wihout
+ * This allow to call arbitrary sabi commands without
  * modifying the driver at all.
  * For example, setting the keyboard backlight brightness to 5
  *

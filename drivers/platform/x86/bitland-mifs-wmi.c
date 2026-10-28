@@ -30,6 +30,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
+#include <linux/types.h>
 #include <linux/unaligned.h>
 #include <linux/units.h>
 #include <linux/wmi.h>
@@ -39,25 +40,30 @@
 #define BITLAND_EVENT_GUID	"46C93E13-EE9B-4262-8488-563BCA757FEF"
 
 enum bitland_mifs_operation {
-	WMI_METHOD_GET	= 250,
-	WMI_METHOD_SET	= 251,
+	WMI_METHOD_GET	= 0xFA00,
+	WMI_METHOD_SET	= 0xFB00,
 };
 
 enum bitland_mifs_function {
-	WMI_FN_SYSTEM_PER_MODE		= 8,
-	WMI_FN_GPU_MODE			= 9,
-	WMI_FN_KBD_TYPE			= 10,
-	WMI_FN_FN_LOCK			= 11,
-	WMI_FN_TP_LOCK			= 12,
-	WMI_FN_FAN_SPEEDS		= 13,
-	WMI_FN_RGB_KB_MODE		= 16,
-	WMI_FN_RGB_KB_COLOR		= 17,
-	WMI_FN_RGB_KB_BRIGHTNESS	= 18,
-	WMI_FN_SYSTEM_AC_TYPE		= 19,
-	WMI_FN_MAX_FAN_SWITCH		= 20,
-	WMI_FN_MAX_FAN_SPEED		= 21,
-	WMI_FN_CPU_THERMOMETER		= 22,
-	WMI_FN_CPU_POWER		= 23,
+	WMI_FN_SYSTEM_PER_MODE		= 0x0800,
+	WMI_FN_GPU_MODE			= 0x0900,
+	WMI_FN_KBD_TYPE			= 0x0A00,
+	WMI_FN_FN_LOCK			= 0x0B00,
+	WMI_FN_TP_LOCK			= 0x0C00,
+	WMI_FN_FAN_SPEEDS		= 0x0D00,
+	WMI_FN_RGB_KB_MODE		= 0x1000,
+	WMI_FN_RGB_KB_COLOR		= 0x1100,
+	WMI_FN_RGB_KB_BRIGHTNESS	= 0x1200,
+	WMI_FN_SYSTEM_AC_TYPE		= 0x1300,
+	WMI_FN_MAX_FAN_SWITCH		= 0x1400,
+	WMI_FN_MAX_FAN_SPEED		= 0x1500,
+	WMI_FN_CPU_THERMOMETER		= 0x1600,
+	WMI_FN_CPU_POWER		= 0x1700,
+};
+
+enum bitland_mifs_return_code {
+	WMI_RETURN_CODE_SUCCESS			= 0x8000,
+	WMI_RETURN_CODE_UNKNOWN_FUNCTION	= 0xE000,
 };
 
 enum bitland_system_ac_mode {
@@ -114,18 +120,14 @@ enum bitland_wmi_device_type {
 };
 
 struct bitland_mifs_input {
-	u8 reserved1;
-	u8 operation;
-	u8 reserved2;
-	u8 function;
+	__le16 operation;
+	__le16 function;
 	u8 payload[28];
 } __packed;
 
 struct bitland_mifs_output {
-	u8 reserved1;
-	u8 operation;
-	u8 reserved2;
-	u8 function;
+	__le16 return_code;
+	__le16 function;
 	u8 data[28];
 } __packed;
 
@@ -171,15 +173,27 @@ static int bitland_mifs_wmi_call(struct bitland_mifs_wmi_data *data,
 
 	guard(mutex)(&data->lock);
 
-	if (!output)
-		return wmidev_invoke_procedure(data->wdev, 0, 1, &in_buf);
-
-	ret = wmidev_invoke_method(data->wdev, 0, 1, &in_buf, &out_buf, sizeof(*output));
+	ret = wmidev_invoke_method(data->wdev, 0, 1, &in_buf, &out_buf,
+				   sizeof(struct bitland_mifs_output));
 	if (ret)
 		return ret;
 
-	memcpy(output, out_buf.data, sizeof(*output));
-	kfree(out_buf.data);
+	struct bitland_mifs_output *result __free(kfree) = out_buf.data;
+
+	switch (le16_to_cpu(result->return_code)) {
+	case WMI_RETURN_CODE_SUCCESS:
+		break;
+	case WMI_RETURN_CODE_UNKNOWN_FUNCTION:
+		return -EOPNOTSUPP;
+	default:
+		return -EIO;
+	}
+
+	if (result->function != input->function)
+		return -ENOMSG;
+
+	if (output)
+		memcpy(output, result, sizeof(*output));
 
 	return 0;
 }
@@ -189,10 +203,8 @@ static int laptop_profile_get(struct device *dev,
 {
 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
 	struct bitland_mifs_input input = {
-		.reserved1 = 0,
-		.operation = WMI_METHOD_GET,
-		.reserved2 = 0,
-		.function = WMI_FN_SYSTEM_PER_MODE,
+		.operation = cpu_to_le16(WMI_METHOD_GET),
+		.function = cpu_to_le16(WMI_FN_SYSTEM_PER_MODE),
 	};
 	struct bitland_mifs_output result;
 	int ret;
@@ -223,8 +235,8 @@ static int laptop_profile_get(struct device *dev,
 static int bitland_check_performance_capability(struct bitland_mifs_wmi_data *data)
 {
 	struct bitland_mifs_input input = {
-		.operation = WMI_METHOD_GET,
-		.function = WMI_FN_SYSTEM_AC_TYPE,
+		.operation = cpu_to_le16(WMI_METHOD_GET),
+		.function = cpu_to_le16(WMI_FN_SYSTEM_AC_TYPE),
 	};
 	struct bitland_mifs_output output;
 	int ret;
@@ -234,7 +246,11 @@ static int bitland_check_performance_capability(struct bitland_mifs_wmi_data *da
 		return -EOPNOTSUPP;
 
 	ret = bitland_mifs_wmi_call(data, &input, &output);
-	if (ret)
+	/* Not all systems support this function, do not perform further checks on them */
+	if (ret == -EOPNOTSUPP)
+		return 0;
+
+	if (ret < 0)
 		return ret;
 
 	if (output.data[0] != WMI_SYSTEM_AC_CIRCULARHOLE)
@@ -248,10 +264,8 @@ static int laptop_profile_set(struct device *dev,
 {
 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
 	struct bitland_mifs_input input = {
-		.reserved1 = 0,
-		.operation = WMI_METHOD_SET,
-		.reserved2 = 0,
-		.function = WMI_FN_SYSTEM_PER_MODE,
+		.operation = cpu_to_le16(WMI_METHOD_SET),
+		.function = cpu_to_le16(WMI_FN_SYSTEM_PER_MODE),
 	};
 	int ret;
 	u8 val;
@@ -344,22 +358,20 @@ static int laptop_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 {
 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
 	struct bitland_mifs_input input = {
-		.reserved1 = 0,
-		.operation = WMI_METHOD_GET,
-		.reserved2 = 0,
+		.operation = cpu_to_le16(WMI_METHOD_GET),
 	};
 	struct bitland_mifs_output res;
 	int ret;
 
 	switch (type) {
 	case hwmon_temp:
-		input.function = WMI_FN_CPU_THERMOMETER;
+		input.function = cpu_to_le16(WMI_FN_CPU_THERMOMETER);
 		ret = bitland_mifs_wmi_call(data, &input, &res);
 		if (!ret)
 			*val = res.data[0] * MILLIDEGREE_PER_DEGREE;
 		return ret;
 	case hwmon_fan:
-		input.function = WMI_FN_FAN_SPEEDS;
+		input.function = cpu_to_le16(WMI_FN_FAN_SPEEDS);
 		ret = bitland_mifs_wmi_call(data, &input, &res);
 		if (ret)
 			return ret;
@@ -420,10 +432,8 @@ static int laptop_kbd_led_set(struct led_classdev *led_cdev,
 	struct bitland_mifs_wmi_data *data =
 		container_of(led_cdev, struct bitland_mifs_wmi_data, kbd_led);
 	struct bitland_mifs_input input = {
-		.reserved1 = 0,
-		.operation = WMI_METHOD_SET,
-		.reserved2 = 0,
-		.function = WMI_FN_RGB_KB_BRIGHTNESS,
+		.operation = cpu_to_le16(WMI_METHOD_SET),
+		.function = cpu_to_le16(WMI_FN_RGB_KB_BRIGHTNESS),
 	};
 
 	input.payload[0] = (u8)value;
@@ -436,10 +446,8 @@ static enum led_brightness laptop_kbd_led_get(struct led_classdev *led_cdev)
 	struct bitland_mifs_wmi_data *data =
 		container_of(led_cdev, struct bitland_mifs_wmi_data, kbd_led);
 	struct bitland_mifs_input input = {
-		.reserved1 = 0,
-		.operation = WMI_METHOD_GET,
-		.reserved2 = 0,
-		.function = WMI_FN_RGB_KB_BRIGHTNESS,
+		.operation = cpu_to_le16(WMI_METHOD_GET),
+		.function = cpu_to_le16(WMI_FN_RGB_KB_BRIGHTNESS),
 	};
 	struct bitland_mifs_output res;
 	int ret;
@@ -463,10 +471,8 @@ static ssize_t gpu_mode_show(struct device *dev, struct device_attribute *attr,
 {
 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
 	struct bitland_mifs_input input = {
-		.reserved1 = 0,
-		.operation = WMI_METHOD_GET,
-		.reserved2 = 0,
-		.function = WMI_FN_GPU_MODE,
+		.operation = cpu_to_le16(WMI_METHOD_GET),
+		.function = cpu_to_le16(WMI_FN_GPU_MODE),
 	};
 	struct bitland_mifs_output res;
 	u8 mode_val;
@@ -488,10 +494,8 @@ static ssize_t gpu_mode_store(struct device *dev, struct device_attribute *attr,
 {
 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
 	struct bitland_mifs_input input = {
-		.reserved1 = 0,
-		.operation = WMI_METHOD_SET,
-		.reserved2 = 0,
-		.function = WMI_FN_GPU_MODE,
+		.operation = cpu_to_le16(WMI_METHOD_SET),
+		.function = cpu_to_le16(WMI_FN_GPU_MODE),
 	};
 	int val;
 	int ret;
@@ -521,10 +525,8 @@ static ssize_t kb_mode_show(struct device *dev, struct device_attribute *attr,
 {
 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
 	struct bitland_mifs_input input = {
-		.reserved1 = 0,
-		.operation = WMI_METHOD_GET,
-		.reserved2 = 0,
-		.function = WMI_FN_RGB_KB_MODE,
+		.operation = cpu_to_le16(WMI_METHOD_GET),
+		.function = cpu_to_le16(WMI_FN_RGB_KB_MODE),
 	};
 	struct bitland_mifs_output res;
 	u8 mode_val;
@@ -546,10 +548,8 @@ static ssize_t kb_mode_store(struct device *dev, struct device_attribute *attr,
 {
 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
 	struct bitland_mifs_input input = {
-		.reserved1 = 0,
-		.operation = WMI_METHOD_SET,
-		.reserved2 = 0,
-		.function = WMI_FN_RGB_KB_MODE,
+		.operation = cpu_to_le16(WMI_METHOD_SET),
+		.function = cpu_to_le16(WMI_FN_RGB_KB_MODE),
 	};
 	// the wmi value (0, 1, 2 or 3)
 	int val;
@@ -575,10 +575,8 @@ static ssize_t fan_boost_store(struct device *dev,
 {
 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
 	struct bitland_mifs_input input = {
-		.reserved1 = 0,
-		.operation = WMI_METHOD_SET,
-		.reserved2 = 0,
-		.function = WMI_FN_MAX_FAN_SWITCH,
+		.operation = cpu_to_le16(WMI_METHOD_SET),
+		.function = cpu_to_le16(WMI_FN_MAX_FAN_SWITCH),
 	};
 	bool val;
 	int ret;

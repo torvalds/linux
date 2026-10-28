@@ -122,6 +122,14 @@ static const struct dmi_system_id awcc_dmi_table[] __initconst = {
 		.driver_data = &g_series_quirks,
 	},
 	{
+		.ident = "Alienware Area-51 AAT2250",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware Area-51 AAT2250"),
+		},
+		.driver_data = &generic_quirks,
+	},
+	{
 		.ident = "Alienware Area-51m",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),

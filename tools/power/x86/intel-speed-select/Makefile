@@ -52,8 +52,8 @@ $(OUTPUT)intel-speed-select: $(ISST_IN)
 
 clean:
 	rm -f $(ALL_PROGRAMS)
-	rm -rf $(OUTPUT)include/linux/isst_if.h
-	find $(or $(OUTPUT),.) -name '*.o' -delete -o -name '\.*.d' -delete
+	rm -rf $(OUTPUT)include/linux/isst_if.h $(OUTPUT)include/linux/thermal.h
+	find $(or $(OUTPUT),.) -name '*.o' -delete -o -name '.*.o.d' -delete -o -name '.*.o.cmd' -delete
 
 install: $(ALL_PROGRAMS)
 	install -d -m 755 $(DESTDIR)$(bindir);		\
