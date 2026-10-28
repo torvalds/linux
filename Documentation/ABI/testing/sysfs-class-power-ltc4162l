@@ -77,6 +77,8 @@ Description:
 		The ship mode, when armed, activates once the input voltage
 		drops below 1V.
 
+		Note: use /sys/class/power_supply/ltc4162-l/load_switch instead.
+
 		Access: Read, Write
 
 		Valid values: 0 (disable) or 1 (enable)

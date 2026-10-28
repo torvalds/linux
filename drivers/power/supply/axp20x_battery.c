@@ -1097,9 +1097,6 @@ static int axp20x_power_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	if (!of_device_is_available(pdev->dev.of_node))
-		return -ENODEV;
-
 	axp20x_batt = devm_kzalloc(&pdev->dev, sizeof(*axp20x_batt),
 				   GFP_KERNEL);
 	if (!axp20x_batt)

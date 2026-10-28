@@ -104,6 +104,14 @@ enum {
 	POWER_SUPPLY_SCOPE_DEVICE,
 };
 
+enum {
+	POWER_SUPPLY_LOAD_SWITCH_UNKNOWN = 0,
+	POWER_SUPPLY_LOAD_SWITCH_ON,
+	POWER_SUPPLY_LOAD_SWITCH_OFF,
+	POWER_SUPPLY_LOAD_SWITCH_STANDBY,
+	POWER_SUPPLY_LOAD_SWITCH_SHIP,
+};
+
 enum power_supply_property {
 	/* Properties of type `int' */
 	POWER_SUPPLY_PROP_STATUS = 0,
@@ -182,6 +190,7 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_MANUFACTURE_DAY,
 	POWER_SUPPLY_PROP_INTERNAL_RESISTANCE,
 	POWER_SUPPLY_PROP_STATE_OF_HEALTH,
+	POWER_SUPPLY_PROP_LOAD_SWITCH,
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -259,9 +268,9 @@ struct power_supply_config {
 struct power_supply_desc {
 	const char *name;
 	enum power_supply_type type;
-	u8 charge_behaviours;
 	u32 charge_types;
 	u32 usb_types;
+	u32 load_switches;
 	const enum power_supply_property *properties;
 	size_t num_properties;
 
@@ -295,14 +304,17 @@ struct power_supply_desc {
 	 */
 	int (*init)(struct power_supply *psy);
 
+	/* For APM emulation, think legacy userspace. */
+	int use_for_apm;
+
 	/*
 	 * Set if thermal zone should not be created for this power supply.
 	 * For example for virtual supplies forwarding calls to actual
 	 * sensors or other supplies.
 	 */
 	bool no_thermal;
-	/* For APM emulation, think legacy userspace. */
-	int use_for_apm;
+
+	u8 charge_behaviours;
 };
 
 struct power_supply_ext {

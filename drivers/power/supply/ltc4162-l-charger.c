@@ -755,6 +755,41 @@ static int ltc4162l_set_term_current(struct ltc4162l_info *info,
 				  BIT(2), BIT(2));
 }
 
+static int ltc4162l_get_ship_mode(struct ltc4162l_info *info,
+				  union power_supply_propval *val)
+{
+	unsigned int regval;
+	int ret;
+
+	ret = regmap_read(info->regmap, LTC4162L_ARM_SHIP_MODE, &regval);
+	if (ret < 0)
+		return ret;
+
+	val->intval = regval == LTC4162L_ARM_SHIP_MODE_MAGIC ?
+			      POWER_SUPPLY_LOAD_SWITCH_SHIP :
+			      POWER_SUPPLY_LOAD_SWITCH_ON;
+
+	return 0;
+}
+
+static int ltc4162l_set_ship_mode(struct ltc4162l_info *info, int value)
+{
+	unsigned int regval;
+
+	switch (value) {
+	case POWER_SUPPLY_LOAD_SWITCH_ON:
+		regval = 0;
+		break;
+	case POWER_SUPPLY_LOAD_SWITCH_SHIP:
+		regval = LTC4162L_ARM_SHIP_MODE_MAGIC;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_write(info->regmap, LTC4162L_ARM_SHIP_MODE, regval);
+}
+
 /* Custom properties */
 static const char * const ltc4162l_charge_status_name[] = {
 	"ilim_reg_active", /* 32 */
@@ -890,15 +925,15 @@ static ssize_t arm_ship_mode_show(struct device *dev,
 {
 	struct power_supply *psy = to_power_supply(dev);
 	struct ltc4162l_info *info = power_supply_get_drvdata(psy);
-	unsigned int regval;
+	union power_supply_propval val;
 	int ret;
 
-	ret = regmap_read(info->regmap, LTC4162L_ARM_SHIP_MODE, &regval);
-	if (ret)
+	ret = ltc4162l_get_ship_mode(info, &val);
+	if (ret < 0)
 		return ret;
 
 	return sysfs_emit(buf, "%u\n",
-		regval == LTC4162L_ARM_SHIP_MODE_MAGIC ? 1 : 0);
+			  val.intval == POWER_SUPPLY_LOAD_SWITCH_SHIP ? 1 : 0);
 }
 
 static ssize_t arm_ship_mode_store(struct device *dev,
@@ -915,8 +950,9 @@ static ssize_t arm_ship_mode_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_write(info->regmap, LTC4162L_ARM_SHIP_MODE,
-				value ? LTC4162L_ARM_SHIP_MODE_MAGIC : 0);
+	ret = ltc4162l_set_ship_mode(info,
+				     value ? POWER_SUPPLY_LOAD_SWITCH_SHIP :
+					     POWER_SUPPLY_LOAD_SWITCH_ON);
 	if (ret < 0)
 		return ret;
 
@@ -981,6 +1017,8 @@ static int ltc4162l_get_property(struct power_supply *psy,
 		return chip_info->get_die_temp(info, val);
 	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
 		return ltc4162l_get_term_current(info, val);
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
+		return ltc4162l_get_ship_mode(info, val);
 	default:
 		return -EINVAL;
 	}
@@ -1003,6 +1041,8 @@ static int ltc4162l_set_property(struct power_supply *psy,
 		return ltc4162l_set_iin_limit(info, val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
 		return ltc4162l_set_term_current(info, val->intval);
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
+		return ltc4162l_set_ship_mode(info, val->intval);
 	default:
 		return -EINVAL;
 	}
@@ -1016,6 +1056,7 @@ static int ltc4162l_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
 		return 1;
 	default:
 		return 0;
@@ -1037,10 +1078,13 @@ static enum power_supply_property ltc4162l_properties[] = {
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
+	POWER_SUPPLY_PROP_LOAD_SWITCH,
 };
 
 static const struct power_supply_desc ltc4162l_desc = {
 	.type		= POWER_SUPPLY_TYPE_MAINS,
+	.load_switches	= BIT(POWER_SUPPLY_LOAD_SWITCH_ON) |
+			  BIT(POWER_SUPPLY_LOAD_SWITCH_SHIP),
 	.properties	= ltc4162l_properties,
 	.num_properties	= ARRAY_SIZE(ltc4162l_properties),
 	.get_property	= ltc4162l_get_property,

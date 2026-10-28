@@ -98,7 +98,6 @@ static const struct ab8500_fg_parameters fg = {
 	.user_cap_limit = 15,
 	.pcut_enable = 1,
 	.pcut_max_time = 127,
-	.pcut_flag_time = 112,
 	.pcut_max_restart = 15,
 	.pcut_debounce_time = 2,
 };
@@ -174,7 +173,7 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 	if (bi->constant_charge_voltage_max_uv < 0)
 		bi->constant_charge_voltage_max_uv = 4100000;
 
-	if (bi->charge_term_current_ua)
+	if (bi->charge_term_current_ua < 0)
 		/* Charging stops when we drop below this current */
 		bi->charge_term_current_ua = 200000;
 

@@ -11,6 +11,8 @@ Description:
 		mode. 'Disable' also can help to leave it, but it's more like to abort
 		the action before the device really enter shipping mode.
 
+		Note: use /sys/class/power_supply/rt9471-*/load_switch instead.
+
 		Access: Read, Write
 		Valid values:
 		- 1: enabled

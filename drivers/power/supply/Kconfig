@@ -850,6 +850,7 @@ config CHARGER_BQ256XX
 	tristate "TI BQ256XX battery charger driver"
 	depends on I2C
 	depends on GPIOLIB || COMPILE_TEST
+	depends on EXTCON || !EXTCON
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for the TI BQ256XX battery chargers. The

@@ -295,6 +295,40 @@ static int bq24257_set_input_current_limit(struct bq24257_device *bq,
 						    BQ24257_IILIMIT_MAP_SIZE));
 }
 
+static int bq24257_get_sys_switch(struct bq24257_device *bq,
+				  union power_supply_propval *val)
+{
+	int ret;
+
+	ret = bq24257_field_read(bq, F_SYSOFF);
+	if (ret < 0)
+		return ret;
+
+	val->intval = ret ? POWER_SUPPLY_LOAD_SWITCH_OFF :
+			    POWER_SUPPLY_LOAD_SWITCH_ON;
+
+	return 0;
+}
+
+static int bq24257_set_sys_switch(struct bq24257_device *bq,
+				  const union power_supply_propval *val)
+{
+	u8 regval;
+
+	switch (val->intval) {
+	case POWER_SUPPLY_LOAD_SWITCH_ON:
+		regval = 0;
+		break;
+	case POWER_SUPPLY_LOAD_SWITCH_OFF:
+		regval = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return bq24257_field_write(bq, F_SYSOFF, regval);
+}
+
 static int bq24257_power_supply_get_property(struct power_supply *psy,
 					     enum power_supply_property psp,
 					     union power_supply_propval *val)
@@ -381,7 +415,8 @@ static int bq24257_power_supply_get_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		return bq24257_get_input_current_limit(bq, val);
-
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
+		return bq24257_get_sys_switch(bq, val);
 	default:
 		return -EINVAL;
 	}
@@ -398,6 +433,8 @@ static int bq24257_power_supply_set_property(struct power_supply *psy,
 	switch (prop) {
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		return bq24257_set_input_current_limit(bq, val);
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
+		return bq24257_set_sys_switch(bq, val);
 	default:
 		return -EINVAL;
 	}
@@ -408,6 +445,7 @@ static int bq24257_power_supply_property_is_writeable(struct power_supply *psy,
 {
 	switch (psp) {
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
 		return true;
 	default:
 		return false;
@@ -740,6 +778,7 @@ static enum power_supply_property bq24257_power_supply_props[] = {
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+	POWER_SUPPLY_PROP_LOAD_SWITCH,
 };
 
 static char *bq24257_charger_supplied_to[] = {
@@ -749,6 +788,8 @@ static char *bq24257_charger_supplied_to[] = {
 static const struct power_supply_desc bq24257_power_supply_desc = {
 	.name = "bq24257-charger",
 	.type = POWER_SUPPLY_TYPE_USB,
+	.load_switches = BIT(POWER_SUPPLY_LOAD_SWITCH_ON) |
+			 BIT(POWER_SUPPLY_LOAD_SWITCH_OFF),
 	.properties = bq24257_power_supply_props,
 	.num_properties = ARRAY_SIZE(bq24257_power_supply_props),
 	.get_property = bq24257_power_supply_get_property,

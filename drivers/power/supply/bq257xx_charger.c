@@ -54,6 +54,7 @@ struct bq257xx_chip_info {
  * @chip: hw specific functions
  * @bq: parent MFD device
  * @charger: power supply device
+ * @dev: charger platform device
  * @online: charger input is present
  * @charging: charger is actively charging the battery
  * @fast_charge: charger is in fast charge mode
@@ -73,6 +74,7 @@ struct bq257xx_chg {
 	const struct bq257xx_chip_info *chip;
 	struct bq257xx_device *bq;
 	struct power_supply *charger;
+	struct device *dev;
 	bool online;
 	bool charging;
 	bool fast_charge;
@@ -1055,7 +1057,7 @@ static void bq257xx_external_power_changed(struct power_supply *psy)
 
 	pdata->chip->bq257xx_get_state(pdata);
 
-	pdata->supplied = power_supply_am_i_supplied(pdata->charger);
+	pdata->supplied = power_supply_am_i_supplied(psy);
 	if (pdata->supplied < 0)
 		return;
 
@@ -1112,6 +1114,54 @@ static irqreturn_t bq257xx_irq_handler_thread(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+/**
+ * bq257xx_charger_init() - Initialization for charger power supply device
+ * @psy: power supply device
+ *
+ * Set device parameters during registration, before the power supply becomes
+ * accessible to the broader system.
+ *
+ * Return: Returns 0 on success or error code on failure.
+ */
+static int bq257xx_charger_init(struct power_supply *psy)
+{
+	struct bq257xx_chg *pdata = power_supply_get_drvdata(psy);
+	struct power_supply_battery_info *bat_info;
+	struct device *dev = pdata->dev;
+	int ret;
+
+	ret = power_supply_get_battery_info(psy, &bat_info);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Unable to get battery info\n");
+
+	if ((bat_info->voltage_min_design_uv <= 0) ||
+	    (bat_info->constant_charge_voltage_max_uv <= 0) ||
+	    (bat_info->constant_charge_current_max_ua <= 0)) {
+		power_supply_put_battery_info(psy, bat_info);
+		return dev_err_probe(dev, -EINVAL,
+				     "Required bat info missing or invalid\n");
+	}
+
+	pdata->vsys_min = bat_info->voltage_min_design_uv;
+	pdata->vbat_max = bat_info->constant_charge_voltage_max_uv;
+	pdata->ichg_max = bat_info->constant_charge_current_max_ua;
+
+	power_supply_put_battery_info(psy, bat_info);
+
+	ret = device_property_read_u32(dev,
+				       "input-current-limit-microamp",
+				       &pdata->iindpm_max);
+	if (ret)
+		pdata->iindpm_max = pdata->chip->default_iindpm_uA;
+
+	ret = pdata->chip->bq257xx_hw_init(pdata);
+	if (ret)
+		return dev_err_probe(dev, ret, "Cannot initialize the charger\n");
+
+	return 0;
+}
+
 static const struct power_supply_desc bq257xx_power_supply_desc = {
 	.name = "bq257xx-charger",
 	.type = POWER_SUPPLY_TYPE_USB,
@@ -1126,6 +1176,7 @@ static const struct power_supply_desc bq257xx_power_supply_desc = {
 	.set_property = bq257xx_set_charger_property,
 	.property_is_writeable = bq257xx_property_is_writeable,
 	.external_power_changed = bq257xx_external_power_changed,
+	.init = bq257xx_charger_init,
 };
 
 static const struct bq257xx_chip_info bq25703_chip_info = {
@@ -1161,57 +1212,11 @@ static const struct bq257xx_chip_info bq25792_chip_info = {
 };
 
 /**
- * bq257xx_parse_dt() - Parse the device tree for required properties
- * @pdata: driver platform data
- * @psy_cfg: power supply config data
- * @dev: device struct
- *
- * Read the device tree to identify the minimum system voltage, the
- * maximum charge current, the maximum charge voltage, and the maximum
- * input current.
- *
- * Return: Returns 0 on success or error code on error.
- */
-static int bq257xx_parse_dt(struct bq257xx_chg *pdata,
-		struct power_supply_config *psy_cfg, struct device *dev)
-{
-	struct power_supply_battery_info *bat_info;
-	int ret;
-
-	ret = power_supply_get_battery_info(pdata->charger,
-					    &bat_info);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Unable to get battery info\n");
-
-	if ((bat_info->voltage_min_design_uv <= 0) ||
-	    (bat_info->constant_charge_voltage_max_uv <= 0) ||
-	    (bat_info->constant_charge_current_max_ua <= 0))
-		return dev_err_probe(dev, -EINVAL,
-				     "Required bat info missing or invalid\n");
-
-	pdata->vsys_min = bat_info->voltage_min_design_uv;
-	pdata->vbat_max = bat_info->constant_charge_voltage_max_uv;
-	pdata->ichg_max = bat_info->constant_charge_current_max_ua;
-
-	power_supply_put_battery_info(pdata->charger, bat_info);
-
-	ret = device_property_read_u32(dev,
-				       "input-current-limit-microamp",
-				       &pdata->iindpm_max);
-	if (ret)
-		pdata->iindpm_max = pdata->chip->default_iindpm_uA;
-
-	return 0;
-}
-
-/**
  * bq257xx_charger_probe() - Probe routine for charger platform device
  * @pdev: platform device
  *
  * Probe the charger device, allocate driver data structure, select the
  * appropriate chip-specific function pointers, register the power supply,
- * parse device tree properties for battery limits, initialize hardware,
  * and set up the interrupt handler if available.
  *
  * Return: Returns 0 on success or error code on failure.
@@ -1222,7 +1227,6 @@ static int bq257xx_charger_probe(struct platform_device *pdev)
 	struct bq257xx_device *bq = dev_get_drvdata(pdev->dev.parent);
 	struct bq257xx_chg *pdata;
 	struct power_supply_config psy_cfg = { };
-	int ret;
 
 	device_set_of_node_from_dev(dev, pdev->dev.parent);
 
@@ -1231,6 +1235,7 @@ static int bq257xx_charger_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pdata->bq = bq;
+	pdata->dev = dev;
 
 	switch (bq->type) {
 	case BQ25703A:
@@ -1255,26 +1260,16 @@ static int bq257xx_charger_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(pdata->charger),
 				     "Power supply register charger failed\n");
 
-	ret = bq257xx_parse_dt(pdata, &psy_cfg, dev);
-	if (ret)
-		return ret;
-
-	ret = pdata->chip->bq257xx_hw_init(pdata);
-	if (ret)
-		return dev_err_probe(dev, ret, "Cannot initialize the charger\n");
-
-	platform_set_drvdata(pdev, pdata);
-
 	if (bq->client->irq) {
-		ret = devm_request_threaded_irq(dev, bq->client->irq, NULL,
-						bq257xx_irq_handler_thread,
-						IRQF_TRIGGER_RISING |
-						IRQF_TRIGGER_FALLING |
-						IRQF_ONESHOT,
-						dev_name(&bq->client->dev), pdata);
+		return devm_request_threaded_irq(dev, bq->client->irq, NULL,
+						 bq257xx_irq_handler_thread,
+						 IRQF_TRIGGER_RISING |
+						 IRQF_TRIGGER_FALLING |
+						 IRQF_ONESHOT,
+						 dev_name(&bq->client->dev), pdata);
 	}
 
-	return ret;
+	return 0;
 }
 
 /**

@@ -2,10 +2,10 @@
 /*
  * Copyright (c) 2016, Prodys S.L.
  *
- * This adds support for sbs-charger compilant chips as defined here:
+ * This adds support for sbs-charger compliant chips as defined here:
  * http://sbs-forum.org/specs/sbc110.pdf
  *
- * Implemetation based on sbs-battery.c
+ * Implementation based on sbs-battery.c
  */
 
 #include <linux/init.h>

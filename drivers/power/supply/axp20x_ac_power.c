@@ -326,9 +326,6 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 	const struct axp_data *axp_data;
 	int i, irq, ret;
 
-	if (!of_device_is_available(pdev->dev.of_node))
-		return -ENODEV;
-
 	if (!axp20x) {
 		dev_err(&pdev->dev, "Parent drvdata not set\n");
 		return -EINVAL;

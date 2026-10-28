@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/math.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/power_supply.h>
@@ -57,10 +58,11 @@
 
 #define MAX17042_CURRENT_LSB		1562500ll /* 1.5625µV/Rsense */
 #define MAX17042_CAPACITY_LSB		5000000ll /* 5.0µVH/Rsense */
-#define MAX17042_TIME_LSB		5625 / 1000 /* s */
-#define MAX17042_VOLTAGE_LSB		625 / 8 /* µV */
-#define MAX17042_RESISTANCE_LSB		1 / 4096 /* Ω */
-#define MAX17042_TEMPERATURE_LSB	1 / 256 /* °C */
+
+#define MAX17042_TIME_LSB(val)		mult_frac(val, 5625, 1000) /* s */
+#define MAX17042_VOLTAGE_LSB(val)	mult_frac(val, 625, 8) /* µV */
+#define MAX17042_RESISTANCE_LSB(val)	mult_frac(val, 1, 4096) /* Ω */
+#define MAX17042_TEMPERATURE_LSB(val)	mult_frac(val, 1, 256) /* °C */
 
 #define MAX17055_DQACC_DIV		32
 #define MAX17055_DPACC_FACTOR		44138
@@ -138,7 +140,7 @@ static int max17042_get_temperature(struct max17042_chip *chip, int *temp)
 
 	*temp = sign_extend32(data, 15);
 	/* The value is converted into deci-centigrade scale */
-	*temp = *temp * 10 * MAX17042_TEMPERATURE_LSB;
+	*temp = MAX17042_TEMPERATURE_LSB(*temp * 10);
 	return 0;
 }
 
@@ -214,7 +216,7 @@ static int max17042_get_battery_health(struct max17042_chip *chip, int *health)
 		goto health_error;
 
 	/* bits [0-3] unused */
-	vavg = val * MAX17042_VOLTAGE_LSB;
+	vavg = MAX17042_VOLTAGE_LSB(val);
 	/* Convert to millivolts */
 	vavg /= 1000;
 
@@ -223,7 +225,7 @@ static int max17042_get_battery_health(struct max17042_chip *chip, int *health)
 		goto health_error;
 
 	/* bits [0-3] unused */
-	vbatt = val * MAX17042_VOLTAGE_LSB;
+	vbatt = MAX17042_VOLTAGE_LSB(val);
 	/* Convert to millivolts */
 	vbatt /= 1000;
 
@@ -330,21 +332,21 @@ static int max17042_get_property(struct power_supply *psy,
 		if (ret < 0)
 			return ret;
 
-		val->intval = data * MAX17042_VOLTAGE_LSB;
+		val->intval = MAX17042_VOLTAGE_LSB(data);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		ret = regmap_read(map, MAX17042_AvgVCELL, &data);
 		if (ret < 0)
 			return ret;
 
-		val->intval = data * MAX17042_VOLTAGE_LSB;
+		val->intval = MAX17042_VOLTAGE_LSB(data);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_OCV:
 		ret = regmap_read(map, MAX17042_OCVInternal, &data);
 		if (ret < 0)
 			return ret;
 
-		val->intval = data * MAX17042_VOLTAGE_LSB;
+		val->intval = MAX17042_VOLTAGE_LSB(data);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (chip->enable_current_sense)
@@ -473,7 +475,7 @@ static int max17042_get_property(struct power_supply *psy,
 		if (data == U16_MAX)
 			return -ENODATA;
 
-		val->intval = data * MAX17042_TIME_LSB;
+		val->intval = MAX17042_TIME_LSB(data);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
 		if (chip->chip_type != MAXIM_DEVICE_TYPE_MAX17055 &&
@@ -488,7 +490,7 @@ static int max17042_get_property(struct power_supply *psy,
 		if (data == U16_MAX)
 			return -ENODATA;
 
-		val->intval = data * MAX17042_TIME_LSB;
+		val->intval = MAX17042_TIME_LSB(data);
 		break;
 	default:
 		return -EINVAL;
@@ -1080,7 +1082,7 @@ static int max17042_init_chip(struct max17042_chip *chip)
 		/* update capacity params */
 		max17042_update_capacity_regs(chip);
 
-		/* delay must be atleast 350mS to allow VFSOC
+		/* delay must be at least 350mS to allow VFSOC
 		 * to be calculated from the new configuration
 		 */
 		msleep(350);

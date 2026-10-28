@@ -112,8 +112,7 @@ static int rsctrl_probe(struct platform_device *pdev)
 	for (i = 0; i < WDT_MUX_NUMBER; i++) {
 		ret = of_property_read_u32_index(np, "ti,wdt-list", i, &val);
 		if (ret == -EOVERFLOW && !i) {
-			dev_err(dev, "ti,wdt-list property has to contain at"
-				"least one entry\n");
+			dev_err(dev, "ti,wdt-list property has to contain at least one entry\n");
 			return -EINVAL;
 		} else if (ret) {
 			break;
