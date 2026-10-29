@@ -2778,7 +2778,9 @@ Cpuset Interface Files
 	be retained, but behaves more like a "member".
 
 	All possible state transitions among "member", "root" and
-	"isolated" are allowed.
+	"isolated" are allowed with the exception that a local child
+	"root" partition is not allowed to be created under an "isolated"
+	parent partition.
 
 	On read, the "cpuset.cpus.partition" file can show the following
 	values.

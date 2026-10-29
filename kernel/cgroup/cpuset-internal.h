@@ -35,6 +35,7 @@ enum prs_errcode {
 	PERR_HKEEPING,
 	PERR_ACCESS,
 	PERR_REMOTE,
+	PERR_ISOPARENT,
 };
 
 /* bits in struct cpuset flags field */
@@ -159,6 +160,11 @@ struct cpuset {
 	 * to a list if we need to iterate over the remote partitions.
 	 */
 	bool remote_partition;
+
+	/*
+	 * Set to true when a remote partition is undergoing update.
+	 */
+	bool remote_partition_updating;
 
 	/*
 	 * number of SCHED_DEADLINE tasks attached to this cpuset, so that we
