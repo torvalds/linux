@@ -1107,8 +1107,6 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 {
 	struct zloop_zone *zone = &zlo->zones[zone_no];
 	int oflags = O_RDWR;
-	struct kstat stat;
-	sector_t file_sectors;
 	int ret;
 
 	mutex_init(&zone->lock);
@@ -1122,26 +1120,32 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 	if (!opts->buffered_io)
 		oflags |= O_DIRECT;
 
+	zone->file = zloop_filp_open_fmt(oflags, 0600, "%s/%u/%s-%06u",
+				zlo->base_dir, zlo->id,
+				zone_no < zlo->nr_conv_zones ? "cnv" : "seq",
+				zone_no);
+	if (IS_ERR(zone->file)) {
+		pr_err("Failed to open zone %u file %s/%u/%s-%06u (err=%ld)",
+		       zone_no, zlo->base_dir, zlo->id,
+		       zone_no < zlo->nr_conv_zones ? "cnv" : "seq",
+		       zone_no, PTR_ERR(zone->file));
+		return PTR_ERR(zone->file);
+	}
+
+	if (zlo->block_size) {
+		ret = zloop_get_block_size(zlo, zone);
+		if (ret)
+			return ret;
+	}
+
 	if (zone_no < zlo->nr_conv_zones) {
+		sector_t file_sectors;
+		struct kstat stat;
+
 		/* Conventional zone file. */
 		set_bit(ZLOOP_ZONE_CONV, &zone->flags);
 		zone->cond = BLK_ZONE_COND_NOT_WP;
 		zone->wp = U64_MAX;
-
-		zone->file = zloop_filp_open_fmt(oflags, 0600, "%s/%u/cnv-%06u",
-					zlo->base_dir, zlo->id, zone_no);
-		if (IS_ERR(zone->file)) {
-			pr_err("Failed to open zone %u file %s/%u/cnv-%06u (err=%ld)",
-			       zone_no, zlo->base_dir, zlo->id, zone_no,
-			       PTR_ERR(zone->file));
-			return PTR_ERR(zone->file);
-		}
-
-		if (!zlo->block_size) {
-			ret = zloop_get_block_size(zlo, zone);
-			if (ret)
-				return ret;
-		}
 
 		ret = vfs_getattr(&zone->file->f_path, &stat, STATX_SIZE, 0);
 		if (ret < 0) {
@@ -1163,29 +1167,12 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 			       zone_no, ret);
 			return ret;
 		}
-
-		return 0;
+	} else {
+		/* Sequential zone file. */
+		mutex_lock(&zone->lock);
+		ret = zloop_update_seq_zone(zlo, zone_no);
+		mutex_unlock(&zone->lock);
 	}
-
-	/* Sequential zone file. */
-	zone->file = zloop_filp_open_fmt(oflags, 0600, "%s/%u/seq-%06u",
-					 zlo->base_dir, zlo->id, zone_no);
-	if (IS_ERR(zone->file)) {
-		pr_err("Failed to open zone %u file %s/%u/seq-%06u (err=%ld)",
-		       zone_no, zlo->base_dir, zlo->id, zone_no,
-		       PTR_ERR(zone->file));
-		return PTR_ERR(zone->file);
-	}
-
-	if (!zlo->block_size) {
-		ret = zloop_get_block_size(zlo, zone);
-		if (ret)
-			return ret;
-	}
-
-	mutex_lock(&zone->lock);
-	ret = zloop_update_seq_zone(zlo, zone_no);
-	mutex_unlock(&zone->lock);
 
 	return ret;
 }
