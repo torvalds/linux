@@ -2533,9 +2533,17 @@ static int hci_le_add_resolve_list_sync(struct hci_dev *hdev,
 	} else if (!(params->flags & HCI_CONN_FLAG_ADDRESS_RESOLUTION))
 		return 0;
 
+	rcu_read_lock();
+
 	irk = hci_find_irk_by_addr(hdev, &params->addr, params->addr_type);
-	if (!irk)
+	if (!irk) {
+		rcu_read_unlock();
 		return 0;
+	}
+
+	memcpy(cp.peer_irk, irk->val, 16);
+
+	rcu_read_unlock();
 
 	/* Check if the IK has _not_ been programmed yet. */
 	hci_dev_lock(hdev);
@@ -2547,7 +2555,6 @@ static int hci_le_add_resolve_list_sync(struct hci_dev *hdev,
 
 	cp.bdaddr_type = params->addr_type;
 	bacpy(&cp.bdaddr, &params->addr);
-	memcpy(cp.peer_irk, irk->val, 16);
 
 	/* Default privacy mode is always Network */
 	params->privacy_mode = HCI_NETWORK_PRIVACY;
