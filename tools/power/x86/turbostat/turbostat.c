@@ -5194,9 +5194,9 @@ unsigned long pmt_gen_value_mask(unsigned int lsb, unsigned int msb)
 	if (msb == 63)
 		mask = 0xffffffffffffffff;
 	else
-		mask = ((1 << (msb + 1)) - 1);
+		mask = ((1ULL << (msb + 1)) - 1);
 
-	mask -= (1 << lsb) - 1;
+	mask -= (1ULL << lsb) - 1;
 
 	return mask;
 }
