@@ -2209,16 +2209,20 @@ static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 {
 	struct smp_ltk *key;
 	struct hci_conn *hcon = conn->hcon;
+	bool ret = false;
+
+	rcu_read_lock();
 
 	key = hci_find_ltk(hcon->hdev, &hcon->dst, hcon->dst_type, hcon->role);
 	if (!key)
-		return false;
+		goto unlock;
 
 	if (smp_ltk_sec_level(key) < sec_level)
-		return false;
+		goto unlock;
 
+	ret = true;
 	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, hcon->flags))
-		return true;
+		goto unlock;
 
 	hci_le_start_enc(hcon, key->ediv, key->rand, key->val, key->enc_size);
 	hcon->enc_key_size = key->enc_size;
@@ -2226,7 +2230,9 @@ static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 	/* We never store STKs for initiator role, so clear this flag */
 	clear_bit(HCI_CONN_STK_ENCRYPT, hcon->flags);
 
-	return true;
+unlock:
+	rcu_read_unlock();
+	return ret;
 }
 
 bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level,
