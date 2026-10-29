@@ -485,8 +485,12 @@ static void cifs_issue_read(struct netfs_io_subrequest *subreq)
 	if (rc)
 		goto not_sent;
 
-	if (rdata->replay && rdata->cur_sleep)
+	if (rdata->replay && rdata->cur_sleep) {
 		msleep(rdata->cur_sleep);
+		rc = -EIO;
+		if (cifs_io_aborted(rdata))
+			goto failed;
+	}
 
 	rc = -EAGAIN;
 	if (req->cfile->invalidHandle ||
@@ -1552,6 +1556,16 @@ cifs_relock_file(struct cifsFileInfo *cfile)
 	return rc;
 }
 
+static bool reopen_aborted(struct cifs_tcon *tcon, int aborts)
+{
+	struct TCP_Server_Info *server;
+
+	if (atomic_read(&tcon->umount_aborts) == aborts)
+		return false;
+	server = cifs_pick_channel(tcon->ses);
+	return server && READ_ONCE(server->tcpStatus) == CifsNeedReconnect;
+}
+
 static int
 cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 {
@@ -1570,7 +1584,10 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 	int create_options = CREATE_NOT_DIR;
 	struct cifs_open_parms oparms;
 	int rdwr_for_fscache = 0;
+	int aborts;
 
+	tcon = tlink_tcon(cfile->tlink);
+	aborts = atomic_read(&tcon->umount_aborts);
 	xid = get_xid();
 	mutex_lock(&cfile->fh_mutex);
 	if (!cfile->invalidHandle) {
@@ -1578,10 +1595,14 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 		free_xid(xid);
 		return 0;
 	}
+	if (reopen_aborted(tcon, aborts)) {
+		mutex_unlock(&cfile->fh_mutex);
+		free_xid(xid);
+		return -EHOSTDOWN;
+	}
 
 	inode = d_inode(cfile->dentry);
 	cifs_sb = CIFS_SB(inode->i_sb);
-	tcon = tlink_tcon(cfile->tlink);
 	server = tcon->ses->server;
 
 	/*
@@ -1663,10 +1684,16 @@ retry_open:
 	 * version of file size can be stale. If we knew for sure that inode was
 	 * not dirty locally we could do this.
 	 */
-	rc = server->ops->open(xid, &oparms, &oplock, NULL);
+	if (reopen_aborted(tcon, aborts))
+		rc = -EHOSTDOWN;
+	else
+		rc = server->ops->open(xid, &oparms, &oplock, NULL);
 	if (rc == -ENOENT && oparms.reconnect == false) {
 		/* durable handle timeout is expired - open the file again */
-		rc = server->ops->open(xid, &oparms, &oplock, NULL);
+		if (reopen_aborted(tcon, aborts))
+			rc = -EHOSTDOWN;
+		else
+			rc = server->ops->open(xid, &oparms, &oplock, NULL);
 		/* indicate that we need to relock the file */
 		oparms.reconnect = true;
 	}

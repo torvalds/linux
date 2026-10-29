@@ -1196,6 +1196,9 @@ struct cifs_tcon {
 	struct list_head tcon_list;
 	int debug_id;		/* Debugging for tracing */
 	int tc_count;
+	int mnt_refs;		/* refs held by mounts, under tc_lock */
+	int mnt_unlinked;	/* mnt_refs of tlinks being built */
+	atomic_t umount_aborts;	/* nr of umount -f attempts */
 	struct list_head rlist; /* reconnect list */
 	spinlock_t tc_lock;  /* protect anything here that is not protected */
 	atomic_t num_local_opens;  /* num of all opens including disconnected */
@@ -2380,6 +2383,11 @@ static inline void cifs_reset_oplock(struct cifsInodeInfo *cinode)
 {
 	scoped_guard(spinlock, &cinode->open_file_lock)
 		WRITE_ONCE(cinode->oplock, 0);
+}
+
+static inline bool cifs_tcon_retry(struct cifs_tcon *tcon, int aborts)
+{
+	return tcon->retry && atomic_read(&tcon->umount_aborts) == aborts;
 }
 
 static inline bool cifs_forced_shutdown(const struct cifs_sb_info *sbi)
