@@ -3209,15 +3209,14 @@ new_request:
 
 	blk_mq_bio_to_request(rq, bio, nr_segs);
 
-	ret = blk_crypto_rq_get_keyslot(rq);
-	if (ret != BLK_STS_OK) {
-		bio_endio_status(bio, ret);
-		blk_mq_free_request(rq);
-		return;
-	}
-
 	if (bio_zone_write_plugging(bio))
 		blk_zone_write_plug_init_request(rq);
+
+	ret = blk_crypto_rq_get_keyslot(rq);
+	if (ret != BLK_STS_OK) {
+		blk_mq_end_request(rq, ret);
+		return;
+	}
 
 	if (op_is_flush(bio->bi_opf) && blk_insert_flush(rq))
 		return;
