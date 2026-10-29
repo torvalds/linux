@@ -209,31 +209,63 @@ struct hv_ring_buffer_info {
 };
 
 
+/*
+ * The indices live in memory shared with the untrusted host, so check a
+ * snapshot of them before using it as an offset or to compute a byte count.
+ */
+static inline bool
+hv_ringbuffer_indices_invalid(const struct hv_ring_buffer_info *rbi,
+			      u32 read_loc, u32 write_loc)
+{
+	return read_loc >= rbi->ring_datasize ||
+	       write_loc >= rbi->ring_datasize;
+}
+
+/*
+ * Byte counts for a caller-supplied snapshot of the indices, so that the
+ * counts and the indices the caller goes on to use describe one state of the
+ * ring.
+ */
+static inline u32
+hv_ringbuffer_avail_write(const struct hv_ring_buffer_info *rbi,
+			  u32 read_loc, u32 write_loc)
+{
+	u32 dsize = rbi->ring_datasize;
+
+	return write_loc >= read_loc ? dsize - (write_loc - read_loc) :
+		read_loc - write_loc;
+}
+
+static inline u32
+hv_ringbuffer_avail_read(const struct hv_ring_buffer_info *rbi,
+			 u32 read_loc, u32 write_loc)
+{
+	return rbi->ring_datasize -
+		hv_ringbuffer_avail_write(rbi, read_loc, write_loc);
+}
+
 static inline u32 hv_get_bytes_to_read(const struct hv_ring_buffer_info *rbi)
 {
-	u32 read_loc, write_loc, dsize, read;
+	u32 read_loc, write_loc;
 
-	dsize = rbi->ring_datasize;
-	read_loc = rbi->ring_buffer->read_index;
+	read_loc = READ_ONCE(rbi->ring_buffer->read_index);
 	write_loc = READ_ONCE(rbi->ring_buffer->write_index);
+	if (unlikely(hv_ringbuffer_indices_invalid(rbi, read_loc, write_loc)))
+		return 0;
 
-	read = write_loc >= read_loc ? (write_loc - read_loc) :
-		(dsize - read_loc) + write_loc;
-
-	return read;
+	return hv_ringbuffer_avail_read(rbi, read_loc, write_loc);
 }
 
 static inline u32 hv_get_bytes_to_write(const struct hv_ring_buffer_info *rbi)
 {
-	u32 read_loc, write_loc, dsize, write;
+	u32 read_loc, write_loc;
 
-	dsize = rbi->ring_datasize;
 	read_loc = READ_ONCE(rbi->ring_buffer->read_index);
-	write_loc = rbi->ring_buffer->write_index;
+	write_loc = READ_ONCE(rbi->ring_buffer->write_index);
+	if (unlikely(hv_ringbuffer_indices_invalid(rbi, read_loc, write_loc)))
+		return 0;
 
-	write = write_loc >= read_loc ? dsize - (write_loc - read_loc) :
-		read_loc - write_loc;
-	return write;
+	return hv_ringbuffer_avail_write(rbi, read_loc, write_loc);
 }
 
 static inline u32 hv_get_avail_to_write_percent(

@@ -200,7 +200,10 @@ validation is performed. For messages passed from the host to the guest in a
 VMBus ring buffer, the length of the message is validated, and the message is
 copied into a temporary (encrypted) buffer for further validation and
 processing. The copying adds a small amount of overhead, but is the only way
-to protect against a malicious host. See hv_pkt_iter_first().
+to protect against a malicious host. See hv_pkt_iter_first(). Similarly, the
+ring buffer header is shared with the host, so the guest must snapshot and
+validate the read and write indices before using them to index into the ring
+buffer or to compute available space.
 
 Many drivers for VMBus devices have been "hardened" by adding code to fully
 validate messages received over VMBus, instead of assuming that Hyper-V is
