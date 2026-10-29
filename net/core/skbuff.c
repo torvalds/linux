@@ -7499,8 +7499,14 @@ nodefer:	kfree_skb_napi_cache(skb);
 	defer_max = READ_ONCE(net_hotdata.sysctl_skb_defer_max);
 	defer_count = atomic_long_inc_return(&sdn->defer_count);
 
-	if (defer_count >= defer_max)
+	if (defer_count > defer_max) {
+		/* Undo the reservation. An llist_add() does not release one --
+		 * the skb stays charged until a flush subtracts the batch that
+		 * contains it -- so a rejected free must undo its own.
+		 */
+		atomic_long_dec(&sdn->defer_count);
 		goto nodefer;
+	}
 
 	llist_add(&skb->ll_node, &sdn->defer_list);
 
@@ -7509,8 +7515,13 @@ nodefer:	kfree_skb_napi_cache(skb);
 		return;
 	}
 
-	/* Send an IPI every time queue reaches half capacity. */
-	kick = (defer_count - 1) == (defer_max >> 1);
+	/* Half capacity, plus the skb that fills the queue. Equality alone can
+	 * be consumed early -- if the producer holding the kick value publishes
+	 * first, its purge drains only that skb and the reservations published
+	 * after it match nothing -- which would leave a full queue with nothing
+	 * pending.
+	 */
+	kick = (defer_count - 1) == (defer_max >> 1) || defer_count == defer_max;
 
 	/* Make sure to trigger NET_RX_SOFTIRQ on the remote CPU
 	 * if we are unlucky enough (this seems very unlikely).
