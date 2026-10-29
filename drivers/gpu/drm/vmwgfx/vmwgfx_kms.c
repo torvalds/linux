@@ -155,9 +155,8 @@ int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
 	 * some actual rendering so give a clue as why it's blank.
 	 */
 	if (new_state->enable && !has_primary)
-		drm_dbg_driver(&vmw->drm,
-			       "CRTC without a primary plane will be blank.\n");
-
+		drm_info_once(&vmw->drm,
+			      "CRTC without a primary plane will be blank.\n");
 
 	if (new_state->connector_mask != connector_mask &&
 	    new_state->connector_mask != 0) {
