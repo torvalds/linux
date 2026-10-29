@@ -298,6 +298,15 @@ static void cifs_kill_sb(struct super_block *sb)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 
 	/*
+	 * Reaching here after a umount -f means the mount is going away for
+	 * good, so stop retrying I/O that can no longer complete (e.g.
+	 * writeback to a server that is gone) rather than looping forever on
+	 * a hard mount and hanging the teardown below.
+	 */
+	if (atomic_read(&cifs_sb->umount_aborts))
+		WRITE_ONCE(cifs_sb->exiting, true);
+
+	/*
 	 * We need to release all dentries for the cached directories
 	 * and close all deferred file handles before we kill the sb.
 	 */
@@ -835,6 +844,7 @@ static void cifs_umount_begin(struct super_block *sb)
 	if (cifs_sb == NULL)
 		return;
 
+	atomic_inc(&cifs_sb->umount_aborts);
 	tcon = cifs_sb_master_tcon(cifs_sb);
 
 	spin_lock(&cifs_tcp_ses_lock);

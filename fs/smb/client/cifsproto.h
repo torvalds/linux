@@ -137,6 +137,8 @@ bool is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file,
 			    bool from_readdir);
 void cifs_write_subrequest_terminated(struct cifs_io_subrequest *wdata,
 				      ssize_t result);
+bool cifs_io_stopped(struct cifs_io_subrequest *subreq);
+bool cifs_io_should_replay(struct cifs_io_subrequest *subreq);
 struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode,
 					int flags);
 int __cifs_get_writable_file(struct cifsInodeInfo *cifs_inode,

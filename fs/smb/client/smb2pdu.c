@@ -4845,9 +4845,7 @@ do_retry:
 
 	/* see if we need to retry */
 	if (is_replayable_error(rdata->result) &&
-	    smb2_should_replay(tcon,
-			       &rdata->retries,
-			       &rdata->cur_sleep))
+	    cifs_io_should_replay(rdata))
 		rdata->replay = true;
 
 	trace_smb3_rw_credits(rreq_debug_id, subreq_debug_index, rdata->credits.value,
@@ -4956,9 +4954,7 @@ async_readv_out:
 out:
 	/* if the send error is retryable, let netfs know about it */
 	if (is_replayable_error(rc) &&
-	    smb2_should_replay(tcon,
-			       &rdata->retries,
-			       &rdata->cur_sleep)) {
+	    cifs_io_should_replay(rdata)) {
 		rdata->replay = true;
 		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_retry_needed);
 		__set_bit(NETFS_SREQ_NEED_RETRY, &rdata->subreq.flags);
@@ -5195,9 +5191,7 @@ smb2_writev_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 	/* see if we need to retry */
 	if (is_replayable_error(wdata->result) &&
-	    smb2_should_replay(tcon,
-			       &wdata->retries,
-			       &wdata->cur_sleep))
+	    cifs_io_should_replay(wdata))
 		wdata->replay = true;
 
 	cifs_write_subrequest_terminated(wdata, result ?: written);
@@ -5369,9 +5363,7 @@ async_writev_out:
 out:
 	/* if the send error is retryable, let netfs know about it */
 	if (is_replayable_error(rc) &&
-	    smb2_should_replay(tcon,
-			       &wdata->retries,
-			       &wdata->cur_sleep)) {
+	    cifs_io_should_replay(wdata)) {
 		wdata->replay = true;
 		trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_retry_needed);
 		__set_bit(NETFS_SREQ_NEED_RETRY, &wdata->subreq.flags);

@@ -39,6 +39,40 @@
 
 static int cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush);
 
+bool cifs_io_stopped(struct cifs_io_subrequest *subreq)
+{
+	struct super_block *sb = subreq->rreq->inode->i_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	int aborts;
+
+	if (cifs_forced_shutdown(cifs_sb) || READ_ONCE(cifs_sb->exiting))
+		return true;
+	aborts = atomic_read(&cifs_sb->umount_aborts);
+	if (aborts != subreq->req->umount_aborts)
+		return true;
+	return aborts && rwsem_is_contended(&sb->s_umount);
+}
+
+bool cifs_io_should_replay(struct cifs_io_subrequest *subreq)
+{
+	struct cifs_tcon *tcon = tlink_tcon(subreq->req->cfile->tlink);
+
+	if (cifs_io_stopped(subreq))
+		return false;
+	return smb2_should_replay(tcon, &subreq->retries, &subreq->cur_sleep);
+}
+
+static bool cifs_io_aborted(struct cifs_io_subrequest *subreq)
+{
+	struct cifs_tcon *tcon = tlink_tcon(subreq->req->cfile->tlink);
+
+	if (!cifs_io_stopped(subreq))
+		return false;
+	return subreq->subreq.retry_count || subreq->replay ||
+	       READ_ONCE(subreq->server->tcpStatus) == CifsNeedReconnect ||
+	       tcon->need_reconnect;
+}
+
 /*
  * Prepare a subrequest to upload to the server.  We need to allocate credits
  * so that we know the maximum amount of data that we can include in it.
@@ -52,6 +86,7 @@ static void cifs_prepare_write(struct netfs_io_subrequest *subreq)
 	struct TCP_Server_Info *server;
 	struct cifsFileInfo *open_file = req->cfile;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(wdata->rreq->inode->i_sb);
+	bool reprepared = wdata->have_xid;
 	size_t wsize = req->rreq.wsize;
 	int rc;
 
@@ -62,6 +97,12 @@ static void cifs_prepare_write(struct netfs_io_subrequest *subreq)
 
 	server = cifs_pick_channel(tlink_tcon(open_file->tlink)->ses);
 	wdata->server = server;
+
+	if (cifs_io_aborted(wdata) ||
+	    (reprepared && cifs_io_stopped(wdata))) {
+		subreq->error = -EIO;
+		return netfs_prepare_write_failed(subreq);
+	}
 
 	if (cifs_sb->ctx->wsize == 0)
 		cifs_negotiate_wsize(server, cifs_sb->ctx,
@@ -120,6 +161,10 @@ static void cifs_issue_write(struct netfs_io_subrequest *subreq)
 		goto fail;
 	}
 
+	rc = -EIO;
+	if (cifs_io_aborted(wdata))
+		goto fail;
+
 	rc = adjust_credits(wdata->server, wdata, cifs_trace_rw_credits_issue_write_adjust);
 	if (rc)
 		goto fail;
@@ -157,6 +202,7 @@ static int cifs_prepare_read(struct netfs_io_subrequest *subreq)
 	struct cifs_io_request *req = container_of(subreq->rreq, struct cifs_io_request, rreq);
 	struct TCP_Server_Info *server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(rreq->inode->i_sb);
+	bool reprepared = rdata->have_xid;
 	size_t size;
 	int rc = 0;
 
@@ -167,6 +213,10 @@ static int cifs_prepare_read(struct netfs_io_subrequest *subreq)
 
 	server = cifs_pick_channel(tlink_tcon(req->cfile->tlink)->ses);
 	rdata->server = server;
+
+	if (cifs_io_aborted(rdata) ||
+	    (reprepared && cifs_io_stopped(rdata)))
+		return -EIO;
 
 	if (cifs_sb->ctx->rsize == 0)
 		cifs_negotiate_rsize(server, cifs_sb->ctx,
@@ -217,6 +267,10 @@ static void cifs_issue_read(struct netfs_io_subrequest *subreq)
 	cifs_dbg(FYI, "%s: op=%08x[%x] mapping=%p len=%zu/%zu\n",
 		 __func__, rreq->debug_id, subreq->debug_index, rreq->mapping,
 		 subreq->transferred, subreq->len);
+
+	rc = -EIO;
+	if (cifs_io_aborted(rdata))
+		goto failed;
 
 	rc = adjust_credits(server, rdata, cifs_trace_rw_credits_issue_read_adjust);
 	if (rc)
@@ -282,6 +336,7 @@ static int cifs_init_request(struct netfs_io_request *rreq, struct file *file)
 	rreq->rsize = cifs_sb->ctx->rsize;
 	rreq->wsize = cifs_sb->ctx->wsize;
 	req->pid = current->tgid; // Ummm...  This may be a workqueue
+	req->umount_aborts = atomic_read(&cifs_sb->umount_aborts);
 
 	if (file) {
 		open_file = file->private_data;
