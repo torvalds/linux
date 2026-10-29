@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <linux/cache.h>
 #include <asm/neon-intrinsics.h>
-#include "xor_impl.h"
-#include "xor_arch.h"
 #include "xor-neon.h"
-
-extern void __xor_eor3_2(unsigned long bytes, unsigned long * __restrict p1,
-		const unsigned long * __restrict p2);
 
 static inline uint64x2_t eor3(uint64x2_t p, uint64x2_t q, uint64x2_t r)
 {
@@ -19,7 +13,7 @@ static inline uint64x2_t eor3(uint64x2_t p, uint64x2_t q, uint64x2_t r)
 	return res;
 }
 
-static void __xor_eor3_3(unsigned long bytes, unsigned long * __restrict p1,
+void __xor_eor3_3(unsigned long bytes, unsigned long * __restrict p1,
 		const unsigned long * __restrict p2,
 		const unsigned long * __restrict p3)
 {
@@ -53,7 +47,7 @@ static void __xor_eor3_3(unsigned long bytes, unsigned long * __restrict p1,
 	} while (--lines > 0);
 }
 
-static void __xor_eor3_4(unsigned long bytes, unsigned long * __restrict p1,
+void __xor_eor3_4(unsigned long bytes, unsigned long * __restrict p1,
 		const unsigned long * __restrict p2,
 		const unsigned long * __restrict p3,
 		const unsigned long * __restrict p4)
@@ -96,7 +90,7 @@ static void __xor_eor3_4(unsigned long bytes, unsigned long * __restrict p1,
 	} while (--lines > 0);
 }
 
-static void __xor_eor3_5(unsigned long bytes, unsigned long * __restrict p1,
+void __xor_eor3_5(unsigned long bytes, unsigned long * __restrict p1,
 		const unsigned long * __restrict p2,
 		const unsigned long * __restrict p3,
 		const unsigned long * __restrict p4,
@@ -141,6 +135,3 @@ static void __xor_eor3_5(unsigned long bytes, unsigned long * __restrict p1,
 		dp5 += 8;
 	} while (--lines > 0);
 }
-
-__DO_XOR_BLOCKS(eor3_inner, __xor_eor3_2, __xor_eor3_3, __xor_eor3_4,
-		__xor_eor3_5);
