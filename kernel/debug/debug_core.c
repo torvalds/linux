@@ -555,8 +555,6 @@ static int kgdb_reenter_check(struct kgdb_state *ks)
 #endif
 	dump_stack();
 	panic("Recursive entry to debugger");
-
-	return 1;
 }
 NOKPROBE_SYMBOL(kgdb_reenter_check);
 
