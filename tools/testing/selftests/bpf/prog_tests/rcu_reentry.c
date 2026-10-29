@@ -23,10 +23,17 @@ static bool have_tree_srcu(void)
 	return kallsyms_find("srcu_expedite_current", &addr) == 0;
 }
 
+/* Arm the handler for this thread, then trigger call_rcu_tasks_trace(). */
+static noinline int arm_and_delete(struct rcu_reentry *skel, int pid, int map_fd, int *pidfd)
+{
+	skel->bss->target_pid = pid;
+	return bpf_map_delete_elem(map_fd, pidfd);
+}
+
 void test_rcu_reentry(void)
 {
 	struct rcu_reentry *skel;
-	int err, pidfd = -1, map_fd;
+	int err, pidfd = -1, bad_fd = -1, map_fd;
 	cpu_set_t set, old_set;
 	bool affinity_saved;
 	__u64 val = 1;
@@ -63,9 +70,13 @@ void test_rcu_reentry(void)
 	if (!ASSERT_OK(err, "boot_create"))
 		goto restore;
 
-	/* Arm the handler for this thread, then trigger call_rcu_tasks_trace(). */
-	skel->bss->target_pid = syscall(__NR_gettid);
-	err = bpf_map_delete_elem(map_fd, &pidfd);
+	/*
+	 * The handler fires at the first rcu_segcblist_enqueue() in this thread, and it deletes
+	 * the element. A page fault can get there too, when the file system reads the page.
+	 * Go through the same code first, without a pid, to bring its text and .bss in.
+	 */
+	arm_and_delete(skel, 0, map_fd, &bad_fd);
+	err = arm_and_delete(skel, syscall(__NR_gettid), map_fd, &pidfd);
 	if (!ASSERT_OK(err, "boot_delete"))
 		goto restore;
 

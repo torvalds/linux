@@ -281,6 +281,27 @@ __bpf_kfunc void bpf_iter_testmod_seq_destroy(struct bpf_iter_testmod_seq *it)
 	it->cnt = 0;
 }
 
+__bpf_kfunc int bpf_iter_testmod_current_new(struct bpf_iter_testmod_current *it)
+{
+	it->remaining = 2;
+	return 0;
+}
+
+__bpf_kfunc struct task_struct *
+bpf_iter_testmod_current_next(struct bpf_iter_testmod_current *it)
+{
+	if (!it->remaining)
+		return NULL;
+	it->remaining--;
+	/* current remains alive independently of the iterator. */
+	return current;
+}
+
+__bpf_kfunc void bpf_iter_testmod_current_destroy(struct bpf_iter_testmod_current *it)
+{
+	it->remaining = 0;
+}
+
 __bpf_kfunc void bpf_kfunc_common_test(void)
 {
 }
@@ -1016,6 +1037,10 @@ BTF_ID_FLAGS(func, bpf_iter_testmod_seq_new, KF_ITER_NEW)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_destroy, KF_ITER_DESTROY)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_value)
+BTF_ID_FLAGS(func, bpf_iter_testmod_current_new, KF_ITER_NEW)
+BTF_ID_FLAGS(func, bpf_iter_testmod_current_next,
+	     KF_ITER_NEXT | KF_RET_NULL | KF_ITER_RET_INDEPENDENT)
+BTF_ID_FLAGS(func, bpf_iter_testmod_current_destroy, KF_ITER_DESTROY)
 BTF_ID_FLAGS(func, bpf_kfunc_common_test)
 BTF_ID_FLAGS(func, bpf_kfunc_arena_arg_test)
 BTF_ID_FLAGS(func, bpf_kfunc_arena_cap_test)

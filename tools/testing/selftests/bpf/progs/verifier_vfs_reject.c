@@ -13,6 +13,25 @@
 static char buf[PATH_MAX];
 
 SEC("lsm.s/file_open")
+__failure __msg("invalid mem access 'scalar'")
+int BPF_PROG(inode_field_after_file_put)
+{
+	struct inode *inode;
+	struct file *file;
+	ino_t ino;
+
+	file = bpf_get_task_exe_file(bpf_get_current_task_btf());
+	if (!file)
+		return 0;
+
+	inode = file->f_inode;
+	bpf_put_file(file);
+	ino = inode->i_ino;
+	__sink(ino);
+	return 0;
+}
+
+SEC("lsm.s/file_open")
 __failure __msg("Possibly NULL pointer passed to trusted R1")
 int BPF_PROG(get_task_exe_file_kfunc_null)
 {

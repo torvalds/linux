@@ -13,6 +13,23 @@ static char buf[64];
 
 SEC("lsm.s/file_open")
 __success
+int BPF_PROG(inode_field_before_file_put)
+{
+	struct file *file;
+	ino_t ino;
+
+	file = bpf_get_task_exe_file(bpf_get_current_task_btf());
+	if (!file)
+		return 0;
+
+	ino = file->f_inode->i_ino;
+	bpf_put_file(file);
+	__sink(ino);
+	return 0;
+}
+
+SEC("lsm.s/file_open")
+__success
 int BPF_PROG(get_task_exe_file_and_put_kfunc_from_current_sleepable)
 {
 	struct file *acquired;

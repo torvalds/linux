@@ -535,6 +535,14 @@ void bpf_verbose_snum(struct bpf_verifier_env *env, s64 num)
 		verbose(env, "%#llx", num);
 }
 
+void bpf_verbose_snum32(struct bpf_verifier_env *env, s32 num)
+{
+	if (is_snum_decimal(num))
+		verbose(env, "%d", num);
+	else
+		verbose(env, "%#x", (u32)num);
+}
+
 int tnum_strn(char *str, size_t size, struct tnum a)
 {
 	/* print as a constant, if tnum is fully known */

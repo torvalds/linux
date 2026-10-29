@@ -433,6 +433,125 @@ __naked void stack_arg_sequential_calls(void)
 	);
 }
 
+/*
+ * A JIT passes the first stack arguments in registers. may_goto is not a call: they must be
+ * the same after it, also when it looks at the clock. That is once in 65535 iterations.
+ */
+__naked __noinline __used
+static long loops_then_reads_8args(long a, long b, long c, long d, long e, long f, long g, long h)
+{
+	asm volatile (
+		"r1 = 0;"
+	"1:"
+		"may_goto 2f;"
+		"r1 += 1;"
+		"if r1 < 70000 goto 1b;"
+	"2:"
+		"r0 = *(u64 *)(r11 + 8);"
+		"r1 = *(u64 *)(r11 + 16);"
+		"r0 += r1;"
+		"r1 = *(u64 *)(r11 + 24);"
+		"r0 += r1;"
+		"exit;"
+	);
+}
+
+SEC("tc")
+__description("stack_arg: may_goto looks at the clock, then the callee reads its args")
+__success __retval(876)
+__naked void stack_arg_may_goto_in_callee(void)
+{
+	asm volatile (
+		"r1 = 1;"
+		"r2 = 2;"
+		"r3 = 3;"
+		"r4 = 4;"
+		"r5 = 5;"
+		"*(u64 *)(r11 - 24) = 800;"
+		"*(u64 *)(r11 - 16) = 70;"
+		"*(u64 *)(r11 - 8) = 6;"
+		"call loops_then_reads_8args;"
+		"exit;"
+		::: __clobber_all
+	);
+}
+
+__naked __noinline __used
+static long spins_then_reads_8args(long a, long b, long c, long d, long e, long f, long g, long h)
+{
+	asm volatile (
+	"1:"
+		"may_goto 2f;"
+		"goto 1b;"
+	"2:"
+		"r0 = *(u64 *)(r11 + 8);"
+		"r1 = *(u64 *)(r11 + 16);"
+		"r0 += r1;"
+		"r1 = *(u64 *)(r11 + 24);"
+		"r0 += r1;"
+		"exit;"
+	);
+}
+
+SEC("tc")
+__description("stack_arg: the time of may_goto is up, then the callee reads its args")
+__success __retval(876)
+__naked void stack_arg_may_goto_timeout_in_callee(void)
+{
+	asm volatile (
+		"r1 = 1;"
+		"r2 = 2;"
+		"r3 = 3;"
+		"r4 = 4;"
+		"r5 = 5;"
+		"*(u64 *)(r11 - 24) = 800;"
+		"*(u64 *)(r11 - 16) = 70;"
+		"*(u64 *)(r11 - 8) = 6;"
+		"call spins_then_reads_8args;"
+		"exit;"
+		::: __clobber_all
+	);
+}
+
+__naked __noinline __used
+static long reads_8args(long a, long b, long c, long d, long e, long f, long g, long h)
+{
+	asm volatile (
+		"r0 = *(u64 *)(r11 + 8);"
+		"r1 = *(u64 *)(r11 + 16);"
+		"r0 += r1;"
+		"r1 = *(u64 *)(r11 + 24);"
+		"r0 += r1;"
+		"exit;"
+	);
+}
+
+SEC("tc")
+__description("stack_arg: may_goto looks at the clock between the stores of the args and the call")
+__success __retval(876)
+__naked void stack_arg_may_goto_in_caller(void)
+{
+	asm volatile (
+		"*(u64 *)(r11 - 24) = 800;"
+		"*(u64 *)(r11 - 16) = 70;"
+		"*(u64 *)(r11 - 8) = 6;"
+		"r6 = 0;"
+	"1:"
+		"may_goto 2f;"
+		"r6 += 1;"
+		"if r6 < 70000 goto 1b;"
+	"2:"
+		"r1 = 1;"
+		"r2 = 2;"
+		"r3 = 3;"
+		"r4 = 4;"
+		"r5 = 5;"
+		"call reads_8args;"
+		"exit;"
+		::: __clobber_all
+	);
+}
+
 #else
 
 SEC("socket")

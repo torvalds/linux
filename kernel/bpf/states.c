@@ -1358,13 +1358,33 @@ static bool need_loop_checkpoint(struct bpf_verifier_env *env, int insn_idx)
 	return top->loop_id == insn_idx && top->terminates;
 }
 
+/* Searches for an innermost loop entry starting from an innermost frame. */
 static struct loop_stack_entry *current_loop(struct bpf_verifier_state *st)
 {
-	struct bpf_func_state *frame = st->frame[st->curframe];
+	struct bpf_func_state *frame;
+	int fr;
 
-	if (frame->loop_stack_cnt == 0)
-		return NULL;
-	return &frame->loop_stack[frame->loop_stack_cnt - 1];
+	for (fr = st->curframe; fr >= 0; fr--) {
+		frame = st->frame[fr];
+		if (frame->loop_stack_cnt)
+			return &frame->loop_stack[frame->loop_stack_cnt - 1];
+	}
+	return NULL;
+}
+
+/* True if any of the loops call chain is currently in terminates. */
+static bool in_a_terminating_loop(struct bpf_verifier_state *st)
+{
+	struct bpf_func_state *frame;
+	int l, fr;
+
+	for (fr = st->curframe; fr >= 0; fr--) {
+		frame = st->frame[fr];
+		for (l = frame->loop_stack_cnt - 1; l >= 0; l--)
+			if (frame->loop_stack[l].terminates)
+				return true;
+	}
+	return false;
 }
 
 int bpf_is_state_visited(struct bpf_verifier_env *env, int insn_idx)
@@ -1528,10 +1548,10 @@ int bpf_is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 			 */
 			old_loop = current_loop(&sl->state);
 			cur_loop = current_loop(cur);
-			if (old_loop && cur_loop &&
-			    old_loop->terminates && cur_loop->terminates &&
-			    old_loop->entry_state == cur_loop->entry_state) {
-				if (states_equal(env, &sl->state, cur, RANGE_WITHIN)) {
+			if (old_loop && cur_loop && in_a_terminating_loop(cur)) {
+				if (old_loop->terminates && cur_loop->terminates &&
+				    old_loop->entry_state == cur_loop->entry_state &&
+				    states_equal(env, &sl->state, cur, RANGE_WITHIN)) {
 					loop = true;
 					goto hit;
 				}

@@ -97,56 +97,6 @@ static bool is_imm8(int value)
 	return value <= 127 && value >= -128;
 }
 
-/*
- * Let us limit the positive offset to be <= 123.
- * This is to ensure eventual jit convergence For the following patterns:
- * ...
- * pass4, final_proglen=4391:
- *   ...
- *   20e:    48 85 ff                test   rdi,rdi
- *   211:    74 7d                   je     0x290
- *   213:    48 8b 77 00             mov    rsi,QWORD PTR [rdi+0x0]
- *   ...
- *   289:    48 85 ff                test   rdi,rdi
- *   28c:    74 17                   je     0x2a5
- *   28e:    e9 7f ff ff ff          jmp    0x212
- *   293:    bf 03 00 00 00          mov    edi,0x3
- * Note that insn at 0x211 is 2-byte cond jump insn for offset 0x7d (-125)
- * and insn at 0x28e is 5-byte jmp insn with offset -129.
- *
- * pass5, final_proglen=4392:
- *   ...
- *   20e:    48 85 ff                test   rdi,rdi
- *   211:    0f 84 80 00 00 00       je     0x297
- *   217:    48 8b 77 00             mov    rsi,QWORD PTR [rdi+0x0]
- *   ...
- *   28d:    48 85 ff                test   rdi,rdi
- *   290:    74 1a                   je     0x2ac
- *   292:    eb 84                   jmp    0x218
- *   294:    bf 03 00 00 00          mov    edi,0x3
- * Note that insn at 0x211 is 6-byte cond jump insn now since its offset
- * becomes 0x80 based on previous round (0x293 - 0x213 = 0x80).
- * At the same time, insn at 0x292 is a 2-byte insn since its offset is
- * -124.
- *
- * pass6 will repeat the same code as in pass4 and this will prevent
- * eventual convergence.
- *
- * To fix this issue, we need to break je (2->6 bytes) <-> jmp (5->2 bytes)
- * cycle in the above. In the above example je offset <= 0x7c should work.
- *
- * For other cases, je <-> je needs offset <= 0x7b to avoid no convergence
- * issue. For jmp <-> je and jmp <-> jmp cases, jmp offset <= 0x7c should
- * avoid no convergence issue.
- *
- * Overall, let us limit the positive offset for 8bit cond/uncond jmp insn
- * to maximum 123 (0x7b). This way, the jit pass can eventually converge.
- */
-static bool is_imm8_jmp_offset(int value)
-{
-	return value <= 123 && value >= -128;
-}
-
 static bool is_simm32(s64 value)
 {
 	return value == (s64)(s32)value;
@@ -1795,26 +1745,20 @@ static int emit_atomic_ld_st_index(u8 **pprog, u32 atomic_op, u32 size,
 /*
  * A fetching AND/OR/XOR can't be implemented with a single x86 insn, so do a
  * CMPXCHG loop. @index_reg is X86_REG_R12 for an arena access or -1 otherwise.
- * Unless @r0_on_stack, the caller has substituted BPF_REG_AX for R0 in
- * @dst_reg and @src_reg.
+ * The caller has saved R0 in BPF_REG_AX and has substituted BPF_REG_AX for R0
+ * in @dst_reg and @src_reg.
  *
  * Both the load and the CMPXCHG can fault when accessing the arena, so their
  * addresses are handed back in @fault[0] and @fault[1]. A fault has to resume
  * at @resume, which is past the loop and past the move that delivers the old
  * value, but before R0 is restored. Both are NULL for the non-arena case,
  * which needs no fixup.
- *
- * R0 is expected to be saved in BPF_REG_AX by the caller, or pushed on the
- * stack if @r0_on_stack. In that case an R0 operand stays in the stack slot,
- * RAX ends up holding the old value that R0 is to return, and the slot is
- * dropped rather than popped.
  */
 static int emit_atomic_fetch_rmw(u8 **pprog, struct bpf_insn *insn, u32 dst_reg,
-				 u32 src_reg, int index_reg, bool r0_on_stack,
+				 u32 src_reg, int index_reg,
 				 u8 **fault, u8 **resume)
 {
 	bool is64 = BPF_SIZE(insn->code) == BPF_DW;
-	bool operand_on_stack = r0_on_stack && src_reg == BPF_REG_0;
 	u8 *branch_target, *prog = *pprog;
 	int err;
 
@@ -1833,15 +1777,7 @@ static int emit_atomic_fetch_rmw(u8 **pprog, struct bpf_insn *insn, u32 dst_reg,
 	 * Perform the (commutative) operation locally, put the result in
 	 * the AUX_REG.
 	 */
-	if (operand_on_stack) {
-		/* mov r11, [rsp]: the operand is the R0 saved there, RAX is the old value */
-		if (is64)
-			EMIT4(0x4C, 0x8B, 0x1C, 0x24);
-		else
-			EMIT4(0x44, 0x8B, 0x1C, 0x24);
-	} else {
-		emit_mov_reg(&prog, is64, AUX_REG, BPF_REG_0);
-	}
+	emit_mov_reg(&prog, is64, AUX_REG, BPF_REG_0);
 	maybe_emit_mod(&prog, AUX_REG, src_reg, is64);
 	EMIT2(simple_alu_opcodes[BPF_OP(insn->imm)],
 	      add_2reg(0xC0, AUX_REG, src_reg));
@@ -1860,20 +1796,14 @@ static int emit_atomic_fetch_rmw(u8 **pprog, struct bpf_insn *insn, u32 dst_reg,
 
 	/* ZF tells us whether we won the race. If it's cleared we need to try again. */
 	EMIT2(X86_JNE, -(prog - branch_target) - 2);
-	/* Return the pre-modification value, which RAX already is for R0 */
-	if (!operand_on_stack)
-		emit_mov_reg(&prog, is64, src_reg, BPF_REG_0);
+	/* Return the pre-modification value */
+	emit_mov_reg(&prog, is64, src_reg, BPF_REG_0);
 
 	if (resume)
 		*resume = prog;
 
 	/* Restore R0 after clobbering RAX */
-	if (!r0_on_stack)
-		emit_mov_reg(&prog, true, BPF_REG_0, BPF_REG_AX);
-	else if (operand_on_stack)
-		EMIT2(0x41, 0x5B); /* pop r11, dropping the operand */
-	else
-		EMIT1(0x58); /* pop rax */
+	emit_mov_reg(&prog, true, BPF_REG_0, BPF_REG_AX);
 
 	*pprog = prog;
 	return 0;
@@ -2298,6 +2228,17 @@ static void emit_priv_frame_ptr(u8 **pprog, void __percpu *priv_frame_ptr)
 
 #define INSN_SZ_DIFF (((addrs[i] - addrs[i - 1]) - (prog - temp)))
 
+/*
+ * addrs[] below i are from this pass, addrs[i] and above are from the previous
+ * one. 'moved' is how far back this pass moved the start of the current insn.
+ * With it a jump in either direction is sized by the insns it jumps over, plus
+ * its own previous size for a backward jump, none of which grow.
+ */
+static int jmp_distance(const int *addrs, int i, int off, int moved)
+{
+	return addrs[i + off] - addrs[i] + (off < 0 ? moved : 0);
+}
+
 #define __LOAD_TCC_PTR(off)			\
 	emit_ldx(&prog, BPF_DW, BPF_REG_0, BPF_REG_FP, off)
 /* mov rax, qword ptr [rbp - rounded_stack_depth - 16] */
@@ -2564,9 +2505,7 @@ static int emit_unwind_ret_addr(u8 **pprog, u8 *ip)
 
 	EMIT2(0x50, 0x56);			/* push rax; push rsi */
 	EMIT4(0x48, 0x8B, 0x7D, 0x08);		/* mov rdi, [rbp + 8] */
-	ip += prog - start;
-	ip += x86_call_depth_emit_accounting(&prog, bpf_unwind_target, ip);
-	if (emit_call(&prog, bpf_unwind_target, ip))
+	if (emit_rsb_call(&prog, bpf_unwind_target, ip + (prog - start)))
 		return -EINVAL;
 	EMIT4(0x48, 0x89, 0x45, 0x08);		/* mov [rbp + 8], rax */
 	EMIT2(0x5E, 0x58);			/* pop rsi; pop rax */
@@ -2588,7 +2527,7 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 	u64 arena_vm_start = 0, user_vm_start = 0;
 	void __percpu *priv_stack_ptr;
 	int i, excnt = 0;
-	int ilen, proglen = 0;
+	int ilen, moved, proglen = 0;
 	u8 *ip, *prog = temp;
 	u32 stack_depth;
 	int callee_saved_size;
@@ -2702,6 +2641,7 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 	if (rw_image)
 		memcpy(rw_image + proglen, temp, ilen);
 	proglen += ilen;
+	moved = addrs[0] - proglen;
 	addrs[0] = proglen;
 	prog = temp;
 
@@ -3394,7 +3334,7 @@ populate_extable:
 			}
 			if (is_atomic_fetch) {
 				err = emit_atomic_fetch_rmw(&prog, insn, real_dst_reg,
-							    real_src_reg, -1, false,
+							    real_src_reg, -1,
 							    NULL, NULL);
 				if (err)
 					return err;
@@ -3423,29 +3363,19 @@ populate_extable:
 		case BPF_STX | BPF_PROBE_ATOMIC | BPF_DW:
 			if (is_atomic_fetch_op(insn)) {
 				u32 real_src_reg = src_reg, real_dst_reg = dst_reg;
-				/*
-				 * An access through a number has its address in
-				 * BPF_REG_AX (see arena_scalar_access()), so R0 is
-				 * saved on the stack instead, as div and mod do.
-				 */
-				bool r0_on_stack = dst_reg == BPF_REG_AX;
 				u8 *fault[2], *resume;
 				int j;
 
 				/* Will need RAX as a CMPXCHG operand so save R0 */
-				if (r0_on_stack) {
-					EMIT1(0x50); /* push rax */
-				} else {
-					emit_mov_reg(&prog, true, BPF_REG_AX, BPF_REG_0);
-					if (src_reg == BPF_REG_0)
-						real_src_reg = BPF_REG_AX;
-					if (dst_reg == BPF_REG_0)
-						real_dst_reg = BPF_REG_AX;
-				}
+				emit_mov_reg(&prog, true, BPF_REG_AX, BPF_REG_0);
+				if (src_reg == BPF_REG_0)
+					real_src_reg = BPF_REG_AX;
+				if (dst_reg == BPF_REG_0)
+					real_dst_reg = BPF_REG_AX;
 
 				err = emit_atomic_fetch_rmw(&prog, insn, real_dst_reg,
 							    real_src_reg, X86_REG_R12,
-							    r0_on_stack, fault, &resume);
+							    fault, &resume);
 				if (err)
 					return err;
 
@@ -3747,8 +3677,8 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 			default: /* to silence GCC warning */
 				return -EFAULT;
 			}
-			jmp_offset = addrs[i + insn->off] - addrs[i];
-			if (is_imm8_jmp_offset(jmp_offset)) {
+			jmp_offset = jmp_distance(addrs, i, insn->off, moved);
+			if (is_imm8(jmp_offset)) {
 				if (jmp_padding) {
 					/* To keep the jmp_offset valid, the extra bytes are
 					 * padded before the jump insn, so we subtract the
@@ -3788,23 +3718,10 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 			break;
 		case BPF_JMP | BPF_JA:
 		case BPF_JMP32 | BPF_JA:
-			if (BPF_CLASS(insn->code) == BPF_JMP) {
-				if (insn->off == -1)
-					/* -1 jmp instructions will always jump
-					 * backwards two bytes. Explicitly handling
-					 * this case avoids wasting too many passes
-					 * when there are long sequences of replaced
-					 * dead code.
-					 */
-					jmp_offset = -2;
-				else
-					jmp_offset = addrs[i + insn->off] - addrs[i];
-			} else {
-				if (insn->imm == -1)
-					jmp_offset = -2;
-				else
-					jmp_offset = addrs[i + insn->imm] - addrs[i];
-			}
+			if (BPF_CLASS(insn->code) == BPF_JMP)
+				jmp_offset = jmp_distance(addrs, i, insn->off, moved);
+			else
+				jmp_offset = jmp_distance(addrs, i, insn->imm, moved);
 
 			if (!jmp_offset) {
 				/*
@@ -3833,7 +3750,7 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 				break;
 			}
 emit_jmp:
-			if (is_imm8_jmp_offset(jmp_offset)) {
+			if (is_imm8(jmp_offset)) {
 				if (jmp_padding) {
 					/* To avoid breaking jmp_offset, the extra bytes
 					 * are padded before the actual jmp insn, so
@@ -3869,7 +3786,7 @@ emit_jmp:
 			    emit_unwind_ret_addr(&prog, ip))
 				return -EINVAL;
 			if (seen_exit) {
-				jmp_offset = ctx->cleanup_addr - addrs[i];
+				jmp_offset = ctx->cleanup_addr - addrs[i] + moved;
 				goto emit_jmp;
 			}
 			seen_exit = true;
@@ -3930,6 +3847,7 @@ emit_jmp:
 			memcpy(rw_image + proglen, temp, ilen);
 		}
 		proglen += ilen;
+		moved = addrs[i] - proglen;
 		addrs[i] = proglen;
 		prog = temp;
 	}
@@ -4967,20 +4885,23 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 
 	/*
 	 * Before first pass, make a rough estimation of addrs[]
-	 * each BPF instruction is translated to less than 64 bytes
+	 * each BPF instruction is translated to at most BPF_MAX_INSN_SIZE
+	 * bytes, so no insn grows in the first pass
 	 */
 	for (proglen = 0, i = 0; i <= prog->len; i++) {
-		proglen += 64;
+		proglen += BPF_MAX_INSN_SIZE;
 		addrs[i] = proglen;
 	}
 	ctx.cleanup_addr = proglen;
 skip_init_addrs:
 
 	/*
-	 * JITed image shrinks with every pass and the loop iterates
-	 * until the image stops shrinking. Very large BPF programs
-	 * may converge on the last pass. In such case do one more
-	 * pass to emit the final image.
+	 * Jumps are sized by the insns they jump over, which start at
+	 * their maximum size, so no insn grows from one pass to the
+	 * next. The loop iterates until the image stops shrinking, at
+	 * which point no insn has moved. Very large BPF programs may
+	 * converge on the last pass. In such case do one more pass to
+	 * emit the final image.
 	 */
 	for (pass = 0; pass < MAX_PASSES || image; pass++) {
 		if (!padding && pass >= PADDING_PASSES)
@@ -5285,11 +5206,6 @@ void bpf_arch_poke_desc_update(struct bpf_jit_poke_descriptor *poke,
 }
 
 bool bpf_jit_supports_arena(void)
-{
-	return true;
-}
-
-bool bpf_jit_supports_arena_scalar(void)
 {
 	return true;
 }
