@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 static const struct INDEX_NAMES {
 	const __le16 *name;
@@ -593,6 +594,8 @@ static const struct NTFS_DE *hdr_insert_head(struct INDEX_HDR *hdr,
 	u32 used = le32_to_cpu(hdr->used);
 
 	if (!e)
+		return NULL;
+	if (size_add(used, ins_bytes) > le32_to_cpu(hdr->total))
 		return NULL;
 
 	/* Now we just make room for the inserted entries and jam it in. */
@@ -1178,6 +1181,8 @@ int indx_find(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	if (!root)
 		root = indx_get_root(&ni->dir, ni, NULL, NULL);
+
+	trace_ntfs3_indx_find(&ni->vfs_inode, indx->type, key_len);
 
 	if (!root) {
 		/* Should not happen. */
@@ -1801,7 +1806,10 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 	}
 
 	/* Copy root entries into new buffer. */
-	hdr_insert_head(hdr, re, to_move);
+	if (!hdr_insert_head(hdr, re, to_move)) {
+		err = -EINVAL;
+		goto out_put_n;
+	}
 
 	/* Update bitmap attribute. */
 	indx_mark_used(indx, ni, new_vbn >> indx->idx2vbn_bits);
@@ -1955,7 +1963,11 @@ static int indx_insert_into_buffer(struct ntfs_index *indx,
 	/* Copy all the entries <= sp into the new buffer. */
 	de_t = hdr_first_de(hdr1);
 	to_copy = PtrOffset(de_t, sp);
-	hdr_insert_head(hdr2, de_t, to_copy);
+	if (!hdr_insert_head(hdr2, de_t, to_copy)) {
+		err = -EINVAL;
+		put_indx_node(n2);
+		goto out;
+	}
 
 	/* Remove all entries (sp including) from hdr1. */
 	used = used1 - to_copy - sp_size;
@@ -2049,8 +2061,12 @@ int indx_insert_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 	cmp = get_cmp_func(root);
 	if (unlikely(!cmp)) {
 		WARN_ON_ONCE(1);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
+
+	trace_ntfs3_indx_insert_entry(&ni->vfs_inode, indx->type,
+				      le16_to_cpu(new_de->key_size), undo);
 
 	if (fnd_is_empty(fnd)) {
 		/*
@@ -2406,8 +2422,11 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 	cmp = get_cmp_func(root);
 	if (unlikely(!cmp)) {
 		WARN_ON_ONCE(1);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
+
+	trace_ntfs3_indx_delete_entry(&ni->vfs_inode, indx->type, key_len);
 
 	/* Locate the entry to remove. */
 	err = indx_find(indx, ni, root, key, key_len, ctx, &diff, &e, fnd);
@@ -2702,18 +2721,28 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 		err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
 				    &indx->alloc_run, 0, NULL, false);
+		if (err)
+			goto out;
+
 		if (in->name == I30_NAME)
 			i_size_write(&ni->vfs_inode, 0);
 
 		err = ni_remove_attr(ni, ATTR_ALLOC, in->name, in->name_len,
 				     false, NULL);
 		run_close(&indx->alloc_run);
+		if (err)
+			goto out;
 
 		err = attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
 				    &indx->bitmap_run, 0, NULL, false);
+		if (err)
+			goto out;
+
 		err = ni_remove_attr(ni, ATTR_BITMAP, in->name, in->name_len,
 				     false, NULL);
 		run_close(&indx->bitmap_run);
+		if (err)
+			goto out;
 
 		root = indx_get_root(indx, ni, &attr, &mi);
 		if (!root) {
@@ -2787,7 +2816,8 @@ int indx_update_dup(struct ntfs_inode *ni, struct ntfs_sb_info *sbi,
 	cmp = get_cmp_func(root);
 	if (unlikely(!cmp)) {
 		WARN_ON_ONCE(1);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 
 	/* Find entry in directory. */

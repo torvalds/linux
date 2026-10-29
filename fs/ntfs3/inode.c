@@ -17,6 +17,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 struct IGET5_PARAM {
 	const struct MFT_REF *ref;
@@ -213,6 +214,11 @@ next_attr:
 
 		names += 1;
 		fname = Add2Ptr(attr, roff);
+
+		/* Make sure the full name fits in the resident data. */
+		if (rsize < fname_full_size(fname))
+			goto out;
+
 		if (fname->type == FILE_NAME_DOS)
 			goto next_attr;
 
@@ -280,7 +286,8 @@ next_attr:
 		break;
 
 	case ATTR_ROOT:
-		if (attr->non_res)
+		if (attr->non_res || asize < sizeof(struct INDEX_ROOT) + roff ||
+		    rsize < sizeof(struct INDEX_ROOT))
 			goto out;
 
 		root = Add2Ptr(attr, roff);
@@ -947,6 +954,8 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	bool new_clst = false;
 	bool no_da;
 	bool zero = false;
+
+	trace_ntfs3_iomap_begin(inode, offset, length, flags);
 	if (unlikely(ntfs3_forced_shutdown(sbi->sb)))
 		return -EIO;
 
@@ -962,9 +971,7 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		}
 	}
 
-	if (IOMAP_ZERO == flags && (endbyte & sbi->cluster_mask)) {
-		rw = true;
-	} else if (rw) {
+	if (rw) {
 		clen_max = bytes_to_cluster(sbi, endbyte) - vcn;
 	}
 
@@ -972,7 +979,7 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	 * Force to allocate clusters if directIO(write) or writeback_range.
 	 * NOTE: attr_data_get_block allocates clusters only for sparse file.
 	 * Normal file allocates clusters in attr_set_size.
-	*/
+	 */
 	no_da = flags == (IOMAP_DIRECT | IOMAP_WRITE) || srcmap == WB_NO_DA;
 
 	err = attr_data_get_block(ni, vcn, clen_max, &lcn, &clen,
@@ -1017,7 +1024,7 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	}
 
 	if (!clen) {
-		/* broken file? */
+		/* Looks like file is broken.*/
 		return -EINVAL;
 	}
 
@@ -1085,6 +1092,8 @@ static int ntfs_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	int err = 0;
 	struct ntfs_inode *ni = ntfs_i(inode);
 	loff_t endbyte = pos + written;
+
+	trace_ntfs3_iomap_end(inode, pos, length, written, flags);
 
 	if ((flags & IOMAP_WRITE) || (flags & IOMAP_ZERO)) {
 		if (iomap->type == IOMAP_INLINE) {
@@ -1228,6 +1237,15 @@ static int ntfs_writepages(struct address_space *mapping,
 
 			folio_unlock(folio);
 			if (err2) {
+				/*
+				 * attr_data_write_resident() can return the
+				 * positive internal code E_NTFS_NONRESIDENT;
+				 * both mapping_set_error() and writeback_iter()
+				 * need a negative errno and warn on a positive
+				 * value.
+				 */
+				if (err2 > 0)
+					err2 = -EIO;
 				mapping_set_error(mapping, err2);
 				if (!err)
 					err = err2;
@@ -1411,6 +1429,8 @@ int ntfs_create_inode(const struct mnt_idmap *idmap, struct inode *dir,
 
 	/* New file will be resident or non resident. */
 	const bool new_file_resident = 1;
+
+	trace_ntfs3_create_inode(dir, dentry);
 
 	if (!fnd)
 		ni_lock_dir(dir_ni);
@@ -1831,7 +1851,7 @@ int ntfs_create_inode(const struct mnt_idmap *idmap, struct inode *dir,
 		inode->i_flags |= S_NOSEC;
 	}
 
-	if (!S_ISLNK(mode)) {
+	if (!S_ISLNK(mode) && sbi->options->ugm) {
 		/*
 		 * ntfs_init_acl and ntfs_save_wsl_perm update extended attribute.
 		 * The packed size of extended attribute is stored in direntry too.
@@ -2243,6 +2263,9 @@ static noinline int ntfs_readlink_hlp(const struct dentry *link_de,
 
 	if (err < 0)
 		goto out;
+
+	if (err >= buflen)
+		err = buflen - 1;
 
 	/* Translate Windows '\' into Linux '/'. */
 	for (i = 0; i < err; i++) {

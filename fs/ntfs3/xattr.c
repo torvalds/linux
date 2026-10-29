@@ -146,29 +146,32 @@ static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 	for (off = 0; off < size; off += ea_size) {
 		const struct EA_FULL *ef = Add2Ptr(ea_p, off);
 		u32 bytes = size - off;
-		size_t need;
-
-		/* Check if we can use field ea->size. */
-		if (bytes < sizeof(ef->size))
-			goto out1;
+		u32 packed_size;
 
 		/* Check if we can use fields ef->name_len and ef->elength. */
 		if (bytes < offsetof(struct EA_FULL, name))
 			goto out1;
 
-		/* Size needed to hold this record's name and value. */
-		need = struct_size(ef, name,
-				   1 + ef->name_len + le16_to_cpu(ef->elength));
+		/*
+		 * The name and the value have to fit in the entry whether or
+		 * not ef->size is set, because ntfs_get_ea() copies elength
+		 * bytes out of this buffer and checks them only against the
+		 * caller supplied buffer size.
+		 */
+		packed_size =
+			ALIGN(struct_size(ef, name,
+					  1 + ef->name_len +
+						  le16_to_cpu(ef->elength)),
+			      4);
 
 		if (ef->size) {
 			ea_size = le32_to_cpu(ef->size);
-			/* ef->size must fit the list and cover the record. */
-			if (ea_size > bytes || ea_size < need)
+			if (ea_size > bytes || packed_size > ea_size)
 				goto out1;
 			continue;
 		}
 
-		ea_size = ALIGN(need, 4);
+		ea_size = packed_size;
 		if (ea_size > bytes)
 			goto out1;
 	}
@@ -783,7 +786,7 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 		if (!buffer) {
 			err = sizeof(u8);
 		} else if (size < sizeof(u8)) {
-			err = -ENODATA;
+			err = -ERANGE;
 		} else {
 			err = sizeof(u8);
 			*(u8 *)buffer = le32_to_cpu(ni->std_fa);
@@ -797,7 +800,7 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 		if (!buffer) {
 			err = sizeof(u32);
 		} else if (size < sizeof(u32)) {
-			err = -ENODATA;
+			err = -ERANGE;
 		} else {
 			err = sizeof(u32);
 			*(u32 *)buffer = le32_to_cpu(ni->std_fa);
@@ -837,7 +840,7 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 		if (!buffer) {
 			err = sd_size;
 		} else if (size < sd_size) {
-			err = -ENODATA;
+			err = -ERANGE;
 		} else {
 			err = sd_size;
 			memcpy(buffer, sd, sd_size);
@@ -976,8 +979,10 @@ set_new_fa:
 			  NULL);
 
 out:
-	inode_set_ctime_current(inode);
-	mark_inode_dirty(inode);
+	if (!err) {
+		inode_set_ctime_current(inode);
+		mark_inode_dirty(inode);
+	}
 
 	return err;
 }
@@ -992,6 +997,13 @@ int ntfs_save_wsl_perm(struct inode *inode, __le32 *ea_size)
 	int err;
 	__le32 value;
 	struct ntfs_inode *ni = ntfs_i(inode);
+
+	if (!ni->mi.sbi->options->ugm) {
+		/* Do not save uid/gid/mode/dev in xattr. */
+		if (ea_size)
+			*ea_size = 0;
+		return 0;
+	}
 
 	ni_lock(ni);
 	value = cpu_to_le32(i_uid_read(inode));

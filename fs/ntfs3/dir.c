@@ -14,6 +14,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 /* Convert little endian UTF-16 to NLS string. */
 int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const __le16 *name, u32 len,
@@ -34,6 +35,9 @@ int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const __le16 *name, u32 len,
 		/* UTF-16 -> UTF-8 */
 		ret = utf16s_to_utf8s((wchar_t *)name, len, UTF16_LITTLE_ENDIAN,
 				      buf, buf_len);
+        if (ret >= buf_len) {
+            ret = buf_len-1;
+        }
 		buf[ret] = '\0';
 		return ret;
 	}
@@ -290,6 +294,8 @@ struct inode *dir_search_flags(struct inode *dir, const struct cpu_str *uni,
 	struct inode *inode = NULL;
 	struct ntfs_fnd *fnd_a = NULL;
 
+	trace_ntfs3_dir_search_u(dir, uni ? uni->len : 0);
+
 	if (!fnd) {
 		fnd_a = fnd_get();
 		if (!fnd_a) {
@@ -525,23 +531,6 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 	if (!name)
 		return -ENOMEM;
 
-	if (!ni->mi_loaded && ni->attr_list.size) {
-		/*
-		 * Directory inode is locked for read.
-		 * Load all subrecords to avoid 'write' access to 'ni' during
-		 * directory reading.
-		 */
-		ni_lock(ni);
-		if (!ni->mi_loaded && ni->attr_list.size) {
-			err = ni_load_all_mi(ni);
-			if (!err)
-				ni->mi_loaded = true;
-		}
-		ni_unlock(ni);
-		if (err)
-			goto out;
-	}
-
 	/*
 	 * Keep directory metadata stable for the whole walk. Loading subrecords
 	 * once is not enough if concurrent writeback can still compact ATTR_LIST
@@ -549,21 +538,43 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 	 */
 	ni_lock(ni);
 
+	if (!ni->mi_loaded && ni->attr_list.size) {
+		/*
+		 * Directory inode is locked for read.
+		 * Load all subrecords to avoid 'write' access to 'ni' during
+		 * directory reading.
+		 */
+		err = ni_load_all_mi(ni);
+		if (err)
+			goto out;
+		ni->mi_loaded = true;
+	}
+
 	root = indx_get_root(&ni->dir, ni, NULL, NULL);
 	if (!root) {
 		err = -EINVAL;
-		goto out_unlock;
+		goto out;
 	}
 
 	if (pos >= sbi->record_size) {
 		bit = (pos - sbi->record_size) >> index_bits;
 	} else {
 		/*
+		 * Release ni_lock before dir_emit (which may fault into
+		 * user pages).  root->ihdr lives in the main MFT record
+		 * whose lifetime is bound to the inode, and i_rwsem shared
+		 * prevents concurrent directory modifications.
+		 */
+		ni_unlock(ni);
+
+		/*
 		 * Add each name from root in 'ctx'.
 		 */
 		err = ntfs_read_hdr(sbi, ni, &root->ihdr, 0, pos, name, ctx);
 		if (err)
-			goto out_unlock;
+			goto out;
+
+		ni_lock(ni);
 		bit = 0;
 	}
 
@@ -574,7 +585,7 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 		/* Get the next used index. */
 		err = indx_used_bit(&ni->dir, ni, &bit);
 		if (err)
-			goto out_unlock;
+			goto out;
 
 		if (bit == MINUS_ONE_T) {
 			/* no more used indexes. end of dir. */
@@ -584,13 +595,19 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 		if (bit >= max_bit) {
 			/* Corrupted directory. */
 			err = -EINVAL;
-			goto out_unlock;
+			goto out;
 		}
 
 		err = indx_read_ra(&ni->dir, ni, bit << ni->dir.idx2vbn_bits,
 				   &node, &file->f_ra);
 		if (err)
-			goto out_unlock;
+			goto out;
+
+		/*
+		 * node->index is a kmalloc'd buffer, safe after ni_unlock.
+		 * Release lock before dir_emit to avoid lock-order issues.
+		 */
+		ni_unlock(ni);
 
 		/*
 		 * Add each name from index in 'ctx'.
@@ -599,13 +616,14 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 				    ((u64)bit << index_bits) + sbi->record_size,
 				    pos, name, ctx);
 		if (err)
-			goto out_unlock;
+			goto out;
+
+		ni_lock(ni);
 	}
 
-out_unlock:
+out:
 	ni_unlock(ni);
 
-out:
 	kfree(name);
 	put_indx_node(node);
 

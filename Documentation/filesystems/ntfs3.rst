@@ -109,6 +109,29 @@ this table marked with no it means default is without **no**.
        Kernel. Not to be confused with NTFS ACLs. The option specified as acl
        enables support for POSIX ACLs.
 
+   * - ads
+     - Enable access to alternate data streams, i.e. named $DATA
+       attributes. A stream is addressed by appending a colon and the
+       stream name to the file name. Reading the pseudo-stream
+       ``query_streams`` returns the names of the streams attached to a
+       file, one per line::
+
+         cat file:query_streams   # list stream names
+         cat file:ads1            # read a stream
+         touch file:ads2          # create a stream on an existing file
+         rm file:ads1             # remove a stream
+
+       Creating a file together with a stream in a single call, and
+       renaming a stream, are not supported. Enabled by default.
+
+   * - nocase
+     - Perform file name lookups case-insensitively.
+
+   * - delalloc
+     - Delay block allocation for buffered writes until writeback,
+       rather than allocating as each write is issued. This lets the
+       driver allocate larger contiguous runs and reduces fragmentation.
+
 Todo list
 =========
 - Full journaling support over JBD. Currently journal replaying is supported
