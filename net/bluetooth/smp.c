@@ -1186,9 +1186,13 @@ static void sc_generate_ltk(struct smp_chan *smp)
 	struct hci_conn *hcon = smp->conn->hcon;
 	struct hci_dev *hdev = hcon->hdev;
 	struct link_key *key;
+	int err;
+
+	rcu_read_lock();
 
 	key = hci_find_link_key(hdev, &hcon->dst);
 	if (!key) {
+		rcu_read_unlock();
 		bt_dev_err(hdev, "no Link Key found to generate LTK");
 		return;
 	}
@@ -1200,15 +1204,18 @@ static void sc_generate_ltk(struct smp_chan *smp)
 		/* SALT = 0x000000000000000000000000746D7032 */
 		const u8 salt[16] = { 0x32, 0x70, 0x6d, 0x74 };
 
-		if (smp_h7(key->val, salt, smp->tk))
-			return;
+		err = smp_h7(key->val, salt, smp->tk);
 	} else {
 		/* From core spec. Spells out in ASCII as 'tmp2'. */
 		const u8 tmp2[4] = { 0x32, 0x70, 0x6d, 0x74 };
 
-		if (smp_h6(key->val, tmp2, smp->tk))
-			return;
+		err = smp_h6(key->val, tmp2, smp->tk);
 	}
+
+	rcu_read_unlock();
+
+	if (err)
+		return;
 
 	if (smp_h6(smp->tk, brle, smp->tk))
 		return;
