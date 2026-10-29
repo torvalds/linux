@@ -1575,6 +1575,11 @@ static int virtqueue_add_indirect_packed(struct vring_virtqueue *vq,
 						0 : VRING_DESC_F_WRITE);
 			desc[i].addr = cpu_to_le64(addr);
 			desc[i].len = cpu_to_le32(len);
+			/* The id field is unused in indirect descriptors but
+			 * must be initialized to prevent leaking kernel heap
+			 * memory to the device through the DMA-mapped table.
+			 */
+			desc[i].id = 0;
 
 			if (unlikely(vq->use_map_api)) {
 				extra[i].addr = premapped ? DMA_MAPPING_ERROR : addr;
