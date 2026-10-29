@@ -881,12 +881,15 @@ static inline bool io_recv_finish(struct io_kiocb *req,
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
 
 	if (sel->val > 0 && sr->flags & IORING_RECV_MSHOT_LIM) {
+		unsigned int this_len = sel->val - sr->done_io;
+
 		/*
-		 * If sr->len hits zero, the limit has been reached. Mark
-		 * mshot as finished, and flag MSHOT_DONE as well to prevent
-		 * a potential bundle from being retried.
+		 * If sr->mshot_total_len hits zero, the limit has been reached.
+		 * Mark mshot as finished, and flag MSHOT_DONE as well to
+		 * prevent a potential bundle from being retried.
 		 */
-		sr->mshot_total_len -= min_t(int, sel->val, sr->mshot_total_len);
+		sr->mshot_total_len -= min_t(unsigned int, this_len,
+					     sr->mshot_total_len);
 		if (!sr->mshot_total_len) {
 			sr->flags |= IORING_RECV_MSHOT_DONE;
 			mshot_finished = true;
