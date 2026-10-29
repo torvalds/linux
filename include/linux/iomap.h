@@ -693,7 +693,8 @@ struct iomap_dio_ops {
 #define IOMAP_DIO_PARTIAL		(1 << 2)
 
 /*
- * Ensure each bio is aligned to fs block size.
+ * Ensure every operation, including bio and hole zeroing, is aligned to fs
+ * block size.
  *
  * For filesystems which need to calculate/verify the checksum of each fs
  * block. Otherwise they may not be able to handle unaligned bios.
