@@ -26,38 +26,44 @@ etc.
 
    README
    devices
-
-Todolist:
-
-*   features
+   features
 
 Uma grande parte da interface administrativa do kernel são os sistemas de
 arquivos virtuais /proc e sysfs; estes documentos descrevem como interagir
 com eles.
 
+.. toctree::
+   :maxdepth: 1
+
+   sysfs-rules
+   sysctl/index
+   cputopology
+
 Todolist:
 
-*   sysfs-rules
-*   sysctl/index
-*   cputopology
 *   abi
 
 Documentação relacionada à segurança:
 
-Todolist:
+.. toctree::
+   :maxdepth: 1
 
-*   hw-vuln/index
-*   LSM/index
-*   perf-security
+   hw-vuln/index
+   LSM/index
+   perf-security
 
 Inicializando o kernel
 ----------------------
 
+.. toctree::
+   :maxdepth: 1
+
+   bootconfig
+   kernel-parameters
+   efi-stub
+
 Todolist:
 
-*   bootconfig
-*   kernel-parameters
-*   efi-stub
 *   initrd
 
 Rastreando e identificando problemas

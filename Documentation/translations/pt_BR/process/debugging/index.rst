@@ -7,12 +7,16 @@ Dicas de depuração para desenvolvedores do Kernel Linux
 Guias gerais
 ------------
 
+.. toctree::
+   :maxdepth: 1
+
+   userspace_debugging_guide
+
 Todolist:
 
 *   driver_development_debugging_guide
 *   gdb-kernel-debugging
 *   kgdb
-*   userspace_debugging_guide
 
 Guias específicos de subsistemas
 --------------------------------
@@ -40,8 +44,8 @@ andamento?
 
 Nesse caso, sua capacidade de depuração depende do suporte de depuração
 embutido no kernel fornecido pela distribuição.
-O :doc:`/process/debugging/userspace_debugging_guide` fornece uma breve visão
-geral sobre uma variedade de ferramentas de depuração possíveis nessa situação.
+O :doc:`userspace_debugging_guide` fornece uma breve visão geral sobre uma
+variedade de ferramentas de depuração possíveis nessa situação.
 Você pode verificar a capacidade do seu kernel, na maioria dos casos, olhando o
 arquivo de configuração dentro do diretório /boot.
 

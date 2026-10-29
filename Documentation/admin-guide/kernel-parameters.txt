@@ -6242,7 +6242,7 @@ Kernel parameters
 	rcutorture.stall_only= [KNL]
 			Shut off all rcutorture kthreads other than the
 			RCU CPU stall-warning test kthreads.  The purpose
-			of this is to test production applictions'
+			of this is to test production applications'
 			reactions to CPU stalls, and with minimal
 			additional overhead.  Or you can omit the
 			stall-warning tests as well and get a heavy

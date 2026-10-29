@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright(c) 2025: Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
 #
-# pylint: disable=R0903,R0912,R0913,R0914,R0917,C0301
+# pylint: disable=R0903,R0912,R0913,R0914,R0915,R0917,C0301
 
 """
 Install minimal supported requirements for different Sphinx versions
@@ -11,40 +11,64 @@ and optionally test the build.
 
 import argparse
 import asyncio
+import glob
 import os.path
-import shutil
+import re
 import sys
 import time
 import subprocess
 
-# Minimal python version supported by the building system.
+from textwrap import indent
 
-PYTHON = os.path.basename(sys.executable)
+MIN_PYTHON_SUBVER = 9  # Currently, Python 3.9 is the minimal supported version
 
-min_python_bin = None
+RE_VERSION = re.compile(r"python3\.\d+$")
 
-for i in range(9, 13):
-    p = f"python3.{i}"
-    if shutil.which(p):
-        min_python_bin = p
-        break
 
-if not min_python_bin:
-    min_python_bin = PYTHON
+def get_min_python_bin(min_subver):
+    """Get minimal python binary since 3.MIN_PYTHON_SUBVER"""
+    bins = set()
 
-# Starting from 8.0, Python 3.9 is not supported anymore.
-PYTHON_VER_CHANGES = {(8, 0, 0): PYTHON}
+    paths = os.environ.get("PATH", "").split(os.pathsep)
+    for d in paths:
+        for p in glob.glob(os.path.join(d, "python3.[0-9]*")):
+            if not RE_VERSION.search(p):
+                continue
+
+            ver = int(p.split(".")[1])
+            if ver < min_subver:
+                continue
+
+            if os.path.isfile(p) and os.access(p, os.X_OK):
+                bins.add(p)
+
+    if not bins:
+        return None
+
+    return sorted(bins, key=lambda x: (3, int(x.split(".")[1])))[0]
+
+
+# Minimal python versions. Please notice that for 3.4.3, older python
+# versions would work with Sphinx, but kernel doc build is not compatible
+# with them anymore, due to Sphinx extensions and kernel-doc.
+PYTHON_VER_CHANGES = {
+    (3, 4, 3): (3, MIN_PYTHON_SUBVER),
+    (8, 0, 0): (3, 10),
+    (8, 1, 0): (3, 11),
+    (9, 1, 0): (3, 12),
+}
 
 DEFAULT_VERSIONS_TO_TEST = [
-    (3, 4, 3),   # Minimal supported version
-    (5, 3, 0),   # CentOS Stream 9 / AlmaLinux 9
-    (6, 1, 1),   # Debian 12
-    (7, 2, 1),   # openSUSE Leap 15.6
-    (7, 2, 6),   # Ubuntu 24.04 LTS
-    (7, 4, 7),   # Ubuntu 24.10
-    (7, 3, 0),   # openSUSE Tumbleweed
-    (8, 1, 3),   # Fedora 42
-    (8, 2, 3)    # Latest version - covers rolling distros
+    (3, 4, 3),  # Minimal supported version
+    (5, 3, 0),  # CentOS Stream 9 / AlmaLinux 9
+    (6, 1, 1),  # Debian 12
+    (7, 2, 1),  # openSUSE Leap 15.6
+    (7, 2, 6),  # Ubuntu 24.04 LTS
+    (7, 4, 7),  # Ubuntu 24.10
+    (7, 3, 0),  # openSUSE Tumbleweed
+    (8, 1, 3),  # Debian 13
+    (8, 2, 3),  # Ubuntu 26.04 LTS / Fedora 44
+    (9, 1, 0),  # Latest version
 ]
 
 # Sphinx versions to be installed and their incremental requirements
@@ -55,7 +79,6 @@ SPHINX_REQUIREMENTS = {
         "alabaster": "0.7.12",
         "babel": "2.8.0",
         "certifi": "2020.6.20",
-        "docutils": "0.16",
         "idna": "2.10",
         "imagesize": "1.2.0",
         "Jinja2": "2.11.2",
@@ -89,7 +112,7 @@ SPHINX_REQUIREMENTS = {
         "sphinxcontrib-applehelp": "1.0.4",
         "sphinxcontrib-htmlhelp": "2.0.1",
         "sphinxcontrib-serializinghtml": "1.1.5",
-        "urllib3": "2.0.0",
+        "urllib3": "2.0.2",
     },
 
     # Starting from here, ensure all docutils versions are covered with
@@ -160,6 +183,10 @@ SPHINX_REQUIREMENTS = {
         "PyYAML": "6.0.1",
         "sphinxcontrib-serializinghtml": "1.1.9",
     },
+    # from https://raw.githubusercontent.com/sphinx-doc/sphinx/v9.0.0/pyproject.toml
+    (9, 0, 0): {
+        "roman-numerals": "1.0.0",
+    },
 }
 
 
@@ -173,7 +200,8 @@ class AsyncCommands:
         self.output = None
         self.fp = fp
 
-    def log(self, out, verbose, is_info=True):
+    def log(self, out, verbose=True, is_info=True):
+        """Ancillary routine to output a message"""
         out = out.removesuffix('\n')
 
         if verbose:
@@ -202,7 +230,6 @@ class AsyncCommands:
 
     async def run(self, cmd, capture_output=False, check=False,
                   env=None, verbose=True):
-
         """
         Execute an arbitrary command, handling errors.
 
@@ -301,8 +328,8 @@ class SphinxVenv:
 
         # Pip install succeeded. Write requirements file
         if args.req_file:
-            with open(req_file, "w", encoding="utf-8") as fp:
-                fp.write(result.stdout)
+            with open(req_file, "w", encoding="utf-8") as fout:
+                fout.write(result.stdout)
 
         if args.build:
             start_time = time.time()
@@ -354,7 +381,7 @@ class SphinxVenv:
         """
 
         if args.log:
-            fp = open(args.log, "w", encoding="utf-8")
+            fp = open(args.log, "w", encoding="utf-8") # pylint: disable=R1732
             if not args.verbose:
                 args.verbose = False
         else:
@@ -362,8 +389,19 @@ class SphinxVenv:
             if not args.verbose:
                 args.verbose = True
 
+        cmd = AsyncCommands(fp)
+
         cur_requirements = {}
-        python_bin = min_python_bin
+        python_bin = get_min_python_bin(MIN_PYTHON_SUBVER)
+        if not python_bin:
+            python_bin = os.path.basename(sys.executable)
+            python_ver = tuple(sys.version_info[:2])
+
+            if python_ver < (3, MIN_PYTHON_SUBVER):
+                sys.exit(f"Python {python_ver[0]}.{python_ver[1]} is too old.")
+        else:
+            ver = int(python_bin.split(".")[1])
+            python_ver = tuple([3, ver])
 
         vers = set(SPHINX_REQUIREMENTS.keys()) | set(args.versions)
 
@@ -372,8 +410,14 @@ class SphinxVenv:
                 new_reqs = SPHINX_REQUIREMENTS[cur_ver]
                 cur_requirements.update(new_reqs)
 
-            if cur_ver in PYTHON_VER_CHANGES:          # pylint: disable=R1715
-                python_bin = PYTHON_VER_CHANGES[cur_ver]
+            if cur_ver in PYTHON_VER_CHANGES:
+                new_ver = PYTHON_VER_CHANGES[cur_ver]
+                if python_ver < new_ver:
+                    python_bin = get_min_python_bin(new_ver[1])
+
+                    if not python_bin:
+                        cmd.log(f"Can't check {cur_ver}: {python_bin} not found.")
+                        break
 
             if cur_ver not in args.versions:
                 continue
@@ -390,7 +434,6 @@ class SphinxVenv:
                                        python_bin)
 
         if args.build:
-            cmd = AsyncCommands(fp)
             cmd.log("\nSummary:", verbose=True)
             for ver, elapsed_time in sorted(self.built_time.items()):
                 cmd.log(f"\tSphinx {ver} elapsed time: {elapsed_time}",
@@ -399,15 +442,15 @@ class SphinxVenv:
         if fp:
             fp.close()
 
+
 def parse_version(ver_str):
     """Convert a version string into a tuple."""
 
     return tuple(map(int, ver_str.split(".")))
 
 
-DEFAULT_VERS = "    - "
-DEFAULT_VERS += "\n    - ".join(map(lambda v: f"{v[0]}.{v[1]}.{v[2]}",
-                                    DEFAULT_VERSIONS_TO_TEST))
+DEFAULT_VERS = indent("\n".join(map(lambda v: f"{v[0]}.{v[1]}.{v[2]}",
+                                    DEFAULT_VERSIONS_TO_TEST)), "    - ")
 
 SCRIPT = os.path.relpath(__file__)
 
@@ -451,6 +494,7 @@ MAKE_TARGETS = [
     "epubdocs",
     "xmldocs",
 ]
+
 
 async def main():
     """Main program"""
@@ -498,8 +542,6 @@ async def main():
 
     if not args.make_args:
         args.make_args = []
-
-    sphinx_versions = sorted(list(SPHINX_REQUIREMENTS.keys()))
 
     if args.full:
         args.versions += list(SPHINX_REQUIREMENTS.keys())
