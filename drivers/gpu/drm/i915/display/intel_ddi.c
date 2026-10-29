@@ -4723,10 +4723,10 @@ static void intel_ddi_encoder_reset(struct drm_encoder *encoder)
 	intel_dp->reset_link_params = true;
 	intel_dp_invalidate_source_oui(intel_dp);
 
-	intel_pps_encoder_reset(intel_dp);
-
 	if (intel_encoder_is_tc(&dig_port->base))
 		intel_tc_port_init_mode(dig_port);
+
+	intel_pps_encoder_reset(intel_dp);
 }
 
 static int intel_ddi_encoder_late_register(struct drm_encoder *_encoder)
