@@ -85,10 +85,12 @@ static int nvme_auth_submit(struct nvme_ctrl *ctrl, int qid,
 				     qid == 0 ? NVME_QID_ANY : qid, flags);
 	if (ret > 0)
 		dev_warn(ctrl->device,
-			"qid %d auth_send failed with status %d\n", qid, ret);
+			"qid %d auth_%s failed with status %d\n",
+			qid, auth_send ? "send" : "receive", ret);
 	else if (ret < 0)
 		dev_err(ctrl->device,
-			"qid %d auth_send failed with error %d\n", qid, ret);
+			"qid %d auth_%s failed with error %d\n",
+			qid, auth_send ? "send" : "receive", ret);
 	return ret;
 }
 
