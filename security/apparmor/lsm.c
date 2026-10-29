@@ -1410,6 +1410,11 @@ static int apparmor_sctp_bind_connect(struct sock *sk, int optname,
 				      struct sockaddr *address, int addrlen)
 {
 	switch (optname) {
+	/* Bind checks */
+	case SCTP_SET_PEER_PRIMARY_ADDR:
+	case SCTP_SOCKOPT_BINDX_ADD:
+		return aa_sk_perm(OP_BIND, AA_MAY_BIND, sk);
+	/* Connect checks */
 	case SCTP_SOCKOPT_CONNECTX:
 	case SCTP_SENDMSG_CONNECT:
 		return aa_sk_perm(OP_CONNECT, AA_MAY_CONNECT, sk);
