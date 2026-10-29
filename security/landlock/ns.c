@@ -94,7 +94,8 @@ static const struct access_masks ns_permission = {
  * Shared check for namespace_init (creation via clone(2), unshare(2),
  * open_tree(2), or fsmount(2)) and namespace_install (use via setns(2)): denies
  * when the namespace type is not in the domain's allowed set.  At allocation
- * time @ns->ns_id is still zero and is logged as such.
+ * time @ns->ns_id is already set even though the namespace is not reachable
+ * from user space yet.
  *
  * Return: 0 if allowed, -EPERM if denied.
  */

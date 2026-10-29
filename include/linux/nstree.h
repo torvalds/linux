@@ -41,10 +41,6 @@ void ns_tree_node_del(struct ns_tree_node *node, struct ns_tree_root *root);
 		struct user_namespace *:   &(user_ns_tree),	\
 		struct uts_namespace *:    &(uts_ns_tree))
 
-#define ns_tree_gen_id(__ns)                 \
-	__ns_tree_gen_id(to_ns_common(__ns), \
-			 (((__ns) == ns_init_ns(__ns)) ? ns_init_id(__ns) : 0))
-
 u64 __ns_tree_gen_id(struct ns_common *ns, u64 id);
 void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree_root *ns_tree);
 void __ns_tree_remove(struct ns_common *ns, struct ns_tree_root *ns_tree);
@@ -52,12 +48,6 @@ struct ns_common *ns_tree_lookup_rcu(u64 ns_id, int ns_type);
 struct ns_common *__ns_tree_adjoined_rcu(struct ns_common *ns,
 					 struct ns_tree_root *ns_tree,
 					 bool previous);
-
-static inline void __ns_tree_add(struct ns_common *ns, struct ns_tree_root *ns_tree, u64 id)
-{
-	__ns_tree_gen_id(ns, id);
-	__ns_tree_add_raw(ns, ns_tree);
-}
 
 /**
  * ns_tree_add_raw - Add a namespace to a namespace
@@ -72,12 +62,10 @@ static inline void __ns_tree_add(struct ns_common *ns, struct ns_tree_root *ns_t
  * ns_tree_add - Add a namespace to a namespace tree
  * @__ns: Namespace to add
  *
- * This function assigns a new id to the namespace and adds it to the
- * appropriate namespace tree and list.
+ * This function adds a namespace to the appropriate namespace tree and
+ * list. The namespace must already have been assigned an id.
  */
-#define ns_tree_add(__ns)                                   \
-	__ns_tree_add(to_ns_common(__ns), to_ns_tree(__ns), \
-		      (((__ns) == ns_init_ns(__ns)) ? ns_init_id(__ns) : 0))
+#define ns_tree_add(__ns) __ns_tree_add_raw(to_ns_common(__ns), to_ns_tree(__ns))
 
 /**
  * ns_tree_remove - Remove a namespace from a namespace tree
