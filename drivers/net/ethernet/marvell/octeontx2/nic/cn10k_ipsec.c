@@ -1037,6 +1037,9 @@ bool cn10k_ipsec_transmit(struct otx2_nic *pf, struct netdev_queue *txq,
 	cn10k_cpt_inst_flush(pf, &inst, sizeof(struct cpt_inst_s));
 	return true;
 drop:
+	otx2_dma_unmap_skb_frags(pf, &sq->sg[sq->head], skb);
+	sq->sg[sq->head].skb = (u64)NULL;
+	atomic_long_inc(&pf->hw.dev_stats.tx_discards);
 	dev_kfree_skb_any(skb);
-	return false;
+	return true;
 }

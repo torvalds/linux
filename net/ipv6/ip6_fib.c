@@ -1228,9 +1228,7 @@ next_iter:
 			fib6_nsiblings++;
 		}
 		BUG_ON(fib6_nsiblings != rt->fib6_nsiblings);
-		rcu_read_lock();
 		rt6_multipath_rebalance(temp_sibling);
-		rcu_read_unlock();
 	}
 
 	/*
@@ -1274,9 +1272,7 @@ add:
 						   sibling->fib6_nsiblings - 1);
 				WRITE_ONCE(rt->fib6_nsiblings, 0);
 				list_del_rcu(&rt->fib6_siblings);
-				rcu_read_lock();
 				rt6_multipath_rebalance(next_sibling);
-				rcu_read_unlock();
 				return err;
 			}
 		}

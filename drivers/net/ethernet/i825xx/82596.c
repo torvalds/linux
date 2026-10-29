@@ -196,11 +196,10 @@ enum commands {
 #define TX_TIMEOUT	(HZ/20)
 
 
-struct i596_reg {
-	unsigned short porthi;
-	unsigned short portlo;
-	unsigned long ca;
-};
+/* MVME16x: the 82596 PORT and CA registers */
+#define MVME_I596_PORT_HI	0x00
+#define MVME_I596_PORT_LO	0x02
+#define MVME_I596_CA		0x04
 
 #define EOF		0x8000
 #define SIZE_MASK	0x3fff
@@ -375,7 +374,9 @@ static inline void CA(struct net_device *dev)
 {
 #ifdef ENABLE_MVME16x_NET
 	if (MACH_IS_MVME16x) {
-		((struct i596_reg *) dev->base_addr)->ca = 1;
+		void __iomem *regs = (void __iomem *)dev->base_addr;
+
+		__raw_writel(1, regs + MVME_I596_CA);
 	}
 #endif
 #ifdef ENABLE_BVME6000_NET
@@ -392,9 +393,15 @@ static inline void MPU_PORT(struct net_device *dev, int c, volatile void *x)
 {
 #ifdef ENABLE_MVME16x_NET
 	if (MACH_IS_MVME16x) {
-		struct i596_reg *p = (struct i596_reg *) (dev->base_addr);
-		p->porthi = ((c) | (u32) (x)) & 0xffff;
-		p->portlo = ((c) | (u32) (x)) >> 16;
+		void __iomem *regs = (void __iomem *)dev->base_addr;
+		u32 v = (u32)c | (u32)x;
+
+		/*
+		 * The 32bit value is latched on the write of the lo register,
+		 * so the 16bit writes must happen in this order.
+		 */
+		__raw_writew(v & 0xffff, regs + MVME_I596_PORT_HI);
+		__raw_writew(v >> 16, regs + MVME_I596_PORT_LO);
 	}
 #endif
 #ifdef ENABLE_BVME6000_NET

@@ -679,8 +679,8 @@ yt921x_fdb_flush_port(struct yt921x_priv *priv, int port, bool flush_static)
 }
 
 static int
-yt921x_fdb_add_index_in12(struct yt921x_priv *priv, u16 index, u16 ctrl1,
-			  u16 ctrl2)
+yt921x_fdb_add_index_in12(struct yt921x_priv *priv, u16 index, u32 ctrl1,
+			  u32 ctrl2)
 {
 	u32 ctrl;
 	u32 val;

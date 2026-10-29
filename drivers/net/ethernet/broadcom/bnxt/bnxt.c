@@ -1215,7 +1215,15 @@ static struct sk_buff *bnxt_rx_multi_page_skb(struct bnxt *bp,
 				bp->rx_dir);
 	skb = napi_build_skb(frag_start, rxr->rx_page_size);
 	if (!skb) {
-		page_pool_recycle_direct(rxr->page_pool, page);
+		struct page *new_page;
+
+		new_page = rxr->rx_buf_ring[RING_RX(bp, prod)].data;
+		/* The caller may still need the XDP frags from shinfo at the
+		 * end of the head page. Release the new buffer instead and
+		 * put the head back on the ring.
+		 */
+		page_pool_recycle_direct(rxr->page_pool, new_page);
+		bnxt_reuse_rx_data(rxr, cons, data);
 		return NULL;
 	}
 	skb_mark_for_recycle(skb);
@@ -1419,16 +1427,19 @@ static u32 bnxt_rx_agg_netmems_xdp(struct bnxt *bp,
 	struct skb_shared_info *shinfo = xdp_get_shared_info_from_buff(xdp);
 	u32 total_frag_len = 0;
 
-	if (!xdp_buff_has_frags(xdp))
+	if (!xdp_buff_has_frags(xdp)) {
+		xdp_buff_set_frags_flag(xdp);
 		shinfo->nr_frags = 0;
+	}
 
 	total_frag_len = __bnxt_rx_agg_netmems(bp, cpr, idx, agg_bufs, tpa,
 					       NULL, xdp);
-	if (total_frag_len) {
-		xdp_buff_set_frags_flag(xdp);
-		shinfo->nr_frags = agg_bufs;
-		shinfo->xdp_frags_size = total_frag_len;
+	if (!total_frag_len) {
+		bnxt_xdp_buff_frags_free(cpr->bnapi->rx_ring, xdp);
+		return 0;
 	}
+	shinfo->nr_frags = agg_bufs;
+	shinfo->xdp_frags_size = total_frag_len;
 	return total_frag_len;
 }
 
@@ -1498,6 +1509,14 @@ static struct sk_buff *bnxt_copy_xdp(struct bnxt_napi *bnapi,
 	if (metasize) {
 		skb_metadata_set(skb, metasize);
 		__skb_pull(skb, metasize);
+	}
+
+	if (unlikely(xdp_buff_has_frags(xdp))) {
+		struct skb_shared_info *sinfo;
+
+		sinfo = xdp_get_shared_info_from_buff(xdp);
+		memcpy(skb_shinfo(skb)->frags, sinfo->frags,
+		       sinfo->nr_frags * sizeof(skb_frag_t));
 	}
 
 	return skb;
@@ -2285,8 +2304,10 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 							       cp_cons,
 							       agg_bufs,
 							       false);
-			if (!frag_len)
+			if (!frag_len) {
+				bnxt_reuse_rx_data(rxr, cons, data);
 				goto oom_next_rx;
+			}
 
 		}
 		xdp_active = true;
@@ -2313,17 +2334,8 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 			skb = bnxt_copy_xdp(bnapi, &bnxt_xdp.xdp, len,
 					    dma_addr);
 		bnxt_reuse_rx_data(rxr, cons, data);
-		if (!skb) {
-			if (agg_bufs) {
-				if (!xdp_active)
-					bnxt_reuse_rx_agg_bufs(cpr, cp_cons, 0,
-							       agg_bufs, false);
-				else
-					bnxt_xdp_buff_frags_free(rxr,
-								 &bnxt_xdp.xdp);
-			}
-			goto oom_next_rx;
-		}
+		if (!skb)
+			goto oom_next_rx_agg;
 	} else {
 		u32 payload;
 
@@ -2334,7 +2346,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		skb = bp->rx_skb_func(bp, rxr, cons, data, data_ptr, dma_addr,
 				      payload | len);
 		if (!skb)
-			goto oom_next_rx;
+			goto oom_next_rx_agg;
 	}
 
 	if (agg_bufs) {
@@ -2424,6 +2436,14 @@ next_rx_no_prod_no_len:
 
 	return rc;
 
+oom_next_rx_agg:
+	if (agg_bufs) {
+		if (!xdp_active)
+			bnxt_reuse_rx_agg_bufs(cpr, cp_cons, 0, agg_bufs,
+					       false);
+		else
+			bnxt_xdp_buff_frags_free(rxr, &bnxt_xdp.xdp);
+	}
 oom_next_rx:
 	cpr->sw_stats->rx.rx_oom_discards += 1;
 	rc = -ENOMEM;

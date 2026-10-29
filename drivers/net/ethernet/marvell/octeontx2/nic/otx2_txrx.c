@@ -160,7 +160,7 @@ static void otx2_snd_pkt_handler(struct otx2_nic *pfvf,
 
 	*tx_bytes += skb->len;
 	(*tx_pkts)++;
-	otx2_dma_unmap_skb_frags(pfvf, sg);
+	otx2_dma_unmap_skb_frags(pfvf, sg, skb);
 	napi_consume_skb(skb, budget);
 	sg->skb = (u64)NULL;
 }
@@ -872,7 +872,7 @@ static int otx2_dma_map_tso_skb(struct otx2_nic *pfvf,
 	}
 	return 0;
 unmap:
-	otx2_dma_unmap_skb_frags(pfvf, sg);
+	otx2_dma_unmap_skb_frags(pfvf, sg, skb);
 	return -EINVAL;
 }
 
@@ -1205,6 +1205,15 @@ bool otx2_sq_append_skb(void *dev, struct netdev_queue *txq,
 	if (free_desc < otx2_get_sqe_count(pfvf, skb))
 		return false;
 
+	/* Crypto hardware need write permission for ipsec crypto offload */
+	if (unlikely(xfrm_offload(skb)) &&
+	    (skb_cloned(skb) || skb_is_nonlinear(skb)) &&
+	    skb_ensure_writable(skb, skb->len)) {
+		atomic_long_inc(&pfvf->hw.dev_stats.tx_discards);
+		dev_kfree_skb_any(skb);
+		return true;
+	}
+
 	num_segs = skb_shinfo(skb)->nr_frags + 1;
 
 	/* If SKB doesn't fit in a single SQE, linearize it.
@@ -1252,7 +1261,7 @@ bool otx2_sq_append_skb(void *dev, struct netdev_queue *txq,
 		ret = otx2_sqe_add_sg(pfvf, sq, skb, num_segs, &offset);
 
 	if (!ret) {
-		otx2_dma_unmap_skb_frags(pfvf, &sq->sg[sq->head]);
+		otx2_dma_unmap_skb_frags(pfvf, &sq->sg[sq->head], skb);
 		return false;
 	}
 
@@ -1344,7 +1353,7 @@ void otx2_cleanup_tx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq)
 		if (skb) {
 			tx_bytes += skb->len;
 			tx_pkts++;
-			otx2_dma_unmap_skb_frags(pfvf, sg);
+			otx2_dma_unmap_skb_frags(pfvf, sg, skb);
 			dev_kfree_skb_any(skb);
 			sg->skb = (u64)NULL;
 		}
@@ -1399,7 +1408,7 @@ void otx2_free_pending_sqe(struct otx2_nic *pfvf)
 			if (skb) {
 				tx_bytes += skb->len;
 				tx_pkts++;
-				otx2_dma_unmap_skb_frags(pfvf, sg);
+				otx2_dma_unmap_skb_frags(pfvf, sg, skb);
 				dev_kfree_skb_any(skb);
 				sg->skb = (u64)NULL;
 			}

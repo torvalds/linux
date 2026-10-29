@@ -542,6 +542,12 @@ static int mlx5_devlink_num_doorbells_validate(struct devlink *devlink, u32 id,
 	u32 val32 = val->vu32;
 	u32 max_num_channels;
 
+	if (mlx5_dev_is_lightweight(mdev)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Setting num_doorbells requires full device initialization; reload the device first");
+		return -EOPNOTSUPP;
+	}
+
 	max_num_channels = mlx5e_get_max_num_channels(mdev);
 	if (val32 > max_num_channels) {
 		NL_SET_ERR_MSG_FMT_MOD(extack,

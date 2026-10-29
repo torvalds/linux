@@ -725,7 +725,8 @@ out:
  * SCTP.
  *
  * Output:
- * Return 0 - If the address is a non-unicast or an illegal address.
+ * Return 0 - If the address is a non-unicast or an illegal address,
+ *            or a non-v4-mapped address on a non-PF_INET6 socket.
  * Return 1 - If the address is a unicast.
  */
 static int sctp_v6_addr_valid(union sctp_addr *addr,
@@ -747,6 +748,9 @@ static int sctp_v6_addr_valid(union sctp_addr *addr,
 
 	/* Is this a non-unicast address */
 	if (!(ret & IPV6_ADDR_UNICAST))
+		return 0;
+
+	if (sp && sctp_opt2sk(sp)->sk_family != PF_INET6)
 		return 0;
 
 	return 1;

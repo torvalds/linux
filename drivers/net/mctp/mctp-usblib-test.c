@@ -816,8 +816,8 @@ static void mctp_usblib_test_tx_multi_push(struct kunit *test)
 	};
 	int rc;
 
-	static_assert(!sends[ARRAY_SIZE(sends) - 1].more,
-		      "The last push must claim there will be no more");
+	KUNIT_ASSERT_TRUE_MSG(test, !sends[ARRAY_SIZE(sends) - 1].more,
+			      "The last push must claim there will be no more");
 
 	max_length = 0;
 	for (i = 0; i < ARRAY_SIZE(sends); i++) {

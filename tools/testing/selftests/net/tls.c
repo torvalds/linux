@@ -889,6 +889,37 @@ TEST_F(tls, splice_to_pipe)
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
 
+/* The socket's O_NONBLOCK governs the record wait, as on a plain TCP
+ * socket, even without SPLICE_F_NONBLOCK.
+ */
+TEST_F(tls, splice_nonblock_socket)
+{
+	struct pollfd pfd = { .fd = self->cfd, .events = POLLIN };
+	int send_len = TLS_PAYLOAD_MAX_LEN;
+	char mem_send[TLS_PAYLOAD_MAX_LEN];
+	char mem_recv[TLS_PAYLOAD_MAX_LEN];
+	int flags, p[2];
+
+	flags = fcntl(self->cfd, F_GETFL, 0);
+	ASSERT_GE(flags, 0);
+	ASSERT_EQ(fcntl(self->cfd, F_SETFL, flags | O_NONBLOCK), 0);
+
+	memrnd(mem_send, sizeof(mem_send));
+
+	ASSERT_GE(pipe(p), 0);
+	EXPECT_EQ(splice(self->cfd, NULL, p[1], NULL, send_len, 0), -1);
+	EXPECT_EQ(errno, EAGAIN);
+
+	/* The record may still be in flight, wait for it. A failed splice()
+	 * would leave the read() below blocking until the harness timeout.
+	 */
+	EXPECT_EQ(send(self->fd, mem_send, send_len, 0), send_len);
+	ASSERT_EQ(poll(&pfd, 1, 5000), 1);
+	ASSERT_EQ(splice(self->cfd, NULL, p[1], NULL, send_len, 0), send_len);
+	EXPECT_EQ(read(p[0], mem_recv, send_len), send_len);
+	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
+}
+
 TEST_F(tls, splice_cmsg_to_pipe)
 {
 	char *test_str = "test_read";

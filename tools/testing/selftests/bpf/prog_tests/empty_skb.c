@@ -24,7 +24,7 @@ void test_empty_skb(void)
 		int *ifindex;
 		int err;
 		int ret;
-		int lwt_egress_ret; /* expected retval at lwt/egress */
+		int lwt_ret; /* expected retval at lwt */
 		__be16 h_proto;
 		bool success_on_tc;
 		bool adjust_room;
@@ -82,7 +82,7 @@ void test_empty_skb(void)
 			.data_size_in = sizeof(eth_hlen),
 			.ifindex = &veth_ifindex,
 			.ret = -ERANGE,
-			.lwt_egress_ret = -ERANGE,
+			.lwt_ret = -ERANGE,
 			.success_on_tc = true,
 		},
 		{
@@ -96,17 +96,23 @@ void test_empty_skb(void)
 			.data_size_in = sizeof(eth_hlen),
 			.ifindex = &ipip_ifindex,
 			.ret = -ERANGE,
-			.lwt_egress_ret = -ERANGE,
+			.lwt_ret = -ERANGE,
 		},
 
-		/* ETH_HLEN+1-sized packet should be redirected. */
+		/* ETH_HLEN+1-sized packet should be redirected at TC.
+		 * At LWT, the Ethernet header is not part of the skb, and
+		 * a 1-byte packet is too short for an Ethernet device.
+		 */
 
 		{
 			.msg = "veth ETH_HLEN+1 packet ingress",
 			.data_in = eth_hlen_pp,
 			.data_size_in = sizeof(eth_hlen_pp),
 			.ifindex = &veth_ifindex,
-			.lwt_egress_ret = 1, /* veth_xmit NET_XMIT_DROP */
+			/* lwt: skb->len=1, dropped by veth_xmit() at egress
+			 * and by __dev_forward_skb2() at ingress.
+			 */
+			.lwt_ret = 1, /* NET_XMIT_DROP / NET_RX_DROP */
 		},
 		{
 			.msg = "ipip ETH_HLEN+1 packet ingress",
@@ -144,7 +150,6 @@ void test_empty_skb(void)
 			eth_hlen.h_proto = tests[i].h_proto;
 
 		bpf_object__for_each_program(prog, bpf_obj->obj) {
-			bool at_egress = strstr(bpf_program__name(prog), "egress") != NULL;
 			bool at_tc = !strncmp(bpf_program__section_name(prog), "tc", 2);
 			bool is_adjust_room = !strcmp(bpf_program__name(prog), "tc_adjust_room");
 			int expected_ret;
@@ -153,7 +158,7 @@ void test_empty_skb(void)
 			if (tests[i].adjust_room != is_adjust_room)
 				continue;
 
-			expected_ret = at_egress && !at_tc ? tests[i].lwt_egress_ret : tests[i].ret;
+			expected_ret = at_tc ? tests[i].ret : tests[i].lwt_ret;
 
 			tattr.data_in = tests[i].data_in;
 			tattr.data_size_in = tests[i].data_size_in;

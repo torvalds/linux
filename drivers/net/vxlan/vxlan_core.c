@@ -4488,7 +4488,7 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 		}
 
 		conf->reserved_bits = reserved_bits;
-	} else {
+	} else if (!changelink) {
 		/* For backwards compatibility, only allow reserved fields to be
 		 * used by VXLAN extensions if explicitly requested.
 		 */

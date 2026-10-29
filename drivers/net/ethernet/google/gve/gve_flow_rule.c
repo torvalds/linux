@@ -206,6 +206,7 @@ int gve_get_flow_rule_entry(struct gve_priv *priv, struct ethtool_rxnfc *cmd)
 		return -EOPNOTSUPP;
 
 	if (!priv->flow_rules_cache.rules_cache_synced ||
+	    !*cache_num ||
 	    fsp->location < be32_to_cpu(rules_cache[0].location) ||
 	    fsp->location > be32_to_cpu(rules_cache[*cache_num - 1].location)) {
 		err = gve_adminq_query_flow_rules(priv, GVE_FLOW_RULE_QUERY_RULES, fsp->location);

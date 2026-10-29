@@ -471,8 +471,12 @@ static int aqc111_set_mac_addr(struct net_device *net, void *p)
 		return ret;
 
 	/* Set the MAC address */
-	return aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_NODE_ID, ETH_ALEN,
-				ETH_ALEN, net->dev_addr);
+	ret = aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_NODE_ID,
+			       ETH_ALEN, ETH_ALEN, net->dev_addr);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int aqc111_vlan_rx_kill_vid(struct net_device *net,
