@@ -1092,6 +1092,30 @@ static int regex_match_end(char *str, struct regex *r, int len)
 	return 0;
 }
 
+static int regex_match_end_str(char *str, struct regex *r, int len)
+{
+	int slen;
+
+	if (len < r->len)
+		return 0;
+
+	slen = strnlen(str, len);
+	if (slen >= r->len &&
+	    memcmp(str + slen - r->len, r->pattern, r->len) == 0)
+		return 1;
+	return 0;
+}
+
+static int regex_match_end_dynstr(char *str, struct regex *r, int len)
+{
+	int slen = strlen(str);
+
+	if (slen >= r->len &&
+	    memcmp(str + slen - r->len, r->pattern, r->len) == 0)
+		return 1;
+	return 0;
+}
+
 static int regex_match_glob(char *str, struct regex *r, int len)
 {
 	return glob_match_len(r->pattern, str, len) ? 1 : 0;
@@ -2031,10 +2055,18 @@ static int parse_pred(const char *str, void *data,
 
 		if (field->filter_type == FILTER_COMM) {
 			pred->fn_num = FILTER_PRED_FN_COMM;
+			if (pred->regex->match == regex_match_end)
+				pred->regex->match = regex_match_end_str;
 
 		} else if (field->filter_type == FILTER_STATIC_STRING) {
 			pred->fn_num = FILTER_PRED_FN_STRING;
 			pred->regex->field_len = field->size;
+			if (pred->regex->match == regex_match_end) {
+				if (!field->size)
+					pred->regex->match = regex_match_end_dynstr;
+				else
+					pred->regex->match = regex_match_end_str;
+			}
 
 		} else if (field->filter_type == FILTER_DYN_STRING) {
 			pred->fn_num = FILTER_PRED_FN_STRLOC;
