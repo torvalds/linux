@@ -4538,8 +4538,8 @@ static void handle_session(struct ceph_mds_session *session,
 			ceph_decode_64_safe(&p, end, cap_auths[i].match.uid, bad);
 			ceph_decode_32_safe(&p, end, _len, bad);
 			if (_len) {
-				cap_auths[i].match.gids = kcalloc(_len, sizeof(u32),
-								  GFP_KERNEL);
+				cap_auths[i].match.gids = kzalloc_objs(u32,
+								       _len);
 				if (!cap_auths[i].match.gids) {
 					pr_err_client(cl, "No memory for gids\n");
 					goto fail;

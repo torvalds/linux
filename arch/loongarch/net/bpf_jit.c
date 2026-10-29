@@ -2301,7 +2301,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 		ctx.user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
 	}
 
-	ctx.offset = kvcalloc(prog->len + 1, sizeof(u32), GFP_KERNEL);
+	ctx.offset = kvzalloc_objs(u32, prog->len + 1);
 	if (ctx.offset == NULL)
 		goto out_offset;
 

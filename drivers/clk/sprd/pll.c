@@ -104,7 +104,7 @@ static unsigned long _sprd_pll_recalc_rate(const struct sprd_pll *pll,
 	u64 refin;
 	u16 k1, k2;
 
-	cfg = kcalloc(regs_num, sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_objs(*cfg, regs_num);
 	if (!cfg)
 		return parent_rate;
 

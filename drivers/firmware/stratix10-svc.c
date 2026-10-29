@@ -1516,7 +1516,7 @@ int stratix10_svc_async_send(struct stratix10_svc_chan *chan, void *msg,
 		return -EINVAL;
 	}
 
-	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	handle = kzalloc_obj(*handle);
 	if (!handle)
 		return -ENOMEM;
 

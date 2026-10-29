@@ -803,7 +803,7 @@ gpio_sim_make_bank_swnode(struct gpio_sim_bank *bank,
 
 	ranges_size = gpio_sim_get_reserved_ranges_size(bank);
 	if (ranges_size) {
-		ranges = kcalloc(ranges_size, sizeof(u32), GFP_KERNEL);
+		ranges = kzalloc_objs(u32, ranges_size);
 		if (!ranges)
 			return ERR_PTR(-ENOMEM);
 

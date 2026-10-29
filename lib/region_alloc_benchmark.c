@@ -180,9 +180,9 @@ static int __init region_alloc_benchmark(void)
 		max_cap = max(max_cap, capacities[i]);
 	}
 
-	bitmap = kvmalloc_array(BITS_TO_LONGS(max_cap), sizeof(*bitmap), GFP_KERNEL);
+	bitmap = kvmalloc_objs(*bitmap, BITS_TO_LONGS(max_cap));
 	reg_sz = kvmalloc_array(max_cap + 1, sizeof(*reg_sz), GFP_KERNEL);
-	reg_idx = kvmalloc_array(max_cap, sizeof(*reg_idx), GFP_KERNEL);
+	reg_idx = kvmalloc_objs(*reg_idx, max_cap);
 	if (!bitmap || !reg_sz || !reg_idx)
 		goto out;
 

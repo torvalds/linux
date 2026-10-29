@@ -245,7 +245,7 @@ int intel_sseu_status(struct seq_file *m, struct intel_gt *gt)
 
 	seq_puts(m, "SSEU Device Status\n");
 
-	sseu = kzalloc(sizeof(*sseu), GFP_KERNEL);
+	sseu = kzalloc_obj(*sseu);
 	if (!sseu)
 		return -ENOMEM;
 

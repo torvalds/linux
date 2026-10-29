@@ -419,7 +419,7 @@ static void qmi_tmd_svc_arrive(struct work_struct *work)
 	int ret, i;
 	struct qmi_txn txn;
 
-	resp = kzalloc_obj(*resp, GFP_KERNEL);
+	resp = kzalloc_obj(*resp);
 	if (!resp) {
 		ret = -ENOMEM;
 		goto out;

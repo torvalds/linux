@@ -2519,8 +2519,7 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 	int i;
 
 	const char **tplg_files __free(kfree) =
-		kcalloc(scomp->card->num_links, sizeof(*tplg_files),
-			GFP_KERNEL);
+		kzalloc_objs(*tplg_files, scomp->card->num_links);
 	if (!tplg_files)
 		return -ENOMEM;
 

@@ -1534,10 +1534,10 @@ int ualink_ip_sw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ualink_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	ppod_setup = kzalloc(sizeof(*ppod_setup), GFP_KERNEL);
-	vpod_config = kzalloc(sizeof(*vpod_config), GFP_KERNEL);
-	stations = kzalloc(sizeof(*stations), GFP_KERNEL);
+	info = kzalloc_obj(*info);
+	ppod_setup = kzalloc_obj(*ppod_setup);
+	vpod_config = kzalloc_obj(*vpod_config);
+	stations = kzalloc_obj(*stations);
 	if (!info || !ppod_setup || !vpod_config || !stations) {
 		kfree(info);
 		kfree(ppod_setup);
@@ -3555,7 +3555,7 @@ static void amdgpu_ualink_process_npa_req_msg(struct amdgpu_device *adev,
 		range_end = 0;
 	}
 
-	mm_node = kzalloc(sizeof(*mm_node), GFP_KERNEL);
+	mm_node = kzalloc_obj(*mm_node);
 	if (!mm_node) {
 		dev_warn(adev->dev,
 			"NPA-REQ: mm_node alloc failed handle:%llx:%llx\n",
@@ -3926,7 +3926,7 @@ int amdgpu_ualink_import_handle(struct drm_device *dev,
 		 * to the NPA address.
 		 * First store the entry in the Xarray.
 		 */
-		imp_xa_node = kzalloc(sizeof(*imp_xa_node), GFP_KERNEL);
+		imp_xa_node = kzalloc_obj(*imp_xa_node);
 		if (!imp_xa_node) {
 			r = -ENOMEM;
 			goto out;
@@ -4030,7 +4030,7 @@ int amdgpu_ualink_export_handle(struct drm_device *dev, struct drm_file *filp,
 		/* If no ualink handle generated for BO, then generate one and
 		 * add it to the exporter Xarray.
 		 */
-		exp_xa_node = kzalloc(sizeof(*exp_xa_node), GFP_KERNEL);
+		exp_xa_node = kzalloc_obj(*exp_xa_node);
 		if (!exp_xa_node) {
 			dev_err(adev->dev, "Failed to allocate exp_xa_node\n");
 			r = -ENOMEM;
@@ -5181,7 +5181,7 @@ static int amdgpu_ualink_gart_map(struct amdgpu_device *adev, u64 npages,
 	dev_dbg(adev->dev, "npa 0x%llx npages 0x%llx\n", npa, npages);
 
 	if (npages > 1) {
-		dma_addr = kmalloc_array(npages, sizeof(*dma_addr), GFP_KERNEL);
+		dma_addr = kmalloc_objs(*dma_addr, npages);
 		if (!dma_addr)
 			return -ENOMEM;
 
@@ -6328,7 +6328,7 @@ int amdgpu_ualink_sw_init(struct amdgpu_device *adev)
 	struct amdgpu_ualink_remote *remote;
 	int r;
 
-	remote = kzalloc(sizeof(*remote), GFP_KERNEL);
+	remote = kzalloc_obj(*remote);
 	if (!remote)
 		return -ENOMEM;
 	adev->ualink.remote = remote;

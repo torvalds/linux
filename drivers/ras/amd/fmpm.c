@@ -834,7 +834,7 @@ static int allocate_records(void)
 		}
 	}
 
-	spa_entries = kcalloc(spa_nr_entries, sizeof(u64), GFP_KERNEL);
+	spa_entries = kzalloc_objs(u64, spa_nr_entries);
 	if (!spa_entries) {
 		ret = -ENOMEM;
 		goto out_free;

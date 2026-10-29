@@ -1264,7 +1264,7 @@ static int tegra_powergate_of_get_clks(struct tegra_powergate *pg,
 	if (!pg->clks)
 		return -ENOMEM;
 
-	pg->clk_rates = kcalloc(count, sizeof(*pg->clk_rates), GFP_KERNEL);
+	pg->clk_rates = kzalloc_objs(*pg->clk_rates, count);
 	if (!pg->clk_rates) {
 		kfree(pg->clks);
 		return -ENOMEM;
@@ -1979,7 +1979,7 @@ static int tegra_pmc_init(struct tegra_pmc *pmc)
 		if (!pmc->wake_cntrl_level_map)
 			return -ENOMEM;
 
-		pmc->wake_status = kcalloc(pmc->soc->max_wake_vectors, sizeof(u32), GFP_KERNEL);
+		pmc->wake_status = kzalloc_objs(u32, pmc->soc->max_wake_vectors);
 		if (!pmc->wake_status)
 			return -ENOMEM;
 

@@ -927,9 +927,8 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		};
 
 		/* We need an array of texts for the enum API */
-		wm8994->mbc_texts = kmalloc_array(pdata->num_mbc_cfgs,
-						  sizeof(*wm8994->mbc_texts),
-						  GFP_KERNEL);
+		wm8994->mbc_texts = kmalloc_objs(*wm8994->mbc_texts,
+						 pdata->num_mbc_cfgs);
 		if (!wm8994->mbc_texts)
 			return;
 
@@ -953,9 +952,8 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		};
 
 		/* We need an array of texts for the enum API */
-		wm8994->vss_texts = kmalloc_array(pdata->num_vss_cfgs,
-						  sizeof(*wm8994->vss_texts),
-						  GFP_KERNEL);
+		wm8994->vss_texts = kmalloc_objs(*wm8994->vss_texts,
+						 pdata->num_vss_cfgs);
 		if (!wm8994->vss_texts)
 			return;
 
@@ -980,9 +978,8 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		};
 
 		/* We need an array of texts for the enum API */
-		wm8994->vss_hpf_texts = kmalloc_array(pdata->num_vss_hpf_cfgs,
-						      sizeof(*wm8994->vss_hpf_texts),
-						      GFP_KERNEL);
+		wm8994->vss_hpf_texts = kmalloc_objs(*wm8994->vss_hpf_texts,
+						     pdata->num_vss_hpf_cfgs);
 		if (!wm8994->vss_hpf_texts)
 			return;
 
@@ -1008,9 +1005,8 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		};
 
 		/* We need an array of texts for the enum API */
-		wm8994->enh_eq_texts = kmalloc_array(pdata->num_enh_eq_cfgs,
-						     sizeof(*wm8994->enh_eq_texts),
-						     GFP_KERNEL);
+		wm8994->enh_eq_texts = kmalloc_objs(*wm8994->enh_eq_texts,
+						    pdata->num_enh_eq_cfgs);
 		if (!wm8994->enh_eq_texts)
 			return;
 

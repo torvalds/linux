@@ -245,9 +245,8 @@ static int audio_iio_aux_probe(struct platform_device *pdev)
 
 	iio_aux->num_chans = count;
 
-	const char **names __free(kfree) = kcalloc(iio_aux->num_chans,
-						   sizeof(*names),
-						   GFP_KERNEL);
+	const char **names __free(kfree) = kzalloc_objs(*names,
+							iio_aux->num_chans);
 	if (!names)
 		return -ENOMEM;
 

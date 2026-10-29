@@ -137,7 +137,7 @@ static ssize_t iter_get_bvecs_alloc(struct iov_iter *iter, size_t maxsize,
 	iov_iter_reexpand(iter, orig_count);
 
 	/* Worst case is one bio_vec per page */
-	bv = kvmalloc_objs(*bv, npages, GFP_KERNEL);
+	bv = kvmalloc_objs(*bv, npages);
 	if (!bv)
 		return -ENOMEM;
 

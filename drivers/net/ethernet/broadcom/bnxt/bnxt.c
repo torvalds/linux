@@ -5140,7 +5140,7 @@ static int bnxt_alloc_vnic_attributes(struct bnxt *bp)
 		else
 			max_rings = 1;
 
-		vnic->fw_grp_ids = kcalloc(max_rings, sizeof(u16), GFP_KERNEL);
+		vnic->fw_grp_ids = kzalloc_objs(u16, max_rings);
 		if (!vnic->fw_grp_ids) {
 			rc = -ENOMEM;
 			goto out;
@@ -5690,8 +5690,7 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 		if (!bp->tx_ring)
 			return -ENOMEM;
 
-		bp->tx_ring_map = kcalloc(bp->tx_nr_rings, sizeof(u16),
-					  GFP_KERNEL);
+		bp->tx_ring_map = kzalloc_objs(u16, bp->tx_nr_rings);
 
 		if (!bp->tx_ring_map)
 			return -ENOMEM;
@@ -6692,7 +6691,7 @@ static int bnxt_alloc_rss_indir_tbl(struct bnxt *bp)
 
 	bp->rss_indir_tbl_entries = entries;
 	bp->rss_indir_tbl =
-		kmalloc_array(entries, sizeof(*bp->rss_indir_tbl), GFP_KERNEL);
+		kmalloc_objs(*bp->rss_indir_tbl, entries);
 	if (!bp->rss_indir_tbl)
 		return -ENOMEM;
 

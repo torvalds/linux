@@ -793,7 +793,7 @@ static struct scatterlist *btintel_pcie_alloc_sgtable(ssize_t size)
 		return NULL;
 
 	nents = DIV_ROUND_UP(size, PAGE_SIZE);
-	result = kcalloc(nents, sizeof(*result), GFP_KERNEL);
+	result = kzalloc_objs(*result, nents);
 	if (!result)
 		return NULL;
 

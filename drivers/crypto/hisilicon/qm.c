@@ -3117,8 +3117,7 @@ static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id,
 	struct hisi_qp *qp;
 	int ret = -ENOMEM;
 
-	qm->poll_data[id].qp_finish_id = kcalloc(qm->qp_num, sizeof(u16),
-						 GFP_KERNEL);
+	qm->poll_data[id].qp_finish_id = kzalloc_objs(u16, qm->qp_num);
 	if (!qm->poll_data[id].qp_finish_id)
 		return -ENOMEM;
 

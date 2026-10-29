@@ -392,7 +392,7 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 	max_cfg = ARRAY_SIZE(dt_params);
 	if (pctldev)
 		max_cfg += pctldev->desc->num_custom_params;
-	cfg = kcalloc(max_cfg, sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_objs(*cfg, max_cfg);
 	if (!cfg)
 		return -ENOMEM;
 

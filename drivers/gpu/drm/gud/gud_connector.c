@@ -503,7 +503,7 @@ static int gud_connector_add_properties(struct gud_device *gdrm, struct gud_conn
 	num_properties = ret / sizeof(*properties);
 	ret = 0;
 
-	gconn->properties = kcalloc(num_properties, sizeof(*gconn->properties), GFP_KERNEL);
+	gconn->properties = kzalloc_objs(*gconn->properties, num_properties);
 	if (!gconn->properties) {
 		ret = -ENOMEM;
 		goto out;

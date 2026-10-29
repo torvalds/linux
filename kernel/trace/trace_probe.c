@@ -2315,7 +2315,7 @@ const char **traceprobe_expand_meta_args(int argc, const char *argv[],
 	else
 		*new_argc = argc;
 
-	new_argv = kcalloc(*new_argc, sizeof(*new_argv), GFP_KERNEL);
+	new_argv = kzalloc_objs(*new_argv, *new_argc);
 	if (!new_argv)
 		return ERR_PTR(-ENOMEM);
 

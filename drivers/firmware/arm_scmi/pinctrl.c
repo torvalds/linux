@@ -620,9 +620,7 @@ static int scmi_pinctrl_get_group_info(const struct scmi_protocol_handle *ph,
 		return -ENODATA;
 	}
 
-	group->group_pins = kmalloc_array(group->nr_pins,
-					  sizeof(*group->group_pins),
-					  GFP_KERNEL);
+	group->group_pins = kmalloc_objs(*group->group_pins, group->nr_pins);
 	if (!group->group_pins)
 		return -ENOMEM;
 
@@ -699,8 +697,7 @@ static int scmi_pinctrl_get_function_info(const struct scmi_protocol_handle *ph,
 		return -ENODATA;
 	}
 
-	func->groups = kmalloc_array(func->nr_groups, sizeof(*func->groups),
-				     GFP_KERNEL);
+	func->groups = kmalloc_objs(*func->groups, func->nr_groups);
 	if (!func->groups)
 		return -ENOMEM;
 

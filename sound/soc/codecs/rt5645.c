@@ -3488,8 +3488,8 @@ static int rt5645_probe(struct snd_soc_component *component)
 	if (rt5645->pdata.long_name)
 		component->card->long_name = rt5645->pdata.long_name;
 
-	rt5645->eq_param = kcalloc(RT5645_HWEQ_NUM,
-				   sizeof(struct rt5645_eq_param_s), GFP_KERNEL);
+	rt5645->eq_param = kzalloc_objs(struct rt5645_eq_param_s,
+					RT5645_HWEQ_NUM);
 	if (!rt5645->eq_param)
 		return -ENOMEM;
 

@@ -498,7 +498,7 @@ static int max8903_parse_dc_current_limit(struct platform_device *pdev,
 	 * reason to keep the raw mirror around for the lifetime of the
 	 * device.
 	 */
-	map = kmalloc_array(map_size, sizeof(*map), GFP_KERNEL);
+	map = kmalloc_objs(*map, map_size);
 	if (!map)
 		return -ENOMEM;
 

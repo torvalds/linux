@@ -257,7 +257,7 @@ static int meson_irtx_transmit(struct rc_dev *rc, unsigned int *buf,
 	if (!meson_irtx_check_buf(ir, buf, len))
 		return -EINVAL;
 
-	tx_buf = kmalloc_array(len, sizeof(u32), GFP_KERNEL);
+	tx_buf = kmalloc_objs(u32, len);
 	if (!tx_buf)
 		return -ENOMEM;
 

@@ -4142,8 +4142,7 @@ drm_atomic_helper_bridge_get_hdmi_output_bus_fmts(struct drm_bridge *bridge,
 	 * %DRM_OUTPUT_COLOR_FORMAT_COUNT will do for counting set bits here.
 	 */
 	BUILD_BUG_ON(const_true(DRM_OUTPUT_COLOR_FORMAT_COUNT > 8));
-	out_fmts = kmalloc_array(hweight8(bridge->supported_formats),
-				 sizeof(u32), GFP_KERNEL);
+	out_fmts = kmalloc_objs(u32, hweight8(bridge->supported_formats));
 	if (!out_fmts) {
 		*num_output_fmts = 0;
 		return NULL;

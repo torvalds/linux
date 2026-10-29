@@ -53,7 +53,7 @@ static void mhi_ep_loopback_ul_callback(struct mhi_ep_device *mhi_dev,
 		if (!buf)
 			return;
 
-		mhi_ep_lb_work = kmalloc_obj(*mhi_ep_lb_work, GFP_KERNEL);
+		mhi_ep_lb_work = kmalloc_obj(*mhi_ep_lb_work);
 		if (!mhi_ep_lb_work) {
 			kfree(buf);
 			return;

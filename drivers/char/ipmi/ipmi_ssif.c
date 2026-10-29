@@ -2033,8 +2033,7 @@ static unsigned short *ssif_address_list(void)
 	list_for_each_entry(info, &ssif_infos, link)
 		count++;
 
-	address_list = kcalloc(count + 1, sizeof(*address_list),
-			       GFP_KERNEL);
+	address_list = kzalloc_objs(*address_list, count + 1);
 	if (!address_list)
 		return NULL;
 

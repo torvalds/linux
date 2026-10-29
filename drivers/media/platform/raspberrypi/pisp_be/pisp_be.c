@@ -472,7 +472,7 @@ static int pispbe_prepare_job(struct pispbe_dev *pispbe)
 		streaming_map = pispbe->streaming_map;
 	}
 
-	job = kzalloc(sizeof(*job), GFP_KERNEL);
+	job = kzalloc_obj(*job);
 	if (!job)
 		return -ENOMEM;
 

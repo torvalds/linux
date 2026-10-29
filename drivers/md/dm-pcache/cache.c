@@ -152,7 +152,8 @@ static int cache_init(struct dm_pcache *pcache)
 		goto err;
 	}
 
-	cache->seg_map = kvcalloc(BITS_TO_LONGS(cache_dev->seg_num), sizeof(unsigned long), GFP_KERNEL);
+	cache->seg_map = kvzalloc_objs(unsigned long,
+				       BITS_TO_LONGS(cache_dev->seg_num));
 	if (!cache->seg_map) {
 		ret = -ENOMEM;
 		goto free_segments;

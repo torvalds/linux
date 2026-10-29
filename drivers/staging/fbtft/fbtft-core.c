@@ -852,7 +852,7 @@ static int fbtft_init_display_from_property(struct fbtft_par *par)
 	if (count == 0)
 		return -EINVAL;
 
-	values = kmalloc_array(count + 1, sizeof(*values), GFP_KERNEL);
+	values = kmalloc_objs(*values, count + 1);
 	if (!values)
 		return -ENOMEM;
 

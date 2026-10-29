@@ -3184,8 +3184,7 @@ static int hclgevf_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 		goto out;
 
 	/* Reinitializes the rss indirect table according to the new RSS size */
-	rss_indir = kcalloc(hdev->ae_dev->dev_specs.rss_ind_tbl_size,
-			    sizeof(u32), GFP_KERNEL);
+	rss_indir = kzalloc_objs(u32, hdev->ae_dev->dev_specs.rss_ind_tbl_size);
 	if (!rss_indir)
 		return -ENOMEM;
 

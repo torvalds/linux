@@ -216,7 +216,7 @@ pinctrl_scmi_alloc_configs(struct pinctrl_dev *pctldev, u32 num_configs,
 	if (num_configs <= SCMI_NUM_CONFIGS)
 		return 0;
 
-	*p_config_value = kcalloc(num_configs, sizeof(**p_config_value), GFP_KERNEL);
+	*p_config_value = kzalloc_objs(**p_config_value, num_configs);
 	if (!*p_config_value)
 		return -ENOMEM;
 

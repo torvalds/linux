@@ -759,7 +759,7 @@ static int msm_gpio_init_valid_mask(struct gpio_chip *gc,
 	if (ret > ngpios)
 		return -EINVAL;
 
-	tmp = kmalloc_array(len, sizeof(*tmp), GFP_KERNEL);
+	tmp = kmalloc_objs(*tmp, len);
 	if (!tmp)
 		return -ENOMEM;
 

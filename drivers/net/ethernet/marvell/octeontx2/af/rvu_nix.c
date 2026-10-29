@@ -5163,8 +5163,8 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 		if (err)
 			return err;
 
-		nix_hw->tx_credits = kcalloc(hw->cgx_links + hw->lbk_links,
-					     sizeof(u64), GFP_KERNEL);
+		nix_hw->tx_credits = kzalloc_objs(u64,
+						  hw->cgx_links + hw->lbk_links);
 		if (!nix_hw->tx_credits)
 			return -ENOMEM;
 

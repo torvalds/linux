@@ -273,8 +273,7 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
 	if (!data->parents)
 		return ERR_PTR(-ENOMEM);
 
-	parent_names = kcalloc(nparents, sizeof(*parent_names),
-			       GFP_KERNEL);
+	parent_names = kzalloc_objs(*parent_names, nparents);
 	if (!parent_names)
 		return ERR_PTR(-ENOMEM);
 

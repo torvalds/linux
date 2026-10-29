@@ -501,8 +501,7 @@ int bnxt_vf_reps_create(struct bnxt *bp)
 		return -ENOMEM;
 
 	/* storage for cfa_code to vf-idx mapping */
-	cfa_code_map = kmalloc_array(MAX_CFA_CODE, sizeof(*bp->cfa_code_map),
-				     GFP_KERNEL);
+	cfa_code_map = kmalloc_objs(*bp->cfa_code_map, MAX_CFA_CODE);
 	if (!cfa_code_map) {
 		rc = -ENOMEM;
 		goto err;

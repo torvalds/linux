@@ -2443,8 +2443,7 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	mcam->bmap_fcnt = mcam->bmap_entries;
 
 	/* Alloc memory for saving entry to RVU PFFUNC allocation mapping */
-	mcam->entry2pfvf_map = kcalloc(mcam->bmap_entries, sizeof(u16),
-				       GFP_KERNEL);
+	mcam->entry2pfvf_map = kzalloc_objs(u16, mcam->bmap_entries);
 
 	if (!mcam->entry2pfvf_map)
 		goto free_bmap_reverse;
@@ -2470,27 +2469,23 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	if (err)
 		goto free_entry_map;
 
-	mcam->cntr2pfvf_map = kcalloc(mcam->counters.max, sizeof(u16),
-				      GFP_KERNEL);
+	mcam->cntr2pfvf_map = kzalloc_objs(u16, mcam->counters.max);
 	if (!mcam->cntr2pfvf_map)
 		goto free_cntr_bmap;
 
 	/* Alloc memory for MCAM entry to counter mapping and for tracking
 	 * counter's reference count.
 	 */
-	mcam->entry2cntr_map = kcalloc(mcam->total_entries, sizeof(u16),
-				       GFP_KERNEL);
+	mcam->entry2cntr_map = kzalloc_objs(u16, mcam->total_entries);
 	if (!mcam->entry2cntr_map)
 		goto free_cntr_map;
 
-	mcam->cntr_refcnt = kcalloc(mcam->counters.max, sizeof(u16),
-				    GFP_KERNEL);
+	mcam->cntr_refcnt = kzalloc_objs(u16, mcam->counters.max);
 	if (!mcam->cntr_refcnt)
 		goto free_entry_cntr_map;
 
 	/* Alloc memory for saving target device of mcam rule */
-	mcam->entry2target_pffunc = kcalloc(mcam->total_entries,
-					    sizeof(u16), GFP_KERNEL);
+	mcam->entry2target_pffunc = kzalloc_objs(u16, mcam->total_entries);
 	if (!mcam->entry2target_pffunc)
 		goto free_cntr_refcnt;
 

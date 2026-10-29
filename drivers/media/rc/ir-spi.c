@@ -50,7 +50,7 @@ static int ir_spi_tx(struct rc_dev *dev, unsigned int *buffer, unsigned int coun
 		len += buffer[i];
 	}
 
-	tx_buf = kmalloc_array(len, sizeof(*tx_buf), GFP_KERNEL);
+	tx_buf = kmalloc_objs(*tx_buf, len);
 	if (!tx_buf)
 		return -ENOMEM;
 

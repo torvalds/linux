@@ -1150,7 +1150,7 @@ static int arizona_extcon_get_micd_configs(struct device *dev,
 	if (nconfs <= 0)
 		return 0;
 
-	vals = kcalloc(nconfs, sizeof(u32), GFP_KERNEL);
+	vals = kzalloc_objs(u32, nconfs);
 	if (!vals)
 		return -ENOMEM;
 

@@ -721,7 +721,7 @@ static int log_set_indices(struct arena_info *arena)
 
 static int btt_rtt_init(struct arena_info *arena)
 {
-	arena->rtt = kcalloc(arena->nfree, sizeof(u32), GFP_KERNEL);
+	arena->rtt = kzalloc_objs(u32, arena->nfree);
 	if (arena->rtt == NULL)
 		return -ENOMEM;
 

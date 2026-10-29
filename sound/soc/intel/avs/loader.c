@@ -269,7 +269,7 @@ int avs_cldma_transfer_modules(struct avs_dev *adev, bool load,
 		return 0;
 	}
 
-	mod_ids = kcalloc(num_mods, sizeof(u16), GFP_KERNEL);
+	mod_ids = kzalloc_objs(u16, num_mods);
 	if (!mod_ids)
 		return -ENOMEM;
 

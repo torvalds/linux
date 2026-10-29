@@ -292,7 +292,7 @@ int rtsx_usb_get_card_status(struct rtsx_ucr *ucr, u16 *status)
 		return -EINVAL;
 
 	if (polling_pipe == 0) {
-		buf = kzalloc(sizeof(u16), GFP_KERNEL);
+		buf = kzalloc_obj(u16);
 		if (!buf)
 			return -ENOMEM;
 

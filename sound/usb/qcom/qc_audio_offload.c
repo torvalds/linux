@@ -1828,8 +1828,7 @@ static void qc_usb_audio_offload_probe(struct snd_usb_audio *chip)
 		 * Allocate playback pcm index array based on number of possible
 		 * playback paths within the UAC descriptors.
 		 */
-		sdev->ppcm_idx = kcalloc(sdev->num_playback, sizeof(unsigned int),
-					 GFP_KERNEL);
+		sdev->ppcm_idx = kzalloc_objs(unsigned int, sdev->num_playback);
 		if (!sdev->ppcm_idx)
 			goto unreg_xhci;
 

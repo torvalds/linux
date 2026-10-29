@@ -112,7 +112,7 @@ int snd_bebob_maudio_load_firmware(struct fw_unit *unit)
 		return -ENXIO;
 	}
 
-	cues = kmalloc_array(3, sizeof(*cues), GFP_KERNEL);
+	cues = kmalloc_objs(*cues, 3);
 	if (!cues)
 		return -ENOMEM;
 

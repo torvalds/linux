@@ -170,8 +170,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 static int __init cpu_suspend_init(void)
 {
 	/* ctx_ptr is an array of physical addresses */
-	sleep_save_stash = kcalloc(mpidr_hash_size(), sizeof(*sleep_save_stash),
-				   GFP_KERNEL);
+	sleep_save_stash = kzalloc_objs(*sleep_save_stash, mpidr_hash_size());
 
 	if (WARN_ON(!sleep_save_stash))
 		return -ENOMEM;

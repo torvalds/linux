@@ -399,8 +399,7 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 	plane->base.properties = &plane->properties;
 	plane->dev = dev;
 	plane->funcs = funcs;
-	plane->format_types = kmalloc_array(format_count, sizeof(uint32_t),
-					    GFP_KERNEL);
+	plane->format_types = kmalloc_objs(uint32_t, format_count);
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		drm_mode_object_unregister(dev, &plane->base);
@@ -424,9 +423,8 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 				format_modifier_count);
 
 	plane->modifier_count = format_modifier_count;
-	plane->modifiers = kmalloc_array(format_modifier_count,
-					 sizeof(*plane->modifiers),
-					 GFP_KERNEL);
+	plane->modifiers = kmalloc_objs(*plane->modifiers,
+					format_modifier_count);
 
 	if (format_modifier_count && !plane->modifiers) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");

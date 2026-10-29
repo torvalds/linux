@@ -1140,7 +1140,7 @@ static void dwc3_set_incr_burst_type(struct dwc3 *dwc)
 	if (ntype <= 0)
 		return;
 
-	vals = kcalloc(ntype, sizeof(u32), GFP_KERNEL);
+	vals = kzalloc_objs(u32, ntype);
 	if (!vals)
 		return;
 

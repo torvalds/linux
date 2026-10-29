@@ -224,7 +224,7 @@ static int hx8357_spi_write_then_read(struct lcd_device *lcdev,
 	if (txlen) {
 		int i;
 
-		local_txbuf = kcalloc(txlen, sizeof(*local_txbuf), GFP_KERNEL);
+		local_txbuf = kzalloc_objs(*local_txbuf, txlen);
 
 		if (!local_txbuf)
 			return -ENOMEM;

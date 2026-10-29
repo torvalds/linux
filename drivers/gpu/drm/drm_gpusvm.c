@@ -816,7 +816,7 @@ static bool drm_gpusvm_check_pages(struct drm_gpusvm *gpusvm,
 
 	mmap_assert_locked(gpusvm->mm);
 
-	pfns = kvmalloc_array(npages, sizeof(*pfns), GFP_KERNEL);
+	pfns = kvmalloc_objs(*pfns, npages);
 	if (!pfns)
 		return false;
 
@@ -888,7 +888,7 @@ enum drm_gpusvm_scan_result drm_gpusvm_scan_mm(struct drm_gpusvm_range *range,
 	const struct dev_pagemap *other = NULL;
 	int err, i;
 
-	pfns = kvcalloc(npages, sizeof(*pfns), GFP_KERNEL);
+	pfns = kvzalloc_objs(*pfns, npages);
 	if (!pfns)
 		return DRM_GPUSVM_SCAN_UNPOPULATED;
 
@@ -1830,7 +1830,7 @@ retry:
 			goto set_seqno;
 	}
 
-	pfns = kvmalloc_array(npages, sizeof(*pfns), GFP_KERNEL);
+	pfns = kvmalloc_objs(*pfns, npages);
 	if (!pfns)
 		return -ENOMEM;
 
@@ -1981,7 +1981,7 @@ int drm_gpusvm_range_evict(struct drm_gpusvm *gpusvm,
 	if (!mmget_not_zero(mm))
 		return -EFAULT;
 
-	pfns = kvmalloc_array(npages, sizeof(*pfns), GFP_KERNEL);
+	pfns = kvmalloc_objs(*pfns, npages);
 	if (!pfns) {
 		mmput(mm);
 		return -ENOMEM;

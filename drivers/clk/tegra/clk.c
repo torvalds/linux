@@ -212,8 +212,7 @@ void tegra_clk_periph_resume(void)
 
 static int tegra_clk_periph_ctx_init(int banks)
 {
-	periph_state_ctx = kcalloc(2 * banks, sizeof(*periph_state_ctx),
-				   GFP_KERNEL);
+	periph_state_ctx = kzalloc_objs(*periph_state_ctx, 2 * banks);
 	if (!periph_state_ctx)
 		return -ENOMEM;
 

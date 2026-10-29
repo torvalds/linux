@@ -960,12 +960,12 @@ static int ips_monitor(void *data)
 	u16 *mcp_samples, *ctv1_samples, *ctv2_samples, *mch_samples;
 	u8 cur_seqno, last_seqno;
 
-	mcp_samples = kcalloc(IPS_SAMPLE_COUNT, sizeof(u16), GFP_KERNEL);
-	ctv1_samples = kcalloc(IPS_SAMPLE_COUNT, sizeof(u16), GFP_KERNEL);
-	ctv2_samples = kcalloc(IPS_SAMPLE_COUNT, sizeof(u16), GFP_KERNEL);
-	mch_samples = kcalloc(IPS_SAMPLE_COUNT, sizeof(u16), GFP_KERNEL);
-	cpu_samples = kcalloc(IPS_SAMPLE_COUNT, sizeof(u32), GFP_KERNEL);
-	mchp_samples = kcalloc(IPS_SAMPLE_COUNT, sizeof(u32), GFP_KERNEL);
+	mcp_samples = kzalloc_objs(u16, IPS_SAMPLE_COUNT);
+	ctv1_samples = kzalloc_objs(u16, IPS_SAMPLE_COUNT);
+	ctv2_samples = kzalloc_objs(u16, IPS_SAMPLE_COUNT);
+	mch_samples = kzalloc_objs(u16, IPS_SAMPLE_COUNT);
+	cpu_samples = kzalloc_objs(u32, IPS_SAMPLE_COUNT);
+	mchp_samples = kzalloc_objs(u32, IPS_SAMPLE_COUNT);
 	if (!mcp_samples || !ctv1_samples || !ctv2_samples || !mch_samples ||
 			!cpu_samples || !mchp_samples) {
 		dev_err(ips->dev,

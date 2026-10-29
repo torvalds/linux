@@ -50,7 +50,7 @@ static int pmcmd_ioctl(u64 cmd, void __user *uptr)
 	switch (cmd & PMCMD_TYPE_MASK) {
 	case ACRN_PMCMD_GET_PX_CNT:
 	case ACRN_PMCMD_GET_CX_CNT:
-		pm_info = kzalloc(sizeof(u64), GFP_KERNEL);
+		pm_info = kzalloc_obj(u64);
 		if (!pm_info)
 			return -ENOMEM;
 

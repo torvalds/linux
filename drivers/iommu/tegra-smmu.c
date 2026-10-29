@@ -301,7 +301,7 @@ static struct iommu_domain *tegra_smmu_domain_alloc_paging(struct device *dev)
 		return NULL;
 	}
 
-	as->count = kcalloc(SMMU_NUM_PDE, sizeof(u32), GFP_KERNEL);
+	as->count = kzalloc_objs(u32, SMMU_NUM_PDE);
 	if (!as->count) {
 		iommu_free_pages(as->pd);
 		kfree(as);

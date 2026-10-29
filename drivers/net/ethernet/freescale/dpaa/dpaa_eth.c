@@ -957,7 +957,7 @@ static int dpaa_fq_setup(struct dpaa_priv *priv,
 	struct dpaa_fq *fq;
 	u16 *channels;
 
-	channels = kcalloc(num_possible_cpus(), sizeof(u16), GFP_KERNEL);
+	channels = kzalloc_objs(u16, num_possible_cpus());
 	if (!channels)
 		return -ENOMEM;
 

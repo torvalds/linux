@@ -1868,7 +1868,7 @@ static void mv643xx_eth_program_multicast_filter(struct net_device *dev)
 		goto promiscuous;
 
 	/* Allocate both mc_spec and mc_other tables */
-	mc_spec = kcalloc(128, sizeof(u32), GFP_ATOMIC);
+	mc_spec = kzalloc_objs(u32, 128, GFP_ATOMIC);
 	if (!mc_spec)
 		goto promiscuous;
 	mc_other = &mc_spec[64];

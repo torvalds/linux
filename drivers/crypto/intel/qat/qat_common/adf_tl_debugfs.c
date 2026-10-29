@@ -114,8 +114,7 @@ static int tl_calc_count(struct adf_telemetry *telemetry,
 	int sample_cnt;
 	int ret = 0;
 
-	hist_vals = kmalloc_array(tl_data->num_hbuff, sizeof(*hist_vals),
-				  GFP_KERNEL);
+	hist_vals = kmalloc_objs(*hist_vals, tl_data->num_hbuff);
 	if (!hist_vals)
 		return -ENOMEM;
 
@@ -171,11 +170,11 @@ static int tl_lat_acc_avg(struct adf_telemetry *telemetry,
 	u64 *hist_cnt;
 	int ret = 0;
 
-	hist_vals = kmalloc_array(num_hbuff, sizeof(*hist_vals), GFP_KERNEL);
+	hist_vals = kmalloc_objs(*hist_vals, num_hbuff);
 	if (!hist_vals)
 		return -ENOMEM;
 
-	hist_cnt = kmalloc_array(num_hbuff, sizeof(*hist_cnt), GFP_KERNEL);
+	hist_cnt = kmalloc_objs(*hist_cnt, num_hbuff);
 	if (!hist_cnt) {
 		ret = -ENOMEM;
 		goto out_free_hist_vals;
@@ -220,8 +219,7 @@ static int tl_bw_hw_units_to_mbps(struct adf_telemetry *telemetry,
 	int sample_cnt;
 	int ret = 0;
 
-	hist_vals = kmalloc_array(tl_data->num_hbuff, sizeof(*hist_vals),
-				  GFP_KERNEL);
+	hist_vals = kmalloc_objs(*hist_vals, tl_data->num_hbuff);
 	if (!hist_vals)
 		return -ENOMEM;
 

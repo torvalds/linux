@@ -412,9 +412,7 @@ static int apple_gpio_register(struct apple_gpio_pinctrl *pctl)
 		gpio_irq_chip_set_chip(girq, &apple_gpio_irqchip);
 		girq->parent_handler = apple_gpio_irq_handler;
 
-		girq->parents = kmalloc_array(girq->num_parents,
-					      sizeof(*girq->parents),
-					      GFP_KERNEL);
+		girq->parents = kmalloc_objs(*girq->parents, girq->num_parents);
 		irq_data = kmalloc_objs(*irq_data, girq->num_parents);
 		if (!girq->parents || !irq_data) {
 			ret = -ENOMEM;

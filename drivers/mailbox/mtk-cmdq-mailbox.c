@@ -140,7 +140,7 @@ static void cmdq_vm_init(struct cmdq *cmdq)
 	if (!cmdq->pdata->gce_vm)
 		return;
 
-	vm_map = kcalloc(cmdq->pdata->thread_nr, sizeof(*vm_map), GFP_KERNEL);
+	vm_map = kzalloc_objs(*vm_map, cmdq->pdata->thread_nr);
 	if (!vm_map)
 		return;
 

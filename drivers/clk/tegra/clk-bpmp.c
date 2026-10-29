@@ -559,7 +559,7 @@ tegra_bpmp_clk_register(struct tegra_bpmp *bpmp,
 
 	init.num_parents = info->num_parents;
 
-	parents = kcalloc(info->num_parents, sizeof(*parents), GFP_KERNEL);
+	parents = kzalloc_objs(*parents, info->num_parents);
 	if (!parents)
 		return ERR_PTR(-ENOMEM);
 

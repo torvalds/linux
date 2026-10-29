@@ -272,7 +272,7 @@ static void pmc_core_lpm_display(struct pmc *pmc, struct device *dev,
 	u32 bit_mask, *lpm_regs;
 
 	arr_size = pmc_core_lpm_get_arr_size(maps);
-	lpm_regs = kmalloc_array(arr_size, sizeof(*lpm_regs), GFP_KERNEL);
+	lpm_regs = kmalloc_objs(*lpm_regs, arr_size);
 	if (!lpm_regs)
 		return;
 

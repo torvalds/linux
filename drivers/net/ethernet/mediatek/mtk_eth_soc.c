@@ -2814,8 +2814,7 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 
 	ring->frag_size = mtk_max_frag_size(rx_data_len);
 	ring->buf_size = mtk_max_buf_size(ring->frag_size);
-	ring->data = kcalloc(rx_dma_size, sizeof(*ring->data),
-			     GFP_KERNEL);
+	ring->data = kzalloc_objs(*ring->data, rx_dma_size);
 	if (!ring->data)
 		return -ENOMEM;
 

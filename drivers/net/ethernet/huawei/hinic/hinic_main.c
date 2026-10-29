@@ -308,7 +308,7 @@ static int hinic_rss_init(struct hinic_dev *nic_dev)
 	u32 *indir_tbl;
 	int err, i;
 
-	indir_tbl = kcalloc(HINIC_RSS_INDIR_SIZE, sizeof(u32), GFP_KERNEL);
+	indir_tbl = kzalloc_objs(u32, HINIC_RSS_INDIR_SIZE);
 	if (!indir_tbl)
 		return -ENOMEM;
 

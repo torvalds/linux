@@ -1135,7 +1135,7 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	}
 
 	/* Check groups and functions */
-	refcnts = kcalloc(info->nr_groups, sizeof(*refcnts), GFP_KERNEL);
+	refcnts = kzalloc_objs(*refcnts, info->nr_groups);
 	if (!refcnts)
 		return;
 
@@ -1277,8 +1277,7 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 	if (!sh_pfc_regs)
 		return;
 
-	sh_pfc_enums = kcalloc(SH_PFC_MAX_ENUMS, sizeof(*sh_pfc_enums),
-			      GFP_KERNEL);
+	sh_pfc_enums = kzalloc_objs(*sh_pfc_enums, SH_PFC_MAX_ENUMS);
 	if (!sh_pfc_enums)
 		goto free_regs;
 

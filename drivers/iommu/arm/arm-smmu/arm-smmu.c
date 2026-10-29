@@ -186,7 +186,7 @@ static int arm_smmu_register_legacy_master(struct device *dev,
 	if (err)
 		return err;
 
-	sids = kcalloc(it.cur_count, sizeof(*sids), GFP_KERNEL);
+	sids = kzalloc_objs(*sids, it.cur_count);
 	if (!sids)
 		return -ENOMEM;
 

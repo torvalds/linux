@@ -3759,7 +3759,7 @@ devm_ti_sci_get_of_resource(const struct ti_sci_handle *handle,
 		return ERR_PTR(sets);
 	}
 
-	sub_types = kcalloc(sets, sizeof(*sub_types), GFP_KERNEL);
+	sub_types = kzalloc_objs(*sub_types, sets);
 	if (!sub_types)
 		return ERR_PTR(-ENOMEM);
 

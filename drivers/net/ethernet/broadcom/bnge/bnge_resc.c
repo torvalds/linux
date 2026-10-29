@@ -575,7 +575,7 @@ static int bnge_alloc_rss_indir_tbl(struct bnge_dev *bd)
 
 	bd->rss_indir_tbl_entries = entries;
 	bd->rss_indir_tbl =
-		kmalloc_array(entries, sizeof(*bd->rss_indir_tbl), GFP_KERNEL);
+		kmalloc_objs(*bd->rss_indir_tbl, entries);
 	if (!bd->rss_indir_tbl)
 		return -ENOMEM;
 

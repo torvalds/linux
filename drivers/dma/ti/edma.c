@@ -2186,7 +2186,7 @@ static struct edma_soc_info *edma_setup_info_from_dt(struct device *dev,
 		if (!nelm)
 			return info;
 
-		tmp = kcalloc(nelm, sizeof(*tmp), GFP_KERNEL);
+		tmp = kzalloc_objs(*tmp, nelm);
 		if (!tmp)
 			return ERR_PTR(-ENOMEM);
 

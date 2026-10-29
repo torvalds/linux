@@ -1062,7 +1062,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	/* Change the pointers.
 	   Don't bother distinguishing stuffed from non-stuffed.
 	   This code is complicated enough already. */
-	lp = kmalloc_array(half_len, sizeof(__be64), GFP_NOFS);
+	lp = kmalloc_objs(__be64, half_len, GFP_NOFS);
 	if (!lp) {
 		error = -ENOMEM;
 		goto fail_brelse;

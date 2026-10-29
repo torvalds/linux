@@ -1536,7 +1536,7 @@ static void a5xx_gpu_state_get_hlsq_regs(struct msm_gpu *gpu,
 	for (i = 0; i < ARRAY_SIZE(a5xx_hlsq_aperture_regs); i++)
 		count += a5xx_hlsq_aperture_regs[i].count;
 
-	a5xx_state->hlsqregs = kcalloc(count, sizeof(u32), GFP_KERNEL);
+	a5xx_state->hlsqregs = kzalloc_objs(u32, count);
 	if (!a5xx_state->hlsqregs)
 		return;
 
@@ -1583,7 +1583,7 @@ static void a5xx_gpu_state_get_gpmu_regs(struct msm_gpu *gpu,
 	for (i = 0; a5xx_gpmu_registers[i] != ~0; i += 2)
 		count += a5xx_gpmu_registers[i + 1] - a5xx_gpmu_registers[i] + 1;
 
-	a5xx_state->gpmuregs = kcalloc(count, sizeof(u32), GFP_KERNEL);
+	a5xx_state->gpmuregs = kzalloc_objs(u32, count);
 	if (!a5xx_state->gpmuregs)
 		return;
 

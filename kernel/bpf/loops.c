@@ -29,7 +29,7 @@ static struct bpf_iarray **compute_predecessors(struct bpf_verifier_env *env)
 	size_t sz;
 	void *tmp;
 
-	num_preds = kvcalloc(prog->len, sizeof(u32), GFP_KERNEL_ACCOUNT);
+	num_preds = kvzalloc_objs(u32, prog->len, GFP_KERNEL_ACCOUNT);
 	if (!num_preds)
 		return NULL;
 
@@ -156,7 +156,7 @@ int bpf_compute_idoms(struct bpf_verifier_env *env)
 	if (!preds)
 		return -ENOMEM;
 
-	idoms = kvcalloc(len, sizeof(*idoms), GFP_KERNEL_ACCOUNT);
+	idoms = kvzalloc_objs(*idoms, len, GFP_KERNEL_ACCOUNT);
 	if (!idoms) {
 		kvfree(preds);
 		return -ENOMEM;
@@ -216,7 +216,8 @@ static int add_exit(struct bpf_loop *loop, int from, int to)
 		return 0;
 	}
 	if (!loop->exits) {
-		loop->exits = kvcalloc(MAX_LOOP_EXITS, sizeof(*loop->exits), GFP_KERNEL_ACCOUNT);
+		loop->exits = kvzalloc_objs(*loop->exits, MAX_LOOP_EXITS,
+					    GFP_KERNEL_ACCOUNT);
 		if (!loop->exits)
 			return -ENOMEM;
 	}
@@ -467,9 +468,9 @@ int bpf_compute_loops(struct bpf_verifier_env *env)
 	struct bpf_iarray *succ;
 	struct bpf_loop *loop;
 
-	dfs.dfs_pos = kvcalloc(len, sizeof(int), GFP_KERNEL_ACCOUNT);
-	dfs.state = kvcalloc(len, sizeof(struct dfs_state), GFP_KERNEL_ACCOUNT);
-	dfs.stack = kvcalloc(len, sizeof(int), GFP_KERNEL_ACCOUNT);
+	dfs.dfs_pos = kvzalloc_objs(int, len, GFP_KERNEL_ACCOUNT);
+	dfs.state = kvzalloc_objs(struct dfs_state, len, GFP_KERNEL_ACCOUNT);
+	dfs.stack = kvzalloc_objs(int, len, GFP_KERNEL_ACCOUNT);
 	if (!dfs.dfs_pos || !dfs.state || !dfs.stack) {
 		err = -ENOMEM;
 		goto out;

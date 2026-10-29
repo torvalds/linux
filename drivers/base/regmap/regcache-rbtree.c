@@ -346,9 +346,9 @@ regcache_rbtree_node_alloc(struct regmap *map, unsigned int reg)
 	if (!rbnode->block)
 		goto err_free;
 
-	rbnode->cache_present = kcalloc(BITS_TO_LONGS(rbnode->blklen),
-					sizeof(*rbnode->cache_present),
-					map->alloc_flags);
+	rbnode->cache_present = kzalloc_objs(*rbnode->cache_present,
+					     BITS_TO_LONGS(rbnode->blklen),
+					     map->alloc_flags);
 	if (!rbnode->cache_present)
 		goto err_free_block;
 

@@ -939,7 +939,7 @@ static int check_load_and_stores(const struct sock_filter *filter, int flen)
 
 	BUILD_BUG_ON(BPF_MEMWORDS > 16);
 
-	masks = kmalloc_array(flen, sizeof(*masks), GFP_KERNEL);
+	masks = kmalloc_objs(*masks, flen);
 	if (!masks)
 		return -ENOMEM;
 

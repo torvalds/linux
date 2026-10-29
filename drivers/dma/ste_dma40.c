@@ -3663,9 +3663,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 	 * To full fill this hardware requirement without wasting 256 kb
 	 * we allocate pages until we get an aligned one.
 	 */
-	page_list = kmalloc_array(MAX_LCLA_ALLOC_ATTEMPTS,
-				  sizeof(*page_list),
-				  GFP_KERNEL);
+	page_list = kmalloc_objs(*page_list, MAX_LCLA_ALLOC_ATTEMPTS);
 	if (!page_list)
 		return -ENOMEM;
 

@@ -1960,13 +1960,13 @@ static int env_resolve_init(struct btf_verifier_env *env)
 	u32 *resolved_ids = NULL;
 	u8 *visit_states = NULL;
 
-	resolved_sizes = kvcalloc(nr_types, sizeof(*resolved_sizes),
-				  GFP_KERNEL | __GFP_NOWARN);
+	resolved_sizes = kvzalloc_objs(*resolved_sizes, nr_types,
+				       GFP_KERNEL | __GFP_NOWARN);
 	if (!resolved_sizes)
 		goto nomem;
 
-	resolved_ids = kvcalloc(nr_types, sizeof(*resolved_ids),
-				GFP_KERNEL | __GFP_NOWARN);
+	resolved_ids = kvzalloc_objs(*resolved_ids, nr_types,
+				     GFP_KERNEL | __GFP_NOWARN);
 	if (!resolved_ids)
 		goto nomem;
 

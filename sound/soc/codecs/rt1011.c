@@ -2053,16 +2053,14 @@ static int rt1011_probe(struct snd_soc_component *component)
 	schedule_work(&rt1011->cali_work);
 
 	rt1011->i2s_ref = 0;
-	rt1011->bq_drc_params = kcalloc(RT1011_ADVMODE_NUM,
-					sizeof(struct rt1011_bq_drc_params *),
-					GFP_KERNEL);
+	rt1011->bq_drc_params = kzalloc_objs(struct rt1011_bq_drc_params *,
+					     RT1011_ADVMODE_NUM);
 	if (!rt1011->bq_drc_params)
 		return -ENOMEM;
 
 	for (i = 0; i < RT1011_ADVMODE_NUM; i++) {
-		rt1011->bq_drc_params[i] = kcalloc(RT1011_BQ_DRC_NUM,
-						   sizeof(struct rt1011_bq_drc_params),
-						   GFP_KERNEL);
+		rt1011->bq_drc_params[i] = kzalloc_objs(struct rt1011_bq_drc_params,
+							RT1011_BQ_DRC_NUM);
 		if (!rt1011->bq_drc_params[i])
 			goto err;
 	}

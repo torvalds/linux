@@ -368,7 +368,7 @@ static int i2c_atr_map_msgs(struct i2c_atr_chan *chan, struct i2c_msg *msgs,
 		u16 *new_buf;
 
 		/* We don't care about old data, hence no realloc() */
-		new_buf = kmalloc_array(num, sizeof(*new_buf), GFP_KERNEL);
+		new_buf = kmalloc_objs(*new_buf, num);
 		if (!new_buf)
 			return -ENOMEM;
 
@@ -676,7 +676,7 @@ static int i2c_atr_parse_alias_pool(struct i2c_atr *atr)
 	if (!alias_pool->size)
 		return 0;
 
-	aliases32 = kcalloc(num_aliases, sizeof(*aliases32), GFP_KERNEL);
+	aliases32 = kzalloc_objs(*aliases32, num_aliases);
 	if (!aliases32) {
 		ret = -ENOMEM;
 		goto err_free_alias_pool;
