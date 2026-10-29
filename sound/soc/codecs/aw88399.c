@@ -760,7 +760,7 @@ static int aw88399_i2c_probe(struct i2c_client *i2c)
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C))
 		return dev_err_probe(&i2c->dev, -ENXIO, "check_functionality failed");
 
-	aw88399 = devm_kzalloc(&i2c->dev, sizeof(*aw88399), GFP_KERNEL);
+	aw88399 = devm_kzalloc_obj(&i2c->dev, *aw88399);
 	if (!aw88399)
 		return -ENOMEM;
 

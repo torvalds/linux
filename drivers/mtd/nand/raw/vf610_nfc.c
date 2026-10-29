@@ -868,7 +868,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	int err;
 	int irq;
 
-	nfc = devm_kzalloc(&pdev->dev, sizeof(*nfc), GFP_KERNEL);
+	nfc = devm_kzalloc_obj(&pdev->dev, *nfc);
 	if (!nfc)
 		return -ENOMEM;
 

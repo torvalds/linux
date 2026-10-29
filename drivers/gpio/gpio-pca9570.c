@@ -122,7 +122,7 @@ static int pca9570_probe(struct i2c_client *client)
 	struct pca9570 *gpio;
 	int ret;
 
-	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc_obj(&client->dev, *gpio);
 	if (!gpio)
 		return -ENOMEM;
 

@@ -151,7 +151,7 @@ static int qepic_probe(struct platform_device *pdev)
 	struct irq_domain *domain;
 	struct qepic_data *data;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 	d_info.host_data = data;

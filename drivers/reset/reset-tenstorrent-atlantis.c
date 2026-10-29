@@ -145,7 +145,7 @@ static int atlantis_reset_probe(struct auxiliary_device *adev,
 	if (!regmap)
 		return -ENODEV;
 
-	controller = devm_kzalloc(dev, sizeof(*controller), GFP_KERNEL);
+	controller = devm_kzalloc_obj(dev, *controller);
 	if (!controller)
 		return -ENOMEM;
 	controller->data =

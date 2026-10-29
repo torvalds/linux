@@ -329,7 +329,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	int ret;
 
-	mpc8xxx_gc = devm_kzalloc(dev, sizeof(*mpc8xxx_gc), GFP_KERNEL);
+	mpc8xxx_gc = devm_kzalloc_obj(dev, *mpc8xxx_gc);
 	if (!mpc8xxx_gc)
 		return -ENOMEM;
 

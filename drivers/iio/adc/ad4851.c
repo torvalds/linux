@@ -970,7 +970,7 @@ static int ad4851_parse_channels_common(struct iio_dev *indio_dev,
 		return dev_err_probe(dev, -EINVAL, "Too many channels: %u\n",
 				     num_channels);
 
-	channels = devm_kcalloc(dev, num_channels, sizeof(*channels), GFP_KERNEL);
+	channels = devm_kzalloc_objs(dev, *channels, num_channels);
 	if (!channels)
 		return -ENOMEM;
 

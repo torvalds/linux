@@ -610,7 +610,7 @@ static int jz4725b_codec_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	icdc = devm_kzalloc(dev, sizeof(*icdc), GFP_KERNEL);
+	icdc = devm_kzalloc_obj(dev, *icdc);
 	if (!icdc)
 		return -ENOMEM;
 

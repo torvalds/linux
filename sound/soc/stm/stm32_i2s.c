@@ -545,7 +545,7 @@ static int stm32_i2s_add_mclk_provider(struct stm32_i2s_data *i2s)
 	char *mclk_name, *p, *s = (char *)pname;
 	int ret, i = 0;
 
-	mclk = devm_kzalloc(dev, sizeof(*mclk), GFP_KERNEL);
+	mclk = devm_kzalloc_obj(dev, *mclk);
 	if (!mclk)
 		return -ENOMEM;
 
@@ -1147,8 +1147,7 @@ static int stm32_i2s_dais_init(struct platform_device *pdev,
 {
 	struct snd_soc_dai_driver *dai_ptr;
 
-	dai_ptr = devm_kzalloc(&pdev->dev, sizeof(struct snd_soc_dai_driver),
-			       GFP_KERNEL);
+	dai_ptr = devm_kzalloc_obj(&pdev->dev, struct snd_soc_dai_driver);
 	if (!dai_ptr)
 		return -ENOMEM;
 
@@ -1269,7 +1268,7 @@ static int stm32_i2s_probe(struct platform_device *pdev)
 	u32 val;
 	int irq, ret;
 
-	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
+	i2s = devm_kzalloc_obj(&pdev->dev, *i2s);
 	if (!i2s)
 		return -ENOMEM;
 

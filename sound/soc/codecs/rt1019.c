@@ -575,8 +575,7 @@ static int rt1019_i2c_probe(struct i2c_client *i2c)
 	int ret;
 	unsigned int val, val2, dev_id;
 
-	rt1019 = devm_kzalloc(&i2c->dev, sizeof(struct rt1019_priv),
-				GFP_KERNEL);
+	rt1019 = devm_kzalloc_obj(&i2c->dev, struct rt1019_priv);
 	if (!rt1019)
 		return -ENOMEM;
 

@@ -3024,7 +3024,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		return ret;
 
 	/* Allocate a new DMAC and its Channels */
-	pl330 = devm_kzalloc(&adev->dev, sizeof(*pl330), GFP_KERNEL);
+	pl330 = devm_kzalloc_obj(&adev->dev, *pl330);
 	if (!pl330)
 		return -ENOMEM;
 

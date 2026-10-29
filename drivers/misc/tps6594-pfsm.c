@@ -283,7 +283,7 @@ static int tps6594_pfsm_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	pfsm = devm_kzalloc(dev, sizeof(struct tps6594_pfsm), GFP_KERNEL);
+	pfsm = devm_kzalloc_obj(dev, struct tps6594_pfsm);
 	if (!pfsm)
 		return -ENOMEM;
 

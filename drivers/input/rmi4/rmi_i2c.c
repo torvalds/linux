@@ -206,8 +206,7 @@ static int rmi_i2c_probe(struct i2c_client *client)
 	struct rmi_i2c_xport *rmi_i2c;
 	int error;
 
-	rmi_i2c = devm_kzalloc(&client->dev, sizeof(struct rmi_i2c_xport),
-				GFP_KERNEL);
+	rmi_i2c = devm_kzalloc_obj(&client->dev, struct rmi_i2c_xport);
 	if (!rmi_i2c)
 		return -ENOMEM;
 

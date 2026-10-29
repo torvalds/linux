@@ -957,7 +957,7 @@ static int vc5_probe(struct i2c_client *client)
 	unsigned int n, idx = 0;
 	int ret;
 
-	vc5 = devm_kzalloc(&client->dev, sizeof(*vc5), GFP_KERNEL);
+	vc5 = devm_kzalloc_obj(&client->dev, *vc5);
 	if (!vc5)
 		return -ENOMEM;
 

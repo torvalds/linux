@@ -164,9 +164,8 @@ static struct snd_soc_acpi_mach *amd_sof_sdw_machine_select(struct snd_sof_dev *
 			mach->mach_params.platform = dev_name(sdev->dev);
 
 			if (acp_data->pdm_sel) {
-				pdm_pdata = devm_kzalloc(sdev->dev,
-							 sizeof(*pdm_pdata),
-							 GFP_KERNEL);
+				pdm_pdata = devm_kzalloc_obj(sdev->dev,
+							     *pdm_pdata);
 				if (!pdm_pdata)
 					return NULL;
 				pdm_pdata->pdm_sel = acp_data->pdm_sel;
@@ -216,7 +215,7 @@ struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev)
 	mach->mach_params.subsystem_rev = acp_data->pci_rev;
 
 	if (acp_data->pdm_sel) {
-		pdm_pdata = devm_kzalloc(sdev->dev, sizeof(*pdm_pdata), GFP_KERNEL);
+		pdm_pdata = devm_kzalloc_obj(sdev->dev, *pdm_pdata);
 		if (!pdm_pdata)
 			return NULL;
 		pdm_pdata->pdm_sel = acp_data->pdm_sel;

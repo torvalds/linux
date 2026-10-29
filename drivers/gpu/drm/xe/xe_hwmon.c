@@ -1573,7 +1573,7 @@ int xe_hwmon_register(struct xe_device *xe)
 	if (IS_SRIOV_VF(xe))
 		return 0;
 
-	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
+	hwmon = devm_kzalloc_obj(dev, *hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 

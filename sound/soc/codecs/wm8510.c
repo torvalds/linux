@@ -630,8 +630,7 @@ static int wm8510_spi_probe(struct spi_device *spi)
 	struct wm8510_priv *wm8510;
 	int ret;
 
-	wm8510 = devm_kzalloc(&spi->dev, sizeof(struct wm8510_priv),
-			      GFP_KERNEL);
+	wm8510 = devm_kzalloc_obj(&spi->dev, struct wm8510_priv);
 	if (wm8510 == NULL)
 		return -ENOMEM;
 
@@ -662,8 +661,7 @@ static int wm8510_i2c_probe(struct i2c_client *i2c)
 	struct wm8510_priv *wm8510;
 	int ret;
 
-	wm8510 = devm_kzalloc(&i2c->dev, sizeof(struct wm8510_priv),
-			      GFP_KERNEL);
+	wm8510 = devm_kzalloc_obj(&i2c->dev, struct wm8510_priv);
 	if (wm8510 == NULL)
 		return -ENOMEM;
 

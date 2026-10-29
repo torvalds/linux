@@ -124,7 +124,7 @@ static int rmem_probe(struct platform_device *pdev)
 	struct reserved_mem *mem;
 	struct rmem *priv;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = dev;

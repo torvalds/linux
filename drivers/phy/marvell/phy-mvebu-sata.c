@@ -83,7 +83,7 @@ static int phy_mvebu_sata_probe(struct platform_device *pdev)
 	struct priv *priv;
 	struct phy *phy;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

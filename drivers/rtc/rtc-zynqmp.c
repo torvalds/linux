@@ -282,7 +282,7 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 	u32 alarm_time;
 	int ret;
 
-	xrtcdev = devm_kzalloc(&pdev->dev, sizeof(*xrtcdev), GFP_KERNEL);
+	xrtcdev = devm_kzalloc_obj(&pdev->dev, *xrtcdev);
 	if (!xrtcdev)
 		return -ENOMEM;
 

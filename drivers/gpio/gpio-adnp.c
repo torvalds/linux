@@ -480,7 +480,7 @@ static int adnp_i2c_probe(struct i2c_client *client)
 	if (err < 0)
 		return err;
 
-	adnp = devm_kzalloc(&client->dev, sizeof(*adnp), GFP_KERNEL);
+	adnp = devm_kzalloc_obj(&client->dev, *adnp);
 	if (!adnp)
 		return -ENOMEM;
 

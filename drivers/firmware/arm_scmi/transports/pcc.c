@@ -727,7 +727,7 @@ static int pcc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	struct mbox_client *cl;
 	int ret, ss_id;
 
-	smbox = devm_kzalloc(dev, sizeof(*smbox), GFP_KERNEL);
+	smbox = devm_kzalloc_obj(dev, *smbox);
 	if (!smbox)
 		return -ENOMEM;
 

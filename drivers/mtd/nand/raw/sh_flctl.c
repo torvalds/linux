@@ -1098,8 +1098,7 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 		return NULL;
 	}
 
-	pdata = devm_kzalloc(dev, sizeof(struct sh_flctl_platform_data),
-								GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, struct sh_flctl_platform_data);
 	if (!pdata)
 		return NULL;
 
@@ -1121,7 +1120,7 @@ static int flctl_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	flctl = devm_kzalloc(&pdev->dev, sizeof(struct sh_flctl), GFP_KERNEL);
+	flctl = devm_kzalloc_obj(&pdev->dev, struct sh_flctl);
 	if (!flctl)
 		return -ENOMEM;
 

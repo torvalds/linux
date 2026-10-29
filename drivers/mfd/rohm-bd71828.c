@@ -1023,7 +1023,7 @@ static struct regmap *bd72720_do_regmaps(struct i2c_client *i2c)
 		return ERR_CAST(secondary_i2c);
 	}
 
-	maps = devm_kzalloc(&i2c->dev, sizeof(*maps), GFP_KERNEL);
+	maps = devm_kzalloc_obj(&i2c->dev, *maps);
 	if (!maps)
 		return ERR_PTR(-ENOMEM);
 

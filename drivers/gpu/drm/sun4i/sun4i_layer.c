@@ -193,7 +193,7 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 	struct sun4i_layer *layer;
 	int ret;
 
-	layer = devm_kzalloc(drm->dev, sizeof(*layer), GFP_KERNEL);
+	layer = devm_kzalloc_obj(drm->dev, *layer);
 	if (!layer)
 		return ERR_PTR(-ENOMEM);
 
@@ -234,8 +234,8 @@ struct drm_plane **sun4i_layers_init(struct drm_device *drm,
 	int i;
 
 	/* We need to have a sentinel at the need, hence the overallocation */
-	planes = devm_kcalloc(drm->dev, SUN4I_BACKEND_NUM_LAYERS + 1,
-			      sizeof(*planes), GFP_KERNEL);
+	planes = devm_kzalloc_objs(drm->dev, *planes,
+				   SUN4I_BACKEND_NUM_LAYERS + 1);
 	if (!planes)
 		return ERR_PTR(-ENOMEM);
 

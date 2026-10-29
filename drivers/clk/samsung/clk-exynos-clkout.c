@@ -117,9 +117,8 @@ static int exynos_clkout_probe(struct platform_device *pdev)
 	int parent_count, ret, i;
 	u32 mux_mask;
 
-	clkout = devm_kzalloc(&pdev->dev,
-			      struct_size(clkout, data.hws, EXYNOS_CLKOUT_NR_CLKS),
-			      GFP_KERNEL);
+	clkout = devm_kzalloc_flex(&pdev->dev, *clkout, data.hws,
+				   EXYNOS_CLKOUT_NR_CLKS);
 	if (!clkout)
 		return -ENOMEM;
 

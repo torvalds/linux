@@ -2965,7 +2965,7 @@ static int spi_nor_init_params(struct spi_nor *nor)
 {
 	int ret;
 
-	nor->params = devm_kzalloc(nor->dev, sizeof(*nor->params), GFP_KERNEL);
+	nor->params = devm_kzalloc_obj(nor->dev, *nor->params);
 	if (!nor->params)
 		return -ENOMEM;
 
@@ -3327,8 +3327,7 @@ static int spi_nor_set_mtd_eraseregions(struct spi_nor *nor)
 	struct mtd_info *mtd = &nor->mtd;
 	u32 erasesize, i;
 
-	mtd_region = devm_kcalloc(nor->dev, map->n_regions, sizeof(*mtd_region),
-				  GFP_KERNEL);
+	mtd_region = devm_kzalloc_objs(nor->dev, *mtd_region, map->n_regions);
 	if (!mtd_region)
 		return -ENOMEM;
 
@@ -3567,7 +3566,7 @@ static int spi_nor_probe(struct spi_mem *spimem)
 	if (ret)
 		return ret;
 
-	nor = devm_kzalloc(dev, sizeof(*nor), GFP_KERNEL);
+	nor = devm_kzalloc_obj(dev, *nor);
 	if (!nor)
 		return -ENOMEM;
 

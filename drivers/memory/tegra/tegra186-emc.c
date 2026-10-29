@@ -185,7 +185,7 @@ static int tegra186_emc_get_emc_dvfs_latency(struct tegra186_emc *emc)
 
 	emc->num_dvfs = response.num_pairs;
 
-	emc->dvfs = devm_kmalloc_array(emc->dev, emc->num_dvfs, sizeof(*emc->dvfs), GFP_KERNEL);
+	emc->dvfs = devm_kmalloc_objs(emc->dev, *emc->dvfs, emc->num_dvfs);
 	if (!emc->dvfs)
 		return -ENOMEM;
 
@@ -337,7 +337,7 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 	struct tegra186_emc *emc;
 	int err;
 
-	emc = devm_kzalloc(&pdev->dev, sizeof(*emc), GFP_KERNEL);
+	emc = devm_kzalloc_obj(&pdev->dev, *emc);
 	if (!emc)
 		return -ENOMEM;
 

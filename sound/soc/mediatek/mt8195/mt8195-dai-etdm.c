@@ -2763,9 +2763,7 @@ static int init_etdm_priv_data(struct mtk_base_afe *afe)
 	int i;
 
 	for (i = MT8195_AFE_IO_ETDM_START; i < MT8195_AFE_IO_ETDM_END; i++) {
-		etdm_priv = devm_kzalloc(afe->dev,
-					 sizeof(struct mtk_dai_etdm_priv),
-					 GFP_KERNEL);
+		etdm_priv = devm_kzalloc_obj(afe->dev, struct mtk_dai_etdm_priv);
 		if (!etdm_priv)
 			return -ENOMEM;
 
@@ -2783,7 +2781,7 @@ int mt8195_dai_etdm_register(struct mtk_base_afe *afe)
 {
 	struct mtk_base_afe_dai *dai;
 
-	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	dai = devm_kzalloc_obj(afe->dev, *dai);
 	if (!dai)
 		return -ENOMEM;
 

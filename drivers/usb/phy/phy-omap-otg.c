@@ -98,7 +98,7 @@ static int omap_otg_probe(struct platform_device *pdev)
 	if (IS_ERR(extcon))
 		return PTR_ERR(extcon);
 
-	otg_dev = devm_kzalloc(&pdev->dev, sizeof(*otg_dev), GFP_KERNEL);
+	otg_dev = devm_kzalloc_obj(&pdev->dev, *otg_dev);
 	if (!otg_dev)
 		return -ENOMEM;
 

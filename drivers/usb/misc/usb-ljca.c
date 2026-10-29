@@ -763,7 +763,7 @@ static int ljca_probe(struct usb_interface *interface,
 	struct ljca_adapter *adap;
 	int ret;
 
-	adap = devm_kzalloc(dev, sizeof(*adap), GFP_KERNEL);
+	adap = devm_kzalloc_obj(dev, *adap);
 	if (!adap)
 		return -ENOMEM;
 

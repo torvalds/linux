@@ -215,7 +215,7 @@ scmi_clk_ops_alloc(struct device *dev, unsigned long feats_key)
 	struct scmi_clk_oem *oem_data = dev_get_drvdata(dev);
 	struct clk_ops *ops;
 
-	ops = devm_kzalloc(dev, sizeof(*ops), GFP_KERNEL);
+	ops = devm_kzalloc_obj(dev, *ops);
 	if (!ops)
 		return NULL;
 	/*
@@ -378,8 +378,7 @@ static int scmi_clocks_probe(struct scmi_device *sdev)
 		return -EINVAL;
 	}
 
-	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, count),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(dev, *clk_data, hws, count);
 	if (!clk_data)
 		return -ENOMEM;
 
@@ -391,7 +390,7 @@ static int scmi_clocks_probe(struct scmi_device *sdev)
 	transport_is_atomic = handle->is_transport_atomic(handle,
 							  &atomic_threshold_us);
 
-	sclks = devm_kcalloc(dev, count, sizeof(*sclks), GFP_KERNEL);
+	sclks = devm_kzalloc_objs(dev, *sclks, count);
 	if (!sclks)
 		return -ENOMEM;
 
@@ -428,8 +427,9 @@ static int scmi_clocks_probe(struct scmi_device *sdev)
 
 		/* Initialize clock parent data. */
 		if (sclk->info->num_parents > 0) {
-			sclk->parent_data = devm_kcalloc(dev, sclk->info->num_parents,
-							 sizeof(*sclk->parent_data), GFP_KERNEL);
+			sclk->parent_data = devm_kzalloc_objs(dev,
+							      *sclk->parent_data,
+							      sclk->info->num_parents);
 			if (!sclk->parent_data)
 				return -ENOMEM;
 

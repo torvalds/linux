@@ -319,8 +319,7 @@ mt76_init_sband(struct mt76_phy *phy, struct mt76_sband *msband,
 	if (!chanlist)
 		return -ENOMEM;
 
-	msband->chan = devm_kcalloc(dev->dev, n_chan, sizeof(*msband->chan),
-				    GFP_KERNEL);
+	msband->chan = devm_kzalloc_objs(dev->dev, *msband->chan, n_chan);
 	if (!msband->chan)
 		return -ENOMEM;
 
@@ -459,9 +458,8 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 		wiphy->available_antennas_rx = phy->antenna_mask;
 
 	wiphy->sar_capa = &mt76_sar_capa;
-	phy->frp = devm_kcalloc(dev->dev, wiphy->sar_capa->num_freq_ranges,
-				sizeof(struct mt76_freq_range_power),
-				GFP_KERNEL);
+	phy->frp = devm_kzalloc_objs(dev->dev, struct mt76_freq_range_power,
+				     wiphy->sar_capa->num_freq_ranges);
 	if (!phy->frp)
 		return -ENOMEM;
 
@@ -2027,7 +2025,7 @@ mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 	struct mt76_queue *hwq;
 	int err;
 
-	hwq = devm_kzalloc(dev->dev, sizeof(*hwq), GFP_KERNEL);
+	hwq = devm_kzalloc_obj(dev->dev, *hwq);
 	if (!hwq)
 		return ERR_PTR(-ENOMEM);
 

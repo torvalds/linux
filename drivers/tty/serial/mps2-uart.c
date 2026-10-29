@@ -579,7 +579,7 @@ static int mps2_serial_probe(struct platform_device *pdev)
 	struct mps2_uart_port *mps_port;
 	int ret;
 
-	mps_port = devm_kzalloc(&pdev->dev, sizeof(struct mps2_uart_port), GFP_KERNEL);
+	mps_port = devm_kzalloc_obj(&pdev->dev, struct mps2_uart_port);
 
         if (!mps_port)
                 return -ENOMEM;

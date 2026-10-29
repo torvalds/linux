@@ -645,7 +645,7 @@ static int mtk_cpufreq_probe(struct platform_device *pdev)
 		if (info)
 			continue;
 
-		info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+		info = devm_kzalloc_obj(&pdev->dev, *info);
 		if (!info) {
 			ret = dev_err_probe(&pdev->dev, -ENOMEM,
 					    "Failed to allocate dvfs_info\n");

@@ -1445,7 +1445,7 @@ static int tps23881_i2c_probe(struct i2c_client *client)
 	if (!info)
 		return -EINVAL;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

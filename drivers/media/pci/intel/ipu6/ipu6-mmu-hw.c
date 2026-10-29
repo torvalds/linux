@@ -270,7 +270,7 @@ static int __ipu6_mmu_init_hw_data(struct ipu6_mmu *mmu, struct device *dev,
 	src = lookup->hwdata;
 	nr_mmus = lookup->nr_mmus;
 
-	mmu_hw = devm_kcalloc(dev, nr_mmus, sizeof(*mmu_hw), GFP_KERNEL);
+	mmu_hw = devm_kzalloc_objs(dev, *mmu_hw, nr_mmus);
 	if (!mmu_hw)
 		return -ENOMEM;
 

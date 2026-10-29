@@ -320,7 +320,7 @@ static int gnr_gpio_probe(struct platform_device *pdev)
 	int irq, ret;
 	u32 offset;
 
-	priv = devm_kzalloc(dev, struct_size(priv, pad_backup, num_backup_pins), GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, pad_backup, num_backup_pins);
 	if (!priv)
 		return -ENOMEM;
 

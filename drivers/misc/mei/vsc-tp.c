@@ -464,15 +464,15 @@ static int vsc_tp_probe(struct spi_device *spi)
 	struct acpi_device *adev;
 	int ret;
 
-	tp = devm_kzalloc(dev, sizeof(*tp), GFP_KERNEL);
+	tp = devm_kzalloc_obj(dev, *tp);
 	if (!tp)
 		return -ENOMEM;
 
-	tp->tx_buf = devm_kzalloc(dev, sizeof(*tp->tx_buf), GFP_KERNEL);
+	tp->tx_buf = devm_kzalloc_obj(dev, *tp->tx_buf);
 	if (!tp->tx_buf)
 		return -ENOMEM;
 
-	tp->rx_buf = devm_kzalloc(dev, sizeof(*tp->rx_buf), GFP_KERNEL);
+	tp->rx_buf = devm_kzalloc_obj(dev, *tp->rx_buf);
 	if (!tp->rx_buf)
 		return -ENOMEM;
 

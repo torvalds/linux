@@ -840,7 +840,7 @@ static int ov05c10_probe(struct i2c_client *client)
 	bool full_power;
 	int ret;
 
-	ov05c10 = devm_kzalloc(&client->dev, sizeof(*ov05c10), GFP_KERNEL);
+	ov05c10 = devm_kzalloc_obj(&client->dev, *ov05c10);
 	if (!ov05c10)
 		return -ENOMEM;
 

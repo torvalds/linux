@@ -2564,7 +2564,7 @@ static int tas2781_cali_preproc(struct tasdevice_priv *priv, int i)
 		int re_org, re_cal, corrected_sin_gn, pg_id;
 		unsigned char r0_deflt[4];
 
-		spec = devm_kzalloc(priv->dev, sizeof(*spec), GFP_KERNEL);
+		spec = devm_kzalloc_obj(priv->dev, *spec);
 		if (spec == NULL)
 			return -ENOMEM;
 		priv->tasdevice[i].cali_specific = spec;

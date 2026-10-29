@@ -1310,7 +1310,7 @@ static int cygnus_ssp_probe(struct platform_device *pdev)
 	int node_count;
 	int active_port_count;
 
-	cygaud = devm_kzalloc(dev, sizeof(struct cygnus_audio), GFP_KERNEL);
+	cygaud = devm_kzalloc_obj(dev, struct cygnus_audio);
 	if (!cygaud)
 		return -ENOMEM;
 

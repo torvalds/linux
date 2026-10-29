@@ -242,7 +242,7 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	struct drm_device *drm;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

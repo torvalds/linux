@@ -980,7 +980,7 @@ static int cs35l34_i2c_probe(struct i2c_client *i2c_client)
 	int ret;
 	unsigned int reg;
 
-	cs35l34 = devm_kzalloc(&i2c_client->dev, sizeof(*cs35l34), GFP_KERNEL);
+	cs35l34 = devm_kzalloc_obj(&i2c_client->dev, *cs35l34);
 	if (!cs35l34)
 		return -ENOMEM;
 
@@ -1016,8 +1016,7 @@ static int cs35l34_i2c_probe(struct i2c_client *i2c_client)
 	if (pdata) {
 		cs35l34->pdata = *pdata;
 	} else {
-		pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata),
-				     GFP_KERNEL);
+		pdata = devm_kzalloc_obj(&i2c_client->dev, *pdata);
 		if (!pdata) {
 			ret = -ENOMEM;
 			goto err_regulator;

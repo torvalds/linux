@@ -194,7 +194,7 @@ static int yb9_kbdock_block_probe(struct wmi_device *wdev, const void *ctx)
 	struct input_dev *input_dev;
 	int ret;
 
-	d = devm_kzalloc(&wdev->dev, sizeof(*d), GFP_KERNEL);
+	d = devm_kzalloc_obj(&wdev->dev, *d);
 	if (!d)
 		return -ENOMEM;
 

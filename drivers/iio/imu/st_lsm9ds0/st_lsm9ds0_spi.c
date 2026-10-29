@@ -52,7 +52,7 @@ static int st_lsm9ds0_spi_probe(struct spi_device *spi)
 
 	st_sensors_dev_name_probe(dev, spi->modalias, sizeof(spi->modalias));
 
-	lsm9ds0 = devm_kzalloc(dev, sizeof(*lsm9ds0), GFP_KERNEL);
+	lsm9ds0 = devm_kzalloc_obj(dev, *lsm9ds0);
 	if (!lsm9ds0)
 		return -ENOMEM;
 

@@ -560,7 +560,7 @@ static struct clk_hw *sp_pll_register(struct device *dev, const char *name,
 	};
 	int ret;
 
-	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
+	pll = devm_kzalloc_obj(dev, *pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
@@ -613,8 +613,7 @@ static int sp7021_clk_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(sp_clken); i++)
 		writel((sp_clken[i] << 16) | sp_clken[i], clk_base + i * 4);
 
-	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, CLK_MAX),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(dev, *clk_data, hws, CLK_MAX);
 	if (!clk_data)
 		return -ENOMEM;
 	clk_data->num = CLK_MAX;

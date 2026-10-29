@@ -243,7 +243,7 @@ static int fsl_mqs_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	mqs_priv = devm_kzalloc(&pdev->dev, sizeof(*mqs_priv), GFP_KERNEL);
+	mqs_priv = devm_kzalloc_obj(&pdev->dev, *mqs_priv);
 	if (!mqs_priv)
 		return -ENOMEM;
 

@@ -125,7 +125,7 @@ static int phy_g12a_mipi_dphy_analog_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node, *parent_np;
 	struct regmap *map;
 
-	priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kmalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

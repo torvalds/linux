@@ -403,7 +403,7 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	struct vc4_v3d *v3d = NULL;
 	int ret;
 
-	v3d = devm_kzalloc(&pdev->dev, sizeof(*v3d), GFP_KERNEL);
+	v3d = devm_kzalloc_obj(&pdev->dev, *v3d);
 	if (!v3d)
 		return -ENOMEM;
 

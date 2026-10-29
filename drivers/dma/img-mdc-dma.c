@@ -889,7 +889,7 @@ static int mdc_dma_probe(struct platform_device *pdev)
 	u32 val;
 	int ret;
 
-	mdma = devm_kzalloc(&pdev->dev, sizeof(*mdma), GFP_KERNEL);
+	mdma = devm_kzalloc_obj(&pdev->dev, *mdma);
 	if (!mdma)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, mdma);

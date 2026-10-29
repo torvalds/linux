@@ -848,7 +848,7 @@ static int npcm7xx_create_pwm_cooling(struct device *dev,
 	int ret;
 	struct npcm7xx_cooling_device *cdev;
 
-	cdev = devm_kzalloc(dev, sizeof(*cdev), GFP_KERNEL);
+	cdev = devm_kzalloc_obj(dev, *cdev);
 	if (!cdev)
 		return -ENOMEM;
 
@@ -944,7 +944,7 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 
 	np = dev->of_node;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

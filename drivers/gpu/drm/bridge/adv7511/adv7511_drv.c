@@ -1037,8 +1037,7 @@ static int adv7511_init_regulators(struct adv7511 *adv)
 	unsigned int i;
 	int ret;
 
-	adv->supplies = devm_kcalloc(dev, num_supplies,
-				     sizeof(*adv->supplies), GFP_KERNEL);
+	adv->supplies = devm_kzalloc_objs(dev, *adv->supplies, num_supplies);
 	if (!adv->supplies)
 		return -ENOMEM;
 

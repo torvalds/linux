@@ -141,7 +141,7 @@ static int mpc52xx_wkup_gpiochip_probe(struct platform_device *ofdev)
 	struct gpio_chip *gc;
 	int ret;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 
@@ -303,7 +303,7 @@ static int mpc52xx_simple_gpiochip_probe(struct platform_device *ofdev)
 	struct mpc52xx_gpio __iomem *regs;
 	int ret;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

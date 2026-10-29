@@ -1566,7 +1566,7 @@ static int dw100_probe(struct platform_device *pdev)
 	struct video_device *vfd;
 	int ret, irq;
 
-	dw_dev = devm_kzalloc(&pdev->dev, sizeof(*dw_dev), GFP_KERNEL);
+	dw_dev = devm_kzalloc_obj(&pdev->dev, *dw_dev);
 	if (!dw_dev)
 		return -ENOMEM;
 	dw_dev->pdev = pdev;

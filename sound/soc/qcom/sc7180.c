@@ -500,7 +500,7 @@ static int sc7180_snd_platform_probe(struct platform_device *pdev)
 	bool qdsp = false, no_headphone = false;
 
 	/* Allocate the private data */
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

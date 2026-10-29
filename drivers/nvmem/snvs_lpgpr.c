@@ -99,7 +99,7 @@ static int snvs_lpgpr_probe(struct platform_device *pdev)
 	if (!node)
 		return -ENOENT;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

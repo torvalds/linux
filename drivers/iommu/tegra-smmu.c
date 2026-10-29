@@ -934,7 +934,7 @@ static struct iommu_group *tegra_smmu_device_group(struct device *dev)
 			return grp;
 		}
 
-	group = devm_kzalloc(smmu->dev, sizeof(*group), GFP_KERNEL);
+	group = devm_kzalloc_obj(smmu->dev, *group);
 	if (!group) {
 		mutex_unlock(&smmu->lock);
 		return NULL;
@@ -1110,7 +1110,7 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 	u32 value;
 	int err;
 
-	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
+	smmu = devm_kzalloc_obj(dev, *smmu);
 	if (!smmu)
 		return ERR_PTR(-ENOMEM);
 

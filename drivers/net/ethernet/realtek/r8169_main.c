@@ -6880,8 +6880,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->dash_enabled = rtl_dash_is_enabled(tp);
 
 	if (rtl_hw_support_rss(tp)) {
-		tp->rss_data = devm_kzalloc(&pdev->dev, sizeof(*tp->rss_data),
-					    GFP_KERNEL);
+		tp->rss_data = devm_kzalloc_obj(&pdev->dev, *tp->rss_data);
 		if (!tp->rss_data)
 			return -ENOMEM;
 	}

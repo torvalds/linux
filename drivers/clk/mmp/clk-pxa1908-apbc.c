@@ -123,7 +123,7 @@ static int pxa1908_apbc_probe(struct platform_device *pdev)
 {
 	struct pxa1908_clk_unit *pxa_unit;
 
-	pxa_unit = devm_kzalloc(&pdev->dev, sizeof(*pxa_unit), GFP_KERNEL);
+	pxa_unit = devm_kzalloc_obj(&pdev->dev, *pxa_unit);
 	if (!pxa_unit)
 		return -ENOMEM;
 

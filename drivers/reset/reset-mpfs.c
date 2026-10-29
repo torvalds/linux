@@ -121,7 +121,7 @@ static int mpfs_reset_mfd_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mpfs_reset *rst;
 
-	rst = devm_kzalloc(dev, sizeof(*rst), GFP_KERNEL);
+	rst = devm_kzalloc_obj(dev, *rst);
 	if (!rst)
 		return -ENOMEM;
 
@@ -157,7 +157,7 @@ static int mpfs_reset_adev_probe(struct auxiliary_device *adev,
 	struct device *dev = &adev->dev;
 	struct mpfs_reset *rst;
 
-	rst = devm_kzalloc(dev, sizeof(*rst), GFP_KERNEL);
+	rst = devm_kzalloc_obj(dev, *rst);
 	if (!rst)
 		return -ENOMEM;
 

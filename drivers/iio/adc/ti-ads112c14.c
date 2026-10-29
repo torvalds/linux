@@ -1926,21 +1926,19 @@ static int ads112c14_parse_channels(struct iio_dev *indio_dev,
 
 	num_child_nodes = device_get_named_child_node_count(dev, "channel");
 
-	data->measurements = devm_kcalloc(dev, num_child_nodes,
-					  sizeof(*data->measurements), GFP_KERNEL);
+	data->measurements = devm_kzalloc_objs(dev, *data->measurements,
+					       num_child_nodes);
 	if (!data->measurements)
 		return -ENOMEM;
 
 	num_data_chans = num_child_nodes + ARRAY_SIZE(ads112c14_sys_mon_channels);
 
-	data->channel_states = devm_kcalloc(dev, num_data_chans,
-					    sizeof(*data->channel_states),
-					    GFP_KERNEL);
+	data->channel_states = devm_kzalloc_objs(dev, *data->channel_states,
+						 num_data_chans);
 	if (!data->channel_states)
 		return -ENOMEM;
 
-	channels = devm_kcalloc(dev, num_data_chans + 1,
-				sizeof(*channels), GFP_KERNEL);
+	channels = devm_kzalloc_objs(dev, *channels, num_data_chans + 1);
 	if (!channels)
 		return -ENOMEM;
 

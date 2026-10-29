@@ -513,7 +513,7 @@ static int rproc_virtio_probe(struct platform_device *pdev)
 	if (!rvdev_data)
 		return -EINVAL;
 
-	rvdev = devm_kzalloc(dev, sizeof(*rvdev), GFP_KERNEL);
+	rvdev = devm_kzalloc_obj(dev, *rvdev);
 	if (!rvdev)
 		return -ENOMEM;
 

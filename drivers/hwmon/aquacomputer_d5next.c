@@ -1520,7 +1520,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct aqc_data *priv;
 	int ret;
 
-	priv = devm_kzalloc(&hdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&hdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

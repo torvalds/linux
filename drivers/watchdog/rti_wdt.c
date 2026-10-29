@@ -233,7 +233,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	u32 *vaddr;
 	u64 paddr;
 
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

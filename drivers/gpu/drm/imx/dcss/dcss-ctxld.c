@@ -202,7 +202,7 @@ int dcss_ctxld_init(struct dcss_dev *dcss, unsigned long ctxld_base)
 	struct dcss_ctxld *ctxld;
 	int ret;
 
-	ctxld = devm_kzalloc(dcss->dev, sizeof(*ctxld), GFP_KERNEL);
+	ctxld = devm_kzalloc_obj(dcss->dev, *ctxld);
 	if (!ctxld)
 		return -ENOMEM;
 

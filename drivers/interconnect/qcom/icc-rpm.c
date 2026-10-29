@@ -539,15 +539,14 @@ int qnoc_probe(struct platform_device *pdev)
 		cd_num = 0;
 	}
 
-	qp = devm_kzalloc(dev, struct_size(qp, intf_clks, cd_num), GFP_KERNEL);
+	qp = devm_kzalloc_flex(dev, *qp, intf_clks, cd_num);
 	if (!qp)
 		return -ENOMEM;
 
 	qp->num_intf_clks = cd_num;
 
 	if (desc->bus_clk_desc) {
-		qp->bus_clk_desc = devm_kzalloc(dev, sizeof(*qp->bus_clk_desc),
-						GFP_KERNEL);
+		qp->bus_clk_desc = devm_kzalloc_obj(dev, *qp->bus_clk_desc);
 		if (!qp->bus_clk_desc)
 			return -ENOMEM;
 
@@ -559,8 +558,7 @@ int qnoc_probe(struct platform_device *pdev)
 			return PTR_ERR(qp->bus_clk);
 	}
 
-	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),
-			    GFP_KERNEL);
+	data = devm_kzalloc_flex(dev, *data, nodes, num_nodes);
 	if (!data)
 		return -ENOMEM;
 	data->num_nodes = num_nodes;

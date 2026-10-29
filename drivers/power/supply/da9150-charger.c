@@ -512,7 +512,7 @@ static int da9150_charger_probe(struct platform_device *pdev)
 	u8 reg;
 	int ret;
 
-	charger = devm_kzalloc(dev, sizeof(struct da9150_charger), GFP_KERNEL);
+	charger = devm_kzalloc_obj(dev, struct da9150_charger);
 	if (!charger)
 		return -ENOMEM;
 

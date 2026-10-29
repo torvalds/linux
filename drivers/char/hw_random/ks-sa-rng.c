@@ -208,7 +208,7 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	int			ret;
 
-	ks_sa_rng = devm_kzalloc(dev, sizeof(*ks_sa_rng), GFP_KERNEL);
+	ks_sa_rng = devm_kzalloc_obj(dev, *ks_sa_rng);
 	if (!ks_sa_rng)
 		return -ENOMEM;
 

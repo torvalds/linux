@@ -1624,7 +1624,7 @@ static int hid_gos_cfg_probe(struct hid_device *hdev,
 	struct gos_cfg_drvdata *drvdata;
 	int ret;
 
-	drvdata = devm_kzalloc(&hdev->dev, sizeof(struct gos_cfg_drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&hdev->dev, struct gos_cfg_drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

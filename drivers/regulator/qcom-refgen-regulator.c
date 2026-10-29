@@ -197,7 +197,7 @@ static int qcom_refgen_probe(struct platform_device *pdev)
 		return -ENODATA;
 
 	if (data->has_clocks) {
-		drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+		drvdata = devm_kzalloc_obj(dev, *drvdata);
 		if (!drvdata)
 			return -ENOMEM;
 

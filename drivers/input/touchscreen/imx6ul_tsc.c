@@ -394,7 +394,7 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	u32 average_samples;
 	u32 de_glitch;
 
-	tsc = devm_kzalloc(&pdev->dev, sizeof(*tsc), GFP_KERNEL);
+	tsc = devm_kzalloc_obj(&pdev->dev, *tsc);
 	if (!tsc)
 		return -ENOMEM;
 

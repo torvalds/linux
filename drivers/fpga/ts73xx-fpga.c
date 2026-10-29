@@ -105,7 +105,7 @@ static int ts73xx_fpga_probe(struct platform_device *pdev)
 	struct ts73xx_fpga_priv *priv;
 	struct fpga_manager *mgr;
 
-	priv = devm_kzalloc(kdev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(kdev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

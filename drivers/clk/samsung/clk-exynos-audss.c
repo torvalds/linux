@@ -141,10 +141,7 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 
 	epll = ERR_PTR(-ENODEV);
 
-	clk_data = devm_kzalloc(dev,
-				struct_size(clk_data, hws,
-					    EXYNOS_AUDSS_MAX_CLKS),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(dev, *clk_data, hws, EXYNOS_AUDSS_MAX_CLKS);
 	if (!clk_data)
 		return -ENOMEM;
 

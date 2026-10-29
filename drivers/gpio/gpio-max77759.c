@@ -435,7 +435,7 @@ static int max77759_gpio_probe(struct platform_device *pdev)
 	struct gpio_irq_chip *girq;
 	int ret;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pdev->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

@@ -126,7 +126,7 @@ static struct tegra186_tmr *tegra186_tmr_create(struct tegra186_timer *tegra,
 	unsigned int offset = 0x10000 + index * 0x10000;
 	struct tegra186_tmr *tmr;
 
-	tmr = devm_kzalloc(tegra->dev, sizeof(*tmr), GFP_KERNEL);
+	tmr = devm_kzalloc_obj(tegra->dev, *tmr);
 	if (!tmr)
 		return ERR_PTR(-ENOMEM);
 
@@ -349,7 +349,7 @@ static struct tegra186_wdt *tegra186_wdt_create(struct tegra186_timer *tegra,
 
 	offset += tegra->soc->num_timers * 0x10000 + index * 0x10000;
 
-	wdt = devm_kzalloc(tegra->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(tegra->dev, *wdt);
 	if (!wdt)
 		return ERR_PTR(-ENOMEM);
 
@@ -466,7 +466,7 @@ static int tegra186_timer_probe(struct platform_device *pdev)
 	int irq;
 	int err;
 
-	tegra = devm_kzalloc(dev, sizeof(*tegra), GFP_KERNEL);
+	tegra = devm_kzalloc_obj(dev, *tegra);
 	if (!tegra)
 		return -ENOMEM;
 
@@ -484,7 +484,7 @@ static int tegra186_timer_probe(struct platform_device *pdev)
 
 	irq = err;
 
-	tegra->wdts = devm_kcalloc(dev, tegra->soc->num_wdts, sizeof(*tegra->wdts), GFP_KERNEL);
+	tegra->wdts = devm_kzalloc_objs(dev, *tegra->wdts, tegra->soc->num_wdts);
 	if (!tegra->wdts)
 		return -ENOMEM;
 

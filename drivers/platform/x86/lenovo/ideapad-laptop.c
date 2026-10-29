@@ -2278,7 +2278,7 @@ static int ideapad_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct ideapad_wmi_private *wpriv;
 
-	wpriv = devm_kzalloc(&wdev->dev, sizeof(*wpriv), GFP_KERNEL);
+	wpriv = devm_kzalloc_obj(&wdev->dev, *wpriv);
 	if (!wpriv)
 		return -ENOMEM;
 
@@ -2394,7 +2394,7 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (!adev || eval_int(adev->handle, "_CFG", &cfg))
 		return -ENODEV;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

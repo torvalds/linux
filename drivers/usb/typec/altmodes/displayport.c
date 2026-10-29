@@ -791,7 +791,7 @@ int dp_altmode_probe(struct typec_altmode *alt)
 		return -ENODEV;
 	}
 
-	dp = devm_kzalloc(&alt->dev, sizeof(*dp), GFP_KERNEL);
+	dp = devm_kzalloc_obj(&alt->dev, *dp);
 	if (!dp) {
 		typec_altmode_put_plug(plug);
 		return -ENOMEM;

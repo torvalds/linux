@@ -304,7 +304,7 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 	u32 status;
 	bool early_action;
 
-	gwdt = devm_kzalloc(dev, sizeof(*gwdt), GFP_KERNEL);
+	gwdt = devm_kzalloc_obj(dev, *gwdt);
 	if (!gwdt)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, gwdt);

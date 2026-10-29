@@ -225,7 +225,7 @@ static int lpc18xx_gpio_pin_ic_probe(struct lpc18xx_gpio_chip *gc)
 	if (!parent_domain)
 		return -ENXIO;
 
-	ic = devm_kzalloc(dev, sizeof(*ic), GFP_KERNEL);
+	ic = devm_kzalloc_obj(dev, *ic);
 	if (!ic)
 		return -ENOMEM;
 
@@ -340,7 +340,7 @@ static int lpc18xx_gpio_probe(struct platform_device *pdev)
 	int index, ret;
 	struct clk *clk;
 
-	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
+	gc = devm_kzalloc_obj(dev, *gc);
 	if (!gc)
 		return -ENOMEM;
 

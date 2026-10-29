@@ -1135,7 +1135,7 @@ static int virtio_fs_setup_dax(struct virtio_device *vdev, struct virtio_fs *fs)
 	dev_notice(&vdev->dev, "Cache len: 0x%llx @ 0x%llx\n", cache_reg.len,
 		   cache_reg.addr);
 
-	pgmap = devm_kzalloc(&vdev->dev, sizeof(*pgmap), GFP_KERNEL);
+	pgmap = devm_kzalloc_obj(&vdev->dev, *pgmap);
 	if (!pgmap)
 		return -ENOMEM;
 

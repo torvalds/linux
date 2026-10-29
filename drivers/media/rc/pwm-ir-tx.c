@@ -149,7 +149,7 @@ static int pwm_ir_probe(struct platform_device *pdev)
 	struct rc_dev *rcdev;
 	int rc;
 
-	pwm_ir = devm_kmalloc(&pdev->dev, sizeof(*pwm_ir), GFP_KERNEL);
+	pwm_ir = devm_kmalloc_obj(&pdev->dev, *pwm_ir);
 	if (!pwm_ir)
 		return -ENOMEM;
 

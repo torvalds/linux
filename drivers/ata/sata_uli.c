@@ -150,7 +150,7 @@ static int uli_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!host)
 		return -ENOMEM;
 
-	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
+	hpriv = devm_kzalloc_obj(&pdev->dev, *hpriv);
 	if (!hpriv)
 		return -ENOMEM;
 	host->private_data = hpriv;

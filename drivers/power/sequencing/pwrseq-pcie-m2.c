@@ -540,7 +540,7 @@ static int pwrseq_pcie_m2_probe(struct platform_device *pdev)
 	struct pwrseq_config config = {};
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

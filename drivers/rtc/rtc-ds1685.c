@@ -1085,7 +1085,7 @@ ds1685_rtc_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* Allocate memory for the rtc device. */
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (!rtc)
 		return -ENOMEM;
 

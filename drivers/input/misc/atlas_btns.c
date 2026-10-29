@@ -74,7 +74,7 @@ static int atlas_acpi_button_probe(struct platform_device *pdev)
 	if (!device)
 		return -ENODEV;
 
-	atlas = devm_kzalloc(&pdev->dev, sizeof(*atlas), GFP_KERNEL);
+	atlas = devm_kzalloc_obj(&pdev->dev, *atlas);
 	if (!atlas)
 		return -ENOMEM;
 

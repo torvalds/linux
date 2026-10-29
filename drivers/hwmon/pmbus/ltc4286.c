@@ -196,7 +196,7 @@ static int ltc4286_probe(struct i2c_client *client)
 	if (rsense > (INT_MAX / 1024))
 		return -EINVAL;
 
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

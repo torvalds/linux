@@ -1466,7 +1466,7 @@ static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 {
 	struct omap_uart_port_info *omap_up_info;
 
-	omap_up_info = devm_kzalloc(dev, sizeof(*omap_up_info), GFP_KERNEL);
+	omap_up_info = devm_kzalloc_obj(dev, *omap_up_info);
 	if (!omap_up_info)
 		return NULL; /* out of memory */
 
@@ -1560,7 +1560,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 	}
 
-	up = devm_kzalloc(&pdev->dev, sizeof(*up), GFP_KERNEL);
+	up = devm_kzalloc_obj(&pdev->dev, *up);
 	if (!up)
 		return -ENOMEM;
 

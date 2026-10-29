@@ -346,7 +346,7 @@ static int omap_hdmi_audio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ad = devm_kzalloc(dev, sizeof(*ad), GFP_KERNEL);
+	ad = devm_kzalloc_obj(dev, *ad);
 	if (!ad)
 		return -ENOMEM;
 	ad->dssdev = ha->dev;
@@ -375,14 +375,14 @@ static int omap_hdmi_audio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return -ENOMEM;
 
 	card->name = "HDMI";
 	card->owner = THIS_MODULE;
 	card->dai_link =
-		devm_kzalloc(dev, sizeof(*(card->dai_link)), GFP_KERNEL);
+		devm_kzalloc_obj(dev, *(card->dai_link));
 	if (!card->dai_link)
 		return -ENOMEM;
 

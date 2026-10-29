@@ -386,9 +386,9 @@ static inline bool cs35l56_is_otp_register(unsigned int reg)
 static inline int cs35l56_init_config_for_spi(struct cs35l56_base *cs35l56,
 					      struct spi_device *spi)
 {
-	cs35l56->spi_payload_buf = devm_kzalloc(&spi->dev,
-						sizeof(*cs35l56->spi_payload_buf),
-						GFP_KERNEL | GFP_DMA);
+	cs35l56->spi_payload_buf = devm_kzalloc_obj(&spi->dev,
+						    *cs35l56->spi_payload_buf,
+						    GFP_KERNEL | GFP_DMA);
 	if (!cs35l56->spi_payload_buf)
 		return -ENOMEM;
 

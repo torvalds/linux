@@ -1304,8 +1304,7 @@ static int rt1318_i2c_probe(struct i2c_client *i2c)
 	struct rt1318_priv *rt1318;
 	int ret, val, val2, dev_id;
 
-	rt1318 = devm_kzalloc(&i2c->dev, sizeof(struct rt1318_priv),
-				GFP_KERNEL);
+	rt1318 = devm_kzalloc_obj(&i2c->dev, struct rt1318_priv);
 	if (!rt1318)
 		return -ENOMEM;
 

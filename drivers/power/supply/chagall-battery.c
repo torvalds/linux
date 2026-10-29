@@ -195,7 +195,7 @@ static int chagall_battery_probe(struct i2c_client *client)
 	struct power_supply_config cfg = { };
 	int ret;
 
-	cg = devm_kzalloc(dev, sizeof(*cg), GFP_KERNEL);
+	cg = devm_kzalloc_obj(dev, *cg);
 	if (!cg)
 		return -ENOMEM;
 

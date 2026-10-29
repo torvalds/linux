@@ -1457,7 +1457,7 @@ static int vd56g3_probe(struct i2c_client *client)
 	struct vd56g3 *sensor;
 	int ret;
 
-	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

@@ -132,7 +132,7 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 
 		pdata->no_autoswitch = true;
 		pdata->num_supplies = 1;
-		pdata->supplies = devm_kzalloc(&pdev->dev, sizeof(*pdata->supplies), GFP_KERNEL);
+		pdata->supplies = devm_kzalloc_obj(&pdev->dev, *pdata->supplies);
 		if (!pdata->supplies)
 			return -ENOMEM;
 		pdata->supplies[0].supply = "vout";
@@ -143,9 +143,7 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	drvdata = devm_kzalloc(&pdev->dev,
-			       sizeof(struct userspace_consumer_data),
-			       GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pdev->dev, struct userspace_consumer_data);
 	if (drvdata == NULL)
 		return -ENOMEM;
 

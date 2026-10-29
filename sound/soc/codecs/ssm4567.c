@@ -462,7 +462,7 @@ static int ssm4567_i2c_probe(struct i2c_client *i2c)
 	struct ssm4567 *ssm4567;
 	int ret;
 
-	ssm4567 = devm_kzalloc(&i2c->dev, sizeof(*ssm4567), GFP_KERNEL);
+	ssm4567 = devm_kzalloc_obj(&i2c->dev, *ssm4567);
 	if (ssm4567 == NULL)
 		return -ENOMEM;
 

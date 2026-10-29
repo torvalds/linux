@@ -366,7 +366,7 @@ static struct sdhci_pxa_platdata *pxav3_get_mmc_pdata(struct device *dev)
 	struct sdhci_pxa_platdata *pdata;
 	u32 clk_delay_cycles;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 

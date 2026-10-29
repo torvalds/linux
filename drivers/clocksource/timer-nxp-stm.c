@@ -434,7 +434,7 @@ static int nxp_stm_timer_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return dev_err_probe(dev, PTR_ERR(clk), "Clock not found\n");
 
-	stm_timer = devm_kzalloc(dev, sizeof(*stm_timer), GFP_KERNEL);
+	stm_timer = devm_kzalloc_obj(dev, *stm_timer);
 	if (!stm_timer)
 		return -ENOMEM;
 

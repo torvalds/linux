@@ -480,7 +480,7 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 	parent = &pci->dev;
 
 	if (adata->is_sdw_dev || adata->is_pdm_dev) {
-		adata->res = devm_kzalloc(&pci->dev, sizeof(struct resource), GFP_KERNEL);
+		adata->res = devm_kzalloc_obj(&pci->dev, struct resource);
 		if (!adata->res) {
 			ret = -ENOMEM;
 			goto de_init;
@@ -550,8 +550,7 @@ de_init:
 
 static int acp_hw_init_ops(struct acp63_dev_data *adata, struct pci_dev *pci)
 {
-	adata->hw_ops = devm_kzalloc(&pci->dev, sizeof(struct acp_hw_ops),
-				     GFP_KERNEL);
+	adata->hw_ops = devm_kzalloc_obj(&pci->dev, struct acp_hw_ops);
 	if (!adata->hw_ops)
 		return -ENOMEM;
 
@@ -607,8 +606,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		dev_err(&pci->dev, "pci_request_regions failed\n");
 		goto disable_pci;
 	}
-	adata = devm_kzalloc(&pci->dev, sizeof(struct acp63_dev_data),
-			     GFP_KERNEL);
+	adata = devm_kzalloc_obj(&pci->dev, struct acp63_dev_data);
 	if (!adata) {
 		ret = -ENOMEM;
 		goto release_regions;

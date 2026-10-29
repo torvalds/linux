@@ -304,7 +304,7 @@ static int imagis_probe(struct i2c_client *i2c)
 	struct imagis_ts *ts;
 	int chip_id, error;
 
-	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

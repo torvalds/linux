@@ -343,7 +343,7 @@ static int dwc3_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	pci_set_master(pci);
 
-	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
+	dwc = devm_kzalloc_obj(dev, *dwc);
 	if (!dwc)
 		return -ENOMEM;
 

@@ -718,7 +718,7 @@ static int tegra210_mvc_platform_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int err;
 
-	mvc = devm_kzalloc(dev, sizeof(*mvc), GFP_KERNEL);
+	mvc = devm_kzalloc_obj(dev, *mvc);
 	if (!mvc)
 		return -ENOMEM;
 

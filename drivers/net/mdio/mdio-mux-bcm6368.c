@@ -93,7 +93,7 @@ static int bcm6368_mdiomux_probe(struct platform_device *pdev)
 	struct resource *res;
 	int rc;
 
-	md = devm_kzalloc(&pdev->dev, sizeof(*md), GFP_KERNEL);
+	md = devm_kzalloc_obj(&pdev->dev, *md);
 	if (!md)
 		return -ENOMEM;
 	md->dev = &pdev->dev;

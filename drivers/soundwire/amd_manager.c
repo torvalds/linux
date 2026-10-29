@@ -897,13 +897,12 @@ static int amd_sdw_register_dais(struct amd_sdw_manager *amd_manager)
 
 	dev = amd_manager->dev;
 	num_dais = amd_manager->num_dout_ports + amd_manager->num_din_ports;
-	dais = devm_kcalloc(dev, num_dais, sizeof(*dais), GFP_KERNEL);
+	dais = devm_kzalloc_objs(dev, *dais, num_dais);
 	if (!dais)
 		return -ENOMEM;
 
-	dai_runtime_array = devm_kcalloc(dev, num_dais,
-					 sizeof(struct sdw_amd_dai_runtime *),
-					 GFP_KERNEL);
+	dai_runtime_array = devm_kzalloc_objs(dev, struct sdw_amd_dai_runtime *,
+					      num_dais);
 	if (!dai_runtime_array)
 		return -ENOMEM;
 	amd_manager->dai_runtime_array = dai_runtime_array;
@@ -1064,7 +1063,7 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 	struct amd_sdw_manager *amd_manager;
 	int ret;
 
-	amd_manager = devm_kzalloc(dev, sizeof(struct amd_sdw_manager), GFP_KERNEL);
+	amd_manager = devm_kzalloc_obj(dev, struct amd_sdw_manager);
 	if (!amd_manager)
 		return -ENOMEM;
 

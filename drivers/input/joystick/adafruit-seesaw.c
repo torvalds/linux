@@ -233,7 +233,7 @@ static int seesaw_probe(struct i2c_client *client)
 	/* Wait for the registers to reset before proceeding */
 	usleep_range(10000, 15000);
 
-	seesaw = devm_kzalloc(&client->dev, sizeof(*seesaw), GFP_KERNEL);
+	seesaw = devm_kzalloc_obj(&client->dev, *seesaw);
 	if (!seesaw)
 		return -ENOMEM;
 

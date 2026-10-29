@@ -1407,7 +1407,7 @@ static int et8ek8_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	int ret;
 
-	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(&client->dev, *sensor);
 	if (!sensor)
 		return -ENOMEM;
 

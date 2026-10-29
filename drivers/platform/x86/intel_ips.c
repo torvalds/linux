@@ -1431,7 +1431,7 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (dmi_check_system(ips_blacklist))
 		return -ENODEV;
 
-	ips = devm_kzalloc(&dev->dev, sizeof(*ips), GFP_KERNEL);
+	ips = devm_kzalloc_obj(&dev->dev, *ips);
 	if (!ips)
 		return -ENOMEM;
 

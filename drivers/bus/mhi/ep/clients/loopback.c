@@ -78,7 +78,7 @@ static int mhi_ep_loopback_probe(struct mhi_ep_device *mhi_dev, const struct mhi
 {
 	struct mhi_ep_loopback *mhi_ep_lb;
 
-	mhi_ep_lb = devm_kzalloc(&mhi_dev->dev, sizeof(*mhi_ep_lb), GFP_KERNEL);
+	mhi_ep_lb = devm_kzalloc_obj(&mhi_dev->dev, *mhi_ep_lb);
 	if (!mhi_ep_lb)
 		return -ENOMEM;
 

@@ -3540,8 +3540,7 @@ static int wcd939x_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	wcd939x = devm_kzalloc(dev, sizeof(struct wcd939x_priv),
-			       GFP_KERNEL);
+	wcd939x = devm_kzalloc_obj(dev, struct wcd939x_priv);
 	if (!wcd939x)
 		return -ENOMEM;
 

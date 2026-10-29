@@ -113,7 +113,7 @@ static int max7360_rotary_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return dev_err_probe(dev, irq, "Failed to get IRQ\n");
 
-	max7360_rotary = devm_kzalloc(dev, sizeof(*max7360_rotary), GFP_KERNEL);
+	max7360_rotary = devm_kzalloc_obj(dev, *max7360_rotary);
 	if (!max7360_rotary)
 		return -ENOMEM;
 

@@ -138,9 +138,8 @@ static int rt1308_read_prop(struct sdw_slave *slave)
 
 	/* for sink */
 	nval = hweight32(prop->sink_ports);
-	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
-						sizeof(*prop->sink_dpn_prop),
-						GFP_KERNEL);
+	prop->sink_dpn_prop = devm_kzalloc_objs(&slave->dev,
+						*prop->sink_dpn_prop, nval);
 	if (!prop->sink_dpn_prop)
 		return -ENOMEM;
 
@@ -681,7 +680,7 @@ static int rt1308_sdw_init(struct device *dev, struct regmap *regmap,
 	struct rt1308_sdw_priv *rt1308;
 	int ret;
 
-	rt1308 = devm_kzalloc(dev, sizeof(*rt1308), GFP_KERNEL);
+	rt1308 = devm_kzalloc_obj(dev, *rt1308);
 	if (!rt1308)
 		return -ENOMEM;
 

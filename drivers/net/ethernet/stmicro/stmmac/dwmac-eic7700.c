@@ -183,7 +183,7 @@ static int eic7700_dwmac_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(plat_dat),
 				"dt configuration failed\n");
 
-	dwc_priv = devm_kzalloc(&pdev->dev, sizeof(*dwc_priv), GFP_KERNEL);
+	dwc_priv = devm_kzalloc_obj(&pdev->dev, *dwc_priv);
 	if (!dwc_priv)
 		return -ENOMEM;
 
@@ -295,10 +295,8 @@ static int eic7700_dwmac_probe(struct platform_device *pdev)
 		dwc_priv->has_rxd_offset = true;
 
 	plat_dat->num_clks = ARRAY_SIZE(eic7700_clk_names);
-	plat_dat->clks = devm_kcalloc(&pdev->dev,
-				      plat_dat->num_clks,
-				      sizeof(*plat_dat->clks),
-				      GFP_KERNEL);
+	plat_dat->clks = devm_kzalloc_objs(&pdev->dev, *plat_dat->clks,
+					   plat_dat->num_clks);
 	if (!plat_dat->clks)
 		return -ENOMEM;
 

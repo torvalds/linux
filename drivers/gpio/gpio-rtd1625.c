@@ -543,7 +543,7 @@ static int rtd1625_gpio_probe(struct platform_device *pdev)
 	void __iomem *irq_base;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 
@@ -562,8 +562,8 @@ static int rtd1625_gpio_probe(struct platform_device *pdev)
 	raw_spin_lock_init(&data->lock);
 	platform_set_drvdata(pdev, data);
 
-	data->save_regs = devm_kcalloc(dev, data->info->num_gpios, sizeof(*data->save_regs),
-				       GFP_KERNEL);
+	data->save_regs = devm_kzalloc_objs(dev, *data->save_regs,
+					    data->info->num_gpios);
 	if (!data->save_regs)
 		return -ENOMEM;
 

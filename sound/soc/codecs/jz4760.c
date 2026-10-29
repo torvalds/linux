@@ -808,7 +808,7 @@ static int jz4760_codec_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	codec = devm_kzalloc(dev, sizeof(*codec), GFP_KERNEL);
+	codec = devm_kzalloc_obj(dev, *codec);
 	if (!codec)
 		return -ENOMEM;
 

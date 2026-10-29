@@ -3290,7 +3290,7 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	dc = devm_kzalloc(&pdev->dev, sizeof(*dc), GFP_KERNEL);
+	dc = devm_kzalloc_obj(&pdev->dev, *dc);
 	if (!dc)
 		return -ENOMEM;
 

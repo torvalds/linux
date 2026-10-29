@@ -146,9 +146,9 @@ static int panfrost_regulator_init(struct panfrost_device *pfdev)
 {
 	int ret, i;
 
-	pfdev->regulators = devm_kcalloc(pfdev->base.dev, pfdev->comp->num_supplies,
-					 sizeof(*pfdev->regulators),
-					 GFP_KERNEL);
+	pfdev->regulators = devm_kzalloc_objs(pfdev->base.dev,
+					      *pfdev->regulators,
+					      pfdev->comp->num_supplies);
 	if (!pfdev->regulators)
 		return -ENOMEM;
 

@@ -1971,7 +1971,7 @@ static int q6afe_probe(struct apr_device *adev)
 	struct q6afe *afe;
 	struct device *dev = &adev->dev;
 
-	afe = devm_kzalloc(dev, sizeof(*afe), GFP_KERNEL);
+	afe = devm_kzalloc_obj(dev, *afe);
 	if (!afe)
 		return -ENOMEM;
 

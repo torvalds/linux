@@ -687,8 +687,8 @@ static int bd96801_i2c_probe(struct i2c_client *i2c)
 
 	num_regu_irqs = ddata->num_intb_irqs + num_errb;
 
-	regulator_res = devm_kcalloc(&i2c->dev, num_regu_irqs,
-				     sizeof(*regulator_res), GFP_KERNEL);
+	regulator_res = devm_kzalloc_objs(&i2c->dev, *regulator_res,
+					  num_regu_irqs);
 	if (!regulator_res)
 		return -ENOMEM;
 

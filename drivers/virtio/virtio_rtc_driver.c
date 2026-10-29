@@ -163,7 +163,7 @@ static struct viortc_msg *viortc_msg_init(struct viortc_dev *viortc,
 	struct virtio_rtc_req_head *req_head;
 	struct viortc_msg *msg;
 
-	msg = devm_kzalloc(dev, sizeof(*msg), GFP_KERNEL);
+	msg = devm_kzalloc_obj(dev, *msg);
 	if (!msg)
 		return NULL;
 
@@ -1099,8 +1099,8 @@ static int viortc_clocks_init(struct viortc_dev *viortc)
 	viortc->num_clocks = num_clocks;
 
 	viortc->clocks_to_unregister =
-		devm_kcalloc(&viortc->vdev->dev, num_clocks,
-			     sizeof(*viortc->clocks_to_unregister), GFP_KERNEL);
+		devm_kzalloc_objs(&viortc->vdev->dev,
+				  *viortc->clocks_to_unregister, num_clocks);
 	if (!viortc->clocks_to_unregister)
 		return -ENOMEM;
 
@@ -1182,7 +1182,7 @@ static int viortc_alloc_vq_bufs(struct viortc_dev *viortc,
 	unsigned int i;
 	void *buf;
 
-	buf_list = devm_kcalloc(dev, num_elems, sizeof(*buf_list), GFP_KERNEL);
+	buf_list = devm_kzalloc_objs(dev, *buf_list, num_elems);
 	if (!buf_list)
 		return -ENOMEM;
 
@@ -1282,7 +1282,7 @@ static int viortc_probe(struct virtio_device *vdev)
 	bool notify;
 	int ret;
 
-	viortc = devm_kzalloc(&vdev->dev, sizeof(*viortc), GFP_KERNEL);
+	viortc = devm_kzalloc_obj(&vdev->dev, *viortc);
 	if (!viortc)
 		return -ENOMEM;
 

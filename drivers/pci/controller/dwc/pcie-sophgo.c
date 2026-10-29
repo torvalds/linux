@@ -239,7 +239,7 @@ static int sophgo_pcie_probe(struct platform_device *pdev)
 	struct sophgo_pcie *sophgo;
 	int ret;
 
-	sophgo = devm_kzalloc(dev, sizeof(*sophgo), GFP_KERNEL);
+	sophgo = devm_kzalloc_obj(dev, *sophgo);
 	if (!sophgo)
 		return -ENOMEM;
 

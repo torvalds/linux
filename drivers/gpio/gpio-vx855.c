@@ -237,7 +237,7 @@ static int vx855gpio_probe(struct platform_device *pdev)
 	if (!res_gpi || !res_gpo)
 		return -EBUSY;
 
-	vg = devm_kzalloc(&pdev->dev, sizeof(*vg), GFP_KERNEL);
+	vg = devm_kzalloc_obj(&pdev->dev, *vg);
 	if (!vg)
 		return -ENOMEM;
 

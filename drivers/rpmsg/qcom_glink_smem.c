@@ -263,8 +263,8 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 
 	smem->remote_pid = remote_pid;
 
-	rx_pipe = devm_kzalloc(dev, sizeof(*rx_pipe), GFP_KERNEL);
-	tx_pipe = devm_kzalloc(dev, sizeof(*tx_pipe), GFP_KERNEL);
+	rx_pipe = devm_kzalloc_obj(dev, *rx_pipe);
+	tx_pipe = devm_kzalloc_obj(dev, *tx_pipe);
 	if (!rx_pipe || !tx_pipe) {
 		ret = -ENOMEM;
 		goto err_put_dev;

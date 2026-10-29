@@ -345,7 +345,7 @@ static int hi3798cv200_crg_probe(struct platform_device *pdev)
 {
 	struct hisi_crg_dev *crg;
 
-	crg = devm_kmalloc(&pdev->dev, sizeof(*crg), GFP_KERNEL);
+	crg = devm_kmalloc_obj(&pdev->dev, *crg);
 	if (!crg)
 		return -ENOMEM;
 

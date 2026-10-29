@@ -834,7 +834,7 @@ static int scmi_pinctrl_protocol_init(const struct scmi_protocol_handle *ph)
 	dev_dbg(ph->dev, "Pinctrl Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
-	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
+	pinfo = devm_kzalloc_obj(ph->dev, *pinfo);
 	if (!pinfo)
 		return -ENOMEM;
 
@@ -842,18 +842,17 @@ static int scmi_pinctrl_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	pinfo->pins = devm_kcalloc(ph->dev, pinfo->nr_pins,
-				   sizeof(*pinfo->pins), GFP_KERNEL);
+	pinfo->pins = devm_kzalloc_objs(ph->dev, *pinfo->pins, pinfo->nr_pins);
 	if (!pinfo->pins)
 		return -ENOMEM;
 
-	pinfo->groups = devm_kcalloc(ph->dev, pinfo->nr_groups,
-				     sizeof(*pinfo->groups), GFP_KERNEL);
+	pinfo->groups = devm_kzalloc_objs(ph->dev, *pinfo->groups,
+					  pinfo->nr_groups);
 	if (!pinfo->groups)
 		return -ENOMEM;
 
-	pinfo->functions = devm_kcalloc(ph->dev, pinfo->nr_functions,
-					sizeof(*pinfo->functions), GFP_KERNEL);
+	pinfo->functions = devm_kzalloc_objs(ph->dev, *pinfo->functions,
+					     pinfo->nr_functions);
 	if (!pinfo->functions)
 		return -ENOMEM;
 

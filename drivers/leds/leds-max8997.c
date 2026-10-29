@@ -238,7 +238,7 @@ static int max8997_led_probe(struct platform_device *pdev)
 	char name[20];
 	int ret = 0;
 
-	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(&pdev->dev, *led);
 	if (led == NULL)
 		return -ENOMEM;
 

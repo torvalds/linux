@@ -228,7 +228,7 @@ void amd_mp2_stb_init(struct amd_pmc_dev *dev)
 	struct pci_dev *pdev;
 	int rc;
 
-	mp2 = devm_kzalloc(dev->dev, sizeof(*mp2), GFP_KERNEL);
+	mp2 = devm_kzalloc_obj(dev->dev, *mp2);
 	if (!mp2)
 		return;
 

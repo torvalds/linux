@@ -1300,8 +1300,8 @@ int aw88399_request_firmware_file(struct aw88399 *aw88399, const char *fw_name)
 	dev_dbg(aw88399->aw_pa->dev, "loaded %s - size: %zu\n",
 			fw_name, cont ? cont->size : 0);
 
-	aw88399->aw_cfg = devm_kzalloc(aw88399->aw_pa->dev,
-			struct_size(aw88399->aw_cfg, data, cont->size), GFP_KERNEL);
+	aw88399->aw_cfg = devm_kzalloc_flex(aw88399->aw_pa->dev,
+					    *aw88399->aw_cfg, data, cont->size);
 	if (!aw88399->aw_cfg)
 		return -ENOMEM;
 
@@ -1376,7 +1376,7 @@ int aw88399_init(struct aw88399 *aw88399, struct i2c_client *i2c, struct regmap 
 	}
 	dev_dbg(&i2c->dev, "chip id = %x\n", chip_id);
 
-	aw_dev = devm_kzalloc(&i2c->dev, sizeof(*aw_dev), GFP_KERNEL);
+	aw_dev = devm_kzalloc_obj(&i2c->dev, *aw_dev);
 	if (!aw_dev)
 		return -ENOMEM;
 	aw88399->aw_pa = aw_dev;

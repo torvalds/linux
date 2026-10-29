@@ -345,7 +345,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pci_dev,
 	struct amd_mp2_dev *privdata;
 	int rc;
 
-	privdata = devm_kzalloc(&pci_dev->dev, sizeof(*privdata), GFP_KERNEL);
+	privdata = devm_kzalloc_obj(&pci_dev->dev, *privdata);
 	if (!privdata)
 		return -ENOMEM;
 

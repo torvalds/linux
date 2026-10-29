@@ -201,8 +201,7 @@ static int da8xx_rproc_get_internal_memories(struct platform_device *pdev,
 	struct resource *res;
 	int i;
 
-	drproc->mem = devm_kcalloc(dev, num_mems, sizeof(*drproc->mem),
-				   GFP_KERNEL);
+	drproc->mem = devm_kzalloc_objs(dev, *drproc->mem, num_mems);
 	if (!drproc->mem)
 		return -ENOMEM;
 

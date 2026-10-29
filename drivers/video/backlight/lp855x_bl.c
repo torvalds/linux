@@ -346,7 +346,7 @@ static int lp855x_parse_dt(struct lp855x *lp)
 		struct device_node *child;
 		int i = 0;
 
-		rom = devm_kcalloc(dev, rom_length, sizeof(*rom), GFP_KERNEL);
+		rom = devm_kzalloc_objs(dev, *rom, rom_length);
 		if (!rom)
 			return -ENOMEM;
 
@@ -403,7 +403,7 @@ static int lp855x_probe(struct i2c_client *cl)
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
 
-	lp = devm_kzalloc(dev, sizeof(struct lp855x), GFP_KERNEL);
+	lp = devm_kzalloc_obj(dev, struct lp855x);
 	if (!lp)
 		return -ENOMEM;
 
@@ -440,7 +440,7 @@ static int lp855x_probe(struct i2c_client *cl)
 	}
 
 	if (!lp->pdata) {
-		lp->pdata = devm_kzalloc(dev, sizeof(*lp->pdata), GFP_KERNEL);
+		lp->pdata = devm_kzalloc_obj(dev, *lp->pdata);
 		if (!lp->pdata)
 			return -ENOMEM;
 

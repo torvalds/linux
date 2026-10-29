@@ -27,7 +27,7 @@ int mt8186_adsp_init_clock(struct snd_sof_dev *sdev)
 	struct device *dev = sdev->dev;
 	int i;
 
-	priv->clk = devm_kcalloc(dev, ADSP_CLK_MAX, sizeof(*priv->clk), GFP_KERNEL);
+	priv->clk = devm_kzalloc_objs(dev, *priv->clk, ADSP_CLK_MAX);
 	if (!priv->clk)
 		return -ENOMEM;
 

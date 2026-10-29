@@ -94,7 +94,7 @@ static int sysconfig_spi_probe(struct spi_device *spi)
 	struct sysconfig_priv *priv;
 	const u32 *spi_max_speed;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -31,7 +31,7 @@ const struct lpddr2_min_tck *of_get_min_tck(struct device_node *np,
 	int			ret = 0;
 	struct lpddr2_min_tck	*min;
 
-	min = devm_kzalloc(dev, sizeof(*min), GFP_KERNEL);
+	min = devm_kzalloc_obj(dev, *min);
 	if (!min)
 		goto default_min_tck;
 
@@ -125,8 +125,7 @@ const struct lpddr2_timings *of_get_ddr_timings(struct device_node *np_ddr,
 			arr_sz++;
 
 	if (arr_sz)
-		timings = devm_kcalloc(dev, arr_sz, sizeof(*timings),
-				       GFP_KERNEL);
+		timings = devm_kzalloc_objs(dev, *timings, arr_sz);
 
 	if (!timings)
 		goto default_timings;
@@ -168,7 +167,7 @@ const struct lpddr3_min_tck *of_lpddr3_get_min_tck(struct device_node *np,
 	int			ret = 0;
 	struct lpddr3_min_tck	*min;
 
-	min = devm_kzalloc(dev, sizeof(*min), GFP_KERNEL);
+	min = devm_kzalloc_obj(dev, *min);
 	if (!min)
 		goto default_min_tck;
 
@@ -275,8 +274,7 @@ const struct lpddr3_timings
 			arr_sz++;
 
 	if (arr_sz)
-		timings = devm_kcalloc(dev, arr_sz, sizeof(*timings),
-				       GFP_KERNEL);
+		timings = devm_kzalloc_objs(dev, *timings, arr_sz);
 
 	if (!timings)
 		goto default_timings;
@@ -389,7 +387,7 @@ const struct lpddr2_info
 	if (!info.manufacturer_id)
 		info.manufacturer_id = -ENOENT;
 
-	ret_info = devm_kzalloc(dev, sizeof(*ret_info), GFP_KERNEL);
+	ret_info = devm_kzalloc_obj(dev, *ret_info);
 	if (ret_info)
 		*ret_info = info;
 

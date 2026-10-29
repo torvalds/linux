@@ -1950,7 +1950,7 @@ static int tvaudio_probe(struct i2c_client *client)
 		printk(KERN_CONT "\n");
 	}
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 	sd = &chip->sd;

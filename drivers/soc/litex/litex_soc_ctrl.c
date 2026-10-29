@@ -90,7 +90,7 @@ static int litex_soc_ctrl_probe(struct platform_device *pdev)
 	struct litex_soc_ctrl_device *soc_ctrl_dev;
 	int error;
 
-	soc_ctrl_dev = devm_kzalloc(&pdev->dev, sizeof(*soc_ctrl_dev), GFP_KERNEL);
+	soc_ctrl_dev = devm_kzalloc_obj(&pdev->dev, *soc_ctrl_dev);
 	if (!soc_ctrl_dev)
 		return -ENOMEM;
 

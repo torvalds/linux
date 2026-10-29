@@ -816,7 +816,7 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 	unsigned int sharpness_max;
 	int err, irq;
 
-	ipu = devm_kzalloc(dev, sizeof(*ipu), GFP_KERNEL);
+	ipu = devm_kzalloc_obj(dev, *ipu);
 	if (!ipu)
 		return -ENOMEM;
 

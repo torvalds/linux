@@ -409,8 +409,7 @@ int k3_rproc_of_get_memories(struct platform_device *pdev,
 	int i;
 
 	num_mems = data->num_mems;
-	kproc->mem = devm_kcalloc(kproc->dev, num_mems,
-				  sizeof(*kproc->mem), GFP_KERNEL);
+	kproc->mem = devm_kzalloc_objs(kproc->dev, *kproc->mem, num_mems);
 	if (!kproc->mem)
 		return -ENOMEM;
 
@@ -490,7 +489,7 @@ int k3_reserved_mem_init(struct k3_rproc *kproc)
 		return ret;
 
 	num_rmems--;
-	kproc->rmem = devm_kcalloc(dev, num_rmems, sizeof(*kproc->rmem), GFP_KERNEL);
+	kproc->rmem = devm_kzalloc_objs(dev, *kproc->rmem, num_rmems);
 	if (!kproc->rmem)
 		return -ENOMEM;
 

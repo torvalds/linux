@@ -591,7 +591,7 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "Couldn't determine GPIO banks\n");
 	}
 
-	kona_gpio = devm_kzalloc(dev, struct_size(kona_gpio, banks, ret), GFP_KERNEL);
+	kona_gpio = devm_kzalloc_flex(dev, *kona_gpio, banks, ret);
 	if (!kona_gpio)
 		return -ENOMEM;
 

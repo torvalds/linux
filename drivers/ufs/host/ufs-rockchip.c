@@ -143,7 +143,7 @@ static int ufs_rockchip_common_init(struct ufs_hba *hba)
 	struct ufs_rockchip_host *host;
 	int err;
 
-	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(dev, *host);
 	if (!host)
 		return -ENOMEM;
 

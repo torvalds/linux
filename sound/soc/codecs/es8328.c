@@ -892,7 +892,7 @@ int es8328_probe(struct device *dev, struct regmap *regmap)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	es8328 = devm_kzalloc(dev, sizeof(*es8328), GFP_KERNEL);
+	es8328 = devm_kzalloc_obj(dev, *es8328);
 	if (es8328 == NULL)
 		return -ENOMEM;
 

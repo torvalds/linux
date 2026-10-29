@@ -890,7 +890,7 @@ static int ast2700_soc_clk_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	clk_ctrl = devm_kzalloc(dev, sizeof(*clk_ctrl), GFP_KERNEL);
+	clk_ctrl = devm_kzalloc_obj(dev, *clk_ctrl);
 	if (!clk_ctrl)
 		return -ENOMEM;
 	clk_ctrl->dev = dev;
@@ -911,8 +911,8 @@ static int ast2700_soc_clk_probe(struct platform_device *pdev)
 	clk_ctrl->clk_data = clk_data;
 	reset_name = devm_kasprintf(dev, GFP_KERNEL, "reset%d", clk_data->scu);
 
-	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws, clk_data->nr_clks),
-				   GFP_KERNEL);
+	clk_hw_data = devm_kzalloc_flex(dev, *clk_hw_data, hws,
+					clk_data->nr_clks);
 	if (!clk_hw_data)
 		return -ENOMEM;
 

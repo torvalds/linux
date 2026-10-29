@@ -372,7 +372,7 @@ static int saa7110_probe(struct i2c_client *client)
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
+	decoder = devm_kzalloc_obj(&client->dev, *decoder);
 	if (!decoder)
 		return -ENOMEM;
 	sd = &decoder->sd;

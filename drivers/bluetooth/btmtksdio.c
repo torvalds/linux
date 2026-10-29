@@ -1418,7 +1418,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 	bool restore_node;
 	int err;
 
-	bdev = devm_kzalloc(&func->dev, sizeof(*bdev), GFP_KERNEL);
+	bdev = devm_kzalloc_obj(&func->dev, *bdev);
 	if (!bdev)
 		return -ENOMEM;
 

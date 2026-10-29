@@ -185,7 +185,7 @@ static int ls_extirq_probe(struct platform_device *pdev)
 	if (!parent_domain)
 		return dev_err_probe(dev, -EPROBE_DEFER, "Cannot find parent domain\n");
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return dev_err_probe(dev, -ENOMEM, "Failed to allocate memory\n");
 

@@ -254,8 +254,7 @@ static int wm8728_spi_probe(struct spi_device *spi)
 	struct wm8728_priv *wm8728;
 	int ret;
 
-	wm8728 = devm_kzalloc(&spi->dev, sizeof(struct wm8728_priv),
-			      GFP_KERNEL);
+	wm8728 = devm_kzalloc_obj(&spi->dev, struct wm8728_priv);
 	if (wm8728 == NULL)
 		return -ENOMEM;
 
@@ -286,8 +285,7 @@ static int wm8728_i2c_probe(struct i2c_client *i2c)
 	struct wm8728_priv *wm8728;
 	int ret;
 
-	wm8728 = devm_kzalloc(&i2c->dev, sizeof(struct wm8728_priv),
-			      GFP_KERNEL);
+	wm8728 = devm_kzalloc_obj(&i2c->dev, struct wm8728_priv);
 	if (wm8728 == NULL)
 		return -ENOMEM;
 

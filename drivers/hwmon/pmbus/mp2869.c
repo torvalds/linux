@@ -620,8 +620,7 @@ static int mp2869_probe(struct i2c_client *client)
 	struct pmbus_driver_info *info;
 	struct mp2869_data *data;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct mp2869_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct mp2869_data);
 	if (!data)
 		return -ENOMEM;
 

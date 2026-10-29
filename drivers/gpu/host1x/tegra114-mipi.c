@@ -449,7 +449,7 @@ static int tegra_mipi_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
-	mipi = devm_kzalloc(&pdev->dev, sizeof(*mipi), GFP_KERNEL);
+	mipi = devm_kzalloc_obj(&pdev->dev, *mipi);
 	if (!mipi)
 		return -ENOMEM;
 

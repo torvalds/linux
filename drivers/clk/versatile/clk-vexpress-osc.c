@@ -69,7 +69,7 @@ static int vexpress_osc_probe(struct platform_device *pdev)
 	u32 range[2];
 	int ret;
 
-	osc = devm_kzalloc(&pdev->dev, sizeof(*osc), GFP_KERNEL);
+	osc = devm_kzalloc_obj(&pdev->dev, *osc);
 	if (!osc)
 		return -ENOMEM;
 

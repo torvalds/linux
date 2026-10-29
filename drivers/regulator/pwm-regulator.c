@@ -361,7 +361,7 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, -EINVAL,
 				     "Device Tree node missing\n");
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&pdev->dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

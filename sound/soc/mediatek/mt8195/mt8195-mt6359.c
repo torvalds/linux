@@ -1381,7 +1381,7 @@ static int mt8195_mt6359_soc_card_probe(struct mtk_soc_card_data *soc_card_data,
 	u8 codec_init = 0;
 	int i;
 
-	mach_priv = devm_kzalloc(card->dev, sizeof(*mach_priv), GFP_KERNEL);
+	mach_priv = devm_kzalloc_obj(card->dev, *mach_priv);
 	if (!mach_priv)
 		return -ENOMEM;
 

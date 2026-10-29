@@ -242,7 +242,7 @@ static int ad7418_probe(struct i2c_client *client)
 					I2C_FUNC_SMBUS_WORD_DATA))
 		return -EOPNOTSUPP;
 
-	data = devm_kzalloc(dev, sizeof(struct ad7418_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct ad7418_data);
 	if (!data)
 		return -ENOMEM;
 

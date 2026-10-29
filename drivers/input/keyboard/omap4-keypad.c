@@ -352,7 +352,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	keypad_data = devm_kzalloc(dev, sizeof(*keypad_data), GFP_KERNEL);
+	keypad_data = devm_kzalloc_obj(dev, *keypad_data);
 	if (!keypad_data) {
 		dev_err(dev, "keypad_data memory allocation failed\n");
 		return -ENOMEM;
@@ -427,10 +427,8 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 
 	keypad_data->row_shift = get_count_order(keypad_data->cols);
 	max_keys = keypad_data->rows << keypad_data->row_shift;
-	keypad_data->keymap = devm_kcalloc(dev,
-					   max_keys,
-					   sizeof(keypad_data->keymap[0]),
-					   GFP_KERNEL);
+	keypad_data->keymap = devm_kzalloc_objs(dev, keypad_data->keymap[0],
+						max_keys);
 	if (!keypad_data->keymap) {
 		dev_err(dev, "Not enough memory for keymap\n");
 		return -ENOMEM;

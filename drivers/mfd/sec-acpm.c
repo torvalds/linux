@@ -451,7 +451,7 @@ static struct regmap *sec_pmic_acpm_regmap_init(struct device *dev,
 	struct sec_pmic_acpm_bus_context *ctx;
 	struct regmap *regmap;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
@@ -495,7 +495,7 @@ static int sec_pmic_acpm_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	shared_ctx = devm_kzalloc(dev, sizeof(*shared_ctx), GFP_KERNEL);
+	shared_ctx = devm_kzalloc_obj(dev, *shared_ctx);
 	if (!shared_ctx)
 		return -ENOMEM;
 

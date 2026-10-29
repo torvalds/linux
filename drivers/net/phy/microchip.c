@@ -269,7 +269,7 @@ static int lan88xx_probe(struct phy_device *phydev)
 	u32 led_modes[4];
 	int len;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

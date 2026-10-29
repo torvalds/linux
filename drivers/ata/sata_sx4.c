@@ -284,7 +284,7 @@ static int pdc_port_start(struct ata_port *ap)
 	struct device *dev = ap->host->dev;
 	struct pdc_port_priv *pp;
 
-	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
+	pp = devm_kzalloc_obj(dev, *pp);
 	if (!pp)
 		return -ENOMEM;
 
@@ -1402,7 +1402,7 @@ static int pdc_sata_init_one(struct pci_dev *pdev,
 
 	/* allocate host */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 4);
-	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
+	hpriv = devm_kzalloc_obj(&pdev->dev, *hpriv);
 	if (!host || !hpriv)
 		return -ENOMEM;
 

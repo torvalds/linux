@@ -281,8 +281,7 @@ static int imx93_clocks_probe(struct platform_device *pdev)
 	int i, ret;
 	const unsigned long plat = (unsigned long)device_get_match_data(&pdev->dev);
 
-	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws,
-					  IMX93_CLK_END), GFP_KERNEL);
+	clk_hw_data = devm_kzalloc_flex(dev, *clk_hw_data, hws, IMX93_CLK_END);
 	if (!clk_hw_data)
 		return -ENOMEM;
 

@@ -494,7 +494,7 @@ static int google_usb_phy_parse_clocks(struct google_usb_phy *gphy)
 		struct google_usb_phy_instance *inst = &gphy->insts[id];
 
 		inst->num_clks = cfg->num_clks;
-		inst->clks = devm_kcalloc(dev, inst->num_clks, sizeof(*inst->clks), GFP_KERNEL);
+		inst->clks = devm_kzalloc_objs(dev, *inst->clks, inst->num_clks);
 		if (!inst->clks)
 			return -ENOMEM;
 
@@ -519,7 +519,7 @@ static int google_usb_phy_parse_resets(struct google_usb_phy *gphy)
 		struct google_usb_phy_instance *inst = &gphy->insts[id];
 
 		inst->num_rsts = cfg->num_rsts;
-		inst->rsts = devm_kcalloc(dev, inst->num_rsts, sizeof(*inst->rsts), GFP_KERNEL);
+		inst->rsts = devm_kzalloc_objs(dev, *inst->rsts, inst->num_rsts);
 		if (!inst->rsts)
 			return -ENOMEM;
 
@@ -542,7 +542,7 @@ static int google_usb_phy_probe(struct platform_device *pdev)
 	u32 args[1];
 	int ret;
 
-	gphy = devm_kzalloc(dev, sizeof(*gphy), GFP_KERNEL);
+	gphy = devm_kzalloc_obj(dev, *gphy);
 	if (!gphy)
 		return -ENOMEM;
 
@@ -576,7 +576,7 @@ static int google_usb_phy_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(gphy->usb3_tca_base),
 				    "invalid usb3 tca\n");
 
-	gphy->insts = devm_kcalloc(dev, GOOGLE_USB_PHY_NUM, sizeof(*gphy->insts), GFP_KERNEL);
+	gphy->insts = devm_kzalloc_objs(dev, *gphy->insts, GOOGLE_USB_PHY_NUM);
 	if (!gphy->insts)
 		return -ENOMEM;
 

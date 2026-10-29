@@ -925,7 +925,7 @@ static int ge2d_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	ge2d = devm_kzalloc(&pdev->dev, sizeof(*ge2d), GFP_KERNEL);
+	ge2d = devm_kzalloc_obj(&pdev->dev, *ge2d);
 	if (!ge2d)
 		return -ENOMEM;
 

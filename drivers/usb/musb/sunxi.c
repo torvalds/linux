@@ -688,7 +688,7 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc_obj(&pdev->dev, *glue);
 	if (!glue)
 		return -ENOMEM;
 

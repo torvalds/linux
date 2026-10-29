@@ -776,13 +776,13 @@ struct xrs700x *xrs700x_switch_alloc(struct device *base, void *devpriv)
 	struct dsa_switch *ds;
 	struct xrs700x *priv;
 
-	ds = devm_kzalloc(base, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(base, *ds);
 	if (!ds)
 		return NULL;
 
 	ds->dev = base;
 
-	priv = devm_kzalloc(base, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(base, *priv);
 	if (!priv)
 		return NULL;
 
@@ -804,8 +804,8 @@ static int xrs700x_alloc_port_mib(struct xrs700x *priv, int port)
 {
 	struct xrs700x_port *p = &priv->ports[port];
 
-	p->mib_data = devm_kcalloc(priv->dev, ARRAY_SIZE(xrs700x_mibs),
-				   sizeof(*p->mib_data), GFP_KERNEL);
+	p->mib_data = devm_kzalloc_objs(priv->dev, *p->mib_data,
+					ARRAY_SIZE(xrs700x_mibs));
 	if (!p->mib_data)
 		return -ENOMEM;
 
@@ -828,8 +828,8 @@ int xrs700x_switch_register(struct xrs700x *priv)
 	if (ret)
 		return ret;
 
-	priv->ports = devm_kcalloc(priv->dev, priv->ds->num_ports,
-				   sizeof(*priv->ports), GFP_KERNEL);
+	priv->ports = devm_kzalloc_objs(priv->dev, *priv->ports,
+					priv->ds->num_ports);
 	if (!priv->ports)
 		return -ENOMEM;
 

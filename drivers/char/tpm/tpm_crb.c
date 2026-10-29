@@ -815,7 +815,7 @@ static int crb_acpi_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	priv = devm_kzalloc(dev, sizeof(struct crb_priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct crb_priv);
 	if (!priv) {
 		rc = -ENOMEM;
 		goto out;

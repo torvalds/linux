@@ -759,8 +759,7 @@ static int wm8750_spi_probe(struct spi_device *spi)
 	struct regmap *regmap;
 	int ret;
 
-	wm8750 = devm_kzalloc(&spi->dev, sizeof(struct wm8750_priv),
-			      GFP_KERNEL);
+	wm8750 = devm_kzalloc_obj(&spi->dev, struct wm8750_priv);
 	if (wm8750 == NULL)
 		return -ENOMEM;
 
@@ -799,8 +798,7 @@ static int wm8750_i2c_probe(struct i2c_client *i2c)
 	struct regmap *regmap;
 	int ret;
 
-	wm8750 = devm_kzalloc(&i2c->dev, sizeof(struct wm8750_priv),
-			      GFP_KERNEL);
+	wm8750 = devm_kzalloc_obj(&i2c->dev, struct wm8750_priv);
 	if (wm8750 == NULL)
 		return -ENOMEM;
 

@@ -150,7 +150,7 @@ int dell_smbios_register_device(struct device *d, int priority, smbios_callback_
 {
 	struct smbios_device *priv;
 
-	priv = devm_kzalloc(d, sizeof(struct smbios_device), GFP_KERNEL);
+	priv = devm_kzalloc_obj(d, struct smbios_device);
 	if (!priv)
 		return -ENOMEM;
 	get_device(d);

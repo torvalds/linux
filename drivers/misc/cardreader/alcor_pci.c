@@ -106,7 +106,7 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

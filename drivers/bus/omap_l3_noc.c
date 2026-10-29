@@ -245,7 +245,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	l3 = devm_kzalloc(&pdev->dev, sizeof(*l3), GFP_KERNEL);
+	l3 = devm_kzalloc_obj(&pdev->dev, *l3);
 	if (!l3)
 		return -ENOMEM;
 

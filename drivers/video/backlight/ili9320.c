@@ -214,7 +214,7 @@ int ili9320_probe_spi(struct spi_device *spi,
 
 	/* allocate and initialse our state */
 
-	ili = devm_kzalloc(&spi->dev, sizeof(struct ili9320), GFP_KERNEL);
+	ili = devm_kzalloc_obj(&spi->dev, struct ili9320);
 	if (ili == NULL)
 		return -ENOMEM;
 

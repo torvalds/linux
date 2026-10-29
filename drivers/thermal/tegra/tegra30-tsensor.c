@@ -539,7 +539,7 @@ static int tegra_tsensor_probe(struct platform_device *pdev)
 	unsigned int i;
 	int err, irq;
 
-	ts = devm_kzalloc(&pdev->dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(&pdev->dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

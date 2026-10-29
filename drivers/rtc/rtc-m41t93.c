@@ -524,7 +524,7 @@ static int m41t93_probe(struct spi_device *spi)
 	spi->bits_per_word = 8;
 	spi_setup(spi);
 
-	m41t93 = devm_kzalloc(&spi->dev, sizeof(struct m41t93_data), GFP_KERNEL);
+	m41t93 = devm_kzalloc_obj(&spi->dev, struct m41t93_data);
 
 	if (!m41t93)
 		return -ENOMEM;

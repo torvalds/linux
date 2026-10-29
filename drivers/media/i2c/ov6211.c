@@ -659,7 +659,7 @@ static int ov6211_probe(struct i2c_client *client)
 	unsigned int i;
 	int ret;
 
-	ov6211 = devm_kzalloc(&client->dev, sizeof(*ov6211), GFP_KERNEL);
+	ov6211 = devm_kzalloc_obj(&client->dev, *ov6211);
 	if (!ov6211)
 		return -ENOMEM;
 

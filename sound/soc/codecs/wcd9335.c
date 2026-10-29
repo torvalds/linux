@@ -5078,7 +5078,7 @@ static int wcd9335_slim_probe(struct slim_device *slim)
 	struct wcd9335_codec *wcd;
 	int ret;
 
-	wcd = devm_kzalloc(dev, sizeof(*wcd), GFP_KERNEL);
+	wcd = devm_kzalloc_obj(dev, *wcd);
 	if (!wcd)
 		return	-ENOMEM;
 

@@ -472,7 +472,7 @@ static int ufs_hisi_init_common(struct ufs_hba *hba)
 	struct device *dev = hba->dev;
 	struct ufs_hisi_host *host;
 
-	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(dev, *host);
 	if (!host)
 		return -ENOMEM;
 

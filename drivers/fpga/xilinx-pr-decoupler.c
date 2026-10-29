@@ -108,7 +108,7 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 	struct fpga_bridge *br;
 	int err;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

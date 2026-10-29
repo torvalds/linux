@@ -19,7 +19,7 @@ static int cs35l45_i2c_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	int ret;
 
-	cs35l45 = devm_kzalloc(dev, sizeof(struct cs35l45_private), GFP_KERNEL);
+	cs35l45 = devm_kzalloc_obj(dev, struct cs35l45_private);
 	if (!cs35l45)
 		return -ENOMEM;
 

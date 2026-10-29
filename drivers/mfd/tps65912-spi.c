@@ -25,7 +25,7 @@ static int tps65912_spi_probe(struct spi_device *spi)
 {
 	struct tps65912 *tps;
 
-	tps = devm_kzalloc(&spi->dev, sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc_obj(&spi->dev, *tps);
 	if (!tps)
 		return -ENOMEM;
 

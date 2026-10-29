@@ -792,7 +792,7 @@ static int rvu_rep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv) {
 		err = -ENOMEM;
 		goto err_set_drv_data;

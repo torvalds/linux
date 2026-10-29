@@ -443,7 +443,7 @@ static struct clk_hw *ipq_cmn_pll_clk_hw_register(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return ERR_CAST(regmap);
 
-	cmn_pll = devm_kzalloc(dev, sizeof(*cmn_pll), GFP_KERNEL);
+	cmn_pll = devm_kzalloc_obj(dev, *cmn_pll);
 	if (!cmn_pll)
 		return ERR_PTR(-ENOMEM);
 
@@ -471,7 +471,7 @@ static struct clk_hw *ipq_cmn_pll_regmap_div_register(struct device *dev,
 	struct clk_regmap_div *div_clk;
 	int ret;
 
-	div_clk = devm_kzalloc(dev, sizeof(*div_clk), GFP_KERNEL);
+	div_clk = devm_kzalloc_obj(dev, *div_clk);
 	if (!div_clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -617,7 +617,7 @@ static struct clk_hw *ipq_cmn_pll_pon_clk_register(struct device *dev,
 	struct clk_regmap *pon_clk;
 	int ret;
 
-	pon_clk = devm_kzalloc(dev, sizeof(*pon_clk), GFP_KERNEL);
+	pon_clk = devm_kzalloc_obj(dev, *pon_clk);
 	if (!pon_clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -728,7 +728,7 @@ static struct clk_hw *ipq_cmn_pll_ephy_raw_register(struct device *dev,
 	struct clk_init_data init = {};
 	int ret;
 
-	ephy_raw_clk = devm_kzalloc(dev, sizeof(*ephy_raw_clk), GFP_KERNEL);
+	ephy_raw_clk = devm_kzalloc_obj(dev, *ephy_raw_clk);
 	if (!ephy_raw_clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -772,7 +772,7 @@ static struct clk_hw *ipq_cmn_pll_register_fixed_gate(struct device *dev,
 	struct clk_init_data init = {};
 	int ret;
 
-	gate_clk = devm_kzalloc(dev, sizeof(*gate_clk), GFP_KERNEL);
+	gate_clk = devm_kzalloc_obj(dev, *gate_clk);
 	if (!gate_clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -819,8 +819,7 @@ static int ipq_cmn_pll_register_clks(struct platform_device *pdev)
 	for (p = fixed_clk; p->name; p++)
 		num_clks++;
 
-	hw_data = devm_kzalloc(dev, struct_size(hw_data, hws, num_clks + 1),
-			       GFP_KERNEL);
+	hw_data = devm_kzalloc_flex(dev, *hw_data, hws, num_clks + 1);
 	if (!hw_data)
 		return -ENOMEM;
 

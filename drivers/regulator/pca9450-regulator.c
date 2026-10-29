@@ -1356,7 +1356,7 @@ static int pca9450_i2c_probe(struct i2c_client *i2c)
 	const char *type_name;
 	int ret;
 
-	pca9450 = devm_kzalloc(&i2c->dev, sizeof(struct pca9450), GFP_KERNEL);
+	pca9450 = devm_kzalloc_obj(&i2c->dev, struct pca9450);
 	if (!pca9450)
 		return -ENOMEM;
 

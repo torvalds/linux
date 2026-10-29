@@ -1215,7 +1215,7 @@ static int max3420_probe(struct spi_device *spi)
 		return -EFAULT;
 	}
 
-	udc = devm_kzalloc(&spi->dev, sizeof(*udc), GFP_KERNEL);
+	udc = devm_kzalloc_obj(&spi->dev, *udc);
 	if (!udc)
 		return -ENOMEM;
 

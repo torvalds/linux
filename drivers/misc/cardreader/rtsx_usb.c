@@ -633,7 +633,7 @@ static int rtsx_usb_probe(struct usb_interface *intf,
 		": Realtek USB Card Reader found at bus %03d address %03d\n",
 		 usb_dev->bus->busnum, usb_dev->devnum);
 
-	ucr = devm_kzalloc(&intf->dev, sizeof(*ucr), GFP_KERNEL);
+	ucr = devm_kzalloc_obj(&intf->dev, *ucr);
 	if (!ucr)
 		return -ENOMEM;
 

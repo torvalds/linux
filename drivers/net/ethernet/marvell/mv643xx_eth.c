@@ -2815,7 +2815,7 @@ static int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 	if (!np)
 		return 0;
 
-	pd = devm_kzalloc(&pdev->dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(&pdev->dev, *pd);
 	if (!pd)
 		return -ENOMEM;
 	pdev->dev.platform_data = pd;
@@ -2855,7 +2855,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 		pr_notice("MV-643xx 10/100/1000 ethernet driver version %s\n",
 			  mv643xx_eth_driver_version);
 
-	msp = devm_kzalloc(&pdev->dev, sizeof(*msp), GFP_KERNEL);
+	msp = devm_kzalloc_obj(&pdev->dev, *msp);
 	if (msp == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, msp);

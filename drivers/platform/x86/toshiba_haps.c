@@ -196,7 +196,7 @@ static int toshiba_haps_probe(struct platform_device *pdev)
 
 	pr_info("Toshiba HDD Active Protection Sensor device\n");
 
-	haps = devm_kzalloc(&pdev->dev, sizeof(*haps), GFP_KERNEL);
+	haps = devm_kzalloc_obj(&pdev->dev, *haps);
 	if (!haps)
 		return -ENOMEM;
 

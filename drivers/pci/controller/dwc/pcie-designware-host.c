@@ -401,7 +401,7 @@ static void dw_pcie_host_request_msg_tlp_res(struct dw_pcie_rp *pp)
 
 	win = resource_list_first_type(&pp->bridge->windows, IORESOURCE_MEM);
 	if (win) {
-		res = devm_kzalloc(pci->dev, sizeof(*res), GFP_KERNEL);
+		res = devm_kzalloc_obj(pci->dev, *res);
 		if (!res)
 			return;
 

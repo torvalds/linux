@@ -289,7 +289,7 @@ static int dsa_conduit_ethtool_setup(struct net_device *dev)
 	if (netif_is_lag_master(dev))
 		return 0;
 
-	ops = devm_kzalloc(ds->dev, sizeof(*ops), GFP_KERNEL);
+	ops = devm_kzalloc_obj(ds->dev, *ops);
 	if (!ops)
 		return -ENOMEM;
 

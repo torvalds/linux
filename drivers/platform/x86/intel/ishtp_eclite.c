@@ -557,8 +557,7 @@ static int ecl_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	struct ishtp_opregion_dev *opr_dev;
 	int rv;
 
-	opr_dev = devm_kzalloc(ishtp_device(cl_device), sizeof(*opr_dev),
-			       GFP_KERNEL);
+	opr_dev = devm_kzalloc_obj(ishtp_device(cl_device), *opr_dev);
 	if (!opr_dev)
 		return -ENOMEM;
 

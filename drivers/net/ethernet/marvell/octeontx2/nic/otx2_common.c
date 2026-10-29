@@ -1198,8 +1198,8 @@ int otx2_config_nix_queues(struct otx2_nic *pfvf)
 							   NIX_LF_CQ_OP_STATUS);
 
 	/* Initialize work queue for receive buffer refill */
-	pfvf->refill_wrk = devm_kcalloc(pfvf->dev, pfvf->qset.cq_cnt,
-					sizeof(struct refill_work), GFP_KERNEL);
+	pfvf->refill_wrk = devm_kzalloc_objs(pfvf->dev, struct refill_work,
+					     pfvf->qset.cq_cnt);
 	if (!pfvf->refill_wrk)
 		return -ENOMEM;
 
@@ -1525,8 +1525,8 @@ int otx2_pool_aq_init(struct otx2_nic *pfvf, u16 pool_id,
 	if (xsk_pool) {
 		pool->xsk_pool = xsk_pool;
 		pool->xdp_cnt = numptrs;
-		pool->xdp = devm_kcalloc(pfvf->dev,
-					 numptrs, sizeof(struct xdp_buff *), GFP_KERNEL);
+		pool->xdp = devm_kzalloc_objs(pfvf->dev, struct xdp_buff *,
+					      numptrs);
 		if (!pool->xdp)
 			return -ENOMEM;
 	}
@@ -1687,8 +1687,8 @@ int otx2_config_npa(struct otx2_nic *pfvf)
 	if (!hw->pool_cnt)
 		return -EINVAL;
 
-	qset->pool = devm_kcalloc(pfvf->dev, hw->pool_cnt,
-				  sizeof(struct otx2_pool), GFP_KERNEL);
+	qset->pool = devm_kzalloc_objs(pfvf->dev, struct otx2_pool,
+				       hw->pool_cnt);
 	if (!qset->pool)
 		return -ENOMEM;
 

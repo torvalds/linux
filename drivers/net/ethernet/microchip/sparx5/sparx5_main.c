@@ -794,7 +794,7 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	if (!np && !pdev->dev.platform_data)
 		return -ENODEV;
 
-	sparx5 = devm_kzalloc(&pdev->dev, sizeof(*sparx5), GFP_KERNEL);
+	sparx5 = devm_kzalloc_obj(&pdev->dev, *sparx5);
 	if (!sparx5)
 		return -ENOMEM;
 

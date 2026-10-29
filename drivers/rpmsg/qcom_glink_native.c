@@ -1894,7 +1894,7 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	int ret;
 	struct qcom_glink *glink;
 
-	glink = devm_kzalloc(dev, sizeof(*glink), GFP_KERNEL);
+	glink = devm_kzalloc_obj(dev, *glink);
 	if (!glink)
 		return ERR_PTR(-ENOMEM);
 

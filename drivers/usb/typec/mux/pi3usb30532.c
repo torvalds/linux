@@ -119,7 +119,7 @@ static int pi3usb30532_probe(struct i2c_client *client)
 	struct pi3usb30532 *pi;
 	int ret;
 
-	pi = devm_kzalloc(dev, sizeof(*pi), GFP_KERNEL);
+	pi = devm_kzalloc_obj(dev, *pi);
 	if (!pi)
 		return -ENOMEM;
 

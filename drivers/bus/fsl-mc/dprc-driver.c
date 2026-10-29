@@ -266,9 +266,8 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 		int i;
 
 		child_obj_desc_array =
-		    devm_kmalloc_array(&mc_bus_dev->dev, num_child_objects,
-				       sizeof(*child_obj_desc_array),
-				       GFP_KERNEL);
+		    devm_kmalloc_objs(&mc_bus_dev->dev, *child_obj_desc_array,
+				      num_child_objects);
 		if (!child_obj_desc_array)
 			return -ENOMEM;
 

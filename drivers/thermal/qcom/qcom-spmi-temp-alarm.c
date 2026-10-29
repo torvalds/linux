@@ -765,7 +765,7 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 
 	node = pdev->dev.of_node;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pdev->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

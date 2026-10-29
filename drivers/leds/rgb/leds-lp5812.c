@@ -340,8 +340,8 @@ static int lp5812_init_led(struct lp5812_led *led, struct lp5812_chip *chip, int
 	}
 
 	if (!chip->led_config[chan].is_sc_led) {
-		mc_led_info = devm_kcalloc(dev, chip->led_config[chan].num_colors,
-					   sizeof(*mc_led_info), GFP_KERNEL);
+		mc_led_info = devm_kzalloc_objs(dev, *mc_led_info,
+						chip->led_config[chan].num_colors);
 		if (!mc_led_info)
 			return -ENOMEM;
 
@@ -550,7 +550,7 @@ static int lp5812_of_probe(struct device *dev,
 		return -EINVAL;
 	}
 
-	cfg = devm_kcalloc(dev, num_channels, sizeof(*cfg), GFP_KERNEL);
+	cfg = devm_kzalloc_objs(dev, *cfg, num_channels);
 	if (!cfg)
 		return -ENOMEM;
 
@@ -583,7 +583,7 @@ static int lp5812_probe(struct i2c_client *client)
 	if (!np)
 		return -EINVAL;
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&client->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 
@@ -591,7 +591,7 @@ static int lp5812_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	leds = devm_kcalloc(&client->dev, chip->num_channels, sizeof(*leds), GFP_KERNEL);
+	leds = devm_kzalloc_objs(&client->dev, *leds, chip->num_channels);
 	if (!leds)
 		return -ENOMEM;
 

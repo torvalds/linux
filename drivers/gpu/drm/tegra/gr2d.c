@@ -236,7 +236,7 @@ static int gr2d_probe(struct platform_device *pdev)
 	unsigned int i;
 	int err;
 
-	gr2d = devm_kzalloc(dev, sizeof(*gr2d), GFP_KERNEL);
+	gr2d = devm_kzalloc_obj(dev, *gr2d);
 	if (!gr2d)
 		return -ENOMEM;
 
@@ -244,7 +244,7 @@ static int gr2d_probe(struct platform_device *pdev)
 
 	gr2d->soc = of_device_get_match_data(dev);
 
-	syncpts = devm_kzalloc(dev, sizeof(*syncpts), GFP_KERNEL);
+	syncpts = devm_kzalloc_obj(dev, *syncpts);
 	if (!syncpts)
 		return -ENOMEM;
 

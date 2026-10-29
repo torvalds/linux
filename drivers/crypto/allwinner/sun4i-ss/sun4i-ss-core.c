@@ -327,7 +327,7 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	ss = devm_kzalloc(&pdev->dev, sizeof(*ss), GFP_KERNEL);
+	ss = devm_kzalloc_obj(&pdev->dev, *ss);
 	if (!ss)
 		return -ENOMEM;
 

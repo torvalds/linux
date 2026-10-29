@@ -313,7 +313,7 @@ static int dw_xdata_pcie_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	/* Allocate memory */
-	dw = devm_kzalloc(dev, sizeof(*dw), GFP_KERNEL);
+	dw = devm_kzalloc_obj(dev, *dw);
 	if (!dw)
 		return -ENOMEM;
 

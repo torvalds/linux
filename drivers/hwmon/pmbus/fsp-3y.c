@@ -228,7 +228,7 @@ static int fsp3y_probe(struct i2c_client *client)
 	const struct i2c_device_id *id;
 	int rv;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct fsp3y_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct fsp3y_data);
 	if (!data)
 		return -ENOMEM;
 

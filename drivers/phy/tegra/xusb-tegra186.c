@@ -1473,11 +1473,11 @@ tegra186_xusb_read_fuse_calibration(struct tegra186_xusb_padctl *padctl)
 
 	count = soc->ports.usb2.count;
 
-	level = devm_kcalloc(dev, count, sizeof(u32), GFP_KERNEL);
+	level = devm_kzalloc_objs(dev, u32, count);
 	if (!level)
 		return -ENOMEM;
 
-	hs_term_range_adj = devm_kcalloc(dev, count, sizeof(u32), GFP_KERNEL);
+	hs_term_range_adj = devm_kzalloc_objs(dev, u32, count);
 	if (!hs_term_range_adj)
 		return -ENOMEM;
 
@@ -1532,7 +1532,7 @@ tegra186_xusb_padctl_probe(struct device *dev,
 	struct resource *res;
 	int err;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 

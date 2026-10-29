@@ -295,11 +295,11 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	qnodes = desc->nodes;
 	num_nodes = desc->num_nodes;
 
-	qp = devm_kzalloc(dev, sizeof(*qp), GFP_KERNEL);
+	qp = devm_kzalloc_obj(dev, *qp);
 	if (!qp)
 		return -ENOMEM;
 
-	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes), GFP_KERNEL);
+	data = devm_kzalloc_flex(dev, *data, nodes, num_nodes);
 	if (!data)
 		return -ENOMEM;
 	data->num_nodes = num_nodes;

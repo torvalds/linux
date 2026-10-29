@@ -463,8 +463,7 @@ static int apple_gpio_pinctrl_probe(struct platform_device *pdev)
 			nirqs = res;
 	}
 
-	pctl = devm_kzalloc(&pdev->dev, struct_size(pctl, irqgrps, nirqs),
-			    GFP_KERNEL);
+	pctl = devm_kzalloc_flex(&pdev->dev, *pctl, irqgrps, nirqs);
 	if (!pctl)
 		return -ENOMEM;
 	pctl->dev = &pdev->dev;
@@ -475,12 +474,9 @@ static int apple_gpio_pinctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, -EINVAL,
 				     "apple,npins property not found\n");
 
-	pins = devm_kmalloc_array(&pdev->dev, npins, sizeof(pins[0]),
-				  GFP_KERNEL);
-	pin_names = devm_kmalloc_array(&pdev->dev, npins, sizeof(pin_names[0]),
-				       GFP_KERNEL);
-	pin_nums = devm_kmalloc_array(&pdev->dev, npins, sizeof(pin_nums[0]),
-				      GFP_KERNEL);
+	pins = devm_kmalloc_objs(&pdev->dev, pins[0], npins);
+	pin_names = devm_kmalloc_objs(&pdev->dev, pin_names[0], npins);
+	pin_nums = devm_kmalloc_objs(&pdev->dev, pin_nums[0], npins);
 	if (!pins || !pin_names || !pin_nums)
 		return -ENOMEM;
 

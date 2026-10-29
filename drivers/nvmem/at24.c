@@ -683,8 +683,7 @@ static int at24_probe(struct i2c_client *client)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	at24 = devm_kzalloc(dev, struct_size(at24, client_regmaps, num_addresses),
-			    GFP_KERNEL);
+	at24 = devm_kzalloc_flex(dev, *at24, client_regmaps, num_addresses);
 	if (!at24)
 		return -ENOMEM;
 

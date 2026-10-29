@@ -232,7 +232,7 @@ static int debugfs_create_trace_filter(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_dfsentry *dfse;
 
-	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
+	dfse = devm_kzalloc_obj(sdev->dev, *dfse);
 	if (!dfse)
 		return -ENOMEM;
 
@@ -409,7 +409,7 @@ static int debugfs_create_dtrace(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		dev_warn(sdev->dev, "failed to create filter debugfs file: %d", ret);
 
-	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
+	dfse = devm_kzalloc_obj(sdev->dev, *dfse);
 	if (!dfse)
 		return -ENOMEM;
 
@@ -506,7 +506,7 @@ static int ipc3_dtrace_init(struct snd_sof_dev *sdev)
 		return -EBUSY;
 	}
 
-	priv = devm_kzalloc(sdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(sdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

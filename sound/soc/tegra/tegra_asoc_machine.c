@@ -455,7 +455,7 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 	struct gpio_desc *gpiod;
 	int err;
 
-	machine = devm_kzalloc(dev, sizeof(*machine), GFP_KERNEL);
+	machine = devm_kzalloc_obj(dev, *machine);
 	if (!machine)
 		return -ENOMEM;
 

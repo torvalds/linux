@@ -828,20 +828,19 @@ static int pcc_mbox_probe(struct platform_device *pdev)
 	if (ACPI_FAILURE(status) || !pcct_tbl)
 		return -ENODEV;
 
-	pcc_mbox_channels = devm_kcalloc(dev, count, sizeof(*pcc_mbox_channels),
-					 GFP_KERNEL);
+	pcc_mbox_channels = devm_kzalloc_objs(dev, *pcc_mbox_channels, count);
 	if (!pcc_mbox_channels) {
 		rc = -ENOMEM;
 		goto err;
 	}
 
-	chan_info = devm_kcalloc(dev, count, sizeof(*chan_info), GFP_KERNEL);
+	chan_info = devm_kzalloc_objs(dev, *chan_info, count);
 	if (!chan_info) {
 		rc = -ENOMEM;
 		goto err;
 	}
 
-	pcc_mbox_ctrl = devm_kzalloc(dev, sizeof(*pcc_mbox_ctrl), GFP_KERNEL);
+	pcc_mbox_ctrl = devm_kzalloc_obj(dev, *pcc_mbox_ctrl);
 	if (!pcc_mbox_ctrl) {
 		rc = -ENOMEM;
 		goto err;

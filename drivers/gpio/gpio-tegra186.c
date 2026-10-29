@@ -865,7 +865,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	gpio = devm_kzalloc(&pdev->dev, struct_size(gpio, irq, err), GFP_KERNEL);
+	gpio = devm_kzalloc_flex(&pdev->dev, *gpio, irq, err);
 	if (!gpio)
 		return -ENOMEM;
 
@@ -929,8 +929,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	for (i = 0; i < gpio->soc->num_ports; i++)
 		gpio->gpio.ngpio += gpio->soc->ports[i].pins;
 
-	names = devm_kcalloc(gpio->gpio.parent, gpio->gpio.ngpio,
-			     sizeof(*names), GFP_KERNEL);
+	names = devm_kzalloc_objs(gpio->gpio.parent, *names, gpio->gpio.ngpio);
 	if (!names)
 		return -ENOMEM;
 
@@ -988,8 +987,8 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	 * currently program.
 	 */
 	if (gpio->num_irqs_per_bank > 1) {
-		irq->parents = devm_kcalloc(&pdev->dev, gpio->num_banks,
-					    sizeof(*irq->parents), GFP_KERNEL);
+		irq->parents = devm_kzalloc_objs(&pdev->dev, *irq->parents,
+						 gpio->num_banks);
 		if (!irq->parents)
 			return -ENOMEM;
 
@@ -1020,8 +1019,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 		}
 	}
 
-	irq->map = devm_kcalloc(&pdev->dev, gpio->gpio.ngpio,
-				sizeof(*irq->map), GFP_KERNEL);
+	irq->map = devm_kzalloc_objs(&pdev->dev, *irq->map, gpio->gpio.ngpio);
 	if (!irq->map)
 		return -ENOMEM;
 

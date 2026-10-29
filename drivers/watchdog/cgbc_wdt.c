@@ -171,7 +171,7 @@ static int cgbc_wdt_probe(struct platform_device *pdev)
 	struct cgbc_wdt_data *wdt_data;
 	struct watchdog_device *wdd;
 
-	wdt_data = devm_kzalloc(dev, sizeof(*wdt_data), GFP_KERNEL);
+	wdt_data = devm_kzalloc_obj(dev, *wdt_data);
 	if (!wdt_data)
 		return -ENOMEM;
 

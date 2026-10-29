@@ -334,7 +334,7 @@ static int rk_dphy_probe(struct platform_device *pdev)
 	if (!dev->parent || !dev->parent->of_node)
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = dev;
@@ -347,8 +347,8 @@ static int rk_dphy_probe(struct platform_device *pdev)
 
 	drv_data = of_device_get_match_data(dev);
 	priv->drv_data = drv_data;
-	priv->clks = devm_kcalloc(&pdev->dev, drv_data->num_clks,
-				  sizeof(*priv->clks), GFP_KERNEL);
+	priv->clks = devm_kzalloc_objs(&pdev->dev, *priv->clks,
+				       drv_data->num_clks);
 	if (!priv->clks)
 		return -ENOMEM;
 	for (i = 0; i < drv_data->num_clks; i++)

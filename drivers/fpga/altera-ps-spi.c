@@ -235,7 +235,7 @@ static int altera_ps_probe(struct spi_device *spi)
 	struct altera_ps_conf *conf;
 	struct fpga_manager *mgr;
 
-	conf = devm_kzalloc(&spi->dev, sizeof(*conf), GFP_KERNEL);
+	conf = devm_kzalloc_obj(&spi->dev, *conf);
 	if (!conf)
 		return -ENOMEM;
 

@@ -1240,7 +1240,7 @@ static int ams_parse_firmware(struct iio_dev *indio_dev)
 		ARRAY_SIZE(ams_ctrl_channels);
 
 	/* Initialize buffer for channel specification */
-	ams_channels = devm_kcalloc(dev, ams_size, sizeof(*ams_channels), GFP_KERNEL);
+	ams_channels = devm_kzalloc_objs(dev, *ams_channels, ams_size);
 	if (!ams_channels)
 		return -ENOMEM;
 

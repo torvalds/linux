@@ -556,7 +556,7 @@ static int ti_k3_rtc_probe(struct platform_device *pdev)
 	void __iomem *rtc_base;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(struct ti_k3_rtc), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct ti_k3_rtc);
 	if (!priv)
 		return -ENOMEM;
 

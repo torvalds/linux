@@ -702,7 +702,7 @@ int fsl_asrc_m2m_init(struct fsl_asrc *asrc)
 
 	asrc->card = card;
 
-	compr = devm_kzalloc(dev, sizeof(*compr), GFP_KERNEL);
+	compr = devm_kzalloc_obj(dev, *compr);
 	if (!compr) {
 		ret = -ENOMEM;
 		goto err;

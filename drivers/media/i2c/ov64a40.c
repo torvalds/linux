@@ -3534,7 +3534,7 @@ static int ov64a40_probe(struct i2c_client *client)
 	u32 xclk_freq;
 	int ret;
 
-	ov64a40 = devm_kzalloc(&client->dev, sizeof(*ov64a40), GFP_KERNEL);
+	ov64a40 = devm_kzalloc_obj(&client->dev, *ov64a40);
 	if (!ov64a40)
 		return -ENOMEM;
 

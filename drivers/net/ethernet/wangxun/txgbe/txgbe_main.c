@@ -918,7 +918,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 		goto err_release_hw;
 	}
 
-	txgbe = devm_kzalloc(&pdev->dev, sizeof(*txgbe), GFP_KERNEL);
+	txgbe = devm_kzalloc_obj(&pdev->dev, *txgbe);
 	if (!txgbe) {
 		err = -ENOMEM;
 		goto err_release_hw;

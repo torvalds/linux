@@ -78,7 +78,7 @@ static int tps380x_reset_probe(struct platform_device *pdev)
 	if (!devdata)
 		return -EINVAL;
 
-	tps380x = devm_kzalloc(dev, sizeof(*tps380x), GFP_KERNEL);
+	tps380x = devm_kzalloc_obj(dev, *tps380x);
 	if (!tps380x)
 		return -ENOMEM;
 

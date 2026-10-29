@@ -3135,8 +3135,7 @@ static int wtp_allocate(struct hid_device *hdev, const struct hid_device_id *id)
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 	struct wtp_data *wd;
 
-	wd = devm_kzalloc(&hdev->dev, sizeof(struct wtp_data),
-			GFP_KERNEL);
+	wd = devm_kzalloc_obj(&hdev->dev, struct wtp_data);
 	if (!wd)
 		return -ENOMEM;
 
@@ -3391,8 +3390,7 @@ static int k400_allocate(struct hid_device *hdev)
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 	struct k400_private_data *k400;
 
-	k400 = devm_kzalloc(&hdev->dev, sizeof(struct k400_private_data),
-			    GFP_KERNEL);
+	k400 = devm_kzalloc_obj(&hdev->dev, struct k400_private_data);
 	if (!k400)
 		return -ENOMEM;
 
@@ -4675,7 +4673,7 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 
 	/* report_fixup needs drvdata to be set before we call hid_parse */
-	hidpp = devm_kzalloc(&hdev->dev, sizeof(*hidpp), GFP_KERNEL);
+	hidpp = devm_kzalloc_obj(&hdev->dev, *hidpp);
 	if (!hidpp)
 		return -ENOMEM;
 

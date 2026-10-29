@@ -89,7 +89,7 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	cryp = devm_kzalloc(&pdev->dev, sizeof(*cryp), GFP_KERNEL);
+	cryp = devm_kzalloc_obj(&pdev->dev, *cryp);
 	if (!cryp)
 		return -ENOMEM;
 

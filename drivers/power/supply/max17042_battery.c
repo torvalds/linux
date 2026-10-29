@@ -1332,7 +1332,7 @@ static int max17042_apply_battery_properties(struct max17042_chip *chip,
 
 	config = chip->config_data;
 	if (!config) {
-		config = devm_kzalloc(dev, sizeof(*config), GFP_KERNEL);
+		config = devm_kzalloc_obj(dev, *config);
 		if (!config)
 			return -ENOMEM;
 	}
@@ -1446,7 +1446,7 @@ static int max17042_probe(struct i2c_client *client, struct device *dev, int irq
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -EIO;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

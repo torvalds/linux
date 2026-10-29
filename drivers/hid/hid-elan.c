@@ -463,7 +463,7 @@ static int elan_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	int ret;
 	struct elan_drvdata *drvdata;
 
-	drvdata = devm_kzalloc(&hdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(&hdev->dev, *drvdata);
 
 	if (!drvdata)
 		return -ENOMEM;

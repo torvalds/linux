@@ -966,9 +966,8 @@ static int es9356_sdw_read_prop(struct sdw_slave *slave)
 	prop->sink_ports = BIT(3) | BIT(4);
 
 	nval = hweight32(prop->source_ports);
-	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					  sizeof(*prop->src_dpn_prop),
-					  GFP_KERNEL);
+	prop->src_dpn_prop = devm_kzalloc_objs(&slave->dev, *prop->src_dpn_prop,
+					       nval);
 	if (!prop->src_dpn_prop)
 		return -ENOMEM;
 
@@ -984,9 +983,8 @@ static int es9356_sdw_read_prop(struct sdw_slave *slave)
 
 	/* do this again for sink now */
 	nval = hweight32(prop->sink_ports);
-	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					   sizeof(*prop->sink_dpn_prop),
-					   GFP_KERNEL);
+	prop->sink_dpn_prop = devm_kzalloc_objs(&slave->dev,
+						*prop->sink_dpn_prop, nval);
 	if (!prop->sink_dpn_prop)
 		return -ENOMEM;
 
@@ -1087,7 +1085,7 @@ static int es9356_sdca_init(struct device *dev, struct regmap *regmap, struct sd
 	struct es9356_sdw_priv *es9356;
 	int ret;
 
-	es9356 = devm_kzalloc(dev, sizeof(*es9356), GFP_KERNEL);
+	es9356 = devm_kzalloc_obj(dev, *es9356);
 	if (!es9356)
 		return -ENOMEM;
 

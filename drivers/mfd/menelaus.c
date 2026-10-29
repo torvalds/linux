@@ -1155,7 +1155,7 @@ static int menelaus_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	menelaus = devm_kzalloc(&client->dev, sizeof(*menelaus), GFP_KERNEL);
+	menelaus = devm_kzalloc_obj(&client->dev, *menelaus);
 	if (!menelaus)
 		return -ENOMEM;
 

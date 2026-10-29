@@ -1130,8 +1130,7 @@ static int viommu_fill_evtq(struct viommu_dev *viommu)
 	struct virtqueue *vq = viommu->vqs[VIOMMU_EVENT_VQ];
 	size_t nr_evts = vq->num_free;
 
-	viommu->evts = evts = devm_kmalloc_array(viommu->dev, nr_evts,
-						 sizeof(*evts), GFP_KERNEL);
+	viommu->evts = evts = devm_kmalloc_objs(viommu->dev, *evts, nr_evts);
 	if (!evts)
 		return -ENOMEM;
 
@@ -1158,7 +1157,7 @@ static int viommu_probe(struct virtio_device *vdev)
 	    !virtio_has_feature(vdev, VIRTIO_IOMMU_F_MAP_UNMAP))
 		return -ENODEV;
 
-	viommu = devm_kzalloc(dev, sizeof(*viommu), GFP_KERNEL);
+	viommu = devm_kzalloc_obj(dev, *viommu);
 	if (!viommu)
 		return -ENOMEM;
 

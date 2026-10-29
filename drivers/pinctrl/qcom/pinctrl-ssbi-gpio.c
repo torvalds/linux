@@ -736,7 +736,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	struct pm8xxx_gpio *pctrl;
 	int ret, i;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(&pdev->dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 
@@ -752,17 +752,13 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	pctrl->desc = pm8xxx_pinctrl_desc;
 	pctrl->desc.npins = pctrl->npins;
 
-	pins = devm_kcalloc(&pdev->dev,
-			    pctrl->desc.npins,
-			    sizeof(struct pinctrl_pin_desc),
-			    GFP_KERNEL);
+	pins = devm_kzalloc_objs(&pdev->dev, struct pinctrl_pin_desc,
+				 pctrl->desc.npins);
 	if (!pins)
 		return -ENOMEM;
 
-	pin_data = devm_kcalloc(&pdev->dev,
-				pctrl->desc.npins,
-				sizeof(struct pm8xxx_pin_data),
-				GFP_KERNEL);
+	pin_data = devm_kzalloc_objs(&pdev->dev, struct pm8xxx_pin_data,
+				     pctrl->desc.npins);
 	if (!pin_data)
 		return -ENOMEM;
 

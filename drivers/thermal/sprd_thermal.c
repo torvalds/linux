@@ -344,7 +344,7 @@ static int sprd_thm_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	thm = devm_kzalloc(&pdev->dev, sizeof(*thm), GFP_KERNEL);
+	thm = devm_kzalloc_obj(&pdev->dev, *thm);
 	if (!thm)
 		return -ENOMEM;
 
@@ -381,7 +381,7 @@ static int sprd_thm_probe(struct platform_device *pdev)
 		return ret;
 
 	for_each_child_of_node(np, sen_child) {
-		sen = devm_kzalloc(&pdev->dev, sizeof(*sen), GFP_KERNEL);
+		sen = devm_kzalloc_obj(&pdev->dev, *sen);
 		if (!sen) {
 			ret = -ENOMEM;
 			goto of_put;

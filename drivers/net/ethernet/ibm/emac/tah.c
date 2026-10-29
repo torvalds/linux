@@ -89,8 +89,7 @@ static int tah_probe(struct platform_device *ofdev)
 	struct tah_instance *dev;
 	int err;
 
-	dev = devm_kzalloc(&ofdev->dev, sizeof(struct tah_instance),
-			   GFP_KERNEL);
+	dev = devm_kzalloc_obj(&ofdev->dev, struct tah_instance);
 	if (!dev)
 		return -ENOMEM;
 

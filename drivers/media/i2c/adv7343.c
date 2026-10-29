@@ -399,7 +399,7 @@ adv7343_get_pdata(struct i2c_client *client)
 	if (!np)
 		return NULL;
 
-	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&client->dev, *pdata);
 	if (!pdata)
 		goto done;
 
@@ -431,8 +431,7 @@ static int adv7343_probe(struct i2c_client *client)
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	state = devm_kzalloc(&client->dev, sizeof(struct adv7343_state),
-			     GFP_KERNEL);
+	state = devm_kzalloc_obj(&client->dev, struct adv7343_state);
 	if (state == NULL)
 		return -ENOMEM;
 

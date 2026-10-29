@@ -2108,9 +2108,8 @@ static int of_get_pxafb_display(struct device *dev, struct device_node *disp,
 		return -EINVAL;
 
 	ret = -ENOMEM;
-	info->modes = devm_kcalloc(dev, timings->num_timings,
-				   sizeof(info->modes[0]),
-				   GFP_KERNEL);
+	info->modes = devm_kzalloc_objs(dev, info->modes[0],
+					timings->num_timings);
 	if (!info->modes)
 		goto out;
 	info->num_modes = timings->num_timings;
@@ -2196,7 +2195,7 @@ static struct pxafb_mach_info *of_pxafb_of_mach_info(struct device *dev)
 
 	if (!dev->of_node)
 		return NULL;
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 	ret = of_get_pxafb_mode_info(dev, info);

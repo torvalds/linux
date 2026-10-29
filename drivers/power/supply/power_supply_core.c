@@ -202,9 +202,8 @@ static int power_supply_check_supplies_by_name(struct power_supply *psy)
 	if (nval <= 0)
 		return 0;
 
-	psy->supplied_from = devm_kmalloc_array(&psy->dev, nval,
-						sizeof(*psy->supplied_from),
-						GFP_KERNEL);
+	psy->supplied_from = devm_kmalloc_objs(&psy->dev, *psy->supplied_from,
+					       nval);
 	if (!psy->supplied_from)
 		return -ENOMEM;
 
@@ -320,9 +319,8 @@ static int power_supply_check_supplies(struct power_supply *psy)
 		return power_supply_check_supplies_by_name(psy);
 
 	/* All supplies found, allocate char * array for filling */
-	psy->supplied_from = devm_kcalloc(&psy->dev,
-					  cnt, sizeof(*psy->supplied_from),
-					  GFP_KERNEL);
+	psy->supplied_from = devm_kzalloc_objs(&psy->dev, *psy->supplied_from,
+					       cnt);
 	if (!psy->supplied_from)
 		return -ENOMEM;
 
@@ -765,7 +763,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		goto out_put_node;
 	}
 
-	info = devm_kzalloc(&psy->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&psy->dev, *info);
 	if (!info) {
 		err = -ENOMEM;
 		goto out_put_node;
@@ -921,7 +919,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		info->ocv_table_size[index] = tab_len;
 
 		info->ocv_table[index] = table =
-			devm_kcalloc(&psy->dev, tab_len, sizeof(*table), GFP_KERNEL);
+			devm_kzalloc_objs(&psy->dev, *table, tab_len);
 		if (!info->ocv_table[index]) {
 			power_supply_put_battery_info(psy, info);
 			err = -ENOMEM;
@@ -959,10 +957,9 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	}
 
 	info->resist_table_size = proplen / 2;
-	info->resist_table = resist_table = devm_kcalloc(&psy->dev,
-							 info->resist_table_size,
-							 sizeof(*resist_table),
-							 GFP_KERNEL);
+	info->resist_table = resist_table = devm_kzalloc_objs(&psy->dev,
+							      *resist_table,
+							      info->resist_table_size);
 	if (!info->resist_table) {
 		power_supply_put_battery_info(psy, info);
 		err = -ENOMEM;

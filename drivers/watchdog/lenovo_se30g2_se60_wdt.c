@@ -188,7 +188,7 @@ static int se_30g2_60_wdt_probe(struct platform_device *pdev)
 	release_region(CFG_PORT, CFG_SIZE);
 	dev_info(dev, "Found Lenovo SE30G2 SE60 0x%x\n", chip_id);
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

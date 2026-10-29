@@ -237,7 +237,7 @@ static int audio_iio_aux_probe(struct platform_device *pdev)
 	if (count < 0)
 		return dev_err_probe(dev, count, "failed to count io-channel-names\n");
 
-	iio_aux = devm_kzalloc(dev, struct_size(iio_aux, chans, count), GFP_KERNEL);
+	iio_aux = devm_kzalloc_flex(dev, *iio_aux, chans, count);
 	if (!iio_aux)
 		return -ENOMEM;
 

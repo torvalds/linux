@@ -183,12 +183,11 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 
 	quirks = of_device_get_match_data(&pdev->dev);
 
-	tcon_top = devm_kzalloc(dev, sizeof(*tcon_top), GFP_KERNEL);
+	tcon_top = devm_kzalloc_obj(dev, *tcon_top);
 	if (!tcon_top)
 		return -ENOMEM;
 
-	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, CLK_NUM),
-				GFP_KERNEL);
+	clk_data = devm_kzalloc_flex(dev, *clk_data, hws, CLK_NUM);
 	if (!clk_data)
 		return -ENOMEM;
 	clk_data->num = CLK_NUM;

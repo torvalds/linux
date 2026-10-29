@@ -228,7 +228,7 @@ int tegra_dc_rgb_probe(struct tegra_dc *dc)
 	if (!of_device_is_available(np))
 		return -ENODEV;
 
-	rgb = devm_kzalloc(dc->dev, sizeof(*rgb), GFP_KERNEL);
+	rgb = devm_kzalloc_obj(dc->dev, *rgb);
 	if (!rgb)
 		return -ENOMEM;
 

@@ -502,8 +502,7 @@ static int mt7601u_alloc_tx(struct mt7601u_dev *dev)
 {
 	int i;
 
-	dev->tx_q = devm_kcalloc(dev->dev, __MT_EP_OUT_MAX,
-				 sizeof(*dev->tx_q), GFP_KERNEL);
+	dev->tx_q = devm_kzalloc_objs(dev->dev, *dev->tx_q, __MT_EP_OUT_MAX);
 	if (!dev->tx_q)
 		return -ENOMEM;
 

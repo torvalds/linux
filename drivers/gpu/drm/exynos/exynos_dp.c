@@ -148,8 +148,7 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct exynos_dp_device *dp;
 
-	dp = devm_kzalloc(&pdev->dev, sizeof(struct exynos_dp_device),
-			  GFP_KERNEL);
+	dp = devm_kzalloc_obj(&pdev->dev, struct exynos_dp_device);
 	if (!dp)
 		return -ENOMEM;
 

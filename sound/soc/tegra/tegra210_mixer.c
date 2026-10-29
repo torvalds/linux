@@ -899,7 +899,7 @@ static int tegra210_mixer_platform_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int err, i;
 
-	mixer = devm_kzalloc(dev, sizeof(*mixer), GFP_KERNEL);
+	mixer = devm_kzalloc_obj(dev, *mixer);
 	if (!mixer)
 		return -ENOMEM;
 

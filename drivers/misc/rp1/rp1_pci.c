@@ -197,7 +197,7 @@ static int rp1_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_out;
 	}
 
-	rp1 = devm_kzalloc(&pdev->dev, sizeof(*rp1), GFP_KERNEL);
+	rp1 = devm_kzalloc_obj(&pdev->dev, *rp1);
 	if (!rp1) {
 		err = -ENOMEM;
 		goto err_out;

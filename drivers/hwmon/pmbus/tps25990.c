@@ -530,7 +530,7 @@ static int tps25990_probe(struct i2c_client *client)
 
 	chip_id = (enum chips)(unsigned long)i2c_get_match_data(client);
 
-	data = devm_kzalloc(dev, sizeof(struct tps25990_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct tps25990_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -229,7 +229,7 @@ static int stm32_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	stm32_pcie = devm_kzalloc(dev, sizeof(*stm32_pcie), GFP_KERNEL);
+	stm32_pcie = devm_kzalloc_obj(dev, *stm32_pcie);
 	if (!stm32_pcie)
 		return -ENOMEM;
 

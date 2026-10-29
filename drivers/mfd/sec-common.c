@@ -178,7 +178,7 @@ sec_pmic_parse_dt_pdata(struct device *dev)
 {
 	struct sec_platform_data *pd;
 
-	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(dev, *pd);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
@@ -198,7 +198,7 @@ int sec_pmic_probe(struct device *dev, int device_type, unsigned int irq,
 	struct sec_pmic_dev *sec_pmic;
 	int ret, num_sec_devs;
 
-	sec_pmic = devm_kzalloc(dev, sizeof(*sec_pmic), GFP_KERNEL);
+	sec_pmic = devm_kzalloc_obj(dev, *sec_pmic);
 	if (!sec_pmic)
 		return -ENOMEM;
 

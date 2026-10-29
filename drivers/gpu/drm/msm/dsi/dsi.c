@@ -86,7 +86,7 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 	if (!pdev)
 		return ERR_PTR(-ENXIO);
 
-	msm_dsi = devm_kzalloc(&pdev->dev, sizeof(*msm_dsi), GFP_KERNEL);
+	msm_dsi = devm_kzalloc_obj(&pdev->dev, *msm_dsi);
 	if (!msm_dsi)
 		return ERR_PTR(-ENOMEM);
 	DBG("dsi probed=%p", msm_dsi);

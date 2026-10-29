@@ -183,7 +183,7 @@ static int pwrseq_thead_gpu_probe(struct auxiliary_device *adev,
 	struct pwrseq_thead_gpu_ctx *ctx;
 	struct pwrseq_config config = {};
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

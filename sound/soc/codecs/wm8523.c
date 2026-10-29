@@ -461,8 +461,7 @@ static int wm8523_i2c_probe(struct i2c_client *i2c)
 	unsigned int val;
 	int ret, i;
 
-	wm8523 = devm_kzalloc(&i2c->dev, sizeof(struct wm8523_priv),
-			      GFP_KERNEL);
+	wm8523 = devm_kzalloc_obj(&i2c->dev, struct wm8523_priv);
 	if (wm8523 == NULL)
 		return -ENOMEM;
 

@@ -2043,7 +2043,7 @@ static int hi846_probe(struct i2c_client *client)
 	int i;
 	u32 mclk_freq;
 
-	hi846 = devm_kzalloc(&client->dev, sizeof(*hi846), GFP_KERNEL);
+	hi846 = devm_kzalloc_obj(&client->dev, *hi846);
 	if (!hi846)
 		return -ENOMEM;
 

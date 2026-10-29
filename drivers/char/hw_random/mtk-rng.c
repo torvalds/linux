@@ -167,7 +167,7 @@ static int mtk_rng_probe(struct platform_device *pdev)
 	int ret;
 	struct mtk_rng *priv;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

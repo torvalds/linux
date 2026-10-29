@@ -492,7 +492,7 @@ static int atcwdt_probe(struct platform_device *pdev)
 	struct atcwdt_drv *drv_data;
 	int ret;
 
-	drv_data = devm_kzalloc(dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(dev, *drv_data);
 	if (!drv_data)
 		return -ENOMEM;
 

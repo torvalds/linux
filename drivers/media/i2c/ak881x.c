@@ -238,7 +238,7 @@ static int ak881x_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	ak881x = devm_kzalloc(&client->dev, sizeof(*ak881x), GFP_KERNEL);
+	ak881x = devm_kzalloc_obj(&client->dev, *ak881x);
 	if (!ak881x)
 		return -ENOMEM;
 

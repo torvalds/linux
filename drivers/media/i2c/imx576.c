@@ -951,7 +951,7 @@ static int imx576_probe(struct i2c_client *client)
 	struct imx576 *imx576;
 	int ret;
 
-	imx576 = devm_kzalloc(&client->dev, sizeof(*imx576), GFP_KERNEL);
+	imx576 = devm_kzalloc_obj(&client->dev, *imx576);
 	if (!imx576)
 		return -ENOMEM;
 

@@ -137,7 +137,7 @@ static int mtk_vdec_hw_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	subdev_dev = devm_kzalloc(dev, sizeof(*subdev_dev), GFP_KERNEL);
+	subdev_dev = devm_kzalloc_obj(dev, *subdev_dev);
 	if (!subdev_dev)
 		return -ENOMEM;
 

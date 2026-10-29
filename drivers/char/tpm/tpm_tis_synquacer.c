@@ -95,7 +95,7 @@ static int tpm_tis_synquacer_init(struct device *dev,
 {
 	struct tpm_tis_synquacer_phy *phy;
 
-	phy = devm_kzalloc(dev, sizeof(struct tpm_tis_synquacer_phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(dev, struct tpm_tis_synquacer_phy);
 	if (phy == NULL)
 		return -ENOMEM;
 

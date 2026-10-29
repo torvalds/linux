@@ -336,7 +336,7 @@ static int hisi_noc_pmu_probe(struct platform_device *pdev)
 	char *name;
 	int ret;
 
-	noc_pmu = devm_kzalloc(dev, sizeof(*noc_pmu), GFP_KERNEL);
+	noc_pmu = devm_kzalloc_obj(dev, *noc_pmu);
 	if (!noc_pmu)
 		return -ENOMEM;
 

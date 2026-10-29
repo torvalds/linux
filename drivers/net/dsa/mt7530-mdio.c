@@ -99,9 +99,8 @@ mt7531_create_sgmii(struct mt7530_priv *priv)
 	int i, ret = 0;
 
 	for (i = priv->p5_sgmii ? 0 : 1; i < 2; i++) {
-		mt7531_pcs_config[i] = devm_kzalloc(priv->dev,
-						    sizeof(struct regmap_config),
-						    GFP_KERNEL);
+		mt7531_pcs_config[i] = devm_kzalloc_obj(priv->dev,
+							struct regmap_config);
 		if (!mt7531_pcs_config[i]) {
 			ret = -ENOMEM;
 			break;
@@ -165,7 +164,7 @@ mt7530_probe(struct mdio_device *mdiodev)
 
 	dn = mdiodev->dev.of_node;
 
-	priv = devm_kzalloc(&mdiodev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&mdiodev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

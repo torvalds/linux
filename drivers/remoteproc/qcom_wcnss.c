@@ -468,9 +468,8 @@ static int wcnss_init_regulators(struct qcom_wcnss *wcnss,
 		num_vregs += data->num_pd_vregs;
 	}
 
-	bulk = devm_kcalloc(wcnss->dev,
-			    num_vregs, sizeof(struct regulator_bulk_data),
-			    GFP_KERNEL);
+	bulk = devm_kzalloc_objs(wcnss->dev, struct regulator_bulk_data,
+				 num_vregs);
 	if (!bulk)
 		return -ENOMEM;
 

@@ -1691,7 +1691,7 @@ static int aspeed_g7_soc1_pinctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int i, ret;
 
-	pctl = devm_kzalloc(dev, sizeof(*pctl), GFP_KERNEL);
+	pctl = devm_kzalloc_obj(dev, *pctl);
 	if (!pctl)
 		return -ENOMEM;
 

@@ -1476,8 +1476,7 @@ static int asus_ec_probe(struct platform_device *pdev)
 	if (!pboard_info)
 		return -ENODEV;
 
-	ec_data = devm_kzalloc(dev, sizeof(struct ec_sensors_data),
-			       GFP_KERNEL);
+	ec_data = devm_kzalloc_obj(dev, struct ec_sensors_data);
 	if (!ec_data)
 		return -ENOMEM;
 
@@ -1526,8 +1525,8 @@ static int asus_ec_probe(struct platform_device *pdev)
 	}
 
 	ec_data->nr_sensors = hweight_long(ec_data->board_info->sensors);
-	ec_data->sensors = devm_kcalloc(dev, ec_data->nr_sensors,
-					sizeof(struct ec_sensor), GFP_KERNEL);
+	ec_data->sensors = devm_kzalloc_objs(dev, struct ec_sensor,
+					     ec_data->nr_sensors);
 	if (!ec_data->sensors)
 		return -ENOMEM;
 
@@ -1538,8 +1537,7 @@ static int asus_ec_probe(struct platform_device *pdev)
 	}
 
 	setup_sensor_data(ec_data);
-	ec_data->registers = devm_kcalloc(dev, ec_data->nr_registers,
-					  sizeof(u16), GFP_KERNEL);
+	ec_data->registers = devm_kzalloc_objs(dev, u16, ec_data->nr_registers);
 	ec_data->read_buffer = devm_kcalloc(dev, ec_data->nr_registers,
 					    sizeof(u8), GFP_KERNEL);
 
@@ -1558,13 +1556,12 @@ static int asus_ec_probe(struct platform_device *pdev)
 	if (nr_count[hwmon_temp])
 		nr_count[hwmon_chip]++, nr_types++;
 
-	asus_ec_hwmon_chan = devm_kcalloc(
-		dev, nr_types, sizeof(*asus_ec_hwmon_chan), GFP_KERNEL);
+	asus_ec_hwmon_chan = devm_kzalloc_objs(dev, *asus_ec_hwmon_chan,
+					       nr_types);
 	if (!asus_ec_hwmon_chan)
 		return -ENOMEM;
 
-	ptr_asus_ec_ci = devm_kcalloc(dev, nr_types + 1,
-				       sizeof(*ptr_asus_ec_ci), GFP_KERNEL);
+	ptr_asus_ec_ci = devm_kzalloc_objs(dev, *ptr_asus_ec_ci, nr_types + 1);
 	if (!ptr_asus_ec_ci)
 		return -ENOMEM;
 

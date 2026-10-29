@@ -118,7 +118,7 @@ static int smcwd_probe(struct platform_device *pdev)
 	struct arm_smccc_res res;
 	u32 smc_func_id;
 
-	wdd = devm_kzalloc(&pdev->dev, sizeof(*wdd), GFP_KERNEL);
+	wdd = devm_kzalloc_obj(&pdev->dev, *wdd);
 	if (!wdd)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wdd);

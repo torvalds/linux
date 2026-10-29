@@ -719,7 +719,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	if (quirks & AXP288_QUIRK_NO_BATTERY)
 		return -ENODEV;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 

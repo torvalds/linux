@@ -201,7 +201,7 @@ static int hi6220_stub_clk_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int ret;
 
-	stub_clk = devm_kzalloc(dev, sizeof(*stub_clk), GFP_KERNEL);
+	stub_clk = devm_kzalloc_obj(dev, *stub_clk);
 	if (!stub_clk)
 		return -ENOMEM;
 

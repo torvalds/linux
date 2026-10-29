@@ -2514,7 +2514,7 @@ static int ahci_port_start(struct ata_port *ap)
 	dma_addr_t mem_dma;
 	size_t dma_sz, rx_fis_sz;
 
-	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
+	pp = devm_kzalloc_obj(dev, *pp);
 	if (!pp)
 		return -ENOMEM;
 

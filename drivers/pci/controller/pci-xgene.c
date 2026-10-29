@@ -227,7 +227,7 @@ static int xgene_pcie_ecam_init(struct pci_config_window *cfg, u32 ipversion)
 	struct resource csr;
 	int ret;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 

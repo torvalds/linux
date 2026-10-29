@@ -1360,7 +1360,7 @@ static int sti_hqvdp_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	hqvdp = devm_kzalloc(dev, sizeof(*hqvdp), GFP_KERNEL);
+	hqvdp = devm_kzalloc_obj(dev, *hqvdp);
 	if (!hqvdp) {
 		DRM_ERROR("Failed to allocate HQVDP context\n");
 		return -ENOMEM;

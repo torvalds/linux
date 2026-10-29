@@ -511,18 +511,18 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pwrc = devm_kzalloc(&pdev->dev, sizeof(*pwrc), GFP_KERNEL);
+	pwrc = devm_kzalloc_obj(&pdev->dev, *pwrc);
 	if (!pwrc)
 		return -ENOMEM;
 
-	pwrc->xlate.domains = devm_kcalloc(&pdev->dev, match->count,
-					   sizeof(*pwrc->xlate.domains),
-					   GFP_KERNEL);
+	pwrc->xlate.domains = devm_kzalloc_objs(&pdev->dev,
+						*pwrc->xlate.domains,
+						match->count);
 	if (!pwrc->xlate.domains)
 		return -ENOMEM;
 
-	pwrc->domains = devm_kcalloc(&pdev->dev, match->count,
-				     sizeof(*pwrc->domains), GFP_KERNEL);
+	pwrc->domains = devm_kzalloc_objs(&pdev->dev, *pwrc->domains,
+					  match->count);
 	if (!pwrc->domains)
 		return -ENOMEM;
 

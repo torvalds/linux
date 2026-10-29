@@ -2447,7 +2447,7 @@ static int wm8904_set_pdata_from_of(struct i2c_client *i2c,
 	struct wm8904_pdata *pdata;
 	int ret, i;
 
-	pdata = devm_kzalloc(&i2c->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&i2c->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 
@@ -2487,8 +2487,7 @@ static int wm8904_i2c_probe(struct i2c_client *i2c)
 	unsigned int val;
 	int ret, i;
 
-	wm8904 = devm_kzalloc(&i2c->dev, sizeof(struct wm8904_priv),
-			      GFP_KERNEL);
+	wm8904 = devm_kzalloc_obj(&i2c->dev, struct wm8904_priv);
 	if (wm8904 == NULL)
 		return -ENOMEM;
 

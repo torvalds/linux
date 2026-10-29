@@ -362,9 +362,9 @@ static int mvneta_bm_init(struct mvneta_bm *priv)
 	mvneta_bm_default_set(priv);
 
 	/* Allocate and initialize BM pools structures */
-	priv->bm_pools = devm_kcalloc(&priv->pdev->dev, MVNETA_BM_POOLS_NUM,
-				      sizeof(struct mvneta_bm_pool),
-				      GFP_KERNEL);
+	priv->bm_pools = devm_kzalloc_objs(&priv->pdev->dev,
+					   struct mvneta_bm_pool,
+					   MVNETA_BM_POOLS_NUM);
 	if (!priv->bm_pools)
 		return -ENOMEM;
 
@@ -426,7 +426,7 @@ static int mvneta_bm_probe(struct platform_device *pdev)
 	struct mvneta_bm *priv;
 	int err;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct mvneta_bm), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct mvneta_bm);
 	if (!priv)
 		return -ENOMEM;
 

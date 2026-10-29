@@ -337,8 +337,7 @@ static int aat2870_i2c_probe(struct i2c_client *client)
 	int i, j;
 	int ret = 0;
 
-	aat2870 = devm_kzalloc(&client->dev, sizeof(struct aat2870_data),
-				GFP_KERNEL);
+	aat2870 = devm_kzalloc_obj(&client->dev, struct aat2870_data);
 	if (!aat2870)
 		return -ENOMEM;
 

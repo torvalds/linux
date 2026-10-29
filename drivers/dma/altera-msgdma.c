@@ -819,7 +819,7 @@ static int msgdma_probe(struct platform_device *pdev)
 	struct resource *dma_res;
 	int ret;
 
-	mdev = devm_kzalloc(&pdev->dev, sizeof(*mdev), GFP_NOWAIT);
+	mdev = devm_kzalloc_obj(&pdev->dev, *mdev, GFP_NOWAIT);
 	if (!mdev)
 		return -ENOMEM;
 

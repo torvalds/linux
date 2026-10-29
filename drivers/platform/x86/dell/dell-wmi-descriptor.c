@@ -142,7 +142,7 @@ static int dell_wmi_descriptor_probe(struct wmi_device *wdev, const void *contex
 		dev_warn(&wdev->dev, "Dell descriptor buffer has unknown version (%u)\n",
 			 le32_to_cpu(desc->interface_version));
 
-	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&wdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

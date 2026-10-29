@@ -93,7 +93,7 @@ static int ma35_usb_phy_probe(struct platform_device *pdev)
 	struct ma35_usb_phy *p_phy;
 	struct phy *phy;
 
-	p_phy = devm_kzalloc(&pdev->dev, sizeof(*p_phy), GFP_KERNEL);
+	p_phy = devm_kzalloc_obj(&pdev->dev, *p_phy);
 	if (!p_phy)
 		return -ENOMEM;
 

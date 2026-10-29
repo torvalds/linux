@@ -401,11 +401,11 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	variant = (enum artpec_pcie_variants)data->variant;
 	mode = (enum dw_pcie_device_mode)data->mode;
 
-	artpec6_pcie = devm_kzalloc(dev, sizeof(*artpec6_pcie), GFP_KERNEL);
+	artpec6_pcie = devm_kzalloc_obj(dev, *artpec6_pcie);
 	if (!artpec6_pcie)
 		return -ENOMEM;
 
-	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 

@@ -3757,7 +3757,7 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 		return ERR_PTR(ret);
 	}
 
-	p = devm_kzalloc(&pdev->dev, sizeof(struct plat_sci_port), GFP_KERNEL);
+	p = devm_kzalloc_obj(&pdev->dev, struct plat_sci_port);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 

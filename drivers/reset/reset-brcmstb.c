@@ -86,7 +86,7 @@ static int brcmstb_reset_probe(struct platform_device *pdev)
 	struct brcmstb_reset *priv;
 	struct resource *res;
 
-	priv = devm_kzalloc(kdev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(kdev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

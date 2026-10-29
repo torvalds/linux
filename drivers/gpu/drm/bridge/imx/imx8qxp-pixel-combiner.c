@@ -272,7 +272,7 @@ static int imx8qxp_pc_bridge_probe(struct platform_device *pdev)
 	u32 i;
 	int ret;
 
-	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
+	pc = devm_kzalloc_obj(dev, *pc);
 	if (!pc)
 		return -ENOMEM;
 

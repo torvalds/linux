@@ -381,7 +381,7 @@ int power_supply_add_hwmon_sysfs(struct power_supply *psy)
 			       GFP_KERNEL))
 		return -ENOMEM;
 
-	psyhw = devm_kzalloc(dev, sizeof(*psyhw), GFP_KERNEL);
+	psyhw = devm_kzalloc_obj(dev, *psyhw);
 	if (!psyhw) {
 		ret = -ENOMEM;
 		goto error;

@@ -131,7 +131,7 @@ static int ir_spi_probe(struct spi_device *spi)
 	u8 dc;
 	struct ir_spi_data *idata;
 
-	idata = devm_kzalloc(dev, sizeof(*idata), GFP_KERNEL);
+	idata = devm_kzalloc_obj(dev, *idata);
 	if (!idata)
 		return -ENOMEM;
 

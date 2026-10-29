@@ -291,7 +291,7 @@ static int jh71xx_pmu_init_domain(struct jh71xx_pmu *pmu, int index)
 	int ret;
 	bool is_on = false;
 
-	pmd = devm_kzalloc(pmu->dev, sizeof(*pmd), GFP_KERNEL);
+	pmd = devm_kzalloc_obj(pmu->dev, *pmd);
 	if (!pmd)
 		return -ENOMEM;
 
@@ -325,7 +325,7 @@ static int jh71xx_pmu_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	pmu = devm_kzalloc(dev, sizeof(*pmu), GFP_KERNEL);
+	pmu = devm_kzalloc_obj(dev, *pmu);
 	if (!pmu)
 		return -ENOMEM;
 
@@ -347,9 +347,8 @@ static int jh71xx_pmu_probe(struct platform_device *pdev)
 		}
 	}
 
-	pmu->genpd = devm_kcalloc(dev, match_data->num_domains,
-				  sizeof(struct generic_pm_domain *),
-				  GFP_KERNEL);
+	pmu->genpd = devm_kzalloc_objs(dev, struct generic_pm_domain *,
+				       match_data->num_domains);
 	if (!pmu->genpd)
 		return -ENOMEM;
 

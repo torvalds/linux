@@ -2587,7 +2587,7 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	struct resource *sha_res;
 	int err;
 
-	sha_dd = devm_kzalloc(&pdev->dev, sizeof(*sha_dd), GFP_KERNEL);
+	sha_dd = devm_kzalloc_obj(&pdev->dev, *sha_dd);
 	if (!sha_dd)
 		return -ENOMEM;
 

@@ -395,7 +395,7 @@ static int rt9123_i2c_probe(struct i2c_client *i2c)
 	u16 venid;
 	int ret;
 
-	rt9123 = devm_kzalloc(dev, sizeof(*rt9123), GFP_KERNEL);
+	rt9123 = devm_kzalloc_obj(dev, *rt9123);
 	if (!rt9123)
 		return -ENOMEM;
 

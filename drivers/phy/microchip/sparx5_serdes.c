@@ -2441,7 +2441,7 @@ static int sparx5_phy_create(struct sparx5_serdes_private *priv,
 	if (IS_ERR(*phy))
 		return PTR_ERR(*phy);
 
-	macro = devm_kzalloc(priv->dev, sizeof(*macro), GFP_KERNEL);
+	macro = devm_kzalloc_obj(priv->dev, *macro);
 	if (!macro)
 		return -ENOMEM;
 
@@ -2662,7 +2662,7 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 	if (!np && !pdev->dev.platform_data)
 		return -ENODEV;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

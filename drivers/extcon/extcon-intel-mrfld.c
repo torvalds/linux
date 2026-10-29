@@ -204,7 +204,7 @@ static int mrfld_extcon_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

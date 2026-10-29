@@ -189,7 +189,7 @@ static int fsl_aud2htx_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret, irq;
 
-	aud2htx = devm_kzalloc(&pdev->dev, sizeof(*aud2htx), GFP_KERNEL);
+	aud2htx = devm_kzalloc_obj(&pdev->dev, *aud2htx);
 	if (!aud2htx)
 		return -ENOMEM;
 

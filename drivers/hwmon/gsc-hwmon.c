@@ -248,8 +248,7 @@ gsc_hwmon_get_devtree_pdata(struct device *dev)
 	if (nchannels == 0)
 		return ERR_PTR(-ENODEV);
 
-	pdata = devm_kzalloc(dev, struct_size(pdata, channels, nchannels),
-			     GFP_KERNEL);
+	pdata = devm_kzalloc_flex(dev, *pdata, channels, nchannels);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 	pdata->nchannels = nchannels;
@@ -314,7 +313,7 @@ static int gsc_hwmon_probe(struct platform_device *pdev)
 			return PTR_ERR(pdata);
 	}
 
-	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
+	hwmon = devm_kzalloc_obj(dev, *hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 	hwmon->gsc = gsc;

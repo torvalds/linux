@@ -348,7 +348,7 @@ static int tdo24m_probe(struct spi_device *spi)
 	if (err)
 		return err;
 
-	lcd = devm_kzalloc(&spi->dev, sizeof(struct tdo24m), GFP_KERNEL);
+	lcd = devm_kzalloc_obj(&spi->dev, struct tdo24m);
 	if (!lcd)
 		return -ENOMEM;
 

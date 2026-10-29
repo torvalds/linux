@@ -366,7 +366,7 @@ static int ml86v7667_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&client->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

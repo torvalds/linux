@@ -471,7 +471,7 @@ coresight_cti_get_platform_data(struct device *dev)
 	 * empty struct enables us to use the standard coresight component
 	 * registration code.
 	 */
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata) {
 		ret = -ENOMEM;
 		goto error;

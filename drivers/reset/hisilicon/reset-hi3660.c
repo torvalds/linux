@@ -79,7 +79,7 @@ static int hi3660_reset_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 
-	rc = devm_kzalloc(dev, sizeof(*rc), GFP_KERNEL);
+	rc = devm_kzalloc_obj(dev, *rc);
 	if (!rc)
 		return -ENOMEM;
 

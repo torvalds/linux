@@ -556,13 +556,13 @@ static void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
  */
 static int pch_gbe_alloc_queues(struct pch_gbe_adapter *adapter)
 {
-	adapter->tx_ring = devm_kzalloc(&adapter->pdev->dev,
-					sizeof(*adapter->tx_ring), GFP_KERNEL);
+	adapter->tx_ring = devm_kzalloc_obj(&adapter->pdev->dev,
+					    *adapter->tx_ring);
 	if (!adapter->tx_ring)
 		return -ENOMEM;
 
-	adapter->rx_ring = devm_kzalloc(&adapter->pdev->dev,
-					sizeof(*adapter->rx_ring), GFP_KERNEL);
+	adapter->rx_ring = devm_kzalloc_obj(&adapter->pdev->dev,
+					    *adapter->rx_ring);
 	if (!adapter->rx_ring)
 		return -ENOMEM;
 	return 0;

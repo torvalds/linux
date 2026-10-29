@@ -588,7 +588,7 @@ static int gaokun_psy_probe(struct auxiliary_device *adev,
 	struct device *dev = &adev->dev;
 	struct gaokun_psy *ecbat;
 
-	ecbat = devm_kzalloc(&adev->dev, sizeof(*ecbat), GFP_KERNEL);
+	ecbat = devm_kzalloc_obj(&adev->dev, *ecbat);
 	if (!ecbat)
 		return -ENOMEM;
 

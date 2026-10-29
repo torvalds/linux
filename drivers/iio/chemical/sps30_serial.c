@@ -389,7 +389,7 @@ static int sps30_serial_probe(struct serdev_device *serdev)
 	struct sps30_serial_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

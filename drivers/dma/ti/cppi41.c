@@ -781,7 +781,7 @@ static int cppi41_add_chans(struct device *dev, struct cppi41_dd *cdd)
 	 */
 	n_chans *= 2;
 
-	chans = devm_kcalloc(dev, n_chans, sizeof(*chans), GFP_KERNEL);
+	chans = devm_kzalloc_objs(dev, *chans, n_chans);
 	if (!chans)
 		return -ENOMEM;
 
@@ -1043,7 +1043,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	if (!glue_info)
 		return -EINVAL;
 
-	cdd = devm_kzalloc(&pdev->dev, sizeof(*cdd), GFP_KERNEL);
+	cdd = devm_kzalloc_obj(&pdev->dev, *cdd);
 	if (!cdd)
 		return -ENOMEM;
 

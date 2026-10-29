@@ -108,7 +108,7 @@ static int smo8800_probe(struct platform_device *device)
 	int err;
 	struct smo8800_device *smo8800;
 
-	smo8800 = devm_kzalloc(&device->dev, sizeof(*smo8800), GFP_KERNEL);
+	smo8800 = devm_kzalloc_obj(&device->dev, *smo8800);
 	if (!smo8800) {
 		dev_err(&device->dev, "failed to allocate device data\n");
 		return -ENOMEM;

@@ -1034,7 +1034,7 @@ static int ar9331_sw_probe(struct mdio_device *mdiodev)
 	struct dsa_switch *ds;
 	int ret, i;
 
-	priv = devm_kzalloc(&mdiodev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&mdiodev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

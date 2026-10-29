@@ -983,8 +983,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	if ((!pdata && !pd->dev.of_node))
 		return -ENODEV;
 
-	drv_data = devm_kzalloc(&pd->dev, sizeof(struct mv64xxx_i2c_data),
-				GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(&pd->dev, struct mv64xxx_i2c_data);
 	if (!drv_data)
 		return -ENOMEM;
 

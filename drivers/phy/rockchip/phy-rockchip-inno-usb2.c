@@ -1356,7 +1356,7 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 	unsigned int reg;
 	int index = 0, ret;
 
-	rphy = devm_kzalloc(dev, sizeof(*rphy), GFP_KERNEL);
+	rphy = devm_kzalloc_obj(dev, *rphy);
 	if (!rphy)
 		return -ENOMEM;
 

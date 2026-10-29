@@ -62,8 +62,7 @@ static int ab8500_ponkey_probe(struct platform_device *pdev)
 	if (irq_dbr < 0)
 		return irq_dbr;
 
-	ponkey = devm_kzalloc(&pdev->dev, sizeof(struct ab8500_ponkey),
-			      GFP_KERNEL);
+	ponkey = devm_kzalloc_obj(&pdev->dev, struct ab8500_ponkey);
 	if (!ponkey)
 		return -ENOMEM;
 

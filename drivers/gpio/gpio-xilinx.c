@@ -540,7 +540,7 @@ static int xgpio_probe(struct platform_device *pdev)
 	struct gpio_irq_chip *girq;
 	u32 temp;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 
@@ -633,8 +633,7 @@ static int xgpio_probe(struct platform_device *pdev)
 	gpio_irq_chip_set_chip(girq, &xgpio_irq_chip);
 	girq->parent_handler = xgpio_irqhandler;
 	girq->num_parents = 1;
-	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
-				     GFP_KERNEL);
+	girq->parents = devm_kzalloc_objs(dev, *girq->parents, 1);
 	if (!girq->parents) {
 		status = -ENOMEM;
 		goto err_pm_put;

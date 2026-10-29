@@ -1227,15 +1227,15 @@ static int max96724_probe(struct i2c_client *client)
 	u32 cc_port;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(dev, *info);
 	if (!info)
 		return -ENOMEM;
 
-	ops = devm_kzalloc(dev, sizeof(*ops), GFP_KERNEL);
+	ops = devm_kzalloc_obj(dev, *ops);
 	if (!ops)
 		return -ENOMEM;
 

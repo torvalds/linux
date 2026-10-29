@@ -474,7 +474,7 @@ static int kcs_bmc_ipmi_add_device(struct kcs_bmc_device *kcs_bmc)
 	struct kcs_bmc_ipmi *priv;
 	int rc;
 
-	priv = devm_kzalloc(kcs_bmc->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(kcs_bmc->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -145,7 +145,7 @@ static int scmi_system_protocol_init(const struct scmi_protocol_handle *ph)
 	dev_dbg(ph->dev, "System Power Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
-	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
+	pinfo = devm_kzalloc_obj(ph->dev, *pinfo);
 	if (!pinfo)
 		return -ENOMEM;
 

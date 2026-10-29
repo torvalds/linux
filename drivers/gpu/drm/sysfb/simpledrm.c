@@ -523,15 +523,13 @@ static int simpledrm_device_attach_genpd(struct simpledrm_device *sdev)
 	if (sdev->pwr_dom_count <= 1)
 		return 0;
 
-	sdev->pwr_dom_devs = devm_kcalloc(dev, sdev->pwr_dom_count,
-					       sizeof(*sdev->pwr_dom_devs),
-					       GFP_KERNEL);
+	sdev->pwr_dom_devs = devm_kzalloc_objs(dev, *sdev->pwr_dom_devs,
+					       sdev->pwr_dom_count);
 	if (!sdev->pwr_dom_devs)
 		return -ENOMEM;
 
-	sdev->pwr_dom_links = devm_kcalloc(dev, sdev->pwr_dom_count,
-						sizeof(*sdev->pwr_dom_links),
-						GFP_KERNEL);
+	sdev->pwr_dom_links = devm_kzalloc_objs(dev, *sdev->pwr_dom_links,
+						sdev->pwr_dom_count);
 	if (!sdev->pwr_dom_links)
 		return -ENOMEM;
 

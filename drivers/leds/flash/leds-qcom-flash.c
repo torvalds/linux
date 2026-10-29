@@ -845,7 +845,7 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 	int count, i, rc;
 	u32 val, reg_base;
 
-	flash_data = devm_kzalloc(dev, sizeof(*flash_data), GFP_KERNEL);
+	flash_data = devm_kzalloc_obj(dev, *flash_data);
 	if (!flash_data)
 		return -ENOMEM;
 
@@ -931,13 +931,13 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	flash_data->v4l2_flash = devm_kcalloc(dev, count,
-			sizeof(*flash_data->v4l2_flash), GFP_KERNEL);
+	flash_data->v4l2_flash = devm_kzalloc_objs(dev, *flash_data->v4l2_flash,
+						   count);
 	if (!flash_data->v4l2_flash)
 		return -ENOMEM;
 
 	device_for_each_child_node_scoped(dev, child) {
-		led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
+		led = devm_kzalloc_obj(dev, *led);
 		if (!led) {
 			rc = -ENOMEM;
 			goto release;

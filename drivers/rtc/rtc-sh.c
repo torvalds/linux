@@ -330,7 +330,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	unsigned int tmp;
 	resource_size_t regsize;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (unlikely(!rtc))
 		return -ENOMEM;
 

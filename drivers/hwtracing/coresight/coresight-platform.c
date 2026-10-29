@@ -51,8 +51,7 @@ coresight_add_out_conn(struct device *dev,
 	if (!pdata->out_conns)
 		return ERR_PTR(-ENOMEM);
 
-	conn = devm_kmalloc(dev, sizeof(struct coresight_connection),
-			    GFP_KERNEL);
+	conn = devm_kmalloc_obj(dev, struct coresight_connection);
 	if (!conn)
 		return ERR_PTR(-ENOMEM);
 
@@ -835,7 +834,7 @@ coresight_get_platform_data(struct device *dev)
 	if (IS_ERR_OR_NULL(fwnode))
 		goto error;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata) {
 		ret = -ENOMEM;
 		goto error;

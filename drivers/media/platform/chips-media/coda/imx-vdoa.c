@@ -291,7 +291,7 @@ static int vdoa_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	vdoa = devm_kzalloc(&pdev->dev, sizeof(*vdoa), GFP_KERNEL);
+	vdoa = devm_kzalloc_obj(&pdev->dev, *vdoa);
 	if (!vdoa)
 		return -ENOMEM;
 

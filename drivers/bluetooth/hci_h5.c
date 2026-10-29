@@ -857,7 +857,7 @@ static int h5_serdev_probe(struct serdev_device *serdev)
 	struct h5 *h5;
 	const struct h5_device_data *data;
 
-	h5 = devm_kzalloc(dev, sizeof(*h5), GFP_KERNEL);
+	h5 = devm_kzalloc_obj(dev, *h5);
 	if (!h5)
 		return -ENOMEM;
 

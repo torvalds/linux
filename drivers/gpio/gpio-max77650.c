@@ -145,7 +145,7 @@ static int max77650_gpio_probe(struct platform_device *pdev)
 	parent = dev->parent;
 	i2c = to_i2c_client(parent);
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

@@ -479,11 +479,11 @@ int ur_pinctrl_probe(struct platform_device *pdev,
 	if (!data)
 		return -ENODEV;
 
-	desc = devm_kzalloc(&pdev->dev, sizeof(*desc), GFP_KERNEL);
+	desc = devm_kzalloc_obj(&pdev->dev, *desc);
 	if (!desc)
 		return -ENOMEM;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	pctrl = devm_kzalloc_obj(&pdev->dev, *pctrl);
 	if (!pctrl)
 		return -ENOMEM;
 

@@ -181,10 +181,9 @@ static int mlxreg_io_attr_init(struct mlxreg_io_priv_data *priv)
 {
 	int i;
 
-	priv->group.attrs = devm_kcalloc(&priv->pdev->dev,
-					 priv->pdata->counter,
-					 sizeof(struct attribute *),
-					 GFP_KERNEL);
+	priv->group.attrs = devm_kzalloc_objs(&priv->pdev->dev,
+					      struct attribute *,
+					      priv->pdata->counter);
 	if (!priv->group.attrs)
 		return -ENOMEM;
 
@@ -225,7 +224,7 @@ static int mlxreg_io_probe(struct platform_device *pdev)
 	struct mlxreg_io_priv_data *priv;
 	int err;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

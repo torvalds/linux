@@ -158,7 +158,7 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
 
-	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm8994_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc_obj(&pdev->dev, struct wm8994_ldo);
 	if (!ldo)
 		return -ENOMEM;
 

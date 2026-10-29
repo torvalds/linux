@@ -263,7 +263,7 @@ static int ti_sci_intr_irq_domain_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	intr = devm_kzalloc(dev, sizeof(*intr), GFP_KERNEL);
+	intr = devm_kzalloc_obj(dev, *intr);
 	if (!intr)
 		return -ENOMEM;
 

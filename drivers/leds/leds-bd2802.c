@@ -661,7 +661,7 @@ static int bd2802_probe(struct i2c_client *client)
 	struct bd2802_led *led;
 	int ret, i;
 
-	led = devm_kzalloc(&client->dev, sizeof(struct bd2802_led), GFP_KERNEL);
+	led = devm_kzalloc_obj(&client->dev, struct bd2802_led);
 	if (!led)
 		return -ENOMEM;
 

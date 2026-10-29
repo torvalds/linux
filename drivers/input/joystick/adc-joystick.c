@@ -257,7 +257,7 @@ static int adc_joystick_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	joy = devm_kzalloc(dev, struct_size(joy, axes, num_chans), GFP_KERNEL);
+	joy = devm_kzalloc_flex(dev, *joy, axes, num_chans);
 	if (!joy)
 		return -ENOMEM;
 

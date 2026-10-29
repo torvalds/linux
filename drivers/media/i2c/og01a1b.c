@@ -970,7 +970,7 @@ static int og01a1b_probe(struct i2c_client *client)
 	unsigned long freq;
 	int ret;
 
-	og01a1b = devm_kzalloc(&client->dev, sizeof(*og01a1b), GFP_KERNEL);
+	og01a1b = devm_kzalloc_obj(&client->dev, *og01a1b);
 	if (!og01a1b)
 		return -ENOMEM;
 

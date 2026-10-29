@@ -119,7 +119,7 @@ static int imon_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	imon = devm_kmalloc(&intf->dev, sizeof(*imon), GFP_KERNEL);
+	imon = devm_kmalloc_obj(&intf->dev, *imon);
 	if (!imon)
 		return -ENOMEM;
 

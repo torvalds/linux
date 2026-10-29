@@ -1200,7 +1200,7 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 	struct thermal_zone_device *tzdev;
 	void __iomem *apmixed_base, *auxadc_base;
 
-	mt = devm_kzalloc(&pdev->dev, sizeof(*mt), GFP_KERNEL);
+	mt = devm_kzalloc_obj(&pdev->dev, *mt);
 	if (!mt)
 		return -ENOMEM;
 

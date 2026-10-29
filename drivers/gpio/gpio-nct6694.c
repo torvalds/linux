@@ -398,7 +398,7 @@ static int nct6694_gpio_probe(struct platform_device *pdev)
 	int ret, i;
 	char **names;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

@@ -1735,7 +1735,7 @@ static int nxp_c45_probe(struct phy_device *phydev)
 	bool ptp_ability;
 	int ret = 0;
 
-	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&phydev->mdio.dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

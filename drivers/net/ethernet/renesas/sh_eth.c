@@ -3099,7 +3099,7 @@ static int sh_mdio_init(struct sh_eth_private *mdp,
 	struct device_node *pn;
 
 	/* create bit control struct for PHY */
-	bitbang = devm_kzalloc(dev, sizeof(struct bb_info), GFP_KERNEL);
+	bitbang = devm_kzalloc_obj(dev, struct bb_info);
 	if (!bitbang)
 		return -ENOMEM;
 
@@ -3208,7 +3208,7 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 	phy_interface_t interface;
 	int ret;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(dev, *pdata);
 	if (!pdata)
 		return NULL;
 

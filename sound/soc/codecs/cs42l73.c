@@ -1296,7 +1296,7 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client)
 	unsigned int reg;
 	u32 val32;
 
-	cs42l73 = devm_kzalloc(&i2c_client->dev, sizeof(*cs42l73), GFP_KERNEL);
+	cs42l73 = devm_kzalloc_obj(&i2c_client->dev, *cs42l73);
 	if (!cs42l73)
 		return -ENOMEM;
 
@@ -1307,7 +1307,7 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client)
 		return ret;
 	}
 
-	pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(&i2c_client->dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

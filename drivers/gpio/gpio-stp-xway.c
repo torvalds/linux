@@ -237,7 +237,7 @@ static int xway_stp_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret = 0;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&pdev->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

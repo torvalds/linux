@@ -1511,7 +1511,7 @@ static int rpm_reg_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	for_each_available_child_of_node_scoped(dev->of_node, node) {
-		vreg = devm_kzalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
+		vreg = devm_kzalloc_obj(&pdev->dev, *vreg);
 		if (!vreg)
 			return -ENOMEM;
 

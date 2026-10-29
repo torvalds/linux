@@ -344,7 +344,7 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 	if (!io_base)
 		return -ENOMEM;
 
-	gpio = devm_kzalloc(dev, sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc_obj(dev, *gpio);
 	if (!gpio)
 		return -ENOMEM;
 
@@ -389,9 +389,7 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 		gpio_irq_chip_set_chip(girq, &tqmx86_gpio_irq_chip);
 		girq->parent_handler = tqmx86_gpio_irq_handler;
 		girq->num_parents = 1;
-		girq->parents = devm_kcalloc(&pdev->dev, 1,
-					     sizeof(*girq->parents),
-					     GFP_KERNEL);
+		girq->parents = devm_kzalloc_objs(&pdev->dev, *girq->parents, 1);
 		if (!girq->parents) {
 			ret = -ENOMEM;
 			goto out_pm_dis;

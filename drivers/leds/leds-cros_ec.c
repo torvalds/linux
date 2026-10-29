@@ -183,7 +183,7 @@ static int cros_ec_led_probe_one(struct device *dev, struct cros_ec_device *cros
 	if (ret < 0)
 		return ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -197,7 +197,7 @@ static int cros_ec_led_probe_one(struct device *dev, struct cros_ec_device *cros
 	priv->cros_ec = cros_ec;
 	priv->led_id = id;
 
-	subleds = devm_kcalloc(dev, num_subleds, sizeof(*subleds), GFP_KERNEL);
+	subleds = devm_kzalloc_objs(dev, *subleds, num_subleds);
 	if (!subleds)
 		return -ENOMEM;
 

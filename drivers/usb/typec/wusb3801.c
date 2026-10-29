@@ -327,7 +327,7 @@ static int wusb3801_probe(struct i2c_client *client)
 	const char *cap_str;
 	int ret;
 
-	wusb3801 = devm_kzalloc(dev, sizeof(*wusb3801), GFP_KERNEL);
+	wusb3801 = devm_kzalloc_obj(dev, *wusb3801);
 	if (!wusb3801)
 		return -ENOMEM;
 

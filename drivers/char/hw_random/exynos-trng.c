@@ -185,7 +185,7 @@ static int exynos_trng_probe(struct platform_device *pdev)
 	struct exynos_trng_dev *trng;
 	int ret = -ENOMEM;
 
-	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
+	trng = devm_kzalloc_obj(&pdev->dev, *trng);
 	if (!trng)
 		return ret;
 

@@ -826,7 +826,7 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 	int ret, irq;
 	u32 comp1_reg;
 
-	kmb_i2s = devm_kzalloc(dev, sizeof(*kmb_i2s), GFP_KERNEL);
+	kmb_i2s = devm_kzalloc_obj(dev, *kmb_i2s);
 	if (!kmb_i2s)
 		return -ENOMEM;
 

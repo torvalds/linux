@@ -144,7 +144,7 @@ static int xwwdt_probe(struct platform_device *pdev)
 	u64 ms_count;
 	int ret;
 
-	xdev = devm_kzalloc(dev, sizeof(*xdev), GFP_KERNEL);
+	xdev = devm_kzalloc_obj(dev, *xdev);
 	if (!xdev)
 		return -ENOMEM;
 

@@ -926,7 +926,7 @@ struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 	struct sti_gdp *gdp;
 	int res;
 
-	gdp = devm_kzalloc(dev, sizeof(*gdp), GFP_KERNEL);
+	gdp = devm_kzalloc_obj(dev, *gdp);
 	if (!gdp) {
 		DRM_ERROR("Failed to allocate memory for GDP\n");
 		return NULL;

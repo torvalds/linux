@@ -1010,7 +1010,7 @@ static int ft260_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (!hid_is_usb(hdev))
 		return -EINVAL;
 
-	dev = devm_kzalloc(&hdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&hdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

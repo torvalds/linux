@@ -362,7 +362,7 @@ static int ipu_prg_probe(struct platform_device *pdev)
 	u32 val;
 	int i, ret;
 
-	prg = devm_kzalloc(dev, sizeof(*prg), GFP_KERNEL);
+	prg = devm_kzalloc_obj(dev, *prg);
 	if (!prg)
 		return -ENOMEM;
 

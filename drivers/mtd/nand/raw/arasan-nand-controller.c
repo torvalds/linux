@@ -1173,8 +1173,8 @@ static int anfc_init_hw_ecc_controller(struct arasan_nfc *nfc,
 			  ECC_CONF_LEN(anand->ecc_total) |
 			  ECC_CONF_BCH_EN;
 
-	anand->errloc = devm_kmalloc_array(nfc->dev, ecc->strength,
-					   sizeof(*anand->errloc), GFP_KERNEL);
+	anand->errloc = devm_kmalloc_objs(nfc->dev, *anand->errloc,
+					  ecc->strength);
 	if (!anand->errloc)
 		return -ENOMEM;
 
@@ -1276,7 +1276,7 @@ static int anfc_chip_init(struct arasan_nfc *nfc, struct device_node *np)
 	struct mtd_info *mtd;
 	int rb, ret, i;
 
-	anand = devm_kzalloc(nfc->dev, sizeof(*anand), GFP_KERNEL);
+	anand = devm_kzalloc_obj(nfc->dev, *anand);
 	if (!anand)
 		return -ENOMEM;
 
@@ -1287,8 +1287,8 @@ static int anfc_chip_init(struct arasan_nfc *nfc, struct device_node *np)
 		return -EINVAL;
 	}
 
-	anand->cs_idx = devm_kcalloc(nfc->dev, anand->ncs_idx,
-				     sizeof(*anand->cs_idx), GFP_KERNEL);
+	anand->cs_idx = devm_kzalloc_objs(nfc->dev, *anand->cs_idx,
+					  anand->ncs_idx);
 	if (!anand->cs_idx)
 		return -ENOMEM;
 
@@ -1436,7 +1436,7 @@ static int anfc_probe(struct platform_device *pdev)
 	struct arasan_nfc *nfc;
 	int ret;
 
-	nfc = devm_kzalloc(&pdev->dev, sizeof(*nfc), GFP_KERNEL);
+	nfc = devm_kzalloc_obj(&pdev->dev, *nfc);
 	if (!nfc)
 		return -ENOMEM;
 

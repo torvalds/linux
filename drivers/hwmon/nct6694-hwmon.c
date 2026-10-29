@@ -906,17 +906,15 @@ static int nct6694_hwmon_probe(struct platform_device *pdev)
 	struct device *hwmon_dev;
 	int ret;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&pdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 
-	data->rpt = devm_kzalloc(&pdev->dev, sizeof(union nct6694_hwmon_rpt),
-				 GFP_KERNEL);
+	data->rpt = devm_kzalloc_obj(&pdev->dev, union nct6694_hwmon_rpt);
 	if (!data->rpt)
 		return -ENOMEM;
 
-	data->msg = devm_kzalloc(&pdev->dev, sizeof(union nct6694_hwmon_msg),
-				 GFP_KERNEL);
+	data->msg = devm_kzalloc_obj(&pdev->dev, union nct6694_hwmon_msg);
 	if (!data->msg)
 		return -ENOMEM;
 

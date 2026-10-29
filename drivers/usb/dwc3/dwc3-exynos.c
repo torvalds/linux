@@ -45,7 +45,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	const struct dwc3_exynos_driverdata *driver_data;
 	int			i, ret;
 
-	exynos = devm_kzalloc(dev, sizeof(*exynos), GFP_KERNEL);
+	exynos = devm_kzalloc_obj(dev, *exynos);
 	if (!exynos)
 		return -ENOMEM;
 

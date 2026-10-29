@@ -562,11 +562,11 @@ static int hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 	if (quirks & HID_BATTERY_QUIRK_IGNORE)
 		return 0;
 
-	bat = devm_kzalloc(&dev->dev, sizeof(*bat), GFP_KERNEL);
+	bat = devm_kzalloc_obj(&dev->dev, *bat);
 	if (!bat)
 		return -ENOMEM;
 
-	psy_desc = devm_kzalloc(&dev->dev, sizeof(*psy_desc), GFP_KERNEL);
+	psy_desc = devm_kzalloc_obj(&dev->dev, *psy_desc);
 	if (!psy_desc) {
 		error = -ENOMEM;
 		goto err_free_bat;

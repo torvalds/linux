@@ -68,7 +68,7 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	struct led_init_data init_data = {};
 	const char *tmp;
 
-	led_data = devm_kzalloc(dev, sizeof(*led_data), GFP_KERNEL);
+	led_data = devm_kzalloc_obj(dev, *led_data);
 	if (!led_data)
 		return -ENOMEM;
 

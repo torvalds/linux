@@ -362,7 +362,7 @@ static int qcom_ec_probe(struct i2c_client *client)
 	unsigned int i;
 	int ret;
 
-	ec = devm_kzalloc(dev, sizeof(*ec), GFP_KERNEL);
+	ec = devm_kzalloc_obj(dev, *ec);
 	if (!ec)
 		return -ENOMEM;
 
@@ -392,7 +392,8 @@ static int qcom_ec_probe(struct i2c_client *client)
 		return 0;
 	}
 
-	ec->ec_cdev = devm_kcalloc(dev, ec->thermal_cap.fan_cnt, sizeof(*ec->ec_cdev), GFP_KERNEL);
+	ec->ec_cdev = devm_kzalloc_objs(dev, *ec->ec_cdev,
+					ec->thermal_cap.fan_cnt);
 	if (!ec->ec_cdev)
 		return -ENOMEM;
 

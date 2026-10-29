@@ -303,7 +303,7 @@ static int pmic_glink_probe(struct platform_device *pdev)
 	struct pmic_glink *pg;
 	int ret;
 
-	pg = devm_kzalloc(&pdev->dev, sizeof(*pg), GFP_KERNEL);
+	pg = devm_kzalloc_obj(&pdev->dev, *pg);
 	if (!pg)
 		return -ENOMEM;
 

@@ -335,7 +335,7 @@ static int qcom_mpm_probe(struct platform_device *pdev, struct device_node *pare
 	int i, irq;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -359,8 +359,7 @@ static int qcom_mpm_probe(struct platform_device *pdev, struct device_node *pare
 	}
 
 	priv->map_cnt = ret / 2;
-	priv->maps = devm_kcalloc(dev, priv->map_cnt, sizeof(*priv->maps),
-				  GFP_KERNEL);
+	priv->maps = devm_kzalloc_objs(dev, *priv->maps, priv->map_cnt);
 	if (!priv->maps)
 		return -ENOMEM;
 

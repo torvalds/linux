@@ -197,7 +197,7 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 	 * Allocate our watchdog driver data, which has the
 	 * struct watchdog_device nested within it.
 	 */
-	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(dev, *wdt);
 	if (!wdt)
 		return -ENOMEM;
 

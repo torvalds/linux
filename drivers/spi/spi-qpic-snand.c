@@ -1581,7 +1581,7 @@ static int qcom_spi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	qspi = devm_kzalloc(dev, sizeof(*qspi), GFP_KERNEL);
+	qspi = devm_kzalloc_obj(dev, *qspi);
 	if (!qspi)
 		return -ENOMEM;
 

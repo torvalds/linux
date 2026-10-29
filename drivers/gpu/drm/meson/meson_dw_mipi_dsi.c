@@ -267,7 +267,7 @@ static int meson_dw_mipi_dsi_probe(struct platform_device *pdev)
 	struct meson_dw_mipi_dsi *mipi_dsi;
 	struct device *dev = &pdev->dev;
 
-	mipi_dsi = devm_kzalloc(dev, sizeof(*mipi_dsi), GFP_KERNEL);
+	mipi_dsi = devm_kzalloc_obj(dev, *mipi_dsi);
 	if (!mipi_dsi)
 		return -ENOMEM;
 

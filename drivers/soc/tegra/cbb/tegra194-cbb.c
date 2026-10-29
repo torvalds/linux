@@ -2204,8 +2204,8 @@ static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node
 	if (!cbb->bridges) {
 		cbb->num_bridges = of_address_count(np);
 
-		cbb->bridges = devm_kcalloc(cbb->base.dev, cbb->num_bridges,
-					    sizeof(*cbb->bridges), GFP_KERNEL);
+		cbb->bridges = devm_kzalloc_objs(cbb->base.dev, *cbb->bridges,
+						 cbb->num_bridges);
 		if (!cbb->bridges)
 			return -ENOMEM;
 
@@ -2254,7 +2254,7 @@ static int tegra194_cbb_probe(struct platform_device *pdev)
 		}
 	}
 
-	cbb = devm_kzalloc(&pdev->dev, sizeof(*cbb), GFP_KERNEL);
+	cbb = devm_kzalloc_obj(&pdev->dev, *cbb);
 	if (!cbb)
 		return -ENOMEM;
 

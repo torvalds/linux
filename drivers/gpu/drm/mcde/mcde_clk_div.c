@@ -165,10 +165,10 @@ int mcde_init_clock_divider(struct mcde *mcde)
 	parent_name = __clk_get_name(mcde->lcd_clk);
 
 	/* Allocate 2 clocks */
-	fifoa = devm_kzalloc(dev, sizeof(*fifoa), GFP_KERNEL);
+	fifoa = devm_kzalloc_obj(dev, *fifoa);
 	if (!fifoa)
 		return -ENOMEM;
-	fifob = devm_kzalloc(dev, sizeof(*fifob), GFP_KERNEL);
+	fifob = devm_kzalloc_obj(dev, *fifob);
 	if (!fifob)
 		return -ENOMEM;
 

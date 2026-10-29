@@ -124,7 +124,7 @@ static int cros_ec_wdt_probe(struct platform_device *pdev)
 	union cros_ec_wdt_data arg;
 	int ret = 0;
 
-	wdd = devm_kzalloc(&pdev->dev, sizeof(*wdd), GFP_KERNEL);
+	wdd = devm_kzalloc_obj(&pdev->dev, *wdd);
 	if (!wdd)
 		return -ENOMEM;
 

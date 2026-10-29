@@ -1318,7 +1318,7 @@ static int rj54n1_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	rj54n1 = devm_kzalloc(&client->dev, sizeof(struct rj54n1), GFP_KERNEL);
+	rj54n1 = devm_kzalloc_obj(&client->dev, struct rj54n1);
 	if (!rj54n1)
 		return -ENOMEM;
 

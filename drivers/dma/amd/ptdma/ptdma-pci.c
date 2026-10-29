@@ -37,7 +37,7 @@ static struct pt_device *pt_alloc_struct(struct device *dev)
 {
 	struct pt_device *pt;
 
-	pt = devm_kzalloc(dev, sizeof(*pt), GFP_KERNEL);
+	pt = devm_kzalloc_obj(dev, *pt);
 
 	if (!pt)
 		return NULL;
@@ -131,7 +131,7 @@ static int pt_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!pt)
 		goto e_err;
 
-	pt_msix = devm_kzalloc(dev, sizeof(*pt_msix), GFP_KERNEL);
+	pt_msix = devm_kzalloc_obj(dev, *pt_msix);
 	if (!pt_msix)
 		goto e_err;
 

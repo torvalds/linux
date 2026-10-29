@@ -825,8 +825,7 @@ static int vmd_alloc_irqs(struct vmd_dev *vmd)
 	if (vmd->msix_count < 0)
 		return vmd->msix_count;
 
-	vmd->irqs = devm_kcalloc(&dev->dev, vmd->msix_count, sizeof(*vmd->irqs),
-				 GFP_KERNEL);
+	vmd->irqs = devm_kzalloc_objs(&dev->dev, *vmd->irqs, vmd->msix_count);
 	if (!vmd->irqs)
 		return -ENOMEM;
 
@@ -1165,7 +1164,7 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (resource_size(&dev->resource[VMD_CFGBAR]) < (1 << 20))
 		return -ENOMEM;
 
-	vmd = devm_kzalloc(&dev->dev, sizeof(*vmd), GFP_KERNEL);
+	vmd = devm_kzalloc_obj(&dev->dev, *vmd);
 	if (!vmd)
 		return -ENOMEM;
 

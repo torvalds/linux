@@ -72,7 +72,7 @@ static int slot_pwrctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	slot = devm_kzalloc(dev, sizeof(*slot), GFP_KERNEL);
+	slot = devm_kzalloc_obj(dev, *slot);
 	if (!slot)
 		return -ENOMEM;
 

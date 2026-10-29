@@ -729,7 +729,7 @@ static int rda_uart_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	rda_port = devm_kzalloc(&pdev->dev, sizeof(*rda_port), GFP_KERNEL);
+	rda_port = devm_kzalloc_obj(&pdev->dev, *rda_port);
 	if (!rda_port)
 		return -ENOMEM;
 

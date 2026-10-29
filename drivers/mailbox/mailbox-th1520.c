@@ -336,7 +336,7 @@ static const struct mbox_chan_ops th1520_mbox_ops = {
 static int th1520_mbox_init_generic(struct th1520_mbox_priv *priv)
 {
 #ifdef CONFIG_PM_SLEEP
-	priv->ctx = devm_kzalloc(priv->dev, sizeof(*priv->ctx), GFP_KERNEL);
+	priv->ctx = devm_kzalloc_obj(priv->dev, *priv->ctx);
 	if (!priv->ctx)
 		return -ENOMEM;
 #endif
@@ -410,7 +410,7 @@ static int th1520_mbox_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

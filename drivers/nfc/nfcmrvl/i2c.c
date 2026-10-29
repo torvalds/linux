@@ -195,7 +195,7 @@ static int nfcmrvl_i2c_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	drv_data = devm_kzalloc(&client->dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(&client->dev, *drv_data);
 	if (!drv_data)
 		return -ENOMEM;
 

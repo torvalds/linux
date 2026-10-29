@@ -318,7 +318,7 @@ static int meson_irtx_probe(struct platform_device *pdev)
 	unsigned int clk_nr;
 	int ret;
 
-	ir = devm_kzalloc(dev, sizeof(*ir), GFP_KERNEL);
+	ir = devm_kzalloc_obj(dev, *ir);
 	if (!ir)
 		return -ENOMEM;
 

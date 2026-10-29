@@ -463,7 +463,7 @@ static int hisi_i2c_probe(struct platform_device *pdev)
 	u32 hw_version;
 	int ret;
 
-	ctlr = devm_kzalloc(dev, sizeof(*ctlr), GFP_KERNEL);
+	ctlr = devm_kzalloc_obj(dev, *ctlr);
 	if (!ctlr)
 		return -ENOMEM;
 

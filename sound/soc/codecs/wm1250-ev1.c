@@ -133,7 +133,7 @@ static int wm1250_ev1_pdata(struct i2c_client *i2c)
 	if (!pdata)
 		return 0;
 
-	wm1250 = devm_kzalloc(&i2c->dev, sizeof(*wm1250), GFP_KERNEL);
+	wm1250 = devm_kzalloc_obj(&i2c->dev, *wm1250);
 	if (!wm1250)
 		return -ENOMEM;
 

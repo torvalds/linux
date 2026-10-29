@@ -105,7 +105,7 @@ static int gpio_sbu_mux_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct gpio_sbu_mux *sbu_mux;
 
-	sbu_mux = devm_kzalloc(dev, sizeof(*sbu_mux), GFP_KERNEL);
+	sbu_mux = devm_kzalloc_obj(dev, *sbu_mux);
 	if (!sbu_mux)
 		return -ENOMEM;
 

@@ -222,7 +222,7 @@ static int omap_abe_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct abe_twl6040), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&pdev->dev, struct abe_twl6040);
 	if (priv == NULL)
 		return -ENOMEM;
 

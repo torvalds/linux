@@ -1299,7 +1299,7 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 	BUILD_BUG_ON(ARRAY_SIZE(bcm2835_gpio_pins) != BCM2711_NUM_GPIOS);
 	BUILD_BUG_ON(ARRAY_SIZE(bcm2835_gpio_groups) != BCM2711_NUM_GPIOS);
 
-	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
+	pc = devm_kzalloc_obj(dev, *pc);
 	if (!pc)
 		return -ENOMEM;
 
@@ -1362,18 +1362,15 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 	gpio_irq_chip_set_chip(girq, &bcm2835_gpio_irq_chip);
 	girq->parent_handler = bcm2835_gpio_irq_handler;
 	girq->num_parents = BCM2835_NUM_IRQS;
-	girq->parents = devm_kcalloc(dev, BCM2835_NUM_IRQS,
-				     sizeof(*girq->parents),
-				     GFP_KERNEL);
+	girq->parents = devm_kzalloc_objs(dev, *girq->parents, BCM2835_NUM_IRQS);
 	if (!girq->parents) {
 		err = -ENOMEM;
 		goto out_remove;
 	}
 
 	if (is_7211) {
-		pc->wake_irq = devm_kcalloc(dev, BCM2835_NUM_IRQS,
-					    sizeof(*pc->wake_irq),
-					    GFP_KERNEL);
+		pc->wake_irq = devm_kzalloc_objs(dev, *pc->wake_irq,
+						 BCM2835_NUM_IRQS);
 		if (!pc->wake_irq) {
 			err = -ENOMEM;
 			goto out_remove;

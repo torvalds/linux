@@ -683,7 +683,7 @@ static int cvs_core_probe(struct device *dev, struct i2c_client *i2c)
 		goto err_put_ipu;
 	}
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(dev, *ctx);
 	if (!ctx) {
 		ret = -ENOMEM;
 		goto err_put_ipu;

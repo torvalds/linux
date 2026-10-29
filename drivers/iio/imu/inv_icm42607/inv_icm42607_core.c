@@ -580,7 +580,7 @@ int inv_icm42607_core_probe(struct regmap *regmap,
 	struct inv_icm42607_state *st;
 	int ret;
 
-	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, *st);
 	if (!st)
 		return -ENOMEM;
 

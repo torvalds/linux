@@ -846,7 +846,7 @@ int mmci_dmae_setup(struct mmci_host *host)
 	const char *rxname, *txname;
 	struct mmci_dmae_priv *dmae;
 
-	dmae = devm_kzalloc(mmc_dev(host->mmc), sizeof(*dmae), GFP_KERNEL);
+	dmae = devm_kzalloc_obj(mmc_dev(host->mmc), *dmae);
 	if (!dmae)
 		return -ENOMEM;
 
@@ -2217,7 +2217,7 @@ static int mmci_probe(struct amba_device *dev,
 	}
 
 	if (!plat) {
-		plat = devm_kzalloc(&dev->dev, sizeof(*plat), GFP_KERNEL);
+		plat = devm_kzalloc_obj(&dev->dev, *plat);
 		if (!plat)
 			return -ENOMEM;
 	}

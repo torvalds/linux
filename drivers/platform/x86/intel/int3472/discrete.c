@@ -526,8 +526,8 @@ static int skl_int3472_discrete_probe(struct platform_device *pdev)
 	}
 
 	/* Max num GPIOs we've seen plus a terminator */
-	int3472 = devm_kzalloc(&pdev->dev, struct_size(int3472, gpios.table,
-			       INT3472_MAX_SENSOR_GPIOS + 1), GFP_KERNEL);
+	int3472 = devm_kzalloc_flex(&pdev->dev, *int3472, gpios.table,
+				    INT3472_MAX_SENSOR_GPIOS + 1);
 	if (!int3472)
 		return -ENOMEM;
 

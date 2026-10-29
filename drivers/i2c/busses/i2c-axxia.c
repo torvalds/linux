@@ -724,7 +724,7 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret = 0;
 
-	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
+	idev = devm_kzalloc_obj(&pdev->dev, *idev);
 	if (!idev)
 		return -ENOMEM;
 

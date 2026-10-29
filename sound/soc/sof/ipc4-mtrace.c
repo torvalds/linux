@@ -547,8 +547,7 @@ static int ipc4_mtrace_init(struct snd_sof_dev *sdev)
 		return 0;
 	}
 
-	priv = devm_kzalloc(sdev->dev, struct_size(priv, cores, sdev->num_cores),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_flex(sdev->dev, *priv, cores, sdev->num_cores);
 	if (!priv)
 		return -ENOMEM;
 

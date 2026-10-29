@@ -4710,9 +4710,7 @@ static int camss_parse_endpoint_node(struct device *dev,
 	lncfg->clk.pol = mipi_csi2->lane_polarities[0];
 	lncfg->num_data = mipi_csi2->num_data_lanes;
 
-	lncfg->data = devm_kcalloc(dev,
-				   lncfg->num_data, sizeof(*lncfg->data),
-				   GFP_KERNEL);
+	lncfg->data = devm_kzalloc_objs(dev, *lncfg->data, lncfg->num_data);
 	if (!lncfg->data)
 		return -ENOMEM;
 
@@ -5419,7 +5417,7 @@ static int camss_probe(struct platform_device *pdev)
 	struct camss *camss;
 	int ret;
 
-	camss = devm_kzalloc(dev, sizeof(*camss), GFP_KERNEL);
+	camss = devm_kzalloc_obj(dev, *camss);
 	if (!camss)
 		return -ENOMEM;
 
@@ -5429,20 +5427,19 @@ static int camss_probe(struct platform_device *pdev)
 	camss->dev = dev;
 	platform_set_drvdata(pdev, camss);
 
-	camss->csiphy = devm_kcalloc(dev, camss->res->csiphy_num,
-				     sizeof(*camss->csiphy), GFP_KERNEL);
+	camss->csiphy = devm_kzalloc_objs(dev, *camss->csiphy,
+					  camss->res->csiphy_num);
 	if (!camss->csiphy)
 		return -ENOMEM;
 
 	if (camss->res->tpg_num > 0) {
-		camss->tpg = devm_kcalloc(dev, camss->res->tpg_num,
-					  sizeof(*camss->tpg), GFP_KERNEL);
+		camss->tpg = devm_kzalloc_objs(dev, *camss->tpg,
+					       camss->res->tpg_num);
 		if (!camss->tpg)
 			return -ENOMEM;
 	}
 
-	camss->csid = devm_kcalloc(dev, camss->res->csid_num, sizeof(*camss->csid),
-				   GFP_KERNEL);
+	camss->csid = devm_kzalloc_objs(dev, *camss->csid, camss->res->csid_num);
 	if (!camss->csid)
 		return -ENOMEM;
 
@@ -5450,13 +5447,12 @@ static int camss_probe(struct platform_device *pdev)
 	    camss->res->version == CAMSS_8x39 ||
 	    camss->res->version == CAMSS_8x53 ||
 	    camss->res->version == CAMSS_8x96) {
-		camss->ispif = devm_kcalloc(dev, 1, sizeof(*camss->ispif), GFP_KERNEL);
+		camss->ispif = devm_kzalloc_objs(dev, *camss->ispif, 1);
 		if (!camss->ispif)
 			return -ENOMEM;
 	}
 
-	camss->vfe = devm_kcalloc(dev, camss->res->vfe_num,
-				  sizeof(*camss->vfe), GFP_KERNEL);
+	camss->vfe = devm_kzalloc_objs(dev, *camss->vfe, camss->res->vfe_num);
 	if (!camss->vfe)
 		return -ENOMEM;
 

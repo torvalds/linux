@@ -569,7 +569,7 @@ static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
 	}
 
 	/* alloc channel */
-	tdmac = devm_kzalloc(tdev->dev, sizeof(*tdmac), GFP_KERNEL);
+	tdmac = devm_kzalloc_obj(tdev->dev, *tdmac);
 	if (!tdmac)
 		return -ENOMEM;
 
@@ -643,7 +643,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	type = (kernel_ulong_t)device_get_match_data(&pdev->dev);
 
 	/* always have couple channels */
-	tdev = devm_kzalloc(&pdev->dev, sizeof(*tdev), GFP_KERNEL);
+	tdev = devm_kzalloc_obj(&pdev->dev, *tdev);
 	if (!tdev)
 		return -ENOMEM;
 

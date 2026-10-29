@@ -101,15 +101,15 @@ static int avs_create_dai_link(struct device *dev, int ssp_port, int tdm_slot,
 	struct snd_soc_dai_link_component *platform;
 	struct snd_soc_dai_link *dl;
 
-	dl = devm_kzalloc(dev, sizeof(*dl), GFP_KERNEL);
-	platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
+	dl = devm_kzalloc_obj(dev, *dl);
+	platform = devm_kzalloc_obj(dev, *platform);
 	if (!dl || !platform)
 		return -ENOMEM;
 
 	dl->name = devm_kasprintf(dev, GFP_KERNEL,
 				  AVS_STRING_FMT("SSP", "-Codec", ssp_port, tdm_slot));
-	dl->cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
-	dl->codecs = devm_kcalloc(dev, 2, sizeof(*dl->codecs), GFP_KERNEL);
+	dl->cpus = devm_kzalloc_obj(dev, *dl->cpus);
+	dl->codecs = devm_kzalloc_objs(dev, *dl->codecs, 2);
 	if (!dl->name || !dl->cpus || !dl->codecs)
 		return -ENOMEM;
 
@@ -163,7 +163,7 @@ static int avs_max98373_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc_obj(dev, *card);
 	if (!card)
 		return -ENOMEM;
 

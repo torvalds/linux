@@ -1074,7 +1074,7 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	hub = devm_kzalloc(&pdev->dev, sizeof(*hub), GFP_KERNEL);
+	hub = devm_kzalloc_obj(&pdev->dev, *hub);
 	if (!hub)
 		return -ENOMEM;
 
@@ -1106,8 +1106,8 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	hub->wgrps = devm_kcalloc(&pdev->dev, hub->soc->num_wgrps,
-				  sizeof(*hub->wgrps), GFP_KERNEL);
+	hub->wgrps = devm_kzalloc_objs(&pdev->dev, *hub->wgrps,
+				       hub->soc->num_wgrps);
 	if (!hub->wgrps)
 		return -ENOMEM;
 
@@ -1131,8 +1131,7 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 
 	hub->num_heads = of_get_child_count(pdev->dev.of_node);
 
-	hub->clk_heads = devm_kcalloc(&pdev->dev, hub->num_heads, sizeof(clk),
-				      GFP_KERNEL);
+	hub->clk_heads = devm_kzalloc_objs(&pdev->dev, clk, hub->num_heads);
 	if (!hub->clk_heads)
 		return -ENOMEM;
 

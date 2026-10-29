@@ -146,7 +146,7 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	rsdev = devm_kzalloc(&pdev->dev, sizeof(*rsdev), GFP_KERNEL);
+	rsdev = devm_kzalloc_obj(&pdev->dev, *rsdev);
 	if (!rsdev) {
 		dev_err(&pdev->dev, "Failed to alloc video device.\n");
 		rval = -ENOMEM;

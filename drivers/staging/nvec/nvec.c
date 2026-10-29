@@ -797,7 +797,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	nvec = devm_kzalloc(dev, sizeof(struct nvec_chip), GFP_KERNEL);
+	nvec = devm_kzalloc_obj(dev, struct nvec_chip);
 	if (!nvec)
 		return -ENOMEM;
 

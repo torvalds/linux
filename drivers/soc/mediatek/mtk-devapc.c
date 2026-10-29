@@ -261,7 +261,7 @@ static int mtk_devapc_probe(struct platform_device *pdev)
 	if (IS_ERR(node))
 		return -ENODEV;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

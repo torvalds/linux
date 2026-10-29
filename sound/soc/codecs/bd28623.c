@@ -182,7 +182,7 @@ static int bd28623_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int i, ret;
 
-	bd = devm_kzalloc(&pdev->dev, sizeof(struct bd28623_priv), GFP_KERNEL);
+	bd = devm_kzalloc_obj(&pdev->dev, struct bd28623_priv);
 	if (!bd)
 		return -ENOMEM;
 

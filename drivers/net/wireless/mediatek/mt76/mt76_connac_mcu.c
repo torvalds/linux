@@ -2224,7 +2224,7 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 	struct mt76_power_limits *limits;
 	const u8 *ch_list;
 
-	limits = devm_kmalloc(dev->dev, sizeof(*limits), GFP_KERNEL);
+	limits = devm_kmalloc_obj(dev->dev, *limits);
 	if (!limits)
 		return -ENOMEM;
 

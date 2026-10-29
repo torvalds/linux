@@ -1321,8 +1321,7 @@ static int nbpf_probe(struct platform_device *pdev)
 	cfg = of_device_get_match_data(dev);
 	num_channels = cfg->num_channels;
 
-	nbpf = devm_kzalloc(dev, struct_size(nbpf, chan, num_channels),
-			    GFP_KERNEL);
+	nbpf = devm_kzalloc_flex(dev, *nbpf, chan, num_channels);
 	if (!nbpf)
 		return -ENOMEM;
 

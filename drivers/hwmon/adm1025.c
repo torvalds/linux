@@ -524,7 +524,7 @@ static int adm1025_probe(struct i2c_client *client)
 	struct adm1025_data *data;
 	u8 config;
 
-	data = devm_kzalloc(dev, sizeof(struct adm1025_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct adm1025_data);
 	if (!data)
 		return -ENOMEM;
 

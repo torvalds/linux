@@ -2142,7 +2142,7 @@ static int w83795_probe(struct i2c_client *client)
 	struct w83795_data *data;
 	int err;
 
-	data = devm_kzalloc(dev, sizeof(struct w83795_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct w83795_data);
 	if (!data)
 		return -ENOMEM;
 

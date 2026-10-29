@@ -494,7 +494,7 @@ static int mtk_pcie_sphy_probe(struct platform_device *pdev)
 	u32 num_lanes;
 	int ret;
 
-	pcie_sphy = devm_kzalloc(dev, sizeof(*pcie_sphy), GFP_KERNEL);
+	pcie_sphy = devm_kzalloc_obj(dev, *pcie_sphy);
 	if (!pcie_sphy)
 		return -ENOMEM;
 

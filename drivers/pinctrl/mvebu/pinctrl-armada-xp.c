@@ -621,8 +621,7 @@ static int armada_xp_pinctrl_probe(struct platform_device *pdev)
 
 	nregs = DIV_ROUND_UP(soc->nmodes, MVEBU_MPPS_PER_REG);
 
-	mpp_saved_regs = devm_kmalloc_array(&pdev->dev, nregs, sizeof(u32),
-					    GFP_KERNEL);
+	mpp_saved_regs = devm_kmalloc_objs(&pdev->dev, u32, nregs);
 	if (!mpp_saved_regs)
 		return -ENOMEM;
 

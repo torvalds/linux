@@ -1361,8 +1361,7 @@ static int pm860x_codec_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret;
 
-	pm860x = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_priv),
-			      GFP_KERNEL);
+	pm860x = devm_kzalloc_obj(&pdev->dev, struct pm860x_priv);
 	if (pm860x == NULL)
 		return -ENOMEM;
 

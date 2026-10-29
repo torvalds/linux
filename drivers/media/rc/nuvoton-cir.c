@@ -918,7 +918,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	struct rc_dev *rdev;
 	int ret;
 
-	nvt = devm_kzalloc(&pdev->dev, sizeof(struct nvt_dev), GFP_KERNEL);
+	nvt = devm_kzalloc_obj(&pdev->dev, struct nvt_dev);
 	if (!nvt)
 		return -ENOMEM;
 

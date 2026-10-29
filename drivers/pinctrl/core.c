@@ -668,7 +668,7 @@ int pinctrl_generic_add_group(struct pinctrl_dev *pctldev, const char *name,
 
 	selector = pctldev->num_groups;
 
-	group = devm_kzalloc(pctldev->dev, sizeof(*group), GFP_KERNEL);
+	group = devm_kzalloc_obj(pctldev->dev, *group);
 	if (!group)
 		return -ENOMEM;
 

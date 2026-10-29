@@ -471,7 +471,7 @@ int fintek_8250_probe(struct uart_8250_port *uart)
 	if (probe_setup_port(&probe_data, uart))
 		return -ENODEV;
 
-	pdata = devm_kzalloc(uart->port.dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc_obj(uart->port.dev, *pdata);
 	if (!pdata)
 		return -ENOMEM;
 

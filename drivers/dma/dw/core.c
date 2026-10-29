@@ -1152,7 +1152,7 @@ int do_dma_probe(struct dw_dma_chip *chip)
 	unsigned int		i;
 	int			ret;
 
-	dw->pdata = devm_kzalloc(chip->dev, sizeof(*dw->pdata), GFP_KERNEL);
+	dw->pdata = devm_kzalloc_obj(chip->dev, *dw->pdata);
 	if (!dw->pdata)
 		return -ENOMEM;
 
@@ -1195,8 +1195,7 @@ int do_dma_probe(struct dw_dma_chip *chip)
 		pdata = dw->pdata;
 	}
 
-	dw->chan = devm_kcalloc(chip->dev, pdata->nr_channels, sizeof(*dw->chan),
-				GFP_KERNEL);
+	dw->chan = devm_kzalloc_objs(chip->dev, *dw->chan, pdata->nr_channels);
 	if (!dw->chan) {
 		ret = -ENOMEM;
 		goto err_pdata;

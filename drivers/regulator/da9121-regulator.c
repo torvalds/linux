@@ -382,7 +382,7 @@ static int da9121_of_parse_cb(struct device_node *np,
 	struct gpio_desc *ena_gpiod;
 
 	if (chip->pdata == NULL) {
-		pdata = devm_kzalloc(chip->dev, sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc_obj(chip->dev, *pdata);
 		if (!pdata)
 			return -ENOMEM;
 	} else {
@@ -1151,7 +1151,7 @@ static int da9121_i2c_probe(struct i2c_client *i2c)
 	const int mask_all[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
 	int ret = 0;
 
-	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9121), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&i2c->dev, struct da9121);
 	if (!chip) {
 		ret = -ENOMEM;
 		goto error;

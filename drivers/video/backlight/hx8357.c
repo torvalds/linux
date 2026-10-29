@@ -573,7 +573,7 @@ static int hx8357_probe(struct spi_device *spi)
 	hx8357_init_fn init_fn;
 	int i, ret;
 
-	lcd = devm_kzalloc(dev, sizeof(*lcd), GFP_KERNEL);
+	lcd = devm_kzalloc_obj(dev, *lcd);
 	if (!lcd)
 		return -ENOMEM;
 

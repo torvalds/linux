@@ -987,7 +987,7 @@ static int isys_probe(struct auxiliary_device *auxdev,
 	if (!isp->bus_ready_to_probe)
 		return -EPROBE_DEFER;
 
-	isys = devm_kzalloc(&auxdev->dev, sizeof(*isys), GFP_KERNEL);
+	isys = devm_kzalloc_obj(&auxdev->dev, *isys);
 	if (!isys)
 		return -ENOMEM;
 
@@ -998,8 +998,8 @@ static int isys_probe(struct auxiliary_device *auxdev,
 	isys->pdata = adev->pdata;
 	csi2_pdata = &isys->pdata->ipdata->csi2;
 
-	isys->csi2 = devm_kcalloc(&auxdev->dev, csi2_pdata->nports,
-				  sizeof(*isys->csi2), GFP_KERNEL);
+	isys->csi2 = devm_kzalloc_objs(&auxdev->dev, *isys->csi2,
+				       csi2_pdata->nports);
 	if (!isys->csi2)
 		return -ENOMEM;
 

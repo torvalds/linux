@@ -685,7 +685,7 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 	size_t pm_size = num_core_pm_clks * sizeof(core_pm_clks[0]);
 	int ret;
 
-	pd = devm_kzalloc(dev, struct_size(pd, core_pm_clks, num_core_pm_clks), GFP_KERNEL);
+	pd = devm_kzalloc_flex(dev, *pd, core_pm_clks, num_core_pm_clks);
 	if (!pd)
 		return -ENOMEM;
 

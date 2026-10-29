@@ -422,7 +422,7 @@ static int ntp8835_i2c_probe(struct i2c_client *i2c)
 	struct regmap *regmap;
 	int ret;
 
-	ntp8835 = devm_kzalloc(&i2c->dev, sizeof(*ntp8835), GFP_KERNEL);
+	ntp8835 = devm_kzalloc_obj(&i2c->dev, *ntp8835);
 	if (!ntp8835)
 		return -ENOMEM;
 

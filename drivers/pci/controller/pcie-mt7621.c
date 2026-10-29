@@ -205,7 +205,7 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 	char name[11];
 	int err;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc_obj(dev, *port);
 	if (!port)
 		return -ENOMEM;
 

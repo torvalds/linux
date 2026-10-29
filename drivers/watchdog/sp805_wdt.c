@@ -236,7 +236,7 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	u64 rate = 0;
 	int ret = 0;
 
-	wdt = devm_kzalloc(&adev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc_obj(&adev->dev, *wdt);
 	if (!wdt) {
 		ret = -ENOMEM;
 		goto err;

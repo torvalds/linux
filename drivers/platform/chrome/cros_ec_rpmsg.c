@@ -220,7 +220,7 @@ static int cros_ec_rpmsg_probe(struct rpmsg_device *rpdev)
 	if (!ec_dev)
 		return -ENOMEM;
 
-	ec_rpmsg = devm_kzalloc(dev, sizeof(*ec_rpmsg), GFP_KERNEL);
+	ec_rpmsg = devm_kzalloc_obj(dev, *ec_rpmsg);
 	if (!ec_rpmsg)
 		return -ENOMEM;
 

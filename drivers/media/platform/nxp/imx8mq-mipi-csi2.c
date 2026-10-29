@@ -979,7 +979,7 @@ static int imx8mq_mipi_csi_probe(struct platform_device *pdev)
 	struct csi_state *state;
 	int ret;
 
-	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc_obj(dev, *state);
 	if (!state)
 		return -ENOMEM;
 

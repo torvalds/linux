@@ -501,7 +501,7 @@ static int ak4375_i2c_probe(struct i2c_client *i2c)
 	unsigned int deviceid;
 	int ret, i;
 
-	ak4375 = devm_kzalloc(&i2c->dev, sizeof(*ak4375), GFP_KERNEL);
+	ak4375 = devm_kzalloc_obj(&i2c->dev, *ak4375);
 	if (!ak4375)
 		return -ENOMEM;
 

@@ -2846,7 +2846,7 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	int i, ret;
 
 	/* JPEG IP abstraction struct */
-	jpeg = devm_kzalloc(&pdev->dev, sizeof(struct s5p_jpeg), GFP_KERNEL);
+	jpeg = devm_kzalloc_obj(&pdev->dev, struct s5p_jpeg);
 	if (!jpeg)
 		return -ENOMEM;
 

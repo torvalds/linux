@@ -391,9 +391,8 @@ static int mchp_ipc_get_cluster_aggr_irq(struct mchp_ipc_sbi_mbox *ipc)
 		if (ret)
 			return ret;
 
-		ipc->cluster_cfg[cpuid].buf_base = devm_kmalloc(ipc->dev,
-								sizeof(struct mchp_ipc_status),
-								GFP_KERNEL);
+		ipc->cluster_cfg[cpuid].buf_base = devm_kmalloc_obj(ipc->dev,
+								    struct mchp_ipc_status);
 
 		if (!ipc->cluster_cfg[cpuid].buf_base)
 			return -ENOMEM;
@@ -420,13 +419,13 @@ static int mchp_ipc_probe(struct platform_device *pdev)
 	if (ret <= 0)
 		return dev_err_probe(dev, -ENODEV, "Microchip SBI extension not detected\n");
 
-	ipc = devm_kzalloc(dev, sizeof(*ipc), GFP_KERNEL);
+	ipc = devm_kzalloc_obj(dev, *ipc);
 	if (!ipc)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ipc);
 
-	ipc->buf_base = devm_kmalloc(dev, sizeof(struct mchp_ipc_mbox_info), GFP_KERNEL);
+	ipc->buf_base = devm_kmalloc_obj(dev, struct mchp_ipc_mbox_info);
 	if (!ipc->buf_base)
 		return -ENOMEM;
 
@@ -440,7 +439,8 @@ static int mchp_ipc_probe(struct platform_device *pdev)
 	ipc->controller.num_chans = ipc_info.num_channels;
 	ipc->hw_type = ipc_info.hw_type;
 
-	ipc->chans = devm_kcalloc(dev, ipc->controller.num_chans, sizeof(*ipc->chans), GFP_KERNEL);
+	ipc->chans = devm_kzalloc_objs(dev, *ipc->chans,
+				       ipc->controller.num_chans);
 	if (!ipc->chans)
 		return -ENOMEM;
 
@@ -452,7 +452,7 @@ static int mchp_ipc_probe(struct platform_device *pdev)
 	ipc->controller.of_xlate = mchp_ipc_mbox_xlate;
 
 	for (chan_id = 0; chan_id < ipc->controller.num_chans; chan_id++) {
-		priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
+		priv = devm_kmalloc_obj(dev, *priv);
 		if (!priv)
 			return -ENOMEM;
 
@@ -461,9 +461,9 @@ static int mchp_ipc_probe(struct platform_device *pdev)
 	}
 
 	if (ipc->hw_type == MIV_IHC) {
-		ipc->cluster_cfg = devm_kcalloc(dev, num_online_cpus(),
-						sizeof(struct mchp_ipc_cluster_cfg),
-						GFP_KERNEL);
+		ipc->cluster_cfg = devm_kzalloc_objs(dev,
+						     struct mchp_ipc_cluster_cfg,
+						     num_online_cpus());
 		if (!ipc->cluster_cfg)
 			return -ENOMEM;
 

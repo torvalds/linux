@@ -189,7 +189,7 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 	int err;
 	u32 tmp;
 
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc_obj(&pdev->dev, *rtc);
 	if (unlikely(!rtc))
 		return -ENOMEM;
 

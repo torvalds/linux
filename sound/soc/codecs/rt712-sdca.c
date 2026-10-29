@@ -1838,7 +1838,7 @@ int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 	struct rt712_sdca_priv *rt712;
 	int ret;
 
-	rt712 = devm_kzalloc(dev, sizeof(*rt712), GFP_KERNEL);
+	rt712 = devm_kzalloc_obj(dev, *rt712);
 	if (!rt712)
 		return -ENOMEM;
 

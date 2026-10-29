@@ -889,9 +889,7 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 	if (of_property_read_bool(np, "nand-skip-bbtscan"))
 		nand->options |= NAND_SKIP_BBTSCAN;
 
-	host->dev_timings = devm_kzalloc(&pdev->dev,
-					 sizeof(*host->dev_timings),
-					 GFP_KERNEL);
+	host->dev_timings = devm_kzalloc_obj(&pdev->dev, *host->dev_timings);
 	if (!host->dev_timings)
 		return -ENOMEM;
 
@@ -1037,7 +1035,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	int i;
 
 	/* Allocate memory for the device structure (and zero it) */
-	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
+	host = devm_kzalloc_obj(&pdev->dev, *host);
 	if (!host)
 		return -ENOMEM;
 

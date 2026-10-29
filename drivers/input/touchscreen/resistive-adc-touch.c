@@ -203,7 +203,7 @@ static int grts_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int error;
 
-	st = devm_kzalloc(dev, sizeof(struct grts_state), GFP_KERNEL);
+	st = devm_kzalloc_obj(dev, struct grts_state);
 	if (!st)
 		return -ENOMEM;
 

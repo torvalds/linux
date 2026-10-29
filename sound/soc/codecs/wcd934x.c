@@ -5839,7 +5839,7 @@ static int wcd934x_codec_probe(struct platform_device *pdev)
 	struct wcd934x_codec *wcd;
 	int ret, irq;
 
-	wcd = devm_kzalloc(dev, sizeof(*wcd), GFP_KERNEL);
+	wcd = devm_kzalloc_obj(dev, *wcd);
 	if (!wcd)
 		return -ENOMEM;
 

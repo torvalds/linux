@@ -299,7 +299,7 @@ static int qnap_mcu_hwmon_probe(struct platform_device *pdev)
 	struct device *hwmon;
 	int ret;
 
-	hwm = devm_kzalloc(dev, sizeof(*hwm), GFP_KERNEL);
+	hwm = devm_kzalloc_obj(dev, *hwm);
 	if (!hwm)
 		return -ENOMEM;
 

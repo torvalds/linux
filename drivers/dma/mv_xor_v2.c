@@ -721,7 +721,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	BUILD_BUG_ON(sizeof(struct mv_xor_v2_descriptor) !=
 		     MV_XOR_V2_EXT_DESC_SIZE);
 
-	xor_dev = devm_kzalloc(&pdev->dev, sizeof(*xor_dev), GFP_KERNEL);
+	xor_dev = devm_kzalloc_obj(&pdev->dev, *xor_dev);
 	if (!xor_dev)
 		return -ENOMEM;
 
@@ -781,9 +781,8 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	}
 
 	/* alloc memory for the SW descriptors */
-	xor_dev->sw_desq = devm_kcalloc(&pdev->dev,
-					MV_XOR_V2_DESC_NUM, sizeof(*sw_desc),
-					GFP_KERNEL);
+	xor_dev->sw_desq = devm_kzalloc_objs(&pdev->dev, *sw_desc,
+					     MV_XOR_V2_DESC_NUM);
 	if (!xor_dev->sw_desq) {
 		ret = -ENOMEM;
 		goto free_hw_desq;

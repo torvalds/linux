@@ -583,7 +583,7 @@ static int apr_probe(struct rpmsg_device *rpdev)
 	struct packet_router *apr;
 	int ret;
 
-	apr = devm_kzalloc(dev, sizeof(*apr), GFP_KERNEL);
+	apr = devm_kzalloc_obj(dev, *apr);
 	if (!apr)
 		return -ENOMEM;
 

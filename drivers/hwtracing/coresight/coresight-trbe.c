@@ -1337,7 +1337,7 @@ static void arm_trbe_register_coresight_cpu(struct trbe_drvdata *drvdata, int cp
 	 * coresight_platform_data structure and assign that back
 	 * into the device for that purpose.
 	 */
-	desc.pdata = devm_kzalloc(dev, sizeof(*desc.pdata), GFP_KERNEL);
+	desc.pdata = devm_kzalloc_obj(dev, *desc.pdata);
 	if (!desc.pdata)
 		goto cpu_clear;
 
@@ -1587,7 +1587,7 @@ static int arm_trbe_device_probe(struct platform_device *pdev)
 		return -EOPNOTSUPP;
 	}
 
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	drvdata = devm_kzalloc_obj(dev, *drvdata);
 	if (!drvdata)
 		return -ENOMEM;
 

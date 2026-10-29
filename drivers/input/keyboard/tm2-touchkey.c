@@ -193,7 +193,7 @@ static int tm2_touchkey_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	touchkey = devm_kzalloc(&client->dev, sizeof(*touchkey), GFP_KERNEL);
+	touchkey = devm_kzalloc_obj(&client->dev, *touchkey);
 	if (!touchkey)
 		return -ENOMEM;
 

@@ -181,7 +181,7 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 
 	common = sdev->pdata->hw_pdata;
 
-	chip = devm_kzalloc(sdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(sdev->dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

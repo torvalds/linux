@@ -1602,7 +1602,7 @@ static int wsa883x_probe(struct sdw_slave *pdev,
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	wsa883x = devm_kzalloc(dev, sizeof(*wsa883x), GFP_KERNEL);
+	wsa883x = devm_kzalloc_obj(dev, *wsa883x);
 	if (!wsa883x)
 		return -ENOMEM;
 

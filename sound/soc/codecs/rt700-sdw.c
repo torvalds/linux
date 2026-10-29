@@ -348,9 +348,8 @@ static int rt700_read_prop(struct sdw_slave *slave)
 	prop->sink_ports = 0xA; /* BITMAP:  00001010 */
 
 	nval = hweight32(prop->source_ports);
-	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
-						sizeof(*prop->src_dpn_prop),
-						GFP_KERNEL);
+	prop->src_dpn_prop = devm_kzalloc_objs(&slave->dev, *prop->src_dpn_prop,
+					       nval);
 	if (!prop->src_dpn_prop)
 		return -ENOMEM;
 
@@ -367,9 +366,8 @@ static int rt700_read_prop(struct sdw_slave *slave)
 
 	/* do this again for sink now */
 	nval = hweight32(prop->sink_ports);
-	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
-						sizeof(*prop->sink_dpn_prop),
-						GFP_KERNEL);
+	prop->sink_dpn_prop = devm_kzalloc_objs(&slave->dev,
+						*prop->sink_dpn_prop, nval);
 	if (!prop->sink_dpn_prop)
 		return -ENOMEM;
 

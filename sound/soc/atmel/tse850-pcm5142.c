@@ -349,7 +349,7 @@ static int tse850_probe(struct platform_device *pdev)
 	struct tse850_priv *tse850;
 	int ret;
 
-	tse850 = devm_kzalloc(dev, sizeof(*tse850), GFP_KERNEL);
+	tse850 = devm_kzalloc_obj(dev, *tse850);
 	if (!tse850)
 		return -ENOMEM;
 

@@ -2428,7 +2428,7 @@ static int alvium_probe(struct i2c_client *client)
 	struct alvium_dev *alvium;
 	int ret;
 
-	alvium = devm_kzalloc(dev, sizeof(*alvium), GFP_KERNEL);
+	alvium = devm_kzalloc_obj(dev, *alvium);
 	if (!alvium)
 		return -ENOMEM;
 

@@ -346,8 +346,7 @@ static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	spdif = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_spdif),
-			     GFP_KERNEL);
+	spdif = devm_kzalloc_obj(&pdev->dev, struct tegra20_spdif);
 	if (!spdif)
 		return -ENOMEM;
 

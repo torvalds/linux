@@ -528,7 +528,7 @@ static int ti_cpufreq_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
-	opp_data = devm_kzalloc(&pdev->dev, sizeof(*opp_data), GFP_KERNEL);
+	opp_data = devm_kzalloc_obj(&pdev->dev, *opp_data);
 	if (!opp_data)
 		return -ENOMEM;
 

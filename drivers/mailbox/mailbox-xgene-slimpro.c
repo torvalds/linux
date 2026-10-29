@@ -174,7 +174,7 @@ static int slimpro_mbox_probe(struct platform_device *pdev)
 	int rc;
 	int i;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(struct slimpro_mbox), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, struct slimpro_mbox);
 	if (!ctx)
 		return -ENOMEM;
 

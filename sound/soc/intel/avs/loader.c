@@ -704,10 +704,10 @@ static int avs_dsp_alloc_resources(struct avs_dev *adev)
 			adev->hw_cfg.i2s_caps.ctrl_count = link->slcount;
 	}
 
-	adev->core_refs = devm_kcalloc(adev->dev, adev->hw_cfg.dsp_cores,
-				       sizeof(*adev->core_refs), GFP_KERNEL);
-	adev->lib_names = devm_kcalloc(adev->dev, adev->fw_cfg.max_libs_count,
-				       sizeof(*adev->lib_names), GFP_KERNEL);
+	adev->core_refs = devm_kzalloc_objs(adev->dev, *adev->core_refs,
+					    adev->hw_cfg.dsp_cores);
+	adev->lib_names = devm_kzalloc_objs(adev->dev, *adev->lib_names,
+					    adev->fw_cfg.max_libs_count);
 	if (!adev->core_refs || !adev->lib_names)
 		return -ENOMEM;
 

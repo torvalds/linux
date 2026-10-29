@@ -118,8 +118,7 @@ static int wm831x_isink_probe(struct platform_device *pdev)
 	if (pdata == NULL || pdata->isink[id] == NULL)
 		return -ENODEV;
 
-	isink = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_isink),
-			     GFP_KERNEL);
+	isink = devm_kzalloc_obj(&pdev->dev, struct wm831x_isink);
 	if (!isink)
 		return -ENOMEM;
 

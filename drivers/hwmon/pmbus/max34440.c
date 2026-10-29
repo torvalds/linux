@@ -790,8 +790,7 @@ static int max34440_probe(struct i2c_client *client)
 	struct max34440_data *data;
 	int rv;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct max34440_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc_obj(&client->dev, struct max34440_data);
 	if (!data)
 		return -ENOMEM;
 	data->id = (uintptr_t)i2c_get_match_data(client);

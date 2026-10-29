@@ -495,7 +495,7 @@ static int max31790_probe(struct i2c_client *client)
 			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	data = devm_kzalloc(dev, sizeof(struct max31790_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct max31790_data);
 	if (!data)
 		return -ENOMEM;
 

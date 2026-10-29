@@ -168,7 +168,7 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 	u8 tsel;
 	int err;
 
-	ptd = devm_kzalloc(&pdev->dev, sizeof(*ptd), GFP_KERNEL);
+	ptd = devm_kzalloc_obj(&pdev->dev, *ptd);
 	if (!ptd)
 		return -ENOMEM;
 

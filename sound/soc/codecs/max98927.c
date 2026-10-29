@@ -818,7 +818,7 @@ static int max98927_i2c_probe(struct i2c_client *i2c)
 	int reg = 0;
 	struct max98927_priv *max98927 = NULL;
 
-	max98927 = devm_kzalloc(&i2c->dev, sizeof(*max98927), GFP_KERNEL);
+	max98927 = devm_kzalloc_obj(&i2c->dev, *max98927);
 	if (!max98927) {
 		ret = -ENOMEM;
 		return ret;

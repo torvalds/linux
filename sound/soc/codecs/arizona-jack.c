@@ -1159,8 +1159,7 @@ static int arizona_extcon_get_micd_configs(struct device *dev,
 		goto out;
 
 	nconfs /= entries_per_config;
-	micd_configs = devm_kcalloc(dev, nconfs, sizeof(*micd_configs),
-				    GFP_KERNEL);
+	micd_configs = devm_kzalloc_objs(dev, *micd_configs, nconfs);
 	if (!micd_configs) {
 		ret = -ENOMEM;
 		goto out;

@@ -252,7 +252,7 @@ static int da9062_pctl_probe(struct platform_device *pdev)
 
 	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
 
-	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
+	pctl = devm_kzalloc_obj(&pdev->dev, *pctl);
 	if (!pctl)
 		return -ENOMEM;
 

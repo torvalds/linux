@@ -98,7 +98,7 @@ static int sof_msg_inject_probe(struct auxiliary_device *auxdev,
 	size_t alloc_size;
 
 	/* allocate memory for client data */
-	priv = devm_kzalloc(&auxdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&auxdev->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

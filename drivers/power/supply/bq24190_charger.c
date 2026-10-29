@@ -2128,7 +2128,7 @@ static int bq24190_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	bdi = devm_kzalloc(dev, sizeof(*bdi), GFP_KERNEL);
+	bdi = devm_kzalloc_obj(dev, *bdi);
 	if (!bdi) {
 		dev_err(dev, "Can't alloc bdi struct\n");
 		return -ENOMEM;

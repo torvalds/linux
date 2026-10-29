@@ -706,7 +706,7 @@ static int airoha_npu_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	npu = devm_kzalloc(dev, sizeof(*npu), GFP_KERNEL);
+	npu = devm_kzalloc_obj(dev, *npu);
 	if (!npu)
 		return -ENOMEM;
 

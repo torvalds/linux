@@ -105,7 +105,7 @@ static int spm_cpuidle_register(struct device *cpuidle_dev, int cpu)
 	if (!pdev)
 		return -ENODEV;
 
-	data = devm_kzalloc(cpuidle_dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(cpuidle_dev, *data);
 	if (!data) {
 		put_device(&pdev->dev);
 		return -ENOMEM;

@@ -274,7 +274,7 @@ static int pv88090_i2c_probe(struct i2c_client *i2c)
 	int error, i, ret = 0;
 	unsigned int conf2, range, index;
 
-	chip = devm_kzalloc(&i2c->dev, sizeof(struct pv88090), GFP_KERNEL);
+	chip = devm_kzalloc_obj(&i2c->dev, struct pv88090);
 	if (!chip)
 		return -ENOMEM;
 

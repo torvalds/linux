@@ -48,7 +48,7 @@ static int s6e63m0_spi_probe(struct spi_device *spi)
 	struct mipi_dbi *dbi;
 	int ret;
 
-	dbi = devm_kzalloc(dev, sizeof(*dbi), GFP_KERNEL);
+	dbi = devm_kzalloc_obj(dev, *dbi);
 	if (!dbi)
 		return -ENOMEM;
 

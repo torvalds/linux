@@ -278,7 +278,7 @@ static int lp8860_probe(struct i2c_client *client)
 	struct led_init_data init_data = {};
 	struct gpio_desc *enable_gpio;
 
-	led = devm_kzalloc(&client->dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc_obj(&client->dev, *led);
 	if (!led)
 		return -ENOMEM;
 

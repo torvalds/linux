@@ -461,7 +461,7 @@ static int qs_port_start(struct ata_port *ap)
 	void __iomem *chan = mmio_base + (ap->port_no * 0x4000);
 	u64 addr;
 
-	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
+	pp = devm_kzalloc_obj(dev, *pp);
 	if (!pp)
 		return -ENOMEM;
 	pp->pkt = dmam_alloc_coherent(dev, QS_PKT_BYTES, &pp->pkt_dma,

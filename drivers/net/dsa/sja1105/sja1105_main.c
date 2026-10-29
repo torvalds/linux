@@ -3251,7 +3251,7 @@ static int sja1105_probe(struct spi_device *spi)
 	if (rc)
 		return rc;
 
-	priv = devm_kzalloc(dev, sizeof(struct sja1105_private), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, struct sja1105_private);
 	if (!priv)
 		return -ENOMEM;
 
@@ -3307,7 +3307,7 @@ static int sja1105_probe(struct spi_device *spi)
 
 	dev_info(dev, "Probed switch chip: %s\n", priv->info->name);
 
-	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
+	ds = devm_kzalloc_obj(dev, *ds);
 	if (!ds)
 		return -ENOMEM;
 
@@ -3331,9 +3331,8 @@ static int sja1105_probe(struct spi_device *spi)
 	}
 
 	if (IS_ENABLED(CONFIG_NET_SCH_CBS)) {
-		priv->cbs = devm_kcalloc(dev, priv->info->num_cbs_shapers,
-					 sizeof(struct sja1105_cbs_entry),
-					 GFP_KERNEL);
+		priv->cbs = devm_kzalloc_objs(dev, struct sja1105_cbs_entry,
+					      priv->info->num_cbs_shapers);
 		if (!priv->cbs)
 			return -ENOMEM;
 	}

@@ -187,7 +187,7 @@ static int tps6287x_i2c_probe(struct i2c_client *i2c)
 	struct tps6287x_reg_data *reg_data;
 	struct regulator_dev *rdev;
 
-	reg_data = devm_kzalloc(dev, sizeof(struct tps6287x_reg_data), GFP_KERNEL);
+	reg_data = devm_kzalloc_obj(dev, struct tps6287x_reg_data);
 
 	if (!reg_data)
 		return -ENOMEM;

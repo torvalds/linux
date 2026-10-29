@@ -812,7 +812,7 @@ static int imx471_probe(struct i2c_client *client)
 	struct imx471 *sensor;
 	int ret;
 
-	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc_obj(&client->dev, *sensor);
 	if (!sensor)
 		return dev_err_probe(&client->dev, -ENOMEM,
 				     "failed to allocate memory\n");

@@ -17,7 +17,7 @@ struct clk_hw *uniphier_clk_register_fixed_factor(struct device *dev,
 	struct clk_fixed_factor *fix;
 	int ret;
 
-	fix = devm_kzalloc(dev, sizeof(*fix), GFP_KERNEL);
+	fix = devm_kzalloc_obj(dev, *fix);
 	if (!fix)
 		return ERR_PTR(-ENOMEM);
 

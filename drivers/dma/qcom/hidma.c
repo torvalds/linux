@@ -194,7 +194,7 @@ static int hidma_chan_init(struct hidma_dev *dmadev, u32 dma_sig)
 	struct hidma_chan *mchan;
 	struct dma_device *ddev;
 
-	mchan = devm_kzalloc(dmadev->ddev.dev, sizeof(*mchan), GFP_KERNEL);
+	mchan = devm_kzalloc_obj(dmadev->ddev.dev, *mchan);
 	if (!mchan)
 		return -ENOMEM;
 
@@ -640,8 +640,7 @@ hidma_create_sysfs_entry(struct hidma_dev *dev, char *name, int mode)
 	struct device_attribute *attrs;
 	char *name_copy;
 
-	attrs = devm_kmalloc(dev->ddev.dev, sizeof(struct device_attribute),
-			     GFP_KERNEL);
+	attrs = devm_kmalloc_obj(dev->ddev.dev, struct device_attribute);
 	if (!attrs)
 		return NULL;
 
@@ -783,7 +782,7 @@ static int hidma_probe(struct platform_device *pdev)
 		goto bailout;
 	}
 
-	dmadev = devm_kzalloc(&pdev->dev, sizeof(*dmadev), GFP_KERNEL);
+	dmadev = devm_kzalloc_obj(&pdev->dev, *dmadev);
 	if (!dmadev) {
 		rc = -ENOMEM;
 		goto bailout;

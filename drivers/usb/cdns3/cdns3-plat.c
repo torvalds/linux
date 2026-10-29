@@ -72,7 +72,7 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	cdns = devm_kzalloc(dev, sizeof(*cdns), GFP_KERNEL);
+	cdns = devm_kzalloc_obj(dev, *cdns);
 	if (!cdns)
 		return -ENOMEM;
 

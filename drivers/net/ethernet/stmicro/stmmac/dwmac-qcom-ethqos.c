@@ -890,7 +890,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 				     "dt configuration failed\n");
 	}
 
-	ethqos = devm_kzalloc(dev, sizeof(*ethqos), GFP_KERNEL);
+	ethqos = devm_kzalloc_obj(dev, *ethqos);
 	if (!ethqos)
 		return -ENOMEM;
 

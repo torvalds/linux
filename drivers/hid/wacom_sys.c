@@ -1495,7 +1495,7 @@ static int wacom_led_groups_alloc_and_register_one(struct device *dev,
 	if (!devres_open_group(dev, &wacom->led.groups[group_id], GFP_KERNEL))
 		return -ENOMEM;
 
-	leds = devm_kcalloc(dev, count, sizeof(struct wacom_led), GFP_KERNEL);
+	leds = devm_kzalloc_objs(dev, struct wacom_led, count);
 	if (!leds) {
 		error = -ENOMEM;
 		goto err;
@@ -1595,8 +1595,7 @@ static int wacom_led_groups_allocate(struct wacom *wacom, int count)
 	struct wacom_group_leds *groups;
 	int error;
 
-	groups = devm_kcalloc(dev, count, sizeof(struct wacom_group_leds),
-			      GFP_KERNEL);
+	groups = devm_kzalloc_objs(dev, struct wacom_group_leds, count);
 	if (!groups)
 		return -ENOMEM;
 
@@ -2059,8 +2058,7 @@ static int wacom_initialize_remotes(struct wacom *wacom)
 	if (wacom->wacom_wac.features.type != REMOTE)
 		return 0;
 
-	remote = devm_kzalloc(&wacom->hdev->dev, sizeof(*wacom->remote),
-			      GFP_KERNEL);
+	remote = devm_kzalloc_obj(&wacom->hdev->dev, *wacom->remote);
 	if (!remote)
 		return -ENOMEM;
 
@@ -2934,7 +2932,7 @@ static int wacom_probe(struct hid_device *hdev,
 	/* hid-core sets this quirk for the boot interface */
 	hdev->quirks &= ~HID_QUIRK_NOGET;
 
-	wacom = devm_kzalloc(&hdev->dev, sizeof(struct wacom), GFP_KERNEL);
+	wacom = devm_kzalloc_obj(&hdev->dev, struct wacom);
 	if (!wacom)
 		return -ENOMEM;
 

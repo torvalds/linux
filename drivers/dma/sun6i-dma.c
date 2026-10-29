@@ -1392,7 +1392,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	struct sun6i_dma_dev *sdc;
 	int ret, i;
 
-	sdc = devm_kzalloc(&pdev->dev, sizeof(*sdc), GFP_KERNEL);
+	sdc = devm_kzalloc_obj(&pdev->dev, *sdc);
 	if (!sdc)
 		return -ENOMEM;
 
@@ -1489,13 +1489,13 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	if (!sdc->num_vchans)
 		sdc->num_vchans = 2 * (sdc->max_request + 1);
 
-	sdc->pchans = devm_kcalloc(&pdev->dev, sdc->num_pchans,
-				   sizeof(struct sun6i_pchan), GFP_KERNEL);
+	sdc->pchans = devm_kzalloc_objs(&pdev->dev, struct sun6i_pchan,
+					sdc->num_pchans);
 	if (!sdc->pchans)
 		return -ENOMEM;
 
-	sdc->vchans = devm_kcalloc(&pdev->dev, sdc->num_vchans,
-				   sizeof(struct sun6i_vchan), GFP_KERNEL);
+	sdc->vchans = devm_kzalloc_objs(&pdev->dev, struct sun6i_vchan,
+					sdc->num_vchans);
 	if (!sdc->vchans)
 		return -ENOMEM;
 

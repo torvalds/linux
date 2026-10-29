@@ -794,7 +794,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 
 	np = pdev->dev.of_node;
 
-	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
+	pmu = devm_kzalloc_obj(&pdev->dev, *pmu);
 	if (!pmu)
 		return -ENOMEM;
 

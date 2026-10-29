@@ -346,7 +346,7 @@ static int rt4505_probe(struct i2c_client *client)
 	struct v4l2_flash_config v4l2_config = {};
 	int ret;
 
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(&client->dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

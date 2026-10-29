@@ -509,7 +509,7 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 	u32 id;
 	int ret;
 
-	smsm = devm_kzalloc(&pdev->dev, sizeof(*smsm), GFP_KERNEL);
+	smsm = devm_kzalloc_obj(&pdev->dev, *smsm);
 	if (!smsm)
 		return -ENOMEM;
 	smsm->dev = &pdev->dev;
@@ -519,17 +519,13 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	smsm->entries = devm_kcalloc(&pdev->dev,
-				     smsm->num_entries,
-				     sizeof(struct smsm_entry),
-				     GFP_KERNEL);
+	smsm->entries = devm_kzalloc_objs(&pdev->dev, struct smsm_entry,
+					  smsm->num_entries);
 	if (!smsm->entries)
 		return -ENOMEM;
 
-	smsm->hosts = devm_kcalloc(&pdev->dev,
-				   smsm->num_hosts,
-				   sizeof(struct smsm_host),
-				   GFP_KERNEL);
+	smsm->hosts = devm_kzalloc_objs(&pdev->dev, struct smsm_host,
+					smsm->num_hosts);
 	if (!smsm->hosts)
 		return -ENOMEM;
 

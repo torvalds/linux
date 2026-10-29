@@ -446,7 +446,7 @@ static int jh7110_pwmdac_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

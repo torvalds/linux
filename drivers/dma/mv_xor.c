@@ -1044,7 +1044,7 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	struct mv_xor_chan *mv_chan;
 	struct dma_device *dma_dev;
 
-	mv_chan = devm_kzalloc(&pdev->dev, sizeof(*mv_chan), GFP_KERNEL);
+	mv_chan = devm_kzalloc_obj(&pdev->dev, *mv_chan);
 	if (!mv_chan)
 		return ERR_PTR(-ENOMEM);
 
@@ -1321,7 +1321,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 
 	dev_notice(&pdev->dev, "Marvell shared XOR driver\n");
 
-	xordev = devm_kzalloc(&pdev->dev, sizeof(*xordev), GFP_KERNEL);
+	xordev = devm_kzalloc_obj(&pdev->dev, *xordev);
 	if (!xordev)
 		return -ENOMEM;
 

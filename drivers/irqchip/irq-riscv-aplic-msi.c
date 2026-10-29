@@ -181,7 +181,7 @@ int aplic_msi_setup(struct device *dev, void __iomem *regs)
 	phys_addr_t pa;
 	int rc;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc_obj(dev, *priv);
 	if (!priv)
 		return -ENOMEM;
 

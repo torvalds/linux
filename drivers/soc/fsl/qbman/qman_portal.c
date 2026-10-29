@@ -196,7 +196,7 @@ static int qman_portal_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pcfg = devm_kmalloc(dev, sizeof(*pcfg), GFP_KERNEL);
+	pcfg = devm_kmalloc_obj(dev, *pcfg);
 	if (!pcfg) {
 		__qman_portals_probed = -1;
 		return -ENOMEM;

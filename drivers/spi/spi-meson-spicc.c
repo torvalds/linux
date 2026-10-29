@@ -848,7 +848,7 @@ static int meson_spicc_pow2_clk_init(struct meson_spicc_device *spicc)
 
 	/* algorithm for pow2 div: rate = freq / 4 / (2 ^ N) */
 
-	pow2_fixed_div = devm_kzalloc(dev, sizeof(*pow2_fixed_div), GFP_KERNEL);
+	pow2_fixed_div = devm_kzalloc_obj(dev, *pow2_fixed_div);
 	if (!pow2_fixed_div)
 		return -ENOMEM;
 
@@ -914,7 +914,7 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 
 	/* algorithm for enh div: rate = freq / 2 / (N + 1) */
 
-	enh_fixed_div = devm_kzalloc(dev, sizeof(*enh_fixed_div), GFP_KERNEL);
+	enh_fixed_div = devm_kzalloc_obj(dev, *enh_fixed_div);
 	if (!enh_fixed_div)
 		return -ENOMEM;
 
@@ -938,7 +938,7 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 	if (WARN_ON(IS_ERR(clk)))
 		return PTR_ERR(clk);
 
-	enh_div = devm_kzalloc(dev, sizeof(*enh_div), GFP_KERNEL);
+	enh_div = devm_kzalloc_obj(dev, *enh_div);
 	if (!enh_div)
 		return -ENOMEM;
 
@@ -958,7 +958,7 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 	if (WARN_ON(IS_ERR(clk)))
 		return PTR_ERR(clk);
 
-	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
+	mux = devm_kzalloc_obj(dev, *mux);
 	if (!mux)
 		return -ENOMEM;
 

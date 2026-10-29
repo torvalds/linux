@@ -172,7 +172,7 @@ static int isst_if_mbox_probe(struct pci_dev *pdev,
 	struct isst_if_cmd_cb cb;
 	int ret;
 
-	punit_dev = devm_kzalloc(&pdev->dev, sizeof(*punit_dev), GFP_KERNEL);
+	punit_dev = devm_kzalloc_obj(&pdev->dev, *punit_dev);
 	if (!punit_dev)
 		return -ENOMEM;
 

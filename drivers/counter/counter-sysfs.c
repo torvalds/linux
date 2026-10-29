@@ -536,7 +536,7 @@ static int counter_avail_attr_create(struct device *const dev,
 	struct counter_attribute *counter_attr;
 	struct device_attribute *dev_attr;
 
-	counter_attr = devm_kzalloc(dev, sizeof(*counter_attr), GFP_KERNEL);
+	counter_attr = devm_kzalloc_obj(dev, *counter_attr);
 	if (!counter_attr)
 		return -ENOMEM;
 
@@ -574,7 +574,7 @@ static int counter_attr_create(struct device *const dev,
 	struct counter_attribute *counter_attr;
 	struct device_attribute *dev_attr;
 
-	counter_attr = devm_kzalloc(dev, sizeof(*counter_attr), GFP_KERNEL);
+	counter_attr = devm_kzalloc_obj(dev, *counter_attr);
 	if (!counter_attr)
 		return -ENOMEM;
 
@@ -683,7 +683,7 @@ static int counter_name_attr_create(struct device *const dev,
 {
 	struct counter_attribute *counter_attr;
 
-	counter_attr = devm_kzalloc(dev, sizeof(*counter_attr), GFP_KERNEL);
+	counter_attr = devm_kzalloc_obj(dev, *counter_attr);
 	if (!counter_attr)
 		return -ENOMEM;
 
@@ -718,7 +718,7 @@ static int counter_comp_id_attr_create(struct device *const dev,
 	struct counter_attribute *counter_attr;
 
 	/* Allocate Counter attribute */
-	counter_attr = devm_kzalloc(dev, sizeof(*counter_attr), GFP_KERNEL);
+	counter_attr = devm_kzalloc_obj(dev, *counter_attr);
 	if (!counter_attr)
 		return -ENOMEM;
 
@@ -781,7 +781,7 @@ static int counter_array_attrs_create(struct device *const dev,
 			return -ENOMEM;
 
 		/* Allocate and configure array element */
-		element = devm_kzalloc(dev, sizeof(*element), GFP_KERNEL);
+		element = devm_kzalloc_obj(dev, *element);
 		if (!element)
 			return -ENOMEM;
 		element->type = array->type;
@@ -1124,8 +1124,7 @@ int counter_sysfs_add(struct counter_device *const counter)
 	struct counter_attribute *p;
 
 	/* Allocate space for attribute groups (signals, counts, and ext) */
-	cattr_groups = devm_kcalloc(dev, num_groups, sizeof(*cattr_groups),
-				    GFP_KERNEL);
+	cattr_groups = devm_kzalloc_objs(dev, *cattr_groups, num_groups);
 	if (!cattr_groups)
 		return -ENOMEM;
 
@@ -1139,13 +1138,12 @@ int counter_sysfs_add(struct counter_device *const counter)
 		return err;
 
 	/* Allocate attribute group pointers for association with device */
-	dev->groups = devm_kcalloc(dev, num_groups + 1, sizeof(*dev->groups),
-				   GFP_KERNEL);
+	dev->groups = devm_kzalloc_objs(dev, *dev->groups, num_groups + 1);
 	if (!dev->groups)
 		return -ENOMEM;
 
 	/* Allocate space for attribute groups */
-	groups = devm_kcalloc(dev, num_groups, sizeof(*groups), GFP_KERNEL);
+	groups = devm_kzalloc_objs(dev, *groups, num_groups);
 	if (!groups)
 		return -ENOMEM;
 
@@ -1154,10 +1152,8 @@ int counter_sysfs_add(struct counter_device *const counter)
 		groups[i].name = cattr_groups[i].name;
 
 		/* Allocate space for attribute pointers */
-		groups[i].attrs = devm_kcalloc(dev,
-					       cattr_groups[i].num_attr + 1,
-					       sizeof(*groups[i].attrs),
-					       GFP_KERNEL);
+		groups[i].attrs = devm_kzalloc_objs(dev, *groups[i].attrs,
+						    cattr_groups[i].num_attr + 1);
 		if (!groups[i].attrs)
 			return -ENOMEM;
 

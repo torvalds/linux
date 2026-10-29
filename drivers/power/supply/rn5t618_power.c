@@ -719,7 +719,7 @@ static int rn5t618_power_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	struct rn5t618_power_info *info;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc_obj(&pdev->dev, *info);
 	if (!info)
 		return -ENOMEM;
 

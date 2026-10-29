@@ -332,7 +332,7 @@ static int k230_rst_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct k230_rst *rstc;
 
-	rstc = devm_kzalloc(dev, sizeof(*rstc), GFP_KERNEL);
+	rstc = devm_kzalloc_obj(dev, *rstc);
 	if (!rstc)
 		return -ENOMEM;
 

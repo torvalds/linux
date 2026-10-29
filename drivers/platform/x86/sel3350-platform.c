@@ -209,7 +209,7 @@ static int sel3350_probe(struct platform_device *pdev)
 	struct sel3350_data *sel3350;
 	struct power_supply_config ps_cfg = {};
 
-	sel3350 = devm_kzalloc(&pdev->dev, sizeof(struct sel3350_data), GFP_KERNEL);
+	sel3350 = devm_kzalloc_obj(&pdev->dev, struct sel3350_data);
 	if (!sel3350)
 		return -ENOMEM;
 

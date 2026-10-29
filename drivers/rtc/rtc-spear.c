@@ -350,7 +350,7 @@ static int spear_rtc_probe(struct platform_device *pdev)
 	int status = 0;
 	int irq;
 
-	config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
+	config = devm_kzalloc_obj(&pdev->dev, *config);
 	if (!config)
 		return -ENOMEM;
 

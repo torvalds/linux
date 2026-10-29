@@ -1465,7 +1465,7 @@ static int tegra_pmc_core_pd_add(struct tegra_pmc *pmc, struct device_node *np)
 	struct tegra_pmc_core_pd *pd;
 	int err;
 
-	pd = devm_kzalloc(pmc->dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc_obj(pmc->dev, *pd);
 	if (!pd)
 		return -ENOMEM;
 
@@ -2698,7 +2698,7 @@ tegra_pmc_clk_out_register(struct tegra_pmc *pmc,
 	struct clk_init_data init = {};
 	struct pmc_clk *pmc_clk;
 
-	pmc_clk = devm_kzalloc(pmc->dev, sizeof(*pmc_clk), GFP_KERNEL);
+	pmc_clk = devm_kzalloc_obj(pmc->dev, *pmc_clk);
 	if (!pmc_clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -2756,7 +2756,7 @@ tegra_pmc_clk_gate_register(struct tegra_pmc *pmc, const char *name,
 	struct clk_init_data init = {};
 	struct pmc_clk_gate *gate;
 
-	gate = devm_kzalloc(pmc->dev, sizeof(*gate), GFP_KERNEL);
+	gate = devm_kzalloc_obj(pmc->dev, *gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 
@@ -2789,12 +2789,12 @@ static void tegra_pmc_clock_register(struct tegra_pmc *pmc,
 	if (!num_clks)
 		return;
 
-	clk_data = devm_kmalloc(pmc->dev, sizeof(*clk_data), GFP_KERNEL);
+	clk_data = devm_kmalloc_obj(pmc->dev, *clk_data);
 	if (!clk_data)
 		return;
 
-	clk_data->clks = devm_kcalloc(pmc->dev, TEGRA_PMC_CLK_MAX,
-				      sizeof(*clk_data->clks), GFP_KERNEL);
+	clk_data->clks = devm_kzalloc_objs(pmc->dev, *clk_data->clks,
+					   TEGRA_PMC_CLK_MAX);
 	if (!clk_data->clks)
 		return;
 
@@ -3009,7 +3009,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		return -ENODEV;
 #endif
 
-	pmc = devm_kzalloc(&pdev->dev, sizeof(*pmc), GFP_KERNEL);
+	pmc = devm_kzalloc_obj(&pdev->dev, *pmc);
 	if (!pmc)
 		return -ENOMEM;
 

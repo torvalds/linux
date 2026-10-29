@@ -321,7 +321,7 @@ int adt7x10_probe(struct device *dev, const char *name, int irq,
 	struct device *hdev;
 	int ret;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, *data);
 	if (!data)
 		return -ENOMEM;
 

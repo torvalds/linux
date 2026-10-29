@@ -633,13 +633,13 @@ static int alloc_eq_pages(struct hinic_eq *eq)
 	u32 init_val, addr, val;
 	int err, pg;
 
-	eq->dma_addr = devm_kcalloc(&pdev->dev, eq->num_pages,
-				    sizeof(*eq->dma_addr), GFP_KERNEL);
+	eq->dma_addr = devm_kzalloc_objs(&pdev->dev, *eq->dma_addr,
+					 eq->num_pages);
 	if (!eq->dma_addr)
 		return -ENOMEM;
 
-	eq->virt_addr = devm_kcalloc(&pdev->dev, eq->num_pages,
-				     sizeof(*eq->virt_addr), GFP_KERNEL);
+	eq->virt_addr = devm_kzalloc_objs(&pdev->dev, *eq->virt_addr,
+					  eq->num_pages);
 	if (!eq->virt_addr) {
 		err = -ENOMEM;
 		goto err_virt_addr_alloc;

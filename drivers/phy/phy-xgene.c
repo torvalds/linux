@@ -1656,7 +1656,7 @@ static int xgene_phy_probe(struct platform_device *pdev)
 	u32 default_txcp1[] = DEFAULT_SATA_TXCP1;
 	int i;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc_obj(&pdev->dev, *ctx);
 	if (!ctx)
 		return -ENOMEM;
 

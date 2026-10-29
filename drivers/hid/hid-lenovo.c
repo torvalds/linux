@@ -1257,9 +1257,7 @@ static int lenovo_probe_tpkbd(struct hid_device *hdev)
 	if (ret)
 		hid_warn(hdev, "Could not create sysfs group: %d\n", ret);
 
-	data_pointer = devm_kzalloc(&hdev->dev,
-				    sizeof(struct lenovo_drvdata),
-				    GFP_KERNEL);
+	data_pointer = devm_kzalloc_obj(&hdev->dev, struct lenovo_drvdata);
 	if (data_pointer == NULL) {
 		hid_err(hdev, "Could not allocate memory for driver data\n");
 		ret = -ENOMEM;
@@ -1297,9 +1295,7 @@ static int lenovo_probe_cptkbd(struct hid_device *hdev)
 		return 0;
 	}
 
-	cptkbd_data = devm_kzalloc(&hdev->dev,
-					sizeof(*cptkbd_data),
-					GFP_KERNEL);
+	cptkbd_data = devm_kzalloc_obj(&hdev->dev, *cptkbd_data);
 	if (cptkbd_data == NULL) {
 		hid_err(hdev, "can't alloc keyboard descriptor\n");
 		return -ENOMEM;
@@ -1351,7 +1347,7 @@ static int lenovo_probe_tp10ubkbd(struct hid_device *hdev)
 	if (!found)
 		return 0;
 
-	data = devm_kzalloc(&hdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&hdev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

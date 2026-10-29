@@ -37,7 +37,7 @@ static int dw_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc_obj(dev, *chip);
 	if (!chip)
 		return -ENOMEM;
 

@@ -167,7 +167,7 @@ int gx_formatter_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	formatter = devm_kzalloc(dev, sizeof(*formatter), GFP_KERNEL);
+	formatter = devm_kzalloc_obj(dev, *formatter);
 	if (!formatter)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, formatter);
@@ -196,7 +196,7 @@ int gx_formatter_create(struct device *dev,
 {
 	struct gx_formatter *formatter;
 
-	formatter = devm_kzalloc(dev, sizeof(*formatter), GFP_KERNEL);
+	formatter = devm_kzalloc_obj(dev, *formatter);
 	if (!formatter)
 		return -ENOMEM;
 

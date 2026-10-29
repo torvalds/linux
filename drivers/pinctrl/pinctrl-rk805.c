@@ -607,7 +607,7 @@ static int rk805_pinctrl_probe(struct platform_device *pdev)
 
 	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
 
-	pci = devm_kzalloc(&pdev->dev, sizeof(*pci), GFP_KERNEL);
+	pci = devm_kzalloc_obj(&pdev->dev, *pci);
 	if (!pci)
 		return -ENOMEM;
 

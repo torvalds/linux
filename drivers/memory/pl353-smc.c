@@ -75,7 +75,7 @@ static int pl353_smc_probe(struct amba_device *adev, const struct amba_id *id)
 	const struct of_device_id *match = NULL;
 	struct pl353_smc_data *pl353_smc;
 
-	pl353_smc = devm_kzalloc(&adev->dev, sizeof(*pl353_smc), GFP_KERNEL);
+	pl353_smc = devm_kzalloc_obj(&adev->dev, *pl353_smc);
 	if (!pl353_smc)
 		return -ENOMEM;
 

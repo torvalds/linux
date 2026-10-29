@@ -205,7 +205,7 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 	const char *clk_name;
 	int err, i;
 
-	rk_phy = devm_kzalloc(base->dev, sizeof(*rk_phy), GFP_KERNEL);
+	rk_phy = devm_kzalloc_obj(base->dev, *rk_phy);
 	if (!rk_phy)
 		return -ENOMEM;
 
@@ -448,7 +448,7 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	int err;
 
-	phy_base = devm_kzalloc(dev, sizeof(*phy_base), GFP_KERNEL);
+	phy_base = devm_kzalloc_obj(dev, *phy_base);
 	if (!phy_base)
 		return -ENOMEM;
 

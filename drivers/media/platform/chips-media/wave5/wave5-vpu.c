@@ -278,7 +278,7 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&pdev->dev, *dev);
 	if (!dev)
 		return -ENOMEM;
 

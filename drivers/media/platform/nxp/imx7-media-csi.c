@@ -2208,7 +2208,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	struct imx7_csi *csi;
 	int ret;
 
-	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
+	csi = devm_kzalloc_obj(&pdev->dev, *csi);
 	if (!csi)
 		return -ENOMEM;
 

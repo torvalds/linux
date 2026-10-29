@@ -53,7 +53,7 @@ static int cpcap_power_button_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	button = devm_kmalloc(&pdev->dev, sizeof(*button), GFP_KERNEL);
+	button = devm_kmalloc_obj(&pdev->dev, *button);
 	if (!button)
 		return -ENOMEM;
 

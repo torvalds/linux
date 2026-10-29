@@ -458,7 +458,7 @@ struct dentry *smem_dram_parse(struct qcom_smem *smem, struct device *dev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	dram = devm_kzalloc(dev, sizeof(*dram), GFP_KERNEL);
+	dram = devm_kzalloc_obj(dev, *dram);
 	if (!dram)
 		return ERR_PTR(-ENOMEM);
 

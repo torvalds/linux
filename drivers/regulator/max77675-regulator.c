@@ -968,7 +968,7 @@ static int max77675_regulator_probe(struct i2c_client *client)
 	struct regulator_config config = {};
 	int i, ret;
 
-	maxreg = devm_kzalloc(&client->dev, sizeof(*maxreg), GFP_KERNEL);
+	maxreg = devm_kzalloc_obj(&client->dev, *maxreg);
 	if (!maxreg)
 		return -ENOMEM;
 

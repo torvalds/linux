@@ -178,7 +178,7 @@ static int cy8ctmg110_probe(struct i2c_client *client)
 					I2C_FUNC_SMBUS_READ_WORD_DATA))
 		return -EIO;
 
-	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc_obj(&client->dev, *ts);
 	if (!ts)
 		return -ENOMEM;
 

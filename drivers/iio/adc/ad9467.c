@@ -1037,8 +1037,8 @@ static int ad9467_scale_fill(struct ad9467_state *st)
 	const struct ad9467_chip_info *info = st->info;
 	unsigned int i, val1, val2;
 
-	st->scales = devm_kmalloc_array(&st->spi->dev, info->num_scales,
-					sizeof(*st->scales), GFP_KERNEL);
+	st->scales = devm_kmalloc_objs(&st->spi->dev, *st->scales,
+				       info->num_scales);
 	if (!st->scales)
 		return -ENOMEM;
 
@@ -1285,8 +1285,8 @@ static void ad9467_debugfs_init(struct iio_dev *indio_dev)
 	if (!IS_ENABLED(CONFIG_DEBUG_FS))
 		return;
 
-	st->chan_test = devm_kcalloc(&st->spi->dev, st->info->num_channels,
-				     sizeof(*st->chan_test), GFP_KERNEL);
+	st->chan_test = devm_kzalloc_objs(&st->spi->dev, *st->chan_test,
+					  st->info->num_channels);
 	if (!st->chan_test)
 		return;
 

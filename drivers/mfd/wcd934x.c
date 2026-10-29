@@ -223,7 +223,7 @@ static int wcd934x_slim_probe(struct slim_device *sdev)
 		return dev_err_probe(dev, ret,
 				     "Failed to set DMA mask\n");
 
-	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(dev, *ddata);
 	if (!ddata)
 		return	-ENOMEM;
 

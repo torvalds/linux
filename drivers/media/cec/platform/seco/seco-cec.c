@@ -570,7 +570,7 @@ static int secocec_probe(struct platform_device *pdev)
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
 
-	secocec = devm_kzalloc(dev, sizeof(*secocec), GFP_KERNEL);
+	secocec = devm_kzalloc_obj(dev, *secocec);
 	if (!secocec)
 		return -ENOMEM;
 

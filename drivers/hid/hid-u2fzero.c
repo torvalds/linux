@@ -313,7 +313,7 @@ static int u2fzero_probe(struct hid_device *hdev,
 	if (!hid_is_usb(hdev))
 		return -EINVAL;
 
-	dev = devm_kzalloc(&hdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc_obj(&hdev->dev, *dev);
 	if (dev == NULL)
 		return -ENOMEM;
 

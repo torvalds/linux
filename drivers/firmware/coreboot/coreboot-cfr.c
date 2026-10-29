@@ -1116,7 +1116,7 @@ static int coreboot_cfr_probe(struct coreboot_device *dev)
 	if (!efivar_is_available())
 		return -EPROBE_DEFER;
 
-	data = devm_kzalloc(&dev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&dev->dev, *data);
 	if (!data)
 		return -ENOMEM;
 

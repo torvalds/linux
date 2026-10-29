@@ -1327,7 +1327,7 @@ static int lpc18xx_scu_probe(struct platform_device *pdev)
 	struct lpc18xx_scu_data *scu;
 	int ret;
 
-	scu = devm_kzalloc(&pdev->dev, sizeof(*scu), GFP_KERNEL);
+	scu = devm_kzalloc_obj(&pdev->dev, *scu);
 	if (!scu)
 		return -ENOMEM;
 

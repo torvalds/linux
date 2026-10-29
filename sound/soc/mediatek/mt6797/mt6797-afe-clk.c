@@ -36,8 +36,7 @@ int mt6797_init_clock(struct mtk_base_afe *afe)
 	struct mt6797_afe_private *afe_priv = afe->platform_priv;
 	int i;
 
-	afe_priv->clk = devm_kcalloc(afe->dev, CLK_NUM, sizeof(*afe_priv->clk),
-				     GFP_KERNEL);
+	afe_priv->clk = devm_kzalloc_objs(afe->dev, *afe_priv->clk, CLK_NUM);
 	if (!afe_priv->clk)
 		return -ENOMEM;
 

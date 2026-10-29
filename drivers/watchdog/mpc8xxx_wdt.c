@@ -144,7 +144,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	if (!freq || freq == -1)
 		return -EINVAL;
 
-	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc_obj(dev, *ddata);
 	if (!ddata)
 		return -ENOMEM;
 

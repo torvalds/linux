@@ -119,7 +119,7 @@ static int menf21bmc_wdt_probe(struct platform_device *pdev)
 	struct menf21bmc_wdt *drv_data;
 	struct i2c_client *i2c_client = to_i2c_client(dev->parent);
 
-	drv_data = devm_kzalloc(dev, sizeof(struct menf21bmc_wdt), GFP_KERNEL);
+	drv_data = devm_kzalloc_obj(dev, struct menf21bmc_wdt);
 	if (!drv_data)
 		return -ENOMEM;
 

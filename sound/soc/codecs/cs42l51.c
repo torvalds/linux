@@ -723,8 +723,7 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	cs42l51 = devm_kzalloc(dev, sizeof(struct cs42l51_private),
-			       GFP_KERNEL);
+	cs42l51 = devm_kzalloc_obj(dev, struct cs42l51_private);
 	if (!cs42l51)
 		return -ENOMEM;
 

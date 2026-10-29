@@ -981,9 +981,8 @@ static int get_mc_addr_translation_ranges(struct device *dev,
 		return 0;
 	}
 
-	*ranges = devm_kcalloc(dev, *num_ranges,
-			       sizeof(struct fsl_mc_addr_translation_range),
-			       GFP_KERNEL);
+	*ranges = devm_kzalloc_objs(dev, struct fsl_mc_addr_translation_range,
+				    *num_ranges);
 	if (!(*ranges))
 		return -ENOMEM;
 
@@ -1064,7 +1063,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	u32 mc_portal_size, mc_stream_id;
 	struct resource *plat_res;
 
-	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
+	mc = devm_kzalloc_obj(&pdev->dev, *mc);
 	if (!mc)
 		return -ENOMEM;
 

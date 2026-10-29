@@ -490,7 +490,7 @@ static int pn533_usb_probe(struct usb_interface *interface,
 			 PN533_STD_FRAME_TAIL_LEN;
 	int rc;
 
-	phy = devm_kzalloc(&interface->dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc_obj(&interface->dev, *phy);
 	if (!phy)
 		return -ENOMEM;
 

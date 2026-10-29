@@ -2273,7 +2273,7 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 	struct bcm63xx_udc *udc;
 	int rc = -ENOMEM, i, irq;
 
-	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
+	udc = devm_kzalloc_obj(dev, *udc);
 	if (!udc)
 		return -ENOMEM;
 

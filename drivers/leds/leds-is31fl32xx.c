@@ -580,8 +580,7 @@ static int is31fl32xx_probe(struct i2c_client *client)
 	if (!count)
 		return -EINVAL;
 
-	priv = devm_kzalloc(dev, struct_size(priv, leds, count),
-			    GFP_KERNEL);
+	priv = devm_kzalloc_flex(dev, *priv, leds, count);
 	if (!priv)
 		return -ENOMEM;
 

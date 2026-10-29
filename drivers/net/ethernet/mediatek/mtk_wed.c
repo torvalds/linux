@@ -535,8 +535,7 @@ mtk_wed_amsdu_buffer_alloc(struct mtk_wed_device *dev)
 	if (!mtk_wed_is_v3_or_greater(hw))
 		return 0;
 
-	wed_amsdu = devm_kcalloc(hw->dev, MTK_WED_AMSDU_NPAGES,
-				 sizeof(*wed_amsdu), GFP_KERNEL);
+	wed_amsdu = devm_kzalloc_objs(hw->dev, *wed_amsdu, MTK_WED_AMSDU_NPAGES);
 	if (!wed_amsdu)
 		return -ENOMEM;
 

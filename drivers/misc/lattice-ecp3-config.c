@@ -190,7 +190,7 @@ static int lattice_ecp3_probe(struct spi_device *spi)
 	struct fpga_data *data;
 	int err;
 
-	data = devm_kzalloc(&spi->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc_obj(&spi->dev, *data);
 	if (!data) {
 		dev_err(&spi->dev, "Memory allocation for fpga_data failed\n");
 		return -ENOMEM;

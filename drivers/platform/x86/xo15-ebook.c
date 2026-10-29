@@ -86,7 +86,7 @@ static int ebook_switch_probe(struct platform_device *pdev)
 	struct input_dev *input;
 	int error;
 
-	button = devm_kzalloc(dev, sizeof(*button), GFP_KERNEL);
+	button = devm_kzalloc_obj(dev, *button);
 	if (!button)
 		return -ENOMEM;
 

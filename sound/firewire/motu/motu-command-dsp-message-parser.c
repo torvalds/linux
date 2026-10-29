@@ -37,7 +37,7 @@ int snd_motu_command_dsp_message_parser_new(struct snd_motu *motu)
 {
 	struct msg_parser *parser;
 
-	parser = devm_kzalloc(&motu->card->card_dev, sizeof(*parser), GFP_KERNEL);
+	parser = devm_kzalloc_obj(&motu->card->card_dev, *parser);
 	if (!parser)
 		return -ENOMEM;
 	spin_lock_init(&parser->lock);

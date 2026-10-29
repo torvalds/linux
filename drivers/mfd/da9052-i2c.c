@@ -129,7 +129,7 @@ static int da9052_i2c_probe(struct i2c_client *client)
 	struct da9052 *da9052;
 	int ret;
 
-	da9052 = devm_kzalloc(&client->dev, sizeof(struct da9052), GFP_KERNEL);
+	da9052 = devm_kzalloc_obj(&client->dev, struct da9052);
 	if (!da9052)
 		return -ENOMEM;
 

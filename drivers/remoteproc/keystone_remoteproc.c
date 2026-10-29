@@ -283,8 +283,7 @@ static int keystone_rproc_of_get_memories(struct platform_device *pdev,
 	int i;
 
 	num_mems = ARRAY_SIZE(mem_names);
-	ksproc->mem = devm_kcalloc(ksproc->dev, num_mems,
-				   sizeof(*ksproc->mem), GFP_KERNEL);
+	ksproc->mem = devm_kzalloc_objs(ksproc->dev, *ksproc->mem, num_mems);
 	if (!ksproc->mem)
 		return -ENOMEM;
 

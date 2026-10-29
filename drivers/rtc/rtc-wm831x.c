@@ -405,7 +405,7 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	int alm_irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "ALM"));
 	int ret = 0;
 
-	wm831x_rtc = devm_kzalloc(&pdev->dev, sizeof(*wm831x_rtc), GFP_KERNEL);
+	wm831x_rtc = devm_kzalloc_obj(&pdev->dev, *wm831x_rtc);
 	if (wm831x_rtc == NULL)
 		return -ENOMEM;
 

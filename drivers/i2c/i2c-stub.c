@@ -99,7 +99,7 @@ static struct smbus_block_data *stub_find_block(struct device *dev,
 		}
 	}
 	if (rb == NULL && create) {
-		rb = devm_kzalloc(dev, sizeof(*rb), GFP_KERNEL);
+		rb = devm_kzalloc_obj(dev, *rb);
 		if (rb == NULL)
 			return rb;
 		rb->command = command;

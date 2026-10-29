@@ -494,7 +494,7 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	const struct mtk_wdt_data *wdt_data;
 	int err, irq;
 
-	mtk_wdt = devm_kzalloc(dev, sizeof(*mtk_wdt), GFP_KERNEL);
+	mtk_wdt = devm_kzalloc_obj(dev, *mtk_wdt);
 	if (!mtk_wdt)
 		return -ENOMEM;
 

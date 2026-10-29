@@ -263,7 +263,7 @@ static int gpio_shared_proxy_probe(struct auxiliary_device *adev,
 	if (IS_ERR(shared_desc))
 		return PTR_ERR(shared_desc);
 
-	proxy = devm_kzalloc(dev, sizeof(*proxy), GFP_KERNEL);
+	proxy = devm_kzalloc_obj(dev, *proxy);
 	if (!proxy)
 		return -ENOMEM;
 

@@ -2490,9 +2490,8 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate number of TX rings */
-	priv->tx_rings = devm_kcalloc(&pdev->dev, txq,
-				      sizeof(struct bcm_sysport_tx_ring),
-				      GFP_KERNEL);
+	priv->tx_rings = devm_kzalloc_objs(&pdev->dev,
+					   struct bcm_sysport_tx_ring, txq);
 	if (!priv->tx_rings) {
 		ret = -ENOMEM;
 		goto err_free_netdev;

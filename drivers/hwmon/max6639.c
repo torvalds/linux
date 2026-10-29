@@ -706,7 +706,7 @@ static int max6639_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 	int err;
 
-	data = devm_kzalloc(dev, sizeof(struct max6639_data), GFP_KERNEL);
+	data = devm_kzalloc_obj(dev, struct max6639_data);
 	if (!data)
 		return -ENOMEM;
 

@@ -3056,7 +3056,7 @@ static int iqs7222_probe(struct i2c_client *client)
 	unsigned long irq_flags;
 	int error, irq;
 
-	iqs7222 = devm_kzalloc(&client->dev, sizeof(*iqs7222), GFP_KERNEL);
+	iqs7222 = devm_kzalloc_obj(&client->dev, *iqs7222);
 	if (!iqs7222)
 		return -ENOMEM;
 

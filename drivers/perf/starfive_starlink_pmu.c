@@ -510,7 +510,7 @@ static int starlink_pmu_probe(struct platform_device *pdev)
 	struct resource *res;
 	int cpuid, i, ret;
 
-	starlink_pmu = devm_kzalloc(&pdev->dev, sizeof(*starlink_pmu), GFP_KERNEL);
+	starlink_pmu = devm_kzalloc_obj(&pdev->dev, *starlink_pmu);
 	if (!starlink_pmu)
 		return -ENOMEM;
 

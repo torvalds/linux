@@ -4023,8 +4023,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c)
 	unsigned int val;
 	struct regmap *regmap;
 
-	rt5645 = devm_kzalloc(&i2c->dev, sizeof(struct rt5645_priv),
-				GFP_KERNEL);
+	rt5645 = devm_kzalloc_obj(&i2c->dev, struct rt5645_priv);
 	if (rt5645 == NULL)
 		return -ENOMEM;
 

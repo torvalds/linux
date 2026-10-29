@@ -1061,7 +1061,7 @@ qcom_smem_enumerate_partitions(struct qcom_smem *smem, u16 local_host)
 		if (!header)
 			return -EINVAL;
 
-		part = devm_kzalloc(smem->dev, sizeof(struct smem_partition), GFP_KERNEL);
+		part = devm_kzalloc_obj(smem->dev, struct smem_partition);
 		if (!part)
 			return -ENOMEM;
 
@@ -1153,8 +1153,7 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	if (of_property_present(pdev->dev.of_node, "qcom,rpm-msg-ram"))
 		num_regions++;
 
-	smem = devm_kzalloc(&pdev->dev, struct_size(smem, regions, num_regions),
-			    GFP_KERNEL);
+	smem = devm_kzalloc_flex(&pdev->dev, *smem, regions, num_regions);
 	if (!smem)
 		return -ENOMEM;
 

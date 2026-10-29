@@ -263,7 +263,7 @@ static int cros_ucsi_probe(struct platform_device *pdev)
 	struct cros_ucsi_data *udata;
 	int ret;
 
-	udata = devm_kzalloc(dev, sizeof(*udata), GFP_KERNEL);
+	udata = devm_kzalloc_obj(dev, *udata);
 	if (!udata)
 		return -ENOMEM;
 

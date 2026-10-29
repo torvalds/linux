@@ -1111,7 +1111,7 @@ static struct videocodec_master *zoran_setup_videocodec(struct zoran *zr,
 {
 	struct videocodec_master *m = NULL;
 
-	m = devm_kmalloc(&zr->pci_dev->dev, sizeof(*m), GFP_KERNEL);
+	m = devm_kmalloc_obj(&zr->pci_dev->dev, *m);
 	if (!m)
 		return m;
 
@@ -1249,7 +1249,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOENT;
 	}
 
-	zr = devm_kzalloc(&pdev->dev, sizeof(*zr), GFP_KERNEL);
+	zr = devm_kzalloc_obj(&pdev->dev, *zr);
 	if (!zr)
 		return -ENOMEM;
 

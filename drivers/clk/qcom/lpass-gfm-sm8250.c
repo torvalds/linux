@@ -243,7 +243,7 @@ static int lpass_gfm_clk_driver_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	cc = devm_kzalloc(dev, sizeof(*cc), GFP_KERNEL);
+	cc = devm_kzalloc_obj(dev, *cc);
 	if (!cc)
 		return -ENOMEM;
 

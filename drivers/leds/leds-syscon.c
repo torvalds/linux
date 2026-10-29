@@ -74,7 +74,7 @@ static int syscon_led_probe(struct platform_device *pdev)
 		return PTR_ERR(map);
 	}
 
-	sled = devm_kzalloc(dev, sizeof(*sled), GFP_KERNEL);
+	sled = devm_kzalloc_obj(dev, *sled);
 	if (!sled)
 		return -ENOMEM;
 

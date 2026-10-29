@@ -572,7 +572,7 @@ static struct dsu_pmu *dsu_pmu_alloc(struct platform_device *pdev)
 {
 	struct dsu_pmu *dsu_pmu;
 
-	dsu_pmu = devm_kzalloc(&pdev->dev, sizeof(*dsu_pmu), GFP_KERNEL);
+	dsu_pmu = devm_kzalloc_obj(&pdev->dev, *dsu_pmu);
 	if (!dsu_pmu)
 		return ERR_PTR(-ENOMEM);
 

@@ -49,8 +49,8 @@ int hclge_comm_rss_init_cfg(struct hnae3_handle *nic,
 
 	rss_cfg->rss_algo = rss_algo;
 
-	rss_ind_tbl = devm_kcalloc(&ae_dev->pdev->dev, rss_ind_tbl_size,
-				   sizeof(*rss_ind_tbl), GFP_KERNEL);
+	rss_ind_tbl = devm_kzalloc_objs(&ae_dev->pdev->dev, *rss_ind_tbl,
+					rss_ind_tbl_size);
 	if (!rss_ind_tbl)
 		return -ENOMEM;
 

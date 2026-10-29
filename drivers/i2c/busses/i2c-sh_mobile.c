@@ -870,7 +870,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	int ret;
 	u32 bus_speed;
 
-	pd = devm_kzalloc(&dev->dev, sizeof(struct sh_mobile_i2c_data), GFP_KERNEL);
+	pd = devm_kzalloc_obj(&dev->dev, struct sh_mobile_i2c_data);
 	if (!pd)
 		return -ENOMEM;
 

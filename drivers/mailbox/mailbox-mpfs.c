@@ -278,7 +278,7 @@ static int mpfs_mbox_probe(struct platform_device *pdev)
 	struct mpfs_mbox *mbox;
 	int ret;
 
-	mbox = devm_kzalloc(&pdev->dev, sizeof(*mbox), GFP_KERNEL);
+	mbox = devm_kzalloc_obj(&pdev->dev, *mbox);
 	if (!mbox)
 		return -ENOMEM;
 

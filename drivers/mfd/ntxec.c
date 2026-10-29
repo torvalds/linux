@@ -153,7 +153,7 @@ static int ntxec_probe(struct i2c_client *client)
 	const struct mfd_cell *subdevs;
 	size_t n_subdevs;
 
-	ec = devm_kmalloc(&client->dev, sizeof(*ec), GFP_KERNEL);
+	ec = devm_kmalloc_obj(&client->dev, *ec);
 	if (!ec)
 		return -ENOMEM;
 

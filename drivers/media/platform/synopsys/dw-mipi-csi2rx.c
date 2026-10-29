@@ -956,7 +956,7 @@ static int dw_mipi_csi2rx_probe(struct platform_device *pdev)
 	struct dw_mipi_csi2rx_device *csi2;
 	int ret;
 
-	csi2 = devm_kzalloc(dev, sizeof(*csi2), GFP_KERNEL);
+	csi2 = devm_kzalloc_obj(dev, *csi2);
 	if (!csi2)
 		return -ENOMEM;
 	csi2->dev = dev;

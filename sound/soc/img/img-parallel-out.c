@@ -219,7 +219,7 @@ static int img_prl_out_probe(struct platform_device *pdev)
 	int ret;
 	struct device *dev = &pdev->dev;
 
-	prl = devm_kzalloc(&pdev->dev, sizeof(*prl), GFP_KERNEL);
+	prl = devm_kzalloc_obj(&pdev->dev, *prl);
 	if (!prl)
 		return -ENOMEM;
 

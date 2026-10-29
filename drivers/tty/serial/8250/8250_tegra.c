@@ -49,7 +49,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	uart = devm_kzalloc(&pdev->dev, sizeof(*uart), GFP_KERNEL);
+	uart = devm_kzalloc_obj(&pdev->dev, *uart);
 	if (!uart)
 		return -ENOMEM;
 
