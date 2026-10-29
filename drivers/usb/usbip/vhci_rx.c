@@ -79,6 +79,7 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 	/* recv transfer buffer */
 	if (usbip_recv_xbuff(ud, urb) < 0) {
 		urb->status = -EPROTO;
+		urb->actual_length = 0;
 		goto error;
 	}
 
