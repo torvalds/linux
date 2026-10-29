@@ -449,7 +449,7 @@ static __net_init int setup_net(struct net *net)
 	up_write(&net_rwsem);
 	/* Without CONFIG_NET_NS init_net isn't exposed as a namespace. */
 	if (IS_ENABLED(CONFIG_NET_NS))
-		ns_tree_add_raw(net);
+		ns_tree_add(net);
 out:
 	return error;
 
