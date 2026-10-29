@@ -1183,8 +1183,6 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 			return ret;
 	}
 
-	zloop_get_block_size(zlo, zone);
-
 	mutex_lock(&zone->lock);
 	ret = zloop_update_seq_zone(zlo, zone_no);
 	mutex_unlock(&zone->lock);
