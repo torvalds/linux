@@ -23,6 +23,7 @@
 #include "intel_pps.h"
 #include "intel_pps_regs.h"
 #include "intel_quirks.h"
+#include "intel_tc.h"
 
 static void vlv_steal_power_sequencer(struct intel_display *display,
 				      enum pipe pipe);
@@ -758,6 +759,9 @@ bool intel_pps_vdd_on_unlocked(struct intel_dp *intel_dp)
 	if (edp_have_panel_vdd(intel_dp))
 		return need_to_disable;
 
+	if (intel_encoder_is_tc(&dig_port->base))
+		intel_tc_port_get_link(dig_port, 1);
+
 	drm_WARN_ON(display->drm, intel_dp->pps.vdd_wakeref);
 	intel_dp->pps.vdd_wakeref = intel_display_power_get(display,
 							    intel_aux_power_domain(dig_port));
@@ -864,6 +868,9 @@ static void intel_pps_vdd_off_sync_unlocked(struct intel_dp *intel_dp)
 	intel_display_power_put(display,
 				intel_aux_power_domain(dig_port),
 				fetch_and_zero(&intel_dp->pps.vdd_wakeref));
+
+	if (intel_encoder_is_tc(&dig_port->base))
+		intel_tc_port_put_link(dig_port);
 }
 
 void intel_pps_vdd_off_sync(struct intel_dp *intel_dp)
@@ -1066,6 +1073,9 @@ void intel_pps_off_unlocked(struct intel_dp *intel_dp)
 	intel_display_power_put(display,
 				intel_aux_power_domain(dig_port),
 				fetch_and_zero(&intel_dp->pps.vdd_wakeref));
+
+	if (intel_encoder_is_tc(&dig_port->base))
+		intel_tc_port_put_link(dig_port);
 }
 
 void intel_pps_off(struct intel_dp *intel_dp)
@@ -1334,6 +1344,10 @@ static void pps_vdd_init(struct intel_dp *intel_dp)
 		    "[ENCODER:%d:%s] %s VDD left on by BIOS, adjusting state tracking\n",
 		    dig_port->base.base.base.id, dig_port->base.base.name,
 		    pps_name(intel_dp));
+
+	if (intel_encoder_is_tc(&dig_port->base))
+		intel_tc_port_get_link(dig_port, 1);
+
 	drm_WARN_ON(display->drm, intel_dp->pps.vdd_wakeref);
 	intel_dp->pps.vdd_wakeref = intel_display_power_get(display,
 							    intel_aux_power_domain(dig_port));
