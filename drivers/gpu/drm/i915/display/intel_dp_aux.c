@@ -270,22 +270,6 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	for (i = 0; i < ARRAY_SIZE(ch_data); i++)
 		ch_data[i] = intel_dp->aux_ch_data_reg(intel_dp, i);
 
-	intel_digital_port_lock(encoder);
-	/*
-	 * Abort transfers on a disconnected port as required by
-	 * DP 1.4a link CTS 4.2.1.5, also avoiding the long AUX
-	 * timeouts that would otherwise happen.
-	 */
-	if (!intel_dp_is_edp(intel_dp) &&
-	    !intel_digital_port_connected_locked(&dig_port->base)) {
-		ret = -ENXIO;
-		goto out_unlock;
-	}
-
-	aux_domain = intel_aux_power_domain(dig_port);
-
-	aux_wakeref = intel_display_power_get(display, aux_domain);
-
 	/*
 	 * The PPS state needs to be locked for:
 	 * - eDP on all platforms, since AUX transfers on eDP need VDD power
@@ -307,6 +291,21 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	 * ourselves.
 	 */
 	vdd = intel_pps_vdd_on_unlocked(intel_dp);
+
+	intel_digital_port_lock(encoder);
+	/*
+	 * Abort transfers on a disconnected port as required by
+	 * DP 1.4a link CTS 4.2.1.5, also avoiding the long AUX
+	 * timeouts that would otherwise happen.
+	 */
+	if (!intel_dp_is_edp(intel_dp) &&
+	    !intel_digital_port_connected_locked(&dig_port->base)) {
+		ret = -ENXIO;
+		goto out_unlock;
+	}
+
+	aux_domain = intel_aux_power_domain(dig_port);
+	aux_wakeref = intel_display_power_get(display, aux_domain);
 
 	/*
 	 * dp aux is extremely sensitive to irq latency, hence request the
@@ -453,15 +452,15 @@ done:
 out:
 	cpu_latency_qos_update_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
 
+	intel_display_power_put_async(display, aux_domain, aux_wakeref);
+out_unlock:
+	intel_digital_port_unlock(encoder);
+
 	if (vdd)
 		intel_pps_vdd_off_unlocked(intel_dp, false);
 
 	if (pps_wakeref)
 		intel_pps_unlock(intel_dp, pps_wakeref);
-
-	intel_display_power_put_async(display, aux_domain, aux_wakeref);
-out_unlock:
-	intel_digital_port_unlock(encoder);
 
 	return ret;
 }
