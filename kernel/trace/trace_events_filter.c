@@ -1766,6 +1766,11 @@ static int parse_pred(const char *str, void *data,
 	while (isspace(str[i]))
 		i++;
 
+	if (!str[i]) {
+		parse_error(pe, FILT_ERR_INVALID_FILTER, pos + i);
+		goto err_free;
+	}
+
 	s = i;
 
 	pred = kzalloc_obj(*pred);
