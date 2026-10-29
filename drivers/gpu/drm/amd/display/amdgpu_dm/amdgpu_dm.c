@@ -4462,6 +4462,105 @@ STATIC_IFN_KUNIT void dm_clear_writeback(struct amdgpu_display_manager *dm,
 }
 EXPORT_IF_KUNIT(dm_clear_writeback);
 
+static bool amdgpu_dm_self_refresh_pause_needed(struct drm_atomic_commit *state)
+{
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i)
+		if (drm_atomic_crtc_needs_modeset(new_crtc_state) &&
+		    (old_crtc_state->active || new_crtc_state->active))
+			return true;
+
+	return false;
+}
+
+static bool amdgpu_dm_is_new_modeset_stream(struct drm_atomic_commit *state,
+					    const struct dc_stream_state *stream)
+{
+	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
+
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
+		if (drm_atomic_crtc_needs_modeset(new_crtc_state) &&
+		    to_dm_crtc_state(new_crtc_state)->stream == stream)
+			return true;
+
+	return false;
+}
+
+/*
+ * A modeset CRTC may have no PSR or Replay, such as an HDMI output being
+ * turned off, while an eDP on another CRTC is still in self-refresh. Pause
+ * self-refresh on every stream mod_power tracks before
+ * amdgpu_dm_mod_power_update_streams() changes the set: the old streams of
+ * the CRTCs in the commit and the unchanged streams of the new state.
+ * Unlike hw_programming, which a fast update on another CRTC clears, the
+ * pause holds until amdgpu_dm_resume_self_refresh()
+ */
+static void amdgpu_dm_pause_self_refresh(struct drm_atomic_commit *state,
+					 struct amdgpu_display_manager *dm,
+					 struct dc_state *dc_state)
+{
+	struct drm_crtc_state *old_crtc_state;
+	struct dc_stream_state *stream;
+	struct drm_crtc *crtc;
+	int i;
+
+	if (!amdgpu_dm_self_refresh_pause_needed(state))
+		return;
+
+	guard(mutex)(&dm->dc_lock);
+	dc_exit_ips_for_hw_access(dm->dc);
+
+	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
+		stream = to_dm_crtc_state(old_crtc_state)->stream;
+		if (!old_crtc_state->active || !stream)
+			continue;
+
+		amdgpu_dm_psr_set_event(dm, stream, true, psr_event_pause, true);
+		amdgpu_dm_replay_set_event(dm, stream, true, replay_event_pause, true);
+	}
+
+	for (i = 0; i < dc_state->stream_count; i++) {
+		stream = dc_state->streams[i];
+		if (amdgpu_dm_is_new_modeset_stream(state, stream))
+			continue;
+
+		amdgpu_dm_psr_set_event(dm, stream, true, psr_event_pause, true);
+		amdgpu_dm_replay_set_event(dm, stream, true, replay_event_pause, true);
+	}
+}
+
+/*
+ * Ends amdgpu_dm_pause_self_refresh() on the streams of the commit, which
+ * mod_power tracks from amdgpu_dm_mod_power_update_streams() on, even if
+ * dc_commit_streams() failed. mod_power keeps events across
+ * mod_power_replace_stream(), so the replaced streams carry the pause too.
+ * Runs after amdgpu_dm_mod_power_setup_streams(), since enabling a stream
+ * clears psr_feature_enabled and replay_feature_enabled on its link until
+ * then, and the set_event helpers skip a link without them
+ */
+static void amdgpu_dm_resume_self_refresh(struct drm_atomic_commit *state,
+					  struct amdgpu_display_manager *dm,
+					  struct dc_state *dc_state)
+{
+	int i;
+
+	if (!dc_state || !amdgpu_dm_self_refresh_pause_needed(state))
+		return;
+
+	guard(mutex)(&dm->dc_lock);
+	for (i = 0; i < dc_state->stream_count; i++) {
+		amdgpu_dm_psr_set_event(dm, dc_state->streams[i], false,
+					psr_event_pause, false);
+		amdgpu_dm_replay_set_event(dm, dc_state->streams[i], false,
+					   replay_event_pause, false);
+	}
+}
+
 /**
  * amdgpu_dm_mod_power_update_streams - update mod_power stream state on modeset
  * @state: the drm atomic state
@@ -4618,6 +4717,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_commit *state,
 		acrtc->wb_enabled = false;
 	}
 
+	amdgpu_dm_pause_self_refresh(state, dm, dc_state);
 	amdgpu_dm_mod_power_update_streams(state, dm);
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
@@ -5365,6 +5465,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_commit *state)
 	}
 
 	amdgpu_dm_mod_power_setup_streams(state, dm);
+	amdgpu_dm_resume_self_refresh(state, dm, dc_state);
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j)
 		if (new_crtc_state->async_flip)
