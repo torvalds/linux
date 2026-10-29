@@ -781,12 +781,21 @@ struct cfs_rq {
 /* scx_rq->flags, protected by the rq lock */
 enum scx_rq_flags {
 	/*
-	 * A hotplugged CPU starts scheduling before rq_online_scx(). Track
-	 * ops.cpu_on/offline() state so that ops.enqueue/dispatch() are called
-	 * only while the BPF scheduler considers the CPU to be online.
+	 * Set while the core has the rq online, see rq_online_scx() and
+	 * rq_offline_scx(). A hotplugged cpu starts scheduling before
+	 * rq_online_scx(). ops.enqueue() and ops.dispatch() are called for the
+	 * cpu only while it is set, see scx_rq_online() and
+	 * scx_dispatch_sched().
 	 */
 	SCX_RQ_ONLINE		= 1 << 0,
 	SCX_RQ_CAN_STOP_TICK	= 1 << 1,
+	/*
+	 * Set while the root considers the cpu online, from its
+	 * ops.cpu_online() until its ops.cpu_offline(). ecaps are delivered
+	 * only while it is set. %SCX_RQ_ONLINE follows the core's rq state
+	 * instead, which changes ahead of the root's view on both edges.
+	 */
+	SCX_RQ_OPS_ONLINE	= 1 << 2,
 	SCX_RQ_CLK_VALID	= 1 << 5, /* RQ clock is fresh and valid */
 	SCX_RQ_BAL_CB_PENDING	= 1 << 6, /* must queue a cb after dispatching */
 	SCX_RQ_SUB_IDLE_RENOTIFY	= 1 << 7, /* sub-scheds are owed update_idle() */
@@ -807,7 +816,7 @@ struct scx_rq_rescue {
 	u64			clock;			/* last budget accrual timestamp */
 	struct task_struct	*curr;			/* task being rescued, one at a time */
 	s64			slice;			/* curr's admitted slice */
-	u64			exec_snap;		/* sum_exec_runtime at admission */
+	s64			served;			/* curr's served time */
 	struct timer_list	timer;			/* paces admission and escalation */
 	u64			kill_at;		/* last ejection, init before any */
 };
@@ -838,9 +847,10 @@ struct scx_rq {
 	struct scx_sched	*sched;
 	struct llist_head	ecaps_to_sync;		/* pending ecaps syncs */
 	struct task_struct	*sub_dispatch_prev;
+	u32			nr_ecaps_offline;	/* marked syncs a down waits for */
 #endif
-	cpumask_var_t		cpus_to_sync;
 	bool			kick_sync_pending;
+	cpumask_var_t		cpus_to_sync;
 	unsigned long		kick_sync;
 
 	struct list_head	sched_pcpus_to_kick;	/* see kick_cpus_irq_workfn() */
@@ -855,6 +865,7 @@ struct scx_rq {
 #endif
 	struct irq_work		deferred_irq_work;
 	struct irq_work		kick_cpus_irq_work;
+	struct irq_work		resched_irq_work;
 };
 #endif /* CONFIG_SCHED_CLASS_EXT */
 
@@ -2167,7 +2178,8 @@ queue_balance_callback(struct rq *rq,
 	 * balance_push() is active, see the comment with
 	 * balance_push_callback.
 	 */
-	if (unlikely(head->next || rq->balance_callback == &balance_push_callback))
+	if (unlikely(head->next || rq->balance_callback == head ||
+		     rq->balance_callback == &balance_push_callback))
 		return;
 
 	head->func = func;

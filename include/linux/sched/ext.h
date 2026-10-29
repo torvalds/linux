@@ -107,7 +107,21 @@ enum scx_ent_flags {
 	SCX_TASK_RUN_TRACKED	= 1 << 7, /* task is in an ops.running()/stopping() session */
 
 	/*
-	 * Bits 8 to 10 are used to carry task state:
+	 * The kernel owns the slice, currently the rescue grant. While set:
+	 *
+	 * - refill_task_slice_dfl() and expire_task_slice() leave the slice
+	 *   alone.
+	 * - Reenqueue scans skip the task.
+	 * - put_prev_task_scx() keeps a preempted task on the local DSQ.
+	 * - Schedulers may shorten the slice, never extend it.
+	 */
+	SCX_TASK_KERNEL_SLICE	= 1 << 8, /* slice owned by the kernel */
+
+	/*
+	 * The multi-bit fields are packed at the top, below SCX_TASK_CURSOR, so
+	 * that the single-bit flags stay contiguous from bit 0.
+	 *
+	 * Bits 25 to 27 are used to carry task state:
 	 *
 	 * NONE		ops.init_task() not called yet
 	 * INIT_BEGIN	ops.init_task() in flight; see sched_ext_dead()
@@ -116,7 +130,7 @@ enum scx_ent_flags {
 	 * ENABLED	fully initialized and in sched_ext
 	 * DEAD		terminal state set by sched_ext_dead()
 	 */
-	SCX_TASK_STATE_SHIFT	= 8,
+	SCX_TASK_STATE_SHIFT	= 25,
 	SCX_TASK_STATE_BITS	= 3,
 	SCX_TASK_STATE_MASK	= ((1 << SCX_TASK_STATE_BITS) - 1) << SCX_TASK_STATE_SHIFT,
 
@@ -128,7 +142,7 @@ enum scx_ent_flags {
 	SCX_TASK_DEAD		= 5 << SCX_TASK_STATE_SHIFT,
 
 	/*
-	 * Bits 12 to 14 are used to carry reenqueue reason. In addition to
+	 * Bits 28 to 30 are used to carry reenqueue reason. In addition to
 	 * %SCX_ENQ_REENQ flag, ops.enqueue() can also test for
 	 * %SCX_TASK_REENQ_REASON_NONE to distinguish reenqueues.
 	 *
@@ -139,7 +153,7 @@ enum scx_ent_flags {
 	 * CAP		sub-sched cap miss, see p->scx.reenq_reason_*
 	 * PROXY	proxy state prevented a remote DSQ transfer
 	 */
-	SCX_TASK_REENQ_REASON_SHIFT = 12,
+	SCX_TASK_REENQ_REASON_SHIFT = 28,
 	SCX_TASK_REENQ_REASON_BITS = 3,
 	SCX_TASK_REENQ_REASON_MASK = ((1 << SCX_TASK_REENQ_REASON_BITS) - 1) << SCX_TASK_REENQ_REASON_SHIFT,
 

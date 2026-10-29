@@ -14,6 +14,8 @@
 
 #ifdef CONFIG_EXT_SUB_SCHED
 
+extern s32 scx_rescue_bw_1024;
+
 struct scx_sched *scx_skip_subtree_pre(struct scx_sched *pos, struct scx_sched *root);
 struct scx_sched *scx_next_descendant_pre(struct scx_sched *pos, struct scx_sched *root);
 void scx_cid_sched_update(struct rq *rq, struct scx_sched *sch);
@@ -32,7 +34,10 @@ void scx_free_pshards(struct scx_sched *sch);
 s32 scx_alloc_pshards(struct scx_sched *sch);
 void scx_init_root_caps(struct scx_sched *sch);
 void __scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev);
-void scx_unbypass_replay_ecaps(struct rq *rq, struct scx_sched *sch);
+void scx_sub_pm_begin(void);
+void scx_update_frozen_cpus(s32 cpu, bool online);
+void scx_sub_pm_end(void);
+void scx_init_rq_ops_online(void);
 void scx_online_ecaps(struct rq *rq);
 void scx_offline_ecaps(struct rq *rq);
 void scx_discard_ecaps_to_sync(s32 cpu, struct scx_sched_pcpu *pcpu);
@@ -47,6 +52,12 @@ void scx_rescue_flush(struct rq *rq);
 void scx_rescue_dump(struct seq_buf *s, struct rq *rq);
 void scx_rescue_set_knobs(struct scx_sched *sch);
 void scx_rescue_init(struct rq *rq);
+
+/* false only when the root disabled rescue, see scx_rescue_set_knobs() */
+static inline bool scx_rescue_enabled(void)
+{
+	return likely(scx_rescue_bw_1024);
+}
 
 /*
  * cgrp->scx_sched is written by root/sub enable/disable under all of
@@ -110,7 +121,10 @@ static inline void scx_free_pshards(struct scx_sched *sch) {}
 static inline s32 scx_alloc_pshards(struct scx_sched *sch) { return 0; }
 static inline void scx_init_root_caps(struct scx_sched *sch) {}
 static inline void scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev) {}
-static inline void scx_unbypass_replay_ecaps(struct rq *rq, struct scx_sched *sch) {}
+static inline void scx_sub_pm_begin(void) {}
+static inline void scx_update_frozen_cpus(s32 cpu, bool online) {}
+static inline void scx_sub_pm_end(void) {}
+static inline void scx_init_rq_ops_online(void) {}
 static inline void scx_online_ecaps(struct rq *rq) {}
 static inline void scx_offline_ecaps(struct rq *rq) {}
 static inline void scx_discard_ecaps_to_sync(s32 cpu, struct scx_sched_pcpu *pcpu) {}
@@ -122,6 +136,7 @@ static inline void scx_rescue_end(struct rq *rq) {}
 static inline bool scx_rescue_keep(struct rq *rq, struct task_struct *p) { return false; }
 static inline void scx_rescue_flush(struct rq *rq) {}
 static inline void scx_rescue_dump(struct seq_buf *s, struct rq *rq) {}
+static inline bool scx_rescue_enabled(void) { return false; }
 static inline void scx_rescue_set_knobs(struct scx_sched *sch) {}
 static inline void scx_rescue_init(struct rq *rq) {}
 static inline void scx_dec_has_subs(struct scx_sched *sch) {}
@@ -248,12 +263,19 @@ static inline struct task_struct *scx_rescuee(struct rq *rq)
 	return rq->scx.rescue.curr;
 }
 
+/* does the kernel own @p's slice? see %SCX_TASK_KERNEL_SLICE */
+static inline bool scx_task_has_kernel_slice(const struct task_struct *p)
+{
+	return scx_has_subs() && (p->scx.flags & SCX_TASK_KERNEL_SLICE);
+}
+
 #else	/* CONFIG_EXT_SUB_SCHED */
 
 static inline u64 scx_missing_caps(struct scx_sched *sch, s32 cpu, u64 needed) { return 0; }
 static inline u64 scx_caps_for_preempt(struct scx_sched *sch, struct rq *rq, u64 enq_flags) { return 0; }
 static inline bool scx_task_can_stay_on_cpu(struct rq *rq, struct task_struct *p) { return true; }
 static inline struct task_struct *scx_rescuee(struct rq *rq) { return NULL; }
+static inline bool scx_task_has_kernel_slice(const struct task_struct *p) { return false; }
 
 #endif	/* CONFIG_EXT_SUB_SCHED */
 
