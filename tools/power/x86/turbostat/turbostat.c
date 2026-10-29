@@ -10266,13 +10266,11 @@ struct pmt_mmio *pmt_mmio_open(unsigned int target_guid)
 			break;
 		}
 
-		assert(offset == 0);
-
 		fd_pmt = openat(fd_telem_dir, "telem", O_RDONLY);
 		if (fd_pmt == -1)
 			goto loop_cleanup_and_break;
 
-		mmap_size = ROUND_UP_TO_PAGE_SIZE(size);
+		mmap_size = ROUND_UP_TO_PAGE_SIZE(offset + size);
 		mmio = mmap(0, mmap_size, PROT_READ, MAP_SHARED, fd_pmt, 0);
 		if (mmio != MAP_FAILED) {
 			if (debug)
@@ -10444,7 +10442,7 @@ int pmt_add_counter(unsigned int guid, unsigned int seq, const char *name, enum 
 		return 1;
 	}
 
-	if (offset >= mmio->size) {
+	if (offset > mmio->size || mmio->size - offset < 8) {
 		if (mode != PMT_OPEN_TRY) {
 			fprintf(stderr, "%s: offset %u outside of PMT MMIO size %u\n", __func__, offset, mmio->size);
 			exit(1);
