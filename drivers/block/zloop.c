@@ -1135,7 +1135,7 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 	if (zlo->block_size) {
 		ret = zloop_get_block_size(zlo, zone);
 		if (ret)
-			return ret;
+			goto out_fput;
 	}
 
 	if (zone_no < zlo->nr_conv_zones) {
@@ -1150,14 +1150,14 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 		ret = vfs_getattr(&zone->file->f_path, &stat, STATX_SIZE, 0);
 		if (ret < 0) {
 			pr_err("Failed to get zone %u file stat\n", zone_no);
-			return ret;
+			goto out_fput;
 		}
 		file_sectors = stat.size >> SECTOR_SHIFT;
 
 		if (restore && file_sectors != zlo->zone_size) {
 			pr_err("Invalid conventional zone %u file size (%llu sectors != %llu)\n",
 			       zone_no, file_sectors, zlo->zone_capacity);
-			return ret;
+			goto out_fput;
 		}
 
 		ret = vfs_truncate(&zone->file->f_path,
@@ -1165,15 +1165,21 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 		if (ret < 0) {
 			pr_err("Failed to truncate zone %u file (err=%d)\n",
 			       zone_no, ret);
-			return ret;
+			goto out_fput;
 		}
 	} else {
 		/* Sequential zone file. */
 		mutex_lock(&zone->lock);
 		ret = zloop_update_seq_zone(zlo, zone_no);
 		mutex_unlock(&zone->lock);
+		if (ret)
+			goto out_fput;
 	}
 
+	return 0;
+
+out_fput:
+	fput(zone->file);
 	return ret;
 }
 
