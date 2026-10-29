@@ -737,7 +737,8 @@ EXPORT_IF_KUNIT(get_aspect_ratio);
  * With Broadcast RGB left at Automatic follow that default, as i915 does.
  */
 static bool rgb_output_is_limited_range(const struct dc_crtc_timing *dc_crtc_timing,
-					const struct drm_connector_state *connector_state)
+					const struct drm_connector_state *connector_state,
+					enum signal_type signal)
 {
 	switch (connector_state->hdmi.broadcast_rgb) {
 	case DRM_HDMI_BROADCAST_RGB_FULL:
@@ -745,14 +746,16 @@ static bool rgb_output_is_limited_range(const struct dc_crtc_timing *dc_crtc_tim
 	case DRM_HDMI_BROADCAST_RGB_LIMITED:
 		return true;
 	default:
-		return connector_state->connector->display_info.is_hdmi &&
+		return dc_is_hdmi_signal(signal) &&
+		       connector_state->connector->display_info.is_hdmi &&
 		       dc_crtc_timing->vic > 1;
 	}
 }
 
 enum dc_color_space
 amdgpu_dm_get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing,
-				 const struct drm_connector_state *connector_state)
+				 const struct drm_connector_state *connector_state,
+				 enum signal_type signal)
 {
 	enum dc_color_space color_space = COLOR_SPACE_SRGB;
 
@@ -775,7 +778,7 @@ amdgpu_dm_get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing,
 	case DRM_MODE_COLORIMETRY_BT2020_RGB:
 	case DRM_MODE_COLORIMETRY_BT2020_YCC:
 		if (dc_crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB) {
-			if (rgb_output_is_limited_range(dc_crtc_timing, connector_state))
+			if (rgb_output_is_limited_range(dc_crtc_timing, connector_state, signal))
 				color_space = COLOR_SPACE_2020_RGB_LIMITEDRANGE;
 			else
 				color_space = COLOR_SPACE_2020_RGB_FULLRANGE;
@@ -787,7 +790,7 @@ amdgpu_dm_get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing,
 	default:
 		if (dc_crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB) {
 			color_space = COLOR_SPACE_SRGB;
-			if (rgb_output_is_limited_range(dc_crtc_timing, connector_state))
+			if (rgb_output_is_limited_range(dc_crtc_timing, connector_state, signal))
 				color_space = COLOR_SPACE_SRGB_LIMITED;
 		/*
 		 * 27030khz is the separation point between HDTV and SDTV
@@ -981,7 +984,8 @@ STATIC_IFN_KUNIT void fill_stream_properties_from_drm_display_mode(
 	if (is_hdmi_ep)
 		adjust_colour_depth_from_display_info(timing_out, info);
 
-	stream->output_color_space = amdgpu_dm_get_output_color_space(timing_out, connector_state);
+	stream->output_color_space = amdgpu_dm_get_output_color_space(timing_out, connector_state,
+								      stream->signal);
 	stream->content_type = get_output_content_type(connector_state);
 }
 EXPORT_IF_KUNIT(fill_stream_properties_from_drm_display_mode);
