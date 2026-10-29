@@ -41,7 +41,7 @@ EXPORT_SYMBOL_GPL(ptep_test_and_clear_young);
 #ifdef CONFIG_64BIT
 pud_t *pud_offset(p4d_t *p4d, unsigned long address)
 {
-	if (pgtable_l4_enabled)
+	if (pgtable_l4_enabled())
 		return p4d_pgtable(p4dp_get(p4d)) + pud_index(address);
 
 	return (pud_t *)p4d;
@@ -50,7 +50,7 @@ EXPORT_SYMBOL_GPL(pud_offset);
 
 p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 {
-	if (pgtable_l5_enabled)
+	if (pgtable_l5_enabled())
 		return pgd_pgtable(pgdp_get(pgd)) + p4d_index(address);
 
 	return (p4d_t *)pgd;

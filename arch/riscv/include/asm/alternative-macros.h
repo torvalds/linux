@@ -2,8 +2,6 @@
 #ifndef __ASM_ALTERNATIVE_MACROS_H
 #define __ASM_ALTERNATIVE_MACROS_H
 
-#ifdef CONFIG_RISCV_ALTERNATIVE
-
 #ifdef __ASSEMBLER__
 
 .macro ALT_ENTRY oldptr newptr vendor_id patch_id new_len
@@ -107,28 +105,6 @@
 				  new_c_2, vendor_id_2, patch_id_2, CONFIG_k_2)		\
 	__ALTERNATIVE_CFG_2(old_c, new_c_1, vendor_id_1, patch_id_1, IS_ENABLED(CONFIG_k_1),	\
 				   new_c_2, vendor_id_2, patch_id_2, IS_ENABLED(CONFIG_k_2))
-
-#else /* CONFIG_RISCV_ALTERNATIVE */
-#ifdef __ASSEMBLER__
-
-.macro ALTERNATIVE_CFG old_c
-	\old_c
-.endm
-
-#define __ALTERNATIVE_CFG(old_c, ...)		ALTERNATIVE_CFG old_c
-#define __ALTERNATIVE_CFG_2(old_c, ...)		ALTERNATIVE_CFG old_c
-
-#else /* !__ASSEMBLER__ */
-
-#define __ALTERNATIVE_CFG(old_c, ...)		old_c "\n"
-#define __ALTERNATIVE_CFG_2(old_c, ...)		old_c "\n"
-
-#endif /* __ASSEMBLER__ */
-
-#define _ALTERNATIVE_CFG(old_c, ...)		__ALTERNATIVE_CFG(old_c)
-#define _ALTERNATIVE_CFG_2(old_c, ...)		__ALTERNATIVE_CFG_2(old_c)
-
-#endif /* CONFIG_RISCV_ALTERNATIVE */
 
 /*
  * Usage:

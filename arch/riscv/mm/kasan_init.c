@@ -168,7 +168,7 @@ static void __init kasan_early_clear_pud(p4d_t *p4dp,
 	pud_t *pudp, *base_pud;
 	unsigned long next;
 
-	if (!pgtable_l4_enabled) {
+	if (!pgtable_l4_enabled()) {
 		pudp = (pud_t *)p4dp;
 	} else {
 		base_pud = pt_ops.get_pud_virt(pfn_to_phys(_p4d_pfn(p4dp_get(p4dp))));
@@ -193,7 +193,7 @@ static void __init kasan_early_clear_p4d(pgd_t *pgdp,
 	p4d_t *p4dp, *base_p4d;
 	unsigned long next;
 
-	if (!pgtable_l5_enabled) {
+	if (!pgtable_l5_enabled()) {
 		p4dp = (p4d_t *)pgdp;
 	} else {
 		base_p4d = pt_ops.get_p4d_virt(pfn_to_phys(_pgd_pfn(pgdp_get(pgdp))));
@@ -203,7 +203,7 @@ static void __init kasan_early_clear_p4d(pgd_t *pgdp,
 	do {
 		next = p4d_addr_end(vaddr, end);
 
-		if (pgtable_l4_enabled && IS_ALIGNED(vaddr, P4D_SIZE) &&
+		if (pgtable_l4_enabled() && IS_ALIGNED(vaddr, P4D_SIZE) &&
 		    (next - vaddr) >= P4D_SIZE) {
 			p4d_clear(p4dp);
 			continue;
@@ -221,7 +221,7 @@ static void __init kasan_early_clear_pgd(pgd_t *pgdp,
 	do {
 		next = pgd_addr_end(vaddr, end);
 
-		if (pgtable_l5_enabled && IS_ALIGNED(vaddr, PGDIR_SIZE) &&
+		if (pgtable_l5_enabled() && IS_ALIGNED(vaddr, PGDIR_SIZE) &&
 		    (next - vaddr) >= PGDIR_SIZE) {
 			pgd_clear(pgdp);
 			continue;
@@ -239,7 +239,7 @@ static void __init kasan_early_populate_pud(p4d_t *p4dp,
 	phys_addr_t phys_addr;
 	unsigned long next;
 
-	if (!pgtable_l4_enabled) {
+	if (!pgtable_l4_enabled()) {
 		pudp = (pud_t *)p4dp;
 	} else {
 		base_pud = pt_ops.get_pud_virt(pfn_to_phys(_p4d_pfn(p4dp_get(p4dp))));
@@ -277,7 +277,7 @@ static void __init kasan_early_populate_p4d(pgd_t *pgdp,
 	 * Note that this test is then completely equivalent to
 	 * p4dp = p4d_offset(pgdp, vaddr)
 	 */
-	if (!pgtable_l5_enabled) {
+	if (!pgtable_l5_enabled()) {
 		p4dp = (p4d_t *)pgdp;
 	} else {
 		base_p4d = pt_ops.get_p4d_virt(pfn_to_phys(_pgd_pfn(pgdp_get(pgdp))));
@@ -336,7 +336,7 @@ asmlinkage void __init kasan_early_init(void)
 				(__pa((uintptr_t)kasan_early_shadow_pte)),
 				PAGE_TABLE));
 
-	if (pgtable_l4_enabled) {
+	if (pgtable_l4_enabled()) {
 		for (i = 0; i < PTRS_PER_PUD; ++i)
 			set_pud(kasan_early_shadow_pud + i,
 				pfn_pud(PFN_DOWN
@@ -344,7 +344,7 @@ asmlinkage void __init kasan_early_init(void)
 					PAGE_TABLE));
 	}
 
-	if (pgtable_l5_enabled) {
+	if (pgtable_l5_enabled()) {
 		for (i = 0; i < PTRS_PER_P4D; ++i)
 			set_p4d(kasan_early_shadow_p4d + i,
 				pfn_p4d(PFN_DOWN
@@ -461,7 +461,7 @@ static void __init create_tmp_mapping(void)
 	memcpy(tmp_pg_dir, swapper_pg_dir, sizeof(pgd_t) * PTRS_PER_PGD);
 
 	/* Copy the last p4d since it is shared with the kernel mapping. */
-	if (pgtable_l5_enabled) {
+	if (pgtable_l5_enabled()) {
 		ptr = (p4d_t *)pgd_page_vaddr(pgdp_get(pgd_offset_k(KASAN_SHADOW_END)));
 		memcpy(tmp_p4d, ptr, sizeof(p4d_t) * PTRS_PER_P4D);
 		set_pgd(&tmp_pg_dir[pgd_index(KASAN_SHADOW_END)],
@@ -472,7 +472,7 @@ static void __init create_tmp_mapping(void)
 	}
 
 	/* Copy the last pud since it is shared with the kernel mapping. */
-	if (pgtable_l4_enabled) {
+	if (pgtable_l4_enabled()) {
 		ptr = (pud_t *)p4d_page_vaddr(p4dp_get(base_p4d + p4d_index(KASAN_SHADOW_END)));
 		memcpy(tmp_pud, ptr, sizeof(pud_t) * PTRS_PER_PUD);
 		set_p4d(&base_p4d[p4d_index(KASAN_SHADOW_END)],

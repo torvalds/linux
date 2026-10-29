@@ -292,9 +292,9 @@ static void print_mmu(struct seq_file *f)
 #if defined(CONFIG_32BIT)
 	sv_type = "sv32";
 #elif defined(CONFIG_64BIT)
-	if (pgtable_l5_enabled)
+	if (pgtable_l5_enabled())
 		sv_type = "sv57";
-	else if (pgtable_l4_enabled)
+	else if (pgtable_l4_enabled())
 		sv_type = "sv48";
 	else
 		sv_type = "sv39";

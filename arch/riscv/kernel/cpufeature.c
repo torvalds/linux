@@ -39,7 +39,7 @@ static bool any_cpu_has_zicbom;
 unsigned long elf_hwcap __read_mostly;
 
 /* Host ISA bitmap */
-static DECLARE_BITMAP(riscv_isa, RISCV_ISA_EXT_MAX) __read_mostly;
+DECLARE_BITMAP(riscv_isa, RISCV_ISA_EXT_MAX) __read_mostly;
 
 /* Per-cpu ISA extensions. */
 struct riscv_isainfo hart_isa[NR_CPUS];
@@ -133,6 +133,24 @@ static int riscv_ext_zicbop_validate(const struct riscv_isa_ext_data *data,
 		return -EINVAL;
 	}
 	any_cpu_has_zicbop = true;
+	return 0;
+}
+
+static int riscv_ext_zic64b_validate(const struct riscv_isa_ext_data *data,
+				     const unsigned long *isa_bitmap)
+{
+	/*
+	 * Zic64b mandates 64-byte naturally aligned cache blocks; cross-check the
+	 * cbom/cbop/cboz block-size (when declared) device-tree properties to
+	 * avoid inconsistency.
+	 */
+	if ((riscv_cbom_block_size && riscv_cbom_block_size != 64) ||
+	    (riscv_cbop_block_size && riscv_cbop_block_size != 64) ||
+	    (riscv_cboz_block_size && riscv_cboz_block_size != 64)) {
+		pr_err("Zic64b detected in ISA string, disabling as a CBO block size is not 64 bytes\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -484,6 +502,12 @@ static const unsigned int riscv_c_exts[] = {
 	RISCV_ISA_EXT_ZCD,
 };
 
+static const unsigned int riscv_b_exts[] = {
+	RISCV_ISA_EXT_ZBA,
+	RISCV_ISA_EXT_ZBB,
+	RISCV_ISA_EXT_ZBS,
+};
+
 /*
  * The canonical order of ISA extension names in the ISA string is defined in
  * Chapter 27 of the RISC-V Instruction Set Manual Volume I Unprivileged ISA
@@ -532,9 +556,11 @@ const struct riscv_isa_ext_data riscv_isa_ext[] = {
 	__RISCV_ISA_EXT_DATA_VALIDATE(d, RISCV_ISA_EXT_D, riscv_ext_d_validate),
 	__RISCV_ISA_EXT_DATA(q, RISCV_ISA_EXT_Q),
 	__RISCV_ISA_EXT_SUPERSET(c, RISCV_ISA_EXT_C, riscv_c_exts),
+	__RISCV_ISA_EXT_SUPERSET(b, RISCV_ISA_EXT_B, riscv_b_exts),
 	__RISCV_ISA_EXT_SUPERSET_VALIDATE(v, RISCV_ISA_EXT_V, riscv_v_exts,
 					  riscv_ext_vector_float_validate),
 	__RISCV_ISA_EXT_DATA(h, RISCV_ISA_EXT_H),
+	__RISCV_ISA_EXT_DATA_VALIDATE(zic64b, RISCV_ISA_EXT_ZIC64B, riscv_ext_zic64b_validate),
 	__RISCV_ISA_EXT_SUPERSET_VALIDATE(zicbom, RISCV_ISA_EXT_ZICBOM, riscv_xlinuxenvcfg_exts, riscv_ext_zicbom_validate),
 	__RISCV_ISA_EXT_DATA_VALIDATE(zicbop, RISCV_ISA_EXT_ZICBOP, riscv_ext_zicbop_validate),
 	__RISCV_ISA_EXT_SUPERSET_VALIDATE(zicboz, RISCV_ISA_EXT_ZICBOZ, riscv_xlinuxenvcfg_exts, riscv_ext_zicboz_validate),
@@ -640,6 +666,8 @@ const struct riscv_isa_ext_data riscv_isa_ext[] = {
 	__RISCV_ISA_EXT_DATA(svpbmt, RISCV_ISA_EXT_SVPBMT),
 	__RISCV_ISA_EXT_DATA(svrsw60t59b, RISCV_ISA_EXT_SVRSW60T59B),
 	__RISCV_ISA_EXT_DATA(svvptc, RISCV_ISA_EXT_SVVPTC),
+	__RISCV_ISA_EXT_DATA(sv48, RISCV_ISA_EXT_SV48),
+	__RISCV_ISA_EXT_DATA(sv57, RISCV_ISA_EXT_SV57),
 };
 
 const size_t riscv_isa_ext_count = ARRAY_SIZE(riscv_isa_ext);
@@ -938,6 +966,13 @@ static void __init riscv_fill_hwcap_from_isa_string(unsigned long *isa2hwcap)
 			set_bit(RISCV_ISA_EXT_ZIHPM, source_isa);
 		}
 
+#ifndef CONFIG_32BIT
+		if (_pgtable_l4_enabled)
+			set_bit(RISCV_ISA_EXT_SV48, source_isa);
+		if (_pgtable_l5_enabled)
+			set_bit(RISCV_ISA_EXT_SV57, source_isa);
+#endif
+
 		/*
 		 * "V" in ISA strings is ambiguous in practice: it should mean
 		 * just the standard V-1.0 but vendors aren't well behaved.
@@ -1098,6 +1133,13 @@ static int __init riscv_fill_hwcap_from_ext_list(unsigned long *isa2hwcap)
 			riscv_isa_set_ext(ext, source_isa);
 		}
 
+#ifndef CONFIG_32BIT
+		if (_pgtable_l4_enabled)
+			set_bit(RISCV_ISA_EXT_SV48, source_isa);
+		if (_pgtable_l5_enabled)
+			set_bit(RISCV_ISA_EXT_SV57, source_isa);
+#endif
+
 		riscv_resolve_isa(source_isa, isainfo->isa, &this_hwcap, isa2hwcap);
 		riscv_fill_cpu_vendor_ext(cpu_node, cpu);
 
@@ -1161,7 +1203,14 @@ void __init riscv_fill_hwcap(void)
 	isa2hwcap[RISCV_ISA_EXT_F] = COMPAT_HWCAP_ISA_F;
 	isa2hwcap[RISCV_ISA_EXT_D] = COMPAT_HWCAP_ISA_D;
 	isa2hwcap[RISCV_ISA_EXT_C] = COMPAT_HWCAP_ISA_C;
+	isa2hwcap[RISCV_ISA_EXT_B] = COMPAT_HWCAP_ISA_B;
 	isa2hwcap[RISCV_ISA_EXT_V] = COMPAT_HWCAP_ISA_V;
+
+	/*
+	 * riscv_isa may have been touched by "early" ISA parsing, so zero it
+	 * here to get a fresh slate.
+	 */
+	bitmap_zero(riscv_isa, RISCV_ISA_EXT_MAX);
 
 	if (!acpi_disabled) {
 		riscv_fill_hwcap_from_isa_string(isa2hwcap);
@@ -1245,7 +1294,6 @@ void riscv_clear_hypervisor_csr(void)
 	csr_clear(CSR_HSTATUS, HSTATUS_HU);
 }
 
-#ifdef CONFIG_RISCV_ALTERNATIVE
 /*
  * Alternative patch sites consider 48 bits when determining when to patch
  * the old instruction sequence with the new. These bits are broken into a
@@ -1279,6 +1327,17 @@ static bool riscv_cpufeature_patch_check(u16 id, u16 value)
 	return false;
 }
 
+static bool __init_or_module riscv_is_isa_ext_early_id(u16 id)
+{
+	switch (id) {
+	case RISCV_ISA_EXT_SV48:
+	case RISCV_ISA_EXT_SV57:
+		return true;
+	}
+
+	return false;
+}
+
 void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 						  struct alt_entry *end,
 						  unsigned int stage)
@@ -1286,9 +1345,7 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 	struct alt_entry *alt;
 	void *oldptr, *altptr;
 	u16 id, value, vendor;
-
-	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
-		return;
+	bool early = stage == RISCV_ALTERNATIVES_EARLY_BOOT;
 
 	for (alt = begin; alt < end; alt++) {
 		id = PATCH_ID_CPUFEATURE_ID(alt->patch_id);
@@ -1303,6 +1360,8 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 		 * vendor extension.
 		 */
 		if (id < RISCV_ISA_EXT_MAX) {
+			if (early && !riscv_is_isa_ext_early_id(id))
+				continue;
 			/*
 			 * This patch should be treated as errata so skip
 			 * processing here.
@@ -1317,6 +1376,8 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 			if (!riscv_cpufeature_patch_check(id, value))
 				continue;
 		} else if (id >= RISCV_VENDOR_EXT_ALTERNATIVES_BASE) {
+			if (early)
+				continue;
 			if (!__riscv_isa_vendor_extension_available(VENDOR_EXT_ALL_CPUS, vendor,
 								    id - RISCV_VENDOR_EXT_ALTERNATIVES_BASE))
 				continue;
@@ -1328,10 +1389,20 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 		oldptr = ALT_OLD_PTR(alt);
 		altptr = ALT_ALT_PTR(alt);
 
-		mutex_lock(&text_mutex);
-		patch_text_nosync(oldptr, altptr, alt->alt_len);
-		riscv_alternative_fix_offsets(oldptr, alt->alt_len, oldptr - altptr);
-		mutex_unlock(&text_mutex);
+		if (early) {
+			/* oldptr is writable through the MMU-off kernel mapping. */
+			memcpy(oldptr, altptr, alt->alt_len);
+			riscv_alternative_fix_offsets(oldptr, alt->alt_len,
+						      oldptr - altptr, true);
+		} else {
+			mutex_lock(&text_mutex);
+			patch_text_nosync(oldptr, altptr, alt->alt_len);
+			riscv_alternative_fix_offsets(oldptr, alt->alt_len,
+						      oldptr - altptr, false);
+			mutex_unlock(&text_mutex);
+		}
 	}
+
+	if (early)
+		local_flush_icache_all();
 }
-#endif

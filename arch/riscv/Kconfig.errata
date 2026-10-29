@@ -2,7 +2,7 @@ menu "CPU errata selection"
 
 config ERRATA_ANDES
 	bool "Andes AX45MP errata"
-	depends on RISCV_ALTERNATIVE && RISCV_SBI
+	depends on RISCV_SBI
 	help
 	  All Andes errata Kconfig depend on this Kconfig. Disabling
 	  this Kconfig will disable all Andes errata. Please say "Y"
@@ -23,7 +23,7 @@ config ERRATA_ANDES_CMO
 
 config ERRATA_MIPS
 	bool "MIPS errata"
-	depends on RISCV_ALTERNATIVE
+	select RISCV_ALTERNATIVE_EARLY
 	help
 	  All MIPS errata Kconfig depend on this Kconfig. Disabling
 	  this Kconfig will disable all MIPS errata. Please say "Y"
@@ -44,9 +44,20 @@ config ERRATA_MIPS_P8700_PAUSE_OPCODE
 
 	   If you are not using the P8700 processor, say n.
 
+config ERRATA_MIPS_P8700_WFI
+	bool "Replace WFI with mips.pause for MIPS P8700"
+	depends on ERRATA_MIPS && 64BIT
+	default n
+	help
+	   The RISCV MIPS P8700 has bugs with the WFI instruction.
+	   This errata replaces all WFI instructions with the MIPS
+	   P8700 pause opcode to avoid these issues.
+
+	   If you are not using the P8700 processor, say n.
+
 config ERRATA_SIFIVE
 	bool "SiFive errata"
-	depends on RISCV_ALTERNATIVE && 64BIT
+	depends on 64BIT
 	help
 	  All SiFive errata Kconfig depend on this Kconfig. Disabling
 	  this Kconfig will disable all SiFive errata. Please say "Y"
@@ -112,7 +123,6 @@ config ERRATA_SIFIVE_MAL_9092
 
 config ERRATA_THEAD
 	bool "T-HEAD errata"
-	depends on RISCV_ALTERNATIVE
 	help
 	  All T-HEAD errata Kconfig depend on this Kconfig. Disabling
 	  this Kconfig will disable all T-HEAD errata. Please say "Y"

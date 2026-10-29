@@ -25,6 +25,16 @@ ALTERNATIVE(__stringify(RISCV_PTR do_page_fault),			\
 	    __stringify(RISCV_PTR sifive_cip_453_page_fault_trp),	\
 	    SIFIVE_VENDOR_ID, ERRATA_SIFIVE_CIP_453,			\
 	    CONFIG_ERRATA_SIFIVE_CIP_453)
+
+#ifdef CONFIG_ERRATA_MIPS_P8700_WFI
+#define ALT_WFI								\
+ALTERNATIVE("wfi; .rept 7; nop; .endr;",				\
+	".rept 8; .4byte 0x00501013; .endr;", MIPS_VENDOR_ID,		\
+	ERRATA_MIPS_P8700_WFI, CONFIG_ERRATA_MIPS_P8700_WFI)
+#else
+#define ALT_WFI	wfi
+#endif
+
 #else /* !__ASSEMBLER__ */
 
 #define ALT_SFENCE_VMA_ASID(asid)					\
@@ -52,6 +62,33 @@ asm(ALTERNATIVE(	\
 	: /* no outputs */	\
 	: /* no inputs */	\
 	: "memory")
+
+#ifdef CONFIG_ERRATA_MIPS_P8700_WFI
+/*
+ * A WFI instruction after a mispredicted branch can result in erroneous address translation
+ * on the MIPS P8700.
+ * The number of MIPS_PAUSE instructions required was determined by measuring
+ * Coremark performance on a one-core, two-hart configuration. Eight PAUSE instructions matched
+ * the latency of a single WFI instruction.
+ * Usually, the maximum number of cycles per PAUSE instruction is 63. Exceptionally, if the hart's
+ * LR reservation bit is set, the maximum number of cycles is extended to 255
+ * (and the hart is woken up once it is cleared). This case should not affect the patched sites.
+ */
+#define ALT_RISCV_WFI()										\
+asm volatile(ALTERNATIVE(									\
+		"wfi\n" /* Original RISC-V wfi insn */						\
+		__nops(7),									\
+		".rept 8;" MIPS_PAUSE ".endr;\n", /* Replacement: mips.pause for P8700 */	\
+		MIPS_VENDOR_ID, /* Vendor ID to match */					\
+		ERRATA_MIPS_P8700_WFI, /* patch_id */						\
+		CONFIG_ERRATA_MIPS_P8700_WFI)							\
+		: /* no outputs */								\
+		: /* no inputs */								\
+		: "memory")
+#else
+#define ALT_RISCV_WFI()		\
+	__asm__ __volatile__ ("wfi")
+#endif
 
 /*
  * _val is marked as "will be overwritten", so need to set it to 0

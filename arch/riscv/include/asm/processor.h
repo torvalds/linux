@@ -17,6 +17,7 @@
 #include <asm/alternative-macros.h>
 #include <asm/hwcap.h>
 #include <asm/usercfi.h>
+#include <asm/errata_list.h>
 
 #define arch_get_mmap_end(addr, len, flags)			\
 ({								\
@@ -187,7 +188,7 @@ extern unsigned long __get_wchan(struct task_struct *p);
 
 static inline void wait_for_interrupt(void)
 {
-	__asm__ __volatile__ ("wfi");
+	ALT_RISCV_WFI();
 }
 
 extern phys_addr_t dma32_phys_limit;
@@ -225,6 +226,10 @@ long set_tagged_addr_ctrl(struct task_struct *task, unsigned long arg);
 long get_tagged_addr_ctrl(struct task_struct *task);
 #define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(current, arg)
 #define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl(current)
+
+bool riscv_have_user_pmlen(u8 len);
+#else
+static inline bool riscv_have_user_pmlen(u8 len) { return false; }
 #endif
 
 #endif /* __ASSEMBLER__ */

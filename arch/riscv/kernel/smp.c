@@ -15,7 +15,6 @@
 #include <linux/kexec.h>
 #include <linux/kgdb.h>
 #include <linux/percpu.h>
-#include <linux/profile.h>
 #include <linux/smp.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>

@@ -73,7 +73,7 @@ int kvm_riscv_nacl_enable(void)
 	nacl = this_cpu_ptr(&kvm_riscv_nacl);
 
 	ret = sbi_ecall(SBI_EXT_NACL, SBI_EXT_NACL_SET_SHMEM,
-			nacl->shmem_phys, 0, 0, 0, 0, 0);
+			nacl->shmem_phys, 0, 0);
 	rc = sbi_err_map_linux_errno(ret.error);
 	if (rc)
 		return rc;
@@ -87,7 +87,7 @@ void kvm_riscv_nacl_disable(void)
 		return;
 
 	sbi_ecall(SBI_EXT_NACL, SBI_EXT_NACL_SET_SHMEM,
-		  SBI_SHMEM_DISABLE, SBI_SHMEM_DISABLE, 0, 0, 0, 0);
+		  SBI_SHMEM_DISABLE, SBI_SHMEM_DISABLE, 0);
 }
 
 void kvm_riscv_nacl_exit(void)
@@ -118,8 +118,7 @@ static long nacl_probe_feature(long feature_id)
 	if (!kvm_riscv_nacl_available())
 		return 0;
 
-	ret = sbi_ecall(SBI_EXT_NACL, SBI_EXT_NACL_PROBE_FEATURE,
-			feature_id, 0, 0, 0, 0, 0);
+	ret = sbi_ecall(SBI_EXT_NACL, SBI_EXT_NACL_PROBE_FEATURE, feature_id);
 	return ret.value;
 }
 

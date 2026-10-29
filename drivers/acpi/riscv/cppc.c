@@ -51,7 +51,7 @@ static void sbi_cppc_read(void *read_data)
 	struct sbi_cppc_data *data = (struct sbi_cppc_data *)read_data;
 
 	data->ret = sbi_ecall(SBI_EXT_CPPC, SBI_CPPC_READ,
-			      data->reg, 0, 0, 0, 0, 0);
+			      data->reg);
 }
 
 static void sbi_cppc_write(void *write_data)
@@ -59,7 +59,7 @@ static void sbi_cppc_write(void *write_data)
 	struct sbi_cppc_data *data = (struct sbi_cppc_data *)write_data;
 
 	data->ret = sbi_ecall(SBI_EXT_CPPC, SBI_CPPC_WRITE,
-			      data->reg, data->val, 0, 0, 0, 0);
+			      data->reg, data->val);
 }
 
 static void cppc_ffh_csr_read(void *read_data)

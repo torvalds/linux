@@ -5,6 +5,7 @@
 #include <asm/csr.h>
 #include <asm/hwcap.h>
 #include <asm/alternative-macros.h>
+#include <asm/jump_label.h>
 
 	.macro fixup op reg addr lbl
 100:
@@ -77,33 +78,11 @@ SYM_FUNC_START(fallback_scalar_usercopy_sum_enabled)
 	bltu	a2, a3, .Lbyte_copy_tail
 
 #if !defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
-	/*
-	 * Copy first bytes until dst is aligned to word boundary.
-	 * a0 - start of dst
-	 * t1 - start of aligned dst
-	 */
-	addi	t1, a0, SZREG-1
-	andi	t1, t1, ~(SZREG-1)
-	/* dst is already aligned, skip */
-	beq	a0, t1, .Lskip_align_dst
-1:
-	/* a5 - one byte for copying data */
-	fixup lb      a5, 0(a1), 10f
-	addi	a1, a1, 1	/* src */
-	fixup sb      a5, 0(a0), 10f
-	addi	a0, a0, 1	/* dst */
-	bltu	a0, t1, 1b	/* t1 - start of aligned dst */
-
-.Lskip_align_dst:
-	/*
-	 * Now dst is aligned.
-	 * Use shift-copy if src is misaligned.
-	 * Use word-copy if both src and dst are aligned because
-	 * can not use shift-copy which do not require shifting
-	 */
-	/* a1 - start of src */
-	andi	a3, a1, SZREG-1
-	bnez	a3, .Lshift_copy
+#if defined(CONFIG_RISCV_PROBE_UNALIGNED_ACCESS) && defined(CONFIG_JUMP_LABEL)
+	ARCH_STATIC_BRANCH_JUMP_ASM(fast_unaligned_access_speed_key + 1, .Lalign_dst)
+#else
+	j	.Lalign_dst
+#endif
 #endif
 .Lword_copy:
         /*
@@ -139,6 +118,34 @@ SYM_FUNC_START(fallback_scalar_usercopy_sum_enabled)
 	j	.Lbyte_copy_tail
 
 #if !defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+.Lalign_dst:
+	/*
+	 * Copy first bytes until dst is aligned to word boundary.
+	 * a0 - start of dst
+	 * t1 - start of aligned dst
+	 */
+	addi	t1, a0, SZREG-1
+	andi	t1, t1, ~(SZREG-1)
+	/* dst is already aligned, skip */
+	beq	a0, t1, .Lskip_align_dst
+1:
+	/* a5 - one byte for copying data */
+	fixup lb      a5, 0(a1), 10f
+	addi	a1, a1, 1	/* src */
+	fixup sb      a5, 0(a0), 10f
+	addi	a0, a0, 1	/* dst */
+	bltu	a0, t1, 1b	/* t1 - start of aligned dst */
+
+.Lskip_align_dst:
+	/*
+	 * Now dst is aligned.
+	 * Use shift-copy if src is misaligned.
+	 * Use word-copy if both src and dst are aligned because
+	 * can not use shift-copy which do not require shifting
+	 */
+	/* a1 - start of src */
+	andi	a3, a1, SZREG-1
+	beqz	a3, .Lword_copy
 .Lshift_copy:
 
 	/*

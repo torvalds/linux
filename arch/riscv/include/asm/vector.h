@@ -377,12 +377,12 @@ static inline void __switch_to_vector(struct task_struct *prev,
 	struct pt_regs *regs;
 
 	if (riscv_preempt_v_started(prev)) {
-		if (riscv_v_is_on()) {
-			WARN_ON(prev->thread.riscv_v_flags & RISCV_V_CTX_DEPTH_MASK);
+		if (!(current->thread.riscv_v_flags & RISCV_V_CTX_DEPTH_MASK)) {
+			/* Voluntary schedule(): nesting_end closed any dirty. */
+			WARN_ON(riscv_preempt_v_dirty(prev));
 			riscv_v_disable();
 			prev->thread.riscv_v_flags |= RISCV_PREEMPT_V_IN_SCHEDULE;
-		}
-		if (riscv_preempt_v_dirty(prev)) {
+		} else if (riscv_preempt_v_dirty(prev)) {
 			__riscv_v_vstate_save(&prev->thread.kernel_vstate,
 					      prev->thread.kernel_vstate.datap);
 			riscv_preempt_v_clear_dirty(prev);

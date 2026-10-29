@@ -15,6 +15,11 @@
 #define PCIBIOS_MIN_IO		4
 #define PCIBIOS_MIN_MEM		16
 
+/*
+ * Set to 1 if the kernel should re-assign all PCI bus numbers
+ */
+#define pcibios_assign_all_busses() (pci_has_flag(PCI_REASSIGN_ALL_BUS))
+
 #if defined(CONFIG_PCI) && defined(CONFIG_NUMA)
 static inline int pcibus_to_node(struct pci_bus *bus)
 {

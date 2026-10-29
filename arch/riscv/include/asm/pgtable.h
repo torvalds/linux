@@ -75,8 +75,8 @@
 #define VA_BITS_SV48 48
 #define VA_BITS_SV57 57
 
-#define VA_BITS		(pgtable_l5_enabled ? \
-				VA_BITS_SV57 : (pgtable_l4_enabled ? VA_BITS_SV48 : VA_BITS_SV39))
+#define VA_BITS		(pgtable_l5_enabled() ? \
+				VA_BITS_SV57 : (pgtable_l4_enabled() ? VA_BITS_SV48 : VA_BITS_SV39))
 #else
 #define VA_BITS		VA_BITS_SV32
 #endif
