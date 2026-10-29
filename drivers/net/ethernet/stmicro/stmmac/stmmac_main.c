@@ -48,6 +48,7 @@
 #include "stmmac_ptp.h"
 #include "stmmac_fpe.h"
 #include "stmmac.h"
+#include "stmmac_est.h"
 #include "stmmac_pcs.h"
 #include "stmmac_xdp.h"
 #include <linux/reset.h>
@@ -4204,6 +4205,10 @@ static int __stmmac_open(struct net_device *dev,
 	if (ret)
 		goto ptp_error;
 
+	ret = stmmac_setup_est(priv);
+	if (ret)
+		goto est_error;
+
 	stmmac_init_coalesce(priv);
 
 	phylink_start(priv->phylink);
@@ -4227,7 +4232,7 @@ irq_error:
 
 	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++)
 		hrtimer_cancel(&priv->dma_conf.tx_queue[chan].txtimer);
-
+est_error:
 	stmmac_release_ptp(priv);
 ptp_error:
 	stmmac_stop_all_dma(priv);
@@ -8551,6 +8556,10 @@ int stmmac_resume(struct device *dev)
 			goto init_coalesce;
 
 		ret = stmmac_init_timestamping(priv);
+		if (ret)
+			goto error_stop_dma;
+
+		ret = stmmac_setup_est(priv);
 		if (ret)
 			goto error_stop_dma;
 	}

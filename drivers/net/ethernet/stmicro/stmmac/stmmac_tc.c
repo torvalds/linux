@@ -966,11 +966,12 @@ static void tc_taprio_map_maxsdu_txq(struct stmmac_priv *priv,
 static int tc_taprio_configure(struct stmmac_priv *priv,
 			       struct tc_taprio_qopt_offload *qopt)
 {
-	u32 size, wid = priv->dma_cap.estwid, dep = priv->dma_cap.estdep;
+	u32 wid = priv->dma_cap.estwid, dep = priv->dma_cap.estdep;
 	struct netlink_ext_ack *extack = qopt->mqprio.extack;
 	struct timespec64 time, current_time, qopt_time;
 	ktime_t current_time_ns;
 	int err, i, ret = 0;
+	u32 *gcl = NULL;
 	u64 ctr;
 
 	if (qopt->base_time < 0)
@@ -1013,42 +1014,46 @@ static int tc_taprio_configure(struct stmmac_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
+	mutex_lock(&priv->est_lock);
+
 	if (qopt->cmd == TAPRIO_CMD_DESTROY)
 		goto disable;
 
-	if (qopt->num_entries > dep)
-		return -EINVAL;
-	if (!qopt->cycle_time)
-		return -ERANGE;
-	if (qopt->cycle_time_extension >= BIT(wid + 7))
-		return -ERANGE;
-
-	if (!priv->est) {
-		priv->est = devm_kzalloc(priv->device, sizeof(*priv->est),
-					 GFP_KERNEL);
-		if (!priv->est)
-			return -ENOMEM;
-	} else {
-		mutex_lock(&priv->est_lock);
-		memset(priv->est, 0, sizeof(*priv->est));
-		mutex_unlock(&priv->est_lock);
+	if (qopt->num_entries > dep) {
+		ret = -EINVAL;
+		goto error_unlock;
 	}
 
-	size = qopt->num_entries;
+	if (!qopt->cycle_time ||
+	    qopt->cycle_time > (u64)U32_MAX * NSEC_PER_SEC) {
+		ret = -ERANGE;
+		goto error_unlock;
+	}
 
-	mutex_lock(&priv->est_lock);
-	priv->est->gcl_size = size;
-	priv->est->enable = qopt->cmd == TAPRIO_CMD_REPLACE;
-	mutex_unlock(&priv->est_lock);
+	if (qopt->cycle_time_extension >= BIT(wid + 7)) {
+		ret = -ERANGE;
+		goto error_unlock;
+	}
 
-	for (i = 0; i < size; i++) {
+	gcl = kcalloc(qopt->num_entries, sizeof(*gcl), GFP_KERNEL);
+	if (!gcl) {
+		ret = -ENOMEM;
+		goto error_unlock;
+	}
+
+	for (i = 0; i < qopt->num_entries; i++) {
 		s64 delta_ns = qopt->entries[i].interval;
 		u32 gates = qopt->entries[i].gate_mask;
 
-		if (delta_ns > GENMASK(wid - 1, 0))
-			return -ERANGE;
-		if (gates > GENMASK(31 - wid, 0))
-			return -ERANGE;
+		if (delta_ns > GENMASK(wid - 1, 0)) {
+			ret = -ERANGE;
+			goto error_unlock;
+		}
+
+		if (gates > GENMASK(31 - wid, 0)) {
+			ret = -ERANGE;
+			goto error_unlock;
+		}
 
 		switch (qopt->entries[i].command) {
 		case TC_TAPRIO_CMD_SET_GATES:
@@ -1060,13 +1065,26 @@ static int tc_taprio_configure(struct stmmac_priv *priv,
 			gates &= ~BIT(0);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			ret = -EOPNOTSUPP;
+			goto error_unlock;
 		}
 
-		priv->est->gcl[i] = delta_ns | (gates << wid);
+		gcl[i] = delta_ns | (gates << wid);
 	}
 
-	mutex_lock(&priv->est_lock);
+	if (!priv->est) {
+		priv->est = devm_kzalloc(priv->device, sizeof(*priv->est),
+					 GFP_KERNEL);
+		if (!priv->est) {
+			ret = -ENOMEM;
+			goto error_unlock;
+		}
+	} else {
+		memset(priv->est, 0, sizeof(*priv->est));
+	}
+	memcpy(priv->est->gcl, gcl, sizeof(*gcl) * qopt->num_entries);
+	priv->est->gcl_size = qopt->num_entries;
+
 	/* Adjust for real system time */
 	priv->ptp_clock_ops.gettimex64(&priv->ptp_clock_ops, &current_time,
 				       NULL);
@@ -1091,7 +1109,6 @@ static int tc_taprio_configure(struct stmmac_priv *priv,
 
 	ret = stmmac_est_configure(priv, priv, priv->est,
 				   priv->plat->clk_ptp_rate, true);
-	mutex_unlock(&priv->est_lock);
 	if (ret) {
 		netdev_err(priv->dev, "failed to configure EST\n");
 		goto disable;
@@ -1102,11 +1119,16 @@ static int tc_taprio_configure(struct stmmac_priv *priv,
 	if (ret)
 		goto disable;
 
+	priv->est->pclass = qopt->mqprio.preemptible_tcs;
+	priv->est->enable = true;
+
+	mutex_unlock(&priv->est_lock);
+	kfree(gcl);
+
 	return 0;
 
 disable:
 	if (priv->est) {
-		mutex_lock(&priv->est_lock);
 		priv->est->enable = false;
 		stmmac_est_configure(priv, priv, priv->est,
 				     priv->plat->clk_ptp_rate, false);
@@ -1116,10 +1138,12 @@ disable:
 			priv->xstats.mtl_est_txq_hlbf[i] = 0;
 			priv->xstats.mtl_est_txq_hlbs[i] = 0;
 		}
-		mutex_unlock(&priv->est_lock);
 	}
 
 	err = stmmac_fpe_map_preemption_class(priv, priv->dev, extack, 0);
+error_unlock:
+	mutex_unlock(&priv->est_lock);
+	kfree(gcl);
 
 	return qopt->cmd == TAPRIO_CMD_DESTROY ? err : ret;
 }
