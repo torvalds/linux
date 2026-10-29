@@ -118,7 +118,7 @@ xfs_fs_map_update_inode(
 	 * Force the log so that the blocks handed out to the client are
 	 * guaranteed to be present even after a server crash.
 	 */
-	return xfs_log_force_inode(ip);
+	return xfs_log_force_inode(ip, false, NULL);
 }
 
 /*
