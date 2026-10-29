@@ -721,7 +721,7 @@ static int get_next_file(const void *p, struct file *file, unsigned int fd)
 void aa_inherit_files(const struct cred *cred, struct files_struct *files)
 {
 	struct aa_label *label = aa_get_newest_cred_label(cred);
-	struct file *devnull = NULL, *file;
+	struct file *devnull = NULL, *file = NULL;
 	bool devnull_tried = false;
 	unsigned int n = 0;
 
