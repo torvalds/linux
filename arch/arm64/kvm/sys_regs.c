@@ -586,7 +586,7 @@ static void get_access_mask(const struct sys_reg_desc *r, u64 *mask, u64 *shift)
 }
 
 /*
- * Generic accessor for VM registers. Only called as long as HCR_TVM
+ * Generic accessor for VM registers. Only called as long as HCR_EL2_TVM
  * is set. If the guest enables the MMU, we stop trapping the VM
  * sys_regs and leave it in complete control of the caches.
  */
@@ -2893,7 +2893,7 @@ static u64 reset_hcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	u64 val = r->val;
 
 	if (!cpus_have_final_cap(ARM64_HAS_HCR_NV1))
-		val |= HCR_E2H;
+		val |= HCR_EL2_E2H;
 
 	__vcpu_assign_sys_reg(vcpu, r->reg, val);
 
@@ -5798,31 +5798,31 @@ static void vcpu_set_hcr(struct kvm_vcpu *vcpu)
 	struct kvm *kvm = vcpu->kvm;
 
 	if (has_vhe() || has_hvhe())
-		vcpu->arch.hcr_el2 |= HCR_E2H;
+		vcpu->arch.hcr_el2 |= HCR_EL2_E2H;
 	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN)) {
 		/* route synchronous external abort exceptions to EL2 */
-		vcpu->arch.hcr_el2 |= HCR_TEA;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TEA;
 		/* trap error record accesses */
-		vcpu->arch.hcr_el2 |= HCR_TERR;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TERR;
 	}
 
 	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
-		vcpu->arch.hcr_el2 |= HCR_FWB;
+		vcpu->arch.hcr_el2 |= HCR_EL2_FWB;
 
 	if (cpus_have_final_cap(ARM64_HAS_EVT) &&
 	    !cpus_have_final_cap(ARM64_MISMATCHED_CACHE_TYPE) &&
 	    kvm_read_vm_id_reg(kvm, SYS_CTR_EL0) == read_sanitised_ftr_reg(SYS_CTR_EL0))
-		vcpu->arch.hcr_el2 |= HCR_TID4;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TID4;
 	else
-		vcpu->arch.hcr_el2 |= HCR_TID2;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TID2;
 
 	if (vcpu_el1_is_32bit(vcpu))
-		vcpu->arch.hcr_el2 &= ~HCR_RW;
+		vcpu->arch.hcr_el2 &= ~HCR_EL2_RW;
 
 	if (kvm_has_mte(vcpu->kvm))
-		vcpu->arch.hcr_el2 |= HCR_ATA;
+		vcpu->arch.hcr_el2 |= HCR_EL2_ATA;
 	else
-		vcpu->arch.hcr_el2 |= HCR_TID5;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TID5;
 
 	/*
 	 * In the absence of FGT, we cannot independently trap TLBI
@@ -5830,7 +5830,7 @@ static void vcpu_set_hcr(struct kvm_vcpu *vcpu)
 	 * TLBIs would be far worse. Live with it...
 	 */
 	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, OS))
-		vcpu->arch.hcr_el2 |= HCR_TTLBOS;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TTLBOS;
 }
 
 void kvm_calculate_traps(struct kvm_vcpu *vcpu)
@@ -5873,6 +5873,8 @@ static int kvm_vm_finalize_sys_regs(struct kvm *kvm)
 
 	if (kvm_id_regs_final(kvm))
 		return 0;
+
+	kvm_idregs_enforce_dependencies(kvm);
 
 	/*
 	 * This hacks into the ID registers, so only perform it when the

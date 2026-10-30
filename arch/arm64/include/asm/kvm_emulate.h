@@ -95,7 +95,7 @@ static inline void kvm_inject_nested_sve_trap(struct kvm_vcpu *vcpu)
 #if defined(__KVM_VHE_HYPERVISOR__) || defined(__KVM_NVHE_HYPERVISOR__)
 static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 {
-	return !(vcpu->arch.hcr_el2 & HCR_RW);
+	return !(vcpu->arch.hcr_el2 & HCR_EL2_RW);
 }
 #else
 static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
@@ -116,7 +116,7 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 	 * then.
 	 */
 	if (!cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
-		vcpu->arch.hcr_el2 |= HCR_TVM;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TVM;
 }
 
 static inline unsigned long *vcpu_hcr(struct kvm_vcpu *vcpu)
@@ -227,12 +227,12 @@ static inline bool vcpu_is_el2(const struct kvm_vcpu *vcpu)
 static inline bool vcpu_el2_e2h_is_set(const struct kvm_vcpu *vcpu)
 {
 	return (!cpus_have_final_cap(ARM64_HAS_HCR_NV1) ||
-		(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_E2H));
+		(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_EL2_E2H));
 }
 
 static inline bool vcpu_el2_tge_is_set(const struct kvm_vcpu *vcpu)
 {
-	return ctxt_sys_reg(&vcpu->arch.ctxt, HCR_EL2) & HCR_TGE;
+	return ctxt_sys_reg(&vcpu->arch.ctxt, HCR_EL2) & HCR_EL2_TGE;
 }
 
 static inline bool vcpu_el2_amo_is_set(const struct kvm_vcpu *vcpu)
@@ -251,7 +251,7 @@ static inline bool vcpu_el2_amo_is_set(const struct kvm_vcpu *vcpu)
 	if (vcpu_is_el2(vcpu) && vcpu_el2_e2h_is_set(vcpu) && !vcpu_el2_tge_is_set(vcpu))
 		return true;
 
-	return ctxt_sys_reg(&vcpu->arch.ctxt, HCR_EL2) & HCR_AMO;
+	return ctxt_sys_reg(&vcpu->arch.ctxt, HCR_EL2) & HCR_EL2_AMO;
 }
 
 static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
@@ -264,8 +264,8 @@ static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
 
 	hcr = __vcpu_sys_reg(vcpu, HCR_EL2);
 
-	e2h = (hcr & HCR_E2H);
-	tge = (hcr & HCR_TGE);
+	e2h = (hcr & HCR_EL2_E2H);
+	tge = (hcr & HCR_EL2_TGE);
 
 	/*
 	 * We are in a hypervisor context if the vcpu mode is EL2 or
@@ -376,8 +376,8 @@ static inline bool guest_hyp_wfx_traps_enabled(const struct kvm_vcpu *vcpu)
 	if (!vcpu_has_nv(vcpu) || vcpu_is_el2(vcpu))
 		return false;
 
-	return ((is_wfe && (hcr_el2 & HCR_TWE)) ||
-		(!is_wfe && (hcr_el2 & HCR_TWI)));
+	return ((is_wfe && (hcr_el2 & HCR_EL2_TWE)) ||
+		(!is_wfe && (hcr_el2 & HCR_EL2_TWI)));
 }
 
 static __always_inline int kvm_vcpu_get_condition(const struct kvm_vcpu *vcpu)

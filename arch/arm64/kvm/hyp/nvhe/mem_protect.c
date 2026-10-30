@@ -344,14 +344,14 @@ int __pkvm_prot_finalize(void)
 	struct kvm_s2_mmu *mmu = &host_mmu.arch.mmu;
 	struct kvm_nvhe_init_params *params = this_cpu_ptr(&kvm_init_params);
 
-	if (params->hcr_el2 & HCR_VM)
+	if (params->hcr_el2 & HCR_EL2_VM)
 		return -EPERM;
 
 	params->vttbr = kvm_get_vttbr(mmu);
 	params->vtcr = mmu->vtcr;
-	params->hcr_el2 |= HCR_VM;
+	params->hcr_el2 |= HCR_EL2_VM;
 	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
-		params->hcr_el2 |= HCR_FWB;
+		params->hcr_el2 |= HCR_EL2_FWB;
 
 	/*
 	 * The CMO below not only cleans the updated params to the

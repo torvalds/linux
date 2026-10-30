@@ -43,7 +43,7 @@ static int handle_hvc(struct kvm_vcpu *vcpu)
 
 	/* Forward hvc instructions to the virtual EL2 if the guest has EL2. */
 	if (vcpu_has_nv(vcpu)) {
-		if (vcpu_read_sys_reg(vcpu, HCR_EL2) & HCR_HCD)
+		if (vcpu_read_sys_reg(vcpu, HCR_EL2) & HCR_EL2_HCD)
 			kvm_inject_undefined(vcpu);
 		else
 			kvm_inject_nested_sync(vcpu, kvm_vcpu_get_esr(vcpu));

@@ -777,7 +777,7 @@ struct kvm_s2_mmu *lookup_s2_mmu(struct kvm_vcpu *vcpu)
 	vtcr = vcpu_read_sys_reg(vcpu, VTCR_EL2);
 	hcr = vcpu_read_sys_reg(vcpu, HCR_EL2);
 
-	nested_stage2_enabled = hcr & HCR_VM;
+	nested_stage2_enabled = hcr & HCR_EL2_VM;
 
 	/* Don't consider the CnP bit for the vttbr match */
 	vttbr &= ~VTTBR_CNP_BIT;
@@ -858,7 +858,7 @@ static struct kvm_s2_mmu *get_s2_mmu_nested(struct kvm_vcpu *vcpu)
 	 */
 	s2_mmu->tlb_vttbr = vcpu_read_sys_reg(vcpu, VTTBR_EL2) & ~VTTBR_CNP_BIT;
 	s2_mmu->tlb_vtcr = vcpu_read_sys_reg(vcpu, VTCR_EL2);
-	s2_mmu->nested_stage2_enabled = vcpu_read_sys_reg(vcpu, HCR_EL2) & HCR_VM;
+	s2_mmu->nested_stage2_enabled = vcpu_read_sys_reg(vcpu, HCR_EL2) & HCR_EL2_VM;
 
 out:
 	atomic_inc(&s2_mmu->refcnt);
@@ -979,7 +979,7 @@ void kvm_vcpu_load_hw_mmu(struct kvm_vcpu *vcpu)
 				vcpu->arch.hw_mmu = get_s2_mmu_nested(vcpu);
 		}
 
-		if (__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_NV)
+		if (__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_EL2_NV)
 			kvm_make_request(KVM_REQ_MAP_L1_VNCR_EL2, vcpu);
 	}
 }
@@ -2181,6 +2181,9 @@ void check_nested_vcpu_requests(struct kvm_vcpu *vcpu)
  *
  * What follows is some slop to (1) react to exception routing / masking and (2)
  * preserve the pending SError state across translation regimes.
+ *
+ * Also generate the maintenance interrupt state, and finally check that if
+ * we need to take an interrupt targetting the guest hypervisor.
  */
 void kvm_nested_flush_hwstate(struct kvm_vcpu *vcpu)
 {
@@ -2189,6 +2192,11 @@ void kvm_nested_flush_hwstate(struct kvm_vcpu *vcpu)
 
 	if (unlikely(vcpu_test_and_clear_flag(vcpu, NESTED_SERROR_PENDING)))
 		kvm_inject_serror_esr(vcpu, vcpu_get_vsesr(vcpu));
+
+	vgic_v3_nested_update_mi(vcpu);
+
+	if (vgic_state_is_nested(vcpu) && kvm_vgic_vcpu_pending_irq(vcpu))
+		kvm_make_request(KVM_REQ_GUEST_HYP_IRQ_PENDING, vcpu);
 }
 
 void kvm_nested_sync_hwstate(struct kvm_vcpu *vcpu)
@@ -2202,7 +2210,7 @@ void kvm_nested_sync_hwstate(struct kvm_vcpu *vcpu)
 	 * We previously decided that an SError was deliverable to the guest.
 	 * Reap the pending state from HCR_EL2 and...
 	 */
-	if (unlikely(__test_and_clear_bit(__ffs(HCR_VSE), hcr)))
+	if (unlikely(__test_and_clear_bit(__ffs(HCR_EL2_VSE), hcr)))
 		vcpu_set_flag(vcpu, NESTED_SERROR_PENDING);
 
 	/*

@@ -815,6 +815,10 @@ static void test_idreg_frozen_after_failed_run(void)
 		SYS_REVIDR_EL1,
 		SYS_AIDR_EL1,
 	};
+	u64 masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
+	struct reg_mask_range range = {
+		.addr = (__u64)masks,
+	};
 	struct kvm_vcpu_init init;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
@@ -831,6 +835,7 @@ static void test_idreg_frozen_after_failed_run(void)
 
 	vm = vm_create(1);
 	vm_enable_cap(vm, KVM_CAP_ARM_WRITABLE_IMP_ID_REGS, 0);
+	vm_ioctl(vm, KVM_ARM_GET_REG_WRITABLE_MASKS, &range);
 	kvm_get_default_vcpu_target(vm, &init);
 	init.features[0] |= (1 << KVM_ARM_VCPU_PMU_V3);
 	vcpu = aarch64_vcpu_add(vm, 0, &init, guest_code);
@@ -852,13 +857,19 @@ static void test_idreg_frozen_after_failed_run(void)
 	 */
 	for (int i = 0; i < ARRAY_SIZE(test_regs); i++) {
 		const struct reg_ftr_bits *ftr_bits = test_regs[i].ftr_bits;
-		u64 reg = KVM_ARM64_SYS_REG(test_regs[i].reg);
+		u32 reg_id = test_regs[i].reg;
+		u64 reg = KVM_ARM64_SYS_REG(reg_id);
+		u64 mask = masks[encoding_to_range_idx(reg_id)];
 		u64 val = vcpu_get_reg(vcpu, reg);
 
 		for (int j = 0; ftr_bits[j].type != FTR_END; j++) {
 			u64 ftr = (val & ftr_bits[j].mask) >> ftr_bits[j].shift;
 			u64 safe = get_safe_value(&ftr_bits[j], ftr);
 			u64 new_val;
+
+			/* Only a field userspace could change can be frozen. */
+			if ((mask & ftr_bits[j].mask) != ftr_bits[j].mask)
+				continue;
 
 			if (safe == ftr)
 				continue;

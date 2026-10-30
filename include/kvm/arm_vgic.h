@@ -292,6 +292,7 @@ struct vgic_irq {
 	bool active:1;
 	bool hw:1;			/* Tied to HW IRQ */
 	bool on_lr:1;			/* Present in a CPU LR */
+	bool mapped:1;			/* LPIs: mapped by an ITE */
 	refcount_t refcount;		/* Used for LPIs */
 	u32 hwintid;			/* HW INTID number */
 	unsigned int host_irq;		/* linux irq corresponding to hwintid */
@@ -502,7 +503,9 @@ struct vgic_dist {
 	bool			initialized;
 
 	/* vGIC model the kernel emulates for the guest (GICv2 or GICv3) */
-	u32			vgic_model;
+	enum kvm_device_type	vgic_model;
+	/* VGIC model required by the VM's ITS devices. */
+	enum kvm_device_type	its_model;
 
 	/* Implementation revision as reported in the GICD_IIDR */
 	u32			implementation_rev;
@@ -547,7 +550,6 @@ struct vgic_dist {
 	struct vgic_io_device	dist_iodev;
 	struct vgic_io_device	cpuif_iodev;
 
-	bool			has_its;
 	bool			table_write_in_progress;
 
 	/*

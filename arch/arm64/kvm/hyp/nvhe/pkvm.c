@@ -38,23 +38,26 @@ unsigned int kvm_host_sve_max_vl;
  */
 static DEFINE_PER_CPU(struct pkvm_hyp_vcpu *, loaded_hyp_vcpu);
 
-/* The PKVM_HCR_EL2_HOST_{PVM,NPVM} bits of this value come from the host on each entry. */
+/*
+ * The PKVM_HCR_EL2_HOST_{PVM,NPVM} bits of this value come from the host on
+ * each entry, and a protected vCPU's TWI and TWE at vCPU load.
+ */
 static void pkvm_vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.hcr_el2 = HCR_GUEST_FLAGS;
 
 	if (has_hvhe())
-		vcpu->arch.hcr_el2 |= HCR_E2H;
+		vcpu->arch.hcr_el2 |= HCR_EL2_E2H;
 
 	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN)) {
 		/* route synchronous external abort exceptions to EL2 */
-		vcpu->arch.hcr_el2 |= HCR_TEA;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TEA;
 		/* trap error record accesses */
-		vcpu->arch.hcr_el2 |= HCR_TERR;
+		vcpu->arch.hcr_el2 |= HCR_EL2_TERR;
 	}
 
 	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
-		vcpu->arch.hcr_el2 |= HCR_FWB;
+		vcpu->arch.hcr_el2 |= HCR_EL2_FWB;
 
 	/*
 	 * Without AArch32 EL1, leave RW set and let the entry fail with an
@@ -66,7 +69,7 @@ static void pkvm_vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 		vcpu->arch.hcr_el2 &= ~HCR_EL2_RW;
 
 	if (vcpu_has_ptrauth(vcpu))
-		vcpu->arch.hcr_el2 |= (HCR_API | HCR_APK);
+		vcpu->arch.hcr_el2 |= (HCR_EL2_API | HCR_EL2_APK);
 }
 
 static void pvm_init_traps_hcr(struct kvm_vcpu *vcpu)
@@ -75,14 +78,14 @@ static void pvm_init_traps_hcr(struct kvm_vcpu *vcpu)
 	u64 val = vcpu->arch.hcr_el2;
 
 	/* No support for AArch32. */
-	val |= HCR_RW;
+	val |= HCR_EL2_RW;
 
 	/*
 	 * Always trap:
 	 * - Feature id registers: to control features exposed to guests
 	 * - Implementation-defined features
 	 */
-	val |= HCR_TACR | HCR_TIDCP | HCR_TID3 | HCR_TID1;
+	val |= HCR_EL2_TACR | HCR_EL2_TIDCP | HCR_EL2_TID3 | HCR_EL2_TID1;
 
 	if (cpus_have_final_cap(ARM64_HAS_EVT) &&
 	    !cpus_have_final_cap(ARM64_MISMATCHED_CACHE_TYPE) &&
@@ -92,20 +95,20 @@ static void pvm_init_traps_hcr(struct kvm_vcpu *vcpu)
 		val |= HCR_EL2_TID2;
 
 	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RAS, IMP)) {
-		val |= HCR_TERR | HCR_TEA;
-		val &= ~(HCR_FIEN);
+		val |= HCR_EL2_TERR | HCR_EL2_TEA;
+		val &= ~(HCR_EL2_FIEN);
 	}
 
 	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, AMU, IMP))
-		val &= ~(HCR_AMVOFFEN);
+		val &= ~(HCR_EL2_AMVOFFEN);
 
 	if (!kvm_has_mte(kvm)) {
-		val |= HCR_TID5;
-		val &= ~(HCR_DCT | HCR_ATA);
+		val |= HCR_EL2_TID5;
+		val &= ~(HCR_EL2_DCT | HCR_EL2_ATA);
 	}
 
 	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, LO, IMP))
-		val |= HCR_TLOR;
+		val |= HCR_EL2_TLOR;
 
 	vcpu->arch.hcr_el2 = val;
 }
@@ -392,13 +395,19 @@ static void pkvm_init_features_from_host(struct pkvm_hyp_vm *hyp_vm, const struc
 {
 	struct kvm *kvm = &hyp_vm->kvm;
 	unsigned long host_arch_flags = READ_ONCE(host_kvm->arch.flags);
+	u32 vgic_model = READ_ONCE(host_kvm->arch.vgic.vgic_model);
 	DECLARE_BITMAP(allowed_features, KVM_VCPU_MAX_FEATURES);
 
 	/* CTR_EL0 is always under host control, even for protected VMs. */
 	hyp_vm->kvm.arch.ctr_el0 = host_kvm->arch.ctr_el0;
 
-	/* Preserve the vgic model so that GICv3 emulation works */
-	hyp_vm->kvm.arch.vgic.vgic_model = host_kvm->arch.vgic.vgic_model;
+	/*
+	 * pKVM runs only GICv3. Anything else becomes 0, the model of a VM
+	 * with no in-kernel irqchip, which keeps EL2 off the GICv5 registers.
+	 */
+	if (vgic_model != KVM_DEV_TYPE_ARM_VGIC_V3)
+		vgic_model = 0;
+	hyp_vm->kvm.arch.vgic.vgic_model = vgic_model;
 
 	/* No restrictions for non-protected VMs. */
 	if (!kvm_vm_is_protected(kvm)) {

@@ -15,71 +15,6 @@
 #include <asm/sysreg.h>
 
 /*
- * Because I'm terribly lazy and that repainting the whole of the KVM
- * code with the proper names is a pain, use a helper to map the names
- * inherited from AArch32 with the new fancy nomenclature. One day...
- */
-#define	__HCR(x)	HCR_EL2_##x
-
-#define HCR_TID5	__HCR(TID5)
-#define HCR_DCT		__HCR(DCT)
-#define HCR_ATA_SHIFT	__HCR(ATA_SHIFT)
-#define HCR_ATA		__HCR(ATA)
-#define HCR_TTLBOS	__HCR(TTLBOS)
-#define HCR_TTLBIS	__HCR(TTLBIS)
-#define HCR_ENSCXT	__HCR(EnSCXT)
-#define HCR_TOCU	__HCR(TOCU)
-#define HCR_AMVOFFEN	__HCR(AMVOFFEN)
-#define HCR_TICAB	__HCR(TICAB)
-#define HCR_TID4	__HCR(TID4)
-#define HCR_FIEN	__HCR(FIEN)
-#define HCR_FWB		__HCR(FWB)
-#define HCR_NV2		__HCR(NV2)
-#define HCR_AT		__HCR(AT)
-#define HCR_NV1		__HCR(NV1)
-#define HCR_NV		__HCR(NV)
-#define HCR_API		__HCR(API)
-#define HCR_APK		__HCR(APK)
-#define HCR_TEA		__HCR(TEA)
-#define HCR_TERR	__HCR(TERR)
-#define HCR_TLOR	__HCR(TLOR)
-#define HCR_E2H		__HCR(E2H)
-#define HCR_ID		__HCR(ID)
-#define HCR_CD		__HCR(CD)
-#define HCR_RW		__HCR(RW)
-#define HCR_TRVM	__HCR(TRVM)
-#define HCR_HCD		__HCR(HCD)
-#define HCR_TDZ		__HCR(TDZ)
-#define HCR_TGE		__HCR(TGE)
-#define HCR_TVM		__HCR(TVM)
-#define HCR_TTLB	__HCR(TTLB)
-#define HCR_TPU		__HCR(TPU)
-#define HCR_TPC		__HCR(TPCP)
-#define HCR_TSW		__HCR(TSW)
-#define HCR_TACR	__HCR(TACR)
-#define HCR_TIDCP	__HCR(TIDCP)
-#define HCR_TSC		__HCR(TSC)
-#define HCR_TID3	__HCR(TID3)
-#define HCR_TID2	__HCR(TID2)
-#define HCR_TID1	__HCR(TID1)
-#define HCR_TID0	__HCR(TID0)
-#define HCR_TWE		__HCR(TWE)
-#define HCR_TWI		__HCR(TWI)
-#define HCR_DC		__HCR(DC)
-#define HCR_BSU		__HCR(BSU)
-#define HCR_BSU_IS	__HCR(BSU_IS)
-#define HCR_FB		__HCR(FB)
-#define HCR_VSE		__HCR(VSE)
-#define HCR_VI		__HCR(VI)
-#define HCR_VF		__HCR(VF)
-#define HCR_AMO		__HCR(AMO)
-#define HCR_IMO		__HCR(IMO)
-#define HCR_FMO		__HCR(FMO)
-#define HCR_PTW		__HCR(PTW)
-#define HCR_SWIO	__HCR(SWIO)
-#define HCR_VM		__HCR(VM)
-
-/*
  * The bits we set in HCR:
  * TLOR:	Trap LORegion register accesses
  * RW:		64bit by default, can be overridden for 32bit VMs
@@ -99,13 +34,13 @@
  * TID3:	Trap EL1 reads of group 3 ID registers
  * TID1:	Trap REVIDR_EL1, AIDR_EL1, and SMIDR_EL1
  */
-#define HCR_GUEST_FLAGS (HCR_TSC | HCR_TSW | HCR_TWE | HCR_TWI | HCR_VM | \
-			 HCR_BSU_IS | HCR_FB | HCR_TACR | \
-			 HCR_AMO | HCR_SWIO | HCR_TIDCP | HCR_RW | HCR_TLOR | \
-			 HCR_FMO | HCR_IMO | HCR_PTW | HCR_TID3 | HCR_TID1)
-#define HCR_HOST_NVHE_FLAGS (HCR_RW | HCR_API | HCR_APK)
-#define HCR_HOST_NVHE_PROTECTED_FLAGS (HCR_HOST_NVHE_FLAGS | HCR_TSC)
-#define HCR_HOST_VHE_FLAGS (HCR_RW | HCR_TGE | HCR_E2H | HCR_AMO | HCR_IMO | HCR_FMO)
+#define HCR_GUEST_FLAGS (HCR_EL2_TSC | HCR_EL2_TSW | HCR_EL2_TWE | HCR_EL2_TWI | HCR_EL2_VM | \
+			 SYS_FIELD_PREP_ENUM(HCR_EL2, BSU, IS) | HCR_EL2_FB | HCR_EL2_TACR | \
+			 HCR_EL2_AMO | HCR_EL2_SWIO | HCR_EL2_TIDCP | HCR_EL2_RW | HCR_EL2_TLOR | \
+			 HCR_EL2_FMO | HCR_EL2_IMO | HCR_EL2_PTW | HCR_EL2_TID3 | HCR_EL2_TID1)
+#define HCR_HOST_NVHE_FLAGS (HCR_EL2_RW | HCR_EL2_API | HCR_EL2_APK)
+#define HCR_HOST_NVHE_PROTECTED_FLAGS (HCR_HOST_NVHE_FLAGS | HCR_EL2_TSC)
+#define HCR_HOST_VHE_FLAGS (HCR_EL2_RW | HCR_EL2_TGE | HCR_EL2_E2H | HCR_EL2_AMO | HCR_EL2_IMO | HCR_EL2_FMO)
 
 #define MPAMHCR_HOST_FLAGS	0
 

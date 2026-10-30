@@ -120,8 +120,8 @@ bool vgic_state_is_nested(struct kvm_vcpu *vcpu)
 	u64 xmo;
 
 	if (is_nested_ctxt(vcpu)) {
-		xmo = __vcpu_sys_reg(vcpu, HCR_EL2) & (HCR_IMO | HCR_FMO);
-		WARN_ONCE(xmo && xmo != (HCR_IMO | HCR_FMO),
+		xmo = __vcpu_sys_reg(vcpu, HCR_EL2) & (HCR_EL2_IMO | HCR_EL2_FMO);
+		WARN_ONCE(xmo && xmo != (HCR_EL2_IMO | HCR_EL2_FMO),
 			  "Separate virtual IRQ/FIQ settings not supported\n");
 
 		return !!xmo;

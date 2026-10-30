@@ -145,176 +145,176 @@ enum cgt_group_id {
 static const struct trap_bits coarse_trap_bits[] = {
 	[CGT_HCR_TID1] = {
 		.index		= HCR_EL2,
-		.value 		= HCR_TID1,
-		.mask		= HCR_TID1,
+		.value 		= HCR_EL2_TID1,
+		.mask		= HCR_EL2_TID1,
 		.behaviour	= BEHAVE_FORWARD_READ,
 	},
 	[CGT_HCR_TID2] = {
 		.index		= HCR_EL2,
-		.value 		= HCR_TID2,
-		.mask		= HCR_TID2,
+		.value 		= HCR_EL2_TID2,
+		.mask		= HCR_EL2_TID2,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TID3] = {
 		.index		= HCR_EL2,
-		.value 		= HCR_TID3,
-		.mask		= HCR_TID3,
+		.value 		= HCR_EL2_TID3,
+		.mask		= HCR_EL2_TID3,
 		.behaviour	= BEHAVE_FORWARD_READ,
 	},
 	[CGT_HCR_IMO] = {
 		.index		= HCR_EL2,
-		.value 		= HCR_IMO,
-		.mask		= HCR_IMO,
+		.value 		= HCR_EL2_IMO,
+		.mask		= HCR_EL2_IMO,
 		.behaviour	= BEHAVE_FORWARD_WRITE,
 	},
 	[CGT_HCR_FMO] = {
 		.index		= HCR_EL2,
-		.value 		= HCR_FMO,
-		.mask		= HCR_FMO,
+		.value 		= HCR_EL2_FMO,
+		.mask		= HCR_EL2_FMO,
 		.behaviour	= BEHAVE_FORWARD_WRITE,
 	},
 	[CGT_HCR_TIDCP] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TIDCP,
-		.mask		= HCR_TIDCP,
+		.value		= HCR_EL2_TIDCP,
+		.mask		= HCR_EL2_TIDCP,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TACR] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TACR,
-		.mask		= HCR_TACR,
+		.value		= HCR_EL2_TACR,
+		.mask		= HCR_EL2_TACR,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TSW] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TSW,
-		.mask		= HCR_TSW,
+		.value		= HCR_EL2_TSW,
+		.mask		= HCR_EL2_TSW,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TPC] = { /* Also called TCPC when FEAT_DPB is implemented */
 		.index		= HCR_EL2,
-		.value		= HCR_TPC,
-		.mask		= HCR_TPC,
+		.value		= HCR_EL2_TPCP,
+		.mask		= HCR_EL2_TPCP,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TPU] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TPU,
-		.mask		= HCR_TPU,
+		.value		= HCR_EL2_TPU,
+		.mask		= HCR_EL2_TPU,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TTLB] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TTLB,
-		.mask		= HCR_TTLB,
+		.value		= HCR_EL2_TTLB,
+		.mask		= HCR_EL2_TTLB,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TVM] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TVM,
-		.mask		= HCR_TVM,
+		.value		= HCR_EL2_TVM,
+		.mask		= HCR_EL2_TVM,
 		.behaviour	= BEHAVE_FORWARD_WRITE,
 	},
 	[CGT_HCR_TDZ] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TDZ,
-		.mask		= HCR_TDZ,
+		.value		= HCR_EL2_TDZ,
+		.mask		= HCR_EL2_TDZ,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TRVM] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TRVM,
-		.mask		= HCR_TRVM,
+		.value		= HCR_EL2_TRVM,
+		.mask		= HCR_EL2_TRVM,
 		.behaviour	= BEHAVE_FORWARD_READ,
 	},
 	[CGT_HCR_TLOR] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TLOR,
-		.mask		= HCR_TLOR,
+		.value		= HCR_EL2_TLOR,
+		.mask		= HCR_EL2_TLOR,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TERR] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TERR,
-		.mask		= HCR_TERR,
+		.value		= HCR_EL2_TERR,
+		.mask		= HCR_EL2_TERR,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_APK] = {
 		.index		= HCR_EL2,
 		.value		= 0,
-		.mask		= HCR_APK,
+		.mask		= HCR_EL2_APK,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_NV] = {
 		.index		= HCR_EL2,
-		.value		= HCR_NV,
-		.mask		= HCR_NV,
+		.value		= HCR_EL2_NV,
+		.mask		= HCR_EL2_NV,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_NV_nNV2] = {
 		.index		= HCR_EL2,
-		.value		= HCR_NV,
-		.mask		= HCR_NV | HCR_NV2,
+		.value		= HCR_EL2_NV,
+		.mask		= HCR_EL2_NV | HCR_EL2_NV2,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_NV1_nNV2] = {
 		.index		= HCR_EL2,
-		.value		= HCR_NV | HCR_NV1,
-		.mask		= HCR_NV | HCR_NV1 | HCR_NV2,
+		.value		= HCR_EL2_NV | HCR_EL2_NV1,
+		.mask		= HCR_EL2_NV | HCR_EL2_NV1 | HCR_EL2_NV2,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_AT] = {
 		.index		= HCR_EL2,
-		.value		= HCR_AT,
-		.mask		= HCR_AT,
+		.value		= HCR_EL2_AT,
+		.mask		= HCR_EL2_AT,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_nFIEN] = {
 		.index		= HCR_EL2,
 		.value		= 0,
-		.mask		= HCR_FIEN,
+		.mask		= HCR_EL2_FIEN,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TID4] = {
 		.index		= HCR_EL2,
-		.value 		= HCR_TID4,
-		.mask		= HCR_TID4,
+		.value 		= HCR_EL2_TID4,
+		.mask		= HCR_EL2_TID4,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TICAB] = {
 		.index		= HCR_EL2,
-		.value 		= HCR_TICAB,
-		.mask		= HCR_TICAB,
+		.value 		= HCR_EL2_TICAB,
+		.mask		= HCR_EL2_TICAB,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TOCU] = {
 		.index		= HCR_EL2,
-		.value 		= HCR_TOCU,
-		.mask		= HCR_TOCU,
+		.value 		= HCR_EL2_TOCU,
+		.mask		= HCR_EL2_TOCU,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_ENSCXT] = {
 		.index		= HCR_EL2,
 		.value 		= 0,
-		.mask		= HCR_ENSCXT,
+		.mask		= HCR_EL2_EnSCXT,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TTLBIS] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TTLBIS,
-		.mask		= HCR_TTLBIS,
+		.value		= HCR_EL2_TTLBIS,
+		.mask		= HCR_EL2_TTLBIS,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TTLBOS] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TTLBOS,
-		.mask		= HCR_TTLBOS,
+		.value		= HCR_EL2_TTLBOS,
+		.mask		= HCR_EL2_TTLBOS,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TID5] = {
 		.index		= HCR_EL2,
-		.value		= HCR_TID5,
-		.mask		= HCR_TID5,
+		.value		= HCR_EL2_TID5,
+		.mask		= HCR_EL2_TID5,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_TPMCR] = {
@@ -528,7 +528,7 @@ static bool is_nested_nv2_guest(struct kvm_vcpu *vcpu)
 	u64 val;
 
 	val = __vcpu_sys_reg(vcpu, HCR_EL2);
-	return ((val & (HCR_E2H | HCR_TGE | HCR_NV2 | HCR_NV1 | HCR_NV)) == (HCR_E2H | HCR_NV2 | HCR_NV));
+	return ((val & (HCR_EL2_E2H | HCR_EL2_TGE | HCR_EL2_NV2 | HCR_EL2_NV1 | HCR_EL2_NV)) == (HCR_EL2_E2H | HCR_EL2_NV2 | HCR_EL2_NV));
 }
 
 static enum trap_behaviour check_cnthctl_el1nvpct(struct kvm_vcpu *vcpu)
@@ -2722,7 +2722,7 @@ static bool forward_hcr_traps(struct kvm_vcpu *vcpu, u64 control_bit)
 
 bool forward_smc_trap(struct kvm_vcpu *vcpu)
 {
-	return forward_hcr_traps(vcpu, HCR_TSC);
+	return forward_hcr_traps(vcpu, HCR_EL2_TSC);
 }
 
 static bool forward_mdcr_traps(struct kvm_vcpu *vcpu, u64 control_bit)
@@ -2944,7 +2944,7 @@ int kvm_inject_nested_irq(struct kvm_vcpu *vcpu)
 	 */
 
 	if (vcpu_is_el2(vcpu) && !vcpu_el2_tge_is_set(vcpu) &&
-	    !(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_IMO))
+	    !(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_EL2_IMO))
 		return 1;
 
 	/* esr_el2 value doesn't matter for exits due to irqs. */

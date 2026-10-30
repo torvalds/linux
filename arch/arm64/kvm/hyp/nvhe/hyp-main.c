@@ -809,8 +809,8 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu, u32 exit_reason)
 	}
 
 	/* Cleared by hardware once the guest takes the vSError. */
-	host_vcpu->arch.hcr_el2 &= ~HCR_VSE;
-	host_vcpu->arch.hcr_el2 |= hyp_vcpu->vcpu.arch.hcr_el2 & HCR_VSE;
+	host_vcpu->arch.hcr_el2 &= ~HCR_EL2_VSE;
+	host_vcpu->arch.hcr_el2 |= hyp_vcpu->vcpu.arch.hcr_el2 & HCR_EL2_VSE;
 
 	sync_hyp_vgic_state(hyp_vcpu);
 	sync_hyp_timer_state(hyp_vcpu);
@@ -834,8 +834,8 @@ DEFINE_KVM_HOST_HCALL(void, __pkvm_vcpu_load,
 		u64 dfr0 = read_sysreg(id_aa64dfr0_el1);
 
 		/* Propagate WFx trapping flags */
-		hyp_vcpu->vcpu.arch.hcr_el2 &= ~(HCR_TWE | HCR_TWI);
-		hyp_vcpu->vcpu.arch.hcr_el2 |= hcr_el2 & (HCR_TWE | HCR_TWI);
+		hyp_vcpu->vcpu.arch.hcr_el2 &= ~(HCR_EL2_TWE | HCR_EL2_TWI);
+		hyp_vcpu->vcpu.arch.hcr_el2 |= hcr_el2 & (HCR_EL2_TWE | HCR_EL2_TWI);
 
 		/* HPMN == 0 is reserved without FEAT_HPMN0. */
 		if (pmuv3_implemented(SYS_FIELD_GET(ID_AA64DFR0_EL1, PMUVer, dfr0)))
@@ -1615,7 +1615,8 @@ static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
 
 	/*
 	 * If pKVM has been initialised then reject any calls to the
-	 * early "privileged" hypercalls. Note that we cannot reject
+	 * early "privileged" hypercalls, and to the ones the host has no
+	 * use for in protected mode. Note that we cannot reject
 	 * calls to __pkvm_prot_finalize for two reasons: (1) The static
 	 * key used to determine initialisation must be toggled prior to
 	 * finalisation and (2) finalisation is performed on a per-CPU
@@ -1737,12 +1738,12 @@ static bool handle_host_mte(u64 esr)
 	case SYS_TFSR_EL1:
 	case SYS_TFSRE0_EL1:
 		/* If we're here for any reason other than MTE, it's a bug. */
-		if (read_sysreg(HCR_EL2) & HCR_ATA)
+		if (read_sysreg(HCR_EL2) & HCR_EL2_ATA)
 			return false;
 		break;
 	case SYS_GMID_EL1:
 		/* If we're here for any reason other than MTE, it's a bug. */
-		if (!(read_sysreg(HCR_EL2) & HCR_TID5))
+		if (!(read_sysreg(HCR_EL2) & HCR_EL2_TID5))
 			return false;
 		break;
 	default:

@@ -298,7 +298,7 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	isb
 0:
 
-	init_el2_hcr	HCR_HOST_NVHE_FLAGS | HCR_ATA
+	init_el2_hcr	HCR_HOST_NVHE_FLAGS | HCR_EL2_ATA
 	init_el2_state
 
 	/* Hypervisor stub */
@@ -309,7 +309,7 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	mov_q	x1, INIT_SCTLR_EL1_MMU_OFF
 
 	mrs	x0, hcr_el2
-	and	x0, x0, #HCR_E2H
+	and	x0, x0, #HCR_EL2_E2H
 	cbz	x0, 2f
 
 	/* Set a sane SCTLR_EL1, the VHE way */

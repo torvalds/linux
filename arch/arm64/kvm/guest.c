@@ -755,7 +755,7 @@ int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 			      struct kvm_vcpu_events *events)
 {
 	events->exception.serror_has_esr = cpus_have_final_cap(ARM64_HAS_RAS_EXTN);
-	events->exception.serror_pending = (vcpu->arch.hcr_el2 & HCR_VSE) ||
+	events->exception.serror_pending = (vcpu->arch.hcr_el2 & HCR_EL2_VSE) ||
 					   vcpu_get_flag(vcpu, NESTED_SERROR_PENDING);
 
 	if (events->exception.serror_pending && events->exception.serror_has_esr)

@@ -403,11 +403,11 @@ static inline void __deactivate_traps_common(struct kvm_vcpu *vcpu)
 static inline void ___activate_traps(struct kvm_vcpu *vcpu, u64 hcr)
 {
 	if (cpus_have_final_cap(ARM64_WORKAROUND_CAVIUM_TX2_219_TVM))
-		hcr |= HCR_TVM;
+		hcr |= HCR_EL2_TVM;
 
 	write_sysreg_hcr(hcr);
 
-	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN) && (hcr & HCR_VSE)) {
+	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN) && (hcr & HCR_EL2_VSE)) {
 		u64 vsesr;
 
 		/*
@@ -454,9 +454,9 @@ static inline void ___deactivate_traps(struct kvm_vcpu *vcpu)
 	 * Additionally, when in a nested context we need to propagate the
 	 * updated state to the guest hypervisor's HCR_EL2.
 	 */
-	if (*hcr & HCR_VSE) {
-		*hcr &= ~HCR_VSE;
-		*hcr |= read_sysreg(hcr_el2) & HCR_VSE;
+	if (*hcr & HCR_EL2_VSE) {
+		*hcr &= ~HCR_EL2_VSE;
+		*hcr |= read_sysreg(hcr_el2) & HCR_EL2_VSE;
 	}
 }
 
@@ -655,7 +655,7 @@ static inline bool kvm_hyp_handle_fpsimd(struct kvm_vcpu *vcpu, u64 *exit_code)
 		write_sysreg_s(__vcpu_sys_reg(vcpu, FPMR), SYS_FPMR);
 
 	/* Skip restoring fpexc32 for AArch64 guests */
-	if (!(read_sysreg(hcr_el2) & HCR_RW))
+	if (!(read_sysreg(hcr_el2) & HCR_EL2_RW))
 		write_sysreg(__vcpu_sys_reg(vcpu, FPEXC32_EL2), fpexc32_el2);
 
 	*host_data_ptr(fp_owner) = FP_STATE_GUEST_OWNED;
@@ -680,7 +680,7 @@ static inline bool handle_tx2_tvm(struct kvm_vcpu *vcpu)
 	 * The normal sysreg handling code expects to see the traps,
 	 * let's not do anything here.
 	 */
-	if (vcpu->arch.hcr_el2 & HCR_TVM)
+	if (vcpu->arch.hcr_el2 & HCR_EL2_TVM)
 		return false;
 
 	switch (sysreg) {
