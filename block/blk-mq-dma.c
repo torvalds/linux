@@ -181,6 +181,8 @@ static bool blk_dma_map_iter_start(struct request *req, struct device *dma_dev,
 	switch (pci_p2pdma_state(&iter->p2pdma, dma_dev,
 				 phys_to_page(vec.paddr))) {
 	case PCI_P2PDMA_MAP_BUS_ADDR:
+		/* don't leave the state of an earlier mapping to the caller */
+		memset(state, 0, sizeof(*state));
 		return blk_dma_map_bus(iter, &vec);
 	case PCI_P2PDMA_MAP_THRU_HOST_BRIDGE:
 		/*
@@ -213,7 +215,7 @@ static bool blk_dma_map_iter_start(struct request *req, struct device *dma_dev,
  * at unmap time, @iter is only needed at map time.
  *
  * Returns %false if there is no segment to map, including due to an error, or
- * %true ft it did map a segment.
+ * %true if it did map a segment.
  *
  * If a segment was mapped, the DMA address for it is returned in @iter.addr and
  * the length in @iter.len.  If no segment was mapped the status code is
@@ -243,7 +245,7 @@ EXPORT_SYMBOL_GPL(blk_rq_dma_map_iter_start);
  * arguments.
  *
  * Returns %false if there is no segment to map, including due to an error, or
- * %true ft it did map a segment.
+ * %true if it did map a segment.
  *
  * If a segment was mapped, the DMA address for it is returned in @iter.addr and
  * the length in @iter.len.  If no segment was mapped the status code is
@@ -361,7 +363,6 @@ EXPORT_SYMBOL_GPL(blk_rq_integrity_dma_map_iter_start);
  * 					 a request
  * @req:	request to map
  * @dma_dev:	device to map to
- * @state:	DMA IOVA state
  * @iter:	block layer DMA iterator
  *
  * Iterate to the next integrity mapping after a previous call to

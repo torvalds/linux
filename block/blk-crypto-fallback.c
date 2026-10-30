@@ -524,6 +524,12 @@ bool blk_crypto_fallback_bio_prep(struct bio *bio)
 
 int blk_crypto_fallback_evict_key(const struct blk_crypto_key *key)
 {
+	/*
+	 * Pairs with smp_store_release() in
+	 * blk_crypto_fallback_start_using_mode()
+	 */
+	if (!smp_load_acquire(&tfms_inited[key->crypto_cfg.crypto_mode]))
+		return 0;
 	return __blk_crypto_evict_key(blk_crypto_fallback_profile, key);
 }
 

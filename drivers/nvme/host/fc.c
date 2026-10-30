@@ -3778,6 +3778,9 @@ static ssize_t nvme_fc_nvme_discovery_store(struct device *dev,
 restart:
 	list_for_each_entry(lport, &nvme_fc_lport_list, port_list) {
 		list_for_each_entry(rport, &lport->endp_list, endp_list) {
+			/* skip rports already queued for discovery */
+			if (!list_empty(&rport->disc_list))
+				continue;
 			if (!nvme_fc_lport_get(lport))
 				continue;
 			if (!nvme_fc_rport_get(rport)) {
@@ -3799,9 +3802,7 @@ restart:
 				       "failures\n");
 				goto process_local_list;
 			}
-			if (list_empty(&rport->disc_list))
-				list_add_tail(&rport->disc_list,
-					      &local_disc_list);
+			list_add_tail(&rport->disc_list, &local_disc_list);
 		}
 	}
 

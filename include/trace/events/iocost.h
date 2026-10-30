@@ -34,6 +34,9 @@ DECLARE_EVENT_CLASS(iocost_iocg_state,
 	),
 
 	TP_fast_assign(
+		u32 hwa, hwi;
+
+		iocg_hweight_cache(iocg, &hwa, &hwi);
 		__assign_str(devname);
 		__assign_str(cgroup);
 		__entry->now = now->now;
@@ -44,8 +47,8 @@ DECLARE_EVENT_CLASS(iocost_iocg_state,
 		__entry->vtime = vtime;
 		__entry->weight = iocg->weight;
 		__entry->inuse = iocg->inuse;
-		__entry->hweight_active = iocg->hweight_active;
-		__entry->hweight_inuse = iocg->hweight_inuse;
+		__entry->hweight_active = hwa;
+		__entry->hweight_inuse = hwi;
 	),
 
 	TP_printk("[%s:%s] now=%llu:%llu vrate=%llu "

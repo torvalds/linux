@@ -483,10 +483,7 @@ static void raid1_end_write_request(struct bio *bio)
 	 * 'one mirror IO has finished' event handler:
 	 */
 	if (bio->bi_status && !ignore_error) {
-		set_bit(WriteErrorSeen,	&rdev->flags);
-		if (!test_and_set_bit(WantReplacement, &rdev->flags))
-			set_bit(MD_RECOVERY_NEEDED, &
-				conf->mddev->recovery);
+		rdev_record_write_error(rdev);
 
 		if (test_bit(FailFast, &rdev->flags) &&
 		    (bio->bi_opf & MD_FAILFAST) &&
@@ -922,21 +919,6 @@ static void wake_up_barrier(struct r1conf *conf)
 		wake_up(&conf->wait_barrier);
 }
 
-static void flush_bio_list(struct r1conf *conf, struct bio *bio)
-{
-	/* flush any pending bitmap writes to disk before proceeding w/ I/O */
-	raid1_prepare_flush_writes(conf->mddev);
-	wake_up_barrier(conf);
-
-	while (bio) { /* submit pending writes */
-		struct bio *next = bio->bi_next;
-
-		raid1_submit_write(bio);
-		bio = next;
-		cond_resched();
-	}
-}
-
 static void flush_pending_writes(struct r1conf *conf)
 {
 	/* Any writes that have been queued but are awaiting
@@ -962,7 +944,7 @@ static void flush_pending_writes(struct r1conf *conf)
 		 */
 		__set_current_state(TASK_RUNNING);
 		blk_start_plug(&plug);
-		flush_bio_list(conf, bio);
+		flush_bio_list(conf->mddev, bio, &conf->wait_barrier);
 		blk_finish_plug(&plug);
 	} else
 		spin_unlock_irq(&conf->device_lock);
@@ -1292,7 +1274,7 @@ static void raid1_unplug(struct blk_plug_cb *cb, bool from_schedule)
 
 	/* we aren't scheduling, so we can do the write-out directly. */
 	bio = bio_list_get(&plug->pending);
-	flush_bio_list(conf, bio);
+	flush_bio_list(conf->mddev, bio, &conf->wait_barrier);
 	kfree(plug);
 }
 
@@ -2067,10 +2049,7 @@ static void end_sync_write(struct bio *bio)
 
 	if (bio->bi_status) {
 		abort_sync_write(mddev, r1_bio);
-		set_bit(WriteErrorSeen, &rdev->flags);
-		if (!test_and_set_bit(WantReplacement, &rdev->flags))
-			set_bit(MD_RECOVERY_NEEDED, &
-				mddev->recovery);
+		rdev_record_write_error(rdev);
 		set_bit(R1BIO_WriteError, &r1_bio->state);
 	} else if (rdev_has_badblock(rdev, r1_bio->sector, r1_bio->sectors) &&
 		   !rdev_has_badblock(conf->mirrors[r1_bio->read_disk].rdev,
@@ -2088,11 +2067,7 @@ static int r1_sync_page_io(struct md_rdev *rdev, sector_t sector,
 		/* success */
 		return 1;
 	if (rw == REQ_OP_WRITE) {
-		set_bit(WriteErrorSeen, &rdev->flags);
-		if (!test_and_set_bit(WantReplacement,
-				      &rdev->flags))
-			set_bit(MD_RECOVERY_NEEDED, &
-				rdev->mddev->recovery);
+		rdev_record_write_error(rdev);
 	}
 	/* need to record an error - either for the block or the device */
 	rdev_set_badblocks(rdev, sector, sectors, 0);
@@ -2475,15 +2450,10 @@ static void narrow_write_error(struct r1bio *r1_bio, int i)
 	 * We currently own a reference on the rdev.
 	 */
 
-	int block_sectors, lbs = bdev_logical_block_size(rdev->bdev) >> 9;
+	int block_sectors = rdev_bb_block_sectors(rdev);
 	sector_t sector;
 	int sectors;
 	int sect_to_write = r1_bio->sectors;
-
-	if (rdev->badblocks.shift < 0)
-		block_sectors = lbs;
-	else
-		block_sectors = roundup(1 << rdev->badblocks.shift, lbs);
 
 	sector = r1_bio->sector;
 	sectors = ((sector + block_sectors)
