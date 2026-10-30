@@ -104,9 +104,9 @@ static struct clk *mmp_clk_register_pll(char *name,
 			unsigned long input_rate,
 			void __iomem *postdiv_reg, u8 postdiv_shift)
 {
+	struct clk_init_data init = {};
 	struct mmp_clk_pll *pll;
 	struct clk *clk;
-	struct clk_init_data init;
 
 	pll = kzalloc_obj(*pll);
 	if (!pll)

@@ -170,7 +170,7 @@ at91_clk_register_main_osc(struct regmap *regmap,
 	init.name = name;
 	init.ops = &main_osc_ops;
 	if (parent_data)
-		init.parent_data = (const struct clk_parent_data *)parent_data;
+		init.parent_data = parent_data;
 	else
 		init.parent_names = &parent_name;
 	init.num_parents = 1;
@@ -298,8 +298,8 @@ at91_clk_register_main_rc_osc(struct regmap *regmap,
 			      const char *name,
 			      u32 frequency, u32 accuracy)
 {
+	struct clk_init_data init = {};
 	struct clk_main_rc_osc *osc;
-	struct clk_init_data init;
 	struct clk_hw *hw;
 	int ret;
 

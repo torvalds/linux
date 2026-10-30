@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config COMMON_CLK_DAVINCI
+	bool "Clock drivers for TI DaVinci SoCs"
+	depends on ARCH_DAVINCI || COMPILE_TEST
+	depends on HAS_IOMEM
+	select REGMAP_MMIO
+	select RESET_CONTROLLER
+	default ARCH_DAVINCI
+	help
+	  Support for the clock controllers found on TI DaVinci SoCs.

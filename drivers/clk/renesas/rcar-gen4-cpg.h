@@ -58,8 +58,15 @@ enum rcar_gen4_clk_types {
 #define DEF_GEN4_PLL_V9_24(_name, _idx, _id, _parent)	\
 	DEF_BASE(_name, _id, CLK_TYPE_GEN4_PLL_V9_24, _parent, .offset = _idx)
 
-#define DEF_GEN4_Z(_name, _id, _type, _parent, _div, _offset)	\
-	DEF_BASE(_name, _id, _type, _parent, .div = _div, .offset = _offset)
+/*
+ * offset 0xAAABB
+ * AAA : reg
+ * BB  : pos
+ */
+#define FRQCR_offset	8
+#define DEF_GEN4_Z(_name, _id, _parent, _div, reg, pos)	\
+	DEF_BASE(_name, _id, CLK_TYPE_GEN4_Z, _parent, .div = _div,	\
+		 .offset = ((reg) << FRQCR_offset) | (pos))
 
 struct rcar_gen4_cpg_pll_config {
 	u8 extal_div;
@@ -70,6 +77,9 @@ struct rcar_gen4_cpg_pll_config {
 	u8 osc_prediv;
 };
 
+#define CPG_FRQCRB	0x804	/* Frequency Control Register B */
+#define CPG_FRQCRC0	0x808	/* Frequency Control Register C0 */
+#define CPG_FRQCRC1	0x8e0	/* Frequency Control Register C1 */
 #define CPG_SD0CKCR	0x870	/* SD-IF0 Clock Frequency Control Register */
 #define CPG_CANFDCKCR	0x878	/* CAN-FD Clock Frequency Control Register */
 #define CPG_MSOCKCR	0x87c	/* MSIOF Clock Frequency Control Register */

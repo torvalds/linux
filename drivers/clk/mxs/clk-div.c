@@ -70,9 +70,9 @@ static const struct clk_ops clk_div_ops = {
 struct clk *mxs_clk_div(const char *name, const char *parent_name,
 			void __iomem *reg, u8 shift, u8 width, u8 busy)
 {
+	struct clk_init_data init = {};
 	struct clk_div *div;
 	struct clk *clk;
-	struct clk_init_data init;
 
 	div = kzalloc_obj(*div);
 	if (!div)

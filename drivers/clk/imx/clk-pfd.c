@@ -127,9 +127,9 @@ static const struct clk_ops clk_pfd_ops = {
 struct clk_hw *imx_clk_hw_pfd(const char *name, const char *parent_name,
 			void __iomem *reg, u8 idx)
 {
+	struct clk_init_data init = {};
 	struct clk_pfd *pfd;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	pfd = kzalloc_obj(*pfd);

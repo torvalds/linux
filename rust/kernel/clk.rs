@@ -35,16 +35,31 @@ impl Hertz {
     const GHZ_TO_HZ: c_ulong = 1_000_000_000;
 
     /// Create a new instance from kilohertz (kHz)
+    ///
+    /// # Panics
+    ///
+    /// Panics if `CONFIG_RUST_OVERFLOW_CHECKS` is enabled and `khz` is greater
+    /// than `c_ulong::MAX / 1_000`.
     pub const fn from_khz(khz: c_ulong) -> Self {
         Self(khz * Self::KHZ_TO_HZ)
     }
 
     /// Create a new instance from megahertz (MHz)
+    ///
+    /// # Panics
+    ///
+    /// Panics if `CONFIG_RUST_OVERFLOW_CHECKS` is enabled and `mhz` is greater
+    /// than `c_ulong::MAX / 1_000_000`.
     pub const fn from_mhz(mhz: c_ulong) -> Self {
         Self(mhz * Self::MHZ_TO_HZ)
     }
 
     /// Create a new instance from gigahertz (GHz)
+    ///
+    /// # Panics
+    ///
+    /// Panics if `CONFIG_RUST_OVERFLOW_CHECKS` is enabled and `ghz` is greater
+    /// than `c_ulong::MAX / 1_000_000_000`.
     pub const fn from_ghz(ghz: c_ulong) -> Self {
         Self(ghz * Self::GHZ_TO_HZ)
     }

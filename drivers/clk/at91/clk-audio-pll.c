@@ -486,8 +486,8 @@ struct clk_hw * __init
 at91_clk_register_audio_pll_pad(struct regmap *regmap, const char *name,
 				const char *parent_name)
 {
+	struct clk_init_data init = {};
 	struct clk_audio_pad *apad_ck;
-	struct clk_init_data init;
 	int ret;
 
 	apad_ck = kzalloc_obj(*apad_ck);
@@ -517,8 +517,8 @@ struct clk_hw * __init
 at91_clk_register_audio_pll_pmc(struct regmap *regmap, const char *name,
 				const char *parent_name)
 {
+	struct clk_init_data init = {};
 	struct clk_audio_pmc *apmc_ck;
-	struct clk_init_data init;
 	int ret;
 
 	apmc_ck = kzalloc_obj(*apmc_ck);

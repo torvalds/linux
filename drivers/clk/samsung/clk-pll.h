@@ -53,6 +53,7 @@ enum samsung_pll_type {
 	pll_1031x,
 	pll_a9fracm,
 	pll_a9fraco,
+	pll_309,
 };
 
 #define PLL_RATE(_fin, _m, _p, _s, _k, _ks) \

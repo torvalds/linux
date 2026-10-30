@@ -114,9 +114,9 @@ static const struct clk_ops clk_pllv1_ops = {
 struct clk_hw *imx_clk_hw_pllv1(enum imx_pllv1_type type, const char *name,
 		const char *parent, void __iomem *base)
 {
+	struct clk_init_data init = {};
 	struct clk_pllv1 *pll;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	pll = kmalloc_obj(*pll);

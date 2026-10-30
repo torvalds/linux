@@ -824,7 +824,7 @@ static struct clk_hw *ast2700_clk_hw_register_gate(struct device *dev, const cha
 						   void __iomem *reg, u8 clock_idx,
 						   unsigned long flags, spinlock_t *lock)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_gate *gate;
 	struct clk_hw *hw;
 	int ret = -EINVAL;

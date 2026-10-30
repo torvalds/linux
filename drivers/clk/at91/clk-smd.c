@@ -113,9 +113,9 @@ struct clk_hw * __init
 at91sam9x5_clk_register_smd(struct regmap *regmap, const char *name,
 			    const char **parent_names, u8 num_parents)
 {
+	struct clk_init_data init = {};
 	struct at91sam9x5_clk_smd *smd;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	smd = kzalloc_obj(*smd);

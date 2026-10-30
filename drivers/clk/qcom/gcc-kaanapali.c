@@ -3502,6 +3502,7 @@ static const struct qcom_cc_desc gcc_kaanapali_desc = {
 	.num_resets = ARRAY_SIZE(gcc_kaanapali_resets),
 	.gdscs = gcc_kaanapali_gdscs,
 	.num_gdscs = ARRAY_SIZE(gcc_kaanapali_gdscs),
+	.use_rpm = true,
 	.driver_data = &gcc_kaanapali_driver_data,
 };
 
@@ -3524,17 +3525,7 @@ static struct platform_driver gcc_kaanapali_driver = {
 	},
 };
 
-static int __init gcc_kaanapali_init(void)
-{
-	return platform_driver_register(&gcc_kaanapali_driver);
-}
-subsys_initcall(gcc_kaanapali_init);
-
-static void __exit gcc_kaanapali_exit(void)
-{
-	platform_driver_unregister(&gcc_kaanapali_driver);
-}
-module_exit(gcc_kaanapali_exit);
+subsys_platform_driver(gcc_kaanapali_driver);
 
 MODULE_DESCRIPTION("QTI GCC Kaanapali Driver");
 MODULE_LICENSE("GPL");

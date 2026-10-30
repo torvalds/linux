@@ -122,7 +122,7 @@ static struct clk *clk_register_pll(struct device *dev,
 			const char *parent_name,
 			struct clk_pll_data *pll_data)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_pll *pll;
 	struct clk *clk;
 

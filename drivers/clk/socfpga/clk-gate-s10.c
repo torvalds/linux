@@ -128,7 +128,7 @@ struct clk_hw *s10_register_gate(const struct stratix10_gate_clock *clks, void _
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_gate_clk *socfpga_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *parent_name = clks->parent_name;
 	int ret;
 
@@ -186,7 +186,7 @@ struct clk_hw *agilex_register_gate(const struct stratix10_gate_clock *clks, voi
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_gate_clk *socfpga_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *parent_name = clks->parent_name;
 	int ret;
 
@@ -244,7 +244,7 @@ struct clk_hw *agilex5_register_gate(const struct agilex5_gate_clock *clks, void
 {
 	struct clk_hw *hw_clk;
 	struct socfpga_gate_clk *socfpga_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	socfpga_clk = kzalloc_obj(*socfpga_clk);

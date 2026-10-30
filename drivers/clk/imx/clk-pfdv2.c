@@ -203,7 +203,7 @@ static const struct clk_ops clk_pfdv2_ops = {
 struct clk_hw *imx_clk_hw_pfdv2(enum imx_pfdv2_type type, const char *name,
 			     const char *parent_name, void __iomem *reg, u8 idx)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_pfdv2 *pfd;
 	struct clk_hw *hw;
 	int ret;

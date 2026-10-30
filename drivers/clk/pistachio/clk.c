@@ -17,28 +17,21 @@ pistachio_clk_alloc_provider(struct device_node *node, unsigned int num_clks)
 {
 	struct pistachio_clk_provider *p;
 
-	p = kzalloc_obj(*p);
+	p = kzalloc_flex(*p, clks, num_clks);
 	if (!p)
 		return p;
 
-	p->clk_data.clks = kzalloc_objs(struct clk *, num_clks);
-	if (!p->clk_data.clks)
-		goto free_provider;
+	p->clk_data.clks = p->clks;
 	p->clk_data.clk_num = num_clks;
 	p->node = node;
 	p->base = of_iomap(node, 0);
 	if (!p->base) {
 		pr_err("Failed to map clock provider registers\n");
-		goto free_clks;
+		kfree(p);
+		return NULL;
 	}
 
 	return p;
-
-free_clks:
-	kfree(p->clk_data.clks);
-free_provider:
-	kfree(p);
-	return NULL;
 }
 
 void pistachio_clk_register_provider(struct pistachio_clk_provider *p)

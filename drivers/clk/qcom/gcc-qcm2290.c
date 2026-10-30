@@ -2923,17 +2923,7 @@ static struct platform_driver gcc_qcm2290_driver = {
 	},
 };
 
-static int __init gcc_qcm2290_init(void)
-{
-	return platform_driver_register(&gcc_qcm2290_driver);
-}
-subsys_initcall(gcc_qcm2290_init);
-
-static void __exit gcc_qcm2290_exit(void)
-{
-	platform_driver_unregister(&gcc_qcm2290_driver);
-}
-module_exit(gcc_qcm2290_exit);
+subsys_platform_driver(gcc_qcm2290_driver);
 
 MODULE_DESCRIPTION("QTI GCC QCM2290 Driver");
 MODULE_LICENSE("GPL v2");

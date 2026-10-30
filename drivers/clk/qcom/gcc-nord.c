@@ -1862,17 +1862,7 @@ static struct platform_driver gcc_nord_driver = {
 	},
 };
 
-static int __init gcc_nord_init(void)
-{
-	return platform_driver_register(&gcc_nord_driver);
-}
-subsys_initcall(gcc_nord_init);
-
-static void __exit gcc_nord_exit(void)
-{
-	platform_driver_unregister(&gcc_nord_driver);
-}
-module_exit(gcc_nord_exit);
+subsys_platform_driver(gcc_nord_driver);
 
 MODULE_DESCRIPTION("QTI GCC NORD Driver");
 MODULE_LICENSE("GPL");

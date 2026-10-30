@@ -135,8 +135,8 @@ struct clk *tegra_clk_register_super_cclk(const char *name,
 		spinlock_t *lock)
 {
 	struct tegra_clk_super_mux *super;
+	struct clk_init_data init = {};
 	struct clk *clk;
-	struct clk_init_data init;
 	u32 val;
 
 	if (WARN_ON(cclk_super))

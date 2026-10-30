@@ -3526,7 +3526,7 @@ static const struct clk_assigned_rates_test_param clk_assigned_sscs_skips_test_p
 		 */
 		.desc = "provider missing assigned-clocks",
 		TEST_PARAM_OVERLAY(kunit_clk_assigned_sscs_without),
-		.sscs = {50000, 60000, 3},
+		.sscs = {50000, 600, 3},
 	},
 	{
 		/*
@@ -3535,7 +3535,7 @@ static const struct clk_assigned_rates_test_param clk_assigned_sscs_skips_test_p
 		 */
 		.desc = "consumer missing assigned-clocks",
 		TEST_PARAM_OVERLAY(kunit_clk_assigned_sscs_without_consumer),
-		.sscs = {50000, 60000, 3},
+		.sscs = {50000, 600, 3},
 		.consumer_test = true,
 	},
 	{
@@ -3545,7 +3545,7 @@ static const struct clk_assigned_rates_test_param clk_assigned_sscs_skips_test_p
 		 */
 		.desc = "provider assigned-clock-sscs of zero",
 		TEST_PARAM_OVERLAY(kunit_clk_assigned_sscs_zero),
-		.sscs = {50000, 60000, 3},
+		.sscs = {50000, 600, 3},
 	},
 	{
 		/*
@@ -3554,7 +3554,7 @@ static const struct clk_assigned_rates_test_param clk_assigned_sscs_skips_test_p
 		 */
 		.desc = "consumer assigned-clock-sscs of zero",
 		TEST_PARAM_OVERLAY(kunit_clk_assigned_sscs_zero_consumer),
-		.sscs = {50000, 60000, 3},
+		.sscs = {50000, 600, 3},
 		.consumer_test = true,
 	},
 	{
@@ -3564,7 +3564,7 @@ static const struct clk_assigned_rates_test_param clk_assigned_sscs_skips_test_p
 		 */
 		.desc = "provider assigned-clocks null phandle",
 		TEST_PARAM_OVERLAY(kunit_clk_assigned_sscs_null),
-		.sscs = {50000, 60000, 3},
+		.sscs = {50000, 600, 3},
 	},
 	{
 		/*
@@ -3573,7 +3573,7 @@ static const struct clk_assigned_rates_test_param clk_assigned_sscs_skips_test_p
 		 */
 		.desc = "consumer assigned-clocks null phandle",
 		TEST_PARAM_OVERLAY(kunit_clk_assigned_sscs_null_consumer),
-		.sscs = {50000, 60000, 3},
+		.sscs = {50000, 600, 3},
 		.consumer_test = true,
 	},
 };
@@ -3738,11 +3738,149 @@ static struct kunit_suite clk_hw_get_dev_of_node_test_suite = {
 	.test_cases = clk_hw_get_dev_of_node_test_cases,
 };
 
+static const struct clk_init_data clk_parse_clkspec_1_init_data = {
+	.name = "clk_parse_clkspec_1",
+	.ops = &empty_clk_ops,
+};
+
+static const struct clk_init_data clk_parse_clkspec_2_init_data = {
+	.name = "clk_parse_clkspec_2",
+	.ops = &empty_clk_ops,
+};
+
+struct clk_parse_clkspec_ctx {
+	struct device_node *cons_np;
+};
+
+static int clk_parse_clkspec_init(struct kunit *test)
+{
+	struct device_node *prov1_np, *prov2_np;
+	struct clk_parse_clkspec_ctx *ctx;
+	struct clk_hw *hw1, *hw2;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	test->priv = ctx;
+
+	KUNIT_ASSERT_EQ(test, 0, of_overlay_apply_kunit(test, kunit_clk_parse_clkspec));
+
+	/* Register provider 1 */
+	hw1 = kunit_kzalloc(test, sizeof(*hw1), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw1);
+	hw1->init = &clk_parse_clkspec_1_init_data;
+
+	prov1_np = of_find_compatible_node(NULL, NULL, "test,clock-provider1");
+	KUNIT_ASSERT_NOT_NULL(test, prov1_np);
+	of_node_put_kunit(test, prov1_np);
+
+	KUNIT_ASSERT_EQ(test, 0, of_clk_hw_register_kunit(test, prov1_np, hw1));
+	KUNIT_ASSERT_EQ(test, 0, of_clk_add_hw_provider_kunit(test, prov1_np, of_clk_hw_simple_get, hw1));
+
+	/* Register provider 2 */
+	hw2 = kunit_kzalloc(test, sizeof(*hw2), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw2);
+	hw2->init = &clk_parse_clkspec_2_init_data;
+
+	prov2_np = of_find_compatible_node(NULL, NULL, "test,clock-provider2");
+	KUNIT_ASSERT_NOT_NULL(test, prov2_np);
+	of_node_put_kunit(test, prov2_np);
+
+	KUNIT_ASSERT_EQ(test, 0, of_clk_hw_register_kunit(test, prov2_np, hw2));
+	KUNIT_ASSERT_EQ(test, 0, of_clk_add_hw_provider_kunit(test, prov2_np, of_clk_hw_simple_get, hw2));
+
+	ctx->cons_np = of_find_compatible_node(NULL, NULL, "test,clock-consumer");
+	KUNIT_ASSERT_NOT_NULL(test, ctx->cons_np);
+	of_node_put_kunit(test, ctx->cons_np);
+
+	return 0;
+}
+
+/* Test DT phandle lookups using correct index or name succeed */
+static void clk_parse_clkspec_with_correct_index_and_name(struct kunit *test)
+{
+	struct clk_parse_clkspec_ctx *ctx = test->priv;
+	struct clk_hw *hw1, *hw2, *hw3, *hw4;
+
+	/* Get clocks by index */
+	hw1 = of_clk_get_hw(ctx->cons_np, 0, NULL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, hw1);
+
+	hw2 = of_clk_get_hw(ctx->cons_np, 1, NULL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, hw2);
+	KUNIT_EXPECT_PTR_NE(test, hw1, hw2);
+
+	/* Get clocks by name */
+	hw3 = of_clk_get_hw(ctx->cons_np, 0, "first_clock");
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, hw3);
+	KUNIT_EXPECT_PTR_EQ(test, hw1, hw3);
+
+	hw4 = of_clk_get_hw(ctx->cons_np, 0, "second_clock");
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, hw4);
+	KUNIT_EXPECT_PTR_EQ(test, hw2, hw4);
+}
+
+/* Test DT phandle lookups using wrong index or name fail */
+static void clk_parse_clkspec_with_incorrect_index_and_name(struct kunit *test)
+{
+	struct clk_parse_clkspec_ctx *ctx = test->priv;
+	struct clk_hw *hw;
+
+	/* Get clock by index */
+	hw = of_clk_get_hw(ctx->cons_np, 2, NULL);
+	KUNIT_EXPECT_TRUE(test, IS_ERR(hw));
+
+	/* Get clock by name */
+	hw = of_clk_get_hw(ctx->cons_np, 0, "third_clock");
+	KUNIT_EXPECT_TRUE(test, IS_ERR(hw));
+}
+
+/*
+ * Verify that of_clk_get_parent_name() returns the correct clock name when
+ * looking up by index through the consumer's clocks property.
+ */
+static void of_clk_get_parent_name_gets_parent_name(struct kunit *test)
+{
+	struct clk_parse_clkspec_ctx *ctx = test->priv;
+	const char *expected_name = "clk_parse_clkspec_1";
+
+	KUNIT_EXPECT_STREQ(test, expected_name,
+			   of_clk_get_parent_name(ctx->cons_np, 0));
+}
+
+static void of_clk_get_hw_maps_thru_nexus(struct kunit *test)
+{
+	struct clk_parse_clkspec_ctx *ctx = test->priv;
+	struct clk_hw *expected;
+	struct device_node *np;
+
+	np = clk_of_find_node_by_name_kunit(test, NULL, "kunit-clock-nexus-child");
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, np);
+	expected = of_clk_get_hw(ctx->cons_np, 1, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, expected);
+
+	KUNIT_EXPECT_PTR_EQ(test, expected, of_clk_get_hw(np, 0, NULL));
+}
+
+static struct kunit_case clk_parse_clkspec_test_cases[] = {
+	KUNIT_CASE(clk_parse_clkspec_with_correct_index_and_name),
+	KUNIT_CASE(clk_parse_clkspec_with_incorrect_index_and_name),
+	KUNIT_CASE(of_clk_get_parent_name_gets_parent_name),
+	KUNIT_CASE(of_clk_get_hw_maps_thru_nexus),
+	{}
+};
+
+/* Test suite to verify clk_parse_clkspec() */
+static struct kunit_suite clk_parse_clkspec_test_suite = {
+	.name = "clk_parse_clkspec",
+	.init = clk_parse_clkspec_init,
+	.test_cases = clk_parse_clkspec_test_cases,
+};
 
 kunit_test_suites(
 	&clk_assigned_rates_suite,
 	&clk_assigned_sscs_suite,
 	&clk_hw_get_dev_of_node_test_suite,
+	&clk_parse_clkspec_test_suite,
 	&clk_leaf_mux_set_rate_parent_test_suite,
 	&clk_test_suite,
 	&clk_multiple_parents_mux_test_suite,
@@ -3760,4 +3898,5 @@ kunit_test_suites(
 	&clk_uncached_test_suite,
 );
 MODULE_DESCRIPTION("Kunit tests for clk framework");
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 MODULE_LICENSE("GPL v2");

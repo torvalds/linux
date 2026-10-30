@@ -445,8 +445,8 @@ static const struct regmap_config si544_regmap_config = {
 
 static int si544_probe(struct i2c_client *client)
 {
+	struct clk_init_data init = {};
 	struct clk_si544 *data;
-	struct clk_init_data init;
 	int err;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);

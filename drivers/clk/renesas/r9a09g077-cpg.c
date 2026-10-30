@@ -7,6 +7,8 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/bits.h>
+#include <linux/cleanup.h>
 #include <linux/clk-provider.h>
 #include <linux/clk/renesas.h>
 #include <linux/device.h>
@@ -15,7 +17,11 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/math.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
+#include <linux/regmap.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/units.h>
 
@@ -86,6 +92,20 @@ MODULE_IMPORT_NS("RZV2H_CPG");
 #define CPG_PLL3_VCO_CTR1_SDIV	GENMASK(2, 0)
 #define CPG_PLL_MON(x)		((x) - 0x10)
 #define CPG_PLL_MON_LOCK	BIT(0)
+
+/* Size of each mapped CPG/MSSR register region (base0, base1) */
+#define RZT2H_CPG_REG_SIZE		0x20000
+/* This is the size of two SYSC regions combined */
+#define RZT2H_SYSC_SIZE			0x20000
+#define RZT2H_SYSC_OFFSET		0x10000
+#define RZT2H_SYSC_BLOCK_MASK		BIT(16)
+#define RZT2H_SYSC_OFFSET_MASK		GENMASK(15, 0)
+#define RZT2H_SYSC_BLOCK(x)		FIELD_GET(RZT2H_SYSC_BLOCK_MASK, x)
+#define RZT2H_SYSC_REG_OFFSET(x)	FIELD_GET(RZT2H_SYSC_OFFSET_MASK, x)
+
+struct r9a09g077_sysc_reg {
+	void __iomem *base[2];
+};
 
 enum rzt2h_clk_types {
 	CLK_TYPE_RZT2H_DIV = CLK_TYPE_CUSTOM,	/* Clock with divider */
@@ -875,6 +895,126 @@ r9a09g077_cpg_clk_register(struct device *dev, const struct cpg_core_clk *core,
 	}
 }
 
+static int r9a09g077_regmap_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct r9a09g077_sysc_reg *sysc = context;
+	void __iomem *base = sysc->base[RZT2H_SYSC_BLOCK(reg)];
+
+	*val = readl(base + RZT2H_SYSC_REG_OFFSET(reg));
+
+	return 0;
+}
+
+static int r9a09g077_regmap_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct r9a09g077_sysc_reg *sysc = context;
+	void __iomem *base = sysc->base[RZT2H_SYSC_BLOCK(reg)];
+
+	writel(val, base + RZT2H_SYSC_REG_OFFSET(reg));
+
+	return 0;
+}
+
+static const struct regmap_bus r9a09g077_sys_regmap_bus = {
+	.reg_write = r9a09g077_regmap_write,
+	.reg_read = r9a09g077_regmap_read,
+};
+
+static bool r9a09g077_writeable_readable_sysc(struct device *dev, unsigned int reg)
+{
+	unsigned int offset = RZT2H_SYSC_REG_OFFSET(reg);
+
+	switch (RZT2H_SYSC_BLOCK(reg)) {
+	case 0:
+		switch (offset) {
+		/* ELOPA/B and GTIOCSEL */
+		case 0x0000 ... 0x0008:
+		/* Encoder config */
+		case 0x1000 ... 0x1164:
+		/* PCIe config */
+		case 0x2000 ... 0x2024:
+		case 0x2030 ... 0x2054:
+		case 0x2060:
+		/* xSPI config */
+		case 0x3000 ... 0x300C:
+		case 0x3100 ... 0x310C:
+		/* MD_MON */
+		case 0x4100:
+		/* PRCRN */
+		case 0x4200:
+			return true;
+
+		default:
+			return false;
+		}
+	case 1:
+		switch (offset) {
+		/* WDTDCRm */
+		case 0x5100 ... 0x5114:
+		/* PRCRS */
+		case 0x6000:
+			return true;
+
+		default:
+			return false;
+		}
+	default:
+		return false;
+	}
+}
+
+static int r9a09g077_post_init(struct device *dev, struct cpg_mssr_pub *pub)
+{
+	struct regmap_config *regmap_cfg __free(kfree) = kzalloc_obj(*regmap_cfg);
+	struct r9a09g077_sysc_reg *sysc_reg;
+	struct regmap *regmap;
+	struct resource res;
+	int ret;
+
+	/*
+	 * Return early if the SYSC sizes are not as expected, for backwards
+	 * compatibility with older device trees that only expose the 64 KiB
+	 * CPG register window.
+	 */
+	ret = of_address_to_resource(dev->of_node, 0, &res);
+	if (ret)
+		return ret;
+	if (resource_size(&res) != RZT2H_CPG_REG_SIZE)
+		return 0;
+
+	ret = of_address_to_resource(dev->of_node, 1, &res);
+	if (ret)
+		return ret;
+	if (resource_size(&res) != RZT2H_CPG_REG_SIZE)
+		return 0;
+
+	if (!regmap_cfg)
+		return -ENOMEM;
+
+	sysc_reg = devm_kzalloc(dev, sizeof(*sysc_reg), GFP_KERNEL);
+	if (!sysc_reg)
+		return -ENOMEM;
+
+	/* Only allow access in the SYSC regions */
+	sysc_reg->base[0] = pub->base0 + RZT2H_SYSC_OFFSET;
+	sysc_reg->base[1] = pub->base1 + RZT2H_SYSC_OFFSET;
+
+	regmap_cfg->name = "rzt2h_sysc";
+	regmap_cfg->reg_bits = 32;
+	regmap_cfg->reg_stride = 4;
+	regmap_cfg->val_bits = 32;
+	regmap_cfg->fast_io = true;
+	regmap_cfg->max_register = RZT2H_SYSC_SIZE - 1;
+	regmap_cfg->readable_reg = r9a09g077_writeable_readable_sysc;
+	regmap_cfg->writeable_reg = r9a09g077_writeable_readable_sysc;
+
+	regmap = devm_regmap_init(dev, &r9a09g077_sys_regmap_bus, sysc_reg, regmap_cfg);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	return of_syscon_register_regmap(dev->of_node, regmap);
+}
+
 const struct cpg_mssr_info r9a09g077_cpg_mssr_info = {
 	/* Core Clocks */
 	.core_clks = r9a09g077_core_clks,
@@ -889,4 +1029,6 @@ const struct cpg_mssr_info r9a09g077_cpg_mssr_info = {
 
 	.reg_layout = CLK_REG_LAYOUT_RZ_T2H,
 	.cpg_clk_register = r9a09g077_cpg_clk_register,
+
+	.post_init = r9a09g077_post_init,
 };

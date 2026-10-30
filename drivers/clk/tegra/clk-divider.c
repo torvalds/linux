@@ -145,8 +145,8 @@ struct clk *tegra_clk_register_divider(const char *name,
 		u8 frac_width, spinlock_t *lock)
 {
 	struct tegra_clk_frac_div *divider;
+	struct clk_init_data init = {};
 	struct clk *clk;
-	struct clk_init_data init;
 
 	divider = kzalloc_obj(*divider);
 	if (!divider) {

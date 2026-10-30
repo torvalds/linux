@@ -90,8 +90,8 @@ struct clk_hw *imx_clk_hw_fixup_divider(const char *name, const char *parent,
 				  void (*fixup)(u32 *val))
 {
 	struct clk_fixup_div *fixup_div;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	if (!fixup)

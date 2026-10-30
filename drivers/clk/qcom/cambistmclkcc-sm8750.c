@@ -413,11 +413,18 @@ static const struct regmap_config cam_bist_mclk_cc_sm8750_regmap_config = {
 	.fast_io = true,
 };
 
+static void cam_bist_mclk_cc_sm8750_regs_configure(struct device *dev, struct regmap *regmap)
+{
+	regmap_write(regmap, 0x18, 0); /* CAM_BIST_MCLK_CC_PLL0_USER_CTL_U */
+	regmap_write(regmap, 0x28, 0); /* CAM_BIST_MCLK_CC_PLL0_CONFIG_CTL_U2 */
+}
+
 static const struct qcom_cc_driver_data cam_bist_mclk_cc_sm8750_driver_data = {
 	.alpha_plls = cam_bist_mclk_cc_sm8750_plls,
 	.num_alpha_plls = ARRAY_SIZE(cam_bist_mclk_cc_sm8750_plls),
 	.clk_cbcrs = cam_bist_mclk_cc_sm8750_critical_cbcrs,
 	.num_clk_cbcrs = ARRAY_SIZE(cam_bist_mclk_cc_sm8750_critical_cbcrs),
+	.clk_regs_configure = cam_bist_mclk_cc_sm8750_regs_configure,
 };
 
 static const struct qcom_cc_desc cam_bist_mclk_cc_sm8750_desc = {

@@ -6049,7 +6049,7 @@ static struct clk_branch gcc_usb4_0_sb_if_clk = {
 
 static struct clk_branch gcc_usb4_0_sys_clk = {
 	.halt_reg = 0x9f054,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x9f054,
 		.enable_mask = BIT(0),
@@ -6266,7 +6266,7 @@ static struct clk_branch gcc_usb4_1_sb_if_clk = {
 
 static struct clk_branch gcc_usb4_1_sys_clk = {
 	.halt_reg = 0x2b054,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x2b054,
 		.enable_mask = BIT(0),
@@ -6483,7 +6483,7 @@ static struct clk_branch gcc_usb4_2_sb_if_clk = {
 
 static struct clk_branch gcc_usb4_2_sys_clk = {
 	.halt_reg = 0x11054,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x11054,
 		.enable_mask = BIT(0),
@@ -7441,7 +7441,37 @@ static const struct regmap_config gcc_x1e80100_regmap_config = {
 	.fast_io = true,
 };
 
+static const u32 gcc_x1e80100_critical_cbcrs[] = {
+	0x26004, /* GCC_CAMERA_AHB_CLK */
+	0x26028, /* GCC_CAMERA_XO_CLK */
+	0x27004, /* GCC_DISP_AHB_CLK */
+	0x27018, /* GCC_DISP_XO_CLK */
+	0x32004, /* GCC_VIDEO_AHB_CLK */
+	0x32030, /* GCC_VIDEO_XO_CLK */
+	0x71004, /* GCC_GPU_CFG_AHB_CLK */
+	0x7d01c, /* GCC_HLOS1_VOTE_AGGRE_NOC_MMU_USB_QTB_CLK */
+};
+
+static void gcc_x1e80100_regs_configure(struct device *dev, struct regmap *regmap)
+{
+	/* Clear GDSC_SLEEP_ENA_VOTE to stop votes being auto-removed in sleep. */
+	regmap_write(regmap, 0x52224, 0x0);
+
+	/* FORCE_MEM_CORE_ON for ufs phy ice core and gcc ufs phy axi clocks */
+	qcom_branch_set_force_mem_core(regmap, gcc_ufs_phy_ice_core_clk, true);
+	qcom_branch_set_force_mem_core(regmap, gcc_ufs_phy_axi_clk, true);
+}
+
+static const struct qcom_cc_driver_data gcc_x1e80100_driver_data = {
+	.clk_cbcrs = gcc_x1e80100_critical_cbcrs,
+	.num_clk_cbcrs = ARRAY_SIZE(gcc_x1e80100_critical_cbcrs),
+	.dfs_rcgs = gcc_dfs_clocks,
+	.num_dfs_rcgs = ARRAY_SIZE(gcc_dfs_clocks),
+	.clk_regs_configure = gcc_x1e80100_regs_configure,
+};
+
 static const struct qcom_cc_desc gcc_x1e80100_desc = {
+	.driver_data = &gcc_x1e80100_driver_data,
 	.config = &gcc_x1e80100_regmap_config,
 	.clks = gcc_x1e80100_clocks,
 	.num_clks = ARRAY_SIZE(gcc_x1e80100_clocks),
@@ -7449,6 +7479,7 @@ static const struct qcom_cc_desc gcc_x1e80100_desc = {
 	.num_resets = ARRAY_SIZE(gcc_x1e80100_resets),
 	.gdscs = gcc_x1e80100_gdscs,
 	.num_gdscs = ARRAY_SIZE(gcc_x1e80100_gdscs),
+	.use_rpm = true,
 };
 
 static const struct of_device_id gcc_x1e80100_match_table[] = {
@@ -7459,36 +7490,7 @@ MODULE_DEVICE_TABLE(of, gcc_x1e80100_match_table);
 
 static int gcc_x1e80100_probe(struct platform_device *pdev)
 {
-	struct regmap *regmap;
-	int ret;
-
-	regmap = qcom_cc_map(pdev, &gcc_x1e80100_desc);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
-
-	ret = qcom_cc_register_rcg_dfs(regmap, gcc_dfs_clocks,
-				       ARRAY_SIZE(gcc_dfs_clocks));
-	if (ret)
-		return ret;
-
-	/* Keep some clocks always-on */
-	qcom_branch_set_clk_en(regmap, 0x26004); /* GCC_CAMERA_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x26028); /* GCC_CAMERA_XO_CLK */
-	qcom_branch_set_clk_en(regmap, 0x27004); /* GCC_DISP_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x27018); /* GCC_DISP_XO_CLK */
-	qcom_branch_set_clk_en(regmap, 0x32004); /* GCC_VIDEO_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x32030); /* GCC_VIDEO_XO_CLK */
-	qcom_branch_set_clk_en(regmap, 0x71004); /* GCC_GPU_CFG_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x7d01c); /* GCC_HLOS1_VOTE_AGGRE_NOC_MMU_USB_QTB_CLK */
-
-	/* Clear GDSC_SLEEP_ENA_VOTE to stop votes being auto-removed in sleep. */
-	regmap_write(regmap, 0x52224, 0x0);
-
-	/* FORCE_MEM_CORE_ON for ufs phy ice core and gcc ufs phy axi clocks  */
-	qcom_branch_set_force_mem_core(regmap, gcc_ufs_phy_ice_core_clk, true);
-	qcom_branch_set_force_mem_core(regmap, gcc_ufs_phy_axi_clk, true);
-
-	return qcom_cc_really_probe(&pdev->dev, &gcc_x1e80100_desc, regmap);
+	return qcom_cc_probe(pdev, &gcc_x1e80100_desc);
 }
 
 static struct platform_driver gcc_x1e80100_driver = {
@@ -7499,17 +7501,7 @@ static struct platform_driver gcc_x1e80100_driver = {
 	},
 };
 
-static int __init gcc_x1e80100_init(void)
-{
-	return platform_driver_register(&gcc_x1e80100_driver);
-}
-subsys_initcall(gcc_x1e80100_init);
-
-static void __exit gcc_x1e80100_exit(void)
-{
-	platform_driver_unregister(&gcc_x1e80100_driver);
-}
-module_exit(gcc_x1e80100_exit);
+subsys_platform_driver(gcc_x1e80100_driver);
 
 MODULE_DESCRIPTION("QTI GCC X1E80100 Driver");
 MODULE_LICENSE("GPL");

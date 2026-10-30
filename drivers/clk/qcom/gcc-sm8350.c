@@ -3779,7 +3779,32 @@ static const struct regmap_config gcc_sm8350_regmap_config = {
 	.fast_io = true,
 };
 
+static const u32 gcc_sm8350_critical_cbcrs[] = {
+	0x26004, /* GCC_CAMERA_AHB_CLK */
+	0x26018, /* GCC_CAMERA_XO_CLK */
+	0x27004, /* GCC_DISP_AHB_CLK */
+	0x2701c, /* GCC_DISP_XO_CLK */
+	0x71004, /* GCC_GPU_CFG_AHB_CLK */
+	0x28004, /* GCC_VIDEO_AHB_CLK */
+	0x28020, /* GCC_VIDEO_XO_CLK */
+};
+
+static void gcc_sm8350_regs_configure(struct device *dev, struct regmap *regmap)
+{
+	/* FORCE_MEM_CORE_ON for ufs phy ice core clocks */
+	regmap_update_bits(regmap, gcc_ufs_phy_ice_core_clk.halt_reg, BIT(14), BIT(14));
+}
+
+static const struct qcom_cc_driver_data gcc_sm8350_driver_data = {
+	.clk_cbcrs = gcc_sm8350_critical_cbcrs,
+	.num_clk_cbcrs = ARRAY_SIZE(gcc_sm8350_critical_cbcrs),
+	.dfs_rcgs = gcc_dfs_clocks,
+	.num_dfs_rcgs = ARRAY_SIZE(gcc_dfs_clocks),
+	.clk_regs_configure = gcc_sm8350_regs_configure,
+};
+
 static const struct qcom_cc_desc gcc_sm8350_desc = {
+	.driver_data = &gcc_sm8350_driver_data,
 	.config = &gcc_sm8350_regmap_config,
 	.clks = gcc_sm8350_clocks,
 	.num_clks = ARRAY_SIZE(gcc_sm8350_clocks),
@@ -3787,6 +3812,7 @@ static const struct qcom_cc_desc gcc_sm8350_desc = {
 	.num_resets = ARRAY_SIZE(gcc_sm8350_resets),
 	.gdscs = gcc_sm8350_gdscs,
 	.num_gdscs = ARRAY_SIZE(gcc_sm8350_gdscs),
+	.use_rpm = true,
 };
 
 static const struct of_device_id gcc_sm8350_match_table[] = {
@@ -3797,32 +3823,7 @@ MODULE_DEVICE_TABLE(of, gcc_sm8350_match_table);
 
 static int gcc_sm8350_probe(struct platform_device *pdev)
 {
-	struct regmap *regmap;
-	int ret;
-
-	regmap = qcom_cc_map(pdev, &gcc_sm8350_desc);
-	if (IS_ERR(regmap)) {
-		dev_err(&pdev->dev, "Failed to map gcc registers\n");
-		return PTR_ERR(regmap);
-	}
-
-	/* Keep some clocks always-on */
-	qcom_branch_set_clk_en(regmap, 0x26004); /* GCC_CAMERA_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x26018); /* GCC_CAMERA_XO_CLK */
-	qcom_branch_set_clk_en(regmap, 0x27004); /* GCC_DISP_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x2701c); /* GCC_DISP_XO_CLK */
-	qcom_branch_set_clk_en(regmap, 0x71004); /* GCC_GPU_CFG_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x28004); /* GCC_VIDEO_AHB_CLK */
-	qcom_branch_set_clk_en(regmap, 0x28020); /* GCC_VIDEO_XO_CLK */
-
-	ret = qcom_cc_register_rcg_dfs(regmap, gcc_dfs_clocks, ARRAY_SIZE(gcc_dfs_clocks));
-	if (ret)
-		return ret;
-
-	/* FORCE_MEM_CORE_ON for ufs phy ice core clocks */
-	regmap_update_bits(regmap, gcc_ufs_phy_ice_core_clk.halt_reg, BIT(14), BIT(14));
-
-	return qcom_cc_really_probe(&pdev->dev, &gcc_sm8350_desc, regmap);
+	return qcom_cc_probe(pdev, &gcc_sm8350_desc);
 }
 
 static struct platform_driver gcc_sm8350_driver = {
@@ -3833,17 +3834,7 @@ static struct platform_driver gcc_sm8350_driver = {
 	},
 };
 
-static int __init gcc_sm8350_init(void)
-{
-	return platform_driver_register(&gcc_sm8350_driver);
-}
-subsys_initcall(gcc_sm8350_init);
-
-static void __exit gcc_sm8350_exit(void)
-{
-	platform_driver_unregister(&gcc_sm8350_driver);
-}
-module_exit(gcc_sm8350_exit);
+subsys_platform_driver(gcc_sm8350_driver);
 
 MODULE_DESCRIPTION("QTI GCC SM8350 Driver");
 MODULE_LICENSE("GPL v2");

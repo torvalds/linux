@@ -178,6 +178,7 @@ struct cpg_mssr_info {
 
 	/* Callbacks */
 	int (*init)(struct device *dev);
+	int (*post_init)(struct device *dev, struct cpg_mssr_pub *pub);
 	struct clk *(*cpg_clk_register)(struct device *dev,
 					const struct cpg_core_clk *core,
 					const struct cpg_mssr_info *info,
@@ -190,6 +191,7 @@ extern const struct cpg_mssr_info r8a7743_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7745_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a77470_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a774a1_cpg_mssr_info;
+extern const struct cpg_mssr_info r8a774a3_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a774b1_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a774c0_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a774e1_cpg_mssr_info;

@@ -94,9 +94,9 @@ struct clk *mmp_clk_register_gate(struct device *dev, const char *name,
 		void __iomem *reg, u32 mask, u32 val_enable, u32 val_disable,
 		unsigned int gate_flags, spinlock_t *lock)
 {
+	struct clk_init_data init = {};
 	struct mmp_clk_gate *gate;
 	struct clk *clk;
-	struct clk_init_data init;
 
 	/* allocate the gate */
 	gate = kzalloc_obj(*gate);

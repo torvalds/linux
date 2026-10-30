@@ -313,9 +313,9 @@ struct clk_hw *zynqmp_clk_register_pll(const char *name, u32 clk_id,
 				       u8 num_parents,
 				       const struct clock_topology *nodes)
 {
+	struct clk_init_data init = {};
 	struct zynqmp_pll *pll;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	init.name = name;

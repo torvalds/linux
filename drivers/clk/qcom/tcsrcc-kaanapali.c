@@ -124,17 +124,7 @@ static struct platform_driver tcsr_cc_kaanapali_driver = {
 	},
 };
 
-static int __init tcsr_cc_kaanapali_init(void)
-{
-	return platform_driver_register(&tcsr_cc_kaanapali_driver);
-}
-subsys_initcall(tcsr_cc_kaanapali_init);
-
-static void __exit tcsr_cc_kaanapali_exit(void)
-{
-	platform_driver_unregister(&tcsr_cc_kaanapali_driver);
-}
-module_exit(tcsr_cc_kaanapali_exit);
+subsys_platform_driver(tcsr_cc_kaanapali_driver);
 
 MODULE_DESCRIPTION("QTI TCSR_CC Kaanapali Driver");
 MODULE_LICENSE("GPL");

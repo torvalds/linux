@@ -249,9 +249,9 @@ static const struct clk_ops clk_pllv2_ops = {
 struct clk_hw *imx_clk_hw_pllv2(const char *name, const char *parent,
 		void __iomem *base)
 {
+	struct clk_init_data init = {};
 	struct clk_pllv2 *pll;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	pll = kzalloc_obj(*pll);

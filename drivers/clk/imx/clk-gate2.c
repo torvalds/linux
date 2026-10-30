@@ -139,9 +139,9 @@ struct clk_hw *clk_hw_register_gate2(struct device *dev, const char *name,
 		u8 clk_gate2_flags, spinlock_t *lock,
 		unsigned int *share_count)
 {
+	struct clk_init_data init = {};
 	struct clk_gate2 *gate;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	gate = kzalloc_obj(struct clk_gate2);

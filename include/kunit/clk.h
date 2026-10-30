@@ -29,5 +29,7 @@ int of_clk_hw_register_kunit(struct kunit *test, struct device_node *node,
 int of_clk_add_hw_provider_kunit(struct kunit *test, struct device_node *np,
 				 struct clk_hw *(*get)(struct of_phandle_args *clkspec, void *data),
 				 void *data);
+struct device_node *clk_of_find_node_by_name_kunit(struct kunit *test, struct device_node *from,
+						   const char *name);
 
 #endif

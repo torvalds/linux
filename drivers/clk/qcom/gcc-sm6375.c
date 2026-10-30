@@ -3903,17 +3903,7 @@ static struct platform_driver gcc_sm6375_driver = {
 	},
 };
 
-static int __init gcc_sm6375_init(void)
-{
-	return platform_driver_register(&gcc_sm6375_driver);
-}
-subsys_initcall(gcc_sm6375_init);
-
-static void __exit gcc_sm6375_exit(void)
-{
-	platform_driver_unregister(&gcc_sm6375_driver);
-}
-module_exit(gcc_sm6375_exit);
+subsys_platform_driver(gcc_sm6375_driver);
 
 MODULE_DESCRIPTION("QTI GCC SM6375 Driver");
 MODULE_LICENSE("GPL");

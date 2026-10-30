@@ -245,8 +245,8 @@ bool tegra20_clk_emc_driver_available(struct clk_hw *emc_hw)
 
 struct clk *tegra20_clk_register_emc(void __iomem *ioaddr, bool low_jitter)
 {
+	struct clk_init_data init = {};
 	struct tegra_clk_emc *emc;
-	struct clk_init_data init;
 	struct clk *clk;
 
 	emc = kzalloc_obj(*emc);

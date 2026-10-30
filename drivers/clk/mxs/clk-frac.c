@@ -112,9 +112,9 @@ static const struct clk_ops clk_frac_ops = {
 struct clk *mxs_clk_frac(const char *name, const char *parent_name,
 			 void __iomem *reg, u8 shift, u8 width, u8 busy)
 {
+	struct clk_init_data init = {};
 	struct clk_frac *frac;
 	struct clk *clk;
-	struct clk_init_data init;
 
 	frac = kzalloc_obj(*frac);
 	if (!frac)

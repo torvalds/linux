@@ -89,6 +89,7 @@ static const struct imx_fracn_gppll_rate_table fracn_tbl[] = {
 	PLL_FRACN_GP(445333333U, 167, 0, 1, 0, 9),
 	PLL_FRACN_GP(400000000U, 200, 0, 1, 0, 12),
 	PLL_FRACN_GP(393216000U, 163, 84, 100, 0, 10),
+	PLL_FRACN_GP(350000000U, 175, 0, 1, 0, 12),
 	PLL_FRACN_GP(333333333U, 125, 0, 1, 1, 9),
 	PLL_FRACN_GP(332600000U, 138, 584, 1000, 0, 10),
 	PLL_FRACN_GP(300000000U, 150, 0, 1, 0, 12),
@@ -363,9 +364,9 @@ static struct clk_hw *_imx_clk_fracn_gppll(const char *name, const char *parent_
 					   const struct imx_fracn_gppll_clk *pll_clk,
 					   u32 pll_flags)
 {
+	struct clk_init_data init = {};
 	struct clk_fracn_gppll *pll;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	pll = kzalloc_obj(*pll);

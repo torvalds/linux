@@ -205,8 +205,8 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 				struct regmap *grf, int grf_reg,
 				int shift)
 {
-	struct clk_init_data init;
 	struct rockchip_mmc_clock *mmc_clock;
+	struct clk_init_data init = {};
 	struct clk *clk;
 	int ret;
 

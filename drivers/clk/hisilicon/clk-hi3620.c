@@ -410,9 +410,9 @@ static const struct clk_ops clk_mmc_ops = {
 static struct clk *hisi_register_clk_mmc(struct hisi_mmc_clock *mmc_clk,
 			void __iomem *base, struct device_node *np)
 {
+	struct clk_init_data init = {};
 	struct clk_mmc *mclk;
 	struct clk *clk;
-	struct clk_init_data init;
 
 	mclk = kzalloc_obj(*mclk);
 	if (!mclk)

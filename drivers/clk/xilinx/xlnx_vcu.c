@@ -406,9 +406,9 @@ static struct clk_hw *xvcu_register_pll(struct device *dev,
 					const char *name, const char *parent,
 					unsigned long flags)
 {
+	struct clk_init_data init = {};
 	struct vcu_pll *pll;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	init.name = name;

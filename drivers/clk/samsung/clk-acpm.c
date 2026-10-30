@@ -21,6 +21,7 @@ struct acpm_clk {
 	struct clk_hw hw;
 	unsigned int mbox_chan_id;
 	struct acpm_handle *handle;
+	const struct acpm_clk_driver_data *drv_data;
 };
 
 struct acpm_clk_variant {
@@ -31,6 +32,8 @@ struct acpm_clk_driver_data {
 	const struct acpm_clk_variant *clks;
 	unsigned int nr_clks;
 	unsigned int mbox_chan_id;
+	/* For SoCs where ACPM firmware doesn't implement get_rate call */
+	unsigned long (*get_rate)(struct clk_hw *clk, unsigned long parent_rate);
 };
 
 #define to_acpm_clk(clk) container_of(clk, struct acpm_clk, hw)
@@ -39,6 +42,18 @@ struct acpm_clk_driver_data {
 	{						\
 		.name		= cname,		\
 	}
+
+static const struct acpm_clk_variant exynos850_acpm_clks[] = {
+	ACPM_CLK("mif"),
+	ACPM_CLK("int"),
+	ACPM_CLK("cpucl0"),
+	ACPM_CLK("cpucl1"),
+	ACPM_CLK("g3d"),
+	ACPM_CLK("aud"),
+	ACPM_CLK("cam"),
+	ACPM_CLK("disp"),
+	ACPM_CLK("cp"),
+};
 
 static const struct acpm_clk_variant gs101_acpm_clks[] = {
 	ACPM_CLK("mif"),
@@ -57,6 +72,19 @@ static const struct acpm_clk_variant gs101_acpm_clks[] = {
 	ACPM_CLK("bo"),
 };
 
+static unsigned long bypass_acpm_exynos850_get_rate(struct clk_hw *hw,
+						    unsigned long parent_rate)
+{
+	return parent_rate;
+}
+
+static const struct acpm_clk_driver_data acpm_clk_exynos850 = {
+	.clks = exynos850_acpm_clks,
+	.nr_clks = ARRAY_SIZE(exynos850_acpm_clks),
+	.mbox_chan_id = 0,
+	.get_rate = bypass_acpm_exynos850_get_rate,
+};
+
 static const struct acpm_clk_driver_data acpm_clk_gs101 = {
 	.clks = gs101_acpm_clks,
 	.nr_clks = ARRAY_SIZE(gs101_acpm_clks),
@@ -67,6 +95,9 @@ static unsigned long acpm_clk_recalc_rate(struct clk_hw *hw,
 					  unsigned long parent_rate)
 {
 	struct acpm_clk *clk = to_acpm_clk(hw);
+
+	if (clk->drv_data->get_rate)
+		return clk->drv_data->get_rate(hw, parent_rate);
 
 	return clk->handle->ops->dvfs.get_rate(clk->handle, clk->mbox_chan_id,
 					       clk->id);
@@ -88,19 +119,30 @@ static const struct clk_ops acpm_clk_ops = {
 };
 
 static int acpm_clk_register(struct device *dev, struct acpm_clk *aclk,
-			     const char *name)
+			     const char *name, const struct acpm_clk_driver_data *drv_data)
 {
 	struct clk_init_data init = {};
+	struct clk_parent_data pdata = {};
 
 	init.name = name;
 	init.ops = &acpm_clk_ops;
 	aclk->hw.init = &init;
+
+	/* If get_rate is set, the SoC relies on parent topology */
+	if (drv_data->get_rate) {
+		pdata.fw_name = name;
+		init.parent_data = &pdata;
+		init.num_parents = 1;
+		init.flags = CLK_GET_RATE_NOCACHE;
+	}
 
 	return devm_clk_hw_register(dev, &aclk->hw);
 }
 
 static int acpm_clk_probe(struct platform_device *pdev)
 {
+	const struct acpm_clk_driver_data *drv_data;
+	const struct platform_device_id *id;
 	struct acpm_handle *acpm_handle;
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **hws;
@@ -114,8 +156,14 @@ static int acpm_clk_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(acpm_handle),
 				     "Failed to get acpm handle\n");
 
-	count = acpm_clk_gs101.nr_clks;
-	mbox_chan_id = acpm_clk_gs101.mbox_chan_id;
+	id = platform_get_device_id(pdev);
+	if (!id || !id->driver_data)
+		return -ENODEV;
+
+	drv_data  = (const struct acpm_clk_driver_data *)id->driver_data;
+
+	count = drv_data->nr_clks;
+	mbox_chan_id = drv_data->mbox_chan_id;
 
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, count),
 				GFP_KERNEL);
@@ -136,14 +184,14 @@ static int acpm_clk_probe(struct platform_device *pdev)
 		 * The code assumes the clock IDs start from zero,
 		 * are sequential and do not have gaps.
 		 */
+		aclk->drv_data = drv_data;
 		aclk->id = i;
 		aclk->handle = acpm_handle;
 		aclk->mbox_chan_id = mbox_chan_id;
 
 		hws[i] = &aclk->hw;
 
-		err = acpm_clk_register(dev, aclk,
-					acpm_clk_gs101.clks[i].name);
+		err = acpm_clk_register(dev, aclk, drv_data->clks[i].name, drv_data);
 		if (err)
 			return dev_err_probe(dev, err,
 					     "Failed to register clock\n");
@@ -154,7 +202,8 @@ static int acpm_clk_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id acpm_clk_id[] = {
-	{ .name = "gs101-acpm-clk" },
+	{ .name = "exynos850-acpm-clk", (kernel_ulong_t)&acpm_clk_exynos850 },
+	{ .name = "gs101-acpm-clk", (kernel_ulong_t)&acpm_clk_gs101 },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, acpm_clk_id);

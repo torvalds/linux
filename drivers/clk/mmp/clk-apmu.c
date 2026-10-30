@@ -65,9 +65,9 @@ static const struct clk_ops clk_apmu_ops = {
 struct clk *mmp_clk_register_apmu(const char *name, const char *parent_name,
 		void __iomem *base, u32 enable_mask, spinlock_t *lock)
 {
+	struct clk_init_data init = {};
 	struct clk_apmu *apmu;
 	struct clk *clk;
-	struct clk_init_data init;
 
 	apmu = kzalloc_obj(*apmu);
 	if (!apmu)

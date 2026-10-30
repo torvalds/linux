@@ -36,7 +36,7 @@ static struct clk_alpha_pll nw_gcc_gpll0 = {
 	.offset = 0x0,
 	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE],
 	.clkr = {
-		.enable_reg = 0x0,
+		.enable_reg = 0x76008,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
 			.name = "nw_gcc_gpll0",
@@ -623,6 +623,9 @@ static const struct qcom_reset_map nw_gcc_nord_resets[] = {
 	[NW_GCC_GPU_2_BCR] = { 0x24000 },
 	[NW_GCC_GPU_BCR] = { 0x23000 },
 	[NW_GCC_VIDEO_BCR] = { 0x1a000 },
+	[NW_GCC_VIDEO_AXI0_CLK_ARES] = { 0x1a008, 2 },
+	[NW_GCC_VIDEO_AXI0C_CLK_ARES] = { 0x1a01c, 2 },
+	[NW_GCC_VIDEO_AXI1_CLK_ARES] = { 0x1a030, 2 },
 };
 
 static const u32 nw_gcc_nord_critical_cbcrs[] = {
