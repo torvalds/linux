@@ -2052,6 +2052,7 @@ static int ext4_da_map_blocks(struct inode *inode, struct ext4_map_blocks *map)
 #endif
 
 	map->m_flags = 0;
+	map->m_pblk = 0;
 	ext_debug(inode, "max_blocks %u, logical block %lu\n", map->m_len,
 		  (unsigned long) map->m_lblk);
 
