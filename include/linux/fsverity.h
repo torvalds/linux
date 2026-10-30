@@ -54,11 +54,13 @@ struct fsverity_operations {
 	 * @merkle_tree_size: total bytes the Merkle tree took up
 	 *
 	 * If desc == NULL, then enabling verity failed and the filesystem only
-	 * must do any necessary cleanups.  Else, it must also store the given
-	 * verity descriptor to a fs-specific location associated with the inode
-	 * and do any fs-specific actions needed to mark the inode as a verity
-	 * inode, e.g. setting a bit in the on-disk inode.  The filesystem is
-	 * also responsible for setting the S_VERITY flag in the VFS inode.
+	 * must do any necessary cleanups.
+	 *
+	 * Else, the filesystem must store the given verity descriptor to a
+	 * fs-specific location associated with the inode and do any fs-specific
+	 * actions needed to mark the inode as a verity inode, e.g. set a bit in
+	 * the on-disk inode.  Finally, on success (only when rollback is no
+	 * longer possible!) it must set S_VERITY in the VFS inode.
 	 *
 	 * i_rwsem is held for write, but it may have been dropped between
 	 * ->begin_enable_verity() and ->end_enable_verity().

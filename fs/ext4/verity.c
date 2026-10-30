@@ -216,17 +216,19 @@ static int ext4_end_enable_verity(struct file *filp, const void *desc,
 		goto stop_and_cleanup;
 
 	ext4_set_inode_flag(inode, EXT4_INODE_VERITY);
-	ext4_set_inode_flags(inode, false);
 	err = ext4_mark_iloc_dirty(handle, inode, &iloc);
 	if (err)
 		goto stop_and_cleanup;
 
 	ext4_journal_stop(handle);
 
+	/* Now that rollback is no longer possible, set S_VERITY. */
+	ext4_set_inode_flags(inode, false);
 	ext4_clear_inode_state(inode, EXT4_STATE_VERITY_IN_PROGRESS);
 	return 0;
 
 stop_and_cleanup:
+	ext4_clear_inode_flag(inode, EXT4_INODE_VERITY);
 	ext4_journal_stop(handle);
 cleanup:
 	/*

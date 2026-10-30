@@ -483,8 +483,6 @@ static int rollback_verity(struct btrfs_inode *inode)
 			inode->vfs_inode.i_ino);
 		goto out;
 	}
-	inode->ro_flags &= ~BTRFS_INODE_RO_VERITY;
-	btrfs_sync_inode_flags_to_i_flags(inode);
 	ret = btrfs_update_inode(trans, inode);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
@@ -549,16 +547,19 @@ static int finish_verity(struct btrfs_inode *inode, const void *desc,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 	inode->ro_flags |= BTRFS_INODE_RO_VERITY;
-	btrfs_sync_inode_flags_to_i_flags(inode);
 	ret = btrfs_update_inode(trans, inode);
 	if (ret)
 		goto end_trans;
 	ret = del_orphan(trans, inode);
 	if (ret)
 		goto end_trans;
+	/* Now that rollback is no longer possible, set S_VERITY. */
+	btrfs_sync_inode_flags_to_i_flags(inode);
 	clear_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags);
 	btrfs_set_fs_compat_ro(root->fs_info, VERITY);
 end_trans:
+	if (ret)
+		inode->ro_flags &= ~BTRFS_INODE_RO_VERITY;
 	btrfs_end_transaction(trans);
 	return ret;
 

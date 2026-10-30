@@ -276,8 +276,8 @@ static int enable_verity(struct file *filp,
 	 * initialization so that we don't have to undo the enabling when memory
 	 * allocation for the hash table fails.  This is safe because looking up
 	 * the fsverity_info always first checks the S_VERITY flag on the inode,
-	 * which will only be set at the very end of the ->end_enable_verity
-	 * method.
+	 * which will only be set at the very end of a successful call to
+	 * ->end_enable_verity().
 	 */
 	err = fsverity_set_info(vi);
 	if (err) {
@@ -287,10 +287,7 @@ static int enable_verity(struct file *filp,
 
 	/*
 	 * Tell the filesystem to finish enabling verity on the file.
-	 * Serialized with ->begin_enable_verity() by the inode lock.  The file
-	 * system needs to set the S_VERITY flag on the inode at the very end of
-	 * the method, at which point the fsverity information can be accessed
-	 * by other threads.
+	 * Serialized with ->begin_enable_verity() by the inode lock.
 	 */
 	inode_lock(inode);
 	err = vops->end_enable_verity(filp, desc, desc_size, params.tree_size);
@@ -298,10 +295,19 @@ static int enable_verity(struct file *filp,
 	if (err) {
 		fsverity_err(inode, "%ps() failed with err %d",
 			     vops->end_enable_verity, err);
-		fsverity_remove_info(vi);
+		if (!WARN_ON_ONCE(IS_VERITY(inode)))
+			fsverity_remove_info(vi);
 	} else if (WARN_ON_ONCE(!IS_VERITY(inode))) {
 		fsverity_remove_info(vi);
 		err = -EINVAL;
+	} else {
+		/*
+		 * Now that verity is enabled, report the signature (if any) to
+		 * LSMs.  We tolerate that a process racing with this ioctl can
+		 * briefly see verity enabled with no signature reported yet.
+		 */
+		fsverity_report_valid_sig(inode, desc->signature,
+					  le32_to_cpu(desc->sig_size));
 	}
 out:
 	kfree(params.hashstate);
