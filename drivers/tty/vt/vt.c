@@ -4788,7 +4788,7 @@ void do_blank_screen(int entering_gfx)
 	if (console_blanked) {
 		if (blank_state == blank_vesa_wait) {
 			blank_state = blank_off;
-			vc->vc_sw->con_blank(vc, vesa_blank_mode + 1, 0);
+			vc->vc_sw->con_blank(vc, vesa_blank_mode, false);
 		}
 		return;
 	}
@@ -4797,7 +4797,7 @@ void do_blank_screen(int entering_gfx)
 	if (entering_gfx) {
 		hide_cursor(vc);
 		save_screen(vc);
-		vc->vc_sw->con_blank(vc, VESA_VSYNC_SUSPEND, 1);
+		vc->vc_sw->con_blank(vc, VESA_NO_BLANKING, true);
 		console_blanked = fg_console + 1;
 		blank_state = blank_off;
 		set_origin(vc);
@@ -4818,8 +4818,9 @@ void do_blank_screen(int entering_gfx)
 
 	save_screen(vc);
 	/* In case we need to reset origin, blanking hook returns 1 */
-	i = vc->vc_sw->con_blank(vc, vesa_off_interval ? VESA_VSYNC_SUSPEND :
-				 (vesa_blank_mode + 1), 0);
+	i = vc->vc_sw->con_blank(vc,
+				 vesa_off_interval ? VESA_NO_BLANKING : vesa_blank_mode,
+				 false);
 	console_blanked = fg_console + 1;
 	if (i)
 		set_origin(vc);
@@ -4870,7 +4871,7 @@ void do_unblank_screen(int leaving_gfx)
 	}
 
 	console_blanked = 0;
-	if (vc->vc_sw->con_blank(vc, VESA_NO_BLANKING, leaving_gfx))
+	if (vc->vc_sw->con_unblank(vc, leaving_gfx))
 		/* Low-level driver cannot restore -> do it ourselves */
 		update_screen(vc);
 	if (console_blank_hook)

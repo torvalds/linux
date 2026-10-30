@@ -2270,32 +2270,52 @@ static bool fbcon_blank(struct vc_data *vc, enum vesa_blank_mode blank,
 	struct fb_info *info = fbcon_info_from_console(vc->vc_num);
 	struct fbcon_par *par = info->fbcon_par;
 
-	if (mode_switch) {
-		struct fb_var_screeninfo var = info->var;
+	if (mode_switch)
+		par->graphics = true;
 
-		par->graphics = 1;
+	if (fbcon_is_active(vc, info)) {
+		int blank_state = 1 + blank; /* convert VESA to FB_BLANK constant */
 
-		if (!blank) {
-			var.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE |
-				FB_ACTIVATE_KD_TEXT;
-			fb_set_var(info, &var);
-			par->graphics = 0;
-			par->var = info->var;
+		if (par->blank_state != blank_state) {
+			par->blank_state = blank_state;
+			fbcon_cursor(vc, false);
+			par->cursor_flash = false;
+
+			if (fb_blank(info, blank_state))
+				fbcon_generic_blank(vc, info, true);
 		}
 	}
 
-	if (fbcon_is_active(vc, info)) {
-		if (par->blank_state != blank) {
-			par->blank_state = blank;
-			fbcon_cursor(vc, !blank);
-			par->cursor_flash = (!blank);
+	fbcon_del_cursor_work(info);
 
-			if (fb_blank(info, blank))
-				fbcon_generic_blank(vc, info, blank);
+	return false;
+}
+
+static bool fbcon_unblank(struct vc_data *vc, bool mode_switch)
+{
+	struct fb_info *info = fbcon_info_from_console(vc->vc_num);
+	struct fbcon_par *par = info->fbcon_par;
+
+	if (mode_switch) {
+		struct fb_var_screeninfo var = info->var;
+
+		var.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE | FB_ACTIVATE_KD_TEXT;
+		fb_set_var(info, &var);
+		par->graphics = false;
+		par->var = info->var;
+	}
+
+	if (fbcon_is_active(vc, info)) {
+		if (par->blank_state != FB_BLANK_UNBLANK) {
+			par->blank_state = FB_BLANK_UNBLANK;
+			fbcon_cursor(vc, true);
+			par->cursor_flash = true;
+
+			if (fb_blank(info, FB_BLANK_UNBLANK))
+				fbcon_generic_blank(vc, info, false);
 		}
 
-		if (!blank)
-			update_screen(vc);
+		update_screen(vc);
 	}
 
 	if (mode_switch || !fbcon_is_active(vc, info) || par->blank_state != FB_BLANK_UNBLANK)
@@ -3191,6 +3211,7 @@ static const struct consw fb_con = {
 	.con_scroll 		= fbcon_scroll,
 	.con_switch 		= fbcon_switch,
 	.con_blank 		= fbcon_blank,
+	.con_unblank		= fbcon_unblank,
 	.con_font_set 		= fbcon_set_font,
 	.con_font_get 		= fbcon_get_font,
 	.con_font_default	= fbcon_set_def_font,

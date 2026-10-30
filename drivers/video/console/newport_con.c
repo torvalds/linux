@@ -481,17 +481,18 @@ static bool newport_blank(struct vc_data *c, enum vesa_blank_mode blank,
 {
 	unsigned short treg;
 
-	if (blank == VESA_NO_BLANKING) {
-		/* unblank console */
-		treg = newport_vc2_get(npregs, VC2_IREG_CONTROL);
-		newport_vc2_set(npregs, VC2_IREG_CONTROL,
-				(treg | VC2_CTRL_EDISP));
-	} else {
-		/* blank console */
-		treg = newport_vc2_get(npregs, VC2_IREG_CONTROL);
-		newport_vc2_set(npregs, VC2_IREG_CONTROL,
-				(treg & ~(VC2_CTRL_EDISP)));
-	}
+	treg = newport_vc2_get(npregs, VC2_IREG_CONTROL);
+	newport_vc2_set(npregs, VC2_IREG_CONTROL, (treg & ~(VC2_CTRL_EDISP)));
+
+	return true;
+}
+
+static bool newport_unblank(struct vc_data *c, bool mode_switch)
+{
+	unsigned short treg;
+
+	treg = newport_vc2_get(npregs, VC2_IREG_CONTROL);
+	newport_vc2_set(npregs, VC2_IREG_CONTROL, (treg | VC2_CTRL_EDISP));
 
 	return true;
 }
@@ -666,6 +667,7 @@ const struct consw newport_con = {
 	.con_scroll	  = newport_scroll,
 	.con_switch	  = newport_switch,
 	.con_blank	  = newport_blank,
+	.con_unblank	  = newport_unblank,
 	.con_font_set	  = newport_font_set,
 	.con_font_default = newport_font_default,
 	.con_save_screen  = newport_save_screen
