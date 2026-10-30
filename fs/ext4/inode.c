@@ -4539,7 +4539,7 @@ static int ext4_iomap_writepages(struct address_space *mapping,
 	 */
 	if (!ext4_inode_buffered_iomap(inode)) {
 		ext4_writepages_up_read(sb, alloc_ctx);
-		return ret;
+		return 0;
 	}
 
 	trace_ext4_writepages(inode, wbc);
