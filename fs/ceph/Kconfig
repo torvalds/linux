@@ -18,6 +18,19 @@ config CEPH_FS
 	  If unsure, say N.
 
 if CEPH_FS
+
+config CEPH_FS_INLINE_DATA
+	bool "Enable CephFS inline data support (deprecated)"
+	depends on CEPH_FS
+	default n
+	help
+	  Inline data support has been deprecated in the CephFS MDS
+	  and is being formally removed.  Existing inline data can be
+	  migrated to data pool objects via MDS scrub.  Choose N
+	  unless you have a legacy filesystem that requires it,
+	  and ensure all inline data has been migrated (see
+	  ceph fs set <fs> inline_data false) before enabling.
+
 config CEPH_FSCACHE
 	bool "Enable Ceph client caching support"
 	depends on CEPH_FS=m && FSCACHE || CEPH_FS=y && FSCACHE=y

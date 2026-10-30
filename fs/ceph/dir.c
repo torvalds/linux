@@ -466,6 +466,10 @@ more:
 		      (int)req->r_reply_info.hash_order);
 
 		rinfo = &req->r_reply_info;
+		if (WARN_ON_ONCE(!rinfo->dir_dir)) {
+			ceph_mdsc_put_request(req);
+			return -EIO;
+		}
 		if (le32_to_cpu(rinfo->dir_dir->frag) != frag) {
 			frag = le32_to_cpu(rinfo->dir_dir->frag);
 			if (!rinfo->hash_order) {
@@ -732,7 +736,7 @@ struct dentry *ceph_handle_snapdir(struct ceph_mds_request *req,
 	struct ceph_client *cl = ceph_inode_to_client(parent);
 
 	/* .snap dir? */
-	if (ceph_snap(parent) == CEPH_NOSNAP &&
+	if (!ceph_in_snap(parent) &&
 	    strcmp(dentry->d_name.name, fsc->mount_options->snapdir_name) == 0) {
 		struct dentry *res;
 		struct inode *inode = ceph_get_snapdir(parent);
@@ -930,7 +934,7 @@ static int ceph_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 	struct ceph_acl_sec_ctx as_ctx = {};
 	int err;
 
-	if (ceph_snap(dir) != CEPH_NOSNAP)
+	if (ceph_in_snap(dir))
 		return -EROFS;
 
 	err = ceph_wait_on_conflict_unlink(dentry);
@@ -1042,7 +1046,7 @@ static int ceph_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 	umode_t mode = S_IFLNK | 0777;
 	int err;
 
-	if (ceph_snap(dir) != CEPH_NOSNAP)
+	if (ceph_in_snap(dir))
 		return -EROFS;
 
 	err = ceph_wait_on_conflict_unlink(dentry);
@@ -1126,7 +1130,7 @@ static struct dentry *ceph_mkdir(const struct mnt_idmap *idmap, struct inode *di
 		op = CEPH_MDS_OP_MKSNAP;
 		doutc(cl, "mksnap %llx.%llx/'%pd' dentry %p\n",
 		      ceph_vinop(dir), dentry, dentry);
-	} else if (ceph_snap(dir) == CEPH_NOSNAP) {
+	} else if (!ceph_in_snap(dir)) {
 		doutc(cl, "mkdir %llx.%llx/'%pd' dentry %p mode 0%ho\n",
 		      ceph_vinop(dir), dentry, dentry, mode);
 		op = CEPH_MDS_OP_MKDIR;
@@ -1212,7 +1216,7 @@ static int ceph_link(struct dentry *old_dentry, struct inode *dir,
 	if (err)
 		return err;
 
-	if (ceph_snap(dir) != CEPH_NOSNAP)
+	if (ceph_in_snap(dir))
 		return -EROFS;
 
 	err = fscrypt_prepare_link(old_dentry, dir, dentry);
@@ -1364,7 +1368,7 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 		doutc(cl, "rmsnap %llx.%llx/'%pd' dn\n", ceph_vinop(dir),
 		      dentry);
 		op = CEPH_MDS_OP_RMSNAP;
-	} else if (ceph_snap(dir) == CEPH_NOSNAP) {
+	} else if (!ceph_in_snap(dir)) {
 		doutc(cl, "unlink/rmdir %llx.%llx/'%pd' inode %llx.%llx\n",
 		      ceph_vinop(dir), dentry, ceph_vinop(inode));
 		op = d_is_dir(dentry) ?
@@ -1493,7 +1497,7 @@ static int ceph_rename(const struct mnt_idmap *idmap, struct inode *old_dir,
 
 	if (ceph_snap(old_dir) != ceph_snap(new_dir))
 		return -EXDEV;
-	if (ceph_snap(old_dir) != CEPH_NOSNAP) {
+	if (ceph_in_snap(old_dir)) {
 		if (old_dir == new_dir && ceph_snap(old_dir) == CEPH_SNAPDIR)
 			op = CEPH_MDS_OP_RENAMESNAP;
 		else
@@ -1636,11 +1640,14 @@ static void __dentry_lease_unlist(struct ceph_dentry_info *di)
 	spin_unlock(&mdsc->dentry_list_lock);
 }
 
-enum {
-	KEEP	= 0,
-	DELETE	= 1,
-	TOUCH	= 2,
-	STOP	= 4,
+/*
+ * Result of __dir_lease_check() and __dentry_lease_check().
+ */
+enum lease_check_result {
+	KEEP,
+	DELETE,
+	TOUCH,
+	STOP,
 };
 
 struct ceph_lease_walk_control {
@@ -1650,8 +1657,9 @@ struct ceph_lease_walk_control {
 	unsigned long dir_lease_ttl;
 };
 
-static int __dir_lease_check(const struct dentry *, struct ceph_lease_walk_control *);
-static int __dentry_lease_check(const struct dentry *);
+static enum lease_check_result __dir_lease_check(const struct dentry *,
+						 struct ceph_lease_walk_control *);
+static enum lease_check_result __dentry_lease_check(const struct dentry *);
 
 static unsigned long
 __dentry_leases_walk(struct ceph_mds_client *mdsc,
@@ -1662,11 +1670,12 @@ __dentry_leases_walk(struct ceph_mds_client *mdsc,
 	struct list_head* list;
         LIST_HEAD(dispose);
 	unsigned long freed = 0;
-	int ret = 0;
 
 	list = lwc->dir_lease ? &mdsc->dentry_dir_leases : &mdsc->dentry_leases;
 	spin_lock(&mdsc->dentry_list_lock);
 	list_for_each_entry_safe(di, tmp, list, lease_list) {
+		enum lease_check_result ret = KEEP;
+
 		if (!lwc->nr_to_scan)
 			break;
 		--lwc->nr_to_scan;
@@ -1687,13 +1696,12 @@ __dentry_leases_walk(struct ceph_mds_client *mdsc,
 			ret = __dir_lease_check(dentry, lwc);
 		else
 			ret = __dentry_lease_check(dentry);
-		if (ret & TOUCH) {
+		if (ret == TOUCH) {
 			/* move it into tail of dir lease list */
 			__dentry_dir_lease_touch(mdsc, di);
 			if (!last)
 				last = dentry;
-		}
-		if (ret & DELETE) {
+		} else if (ret == DELETE) {
 			/* stale lease */
 			di->flags &= ~CEPH_DENTRY_REFERENCED;
 			if (dentry->d_lockref.count > 0) {
@@ -1710,7 +1718,7 @@ __dentry_leases_walk(struct ceph_mds_client *mdsc,
 		}
 next:
 		spin_unlock(&dentry->d_lock);
-		if (ret & STOP)
+		if (ret == STOP)
 			break;
 	}
 	spin_unlock(&mdsc->dentry_list_lock);
@@ -1743,7 +1751,7 @@ next:
 	return freed;
 }
 
-static int __dentry_lease_check(const struct dentry *dentry)
+static enum lease_check_result __dentry_lease_check(const struct dentry *dentry)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	int ret;
@@ -1758,8 +1766,8 @@ static int __dentry_lease_check(const struct dentry *dentry)
 	return DELETE;
 }
 
-static int __dir_lease_check(const struct dentry *dentry,
-			     struct ceph_lease_walk_control *lwc)
+static enum lease_check_result __dir_lease_check(const struct dentry *dentry,
+						 struct ceph_lease_walk_control *lwc)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 
@@ -1995,7 +2003,7 @@ static int ceph_d_revalidate(struct inode *dir, const struct qstr *name,
 	mdsc = ceph_sb_to_fs_client(dir->i_sb)->mdsc;
 
 	/* always trust cached snapped dentries, snapdir dentry */
-	if (ceph_snap(dir) != CEPH_NOSNAP) {
+	if (ceph_in_snap(dir)) {
 		doutc(cl, "%p '%pd' inode %p is SNAPPED\n", dentry,
 		      dentry, inode);
 		valid = 1;
@@ -2079,7 +2087,7 @@ static int ceph_d_delete(const struct dentry *dentry)
 	/* won't release caps */
 	if (d_really_is_negative(dentry))
 		return 0;
-	if (ceph_snap(d_inode(dentry)) != CEPH_NOSNAP)
+	if (ceph_in_snap(d_inode(dentry)))
 		return 0;
 	/* valid lease? */
 	di = ceph_dentry(dentry);
@@ -2134,7 +2142,7 @@ static void ceph_d_prune(struct dentry *dentry)
 
 	/* we hold d_lock, so d_parent is stable */
 	dir_ci = ceph_inode(d_inode(dentry->d_parent));
-	if (dir_ci->i_vino.snap == CEPH_SNAPDIR)
+	if (ceph_snap(&dir_ci->netfs.inode) == CEPH_SNAPDIR)
 		return;
 
 	/* who calls d_delete() should also disable dcache readdir */

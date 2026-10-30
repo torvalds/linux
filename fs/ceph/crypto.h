@@ -157,9 +157,9 @@ int ceph_fscrypt_decrypt_extents(struct inode *inode, struct page **page,
 int ceph_fscrypt_encrypt_pages(struct inode *inode, struct page **page, u64 off,
 			       int len);
 
-static inline struct page *ceph_fscrypt_pagecache_page(struct page *page)
+static inline struct folio *ceph_fscrypt_pagecache_folio(struct folio *folio)
 {
-	return fscrypt_is_bounce_page(page) ? fscrypt_pagecache_page(page) : page;
+	return fscrypt_is_bounce_folio(folio) ? fscrypt_pagecache_folio(folio) : folio;
 }
 
 #else /* CONFIG_FS_ENCRYPTION */
@@ -258,15 +258,15 @@ static inline int ceph_fscrypt_encrypt_pages(struct inode *inode,
 	return 0;
 }
 
-static inline struct page *ceph_fscrypt_pagecache_page(struct page *page)
+static inline struct folio *ceph_fscrypt_pagecache_folio(struct folio *folio)
 {
-	return page;
+	return folio;
 }
 #endif /* CONFIG_FS_ENCRYPTION */
 
-static inline loff_t ceph_fscrypt_page_offset(struct page *page)
+static inline loff_t ceph_fscrypt_folio_offset(struct folio *folio)
 {
-	return page_offset(ceph_fscrypt_pagecache_page(page));
+	return folio_pos(ceph_fscrypt_pagecache_folio(folio));
 }
 
 #endif /* _CEPH_CRYPTO_H */
