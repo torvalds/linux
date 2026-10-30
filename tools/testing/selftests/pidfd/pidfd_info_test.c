@@ -764,4 +764,52 @@ TEST(supported_mask_with_other_fields)
 	close(pidfd);
 }
 
+/*
+ * Test: fields beyond the caller's struct size are not reported
+ *
+ * Request the coredump and supported_mask fields with a struct of the
+ * first published size. None of those fields fit, so the returned mask
+ * must not name them and the memory behind the struct must be untouched.
+ */
+TEST(info_size_ver0_mask)
+{
+	struct pidfd_info info = {
+		.mask = PIDFD_INFO_COREDUMP | PIDFD_INFO_SUPPORTED_MASK,
+		.coredump_mask = 0xdeadbeef,
+		.coredump_signal = 0xdeadbeef,
+		.coredump_code = 0xdeadbeef,
+		.supported_mask = 0xdeadbeefdeadbeefULL,
+	};
+	unsigned int cmd = _IOC(_IOC_READ | _IOC_WRITE, PIDFS_IOCTL_MAGIC, 11,
+				PIDFD_INFO_SIZE_VER0);
+	int pidfd;
+	pid_t pid;
+
+	pid = create_child(&pidfd, 0);
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0)
+		pause();
+
+	ASSERT_EQ(ioctl(pidfd, cmd, &info), 0);
+
+	/* The fields that fit are reported as usual. */
+	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_PID));
+	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_CREDS));
+
+	/* The fields that do not fit are neither reported nor written. */
+	ASSERT_FALSE(!!(info.mask & (PIDFD_INFO_COREDUMP |
+				     PIDFD_INFO_COREDUMP_SIGNAL |
+				     PIDFD_INFO_COREDUMP_CODE |
+				     PIDFD_INFO_SUPPORTED_MASK)));
+	ASSERT_EQ(info.coredump_mask, 0xdeadbeef);
+	ASSERT_EQ(info.coredump_signal, 0xdeadbeef);
+	ASSERT_EQ(info.coredump_code, 0xdeadbeef);
+	ASSERT_EQ(info.supported_mask, 0xdeadbeefdeadbeefULL);
+
+	sys_pidfd_send_signal(pidfd, SIGKILL, NULL, 0);
+	sys_waitid(P_PIDFD, pidfd, NULL, WEXITED);
+	close(pidfd);
+}
+
 TEST_HARNESS_MAIN
