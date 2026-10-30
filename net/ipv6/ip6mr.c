@@ -827,18 +827,17 @@ static void ip6mr_destroy_unres(struct mr_table *mrt, struct mfc6_cache *c)
 	WRITE_ONCE(mrt->cache_resolve_queue_len,
 		   mrt->cache_resolve_queue_len - 1);
 
-	while ((skb = skb_dequeue(&c->_c.mfc_un.unres.unresolved)) != NULL) {
-		if (ipv6_hdr(skb)->version == 0) {
-			struct nlmsghdr *nlh = skb_pull(skb,
-							sizeof(struct ipv6hdr));
-			nlh->nlmsg_type = NLMSG_ERROR;
-			nlh->nlmsg_len = nlmsg_msg_size(sizeof(struct nlmsgerr));
-			skb_trim(skb, nlh->nlmsg_len);
-			((struct nlmsgerr *)nlmsg_data(nlh))->error = -ETIMEDOUT;
-			rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
-		} else
-			kfree_skb(skb);
+	while ((skb = skb_dequeue(&c->_c.mfc_un.unres.nl_queries))) {
+		struct nlmsghdr *nlh = skb_pull(skb, sizeof(struct ipv6hdr));
+
+		nlh->nlmsg_type = NLMSG_ERROR;
+		nlh->nlmsg_len = nlmsg_msg_size(sizeof(struct nlmsgerr));
+		skb_trim(skb, nlh->nlmsg_len);
+		((struct nlmsgerr *)nlmsg_data(nlh))->error = -ETIMEDOUT;
+		rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
 	}
+
+	skb_queue_purge(&c->_c.mfc_un.unres.unresolved);
 
 	ip6mr_cache_free(c);
 }
@@ -1047,6 +1046,7 @@ static struct mfc6_cache *ip6mr_cache_alloc_unres(void)
 	if (!c)
 		return NULL;
 	skb_queue_head_init(&c->_c.mfc_un.unres.unresolved);
+	skb_queue_head_init(&c->_c.mfc_un.unres.nl_queries);
 	c->_c.mfc_un.unres.expires = jiffies + 10 * HZ;
 	return c;
 }
@@ -1060,30 +1060,26 @@ static void ip6mr_cache_resolve(struct net *net, struct mr_table *mrt,
 {
 	struct sk_buff *skb;
 
-	/*
-	 *	Play the pending entries through our router
-	 */
+	/* Answer the pending netlink route queries */
+	while ((skb = __skb_dequeue(&uc->_c.mfc_un.unres.nl_queries))) {
+		struct nlmsghdr *nlh = skb_pull(skb, sizeof(struct ipv6hdr));
 
-	while ((skb = __skb_dequeue(&uc->_c.mfc_un.unres.unresolved))) {
-		if (ipv6_hdr(skb)->version == 0) {
-			struct nlmsghdr *nlh = skb_pull(skb,
-							sizeof(struct ipv6hdr));
-
-			if (mr_fill_mroute(mrt, skb, &c->_c,
-					   nlmsg_data(nlh)) > 0) {
-				nlh->nlmsg_len = skb_tail_pointer(skb) - (u8 *)nlh;
-			} else {
-				nlh->nlmsg_type = NLMSG_ERROR;
-				nlh->nlmsg_len = nlmsg_msg_size(sizeof(struct nlmsgerr));
-				skb_trim(skb, nlh->nlmsg_len);
-				((struct nlmsgerr *)nlmsg_data(nlh))->error = -EMSGSIZE;
-			}
-			rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
+		if (mr_fill_mroute(mrt, skb, &c->_c, nlmsg_data(nlh)) > 0) {
+			nlh->nlmsg_len = skb_tail_pointer(skb) - (u8 *)nlh;
 		} else {
-			rcu_read_lock();
-			ip6_mr_forward(net, mrt, skb->dev, skb, c);
-			rcu_read_unlock();
+			nlh->nlmsg_type = NLMSG_ERROR;
+			nlh->nlmsg_len = nlmsg_msg_size(sizeof(struct nlmsgerr));
+			skb_trim(skb, nlh->nlmsg_len);
+			((struct nlmsgerr *)nlmsg_data(nlh))->error = -EMSGSIZE;
 		}
+		rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
+	}
+
+	/* Play the pending packets through our router */
+	while ((skb = __skb_dequeue(&uc->_c.mfc_un.unres.unresolved))) {
+		rcu_read_lock();
+		ip6_mr_forward(net, mrt, skb->dev, skb, c);
+		rcu_read_unlock();
 	}
 }
 
@@ -1188,7 +1184,8 @@ static int ip6mr_cache_report(const struct mr_table *mrt, struct sk_buff *pkt,
 
 /* Queue a packet for resolution. It gets locked cache entry! */
 static int ip6mr_cache_unresolved(struct mr_table *mrt, mifi_t mifi,
-				  struct sk_buff *skb, struct net_device *dev)
+				  struct sk_buff *skb, struct net_device *dev,
+				  bool nl_query)
 {
 	struct net *net = read_pnet(&mrt->net);
 	struct mfc6_cache *c = NULL;
@@ -1242,7 +1239,8 @@ static int ip6mr_cache_unresolved(struct mr_table *mrt, mifi_t mifi,
 	}
 
 	/* See if we can append the packet */
-	if (c->_c.mfc_un.unres.unresolved.qlen > 3) {
+	if (skb_queue_len(&c->_c.mfc_un.unres.unresolved) +
+	    skb_queue_len(&c->_c.mfc_un.unres.nl_queries) > 3) {
 		c = NULL;
 		err = -ENOBUFS;
 		goto err;
@@ -1254,7 +1252,8 @@ static int ip6mr_cache_unresolved(struct mr_table *mrt, mifi_t mifi,
 	}
 
 	skb_dst_drop(skb);
-	skb_queue_tail(&c->_c.mfc_un.unres.unresolved, skb);
+	skb_queue_tail(nl_query ? &c->_c.mfc_un.unres.nl_queries :
+				  &c->_c.mfc_un.unres.unresolved, skb);
 
 	spin_unlock_bh(&mfc_unres_lock);
 	return 0;
@@ -2399,7 +2398,8 @@ int ip6_mr_input(struct sk_buff *skb)
 
 		vif = ip6mr_find_vif(mrt, dev);
 		if (vif >= 0) {
-			int err = ip6mr_cache_unresolved(mrt, vif, skb, dev);
+			int err = ip6mr_cache_unresolved(mrt, vif, skb, dev,
+							 false);
 
 			return err;
 		}
@@ -2451,7 +2451,7 @@ int ip6_mr_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	if (!cache) {
 		vif = ip6mr_find_vif(mrt, dev);
 		if (vif >= 0)
-			return ip6mr_cache_unresolved(mrt, vif, skb, dev);
+			return ip6mr_cache_unresolved(mrt, vif, skb, dev, false);
 		goto ip6_output;
 	}
 
@@ -2528,7 +2528,7 @@ int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
 		iph->saddr = rt->rt6i_src.addr;
 		iph->daddr = rt->rt6i_dst.addr;
 
-		err = ip6mr_cache_unresolved(mrt, vif, skb2, dev);
+		err = ip6mr_cache_unresolved(mrt, vif, skb2, dev, true);
 		rcu_read_unlock();
 
 		return err;
