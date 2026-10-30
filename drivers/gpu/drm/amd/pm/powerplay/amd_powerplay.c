@@ -358,22 +358,44 @@ static void pp_dpm_en_umd_pstate(struct pp_hwmgr  *hwmgr,
 	}
 }
 
-static int pp_dpm_force_performance_level(void *handle,
-					enum amd_dpm_forced_level level)
+static int pp_dpm_apply_performance_level(struct pp_hwmgr *hwmgr,
+					  enum amd_dpm_forced_level level,
+					  bool reapply)
 {
-	struct pp_hwmgr *hwmgr = handle;
+	int ret;
 
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
 
-	if (level == hwmgr->dpm_level)
+	if (!reapply && level == hwmgr->dpm_level)
 		return 0;
 
 	pp_dpm_en_umd_pstate(hwmgr, &level);
 	hwmgr->request_dpm_level = level;
-	hwmgr_handle_task(hwmgr, AMD_PP_TASK_READJUST_POWER_STATE, NULL);
+	ret = hwmgr_handle_task(hwmgr, AMD_PP_TASK_READJUST_POWER_STATE, NULL);
+	if (ret)
+		return ret;
+
+	ret = phm_force_dpm_levels(hwmgr, level);
+	if (ret)
+		return ret;
+
+	hwmgr->dpm_level = level;
 
 	return 0;
+}
+
+static int pp_dpm_force_performance_level(void *handle,
+					enum amd_dpm_forced_level level)
+{
+	return pp_dpm_apply_performance_level(handle, level, false);
+}
+
+static int
+pp_dpm_reapply_performance_level(void *handle,
+					 enum amd_dpm_forced_level level)
+{
+	return pp_dpm_apply_performance_level(handle, level, true);
 }
 
 static enum amd_dpm_forced_level pp_dpm_get_performance_level(
@@ -1536,6 +1558,7 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
 	.force_performance_level = pp_dpm_force_performance_level,
+	.reapply_performance_level = pp_dpm_reapply_performance_level,
 	.get_performance_level = pp_dpm_get_performance_level,
 	.get_current_power_state = pp_dpm_get_current_power_state,
 	.dispatch_tasks = pp_dpm_dispatch_tasks,

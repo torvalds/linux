@@ -46,12 +46,6 @@
 #define AMDGPU_USERPTR_RESTORE_DELAY_MS 1
 #define AMDGPU_RESERVE_MEM_LIMIT			(3UL << 29)
 
-/*
- * Align VRAM availability to 2MB to avoid fragmentation caused by 4K allocations in the tail 2MB
- * BO chunk
- */
-#define VRAM_AVAILABLITY_ALIGN (1 << 21)
-
 /* Impose limit on how much memory KFD can use */
 static struct {
 	uint64_t max_system_mem_limit;
@@ -73,6 +67,8 @@ static const char * const domain_bit_to_string[] = {
 #define domain_string(domain) domain_bit_to_string[ffs(domain)-1]
 
 static void amdgpu_amdkfd_restore_userptr_worker(struct work_struct *work);
+static size_t __get_available_memory(struct amdgpu_device *adev,
+				     uint8_t xcp_id, int64_t vram_used);
 
 static bool kfd_mem_is_attached(struct amdgpu_vm *avm,
 		struct kgd_mem *mem)
@@ -169,13 +165,8 @@ void amdgpu_amdkfd_reserve_system_mem(uint64_t size)
 int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 		uint64_t size, u32 alloc_flag, int8_t xcp_id)
 {
-	uint64_t reserved_for_pt =
-		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	uint64_t reserved_for_ras = (con ? con->reserved_pages_in_bytes : 0);
 	size_t system_mem_needed, ttm_mem_needed, vram_needed;
 	int ret = 0;
-	uint64_t vram_size = 0;
 
 	system_mem_needed = 0;
 	ttm_mem_needed = 0;
@@ -196,7 +187,6 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 		if (WARN_ONCE(xcp_id < 0, "invalid XCP ID %d", xcp_id))
 			return -EINVAL;
 
-		vram_size = KFD_XCP_MEMORY_SIZE(adev, xcp_id);
 		if (adev->apu_prefer_gtt) {
 			system_mem_needed = size;
 			ttm_mem_needed = size;
@@ -232,14 +222,11 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	 * VRAM check since ttm_mem_limit check already cover this allocation
 	 */
 
-	if (adev && xcp_id >= 0 && (!adev->apu_prefer_gtt || adev->gmc.is_app_apu)) {
-		uint64_t vram_available =
-			vram_size - reserved_for_pt - reserved_for_ras -
-			atomic64_read(&adev->vram_pin_size);
-		if (adev->kfd.vram_used[xcp_id] + vram_needed > vram_available) {
-			ret = -ENOMEM;
-			goto release;
-		}
+	if (adev && xcp_id >= 0 && (!adev->apu_prefer_gtt || adev->gmc.is_app_apu) &&
+	    vram_needed > __get_available_memory(adev, xcp_id,
+						 adev->kfd.vram_used[xcp_id])) {
+		ret = -ENOMEM;
+		goto release;
 	}
 
 	/* Update memory accounting by decreasing available system
@@ -316,6 +303,30 @@ void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo)
 					  bo->xcp_id);
 
 	kfree(bo->kfd_bo);
+}
+
+void amdgpu_amdkfd_account_vram_pin(struct amdgpu_bo *bo, int xcp_id)
+{
+	if (!bo->kfd_bo)
+		return;
+
+	if (WARN_ONCE(xcp_id < 0, "KFD BO pinned in VRAM with no partition"))
+		return;
+
+	atomic64_add(amdgpu_bo_size(bo),
+		     &amdgpu_ttm_adev(bo->tbo.bdev)->kfd.vram_pinned[xcp_id]);
+}
+
+void amdgpu_amdkfd_account_vram_unpin(struct amdgpu_bo *bo, int xcp_id)
+{
+	if (!bo->kfd_bo)
+		return;
+
+	if (WARN_ONCE(xcp_id < 0, "KFD BO unpinned in VRAM with no partition"))
+		return;
+
+	atomic64_sub(amdgpu_bo_size(bo),
+		     &amdgpu_ttm_adev(bo->tbo.bdev)->kfd.vram_pinned[xcp_id]);
 }
 
 /**
@@ -1536,6 +1547,7 @@ static int amdgpu_amdkfd_gpuvm_pin_bo(struct amdgpu_bo *bo, u32 domain)
 		pr_err("Error in Pinning BO to domain: %d\n", domain);
 
 	amdgpu_bo_sync_wait(bo, AMDGPU_FENCE_OWNER_KFD, false);
+
 out:
 	amdgpu_bo_unreserve(bo);
 	return ret;
@@ -1558,6 +1570,7 @@ static void amdgpu_amdkfd_gpuvm_unpin_bo(struct amdgpu_bo *bo)
 		return;
 
 	amdgpu_bo_unpin(bo);
+
 	amdgpu_bo_unreserve(bo);
 }
 
@@ -1661,8 +1674,9 @@ out_unlock:
 	return ret;
 }
 
-size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev,
-					  uint8_t xcp_id)
+/* Caller must hold kfd_mem_limit.mem_limit_lock. */
+static size_t __get_available_memory(struct amdgpu_device *adev,
+				     uint8_t xcp_id, int64_t vram_used)
 {
 	uint64_t reserved_for_pt =
 		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
@@ -1671,14 +1685,17 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev,
 	ssize_t available;
 	uint64_t vram_available, system_mem_available, ttm_mem_available;
 
-	spin_lock(&kfd_mem_limit.mem_limit_lock);
+	lockdep_assert_held(&kfd_mem_limit.mem_limit_lock);
+
 	if (adev->apu_prefer_gtt && !adev->gmc.is_app_apu)
 		vram_available = KFD_XCP_MEMORY_SIZE(adev, xcp_id)
-			- adev->kfd.vram_used_aligned[xcp_id];
+			- vram_used;
 	else
 		vram_available = KFD_XCP_MEMORY_SIZE(adev, xcp_id)
-			- adev->kfd.vram_used_aligned[xcp_id]
-			- atomic64_read(&adev->vram_pin_size)
+			- vram_used
+			- atomic64_read(&adev->vram_pin_size_xcp[xcp_id])
+			- atomic64_read(&adev->vram_pin_size_common)
+			+ atomic64_read(&adev->kfd.vram_pinned[xcp_id])
 			- reserved_for_pt
 			- reserved_for_ras;
 
@@ -1693,15 +1710,25 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev,
 
 		available = min3(system_mem_available, ttm_mem_available,
 				 vram_available);
-		available = ALIGN_DOWN(available, PAGE_SIZE);
 	} else {
-		available = ALIGN_DOWN(vram_available, VRAM_AVAILABLITY_ALIGN);
+		available = vram_available;
 	}
-
-	spin_unlock(&kfd_mem_limit.mem_limit_lock);
 
 	if (available < 0)
 		available = 0;
+
+	return available;
+}
+
+size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev,
+					  uint8_t xcp_id)
+{
+	size_t available;
+
+	spin_lock(&kfd_mem_limit.mem_limit_lock);
+	available = __get_available_memory(adev, xcp_id,
+					   adev->kfd.vram_used_aligned[xcp_id]);
+	spin_unlock(&kfd_mem_limit.mem_limit_lock);
 
 	return available;
 }
@@ -2827,6 +2854,7 @@ static void amdgpu_amdkfd_restore_userptr_worker(struct work_struct *work)
 	struct task_struct *usertask;
 	struct mm_struct *mm;
 	uint32_t evicted_bos;
+	int ret;
 
 	mutex_lock(&process_info->notifier_lock);
 	evicted_bos = process_info->evicted_bos;
@@ -2846,14 +2874,16 @@ static void amdgpu_amdkfd_restore_userptr_worker(struct work_struct *work)
 
 	mutex_lock(&process_info->lock);
 
-	if (update_invalid_user_pages(process_info, mm))
+	ret = update_invalid_user_pages(process_info, mm);
+	if (ret)
 		goto unlock_out;
 	/* userptr_inval_list can be empty if all evicted userptr BOs
 	 * have been freed. In that case there is nothing to validate
 	 * and we can just restart the queues.
 	 */
 	if (!list_empty(&process_info->userptr_inval_list)) {
-		if (validate_invalid_user_pages(process_info))
+		ret = validate_invalid_user_pages(process_info);
+		if (ret)
 			goto unlock_out;
 	}
 	/* Final check for concurrent evicton and atomic update. If
@@ -2862,11 +2892,14 @@ static void amdgpu_amdkfd_restore_userptr_worker(struct work_struct *work)
 	 * reference counting inside KFD will handle this case.
 	 */
 	mutex_lock(&process_info->notifier_lock);
-	if (process_info->evicted_bos != evicted_bos)
+	if (process_info->evicted_bos != evicted_bos) {
+		ret = -EAGAIN;
 		goto unlock_notifier_out;
+	}
 
 	if (confirm_valid_user_pages_locked(process_info)) {
 		WARN(1, "User pages unexpectedly invalid");
+		ret = -EINVAL;
 		goto unlock_notifier_out;
 	}
 
@@ -2884,8 +2917,10 @@ unlock_notifier_out:
 unlock_out:
 	mutex_unlock(&process_info->lock);
 
-	/* If validation failed, reschedule another attempt */
-	if (evicted_bos) {
+	/* If validation failed, reschedule another attempt, unless the
+	 * device is gone for good
+	 */
+	if (evicted_bos && ret != -ENODEV) {
 		queue_delayed_work(system_freezable_wq,
 			&process_info->restore_userptr_work,
 			msecs_to_jiffies(AMDGPU_USERPTR_RESTORE_DELAY_MS));

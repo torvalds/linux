@@ -780,9 +780,16 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 		return copy_to_user(out, &count, min(size, 4u)) ? -EFAULT : 0;
 	}
-	case AMDGPU_INFO_TIMESTAMP:
+	case AMDGPU_INFO_TIMESTAMP: {
+		PM_RUNTIME_ACQUIRE_IF_ENABLED_AUTOSUSPEND(dev->dev, pm);
+
+		ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+		if (ret)
+			return ret;
+
 		ui64 = amdgpu_gfx_get_gpu_clock_counter(adev);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
+	}
 	case AMDGPU_INFO_FW_VERSION: {
 		struct drm_amdgpu_info_firmware fw_info;
 
@@ -906,6 +913,12 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		if (info->read_mmr_reg.count > 128)
 			return -EINVAL;
 
+		PM_RUNTIME_ACQUIRE_IF_ENABLED_AUTOSUSPEND(dev->dev, pm);
+
+		ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+		if (ret)
+			return ret;
+
 		regs = kmalloc_array(info->read_mmr_reg.count, sizeof(*regs),
 				     GFP_KERNEL);
 		if (!regs)
@@ -939,6 +952,13 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		struct drm_amdgpu_info_device *dev_info;
 		uint64_t vm_size;
 		uint32_t pcie_gen_mask, pcie_width_mask;
+
+		/* The clock limits are only available while the SMU is up. */
+		PM_RUNTIME_ACQUIRE_IF_ENABLED_AUTOSUSPEND(dev->dev, pm);
+
+		ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+		if (ret)
+			return ret;
 
 		dev_info = kzalloc_obj(*dev_info);
 		if (!dev_info)
@@ -1167,6 +1187,12 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		}
 	}
 	case AMDGPU_INFO_SENSOR: {
+		PM_RUNTIME_ACQUIRE_IF_ENABLED_AUTOSUSPEND(dev->dev, pm);
+
+		ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+		if (ret)
+			return ret;
+
 		if (!adev->pm.dpm_enabled)
 			return -ENOENT;
 

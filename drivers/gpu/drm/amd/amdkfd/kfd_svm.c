@@ -1020,9 +1020,12 @@ svm_range_split_pages(struct svm_range *new, struct svm_range *old,
 		      uint64_t start, uint64_t last)
 {
 	uint64_t npages = last - start + 1;
+	bool has_dma_addr = false;
 	int i, r;
 
 	for (i = 0; i < MAX_GPU_INSTANCE; i++) {
+		if (old->dma_addr[i])
+			has_dma_addr = true;
 		r = svm_range_split_array(&new->dma_addr[i], &old->dma_addr[i],
 					  sizeof(*old->dma_addr[i]), old->start,
 					  npages, new->start, new->npages,
@@ -1030,8 +1033,16 @@ svm_range_split_pages(struct svm_range *new, struct svm_range *old,
 		if (r)
 			return r;
 	}
-	if (old->actual_loc)
+	if (old->actual_loc) {
+		/*
+		 * Pages migrated by prefetch have no dma_addr until they are
+		 * mapped on a GPU. A fully resident range still splits exactly,
+		 * old->npages isn't adjusted yet here.
+		 */
+		if (!has_dma_addr && old->vram_pages == old->npages)
+			new->vram_pages = new->npages;
 		old->vram_pages -= new->vram_pages;
+	}
 
 	return 0;
 }
@@ -1963,7 +1974,7 @@ static void svm_range_restore_work(struct work_struct *work)
 	struct mm_struct *mm;
 	int evicted_ranges;
 	int invalid;
-	int r;
+	int r = 0;
 
 	svms = container_of(dwork, struct svm_range_list, restore_work);
 	evicted_ranges = atomic_read(&svms->evicted_ranges);
@@ -2037,8 +2048,10 @@ out_reschedule:
 	mmap_write_unlock(mm);
 	mutex_unlock(&process_info->lock);
 
-	/* If validation failed, reschedule another attempt */
-	if (evicted_ranges) {
+	/* If validation failed, reschedule another attempt, unless the
+	 * device is gone for good
+	 */
+	if (evicted_ranges && r != -ENODEV) {
 		pr_debug("reschedule to restore svm range\n");
 		queue_delayed_work(system_freezable_wq, &svms->restore_work,
 			msecs_to_jiffies(AMDGPU_SVM_RANGE_RESTORE_DELAY_MS));
@@ -2158,14 +2171,25 @@ static struct svm_range *svm_range_clone(struct svm_range *old)
 		svm_range_free(new, false);
 		return NULL;
 	}
-	if (old->svm_bo) {
+
+	/* old->lock keeps old->svm_bo alive while taking the reference */
+	mutex_lock(&old->lock);
+	if (svm_bo_ref_unless_zero(old->svm_bo)) {
 		new->ttm_res = old->ttm_res;
 		new->offset = old->offset;
-		new->svm_bo = svm_range_bo_ref(old->svm_bo);
+		new->svm_bo = old->svm_bo;
 		spin_lock(&new->svm_bo->list_lock);
 		list_add(&new->svm_bo_list, &new->svm_bo->range_list);
 		spin_unlock(&new->svm_bo->list_lock);
 	}
+	mutex_unlock(&old->lock);
+
+	/* prange only holds an svm_bo reference while ttm_res is set, unref
+	 * outside old->lock, svm_range_bo_release takes it and would deadlock.
+	 */
+	if (new->svm_bo && !new->ttm_res)
+		svm_range_bo_unref(new->svm_bo);
+
 	new->flags = old->flags;
 	new->preferred_loc = old->preferred_loc;
 	new->prefetch_loc = old->prefetch_loc;

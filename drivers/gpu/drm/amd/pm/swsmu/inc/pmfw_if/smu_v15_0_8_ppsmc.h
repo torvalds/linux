@@ -83,7 +83,10 @@
 #define PPSMC_MSG_SetSoftMaxGl2clk	                0x32
 #define PPSMC_MSG_SetSoftMinFclk	                0x33
 #define PPSMC_MSG_SetSoftMaxFclk	                0x34
-#define PPSMC_Message_Count                         0x35
+/* NPM limit setter; NPM reads are served from the SystemMetricsTable. */
+#define PPSMC_MSG_SetNpmLimit                       0x40
+#define PPSMC_MSG_PrepareNodeForUnload              0x41
+#define PPSMC_Message_Count                         0x42
 
 /* PSMC Reset Types for driver msg argument */
 #define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET        0x1

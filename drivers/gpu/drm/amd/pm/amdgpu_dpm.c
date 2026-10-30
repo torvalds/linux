@@ -1082,6 +1082,91 @@ static void amdgpu_dpm_exit_umd_state(struct amdgpu_device *adev)
 					       AMD_PG_STATE_GATE);
 }
 
+/**
+ * amdgpu_dpm_reapply_umd_profile - Restore the active UMD profile
+ * @adev: amdgpu device
+ *
+ * Resume and reset retain the selected DPM level in software, but the
+ * underlying GFX and PMFW state is lost. Reapply a retained UMD profile
+ * after the common resume path has restored its default CG and PG state.
+ */
+int amdgpu_dpm_reapply_umd_profile(struct amdgpu_device *adev)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	enum amd_dpm_forced_level level;
+	int ret, fallback_ret;
+
+	if (!pp_funcs || !pp_funcs->reapply_performance_level ||
+	    !pp_funcs->force_performance_level)
+		return 0;
+
+	/* Serialize the retained level with the GFX and PMFW reprogramming. */
+	mutex_lock(&adev->pm.mutex);
+	if (adev->pm.dpm.thermal_active) {
+		dev_warn(adev->dev,
+			 "Cannot restore UMD profile while thermal control is active\n");
+		ret = 0;
+		goto unlock;
+	}
+
+	if (pp_funcs->get_performance_level)
+		level = pp_funcs->get_performance_level(adev->powerplay.pp_handle);
+	else
+		level = adev->pm.dpm.forced_level;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		break;
+	default:
+		ret = 0;
+		goto unlock;
+	}
+
+	/* The active profile already owns the GFX PG reference. */
+	ret = amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_GFX,
+					      AMD_CG_STATE_UNGATE);
+	if (ret)
+		goto fallback_auto;
+
+	ret = amdgpu_asic_update_umd_stable_pstate(adev, true);
+	if (ret)
+		goto fallback_auto;
+
+	ret = pp_funcs->reapply_performance_level(adev->powerplay.pp_handle,
+						     level);
+	if (ret)
+		goto fallback_auto;
+
+unlock:
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+
+fallback_auto:
+	dev_warn(adev->dev, "Failed to restore UMD profile state: %d\n", ret);
+
+	/* Restore normal CG before releasing the profile's PG reference. */
+	amdgpu_asic_update_umd_stable_pstate(adev, false);
+	amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_GFX,
+					       AMD_CG_STATE_GATE);
+	mutex_unlock(&adev->pm.mutex);
+
+	mutex_lock(&adev->pm.stable_pstate_ctx_lock);
+	fallback_ret = amdgpu_dpm_force_performance_level(adev,
+						   AMD_DPM_FORCED_LEVEL_AUTO);
+	if (fallback_ret)
+		dev_warn(adev->dev, "Failed to fall back to AUTO performance level: %d\n",
+			 fallback_ret);
+	else
+		adev->pm.stable_pstate_ctx = NULL;
+	mutex_unlock(&adev->pm.stable_pstate_ctx_lock);
+
+	return 0;
+}
+
 int amdgpu_dpm_force_performance_level(struct amdgpu_device *adev,
 				       enum amd_dpm_forced_level level)
 {
@@ -2122,6 +2207,24 @@ u64 amdgpu_dpm_get_npm_cap(struct amdgpu_device *adev)
 	mutex_unlock(&adev->pm.mutex);
 
 	return cap;
+}
+
+int amdgpu_dpm_set_npm_limit(struct amdgpu_device *adev, uint32_t limit)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret;
+
+	if (!pp_funcs || !pp_funcs->set_npm_limit)
+		return -EOPNOTSUPP;
+
+	if (amdgpu_sriov_vf(adev))
+		return -EPERM;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = pp_funcs->set_npm_limit(adev->powerplay.pp_handle, limit);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
 }
 
 /**

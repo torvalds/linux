@@ -328,7 +328,7 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint64_t GfxclkLowUtilizationAcc[8];
 } MetricsTable_t;
 
-#define SMU_SYSTEM_METRICS_TABLE_VERSION 0x1
+#define SMU_SYSTEM_METRICS_TABLE_VERSION 0x2
 
 #pragma pack(push, 4)
 typedef struct {
@@ -343,9 +343,13 @@ typedef struct {
   //NPM: NODE POWER MANAGEMENT
   uint32_t NodePowerLimit;
   uint32_t NodePower;
-  uint32_t GlobalPPTResidencyAcc;
+  uint32_t NPMResidencyAcc;
 
   uint16_t SystemPower[SYSTEM_POWER_MAX_ENTRIES];           // UBB Current Power and Power Threshold
+
+  // NPM flags
+  uint32_t NpmSupported;
+  uint32_t NpmEnabled;
 } SystemMetricsTable_t;
 #pragma pack(pop)
 
@@ -368,7 +372,7 @@ typedef struct __attribute__((aligned(4))) {
   uint8_t  FruId[PRODUCT_FRU_ID_LEN];
 } FRUProductInfo_t;
 
-#define SMU_STATIC_METRICS_TABLE_VERSION 0x1
+#define SMU_STATIC_METRICS_TABLE_VERSION 0x2
 
 #pragma pack(push, 4)
 typedef struct {
@@ -421,6 +425,8 @@ typedef struct {
   uint32_t PPT1Max;
   uint32_t PPT1Min;
   uint32_t PPT1Default;
+
+  uint32_t MaxNodePowerLimit;
 } StaticMetricsTable_t;
 #pragma pack(pop)
 
