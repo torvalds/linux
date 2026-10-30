@@ -848,6 +848,10 @@ unsigned long iov_iter_alignment(const struct iov_iter *i)
 		return 0;
 	}
 
+	/* An empty iterator may have no segment array at all. */
+	if (!i->count)
+		return 0;
+
 	/* iovec and kvec have identical layouts */
 	if (likely(iter_is_iovec(i) || iov_iter_is_kvec(i)))
 		return iov_iter_alignment_iovec(i);
