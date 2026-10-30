@@ -17461,22 +17461,6 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chanwoo/linux.git
 F:	drivers/devfreq/tegra30-devfreq.c
 
-MEMORY HOT(UN)PLUG
-M:	David Hildenbrand <david@kernel.org>
-M:	Oscar Salvador <osalvador@suse.de>
-L:	linux-mm@kvack.org
-L:	linux-cxl@vger.kernel.org
-S:	Maintained
-F:	Documentation/ABI/testing/sysfs-devices-memory
-F:	Documentation/admin-guide/mm/memory-hotplug.rst
-F:	Documentation/core-api/memory-hotplug.rst
-F:	drivers/base/memory.c
-F:	include/linux/memory_hotplug.h
-F:	include/linux/memremap.h
-F:	mm/memory_hotplug.c
-F:	mm/memremap.c
-F:	tools/testing/selftests/memory-hotplug/
-
 MEMORY MANAGEMENT
 M:	Andrew Morton <akpm@linux-foundation.org>
 L:	linux-mm@kvack.org
@@ -17613,6 +17597,22 @@ F:	include/linux/ksm.h
 F:	include/trace/events/ksm.h
 F:	mm/ksm.c
 F:	mm/mm_slot.h
+
+MEMORY MANAGEMENT - MEMORY HOT(UN)PLUG
+M:	David Hildenbrand <david@kernel.org>
+M:	Oscar Salvador <osalvador@suse.de>
+L:	linux-mm@kvack.org
+L:	linux-cxl@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-devices-memory
+F:	Documentation/admin-guide/mm/memory-hotplug.rst
+F:	Documentation/core-api/memory-hotplug.rst
+F:	drivers/base/memory.c
+F:	include/linux/memory_hotplug.h
+F:	include/linux/memremap.h
+F:	mm/memory_hotplug.c
+F:	mm/memremap.c
+F:	tools/testing/selftests/memory-hotplug/
 
 MEMORY MANAGEMENT - MEMORY MAP
 M:	Muchun Song <muchun.song@linux.dev>
