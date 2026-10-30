@@ -1605,21 +1605,25 @@ int path_has_submounts(const struct path *parent)
 }
 EXPORT_SYMBOL(path_has_submounts);
 
+/* odd while d_set_mounted() runs, d_invalidate() waits on it */
+static __cacheline_aligned_in_smp DEFINE_SEQLOCK(d_set_mounted_lock);
+
 /*
  * Called by mount code to set a mountpoint and check if the mountpoint is
  * reachable (e.g. NFS can unhash a directory dentry and then the complete
  * subtree can become unreachable).
  *
  * Only one of d_invalidate() and d_set_mounted() must succeed.  For
- * this reason take rename_lock and d_lock on dentry and ancestors.
- * Likewise for dont_mount() which marks a dentry that is being removed
- * under d_lock.
+ * this reason take rename_lock, d_set_mounted_lock and d_lock on dentry
+ * and ancestors.  Likewise for dont_mount() which marks a dentry that
+ * is being removed under d_lock.
  */
 int d_set_mounted(struct dentry *dentry)
 {
 	struct dentry *p;
 	int ret = -ENOENT;
 	read_seqlock_excl(&rename_lock);
+	write_seqlock(&d_set_mounted_lock);
 	for (p = dentry->d_parent; !IS_ROOT(p); p = p->d_parent) {
 		/* Need exclusion wrt. d_invalidate() */
 		spin_lock(&p->d_lock);
@@ -1637,8 +1641,9 @@ int d_set_mounted(struct dentry *dentry)
 			ret = 0;
 		}
 	}
- 	spin_unlock(&dentry->d_lock);
+	spin_unlock(&dentry->d_lock);
 out:
+	write_sequnlock(&d_set_mounted_lock);
 	read_sequnlock_excl(&rename_lock);
 	return ret;
 }
@@ -1891,6 +1896,7 @@ static enum d_walk_ret find_submount(void *_data, struct dentry *dentry)
 void d_invalidate(struct dentry *dentry)
 {
 	bool had_submounts = false;
+	unsigned seq;
 	spin_lock(&dentry->d_lock);
 	if (d_unhashed(dentry)) {
 		spin_unlock(&dentry->d_lock);
@@ -1902,6 +1908,11 @@ void d_invalidate(struct dentry *dentry)
 	/* Negative dentries can be dropped without further checks */
 	if (!dentry->d_inode)
 		return;
+
+	/* wait for a d_set_mounted() that saw us hashed to set its flag */
+	do {
+		seq = read_seqbegin(&d_set_mounted_lock);
+	} while (read_seqretry(&d_set_mounted_lock, seq));
 
 	shrink_dcache_parent(dentry);
 	for (;;) {
