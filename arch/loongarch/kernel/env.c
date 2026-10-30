@@ -25,10 +25,7 @@ void __init init_environ(void)
 	int efi_boot = fw_arg0;
 	char *cmdline = early_memremap_ro(fw_arg1, COMMAND_LINE_SIZE);
 
-	if (efi_boot)
-		set_bit(EFI_BOOT, &efi.flags);
-	else
-		clear_bit(EFI_BOOT, &efi.flags);
+	assign_bit(EFI_BOOT, &efi.flags, efi_boot);
 
 	strscpy(boot_command_line, cmdline, COMMAND_LINE_SIZE);
 	strscpy(init_command_line, cmdline, COMMAND_LINE_SIZE);

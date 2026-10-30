@@ -175,7 +175,7 @@ static int loongson2_pm_probe(struct platform_device *pdev)
 		return irq;
 
 	if (!device_property_read_u64(dev, "loongson,suspend-address", &suspend_addr))
-		loongson_sysconf.suspend_addr = (u64)phys_to_virt(suspend_addr);
+		loongson_sysconf.suspend_addr = (unsigned long)phys_to_virt(suspend_addr);
 	else
 		dev_err(dev, "No loongson,suspend-address, could not support S3!\n");
 

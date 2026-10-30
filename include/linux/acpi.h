@@ -1637,6 +1637,7 @@ static inline int acpi_pptt_get_cpumask_from_cache_id(u32 cache_id,
 #endif
 
 void acpi_arch_init(void);
+void acpi_arch_late_init(void);
 
 #ifdef CONFIG_ACPI_PCC
 void acpi_init_pcc(void);

@@ -550,6 +550,10 @@ if ARM64
 source "drivers/acpi/arm64/Kconfig"
 endif
 
+if LOONGARCH
+source "drivers/acpi/loongarch/Kconfig"
+endif
+
 if RISCV
 source "drivers/acpi/riscv/Kconfig"
 endif

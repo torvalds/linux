@@ -73,14 +73,12 @@
 	status = "okay";
 
 	phy-mode = "rgmii-id";
-	bus_id = <0x0>;
 };
 
 &gmac1 {
 	status = "okay";
 
 	phy-mode = "rgmii-id";
-	bus_id = <0x1>;
 };
 
 &i2c0 {

@@ -92,8 +92,8 @@ static u32 loongson2_guts_get_svr(void)
 
 static int loongson2_guts_probe(struct platform_device *pdev)
 {
-	struct device_node *root, *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = pdev->dev.of_node;
 	const struct loongson2_soc_die_attr *soc_die;
 	const char *machine;
 	u32 svr;
@@ -109,11 +109,8 @@ static int loongson2_guts_probe(struct platform_device *pdev)
 	if (IS_ERR(guts->regs))
 		return PTR_ERR(guts->regs);
 
-	/* Register soc device */
-	root = of_find_node_by_path("/");
-	if (of_property_read_string(root, "model", &machine))
-		of_property_read_string_index(root, "compatible", 0, &machine);
-	of_node_put(root);
+	if (of_property_read_string(of_root, "model", &machine))
+		of_property_read_string_index(of_root, "compatible", 0, &machine);
 	if (machine) {
 		soc_dev_attr.machine = devm_kstrdup(dev, machine, GFP_KERNEL);
 		if (!soc_dev_attr.machine)
