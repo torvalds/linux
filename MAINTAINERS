@@ -17810,6 +17810,25 @@ S:	Maintained
 F:	include/linux/secretmem.h
 F:	mm/secretmem.c
 
+MEMORY MANAGEMENT - SHARED MEMORY (SHMEM/TMPFS/MEMFD)
+M:	Hugh Dickins <hughd@google.com>
+M:	David Hildenbrand <david@kernel.org>
+R:	Baolin Wang <baolin.wang@linux.alibaba.com>
+L:	linux-mm@kvack.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mm/core.git for-next
+F:	Documentation/filesystems/tmpfs.rst
+F:	Documentation/mm/shmfs.rst
+F:	Documentation/userspace-api/mfd_noexec.rst
+F:	include/linux/memfd.h
+F:	include/linux/shmem_fs.h
+F:	include/uapi/linux/memfd.h
+F:	mm/memfd.c
+F:	mm/shmem.c
+F:	mm/shmem_quota.c
+F:	tools/testing/selftests/memfd/
+F:	tools/testing/selftests/tmpfs/
+
 MEMORY MANAGEMENT - SWAP
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	Chris Li <chrisl@kernel.org>
@@ -28244,17 +28263,6 @@ L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/tmp513.rst
 F:	drivers/hwmon/tmp513.c
-
-TMPFS (SHMEM FILESYSTEM)
-M:	Hugh Dickins <hughd@google.com>
-R:	Baolin Wang <baolin.wang@linux.alibaba.com>
-L:	linux-mm@kvack.org
-S:	Maintained
-F:	include/linux/memfd.h
-F:	include/linux/shmem_fs.h
-F:	mm/memfd.c
-F:	mm/shmem.c
-F:	mm/shmem_quota.c
 
 TOMOYO SECURITY MODULE
 M:	Kentaro Takeda <takedakn@nttdata.co.jp>
