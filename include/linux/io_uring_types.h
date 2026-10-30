@@ -162,6 +162,9 @@ struct io_uring_task {
 	/* drains ->task_list once the task can no longer run task_work */
 	struct work_struct		fallback_work;
 
+	/* the tctx is freed after a grace period, see io_put_task() */
+	struct rcu_head			rcu;
+
 	struct { /* task_work */
 		struct mpscq		task_list;
 		struct callback_head	task_work;
