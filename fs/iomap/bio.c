@@ -109,7 +109,7 @@ int iomap_bio_read_folio_range(const struct iomap_iter *iter,
 
 	if (!bio ||
 	    bio_end_sector(bio) != iomap_sector(&iter->iomap, iter->pos) ||
-	    bio->bi_iter.bi_size > iomap_max_bio_size(&iter->iomap) - plen ||
+	    !iomap_bio_has_room(&iter->iomap, bio, plen) ||
 	    !bio_add_folio(bio, folio, plen, offset_in_folio(folio, iter->pos)))
 		iomap_read_alloc_bio(iter, ctx, plen);
 	return 0;

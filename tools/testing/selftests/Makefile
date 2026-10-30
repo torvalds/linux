@@ -40,6 +40,7 @@ TARGETS += filesystems/eventfd
 TARGETS += filesystems/failfs
 TARGETS += filesystems/fat
 TARGETS += filesystems/file_stressor
+TARGETS += filesystems/freeze
 TARGETS += filesystems/openat2
 TARGETS += filesystems/open_tree_ns
 TARGETS += filesystems/overlayfs

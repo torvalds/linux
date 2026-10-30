@@ -17,6 +17,15 @@ static inline size_t iomap_max_bio_size(const struct iomap *iomap)
 	return BIO_MAX_SIZE;
 }
 
+/* Can @len more bytes go into @bio? */
+static inline bool iomap_bio_has_room(const struct iomap *iomap,
+		const struct bio *bio, size_t len)
+{
+	size_t max_size = iomap_max_bio_size(iomap);
+
+	return len <= max_size && bio->bi_iter.bi_size <= max_size - len;
+}
+
 u32 iomap_finish_ioend_buffered_read(struct iomap_ioend *ioend);
 u32 iomap_finish_ioend_direct(struct iomap_ioend *ioend);
 

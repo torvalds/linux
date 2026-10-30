@@ -362,6 +362,12 @@ static __u32 pidfs_coredump_mask(enum task_dumpable dumpable)
 			      PIDFD_INFO_COREDUMP_SIGNAL | \
 			      PIDFD_INFO_COREDUMP_CODE)
 
+static bool pidfs_task_owns_pid(struct task_struct *task, struct pid *pid)
+{
+	guard(rcu)();
+	return pid_task(pid, PIDTYPE_PID) == task;
+}
+
 static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct pidfd_info __user *uinfo = (struct pidfd_info __user *)arg;
@@ -392,6 +398,16 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 		return -EREMOTE;
 
 	attr = READ_ONCE(pid->attr);
+again:
+	/*
+	 * Look for the task first. pidfs_exit() records the exit information
+	 * before the task is unhashed, so if the task is gone the information
+	 * is there.
+	 */
+	task = get_pid_task(pid, PIDTYPE_PID);
+	if (!task)
+		smp_rmb(); /* pairs with smp_mb__after_atomic() in pidfs_exit() */
+
 	if (mask & PIDFD_INFO_EXIT) {
 		if (test_bit(PIDFS_ATTR_BIT_EXIT, &attr->attr_mask)) {
 			smp_rmb();
@@ -414,7 +430,6 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 	}
 
-	task = get_pid_task(pid, PIDTYPE_PID);
 	if (!task) {
 		/*
 		 * If the task has already been reaped, only exit
@@ -468,22 +483,41 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	 * task might return as soon as the copy_to_user finishes, but that's ok
 	 * and userspace expects that might happen and can act accordingly, so
 	 * this is just best-effort. What we can do however is checking that all
-	 * the fields are set correctly, or return ESRCH to avoid providing
-	 * incomplete information. */
+	 * the fields are set correctly, to avoid providing incomplete
+	 * information.
+	 */
 
 	kinfo.ppid = task_ppid_vnr(task);
 	kinfo.tgid = task_tgid_vnr(task);
-	kinfo.pid = task_pid_vnr(task);
+	kinfo.pid = pid_vnr(pid);
 	kinfo.mask |= PIDFD_INFO_PID;
 
-	if (kinfo.pid == 0 || kinfo.tgid == 0)
-		return -ESRCH;
+	/*
+	 * The task was reaped, or lost @pid to a sub-thread that called exec,
+	 * while we were looking at it. Start over: there is exit information
+	 * now, or a new task. Don't go by ->thread_pid, exchange_tids()
+	 * updates it only after it has moved @pid.
+	 */
+	if (!pidfs_task_owns_pid(task, pid) || kinfo.tgid == 0) {
+		put_task_struct(task);
+		task = NULL;
+		memset(&kinfo, 0, sizeof(kinfo));
+		goto again;
+	}
 
 copy_out:
 	if (mask & PIDFD_INFO_SUPPORTED_MASK) {
 		kinfo.mask |= PIDFD_INFO_SUPPORTED_MASK;
 		kinfo.supported_mask = PIDFD_INFO_SUPPORTED;
 	}
+
+	/* Only report fields that fit into the caller's struct. */
+	if (usize < PIDFD_INFO_SIZE_VER1)
+		kinfo.mask &= ~(PIDFD_INFO_COREDUMP | PIDFD_INFO_COREDUMP_SIGNAL);
+	if (usize < PIDFD_INFO_SIZE_VER2)
+		kinfo.mask &= ~PIDFD_INFO_COREDUMP_CODE;
+	if (usize < PIDFD_INFO_SIZE_VER3)
+		kinfo.mask &= ~PIDFD_INFO_SUPPORTED_MASK;
 
 	/* Are there bits in the return mask not present in PIDFD_INFO_SUPPORTED? */
 	WARN_ON_ONCE(~PIDFD_INFO_SUPPORTED & kinfo.mask);
@@ -790,6 +824,11 @@ void pidfs_exit(struct task_struct *tsk)
 	/* Ensure that PIDFD_GET_INFO sees either all or nothing. */
 	smp_wmb();
 	set_bit(PIDFS_ATTR_BIT_EXIT, &attr->attr_mask);
+	/*
+	 * Whoever sees that the task is unhashed must see the bit, see
+	 * pidfd_info(). Taking tasklist_lock does not order the two stores.
+	 */
+	smp_mb__after_atomic();
 }
 
 #ifdef CONFIG_COREDUMP

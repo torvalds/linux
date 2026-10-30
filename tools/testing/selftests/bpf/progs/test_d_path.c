@@ -41,7 +41,7 @@ int BPF_PROG(prog_stat, struct path *path, struct kstat *stat,
 	return 0;
 }
 
-SEC("fentry/filp_close")
+SEC("fentry/filp_close_sync")
 int BPF_PROG(prog_close, struct file *file, void *id)
 {
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;

@@ -408,15 +408,12 @@ struct klistns {
 	u32 ns_type;
 	struct user_namespace *user_ns;
 	bool userns_capable;
-	struct ns_common *first_ns;
 };
 
 static void __free_klistns_free(const struct klistns *kls)
 {
 	if (kls->user_ns_id != LISTNS_CURRENT_USER)
 		put_user_ns(kls->user_ns);
-	if (kls->first_ns && kls->first_ns->ops)
-		kls->first_ns->ops->put(kls->first_ns);
 }
 
 #define NS_ALL (PID_NS | USER_NS | MNT_NS | UTS_NS | IPC_NS | NET_NS | CGROUP_NS | TIME_NS)
@@ -459,10 +456,13 @@ static inline int prepare_klistns(struct klistns *kls, struct ns_id_req *kreq,
 }
 
 /*
- * Lookup a namespace owned by owner with id >= ns_id.
- * Returns the namespace with the smallest id that is >= ns_id.
+ * Lookup a namespace owned by owner with id > ns_id.
+ * Returns the namespace with the smallest id that is > ns_id.
+ *
+ * No reference is taken. The caller must hold rcu_read_lock() and may only
+ * use the result as the starting point of an RCU list walk.
  */
-static struct ns_common *lookup_ns_owner_at(u64 ns_id, struct ns_common *owner)
+static struct ns_common *lookup_ns_owner_after(u64 ns_id, struct ns_common *owner)
 {
 	struct ns_common *ret = NULL;
 	struct rb_node *node;
@@ -476,18 +476,14 @@ static struct ns_common *lookup_ns_owner_at(u64 ns_id, struct ns_common *owner)
 		struct ns_common *ns;
 
 		ns = node_to_ns_owner(node);
-		if (ns_id <= ns->ns_id) {
+		if (ns_id < ns->ns_id) {
 			ret = ns;
-			if (ns_id == ns->ns_id)
-				break;
 			node = node->rb_left;
 		} else {
 			node = node->rb_right;
 		}
 	}
 
-	if (ret)
-		ret = ns_get_unless_inactive(ret);
 	return ret;
 }
 
@@ -560,25 +556,27 @@ static ssize_t do_listns_userns(struct klistns *kls)
 		return -EINVAL;
 	kls->user_ns = to_user_ns(ns);
 
-	/*
-	 * Use the rbtree to find the first namespace we care about and
-	 * then use it's list entry to iterate from there.
-	 */
-	if (kls->last_ns_id) {
-		kls->first_ns = lookup_ns_owner_at(kls->last_ns_id + 1, ns);
-		if (!kls->first_ns)
-			return -ENOENT;
-		first_ns = kls->first_ns;
-	}
-
 	ret = 0;
 	head = &to_ns_common(kls->user_ns)->ns_owner_root.ns_list_head;
 	kls->userns_capable = may_see_all_namespaces();
 
 	rcu_read_lock();
 
-	if (!first_ns)
+	/*
+	 * Use the rbtree to find the first namespace we care about and
+	 * then use it's list entry to iterate from there. That namespace
+	 * is filtered like any other, so the walk doesn't end early just
+	 * because it is inactive or already dying.
+	 */
+	if (kls->last_ns_id) {
+		first_ns = lookup_ns_owner_after(kls->last_ns_id, ns);
+		if (!first_ns) {
+			rcu_read_unlock();
+			return -ENOENT;
+		}
+	} else {
 		first_ns = list_entry_rcu(head->next, typeof(*first_ns), ns_owner_node.ns_list_entry);
+	}
 
 	ns = first_ns;
 	list_for_each_entry_from_rcu(ns, head, ns_owner_node.ns_list_entry) {
@@ -613,10 +611,13 @@ static ssize_t do_listns_userns(struct klistns *kls)
 }
 
 /*
- * Lookup a namespace with id >= ns_id in either the unified tree or a type-specific tree.
- * Returns the namespace with the smallest id that is >= ns_id.
+ * Lookup a namespace with id > ns_id in either the unified tree or a type-specific tree.
+ * Returns the namespace with the smallest id that is > ns_id.
+ *
+ * No reference is taken. The caller must hold rcu_read_lock() and may only
+ * use the result as the starting point of an RCU list walk.
  */
-static struct ns_common *lookup_ns_id_at(u64 ns_id, int ns_type)
+static struct ns_common *lookup_ns_id_after(u64 ns_id, int ns_type)
 {
 	struct ns_common *ret = NULL;
 	struct ns_tree_root *ns_tree = NULL;
@@ -643,21 +644,14 @@ static struct ns_common *lookup_ns_id_at(u64 ns_id, int ns_type)
 		else
 			ns = node_to_ns_unified(node);
 
-		if (ns_id <= ns->ns_id) {
-			if (ns_type)
-				ret = node_to_ns(node);
-			else
-				ret = node_to_ns_unified(node);
-			if (ns_id == ns->ns_id)
-				break;
+		if (ns_id < ns->ns_id) {
+			ret = ns;
 			node = node->rb_left;
 		} else {
 			node = node->rb_right;
 		}
 	}
 
-	if (ret)
-		ret = ns_get_unless_inactive(ret);
 	return ret;
 }
 
@@ -707,13 +701,6 @@ static ssize_t do_listns(struct klistns *kls)
 			return -EINVAL;
 	}
 
-	if (kls->last_ns_id) {
-		kls->first_ns = lookup_ns_id_at(kls->last_ns_id + 1, ns_type);
-		if (!kls->first_ns)
-			return -ENOENT;
-		first_ns = kls->first_ns;
-	}
-
 	ret = 0;
 	if (ns_tree)
 		head = &ns_tree->ns_list_head;
@@ -722,8 +709,15 @@ static ssize_t do_listns(struct klistns *kls)
 
 	rcu_read_lock();
 
-	if (!first_ns)
+	if (kls->last_ns_id) {
+		first_ns = lookup_ns_id_after(kls->last_ns_id, ns_type);
+		if (!first_ns) {
+			rcu_read_unlock();
+			return -ENOENT;
+		}
+	} else {
 		first_ns = first_ns_common(head, ns_tree);
+	}
 
 	for (ns = first_ns; !ns_common_is_head(ns, head, ns_tree) && nr_ns_ids;
 	     ns = next_ns_common(ns, ns_tree)) {

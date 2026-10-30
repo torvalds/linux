@@ -1283,7 +1283,7 @@ int lookup_bdev(const char *pathname, dev_t *dev)
 	 * registers major 0.  Fake block device inodes (e.g. fuse with
 	 * rootmode=S_IFBLK) can expose i_rdev == 0, and letting that
 	 * propagate would confuse superblock lookup and trigger warnings
-	 * in the device-to-superblock table (super_dev_register).
+	 * in the device-to-superblock table (sget_fc).
 	 */
 	error = -ENODEV;
 	if (!inode->i_rdev)

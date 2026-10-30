@@ -971,10 +971,10 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	dup_user_cpus_ptr(tsk, orig, node);
 
 	/*
-	 * One for the user space visible state that goes away when reaped.
-	 * One for the scheduler.
+	 * Nobody can keep the task while copy_process() may still fail, which
+	 * frees it no matter what.
 	 */
-	refcount_set(&tsk->rcu_users, 2);
+	refcount_set(&tsk->rcu_users, 0);
 	/* One for the rcu users */
 	refcount_set(&tsk->usage, 1);
 #ifdef CONFIG_BLK_DEV_IO_TRACE
@@ -2508,6 +2508,12 @@ __latent_entropy struct task_struct *copy_process(
 	}
 
 	/* No more failure paths after this point. */
+
+	/*
+	 * One for the user space visible state that goes away when reaped.
+	 * One for the scheduler.
+	 */
+	refcount_set(&p->rcu_users, 2);
 
 	/*
 	 * Copy seccomp details explicitly here, in case they were changed

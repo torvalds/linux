@@ -133,8 +133,7 @@ static bool iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t pos,
 {
 	struct iomap_ioend *ioend = wpc->wb_ctx;
 
-	if (ioend->io_bio.bi_iter.bi_size >
-	    iomap_max_bio_size(&wpc->iomap) - map_len)
+	if (!iomap_bio_has_room(&wpc->iomap, &ioend->io_bio, map_len))
 		return false;
 	if (ioend_flags & IOMAP_IOEND_BOUNDARY)
 		return false;

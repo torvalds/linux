@@ -1103,10 +1103,11 @@ int simple_pin_fs(struct file_system_type *type, struct vfsmount **mount, int *c
 		if (IS_ERR(mnt))
 			return PTR_ERR(mnt);
 		spin_lock(&pin_fs_lock);
-		if (!*mount)
+		if (!*mount) {
 			*mount = mnt;
+			mnt = NULL;
+		}
 	}
-	mntget(*mount);
 	++*count;
 	spin_unlock(&pin_fs_lock);
 	mntput(mnt);
@@ -1116,11 +1117,12 @@ EXPORT_SYMBOL(simple_pin_fs);
 
 void simple_release_fs(struct vfsmount **mount, int *count)
 {
-	struct vfsmount *mnt;
+	struct vfsmount *mnt = NULL;
 	spin_lock(&pin_fs_lock);
-	mnt = *mount;
-	if (!--*count)
+	if (!--*count) {
+		mnt = *mount;
 		*mount = NULL;
+	}
 	spin_unlock(&pin_fs_lock);
 	mntput(mnt);
 }

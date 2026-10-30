@@ -1198,8 +1198,10 @@ static inline bool coredump_skip(const struct coredump_params *cprm,
 	return false;
 }
 
-static void do_coredump(struct core_name *cn, struct coredump_params *cprm,
-			size_t **argv, int *argc, const struct linux_binfmt *binfmt)
+static noinline_for_stack void do_coredump(struct core_name *cn,
+					   struct coredump_params *cprm,
+					   size_t **argv, int *argc,
+					   const struct linux_binfmt *binfmt)
 {
 	trace_coredump(cprm->siginfo->si_signo);
 

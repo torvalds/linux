@@ -503,10 +503,18 @@ static int rootfs_init_fs_context(struct fs_context *fc)
 	return ramfs_init_fs_context(fc);
 }
 
+static void rootfs_kill_sb(struct super_block *sb)
+{
+	if (IS_ENABLED(CONFIG_TMPFS) && is_tmpfs)
+		kill_anon_super(sb);
+	else
+		ramfs_kill_sb(sb);
+}
+
 struct file_system_type rootfs_fs_type = {
 	.name		= "rootfs",
 	.init_fs_context = rootfs_init_fs_context,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= rootfs_kill_sb,
 };
 
 void __init init_rootfs(void)

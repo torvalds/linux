@@ -974,6 +974,10 @@ BTF_ID(func, vfs_getattr)
 BTF_ID(func, filp_close)
 BTF_SET_END(btf_allowlist_d_path)
 
+BTF_SET_START(btf_allowlist_d_path_fentry)
+BTF_ID(func, filp_close_sync)
+BTF_SET_END(btf_allowlist_d_path_fentry)
+
 static bool bpf_d_path_allowed(const struct bpf_prog *prog)
 {
 	if (prog->type == BPF_PROG_TYPE_TRACING &&
@@ -983,8 +987,15 @@ static bool bpf_d_path_allowed(const struct bpf_prog *prog)
 	if (prog->type == BPF_PROG_TYPE_LSM)
 		return bpf_lsm_is_sleepable_hook(prog->aux->attach_btf_id);
 
-	return btf_id_set_contains(&btf_allowlist_d_path,
-				   prog->aux->attach_btf_id);
+	if (btf_id_set_contains(&btf_allowlist_d_path,
+				prog->aux->attach_btf_id))
+		return true;
+
+	if (btf_id_set_contains(&btf_allowlist_d_path_fentry,
+				prog->aux->attach_btf_id))
+		return prog->expected_attach_type == BPF_TRACE_FENTRY;
+
+	return false;
 }
 
 BTF_ID_LIST_SINGLE(bpf_d_path_btf_ids, struct, path)
