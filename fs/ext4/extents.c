@@ -4735,6 +4735,23 @@ retry:
 				break;
 			}
 
+			/*
+			 * Add the inode to the orphan list before the
+			 * conversion, as it may restart the transaction and
+			 * commit the extents converted so far.  Written
+			 * extents must stay covered by the orphan list until
+			 * i_disksize catches up.
+			 */
+			if (new_size) {
+				ret2 = ext4_orphan_add(handle, inode);
+				orphan = true;
+				if (unlikely(ret2)) {
+					ret = ret2;
+					ext4_journal_stop(handle);
+					break;
+				}
+			}
+
 			ret = ext4_convert_unwritten_extents(handle,
 					inode, (loff_t)map.m_lblk << blkbits,
 					(loff_t)map.m_len << blkbits,
@@ -4742,23 +4759,21 @@ retry:
 			if (ret)
 				map.m_len = converted;
 
-			/*
-			 * If blocks beyond i_disksize are converted, add
-			 * the inode to the orphan list and advance the epos.
-			 */
-			if (new_size && converted) {
-				ret2 = ext4_orphan_add(handle, inode);
-				ret = ret ? ret : ret2;
-				orphan = true;
-			}
-
 			ret3 = ext4_journal_stop(handle);
 			ret = ret ? ret : ret3;
 		}
 
+		/*
+		 * The conversion may have failed without converting
+		 * anything. Only move epos over the blocks that were
+		 * actually converted, so that a failure updates
+		 * i_disksize just far enough to cover them.
+		 */
+		if (map.m_len)
+			epos = EXT4_LBLK_TO_B(inode, map.m_lblk + map.m_len);
+
 		map.m_lblk += map.m_len;
 		map.m_len = len_lblk = len_lblk - map.m_len;
-		epos = EXT4_LBLK_TO_B(inode, map.m_lblk);
 		if (ret)
 			break;
 	}
@@ -4766,12 +4781,13 @@ retry:
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
-	if (!epos || !new_size)
+	if (!new_size || (!epos && !orphan))
 		return ret;
 
 	/*
-	 * Allocate blocks, update the file size to match the size of the
-	 * already successfully allocated blocks.
+	 * Update the file size to match the size of the already
+	 * successfully allocated blocks, and release the orphan entry
+	 * if we added one.
 	 */
 	if (epos > new_size)
 		epos = new_size;
@@ -4789,7 +4805,8 @@ retry:
 		goto out;
 	}
 
-	ext4_update_inode_size(inode, epos);
+	if (epos)
+		ext4_update_inode_size(inode, epos);
 	if (orphan && inode->i_nlink)
 		ext4_orphan_del(handle, inode);
 
