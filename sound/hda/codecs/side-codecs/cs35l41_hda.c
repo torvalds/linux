@@ -974,30 +974,6 @@ static int cs35l41_system_suspend(struct device *dev)
 	return ret;
 }
 
-static int cs35l41_wait_boot_done(struct cs35l41_hda *cs35l41)
-{
-	unsigned int int_status;
-	int ret;
-
-	ret = regmap_read_poll_timeout(cs35l41->regmap, CS35L41_IRQ1_STATUS4, int_status,
-				       int_status & CS35L41_OTP_BOOT_DONE, 1000, 100000);
-	if (ret) {
-		dev_err(cs35l41->dev, "Failed waiting for OTP_BOOT_DONE\n");
-		return ret;
-	}
-
-	ret = regmap_read(cs35l41->regmap, CS35L41_IRQ1_STATUS3, &int_status);
-	if (ret || (int_status & CS35L41_OTP_BOOT_ERR)) {
-		dev_err(cs35l41->dev, "OTP Boot status %x error\n",
-			int_status & CS35L41_OTP_BOOT_ERR);
-		if (!ret)
-			ret = -EIO;
-		return ret;
-	}
-
-	return 0;
-}
-
 static int cs35l41_system_resume(struct device *dev)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
@@ -1020,10 +996,7 @@ static int cs35l41_system_resume(struct device *dev)
 
 	regcache_cache_only(cs35l41->regmap, false);
 
-	regmap_write(cs35l41->regmap, CS35L41_SFT_RESET, CS35L41_SOFTWARE_RESET);
-	usleep_range(2000, 2100);
-
-	ret = cs35l41_wait_boot_done(cs35l41);
+	ret = cs35l41_reset_and_boot(cs35l41->dev, cs35l41->regmap);
 	if (ret)
 		return ret;
 
@@ -2005,10 +1978,8 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	}
 
 	usleep_range(2000, 2100);
-	regmap_write(cs35l41->regmap, CS35L41_SFT_RESET, CS35L41_SOFTWARE_RESET);
-	usleep_range(2000, 2100);
 
-	ret = cs35l41_wait_boot_done(cs35l41);
+	ret = cs35l41_reset_and_boot(cs35l41->dev, cs35l41->regmap);
 	if (ret)
 		goto err;
 
