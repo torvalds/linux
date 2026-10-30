@@ -692,10 +692,7 @@ dotry:
 		struct urb *outurb = sk->outurb[u];
 
 		playback_prep_freqn(sk, outurb);
-		inurb->number_of_packets = outurb->number_of_packets;
-		inurb->transfer_buffer_length =
-			inurb->number_of_packets *
-			inurb->iso_frame_desc[0].length;
+		prepare_inurb(outurb->number_of_packets, inurb);
 
 		if (u == 0) {
 			int now;
