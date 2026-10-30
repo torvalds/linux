@@ -1832,8 +1832,13 @@ static void do_one_tree(struct dentry *dentry)
 	d_walk(dentry, dentry, umount_check);
 	spin_lock(&dentry->d_lock);
 	__d_drop(dentry);
-	/* A busy root survives the dput() below so don't leave it on ->s_roots. */
-	if (unlikely(!hlist_unhashed(&dentry->d_sib)))
+	/*
+	 * A busy root survives the dput() below so don't leave it on ->s_roots.
+	 * An idle one stays until dentry_unlist() so that umount can wait for
+	 * a racing eviction, see lock_for_kill().
+	 */
+	if (unlikely(dentry->d_lockref.count > 1 &&
+		     !hlist_unhashed(&dentry->d_sib)))
 		unlink_secondary_root(dentry);
 	spin_unlock(&dentry->d_lock);
 	dput(dentry);
