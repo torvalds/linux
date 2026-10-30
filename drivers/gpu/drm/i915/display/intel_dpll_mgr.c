@@ -207,7 +207,8 @@ enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port)
 
 enum intel_dpll_id mtl_port_to_pll_id(struct intel_display *display, enum port port)
 {
-	if (port >= PORT_TC1)
+	if (port >= PORT_TC1 ||
+	    intel_phy_is_tc(display, intel_port_to_phy(display, port)))
 		return icl_tc_port_to_pll_id(intel_port_to_tc(display, port));
 
 	switch (port) {
