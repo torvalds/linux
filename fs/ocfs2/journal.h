@@ -54,7 +54,6 @@ struct ocfs2_journal {
 	spinlock_t                j_lock;
 	unsigned long             j_trans_id;
 	struct rw_semaphore       j_trans_barrier;
-	wait_queue_head_t         j_checkpointed;
 
 	/* both fields protected by j_lock*/
 	struct list_head          j_la_cleanups;
@@ -91,11 +90,15 @@ static inline void ocfs2_set_ci_lock_trans(struct ocfs2_journal *journal,
 static inline int ocfs2_ci_fully_checkpointed(struct ocfs2_caching_info *ci)
 {
 	int ret;
-	struct ocfs2_journal *journal =
-		OCFS2_SB(ocfs2_metadata_cache_get_super(ci))->journal;
+	struct ocfs2_super *osb =
+		OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
+	struct ocfs2_journal *journal;
 
 	spin_lock(&trans_inc_lock);
-	ret = time_after(journal->j_trans_id, ci->ci_last_trans);
+	journal = osb->journal;
+	/* A NULL journal has already completed checkpointing. */
+	ret = !journal ||
+		time_after(journal->j_trans_id, ci->ci_last_trans);
 	spin_unlock(&trans_inc_lock);
 	return ret;
 }
@@ -196,9 +199,6 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
 	if (ocfs2_mount_local(osb))
 		return;
 
-	if (!osb->journal)
-		return;
-
 	if (!ocfs2_ci_fully_checkpointed(INODE_CACHE(inode))) {
 		/* WARNING: This only kicks off a single
 		 * checkpoint. If someone races you and adds more
@@ -208,7 +208,8 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
 		 * OK. */
 		ocfs2_start_checkpoint(osb);
 
-		wait_event(osb->journal->j_checkpointed,
+		/* The wait queue must outlive journal shutdown. */
+		wait_event(osb->checkpoint_event,
 			   ocfs2_ci_fully_checkpointed(INODE_CACHE(inode)));
 	}
 }

@@ -352,7 +352,7 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 	trace_ocfs2_commit_cache_end(journal->j_trans_id, flushed);
 
 	ocfs2_wake_downconvert_thread(osb);
-	wake_up(&journal->j_checkpointed);
+	wake_up(&osb->checkpoint_event);
 finally:
 	return status;
 }
@@ -901,7 +901,6 @@ int ocfs2_journal_alloc(struct ocfs2_super *osb)
 
 	atomic_set(&journal->j_num_trans, 0);
 	init_rwsem(&journal->j_trans_barrier);
-	init_waitqueue_head(&journal->j_checkpointed);
 	spin_lock_init(&journal->j_lock);
 	journal->j_trans_id = 1UL;
 	INIT_LIST_HEAD(&journal->j_la_cleanups);
@@ -1073,12 +1072,14 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 	journal = osb->journal;
 	if (!journal)
-		goto done;
+		return;
 
 	inode = journal->j_inode;
 
-	if (journal->j_state != OCFS2_JOURNAL_LOADED)
-		goto done;
+	if (journal->j_state != OCFS2_JOURNAL_LOADED) {
+		down_write(&osb->journal_shutdown_sem);
+		goto free;
+	}
 
 	/* need to inc inode use count - jbd2_journal_destroy will iput. */
 	if (!igrab(inode))
@@ -1114,6 +1115,12 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 			mlog_errno(status);
 	}
 
+	/*
+	 * Exclude the final JBD2 inode cleanup in ocfs2_clear_inode() while
+	 * the journal is destroyed and freed.
+	 */
+	down_write(&osb->journal_shutdown_sem);
+
 	/* Shutdown the kernel journal system */
 	if (!jbd2_journal_destroy(journal->j_journal) && !status) {
 		/*
@@ -1136,10 +1143,17 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 	journal->j_state = OCFS2_JOURNAL_FREE;
 
-done:
-	iput(inode);
-	kfree(journal);
+free:
+	/* Serialize the removal with ocfs2_ci_fully_checkpointed(). */
+	spin_lock(&trans_inc_lock);
 	osb->journal = NULL;
+	spin_unlock(&trans_inc_lock);
+	wake_up(&osb->checkpoint_event);
+	kfree(journal);
+	up_write(&osb->journal_shutdown_sem);
+
+	/* The journal inode's own cleanup takes the read side. */
+	iput(inode);
 }
 
 static void ocfs2_clear_journal_error(struct super_block *sb,

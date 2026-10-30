@@ -388,6 +388,7 @@ struct ocfs2_super
 	enum ocfs2_recovery_state recovery_state;
 	wait_queue_head_t checkpoint_event;
 	struct ocfs2_journal *journal;
+	struct rw_semaphore journal_shutdown_sem;
 	unsigned long osb_commit_interval;
 
 	/* Journal triggers for checksum */
