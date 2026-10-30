@@ -17736,6 +17736,18 @@ bool bpf_same_memory_origin(const struct bpf_reg_state *reg_a,
 	}
 }
 
+/*
+ * 'range - smax' bytes from a packet pointer are in the packet. reg_bounds_sync() can make smax
+ * smaller than @smax: with a step of 8, or with 3 zero bits in var_off, 58 becomes 56. Make the
+ * range smaller by the same number, so that the number of bytes does not grow. umax is not
+ * sufficient: it is U64_MAX when the offset can be negative.
+ */
+void bpf_trim_pkt_range(struct bpf_reg_state *reg, s64 smax)
+{
+	if (type_is_pkt_pointer(reg->type) && reg->range > 0)
+		reg->range = max_t(s64, reg->range - (smax - reg_smax(reg)), 0);
+}
+
 int bpf_set_reg_range(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 		      struct cnum64 r64, struct cnum32 r32, u16 base, u16 step)
 {
@@ -17745,6 +17757,7 @@ int bpf_set_reg_range(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 	reg->base = base;
 	reg->var_off = tnum_unknown;
 	reg_bounds_sync(reg); /* this should infer the tnum alignment */
+	bpf_trim_pkt_range(reg, cnum64_smax(r64));
 	return reg_bounds_sanity_check(env, reg, "bpf_set_reg_range");
 }
 
