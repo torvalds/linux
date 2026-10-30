@@ -7157,7 +7157,7 @@ int ext4_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		    attr->ia_size > EXT4_I(inode)->i_inline_size) {
 			error = ext4_convert_inline_data(inode);
 			if (error)
-				goto err_out;
+				return error;
 		}
 
 		if (shrink) {
