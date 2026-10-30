@@ -3573,6 +3573,7 @@ out:
 static long st_common_ioctl(struct scsi_tape *STp, struct st_modedef *STm,
 			    struct file *file, unsigned int cmd_in,
 			    unsigned long arg)
+	__releases(&STp->lock)
 {
 	int i, retval = 0;
 

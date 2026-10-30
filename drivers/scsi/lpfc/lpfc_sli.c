@@ -3722,6 +3722,7 @@ lpfc_sli_iocbq_lookup_by_tag(struct lpfc_hba *phba,
 static int
 lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			  struct lpfc_iocbq *saveq)
+	__context_unsafe(/*conditional locking*/)
 {
 	struct lpfc_iocbq *cmdiocbp;
 	unsigned long iflag;
@@ -12739,8 +12740,12 @@ lpfc_sli_sum_iocb(struct lpfc_vport *vport, uint16_t tgt_id, uint64_t lun_id,
 
 		if (!iocbq || iocbq->vport != vport)
 			continue;
-		if (!(iocbq->cmd_flag & LPFC_IO_FCP) ||
-		    !(iocbq->cmd_flag & LPFC_IO_ON_TXCMPLQ))
+		/* Only count FCP i/o */
+		if (!(iocbq->cmd_flag & LPFC_IO_FCP))
+			continue;
+		/* Count i/o whilst LLDD retains an interest in the scsi_cmnd */
+		if (!(iocbq->cmd_flag &
+				(LPFC_IO_ON_TXCMPLQ | LPFC_DRIVER_ABORTED)))
 			continue;
 
 		/* Include counting outstanding aborts */
@@ -12885,6 +12890,7 @@ lpfc_sli_abort_iocb(struct lpfc_vport *vport, u16 tgt_id, u64 lun_id,
 int
 lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 			uint16_t tgt_id, uint64_t lun_id, lpfc_ctx_cmd cmd)
+	__context_unsafe(/*conditional locking*/)
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_io_buf *lpfc_cmd;

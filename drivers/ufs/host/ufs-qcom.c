@@ -2438,6 +2438,7 @@ static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *data)
 static int ufs_qcom_config_esi(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	struct ufs_qcom_irq *qi;
 	int nr_irqs, ret;
 
 	if (host->esi_enabled)
@@ -2456,8 +2457,7 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 		return ret; /* Continue without ESI */
 	}
 
-	struct ufs_qcom_irq *qi = devm_kcalloc(hba->dev, nr_irqs, sizeof(*qi), GFP_KERNEL);
-
+	qi = devm_kcalloc(hba->dev, nr_irqs, sizeof(*qi), GFP_KERNEL);
 	if (!qi) {
 		platform_device_msi_free_irqs_all(hba->dev);
 		return -ENOMEM;
@@ -3037,6 +3037,10 @@ static void ufs_qcom_remove(struct platform_device *pdev)
 		platform_device_msi_free_irqs_all(hba->dev);
 }
 
+static const struct ufs_qcom_drvdata ufs_qcom_milos_drvdata = {
+	.no_phy_retention = true,
+};
+
 static const struct ufs_qcom_drvdata ufs_qcom_sm8550_drvdata = {
 	.quirks = UFSHCD_QUIRK_BROKEN_LSDBS_CAP,
 	.no_phy_retention = true,
@@ -3048,6 +3052,7 @@ static const struct ufs_qcom_drvdata ufs_qcom_sa8255p_drvdata = {
 
 static const struct of_device_id ufs_qcom_of_match[] __maybe_unused = {
 	{ .compatible = "qcom,ufshc" },
+	{ .compatible = "qcom,milos-ufshc", .data = &ufs_qcom_milos_drvdata },
 	{ .compatible = "qcom,sm8550-ufshc", .data = &ufs_qcom_sm8550_drvdata },
 	{ .compatible = "qcom,sm8650-ufshc", .data = &ufs_qcom_sm8550_drvdata },
 	{ .compatible = "qcom,sa8255p-ufshc", .data = &ufs_qcom_sa8255p_drvdata },

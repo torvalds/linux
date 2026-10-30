@@ -1789,6 +1789,20 @@ static void scsi_done_internal(struct scsi_cmnd *cmd, bool complete_directly)
 		blk_mq_complete_request(req);
 }
 
+/**
+ * scsi_done - Notify the SCSI mid-layer that a command has completed
+ * @cmd: Completed SCSI command
+ *
+ * Called by a SCSI low-level driver to notify the SCSI mid-layer that the
+ * command has completed. There are two cases:
+ *
+ * - The SCSI error handler does not own @cmd. In this case scsi_complete()
+ *   decides how to complete the command based on the value of @cmd->result.
+ * - The SCSI error handler owns @cmd because scsi_timeout() has set
+ *   SCMD_STATE_COMPLETE. In this case this function has no effect, @cmd->result
+ *   is ignored and the SCSI error handler decides whether to retry or fail
+ *   @cmd. See also scmd_eh_abort_handler() and scsi_eh_flush_done_q().
+ */
 void scsi_done(struct scsi_cmnd *cmd)
 {
 	scsi_done_internal(cmd, false);

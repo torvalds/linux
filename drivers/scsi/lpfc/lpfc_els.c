@@ -5952,11 +5952,12 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 	/* Xmit ELS RJT <err> response tag <ulpIoTag> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0129 Xmit ELS RJT x%x response tag x%x "
-			 "xri x%x, did x%x, nlp_flag x%lx, nlp_state x%x, "
-			 "rpi x%x\n",
+			 "xri x%x, ndlp x%px, did x%x, nlp_flag x%lx, "
+			 "nlp_state x%x, rpi x%x ref_cnt %d\n",
 			 rejectError, elsiocb->iotag,
-			 get_job_ulpcontext(phba, elsiocb), ndlp->nlp_DID,
-			 ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
+			 get_job_ulpcontext(phba, elsiocb), ndlp,
+			 ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_state,
+			 ndlp->nlp_rpi, kref_read(&ndlp->kref));
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Issue LS_RJT:    did:x%x flg:x%lx err:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, rejectError);
@@ -8146,7 +8147,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	uint32_t payload_len, length, nportid, *cmd;
 	int rscn_cnt;
 	int rscn_id = 0, hba_id = 0;
-	int i, tmo;
+	int i;
 
 	pcmd = cmdiocb->cmd_dmabuf;
 	lp = (uint32_t *) pcmd->virt;
@@ -8225,11 +8226,8 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb,
 				ndlp, NULL);
 			/* Restart disctmo if its already running */
-			if (test_bit(FC_DISC_TMO, &vport->fc_flag)) {
-				tmo = ((phba->fc_ratov * 3) + 3);
-				mod_timer(&vport->fc_disctmo,
-					  jiffies + secs_to_jiffies(tmo));
-			}
+			if (test_bit(FC_DISC_TMO, &vport->fc_flag))
+				lpfc_set_disctmo(vport);
 			return 0;
 		}
 	}
@@ -8260,11 +8258,9 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		set_bit(FC_RSCN_DEFERRED, &vport->fc_flag);
 
 		/* Restart disctmo if its already running */
-		if (test_bit(FC_DISC_TMO, &vport->fc_flag)) {
-			tmo = ((phba->fc_ratov * 3) + 3);
-			mod_timer(&vport->fc_disctmo,
-				  jiffies + secs_to_jiffies(tmo));
-		}
+		if (test_bit(FC_DISC_TMO, &vport->fc_flag))
+			lpfc_set_disctmo(vport);
+
 		if ((rscn_cnt < FC_MAX_HOLD_RSCN) &&
 		    !test_bit(FC_RSCN_DISCOVERY, &vport->fc_flag)) {
 			set_bit(FC_RSCN_MODE, &vport->fc_flag);
@@ -9597,6 +9593,7 @@ lpfc_els_timeout(struct timer_list *t)
  **/
 void
 lpfc_els_timeout_handler(struct lpfc_vport *vport)
+	__context_unsafe(/*conditional locking*/)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_sli_ring *pring;
@@ -9719,6 +9716,7 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
  **/
 void
 lpfc_els_flush_cmd(struct lpfc_vport *vport)
+	__context_unsafe(/*conditional locking*/)
 {
 	LIST_HEAD(abort_list);
 	LIST_HEAD(cancel_list);
@@ -10462,6 +10460,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		      struct lpfc_vport *vport, struct lpfc_iocbq *elsiocb)
 {
 	struct lpfc_nodelist *ndlp;
+	struct lpfc_nodelist *alloc_ndlp = NULL;
 	struct ls_rjt stat;
 	u32 *payload, payload_len;
 	u32 cmd = 0, did = 0, newnode, status = 0;
@@ -10560,7 +10559,9 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			did, vport->port_state, ndlp->nlp_flag);
 
 		phba->fc_stat.elsRcvPLOGI++;
+		alloc_ndlp = ndlp;
 		ndlp = lpfc_plogi_confirm_nport(phba, payload, ndlp);
+
 		if (phba->sli_rev == LPFC_SLI_REV4 &&
 		    test_bit(FC_PT2PT, &phba->pport->fc_flag)) {
 			vport->fc_prevDID = vport->fc_myDID;
@@ -10876,13 +10877,28 @@ lsrjt:
 		stat.un.b.lsRjtRsnCodeExp = rjt_exp;
 		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, elsiocb, ndlp,
 				    NULL);
-		/* Remove the reference from above for new nodes. */
-		if (newnode)
-			lpfc_disc_state_machine(vport, ndlp, NULL,
-					NLP_EVT_DEVICE_RM);
+
+		/* Remove the safety reference from routine start. */
+		if (newnode) {
+			/* alloc_ndlp is assigned for an unsolicited PLOGI from
+			 * the ndlp allocated by this routine. The routine
+			 * lpfc_plogi_confirm_nport may have swapped the initial
+			 * ndlp to an existing ndlp. In that case, alloc_ndlp
+			 * is the pre-swap ndlp that needs a DEVICE_RM because
+			 * it is the newnode. For all other paths to lsrjt
+			 * (non-PLOGI ELS) that were rejected by the early
+			 * port_state check, alloc_ndlp is NULL and ndlp is
+			 * still the originally allocated node.
+			 */
+			lpfc_disc_state_machine(vport,
+						alloc_ndlp ? alloc_ndlp : ndlp,
+						NULL, NLP_EVT_DEVICE_RM);
+		}
 	}
 
-	/* Release the reference on this elsiocb, not the ndlp. */
+	/* This elsiocb is not the IOCB issued for a response. Remove
+	 * the safety reference allocated earlier.
+	 */
 	lpfc_nlp_put(elsiocb->ndlp);
 	elsiocb->ndlp = NULL;
 
@@ -11395,6 +11411,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct serv_parm *sp;
 	uint8_t fabric_param_changed;
 	u32 ulp_status, ulp_word4;
+	unsigned long flags;
 
 	ulp_status = get_job_ulpstatus(phba, rspiocb);
 	ulp_word4 = get_job_word4(phba, rspiocb);
@@ -11416,7 +11433,6 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		ulp_status, ulp_word4, vport->fc_prevDID);
 
 	if (ulp_status) {
-
 		if (lpfc_fabric_login_reqd(phba, cmdiocb, rspiocb)) {
 			lpfc_retry_pport_discovery(phba);
 			goto out;
@@ -11427,12 +11443,28 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			goto out;
 		/* Warn FDISC status */
 		lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
-			      "0126 FDISC cmpl status: x%x/x%x)\n",
-			      ulp_status, ulp_word4);
+			      "0126 FDISC cmpl status: (x%x/x%x) ndlp x%px "
+			      "Data: x%lx x%x x%x x%x x%x x%x x%x x%x x%x\n",
+			      ulp_status, ulp_word4, ndlp, ndlp->nlp_flag,
+			      ndlp->nlp_DID, ndlp->nlp_last_elscmd,
+			      ndlp->nlp_type, ndlp->nlp_rpi, ndlp->nlp_state,
+			      ndlp->nlp_prev_state, ndlp->fc4_xpt_flags,
+			      kref_read(&ndlp->kref));
 
-		/* drop initial reference */
-		if (!test_and_set_bit(NLP_DROPPED, &ndlp->nlp_flag))
+		/* If have not previously registered with transport layer and no
+		 * LPFC_EVT_DEV_LOSS work pending, then drop initial reference.
+		 * Otherwise, let the dev_loss_tmo_callbk drop the initial
+		 * reference.
+		 */
+		spin_lock_irqsave(&ndlp->lock, flags);
+		if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD)) &&
+		    !test_bit(NLP_IN_DEV_LOSS, &ndlp->nlp_flag) &&
+		    !test_and_set_bit(NLP_DROPPED, &ndlp->nlp_flag)) {
+			spin_unlock_irqrestore(&ndlp->lock, flags);
 			lpfc_nlp_put(ndlp);
+		} else {
+			spin_unlock_irqrestore(&ndlp->lock, flags);
+		}
 
 		goto fdisc_failed;
 	}

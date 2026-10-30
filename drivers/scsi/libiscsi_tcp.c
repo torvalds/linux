@@ -532,7 +532,7 @@ static int iscsi_tcp_r2t_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 	int rc;
 
 	spin_lock(&session->back_lock);
-	task = iscsi_itt_to_ctask(conn, hdr->itt);
+	task = iscsi_itt_to_ctask(session, conn, hdr->itt);
 	if (!task) {
 		spin_unlock(&session->back_lock);
 		return ISCSI_ERR_BAD_ITT;
@@ -601,7 +601,8 @@ static int iscsi_tcp_r2t_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 			      data_length, session->max_burst);
 
 	data_offset = be32_to_cpu(rhdr->data_offset);
-	if (data_offset + data_length > task->sc->sdb.length) {
+	if (data_offset > task->sc->sdb.length ||
+	    data_length > task->sc->sdb.length - data_offset) {
 		iscsi_conn_printk(KERN_ERR, conn,
 				  "invalid R2T with data len %u at offset %u "
 				  "and total length %d\n", data_length,
@@ -680,6 +681,7 @@ iscsi_tcp_process_data_in(struct iscsi_tcp_conn *tcp_conn,
 static int
 iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 {
+	struct iscsi_session *session = conn->session;
 	int rc = 0, opcode, ahslen;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_task *task;
@@ -709,14 +711,14 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 
 	switch(opcode) {
 	case ISCSI_OP_SCSI_DATA_IN:
-		spin_lock(&conn->session->back_lock);
-		task = iscsi_itt_to_ctask(conn, hdr->itt);
+		spin_lock(&session->back_lock);
+		task = iscsi_itt_to_ctask(session, conn, hdr->itt);
 		if (!task)
 			rc = ISCSI_ERR_BAD_ITT;
 		else
 			rc = iscsi_tcp_data_in(conn, task);
 		if (rc) {
-			spin_unlock(&conn->session->back_lock);
+			spin_unlock(&session->back_lock);
 			break;
 		}
 
@@ -734,7 +736,7 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 			 * update the digest per-entry.
 			 */
 			if (conn->datadgst_en &&
-			    !(conn->session->tt->caps & CAP_DIGEST_OFFLOAD))
+			    !(session->tt->caps & CAP_DIGEST_OFFLOAD))
 				rx_crcp = tcp_conn->rx_crcp;
 
 			ISCSI_DBG_TCP(conn, "iscsi_tcp_begin_data_in( "
@@ -749,11 +751,11 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 						   tcp_conn->in.datalen,
 						   iscsi_tcp_process_data_in,
 						   rx_crcp);
-			spin_unlock(&conn->session->back_lock);
+			spin_unlock(&session->back_lock);
 			return rc;
 		}
-		rc = __iscsi_complete_pdu(conn, hdr, NULL, 0);
-		spin_unlock(&conn->session->back_lock);
+		rc = __iscsi_complete_pdu(session, conn, hdr, NULL, 0);
+		spin_unlock(&session->back_lock);
 		break;
 	case ISCSI_OP_R2T:
 		if (ahslen) {

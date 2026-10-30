@@ -4951,6 +4951,13 @@ lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	 */
 	if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 		return;
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE | LOG_ELS | LOG_DISCOVERY,
+			"3421 Mark ndlp x%px Dropped. DID x%06x, nflags x%lx "
+			"xflags x%x ref_cnt %d\n",
+			 ndlp, ndlp->nlp_DID, ndlp->nlp_flag,
+			 ndlp->fc4_xpt_flags, kref_read(&ndlp->kref));
+
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
 		lpfc_cleanup_vports_rrqs(vport, ndlp);

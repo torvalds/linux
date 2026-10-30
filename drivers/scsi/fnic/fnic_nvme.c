@@ -1284,6 +1284,7 @@ void nvfnic_fcpio_cmpl(struct fnic_io_req *io_req)
 
 void nvfnic_process_ls_abts_rsp(struct fnic_iport_s *iport,
 		struct fc_frame_header *fchdr)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint32_t tport_fcid;
 	struct fnic_tport_s *tport;
@@ -1348,6 +1349,7 @@ void nvfnic_process_ls_abts_rsp(struct fnic_iport_s *iport,
  */
 void nvfnic_ls_rsp_recv(struct fnic_iport_s *iport,
 		struct fc_frame_header *fchdr, int len)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	uint8_t *fcid;
 	uint32_t tport_fcid;
@@ -2086,6 +2088,7 @@ void nvfnic_exch_reset(struct fnic_iport_s *iport, struct fnic_tport_s *tport)
 void nvfnic_delete_tport(struct fnic_iport_s *iport,
 						struct fnic_tport_s *tport,
 						unsigned long flags)
+	__must_hold(&iport->fnic->fnic_lock)
 {
 	struct fnic *fnic = iport->fnic;
 	int ret;
@@ -2179,6 +2182,7 @@ void nvfnic_delete_tport(struct fnic_iport_s *iport,
 
 int nvfnic_add_tport(struct fnic *fnic, struct fnic_tport_s *tport,
 		     unsigned long flags)
+	__must_hold(&fnic->fnic_lock)
 {
 	struct fnic_iport_s *iport = &fnic->iport;
 	struct nvme_fc_port_info pinfo;

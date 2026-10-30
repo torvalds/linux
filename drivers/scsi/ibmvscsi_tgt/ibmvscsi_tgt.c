@@ -219,6 +219,7 @@ static long ibmvscsis_unregister_command_q(struct scsi_info *vscsi)
  */
 static void ibmvscsis_delete_client_info(struct scsi_info *vscsi,
 					 bool client_closed)
+	__must_hold(&vscsi->intr_lock)
 {
 	vscsi->client_cap = 0;
 
@@ -251,6 +252,7 @@ static void ibmvscsis_delete_client_info(struct scsi_info *vscsi,
  *	Process level, interrupt lock is held
  */
 static long ibmvscsis_free_command_q(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	int bytes;
 	u32 flags_under_lock;
@@ -329,6 +331,7 @@ static struct viosrp_crq *ibmvscsis_cmd_q_dequeue(uint mask,
  *	Interrupt environment interrupt lock held
  */
 static long ibmvscsis_send_init_message(struct scsi_info *vscsi, u8 format)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct viosrp_crq *crq;
 	u64 buffer[2] = { 0, 0 };
@@ -356,6 +359,7 @@ static long ibmvscsis_send_init_message(struct scsi_info *vscsi, u8 format)
  *	Process level only, interrupt lock held
  */
 static long ibmvscsis_check_init_msg(struct scsi_info *vscsi, uint *format)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct viosrp_crq *crq;
 	long rc = ADAPT_SUCCESS;
@@ -571,6 +575,7 @@ static void ibmvscsis_disconnect(struct work_struct *work)
  */
 static void ibmvscsis_post_disconnect(struct scsi_info *vscsi, uint new_state,
 				      uint flag_bits)
+	__must_hold(&vscsi->intr_lock)
 {
 	uint state;
 
@@ -652,6 +657,7 @@ static void ibmvscsis_post_disconnect(struct scsi_info *vscsi, uint new_state,
  * Must be called with interrupt lock held.
  */
 static long ibmvscsis_handle_init_compl_msg(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	long rc = ADAPT_SUCCESS;
 
@@ -691,6 +697,7 @@ static long ibmvscsis_handle_init_compl_msg(struct scsi_info *vscsi)
  * Must be called with interrupt lock held.
  */
 static long ibmvscsis_handle_init_msg(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	long rc = ADAPT_SUCCESS;
 
@@ -759,6 +766,7 @@ static long ibmvscsis_handle_init_msg(struct scsi_info *vscsi)
  *	Interrupt, interrupt lock held
  */
 static long ibmvscsis_init_msg(struct scsi_info *vscsi, struct viosrp_crq *crq)
+	__must_hold(&vscsi->intr_lock)
 {
 	long rc = ADAPT_SUCCESS;
 
@@ -798,6 +806,7 @@ static long ibmvscsis_init_msg(struct scsi_info *vscsi, struct viosrp_crq *crq)
  * Must be called with interrupt lock held.
  */
 static long ibmvscsis_establish_new_q(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	long rc = ADAPT_SUCCESS;
 	uint format;
@@ -874,6 +883,7 @@ static long ibmvscsis_establish_new_q(struct scsi_info *vscsi)
  *	Process environment, called with interrupt lock held
  */
 static void ibmvscsis_reset_queue(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	int bytes;
 	long rc = ADAPT_SUCCESS;
@@ -924,6 +934,7 @@ static void ibmvscsis_reset_queue(struct scsi_info *vscsi)
  */
 static void ibmvscsis_free_cmd_resources(struct scsi_info *vscsi,
 					 struct ibmvscsis_cmd *cmd)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct iu_entry *iue = cmd->iue;
 
@@ -974,6 +985,7 @@ static void ibmvscsis_free_cmd_resources(struct scsi_info *vscsi,
  *	Process or interrupt environment called with interrupt lock held
  */
 static long ibmvscsis_ready_for_suspend(struct scsi_info *vscsi, bool idle)
+	__must_hold(&vscsi->intr_lock)
 {
 	long rc = 0;
 	struct viosrp_crq *crq;
@@ -1030,6 +1042,7 @@ static long ibmvscsis_ready_for_suspend(struct scsi_info *vscsi, bool idle)
  */
 static long ibmvscsis_trans_event(struct scsi_info *vscsi,
 				  struct viosrp_crq *crq)
+	__must_hold(&vscsi->intr_lock)
 {
 	long rc = ADAPT_SUCCESS;
 
@@ -1166,6 +1179,7 @@ static long ibmvscsis_trans_event(struct scsi_info *vscsi,
  *	intr_lock must be held
  */
 static void ibmvscsis_poll_cmd_q(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct viosrp_crq *crq;
 	long rc;
@@ -1252,6 +1266,7 @@ poll_work:
  *	Called with interrupt lock held
  */
 static void ibmvscsis_free_cmd_qs(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct ibmvscsis_cmd *cmd, *nxt;
 
@@ -1272,6 +1287,7 @@ static void ibmvscsis_free_cmd_qs(struct scsi_info *vscsi)
  * Must be called with interrupt lock held.
  */
 static struct ibmvscsis_cmd *ibmvscsis_get_free_cmd(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct ibmvscsis_cmd *cmd = NULL;
 	struct iu_entry *iue;
@@ -1310,6 +1326,7 @@ static struct ibmvscsis_cmd *ibmvscsis_get_free_cmd(struct scsi_info *vscsi)
  *	Process environment called with interrupt lock held
  */
 static void ibmvscsis_adapter_idle(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	int free_qs = false;
 	long rc = 0;
@@ -1441,6 +1458,7 @@ static void ibmvscsis_adapter_idle(struct scsi_info *vscsi)
 static long ibmvscsis_copy_crq_packet(struct scsi_info *vscsi,
 				      struct ibmvscsis_cmd *cmd,
 				      struct viosrp_crq *crq)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct iu_entry *iue = cmd->iue;
 	long rc = 0;
@@ -1500,6 +1518,7 @@ static long ibmvscsis_copy_crq_packet(struct scsi_info *vscsi,
  */
 static long ibmvscsis_adapter_info(struct scsi_info *vscsi,
 				   struct iu_entry *iue)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct viosrp_adapter_info *mad = &vio_iu(iue)->mad.adapter_info;
 	struct mad_adapter_info_data *info;
@@ -1611,6 +1630,7 @@ free_dma:
  *	Interrupt called with adapter lock held
  */
 static int ibmvscsis_cap_mad(struct scsi_info *vscsi, struct iu_entry *iue)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct viosrp_capabilities *mad = &vio_iu(iue)->mad.capabilities;
 	struct capabilities *cap;
@@ -1725,6 +1745,7 @@ static int ibmvscsis_cap_mad(struct scsi_info *vscsi, struct iu_entry *iue)
  * Must be called with interrupt lock held.
  */
 static long ibmvscsis_process_mad(struct scsi_info *vscsi, struct iu_entry *iue)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct mad_common *mad = (struct mad_common *)&vio_iu(iue)->mad;
 	struct viosrp_empty_iu *empty;
@@ -1768,6 +1789,7 @@ static long ibmvscsis_process_mad(struct scsi_info *vscsi, struct iu_entry *iue)
  * Must be called with interrupt lock held.
  */
 static void srp_snd_msg_failed(struct scsi_info *vscsi, long rc)
+	__must_hold(&vscsi->intr_lock)
 {
 	ktime_t kt;
 
@@ -1871,6 +1893,7 @@ static void srp_snd_msg_failed(struct scsi_info *vscsi, long rc)
  *	Called with interrupt lock held
  */
 static void ibmvscsis_send_messages(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct viosrp_crq empty_crq = { };
 	struct viosrp_crq *crq = &empty_crq;
@@ -1979,6 +2002,7 @@ static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 static void ibmvscsis_send_mad_resp(struct scsi_info *vscsi,
 				    struct ibmvscsis_cmd *cmd,
 				    struct viosrp_crq *crq)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct iu_entry *iue = cmd->iue;
 	struct mad_common *mad = (struct mad_common *)&vio_iu(iue)->mad;
@@ -2021,6 +2045,7 @@ static void ibmvscsis_send_mad_resp(struct scsi_info *vscsi,
  *	Interrupt, called with adapter lock held
  */
 static long ibmvscsis_mad(struct scsi_info *vscsi, struct viosrp_crq *crq)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct iu_entry *iue;
 	struct ibmvscsis_cmd *cmd;
@@ -2097,6 +2122,7 @@ static long ibmvscsis_mad(struct scsi_info *vscsi, struct viosrp_crq *crq)
  */
 static long ibmvscsis_login_rsp(struct scsi_info *vscsi,
 				struct ibmvscsis_cmd *cmd)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct iu_entry *iue = cmd->iue;
 	struct srp_login_rsp *rsp = &vio_iu(iue)->srp.login_rsp;
@@ -2157,6 +2183,7 @@ static long ibmvscsis_login_rsp(struct scsi_info *vscsi,
  */
 static long ibmvscsis_srp_login_rej(struct scsi_info *vscsi,
 				    struct ibmvscsis_cmd *cmd, u32 reason)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct iu_entry *iue = cmd->iue;
 	struct srp_login_rej *rej = &vio_iu(iue)->srp.login_rej;
@@ -2272,6 +2299,7 @@ static int ibmvscsis_drop_nexus(struct ibmvscsis_tport *tport)
 static long ibmvscsis_srp_login(struct scsi_info *vscsi,
 				struct ibmvscsis_cmd *cmd,
 				struct viosrp_crq *crq)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct iu_entry *iue = cmd->iue;
 	struct srp_login_req *req = &vio_iu(iue)->srp.login_req;
@@ -2346,6 +2374,7 @@ static long ibmvscsis_srp_login(struct scsi_info *vscsi,
 static long ibmvscsis_srp_i_logout(struct scsi_info *vscsi,
 				   struct ibmvscsis_cmd *cmd,
 				   struct viosrp_crq *crq)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct iu_entry *iue = cmd->iue;
 	struct srp_i_logout *log_out = &vio_iu(iue)->srp.i_logout;
@@ -2367,8 +2396,8 @@ static long ibmvscsis_srp_i_logout(struct scsi_info *vscsi,
 	return ADAPT_SUCCESS;
 }
 
-/* Called with intr lock held */
 static void ibmvscsis_srp_cmd(struct scsi_info *vscsi, struct viosrp_crq *crq)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct ibmvscsis_cmd *cmd;
 	struct iu_entry *iue;
@@ -2469,6 +2498,7 @@ static void ibmvscsis_srp_cmd(struct scsi_info *vscsi, struct viosrp_crq *crq)
  *	Interrupt, interrupt lock held
  */
 static long ibmvscsis_ping_response(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	struct viosrp_crq *crq;
 	u64 buffer[2] = { 0, 0 };
@@ -2520,6 +2550,7 @@ static long ibmvscsis_ping_response(struct scsi_info *vscsi)
  */
 static long ibmvscsis_parse_command(struct scsi_info *vscsi,
 				    struct viosrp_crq *crq)
+	__must_hold(&vscsi->intr_lock)
 {
 	long rc = ADAPT_SUCCESS;
 
@@ -2961,6 +2992,7 @@ static irqreturn_t ibmvscsis_interrupt(int dummy, void *data)
  * Must be called with interrupt lock held.
  */
 static long ibmvscsis_enable_change_state(struct scsi_info *vscsi)
+	__must_hold(&vscsi->intr_lock)
 {
 	int bytes;
 	long rc = ADAPT_SUCCESS;

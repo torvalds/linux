@@ -872,6 +872,7 @@ csio_ln_read_fcf_entry(struct csio_lnode *ln,
 static void
 csio_handle_link_up(struct csio_hw *hw, uint8_t portid, uint32_t fcfi,
 		    uint32_t vnpi)
+	__must_hold(&hw->lock)
 {
 	struct csio_lnode *ln = NULL;
 
@@ -1165,6 +1166,7 @@ csio_lns_uninit(struct csio_lnode *ln, enum csio_ln_ev evt)
  */
 static void
 csio_lns_online(struct csio_lnode *ln, enum csio_ln_ev evt)
+	__must_hold(&csio_lnode_to_hw(ln)->lock)
 {
 	struct csio_hw *hw = csio_lnode_to_hw(ln);
 
@@ -1216,6 +1218,7 @@ csio_lns_online(struct csio_lnode *ln, enum csio_ln_ev evt)
  */
 static void
 csio_lns_ready(struct csio_lnode *ln, enum csio_ln_ev evt)
+	__must_hold(&csio_lnode_to_hw(ln)->lock)
 {
 	struct csio_hw *hw = csio_lnode_to_hw(ln);
 

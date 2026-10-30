@@ -1154,6 +1154,7 @@ static void bnx2i_cpy_scsi_cdb(struct scsi_cmnd *sc, struct bnx2i_cmd *cmd)
 }
 
 static void bnx2i_cleanup_task(struct iscsi_task *task)
+	__must_hold(&task->conn->session->back_lock)
 {
 	struct iscsi_conn *conn = task->conn;
 	struct bnx2i_conn *bnx2i_conn = conn->dd_data;

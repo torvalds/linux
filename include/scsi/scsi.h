@@ -176,7 +176,7 @@ enum scsi_qc_status {
 /*
  * Here are some scsi specific ioctl commands which are sometimes useful.
  *
- * Note that include/linux/cdrom.h also defines IOCTL 0x5300 - 0x5395
+ * Note that include/uapi/linux/cdrom.h also defines IOCTL 0x5301 - 0x5396.
  */
 
 /* Used to obtain PUN and LUN info.  Conflicts with CDROMAUDIOBUFSIZ */
