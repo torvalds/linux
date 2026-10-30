@@ -425,11 +425,11 @@ but it also allows more flexibility in the handling of devices during the
 removal of their drivers.
 
 Drivers in ->remove() callback should undo the runtime PM changes done
-in ->probe(). Usually this means calling pm_runtime_disable(),
-pm_runtime_dont_use_autosuspend() etc. Alternatively, drivers can use
-devm_pm_runtime_enable() during probe, which automatically takes care of
-calling pm_runtime_disable() and pm_runtime_dont_use_autosuspend() upon driver
-detachment.
+in ->probe(). Usually this means calling pm_runtime_disable() etc.
+Alternatively, drivers can use devm_pm_runtime_enable() during probe, which
+automatically takes care of calling pm_runtime_disable() upon driver detachment.
+Any pm_runtime_use_autosuspend() calls in a driver will be automatically undone
+on driver exit.
 
 The user space can effectively disallow the driver of the device to power manage
 it at run time by changing the value of its /sys/devices/.../power/control
