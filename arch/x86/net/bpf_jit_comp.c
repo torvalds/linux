@@ -3441,18 +3441,6 @@ populate_extable:
 				ip += emit_kfunc_arg_moves(fm, outgoing_arg_base -
 							   outgoing_rsp, &prog);
 			}
-			if (func == (u8 *)arch_bpf_timed_may_goto) {
-				u32 fp = priv_frame_ptr ? X86_REG_R9 : BPF_REG_FP;
-
-				/*
-				 * AX has the offset of count and timestamp
-				 * in the stack. Turn it into a pointer.
-				 * add r10, rbp or add r10, r9
-				 */
-				maybe_emit_mod(&prog, BPF_REG_AX, fp, true);
-				EMIT2(0x01, add_2reg(0xC0, BPF_REG_AX, fp));
-				ip += 3;
-			}
 			if (priv_frame_ptr) {
 				push_r9(&prog);
 				ip += 2;

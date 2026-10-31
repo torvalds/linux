@@ -2083,14 +2083,15 @@ int bpf_do_misc_fixups(struct bpf_verifier_env *env)
 		if (bpf_is_may_goto_insn(insn) && timed_may_goto) {
 			int stack_off_cnt = -stack_depth - 16;
 			/*
-			 * AX is used as an argument to pass in stack_off_cnt
-			 * (to add to r10/fp), and also as the return value of
+			 * AX is used as an argument to pass in the pointer to
+			 * count and timestamp, and also as the return value of
 			 * the call to arch_bpf_timed_may_goto.
 			 */
 			struct bpf_insn tail[] = {
 				BPF_ALU64_IMM(BPF_SUB, BPF_REG_AX, 1),
-				BPF_JMP_IMM(BPF_JNE, BPF_REG_AX, 0, 2),
-				BPF_MOV64_IMM(BPF_REG_AX, stack_off_cnt),
+				BPF_JMP_IMM(BPF_JNE, BPF_REG_AX, 0, 3),
+				BPF_MOV64_REG(BPF_REG_AX, BPF_REG_10),
+				BPF_ALU64_IMM(BPF_ADD, BPF_REG_AX, stack_off_cnt),
 				BPF_EMIT_CALL(arch_bpf_timed_may_goto),
 				BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_AX, stack_off_cnt),
 			};
