@@ -975,11 +975,11 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 			ret = amdgpu_vm_lock_pd(vm, &exec, 0);
 			drm_exec_retry_on_contention(&exec);
 			if (unlikely(ret))
-				goto unwind;
+				goto unlock;
 			ret = drm_exec_lock_obj(&exec, &bo[i]->tbo.base);
 			drm_exec_retry_on_contention(&exec);
 			if (unlikely(ret))
-				goto unwind;
+				goto unlock;
 		}
 
 		bo_va = amdgpu_vm_bo_find(vm, bo[i]);
@@ -1005,6 +1005,8 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 
 	return 0;
 
+unlock:
+	drm_exec_fini(&exec);
 unwind:
 	for (; i >= 0; i--) {
 		if (!attachment[i])
