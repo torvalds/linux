@@ -279,6 +279,105 @@ int private_stack_exception_sub_prog(void)
 	return 0;
 }
 
+/*
+ * Nothing attaches the two fentry progs above, so they are loaded, but never
+ * run. BPF_PROG_TEST_RUN does run a raw_tp prog. The default exception callback
+ * returns the cookie of bpf_throw().
+ */
+SEC("raw_tp")
+__description("Private stack, run, exception in main prog")
+__success __retval(1)
+__arch_x86_64
+__jited("	movq	%rdi, -0x200(%r9)")
+__jited("	movl	$0x1, %edi")
+__jited("	pushq	%r9")
+__jited("...")
+__jited("	callq")
+__naked void private_stack_run_exception_main_prog(void)
+{
+	asm volatile ("			\
+	r1 = 42;			\
+	*(u64 *)(r10 - 512) = r1;	\
+	r1 = 1;				\
+	call %[bpf_throw];		\
+	r0 = 0;				\
+	exit;				\
+"	:
+	: __imm(bpf_throw)
+	: __clobber_all);
+}
+
+__used
+__naked static void subprog_throw(void)
+{
+	asm volatile ("			\
+	r1 = 2;				\
+	call %[bpf_throw];		\
+	r0 = 0;				\
+	exit;				\
+"	:
+	: __imm(bpf_throw)
+	: __clobber_all);
+}
+
+SEC("raw_tp")
+__description("Private stack, run, exception in subprog")
+__success __retval(2)
+__arch_x86_64
+__jited("	movq	%rdi, -0x200(%r9)")
+__jited("	pushq	%r9")
+__jited("...")
+__jited("	callq")
+__jited("	popq	%r9")
+__naked void private_stack_run_exception_sub_prog(void)
+{
+	asm volatile ("			\
+	r1 = 42;			\
+	*(u64 *)(r10 - 512) = r1;	\
+	call subprog_throw;		\
+	r0 = 0;				\
+	exit;				\
+"	::: __clobber_all);
+}
+
+__used
+__naked static void private_stack_subprog_throw(void)
+{
+	asm volatile ("			\
+	r1 = 42;			\
+	*(u64 *)(r10 - 512) = r1;	\
+	r1 = 3;				\
+	call %[bpf_throw];		\
+	r0 = 0;				\
+	exit;				\
+"	:
+	: __imm(bpf_throw)
+	: __clobber_all);
+}
+
+/* Only the frame of the main prog counts, and it has nothing pushed at the call */
+SEC("raw_tp")
+__description("Private stack, run, exception in subprog, no private stack in main prog")
+__success __retval(3)
+__arch_x86_64
+__jited("	subq	$0x8, %rsp")
+__jited("...")
+__jited("func #1")
+__jited("...")
+__jited("	movq	%rdi, -0x200(%r9)")
+__jited("	movl	$0x3, %edi")
+__jited("	pushq	%r9")
+__naked void no_private_stack_run_exception_sub_prog(void)
+{
+	asm volatile ("				\
+	r1 = 42;				\
+	*(u64 *)(r10 - 8) = r1;			\
+	call private_stack_subprog_throw;	\
+	r0 = 0;					\
+	exit;					\
+"	::: __clobber_all);
+}
+
 int glob;
 __noinline static void subprog2(int *val)
 {
