@@ -143,7 +143,9 @@ bool kfd_dbg_ev_raise(uint64_t event_mask,
 							exception_data,
 							exception_data_size,
 							GFP_KERNEL);
-					if (!pdd->vm_fault_exc_data)
+					if (pdd->vm_fault_exc_data)
+						pdd->vm_fault_exc_data_size = exception_data_size;
+					else
 						pr_debug("Failed to allocate exception data memory");
 				} else {
 					pr_debug("Debugger exception data not saved\n");
