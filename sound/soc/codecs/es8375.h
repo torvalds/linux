@@ -49,6 +49,9 @@
 #define ES8375_ANALOG_SPK2         0x29
 #define ES8375_VMID_SEL            0x2D
 #define ES8375_ANALOG1             0x2E
+#define ES8375_VSEL1               0x2F
+#define ES8375_VSEL2               0x30
+#define ES8375_LP_DAC              0x31
 #define ES8375_ANALOG2             0x32
 #define ES8375_ANALOG3             0x37
 #define ES8375_ADC2DAC_CLKTRI      0xF8
@@ -91,7 +94,7 @@
 
 // Function values
 #define ES8375_ADC_OSR_GAIN_MAX         0x3F
-#define ES8375_DMIC_GAIN_MAX            0x04
+#define ES8375_DMIC_GAIN_MAX            0x03
 #define ES8375_ADC_AUTOMUTE_ATTN_MAX    0x1F
 #define ES8375_AUTOMUTE_NG_MAX          0x07
 #define ES8375_ADC_VOLUME_MAX           0xFF

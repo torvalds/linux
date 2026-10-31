@@ -1668,6 +1668,7 @@ static const struct snd_pci_quirk msi_deny_list[] = {
 	SND_PCI_QUIRK(0x1179, 0xfb44, "Toshiba Satellite C870", 0), /* AMD Hudson */
 	SND_PCI_QUIRK(0x1849, 0x0888, "ASRock", 0), /* Athlon64 X2 + nvidia */
 	SND_PCI_QUIRK(0xa0a0, 0x0575, "Aopen MZ915-M", 0), /* ICH6 */
+	SND_PCI_QUIRK(0x1d94, 0xc950, "Hygon H34M51A", 1), /* INTx broken */
 	{}
 };
 
@@ -2329,6 +2330,7 @@ static const struct snd_pci_quirk power_save_denylist[] = {
 	SND_PCI_QUIRK(0x17aa, 0x5079, "Lenovo Thinkpad E15", 0),
 	/* https://bugzilla.kernel.org/show_bug.cgi?id=220694 */
 	SND_PCI_QUIRK(0x103c, 0x8a6b, "HP 89E9", 0),
+	SND_PCI_QUIRK(0x103c, 0x89e9, "HP 89E9", 0),
 	{}
 };
 

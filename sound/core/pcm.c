@@ -520,6 +520,11 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 	return 0;
 }
 
+static void snd_pcm_stream_proc_disconnect(struct snd_pcm_str *pstr)
+{
+	snd_info_disconnect_entry(pstr->proc_root);
+}
+
 static int snd_pcm_stream_proc_done(struct snd_pcm_str *pstr)
 {
 	snd_info_free_entry(pstr->proc_root);
@@ -580,6 +585,7 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 
 #else /* !CONFIG_SND_VERBOSE_PROCFS */
 static inline int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr) { return 0; }
+static inline void snd_pcm_stream_proc_disconnect(struct snd_pcm_str *pstr) { }
 static inline int snd_pcm_stream_proc_done(struct snd_pcm_str *pstr) { return 0; }
 static inline int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream) { return 0; }
 #endif /* CONFIG_SND_VERBOSE_PROCFS */
@@ -1094,33 +1100,37 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 	int cidx;
 
 	guard(mutex)(&register_mutex);
-	guard(mutex)(&pcm->open_mutex);
-	wake_up(&pcm->open_wait);
-	list_del_init(&pcm->list);
+	scoped_guard(mutex, &pcm->open_mutex) {
+		wake_up(&pcm->open_wait);
+		list_del_init(&pcm->list);
 
-	for_each_pcm_substream(pcm, cidx, substream) {
-		snd_pcm_stream_lock_irq(substream);
-		if (substream->runtime) {
-			if (snd_pcm_running(substream))
-				snd_pcm_stop(substream, SNDRV_PCM_STATE_DISCONNECTED);
-			/* to be sure, set the state unconditionally */
-			__snd_pcm_set_state(substream->runtime,
-					    SNDRV_PCM_STATE_DISCONNECTED);
-			wake_up(&substream->runtime->sleep);
-			wake_up(&substream->runtime->tsleep);
+		for_each_pcm_substream(pcm, cidx, substream) {
+			snd_pcm_stream_lock_irq(substream);
+			if (substream->runtime) {
+				if (snd_pcm_running(substream))
+					snd_pcm_stop(substream, SNDRV_PCM_STATE_DISCONNECTED);
+				/* to be sure, set the state unconditionally */
+				__snd_pcm_set_state(substream->runtime,
+						    SNDRV_PCM_STATE_DISCONNECTED);
+				wake_up(&substream->runtime->sleep);
+				wake_up(&substream->runtime->tsleep);
+			}
+			snd_pcm_stream_unlock_irq(substream);
 		}
-		snd_pcm_stream_unlock_irq(substream);
-	}
 
-	for_each_pcm_substream(pcm, cidx, substream)
-		snd_pcm_sync_stop(substream, false);
+		for_each_pcm_substream(pcm, cidx, substream)
+			snd_pcm_sync_stop(substream, false);
 
-	pcm_call_notify(pcm, n_disconnect);
-	for (cidx = 0; cidx < 2; cidx++) {
-		if (pcm->streams[cidx].dev)
-			snd_unregister_device(pcm->streams[cidx].dev);
-		free_chmap(&pcm->streams[cidx]);
+		pcm_call_notify(pcm, n_disconnect);
+		for (cidx = 0; cidx < 2; cidx++) {
+			if (pcm->streams[cidx].dev)
+				snd_unregister_device(pcm->streams[cidx].dev);
+			free_chmap(&pcm->streams[cidx]);
+		}
 	}
+	/* Proc rundown can run release callbacks which take open_mutex. */
+	for (cidx = 0; cidx < 2; cidx++)
+		snd_pcm_stream_proc_disconnect(&pcm->streams[cidx]);
 	return 0;
 }
 

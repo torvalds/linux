@@ -117,6 +117,7 @@ struct snd_info_entry *snd_info_create_module_entry(struct module *module,
 struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 					     const char *name,
 					     struct snd_info_entry *parent);
+void snd_info_disconnect_entry(struct snd_info_entry *entry);
 void snd_info_free_entry(struct snd_info_entry *entry);
 
 int snd_info_card_create(struct snd_card *card);
@@ -164,6 +165,7 @@ static inline int snd_info_get_line(struct snd_info_buffer *buffer, char *line, 
 static inline char *snd_info_get_str(char *dest, char *src, int len) { return NULL; }
 static inline struct snd_info_entry *snd_info_create_module_entry(struct module *module, const char *name, struct snd_info_entry *parent) { return NULL; }
 static inline struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card, const char *name, struct snd_info_entry *parent) { return NULL; }
+static inline void snd_info_disconnect_entry(struct snd_info_entry *entry) { }
 static inline void snd_info_free_entry(struct snd_info_entry *entry) { ; }
 
 static inline int snd_info_card_create(struct snd_card *card) { return 0; }

@@ -939,6 +939,7 @@ disable_pp_cap:
 		hda_dsp_ctrl_ppcap_enable(sdev, false);
 	}
 free_ipc_irq:
+	hda_dsp_ctrl_stop_chip(sdev);
 	free_irq(sdev->ipc_irq, sdev);
 free_irq_vector:
 	if (sdev->msi_enabled)
@@ -1006,6 +1007,9 @@ void hda_dsp_remove(struct snd_sof_dev *sdev)
 		snd_dma_free_pages(&hda->iccmax_dmab);
 
 skip_disable_dsp:
+	/* stop CORB/RIRB and position buffer DMA before the buffers are freed */
+	hda_dsp_ctrl_stop_chip(sdev);
+
 	free_irq(sdev->ipc_irq, sdev);
 	if (sdev->msi_enabled)
 		pci_free_irq_vectors(pci);

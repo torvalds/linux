@@ -353,12 +353,12 @@ static int create_ump_endpoint_port(struct seq_ump_client *client)
 /* release the client resources */
 static void seq_ump_client_free(struct seq_ump_client *client)
 {
+	snd_ump_detach_seq(client->ump);
 	cancel_work_sync(&client->group_notify_work);
 
 	if (client->seq_client >= 0)
 		snd_seq_delete_kernel_client(client->seq_client);
 
-	client->ump->seq_ops = NULL;
 	client->ump->seq_client = NULL;
 
 	kfree(client);
@@ -523,7 +523,8 @@ static int snd_seq_ump_probe(struct snd_seq_device *dev)
 	snd_seq_kernel_client_put(cptr);
 
 	ump->seq_client = client;
-	ump->seq_ops = &seq_ump_ops;
+	/* Publish the initialized client before callbacks can observe seq_ops. */
+	smp_store_release(&ump->seq_ops, &seq_ump_ops);
 	return 0;
 
  error:

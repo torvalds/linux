@@ -7,6 +7,7 @@
 config SND_SOC_SOF_AMD_TOPLEVEL
 	tristate "SOF support for AMD audio DSPs"
 	depends on SOUNDWIRE_AMD || !SOUNDWIRE_AMD
+	depends on ACPI
 	depends on X86 || COMPILE_TEST
 	help
 	  This adds support for Sound Open Firmware for AMD platforms.

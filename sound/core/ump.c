@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/export.h>
 #include <linux/mm.h>
+#include <linux/srcu.h>
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 #include <sound/ump.h>
@@ -17,6 +18,31 @@
 #define ump_warn(ump, fmt, args...)	dev_warn((ump)->core.dev, fmt, ##args)
 #define ump_info(ump, fmt, args...)	dev_info((ump)->core.dev, fmt, ##args)
 #define ump_dbg(ump, fmt, args...)	dev_dbg((ump)->core.dev, fmt, ##args)
+
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
+DEFINE_STATIC_SRCU(ump_seq_srcu);
+
+static const struct snd_seq_ump_ops *seq_ops_load(struct snd_ump_endpoint *ump)
+{
+	/* Pair with publication after seq_client has been initialized. */
+	return smp_load_acquire(&ump->seq_ops);
+}
+
+/**
+ * snd_ump_detach_seq - stop callbacks to a sequencer binding
+ * @ump: UMP endpoint
+ *
+ * Withdraw the binding and wait for all callbacks already in progress.
+ * The caller can then drain binding work and free the sequencer client.
+ * Must not be called from one of the binding callbacks.
+ */
+void snd_ump_detach_seq(struct snd_ump_endpoint *ump)
+{
+	WRITE_ONCE(ump->seq_ops, NULL);
+	synchronize_srcu(&ump_seq_srcu);
+}
+EXPORT_SYMBOL_GPL(snd_ump_detach_seq);
+#endif
 
 static int snd_ump_dev_register(struct snd_rawmidi *rmidi);
 static int snd_ump_dev_unregister(struct snd_rawmidi *rmidi);
@@ -348,8 +374,13 @@ int snd_ump_receive(struct snd_ump_endpoint *ump, const u32 *buffer, int count)
 			continue;
 		ump_handle_stream_msg(ump, ump->input_buf, n);
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
-		if (ump->seq_ops)
-			ump->seq_ops->input_receive(ump, ump->input_buf, n);
+		scoped_guard(srcu, &ump_seq_srcu) {
+			const struct snd_seq_ump_ops *ops;
+
+			ops = seq_ops_load(ump);
+			if (ops)
+				ops->input_receive(ump, ump->input_buf, n);
+		}
 #endif
 		process_legacy_input(ump, ump->input_buf, n);
 	}
@@ -559,6 +590,7 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 /* update dir_bits and active flag for all groups in the client */
 void snd_ump_update_group_attrs(struct snd_ump_endpoint *ump)
 {
+	static const char separator[] = ", ";
 	struct snd_ump_block *fb;
 	struct snd_ump_group *group;
 	int i;
@@ -598,7 +630,8 @@ void snd_ump_update_group_attrs(struct snd_ump_endpoint *ump)
 			if (!*fb->info.name)
 				continue;
 			if (*group->name)
-				strlcat(group->name, ", ", sizeof(group->name));
+				safe_append_string(group->name, sizeof(group->name),
+						   separator, sizeof(separator));
 			safe_append_string(group->name, sizeof(group->name),
 					   fb->info.name, sizeof(fb->info.name));
 		}
@@ -699,8 +732,12 @@ static void choose_default_protocol(struct snd_ump_endpoint *ump)
 static void seq_notify_ep_change(struct snd_ump_endpoint *ump)
 {
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
-	if (ump->parsed && ump->seq_ops && ump->seq_ops->notify_ep_change)
-		ump->seq_ops->notify_ep_change(ump);
+	const struct snd_seq_ump_ops *ops;
+
+	guard(srcu)(&ump_seq_srcu);
+	ops = seq_ops_load(ump);
+	if (ump->parsed && ops && ops->notify_ep_change)
+		ops->notify_ep_change(ump);
 #endif
 }
 
@@ -797,8 +834,12 @@ static int ump_handle_product_id_msg(struct snd_ump_endpoint *ump,
 static void seq_notify_protocol(struct snd_ump_endpoint *ump)
 {
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
-	if (ump->seq_ops && ump->seq_ops->switch_protocol)
-		ump->seq_ops->switch_protocol(ump);
+	const struct snd_seq_ump_ops *ops;
+
+	guard(srcu)(&ump_seq_srcu);
+	ops = seq_ops_load(ump);
+	if (ops && ops->switch_protocol)
+		ops->switch_protocol(ump);
 #endif /* CONFIG_SND_SEQUENCER */
 }
 
@@ -893,8 +934,12 @@ static void seq_notify_fb_change(struct snd_ump_endpoint *ump,
 				 struct snd_ump_block *fb)
 {
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
-	if (ump->seq_ops && ump->seq_ops->notify_fb_change)
-		ump->seq_ops->notify_fb_change(ump, fb);
+	const struct snd_seq_ump_ops *ops;
+
+	guard(srcu)(&ump_seq_srcu);
+	ops = seq_ops_load(ump);
+	if (ops && ops->notify_fb_change)
+		ops->notify_fb_change(ump, fb);
 #endif
 }
 
