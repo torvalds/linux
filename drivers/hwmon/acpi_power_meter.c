@@ -30,13 +30,6 @@
 #define POWER_METER_CAN_CAP	(1 << 2)
 #define POWER_METER_CAN_NOTIFY	(1 << 3)
 #define POWER_METER_IS_BATTERY	(1 << 8)
-#define UNKNOWN_HYSTERESIS	0xFFFFFFFF
-/*
- * ACPI integers can either be 32-bit or 64-bit wide, so
- * we have to check for both values.
- */
-#define UNKNOWN_POWER_32	U32_MAX
-#define UNKNOWN_POWER_64	U64_MAX
 
 #define METER_NOTIFY_CONFIG	0x80
 #define METER_NOTIFY_TRIP	0x81
@@ -53,6 +46,15 @@ static int cap_in_hardware;
 static bool force_cap_on;
 
 static DEFINE_MUTEX(acpi_notify_lock);
+
+/*
+ * ACPI integers can either be 32-bit or 64-bit wide, so
+ * we have to check for both values.
+ */
+static bool acpi_power_meter_is_unknown(u64 val)
+{
+	return val == U32_MAX || val == U64_MAX;
+}
 
 static int can_cap_in_hardware(void)
 {
@@ -179,9 +181,10 @@ static int update_meter(struct acpi_power_meter_resource *resource)
 	acpi_status status;
 	unsigned long local_jiffies = jiffies;
 
-	if (time_before(local_jiffies, resource->sensors_last_updated +
+	if (!acpi_power_meter_is_unknown(resource->caps.sampling_time) &&
+	    time_before(local_jiffies, resource->sensors_last_updated +
 			msecs_to_jiffies(resource->caps.sampling_time)) &&
-			resource->sensors_valid)
+	    resource->sensors_valid)
 		return 0;
 
 	status = acpi_evaluate_integer(resource->acpi_dev->handle, "_PMM",
@@ -387,9 +390,7 @@ static bool get_power_alarm_state(struct acpi_power_meter_resource *resource)
 	resource->power_alarm = false;
 
 	ret = update_meter(resource);
-	if (ret ||
-	    resource->power == UNKNOWN_POWER_32 ||
-	    resource->power == UNKNOWN_POWER_64)
+	if (ret || acpi_power_meter_is_unknown(resource->power))
 		return alarm;
 
 	/* need to update cap if not to support the notification. */
@@ -398,6 +399,9 @@ static bool get_power_alarm_state(struct acpi_power_meter_resource *resource)
 		if (ret)
 			return false;
 	}
+
+	if (acpi_power_meter_is_unknown(resource->cap))
+		return alarm;
 
 	return alarm || resource->power > resource->cap;
 }
@@ -459,26 +463,36 @@ static int power_meter_read(struct device *dev, enum hwmon_sensor_types type,
 		ret = update_meter(res);
 		if (ret)
 			return ret;
-		if (res->power == UNKNOWN_POWER_32 || res->power == UNKNOWN_POWER_64)
+		if (acpi_power_meter_is_unknown(res->power))
 			return -ENODATA;
 		*val = res->power * 1000;
 		break;
 	case hwmon_power_average_interval_min:
+		if (acpi_power_meter_is_unknown(res->caps.min_avg_interval))
+			return -ENODATA;
 		*val = res->caps.min_avg_interval;
 		break;
 	case hwmon_power_average_interval_max:
+		if (acpi_power_meter_is_unknown(res->caps.max_avg_interval))
+			return -ENODATA;
 		*val = res->caps.max_avg_interval;
 		break;
 	case hwmon_power_average_interval:
 		ret = update_avg_interval(res);
 		if (ret)
 			return ret;
-		*val = (res)->avg_interval;
+		if (acpi_power_meter_is_unknown(res->avg_interval))
+			return -ENODATA;
+		*val = res->avg_interval;
 		break;
 	case hwmon_power_cap_min:
+		if (acpi_power_meter_is_unknown(res->caps.min_cap))
+			return -ENODATA;
 		*val = res->caps.min_cap * 1000;
 		break;
 	case hwmon_power_cap_max:
+		if (acpi_power_meter_is_unknown(res->caps.max_cap))
+			return -ENODATA;
 		*val = res->caps.max_cap * 1000;
 		break;
 	case hwmon_power_alarm:
@@ -488,6 +502,8 @@ static int power_meter_read(struct device *dev, enum hwmon_sensor_types type,
 		ret = update_cap(res);
 		if (ret)
 			return ret;
+		if (acpi_power_meter_is_unknown(res->cap))
+			return -ENODATA;
 		*val = res->cap * 1000;
 		break;
 	default:
@@ -613,7 +629,7 @@ static ssize_t power1_cap_hyst_show(struct device *dev,
 
 	guard(mutex)(&res->lock);
 
-	if (res->caps.hysteresis == UNKNOWN_HYSTERESIS)
+	if (acpi_power_meter_is_unknown(res->caps.hysteresis))
 		return sysfs_emit(buf, "unknown\n");
 
 	return sysfs_emit(buf, "%llu\n", res->caps.hysteresis * 1000);
@@ -627,6 +643,9 @@ static ssize_t power1_accuracy_show(struct device *dev,
 	unsigned int acc;
 
 	guard(mutex)(&res->lock);
+
+	if (acpi_power_meter_is_unknown(res->caps.accuracy))
+		return sysfs_emit(buf, "unknown\n");
 
 	acc = res->caps.accuracy;
 	return sysfs_emit(buf, "%u.%u%%\n", acc / 1000, acc % 1000);
