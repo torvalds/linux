@@ -665,6 +665,7 @@ struct name_snapshot {
 	union shortname_store inline_name;
 };
 void take_dentry_name_snapshot(struct name_snapshot *, struct dentry *);
+bool try_take_dentry_name_snapshot(struct name_snapshot *, struct dentry *);
 void release_dentry_name_snapshot(struct name_snapshot *);
 
 static inline struct dentry *d_first_child(const struct dentry *dentry)
