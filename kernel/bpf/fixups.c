@@ -1823,6 +1823,8 @@ int bpf_do_misc_fixups(struct bpf_verifier_env *env)
 	struct bpf_subprog_info *subprogs = env->subprog_info;
 	u16 stack_depth = subprogs[cur_subprog].stack_depth;
 	u16 stack_depth_extra = 0;
+	/* arch_bpf_timed_may_goto() takes and returns AX in a cpu register: for JITs only */
+	bool timed_may_goto = prog->jit_requested && bpf_jit_supports_timed_may_goto();
 
 	if (env->seen_exception && !env->exception_callback_subprog) {
 		struct bpf_insn *patch = insn_buf;
@@ -2078,7 +2080,7 @@ int bpf_do_misc_fixups(struct bpf_verifier_env *env)
 			goto next_insn;
 		}
 
-		if (bpf_is_may_goto_insn(insn) && bpf_jit_supports_timed_may_goto()) {
+		if (bpf_is_may_goto_insn(insn) && timed_may_goto) {
 			int stack_off_cnt = -stack_depth - 16;
 			/*
 			 * AX is used as an argument to pass in stack_off_cnt
@@ -2108,6 +2110,7 @@ int bpf_do_misc_fixups(struct bpf_verifier_env *env)
 			 * after subtraction, rinse and repeat.
 			 */
 			stack_depth_extra = 16;
+			prog->jit_required = 1;
 			cnt = may_goto_expand(insn_buf, insn->off, stack_off_cnt,
 					      tail, ARRAY_SIZE(tail));
 
@@ -2730,7 +2733,7 @@ next_insn:
 
 	env->prog->aux->stack_depth = subprogs[0].stack_depth;
 	for (i = 0; i < env->subprog_cnt; i++) {
-		int delta = bpf_jit_supports_timed_may_goto() ? 2 : 1;
+		int delta = timed_may_goto ? 2 : 1;
 		int subprog_start = subprogs[i].start;
 		int stack_slots = subprogs[i].stack_extra / 8;
 		int slots = delta, cnt = 0;
@@ -2744,7 +2747,7 @@ next_insn:
 		}
 
 		stack_depth = subprogs[i].stack_depth;
-		if (bpf_jit_supports_timed_may_goto()) {
+		if (timed_may_goto) {
 			insn_buf[cnt++] = BPF_ST_MEM(BPF_DW, BPF_REG_FP, -stack_depth,
 						     BPF_MAX_TIMED_LOOPS);
 			insn_buf[cnt++] = BPF_ST_MEM(BPF_DW, BPF_REG_FP, -stack_depth + 8, 0);

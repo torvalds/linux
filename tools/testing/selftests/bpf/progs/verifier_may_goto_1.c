@@ -82,6 +82,7 @@ __naked void may_goto_batch_1(void)
 
 SEC("raw_tp")
 __description("may_goto batch with offsets 2/0")
+__load_if_JITed()
 __arch_x86_64
 __arch_s390x
 __arch_arm64
