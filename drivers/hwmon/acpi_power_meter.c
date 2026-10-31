@@ -584,6 +584,8 @@ static ssize_t power1_average_min_show(struct device *dev,
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
 
+	guard(mutex)(&res->lock);
+
 	if (res->trip[POWER_METER_TRIP_AVERAGE_MIN_IDX] < 0)
 		return sysfs_emit(buf, "unknown\n");
 
@@ -595,6 +597,8 @@ static ssize_t power1_average_max_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
+
+	guard(mutex)(&res->lock);
 
 	if (res->trip[POWER_METER_TRIP_AVERAGE_MAX_IDX] < 0)
 		return sysfs_emit(buf, "unknown\n");
@@ -608,6 +612,8 @@ static ssize_t power1_cap_hyst_show(struct device *dev,
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
 
+	guard(mutex)(&res->lock);
+
 	if (res->caps.hysteresis == UNKNOWN_HYSTERESIS)
 		return sysfs_emit(buf, "unknown\n");
 
@@ -619,8 +625,11 @@ static ssize_t power1_accuracy_show(struct device *dev,
 				    char *buf)
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
-	unsigned int acc = res->caps.accuracy;
+	unsigned int acc;
 
+	guard(mutex)(&res->lock);
+
+	acc = res->caps.accuracy;
 	return sysfs_emit(buf, "%u.%u%%\n", acc / 1000, acc % 1000);
 }
 
@@ -629,6 +638,8 @@ static ssize_t power1_is_battery_show(struct device *dev,
 				      char *buf)
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
+
+	guard(mutex)(&res->lock);
 
 	return sysfs_emit(buf, "%u\n",
 			  res->caps.flags & POWER_METER_IS_BATTERY ? 1 : 0);
@@ -640,6 +651,11 @@ static ssize_t power1_model_number_show(struct device *dev,
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
 
+	guard(mutex)(&res->lock);
+
+	if (!res->model_number)
+		return -ENODATA;
+
 	return sysfs_emit(buf, "%s\n", res->model_number);
 }
 
@@ -649,6 +665,11 @@ static ssize_t power1_oem_info_show(struct device *dev,
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
 
+	guard(mutex)(&res->lock);
+
+	if (!res->oem_info)
+		return -ENODATA;
+
 	return sysfs_emit(buf, "%s\n", res->oem_info);
 }
 
@@ -657,6 +678,11 @@ static ssize_t power1_serial_number_show(struct device *dev,
 					 char *buf)
 {
 	struct acpi_power_meter_resource *res = dev_get_drvdata(dev);
+
+	guard(mutex)(&res->lock);
+
+	if (!res->serial_number)
+		return -ENODATA;
 
 	return sysfs_emit(buf, "%s\n", res->serial_number);
 }
@@ -983,6 +1009,8 @@ static void acpi_power_meter_remove(struct platform_device *pdev)
 static int acpi_power_meter_resume(struct device *dev)
 {
 	struct acpi_power_meter_resource *resource = dev_get_drvdata(dev);
+
+	guard(mutex)(&resource->lock);
 
 	free_capabilities(resource);
 	read_capabilities(resource);
