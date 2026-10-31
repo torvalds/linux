@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <pthread.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -22,20 +23,35 @@
 #include "util/env.h"
 #include "util/header.h"
 
-static bool x86__is_intel_graniterapids(void)
+#define GENUINE_INTEL_SPR "GenuineIntel-6-8F"
+#define GENUINE_INTEL_EMR "GenuineIntel-6-CF"
+#define GENUINE_INTEL_GNR "GenuineIntel-6-A[DE]"
+
+static bool cached_snc_supported;
+static pthread_once_t snc_support_once = PTHREAD_ONCE_INIT;
+
+static void init_snc_support(void)
 {
-	static bool checked_if_graniterapids;
-	static bool is_graniterapids;
+	/* Sapphirerapids Emeraldrapids Graniterapids support SNC configuration. */
+	static const char *const supported_cpuids[] = {
+		GENUINE_INTEL_SPR, /* Sapphirerapids */
+		GENUINE_INTEL_EMR, /* Emeraldrapids */
+		GENUINE_INTEL_GNR, /* Graniterapids */
+	};
+	char *cpuid = get_cpuid_str((struct perf_cpu){0});
 
-	if (!checked_if_graniterapids) {
-		const char *graniterapids_cpuid = "GenuineIntel-6-A[DE]";
-		char *cpuid = get_cpuid_str((struct perf_cpu){0});
-
-		is_graniterapids = cpuid && strcmp_cpuid_str(graniterapids_cpuid, cpuid) == 0;
-		free(cpuid);
-		checked_if_graniterapids = true;
+	for (size_t i = 0; i < ARRAY_SIZE(supported_cpuids); i++) {
+		cached_snc_supported = cpuid && strcmp_cpuid_str(supported_cpuids[i], cpuid) == 0;
+		if (cached_snc_supported)
+			break;
 	}
-	return is_graniterapids;
+	free(cpuid);
+}
+
+static bool x86__is_snc_supported(void)
+{
+	pthread_once(&snc_support_once, init_snc_support);
+	return cached_snc_supported;
 }
 
 static struct perf_cpu_map *read_sysfs_cpu_map(const char *sysfs_path)
@@ -52,49 +68,58 @@ static struct perf_cpu_map *read_sysfs_cpu_map(const char *sysfs_path)
 	return cpus;
 }
 
+static int cached_snc_nodes;
+static pthread_once_t snc_nodes_once = PTHREAD_ONCE_INIT;
+
+static void init_snc_nodes(void)
+{
+	struct perf_cpu_map *node_cpus =
+		read_sysfs_cpu_map("devices/system/node/node0/cpulist");
+	struct perf_cpu_map *cache_cpus =
+		read_sysfs_cpu_map("devices/system/cpu/cpu0/cache/index3/shared_cpu_list");
+
+	if (node_cpus && cache_cpus)
+		cached_snc_nodes = perf_cpu_map__nr(cache_cpus) / perf_cpu_map__nr(node_cpus);
+	else
+		cached_snc_nodes = 0;
+	perf_cpu_map__put(cache_cpus);
+	perf_cpu_map__put(node_cpus);
+}
+
 static int snc_nodes_per_l3_cache(void)
 {
-	static bool checked_snc;
-	static int snc_nodes;
+	pthread_once(&snc_nodes_once, init_snc_nodes);
+	return cached_snc_nodes;
+}
 
-	if (!checked_snc) {
-		struct perf_cpu_map *node_cpus =
-			read_sysfs_cpu_map("devices/system/node/node0/cpulist");
-		struct perf_cpu_map *cache_cpus =
-			read_sysfs_cpu_map("devices/system/cpu/cpu0/cache/index3/shared_cpu_list");
+static int cached_num_chas;
+static pthread_once_t num_chas_once = PTHREAD_ONCE_INIT;
 
-		snc_nodes = perf_cpu_map__nr(cache_cpus) / perf_cpu_map__nr(node_cpus);
-		perf_cpu_map__put(cache_cpus);
-		perf_cpu_map__put(node_cpus);
-		checked_snc = true;
+static void init_num_chas(void)
+{
+	int fd = perf_pmu__event_source_devices_fd();
+	struct io_dir dir;
+	struct io_dirent64 *dent;
+
+	if (fd < 0) {
+		cached_num_chas = -1;
+		return;
 	}
-	return snc_nodes;
+
+	io_dir__init(&dir, fd);
+
+	while ((dent = io_dir__readdir(&dir)) != NULL) {
+		/* Note, dent->d_type will be DT_LNK and so isn't a useful filter. */
+		if (strstarts(dent->d_name, "uncore_cha_"))
+			cached_num_chas++;
+	}
+	close(fd);
 }
 
 static int num_chas(void)
 {
-	static bool checked_chas;
-	static int num_chas;
-
-	if (!checked_chas) {
-		int fd = perf_pmu__event_source_devices_fd();
-		struct io_dir dir;
-		struct io_dirent64 *dent;
-
-		if (fd < 0)
-			return -1;
-
-		io_dir__init(&dir, fd);
-
-		while ((dent = io_dir__readdir(&dir)) != NULL) {
-			/* Note, dent->d_type will be DT_LNK and so isn't a useful filter. */
-			if (strstarts(dent->d_name, "uncore_cha_"))
-				num_chas++;
-		}
-		close(fd);
-		checked_chas = true;
-	}
-	return num_chas;
+	pthread_once(&num_chas_once, init_num_chas);
+	return cached_num_chas;
 }
 
 #define MAX_SNCS 6
@@ -121,10 +146,55 @@ static int uncore_cha_snc(struct perf_pmu *pmu)
 		return 0;
 	}
 	chas_per_node = num_cha / snc_nodes;
+	if (chas_per_node == 0) {
+		pr_warning("Unexpected: chas_per_node is 0 (num_cha=%d, snc_nodes=%d)\n",
+			   num_cha, snc_nodes);
+		return 0;
+	}
 	cha_snc = cha_num / chas_per_node;
 
 	/* Range check cha_snc. for unexpected out of bounds. */
 	return cha_snc >= MAX_SNCS ? 0 : cha_snc;
+}
+
+static const u8 *cached_imc_snc_map;
+static size_t cached_imc_snc_map_len;
+static pthread_once_t imc_snc_map_once = PTHREAD_ONCE_INIT;
+
+static void init_snc_map(void)
+{
+	int snc_nodes = snc_nodes_per_l3_cache();
+	char *cpuid;
+	static const u8 spr_emr_snc2_map[] = { 0, 0, 1, 1 };
+	static const u8 gnr_snc2_map[] = { 1, 1, 0, 0 };
+	static const u8 snc3_map[] = { 1, 1, 0, 0, 2, 2 };
+
+	switch (snc_nodes) {
+	case 2:
+		cpuid = get_cpuid_str((struct perf_cpu){ 0 });
+		if (cpuid) {
+			if (strcmp_cpuid_str(GENUINE_INTEL_SPR, cpuid) == 0 ||
+			    strcmp_cpuid_str(GENUINE_INTEL_EMR, cpuid) == 0) {
+				cached_imc_snc_map = spr_emr_snc2_map;
+				cached_imc_snc_map_len = ARRAY_SIZE(spr_emr_snc2_map);
+			} else if (strcmp_cpuid_str(GENUINE_INTEL_GNR, cpuid) == 0) {
+				cached_imc_snc_map = gnr_snc2_map;
+				cached_imc_snc_map_len = ARRAY_SIZE(gnr_snc2_map);
+			}
+			free(cpuid);
+		}
+		break;
+	case 3:
+		cached_imc_snc_map = snc3_map;
+		cached_imc_snc_map_len = ARRAY_SIZE(snc3_map);
+		break;
+	default:
+		/* Error or no lookup support for SNC with >3 nodes. */
+		break;
+	}
+
+	if (!cached_imc_snc_map)
+		pr_warning("Unexpected: can not find snc map config\n");
 }
 
 static int uncore_imc_snc(struct perf_pmu *pmu)
@@ -132,35 +202,22 @@ static int uncore_imc_snc(struct perf_pmu *pmu)
 	// Compute the IMC SNC using lookup tables.
 	unsigned int imc_num;
 	int snc_nodes = snc_nodes_per_l3_cache();
-	const u8 snc2_map[] = {1, 1, 0, 0, 1, 1, 0, 0};
-	const u8 snc3_map[] = {1, 1, 0, 0, 2, 2, 1, 1, 0, 0, 2, 2};
-	const u8 *snc_map;
-	size_t snc_map_len;
 
-	switch (snc_nodes) {
-	case 2:
-		snc_map = snc2_map;
-		snc_map_len = ARRAY_SIZE(snc2_map);
-		break;
-	case 3:
-		snc_map = snc3_map;
-		snc_map_len = ARRAY_SIZE(snc3_map);
-		break;
-	default:
-		/* Error or no lookup support for SNC with >3 nodes. */
+	if (snc_nodes <= 1)
 		return 0;
-	}
+
+	pthread_once(&imc_snc_map_once, init_snc_map);
 
 	/* Compute SNC for PMU. */
 	if (sscanf(pmu->name, "uncore_imc_%u", &imc_num) != 1) {
 		pr_warning("Unexpected: unable to compute IMC number '%s'\n", pmu->name);
 		return 0;
 	}
-	if (imc_num >= snc_map_len) {
-		pr_warning("Unexpected IMC %d for SNC%d mapping\n", imc_num, snc_nodes);
+
+	if (!cached_imc_snc_map)
 		return 0;
-	}
-	return snc_map[imc_num];
+
+	return cached_imc_snc_map[imc_num % cached_imc_snc_map_len];
 }
 
 static int uncore_cha_imc_compute_cpu_adjust(int pmu_snc)
@@ -200,7 +257,9 @@ static int uncore_cha_imc_compute_cpu_adjust(int pmu_snc)
 	return cpu_adjust[pmu_snc];
 }
 
-static void gnr_uncore_cha_imc_adjust_cpumask_for_snc(struct perf_pmu *pmu, bool cha)
+static pthread_mutex_t pmu_adjust_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void uncore_cha_imc_adjust_cpumask_for_snc(struct perf_pmu *pmu, bool cha)
 {
 	// With sub-NUMA clustering (SNC) there is a NUMA node per SNC in the
 	// topology. For example, a two socket graniterapids machine may be set
@@ -231,9 +290,11 @@ static void gnr_uncore_cha_imc_adjust_cpumask_for_snc(struct perf_pmu *pmu, bool
 		return;
 	}
 
+	pthread_mutex_lock(&pmu_adjust_mutex);
+
 	pmu_snc = cha ? uncore_cha_snc(pmu) : uncore_imc_snc(pmu);
 	if (pmu_snc == 0) {
-		// No adjustment necessary for the first SNC.
+		pthread_mutex_unlock(&pmu_adjust_mutex);
 		return;
 	}
 
@@ -242,8 +303,10 @@ static void gnr_uncore_cha_imc_adjust_cpumask_for_snc(struct perf_pmu *pmu, bool
 		// Hold onto the perf_cpu_map globally to avoid recomputation.
 		cpu_adjust = uncore_cha_imc_compute_cpu_adjust(pmu_snc);
 		adjusted[pmu_snc] = perf_cpu_map__empty_new(perf_cpu_map__nr(pmu->cpus));
-		if (!adjusted[pmu_snc])
+		if (!adjusted[pmu_snc]) {
+			pthread_mutex_unlock(&pmu_adjust_mutex);
 			return;
+		}
 	}
 
 	perf_cpu_map__for_each_cpu(cpu, idx, pmu->cpus) {
@@ -263,11 +326,14 @@ static void gnr_uncore_cha_imc_adjust_cpumask_for_snc(struct perf_pmu *pmu, bool
 
 	perf_cpu_map__put(pmu->cpus);
 	pmu->cpus = perf_cpu_map__get(adjusted[pmu_snc]);
+
+	pthread_mutex_unlock(&pmu_adjust_mutex);
 }
 
 void perf_pmu__arch_init(struct perf_pmu *pmu)
 {
 	struct perf_pmu_caps *ldlat_cap;
+	bool swfilt_format;
 
 	if (!strcmp(pmu->name, INTEL_PT_PMU_NAME)) {
 		pmu->auxtrace = true;
@@ -283,7 +349,10 @@ void perf_pmu__arch_init(struct perf_pmu *pmu)
 		if (strcmp(pmu->name, "ibs_op"))
 			return;
 
-		pmu->mem_events = perf_mem_events_amd;
+		swfilt_format = perf_pmu__has_format(pmu, "swfilt");
+		pmu->mem_events = swfilt_format ?
+				  perf_mem_events_amd_swfilt :
+				  perf_mem_events_amd;
 
 		if (!perf_pmu__caps_parse(pmu))
 			return;
@@ -293,18 +362,25 @@ void perf_pmu__arch_init(struct perf_pmu *pmu)
 			return;
 
 		perf_mem_events__loads_ldlat = 0;
-		pmu->mem_events = perf_mem_events_amd_ldlat;
+		pmu->mem_events = swfilt_format ?
+				  perf_mem_events_amd_ldlat_swfilt :
+				  perf_mem_events_amd_ldlat;
 	} else {
 		if (pmu->is_core) {
 			if (perf_pmu__have_event(pmu, "mem-loads-aux"))
 				pmu->mem_events = perf_mem_events_intel_aux;
 			else
 				pmu->mem_events = perf_mem_events_intel;
-		} else if (x86__is_intel_graniterapids()) {
-			if (strstarts(pmu->name, "uncore_cha_"))
-				gnr_uncore_cha_imc_adjust_cpumask_for_snc(pmu, /*cha=*/true);
-			else if (strstarts(pmu->name, "uncore_imc_"))
-				gnr_uncore_cha_imc_adjust_cpumask_for_snc(pmu, /*cha=*/false);
+		} else if (x86__is_snc_supported()) {
+			int snc_nodes = snc_nodes_per_l3_cache();
+
+			if (snc_nodes == 2 || snc_nodes == 3) {
+				if (strstarts(pmu->name, "uncore_cha_"))
+					uncore_cha_imc_adjust_cpumask_for_snc(pmu, /*cha=*/true);
+				else if (strstarts(pmu->name, "uncore_imc_") &&
+					 !strstarts(pmu->name, "uncore_imc_free_running"))
+					uncore_cha_imc_adjust_cpumask_for_snc(pmu, /*cha=*/false);
+			}
 		}
 	}
 }

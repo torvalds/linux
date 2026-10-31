@@ -38,7 +38,7 @@ int perf_sdt_arg_parse_op(uint16_t e_machine, char *old_op, char **new_op)
 	return ret;
 }
 
-uint64_t perf_intr_reg_mask(uint16_t e_machine)
+uint64_t perf_intr_reg_mask(uint16_t e_machine, int *abi /*inout*/)
 {
 	uint64_t mask = 0;
 
@@ -70,7 +70,7 @@ uint64_t perf_intr_reg_mask(uint16_t e_machine)
 		break;
 	case EM_386:
 	case EM_X86_64:
-		mask = __perf_reg_mask_x86(/*intr=*/true);
+		mask = __perf_reg_mask_x86(/*intr=*/true, abi);
 		break;
 	default:
 		pr_debug("Unknown ELF machine %d, interrupt sampling register mask will be empty.\n",
@@ -81,7 +81,7 @@ uint64_t perf_intr_reg_mask(uint16_t e_machine)
 	return mask;
 }
 
-uint64_t perf_user_reg_mask(uint16_t e_machine)
+uint64_t perf_user_reg_mask(uint16_t e_machine, int *abi /*inout*/)
 {
 	uint64_t mask = 0;
 
@@ -113,7 +113,7 @@ uint64_t perf_user_reg_mask(uint16_t e_machine)
 		break;
 	case EM_386:
 	case EM_X86_64:
-		mask = __perf_reg_mask_x86(/*intr=*/false);
+		mask = __perf_reg_mask_x86(/*intr=*/false, abi);
 		break;
 	default:
 		pr_debug("Unknown ELF machine %d, user sampling register mask will be empty.\n",
@@ -124,7 +124,7 @@ uint64_t perf_user_reg_mask(uint16_t e_machine)
 	return mask;
 }
 
-const char *perf_reg_name(int id, uint16_t e_machine, uint32_t e_flags)
+const char *perf_reg_name(int id, uint16_t e_machine, uint32_t e_flags, int abi)
 {
 	const char *reg_name = NULL;
 
@@ -156,7 +156,7 @@ const char *perf_reg_name(int id, uint16_t e_machine, uint32_t e_flags)
 		break;
 	case EM_386:
 	case EM_X86_64:
-		reg_name = __perf_reg_name_x86(id);
+		reg_name = __perf_reg_name_x86(id, abi);
 		break;
 	default:
 		break;
@@ -251,4 +251,76 @@ uint64_t perf_arch_reg_sp(uint16_t e_machine)
 		pr_err("Failed to find SP register for ELF machine type %u\n", e_machine);
 		return 0;
 	}
+}
+
+uint64_t perf_intr_simd_reg_class_mask(uint16_t e_machine, bool pred)
+{
+	switch (e_machine) {
+	case EM_386:
+	case EM_X86_64:
+		return __perf_simd_reg_class_mask_x86(/*intr=*/true, pred);
+	default:
+		return 0;
+	}
+}
+
+uint64_t perf_user_simd_reg_class_mask(uint16_t e_machine, bool pred)
+{
+	switch (e_machine) {
+	case EM_386:
+	case EM_X86_64:
+		return __perf_simd_reg_class_mask_x86(/*intr=*/false, pred);
+	default:
+		return 0;
+	}
+}
+
+uint64_t perf_intr_simd_reg_class_bitmap_qwords(uint16_t e_machine, int reg_c,
+						uint16_t *qwords, bool pred)
+{
+	switch (e_machine) {
+	case EM_386:
+	case EM_X86_64:
+		return __perf_simd_reg_class_bitmap_qwords_x86(reg_c, qwords,
+							       /*intr=*/true,
+							       pred);
+	default:
+		*qwords = 0;
+		return 0;
+	}
+}
+
+uint64_t perf_user_simd_reg_class_bitmap_qwords(uint16_t e_machine, int reg_c,
+						uint16_t *qwords, bool pred)
+{
+	switch (e_machine) {
+	case EM_386:
+	case EM_X86_64:
+		return __perf_simd_reg_class_bitmap_qwords_x86(reg_c, qwords,
+							       /*intr=*/false,
+							       pred);
+	default:
+		*qwords = 0;
+		return 0;
+	}
+}
+
+const char *perf_simd_reg_class_name(uint16_t e_machine, int id, bool pred)
+{
+	const char *name = NULL;
+
+	switch (e_machine) {
+	case EM_386:
+	case EM_X86_64:
+		name = __perf_simd_reg_class_name_x86(id, pred);
+		break;
+	default:
+		break;
+	}
+	if (name)
+		return name;
+
+	pr_debug("Failed to find %s register %d for ELF machine type %u\n",
+		 pred ? "PRED" : "SIMD", id, e_machine);
+	return "unknown";
 }

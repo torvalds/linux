@@ -338,9 +338,9 @@ int bench_sched_messaging(int argc, const char **argv)
 
 	switch (bench_format) {
 	case BENCH_FORMAT_DEFAULT:
-		printf("# %d sender and receiver %s per group\n",
+		printf("# %u sender and receiver %s per group\n",
 		       num_fds, thread_mode ? "threads" : "processes");
-		printf("# %d groups == %d %s run\n\n",
+		printf("# %u groups == %u %s run\n\n",
 		       num_groups, num_groups * 2 * num_fds,
 		       thread_mode ? "threads" : "processes");
 		printf(" %14s: %lu.%03lu [sec]\n", "Total time",

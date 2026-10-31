@@ -405,6 +405,19 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 		PRINT_ATTRf_bf(aux_pause, p_unsigned);
 		PRINT_ATTRf_bf(aux_resume, p_unsigned);
 	}
+	if (attr_size >= offsetof(struct perf_event_attr, config4))
+		PRINT_ATTRf(config3, p_hex);
+	if (attr_size >= offsetof(struct perf_event_attr, sample_simd_regs_enabled))
+		PRINT_ATTRf(config4, p_hex);
+	if (attr_size > offsetof(struct perf_event_attr, sample_simd_vec_reg_user)) {
+		PRINT_ATTRf(sample_simd_regs_enabled, p_unsigned);
+		PRINT_ATTRf(sample_simd_pred_reg_qwords, p_unsigned);
+		PRINT_ATTRf(sample_simd_pred_reg_intr, p_hex);
+		PRINT_ATTRf(sample_simd_pred_reg_user, p_hex);
+		PRINT_ATTRf(sample_simd_vec_reg_qwords, p_unsigned);
+		PRINT_ATTRf(sample_simd_vec_reg_intr, p_hex);
+		PRINT_ATTRf(sample_simd_vec_reg_user, p_hex);
+	}
 
 	return ret;
 }

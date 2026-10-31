@@ -17,9 +17,6 @@
 #include <internal/cpumap.h>
 #endif
 
-extern const char perf_usage_string[];
-extern const char perf_more_info_string[];
-
 extern const char *input_name;
 
 /* This will control if perf_{host,guest} will set attr.exclude_{host,guest}. */
@@ -29,7 +26,6 @@ extern bool perf_host;
 extern bool perf_guest;
 
 /* General helper functions */
-void usage(const char *err) __noreturn;
 
 struct dirent;
 struct strlist;

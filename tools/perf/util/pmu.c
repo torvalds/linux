@@ -8,8 +8,11 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <stdio.h>
+#include <errno.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <dirent.h>
 #include <api/fs/fs.h>
 #include <api/io.h>
@@ -2036,7 +2039,7 @@ int perf_pmu__for_each_format(struct perf_pmu *pmu, void *state, pmu_format_call
 }
 
 /**
- * is_pmu_core() - Check if the given PMU name corresponds to a core CPU PMU.
+ * is_pmu_core() - Runtime check if the given PMU name corresponds to a core CPU PMU.
  * @name: The PMU name to check.
  *
  * Core PMUs can be identified by:
@@ -2055,6 +2058,47 @@ bool is_pmu_core(const char *name)
 	       !strcmp(name, "cpum_cf") ||
 	       !strcmp(name, "default_core") ||
 	       is_sysfs_pmu_core(name);
+}
+
+/**
+ * is_pmu_core_len - Perf env based check if a given string prefix matches a core PMU name.
+ * @env: The perf_env to check within, NULL for the current machine.
+ * @name: The PMU name to check.
+ * @len: The length of the PMU name prefix in the string.
+ */
+bool is_pmu_core_len(struct perf_env *env, const char *name, size_t len)
+{
+	struct perf_pmu *pmu = NULL;
+
+	if (env && env->hybrid_nodes) {
+		for (int i = 0; i < env->nr_hybrid_nodes; i++) {
+			const char *pmu_name = env->hybrid_nodes[i].pmu_name;
+
+			if (strlen(pmu_name) == len && !strncmp(name, pmu_name, len))
+				return true;
+		}
+		return false;
+	}
+
+	/*
+	 * No hybrid topology, either the machine isn't hybrid or the perf.data
+	 * file was written by a perf lacking HEADER_HYBRID_TOPOLOGY. Fall back
+	 * to the PMUs of this machine, which is only meaningful when the data
+	 * was recorded on this architecture. Guessing PMU names from a prefix
+	 * isn't portable, for example, big.LITTLE ARM and Apple core PMUs are
+	 * named after their CPU rather than "cpu_core" and "cpu_atom".
+	 */
+	if (env && strcmp(perf_env__arch(env), perf_env__arch(/*env=*/NULL))) {
+		pr_debug("Can't identify core PMUs of a %s perf.data file recorded without hybrid topology\n",
+			 perf_env__arch(env));
+		return false;
+	}
+
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+		if (strlen(pmu->name) == len && !strncmp(name, pmu->name, len))
+			return true;
+	}
+	return false;
 }
 
 bool perf_pmu__supports_legacy_cache(const struct perf_pmu *pmu)

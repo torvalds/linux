@@ -58,14 +58,13 @@ feature::
                 libLLVM                 /  HAVE_LIBLLVM_SUPPORT
                 libnuma                 /  HAVE_LIBNUMA_SUPPORT
                 libopencsd              /  HAVE_CSTRACE_SUPPORT
-                libperl                 /  HAVE_LIBPERL_SUPPORT
                 libpfm4                 /  HAVE_LIBPFM
-                libpython               /  HAVE_LIBPYTHON_SUPPORT
                 libslang                /  HAVE_SLANG_SUPPORT
                 libtraceevent           /  HAVE_LIBTRACEEVENT
                 libunwind               /  HAVE_LIBUNWIND_SUPPORT
                 lzma                    /  HAVE_LZMA_SUPPORT
                 numa_num_possible_cpus  /  HAVE_LIBNUMA_SUPPORT
+                python-module           /  HAVE_PYTHON_MODULE_SUPPORT
                 zlib                    /  HAVE_ZLIB_SUPPORT
                 zstd                    /  HAVE_ZSTD_SUPPORT
 

@@ -4,27 +4,29 @@
  *
  * Builtin help command
  */
-#include "util/cache.h"
-#include "util/config.h"
-#include "util/strbuf.h"
-#include "builtin.h"
-#include <subcmd/exec-cmd.h>
-#include <subcmd/parse-options.h>
-#include <subcmd/run-command.h>
-#include <subcmd/help.h>
-#include "util/debug.h"
-#include "util/util.h"
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/zalloc.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
+
+#include <linux/string.h>
+#include <linux/zalloc.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include <subcmd/exec-cmd.h>
+#include <subcmd/help.h>
+#include <subcmd/parse-options.h>
+#include <subcmd/run-command.h>
+
+#include "builtin.h"
+#include "util/config.h"
+#include "util/debug.h"
+#include "util/path.h"
+#include "util/strbuf.h"
+#include "util/util.h"
 
 static struct man_viewer_list {
 	struct man_viewer_list *next;

@@ -95,6 +95,9 @@ include::itrace.txt[]
 
 --gtk:: Use the GTK interface.
 
+--weights:: Show or hide (with `--no-weights`) weight columns in annotation output.
+	    By default, weight columns are shown when samples contain non-zero weights.
+
 -C::
 --cpu=<cpu>:: Only report samples for the list of CPUs provided. Multiple CPUs can
 	be provided as a comma-separated list with no space: 0,1. Ranges of

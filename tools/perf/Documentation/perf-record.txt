@@ -212,7 +212,7 @@ OPTIONS
 	The <value> can be one of:
 	  <number> (for any term)
 	  na, load, store, pfetch, exec (for mem_op)
-	  l1, l2, l3, l4, cxl, io, any_cache, lfb, ram, pmem (for mem_lvl)
+	  l0, l1, l2, l3, l4, cxl, io, any_cache, lfb, ram, pmem (for mem_lvl)
 	  na, none, hit, miss, hitm, fwd, peer (for mem_snoop)
 	  remote (for mem_remote)
 	  na, locked (for mem_locked)
@@ -293,7 +293,7 @@ OPTIONS
 
 --call-graph::
 	Setup and enable call-graph (stack chain/backtrace) recording,
-	implies -g.  Default is "fp" (for user space).
+	implies -g.  Default is "fp" for user space (s390 uses "dwarf").
 
 	The unwinding method used for kernel space is dependent on the
 	unwinder used by the active kernel configuration, i.e
@@ -328,6 +328,11 @@ OPTIONS
 	Also "defer" can be used with "fp" (like "--call-graph fp,defer") to
 	enable deferred user callchain which will collect user-space callchains
 	when the thread returns to the user space.
+
+	On s390, the "fp" method uses back chain instead of frame pointers,
+	which requires user space to maintain a back chain (e.g. compiler
+	option -mbackchain).  Without a maintained back chain this produces
+	bogus call graphs.  In that case use "dwarf" instead.
 
 -q::
 --quiet::
@@ -480,9 +485,11 @@ Note that this feature may not be available on all processors.
 
 -W::
 --weight::
-Enable weightened sampling. An additional weight is recorded per sample and can be
-displayed with the weight and local_weight sort keys.  This currently works for TSX
-abort events and some memory events in precise mode on modern Intel CPUs.
+Enable weighted sampling. One or more additional weights can be recorded per sample
+and can be displayed with the weight, weight2, weight3 and local_weight sort keys.
+Possible uses for weights are memory or instruction retirement latencies.
+Support depends on the PMU and the event, as well as its configuration. Typically
+it requires use of 'p'.
 
 --namespaces::
 Record events of type PERF_RECORD_NAMESPACES.  This enables 'cgroup_id' sort key.
@@ -513,12 +520,16 @@ Capture machine state (registers) at interrupt, i.e., on counter overflows for
 each sample. List of captured registers depends on the architecture. This option
 is off by default. It is possible to select the registers to sample using their
 symbolic names, e.g. on x86, ax, si. To list the available registers use
---intr-regs=\?. To name registers, pass a comma separated list such as
---intr-regs=ax,bx. The list of register is architecture dependent.
+--intr-regs=\?. On supported architectures, SIMD registers are displayed as
+groups (e.g., on x86: XMM0-15,YMM0-15,ZMM0-31). To name registers, pass a comma
+separated list such as --intr-regs=ax,bx,zmm. Please notice SIMD registers must
+be assigned as a complete set, sampling individual SIMD registers (e.g., zmm0)
+is not supported. The list of register is architecture dependent.
 
 --user-regs::
 Similar to -I, but capture user registers at sample time. To list the available
-user registers use --user-regs=\?.
+user registers use --user-regs=\?. For SIMD registers, only complete register
+sets are allowed like -I.
 
 --running-time::
 Record running and enabled time for read events (:S)

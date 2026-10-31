@@ -1,8 +1,9 @@
 [config]
 command = record
-args    = --no-bpf-event -e '{cycles/period=1234000/,instructions/period=6789000/}:S' kill >/dev/null 2>&1
+args    = --no-bpf-event -e '{cycles/period=1234000/,default_core/legacy-hardware-config=1,period=6789000/}:S' kill >/dev/null 2>&1
 ret     = 1
 kernel_since = 6.12
+requires = core-pmu
 
 [event-1:base-record]
 fd=1

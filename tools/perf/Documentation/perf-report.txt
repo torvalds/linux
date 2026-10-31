@@ -29,6 +29,25 @@ OPTIONS
 --quiet::
 	Do not show any warnings or messages.  (Suppress -v)
 
+--progress::
+	Show progress for each of the processing phases, printing the
+	percentage done and the current/total counts: the first phase
+	counts the bytes of the perf.data file processed so far, the
+	merge and sort phases count hist entries, e.g.:
+
+	Processing events... [ 42.3%] 4G / 10G
+	Merging related events... [  7.1%] 1024 / 14387
+	Sorting events for output... [ 98.2%] 14132 / 14387
+
+	It is a no-op when using the TUI or GTK browsers, that already
+	present progress information, or when --quiet is used, that asks
+	for no messages at all.
+
+--no-progress::
+	Do not show progress while processing the perf.data file.  It
+	also turns off the progress the TUI and GTK browsers present,
+	which is their own.
+
 -n::
 --show-nr-samples::
 	Show the number of samples for each symbol
@@ -63,6 +82,9 @@ OPTIONS
 
 --symbol-filter=::
 	Only show symbols that match (partially) with this filter.
+
+--weights:: Show or hide (with `--no-weights`) weight columns in annotation output.
+	    By default, weight columns are shown when samples contain non-zero weights.
 
 -U::
 --hide-unresolved::
@@ -351,7 +373,10 @@ OPTIONS
 	requires a tty, if one is not present, as when piping to other
 	commands, the stdio interface is used.
 
---gtk:: Use the GTK2 interface.
+--gtk:: Use the GTK4 interface.
+
+--weights:: Show or hide (with `--no-weights`) weight columns in annotation output.
+           By default, weight columns are shown when samples contain non-zero weights.
 
 -k::
 --vmlinux=<file>::
@@ -571,6 +596,11 @@ include::itrace.txt[]
 
 --raw-trace::
 	When displaying traceevent output, do not use print fmt or plugins.
+
+--hybrid-merge::
+	Merge matching events from all hybrid core PMUs into one
+	display. For example, if a wildcard expands to run on both p-cores and
+	e-cores, this aggregates them into a single view.
 
 -H::
 --hierarchy::

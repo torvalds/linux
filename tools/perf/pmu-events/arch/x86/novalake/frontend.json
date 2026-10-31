@@ -85,6 +85,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of instructions retired that were tagged with having preceded with frontend bound behavior.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.ALL",
+        "PublicDescription": "Counts the number of instructions retired that were tagged with having preceded with frontend bound behavior Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Retired ANT branches",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc6",
@@ -107,6 +116,46 @@
         "SampleAfterValue": "100007",
         "UMask": "0x3",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of instructions retired that are tagged after a branch instruction causes bubbles/empty issue slots due to a BAClear.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.BRANCH_DETECT",
+        "PublicDescription": "Counts the number of instruction retired that are tagged after a branch instruction causes bubbles/empty issue slots due to a baclear Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of instructions retired that are tagged after a branch instruction causes bubbles /empty issue slots due to a BTClear.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.BRANCH_RESTEER",
+        "PublicDescription": "Counts the number of instruction retired that are tagged after a branch instruction causes bubbles /empty issue slots due to a btclear Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of instructions retired that were tagged following an ms flow due to the bubble/wasted issue slot from exiting long MS flow.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.CISC",
+        "PublicDescription": "Counts the number of  instructions retired that were tagged following an ms flow due to the bubble/wasted issue slot from exiting long ms flow Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of instructions retired that were tagged every cycle the decoder is unable to send 3 uops per cycle.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.DECODE",
+        "PublicDescription": "Counts the number of instructions retired that were tagged every cycle the decoder is unable to send 3 uops per cycle. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Retired Instructions who experienced a critical DSB miss.",
@@ -321,6 +370,26 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of instructions retired tagged after a wasted issue slot if none of the previous events occurred.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.OTHER",
+        "PublicDescription": "Counts the number of instruction retired tagged after a wasted issue slot if none of the previous events occurred Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x80",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of instruction retired that are tagged after a branch instruction causes bubbles/empty issue slots due to a predecode wrong.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.PREDECODE",
+        "PublicDescription": "Counts the number of instruction retired that are tagged after a branch instruction causes bubbles/empty issue slots due to a predecode wrong. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Retired Instructions who experienced STLB (2nd level TLB) true miss.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc6",
@@ -343,6 +412,66 @@
         "SampleAfterValue": "100007",
         "UMask": "0x3",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of instructions retired that were preceded by empty issue slots at allocation due to an Instruction L1 cache miss, that also missed the local L2 cache and hit an L2 in different module, L3, or MMIO, on the same CBB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc9",
+        "EventName": "FRONTEND_RETIRED_SOURCE.CACHE_HIT_LOCAL_CBB",
+        "PublicDescription": "Counts the number of instructions retired that were preceded by empty issue slots at allocation due to an Instruction L1 cache miss, that also missed the local L2 cache and hit an L2 in different module, L3, or MMIO, on the same CBB Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of instructions retired that were preceded by empty issue slots at allocation due to an Instruction L1 cache miss,  that also missed the local L2 cache,  and hit in any cache, L2 or L3 or MMIO, that is not on the same CBB, or hit in Memory on the local or remote socket.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc9",
+        "EventName": "FRONTEND_RETIRED_SOURCE.CACHE_MISS_LOCAL_CBB",
+        "PublicDescription": "Counts the number of instructions retired that were preceded by empty issue slots at allocation due to an Instruction L1 cache miss,  that also missed the local L2 cache,  and hit in any cache, L2 or L3 or MMIO, that is not on the same CBB, or hit in Memory on the local or remote socket. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x3c",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of instructions retired that were tagged because empty issue slots were seen before the uop due to ITLB miss that hit in the second level TLB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc9",
+        "EventName": "FRONTEND_RETIRED_SOURCE.ITLB_STLB_HIT",
+        "PublicDescription": "Counts the number of instructions retired that were tagged because empty issue slots were seen before the uop due to ITLB miss that hit in the second level TLB. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of instructions retired that were preceded by empty issue slots at allocation due to an ITLB miss that also missed the second level TLB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc9",
+        "EventName": "FRONTEND_RETIRED_SOURCE.ITLB_STLB_MISS",
+        "PublicDescription": "Counts the number of instructions retired that were preceded by empty issue slots at allocation due to an ITLB miss that also missed the second level TLB. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x80",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of instructions retired that were preceded by empty issue slots at allocation due to an Instruction L1 cache miss, that missed in the L2 cache within the same module.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc9",
+        "EventName": "FRONTEND_RETIRED_SOURCE.L2_MISS_LOCAL_MODULE",
+        "PublicDescription": "Counts the number of instructions retired that were preceded by empty issue slots at allocation due to an Instruction L1 cache miss, that missed in the L2 cache within the same module. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x3e",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of instructions retired that were preceded by empty issue slots at allocation due to an Instruction L1 cache miss that hit in memory regions 0, 1, 2, 4, 5.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc9",
+        "EventName": "FRONTEND_RETIRED_SOURCE.MEM_HIT_LOCAL_SOCKET",
+        "PublicDescription": "Counts the number of instructions retired that were preceded by empty issue slots at allocation due to an Instruction L1 cache miss that hit in memory regions 0,1,2,4,5 Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts every time the code stream enters into a new cache line by walking sequential from the previous line or being redirected by a jump.",
@@ -423,7 +552,7 @@
     },
     {
         "BriefDescription": "Cycles Decode Stream Buffer (DSB) is delivering any Uop",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x79",
         "EventName": "IDQ.DSB_CYCLES_ANY",
@@ -434,7 +563,7 @@
     },
     {
         "BriefDescription": "Cycles DSB is delivering optimal number of Uops",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Counter": "0,1,2,3",
         "CounterMask": "8",
         "EventCode": "0x79",
         "EventName": "IDQ.DSB_CYCLES_OK",
@@ -445,7 +574,7 @@
     },
     {
         "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Counter": "0,1,2,3",
         "EventCode": "0x79",
         "EventName": "IDQ.DSB_UOPS",
         "PublicDescription": "Counts the number of uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path.",
@@ -455,7 +584,7 @@
     },
     {
         "BriefDescription": "Cycles MITE is delivering any Uop",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x79",
         "EventName": "IDQ.MITE_CYCLES_ANY",
@@ -466,7 +595,7 @@
     },
     {
         "BriefDescription": "Cycles MITE is delivering optimal number of Uops",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Counter": "0,1,2,3",
         "CounterMask": "8",
         "EventCode": "0x79",
         "EventName": "IDQ.MITE_CYCLES_OK",
@@ -477,7 +606,7 @@
     },
     {
         "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from MITE path",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Counter": "0,1,2,3",
         "EventCode": "0x79",
         "EventName": "IDQ.MITE_UOPS",
         "PublicDescription": "Counts the number of uops delivered to Instruction Decode Queue (IDQ) from the MITE path. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
@@ -487,7 +616,7 @@
     },
     {
         "BriefDescription": "Cycles when uops are being delivered to IDQ while MS is busy",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x79",
         "EventName": "IDQ.MS_CYCLES_ANY",
@@ -498,7 +627,7 @@
     },
     {
         "BriefDescription": "Number of switches from DSB or MITE to the MS",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EdgeDetect": "1",
         "EventCode": "0x79",
@@ -510,7 +639,7 @@
     },
     {
         "BriefDescription": "Uops initiated by MITE or Decode Stream Buffer (DSB) and delivered to Instruction Decode Queue (IDQ) while Microcode Sequencer (MS) is busy",
-        "Counter": "0,1,2,3,4,5,6,7",
+        "Counter": "0,1,2,3",
         "EventCode": "0x79",
         "EventName": "IDQ.MS_UOPS",
         "PublicDescription": "Counts the number of uops initiated by MITE or Decode Stream Buffer (DSB) and delivered to Instruction Decode Queue (IDQ) while the Microcode Sequencer (MS) is busy. Counting includes uops that may 'bypass' the IDQ.",

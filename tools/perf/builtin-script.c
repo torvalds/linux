@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -18,6 +22,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/utsname.h>
 #include <unistd.h>
 
@@ -77,8 +82,7 @@
 #include <event-parse.h>
 #endif
 
-static char const		*script_name;
-static char const		*generate_script_lang;
+static char			*script_name;
 static bool			reltime;
 static bool			deltatime;
 static u64			initial_time;
@@ -88,7 +92,6 @@ static u64			last_timestamp;
 static u64			nr_unordered;
 static bool			no_callchain;
 static bool			latency_format;
-static bool			system_wide;
 static bool			print_flags;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -96,6 +99,7 @@ static int			max_blocks;
 static struct dlfilter		*dlfilter;
 static int			dlargc;
 static char			**dlargv;
+static unsigned int		scripting_max_stack = PERF_MAX_STACK_DEPTH;
 
 enum perf_output_field {
 	PERF_OUTPUT_COMM            = 1ULL << 0,
@@ -719,23 +723,96 @@ out:
 	return 0;
 }
 
-static int perf_sample__fprintf_regs(struct regs_dump *regs, uint64_t mask,
+static int perf_sample__fprintf_regs(struct regs_dump *regs,
+				     struct perf_event_attr *attr,
 				     uint16_t e_machine, uint32_t e_flags,
-				     FILE *fp)
+				     FILE *fp, bool intr)
 {
-	unsigned i = 0, r;
+	const char *name = "unknown";
+	int reg_c, idx, pred_base;
+	unsigned int i = 0, j, r;
+	uint16_t qwords;
 	int printed = 0;
+	uint64_t mask;
 
-	if (!regs || !regs->regs)
+	if (!regs || (!regs->regs && !regs->simd_data))
 		return 0;
 
 	printed += fprintf(fp, " ABI:%" PRIu64 " ", regs->abi);
 
+	mask = intr ? attr->sample_regs_intr : attr->sample_regs_user;
 	for_each_set_bit(r, (unsigned long *) &mask, sizeof(mask) * 8) {
-		u64 val = regs->regs[i++];
+		if (!regs->regs)
+			break;
 		printed += fprintf(fp, "%5s:0x%"PRIx64" ",
-				   perf_reg_name(r, e_machine, e_flags),
-				   val);
+				   perf_reg_name(r, e_machine, e_flags, regs->abi),
+				   regs->regs[i++]);
+	}
+
+	if (!regs->simd_data)
+		return printed;
+
+	if (!regs->nr_vectors && !regs->nr_pred)
+		return printed;
+
+	for (reg_c = 0; reg_c < 64; reg_c++) {
+		if (!regs->nr_vectors)
+			break;
+		if (intr) {
+			perf_intr_simd_reg_class_bitmap_qwords(e_machine, reg_c,
+							       &qwords, /*pred=*/false);
+		} else {
+			perf_user_simd_reg_class_bitmap_qwords(e_machine, reg_c,
+							       &qwords, /*pred=*/false);
+		}
+		if (regs->vector_qwords == qwords) {
+			name = perf_simd_reg_class_name(e_machine, reg_c, /*pred=*/false);
+			break;
+		}
+	}
+
+	for (i = 0; i < regs->nr_vectors; i++) {
+		for (j = 0; j < regs->vector_qwords; j++) {
+			idx = i * regs->vector_qwords + j;
+			if (regs->vector_qwords > 1) {
+				printed += fprintf(fp, "%5s[%d][%d]:0x%" PRIx64 " ",
+						   name, i, j, regs->simd_data[idx]);
+			} else {
+				printed += fprintf(fp, "%5s[%d]:0x%" PRIx64 " ",
+						   name, i, regs->simd_data[idx]);
+			}
+		}
+	}
+
+	name = "unknown";
+	for (reg_c = 0; reg_c < 64; reg_c++) {
+		if (!regs->nr_pred)
+			break;
+		if (intr) {
+			perf_intr_simd_reg_class_bitmap_qwords(e_machine, reg_c,
+							       &qwords, /*pred=*/true);
+		} else {
+			perf_user_simd_reg_class_bitmap_qwords(e_machine, reg_c,
+							       &qwords, /*pred=*/true);
+		}
+		if (regs->pred_qwords == qwords) {
+			name = perf_simd_reg_class_name(e_machine, reg_c, /*pred=*/true);
+			break;
+		}
+	}
+
+	pred_base = regs->nr_vectors * regs->vector_qwords;
+	for (i = 0; i < regs->nr_pred; i++) {
+		for (j = 0; j < regs->pred_qwords; j++) {
+			idx = pred_base + i * regs->pred_qwords + j;
+			if (regs->pred_qwords > 1) {
+				printed += fprintf(fp, "%5s[%d][%d]:0x%" PRIx64 " ",
+						   name, i, j, regs->simd_data[idx]);
+			} else {
+				printed += fprintf(fp, "%5s[%d]:0x%" PRIx64 " ",
+						   name, i, regs->simd_data[idx]);
+			}
+		}
 	}
 
 	return printed;
@@ -801,7 +878,8 @@ static int perf_sample__fprintf_iregs(struct perf_sample *sample,
 		return 0;
 
 	return perf_sample__fprintf_regs(perf_sample__intr_regs(sample),
-					 attr->sample_regs_intr, e_machine, e_flags, fp);
+					 attr, e_machine, e_flags, fp,
+					 /*intr=*/true);
 }
 
 static int perf_sample__fprintf_uregs(struct perf_sample *sample,
@@ -814,7 +892,8 @@ static int perf_sample__fprintf_uregs(struct perf_sample *sample,
 		return 0;
 
 	return perf_sample__fprintf_regs(perf_sample__user_regs(sample),
-					 attr->sample_regs_user, e_machine, e_flags, fp);
+					 attr, e_machine, e_flags, fp,
+					 /*intr=*/false);
 }
 
 static int perf_sample__fprintf_start(struct perf_script *script,
@@ -1735,6 +1814,144 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 	return printed;
 }
 
+#define SAMPLE_FLAGS_BUF_SIZE 64
+#define SAMPLE_FLAGS_STR_ALIGNED_SIZE	21
+
+static int sample_flags_to_name(u32 flags, char *str, size_t size)
+{
+	static const struct {
+		u32 flags;
+		const char *name;
+	} sample_flags[] = {
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL, "call"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN, "return"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CONDITIONAL, "jcc"},
+		{PERF_IP_FLAG_BRANCH, "jmp"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_INTERRUPT, "int"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN | PERF_IP_FLAG_INTERRUPT, "iret"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_SYSCALLRET, "syscall"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN | PERF_IP_FLAG_SYSCALLRET, "sysret"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_ASYNC, "async"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL |
+		 PERF_IP_FLAG_ASYNC | PERF_IP_FLAG_INTERRUPT,
+		 "hw int"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TX_ABORT, "tx abrt"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_BEGIN, "tr strt"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_END, "tr end"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_VMENTRY, "vmentry"},
+		{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_VMEXIT, "vmexit"},
+		{0, NULL}
+	};
+	static const struct {
+		u32 flags;
+		const char *name;
+	} branch_events[] = {
+		{PERF_IP_FLAG_BRANCH_MISS, "miss"},
+		{PERF_IP_FLAG_NOT_TAKEN, "not_taken"},
+		{0, NULL}
+	};
+	int i;
+	const char *prefix;
+	int pos = 0, ret, ev_idx = 0;
+	u32 xf = flags & PERF_ADDITIONAL_STATE_MASK;
+	u32 types, events;
+	char xs[16] = { 0 };
+
+	/* Clear additional state bits */
+	flags &= ~PERF_ADDITIONAL_STATE_MASK;
+
+	if (flags & PERF_IP_FLAG_TRACE_BEGIN)
+		prefix = "tr strt ";
+	else if (flags & PERF_IP_FLAG_TRACE_END)
+		prefix = "tr end  ";
+	else
+		prefix = "";
+
+	ret = snprintf(str + pos, size - pos, "%s", prefix);
+	if (ret < 0)
+		return ret;
+	pos += ret;
+
+	flags &= ~(PERF_IP_FLAG_TRACE_BEGIN | PERF_IP_FLAG_TRACE_END);
+
+	types = flags & ~PERF_IP_FLAG_BRANCH_EVENT_MASK;
+	for (i = 0; sample_flags[i].name; i++) {
+		if (sample_flags[i].flags != types)
+			continue;
+
+		ret = snprintf(str + pos, size - pos, "%s", sample_flags[i].name);
+		if (ret < 0)
+			return ret;
+		pos += ret;
+		break;
+	}
+
+	events = flags & PERF_IP_FLAG_BRANCH_EVENT_MASK;
+	for (i = 0; branch_events[i].name; i++) {
+		if (!(branch_events[i].flags & events))
+			continue;
+
+		ret = snprintf(str + pos, size - pos, !ev_idx ? "/%s" : ",%s",
+			       branch_events[i].name);
+		if (ret < 0)
+			return ret;
+		pos += ret;
+		ev_idx++;
+	}
+
+	/* Add an end character '/' for events */
+	if (ev_idx) {
+		ret = snprintf(str + pos, size - pos, "/");
+		if (ret < 0)
+			return ret;
+		pos += ret;
+	}
+
+	if (!xf)
+		return pos;
+
+	snprintf(xs, sizeof(xs), "(%s%s%s)",
+		 flags & PERF_IP_FLAG_IN_TX ? "x" : "",
+		 flags & PERF_IP_FLAG_INTR_DISABLE ? "D" : "",
+		 flags & PERF_IP_FLAG_INTR_TOGGLE ? "t" : "");
+
+	/* Right align the string if its length is less than the limit */
+	if ((pos + strlen(xs)) < SAMPLE_FLAGS_STR_ALIGNED_SIZE)
+		ret = snprintf(str + pos, size - pos, "%*s",
+			       (int)(SAMPLE_FLAGS_STR_ALIGNED_SIZE - ret), xs);
+	else
+		ret = snprintf(str + pos, size - pos, " %s", xs);
+	if (ret < 0)
+		return ret;
+
+	return pos + ret;
+}
+
+static int perf_sample__sprintf_flags(u32 flags, char *str, size_t sz)
+{
+	const char *chars = PERF_IP_FLAG_CHARS;
+	const size_t n = strlen(PERF_IP_FLAG_CHARS);
+	size_t i, pos = 0;
+	int ret;
+
+	ret = sample_flags_to_name(flags, str, sz);
+	if (ret > 0)
+		return ret;
+
+	for (i = 0; i < n; i++, flags >>= 1) {
+		if ((flags & 1) && pos < sz)
+			str[pos++] = chars[i];
+	}
+	for (; i < 32; i++, flags >>= 1) {
+		if ((flags & 1) && pos < sz)
+			str[pos++] = '?';
+	}
+	if (pos < sz)
+		str[pos] = 0;
+
+	return pos;
+}
+
 static int perf_sample__fprintf_flags(u32 flags, FILE *fp)
 {
 	char str[SAMPLE_FLAGS_BUF_SIZE];
@@ -2078,11 +2295,12 @@ static int evlist__max_name_len(struct evlist *evlist)
 	return max;
 }
 
-static int data_src__fprintf(u64 data_src, FILE *fp)
+static int data_src__fprintf(struct perf_session *session,
+			     u64 data_src, FILE *fp)
 {
 	struct mem_info *mi = mem_info__new();
-	char decode[100];
-	char out[100];
+	char decode[200];
+	char out[200];
 	static int maxlen;
 	int len;
 
@@ -2090,10 +2308,10 @@ static int data_src__fprintf(u64 data_src, FILE *fp)
 		return -ENOMEM;
 
 	mem_info__data_src(mi)->val = data_src;
-	perf_script__meminfo_scnprintf(decode, 100, mi);
+	perf_script__meminfo_scnprintf(decode, 200, mi, session);
 	mem_info__put(mi);
 
-	len = scnprintf(out, 100, "%16" PRIx64 " %s", data_src, decode);
+	len = scnprintf(out, 200, "%16" PRIx64 " %s", data_src, decode);
 	if (maxlen < len)
 		maxlen = len;
 
@@ -2487,7 +2705,7 @@ static void process_event(struct perf_script *script,
 		perf_sample__fprintf_addr(sample, thread, evsel, fp);
 
 	if (PRINT_FIELD(DATA_SRC))
-		data_src__fprintf(sample->data_src, fp);
+		data_src__fprintf(evsel__session(evsel), sample->data_src, fp);
 
 	if (PRINT_FIELD(WEIGHT))
 		fprintf(fp, "%16" PRIu64, sample->weight);
@@ -2578,8 +2796,6 @@ static void process_event(struct perf_script *script,
 		fflush(fp);
 }
 
-static struct scripting_ops	*scripting_ops;
-
 static void __process_stat(struct evsel *counter, u64 tstamp)
 {
 	int nthreads = perf_thread_map__nr(counter->core.threads);
@@ -2614,36 +2830,11 @@ static void __process_stat(struct evsel *counter, u64 tstamp)
 
 static void process_stat(struct evsel *counter, u64 tstamp)
 {
-	if (scripting_ops && scripting_ops->process_stat)
-		scripting_ops->process_stat(&stat_config, counter, tstamp);
-	else
-		__process_stat(counter, tstamp);
+	__process_stat(counter, tstamp);
 }
 
-static void process_stat_interval(u64 tstamp)
+static void process_stat_interval(u64 tstamp __maybe_unused)
 {
-	if (scripting_ops && scripting_ops->process_stat_interval)
-		scripting_ops->process_stat_interval(tstamp);
-}
-
-static void setup_scripting(void)
-{
-#ifdef HAVE_LIBTRACEEVENT
-	setup_perl_scripting();
-#endif
-	setup_python_scripting();
-}
-
-static int flush_scripting(void)
-{
-	return scripting_ops ? scripting_ops->flush_script() : 0;
-}
-
-static int cleanup_scripting(void)
-{
-	pr_debug("\nperf script stopped\n");
-
-	return scripting_ops ? scripting_ops->stop_script() : 0;
 }
 
 static bool filter_cpu(struct perf_sample *sample)
@@ -2718,20 +2909,7 @@ static int process_sample_event(const struct perf_tool *tool,
 		goto out_put;
 	}
 
-	if (scripting_ops) {
-		struct addr_location *addr_al_ptr = NULL;
-
-		if ((evsel->core.attr.sample_type & PERF_SAMPLE_ADDR) &&
-		    sample_addr_correlates_sym(&evsel->core.attr)) {
-			if (!addr_al.thread)
-				thread__resolve(al.thread, &addr_al, sample);
-			addr_al_ptr = &addr_al;
-		}
-		scripting_ops->process_event(event, sample, &al, addr_al_ptr);
-	} else {
-		process_event(scr, sample, &al, &addr_al, machine);
-	}
-
+	process_event(scr, sample, &al, &addr_al, machine);
 out_put:
 	addr_location__exit(&addr_al);
 	addr_location__exit(&al);
@@ -3043,26 +3221,11 @@ static int process_switch_event(const struct perf_tool *tool,
 	if (perf_event__process_switch(tool, event, sample, machine) < 0)
 		return -1;
 
-	if (scripting_ops && scripting_ops->process_switch && !filter_cpu(sample))
-		scripting_ops->process_switch(event, sample, machine);
-
 	if (!script->show_switch_events)
 		return 0;
 
 	return print_event(tool, event, sample, machine, sample->pid,
 			   sample->tid);
-}
-
-static int process_auxtrace_error(const struct perf_tool *tool,
-				  struct perf_session *session,
-				  union perf_event *event)
-{
-	if (scripting_ops && scripting_ops->process_auxtrace_error) {
-		scripting_ops->process_auxtrace_error(session, event);
-		return 0;
-	}
-
-	return perf_event__process_auxtrace_error(tool, session, event);
 }
 
 static int
@@ -3077,12 +3240,11 @@ process_lost_event(const struct perf_tool *tool,
 
 static int
 process_throttle_event(const struct perf_tool *tool __maybe_unused,
-		       union perf_event *event,
-		       struct perf_sample *sample,
-		       struct machine *machine)
+		       union perf_event *event __maybe_unused,
+		       struct perf_sample *sample __maybe_unused,
+		       struct machine *machine __maybe_unused)
 {
-	if (scripting_ops && scripting_ops->process_throttle)
-		scripting_ops->process_throttle(event, sample, machine);
+
 	return 0;
 }
 
@@ -3225,10 +3387,9 @@ static int __cmd_script(struct perf_script *script)
 		script->tool.mmap = process_mmap_event;
 		script->tool.mmap2 = process_mmap2_event;
 	}
-	if (script->show_switch_events || (scripting_ops && scripting_ops->process_switch))
+	if (script->show_switch_events)
 		script->tool.context_switch = process_switch_event;
-	if (scripting_ops && scripting_ops->process_auxtrace_error)
-		script->tool.auxtrace_error = process_auxtrace_error;
+	script->tool.auxtrace_error = perf_event__process_auxtrace_error;
 	if (script->show_namespace_events)
 		script->tool.namespaces = process_namespaces_event;
 	if (script->show_cgroup_events)
@@ -3265,96 +3426,48 @@ static int __cmd_script(struct perf_script *script)
 	return ret;
 }
 
-static int list_available_languages_cb(struct scripting_ops *ops, const char *spec)
-{
-	fprintf(stderr, "  %-42s [%s]\n", spec, ops->name);
-	return 0;
-}
-
-static void list_available_languages(void)
-{
-	fprintf(stderr, "\n");
-	fprintf(stderr, "Scripting language extensions (used in "
-		"perf script -s [spec:]script.[spec]):\n\n");
-	script_spec__for_each(&list_available_languages_cb);
-	fprintf(stderr, "\n");
-}
-
 /* Find script file relative to current directory or exec path */
 static char *find_script(const char *script)
 {
 	char path[PATH_MAX];
+	char *exec_path;
 
-	if (!scripting_ops) {
-		const char *ext = strrchr(script, '.');
+	if (strchr(script, '/') && access(script, R_OK) == 0)
+		return strdup(script);
 
-		if (!ext)
-			return NULL;
+	exec_path = get_argv_exec_path();
+	if (exec_path) {
+		snprintf(path, sizeof(path), "%s/python/%s", exec_path, script);
+		if (access(path, R_OK) == 0) {
+			free(exec_path);
+			return strdup(path);
+		}
 
-		scripting_ops = script_spec__lookup(++ext);
-		if (!scripting_ops)
-			return NULL;
-	}
-
-	if (access(script, R_OK)) {
-		char *exec_path = get_argv_exec_path();
-
-		if (!exec_path)
-			return NULL;
-		snprintf(path, sizeof(path), "%s/scripts/%s/%s",
-			 exec_path, scripting_ops->dirname, script);
+		snprintf(path, sizeof(path), "%s/python/%s.py", exec_path, script);
 		free(exec_path);
-		script = path;
-		if (access(script, R_OK))
-			return NULL;
+		if (access(path, R_OK) == 0)
+			return strdup(path);
 	}
-	return strdup(script);
+
+	if (access(script, R_OK) == 0) {
+		if (!strchr(script, '/')) {
+			snprintf(path, sizeof(path), "./%s", script);
+			return strdup(path);
+		}
+		return strdup(script);
+	}
+
+	/* Failure to find script. */
+	return NULL;
 }
 
 static int parse_scriptname(const struct option *opt __maybe_unused,
 			    const char *str, int unset __maybe_unused)
 {
-	char spec[PATH_MAX];
-	const char *script, *ext;
-	int len;
-
-	if (strcmp(str, "lang") == 0) {
-		list_available_languages();
-		exit(0);
-	}
-
-	script = strchr(str, ':');
-	if (script) {
-		len = script - str;
-		if (len >= PATH_MAX) {
-			fprintf(stderr, "invalid language specifier");
-			return -1;
-		}
-		strncpy(spec, str, len);
-		spec[len] = '\0';
-		scripting_ops = script_spec__lookup(spec);
-		if (!scripting_ops) {
-			fprintf(stderr, "invalid language specifier");
-			return -1;
-		}
-		script++;
-	} else {
-		script = str;
-		ext = strrchr(script, '.');
-		if (!ext) {
-			fprintf(stderr, "invalid script extension");
-			return -1;
-		}
-		scripting_ops = script_spec__lookup(++ext);
-		if (!scripting_ops) {
-			fprintf(stderr, "invalid script extension");
-			return -1;
-		}
-	}
-
-	script_name = find_script(script);
+	zfree(&script_name);
+	script_name = find_script(str);
 	if (!script_name)
-		script_name = strdup(script);
+		script_name = strdup(str);
 
 	return 0;
 }
@@ -3542,7 +3655,6 @@ out:
 		    (script_dirent->d_type != DT_UNKNOWN ||		\
 		     !is_directory(lang_path, script_dirent)))
 
-
 #define RECORD_SUFFIX			"-record"
 #define REPORT_SUFFIX			"-report"
 
@@ -3550,7 +3662,6 @@ struct script_desc {
 	struct list_head	node;
 	char			*name;
 	char			*half_liner;
-	char			*args;
 };
 
 static LIST_HEAD(script_descs);
@@ -3565,16 +3676,16 @@ static struct script_desc *script_desc__new(const char *name)
 	return s;
 }
 
-static void script_desc__delete(struct script_desc *s)
-{
-	zfree(&s->name);
-	zfree(&s->half_liner);
-	zfree(&s->args);
-	free(s);
-}
-
 static void script_desc__add(struct script_desc *s)
 {
+	struct script_desc *pos;
+
+	list_for_each_entry(pos, &script_descs, node) {
+		if (s->name && pos->name && strcasecmp(s->name, pos->name) < 0) {
+			list_add_tail(&s->node, &pos->node);
+			return;
+		}
+	}
 	list_add_tail(&s->node, &script_descs);
 }
 
@@ -3622,15 +3733,65 @@ static int read_script_info(struct script_desc *desc, const char *filename)
 {
 	char line[BUFSIZ], *p;
 	FILE *fp;
+	bool in_docstring = false;
+	bool found_description = false;
 
 	fp = fopen(filename, "r");
 	if (!fp)
 		return -1;
 
 	while (fgets(line, sizeof(line), fp)) {
+		static const char * const triple_quote_str[] = {
+			"\"\"\"",
+			"'''",
+			"r\"\"\"",
+		};
 		p = skip_spaces(line);
 		if (strlen(p) == 0)
 			continue;
+
+		if (in_docstring) {
+			if (strlen(p) && p[strlen(p) - 1] == '\n')
+				p[strlen(p) - 1] = '\0';
+			zfree(&desc->half_liner);
+			desc->half_liner = strdup(skip_spaces(p));
+			in_docstring = false;
+			found_description = true;
+			break;
+		}
+
+			for (size_t i = 0; i < ARRAY_SIZE(triple_quote_str); i++) {
+				const char *quote = triple_quote_str[i];
+				const char *close_quote = quote;
+
+				if (quote[0] == 'r' || quote[0] == 'R')
+					close_quote++;
+
+				if (!strstarts(p, quote))
+					continue;
+
+				p += strlen(quote);
+				p = skip_spaces(p);
+				if (strlen(p) > 0) {
+					if (p[strlen(p) - 1] == '\n')
+						p[strlen(p) - 1] = '\0';
+					p = skip_spaces(p);
+					if (str_ends_with(p, close_quote))
+						p[strlen(p) - strlen(close_quote)] = '\0';
+					zfree(&desc->half_liner);
+					desc->half_liner = strdup(skip_spaces(p));
+					found_description = true;
+					break;
+				}
+				in_docstring = true;
+				break;
+		}
+		if (found_description)
+			break;
+
+		if (in_docstring)
+			continue;
+
 		if (*p != '#')
 			continue;
 		p++;
@@ -3643,14 +3804,17 @@ static int read_script_info(struct script_desc *desc, const char *filename)
 
 		if (!strncmp(p, "description:", strlen("description:"))) {
 			p += strlen("description:");
+			zfree(&desc->half_liner);
 			desc->half_liner = strdup(skip_spaces(p));
-			continue;
+			found_description = true;
+			break;
 		}
 
-		if (!strncmp(p, "args:", strlen("args:"))) {
-			p += strlen("args:");
-			desc->args = strdup(skip_spaces(p));
-			continue;
+		if (!found_description && strlen(p) > 0 &&
+		    strncmp(p, "SPDX-License-Identifier", 23)) {
+			if (!desc->half_liner)
+				desc->half_liner = strdup(p);
+			// Don't set found_description, maybe we find a better "description:" later!
 		}
 	}
 
@@ -3681,23 +3845,21 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 				  const char *s __maybe_unused,
 				  int unset __maybe_unused)
 {
-	struct dirent *script_dirent, *lang_dirent;
-	char *buf, *scripts_path, *script_path, *lang_path, *first_half;
-	DIR *scripts_dir, *lang_dir;
+	struct dirent *script_dirent;
+	char *buf, *scripts_path, *script_path;
+	DIR *scripts_dir;
 	struct script_desc *desc;
 	char *script_root;
 
-	buf = malloc(3 * MAXPATHLEN + BUFSIZ);
+	buf = malloc(2 * MAXPATHLEN + BUFSIZ);
 	if (!buf) {
 		pr_err("malloc failed\n");
 		exit(-1);
 	}
 	scripts_path = buf;
 	script_path = buf + MAXPATHLEN;
-	lang_path = buf + 2 * MAXPATHLEN;
-	first_half = buf + 3 * MAXPATHLEN;
 
-	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", get_argv_exec_path());
+	snprintf(scripts_path, MAXPATHLEN, "%s/python", get_argv_exec_path());
 
 	scripts_dir = opendir(scripts_path);
 	if (!scripts_dir) {
@@ -3709,30 +3871,26 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 		exit(-1);
 	}
 
-	for_each_lang(scripts_path, scripts_dir, lang_dirent) {
-		scnprintf(lang_path, MAXPATHLEN, "%s/%s/bin", scripts_path,
-			  lang_dirent->d_name);
-		lang_dir = opendir(lang_path);
-		if (!lang_dir)
-			continue;
+	while ((script_dirent = readdir(scripts_dir)) != NULL) {
+		if (script_dirent->d_type != DT_DIR &&
+		    (script_dirent->d_type != DT_UNKNOWN ||
+		     !is_directory(scripts_path, script_dirent))) {
 
-		for_each_script(lang_path, lang_dir, script_dirent) {
-			script_root = get_script_root(script_dirent, REPORT_SUFFIX);
+			script_root = get_script_root(script_dirent, ".py");
 			if (script_root) {
 				desc = script_desc__findnew(script_root);
 				scnprintf(script_path, MAXPATHLEN, "%s/%s",
-					  lang_path, script_dirent->d_name);
+					  scripts_path, script_dirent->d_name);
 				read_script_info(desc, script_path);
 				free(script_root);
 			}
 		}
 	}
+	closedir(scripts_dir);
 
-	fprintf(stdout, "List of available trace scripts:\n");
+	fprintf(stdout, "List of available scripts:\n");
 	list_for_each_entry(desc, &script_descs, node) {
-		sprintf(first_half, "%s %s", desc->name,
-			desc->args ? desc->args : "");
-		fprintf(stdout, "  %-36s %s\n", first_half,
+		fprintf(stdout, "  %-36s %s\n", desc->name,
 			desc->half_liner ? desc->half_liner : "");
 	}
 
@@ -3766,94 +3924,6 @@ static void free_dlarg(void)
 	while (dlargc--)
 		free(dlargv[dlargc]);
 	free(dlargv);
-}
-
-static char *get_script_path(const char *script_root, const char *suffix)
-{
-	struct dirent *script_dirent, *lang_dirent;
-	char scripts_path[MAXPATHLEN];
-	char script_path[MAXPATHLEN];
-	DIR *scripts_dir, *lang_dir;
-	char lang_path[MAXPATHLEN];
-	char *__script_root;
-
-	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", get_argv_exec_path());
-
-	scripts_dir = opendir(scripts_path);
-	if (!scripts_dir)
-		return NULL;
-
-	for_each_lang(scripts_path, scripts_dir, lang_dirent) {
-		scnprintf(lang_path, MAXPATHLEN, "%s/%s/bin", scripts_path,
-			  lang_dirent->d_name);
-		lang_dir = opendir(lang_path);
-		if (!lang_dir)
-			continue;
-
-		for_each_script(lang_path, lang_dir, script_dirent) {
-			__script_root = get_script_root(script_dirent, suffix);
-			if (__script_root && !strcmp(script_root, __script_root)) {
-				free(__script_root);
-				closedir(scripts_dir);
-				scnprintf(script_path, MAXPATHLEN, "%s/%s",
-					  lang_path, script_dirent->d_name);
-				closedir(lang_dir);
-				return strdup(script_path);
-			}
-			free(__script_root);
-		}
-		closedir(lang_dir);
-	}
-	closedir(scripts_dir);
-
-	return NULL;
-}
-
-static bool is_top_script(const char *script_path)
-{
-	return ends_with(script_path, "top") != NULL;
-}
-
-static int has_required_arg(char *script_path)
-{
-	struct script_desc *desc;
-	int n_args = 0;
-	char *p;
-
-	desc = script_desc__new(NULL);
-
-	if (read_script_info(desc, script_path))
-		goto out;
-
-	if (!desc->args)
-		goto out;
-
-	for (p = desc->args; *p; p++)
-		if (*p == '<')
-			n_args++;
-out:
-	script_desc__delete(desc);
-
-	return n_args;
-}
-
-static int have_cmd(int argc, const char **argv)
-{
-	char **__argv = calloc(argc, sizeof(const char *));
-
-	if (!__argv) {
-		pr_err("malloc failed\n");
-		return -1;
-	}
-
-	memcpy(__argv, argv, sizeof(const char *) * argc);
-	argc = parse_options(argc, (const char **)__argv, record_options,
-			     NULL, PARSE_OPT_STOP_AT_NON_OPTION);
-	free(__argv);
-
-	system_wide = (argc == 0);
-
-	return 0;
 }
 
 static void script__setup_sample_type(struct perf_script *script)
@@ -3979,6 +4049,14 @@ static int perf_script__process_auxtrace_info(const struct perf_tool *tool,
 	return ret;
 }
 
+static const char *script_itrace_opts;
+
+static int parse_script_itrace(const struct option *opt, const char *str, int unset)
+{
+	script_itrace_opts = unset ? "" : (str && *str ? str : "cepwx");
+	return itrace_parse_synth_opts(opt, str, unset);
+}
+
 static int parse_insn_trace(const struct option *opt __maybe_unused,
 			    const char *str, int unset __maybe_unused)
 {
@@ -3998,6 +4076,7 @@ static int parse_insn_trace(const struct option *opt __maybe_unused,
 	if (ret < 0)
 		return ret;
 
+	script_itrace_opts = "i0nse";
 	itrace_parse_synth_opts(opt, "i0nse", 0);
 	symbol_conf.nanosecs = true;
 	return 0;
@@ -4019,6 +4098,7 @@ static int parse_call_trace(const struct option *opt __maybe_unused,
 			    int unset __maybe_unused)
 {
 	parse_output_fields(NULL, "-ip,-addr,-event,-period,+callindent", 0);
+	script_itrace_opts = "cewp";
 	itrace_parse_synth_opts(opt, "cewp", 0);
 	symbol_conf.nanosecs = true;
 	symbol_conf.pad_output_len_dso = 50;
@@ -4030,9 +4110,88 @@ static int parse_callret_trace(const struct option *opt __maybe_unused,
 			    int unset __maybe_unused)
 {
 	parse_output_fields(NULL, "-ip,-addr,-event,-period,+callindent,+flags", 0);
+	script_itrace_opts = "crewp";
 	itrace_parse_synth_opts(opt, "crewp", 0);
 	symbol_conf.nanosecs = true;
 	return 0;
+}
+
+/*
+ * Detect scripts written for the removed legacy embedded Python scripting API.
+ *
+ * Without an embedded interpreter invoking trace_begin()/process_event()/trace_end(),
+ * executing a callback-only legacy script directly under `python3` would simply
+ * define top-level functions and silently exit with status 0 without processing
+ * any events.
+ *
+ * Note on ordering and heuristics:
+ * 1) "perf_trace_context" and "Perf-Trace-Util" must be checked BEFORE
+ *    "import perf", because "import perf" is a substring prefix of
+ *    "import perf_trace_context".
+ * 2) Defining `def process_event(`, `def trace_begin(`, or `def trace_end(`
+ *    is only flagged as legacy when `!has_perf_import`, because standalone
+ *    `import perf` scripts commonly define a helper named `def process_event(sample):`
+ *    to pass as the `sample=` callback to `perf.session(...)`.
+ */
+static bool is_legacy_python_script(const char *path)
+{
+	struct stat st;
+	int fd;
+	FILE *fp;
+	char line[1024];
+	bool has_legacy_cb = false;
+	bool has_perf_import = false;
+
+	fd = open(path, O_RDONLY | O_NONBLOCK);
+	if (fd < 0)
+		return false;
+
+	if (fstat(fd, &st) < 0 || !S_ISREG(st.st_mode)) {
+		close(fd);
+		return false;
+	}
+
+	fp = fdopen(fd, "r");
+	if (!fp) {
+		close(fd);
+		return false;
+	}
+
+	while (fgets(line, sizeof(line), fp)) {
+		const char *p = skip_spaces(line);
+
+		if (*p == '#')
+			continue;
+		if ((strstr(p, "import perf") && !strstr(p, "import perf_trace_context")) ||
+		    strstr(p, "from perf ") ||
+		    strstr(p, "__main__"))
+			has_perf_import = true;
+		if (strstr(p, "perf_trace_context") ||
+		    strstr(p, "Perf-Trace-Util") ||
+		    strstr(p, "def process_event(") ||
+		    strstr(p, "def trace_begin(") ||
+		    strstr(p, "def trace_end("))
+			has_legacy_cb = true;
+	}
+	fclose(fp);
+	return has_legacy_cb && !has_perf_import;
+}
+
+static volatile sig_atomic_t script_child_pid;
+
+static void forward_script_sig(int sig, siginfo_t *info, void *ucontext __maybe_unused)
+{
+	/*
+	 * Terminal-generated signals (Ctrl-C / Ctrl-\) have si_code > 0
+	 * (SI_KERNEL) and are already delivered by the TTY driver to the
+	 * entire foreground process group, including the child script.
+	 * Signals sent directly to the perf process via kill(2) / sigqueue(3)
+	 * have si_code <= 0 (SI_USER, SI_QUEUE, etc.) and must be forwarded
+	 * to the child script so it can catch KeyboardInterrupt / SIGTERM
+	 * and flush its output before exiting.
+	 */
+	if (script_child_pid > 0 && (sig == SIGTERM || !info || info->si_code <= 0))
+		kill(script_child_pid, sig);
 }
 
 int cmd_script(int argc, const char **argv)
@@ -4040,17 +4199,13 @@ int cmd_script(int argc, const char **argv)
 	bool show_full_info = false;
 	bool header = false;
 	bool header_only = false;
-	bool script_started = false;
 	bool unsorted_dump = false;
 	bool merge_deferred_callchains = true;
-	char *rec_script_path = NULL;
-	char *rep_script_path = NULL;
 	struct perf_session *session;
 	struct itrace_synth_opts itrace_synth_opts = {
 		.set = false,
 		.default_no_sample = true,
 	};
-	char *script_path = NULL;
 	const char *dlfilter_file = NULL;
 	const char **__argv;
 	int i, j, err = 0;
@@ -4071,11 +4226,10 @@ int cmd_script(int argc, const char **argv)
 			   list_available_scripts),
 	OPT_CALLBACK_NOOPT(0, "list-dlfilters", NULL, NULL, "list available dlfilters",
 			   list_available_dlfilters),
-	OPT_CALLBACK('s', "script", NULL, "name",
-		     "script file name (lang:script name, script name, or *)",
-		     parse_scriptname),
-	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
-		   "generate perf-script.xx script in specified language"),
+	{ .type = OPTION_CALLBACK, .short_name = 's', .long_name = "script",
+	  .value = NULL, .argh = "name",
+	  .help = "script file name (lang:script name, script name, or *)",
+	  .callback = parse_scriptname, .flags = PARSE_OPT_HIDDEN },
 	OPT_STRING(0, "dlfilter", &dlfilter_file, "file", "filter .so file name"),
 	OPT_CALLBACK(0, "dlarg", NULL, "argument", "filter argument",
 		     add_dlarg),
@@ -4104,8 +4258,6 @@ int cmd_script(int argc, const char **argv)
 		     "code_page_size,ins_lat,machine_pid,vcpu,cgroup,retire_lat,"
 		     "brcntr",
 		     parse_output_fields),
-	OPT_BOOLEAN('a', "all-cpus", &system_wide,
-		    "system-wide collection from all CPUs"),
 	OPT_STRING(0, "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these DSOs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
@@ -4168,7 +4320,7 @@ int cmd_script(int argc, const char **argv)
 		    "Use 9 decimal places when displaying time"),
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options\n" ITRACE_HELP,
-			    itrace_parse_synth_opts),
+			    parse_script_itrace),
 	OPT_BOOLEAN(0, "full-source-path", &srcline_full_filename,
 			"Show full source file name path for source lines"),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
@@ -4202,22 +4354,16 @@ int cmd_script(int argc, const char **argv)
 	OPTS_EVSWITCH(&script.evswitch),
 	OPT_END()
 	};
-	const char * const script_subcommands[] = { "record", "report", NULL };
 	const char *script_usage[] = {
 		"perf script [<options>]",
-		"perf script [<options>] record <script> [<record-options>] <command>",
-		"perf script [<options>] report <script> [script-args]",
-		"perf script [<options>] <script> [<record-options>] <command>",
-		"perf script [<options>] <top-script> [script-args]",
+		"perf script [<options>] <script> [script-args]",
 		NULL
 	};
 	struct perf_env *env;
 
 	perf_set_singlethreaded();
 
-	setup_scripting();
-
-	argc = parse_options_subcommand(argc, argv, options, script_subcommands, script_usage,
+	argc = parse_options_subcommand(argc, argv, options, NULL, script_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (symbol_conf.guestmount ||
@@ -4240,22 +4386,6 @@ int cmd_script(int argc, const char **argv)
 	if (symbol__validate_sym_arguments())
 		return -1;
 
-	if (argc > 1 && strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
-		rec_script_path = get_script_path(argv[1], RECORD_SUFFIX);
-		if (!rec_script_path)
-			return cmd_record(argc, argv);
-	}
-
-	if (argc > 1 && strlen(argv[0]) > 2 && strstarts("report", argv[0])) {
-		rep_script_path = get_script_path(argv[1], REPORT_SUFFIX);
-		if (!rep_script_path) {
-			fprintf(stderr,
-				"Please specify a valid report script"
-				"(see 'perf script -l' for listing)\n");
-			return -1;
-		}
-	}
-
 	if (reltime && deltatime) {
 		fprintf(stderr,
 			"reltime and deltatime - the two don't get along well. "
@@ -4270,149 +4400,194 @@ int cmd_script(int argc, const char **argv)
 	/* make sure PERF_EXEC_PATH is set for scripts */
 	set_argv_exec_path(get_argv_exec_path());
 
-	if (argc && !script_name && !rec_script_path && !rep_script_path) {
-		int live_pipe[2];
-		int rep_args;
-		pid_t pid;
-
-		rec_script_path = get_script_path(argv[0], RECORD_SUFFIX);
-		rep_script_path = get_script_path(argv[0], REPORT_SUFFIX);
-
-		if (!rec_script_path && !rep_script_path) {
-			script_name = find_script(argv[0]);
-			if (script_name) {
+	if (argc && !script_name) {
+		if (!strcmp(argv[0], "record") || !strcmp(argv[0], "report")) {
+			fprintf(stderr,
+				"The '%s' subcommand is no longer supported.\n",
+				argv[0]);
+			fprintf(stderr,
+				"Run 'perf script <script> [args]' directly.\n");
+			err = -1;
+			goto out;
+		}
+		script_name = find_script(argv[0]);
+		if (script_name) {
+			argc -= 1;
+			argv += 1;
+			if (argc && !strcmp(argv[0], "--")) {
 				argc -= 1;
 				argv += 1;
-				goto script_found;
 			}
-			usage_with_options_msg(script_usage, options,
-				"Couldn't find script `%s'\n\n See perf"
-				" script -l for available scripts.\n", argv[0]);
+			goto script_found;
+		}
+		usage_with_options_msg(script_usage, options,
+			"Couldn't find script `%s'\n\n"
+			" See perf script -l for available scripts.\n", argv[0]);
+	}
+script_found:
+
+	if (script_name) {
+		pid_t pid;
+		bool is_python = str_ends_with(script_name, ".py");
+		struct sigaction forward_sa = {
+			.sa_sigaction = forward_script_sig,
+			.sa_flags = SA_SIGINFO,
+		};
+		struct sigaction old_int, old_quit, old_term;
+		sigset_t block_mask, old_mask;
+
+		if (is_python && is_legacy_python_script(script_name)) {
+			pr_err("Error: '%s' uses the removed legacy embedded Python scripting API.\n"
+			       "Please port it to a standalone script using 'import perf' (see 'man perf-script-python').\n",
+			       script_name);
+			err = -EINVAL;
+			goto out;
 		}
 
-		if (is_top_script(argv[0])) {
-			rep_args = argc - 1;
-		} else {
-			int rec_args;
-
-			rep_args = has_required_arg(rep_script_path);
-			rec_args = (argc - 1) - rep_args;
-			if (rec_args < 0) {
-				usage_with_options_msg(script_usage, options,
-					"`%s' script requires options."
-					"\n\n See perf script -l for available "
-					"scripts and options.\n", argv[0]);
-			}
+		if (cpu_list || symbol_conf.comm_list_str ||
+		    symbol_conf.pid_list_str || symbol_conf.tid_list_str ||
+		    script.time_str || dlfilter_file || dlargc > 0) {
+			pr_warning("Warning: Filtering options (-C, -c, --pid, --tid, --time, --dlfilter, --dlarg) are ignored for standalone scripts.\n");
 		}
-
-		if (pipe(live_pipe) < 0) {
-			perror("failed to create pipe");
-			return -1;
-		}
-
+		/*
+		 * Install forward_script_sig for SIGINT, SIGQUIT, and SIGTERM
+		 * in the parent `perf` process while waiting for the child
+		 * script, and restore the original handlers and signal mask in
+		 * the child before execvp(). When the user presses Ctrl-C
+		 * during a live trace, the terminal delivers SIGINT (SI_KERNEL)
+		 * to the entire foreground process group; ignoring SI_KERNEL in
+		 * the parent prevents `perf` from terminating immediately and
+		 * allows the child Python script to catch KeyboardInterrupt,
+		 * print its summary/report, and finish cleanup before exiting.
+		 * When a signal is sent directly to `perf` via kill(2) (e.g.
+		 * from a backgrounded job in a non-interactive shell), si_code
+		 * is <= 0 (SI_USER) and forward_script_sig forwards it to the
+		 * child script.
+		 */
+		sigemptyset(&forward_sa.sa_mask);
+		sigemptyset(&block_mask);
+		sigaddset(&block_mask, SIGINT);
+		sigaddset(&block_mask, SIGQUIT);
+		sigaddset(&block_mask, SIGTERM);
+		sigprocmask(SIG_BLOCK, &block_mask, &old_mask);
+		sigaction(SIGINT, &forward_sa, &old_int);
+		sigaction(SIGQUIT, &forward_sa, &old_quit);
+		sigaction(SIGTERM, &forward_sa, &old_term);
 		pid = fork();
 		if (pid < 0) {
-			perror("failed to fork");
-			return -1;
+			err = -errno;
+			sigaction(SIGINT, &old_int, NULL);
+			sigaction(SIGQUIT, &old_quit, NULL);
+			sigaction(SIGTERM, &old_term, NULL);
+			sigprocmask(SIG_SETMASK, &old_mask, NULL);
+			pr_err("failed to fork\n");
+			goto out;
 		}
-
-		if (!pid) {
+		if (pid == 0) { /* child */
+			sigaction(SIGINT, &old_int, NULL);
+			sigaction(SIGQUIT, &old_quit, NULL);
+			sigaction(SIGTERM, &old_term, NULL);
+			sigprocmask(SIG_SETMASK, &old_mask, NULL);
+			__argv = calloc(argc + 6, sizeof(const char *));
 			j = 0;
+			if (!__argv)
+				_exit(127);
 
-			dup2(live_pipe[1], 1);
-			close(live_pipe[0]);
+			if (is_python) {
+				const char *python = getenv("PYTHON");
 
-			if (is_top_script(argv[0])) {
-				system_wide = true;
-			} else if (!system_wide) {
-				if (have_cmd(argc - rep_args, &argv[rep_args]) != 0) {
-					err = -1;
-					goto out;
+				if (!python || !*python)
+					python = "python3";
+				__argv[j++] = python;
+				__argv[j++] = "--";
+				__argv[j++] = script_name;
+			} else {
+				__argv[j++] = script_name;
+			}
+			if (input_name) {
+				__argv[j++] = "-i";
+				__argv[j++] = input_name;
+			} else {
+				struct stat st;
+				bool has_input_arg = false;
+
+				for (i = 0; i < argc; i++) {
+					if (!strcmp(argv[i], "-i") ||
+					    strstarts(argv[i], "--input")) {
+						has_input_arg = true;
+						break;
+					}
+				}
+				if (!has_input_arg &&
+				    fstat(STDIN_FILENO, &st) == 0 &&
+				    S_ISFIFO(st.st_mode)) {
+					__argv[j++] = "-i";
+					__argv[j++] = "-";
 				}
 			}
-
-			__argv = calloc(argc + 6, sizeof(const char *));
-			if (!__argv) {
-				pr_err("malloc failed\n");
-				err = -ENOMEM;
-				goto out;
-			}
-
-			__argv[j++] = "/bin/sh";
-			__argv[j++] = rec_script_path;
-			if (system_wide)
-				__argv[j++] = "-a";
-			__argv[j++] = "-q";
-			__argv[j++] = "-o";
-			__argv[j++] = "-";
-			for (i = rep_args + 1; i < argc; i++)
+			for (i = 0; i < argc; i++)
 				__argv[j++] = argv[i];
 			__argv[j++] = NULL;
 
-			execvp("/bin/sh", (char **)__argv);
-			free(__argv);
-			exit(-1);
-		}
+			if (symbol_conf.vmlinux_name)
+				setenv("PERF_SYMBOL_VMLINUX", symbol_conf.vmlinux_name, 1);
+			if (symbol_conf.kallsyms_name)
+				setenv("PERF_SYMBOL_KALLSYMS", symbol_conf.kallsyms_name, 1);
+			if (symbol_conf.symfs && symbol_conf.symfs[0])
+				setenv("PERF_SYMBOL_SYMFS", symbol_conf.symfs, 1);
+			if (script_itrace_opts)
+				setenv("PERF_ITRACE", script_itrace_opts, 1);
 
-		dup2(live_pipe[0], 0);
-		close(live_pipe[1]);
+			execvp(__argv[0], (char **)__argv);
+			{
+				int err_code = errno;
 
-		__argv = calloc(argc + 4, sizeof(const char *));
-		if (!__argv) {
-			pr_err("malloc failed\n");
-			err = -ENOMEM;
-			goto out;
-		}
+				pr_err("failed to execute script '%s': %s\n",
+				       script_name, strerror(err_code));
+				_exit(err_code);
+			}
+		} else { /* parent */
+			siginfo_t info;
+			int status = 0;
 
-		j = 0;
-		__argv[j++] = "/bin/sh";
-		__argv[j++] = rep_script_path;
-		for (i = 1; i < rep_args + 1; i++)
-			__argv[j++] = argv[i];
-		__argv[j++] = "-i";
-		__argv[j++] = "-";
-		__argv[j++] = NULL;
-
-		execvp("/bin/sh", (char **)__argv);
-		free(__argv);
-		exit(-1);
-	}
-script_found:
-	if (rec_script_path)
-		script_path = rec_script_path;
-	if (rep_script_path)
-		script_path = rep_script_path;
-
-	if (script_path) {
-		j = 0;
-
-		if (!rec_script_path)
-			system_wide = false;
-		else if (!system_wide) {
-			if (have_cmd(argc - 1, &argv[1]) != 0) {
-				err = -1;
+			script_child_pid = pid;
+			sigprocmask(SIG_SETMASK, &old_mask, NULL);
+			/*
+			 * Wait with WNOWAIT first so the child remains a
+			 * zombie (preventing PID reuse by the kernel) until
+			 * script_child_pid is cleared and signal handlers are
+			 * restored, then reap the zombie with waitpid().
+			 */
+			while (waitid(P_PID, pid, &info, WEXITED | WNOWAIT) < 0) {
+				if (errno == EINTR)
+					continue;
+				pr_err("failed to wait for script '%s': %s\n",
+				       script_name, strerror(errno));
+				err = -errno;
+				script_child_pid = 0;
+				sigaction(SIGINT, &old_int, NULL);
+				sigaction(SIGQUIT, &old_quit, NULL);
+				sigaction(SIGTERM, &old_term, NULL);
 				goto out;
 			}
-		}
-
-		__argv = calloc(argc + 2, sizeof(const char *));
-		if (!__argv) {
-			pr_err("malloc failed\n");
-			err = -ENOMEM;
+			script_child_pid = 0;
+			sigaction(SIGINT, &old_int, NULL);
+			sigaction(SIGQUIT, &old_quit, NULL);
+			sigaction(SIGTERM, &old_term, NULL);
+			while (waitpid(pid, &status, 0) != pid) {
+				if (errno == EINTR)
+					continue;
+				err = -errno;
+				goto out;
+			}
+			if (WIFEXITED(status))
+				err = WEXITSTATUS(status);
+			else if (WIFSIGNALED(status))
+				err = 128 + WTERMSIG(status);
+			else
+				err = -1;
 			goto out;
 		}
-
-		__argv[j++] = "/bin/sh";
-		__argv[j++] = script_path;
-		if (system_wide)
-			__argv[j++] = "-a";
-		for (i = 2; i < argc; i++)
-			__argv[j++] = argv[i];
-		__argv[j++] = NULL;
-
-		execvp("/bin/sh", (char **)__argv);
-		free(__argv);
-		exit(-1);
 	}
 
 	if (dlfilter_file) {
@@ -4504,78 +4679,10 @@ script_found:
 		goto out_delete;
 	}
 #endif
-	if (generate_script_lang) {
-		struct stat perf_stat;
-		int input;
-		char *filename = strdup("perf-script");
-
-		if (output_set_by_user()) {
-			fprintf(stderr,
-				"custom fields not supported for generated scripts");
-			err = -EINVAL;
-			goto out_delete;
-		}
-
-		input = open(data.path, O_RDONLY);	/* input_name */
-		if (input < 0) {
-			err = -errno;
-			perror("failed to open file");
-			goto out_delete;
-		}
-
-		err = fstat(input, &perf_stat);
-		if (err < 0) {
-			perror("failed to stat file");
-			goto out_delete;
-		}
-
-		if (!perf_stat.st_size) {
-			fprintf(stderr, "zero-sized file, nothing to do!\n");
-			goto out_delete;
-		}
-
-		scripting_ops = script_spec__lookup(generate_script_lang);
-		if (!scripting_ops && ends_with(generate_script_lang, ".py")) {
-			scripting_ops = script_spec__lookup("python");
-			free(filename);
-			filename = strdup(generate_script_lang);
-			filename[strlen(filename) - 3] = '\0';
-		} else if (!scripting_ops && ends_with(generate_script_lang, ".pl")) {
-			scripting_ops = script_spec__lookup("perl");
-			free(filename);
-			filename = strdup(generate_script_lang);
-			filename[strlen(filename) - 3] = '\0';
-		}
-		if (!scripting_ops) {
-			fprintf(stderr, "invalid language specifier '%s'\n", generate_script_lang);
-			err = -ENOENT;
-			goto out_delete;
-		}
-		if (!filename) {
-			err = -ENOMEM;
-			goto out_delete;
-		}
-#ifdef HAVE_LIBTRACEEVENT
-		err = scripting_ops->generate_script(session->tevent.pevent, filename);
-#else
-		err = scripting_ops->generate_script(NULL, filename);
-#endif
-		free(filename);
-		goto out_delete;
-	}
 
 	err = dlfilter__start(dlfilter, session);
 	if (err)
 		goto out_delete;
-
-	if (script_name) {
-		err = scripting_ops->start_script(script_name, argc, argv, session);
-		if (err)
-			goto out_delete;
-		pr_debug("perf script started with script %s\n\n", script_name);
-		script_started = true;
-	}
-
 
 	err = perf_session__check_output_opt(session);
 	if (err < 0)
@@ -4604,8 +4711,6 @@ script_found:
 
 	err = __cmd_script(&script);
 
-	flush_scripting();
-
 	if (verbose > 2 || debug_kmaps)
 		perf_session__dump_kmaps(session);
 
@@ -4620,10 +4725,9 @@ out_delete:
 	perf_session__delete(session);
 	perf_script__exit(&script);
 
-	if (script_started)
-		cleanup_scripting();
+out:
+	zfree(&script_name);
 	dlfilter__cleanup(dlfilter);
 	free_dlarg();
-out:
 	return err;
 }

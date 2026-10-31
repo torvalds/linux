@@ -31,6 +31,8 @@ int libbfd_filename__read_debuglink(const char *filename, char *debuglink, size_
 
 int symbol__disassemble_bpf_libbfd(struct symbol *sym, struct annotate_args *args);
 
+char *libbfd__demangle_sym(const char *str, bool params, bool modifiers);
+
 #else // !defined(HAVE_LIBBFD_SUPPORT)
 #include "annotate.h"
 
@@ -75,6 +77,13 @@ static inline int symbol__disassemble_bpf_libbfd(struct symbol *sym __always_unu
 						 struct annotate_args *args __always_unused)
 {
 	return SYMBOL_ANNOTATE_ERRNO__NO_LIBOPCODES_FOR_BPF;
+}
+
+static inline char *libbfd__demangle_sym(const char *str __always_unused,
+					 bool params __always_unused,
+					 bool modifiers __always_unused)
+{
+	return NULL;
 }
 
 #endif // defined(HAVE_LIBBFD_SUPPORT)

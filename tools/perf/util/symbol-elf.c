@@ -228,7 +228,8 @@ bool filename__has_section(const char *filename, const char *sec)
 	if (gelf_getehdr(elf, &ehdr) == NULL)
 		goto elf_out;
 
-	found = !!elf_section_by_name(elf, &ehdr, &shdr, sec, NULL);
+	found = !!elf_section_by_name(elf, &ehdr, &shdr, sec, NULL) &&
+		shdr.sh_type == SHT_PROGBITS;
 
 elf_out:
 	elf_end(elf);

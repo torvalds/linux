@@ -1,65 +1,69 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "header.h"
+
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
-#include "string2.h"
-#include <sys/param.h>
-#include <sys/types.h>
-#include <byteswap.h>
-#include <unistd.h>
-#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <linux/compiler.h>
-#include <linux/list.h>
-#include <linux/kernel.h>
+#include <string.h>
+#include <fcntl.h>
+
+#include <byteswap.h>
+#include <dirent.h>
 #include <linux/bitops.h>
+#include <linux/compiler.h>
+#include <linux/ctype.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/string.h>
 #include <linux/stringify.h>
-#include <linux/zalloc.h>
-#include <sys/stat.h>
-#include <sys/utsname.h>
 #include <linux/time64.h>
-#include <dirent.h>
-#ifdef HAVE_LIBBPF_SUPPORT
-#include <bpf/libbpf.h>
-#endif
+#include <linux/zalloc.h>
+#include <regex.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/utsname.h>
+#include <unistd.h>
+
+#include <api/fs/fs.h>
+#include <api/io_dir.h>
+#include <internal/lib.h>
 #include <perf/cpumap.h>
 #include <tools/libc_compat.h> // reallocarray
 
+#include "../perf.h"
+#include "bpf-event.h"
+#include "bpf-utils.h"
+#include "build-id.h"
+#include "cacheline.h"
+#include "clockid.h"
+#include "cpumap.h"
+#include "cputopo.h"
+#include "data.h"
+#include "debug.h"
 #include "dso.h"
 #include "evlist.h"
 #include "evsel.h"
-#include "util/evsel_fprintf.h"
-#include "header.h"
+#include "evsel_fprintf.h"
 #include "memswap.h"
-#include "trace-event.h"
-#include "session.h"
-#include "symbol.h"
-#include "debug.h"
-#include "cpumap.h"
 #include "pmu.h"
 #include "pmus.h"
-#include "vdso.h"
+#include "session.h"
 #include "strbuf.h"
-#include "build-id.h"
-#include "data.h"
-#include <api/fs/fs.h>
-#include <api/io_dir.h>
-#include "asm/bug.h"
-#include "tool.h"
-#include "../perf.h"
+#include "string2.h"
+#include "symbol.h"
 #include "time-utils.h"
+#include "tool.h"
+#include "trace-event.h"
 #include "units.h"
-#include "util/util.h" // perf_exe()
-#include "cputopo.h"
-#include "bpf-event.h"
-#include "bpf-utils.h"
-#include "clockid.h"
-#include "cacheline.h"
+#include "util.h" // perf_exe()
+#include "vdso.h"
 
-#include <linux/ctype.h>
-#include <internal/lib.h>
+#ifdef HAVE_LIBBPF_SUPPORT
+#include <bpf/libbpf.h>
+#endif
 
 #ifdef HAVE_LIBTRACEEVENT
 #include <event-parse.h>
@@ -92,6 +96,7 @@
 #define MAX_PMU_CAPS		512
 #define MAX_PMU_MAPPINGS	4096
 #define MAX_SCHED_DOMAINS	64
+#define MAX_MEMORY_RANGES	256
 
 /*
  * magic2 = "PERFILE2"
@@ -381,8 +386,10 @@ static int do_read_bitmap(struct feat_fd *ff, unsigned long **pset, u64 *psize)
 static int write_tracing_data(struct feat_fd *ff,
 			      struct evlist *evlist __maybe_unused)
 {
-	if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
+	if (ff->buf) {
+		pr_warning("Error: calling %s in pipe-mode.\n", __func__);
 		return -1;
+	}
 
 #ifdef HAVE_LIBTRACEEVENT
 	return read_tracing_data(ff->fd, &evlist__core(evlist)->entries);
@@ -403,8 +410,10 @@ static int write_build_id(struct feat_fd *ff,
 	if (!perf_session__read_build_ids(session, true))
 		return -1;
 
-	if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
+	if (ff->buf) {
+		pr_warning("Error: calling %s in pipe-mode.\n", __func__);
 		return -1;
+	}
 
 	err = perf_session__write_buildid_table(session, ff);
 	if (err < 0) {
@@ -1010,8 +1019,10 @@ static int write_auxtrace(struct feat_fd *ff,
 	struct perf_session *session;
 	int err;
 
-	if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
+	if (ff->buf) {
+		pr_warning("Error: calling %s in pipe-mode.\n", __func__);
 		return -1;
+	}
 
 	session = container_of(ff->ph, struct perf_session, header);
 
@@ -1105,9 +1116,10 @@ static int write_dir_format(struct feat_fd *ff,
 	session = container_of(ff->ph, struct perf_session, header);
 	data = session->data;
 
-	if (WARN_ON(!perf_data__is_dir(data)))
+	if (!perf_data__is_dir(data)) {
+		pr_warning("Expected data to be a directory\n");
 		return -1;
-
+	}
 	return do_write(ff, &data->dir.version, sizeof(data->dir.version));
 }
 
@@ -1264,7 +1276,11 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 		return -1;
 
 	cache->type[len] = 0;
-	cache->type = strim(cache->type);
+	{
+		char *trimmed = strim(cache->type);
+
+		memmove(cache->type, trimmed, strlen(trimmed) + 1);
+	}
 
 	scnprintf(file, PATH_MAX, "%s/size", path);
 	if (sysfs__read_str(file, &cache->size, &len)) {
@@ -1273,7 +1289,11 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 	}
 
 	cache->size[len] = 0;
-	cache->size = strim(cache->size);
+	{
+		char *trimmed = strim(cache->size);
+
+		memmove(cache->size, trimmed, strlen(trimmed) + 1);
+	}
 
 	scnprintf(file, PATH_MAX, "%s/shared_cpu_list", path);
 	if (sysfs__read_str(file, &cache->map, &len)) {
@@ -1283,7 +1303,11 @@ static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 lev
 	}
 
 	cache->map[len] = 0;
-	cache->map = strim(cache->map);
+	{
+		char *trimmed = strim(cache->map);
+
+		memmove(cache->map, trimmed, strlen(trimmed) + 1);
+	}
 	return 0;
 }
 
@@ -1892,6 +1916,132 @@ out:
 	return ret;
 }
 
+static int memory_range__read(struct memory_range *range, const char *path)
+{
+	char buf[32];
+	ssize_t n;
+	int dfd, fd, tmp, ret = -1;
+
+	dfd = open(path, O_RDONLY | O_DIRECTORY);
+	if (dfd < 0)
+		return -1;
+
+#define _R(name, dst, conv)			\
+	fd = openat(dfd, name, O_RDONLY);	\
+	if (fd < 0)				\
+		goto out;			\
+	n = read(fd, buf, sizeof(buf) - 1);	\
+	close(fd);				\
+	if (n <= 0)				\
+		goto out;			\
+	buf[n] = '\0';				\
+	dst = conv(buf, NULL, 0);
+
+	_R("base", range->base, strtoull);
+	_R("length", range->length, strtoull);
+	_R("node", range->node, strtol);
+	_R("local_region_id", tmp, strtol);
+	if (tmp < 0 || tmp > UINT8_MAX)
+		goto out;
+	range->local_region_id = tmp;
+	_R("remote_region_id", tmp, strtol);
+	if (tmp < 0 || tmp > UINT8_MAX)
+		goto out;
+	range->remote_region_id = tmp;
+#undef _R
+
+	ret = 0;
+out:
+	close(dfd);
+	return ret;
+}
+
+static int memory_range__parse(struct memory_range **ranges)
+{
+	const char *sysfs = sysfs__mountpoint();
+	int i, err, nr_memory_ranges = 0;
+	char path[PATH_MAX];
+	struct stat st;
+
+	if (!sysfs)
+		return 0;
+
+	scnprintf(path, PATH_MAX, "%s/firmware/acpi/memory_ranges", sysfs);
+	if (stat(path, &st))
+		return 0;
+
+	while (1) {
+		scnprintf(path, PATH_MAX,
+			  "%s/firmware/acpi/memory_ranges/range%d",
+			  sysfs, nr_memory_ranges);
+		if (stat(path, &st))
+			break;
+
+		nr_memory_ranges++;
+	}
+
+	if (nr_memory_ranges == 0)
+		return 0;
+
+	*ranges = calloc(nr_memory_ranges, sizeof(struct memory_range));
+	if (!(*ranges))
+		return -ENOMEM;
+
+	for (i = 0; i < nr_memory_ranges; i++) {
+		struct memory_range range;
+
+		scnprintf(path, PATH_MAX,
+			  "%s/firmware/acpi/memory_ranges/range%d", sysfs, i);
+		err = memory_range__read(&range, path);
+		if (err < 0)
+			goto out_error;
+
+		(*ranges)[i] = range;
+	}
+
+	return nr_memory_ranges;
+
+out_error:
+	zfree(ranges);
+	return -1;
+}
+
+static int write_memory_ranges(struct feat_fd *ff,
+			 struct evlist *evlist __maybe_unused)
+{
+	struct memory_range *ranges = NULL;
+	int nr_memory_ranges = 0, ret;
+
+	nr_memory_ranges = memory_range__parse(&ranges);
+	if (nr_memory_ranges < 0)
+		return nr_memory_ranges;
+
+	ret = do_write(ff, &nr_memory_ranges, sizeof(nr_memory_ranges));
+	if (ret < 0)
+		goto out;
+
+	for (int i = 0; i < nr_memory_ranges; i++) {
+		ret = do_write(ff, &ranges[i].base, sizeof(u64));
+		if (ret < 0)
+			goto out;
+		ret = do_write(ff, &ranges[i].length, sizeof(u64));
+		if (ret < 0)
+			goto out;
+		ret = do_write(ff, &ranges[i].node, sizeof(u32));
+		if (ret < 0)
+			goto out;
+		ret = do_write(ff, &ranges[i].local_region_id, sizeof(u8));
+		if (ret < 0)
+			goto out;
+		ret = do_write(ff, &ranges[i].remote_region_id, sizeof(u8));
+		if (ret < 0)
+			goto out;
+	}
+out:
+	zfree(&ranges);
+	return ret;
+}
+
 static void print_hostname(struct feat_fd *ff, FILE *fp)
 {
 	fprintf(fp, "# hostname : %s\n", ff->ph->env.hostname);
@@ -2163,7 +2313,8 @@ static void free_event_desc(struct evsel *events)
 
 static bool perf_attr_check(struct perf_event_attr *attr)
 {
-	if (attr->__reserved_1 || attr->__reserved_2 || attr->__reserved_3) {
+	if (attr->__reserved_1 || attr->__reserved_2 ||
+	    attr->__reserved_3 || attr->__reserved_4) {
 		pr_warning("Reserved bits are set unexpectedly. "
 			   "Please update perf tool.\n");
 		return false;
@@ -2626,6 +2777,23 @@ static void print_cpu_domain_info(struct feat_fd *ff, FILE *fp)
 			fprintf(fp, "# Domain cpu map   : %s\n", d_info->cpumask);
 			fprintf(fp, "# Domain cpu list  : %s\n", d_info->cpulist);
 		}
+	}
+}
+
+static void print_memory_ranges(struct feat_fd *ff, FILE *fp)
+{
+	struct memory_range *ranges = ff->ph->env.memory_ranges;
+	int nr_memory_ranges = ff->ph->env.nr_memory_ranges;
+	int i;
+
+	fprintf(fp, "# memory ranges (nr %d):\n", nr_memory_ranges);
+
+	for (i = 0; i < nr_memory_ranges; i++) {
+		fprintf(fp, "# range%u: [0x%016" PRIx64 "-0x%016" PRIx64,
+			i, ranges[i].base, ranges[i].base + ranges[i].length - 1);
+		fprintf(fp, "], node = %d, local_region_id = %d, remote_region_id = %d\n",
+			ranges[i].node, ranges[i].local_region_id,
+			ranges[i].remote_region_id);
 	}
 }
 
@@ -3699,9 +3867,10 @@ static int process_dir_format(struct feat_fd *ff,
 	session = container_of(ff->ph, struct perf_session, header);
 	data = session->data;
 
-	if (WARN_ON(!perf_data__is_dir(data)))
+	if (!perf_data__is_dir(data)) {
+		pr_warning("Expected data to be a directory\n");
 		return -1;
-
+	}
 	return do_read_u64(ff, &data->dir.version);
 }
 
@@ -3903,7 +4072,8 @@ static int process_compressed(struct feat_fd *ff,
 	 * checks decomp_len + sizeof(struct decomp) against SIZE_MAX
 	 * before allocating, which handles 32-bit safety.
 	 */
-	if (env->comp_mmap_len < 4096 || env->comp_mmap_len % 4096) {
+	if (env->comp_mmap_len &&
+	    (env->comp_mmap_len < 4096 || env->comp_mmap_len % 4096)) {
 		pr_err("Invalid HEADER_COMPRESSED: comp_mmap_len (%u) must be a 4K-aligned value >= 4096\n",
 		       env->comp_mmap_len);
 		return -1;
@@ -4202,6 +4372,65 @@ static int process_cpu_domain_info(struct feat_fd *ff, void *data __maybe_unused
 	return ret;
 }
 
+static int process_memory_ranges(struct feat_fd *ff, void *data __maybe_unused)
+{
+	struct perf_env *env = &ff->ph->env;
+	struct memory_range *ranges, *r;
+	u32 nr_memory_ranges, i;
+
+	if (do_read_u32(ff, &nr_memory_ranges))
+		return -1;
+
+	if (!nr_memory_ranges) {
+		pr_debug("memory ranges not available\n");
+		return 0;
+	}
+
+	/*
+	 * According to version 1.1 of the ACPI MRRM table, the maximum
+	 * number of memory regions can be at most 255. Do a sanity check
+	 * here to guard against a malformed perf.data file.
+	 */
+	if (nr_memory_ranges > MAX_MEMORY_RANGES) {
+		pr_err("Invalid memory_ranges: nr_memory_ranges (%u) > %u\n",
+		       nr_memory_ranges, MAX_MEMORY_RANGES);
+		return -1;
+	}
+
+	if (ff->size < sizeof(u32) + nr_memory_ranges * (2 * sizeof(u64) + sizeof(u32) + 2 * sizeof(u8))) {
+		pr_err("Invalid HEADER_MEMORY_RANGES: section too small (%zu) for %u range entries\n",
+		       ff->size, nr_memory_ranges);
+		return -1;
+	}
+
+	ranges = calloc(nr_memory_ranges, sizeof(*ranges));
+	if (!ranges)
+		return -1;
+
+	for (i = 0; i < nr_memory_ranges; i++) {
+		r = &ranges[i];
+
+		if (do_read_u64(ff, &r->base))
+			goto error;
+		if (do_read_u64(ff, &r->length))
+			goto error;
+		if (do_read_u32(ff, (u32 *) &r->node))
+			goto error;
+		if (__do_read(ff, &r->local_region_id, sizeof(u8)))
+			goto error;
+		if (__do_read(ff, &r->remote_region_id, sizeof(u8)))
+			goto error;
+	}
+
+	env->memory_ranges = ranges;
+	env->nr_memory_ranges = nr_memory_ranges;
+
+	return 0;
+error:
+	zfree(&ranges);
+	return -1;
+}
+
 #define FEAT_OPR(n, func, __full_only) \
 	[HEADER_##n] = {					\
 		.name	    = __stringify(n),			\
@@ -4266,6 +4495,7 @@ const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPR(CPU_DOMAIN_INFO,	cpu_domain_info,	true),
 	FEAT_OPR(E_MACHINE,	e_machine,	false),
 	FEAT_OPR(CLN_SIZE,	cln_size,	false),
+	FEAT_OPR(MEMORY_RANGES,	memory_ranges,	false),
 };
 
 struct header_print_data {
@@ -4378,8 +4608,10 @@ static int do_write_feat(struct feat_fd *ff, int type,
 		if (!feat_ops[type].write)
 			return -1;
 
-		if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
+		if (ff->buf) {
+			pr_warning("Error: calling %s in pipe-mode.\n", __func__);
 			return -1;
+		}
 
 		(*p)->offset = lseek(ff->fd, 0, SEEK_CUR);
 

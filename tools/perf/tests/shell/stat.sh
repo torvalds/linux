@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf stat tests
+# perf stat tests (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e
@@ -583,6 +583,11 @@ test_hide_zero_events_stat() {
   # Check that --metric-only works with --hide-zero-events
   if ! perf stat --hide-zero-events --metric-only -e instructions,cycles true > "${stat_output}" 2>&1
   then
+    if grep -sq 'No supported events found' "${stat_output}"
+    then
+      echo "Hide zero events stat test [Skipped - events not supported]"
+      return
+    fi
     echo "Hide zero events stat test [Failed - metric-only command failed]"
     err=1
     return

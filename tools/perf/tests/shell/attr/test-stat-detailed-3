@@ -2,76 +2,77 @@
 command = stat
 args    = -ddd kill >/dev/null 2>&1
 ret     = 1
+requires = core-pmu
 
 
 # PERF_TYPE_SOFTWARE / PERF_COUNT_SW_TASK_CLOCK
-[event1:base-stat]
+[event1:base-stat-group]
 fd=1
 type=1
 config=1
 
 # PERF_TYPE_SOFTWARE / PERF_COUNT_SW_CONTEXT_SWITCHES
-[event2:base-stat]
+[event2:base-stat-group]
 fd=2
 type=1
 config=3
 
 # PERF_TYPE_SOFTWARE / PERF_COUNT_SW_CPU_MIGRATIONS
-[event3:base-stat]
+[event3:base-stat-group]
 fd=3
 type=1
 config=4
 
 # PERF_TYPE_SOFTWARE / PERF_COUNT_SW_PAGE_FAULTS
-[event4:base-stat]
+[event4:base-stat-group]
 fd=4
 type=1
 config=2
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_CPU_CYCLES
-[event5:base-stat]
+[event5:base-stat-group]
 fd=5
 type=0
 config=0
 optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_STALLED_CYCLES_FRONTEND
-[event6:base-stat]
+[event6:base-stat-group]
 fd=6
 type=0
 config=7
 optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_STALLED_CYCLES_BACKEND
-[event7:base-stat]
+[event7:base-stat-group]
 fd=7
 type=0
 config=8
 optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_INSTRUCTIONS
-[event8:base-stat]
+[event8:base-stat-group]
 fd=8
 type=0
 config=1
 optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_BRANCH_INSTRUCTIONS
-[event9:base-stat]
+[event9:base-stat-group]
 fd=9
 type=0
 config=4
 optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_BRANCH_MISSES
-[event10:base-stat]
+[event10:base-stat-group]
 fd=10
 type=0
 config=5
 optional=1
 
 # PERF_TYPE_RAW / slots (0x400)
-[event11:base-stat]
+[event11:base-stat-group]
 fd=11
 group_fd=-1
 type=4
@@ -80,7 +81,7 @@ read_format=15
 optional=1
 
 # PERF_TYPE_RAW / topdown-retiring (0x8000)
-[event12:base-stat]
+[event12:base-stat-group]
 fd=12
 group_fd=11
 type=4
@@ -91,7 +92,7 @@ read_format=15
 optional=1
 
 # PERF_TYPE_RAW / topdown-bad-spec (0x8100)
-[event13:base-stat]
+[event13:base-stat-group]
 fd=13
 group_fd=11
 type=4
@@ -102,7 +103,7 @@ read_format=15
 optional=1
 
 # PERF_TYPE_RAW / topdown-fe-bound (0x8200)
-[event14:base-stat]
+[event14:base-stat-group]
 fd=14
 group_fd=11
 type=4
@@ -113,7 +114,7 @@ read_format=15
 optional=1
 
 # PERF_TYPE_RAW / topdown-be-bound (0x8300)
-[event15:base-stat]
+[event15:base-stat-group]
 fd=15
 group_fd=11
 type=4
@@ -124,7 +125,7 @@ read_format=15
 optional=1
 
 # PERF_TYPE_RAW / topdown-heavy-ops (0x8400)
-[event16:base-stat]
+[event16:base-stat-group]
 fd=16
 group_fd=11
 type=4
@@ -135,7 +136,7 @@ read_format=15
 optional=1
 
 # PERF_TYPE_RAW / topdown-br-mispredict (0x8500)
-[event17:base-stat]
+[event17:base-stat-group]
 fd=17
 group_fd=11
 type=4
@@ -146,7 +147,7 @@ read_format=15
 optional=1
 
 # PERF_TYPE_RAW / topdown-fetch-lat (0x8600)
-[event18:base-stat]
+[event18:base-stat-group]
 fd=18
 group_fd=11
 type=4
@@ -157,7 +158,7 @@ read_format=15
 optional=1
 
 # PERF_TYPE_RAW / topdown-mem-bound (0x8700)
-[event19:base-stat]
+[event19:base-stat-group]
 fd=19
 group_fd=11
 type=4
@@ -168,63 +169,63 @@ read_format=15
 optional=1
 
 # PERF_TYPE_RAW / INT_MISC.UOP_DROPPING
-[event20:base-stat]
+[event20:base-stat-group]
 fd=20
 type=4
 config=4109
 optional=1
 
 # PERF_TYPE_RAW / cpu/INT_MISC.RECOVERY_CYCLES,cmask=1,edge/
-[event21:base-stat]
+[event21:base-stat-group]
 fd=21
 type=4
 config=17039629
 optional=1
 
-# PERF_TYPE_RAW / CPU_CLK_UNHALTED.THREAD
-[event22:base-stat]
+# PERF_TYPE_RAW / cpu-cycles (core PMU sysfs event; Intel 0x3c, AMD 0x76)
+[event22:base-stat-group]
 fd=22
 type=4
-config=60
+config=60|118
 optional=1
 
 # PERF_TYPE_RAW / INT_MISC.RECOVERY_CYCLES_ANY
-[event23:base-stat]
+[event23:base-stat-group]
 fd=23
 type=4
 config=2097421
 optional=1
 
 # PERF_TYPE_RAW / CPU_CLK_UNHALTED.REF_XCLK
-[event24:base-stat]
+[event24:base-stat-group]
 fd=24
 type=4
 config=316
 optional=1
 
 # PERF_TYPE_RAW / IDQ_UOPS_NOT_DELIVERED.CORE
-[event25:base-stat]
+[event25:base-stat-group]
 fd=25
 type=4
 config=412
 optional=1
 
 # PERF_TYPE_RAW / CPU_CLK_UNHALTED.ONE_THREAD_ACTIVE
-[event26:base-stat]
+[event26:base-stat-group]
 fd=26
 type=4
 config=572
 optional=1
 
 # PERF_TYPE_RAW / UOPS_RETIRED.RETIRE_SLOTS
-[event27:base-stat]
+[event27:base-stat-group]
 fd=27
 type=4
 config=706
 optional=1
 
 # PERF_TYPE_RAW / UOPS_ISSUED.ANY
-[event28:base-stat]
+[event28:base-stat-group]
 fd=28
 type=4
 config=270
@@ -234,7 +235,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_L1D                <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event29:base-stat]
+[event29:base-stat-group]
 fd=29
 type=3
 config=0
@@ -244,7 +245,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_L1D                <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event30:base-stat]
+[event30:base-stat-group]
 fd=30
 type=3
 config=65536
@@ -254,7 +255,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_LL                 <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event31:base-stat]
+[event31:base-stat-group]
 fd=31
 type=3
 config=2
@@ -264,7 +265,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_LL                 <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event32:base-stat]
+[event32:base-stat-group]
 fd=32
 type=3
 config=65538
@@ -274,7 +275,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_L1I                <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event33:base-stat]
+[event33:base-stat-group]
 fd=33
 type=3
 config=1
@@ -284,7 +285,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_L1I                <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event34:base-stat]
+[event34:base-stat-group]
 fd=34
 type=3
 config=65537
@@ -294,7 +295,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_DTLB               <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event35:base-stat]
+[event35:base-stat-group]
 fd=35
 type=3
 config=3
@@ -304,7 +305,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_DTLB               <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event36:base-stat]
+[event36:base-stat-group]
 fd=36
 type=3
 config=65539
@@ -314,7 +315,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_ITLB               <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event37:base-stat]
+[event37:base-stat-group]
 fd=37
 type=3
 config=4
@@ -324,7 +325,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_ITLB               <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event38:base-stat]
+[event38:base-stat-group]
 fd=38
 type=3
 config=65540
@@ -334,7 +335,7 @@ optional=1
 #  PERF_COUNT_HW_CACHE_L1D                <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_PREFETCH        <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event39:base-stat]
+[event39:base-stat-group]
 fd=39
 type=3
 config=512
@@ -344,15 +345,43 @@ optional=1
 #  PERF_COUNT_HW_CACHE_L1D                <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_PREFETCH        <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event40:base-stat]
+[event40:base-stat-group]
 fd=40
 type=3
 config=66048
 optional=1
 
 # PERF_TYPE_RAW / INT_MISC.UOP_DROPPING
-[event41:base-stat]
+[event41:base-stat-group]
 fd=41
 type=4
 config=4269
+optional=1
+
+# PERF_TYPE_RAW / instructions (core PMU sysfs event)
+[event42:base-stat-group]
+fd=42
+type=4
+config=192
+optional=1
+
+# PERF_TYPE_RAW / branch-misses (core PMU sysfs event; Intel 0xc5, AMD 0xc3)
+[event43:base-stat-group]
+fd=43
+type=4
+config=197|195
+optional=1
+
+# PERF_TYPE_RAW / stalled-cycles-frontend (core PMU sysfs event; Intel 0x180010e, AMD 0xd0/0x287/0xa9)
+[event44:base-stat-group]
+fd=44
+type=4
+config=25166094|208|647|169
+optional=1
+
+# PERF_TYPE_RAW / stalled-cycles-backend (core PMU sysfs event; Intel 0x18001b1/0x1803fb1, AMD 0xd1/0x187)
+[event45:base-stat-group]
+fd=45
+type=4
+config=25166257|25182129|209|391
 optional=1

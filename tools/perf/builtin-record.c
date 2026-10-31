@@ -1169,6 +1169,21 @@ static int record__update_evlist_pollfd_from_thread(struct record *rec,
 		int e_pos = rec->index_map[i].evlist_pollfd_index;
 		int t_pos = rec->index_map[i].thread_pollfd_index;
 
+		if (e_entries[e_pos].fd == -1 || e_entries[e_pos].events == 0) {
+			/*
+			 * If the control file descriptor was closed, then evlist__ctlfd_process()
+			 * will have called evlist__finalize_ctlfd() on the PREVIOUS loop iteration
+			 * to cleanly set the core evlist's e_entries[e_pos].fd to -1.
+			 *
+			 * Since nonfilterable items are skipped by fdarray__filter(), the
+			 * thread's local t_entries[t_pos] retains its original state.
+			 * We must explicitly propagate the finalized -1 state to t_entries
+			 * BEFORE evaluating the strict equivalence check below.
+			 */
+			t_entries[t_pos].fd = -1;
+			t_entries[t_pos].events = 0;
+		}
+
 		if (e_entries[e_pos].fd != t_entries[t_pos].fd ||
 		    e_entries[e_pos].events != t_entries[t_pos].events) {
 			pr_err("Thread and evlist pollfd index mismatch\n");

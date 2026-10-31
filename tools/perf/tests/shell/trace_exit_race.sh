@@ -6,7 +6,6 @@
 # lost. Specifically, trace the exiting syscall of "true" 10 times and ensure
 # the output contains 10 correct lines.
 
-# shellcheck source=lib/probe.sh
 . "$(dirname $0)"/lib/probe.sh
 
 skip_if_no_perf_trace || exit 2

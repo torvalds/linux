@@ -158,4 +158,5 @@ struct test_case tests__task_exit[] = {
 struct test_suite suite__task_exit = {
 	.desc = "Number of exit events of a simple workload",
 	.test_cases = tests__task_exit,
+	.needs_mlock = true,
 };

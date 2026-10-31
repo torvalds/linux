@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <string.h>
+#include <stdlib.h>
 #include <linux/compiler.h>
+#include <linux/ctype.h>
 #include <linux/zalloc.h>
 #include <assert.h>
 #include <inttypes.h>
@@ -205,15 +207,6 @@ static int x86__cpuid_parse(struct arch *arch, const char *cpuid)
 }
 
 #ifdef HAVE_LIBDW_SUPPORT
-static void invalidate_reg_state(struct type_state_reg *reg)
-{
-	reg->kind = TSR_KIND_INVALID;
-	reg->ok = false;
-	reg->lifetime_active = false;
-	reg->lifetime_end = 0;
-	reg->copied_from = -1;
-}
-
 static void update_insn_state_x86(struct type_state *state,
 				  struct data_loc_info *dloc, Dwarf_Die *cu_die,
 				  struct disasm_line *dl)
@@ -543,11 +536,11 @@ static void update_insn_state_x86(struct type_state *state,
 
 		if (src->imm) {
 			tsr->kind = TSR_KIND_CONST;
-			tsr->imm_value = src->offset;
+			tsr->imm_value = (s64)src->offset;
 			tsr->offset = 0;
 			tsr->ok = true;
 
-			pr_debug_dtp("mov [%x] imm=%#x -> reg%d\n",
+			pr_debug_dtp("mov [%x] imm=%#"PRIx64" -> reg%d\n",
 				     insn_offset, tsr->imm_value, dst->reg1);
 			return;
 		}
@@ -598,6 +591,7 @@ retry:
 				tsr->type = stack->type;
 				tsr->kind = stack->kind;
 				tsr->offset = stack->ptr_offset;
+				tsr->imm_value = stack->imm_value;
 				tsr->ok = true;
 			} else if (die_get_member_type(&stack->type,
 						       offset - stack->offset,
@@ -605,6 +599,7 @@ retry:
 				tsr->type = type_die;
 				tsr->kind = TSR_KIND_TYPE;
 				tsr->offset = 0;
+				tsr->imm_value = 0;
 				tsr->ok = true;
 			} else {
 				invalidate_reg_state(tsr);
@@ -758,14 +753,23 @@ retry:
 	}
 	/* Case 3. register to memory transfers */
 	if (!src->mem_ref && dst->mem_ref) {
-		if (!has_reg_type(state, src->reg1) ||
-		    !state->regs[src->reg1].ok)
-			return;
-
 		/* Check stack variables with offset */
 		if (dst->reg1 == fbreg || dst->reg1 == state->stack_reg) {
 			struct type_state_stack *stack;
 			int offset = dst->offset - fboff;
+
+			if (!has_reg_type(state, src->reg1) ||
+			    !state->regs[src->reg1].ok) {
+				stack = find_stack_state(state, offset);
+				/*
+				 * Preserve compound states when only a member
+				 * is overwritten.
+				 */
+				if (stack && !stack->compound)
+					delete_stack_state(state, offset);
+
+				return;
+			}
 
 			tsr = &state->regs[src->reg1];
 
@@ -780,10 +784,12 @@ retry:
 				 */
 				if (!stack->compound)
 					set_stack_state(stack, offset, tsr->kind,
-							&tsr->type, tsr->offset);
+							&tsr->type, tsr->offset,
+							tsr->imm_value);
 			} else {
 				findnew_stack_state(state, offset, tsr->kind,
-						    &tsr->type, tsr->offset);
+						    &tsr->type, tsr->offset,
+						    tsr->imm_value);
 			}
 
 			if (dst->reg1 == fbreg) {
@@ -808,6 +814,82 @@ retry:
 	/* Case 4. memory to memory transfers (not handled for now) */
 }
 #endif
+
+/*
+ * Get register number and access offset from the given instruction.
+ * It assumes AT&T x86 asm format like OFFSET(REG).
+ * Fills @reg and @offset when return 0.
+ */
+static int extract_reg_offset(const struct arch *arch, const char *str,
+			      struct annotated_op_loc *op_loc)
+{
+	char *p;
+
+	if (arch->objdump.register_char == 0)
+		return -1;
+
+	/*
+	 * It should start from offset, but it's possible to skip 0
+	 * in the asm.  So 0(%rax) should be same as (%rax).
+	 *
+	 * However, it also start with a segment select register like
+	 * %gs:0x18(%rbx).  In that case it should skip the part.
+	 */
+	if (*str == arch->objdump.register_char) {
+		/* FIXME: Handle other segment registers */
+		if (!strncmp(str, "%gs:", 4))
+			op_loc->segment = INSN_SEG_X86_GS;
+
+		while (*str && !isdigit(*str) &&
+		       *str != arch->objdump.memory_ref_char)
+			str++;
+	}
+
+	op_loc->offset = strtol(str, &p, 0);
+	op_loc->reg1 = arch__dwarf_regnum(arch, p);
+	if (op_loc->reg1 == -1)
+		return -1;
+
+	/* Get the second register */
+	if (op_loc->multi_regs)
+		op_loc->reg2 = arch__dwarf_regnum(arch, p + 1);
+
+	return 0;
+}
+
+static void extract_op_location_x86(const struct arch *arch,
+				    struct disasm_line *dl __maybe_unused,
+				    const char *op_str, int op_idx __maybe_unused,
+				    struct annotated_op_loc *op_loc)
+{
+	if (op_str == NULL)
+		return;
+
+	if (strchr(op_str, arch->objdump.memory_ref_char)) {
+		op_loc->mem_ref = true;
+		extract_reg_offset(arch, op_str, op_loc);
+	} else {
+		const char *s = op_str;
+		char *p = NULL;
+
+		/* FIXME: Handle other segment registers */
+		if (!strncmp(op_str, "%gs:", 4)) {
+			op_loc->segment = INSN_SEG_X86_GS;
+			op_loc->offset = strtol(op_str + 4, &p, 0);
+			if (p && p != op_str + 4)
+				op_loc->imm = true;
+			return;
+		}
+
+		if (*s == arch->objdump.register_char) {
+			op_loc->reg1 = arch__dwarf_regnum(arch, s);
+		} else if (*s == arch->objdump.imm_char) {
+			op_loc->offset = strtol(s + 1, &p, 0);
+			if (p && p != s + 1)
+				op_loc->imm = true;
+		}
+	}
+}
 
 const struct arch *arch__new_x86(const struct e_machine_and_e_flags *id, const char *cpuid)
 {
@@ -848,5 +930,6 @@ const struct arch *arch__new_x86(const struct e_machine_and_e_flags *id, const c
 #ifdef HAVE_LIBDW_SUPPORT
 	arch->update_insn_state = update_insn_state_x86;
 #endif
+	arch->extract_op_location = extract_op_location_x86;
 	return arch;
 }

@@ -1,10 +1,15 @@
+#include <assert.h>
 #include <bpf/libbpf.h>
+#include <errno.h>
 #include <internal/xyarray.h>
+#include <perf/threadmap.h>
+#include <string.h>
 
 #include "bpf_skel/augmented_raw_syscalls.skel.h"
 #include "debug.h"
 #include "evlist.h"
 #include "parse-events.h"
+#include "thread_map.h"
 #include "trace_augment.h"
 
 static struct augmented_raw_syscalls_bpf *skel;
@@ -23,11 +28,13 @@ int augmented_syscalls__prepare(void)
 	}
 
 	/*
-	 * Disable attaching the BPF programs except for sys_enter and
-	 * sys_exit that tail call into this as necessary.
+	 * Attach just the programs maintaining pids_to_trace now. sys_enter and
+	 * sys_exit wait for augmented_syscalls__attach(), the rest are tail called.
 	 */
 	bpf_object__for_each_program(prog, skel->obj) {
-		if (prog != skel->progs.sys_enter && prog != skel->progs.sys_exit)
+		if (prog != skel->progs.sched_process_fork &&
+		    prog != skel->progs.sched_process_exit &&
+		    prog != skel->progs.sched_process_exec)
 			bpf_program__set_autoattach(prog, /*autoattach=*/false);
 	}
 
@@ -35,10 +42,34 @@ int augmented_syscalls__prepare(void)
 	if (err < 0) {
 		libbpf_strerror(err, buf, sizeof(buf));
 		pr_debug("Failed to load augmented syscalls BPF skeleton: %s\n", buf);
+		augmented_syscalls__cleanup();
 		return err;
 	}
 
-	augmented_raw_syscalls_bpf__attach(skel);
+	err = augmented_raw_syscalls_bpf__attach(skel);
+	if (err < 0) {
+		libbpf_strerror(err, buf, sizeof(buf));
+		pr_debug("Failed to attach augmented syscalls BPF skeleton: %s\n", buf);
+		augmented_syscalls__cleanup();
+		return err;
+	}
+	return 0;
+}
+
+/* Attach sys_enter and sys_exit, once the maps they use are populated. */
+int augmented_syscalls__attach(void)
+{
+	if (skel == NULL)
+		return 0;
+
+	skel->links.sys_enter = bpf_program__attach(skel->progs.sys_enter);
+	if (skel->links.sys_enter == NULL)
+		return -errno;
+
+	skel->links.sys_exit = bpf_program__attach(skel->progs.sys_exit);
+	if (skel->links.sys_exit == NULL)
+		return -errno;
+
 	return 0;
 }
 
@@ -74,8 +105,7 @@ void augmented_syscalls__setup_bpf_output(void)
 
 		bpf_map__update_elem(skel->maps.__augmented_syscalls__,
 				     &mycpu, sizeof(mycpu),
-				     xyarray__entry(bpf_output->core.fd,
-						    mycpu, 0),
+				     xyarray__entry(bpf_output->core.fd, i, 0),
 				     sizeof(__u32), BPF_ANY);
 	}
 }
@@ -98,6 +128,45 @@ int augmented_syscalls__set_filter_pids(unsigned int nr, pid_t *pids)
 	return err;
 }
 
+/* Trace just the target's tasks, or their processes, from their next exec if on_exec. */
+void augmented_syscalls__set_target_pids(struct perf_thread_map *threads, bool inherit,
+					 bool uses_tgid, bool on_exec)
+{
+	bool traced = !on_exec;
+	pid_t last = -1;
+
+	if (skel == NULL)
+		return;
+
+	skel->bss->uses_tgid = uses_tgid;
+	/* Before seeding, so the forks of tasks already added are followed. */
+	skel->bss->inherit = inherit;
+	for (int i = 0; i < perf_thread_map__nr(threads); i++) {
+		pid_t pid = perf_thread_map__pid(threads, i);
+
+		/* A process's threads are adjacent, add it once, skipping exited threads. */
+		if (uses_tgid) {
+			pid = thread_map__tgid(threads, i);
+			if (pid < 0 || pid == last)
+				continue;
+			last = pid;
+		}
+		/* Count a lost task atomically, as the BPF programs do too. */
+		if (bpf_map__update_elem(skel->maps.pids_to_trace, &pid, sizeof(pid),
+					 &traced, sizeof(traced), BPF_ANY))
+			__atomic_fetch_add(&skel->bss->lost_tasks, 1, __ATOMIC_RELAXED);
+	}
+	skel->bss->has_pids_to_trace = true;
+}
+
+int augmented_syscalls__lost_tasks(void)
+{
+	if (skel == NULL)
+		return 0;
+
+	return skel->bss->lost_tasks;
+}
+
 int augmented_syscalls__get_map_fds(int *enter_fd, int *exit_fd, int *beauty_fd)
 {
 	if (skel == NULL)
@@ -115,9 +184,14 @@ int augmented_syscalls__get_map_fds(int *enter_fd, int *exit_fd, int *beauty_fd)
 	return 0;
 }
 
-struct bpf_program *augmented_syscalls__unaugmented(void)
+struct bpf_program *augmented_syscalls__unaugmented_enter(void)
 {
-	return skel->progs.syscall_unaugmented;
+	return skel->progs.sys_enter_unaugmented;
+}
+
+struct bpf_program *augmented_syscalls__unaugmented_exit(void)
+{
+	return skel->progs.sys_exit_unaugmented;
 }
 
 struct bpf_program *augmented_syscalls__find_by_title(const char *name)
@@ -140,4 +214,5 @@ struct bpf_program *augmented_syscalls__find_by_title(const char *name)
 void augmented_syscalls__cleanup(void)
 {
 	augmented_raw_syscalls_bpf__destroy(skel);
+	skel = NULL;
 }

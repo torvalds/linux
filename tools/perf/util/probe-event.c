@@ -519,7 +519,7 @@ static struct debuginfo *open_from_debuginfod(struct dso *dso, struct nsinfo *ns
 		pr_debug("Load debuginfo from debuginfod (%s)\n", path);
 
 	nsinfo__mountns_enter(nsi, &nsc);
-	ret = debuginfo__new((const char *)path);
+	ret = debuginfo__from_path((const char *)path);
 	nsinfo__mountns_exit(&nsc);
 	return ret;
 }
@@ -567,7 +567,7 @@ static struct debuginfo *open_debuginfo(const char *module, struct nsinfo *nsi,
 		path = dso__long_name(dso);
 	}
 	nsinfo__mountns_enter(nsi, &nsc);
-	ret = debuginfo__new(path);
+	ret = debuginfo__from_path(path);
 	if (!ret && !silent) {
 		pr_warning("The %s file has no debug information.\n", path);
 		if (!module || !strtailcmp(path, ".ko"))

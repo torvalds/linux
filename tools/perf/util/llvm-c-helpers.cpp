@@ -50,20 +50,20 @@ static LLVMSymbolizer *get_symbolizer()
 	return instance;
 }
 
-/* Returns 0 on error, 1 on success. */
+/* Returns < 0 on error, 0 when line info is missing, 1 on success. */
 static int extract_file_and_line(const DILineInfo &line_info, char **file,
 				 unsigned int *line)
 {
-	if (file) {
-		if (line_info.FileName == "<invalid>") {
-			/* Match the convention of libbfd. */
+	if (line_info.FileName == "<invalid>") {
+		if (file)
 			*file = nullptr;
-		} else {
-			/* The caller expects to get something it can free(). */
-			*file = strdup(line_info.FileName.c_str());
-			if (*file == nullptr)
-				return 0;
-		}
+		return 0;
+	}
+	if (file) {
+		/* The caller expects to get something it can free(). */
+		*file = strdup(line_info.FileName.c_str());
+		if (*file == nullptr)
+			return -ENOMEM;
 	}
 	if (line)
 		*line = line_info.Line;
@@ -86,30 +86,42 @@ int llvm_addr2line(const char *dso_name, u64 addr,
 		Expected<DIInliningInfo> res_or_err =
 			symbolizer->symbolizeInlinedCode(dso_name,
 							 sectioned_addr);
-		if (!res_or_err)
-			return 0;
+		if (!res_or_err) {
+			consumeError(res_or_err.takeError());
+			return -1;
+		}
 		unsigned num_frames = res_or_err->getNumberOfFrames();
 		if (num_frames == 0)
 			return 0;
 
-		if (extract_file_and_line(res_or_err->getFrame(0),
-					  file, line) == 0)
-			return 0;
+		int ret = extract_file_and_line(res_or_err->getFrame(0),
+						file, line);
+		if (ret <= 0)
+			return ret;
 
 		*inline_frames = (llvm_a2l_frame *)calloc(
 			num_frames, sizeof(**inline_frames));
-		if (*inline_frames == nullptr)
-			return 0;
+		if (*inline_frames == nullptr) {
+			if (file)
+				zfree(file);
+			return -ENOMEM;
+		}
 
 		for (unsigned i = 0; i < num_frames; ++i) {
 			const DILineInfo &src = res_or_err->getFrame(i);
 
 			llvm_a2l_frame &dst = (*inline_frames)[i];
-			if (src.FileName == "<invalid>")
-				/* Match the convention of libbfd. */
-				dst.filename = nullptr;
-			else
-				dst.filename = strdup(src.FileName.c_str());
+			if (src.FileName == "<invalid>") {
+				for (unsigned j = 0; j < i; ++j) {
+					zfree(&(*inline_frames)[j].filename);
+					zfree(&(*inline_frames)[j].funcname);
+				}
+				zfree(inline_frames);
+				if (file)
+					zfree(file);
+				return 0;
+			}
+			dst.filename = strdup(src.FileName.c_str());
 			dst.funcname = strdup(src.FunctionName.c_str());
 			dst.line = src.Line;
 
@@ -120,7 +132,9 @@ int llvm_addr2line(const char *dso_name, u64 addr,
 					zfree(&(*inline_frames)[j].funcname);
 				}
 				zfree(inline_frames);
-				return 0;
+				if (file)
+					zfree(file);
+				return -ENOMEM;
 			}
 		}
 
@@ -131,8 +145,10 @@ int llvm_addr2line(const char *dso_name, u64 addr,
 
 		Expected<DILineInfo> res_or_err =
 			symbolizer->symbolizeCode(dso_name, sectioned_addr);
-		if (!res_or_err)
-			return 0;
+		if (!res_or_err) {
+			consumeError(res_or_err.takeError());
+			return -1;
+		}
 		return extract_file_and_line(*res_or_err, file, line);
 	}
 }

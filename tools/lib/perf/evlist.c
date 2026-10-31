@@ -79,8 +79,9 @@ static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 		}
 	}
 
-	/* Ensure cpus only references valid PMU CPUs. */
-	if (!perf_cpu_map__has_any_cpu(evsel->cpus) &&
+	/* Ensure cpus only references valid PMU CPUs, except for uncore PMUs. */
+	if (!evsel->is_pmu_uncore &&
+	    !perf_cpu_map__has_any_cpu(evsel->cpus) &&
 	    !perf_cpu_map__is_subset(evsel->pmu_cpus, evsel->cpus)) {
 		struct perf_cpu_map *tmp = perf_cpu_map__intersect(evsel->pmu_cpus, evsel->cpus);
 

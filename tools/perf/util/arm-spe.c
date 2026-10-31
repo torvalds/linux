@@ -626,6 +626,7 @@ static const struct midr_range common_ds_encoding_cpus[] = {
 	MIDR_ALL_VERSIONS(MIDR_NEOVERSE_V1),
 	MIDR_ALL_VERSIONS(MIDR_NEOVERSE_V2),
 	MIDR_ALL_VERSIONS(MIDR_NEOVERSE_V3),
+	MIDR_ALL_VERSIONS(MIDR_NEOVERSE_V3AE),
 	MIDR_ALL_VERSIONS(MIDR_NVIDIA_OLYMPUS),
 	{},
 };
@@ -2029,7 +2030,10 @@ int arm_spe_process_auxtrace_info(union perf_event *event,
 	if (session->itrace_synth_opts && session->itrace_synth_opts->set) {
 		spe->synth_opts = *session->itrace_synth_opts;
 	} else {
-		itrace_synth_opts__set_default(&spe->synth_opts, false);
+		struct itrace_synth_opts *opts = session->itrace_synth_opts;
+		bool single_event_per_ip = opts ? opts->default_single_event_per_ip : false;
+
+		itrace_synth_opts__set_default(&spe->synth_opts, false, single_event_per_ip);
 		/* Default nanoseconds period not supported */
 		spe->synth_opts.period_type = PERF_ITRACE_PERIOD_INSTRUCTIONS;
 		spe->synth_opts.period = 1;
@@ -2040,6 +2044,17 @@ int arm_spe_process_auxtrace_info(union perf_event *event,
 		err = -EINVAL;
 		goto err_free_queues;
 	}
+
+	/*
+	 * When --itrace is used with non-i/y options (e.g., --itrace=M),
+	 * the period remains 0 because the parser does not apply a default
+	 * for those paths. However, synthesized SPE events such as memory
+	 * accesses, TLB walks, and cache misses still require a valid
+	 * sample->period to correctly accumulate periods and compute event
+	 * percentages. Set it to 1 to ensure proper accounting.
+	 */
+	spe->synth_opts.period = spe->synth_opts.period ?: 1;
+
 	if (spe->synth_opts.period > 1)
 		ui__warning("Arm SPE has a hardware-based sampling period.\n\n"
 			    "--itrace periods > 1i downsample by an interval of n SPE samples rather than n instructions.\n");

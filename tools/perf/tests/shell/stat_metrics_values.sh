@@ -1,9 +1,8 @@
 #!/bin/bash
-# perf metrics value validation
+# perf metrics value validation (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 shelldir=$(dirname "$0")
-# shellcheck source=lib/setup_python.sh
 . "${shelldir}"/lib/setup_python.sh
 
 grep -q GenuineIntel /proc/cpuinfo || { echo Skipping non-Intel; exit 2; }

@@ -116,6 +116,10 @@ int fdarray__filter(struct fdarray *fda, short revents,
 		return 0;
 
 	for (fd = 0; fd < fda->nr; ++fd) {
+		/*
+		 * Explicitly bypass nonfilterable items (e.g. control descriptors).
+		 * This ensures their fd, events, and revents remain completely untouched.
+		 */
 		if (fda->priv[fd].flags & fdarray_flag__nonfilterable)
 			continue;
 

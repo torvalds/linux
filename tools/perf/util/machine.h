@@ -15,6 +15,7 @@ struct dso;
 struct dso_id;
 struct evsel;
 struct perf_sample;
+struct perf_session;
 struct symbol;
 struct target;
 struct thread;
@@ -148,12 +149,19 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 typedef void (*machine__process_t)(struct machine *machine, void *data);
 
 struct machines {
+	/** @session: back link to owning session if there is one. */
+	struct perf_session *session;
 	struct machine host;
 	struct rb_root_cached guests;
 };
 
-int machines__init(struct machines *machines);
+int machines__init(struct machines *machines, struct perf_session *session);
 void machines__exit(struct machines *machines);
+
+static inline struct perf_session *machines__session(struct machines *machines)
+{
+	return machines->session;
+}
 
 void machines__process_guests(struct machines *machines,
 			      machine__process_t process, void *data);

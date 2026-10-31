@@ -68,6 +68,14 @@ struct cpu_domain_map {
 	struct domain_info	**domains;
 };
 
+struct memory_range {
+	u64 base;
+	u64 length;
+	int node;
+	u8 local_region_id;
+	u8 remote_region_id;
+};
+
 struct perf_env {
 	char			*hostname;
 	char			*os_release;
@@ -100,6 +108,7 @@ struct perf_env {
 	int			nr_cpu_pmu_caps;
 	int			nr_hybrid_nodes;
 	int			nr_pmus_with_caps;
+	int			nr_memory_ranges;
 	char			*cmdline;
 	const char		**cmdline_argv;
 	char			*sibling_cores;
@@ -122,6 +131,7 @@ struct perf_env {
 	unsigned long long	 memory_bsize;
 	struct hybrid_node	*hybrid_nodes;
 	struct pmu_caps		*pmu_caps;
+	struct memory_range	*memory_ranges;
 #ifdef HAVE_LIBBPF_SUPPORT
 	/*
 	 * bpf_info_lock protects bpf rbtrees. This is needed because the

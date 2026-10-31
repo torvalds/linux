@@ -182,6 +182,24 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "FP_ARITH_INST_RETIRED.SCALAR_HALF",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_INST_RETIRED.SCALAR_HALF",
+        "SampleAfterValue": "100003",
+        "UMask": "0x100",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Number of all Scalar Half-Precision FP arithmetic instructions(1) retired - regular and complex.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_INST_RETIRED.SCALAR_HALF_WCOMPLEX",
+        "SampleAfterValue": "100003",
+        "UMask": "0x300",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Counts number of SSE/AVX computational scalar single precision floating-point instructions retired; some instructions will count twice as noted below.  Each count represents 1 computational operation. Applies to SSE* and AVX* scalar single precision floating-point instructions: ADD SUB MUL DIV MIN MAX SQRT RSQRT RCP FM(N)ADD/SUB.  FM(N)ADD/SUB instructions count twice as they perform 2 calculations per element.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc8",
@@ -239,6 +257,24 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "FP_ARITH_OPS_RETIRED.16_FLOPS",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_ARITH_OPS_RETIRED.16_FLOPS",
+        "SampleAfterValue": "100003",
+        "UMask": "0x880",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "FP_ARITH_OPS_RETIRED.1_FLOPS",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_ARITH_OPS_RETIRED.1_FLOPS",
+        "SampleAfterValue": "100003",
+        "UMask": "0x103",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Counts number of SSE/AVX computational 256-bit packed double precision floating-point instructions retired; some instructions will count twice as noted below.  Each count represents 4 computation operations, one for each element.  Applies to SSE* and AVX* packed double precision floating-point instructions: ADD SUB HADD HSUB SUBADD MUL DIV MIN MAX SQRT FM(N)ADD/SUB.  FM(N)ADD/SUB instructions count twice as they perform 2 calculations per element.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc7",
@@ -256,6 +292,24 @@
         "PublicDescription": "Number of SSE/AVX computational 256-bit packed single precision floating-point instructions retired; some instructions will count twice as noted below.  Each count represents 8 computation operations, one for each element.  Applies to SSE* and AVX* packed single precision floating-point instructions: ADD SUB HADD HSUB SUBADD MUL DIV MIN MAX SQRT RSQRT RCP DPP FM(N)ADD/SUB.  DPP and FM(N)ADD/SUB instructions count twice as they perform 2 calculations per element. The DAZ and FTZ flags in the MXCSR register need to be set when using these events.",
         "SampleAfterValue": "100003",
         "UMask": "0x20",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "FP_ARITH_OPS_RETIRED.2_FLOPS",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_ARITH_OPS_RETIRED.2_FLOPS",
+        "SampleAfterValue": "100003",
+        "UMask": "0x204",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "FP_ARITH_OPS_RETIRED.32_FLOPS",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_ARITH_OPS_RETIRED.32_FLOPS",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1000",
         "Unit": "cpu_core"
     },
     {
@@ -364,6 +418,375 @@
         "SampleAfterValue": "100003",
         "UMask": "0x10c0",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of retired packed 256 bit floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.256B_PACKED",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x5fe0",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired packed 512 bit floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.512B_PACKED",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x9fe0",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the total number of retired floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.ALL",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1fff",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the total number of retired floating point FMA arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.FMA",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x3fff",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired packed floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.PACKED",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1fe0",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired packed 128 bit or 256 bit double precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.PACKED_DP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1000",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired packed 128 bit or 256 bit half precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.PACKED_HP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired packed 128 bit or 256 bit half precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.PACKED_HP_CMPLX3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x100",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired packed 128 bit or 256 bit half precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.PACKED_HP_CMPLX4",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x200",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired packed 128 bit or 256 bit half precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.PACKED_HP_DOT_PROD",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x80",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired packed 128 bit or 256 bit single precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.PACKED_SP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x800",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired scalar 64 bit double precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.SCALAR_DP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired scalar 16 bit half precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.SCALAR_HP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired scalar 16 bit half precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.SCALAR_HP_CMPLX3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired scalar 16 bit half precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.SCALAR_HP_CMPLX4",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired scalar 32 bit single precision floating point arithmetic operations.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc8",
+        "EventName": "FP_ARITH_RETIRED.SCALAR_SP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 256 bit double precision instructions. Requires SW to use a multiplier of 2.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.256B_PACKED_DP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x5000",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 256 bit half precision instructions. Requires SW to use a multiplier of 8.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.256B_PACKED_HP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4040",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 256 bit single precision instructions. Requires SW to use a multiplier of 4.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.256B_PACKED_SP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4800",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 512 bit double precision instructions. Requires SW to use a multiplier of 2.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.512B_PACKED_DP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x9000",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 512 bit half precision instructions. Requires SW to use a multiplier of 8.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.512B_PACKED_HP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8040",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 512 bit single precision instructions. Requires SW to use a multiplier of 4.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.512B_PACKED_SP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8800",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 128 bit or 256 bit double precision instructions. Requires SW to use a multiplier of 2.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.PACKED_DP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1000",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 128 bit or 256 bit half precision instructions. Requires SW to use a multiplier of 8.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.PACKED_HP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 128 bit or 256 bit half precision complex instructions. Requires SW to use a multiplier of 24.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.PACKED_HP_CMPLX3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x100",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 128 bit or 256 bit half precision complex instructions. Requires SW to use a multiplier of 32.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.PACKED_HP_CMPLX4",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x200",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 128 bit or 256 bit half precision instructions. Requires SW to use a multiplier of 16.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.PACKED_HP_DOT_PROD",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x80",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of packed 128 bit or 256 bit single precision instructions. Requires SW to use a multiplier of 4.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.PACKED_SP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x800",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of scalar 64 bit double precision instructions. Requires no SW multiplier.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SCALAR_DP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of scalar 16 bit half precision instructions. Requires no SW multiplier.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SCALAR_HP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of scalar 16 bit half precision complex instructions. Requires SW to use a multiplier of 3.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SCALAR_HP_CMPLX3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of scalar 16 bit half precision complex instructions. Requires SW to use a multiplier of 4 .",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SCALAR_HP_CMPLX4",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations of scalar 32 bit single precision instructions. Requires no SW multiplier.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SCALAR_SP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations that require a SW multiplier of 16.  A summation of all SW multiplied events is required in order to calculate total FLOPS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SW_16X",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x80",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations that require a SW multiplier of 1.  A summation of all SW multiplied events is required in order to calculate total FLOPS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SW_1X",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x19",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations that require a SW multiplier of 24.  A summation of all SW multiplied events is required in order to calculate total FLOPS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SW_24X",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x100",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations that require a SW multiplier of 2.  A summation of all SW multiplied events is required in order to calculate total FLOPS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SW_2X",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1000",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations that require a SW multiplier of 32.  A summation of all SW multiplied events is required in order to calculate total FLOPS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SW_32X",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x600",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations that require a SW multiplier of 3.  A summation of all SW multiplied events is required in order to calculate total FLOPS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SW_3X",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations that require a SW multiplier of 4.  A summation of all SW multiplied events is required in order to calculate total FLOPS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SW_4X",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x804",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retired floating point operations that require a SW multiplier of 8.  A summation of all SW multiplied events is required in order to calculate total FLOPS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc7",
+        "EventName": "FP_FLOPS_RETIRED.SW_8X",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts the number of uops executed on all floating point ports.",

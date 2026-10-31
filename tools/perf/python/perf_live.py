@@ -33,10 +33,16 @@ class LiveSession:
                 # Poll for events with 100ms timeout
                 try:
                     self.evlist.poll(100)
+                # CPython's PyErr_SetFromErrno() invokes PyErr_CheckSignals() on
+                # EINTR, converting SIGINT into KeyboardInterrupt, which inherits
+                # from BaseException rather than InterruptedError/OSError, so
+                # Ctrl-C exits the loop and triggers finally: self.evlist.close()
+                # while non-fatal signals retry poll().
                 except InterruptedError:
                     continue
                 for cpu in self.cpus:
-                    for _ in range(1000): # Limit to 1000 events per CPU per poll to prevent starvation
+                    # Limit to 1000 events per CPU per poll to prevent starvation
+                    for _ in range(1000):
                         try:
                             event = self.evlist.read_on_cpu(cpu)
                         except TypeError as e:
@@ -53,7 +59,5 @@ class LiveSession:
 
                         if event.type == perf.RECORD_SAMPLE:
                             self.sample_callback(event)
-        except KeyboardInterrupt:
-            pass
         finally:
             self.evlist.close()

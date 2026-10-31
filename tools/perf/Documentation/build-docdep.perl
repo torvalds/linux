@@ -41,6 +41,6 @@ while ($changed) {
 while (my ($text, $included) = each %include) {
     if (! exists $included{$text} &&
 	(my $base = $text) =~ s/\.txt$//) {
-	print "$base.html $base.xml : ", join(" ", keys %$included), "\n";
+	print "\$(OUTPUT)$base.html \$(OUTPUT)$base.xml : ", join(" ", keys %$included), "\n";
     }
 }

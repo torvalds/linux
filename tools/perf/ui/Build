@@ -4,6 +4,7 @@ perf-ui-y += progress.o
 perf-ui-y += util.o
 perf-ui-y += hist.o
 perf-ui-y += stdio/hist.o
+perf-ui-y += stdio/progress.o
 
 CFLAGS_setup.o += -DLIBDIR="BUILD_STR($(LIBDIR))"
 

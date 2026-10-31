@@ -1644,6 +1644,13 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 		if (sample->user_regs && sample->user_regs->abi) {
 			result += sizeof(u64);
 			sz = hweight64(sample->user_regs->mask) * sizeof(u64);
+			if (sample->user_regs->abi & PERF_SAMPLE_REGS_ABI_SIMD) {
+				sz += 4 * sizeof(u64);
+				sz += (sample->user_regs->nr_vectors *
+				       sample->user_regs->vector_qwords +
+				       sample->user_regs->nr_pred *
+				       sample->user_regs->pred_qwords) * sizeof(u64);
+			}
 			result += sz;
 		} else {
 			result += sizeof(u64);
@@ -1672,6 +1679,13 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 		if (sample->intr_regs && sample->intr_regs->abi) {
 			result += sizeof(u64);
 			sz = hweight64(sample->intr_regs->mask) * sizeof(u64);
+			if (sample->intr_regs->abi & PERF_SAMPLE_REGS_ABI_SIMD) {
+				sz += 4 * sizeof(u64);
+				sz += (sample->intr_regs->nr_vectors *
+				       sample->intr_regs->vector_qwords +
+				       sample->intr_regs->nr_pred *
+				       sample->intr_regs->pred_qwords) * sizeof(u64);
+			}
 			result += sz;
 		} else {
 			result += sizeof(u64);
@@ -1859,6 +1873,18 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 			sz = hweight64(sample->user_regs->mask) * sizeof(u64);
 			memcpy(array, sample->user_regs->regs, sz);
 			array = (void *)array + sz;
+			if (sample->user_regs->abi & PERF_SAMPLE_REGS_ABI_SIMD) {
+				*array++ = sample->user_regs->nr_vectors;
+				*array++ = sample->user_regs->vector_qwords;
+				*array++ = sample->user_regs->nr_pred;
+				*array++ = sample->user_regs->pred_qwords;
+				sz = (sample->user_regs->nr_vectors *
+				      sample->user_regs->vector_qwords +
+				      sample->user_regs->nr_pred *
+				      sample->user_regs->pred_qwords) * sizeof(u64);
+				memcpy(array, sample->user_regs->simd_data, sz);
+				array = (void *)array + sz;
+			}
 		} else {
 			*array++ = 0;
 		}
@@ -1895,6 +1921,18 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 			sz = hweight64(sample->intr_regs->mask) * sizeof(u64);
 			memcpy(array, sample->intr_regs->regs, sz);
 			array = (void *)array + sz;
+			if (sample->intr_regs->abi & PERF_SAMPLE_REGS_ABI_SIMD) {
+				*array++ = sample->intr_regs->nr_vectors;
+				*array++ = sample->intr_regs->vector_qwords;
+				*array++ = sample->intr_regs->nr_pred;
+				*array++ = sample->intr_regs->pred_qwords;
+				sz = (sample->intr_regs->nr_vectors *
+				      sample->intr_regs->vector_qwords +
+				      sample->intr_regs->nr_pred *
+				      sample->intr_regs->pred_qwords) * sizeof(u64);
+				memcpy(array, sample->intr_regs->simd_data, sz);
+				array = (void *)array + sz;
+			}
 		} else {
 			*array++ = 0;
 		}
@@ -2266,7 +2304,7 @@ int perf_event__synthesize_extra_attr(const struct perf_tool *tool, struct evlis
 		if (has_scale(evsel)) {
 			err = perf_event__synthesize_event_update_scale(tool, evsel, process);
 			if (err < 0) {
-				pr_err("Couldn't synthesize evsel evsel.\n");
+				pr_err("Couldn't synthesize evsel.\n");
 				return err;
 			}
 		}
@@ -2776,6 +2814,8 @@ static union perf_event *__synthesize_schedstat_domain(struct io *io, __u16 vers
 	size = sizeof(*ds);
 	size = PERF_ALIGN(size, sizeof(u64));
 	event = zalloc(size);
+	if (!event)
+		return NULL;
 
 	ds = &event->schedstat_domain;
 	ds->header.type = PERF_RECORD_SCHEDSTAT_DOMAIN;
@@ -2817,7 +2857,6 @@ int perf_event__synthesize_schedstat(const struct perf_tool *tool,
 				     struct perf_cpu_map *user_requested_cpus)
 {
 	char *line = NULL, path[PATH_MAX];
-	union perf_event *event = NULL;
 	size_t line_len = 0;
 	char bf[BUFSIZ];
 	__u64 timestamp;
@@ -2858,6 +2897,7 @@ int perf_event__synthesize_schedstat(const struct perf_tool *tool,
 	 * for filtered out cpus.
 	 */
 	for (ch = io__get_char(&io); !io.eof; ch = io__get_char(&io)) {
+		union perf_event *event = NULL;
 		struct perf_cpu this_cpu;
 
 		if (ch == 'c') {
@@ -2872,12 +2912,12 @@ int perf_event__synthesize_schedstat(const struct perf_tool *tool,
 
 		this_cpu.cpu = cpu;
 
-		if (user_requested_cpus && !perf_cpu_map__has(user_requested_cpus, this_cpu))
-			continue;
-
-		if (process(tool, event, NULL, NULL) < 0) {
-			free(event);
-			goto out_free_line;
+		if (!user_requested_cpus ||
+		    perf_cpu_map__has(user_requested_cpus, this_cpu)) {
+			if (process(tool, event, NULL, NULL) < 0) {
+				free(event);
+				goto out_free_line;
+			}
 		}
 
 		free(event);

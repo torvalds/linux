@@ -46,46 +46,46 @@ def is_counter_value(num):
 def is_metric_value(num):
   return isfloat(num) or num == 'none'
 
-def check_json_output(expected_items):
+def check_json_output(expected_count):
   checks = {
-      'counters': lambda x: isfloat(x),
+      'counters': isfloat,
       'core': lambda x: True,
-      'counter-value': lambda x: is_counter_value(x),
+      'counter-value': is_counter_value,
       'cgroup': lambda x: True,
-      'cpu': lambda x: isint(x),
+      'cpu': isint,
       'cache': lambda x: True,
       'cluster': lambda x: True,
       'die': lambda x: True,
       'event': lambda x: True,
-      'event-runtime': lambda x: isfloat(x),
-      'interval': lambda x: isfloat(x),
+      'event-runtime': isfloat,
+      'interval': isfloat,
       'metric-unit': lambda x: True,
-      'metric-value': lambda x: is_metric_value(x),
+      'metric-value': is_metric_value,
       'metric-threshold': lambda x: x in ['unknown', 'good', 'less good', 'nearly bad', 'bad'],
       'metricgroup': lambda x: True,
       'node': lambda x: True,
-      'pcnt-running': lambda x: isfloat(x),
+      'pcnt-running': isfloat,
       'socket': lambda x: True,
       'thread': lambda x: True,
       'unit': lambda x: True,
   }
-  input = '[\n' + ','.join(Lines) + '\n]'
-  for item in json.loads(input):
-    if expected_items != -1:
+  json_input = '[\n' + ','.join(Lines) + '\n]'
+  for item in json.loads(json_input):
+    if expected_count:
       count = len(item)
-      if count not in expected_items and count >= 1 and count <= 7 and 'metric-value' in item:
+      if count not in expected_count and count >= 1 and count <= 7 and 'metric-value' in item:
         # Events that generate >1 metric may have isolated metric
         # values and possibly other prefixes like interval, core,
         # counters, or event-runtime/pcnt-running from multiplexing.
         pass
-      elif count not in expected_items and count >= 1 and count <= 5 and 'metricgroup' in item:
+      elif count not in expected_count and count >= 1 and count <= 5 and 'metricgroup' in item:
         pass
-      elif count - 1 in expected_items and 'metric-threshold' in item:
+      elif count - 1 in expected_count and 'metric-threshold' in item:
           pass
-      elif count in expected_items and 'insn per cycle' in item:
+      elif count in expected_count and 'insn per cycle' in item:
           pass
-      elif count not in expected_items:
-        raise RuntimeError(f'wrong number of fields. counted {count} expected {expected_items}'
+      elif count not in expected_count:
+        raise RuntimeError(f'wrong number of fields. counted {count} expected {expected_count}'
                            f' in \'{item}\'')
     for key, value in item.items():
       if key not in checks:
@@ -107,7 +107,7 @@ try:
     expected_items = [1, 2]
   else:
     # If no option is specified, don't check the number of items.
-    expected_items = -1
+    expected_items = []
   check_json_output(expected_items)
 except:
   print('Test failed for input:\n' + '\n'.join(Lines))

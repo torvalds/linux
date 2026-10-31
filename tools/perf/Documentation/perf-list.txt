@@ -10,6 +10,7 @@ SYNOPSIS
 [verse]
 'perf list' [<options>]
             [hw|sw|cache|tracepoint|pmu|sdt|metric|metricgroup|event_glob]
+'perf list' --tui [-- <ilist options>]
 
 DESCRIPTION
 -----------
@@ -50,6 +51,15 @@ Output in JSON format.
 -o::
 --output=::
 	Output file name. By default output is written to stdout.
+
+--tui::
+Rather than printing the events, interactively browse the PMUs, events and
+metrics in the terminal using the 'ilist' python script (see
+linkperf:perf-script[1]). Selecting an event or metric shows its description
+and counts it on each CPU. The script requires the perf python module and the
+python 'textual' library. Other options are ignored, arguments after '--' are
+passed to the script, for example 'perf list --tui -- -I 0.5' to update the
+counts every 0.5 seconds.
 
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS

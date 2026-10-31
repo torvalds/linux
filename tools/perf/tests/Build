@@ -23,6 +23,7 @@ perf-test-y += hists_output.o
 perf-test-y += hists_cumulate.o
 perf-test-y += bp_signal.o
 perf-test-y += bp_signal_overflow.o
+perf-test-y += event_refresh.o
 perf-test-y += bp_account.o
 perf-test-y += wp.o
 perf-test-y += task-exit.o
@@ -65,6 +66,7 @@ perf-test-y += perf-time-to-tsc.o
 perf-test-y += dlfilter-test.o
 perf-test-y += sigtrap.o
 perf-test-y += event_groups.o
+perf-test-y += hybrid-merge.o
 perf-test-y += symbols.o
 perf-test-y += util.o
 perf-test-y += hwmon_pmu.o
@@ -72,7 +74,7 @@ perf-test-y += tool_pmu.o
 perf-test-y += subcmd-help.o
 perf-test-y += kallsyms-split.o
 
-ifeq ($(SRCARCH),$(filter $(SRCARCH),x86 arm arm64 powerpc))
+ifeq ($(SRCARCH),$(filter $(SRCARCH),x86 arm arm64 powerpc riscv))
 perf-test-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
 endif
 
@@ -92,7 +94,9 @@ $(OUTPUT)%.shellcheck_log: %
 	$(call rule_mkdir)
 	$(Q)$(call echo-cmd,test)$(SHELLCHECK) "$<" > $@ || (cat $@ && rm $@ && false)
 
-perf-test-y += $(SHELL_TEST_LOGS)
+.PHONY: shellcheck
+shellcheck: $(addprefix $(OUTPUT)tests/,$(SHELL_TEST_LOGS))
+	@:
 
 ifdef MYPY
   PY_TESTS := $(shell find tests/shell -type f -name '*.py')
@@ -103,9 +107,11 @@ endif
 
 $(OUTPUT)%.mypy_log: %
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,test)mypy "$<" > $@ || (cat $@ && rm $@ && false)
+	$(Q)$(call echo-cmd,test)$(MYPY) "$<" > $@ || (cat $@ && rm $@ && false)
 
-perf-test-y += $(MYPY_TEST_LOGS)
+.PHONY: mypy
+mypy: $(addprefix $(OUTPUT)tests/,$(MYPY_TEST_LOGS))
+	@:
 
 ifdef PYLINT
   PY_TESTS := $(shell find tests/shell -type f -name '*.py')
@@ -116,6 +122,8 @@ endif
 
 $(OUTPUT)%.pylint_log: %
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,test)pylint "$<" > $@ || (cat $@ && rm $@ && false)
+	$(Q)$(call echo-cmd,test)$(PYLINT) "$<" > $@ || (cat $@ && rm $@ && false)
 
-perf-test-y += $(PYLINT_TEST_LOGS)
+.PHONY: pylint
+pylint: $(addprefix $(OUTPUT)tests/,$(PYLINT_TEST_LOGS))
+	@:

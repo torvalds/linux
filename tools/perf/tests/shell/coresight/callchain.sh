@@ -30,6 +30,11 @@ skip_if_system_is_not_ready()
 		return 2
 	}
 
+	[ -e /proc/kcore ] || {
+		echo "[Skip] /proc/kcore is not available" >&2
+		return 2
+	}
+
 	return 0
 }
 
@@ -43,7 +48,7 @@ record_trace()
 
 	mkfifo "$cf" "$af"
 
-	perf record -o "$data" -e cs_etm// --per-thread -D -1 --control fifo:"$cf","$af" -- \
+	perf record --kcore -o "$data" -e cs_etm// --per-thread -D -1 --control fifo:"$cf","$af" -- \
 		perf test --record-ctl fifo:"$cf","$af" -w callchain >/dev/null 2>&1 &&
 
 	# It is safe to use 'i3i' with a three-instruction interval, since the

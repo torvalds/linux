@@ -61,7 +61,6 @@ perf-util-y += arch/
 perf-y += arch/
 perf-test-y += arch/
 perf-ui-y += ui/
-perf-util-y += scripts/
 
 gtk-y += ui/gtk/
 
@@ -77,7 +76,9 @@ $(OUTPUT)%.shellcheck_log: %
 	$(call rule_mkdir)
 	$(Q)$(call echo-cmd,test)$(SHELLCHECK) "$<" > $@ || (cat $@ && rm $@ && false)
 
-perf-y += $(SHELL_TEST_LOGS)
+.PHONY: shellcheck
+shellcheck: $(addprefix $(OUTPUT),$(SHELL_TEST_LOGS))
+	@:
 
 ifdef MYPY
   PY_TESTS := $(shell find python -type f -name '*.py')
@@ -88,9 +89,11 @@ endif
 
 $(OUTPUT)%.mypy_log: %
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,test)mypy "$<" > $@ || (cat $@ && rm $@ && false)
+	$(Q)$(call echo-cmd,test)$(MYPY) "$<" > $@ || (cat $@ && rm $@ && false)
 
-perf-y += $(MYPY_TEST_LOGS)
+.PHONY: mypy
+mypy: $(addprefix $(OUTPUT),$(MYPY_TEST_LOGS))
+	@:
 
 ifdef PYLINT
   PY_TESTS := $(shell find python -type f -name '*.py')
@@ -101,6 +104,8 @@ endif
 
 $(OUTPUT)%.pylint_log: %
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,test)pylint "$<" > $@ || (cat $@ && rm $@ && false)
+	$(Q)$(call echo-cmd,test)$(PYLINT) "$<" > $@ || (cat $@ && rm $@ && false)
 
-perf-y += $(PYLINT_TEST_LOGS)
+.PHONY: pylint
+pylint: $(addprefix $(OUTPUT),$(PYLINT_TEST_LOGS))
+	@:

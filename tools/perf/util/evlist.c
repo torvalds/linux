@@ -7,6 +7,7 @@
  */
 #include "evlist.h"
 
+#include <stdio.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <signal.h>
@@ -53,6 +54,7 @@
 #include "event.h"
 #include "evsel.h"
 #include "evsel_fprintf.h"
+#include "hist.h"
 #include "intel-tpebs.h"
 #include "metricgroup.h"
 #include "mmap.h"
@@ -125,12 +127,24 @@ struct evlist *evlist__new_default(const struct target *target, bool sample_call
 		if (err)
 			goto out_err;
 	} else {
+		struct evsel *leader = NULL;
+
+		/* Fallback for cross-platform file analysis missing the topology header */
 		while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 			snprintf(buf, sizeof(buf), "%s/cycles/%s", pmu->name,
 				can_profile_kernel ? "P" : "Pu");
 			err = parse_event(evlist, buf);
 			if (err)
 				goto out_err;
+
+			if (!leader) {
+				leader = evlist__last(evlist);
+			} else {
+				struct evsel *last = evlist__last(evlist);
+
+				if (last != leader)
+					last->first_wildcard_match = leader;
+			}
 		}
 	}
 
@@ -146,6 +160,175 @@ struct evlist *evlist__new_default(const struct target *target, bool sample_call
 out_err:
 	evlist__put(evlist);
 	return NULL;
+}
+
+/**
+ * evlist__hybrid_matches - find events that may be merged across core PMUs.
+ * @evlist: The evlist to check.
+ * @env: The perf_env containing the PMU mapping information, NULL for the
+ *       current machine.
+ * @link: Should the matches be recorded in first_wildcard_match?
+ *
+ * perf record, top, etc. set first_wildcard_match in the event parsing. The
+ * perf.data case (e.g. perf report) recomputes the first_wildcard_match using
+ * string matches for core events on hybrid systems.
+ */
+static bool evlist__hybrid_matches(struct evlist *evlist, struct perf_env *env, bool link)
+{
+	struct evsel *pos;
+	unsigned int nr = 0;
+	bool found = false;
+
+	evlist__for_each_entry(evlist, pos) {
+		if (evsel__is_dummy_event(pos))
+			continue;
+
+		if (pos->core.leader != &pos->core || pos->core.nr_members > 1)
+			return false;
+
+		if (pos->first_wildcard_match)
+			found = true;
+		nr++;
+	}
+
+	/* No events found. */
+	if (nr <= 1)
+		return false;
+
+	/* Found wildcard events from parsing. */
+	if (found)
+		return true;
+
+	/* Try to find matching core events and set the first_wildcard_match. */
+	evlist__for_each_entry(evlist, pos) {
+		const char *pos_name;
+		const char *pos_match;
+		struct evsel *peer;
+
+		if (evsel__is_dummy_event(pos) || pos->first_wildcard_match)
+			continue;
+
+		pos_name = evsel__name(pos);
+		pos_match = pos_name ? strchr(pos_name, '/') : NULL;
+
+		if (!pos_match)
+			continue;
+
+		/* If evsel->core.is_pmu_core missing in report, fallback to perf_env */
+		if (!evsel__is_hybrid(pos)) {
+			if (!is_pmu_core_len(env, pos_name, pos_match - pos_name))
+				continue;
+		}
+
+		peer = pos;
+		list_for_each_entry_continue(peer, &evlist__core(evlist)->entries, core.node) {
+			const char *peer_name;
+			const char *peer_match;
+
+			if (evsel__is_dummy_event(peer) || peer->first_wildcard_match)
+				continue;
+
+			peer_name = evsel__name(peer);
+			peer_match = peer_name ? strchr(peer_name, '/') : NULL;
+			if (!peer_match)
+				continue;
+
+			if (!evsel__is_hybrid(peer)) {
+				if (!is_pmu_core_len(env, peer_name,
+						     peer_match - peer_name))
+					continue;
+			}
+
+			if (strcmp(pos_match, peer_match))
+				continue;
+
+			found = true;
+			if (!link) {
+				/* Just a test, don't modify the evlist. */
+				return true;
+			}
+			/*
+			 * Keep looking so that all the events of this name are
+			 * linked, there may be more than 2 core PMUs.
+			 */
+			peer->first_wildcard_match = pos;
+		}
+	}
+	return found;
+}
+
+/**
+ * evlist__can_merge_hybrid - can events in the evlist be merged across core
+ * PMUs? The evlist isn't modified.
+ * @evlist: The evlist to check.
+ * @env: The perf_env containing the PMU mapping information, NULL for the
+ *       current machine.
+ */
+bool evlist__can_merge_hybrid(struct evlist *evlist, struct perf_env *env)
+{
+	return evlist__hybrid_matches(evlist, env, /*link=*/false);
+}
+
+/*
+ * evlist__merge_hybrid - group hybrid events logically together.
+ * @evlist: The evlist containing events to merge.
+ * @env: The perf_env containing the PMU mapping information, NULL for the
+ *       current machine.
+ *
+ * Iterates through the evlist and merges associated hybrid events by assigning
+ * their first_wildcard_match as their core group leader, modifying their
+ * presentation for a single merged histogram view.
+ */
+void evlist__merge_hybrid(struct evlist *evlist, struct perf_env *env)
+{
+	struct list_head new_list;
+	struct evsel *member, *mtmp;
+	struct evsel *pos, *tmp;
+	int idx = 0;
+
+	/* Compute first_wildcard_match for events that lack it, say from a file. */
+	if (!evlist__hybrid_matches(evlist, env, /*link=*/true))
+		return;
+
+	evlist__for_each_entry_safe(evlist, tmp, pos) {
+		struct evsel *leader, *old_leader;
+
+		if (evsel__is_dummy_event(pos))
+			continue;
+
+		if (!pos->first_wildcard_match)
+			continue;
+
+		leader = evsel__leader(pos->first_wildcard_match);
+		old_leader = evsel__leader(pos);
+		if (old_leader == leader)
+			continue;
+
+		if (old_leader != pos)
+			old_leader->core.nr_members--;
+		pos->core.leader = &leader->core;
+		pos->merged_hybrid_group = true;
+		/* Base is 1 to natively represent the leader */
+		if (leader->core.nr_members == 0)
+			leader->core.nr_members = 1;
+		leader->core.nr_members++;
+	}
+
+	INIT_LIST_HEAD(&new_list);
+
+	while (!list_empty(&evlist__core(evlist)->entries)) {
+		pos = list_first_entry(&evlist__core(evlist)->entries, struct evsel, core.node);
+		list_move_tail(&pos->core.node, &new_list);
+
+		list_for_each_entry_safe(member, mtmp, &evlist__core(evlist)->entries, core.node) {
+			if (member->core.leader == &pos->core)
+				list_move_tail(&member->core.node, &new_list);
+		}
+	}
+	list_splice_init(&new_list, &evlist__core(evlist)->entries);
+
+	evlist__for_each_entry(evlist, pos)
+		pos->core.idx = idx++;
 }
 
 struct evlist *evlist__new_dummy(void)
@@ -570,7 +753,9 @@ static bool evlist__is_enabled(struct evlist *evlist)
 	struct evsel *pos;
 
 	evlist__for_each_entry(evlist, pos) {
-		if (!evsel__is_group_leader(pos) || !pos->core.fd)
+		if (!pos->core.fd)
+			continue;
+		if (!evsel__is_group_leader(pos) && !pos->merged_hybrid_group)
 			continue;
 		/* If at least one event is enabled, evlist is enabled. */
 		if (!pos->disabled)
@@ -584,14 +769,19 @@ static void __evlist__disable(struct evlist *evlist, char *evsel_name, bool excl
 	struct evsel *pos, *member;
 	struct evlist_cpu_iterator evlist_cpu_itr;
 	bool has_imm = false;
+	bool match;
 
 	/* Disable 'immediate' events last */
 	for (int imm = 0; imm <= 1; imm++) {
 		evlist__for_each_cpu(evlist_cpu_itr, evlist) {
 			pos = evlist_cpu_itr.evsel;
-			if (evsel__strcmp(pos, evsel_name))
+			match = !evsel__strcmp(pos, evsel_name);
+			if (!match && pos->merged_hybrid_group && evsel__leader(pos))
+				match = !evsel__strcmp(evsel__leader(pos), evsel_name);
+			if (!match)
 				continue;
-			if (pos->disabled || !evsel__is_group_leader(pos) || !pos->core.fd)
+			if (pos->disabled || (!evsel__is_group_leader(pos) &&
+					      !pos->merged_hybrid_group) || !pos->core.fd)
 				continue;
 			if (excl_dummy && evsel__is_dummy_event(pos))
 				continue;
@@ -606,9 +796,12 @@ static void __evlist__disable(struct evlist *evlist, char *evsel_name, bool excl
 	}
 
 	evlist__for_each_entry(evlist, pos) {
-		if (evsel__strcmp(pos, evsel_name))
+		match = !evsel__strcmp(pos, evsel_name);
+		if (!match && pos->merged_hybrid_group && evsel__leader(pos))
+			match = !evsel__strcmp(evsel__leader(pos), evsel_name);
+		if (!match)
 			continue;
-		if (!evsel__is_group_leader(pos) || !pos->core.fd)
+		if ((!evsel__is_group_leader(pos) && !pos->merged_hybrid_group) || !pos->core.fd)
 			continue;
 		if (excl_dummy && evsel__is_dummy_event(pos))
 			continue;
@@ -644,21 +837,28 @@ static void __evlist__enable(struct evlist *evlist, char *evsel_name, bool excl_
 {
 	struct evsel *pos, *member;
 	struct evlist_cpu_iterator evlist_cpu_itr;
+	bool match;
 
 	evlist__for_each_cpu(evlist_cpu_itr, evlist) {
 		pos = evlist_cpu_itr.evsel;
-		if (evsel__strcmp(pos, evsel_name))
+		match = !evsel__strcmp(pos, evsel_name);
+		if (!match && pos->merged_hybrid_group && evsel__leader(pos))
+			match = !evsel__strcmp(evsel__leader(pos), evsel_name);
+		if (!match)
 			continue;
-		if (!evsel__is_group_leader(pos) || !pos->core.fd)
+		if ((!evsel__is_group_leader(pos) && !pos->merged_hybrid_group) || !pos->core.fd)
 			continue;
 		if (excl_dummy && evsel__is_dummy_event(pos))
 			continue;
 		evsel__enable_cpu(pos, evlist_cpu_itr.cpu_map_idx);
 	}
 	evlist__for_each_entry(evlist, pos) {
-		if (evsel__strcmp(pos, evsel_name))
+		match = !evsel__strcmp(pos, evsel_name);
+		if (!match && pos->merged_hybrid_group && evsel__leader(pos))
+			match = !evsel__strcmp(evsel__leader(pos), evsel_name);
+		if (!match)
 			continue;
-		if (!evsel__is_group_leader(pos) || !pos->core.fd)
+		if ((!evsel__is_group_leader(pos) && !pos->merged_hybrid_group) || !pos->core.fd)
 			continue;
 		if (excl_dummy && evsel__is_dummy_event(pos))
 			continue;
@@ -773,13 +973,15 @@ static int evlist__event2id(struct evlist *evlist, union perf_event *event, u64 
 	const __u64 *array = event->sample.array;
 	ssize_t n;
 
-	n = (event->header.size - sizeof(event->header)) >> 3;
-
 	if (event->header.type == PERF_RECORD_SAMPLE) {
+		n = (event->header.size - sizeof(event->header)) >> 3;
 		if (evlist__id_pos(evlist) >= n)
 			return -1;
 		*id = array[evlist__id_pos(evlist)];
 	} else {
+		u16 size = evsel__event_size(evlist__first(evlist), event);
+
+		n = (size - sizeof(event->header)) >> 3;
 		if (evlist__is_pos(evlist) > n)
 			return -1;
 		n -= evlist__is_pos(evlist);
@@ -1232,8 +1434,12 @@ int evlist__set_tp_filter(struct evlist *evlist, const char *filter)
 	struct evsel *evsel;
 	int err = 0;
 
+	/*
+	 * The only caller that passes NULL is evlist__set_tp_filter_pids(),
+	 * where it means asprintf__tp_filter_pids() failed to allocate.
+	 */
 	if (filter == NULL)
-		return -1;
+		return -ENOMEM;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
@@ -1252,8 +1458,12 @@ int evlist__append_tp_filter(struct evlist *evlist, const char *filter)
 	struct evsel *evsel;
 	int err = 0;
 
+	/*
+	 * As above, a NULL filter is asprintf__tp_filter_pids() having failed
+	 * to allocate in evlist__append_tp_filter_pids().
+	 */
 	if (filter == NULL)
-		return -1;
+		return -ENOMEM;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)

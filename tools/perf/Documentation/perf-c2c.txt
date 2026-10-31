@@ -107,6 +107,10 @@ REPORT OPTIONS
 --stats::
 	Display only statistic tables and force stdio mode.
 
+--function::
+	Display the function view and force stdio mode.  This requires `iaddr`
+	in the cacheline coalescing fields and cannot be used with `--stats`.
+
 --full-symbols::
 	Display full length of symbols.
 
@@ -341,7 +345,7 @@ output fields set for cacheline offsets output:
              Code address, Code symbol, Shared Object, Source line
   dso   - coalesced by shared object
 
-By default the coalescing is setup with 'pid,iaddr'.
+By default, coalescing uses `iaddr`.
 
 STDIO OUTPUT
 ------------
@@ -360,6 +364,10 @@ Following tables are displayed:
   Shared Cache Line Distribution Pareto
   - list of all accessed offsets for each cacheline
 
+With `--function`, the cacheline and Pareto tables are replaced by a fully
+expanded Shared Data Functions Table.  Its three levels are the read-side
+function, contending writer, and shared cacheline, as detailed below.
+
 TUI OUTPUT
 ----------
 The TUI output provides interactive interface to navigate
@@ -374,8 +382,8 @@ Verbose mode also includes code addresses in function rows, and code addresses
 remain available in the per-cacheline detail view ('d').
 
 The function view requires `iaddr` in the cacheline coalescing fields.  If
-`--coalesce` omits it, TAB reports that the view is unavailable rather than
-attributing already-coalesced samples to an arbitrary function.
+`--coalesce` omits it, TAB or `--function` reports that the view is unavailable
+rather than attributing already-coalesced samples to an arbitrary function.
 
   Level 1: the read-side function, sorted by Cycles % (estimated load
            cycles: HITM, peer-snoop and other-load cycles)

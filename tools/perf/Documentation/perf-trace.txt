@@ -172,6 +172,12 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	Trace system calls. This options is enabled by default, disable with
 	--no-syscalls.
 
+--syscall-augment::
+	Augment system call arguments using BPF, the default when BPF support
+	is available. Disable with --no-syscall-augment to use the
+	raw_syscalls tracepoints instead, such as when more tasks are alive
+	at once than augmentation can trace.
+
 --call-graph [mode,type,min[,limit],order[,key][,branch]]::
         Setup and enable call-graph (stack chain/backtrace) recording.
         See `--call-graph` section in perf-record and perf-report

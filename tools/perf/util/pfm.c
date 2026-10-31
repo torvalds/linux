@@ -141,6 +141,7 @@ static bool is_libpfm_event_supported(const char *name, struct perf_cpu_map *cpu
 		return false;
 
 	evsel->is_libpfm_event = true;
+	evsel->support_probe = true;
 
 	ret = evsel__open(evsel, cpus, threads);
 	if (ret == -EACCES) {

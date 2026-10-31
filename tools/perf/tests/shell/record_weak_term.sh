@@ -5,7 +5,6 @@
 set -e
 
 shelldir=$(dirname "$0")
-# shellcheck source=lib/setup_python.sh
 . "${shelldir}"/lib/setup_python.sh
 
 # Find the first event with a specified period, such as

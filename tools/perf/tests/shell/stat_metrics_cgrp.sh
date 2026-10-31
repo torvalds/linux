@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf stat metrics --for-each-cgroup test
+# perf stat metrics --for-each-cgroup test (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e
@@ -86,6 +86,13 @@ check_metric_reported()
 
 	for cgrp in "${cgrps[@]}"; do
 		# Find metric lines for this cgroup
+		case "$cgrp" in
+			/)  # The root cgroup, leave unchanged.
+			  ;;
+			/*) # Strip any starting slashes.
+			  cgrp="${cgrp#/}"
+			  ;;
+		esac
 		# We use exact cgroup match with surrounding commas
 		local cgrp_lines
 		cgrp_lines=$(echo "${output}" | grep -F ",${cgrp}," | grep "insn_per_cycle" || true)

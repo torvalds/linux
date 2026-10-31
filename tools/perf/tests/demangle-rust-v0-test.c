@@ -58,6 +58,7 @@ static int test__demangle_rust(struct test_suite *test __maybe_unused, int subte
 		if (!buf) {
 			pr_debug("FAILED to demangle: \"%s\"\n \"%s\"\n", test_cases[i].mangled,
 				 test_cases[i].demangled);
+			ret = TEST_FAIL;
 			continue;
 		}
 		if (strcmp(buf, test_cases[i].demangled)) {

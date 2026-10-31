@@ -16,6 +16,7 @@
 struct evsel_config_term;
 struct hashmap;
 struct perf_cpu_map;
+struct perf_env;
 struct print_callbacks;
 
 enum {
@@ -289,6 +290,8 @@ int perf_pmu__for_each_format(struct perf_pmu *pmu, void *state, pmu_format_call
 u64 perf_pmu__format_unpack(unsigned long *format, u64 config_val);
 
 bool is_pmu_core(const char *name);
+bool is_pmu_core_len(struct perf_env *env, const char *name, size_t len);
+
 bool perf_pmu__supports_legacy_cache(const struct perf_pmu *pmu);
 bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu);
 bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name);

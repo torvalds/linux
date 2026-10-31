@@ -1,14 +1,14 @@
 Database Export
 ===============
 
-perf tool's python scripting engine:
+perf tool's python module:
 
-	tools/perf/util/scripting-engines/trace-event-python.c
+	tools/perf/util/python.c
 
-supports scripts:
+supports standalone scripts:
 
-	tools/perf/scripts/python/export-to-sqlite.py
-	tools/perf/scripts/python/export-to-postgresql.py
+	tools/perf/python/export-to-sqlite.py
+	tools/perf/python/export-to-postgresql.py
 
 which export data to a SQLite3 or PostgreSQL database.
 
@@ -31,11 +31,5 @@ backward compatibility by testing for the presence of new tables and columns
 before using them. e.g. function IsSelectable() in exported-sql-viewer.py
 
 4. The export scripts themselves maintain forward compatibility (i.e. an existing
-script will continue to work with new versions of perf) by accepting a variable
-number of arguments (e.g. def call_return_table(*x)) i.e. perf can pass more
-arguments which old scripts will ignore.
-
-5. The scripting engine tests for the existence of script handler functions
-before calling them.  The scripting engine can also test for the support of new
-or optional features by checking for the existence and value of script global
-variables.
+script will continue to work with new versions of perf) by querying event and
+sample attributes dynamically from the perf Python module.

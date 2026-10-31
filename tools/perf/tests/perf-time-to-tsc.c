@@ -218,4 +218,5 @@ static struct test_case time_to_tsc_tests[] = {
 struct test_suite suite__perf_time_to_tsc = {
 	.desc = "Convert perf time to TSC",
 	.test_cases = time_to_tsc_tests,
+	.needs_mlock = true,
 };

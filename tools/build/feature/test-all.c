@@ -10,8 +10,8 @@
  * Quirk: Python headers cannot be in arbitrary places, so keep this testcase at
  * the top:
  */
-#define main main_test_libpython
-# include "test-libpython.c"
+#define main main_test_python_module
+# include "test-python-module.c"
 #undef main
 
 #define main main_test_hello
@@ -90,6 +90,10 @@
 # include "test-pthread-barrier.c"
 #undef main
 
+#define main main_test_pthread_mutex_robust
+# include "test-pthread-mutex-robust.c"
+#undef main
+
 #define main main_test_scandirat
 # include "test-scandirat.c"
 #undef main
@@ -148,7 +152,7 @@
 
 int main(int argc, char *argv[])
 {
-	main_test_libpython();
+	main_test_python_module();
 	main_test_hello();
 	main_test_libelf();
 	main_test_gettid();
@@ -167,6 +171,7 @@ int main(int argc, char *argv[])
 	main_test_zlib();
 	main_test_pthread_attr_setaffinity_np();
 	main_test_pthread_barrier();
+	main_test_pthread_mutex_robust();
 	main_test_lzma();
 	main_test_bpf();
 	main_test_scandirat();

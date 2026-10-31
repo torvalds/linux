@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf all metrics test
+# perf all metrics test (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 ParanoidAndNotRoot()

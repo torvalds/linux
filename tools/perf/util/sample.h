@@ -16,6 +16,11 @@ struct regs_dump {
 	u64 abi;
 	u64 mask;
 	u64 *regs;
+	u64 nr_vectors;
+	u64 vector_qwords;
+	u64 nr_pred;
+	u64 pred_qwords;
+	u64 *simd_data;
 
 	/* Cached values/mask filled by first register access. */
 	u64 cache_regs[PERF_SAMPLE_REGS_CACHE_SIZE];

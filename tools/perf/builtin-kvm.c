@@ -27,6 +27,7 @@
 #include "util/kvm-stat.h"
 #include "util/util.h"
 #include "ui/browsers/hists.h"
+#include "ui/keysyms.h"
 #include "ui/progress.h"
 #include "ui/ui.h"
 #include "util/string2.h"
@@ -1043,7 +1044,7 @@ static void show_timeofday(void)
 	gettimeofday(&tv, NULL);
 	if (localtime_r(&tv.tv_sec, &ltime)) {
 		strftime(date, sizeof(date), "%H:%M:%S", &ltime);
-		pr_info("%s.%06ld", date, tv.tv_usec);
+		pr_info("%s.%06ld", date, (long)tv.tv_usec);
 	} else
 		pr_info("00:00:00.000000");
 

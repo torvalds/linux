@@ -390,6 +390,14 @@ static void update_insn_state_powerpc(struct type_state *state,
 }
 #endif /* HAVE_LIBDW_SUPPORT */
 
+static void extract_op_location_powerpc(const struct arch *arch __maybe_unused,
+					struct disasm_line *dl,
+					const char *op_str __maybe_unused, int op_idx,
+					struct annotated_op_loc *op_loc)
+{
+	get_powerpc_regs(dl->raw.raw_insn, !op_idx, op_loc);
+}
+
 const struct arch *arch__new_powerpc(const struct e_machine_and_e_flags *id,
 				     const char *cpuid __maybe_unused)
 {
@@ -406,5 +414,6 @@ const struct arch *arch__new_powerpc(const struct e_machine_and_e_flags *id,
 #ifdef HAVE_LIBDW_SUPPORT
 	arch->update_insn_state = update_insn_state_powerpc;
 #endif
+	arch->extract_op_location = extract_op_location_powerpc;
 	return arch;
 }

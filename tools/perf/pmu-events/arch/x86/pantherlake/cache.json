@@ -779,6 +779,7 @@
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.MEMSIDE_CACHE",
         "PublicDescription": "Retired load instructions which data source is memory side cache. Available PDIST counters: 0,1",
         "SampleAfterValue": "100007",
+        "UMask": "0x100",
         "Unit": "cpu_core"
     },
     {
@@ -832,6 +833,7 @@
         "EventName": "MEM_LOAD_RETIRED.L1_HIT_L1",
         "PublicDescription": "Counts retired load instructions with at least one uop that hit in the Level 1 of the L1 data cache. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
+        "UMask": "0x100",
         "Unit": "cpu_core"
     },
     {
@@ -1070,6 +1072,7 @@
         "EventCode": "0x44",
         "EventName": "MEM_STORE_RETIRED.MEMSIDE_CACHE",
         "SampleAfterValue": "100021",
+        "UMask": "0x400",
         "Unit": "cpu_core"
     },
     {

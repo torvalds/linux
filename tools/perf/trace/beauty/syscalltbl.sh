@@ -55,7 +55,7 @@ build_tables() {
 
 	echo "static const uint16_t syscall_sorted_names_${e_machine}[] = {" >> "$outfile"
 
-	# When sorting by name, add a suffix of 0s upto 20 characters so that
+	# When sorting by name, add a suffix of 0s up to 20 characters so that
 	# system calls that differ with a numerical suffix don't sort before
 	# those without. This default behavior of sort differs from that of
 	# strcmp used at runtime. Use sed to strip the trailing 0s suffix

@@ -95,8 +95,10 @@ There are several variants of 'perf sched':
    events, ``try_to_wakeup()`` call among others. This is useful in understanding the
    scheduler behavior for the workload.
 
-   Note: The tool will not give correct results if there is topological reordering or
-         online/offline of cpus in between capturing snapshots of `/proc/schedstat`.
+   Note: Reports reject incomplete snapshots and mismatched CPU or domain IDs.
+         Topology changes that retain the same IDs, including CPUs going offline
+         and returning online between snapshots, cannot be detected and may still
+         produce incorrect results.
 
     Example usage:
         perf sched stats record -- sleep 1

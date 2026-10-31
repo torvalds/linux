@@ -581,6 +581,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : All Requests : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing. : Any local or remote transaction to the LLC, including prefetch.",
+        "UMask": "0x2000",
         "Unit": "CHA"
     },
     {
@@ -602,6 +603,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : CRd Requests : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing. : Local or remote CRd transactions to the LLC.  This includes CRd prefetch.",
+        "UMask": "0x1000",
         "Unit": "CHA"
     },
     {
@@ -612,6 +614,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : Local non-prefetch requests : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing. : Any local transaction to the LLC, not including prefetch",
+        "UMask": "0x4000",
         "Unit": "CHA"
     },
     {
@@ -644,6 +647,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : Data Read Request : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing. : Read transactions.",
+        "UMask": "0x100",
         "Unit": "CHA"
     },
     {
@@ -709,6 +713,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : Flush : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.",
+        "UMask": "0x400",
         "Unit": "CHA"
     },
     {
@@ -730,6 +735,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : Local LLC prefetch requests (from LLC) : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing. : Any local LLC prefetch to the LLC",
+        "UMask": "0x8000",
         "Unit": "CHA"
     },
     {
@@ -806,6 +812,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : Transactions homed locally : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing. : Transaction whose address resides in the local MC.",
+        "UMask": "0x80000",
         "Unit": "CHA"
     },
     {
@@ -915,6 +922,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : Write Requests : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing. : Writeback transactions from L2 to the LLC  This includes all write transactions -- both Cacheable and UC.",
+        "UMask": "0x200",
         "Unit": "CHA"
     },
     {
@@ -925,6 +933,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : Remote non-snoop requests : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing. : Remote non-snoop transactions to the LLC.",
+        "UMask": "0x20000",
         "Unit": "CHA"
     },
     {
@@ -968,6 +977,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : Transactions homed remotely : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing. : Transaction whose address resides in a remote MC",
+        "UMask": "0x100000",
         "Unit": "CHA"
     },
     {
@@ -1011,6 +1021,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Cache Lookups : Remote snoop requests : Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing. : Remote snoop transactions to the LLC.",
+        "UMask": "0x40000",
         "Unit": "CHA"
     },
     {
@@ -1043,6 +1054,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS select a state or states (in the umask field) to match.  Otherwise, the event will count nothing. : Local or remote RFO transactions to the LLC.  This includes RFO prefetch.",
+        "UMask": "0x800",
         "Unit": "CHA"
     },
     {
@@ -1240,6 +1252,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Lines Victimized : Local Only : Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
+        "UMask": "0x2000",
         "Unit": "CHA"
     },
     {
@@ -1305,6 +1318,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "Lines Victimized : Remote Only : Counts the number of lines that were victimized on a fill.  This can be filtered by the state that the line was in.",
+        "UMask": "0x8000",
         "Unit": "CHA"
     },
     {
@@ -3705,6 +3719,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : DDR Access : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x400",
         "Unit": "CHA"
     },
     {
@@ -3726,6 +3741,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : Just Hits : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x100",
         "Unit": "CHA"
     },
     {
@@ -5277,6 +5293,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : Just ISOC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x200000000",
         "Unit": "CHA"
     },
     {
@@ -5287,6 +5304,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : Just Local Targets : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x8000",
         "Unit": "CHA"
     },
     {
@@ -5330,6 +5348,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : Match the Opcode in b[29:19] of the extended umask field : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x20000",
         "Unit": "CHA"
     },
     {
@@ -5340,6 +5359,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : Just Misses : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x200",
         "Unit": "CHA"
     },
     {
@@ -5350,6 +5370,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : MMCFG Access : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x2000",
         "Unit": "CHA"
     },
     {
@@ -5360,6 +5381,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : MMIO Access : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x4000",
         "Unit": "CHA"
     },
     {
@@ -5370,6 +5392,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : Just NearMem : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x40000000",
         "Unit": "CHA"
     },
     {
@@ -5380,6 +5403,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : Just NonCoherent : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x100000000",
         "Unit": "CHA"
     },
     {
@@ -5390,6 +5414,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : Just NotNearMem : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x80000000",
         "Unit": "CHA"
     },
     {
@@ -5400,6 +5425,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : PM Access : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x800",
         "Unit": "CHA"
     },
     {
@@ -5410,6 +5436,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : Match the PreMorphed Opcode in b[29:19] of the extended umask field : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x40000",
         "Unit": "CHA"
     },
     {
@@ -5442,6 +5469,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : Just Remote Targets : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x10000",
         "Unit": "CHA"
     },
     {
@@ -5568,6 +5596,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : DDR Access : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x400",
         "Unit": "CHA"
     },
     {
@@ -5589,6 +5618,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : Just Hits : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x100",
         "Unit": "CHA"
     },
     {
@@ -7118,6 +7148,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : Just ISOC : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x200000000",
         "Unit": "CHA"
     },
     {
@@ -7128,6 +7159,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : Just Local Targets : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x8000",
         "Unit": "CHA"
     },
     {
@@ -7171,6 +7203,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : Match the Opcode in b[29:19] of the extended umask field : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x20000",
         "Unit": "CHA"
     },
     {
@@ -7181,6 +7214,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : Just Misses : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x200",
         "Unit": "CHA"
     },
     {
@@ -7191,6 +7225,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : MMCFG Access : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x2000",
         "Unit": "CHA"
     },
     {
@@ -7201,6 +7236,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : MMIO Access : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x4000",
         "Unit": "CHA"
     },
     {
@@ -7211,6 +7247,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : Just NearMem : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x40000000",
         "Unit": "CHA"
     },
     {
@@ -7221,6 +7258,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : Just NonCoherent : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x100000000",
         "Unit": "CHA"
     },
     {
@@ -7231,6 +7269,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : Just NotNearMem : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x80000000",
         "Unit": "CHA"
     },
     {
@@ -7241,6 +7280,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : PMM Access : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.",
+        "UMask": "0x800",
         "Unit": "CHA"
     },
     {
@@ -7251,6 +7291,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : Match the PreMorphed Opcode in b[29:19] of the extended umask field : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x40000",
         "Unit": "CHA"
     },
     {
@@ -7283,6 +7324,7 @@
         "Experimental": "1",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : Just Remote Targets : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
+        "UMask": "0x10000",
         "Unit": "CHA"
     },
     {

@@ -59,7 +59,7 @@ static int run_dir(const char *d)
 	TEST_ASSERT_VAL("Failed to get dso", dso);
 
 	ret = dso__load_bfd_symbols(dso, debugfile);
-	TEST_ASSERT_VAL("Failed to load symbols", ret == 0);
+	TEST_ASSERT_VAL("Failed to load symbols", ret > 0);
 
 	dso__sort_by_name(dso);
 	sym = dso__find_symbol_by_name(dso, "main", &idx);
@@ -74,17 +74,20 @@ static int test__pe_file_parsing(struct test_suite *test __maybe_unused,
 {
 	struct stat st;
 	char path_dir[PATH_MAX];
-
-	/* First try development tree tests. */
-	if (!lstat("./tests", &st))
-		return run_dir("./tests");
-
-	/* Then installed path. */
+	const char * const tests_dirs[] = {
+		"./tools/perf/tests",
+		"./tests",
+		"./source/tests",
+		path_dir,
+	};
 	snprintf(path_dir, PATH_MAX, "%s/tests", get_argv_exec_path());
 
-	if (!lstat(path_dir, &st))
-		return run_dir(path_dir);
+	for (size_t i = 0; i < ARRAY_SIZE(tests_dirs); ++i) {
+		if (!lstat(tests_dirs[i], &st))
+			return run_dir(tests_dirs[i]);
+	}
 
+	pr_debug("cannot find the tests directory\n");
 	return TEST_SKIP;
 }
 
@@ -93,6 +96,7 @@ static int test__pe_file_parsing(struct test_suite *test __maybe_unused,
 static int test__pe_file_parsing(struct test_suite *test __maybe_unused,
 			  int subtest __maybe_unused)
 {
+	pr_debug("libbfd is not available\n");
 	return TEST_SKIP;
 }
 

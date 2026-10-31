@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
 #include "arch-tests.h"
 #include "../util/topdown.h"
 #include "debug.h"
@@ -229,10 +231,38 @@ static int test__x86_topdown_slots_injection(struct test_suite *test __maybe_unu
 	return TEST_OK;
 }
 
+/*
+ * An explicit "slots,metrics_clear=1" event is still the slots event and
+ * must not cause an extra slots event to be injected into the group.
+ */
+static int test__x86_topdown_metrics_clear(struct test_suite *test __maybe_unused,
+					   int subtest __maybe_unused)
+{
+	struct perf_pmu *pmu;
+	char event_str[128];
+	int ret;
+
+	if (!topdown_sys_has_perf_metrics())
+		return TEST_OK;
+
+	pmu = perf_pmus__find_by_type(PERF_TYPE_RAW);
+	if (!pmu || !perf_pmu__has_format(pmu, "metrics_clear"))
+		return TEST_OK;
+
+	snprintf(event_str, sizeof(event_str),
+		 "{%s/slots,metrics_clear=1/,%s/topdown-retiring/}",
+		 pmu->name, pmu->name);
+	ret = test_sort(event_str, 2, 1);
+	TEST_ASSERT_EQUAL("explicit metrics_clear slots event isn't duplicated", ret, TEST_OK);
+
+	return TEST_OK;
+}
+
 static struct test_case x86_topdown_tests[] = {
 	TEST_CASE("topdown events", x86_topdown),
 	TEST_CASE("topdown sorting", x86_topdown_sorting),
 	TEST_CASE("topdown slots injection", x86_topdown_slots_injection),
+	TEST_CASE("topdown metrics_clear no extra slots", x86_topdown_metrics_clear),
 	{ .name = NULL, }
 };
 

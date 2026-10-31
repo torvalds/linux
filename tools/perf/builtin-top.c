@@ -51,6 +51,7 @@
 #include "util/intlist.h"
 #include "util/parse-branch-options.h"
 #include "arch/common.h"
+#include "ui/keysyms.h"
 #include "ui/ui.h"
 
 #include "util/debug.h"
@@ -1313,9 +1314,11 @@ static int __cmd_top(struct perf_top *top)
 	}
 
 	/*
-	 * Use global stat_config that is zero meaning aggr_mode is AGGR_NONE
-	 * and hybrid_merge is false.
+	 * Use global stat_config that is zero meaning aggr_mode is AGGR_NONE.
+	 * Merging affects the event names as merged events share a name, all
+	 * other stat_config behavior is unwanted here.
 	 */
+	stat_config.hybrid_merge = symbol_conf.hybrid_merge;
 	evlist__uniquify_evsel_names(top->evlist, &stat_config);
 	ret = perf_top__start_counters(top);
 	if (ret)
@@ -1334,6 +1337,21 @@ static int __cmd_top(struct perf_top *top)
 	 */
         if (!target__none(&opts->target))
 		evlist__enable(top->evlist);
+
+	if (symbol_conf.hybrid_merge) {
+		if (evlist__can_merge_hybrid(top->evlist, /*env=*/NULL)) {
+			evlist__merge_hybrid(top->evlist, /*env=*/NULL);
+			evlist__merge_hists_hybrid(top->evlist, false);
+		} else if (symbol_conf.hybrid_merge_set) {
+			/*
+			 * Only an explicit --hybrid-merge warns. A
+			 * core.hybrid-merge default is silent, as most
+			 * machines aren't hybrid and there is nothing the
+			 * user needs to do about it.
+			 */
+			ui__warning("--hybrid-merge: no events to merge across core PMUs\n");
+		}
+	}
 
 	ret = -1;
 	if (pthread_create(&thread_process, NULL, process_thread, top)) {
@@ -1490,9 +1508,14 @@ int cmd_top(int argc, const char **argv)
 	OPT_CALLBACK('e', "event", &parse_events_option_args, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events_option),
+	OPT_BOOLEAN_SET(0, "hybrid-merge", &symbol_conf.hybrid_merge,
+			&symbol_conf.hybrid_merge_set,
+			"merge the same event across hybrid core PMUs"),
 	OPT_CALLBACK(0, "filter", &top.evlist, "filter",
 		     "event filter", parse_filter),
 	OPT_U64('c', "count", &opts->user_interval, "event period to sample"),
+	OPT_BOOLEAN('W', "weight", &opts->sample_weight,
+		    "sample by weight (on special events only)"),
 	OPT_STRING('p', "pid", &target->pid, "pid",
 		    "profile events on existing process id"),
 	OPT_STRING('t', "tid", &target->tid, "tid",
@@ -1675,6 +1698,17 @@ int cmd_top(int argc, const char **argv)
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)
 		usage_with_options(top_usage, options);
+
+	if (symbol_conf.report_hierarchy && symbol_conf.hybrid_merge) {
+		if (symbol_conf.hybrid_merge_set) {
+			pr_err("Error: --hierarchy and --hybrid-merge are mutually exclusive.\n");
+			status = -EINVAL;
+			goto out_put_evlist;
+		}
+		/* A config file default shouldn't fail an explicit option. */
+		pr_warning("core.hybrid-merge ignored: --hierarchy cannot display merged hybrid events\n");
+		symbol_conf.hybrid_merge = false;
+	}
 
 	if (disassembler_style) {
 		annotate_opts.disassembler_style = strdup(disassembler_style);

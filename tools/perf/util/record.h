@@ -62,6 +62,13 @@ struct record_opts {
 	u64	      branch_stack;
 	u64	      sample_intr_regs;
 	u64	      sample_user_regs;
+	u16	      sample_simd_regs_enabled;
+	u16	      sample_vec_reg_qwords;
+	u16	      sample_pred_reg_qwords;
+	u32	      sample_intr_pred_regs;
+	u32	      sample_user_pred_regs;
+	u64	      sample_intr_vec_regs;
+	u64	      sample_user_vec_regs;
 	u64	      default_interval;
 	u64	      user_interval;
 	size_t	      auxtrace_snapshot_size;

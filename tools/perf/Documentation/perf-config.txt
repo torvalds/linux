@@ -217,6 +217,16 @@ core.*::
 		Sets a timeout (in milliseconds) for parsing 'addr2line'
 		output.  The default timeout is 5s.
 
+	hybrid-merge::
+		Merge matching events from all hybrid core PMUs into one display
+		by default. For example, if a wildcard expands to run on both p-cores and
+		e-cores, this aggregates them into a single view. This applies to
+		'perf report' and 'perf top', it is ignored with '--hierarchy' and
+		doesn't alter 'perf stat' where '--hybrid-merge' must be given
+		explicitly. As a default it is silently ignored when there is
+		nothing to merge, such as on a machine with a single core PMU,
+		whereas an explicit '--hybrid-merge' warns.
+
 tui.*, gtk.*::
 	Subcommands that can be configured here are 'top', 'report' and 'annotate'.
 	These values are booleans, for example:

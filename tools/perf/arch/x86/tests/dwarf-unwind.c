@@ -8,6 +8,10 @@
 #include "debug.h"
 #include "tests/tests.h"
 
+#if defined(MEMORY_SANITIZER) && !defined(__msan_unpoison)
+# include <sanitizer/msan_interface.h>
+#endif
+
 #define STACK_SIZE 8192
 
 static int sample_ustack(struct perf_sample *sample,

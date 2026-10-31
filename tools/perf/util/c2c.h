@@ -33,6 +33,7 @@ struct c2c_hist_entry {
 	unsigned long		*nodeset;
 	struct c2c_stats	*node_stats;
 	unsigned int		 cacheline_idx;
+	unsigned int		 mem_region;
 
 	struct compute_stats	 cstats;
 
@@ -107,6 +108,7 @@ bool c2c_fmt_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
 int c2c_function__build(struct c2c_hists *cl_hists, const char *cl_sort,
 			bool symbol_full, struct hists **hists);
 void c2c_function__reset(void);
+bool c2c_function__has_iaddr(const char *cl_sort);
 /* Valid only between a successful build and c2c_function__reset(). */
 struct hist_entry *c2c_function__find_cacheline(struct hist_entry *he);
 

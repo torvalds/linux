@@ -103,8 +103,9 @@ int __get_csky_regnum(const char *name, unsigned int flags);
 int __get_dwarf_regnum_i386(const char *name);
 int __get_dwarf_regnum_x86_64(const char *name);
 int __get_dwarf_regnum_for_perf_regnum_i386(int perf_regnum);
-int __get_dwarf_regnum_for_perf_regnum_x86_64(int perf_regnum);
+int __get_dwarf_regnum_for_perf_regnum_x86_64(int perf_regnum, int abi);
 
+int __get_dwarf_regnum_arm64(const char *name);
 int __get_dwarf_regnum_for_perf_regnum_arm(int perf_regnum);
 int __get_dwarf_regnum_for_perf_regnum_arm64(int perf_regnum);
 
@@ -125,8 +126,9 @@ int get_dwarf_regnum(const char *name, unsigned int machine, unsigned int flags)
 /*
  * get_dwarf_regnum - Returns DWARF regnum from perf register number.
  */
-int get_dwarf_regnum_for_perf_regnum(int perf_regnum, unsigned int machine, unsigned int flags,
-				     bool only_libdw_supported);
+int get_dwarf_regnum_for_perf_regnum(int perf_regnum, unsigned int machine,
+				     unsigned int flags,
+				     bool only_libdw_supported, int abi);
 
 void get_powerpc_regs(u32 raw_insn, int is_source, struct annotated_op_loc *op_loc);
 

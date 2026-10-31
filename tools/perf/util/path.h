@@ -2,10 +2,14 @@
 #ifndef _PERF_PATH_H
 #define _PERF_PATH_H
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+
+#include <linux/compiler.h>
 
 struct dirent;
+
+char *mkpath(char *path_buf, size_t sz, const char *fmt, ...) __printf(3, 4);
 
 int path__join(char *bf, size_t size, const char *path1, const char *path2);
 int path__join3(char *bf, size_t size, const char *path1, const char *path2, const char *path3);

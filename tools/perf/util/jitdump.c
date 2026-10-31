@@ -9,10 +9,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <byteswap.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <linux/stringify.h>
+#include <linux/kernel.h>
+#include <linux/unaligned.h>
 
 #include "event.h"
 #include "debug.h"
@@ -117,6 +120,8 @@ jit_close(struct jit_buf_desc *jd)
 	funlockfile(jd->in);
 	fclose(jd->in);
 	jd->in = NULL;
+	zfree(&jd->debug_data);
+	zfree(&jd->unwinding_data);
 }
 
 static int
@@ -143,6 +148,7 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 	ssize_t bs, bsz = 0;
 	void *n, *buf = NULL;
 	int ret, retval = -1;
+	char *dname;
 
 	nsinfo__mountns_enter(jd->nsi, &nsc);
 	jd->in = fopen(name, "r");
@@ -154,7 +160,7 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 
 	buf = malloc(bsz);
 	if (!buf)
-		goto error;
+		goto error_noflock;
 
 	/*
 	 * protect from writer modifying the file while we are reading it
@@ -224,10 +230,12 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 		n = realloc(buf, bs);
 		if (!n)
 			goto error;
-		bsz = bs;
 		buf = n;
-		/* read extra we do not know about */
-		ret = fread(buf, bs - bsz, 1, jd->in);
+		bsz = bs;
+	}
+	if (bs > 0) {
+		/* consume extended header bytes from the stream */
+		ret = fread(buf, bs, 1, jd->in);
 		if (ret != 1)
 			goto error;
 	}
@@ -236,13 +244,16 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 	 */
 	strncpy(jd->dir, name, PATH_MAX - 1);
 	jd->dir[PATH_MAX - 1] = '\0';
-	dirname(jd->dir);
+	dname = dirname(jd->dir);
+	if (dname != jd->dir)
+		strlcpy(jd->dir, dname, sizeof(jd->dir));
 	free(buf);
 
 	return 0;
 error:
-	free(buf);
 	funlockfile(jd->in);
+error_noflock:
+	free(buf);
 	fclose(jd->in);
 	return retval;
 }
@@ -315,14 +326,37 @@ jit_get_next_entry(struct jit_buf_desc *jd)
 	switch(id) {
 	case JIT_CODE_DEBUG_INFO:
 		if (jd->needs_bswap) {
+			void *end = (void *)jr + jr->prefix.total_size;
+			struct debug_entry *ent;
 			uint64_t n;
+
 			jr->info.code_addr = bswap_64(jr->info.code_addr);
 			jr->info.nr_entry  = bswap_64(jr->info.nr_entry);
-			for (n = 0 ; n < jr->info.nr_entry; n++) {
-				jr->info.entries[n].addr    = bswap_64(jr->info.entries[n].addr);
-				jr->info.entries[n].lineno  = bswap_32(jr->info.entries[n].lineno);
-				jr->info.entries[n].discrim = bswap_32(jr->info.entries[n].discrim);
+
+			/*
+			 * debug_entry has a variable-length name[], so array
+			 * indexing would compute wrong offsets — use
+			 * debug_entry_next() and bounds-check each entry.
+			 */
+			ent = &jr->info.entries[0];
+			for (n = 0; n < jr->info.nr_entry; n++) {
+				if ((void *)ent + sizeof(*ent) > end)
+					break;
+				/* name must be NUL-terminated within the record */
+				if (!memchr(ent->name, '\0', (char *)end - ent->name))
+					break;
+				/*
+				 * debug entries are packed with a variable-length
+				 * name[], so entries after the first may be
+				 * unaligned: byte-swap via unaligned-safe accessors.
+				 */
+				put_unaligned(bswap_64(get_unaligned(&ent->addr)), &ent->addr);
+				put_unaligned(bswap_32(get_unaligned(&ent->lineno)), &ent->lineno);
+				put_unaligned(bswap_32(get_unaligned(&ent->discrim)), &ent->discrim);
+				ent = debug_entry_next(ent);
 			}
+			/* clamp so downstream consumers don't overrun */
+			jr->info.nr_entry = n;
 		}
 		break;
 	case JIT_CODE_UNWINDING_INFO:
@@ -435,12 +469,11 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 	u16 idr_size;
 	const char *sym;
 	uint64_t count;
-	int ret, csize, usize;
+	int ret, csize;
+	uint64_t usize;
 	pid_t nspid, pid, tid;
-	struct {
-		u32 pid, tid;
-		u64 time;
-	} *id;
+	uint64_t timestamp = 0;
+	unsigned long id;
 
 	nspid = jr->load.pid;
 	pid   = jr_entry_pid(jd, jr);
@@ -448,8 +481,25 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 	csize = jr->load.code_size;
 	usize = jd->unwinding_mapped_size;
 	addr  = jr->load.code_addr;
+
+	/* code blob lives at the end of the record, validate it fits */
+	if (jr->load.p.total_size < sizeof(jr->load) ||
+	    jr->load.code_size > jr->load.p.total_size - sizeof(jr->load) ||
+	    jr->load.code_size > INT_MAX) {
+		pr_warning("jitdump: invalid code_size %" PRIu64 " (total_size=%u) in code_load record\n",
+			   (uint64_t)jr->load.code_size, jr->load.p.total_size);
+		return -1;
+	}
+
 	sym   = (void *)((unsigned long)jr + sizeof(jr->load));
 	code  = (unsigned long)jr + jr->load.p.total_size - csize;
+
+	/* sym string lives between the load header and the code blob */
+	if (!memchr(sym, '\0', code - (unsigned long)sym)) {
+		pr_warning("jitdump: unterminated symbol name in code_load record\n");
+		return -1;
+	}
+
 	count = jr->load.code_index;
 	idr_size = jd->machine->id_hdr_size;
 
@@ -462,6 +512,9 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 			jd->dir,
 			nspid,
 			count);
+	/* snprintf returns would-be length on truncation, clamp to buffer */
+	if (size >= sizeof(event->mmap2.filename))
+		size = sizeof(event->mmap2.filename) - 1;
 
 	size++; /* for \0 */
 
@@ -475,7 +528,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 		jd->nr_debug_entries = 0;
 	}
 
-	if (jd->unwinding_data && jd->eh_frame_hdr_size) {
+	if (jd->unwinding_data) {
 		zfree(&jd->unwinding_data);
 		jd->eh_frame_hdr_size = 0;
 		jd->unwinding_mapped_size = 0;
@@ -496,7 +549,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 
 	event->mmap2.pgoff = GEN_ELF_TEXT_OFFSET;
 	event->mmap2.start = addr;
-	event->mmap2.len   = usize ? ALIGN_8(csize) + usize : csize;
+	event->mmap2.len   = usize ? ALIGN_8((uint64_t)csize) + usize : (uint64_t)csize;
 	event->mmap2.pid   = pid;
 	event->mmap2.tid   = tid;
 	event->mmap2.ino   = st.st_ino;
@@ -506,13 +559,27 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 	event->mmap2.flags = MAP_SHARED;
 	event->mmap2.ino_generation = 1;
 
-	id = (void *)((unsigned long)event + event->mmap.header.size - idr_size);
+	/*
+	 * The sample id fields are appended in the order accounted for by
+	 * evsel__id_hdr_size(), skipping the ones not requested in
+	 * sample_type, so they cannot be written through a fixed struct:
+	 * with PERF_SAMPLE_TID unset, PERF_SAMPLE_TIME starts at offset 0
+	 * and idr_size is 8, so storing it at offset 8 runs past the end of
+	 * the event allocation.
+	 */
+	id = (unsigned long)event + event->mmap.header.size - idr_size;
 	if (jd->sample_type & PERF_SAMPLE_TID) {
-		id->pid  = pid;
-		id->tid  = tid;
+		struct { u32 pid, tid; } *id_tid = (void *)id;
+
+		id_tid->pid = pid;
+		id_tid->tid = tid;
+		id += sizeof(u64);
 	}
-	if (jd->sample_type & PERF_SAMPLE_TIME)
-		id->time = convert_timestamp(jd, jr->load.p.timestamp);
+	if (jd->sample_type & PERF_SAMPLE_TIME) {
+		timestamp = convert_timestamp(jd, jr->load.p.timestamp);
+		*(u64 *)id = timestamp;
+		id += sizeof(u64);
+	}
 
 	/*
 	 * create pseudo sample to induce dso hit increment
@@ -522,7 +589,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.pid  = pid;
 	sample.tid  = tid;
-	sample.time = id->time;
+	sample.time = timestamp;
 	sample.ip   = addr;
 
 	ret = perf_event__process_mmap2(tool, event, &sample, jd->machine);
@@ -565,14 +632,12 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 	char *filename;
 	size_t size;
 	struct stat st;
-	int usize;
+	uint64_t usize;
 	u16 idr_size;
 	int ret;
 	pid_t nspid, pid, tid;
-	struct {
-		u32 pid, tid;
-		u64 time;
-	} *id;
+	uint64_t timestamp = 0;
+	unsigned long id;
 
 	nspid = jr->load.pid;
 	pid   = jr_entry_pid(jd, jr);
@@ -581,9 +646,10 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 	idr_size = jd->machine->id_hdr_size;
 
 	/*
-	 * +16 to account for sample_id_all (hack)
+	 * Sample ID is written past the end of the mmap2 record; size
+	 * the allocation to account for it instead of a hardcoded +16.
 	 */
-	event = calloc(1, sizeof(*event) + 16);
+	event = calloc(1, sizeof(*event) + idr_size);
 	if (!event)
 		return -1;
 
@@ -592,6 +658,9 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 	         jd->dir,
 		 nspid,
 		 jr->move.code_index);
+	/* snprintf returns would-be length on truncation, clamp to buffer */
+	if (size >= sizeof(event->mmap2.filename))
+		size = sizeof(event->mmap2.filename) - 1;
 
 	size++; /* for \0 */
 
@@ -617,13 +686,27 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 	event->mmap2.flags = MAP_SHARED;
 	event->mmap2.ino_generation = 1;
 
-	id = (void *)((unsigned long)event + event->mmap.header.size - idr_size);
+	/*
+	 * The sample id fields are appended in the order accounted for by
+	 * evsel__id_hdr_size(), skipping the ones not requested in
+	 * sample_type, so they cannot be written through a fixed struct:
+	 * with PERF_SAMPLE_TID unset, PERF_SAMPLE_TIME starts at offset 0
+	 * and idr_size is 8, so storing it at offset 8 runs past the end of
+	 * the event allocation.
+	 */
+	id = (unsigned long)event + event->mmap.header.size - idr_size;
 	if (jd->sample_type & PERF_SAMPLE_TID) {
-		id->pid  = pid;
-		id->tid  = tid;
+		struct { u32 pid, tid; } *id_tid = (void *)id;
+
+		id_tid->pid = pid;
+		id_tid->tid = tid;
+		id += sizeof(u64);
 	}
-	if (jd->sample_type & PERF_SAMPLE_TIME)
-		id->time = convert_timestamp(jd, jr->load.p.timestamp);
+	if (jd->sample_type & PERF_SAMPLE_TIME) {
+		timestamp = convert_timestamp(jd, jr->load.p.timestamp);
+		*(u64 *)id = timestamp;
+		id += sizeof(u64);
+	}
 
 	/*
 	 * create pseudo sample to induce dso hit increment
@@ -633,7 +716,7 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.pid  = pid;
 	sample.tid  = tid;
-	sample.time = id->time;
+	sample.time = timestamp;
 	sample.ip   = jr->move.new_code_addr;
 
 	ret = perf_event__process_mmap2(tool, event, &sample, jd->machine);
@@ -645,15 +728,22 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 		build_id__mark_dso_hit(tool, event, &sample, jd->machine);
 out:
 	perf_sample__exit(&sample);
+	free(event);
 	return ret;
 }
 
 static int jit_repipe_debug_info(struct jit_buf_desc *jd, union jr_entry *jr)
 {
-	void *data;
-	size_t sz;
+	struct debug_entry *ent;
+	void *data, *end;
+	size_t sz, valid;
+	uint64_t i;
 
 	if (!(jd && jr))
+		return -1;
+
+	/* total_size must cover at least the fixed header */
+	if (jr->prefix.total_size < sizeof(jr->info))
 		return -1;
 
 	sz  = jr->prefix.total_size - sizeof(jr->info);
@@ -663,13 +753,29 @@ static int jit_repipe_debug_info(struct jit_buf_desc *jd, union jr_entry *jr)
 
 	memcpy(data, &jr->info.entries, sz);
 
+	zfree(&jd->debug_data);
 	jd->debug_data       = data;
 
 	/*
-	 * we must use nr_entry instead of size here because
-	 * we cannot distinguish actual entry from padding otherwise
+	 * Clamp nr_debug_entries to entries that actually fit in the
+	 * payload.  The byte-swap path already does this for cross-endian
+	 * files; validate on the native path too, since downstream
+	 * jit_process_debug_info() iterates via debug_entry_next() which
+	 * calls strlen() on each entry's name field.
 	 */
-	jd->nr_debug_entries = jr->info.nr_entry;
+	end = data + sz;
+	ent = data;
+	valid = 0;
+	for (i = 0; i < jr->info.nr_entry; i++) {
+		if ((void *)ent + sizeof(*ent) > end)
+			break;
+		/* name must be NUL-terminated within the payload */
+		if (!memchr(ent->name, '\0', (char *)end - ent->name))
+			break;
+		ent = debug_entry_next(ent);
+		valid++;
+	}
+	jd->nr_debug_entries = valid;
 
 	return 0;
 }
@@ -683,7 +789,23 @@ jit_repipe_unwinding_info(struct jit_buf_desc *jd, union jr_entry *jr)
 	if (!(jd && jr))
 		return -1;
 
+	/* total_size must cover at least the fixed header */
+	if (jr->prefix.total_size < sizeof(jr->unwinding))
+		return -1;
+
 	unwinding_data_size  = jr->prefix.total_size - sizeof(jr->unwinding);
+
+	/*
+	 * Validate sizes before allocating — jit_add_eh_frame_info()
+	 * computes unwinding_size - eh_frame_hdr_size and uses the
+	 * result as a buffer length for libelf.
+	 */
+	if (jr->unwinding.unwinding_size > unwinding_data_size ||
+	    jr->unwinding.eh_frame_hdr_size > jr->unwinding.unwinding_size) {
+		pr_warning("jitdump: invalid unwinding sizes in unwinding_info record\n");
+		return -1;
+	}
+
 	unwinding_data = malloc(unwinding_data_size);
 	if (!unwinding_data)
 		return -1;

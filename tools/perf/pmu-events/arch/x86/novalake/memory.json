@@ -295,5 +295,29 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x2",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "OMR.DEMAND_DATA_RD.L3_MISS",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2A",
+        "EventName": "OMR.DEMAND_DATA_RD.L3_MISS",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0xFF03F000000001",
+        "PublicDescription": "OMR.DEMAND_DATA_RD.L3_MISS Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "OMR.READS_TO_CORE.L3_MISS",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2A",
+        "EventName": "OMR.READS_TO_CORE.L3_MISS",
+        "MSRIndex": "0x3E0,0x3E1,0x3E2,0x3E3",
+        "MSRValue": "0xFF03F000004477",
+        "PublicDescription": "OMR.READS_TO_CORE.L3_MISS Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
     }
 ]

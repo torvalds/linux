@@ -152,9 +152,10 @@ static int check_return_addr(struct dso *dso, Dwarf_Addr mapped_pc)
 	Dwarf_Addr	end = mapped_pc;
 	bool		signalp;
 
+	mutex_lock(dso__lock(dso));
 	dwfl = dso__libdw_dwfl(dso);
 	if (!dwfl)
-		return -1;
+		goto out;
 
 	mod = dwfl_addrmodule(dwfl, mapped_pc);
 	if (!mod) {
@@ -183,6 +184,7 @@ static int check_return_addr(struct dso *dso, Dwarf_Addr mapped_pc)
 	rc = check_return_reg(ra_regno, frame);
 
 out:
+	mutex_unlock(dso__lock(dso));
 	return rc;
 }
 

@@ -8,6 +8,8 @@
 #include <linux/types.h>
 #include "../../../../arch/riscv/include/uapi/asm/perf_regs.h"
 
+void perf_regs_load(u64 *regs);
+
 #define PERF_REGS_MASK	((1ULL << PERF_REG_RISCV_MAX) - 1)
 #define PERF_REGS_MAX	PERF_REG_RISCV_MAX
 

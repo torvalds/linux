@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <string.h>
 #include <regex.h>
+#include <unistd.h>
+#include <stdbool.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 
@@ -235,26 +237,26 @@ int __perf_sdt_arg_parse_op_x86(char *old_op, char **new_op)
 	return SDT_ARG_VALID;
 }
 
-uint64_t __perf_reg_mask_x86(bool intr)
+static uint64_t __arch__reg_mask(u64 sample_type, u64 mask, bool has_simd_regs)
 {
 	struct perf_event_attr attr = {
-		.type			= PERF_TYPE_HARDWARE,
-		.config			= PERF_COUNT_HW_CPU_CYCLES,
-		.sample_type		= PERF_SAMPLE_REGS_INTR,
-		.sample_regs_intr	= PERF_REG_EXTENDED_MASK,
-		.precise_ip		= 1,
-		.disabled		= 1,
-		.exclude_kernel		= 1,
+		.type				= PERF_TYPE_HARDWARE,
+		.config				= PERF_COUNT_HW_CPU_CYCLES,
+		.sample_type			= sample_type,
+		.precise_ip			= 1,
+		.disabled			= 1,
+		.exclude_kernel			= 1,
+		.sample_simd_regs_enabled	= has_simd_regs,
 	};
 	int fd;
-
-	if (!intr)
-		return PERF_REGS_MASK;
-
 	/*
 	 * In an unnamed union, init it here to build on older gcc versions
 	 */
 	attr.sample_period = 1;
+	if (sample_type == PERF_SAMPLE_REGS_INTR)
+		attr.sample_regs_intr = mask;
+	else
+		attr.sample_regs_user = mask;
 
 	if (perf_pmus__num_core_pmus() > 1) {
 		struct perf_pmu *pmu = NULL;
@@ -276,13 +278,45 @@ uint64_t __perf_reg_mask_x86(bool intr)
 				 /*group_fd=*/-1, /*flags=*/0);
 	if (fd != -1) {
 		close(fd);
-		return (PERF_REG_EXTENDED_MASK | PERF_REGS_MASK);
+		return mask;
 	}
 
-	return PERF_REGS_MASK;
+	return 0;
 }
 
-const char *__perf_reg_name_x86(int id)
+static bool __support_simd_sampling(bool intr);
+uint64_t __perf_reg_mask_x86(bool intr, int *abi)
+{
+	u64 sample_type = intr ? PERF_SAMPLE_REGS_INTR : PERF_SAMPLE_REGS_USER;
+	uint64_t mask = PERF_REGS_MASK;
+
+	/* -1 indicates only basic GPRs are needed. */
+	if (*abi < 0)
+		return PERF_REGS_MASK;
+
+	*abi = 0;
+	mask |= __arch__reg_mask(sample_type,
+				 GENMASK_ULL(PERF_REG_X86_R31, PERF_REG_X86_R16),
+				 true);
+	mask |= __arch__reg_mask(sample_type, BIT_ULL(PERF_REG_X86_SSP), true);
+
+	if (mask != PERF_REGS_MASK) {
+		*abi |= PERF_SAMPLE_REGS_ABI_SIMD;
+	} else {
+		/*
+		 * Use the SIMD sampling interface for XMM registers
+		 * when available.
+		 */
+		if (!__support_simd_sampling(intr)) {
+			mask |= __arch__reg_mask(sample_type,
+						 PERF_REG_EXTENDED_MASK, false);
+		}
+	}
+
+	return mask;
+}
+
+static const char *__arch_reg_gpr_name(int id)
 {
 	switch (id) {
 	case PERF_REG_X86_AX:
@@ -333,7 +367,60 @@ const char *__perf_reg_name_x86(int id)
 		return "R14";
 	case PERF_REG_X86_R15:
 		return "R15";
+	default:
+		return NULL;
+	}
 
+	return NULL;
+}
+
+static const char *__arch_reg_egpr_name(int id)
+{
+	switch (id) {
+	case PERF_REG_X86_R16:
+		return "R16";
+	case PERF_REG_X86_R17:
+		return "R17";
+	case PERF_REG_X86_R18:
+		return "R18";
+	case PERF_REG_X86_R19:
+		return "R19";
+	case PERF_REG_X86_R20:
+		return "R20";
+	case PERF_REG_X86_R21:
+		return "R21";
+	case PERF_REG_X86_R22:
+		return "R22";
+	case PERF_REG_X86_R23:
+		return "R23";
+	case PERF_REG_X86_R24:
+		return "R24";
+	case PERF_REG_X86_R25:
+		return "R25";
+	case PERF_REG_X86_R26:
+		return "R26";
+	case PERF_REG_X86_R27:
+		return "R27";
+	case PERF_REG_X86_R28:
+		return "R28";
+	case PERF_REG_X86_R29:
+		return "R29";
+	case PERF_REG_X86_R30:
+		return "R30";
+	case PERF_REG_X86_R31:
+		return "R31";
+	case PERF_REG_X86_SSP:
+		return "SSP";
+	default:
+		return NULL;
+	}
+
+	return NULL;
+}
+
+static const char *__arch_reg_xmm_name(int id)
+{
+	switch (id) {
 #define XMM(x) \
 	case PERF_REG_X86_XMM ## x:	\
 	case PERF_REG_X86_XMM ## x + 1:	\
@@ -362,6 +449,22 @@ const char *__perf_reg_name_x86(int id)
 	return NULL;
 }
 
+const char *__perf_reg_name_x86(int id, int abi)
+{
+	const char *name;
+
+	name = __arch_reg_gpr_name(id);
+	if (name)
+		return name;
+
+	if (abi & PERF_SAMPLE_REGS_ABI_SIMD)
+		name = __arch_reg_egpr_name(id);
+	else
+		name = __arch_reg_xmm_name(id);
+
+	return name;
+}
+
 uint64_t __perf_reg_ip_x86(void)
 {
 	return PERF_REG_X86_IP;
@@ -370,4 +473,309 @@ uint64_t __perf_reg_ip_x86(void)
 uint64_t __perf_reg_sp_x86(void)
 {
 	return PERF_REG_X86_SP;
+}
+
+enum {
+	PERF_REG_CLASS_X86_OPMASK = 0,
+	PERF_REG_CLASS_X86_XMM,
+	PERF_REG_CLASS_X86_YMM,
+	PERF_REG_CLASS_X86_ZMM,
+	PERF_REG_X86_MAX_SIMD_CLASSES,
+};
+
+#define PERF_REG_CLASS_X86_PRED_MASK	(BIT(PERF_REG_CLASS_X86_OPMASK))
+#define PERF_REG_CLASS_X86_SIMD_MASK	(BIT(PERF_REG_CLASS_X86_XMM) | \
+					 BIT(PERF_REG_CLASS_X86_YMM) | \
+					 BIT(PERF_REG_CLASS_X86_ZMM))
+
+/*
+ * This function is used to determine whether kernel perf subsystem
+ * supports which kinds of SIMD registers (OPMASK/XMM/YMM/ZMM) sampling.
+ *
+ * @sample_type: PERF_SAMPLE_REGS_INTR or PERF_SAMPLE_REGS_USER
+ * @qwords: the length of SIMD register, like 1/2/4/8 qwords for
+ *          OPMASK/XMM/YMM/ZMM registers.
+ * @mask: the bitmask of SIMD register, like 0xffff for XMM0 ~ XMM15
+ * @pred: whether It's a predicate SIMD register, like OPMASK register.
+ *
+ * Return value: true indicates support, otherwise no support.
+ */
+static bool
+__support_simd_reg_class(uint64_t sample_type, uint16_t qwords,
+			 uint64_t mask, bool pred)
+{
+	struct perf_event_attr attr = {
+		.type				= PERF_TYPE_HARDWARE,
+		.config				= PERF_COUNT_HW_CPU_CYCLES,
+		.sample_type			= sample_type,
+		.disabled			= 1,
+		.exclude_kernel			= 1,
+		.sample_simd_regs_enabled	= 1,
+	};
+	int fd;
+
+	attr.sample_period = 1;
+
+	if (!pred) {
+		attr.sample_simd_vec_reg_qwords = qwords;
+		if (sample_type == PERF_SAMPLE_REGS_INTR)
+			attr.sample_simd_vec_reg_intr = mask;
+		else
+			attr.sample_simd_vec_reg_user = mask;
+	} else {
+		attr.sample_simd_pred_reg_qwords = PERF_X86_OPMASK_QWORDS;
+		if (sample_type == PERF_SAMPLE_REGS_INTR)
+			attr.sample_simd_pred_reg_intr = PERF_X86_SIMD_PRED_MASK;
+		else
+			attr.sample_simd_pred_reg_user = PERF_X86_SIMD_PRED_MASK;
+	}
+
+	if (perf_pmus__num_core_pmus() > 1) {
+		__u64 type = perf_pmus__find_core_pmu()->type;
+
+		attr.config |= type << PERF_PMU_TYPE_SHIFT;
+	}
+
+	event_attr_init(&attr);
+
+	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	if (fd != -1) {
+		close(fd);
+		return true;
+	}
+
+	return false;
+}
+
+#define PERF_X86_SIMD_ZMM_LOW_REGS	(PERF_X86_SIMD_ZMM_REGS / 2)
+
+static bool __arch_has_simd_reg_class(uint64_t sample_type, int reg_class,
+				      uint64_t *mask, uint16_t *qwords)
+{
+	bool supported = false;
+	uint64_t bits;
+
+	*mask = 0;
+	*qwords = 0;
+
+	switch (reg_class) {
+	case PERF_REG_CLASS_X86_OPMASK:
+		bits = BIT_ULL(PERF_X86_SIMD_OPMASK_REGS) - 1;
+		supported = __support_simd_reg_class(sample_type,
+						     PERF_X86_OPMASK_QWORDS,
+						     bits, true);
+		if (supported) {
+			*mask = bits;
+			*qwords = PERF_X86_OPMASK_QWORDS;
+		}
+		break;
+	case PERF_REG_CLASS_X86_XMM:
+		bits = BIT_ULL(PERF_X86_SIMD_XMM_REGS) - 1;
+		supported = __support_simd_reg_class(sample_type,
+						     PERF_X86_XMM_QWORDS,
+						     bits, false);
+		if (supported) {
+			*mask = bits;
+			*qwords = PERF_X86_XMM_QWORDS;
+		}
+		break;
+	case PERF_REG_CLASS_X86_YMM:
+		bits = BIT_ULL(PERF_X86_SIMD_YMM_REGS) - 1;
+		supported = __support_simd_reg_class(sample_type,
+						     PERF_X86_YMM_QWORDS,
+						     bits, false);
+		if (supported) {
+			*mask = bits;
+			*qwords = PERF_X86_YMM_QWORDS;
+		}
+		break;
+	case PERF_REG_CLASS_X86_ZMM:
+		bits = BIT_ULL(PERF_X86_SIMD_ZMM_REGS) - 1;
+		supported = __support_simd_reg_class(sample_type,
+						     PERF_X86_ZMM_QWORDS,
+						     bits, false);
+		if (supported) {
+			*mask = bits;
+			*qwords = PERF_X86_ZMM_QWORDS;
+			break;
+		}
+
+		bits = BIT_ULL(PERF_X86_SIMD_ZMM_LOW_REGS) - 1;
+		supported = __support_simd_reg_class(sample_type,
+						     PERF_X86_ZMM_QWORDS,
+						     bits, false);
+		if (supported) {
+			*mask = bits;
+			*qwords = PERF_X86_ZMM_QWORDS;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return supported;
+}
+
+static bool __support_simd_sampling(bool intr)
+{
+	static bool intr_simd_sampling_supported;
+	static bool user_simd_sampling_supported;
+	static bool intr_cached;
+	static bool user_cached;
+	uint64_t mask;
+	uint16_t qwords;
+
+	if (intr && intr_cached)
+		return intr_simd_sampling_supported;
+	if (!intr && user_cached)
+		return user_simd_sampling_supported;
+
+	if (intr) {
+		intr_simd_sampling_supported =
+			__arch_has_simd_reg_class(PERF_SAMPLE_REGS_INTR,
+						  PERF_REG_CLASS_X86_XMM,
+						  &mask, &qwords);
+		intr_cached = true;
+	} else {
+		user_simd_sampling_supported =
+			__arch_has_simd_reg_class(PERF_SAMPLE_REGS_USER,
+						  PERF_REG_CLASS_X86_XMM,
+						  &mask, &qwords);
+		user_cached = true;
+	}
+
+	return intr ? intr_simd_sampling_supported :
+		      user_simd_sampling_supported;
+}
+
+/*
+ * @x86_intr_simd_cached: indicates the data of below 3
+ *  x86_intr_simd_* items has been retrieved from kernel and cached.
+ * @x86_intr_simd_reg_class_mask: indicates which kinds of PRED/SIMD
+ *  registers are supported for intr-regs option. Assume kernel perf
+ *  subsystem supports XMM/YMM sampling, then the mask is
+ *  PERF_REG_CLASS_X86_XMM|PERF_REG_CLASS_X86_YMM.
+ * @x86_intr_simd_mask: indicates register bitmask for each kind of
+ *  supported PRED/SIMD register, like
+ *  x86_intr_simd_mask[PERF_REG_CLASS_X86_XMM] = 0xffff.
+ * @x86_intr_simd_qwords: indicates the register length (qwords unit)
+ *  for each kind of supported PRED/SIMD register, like
+ *  x86_intr_simd_qwords[PERF_REG_CLASS_X86_XMM] = 2.
+ */
+static bool x86_intr_simd_cached;
+static uint64_t x86_intr_simd_reg_class_mask;
+static uint64_t x86_intr_simd_mask[PERF_REG_X86_MAX_SIMD_CLASSES];
+static uint16_t x86_intr_simd_qwords[PERF_REG_X86_MAX_SIMD_CLASSES];
+
+/*
+ * Similar with above x86_intr_simd_* items, the difference is these
+ * items are used for user-regs option.
+ */
+static bool x86_user_simd_cached;
+static uint64_t x86_user_simd_reg_class_mask;
+static uint64_t x86_user_simd_mask[PERF_REG_X86_MAX_SIMD_CLASSES];
+static uint16_t x86_user_simd_qwords[PERF_REG_X86_MAX_SIMD_CLASSES];
+
+static uint64_t __arch__simd_reg_class_mask(bool intr)
+{
+	uint64_t mask = 0;
+	bool supported;
+	int reg_c;
+
+	if (!__support_simd_sampling(intr))
+		goto done;
+
+	if (intr && x86_intr_simd_cached)
+		return x86_intr_simd_reg_class_mask;
+
+	if (!intr && x86_user_simd_cached)
+		return x86_user_simd_reg_class_mask;
+
+	for (reg_c = 0; reg_c < PERF_REG_X86_MAX_SIMD_CLASSES; reg_c++) {
+		supported = false;
+
+		if (intr) {
+			supported = __arch_has_simd_reg_class(
+						PERF_SAMPLE_REGS_INTR,
+						reg_c,
+						&x86_intr_simd_mask[reg_c],
+						&x86_intr_simd_qwords[reg_c]);
+		} else {
+			supported = __arch_has_simd_reg_class(
+						PERF_SAMPLE_REGS_USER,
+						reg_c,
+						&x86_user_simd_mask[reg_c],
+						&x86_user_simd_qwords[reg_c]);
+		}
+		if (supported)
+			mask |= BIT_ULL(reg_c);
+	}
+
+done:
+	if (intr) {
+		x86_intr_simd_reg_class_mask = mask;
+		x86_intr_simd_cached = true;
+	} else {
+		x86_user_simd_reg_class_mask = mask;
+		x86_user_simd_cached = true;
+	}
+
+	return mask;
+}
+
+static uint64_t
+__arch__simd_reg_class_bitmap_qwords(bool intr, int reg_c, uint16_t *qwords)
+{
+	uint64_t mask = 0;
+	uint64_t class_mask;
+
+	*qwords = 0;
+	class_mask = intr ? x86_intr_simd_reg_class_mask :
+			    x86_user_simd_reg_class_mask;
+	if (!(class_mask & BIT_ULL(reg_c)))
+		return 0;
+
+	if (intr) {
+		mask = x86_intr_simd_mask[reg_c];
+		*qwords = x86_intr_simd_qwords[reg_c];
+	} else {
+		mask = x86_user_simd_mask[reg_c];
+		*qwords = x86_user_simd_qwords[reg_c];
+	}
+
+	return mask;
+}
+
+uint64_t __perf_simd_reg_class_mask_x86(bool intr, bool pred)
+{
+	uint64_t mask = __arch__simd_reg_class_mask(intr);
+
+	return pred ? mask & PERF_REG_CLASS_X86_PRED_MASK :
+		      mask & PERF_REG_CLASS_X86_SIMD_MASK;
+}
+
+uint64_t __perf_simd_reg_class_bitmap_qwords_x86(int reg_c, uint16_t *qwords,
+						 bool intr, bool pred)
+{
+	if (intr ? !x86_intr_simd_cached : !x86_user_simd_cached)
+		__perf_simd_reg_class_mask_x86(intr, pred);
+	return __arch__simd_reg_class_bitmap_qwords(intr, reg_c, qwords);
+}
+
+const char *__perf_simd_reg_class_name_x86(int id, bool pred __maybe_unused)
+{
+	switch (id) {
+	case PERF_REG_CLASS_X86_OPMASK:
+		return "OPMASK";
+	case PERF_REG_CLASS_X86_XMM:
+		return "XMM";
+	case PERF_REG_CLASS_X86_YMM:
+		return "YMM";
+	case PERF_REG_CLASS_X86_ZMM:
+		return "ZMM";
+	default:
+		return NULL;
+	}
+
+	return NULL;
 }

@@ -138,6 +138,10 @@ static int test__dso_data(struct test_suite *test __maybe_unused, int subtest __
 	dsos__init(&machine.dsos);
 
 	dso = dso__new(file);
+	TEST_ASSERT_VAL("Failed to get dso", dso);
+	/* override the binary type for dso data access */
+	dso__set_binary_type(dso, DSO_BINARY_TYPE__SYSTEM_PATH_DSO);
+	dso__set_bintype_searched(dso);
 	TEST_ASSERT_VAL("Failed to add dso", !dsos__add(&machine.dsos, dso));
 	TEST_ASSERT_VAL("Failed to access to dso",
 			dso__data_fd(dso, &machine) >= 0);
@@ -226,6 +230,9 @@ static int dsos__create(int cnt, int size, struct dsos *dsos)
 		TEST_ASSERT_VAL("failed to get dso file", file);
 		dso = dso__new(file);
 		TEST_ASSERT_VAL("failed to get dso", dso);
+		/* override the binary type for dso data access */
+		dso__set_binary_type(dso, DSO_BINARY_TYPE__SYSTEM_PATH_DSO);
+		dso__set_bintype_searched(dso);
 		TEST_ASSERT_VAL("failed to add dso", !dsos__add(dsos, dso));
 		dso__put(dso);
 	}

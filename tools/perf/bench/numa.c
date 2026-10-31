@@ -1419,6 +1419,7 @@ static void worker_process(int process_nr)
 	bind_to_cpumask(td->bind_cpumask);
 
 	pthreads = calloc(g->p.nr_threads, sizeof(pthread_t));
+	BUG_ON(!pthreads);
 	process_data = setup_private_data(g->p.bytes_process);
 
 	if (g->p.show_details >= 3) {
@@ -1625,6 +1626,7 @@ static int __bench_numa(const char *name)
 		return -1;
 
 	pids = calloc(g->p.nr_proc, sizeof(*pids));
+	BUG_ON(!pids);
 	pid = -1;
 
 	if (g->p.serialize_startup) {

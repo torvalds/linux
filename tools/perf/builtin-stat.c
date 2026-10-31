@@ -777,7 +777,6 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	int interval = stat_config.interval;
 	int times = stat_config.times;
 	int timeout = stat_config.timeout;
-	char msg[BUFSIZ];
 	unsigned long long t0, t1;
 	struct evsel *counter;
 	size_t l;
@@ -908,6 +907,9 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 		}
 	}
 	if (!has_supported_counters && !stat_config.null_run) {
+		char msg[BUFSIZ];
+
+		msg[0] = '\0';
 		if (open_err) {
 			evsel__open_strerror(evlist__first(evsel_list), &target, open_err,
 					     msg, sizeof(msg));

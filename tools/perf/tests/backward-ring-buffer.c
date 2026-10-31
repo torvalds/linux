@@ -167,4 +167,4 @@ out_put_evlist:
 	return ret;
 }
 
-DEFINE_SUITE("Read backward ring buffer", backward_ring_buffer);
+DEFINE_SUITE_NEEDS_MLOCK("Read backward ring buffer", backward_ring_buffer);

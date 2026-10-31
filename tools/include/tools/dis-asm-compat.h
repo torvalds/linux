@@ -2,6 +2,7 @@
 #ifndef _TOOLS_DIS_ASM_COMPAT_H
 #define _TOOLS_DIS_ASM_COMPAT_H
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <dis-asm.h>
 

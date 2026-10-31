@@ -16,6 +16,7 @@ struct symbol;
 struct data_loc_info;
 struct type_state;
 struct disasm_line;
+struct annotated_op_loc;
 
 struct e_machine_and_e_flags {
 	uint32_t e_flags;
@@ -49,6 +50,9 @@ struct arch {
 				struct data_loc_info *dloc, Dwarf_Die *cu_die,
 				struct disasm_line *dl);
 #endif
+	void		(*extract_op_location)(const struct arch *arch, struct disasm_line *dl,
+					       const char *op_str, int op_idx,
+					       struct annotated_op_loc *op_loc);
 };
 
 struct ins {
@@ -111,6 +115,7 @@ struct annotate_args {
 const struct arch *arch__find(uint16_t e_machine, uint32_t e_flags, const char *cpuid);
 bool arch__is_x86(const struct arch *arch);
 bool arch__is_powerpc(const struct arch *arch);
+bool arch__is_arm64(const struct arch *arch);
 
 extern const struct ins_ops call_ops;
 extern const struct ins_ops dec_ops;
@@ -122,6 +127,7 @@ extern const struct ins_ops ret_ops;
 
 int arch__associate_ins_ops(struct arch *arch, const char *name, const struct ins_ops *ops);
 
+const struct arch *arch__new_alpha(const struct e_machine_and_e_flags *id, const char *cpuid);
 const struct arch *arch__new_arc(const struct e_machine_and_e_flags *id, const char *cpuid);
 const struct arch *arch__new_arm(const struct e_machine_and_e_flags *id, const char *cpuid);
 const struct arch *arch__new_arm64(const struct e_machine_and_e_flags *id, const char *cpuid);

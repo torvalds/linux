@@ -46,7 +46,7 @@ process_arch()
 	asm_errno=$(asm_errno_file "$arch")
 
 	$gcc $CFLAGS $include_path -E -dM -x c $asm_errno \
-		|grep -hE '^#define[[:blank:]]+(E[^[:blank:]]+)[[:blank:]]+([[:digit:]]+).*' \
+		|grep -hE '^#define[[:blank:]]+(E[A-Z0-9]+)[[:blank:]]+([[:digit:]]+).*' \
 		|awk '{ print $2","$3; }' \
 		|sort -t, -k2 -nu \
 		|IFS=, create_errno_lookup_func "$arch"
@@ -69,7 +69,7 @@ arch_to_e_machine()
 	riscv)      printf '\tcase EM_RISCV:\n' ;;
 	s390)       printf '\tcase EM_S390:\n' ;;
 	sh)         printf '\tcase EM_SH:\n' ;;
-	sparc)      printf '\tcase EM_SPARC:\n\tcase EM_SPARCV9:\n' ;;
+	sparc)      printf '\tcase EM_SPARC:\n\tcase EM_SPARC32PLUS:\n\tcase EM_SPARCV9:\n' ;;
 	x86)        printf '\tcase EM_386:\n\tcase EM_X86_64:\n' ;;
 	xtensa)     printf '\tcase EM_XTENSA:\n' ;;
 	esac
