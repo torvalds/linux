@@ -2771,9 +2771,12 @@ next_insn:
 		int stack_slots = subprogs[i].stack_extra / 8;
 		/* an invocation begins, see bpf_timed_may_goto_save() for async callbacks */
 		bool main_prog = tmg && !i;
+		/* only a helper calls it, in a loop that ends when it returns 1 */
+		bool loop_cb = tmg && i && subprogs[i].is_loop_cb && !subprogs[i].is_called &&
+			       !subprogs[i].is_async_cb;
 		int cnt = 0;
 
-		if (timed_may_goto ? !main_prog : !stack_slots)
+		if (timed_may_goto ? !main_prog && !loop_cb : !stack_slots)
 			continue;
 		if (stack_slots > 1) {
 			verifier_bug(env, "stack_slots supports may_goto only");
@@ -2793,10 +2796,23 @@ next_insn:
 			insn_buf[cnt++] = ld_tmg[0];
 			insn_buf[cnt++] = ld_tmg[1];
 			insn_buf[cnt++] = BPF_MOV64_PERCPU_REG(BPF_REG_0, BPF_REG_0);
-			insn_buf[cnt++] = BPF_ST_MEM(BPF_DW, BPF_REG_0, count_off,
-						     BPF_MAX_TIMED_LOOPS);
-			insn_buf[cnt++] = BPF_ST_MEM(BPF_DW, BPF_REG_0, timestamp_off, 0);
-			insn_buf[cnt++] = BPF_ST_MEM(BPF_DW, BPF_REG_0, owner_off, 0);
+			if (main_prog) {
+				insn_buf[cnt++] = BPF_ST_MEM(BPF_DW, BPF_REG_0, count_off,
+							     BPF_MAX_TIMED_LOOPS);
+				insn_buf[cnt++] = BPF_ST_MEM(BPF_DW, BPF_REG_0, timestamp_off, 0);
+				insn_buf[cnt++] = BPF_ST_MEM(BPF_DW, BPF_REG_0, owner_off, 0);
+			} else {
+				/*
+				 * The time is up, but the helper would call the function again and
+				 * again. End its loop. The verifier has seen that: the loop can end
+				 * after each call.
+				 */
+				insn_buf[cnt++] = BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_0,
+							      count_off);
+				insn_buf[cnt++] = BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 2);
+				insn_buf[cnt++] = BPF_MOV64_IMM(BPF_REG_0, 1);
+				insn_buf[cnt++] = BPF_EXIT_INSN();
+			}
 		} else {
 			/* Add ST insn to subprog prologue to init extra stack */
 			insn_buf[cnt++] = BPF_ST_MEM(BPF_DW, BPF_REG_FP, -stack_depth,
