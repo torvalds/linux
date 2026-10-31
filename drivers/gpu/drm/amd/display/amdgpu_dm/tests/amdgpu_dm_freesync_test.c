@@ -678,6 +678,61 @@ static void dm_test_update_freesync_state_dp_v2_saturates(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, p.sb[8], 255);
 }
 
+/**
+ * dm_test_update_freesync_state_dp_v3_above_255 - Test v3 for a VSDB v3 sink above 255Hz
+ * @test: The KUnit test context
+ */
+static void dm_test_update_freesync_state_dp_v3_above_255(struct kunit *test)
+{
+	struct dc_info_packet p =
+		dm_test_freesync_packet(test, SIGNAL_TYPE_DISPLAY_PORT, 3, 320, 320);
+
+	KUNIT_EXPECT_EQ(test, p.hb3, 3 << 2);
+	KUNIT_EXPECT_EQ(test, p.sb[8], 320 & 0xff);
+	KUNIT_EXPECT_EQ(test, p.sb[12], 320 >> 8);
+}
+
+/**
+ * dm_test_update_freesync_state_dp_v3_mode_240 - Test v3 follows the sink max, not the mode
+ * @test: The KUnit test context
+ */
+static void dm_test_update_freesync_state_dp_v3_mode_240(struct kunit *test)
+{
+	struct dc_info_packet p =
+		dm_test_freesync_packet(test, SIGNAL_TYPE_DISPLAY_PORT, 3, 320, 240);
+
+	KUNIT_EXPECT_EQ(test, p.hb3, 3 << 2);
+	KUNIT_EXPECT_EQ(test, p.sb[8], 240);
+	KUNIT_EXPECT_EQ(test, p.sb[12], 0);
+}
+
+/**
+ * dm_test_update_freesync_state_dp_v3_at_255 - Test a VSDB v3 sink at 255Hz keeps v1
+ * @test: The KUnit test context
+ */
+static void dm_test_update_freesync_state_dp_v3_at_255(struct kunit *test)
+{
+	struct dc_info_packet p =
+		dm_test_freesync_packet(test, SIGNAL_TYPE_DISPLAY_PORT, 3, 255, 255);
+
+	KUNIT_EXPECT_EQ(test, p.hb3, 0x04);
+	KUNIT_EXPECT_EQ(test, p.sb[8], 255);
+}
+
+/**
+ * dm_test_update_freesync_state_hdmi_v3_above_255 - Test v3 for a VSDB v3 HDMI sink
+ * @test: The KUnit test context
+ */
+static void dm_test_update_freesync_state_hdmi_v3_above_255(struct kunit *test)
+{
+	struct dc_info_packet p =
+		dm_test_freesync_packet(test, SIGNAL_TYPE_HDMI_TYPE_A, 3, 320, 320);
+
+	KUNIT_EXPECT_EQ(test, p.hb1, 3);
+	KUNIT_EXPECT_EQ(test, p.sb[8], 320 & 0xff);
+	KUNIT_EXPECT_EQ(test, p.sb[12], 320 >> 8);
+}
+
 /* Tests for amdgpu_dm_update_stream_irq_parameters() */
 
 /**
@@ -1009,6 +1064,10 @@ static struct kunit_case amdgpu_dm_freesync_tests[] = {
 	KUNIT_CASE(dm_test_update_freesync_state_pcon_v3),
 	KUNIT_CASE(dm_test_update_freesync_state_pcon_default),
 	KUNIT_CASE(dm_test_update_freesync_state_dp_v2_saturates),
+	KUNIT_CASE(dm_test_update_freesync_state_dp_v3_above_255),
+	KUNIT_CASE(dm_test_update_freesync_state_dp_v3_mode_240),
+	KUNIT_CASE(dm_test_update_freesync_state_dp_v3_at_255),
+	KUNIT_CASE(dm_test_update_freesync_state_hdmi_v3_above_255),
 	/* amdgpu_dm_update_stream_irq_parameters */
 	KUNIT_CASE(dm_test_update_stream_irq_parameters_no_stream),
 	KUNIT_CASE(dm_test_update_stream_irq_parameters_invalid_timing),

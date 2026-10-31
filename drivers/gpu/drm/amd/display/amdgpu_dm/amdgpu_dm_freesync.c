@@ -251,6 +251,13 @@ void amdgpu_dm_update_freesync_state_on_stream(
 
 		mod_build_adaptive_sync_infopacket(new_stream, aconn->as_type, NULL,
 					&new_stream->adaptive_sync_infopacket);
+	} else if (aconn && aconn->vsdb_info.amd_vsdb_version == 3 &&
+		   aconn->max_vfreq > 255) {
+		/*
+		 * v1 saturates at 255 Hz. Keyed on the sink's max, not the mode's
+		 * rate, so the packet version stays fixed per sink.
+		 */
+		packet_type = PACKET_TYPE_FS_V3;
 	}
 
 	app_tf = dm_dp_in_hdr_mode(new_stream) ?
