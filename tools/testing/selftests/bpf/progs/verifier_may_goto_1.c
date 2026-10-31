@@ -88,19 +88,25 @@ __arch_s390x
 __arch_arm64
 __arch_riscv64
 __arch_loongarch
-__xlated("0: *(u64 *)(r10 -16) = 65535")
-__xlated("1: *(u64 *)(r10 -8) = 0")
-__xlated("2: r12 = *(u64 *)(r10 -16)")
-__xlated("3: if r12 == 0x0 goto pc+7")
-__xlated("4: r12 -= 1")
-__xlated("5: if r12 != 0x0 goto pc+3")
-__xlated("6: r12 = r10")
-__xlated("7: r12 += -16")
-__xlated("8: call unknown")
-__xlated("9: *(u64 *)(r10 -16) = r12")
-__xlated("10: r0 = 1")
-__xlated("11: r0 = 2")
-__xlated("12: exit")
+/* the main prog sets count, timestamp, owner */
+__xlated("0: r0 = ")
+__xlated("2: r0 = &(void __percpu *)(r0)")
+__xlated("3: *(u64 *)(r0 +0) = 65535")
+__xlated("4: *(u64 *)(r0 +8) = 0")
+__xlated("5: *(u64 *)(r0 +16) = 0")
+/* may_goto, r0 is dead */
+__xlated("6: r0 = ")
+__xlated("8: r0 = &(void __percpu *)(r0)")
+__xlated("9: r12 = *(u64 *)(r0 +0)")
+__xlated("10: if r12 == 0x0 goto pc+6")
+__xlated("11: r12 -= 1")
+__xlated("12: if r12 != 0x0 goto pc+2")
+__xlated("13: r12 = r0")
+__xlated("14: call unknown")
+__xlated("15: *(u64 *)(r0 +0) = r12")
+__xlated("16: r0 = 1")
+__xlated("17: r0 = 2")
+__xlated("18: exit")
 __success
 __naked void may_goto_batch_2(void)
 {
