@@ -1059,7 +1059,8 @@ ifdef CONFIG_FTRACE_MCOUNT_USE_RECORDMCOUNT
   endif
 endif
 ifdef CONFIG_HAVE_FENTRY
-  ifdef CONFIG_CC_HAS_MFENTRY
+  # s390-linux-gnu-gcc did not support -mfentry until gcc-9.
+  ifeq ($(call cc-option-yn, -mfentry),y)
     CC_FLAGS_FTRACE	+= -mfentry
     CC_FLAGS_USING	+= -DCC_USING_FENTRY
   endif

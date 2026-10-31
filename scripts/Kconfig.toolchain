@@ -144,6 +144,25 @@ config CC_HAS_ASSUME
 config CC_HAS_NO_PROFILE_FN_ATTR
 	def_bool $(success,echo '__attribute__((no_profile_instrument_function)) int x();' | $(CC) -x c - -c -o /dev/null -Werror)
 
+# Beware of two problems when using cc-option in Kconfig compared to Kbuild
+#
+# 1. cc-option in Kbuild tests the provided flags with all previously added
+#    CFLAGS, whereas cc-option in Kconfig only tests the provided flags with a
+#    small, constant set of additional flags.  If a flag (e.g., '-mfoo')
+#    depends on another (e.g, '-fbar') to function properly, the dependency
+#    must be included in the cc-option call (e.g, '-fbar -mfoo').
+#
+# 2. Bit and endianness flags ('-m32', '-m64', '-mbig-endian', and
+#    '-mlittle-endian') are not present in Kconfig cc-option checks because
+#    they may be included in KBUILD_CFLAGS / KBUILD_CPPFLAGS based on the
+#    finalized configuration result. This can result in inconsistent results
+#    when probing toolchains that support either option, as the toolchain's
+#    configured default tested in Kconfig may not support the tested flag but
+#    the post-configuration result in Kbuild would.
+#
+#    In general, prefer adding truly generic compiler flags to avoid this
+#    pitfall.
+
 config CC_OPT_ZERO_INIT_PADDING_BITS
 	def_string "$(cc-option-str,-fzero-init-padding-bits=all)"
 
@@ -168,10 +187,6 @@ config CC_OPT_NO_ALLOW_STORE_DATA_RACES
 
 config CC_HAS_MNOP_MCOUNT
 	def_bool $(cc-option,-mnop-mcount)
-
-# s390-linux-gnu-gcc did not support -mfentry until gcc-9.
-config CC_HAS_MFENTRY
-	def_bool $(cc-option,-mfentry)
 
 config LD_OPT_FORCE_GROUP_ALLOCATION
 	def_string "$(ld-option-str,--force-group-allocation)"
