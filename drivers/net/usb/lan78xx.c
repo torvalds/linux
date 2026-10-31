@@ -4593,12 +4593,11 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 
 	net = dev->net;
 
+	unregister_netdev(net);
+
 	rtnl_lock();
-	phylink_stop(dev->phylink);
 	phylink_disconnect_phy(dev->phylink);
 	rtnl_unlock();
-
-	unregister_netdev(net);
 
 	timer_shutdown_sync(&dev->stat_monitor);
 	set_bit(EVENT_DEV_DISCONNECT, &dev->flags);
