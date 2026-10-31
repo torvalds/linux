@@ -2334,9 +2334,6 @@ static struct fuse_conn *fuse_get_conn_for_passthrough(struct file *file)
 	if (!smp_load_acquire(&fud->chan->initialized))
 		return ERR_PTR(-ENOTCONN);
 
-	if (!IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
-		return ERR_PTR(-EOPNOTSUPP);
-
 	return fud->chan->conn;
 }
 
@@ -2348,6 +2345,9 @@ static long fuse_dev_ioctl_backing_open(struct file *file,
 
 	if (IS_ERR(fc))
 		return PTR_ERR(fc);
+
+	if (!IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
+		return -EOPNOTSUPP;
 
 	if (copy_from_user(&map, argp, sizeof(map)))
 		return -EFAULT;
@@ -2364,6 +2364,9 @@ static long fuse_dev_ioctl_backing_create(struct file *file,
 	if (IS_ERR(fc))
 		return PTR_ERR(fc);
 
+	if (!IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
+		return -EOPNOTSUPP;
+
 	if (copy_from_user(&map, argp, sizeof(map)))
 		return -EFAULT;
 
@@ -2377,6 +2380,9 @@ static long fuse_dev_ioctl_backing_close(struct file *file, __u32 __user *argp)
 
 	if (IS_ERR(fc))
 		return PTR_ERR(fc);
+
+	if (!IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
+		return -EOPNOTSUPP;
 
 	if (get_user(backing_id, argp))
 		return -EFAULT;

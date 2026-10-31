@@ -1010,7 +1010,7 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len,
 	char *destp;
 	struct page **ppages;
 	int page_base;
-	int pad = writelist & 3;
+	int pad = xdr_pad_size(writelist);
 	unsigned int delta;
 
 	/* The head iovec is redirected to the RPC reply message
@@ -1267,14 +1267,9 @@ rpcrdma_decode_msg(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep,
 		rpclen &= ~3;
 	if (unlikely(!rpclen))
 		return -EIO;
-	if (writelist && rpclen < rqst->rq_rcv_buf.head[0].iov_len) {
-		rqst->rq_rcv_buf.head[0].iov_len = rpclen;
-		rqst->rq_private_buf.head[0].iov_len = rpclen;
-	}
 
 	r_xprt->rx_stats.fixup_copy_count +=
-		rpcrdma_inline_fixup(rqst, base, rpclen,
-				     xdr_pad_size(writelist));
+		rpcrdma_inline_fixup(rqst, base, rpclen, writelist);
 
 	r_xprt->rx_stats.total_rdma_reply += writelist;
 	return rpclen + xdr_align_size(writelist);
