@@ -400,8 +400,16 @@ void amdgpu_dm_handle_vrr_transition(struct amdgpu_display_manager *dm,
 				     struct dm_crtc_state *new_state)
 {
 	struct amdgpu_device *adev = dm->adev;
-	bool old_vrr_active = amdgpu_dm_crtc_vrr_active(old_state);
-	bool new_vrr_active = amdgpu_dm_crtc_vrr_active(new_state);
+	/*
+	 * A disabled CRTC keeps its freesync state, but drm_crtc_vblank_get()
+	 * fails there because vblank is off. Hold the reference only while
+	 * the CRTC is active as well, which also covers resume, where the
+	 * reset state lost track of the reference taken before suspend
+	 */
+	bool old_vrr_active = old_state->base.active &&
+			      amdgpu_dm_crtc_vrr_active(old_state);
+	bool new_vrr_active = new_state->base.active &&
+			      amdgpu_dm_crtc_vrr_active(new_state);
 
 	/* Only DCE gates vupdate on VRR, keep it enabled for DCN */
 	bool vrr_gates_vupdate = amdgpu_ip_version(adev, DCE_HWIP, 0) == 0;
