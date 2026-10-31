@@ -153,6 +153,9 @@ void fsl_asoc_reparent_pll_clocks(struct device *dev, struct clk *clk,
 }
 EXPORT_SYMBOL(fsl_asoc_reparent_pll_clocks);
 
+/* Fractional audio PLLs may sit a few Hz off nominal */
+#define FSL_RATE_CONSTR_TOL_HZ	100
+
 /**
  * fsl_asoc_constrain_rates - constrain rates according to clocks
  *
@@ -172,6 +175,7 @@ void fsl_asoc_constrain_rates(struct snd_pcm_hw_constraint_list *target_constr,
 {
 	int i, j, k = 0;
 	u64 clk_rate[3];
+	u32 rate, rem;
 
 	*target_constr = *original_constr;
 	if (pll8k_clk || pll11k_clk || ext_clk) {
@@ -181,10 +185,25 @@ void fsl_asoc_constrain_rates(struct snd_pcm_hw_constraint_list *target_constr,
 			clk_rate[0] = clk_get_rate(pll8k_clk);
 			clk_rate[1] = clk_get_rate(pll11k_clk);
 			clk_rate[2] = clk_get_rate(ext_clk);
+			rate = original_constr->list[i];
 			for (j = 0; j < 3; j++) {
-				if (clk_rate[j] != 0 &&
-				    do_div(clk_rate[j], original_constr->list[i]) == 0) {
-					target_rates[k++] = original_constr->list[i];
+				if (clk_rate[j] == 0)
+					continue;
+				rem = do_div(clk_rate[j], rate);
+				/*
+				 * The audio PLLs are fractional and cannot
+				 * always reproduce their nominal rate: after
+				 * any clk_set_rate() they may sit a few Hz
+				 * off (observed on i.MX8M Plus: audio_pll1
+				 * reads 393215997 after restoring 393216000),
+				 * which must not disqualify the entire rate
+				 * family. Accept near-integer ratios; the
+				 * other family misses by tens of kHz, so a
+				 * small tolerance cannot mix families.
+				 */
+				if (rem <= FSL_RATE_CONSTR_TOL_HZ ||
+				    rem >= rate - FSL_RATE_CONSTR_TOL_HZ) {
+					target_rates[k++] = rate;
 					target_constr->count++;
 					break;
 				}

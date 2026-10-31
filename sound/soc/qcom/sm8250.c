@@ -39,6 +39,16 @@ static int sm8250_snd_init(struct snd_soc_pcm_runtime *rtd)
 	case USB_RX:
 		return qcom_snd_usb_offload_jack_setup(rtd, &data->usb_offload_jack,
 						       &data->usb_offload_jack_setup);
+	case RX_CODEC_DMA_RX_0:
+		/*
+		 * The RX macro digital gain goes up to +40 dB. Userspace that
+		 * maps full volume to the top of the range (PipeWire, PulseAudio)
+		 * would clip there, so stop the interpolator gains at 0 dB.
+		 */
+		snd_soc_limit_volume(rtd->card, "RX_RX0 Digital Volume", 84);
+		snd_soc_limit_volume(rtd->card, "RX_RX1 Digital Volume", 84);
+		snd_soc_limit_volume(rtd->card, "RX_RX2 Digital Volume", 84);
+		fallthrough;
 	default:
 		return qcom_snd_wcd_jack_setup(rtd, &data->jack, &data->jack_setup);
 	}
