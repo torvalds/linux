@@ -572,7 +572,7 @@ static int parse_cmdline_int(const char *s, int *out)
 
 void print_version(void)
 {
-	printf("x86_energy_perf_policy 2026.04.25 Len Brown <lenb@kernel.org>\n");
+	printf("x86_energy_perf_policy 2026.10.31 Len Brown <lenb@kernel.org>\n");
 }
 
 static int platform_profile_access(int mode)
