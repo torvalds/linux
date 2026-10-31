@@ -697,7 +697,7 @@ accepted:
 		lock_sock(sk);
 		tx->tracking->retry_after =
 			clamp_t(unsigned long, 6UL * inet_csk(sk)->icsk_rto,
-				msecs_to_jiffies(1200), 6 * HZ);
+				DIV_ROUND_UP(1200 * HZ, MSEC_PER_SEC), 6 * HZ);
 		release_sock(sk);
 		tx->tracking->valid = true;
 	}
@@ -857,6 +857,15 @@ static int ksmbd_netdev_event(struct notifier_block *nb, unsigned long event,
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 	struct interface *iface;
 	int ret;
+
+	/*
+	 * ksmbd serves the initial namespace only. create_socket() listens in
+	 * the namespace of the task raising the event, so a container bringing
+	 * up its own interface would get a listener on its port 445, and the
+	 * name-only interface lookup would let its interfaces stop ours.
+	 */
+	if (!net_eq(dev_net(netdev), &init_net))
+		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UP:
