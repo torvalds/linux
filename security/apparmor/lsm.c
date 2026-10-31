@@ -15,6 +15,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/ptrace.h>
+#include <linux/sctp.h>
 #include <linux/ctype.h>
 #include <linux/sysctl.h>
 #include <linux/sysfs.h>
@@ -1405,6 +1406,23 @@ static int apparmor_socket_connect(struct socket *sock,
 	return aa_sk_perm(OP_CONNECT, AA_MAY_CONNECT, sock->sk);
 }
 
+static int apparmor_sctp_bind_connect(struct sock *sk, int optname,
+				      struct sockaddr *address, int addrlen)
+{
+	switch (optname) {
+	/* Bind checks */
+	case SCTP_SET_PEER_PRIMARY_ADDR:
+	case SCTP_SOCKOPT_BINDX_ADD:
+		return aa_sk_perm(OP_BIND, AA_MAY_BIND, sk);
+	/* Connect checks */
+	case SCTP_SOCKOPT_CONNECTX:
+	case SCTP_SENDMSG_CONNECT:
+		return aa_sk_perm(OP_CONNECT, AA_MAY_CONNECT, sk);
+	}
+
+	return 0;
+}
+
 static int apparmor_socket_listen(struct socket *sock, int backlog)
 {
 	AA_BUG(!sock);
@@ -1823,6 +1841,7 @@ static struct security_hook_list apparmor_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(socket_getsockopt, apparmor_socket_getsockopt),
 	LSM_HOOK_INIT(socket_setsockopt, apparmor_socket_setsockopt),
 	LSM_HOOK_INIT(socket_shutdown, apparmor_socket_shutdown),
+	LSM_HOOK_INIT(sctp_bind_connect, apparmor_sctp_bind_connect),
 #ifdef CONFIG_NETWORK_SECMARK
 	LSM_HOOK_INIT(socket_sock_rcv_skb, apparmor_socket_sock_rcv_skb),
 #endif

@@ -196,6 +196,9 @@ static int bind_map_addr(const struct sock *sk, struct sockaddr *addr,
 		 * AF_UNSPEC if the address is INADDR_ANY
 		 */
 		addr4 = (struct sockaddr_in *)addr;
+		/* Length check from inet_bind_sk() */
+		if (addrlen < sizeof(struct sockaddr_in))
+			return -EINVAL;
 		if (addr4->sin_addr.s_addr != htonl(INADDR_ANY))
 			return -EAFNOSUPPORT;
 		family = AF_INET;
@@ -425,7 +428,7 @@ int aa_inet_connect_perm(struct socket *sock, struct sockaddr *addr,
 	if (addrlen < offsetofend(struct sockaddr, sa_family))
 		return -EINVAL;
 	if (addr->sa_family == AF_UNSPEC)
-		return 0;
+		return aa_sk_perm(OP_CONNECT, AA_MAY_CONNECT, sock->sk);
 
 	/* do we need early bailout for !family ... */
 	return sk_has_perm2(sock->sk, OP_CONNECT, AA_MAY_CONNECT, profile, ad,

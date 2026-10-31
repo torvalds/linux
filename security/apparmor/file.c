@@ -706,49 +706,50 @@ static void revalidate_tty(const struct cred *subj_cred, struct aa_label *label)
 		no_tty();
 }
 
-struct cred_label {
-	const struct cred *cred;
-	struct aa_label *label;
-};
-
-static int match_file(const void *p, struct file *file, unsigned int fd)
+/*
+ * iterate_fd() callback, called with files->file_lock held: grab a ref
+ * on the next file so it can be revalidated without the lock held.
+ */
+static int get_next_file(const void *p, struct file *file, unsigned int fd)
 {
-	struct cred_label *cl = (struct cred_label *)p;
+	*(struct file **)p = get_file(file);
 
-	if (aa_file_perm(OP_INHERIT, cl->cred, cl->label, file,
-			 aa_map_file_to_perms(file), IN_ATOMIC))
-		return fd + 1;
-	return 0;
+	return fd + 1;
 }
-
 
 /* based on selinux's flush_unauthorized_files */
 void aa_inherit_files(const struct cred *cred, struct files_struct *files)
 {
 	struct aa_label *label = aa_get_newest_cred_label(cred);
-	struct cred_label cl = {
-		.cred = cred,
-		.label = label,
-	};
-	struct file *devnull = NULL;
-	unsigned int n;
+	struct file *devnull = NULL, *file = NULL;
+	bool devnull_tried = false;
+	unsigned int n = 0;
 
 	revalidate_tty(cred, label);
 
-	/* Revalidate access to inherited open files. */
-	n = iterate_fd(files, 0, match_file, &cl);
-	if (!n) /* none found? */
-		goto out;
+	/*
+	 * Revalidate access to inherited open files. Each file is
+	 * revalidated holding only a reference to it, with no locks
+	 * held, as revalidation may sleep (e.g. unix socket mediation
+	 * dropping path refs, or allocating path buffers).
+	 */
+	while ((n = iterate_fd(files, n, get_next_file, &file)) != 0) {
+		int error = aa_file_perm(OP_INHERIT, cred, label, file,
+					 aa_map_file_to_perms(file), false);
 
-	devnull = dentry_open(&aa_null, O_RDWR, cred);
-	if (IS_ERR(devnull))
-		devnull = NULL;
-	/* replace all the matching ones with this */
-	do {
+		fput(file);
+		if (!error)
+			continue;
+		if (!devnull_tried) {
+			devnull_tried = true;
+			devnull = dentry_open(&aa_null, O_RDWR, cred);
+			if (IS_ERR(devnull))
+				devnull = NULL;
+		}
+		/* replace the denied fd (n - 1) with devnull, or close it */
 		replace_fd(n - 1, devnull, 0);
-	} while ((n = iterate_fd(files, n, match_file, &cl)) != 0);
+	}
 	if (devnull)
 		fput(devnull);
-out:
 	aa_put_label(label);
 }
