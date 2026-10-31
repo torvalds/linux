@@ -1339,8 +1339,8 @@ static int zloop_ctl_add(struct zloop_options *opts)
 
 	zlo->disk = blk_mq_alloc_disk(&zlo->tag_set, &lim, zlo);
 	if (IS_ERR(zlo->disk)) {
-		pr_err("blk_mq_alloc_disk failed (err=%d)\n", ret);
 		ret = PTR_ERR(zlo->disk);
+		pr_err("blk_mq_alloc_disk failed (err=%d)\n", ret);
 		goto out_cleanup_tags;
 	}
 	zlo->disk->flags = GENHD_FL_NO_PART;
