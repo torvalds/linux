@@ -377,28 +377,29 @@ static int set_avg_interval(struct acpi_power_meter_resource *resource,
 	return 0;
 }
 
-static int get_power_alarm_state(struct acpi_power_meter_resource *resource,
-				 long *val)
+static bool get_power_alarm_state(struct acpi_power_meter_resource *resource)
 {
+	bool alarm = false;
 	int ret;
 
+	if (resource->caps.flags & POWER_METER_CAN_NOTIFY)
+		alarm = resource->power_alarm;
+	resource->power_alarm = false;
+
 	ret = update_meter(resource);
-	if (ret)
-		return ret;
+	if (ret ||
+	    resource->power == UNKNOWN_POWER_32 ||
+	    resource->power == UNKNOWN_POWER_64)
+		return alarm;
 
 	/* need to update cap if not to support the notification. */
 	if (!(resource->caps.flags & POWER_METER_CAN_NOTIFY)) {
 		ret = update_cap(resource);
 		if (ret)
-			return ret;
-		resource->power_alarm = resource->power > resource->cap;
-		*val = resource->power_alarm;
-	} else {
-		*val = resource->power_alarm || resource->power > resource->cap;
-		resource->power_alarm = resource->power > resource->cap;
+			return false;
 	}
 
-	return 0;
+	return alarm || resource->power > resource->cap;
 }
 
 static umode_t power_meter_is_visible(const void *data,
@@ -481,9 +482,7 @@ static int power_meter_read(struct device *dev, enum hwmon_sensor_types type,
 		*val = res->caps.max_cap * 1000;
 		break;
 	case hwmon_power_alarm:
-		ret = get_power_alarm_state(res, val);
-		if (ret)
-			return ret;
+		*val = get_power_alarm_state(res);
 		break;
 	case hwmon_power_cap:
 		ret = update_cap(res);
