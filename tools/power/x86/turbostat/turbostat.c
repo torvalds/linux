@@ -10674,7 +10674,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2026.09.28 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2026.10.31 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048
