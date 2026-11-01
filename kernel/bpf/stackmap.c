@@ -822,14 +822,20 @@ static long __bpf_get_stack(struct pt_regs *regs, struct task_struct *task,
 					   crosstask, false, 0);
 	}
 
-	if (unlikely(!trace) || trace->nr < skip) {
-		if (may_fault)
-			rcu_read_unlock();
-		preempt_enable();
-		goto err_fault;
-	}
+	if (unlikely(!trace))
+		goto err_unlock;
 
-	trace_nr = callchain_store(trace, trace->nr, buf, elem_size, flags);
+	/*
+	 * trace->nr can be above max_depth. The per-CPU entry is released
+	 * already: a tracing program or an NMI which takes a callchain in the
+	 * same context before the copy below reuses it. And the unwinders of
+	 * PowerPC store context markers on top of max_depth.
+	 */
+	trace_nr = min_t(u32, READ_ONCE(trace->nr), max_depth);
+	if (trace_nr < skip)
+		goto err_unlock;
+
+	trace_nr = callchain_store(trace, trace_nr, buf, elem_size, flags);
 
 	/* trace should not be dereferenced after this point */
 	if (may_fault)
@@ -838,6 +844,10 @@ static long __bpf_get_stack(struct pt_regs *regs, struct task_struct *task,
 
 	return callchain_finalize(buf, size, trace_nr, elem_size, flags, may_fault);
 
+err_unlock:
+	if (may_fault)
+		rcu_read_unlock();
+	preempt_enable();
 err_fault:
 	err = -EFAULT;
 clear:
