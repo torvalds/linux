@@ -836,6 +836,9 @@ static int radeonfb_check_var (struct fb_var_screeninfo *var, struct fb_info *in
         int nom, den;
 	unsigned int pitch;
 
+	if (!var->pixclock)
+		return -EINVAL;
+
 	if (radeon_match_mode(rinfo, &v, var))
 		return -EINVAL;
 
