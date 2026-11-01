@@ -6590,6 +6590,15 @@ static int find_kern_ctx_type_id(enum bpf_prog_type prog_type)
 	return ctx_type->type;
 }
 
+/*
+ * A projection type is the view that programs have of a kernel object with
+ * another layout: see btf_is_projection_of() for the two types behind them.
+ */
+bool btf_is_projection_type(const char *pname)
+{
+	return strcmp(pname, "__sk_buff") == 0 || strcmp(pname, "xdp_md") == 0;
+}
+
 bool btf_is_projection_of(const char *pname, const char *tname)
 {
 	if (strcmp(pname, "__sk_buff") == 0 && strcmp(tname, "sk_buff") == 0)
