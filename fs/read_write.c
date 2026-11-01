@@ -333,47 +333,25 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file_inode(file);
 	loff_t retval;
-	loff_t eof;
+	int ret;
 
 	retval = inode_lock_killable(inode);
 	if (retval)
 		return retval;
-	eof = i_size_read(inode);
-	switch (whence) {
-		case SEEK_END:
-			offset += eof;
-			break;
-		case SEEK_CUR:
-			if (offset == 0) {
-				retval = file->f_pos;
-				goto out;
-			}
-			offset += file->f_pos;
-			break;
-		case SEEK_DATA:
-			/*
-			 * In the generic case the entire file is data, so as
-			 * long as offset isn't at the end of the file then the
-			 * offset is data.
-			 */
-			if ((unsigned long long)offset >= eof) {
-				retval = -ENXIO;
-				goto out;
-			}
-			break;
-		case SEEK_HOLE:
-			/*
-			 * There is a virtual hole at the end of the file, so
-			 * as long as offset isn't i_size or larger, return
-			 * i_size.
-			 */
-			if ((unsigned long long)offset >= eof) {
-				retval = -ENXIO;
-				goto out;
-			}
-			offset = eof;
-			break;
+
+	ret = must_set_pos(file, &offset, whence, i_size_read(inode));
+	if (ret < 0) {
+		retval = ret;
+		goto out;
 	}
+	if (ret == 0) {
+		retval = offset;
+		goto out;
+	}
+
+	if (whence == SEEK_CUR)
+		offset += file->f_pos;
+
 	retval = -EINVAL;
 	if (offset >= 0 || unsigned_offsets(file)) {
 		if (offset != file->f_pos)
