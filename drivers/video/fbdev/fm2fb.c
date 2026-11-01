@@ -257,7 +257,7 @@ static int fm2fb_probe(struct zorro_dev *z, const struct zorro_device_id *id)
 	strcpy(fb_fix.id, is_fm ? "FrameMaster II" : "Rainbow II");
 
 	/* make EBU color bars on display */
-	ptr = (unsigned long *)fb_fix.smem_start;
+	ptr = (unsigned long *)info->screen_base;
 	for (y = 0; y < 576; y++) {
 		for (x = 0; x < 96; x++) *ptr++ = 0xffffff;/* white */
 		for (x = 0; x < 96; x++) *ptr++ = 0xffff00;/* yellow */
