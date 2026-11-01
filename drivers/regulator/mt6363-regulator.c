@@ -147,7 +147,7 @@ struct mt6363_regulator_info {
 }
 
 #define MT6363_LDO_LINEAR_OPS(match, vreg, in_sup, vops, min, max,	\
-			      step, buck_reg, ocp_intn)			\
+			      step, en_reg, lp_reg, ocp_intn)		\
 [MT6363_ID_##vreg] = {							\
 	.desc = {							\
 		.name = match,						\
@@ -160,13 +160,13 @@ struct mt6363_regulator_info {
 		.n_voltages = (max - min) / step + 1,			\
 		.min_uV = min,						\
 		.uV_step = step,					\
-		.enable_reg = MT6363_RG_##buck_reg##_EN_ADDR,		\
+		.enable_reg = en_reg,					\
 		.enable_mask = BIT(MT6363_RG_LDO_##vreg##_EN_BIT),	\
 		.vsel_reg = MT6363_RG_LDO_##vreg##_VOSEL_ADDR,		\
 		.vsel_mask = MT6363_RG_LDO_##vreg##_VOSEL_MASK,		\
 		.of_map_mode = mt6363_map_mode,				\
 	},								\
-	.lp_mode_reg = MT6363_RG_##buck_reg##_LP_ADDR,			\
+	.lp_mode_reg = lp_reg,						\
 	.lp_mode_mask = BIT(MT6363_RG_LDO_##vreg##_LP_BIT),		\
 	.hw_lp_mode_reg = MT6363_LDO_##vreg##_HW_LP_MODE,		\
 	.hw_lp_mode_mask = 0x4,						\
@@ -176,12 +176,15 @@ struct mt6363_regulator_info {
 #define MT6363_LDO_L_SC(match, vreg, inp, min, max, step, buck_reg,	\
 			ocp_intn)					\
 	MT6363_LDO_LINEAR_OPS(match, vreg, inp, mt6363_vreg_setclr_ops,	\
-			      min, max, step, buck_reg, ocp_intn)
+			      min, max, step,				\
+			      MT6363_RG_##buck_reg##_EN_ADDR,		\
+			      MT6363_RG_##buck_reg##_LP_ADDR, ocp_intn)
 
-#define MT6363_LDO_L(match, vreg, inp, min, max, step, buck_reg,	\
-		     ocp_intn)						\
+#define MT6363_LDO_L(match, vreg, inp, min, max, step, ocp_intn)	\
 	MT6363_LDO_LINEAR_OPS(match, vreg, inp, mt6363_ldo_linear_ops,	\
-			      min, max, step, buck_reg, ocp_intn)
+			      min, max, step,				\
+			      MT6363_RG_LDO_##vreg##_ADDR,		\
+			      MT6363_RG_LDO_##vreg##_ADDR, ocp_intn)
 
 #define MT6363_LDO_LINEAR_CAL_OPS(match, vreg, in_sup, vops, vrnum,	\
 				  ocp_intn)				\
@@ -754,10 +757,10 @@ static struct mt6363_regulator_info mt6363_regulators[] = {
 	MT6363_LDO_VT("vio0p75", VIO075, "vs1-ldo1", 5, 36),
 	MT6363_LDO_VT("vio18", VIO18, "vs1-ldo2", 3, 35),
 	MT6363_LDO_VT("vm18", VM18, "vs1-ldo1", 4, 40),
-	MT6363_LDO_L("vsram-apu", VSRAM_APU, "vs3-ldo1", 400000, 1193750, 6250, BUCK1, 30),
-	MT6363_LDO_L("vsram-cpub", VSRAM_CPUB, "vs2-ldo1", 400000, 1193750, 6250, BUCK1, 27),
-	MT6363_LDO_L("vsram-cpum", VSRAM_CPUM, "vs2-ldo1", 400000, 1193750, 6250, BUCK1, 28),
-	MT6363_LDO_L("vsram-cpul", VSRAM_CPUL, "vs2-ldo2", 400000, 1193750, 6250, BUCK1, 29),
+	MT6363_LDO_L("vsram-apu", VSRAM_APU, "vs3-ldo1", 400000, 1193750, 6250, 30),
+	MT6363_LDO_L("vsram-cpub", VSRAM_CPUB, "vs2-ldo1", 400000, 1193750, 6250, 27),
+	MT6363_LDO_L("vsram-cpum", VSRAM_CPUM, "vs2-ldo1", 400000, 1193750, 6250, 28),
+	MT6363_LDO_L("vsram-cpul", VSRAM_CPUL, "vs2-ldo2", 400000, 1193750, 6250, 29),
 	MT6363_LDO_L_SC("vsram-digrf", VSRAM_DIGRF, "vs3-ldo1", 400000, 1193750, 6250, BUCK1, 23),
 	MT6363_LDO_L_SC("vsram-mdfe", VSRAM_MDFE, "vs3-ldo1", 400000, 1193750, 6250, BUCK1, 24),
 	MT6363_LDO_L_SC("vsram-modem", VSRAM_MODEM, "vs3-ldo2", 400000, 1193750, 6250, BUCK1, 25),
