@@ -179,12 +179,20 @@ void rt6_uncached_list_flush_dev(struct net_device *dev)
 		list_for_each_entry_safe(rt, safe, &ul->head, dst.rt_uncached) {
 			struct inet6_dev *rt_idev = rt->rt6i_idev;
 			struct net_device *rt_dev = rt->dst.dev;
+			struct fib6_info *from;
+			bool release_fib;
+
+			rcu_read_lock();
+			from = rcu_dereference(rt->from);
+			release_fib = from && from->fib6_destroying;
+			rcu_read_unlock();
 
 			if (rt_idev &&
 			    (dev ? rt_idev->dev == dev :
 			     READ_ONCE(rt_idev->dev->reg_state) == NETREG_UNREGISTERED)) {
 				rt->rt6i_idev = in6_dev_get(blackhole_netdev);
 				in6_dev_put(rt_idev);
+				release_fib = true;
 			}
 
 			if (dev ? rt_dev == dev :
@@ -193,6 +201,12 @@ void rt6_uncached_list_flush_dev(struct net_device *dev)
 				netdev_ref_replace(rt_dev, blackhole_netdev,
 						   &rt->dst.dev_tracker,
 						   GFP_ATOMIC);
+				release_fib = true;
+			}
+
+			if (release_fib) {
+				from = unrcu_pointer(xchg(&rt->from, NULL));
+				fib6_info_release(from);
 			}
 
 			if (rt->dst.dev == blackhole_netdev &&
