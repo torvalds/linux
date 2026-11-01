@@ -3769,6 +3769,25 @@ static int bpf_skb_net_grow(struct sk_buff *skb, u32 off, u32 len_diff,
 	return 0;
 }
 
+/*
+ * Code that went by the inner transport header while skb->encapsulation was set
+ * goes by the transport header from now on. So take the inner one over, unless
+ * it is the smaller one, as it is if nobody has set it. Do not leave the result
+ * in front of @off, where the bytes were removed.
+ */
+static void bpf_skb_clear_encap(struct sk_buff *skb, u32 off)
+{
+	int thoff;
+
+	if (!skb->encapsulation)
+		return;
+
+	thoff = max(skb->inner_transport_header, skb->transport_header) -
+		skb_headroom(skb);
+	skb_set_transport_header(skb, max_t(int, thoff, off));
+	skb->encapsulation = 0;
+}
+
 static int bpf_skb_net_shrink(struct sk_buff *skb, u32 off, u32 len_diff,
 			      u64 flags)
 {
@@ -3850,8 +3869,7 @@ static int bpf_skb_net_shrink(struct sk_buff *skb, u32 off, u32 len_diff,
 						  SKB_GSO_IPXIP4 |
 						  SKB_GSO_IPXIP6 |
 						  SKB_GSO_ESP)))
-				if (skb->encapsulation)
-					skb->encapsulation = 0;
+				bpf_skb_clear_encap(skb, off);
 		}
 
 		/* Header must be checked, and gso_segs recomputed. */
@@ -3859,10 +3877,9 @@ static int bpf_skb_net_shrink(struct sk_buff *skb, u32 off, u32 len_diff,
 		shinfo->gso_segs = 0;
 	} else {
 		/* For non-GSO packets, clear encapsulation if decap flags are set */
-		if ((flags & (BPF_F_ADJ_ROOM_DECAP_L4_MASK |
-			      BPF_F_ADJ_ROOM_DECAP_IPXIP_MASK)) &&
-		    skb->encapsulation)
-			skb->encapsulation = 0;
+		if (flags & (BPF_F_ADJ_ROOM_DECAP_L4_MASK |
+			     BPF_F_ADJ_ROOM_DECAP_IPXIP_MASK))
+			bpf_skb_clear_encap(skb, off);
 	}
 
 	return 0;
