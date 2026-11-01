@@ -655,9 +655,6 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 		return -EINVAL;
 	if ((ret >> 32) == ((ret + len - 1) >> 32))
 		return ret;
-	if (WARN_ON_ONCE(arena->user_vm_start))
-		/* checks at map creation time should prevent this */
-		return -EFAULT;
 	return round_up(ret, SZ_4G);
 }
 
