@@ -1790,7 +1790,7 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 				struct sk_buff *skb,
 				enum cgroup_bpf_attach_type atype)
 {
-	unsigned int offset = -skb_network_offset(skb);
+	int offset = skb_network_offset(skb);
 	struct sock *save_sk;
 	void *saved_data_end;
 	struct cgroup *cgrp;
@@ -1802,7 +1802,15 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 	cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
 	save_sk = skb->sk;
 	skb->sk = sk;
-	__skb_push(skb, offset);
+
+	/*
+	 * The program sees the packet from its network header on, on
+	 * whichever side of skb->data that header lies.
+	 */
+	if (offset > 0)
+		__skb_pull(skb, offset);
+	else
+		__skb_push(skb, -offset);
 
 	/* compute pointers for the bpf prog */
 	bpf_compute_and_save_data_end(skb, &saved_data_end);
@@ -1844,7 +1852,10 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 			ret = -EFAULT;
 	}
 	bpf_restore_data_end(skb, saved_data_end);
-	__skb_pull(skb, offset);
+	if (offset > 0)
+		__skb_push(skb, offset);
+	else
+		__skb_pull(skb, -offset);
 	skb->sk = save_sk;
 
 	return ret;
