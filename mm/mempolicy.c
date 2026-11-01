@@ -3087,7 +3087,7 @@ int mpol_misplaced(struct folio *folio, struct vm_fault *vmf,
 				node_zonelist(thisnid, GFP_HIGHUSER),
 				gfp_zone(GFP_HIGHUSER),
 				&pol->nodes);
-		polnid = zonelist_node_idx(z);
+		polnid = zone_to_nid(zonelist_zone(z));
 		break;
 
 	default:

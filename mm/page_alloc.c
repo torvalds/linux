@@ -5973,7 +5973,7 @@ int local_memory_node(int node)
 	z = first_zones_zonelist(node_zonelist(node, GFP_KERNEL),
 				   gfp_zone(GFP_KERNEL),
 				   NULL);
-	return zonelist_node_idx(z);
+	return zone_to_nid(zonelist_zone(z));
 }
 #endif
 
