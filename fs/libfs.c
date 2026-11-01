@@ -263,17 +263,18 @@ static long dentry2offset(struct dentry *dentry)
 	return (long)dentry->d_fsdata;
 }
 
-static struct lock_class_key simple_offset_lock_class;
-
 /**
  * simple_offset_init - initialize an offset_ctx
  * @octx: directory offset map to be initialized
+ * @dir: the directory @octx belongs to
  *
+ * The directory's i_rwsem is the lock of the offset map. Writers hold it
+ * exclusive, offset_readdir() holds it shared.
  */
-void simple_offset_init(struct offset_ctx *octx)
+void simple_offset_init(struct offset_ctx *octx, struct inode *dir)
 {
-	mt_init_flags(&octx->mt, MT_FLAGS_ALLOC_RANGE);
-	lockdep_set_class(&octx->mt.ma_lock, &simple_offset_lock_class);
+	mt_init_flags(&octx->mt, MT_FLAGS_ALLOC_RANGE | MT_FLAGS_LOCK_EXTERN);
+	mt_set_external_lock(&octx->mt, &dir->i_rwsem);
 	octx->next_offset = DIR_OFFSET_MIN;
 }
 
@@ -290,12 +291,13 @@ int simple_offset_add(struct offset_ctx *octx, struct dentry *dentry)
 	unsigned long offset;
 	int ret;
 
+	MA_STATE(mas, &octx->mt, 0, 0);
+
 	if (dentry2offset(dentry) != 0)
 		return -EBUSY;
 
-	ret = mtree_alloc_cyclic(&octx->mt, &offset, dentry, DIR_OFFSET_MIN,
-				 DIR_OFFSET_MAX, &octx->next_offset,
-				 GFP_KERNEL);
+	ret = mas_alloc_cyclic(&mas, &offset, dentry, DIR_OFFSET_MIN,
+			       DIR_OFFSET_MAX, &octx->next_offset, GFP_KERNEL);
 	if (unlikely(ret < 0))
 		return ret == -EBUSY ? -ENOSPC : ret;
 
@@ -308,7 +310,9 @@ static int simple_offset_replace(struct offset_ctx *octx, struct dentry *dentry,
 {
 	int ret;
 
-	ret = mtree_store(&octx->mt, offset, dentry, GFP_KERNEL);
+	MA_STATE(mas, &octx->mt, offset, offset);
+
+	ret = mas_store_gfp(&mas, dentry, GFP_KERNEL);
 	if (ret)
 		return ret;
 	offset_set(dentry, offset);
@@ -323,13 +327,14 @@ static int simple_offset_replace(struct offset_ctx *octx, struct dentry *dentry,
  */
 void simple_offset_remove(struct offset_ctx *octx, struct dentry *dentry)
 {
-	long offset;
+	long offset = dentry2offset(dentry);
 
-	offset = dentry2offset(dentry);
+	MA_STATE(mas, &octx->mt, offset, offset);
+
 	if (offset == 0)
 		return;
 
-	mtree_erase(&octx->mt, offset);
+	mas_erase(&mas);
 	offset_set(dentry, 0);
 }
 
@@ -387,16 +392,20 @@ int simple_offset_rename_exchange(struct inode *old_dir,
 	long new_index = dentry2offset(new_dentry);
 	int ret;
 
+	MA_STATE(old_mas, &old_ctx->mt, old_index, old_index);
+	MA_STATE(new_mas, &new_ctx->mt, new_index, new_index);
+
 	if (WARN_ON(!old_index || !new_index))
 		return -EINVAL;
 
-	ret = mtree_store(&new_ctx->mt, new_index, old_dentry, GFP_KERNEL);
+	ret = mas_store_gfp(&new_mas, old_dentry, GFP_KERNEL);
 	if (WARN_ON(ret))
 		return ret;
 
-	ret = mtree_store(&old_ctx->mt, old_index, new_dentry, GFP_KERNEL);
+	ret = mas_store_gfp(&old_mas, new_dentry, GFP_KERNEL);
 	if (WARN_ON(ret)) {
-		mtree_store(&new_ctx->mt, new_index, new_dentry, GFP_KERNEL);
+		mas_set(&new_mas, new_index);
+		mas_store_gfp(&new_mas, new_dentry, GFP_KERNEL);
 		return ret;
 	}
 
@@ -411,11 +420,14 @@ int simple_offset_rename_exchange(struct inode *old_dir,
  * @octx: directory offset ctx that is about to be destroyed
  *
  * During fs teardown (eg. umount), a directory's offset map might still
- * contain entries. xa_destroy() cleans out anything that remains.
+ * contain entries. __mt_destroy() cleans out anything that remains.
+ * Nothing can reach the map of a directory that is being destroyed, so
+ * this runs without the directory's i_rwsem.
  */
 void simple_offset_destroy(struct offset_ctx *octx)
 {
-	mtree_destroy(&octx->mt);
+	mt_on_stack(octx->mt);
+	__mt_destroy(&octx->mt);
 }
 
 /**
