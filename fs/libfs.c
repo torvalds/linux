@@ -530,7 +530,7 @@ static int offset_readdir(struct file *file, struct dir_context *ctx)
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
-	if (ctx->pos != DIR_OFFSET_EOD)
+	if (ctx->pos < DIR_OFFSET_EOD)
 		offset_iterate_dir(file, ctx);
 	return 0;
 }
