@@ -128,7 +128,7 @@ static int bpf_lwt_input_reroute(struct sk_buff *skb)
 		dev_put(dev);
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		skb_dst_drop(skb);
-		if (IS_ENABLED(CONFIG_IPV6)) {
+		if (ipv6_mod_enabled()) {
 			ip6_route_input(skb);
 			err = skb_dst(skb)->error;
 		} else {

@@ -6924,6 +6924,10 @@ static int bpf_push_seg6_encap(struct sk_buff *skb, u32 type, void *hdr, u32 len
 	int err;
 	struct ipv6_sr_hdr *srh = (struct ipv6_sr_hdr *)hdr;
 
+	/* With ipv6.disable=1 the netns has no seg6 data and no IPv6 tables. */
+	if (!ipv6_mod_enabled())
+		return -EAFNOSUPPORT;
+
 	if (!seg6_validate_srh(srh, len, false))
 		return -EINVAL;
 
