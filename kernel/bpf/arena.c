@@ -991,6 +991,8 @@ static int arena_free_range(struct bpf_arena *arena, long uaddr, long page_cnt)
 
 static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt, bool sleepable)
 {
+	/* The first mmap() may be setting the user range right now */
+	u64 user_vm_start = READ_ONCE(arena->user_vm_start);
 	struct mem_cgroup *new_memcg, *old_memcg;
 	u64 full_uaddr, uaddr_end;
 	struct arena_free_span *s;
@@ -998,8 +1000,8 @@ static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt,
 	/* only aligned lower 32-bit are relevant */
 	uaddr = (u32)uaddr;
 	uaddr &= PAGE_MASK;
-	full_uaddr = clear_lo32(arena->user_vm_start) + uaddr;
-	if (full_uaddr < arena->user_vm_start)
+	full_uaddr = clear_lo32(user_vm_start) + uaddr;
+	if (!user_vm_start || full_uaddr < user_vm_start)
 		return;
 	uaddr_end = min(arena->user_vm_end, full_uaddr + (page_cnt << PAGE_SHIFT));
 	if (full_uaddr >= uaddr_end)
