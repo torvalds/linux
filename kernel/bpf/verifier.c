@@ -13593,10 +13593,12 @@ static int resolve_func_arg_type(struct bpf_verifier_env *env,
 	/*
 	 * A kfunc that takes a projection type (ie. xdp_md) casts it to the
 	 * underlying type. So memory of the program cannot stand in for it,
-	 * even if the projection type holds only scalars.
+	 * even if the projection type holds only scalars. A struct without
+	 * members (ie. iou_ctx) is a handle for an object of another type.
 	 */
 	if (btf_is_projection_type(ref_tname) ||
-	    !btf_type_is_scalar_struct(env, btf, ref_t))
+	    !btf_type_is_scalar_struct(env, btf, ref_t) ||
+	    !btf_type_vlen(ref_t))
 		return 0;
 
 	resolve_ret = btf_resolve_size(btf, ref_t, arg_size);

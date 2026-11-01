@@ -410,9 +410,9 @@ explored states of the program.
 A pointer to a struct in the arguments of a KF_ACQUIRE kfunc accepts only an
 object of that type. The same applies to the argument that a KF_RELEASE kfunc
 releases. For other arguments a kfunc also accepts memory of the program, if the
-struct has only scalar members. struct __sk_buff and struct xdp_md never accept
-memory. A KF_ACQUIRE kfunc which wants such memory has to pair the pointer with
-a __sz argument.
+struct has only scalar members. A struct without members, struct __sk_buff and
+struct xdp_md never accept memory. A KF_ACQUIRE kfunc which wants such memory
+has to pair the pointer with a __sz argument.
 
 2.5.2 KF_RET_NULL flag
 ----------------------
