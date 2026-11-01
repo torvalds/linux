@@ -1752,12 +1752,22 @@ enum bpf_func_context {
 	BPF_FUNC_CTX_CNT,
 };
 
+struct bpf_subprog_arg_info {
+	enum bpf_arg_type arg_type;
+	union {
+		u32 mem_size;
+		u32 btf_id;
+	};
+};
+
 struct bpf_func_info_aux {
 	u16 linkage;
 	bool unreliable;
 	bool called[BPF_FUNC_CTX_CNT];
 	bool verified[BPF_FUNC_CTX_CNT];
 	bool called_with_pkt_ptrs;
+	/* what the callers of a global function are checked against */
+	struct bpf_subprog_arg_info args[MAX_BPF_FUNC_REG_ARGS];
 };
 
 enum bpf_jit_poke_reason {

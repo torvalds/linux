@@ -923,14 +923,6 @@ struct bpf_func_ptr {
 /* the subprog that a bpf_func_ptr pointed to was removed as dead code */
 #define BPF_FUNC_PTR_DELETED ((u32)-1)
 
-struct bpf_subprog_arg_info {
-	enum bpf_arg_type arg_type;
-	union {
-		u32 mem_size;
-		u32 btf_id;
-	};
-};
-
 enum priv_stack_mode {
 	PRIV_STACK_UNKNOWN,
 	NO_PRIV_STACK,

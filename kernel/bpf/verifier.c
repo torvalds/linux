@@ -22527,6 +22527,37 @@ static bool func_has_rcu_read_lock(const struct bpf_prog *prog, int subprog)
 	       !sub_aux->called[BPF_FUNC_CTX_NO_RCU_LOCK];
 }
 
+/*
+ * The callers of a global function are checked against the arguments that its
+ * BTF describes, and an extension is verified with those of its own BTF. It
+ * must not expect more than the callers of the function provide.
+ *
+ * While an extension is loaded, bpf_check_attach_target() runs before its
+ * arguments are known. check_attach_btf_id() does the check when they are.
+ */
+static int check_ext_args(struct bpf_verifier_log *log, const struct bpf_prog *prog,
+			  const struct bpf_prog *tgt_prog, int subprog)
+{
+	const struct bpf_subprog_arg_info *tgt = tgt_prog->aux->func_info_aux[subprog].args;
+	const struct bpf_subprog_arg_info *ext = prog->aux->func_info_aux[0].args;
+	int i;
+
+	for (i = 0; i < MAX_BPF_FUNC_REG_ARGS && ext[i].arg_type != ARG_UNUSED; i++) {
+		/* An extension may accept NULL where the callers never pass it. */
+		if ((ext[i].arg_type == tgt[i].arg_type ||
+		     ext[i].arg_type == (tgt[i].arg_type | PTR_MAYBE_NULL)) &&
+		    (base_type(ext[i].arg_type) == ARG_PTR_TO_MEM ?
+		     ext[i].mem_size <= tgt[i].mem_size : ext[i].btf_id == tgt[i].btf_id))
+			continue;
+
+		bpf_log(log, "Extension program's argument in R%d is incompatible with original\n",
+			i + 1);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int bpf_check_attach_target(struct bpf_verifier_log *log,
 			    const struct bpf_prog *prog,
 			    const struct bpf_prog *tgt_prog,
@@ -22814,7 +22845,8 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 			return -EINVAL;
 		}
 		if (prog_extension &&
-		    btf_check_type_match(log, prog, btf, t))
+		    (btf_check_type_match(log, prog, btf, t) ||
+		     check_ext_args(log, prog, tgt_prog, subprog)))
 			return -EINVAL;
 		t = btf_attach_func_proto(log, btf, btf_id);
 		if (!t || !btf_type_is_func_proto(t))
@@ -23034,6 +23066,15 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 		 */
 		env->ops = bpf_verifier_ops[tgt_prog->type];
 		prog->expected_attach_type = tgt_prog->expected_attach_type;
+
+		/* only now it is known what the arguments of prog stand for */
+		ret = btf_prepare_func_args(env, 0);
+		if (ret)
+			return ret;
+		ret = check_ext_args(&env->log, prog, tgt_prog,
+				     find_tgt_subprog(tgt_prog, btf_id));
+		if (ret)
+			return ret;
 	}
 
 	/* store info about the attachment target that will be used later */

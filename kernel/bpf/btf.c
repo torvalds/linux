@@ -8492,9 +8492,8 @@ static int btf_check_func_type_match(struct bpf_verifier_log *log,
 		}
 		/* This is an optional check to make program writing easier.
 		 * Compare names of structs and report an error to the user.
-		 * btf_prepare_func_args() already checked that t2 struct
-		 * is a context type. btf_prepare_func_args() will check
-		 * later that t1 struct is a context type as well.
+		 * check_ext_args() compares what btf_prepare_func_args()
+		 * derives for the two arguments.
 		 */
 		s1 = btf_name_by_offset(btf1, t1->name_off);
 		s2 = btf_name_by_offset(btf2, t2->name_off);
@@ -9027,6 +9026,11 @@ skip_pointer:
 	if (err)
 		return err;
 	sub->arg_slot_cnt = slots_used;
+
+	/* check_ext_args() needs them after env is freed */
+	if (is_global)
+		memcpy(subprog_aux(env, subprog)->args, sub->args,
+		       sizeof(subprog_aux(env, subprog)->args));
 
 	sub->args_cached = true;
 
