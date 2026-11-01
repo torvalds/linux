@@ -6,7 +6,7 @@
   PHY workarounds.
 
   Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
-  Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
+  Copyright (c) 2005-2007 Michael Buesch
 
 
 */
