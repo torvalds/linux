@@ -1137,7 +1137,7 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 		goto out_fput;
 	}
 
-	if (zlo->block_size) {
+	if (!zlo->block_size) {
 		ret = zloop_get_block_size(zlo, zone);
 		if (ret)
 			goto out_fput;
