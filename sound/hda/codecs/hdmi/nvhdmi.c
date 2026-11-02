@@ -66,6 +66,102 @@ static const struct drm_audio_component_audio_ops nvhdmi_audio_ops = {
 	.master_unbind = snd_hda_hdmi_acomp_master_unbind,
 };
 
+/*
+ * All pins of these codecs share one connection list, as on Intel.  An idle
+ * pin left selecting the converter that another pin streams on takes that
+ * stream: the display that plays stays silent and the audio goes to the
+ * other display instead.  Seen on GB202 (0x10de00aa) with an HDMI TV and a
+ * DP monitor: whenever the monitor's PCM was opened first (PipeWire probes
+ * every PCM at start-up), its pin kept the converter the TV got next.
+ *
+ * Move every other connected pin off the converter just assigned, to a
+ * converter nobody uses.
+ */
+static void nvhdmi_not_share_assigned_cvt(struct hda_codec *codec,
+					  hda_nid_t pin_nid, int dev_id,
+					  hda_nid_t cvt_nid)
+{
+	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_spec_per_pin *per_pin;
+	struct hdmi_spec_per_cvt *per_cvt;
+	int pin_idx, cvt_idx, mux_idx, curr, dev_id_saved;
+
+	if (!cvt_nid)
+		return;
+
+	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
+		per_pin = get_pin(spec, pin_idx);
+		/* no display on this pin */
+		if (!per_pin->pcm)
+			continue;
+		if (per_pin->pin_nid == pin_nid && per_pin->dev_id == dev_id)
+			continue;
+		if (per_pin->dev_id >=
+		    snd_hda_get_num_devices(codec, per_pin->pin_nid) + 1)
+			continue;
+
+		dev_id_saved = snd_hda_get_dev_select(codec, per_pin->pin_nid);
+		snd_hda_set_dev_select(codec, per_pin->pin_nid, per_pin->dev_id);
+		curr = snd_hda_codec_read(codec, per_pin->pin_nid, 0,
+					  AC_VERB_GET_CONNECT_SEL, 0);
+		if (curr < 0 || curr >= per_pin->num_mux_nids ||
+		    per_pin->mux_nids[curr] != cvt_nid)
+			goto restore;
+
+		for (cvt_idx = 0; cvt_idx < spec->num_cvts; cvt_idx++) {
+			per_cvt = get_cvt(spec, cvt_idx);
+			if (per_cvt->assigned || per_cvt->cvt_nid == cvt_nid)
+				continue;
+			for (mux_idx = 0; mux_idx < per_pin->num_mux_nids; mux_idx++)
+				if (per_pin->mux_nids[mux_idx] == per_cvt->cvt_nid)
+					break;
+			if (mux_idx == per_pin->num_mux_nids)
+				continue;
+			codec_dbg(codec,
+				  "hdmi: move pin 0x%x off cvt 0x%x to cvt 0x%x\n",
+				  per_pin->pin_nid, cvt_nid, per_cvt->cvt_nid);
+			snd_hda_codec_write_cache(codec, per_pin->pin_nid, 0,
+						  AC_VERB_SET_CONNECT_SEL,
+						  mux_idx);
+			break;
+		}
+restore:
+		snd_hda_set_dev_select(codec, per_pin->pin_nid, dev_id_saved);
+	}
+}
+
+/*
+ * The hardware can drop a pin's converter selection, e.g. on a display
+ * reset.  snd_hda_hdmi_generic_pcm_prepare() relies on pin_cvt_fixup() to
+ * restore it, as i915_pin_cvt_fixup() does on Intel.
+ */
+static void nvhdmi_verify_pin_cvt_connect(struct hda_codec *codec,
+					  struct hdmi_spec_per_pin *per_pin)
+{
+	int curr;
+
+	curr = snd_hda_codec_read(codec, per_pin->pin_nid, 0,
+				  AC_VERB_GET_CONNECT_SEL, 0);
+	if (curr != per_pin->mux_idx)
+		snd_hda_codec_write_cache(codec, per_pin->pin_nid, 0,
+					  AC_VERB_SET_CONNECT_SEL,
+					  per_pin->mux_idx);
+}
+
+static void nvhdmi_pin_cvt_fixup(struct hda_codec *codec,
+				 struct hdmi_spec_per_pin *per_pin,
+				 hda_nid_t cvt_nid)
+{
+	if (per_pin) {
+		snd_hda_set_dev_select(codec, per_pin->pin_nid, per_pin->dev_id);
+		nvhdmi_verify_pin_cvt_connect(codec, per_pin);
+		nvhdmi_not_share_assigned_cvt(codec, per_pin->pin_nid,
+					      per_pin->dev_id, per_pin->cvt_nid);
+	} else {
+		nvhdmi_not_share_assigned_cvt(codec, 0, 0, cvt_nid);
+	}
+}
+
 static int probe_generic(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec;
@@ -77,6 +173,7 @@ static int probe_generic(struct hda_codec *codec)
 	codec->dp_mst = true;
 
 	spec = codec->spec;
+	spec->ops.pin_cvt_fixup = nvhdmi_pin_cvt_fixup;
 
 	err = snd_hda_hdmi_parse_codec(codec);
 	if (err < 0) {
