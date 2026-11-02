@@ -153,6 +153,7 @@ static inline void xsk_buff_free(struct xdp_buff *xdp)
 	}
 
 	xdp_get_shared_info_from_buff(xdp)->nr_frags = 0;
+	xdp_buff_clear_frags_flag(xdp);
 out:
 	xp_free(xskb);
 }
@@ -225,7 +226,8 @@ static inline void xsk_buff_set_size(struct xdp_buff *xdp, u32 size)
 	xdp->data = xdp->data_hard_start + XDP_PACKET_HEADROOM;
 	xdp->data_meta = xdp->data;
 	xdp->data_end = xdp->data + size;
-	xdp->flags = 0;
+	/* Frags flag is cleared when the frags of a head are released */
+	xdp->flags &= XDP_FLAGS_HAS_FRAGS;
 }
 
 static inline dma_addr_t xsk_buff_raw_get_dma(struct xsk_buff_pool *pool,
