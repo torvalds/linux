@@ -4491,6 +4491,7 @@ static void hci_cs_le_create_cis(struct hci_dev *hdev, u8 status)
 {
 	struct hci_cp_le_create_cis *cp;
 	bool pending = false;
+	size_t len;
 	int i;
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", status);
@@ -4498,8 +4499,12 @@ static void hci_cs_le_create_cis(struct hci_dev *hdev, u8 status)
 	if (!status)
 		return;
 
-	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_CREATE_CIS);
+	cp = hci_sent_cmd_data_len(hdev, HCI_OP_LE_CREATE_CIS, &len);
 	if (!cp)
+		return;
+
+	if (len < sizeof(*cp) ||
+	    len < struct_size(cp, cis, cp->num_cis))
 		return;
 
 	hci_dev_lock(hdev);
