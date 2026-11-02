@@ -78,7 +78,8 @@ int mana_xdp_xmit(struct net_device *ndev, int n, struct xdp_frame **frames,
 }
 
 u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
-		 struct xdp_buff *xdp, void *buf_va, uint pkt_len)
+		 struct xdp_buff *xdp, void *buf_va, bool from_pool,
+		 uint pkt_len)
 {
 	struct mana_stats_rx *rx_stats;
 	struct bpf_prog *prog;
@@ -90,7 +91,11 @@ u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
 	if (!prog)
 		goto out;
 
-	xdp_init_buff(xdp, PAGE_SIZE, &rxq->xdp_rxq);
+	/* A redirected buffer is freed by its memory model, so a buffer not
+	 * from the page pool must not claim MEM_TYPE_PAGE_POOL.
+	 */
+	xdp_init_buff(xdp, PAGE_SIZE,
+		      from_pool ? &rxq->xdp_rxq : &rxq->xdp_rxq_shared);
 	xdp_prepare_buff(xdp, buf_va, rxq->headroom, pkt_len, true);
 
 	act = bpf_prog_run_xdp(prog, xdp);
