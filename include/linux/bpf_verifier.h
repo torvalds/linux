@@ -50,6 +50,13 @@ enum bpf_iter_state {
 	BPF_ITER_STATE_DRAINED,
 };
 
+/* Bytes [off, off + size) of the stack of frame frameno. Nothing when size is 0. */
+struct bpf_stack_range {
+	u32 frameno;
+	s32 off;
+	u32 size;
+};
+
 struct bpf_reg_state {
 	/* Ordering of fields matters.  See states_equal() */
 	enum bpf_reg_type type;
@@ -83,6 +90,12 @@ struct bpf_reg_state {
 
 		struct { /* for PTR_TO_MEM | PTR_TO_MEM_OR_NULL */
 			u32 mem_size;
+			/*
+			 * bpf_dynptr_slice() and bpf_dynptr_slice_rdwr() return the
+			 * buffer when the data is not contiguous: the register may
+			 * point to this part of the stack.
+			 */
+			struct bpf_stack_range buf;
 		};
 
 		/* For dynptr stack slots */
@@ -1091,6 +1104,8 @@ struct bpf_verifier_env {
 	bool bypass_spec_v1;
 	bool bypass_spec_v4;
 	bool seen_direct_write;
+	/* a register may point to the stack and is not PTR_TO_STACK, see bpf_reg_state::buf */
+	bool seen_stack_slice;
 	/* a global function is verified for BPF_FUNC_CTX_NO_RCU_LOCK */
 	bool no_rcu_read_lock;
 	bool seen_exception;
@@ -1815,6 +1830,8 @@ struct bpf_call_arg_meta {
 	struct arg_constant_desc arg_constant;
 	/* The type of the dynptr that the kfunc writes through */
 	enum bpf_dynptr_type dynptr_write_type;
+	/* The buffer of bpf_dynptr_slice() or bpf_dynptr_slice_rdwr() */
+	struct bpf_stack_range slice_buf;
 
 	/* arg_{btf,btf_id,owning_ref} are used by kfunc-specific handling,
 	 * generally to pass info about user-defined local kptr types to later

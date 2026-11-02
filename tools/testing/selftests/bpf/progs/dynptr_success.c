@@ -231,6 +231,40 @@ int test_dynptr_skb_slice_non_linear(struct __sk_buff *skb)
 	return 1;
 }
 
+/*
+ * The tcp header is not in the linear part: the slice is the buffer, and a store
+ * through the slice is seen in the buffer. As in the documentation, the stores
+ * come before the compare with the buffer: after it a compiler may use one
+ * pointer in place of the other.
+ */
+SEC("?tc")
+int test_dynptr_skb_slice_rdwr_buffer(struct __sk_buff *skb)
+{
+	struct tcphdr buffer = {}, *tcp;
+	struct bpf_dynptr ptr;
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+	tcp = bpf_dynptr_slice_rdwr(&ptr, TEST_SKB_LINEAR_SIZE, &buffer, sizeof(buffer));
+	if (!tcp) {
+		err = 1;
+		return 1;
+	}
+
+	tcp->source = 0x1234;
+	if (buffer.source != 0x1234) {
+		err = 2;
+		return 1;
+	}
+	/* a read of the buffer does not invalidate the slice */
+	tcp->dest = 0x5678;
+	if (tcp != &buffer)
+		err = 3;
+	else if (bpf_dynptr_write(&ptr, TEST_SKB_LINEAR_SIZE, &buffer, sizeof(buffer), 0))
+		err = 4;
+
+	return 1;
+}
+
 SEC("?tc")
 int test_dynptr_skb_meta_data(struct __sk_buff *skb)
 {
