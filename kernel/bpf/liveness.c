@@ -976,6 +976,19 @@ static struct arg_track arg_join_imprecise(struct arg_track a, struct arg_track 
 	return (struct arg_track){ .mask = m, .frame = ARG_IMPRECISE };
 }
 
+/*
+ * 'a' or a value that is not a pointer to stack. A single fp-N gets a fake fp+0,
+ * to keep stack_use and prevent stack_def. fp+0 itself would stay a single offset.
+ */
+static struct arg_track arg_or_none(struct arg_track a)
+{
+	if (a.off_cnt != 1)
+		return a;
+	if (!a.off[0])
+		return (struct arg_track){ .frame = a.frame };
+	return arg_merge_offsets(a, arg_single(a.frame, 0));
+}
+
 /* Join two arg_track values at merge points */
 static struct arg_track __arg_track_join(struct arg_track a, struct arg_track b)
 {
@@ -1000,20 +1013,10 @@ static struct arg_track __arg_track_join(struct arg_track a, struct arg_track b)
 	 */
 	if (a.frame == ARG_NONE && b.frame == ARG_NONE)
 		return a;
-	if (a.frame >= 0 && b.frame == ARG_NONE) {
-		/*
-		 * When joining single fp-N add fake fp+0 to
-		 * keep stack_use and prevent stack_def
-		 */
-		if (a.off_cnt == 1)
-			return arg_merge_offsets(a, arg_single(a.frame, 0));
-		return a;
-	}
-	if (b.frame >= 0 && a.frame == ARG_NONE) {
-		if (b.off_cnt == 1)
-			return arg_merge_offsets(b, arg_single(b.frame, 0));
-		return b;
-	}
+	if (a.frame >= 0 && b.frame == ARG_NONE)
+		return arg_or_none(a);
+	if (b.frame >= 0 && a.frame == ARG_NONE)
+		return arg_or_none(b);
 
 	return arg_join_imprecise(a, b);
 }
