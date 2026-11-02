@@ -6691,11 +6691,20 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 
 	btrfs_set_inode_mapping_order(BTRFS_I(inode));
 	if (S_ISREG(inode->i_mode)) {
-		if (btrfs_test_opt(fs_info, NODATASUM))
-			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
-		if (btrfs_test_opt(fs_info, NODATACOW))
-			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW |
-				BTRFS_INODE_NODATASUM;
+		/*
+		 * If we inherited compression from the parent directory, it
+		 * takes precedence to nodatacow/nodatasum and we don't set
+		 * compression along with nodatacow/nodatasun, otherwise if a
+		 * user attempts to change some other attribute (say chattr +i),
+		 * it will fail at -EINVAL.
+		 */
+		if (!(BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS)) {
+			if (btrfs_test_opt(fs_info, NODATASUM))
+				BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
+			if (btrfs_test_opt(fs_info, NODATACOW))
+				BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW |
+					BTRFS_INODE_NODATASUM;
+		}
 		btrfs_update_inode_mapping_flags(BTRFS_I(inode));
 	}
 
