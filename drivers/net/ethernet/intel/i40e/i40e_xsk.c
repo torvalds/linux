@@ -469,15 +469,23 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		xsk_buff_set_size(bi, size);
 		xsk_buff_dma_sync_for_cpu(bi);
 
-		if (!first)
-			first = bi;
-		else if (!xsk_buff_add_frag(first, bi)) {
-			xsk_buff_free(first);
-			break;
-		}
-
 		if (++next_to_process == count)
 			next_to_process = 0;
+
+		if (!first) {
+			first = bi;
+		} else if (!xsk_buff_add_frag(first, bi)) {
+			/* Drop what has been gathered so far. xp_free() skips
+			 * @bi if it duplicates a buffer that is already on a
+			 * pool list. Remaining buffers of this packet, if any,
+			 * will be processed as a new packet.
+			 */
+			xsk_buff_free(first);
+			xsk_buff_free(bi);
+			next_to_clean = next_to_process;
+			first = NULL;
+			continue;
+		}
 
 		if (i40e_is_non_eop(rx_ring, rx_desc))
 			continue;
