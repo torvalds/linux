@@ -1222,6 +1222,8 @@ static enum hrtimer_restart bpf_timer_cb(struct hrtimer *hrtimer)
 {
 	struct bpf_hrtimer *t = container_of(hrtimer, struct bpf_hrtimer, timer);
 	struct bpf_map *map = READ_ONCE(t->cb.map);
+	struct bpf_prog *prog = READ_ONCE(t->cb.prog);
+	struct bpf_timed_may_goto saved;
 	void *value = t->cb.value;
 	bpf_callback_t callback_fn;
 	void *key;
@@ -1229,7 +1231,7 @@ static enum hrtimer_restart bpf_timer_cb(struct hrtimer *hrtimer)
 
 	BTF_TYPE_EMIT(struct bpf_timer);
 	callback_fn = rcu_dereference_check(t->cb.callback_fn, rcu_read_lock_bh_held());
-	if (!callback_fn || !map)
+	if (!callback_fn || !map || !prog)
 		goto out;
 
 	/* bpf_timer_cb() runs in hrtimer_run_softirq. It doesn't migrate and
@@ -1242,8 +1244,10 @@ static enum hrtimer_restart bpf_timer_cb(struct hrtimer *hrtimer)
 
 	key = map_key_from_value(map, value, &idx);
 
+	bpf_timed_may_goto_save(prog, &saved);
 	callback_fn((u64)(long)map, (u64)(long)key, (u64)(long)value, 0, 0);
 	/* The verifier checked that return value is zero. */
+	bpf_timed_may_goto_restore(prog, &saved);
 
 	this_cpu_write(hrtimer_running, NULL);
 out:
@@ -1254,6 +1258,8 @@ static void bpf_wq_work(struct work_struct *work)
 {
 	struct bpf_work *w = container_of(work, struct bpf_work, work);
 	struct bpf_async_cb *cb = &w->cb;
+	struct bpf_timed_may_goto saved;
+	struct bpf_prog *prog;
 	struct bpf_map *map;
 	bpf_callback_t callback_fn;
 	void *value = cb->value;
@@ -1267,14 +1273,17 @@ static void bpf_wq_work(struct work_struct *work)
 
 	map = READ_ONCE(cb->map);
 	callback_fn = READ_ONCE(cb->callback_fn);
-	if (!callback_fn || !map)
+	prog = READ_ONCE(cb->prog);
+	if (!callback_fn || !map || !prog)
 		goto out;
 
 	key = map_key_from_value(map, value, &idx);
 
 	migrate_disable();
 
+	bpf_timed_may_goto_save(prog, &saved);
 	callback_fn((u64)(long)map, (u64)(long)key, (u64)(long)value, 0, 0);
+	bpf_timed_may_goto_restore(prog, &saved);
 
 	migrate_enable();
 out:
@@ -4611,6 +4620,7 @@ static void bpf_task_work_cancel(struct bpf_task_work_ctx *ctx,
 static void bpf_task_work_callback(struct callback_head *cb)
 {
 	struct bpf_task_work_ctx *ctx = container_of(cb, struct bpf_task_work_ctx, work);
+	struct bpf_timed_may_goto saved;
 	enum bpf_task_work_state state;
 	u32 idx;
 	void *key;
@@ -4632,8 +4642,10 @@ static void bpf_task_work_callback(struct callback_head *cb)
 	key = (void *)map_key_from_value(ctx->map, ctx->map_val, &idx);
 
 	migrate_disable();
+	bpf_timed_may_goto_save(ctx->prog, &saved);
 	ctx->callback_fn((u64)(long)ctx->map, (u64)(long)key,
 			 (u64)(long)ctx->map_val, 0, 0);
+	bpf_timed_may_goto_restore(ctx->prog, &saved);
 	migrate_enable();
 
 	bpf_task_work_ctx_reset(ctx);
@@ -4873,6 +4885,7 @@ static void bpf_rcu_run_callback(struct rcu_head *rcu)
 	struct bpf_rcu_head_kern *rh = container_of(rcu, struct bpf_rcu_head_kern, rcu);
 	bpf_callback_t callback_fn = rh->callback_fn;
 	struct bpf_prog *prog = rh->prog;
+	struct bpf_timed_may_goto saved;
 	struct bpf_map *map = rh->map;
 	void *value, *key;
 	u32 idx;
@@ -4884,7 +4897,9 @@ static void bpf_rcu_run_callback(struct rcu_head *rcu)
 	smp_store_release(&rh->armed, 0);
 
 	rcu_read_lock_dont_migrate();
+	bpf_timed_may_goto_save(prog, &saved);
 	callback_fn((u64)(long)map, (u64)(long)key, (u64)(long)value, 0, 0);
+	bpf_timed_may_goto_restore(prog, &saved);
 	rcu_read_unlock_migrate();
 
 	bpf_prog_put(prog);

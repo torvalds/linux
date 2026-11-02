@@ -969,6 +969,10 @@ struct bpf_subprog_info {
 	bool is_cb: 1;
 	bool is_async_cb: 1;
 	bool is_exception_cb: 1;
+	/* bpf_loop() or bpf_for_each_map_elem() call it in a loop */
+	bool is_loop_cb: 1;
+	/* BPF code, another helper or a kfunc call it */
+	bool is_called: 1;
 	bool args_cached: 1;
 	/* true if the return value is passed in the R0:R2 register pair */
 	bool ret_reg_pair: 1;

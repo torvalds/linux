@@ -6,13 +6,11 @@
 
 /*
  * Trampoline for the BPF timed may_goto loop bound. Custom calling convention:
- *	- input:  stack offset in BPF_REG_AX (t0)
+ *	- input:  pointer to count and timestamp in BPF_REG_AX (t0)
  *	- output: updated count in BPF_REG_AX (t0)
  *
- * Calls bpf_check_timed_may_goto(ptr) with the standard RISC-V ABI, where
- * ptr = BPF_REG_FP (s5) + BPF_REG_AX (t0). BPF R0-R5 (t6, a0-a4) and stack
- * arguments 6-8 (a5-a7) are saved across the call; BPF_REG_FP (s5) is
- * callee-saved and needs no saving.
+ * Calls bpf_check_timed_may_goto(ptr) with the standard RISC-V ABI. BPF R0-R5
+ * (t6, a0-a4) and stack arguments 6-8 (a5-a7) are saved across the call.
  */
 
 SYM_FUNC_START(arch_bpf_timed_may_goto)
@@ -33,7 +31,7 @@ SYM_FUNC_START(arch_bpf_timed_may_goto)
 	REG_S	a6, 7*SZREG(sp)
 	REG_S	a7, 8*SZREG(sp)
 
-	add	a0, t0, s5
+	mv	a0, t0
 	call	bpf_check_timed_may_goto
 	mv	t0, a0
 

@@ -25,10 +25,7 @@ SYM_FUNC_START(arch_bpf_timed_may_goto)
 	/* Save stack argument 6. */
 	pushq %r9
 
-	/*
-	 * r10 has the pointer to count and timestamp. JIT added the frame
-	 * pointer to the offset. Pass it as first argument.
-	 */
+	/* r10 has the pointer to count and timestamp. Pass it as first argument. */
 	movq %r10, %rdi
 
 	/* Emit call depth accounting for call below. */

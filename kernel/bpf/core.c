@@ -294,6 +294,7 @@ void __bpf_prog_free(struct bpf_prog *fp)
 		mutex_destroy(&fp->aux->used_maps_mutex);
 		mutex_destroy(&fp->aux->dst_mutex);
 		kfree(fp->aux->poke_tab);
+		free_percpu(fp->aux->timed_may_goto);
 		kfree(fp->aux);
 	}
 	free_percpu(fp->stats);
@@ -3643,6 +3644,38 @@ u64 bpf_check_timed_may_goto(struct bpf_timed_may_goto *p)
 	}
 	/* Refresh the count for the stack frame. */
 	return BPF_MAX_TIMED_LOOPS;
+}
+
+/*
+ * The main prog sets count and timestamp in its first insns. A call of an async callback is an
+ * invocation of its own too, but it can interrupt an invocation of the prog on this cpu, or go on
+ * next to one that is preempted. So its caller sets count and timestamp, and puts the old ones
+ * back at the end. Not when another invocation has set them in the meantime: they are for that
+ * one now.
+ * The caller has disabled migration.
+ */
+void bpf_timed_may_goto_save(const struct bpf_prog *prog, struct bpf_timed_may_goto *saved)
+{
+	struct bpf_timed_may_goto *cur;
+
+	if (!prog->aux->timed_may_goto)
+		return;
+	cur = this_cpu_ptr(prog->aux->timed_may_goto);
+	*saved = *cur;
+	cur->count = BPF_MAX_TIMED_LOOPS;
+	cur->timestamp = 0;
+	cur->owner = saved;
+}
+
+void bpf_timed_may_goto_restore(const struct bpf_prog *prog, struct bpf_timed_may_goto *saved)
+{
+	struct bpf_timed_may_goto *cur;
+
+	if (!prog->aux->timed_may_goto)
+		return;
+	cur = this_cpu_ptr(prog->aux->timed_may_goto);
+	if (cur->owner == saved)
+		*cur = *saved;
 }
 
 /* for configs without MMU or 32-bit */

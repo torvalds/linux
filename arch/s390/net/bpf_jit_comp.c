@@ -1005,6 +1005,17 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 					(jit->prg - patch_brc) >> 1;
 			break;
 		}
+		if (insn_is_mov_percpu_addr(insn)) {
+			const u64 *percpu_offset = &get_lowcore()->percpu_offset;
+
+			if (dst_reg != src_reg)
+				/* lgr %dst,%src */
+				EMIT4(0xb9040000, dst_reg, src_reg);
+			/* ag %dst,percpu_offset */
+			EMIT6_DISP_LH(0xe3000000, 0x0008, dst_reg, REG_0, REG_0,
+				      (unsigned long)percpu_offset);
+			break;
+		}
 		switch (insn->off) {
 		case 0: /* DST = SRC */
 			/* lgr %dst,%src */
@@ -1866,9 +1877,9 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		if ((void *)func == arch_bpf_timed_may_goto) {
 			/*
 			 * arch_bpf_timed_may_goto() has a special ABI: the
-			 * parameters are in BPF_REG_AX and BPF_REG_10; the
-			 * return value is in BPF_REG_AX; and all GPRs except
-			 * REG_W0, REG_W1, and BPF_REG_AX are callee-saved.
+			 * parameter is in BPF_REG_AX; the return value is in
+			 * BPF_REG_AX; and all GPRs except REG_W0, REG_W1, and
+			 * BPF_REG_AX are callee-saved.
 			 */
 
 			/* brasl %r0,func */
@@ -3110,6 +3121,11 @@ void arch_bpf_stack_walk(bool (*consume_fn)(void *, u64, u64, u64),
 }
 
 bool bpf_jit_supports_timed_may_goto(void)
+{
+	return true;
+}
+
+bool bpf_jit_supports_percpu_insn(void)
 {
 	return true;
 }
