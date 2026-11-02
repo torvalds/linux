@@ -1116,6 +1116,20 @@ static int propagate_precision(struct bpf_verifier_env *env,
 			bpf_bt_set_frame_slot(&env->bt, fr, i);
 			first = false;
 		}
+		for (i = 0; i < state->out_stack_arg_cnt; i++) {
+			state_reg = &state->stack_arg_regs[i];
+			if (state_reg->type != SCALAR_VALUE || !state_reg->precise)
+				continue;
+			if (env->log.level & BPF_LOG_LEVEL2) {
+				if (first)
+					verbose(env, "frame %d: propagating r11%d",
+						fr, -(i + 1) * BPF_REG_SIZE);
+				else
+					verbose(env, ",r11%d", -(i + 1) * BPF_REG_SIZE);
+			}
+			bt_set_frame_stack_arg_slot(&env->bt, fr, i);
+			first = false;
+		}
 		if (!first && (env->log.level & BPF_LOG_LEVEL2))
 			verbose(env, "\n");
 	}
