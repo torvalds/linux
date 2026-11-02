@@ -1081,7 +1081,8 @@ static bool reco_wait_done(struct TCP_Server_Info *server,
 }
 
 int cifs_wait_for_server_reconnect(struct TCP_Server_Info *server,
-				   struct cifs_tcon *tcon, int aborts)
+				   struct cifs_tcon *tcon, int aborts,
+				   bool nowait)
 {
 	int timeout = 10;
 	int rc;
@@ -1090,6 +1091,10 @@ int cifs_wait_for_server_reconnect(struct TCP_Server_Info *server,
 	if (server->tcpStatus != CifsNeedReconnect) {
 		spin_unlock(&server->srv_lock);
 		return 0;
+	}
+	if (nowait) {
+		spin_unlock(&server->srv_lock);
+		return -EAGAIN;
 	}
 	timeout *= server->nr_targets;
 	spin_unlock(&server->srv_lock);

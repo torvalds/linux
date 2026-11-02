@@ -39,6 +39,7 @@
 
 /* flags for cifs_reopen_file() */
 #define CIFS_REOPEN_BOUND	BIT(0)	/* caller bounds the retries */
+#define CIFS_REOPEN_NOWAIT	BIT(1)	/* fail fast, skip reconnect wait */
 
 static int cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush,
 			    unsigned int flags);
@@ -163,16 +164,12 @@ static bool cifs_tcon_reconnecting(struct cifs_tcon *tcon)
 static int cifs_reopen_file_retry(struct cifsFileInfo *cfile, bool can_flush,
 				  struct cifs_io_subrequest *subreq)
 {
-	bool writeback = subreq->rreq->origin == NETFS_WRITEBACK;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct cifs_ses *ses = tcon->ses;
 	unsigned int reconnects;
 	bool free_retry = true;
 	bool retrying = false;
 	int rc;
-
-	if (writeback && READ_ONCE(subreq->req->reopen_gave_up))
-		return -EIO;
 
 	for (;;) {
 		if ((retrying && cifs_io_stopped(subreq)) ||
@@ -181,11 +178,7 @@ static int cifs_reopen_file_retry(struct cifsFileInfo *cfile, bool can_flush,
 		retrying = true;
 		reconnects = cifs_ses_reconnects(ses);
 		rc = cifs_reopen_file(cfile, can_flush, CIFS_REOPEN_BOUND);
-		if (!rc || is_interrupt_error(rc) ||
-		    cifs_writeback_dying(&subreq->subreq))
-			return rc;
-		if (!is_replayable_error(rc) &&
-		    !(writeback && cifs_writeback_transient(rc)))
+		if (!rc || !is_replayable_error(rc))
 			return rc;
 		if (free_retry && !cifs_io_stopped(subreq) &&
 		    (cifs_ses_reconnects(ses) != reconnects ||
@@ -193,11 +186,8 @@ static int cifs_reopen_file_retry(struct cifsFileInfo *cfile, bool can_flush,
 			free_retry = false;
 			continue;
 		}
-		if (!cifs_io_should_replay(subreq)) {
-			if (writeback)
-				WRITE_ONCE(subreq->req->reopen_gave_up, true);
+		if (!cifs_io_should_replay(subreq))
 			return rc;
-		}
 		msleep(subreq->cur_sleep);
 	}
 }
@@ -216,15 +206,91 @@ static void cifs_mark_bad_handle(struct cifs_io_request *req, unsigned int gen)
 		;
 }
 
-static void cifs_invalidate_bad_handle(struct cifs_io_request *req)
+static bool cifs_bad_handle_pending(struct cifs_io_request *req)
 {
-	struct cifsFileInfo *cfile = req->cfile;
-	unsigned int bad;
+	unsigned int bad = atomic_read(&req->bad_reopens);
 
-	guard(mutex)(&cfile->fh_mutex);
-	bad = atomic_read(&req->bad_reopens);
+	return bad && bad - 1 == READ_ONCE(req->cfile->reopens);
+}
+
+static void __cifs_invalidate_bad_handle(struct cifs_io_request *req)
+{
+	unsigned int bad = atomic_read(&req->bad_reopens);
+	struct cifsFileInfo *cfile = req->cfile;
+
+	lockdep_assert_held(&cfile->fh_mutex);
 	if (bad && bad - 1 == cfile->reopens)
 		cfile->invalidHandle = true;
+}
+
+static void cifs_invalidate_bad_handle(struct cifs_io_request *req)
+{
+	if (!cifs_bad_handle_pending(req))
+		return;
+	guard(mutex)(&req->cfile->fh_mutex);
+	__cifs_invalidate_bad_handle(req);
+}
+
+static bool cifs_try_invalidate_bad_handle(struct cifs_io_request *req)
+{
+	if (!cifs_bad_handle_pending(req))
+		return true;
+	if (!mutex_trylock(&req->cfile->fh_mutex))
+		return false;
+	__cifs_invalidate_bad_handle(req);
+	mutex_unlock(&req->cfile->fh_mutex);
+	return true;
+}
+
+static int cifs_reopen_failed(struct cifs_io_request *req)
+{
+	if (READ_ONCE(req->reopen_gave_up))
+		return -EIO;
+	return READ_ONCE(req->reopen_err);
+}
+
+static int cifs_reopen_writeback(struct cifs_io_subrequest *wdata)
+{
+	struct cifs_io_request *req = wdata->req;
+	struct cifsFileInfo *cfile = req->cfile;
+	int rc;
+
+	if (cifs_io_aborted(wdata))
+		return -EIO;
+
+	guard(mutex)(&req->reopen_lock);
+	if (!cifs_bad_handle_pending(req) && !cfile->invalidHandle)
+		return 0;
+
+	rc = cifs_reopen_failed(req);
+	if (rc)
+		return rc;
+
+	rc = req->reopen_pass_err;
+	if (!rc) {
+		if (!cifs_try_invalidate_bad_handle(req))
+			rc = -EAGAIN;
+		else if (cfile->invalidHandle)
+			rc = cifs_reopen_file(cfile, false,
+					      CIFS_REOPEN_BOUND |
+					      CIFS_REOPEN_NOWAIT);
+		if (!rc)
+			return 0;
+		if (!cifs_writeback_transient(rc)) {
+			WRITE_ONCE(req->reopen_err, rc);
+			return rc;
+		}
+		req->reopen_pass_err = rc;
+	}
+
+	if (!cifs_io_should_replay(wdata)) {
+		WRITE_ONCE(req->reopen_gave_up, true);
+		return -EIO;
+	}
+
+	trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_retry_needed);
+	__set_bit(NETFS_SREQ_NEED_RETRY, &wdata->subreq.flags);
+	return rc;
 }
 
 /*
@@ -240,6 +306,7 @@ static void cifs_prepare_write(struct netfs_io_subrequest *subreq)
 	struct TCP_Server_Info *server;
 	struct cifsFileInfo *open_file = req->cfile;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(wdata->rreq->inode->i_sb);
+	bool writeback = subreq->rreq->origin == NETFS_WRITEBACK;
 	bool reprepared = wdata->have_xid;
 	size_t wsize = req->rreq.wsize;
 	int rc;
@@ -251,6 +318,17 @@ static void cifs_prepare_write(struct netfs_io_subrequest *subreq)
 
 	server = cifs_pick_channel(tlink_tcon(open_file->tlink)->ses);
 	wdata->server = server;
+	wdata->deferred = false;
+
+	if (reprepared) {
+		req->retry_deadline = wdata->retry_deadline;
+		req->cur_sleep = wdata->cur_sleep;
+		req->replay = wdata->replay;
+	} else if (subreq->retry_count) {
+		wdata->retry_deadline = req->retry_deadline;
+		wdata->cur_sleep = req->cur_sleep;
+		wdata->replay = req->replay;
+	}
 
 	if (cifs_io_aborted(wdata) ||
 	    (reprepared && cifs_io_stopped(wdata))) {
@@ -262,27 +340,35 @@ static void cifs_prepare_write(struct netfs_io_subrequest *subreq)
 		cifs_negotiate_wsize(server, cifs_sb->ctx,
 				     tlink_tcon(req->cfile->tlink));
 
+	if (writeback &&
+	    (cifs_bad_handle_pending(req) || open_file->invalidHandle)) {
+		rc = cifs_reopen_failed(req);
+		if (rc) {
+			subreq->error = rc;
+			return netfs_prepare_write_failed(subreq);
+		}
+		goto defer;
+	}
+
 	if (cifs_writeback_dying(subreq))
 		goto defer;
 
-	cifs_invalidate_bad_handle(req);
-
-	if (open_file->invalidHandle) {
-		rc = cifs_reopen_file_retry(open_file, false, wdata);
-		if (rc < 0) {
-			if (subreq->rreq->origin == NETFS_WRITEBACK &&
-			    (is_interrupt_error(rc) ||
-			     fatal_signal_pending(current)))
-				goto defer;
-			subreq->error = cifs_writeback_error(subreq, rc);
-			return netfs_prepare_write_failed(subreq);
+	if (!writeback) {
+		cifs_invalidate_bad_handle(req);
+		if (open_file->invalidHandle) {
+			rc = cifs_reopen_file_retry(open_file, false, wdata);
+			if (rc < 0) {
+				subreq->error = rc;
+				return netfs_prepare_write_failed(subreq);
+			}
 		}
 	}
 
 	rc = server->ops->wait_mtu_credits(server, wsize, &stream->sreq_max_len,
-					   &wdata->credits);
+					   &wdata->credits, writeback);
 	if (rc < 0) {
-		if (cifs_writeback_dying(subreq))
+		if (cifs_writeback_dying(subreq) ||
+		    (writeback && rc == -EAGAIN))
 			goto defer;
 		subreq->error = cifs_writeback_error(subreq, rc);
 		return netfs_prepare_write_failed(subreq);
@@ -290,6 +376,7 @@ static void cifs_prepare_write(struct netfs_io_subrequest *subreq)
 	goto out;
 
 defer:
+	wdata->deferred = true;
 	wdata->credits = (struct cifs_credits){};
 	stream->sreq_max_len = min_t(size_t, wsize, SMB2_MAX_BUFFER_SIZE);
 out:
@@ -336,9 +423,6 @@ static void __cifs_issue_write(struct netfs_io_subrequest *subreq)
 	if (rc)
 		goto fail;
 
-	if (wdata->replay && wdata->cur_sleep)
-		msleep(wdata->cur_sleep);
-
 	rc = -EAGAIN;
 	if (wdata->req->cfile->invalidHandle ||
 	    (wdata->credits.value &&
@@ -372,13 +456,11 @@ static void cifs_issue_write_worker(struct work_struct *work)
 
 	wdata = container_of(work, struct cifs_io_subrequest, subreq.work);
 	cfile = wdata->req->cfile;
-	cifs_invalidate_bad_handle(wdata->req);
-	if (cfile->invalidHandle)
-		rc = cifs_reopen_file_retry(cfile, false, wdata);
+	if (cifs_bad_handle_pending(wdata->req) || cfile->invalidHandle)
+		rc = cifs_reopen_writeback(wdata);
 	if (rc) {
 		add_credits_and_wake_if(wdata->server, &wdata->credits, 0);
-		cifs_write_subrequest_terminated(wdata,
-				cifs_writeback_error(&wdata->subreq, rc));
+		cifs_write_subrequest_terminated(wdata, rc);
 		return;
 	}
 	__cifs_issue_write(&wdata->subreq);
@@ -386,12 +468,87 @@ static void cifs_issue_write_worker(struct work_struct *work)
 
 static void cifs_issue_write(struct netfs_io_subrequest *subreq)
 {
-	if (unlikely(cifs_writeback_dying(subreq))) {
+	struct cifs_io_subrequest *wdata =
+		container_of(subreq, struct cifs_io_subrequest, subreq);
+	struct cifs_io_request *req = wdata->req;
+
+	if (wdata->cur_sleep > req->slept) {
+		msleep(wdata->cur_sleep - req->slept);
+		req->slept = wdata->cur_sleep;
+	}
+
+	if (unlikely(wdata->deferred || cifs_writeback_dying(subreq))) {
 		subreq->work.func = cifs_issue_write_worker;
 		WARN_ON_ONCE(!queue_work(cifs_writeback_wq, &subreq->work));
 		return;
 	}
 	__cifs_issue_write(subreq);
+}
+
+static void cifs_share_retry_state(struct netfs_io_subrequest *from,
+				   struct netfs_io_subrequest *stop,
+				   struct list_head *head)
+{
+	struct netfs_io_subrequest *subreq = from;
+	struct cifs_io_subrequest *wdata;
+	unsigned long deadline = 0;
+	unsigned int sleep = 0;
+	bool replay = false;
+
+	list_for_each_entry_from(subreq, head, rreq_link) {
+		if (subreq == stop)
+			break;
+		wdata = container_of(subreq, struct cifs_io_subrequest, subreq);
+		if (wdata->retry_deadline &&
+		    (!deadline || time_before(wdata->retry_deadline, deadline)))
+			deadline = wdata->retry_deadline;
+		sleep = max(sleep, wdata->cur_sleep);
+		replay |= wdata->replay;
+	}
+
+	subreq = from;
+	list_for_each_entry_from(subreq, head, rreq_link) {
+		if (subreq == stop)
+			break;
+		wdata = container_of(subreq, struct cifs_io_subrequest, subreq);
+		wdata->retry_deadline = deadline;
+		wdata->cur_sleep = sleep;
+		wdata->replay = replay;
+	}
+}
+
+static void cifs_retry_request(struct netfs_io_request *wreq,
+			       struct netfs_io_stream *stream)
+{
+	struct netfs_io_subrequest *subreq, *from = NULL;
+	struct cifs_io_request *req =
+		container_of(wreq, struct cifs_io_request, rreq);
+	uoff_t end = 0;
+
+	req->slept = 0;
+	req->reopen_pass_err = 0;
+	if (!stream)
+		return;
+
+	guard(spinlock)(&wreq->lock);
+	list_for_each_entry(subreq, &stream->subrequests, rreq_link) {
+		if (from && test_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags) &&
+		    !test_bit(NETFS_SREQ_BOUNDARY, &subreq->flags) &&
+		    subreq->start + subreq->transferred == end) {
+			end += subreq->len;
+			continue;
+		}
+		if (from)
+			cifs_share_retry_state(from, subreq,
+					       &stream->subrequests);
+		from = NULL;
+		if (test_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags)) {
+			from = subreq;
+			end = subreq->start + subreq->len;
+		}
+	}
+	if (from)
+		cifs_share_retry_state(from, NULL, &stream->subrequests);
 }
 
 static void cifs_netfs_invalidate_cache(struct netfs_io_request *wreq)
@@ -436,7 +593,7 @@ static int cifs_prepare_read(struct netfs_io_subrequest *subreq)
 	}
 
 	rc = server->ops->wait_mtu_credits(server, cifs_sb->ctx->rsize,
-					   &size, &rdata->credits);
+					   &size, &rdata->credits, false);
 	if (rc)
 		return rc;
 
@@ -562,6 +719,7 @@ static int cifs_init_request(struct netfs_io_request *rreq, struct file *file)
 	rreq->wsize = cifs_sb->ctx->wsize;
 	req->pid = current->tgid; // Ummm...  This may be a workqueue
 	req->umount_aborts = atomic_read(&cifs_sb->umount_aborts);
+	mutex_init(&req->reopen_lock);
 
 	if (file) {
 		open_file = file->private_data;
@@ -650,6 +808,7 @@ const struct netfs_request_ops cifs_req_ops = {
 	.begin_writeback	= cifs_begin_writeback,
 	.prepare_write		= cifs_prepare_write,
 	.issue_write		= cifs_issue_write,
+	.retry_request		= cifs_retry_request,
 	.invalidate_cache	= cifs_netfs_invalidate_cache,
 };
 
@@ -1594,7 +1753,12 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush, unsigned int flags)
 	tcon = tlink_tcon(cfile->tlink);
 	aborts = atomic_read(&tcon->umount_aborts);
 	xid = get_xid();
-	mutex_lock(&cfile->fh_mutex);
+	if (!(flags & CIFS_REOPEN_NOWAIT)) {
+		mutex_lock(&cfile->fh_mutex);
+	} else if (!mutex_trylock(&cfile->fh_mutex)) {
+		free_xid(xid);
+		return -EAGAIN;
+	}
 	if (!cfile->invalidHandle) {
 		mutex_unlock(&cfile->fh_mutex);
 		free_xid(xid);
@@ -1689,6 +1853,7 @@ retry_open:
 		.replay = cfile->reopen_replay,
 		.pending = cfile->reopen_replay,
 		.no_replay = !!(flags & CIFS_REOPEN_BOUND),
+		.no_reconnect_wait = !!(flags & CIFS_REOPEN_NOWAIT),
 	};
 
 	/*
