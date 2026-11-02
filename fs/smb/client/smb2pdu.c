@@ -3349,14 +3349,25 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	int flags = 0;
 	int retries = 0, cur_sleep = 0;
 	struct smb2_file_all_info *file_info = buf ? &buf->fi : NULL;
+	bool reconnect = oparms->reconnect;
+	bool replay = oparms->replay;
+	bool unanswered = replay;
+	bool answered;
+	bool sent;
 
 replay_again:
 	/* reinitialize for possible replay */
+	answered = false;
+	sent = false;
 	resp_buftype = CIFS_NO_BUFFER;
 	memset(&rsp_iov, 0, sizeof(rsp_iov));
 	flags = 0;
 	server = cifs_pick_channel(ses);
-	oparms->replay = !!(retries);
+	/* reissue the same create: a durable reconnect clears ->reconnect */
+	oparms->reconnect = reconnect;
+	/* with no_replay the caller owns oparms->replay */
+	if (!oparms->no_replay)
+		oparms->replay = unanswered;
 
 	cifs_dbg(FYI, "create/open\n");
 	if (!ses || !server)
@@ -3374,21 +3385,22 @@ replay_again:
 			    &rqst, oplock, oparms, path);
 	if (rc)
 		goto creat_exit;
+	sent = true;
 
 	trace_smb3_open_enter(xid, tcon->tid, tcon->ses->Suid, oparms->path,
 		oparms->create_options, oparms->desired_access);
 
-	if (retries) {
-		/* Back-off before retry */
-		if (cur_sleep)
-			msleep(cur_sleep);
+	/* Back-off before retry */
+	if (cur_sleep)
+		msleep(cur_sleep);
+	if (oparms->replay)
 		smb2_set_replay(server, &rqst);
-	}
 
 	rc = cifs_send_recv(xid, ses, server,
 			    &rqst, &resp_buftype, flags,
 			    &rsp_iov);
 	rsp = (struct smb2_create_rsp *)rsp_iov.iov_base;
+	answered = rsp;
 
 	if (rc != 0) {
 		cifs_stats_fail_inc(tcon, SMB2_CREATE_HE);
@@ -3445,10 +3457,27 @@ creat_exit:
 	SMB2_open_free(&rqst);
 	free_rsp_buf(resp_buftype, rsp);
 
-	if (is_replayable_error(rc) &&
-	    smb2_should_replay(tcon, &retries, &cur_sleep))
-		goto replay_again;
+	if (sent) {
+		if (!rc || (answered && (!oparms->replay ||
+					 !is_replayable_error(rc))))
+			unanswered = false;
+		else if (!answered && !is_interrupt_error(rc))
+			unanswered = true;
+		oparms->pending = unanswered;
+	}
 
+	if (!oparms->no_replay && is_replayable_error(rc) &&
+	    smb2_should_replay(tcon, &retries, &cur_sleep)) {
+		if (err_iov && answered && !rsp) {
+			free_rsp_buf(*buftype, err_iov->iov_base);
+			*err_iov = (struct kvec){};
+			*buftype = CIFS_NO_BUFFER;
+		}
+		goto replay_again;
+	}
+
+	if (!oparms->no_replay)
+		oparms->replay = replay;
 	return rc;
 }
 
