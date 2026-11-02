@@ -1129,6 +1129,15 @@ static struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_root *root;
 
+#if BITS_PER_LONG == 32
+	/*
+	 * Roots with ids above ULONG_MAX are never inserted into the radix
+	 * tree, and a truncated index may hit an unrelated root.
+	 */
+	if (root_id > ULONG_MAX)
+		return NULL;
+#endif
+
 	spin_lock(&fs_info->fs_roots_radix_lock);
 	root = radix_tree_lookup(&fs_info->fs_roots_radix,
 				 (unsigned long)root_id);
@@ -1180,6 +1189,10 @@ int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
 			 struct btrfs_root *root)
 {
 	int ret;
+
+	ret = btrfs_check_subvolid(fs_info, btrfs_root_id(root));
+	if (ret)
+		return ret;
 
 	ret = radix_tree_preload(GFP_NOFS);
 	if (ret)
