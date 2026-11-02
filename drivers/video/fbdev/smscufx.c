@@ -1700,8 +1700,16 @@ static int ufx_usb_probe(struct usb_interface *interface,
 	dev_dbg(dev->gdev, "registering framebuffer");
 	retval = register_framebuffer(info);
 	if (retval < 0) {
-		dev_err(dev->gdev, "error %d register_framebuffer", retval);
-		goto reset_active;
+		/*
+		 * info is installed before the takeover can fail; freeing @dev
+		 * here would leave registered_fb[] and /dev/fbN pointing at
+		 * freed memory.
+		 */
+		if (!refcount_read(&info->count)) { /* not registered */
+			dev_err(dev->gdev, "error %d register_framebuffer", retval);
+			goto reset_active;
+		}
+		dev_warn(dev->gdev, "console takeover failed: %d\n", retval);
 	}
 
 	dev_info(dev->gdev, "SMSC UDX USB device /dev/fb%d attached. %dx%d resolution."
