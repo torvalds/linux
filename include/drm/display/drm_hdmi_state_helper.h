@@ -3,10 +3,12 @@
 #ifndef DRM_HDMI_STATE_HELPER_H_
 #define DRM_HDMI_STATE_HELPER_H_
 
+struct dentry;
 struct drm_atomic_commit;
 struct drm_connector;
 struct drm_connector_state;
 struct drm_display_mode;
+struct drm_modeset_acquire_ctx;
 struct hdmi_audio_infoframe;
 
 enum drm_connector_status;
@@ -22,12 +24,17 @@ int drm_atomic_helper_connector_hdmi_update_audio_infoframe(struct drm_connector
 int drm_atomic_helper_connector_hdmi_clear_audio_infoframe(struct drm_connector *connector);
 int drm_atomic_helper_connector_hdmi_update_infoframes(struct drm_connector *connector,
 						       struct drm_atomic_commit *state);
-void drm_atomic_helper_connector_hdmi_hotplug(struct drm_connector *connector,
-					      enum drm_connector_status status);
+int drm_atomic_helper_connector_hdmi_hotplug(struct drm_connector *connector,
+					     struct drm_modeset_acquire_ctx *ctx,
+					     enum drm_connector_status status);
 void drm_atomic_helper_connector_hdmi_force(struct drm_connector *connector);
+int drm_atomic_helper_connector_hdmi_force_ctx(struct drm_connector *connector,
+					       struct drm_modeset_acquire_ctx *ctx);
 
 enum drm_mode_status
 drm_hdmi_connector_mode_valid(struct drm_connector *connector,
 			      const struct drm_display_mode *mode);
+void drm_hdmi_connector_debugfs_init(struct drm_connector *connector,
+				     struct dentry *root);
 
 #endif // DRM_HDMI_STATE_HELPER_H_

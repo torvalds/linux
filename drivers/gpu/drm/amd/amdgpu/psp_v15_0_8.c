@@ -33,6 +33,8 @@
 
 MODULE_FIRMWARE("amdgpu/psp_15_0_8_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_15_0_8_toc_1.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_8_rl.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_8_ta.bin");
 
 static int psp_v15_0_8_init_microcode(struct psp_context *psp)
 {
@@ -43,6 +45,14 @@ static int psp_v15_0_8_init_microcode(struct psp_context *psp)
 	amdgpu_ucode_ip_version_decode(adev, MP0_HWIP, ucode_prefix, sizeof(ucode_prefix));
 
 	err = psp_init_toc_microcode(psp, ucode_prefix);
+	if (err)
+		return err;
+
+	err = psp_init_rl_microcode(psp, ucode_prefix);
+	if (err)
+		return err;
+
+	err = psp_init_ta_microcode(psp, ucode_prefix);
 	if (err)
 		return err;
 
@@ -347,6 +357,141 @@ static int psp_v15_0_8_get_fw_type(struct amdgpu_firmware_info *ucode,
 	return 0;
 }
 
+/* TBD: These should be in psp_gfx_if.h */
+#define IH_INTERRUPT_ID_TO_DRIVER 0xFF
+
+static int psp_v15_0_8_irq_process(struct amdgpu_device *adev,
+				   struct amdgpu_irq_src *source,
+				   struct amdgpu_iv_entry *entry)
+{
+	struct psp_context *psp = &adev->psp;
+	uint32_t data;
+
+	/* Replayed from the PSP soft ring: run the registered handler. */
+	if (entry->ih == &adev->irq.ih_psp) {
+		amdgpu_psp_irq_mgr_dispatch(&psp->irq_mgr, entry);
+		return 1;
+	}
+
+	/* ACK ASP interrupt */
+	if (!amdgpu_sriov_vf(adev)) {
+		data = RREG32_SOC15(MP0, 0, regMPASP_SMN_IH_SW_INT_CTRL);
+		data = REG_SET_FIELD(data, MPASP_SMN_IH_SW_INT_CTRL, INT_ACK, 1);
+		WREG32_SOC15(MP0, 0, regMPASP_SMN_IH_SW_INT_CTRL, data);
+	}
+
+	dev_dbg(adev->dev,
+		"psp_v15_0_8_irq_process: ctxid[0] = %d, ctxid[1] = %d\n",
+		entry->src_data[0], entry->src_data[1]);
+
+	/* Delegate to the PSP soft ring for process-context handling. */
+	amdgpu_irq_psp_delegate(adev, entry, 8);
+
+	return 1;
+}
+
+static int psp_v15_0_8_set_irq_state(struct amdgpu_device *adev,
+				     struct amdgpu_irq_src *source,
+				     unsigned int type,
+				     enum amdgpu_interrupt_state state)
+{
+	uint32_t val = 0;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	switch (state) {
+	case AMDGPU_IRQ_STATE_DISABLE:
+		val = RREG32_SOC15(MP0, 0, regMPASP_SMN_IH_SW_INT_CTRL);
+		val = REG_SET_FIELD(val, MPASP_SMN_IH_SW_INT_CTRL, INT_MASK, 1);
+		WREG32_SOC15(MP0, 0, regMPASP_SMN_IH_SW_INT_CTRL, val);
+		break;
+	case AMDGPU_IRQ_STATE_ENABLE:
+		val = RREG32_SOC15(MP0, 0, regMPASP_SMN_IH_SW_INT);
+		val = REG_SET_FIELD(val, MPASP_SMN_IH_SW_INT, ID, 0xFE);
+		val = REG_SET_FIELD(val, MPASP_SMN_IH_SW_INT, VALID, 0);
+		WREG32_SOC15(MP0, 0, regMPASP_SMN_IH_SW_INT, val);
+
+		val = RREG32_SOC15(MP0, 0, regMPASP_SMN_IH_SW_INT_CTRL);
+		val = REG_SET_FIELD(val, MPASP_SMN_IH_SW_INT_CTRL, INT_MASK, 0);
+		WREG32_SOC15(MP0, 0, regMPASP_SMN_IH_SW_INT_CTRL, val);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static const struct amdgpu_irq_src_funcs psp_v15_0_8_irq_funcs = {
+	.set = psp_v15_0_8_set_irq_state,
+	.process = psp_v15_0_8_irq_process,
+};
+
+static void psp_v15_0_8_ual_cmd_cfg_update(struct amdgpu_psp_irq_mgr *mgr,
+					   u32 event_id,
+					   struct amdgpu_iv_entry *entry)
+{
+	struct amdgpu_device *adev = mgr->psp->adev;
+
+	amdgpu_ualink_config_update_handler(adev);
+}
+
+static void psp_v15_0_8_ual_cmd_pause(struct amdgpu_psp_irq_mgr *mgr,
+				      u32 event_id,
+				      struct amdgpu_iv_entry *entry)
+{
+	struct amdgpu_device *adev = mgr->psp->adev;
+
+	amdgpu_ualink_pause_handler(adev);
+}
+
+static void psp_v15_0_8_ual_cmd_resume(struct amdgpu_psp_irq_mgr *mgr,
+				       u32 event_id,
+				       struct amdgpu_iv_entry *entry)
+{
+	struct amdgpu_device *adev = mgr->psp->adev;
+
+	amdgpu_ualink_resume_handler(adev);
+}
+
+static const struct amdgpu_psp_irq_handler psp_v15_0_8_ual_irq_handlers[] = {
+	{
+		.event_id = PSP_GFX_INT_CTXT_UAL_CMD_CFG_UPDATE,
+		.callback = psp_v15_0_8_ual_cmd_cfg_update,
+	},
+	{
+		.event_id = PSP_GFX_INT_CTXT_UAL_CMD_PAUSE,
+		.callback = psp_v15_0_8_ual_cmd_pause,
+	},
+	{
+		.event_id = PSP_GFX_INT_CTXT_UAL_CMD_RESUME,
+		.callback = psp_v15_0_8_ual_cmd_resume,
+	},
+};
+
+static int psp_v15_0_8_register_irq_handler(struct amdgpu_psp_irq_mgr *mgr,
+					    struct amdgpu_irq_src *irq_src)
+{
+	struct psp_context *psp = mgr->psp;
+	struct amdgpu_device *adev = psp->adev;
+	int ret;
+
+	irq_src->num_types = 1;
+	irq_src->funcs = &psp_v15_0_8_irq_funcs;
+
+	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_MP0,
+				IH_INTERRUPT_ID_TO_DRIVER, irq_src);
+	if (ret)
+		return ret;
+
+	ret = amdgpu_psp_irq_mgr_register(
+		mgr, psp_v15_0_8_ual_irq_handlers,
+		ARRAY_SIZE(psp_v15_0_8_ual_irq_handlers), NULL);
+
+	return ret;
+}
+
 static const struct psp_funcs psp_v15_0_8_funcs = {
 	.init_microcode = psp_v15_0_8_init_microcode,
 	.ring_create = psp_v15_0_8_ring_create,
@@ -356,6 +501,7 @@ static const struct psp_funcs psp_v15_0_8_funcs = {
 	.ring_set_wptr = psp_v15_0_8_ring_set_wptr,
 	.get_fw_type = psp_v15_0_8_get_fw_type,
 	.get_ras_capability = psp_v15_0_8_get_ras_capability,
+	.register_irq_handler = psp_v15_0_8_register_irq_handler,
 };
 
 void psp_v15_0_8_set_psp_funcs(struct psp_context *psp)

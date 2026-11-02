@@ -350,7 +350,10 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 		if (opcode == BPF_CALL) {
 			char tmp[64];
 
-			if (insn->src_reg == BPF_PSEUDO_CALL) {
+			if (BPF_SRC(insn->code) == BPF_X) {
+				verbose(cbs->private_data, "(%02x) callx r%d",
+					insn->code, insn->dst_reg);
+			} else if (insn->src_reg == BPF_PSEUDO_CALL) {
 				verbose(cbs->private_data, "(%02x) call pc%s",
 					insn->code,
 					__func_get_name(cbs, insn,
@@ -372,11 +375,16 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			   insn->src_reg == BPF_MAY_GOTO) {
 			verbose(cbs->private_data, "(%02x) may_goto pc%+d",
 				insn->code, insn->off);
+		} else if (insn->code == (BPF_JMP | BPF_JCOND) &&
+			   insn->src_reg == BPF_UNWIND_GOTO) {
+			verbose(cbs->private_data, "(%02x) unwind_goto pc%+d",
+				insn->code, insn->off);
 		} else if (insn->code == (BPF_JMP32 | BPF_JA)) {
 			verbose(cbs->private_data, "(%02x) gotol pc%+d",
 				insn->code, insn->imm);
 		} else if (insn->code == (BPF_JMP | BPF_EXIT)) {
-			verbose(cbs->private_data, "(%02x) exit", insn->code);
+			verbose(cbs->private_data, "(%02x) %s", insn->code,
+				insn->src_reg == BPF_UNWIND_EXIT ? "unwind_exit" : "exit");
 		} else if (BPF_SRC(insn->code) == BPF_X) {
 			verbose(cbs->private_data,
 				"(%02x) if %c%d %s %c%d goto pc%+d",

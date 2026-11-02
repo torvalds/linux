@@ -2,6 +2,8 @@
 
 top_srcdir = ../../../../..
 
+CFLAGS += $(KHDR_INCLUDES)
+
 HOSTPKG_CONFIG := pkg-config
 MNL_CFLAGS := $(shell $(HOSTPKG_CONFIG) --cflags libmnl 2>/dev/null)
 MNL_LDLIBS := $(shell $(HOSTPKG_CONFIG) --libs libmnl 2>/dev/null || echo -lmnl)

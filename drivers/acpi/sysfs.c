@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kstrtox.h>
 #include <linux/moduleparam.h>
+#include <linux/string.h>
 
 #include "internal.h"
 
@@ -181,10 +182,10 @@ static int param_set_trace_method_name(const char *val,
 
 	/* This is a hack.  We can't kmalloc in early boot. */
 	if (is_abs_path)
-		strcpy(trace_method_name, val);
+		strscpy(trace_method_name, val, sizeof(trace_method_name));
 	else {
 		trace_method_name[0] = '\\';
-		strcpy(trace_method_name+1, val);
+		strscpy(trace_method_name + 1, val, sizeof(trace_method_name) - 1);
 	}
 
 	/* Restore the original tracer state */
@@ -419,6 +420,7 @@ static ssize_t acpi_data_show(struct file *filp, struct kobject *kobj,
 	struct acpi_data_attr *data_attr;
 	void __iomem *base;
 	ssize_t size;
+	u64 end;
 
 	data_attr = container_of(bin_attr, struct acpi_data_attr, attr);
 	size = data_attr->attr.size;
@@ -432,13 +434,17 @@ static ssize_t acpi_data_show(struct file *filp, struct kobject *kobj,
 	if (count > size - offset)
 		count = size - offset;
 
-	base = acpi_os_map_iomem(data_attr->addr, size);
+	/* acpi_os_map_iomem() can't handle a range that wraps around */
+	if (check_add_overflow(data_attr->addr, size, &end))
+		return -EINVAL;
+
+	base = acpi_os_map_iomem(data_attr->addr + offset, count);
 	if (!base)
 		return -ENOMEM;
 
-	memcpy_fromio(buf, base + offset, count);
+	memcpy_fromio(buf, base, count);
 
-	acpi_os_unmap_iomem(base, size);
+	acpi_os_unmap_iomem(base, count);
 
 	return count;
 }
@@ -510,7 +516,6 @@ static int acpi_tables_sysfs_init(void)
 	struct acpi_table_header *table_header = NULL;
 	int table_index;
 	acpi_status status;
-	int ret;
 
 	tables_kobj = kobject_create_and_add("tables", acpi_kobj);
 	if (!tables_kobj)
@@ -535,13 +540,11 @@ static int acpi_tables_sysfs_init(void)
 
 		table_attr = kzalloc_obj(*table_attr);
 		if (!table_attr)
-			return -ENOMEM;
+			break;
 
-		ret = acpi_table_attr_init(tables_kobj,
-					   table_attr, table_header);
-		if (ret) {
+		if (acpi_table_attr_init(tables_kobj, table_attr, table_header)) {
 			kfree(table_attr);
-			return ret;
+			break;
 		}
 		list_add_tail(&table_attr->node, &acpi_table_attr_list);
 		acpi_table_data_init(table_header, table_attr);

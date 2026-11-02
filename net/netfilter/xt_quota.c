@@ -50,7 +50,7 @@ static int quota_mt_check(const struct xt_mtchk_param *par)
 	if (q->flags & ~XT_QUOTA_MASK)
 		return -EINVAL;
 
-	q->master = kmalloc_obj(*q->master);
+	q->master = kmalloc_obj(*q->master, GFP_KERNEL_ACCOUNT);
 	if (q->master == NULL)
 		return -ENOMEM;
 

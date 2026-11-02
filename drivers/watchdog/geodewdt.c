@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
+#include <linux/stringify.h>
 
 #include <linux/cs5535.h>
 
@@ -34,13 +35,13 @@ static int timeout = WATCHDOG_TIMEOUT;
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. 1<= timeout <=131, default="
-				__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
+				__stringify(WATCHDOG_TIMEOUT) ".");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+				__stringify(WATCHDOG_NOWAYOUT) ")");
 
 static struct platform_device *geodewdt_platform_device;
 static unsigned long wdt_flags;

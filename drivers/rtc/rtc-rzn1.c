@@ -68,6 +68,7 @@
 
 struct rzn1_rtc_data {
 	bool has_subu;
+	bool broken_irqs;
 };
 
 struct rzn1_rtc {
@@ -396,6 +397,11 @@ static const struct rtc_class_ops rzn1_rtc_ops_scmp = {
 	.alarm_irq_enable = rzn1_rtc_alarm_irq_enable,
 };
 
+static const struct rtc_class_ops rzn1_rtc_ops_scmp_no_alarm = {
+	.read_time = rzn1_rtc_read_time,
+	.set_time = rzn1_rtc_set_time,
+};
+
 static void rzn1_rtc_disable_hardware(void *data)
 {
 	struct device *dev = data;
@@ -430,10 +436,6 @@ static int rzn1_rtc_probe(struct platform_device *pdev)
 	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base))
 		return dev_err_probe(dev, PTR_ERR(rtc->base), "Missing reg\n");
-
-	irq = platform_get_irq_byname(pdev, "alarm");
-	if (irq < 0)
-		return irq;
 
 	rtc->rtcdev = devm_rtc_allocate_device(dev);
 	if (IS_ERR(rtc->rtcdev))
@@ -503,24 +505,39 @@ static int rzn1_rtc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&rtc->ctl1_access_lock);
 
-	ret = devm_request_irq(dev, irq, rzn1_rtc_alarm_irq, 0, "RZN1 RTC Alarm", rtc);
-	if (ret)
-		return dev_err_probe(dev, ret, "RTC alarm interrupt not available\n");
-
-	irq = platform_get_irq_byname_optional(pdev, "pps");
-	if (irq == -EPROBE_DEFER)
-		return irq;
-	if (irq >= 0)
-		ret = devm_request_irq(dev, irq, rzn1_rtc_1s_irq, 0, "RZN1 RTC 1s", rtc);
-
-	if (irq < 0 || ret) {
-		set_bit(RTC_FEATURE_ALARM_RES_MINUTE, rtc->rtcdev->features);
+	if (data->broken_irqs) {
+		/* All known broken irqs are on SCMP only variants */
+		rtc->rtcdev->ops = &rzn1_rtc_ops_scmp_no_alarm;
 		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->rtcdev->features);
-		dev_warn(dev, "RTC pps interrupt not available. Alarm has only minute accuracy\n");
+	} else {
+		irq = platform_get_irq_byname(pdev, "alarm");
+		if (irq < 0)
+			return irq;
+
+		ret = devm_request_irq(dev, irq, rzn1_rtc_alarm_irq, 0, "RZN1 RTC Alarm", rtc);
+		if (ret)
+			return dev_err_probe(dev, ret, "RTC alarm interrupt not available\n");
+
+		irq = platform_get_irq_byname_optional(pdev, "pps");
+		if (irq == -EPROBE_DEFER)
+			return irq;
+		if (irq >= 0)
+			ret = devm_request_irq(dev, irq, rzn1_rtc_1s_irq, 0, "RZN1 RTC 1s", rtc);
+
+		if (irq < 0 || ret) {
+			set_bit(RTC_FEATURE_ALARM_RES_MINUTE, rtc->rtcdev->features);
+			clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->rtcdev->features);
+			dev_warn(dev, "RTC pps interrupt not available. Alarm has only minute accuracy\n");
+		}
 	}
 
 	return devm_rtc_register_device(rtc->rtcdev);
 }
+
+static const struct rzn1_rtc_data rzn1_rtc_r8a78000_data = {
+	.has_subu = false,
+	.broken_irqs = true,
+};
 
 static const struct rzn1_rtc_data rzn1_rtc_rzt2h_data = {
 	.has_subu = false,
@@ -531,6 +548,7 @@ static const struct rzn1_rtc_data rzn1_rtc_rzn1_data = {
 };
 
 static const struct of_device_id rzn1_rtc_of_match[] = {
+	{ .compatible	= "renesas,r8a78000-rtc", .data = &rzn1_rtc_r8a78000_data },
 	{ .compatible	= "renesas,r9a09g077-rtc", .data = &rzn1_rtc_rzt2h_data },
 	{ .compatible	= "renesas,rzn1-rtc", .data = &rzn1_rtc_rzn1_data },
 	{ /* sentinel */ }

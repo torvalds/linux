@@ -152,6 +152,7 @@ static void __init calibrate_ccount(void)
 		of_node_put(cpu);
 		if (!IS_ERR(clk)) {
 			ccount_freq = clk_get_rate(clk);
+			clk_put(clk);
 			return;
 		} else {
 			pr_warn("%s: CPU input clock not found\n",

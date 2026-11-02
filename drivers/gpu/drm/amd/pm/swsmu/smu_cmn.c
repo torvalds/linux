@@ -27,6 +27,32 @@
 #include "smu_cmn.h"
 #include "soc15_common.h"
 
+#include "amdgpu_xgmi.h"
+
+struct smu_context *smu_get_primary_dev(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_hive_info *hive;
+	struct amdgpu_device *peer;
+
+	if (adev->gmc.xgmi.physical_node_id == 0)
+		return smu;
+
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (!hive)
+		return NULL;
+
+	list_for_each_entry(peer, &hive->device_list, gmc.xgmi.head) {
+		if (peer->gmc.xgmi.physical_node_id == 0) {
+			amdgpu_put_xgmi_hive(hive);
+			return peer->powerplay.pp_handle;
+		}
+	}
+
+	amdgpu_put_xgmi_hive(hive);
+	return NULL;
+}
+
 /*
  * DO NOT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.

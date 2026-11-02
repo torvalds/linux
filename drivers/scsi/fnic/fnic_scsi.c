@@ -2641,6 +2641,8 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 		 * allocated by mid layer.
 		 */
 		mutex_lock(&fnic->sgreset_mutex);
+		/* Fake __release() to keep the lock context analyzer happy. */
+		__release(&fnic->sgreset_mutex);
 		mqtag = fnic->fnic_max_tag_id;
 		new_sc = 1;
 	}  else {
@@ -2826,6 +2828,8 @@ fnic_device_reset_end:
 
 	if (new_sc) {
 		fnic->sgreset_sc = NULL;
+		/* Fake __acquire() to keep the lock context analyzer happy. */
+		__acquire(&fnic->sgreset_mutex);
 		mutex_unlock(&fnic->sgreset_mutex);
 	}
 

@@ -124,7 +124,7 @@ int ntfs_attr_rm(struct ntfs_inode *ni);
 int ntfs_attr_exist(struct ntfs_inode *ni, const __le32 type, __le16 *name,
 		u32 name_len);
 int ntfs_attr_remove(struct ntfs_inode *ni, const __le32 type, __le16 *name,
-		u32 name_len);
+		u32 name_len, struct inode **attr_vi);
 int ntfs_attr_record_rm(struct ntfs_attr_search_ctx *ctx);
 int ntfs_attr_record_move_to(struct ntfs_attr_search_ctx *ctx, struct ntfs_inode *ni);
 int ntfs_attr_add(struct ntfs_inode *ni, __le32 type,

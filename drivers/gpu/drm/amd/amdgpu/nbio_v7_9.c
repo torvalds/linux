@@ -22,6 +22,7 @@
  */
 #include "amdgpu.h"
 #include "nbio_v7_9.h"
+#include "amdgpu_ip.h"
 #include "amdgpu_ras.h"
 
 #include "nbio/nbio_7_9_0_offset.h"

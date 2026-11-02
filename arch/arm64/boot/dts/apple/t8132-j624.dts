@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple iMac (24-inch, 4x USB-C, M4, 2024)
+ *
+ * target-type: J624
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/dts-v1/;
+
+#include "t8132.dtsi"
+#include "t8132-jxxx.dtsi"
+
+/ {
+	compatible = "apple,j624", "apple,t8132", "apple,arm-platform";
+	model = "Apple iMac (24-inch, 4x USB-C, M4, 2024)";
+};

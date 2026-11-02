@@ -459,6 +459,7 @@ static int ov6211_disable_streams(struct v4l2_subdev *sd,
 }
 
 static int ov6211_set_pad_format(struct v4l2_subdev *sd,
+				 const struct v4l2_subdev_client_info *ci,
 				 struct v4l2_subdev_state *state,
 				 struct v4l2_subdev_format *fmt)
 {
@@ -522,7 +523,7 @@ static int ov6211_init_state(struct v4l2_subdev *sd,
 		},
 	};
 
-	ov6211_set_pad_format(sd, state, &fmt);
+	ov6211_set_pad_format(sd, NULL, state, &fmt);
 
 	return 0;
 }

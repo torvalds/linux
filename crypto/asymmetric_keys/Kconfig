@@ -114,4 +114,16 @@ config FIPS_SIGNATURE_SELFTEST_ECDSA
 	depends on CRYPTO_SHA256=y || CRYPTO_SHA256=FIPS_SIGNATURE_SELFTEST
 	depends on CRYPTO_ECDSA=y || CRYPTO_ECDSA=FIPS_SIGNATURE_SELFTEST
 
+config VERIFY_PEFILE_KUNIT_TEST
+	bool "KUnit tests for signed PE file parsing" if !KUNIT_ALL_TESTS
+	depends on KUNIT=y && SIGNED_PE_FILE_VERIFICATION
+	default KUNIT_ALL_TESTS
+	help
+	  Enable KUnit tests for the PE binary parser used by signed PE file
+	  signature verification.  The tests build small malformed PE images in
+	  memory and check that pefile_parse_binary() rejects them instead of
+	  reading out of bounds.
+
+	  If unsure, say N.
+
 endif # ASYMMETRIC_KEY_TYPE

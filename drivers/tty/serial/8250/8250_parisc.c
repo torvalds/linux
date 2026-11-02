@@ -5,6 +5,7 @@
  *	(c) Copyright Matthew Wilcox <willy@debian.org> 2001-2002
  */
 
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -22,9 +23,8 @@
 
 static int __init serial_init_chip(struct parisc_device *dev)
 {
-	struct uart_8250_port uart;
+	struct uart_8250_port *uport, uart;
 	unsigned long address;
-	int err;
 
 #if defined(CONFIG_64BIT) && defined(CONFIG_IOSAPIC)
 	if (!dev->irq && (dev->id.sversion == 0xad))
@@ -64,13 +64,13 @@ static int __init serial_init_chip(struct parisc_device *dev)
 	uart.port.flags	= UPF_BOOT_AUTOCONF;
 	uart.port.dev	= &dev->dev;
 
-	err = serial8250_register_8250_port(&uart);
-	if (err < 0) {
+	uport = serial8250_register_8250_port(&uart);
+	if (IS_ERR(uport)) {
 		dev_warn(&dev->dev,
-			"serial8250_register_8250_port returned error %d\n",
-			err);
+			"serial8250_register_8250_port returned error %pe\n",
+			uport);
 		iounmap(uart.port.membase);
-		return err;
+		return PTR_ERR(uport);
 	}
 
 	return 0;

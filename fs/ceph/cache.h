@@ -31,14 +31,14 @@ static inline struct fscache_cookie *ceph_fscache_cookie(struct ceph_inode_info 
 	return netfs_i_cookie(&ci->netfs);
 }
 
-static inline void ceph_fscache_resize(struct inode *inode, loff_t to)
+static inline void ceph_fscache_resize(struct inode *inode, loff_t to, bool shrank)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct fscache_cookie *cookie = ceph_fscache_cookie(ci);
 
 	if (cookie) {
 		ceph_fscache_use_cookie(inode, true);
-		fscache_resize_cookie(cookie, to);
+		fscache_resize_cookie(cookie, to, shrank);
 		ceph_fscache_unuse_cookie(inode, true);
 	}
 }
@@ -96,7 +96,7 @@ static inline struct fscache_cookie *ceph_fscache_cookie(struct ceph_inode_info 
 	return NULL;
 }
 
-static inline void ceph_fscache_resize(struct inode *inode, loff_t to)
+static inline void ceph_fscache_resize(struct inode *inode, loff_t to, bool shrank)
 {
 }
 

@@ -13,7 +13,7 @@ from lib.py import ksft_run, ksft_exit, ksft_pr
 from lib.py import ksft_eq
 from lib.py import KsftSkipEx, KsftXfailEx
 from lib.py import NetDrvEpEnv, EthtoolFamily, GenerateTraffic
-from lib.py import cmd, defer, rand_port, tc, NlError
+from lib.py import cmd, ctl_file_write, defer, rand_port, tc, NlError
 
 # Added in Python 3.13; fallback to 61 for x86/ARM/MIPS
 SO_TXTIME = getattr(socket, "SO_TXTIME", 61)
@@ -164,22 +164,6 @@ def ringparam(cfg) -> None:
         ksft_pr("Can't set max params", config, e)
     else:
         GenerateTraffic(cfg).wait_pkts_and_stop(10000)
-
-
-def _write_file(path, val):
-    """Write val to a file."""
-    with open(path, "w", encoding="utf-8") as fp:
-        fp.write(str(val))
-
-
-def _write_sysfs(path, val):
-    """Write val to a sysfs file, restoring the original value on exit."""
-    with open(path, "r", encoding="utf-8") as fp:
-        orig_val = fp.read().strip()
-    if str(val) == orig_val:
-        return
-    _write_file(path, val)
-    defer(_write_file, path, orig_val)
 
 
 def _get_qdisc_backlog(cfg, mq_handle, queue):
@@ -342,8 +326,8 @@ def reconfig_tx_stall(cfg) -> None:
     # Slow completions so the ring stays full after FQ releases packets
     napi_defer = f"/sys/class/net/{cfg.ifname}/napi_defer_hard_irqs"
     gro_timeout = f"/sys/class/net/{cfg.ifname}/gro_flush_timeout"
-    _write_sysfs(napi_defer, 100)
-    _write_sysfs(gro_timeout, 1000000000)
+    ctl_file_write(napi_defer, 100)
+    ctl_file_write(gro_timeout, 1000000000)
 
     port = rand_port()
     # A single flow must overflow the ring, so send twice the ring depth and
@@ -384,8 +368,8 @@ def reconfig_tx_stall(cfg) -> None:
     cfg.eth.rings_set(ehdr | {'tx': tx_cur})
 
     # Let completions proceed normally
-    _write_sysfs(napi_defer, 0)
-    _write_sysfs(gro_timeout, 0)
+    ctl_file_write(napi_defer, 0)
+    ctl_file_write(gro_timeout, 0)
 
     # Poll for backlog to drain
     for _ in range(100):

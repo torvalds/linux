@@ -11,12 +11,12 @@ struct dma_fence;
 struct drm_file;
 struct drm_gem_object;
 struct drm_scanout_buffer;
-struct i915_gtt_view;
 struct i915_vma;
 struct intel_display;
 struct intel_dpt;
 struct intel_fb_pin_params;
 struct intel_frontbuffer;
+struct intel_gtt_view;
 struct intel_hdcp_gsc_context;
 struct intel_panic;
 struct intel_stolen_node;
@@ -53,9 +53,9 @@ void intel_parent_fb_pin_dpt_unpin(struct intel_display *display,
 struct i915_vma *intel_parent_fb_pin_reuse_vma(struct intel_display *display,
 					       struct i915_vma *old_ggtt_vma,
 					       struct drm_gem_object *old_obj,
-					       const struct i915_gtt_view *old_view,
+					       const struct intel_gtt_view *old_view,
 					       struct drm_gem_object *new_obj,
-					       const struct i915_gtt_view *new_view,
+					       const struct intel_gtt_view *new_view,
 					       u32 *out_offset);
 void intel_parent_fb_pin_get_map(struct intel_display *display,
 				 struct i915_vma *vma, struct iosys_map *map);
@@ -115,7 +115,7 @@ void intel_parent_pc8_block(struct intel_display *display);
 void intel_parent_pc8_unblock(struct intel_display *display);
 
 /* pcode */
-int intel_parent_pcode_read(struct intel_display *display, u32 mbox, u32 *val, u32 *val1);
+int intel_parent_pcode_read(struct intel_display *display, u32 mbox, u32 *val0, u32 *val1);
 int intel_parent_pcode_write_timeout(struct intel_display *display, u32 mbox, u32 val, int timeout_ms);
 int intel_parent_pcode_write(struct intel_display *display, u32 mbox, u32 val);
 int intel_parent_pcode_request(struct intel_display *display, u32 mbox, u32 request,
@@ -155,6 +155,7 @@ int intel_parent_vlv_iosf_write(struct intel_display *display, enum vlv_iosf_sb_
 /* generic */
 bool intel_parent_has_auxccs(struct intel_display *display);
 bool intel_parent_has_fenced_regions(struct intel_display *display);
+void intel_parent_transient_data_flush(struct intel_display *display);
 bool intel_parent_vgpu_active(struct intel_display *display);
 void intel_parent_fence_priority_display(struct intel_display *display, struct dma_fence *fence);
 

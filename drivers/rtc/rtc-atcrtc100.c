@@ -147,7 +147,7 @@ static void atcrtc_alarm_clear(struct work_struct *work)
 		container_of(work, struct atcrtc_dev, rtc_work);
 	int ret;
 
-	rtc_lock(rtc->rtc_dev);
+	guard(rtc_ops)(rtc->rtc_dev);
 
 	if (!rtc->alarm_en) {
 		ret = atcrtc_check_write_done(rtc);
@@ -159,7 +159,6 @@ static void atcrtc_alarm_clear(struct work_struct *work)
 			regmap_update_bits(rtc->regmap, RTC_CR,
 					   ALARM_WAKEUP | ALARM_INT, 0);
 	}
-	rtc_unlock(rtc->rtc_dev);
 }
 
 static int atcrtc_read_time(struct device *dev, struct rtc_time *tm)

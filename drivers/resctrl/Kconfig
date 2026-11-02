@@ -2,6 +2,8 @@ menuconfig ARM64_MPAM_DRIVER
 	bool "MPAM driver"
 	depends on ARM64 && ARM64_MPAM
 	select ACPI_MPAM if ACPI
+	select PCC if ACPI
+	select MAILBOX
 	help
 	  Memory System Resource Partitioning and Monitoring (MPAM) driver for
 	  System IP, e.g. caches and memory controllers.

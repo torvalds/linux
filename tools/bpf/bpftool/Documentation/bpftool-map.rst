@@ -120,7 +120,8 @@ bpftool map pin     *MAP*  *FILE*
     character ('.'), which is reserved for future extensions of *bpffs*.
 
 bpftool map event_pipe *MAP* [cpu *N* index *M*]
-    Read events from a **BPF_MAP_TYPE_PERF_EVENT_ARRAY** map.
+    Read events from a **BPF_MAP_TYPE_PERF_EVENT_ARRAY** or
+    **BPF_MAP_TYPE_RINGBUF** map.
 
     Install perf rings into a perf event array map and dump output of any
     **bpf_perf_event_output**\ () call in the kernel. By default read the
@@ -133,6 +134,17 @@ bpftool map event_pipe *MAP* [cpu *N* index *M*]
     Note that installing a perf ring into an array will silently replace any
     existing ring.  Any other application will stop receiving events if it
     installed its rings earlier.
+
+    For a ring buffer map, consume records submitted by BPF programs, including
+    records already queued before the command starts. **cpu** and **index**
+    are not supported. Each record is printed in full, including embedded zero
+    bytes. Plain output reports the record size followed by hexadecimal
+    bytes; JSON output contains **size** and **data** fields, with **data** an
+    array of byte values. Ring buffer records have no implicit CPU or timestamp.
+
+    Consuming a ring buffer advances its shared consumer position, so this
+    command must not run alongside another consumer of the same map.
+    **BPF_MAP_TYPE_USER_RINGBUF** maps are not supported.
 
 bpftool map peek  *MAP*
     Peek next value in the queue or stack.

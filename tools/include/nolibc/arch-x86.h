@@ -386,5 +386,7 @@ __asm__ (
 ".popsection\n"
 );
 
+#define __NOLIBC_BITS_PER_SYSCALL_ARG 64
+
 #endif /* !defined(__x86_64__) */
 #endif /* _NOLIBC_ARCH_X86_H */

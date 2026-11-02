@@ -183,11 +183,17 @@ static int img_prl_out_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const u64 img_prl_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF;
+
 static const struct snd_soc_dai_ops img_prl_out_dai_ops = {
 	.probe		= img_prl_out_dai_probe,
 	.trigger	= img_prl_out_trigger,
 	.hw_params	= img_prl_out_hw_params,
-	.set_fmt	= img_prl_out_set_fmt
+	.set_fmt	= img_prl_out_set_fmt,
+	.auto_selectable_formats	= &img_prl_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver img_prl_out_dai = {

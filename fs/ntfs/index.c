@@ -489,6 +489,14 @@ static struct index_entry *ntfs_ie_dup_novcn(struct index_entry *ie)
 	return dup;
 }
 
+/* Offset of the first entry in an index block created by ntfs_ib_alloc(). */
+static u32 ntfs_ib_canonical_entries_offset(u32 block_size)
+{
+	u32 usa_count = block_size / NTFS_BLOCK_SIZE + 1;
+
+	return (sizeof(struct index_header) + usa_count * 2 + 7) & ~7;
+}
+
 /*
  * Check the consistency of an index block
  *
@@ -548,6 +556,16 @@ int ntfs_index_block_inconsistent(struct ntfs_volume *vol,
 					   offsetof(struct index_block, index),
 					   inum))
 		return -EIO;
+
+	if (le32_to_cpu(ib->index.entries_offset) <
+	    ntfs_ib_canonical_entries_offset(block_size)) {
+		ntfs_error(sb,
+			   "Index block: entries offset %u is below the minimum for a %u-byte block: vcn %lld inode %llu\n",
+			   le32_to_cpu(ib->index.entries_offset), block_size,
+			   vcn, inum);
+		return -EIO;
+	}
+
 	if (ntfs_index_entries_inconsistent(vol, &ib->index, cr, inum))
 		return -EIO;
 	return 0;
@@ -812,6 +830,9 @@ static int ntfs_icx_parent_dec(struct ntfs_index_context *icx)
  * after the search @key, i.e. this is the position in the index at which
  * an index entry with a key of @key would need to be inserted.
  *
+ * If the index cannot be searched, a negative error code other than -ENOENT
+ * is returned and @icx does not describe a valid index entry.
+ *
  * When finished with the entry and its data, call ntfs_index_ctx_put() to free
  * the context and other associated resources.
  *
@@ -852,7 +873,7 @@ int ntfs_index_lookup(const void *key, const u32 key_len, struct ntfs_index_cont
 	if (ni->vol->cluster_size <= icx->block_size)
 		icx->vcn_size_bits = ni->vol->cluster_size_bits;
 	else
-		icx->vcn_size_bits = ni->vol->sector_size_bits;
+		icx->vcn_size_bits = NTFS_BLOCK_SIZE_BITS;
 
 	icx->cr = ir->collation_rule;
 	if (!ntfs_is_collation_rule_supported(icx->cr)) {
@@ -877,7 +898,7 @@ int ntfs_index_lookup(const void *key, const u32 key_len, struct ntfs_index_cont
 	/* Child node present, descend into it. */
 	icx->ia_ni = ntfs_ia_open(icx, ni);
 	if (!icx->ia_ni) {
-		err = -ENOENT;
+		err = -EIO;
 		goto err_out;
 	}
 
@@ -957,8 +978,8 @@ static struct index_block *ntfs_ib_alloc(s64 ib_vcn, u32 ib_size,
 	*(__le16 *)((char *)ib + le16_to_cpu(ib->usa_ofs)) = cpu_to_le16(1);
 	ib->lsn = 0;
 	ib->index_block_vcn = cpu_to_le64(ib_vcn);
-	ib->index.entries_offset = cpu_to_le32((ih_size +
-				le16_to_cpu(ib->usa_count) * 2 + 7) & ~7);
+	ib->index.entries_offset =
+		cpu_to_le32(ntfs_ib_canonical_entries_offset(ib_size));
 	ib->index.index_length = 0;
 	ib->index.allocated_size = cpu_to_le32(ib_size -
 			(sizeof(struct index_block) - ih_size));

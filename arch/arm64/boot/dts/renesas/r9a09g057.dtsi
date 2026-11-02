@@ -1577,7 +1577,7 @@
 			status = "disabled";
 		};
 
-		sdhi0: mmc@15c00000  {
+		sdhi0: mmc@15c00000 {
 			compatible = "renesas,sdhi-r9a09g057";
 			reg = <0x0 0x15c00000 0 0x10000>;
 			interrupts = <GIC_SPI 735 IRQ_TYPE_LEVEL_HIGH>,

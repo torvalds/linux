@@ -61,7 +61,9 @@
  *	    ├── survivability_mode
  *	    ├── gt_types_allowed
  *	    ├── engines_allowed
- *	    └── enable_psmi
+ *	    ├── migrate_ulls_period_ms
+ *	    ├── enable_psmi
+ *	    └── disable_vram_page_offline
  *
  * After configuring the attributes as per next section, the device can be
  * probed with::
@@ -159,6 +161,18 @@
  *
  * This attribute can only be set before binding to the device.
  *
+ * Disable VRAM page offline:
+ * ----------------------------
+ *
+ *  0, n, N, false - Do not disable (Offlining is active - default)
+ *  1, y, Y, true  - Disable vram page offline (Logging only)
+ *
+ *  Example to disable VRAM offline::
+ *
+ *      # echo 1 > /sys/kernel/config/xe/0000:03:00.0/disable_vram_page_offline
+ *
+ * This attribute can only be set on CRI before binding to the device.
+ *
  * Context restore BB
  * ------------------
  *
@@ -249,6 +263,20 @@
  *
  * This attribute can only be set before binding to the device.
  *
+ * Migrate ULLS Period (ms)
+ * ------------------------
+ *
+ * Migrate ULLS period, in milliseconds. This is the delay between entering
+ * migrate ULLS (a continuously running batch) and exiting it. Migrate ULLS is
+ * currently entered during page faults and SVM prefetch operations. Default 5,
+ * zero indicates ULLS is disabled.
+ *
+ * How to disable migration ULLS:
+ *
+ *	# echo 0 > /sys/kernel/config/xe/0000:03:00.0/migrate_ulls_period_ms
+ *
+ * This attribute can only be set before binding to the device.
+ *
  * Remove devices
  * ==============
  *
@@ -270,11 +298,13 @@ struct xe_config_group_device {
 	struct xe_config_device {
 		u64 gt_types_allowed;
 		u64 engines_allowed;
+		u32 migrate_ulls_period_ms;
 		struct wa_bb ctx_restore_post_bb[XE_ENGINE_CLASS_MAX];
 		struct wa_bb ctx_restore_mid_bb[XE_ENGINE_CLASS_MAX];
 		bool survivability_mode;
 		bool enable_psmi;
 		bool enable_multi_queue;
+		bool disable_vram_page_offline;
 		struct {
 			unsigned int max_vfs;
 			bool admin_only_pf;
@@ -292,9 +322,11 @@ struct xe_config_group_device {
 static const struct xe_config_device device_defaults = {
 	.gt_types_allowed = U64_MAX,
 	.engines_allowed = U64_MAX,
+	.migrate_ulls_period_ms = 5,
 	.survivability_mode = false,
 	.enable_psmi = false,
 	.enable_multi_queue = true,
+	.disable_vram_page_offline = false,
 	.sriov = {
 		.max_vfs = XE_DEFAULT_MAX_VFS,
 		.admin_only_pf = XE_DEFAULT_ADMIN_ONLY_PF,
@@ -616,6 +648,60 @@ static ssize_t enable_multi_queue_store(struct config_item *item, const char *pa
 	return len;
 }
 
+static ssize_t migrate_ulls_period_ms_show(struct config_item *item, char *page)
+{
+	struct xe_config_device *dev = to_xe_config_device(item);
+
+	return sprintf(page, "%u\n", dev->migrate_ulls_period_ms);
+}
+
+static ssize_t migrate_ulls_period_ms_store(struct config_item *item,
+					    const char *page, size_t len)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
+	u32 val;
+	int ret;
+
+	ret = kstrtou32(page, 0, &val);
+	if (ret)
+		return ret;
+
+	guard(mutex)(&dev->lock);
+	if (is_bound(dev))
+		return -EBUSY;
+
+	dev->config.migrate_ulls_period_ms = val;
+
+	return len;
+}
+
+static ssize_t disable_vram_page_offline_show(struct config_item *item, char *page)
+{
+	struct xe_config_device *dev = to_xe_config_device(item);
+
+	return sprintf(page, "%s\n", str_yes_no(dev->disable_vram_page_offline));
+}
+
+static ssize_t disable_vram_page_offline_store(struct config_item *item,
+					       const char *page, size_t len)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
+	bool val;
+	int ret;
+
+	ret = kstrtobool(page, &val);
+	if (ret)
+		return ret;
+
+	guard(mutex)(&dev->lock);
+	if (is_bound(dev))
+		return -EBUSY;
+
+	dev->config.disable_vram_page_offline = val;
+
+	return len;
+}
+
 static bool wa_bb_read_advance(bool dereference, char **p,
 			       const char *append, size_t len,
 			       size_t *max_size)
@@ -854,7 +940,9 @@ static ssize_t ctx_restore_post_bb_store(struct config_item *item,
 CONFIGFS_ATTR(, ctx_restore_mid_bb);
 CONFIGFS_ATTR(, ctx_restore_post_bb);
 CONFIGFS_ATTR(, enable_multi_queue);
+CONFIGFS_ATTR(, migrate_ulls_period_ms);
 CONFIGFS_ATTR(, enable_psmi);
+CONFIGFS_ATTR(, disable_vram_page_offline);
 CONFIGFS_ATTR(, engines_allowed);
 CONFIGFS_ATTR(, gt_types_allowed);
 CONFIGFS_ATTR(, survivability_mode);
@@ -863,7 +951,9 @@ static struct configfs_attribute *xe_config_device_attrs[] = {
 	&attr_ctx_restore_mid_bb,
 	&attr_ctx_restore_post_bb,
 	&attr_enable_multi_queue,
+	&attr_migrate_ulls_period_ms,
 	&attr_enable_psmi,
+	&attr_disable_vram_page_offline,
 	&attr_engines_allowed,
 	&attr_gt_types_allowed,
 	&attr_survivability_mode,
@@ -886,12 +976,17 @@ static struct configfs_item_operations xe_config_device_ops = {
 };
 
 static bool xe_config_device_is_visible(struct config_item *item,
-					struct configfs_attribute *attr, int n)
+					const struct configfs_attribute *attr, int n)
 {
 	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 
 	if (attr == &attr_survivability_mode) {
 		if (!dev->desc->is_dgfx || dev->desc->platform < XE_BATTLEMAGE)
+			return false;
+	}
+
+	if (attr == &attr_disable_vram_page_offline) {
+		if (!dev->desc->is_dgfx || dev->desc->platform != XE_CRESCENTISLAND)
 			return false;
 	}
 
@@ -981,7 +1076,7 @@ static struct configfs_attribute *xe_config_sriov_attrs[] = {
 };
 
 static bool xe_config_sriov_is_visible(struct config_item *item,
-				       struct configfs_attribute *attr, int n)
+				       const struct configfs_attribute *attr, int n)
 {
 	struct xe_config_group_device *dev = to_xe_config_group_device(item->ci_parent);
 
@@ -1140,8 +1235,10 @@ static void dump_custom_dev_config(struct pci_dev *pdev,
 
 	PRI_CUSTOM_ATTR("%llx", gt_types_allowed);
 	PRI_CUSTOM_ATTR("%llx", engines_allowed);
+	PRI_CUSTOM_ATTR("%u", migrate_ulls_period_ms);
 	PRI_CUSTOM_ATTR("%d", enable_multi_queue);
 	PRI_CUSTOM_ATTR("%d", enable_psmi);
+	PRI_CUSTOM_ATTR("%d", disable_vram_page_offline);
 	PRI_CUSTOM_ATTR("%d", survivability_mode);
 	PRI_CUSTOM_ATTR("%u", sriov.admin_only_pf);
 
@@ -1285,6 +1382,46 @@ bool xe_configfs_get_enable_multi_queue(struct pci_dev *pdev)
 		return true;
 
 	ret = dev->config.enable_multi_queue;
+	config_group_put(&dev->group);
+
+	return ret;
+}
+
+/**
+ * xe_configfs_get_migrate_ulls_period_ms - get configfs migrate_ulls_period_ms setting
+ * @pdev: pci device
+ *
+ * Return: Migrate ULLS period in milliseconds (zero is disabled).
+ */
+u32 xe_configfs_get_migrate_ulls_period_ms(struct pci_dev *pdev)
+{
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
+	u32 ret;
+
+	if (!dev)
+		return device_defaults.migrate_ulls_period_ms;
+
+	ret = dev->config.migrate_ulls_period_ms;
+	config_group_put(&dev->group);
+
+	return ret;
+}
+
+/**
+ * xe_configfs_get_disable_vram_page_offline - get configfs disable_vram_page_offline setting
+ * @pdev: pci device
+ *
+ * Return: disable_vram_page_offline setting in configfs
+ */
+bool xe_configfs_get_disable_vram_page_offline(struct pci_dev *pdev)
+{
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
+	bool ret;
+
+	if (!dev)
+		return device_defaults.disable_vram_page_offline;
+
+	ret = dev->config.disable_vram_page_offline;
 	config_group_put(&dev->group);
 
 	return ret;

@@ -31,10 +31,6 @@ struct virtio_spi_priv {
 	struct virtio_device *vdev;
 	/* Pointer to the virtqueue */
 	struct virtqueue *vq;
-	/* Copy of config space mode_func_supported */
-	u32 mode_func_supported;
-	/* Copy of config space max_freq_hz */
-	u32 max_freq_hz;
 };
 
 static void virtio_spi_msg_done(struct virtqueue *vq)
@@ -162,8 +158,6 @@ static int virtio_spi_transfer_one(struct spi_controller *ctrl,
 	if (!spi_req)
 		return -ENOMEM;
 
-	init_completion(&spi_req->completion);
-
 	th = &spi_req->transfer_head;
 
 	/* Fill struct spi_transfer_head */
@@ -258,7 +252,7 @@ msg_done:
 static void virtio_spi_read_config(struct virtio_device *vdev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(&vdev->dev);
-	struct virtio_spi_priv *priv = vdev->priv;
+	u32 mode_func_supported;
 	u8 cs_max_number;
 	u8 tx_nbits_supported;
 	u8 rx_nbits_supported;
@@ -268,18 +262,18 @@ static void virtio_spi_read_config(struct virtio_device *vdev)
 	ctrl->num_chipselect = cs_max_number;
 
 	/* Set the mode bits which are understood by this driver */
-	priv->mode_func_supported =
+	mode_func_supported =
 		virtio_cread32(vdev, offsetof(struct virtio_spi_config,
 					      mode_func_supported));
-	ctrl->mode_bits = priv->mode_func_supported &
+	ctrl->mode_bits = mode_func_supported &
 			  (VIRTIO_SPI_CS_HIGH | VIRTIO_SPI_MODE_LSB_FIRST);
-	if (priv->mode_func_supported & VIRTIO_SPI_MF_SUPPORT_CPHA_1)
+	if (mode_func_supported & VIRTIO_SPI_MF_SUPPORT_CPHA_1)
 		ctrl->mode_bits |= VIRTIO_SPI_CPHA;
-	if (priv->mode_func_supported & VIRTIO_SPI_MF_SUPPORT_CPOL_1)
+	if (mode_func_supported & VIRTIO_SPI_MF_SUPPORT_CPOL_1)
 		ctrl->mode_bits |= VIRTIO_SPI_CPOL;
-	if (priv->mode_func_supported & VIRTIO_SPI_MF_SUPPORT_LSB_FIRST)
+	if (mode_func_supported & VIRTIO_SPI_MF_SUPPORT_LSB_FIRST)
 		ctrl->mode_bits |= SPI_LSB_FIRST;
-	if (priv->mode_func_supported & VIRTIO_SPI_MF_SUPPORT_LOOPBACK)
+	if (mode_func_supported & VIRTIO_SPI_MF_SUPPORT_LOOPBACK)
 		ctrl->mode_bits |= SPI_LOOP;
 	tx_nbits_supported =
 		virtio_cread8(vdev, offsetof(struct virtio_spi_config,
@@ -304,7 +298,7 @@ static void virtio_spi_read_config(struct virtio_device *vdev)
 		virtio_cread32(vdev, offsetof(struct virtio_spi_config,
 					      bits_per_word_mask));
 
-	priv->max_freq_hz =
+	ctrl->max_speed_hz =
 		virtio_cread32(vdev, offsetof(struct virtio_spi_config,
 					      max_freq_hz));
 }

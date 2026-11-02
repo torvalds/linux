@@ -130,9 +130,6 @@ static int fuse_setup_measure_verity(unsigned long arg, struct iovec *iov)
 	if (copy_from_user(&digest_size, &uarg->digest_size, sizeof(digest_size)))
 		return -EFAULT;
 
-	if (digest_size > SIZE_MAX - sizeof(struct fsverity_digest))
-		return -EINVAL;
-
 	iov->iov_len = sizeof(struct fsverity_digest) + digest_size;
 
 	return 0;
@@ -540,7 +537,7 @@ cleanup:
 	return err;
 }
 
-int fuse_fileattr_set(struct mnt_idmap *idmap,
+int fuse_fileattr_set(const struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

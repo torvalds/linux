@@ -55,7 +55,7 @@ static void nft_reject_br_send_v4_tcp_reset(struct net *net,
 
 	nft_reject_br_push_etherhdr(oldskb, nskb);
 
-	br_forward(br_port_get_rcu(dev), nskb, false, true);
+	br_forward(br_port_to_dst(br_port_get_rcu(dev)), nskb, false, true);
 }
 
 static void nft_reject_br_send_v4_unreach(struct net *net,
@@ -71,7 +71,7 @@ static void nft_reject_br_send_v4_unreach(struct net *net,
 
 	nft_reject_br_push_etherhdr(oldskb, nskb);
 
-	br_forward(br_port_get_rcu(dev), nskb, false, true);
+	br_forward(br_port_to_dst(br_port_get_rcu(dev)), nskb, false, true);
 }
 
 static void nft_reject_br_send_v6_tcp_reset(struct net *net,
@@ -87,7 +87,7 @@ static void nft_reject_br_send_v6_tcp_reset(struct net *net,
 
 	nft_reject_br_push_etherhdr(oldskb, nskb);
 
-	br_forward(br_port_get_rcu(dev), nskb, false, true);
+	br_forward(br_port_to_dst(br_port_get_rcu(dev)), nskb, false, true);
 }
 
 
@@ -104,7 +104,7 @@ static void nft_reject_br_send_v6_unreach(struct net *net,
 
 	nft_reject_br_push_etherhdr(oldskb, nskb);
 
-	br_forward(br_port_get_rcu(dev), nskb, false, true);
+	br_forward(br_port_to_dst(br_port_get_rcu(dev)), nskb, false, true);
 }
 
 static void nft_reject_bridge_eval(const struct nft_expr *expr,

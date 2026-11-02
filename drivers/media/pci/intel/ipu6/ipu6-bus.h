@@ -26,17 +26,18 @@ struct ipu6_bus_device {
 	struct ipu6_mmu *mmu;
 	struct ipu6_device *isp;
 	const struct ipu6_buttress_ctrl *ctrl;
-	const struct firmware *fw;
 	struct sg_table fw_sgt;
 	u64 *pkg_dir;
 	dma_addr_t pkg_dir_dma_addr;
 	unsigned int pkg_dir_size;
+	u32 fw_entry;
 };
 
 struct ipu6_auxdrv_data {
 	irqreturn_t (*isr)(struct ipu6_bus_device *adev);
 	irqreturn_t (*isr_threaded)(struct ipu6_bus_device *adev);
 	bool wake_isr_thread;
+	const struct ipu6_fw_isys_ops *fw_ops;
 };
 
 #define to_ipu6_bus_device(_dev) \
@@ -44,6 +45,9 @@ struct ipu6_auxdrv_data {
 #define auxdev_to_adev(_auxdev) \
 	container_of(_auxdev, struct ipu6_bus_device, auxdev)
 #define ipu6_bus_get_drvdata(adev) dev_get_drvdata(&(adev)->auxdev.dev)
+
+extern const struct ipu6_fw_isys_ops ipu6_fw_isys_ops;
+extern const struct ipu6_fw_isys_ops ipu7_fw_isys_ops;
 
 struct ipu6_bus_device *
 ipu6_bus_initialize_device(struct pci_dev *pdev, struct device *parent,

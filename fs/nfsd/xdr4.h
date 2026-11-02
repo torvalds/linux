@@ -37,6 +37,8 @@
 #ifndef _LINUX_NFSD_XDR4_H
 #define _LINUX_NFSD_XDR4_H
 
+#include <linux/nfs_fh.h>
+
 #include "state.h"
 #include "vfs.h"
 
@@ -50,134 +52,6 @@
 #define HAS_CSTATE_FLAG(c, f) ((c)->sid_flags & (f))
 #define CLEAR_CSTATE_FLAG(c, f) ((c)->sid_flags &= ~(f))
 
-/**
- * nfsd4_encode_bool - Encode an XDR bool type result
- * @xdr: target XDR stream
- * @val: boolean value to encode
- *
- * Return values:
- *    %nfs_ok: @val encoded; @xdr advanced to next position
- *    %nfserr_resource: stream buffer space exhausted
- */
-static __always_inline __be32
-nfsd4_encode_bool(struct xdr_stream *xdr, bool val)
-{
-	__be32 *p = xdr_reserve_space(xdr, XDR_UNIT);
-
-	if (unlikely(p == NULL))
-		return nfserr_resource;
-	*p = val ? xdr_one : xdr_zero;
-	return nfs_ok;
-}
-
-/**
- * nfsd4_encode_uint32_t - Encode an XDR uint32_t type result
- * @xdr: target XDR stream
- * @val: integer value to encode
- *
- * Return values:
- *    %nfs_ok: @val encoded; @xdr advanced to next position
- *    %nfserr_resource: stream buffer space exhausted
- */
-static __always_inline __be32
-nfsd4_encode_uint32_t(struct xdr_stream *xdr, u32 val)
-{
-	__be32 *p = xdr_reserve_space(xdr, XDR_UNIT);
-
-	if (unlikely(p == NULL))
-		return nfserr_resource;
-	*p = cpu_to_be32(val);
-	return nfs_ok;
-}
-
-#define nfsd4_encode_aceflag4(x, v)	nfsd4_encode_uint32_t(x, v)
-#define nfsd4_encode_acemask4(x, v)	nfsd4_encode_uint32_t(x, v)
-#define nfsd4_encode_acetype4(x, v)	nfsd4_encode_uint32_t(x, v)
-#define nfsd4_encode_count4(x, v)	nfsd4_encode_uint32_t(x, v)
-#define nfsd4_encode_mode4(x, v)	nfsd4_encode_uint32_t(x, v)
-#define nfsd4_encode_nfs_lease4(x, v)	nfsd4_encode_uint32_t(x, v)
-#define nfsd4_encode_qop4(x, v)		nfsd4_encode_uint32_t(x, v)
-#define nfsd4_encode_sequenceid4(x, v)	nfsd4_encode_uint32_t(x, v)
-#define nfsd4_encode_slotid4(x, v)	nfsd4_encode_uint32_t(x, v)
-
-/**
- * nfsd4_encode_uint64_t - Encode an XDR uint64_t type result
- * @xdr: target XDR stream
- * @val: integer value to encode
- *
- * Return values:
- *    %nfs_ok: @val encoded; @xdr advanced to next position
- *    %nfserr_resource: stream buffer space exhausted
- */
-static __always_inline __be32
-nfsd4_encode_uint64_t(struct xdr_stream *xdr, u64 val)
-{
-	__be32 *p = xdr_reserve_space(xdr, XDR_UNIT * 2);
-
-	if (unlikely(p == NULL))
-		return nfserr_resource;
-	put_unaligned_be64(val, p);
-	return nfs_ok;
-}
-
-#define nfsd4_encode_changeid4(x, v)	nfsd4_encode_uint64_t(x, v)
-#define nfsd4_encode_nfs_cookie4(x, v)	nfsd4_encode_uint64_t(x, v)
-#define nfsd4_encode_length4(x, v)	nfsd4_encode_uint64_t(x, v)
-#define nfsd4_encode_offset4(x, v)	nfsd4_encode_uint64_t(x, v)
-
-/**
- * nfsd4_encode_opaque_fixed - Encode a fixed-length XDR opaque type result
- * @xdr: target XDR stream
- * @data: pointer to data
- * @size: length of data in bytes
- *
- * Return values:
- *    %nfs_ok: @data encoded; @xdr advanced to next position
- *    %nfserr_resource: stream buffer space exhausted
- */
-static __always_inline __be32
-nfsd4_encode_opaque_fixed(struct xdr_stream *xdr, const void *data,
-			  size_t size)
-{
-	__be32 *p = xdr_reserve_space(xdr, xdr_align_size(size));
-	size_t pad = xdr_pad_size(size);
-
-	if (unlikely(p == NULL))
-		return nfserr_resource;
-	memcpy(p, data, size);
-	if (pad)
-		memset((char *)p + size, 0, pad);
-	return nfs_ok;
-}
-
-/**
- * nfsd4_encode_opaque - Encode a variable-length XDR opaque type result
- * @xdr: target XDR stream
- * @data: pointer to data
- * @size: length of data in bytes
- *
- * Return values:
- *    %nfs_ok: @data encoded; @xdr advanced to next position
- *    %nfserr_resource: stream buffer space exhausted
- */
-static __always_inline __be32
-nfsd4_encode_opaque(struct xdr_stream *xdr, const void *data, size_t size)
-{
-	size_t pad = xdr_pad_size(size);
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, XDR_UNIT + xdr_align_size(size));
-	if (unlikely(p == NULL))
-		return nfserr_resource;
-	*p++ = cpu_to_be32(size);
-	memcpy(p, data, size);
-	if (pad)
-		memset((char *)p + size, 0, pad);
-	return nfs_ok;
-}
-
-#define nfsd4_encode_component4(x, d, s)	nfsd4_encode_opaque(x, d, s)
-
 struct nfsd4_compound_state {
 	struct svc_fh		current_fh;
 	struct svc_fh		save_fh;
@@ -188,6 +62,7 @@ struct nfsd4_compound_state {
 	struct nfsd4_slot	*slot;
 	int			data_offset;
 	bool                    spo_must_allowed;
+	bool			slot_owned;
 	size_t			iovlen;
 	u32			minorversion;
 	__be32			status;
@@ -642,17 +517,6 @@ svcxdr_decode_deviceid4(__be32 *p, struct nfsd4_deviceid *devid)
 	return p;
 }
 
-static inline __be32
-nfsd4_decode_deviceid4(struct xdr_stream *xdr, struct nfsd4_deviceid *devid)
-{
-	__be32 *p = xdr_inline_decode(xdr, NFS4_DEVICEID4_SIZE);
-
-	if (unlikely(!p))
-		return nfserr_bad_xdr;
-	svcxdr_decode_deviceid4(p, devid);
-	return nfs_ok;
-}
-
 struct nfsd4_layout_seg {
 	u32			iomode;
 	u64			offset;
@@ -734,6 +598,19 @@ struct nfsd4_cb_offload {
 	struct nfs4_sessionid	co_referring_sessionid;
 	u32			co_referring_slotid;
 	u32			co_referring_seqno;
+};
+
+struct nfsd4_ssc_umount_item {
+	struct list_head	nsui_list;
+	bool			nsui_busy;
+	/*
+	 * nsui_refcnt inited to 2, 1 on list and 1 for consumer. Entry
+	 * is removed when refcnt drops to 1 and nsui_expire expires.
+	 */
+	refcount_t		nsui_refcnt;
+	unsigned long		nsui_expire;
+	struct vfsmount		*nsui_vfsmount;
+	char			nsui_ipaddr[RPC_MAX_ADDRBUFLEN + 1];
 };
 
 struct nfsd4_copy {
@@ -924,6 +801,7 @@ bool nfsd4_cache_this_op(struct nfsd4_op *);
  */
 struct svcxdr_tmpbuf {
 	struct svcxdr_tmpbuf *next;
+	void (*release)(void *buf);
 	char buf[];
 };
 

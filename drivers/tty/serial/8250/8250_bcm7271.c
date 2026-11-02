@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/tty.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/io.h>
@@ -204,13 +205,12 @@ static const u32 brcmstb_rate_table_7278[] = {
 };
 
 struct brcmuart_priv {
-	int		line;
 	struct clk	*baud_mux_clk;
 	unsigned long	default_mux_rate;
 	u32		real_rates[ARRAY_SIZE(brcmstb_rate_table)];
 	const u32	*rate_table;
 	ktime_t		char_wait;
-	struct uart_port *up;
+	struct uart_8250_port *uport;
 	struct hrtimer	hrt;
 	bool		shutdown;
 	bool		dma_enabled;
@@ -839,8 +839,8 @@ static int brcmuart_handle_irq(struct uart_port *p)
 static enum hrtimer_restart brcmuart_hrtimer_func(struct hrtimer *t)
 {
 	struct brcmuart_priv *priv = container_of(t, struct brcmuart_priv, hrt);
-	struct uart_port *p = priv->up;
-	struct uart_8250_port *up = up_to_u8250p(p);
+	struct uart_8250_port *up = priv->uport;
+	struct uart_port *p = &up->port;
 	unsigned int status;
 	unsigned long flags;
 
@@ -953,7 +953,6 @@ static int brcmuart_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
 	const struct of_device_id *of_id = NULL;
-	struct uart_8250_port *new_port;
 	struct device *dev = &pdev->dev;
 	struct brcmuart_priv *priv;
 	struct clk *baud_mux_clk;
@@ -1083,14 +1082,12 @@ static int brcmuart_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = serial8250_register_8250_port(&up);
-	if (ret < 0) {
+	priv->uport = serial8250_register_8250_port(&up);
+	if (IS_ERR(priv->uport)) {
+		ret = PTR_ERR(priv->uport);
 		dev_err_probe(dev, ret, "unable to register 8250 port\n");
 		goto err;
 	}
-	priv->line = ret;
-	new_port = serial8250_get_port(ret);
-	priv->up = &new_port->port;
 	if (priv->dma_enabled) {
 		dma_irq = platform_get_irq_byname(pdev,  "dma");
 		if (dma_irq < 0) {
@@ -1098,7 +1095,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 			goto err1;
 		}
 		ret = devm_request_irq(dev, dma_irq, brcmuart_isr,
-				IRQF_SHARED, "uart DMA irq", &new_port->port);
+				IRQF_SHARED, "uart DMA irq", &priv->uport->port);
 		if (ret)
 			goto err1;
 	}
@@ -1107,7 +1104,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 	return 0;
 
 err1:
-	serial8250_unregister_port(priv->line);
+	serial8250_unregister_port(priv->uport);
 err:
 	brcmuart_free_bufs(dev, priv);
 release_dma:
@@ -1121,7 +1118,7 @@ static void brcmuart_remove(struct platform_device *pdev)
 	struct brcmuart_priv *priv = platform_get_drvdata(pdev);
 
 	debugfs_remove_recursive(priv->debugfs_dir);
-	serial8250_unregister_port(priv->line);
+	serial8250_unregister_port(priv->uport);
 	hrtimer_cancel(&priv->hrt);
 	brcmuart_free_bufs(&pdev->dev, priv);
 	if (priv->dma_enabled)
@@ -1131,7 +1128,7 @@ static void brcmuart_remove(struct platform_device *pdev)
 static int __maybe_unused brcmuart_suspend(struct device *dev)
 {
 	struct brcmuart_priv *priv = dev_get_drvdata(dev);
-	struct uart_8250_port *up = serial8250_get_port(priv->line);
+	struct uart_8250_port *up = priv->uport;
 	struct uart_port *port = &up->port;
 	unsigned long flags;
 
@@ -1144,7 +1141,7 @@ static int __maybe_unused brcmuart_suspend(struct device *dev)
 	port->mctrl &= ~TIOCM_RTS;
 	uart_port_unlock_irqrestore(port, flags);
 
-	serial8250_suspend_port(priv->line);
+	serial8250_suspend_port(up);
 	clk_disable_unprepare(priv->baud_mux_clk);
 
 	return 0;
@@ -1153,7 +1150,7 @@ static int __maybe_unused brcmuart_suspend(struct device *dev)
 static int __maybe_unused brcmuart_resume(struct device *dev)
 {
 	struct brcmuart_priv *priv = dev_get_drvdata(dev);
-	struct uart_8250_port *up = serial8250_get_port(priv->line);
+	struct uart_8250_port *up = priv->uport;
 	struct uart_port *port = &up->port;
 	unsigned long flags;
 	int ret;
@@ -1175,9 +1172,9 @@ static int __maybe_unused brcmuart_resume(struct device *dev)
 			return(-EBUSY);
 		}
 		brcmuart_init_dma_hardware(priv);
-		start_rx_dma(serial8250_get_port(priv->line));
+		start_rx_dma(up);
 	}
-	serial8250_resume_port(priv->line);
+	serial8250_resume_port(up);
 
 	if (priv->saved_mctrl & TIOCM_RTS) {
 		/* Restore RTS */

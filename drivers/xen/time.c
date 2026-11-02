@@ -169,7 +169,7 @@ void __init xen_time_setup_guest(void)
 
 	static_call_update(pv_steal_clock, xen_steal_clock);
 
-	static_key_slow_inc(&paravirt_steal_enabled);
+	static_branch_inc(&paravirt_steal_enabled);
 	if (xen_runstate_remote)
-		static_key_slow_inc(&paravirt_steal_rq_enabled);
+		static_branch_inc(&paravirt_steal_rq_enabled);
 }

@@ -22,4 +22,12 @@ TEST_FILES := \
 	ethtool-common.sh
 # end of TEST_FILES
 
+TEST_INCLUDES := \
+	$(wildcard ../../../net/lib/sh/*.sh) \
+	../../../net/forwarding/devlink_lib.sh \
+	../../../net/forwarding/fib_offload_lib.sh \
+	../../../net/forwarding/lib.sh \
+	../../../net/lib.sh \
+# end of TEST_INCLUDES
+
 include ../../../lib.mk

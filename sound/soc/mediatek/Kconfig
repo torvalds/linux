@@ -1,9 +1,34 @@
 # SPDX-License-Identifier: GPL-2.0-only
-menu "Mediatek"
 
 config SND_SOC_MEDIATEK
 	tristate
 	select REGMAP_MMIO
+
+menu "Airoha"
+
+config SND_SOC_AN7581
+	tristate "ASoC support for Airoha AN7581 chip"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	select SND_SOC_MEDIATEK
+	help
+	  This adds ASoC platform driver support for Airoha AN7581 chip
+	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_AN7581_WM8960
+	tristate "ASoc Audio driver for Airoha AN7581 with WM8960 codec"
+	depends on SND_SOC_AN7581 && I2C
+	select SND_SOC_WM8960
+	help
+	  This adds support for ASoC machine driver for Airoha AN7581
+	  boards with the WM8960 codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+endmenu
+
+menu "Mediatek"
 
 config SND_SOC_MT2701
 	tristate "ASoC support for Mediatek MT2701 chip"

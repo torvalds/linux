@@ -11,7 +11,6 @@
 #include "iommu-priv.h"
 
 static DEFINE_MUTEX(iommu_sva_lock);
-static bool iommu_sva_present;
 static LIST_HEAD(iommu_sva_mms);
 static struct iommu_domain *iommu_sva_domain_alloc(struct device *dev,
 						   struct mm_struct *mm);
@@ -137,11 +136,9 @@ struct iommu_sva *iommu_sva_bind_device(struct device *dev, struct mm_struct *mm
 		goto out_free_domain;
 	domain->users = 1;
 
-	if (list_empty(&iommu_mm->sva_domains)) {
-		if (list_empty(&iommu_sva_mms))
-			iommu_sva_present = true;
+	if (list_empty(&iommu_mm->sva_domains))
 		list_add(&iommu_mm->mm_list_elm, &iommu_sva_mms);
-	}
+
 	list_add(&domain->next, &iommu_mm->sva_domains);
 out:
 	refcount_set(&handle->users, 1);
@@ -182,11 +179,8 @@ void iommu_sva_unbind_device(struct iommu_sva *handle)
 	iommu_detach_device_pasid(domain, dev, iommu_mm->pasid);
 	if (--domain->users == 0) {
 		list_del(&domain->next);
-		if (list_empty(&iommu_mm->sva_domains)) {
+		if (list_empty(&iommu_mm->sva_domains))
 			list_del(&iommu_mm->mm_list_elm);
-			if (list_empty(&iommu_sva_mms))
-				iommu_sva_present = false;
-		}
 
 		iommu_domain_free(domain);
 	}
@@ -334,8 +328,6 @@ void iommu_sva_invalidate_kva_range(unsigned long start, unsigned long end)
 	struct iommu_mm_data *iommu_mm;
 
 	guard(mutex)(&iommu_sva_lock);
-	if (!iommu_sva_present)
-		return;
 
 	list_for_each_entry(iommu_mm, &iommu_sva_mms, mm_list_elm)
 		mmu_notifier_arch_invalidate_secondary_tlbs(iommu_mm->mm, start, end);

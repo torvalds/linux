@@ -114,7 +114,10 @@ static inline void cx18_mdl_update_bufs_for_cpu(struct cx18_stream *s,
 	if (list_is_singular(&mdl->buf_list)) {
 		buf = list_first_entry(&mdl->buf_list, struct cx18_buffer,
 				       list);
-		buf->bytesused = mdl->bytesused;
+		if (mdl->bytesused > s->buf_size)
+			buf->bytesused = s->buf_size;
+		else
+			buf->bytesused = mdl->bytesused;
 		buf->readpos = 0;
 		cx18_buf_sync_for_cpu(s, buf);
 	} else {

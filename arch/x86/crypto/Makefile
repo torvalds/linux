@@ -40,12 +40,10 @@ obj-$(CONFIG_CRYPTO_AEGIS128_AESNI_SSE2) += aegis128-aesni.o
 aegis128-aesni-y := aegis128-aesni-asm.o aegis128-aesni-glue.o
 
 obj-$(CONFIG_CRYPTO_AES_NI_INTEL) += aesni-intel.o
-aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o
-aesni-intel-$(CONFIG_64BIT) += aes-ctr-avx-x86_64.o \
-			       aes-gcm-aesni-x86_64.o \
-			       aes-gcm-vaes-avx2.o \
-			       aes-gcm-vaes-avx512.o \
-			       aes-xts-avx-x86_64.o
+aesni-intel-y := aesni-intel_glue.o \
+		 aes-gcm-aesni-x86_64.o \
+		 aes-gcm-vaes-avx2.o \
+		 aes-gcm-vaes-avx512.o
 
 obj-$(CONFIG_CRYPTO_SM4_AESNI_AVX_X86_64) += sm4-aesni-avx-x86_64.o
 sm4-aesni-avx-x86_64-y := sm4-aesni-avx-asm_64.o sm4_aesni_avx_glue.o

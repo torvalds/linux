@@ -41,6 +41,7 @@ extern const struct dev_pm_ops nhi_pm_ops;
 /**
  * struct tb_nhi_ops - NHI specific optional operations
  * @init: NHI specific initialization
+ * @add_links: Setup device links for tunneling native protocols
  * @suspend_noirq: NHI specific suspend_noirq hook
  * @resume_noirq: NHI specific resume_noirq hook
  * @runtime_suspend: NHI specific runtime_suspend hook
@@ -55,6 +56,7 @@ extern const struct dev_pm_ops nhi_pm_ops;
  */
 struct tb_nhi_ops {
 	int (*init)(struct tb_nhi *nhi);
+	bool (*add_links)(struct tb_nhi *nhi);
 	int (*suspend_noirq)(struct tb_nhi *nhi, bool wakeup);
 	int (*resume_noirq)(struct tb_nhi *nhi);
 	int (*runtime_suspend)(struct tb_nhi *nhi);

@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-3-Clause)
+/*
+ * Copyright (C) 2026 Marek Vasut <marex@nabladev.com>
+ *
+ * Set up pipeline for raw bayer capture:
+ * $ media-ctl -d platform:48030000.dcmipp -r
+ * $ media-ctl -d platform:48030000.dcmipp -l '"48020000.csi":1->"dcmipp_input":0[1]'
+ * $ media-ctl -d platform:48030000.dcmipp -l "'dcmipp_input':1->'dcmipp_dump_postproc':0[1]"
+ * $ media-ctl -d platform:48030000.dcmipp --set-v4l2 "'imx219 0-0010':0[fmt:SRGGB8_1X8/1920x1080]"
+ * $ media-ctl -d platform:48030000.dcmipp --set-v4l2 "'48020000.csi':1[fmt:SRGGB8_1X8/1920x1080]"
+ * $ media-ctl -d platform:48030000.dcmipp --set-v4l2 "'dcmipp_input':1[fmt:SRGGB8_1X8/1920x1080 field:none]"
+ * $ media-ctl -d platform:48030000.dcmipp --set-v4l2 "'dcmipp_dump_postproc':0[compose:(0,0)/1920x1080]"
+ * $ media-ctl -d platform:48030000.dcmipp --set-v4l2 "'dcmipp_dump_postproc':1[fmt:SRGGB8_1X8/1920x1080]"
+ * $ v4l2-ctl -d /dev/video0 --set-fmt-video=width=1920,height=1080,pixelformat=RGGB
+ *
+ * Capture frame using v4l2-ctl:
+ * $ v4l2-ctl -d /dev/video0 --stream-mmap --stream-count=1 --stream-to=/frame.raw
+ *
+ * Capture frame using gstreamer:
+ * $ gst-launch-1.0 v4l2src device=/dev/video0 num-buffers=1 ! \
+ *                  video/x-bayer,width=1920,height=1080,format=rggb ! \
+ *                  bayer2rgb ! jpegenc ! filesink location=/test.jpg
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	clk_cam_x10: clk-cam-j1 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+
+	/* Page 29 / CSI_IF_CN / J1 */
+	reg_cam_x10: reg-cam-j1 {
+		compatible = "regulator-fixed";
+		regulator-name = "cam-X10";
+		enable-active-high;
+		gpios = <&ioexp 13 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&csi {
+	vdd-supply = <&scmi_vddcore>;
+	vdda18-supply = <&scmi_v1v8>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			csi_sink: endpoint {
+				remote-endpoint = <&imx219_x10_out>;
+				data-lanes = <1 2>;
+				bus-type = <4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+
+			csi_source: endpoint {
+				remote-endpoint = <&dcmipp_0>;
+			};
+		};
+	};
+};
+
+&dcmipp {
+	status = "okay";
+
+	port {
+		dcmipp_0: endpoint {
+			remote-endpoint = <&csi_source>;
+			bus-type = <4>;
+		};
+	};
+};
+
+&i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	cam@10 {
+		compatible = "sony,imx219";
+		reg = <0x10>;
+
+		clocks = <&clk_cam_x10>;
+
+		VANA-supply = <&reg_cam_x10>;
+		VDIG-supply = <&reg_cam_x10>;
+		VDDL-supply = <&reg_cam_x10>;
+
+		orientation = <2>;
+		rotation = <0>;
+
+		port {
+			imx219_x10_out: endpoint {
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <456000000>;
+				data-lanes = <1 2>;
+				remote-endpoint = <&csi_sink>;
+			};
+		};
+	};
+};

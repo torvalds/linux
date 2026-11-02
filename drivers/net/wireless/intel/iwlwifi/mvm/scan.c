@@ -10,7 +10,7 @@
 
 #include "mvm.h"
 #include "fw/api/scan.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-utils.h"
 
 #define IWL_DENSE_EBS_SCAN_RATIO 5
@@ -2703,7 +2703,7 @@ void iwl_mvm_scan_timeout_wk(struct work_struct *work)
 
 	IWL_ERR(mvm, "regular scan timed out\n");
 
-	iwl_force_nmi(mvm->trans);
+	iwl_trans_force_nmi(mvm->trans);
 }
 
 static void iwl_mvm_fill_scan_type(struct iwl_mvm *mvm,
@@ -3282,7 +3282,7 @@ void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_umac_scan_iter_complete_notif *notif = (void *)pkt->data;
+	struct iwl_umac_scan_iter_complete_notif_v2 *notif = (void *)pkt->data;
 
 	mvm->scan_start = le64_to_cpu(notif->start_tsf);
 

@@ -20,7 +20,7 @@
  *    managed alongside the master keys in the filesystem-level keyring)
  */
 
-#include <crypto/aes.h>
+#include <crypto/aes-ecb.h>
 #include <crypto/utils.h>
 #include <keys/user-type.h>
 #include <linux/hashtable.h>
@@ -246,8 +246,7 @@ static int setup_v1_file_key_derived(struct fscrypt_inode_info *ci,
 
 	static_assert(FSCRYPT_FILE_NONCE_SIZE == AES_KEYSIZE_128);
 	aes_prepareenckey(&aes, ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE);
-	for (unsigned int i = 0; i < derived_keysize; i += AES_BLOCK_SIZE)
-		aes_encrypt(&aes, &derived_key[i], &raw_master_key[i]);
+	aes_ecb_encrypt(derived_key, raw_master_key, derived_keysize, &aes);
 
 	err = fscrypt_set_per_file_enc_key(ci, derived_key);
 

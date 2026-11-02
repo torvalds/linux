@@ -227,6 +227,37 @@ static int nvhdmi_chmap_validate(struct hdac_chmap *chmap,
 	return 0;
 }
 
+static int tegrahdmi_pin_hbr_setup(struct hda_codec *codec, hda_nid_t pin_nid,
+				   int dev_id, bool hbr)
+{
+	int pinctl, new_pinctl;
+
+	snd_hda_set_dev_select(codec, pin_nid, dev_id);
+	pinctl = snd_hda_codec_read(codec, pin_nid, 0,
+				    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+
+	if (pinctl < 0)
+		return hbr ? -EINVAL : 0;
+
+	new_pinctl = pinctl & ~AC_PINCTL_EPT;
+	if (hbr)
+		new_pinctl |= AC_PINCTL_EPT_HBR;
+	else
+		new_pinctl |= AC_PINCTL_EPT_NATIVE;
+
+	codec_dbg(codec, "%s: NID=0x%x, %spinctl=0x%x\n",
+		    __func__, pin_nid,
+		    pinctl == new_pinctl ? "" : "new-",
+		    new_pinctl);
+
+	if (pinctl != new_pinctl)
+		snd_hda_codec_write(codec, pin_nid, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    new_pinctl);
+
+	return 0;
+}
+
 static int tegra_hdmi_init(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -254,6 +285,10 @@ static int tegra_hdmi_init(struct hda_codec *codec)
 		nvhdmi_chmap_cea_alloc_validate_get_type;
 	spec->chmap.ops.chmap_validate = nvhdmi_chmap_validate;
 	spec->nv_dp_workaround = true;
+
+	// Tegra 3 does not support HBR
+	if (codec->core.vendor_id != 0x10de0020)
+		spec->ops.pin_hbr_setup = tegrahdmi_pin_hbr_setup;
 
 	return 0;
 }

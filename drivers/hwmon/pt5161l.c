@@ -611,8 +611,8 @@ static const struct of_device_id __maybe_unused pt5161l_of_match[] = {
 MODULE_DEVICE_TABLE(of, pt5161l_of_match);
 
 static const struct acpi_device_id __maybe_unused pt5161l_acpi_match[] = {
-	{ "PT5161L", 0 },
-	{},
+	{ .id = "PT5161L" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, pt5161l_acpi_match);
 

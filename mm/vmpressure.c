@@ -30,9 +30,6 @@
  *
  * As the vmscan reclaimer logic works with chunks which are multiple of
  * SWAP_CLUSTER_MAX, it makes sense to use it for the window size as well.
- *
- * TODO: Make the window size depend on machine size, as we do for vmstat
- * thresholds. Currently we set it to 512 pages (2MB for 4KB pages).
  */
 const unsigned long vmpressure_win = SWAP_CLUSTER_MAX * 16;
 

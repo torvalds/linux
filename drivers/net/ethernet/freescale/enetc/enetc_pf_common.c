@@ -151,25 +151,43 @@ void enetc_set_si_uc_hash_filter(struct enetc_si *si, int si_id, u64 hash)
 }
 EXPORT_SYMBOL_GPL(enetc_set_si_uc_hash_filter);
 
+static void enetc_get_psimmhfr_offsets(struct enetc_si *si, int si_id,
+				       int *psimmhfr0, int *psimmhfr1)
+{
+	if (is_enetc_rev1(si)) {
+		bool err = si->errata & ENETC_ERR_UCMCSWP;
+
+		*psimmhfr0 = ENETC_PSIMMHFR0(si_id, err);
+		*psimmhfr1 = ENETC_PSIMMHFR1(si_id);
+	} else {
+		*psimmhfr0 = ENETC4_PSIMMHFR0(si_id);
+		*psimmhfr1 = ENETC4_PSIMMHFR1(si_id);
+	}
+}
+
 void enetc_set_si_mc_hash_filter(struct enetc_si *si, int si_id, u64 hash)
 {
 	int psimmhfr0_off, psimmhfr1_off;
 	struct enetc_hw *hw = &si->hw;
 
-	if (is_enetc_rev1(si)) {
-		bool err = si->errata & ENETC_ERR_UCMCSWP;
-
-		psimmhfr0_off = ENETC_PSIMMHFR0(si_id, err);
-		psimmhfr1_off = ENETC_PSIMMHFR1(si_id);
-	} else {
-		psimmhfr0_off = ENETC4_PSIMMHFR0(si_id);
-		psimmhfr1_off = ENETC4_PSIMMHFR1(si_id);
-	}
-
+	enetc_get_psimmhfr_offsets(si, si_id, &psimmhfr0_off, &psimmhfr1_off);
 	enetc_port_wr(hw, psimmhfr0_off, lower_32_bits(hash));
 	enetc_port_wr(hw, psimmhfr1_off, upper_32_bits(hash));
 }
 EXPORT_SYMBOL_GPL(enetc_set_si_mc_hash_filter);
+
+static u64 enetc_get_si_mc_hash_filter(struct enetc_si *si, int si_id)
+{
+	int psimmhfr0_off, psimmhfr1_off;
+	struct enetc_hw *hw = &si->hw;
+	u32 hash_h, hash_l;
+
+	enetc_get_psimmhfr_offsets(si, si_id, &psimmhfr0_off, &psimmhfr1_off);
+	hash_l = enetc_port_rd(hw, psimmhfr0_off);
+	hash_h = enetc_port_rd(hw, psimmhfr1_off);
+
+	return ((u64)hash_h << 32) | hash_l;
+}
 
 void enetc_set_si_vlan_promisc(struct enetc_si *si, int si_id, bool promisc)
 {
@@ -585,6 +603,118 @@ int enetc_init_sriov_resources(struct enetc_pf *pf)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(enetc_init_sriov_resources);
+
+int enetc_pf_set_vf_trust(struct net_device *ndev, int vf, bool setting)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_pf *pf = enetc_si_priv(priv->si);
+	struct enetc_vf_state *vf_state;
+	struct enetc_si *si = priv->si;
+	int si_id = vf + 1;
+
+	if (vf >= pf->total_vfs)
+		return -EINVAL;
+
+	vf_state = &pf->vf_state[vf];
+	mutex_lock(&vf_state->lock);
+
+	if (setting) {
+		vf_state->flags |= ENETC_VF_FLAG_TRUSTED;
+	} else {
+		u64 hash;
+
+		vf_state->flags &= ~(ENETC_VF_FLAG_TRUSTED |
+				     ENETC_VF_FLAG_UC_PROMISC |
+				     ENETC_VF_FLAG_MC_PROMISC);
+
+		/* For ENETC v1, we only support setting the VF's MAC address
+		 * via VSI-to-PSI messages. Unicast and multicast promiscuous
+		 * mode and hash filters are not supported, so there is no need
+		 * to clear these configurations.
+		 */
+		if (is_enetc_rev1(si))
+			goto vf_state_unlock;
+
+		/* Disable unicast and multicast promiscuous modes */
+		spin_lock(&si->gen_lock);
+		enetc_set_si_uc_promisc(si, si_id, false);
+		enetc_set_si_mc_promisc(si, si_id, false);
+		spin_unlock(&si->gen_lock);
+
+		/* Clear unicast hash filter */
+		enetc_set_si_uc_hash_filter(si, si_id, 0);
+
+		/* Clear multicast hash filter if its set bits exceed
+		 * ENETC_VF_MC_HASH_BITS_MAX.
+		 */
+		hash = enetc_get_si_mc_hash_filter(si, si_id);
+		if (hweight64(hash) > ENETC_VF_MC_HASH_BITS_MAX)
+			enetc_set_si_mc_hash_filter(si, si_id, 0);
+	}
+
+vf_state_unlock:
+	mutex_unlock(&vf_state->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(enetc_pf_set_vf_trust);
+
+int enetc_pf_set_vf_mac(struct net_device *ndev, int vf, u8 *mac)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_pf *pf = enetc_si_priv(priv->si);
+	struct enetc_vf_state *vf_state;
+
+	if (vf >= pf->total_vfs)
+		return -EINVAL;
+
+	if (!is_valid_ether_addr(mac))
+		return -EADDRNOTAVAIL;
+
+	vf_state = &pf->vf_state[vf];
+
+	mutex_lock(&vf_state->lock);
+	vf_state->flags |= ENETC_VF_FLAG_PF_SET_MAC;
+	enetc_set_si_hw_addr(pf, vf + 1, mac);
+	mutex_unlock(&vf_state->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(enetc_pf_set_vf_mac);
+
+int enetc_pf_get_vf_config(struct net_device *ndev, int vf,
+			   struct ifla_vf_info *ivi)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_pf *pf = enetc_si_priv(priv->si);
+	struct enetc_vf_state *vf_state;
+
+	if (vf >= pf->total_vfs)
+		return -EINVAL;
+
+	vf_state = &pf->vf_state[vf];
+	mutex_lock(&vf_state->lock);
+
+	ivi->vf = vf;
+	/* ENETC v4 has not support spoofchk yet */
+	if (is_enetc_rev1(priv->si))
+		ivi->spoofchk = !!(vf_state->flags & ENETC_VF_FLAG_SPOOFCHK);
+
+	ivi->trusted = !!(vf_state->flags & ENETC_VF_FLAG_TRUSTED);
+	enetc_get_si_hw_addr(pf, vf + 1, ivi->mac);
+
+	if (vf_state->vid) {
+		ivi->vlan = vf_state->vid;
+		ivi->qos = vf_state->qos;
+		ivi->vlan_proto = vf_state->tpid ? htons(ETH_P_8021AD) :
+						   htons(ETH_P_8021Q);
+	}
+
+	mutex_unlock(&vf_state->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(enetc_pf_get_vf_config);
 
 MODULE_DESCRIPTION("NXP ENETC PF common functionality driver");
 MODULE_LICENSE("Dual BSD/GPL");

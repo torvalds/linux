@@ -783,7 +783,7 @@ static int gaokun_ec_probe(struct i2c_client *client)
 					gaokun_ec_irq_handler, IRQF_ONESHOT,
 					dev_name(dev), ec);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to request IRQ\n");
+		return ret;
 
 	ec->hwmon_dev = devm_hwmon_device_register_with_info(dev, "gaokun_ec_hwmon",
 							     ec, &gaokun_ec_hwmon_chip_info, NULL);

@@ -56,7 +56,7 @@ static const int cgroup_attach_types[] = {
 };
 
 #define HELP_SPEC_ATTACH_FLAGS						\
-	"ATTACH_FLAGS := { multi | override }"
+	"ATTACH_FLAGS := { [ multi | override ] [ preorder ] }"
 
 #define HELP_SPEC_ATTACH_TYPES						\
 	"       ATTACH_TYPE := { cgroup_inet_ingress | cgroup_inet_egress |\n" \
@@ -138,11 +138,69 @@ out:
 	close(fd);
 }
 
+static const struct {
+	__u32 flag;
+	const char *name;
+} attach_flag_names[] = {
+	{ BPF_F_ALLOW_MULTI, "multi" },
+	{ BPF_F_ALLOW_OVERRIDE, "override" },
+	{ BPF_F_PREORDER, "preorder" },
+};
+
+static const char *format_attach_flags(__u32 flags, char *buf, size_t sz)
+{
+	size_t len = 0;
+	size_t i;
+	int n;
+
+	buf[0] = '\0';
+	for (i = 0; i < ARRAY_SIZE(attach_flag_names); i++) {
+		if (flags & attach_flag_names[i].flag) {
+			n = snprintf(buf + len, sz - len, "%s%s",
+				     len ? "," : "", attach_flag_names[i].name);
+			if (n < 0 || (size_t)n >= sz - len)
+				return buf;
+			len += n;
+			flags &= ~attach_flag_names[i].flag;
+		}
+	}
+
+	if (flags)
+		snprintf(buf + len, sz - len, "%sunknown(%x)",
+			 len ? "," : "", flags);
+
+	return buf;
+}
+
+static void show_attach_flags_json(__u32 flags)
+{
+	char buf[32];
+	size_t i;
+
+	jsonw_name(json_wtr, "attach_flags");
+	jsonw_start_array(json_wtr);
+
+	for (i = 0; i < ARRAY_SIZE(attach_flag_names); i++) {
+		if (!(flags & attach_flag_names[i].flag))
+			continue;
+
+		jsonw_string(json_wtr, attach_flag_names[i].name);
+		flags &= ~attach_flag_names[i].flag;
+	}
+
+	if (flags) {
+		snprintf(buf, sizeof(buf), "unknown(%x)", flags);
+		jsonw_string(json_wtr, buf);
+	}
+
+	jsonw_end_array(json_wtr);
+}
+
 static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
-			 const char *attach_flags_str,
-			 int level)
+			 __u32 attach_flags, int level)
 {
 	char prog_name[MAX_PROG_FULL_NAME];
+	char attach_flags_str[64];
 	const char *attach_btf_name = NULL;
 	struct bpf_prog_info info = {};
 	const char *attach_type_str;
@@ -182,7 +240,7 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 		else
 			jsonw_uint_field(json_wtr, "attach_type", attach_type);
 		if (!(query_flags & BPF_F_QUERY_EFFECTIVE))
-			jsonw_string_field(json_wtr, "attach_flags", attach_flags_str);
+			show_attach_flags_json(attach_flags);
 		jsonw_string_field(json_wtr, "name", prog_name);
 		if (attach_btf_name)
 			jsonw_string_field(json_wtr, "attach_btf_name", attach_btf_name);
@@ -198,7 +256,9 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 		if (query_flags & BPF_F_QUERY_EFFECTIVE)
 			printf(" %-15s", prog_name);
 		else
-			printf(" %-15s %-15s", attach_flags_str, prog_name);
+			printf(" %-17s %-15s",
+			       format_attach_flags(attach_flags, attach_flags_str,
+						   sizeof(attach_flags_str)), prog_name);
 		if (attach_btf_name)
 			printf(" %-15s", attach_btf_name);
 		else if (info.attach_btf_id)
@@ -264,7 +324,7 @@ static int show_effective_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
 		return 0;
 
 	for (iter = 0; iter < p.prog_cnt; iter++)
-		show_bpf_prog(prog_ids[iter], type, NULL, level);
+		show_bpf_prog(prog_ids[iter], type, 0, level);
 
 	return 0;
 }
@@ -274,9 +334,7 @@ static int show_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
 {
 	LIBBPF_OPTS(bpf_prog_query_opts, p);
 	__u32 prog_attach_flags[1024] = {0};
-	const char *attach_flags_str;
 	__u32 prog_ids[1024] = {0};
-	char buf[32];
 	__u32 iter;
 	int ret;
 
@@ -296,24 +354,7 @@ static int show_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
 		__u32 attach_flags;
 
 		attach_flags = prog_attach_flags[iter] ?: p.attach_flags;
-
-		switch (attach_flags) {
-		case BPF_F_ALLOW_MULTI:
-			attach_flags_str = "multi";
-			break;
-		case BPF_F_ALLOW_OVERRIDE:
-			attach_flags_str = "override";
-			break;
-		case 0:
-			attach_flags_str = "";
-			break;
-		default:
-			snprintf(buf, sizeof(buf), "unknown(%x)", attach_flags);
-			attach_flags_str = buf;
-		}
-
-		show_bpf_prog(prog_ids[iter], type,
-			      attach_flags_str, level);
+		show_bpf_prog(prog_ids[iter], type, attach_flags, level);
 	}
 
 	return 0;
@@ -377,7 +418,7 @@ static int do_show(int argc, char **argv)
 	else if (query_flags & BPF_F_QUERY_EFFECTIVE)
 		printf("%-8s %-15s %-15s\n", "ID", "AttachType", "Name");
 	else
-		printf("%-8s %-15s %-15s %-15s\n", "ID", "AttachType",
+		printf("%-8s %-15s %-17s %-15s\n", "ID", "AttachType",
 		       "AttachFlags", "Name");
 
 	btf_vmlinux = libbpf_find_kernel_btf();
@@ -531,7 +572,7 @@ static int do_show_tree(int argc, char **argv)
 		       "ID", "AttachType", "Name");
 	else
 		printf("%s\n"
-		       "%-8s %-15s %-15s %-15s\n",
+		       "%-8s %-15s %-17s %-15s\n",
 		       "CgroupPath",
 		       "ID", "AttachType", "AttachFlags", "Name");
 
@@ -593,6 +634,8 @@ static int do_attach(int argc, char **argv)
 			attach_flags |= BPF_F_ALLOW_MULTI;
 		} else if (is_prefix(argv[i], "override")) {
 			attach_flags |= BPF_F_ALLOW_OVERRIDE;
+		} else if (is_prefix(argv[i], "preorder")) {
+			attach_flags |= BPF_F_PREORDER;
 		} else {
 			p_err("unknown option: %s", argv[i]);
 			goto exit_cgroup;

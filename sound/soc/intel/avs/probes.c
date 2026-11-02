@@ -298,17 +298,13 @@ int avs_register_probe_component(struct avs_dev *adev, const char *name)
 	struct snd_soc_component *component;
 	const char *comp_name;
 
-	component = snd_soc_component_alloc(adev->dev);
-	if (!component)
-		return -ENOMEM;
-
 	comp_name = devm_kstrdup(adev->dev, name, GFP_KERNEL);
 	if (!comp_name)
 		return -ENOMEM;
 
-	snd_soc_component_set_name(component, comp_name);
+	component = snd_soc_component_new(adev->dev, comp_name, &avs_probe_component_driver);
+	if (IS_ERR(component))
+		return PTR_ERR(component);
 
-	return snd_soc_register_component(component,
-					  &avs_probe_component_driver,
-					  probe_cpu_dais, ARRAY_SIZE(probe_cpu_dais));
+	return snd_soc_component_register(component, probe_cpu_dais, ARRAY_SIZE(probe_cpu_dais));
 }

@@ -204,6 +204,8 @@ struct adreno_gpu {
 	struct msm_gpu base;
 	const struct adreno_info *info;
 	uint32_t chip_id;
+	/* GMEM size available to userspace, see a8xx_gpu_get_slice_info(): */
+	uint32_t gmem;
 	uint16_t speedbin;
 	const struct adreno_gpu_funcs *funcs;
 
@@ -580,6 +582,11 @@ static inline int adreno_is_a750_family(struct adreno_gpu *gpu)
 	return gpu->info->family == ADRENO_7XX_GEN3;
 }
 
+static inline int adreno_is_a6xx(struct adreno_gpu *gpu)
+{
+	return (gpu->info->family >= ADRENO_6XX_GEN1) && (gpu->info->family < ADRENO_7XX_GEN1);
+}
+
 static inline int adreno_is_a7xx(struct adreno_gpu *gpu)
 {
 	/* Update with non-fake (i.e. non-A702) Gen 7 GPUs */
@@ -597,14 +604,38 @@ static inline int adreno_is_a810(struct adreno_gpu *gpu)
 	return gpu->info->chip_ids[0] == 0x44010000;
 }
 
-static inline int adreno_is_x285(struct adreno_gpu *gpu)
+static inline int adreno_is_x285_family(const struct adreno_gpu *gpu)
 {
-	return gpu->info->chip_ids[0] == 0x44070001;
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->chip_ids[0] == 0x44060000 ||
+	       gpu->info->chip_ids[0] == 0x44070001;
+}
+
+static inline int adreno_is_a830(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x44050001;
 }
 
 static inline int adreno_is_a840(struct adreno_gpu *gpu)
 {
 	return gpu->info->chip_ids[0] == 0x44050a01;
+}
+
+static inline int adreno_is_a845(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x44041400;
+}
+
+static inline int adreno_is_a850(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x44051401;
+}
+
+static inline int adreno_is_a850_family(struct adreno_gpu *gpu)
+{
+	return adreno_is_a845(gpu) ||
+	       adreno_is_a850(gpu);
 }
 
 /* Put vm_start above 32b to catch issues with not setting xyz_BASE_HI */

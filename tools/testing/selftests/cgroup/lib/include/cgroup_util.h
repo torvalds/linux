@@ -21,6 +21,9 @@
 
 #define DEFAULT_WAIT_INTERVAL_US (100 * 1000) /* 100 ms */
 
+/* from include/linux/memcontrol.h, which userspace cannot include */
+#define MEMCG_CHARGE_BATCH	64
+
 /*
  * Checks if two given values differ by less than err% of their sum.
  */

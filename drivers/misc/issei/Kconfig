@@ -2,6 +2,7 @@
 # Copyright (C) 2023-2026 Intel Corporation
 config INTEL_SSEI
 	tristate "Intel Silicon Security Engine Interface"
+	depends on X86
 	help
 	  The ISSEI (Intel Silicon Security Engine Interface)
 	  subsystem provides a communication channel between the host and the

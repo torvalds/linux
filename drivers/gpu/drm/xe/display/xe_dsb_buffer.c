@@ -88,7 +88,7 @@ static void xe_dsb_buffer_flush_map(struct intel_dsb_buffer *dsb_buf)
 	 * both for weak ordering archs and discrete cards.
 	 */
 	xe_device_wmb(xe);
-	xe_device_l2_flush(xe);
+	xe_device_l2_flush(xe, false);
 }
 
 const struct intel_display_dsb_interface xe_display_dsb_interface = {

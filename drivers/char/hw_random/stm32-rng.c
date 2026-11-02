@@ -156,7 +156,7 @@ end:
  */
 static int stm32_rng_conceal_seed_error_sw_reset(struct stm32_rng_private *priv)
 {
-	unsigned int i = 0;
+	unsigned int i;
 	u32 sr = readl_relaxed(priv->base + RNG_SR);
 
 	writel_relaxed(sr & ~RNG_SR_SEIS, priv->base + RNG_SR);
@@ -187,7 +187,7 @@ static int stm32_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 {
 	struct stm32_rng_private *priv = container_of(rng, struct stm32_rng_private, rng);
 	unsigned int i = 0;
-	int retval = 0, err = 0;
+	int retval, err;
 	u32 sr;
 
 	retval = pm_runtime_resume_and_get(priv->dev);
@@ -264,7 +264,7 @@ static uint stm32_rng_clock_freq_restrain(struct hwrng *rng)
 {
 	struct stm32_rng_private *priv =
 	    container_of(rng, struct stm32_rng_private, rng);
-	unsigned long clock_rate = 0;
+	unsigned long clock_rate;
 	uint clock_div = 0;
 
 	clock_rate = clk_get_rate(priv->clk_bulk[0].clk);
@@ -277,7 +277,7 @@ static uint stm32_rng_clock_freq_restrain(struct hwrng *rng)
 	while ((clock_rate >> clock_div) > priv->data->max_clock_rate)
 		clock_div++;
 
-	pr_debug("RNG clk rate : %lu\n", clk_get_rate(priv->clk_bulk[0].clk) >> clock_div);
+	pr_debug("RNG clk rate: %lu\n", clock_rate >> clock_div);
 
 	return clock_div;
 }
@@ -528,14 +528,13 @@ static int stm32_rng_probe(struct platform_device *ofdev)
 	struct device *dev = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
 	struct stm32_rng_private *priv;
-	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->base = devm_platform_get_and_ioremap_resource(ofdev, 0, &res);
+	priv->base = devm_platform_ioremap_resource(ofdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
@@ -569,18 +568,11 @@ static int stm32_rng_probe(struct platform_device *ofdev)
 		return dev_err_probe(dev, -EINVAL, "Failed to get clocks: %d\n", ret);
 
 	if (priv->data->nb_clock == 2) {
-		const char *id = priv->clk_bulk[1].id;
-		struct clk *clk = priv->clk_bulk[1].clk;
-
 		if (!priv->clk_bulk[0].id || !priv->clk_bulk[1].id)
 			return dev_err_probe(dev, -EINVAL, "Missing clock name\n");
 
-		if (strcmp(priv->clk_bulk[0].id, "core")) {
-			priv->clk_bulk[1].id = priv->clk_bulk[0].id;
-			priv->clk_bulk[1].clk = priv->clk_bulk[0].clk;
-			priv->clk_bulk[0].id = id;
-			priv->clk_bulk[0].clk = clk;
-		}
+		if (strcmp(priv->clk_bulk[0].id, "core"))
+			swap(priv->clk_bulk[0], priv->clk_bulk[1]);
 	}
 
 	pm_runtime_set_autosuspend_delay(dev, 100);

@@ -250,7 +250,8 @@ static int pmic_glink_rpmsg_probe(struct rpmsg_device *rpdev)
 	guard(mutex)(&__pmic_glink_lock);
 	pg = __pmic_glink;
 	if (!pg)
-		return dev_err_probe(&rpdev->dev, -ENODEV, "no pmic_glink device to attach to\n");
+		return dev_err_probe(&rpdev->dev, -EPROBE_DEFER,
+				     "no pmic_glink device to attach to\n");
 
 	dev_set_drvdata(&rpdev->dev, pg);
 	pg->pdr_available = rpdev->id.driver_data;

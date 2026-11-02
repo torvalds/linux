@@ -92,7 +92,7 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 		'%x' hex identifier of the PMT MMIO region.
 .fi
 .PP
-\fB--cpu cpu-set\fP limit output to system summary plus the specified cpu-set.  If cpu-set is the string "core", then the system summary plus the first CPU in each core are printed -- eg. subsequent HT siblings are not printed.  Or if cpu-set is the string "package", then the system summary plus the first CPU in each package is printed.  Otherwise, the system summary plus the specified set of CPUs are printed.  The cpu-set is ordered from low to high, comma delimited with ".." and "-" permitted to denote a range. eg. 1,2,8,14..17,21-44
+\fB--cpu cpu-set\fP limit output to system summary plus the specified cpu-set.  If cpu-set is the string "core", then the system summary plus the first CPU in each core are printed -- eg. subsequent HT siblings are not printed.  Or if cpu-set is the string "package", then the system summary plus the first CPU in each package is printed.  Otherwise, the system summary plus the specified set of CPUs are printed.  The cpu-set is ordered from low to high, comma delimited with ".." and "-" permitted to denote a range. eg. 1,2,8,14..17,21-44  Multiple invocations of --cpu are OR'd together.
 .PP
 \fB--hide column\fP do not show the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.
 .PP
@@ -269,7 +269,7 @@ Periodic output goes to stdout, by default, unless --out is used to specify an o
 The 5-second interval can be changed with the "-i sec" option.
 .nf
 sudo turbostat --quiet --show CPU,frequency
-	Core	CPU	Avg_MHz	Busy%	Bzy_MHz	TSC_MHz	CPU%c7	UncMhz
+	Core	CPU	Avg_MHz	Busy%	Bzy_MHz	TSC_MHz	CPU%c7	UncMHz
 	-	-	524	12.48	4198	3096	74.53	3800
 	0	0	4	0.09	4081	3096	98.88	3800
 	0	4	1	0.02	4063	3096
@@ -279,7 +279,7 @@ sudo turbostat --quiet --show CPU,frequency
 	2	6	3	0.08	4159	3096
 	3	3	1	0.04	4046	3096	99.66
 	3	7	0	0.01	3989	3096
-	Core	CPU	Avg_MHz	Busy%	Bzy_MHz	TSC_MHz	CPU%c7	UncMhz
+	Core	CPU	Avg_MHz	Busy%	Bzy_MHz	TSC_MHz	CPU%c7	UncMHz
 	-	-	525	12.52	4198	3096	74.54	3800
 	0	0	4	0.10	4051	3096	99.49	3800
 	0	4	2	0.04	3993	3096

@@ -345,6 +345,11 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 
 	dev->rx_urb_size = dev->hard_mtu + (dev->maxpacket + 1);
 	dev->rx_urb_size &= ~(dev->maxpacket - 1);
+
+	/* some devices require a receive limit above 2048 for RX aggregation */
+	if (dev->driver_info->data & RNDIS_DRIVER_DATA_RX_AGGREGATION)
+		dev->rx_urb_size = max_t(size_t, dev->rx_urb_size, 16 * 1024);
+
 	u.init->max_transfer_size = cpu_to_le32(dev->rx_urb_size);
 
 	net->netdev_ops = &rndis_netdev_ops;
@@ -612,6 +617,17 @@ static const struct driver_info	rndis_info = {
 	.tx_fixup =	rndis_tx_fixup,
 };
 
+static const struct driver_info	rndis_rx_aggregation_info = {
+	.description =	"RNDIS device",
+	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_NO_SETINT,
+	.data =		RNDIS_DRIVER_DATA_RX_AGGREGATION,
+	.bind =		rndis_bind,
+	.unbind =	rndis_unbind,
+	.status =	rndis_status,
+	.rx_fixup =	rndis_rx_fixup,
+	.tx_fixup =	rndis_tx_fixup,
+};
+
 static const struct driver_info	rndis_poll_status_info = {
 	.description =	"RNDIS device (poll status before control)",
 	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_NO_SETINT,
@@ -649,6 +665,11 @@ static const struct driver_info	rndis_info_lowpower = {
 
 static const struct usb_device_id	products [] = {
 {
+	/* OnePlus Nord CE 2 */
+	USB_DEVICE_AND_INTERFACE_INFO(0x22d9, 0x2766,
+				      USB_CLASS_WIRELESS_CONTROLLER, 1, 3),
+	.driver_info = (unsigned long)&rndis_rx_aggregation_info,
+}, {
 	/* 2Wire HomePortal 1000SW */
 	USB_DEVICE_AND_INTERFACE_INFO(0x1630, 0x0042,
 				      USB_CLASS_COMM, 2 /* ACM */, 0x0ff),

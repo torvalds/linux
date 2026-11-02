@@ -22,7 +22,7 @@
 
 /* Vortex MPU401 defines. */
 #define MIDI_CLOCK_DIV      0x61
-/* Standart MPU401 defines. */
+/* Standard MPU401 defines. */
 #define MPU401_RESET		0xff
 #define MPU401_ENTER_UART	0x3f
 #define MPU401_ACK		    0xfe

@@ -12,6 +12,7 @@
 #include "aie.h"
 #include "aie4_msg_priv.h"
 #include "aie4_pci.h"
+#include "amdxdna_error.h"
 #include "amdxdna_mailbox.h"
 #include "amdxdna_mailbox_helper.h"
 #include "amdxdna_pci_drv.h"
@@ -181,11 +182,16 @@ static int aie4_mailbox_start(struct amdxdna_dev *xdna,
 		goto free_channel;
 	}
 
+	/*
+	 * At any given time, at most AMDXDNA_MAX_ASYNC_EVENT_BUFS async event
+	 * messages plus 1 other management command can be unresponded.
+	 */
 	ret = xdna_mailbox_start_channel(ndev->aie.mgmt_chann,
 					 &ndev->aie.mgmt_x2i,
 					 &ndev->aie.mgmt_i2x,
 					 NO_IOHUB,
-					 mgmt_mb_irq);
+					 mgmt_mb_irq,
+					 AMDXDNA_MAX_ASYNC_EVENT_BUFS + 1);
 	if (ret) {
 		XDNA_ERR(xdna, "failed to start management mailbox channel");
 		ret = -EINVAL;

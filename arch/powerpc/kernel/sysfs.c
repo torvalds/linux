@@ -338,7 +338,7 @@ static ssize_t show_pw20_wait_time(struct device *dev,
 		time = pw20_wt;
 	}
 
-	return sysfs_emit(buf, "%llu\n", time > 0 ? time : 0);
+	return sysfs_emit(buf, "%llu\n", time);
 }
 
 static void set_pw20_wait_entry_bit(void *val)
@@ -460,7 +460,7 @@ static ssize_t show_altivec_idle_wait_time(struct device *dev,
 		time = altivec_idle_wt;
 	}
 
-	return sysfs_emit(buf, "%llu\n", time > 0 ? time : 0);
+	return sysfs_emit(buf, "%llu\n", time);
 }
 
 static void set_altivec_idle_wait_entry_bit(void *val)

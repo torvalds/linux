@@ -23,6 +23,7 @@ struct mmc_ios {
 	unsigned int	clock;			/* clock rate */
 	unsigned short	vdd;
 	unsigned int	power_delay_ms;		/* waiting for stable power */
+	unsigned int	power_off_delay_us;	/* waiting for power discharge */
 
 /* vdd stores the bit number of the selected voltage range from below. */
 
@@ -463,6 +464,7 @@ struct mmc_host {
 #define MMC_CAP2_CRYPTO		0
 #endif
 #define MMC_CAP2_ALT_GPT_TEGRA	(1 << 28)	/* Host with eMMC that has GPT entry at a non-standard location */
+#define MMC_CAP2_CRYPTO_NO_REPROG (1 << 29)	/* Host handles inline crypto key reprogramming */
 
 	bool			uhs2_sd_tran;	/* UHS-II flag for SD_TRAN state */
 	bool			uhs2_app_cmd;	/* UHS-II flag for APP command */
@@ -583,11 +585,9 @@ struct mmc_host {
 
 struct device_node;
 
-struct mmc_host *mmc_alloc_host(int extra, struct device *);
 struct mmc_host *devm_mmc_alloc_host(struct device *dev, int extra);
 int mmc_add_host(struct mmc_host *);
 void mmc_remove_host(struct mmc_host *);
-void mmc_free_host(struct mmc_host *);
 void mmc_of_parse_clk_phase(struct device *dev,
 			    struct mmc_clk_phase_map *map);
 int mmc_of_parse(struct mmc_host *host);
@@ -753,6 +753,8 @@ static inline int mmc_card_uhs2_hd_mode(struct mmc_host *host)
 int mmc_sd_switch(struct mmc_card *card, bool mode, int group,
 		u8 value, u8 *resp);
 int mmc_send_status(struct mmc_card *card, u32 *status);
+int mmc_send_tuning_timeout(struct mmc_host *host, u32 opcode, int *cmd_error,
+			    u32 timeout_ms);
 int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);
 int mmc_send_abort_tuning(struct mmc_host *host, u32 opcode);
 int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd);

@@ -482,6 +482,77 @@
         ]
     },
     {
+        "id": "230c",
+        "name": "Keep the flags of a gact action reused by a matchall filter with skip_hw",
+        "category": [
+            "filter",
+            "matchall"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv4 matchall action gact pass index 199"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x2 prio 2 protocol ipv4 matchall skip_hw action gact pass index 199",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action gact index 199",
+        "matchPattern": "skip_hw",
+        "matchCount": "0",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "1f7a",
+        "name": "Keep the flags of a gact action reused by a rejected matchall filter with skip_hw",
+        "category": [
+            "filter",
+            "matchall"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action gact pass index 200",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv4 matchall action gact pass index 199"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x2 prio 2 protocol ipv4 matchall skip_hw action gact pass index 199 action gact pass index 200",
+        "expExitCode": "2",
+        "verifyCmd": "$TC actions get action gact index 199",
+        "matchPattern": "skip_hw",
+        "matchCount": "0",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress",
+            "$TC actions del action gact index 200"
+        ]
+    },
+    {
+        "id": "9117",
+        "name": "Reject the reuse of a skip_hw gact action by a matchall filter without skip_hw",
+        "category": [
+            "filter",
+            "matchall"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv4 matchall skip_hw action gact pass index 199"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x2 prio 2 protocol ipv4 matchall action gact pass index 199",
+        "expExitCode": "2",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 2 prio 2 protocol ipv4 matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 2 matchall.*handle 0x2.*",
+        "matchCount": "0",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
         "id": "2638",
         "name": "Add matchall and try to get it",
         "category": [

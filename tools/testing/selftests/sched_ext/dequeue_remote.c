@@ -43,6 +43,7 @@ static void worker_fn(int id)
 
 		for (j = 0; j < 20000 + id * 1000; j++)
 			sum += j;
+		asm volatile("" : : "r"(sum));
 		if (id & 1)
 			usleep(100);
 		else

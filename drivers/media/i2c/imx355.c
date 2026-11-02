@@ -714,6 +714,7 @@ static void imx355_update_pad_format(struct imx355 *imx355,
 
 static int
 imx355_set_pad_format(struct v4l2_subdev *sd,
+		      const struct v4l2_subdev_client_info *ci,
 		      struct v4l2_subdev_state *sd_state,
 		      struct v4l2_subdev_format *fmt)
 {
@@ -765,6 +766,7 @@ imx355_set_pad_format(struct v4l2_subdev *sd,
 }
 
 static int imx355_get_selection(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
@@ -796,7 +798,7 @@ static int imx355_entity_init_state(struct v4l2_subdev *subdev,
 	fmt.format.width = supported_modes[0].width;
 	fmt.format.height = supported_modes[0].height;
 
-	imx355_set_pad_format(subdev, sd_state, &fmt);
+	imx355_set_pad_format(subdev, NULL, sd_state, &fmt);
 
 	return 0;
 }

@@ -7,8 +7,14 @@ test_begin() {
 	# Set test directory to the directory of the script
 	scriptfile=$(realpath "$0")
 	testdir=$(dirname "$scriptfile")
-	[ -z "$RTLA" ] && RTLA="./rtla"
+	[ -z "$RTLA" ] && RTLA="$(pwd)/rtla"
 	[ -n "$TEST_COUNT" ] && echo "1..$TEST_COUNT"
+
+	# Convert newlines to spaces so that seq can be used
+	unset subtests
+	if [ -n "$SUBTESTS" ]; then
+		subtests=$(echo "$SUBTESTS"|tr '\n' ' ')
+	fi
 }
 
 reset_osnoise() {
@@ -50,8 +56,7 @@ check() {
 	# Simple check: run rtla with given arguments and test exit code.
 	# If TEST_COUNT is set, run the test. Otherwise, just count.
 	ctr=$(($ctr + 1))
-	if [ -n "$TEST_COUNT" ]
-	then
+	if [[ -n "$TEST_COUNT" && ( -z "$subtests" || " $subtests " == *" $ctr "* ) ]]; then
 		# Reset osnoise options before running test.
 		[ "$NO_RESET_OSNOISE" == 1 ] || reset_osnoise
 
@@ -62,6 +67,7 @@ check() {
 		# Run rtla; in case of failure, include its output as comment
 		# in the test results.
 		result=$(eval stdbuf -oL $TIMEOUT "$RTLA" $2 2>&1); exitcode=$?
+		popd >/dev/null
 		failbuf=''
 		fail=0
 
@@ -86,13 +92,22 @@ check() {
 		else
 			# Add rtla output and exit code as comments in case of failure
 			echo "not ok $ctr - $1"
+			echo "# command: $RTLA" $2
 			echo -n "$failbuf"
 			echo "$result" | col -b | while read line; do echo "# $line"; done
 			printf "#\n# exit code %s\n" $exitcode
+
+			if [ -n "$STOPONFAIL" ]; then
+				# If the directory is not empty, tell the user where
+				# to find the output
+				if ! rmdir $tmpdir; then
+					echo "# output dir: $tmpdir"
+				fi
+				exit 1
+			fi
 		fi
 
 		# Remove temporary directory
-		popd >/dev/null
 		rm -r $tmpdir
 	fi
 }

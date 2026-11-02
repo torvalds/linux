@@ -2,6 +2,8 @@
 #ifndef CAIAQ_DEVICE_H
 #define CAIAQ_DEVICE_H
 
+#include <linux/mutex.h>
+
 #include "../usbaudio.h"
 
 #define USB_VID_NATIVEINSTRUMENTS 0x17cc
@@ -28,6 +30,8 @@
 
 #define MODNAME "snd-usb-caiaq"
 
+#define CAIAQ_LCD_FRAME_SIZE	1024
+
 #define EP1_CMD_GET_DEVICE_INFO	0x1
 #define EP1_CMD_READ_ERP	0x2
 #define EP1_CMD_READ_ANALOG	0x3
@@ -35,6 +39,7 @@
 #define EP1_CMD_WRITE_IO	0x5
 #define EP1_CMD_MIDI_READ	0x6
 #define EP1_CMD_MIDI_WRITE	0x7
+#define EP1_CMD_LCD		0x8
 #define EP1_CMD_AUDIO_PARAMS	0x9
 #define EP1_CMD_AUTO_MSG	0xb
 #define EP1_CMD_DIMM_LEDS       0xc
@@ -68,10 +73,12 @@ struct snd_usb_caiaqdev {
 
 	unsigned char ep1_in_buf[EP1_BUFSIZE];
 	unsigned char ep1_out_buf[EP1_BUFSIZE];
+	struct mutex ep1_out_mutex;	/* protects ep1_out_buf */
 	unsigned char midi_out_buf[EP1_BUFSIZE];
 
 	struct caiaq_device_spec spec;
-	spinlock_t spinlock;
+	spinlock_t spinlock;	/* for PCM audio */
+	spinlock_t midi_lock;	/* midi_x_stream, midi_out_active */
 	wait_queue_head_t ep1_wait_queue;
 	wait_queue_head_t prepare_wait_queue;
 	int spec_received, audio_parm_answer;
@@ -97,6 +104,13 @@ struct snd_usb_caiaqdev {
 	/* Controls */
 	unsigned char control_state[256];
 	unsigned char ep8_out_buf[2];
+
+	/* Kore LCD */
+	struct mutex lcd_mutex;		/* protects the lcd_* fields */
+	unsigned char lcd_frame[CAIAQ_LCD_FRAME_SIZE];	/* shown frame */
+	unsigned char lcd_contrast;
+	bool lcd_ready;			/* controller set up */
+	bool lcd_frame_valid;		/* lcd_frame matches the display */
 
 	/* Linux input */
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT

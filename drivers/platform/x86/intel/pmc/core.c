@@ -1849,6 +1849,7 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	X86_MATCH_VFM(INTEL_ARROWLAKE_U,	&arl_h_pmc_dev),
 	X86_MATCH_VFM(INTEL_LUNARLAKE_M,	&lnl_pmc_dev),
 	X86_MATCH_VFM(INTEL_PANTHERLAKE_L,	&ptl_pmc_dev),
+	X86_MATCH_VFM(INTEL_PANTHERLAKE_R,	&ptl_pmc_dev),
 	X86_MATCH_VFM(INTEL_WILDCATLAKE_L,	&wcl_pmc_dev),
 	X86_MATCH_VFM(INTEL_NOVALAKE,		&nvl_s_pmc_dev),
 	X86_MATCH_VFM(INTEL_NOVALAKE_L,		&nvl_h_pmc_dev),

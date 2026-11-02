@@ -4,16 +4,20 @@ ldflags-y += --wrap=is_acpi_device_node
 ldflags-y += --wrap=acpi_evaluate_integer
 ldflags-y += --wrap=acpi_pci_find_root
 ldflags-y += --wrap=nvdimm_bus_register
-ldflags-y += --wrap=cxl_await_media_ready
-ldflags-y += --wrap=devm_cxl_add_rch_dport
-ldflags-y += --wrap=cxl_endpoint_parse_cdat
-ldflags-y += --wrap=devm_cxl_endpoint_decoders_setup
 ldflags-y += --wrap=hmat_get_extended_linear_cache_size
-ldflags-y += --wrap=devm_cxl_add_dport_by_dev
-ldflags-y += --wrap=devm_cxl_switch_port_decoders_setup
 ldflags-y += --wrap=walk_hmem_resources
 ldflags-y += --wrap=region_intersects
 ldflags-y += --wrap=region_intersects_soft_reserve
+wrap_cxl_core := --wrap=cxl_await_media_ready
+wrap_cxl_core += --wrap=devm_cxl_add_rch_dport
+wrap_cxl_core += --wrap=devm_cxl_add_dport_by_dev
+wrap_cxl_core += --wrap=devm_cxl_switch_port_decoders_setup
+wrap_cxl_core += --wrap=devm_cxl_endpoint_decoders_setup
+wrap_cxl_core += --wrap=cxl_endpoint_parse_cdat
+LDFLAGS_cxl_acpi.o += $(wrap_cxl_core)
+LDFLAGS_cxl_pmem.o += $(wrap_cxl_core)
+LDFLAGS_cxl_port.o += $(wrap_cxl_core)
+LDFLAGS_cxl_mem.o  += $(wrap_cxl_core)
 
 DRIVERS := ../../../drivers
 DAX_HMEM_SRC := $(DRIVERS)/dax/hmem

@@ -347,7 +347,9 @@ static void ufs_qcom_disable_lane_clks(struct ufs_qcom_host *host)
 	if (!host->is_lane_clks_enabled)
 		return;
 
-	clk_bulk_disable_unprepare(host->num_clks, host->clks);
+	clk_disable_unprepare(host->rx_lane1_sync_clk);
+	clk_disable_unprepare(host->rx_lane0_sync_clk);
+	clk_disable_unprepare(host->tx_lane0_sync_clk);
 
 	host->is_lane_clks_enabled = false;
 }
@@ -356,28 +358,57 @@ static int ufs_qcom_enable_lane_clks(struct ufs_qcom_host *host)
 {
 	int err;
 
-	err = clk_bulk_prepare_enable(host->num_clks, host->clks);
+	if (host->is_lane_clks_enabled)
+		return 0;
+
+	err = clk_prepare_enable(host->tx_lane0_sync_clk);
 	if (err)
-		return err;
+		goto out;
+
+	err = clk_prepare_enable(host->rx_lane0_sync_clk);
+	if (err)
+		goto out_disable_tx_lane0;
+
+	err = clk_prepare_enable(host->rx_lane1_sync_clk);
+	if (err)
+		goto out_disable_rx_lane0;
 
 	host->is_lane_clks_enabled = true;
 
 	return 0;
+
+out_disable_rx_lane0:
+	clk_disable_unprepare(host->rx_lane0_sync_clk);
+out_disable_tx_lane0:
+	clk_disable_unprepare(host->tx_lane0_sync_clk);
+out:
+	return err;
 }
 
 static int ufs_qcom_init_lane_clks(struct ufs_qcom_host *host)
 {
-	int err;
 	struct device *dev = host->hba->dev;
 
 	if (has_acpi_companion(dev))
 		return 0;
 
-	err = devm_clk_bulk_get_all(dev, &host->clks);
-	if (err <= 0)
-		return err;
+	host->tx_lane0_sync_clk = devm_clk_get(dev, "tx_lane0_sync_clk");
+	if (IS_ERR(host->tx_lane0_sync_clk))
+		return dev_err_probe(dev, PTR_ERR(host->tx_lane0_sync_clk),
+				     "failed to get tx_lane0_sync_clk\n");
 
-	host->num_clks = err;
+	host->rx_lane0_sync_clk = devm_clk_get(dev, "rx_lane0_sync_clk");
+	if (IS_ERR(host->rx_lane0_sync_clk))
+		return dev_err_probe(dev, PTR_ERR(host->rx_lane0_sync_clk),
+				     "failed to get rx_lane0_sync_clk\n");
+
+	/* In case of single lane per direction, don't read lane1 clocks */
+	if (host->hba->lanes_per_direction > 1) {
+		host->rx_lane1_sync_clk = devm_clk_get(dev, "rx_lane1_sync_clk");
+		if (IS_ERR(host->rx_lane1_sync_clk))
+			return dev_err_probe(dev, PTR_ERR(host->rx_lane1_sync_clk),
+					     "failed to get rx_lane1_sync_clk\n");
+	}
 
 	return 0;
 }
@@ -2407,6 +2438,7 @@ static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *data)
 static int ufs_qcom_config_esi(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	struct ufs_qcom_irq *qi;
 	int nr_irqs, ret;
 
 	if (host->esi_enabled)
@@ -2425,8 +2457,7 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 		return ret; /* Continue without ESI */
 	}
 
-	struct ufs_qcom_irq *qi = devm_kcalloc(hba->dev, nr_irqs, sizeof(*qi), GFP_KERNEL);
-
+	qi = devm_kcalloc(hba->dev, nr_irqs, sizeof(*qi), GFP_KERNEL);
 	if (!qi) {
 		platform_device_msi_free_irqs_all(hba->dev);
 		return -ENOMEM;
@@ -2957,6 +2988,11 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_sa8255p_vops = {
 	.resume                 = ufs_qcom_fw_managed_resume,
 	.dbg_register_dump      = ufs_qcom_dump_dbg_regs,
 	.device_reset           = ufs_qcom_fw_managed_device_reset,
+	.mcq_config_resource	= ufs_qcom_mcq_config_resource,
+	.get_hba_mac		= ufs_qcom_get_hba_mac,
+	.op_runtime_config	= ufs_qcom_op_runtime_config,
+	.get_outstanding_cqs	= ufs_qcom_get_outstanding_cqs,
+	.config_esi		= ufs_qcom_config_esi,
 };
 
 /**
@@ -3001,6 +3037,10 @@ static void ufs_qcom_remove(struct platform_device *pdev)
 		platform_device_msi_free_irqs_all(hba->dev);
 }
 
+static const struct ufs_qcom_drvdata ufs_qcom_milos_drvdata = {
+	.no_phy_retention = true,
+};
+
 static const struct ufs_qcom_drvdata ufs_qcom_sm8550_drvdata = {
 	.quirks = UFSHCD_QUIRK_BROKEN_LSDBS_CAP,
 	.no_phy_retention = true,
@@ -3012,6 +3052,7 @@ static const struct ufs_qcom_drvdata ufs_qcom_sa8255p_drvdata = {
 
 static const struct of_device_id ufs_qcom_of_match[] __maybe_unused = {
 	{ .compatible = "qcom,ufshc" },
+	{ .compatible = "qcom,milos-ufshc", .data = &ufs_qcom_milos_drvdata },
 	{ .compatible = "qcom,sm8550-ufshc", .data = &ufs_qcom_sm8550_drvdata },
 	{ .compatible = "qcom,sm8650-ufshc", .data = &ufs_qcom_sm8550_drvdata },
 	{ .compatible = "qcom,sa8255p-ufshc", .data = &ufs_qcom_sa8255p_drvdata },

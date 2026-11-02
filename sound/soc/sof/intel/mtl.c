@@ -762,6 +762,7 @@ int sof_mtl_set_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *dsp_ops)
 		return -ENOMEM;
 
 	ipc4_data = sdev->private;
+	INIT_LIST_HEAD(&ipc4_data->nhlt_list);
 	ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;
 
 	ipc4_data->mtrace_type = SOF_IPC4_MTRACE_INTEL_CAVS_2;

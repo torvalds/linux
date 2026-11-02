@@ -21,9 +21,26 @@ void kvm_flush_tlb_all(void)
 	local_irq_restore(flags);
 }
 
-void kvm_flush_tlb_gpa(struct kvm_vcpu *vcpu, unsigned long gpa)
+/* Invalidate all stage1 TLB entries including GVA-->GPA mappings */
+void kvm_flush_tlb_all_stage1(void)
 {
 	lockdep_assert_irqs_disabled();
+	invtlb_all(INVGTLB_ALLGID_GVA_TO_GPA, 0, 0);
+}
+
+/* Invalidate all stage2 TLB entries including GPA-->HPA  mappings */
+void kvm_flush_tlb_all_stage2(void)
+{
+	lockdep_assert_irqs_disabled();
+	invtlb_all(INVTLB_ALLGID_GPA_TO_HPA, 0, 0);
+}
+
+void kvm_flush_tlb_gpa(struct kvm_vcpu *vcpu, unsigned long gpa)
+{
+	unsigned int vmid;
+
+	lockdep_assert_irqs_disabled();
 	gpa &= (PAGE_MASK << 1);
-	invtlb(INVTLB_GID_ADDR, read_csr_gstat() & CSR_GSTAT_GID, gpa);
+	vmid = (vcpu->arch.tgid << CSR_GSTAT_GID_SHIFT) & CSR_GSTAT_GID;
+	invtlb(INVTLB_GID_ADDR, vmid, gpa);
 }

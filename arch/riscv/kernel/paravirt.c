@@ -51,7 +51,7 @@ static int sbi_sta_steal_time_set_shmem(unsigned long lo, unsigned long hi,
 	struct sbiret ret;
 
 	ret = sbi_ecall(SBI_EXT_STA, SBI_EXT_STA_STEAL_TIME_SET_SHMEM,
-			lo, hi, flags, 0, 0, 0);
+			lo, hi, flags);
 	if (ret.error) {
 		if (lo == SBI_SHMEM_DISABLE && hi == SBI_SHMEM_DISABLE)
 			pr_warn("Failed to disable steal-time shmem");
@@ -116,9 +116,9 @@ int __init pv_time_init(void)
 
 	static_call_update(pv_steal_clock, pv_time_steal_clock);
 
-	static_key_slow_inc(&paravirt_steal_enabled);
+	static_branch_inc(&paravirt_steal_enabled);
 	if (steal_acc)
-		static_key_slow_inc(&paravirt_steal_rq_enabled);
+		static_branch_inc(&paravirt_steal_rq_enabled);
 
 	pr_info("Computing paravirt steal-time\n");
 

@@ -163,7 +163,8 @@ enum pci_epf_doorbell_type {
  *       For MSI-backed doorbells this is the MSI message, while for
  *       "embedded" doorbells this represents an MMIO write that asserts
  *       an interrupt on the EP side.
- * @virq: IRQ number of this doorbell message
+ * @virq: IRQ number of this doorbell message. Multiple messages may use the
+ *        same IRQ; consumers must request each distinct IRQ only once.
  * @irq_flags: Required flags for request_irq()/request_threaded_irq().
  *             Callers may OR-in additional flags (e.g. IRQF_ONESHOT).
  * @type: Doorbell type.

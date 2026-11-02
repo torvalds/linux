@@ -10,6 +10,8 @@
  * Copyright (C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
  */
 #define pr_fmt(x) "hibernate: " x
+
+#include <linux/arm-rmi-cmds.h>
 #include <linux/cpu.h>
 #include <linux/kvm_host.h>
 #include <linux/pm.h>
@@ -103,6 +105,18 @@ void notrace save_processor_state(void)
 
 void notrace restore_processor_state(void)
 {
+}
+
+bool arch_hibernation_available(void)
+{
+	/*
+	 * If we have activated the RMM, there could be pages that are
+	 * delegated to the RMM. Trying to save them to the image will be fatal.
+	 * Also, we donate pages to the RMM at activation and restoring data
+	 * to those pages are going to be fatal.
+	 * Hence, disable the hibernation when the RMM is active
+	 */
+	return !is_rmm_active();
 }
 
 int arch_hibernation_header_save(void *addr, unsigned int max_size)

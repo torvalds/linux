@@ -1804,7 +1804,7 @@ static int init_numeric_sensors(struct hp_wmi_sensors *state,
 
 		if (!info_map[type]) {
 			info_map[type] = devm_kcalloc(dev, channel_count[type],
-						      sizeof(*info_map),
+						      sizeof(*info_map[type]),
 						      GFP_KERNEL);
 			if (!info_map[type])
 				return -ENOMEM;

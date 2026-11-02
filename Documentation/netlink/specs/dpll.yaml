@@ -31,8 +31,7 @@ definitions:
       -
         name: unlocked
         doc: |
-          dpll was not yet locked to any valid input (or forced by setting
-          DPLL_A_MODE to DPLL_MODE_DETACHED)
+          dpll was not yet locked to any valid input
         value: 1
       -
         name: locked
@@ -551,6 +550,8 @@ attribute-sets:
       -
         name: parent-id
       -
+        name: pad
+      -
         name: direction
       -
         name: prio
@@ -576,6 +577,8 @@ attribute-sets:
     name: frequency-range
     subset-of: pin
     attributes:
+      -
+        name: pad
       -
         name: frequency-min
       -
@@ -632,6 +635,7 @@ operations:
             - mode-supported
             - lock-status
             - lock-status-error
+            - clock-quality-level
             - temp
             - clock-id
             - type
@@ -700,11 +704,9 @@ operations:
       doc: |
         Get list of pins and its attributes.
 
-        - dump request without any attributes given - list all the pins in the
-          system
-        - dump request with target dpll - list all the pins registered with
-          a given dpll device
-        - do request with target dpll and target pin - single pin attributes
+        - dump request - list all the registered, available pins in the
+          system, the request takes no attributes
+        - do request with target pin - single pin attributes
       attribute-set: pin
       flags: [admin-perm]
 
@@ -741,9 +743,6 @@ operations:
             - measured-frequency
 
       dump:
-        request:
-          attributes:
-            - id
         reply: *pin-attrs
 
     -
@@ -759,9 +758,6 @@ operations:
           attributes:
             - id
             - frequency
-            - direction
-            - prio
-            - state
             - parent-device
             - parent-pin
             - phase-adjust

@@ -462,8 +462,8 @@ static struct clk_hw *clk_register_stm32_timer_ker(struct device *dev,
 		u8 dppre_shift,
 		spinlock_t *lock)
 {
+	struct clk_init_data init = {};
 	struct timer_ker *element;
-	struct clk_init_data init;
 	struct clk_hw *hw;
 	int err;
 

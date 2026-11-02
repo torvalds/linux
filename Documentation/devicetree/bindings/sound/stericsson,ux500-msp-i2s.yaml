@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/stericsson,ux500-msp-i2s.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST-Ericsson Ux500 Multichannel Serial Port
+
+maintainers:
+  - Linus Walleij <linusw@kernel.org>
+
+description:
+  The Ux500 Multichannel Serial Port (MSP) is a synchronous serial audio
+  interface supporting I2S and PCM/TDM protocols. Data is transferred to and
+  from memory using the Ux500 DMA controller.
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    const: stericsson,ux500-msp-i2s
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  v-ape-supply:
+    description: Analog power engine supply
+
+  dmas:
+    minItems: 1
+    maxItems: 2
+
+  dma-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum: [ rx, tx ]
+
+  clocks:
+    items:
+      - description: MSP functional clock
+      - description: MSP APB bus clock
+
+  clock-names:
+    items:
+      - const: msp
+      - const: apb_pclk
+
+  resets:
+    maxItems: 1
+
+  '#sound-dai-cells':
+    const: 0
+
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - v-ape-supply
+  - dmas
+  - dma-names
+  - clocks
+  - clock-names
+  - resets
+  - '#sound-dai-cells'
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/reset/stericsson,db8500-prcc-reset.h>
+
+    msp@80123000 {
+        compatible = "stericsson,ux500-msp-i2s";
+        reg = <0x80123000 0x1000>;
+        interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+        v-ape-supply = <&db8500_vape_reg>;
+        dmas = <&dma 31 0 0x12>, <&dma 31 0 0x10>;
+        dma-names = "rx", "tx";
+        clocks = <&prcc_kclk 1 3>, <&prcc_pclk 1 3>;
+        clock-names = "msp", "apb_pclk";
+        resets = <&prcc_reset DB8500_PRCC_1 DB8500_PRCC_1_RESET_MSP0>;
+        #sound-dai-cells = <0>;
+    };
+
+...

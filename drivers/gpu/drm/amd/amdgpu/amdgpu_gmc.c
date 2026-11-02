@@ -33,6 +33,8 @@
 #include "amdgpu_gmc.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_reset.h"
+#include "amdgpu_ring.h"
+#include "amdgpu_sdma.h"
 #include "amdgpu_xgmi.h"
 #include "amdgpu_atomfirmware.h"
 
@@ -120,6 +122,11 @@ void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 		break;
 	case TTM_PL_VRAM:
 		*addr = amdgpu_bo_gpu_offset(bo);
+		/* For SPM-backed VRAM, convert the MC address to a physical
+		 * address for system memory path access.
+		 */
+		if (amdgpu_virt_vram_is_spm(adev))
+			*addr = amdgpu_gmc_vram_mc2pa(adev, *addr);
 		break;
 	default:
 		*addr = 0;
@@ -672,7 +679,8 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 			continue;
 
 		/* Skip if the ring is a shared ring */
-		if (amdgpu_sdma_is_shared_inv_eng(adev, ring))
+		if (amdgpu_sdma_is_shared_inv_eng(adev, ring) ||
+		    amdgpu_jpeg_is_shared_inv_eng(adev, ring))
 			continue;
 
 		inv_eng = ffs(vm_inv_engs[vmhub]);
@@ -702,6 +710,12 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 					ring->name, ring->vm_inv_eng, shared_ring->name, ring->vm_hub);
 			continue;
 		}
+
+		/* All decode rings within one JPEG instance share one VM
+		 * invalidation engine (no-op unless ring is a JPEG instance's
+		 * first ring).
+		 */
+		amdgpu_jpeg_set_shared_inv_eng(adev, ring);
 	}
 
 	return 0;
@@ -773,96 +787,195 @@ error_alloc:
 	dev_err(adev->dev, "Error flushing GPU TLB using the SDMA (%d)!\n", r);
 }
 
-int amdgpu_gmc_flush_gpu_tlb_pasid(struct amdgpu_device *adev, uint16_t pasid,
-				   uint32_t flush_type, bool all_hub,
-				   uint32_t inst)
+static void amdgpu_gmc_flush_pasid_regs(struct amdgpu_device *adev, u16 pasid,
+					u32 flush_type, bool all_hub,
+					u32 inst)
+{
+	if (!adev->gmc.gmc_funcs->flush_gpu_tlb_pasid)
+		return;
+
+	if (adev->gmc.flush_tlb_needs_extra_type_2)
+		adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid, 2, all_hub,
+							 inst);
+
+	if (adev->gmc.flush_tlb_needs_extra_type_0 && flush_type == 2)
+		adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid, 0, all_hub,
+							 inst);
+
+	adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid, flush_type, all_hub,
+						 inst);
+}
+
+/*
+ * Queue the invalidation on one XCC and return its fence without waiting, so
+ * that a caller flushing several XCCs can have them in flight together.  The
+ * KIQ ring, its lock and its fence sequence are per XCC, so the submissions do
+ * not interfere with each other.
+ */
+static int amdgpu_gmc_flush_pasid_kiq_submit(struct amdgpu_device *adev,
+					     u16 pasid, u32 flush_type,
+					     bool all_hub, u32 inst,
+					     u32 *seq)
+{
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[inst];
+	struct amdgpu_ring *ring = &kiq->ring;
+	unsigned int ndw;
+	int r;
+
+	/* one flush + 8 dwords fence */
+	ndw = kiq->pmf->invalidate_tlbs_size + 8;
+
+	if (adev->gmc.flush_tlb_needs_extra_type_2)
+		ndw += kiq->pmf->invalidate_tlbs_size;
+
+	if (adev->gmc.flush_tlb_needs_extra_type_0 && flush_type == 2)
+		ndw += kiq->pmf->invalidate_tlbs_size;
+
+	spin_lock(&kiq->ring_lock);
+	r = amdgpu_ring_alloc(ring, ndw);
+	if (r) {
+		spin_unlock(&kiq->ring_lock);
+		return r;
+	}
+
+	if (adev->gmc.flush_tlb_needs_extra_type_2)
+		kiq->pmf->kiq_invalidate_tlbs(ring, pasid, 2, all_hub);
+
+	if (flush_type == 2 && adev->gmc.flush_tlb_needs_extra_type_0)
+		kiq->pmf->kiq_invalidate_tlbs(ring, pasid, 0, all_hub);
+
+	kiq->pmf->kiq_invalidate_tlbs(ring, pasid, flush_type, all_hub);
+	r = amdgpu_fence_emit_polling(ring, seq, MAX_KIQ_REG_WAIT);
+	if (r) {
+		amdgpu_ring_undo(ring);
+		spin_unlock(&kiq->ring_lock);
+		return r;
+	}
+
+	amdgpu_ring_commit(ring);
+	spin_unlock(&kiq->ring_lock);
+
+	return 0;
+}
+
+/*
+ * Wait for an invalidation queued by amdgpu_gmc_flush_pasid_kiq_submit().
+ *
+ * Bailing out because a reset became pending is reported as success: the reset
+ * flushes all TLBs anyway, so the invalidation no longer has to complete.  Only
+ * running out of tries is an error.
+ */
+static int amdgpu_gmc_flush_pasid_kiq_wait(struct amdgpu_device *adev,
+					   u32 inst, u32 seq)
 {
 	struct amdgpu_ring *ring = &adev->gfx.kiq[inst].ring;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq[inst];
-	unsigned int ndw;
-	int r, cnt = 0;
-	uint32_t seq;
+	int cnt = 0;
+	signed long r;
+
+	r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
+
+	might_sleep();
+	while (r < 1 && cnt++ < MAX_KIQ_REG_TRY &&
+	       !amdgpu_reset_pending(adev->reset_domain)) {
+		msleep(MAX_KIQ_REG_BAILOUT_INTERVAL);
+		r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
+	}
+
+	if (cnt > MAX_KIQ_REG_TRY) {
+		dev_err(adev->dev, "timeout waiting for kiq fence\n");
+		return -ETIME;
+	}
+
+	return 0;
+}
+
+/**
+ * amdgpu_gmc_flush_gpu_tlb_pasid_xccs - flush a pasid on several XCCs at once
+ *
+ * @adev: amdgpu_device pointer
+ * @pasid: pasid to be flushed
+ * @flush_type: the flush type
+ * @all_hub: flush all hubs
+ * @xcc_mask: mask of the XCCs to flush
+ *
+ * Submits the invalidation to every XCC in @xcc_mask before waiting for any of
+ * them, so the round trips overlap instead of running back to back.  Flushing
+ * one XCC at a time costs num_xcc times the latency of a single one, which on
+ * a partition holding every XCC of the device is most of the cost of a compute
+ * TLB flush.
+ *
+ * The XCCs are independent of each other here: the page tables are already
+ * updated before any invalidation is issued, and nothing in an invalidation
+ * depends on another XCC having completed its own.
+ *
+ * Returns:
+ * 0 for success, the first error otherwise.  Every XCC is flushed even if one
+ * of them fails.
+ */
+int amdgpu_gmc_flush_gpu_tlb_pasid_xccs(struct amdgpu_device *adev, u16 pasid,
+					u32 flush_type, bool all_hub,
+					u32 xcc_mask)
+{
+	u32 seq[AMDGPU_MAX_GC_INSTANCES];
+	unsigned long pending = 0;
+	int xcc, r = 0, err;
 
 	/*
 	 * A GPU reset should flush all TLBs anyway, so no need to do
 	 * this while one is ongoing.
+	 *
+	 * Unlike the one XCC at a time flush this holds the read side across
+	 * every submit and every wait, so a reset's down_write() can only get
+	 * in once the whole mask is done.  The waits are sequential, which
+	 * bounds that at num_xcc * MAX_KIQ_REG_TRY * MAX_KIQ_REG_BAILOUT_INTERVAL
+	 * in the worst case, and amdgpu_gmc_flush_pasid_kiq_wait() cuts each
+	 * wait short as soon as a reset becomes pending.
 	 */
 	if (!down_read_trylock(&adev->reset_domain->sem))
 		return 0;
 
-	if (!adev->gmc.flush_pasid_uses_kiq || !ring->sched.ready) {
+	for_each_inst(xcc, xcc_mask) {
+		struct amdgpu_ring *ring;
 
-		if (!adev->gmc.gmc_funcs->flush_gpu_tlb_pasid) {
-			r = 0;
-			goto error_unlock_reset;
+		if (WARN_ON_ONCE(xcc >= AMDGPU_MAX_GC_INSTANCES)) {
+			if (!r)
+				r = -EINVAL;
+			break;
 		}
 
-		if (adev->gmc.flush_tlb_needs_extra_type_2)
-			adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid,
-								 2, all_hub,
-								 inst);
-
-		if (adev->gmc.flush_tlb_needs_extra_type_0 && flush_type == 2)
-			adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid,
-								 0, all_hub,
-								 inst);
-
-		adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid,
-							 flush_type, all_hub,
-							 inst);
-		r = 0;
-	} else {
-		/* 2 dwords flush + 8 dwords fence */
-		ndw = kiq->pmf->invalidate_tlbs_size + 8;
-
-		if (adev->gmc.flush_tlb_needs_extra_type_2)
-			ndw += kiq->pmf->invalidate_tlbs_size;
-
-		if (adev->gmc.flush_tlb_needs_extra_type_0)
-			ndw += kiq->pmf->invalidate_tlbs_size;
-
-		spin_lock(&adev->gfx.kiq[inst].ring_lock);
-		r = amdgpu_ring_alloc(ring, ndw);
-		if (r) {
-			spin_unlock(&adev->gfx.kiq[inst].ring_lock);
-			goto error_unlock_reset;
-		}
-		if (adev->gmc.flush_tlb_needs_extra_type_2)
-			kiq->pmf->kiq_invalidate_tlbs(ring, pasid, 2, all_hub);
-
-		if (flush_type == 2 && adev->gmc.flush_tlb_needs_extra_type_0)
-			kiq->pmf->kiq_invalidate_tlbs(ring, pasid, 0, all_hub);
-
-		kiq->pmf->kiq_invalidate_tlbs(ring, pasid, flush_type, all_hub);
-		r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
-		if (r) {
-			amdgpu_ring_undo(ring);
-			spin_unlock(&adev->gfx.kiq[inst].ring_lock);
-			goto error_unlock_reset;
+		ring = &adev->gfx.kiq[xcc].ring;
+		if (!adev->gmc.flush_pasid_uses_kiq || !ring->sched.ready) {
+			amdgpu_gmc_flush_pasid_regs(adev, pasid, flush_type,
+						    all_hub, xcc);
+			continue;
 		}
 
-		amdgpu_ring_commit(ring);
-		spin_unlock(&adev->gfx.kiq[inst].ring_lock);
-
-		r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
-
-		might_sleep();
-		while (r < 1 && cnt++ < MAX_KIQ_REG_TRY &&
-		       !amdgpu_reset_pending(adev->reset_domain)) {
-			msleep(MAX_KIQ_REG_BAILOUT_INTERVAL);
-			r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
+		err = amdgpu_gmc_flush_pasid_kiq_submit(adev, pasid, flush_type,
+							all_hub, xcc, &seq[xcc]);
+		if (err) {
+			if (!r)
+				r = err;
+			continue;
 		}
 
-		if (cnt > MAX_KIQ_REG_TRY) {
-			dev_err(adev->dev, "timeout waiting for kiq fence\n");
-			r = -ETIME;
-		} else
-			r = 0;
+		pending |= BIT(xcc);
 	}
 
-error_unlock_reset:
+	for_each_set_bit(xcc, &pending, AMDGPU_MAX_GC_INSTANCES) {
+		err = amdgpu_gmc_flush_pasid_kiq_wait(adev, xcc, seq[xcc]);
+		if (err && !r)
+			r = err;
+	}
+
 	up_read(&adev->reset_domain->sem);
 	return r;
+}
+
+int amdgpu_gmc_flush_gpu_tlb_pasid(struct amdgpu_device *adev, u16 pasid,
+				   u32 flush_type, bool all_hub, u32 inst)
+{
+	return amdgpu_gmc_flush_gpu_tlb_pasid_xccs(adev, pasid, flush_type,
+						   all_hub, BIT(inst));
 }
 
 void amdgpu_gmc_fw_reg_write_reg_wait(struct amdgpu_device *adev,
@@ -1010,9 +1123,6 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 				gc_ver == IP_VERSION(9, 5, 0) ||
 				gc_ver >= IP_VERSION(10, 1, 0));
 
-	/* For GFX12.1 B0, set xnack (retry) on as default */
-	if (gc_ver == IP_VERSION(12, 1, 0) && (adev->rev_id & 0xf) == 0x1)
-		noretry_default = false;
 	if (!amdgpu_sriov_xnack_support(adev))
 		gmc->noretry = 1;
 	else
@@ -1152,6 +1262,8 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	flags |= AMDGPU_PTE_VALID | AMDGPU_PTE_READABLE;
 	flags |= AMDGPU_PTE_WRITEABLE;
 	flags |= AMDGPU_PTE_SNOOPED;
+	if (amdgpu_virt_vram_is_spm(adev))
+		flags |= AMDGPU_PTE_SYSTEM;
 	flags |= AMDGPU_PTE_FRAG((adev->gmc.vmid0_page_table_block_size + 9*1));
 	flags |= AMDGPU_PDE_PTE_FLAG(adev);
 
@@ -1171,6 +1283,8 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	 * pointing to a 4K system page
 	 */
 	flags = AMDGPU_PTE_VALID;
+	if (amdgpu_virt_vram_is_spm(adev))
+		flags |= AMDGPU_PTE_SYSTEM;
 	flags |= AMDGPU_PTE_SNOOPED | AMDGPU_PDE_BFS_FLAG(adev, 0);
 	/* Requires gart_ptb_gpu_pa to be 4K aligned */
 	amdgpu_gmc_set_pte_pde(adev, adev->gmc.ptr_pdb0, i, gart_ptb_gpu_pa, flags);
@@ -1357,7 +1471,8 @@ int amdgpu_gmc_sysfs_init(struct amdgpu_device *adev)
 	if (!adev->gmc.gmc_funcs->query_mem_partition_mode)
 		return 0;
 
-	nps_switch_support = (hweight32(adev->gmc.supported_nps_modes &
+	nps_switch_support = !adev->gmc.xgmi.connected_to_cpu &&
+			     (hweight32(adev->gmc.supported_nps_modes &
 					AMDGPU_ALL_NPS_MASK) > 1);
 	if (!nps_switch_support)
 		dev_attr_current_memory_partition.attr.mode &=

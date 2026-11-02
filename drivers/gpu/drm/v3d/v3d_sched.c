@@ -689,8 +689,6 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job,
 	struct v3d_job *job = to_v3d_job(sched_job);
 	enum v3d_queue i;
 
-	mutex_lock(&v3d->reset_lock);
-
 	/* block scheduler */
 	for (i = 0; i < V3D_MAX_QUEUES; i++)
 		drm_sched_stop(&v3d->queue[i].sched, sched_job);
@@ -712,8 +710,6 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job,
 	/* Unblock schedulers and restart their jobs. */
 	for (i = 0; i < V3D_MAX_QUEUES; i++)
 		drm_sched_start(&v3d->queue[i].sched, 0);
-
-	mutex_unlock(&v3d->reset_lock);
 
 	return DRM_GPU_SCHED_STAT_RESET;
 }

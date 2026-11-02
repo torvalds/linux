@@ -705,14 +705,14 @@ static void pch_phub_remove(struct pci_dev *pdev)
 	kfree(chip);
 }
 
-static int __maybe_unused pch_phub_suspend(struct device *dev_d)
+static int pch_phub_suspend(struct device *dev_d)
 {
 	device_wakeup_disable(dev_d);
 
 	return 0;
 }
 
-static int __maybe_unused pch_phub_resume(struct device *dev_d)
+static int pch_phub_resume(struct device *dev_d)
 {
 	device_wakeup_disable(dev_d);
 
@@ -729,14 +729,14 @@ static const struct pci_device_id pch_phub_pcidev_id[] = {
 };
 MODULE_DEVICE_TABLE(pci, pch_phub_pcidev_id);
 
-static SIMPLE_DEV_PM_OPS(pch_phub_pm_ops, pch_phub_suspend, pch_phub_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pch_phub_pm_ops, pch_phub_suspend, pch_phub_resume);
 
 static struct pci_driver pch_phub_driver = {
 	.name = "pch_phub",
 	.id_table = pch_phub_pcidev_id,
 	.probe = pch_phub_probe,
 	.remove = pch_phub_remove,
-	.driver.pm = &pch_phub_pm_ops,
+	.driver.pm = pm_sleep_ptr(&pch_phub_pm_ops),
 };
 
 module_pci_driver(pch_phub_driver);

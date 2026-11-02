@@ -2216,7 +2216,7 @@ snd_korg1212_probe(struct pci_dev *pci,
 {
 	static int dev;
 	struct snd_korg1212 *korg1212;
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	int err;
 
 	if (dev >= SNDRV_CARDS) {
@@ -2234,7 +2234,7 @@ snd_korg1212_probe(struct pci_dev *pci,
 
 	err = snd_korg1212_create(card, pci);
 	if (err < 0)
-		goto error;
+		return err;
 
 	strscpy(card->driver, "korg1212");
 	strscpy(card->shortname, "korg1212");
@@ -2245,14 +2245,11 @@ snd_korg1212_probe(struct pci_dev *pci,
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto error;
+		return err;
 	pci_set_drvdata(pci, card);
+	card = NULL; /* probe succeeded, don't release as error */
 	dev++;
 	return 0;
-
- error:
-	snd_card_free(card);
-	return err;
 }
 
 static struct pci_driver korg1212_driver = {

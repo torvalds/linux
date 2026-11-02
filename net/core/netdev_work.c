@@ -3,7 +3,6 @@
 #include <linux/export.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
-#include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <net/netdev_lock.h>
@@ -31,7 +30,7 @@ static void netdev_work_enqueue(struct net_device *dev, unsigned long events,
 		return;
 
 	spin_lock_bh(&netdev_work_lock);
-	if (!dev_isalive(dev)) {
+	if (!netif_is_alive(dev)) {
 		spin_unlock_bh(&netdev_work_lock);
 		return;
 	}
@@ -129,8 +128,6 @@ static void netdev_work_run(struct net_device *dev, unsigned long events,
 
 static void netdev_work_proc(struct work_struct *work)
 {
-	rtnl_lock();
-
 	while (true) {
 		unsigned long events = 0, core = 0;
 		netdevice_tracker tracker;
@@ -143,16 +140,10 @@ static void netdev_work_proc(struct work_struct *work)
 		}
 		dev = list_first_entry(&netdev_work_list, struct net_device,
 				       work_node);
-		/* Take a temporary reference so @dev can't be freed while we
-		 * drop the lock to grab its ops lock; the work reference is
-		 * only released once we claim the work below.
-		 * The re-locking dance is to ensure that ops lock is enough
-		 * to ensure canceling work is not racy with dequeue.
-		 */
 		netdev_hold(dev, &tracker, GFP_ATOMIC);
 		spin_unlock_bh(&netdev_work_lock);
 
-		netdev_lock_ops(dev);
+		netdev_lock_ops_compat(dev);
 		spin_lock_bh(&netdev_work_lock);
 		if (!list_empty(&dev->work_node)) {
 			list_del_init(&dev->work_node);
@@ -163,16 +154,14 @@ static void netdev_work_proc(struct work_struct *work)
 			/* We took another ref above */
 			netdev_put(dev, &dev->work_tracker);
 
-			if (!dev_isalive(dev))
+			if (!netif_is_alive(dev))
 				core = events = 0;
 		}
 		spin_unlock_bh(&netdev_work_lock);
 
 		netdev_work_run(dev, events, core);
-		netdev_unlock_ops(dev);
+		netdev_unlock_ops_compat(dev);
 
 		netdev_put(dev, &tracker);
 	}
-
-	rtnl_unlock();
 }

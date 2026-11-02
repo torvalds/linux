@@ -152,6 +152,17 @@ config REALTEK_OTTO_TIMER
 	  RT8391, RTL8392, RTL8393 and RTL8396 and chips of the RTL930x series
 	  such as RTL9301, RTL9302 or RTL9303.
 
+config RZN1_TIMER
+	bool "Renesas RZ/N1 Timer"
+	depends on HAS_IOMEM && COMMON_CLK
+	depends on ARCH_RZN1 || COMPILE_TEST
+	help
+	  Enables support for RZ/N1 SoC timers.
+	  A timers block in RZ/N1 SoCs is composed of 8 timers
+	    - 6 16-bit timers
+	    - 2 32-bit timers
+	  Two timers blocks are available in RZ/N1 SoCs.
+
 config SUN4I_TIMER
 	bool "Sun4i timer driver" if COMPILE_TEST
 	depends on HAS_IOMEM

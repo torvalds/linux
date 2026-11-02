@@ -16,8 +16,8 @@
 #include <linux/input.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/m66592.h>
-#include <linux/gpio/driver.h>
-#include <linux/gpio_keys.h>
+#include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <mach/ilsel.h>
 #include <mach/hardware.h>
 #include <asm/smp-ops.h>
@@ -123,87 +123,74 @@ static struct platform_device m66592_usb_peripheral_device = {
 	.resource	= m66592_usb_peripheral_resources,
 };
 
-static struct gpio_keys_button baseboard_buttons[NR_BASEBOARD_GPIOS] = {
-	{
-		.desc		= "key44",
-		.code		= KEY_POWER,
-		.active_low	= 1,
-		.wakeup		= 1,
-	}, {
-		.desc		= "key43",
-		.code		= KEY_SUSPEND,
-		.active_low	= 1,
-		.wakeup		= 1,
-	}, {
-		.desc		= "key42",
-		.code		= KEY_KATAKANAHIRAGANA,
-		.active_low	= 1,
-	}, {
-		.desc		= "key41",
-		.code		= KEY_SWITCHVIDEOMODE,
-		.active_low	= 1,
-	}, {
-		.desc		= "key34",
-		.code		= KEY_F12,
-		.active_low	= 1,
-	}, {
-		.desc		= "key33",
-		.code		= KEY_F11,
-		.active_low	= 1,
-	}, {
-		.desc		= "key32",
-		.code		= KEY_F10,
-		.active_low	= 1,
-	}, {
-		.desc		= "key31",
-		.code		= KEY_F9,
-		.active_low	= 1,
-	}, {
-		.desc		= "key24",
-		.code		= KEY_F8,
-		.active_low	= 1,
-	}, {
-		.desc		= "key23",
-		.code		= KEY_F7,
-		.active_low	= 1,
-	}, {
-		.desc		= "key22",
-		.code		= KEY_F6,
-		.active_low	= 1,
-	}, {
-		.desc		= "key21",
-		.code		= KEY_F5,
-		.active_low	= 1,
-	}, {
-		.desc		= "key14",
-		.code		= KEY_F4,
-		.active_low	= 1,
-	}, {
-		.desc		= "key13",
-		.code		= KEY_F3,
-		.active_low	= 1,
-	}, {
-		.desc		= "key12",
-		.code		= KEY_F2,
-		.active_low	= 1,
-	}, {
-		.desc		= "key11",
-		.code		= KEY_F1,
-		.active_low	= 1,
-	},
+static const struct software_node x3proto_gpio_keys_node = {
+	.name = "x3proto-gpio-keys",
 };
 
-static struct gpio_keys_platform_data baseboard_buttons_data = {
-	.buttons	= baseboard_buttons,
-	.nbuttons	= ARRAY_SIZE(baseboard_buttons),
+#define __X3PROTO_KEY(_id, _code, _gpio, ...)				\
+static const struct property_entry x3proto_key##_id##_props[] = {	\
+	PROPERTY_ENTRY_STRING("label", "key" #_id),			\
+	PROPERTY_ENTRY_U32("linux,code", _code),			\
+	PROPERTY_ENTRY_GPIO("gpios", &x3proto_gpiochip_node,		\
+			    _gpio, GPIO_ACTIVE_LOW),			\
+	__VA_ARGS__							\
+	{ }								\
+};									\
+static const struct software_node x3proto_key##_id##_node = {		\
+	.parent = &x3proto_gpio_keys_node,				\
+	.properties = x3proto_key##_id##_props,				\
+}
+
+#define X3PROTO_KEY(_id, _code, _gpio)					\
+	__X3PROTO_KEY(_id, _code, _gpio)
+
+#define X3PROTO_KEY_WAKEUP(_id, _code, _gpio)				\
+	__X3PROTO_KEY(_id, _code, _gpio,				\
+		      PROPERTY_ENTRY_BOOL("wakeup-source"),		\
+	)
+
+X3PROTO_KEY_WAKEUP(44, KEY_POWER, 0);
+X3PROTO_KEY_WAKEUP(43, KEY_SUSPEND, 1);
+X3PROTO_KEY(42, KEY_KATAKANAHIRAGANA, 2);
+X3PROTO_KEY(41, KEY_SWITCHVIDEOMODE, 3);
+X3PROTO_KEY(34, KEY_F12, 4);
+X3PROTO_KEY(33, KEY_F11, 5);
+X3PROTO_KEY(32, KEY_F10, 6);
+X3PROTO_KEY(31, KEY_F9, 7);
+X3PROTO_KEY(24, KEY_F8, 8);
+X3PROTO_KEY(23, KEY_F7, 9);
+X3PROTO_KEY(22, KEY_F6, 10);
+X3PROTO_KEY(21, KEY_F5, 11);
+X3PROTO_KEY(14, KEY_F4, 12);
+X3PROTO_KEY(13, KEY_F3, 13);
+X3PROTO_KEY(12, KEY_F2, 14);
+X3PROTO_KEY(11, KEY_F1, 15);
+
+static const struct software_node *const x3proto_swnodes[] __initconst = {
+	&x3proto_gpio_keys_node,
+	&x3proto_key44_node,
+	&x3proto_key43_node,
+	&x3proto_key42_node,
+	&x3proto_key41_node,
+	&x3proto_key34_node,
+	&x3proto_key33_node,
+	&x3proto_key32_node,
+	&x3proto_key31_node,
+	&x3proto_key24_node,
+	&x3proto_key23_node,
+	&x3proto_key22_node,
+	&x3proto_key21_node,
+	&x3proto_key14_node,
+	&x3proto_key13_node,
+	&x3proto_key12_node,
+	&x3proto_key11_node,
+	NULL
 };
 
-static struct platform_device baseboard_buttons_device = {
+static const struct platform_device_info x3proto_gpio_keys_device_info __initconst = {
 	.name		= "gpio-keys",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &baseboard_buttons_data,
-	},
+	.id		= PLATFORM_DEVID_NONE,
+	.swnode		= &x3proto_gpio_keys_node,
 };
 
 static struct platform_device *x3proto_devices[] __initdata = {
@@ -211,7 +198,6 @@ static struct platform_device *x3proto_devices[] __initdata = {
 	&smc91x_device,
 	&r8a66597_usb_host_device,
 	&m66592_usb_peripheral_device,
-	&baseboard_buttons_device,
 };
 
 static void __init x3proto_init_irq(void)
@@ -224,7 +210,8 @@ static void __init x3proto_init_irq(void)
 
 static int __init x3proto_devices_setup(void)
 {
-	int ret, i;
+	struct platform_device *pd;
+	int ret;
 
 	/*
 	 * IRLs are only needed for ILSEL mappings, so flip over the INTC
@@ -239,11 +226,11 @@ static int __init x3proto_devices_setup(void)
 	if (unlikely(ret))
 		return ret;
 
-	/*
-	 * Propagate dynamic GPIOs for the baseboard button device.
-	 */
-	for (i = 0; i < ARRAY_SIZE(baseboard_buttons); i++)
-		baseboard_buttons[i].gpio = x3proto_gpio_chip.base + i;
+	ret = software_node_register_node_group(x3proto_swnodes);
+	if (ret) {
+		pr_err("Failed to register software nodes: %d\n", ret);
+		return ret;
+	}
 
 	r8a66597_usb_host_resources[1].start =
 		r8a66597_usb_host_resources[1].end = ilsel_enable(ILSEL_USBH_I);
@@ -254,8 +241,12 @@ static int __init x3proto_devices_setup(void)
 	smc91x_resources[1].start =
 		smc91x_resources[1].end = ilsel_enable(ILSEL_LAN);
 
-	return platform_add_devices(x3proto_devices,
-				    ARRAY_SIZE(x3proto_devices));
+	ret = platform_add_devices(x3proto_devices, ARRAY_SIZE(x3proto_devices));
+	if (ret)
+		return ret;
+
+	pd = platform_device_register_full(&x3proto_gpio_keys_device_info);
+	return PTR_ERR_OR_ZERO(pd);
 }
 device_initcall(x3proto_devices_setup);
 

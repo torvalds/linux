@@ -15,7 +15,9 @@
 #define ENABLE_SLFUTURE_CONST 1
 #define ENABLE_SLFUTURE_VOID 1
 
+#ifdef HAVE_SLANG_SUPPORT
 #include <slang.h>
+#endif
 
 #define SL_KEY_UNTAB 0x1000
 

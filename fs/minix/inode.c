@@ -724,7 +724,7 @@ out:
 	return err;
 }
 
-int minix_getattr(struct mnt_idmap *idmap, const struct path *path,
+int minix_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct super_block *sb = path->dentry->d_sb;

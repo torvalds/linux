@@ -105,7 +105,7 @@ static bool nfp_bpf_map_update_value_ok(struct bpf_verifier_env *env)
 		unsigned int soff;
 
 		soff = -(off + i) - 1;
-		stack_entry = &state->stack[soff / BPF_REG_SIZE];
+		stack_entry = bpf_stack_slot(state, soff / BPF_REG_SIZE);
 		if (stack_entry->slot_type[soff % BPF_REG_SIZE] == STACK_ZERO)
 			continue;
 

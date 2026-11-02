@@ -33,6 +33,12 @@ static const struct ras_nbio_ip_func *ras_nbio_get_ip_funcs(
 	case IP_VERSION(7, 9, 0):
 	case IP_VERSION(7, 9, 1):
 		return &ras_nbio_v7_9;
+	case IP_VERSION(6, 3, 2):
+		/* TBD for dGPU */
+		break;
+	case IP_VERSION(7, 10, 0):
+		/* TBD for dGPU */
+		break;
 	default:
 		RAS_DEV_ERR(ras_core->dev,
 			"NBIO ip version(0x%x) is not supported!\n", ip_version);
@@ -48,14 +54,8 @@ int ras_nbio_hw_init(struct ras_core_context *ras_core)
 
 	nbio->nbio_ip_version = ras_core->config->nbio_ip_version;
 	nbio->sys_func = ras_core->config->nbio_cfg.nbio_sys_fn;
-	if (!nbio->sys_func) {
-		RAS_DEV_ERR(ras_core->dev, "RAS nbio sys function not configured!\n");
-		return -EINVAL;
-	}
 
 	nbio->ip_func = ras_nbio_get_ip_funcs(ras_core, nbio->nbio_ip_version);
-	if (!nbio->ip_func)
-		return -EINVAL;
 
 	if (nbio->sys_func) {
 		if (nbio->sys_func->set_ras_controller_irq_state)

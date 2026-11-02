@@ -1675,8 +1675,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	memset(&next_key, 0, sizeof(next_key));
 
 	while (1) {
-		ret = btrfs_block_rsv_refill(fs_info, rc->block_rsv,
-					     min_reserved,
+		ret = btrfs_block_rsv_refill(rc->block_rsv, min_reserved,
 					     BTRFS_RESERVE_FLUSH_LIMIT);
 		if (ret)
 			goto out;
@@ -1795,7 +1794,7 @@ int prepare_to_merge(struct reloc_control *rc, int err)
 again:
 	if (!err) {
 		num_bytes = rc->merging_rsv_size;
-		ret = btrfs_block_rsv_add(fs_info, rc->block_rsv, num_bytes,
+		ret = btrfs_block_rsv_add(rc->block_rsv, num_bytes,
 					  BTRFS_RESERVE_FLUSH_ALL);
 		if (ret)
 			err = ret;
@@ -2274,7 +2273,7 @@ static int refill_metadata_space(struct btrfs_trans_handle *trans,
 	 * If we get an enospc just kick back -EAGAIN so we know to drop the
 	 * transaction and try to refill when we can flush all the things.
 	 */
-	ret = btrfs_block_rsv_refill(fs_info, rc->block_rsv, num_bytes,
+	ret = btrfs_block_rsv_refill(rc->block_rsv, num_bytes,
 				     BTRFS_RESERVE_FLUSH_LIMIT);
 	if (ret) {
 		u64 tmp = fs_info->nodesize * RELOCATION_RESERVED_NODES;
@@ -3357,7 +3356,7 @@ truncate:
 		goto out;
 	}
 
-	ret = btrfs_truncate_free_space_cache(trans, block_group, inode);
+	ret = btrfs_truncate_free_space_cache(trans, inode);
 
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
@@ -3584,8 +3583,7 @@ int prepare_to_relocate(struct reloc_control *rc)
 	rc->reserved_bytes = 0;
 	rc->block_rsv->size = rc->extent_root->fs_info->nodesize *
 			      RELOCATION_RESERVED_NODES;
-	ret = btrfs_block_rsv_refill(rc->extent_root->fs_info,
-				     rc->block_rsv, rc->block_rsv->size,
+	ret = btrfs_block_rsv_refill(rc->block_rsv, rc->block_rsv->size,
 				     BTRFS_RESERVE_FLUSH_ALL);
 	if (ret)
 		return ret;
@@ -3637,8 +3635,7 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 
 	while (1) {
 		rc->reserved_bytes = 0;
-		ret = btrfs_block_rsv_refill(fs_info, rc->block_rsv,
-					     rc->block_rsv->size,
+		ret = btrfs_block_rsv_refill(rc->block_rsv, rc->block_rsv->size,
 					     BTRFS_RESERVE_FLUSH_ALL);
 		if (ret) {
 			err = ret;

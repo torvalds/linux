@@ -462,7 +462,7 @@ int __weak arch_show_interrupts(struct seq_file *p, int prec)
 static DEFINE_RAW_SPINLOCK(irq_proc_constraints_lock);
 
 static struct irq_proc_constraints {
-	bool		print_header;
+	loff_t		first_pos;
 	unsigned int	num_prec;
 	unsigned int	chip_width;
 } irq_proc_constraints __read_mostly = {
@@ -543,14 +543,13 @@ static int irq_seq_show(struct seq_file *p, void *v)
 	struct irqaction *action;
 
 	/* Print header for the first interrupt? */
-	if (constr->print_header) {
+	if (p->index == constr->first_pos) {
 		unsigned int cpu;
 
 		seq_printf(p, "%*s", constr->num_prec + 8, "");
 		for_each_online_cpu(cpu)
 			seq_printf(p, "CPU%-8d", cpu);
 		seq_putc(p, '\n');
-		constr->print_header = false;
 	}
 
 	if (desc == ARCH_PROC_IRQDESC)
@@ -635,14 +634,25 @@ static void *irq_seq_next_desc(loff_t *pos)
 
 static void *irq_seq_start(struct seq_file *f, loff_t *pos)
 {
-	if (!*pos) {
-		struct irq_proc_constraints *constr = f->private;
+	struct irq_proc_constraints *constr = f->private;
+	bool first = !*pos;
+	void *ret;
 
+	if (first) {
 		constr->num_prec = READ_ONCE(irq_proc_constraints.num_prec);
 		constr->chip_width = READ_ONCE(irq_proc_constraints.chip_width);
-		constr->print_header = true;
 	}
-	return irq_seq_next_desc(pos);
+
+	ret = irq_seq_next_desc(pos);
+
+	/*
+	 * Record position of the first output record so that irq_seq_show()
+	 * knows where to write the header.
+	 */
+	if (first)
+		constr->first_pos = *pos;
+
+	return ret;
 }
 
 static void *irq_seq_next(struct seq_file *f, void *v, loff_t *pos)

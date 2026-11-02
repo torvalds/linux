@@ -37,6 +37,7 @@ enum type_state_kind {
 	TSR_KIND_PERCPU_POINTER,
 	TSR_KIND_POINTER,
 	TSR_KIND_CANARY,
+	TSR_KIND_GLOBAL_ADDR,
 };
 
 /**
@@ -47,6 +48,8 @@ enum type_state_kind {
  * @var_name: Name of the member variable
  * @offset: Offset from the outer data type
  * @size: Size of the member field
+ * @is_union: Whether it's an union type
+ * @is_flex_array: Whether it's a flex array
  *
  * This represents a member type in a data type.
  */
@@ -57,6 +60,11 @@ struct annotated_member {
 	char *var_name;
 	int offset;
 	int size;
+	bool is_union;
+	bool is_flex_array;
+	/* Children not expanded because the nesting limit was reached */
+	bool truncated;
+	u8 depth;
 };
 
 /**
@@ -73,28 +81,30 @@ struct type_hist_entry {
  * struct type_hist - Type histogram for each event
  * @nr_samples: Total number of samples in this data type
  * @period: Total count of the event in this data type
- * @offset: Array of histogram entry
+ * @samples: Hashmap of (offset, type_hist_entry)
  */
 struct type_hist {
 	u64			nr_samples;
 	u64			period;
-	struct type_hist_entry	addr[];
+	struct hashmap		samples;
 };
 
 /**
  * struct annotated_data_type - Data type to profile
  * @node: RB-tree node for dso->type_tree
  * @self: Actual type information
+ * @flex_array: Whether it has a flex array
  * @nr_histogram: Number of histogram entries
- * @histograms: An array of pointers to histograms
+ * @histograms: An array of histograms
  *
  * This represents a data type accessed by samples in the profile data.
  */
 struct annotated_data_type {
 	struct rb_node node;
 	struct annotated_member self;
+	bool flex_array;
 	int nr_histograms;
-	struct type_hist **histograms;
+	struct type_hist *histograms;
 };
 
 extern struct annotated_data_type unknown_type;
@@ -173,7 +183,7 @@ extern struct annotated_data_stat ann_data_stat;
  */
 struct type_state_reg {
 	Dwarf_Die type;
-	u32 imm_value;
+	u64 imm_value;
 	/*
 	 * The offset within the struct that the register points to.
 	 * A value of 0 means the register points to the beginning.
@@ -199,6 +209,7 @@ struct type_state_stack {
 	int size;
 	bool compound;
 	u8 kind;
+	u64 imm_value;
 };
 
 /*
@@ -253,18 +264,22 @@ bool has_reg_type(struct type_state *state, int reg);
 struct type_state_stack *findnew_stack_state(struct type_state *state,
 						int offset, u8 kind,
 						Dwarf_Die *type_die,
-						int ptr_offset);
+						int ptr_offset, u64 imm_value);
 void set_stack_state(struct type_state_stack *stack, int offset, u8 kind,
-				Dwarf_Die *type_die, int ptr_offset);
+				Dwarf_Die *type_die, int ptr_offset, u64 imm_value);
 struct type_state_stack *find_stack_state(struct type_state *state,
 						int offset);
+void delete_stack_state(struct type_state *state, int offset);
+void invalidate_reg_state(struct type_state_reg *reg);
 bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 				u64 ip, u64 var_addr, int *var_offset,
 				Dwarf_Die *type_die);
 bool get_global_var_info(struct data_loc_info *dloc, u64 addr,
 				const char **var_name, int *var_offset);
 void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind);
-
+int arch_get_reg_offset(const struct arch *arch, struct annotated_op_loc *op_loc,
+			int breg, struct type_state *state, bool apply_index,
+			int *offset);
 #else /* HAVE_LIBDW_SUPPORT */
 
 static inline struct annotated_data_type *

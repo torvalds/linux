@@ -313,6 +313,10 @@ static inline void mshv_vtl_return_hypercall(void) {}
 static inline void __mshv_vtl_return_call(struct mshv_vtl_cpu_context *vtl0) {}
 #endif
 
+#ifdef CONFIG_HYPERV_PVIOMMU
+int __init hv_iommu_init(void);
+#endif
+
 #include <asm-generic/mshyperv.h>
 
 #endif

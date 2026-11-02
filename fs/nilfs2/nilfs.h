@@ -270,7 +270,7 @@ extern int nilfs_sync_file(struct file *, loff_t, loff_t, int);
 
 /* ioctl.c */
 int nilfs_fileattr_get(struct dentry *dentry, struct file_kattr *m);
-int nilfs_fileattr_set(struct mnt_idmap *idmap,
+int nilfs_fileattr_set(const struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct file_kattr *fa);
 long nilfs_ioctl(struct file *, unsigned int, unsigned long);
 long nilfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
@@ -299,10 +299,10 @@ struct inode *nilfs_iget_for_shadow(struct inode *inode);
 extern void nilfs_update_inode(struct inode *, struct buffer_head *, int);
 extern void nilfs_truncate(struct inode *);
 extern void nilfs_evict_inode(struct inode *);
-extern int nilfs_setattr(struct mnt_idmap *, struct dentry *,
+extern int nilfs_setattr(const struct mnt_idmap *, struct dentry *,
 			 struct iattr *);
 extern void nilfs_write_failed(struct address_space *mapping, loff_t to);
-int nilfs_permission(struct mnt_idmap *idmap, struct inode *inode,
+int nilfs_permission(const struct mnt_idmap *idmap, struct inode *inode,
 		     int mask);
 int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
 extern int nilfs_inode_dirty(struct inode *);

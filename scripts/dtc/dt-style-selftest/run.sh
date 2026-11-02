@@ -26,7 +26,7 @@ run() {
 # good/ -- must exit 0 and produce no output in both modes
 for f in "$here"/good/*; do
     [ -e "$f" ] || continue
-    for mode in relaxed strict; do
+    for mode in relaxed strict stricter; do
         out=$(run "$f" "$mode")
         rc=$?
         if [ -n "$out" ] || [ "$rc" -ne 0 ]; then

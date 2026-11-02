@@ -603,7 +603,7 @@
 #define EFUSE_MAX_SECTION		64
 #define EFUSE_REAL_CONTENT_LEN		256
 #define EFUSE_OOB_PROTECT_BYTES		18 /* PG data exclude header,
-					    * dummy 7 bytes frome CP test
+					    * dummy 7 bytes from CP test
 					    * and reserved 1byte.
 					    */
 

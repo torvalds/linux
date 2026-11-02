@@ -260,7 +260,7 @@ void dmub_dcn32_set_outbox0_rptr(struct dmub_srv *dmub, uint32_t rptr_offset);
 
 uint32_t dmub_dcn32_get_current_time(struct dmub_srv *dmub);
 
-void dmub_dcn32_get_diagnostic_data(struct dmub_srv *dmub);
+void dmub_dcn32_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_hw_diagnostic_data *hw_data);
 
 void dmub_dcn32_configure_dmub_in_system_memory(struct dmub_srv *dmub);
 void dmub_dcn32_send_inbox0_cmd(struct dmub_srv *dmub, union dmub_inbox0_data_register data);

@@ -139,6 +139,30 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
+		sram1: sram@30000000 {
+			compatible = "mmio-sram";
+			reg = <0x30000000 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x30000000 0x4000>;
+		};
+
+		sram2: sram@30004000 {
+			compatible = "mmio-sram";
+			reg = <0x30004000 0x2000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x30004000 0x2000>;
+		};
+
+		sram3: sram@30006000 {
+			compatible = "mmio-sram";
+			reg = <0x30006000 0x2000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x30006000 0x2000>;
+		};
+
 		timers2: timer@40000000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1104,7 +1128,7 @@
 		};
 
 		usbh_ohci: usb@5800c000 {
-			compatible = "generic-ohci";
+			compatible = "st,stm32mp13-ohci", "generic-ohci";
 			reg = <0x5800c000 0x1000>;
 			clocks = <&usbphyc>, <&rcc USBH>;
 			resets = <&rcc USBH_R>;
@@ -1113,7 +1137,7 @@
 		};
 
 		usbh_ehci: usb@5800d000 {
-			compatible = "generic-ehci";
+			compatible = "st,stm32mp13-ehci", "generic-ehci";
 			reg = <0x5800d000 0x1000>;
 			clocks = <&usbphyc>, <&rcc USBH>;
 			resets = <&rcc USBH_R>;

@@ -17,7 +17,7 @@
  */
 /delete-node/&trackpad;
 &ap_tp_i2c {
-	 trackpad: trackpad@2c {
+	trackpad: trackpad@2c {
 		compatible = "hid-over-i2c";
 		reg = <0x2c>;
 		pinctrl-names = "default";

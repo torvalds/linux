@@ -301,6 +301,7 @@ out:
 	}
 
 	ti->num_flush_bios = 1;
+	ti->flush_supported = dc->flush.delay != 0;
 	ti->num_discard_bios = 1;
 	ti->accounts_remapped_io = true;
 	ti->per_io_data_size = sizeof(struct dm_delay_info);
@@ -451,7 +452,7 @@ out:
 
 static struct target_type delay_target = {
 	.name	     = "delay",
-	.version     = {1, 5, 0},
+	.version     = {1, 6, 0},
 	.features    = DM_TARGET_PASSES_INTEGRITY | DM_TARGET_ZONED_HM,
 	.module      = THIS_MODULE,
 	.ctr	     = delay_ctr,

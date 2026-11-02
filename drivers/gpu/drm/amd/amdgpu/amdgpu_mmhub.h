@@ -21,6 +21,8 @@
 #ifndef __AMDGPU_MMHUB_H__
 #define __AMDGPU_MMHUB_H__
 
+#define AMDGPU_MAX_MMHUB_INSTANCES 4
+
 struct amdgpu_mmhub_ras {
 	struct amdgpu_ras_block_object ras_block;
 };
@@ -53,6 +55,7 @@ struct amdgpu_mmhub {
 	const struct amdgpu_mmhub_funcs *funcs;
 	struct amdgpu_mmhub_ras  *ras;
 	struct amdgpu_mmhub_client_ids client_ids;
+	uint32_t inst_mask;
 };
 
 static inline void

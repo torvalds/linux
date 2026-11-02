@@ -31,8 +31,8 @@
 
 #ifdef CONFIG_USB_STORAGE_DEBUG
 void usb_stor_show_command(const struct us_data *us, struct scsi_cmnd *srb);
-void usb_stor_show_sense(const struct us_data *us, unsigned char key,
-			 unsigned char asc, unsigned char ascq);
+void usb_stor_show_sense(const struct us_data *us,
+			 const struct scsi_sense_hdr *sshdr);
 __printf(2, 3) void usb_stor_dbg(const struct us_data *us,
 				 const char *fmt, ...);
 

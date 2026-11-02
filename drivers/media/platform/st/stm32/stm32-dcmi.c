@@ -738,7 +738,7 @@ static int dcmi_pipeline_s_fmt(struct stm32_dcmi *dcmi,
 			format->format.width, format->format.height);
 
 		fmt.pad = pad->index;
-		ret = v4l2_subdev_call(subdev, pad, set_fmt, NULL, &fmt);
+		ret = v4l2_subdev_call(subdev, pad, set_fmt, NULL, NULL, &fmt);
 		if (ret < 0) {
 			dev_err(dcmi->dev, "%s: Failed to set format 0x%x %ux%u on \"%s\":%d pad (%d)\n",
 				__func__, format->format.code,
@@ -1022,6 +1022,27 @@ static void __find_outer_frame_size(struct stm32_dcmi *dcmi,
 	*framesize = *match;
 }
 
+static int dcmi_source_call_try_state_set_fmt(struct v4l2_subdev *source,
+					      struct v4l2_subdev_format *fmt)
+{
+	static struct lock_class_key lock_key;
+	const char *lock_name = KBUILD_BASENAME ":" __stringify(__LINE__)
+		":state->lock";
+	struct v4l2_subdev_state *source_state;
+	int ret;
+
+	source_state = __v4l2_subdev_state_alloc(source, lock_name, &lock_key);
+	if (IS_ERR(source_state))
+		return PTR_ERR(source_state);
+
+	v4l2_subdev_lock_state(source_state);
+	ret = v4l2_subdev_call(source, pad, set_fmt, NULL, source_state, fmt);
+	v4l2_subdev_unlock_state(source_state);
+	__v4l2_subdev_state_free(source_state);
+
+	return ret;
+}
+
 static int dcmi_try_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f,
 			const struct dcmi_format **sd_format,
 			struct dcmi_framesize *sd_framesize)
@@ -1063,8 +1084,8 @@ static int dcmi_try_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f,
 	}
 
 	v4l2_fill_mbus_format(&format.format, pix, sd_fmt->mbus_code);
-	ret = v4l2_subdev_call_state_try(dcmi->source, pad, set_fmt, &format);
-	if (ret < 0)
+	ret = dcmi_source_call_try_state_set_fmt(dcmi->source, &format);
+	if (ret)
 		return ret;
 
 	/* Update pix regarding to what sensor can do */
@@ -1224,7 +1245,7 @@ static int dcmi_set_sensor_format(struct stm32_dcmi *dcmi,
 	}
 
 	v4l2_fill_mbus_format(&format.format, pix, sd_fmt->mbus_code);
-	ret = v4l2_subdev_call_state_try(dcmi->source, pad, set_fmt, &format);
+	ret = dcmi_source_call_try_state_set_fmt(dcmi->source, &format);
 	if (ret < 0)
 		return ret;
 
@@ -1246,7 +1267,7 @@ static int dcmi_get_sensor_bounds(struct stm32_dcmi *dcmi,
 	/*
 	 * Get sensor bounds first
 	 */
-	ret = v4l2_subdev_call(dcmi->source, pad, get_selection,
+	ret = v4l2_subdev_call(dcmi->source, pad, get_selection, NULL,
 			       NULL, &bounds);
 	if (!ret)
 		*r = bounds.r;

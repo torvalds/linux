@@ -1092,8 +1092,8 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 
 	spin_lock_irqsave(&data->lock, flags);
 	pch_spi_writereg(data->host, PCH_SSNXCR, SSN_LOW);
-	desc_rx->tx_submit(desc_rx);
-	desc_tx->tx_submit(desc_tx);
+	dmaengine_submit(desc_rx);
+	dmaengine_submit(desc_tx);
 	spin_unlock_irqrestore(&data->lock, flags);
 
 	/* reset transfer complete flag */

@@ -254,30 +254,28 @@
 
 #define DIE
 #define DIE_NO 0
+#define SOC_NODE die0
 
-&die0 {
-	#include "t600x-die0.dtsi"
-	#include "t600x-dieX.dtsi"
-};
-
+#include "t600x-die0.dtsi"
+#include "t600x-dieX.dtsi"
 #include "t600x-pmgr.dtsi"
 #include "t600x-gpio-pins.dtsi"
 
 #undef DIE
 #undef DIE_NO
+#undef SOC_NODE
 
 #define DIE _die1
 #define DIE_NO 1
+#define SOC_NODE die1
 
-&die1 {
-	#include "t600x-dieX.dtsi"
-	#include "t600x-nvme.dtsi"
-};
-
+#include "t600x-dieX.dtsi"
+#include "t600x-nvme.dtsi"
 #include "t600x-pmgr.dtsi"
 
 #undef DIE
 #undef DIE_NO
+#undef SOC_NODE
 
 &aic {
 	affinities {

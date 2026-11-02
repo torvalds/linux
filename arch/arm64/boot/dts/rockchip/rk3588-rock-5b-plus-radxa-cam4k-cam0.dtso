@@ -10,6 +10,7 @@
 #include <dt-bindings/clock/rockchip,rk3588-cru.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/media/video-interfaces.h>
+#include <dt-bindings/media/video-interface-devices.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
 &{/} {
@@ -51,7 +52,7 @@
 		avdd-supply = <&savdd_cam0>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
 		dvdd-supply = <&sdvdd_cam0>;
-		orientation = <2>; /* External */
+		orientation = <MEDIA_ORIENTATION_EXTERNAL>;
 		ovdd-supply = <&siovdd_cam0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam0_rstn &mipim0_camera3_clk>;

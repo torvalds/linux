@@ -129,13 +129,15 @@ additionalProperties:
           enum: [ 33, 50, 66, 100 ]
         power-source:
           description: I/O voltage in millivolt.
-          enum: [ 1800, 2500, 3300 ]
+          enum: [ 1200, 1800, 2500, 3300 ]
         slew-rate: true
         gpio-hog: true
         gpios: true
         input: true
         input-enable: true
+        input-disable: true
         output-enable: true
+        output-disable: true
         output-high: true
         output-low: true
         line-name: true

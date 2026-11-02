@@ -1,0 +1,18 @@
+bench_ref_type_from_suffix_static_size:
+	mov rax, rdi
+	lea ecx, [rdx + rsi]
+	cmp rdx, 6
+	setb dil
+	or dil, cl
+	test dil, 1
+	je .LBB5_2
+	xor ecx, ecx
+	mov qword ptr [rax], rcx
+	ret
+.LBB5_2:
+	lea rcx, [rsi + rdx]
+	add rcx, -6
+	mov qword ptr [rax + 8], 6
+	mov qword ptr [rax + 16], 0
+	mov qword ptr [rax], rcx
+	ret

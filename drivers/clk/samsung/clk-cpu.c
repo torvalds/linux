@@ -647,7 +647,7 @@ static int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 	const struct clk_hw *parent, *alt_parent;
 	struct clk_hw **hws;
 	struct exynos_cpuclk *cpuclk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *parent_name;
 	unsigned int num_cfgs;
 	int ret = 0;

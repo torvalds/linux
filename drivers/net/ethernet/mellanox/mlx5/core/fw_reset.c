@@ -66,10 +66,8 @@ static int mlx5_fw_reset_enable_remote_dev_reset_set(struct devlink *devlink, u3
 
 	fw_reset = dev->priv.fw_reset;
 
-	if (ctx->val.vbool)
-		clear_bit(MLX5_FW_RESET_FLAGS_NACK_RESET_REQUEST, &fw_reset->reset_flags);
-	else
-		set_bit(MLX5_FW_RESET_FLAGS_NACK_RESET_REQUEST, &fw_reset->reset_flags);
+	assign_bit(MLX5_FW_RESET_FLAGS_NACK_RESET_REQUEST,
+		   &fw_reset->reset_flags, !ctx->val.vbool);
 	return 0;
 }
 

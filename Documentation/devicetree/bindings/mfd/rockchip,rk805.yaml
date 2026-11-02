@@ -77,6 +77,16 @@ properties:
     description:
       The input supply for LDO_REG3.
 
+  # pinctrl-bindings.txt allows the pin configuration nodes to be grandchildren
+  # of the pin controller, and the text binding this replaces used that layout:
+  # a "pinmux" node holding the nodes that carry "pins". The driver reaches both
+  # layouts, because pinconf_generic_dt_node_to_map() parses the referenced node
+  # and then walks its children.
+  pinmux:
+    type: object
+    additionalProperties:
+      $ref: '#/$defs/rk805-pin-config'
+
   regulators:
     type: object
     patternProperties:
@@ -85,6 +95,38 @@ properties:
         $ref: /schemas/regulator/regulator.yaml#
         unevaluatedProperties: false
     unevaluatedProperties: false
+
+$defs:
+  rk805-pin-config:
+    type: object
+    description:
+      The RK805 has two output-only GPIOs which can be muxed to the GPIO
+      function and driven low or high at boot.
+    additionalProperties: false
+
+    properties:
+      pins:
+        description:
+          List of GPIO pins to configure.
+        items:
+          enum: [gpio0, gpio1]
+        minItems: 1
+        maxItems: 2
+
+      function:
+        description:
+          The RK805 only supports the GPIO function.
+        enum: [gpio]
+
+      output-low: true
+      output-high: true
+
+    required:
+      - pins
+
+patternProperties:
+  '-pins$':
+    $ref: '#/$defs/rk805-pin-config'
 
 allOf:
   - if:
@@ -125,9 +167,11 @@ examples:
             interrupt-parent = <&gpio2>;
             interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
             pinctrl-names = "default";
-            pinctrl-0 = <&pmic_int_l>;
+            pinctrl-0 = <&pmic_int_l>, <&rk805_default>, <&rk805_grouped>;
             rockchip,system-power-controller;
             wakeup-source;
+            gpio-controller;
+            #gpio-cells = <2>;
             #clock-cells = <0>;
 
             vcc1-supply = <&vcc_sys>;
@@ -136,6 +180,20 @@ examples:
             vcc4-supply = <&vcc_sys>;
             vcc5-supply = <&vcc_io>;
             vcc6-supply = <&vcc_io>;
+
+            rk805_default: rk805-default-pins {
+                pins = "gpio0";
+                function = "gpio";
+                output-high;
+            };
+
+            rk805_grouped: pinmux {
+                gpio01 {
+                    pins = "gpio1";
+                    function = "gpio";
+                    output-low;
+                };
+            };
 
             regulators {
                 vdd_logic: DCDC_REG1 {

@@ -236,7 +236,6 @@
 	port {
 		parallel_from_ov5640: endpoint {
 			remote-endpoint = <&ov5640_to_parallel>;
-			bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
 		};
 	};
 };

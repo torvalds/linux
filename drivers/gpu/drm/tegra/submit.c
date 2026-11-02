@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2020 NVIDIA Corporation */
 
-#include <linux/dma-fence-array.h>
+#include <linux/dma-fence-unwrap.h>
 #include <linux/dma-mapping.h>
 #include <linux/file.h>
 #include <linux/host1x.h>
@@ -12,7 +12,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/sync_file.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
@@ -228,8 +227,13 @@ static int submit_write_reloc(struct tegra_drm_context *context, struct gather_b
 			      struct drm_tegra_submit_buf *buf, struct tegra_drm_mapping *mapping)
 {
 	/* TODO check that target_offset is within bounds */
-	dma_addr_t iova = mapping->iova + buf->reloc.target_offset;
+	dma_addr_t iova = buf->reloc.target_offset;
 	u32 written_ptr;
+
+	if (mapping->bo_map)
+		iova += mapping->iova;
+	else
+		iova += mapping->ctx_map->mapping->phys;
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	if (buf->flags & DRM_TEGRA_SUBMIT_RELOC_SECTOR_LAYOUT)
@@ -346,6 +350,71 @@ static int submit_get_syncpt(struct tegra_drm_context *context, struct host1x_jo
 	return 0;
 }
 
+static int submit_handle_in_fence(struct tegra_drm_context *context, struct host1x *host1x,
+				  struct dma_fence *fence, u32 *num_waits)
+{
+	struct dma_fence_unwrap iter;
+	struct host1x *fence_host1x;
+	struct dma_fence *f;
+	int err = 0;
+
+	*num_waits = 0;
+
+	dma_fence_unwrap_for_each(f, &iter, fence) {
+		long wait_err;
+
+		if (err)
+			continue;
+
+		if (dma_fence_is_signaled(f))
+			continue;
+
+		err = host1x_fence_extract(f, &fence_host1x, NULL, NULL);
+		if (!err && fence_host1x == host1x) {
+			(*num_waits)++;
+			continue;
+		}
+
+		wait_err = dma_fence_wait_timeout(f, true, msecs_to_jiffies(10000));
+		if (wait_err == 0) {
+			SUBMIT_ERR(context, "wait for syncobj_in timed out");
+			err = -ETIMEDOUT;
+			continue;
+		} else if (wait_err < 0) {
+			/* In practice, -ERESTARTSYS */
+			err = wait_err;
+			continue;
+		} else {
+			err = 0;
+		}
+	}
+
+	return err;
+}
+
+static void submit_job_add_prefence(struct host1x_job *job, struct dma_fence *fence, u32 class)
+{
+	struct dma_fence_unwrap iter;
+	struct dma_fence *f;
+
+	dma_fence_unwrap_for_each(f, &iter, fence) {
+		u32 id, threshold;
+
+		if (dma_fence_is_signaled(f))
+			continue;
+
+		if (host1x_fence_extract(f, NULL, &id, &threshold)) {
+			/*
+			 * The fence may have signalled since the check above, and
+			 * the dma_fence framework then detached its ops.
+			 */
+			continue;
+		}
+
+		host1x_job_add_wait(job, id, threshold, false, class);
+	}
+}
+
 static int submit_job_add_gather(struct host1x_job *job, struct tegra_drm_context *context,
 				 struct drm_tegra_submit_cmd_gather_uptr *cmd,
 				 struct gather_bo *bo, u32 *offset,
@@ -391,7 +460,7 @@ static int submit_job_add_gather(struct host1x_job *job, struct tegra_drm_contex
 static struct host1x_job *
 submit_create_job(struct tegra_drm_context *context, struct gather_bo *bo,
 		  struct drm_tegra_channel_submit *args, struct tegra_drm_submit_data *job_data,
-		  struct xarray *syncpoints)
+		  struct xarray *syncpoints, struct dma_fence *in_fence, u32 num_prefence_waits)
 {
 	struct drm_tegra_submit_cmd *cmds;
 	u32 i, gather_offset = 0, class;
@@ -408,7 +477,7 @@ submit_create_job(struct tegra_drm_context *context, struct gather_bo *bo,
 		return ERR_CAST(cmds);
 	}
 
-	job = host1x_job_alloc(context->channel, args->num_cmds, 0, true);
+	job = host1x_job_alloc(context->channel, args->num_cmds + num_prefence_waits, 0, true);
 	if (!job) {
 		SUBMIT_ERR(context, "failed to allocate memory for job");
 		job = ERR_PTR(-ENOMEM);
@@ -422,6 +491,9 @@ submit_create_job(struct tegra_drm_context *context, struct gather_bo *bo,
 	job->client = &context->client->base;
 	job->class = context->client->base.class;
 	job->serialize = true;
+
+	if (in_fence)
+		submit_job_add_prefence(job, in_fence, class);
 
 	for (i = 0; i < args->num_cmds; i++) {
 		struct drm_tegra_submit_cmd *cmd = &cmds[i];
@@ -492,11 +564,13 @@ static void release_job(struct host1x_job *job)
 	struct tegra_drm_submit_data *job_data = job->user_data;
 	u32 i;
 
-	if (job->memory_context)
-		host1x_memory_context_put(job->memory_context);
-
 	for (i = 0; i < job_data->num_used_mappings; i++)
 		tegra_drm_mapping_put(job_data->used_mappings[i].mapping);
+
+	if (job->memory_context) {
+		host1x_memory_context_inactive(job->memory_context);
+		host1x_memory_context_put(job->memory_context);
+	}
 
 	kfree(job_data->used_mappings);
 	kfree(job_data);
@@ -508,11 +582,15 @@ static void release_job(struct host1x_job *job)
 int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 				   struct drm_file *file)
 {
+	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
+	struct host1x_memory_context *active_memctx = NULL;
 	struct tegra_drm_file *fpriv = file->driver_priv;
 	struct drm_tegra_channel_submit *args = data;
 	struct tegra_drm_submit_data *job_data;
 	struct drm_syncobj *syncobj = NULL;
+	struct dma_fence *in_fence = NULL;
 	struct tegra_drm_context *context;
+	u32 num_prefence_waits = 0;
 	struct host1x_job *job;
 	struct gather_bo *bo;
 	u32 i;
@@ -528,21 +606,27 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 		return -EINVAL;
 	}
 
-	if (args->syncobj_in) {
-		struct dma_fence *fence;
+	if (context->memory_context) {
+		err = host1x_memory_context_active(context->memory_context);
+		if (err) {
+			mutex_unlock(&fpriv->lock);
+			SUBMIT_ERR(context, "failed to activate memory context");
+			return err;
+		}
 
-		err = drm_syncobj_find_fence(file, args->syncobj_in, 0, 0, &fence);
+		active_memctx = context->memory_context;
+	}
+
+	if (args->syncobj_in) {
+		err = drm_syncobj_find_fence(file, args->syncobj_in, 0, 0, &in_fence);
 		if (err) {
 			SUBMIT_ERR(context, "invalid syncobj_in '%#x'", args->syncobj_in);
 			goto unlock;
 		}
 
-		err = dma_fence_wait_timeout(fence, true, msecs_to_jiffies(10000));
-		dma_fence_put(fence);
-		if (err) {
-			SUBMIT_ERR(context, "wait for syncobj_in timed out");
-			goto unlock;
-		}
+		err = submit_handle_in_fence(context, host1x, in_fence, &num_prefence_waits);
+		if (err)
+			goto put_in_fence;
 	}
 
 	if (args->syncobj_out) {
@@ -550,14 +634,14 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 		if (!syncobj) {
 			SUBMIT_ERR(context, "invalid syncobj_out '%#x'", args->syncobj_out);
 			err = -ENOENT;
-			goto unlock;
+			goto put_in_fence;
 		}
 	}
 
 	/* Allocate gather BO and copy gather words in. */
 	err = submit_copy_gather_data(&bo, drm->dev, context, args);
 	if (err)
-		goto unlock;
+		goto put_in_fence;
 
 	job_data = kzalloc_obj(*job_data);
 	if (!job_data) {
@@ -572,11 +656,19 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 		goto free_job_data;
 
 	/* Allocate host1x_job and add gathers and waits to it. */
-	job = submit_create_job(context, bo, args, job_data, &fpriv->syncpoints);
+	job = submit_create_job(context, bo, args, job_data, &fpriv->syncpoints, in_fence,
+				num_prefence_waits);
 	if (IS_ERR(job)) {
 		err = PTR_ERR(job);
 		goto free_job_data;
 	}
+
+	/*
+	 * The prefence has been recorded as plain syncpoint waits, so the fence
+	 * itself is not needed anymore.
+	 */
+	dma_fence_put(in_fence);
+	in_fence = NULL;
 
 	/* Map gather data for Host1x. */
 	err = host1x_job_pin(job, context->client->base.dev);
@@ -604,7 +696,8 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 		}
 
 		if (supported) {
-			job->memory_context = context->memory_context;
+			job->memory_context = active_memctx;
+			active_memctx = NULL;
 			host1x_memory_context_get(job->memory_context);
 		}
 	} else if (context->client->ops->get_streamid_offset) {
@@ -649,16 +742,20 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 		if (IS_ERR(fence)) {
 			err = PTR_ERR(fence);
 			SUBMIT_ERR(context, "failed to create postfence: %d", err);
+			goto put_job;
 		}
 
 		drm_syncobj_replace_fence(syncobj, fence);
+		dma_fence_put(fence);
 	}
 
 	goto put_job;
 
 put_memory_context:
-	if (job->memory_context)
+	if (job->memory_context) {
+		host1x_memory_context_inactive(job->memory_context);
 		host1x_memory_context_put(job->memory_context);
+	}
 unpin_job:
 	host1x_job_unpin(job);
 put_job:
@@ -674,9 +771,13 @@ free_job_data:
 	kfree(job_data);
 put_bo:
 	gather_bo_put(&bo->base);
+put_in_fence:
+	dma_fence_put(in_fence);
 unlock:
 	if (syncobj)
 		drm_syncobj_put(syncobj);
+	if (active_memctx)
+		host1x_memory_context_inactive(active_memctx);
 
 	mutex_unlock(&fpriv->lock);
 	return err;

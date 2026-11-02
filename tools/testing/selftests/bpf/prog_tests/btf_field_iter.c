@@ -31,8 +31,11 @@ struct field_data {
 	{ .ids = { 11 },	.strs = { "decltag" } },
 	{ .ids = { 6 },		.strs = { "typetag" } },
 	{ .ids = {},		.strs = { "e64", "eval1", "eval2", "eval3" } },
-	{ .ids = { 15, 16 },	.strs = { "datasec1" } }
-
+	{ .ids = { 15, 16 },	.strs = { "datasec1" } },
+	{ .ids = {},		.strs = { "" } },
+	{ .ids = {},		.strs = { "" } },
+	{ .ids = { 22, 23 },	.strs = { "" } },
+	{ .ids = { 14, 24 },	.strs = { ".loc" } }
 };
 
 /* Fabricate BTF with various types and check BTF field iteration finds types,
@@ -88,6 +91,19 @@ void test_btf_field_iter(void)
 	btf__add_datasec_var_info(btf, 15, 0, 4);
 	btf__add_datasec_var_info(btf, 16, 4, 8);
 
+	btf__add_loc_param(btf, 4, BTF_LOC_PARAM_CONST | BTF_LOC_PARAM_SIGNED);
+							/* [22] loc value -1 */
+	btf__add_loc_param_value(btf, -1);
+	btf__add_loc_param(btf, 8, BTF_LOC_PARAM_REG);	/* [23] loc reg 1 */
+	btf__add_loc_param_value(btf, 1);
+
+	btf__add_loc_proto(btf);			/* [24] loc proto */
+	btf__add_loc_proto_param(btf, 22);		/*  param value -1, */
+	btf__add_loc_proto_param(btf, 23);		/*  param reg 1 */
+
+	btf__add_locsec(btf, ".loc");			/* [25] locsec ".loc" */
+	btf__add_locsec_loc(btf, 14, 24, 128);		/* "func" */
+
 	VALIDATE_RAW_BTF(
 		btf,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
@@ -123,7 +139,16 @@ void test_btf_field_iter(void)
 		"\t'eval3' val=3000",
 		"[21] DATASEC 'datasec1' size=12 vlen=2\n"
 		"\ttype_id=15 offset=0 size=4\n"
-		"\ttype_id=16 offset=4 size=8");
+		"\ttype_id=16 offset=4 size=8",
+		"[22] LOC_PARAM '(anon)' size=4 flags=0x3 vlen=1\n"
+		"\tvalue=-1",
+		"[23] LOC_PARAM '(anon)' size=8 flags=0x8 vlen=1\n"
+		"\tvalue=1",
+		"[24] LOC_PROTO '(anon)' vlen=2\n"
+		"\ttype_id=22\n"
+		"\ttype_id=23",
+		"[25] LOCSEC '.loc' vlen=1\n"
+		"\tfunc_type_id=14 loc_proto_type_id=24 offset=128");
 
 	for (id = 1; id < btf__type_cnt(btf); id++) {
 		struct btf_type *t = btf_type_by_id(btf, id);

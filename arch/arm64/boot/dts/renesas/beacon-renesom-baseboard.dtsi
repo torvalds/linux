@@ -142,7 +142,7 @@
 		startup-delay-us = <100000>;
 	};
 
-	sound_card {
+	sound-card {
 		compatible = "audio-graph-card";
 		label = "rcar-sound";
 		dais = <&rsnd_port0>, <&rsnd_port1>;
@@ -505,7 +505,7 @@
 		power-source = <3300>;
 	};
 
-	sdhi0_pins_uhs: sd0_uhs {
+	sdhi0_pins_uhs: sd0-uhs {
 		groups = "sdhi0_data4", "sdhi0_ctrl";
 		function = "sdhi0";
 		power-source = <1800>;
@@ -516,7 +516,7 @@
 		function = "ssi";
 	};
 
-	sound_clk_pins: sound_clk {
+	sound_clk_pins: sound-clk {
 		groups = "audio_clk_a_a", "audio_clk_b_a";
 		function = "audio_clk";
 	};

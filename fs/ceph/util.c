@@ -73,10 +73,6 @@ int ceph_flags_to_mode(int flags)
 		mode = CEPH_FILE_MODE_RDWR;
 		break;
 	}
-#ifdef O_LAZY
-	if (flags & O_LAZY)
-		mode |= CEPH_FILE_MODE_LAZY;
-#endif
 
 	return mode;
 }

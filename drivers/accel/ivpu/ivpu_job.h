@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2025 Intel Corporation
+ * Copyright (C) 2020-2026 Intel Corporation
  */
 
 #ifndef __IVPU_JOB_H__
@@ -80,6 +80,9 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 int ivpu_cmdq_create_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 int ivpu_cmdq_destroy_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 int ivpu_cmdq_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+
+int ivpu_cmdq_get_priority(struct ivpu_file_priv *file_priv, u32 cmdq_id, u64 *priority);
+int ivpu_cmdq_set_priority(struct ivpu_file_priv *file_priv, u32 cmdq_id, u64 priority);
 
 void ivpu_context_abort_locked(struct ivpu_file_priv *file_priv);
 

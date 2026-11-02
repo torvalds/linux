@@ -190,6 +190,7 @@ bool virtual_stream_encoder_construct(
 	struct dc_context *ctx,
 	struct dc_bios *bp)
 {
+	enc->inst = 0;
 	if (!enc)
 		return false;
 	if (!bp)

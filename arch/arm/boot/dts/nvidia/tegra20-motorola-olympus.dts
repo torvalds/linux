@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "tegra20-motorola-mot.dtsi"
+
+/ {
+	model = "Motorola Atrix 4G (MB860)";
+	compatible = "motorola,olympus", "nvidia,tegra20";
+
+	gpio@6000d000 {
+		volume-buttons-hog {
+			gpio-hog;
+			gpios = <TEGRA_GPIO(Q, 0) GPIO_ACTIVE_HIGH>;
+			output-low;
+		};
+	};
+
+	i2c@7000c000 {
+		led-controller@38 {
+			led@1 {
+				reg = <1>;
+
+				led-sources = <1 2>;
+				led-max-microamp = <8200>;
+
+				ti,led-mode = <0>;
+				ti,linear-mapping-mode;
+
+				label = ":keypad";
+			};
+		};
+
+		touchscreen@4a {
+			touchscreen-size-x = <930>;
+			touchscreen-size-y = <1018>;
+			touchscreen-min-x = <0>;
+
+			/* Buttons are just a part of touchscreen */
+		};
+
+		light-sensor@44 {
+			compatible = "isil,isl29030";
+			reg = <0x44>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(E, 1) IRQ_TYPE_LEVEL_LOW>;
+
+			vdd-supply = <&vdd_hvio>;
+		};
+	};
+
+	i2c@7000d000 {
+		accelerometer@f {
+			mount-matrix =	 "1",  "0",  "0",
+					 "0",  "1",  "0",
+					 "0",  "0", "-1";
+		};
+	};
+
+	spi@7000d600 {
+		pmic@0 {
+			led-adl {
+				status = "disabled";
+			};
+		};
+	};
+
+	/* Motorola BH6X battery cell */
+	battery: battery-cell {
+		compatible = "simple-battery";
+		device-chemistry = "lithium-ion-polymer";
+
+		voltage-min-design-microvolt = <3200000>;
+		voltage-max-design-microvolt = <4200000>;
+
+		charge-full-design-microamp-hours = <1880000>;
+		energy-full-design-microwatt-hours = <7000000>;
+
+		constant-charge-voltage-max-microvolt = <4200000>;
+		operating-range-celsius = <0 45>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-volume-down {
+			label = "Volume Down";
+			gpios = <&gpio TEGRA_GPIO(R, 1) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+	};
+
+	sound {
+		nvidia,model = "Motorola Atrix 4G (MB860) CPCAP";
+	};
+};

@@ -1671,7 +1671,7 @@ ENTRY(fast_second_level_miss)
 	 * This allows to map the three most common regions to three different
 	 * DTLBs:
 	 *  0,1 -> way 7	program (0040.0000) and virtual (c000.0000)
-	 *  2   -> way 8	shared libaries (2000.0000)
+	 *  2   -> way 8	shared libraries (2000.0000)
 	 *  3   -> way 0	stack (3000.0000)
 	 */
 

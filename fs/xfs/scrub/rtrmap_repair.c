@@ -413,12 +413,12 @@ xrep_rtrmap_scan_ag(
 	struct xfs_scrub	*sc = rr->sc;
 	int			error;
 
-	error = xrep_ag_init(sc, pag, &sc->sa);
+	error = xrep_ag_init(sc, pag);
 	if (error)
 		return error;
 
 	error = xfs_rmap_query_all(sc->sa.rmap_cur, xrep_rtrmap_walk_rmap, rr);
-	xchk_ag_free(sc, &sc->sa);
+	xchk_ag_free(sc);
 	return error;
 }
 
@@ -554,9 +554,9 @@ xrep_rtrmap_find_rmaps(
 	}
 
 	/* Find CoW staging extents. */
-	xrep_rtgroup_btcur_init(sc, &sc->sr);
+	xrep_rtgroup_btcur_init(sc);
 	error = xrep_rtrmap_find_refcount_rmaps(rr);
-	xchk_rtgroup_btcur_free(&sc->sr);
+	xchk_rtgroup_btcur_free(sc);
 	if (error)
 		return error;
 
@@ -576,7 +576,7 @@ xrep_rtrmap_find_rmaps(
 	 * do not take sb_internal.
 	 */
 	xchk_trans_cancel(sc);
-	xchk_rtgroup_unlock(&sc->sr);
+	xchk_rtgroup_unlock(sc);
 	xchk_trans_alloc_empty(sc);
 
 	while ((error = xchk_iscan_iter(&rr->iscan, &ip)) == 1) {
@@ -600,7 +600,7 @@ xrep_rtrmap_find_rmaps(
 	error = xchk_setup_rt(sc);
 	if (error)
 		return error;
-	error = xchk_rtgroup_lock(sc, &sc->sr, XCHK_RTGLOCK_ALL);
+	error = xchk_rtgroup_lock(sc, XCHK_RTGLOCK_ALL);
 	if (error)
 		return error;
 
@@ -693,7 +693,7 @@ xrep_rtrmap_iroot_size(
 	unsigned int		nr_this_level,
 	void			*priv)
 {
-	return xfs_rtrmap_broot_space_calc(cur->bc_mp, level, nr_this_level);
+	return xfs_rtrmap_broot_space_calc(level, nr_this_level);
 }
 
 /*

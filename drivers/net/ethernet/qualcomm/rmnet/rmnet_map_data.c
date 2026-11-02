@@ -294,7 +294,7 @@ sw_csum:
  */
 struct rmnet_map_header *rmnet_map_add_map_header(struct sk_buff *skb,
 						  int hdrlen,
-						  struct rmnet_port *port,
+						  u32 data_format,
 						  int pad)
 {
 	struct rmnet_map_header *map_header;
@@ -306,7 +306,7 @@ struct rmnet_map_header *rmnet_map_add_map_header(struct sk_buff *skb,
 	memset(map_header, 0, sizeof(struct rmnet_map_header));
 
 	/* Set next_hdr bit for csum offload packets */
-	if (port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV5)
+	if (data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV5)
 		map_header->flags |= MAP_NEXT_HEADER_FLAG;
 
 	if (pad == RMNET_MAP_NO_PAD_BYTES) {
@@ -333,7 +333,7 @@ done:
 	return map_header;
 }
 
-u32 rmnet_map_validate_packet_len(struct sk_buff *skb, struct rmnet_port *port)
+u32 rmnet_map_validate_packet_len(struct sk_buff *skb, u32 data_format)
 {
 	struct rmnet_map_v5_csum_header *next_hdr = NULL;
 	struct rmnet_map_header *maph;
@@ -351,9 +351,9 @@ u32 rmnet_map_validate_packet_len(struct sk_buff *skb, struct rmnet_port *port)
 
 	packet_len = ntohs(maph->pkt_len) + sizeof(*maph);
 
-	if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4) {
+	if (data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4) {
 		packet_len += sizeof(struct rmnet_map_dl_csum_trailer);
-	} else if ((port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV5) &&
+	} else if ((data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV5) &&
 		   !(maph->flags & MAP_CMD_FLAG)) {
 		/* Mapv5 data pkt without csum hdr is invalid */
 		if (!(maph->flags & MAP_NEXT_HEADER_FLAG))
@@ -381,12 +381,12 @@ u32 rmnet_map_validate_packet_len(struct sk_buff *skb, struct rmnet_port *port)
  * is responsible for freeing the original skb.
  */
 struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
-				      struct rmnet_port *port)
+				      u32 data_format)
 {
 	struct sk_buff *skbn;
 	u32 packet_len;
 
-	packet_len = rmnet_map_validate_packet_len(skb, port);
+	packet_len = rmnet_map_validate_packet_len(skb, data_format);
 	if (!packet_len)
 		return NULL;
 

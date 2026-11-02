@@ -10,11 +10,17 @@
  *  http://www.meas-spec.com/downloads/Digital_Sensor_TSYS02D.pdf
  */
 
-#include <linux/init.h>
+#include <linux/array_size.h>
+#include <linux/bits.h>
+#include <linux/dev_printk.h>
 #include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/stat.h>
+#include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/stat.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
+
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 

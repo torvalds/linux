@@ -74,8 +74,13 @@ where
     crate::error::from_result(|| {
         let new_value = T::try_from_param_arg(arg)?;
 
-        // SAFETY: By function safety requirements, this access is safe.
-        let container = unsafe { &*((*param).__bindgen_anon_1.arg.cast::<SetOnce<T>>()) };
+        // SAFETY: By function safety requirements, `param` is valid for read.
+        let arg = unsafe { (*param).__bindgen_anon_1.arg };
+        let param_access_ptr = arg.cast::<ModuleParamAccess<T>>();
+        // SAFETY: The `arg` field is initialized with a pointer to a `static ModuleAccessParam` by
+        // the rust module macro. Thus, the pointer is valid for use as a reference.
+        let param_access = unsafe { &*(param_access_ptr) };
+        let container = &param_access.value;
 
         container
             .populate(new_value)

@@ -1276,9 +1276,9 @@ static netdev_tx_t dpaa2_switch_port_tx(struct sk_buff *skb,
 	}
 
 	/* We'll be holding a back-reference to the skb until Tx confirmation */
-	skb = skb_unshare(skb, GFP_ATOMIC);
+	skb = skb_unclone_full(skb, GFP_ATOMIC);
 	if (unlikely(!skb)) {
-		/* skb_unshare() has already freed the skb */
+		/* skb_unclone_full() has already freed the skb */
 		net_err_ratelimited("%s: Error copying the socket buffer\n", net_dev->name);
 		goto err_exit;
 	}

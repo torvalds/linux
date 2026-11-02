@@ -314,10 +314,7 @@ static int ___watchdog_register_device(struct watchdog_device *wdd)
 
 	/* Module parameter to force watchdog policy on reboot. */
 	if (stop_on_reboot != -1) {
-		if (stop_on_reboot)
-			set_bit(WDOG_STOP_ON_REBOOT, &wdd->status);
-		else
-			clear_bit(WDOG_STOP_ON_REBOOT, &wdd->status);
+		assign_bit(WDOG_STOP_ON_REBOOT, &wdd->status, stop_on_reboot);
 	}
 
 	if (test_bit(WDOG_STOP_ON_REBOOT, &wdd->status)) {

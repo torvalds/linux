@@ -22,6 +22,7 @@ struct file;
 struct ipu6_isys;
 struct ipu6_isys_csi2;
 struct ipu6_isys_subdev;
+struct v4l2_mbus_frame_desc;
 
 struct ipu6_isys_pixelformat {
 	u32 pixelformat;
@@ -44,17 +45,15 @@ struct sequence_info {
 struct ipu6_isys_stream {
 	struct mutex mutex;
 	atomic_t sequence;
+	atomic_t buf_id;
 	unsigned int seq_index;
 	struct sequence_info seq[IPU6_ISYS_MAX_PARALLEL_SOF];
-	int stream_source;
 	int stream_handle;
 	unsigned int nr_output_pins;
 	struct ipu6_isys_subdev *asd;
-
-	int nr_queues;	/* Number of capture queues */
-	int nr_streaming;
-	int streaming;	/* Has streaming been really started? */
 	struct list_head queues;
+	struct list_head csi2_entry;
+
 	struct completion stream_open_completion;
 	struct completion stream_close_completion;
 	struct completion stream_start_completion;
@@ -66,20 +65,9 @@ struct ipu6_isys_stream {
 	u8 vc;
 };
 
-struct video_stream_watermark {
-	u32 width;
-	u32 height;
-	u32 hblank;
-	u32 frame_rate;
-	u64 pixel_rate;
-	u64 stream_data_rate;
-	u16 sram_gran_shift;
-	u16 sram_gran_size;
-	struct list_head stream_node;
-};
-
 struct ipu6_isys_video {
 	struct ipu6_isys_queue aq;
+	struct list_head csi2_entry;
 	/* Serialise access to other fields in the struct. */
 	struct mutex mutex;
 	struct media_pad pad;
@@ -90,10 +78,7 @@ struct ipu6_isys_video {
 	struct ipu6_isys_csi2 *csi2;
 	struct ipu6_isys_stream *stream;
 	unsigned int streaming;
-	struct video_stream_watermark watermark;
 	u32 source_stream;
-	u8 vc;
-	u8 dt;
 };
 
 #define ipu6_isys_queue_to_video(__aq) \
@@ -104,27 +89,34 @@ extern const struct ipu6_isys_pixelformat ipu6_isys_pfmts_packed[];
 
 const struct ipu6_isys_pixelformat *
 ipu6_isys_get_isys_format(u32 pixelformat, u32 code);
-int ipu6_isys_video_prepare_stream(struct ipu6_isys_video *av,
-				   struct media_entity *source_entity,
-				   int nr_queues);
-int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state,
-				  struct ipu6_isys_buffer_list *bl);
+int ipu6_isys_fw_pins_prepare(struct ipu6_isys_stream *stream,
+			      struct v4l2_mbus_frame_desc *desc,
+			      int (*fw_pin_cfg)(struct ipu6_isys_video *av,
+						struct ipu6_isys_stream *stream,
+						struct media_pad *src_pad,
+						struct v4l2_mbus_frame_desc_entry *entry,
+						void *__cfg), void *stream_cfg);
+int ipu6_isys_start_stream_firmware(struct ipu6_isys_stream *stream,
+				    struct ipu6_isys_buffer_list *bl,
+				    struct v4l2_mbus_frame_desc *desc);
+void ipu6_isys_stop_stream_firmware(struct ipu6_isys_stream *stream);
+void ipu6_isys_close_stream_firmware(struct ipu6_isys_stream *stream);
+struct ipu6_isys_stream *
+ipu6_isys_find_stream_firmware(struct ipu6_isys_csi2 *csi2, u8 vc);
+void ipu6_isys_free_stream_firmware(struct ipu6_isys_stream *stream);
+struct ipu6_isys_stream *
+ipu6_isys_alloc_stream_firmware(struct ipu6_isys_csi2 *csi2,
+				struct v4l2_subdev_state *state,
+				struct v4l2_mbus_frame_desc *desc,
+				u8 vc);
+int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state);
 int ipu6_isys_fw_open(struct ipu6_isys *isys);
 void ipu6_isys_fw_close(struct ipu6_isys *isys);
 int ipu6_isys_setup_video(struct ipu6_isys_video *av,
 			  struct media_pad *remote_pad,
-			  struct media_pad *source_pad, int *nr_queues);
+			  struct media_pad *source_pad);
 int ipu6_isys_video_init(struct ipu6_isys_video *av);
 void ipu6_isys_video_cleanup(struct ipu6_isys_video *av);
-void ipu6_isys_put_stream(struct ipu6_isys_stream *stream);
-struct ipu6_isys_stream *
-ipu6_isys_query_stream_by_handle(struct ipu6_isys *isys, u8 stream_handle);
-struct ipu6_isys_stream *
-ipu6_isys_query_stream_by_source(struct ipu6_isys *isys, int source, u8 vc);
-
-void ipu6_isys_configure_stream_watermark(struct ipu6_isys_video *av,
-					  struct media_entity *source);
-void ipu6_isys_update_stream_watermark(struct ipu6_isys_video *av, bool state);
 
 u32 ipu6_isys_get_format(struct ipu6_isys_video *av);
 u32 ipu6_isys_get_data_size(struct ipu6_isys_video *av);

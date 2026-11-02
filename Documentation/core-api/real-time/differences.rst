@@ -119,11 +119,19 @@ timers initialized with the HRTIMER_MODE_SOFT flag, which are executed in
 softirq context.
 
 On a PREEMPT_RT kernel, this behavior is reversed: hrtimers are executed in
-softirq context by default, typically within the ktimersd thread. This thread
+softirq context by default, typically within the ktimers thread. This thread
 runs at the lowest real-time priority, ensuring it executes before any
 SCHED_OTHER tasks but does not interfere with higher-priority real-time
 threads. To explicitly request execution in hard interrupt context on
 PREEMPT_RT, the timer must be marked with the HRTIMER_MODE_HARD flag.
+
+Userland sleepers usually deploy a hrtimer to guarantee a precise wakeup
+time. The timer is initialized with hrtimer_setup_sleeper_on_stack(), which
+distinguishes between real-time and regular tasks. The hrtimer of a task
+without a real-time priority is handled in soft interrupt context, but for
+real-time priorities HRTIMER_MODE_HARD is used. This ensures that real-time
+tasks are woken up as soon as possible while ordinary tasks cannot block the
+CPU with a thundering herd of wakeups.
 
 Memory allocation
 -----------------

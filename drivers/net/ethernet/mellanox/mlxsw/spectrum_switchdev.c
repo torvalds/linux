@@ -2513,14 +2513,16 @@ mlxsw_sp_bridge_vlan_aware_vxlan_join(struct mlxsw_sp_bridge_device *bridge_devi
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_device->dev);
 	struct vxlan_dev *vxlan = netdev_priv(vxlan_dev);
-	struct mlxsw_sp_nve_params params = {
-		.type = MLXSW_SP_NVE_TYPE_VXLAN,
-		.vni = vxlan->cfg.vni,
-		.dev = vxlan_dev,
-		.ethertype = ethertype,
-	};
+	struct mlxsw_sp_nve_params params;
+	const struct vxlan_config *cfg;
 	struct mlxsw_sp_fid *fid;
 	int err;
+
+	cfg = rtnl_dereference(vxlan->cfg);
+	params.type = MLXSW_SP_NVE_TYPE_VXLAN;
+	params.vni = cfg->vni;
+	params.dev = vxlan_dev;
+	params.ethertype = ethertype;
 
 	/* If the VLAN is 0, we need to find the VLAN that is configured as
 	 * PVID and egress untagged on the bridge port of the VxLAN device.
@@ -2704,14 +2706,16 @@ mlxsw_sp_bridge_8021d_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_device->dev);
 	struct vxlan_dev *vxlan = netdev_priv(vxlan_dev);
-	struct mlxsw_sp_nve_params params = {
-		.type = MLXSW_SP_NVE_TYPE_VXLAN,
-		.vni = vxlan->cfg.vni,
-		.dev = vxlan_dev,
-		.ethertype = ETH_P_8021Q,
-	};
+	struct mlxsw_sp_nve_params params;
+	const struct vxlan_config *cfg;
 	struct mlxsw_sp_fid *fid;
 	int err;
+
+	cfg = rtnl_dereference(vxlan->cfg);
+	params.type = MLXSW_SP_NVE_TYPE_VXLAN;
+	params.vni = cfg->vni;
+	params.dev = vxlan_dev;
+	params.ethertype = ETH_P_8021Q;
 
 	fid = mlxsw_sp_fid_8021d_get(mlxsw_sp, bridge_device->dev->ifindex);
 	if (IS_ERR(fid)) {
@@ -2933,10 +2937,13 @@ static void __mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
 					  const struct net_device *vxlan_dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(vxlan_dev);
+	const struct vxlan_config *cfg;
 	struct mlxsw_sp_fid *fid;
 
+	cfg = rtnl_dereference(vxlan->cfg);
+
 	/* If the VxLAN device is down, then the FID does not have a VNI */
-	fid = mlxsw_sp_fid_lookup_by_vni(mlxsw_sp, vxlan->cfg.vni);
+	fid = mlxsw_sp_fid_lookup_by_vni(mlxsw_sp, cfg->vni);
 	if (!fid)
 		return;
 
@@ -3029,11 +3036,13 @@ static void mlxsw_sp_fdb_vxlan_call_notifiers(struct net_device *dev,
 	struct switchdev_notifier_vxlan_fdb_info info;
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	enum switchdev_notifier_type type;
+	const struct vxlan_config *cfg;
 
+	cfg = rtnl_dereference(vxlan->cfg);
 	type = adding ? SWITCHDEV_VXLAN_FDB_ADD_TO_BRIDGE :
 			SWITCHDEV_VXLAN_FDB_DEL_TO_BRIDGE;
 	mlxsw_sp_switchdev_addr_vxlan_convert(proto, addr, &info.remote_ip);
-	info.remote_port = vxlan->cfg.dst_port;
+	info.remote_port = cfg->dst_port;
 	info.remote_vni = vni;
 	info.remote_ifindex = 0;
 	ether_addr_copy(info.eth_addr, mac);
@@ -3236,8 +3245,10 @@ __mlxsw_sp_fdb_notify_mac_uc_tunnel_process(struct mlxsw_sp *mlxsw_sp,
 
 	if (adding && netif_is_vxlan(dev)) {
 		struct vxlan_dev *vxlan = netdev_priv(dev);
+		const struct vxlan_config *cfg;
 
-		if (!(vxlan->cfg.flags & VXLAN_F_LEARN))
+		cfg = rtnl_dereference(vxlan->cfg);
+		if (!(cfg->flags & VXLAN_F_LEARN))
 			return -EINVAL;
 	}
 
@@ -3722,8 +3733,10 @@ mlxsw_sp_switchdev_vxlan_work_prepare(struct mlxsw_sp_switchdev_event_work *
 {
 	struct vxlan_dev *vxlan = netdev_priv(switchdev_work->dev);
 	struct switchdev_notifier_vxlan_fdb_info *vxlan_fdb_info;
-	struct vxlan_config *cfg = &vxlan->cfg;
+	const struct vxlan_config *cfg;
 	struct netlink_ext_ack *extack;
+
+	cfg = rcu_dereference_rtnl(vxlan->cfg);
 
 	extack = switchdev_notifier_info_to_extack(info);
 	vxlan_fdb_info = container_of(info,
@@ -3851,10 +3864,14 @@ mlxsw_sp_switchdev_vxlan_vlan_add(struct mlxsw_sp *mlxsw_sp,
 				  struct netlink_ext_ack *extack)
 {
 	struct vxlan_dev *vxlan = netdev_priv(vxlan_dev);
-	__be32 vni = vxlan->cfg.vni;
+	const struct vxlan_config *cfg;
 	struct mlxsw_sp_fid *fid;
 	u16 old_vid;
+	__be32 vni;
 	int err;
+
+	cfg = rtnl_dereference(vxlan->cfg);
+	vni = cfg->vni;
 
 	/* We cannot have the same VLAN as PVID and egress untagged on multiple
 	 * VxLAN devices. Note that we get this notification before the VLAN is
@@ -3935,11 +3952,15 @@ mlxsw_sp_switchdev_vxlan_vlan_del(struct mlxsw_sp *mlxsw_sp,
 				  const struct net_device *vxlan_dev, u16 vid)
 {
 	struct vxlan_dev *vxlan = netdev_priv(vxlan_dev);
-	__be32 vni = vxlan->cfg.vni;
+	const struct vxlan_config *cfg;
 	struct mlxsw_sp_fid *fid;
+	__be32 vni;
 
 	if (!netif_running(vxlan_dev))
 		return;
+
+	cfg = rtnl_dereference(vxlan->cfg);
+	vni = cfg->vni;
 
 	fid = mlxsw_sp_fid_lookup_by_vni(mlxsw_sp, vni);
 	if (!fid)

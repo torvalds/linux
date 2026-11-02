@@ -1359,7 +1359,6 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 
 	/* set driver data into the pnp device */
 	pnp_set_drvdata(pdev, itdev);
-	itdev->pdev = pdev;
 
 	/* initialize waitqueues for transmission */
 	init_waitqueue_head(&itdev->tx_queue);

@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <sound/soc.h>
 #include <sound/soc_sdw_utils.h>
+#include "acp-mach-common.h"
 
 #define ACP63_SDW_MAX_CPU_DAIS		8
 #define ACP63_SDW_MAX_LINKS		2

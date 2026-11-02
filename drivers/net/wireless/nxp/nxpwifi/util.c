@@ -220,19 +220,24 @@ int nxpwifi_get_debug_info(struct nxpwifi_private *priv,
 }
 
 int nxpwifi_debug_info_to_buffer(struct nxpwifi_private *priv, char *buf,
+				 size_t buf_size,
 				 struct nxpwifi_debug_info *info)
 {
-	char *p = buf;
+	size_t used = 0;
 	struct nxpwifi_debug_data *d = &items[0];
 	size_t size, addr;
 	long val;
+	u32 tx_tbl_num, rx_tbl_num, win_size;
 	int i, j;
 
 	if (!info)
 		return 0;
 
+	tx_tbl_num = min_t(u32, info->tx_tbl_num, ARRAY_SIZE(info->tx_tbl));
+	rx_tbl_num = min_t(u32, info->rx_tbl_num, ARRAY_SIZE(info->rx_tbl));
+
 	for (i = 0; i < num_of_items; i++) {
-		p += sprintf(p, "%s=", d[i].name);
+		used += scnprintf(buf + used, buf_size - used, "%s=", d[i].name);
 
 		size = d[i].size / d[i].num;
 
@@ -260,41 +265,43 @@ int nxpwifi_debug_info_to_buffer(struct nxpwifi_private *priv, char *buf,
 				break;
 			}
 
-			p += sprintf(p, "%#lx ", val);
+			used += scnprintf(buf + used, buf_size - used, "%#lx ", val);
 			addr += size;
 		}
 
-		p += sprintf(p, "\n");
+		used += scnprintf(buf + used, buf_size - used, "\n");
 	}
 
-	if (info->tx_tbl_num) {
-		p += sprintf(p, "Tx BA stream table:\n");
-		for (i = 0; i < info->tx_tbl_num; i++)
-			p += sprintf(p, "tid = %d, ra = %pM\n",
+	if (tx_tbl_num) {
+		used += scnprintf(buf + used, buf_size - used, "Tx BA stream table:\n");
+		for (i = 0; i < tx_tbl_num; i++)
+			used += scnprintf(buf + used, buf_size - used, "tid = %d, ra = %pM\n",
 				     info->tx_tbl[i].tid, info->tx_tbl[i].ra);
 	}
 
-	if (info->rx_tbl_num) {
-		p += sprintf(p, "Rx reorder table:\n");
-		for (i = 0; i < info->rx_tbl_num; i++) {
-			p += sprintf(p, "tid = %d, ta = %pM, ",
+	if (rx_tbl_num) {
+		used += scnprintf(buf + used, buf_size - used, "Rx reorder table:\n");
+		for (i = 0; i < rx_tbl_num; i++) {
+			used += scnprintf(buf + used, buf_size - used, "tid = %d, ta = %pM, ",
 				     info->rx_tbl[i].tid,
 				     info->rx_tbl[i].ta);
-			p += sprintf(p, "start_win = %d, ",
+			used += scnprintf(buf + used, buf_size - used, "start_win = %d, ",
 				     info->rx_tbl[i].start_win);
-			p += sprintf(p, "win_size = %d, buffer: ",
+			used += scnprintf(buf + used, buf_size - used, "win_size = %d, buffer: ",
 				     info->rx_tbl[i].win_size);
 
-			for (j = 0; j < info->rx_tbl[i].win_size; j++)
-				p += sprintf(p, "%c ",
+			win_size = min_t(u32, info->rx_tbl[i].win_size,
+					 ARRAY_SIZE(info->rx_tbl[i].buffer));
+			for (j = 0; j < win_size; j++)
+				used += scnprintf(buf + used, buf_size - used, "%c ",
 					     info->rx_tbl[i].buffer[j] ?
 					     '1' : '0');
 
-			p += sprintf(p, "\n");
+			used += scnprintf(buf + used, buf_size - used, "\n");
 		}
 	}
 
-	return p - buf;
+	return used;
 }
 
 bool nxpwifi_is_channel_setting_allowable(struct nxpwifi_private *priv,

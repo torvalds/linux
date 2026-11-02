@@ -1,21 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * include/asm-m68k/serial.h
- *
- * currently this seems useful only for a Q40,
- * it's an almost exact copy of ../asm-alpha/serial.h
- *
- */
+#ifndef _ASM_M68K_SERIAL_H
+#define _ASM_M68K_SERIAL_H
 
-
-/*
- * This assumes you have a 1.8432 MHz clock for your UART.
- *
- * It'd be nice if someone built a serial card with a 24.576 MHz
- * clock, since the 16550A is capable of handling a top speed of 1.5
- * megabits/second; but this requires the faster clock.
- */
-#define BASE_BAUD ( 1843200 / 16 )
+#include <asm-generic/serial.h>
 
 /* Standard COM flags (except for COM4, because of the 8514 problem) */
 #ifdef CONFIG_SERIAL_8250_DETECT_IRQ
@@ -34,3 +21,5 @@
 	{ 0, BASE_BAUD, 0x3E8, 4, STD_COM_FLAGS },	/* ttyS2 */	\
 	{ 0, BASE_BAUD, 0x2E8, 3, STD_COM4_FLAGS },	/* ttyS3 */
 #endif
+
+#endif /* _ASM_M68K_SERIAL_H */

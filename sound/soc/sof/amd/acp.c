@@ -22,10 +22,19 @@
 #include "../ops.h"
 #include "acp.h"
 #include "acp-dsp-offset.h"
+#include "../../amd/acp/soc_amd_sdw_common.h"
+#include "acp7x.h"
 
 static bool enable_fw_debug;
 module_param(enable_fw_debug, bool, 0444);
 MODULE_PARM_DESC(enable_fw_debug, "Enable Firmware debug");
+
+static const u32 acp7x_sof_sdw_ext_stat[ACP7X_SDW_MAX_MANAGER_COUNT] = {
+	ACP7X_SDW_STAT << 0,
+	ACP7X_SDW_STAT << 1,
+	ACP7X_SDW_STAT << 2,
+	ACP7X_SDW_STAT << 3,
+};
 
 static struct acp_quirk_entry quirk_valve_galileo = {
 	.signed_fw_image = true,
@@ -270,10 +279,17 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 	unsigned int tx_count, fw_qualifier, val;
 	int ret;
 
-	if (!image_addr) {
+	if (!image_addr &&
+	    !adata->asp_carveout_base) {
 		dev_err(sdev->dev, "SHA DMA image address is NULL\n");
 		return -EINVAL;
 	}
+
+	/*
+	 * Flush the ATU cache before programming SHA DMA registers
+	 * to guarantee coherency at SHA DMA start time.
+	 */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_CTRL, ACP_ATU_CACHE_INVALID);
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SHA_DMA_CMD);
 	if (val & ACP_SHA_RUN) {
@@ -288,8 +304,13 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		}
 	}
 
-	if ((adata->quirks && adata->quirks->signed_fw_image) ||
-	    adata->acp_sof_signed_firmware_image)
+	/*
+	 * The signing header must NOT be included for the carveout path: ASP
+	 * stripped it when depositing the raw binary during VALIDATE_IMAGE.
+	 */
+	if (((adata->quirks && adata->quirks->signed_fw_image) ||
+	     adata->acp_sof_signed_firmware_image) &&
+	    !adata->asp_carveout_base)
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_INCLUDE_HDR, ACP_SHA_HEADER);
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_STRT_ADDR, start_addr);
@@ -307,7 +328,17 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		if (ret)
 			return ret;
 	}
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_CMD, ACP_SHA_RUN);
+	/*
+	 * SHA_IOC_En triggers an interrupt-on-completion to ASP for source
+	 * address validation.  Only set it on the carveout path; enabling it
+	 * on the legacy ATU-window path breaks PSP validation.
+	 */
+	if (adata->asp_carveout_base) {
+		reinit_completion(&adata->sha_dma_complete);
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_CMD, ACP_SHA_RUN_WITH_IOC);
+	} else {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_CMD, ACP_SHA_RUN);
+	}
 
 	ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, ACP_SHA_TRANSFER_BYTE_CNT,
 					    tx_count, tx_count == image_length,
@@ -322,6 +353,23 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		ret = psp_send_cmd(adata, MBOX_ACP_SHA_DMA_COMMAND);
 		if (ret)
 			return ret;
+	}
+
+	if (adata->asp_carveout_base) {
+		/*
+		 * Wait for the SHA IOC interrupt which fires after ASP validates
+		 * the source address.  Use ASP_MBOX_TIMEOUT_US to match the
+		 * budget used for all other ASP mailbox operations.
+		 * usecs_to_jiffies() can round to 0 at low HZ so clamp to at
+		 * least 1 jiffy.
+		 */
+		unsigned long timeout_jiffies =
+			max(1UL, usecs_to_jiffies(ASP_MBOX_TIMEOUT_US));
+
+		if (!wait_for_completion_timeout(&adata->sha_dma_complete,
+						 timeout_jiffies))
+			dev_warn(sdev->dev,
+				 "SHA DMA interrupt not received within timeout, continuing\n");
 	}
 
 	ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, ACP_SHA_DSP_FW_QUALIFIER,
@@ -581,30 +629,209 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 }
 
+/* ACP7X SoundWire IO data tables */
+
+const struct sof_amd_acp7x_sdw_err_regs acp7x_sdw_err_regs[ACP7X_SDW_MAX_MANAGER_COUNT] = {
+	{ ACP7X_SW_ERR_STAT_MASK << 0,
+	  ACP7X_SW_FIFO_ERROR_REASON + (0 * 0x2000),
+	  ACP7X_SW_ERROR_REASON1 + (0 * 0x2000),
+	  ACP7X_SW_ERROR_REASON2 + (0 * 0x2000) },
+	{ ACP7X_SW_ERR_STAT_MASK << 1,
+	  ACP7X_SW_FIFO_ERROR_REASON + (1 * 0x2000),
+	  ACP7X_SW_ERROR_REASON1 + (1 * 0x2000),
+	  ACP7X_SW_ERROR_REASON2 + (1 * 0x2000) },
+	{ ACP7X_SW_ERR_STAT_MASK << 2,
+	  ACP7X_SW_FIFO_ERROR_REASON + (2 * 0x2000),
+	  ACP7X_SW_ERROR_REASON1 + (2 * 0x2000),
+	  ACP7X_SW_ERROR_REASON2 + (2 * 0x2000) },
+	{ ACP7X_SW_ERR_STAT_MASK << 3,
+	  ACP7X_SW_FIFO_ERROR_REASON + (3 * 0x2000),
+	  ACP7X_SW_ERROR_REASON1 + (3 * 0x2000),
+	  ACP7X_SW_ERROR_REASON2 + (3 * 0x2000) },
+};
+
+const struct acp7x_sdw_wake_src acp7x_sdw_wake_sources[] = {
+	{ ACP7X_SDW_HOST_WAKE_STAT << 0, ACP7X_SW_PME_STS + (0 * 4),
+	  ACP7X_SW_WAKE_EN_MASK << 0, 0 },
+	{ ACP7X_SDW_HOST_WAKE_STAT << 1, ACP7X_SW_PME_STS + (1 * 4),
+	  ACP7X_SW_WAKE_EN_MASK << 1, 1 },
+	{ ACP7X_SDW_HOST_WAKE_STAT << 2, ACP7X_SW_PME_STS + (2 * 4),
+	  ACP7X_SW_WAKE_EN_MASK << 2, 2 },
+	{ ACP7X_SDW_HOST_WAKE_STAT << 3, ACP7X_SW_PME_STS + (3 * 4),
+	  ACP7X_SW_WAKE_EN_MASK << 3, 3 },
+};
+
+/* ACP7X SoundWire IO interrupt and wake helpers */
+
+static void sof_amd_acp7x_handle_one_sdw_err(struct snd_sof_dev *sdev, u32 *err_stat,
+					     u32 acp_error_stat_reg,
+					     const struct sof_amd_acp7x_sdw_err_regs *regs)
+{
+	if (!(*err_stat & regs->err_stat_mask))
+		return;
+
+	*err_stat &= ~regs->err_stat_mask;
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, acp_error_stat_reg, *err_stat);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, regs->fifo_err_reason, 0);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, regs->err_reason1, 0);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, regs->err_reason2, 0);
+}
+
+/* Clears SoundWire error registers for all managers; runs in hard IRQ context. */
+static void sof_amd_acp7x_clear_sdw_err_regs(struct snd_sof_dev *sdev)
+{
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
+	u32 err_stat;
+	unsigned int instance;
+
+	err_stat = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->acp_error_stat);
+
+	for (instance = 0; instance < ACP7X_SDW_MAX_MANAGER_COUNT; instance++)
+		sof_amd_acp7x_handle_one_sdw_err(sdev, &err_stat, desc->acp_error_stat,
+						 &acp7x_sdw_err_regs[instance]);
+}
+
+static void sof_amd_handle_acp7x_sdw_wake_event(struct acp_dev_data *adata)
+{
+	struct amd_sdw_manager *amd_manager;
+	unsigned int instance;
+
+	for (instance = 0; instance < ACP7X_SDW_MAX_MANAGER_COUNT; instance++) {
+		if (!adata->acp7x_sdw_wake_event[instance])
+			continue;
+		if (!adata->sdw->pdev[instance])
+			continue;
+
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[instance]->dev);
+		if (amd_manager)
+			pm_request_resume(amd_manager->dev);
+		adata->acp7x_sdw_wake_event[instance] = false;
+	}
+}
+
+static int sof_amd_check_and_handle_acp7x_sdw_wake_irq(struct snd_sof_dev *sdev)
+{
+	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
+	u32 ext_intr_stat1, sdw_pme_stat, sdw_wake_en;
+	u32 i;
+	bool sdw_wake_irq = false;
+
+	ext_intr_stat1 = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->ext_intr_stat1);
+
+	for (i = 0; i < ARRAY_SIZE(acp7x_sdw_wake_sources); i++) {
+		const struct acp7x_sdw_wake_src *src = &acp7x_sdw_wake_sources[i];
+
+		bool woke = false;
+
+		if (ext_intr_stat1 & src->host_stat_mask) {
+			snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat1,
+					  src->host_stat_mask);
+			woke = true;
+		}
+
+		sdw_pme_stat = snd_sof_dsp_read(sdev, ACP_DSP_BAR, src->pme_sts_reg);
+		if (sdw_pme_stat) {
+			sdw_wake_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP7X_SW_WAKE_EN);
+			sdw_wake_en &= ~src->wake_en_mask;
+			snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP7X_SW_WAKE_EN, sdw_wake_en);
+			snd_sof_dsp_write(sdev, ACP_DSP_BAR, src->pme_sts_reg, sdw_pme_stat);
+			woke = true;
+		}
+
+		if (woke) {
+			adata->acp7x_sdw_wake_event[src->instance] = true;
+			sdw_wake_irq = true;
+		}
+	}
+
+	if (sdw_wake_irq) {
+		sof_amd_handle_acp7x_sdw_wake_event(adata);
+		return WAKE_IRQ_HANDLED;
+	}
+	return WAKE_IRQ_NONE;
+}
+
+static void sof_acp7x_handle_sdw_manager_irq(struct snd_sof_dev *sdev,
+					     struct acp_dev_data *adata,
+					     const struct sof_amd_acp_desc *desc,
+					     unsigned int instance,
+					     u32 ext_stat_mask)
+{
+	struct amd_sdw_manager *amd_manager;
+	unsigned int sdw_intr_stat;
+	u32 sw_intr_reg = ACP7X_EXTERNAL_SW_INTR_STAT + (instance * 4);
+
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat, ext_stat_mask);
+	sdw_intr_stat = snd_sof_dsp_read(sdev, ACP_DSP_BAR, sw_intr_reg);
+	if (sdw_intr_stat & ACP7X_EXTERNAL_SDW_STAT) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, sw_intr_reg, ACP7X_EXTERNAL_SDW_STAT);
+		if (!adata->sdw->pdev[instance])
+			return;
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[instance]->dev);
+		if (amd_manager)
+			schedule_work(&amd_manager->amd_sdw_irq_thread);
+	}
+}
+
 static irqreturn_t acp7x_irq_handler(int irq, void *dev_id)
 {
 	struct snd_sof_dev *sdev = dev_id;
+	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	unsigned int base = desc->dsp_intr_base;
 	unsigned int val;
 	unsigned int ext_intr_stat;
-	int irq_flag = 0;
+	unsigned int instance;
+	int irq_flag = 0, wake_irq_flag = 0;
+	bool dsp_irq = false;
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, base + DSP_SW_INTR_STAT_OFFSET);
 	if (val & ACP_DSP_TO_HOST_IRQ) {
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, base + DSP_SW_INTR_STAT_OFFSET,
 				  ACP_DSP_TO_HOST_IRQ);
-		return IRQ_WAKE_THREAD;
+		dsp_irq = true;
 	}
 
 	ext_intr_stat = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->ext_intr_stat);
-	if (ext_intr_stat & ACP_ERROR_IRQ_MASK) {
-		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat, ACP_ERROR_IRQ_MASK);
-		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->acp_error_stat, 0);
+
+	if (adata->sdw) {
+		for (instance = 0; instance < ACP7X_SDW_MAX_MANAGER_COUNT; instance++) {
+			if (ext_intr_stat & acp7x_sof_sdw_ext_stat[instance]) {
+				sof_acp7x_handle_sdw_manager_irq(sdev, adata, desc, instance,
+								 acp7x_sof_sdw_ext_stat[instance]);
+				irq_flag = 1;
+			}
+		}
+	}
+
+	if (adata->sdw)
+		wake_irq_flag = sof_amd_check_and_handle_acp7x_sdw_wake_irq(sdev);
+	/*
+	 * SHA DMA completion interrupt (ACP_SHA_STAT, bit 15 of ext_intr_stat).
+	 * ACP_SHA_STAT has no dedicated mask bit in ACP_EXTERNAL_INTR_CNTL;
+	 * it is always enabled by default and fires only when SHA DMA completes
+	 * with SHA_IOC_En set.  SHA DMA is triggered exclusively during firmware
+	 * loading, so this interrupt is only asserted in that context.
+	 * Acknowledge and signal sha_dma_complete so configure_and_run_sha_dma()
+	 * can proceed to poll ACP_SHA_DSP_FW_QUALIFIER.
+	 */
+	if (ext_intr_stat & ACP_SHA_STAT) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat, ACP_SHA_STAT);
+		complete(&adata->sha_dma_complete);
 		irq_flag = 1;
 	}
 
-	if (irq_flag)
+	if (ext_intr_stat & ACP7X_ERROR_IRQ) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat, ACP7X_ERROR_IRQ);
+		sof_amd_acp7x_clear_sdw_err_regs(sdev);
+		irq_flag = 1;
+	}
+
+	if (dsp_irq)
+		return IRQ_WAKE_THREAD;
+
+	if (irq_flag || wake_irq_flag)
 		return IRQ_HANDLED;
 
 	return IRQ_NONE;
@@ -728,6 +955,8 @@ static int acp_init(struct snd_sof_dev *sdev)
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	struct acp_dev_data *acp_data;
 	unsigned int sdw0_wake_en, sdw1_wake_en;
+	u32 sdw_wake_en, intr_mask;
+	unsigned int i;
 	int ret;
 
 	/* power on */
@@ -771,6 +1000,20 @@ static int acp_init(struct snd_sof_dev *sdev)
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP7X_PME_EN, 1);
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP7X_DSP0_IDMA_ERROR_MASK,
 				  ACP7X_IDMA_ERROR_MASK);
+		/*
+		 * Enable host-wake interrupt per manager based on SW_WAKE_EN:
+		 * SW_WAKE_EN bit i enables ACP7X_SW_HOST_WAKE_MASK << i in INTR_CNTL1.
+		 */
+		sdw_wake_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP7X_SW_WAKE_EN);
+		intr_mask = 0;
+		for (i = 0; i < ACP7X_SDW_MAX_MANAGER_COUNT; i++) {
+			if (sdw_wake_en & BIT(i))
+				intr_mask |= ACP7X_SW_HOST_WAKE_MASK << i;
+		}
+		if (intr_mask)
+			snd_sof_dsp_update_bits(sdev, ACP_DSP_BAR,
+						ACP7X_EXTERNAL_INTR_CNTL1,
+						intr_mask, intr_mask);
 		break;
 	}
 	return 0;
@@ -779,15 +1022,30 @@ static int acp_init(struct snd_sof_dev *sdev)
 static bool check_acp_sdw_enable_status(struct snd_sof_dev *sdev)
 {
 	struct acp_dev_data *acp_data;
-	u32 sdw0_en, sdw1_en;
+	u32 sdw0_en, sdw1_en, sdw2_en, sdw3_en;
 
 	acp_data = sdev->pdata->hw_pdata;
 	if (!acp_data->sdw)
 		return false;
 
-	sdw0_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SW0_EN);
-	sdw1_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SW1_EN);
-	acp_data->sdw_en_stat = sdw0_en || sdw1_en;
+	switch (acp_data->pci_rev) {
+	case ACP63_PCI_ID:
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
+	case ACP72_PCI_ID:
+		sdw0_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SW0_EN);
+		sdw1_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SW1_EN);
+		acp_data->sdw_en_stat = sdw0_en || sdw1_en;
+		break;
+	case ACP7B_PCI_ID:
+	case ACP7F_PCI_ID:
+		sdw0_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP7X_SW_EN + (0 * 0x2000));
+		sdw1_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP7X_SW_EN + (1 * 0x2000));
+		sdw2_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP7X_SW_EN + (2 * 0x2000));
+		sdw3_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP7X_SW_EN + (3 * 0x2000));
+		acp_data->sdw_en_stat = sdw0_en || sdw1_en || sdw2_en || sdw3_en;
+		break;
+	}
 	return acp_data->sdw_en_stat;
 }
 
@@ -852,6 +1110,31 @@ int amd_sof_acp_resume(struct snd_sof_dev *sdev)
 	return acp_dsp_reset(sdev);
 }
 EXPORT_SYMBOL_NS(amd_sof_acp_resume, "SND_SOC_SOF_AMD_COMMON");
+
+static void acp_sof_scan_pdm_devices(struct snd_sof_dev *sdev,
+				     struct acpi_device *pdm_dev)
+{
+	struct acp_dev_data *acp_data = sdev->pdata->hw_pdata;
+	struct fwnode_handle *fwnode, *child;
+	u32 ep_port_val;
+
+	fwnode = acpi_fwnode_handle(pdm_dev);
+	child = fwnode_get_next_child_node(fwnode, NULL);
+	if (!child)
+		return;
+
+	if (!fwnode_property_read_u32(child, "acp-audio-ep-port", &ep_port_val)) {
+		if (ep_port_val == ACP_DEV_PORT_PDM)
+			acp_data->pdm_sel = ACP7X_PDM_DMIC0;
+		else if (ep_port_val == ACP_DEV_PORT_PDM2)
+			acp_data->pdm_sel = ACP7X_PDM_DMIC1;
+		else
+			dev_warn(sdev->dev,
+				 "acp-audio-ep-port: unrecognized value %u\n",
+				 ep_port_val);
+	}
+	fwnode_handle_put(child);
+}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_AMD_SOUNDWIRE)
 static int acp_sof_scan_sdw_devices(struct snd_sof_dev *sdev, u64 addr)
@@ -967,7 +1250,10 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	adata->addr = addr;
 	adata->reg_range = chip->reg_end_addr - chip->reg_start_addr;
 	adata->pci_rev = pci->revision;
+	adata->subsystem_vendor = pci->subsystem_vendor;
+	adata->subsystem_device = pci->subsystem_device;
 	mutex_init(&adata->acp_lock);
+	init_completion(&adata->sha_dma_complete);
 	sdev->pdata->hw_pdata = adata;
 
 	ret = acp_init(sdev);
@@ -1038,6 +1324,8 @@ skip_soundwire:
 
 free_ipc_irq:
 	free_irq(sdev->ipc_irq, sdev);
+	if (adata->sdw)
+		amd_sof_sdw_exit(sdev);
 unregister_dev:
 	platform_device_unregister(adata->dmic_dev);
 	return ret;
@@ -1048,11 +1336,11 @@ void amd_sof_acp_remove(struct snd_sof_dev *sdev)
 {
 	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
 
-	if (adata->sdw)
-		amd_sof_sdw_exit(sdev);
-
 	if (sdev->ipc_irq)
 		free_irq(sdev->ipc_irq, sdev);
+
+	if (adata->sdw)
+		amd_sof_sdw_exit(sdev);
 
 	if (adata->dmic_dev)
 		platform_device_unregister(adata->dmic_dev);
@@ -1068,6 +1356,7 @@ int amd_sof_acp7x_probe(struct snd_sof_dev *sdev)
 	const struct sof_amd_acp_desc *chip;
 	const union acpi_object *obj;
 	struct acpi_device *adev;
+	struct acpi_device *pdm_dev;
 	unsigned int addr;
 	unsigned int irqflags;
 	int ret;
@@ -1101,7 +1390,10 @@ int amd_sof_acp7x_probe(struct snd_sof_dev *sdev)
 	adata->addr = addr;
 	adata->reg_range = chip->reg_end_addr - chip->reg_start_addr;
 	adata->pci_rev = pci->revision;
+	adata->subsystem_vendor = pci->subsystem_vendor;
+	adata->subsystem_device = pci->subsystem_device;
 	mutex_init(&adata->acp_lock);
+	init_completion(&adata->sha_dma_complete);
 	sdev->pdata->hw_pdata = adata;
 
 	ret = acp_init(sdev);
@@ -1120,7 +1412,27 @@ int amd_sof_acp7x_probe(struct snd_sof_dev *sdev)
 		goto unregister_dev;
 	}
 
+	/* scan SoundWire capabilities exposed by DSDT */
+	ret = acp_sof_scan_sdw_devices(sdev, chip->sdw_acpi_dev_addr);
+	if (ret < 0) {
+		dev_dbg(sdev->dev, "skipping SoundWire, not detected with ACPI scan\n");
+		goto skip_soundwire;
+	}
+	ret = amd_sof_sdw_probe(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: SoundWire probe error\n");
+		goto free_ipc_irq;
+	}
+	if (adata->info.link_mask)
+		adata->is_sdw_dev = true;
+
+skip_soundwire:
 	if (adev) {
+		/* DMIC ACPI child address is 2 on ACP7x platforms */
+		pdm_dev = acpi_find_child_device(adev, ACP7X_DMIC_ADDR, 0);
+		if (pdm_dev)
+			acp_sof_scan_pdm_devices(sdev, pdm_dev);
+
 		if (!acpi_dev_get_property(adev, "acp-sof-signed-firmware-image",
 					   ACPI_TYPE_INTEGER, &obj))
 			adata->acp_sof_signed_firmware_image = obj->integer.value;
@@ -1154,10 +1466,26 @@ int amd_sof_acp7x_probe(struct snd_sof_dev *sdev)
 	acp_memory_init(sdev);
 	acp_dsp_stream_init(sdev);
 
+	/*
+	 * Carveout is the only supported signed firmware load path on
+	 * ACP7.B/7.F. Query ASP now when signed firmware is enabled so
+	 * probe fails cleanly if carveout is unavailable.
+	 */
+	if (adata->acp_sof_signed_firmware_image) {
+		ret = acp7x_query_asp_carveout(sdev);
+		if (ret) {
+			dev_err(sdev->dev,
+				"ASP carveout unavailable, cannot load firmware: %d\n", ret);
+			goto free_ipc_irq;
+		}
+	}
+
 	return 0;
 
 free_ipc_irq:
 	free_irq(sdev->ipc_irq, sdev);
+	if (adata->sdw)
+		amd_sof_sdw_exit(sdev);
 unregister_dev:
 	platform_device_unregister(adata->dmic_dev);
 	return ret;
@@ -1171,12 +1499,50 @@ void amd_sof_acp7x_remove(struct snd_sof_dev *sdev)
 	if (sdev->ipc_irq)
 		free_irq(sdev->ipc_irq, sdev);
 
+	if (adata->sdw)
+		amd_sof_sdw_exit(sdev);
+
 	if (adata->dmic_dev)
 		platform_device_unregister(adata->dmic_dev);
 
 	acp_reset(sdev);
 }
 EXPORT_SYMBOL_NS(amd_sof_acp7x_remove, "SND_SOC_SOF_AMD_COMMON");
+
+static void handle_amd_sof_acp7x_sdw_pme_event(struct snd_sof_dev *sdev)
+{
+	struct acp_dev_data *adata;
+	struct amd_sdw_manager *amd_manager;
+	u32 sdw_pme_stat, sdw_wake_en, pme_reg, wake_mask;
+	unsigned int instance;
+
+	adata = sdev->pdata->hw_pdata;
+	if (!adata->sdw)
+		return;
+
+	for (instance = 0; instance < ACP7X_SDW_MAX_MANAGER_COUNT; instance++) {
+		pme_reg = ACP7X_SW_PME_STS + (instance * 4);
+		wake_mask = ACP7X_SW_WAKE_EN_MASK << instance;
+
+		sdw_pme_stat = snd_sof_dsp_read(sdev, ACP_DSP_BAR, pme_reg);
+		if (!sdw_pme_stat)
+			continue;
+
+		mutex_lock(&adata->acp_lock);
+		sdw_wake_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP7X_SW_WAKE_EN);
+		sdw_wake_en &= ~wake_mask;
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP7X_SW_WAKE_EN, sdw_wake_en);
+		mutex_unlock(&adata->acp_lock);
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, pme_reg, sdw_pme_stat);
+
+		if (!adata->sdw->pdev[instance])
+			continue;
+
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[instance]->dev);
+		if (amd_manager)
+			pm_request_resume(amd_manager->dev);
+	}
+}
 
 int amd_sof_acp7x_suspend(struct snd_sof_dev *sdev, u32 target_state)
 {
@@ -1185,6 +1551,11 @@ int amd_sof_acp7x_suspend(struct snd_sof_dev *sdev, u32 target_state)
 	bool enable = false;
 
 	acp_data = sdev->pdata->hw_pdata;
+
+	if (acp_data->is_sdw_dev && check_acp_sdw_enable_status(sdev)) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP7X_ZSC_DSP_CTRL, 1);
+		return acp_dsp_reset(sdev);
+	}
 
 	ret = acp_reset(sdev);
 	if (ret) {
@@ -1197,7 +1568,8 @@ int amd_sof_acp7x_suspend(struct snd_sof_dev *sdev, u32 target_state)
 		enable = true;
 		break;
 	default:
-		break;
+		dev_err(sdev->dev, "Unexpected PCI revision: 0x%x\n", acp_data->pci_rev);
+		return -EINVAL;
 	}
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_CONTROL, enable);
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP7X_ZSC_DSP_CTRL, 1);
@@ -1206,12 +1578,24 @@ int amd_sof_acp7x_suspend(struct snd_sof_dev *sdev, u32 target_state)
 }
 EXPORT_SYMBOL_NS(amd_sof_acp7x_suspend, "SND_SOC_SOF_AMD_COMMON");
 
-int amd_sof_acp7x_resume(struct snd_sof_dev *sdev)
+int amd_sof_acp7x_suspend_runtime(struct snd_sof_dev *sdev)
+{
+	return amd_sof_acp7x_suspend(sdev, 0);
+}
+EXPORT_SYMBOL_NS(amd_sof_acp7x_suspend_runtime, "SND_SOC_SOF_AMD_COMMON");
+
+int amd_sof_acp7x_resume_runtime(struct snd_sof_dev *sdev)
 {
 	struct acp_dev_data *acp_data;
 	int ret;
 
 	acp_data = sdev->pdata->hw_pdata;
+
+	if (acp_data->sdw_en_stat) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP7X_ZSC_DSP_CTRL, 0);
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP7X_PME_EN, 1);
+		return acp_dsp_reset(sdev);
+	}
 
 	ret = acp_init(sdev);
 	if (ret) {
@@ -1224,30 +1608,40 @@ int amd_sof_acp7x_resume(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	switch (acp_data->pci_rev) {
-	case ACP7B_PCI_ID:
-	case ACP7F_PCI_ID:
+	if (acp_data->is_sdw_dev)
+		handle_amd_sof_acp7x_sdw_pme_event(sdev);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(amd_sof_acp7x_resume_runtime, "SND_SOC_SOF_AMD_COMMON");
+
+int amd_sof_acp7x_resume(struct snd_sof_dev *sdev)
+{
+	struct acp_dev_data *acp_data;
+	int ret;
+
+	acp_data = sdev->pdata->hw_pdata;
+
+	if (acp_data->sdw_en_stat) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP7X_ZSC_DSP_CTRL, 0);
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP7X_PME_EN, 1);
-		break;
-	default:
-		break;
+		return acp_dsp_reset(sdev);
+	}
+
+	ret = acp_init(sdev);
+	if (ret) {
+		dev_err(sdev->dev, "ACP Init failed\n");
+		return ret;
+	}
+	ret = acp_memory_init(sdev);
+	if (ret) {
+		dev_err(sdev->dev, "ACP Memory init failed\n");
+		return ret;
 	}
 
 	return 0;
 }
 EXPORT_SYMBOL_NS(amd_sof_acp7x_resume, "SND_SOC_SOF_AMD_COMMON");
-
-int amd_sof_acp7x_suspend_runtime(struct snd_sof_dev *sdev)
-{
-	return amd_sof_acp7x_suspend(sdev, 0);
-}
-EXPORT_SYMBOL_NS(amd_sof_acp7x_suspend_runtime, "SND_SOC_SOF_AMD_COMMON");
-
-int amd_sof_acp7x_resume_runtime(struct snd_sof_dev *sdev)
-{
-	return amd_sof_acp7x_resume(sdev);
-}
-EXPORT_SYMBOL_NS(amd_sof_acp7x_resume_runtime, "SND_SOC_SOF_AMD_COMMON");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("AMD ACP sof driver");

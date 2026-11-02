@@ -687,7 +687,7 @@ static irqreturn_t aw96103_irq(int irq, void *data)
 				       iio_get_time_ns(indio_dev));
 			break;
 		default:
-			return IRQ_HANDLED;
+			continue;
 		}
 		aw96103->channels_arr[i].old_irq_status = curr_status;
 	}

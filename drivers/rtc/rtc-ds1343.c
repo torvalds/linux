@@ -94,9 +94,9 @@ static ssize_t ds1343_show_glitchfilter(struct device *dev,
 	glitch_filt_status = !!(data & DS1343_EGFIL);
 
 	if (glitch_filt_status)
-		return sprintf(buf, "enabled\n");
+		return sysfs_emit(buf, "enabled\n");
 	else
-		return sprintf(buf, "disabled\n");
+		return sysfs_emit(buf, "disabled\n");
 }
 
 static ssize_t ds1343_store_glitchfilter(struct device *dev,
@@ -180,7 +180,7 @@ static ssize_t ds1343_show_tricklecharger(struct device *dev,
 		}
 	}
 
-	return sprintf(buf, "%s %s\n", diodes, resistors);
+	return sysfs_emit(buf, "%s %s\n", diodes, resistors);
 }
 
 static DEVICE_ATTR(trickle_charger, 0444, ds1343_show_tricklecharger, NULL);
@@ -312,11 +312,11 @@ static irqreturn_t ds1343_thread(int irq, void *dev_id)
 	unsigned int stat;
 	int res = 0;
 
-	rtc_lock(priv->rtc);
+	guard(rtc_ops)(priv->rtc);
 
 	res = regmap_read(priv->map, DS1343_STATUS_REG, &stat);
 	if (res)
-		goto out;
+		return IRQ_HANDLED;
 
 	if (stat & DS1343_IRQF0) {
 		stat &= ~DS1343_IRQF0;
@@ -328,8 +328,6 @@ static irqreturn_t ds1343_thread(int irq, void *dev_id)
 				   DS1343_A0IE, 0);
 	}
 
-out:
-	rtc_unlock(priv->rtc);
 	return IRQ_HANDLED;
 }
 

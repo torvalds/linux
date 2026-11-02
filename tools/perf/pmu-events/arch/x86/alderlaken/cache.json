@@ -4,7 +4,7 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x31",
         "EventName": "CORE_REJECT_L2Q.ANY",
-        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2 queue (L2Q) due to a full or nearly full condition, which likely indicates back pressure from L2Q.  It also counts requests that would have gone directly to the External Queue (XQ), but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link.  The L2Q may also reject transactions  from a core to ensure fairness between cores, or to delay a cores dirty eviction when the address conflicts incoming external snoops.  (Note that L2 prefetcher requests that are dropped are not counted by this event).  Counts on a per core basis.",
+        "PublicDescription": "Counts the number of core requests (demand and L1 prefetchers) rejected by the L2 queue (L2Q) due to a full or nearly full condition, which likely indicates back pressure from L2Q. It also counts requests that would have gone directly to the External Queue (XQ) but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link. The L2Q may also reject transactions from a core to ensure fairness between cores, or to delay a cores dirty eviction when the address conflicts with incoming external snoops. (Note that L2 prefetcher requests that are dropped are not counted by this event). Counts on a per core basis.",
         "SampleAfterValue": "200003"
     },
     {
@@ -12,7 +12,7 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x30",
         "EventName": "L2_REJECT_XQ.ANY",
-        "PublicDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition which likely indicates back pressure from the IDI link.  The XQ may reject transactions from the L2Q (non-cacheable requests), BBL (L2 misses) and WOB (L2 write-back victims).",
+        "PublicDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition, which likely indicates back pressure from the IDI link. The XQ may reject transactions from the L2Q (non-cacheable requests), BBL (L2 misses) and WOB (L2 write-back victims).",
         "SampleAfterValue": "200003"
     },
     {

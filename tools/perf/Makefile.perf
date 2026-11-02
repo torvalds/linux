@@ -17,9 +17,8 @@ include ../scripts/utilities.mak
 #
 # Define CROSS_COMPILE as prefix name of compiler if you want cross-builds.
 #
-# Define LIBPERL to enable perl script extension.
 #
-# Define NO_LIBPYTHON to disable python script extension.
+# Define NO_PYTHON_MODULE to disable python script extension.
 #
 # Define PYTHON to point to the python binary if the default
 # `python' is not correct; for example: PYTHON=python2
@@ -49,7 +48,7 @@ include ../scripts/utilities.mak
 #
 # Define NO_SLANG if you do not want TUI support.
 #
-# Define GTK2 if you want GTK+ GUI support.
+# Define GTK4 if you want GTK+ GUI support.
 #
 # Define NO_DEMANGLE if you do not want C++ symbol demangling.
 #
@@ -63,9 +62,6 @@ include ../scripts/utilities.mak
 # Define NO_LIBNUMA if you do not want numa perf benchmark
 #
 # Define NO_LIBBIONIC if you do not want bionic support
-#
-# Define NO_LIBDW_DWARF_UNWIND if you do not want libdw support
-# for dwarf backtrace post unwind.
 #
 # Define NO_LIBTRACEEVENT=1 if you don't want libtraceevent to be linked,
 # this will remove multiple features and tools, such as 'perf trace',
@@ -129,6 +125,10 @@ include ../scripts/utilities.mak
 # Define GEN_VMLINUX_H to generate vmlinux.h from the BTF.
 #
 # Define NO_SHELLCHECK if you do not want to run shellcheck during build
+#
+# Define NO_MYPY if you do not want to run mypy during build
+#
+# Define NO_PYLINT if you do not want to run pylint during build
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -258,18 +258,67 @@ ifneq ($(SHELLCHECK),)
         sed -e 's/.\+ \([0-9]\+\).\([0-9]\+\).\([0-9]\+\)/\1\2\3/g') \< 072), 1)
     SHELLCHECK :=
   else
-    SHELLCHECK := $(SHELLCHECK) -s bash -a -S warning
+    SHELLCHECK := $(SHELLCHECK) -s bash -a -S warning -x -P SCRIPTDIR
   endif
 endif
 
-# Runs mypy on perf python files
-ifeq ($(MYPY),1)
-  MYPY := $(shell which mypy 2> /dev/null)
+# Runs mypy on perf python files.
+# Wait until after the fixdep bootstrap sub-make (force_fixdep != 1) so
+# command-line overrides (MYPY=1, MYPY=/custom/path, NO_MYPY=1) reach the
+# main Makefile.perf pass intact, then strip MYPY=% from MAKEOVERRIDES
+# (substituting escaped spaces so multi-word overrides like MYPY="mypy --strict"
+# are removed as a single token) so child Makefile.build sub-makes inherit the
+# MYPYPATH-wrapped export MYPY environment variable.
+ifneq ($(force_fixdep),1)
+  MAKEOVERRIDES := $(subst __SPACE__,\ ,$(filter-out MYPY=%,$(subst \ ,__SPACE__,$(MAKEOVERRIDES))))
+  ifeq ($(NO_MYPY),1)
+    override MYPY :=
+  else ifeq ($(filter-out 1,$(MYPY)),)
+    override MYPY := $(shell which mypy 2> /dev/null)
+  endif
+
+  ifneq ($(MYPY),)
+    override MYPY := MYPYPATH=$(srctree)/tools/perf/python $(MYPY) --ignore-missing-imports
+  endif
 endif
 
-# Runs pylint on perf python files
-ifeq ($(PYLINT),1)
-  PYLINT := $(shell which pylint 2> /dev/null)
+# Runs pylint on perf python files.
+# Require pylint >= 2.16.0 (which introduced W0718 broad-exception-caught).
+# Note: astroid's ImportlibFinder only resolves .pyi stubs for package
+# directories (__init__.pyi), not single-file stubs like perf.pyi, and does not
+# introspect C extensions by default. Pass 'perf' in --ignored-modules (leaving
+# perf module type-checking to mypy via perf.pyi) so pylint does not depend on
+# building the perf Python C extension first.
+# Disabled warnings:
+#   W0123 (eval-used): Use of eval()
+#   W0311 (bad-indentation): Non-4-space indentation
+#   W0511 (fixme): Presence of FIXME/TODO comments
+#   W0603 (global-statement): Use of the global statement
+#   W0622 (redefined-builtin): Redefining a built-in name (e.g. id, type, dir)
+#   W0718 (broad-exception-caught): Catching broad Exception
+# Wait until after the fixdep bootstrap sub-make (force_fixdep != 1) before
+# resolving PYLINT and stripping PYLINT=% from MAKEOVERRIDES (substituting
+# escaped spaces so multi-word overrides are removed as a single token) so child
+# Makefile.build sub-makes inherit the PYTHONPATH- and flag-wrapped export.
+ifneq ($(force_fixdep),1)
+  MAKEOVERRIDES := $(subst __SPACE__,\ ,$(filter-out PYLINT=%,$(subst \ ,__SPACE__,$(MAKEOVERRIDES))))
+  ifeq ($(NO_PYLINT),1)
+    override PYLINT :=
+  else ifeq ($(filter-out 1,$(PYLINT)),)
+    override PYLINT := $(shell which pylint 2> /dev/null)
+  endif
+
+  ifneq ($(PYLINT),)
+    ifneq ($(shell $(PYLINT) --version 2>/dev/null | \
+          awk '/^pylint / { split($$2, v, "."); print (v[1]+0 > 2 || (v[1]+0 == 2 && v[2]+0 >= 16)) }'), 1)
+      $(warning Warning: pylint version is older than 2.16.0, skipping pylint checks.)
+      override PYLINT :=
+    else
+      override PYLINT := PYTHONPATH=$(srctree)/tools/perf/python:$(srctree)/tools/perf/pmu-events \
+        $(PYLINT) --disable=all --enable=E,W --disable=W0123,W0311,W0511,W0603,W0622,W0718 \
+        --ignored-modules=perf,textual,setproctitle
+    endif
+  endif
 endif
 
 export srctree OUTPUT RM CC CXX RUSTC CLANG LD AR CFLAGS CXXFLAGS RUST_FLAGS V BISON FLEX AWK LIBBPF READELF
@@ -278,9 +327,17 @@ export HOSTCC HOSTLD HOSTAR HOSTCFLAGS SHELLCHECK MYPY PYLINT CONFIG_PERF_BPF_SK
 include $(srctree)/tools/build/Makefile.include
 
 ifeq ($(force_fixdep),1)
-goals := $(filter-out all sub-make, $(MAKECMDGOALS))
+goals := $(filter-out all sub-make clean, $(MAKECMDGOALS))
 
-$(goals) all: sub-make
+ifneq ($(filter clean,$(MAKECMDGOALS)),)
+clean-make:
+	$(Q)$(MAKE) -f Makefile.perf -j1 clean
+
+fixdep: clean-make
+.PHONY: clean-make
+endif
+
+$(goals) all clean: sub-make
 
 sub-make: fixdep
 	$(Q)$(MAKE) FIXDEP_BUILT=1 -f Makefile.perf $(goals)
@@ -397,7 +454,8 @@ PYTHON_EXTBUILD_LIB := $(PYTHON_EXTBUILD)lib/
 PYTHON_EXTBUILD_TMP := $(PYTHON_EXTBUILD)tmp/
 export PYTHON_EXTBUILD_LIB PYTHON_EXTBUILD_TMP
 
-python-clean := $(call QUIET_CLEAN, python) $(RM) -r $(PYTHON_EXTBUILD) $(OUTPUT)python/perf*.so
+# Put Python bytecode in output directory
+export PYTHONPYCACHEPREFIX := $(OUTPUT)/__pycache__
 
 ifneq ($(quiet),)
 python_setup_quiet=--quiet
@@ -437,11 +495,6 @@ OTHER_PROGRAMS = $(OUTPUT)perf
 ifndef SHELL_PATH
   SHELL_PATH = /bin/sh
 endif
-ifndef PERL_PATH
-  PERL_PATH = /usr/bin/perl
-endif
-
-export PERL_PATH
 
 LIBPERF_BENCH_IN := $(OUTPUT)perf-bench-in.o
 LIBPERF_BENCH := $(OUTPUT)libperf-bench.a
@@ -473,7 +526,7 @@ ifneq ($(OUTPUT),)
   CFLAGS += -I$(OUTPUT)
 endif
 
-ifdef GTK2
+ifdef GTK4
   ALL_PROGRAMS += $(OUTPUT)libperf-gtk.so
   GTK_IN := $(OUTPUT)gtk-in.o
 endif
@@ -485,8 +538,8 @@ endif
 EXTLIBS := $(call filter-out,$(EXCLUDE_EXTLIBS),$(EXTLIBS))
 LIBS = -Wl,--whole-archive $(PERFLIBS) $(EXTRA_PERFLIBS) -Wl,--no-whole-archive -Wl,--start-group $(EXTLIBS) -Wl,--end-group
 
-PERFLIBS_PY := $(call filter-out,$(LIBPERF_BENCH) $(LIBPERF_TEST),$(PERFLIBS))
-LIBS_PY = -Wl,--whole-archive $(PERFLIBS_PY) $(EXTRA_PERFLIBS) -Wl,--no-whole-archive -Wl,--start-group $(EXTLIBS) -Wl,--end-group
+PERFLIBS_PY := $(call filter-out,$(LIBPERF_BENCH) $(LIBPERF_TEST),$(PERFLIBS)) $(EXTRA_PERFLIBS)
+LIBS_PY = -Wl,--whole-archive $(PERFLIBS_PY) -Wl,--no-whole-archive -Wl,--start-group $(EXTLIBS) -Wl,--end-group
 
 export INSTALL SHELL_PATH
 
@@ -518,8 +571,10 @@ $(shell [ -d '$(OUTPUT)python' ] || mkdir -p '$(OUTPUT)python')
 $(OUTPUT)python/perf$(PYTHON_EXTENSION_SUFFIX): util/python.c util/setup.py python/perf.pyi $(PERFLIBS_PY)
 	$(QUIET_GEN)LDSHARED="$(CC) -pthread -shared" \
         CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS) $(LIBS_PY)' \
+	  PYTHON_EXT_DEPS='$(PERFLIBS_PY)' \
 	  $(PYTHON_WORD) util/setup.py \
 	  $(python_setup_quiet) build_ext; \
+	$(MKDIR) -p $(OUTPUT)python; \
 	cp $(PYTHON_EXTBUILD_LIB)perf*.so $(OUTPUT)python/; \
 	if [ "$(abspath python/perf.pyi)" != "$(abspath $(OUTPUT)python/perf.pyi)" ]; then \
 		cp python/perf.pyi $(OUTPUT)python/; \
@@ -537,6 +592,7 @@ strip: $(PROGRAMS) $(OUTPUT)perf
 	$(STRIP) $(STRIP_OPTS) $(PROGRAMS) $(OUTPUT)perf
 
 PERF_IN := $(OUTPUT)perf-in.o
+
 export NO_JEVENTS
 
 build := -f $(srctree)/tools/build/Makefile.build dir=. obj
@@ -591,6 +647,54 @@ $(SCRIPTS) : $(OUTPUT)% : %.sh
 
 $(OUTPUT)PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
 	$(Q)$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
+
+ifdef SHELLCHECK
+# Run shellcheck independently of C builds.
+all: shellcheck-perf shellcheck-tests
+.PHONY: shellcheck-perf shellcheck-tests
+
+shellcheck-perf:
+	$(Q)$(MAKE) $(build)=perf shellcheck
+
+shellcheck-tests:
+	$(Q)$(MAKE) $(build)=perf-test dir=tests shellcheck
+endif
+
+ifdef MYPY
+# Run mypy independently of C builds.
+all: mypy-perf mypy-tests mypy-util mypy-pmu-events
+.PHONY: mypy-perf mypy-tests mypy-util mypy-pmu-events
+
+mypy-perf:
+	$(Q)$(MAKE) $(build)=perf mypy
+
+mypy-tests:
+	$(Q)$(MAKE) $(build)=perf-test dir=tests mypy
+
+mypy-util:
+	$(Q)$(MAKE) $(build)=perf-util dir=util mypy
+
+mypy-pmu-events:
+	$(Q)$(MAKE) $(build)=pmu-events dir=pmu-events mypy
+endif
+
+ifdef PYLINT
+# Run pylint independently of C builds.
+all: pylint-perf pylint-tests pylint-util pylint-pmu-events
+.PHONY: pylint-perf pylint-tests pylint-util pylint-pmu-events
+
+pylint-perf:
+	$(Q)$(MAKE) $(build)=perf pylint
+
+pylint-tests:
+	$(Q)$(MAKE) $(build)=perf-test dir=tests pylint
+
+pylint-util:
+	$(Q)$(MAKE) $(build)=perf-util dir=util pylint
+
+pylint-pmu-events:
+	$(Q)$(MAKE) $(build)=pmu-events dir=pmu-events pylint
+endif
 
 # These can record PERF_VERSION
 perf.spec $(SCRIPTS) \
@@ -766,6 +870,9 @@ help:
 	@echo ''
 	@echo 'Perf maintainer targets:'
 	@echo '  clean			- clean all binary objects and build output'
+	@echo '  check-headers		- check which header copies are out of sync with the kernel'
+	@echo '  sync-headers		- sync those header copies with the kernel, creating commits'
+	@echo '			  (SYNC_HEADERS_ARGS="..." passes options to the script)'
 
 
 DOC_TARGETS := doc man html info pdf
@@ -811,7 +918,7 @@ check: prepare
 
 ### Installation rules
 
-ifdef GTK2
+ifdef GTK4
 install-gtk: $(OUTPUT)libperf-gtk.so
 	$(call QUIET_INSTALL, 'GTK UI') \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(libdir_SQ)'; \
@@ -846,21 +953,14 @@ endif
 		$(INSTALL) $(OUTPUT)perf-archive -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
 	$(call QUIET_INSTALL, perf-iostat) \
 		$(INSTALL) $(OUTPUT)perf-iostat -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
-ifdef LIBPERL
-	$(call QUIET_INSTALL, perl-scripts) \
-		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/Perf-Trace-Util/lib/Perf/Trace'; \
-		$(INSTALL) scripts/perl/Perf-Trace-Util/lib/Perf/Trace/* -m 644 -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/Perf-Trace-Util/lib/Perf/Trace'; \
-		$(INSTALL) scripts/perl/*.pl -m 644 -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl'; \
-		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/bin'; \
-		$(INSTALL) scripts/perl/bin/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/bin'
-endif
-ifndef NO_LIBPYTHON
+ifndef NO_PYTHON_MODULE
 	$(call QUIET_INSTALL, python-scripts) \
-		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/Perf-Trace-Util/lib/Perf/Trace'; \
-		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/bin'; \
-		$(INSTALL) scripts/python/Perf-Trace-Util/lib/Perf/Trace/* -m 644 -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/Perf-Trace-Util/lib/Perf/Trace'; \
-		$(INSTALL) scripts/python/*.py -m 644 -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python'; \
-		$(INSTALL) scripts/python/bin/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/bin'
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/python' && \
+		$(INSTALL) python/*.py -m 755 -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/python' && \
+		$(INSTALL) python/perf.pyi -m 644 -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/python' && \
+		if [ -f "$(OUTPUT)python/perf$(PYTHON_EXTENSION_SUFFIX)" ]; then \
+			$(INSTALL) "$(OUTPUT)python/perf$(PYTHON_EXTENSION_SUFFIX)" -m 644 -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/python'; \
+		fi
 endif
 	$(call QUIET_INSTALL, dlfilters) \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/dlfilters'; \
@@ -907,8 +1007,10 @@ install: install-bin try-install-man
 install-build-deps:
 	$(Q)$(SHELL) $(srctree)/tools/perf/scripts/install-build-deps.sh $(INSTALL_BUILD_DEPS_ARGS)
 
-install-python_ext:
-	$(PYTHON_WORD) util/setup.py $(python_setup_quiet) install --root='/$(DESTDIR_SQ)'
+install-python_ext: $(LANG_BINDINGS)
+	$(PYTHON_WORD) util/setup.py $(python_setup_quiet) \
+		$(if $(OUTPUT),egg_info --egg-base $(OUTPUT)) \
+		install --root='/$(DESTDIR_SQ)'
 
 # 'make install-doc' should call 'make -C Documentation install'
 $(INSTALL_DOC_TARGETS):
@@ -917,7 +1019,12 @@ $(INSTALL_DOC_TARGETS):
 ### Cleaning rules
 
 python-clean:
-	$(python-clean)
+	$(call QUIET_CLEAN, python) $(RM) -r $(PYTHON_EXTBUILD) $(OUTPUT)__pycache__ \
+		$(OUTPUT)python/perf*.so
+	@if [ "$(abspath python/perf.pyi)" != "$(abspath $(OUTPUT)python/perf.pyi)" ]; \
+	then \
+		$(RM) $(OUTPUT)python/perf.pyi; \
+	fi
 
 $(LIBAPI_OUTPUT) $(LIBBPF_OUTPUT) $(LIBPERF_OUTPUT) $(LIBSUBCMD_OUTPUT) $(LIBSYMBOL_OUTPUT):
 	$(Q)$(MKDIR) -p $@
@@ -948,10 +1055,11 @@ clean:: $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean $(LIBSYMBOL)-clean $(
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIBPERF_A) $(OUTPUT)perf-archive \
 		$(OUTPUT)perf-iostat $(LANG_BINDINGS)
 	$(Q)find $(or $(OUTPUT),.) -name '*.o' -delete -o -name '*.a' -delete -o \
-		-name '\.*.cmd' -delete -o -name '\.*.d' -delete -o -name '*.shellcheck_log' -delete
+		-name '\.*.cmd' -delete -o -name '\.*.d' -delete -o -name '*.shellcheck_log' -delete -o \
+		-name '*.mypy_log' -delete -o -name '*.pylint_log' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected
 	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 \
-		perf-read-vdsox32 $(OUTPUT)$(LIBJVMTI).so
+		perf-read-vdsox32 $(OUTPUT)$(LIBJVMTI).so $(OUTPUT)libperf-gtk.so
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo \
 		TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE \
 		$(OUTPUT)FEATURE-DUMP $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex* \
@@ -975,7 +1083,9 @@ endif
 
 FORCE:
 
-.PHONY: all install install-build-deps clean config-clean strip install-gtk
+.PHONY: all install install-bin install-tools install-tests install-build-deps
+.PHONY: install-gtk install-python_ext $(DOC_TARGETS) $(INSTALL_DOC_TARGETS)
+.PHONY: clean config-clean strip
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
 .PHONY: .FORCE-PERF-VERSION-FILE TAGS tags cscope FORCE prepare bpf-skel-prepare
 .PHONY: python_perf_target

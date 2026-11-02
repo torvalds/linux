@@ -305,10 +305,8 @@ static void mei_reset_work(struct work_struct *work)
 		schedule_work(&dev->reset_work);
 }
 
-void mei_stop(struct mei_device *dev)
+static void __mei_stop(struct mei_device *dev)
 {
-	dev_dbg(&dev->dev, "stopping the device.\n");
-
 	mutex_lock(&dev->device_lock);
 	mei_set_devstate(dev, MEI_DEV_POWERING_DOWN);
 	mutex_unlock(&dev->device_lock);
@@ -318,6 +316,35 @@ void mei_stop(struct mei_device *dev)
 	mutex_unlock(&dev->device_lock);
 
 	mei_cancel_work(dev);
+}
+
+/**
+ * mei_stop_fast - stop driver, clean bus and disable driver without resetting HW link
+ *
+ * @dev: the device structure
+ */
+void mei_stop_fast(struct mei_device *dev)
+{
+	dev_dbg(&dev->dev, "stopping the device fast.\n");
+
+	__mei_stop(dev);
+
+	mutex_lock(&dev->device_lock);
+	mei_set_devstate(dev, MEI_DEV_DISABLED);
+	mutex_unlock(&dev->device_lock);
+}
+EXPORT_SYMBOL_GPL(mei_stop_fast);
+
+/**
+ * mei_stop - stop driver, clean bus and disable driver with resetting HW link
+ *
+ * @dev: the device structure
+ */
+void mei_stop(struct mei_device *dev)
+{
+	dev_dbg(&dev->dev, "stopping the device.\n");
+
+	__mei_stop(dev);
 
 	mei_clear_interrupts(dev);
 	mei_synchronize_irq(dev);

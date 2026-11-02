@@ -569,8 +569,9 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @WOWLAN_KEK_KCK_MATERIAL: &struct iwl_wowlan_kek_kck_material_cmd_v2,
-	 * &struct iwl_wowlan_kek_kck_material_cmd_v3 or
-	 * &struct iwl_wowlan_kek_kck_material_cmd_v4
+	 * &struct iwl_wowlan_kek_kck_material_cmd_v3,
+	 * &struct iwl_wowlan_kek_kck_material_cmd_v4 or
+	 * &struct iwl_wowlan_kek_kck_material_cmd
 	 */
 	WOWLAN_KEK_KCK_MATERIAL = 0xe4,
 

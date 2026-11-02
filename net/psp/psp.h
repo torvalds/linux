@@ -19,6 +19,7 @@ bool psp_has_assoc_dev_in_ns(struct psp_dev *psd, struct net *net);
 int psp_attach_netdev_notifier(void);
 
 void psp_nl_notify_dev(struct psp_dev *psd, u32 cmd);
+void psp_nl_notify_disassoc(struct psp_dev *psd, struct net *net);
 
 struct psp_assoc *psp_assoc_create(struct psp_dev *psd);
 struct psp_dev *psp_dev_get_for_sock(struct sock *sk);
@@ -51,6 +52,18 @@ static inline bool psp_dev_is_registered(struct psp_dev *psd)
 {
 	lockdep_assert_held(&psd->lock);
 	return !!psd->ops;
+}
+
+static inline bool psp_dev_has_sadb(struct psp_dev *psd)
+{
+	lockdep_assert_held(&psd->lock);
+	return !!psd->ops->tx_key_del;
+}
+
+static inline bool psp_assoc_needs_tx_key_del(struct psp_assoc *pas)
+{
+	lockdep_assert_held(&pas->psd->lock);
+	return psp_dev_has_sadb(pas->psd) && pas->tx.spi;
 }
 
 #endif /* __PSP_PSP_H */

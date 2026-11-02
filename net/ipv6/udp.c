@@ -751,13 +751,7 @@ static int udpv6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			harderr = 1;
 	}
 	if (type == NDISC_REDIRECT) {
-		if (tunnel) {
-			ip6_redirect(skb, sock_net(sk), inet6_iif(skb),
-				     READ_ONCE(sk->sk_mark),
-				     sk_uid(sk));
-		} else {
-			ip6_sk_redirect(skb, sk);
-		}
+		ip6_sk_redirect(skb, sk);
 		goto out;
 	}
 

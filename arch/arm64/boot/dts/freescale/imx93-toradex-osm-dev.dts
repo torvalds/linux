@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * Copyright (c) Toradex
+ *
+ * Toradex OSM iMX93 SoM on OSM Development carrier board
+ *
+ * https://www.toradex.com/computer-on-modules/osm-arm-family/nxp-imx93
+ * https://www.toradex.com/products/carrier-board/osm-development-board
+ */
+
+/dts-v1/;
+
+#include "imx93.dtsi"
+#include "imx93-toradex-osm.dtsi"
+#include "imx93-imx91-toradex-osm-dev-common.dtsi"
+
+/ {
+	model = "Toradex OSM iMX93 on OSM Development Board";
+	compatible = "toradex,osm-imx93-dev",
+		     "toradex,osm-imx93",
+		     "fsl,imx93";
+};

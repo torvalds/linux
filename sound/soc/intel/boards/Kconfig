@@ -161,6 +161,20 @@ config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_CHT_RT5677_MACH
+	tristate "Cherrytrail with RT5677 codec"
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
+	select SND_SOC_ACPI
+	select SND_SOC_RT5677
+	select SND_SOC_TS3A227E
+	help
+	  This adds support for Cherry Trail platforms with an RT5677 codec
+	  and TS3A227E headset-jack detector. It currently supports the
+	  Lenovo Yoga Book YB1-X91F/L.
+	  Say Y or m if you have such a device. If unsure select "N".
+
 config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 	tristate "Cherrytrail & Braswell with RT5645/5650 codec"
 	depends on I2C && ACPI
@@ -536,6 +550,7 @@ config SND_SOC_INTEL_SOUNDWIRE_SOF_MACH
 	imply SND_SOC_TAC5XX2_SDW
 	select SND_SOC_DMIC
 	select SND_SOC_INTEL_HDA_DSP_COMMON
+	select SND_SOC_SN624X_SDCA_SDW
 	imply SND_SOC_SDW_MOCKUP
 	help
 	  Add support for Intel SoundWire-based platforms connected to

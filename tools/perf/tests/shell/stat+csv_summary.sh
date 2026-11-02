@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf stat csv summary test
+# perf stat csv summary test (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e

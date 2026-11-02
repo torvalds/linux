@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2018, 2025 Intel Corporation
+ * Copyright (C) 2018, 2025-2026 Intel Corporation
  *****************************************************************************/
 
 #include <linux/slab.h>
@@ -14,7 +14,6 @@
 
 #include "iwl-debug.h"
 #include "iwl-trans.h"
-#include "iwl-io.h"
 #include "dev.h"
 #include "agn.h"
 
@@ -1788,7 +1787,7 @@ static ssize_t iwl_dbgfs_power_save_status_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 	u32 pwrsave_status;
 
-	pwrsave_status = iwl_read32(priv->trans, CSR_GP_CNTRL) &
+	pwrsave_status = iwl_trans_read32(priv->trans, CSR_GP_CNTRL) &
 			CSR_GP_REG_POWER_SAVE_STATUS_MSK;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Power Save Status: ");

@@ -572,14 +572,14 @@ static void snd_sc6000_free(struct snd_card *card)
 		sc6000_setup_board(card->dev, sc6000->vport, 0);
 }
 
-static int __snd_sc6000_probe(struct device *devptr, unsigned int dev)
+static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 {
 	static const int possible_irqs[] = { 5, 7, 9, 10, 11, -1 };
 	static const int possible_dmas[] = { 1, 3, 0, -1 };
 	int err;
 	int xirq = irq[dev];
 	int xdma = dma[dev];
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	struct snd_sc6000 *sc6000;
 	struct snd_wss *chip;
 	struct snd_opl3 *opl3;
@@ -696,12 +696,8 @@ static int __snd_sc6000_probe(struct device *devptr, unsigned int dev)
 		return err;
 
 	dev_set_drvdata(devptr, card);
+	card = NULL; /* probe succeeded, don't release as error */
 	return 0;
-}
-
-static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
-{
-	return snd_card_free_on_error(devptr, __snd_sc6000_probe(devptr, dev));
 }
 
 #ifdef CONFIG_PM

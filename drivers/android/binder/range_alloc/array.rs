@@ -61,7 +61,7 @@ impl<T> ArrayRangeAllocator<T> {
         self.ranges.len() == self.ranges.capacity()
     }
 
-    pub(crate) fn debug_print(&self, m: &SeqFile) -> Result<()> {
+    pub(crate) fn debug_print(&self, m: &SeqFile) -> Result {
         for range in &self.ranges {
             seq_print!(
                 m,

@@ -469,10 +469,11 @@ static enum gpio_result dal_hw_ddc_set_config_i3cpad(
 	switch (config_data->config.ddc.type) {
 	/* For ASICs with i3cpad module there is no dual pad mode for i3cpads */
 	case GPIO_DDC_CONFIG_TYPE_MODE_I2C:
-		/* Enable the RX for the PAD (it is disabled by default). */
-		REG_UPDATE(dc_i3cpad_control1, DC_I3CPAD_RXSEL, 0);
-		return GPIO_RESULT_OK;
 	case GPIO_DDC_CONFIG_TYPE_MODE_AUX:
+		/* Enable the RX for the PAD (it is disabled by default). Required for
+		 * both I2C (EDID) and AUX (DPCD); without it the sink reply is never
+		 * received and the transaction times out. */
+		REG_UPDATE(dc_i3cpad_control1, DC_I3CPAD_RXSEL, 0);
 		return GPIO_RESULT_OK;
 
 	case GPIO_DDC_CONFIG_TYPE_POLL_FOR_CONNECT:

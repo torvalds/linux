@@ -11,6 +11,7 @@
 #include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 #include <linux/mfd/cgbc.h>
@@ -38,19 +39,19 @@ static unsigned int timeout;
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout,
 		 "Watchdog timeout in seconds. (>=0, default="
-		 __MODULE_STRING(CGBC_WDT_DEFAULT_TIMEOUT) ")");
+		 __stringify(CGBC_WDT_DEFAULT_TIMEOUT) ")");
 
 static unsigned int pretimeout = CGBC_WDT_DEFAULT_PRETIMEOUT;
 module_param(pretimeout, uint, 0);
 MODULE_PARM_DESC(pretimeout,
 		 "Watchdog pretimeout in seconds. (>=0, default="
-		 __MODULE_STRING(CGBC_WDT_DEFAULT_PRETIMEOUT) ")");
+		 __stringify(CGBC_WDT_DEFAULT_PRETIMEOUT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		 __stringify(WATCHDOG_NOWAYOUT) ")");
 
 struct cgbc_wdt_data {
 	struct cgbc_device_data	*cgbc;

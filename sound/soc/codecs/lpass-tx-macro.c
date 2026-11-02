@@ -602,7 +602,7 @@ static const struct regmap_config tx_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.cache_type = REGCACHE_FLAT,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = TX_MAX_OFFSET,
 	.reg_defaults = tx_defaults,
 	.num_reg_defaults = ARRAY_SIZE(tx_defaults),
@@ -2210,8 +2210,8 @@ static int tx_macro_register_mclk_output(struct tx_macro *tx)
 	struct device *dev = tx->dev;
 	const char *parent_clk_name = NULL;
 	const char *clk_name = "lpass-tx-mclk";
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	if (tx->npl)

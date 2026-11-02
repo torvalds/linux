@@ -151,7 +151,6 @@ void bio_integrity_setup_default(struct bio *bio);
 unsigned int fs_bio_integrity_alloc(struct bio *bio);
 void fs_bio_integrity_free(struct bio *bio);
 void fs_bio_integrity_generate(struct bio *bio);
-int fs_bio_integrity_verify(struct bio *bio, sector_t sector,
-		unsigned int size);
+int fs_bio_integrity_verify(struct bio *bio, struct bvec_iter *data_iter);
 
 #endif /* _LINUX_BIO_INTEGRITY_H */

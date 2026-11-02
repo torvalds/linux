@@ -5,6 +5,7 @@
  */
 #include "xfs_platform.h"
 #include <linux/backing-dev.h>
+#include <linux/blk-integrity.h>
 #include <linux/dax.h>
 
 #include "xfs_shared.h"
@@ -1694,6 +1695,7 @@ xfs_configure_buftarg(
 	struct xfs_mount	*mp = btp->bt_mount;
 
 	if (btp->bt_bdev) {
+		struct blk_integrity *bi = bdev_get_integrity(btp->bt_bdev);
 		int		error;
 
 		error = bdev_validate_blocksize(btp->bt_bdev, sectorsize);
@@ -1706,6 +1708,15 @@ xfs_configure_buftarg(
 
 		if (bdev_can_atomic_write(btp->bt_bdev))
 			xfs_configure_buftarg_atomic_writes(btp);
+
+		if (!bi)
+			;
+		else if (btp->bt_bdev == btp->bt_mount->m_super->s_bdev)
+			xfs_info(mp, "using %s integrity profile",
+				blk_integrity_profile_name(bi));
+		else
+			xfs_info(mp, "using %s integrity profile for %pg",
+				blk_integrity_profile_name(bi), btp->bt_bdev);
 	}
 
 	btp->bt_meta_sectorsize = sectorsize;

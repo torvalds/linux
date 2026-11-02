@@ -112,6 +112,12 @@
 #define BQ25630_ITERM_MAX 1000000
 #define BQ25630_ITERM_STEP 10000
 
+/* BATFET control modes. */
+#define BQ25630_BATFET_CTRL_IDLE	0x00
+#define BQ25630_BATFET_CTRL_SHUTDOWN	0x01
+#define BQ25630_BATFET_CTRL_SHIP	0x02
+#define BQ25630_BATFET_CTRL_STANDBY	0x03
+
 /* Charge types. */
 #define BQ25630_CHG_STAT_NOT_CHARGING	0x00
 #define BQ25630_CHG_STAT_TRICKLE_CHARGE 0x01
@@ -587,6 +593,71 @@ static int bq25630_read_vbus(struct bq25630_data *data, int *val)
 	return 0;
 }
 
+static int bq25630_read_batfet_ctrl(struct bq25630_data *data, int *val)
+{
+	unsigned int regval;
+	int ret;
+
+	ret = regmap_field_read(data->regfields[BQ25630_REGF_BATFET_CTRL],
+				&regval);
+	if (ret) {
+		dev_err(data->dev, "Could not read BATFET control (%d)\n", ret);
+		return ret;
+	}
+
+	switch (regval) {
+	case BQ25630_BATFET_CTRL_IDLE:
+		*val = POWER_SUPPLY_LOAD_SWITCH_ON;
+		break;
+	case BQ25630_BATFET_CTRL_SHUTDOWN:
+		*val = POWER_SUPPLY_LOAD_SWITCH_OFF;
+		break;
+	case BQ25630_BATFET_CTRL_SHIP:
+		*val = POWER_SUPPLY_LOAD_SWITCH_SHIP;
+		break;
+	case BQ25630_BATFET_CTRL_STANDBY:
+		*val = POWER_SUPPLY_LOAD_SWITCH_STANDBY;
+		break;
+	default:
+		*val = POWER_SUPPLY_LOAD_SWITCH_UNKNOWN;
+	}
+
+	return 0;
+}
+
+static int bq25630_write_batfet_ctrl(struct bq25630_data *data, int val)
+{
+	unsigned int regval;
+	int ret;
+
+	switch (val) {
+	case POWER_SUPPLY_LOAD_SWITCH_ON:
+		regval = BQ25630_BATFET_CTRL_IDLE;
+		break;
+	case POWER_SUPPLY_LOAD_SWITCH_OFF:
+		regval = BQ25630_BATFET_CTRL_SHUTDOWN;
+		break;
+	case POWER_SUPPLY_LOAD_SWITCH_SHIP:
+		regval = BQ25630_BATFET_CTRL_SHIP;
+		break;
+	case POWER_SUPPLY_LOAD_SWITCH_STANDBY:
+		regval = BQ25630_BATFET_CTRL_STANDBY;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = regmap_field_write(data->regfields[BQ25630_REGF_BATFET_CTRL],
+				 regval);
+	if (ret) {
+		dev_err(data->dev, "Could not write BATFET control (%d)\n",
+			ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int bq25630_get_status(struct bq25630_data *data, int *val)
 {
 	unsigned int regval;
@@ -845,6 +916,9 @@ static int bq25630_charger_get_property(struct power_supply *psy,
 					 BQ25630_ITERM_MIN_REGVAL,
 					 &val->intval);
 		break;
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
+		ret = bq25630_read_batfet_ctrl(data, &val->intval);
+		break;
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = "BQ25630";
 		break;
@@ -913,6 +987,9 @@ static int bq25630_charger_set_property(struct power_supply *psy,
 					  BQ25630_ITERM_MIN_REGVAL,
 					  val->intval);
 		break;
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
+		ret = bq25630_write_batfet_ctrl(data, val->intval);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -932,6 +1009,7 @@ static int bq25630_charger_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT:
 	case POWER_SUPPLY_PROP_PRECHARGE_CURRENT:
 	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
+	case POWER_SUPPLY_PROP_LOAD_SWITCH:
 		return true;
 	default:
 		return false;
@@ -954,6 +1032,7 @@ static const enum power_supply_property bq25630_charger_properties[] = {
 	POWER_SUPPLY_PROP_USB_TYPE,
 	POWER_SUPPLY_PROP_PRECHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
+	POWER_SUPPLY_PROP_LOAD_SWITCH,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
@@ -972,6 +1051,11 @@ static const struct power_supply_desc bq25630_charger_psy_desc = {
 		     BIT(POWER_SUPPLY_USB_TYPE_DCP) |
 		     BIT(POWER_SUPPLY_USB_TYPE_CDP) |
 		     BIT(POWER_SUPPLY_USB_TYPE_C),
+	.load_switches = BIT(POWER_SUPPLY_LOAD_SWITCH_UNKNOWN) |
+			 BIT(POWER_SUPPLY_LOAD_SWITCH_ON) |
+			 BIT(POWER_SUPPLY_LOAD_SWITCH_OFF) |
+			 BIT(POWER_SUPPLY_LOAD_SWITCH_STANDBY) |
+			 BIT(POWER_SUPPLY_LOAD_SWITCH_SHIP),
 	.properties = bq25630_charger_properties,
 	.num_properties = ARRAY_SIZE(bq25630_charger_properties),
 	.get_property = bq25630_charger_get_property,

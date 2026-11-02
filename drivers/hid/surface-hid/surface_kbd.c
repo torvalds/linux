@@ -277,8 +277,8 @@ static void surface_kbd_remove(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id surface_kbd_match[] = {
-	{ "MSHW0096" },
-	{ },
+	{ .id = "MSHW0096" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, surface_kbd_match);
 

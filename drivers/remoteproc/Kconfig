@@ -83,9 +83,7 @@ config OMAP_REMOTEPROC
 	select OMAP2PLUS_MBOX
 	help
 	  Say y here to support OMAP's remote processors (dual M3
-	  and DSP on OMAP4) via the remote processor framework.
-
-	  Currently only supported on OMAP4.
+	  and DSP) via the remote processor framework.
 
 	  Usually you want to say Y here, in order to enable multimedia
 	  use-cases to run on your platform (multimedia codecs are
@@ -108,7 +106,7 @@ config OMAP_REMOTEPROC_WATCHDOG
 
 config WKUP_M3_RPROC
 	tristate "AMx3xx Wakeup M3 remoteproc support"
-	depends on SOC_AM33XX || SOC_AM43XX
+	depends on SOC_AM33XX || SOC_AM43XX || COMPILE_TEST
 	help
 	  Say y here to support Wakeup M3 remote processor on TI AM33xx
 	  and AM43xx family of SoCs.
@@ -120,7 +118,7 @@ config WKUP_M3_RPROC
 
 config DA8XX_REMOTEPROC
 	tristate "DA8xx/OMAP-L13x remoteproc support"
-	depends on ARCH_DAVINCI_DA8XX
+	depends on ARCH_DAVINCI_DA8XX || COMPILE_TEST
 	depends on DMA_CMA
 	help
 	  Say y here to support DA8xx/OMAP-L13x remote processors via the
@@ -141,7 +139,7 @@ config DA8XX_REMOTEPROC
 
 config KEYSTONE_REMOTEPROC
 	tristate "Keystone Remoteproc support"
-	depends on ARCH_KEYSTONE
+	depends on ARCH_KEYSTONE || COMPILE_TEST
 	help
 	  Say Y here here to support Keystone remote processors (DSP)
 	  via the remote processor framework.
@@ -238,6 +236,7 @@ config QCOM_Q6V5_PAS
 	select QCOM_PIL_INFO
 	select QCOM_MDT_LOADER
 	select QCOM_Q6V5_COMMON
+	select QCOM_QMI_TMD if NET
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM
 	select QCOM_PAS

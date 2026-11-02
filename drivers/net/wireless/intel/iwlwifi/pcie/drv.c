@@ -15,7 +15,7 @@
 #include "iwl-trans.h"
 #include "iwl-drv.h"
 #include "iwl-prph.h"
-#include "gen1_2/internal.h"
+#include "internal.h"
 
 #define _IS_A(cfg, _struct) __builtin_types_compatible_p(typeof(cfg),	\
 							 struct _struct)
@@ -1018,6 +1018,7 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 /* GF RF */
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_name, RF_TYPE(GF)),
 	IWL_DEV_INFO(iwl_rf_ot, iwl_ax231_name, RF_TYPE(GF), SUBDEV(0x0294)),
+	IWL_DEV_INFO(iwl_rf_ot, iwl_ax231_name, RF_TYPE(GF), SUBDEV(0x4294)),
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_name, RF_TYPE(GF), CDB),
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax210_name, DEVICE(0x2725)),
 
@@ -1187,17 +1188,22 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -EIO;
 	}
 
-	return iwl_pci_gen1_2_probe(pdev, ent, mac_cfg, hw_base, hw_rev);
+	return _iwl_pci_probe(pdev, ent, mac_cfg, hw_base, hw_rev);
 }
 
 static void iwl_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (!trans)
 		return;
 
-	iwl_pcie_gen1_2_remove(trans);
+	cancel_delayed_work_sync(&trans_pcie->me_recheck_wk);
+
+	iwl_drv_stop(trans->drv);
+
+	iwl_trans_pcie_free(trans);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1246,7 +1252,7 @@ static int _iwl_pci_resume(struct device *device, bool restore)
 		 * For older devices, just try silently to grab the NIC.
 		 */
 		if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-			u32 scratch = iwl_read32(trans, CSR_FUNC_SCRATCH);
+			u32 scratch = iwl_trans_pcie_read32(trans, CSR_FUNC_SCRATCH);
 
 			if (!(scratch & CSR_FUNC_SCRATCH_POWER_OFF_MASK) ||
 			    scratch == ~0U) {

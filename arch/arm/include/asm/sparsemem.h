@@ -19,7 +19,11 @@
  * These can be overridden in your mach/memory.h.
  */
 #if !defined(MAX_PHYSMEM_BITS) || !defined(SECTION_SIZE_BITS)
+#ifdef CONFIG_ARM_LPAE
 #define MAX_PHYSMEM_BITS	36
+#else
+#define MAX_PHYSMEM_BITS	32
+#endif
 #define SECTION_SIZE_BITS	28
 #endif
 

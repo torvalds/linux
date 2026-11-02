@@ -2689,17 +2689,7 @@ static struct platform_driver gcc_qdu1000_driver = {
 	},
 };
 
-static int __init gcc_qdu1000_init(void)
-{
-	return platform_driver_register(&gcc_qdu1000_driver);
-}
-subsys_initcall(gcc_qdu1000_init);
-
-static void __exit gcc_qdu1000_exit(void)
-{
-	platform_driver_unregister(&gcc_qdu1000_driver);
-}
-module_exit(gcc_qdu1000_exit);
+subsys_platform_driver(gcc_qdu1000_driver);
 
 MODULE_DESCRIPTION("QTI GCC QDU1000 Driver");
 MODULE_LICENSE("GPL");

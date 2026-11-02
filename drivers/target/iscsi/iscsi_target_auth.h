@@ -15,11 +15,6 @@
 #define MAX_RESPONSE_LENGTH	128	/* sufficient for SHA3 256 */
 #define	MAX_CHAP_N_SIZE		512
 
-#define MD5_SIGNATURE_SIZE	16	/* 16 bytes in a MD5 message digest */
-#define SHA1_SIGNATURE_SIZE	20	/* 20 bytes in a SHA1 message digest */
-#define SHA256_SIGNATURE_SIZE	32	/* 32 bytes in a SHA256 message digest */
-#define SHA3_256_SIGNATURE_SIZE	32	/* 32 bytes in a SHA3 256 message digest */
-
 #define CHAP_STAGE_CLIENT_A	1
 #define CHAP_STAGE_SERVER_AIC	2
 #define CHAP_STAGE_CLIENT_NR	3
@@ -36,7 +31,8 @@ struct iscsi_chap {
 	unsigned char	id;
 	unsigned char	challenge[MAX_CHAP_CHALLENGE_LEN];
 	unsigned int	challenge_len;
-	unsigned char	*digest_name;
+	const char	*digest_name;
+	int		digest_type;
 	unsigned int	digest_size;
 	unsigned int	authenticate_target;
 	unsigned int	chap_state;

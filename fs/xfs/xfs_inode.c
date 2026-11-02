@@ -755,7 +755,7 @@ xfs_create(
 	*ipp = du.ip;
 	xfs_iunlock(du.ip, XFS_ILOCK_EXCL);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-	xfs_parent_finish(mp, du.ppargs);
+	xfs_parent_finish(du.ppargs);
 	return 0;
 
  out_trans_cancel:
@@ -772,7 +772,7 @@ xfs_create(
 		xfs_irele(du.ip);
 	}
  out_parent:
-	xfs_parent_finish(mp, du.ppargs);
+	xfs_parent_finish(du.ppargs);
  out_release_dquots:
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
@@ -972,7 +972,7 @@ xfs_link(
 	error = xfs_trans_commit(tp);
 	xfs_iunlock(tdp, XFS_ILOCK_EXCL);
 	xfs_iunlock(sip, XFS_ILOCK_EXCL);
-	xfs_parent_finish(mp, du.ppargs);
+	xfs_parent_finish(du.ppargs);
 	return error;
 
  error_return:
@@ -980,7 +980,7 @@ xfs_link(
 	xfs_iunlock(tdp, XFS_ILOCK_EXCL);
 	xfs_iunlock(sip, XFS_ILOCK_EXCL);
  out_parent:
-	xfs_parent_finish(mp, du.ppargs);
+	xfs_parent_finish(du.ppargs);
  std_return:
 	if (error == -ENOSPC && nospace_error)
 		error = nospace_error;
@@ -1064,7 +1064,7 @@ xfs_itruncate_extents_flags(
 	 * the page cache can't scale that far.
 	 */
 	first_unmap_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)new_size);
-	if (!xfs_verify_fileoff(mp, first_unmap_block)) {
+	if (!xfs_verify_fileoff(first_unmap_block)) {
 		WARN_ON_ONCE(first_unmap_block > XFS_MAX_FILEOFF);
 		return 0;
 	}
@@ -1985,7 +1985,7 @@ xfs_remove(
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-	xfs_parent_finish(mp, du.ppargs);
+	xfs_parent_finish(du.ppargs);
 	return 0;
 
  out_trans_cancel:
@@ -1994,7 +1994,7 @@ xfs_remove(
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
  out_parent:
-	xfs_parent_finish(mp, du.ppargs);
+	xfs_parent_finish(du.ppargs);
  std_return:
 	return error;
 }
@@ -2084,7 +2084,7 @@ xfs_sort_inodes(
  */
 static int
 xfs_rename_alloc_whiteout(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct xfs_name		*src_name,
 	struct xfs_inode	*dp,
 	struct xfs_inode	**wip)
@@ -2130,7 +2130,7 @@ xfs_rename_alloc_whiteout(
  */
 int
 xfs_rename(
-	struct mnt_idmap	*idmap,
+	const struct mnt_idmap	*idmap,
 	struct xfs_inode	*src_dp,
 	struct xfs_name		*src_name,
 	struct xfs_inode	*src_ip,
@@ -2357,11 +2357,11 @@ out_trans_cancel:
 out_unlock:
 	xfs_iunlock_rename(inodes, num_inodes);
 out_tgt_ppargs:
-	xfs_parent_finish(mp, du_tgt.ppargs);
+	xfs_parent_finish(du_tgt.ppargs);
 out_wip_ppargs:
-	xfs_parent_finish(mp, du_wip.ppargs);
+	xfs_parent_finish(du_wip.ppargs);
 out_src_ppargs:
-	xfs_parent_finish(mp, du_src.ppargs);
+	xfs_parent_finish(du_src.ppargs);
 out_release_wip:
 	if (du_wip.ip)
 		xfs_irele(du_wip.ip);

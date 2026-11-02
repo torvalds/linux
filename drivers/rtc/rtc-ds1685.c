@@ -666,7 +666,7 @@ ds1685_rtc_irq_handler(int irq, void *dev_id)
 	if (unlikely(!rtc))
 		return IRQ_HANDLED;
 
-	rtc_lock(rtc->dev);
+	guard(rtc_ops)(rtc->dev);
 
 	/* Ctrlb holds the interrupt-enable bits and ctrlc the flag bits. */
 	ctrlb = rtc->read(rtc, RTC_CTRL_B);
@@ -711,7 +711,6 @@ ds1685_rtc_irq_handler(int irq, void *dev_id)
 		}
 	}
 	rtc_update_irq(rtc->dev, num_irqs, events);
-	rtc_unlock(rtc->dev);
 
 	return events ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -989,8 +988,8 @@ ds1685_rtc_sysfs_battery_show(struct device *dev,
 
 	ctrld = rtc->read(rtc, RTC_CTRL_D);
 
-	return sprintf(buf, "%s\n",
-			(ctrld & RTC_CTRL_D_VRT) ? "ok" : "not ok or N/A");
+	return sysfs_emit(buf, "%s\n",
+			  (ctrld & RTC_CTRL_D_VRT) ? "ok" : "not ok or N/A");
 }
 static DEVICE_ATTR(battery, S_IRUGO, ds1685_rtc_sysfs_battery_show, NULL);
 
@@ -1011,8 +1010,8 @@ ds1685_rtc_sysfs_auxbatt_show(struct device *dev,
 	ctrl4a = rtc->read(rtc, RTC_EXT_CTRL_4A);
 	ds1685_rtc_switch_to_bank0(rtc);
 
-	return sprintf(buf, "%s\n",
-			(ctrl4a & RTC_CTRL_4A_VRT2) ? "ok" : "not ok or N/A");
+	return sysfs_emit(buf, "%s\n",
+			  (ctrl4a & RTC_CTRL_4A_VRT2) ? "ok" : "not ok or N/A");
 }
 static DEVICE_ATTR(auxbatt, S_IRUGO, ds1685_rtc_sysfs_auxbatt_show, NULL);
 
@@ -1033,7 +1032,7 @@ ds1685_rtc_sysfs_serial_show(struct device *dev,
 	ds1685_rtc_get_ssn(rtc, ssn);
 	ds1685_rtc_switch_to_bank0(rtc);
 
-	return sprintf(buf, "%8phC\n", ssn);
+	return sysfs_emit(buf, "%8phC\n", ssn);
 }
 static DEVICE_ATTR(serial, S_IRUGO, ds1685_rtc_sysfs_serial_show, NULL);
 
@@ -1367,7 +1366,7 @@ module_platform_driver(ds1685_rtc_driver);
 void __noreturn
 ds1685_rtc_poweroff(struct platform_device *pdev)
 {
-	u8 ctrla, ctrl4a, ctrl4b;
+	u8 ctrla, ctrlb, ctrl4a, ctrl4b;
 	struct ds1685_priv *rtc;
 
 	/* Check for valid RTC data, else, spin forever. */
@@ -1394,6 +1393,8 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 		ctrla &= ~(RTC_CTRL_A_DV2);
 		rtc->write(rtc, RTC_CTRL_A, ctrla);
 
+		ctrlb = rtc->read(rtc, RTC_CTRL_B);
+
 		/*
 		 * Read Control 4A and check the status of the auxillary
 		 * battery.  This must be present and working (VRT2 = 1)
@@ -1408,25 +1409,35 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 
 			/*
 			 * The auxillary battery is present and working.
-			 * Enable extended functions (ABE=1), enable
-			 * wake-up (WIE=1), and enable kickstart (KSE=1)
-			 * in Control 4B.
+			 * Enable extended functions (ABE=1) and kickstart
+			 * (KSE=1) in Control 4B.  Enable wake-up (WIE=1) only
+			 * if an alarm is set, else stale alarm registers
+			 * can power the system back on.
 			 */
 			ctrl4b = rtc->read(rtc, RTC_EXT_CTRL_4B);
-			ctrl4b |= (RTC_CTRL_4B_ABE | RTC_CTRL_4B_WIE |
-				   RTC_CTRL_4B_KSE);
+			ctrl4b |= (RTC_CTRL_4B_ABE | RTC_CTRL_4B_KSE);
+			if (ctrlb & RTC_CTRL_B_AIE)
+				ctrl4b |= RTC_CTRL_4B_WIE;
+			else
+				ctrl4b &= ~(RTC_CTRL_4B_WIE);
 			rtc->write(rtc, RTC_EXT_CTRL_4B, ctrl4b);
 		}
 
-		/* Set PAB to 1 in Control 4A to power the system down. */
+		/*
+		 * Set PAB to 1 in Control 4A to power the system down.  PAB
+		 * is cleared again while KF and KSE, or WF and WIE, are set,
+		 * so keep clearing the flags and setting PAB until power is
+		 * gone.  We do not switch back to bank0.
+		 */
 		dev_warn(&pdev->dev, "Powerdown.\n");
-		msleep(20);
-		rtc->write(rtc, RTC_EXT_CTRL_4A,
-			   (ctrl4a | RTC_CTRL_4A_PAB));
-
-		/* Spin ... we do not switch back to bank0. */
-		while(1);
-		unreachable();
+		mdelay(20);
+		while (1) {
+			ctrl4a = rtc->read(rtc, RTC_EXT_CTRL_4A);
+			rtc->write(rtc, RTC_EXT_CTRL_4A,
+				   (ctrl4a & ~RTC_CTRL_4A_RWK_MASK) |
+				   RTC_CTRL_4A_PAB);
+			mdelay(100);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(ds1685_rtc_poweroff);

@@ -50,6 +50,9 @@ properties:
       used, this property is required. When SDIO is used, the "in-band"
       interrupt provided by the SDIO bus is used unless an interrupt is defined
       in the Device Tree.
+
+      The hardware suffers from a limitation when this property is used with
+      SDIO. OOB IRQ with SDIO should only be used for debug.
     maxItems: 1
 
   reset-gpios:

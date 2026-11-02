@@ -191,6 +191,15 @@ struct tegra_qspi {
 	void __iomem				*base;
 	phys_addr_t				phys;
 	unsigned int				irq;
+	struct work_struct			irq_work;
+	struct workqueue_struct			*wq;
+	/*
+	 * Set by tegra_qspi_handle_timeout() while it drains the bottom
+	 * half so tegra_qspi_isr() suppresses new queue_work() calls
+	 * that would otherwise race the recovery path or the caller's
+	 * cleanup of curr_xfer.
+	 */
+	bool					recovery_in_progress;
 
 	u32					cur_speed;
 	unsigned int				cur_pos;
@@ -205,6 +214,18 @@ struct tegra_qspi {
 	unsigned int				dma_buf_size;
 	unsigned int				max_buf_size;
 	bool					is_curr_dma_xfer;
+	/*
+	 * Cached "this PIO chunk completes the whole transfer" decision,
+	 * computed by tegra_qspi_start_cpu_based_transfer() before it
+	 * unmasks the IRQ. Used by the hard IRQ small-PIO fastpath in
+	 * place of dereferencing curr_xfer->len, so the ISR cannot touch
+	 * the spi_transfer object even on a late IRQ that races with the
+	 * synchronous teardown path. Multi-chunk PIO transfers always go
+	 * through the workqueue (this flag is only set on the final
+	 * chunk), so the fastpath cannot recurse into
+	 * tegra_qspi_start_cpu_based_transfer() from hard IRQ context.
+	 */
+	bool					is_last_pio_chunk;
 
 	struct completion			rx_dma_complete;
 	struct completion			tx_dma_complete;
@@ -212,6 +233,7 @@ struct tegra_qspi {
 	u32					tx_status;
 	u32					rx_status;
 	u32					status_reg;
+	u32					trans_status;
 	bool					is_packed;
 	bool					use_dma;
 
@@ -622,6 +644,17 @@ static int tegra_qspi_start_dma_based_transfer(struct tegra_qspi *tqspi, struct 
 	val = QSPI_DMA_BLK_SET(tqspi->curr_dma_words - 1);
 	tegra_qspi_writel(tqspi, val, QSPI_DMA_BLK);
 
+	/*
+	 * Reset the cached transfer status before unmasking the IRQ for
+	 * this chunk. The cache must represent only the IRQ for THIS
+	 * chunk; a stale RDY from the previous chunk of a multi-chunk
+	 * transfer would otherwise mislead tegra_qspi_handle_timeout()
+	 * into a false-positive recovery while the new chunk is still in
+	 * flight. Pairs with smp_load_acquire() in
+	 * tegra_qspi_handle_timeout(). The new chunk's IRQ cannot fire
+	 * until QSPI_DMA_CTL is written below.
+	 */
+	smp_store_release(&tqspi->trans_status, 0);
 	tegra_qspi_unmask_irq(tqspi);
 
 	if (tqspi->is_packed)
@@ -713,7 +746,13 @@ static int tegra_qspi_start_dma_based_transfer(struct tegra_qspi *tqspi, struct 
 
 	tegra_qspi_writel(tqspi, tqspi->command1_reg, QSPI_COMMAND1);
 
-	tqspi->is_curr_dma_xfer = true;
+	/*
+	 * WRITE_ONCE() pairs with READ_ONCE() in tegra_qspi_isr() and
+	 * tegra_qspi_work_handler(); the flag is read lock-free across
+	 * the hard-IRQ / process-context boundary so the annotation
+	 * prevents compiler tearing and silences KCSAN.
+	 */
+	WRITE_ONCE(tqspi->is_curr_dma_xfer, true);
 	tqspi->dma_control_reg = val;
 	val |= QSPI_DMA_EN;
 	tegra_qspi_writel(tqspi, val, QSPI_DMA_CTL);
@@ -734,9 +773,33 @@ static int tegra_qspi_start_cpu_based_transfer(struct tegra_qspi *qspi, struct s
 	val = QSPI_DMA_BLK_SET(cur_words - 1);
 	tegra_qspi_writel(qspi, val, QSPI_DMA_BLK);
 
+	/*
+	 * Snapshot whether this PIO chunk completes the whole transfer
+	 * before unmasking the IRQ, so the hard IRQ small-PIO fastpath
+	 * can decide whether to drain inline without dereferencing the
+	 * spi_transfer object. cur_pos / curr_dma_words / bytes_per_word
+	 * are stable here: they are written by
+	 * tegra_qspi_calculate_curr_xfer_param() earlier in this code
+	 * path. The IRQ cannot fire until the QSPI_COMMAND1 write below
+	 * kicks the transfer off, so this store happens-before any ISR
+	 * that observes the unmask.
+	 */
+	WRITE_ONCE(qspi->is_last_pio_chunk,
+		   qspi->cur_pos + qspi->curr_dma_words * qspi->bytes_per_word >= t->len);
+
+	/*
+	 * Reset the cached transfer status before unmasking the IRQ for
+	 * this chunk so the cache represents only the IRQ for THIS chunk;
+	 * a stale RDY from the previous chunk would otherwise mislead
+	 * tegra_qspi_handle_timeout() into a false-positive recovery
+	 * while the new chunk is still in flight. Pairs with
+	 * smp_load_acquire() in tegra_qspi_handle_timeout(). The new
+	 * chunk's IRQ cannot fire until QSPI_COMMAND1 is written below.
+	 */
+	smp_store_release(&qspi->trans_status, 0);
 	tegra_qspi_unmask_irq(qspi);
 
-	qspi->is_curr_dma_xfer = false;
+	WRITE_ONCE(qspi->is_curr_dma_xfer, false);
 	val = qspi->command1_reg;
 	val |= QSPI_PIO;
 	tegra_qspi_writel(qspi, val, QSPI_COMMAND1);
@@ -859,6 +922,13 @@ static u32 tegra_qspi_setup_transfer_one(struct spi_device *spi, struct spi_tran
 	tqspi->cur_rx_pos = 0;
 	tqspi->cur_tx_pos = 0;
 	tqspi->curr_xfer = t;
+	/*
+	 * Pairs with smp_load_acquire() in tegra_qspi_handle_timeout().
+	 * Clearing the cached trans_status before unmasking the IRQ for
+	 * the new transfer prevents a stale RDY bit from the previous
+	 * transfer fooling the timeout handler into a false recovery.
+	 */
+	smp_store_release(&tqspi->trans_status, 0);
 	spin_unlock_irqrestore(&tqspi->lock, flags);
 
 	if (is_first_of_msg) {
@@ -1065,40 +1135,206 @@ static irqreturn_t handle_dma_based_xfer(struct tegra_qspi *tqspi);
  * tegra_qspi_handle_timeout - Handle transfer timeout with hardware check
  * @tqspi: QSPI controller instance
  *
- * When a timeout occurs but hardware has completed the transfer (interrupt
- * was lost or delayed), manually trigger transfer completion processing.
- * This avoids failing transfers that actually succeeded.
+ * When wait_for_completion_timeout() expires the hardware may still have
+ * finished the current chunk. Drain the pending bottom half and, if the
+ * whole transfer really did complete during the drain, consume the
+ * completion and report success.
  *
- * Returns: 0 if transfer was completed, -ETIMEDOUT if real timeout
+ * When the bottom half advanced the transfer by only one chunk of a
+ * multi-chunk DMA/PIO transfer without signalling xfer_completion, a
+ * fallback that ran handle_{cpu,dma}_based_xfer() here would race with
+ * the DMA engine already moving the next chunk into the client buffer
+ * (spi_finalize_current_message() would then release the buffer while
+ * the controller is still writing memory). Fake completion is therefore
+ * only attempted when the current chunk is the last chunk of the
+ * transfer; multi-chunk continuation timeouts return -ETIMEDOUT and
+ * let the caller reset the controller.
+ *
+ * Returns: 0 if the transfer completed, -ETIMEDOUT otherwise.
  */
 static int tegra_qspi_handle_timeout(struct tegra_qspi *tqspi)
 {
+	struct spi_transfer *t;
+	unsigned long flags;
+	bool is_last_chunk;
+	bool lost_irq_snapshot = false;
 	irqreturn_t ret;
-	u32 status;
-
-	/* Check if hardware actually completed the transfer */
-	status = tegra_qspi_readl(tqspi, QSPI_TRANS_STATUS);
-	if (!(status & QSPI_RDY))
-		return -ETIMEDOUT;
+	int retval;
+	u32 status, refreshed;
+	u32 lost_fifo_status = 0;
+	u32 lost_tx_status = 0;
+	u32 lost_rx_status = 0;
 
 	/*
-	 * Hardware completed but interrupt was lost/delayed. Manually
-	 * process the completion by calling the appropriate handler.
+	 * Snapshot both the ISR cache and (if the cache is empty) the
+	 * live status registers BEFORE entering recovery. The recovery
+	 * path calls tegra_qspi_mask_clear_irq() below, which performs
+	 * W1Cs on QSPI_TRANS_STATUS and on the QSPI_FIFO_STATUS error
+	 * bits: a lost-IRQ recovery must capture the current FIFO error
+	 * state before the mask erases it.
+	 *
+	 * Cache-live-cache retry: if the initial cache load returns zero
+	 * we fall back to a live QSPI_TRANS_STATUS read, and if that also
+	 * returns zero we retry the cache once more. That closes the
+	 * interleaving where an ISR on another CPU publishes trans_status
+	 * with release semantics and then W1Cs the hardware between our
+	 * cache load and our live load: the second cache load observes
+	 * the now-visible release and we correctly classify the transfer
+	 * as complete rather than reporting a false timeout.
+	 *
+	 * The trans_status cache is reset to zero in
+	 * tegra_qspi_start_{cpu,dma}_based_transfer() before unmasking
+	 * the IRQ for every chunk, so a stale RDY from the previous
+	 * chunk of a multi-chunk transfer cannot survive into this
+	 * check.
 	 */
+	status = smp_load_acquire(&tqspi->trans_status);
+	if (!status) {
+		status = tegra_qspi_readl(tqspi, QSPI_TRANS_STATUS);
+		if (!status) {
+			/* Retry cache; pairs with release in ISR post-store. */
+			status = smp_load_acquire(&tqspi->trans_status);
+		} else {
+			/*
+			 * Live register shows RDY but the ISR cache is
+			 * empty: either the ISR ran and cleared HW between
+			 * our two loads (the cache retry above would have
+			 * observed it, so we would not be here), or the IRQ
+			 * was genuinely lost. Snapshot the live FIFO error
+			 * status now so tegra_qspi_mask_clear_irq() below
+			 * does not W1C it away before the manual handler
+			 * downstream can see it.
+			 */
+			lost_fifo_status = tegra_qspi_readl(tqspi,
+							    QSPI_FIFO_STATUS);
+			lost_tx_status = lost_fifo_status &
+					 (QSPI_TX_FIFO_UNF | QSPI_TX_FIFO_OVF);
+			lost_rx_status = lost_fifo_status &
+					 (QSPI_RX_FIFO_OVF | QSPI_RX_FIFO_UNF);
+			lost_irq_snapshot = true;
+		}
+	}
+
+	/*
+	 * Enter recovery unconditionally. Every expired
+	 * wait_for_completion_timeout() must serialise against a delayed
+	 * ISR or worker before the caller runs dma_stop() +
+	 * device_reset() + curr_xfer clear: publishing
+	 * recovery_in_progress under tqspi->lock, masking the controller
+	 * IRQ, calling synchronize_irq() to drain any in-flight ISR
+	 * (including the small-PIO hard-IRQ fastpath), and finally
+	 * cancel_work_sync() to drain the workqueue gives us that
+	 * serialisation regardless of whether the hardware finished. A
+	 * genuine hardware timeout still ends up as -ETIMEDOUT further
+	 * down, but only after ISR and workqueue activity are quiesced.
+	 *
+	 * cancel_work_sync() cancels a pending worker without executing
+	 * it and waits for a currently running one to finish; the
+	 * recovery_in_progress guard checked inside tegra_qspi_isr()
+	 * under tqspi->lock is atomic with its queue_work() and small-PIO
+	 * fastpath dispatch decisions, so no new bottom-half work is
+	 * enqueued once we publish the flag.
+	 *
+	 * tegra_qspi_mask_clear_irq() is idempotent: its read-modify-write
+	 * of QSPI_INTR_MASK and W1C of QSPI_TRANS_STATUS / FIFO error
+	 * status all tolerate a double-write, so it is safe whether or
+	 * not the ISR has already run for this transfer.
+	 */
+	spin_lock_irqsave(&tqspi->lock, flags);
+	WRITE_ONCE(tqspi->recovery_in_progress, true);
+	spin_unlock_irqrestore(&tqspi->lock, flags);
+
+	tegra_qspi_mask_clear_irq(tqspi);
+	synchronize_irq(tqspi->irq);
+	cancel_work_sync(&tqspi->irq_work);
+
+	if (try_wait_for_completion(&tqspi->xfer_completion)) {
+		retval = 0;
+		goto out;
+	}
+
+	/*
+	 * Re-check the cache after the drain: the worker we just drained
+	 * may have published a completion status the entry snapshot did
+	 * not observe (for example the ISR fired on another CPU after we
+	 * loaded the cache but before we masked).
+	 */
+	refreshed = smp_load_acquire(&tqspi->trans_status);
+	if (refreshed)
+		status = refreshed;
+
+	if (!(status & QSPI_RDY)) {
+		retval = -ETIMEDOUT;
+		goto out;
+	}
+
+	/*
+	 * If the ISR never ran (lost IRQ path) publish the FIFO error
+	 * snapshot we captured before mask_clear_irq() so the manual
+	 * handler downstream has fresh error state rather than stale
+	 * fields from a previous chunk's ISR.
+	 */
+	if (lost_irq_snapshot) {
+		WRITE_ONCE(tqspi->status_reg, lost_fifo_status);
+		WRITE_ONCE(tqspi->tx_status, lost_tx_status);
+		WRITE_ONCE(tqspi->rx_status, lost_rx_status);
+	}
+
+	/*
+	 * The bottom half did not signal full completion. Either the work
+	 * ran and advanced the transfer by one chunk (possibly arming the
+	 * next chunk of a multi-chunk transfer), or it was cancelled
+	 * before it could run, or the current chunk really did not
+	 * complete. Only fake completion when the current chunk is the
+	 * last chunk of the transfer; otherwise the DMA engine may still
+	 * be moving the next chunk into memory, and returning 0 here would
+	 * let seq_xfer clear curr_xfer and finalise the message while the
+	 * hardware is still writing.
+	 *
+	 * The last-chunk arithmetic mirrors tegra_qspi_start_cpu_based_
+	 * transfer(), which uses cur_pos + curr_dma_words * bytes_per_word
+	 * >= t->len to set is_last_pio_chunk before arming the IRQ.
+	 */
+	spin_lock_irqsave(&tqspi->lock, flags);
+	t = tqspi->curr_xfer;
+	if (!t) {
+		/* CPU-path handler already cleared curr_xfer */
+		spin_unlock_irqrestore(&tqspi->lock, flags);
+		retval = 0;
+		goto out;
+	}
+	is_last_chunk = (tqspi->cur_pos +
+			 tqspi->curr_dma_words * tqspi->bytes_per_word) >= t->len;
+	spin_unlock_irqrestore(&tqspi->lock, flags);
+
+	if (!is_last_chunk) {
+		retval = -ETIMEDOUT;
+		goto out;
+	}
+
 	dev_warn_ratelimited(tqspi->dev,
 			     "QSPI interrupt timeout, but transfer complete\n");
 
-	/* Clear the transfer status */
-	status = tegra_qspi_readl(tqspi, QSPI_TRANS_STATUS);
-	tegra_qspi_writel(tqspi, status, QSPI_TRANS_STATUS);
-
-	/* Manually trigger completion handler */
-	if (!tqspi->is_curr_dma_xfer)
+	if (!READ_ONCE(tqspi->is_curr_dma_xfer))
 		ret = handle_cpu_based_xfer(tqspi);
 	else
 		ret = handle_dma_based_xfer(tqspi);
 
-	return (ret == IRQ_HANDLED) ? 0 : -EIO;
+	retval = (ret == IRQ_HANDLED) ? 0 : -EIO;
+
+out:
+	/*
+	 * The drained bottom half may have unmasked the controller IRQ
+	 * to arm the next chunk of a multi-chunk transfer. Re-mask and
+	 * synchronize before clearing recovery_in_progress so that no
+	 * lingering ISR can queue fresh work behind the caller's back
+	 * (the caller's dma_stop() + device_reset() + curr_xfer clear
+	 * runs immediately after we return on the error path).
+	 */
+	tegra_qspi_mask_clear_irq(tqspi);
+	synchronize_irq(tqspi->irq);
+	WRITE_ONCE(tqspi->recovery_in_progress, false);
+	return retval;
 }
 
 static u32 tegra_qspi_cmd_config(bool is_ddr, u8 bus_width, u8 len)
@@ -1232,9 +1468,9 @@ static int tegra_qspi_combined_seq_xfer(struct tegra_qspi *tqspi,
 
 			if (ret == 0) {
 				/*
-				 * Check if hardware completed the transfer
-				 * even though interrupt was lost or delayed.
-				 * If so, process the completion and continue.
+				 * Check if hardware completed the transfer even though
+				 * workqueue was delayed. If so, process completion and
+				 * continue.
 				 */
 				ret = tegra_qspi_handle_timeout(tqspi);
 				if (ret < 0) {
@@ -1351,8 +1587,8 @@ static int tegra_qspi_non_combined_seq_xfer(struct tegra_qspi *tqspi,
 		if (ret == 0) {
 			/*
 			 * Check if hardware completed the transfer even though
-			 * interrupt was lost or delayed. If so, process the
-			 * completion and continue.
+			 * workqueue was delayed. If so, process completion and
+			 * continue.
 			 */
 			ret = tegra_qspi_handle_timeout(tqspi);
 			if (ret < 0) {
@@ -1506,6 +1742,19 @@ static irqreturn_t handle_dma_based_xfer(struct tegra_qspi *tqspi)
 	long wait_status;
 	int num_errors = 0;
 
+	/*
+	 * Snapshot curr_xfer under the lock before the (potentially long)
+	 * DMA waits below. The timeout path can clear tqspi->curr_xfer
+	 * concurrently; using the local copy keeps the subsequent dma_unmap
+	 * and FIFO-drain steps consistent with the transfer that actually
+	 * started, and lets us bail safely if cleanup already happened.
+	 */
+	spin_lock_irqsave(&tqspi->lock, flags);
+	t = tqspi->curr_xfer;
+	spin_unlock_irqrestore(&tqspi->lock, flags);
+	if (!t)
+		return IRQ_HANDLED;
+
 	if (tqspi->cur_direction & DATA_DIR_TX) {
 		if (tqspi->tx_status) {
 			if (tqspi->tx_dma_chan)
@@ -1539,12 +1788,6 @@ static irqreturn_t handle_dma_based_xfer(struct tegra_qspi *tqspi)
 	}
 
 	spin_lock_irqsave(&tqspi->lock, flags);
-	t = tqspi->curr_xfer;
-
-	if (!t) {
-		spin_unlock_irqrestore(&tqspi->lock, flags);
-		return IRQ_HANDLED;
-	}
 
 	if (num_errors) {
 		tegra_qspi_dma_unmap_xfer(tqspi, t);
@@ -1581,46 +1824,41 @@ exit:
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t tegra_qspi_isr_thread(int irq, void *context_data)
+/**
+ * tegra_qspi_work_handler - Workqueue handler for interrupt bottom-half
+ * @work: work_struct embedded in tegra_qspi
+ *
+ * Runs in process context and can sleep (needed for DMA completion waits).
+ * Runs on any CPU in the WQ_UNBOUND pool, so the bottom half can migrate off
+ * the interrupt-taking CPU that the previous threaded IRQ pinned to
+ * (irq_thread() calls set_cpus_allowed_ptr() with the IRQ affinity mask).
+ *
+ * The hard IRQ handler has already:
+ * - Verified this is our interrupt (QSPI_RDY was set)
+ * - Cached FIFO status in tqspi->status_reg
+ * - Parsed tx_status / rx_status from FIFO status
+ * - Masked further interrupts
+ */
+static void tegra_qspi_work_handler(struct work_struct *work)
 {
-	struct tegra_qspi *tqspi = context_data;
+	struct tegra_qspi *tqspi = container_of(work, struct tegra_qspi, irq_work);
 	unsigned long flags;
-	u32 status;
 
-	/*
-	 * Read transfer status to check if interrupt was triggered by transfer
-	 * completion
-	 */
-	status = tegra_qspi_readl(tqspi, QSPI_TRANS_STATUS);
-
-	/*
-	 * Occasionally the IRQ thread takes a long time to wake up (usually
-	 * when the CPU that it's running on is excessively busy) and we have
-	 * already reached the timeout before and cleaned up the timed out
-	 * transfer. Avoid any processing in that case and bail out early.
-	 *
-	 * If no transfer is in progress, check if this was a real interrupt
-	 * that the timeout handler already processed, or a spurious one.
-	 */
 	spin_lock_irqsave(&tqspi->lock, flags);
+
+	/*
+	 * tegra_qspi_handle_timeout() sets recovery_in_progress under
+	 * tqspi->lock and then calls cancel_work_sync(), so any running
+	 * worker is drained and tegra_qspi_isr() cannot enqueue a new
+	 * one while recovery runs. The curr_xfer NULL check catches the
+	 * case where the timeout path already tore the transfer down
+	 * before this work got a chance to run.
+	 */
 	if (!tqspi->curr_xfer) {
 		spin_unlock_irqrestore(&tqspi->lock, flags);
-		/* Spurious interrupt - transfer not ready */
-		if (!(status & QSPI_RDY))
-			return IRQ_NONE;
-		/* Real interrupt, already handled by timeout path */
-		return IRQ_HANDLED;
+		return;
 	}
 
-	tqspi->status_reg = tegra_qspi_readl(tqspi, QSPI_FIFO_STATUS);
-
-	if (tqspi->cur_direction & DATA_DIR_TX)
-		tqspi->tx_status = tqspi->status_reg & (QSPI_TX_FIFO_UNF | QSPI_TX_FIFO_OVF);
-
-	if (tqspi->cur_direction & DATA_DIR_RX)
-		tqspi->rx_status = tqspi->status_reg & (QSPI_RX_FIFO_OVF | QSPI_RX_FIFO_UNF);
-
-	tegra_qspi_mask_clear_irq(tqspi);
 	spin_unlock_irqrestore(&tqspi->lock, flags);
 
 	/*
@@ -1629,10 +1867,127 @@ static irqreturn_t tegra_qspi_isr_thread(int irq, void *context_data)
 	 * DMA handler also needs to sleep in wait_for_completion_*(), which
 	 * cannot be done while holding spinlock.
 	 */
-	if (!tqspi->is_curr_dma_xfer)
-		return handle_cpu_based_xfer(tqspi);
+	if (!READ_ONCE(tqspi->is_curr_dma_xfer))
+		handle_cpu_based_xfer(tqspi);
+	else
+		handle_dma_based_xfer(tqspi);
+}
 
-	return handle_dma_based_xfer(tqspi);
+/**
+ * tegra_qspi_isr - Hard IRQ handler
+ * @irq: IRQ number
+ * @context_data: QSPI controller instance
+ *
+ * Runs in hard IRQ context with minimal latency. Cannot sleep.
+ *
+ * Tegra QSPI uses a dedicated, non-shared GIC SPI line on every SoC that
+ * uses this driver. The handler always returns IRQ_HANDLED and always
+ * acknowledges/re-masks the controller IRQ, so the level-triggered line
+ * cannot stay asserted and trip the kernel spurious-IRQ detector into
+ * disabling the line. On a stray IRQ where curr_xfer is NULL (e.g. the
+ * timeout path has already torn the transfer down) the FIFO/status
+ * processing and bottom-half scheduling are skipped because there is no
+ * transfer to drive forward.
+ *
+ * Return: IRQ_HANDLED.
+ */
+static irqreturn_t tegra_qspi_isr(int irq, void *context_data)
+{
+	struct tegra_qspi *tqspi = context_data;
+	u32 status_reg, trans_status;
+	u32 tx_status = 0, rx_status = 0;
+
+	if (!READ_ONCE(tqspi->curr_xfer)) {
+		tegra_qspi_mask_clear_irq(tqspi);
+		return IRQ_HANDLED;
+	}
+
+	spin_lock(&tqspi->lock);
+	status_reg = tegra_qspi_readl(tqspi, QSPI_FIFO_STATUS);
+	trans_status = tegra_qspi_readl(tqspi, QSPI_TRANS_STATUS);
+
+	if (tqspi->cur_direction & DATA_DIR_TX) {
+		tx_status = status_reg & (QSPI_TX_FIFO_UNF | QSPI_TX_FIFO_OVF);
+		WRITE_ONCE(tqspi->tx_status, tx_status);
+	}
+
+	if (tqspi->cur_direction & DATA_DIR_RX) {
+		rx_status = status_reg & (QSPI_RX_FIFO_OVF | QSPI_RX_FIFO_UNF);
+		WRITE_ONCE(tqspi->rx_status, rx_status);
+	}
+
+	WRITE_ONCE(tqspi->status_reg, status_reg);
+	/*
+	 * Publish trans_status with release semantics before we clear
+	 * the hardware status in tegra_qspi_mask_clear_irq() below. That
+	 * ordering matters for the lock-free cache read in
+	 * tegra_qspi_handle_timeout(): if the timeout path sees the
+	 * released trans_status it also observes the matching status_reg
+	 * / tx_status / rx_status; if it does not yet see the released
+	 * value it falls back to a live QSPI_TRANS_STATUS read, and that
+	 * live read still returns QSPI_RDY because we have not cleared
+	 * the register yet. Reversing this order would open a window
+	 * where the cache is still zero but the hardware bit has already
+	 * been cleared, making the fallback report a false timeout.
+	 */
+	smp_store_release(&tqspi->trans_status, trans_status);
+
+	tegra_qspi_mask_clear_irq(tqspi);
+
+	/*
+	 * If tegra_qspi_handle_timeout() is draining the bottom half,
+	 * skip queueing new work. The flag is set under tqspi->lock and
+	 * queue_work() below happens while we still hold the lock, so
+	 * the guard is atomic with the queue decision. Any ISR that had
+	 * already passed this check is drained by the synchronize_irq()
+	 * call that tegra_qspi_handle_timeout() issues after publishing
+	 * the flag.
+	 */
+	if (READ_ONCE(tqspi->recovery_in_progress)) {
+		spin_unlock(&tqspi->lock);
+		return IRQ_HANDLED;
+	}
+
+	/*
+	 * Small-PIO fastpath: drain the FIFO inline only when this chunk
+	 * completes the entire outstanding transfer and no error bit was
+	 * latched, to avoid workqueue scheduling latency for TPM-style
+	 * short reads.
+	 *
+	 * The "last chunk" decision is computed and cached as a scalar by
+	 * tegra_qspi_start_cpu_based_transfer() before it unmasks the IRQ,
+	 * so the hard-IRQ fastpath never dereferences the spi_transfer
+	 * pointer here. That keeps the ISR safe against any teardown race
+	 * where the synchronous path could clear curr_xfer concurrently.
+	 *
+	 * The fastpath dispatch decision is made while still holding
+	 * tqspi->lock, so the recovery_in_progress guard above covers it
+	 * atomically with queue_work() below: an ISR that reaches the
+	 * fastpath cannot race a tegra_qspi_handle_timeout() that
+	 * subsequently observes recovery_in_progress == true, because
+	 * that path calls synchronize_irq() before proceeding. We drop
+	 * the lock before calling handle_cpu_based_xfer() so it can take
+	 * tqspi->lock internally without deadlocking.
+	 *
+	 * Multi-chunk PIO continuation stays on the workqueue so that
+	 * tegra_qspi_start_cpu_based_transfer() can re-arm the IRQ from
+	 * process context. DMA transfers also stay on the workqueue
+	 * because their completion path sleeps on the DMA engine.
+	 * tegra_qspi_handle_error() -> device_reset() can sleep, so the
+	 * fastpath only runs when both status words are clean.
+	 */
+	if (!READ_ONCE(tqspi->is_curr_dma_xfer) &&
+	    READ_ONCE(tqspi->is_last_pio_chunk) &&
+	    !tx_status && !rx_status) {
+		spin_unlock(&tqspi->lock);
+		return handle_cpu_based_xfer(tqspi);
+	}
+
+	queue_work(tqspi->wq, &tqspi->irq_work);
+
+	spin_unlock(&tqspi->lock);
+
+	return IRQ_HANDLED;
 }
 
 static struct tegra_qspi_soc_data tegra210_qspi_soc_data = {
@@ -1800,12 +2155,21 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 
 	pm_runtime_put_autosuspend(&pdev->dev);
 
-	ret = request_threaded_irq(tqspi->irq, NULL,
-				   tegra_qspi_isr_thread, IRQF_ONESHOT,
-				   dev_name(&pdev->dev), tqspi);
+	tqspi->wq = alloc_workqueue("%s", WQ_HIGHPRI | WQ_UNBOUND, 0,
+				    dev_name(&pdev->dev));
+	if (!tqspi->wq) {
+		dev_err(&pdev->dev, "failed to allocate workqueue\n");
+		ret = -ENOMEM;
+		goto exit_pm_disable;
+	}
+
+	INIT_WORK(&tqspi->irq_work, tegra_qspi_work_handler);
+
+	ret = request_irq(tqspi->irq, tegra_qspi_isr, 0,
+			  dev_name(&pdev->dev), tqspi);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n", tqspi->irq, ret);
-		goto exit_pm_disable;
+		goto exit_destroy_wq;
 	}
 
 	ret = spi_register_controller(host);
@@ -1817,7 +2181,9 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 	return 0;
 
 exit_free_irq:
-	free_irq(qspi_irq, tqspi);
+	free_irq(tqspi->irq, tqspi);
+exit_destroy_wq:
+	destroy_workqueue(tqspi->wq);
 exit_pm_disable:
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_force_suspend(&pdev->dev);
@@ -1830,8 +2196,15 @@ static void tegra_qspi_remove(struct platform_device *pdev)
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct tegra_qspi *tqspi = spi_controller_get_devdata(host);
 
+	/*
+	 * Tear down in reverse order of probe() so that the controller stops
+	 * accepting transfers before the IRQ is released, no new work can be
+	 * queued after the IRQ is freed, and any work already queued is
+	 * drained while the clocks are still running.
+	 */
 	spi_unregister_controller(host);
 	free_irq(tqspi->irq, tqspi);
+	destroy_workqueue(tqspi->wq);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_force_suspend(&pdev->dev);
 	tegra_qspi_deinit_dma(tqspi);

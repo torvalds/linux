@@ -1922,6 +1922,7 @@ const struct device_type usb_if_device_type = {
 	.name =		"usb_interface",
 	.release =	usb_release_interface,
 	.uevent =	usb_if_uevent,
+	.need_parent_lock =	true,
 };
 
 static struct usb_interface_assoc_descriptor *find_iad(struct usb_device *dev,
@@ -2208,6 +2209,11 @@ free_interfaces:
 		pm_runtime_no_callbacks(&intf->dev);
 		dev_set_name(&intf->dev, "%d-%s:%d.%d", dev->bus->busnum,
 				dev->devpath, configuration, ifnum);
+		/*
+		 * Make sure the interface does not outlive its parent (e.g.
+		 * as needed for usb_queue_reset_device() and
+		 * usb_if_device_type->need_parent_lock).
+		 */
 		usb_get_dev(dev);
 	}
 	kfree(new_interfaces);

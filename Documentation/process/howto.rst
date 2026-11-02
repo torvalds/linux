@@ -305,7 +305,7 @@ The maintainers of the various kernel subsystems --- and also many
 kernel subsystem developers --- expose their current state of
 development in source repositories.  That way, others can see what is
 happening in the different areas of the kernel.  In areas where
-development is rapid, a developer may be asked to base his submissions
+development is rapid, a developer may be asked to base their submissions
 onto such a subsystem kernel tree so that conflicts between the
 submission and other already ongoing work are avoided.
 

@@ -911,6 +911,17 @@ static int kvm_handle_hypercall(struct kvm_vcpu *vcpu, int ecode)
 		vcpu->run->hypercall.ret = KVM_HCALL_INVALID_CODE;
 		ret = RESUME_HOST;
 		break;
+	case KVM_HCALL_CRASH:
+		if (!kvm_guest_has_pv_feature(vcpu, KVM_FEATURE_CRASH)) {
+			kvm_write_reg(vcpu, LOONGARCH_GPR_A0, KVM_HCALL_INVALID_CODE);
+			break;
+		}
+
+		vcpu->run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
+		vcpu->run->system_event.type = KVM_SYSTEM_EVENT_CRASH;
+		vcpu->run->system_event.ndata = 0;
+		ret = RESUME_HOST;
+		break;
 	case KVM_HCALL_SWDBG:
 		/* KVM_HCALL_SWDBG only in effective when SW_BP is enabled */
 		if (vcpu->guest_debug & KVM_GUESTDBG_SW_BP_MASK) {

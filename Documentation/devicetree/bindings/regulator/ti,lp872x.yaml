@@ -1,0 +1,204 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/ti,lp872x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI/National Semiconductor LP872x
+
+maintainers:
+  - Milo Kim <milo.kim@ti.com>
+
+description:
+  See Datasheet
+  LP8720 https://www.ti.com/lit/ds/symlink/lp8720.pdf
+  LP8725 https://www.ti.com/lit/ds/symlink/lp8725.pdf
+
+properties:
+  compatible:
+    enum:
+      - ti,lp8720
+      - ti,lp8725
+
+  reg:
+    enum: [0x7a, 0x7d]
+
+  ti,general-config:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+      the value of LP872X_GENERAL_CFG register (u8)
+      (LP8720)
+      bit[2]: BUCK output voltage control by external DVS pin or register
+              1 = external pin, 0 = bit7 of register 08h
+      bit[1]: sleep control by external DVS pin or register
+              1 = external pin, 0 = bit6 of register 08h
+      bit[0]: time step unit(usec). 1 = 25, 0 = 50
+
+      (LP8725)
+      bit[7:6]: time step unit(usec). 00 = 32, 01 = 64, 10 = 128, 11 = 256
+      bit[4]:   BUCK2 enable control. 1 = enable, 0 = disable
+      bit[3]:   BUCK2 output voltage register address. 1 = 0Ah, 0 = 0Bh
+      bit[2]:   BUCK1 output voltage control by external DVS pin or register
+                1 = register 08h, 0 = DVS
+      bit[1]:   LDO sleep control. 1 = sleep mode, 0 = normal
+      bit[0]:   BUCK1 enable control, 1 = enable, 0 = disable
+
+      For more details, please see the datasheet.
+
+  ti,update-config:
+    type: boolean
+    deprecated: true
+    description: define it when LP872X_GENERAL_CFG register should be set
+
+  ti,dvs-gpio:
+    maxItems: 1
+    deprecated: true
+    description: GPIO specifier for external DVS pin control of LP872x devices.
+
+  ti,dvs-vsel:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    enum: [0, 1]
+    description: DVS selector. 0 = SEL_V1, 1 = SEL_V2.
+
+  ti,dvs-state:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    enum: [0, 1]
+    description: initial DVS pin state. 0 = DVS_LOW, 1 = DVS_HIGH.
+
+  enable-gpios:
+    maxItems: 1
+    description: GPIO specifier for EN pin control of LP872x devices.
+
+  dvs-gpios:
+    description: GPIO specifier for external DVS pin control.
+    maxItems: 1
+
+  buck:
+    type: object
+    $ref: regulator.yaml#
+    unevaluatedProperties: false
+    description:
+      Single BUCK regulator for LP8720.
+
+patternProperties:
+  "^(vbatt|vin([1-3]|b|lilo[1-2]))-supply$":
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: |
+      vbatt - input supply for ldo1 and all internal circuitry (lp8720 only).
+      vin1 - input supply for ldo2 - ldo3 (lp8720) or ldo1 (lp8725).
+      vin2 - input supply for ldo4 - ldo5 (lp8720) or ldo2 - ldo3 (lp8725).
+      vin3 - input supply for ldo4 - ldo5 (lp8725).
+      vinb - input supply for buck.
+      vinlilo1 and vinlilo2 - input supply for lilo1 and lilo2.
+
+  "^(buck[1-2]?|ldo[1-5]|lilo[1-2])$":
+    type: object
+    $ref: regulator.yaml#
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,lp8720
+    then:
+      properties:
+        reg:
+          const: 0x7d
+      patternProperties:
+        "^(vin(3|lilo[1-2]))-supply$": false
+        "^(buck[1-2]|lilo[1-2])$": false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,lp8725
+    then:
+      properties:
+        reg:
+          const: 0x7a
+        vbatt-supply: false
+        buck: false
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@7a {
+            compatible = "ti,lp8725";
+            reg = <0x7a>;
+
+            /* Enable BUCK1,2, no DVS, normal LDO mode, timestep is 256usec */
+            ti,general-config = /bits/ 8 <0xdd>;
+            ti,update-config;
+
+            ldo1 {
+                regulator-min-microvolt = <1200000>;
+                regulator-max-microvolt = <3300000>;
+            };
+
+            ldo2 {
+                regulator-min-microvolt = <1200000>;
+                regulator-max-microvolt = <3300000>;
+            };
+
+            ldo3 {
+                regulator-min-microvolt = <1200000>;
+                regulator-max-microvolt = <3300000>;
+            };
+
+            ldo4 {
+                regulator-min-microvolt = <1200000>;
+                regulator-max-microvolt = <3300000>;
+                regulator-boot-on;
+            };
+
+            ldo5 {
+                regulator-min-microvolt = <1200000>;
+                regulator-max-microvolt = <3300000>;
+                regulator-boot-on;
+            };
+
+            lilo1 {
+                regulator-name = "VAUX1";
+                regulator-min-microvolt = <800000>;
+                regulator-max-microvolt = <3300000>;
+            };
+
+            lilo2 {
+                regulator-name = "VAUX2";
+                regulator-min-microvolt = <800000>;
+                regulator-max-microvolt = <3300000>;
+            };
+
+            buck1 {
+                regulator-name = "VBUCK1";
+                regulator-min-microvolt = <800000>;
+                regulator-max-microvolt = <3000000>;
+                regulator-min-microamp  = <460000>;
+                regulator-max-microamp  = <1370000>;
+                regulator-boot-on;
+            };
+
+            buck2 {
+                regulator-name = "VBUCK2";
+                regulator-min-microvolt = <800000>;
+                regulator-max-microvolt = <3000000>;
+                regulator-min-microamp  = <460000>;
+                regulator-max-microamp  = <1370000>;
+                regulator-boot-on;
+            };
+        };
+    };

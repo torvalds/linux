@@ -92,8 +92,8 @@ int live_rc6_manual(void *arg)
 
 		if (!rc0_power) {
 			if (rc0_freq)
-				pr_debug("No power measured while in RC0! GPU Freq: %uMHz in RC0\n",
-					 rc0_freq);
+				pr_err("No power measured while in RC0! GPU Freq: %uMHz in RC0\n",
+				       rc0_freq);
 			else
 				pr_err("No power and freq measured while in RC0\n");
 			err = -EINVAL;

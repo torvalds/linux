@@ -258,6 +258,10 @@ extern bool snd_usb_skip_validation;
  *  Issue SET_CUR for the sample rate even when the clock already reports the
  *  requested rate.  A device advertising a single rate is otherwise never sent
  *  the request at all, and some require it before streaming will start.
+ * QUIRK_FLAG_SWAP_RATES
+ *  The device applies a requested sample rate to the other base-rate family
+ *  (44100 <-> 48000, 88200 <-> 96000, 176400 <-> 192000).  Send the partner
+ *  rate in SET_CUR so that the device runs at the requested rate.
  */
 
 enum {
@@ -294,6 +298,7 @@ enum {
 	QUIRK_TYPE_MIXER_GET_CUR_OK		= 30,
 	QUIRK_TYPE_PLAYBACK_URB_FIXUP		= 31,
 	QUIRK_TYPE_ALWAYS_SET_RATE		= 32,
+	QUIRK_TYPE_SWAP_RATES			= 33,
 /* Please also edit snd_usb_audio_quirk_flag_names and alsa-configuration.rst */
 };
 
@@ -332,5 +337,6 @@ enum {
 #define QUIRK_FLAG_MIXER_GET_CUR_OK		QUIRK_FLAG(MIXER_GET_CUR_OK)
 #define QUIRK_FLAG_PLAYBACK_URB_FIXUP		QUIRK_FLAG(PLAYBACK_URB_FIXUP)
 #define QUIRK_FLAG_ALWAYS_SET_RATE		QUIRK_FLAG(ALWAYS_SET_RATE)
+#define QUIRK_FLAG_SWAP_RATES			QUIRK_FLAG(SWAP_RATES)
 
 #endif /* __USBAUDIO_H */

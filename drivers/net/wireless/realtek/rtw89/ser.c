@@ -327,6 +327,8 @@ static void ser_sta_deinit_cam_iter(void *data, struct ieee80211_sta *sta)
 	if (rtwvif != target_rtwvif)
 		return;
 
+	INIT_LIST_HEAD(&rtwsta->ba_cam_list);
+
 	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id) {
 		rtwvif_link = rtwsta_link->rtwvif_link;
 
@@ -334,8 +336,6 @@ static void ser_sta_deinit_cam_iter(void *data, struct ieee80211_sta *sta)
 			rtw89_cam_deinit_addr_cam(rtwdev, &rtwsta_link->addr_cam);
 		if (sta->tdls)
 			rtw89_cam_deinit_bssid_cam(rtwdev, &rtwsta_link->bssid_cam);
-
-		INIT_LIST_HEAD(&rtwsta_link->ba_cam_list);
 	}
 }
 
@@ -354,6 +354,14 @@ static void ser_deinit_cam(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	bitmap_zero(rtwdev->cam_info.ba_cam_map, RTW89_MAX_BA_CAM_NUM);
 }
 
+static void ser_reset_assoc_links(struct rtw89_dev *rtwdev)
+{
+	for (int i = 0; i < RTW89_MAX_MAC_ID_NUM; i++)
+		rcu_assign_pointer(rtwdev->assoc_link_on_macid[i], NULL);
+
+	synchronize_rcu();
+}
+
 static void ser_reset_mac_binding(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_vif *rtwvif;
@@ -362,6 +370,7 @@ static void ser_reset_mac_binding(struct rtw89_dev *rtwdev)
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		ser_deinit_cam(rtwdev, rtwvif);
 
+	ser_reset_assoc_links(rtwdev);
 	rtw89_core_release_all_bits_map(rtwdev->mac_id_map, RTW89_MAX_MAC_ID_NUM);
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		ser_reset_vif(rtwdev, rtwvif);

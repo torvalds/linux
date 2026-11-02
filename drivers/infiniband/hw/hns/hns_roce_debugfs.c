@@ -338,6 +338,60 @@ static void create_cc_param_debugfs(struct hns_roce_dev *hr_dev,
 	}
 }
 
+static int gsi_sl_debugfs_show(struct seq_file *file, void *offset)
+{
+	struct hns_roce_dev *hr_dev = file->private;
+
+	seq_printf(file, "%u\n", hr_dev->gsi_sl);
+
+	return 0;
+}
+
+static ssize_t gsi_sl_debugfs_store(char *buf, size_t count, void *data)
+{
+	struct hns_roce_dev *hr_dev = data;
+	struct net_device *netdev;
+	int ret;
+	u8 val;
+
+	netdev = ib_device_get_netdev(&hr_dev->ib_dev, 1);
+	if (!netdev)
+		return -ENODEV;
+
+	if (ib_get_curr_port_state(netdev) == IB_PORT_ACTIVE) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	ret = kstrtou8(buf, 0, &val);
+	if (ret)
+		goto out;
+
+	if (!check_sl_valid(hr_dev, val)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hr_dev->gsi_sl = val;
+
+out:
+	dev_put(netdev);
+	return ret ? : count;
+}
+
+static void create_gsi_sl_debugfs(struct hns_roce_dev *hr_dev,
+				  struct dentry *parent)
+{
+	struct hns_debugfs_seqfile *seqfile = &hr_dev->dbgfs.gsi_sl;
+
+	seqfile->read = gsi_sl_debugfs_show;
+	seqfile->write = gsi_sl_debugfs_store;
+	seqfile->data = hr_dev;
+
+	debugfs_create_file("gsi_sl", 0600, parent, seqfile,
+			    &hns_debugfs_seqfile_fops);
+}
+
 /* debugfs for device */
 void hns_roce_register_debugfs(struct hns_roce_dev *hr_dev)
 {
@@ -348,6 +402,7 @@ void hns_roce_register_debugfs(struct hns_roce_dev *hr_dev)
 
 	create_sw_stat_debugfs(hr_dev, dbgfs->root);
 	create_cc_param_debugfs(hr_dev, dbgfs->root);
+	create_gsi_sl_debugfs(hr_dev, dbgfs->root);
 }
 
 void hns_roce_unregister_debugfs(struct hns_roce_dev *hr_dev)

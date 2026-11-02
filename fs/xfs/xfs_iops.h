@@ -10,7 +10,7 @@ struct xfs_inode;
 
 extern ssize_t xfs_vn_listxattr(struct dentry *, char *data, size_t size);
 
-int xfs_vn_setattr_size(struct mnt_idmap *idmap,
+int xfs_vn_setattr_size(const struct mnt_idmap *idmap,
 		struct dentry *dentry, struct iattr *vap);
 
 int xfs_inode_init_security(struct inode *inode, struct inode *dir,

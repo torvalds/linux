@@ -124,6 +124,7 @@ static void fotg210_set_fifo_dir(struct fotg210_ep *ep, u32 epnum, u32 dir_in)
 	u32 val;
 
 	val = ioread32(fotg210->reg + FOTG210_FIFOMAP);
+	val &= ~FIFOMAP_NA(epnum - 1);
 	val |= (dir_in ? FIFOMAP_DIRIN(epnum - 1) : FIFOMAP_DIROUT(epnum - 1));
 	iowrite32(val, fotg210->reg + FOTG210_FIFOMAP);
 }
@@ -134,6 +135,7 @@ static void fotg210_set_tfrtype(struct fotg210_ep *ep, u32 epnum, u32 type)
 	u32 val;
 
 	val = ioread32(fotg210->reg + FOTG210_FIFOCF);
+	val &= ~FIFOCF_TYPE(3, epnum - 1);
 	val |= FIFOCF_TYPE(type, epnum - 1);
 	iowrite32(val, fotg210->reg + FOTG210_FIFOCF);
 }
@@ -147,6 +149,7 @@ static void fotg210_set_mps(struct fotg210_ep *ep, u32 epnum, u32 mps,
 				FOTG210_OUTEPMPSR(epnum);
 
 	val = ioread32(fotg210->reg + offset);
+	val &= ~INOUTEPMPSR_MPS(~0);
 	val |= INOUTEPMPSR_MPS(mps);
 	iowrite32(val, fotg210->reg + offset);
 }
@@ -209,11 +212,12 @@ static int fotg210_ep_release(struct fotg210_ep *ep)
 {
 	if (!ep->epnum)
 		return 0;
+
+	fotg210_reset_tseq(ep->fotg210, ep->epnum);
+
 	ep->epnum = 0;
 	ep->stall = 0;
 	ep->wedged = 0;
-
-	fotg210_reset_tseq(ep->fotg210, ep->epnum);
 
 	return 0;
 }
@@ -338,6 +342,7 @@ static void fotg210_start_dma(struct fotg210_ep *ep,
 			struct fotg210_request *req)
 {
 	struct device *dev = &ep->fotg210->gadget.dev;
+	enum dma_data_direction direction;
 	dma_addr_t d;
 	u8 *buffer;
 	u32 length;
@@ -361,8 +366,8 @@ static void fotg210_start_dma(struct fotg210_ep *ep,
 			length = req->req.length - req->req.actual;
 	}
 
-	d = dma_map_single(dev, buffer, length,
-			ep->dir_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	direction = ep->dir_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	d = dma_map_single(dev, buffer, length, direction);
 
 	if (dma_mapping_error(dev, d)) {
 		pr_err("dma_mapping_error\n");
@@ -379,7 +384,7 @@ static void fotg210_start_dma(struct fotg210_ep *ep,
 	/* update actual transfer length */
 	req->req.actual += length;
 
-	dma_unmap_single(dev, d, length, DMA_TO_DEVICE);
+	dma_unmap_single(dev, d, length, direction);
 }
 
 static void fotg210_ep0_queue(struct fotg210_ep *ep,
@@ -445,7 +450,7 @@ static int fotg210_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	req = container_of(_req, struct fotg210_request, req);
 
 	spin_lock_irqsave(&ep->fotg210->lock, flags);
-	if (!list_empty(&ep->queue))
+	if (!list_empty(&req->queue))
 		fotg210_done(ep, req, -ECONNRESET);
 	spin_unlock_irqrestore(&ep->fotg210->lock, flags);
 
@@ -661,7 +666,7 @@ static void fotg210_set_feature(struct fotg210_udc *fotg210,
 	case USB_RECIP_ENDPOINT: {
 		u8 epnum;
 		epnum = le16_to_cpu(ctrl->wIndex) & USB_ENDPOINT_NUMBER_MASK;
-		if (epnum)
+		if (epnum && epnum < FOTG210_MAX_NUM_EP)
 			fotg210_set_epnstall(fotg210->ep[epnum]);
 		else
 			fotg210_set_cxstall(fotg210);
@@ -677,8 +682,8 @@ static void fotg210_set_feature(struct fotg210_udc *fotg210,
 static void fotg210_clear_feature(struct fotg210_udc *fotg210,
 				struct usb_ctrlrequest *ctrl)
 {
-	struct fotg210_ep *ep =
-		fotg210->ep[ctrl->wIndex & USB_ENDPOINT_NUMBER_MASK];
+	u8 epnum = le16_to_cpu(ctrl->wIndex) & USB_ENDPOINT_NUMBER_MASK;
+	struct fotg210_ep *ep;
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
@@ -688,7 +693,12 @@ static void fotg210_clear_feature(struct fotg210_udc *fotg210,
 		fotg210_set_cxdone(fotg210);
 		break;
 	case USB_RECIP_ENDPOINT:
-		if (ctrl->wIndex & USB_ENDPOINT_NUMBER_MASK) {
+		if (epnum >= FOTG210_MAX_NUM_EP) {
+			fotg210_request_error(fotg210);
+			break;
+		}
+		if (epnum) {
+			ep = fotg210->ep[epnum];
 			if (ep->wedged) {
 				fotg210_set_cxdone(fotg210);
 				break;
@@ -744,8 +754,8 @@ static void fotg210_get_status(struct fotg210_udc *fotg210,
 		fotg210->ep0_data = cpu_to_le16(0);
 		break;
 	case USB_RECIP_ENDPOINT:
-		epnum = ctrl->wIndex & USB_ENDPOINT_NUMBER_MASK;
-		if (epnum)
+		epnum = le16_to_cpu(ctrl->wIndex) & USB_ENDPOINT_NUMBER_MASK;
+		if (epnum && epnum < FOTG210_MAX_NUM_EP)
 			fotg210->ep0_data =
 				cpu_to_le16(fotg210_is_epnstall(fotg210->ep[epnum])
 					    << USB_ENDPOINT_HALT);
@@ -886,6 +896,8 @@ static irqreturn_t fotg210_irq(int irq, void *_fotg210)
 	u32 int_msk = ioread32(fotg210->reg + FOTG210_DMIGR);
 
 	int_grp &= ~int_msk;
+	if (!int_grp)
+		return IRQ_NONE;
 
 	spin_lock(&fotg210->lock);
 
@@ -1002,6 +1014,14 @@ static void fotg210_disable_unplug(struct fotg210_udc *fotg210)
 	iowrite32(reg, fotg210->reg + FOTG210_PHYTMSR);
 }
 
+static void fotg210_enable_unplug(struct fotg210_udc *fotg210)
+{
+	u32 reg = ioread32(fotg210->reg + FOTG210_PHYTMSR);
+
+	reg |= PHYTMSR_UNPLUG;
+	iowrite32(reg, fotg210->reg + FOTG210_PHYTMSR);
+}
+
 static int fotg210_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver)
 {
@@ -1009,19 +1029,22 @@ static int fotg210_udc_start(struct usb_gadget *g,
 	u32 value;
 	int ret;
 
-	/* hook up the driver */
+	/* Hook up the driver before enabling device interrupts. */
 	fotg210->driver = driver;
 	fotg210->gadget.dev.of_node = fotg210->dev->of_node;
 	fotg210->gadget.speed = USB_SPEED_UNKNOWN;
 
-	dev_info(fotg210->dev, "bound driver %s\n", driver->driver.name);
-
 	if (!IS_ERR_OR_NULL(fotg210->phy)) {
 		ret = otg_set_peripheral(fotg210->phy->otg,
 					 &fotg210->gadget);
-		if (ret)
-			dev_err(fotg210->dev, "can't bind to phy\n");
+		if (ret) {
+			fotg210->driver = NULL;
+			return dev_err_probe(fotg210->dev, ret,
+					     "can't bind to PHY\n");
+		}
 	}
+
+	dev_info(fotg210->dev, "bound driver %s\n", driver->driver.name);
 
 	/* chip enable */
 	value = ioread32(fotg210->reg + FOTG210_DMCR);
@@ -1076,20 +1099,23 @@ static void fotg210_init(struct fotg210_udc *fotg210)
 static int fotg210_udc_stop(struct usb_gadget *g)
 {
 	struct fotg210_udc *fotg210 = gadget_to_fotg210(g);
-	unsigned long	flags;
+	unsigned long flags;
+	int ret = 0;
 
 	if (!IS_ERR_OR_NULL(fotg210->phy))
-		return otg_set_peripheral(fotg210->phy->otg, NULL);
+		ret = otg_set_peripheral(fotg210->phy->otg, NULL);
+
+	/* fotg210_init() sleeps, so it must run outside the spinlock. */
+	fotg210_init(fotg210);
 
 	spin_lock_irqsave(&fotg210->lock, flags);
 
-	fotg210_init(fotg210);
 	fotg210->driver = NULL;
 	fotg210->gadget.speed = USB_SPEED_UNKNOWN;
 
 	spin_unlock_irqrestore(&fotg210->lock, flags);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -1103,8 +1129,12 @@ static int fotg210_vbus_session(struct usb_gadget *g, int is_active)
 {
 	struct fotg210_udc *fotg210 = gadget_to_fotg210(g);
 
-	/* Call down to core integration layer to drive or disable VBUS */
-	fotg210_vbus(fotg210->fotg, is_active);
+	/* A peripheral must never source VBUS; only control its pull-up. */
+	if (is_active)
+		fotg210_disable_unplug(fotg210);
+	else
+		fotg210_enable_unplug(fotg210);
+
 	return 0;
 }
 
@@ -1144,28 +1174,24 @@ static int fotg210_phy_event(struct notifier_block *nb, unsigned long action,
 	}
 }
 
-static struct notifier_block fotg210_phy_notifier = {
-	.notifier_call = fotg210_phy_event,
-};
-
 int fotg210_udc_remove(struct platform_device *pdev)
 {
 	struct fotg210_udc *fotg210 = platform_get_drvdata(pdev);
 	int i;
 
 	usb_del_gadget_udc(&fotg210->gadget);
-	if (!IS_ERR_OR_NULL(fotg210->phy)) {
-		usb_unregister_notifier(fotg210->phy, &fotg210_phy_notifier);
-		usb_put_phy(fotg210->phy);
-	}
-	iounmap(fotg210->reg);
+	if (!IS_ERR_OR_NULL(fotg210->phy))
+		usb_unregister_notifier(fotg210->phy,
+					&fotg210->phy_notifier);
 	free_irq(platform_get_irq(pdev, 0), fotg210);
+	usb_phy_shutdown(fotg210->phy);
 
 	fotg210_ep_free_request(&fotg210->ep[0]->ep, fotg210->ep0_req);
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++)
 		kfree(fotg210->ep[i]);
 
 	kfree(fotg210);
+	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -1188,7 +1214,6 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 		return -ENOMEM;
 
 	fotg210->dev = dev;
-	fotg210->fotg = fotg;
 
 	fotg210->phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 	if (IS_ERR(fotg210->phy)) {
@@ -1215,8 +1240,6 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 	fotg210->reg = fotg->base;
 
 	spin_lock_init(&fotg210->lock);
-
-	platform_set_drvdata(pdev, fotg210);
 
 	fotg210->gadget.ops = &fotg210_gadget_ops;
 
@@ -1267,19 +1290,25 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 
 	fotg210_disable_unplug(fotg210);
 
-	ret = request_irq(irq, fotg210_irq, IRQF_SHARED,
-			  udc_name, fotg210);
+	ret = request_irq(irq, fotg210_irq, 0, udc_name, fotg210);
 	if (ret < 0) {
 		dev_err_probe(dev, ret, "request_irq error\n");
 		goto err_req;
 	}
 
-	if (!IS_ERR_OR_NULL(fotg210->phy))
-		usb_register_notifier(fotg210->phy, &fotg210_phy_notifier);
+	if (!IS_ERR_OR_NULL(fotg210->phy)) {
+		fotg210->phy_notifier.notifier_call = fotg210_phy_event;
+		ret = usb_register_notifier(fotg210->phy,
+					    &fotg210->phy_notifier);
+		if (ret)
+			goto err_notifier;
+	}
 
 	ret = usb_add_gadget_udc(dev, &fotg210->gadget);
 	if (ret)
 		goto err_add_udc;
+
+	platform_set_drvdata(pdev, fotg210);
 
 	dev_info(dev, "version %s\n", DRIVER_VERSION);
 
@@ -1287,18 +1316,19 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 
 err_add_udc:
 	if (!IS_ERR_OR_NULL(fotg210->phy))
-		usb_unregister_notifier(fotg210->phy, &fotg210_phy_notifier);
+		usb_unregister_notifier(fotg210->phy,
+					&fotg210->phy_notifier);
+err_notifier:
 	free_irq(irq, fotg210);
 
 err_req:
 	fotg210_ep_free_request(&fotg210->ep[0]->ep, fotg210->ep0_req);
 
 err_map:
-	iounmap(fotg210->reg);
-
 err_alloc:
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++)
 		kfree(fotg210->ep[i]);
+	usb_phy_shutdown(fotg210->phy);
 
 err_free:
 	kfree(fotg210);

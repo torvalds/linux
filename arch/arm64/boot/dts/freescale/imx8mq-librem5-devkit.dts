@@ -119,7 +119,7 @@
 		};
 	};
 
-	reg_22v4_p: regulator-22v4-p  {
+	reg_22v4_p: regulator-22v4-p {
 		compatible = "regulator-fixed";
 		regulator-name = "22v4_P";
 		regulator-min-microvolt = <22400000>;
@@ -507,7 +507,7 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	magnetometer@1e	{
+	magnetometer@1e {
 		compatible = "st,lsm9ds1-magn";
 		reg = <0x1e>;
 		pinctrl-names = "default";

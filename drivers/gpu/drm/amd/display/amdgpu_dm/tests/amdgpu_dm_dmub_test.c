@@ -14,11 +14,18 @@
 #include "dc/inc/hw/abm.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
+#include "dal_asic_id.h"
 #include "dm_services.h"
 #include "dmub/dmub_srv.h"
 #include "amdgpu_dm_dmub.h"
 
-#define DM_TEST_FW_SIZE	512
+/*
+ * The PSP footer probing in dmub_srv_get_fw_meta_info_from_raw_fw() walks back
+ * from the end of the instruction constant region twice, so the fake firmware
+ * needs an instruction constant region larger than two footers.
+ */
+#define DM_TEST_FW_INST_CONST_BYTES	(PSP_HEADER_BYTES_256 + 1024)
+#define DM_TEST_FW_SIZE			(DM_TEST_FW_INST_CONST_BYTES + 1024)
 
 /* Tests for dm_register_dmub_notify_callback() */
 
@@ -111,7 +118,7 @@ static const struct firmware *dm_test_alloc_dmub_fw(struct kunit *test)
 	hdr = (struct dmcub_firmware_header_v1_0 *)data;
 	hdr->header.ucode_array_offset_bytes = cpu_to_le32(0);
 	hdr->header.ucode_version = cpu_to_le32(DMUB_FW_VERSION(9, 9, 9));
-	hdr->inst_const_bytes = cpu_to_le32(PSP_HEADER_BYTES_256);
+	hdr->inst_const_bytes = cpu_to_le32(DM_TEST_FW_INST_CONST_BYTES);
 	hdr->bss_data_bytes = cpu_to_le32(0);
 
 	fw->size = DM_TEST_FW_SIZE;
@@ -1347,6 +1354,543 @@ static void dm_test_abort_fused_io_no_dmub_srv(struct kunit *test)
 	abort_fused_io(ctx, req);
 }
 
+/*
+ * Fake CGS device: the DMUB register callbacks reach the hardware through
+ * cgs_read_register()/cgs_write_register(), which dispatch via the ops table
+ * at the start of struct cgs_device.
+ */
+
+#define DM_TEST_GPINT_REG		(0x34c0 + 0x01f8)
+#define DM_TEST_GPINT_STATUS_MASK	0xF0000000U
+
+struct dm_test_cgs_ctx {
+	struct cgs_device dev;
+	u32 last_write;
+	unsigned int write_calls;
+	unsigned int read_calls;
+	unsigned int last_write_offset;
+	unsigned int last_read_offset;
+	/* 1-based index of the write that must never be acked; 0 acks all */
+	unsigned int fail_on_write;
+};
+
+static struct dm_test_cgs_ctx dm_test_cgs;
+
+static uint32_t dm_test_cgs_read_register(struct cgs_device *cgs_device,
+					  unsigned int offset)
+{
+	dm_test_cgs.read_calls++;
+	dm_test_cgs.last_read_offset = offset;
+
+	if (dm_test_cgs.fail_on_write == dm_test_cgs.write_calls)
+		return ~dm_test_cgs.last_write;
+
+	/* The firmware acks a GPINT by clearing the status nibble. */
+	return dm_test_cgs.last_write & ~DM_TEST_GPINT_STATUS_MASK;
+}
+
+static void dm_test_cgs_write_register(struct cgs_device *cgs_device,
+				       unsigned int offset, uint32_t value)
+{
+	dm_test_cgs.write_calls++;
+	dm_test_cgs.last_write_offset = offset;
+	dm_test_cgs.last_write = value;
+}
+
+static const struct cgs_ops dm_test_cgs_ops = {
+	.read_register = dm_test_cgs_read_register,
+	.write_register = dm_test_cgs_write_register,
+};
+
+/*
+ * Fake buffer object allocator: amdgpu_bo_create_kernel() and
+ * amdgpu_bo_free_kernel() need a live TTM device, so both the DMUB framebuffer
+ * allocation and dm_allocate_gpu_mem() are routed through this fake.
+ */
+
+#define DM_TEST_FAKE_GPU_ADDR	0x1234ABCD0000ULL
+
+struct dm_test_bo_ctx {
+	void *cpu_ptr;
+	int create_ret;
+	unsigned int create_calls;
+	unsigned int free_calls;
+	unsigned long create_size;
+	u32 create_domain;
+};
+
+static struct dm_test_bo_ctx dm_test_bo;
+
+static int dm_test_bo_create_kernel(struct amdgpu_device *adev, unsigned long size,
+				    int align, u32 domain, struct amdgpu_bo **bo_ptr,
+				    u64 *gpu_addr, void **cpu_addr)
+{
+	dm_test_bo.create_calls++;
+	dm_test_bo.create_size = size;
+	dm_test_bo.create_domain = domain;
+
+	if (dm_test_bo.create_ret)
+		return dm_test_bo.create_ret;
+
+	*gpu_addr = DM_TEST_FAKE_GPU_ADDR;
+	*cpu_addr = dm_test_bo.cpu_ptr;
+
+	return 0;
+}
+
+static void dm_test_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr, void **cpu_addr)
+{
+	dm_test_bo.free_calls++;
+
+	*bo = NULL;
+	*gpu_addr = 0;
+	*cpu_addr = NULL;
+}
+
+static const struct amdgpu_dm_services_kunit_ops dm_test_services_ops = {
+	.bo_create_kernel = dm_test_bo_create_kernel,
+	.bo_free_kernel = dm_test_bo_free_kernel,
+};
+
+/* Fake firmware loader, records the firmware name the ASIC switch selected. */
+
+static char dm_test_ucode_name[64];
+static unsigned int dm_test_ucode_calls;
+static int dm_test_ucode_ret;
+
+static __printf(4, 5) int dm_test_ucode_request(struct amdgpu_device *adev,
+						const struct firmware **fw,
+						enum amdgpu_ucode_required required,
+						const char *fmt, ...)
+{
+	va_list args;
+
+	dm_test_ucode_calls++;
+
+	va_start(args, fmt);
+	vsnprintf(dm_test_ucode_name, sizeof(dm_test_ucode_name), fmt, args);
+	va_end(args);
+
+	return dm_test_ucode_ret;
+}
+
+static const struct amdgpu_dm_dmub_kunit_ops dm_test_dmub_ops = {
+	.bo_create_kernel = dm_test_bo_create_kernel,
+	.ucode_request = dm_test_ucode_request,
+};
+
+static int dm_test_dmub_hw_access_init(struct kunit *test)
+{
+	void *cpu_ptr;
+
+	cpu_ptr = kunit_kzalloc(test, PAGE_SIZE, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cpu_ptr);
+
+	dm_test_bo = (struct dm_test_bo_ctx) { .cpu_ptr = cpu_ptr };
+	dm_test_cgs = (struct dm_test_cgs_ctx) { .dev.ops = &dm_test_cgs_ops };
+	dm_test_ucode_name[0] = '\0';
+	dm_test_ucode_calls = 0;
+	dm_test_ucode_ret = 0;
+
+	amdgpu_dm_services_kunit_set_ops(&dm_test_services_ops);
+	amdgpu_dm_dmub_kunit_set_ops(&dm_test_dmub_ops);
+
+	return 0;
+}
+
+static void dm_test_dmub_hw_access_exit(struct kunit *test)
+{
+	amdgpu_dm_services_kunit_set_ops(NULL);
+	amdgpu_dm_dmub_kunit_set_ops(NULL);
+}
+
+static struct amdgpu_device *dm_test_alloc_adev_with_cgs(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	adev->dm.cgs_device = &dm_test_cgs.dev;
+	INIT_LIST_HEAD(&adev->dm.da_list);
+
+	return adev;
+}
+
+/* Tests for amdgpu_dm_dmub_reg_read() and amdgpu_dm_dmub_reg_write() */
+
+/**
+ * dm_test_dmub_reg_write_then_read - Test the DMUB register access callbacks
+ * @test: The KUnit test context
+ *
+ * The callbacks the DMUB service is created with must forward to the DC
+ * context of the device passed as their opaque user context.
+ */
+static void dm_test_dmub_reg_write_then_read(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_with_dc(test);
+	struct dc_perf_trace *perf_trace;
+
+	perf_trace = kunit_kzalloc(test, sizeof(*perf_trace), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, perf_trace);
+
+	adev->dm.dc->ctx->cgs_device = &dm_test_cgs.dev;
+	adev->dm.dc->ctx->perf_trace = perf_trace;
+
+	amdgpu_dm_dmub_reg_write(adev, 0x1234, 0x0BADF00D);
+
+	KUNIT_EXPECT_EQ(test, dm_test_cgs.write_calls, 1U);
+	KUNIT_EXPECT_EQ(test, dm_test_cgs.last_write_offset, 0x1234U);
+	KUNIT_EXPECT_EQ(test, dm_test_cgs.last_write, 0x0BADF00DU);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_dmub_reg_read(adev, 0x1234), 0x0BADF00DU);
+	KUNIT_EXPECT_EQ(test, dm_test_cgs.read_calls, 1U);
+	KUNIT_EXPECT_EQ(test, dm_test_cgs.last_read_offset, 0x1234U);
+}
+
+/* Tests for dm_dmub_get_vbios_bounding_box() */
+
+/**
+ * dm_test_dmub_get_vbios_bounding_box_success - Test the full bounding box handshake
+ * @test: The KUnit test context
+ *
+ * Every ASIC with a bounding box allocates a non-zero GART buffer, then sends
+ * and gets an ack for the four address words and the copy request.
+ */
+static void dm_test_dmub_get_vbios_bounding_box_success(struct kunit *test)
+{
+	static const u32 ip_versions[] = {
+		IP_VERSION(4, 0, 1),
+		IP_VERSION(4, 2, 0),
+		IP_VERSION(4, 2, 1),
+		IP_VERSION(6, 0, 0),
+	};
+	struct amdgpu_device *adev = dm_test_alloc_adev_with_cgs(test);
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(ip_versions); i++) {
+		void *bb;
+
+		adev->ip_versions[DCE_HWIP][0] = ip_versions[i];
+
+		bb = dm_dmub_get_vbios_bounding_box(adev);
+
+		KUNIT_EXPECT_PTR_EQ_MSG(test, bb, dm_test_bo.cpu_ptr,
+					"IP version 0x%08x", ip_versions[i]);
+		KUNIT_EXPECT_GT_MSG(test, dm_test_bo.create_size, 0UL,
+				    "IP version 0x%08x", ip_versions[i]);
+		KUNIT_EXPECT_EQ(test, dm_test_bo.create_domain,
+				(u32)AMDGPU_GEM_DOMAIN_GTT);
+		KUNIT_EXPECT_EQ(test, dm_test_cgs.last_write_offset,
+				(unsigned int)DM_TEST_GPINT_REG);
+		/* Four address words plus the copy request per ASIC. */
+		KUNIT_EXPECT_EQ(test, dm_test_cgs.write_calls, 5 * (i + 1));
+
+		dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, bb);
+	}
+}
+
+/**
+ * dm_test_dmub_get_vbios_bounding_box_alloc_fails - Test the allocation failure path
+ * @test: The KUnit test context
+ *
+ * When the GPU memory allocation fails, no GPINT command is sent.
+ */
+static void dm_test_dmub_get_vbios_bounding_box_alloc_fails(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_with_cgs(test);
+
+	adev->ip_versions[DCE_HWIP][0] = IP_VERSION(6, 0, 0);
+	dm_test_bo.create_ret = -ENOMEM;
+
+	KUNIT_EXPECT_NULL(test, dm_dmub_get_vbios_bounding_box(adev));
+	KUNIT_EXPECT_EQ(test, dm_test_cgs.write_calls, 0U);
+}
+
+/**
+ * dm_test_dmub_get_vbios_bounding_box_addr_timeout - Test an unacked address word
+ * @test: The KUnit test context
+ *
+ * When the firmware never acks the first address word, the handshake stops
+ * there and the buffer is released.
+ */
+static void dm_test_dmub_get_vbios_bounding_box_addr_timeout(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_with_cgs(test);
+
+	adev->ip_versions[DCE_HWIP][0] = IP_VERSION(6, 0, 0);
+	dm_test_cgs.fail_on_write = 1;
+
+	KUNIT_EXPECT_NULL(test, dm_dmub_get_vbios_bounding_box(adev));
+	KUNIT_EXPECT_EQ(test, dm_test_cgs.write_calls, 1U);
+	KUNIT_EXPECT_EQ(test, dm_test_bo.free_calls, 1U);
+	KUNIT_EXPECT_TRUE(test, list_empty(&adev->dm.da_list));
+}
+
+/**
+ * dm_test_dmub_get_vbios_bounding_box_copy_timeout - Test an unacked copy request
+ * @test: The KUnit test context
+ *
+ * When all four address words are acked but the copy request is not, the
+ * buffer is released and no bounding box is returned.
+ */
+static void dm_test_dmub_get_vbios_bounding_box_copy_timeout(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_with_cgs(test);
+
+	adev->ip_versions[DCE_HWIP][0] = IP_VERSION(6, 0, 0);
+	dm_test_cgs.fail_on_write = 5;
+
+	KUNIT_EXPECT_NULL(test, dm_dmub_get_vbios_bounding_box(adev));
+	KUNIT_EXPECT_EQ(test, dm_test_cgs.write_calls, 5U);
+	KUNIT_EXPECT_EQ(test, dm_test_bo.free_calls, 1U);
+	KUNIT_EXPECT_TRUE(test, list_empty(&adev->dm.da_list));
+}
+
+/* Tests for dm_init_microcode() */
+
+struct dm_test_ucode_case {
+	u32 dce_version;
+	u32 gc_version;
+	u32 external_rev_id;
+	const char *fw_name;
+};
+
+static const struct dm_test_ucode_case dm_test_ucode_cases[] = {
+	{ IP_VERSION(2, 1, 0), 0, 0, FIRMWARE_RENOIR_DMUB },
+	{ IP_VERSION(2, 1, 0), 0, GREEN_SARDINE_A0, FIRMWARE_GREEN_SARDINE_DMUB },
+	{ IP_VERSION(3, 0, 0), IP_VERSION(10, 3, 0), 0, FIRMWARE_SIENNA_CICHLID_DMUB },
+	{ IP_VERSION(3, 0, 0), IP_VERSION(10, 3, 2), 0, FIRMWARE_NAVY_FLOUNDER_DMUB },
+	{ IP_VERSION(3, 0, 1), 0, 0, FIRMWARE_VANGOGH_DMUB },
+	{ IP_VERSION(3, 0, 2), 0, 0, FIRMWARE_DIMGREY_CAVEFISH_DMUB },
+	{ IP_VERSION(3, 0, 3), 0, 0, FIRMWARE_BEIGE_GOBY_DMUB },
+	{ IP_VERSION(3, 1, 2), 0, 0, FIRMWARE_YELLOW_CARP_DMUB },
+	{ IP_VERSION(3, 1, 3), 0, 0, FIRMWARE_YELLOW_CARP_DMUB },
+	{ IP_VERSION(3, 1, 4), 0, 0, FIRMWARE_DCN_314_DMUB },
+	{ IP_VERSION(3, 1, 5), 0, 0, FIRMWARE_DCN_315_DMUB },
+	{ IP_VERSION(3, 1, 6), 0, 0, FIRMWARE_DCN316_DMUB },
+	{ IP_VERSION(3, 2, 0), 0, 0, FIRMWARE_DCN_V3_2_0_DMCUB },
+	{ IP_VERSION(3, 2, 1), 0, 0, FIRMWARE_DCN_V3_2_1_DMCUB },
+	{ IP_VERSION(3, 5, 0), 0, 0, FIRMWARE_DCN_35_DMUB },
+	{ IP_VERSION(3, 5, 1), 0, 0, FIRMWARE_DCN_351_DMUB },
+	{ IP_VERSION(3, 6, 0), 0, 0, FIRMWARE_DCN_36_DMUB },
+	{ IP_VERSION(4, 0, 1), 0, 0, FIRMWARE_DCN_401_DMUB },
+	{ IP_VERSION(4, 2, 0), 0, 0, FIRMWARE_DCN_42_DMUB },
+	{ IP_VERSION(4, 2, 1), 0, 0, FIRMWARE_DCN_42B_DMUB },
+	{ IP_VERSION(6, 0, 0), 0, 0, FIRMWARE_DCN_60_DMUB },
+};
+
+/**
+ * dm_test_init_microcode_fw_names - Test the ASIC to firmware name mapping
+ * @test: The KUnit test context
+ */
+static void dm_test_init_microcode_fw_names(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	unsigned int i;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	for (i = 0; i < ARRAY_SIZE(dm_test_ucode_cases); i++) {
+		const struct dm_test_ucode_case *c = &dm_test_ucode_cases[i];
+
+		adev->ip_versions[DCE_HWIP][0] = c->dce_version;
+		adev->ip_versions[GC_HWIP][0] = c->gc_version;
+		adev->external_rev_id = c->external_rev_id;
+		dm_test_ucode_name[0] = '\0';
+
+		KUNIT_EXPECT_EQ_MSG(test, dm_init_microcode(adev), 0,
+				    "IP version 0x%08x", c->dce_version);
+		KUNIT_EXPECT_STREQ_MSG(test, dm_test_ucode_name, c->fw_name,
+				       "IP version 0x%08x", c->dce_version);
+	}
+
+	KUNIT_EXPECT_EQ(test, dm_test_ucode_calls,
+			(unsigned int)ARRAY_SIZE(dm_test_ucode_cases));
+}
+
+/**
+ * dm_test_init_microcode_request_fails - Test a firmware request failure
+ * @test: The KUnit test context
+ */
+static void dm_test_init_microcode_request_fails(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+
+	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	adev->ip_versions[DCE_HWIP][0] = IP_VERSION(3, 5, 0);
+	dm_test_ucode_ret = -ENOENT;
+
+	KUNIT_EXPECT_EQ(test, dm_init_microcode(adev), -ENOENT);
+}
+
+/* Tests for dm_dmub_sw_init() */
+
+static struct amdgpu_device *dm_test_alloc_adev_for_sw_init(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_with_cgs(test);
+
+	adev->dm.dmub_fw = dm_test_alloc_dmub_fw(test);
+	adev->bios = kunit_kzalloc(test, 4, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->bios);
+	adev->bios_size = 4;
+
+	return adev;
+}
+
+static void dm_test_free_sw_init(struct amdgpu_device *adev)
+{
+	kfree(adev->dm.dmub_srv);
+	kfree(adev->dm.dmub_fb_info);
+	adev->dm.dmub_srv = NULL;
+	adev->dm.dmub_fb_info = NULL;
+}
+
+/**
+ * dm_test_dmub_sw_init_asic_mapping - Test the ASIC to DMUB service mapping
+ * @test: The KUnit test context
+ *
+ * Every supported ASIC must get past DMUB service creation and region
+ * calculation. The framebuffer allocation is forced to fail so the tests stop
+ * before the memory layout is rebased onto a fake buffer.
+ */
+static void dm_test_dmub_sw_init_asic_mapping(struct kunit *test)
+{
+	static const u32 ip_versions[] = {
+		IP_VERSION(2, 1, 0), IP_VERSION(3, 0, 0), IP_VERSION(3, 0, 1),
+		IP_VERSION(3, 0, 2), IP_VERSION(3, 0, 3), IP_VERSION(3, 1, 2),
+		IP_VERSION(3, 1, 3), IP_VERSION(3, 1, 4), IP_VERSION(3, 1, 5),
+		IP_VERSION(3, 1, 6), IP_VERSION(3, 2, 0), IP_VERSION(3, 2, 1),
+		IP_VERSION(3, 5, 0), IP_VERSION(3, 5, 1), IP_VERSION(3, 6, 0),
+		IP_VERSION(4, 0, 1), IP_VERSION(4, 2, 0), IP_VERSION(4, 2, 1),
+		IP_VERSION(6, 0, 0),
+	};
+	struct amdgpu_device *adev = dm_test_alloc_adev_for_sw_init(test);
+	unsigned int i;
+
+	dm_test_bo.create_ret = -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(ip_versions); i++) {
+		adev->ip_versions[DCE_HWIP][0] = ip_versions[i];
+
+		KUNIT_EXPECT_EQ_MSG(test, dm_dmub_sw_init(adev), -ENOMEM,
+				    "IP version 0x%08x", ip_versions[i]);
+
+		dm_test_free_sw_init(adev);
+	}
+
+	KUNIT_EXPECT_EQ(test, dm_test_bo.create_calls, (unsigned int)ARRAY_SIZE(ip_versions));
+}
+
+/**
+ * dm_test_dmub_sw_init_gtt_only_asic - Test the GTT-only memory domain
+ * @test: The KUnit test context
+ *
+ * DCN32 and DCN321 keep the DMUB framebuffer in GTT; every other ASIC also
+ * allows VRAM.
+ */
+static void dm_test_dmub_sw_init_gtt_only_asic(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_for_sw_init(test);
+
+	adev->ip_versions[DCE_HWIP][0] = IP_VERSION(3, 2, 0);
+	dm_test_bo.create_ret = -ENOMEM;
+
+	KUNIT_EXPECT_EQ(test, dm_dmub_sw_init(adev), -ENOMEM);
+	KUNIT_EXPECT_EQ(test, dm_test_bo.create_domain, (u32)AMDGPU_GEM_DOMAIN_GTT);
+
+	dm_test_free_sw_init(adev);
+
+	adev->ip_versions[DCE_HWIP][0] = IP_VERSION(3, 5, 0);
+
+	KUNIT_EXPECT_EQ(test, dm_dmub_sw_init(adev), -ENOMEM);
+	KUNIT_EXPECT_EQ(test, dm_test_bo.create_domain,
+			(u32)(AMDGPU_GEM_DOMAIN_GTT | AMDGPU_GEM_DOMAIN_VRAM));
+
+	dm_test_free_sw_init(adev);
+}
+
+/**
+ * dm_test_dmub_sw_init_success - Test a complete software init
+ * @test: The KUnit test context
+ *
+ * With a fake framebuffer allocator and a fake CGS device, software init
+ * should publish the framebuffer info, the bounding box and the instruction
+ * constant size.
+ */
+static void dm_test_dmub_sw_init_success(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_for_sw_init(test);
+
+	adev->ip_versions[DCE_HWIP][0] = IP_VERSION(6, 0, 0);
+
+	KUNIT_EXPECT_EQ(test, dm_dmub_sw_init(adev), 0);
+	KUNIT_EXPECT_NOT_NULL(test, adev->dm.dmub_srv);
+	KUNIT_EXPECT_NOT_NULL(test, adev->dm.dmub_fb_info);
+	KUNIT_EXPECT_NOT_NULL(test, adev->dm.bb_from_dmub);
+	KUNIT_EXPECT_EQ(test, adev->dm.dmcub_fw_version, DMUB_FW_VERSION(9, 9, 9));
+	/* Meta info lookup fails on the fake firmware and trims a PSP footer. */
+	KUNIT_EXPECT_EQ(test, adev->dm.fw_inst_size,
+			(u32)(DM_TEST_FW_INST_CONST_BYTES - PSP_HEADER_BYTES_256 -
+			      PSP_FOOTER_BYTES_256));
+
+	dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, adev->dm.bb_from_dmub);
+	dm_test_free_sw_init(adev);
+}
+
+/**
+ * dm_test_dmub_sw_init_bss_data - Test software init with a BSS data region
+ * @test: The KUnit test context
+ *
+ * A non-zero BSS data size makes software init point the firmware meta info
+ * lookup at the legacy metadata region instead of the instruction constants.
+ */
+static void dm_test_dmub_sw_init_bss_data(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_for_sw_init(test);
+	struct dmcub_firmware_header_v1_0 *hdr;
+
+	hdr = (struct dmcub_firmware_header_v1_0 *)adev->dm.dmub_fw->data;
+	hdr->bss_data_bytes = cpu_to_le32(512);
+
+	adev->ip_versions[DCE_HWIP][0] = IP_VERSION(6, 0, 0);
+
+	KUNIT_EXPECT_EQ(test, dm_dmub_sw_init(adev), 0);
+	KUNIT_EXPECT_NOT_NULL(test, adev->dm.dmub_fb_info);
+
+	dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, adev->dm.bb_from_dmub);
+	dm_test_free_sw_init(adev);
+}
+
+/**
+ * dm_test_dmub_sw_init_psp_load - Test the PSP firmware load registration
+ * @test: The KUnit test context
+ *
+ * When the firmware is loaded by the PSP, software init must register the
+ * DMCUB microcode with the AMDGPU firmware loader.
+ */
+static void dm_test_dmub_sw_init_psp_load(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_test_alloc_adev_for_sw_init(test);
+
+	adev->ip_versions[DCE_HWIP][0] = IP_VERSION(6, 0, 0);
+	adev->firmware.load_type = AMDGPU_FW_LOAD_PSP;
+
+	KUNIT_EXPECT_EQ(test, dm_dmub_sw_init(adev), 0);
+	KUNIT_EXPECT_EQ(test, adev->firmware.ucode[AMDGPU_UCODE_ID_DMCUB].ucode_id,
+			AMDGPU_UCODE_ID_DMCUB);
+	KUNIT_EXPECT_PTR_EQ(test, adev->firmware.ucode[AMDGPU_UCODE_ID_DMCUB].fw,
+			    adev->dm.dmub_fw);
+	KUNIT_EXPECT_EQ(test, adev->firmware.fw_size,
+			(u32)ALIGN(DM_TEST_FW_INST_CONST_BYTES, PAGE_SIZE));
+
+	dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, adev->dm.bb_from_dmub);
+	dm_test_free_sw_init(adev);
+}
+
 static struct kunit_case amdgpu_dm_dmub_tests[] = {
 	/* dm_register_dmub_notify_callback() */
 	KUNIT_CASE(dm_test_register_dmub_notify_callback_null_callback),
@@ -1412,7 +1956,35 @@ static struct kunit_suite amdgpu_dm_dmub_test_suite = {
 	.test_cases = amdgpu_dm_dmub_tests,
 };
 
-kunit_test_suite(amdgpu_dm_dmub_test_suite);
+static struct kunit_case amdgpu_dm_dmub_hw_access_tests[] = {
+	/* amdgpu_dm_dmub_reg_read() and amdgpu_dm_dmub_reg_write() */
+	KUNIT_CASE(dm_test_dmub_reg_write_then_read),
+	/* dm_dmub_get_vbios_bounding_box() */
+	KUNIT_CASE(dm_test_dmub_get_vbios_bounding_box_success),
+	KUNIT_CASE(dm_test_dmub_get_vbios_bounding_box_alloc_fails),
+	KUNIT_CASE(dm_test_dmub_get_vbios_bounding_box_addr_timeout),
+	KUNIT_CASE(dm_test_dmub_get_vbios_bounding_box_copy_timeout),
+	/* dm_init_microcode() */
+	KUNIT_CASE(dm_test_init_microcode_fw_names),
+	KUNIT_CASE(dm_test_init_microcode_request_fails),
+	/* dm_dmub_sw_init() */
+	KUNIT_CASE(dm_test_dmub_sw_init_asic_mapping),
+	KUNIT_CASE(dm_test_dmub_sw_init_gtt_only_asic),
+	KUNIT_CASE(dm_test_dmub_sw_init_success),
+	KUNIT_CASE(dm_test_dmub_sw_init_bss_data),
+	KUNIT_CASE(dm_test_dmub_sw_init_psp_load),
+	{}
+};
+
+static struct kunit_suite amdgpu_dm_dmub_hw_access_test_suite = {
+	.name = "amdgpu_dm_dmub_hw_access",
+	.init = dm_test_dmub_hw_access_init,
+	.exit = dm_test_dmub_hw_access_exit,
+	.test_cases = amdgpu_dm_dmub_hw_access_tests,
+};
+
+kunit_test_suites(&amdgpu_dm_dmub_test_suite,
+		  &amdgpu_dm_dmub_hw_access_test_suite);
 
 MODULE_AUTHOR("AMD");
 MODULE_DESCRIPTION("KUnit tests for amdgpu_dm_dmub");

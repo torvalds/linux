@@ -1,3 +1,4 @@
 pid_max
+pidns_dead_ancestor
 pidns_init_via_setns
 regression_enomem

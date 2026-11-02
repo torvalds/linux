@@ -213,4 +213,10 @@ enum {
 	PT_FEAT_X86_64_AMD_ENCRYPT_TABLES = PT_FEAT_FMT_START,
 };
 
+struct pt_bcm2712 {
+	struct pt_common common;
+	u8 bigpage_lg2;
+	u8 superpage_lg2;
+};
+
 #endif

@@ -644,18 +644,25 @@ static int ux500_msp_dai_of_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static const struct snd_soc_dai_ops ux500_msp_dai_ops[] = {
-	{
-		.probe = ux500_msp_dai_of_probe,
-		.set_sysclk = ux500_msp_dai_set_dai_sysclk,
-		.set_fmt = ux500_msp_dai_set_dai_fmt,
-		.set_tdm_slot = ux500_msp_dai_set_tdm_slot,
-		.startup = ux500_msp_dai_startup,
-		.shutdown = ux500_msp_dai_shutdown,
-		.prepare = ux500_msp_dai_prepare,
-		.trigger = ux500_msp_dai_trigger,
-		.hw_params = ux500_msp_dai_hw_params,
-	}
+static const u64 ux500_msp_dai_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B;
+
+static const struct snd_soc_dai_ops ux500_msp_dai_ops = {
+	.probe		= ux500_msp_dai_of_probe,
+	.set_sysclk	= ux500_msp_dai_set_dai_sysclk,
+	.set_fmt	= ux500_msp_dai_set_dai_fmt,
+	.set_tdm_slot	= ux500_msp_dai_set_tdm_slot,
+	.startup	= ux500_msp_dai_startup,
+	.shutdown	= ux500_msp_dai_shutdown,
+	.prepare	= ux500_msp_dai_prepare,
+	.trigger	= ux500_msp_dai_trigger,
+	.hw_params	= ux500_msp_dai_hw_params,
+	.auto_selectable_formats	= &ux500_msp_dai_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver ux500_msp_dai_drv = {
@@ -667,7 +674,7 @@ static struct snd_soc_dai_driver ux500_msp_dai_drv = {
 	.capture.channels_max  = UX500_MSP_MAX_CHANNELS,
 	.capture.rates         = UX500_I2S_RATES,
 	.capture.formats       = UX500_I2S_FORMATS,
-	.ops                   = ux500_msp_dai_ops,
+	.ops                   = &ux500_msp_dai_ops,
 };
 
 static const struct snd_soc_component_driver ux500_msp_component = {

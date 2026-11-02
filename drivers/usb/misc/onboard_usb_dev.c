@@ -706,7 +706,7 @@ static int __init onboard_dev_init(void)
 {
 	int ret;
 
-	ret = usb_register_device_driver(&onboard_dev_usbdev_driver, THIS_MODULE);
+	ret = usb_register_device_driver(&onboard_dev_usbdev_driver);
 	if (ret)
 		return ret;
 

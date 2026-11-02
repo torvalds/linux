@@ -406,6 +406,7 @@ void qla4_82xx_crb_win_unlock(struct scsi_qla_host *ha)
 
 void
 qla4_82xx_wr_32(struct scsi_qla_host *ha, ulong off, u32 data)
+	__context_unsafe(/*conditional locking*/)
 {
 	unsigned long flags = 0;
 	int rv;
@@ -429,6 +430,7 @@ qla4_82xx_wr_32(struct scsi_qla_host *ha, ulong off, u32 data)
 }
 
 uint32_t qla4_82xx_rd_32(struct scsi_qla_host *ha, ulong off)
+	__context_unsafe(/*conditional locking*/)
 {
 	unsigned long flags = 0;
 	int rv;

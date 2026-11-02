@@ -516,12 +516,12 @@ static irqreturn_t ac100_rtc_irq(int irq, void *data)
 	unsigned int val = 0;
 	int ret;
 
-	rtc_lock(chip->rtc);
+	guard(rtc_ops)(chip->rtc);
 
 	/* read status */
 	ret = regmap_read(regmap, AC100_ALM_INT_STA, &val);
 	if (ret)
-		goto out;
+		return IRQ_HANDLED;
 
 	if (val & AC100_ALM_INT_ENABLE) {
 		/* signal rtc framework */
@@ -530,16 +530,14 @@ static irqreturn_t ac100_rtc_irq(int irq, void *data)
 		/* clear status */
 		ret = regmap_write(regmap, AC100_ALM_INT_STA, val);
 		if (ret)
-			goto out;
+			return IRQ_HANDLED;
 
 		/* disable interrupt */
 		ret = ac100_rtc_alarm_irq_enable(chip->dev, 0);
 		if (ret)
-			goto out;
+			return IRQ_HANDLED;
 	}
 
-out:
-	rtc_unlock(chip->rtc);
 	return IRQ_HANDLED;
 }
 

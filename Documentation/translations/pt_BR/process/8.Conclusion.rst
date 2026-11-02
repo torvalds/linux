@@ -21,6 +21,7 @@ encontradas através do índice do kernel do LWN em:
 	https://lwn.net/Kernel/Index/
 
 Além disso, um recurso valioso para os desenvolvedores do kernel é:
+
 	https://kernelnewbies.org/
 
 E, claro, não se deve esquecer o https://kernel.org/, o local definitivo
@@ -29,7 +30,7 @@ para informações sobre os lançamentos do kernel.
 Há uma série de livros sobre o desenvolvimento do kernel:
 
 	Linux Device Drivers, 3rd Edition (Jonathan Corbet, Alessandro
-	Rubini, and Greg Kroah-Hartman).  Online at
+	Rubini, e Greg Kroah-Hartman). Disponível online em
 	https://lwn.net/Kernel/LDD3/.
 
 	Linux Kernel Development (Robert Love).

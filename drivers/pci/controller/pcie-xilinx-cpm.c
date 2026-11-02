@@ -6,6 +6,8 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
@@ -16,6 +18,7 @@
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
+#include <linux/reset.h>
 
 #include "../pci.h"
 #include "pcie-xilinx-common.h"
@@ -113,6 +116,8 @@ struct xilinx_cpm_variant {
  * @irq: Error interrupt number
  * @lock: lock protecting shared register access
  * @variant: CPM version check pointer
+ * @perst_gpio: GPIO descriptor for PERST# signal handling
+ * @rstc: Pointer to the PCIe controller reset
  */
 struct xilinx_cpm_pcie {
 	struct device			*dev;
@@ -125,6 +130,8 @@ struct xilinx_cpm_pcie {
 	int				irq;
 	raw_spinlock_t			lock;
 	const struct xilinx_cpm_variant   *variant;
+	struct gpio_desc		*perst_gpio;
+	struct reset_control		*rstc;
 };
 
 static u32 pcie_read(struct xilinx_cpm_pcie *port, u32 reg)
@@ -389,7 +396,7 @@ static int xilinx_cpm_pcie_init_irq_domain(struct xilinx_cpm_pcie *port)
 	struct device_node *pcie_intc_node;
 
 	/* Setup INTx */
-	pcie_intc_node = of_get_next_child(node, NULL);
+	pcie_intc_node = of_get_child_by_name(node, "interrupt-controller");
 	if (!pcie_intc_node) {
 		dev_err(dev, "No PCIe Intc node found\n");
 		return -EINVAL;
@@ -470,6 +477,22 @@ static int xilinx_cpm_setup_irq(struct xilinx_cpm_pcie *port)
 }
 
 /**
+ * xilinx_cpm_pcie_reset - Reset the PCIe controller and deassert PERST#
+ * @port: PCIe port information
+ *
+ * Reset the PCIe controller and then release the PERST# signal so that the
+ * link can train once the bridge is enabled.
+ */
+static void xilinx_cpm_pcie_reset(struct xilinx_cpm_pcie *port)
+{
+	reset_control_assert(port->rstc);
+	udelay(PCIE_T_PERST_US);
+	reset_control_deassert(port->rstc);
+	gpiod_set_value_cansleep(port->perst_gpio, 0);
+	msleep(PCIE_RESET_CONFIG_WAIT_MS);
+}
+
+/**
  * xilinx_cpm_pcie_init_port - Initialize hardware
  * @port: PCIe port information
  */
@@ -479,6 +502,9 @@ static void xilinx_cpm_pcie_init_port(struct xilinx_cpm_pcie *port)
 
 	if (variant->version == CPM5NC_HOST)
 		return;
+
+	if (port->perst_gpio || port->rstc)
+		xilinx_cpm_pcie_reset(port);
 
 	if (cpm_pcie_link_up(port))
 		dev_info(port->dev, "PCIe Link is UP\n");
@@ -513,6 +539,42 @@ static void xilinx_cpm_pcie_init_port(struct xilinx_cpm_pcie *port)
 }
 
 /**
+ * xilinx_cpm_pcie_parse_port - Parse the PCIe Root Port child node
+ * @port: PCIe port information
+ *
+ * Read the PERST# GPIO from the Root Port child node.
+ *
+ * Return: '0' on success and error value on failure
+ */
+static int xilinx_cpm_pcie_parse_port(struct xilinx_cpm_pcie *port)
+{
+	struct device *dev = port->dev;
+
+	/*
+	 * This platform currently supports only one Root Port, so the loop
+	 * will execute only once.
+	 * TODO: Enhance the driver to handle multiple Root Ports in the future.
+	 */
+	for_each_child_of_node_with_prefix(dev->of_node, pcie_port_node, "pcie") {
+		port->perst_gpio = devm_fwnode_gpiod_get(dev,
+							 of_fwnode_handle(pcie_port_node),
+							 "reset", GPIOD_OUT_HIGH,
+							 NULL);
+		if (IS_ERR(port->perst_gpio)) {
+			if (PTR_ERR(port->perst_gpio) == -ENOENT) {
+				port->perst_gpio = NULL;
+				return 0;
+			}
+			return dev_err_probe(dev, PTR_ERR(port->perst_gpio),
+					     "Failed to request reset GPIO\n");
+		}
+		return 0;
+	}
+
+	return 0;
+}
+
+/**
  * xilinx_cpm_pcie_parse_dt - Parse Device tree
  * @port: PCIe port information
  * @bus_range: Bus resource
@@ -525,6 +587,19 @@ static int xilinx_cpm_pcie_parse_dt(struct xilinx_cpm_pcie *port,
 	struct device *dev = port->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res;
+	int ret;
+
+	/* CPM5NC does not support PERST# handling yet */
+	if (port->variant->version != CPM5NC_HOST) {
+		port->rstc = devm_reset_control_get_optional_exclusive(dev, NULL);
+		if (IS_ERR(port->rstc))
+			return dev_err_probe(dev, PTR_ERR(port->rstc),
+					     "Failed to request reset\n");
+
+		ret = xilinx_cpm_pcie_parse_port(port);
+		if (ret)
+			return ret;
+	}
 
 	port->cpm_base = devm_platform_ioremap_resource_byname(pdev,
 							       "cpm_slcr");

@@ -64,18 +64,18 @@ static const struct drm_connector_helper_funcs malidp_mw_connector_helper_funcs 
 	.mode_valid = malidp_mw_connector_mode_valid,
 };
 
-static void malidp_mw_connector_reset(struct drm_connector *connector)
+static struct drm_connector_state *
+malidp_mw_connector_create_state(struct drm_connector *connector)
 {
-	struct malidp_mw_connector_state *mw_state = kzalloc_obj(*mw_state);
+	struct malidp_mw_connector_state *mw_state;
 
-	if (connector->state)
-		__drm_atomic_helper_connector_destroy_state(connector->state);
+	mw_state = kzalloc_obj(*mw_state);
+	if (!mw_state)
+		return ERR_PTR(-ENOMEM);
 
-	kfree(connector->state);
-	connector->state = NULL;
+	__drm_atomic_helper_connector_state_init(&mw_state->base, connector);
 
-	if (mw_state)
-		__drm_atomic_helper_connector_reset(connector, &mw_state->base);
+	return &mw_state->base;
 }
 
 static enum drm_connector_status
@@ -111,7 +111,7 @@ malidp_mw_connector_duplicate_state(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs malidp_mw_connector_funcs = {
-	.reset = malidp_mw_connector_reset,
+	.atomic_create_state = malidp_mw_connector_create_state,
 	.detect = malidp_mw_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = malidp_mw_connector_destroy,

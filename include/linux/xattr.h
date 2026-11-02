@@ -47,7 +47,7 @@ struct xattr_handler {
 		   struct inode *inode, const char *name, void *buffer,
 		   size_t size);
 	int (*set)(const struct xattr_handler *,
-		   struct mnt_idmap *idmap, struct dentry *dentry,
+		   const struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct inode *inode, const char *name, const void *buffer,
 		   size_t size, int flags);
 };
@@ -77,25 +77,25 @@ struct xattr {
 };
 
 ssize_t __vfs_getxattr(struct dentry *, struct inode *, const char *, void *, size_t);
-ssize_t vfs_getxattr(struct mnt_idmap *, struct dentry *, const char *,
+ssize_t vfs_getxattr(const struct mnt_idmap *, struct dentry *, const char *,
 		     void *, size_t);
 ssize_t vfs_listxattr(struct dentry *d, char *list, size_t size);
-int __vfs_setxattr(struct mnt_idmap *, struct dentry *, struct inode *,
+int __vfs_setxattr(const struct mnt_idmap *, struct dentry *, struct inode *,
 		   const char *, const void *, size_t, int);
-int __vfs_setxattr_noperm(struct mnt_idmap *, struct dentry *,
+int __vfs_setxattr_noperm(const struct mnt_idmap *, struct dentry *,
 			  const char *, const void *, size_t, int);
-int __vfs_setxattr_locked(struct mnt_idmap *, struct dentry *,
+int __vfs_setxattr_locked(const struct mnt_idmap *, struct dentry *,
 			  const char *, const void *, size_t, int,
 			  struct delegated_inode *);
-int vfs_setxattr(struct mnt_idmap *, struct dentry *, const char *,
+int vfs_setxattr(const struct mnt_idmap *, struct dentry *, const char *,
 		 const void *, size_t, int);
-int __vfs_removexattr(struct mnt_idmap *, struct dentry *, const char *);
-int __vfs_removexattr_locked(struct mnt_idmap *, struct dentry *,
+int __vfs_removexattr(const struct mnt_idmap *, struct dentry *, const char *);
+int __vfs_removexattr_locked(const struct mnt_idmap *, struct dentry *,
 			     const char *, struct delegated_inode *);
-int vfs_removexattr(struct mnt_idmap *, struct dentry *, const char *);
+int vfs_removexattr(const struct mnt_idmap *, struct dentry *, const char *);
 
 ssize_t generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size);
-int vfs_getxattr_alloc(struct mnt_idmap *idmap,
+int vfs_getxattr_alloc(const struct mnt_idmap *idmap,
 		       struct dentry *dentry, const char *name,
 		       char **xattr_value, size_t size, gfp_t flags);
 

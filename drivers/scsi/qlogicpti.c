@@ -333,7 +333,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 
 	risc_code_addr = 0x1000;	/* all load addresses are at 0x1000 */
 
-	spin_lock_irqsave(host->host_lock, flags);
+	spin_lock_irqsave(&host->host_lock, flags);
 
 	sbus_writew(HCCTRL_PAUSE, qpti->qregs + HCCTRL);
 
@@ -382,7 +382,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 	if (qlogicpti_mbox_command(qpti, param, 1)) {
 		printk(KERN_EMERG "qlogicpti%d: Cannot execute ISP firmware.\n",
 		       qpti->qpti_id);
-		spin_unlock_irqrestore(host->host_lock, flags);
+		spin_unlock_irqrestore(&host->host_lock, flags);
 		return 1;
 	}
 
@@ -393,7 +393,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 	   (param[0] != MBOX_COMMAND_COMPLETE)) {
 		printk(KERN_EMERG "qlogicpti%d: Cannot set initiator SCSI ID.\n",
 		       qpti->qpti_id);
-		spin_unlock_irqrestore(host->host_lock, flags);
+		spin_unlock_irqrestore(&host->host_lock, flags);
 		return 1;
 	}
 
@@ -408,7 +408,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 	if (qlogicpti_mbox_command(qpti, param, 1)) {
 		printk(KERN_EMERG "qlogicpti%d: Cannot init response queue.\n",
 		       qpti->qpti_id);
-		spin_unlock_irqrestore(host->host_lock, flags);
+		spin_unlock_irqrestore(&host->host_lock, flags);
 		return 1;
 	}
 
@@ -420,7 +420,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 	if (qlogicpti_mbox_command(qpti, param, 1)) {
 		printk(KERN_EMERG "qlogicpti%d: Cannot init request queue.\n",
 		       qpti->qpti_id);
-		spin_unlock_irqrestore(host->host_lock, flags);
+		spin_unlock_irqrestore(&host->host_lock, flags);
 		return 1;
 	}
 
@@ -466,7 +466,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 	qlogicpti_mbox_command(qpti, param, 0);
 	qpti->send_marker = 1;
 
-	spin_unlock_irqrestore(host->host_lock, flags);
+	spin_unlock_irqrestore(&host->host_lock, flags);
 	return 0;
 }
 
@@ -501,7 +501,7 @@ static int qlogicpti_load_firmware(struct qlogicpti *qpti)
 	risc_code_addr = 0x1000;	/* all f/w modules load at 0x1000 */
 	risc_code_length = fw->size / 2;
 
-	spin_lock_irqsave(host->host_lock, flags);
+	spin_lock_irqsave(&host->host_lock, flags);
 
 	/* Verify the checksum twice, one before loading it, and once
 	 * afterwards via the mailbox commands.
@@ -642,7 +642,7 @@ static int qlogicpti_load_firmware(struct qlogicpti *qpti)
 	}
 
 out:
-	spin_unlock_irqrestore(host->host_lock, flags);
+	spin_unlock_irqrestore(&host->host_lock, flags);
 outfirm:
 	release_firmware(fw);
 	return err;
@@ -1207,7 +1207,7 @@ static irqreturn_t qpti_intr(int irq, void *dev_id)
 	unsigned long flags;
 	struct scsi_cmnd *dq;
 
-	spin_lock_irqsave(qpti->qhost->host_lock, flags);
+	spin_lock_irqsave(&qpti->qhost->host_lock, flags);
 	dq = qlogicpti_intr_handler(qpti);
 
 	if (dq != NULL) {
@@ -1219,7 +1219,7 @@ static irqreturn_t qpti_intr(int irq, void *dev_id)
 			dq = next;
 		} while (dq != NULL);
 	}
-	spin_unlock_irqrestore(qpti->qhost->host_lock, flags);
+	spin_unlock_irqrestore(&qpti->qhost->host_lock, flags);
 
 	return IRQ_HANDLED;
 }

@@ -31,6 +31,7 @@
 #include "map.h"
 #include "maps.h"
 #include "namespaces.h"
+#include "path.h"
 #include "srcline.h"
 #include "symbol.h"
 #include "thread.h"
@@ -161,6 +162,8 @@ const struct arch *arch__find(uint16_t e_machine, uint32_t e_flags, const char *
 		.e_flags = e_flags,
 	};
 	const struct arch *result = NULL, **tmp;
+	const struct arch *(*new_fn)(const struct e_machine_and_e_flags *id,
+				     const char *cpuid) = NULL;
 
 	if (num_archs > 0) {
 		tmp = bsearch(&key, archs, num_archs, sizeof(*archs), arch__key_cmp);
@@ -171,7 +174,16 @@ const struct arch *arch__find(uint16_t e_machine, uint32_t e_flags, const char *
 	if (result)
 		return result;
 
-	if (e_machine >= ARRAY_SIZE(arch_new_fn) || arch_new_fn[e_machine] == NULL) {
+	/*
+	 * EM_ALPHA (0x9026) is far too large to index arch_new_fn[], so it is
+	 * selected explicitly; everything else uses the e_machine-indexed table.
+	 */
+	if (e_machine == EM_ALPHA)
+		new_fn = arch__new_alpha;
+	else if (e_machine < ARRAY_SIZE(arch_new_fn))
+		new_fn = arch_new_fn[e_machine];
+
+	if (new_fn == NULL) {
 		errno = ENOTSUP;
 		return NULL;
 	}
@@ -182,7 +194,7 @@ const struct arch *arch__find(uint16_t e_machine, uint32_t e_flags, const char *
 
 	archs = tmp;
 
-	result = arch_new_fn[e_machine](&key, cpuid);
+	result = new_fn(&key, cpuid);
 	if (!result) {
 		pr_err("%s: failed to initialize %u arch priv area\n",
 			__func__, e_machine);
@@ -201,6 +213,11 @@ bool arch__is_x86(const struct arch *arch)
 bool arch__is_powerpc(const struct arch *arch)
 {
 	return arch->id.e_machine == EM_PPC || arch->id.e_machine == EM_PPC64;
+}
+
+bool arch__is_arm64(const struct arch *arch)
+{
+	return arch->id.e_machine == EM_AARCH64;
 }
 
 static void ins_ops__delete(struct ins_operands *ops)
@@ -1159,79 +1176,6 @@ int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, s
 	return 0;
 }
 
-static int dso__disassemble_filename(struct dso *dso, char *filename, size_t filename_size)
-{
-	char linkname[PATH_MAX];
-	char *build_id_filename;
-	char *build_id_path = NULL;
-	char *pos;
-	int len;
-
-	if (dso__symtab_type(dso) == DSO_BINARY_TYPE__KALLSYMS &&
-	    !dso__is_kcore(dso))
-		return SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
-
-	build_id_filename = dso__build_id_filename(dso, NULL, 0, false);
-	if (build_id_filename) {
-		__symbol__join_symfs(filename, filename_size, build_id_filename);
-		free(build_id_filename);
-	} else {
-		if (dso__has_build_id(dso))
-			return ENOMEM;
-		goto fallback;
-	}
-
-	build_id_path = strdup(filename);
-	if (!build_id_path)
-		return ENOMEM;
-
-	/*
-	 * old style build-id cache has name of XX/XXXXXXX.. while
-	 * new style has XX/XXXXXXX../{elf,kallsyms,vdso}.
-	 * extract the build-id part of dirname in the new style only.
-	 */
-	pos = strrchr(build_id_path, '/');
-	if (pos && strlen(pos) < SBUILD_ID_SIZE - 2)
-		dirname(build_id_path);
-
-	if (dso__is_kcore(dso))
-		goto fallback;
-
-	len = readlink(build_id_path, linkname, sizeof(linkname) - 1);
-	if (len < 0)
-		goto fallback;
-
-	linkname[len] = '\0';
-	if (strstr(linkname, DSO__NAME_KALLSYMS) ||
-		access(filename, R_OK)) {
-fallback:
-		/*
-		 * If we don't have build-ids or the build-id file isn't in the
-		 * cache, or is just a kallsyms file, well, lets hope that this
-		 * DSO is the same as when 'perf record' ran.
-		 */
-		if (dso__kernel(dso) && dso__long_name(dso)[0] == '/')
-			snprintf(filename, filename_size, "%s", dso__long_name(dso));
-		else
-			__symbol__join_symfs(filename, filename_size, dso__long_name(dso));
-
-		mutex_lock(dso__lock(dso));
-		if (access(filename, R_OK) && errno == ENOENT && dso__nsinfo(dso)) {
-			char *new_name = dso__filename_with_chroot(dso, filename);
-			if (new_name) {
-				strlcpy(filename, new_name, filename_size);
-				free(new_name);
-			}
-		}
-		mutex_unlock(dso__lock(dso));
-	} else if (dso__binary_type(dso) == DSO_BINARY_TYPE__NOT_FOUND) {
-		dso__set_binary_type(dso, DSO_BINARY_TYPE__BUILD_ID_CACHE);
-	}
-
-	free(build_id_path);
-	return 0;
-}
-
 static int symbol__disassemble_raw(char *filename, struct symbol *sym,
 					struct annotate_args *args)
 {
@@ -1544,14 +1488,29 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	struct annotation_options *options = args->options;
 	struct map *map = args->ms->map;
 	struct dso *dso = map__dso(map);
-	char symfs_filename[PATH_MAX];
+	char *symfs_filename;
 	bool delete_extract = false;
 	struct kcore_extract kce;
+	enum dso_binary_type dbt;
 	bool decomp = false;
-	int err = dso__disassemble_filename(dso, symfs_filename, sizeof(symfs_filename));
+	int err;
 
-	if (err)
-		return err;
+	dbt = dso__find_binary_type(dso);
+
+	if (dbt == DSO_BINARY_TYPE__KALLSYMS)
+		return SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
+
+	mutex_lock(dso__lock(dso));
+	symfs_filename = dso__get_filename(dso, "", &decomp, dbt);
+	mutex_unlock(dso__lock(dso));
+
+	if (symfs_filename == NULL) {
+		if (dbt == DSO_BINARY_TYPE__BPF_PROG_INFO ||
+		    dbt == DSO_BINARY_TYPE__BPF_IMAGE)
+			symfs_filename = (char *)dso__long_name(dso);
+		else
+			return SYMBOL_ANNOTATE_ERRNO__COULDNT_DETERMINE_FILE_TYPE;
+	}
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
 		 symfs_filename, sym->name, map__unmap_ip(map, sym->start),
@@ -1559,9 +1518,7 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 
 	pr_debug("annotating [%p] %30s : [%p] %30s\n", dso, dso__long_name(dso), sym, sym->name);
 
-	if (dso__binary_type(dso) == DSO_BINARY_TYPE__NOT_FOUND) {
-		return SYMBOL_ANNOTATE_ERRNO__COULDNT_DETERMINE_FILE_TYPE;
-	} else if (dso__is_kcore(dso)) {
+	if (dso__is_kcore(dso)) {
 		kce.addr = map__rip_2objdump(map, sym->start);
 		kce.kcore_filename = symfs_filename;
 		kce.len = sym->end - sym->start;
@@ -1569,18 +1526,8 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 
 		if (!kcore_extract__create(&kce)) {
 			delete_extract = true;
-			strlcpy(symfs_filename, kce.extract_filename, sizeof(symfs_filename));
-		}
-	} else if (dso__needs_decompress(dso)) {
-		char tmp[KMOD_DECOMP_LEN];
-
-		if (dso__decompress_kmodule_path(dso, symfs_filename, tmp, sizeof(tmp)) < 0)
-			return -1;
-
-		/* empty pathname means file wasn't actually compressed */
-		if (tmp[0] != '\0') {
-			decomp = true;
-			strcpy(symfs_filename, tmp);
+			dso__put_filename(dso, symfs_filename, decomp);
+			symfs_filename = kce.extract_filename;
 		}
 	}
 
@@ -1638,11 +1585,10 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 			pr_debug("Disassembled with %s\n", perf_disassembler__strs[dis]);
 	}
 out_remove_tmp:
-	if (decomp)
-		unlink(symfs_filename);
-
 	if (delete_extract)
 		kcore_extract__delete(&kce);
+	else if (dbt != DSO_BINARY_TYPE__BPF_PROG_INFO && dbt != DSO_BINARY_TYPE__BPF_IMAGE)
+		dso__put_filename(dso, symfs_filename, decomp);
 
 	return err;
 }

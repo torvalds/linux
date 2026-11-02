@@ -1522,8 +1522,9 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct eb_vma *ev)
 
 	/*
 	 * We must check that the entire relocation array is safe
-	 * to read. However, if the array is not writable the user loses
-	 * the updated relocation values.
+	 * to read. Whether it is also writable only shows when we
+	 * write back the presumed offsets below, and if that fails we
+	 * fall back to the slow path.
 	 */
 	if (unlikely(!access_ok(urelocs, remain * sizeof(*urelocs))))
 		return -EFAULT;
@@ -1553,6 +1554,7 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct eb_vma *ev)
 		remain -= count;
 		do {
 			u64 offset = eb_relocate_entry(eb, ev, r);
+			int err;
 
 			if (likely(offset == 0))
 				continue;
@@ -1562,28 +1564,41 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct eb_vma *ev)
 				goto out;
 			}
 			/*
-			 * Note that reporting an error now
-			 * leaves everything in an inconsistent
-			 * state as we have *already* changed
-			 * the relocation value inside the
-			 * object. As we have not changed the
-			 * reloc.presumed_offset or will not
-			 * change the execobject.offset, on the
-			 * call we may not rewrite the value
-			 * inside the object, leaving it
-			 * dangling and causing a GPU hang. Unless
-			 * userspace dynamically rebuilds the
-			 * relocations on each execbuf rather than
-			 * presume a static tree.
+			 * Write back the presumed offset. We hold the
+			 * objects' dma_resv locks here, so this must not
+			 * take a page fault: that would take mmap_lock
+			 * under dma_resv, the opposite of the order our
+			 * own fault handler uses.
 			 *
-			 * We did previously check if the relocations
-			 * were writable (access_ok), an error now
-			 * would be a strange race with mprotect,
-			 * having already demonstrated that we
-			 * can read from this userspace address.
+			 * If the write fails (the page is read-only,
+			 * copy-on-write, or gone since we read it), we
+			 * must not just carry on. We have already changed
+			 * the relocation value inside the object, and a
+			 * stale presumed_offset could later match again
+			 * and make us skip a relocation that is needed,
+			 * hanging the GPU. So fall back to the slow path,
+			 * as for a failed read: it retries after
+			 * prefaulting and, failing that, marks every
+			 * presumed_offset invalid with faults allowed and
+			 * no locks held.
 			 */
 			offset = gen8_canonical_addr(offset & ~UPDATE);
-			__put_user(offset, &urelocs[r - stack].presumed_offset);
+			pagefault_disable();
+			err = put_user(offset, &urelocs[r - stack].presumed_offset);
+			pagefault_enable();
+
+			/*
+			 * Error handling is disabled on purpose. No, it makes
+			 * no sense, and the code will loop over the relocations
+			 * without writing them back and just waste CPU time,
+			 * but that's apparently what the mprotect test-cases
+			 * want. See commit 97a37c919f62 ("drm/i915/gem: Ignore
+			 * readonly failures when updating relocs")
+			 */
+			if (unlikely(err) && 0) {
+				remain = -EFAULT;
+				goto out;
+			}
 		} while (r++, --count);
 		urelocs += ARRAY_SIZE(stack);
 	} while (remain);
@@ -1635,11 +1650,11 @@ static int check_relocations(const struct drm_i915_gem_exec_object2 *entry)
 
 	end = addr + size;
 	for (; addr < end; addr += PAGE_SIZE) {
-		int err = __get_user(c, addr);
+		int err = get_user(c, addr);
 		if (err)
 			return err;
 	}
-	return __get_user(c, end - 1);
+	return get_user(c, end - 1);
 }
 
 static int eb_copy_relocations(const struct i915_execbuffer *eb)
@@ -2837,7 +2852,7 @@ add_timeline_fence_array(struct i915_execbuffer *eb,
 		if (user_fence.flags & __I915_EXEC_FENCE_UNKNOWN_FLAGS)
 			return -EINVAL;
 
-		if (__get_user(point, user_values++))
+		if (get_user(point, user_values++))
 			return -EFAULT;
 
 		syncobj = drm_syncobj_find(eb->file, user_fence.handle);

@@ -156,8 +156,6 @@
 			reg = <0x101f0000 0x1000>;
 			#clock-cells = <1>;
 
-			clock-names = "oscclk", "bus", "spi0", "spi1", "spi2",
-				      "spi3", "spi4", "uart0", "uart1", "uart2";
 			clocks = <&oscclk>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_BUS>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_SPI0>,
@@ -168,6 +166,8 @@
 				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_UART0>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_UART1>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_UART2>;
+			clock-names = "oscclk", "bus", "spi0", "spi1", "spi2",
+				      "spi3", "spi4", "uart0", "uart1", "uart2";
 		};
 
 		cmu_mif: clock-controller@10460000 {
@@ -175,8 +175,8 @@
 			reg = <0x10460000 0x1000>;
 			#clock-cells = <1>;
 
-			clock-names = "oscclk";
 			clocks = <&oscclk>;
+			clock-names = "oscclk";
 		};
 
 		pmu_system_controller: system-controller@10480000 {
@@ -219,11 +219,11 @@
 			reg = <0x10510000 0x2000>;
 			interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&hsi2c0_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "hsi2c";
 			clocks = <&cmu_mif CLK_GOUT_MIF_HSI2C_IPCLK>;
+			clock-names = "hsi2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -240,14 +240,14 @@
 		gpu: gpu@11400000 {
 			compatible = "samsung,exynos7870-mali", "arm,mali-t830";
 			reg = <0x11400000 0x5000>;
-			interrupt-names = "job", "mmu", "gpu";
 			interrupts = <GIC_SPI 282 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 283 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "job", "mmu", "gpu";
 
-			clock-names = "core", "bus";
 			clocks = <&cmu_g3d CLK_GOUT_G3D_CLK>,
 				 <&cmu_g3d CLK_GOUT_G3D_ASYNCS_D0_CLK>;
+			clock-names = "core", "bus";
 
 			status = "disabled";
 		};
@@ -257,9 +257,9 @@
 			reg = <0x11460000 0x1000>;
 			#clock-cells = <1>;
 
-			clock-names = "oscclk", "switch";
 			clocks = <&oscclk>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_G3D_SWITCH>;
+			clock-names = "oscclk", "switch";
 		};
 
 		cmu_mfcmscl: clock-controller@12cb0000 {
@@ -267,10 +267,10 @@
 			reg = <0x12cb0000 0x1000>;
 			#clock-cells = <1>;
 
-			clock-names = "oscclk", "mfc", "mscl";
 			clocks = <&oscclk>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_MFCMSCL_MFC>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_MFCMSCL_MSCL>;
+			clock-names = "oscclk", "mfc", "mscl";
 		};
 
 		mmc0: mmc@13540000 {
@@ -278,9 +278,9 @@
 			reg = <0x13540000 0x2000>;
 			interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
 
-			clock-names = "biu", "ciu";
 			clocks = <&cmu_fsys CLK_GOUT_FSYS_MMC0_ACLK>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_FSYS_MMC0>;
+			clock-names = "biu", "ciu";
 
 			status = "disabled";
 		};
@@ -290,9 +290,9 @@
 			reg = <0x13550000 0x2000>;
 			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
 
-			clock-names = "biu", "ciu";
 			clocks = <&cmu_fsys CLK_GOUT_FSYS_MMC1_ACLK>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_FSYS_MMC1>;
+			clock-names = "biu", "ciu";
 
 			status = "disabled";
 		};
@@ -302,9 +302,9 @@
 			reg = <0x13560000 0x2000>;
 			interrupts = <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>;
 
-			clock-names = "biu", "ciu";
 			clocks = <&cmu_fsys CLK_GOUT_FSYS_MMC2_ACLK>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_FSYS_MMC2>;
+			clock-names = "biu", "ciu";
 
 			status = "disabled";
 		};
@@ -314,9 +314,9 @@
 			reg = <0x135c0000 0x100>;
 			#phy-cells = <1>;
 
-			clock-names = "phy", "ref";
 			clocks = <&cmu_fsys CLK_GOUT_FSYS_MUX_USB20DRD_PHYCLOCK_USER>,
 				 <&cmu_fsys CLK_GOUT_FSYS_MUX_USB_PLL>;
+			clock-names = "phy", "ref";
 
 			samsung,pmu-syscon = <&pmu_system_controller>;
 		};
@@ -327,10 +327,10 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			clock-names = "bus_early", "ref", "ctrl";
 			clocks = <&cmu_fsys CLK_GOUT_FSYS_USB20DRD_ACLK_HSDRD>,
 				 <&cmu_fsys CLK_GOUT_FSYS_USB20DRD_HSDRD_REF_CLK>,
 				 <&cmu_fsys CLK_GOUT_FSYS_USB20DRD_HCLK_USB20_CTRL>;
+			clock-names = "bus_early", "ref", "ctrl";
 
 			status = "disabled";
 
@@ -339,8 +339,8 @@
 				reg = <0x0 0x10000>;
 				interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
 
-				phy-names = "usb2-phy";
 				phys = <&usbdrd_phy 0>;
+				phy-names = "usb2-phy";
 
 				usb-role-switch;
 				snps,usb2-gadget-lpm-disable;
@@ -352,10 +352,10 @@
 			reg = <0x13730000 0x1000>;
 			#clock-cells = <1>;
 
-			clock-names = "oscclk", "bus", "usb20drd";
 			clocks = <&oscclk>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_FSYS_BUS>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_FSYS_USB20DRD_REFCLK>;
+			clock-names = "oscclk", "bus", "usb20drd";
 		};
 
 		pinctrl_fsys: pinctrl@13750000 {
@@ -370,12 +370,12 @@
 			reg = <0x13800000 0x100>;
 			interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "uart", "clk_uart_baud0";
 			clocks = <&cmu_peri CLK_GOUT_PERI_UART0_PCLK>,
 				 <&cmu_peri CLK_GOUT_PERI_UART0_EXT_UCLK>;
+			clock-names = "uart", "clk_uart_baud0";
 
 			samsung,uart-fifosize = <16>;
 
@@ -388,12 +388,12 @@
 			reg = <0x13810000 0x100>;
 			interrupts = <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&uart1_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "uart", "clk_uart_baud0";
 			clocks = <&cmu_peri CLK_GOUT_PERI_UART1_PCLK>,
 				 <&cmu_peri CLK_GOUT_PERI_UART1_EXT_UCLK>;
+			clock-names = "uart", "clk_uart_baud0";
 
 			samsung,uart-fifosize = <256>;
 
@@ -406,12 +406,12 @@
 			reg = <0x13820000 0x100>;
 			interrupts = <GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&uart2_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "uart", "clk_uart_baud0";
 			clocks = <&cmu_peri CLK_GOUT_PERI_UART2_PCLK>,
 				 <&cmu_peri CLK_GOUT_PERI_UART2_EXT_UCLK>;
+			clock-names = "uart", "clk_uart_baud0";
 
 			samsung,uart-fifosize = <256>;
 
@@ -424,11 +424,11 @@
 			reg = <0x13830000 0x100>;
 			interrupts = <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&i2c0_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "i2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_I2C0_PCLK>;
+			clock-names = "i2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -442,11 +442,11 @@
 			reg = <0x13840000 0x100>;
 			interrupts = <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&i2c1_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "i2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_I2C1_PCLK>;
+			clock-names = "i2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -460,11 +460,11 @@
 			reg = <0x13850000 0x100>;
 			interrupts = <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&i2c2_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "i2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_I2C2_PCLK>;
+			clock-names = "i2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -478,11 +478,11 @@
 			reg = <0x13860000 0x100>;
 			interrupts = <GIC_SPI 427 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&i2c3_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "i2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_I2C3_PCLK>;
+			clock-names = "i2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -496,11 +496,11 @@
 			reg = <0x13870000 0x100>;
 			interrupts = <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&i2c4_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "i2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_I2C4_PCLK>;
+			clock-names = "i2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -514,11 +514,11 @@
 			reg = <0x13880000 0x100>;
 			interrupts = <GIC_SPI 429 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&i2c5_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "i2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_I2C5_PCLK>;
+			clock-names = "i2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -532,11 +532,11 @@
 			reg = <0x13890000 0x100>;
 			interrupts = <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&i2c6_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "i2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_I2C6_PCLK>;
+			clock-names = "i2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -550,11 +550,11 @@
 			reg = <0x138a0000 0x1000>;
 			interrupts = <GIC_SPI 449 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&hsi2c1_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "hsi2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C1_IPCLK>;
+			clock-names = "hsi2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -568,11 +568,11 @@
 			reg = <0x138b0000 0x1000>;
 			interrupts = <GIC_SPI 450 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&hsi2c2_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "hsi2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C2_IPCLK>;
+			clock-names = "hsi2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -586,11 +586,11 @@
 			reg = <0x138c0000 0x1000>;
 			interrupts = <GIC_SPI 451 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&hsi2c3_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "hsi2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C3_IPCLK>;
+			clock-names = "hsi2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -604,11 +604,11 @@
 			reg = <0x138d0000 0x100>;
 			interrupts = <GIC_SPI 453 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&i2c7_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "i2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_I2C7_PCLK>;
+			clock-names = "i2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -622,11 +622,11 @@
 			reg = <0x138e0000 0x100>;
 			interrupts = <GIC_SPI 454 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&i2c8_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "i2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_I2C8_PCLK>;
+			clock-names = "i2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -640,11 +640,11 @@
 			reg = <0x138f0000 0x1000>;
 			interrupts = <GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&hsi2c4_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "hsi2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C4_IPCLK>;
+			clock-names = "hsi2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -658,11 +658,11 @@
 			reg = <0x13950000 0x1000>;
 			interrupts = <GIC_SPI 457 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&hsi2c5_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "hsi2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C5_IPCLK>;
+			clock-names = "hsi2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -676,11 +676,11 @@
 			reg = <0x13960000 0x1000>;
 			interrupts = <GIC_SPI 458 IRQ_TYPE_LEVEL_HIGH>;
 
-			pinctrl-names = "default";
 			pinctrl-0 = <&hsi2c6_bus>;
+			pinctrl-names = "default";
 
-			clock-names = "hsi2c";
 			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C6_IPCLK>;
+			clock-names = "hsi2c";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -729,11 +729,11 @@
 			reg = <0x144d0000 0x1000>;
 			#clock-cells = <1>;
 
-			clock-names = "oscclk", "cam", "isp", "vra";
 			clocks = <&oscclk>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_ISP_CAM>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_ISP_ISP>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_ISP_VRA>;
+			clock-names = "oscclk", "cam", "isp", "vra";
 		};
 
 		syscon_cam0: system-controller@144f1040 {
@@ -818,11 +818,11 @@
 			reg = <0x148d0000 0x1000>;
 			#clock-cells = <1>;
 
-			clock-names = "oscclk", "bus", "decon_eclk", "decon_vclk";
 			clocks = <&oscclk>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_DISPAUD_BUS>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_DISPAUD_DECON_ECLK>,
 				 <&cmu_mif CLK_GOUT_MIF_CMU_DISPAUD_DECON_VCLK>;
+			clock-names = "oscclk", "bus", "decon_eclk", "decon_vclk";
 		};
 
 		syscon_disp: system-controller@148f100c {

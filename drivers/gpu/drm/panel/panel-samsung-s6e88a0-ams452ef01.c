@@ -13,6 +13,8 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 
+#include "panel-samsung-dsi.h"
+
 struct s6e88a0_ams452ef01 {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
@@ -43,7 +45,7 @@ static int s6e88a0_ams452ef01_on(struct s6e88a0_ams452ef01 *ctx)
 
 	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a); // enable LEVEL2 commands
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xcc, 0x4c); // set Pixel Clock Divider polarity
 
 	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
@@ -66,7 +68,7 @@ static int s6e88a0_ams452ef01_on(struct s6e88a0_ams452ef01 *ctx)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb6, 0x2c, 0x0b); // set default elvss voltage
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MIPI_DCS_WRITE_POWER_SAVE, 0x00);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf7, 0x03); // gamma/aor update
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5); // disable LEVEL2 commands
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 
 	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
 
@@ -194,28 +196,17 @@ static int s6e88a0_ams452ef01_probe(struct mipi_dsi_device *dsi)
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST;
 
-	drm_panel_add(&ctx->panel);
+	ret = devm_drm_panel_add(dev, &ctx->panel);
+	if (ret)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "Failed to attach to DSI host: %d\n", ret);
-		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void s6e88a0_ams452ef01_remove(struct mipi_dsi_device *dsi)
-{
-	struct s6e88a0_ams452ef01 *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
-
-	drm_panel_remove(&ctx->panel);
 }
 
 static const struct of_device_id s6e88a0_ams452ef01_of_match[] = {
@@ -226,7 +217,6 @@ MODULE_DEVICE_TABLE(of, s6e88a0_ams452ef01_of_match);
 
 static struct mipi_dsi_driver s6e88a0_ams452ef01_driver = {
 	.probe = s6e88a0_ams452ef01_probe,
-	.remove = s6e88a0_ams452ef01_remove,
 	.driver = {
 		.name = "panel-s6e88a0-ams452ef01",
 		.of_match_table = s6e88a0_ams452ef01_of_match,

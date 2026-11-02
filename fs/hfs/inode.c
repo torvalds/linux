@@ -643,7 +643,7 @@ static int hfs_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-int hfs_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int hfs_inode_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -663,7 +663,7 @@ int hfs_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	     ((S_ISDIR(inode->i_mode) &&
 	       (attr->ia_mode != inode->i_mode)) ||
 	      (attr->ia_mode & ~HFS_VALID_MODE_BITS)))) {
-		return hsb->s_quiet ? 0 : error;
+		return hsb->s_quiet ? 0 : -EPERM;
 	}
 
 	/* map file permissions to the closest allowable permissions in HFS */

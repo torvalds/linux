@@ -349,8 +349,8 @@ static int lan865x_probe(struct spi_device *spi)
 	netdev->netdev_ops = &lan865x_netdev_ops;
 
 	priv->tc6 = oa_tc6_init(spi, netdev, NULL);
-	if (!priv->tc6) {
-		ret = -ENODEV;
+	if (IS_ERR(priv->tc6)) {
+		ret = PTR_ERR(priv->tc6);
 		goto free_netdev;
 	}
 

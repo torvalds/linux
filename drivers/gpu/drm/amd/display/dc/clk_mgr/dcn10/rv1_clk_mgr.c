@@ -26,8 +26,7 @@
 #include "core_types.h"
 #include "clk_mgr_internal.h"
 #include "rv1_clk_mgr.h"
-#include "dce100/dce_clk_mgr.h"
-#include "dce112/dce112_clk_mgr.h"
+#include "dcn10/dcn10_clk_mgr.h"
 #include "rv1_clk_mgr_vbios_smu.h"
 #include "rv1_clk_mgr_clk.h"
 
@@ -303,14 +302,14 @@ static void rv1_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 
 static struct clk_mgr_funcs rv1_clk_funcs = {
 	.init_clocks = rv1_init_clocks,
-	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 	.update_clocks = rv1_update_clocks,
 	.enable_pme_wa = rv1_enable_pme_wa,
 };
 
 static struct clk_mgr_internal_funcs rv1_clk_internal_funcs = {
 	.set_dispclk = rv1_vbios_smu_set_dispclk,
-	.set_dprefclk = dce112_set_dprefclk
+	.set_dprefclk = dcn10_set_dprefclk
 };
 
 void rv1_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_mgr, struct pp_smu_funcs *pp_smu)
@@ -342,7 +341,7 @@ void rv1_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_
 		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)
 			clk_mgr->dfs_bypass_enabled = true;
 
-	dce_clock_read_ss_info(clk_mgr);
+	dcn10_clock_read_ss_info(clk_mgr);
 }
 
 

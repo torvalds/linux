@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. _pt_BR_applying_patches:
+
 Aplicando Patches ao Kernel Linux
 +++++++++++++++++++++++++++++++++
 
@@ -12,7 +14,7 @@ Autor Original:
    manualmente, você quase certamente desejará considerar o uso do Git.
 
 Uma pergunta feita com frequência na Linux Kernel Mailing List é como aplicar
-an patch ao kernel ou, mais especificamente, a qual kernel base um patch para
+um patch ao kernel ou, mais especificamente, a qual kernel base um patch para
 uma das muitas árvores/branches deve ser aplicado. Esperamos que este documento
 explique isso a você.
 
@@ -171,7 +173,7 @@ fazer a alteração para fazê-la caber).
 O arquivo resultante pode ou não estar correto, dependendo do motivo pelo qual o
 arquivo estava diferente do esperado.
 
-Isso geralmente acontece se você tentar aplicar un patch que foi gerado contra uma
+Isso geralmente acontece se você tentar aplicar um patch que foi gerado contra uma
 versão de kernel diferente daquela que você está tentando modificar.
 
 Se você receber uma mensagem como ``Hunk #3 FAILED at 2387.``, significa que o

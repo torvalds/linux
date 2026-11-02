@@ -18,6 +18,33 @@
 #define CS35L45_ASP_TX_HIZ_DISABLED	0x2
 
 /*
+ * cirrus,boost-low-power-mode
+ *
+ * BST_LPMODE_NO_REACTION:   No reaction
+ * BST_LPMODE_DCM_MODE:      Force boost DCM low power mode
+ * BST_LPMODE_STATIC_BYPASS: Force boost static bypass
+ */
+#define CS35L45_BST_LPMODE_NO_REACTION		0x0
+#define CS35L45_BST_LPMODE_DCM_MODE		0x1
+#define CS35L45_BST_LPMODE_STATIC_BYPASS	0x2
+
+/*
+ * cirrus,amplifier-low-power-mode
+ *
+ * AMP_LPMODE_NG_MODE:  Noise gate mode
+ * AMP_LPMODE_NFR_MODE: Noise floor reduction mode
+ */
+ #define CS35L45_AMP_LPMODE_NG_MODE		0x0
+ #define CS35L45_AMP_LPMODE_NFR_MODE		0x1
+
+/*
+ * cirrus,ldpm-groupX-pcm-threshold-db
+ *
+ * LDPM_PCM_THLD_TRUE_ZERO:
+ */
+#define CS35L45_LDPM_PCM_THLD_TRUE_ZERO	-2147483648
+
+/*
  * Optional GPIOX Sub-nodes:
  *  The cs35l45 node can have up to three "cirrus,gpio-ctrlX" ('X' = [1,2,3])
  *  sub-nodes for configuring the GPIO pins.

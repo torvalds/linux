@@ -18,7 +18,7 @@ struct mpi3_hash_exclusion_format {
 	__le32                     size;
 };
 
-#define MPI3_IMAGE_HASH_EXCUSION_NUM                           (4)
+#define MPI3_IMAGE_HASH_EXCLUSION_NUM                           (4)
 struct mpi3_component_image_header {
 	__le32                            signature0;
 	__le32                            load_address;
@@ -42,7 +42,7 @@ struct mpi3_component_image_header {
 	union mpi3_version_union             rmc_interface_version;
 	union mpi3_version_union             etp_interface_version;
 	struct mpi3_comp_image_version        component_image_version;
-	struct mpi3_hash_exclusion_format     hash_exclusion[MPI3_IMAGE_HASH_EXCUSION_NUM];
+	struct mpi3_hash_exclusion_format     hash_exclusion[MPI3_IMAGE_HASH_EXCLUSION_NUM];
 	__le32                            next_image_header_offset;
 	union mpi3_version_union             security_version;
 	__le32                            reserved84[31];
@@ -347,7 +347,8 @@ struct mpi3_encrypted_hash_entry {
 struct mpi3_encrypted_hash_data {
 	u8                                  image_version;
 	u8                                  num_hash;
-	__le16                              reserved02;
+	u8                                  fw_num_hash;
+	u8                                  reserved03;
 	__le32                              reserved04;
 	struct mpi3_encrypted_hash_entry        encrypted_hash_entry[MPI3_ENCRYPTED_HASH_ENTRY_MAX];
 };

@@ -1894,10 +1894,8 @@ static int r8a66597_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq, r8a66597_irq, IRQF_SHARED,
 			       udc_name, r8a66597);
-	if (ret < 0) {
-		dev_err(dev, "request_irq error (%d)\n", ret);
+	if (ret < 0)
 		goto clean_up2;
-	}
 
 	INIT_LIST_HEAD(&r8a66597->gadget.ep_list);
 	r8a66597->gadget.ep0 = &r8a66597->ep[0].ep;

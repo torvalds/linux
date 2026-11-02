@@ -133,9 +133,9 @@ struct clk_hw *zynqmp_clk_register_mux(const char *name, u32 clk_id,
 				       u8 num_parents,
 				       const struct clock_topology *nodes)
 {
+	struct clk_init_data init = {};
 	struct zynqmp_clk_mux *mux;
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	mux = kzalloc_obj(*mux);

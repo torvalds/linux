@@ -531,9 +531,9 @@ static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("[");
 
-	spin_lock(shost->host_lock);
+	spin_lock(&shost->host_lock);
 	result = sym_interrupt(shost);
-	spin_unlock(shost->host_lock);
+	spin_unlock(&shost->host_lock);
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("]\n");
 
@@ -548,9 +548,9 @@ static void sym53c8xx_timer(struct timer_list *t)
 	struct sym_hcb *np = timer_container_of(np, t, s.timer);
 	unsigned long flags;
 
-	spin_lock_irqsave(np->s.host->host_lock, flags);
+	spin_lock_irqsave(&np->s.host->host_lock, flags);
 	sym_timer(np);
-	spin_unlock_irqrestore(np->s.host->host_lock, flags);
+	spin_unlock_irqrestore(&np->s.host->host_lock, flags);
 }
 
 
@@ -587,7 +587,7 @@ static int sym53c8xx_eh_abort_handler(struct scsi_cmnd *cmd)
 	if (pci_channel_offline(pdev))
 		return SCSI_FAILED;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	/* This one is queued in some place -> to wait for completion */
 	FOR_EACH_QUEUED_ELEMENT(&np->busy_ccbq, qp) {
 		struct sym_ccb *cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
@@ -605,13 +605,13 @@ static int sym53c8xx_eh_abort_handler(struct scsi_cmnd *cmd)
 	if (cmd_queued) {
 		init_completion(&eh_done);
 		ucmd->eh_done = &eh_done;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 		if (!wait_for_completion_timeout(&eh_done, 5*HZ)) {
 			ucmd->eh_done = NULL;
 			sts = -2;
 		}
 	} else {
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 	}
 
 	dev_warn(&cmd->device->sdev_gendev, "ABORT operation %s.\n",
@@ -639,7 +639,7 @@ static int sym53c8xx_eh_target_reset_handler(struct scsi_cmnd *cmd)
 	if (pci_channel_offline(pdev))
 		return SCSI_FAILED;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	sts = sym_reset_scsi_target(np, starget->id);
 	if (!sts) {
 		FOR_EACH_QUEUED_ELEMENT(&np->busy_ccbq, qp) {
@@ -655,15 +655,15 @@ static int sym53c8xx_eh_target_reset_handler(struct scsi_cmnd *cmd)
 			ucmd = SYM_UCMD_PTR(cmd);
 			init_completion(&eh_done);
 			ucmd->eh_done = &eh_done;
-			spin_unlock_irq(shost->host_lock);
+			spin_unlock_irq(&shost->host_lock);
 			if (!wait_for_completion_timeout(&eh_done, 5*HZ)) {
 				ucmd->eh_done = NULL;
 				sts = -2;
 			}
-			spin_lock_irq(shost->host_lock);
+			spin_lock_irq(&shost->host_lock);
 		}
 	}
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 
 	starget_printk(KERN_WARNING, starget, "TARGET RESET operation %s.\n",
 			sts==0 ? "complete" :sts==-2 ? "timed-out" : "failed");
@@ -685,9 +685,9 @@ static int sym53c8xx_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 	if (pci_channel_offline(pdev))
 		return SCSI_FAILED;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	sym_reset_scsi_bus(np, 1);
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 
 	dev_warn(&cmd->device->sdev_gendev, "BUS RESET operation complete.\n");
 	return SCSI_SUCCESS;
@@ -713,21 +713,21 @@ static int sym53c8xx_eh_host_reset_handler(struct scsi_cmnd *cmd)
 #define WAIT_FOR_PCI_RECOVERY	35
 	if (pci_channel_offline(pdev)) {
 		init_completion(&eh_done);
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&shost->host_lock);
 		/* Make sure we didn't race */
 		if (pci_channel_offline(pdev)) {
 			BUG_ON(sym_data->io_reset);
 			sym_data->io_reset = &eh_done;
 			finished_reset = 0;
 		}
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 		if (!finished_reset)
 			finished_reset = wait_for_completion_timeout
 						(sym_data->io_reset,
 						WAIT_FOR_PCI_RECOVERY*HZ);
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&shost->host_lock);
 		sym_data->io_reset = NULL;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&shost->host_lock);
 	}
 
 	if (finished_reset) {
@@ -776,7 +776,7 @@ static int sym53c8xx_sdev_init(struct scsi_device *sdev)
 	if (sdev->id >= SYM_CONF_MAX_TARGET || sdev->lun >= SYM_CONF_MAX_LUN)
 		return -ENXIO;
 
-	spin_lock_irqsave(np->s.host->host_lock, flags);
+	spin_lock_irqsave(&np->s.host->host_lock, flags);
 
 	/*
 	 * Fail the device init if the device is flagged NOSCAN at BOOT in
@@ -817,7 +817,7 @@ static int sym53c8xx_sdev_init(struct scsi_device *sdev)
 
 	error = 0;
 out:
-	spin_unlock_irqrestore(np->s.host->host_lock, flags);
+	spin_unlock_irqrestore(&np->s.host->host_lock, flags);
 
 	return error;
 }
@@ -873,7 +873,7 @@ static void sym53c8xx_sdev_destroy(struct scsi_device *sdev)
 	if (!lp)
 		return;
 
-	spin_lock_irqsave(np->s.host->host_lock, flags);
+	spin_lock_irqsave(&np->s.host->host_lock, flags);
 
 	if (lp->busy_itlq || lp->busy_itl) {
 		/*
@@ -896,7 +896,7 @@ static void sym53c8xx_sdev_destroy(struct scsi_device *sdev)
 		tp->starget	     = NULL;
 	}
 
-	spin_unlock_irqrestore(np->s.host->host_lock, flags);
+	spin_unlock_irqrestore(&np->s.host->host_lock, flags);
 }
 
 /*
@@ -1191,9 +1191,9 @@ printk("sym_user_command: data=%ld\n", uc->data);
 	else {
 		unsigned long flags;
 
-		spin_lock_irqsave(shost->host_lock, flags);
+		spin_lock_irqsave(&shost->host_lock, flags);
 		sym_exec_user_command(np, uc);
-		spin_unlock_irqrestore(shost->host_lock, flags);
+		spin_unlock_irqrestore(&shost->host_lock, flags);
 	}
 	return length;
 }
@@ -1371,7 +1371,7 @@ static struct Scsi_Host *sym_attach(const struct scsi_host_template *tpnt, int u
 	 *  After SCSI devices have been opened, we cannot
 	 *  reset the bus safely, so we do it here.
 	 */
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	if (sym_reset_scsi_bus(np, 0))
 		goto reset_failed;
 
@@ -1407,14 +1407,14 @@ static struct Scsi_Host *sym_attach(const struct scsi_host_template *tpnt, int u
 	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && pdev->revision < 2)
 		shost->dma_boundary = 0xFFFFFF;
 
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	return shost;
 
  reset_failed:
 	printf_err("%s: FATAL ERROR: CHECK SCSI BUS - CABLES, "
 		   "TERMINATION, DEVICE POWER etc.!\n", sym_name(np));
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
  attach_failed:
 	printf_info("sym%d: giving up ...\n", unit);
 	if (np)
@@ -1903,10 +1903,10 @@ static void sym2_io_resume(struct pci_dev *pdev)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct sym_data *sym_data = shost_priv(shost);
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&shost->host_lock);
 	if (sym_data->io_reset)
 		complete(sym_data->io_reset);
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&shost->host_lock);
 }
 
 static void sym2_get_signalling(struct Scsi_Host *shost)

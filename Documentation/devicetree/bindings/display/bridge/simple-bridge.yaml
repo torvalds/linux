@@ -29,6 +29,7 @@ properties:
           - adi,adv7123
           - algoltek,ag6311
           - asl-tek,cs5263
+          - chrontel,ch7218a
           - dumb-vga-dac
           - mstar,tsumu88adt3-lf-1
           - parade,ps185hdm

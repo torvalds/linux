@@ -212,13 +212,8 @@ struct vc4_dev {
 
 	struct work_struct overflow_mem_work;
 
-	int power_refcount;
-
 	/* Set to true when the load tracker is active. */
 	bool load_tracker_enabled;
-
-	/* Mutex controlling the power refcount. */
-	struct mutex power_lock;
 
 	struct {
 		struct timer_list timer;
@@ -294,6 +289,13 @@ struct vc4_v3d {
 	struct platform_device *pdev;
 	void __iomem *regs;
 	struct clk *clk;
+
+	/* Reset line for the V3D block, used to recover from a GPU hang.
+	 * NULL if the device tree does not describe one, in which case the
+	 * GPU cannot be reset.
+	 */
+	struct reset_control *reset;
+
 	struct debugfs_regset32 regset;
 };
 
@@ -949,7 +951,7 @@ int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc);
 void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 			    struct drm_crtc_state *state);
-void vc4_crtc_reset(struct drm_crtc *crtc);
+struct drm_crtc_state *vc4_crtc_create_state(struct drm_crtc *crtc);
 void vc4_crtc_handle_vblank(struct vc4_crtc *crtc);
 void vc4_crtc_send_vblank(struct drm_crtc *crtc);
 int vc4_crtc_late_register(struct drm_crtc *crtc);
@@ -1056,6 +1058,7 @@ int vc4_v3d_bin_bo_get(struct vc4_dev *vc4, bool *used);
 void vc4_v3d_bin_bo_put(struct vc4_dev *vc4);
 int vc4_v3d_pm_get(struct vc4_dev *vc4);
 void vc4_v3d_pm_put(struct vc4_dev *vc4);
+void vc4_v3d_init_hw(struct drm_device *dev);
 int vc4_v3d_debugfs_init(struct drm_minor *minor);
 
 /* vc4_validate.c */

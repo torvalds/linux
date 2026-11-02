@@ -367,14 +367,10 @@ static ssize_t dwc3_lsp_write(struct file *file, const char __user *ubuf,
 	struct seq_file		*s = file->private_data;
 	struct dwc3		*dwc = s->private;
 	unsigned long		flags;
-	char			buf[32] = { 0 };
 	u32			sel;
 	int			ret;
 
-	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
-		return -EFAULT;
-
-	ret = kstrtouint(buf, 0, &sel);
+	ret = kstrtou32_from_user(ubuf, count, 0, &sel);
 	if (ret)
 		return ret;
 

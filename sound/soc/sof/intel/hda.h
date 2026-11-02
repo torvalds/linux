@@ -683,6 +683,21 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 				      struct snd_pcm_substream *substream);
 int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream);
 
+int hda_dsp_compr_open(struct snd_sof_dev *sdev, struct snd_compr_stream *cstream);
+int hda_dsp_compr_close(struct snd_sof_dev *sdev, struct snd_compr_stream *cstream);
+int hda_dsp_compr_hw_params(struct snd_sof_dev *sdev,
+			    struct snd_compr_stream *cstream,
+			    struct snd_compr_params *params,
+			    struct snd_sof_platform_stream_params *platform_params);
+int hda_dsp_stream_compr_hw_free(struct snd_sof_dev *sdev,
+				 struct snd_compr_stream *cstream);
+int hda_dsp_compr_trigger(struct snd_sof_dev *sdev,
+			  struct snd_compr_stream *cstream, int cmd);
+int hda_dsp_compr_pointer(struct snd_sof_dev *sdev, struct snd_compr_stream *cstream,
+			  struct snd_compr_tstamp64 *tstamp);
+u64 hda_dsp_compr_get_stream_llp(struct snd_sof_dev *sdev,
+				 struct snd_compr_stream *cstream);
+
 /*
  * DSP Stream Operations.
  */

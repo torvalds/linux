@@ -32,7 +32,7 @@ attribute-sets:
         name: addr-ipv6
         type: binary
         checks:
-          min-len: 16
+          exact-len: 16
         byte-order: big-endian
         display-hint: ipv6
       -
@@ -63,7 +63,7 @@ attribute-sets:
         name: fopen-cookie
         type: binary
         checks:
-          min-len: tcp-fastopen-cookie-max
+          max-len: tcp-fastopen-cookie-max
       -
         name: saddr-ipv4
         type: u32
@@ -73,7 +73,7 @@ attribute-sets:
         name: saddr-ipv6
         type: binary
         checks:
-          min-len: 16
+          exact-len: 16
         byte-order: big-endian
         display-hint: ipv6
       -
@@ -93,14 +93,12 @@ attribute-sets:
         name: rtt
         type: u32
         doc: |
-          Round Trip Time (RTT), in msecs with 3 bits fractional
-          (left-shift by 3 to get the msec value).
+          Round Trip Time (RTT), in msecs with 3 bits fractional.
       -
         name: rttvar
         type: u32
         doc: |
-          Round Trip Time VARiance (RTT), in msecs with 2 bits fractional
-          (left-shift by 2 to get the msec value).
+          Round Trip Time VARiance (RTTVAR), in msecs with 2 bits fractional.
       -
         name: ssthresh
         type: u32
@@ -117,14 +115,12 @@ attribute-sets:
         name: rtt-us
         type: u32
         doc: |
-          Round Trip Time (RTT), in usecs, with 3 bits fractional
-          (left-shift by 3 to get the msec value).
+          Round Trip Time (RTT), in usecs, with 3 bits fractional.
       -
         name: rttvar-us
         type: u32
         doc: |
-          Round Trip Time (RTT), in usecs, with 2 bits fractional
-          (left-shift by 3 to get the msec value).
+          Round Trip Time VARiance (RTTVAR), in usecs, with 2 bits fractional.
 
 operations:
   list:

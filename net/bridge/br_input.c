@@ -58,7 +58,7 @@ static int br_pass_frame_up(struct sk_buff *skb, bool promisc)
 
 	indev = skb->dev;
 	skb->dev = brdev;
-	skb = br_handle_vlan(br, NULL, vg, skb);
+	skb = br_handle_vlan(br, NULL, vg, NULL, skb);
 	if (!skb)
 		return NET_RX_DROP;
 	/* update the multicast stats if the packet is IGMP/MLD */
@@ -86,8 +86,8 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	struct net_bridge_vlan *vlan;
 	struct net_bridge *br;
 	bool promisc;
-	u16 vid = 0;
 	u8 state;
+	u16 vid;
 
 	if (!p)
 		goto drop;
@@ -107,9 +107,10 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 
 	brmctx = &p->br->multicast_ctx;
 	pmctx = &p->multicast_ctx;
-	if (!br_allowed_ingress(p->br, nbp_vlan_group_rcu(p), skb, &vid,
-				&state, &vlan))
+	if (!br_allowed_ingress(p->br, nbp_vlan_group_rcu(p), skb, &state,
+				&vlan))
 		goto out;
+	vid = vlan ? vlan->vid : 0;
 
 	if (test_bit(BR_PORT_LOCKED_BIT, &p->flags)) {
 		struct net_bridge_fdb_entry *fdb_src =
@@ -120,10 +121,11 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 			 * and drop the packet.
 			 */
 			if (test_bit(BR_PORT_MAB_BIT, &p->flags))
-				br_fdb_update(br, p, eth_hdr(skb)->h_source,
-					      vid, BIT(BR_FDB_LOCKED));
+				br_fdb_update(br, p, vlan,
+					      eth_hdr(skb)->h_source,
+					      BIT(BR_FDB_LOCKED));
 			goto drop;
-		} else if (READ_ONCE(fdb_src->dst) != p ||
+		} else if (br_fdb_dst_port(fdb_src) != p ||
 			   test_bit(BR_FDB_LOCAL, &fdb_src->flags)) {
 			/* FDB mismatch. Drop the packet without roaming. */
 			goto drop;
@@ -131,7 +133,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 			/* FDB match, but entry is locked. Refresh it and drop
 			 * the packet.
 			 */
-			br_fdb_update(br, p, eth_hdr(skb)->h_source, vid,
+			br_fdb_update(br, p, vlan, eth_hdr(skb)->h_source,
 				      BIT(BR_FDB_LOCKED));
 			goto drop;
 		}
@@ -141,7 +143,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 
 	/* insert into forwarding database after filtering to avoid spoofing */
 	if (test_bit(BR_LEARNING_BIT, &p->flags))
-		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid, 0);
+		br_fdb_update(br, p, vlan, eth_hdr(skb)->h_source, 0);
 
 	promisc = !!(br->dev->flags & IFF_PROMISC);
 	local_rcv = promisc;
@@ -223,10 +225,10 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 
 		if (now != READ_ONCE(dst->used))
 			WRITE_ONCE(dst->used, now);
-		br_forward(READ_ONCE(dst->dst), skb, local_rcv, false);
+		br_forward(br_fdb_dst_read(dst), skb, local_rcv, false);
 	} else {
 		if (!mcast_hit)
-			br_flood(br, skb, pkt_type, local_rcv, false, vid);
+			br_flood(br, vlan, skb, pkt_type, local_rcv, false);
 		else
 			br_multicast_flood(mdst, skb, brmctx, local_rcv, false);
 	}
@@ -245,14 +247,14 @@ EXPORT_SYMBOL_GPL(br_handle_frame_finish);
 static void __br_handle_local_finish(struct sk_buff *skb)
 {
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
-	u16 vid = 0;
+	struct net_bridge_vlan *vlan;
 
 	/* check if vlan is allowed, to avoid spoofing */
 	if (test_bit(BR_LEARNING_BIT, &p->flags) &&
 	    nbp_state_should_learn(p) &&
 	    !br_opt_get(p->br, BROPT_NO_LL_LEARN) &&
-	    br_should_learn(p, skb, &vid))
-		br_fdb_update(p->br, p, eth_hdr(skb)->h_source, vid, 0);
+	    br_should_learn(p, skb, &vlan))
+		br_fdb_update(p->br, p, vlan, eth_hdr(skb)->h_source, 0);
 }
 
 /* note: already called with rcu_read_lock */

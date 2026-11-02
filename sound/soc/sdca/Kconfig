@@ -3,11 +3,13 @@ menu "SoundWire (SDCA)"
 
 config SND_SOC_SDCA
 	tristate "SDCA core support"
-	depends on ACPI
 	select AUXILIARY_BUS
 	help
 	  This option enables support for the MIPI SoundWire Device
-	  Class for Audio (SDCA).
+	  Class for Audio (SDCA).  The ACPI-specific enumeration
+	  helpers are only built when CONFIG_ACPI is enabled; on
+	  non-ACPI platforms the SDCA function data is supplied
+	  statically by the codec driver.
 
 config SND_SOC_SDCA_HID
 	bool "SDCA HID support"

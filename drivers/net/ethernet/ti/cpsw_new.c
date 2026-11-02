@@ -1875,7 +1875,7 @@ static const struct of_device_id cpsw_of_mtable[] = {
 	{ .compatible = "ti,am335x-cpsw-switch"},
 	{ .compatible = "ti,am4372-cpsw-switch"},
 	{ .compatible = "ti,dra7-cpsw-switch"},
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, cpsw_of_mtable);
 

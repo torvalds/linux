@@ -1,6 +1,8 @@
 /*
  * Copyright 2020 Advanced Micro Devices, Inc.
  *
+ * SPDX-License-Identifier: MIT
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
  * to deal in the Software without restriction, including without limitation
@@ -40,7 +42,7 @@
 #define FN(reg_name, field_name) \
 	dpp->tf_shift->field_name, dpp->tf_mask->field_name
 
-static void dpp3_enable_cm_block(
+void dpp3_enable_cm_block(
 		struct dpp *dpp_base)
 {
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
@@ -54,7 +56,7 @@ static void dpp3_enable_cm_block(
 	REG_UPDATE(CM_CONTROL, CM_BYPASS, cm_bypass_mode);
 }
 
-static enum dc_lut_mode dpp30_get_gamcor_current(struct dpp *dpp_base)
+enum dc_lut_mode dpp30_get_gamcor_current(struct dpp *dpp_base)
 {
 	enum dc_lut_mode mode = LUT_BYPASS;
 	uint32_t state_mode;
@@ -74,7 +76,7 @@ static enum dc_lut_mode dpp30_get_gamcor_current(struct dpp *dpp_base)
 	return mode;
 }
 
-static void dpp3_program_gammcor_lut(
+void dpp3_program_gammcor_lut(
 		struct dpp *dpp_base,
 		const struct pwl_result_data *rgb,
 		uint32_t num,
@@ -169,7 +171,7 @@ void dpp3_program_cm_bias(
 			CM_BIAS_CB_B, bias_params->cm_bias_cb_b);
 }
 
-static void dpp3_gamcor_reg_field(
+void dpp3_gamcor_reg_field(
 		struct dcn3_dpp *dpp,
 		struct dcn3_xfer_func_reg *reg)
 {
@@ -202,7 +204,7 @@ static void dpp3_gamcor_reg_field(
 	reg->masks.exp_resion_start_segment = dpp->tf_mask->CM_GAMCOR_RAMA_EXP_REGION_START_SEGMENT_B;
 }
 
-static void dpp3_configure_gamcor_lut(
+void dpp3_configure_gamcor_lut(
 		struct dpp *dpp_base,
 		bool is_ram_a)
 {

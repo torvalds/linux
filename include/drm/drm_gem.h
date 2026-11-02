@@ -228,6 +228,17 @@ struct drm_gem_object_funcs {
 	size_t (*rss)(struct drm_gem_object *obj);
 
 	/**
+	 * @handle_free:
+	 *
+	 * This callback is called when the GEM handle count goes down to 0.
+	 * It is currently used by AMDGPU driver to release their exported BO
+	 * handles.
+	 *
+	 * This callback is optional.
+	 */
+	void (*handle_free)(struct drm_gem_object *obj);
+
+	/**
 	 * @vm_ops:
 	 *
 	 * Virtual memory operations used with mmap.
@@ -616,8 +627,7 @@ drm_gem_lru_scan(struct drm_device *dev,
 		 struct drm_gem_lru *lru,
 		 unsigned int nr_to_scan,
 		 unsigned long *remaining,
-		 bool (*shrink)(struct drm_gem_object *obj, struct ww_acquire_ctx *ticket),
-		 struct ww_acquire_ctx *ticket);
+		 bool (*shrink)(struct drm_gem_object *obj));
 
 int drm_gem_evict_locked(struct drm_gem_object *obj);
 

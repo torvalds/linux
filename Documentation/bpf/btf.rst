@@ -88,6 +88,9 @@ sequentially and type id is assigned to each recognized type starting from id
     #define BTF_KIND_DECL_TAG       17      /* Decl Tag     */
     #define BTF_KIND_TYPE_TAG       18      /* Type Tag     */
     #define BTF_KIND_ENUM64         19      /* Enumeration up to 64-bit values */
+    #define BTF_KIND_LOC_PARAM      20      /* Location description (register, const etc) */
+    #define BTF_KIND_LOC_PROTO      21      /* Set of location parameters for site */
+    #define BTF_KIND_LOCSEC         22      /* Section with site descriptions */
 
 Note that the type section encodes debug info, not just pure types.
 ``BTF_KIND_FUNC`` is not a type, and it represents a defined subprogram.
@@ -104,11 +107,13 @@ Each type contains the following common data::
          *             decl_tag and type_tag
          */
         __u32 info;
-        /* "size" is used by INT, ENUM, STRUCT, UNION and ENUM64.
+        /* "size" is used by INT, ENUM, STRUCT, UNION, ENUM64 and
+         * LOC_PARAM.
          * "size" tells the size of the type it is describing.
          *
          * "type" is used by PTR, TYPEDEF, VOLATILE, CONST, RESTRICT,
-         * FUNC, FUNC_PROTO, DECL_TAG and TYPE_TAG.
+         * FUNC, FUNC_PROTO, DECL_TAG and TYPE_TAG. It is unused by
+         * LOC_PROTO and LOCSEC.
          * "type" is a type_id referring to another type.
          */
         union {
@@ -416,7 +421,7 @@ If the function has variable arguments, the last parameter is encoded with
   * ``info.vlen``: 0
   * ``type``: the type of the variable
 
-``btf_type`` is followed by a single ``struct btf_variable`` with the
+``btf_type`` is followed by a single ``struct btf_var`` with the
 following data::
 
     struct btf_var {
@@ -562,6 +567,80 @@ The ``btf_enum64`` encoding:
 
 If the original enum value is signed and the size is less than 8,
 that value will be sign extended into 8 bytes.
+
+2.2.20 BTF_KIND_LOC_PARAM
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``struct btf_type`` encoding requirement:
+  * ``name_off``: 0
+  * ``info.kind_flag``: 0
+  * ``info.kind``: BTF_KIND_LOC_PARAM
+  * ``info.vlen``: number of 32-bit location value words
+  * ``size``: size in bytes of the represented parameter: 1 through 16
+
+``btf_type`` is followed by a ``struct btf_loc_param`` and ``info.vlen``
+number of 32-bit value words.::
+
+    struct btf_loc_param {
+        __u32 flags;
+        __u32 values[];
+    };
+
+The ``flags`` field describes how to interpret ``values``:
+
+  * ``BTF_LOC_PARAM_CONST`` describes a constant; the value is stored in
+    low-word, high-word order when it requires 64 bits.
+  * ``BTF_LOC_PARAM_ADDR | BTF_LOC_PARAM_CONST`` describes an address offset
+    relative to the runtime base address of the kernel or module image.
+  * ``BTF_LOC_PARAM_REG`` with one word describes a register number; with two
+    words it describes a multi-register parameter.
+  * ``BTF_LOC_PARAM_REG | BTF_LOC_PARAM_OFFSET`` describes an address held in
+    a register plus an offset. Adding ``BTF_LOC_PARAM_DEREF`` dereferences
+    that address. ``BTF_LOC_PARAM_REG | BTF_LOC_PARAM_DEREF`` with one word
+    dereferences the value held in the register.
+  * ``BTF_LOC_PARAM_SIGNED`` makes a constant or offset signed. A constant's
+    signed width is ``size``. For a register-relative offset, its signed
+    width is the number of offset value words times 32 bits.
+
+2.2.21 BTF_KIND_LOC_PROTO
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``struct btf_type`` encoding requirement:
+  * ``name_off``: 0
+  * ``info.kind_flag``: 0
+  * ``info.kind``: BTF_KIND_LOC_PROTO
+  * ``info.vlen``: number of function parameter locations
+  * ``type``: 0
+
+``btf_type`` is followed by ``info.vlen`` number of ``__u32`` BTF type IDs.
+Each entry corresponds to a function parameter at an inline site. An entry is
+either 0, meaning that no location information is available, or the type ID
+of a ``BTF_KIND_LOC_PARAM``.
+
+2.2.22 BTF_KIND_LOCSEC
+~~~~~~~~~~~~~~~~~~~~~~
+
+``struct btf_type`` encoding requirement:
+  * ``name_off``: offset to a valid ELF section name
+  * ``info.kind_flag``: 0
+  * ``info.kind``: BTF_KIND_LOCSEC
+  * ``info.vlen``: number of inline sites in the section
+  * ``type``: 0
+
+``btf_type`` is followed by ``info.vlen`` number of ``struct btf_loc``.::
+
+    struct btf_loc {
+        __u32 func;
+        __u32 loc_proto;
+        __u32 offset;
+    };
+
+The ``func`` field is the non-zero type ID of the ``BTF_KIND_FUNC`` being
+described. ``loc_proto`` is the non-zero type ID of the associated
+``BTF_KIND_LOC_PROTO``. ``offset`` is the location address offset relative to
+the runtime base address of the ELF section associated with the LOCSEC.
+For example, a LOCSEC named ``inline.text`` contains records for ``.text``
+whose offsets are relative to the runtime base of that section.
 
 2.3 Constant Values
 -------------------

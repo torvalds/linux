@@ -307,6 +307,7 @@ static const struct of_device_id ptp_ixp_match[] = {
 	},
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ptp_ixp_match);
 
 static struct platform_driver ptp_ixp_driver = {
 	.driver = {

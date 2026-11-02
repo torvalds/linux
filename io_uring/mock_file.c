@@ -257,17 +257,17 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 	FD_PREPARE(fdf, O_RDWR | O_CLOEXEC,
 		   anon_inode_create_getfile("[io_uring_mock]", fops, mf,
 					     O_RDWR | O_CLOEXEC, NULL));
-	if (fdf.err)
-		return fdf.err;
+	if (fdf->fd < 0)
+		return fdf->fd;
 
 	retain_and_null_ptr(mf);
-	file = fd_prepare_file(fdf);
+	file = fdf->file;
 	file->f_mode |= FMODE_READ | FMODE_CAN_READ | FMODE_WRITE |
 			FMODE_CAN_WRITE | FMODE_LSEEK;
 	if (mc.flags & IORING_MOCK_CREATE_F_SUPPORT_NOWAIT)
 		file->f_mode |= FMODE_NOWAIT;
 
-	mc.out_fd = fd_prepare_fd(fdf);
+	mc.out_fd = fdf->fd;
 	if (copy_to_user(uarg, &mc, uarg_size))
 		return -EFAULT;
 

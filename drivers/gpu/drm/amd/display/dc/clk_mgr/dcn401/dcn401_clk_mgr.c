@@ -5,8 +5,8 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 #include "dcn401/dcn401_clk_mgr_smu_msg.h"
+#include "dcn10/dcn10_clk_mgr.h"
 #include "dcn20/dcn20_clk_mgr.h"
-#include "dce100/dce_clk_mgr.h"
 #include "dcn31/dcn31_clk_mgr.h"
 #include "dcn32/dcn32_clk_mgr.h"
 #include "dcn401/dcn401_clk_mgr.h"
@@ -358,37 +358,37 @@ static void dcn401_dump_clk_registers(struct clk_state_registers_and_bypass *reg
 		fclk_did = REG_READ(CLK2_CLK2_DFS_CNTL);
 
 		/* Convert DISPCLK DFS Slice DID to divider*/
-		target_div = dentist_get_divider_from_did(dispclk_did);
+		target_div = dcn10_dentist_get_divider_from_did(dispclk_did);
 		//Get dispclk in khz
 		regs_and_bypass->dispclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 
 		/* Convert DISPCLK DFS Slice DID to divider*/
-		target_div = dentist_get_divider_from_did(dppclk_did);
+		target_div = dcn10_dentist_get_divider_from_did(dppclk_did);
 		//Get dppclk in khz
 		regs_and_bypass->dppclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 
 		/* Convert DPREFCLK DFS Slice DID to divider*/
-		target_div = dentist_get_divider_from_did(dprefclk_did);
+		target_div = dcn10_dentist_get_divider_from_did(dprefclk_did);
 		//Get dprefclk in khz
 		regs_and_bypass->dprefclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 
 		/* Convert DCFCLK DFS Slice DID to divider*/
-		target_div = dentist_get_divider_from_did(dcfclk_did);
+		target_div = dcn10_dentist_get_divider_from_did(dcfclk_did);
 		//Get dcfclk in khz
 		regs_and_bypass->dcfclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 
 		/* Convert DTBCLK DFS Slice DID to divider*/
-		target_div = dentist_get_divider_from_did(dtbclk_did);
+		target_div = dcn10_dentist_get_divider_from_did(dtbclk_did);
 		//Get dtbclk in khz
 		regs_and_bypass->dtbclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 
 		/* Convert DTBCLK DFS Slice DID to divider*/
-		target_div = dentist_get_divider_from_did(fclk_did);
+		target_div = dcn10_dentist_get_divider_from_did(fclk_did);
 		//Get fclk in khz
 		regs_and_bypass->fclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
@@ -1552,7 +1552,7 @@ static int dcn401_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
 	unsigned int disp_divider;
 
 	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, &dispclk_wdivider);
-	disp_divider = dentist_get_divider_from_did(dispclk_wdivider);
+	disp_divider = dcn10_dentist_get_divider_from_did(dispclk_wdivider);
 
 	/* Return DISPCLK freq in Khz */
 	if (disp_divider)
@@ -1599,7 +1599,7 @@ static void dcn401_execute_clk_mgr_block_sequence_bls(struct clk_mgr *clk_mgr_ba
 }
 
 static struct clk_mgr_funcs dcn401_funcs = {
-		.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+		.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 		.get_dtb_ref_clk_frequency = dcn401_get_dtb_ref_freq_khz,
 		.update_clocks = dcn401_update_clocks,
 		.dump_clk_registers = dcn401_dump_clk_registers,
@@ -1632,6 +1632,7 @@ struct clk_mgr_internal *dcn401_clk_mgr_construct(
 
 	clk_mgr = &clk_mgr401->base;
 	clk_mgr->base.ctx = ctx;
+	clk_mgr->base.inst = 0;
 	clk_mgr->base.funcs = &dcn401_funcs;
 	clk_mgr->regs = &clk_mgr_regs_dcn401;
 	clk_mgr->clk_mgr_shift = &clk_mgr_shift_dcn401;

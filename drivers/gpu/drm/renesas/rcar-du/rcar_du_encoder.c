@@ -90,9 +90,22 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 				drm_bridge_get(bridge);
 
 		if (output == RCAR_DU_OUTPUT_DSI0 ||
-		    output == RCAR_DU_OUTPUT_DSI1)
+		    output == RCAR_DU_OUTPUT_DSI1) {
+			struct drm_bridge *dsi_bridge;
+
+			/*
+			 * When we have a DSC block between the DU and the DSI,
+			 * the "bridge" points to the DSC. Detect the DSC by looking
+			 * at the bridge type, and skip the DSC if the bridge is not
+			 * the DSI bridge.
+			 */
+
+			dsi_bridge = bridge->type == DRM_MODE_CONNECTOR_DSI ?
+				     bridge : bridge->next_bridge;
+
 			rcdu->dsi[output - RCAR_DU_OUTPUT_DSI0] =
-				drm_bridge_get(bridge);
+				drm_bridge_get(dsi_bridge);
+		}
 	}
 
 	/*

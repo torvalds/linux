@@ -208,6 +208,13 @@ struct media_entity_desc {
 #define MEDIA_PAD_FL_SINK			(1U << 0)
 #define MEDIA_PAD_FL_SOURCE			(1U << 1)
 #define MEDIA_PAD_FL_MUST_CONNECT		(1U << 2)
+#if defined(__KERNEL__)
+/*
+ * Forgo INTERNAL pads until proper documentation and v4l2-compliance testing
+ * are merged.
+ */
+#define MEDIA_PAD_FL_INTERNAL			(1U << 3)
+#endif /* __KERNEL__ */
 
 struct media_pad_desc {
 	__u32 entity;		/* entity ID */

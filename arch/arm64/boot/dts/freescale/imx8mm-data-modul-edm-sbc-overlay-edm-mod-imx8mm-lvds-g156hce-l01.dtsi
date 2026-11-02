@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2026 Marek Vasut
+ */
+
+#include "imx8mm-data-modul-edm-sbc-overlay-lvds-g156hce-l01.dtsi"
+#include "imx8mm-data-modul-edm-sbc-overlay-edm-mod-imx8mm-lvds-dual.dtsi"
+
+&mipi_dsi {
+	samsung,burst-clock-frequency = <864000000>;
+	samsung,esc-clock-frequency = <10000000>;
+};

@@ -29,8 +29,10 @@ static size_t __get_vlan_tinfo_size(void)
 bool vlan_tunid_inrange(const struct net_bridge_vlan *v_curr,
 			const struct net_bridge_vlan *v_last)
 {
-	__be32 tunid_curr = tunnel_id_to_key32(v_curr->tinfo.tunnel_id);
-	__be32 tunid_last = tunnel_id_to_key32(v_last->tinfo.tunnel_id);
+	__be32 tunid_curr, tunid_last;
+
+	tunid_curr = tunnel_id_to_key32(READ_ONCE(v_curr->tinfo.tunnel_id));
+	tunid_last = tunnel_id_to_key32(READ_ONCE(v_last->tinfo.tunnel_id));
 
 	return (be32_to_cpu(tunid_curr) - be32_to_cpu(tunid_last)) == 1;
 }
@@ -43,7 +45,7 @@ static int __get_num_vlan_tunnel_infos(struct net_bridge_vlan_group *vg)
 	/* Count number of vlan infos */
 	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
 		/* only a context, bridge vlan not activated */
-		if (!br_vlan_should_use(v) || !v->tinfo.tunnel_id)
+		if (!br_vlan_should_use(v) || !READ_ONCE(v->tinfo.tunnel_id))
 			continue;
 
 		if (!vtbegin) {
@@ -124,19 +126,19 @@ static int br_fill_vlan_tinfo_range(struct sk_buff *skb,
 	if (vtend && (vtend->vid - vtbegin->vid) > 0) {
 		/* add range to skb */
 		err = br_fill_vlan_tinfo(skb, vtbegin->vid,
-					 vtbegin->tinfo.tunnel_id,
+					 READ_ONCE(vtbegin->tinfo.tunnel_id),
 					 BRIDGE_VLAN_INFO_RANGE_BEGIN);
 		if (err)
 			return err;
 
 		err = br_fill_vlan_tinfo(skb, vtend->vid,
-					 vtend->tinfo.tunnel_id,
+					 READ_ONCE(vtend->tinfo.tunnel_id),
 					 BRIDGE_VLAN_INFO_RANGE_END);
 		if (err)
 			return err;
 	} else {
 		err = br_fill_vlan_tinfo(skb, vtbegin->vid,
-					 vtbegin->tinfo.tunnel_id,
+					 READ_ONCE(vtbegin->tinfo.tunnel_id),
 					 0);
 		if (err)
 			return err;

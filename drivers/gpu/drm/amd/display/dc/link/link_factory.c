@@ -223,6 +223,7 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 	link_srv->edp_send_replay_cmd = edp_send_replay_cmd;
 	link_srv->edp_set_coasting_vtotal = edp_set_coasting_vtotal;
 	link_srv->edp_replay_residency = edp_replay_residency;
+	link_srv->edp_replay_get_cumulative_residency = edp_replay_get_cumulative_residency;
 	link_srv->edp_set_replay_power_opt_and_coasting_vtotal = edp_set_replay_power_opt_and_coasting_vtotal;
 
 	link_srv->edp_wait_for_t12 = edp_wait_for_t12;
@@ -234,6 +235,10 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 	link_srv->edp_receiver_ready_T7 = edp_receiver_ready_T7;
 	link_srv->edp_power_alpm_dpcd_enable = edp_power_alpm_dpcd_enable;
 	link_srv->edp_set_panel_power = edp_set_panel_power;
+
+	link_srv->edp_set_panel_polarity_enabled = edp_set_panel_polarity_enabled;
+	link_srv->edp_panel_polarity_reset = edp_panel_polarity_reset;
+	link_srv->edp_get_panel_polarity = edp_get_panel_polarity;
 }
 
 /* link dp panel replay implements DP panel replay functionality.
@@ -241,7 +246,7 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 static void construct_link_service_dp_panel_replay(struct link_service *link_srv)
 {
 	link_srv->dp_setup_replay = dp_setup_replay;
-	link_srv->dp_pr_get_panel_inst = dp_pr_get_panel_inst;
+	link_srv->dp_pr_get_pr_panel_inst = dp_pr_get_pr_panel_inst;
 	link_srv->dp_pr_enable = dp_pr_enable;
 	link_srv->dp_pr_update_state = dp_pr_update_state;
 	link_srv->dp_pr_set_general_cmd = dp_pr_set_general_cmd;

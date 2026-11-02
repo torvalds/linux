@@ -309,7 +309,7 @@ struct kernfs_ops {
 	 * write() is bounced through kernel buffer.  If atomic_write_len
 	 * is not set, a write larger than PAGE_SIZE results in partial
 	 * operations of PAGE_SIZE chunks.  If atomic_write_len is set,
-	 * writes upto the specified size are executed atomically but
+	 * writes up to the specified size are executed atomically but
 	 * larger ones are rejected with -E2BIG.
 	 */
 	size_t atomic_write_len;

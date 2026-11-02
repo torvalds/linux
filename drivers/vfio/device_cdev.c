@@ -65,7 +65,7 @@ err_put_registration:
 static void vfio_df_get_kvm_safe(struct vfio_device_file *df)
 {
 	spin_lock(&df->kvm_ref_lock);
-	vfio_device_get_kvm_safe(df->device, df->kvm);
+	vfio_device_get_kvm(df->device, df->kvm);
 	spin_unlock(&df->kvm_ref_lock);
 }
 
@@ -127,6 +127,18 @@ long vfio_df_ioctl_bind_iommufd(struct vfio_device_file *df,
 	/* one device cannot be bound twice */
 	if (df->access_granted) {
 		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	/*
+	 * The cdev path allows only a single open.  Reject a second open here,
+	 * before the VF token and device->kvm updates below would clobber the
+	 * current opener's state on a bind that cannot complete.  Return -EBUSY
+	 * rather than -EINVAL since a delayed release of the prior opener can
+	 * make this transient.
+	 */
+	if (device->open_count) {
+		ret = -EBUSY;
 		goto out_unlock;
 	}
 

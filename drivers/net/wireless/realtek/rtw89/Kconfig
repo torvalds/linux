@@ -209,14 +209,12 @@ config RTW89_LEDS
 	bool
 	depends on RTW89_CORE
 	depends on LEDS_CLASS=y || LEDS_CLASS=MAC80211
-	imply MAC80211_LEDS
 	default y
 
 config RTW89_LEDS_MC
 	bool
 	depends on RTW89_LEDS
-	depends on LEDS_CLASS_MULTICOLOR
-	imply LEDS_TRIGGER_TIMER
+	depends on LEDS_CLASS_MULTICOLOR=y || LEDS_CLASS_MULTICOLOR=RTW89_CORE
 	default y
 
 endif

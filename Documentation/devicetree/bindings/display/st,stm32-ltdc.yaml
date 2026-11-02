@@ -119,9 +119,9 @@ examples:
         resets = <&rcc LTDC_R>;
 
         port {
-             ltdc_out_dsi: endpoint {
-                     remote-endpoint = <&dsi_in>;
-             };
+            ltdc_out_dsi: endpoint {
+                remote-endpoint = <&dsi_in>;
+            };
         };
     };
 

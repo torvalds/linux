@@ -24,7 +24,7 @@
 #define DAT_1_AUTOCMD_VALUE		W1_MASK(47, 40)
 #define DAT_1_AUTOCMD_MASK		W1_MASK(39, 32)
 /*	DAT_0_I2C_DEVICE		W0_BIT_(31) */
-#define DAT_0_DEV_NACK_RETRY_CNT	W0_MASK(30, 29)
+/*	DAT_0_DEV_NACK_RETRY_CNT	W0_MASK(30, 29) */
 #define DAT_0_RING_ID			W0_MASK(28, 26)
 #define DAT_0_DYNADDR_PARITY		W0_BIT_(23)
 #define DAT_0_DYNAMIC_ADDRESS		W0_MASK(22, 16)
@@ -189,6 +189,16 @@ static void hci_dat_v1_restore(struct i3c_hci *hci)
 	}
 }
 
+static void hci_dat_v1_set_nack_retry(struct i3c_hci *hci, unsigned int dat_idx, unsigned int cnt)
+{
+	u32 dat_w0;
+
+	dat_w0 = dat_w0_read(dat_idx);
+	dat_w0 &= ~DAT_0_DEV_NACK_RETRY_CNT;
+	dat_w0 |= FIELD_PREP(DAT_0_DEV_NACK_RETRY_CNT, cnt);
+	dat_w0_write(dat_idx, dat_w0);
+}
+
 const struct hci_dat_ops mipi_i3c_hci_dat_v1 = {
 	.init			= hci_dat_v1_init,
 	.alloc_entry		= hci_dat_v1_alloc_entry,
@@ -199,4 +209,5 @@ const struct hci_dat_ops mipi_i3c_hci_dat_v1 = {
 	.clear_flags		= hci_dat_v1_clear_flags,
 	.get_index		= hci_dat_v1_get_index,
 	.restore		= hci_dat_v1_restore,
+	.set_nack_retry		= hci_dat_v1_set_nack_retry,
 };

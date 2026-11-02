@@ -110,6 +110,13 @@ int phys_mapping(unsigned long phys, unsigned long long *offset_out)
 }
 EXPORT_SYMBOL(phys_mapping);
 
+void report_enomem(void)
+{
+	printk(KERN_ERR "UML ran out of memory on the host side! "
+			"This can happen due to a memory limitation or "
+			"vm.max_map_count has been reached.\n");
+}
+
 static int __init uml_mem_setup(char *line, int *add)
 {
 	char *retptr;

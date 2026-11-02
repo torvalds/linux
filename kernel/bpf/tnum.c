@@ -317,3 +317,14 @@ u64 tnum_step(struct tnum t, u64 z)
 	inc = (filled + 1) & t.mask;
 	return t.value | inc;
 }
+
+/*
+ * Return the number of trailing bits known to be zero in a tnum.
+ * Return 64 for a tnum representing zero.
+ */
+u32 tnum_alignment(struct tnum a)
+{
+	u64 v = a.value | a.mask;
+
+	return v ? __ffs64(v) : 64;
+}

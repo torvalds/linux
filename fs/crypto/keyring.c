@@ -145,6 +145,19 @@ static inline bool valid_key_spec(const struct fscrypt_key_specifier *spec)
 	return master_key_spec_len(spec) != 0;
 }
 
+/*
+ * fscrypt_master_key_user - a user's claim to a master key
+ */
+struct fscrypt_master_key_user {
+	struct list_head link;
+	kuid_t uid;
+	/*
+	 * This 'struct key' contains no secret.  It exists solely to charge the
+	 * appropriate user's key quota.
+	 */
+	struct key *quota_key;
+};
+
 static int fscrypt_user_key_instantiate(struct key *key,
 					struct key_preparsed_payload *prep)
 {
@@ -548,8 +561,10 @@ static int add_master_key(struct super_block *sb,
 		if (secret->is_hw_wrapped) {
 			err = fscrypt_derive_sw_secret(sb, secret->bytes,
 						       secret->size, sw_secret);
-			if (err)
+			if (err) {
+				memzero_explicit(sw_secret, sizeof(sw_secret));
 				return err;
+			}
 			kdf_key = sw_secret;
 			kdf_key_size = sizeof(sw_secret);
 			/*

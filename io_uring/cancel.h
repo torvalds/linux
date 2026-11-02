@@ -11,6 +11,8 @@ struct io_cancel_data {
 	u8 opcode;
 	u32 flags;
 	int seq;
+	/* io_try_cancel() has found it being run by io-wq, and flagged it */
+	bool running;
 };
 
 int io_async_cancel_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
@@ -30,9 +32,20 @@ bool io_cancel_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 int io_cancel_remove(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		     unsigned int issue_flags, struct hlist_head *list,
 		     bool (*cancel)(struct io_kiocb *));
+
+/* io_uring_try_cancel_requests() flags */
+enum {
+	/* match all requests, not just REQ_F_INFLIGHT */
+	IO_CANCEL_ALL		= 1,
+	/* ignore timeouts */
+	IO_CANCEL_KEEP_TIMEOUTS	= 2,
+	/* called by the SQPOLL thread */
+	IO_CANCEL_SQPOLL	= 4,
+};
+
 __cold bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct io_uring_task *tctx,
-					 bool cancel_all, bool is_sqpoll_thread);
+					 unsigned int flags);
 __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 __cold bool io_cancel_ctx_cb(struct io_wq_work *work, void *data);
 

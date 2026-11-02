@@ -4,6 +4,11 @@
 
 #include <linux/acpi.h>
 
+#ifdef CONFIG_IOMMU_API
+#include <linux/iommu.h>
+#include <linux/sizes.h>
+#endif
+
 #include <asm/e820/api.h>
 
 extern int force_iommu, no_iommu;
@@ -20,6 +25,21 @@ extern bool x86_swiotlb_enable;
 
 /* 10 seconds */
 #define DMAR_OPERATION_TIMEOUT ((cycles_t) tsc_khz*10*1000)
+
+#ifdef CONFIG_IOMMU_API
+static inline int iommu_add_resv_x86_msi_region(struct list_head *head)
+{
+	struct iommu_resv_region *region;
+
+	region = iommu_alloc_resv_region(0xfee00000, SZ_1M, 0,
+					 IOMMU_RESV_MSI, GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
+
+	list_add_tail(&region->list, head);
+	return 0;
+}
+#endif
 
 static inline int __init
 arch_rmrr_sanity_check(struct acpi_dmar_reserved_memory *rmrr)

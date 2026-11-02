@@ -20,12 +20,22 @@
 #define MAX_DDR_FREQ_NUM_V5		14
 
 #define MAX_CHAN_NUM			8
+#define MAX_CHAN_NUM_V7_GLYMUR		16
 #define MAX_RANK_NUM			2
 
 #define DDR_HBB_MIN			13
 #define DDR_HBB_MAX			19
 
 #define MAX_SHUB_ENTRIES		8
+#define MAX_SHUB_ENTRIES_V7_GLYMUR	10
+#define MAX_DDR_REGIONS_V7_GLYMUR	4
+
+/*
+ * Glymur's DRAM information entry has 256 bytes of trailing zeroes
+ * after its DDR details, four region slots, 10-entry SHUB frequency
+ * plan, and v6 misc information.
+ */
+#define DDR_V7_GLYMUR_RESERVED_SIZE	256
 
 static struct smem_dram *__dram;
 
@@ -39,6 +49,7 @@ enum ddr_info_version {
 	INFO_V6, /* INFO_V6 seems to only have shipped with 6 DDR regions, unlike V7 */
 	INFO_V7,
 	INFO_V7_WITH_6_REGIONS,
+	INFO_V7_GLYMUR,
 };
 
 struct smem_dram {
@@ -188,6 +199,37 @@ struct ddr_details_v7 {
 	struct ddr_regions_v5 ddr_regions;
 };
 
+struct ddr_regions_v7_glymur {
+	__le32 ddr_region_num;
+	__le64 ddr_rank0_size;
+	__le64 ddr_rank1_size;
+	__le64 ddr_cs0_start_addr;
+	__le64 ddr_cs1_start_addr;
+	__le32 highest_bank_addr_bit;
+	struct ddr_region_v5 ddr_region[MAX_DDR_REGIONS_V7_GLYMUR];
+};
+
+struct ddr_details_v7_glymur {
+	u8 manufacturer_id;
+	u8 device_type;
+	struct ddr_part_details ddr_params[MAX_CHAN_NUM_V7_GLYMUR];
+	struct ddr_freq_plan_v5 ddr_freq_tbl;
+	u8 num_channels;
+	u8 sct_config;
+	struct ddr_regions_v7_glymur ddr_regions;
+};
+
+struct shub_freq_plan_entry_v7_glymur {
+	u8 num_shub_freqs;
+	struct shub_freq_table shub_freq[MAX_SHUB_ENTRIES_V7_GLYMUR];
+};
+
+struct ddr_v7_glymur_tail {
+	struct shub_freq_plan_entry_v7_glymur shub_freq_plan;
+	struct ddr_misc_info_v6 misc_info;
+	u8 reserved[DDR_V7_GLYMUR_RESERVED_SIZE];
+};
+
 /**
  * qcom_smem_dram_get_hbb(): Get the Highest bank address bit
  *
@@ -219,7 +261,7 @@ static void smem_dram_parse_v3_data(struct smem_dram *dram, void *data)
 
 		if (freq_entry->freq_khz && freq_entry->enabled) {
 			u32 freq_khz = le32_to_cpu(freq_entry->freq_khz);
-			dram->frequencies[dram->num_frequencies++] = 1000 * freq_khz;
+			dram->frequencies[dram->num_frequencies++] = 1000UL * freq_khz;
 		}
 	}
 }
@@ -231,8 +273,11 @@ static void smem_dram_parse_v3_14freqs_data(struct smem_dram *dram, void *data)
 	for (int i = 0; i < MAX_DDR_FREQ_NUM_V3 + 1; i++) {
 		struct ddr_freq_table *freq_entry = &details->ddr_freq_tbl.ddr_freq[i];
 
-		if (freq_entry->freq_khz && freq_entry->enabled)
-			dram->frequencies[dram->num_frequencies++] = 1000 * freq_entry->freq_khz;
+		if (freq_entry->freq_khz && freq_entry->enabled) {
+			u32 freq_khz = le32_to_cpu(freq_entry->freq_khz);
+
+			dram->frequencies[dram->num_frequencies++] = 1000UL * freq_khz;
+		}
 	}
 }
 
@@ -248,7 +293,7 @@ static void smem_dram_parse_v4_data(struct smem_dram *dram, void *data)
 
 		if (freq_entry->freq_khz && freq_entry->enabled) {
 			u32 freq_khz = le32_to_cpu(freq_entry->freq_khz);
-			dram->frequencies[dram->num_frequencies++] = 1000 * freq_khz;
+			dram->frequencies[dram->num_frequencies++] = 1000UL * freq_khz;
 		}
 	}
 }
@@ -265,7 +310,7 @@ static void smem_dram_parse_v5_data(struct smem_dram *dram, void *data)
 
 		if (freq_entry->freq_khz && freq_entry->enabled) {
 			u32 freq_khz = le32_to_cpu(freq_entry->freq_khz);
-			dram->frequencies[dram->num_frequencies++] = 1000 * freq_khz;
+			dram->frequencies[dram->num_frequencies++] = 1000UL * freq_khz;
 		}
 	}
 }
@@ -282,6 +327,23 @@ static void smem_dram_parse_v7_data(struct smem_dram *dram, void *data)
 
 		if (freq_entry->freq_khz && freq_entry->enabled) {
 			u32 freq_khz = le32_to_cpu(freq_entry->freq_khz);
+			dram->frequencies[dram->num_frequencies++] = 1000UL * freq_khz;
+		}
+	}
+}
+
+static void smem_dram_parse_v7_glymur_data(struct smem_dram *dram, void *data)
+{
+	struct ddr_details_v7_glymur *details = data;
+
+	dram->hbb = le32_to_cpu(details->ddr_regions.highest_bank_addr_bit);
+
+	for (int i = 0; i < MAX_DDR_FREQ_NUM_V5; i++) {
+		struct ddr_freq_table *freq_entry = &details->ddr_freq_tbl.ddr_freq[i];
+
+		if (freq_entry->freq_khz && freq_entry->enabled) {
+			u32 freq_khz = le32_to_cpu(freq_entry->freq_khz);
+
 			dram->frequencies[dram->num_frequencies++] = 1000 * freq_khz;
 		}
 	}
@@ -341,6 +403,10 @@ static int smem_dram_infer_struct_version(size_t size)
 		    sizeof(struct shub_freq_plan_entry))
 		return INFO_V7_WITH_6_REGIONS;
 
+	if (size == sizeof(struct ddr_details_v7_glymur) +
+		    sizeof(struct ddr_v7_glymur_tail))
+		return INFO_V7_GLYMUR;
+
 	return INFO_UNKNOWN;
 }
 
@@ -382,7 +448,7 @@ struct dentry *smem_dram_parse(struct qcom_smem *smem, struct device *dev)
 		return ERR_PTR(-ENODATA);
 
 	ver = smem_dram_infer_struct_version(actual_size);
-	if (ver < 0) {
+	if ((int)ver < 0) {
 		/* Some SoCs don't provide data that's useful for us */
 		return ERR_PTR(-ENODATA);
 	} else if (ver == INFO_UNKNOWN) {
@@ -414,6 +480,9 @@ struct dentry *smem_dram_parse(struct qcom_smem *smem, struct device *dev)
 	case INFO_V7:
 	case INFO_V7_WITH_6_REGIONS:
 		smem_dram_parse_v7_data(dram, data);
+		break;
+	case INFO_V7_GLYMUR:
+		smem_dram_parse_v7_glymur_data(dram, data);
 		break;
 	default:
 		return ERR_PTR(-EINVAL);

@@ -44,20 +44,36 @@ void dce_enable_fe_clock(struct dce_hwseq *hws,
 			DCFE_CLOCK_ENABLE, enable);
 }
 
-void dce_pipe_control_lock(struct dc *dc,
+bool dce_build_pipe_control_lock_sequence(struct dc *dc,
 		struct pipe_ctx *pipe,
-		bool lock)
+		bool lock,
+		struct pipe_control_lock_params *params)
 {
-	uint32_t lock_val = lock ? 1 : 0;
+	if (!pipe || pipe->top_pipe)
+		return false;
+
+	params->lock = lock;
+	params->tg_lock.dc = dc;
+	params->tg_lock.tg = pipe->stream_res.tg;
+	params->tg_lock.lock = lock;
+	params->tg_lock.triplebuffer_flips = pipe->plane_state &&
+			pipe->plane_state->triplebuffer_flips;
+	return true;
+}
+
+void dce_tg_lock(struct tg_lock_params *params)
+{
+	uint32_t lock_val = params->lock ? 1 : 0;
 	uint32_t dcp_grph, scl, blnd, update_lock_mode, val;
-	struct dce_hwseq *hws = dc->hwseq;
+	struct dce_hwseq *hws = params->dc->hwseq;
+	unsigned int tg_inst = params->tg->inst;
 
 	/* Not lock pipe when blank */
-	if (lock && pipe->stream_res.tg->funcs->is_blanked &&
-	    pipe->stream_res.tg->funcs->is_blanked(pipe->stream_res.tg))
+	if (params->lock && params->tg->funcs->is_blanked &&
+			params->tg->funcs->is_blanked(params->tg))
 		return;
 
-	val = REG_GET_4(BLND_V_UPDATE_LOCK[pipe->stream_res.tg->inst],
+	val = REG_GET_4(BLND_V_UPDATE_LOCK[tg_inst],
 			BLND_DCP_GRPH_V_UPDATE_LOCK, &dcp_grph,
 			BLND_SCL_V_UPDATE_LOCK, &scl,
 			BLND_BLND_V_UPDATE_LOCK, &blnd,
@@ -68,28 +84,28 @@ void dce_pipe_control_lock(struct dc *dc,
 	blnd = lock_val;
 	update_lock_mode = lock_val;
 
-	REG_SET_2(BLND_V_UPDATE_LOCK[pipe->stream_res.tg->inst], val,
+	REG_SET_2(BLND_V_UPDATE_LOCK[tg_inst], val,
 			BLND_DCP_GRPH_V_UPDATE_LOCK, dcp_grph,
 			BLND_SCL_V_UPDATE_LOCK, scl);
 
 	if (hws->masks->BLND_BLND_V_UPDATE_LOCK != 0)
-		REG_SET_2(BLND_V_UPDATE_LOCK[pipe->stream_res.tg->inst], val,
+		REG_SET_2(BLND_V_UPDATE_LOCK[tg_inst], val,
 				BLND_BLND_V_UPDATE_LOCK, blnd,
 				BLND_V_UPDATE_LOCK_MODE, update_lock_mode);
 
 	if (hws->wa.blnd_crtc_trigger) {
-		if (!lock) {
-			uint32_t value = REG_READ(CRTC_H_BLANK_START_END[pipe->stream_res.tg->inst]);
-			REG_WRITE(CRTC_H_BLANK_START_END[pipe->stream_res.tg->inst], value);
+		if (!params->lock) {
+			uint32_t value = REG_READ(CRTC_H_BLANK_START_END[tg_inst]);
+
+			REG_WRITE(CRTC_H_BLANK_START_END[tg_inst], value);
 		}
 	}
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-void dce60_pipe_control_lock(struct dc *dc,
-		struct pipe_ctx *pipe,
-		bool lock)
+void dce60_tg_lock(struct tg_lock_params *params)
 {
+	(void)params;
 	/* DCE6 has no BLND_V_UPDATE_LOCK register */
 }
 #endif

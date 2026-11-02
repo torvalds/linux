@@ -16,6 +16,11 @@ static int sys_membarrier(int cmd, int flags)
 	return syscall(__NR_membarrier, cmd, flags);
 }
 
+static int membarrier_get_registrations(void)
+{
+	return sys_membarrier(MEMBARRIER_CMD_GET_REGISTRATIONS, 0);
+}
+
 static int test_membarrier_get_registrations(int cmd)
 {
 	int ret, flags = 0;
@@ -24,7 +29,7 @@ static int test_membarrier_get_registrations(int cmd)
 
 	registrations |= cmd;
 
-	ret = sys_membarrier(MEMBARRIER_CMD_GET_REGISTRATIONS, 0);
+	ret = membarrier_get_registrations();
 	if (ret < 0) {
 		ksft_exit_fail_msg(
 			"%s test: flags = %d, errno = %d\n",
@@ -107,6 +112,16 @@ static int test_membarrier_private_expedited_fail(void)
 {
 	int cmd = MEMBARRIER_CMD_PRIVATE_EXPEDITED, flags = 0;
 	const char *test_name = "sys membarrier MEMBARRIER_CMD_PRIVATE_EXPEDITED not registered failure";
+
+	/*
+	 * Some C libraries, like Musl, register the private expedited barrier
+	 * command when creating a thread. Expecting an EPERM on an unregistered
+	 * command will therefore no longer work. Skip the test in this case.
+	 */
+	if (MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED & membarrier_get_registrations()) {
+		ksft_test_result_skip("%s test: Command already registered\n", test_name);
+		return 0;
+	}
 
 	if (sys_membarrier(cmd, flags) != -1) {
 		ksft_exit_fail_msg(

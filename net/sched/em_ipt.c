@@ -141,6 +141,9 @@ static int em_ipt_change(struct net *net, void *data, int data_len,
 	    !tb[TCA_EM_IPT_MATCH_DATA] || !tb[TCA_EM_IPT_NFPROTO])
 		return -EINVAL;
 
+	if (nla_get_u32(tb[TCA_EM_IPT_HOOK]) >= NF_INET_NUMHOOKS)
+		return -EINVAL;
+
 	nfproto = nla_get_u8(tb[TCA_EM_IPT_NFPROTO]);
 	switch (nfproto) {
 	case NFPROTO_IPV4:

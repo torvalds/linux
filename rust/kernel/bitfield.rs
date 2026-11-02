@@ -295,7 +295,6 @@ macro_rules! bitfield {
         $(#[$attr:meta])* $vis:vis struct $name:ident($storage:ty) { $($fields:tt)* }
     ) => {
         $crate::bitfield!(@core
-            #[allow(non_camel_case_types)]
             $(#[$attr])* $vis $name $storage
         );
         $crate::bitfield!(@fields $vis $name $storage { $($fields)* });
@@ -346,6 +345,15 @@ macro_rules! bitfield {
                 Self::from_raw(val)
             }
         }
+
+        // SAFETY: `$name` is transparent over `$storage` and `$storage` has no interior mutability.
+        unsafe impl $crate::mem::AsRepr for $name {
+            // Normalize `$storage` to the canonical repr type in case it is signed.
+            type Repr = <$storage as $crate::mem::AsRepr>::Repr;
+        }
+
+        // SAFETY: `$name` is transparent over `$storage`.
+        unsafe impl $crate::mem::AsReprMut for $name {}
     };
 
     // Definitions requiring knowledge of individual fields: private and public field accessors,

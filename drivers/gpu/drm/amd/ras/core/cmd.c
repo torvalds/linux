@@ -43,7 +43,8 @@ static int ras_get_block_ecc_info(struct ras_core_context *ras_core,
 		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
 
 	memset(&err_data, 0, sizeof(err_data));
-	ret = ras_aca_get_block_ecc_count(ras_core, input_data->block_id, &err_data);
+	ret = ras_core_query_block_ecc_data(ras_core,
+				input_data->block_id, &err_data, false);
 	if (ret)
 		return RAS_CMD__ERROR_GENERIC;
 
@@ -143,13 +144,8 @@ static int ras_cmd_clear_bad_page_info(struct ras_core_context *ras_core,
 	if (cmd->input_size != sizeof(struct ras_cmd_dev_handle))
 		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
 
-	if (ras_fw_eeprom_supported(ras_core)) {
-		if (ras_fw_eeprom_reset_table(ras_core))
-			return RAS_CMD__ERROR_GENERIC;
-	} else {
-		if (ras_eeprom_reset_table(ras_core))
-			return RAS_CMD__ERROR_GENERIC;
-	}
+	if (ras_eeprom_mgr_reset_table(ras_core))
+		return RAS_CMD__ERROR_GENERIC;
 
 	if (ras_umc_clean_badpage_data(ras_core))
 		return RAS_CMD__ERROR_GENERIC;
@@ -178,16 +174,18 @@ static int ras_cmd_get_cper_snapshot(struct ras_core_context *ras_core,
 	struct ras_cmd_cper_snapshot_rsp *output_data =
 			(struct ras_cmd_cper_snapshot_rsp *)cmd->output_buff_raw;
 	struct ras_log_batch_overview overview;
+	u64 latest_cper_id;
 
 	if ((cmd->input_size != sizeof(struct ras_cmd_cper_snapshot_req)) ||
 		(cmd->output_buf_size < sizeof(*output_data)))
 		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
 
 	ras_log_ring_get_batch_overview(ras_core, &overview);
+	latest_cper_id = overview.logged_batch_count ? overview.last_batch_id - 1 : 0;
 
 	output_data->total_cper_num = overview.logged_batch_count;
 	output_data->start_cper_id = overview.first_batch_id;
-	output_data->latest_cper_id = overview.last_batch_id;
+	output_data->latest_cper_id = latest_cper_id;
 
 	output_data->version = 0;
 
@@ -202,13 +200,13 @@ static int ras_cmd_get_cper_records(struct ras_core_context *ras_core,
 			(struct ras_cmd_cper_record_req *)cmd->input_buff_raw;
 	struct ras_cmd_cper_record_rsp *rsp =
 			(struct ras_cmd_cper_record_rsp *)cmd->output_buff_raw;
-	struct ras_log_info *trace = NULL;
-	uint32_t trace_count = MAX_RECORD_PER_BATCH;
+	struct ras_log_info *batch_logs = NULL;
+	uint32_t nr_batch_logs = MAX_RECORD_PER_BATCH;
 	struct ras_log_batch_overview overview;
 	uint32_t offset = 0, real_data_len = 0;
-	uint64_t batch_id;
-	uint8_t *buffer = NULL;
-	int ret = 0, i, count;
+	u64 batch_id, start_batch_id;
+	uint8_t *buf_ptr = (uint8_t *)(uintptr_t)req->buf_ptr;
+	int ret = 0, i, count, read_batch_count = 0;
 
 	if ((cmd->input_size != sizeof(struct ras_cmd_cper_record_req)) ||
 		(cmd->output_buf_size < sizeof(*rsp)))
@@ -218,42 +216,50 @@ static int ras_cmd_get_cper_records(struct ras_core_context *ras_core,
 	    req->buf_size > RAS_CMD_MAX_CPER_BUF_SZ)
 		return RAS_CMD__ERROR_INVALID_INPUT_DATA;
 
-	buffer = kzalloc(req->buf_size, GFP_KERNEL);
-	if (!buffer)
-		return RAS_CMD__ERROR_GENERIC;
-
-	trace = kzalloc_objs(*trace, trace_count);
-	if (!trace) {
+	batch_logs = kcalloc(nr_batch_logs, sizeof(*batch_logs), GFP_KERNEL);
+	if (!batch_logs) {
 		ret = RAS_CMD__ERROR_GENERIC;
 		goto out;
 	}
 
 	ras_log_ring_get_batch_overview(ras_core, &overview);
+
+	start_batch_id = req->cper_start_id;
+
 	for (i = 0; i < req->cper_num; i++) {
-		batch_id = req->cper_start_id + i;
+		batch_id = start_batch_id + i;
 		if (batch_id >= overview.last_batch_id)
 			break;
 
-		count = ras_log_ring_get_batch_records(ras_core, batch_id, trace,
-					trace_count);
+		count = ras_log_ring_get_batch_records(ras_core, batch_id, batch_logs,
+					nr_batch_logs);
 		if (count > 0) {
-			ret = ras_cper_generate_cper(ras_core, trace, count,
-					&buffer[offset], req->buf_size - offset, &real_data_len);
+			if (offset >= req->buf_size) {
+				ret = -ENOMEM;
+				break;
+			}
+
+			ret = ras_cper_generate_batch_cper(ras_core, batch_logs, count,
+					&buf_ptr[offset], req->buf_size - offset, &real_data_len);
 			if (ret)
 				break;
 
 			offset += real_data_len;
 		}
+
+		/* The caller resumes at cper_start_id + real_cper_num, so an id
+		 * that held nothing still has to be counted here.
+		 */
+		read_batch_count++;
 	}
 
-	if ((ret && (ret != -ENOMEM)) ||
-		copy_to_user(u64_to_user_ptr(req->buf_ptr), buffer, offset)) {
+	if ((ret && (ret != -ENOMEM))) {
 		ret = RAS_CMD__ERROR_GENERIC;
 		goto out;
 	}
 
 	rsp->real_data_size = offset;
-	rsp->real_cper_num = i;
+	rsp->real_cper_num = read_batch_count;
 	rsp->remain_num = (ret == -ENOMEM) ? (req->cper_num - i) : 0;
 	rsp->version = 0;
 
@@ -261,8 +267,7 @@ static int ras_cmd_get_cper_records(struct ras_core_context *ras_core,
 	ret = RAS_CMD__SUCCESS;
 
 out:
-	kfree(trace);
-	kfree(buffer);
+	kfree(batch_logs);
 	return ret;
 }
 
@@ -337,8 +342,8 @@ static int ras_cmd_get_batch_trace_records(struct ras_core_context *ras_core,
 				record->seqno = trace_arry[j].seqno;
 				record->timestamp = trace_arry[j].timestamp;
 				record->event = trace_arry[j].event;
-				memcpy(&record->aca_reg,
-					&trace_arry[j].aca_reg, sizeof(trace_arry[j].aca_reg));
+				memcpy(&record->body, &trace_arry[j].body,
+				       sizeof(record->body));
 			}
 		} else {
 			count = 0;
@@ -360,48 +365,6 @@ static int ras_cmd_get_batch_trace_records(struct ras_core_context *ras_core,
 	kfree(trace_arry);
 
 	return RAS_CMD__SUCCESS;
-}
-
-static enum ras_ta_block __get_ras_ta_block(enum ras_block_id block)
-{
-	switch (block) {
-	case RAS_BLOCK_ID__UMC:
-		return RAS_TA_BLOCK__UMC;
-	case RAS_BLOCK_ID__SDMA:
-		return RAS_TA_BLOCK__SDMA;
-	case RAS_BLOCK_ID__GFX:
-		return RAS_TA_BLOCK__GFX;
-	case RAS_BLOCK_ID__MMHUB:
-		return RAS_TA_BLOCK__MMHUB;
-	case RAS_BLOCK_ID__ATHUB:
-		return RAS_TA_BLOCK__ATHUB;
-	case RAS_BLOCK_ID__PCIE_BIF:
-		return RAS_TA_BLOCK__PCIE_BIF;
-	case RAS_BLOCK_ID__HDP:
-		return RAS_TA_BLOCK__HDP;
-	case RAS_BLOCK_ID__XGMI_WAFL:
-		return RAS_TA_BLOCK__XGMI_WAFL;
-	case RAS_BLOCK_ID__DF:
-		return RAS_TA_BLOCK__DF;
-	case RAS_BLOCK_ID__SMN:
-		return RAS_TA_BLOCK__SMN;
-	case RAS_BLOCK_ID__SEM:
-		return RAS_TA_BLOCK__SEM;
-	case RAS_BLOCK_ID__MP0:
-		return RAS_TA_BLOCK__MP0;
-	case RAS_BLOCK_ID__MP1:
-		return RAS_TA_BLOCK__MP1;
-	case RAS_BLOCK_ID__FUSE:
-		return RAS_TA_BLOCK__FUSE;
-	case RAS_BLOCK_ID__MCA:
-		return RAS_TA_BLOCK__MCA;
-	case RAS_BLOCK_ID__VCN:
-		return RAS_TA_BLOCK__VCN;
-	case RAS_BLOCK_ID__JPEG:
-		return RAS_TA_BLOCK__JPEG;
-	default:
-		return RAS_TA_BLOCK__UMC;
-	}
 }
 
 static enum ras_ta_error_type __get_ras_ta_err_type(enum ras_ecc_err_type error)
@@ -431,7 +394,6 @@ static int ras_cmd_inject_error(struct ras_core_context *ras_core,
 		(struct ras_cmd_inject_error_rsp *)cmd->output_buff_raw;
 	int ret = 0;
 	struct ras_ta_trigger_error_input block_info = {
-		.block_id = __get_ras_ta_block(req->block_id),
 		.sub_block_index = req->subblock_id,
 		.inject_error_type = __get_ras_ta_err_type(req->error_type),
 		.address = req->address,
@@ -441,6 +403,12 @@ static int ras_cmd_inject_error(struct ras_core_context *ras_core,
 	if ((cmd->input_size != sizeof(*req)) ||
 		(cmd->output_buf_size < sizeof(*output_data)))
 		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
+
+	ret = ras_psp_get_block_ta_id(ras_core, req->block_id, &block_info.block_id);
+	if (ret == -RAS_CORE_NOT_SUPPORTED)
+		return RAS_CMD__ERROR_UNSUPPORT;
+	else if (ret)
+		return ret;
 
 	ret = ras_psp_trigger_error(ras_core, &block_info, req->instance_mask);
 	if (!ret) {
@@ -455,6 +423,34 @@ static int ras_cmd_inject_error(struct ras_core_context *ras_core,
 	return ret;
 }
 
+static int ras_cmd_get_ras_cap(struct ras_core_context *ras_core,
+	struct ras_cmd_ctx *cmd, void *data)
+{
+	struct ras_cmd_get_ras_cap_rsp *output_data =
+			(struct ras_cmd_get_ras_cap_rsp *)cmd->output_buff_raw;
+
+	output_data->version = 0;
+	output_data->poison = ras_core_poison_supported(ras_core);
+	output_data->flex_mca = ras_psp_flex_mca_enabled(ras_core);
+	output_data->ras_block_mask = ras_core_get_ras_caps(ras_core);
+
+	output_data->ecc_type = 0;
+	if (output_data->poison)
+		output_data->ecc_type |= BIT_ULL(RAS_ECC_TYPE_POISON);
+
+	if (output_data->ras_block_mask & BIT_ULL(RAS_BLOCK_ID__UMC))
+		output_data->ecc_type |= BIT_ULL(RAS_ECC_TYPE_MEM);
+
+	if (output_data->ras_block_mask &
+		(BIT_ULL(RAS_BLOCK_ID__GFX) | BIT_ULL(RAS_BLOCK_ID__SDMA)))
+		output_data->ecc_type |= BIT_ULL(RAS_ECC_TYPE_SRAM);
+
+
+	cmd->output_size = sizeof(struct ras_cmd_get_ras_cap_rsp);
+
+	return 0;
+}
+
 static struct ras_cmd_func_map ras_cmd_maps[] = {
 	{RAS_CMD__INJECT_ERROR, ras_cmd_inject_error},
 	{RAS_CMD__GET_BLOCK_ECC_STATUS, ras_get_block_ecc_info},
@@ -465,6 +461,7 @@ static struct ras_cmd_func_map ras_cmd_maps[] = {
 	{RAS_CMD__GET_CPER_RECORD, ras_cmd_get_cper_records},
 	{RAS_CMD__GET_BATCH_TRACE_SNAPSHOT, ras_cmd_get_batch_trace_snapshot},
 	{RAS_CMD__GET_BATCH_TRACE_RECORD, ras_cmd_get_batch_trace_records},
+	{RAS_CMD__GET_RAS_CAP, ras_cmd_get_ras_cap},
 };
 
 int rascore_handle_cmd(struct ras_core_context *ras_core,

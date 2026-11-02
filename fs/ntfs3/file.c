@@ -20,6 +20,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 /*
  * cifx, btrfs, exfat, ext4, f2fs use this constant.
@@ -129,7 +130,7 @@ int ntfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 /*
  * ntfs_fileattr_set - inode_operations::fileattr_set
  */
-int ntfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
+int ntfs_fileattr_set(const struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
@@ -182,6 +183,9 @@ static int ntfs_ioctl_set_volume_label(struct ntfs_sb_info *sbi, u8 __user *buf)
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
+	if (sb_rdonly(sbi->sb))
+		return -EROFS;
 
 	if (copy_from_user(user, buf, FSLABEL_MAX))
 		return -EFAULT;
@@ -261,7 +265,7 @@ long ntfs_compat_ioctl(struct file *filp, u32 cmd, unsigned long arg)
 /*
  * ntfs_getattr - inode_operations::getattr
  */
-int ntfs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ntfs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, u32 flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -703,7 +707,7 @@ out:
 /*
  * ntfs_setattr - inode_operations::setattr
  */
-int ntfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ntfs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -823,6 +827,8 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	loff_t valid, i_size, vbo, end;
 	unsigned int dio_flags;
 	ssize_t ret;
+
+	trace_ntfs3_file_read_iter(iocb, iter);
 
 	ret = check_read_restriction(inode);
 	if (ret)
@@ -1243,6 +1249,8 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct ntfs_inode *ni = ntfs_i(inode);
 	loff_t vbo, endbyte;
 	ssize_t ret, err;
+
+	trace_ntfs3_file_write_iter(iocb, from);
 
 	if (!inode_trylock(inode)) {
 		if (iocb->ki_flags & IOCB_NOWAIT)

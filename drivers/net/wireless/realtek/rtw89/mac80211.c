@@ -519,6 +519,8 @@ static int __rtw89_ops_sta_add(struct rtw89_dev *rtwdev,
 	INIT_LIST_HEAD(&rtwsta->dlink_pool);
 
 	skb_queue_head_init(&rtwsta->roc_queue);
+
+	INIT_LIST_HEAD(&rtwsta->ba_cam_list);
 	bitmap_zero(rtwsta->pairwise_sec_cam_map, RTW89_MAX_SEC_CAM_NUM);
 
 	rtwsta_link = rtw89_sta_set_link(rtwsta, sta->deflink.link_id);
@@ -1043,7 +1045,7 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
-		clear_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags);
+		clear_bit(RTW89_TXQ_F_AMPDU, rtwtxq->flags);
 		clear_bit(tid, rtwsta->ampdu_map);
 		rtw89_chip_h2c_ampdu_cmac_tbl(rtwdev, rtwvif, rtwsta);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
@@ -1051,7 +1053,7 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 		rtw89_phy_ra_recalc_agg_limit(rtwdev);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		set_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags);
+		set_bit(RTW89_TXQ_F_AMPDU, rtwtxq->flags);
 		rtwsta->ampdu_params[tid].agg_num = params->buf_size;
 		rtwsta->ampdu_params[tid].amsdu = params->amsdu;
 		set_bit(tid, rtwsta->ampdu_map);

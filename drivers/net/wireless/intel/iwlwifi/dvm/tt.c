@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2018, 2020 Intel Corporation
+ * Copyright (C) 2018, 2020, 2026 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <net/mac80211.h>
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "iwl-modparams.h"
 #include "iwl-debug.h"
 #include "agn.h"
@@ -146,15 +146,15 @@ static void iwl_tt_check_exit_ct_kill(struct timer_list *t)
 
 	if (tt->state == IWL_TI_CT_KILL) {
 		if (priv->thermal_throttle.ct_kill_toggle) {
-			iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
-				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
+			iwl_trans_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
+					  CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 			priv->thermal_throttle.ct_kill_toggle = false;
 		} else {
-			iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
-				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
+			iwl_trans_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
+					  CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 			priv->thermal_throttle.ct_kill_toggle = true;
 		}
-		iwl_read32(priv->trans, CSR_UCODE_DRV_GP1);
+		iwl_trans_read32(priv->trans, CSR_UCODE_DRV_GP1);
 		if (iwl_trans_grab_nic_access(priv->trans))
 			iwl_trans_release_nic_access(priv->trans);
 

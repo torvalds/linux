@@ -696,6 +696,6 @@ static struct spi_driver ad3552r_driver = {
 module_spi_driver(ad3552r_driver);
 
 MODULE_AUTHOR("Mihail Chindris <mihail.chindris@analog.com>");
-MODULE_DESCRIPTION("Analog Device AD3552R DAC");
+MODULE_DESCRIPTION("Analog Devices AD3552R DAC");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS("IIO_AD3552R");

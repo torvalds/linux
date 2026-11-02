@@ -36,7 +36,7 @@ $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
 $(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
-	$(call if_changed,gzip)
+	+$(call if_changed,gzip)
 
 boot-elf: $(obj)/vmlinux.bin
 boot-redboot: $(obj)/vmlinux.bin.gz

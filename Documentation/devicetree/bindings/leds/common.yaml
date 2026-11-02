@@ -147,7 +147,7 @@ properties:
         # LED is triggered by SD/MMC activity
       - pattern: "^mmc[0-9]+$"
         # LED is triggered by WLAN activity
-      - pattern: "^phy[0-9]+tx$"
+      - pattern: "^phy[0-9]+(rx|tx)$"
 
   led-pattern:
     description: |

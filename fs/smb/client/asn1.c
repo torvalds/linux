@@ -46,8 +46,6 @@ int cifs_neg_token_init_mech_type(void *context, size_t hdrlen,
 	oid = look_up_OID(value, vlen);
 	if (oid == OID_mskrb5)
 		server->sec_mskerberos = true;
-	else if (oid == OID_krb5u2u)
-		server->sec_kerberosu2u = true;
 	else if (oid == OID_krb5)
 		server->sec_kerberos = true;
 	else if (oid == OID_ntlmssp)

@@ -152,3 +152,46 @@ void host1x_fence_cancel(struct dma_fence *f)
 	flush_delayed_work(&sf->timeout_work);
 }
 EXPORT_SYMBOL(host1x_fence_cancel);
+
+/**
+ * host1x_fence_extract() - extract underlying syncpoint/threshold from fence
+ * @fence: fence to extract information from
+ * @host1x: out pointer for host1x instance corresponding to the syncpoint
+ * @id: out pointer for the syncpoint ID the fence pends on
+ * @threshold: out pointer for the syncpoint value the fence pends on
+ *
+ * Extracts underlying host1x hardware related information from a host1x
+ * syncpoint fence. This information can be used by devices that have direct
+ * access to host1x syncpoints to wait the fence in hardware without CPU
+ * interaction.
+ *
+ * A system might have multiple instances of host1x with separate sets of
+ * syncpoints. Callers must ensure any hardware that is programmed is accessing
+ * the correct set of syncpoints as identified by @host1x.
+ *
+ * Note that a fence that has already signalled may no longer be identifiable as
+ * a syncpoint fence, as the dma_fence framework can detach fence ops on
+ * signalled fences.
+ *
+ * Returns 0 on success, or -EINVAL if @fence is not a syncpoint fence.
+ */
+int host1x_fence_extract(struct dma_fence *fence, struct host1x **host1x,
+			 u32 *id, u32 *threshold)
+{
+	struct host1x_syncpt_fence *f;
+
+	if (rcu_access_pointer(fence->ops) != &host1x_syncpt_fence_ops)
+		return -EINVAL;
+
+	f = to_host1x_fence(fence);
+
+	if (host1x)
+		*host1x = f->sp->host;
+	if (id)
+		*id = f->sp->id;
+	if (threshold)
+		*threshold = f->threshold;
+
+	return 0;
+}
+EXPORT_SYMBOL(host1x_fence_extract);

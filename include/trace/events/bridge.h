@@ -68,13 +68,14 @@ TRACE_EVENT(br_fdb_external_learn_add,
 
 TRACE_EVENT(fdb_delete,
 
-	TP_PROTO(struct net_bridge *br, struct net_bridge_fdb_entry *f),
+	TP_PROTO(struct net_bridge *br, struct net_bridge_fdb_entry *f,
+		 const struct net_bridge_port *dst),
 
-	TP_ARGS(br, f),
+	TP_ARGS(br, f, dst),
 
 	TP_STRUCT__entry(
 		__string(br_dev, br->dev->name)
-		__string(dev, f->dst ? f->dst->dev->name : "null")
+		__string(dev, dst ? dst->dev->name : "null")
 		__array(unsigned char, addr, ETH_ALEN)
 		__field(u16, vid)
 	),

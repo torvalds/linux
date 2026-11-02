@@ -2130,9 +2130,9 @@ static struct clk *wcd934x_register_mclk_output(struct wcd934x_codec *wcd)
 	struct device *dev = wcd->dev;
 	struct device_node *np = dev->parent->of_node;
 	const char *parent_clk_name = NULL;
+	struct clk_init_data init = {};
 	const char *clk_name = "mclk";
 	struct clk_hw *hw;
-	struct clk_init_data init;
 	int ret;
 
 	if (of_property_read_u32(np, "clock-frequency", &wcd->rate))

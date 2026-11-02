@@ -5,6 +5,8 @@
 #ifndef __iwl_mld_hcmd_h__
 #define __iwl_mld_hcmd_h__
 
+#include "mld.h"
+
 static inline int iwl_mld_send_cmd(struct iwl_mld *mld, struct iwl_host_cmd *cmd)
 {
 	/* No commands, including the d3 related commands, should be sent

@@ -1188,7 +1188,7 @@ static int netdev_rx(struct net_device *dev)
 			break;
 		if ((status & 0x38008300) != 0x0300) {
 			if ((status & 0x38000300) != 0x0300) {
-				/* Ingore earlier buffers. */
+				/* Ignore earlier buffers. */
 				if ((status & 0xffff) != 0x7fff) {
 					dev_warn(&dev->dev,
 						 "Oversized Ethernet frame spanned multiple buffers, entry %#x status %04x!\n",

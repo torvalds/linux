@@ -104,7 +104,7 @@ void rtw89_led_init(struct rtw89_dev *rtwdev)
 	/* single-GPIO monochrome LED is the only supported layout */
 	BUILD_BUG_ON(ARRAY_SIZE(rtw89_common_led_gpios) != 1);
 
-	if (board)
+	if (board && board->led_desc)
 		desc = board->led_desc;
 	if (!desc->n_gpio || desc->n_gpio > RTW89_LED_MAX_NUM)
 		return;

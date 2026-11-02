@@ -31,6 +31,7 @@
 #include "dce110/dce110_hwseq.h"
 #include "dcn32/dcn32_hwseq.h"
 #include "dcn401/dcn401_hwseq.h"
+#include "dcn42/dcn42_hwseq.h"
 #include "dcn50/dcn50_hwseq.h"
 #include "dcn60_hwseq.h"
 #include "dcn401/dcn401_resource.h"
@@ -51,6 +52,127 @@
 #undef FN
 #define FN(reg_name, field_name) \
 	hws->shifts->field_name, hws->masks->field_name
+
+bool dcn60_set_rmcm_luts(struct set_input_transfer_func_params *params)
+{
+	struct dpp *dpp_base = params->dpp;
+	struct hubp *hubp = params->hubp;
+	const struct dc_plane_cm *cm = &params->plane_state->cm;
+	struct rmcm *rmcm = params->rmcm;
+	int rmcm_inst;
+	union rmcm_lut_params m_lut_params = {0};
+	struct dc_3dlut_dma lut3d_dma;
+	bool lut_enable;
+	/* DCN60 has a single LUT SRAM per RMCM - always bank A. */
+	bool rval;
+	bool result = true;
+
+	/* No RMCM on this plane, so there is nothing to program */
+	if (!rmcm || !rmcm->funcs) {
+		return true;
+	}
+
+	rmcm_inst = rmcm->inst;
+
+	/* Shaper */
+	lut_enable = cm->flags.bits.shaper_enable != 0;
+	if (lut_enable) {
+		memset(&m_lut_params, 0, sizeof(m_lut_params));
+		if (cm->shaper_func.type == TF_TYPE_HWPWL)
+			m_lut_params.pwl = &cm->shaper_func.pwl;
+		else if (cm->shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
+			ASSERT(false);
+			rval = cm_helper_translate_curve_to_hw_format(params->plane_state->ctx,
+					&cm->shaper_func,
+					&dpp_base->shaper_params,
+					true);
+			m_lut_params.pwl = rval ? &dpp_base->shaper_params : NULL;
+		}
+		if (!m_lut_params.pwl) {
+			lut_enable = false;
+		}
+	} else {
+		lut_enable = false;
+	}
+
+	if (rmcm->funcs->program_lut_mode)
+		rmcm->funcs->program_lut_mode(rmcm, MCM_LUT_SHAPER, lut_enable, true,
+			CM_LUT_SIZE_NONE, 0, 0, rmcm_inst);
+	if (lut_enable && rmcm->funcs->populate_lut)
+		rmcm->funcs->populate_lut(rmcm, MCM_LUT_SHAPER, m_lut_params, true, rmcm_inst);
+
+	/* NOTE: Toggling from DMA->Host is not supported atomically as hardware
+	 * blocks writes until 3DLUT FL mode is cleared from HUBP on VUpdate.
+	 * Expectation is either option is used consistently.
+	*/
+
+	/* 3DLUT */
+	lut_enable = cm->flags.bits.lut3d_enable != 0;
+	if (lut_enable && cm->flags.bits.lut3d_dma_enable) {
+		/* Fast (DMA) Load Mode */
+		if (rmcm->funcs->program_lut_mode)
+			rmcm->funcs->program_lut_mode(rmcm, MCM_LUT_3DLUT, lut_enable, true,
+				cm->lut3d_dma.size,
+				cm->lut3d_dma.bias, cm->lut3d_dma.scale,
+				rmcm_inst);
+
+		if (rmcm->funcs->program_lut_read_write_control)
+			rmcm->funcs->program_lut_read_write_control(rmcm, MCM_LUT_3DLUT, true, true, rmcm_inst);
+
+		if (rmcm->funcs->update_3dlut_fast_load_select)
+			rmcm->funcs->update_3dlut_fast_load_select(rmcm, rmcm_inst, hubp->inst);
+
+		/* HUBP */
+		if (hubp->funcs->hubp_program_3dlut_fl_config)
+			hubp->funcs->hubp_program_3dlut_fl_config(hubp, &cm->lut3d_dma);
+
+		if (hubp->funcs->hubp_program_3dlut_fl_crossbar)
+			hubp->funcs->hubp_program_3dlut_fl_crossbar(hubp, cm->lut3d_dma.format);
+
+		if (hubp->funcs->hubp_program_3dlut_fl_addr)
+			hubp->funcs->hubp_program_3dlut_fl_addr(hubp, &cm->lut3d_dma.addr);
+
+		if (hubp->funcs->hubp_enable_3dlut_fl) {
+			hubp->funcs->hubp_enable_3dlut_fl(hubp, true);
+		} else {
+			/* GPU memory only supports fast load path */
+			BREAK_TO_DEBUGGER();
+			result = false;
+		}
+	} else {
+		/* RMCM 3DLUT is fetched only by HUBP fast load, so a host load request is a
+		 * programming error.
+		 */
+		ASSERT(!lut_enable);
+		result = !lut_enable;
+		lut_enable = false;
+
+		if (rmcm->funcs->program_lut_mode)
+			rmcm->funcs->program_lut_mode(rmcm, MCM_LUT_3DLUT, lut_enable, true,
+				CM_LUT_SIZE_NONE, 0, 0, rmcm_inst);
+
+		if (rmcm->funcs->update_3dlut_fast_load_select)
+			rmcm->funcs->update_3dlut_fast_load_select(rmcm, rmcm_inst, RMCM_FL_HUBP_IDX_NONE);
+
+		/* HUBP */
+		memset(&lut3d_dma, 0, sizeof(lut3d_dma));
+		if (hubp->funcs->hubp_program_3dlut_fl_config)
+			hubp->funcs->hubp_program_3dlut_fl_config(hubp, &lut3d_dma);
+
+		if (hubp->funcs->hubp_enable_3dlut_fl)
+			hubp->funcs->hubp_enable_3dlut_fl(hubp, false);
+	}
+
+	/* Connect to the MPCC only once the LUTs are loaded. Teardown is done by
+	 * disable_rmcm_luts, at plane teardown or when the plane switches back to MCM.
+	 */
+	dcn42_release_rmcm_from_mpcc(params->dc, params->mpcc_id, rmcm);
+
+	if (rmcm->funcs->connect_mpcc)
+		rmcm->funcs->connect_mpcc(rmcm, rmcm_inst, params->mpcc_id);
+
+	return result;
+}
 
 static void dcn60_build_audio_output(
 	struct dc_state *state,
@@ -291,7 +413,9 @@ enum dc_status dcn60_apply_single_controller_ctx_to_hw(
 			dc_is_virtual_signal(pipe_ctx->stream->signal)))
 			dc->link_srv->set_dsc_enable(pipe_ctx, true);
 	}
-	if (!stream->dpms_off)
+	if (!stream->dpms_off &&
+	    !(link->connector_signal == SIGNAL_TYPE_EDP &&
+	      link->forced_psr_active))
 		dc->link_srv->set_dpms_on(context, pipe_ctx);
 
 	/* DCN3.1 FPGA Workaround
@@ -310,7 +434,9 @@ enum dc_status dcn60_apply_single_controller_ctx_to_hw(
 	 * is constructed with the same sink). Make sure not to override
 	 * and link programming on the main.
 	 */
-	if (dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM) {
+	if (dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM &&
+	    !(link->connector_signal == SIGNAL_TYPE_EDP &&
+	      link->forced_psr_active)) {
 		pipe_ctx->stream->link->psr_settings.psr_feature_enabled = false;
 		pipe_ctx->stream->link->replay_settings.replay_feature_enabled = false;
 	}
@@ -754,6 +880,17 @@ void dcn60_init_hw(struct dc *dc)
 	if (dc->res_pool->hubbub->funcs->set_request_limit && dc->config.sdpif_request_limit_words_per_umc > 0)
 		dc->res_pool->hubbub->funcs->set_request_limit(dc->res_pool->hubbub, dc->ctx->dc_bios->vram_info.num_chans, dc->config.sdpif_request_limit_words_per_umc);
 
+	if (dc->res_pool->hubbub->funcs->override_utm_client_qc_profile && dc->debug.override_utm_client_qc_profile) {
+		dc->res_pool->hubbub->funcs->override_utm_client_qc_profile(dc->res_pool->hubbub, dc->debug.utm_client_qc_profiles[0], 0);
+		dc->res_pool->hubbub->funcs->override_utm_client_qc_profile(dc->res_pool->hubbub, dc->debug.utm_client_qc_profiles[1], 1);
+		dc->res_pool->hubbub->funcs->override_utm_client_qc_profile(dc->res_pool->hubbub, dc->debug.utm_client_qc_profiles[2], 2);
+	}
+		/* Temporary init for SDP port control in driver.
+		 * Remove once programming is in pre-OS DMU init.
+		 */
+	if (dc->res_pool->hubbub->funcs->set_sdpif_port_control)
+		dc->res_pool->hubbub->funcs->set_sdpif_port_control(dc->res_pool->hubbub, false);
+
 	// Get DMCUB capabilities
 	if (dc->ctx->dmub_srv) {
 		dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv);
@@ -781,23 +918,17 @@ void dcn60_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->plane_res.dpp, attributes);
 }
 
-void dcn60_update_cursor_offload_pipe(struct dc *dc, const struct pipe_ctx *pipe)
+void dcn60_update_cursor_offload_pipe(struct dmub_srv *dmub, uint32_t stream_idx,
+		uint8_t pipe_idx, const struct dpp *dpp, const struct hubp *hubp)
 {
-	volatile struct dmub_cursor_offload_v1 *cs = dc->ctx->dmub_srv->dmub->cursor_offload_v1;
-	const struct pipe_ctx *top_pipe = resource_get_otg_master(pipe);
-	const struct hubp *hubp = pipe->plane_res.hubp;
-	const struct dpp *dpp = pipe->plane_res.dpp;
+	volatile struct dmub_cursor_offload_v1 *cs = dmub->cursor_offload_v1;
 	volatile struct dmub_cursor_offload_pipe_data_dcn60_v1 *p;
-	uint32_t stream_idx, write_idx, payload_idx;
+	uint32_t write_idx, payload_idx;
 
-	if (!top_pipe || !hubp || !dpp)
-		return;
-
-	stream_idx = top_pipe->pipe_idx;
 	write_idx = cs->offload_streams[stream_idx].write_idx + 1; /*  new payload (+1) */
 	payload_idx = write_idx % ARRAY_SIZE(cs->offload_streams[stream_idx].payloads);
 
-	p = &cs->offload_streams[stream_idx].payloads[payload_idx].pipe_data[pipe->pipe_idx].dcn60;
+	p = &cs->offload_streams[stream_idx].payloads[payload_idx].pipe_data[pipe_idx].dcn60;
 
 	p->CURSOR0_0_CURSOR_SURFACE_ADDRESS = hubp->att.SURFACE_ADDR;
 	p->CURSOR0_0_CURSOR_SURFACE_ADDRESS_HIGH = hubp->att.SURFACE_ADDR_HIGH;
@@ -834,7 +965,7 @@ void dcn60_update_cursor_offload_pipe(struct dc *dc, const struct pipe_ctx *pipe
 	p->HUBPREQ0_CURSOR_SETTINGS__CURSOR0_CHUNK_HDL_ADJUST = hubp->att.settings.bits.chunk_hdl_adjust;
 	p->HUBPREQ0_CURSOR_SETTINGS__FORCE_CURSOR_TO_DISP_PREF = hubp->att.settings.bits.force_cursor_to_disp_pref;
 
-	cs->offload_streams[stream_idx].payloads[payload_idx].pipe_mask |= (1u << pipe->pipe_idx);
+	cs->offload_streams[stream_idx].payloads[payload_idx].pipe_mask |= (1u << pipe_idx);
 }
 
 /**
@@ -865,7 +996,7 @@ static struct timing_generator *dcn60_get_ref_tg_for_hubbub_probe(
  * @dc:             DC structure
  * @context:        Committed dc state to resolve streams from
  * @probe:          Probe state to build sequence for
- * @status:         Perfmon status to update with probe results
+ * @status:         Prior perfmon status, then the result sink for the sequence
  * @block_sequence: Block sequence to append steps to
  * @num_steps:      Number of steps in the block sequence
  *
@@ -884,33 +1015,38 @@ static void dcn60_build_hubbub_perfmon_sequence(
 	uint32_t refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000;
 	struct timing_generator *ref_tg = dcn60_get_ref_tg_for_hubbub_probe(context);
 	struct block_sequence_state seq_state = { .steps = block_sequence, .num_steps = num_steps };
-	uint32_t duration_ns = 0;
+	bool was_measuring = status->measuring;
 
 	if (!hubbub || !hubbub->funcs || !hubbub->funcs->perfmon.reset)
 		return;
-
-	status->type = probe->type;
 
 	if (probe->target_state == DC_PROBE_NOT_MEASURING) {
 		hwss_add_hubbub_perfmon_reset(&seq_state, hubbub);
 		return;
 	}
 
+	if (probe->target_state == DC_PROBE_MEASURING) {
+		if (probe->type != DC_PROBE_URGENT_ASSERTION_COUNT ||
+				!hubbub->funcs->perfmon.start_measuring_urgent_assertion_count ||
+				!hubbub->funcs->perfmon.get_urgent_assertion_count)
+			return;
+
+		if (!was_measuring) {
+			hwss_add_hubbub_perfmon_reset(&seq_state, hubbub);
+			hwss_add_hubbub_perfmon_start_urgent_assertion_count(&seq_state, hubbub);
+		}
+
+		hwss_add_hubbub_perfmon_get_urgent_assertion_count(&seq_state, hubbub,
+				refclk_mhz, &status->u.urgent_assertion_count);
+		return;
+	}
+
 	if (probe->target_state != DC_PROBE_MEASURED || !ref_tg)
 		return;
 
-	/* Peak BW needs a single timing group. The out-of-order counter spans one
-	 * prefetch window, which is meaningless when streams in separate timing
-	 * groups have non-overlapping prefetch windows. */
-	if (probe->type == DC_PROBE_PEAK_MEM_BW) {
-		int group_size = context->stream_status[0].timing_sync_info.group_size;
-
-		if (group_size != context->stream_count)
-			return;
-	}
-
 	switch (probe->type) {
 	case DC_PROBE_PEAK_MEM_BW:
+	case DC_PROBE_PEAK_MEM_BW_STRESSED:
 		/* Start at the vblank edge and stop at the next vactive so the counter
 		 * spans exactly one prefetch window, capturing prefetch traffic only. */
 		if (!hubbub->funcs->perfmon.arm_measuring_out_of_order_bandwidth ||
@@ -920,13 +1056,31 @@ static void dcn60_build_hubbub_perfmon_sequence(
 
 		hwss_add_hubbub_perfmon_reset(&seq_state, hubbub);
 		hwss_add_hubbub_perfmon_arm_out_of_order_bw(&seq_state, hubbub);
+
+		if (probe->type == DC_PROBE_PEAK_MEM_BW_STRESSED) {
+			struct dc_plane_state *plane = (context->stream_status[0].plane_count > 0) ?
+					context->stream_status[0].plane_states[0] : NULL;
+
+			if (dc->res_pool->lsdma_scratch.buffer && plane) {
+				unsigned int surface_bytes = plane->plane_size.surface_pitch *
+						plane->plane_size.surface_size.height;
+				unsigned int copy_bytes = (surface_bytes < dc->res_pool->lsdma_scratch.size) ?
+						surface_bytes : dc->res_pool->lsdma_scratch.size;
+
+				hwss_add_lsdma_send_pio_copy(&seq_state, dc->ctx->dmub_srv,
+						(uint64_t)plane->address.grph.addr.quad_part,
+						(uint64_t)dc->res_pool->lsdma_scratch.pa,
+						copy_bytes, /* overlap_disable */ 1);
+			}
+		}
+
 		hwss_add_tg_wait_for_state(&seq_state, ref_tg, CRTC_STATE_VACTIVE);
 		hwss_add_tg_wait_for_state(&seq_state, ref_tg, CRTC_STATE_VBLANK);
 		hwss_add_hubbub_perfmon_start_out_of_order_bw(&seq_state, hubbub);
 		hwss_add_tg_wait_for_state(&seq_state, ref_tg, CRTC_STATE_VACTIVE);
 		hwss_add_hubbub_perfmon_get_out_of_order_bw(&seq_state, hubbub,
-				refclk_mhz, &status->u.bandwidth_mbps, &duration_ns);
-		break;
+				refclk_mhz, &status->u.bandwidth_mbps, NULL);
+		return;
 
 	case DC_PROBE_AVG_MEM_BW:
 		/* In-order counter accumulates over a full frame, so no timing group
@@ -942,8 +1096,8 @@ static void dcn60_build_hubbub_perfmon_sequence(
 		hwss_add_tg_wait_for_state(&seq_state, ref_tg, CRTC_STATE_VACTIVE);
 		hwss_add_tg_wait_for_state(&seq_state, ref_tg, CRTC_STATE_VBLANK);
 		hwss_add_hubbub_perfmon_get_in_order_bw(&seq_state, hubbub,
-				refclk_mhz, 0, &status->u.bandwidth_mbps, &duration_ns);
-		break;
+				refclk_mhz, 0, &status->u.bandwidth_mbps, NULL);
+		return;
 
 	case DC_PROBE_MEM_LATENCY:
 		if (!hubbub->funcs->perfmon.start_measuring_memory_latencies ||
@@ -958,7 +1112,7 @@ static void dcn60_build_hubbub_perfmon_sequence(
 		hwss_add_tg_wait_for_state(&seq_state, ref_tg, CRTC_STATE_VBLANK);
 		hwss_add_hubbub_perfmon_get_memory_latencies(&seq_state, hubbub,
 				refclk_mhz, &status->u.latency);
-		break;
+		return;
 
 	case DC_PROBE_URGENT_ASSERTION_COUNT:
 		if (!hubbub->funcs->perfmon.start_measuring_urgent_assertion_count ||
@@ -973,7 +1127,7 @@ static void dcn60_build_hubbub_perfmon_sequence(
 		hwss_add_tg_wait_for_state(&seq_state, ref_tg, CRTC_STATE_VBLANK);
 		hwss_add_hubbub_perfmon_get_urgent_assertion_count(&seq_state, hubbub,
 				refclk_mhz, &status->u.urgent_assertion_count);
-		break;
+		return;
 
 	case DC_PROBE_PREFETCH_DATA_SIZE:
 		if (!hubbub->funcs->perfmon.start_measuring_prefetch_data_size ||
@@ -988,7 +1142,7 @@ static void dcn60_build_hubbub_perfmon_sequence(
 		hwss_add_tg_wait_for_state(&seq_state, ref_tg, CRTC_STATE_VBLANK);
 		hwss_add_hubbub_perfmon_get_prefetch_data_size(&seq_state, hubbub,
 				&status->u.prefetch_data_size);
-		break;
+		return;
 
 	case DC_PROBE_URGENT_RAMP_LATENCY:
 		/* Requires caller-supplied window params not available in probe model. */
@@ -1004,10 +1158,24 @@ static void dcn60_build_hubbub_perfmon_sequence(
  * @status: result sink whose u was written by the GET BLS step during execute
  * @probe: current probe state used to determine measurement type and validity
  */
-static void dcn60_update_probe_status(struct dc_probe_status *status)
+static void dcn60_update_probe_status(
+		struct dc_probe_status *status,
+		const struct dc_probe_state *probe)
 {
-	switch (status->type) {
+	struct dc_probe_status result = *status;
+
+	memset(status, 0, sizeof(*status));
+
+	if (probe->target_state == DC_PROBE_NOT_MEASURING)
+		return;
+
+	status->type = probe->type;
+	status->measuring = probe->target_state == DC_PROBE_MEASURING;
+	status->u = result.u;
+
+	switch (probe->type) {
 	case DC_PROBE_PEAK_MEM_BW:
+	case DC_PROBE_PEAK_MEM_BW_STRESSED:
 	case DC_PROBE_AVG_MEM_BW:
 		/* Zero bandwidth means the counter did not fire — treat as invalid. */
 		status->valid = (status->u.bandwidth_mbps != 0);
@@ -1032,6 +1200,7 @@ static bool is_probe_measurement_type_for_hubbub(enum dc_probe_type type)
 {
 	switch (type) {
 	case DC_PROBE_PEAK_MEM_BW:
+	case DC_PROBE_PEAK_MEM_BW_STRESSED:
 	case DC_PROBE_AVG_MEM_BW:
 	case DC_PROBE_MEM_LATENCY:
 	case DC_PROBE_URGENT_ASSERTION_COUNT:
@@ -1061,11 +1230,11 @@ void dcn60_program_perfmon(struct dc *dc, struct dc_state *context)
 		return;
 
 	context->block_sequence_steps = 0;
-	memset(context->probe_status, 0, sizeof(context->probe_status));
 
 	for (i = 0; i < context->probe_count; i++) {
 		if (is_probe_measurement_type_for_hubbub(context->probes[i].type))
-			dcn60_build_hubbub_perfmon_sequence(dc, context, &context->probes[i],
+			dcn60_build_hubbub_perfmon_sequence(dc, context,
+					&context->probes[i],
 					&context->probe_status[i],
 					context->block_sequence,
 					&context->block_sequence_steps);
@@ -1074,7 +1243,7 @@ void dcn60_program_perfmon(struct dc *dc, struct dc_state *context)
 	hwss_execute_sequence(dc, context->block_sequence, context->block_sequence_steps);
 
 	for (i = 0; i < context->probe_count; i++)
-		dcn60_update_probe_status(&context->probe_status[i]);
+		dcn60_update_probe_status(&context->probe_status[i], &context->probes[i]);
 }
 
 static bool dcn60_has_active_memory_request(const struct dc *dc)

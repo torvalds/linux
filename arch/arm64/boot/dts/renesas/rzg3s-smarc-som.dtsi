@@ -168,6 +168,14 @@
 	};
 };
 
+&i3c {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i3c_pins>;
+	i2c-scl-hz = <400000>;
+	i3c-scl-hz = <12500000>;
+	status = "okay";
+};
+
 &pcie_port0 {
 	clocks = <&versa3 5>;
 	clock-names = "ref";
@@ -184,7 +192,6 @@
 	bus-width = <4>;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	max-frequency = <125000000>;
 	status = "okay";
 };
 #else
@@ -199,7 +206,6 @@
 	mmc-hs200-1_8v;
 	non-removable;
 	fixed-emmc-driver-type = <1>;
-	max-frequency = <125000000>;
 	status = "okay";
 };
 #endif
@@ -210,7 +216,6 @@
 	pinctrl-names = "default";
 	vmmc-supply = <&vcc_sdhi2>;
 	bus-width = <4>;
-	max-frequency = <50000000>;
 	status = "okay";
 };
 #endif
@@ -234,7 +239,7 @@
 			drive-strength-microamp = <5200>;
 		};
 
-		tx_ctl {
+		tx-ctl {
 			pinmux = <RZG2L_PORT_PINMUX(1, 1, 1)>;  /* ET0_TX_CTL */
 			power-source = <1800>;
 			output-enable;
@@ -277,7 +282,7 @@
 			drive-strength-microamp = <5200>;
 		};
 
-		tx_ctl {
+		tx-ctl {
 			pinmux = <RZG2L_PORT_PINMUX(7, 1, 1)>;	/* ET1_TX_CTL */
 			power-source = <1800>;
 			output-enable;
@@ -300,6 +305,16 @@
 				 <RZG2L_PORT_PINMUX(10, 4, 1)>;	/* ET1_LINKSTA */
 			power-source = <1800>;
 		};
+	};
+
+	i3c_pins: i3c {
+		pins = "I3C_SDA", "I3C_SCL";
+#if SW_CONFIG4 == SW_ON
+		power-source = <1200>;
+#else
+		power-source = <1800>;
+#endif
+		input-enable;
 	};
 
 	sdhi0_pins: sd0 {

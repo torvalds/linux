@@ -1530,6 +1530,8 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		list_add(&dai->list, &sdev->dai_list);
 		swidget->private = dai;
 		break;
+	case snd_soc_dapm_decoder:
+	case snd_soc_dapm_encoder:
 	case snd_soc_dapm_effect:
 		/* check we have some tokens - we need at least process type */
 		if (le32_to_cpu(tw->priv.size) == 0) {
@@ -2517,7 +2519,8 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 	int i;
 
 	const char **tplg_files __free(kfree) =
-		kcalloc(scomp->card->num_links, sizeof(char *), GFP_KERNEL);
+		kcalloc(scomp->card->num_links, sizeof(*tplg_files),
+			GFP_KERNEL);
 	if (!tplg_files)
 		return -ENOMEM;
 

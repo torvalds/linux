@@ -22,6 +22,7 @@ static void __used foo(void)
 
 	DEFINE(SP_OFF, offsetof(struct pt_regs, ps));
 	DEFINE(SIZEOF_PT_REGS, sizeof(struct pt_regs));
+	DEFINE(TI_SYSCALL_META, offsetof(struct thread_info, syscall_meta));
 	BLANK();
 
 	DEFINE(SWITCH_STACK_SIZE, sizeof(struct switch_stack));
@@ -29,5 +30,8 @@ static void __used foo(void)
 
 	DEFINE(HAE_CACHE, offsetof(struct alpha_machine_vector, hae_cache));
 	DEFINE(HAE_REG, offsetof(struct alpha_machine_vector, hae_register));
-	DEFINE(PT_REGS_USP, offsetof(struct pt_regs, usp));
+
+	DEFINE(TI_FLAGS,        offsetof(struct thread_info, flags));
+	DEFINE(TI_SYSCALL_WORK, offsetof(struct thread_info, syscall_work));
+	DEFINE(TI_STATUS,       offsetof(struct thread_info, status));
 }

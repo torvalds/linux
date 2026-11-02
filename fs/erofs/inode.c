@@ -311,7 +311,7 @@ struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid)
 	return inode;
 }
 
-int erofs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int erofs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask,
 		  unsigned int query_flags)
 {

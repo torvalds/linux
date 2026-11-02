@@ -1,32 +1,23 @@
 bench_try_ref_from_suffix_with_elems_dynamic_padding:
 	movabs rax, 3074457345618258598
 	cmp rdx, rax
-	ja .LBB5_1
-	lea r8d, [rsi + rdi]
-	xor ecx, ecx
-	mov eax, 0
-	test r8b, 3
-	je .LBB5_3
-	mov rdx, rcx
-	ret
-.LBB5_3:
+	ja .LBB5_3
 	lea rax, [rdx + 2*rdx]
 	or rax, 3
 	add rax, 9
+	lea ecx, [rsi + rdi]
+	test cl, 3
+	setne cl
 	sub rsi, rax
-	jae .LBB5_4
-.LBB5_1:
+	setb al
+	or al, cl
+	je .LBB5_4
+.LBB5_3:
 	xor eax, eax
-	mov edx, 1
 	ret
 .LBB5_4:
-	lea r8, [rdi + rsi]
-	movzx esi, word ptr [rdi + rsi]
-	cmp si, -16192
-	mov ecx, 2
-	cmove rcx, rdx
+	lea rcx, [rdi + rsi]
 	xor eax, eax
-	cmp esi, 49344
-	cmove rax, r8
-	mov rdx, rcx
+	cmp word ptr [rdi + rsi], -16192
+	cmove rax, rcx
 	ret

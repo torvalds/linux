@@ -1202,7 +1202,7 @@ static irqreturn_t nbpf_chan_irq(int irq, void *dev)
 
 	nbpf_status_ack(chan);
 
-	dev_dbg(&chan->dma_chan.dev->device, "%s()\n", __func__);
+	dev_dbg(dmaengine_chan_dev(&chan->dma_chan), "%s()\n", __func__);
 
 	spin_lock(&chan->lock);
 	desc = chan->running;

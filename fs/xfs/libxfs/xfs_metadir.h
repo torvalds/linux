@@ -38,10 +38,7 @@ int xfs_metadir_create_file(struct xfs_metadir_update *upd, umode_t mode,
 		xfs_metadir_createfn create, void *priv,
 		struct xfs_inode **ipp);
 
-int xfs_metadir_start_link(struct xfs_metadir_update *upd);
-int xfs_metadir_link(struct xfs_metadir_update *upd);
-
-int xfs_metadir_commit(struct xfs_metadir_update *upd);
+int xfs_metadir_link_file(struct xfs_metadir_update *upd);
 
 int xfs_metadir_mkdir(struct xfs_inode *dp, const char *path,
 		struct xfs_inode **ipp);

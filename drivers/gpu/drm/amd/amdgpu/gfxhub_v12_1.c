@@ -274,9 +274,6 @@ static void gfxhub_v12_1_xcc_init_tlb_regs(struct amdgpu_device *adev,
 				    SYSTEM_APERTURE_UNMAPPED_ACCESS, 0);
 		tmp = REG_SET_FIELD(tmp,
 				    GCMC_VM_MX_L1_TLB_CNTL,
-				    ECO_BITS, 0);
-		tmp = REG_SET_FIELD(tmp,
-				    GCMC_VM_MX_L1_TLB_CNTL,
 				    MTYPE, MTYPE_UC);
 
 		WREG32_SOC15_RLC(GC, GET_INST(GC, i),
@@ -295,9 +292,6 @@ static void gfxhub_v12_1_xcc_init_cache_regs(struct amdgpu_device *adev,
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i), regGCVM_L2_CNTL);
 		tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL,
 				    ENABLE_L2_CACHE, 1);
-		/*TODO: set ENABLE_L2_FRAGMENT_PROCESSING to 1? */
-		tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL,
-				    ENABLE_L2_FRAGMENT_PROCESSING, 0);
 		tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL,
 				    ENABLE_DEFAULT_PAGE_OUT_TO_SYSTEM_MEMORY, 1);
 		tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL,
@@ -310,14 +304,6 @@ static void gfxhub_v12_1_xcc_init_cache_regs(struct amdgpu_device *adev,
 				    IDENTITY_MODE_FRAGMENT_SIZE, 0);
 		WREG32_SOC15_RLC(GC, GET_INST(GC, i),
 				 regGCVM_L2_CNTL, tmp);
-
-		tmp = RREG32_SOC15(GC, GET_INST(GC, i), regGCVM_L2_CNTL2);
-		tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL2,
-				    INVALIDATE_ALL_L1_TLBS, 1);
-		tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL2,
-				    INVALIDATE_L2_CACHE, 1);
-		WREG32_SOC15_RLC(GC, GET_INST(GC, i),
-				 regGCVM_L2_CNTL2, tmp);
 
 		tmp = regGCVM_L2_CNTL3_DEFAULT;
 		if (adev->gmc.translate_further) {
@@ -416,7 +402,10 @@ static void gfxhub_v12_1_xcc_setup_vmid_config(struct amdgpu_device *adev,
 
 	num_level = adev->vm_manager.num_level;
 	block_size = adev->vm_manager.block_size;
-	block_size -= 9;
+	if (adev->gmc.translate_further)
+		num_level -= 1;
+	else
+		block_size -= 9;
 
 	for_each_inst(j, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(j)];
@@ -447,7 +436,7 @@ static void gfxhub_v12_1_xcc_setup_vmid_config(struct amdgpu_device *adev,
 			/* Send no-retry XNACK on fault to suppress VM fault storm */
 			tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT1_CNTL,
 					    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
-					    1);
+					    !adev->gmc.noretry);
 			WREG32_SOC15_OFFSET(GC, GET_INST(GC, j), regGCVM_CONTEXT1_CNTL,
 					    i * hub->ctx_distance, tmp);
 			WREG32_SOC15_OFFSET(GC, GET_INST(GC, j),
@@ -493,27 +482,6 @@ static void gfxhub_v12_1_xcc_program_invalidation(struct amdgpu_device *adev,
 static int gfxhub_v12_1_xcc_gart_enable(struct amdgpu_device *adev,
 					uint32_t xcc_mask)
 {
-	uint32_t i;
-
-	if (amdgpu_sriov_vf(adev)) {
-		/* GCMC_VM_FB_LOCATION_BASE/TOP are VF copy registers
-		 * VBIO post does not program them at boot up phase
-		 * Need driver to program them from guest side */
-		for_each_inst(i, xcc_mask) {
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_FB_LOCATION_BASE_LO32,
-				     lower_32_bits(adev->gmc.vram_start >> 24));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_FB_LOCATION_BASE_HI32,
-				     upper_32_bits(adev->gmc.vram_start >> 24));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_FB_LOCATION_TOP_LO32,
-				     lower_32_bits(adev->gmc.vram_end >> 24));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_FB_LOCATION_TOP_HI32,
-				     upper_32_bits(adev->gmc.vram_end >> 24));
-		}
-	}
 	/* GART Enable. */
 	gfxhub_v12_1_xcc_init_gart_aperture_regs(adev, xcc_mask);
 	gfxhub_v12_1_xcc_init_system_aperture_regs(adev, xcc_mask);
@@ -586,6 +554,9 @@ static void gfxhub_v12_1_xcc_set_fault_enable_default(struct amdgpu_device *adev
 {
 	u32 tmp;
 	int i;
+
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	for_each_inst(i, xcc_mask) {
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i),
@@ -716,8 +687,18 @@ static const char *gfxhub_v12_1_client_ids[] = {
 	"PA"
 };
 
-/*TODO: l2 protection fault status is increased to 64bits.
- * some critical fields like FED are moved to STATUS_HI32 */
+static void
+gfxhub_v12_1_print_l2_protection_fault_status_hi(struct amdgpu_device *adev,
+						 uint32_t status)
+{
+	dev_err(adev->dev,
+		"GCVM_L2_PROTECTION_FAULT_STATUS_HI32:0x%08X\n",
+		status);
+	dev_err(adev->dev, "\t FED: 0x%lx\n",
+		REG_GET_FIELD(status,
+			      GCVM_L2_PROTECTION_FAULT_STATUS_HI32, FED));
+}
+
 static void gfxhub_v12_1_print_l2_protection_fault_status(struct amdgpu_device *adev,
 							  uint32_t status)
 {
@@ -750,6 +731,8 @@ static void gfxhub_v12_1_print_l2_protection_fault_status(struct amdgpu_device *
 
 static const struct amdgpu_vmhub_funcs gfxhub_v12_1_vmhub_funcs = {
 	.print_l2_protection_fault_status = gfxhub_v12_1_print_l2_protection_fault_status,
+	.print_l2_protection_fault_status_hi =
+		gfxhub_v12_1_print_l2_protection_fault_status_hi,
 	.get_invalidate_req = gfxhub_v12_1_get_invalidate_req,
 };
 
@@ -779,10 +762,12 @@ static void gfxhub_v12_1_xcc_init(struct amdgpu_device *adev, uint32_t xcc_mask)
 		hub->vm_context0_cntl =
 			SOC15_REG_OFFSET(GC, GET_INST(GC, i),
 				regGCVM_CONTEXT0_CNTL);
-		/* TODO: add a new member to accomandate additional fault status/cntl reg */
 		hub->vm_l2_pro_fault_status =
 			SOC15_REG_OFFSET(GC, GET_INST(GC, i),
 				regGCVM_L2_PROTECTION_FAULT_STATUS_LO32);
+		hub->vm_l2_pro_fault_status_hi =
+			SOC15_REG_OFFSET(GC, GET_INST(GC, i),
+					 regGCVM_L2_PROTECTION_FAULT_STATUS_HI32);
 		hub->vm_l2_pro_fault_cntl =
 			SOC15_REG_OFFSET(GC, GET_INST(GC, i),
 				regGCVM_L2_PROTECTION_FAULT_CNTL_LO32);

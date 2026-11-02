@@ -769,10 +769,18 @@ static int check_fwfile_format(const u8 *data, u32 totlen)
 	exit = len = 0;
 
 	do {
-		struct fwheader *fwh = (void *) data;
+		struct fwheader *fwh;
+
+		if (totlen - len < sizeof(*fwh))
+			break;
+
+		fwh = (void *)data;
 
 		bincmd = le32_to_cpu(fwh->dnldcmd);
 		blksize = le32_to_cpu(fwh->datalength);
+		if (blksize > totlen - len - sizeof(*fwh))
+			break;
+
 		switch (bincmd) {
 		case FW_HAS_DATA_TO_RECV:
 			offset = sizeof(struct fwheader) + blksize;

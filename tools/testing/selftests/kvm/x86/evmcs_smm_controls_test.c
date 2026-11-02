@@ -55,11 +55,11 @@ static void guest_code(struct vmx_pages *vmx_pages,
 	enable_vp_assist(hv_pages->vp_assist_gpa, hv_pages->vp_assist);
 	evmcs_enable();
 
-	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
-	GUEST_ASSERT(load_evmcs(hv_pages));
+	prepare_for_vmx_operation(vmx_pages);
+	load_evmcs(hv_pages);
 	prepare_vmcs(vmx_pages, l2_guest_code);
 
-	GUEST_ASSERT(!vmlaunch());
+	vmlaunch();
 
 	/* L2 exits via vmcall if test fails */
 	sync_with_host(2);

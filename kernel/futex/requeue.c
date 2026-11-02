@@ -744,7 +744,7 @@ int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
 
 	/* Handle spurious wakeups gracefully */
 	ret = -EWOULDBLOCK;
-	if (timeout && !timeout->task)
+	if (timeout && !hrtimer_sleeper_task_get(timeout))
 		ret = -ETIMEDOUT;
 	else if (signal_pending(current))
 		ret = -ERESTARTNOINTR;

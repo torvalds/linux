@@ -67,6 +67,48 @@ bool ivpu_force_snoop;
 module_param_named(force_snoop, ivpu_force_snoop, bool, 0444);
 MODULE_PARM_DESC(force_snoop, "Force snooping for NPU host memory access");
 
+static struct pci_device_id ivpu_pci_ids[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_MTL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_ARL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_LNL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PTL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_WCL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_NVL) },
+	{}
+};
+MODULE_DEVICE_TABLE(pci, ivpu_pci_ids);
+
+static int ivpu_ip_gen_init(struct ivpu_device *vdev)
+{
+	vdev->platform = IVPU_PLATFORM_INVALID;
+
+	switch (ivpu_device_id(vdev)) {
+	case PCI_DEVICE_ID_MTL:
+	case PCI_DEVICE_ID_ARL:
+		vdev->hw_ip_gen = IVPU_HW_IP_37XX;
+		vdev->btrs_gen = IVPU_HW_BTRS_MTL;
+		break;
+	case PCI_DEVICE_ID_LNL:
+		vdev->hw_ip_gen = IVPU_HW_IP_40XX;
+		vdev->btrs_gen = IVPU_HW_BTRS_LNL;
+		break;
+	case PCI_DEVICE_ID_PTL:
+	case PCI_DEVICE_ID_WCL:
+		vdev->hw_ip_gen = IVPU_HW_IP_50XX;
+		vdev->btrs_gen = IVPU_HW_BTRS_LNL;
+		break;
+	case PCI_DEVICE_ID_NVL:
+		vdev->hw_ip_gen = IVPU_HW_IP_60XX;
+		vdev->btrs_gen = IVPU_HW_BTRS_LNL;
+		break;
+	default:
+		ivpu_err(vdev, "Unknown PCI device [%04x:%04x]\n", ivpu_vendor_id(vdev),
+			 ivpu_device_id(vdev));
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static struct ivpu_user_limits *ivpu_user_limits_alloc(struct ivpu_device *vdev, uid_t uid)
 {
 	struct ivpu_user_limits *limits;
@@ -205,6 +247,7 @@ bool ivpu_is_capable(struct ivpu_device *vdev, u32 capability)
 	case DRM_IVPU_CAP_BO_CREATE_FROM_USERPTR:
 		return true;
 	case DRM_IVPU_CAP_MANAGE_CMDQ:
+	case DRM_IVPU_CAP_CMDQ_SET_PRIORITY:
 		return vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW;
 	default:
 		return false;
@@ -247,10 +290,7 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 		break;
 	case DRM_IVPU_PARAM_FW_API_VERSION:
 		if (args->index < VPU_FW_API_VER_NUM) {
-			struct vpu_firmware_header *fw_hdr;
-
-			fw_hdr = (struct vpu_firmware_header *)vdev->fw->file->data;
-			args->value = fw_hdr->api_version[args->index];
+			args->value = vdev->fw->api_version[args->index];
 		} else {
 			ret = -EINVAL;
 		}
@@ -273,6 +313,9 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 	case DRM_IVPU_PARAM_PREEMPT_BUFFER_SIZE:
 		args->value = ivpu_fw_preempt_buf_size(vdev);
 		break;
+	case DRM_IVPU_PARAM_CMDQ_PRIORITY:
+		ret = ivpu_cmdq_get_priority(file_priv, args->index, &args->value);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -284,14 +327,23 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 
 static int ivpu_set_param_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
+	struct ivpu_file_priv *file_priv = file->driver_priv;
 	struct drm_ivpu_param *args = data;
 	int ret = 0;
+	int idx;
+
+	if (!drm_dev_enter(dev, &idx))
+		return -ENODEV;
 
 	switch (args->param) {
+	case DRM_IVPU_PARAM_CMDQ_PRIORITY:
+		ret = ivpu_cmdq_set_priority(file_priv, args->index, args->value);
+		break;
 	default:
 		ret = -EINVAL;
 	}
 
+	drm_dev_exit(idx);
 	return ret;
 }
 
@@ -468,6 +520,14 @@ int ivpu_boot(struct ivpu_device *vdev)
 	ivpu_fw_boot_params_setup(vdev, ivpu_bo_vaddr(vdev->fw->mem_bp));
 	vdev->fw->last_boot_mode = vdev->fw->next_boot_mode;
 
+	if (!ivpu_fw_is_warm_boot(vdev)) {
+		ret = ivpu_fw_load(vdev);
+		if (ret) {
+			ivpu_err(vdev, "Failed to load the firmware: %d\n", ret);
+			return ret;
+		}
+	}
+
 	ret = ivpu_hw_boot_fw(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to start the firmware: %d\n", ret);
@@ -483,6 +543,9 @@ int ivpu_boot(struct ivpu_device *vdev)
 	enable_irq(vdev->irq);
 	ivpu_hw_irq_enable(vdev);
 	ivpu_ipc_enable(vdev);
+
+	if (ivpu_test_mode & IVPU_TEST_MODE_FW_TEST)
+		return 0;
 
 	if (!ivpu_fw_is_warm_boot(vdev)) {
 		ret = ivpu_pm_dct_init(vdev);
@@ -637,6 +700,7 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 	struct pci_dev *pdev = to_pci_dev(vdev->drm.dev);
 	struct resource *bar0 = &pdev->resource[0];
 	struct resource *bar4 = &pdev->resource[4];
+	int dma_bits;
 	int ret;
 
 	ivpu_dbg(vdev, MISC, "Mapping BAR0 (RegV) %pR\n", bar0);
@@ -653,7 +717,12 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 		return PTR_ERR(vdev->regb);
 	}
 
-	ret = dma_set_mask_and_coherent(vdev->drm.dev, DMA_BIT_MASK(vdev->hw->dma_bits));
+	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_40XX)
+		dma_bits = 42;
+	else
+		dma_bits = 38;
+
+	ret = dma_set_mask_and_coherent(vdev->drm.dev, DMA_BIT_MASK(dma_bits));
 	if (ret) {
 		ivpu_err(vdev, "Failed to set DMA mask: %d\n", ret);
 		return ret;
@@ -701,12 +770,10 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (!vdev->pm)
 		return -ENOMEM;
 
-	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_40XX)
-		vdev->hw->dma_bits = 48;
-	else
-		vdev->hw->dma_bits = 38;
+	ret = ivpu_ip_gen_init(vdev);
+	if (ret)
+		return ret;
 
-	vdev->platform = IVPU_PLATFORM_INVALID;
 	vdev->context_xa_limit.min = IVPU_USER_CONTEXT_MIN_SSID;
 	vdev->context_xa_limit.max = IVPU_USER_CONTEXT_MAX_SSID;
 	atomic64_set(&vdev->unique_id_counter, 0);
@@ -838,17 +905,6 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->context_xa));
 	xa_destroy(&vdev->context_xa);
 }
-
-static struct pci_device_id ivpu_pci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_MTL) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_ARL) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_LNL) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PTL_P) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_WCL) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_NVL) },
-	{}
-};
-MODULE_DEVICE_TABLE(pci, ivpu_pci_ids);
 
 static int ivpu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {

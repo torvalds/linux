@@ -687,12 +687,12 @@ static bool jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
 	jz4780_dma_chn_writel(jzdma, jzchan->id, JZ_DMA_REG_DCS, 0);
 
 	if (dcs & JZ_DMA_DCS_AR) {
-		dev_warn(&jzchan->vchan.chan.dev->device,
+		dev_warn(vchan_chan_dev(&jzchan->vchan),
 			 "address error (DCS=0x%x)\n", dcs);
 	}
 
 	if (dcs & JZ_DMA_DCS_HLT) {
-		dev_warn(&jzchan->vchan.chan.dev->device,
+		dev_warn(vchan_chan_dev(&jzchan->vchan),
 			 "channel halt (DCS=0x%x)\n", dcs);
 	}
 
@@ -721,7 +721,7 @@ static bool jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
 			}
 		}
 	} else {
-		dev_err(&jzchan->vchan.chan.dev->device,
+		dev_err(vchan_chan_dev(&jzchan->vchan),
 			"channel IRQ with no active transfer\n");
 	}
 
@@ -760,12 +760,12 @@ static int jz4780_dma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct jz4780_dma_chan *jzchan = to_jz4780_dma_chan(chan);
 
-	jzchan->desc_pool = dma_pool_create(dev_name(&chan->dev->device),
+	jzchan->desc_pool = dma_pool_create(dma_chan_name(chan),
 					    chan->device->dev,
 					    JZ_DMA_DESC_BLOCK_SIZE,
 					    PAGE_SIZE, 0);
 	if (!jzchan->desc_pool) {
-		dev_err(&chan->dev->device,
+		dev_err(dmaengine_chan_dev(chan),
 			"failed to allocate descriptor pool\n");
 		return -ENOMEM;
 	}

@@ -1608,8 +1608,8 @@ struct rtw89_pci_rx_ring {
 	struct rtw89_pci_dma_ring bd_ring;
 	struct sk_buff *buf[RTW89_PCI_RXBD_NUM_MAX];
 	u32 buf_sz;
-	struct sk_buff *diliver_skb;
-	struct rtw89_rx_desc_info diliver_desc;
+	struct sk_buff *deliver_skb;
+	struct rtw89_rx_desc_info deliver_desc;
 	u32 target_rx_tag:13;
 };
 

@@ -1669,7 +1669,7 @@ static int xgene_phy_probe(struct platform_device *pdev)
 	/* Retrieve optional clock */
 	ctx->clk = clk_get(&pdev->dev, NULL);
 
-	/* Load override paramaters */
+	/* Load override parameters */
 	xgene_phy_get_param(pdev, "apm,tx-eye-tuning",
 		ctx->sata_param.txeyetuning, 6, default_txeye_tuning, 1);
 	xgene_phy_get_param(pdev, "apm,tx-eye-direction",

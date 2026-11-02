@@ -580,13 +580,6 @@ static void uvd_v5_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 	}
 }
 
-static bool uvd_v5_0_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return !(RREG32(mmSRBM_STATUS) & SRBM_STATUS__UVD_BUSY_MASK);
-}
-
 static int uvd_v5_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
@@ -869,7 +862,6 @@ static const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
 	.prepare_suspend = uvd_v5_0_prepare_suspend,
 	.suspend = uvd_v5_0_suspend,
 	.resume = uvd_v5_0_resume,
-	.is_idle = uvd_v5_0_is_idle,
 	.wait_for_idle = uvd_v5_0_wait_for_idle,
 	.soft_reset = uvd_v5_0_soft_reset,
 	.set_clockgating_state = uvd_v5_0_set_clockgating_state,

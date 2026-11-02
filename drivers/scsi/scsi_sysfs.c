@@ -214,7 +214,7 @@ store_shost_state(struct device *dev, struct device_attribute *attr,
 	if (!state)
 		return -EINVAL;
 
-	scoped_guard(spinlock_irq, shost->host_lock)
+	scoped_guard(spinlock_irq, &shost->host_lock)
 		if (scsi_host_set_state(shost, state))
 			return -EINVAL;
 	return count;
@@ -352,7 +352,7 @@ store_shost_eh_deadline(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 	}
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	if (scsi_host_in_recovery(shost))
 		ret = -EBUSY;
 	else {
@@ -363,7 +363,7 @@ store_shost_eh_deadline(struct device *dev, struct device_attribute *attr,
 
 		ret = count;
 	}
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	return ret;
 }
@@ -459,11 +459,11 @@ static void scsi_device_dev_release(struct device *dev)
 
 	parent = sdev->sdev_gendev.parent;
 
-	spin_lock_irqsave(sdev->host->host_lock, flags);
+	spin_lock_irqsave(&sdev->host->host_lock, flags);
 	list_del(&sdev->siblings);
 	list_del(&sdev->same_target_siblings);
 	list_del(&sdev->starved_entry);
-	spin_unlock_irqrestore(sdev->host->host_lock, flags);
+	spin_unlock_irqrestore(&sdev->host->host_lock, flags);
 
 	cancel_work_sync(&sdev->event_work);
 
@@ -1547,7 +1547,7 @@ static void __scsi_remove_target(struct scsi_target *starget)
 	unsigned long flags;
 	struct scsi_device *sdev;
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
  restart:
 	list_for_each_entry(sdev, &shost->__devices, siblings) {
 		/*
@@ -1563,13 +1563,13 @@ static void __scsi_remove_target(struct scsi_target *starget)
 		    sdev->sdev_state == SDEV_CANCEL ||
 		    !get_device(&sdev->sdev_gendev))
 			continue;
-		spin_unlock_irqrestore(shost->host_lock, flags);
+		spin_unlock_irqrestore(&shost->host_lock, flags);
 		scsi_remove_device(sdev);
 		put_device(&sdev->sdev_gendev);
-		spin_lock_irqsave(shost->host_lock, flags);
+		spin_lock_irqsave(&shost->host_lock, flags);
 		goto restart;
 	}
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 }
 
 /**
@@ -1587,7 +1587,7 @@ void scsi_remove_target(struct device *dev)
 	unsigned long flags;
 
 restart:
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	list_for_each_entry(starget, &shost->__targets, siblings) {
 		if (starget->state == STARGET_DEL ||
 		    starget->state == STARGET_REMOVE ||
@@ -1599,13 +1599,13 @@ restart:
 				starget->state = STARGET_CREATED_REMOVE;
 			else
 				starget->state = STARGET_REMOVE;
-			spin_unlock_irqrestore(shost->host_lock, flags);
+			spin_unlock_irqrestore(&shost->host_lock, flags);
 			__scsi_remove_target(starget);
 			scsi_target_reap(starget);
 			goto restart;
 		}
 	}
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 }
 EXPORT_SYMBOL(scsi_remove_target);
 
@@ -1710,10 +1710,10 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 		sdev->lun_in_cdb = 1;
 
 	transport_setup_device(&sdev->sdev_gendev);
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	list_add_tail(&sdev->same_target_siblings, &starget->devices);
 	list_add_tail(&sdev->siblings, &shost->__devices);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 	/*
 	 * device can now only be removed via __scsi_remove_device() so hold
 	 * the target.  Target will be held in CREATED state until something

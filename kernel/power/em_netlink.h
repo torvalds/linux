@@ -12,7 +12,8 @@
 #if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_NET)
 int for_each_em_perf_domain(int (*cb)(struct em_perf_domain*, void *),
 			    void *data);
-struct em_perf_domain *em_perf_domain_get_by_id(int id);
+int em_perf_domain_for_id(int id, int (*cb)(struct em_perf_domain *, void *),
+			  void *data);
 void em_notify_pd_created(const struct em_perf_domain *pd);
 void em_notify_pd_deleted(const struct em_perf_domain *pd);
 void em_notify_pd_updated(const struct em_perf_domain *pd);
@@ -24,9 +25,10 @@ int for_each_em_perf_domain(int (*cb)(struct em_perf_domain*, void *),
 	return -EINVAL;
 }
 static inline
-struct em_perf_domain *em_perf_domain_get_by_id(int id)
+int em_perf_domain_for_id(int id, int (*cb)(struct em_perf_domain *, void *),
+			  void *data)
 {
-	return NULL;
+	return -EINVAL;
 }
 
 static inline void em_notify_pd_created(const struct em_perf_domain *pd) {}

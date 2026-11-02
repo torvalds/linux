@@ -384,7 +384,7 @@ static inline void mlx5_fpga_conn_cqes(struct mlx5_fpga_conn *conn,
 
 	mlx5_fpga_dbg(conn->fdev, "Re-arming CQ with cc# %u\n", conn->cq.wq.cc);
 	/* ensure cq space is freed before enabling more cqes */
-	wmb();
+	dma_wmb();
 	mlx5_fpga_conn_arm_cq(conn);
 }
 

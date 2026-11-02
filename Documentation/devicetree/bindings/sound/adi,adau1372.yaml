@@ -52,11 +52,11 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         audio-codec@3c {
-                compatible = "adi,adau1372";
-                reg = <0x3c>;
-                #sound-dai-cells = <0>;
-                clock-names = "mclk";
-                clocks = <&adau1372z_xtal>;
+            compatible = "adi,adau1372";
+            reg = <0x3c>;
+            #sound-dai-cells = <0>;
+            clock-names = "mclk";
+            clocks = <&adau1372z_xtal>;
         };
     };
 

@@ -24,6 +24,34 @@
 
 #ifdef CONFIG_SUSPEND
 
+static void acpi_setup_ixx_gpes(void)
+{
+	acpi_handle gpe_root;
+	unsigned int i;
+	char gpe_nr_str[5];
+
+	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_GPE", &gpe_root)))
+		return;
+
+	for (i = 0; i <= 0xff; i++) {
+		scnprintf(gpe_nr_str, sizeof(gpe_nr_str), "_I%02X", i);
+		if (!acpi_has_method(gpe_root, gpe_nr_str))
+			continue;
+
+		/*
+		 * Enable the GPE if it has a handler method because marking it
+		 * as wake-capable causes acpi_update_all_gpes() to skip it.
+		 */
+		if (ACPI_FAILURE(acpi_enable_gpe_cond(NULL, i, ACPI_GPE_DISPATCH_METHOD)))
+			continue;
+
+		acpi_mark_gpe_for_wake(NULL, i);
+		acpi_set_gpe_wake_mask(NULL, i, ACPI_GPE_ENABLE);
+
+		pm_pr_dbg("ACPI: GPE0x%02x armed for wake via %s\n", i, gpe_nr_str);
+	}
+}
+
 static bool sleep_no_lps0 __read_mostly;
 module_param(sleep_no_lps0, bool, 0644);
 MODULE_PARM_DESC(sleep_no_lps0, "Do not use the special LPS0 device interface");
@@ -649,6 +677,7 @@ void __init acpi_s2idle_setup(void)
 {
 	acpi_scan_add_handler(&lps0_handler);
 	s2idle_set_ops(&acpi_s2idle_ops_lps0);
+	acpi_setup_ixx_gpes();
 }
 
 int acpi_register_lps0_dev(struct acpi_s2idle_dev_ops *arg)

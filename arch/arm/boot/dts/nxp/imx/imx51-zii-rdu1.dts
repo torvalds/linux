@@ -115,7 +115,7 @@
 		};
 	};
 
-	i2c_gpio: i2c-gpio {
+	i2c_gpio: i2c-0 {
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_swi2c>;

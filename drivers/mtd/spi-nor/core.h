@@ -37,35 +37,17 @@
 		   SPI_MEM_OP_NO_DUMMY,					\
 		   SPI_MEM_OP_NO_DATA)
 
-#define SPI_NOR_RDSR_OP(buf)						\
-	SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RDSR, 0),			\
+#define SPI_NOR_RDSR_OP(opcode, buf, len)				\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(opcode, 0),				\
 		   SPI_MEM_OP_NO_ADDR,					\
 		   SPI_MEM_OP_NO_DUMMY,					\
-		   SPI_MEM_OP_DATA_IN(1, buf, 0))
+		   SPI_MEM_OP_DATA_IN(len, buf, 0))
 
-#define SPI_NOR_WRSR_OP(buf, len)					\
-	SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR, 0),			\
+#define SPI_NOR_WRSR_OP(opcode, buf, len)				\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(opcode, 0),				\
 		   SPI_MEM_OP_NO_ADDR,					\
 		   SPI_MEM_OP_NO_DUMMY,					\
 		   SPI_MEM_OP_DATA_OUT(len, buf, 0))
-
-#define SPI_NOR_RDSR2_OP(buf)						\
-	SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RDSR2, 0),			\
-		   SPI_MEM_OP_NO_ADDR,					\
-		   SPI_MEM_OP_NO_DUMMY,					\
-		   SPI_MEM_OP_DATA_OUT(1, buf, 0))
-
-#define SPI_NOR_WRSR2_OP(buf)						\
-	SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR2, 0),			\
-		   SPI_MEM_OP_NO_ADDR,					\
-		   SPI_MEM_OP_NO_DUMMY,					\
-		   SPI_MEM_OP_DATA_OUT(1, buf, 0))
-
-#define SPI_NOR_RDCR_OP(buf)						\
-	SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RDCR, 0),			\
-		   SPI_MEM_OP_NO_ADDR,					\
-		   SPI_MEM_OP_NO_DUMMY,					\
-		   SPI_MEM_OP_DATA_IN(1, buf, 0))
 
 #define SPI_NOR_EN4B_EX4B_OP(enable)					\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(enable ? SPINOR_OP_EN4B : SPINOR_OP_EX4B, 0),	\
@@ -121,16 +103,16 @@
 		   SPI_MEM_OP_NO_ADDR,					\
 		   SPI_MEM_OP_NO_DATA)
 
-/* Keep these in sync with the list in debugfs.c */
+/*
+ * This could contain holes, if adding a new flag use the first free spot.
+ * Keep the flags in sync with the list in debugfs.c
+ */
 enum spi_nor_option_flags {
 	SNOR_F_HAS_SR_TB	= BIT(0),
-	SNOR_F_NO_OP_CHIP_ERASE	= BIT(1),
 	SNOR_F_BROKEN_RESET	= BIT(2),
 	SNOR_F_4B_OPCODES	= BIT(3),
 	SNOR_F_HAS_4BAIT	= BIT(4),
 	SNOR_F_HAS_LOCK		= BIT(5),
-	SNOR_F_HAS_16BIT_SR	= BIT(6),
-	SNOR_F_NO_READ_CR	= BIT(7),
 	SNOR_F_HAS_SR_TB_BIT6	= BIT(8),
 	SNOR_F_HAS_4BIT_BP      = BIT(9),
 	SNOR_F_HAS_SR_BP3_BIT6  = BIT(10),
@@ -341,6 +323,26 @@ struct spi_nor_otp {
 };
 
 /**
+ * struct spi_nor_opcodes - SPI NOR flash specific opcodes.
+ * List of variable opcodes used by the chip.
+ *
+ * @die_erase: opcode for erasing a die, defaults to SPINOR_OP_CHIP_ERASE
+ * @read_sr1: opcode for reading SR1 alone
+ * @read_sr2: opcode for reading SR2 alone
+ * @write_sr1: opcode for writing SR1 alone
+ * @write_sr2: opcode for writing SR2 alone
+ * @write_sr1_and_sr2: opcode for writing SR1 then SR2 in one operation
+ */
+struct spi_nor_opcodes {
+	u8 die_erase;
+	u8 read_sr1;
+	u8 read_sr2;
+	u8 write_sr1;
+	u8 write_sr2;
+	u8 write_sr1_and_sr2;
+};
+
+/**
  * struct spi_nor_flash_parameter - SPI NOR flash parameters and settings.
  * Includes legacy flash parameters and settings that can be overwritten
  * by the spi_nor_fixups hooks, or dynamically when parsing the JESD216
@@ -348,6 +350,7 @@ struct spi_nor_otp {
  *
  * @bank_size:		the flash memory bank density in bytes.
  * @size:		the total flash memory density in bytes.
+ * @flags:		flag options for the current SPI NOR (SNOR_F_*)
  * @writesize		Minimal writable flash unit size. Defaults to 1. Set to
  *			ECC unit size for ECC-ed flashes.
  * @page_size:		the page size of the SPI NOR flash memory.
@@ -362,7 +365,6 @@ struct spi_nor_otp {
  *			command in octal DTR mode.
  * @n_banks:		number of banks.
  * @n_dice:		number of dice in the flash memory.
- * @die_erase_opcode:	die erase opcode. Defaults to SPINOR_OP_CHIP_ERASE.
  * @vreg_offset:	volatile register offset for each die.
  * @hwcaps:		describes the read and page program hardware
  *			capabilities.
@@ -370,11 +372,13 @@ struct spi_nor_otp {
  *                      in the array, the higher priority.
  * @page_programs:	page program capabilities ordered by priority: the
  *                      higher index in the array, the higher priority.
+ * @cmd_ext_type:	the command opcode extension type for DTR mode.
  * @erase_map:		the erase map parsed from the SFDP Sector Map Parameter
  *                      Table.
  * @otp:		SPI NOR OTP info.
  * @set_octal_dtr:	enables or disables SPI NOR octal DTR mode.
  * @quad_enable:	enables SPI NOR quad mode.
+ * @qe_mask:		two bytes mask used to set/clear the QE bit
  * @set_4byte_addr_mode: puts the SPI NOR in 4 byte addressing mode.
  * @ready:		(optional) flashes might use a different mechanism
  *			than reading the status register to indicate they
@@ -385,6 +389,7 @@ struct spi_nor_otp {
 struct spi_nor_flash_parameter {
 	u64				bank_size;
 	u64				size;
+	u32				flags;
 	u32				writesize;
 	u32				page_size;
 	u8				addr_nbytes;
@@ -393,18 +398,20 @@ struct spi_nor_flash_parameter {
 	u8				rdsr_addr_nbytes;
 	u8				n_banks;
 	u8				n_dice;
-	u8				die_erase_opcode;
 	u32				*vreg_offset;
 
 	struct spi_nor_hwcaps		hwcaps;
 	struct spi_nor_read_command	reads[SNOR_CMD_READ_MAX];
 	struct spi_nor_pp_command	page_programs[SNOR_CMD_PP_MAX];
+	enum spi_nor_cmd_ext		cmd_ext_type;
 
+	struct spi_nor_opcodes		opcodes;
 	struct spi_nor_erase_map        erase_map;
 	struct spi_nor_otp		otp;
 
 	int (*set_octal_dtr)(struct spi_nor *nor, bool enable);
 	int (*quad_enable)(struct spi_nor *nor);
+	u8				qe_mask[2];
 	int (*set_4byte_addr_mode)(struct spi_nor *nor, bool enable);
 	int (*ready)(struct spi_nor *nor);
 
@@ -443,6 +450,33 @@ struct spi_nor_fixups {
 	void (*smpt_map_id)(const struct spi_nor *nor, u8 *map_id);
 	int (*post_sfdp)(struct spi_nor *nor);
 	int (*late_init)(struct spi_nor *nor);
+};
+
+/**
+ * struct spi_nor_fixup - SPI NOR fixup registration.
+ * @id:		(optional) flash ID this fixup applies to, may only match the
+ *		ID prefix, eg. just the first few bytes to match a whole family
+ * @match:	(optional) custom match function (can be used together with @id)
+ * @fixup_flags: flags that indicate support that can be discovered via SFDP
+ *		 ideally, but can not be discovered for this particular flash
+ *		 because the SFDP table that indicates this support is not
+ *		 defined by the flash. In case the table for this support is
+ *		 defined but has wrong values, one should instead use a
+ *		 post_sfdp() hook to set the SNOR_F equivalent flag.
+ *
+ *	SPI_NOR_4B_OPCODES: use dedicated 4byte address op codes to support
+ *			    memory size above 128Mib.
+ *	SPI_NOR_IO_MODE_EN_VOLATILE: flash enables the best available I/O mode
+ *				     via a volatile bit.
+ * @fixups:	the fixup hooks to apply when this entry matches
+ */
+struct spi_nor_fixup {
+	const struct spi_nor_id *id;
+	bool (*match)(const struct spi_nor *nor);
+	u8 fixup_flags;
+#define SPI_NOR_4B_OPCODES		BIT(0)
+#define SPI_NOR_IO_MODE_EN_VOLATILE	BIT(1)
+	const struct spi_nor_fixups *fixups;
 };
 
 /**
@@ -496,9 +530,7 @@ struct spi_nor_id {
  *                            be used with SPI_NOR_HAS_LOCK.
  *
  * @no_sfdp_flags:  flags that indicate support that can be discovered via SFDP.
- *                  Used when SFDP tables are not defined in the flash. These
- *                  flags are used together with the SPI_NOR_SKIP_SFDP flag.
- *   SPI_NOR_SKIP_SFDP:       skip parsing of SFDP tables.
+ *                  Used when SFDP tables are not defined in the flash.
  *   SECT_4K:                 SPINOR_OP_BE_4K works uniformly.
  *   SPI_NOR_DUAL_READ:       flash supports Dual Read.
  *   SPI_NOR_QUAD_READ:       flash supports Quad Read.
@@ -506,22 +538,10 @@ struct spi_nor_id {
  *   SPI_NOR_OCTAL_DTR_READ:  flash supports octal DTR Read.
  *   SPI_NOR_OCTAL_DTR_PP:    flash supports Octal DTR Page Program.
  *
- * @fixup_flags:    flags that indicate support that can be discovered via SFDP
- *                  ideally, but can not be discovered for this particular flash
- *                  because the SFDP table that indicates this support is not
- *                  defined by the flash. In case the table for this support is
- *                  defined but has wrong values, one should instead use a
- *                  post_sfdp() hook to set the SNOR_F equivalent flag.
- *
- *   SPI_NOR_4B_OPCODES:      use dedicated 4byte address op codes to support
- *                            memory size above 128Mib.
- *   SPI_NOR_IO_MODE_EN_VOLATILE: flash enables the best available I/O mode
- *                            via a volatile bit.
  * @mfr_flags:      manufacturer private flags. Used in the manufacturer fixup
  *                  hooks to differentiate support between flashes of the same
  *                  manufacturer.
  * @otp_org:        flash's OTP organization.
- * @fixups:         part specific fixup hooks.
  */
 struct flash_info {
 	char *name;
@@ -545,7 +565,6 @@ struct flash_info {
 #define SPI_NOR_HAS_CMP			BIT(10)
 
 	u8 no_sfdp_flags;
-#define SPI_NOR_SKIP_SFDP		BIT(0)
 #define SECT_4K				BIT(1)
 #define SPI_NOR_DUAL_READ		BIT(3)
 #define SPI_NOR_QUAD_READ		BIT(4)
@@ -553,14 +572,9 @@ struct flash_info {
 #define SPI_NOR_OCTAL_DTR_READ		BIT(6)
 #define SPI_NOR_OCTAL_DTR_PP		BIT(7)
 
-	u8 fixup_flags;
-#define SPI_NOR_4B_OPCODES		BIT(0)
-#define SPI_NOR_IO_MODE_EN_VOLATILE	BIT(1)
-
 	u8 mfr_flags;
 
 	const struct spi_nor_otp_organization *otp;
-	const struct spi_nor_fixups *fixups;
 };
 
 #define SNOR_ID(...)							\
@@ -582,13 +596,16 @@ struct flash_info {
  * @name: manufacturer name
  * @parts: array of parts supported by this manufacturer
  * @nparts: number of entries in the parts array
- * @fixups: hooks called at various points in time during spi_nor_scan()
+ * @fixups: list of fixups, each matched by ID (or a custom match function),
+ *          applied to any part of this manufacturer.
+ * @nfixups: number of entries in the fixups array
  */
 struct spi_nor_manufacturer {
 	const char *name;
 	const struct flash_info *parts;
 	unsigned int nparts;
-	const struct spi_nor_fixups *fixups;
+	const struct spi_nor_fixup *fixups;
+	unsigned int nfixups;
 };
 
 /**
@@ -619,6 +636,8 @@ extern const struct spi_nor_manufacturer spi_nor_xmc;
 
 extern const struct attribute_group *spi_nor_sysfs_groups[];
 
+bool spi_nor_fixup_match(const struct spi_nor *nor,
+			 const struct spi_nor_fixup *fixup);
 void spi_nor_spimem_setup_op(const struct spi_nor *nor,
 			     struct spi_mem_op *op,
 			     const enum spi_nor_protocol proto);
@@ -633,18 +652,17 @@ int spi_nor_wait_till_ready(struct spi_nor *nor);
 int spi_nor_global_block_unlock(struct spi_nor *nor);
 int spi_nor_prep_and_lock(struct spi_nor *nor);
 void spi_nor_unlock_and_unprep(struct spi_nor *nor);
-int spi_nor_sr1_bit6_quad_enable(struct spi_nor *nor);
-int spi_nor_sr2_bit1_quad_enable(struct spi_nor *nor);
-int spi_nor_sr2_bit7_quad_enable(struct spi_nor *nor);
 int spi_nor_read_id(struct spi_nor *nor, u8 naddr, u8 ndummy, u8 *id,
 		    enum spi_nor_protocol reg_proto);
-int spi_nor_read_sr(struct spi_nor *nor, u8 *sr);
 int spi_nor_sr_ready(struct spi_nor *nor);
-int spi_nor_read_cr(struct spi_nor *nor, u8 *cr);
-int spi_nor_write_sr(struct spi_nor *nor, const u8 *sr, size_t len);
-int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 sr1);
-int spi_nor_write_16bit_cr_and_check(struct spi_nor *nor, u8 cr);
-int spi_nor_write_sr_cr_and_check(struct spi_nor *nor, const u8 *regs);
+int spi_nor_read_sr_ll(struct spi_nor *nor, u8 opcode, u8 *sr,
+		       unsigned int len);
+int spi_nor_read_sr1(struct spi_nor *nor, u8 *sr1);
+int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2);
+int spi_nor_read_sr1_and_sr2(struct spi_nor *nor, u8 *sr);
+int spi_nor_write_sr1(struct spi_nor *nor, const u8 *sr1);
+int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2);
+int spi_nor_write_sr1_and_sr2_and_check(struct spi_nor *nor, const u8 *sr);
 
 ssize_t spi_nor_read_data(struct spi_nor *nor, loff_t from, size_t len,
 			  u8 *buf);
@@ -679,10 +697,6 @@ void spi_nor_set_erase_type(struct spi_nor_erase_type *erase, u32 size,
 void spi_nor_mask_erase_type(struct spi_nor_erase_type *erase);
 void spi_nor_init_uniform_erase_map(struct spi_nor_erase_map *map,
 				    u8 erase_mask, u64 flash_size);
-
-int spi_nor_post_bfpt_fixups(struct spi_nor *nor,
-			     const struct sfdp_parameter_header *bfpt_header,
-			     const struct sfdp_bfpt *bfpt);
 
 void spi_nor_init_default_locking_ops(struct spi_nor *nor);
 bool spi_nor_has_default_locking_ops(struct spi_nor *nor);

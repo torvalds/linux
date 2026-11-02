@@ -7072,9 +7072,9 @@ static int advansys_reset(struct scsi_cmnd *scp)
 			ret = FAILED;
 			break;
 		}
-		spin_lock_irqsave(shost->host_lock, flags);
+		spin_lock_irqsave(&shost->host_lock, flags);
 		AdvISR(adv_dvc);
-		spin_unlock_irqrestore(shost->host_lock, flags);
+		spin_unlock_irqrestore(&shost->host_lock, flags);
 	}
 
 	ASC_DBG(1, "ret %d\n", ret);
@@ -7138,7 +7138,7 @@ static irqreturn_t advansys_interrupt(int irq, void *dev_id)
 	unsigned long flags;
 
 	ASC_DBG(2, "boardp 0x%p\n", boardp);
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	if (ASC_NARROW_BOARD(boardp)) {
 		if (AscIsIntPending(shost->io_port)) {
 			result = IRQ_HANDLED;
@@ -7153,7 +7153,7 @@ static irqreturn_t advansys_interrupt(int irq, void *dev_id)
 			ASC_STATS(shost, interrupt);
 		}
 	}
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	ASC_DBG(1, "end\n");
 	return result;

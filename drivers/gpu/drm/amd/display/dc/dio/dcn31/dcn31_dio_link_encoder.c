@@ -509,6 +509,8 @@ void dcn31_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_FRL_10G_CAPABLE = 1;
 		enc10->base.features.flags.bits.IS_FRL_12G_CAPABLE = 1;
 	}
+
+	enc10->base.inst = (unsigned int)enc10->base.preferred_engine;
 }
 
 void dcn31_link_encoder_construct_minimal(

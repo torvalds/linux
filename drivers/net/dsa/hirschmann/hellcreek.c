@@ -2093,7 +2093,7 @@ static const struct of_device_id hellcreek_of_match[] = {
 		.compatible = "hirschmann,hellcreek-de1soc-r1",
 		.data	    = &de1soc_r1_pdata,
 	},
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, hellcreek_of_match);
 

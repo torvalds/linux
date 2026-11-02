@@ -56,6 +56,6 @@ examples:
             clocks = <&ccu1 CLK_APB3_ADC0>;
             vref-supply = <&reg_vdda>;
             resets = <&rgu 40>;
-         };
+        };
     };
 ...

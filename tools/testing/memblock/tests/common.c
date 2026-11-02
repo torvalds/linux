@@ -67,7 +67,7 @@ static inline void fill_memblock(void)
 void setup_memblock(void)
 {
 	reset_memblock_regions();
-	memblock_add((phys_addr_t)memory_block.base, MEM_SIZE);
+	memblock_add((phys_addr_t)(uintptr_t)memory_block.base, MEM_SIZE);
 	fill_memblock();
 }
 
@@ -88,7 +88,7 @@ void setup_numa_memblock(const unsigned int node_fracs[])
 	int flags;
 
 	reset_memblock_regions();
-	base = (phys_addr_t)memory_block.base;
+	base = (phys_addr_t)(uintptr_t)memory_block.base;
 	flags = (movable_node_is_enabled()) ? MEMBLOCK_NONE : MEMBLOCK_HOTPLUG;
 
 	for (int i = 0; i < NUMA_NODES; i++) {
@@ -115,7 +115,13 @@ void dummy_physical_memory_cleanup(void)
 
 phys_addr_t dummy_physical_memory_base(void)
 {
-	return (phys_addr_t)memory_block.base;
+	return (phys_addr_t)(uintptr_t)memory_block.base;
+}
+
+phys_addr_t dummy_physical_memory_low_limit(void)
+{
+	/* The low limit is halfway through memory registered by setup_memblock(). */
+	return dummy_physical_memory_base() + MEM_SIZE / 2;
 }
 
 static void usage(const char *prog)

@@ -198,6 +198,7 @@ int batadv_mesh_init(struct net_device *mesh_iface)
 	spin_lock_init(&bat_priv->tt.roam_list_lock);
 	spin_lock_init(&bat_priv->tt.last_changeset_lock);
 	spin_lock_init(&bat_priv->tt.commit_lock);
+	spin_lock_init(&bat_priv->tt.reserve_lock);
 	spin_lock_init(&bat_priv->gw.list_lock);
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	spin_lock_init(&bat_priv->mcast.mla_lock);

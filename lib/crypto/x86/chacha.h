@@ -11,46 +11,46 @@
 #include <linux/sizes.h>
 
 asmlinkage void chacha_block_xor_ssse3(const struct chacha_state *state,
-				       u8 *dst, const u8 *src,
-				       unsigned int len, int nrounds);
+				       u8 *dst, const u8 *src, size_t len,
+				       int nrounds);
 asmlinkage void chacha_4block_xor_ssse3(const struct chacha_state *state,
-					u8 *dst, const u8 *src,
-					unsigned int len, int nrounds);
+					u8 *dst, const u8 *src, size_t len,
+					int nrounds);
 asmlinkage void hchacha_block_ssse3(const struct chacha_state *state,
 				    u32 out[HCHACHA_OUT_WORDS], int nrounds);
 
 asmlinkage void chacha_2block_xor_avx2(const struct chacha_state *state,
-				       u8 *dst, const u8 *src,
-				       unsigned int len, int nrounds);
+				       u8 *dst, const u8 *src, size_t len,
+				       int nrounds);
 asmlinkage void chacha_4block_xor_avx2(const struct chacha_state *state,
-				       u8 *dst, const u8 *src,
-				       unsigned int len, int nrounds);
+				       u8 *dst, const u8 *src, size_t len,
+				       int nrounds);
 asmlinkage void chacha_8block_xor_avx2(const struct chacha_state *state,
-				       u8 *dst, const u8 *src,
-				       unsigned int len, int nrounds);
+				       u8 *dst, const u8 *src, size_t len,
+				       int nrounds);
 
 asmlinkage void chacha_2block_xor_avx512vl(const struct chacha_state *state,
-					   u8 *dst, const u8 *src,
-					   unsigned int len, int nrounds);
+					   u8 *dst, const u8 *src, size_t len,
+					   int nrounds);
 asmlinkage void chacha_4block_xor_avx512vl(const struct chacha_state *state,
-					   u8 *dst, const u8 *src,
-					   unsigned int len, int nrounds);
+					   u8 *dst, const u8 *src, size_t len,
+					   int nrounds);
 asmlinkage void chacha_8block_xor_avx512vl(const struct chacha_state *state,
-					   u8 *dst, const u8 *src,
-					   unsigned int len, int nrounds);
+					   u8 *dst, const u8 *src, size_t len,
+					   int nrounds);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(chacha_use_simd);
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(chacha_use_avx2);
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(chacha_use_avx512vl);
 
-static unsigned int chacha_advance(unsigned int len, unsigned int maxblocks)
+static size_t chacha_advance(size_t len, size_t maxblocks)
 {
 	len = min(len, maxblocks * CHACHA_BLOCK_SIZE);
 	return round_up(len, CHACHA_BLOCK_SIZE) / CHACHA_BLOCK_SIZE;
 }
 
 static void chacha_dosimd(struct chacha_state *state, u8 *dst, const u8 *src,
-			  unsigned int bytes, int nrounds)
+			  size_t bytes, int nrounds)
 {
 	if (static_branch_likely(&chacha_use_avx512vl)) {
 		while (bytes >= CHACHA_BLOCK_SIZE * 8) {
@@ -137,14 +137,14 @@ static void hchacha_block_arch(const struct chacha_state *state,
 }
 
 static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
-			      const u8 *src, unsigned int bytes, int nrounds)
+			      const u8 *src, size_t bytes, int nrounds)
 {
 	if (!static_branch_likely(&chacha_use_simd) ||
 	    bytes <= CHACHA_BLOCK_SIZE)
 		return chacha_crypt_generic(state, dst, src, bytes, nrounds);
 
 	do {
-		unsigned int todo = min_t(unsigned int, bytes, SZ_4K);
+		size_t todo = min(bytes, SZ_4K);
 
 		kernel_fpu_begin();
 		chacha_dosimd(state, dst, src, todo, nrounds);
@@ -165,8 +165,7 @@ static void chacha_mod_init_arch(void)
 	static_branch_enable(&chacha_use_simd);
 
 	if (boot_cpu_has(X86_FEATURE_AVX) &&
-	    boot_cpu_has(X86_FEATURE_AVX2) &&
-	    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL)) {
+	    boot_cpu_has(X86_FEATURE_AVX2)) {
 		static_branch_enable(&chacha_use_avx2);
 
 		if (boot_cpu_has(X86_FEATURE_AVX512VL) &&

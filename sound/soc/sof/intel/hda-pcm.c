@@ -151,6 +151,71 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 }
 EXPORT_SYMBOL_NS(hda_dsp_pcm_hw_params, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
+int hda_dsp_compr_hw_params(struct snd_sof_dev *sdev,
+			    struct snd_compr_stream *cstream,
+			    struct snd_compr_params *params,
+			    struct snd_sof_platform_stream_params *platform_params)
+{
+	struct hdac_stream *hstream = cstream->runtime->private_data;
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	struct snd_dma_buffer *dmab;
+	u32 bits, rate;
+	int bps;
+	int ret;
+
+	hstream->cstream = cstream;
+	dmab = cstream->runtime->dma_buffer_p;
+
+	/* Use correct format based on the used codec */
+	switch (params->codec.id) {
+	case SND_AUDIOCODEC_PCM:
+		bps = snd_pcm_format_physical_width((snd_pcm_format_t)params->codec.format);
+		break;
+	case SND_AUDIOCODEC_VORBIS:
+		bps = snd_pcm_format_physical_width(SNDRV_PCM_FORMAT_S16_LE);
+		break;
+	case SND_AUDIOCODEC_FLAC:
+	{
+		struct snd_dec_flac *dec_flac = &params->codec.options.flac_d;
+
+		if (dec_flac->sample_size == 16)
+			bps = snd_pcm_format_physical_width(SNDRV_PCM_FORMAT_S16_LE);
+		else
+			bps = snd_pcm_format_physical_width(SNDRV_PCM_FORMAT_S32_LE);
+		break;
+	}
+	default:
+		bps = snd_pcm_format_physical_width(SNDRV_PCM_FORMAT_S32_LE);
+	}
+
+	if (bps < 0)
+		return bps;
+	bits = hda_dsp_get_bits(sdev, bps);
+	rate = hda_dsp_get_mult_div(sdev, params->codec.sample_rate);
+
+	hstream->format_val = rate | bits | (params->codec.ch_out - 1);
+	hstream->bufsize = cstream->runtime->buffer_size;
+	hstream->period_bytes = cstream->runtime->fragment_size;
+	hstream->no_period_wakeup  = false;
+
+	/* params is not used so pass NULL */
+	dmab = cstream->runtime->dma_buffer_p;
+	ret = hda_dsp_stream_hw_params(sdev, hext_stream, dmab, NULL);
+	if (ret < 0) {
+		dev_err(sdev->dev, "%s: hdac prepare failed: %d\n", __func__, ret);
+		return ret;
+	}
+
+	if (hda)
+		platform_params->no_ipc_position = hda->no_ipc_position;
+
+	platform_params->stream_tag = hstream->stream_tag;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(hda_dsp_compr_hw_params, "SND_SOC_SOF_INTEL_HDA_COMMON");
+
 /* update SPIB register with appl position */
 int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
 {
@@ -184,6 +249,16 @@ int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 }
 EXPORT_SYMBOL_NS(hda_dsp_pcm_trigger, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
+int hda_dsp_compr_trigger(struct snd_sof_dev *sdev,
+			  struct snd_compr_stream *cstream, int cmd)
+{
+	struct hdac_stream *hstream = cstream->runtime->private_data;
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
+
+	return hda_dsp_stream_trigger(sdev, hext_stream, cmd);
+}
+EXPORT_SYMBOL_NS(hda_dsp_compr_trigger, "SND_SOC_SOF_INTEL_HDA_COMMON");
+
 snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 				      struct snd_pcm_substream *substream)
 {
@@ -215,6 +290,20 @@ found:
 	return pos;
 }
 EXPORT_SYMBOL_NS(hda_dsp_pcm_pointer, "SND_SOC_SOF_INTEL_HDA_COMMON");
+
+int hda_dsp_compr_pointer(struct snd_sof_dev *sdev, struct snd_compr_stream *cstream,
+			  struct snd_compr_tstamp64 *tstamp)
+{
+	struct hdac_stream *hstream = cstream->runtime->private_data;
+
+	/* hstream->curr_pos is updated when we receive the ioc */
+	tstamp->copied_total = hstream->curr_pos;
+
+	tstamp->byte_offset = hda_dsp_stream_get_position(hstream, cstream->direction, true);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(hda_dsp_compr_pointer, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream)
@@ -342,6 +431,41 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 }
 EXPORT_SYMBOL_NS(hda_dsp_pcm_open, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
+int hda_dsp_compr_open(struct snd_sof_dev *sdev, struct snd_compr_stream *cstream)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *scomp = sdev->component;
+	struct hdac_ext_stream *dsp_stream;
+	struct snd_sof_pcm *spcm;
+	int direction = cstream->direction;
+
+	spcm = snd_sof_find_spcm_dai(scomp, rtd);
+	if (!spcm) {
+		dev_err(sdev->dev, "%s: can't find PCM with DAI ID %d\n",
+			__func__, rtd->dai_link->id);
+		return -EINVAL;
+	}
+
+	dsp_stream = hda_dsp_stream_get(sdev, direction, 0);
+	if (!dsp_stream) {
+		dev_err(sdev->dev, "%s: no stream available\n", __func__);
+		return -ENODEV;
+	}
+
+	/* binding compr stream to hda stream */
+	cstream->runtime->private_data = &dsp_stream->hstream;
+
+	/*
+	 * Reset the llp cache values (they are used for LLP compensation in
+	 * case the counter is not reset)
+	 */
+	dsp_stream->pplcllpl = 0;
+	dsp_stream->pplcllpu = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(hda_dsp_compr_open, "SND_SOC_SOF_INTEL_HDA_COMMON");
+
 int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 		      struct snd_pcm_substream *substream)
 {
@@ -361,3 +485,21 @@ int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 	return 0;
 }
 EXPORT_SYMBOL_NS(hda_dsp_pcm_close, "SND_SOC_SOF_INTEL_HDA_COMMON");
+
+int hda_dsp_compr_close(struct snd_sof_dev *sdev, struct snd_compr_stream *cstream)
+{
+	struct hdac_stream *hstream = cstream->runtime->private_data;
+	int direction = cstream->direction;
+	int ret;
+
+	ret = hda_dsp_stream_put(sdev, direction, hstream->stream_tag);
+	if (ret)
+		return -ENODEV;
+
+	/* unbinding compress stream to hda stream */
+	hstream->cstream = NULL;
+	cstream->runtime->private_data = NULL;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(hda_dsp_compr_close, "SND_SOC_SOF_INTEL_HDA_COMMON");

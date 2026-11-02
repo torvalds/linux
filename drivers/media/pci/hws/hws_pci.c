@@ -33,8 +33,8 @@ static unsigned long long hws_elapsed_us(u64 start_ns)
 }
 
 /* register layout inside HWS_REG_DEVICE_INFO */
-#define DEVINFO_VER GENMASK(7, 0)
-#define DEVINFO_SUBVER GENMASK(15, 8)
+#define DEVINFO_VER GENMASK(15, 8)
+#define DEVINFO_SUBVER GENMASK(23, 16)
 #define DEVINFO_YV12 GENMASK(31, 28)
 #define DEVINFO_HWKEY GENMASK(27, 24)
 #define DEVINFO_PORTID GENMASK(25, 24) /* low 2 bits of HW-key */
@@ -441,7 +441,7 @@ static int hws_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	hws_init_video_sys(hws, false);
 
 	/* 5) Init channels (video state, locks, vb2, ctrls) */
-	for (i = 0; i < hws->max_channels; i++) {
+	for (i = 0; i < hws->cur_max_video_ch; i++) {
 		ret = hws_video_init_channel(hws, i);
 		if (ret) {
 			dev_err(&pdev->dev, "video channel init failed (ch=%d)\n", i);

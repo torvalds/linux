@@ -115,11 +115,23 @@ struct btrfs_delayed_item {
 };
 
 void btrfs_init_delayed_root(struct btrfs_delayed_root *delayed_root);
-int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
-				   const char *name, int name_len,
-				   struct btrfs_inode *dir,
-				   const struct btrfs_disk_key *disk_key, u8 flags,
-				   u64 index);
+
+struct btrfs_dir_index_prealloc {
+	struct btrfs_delayed_node *node;
+	struct btrfs_ref_tracker tracker;
+	struct btrfs_delayed_item *item;
+};
+
+struct btrfs_dir_index_prealloc *btrfs_prealloc_delayed_dir_index(struct btrfs_inode *dir,
+								  const char *name,
+								  int name_len);
+void btrfs_free_delayed_dir_index_prealloc(struct btrfs_trans_handle *trans,
+					   struct btrfs_dir_index_prealloc *prealloc);
+int btrfs_insert_delayed_dir_index_prealloc(struct btrfs_trans_handle *trans,
+					    struct btrfs_inode *dir,
+					    struct btrfs_dir_index_prealloc *prealloc,
+					    const struct btrfs_disk_key *disk_key,
+					    u8 flags, u64 index);
 
 int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 				   struct btrfs_inode *dir, u64 index);

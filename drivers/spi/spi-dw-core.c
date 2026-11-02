@@ -32,6 +32,22 @@ struct dw_spi_chip_data {
 	u32 rx_sample_dly;	/* RX sample delay */
 };
 
+/* Slave spi_transfer/spi_mem_op related */
+struct dw_spi_cfg {
+	u8 tmode;
+	u8 dfs;
+	u32 ndf;
+	u32 freq;
+	u8 spi_frf;
+};
+
+struct dw_spi_enh_cfg {
+	u8 wait_c;
+	u8 inst_l;
+	u8 addr_l;
+	u8 trans_t;
+};
+
 #ifdef CONFIG_DEBUG_FS
 
 #define DW_SPI_DBGFS_REG(_name, _off)	\
@@ -132,10 +148,11 @@ static inline u32 dw_spi_rx_max(struct dw_spi *dws)
 	return min_t(u32, dws->rx_len, dw_readl(dws, DW_SPI_RXFLR));
 }
 
-static void dw_writer(struct dw_spi *dws)
+static u32 dw_writer(struct dw_spi *dws)
 {
 	u32 max = dw_spi_tx_max(dws);
 	u32 txw = 0;
+	u32 tx = 0;
 
 	while (max--) {
 		if (dws->tx) {
@@ -150,13 +167,16 @@ static void dw_writer(struct dw_spi *dws)
 		}
 		dw_write_io_reg(dws, DW_SPI_DR, txw);
 		--dws->tx_len;
+		++tx;
 	}
+	return tx;
 }
 
-static void dw_reader(struct dw_spi *dws)
+static u32 dw_reader(struct dw_spi *dws)
 {
 	u32 max = dw_spi_rx_max(dws);
 	u32 rxw;
+	u32 rx = 0;
 
 	while (max--) {
 		rxw = dw_read_io_reg(dws, DW_SPI_DR);
@@ -171,7 +191,9 @@ static void dw_reader(struct dw_spi *dws)
 			dws->rx += dws->n_bytes;
 		}
 		--dws->rx_len;
+		++rx;
 	}
+	return rx;
 }
 
 int dw_spi_check_status(struct dw_spi *dws, bool raw)
@@ -210,9 +232,55 @@ int dw_spi_check_status(struct dw_spi *dws, bool raw)
 }
 EXPORT_SYMBOL_NS_GPL(dw_spi_check_status, "SPI_DW_CORE");
 
+static irqreturn_t dw_spi_irq_thread_fn(int irq, void *dev_id)
+{
+	struct spi_controller *ctlr = dev_id;
+	struct dw_spi *dws = spi_controller_get_devdata(ctlr);
+	u32 rx, tx, imask, mask = 0;
+	bool finalize = false;
+
+	do {
+		/*
+		 * Read data from the Rx FIFO every time we've got a chance executing
+		 * this method. If there is nothing left to receive, terminate the
+		 * procedure. Otherwise adjust the Rx FIFO Threshold level if it's a
+		 * final stage of the transfer. By doing so we'll get the next IRQ
+		 * right when the leftover incoming data is received.
+		 */
+		rx = dw_reader(dws);
+		if (!dws->rx_len) {
+			mask |= 0xff;
+			finalize = true;
+		} else if (dws->rx_len <= dw_readl(dws, DW_SPI_RXFTLR)) {
+			dw_writel(dws, DW_SPI_RXFTLR, dws->rx_len - 1);
+		}
+
+		/*
+		 * Send data out as much as possible. The Tx FIFO Empty IRQ will be
+		 * disabled after the data transmission is finished so not to
+		 * have the TXE IRQ flood at the final stage of the transfer.
+		 */
+		tx = dw_writer(dws);
+		if (!dws->tx_len)
+			mask |= DW_SPI_INT_TXEI;
+		cond_resched();
+	} while (rx != 0 || tx != 0);
+
+	imask = DW_SPI_INT_TXEI | DW_SPI_INT_TXOI |
+		DW_SPI_INT_RXUI | DW_SPI_INT_RXOI | DW_SPI_INT_RXFI;
+	imask &= ~mask;
+	dw_spi_umask_intr(dws, imask);
+
+	if (finalize)
+		spi_finalize_current_transfer(dws->ctlr);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 {
 	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
+	bool finalize = false;
 
 	if (dw_spi_check_status(dws, false)) {
 		spi_finalize_current_transfer(dws->ctlr);
@@ -229,6 +297,7 @@ static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 	dw_reader(dws);
 	if (!dws->rx_len) {
 		dw_spi_mask_intr(dws, 0xff);
+		finalize = true;
 		spi_finalize_current_transfer(dws->ctlr);
 	} else if (dws->rx_len <= dw_readl(dws, DW_SPI_RXFTLR)) {
 		dw_writel(dws, DW_SPI_RXFTLR, dws->rx_len - 1);
@@ -245,7 +314,14 @@ static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 			dw_spi_mask_intr(dws, DW_SPI_INT_TXEI);
 	}
 
-	return IRQ_HANDLED;
+	if (spi_controller_is_target(dws->ctlr) || finalize ||
+		!dws->rx_len || !dws->tx_len ||
+		!spi_get_csgpiod(dws->ctlr->cur_msg->spi, 0)) {
+		return IRQ_HANDLED;
+	}
+
+	dw_spi_mask_intr(dws, 0xff);
+	return IRQ_WAKE_THREAD;
 }
 
 static irqreturn_t dw_spi_enh_handler(struct dw_spi *dws)
@@ -275,20 +351,13 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 {
 	struct spi_controller *ctlr = dev_id;
 	struct dw_spi *dws = spi_controller_get_devdata(ctlr);
-	u16 irq_status = dw_readl(dws, DW_SPI_ISR) & DW_SPI_INT_MASK;
+	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
 
 	if (!irq_status)
 		return IRQ_NONE;
 
-	if (!dws->transfer_handler ||
-	    (!ctlr->cur_msg && dws->transfer_handler == dw_spi_transfer_handler)) {
+	if (!ctlr->cur_msg && dws->transfer_handler != dw_spi_enh_handler) {
 		dw_spi_mask_intr(dws, 0xff);
-		return IRQ_HANDLED;
-	}
-	if (dws->transfer_handler == dw_spi_enh_handler &&
-	    !dws->rx_len && !dws->tx_len) {
-		dw_spi_mask_intr(dws, 0xff);
-		spi_finalize_current_transfer(ctlr);
 		return IRQ_HANDLED;
 	}
 
@@ -342,8 +411,8 @@ static u32 dw_spi_prepare_cr0(struct dw_spi *dws, struct spi_device *spi)
 	return cr0;
 }
 
-void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
-			  struct dw_spi_cfg *cfg, struct dw_spi_enh_cfg *enh_cfg)
+static void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
+				 struct dw_spi_cfg *cfg, struct dw_spi_enh_cfg *enh_cfg)
 {
 	struct dw_spi_chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0 = chip->cr0;
@@ -406,7 +475,6 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 		dw_writel(dws, DW_SPI_SPI_CTRLR0, cr0);
 	}
 }
-EXPORT_SYMBOL_NS_GPL(dw_spi_update_config, "SPI_DW_CORE");
 
 static void dw_spi_irq_setup(struct dw_spi *dws)
 {
@@ -937,6 +1005,15 @@ static void dw_spi_enh_write_cmd_addr(struct dw_spi *dws, const struct spi_mem_o
 
 		dw_spi_set_cs(mem->spi, false);
 	}
+
+	/*
+	 * FIXME: The exact reason for this delay is not fully understood,
+	 * but empirical testing shows it significantly improves the stability
+	 * of read/write operations. Without this delay, occasional transfer
+	 * errors or timeouts may occur under certain conditions.
+	 * Keeping it as a safeguard based on practical validation.
+	 */
+	udelay(5);
 }
 
 static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
@@ -947,6 +1024,8 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 	struct dw_spi_cfg cfg = {0};
 	unsigned long long ms;
 	int ret;
+
+	dws->dma_mapped = false;
 
 	switch (op->data.buswidth) {
 	case 0:
@@ -971,10 +1050,13 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 	cfg.dfs = 8;
 	cfg.freq = clamp(op->max_freq, 0U, dws->max_mem_freq);
 	cfg.ndf = op->data.nbytes;
-	if (op->data.dir == SPI_MEM_DATA_IN)
+	if (op->data.dir == SPI_MEM_DATA_IN) {
 		cfg.tmode = DW_SPI_CTRLR0_TMOD_RO;
-	else
+		dws->tx_dir = false;
+	} else {
 		cfg.tmode = DW_SPI_CTRLR0_TMOD_TO;
+		dws->tx_dir = true;
+	}
 
 	if (op->data.buswidth == op->addr.buswidth &&
 	    op->data.buswidth == op->cmd.buswidth)
@@ -1010,47 +1092,61 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 		}
 	}
 
-	dw_spi_enh_write_cmd_addr(dws, op, mem);
-
-	/*
-	 * FIXME: The exact reason for this delay is not fully understood,
-	 * but empirical testing shows it significantly improves the stability
-	 * of read/write operations. Without this delay, occasional transfer
-	 * errors or timeouts may occur under certain conditions.
-	 * Keeping it as a safeguard based on practical validation.
-	 */
-	udelay(5);
-
-	dw_spi_enh_irq_setup(dws);
-
-	/* Use timeout calculation from spi_transfer_wait() */
-	ms = 8LL * MSEC_PER_SEC * (dws->rx_len ? dws->rx_len : dws->tx_len);
-	do_div(ms, dws->current_freq);
-
-	/*
-	 * Increase it twice and add 200 ms tolerance, use
-	 * predefined maximum in case of overflow.
-	 */
-	ms += ms + 200;
-	if (ms > UINT_MAX)
-		ms = UINT_MAX;
-
-	ms = wait_for_completion_timeout(&ctlr->xfer_completion,
-					 msecs_to_jiffies(ms));
-	if (ms == 0) {
-		dw_spi_mask_intr(dws, 0xff);
-		synchronize_irq(dws->irq);
-		dws->rx = NULL;
-		dws->tx = NULL;
-		dws->rx_len = 0;
-		dws->tx_len = 0;
-		dw_spi_stop_mem_op(dws, mem->spi);
-		return -EIO;
+	if (dws->dma_nr_chans && dws->dma_ops->dma_enh_mem_get_chan &&
+	    op->data.nbytes > dws->fifo_len) {
+		ret = dws->dma_ops->dma_enh_mem_get_chan(ctlr->dev.parent, dws);
+		if (ret) {
+			/* fall back to the PIO/IRQ path */
+			dev_dbg(&ctlr->dev, "DMA enh mem channel unavailable (%d)\n", ret);
+		} else if (dws->dma_ops->can_dma_enh_mem(ctlr)) {
+			ret = dws->dma_ops->dma_enh_mem_setup(dws);
+			if (ret)
+				dev_err(&ctlr->dev, "DMA enh mem setup failed (%d)\n", ret);
+			else
+				dws->dma_mapped = true;
+		}
 	}
 
-	ret = dw_spi_wait_mem_op_done(dws);
+	if (dws->dma_mapped) {
+		dw_spi_enh_write_cmd_addr(dws, op, mem);
 
-	dw_spi_stop_mem_op(dws, mem->spi);
+		ret = dws->dma_ops->dma_enh_mem_transfer(mem, op);
+
+		dw_spi_stop_mem_op(dws, mem->spi);
+	} else {
+		dw_spi_enh_write_cmd_addr(dws, op, mem);
+
+		dw_spi_enh_irq_setup(dws);
+
+		/* Use timeout calculation from spi_transfer_wait() */
+		ms = 8LL * MSEC_PER_SEC * (dws->rx_len ? dws->rx_len : dws->tx_len);
+		do_div(ms, dws->current_freq);
+
+		/*
+		 * Increase it twice and add 200 ms tolerance, use
+		 * predefined maximum in case of overflow.
+		 */
+		ms += ms + 200;
+		if (ms > UINT_MAX)
+			ms = UINT_MAX;
+
+		ms = wait_for_completion_timeout(&ctlr->xfer_completion,
+						 msecs_to_jiffies(ms));
+		if (ms == 0) {
+			dw_spi_mask_intr(dws, 0xff);
+			synchronize_irq(dws->irq);
+			dws->rx = NULL;
+			dws->tx = NULL;
+			dws->rx_len = 0;
+			dws->tx_len = 0;
+			dw_spi_stop_mem_op(dws, mem->spi);
+			return -EIO;
+		}
+
+		ret = dw_spi_wait_mem_op_done(dws);
+
+		dw_spi_stop_mem_op(dws, mem->spi);
+	}
 
 	return ret;
 }
@@ -1104,12 +1200,13 @@ static int dw_spi_setup(struct spi_device *spi)
 		if (!chip)
 			return -ENOMEM;
 		spi_set_ctldata(spi, chip);
-		/* Get specific / default rx-sample-delay */
-		if (device_property_read_u32(&spi->dev,
-					     "rx-sample-delay-ns",
-					     &rx_sample_dly_ns) != 0)
-			/* Use default controller value */
-			rx_sample_dly_ns = dws->def_rx_sample_dly_ns;
+		/*
+		 * Use the per-device value the core parsed from the peripheral
+		 * node, and fall back to the controller-wide default when the
+		 * device does not ask for a delay of its own.
+		 */
+		rx_sample_dly_ns = spi->rx_sample_delay_ns ?:
+				   dws->def_rx_sample_dly_ns;
 		chip->rx_sample_dly = DIV_ROUND_CLOSEST(rx_sample_dly_ns,
 							NSEC_PER_SEC /
 							dws->max_freq);
@@ -1312,8 +1409,8 @@ int dw_spi_add_controller(struct device *dev, struct dw_spi *dws)
 	/* Basic HW init */
 	dw_spi_hw_init(dev, dws);
 
-	ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED, dev_name(dev),
-			  ctlr);
+	ret = request_threaded_irq(dws->irq, dw_spi_irq, dw_spi_irq_thread_fn,
+				   IRQF_SHARED, dev_name(dev), ctlr);
 	if (ret < 0 && ret != -ENOTCONN) {
 		dev_err(dev, "can not request IRQ\n");
 		goto err_free_ctlr;
@@ -1360,6 +1457,9 @@ int dw_spi_add_controller(struct device *dev, struct dw_spi *dws)
 			goto err_free_irq;
 		} else if (ret) {
 			dev_warn(dev, "DMA init failed\n");
+		} else if (dws->dma_nr_chans == 1) {
+			/* Full-duplex DMA transfers need both channels */
+			dev_info(dev, "Single DMA channel, full-duplex DMA disabled\n");
 		} else {
 			ctlr->can_dma = dws->dma_ops->can_dma;
 			ctlr->flags |= SPI_CONTROLLER_MUST_TX;

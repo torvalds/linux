@@ -11,3 +11,63 @@ Description:
 
 		Access: Read/Write
 		Valid values: enabled/disabled
+
+What:		/sys/bus/pci/drivers/pcie_mp2_amd/*/in_bag_state
+Date:		August 2026
+Contact:	Basavaraj.Natikar@amd.com
+Description:
+		Operating-mode telemetry reported by the SRA sensor that
+		indicates whether the device is detected inside a bag.
+
+		Access: Read only
+		Valid values: unsigned integer
+
+What:		/sys/bus/pci/drivers/pcie_mp2_amd/*/out_bag_state
+Date:		August 2026
+Contact:	Basavaraj.Natikar@amd.com
+Description:
+		Operating-mode telemetry reported by the SRA sensor that
+		indicates whether the device is detected outside a bag.
+
+		Access: Read only
+		Valid values: unsigned integer
+
+What:		/sys/bus/pci/drivers/pcie_mp2_amd/*/on_table_state
+Date:		August 2026
+Contact:	Basavaraj.Natikar@amd.com
+Description:
+		Operating-mode telemetry reported by the SRA sensor that
+		indicates whether the device is placed on a table or on a lap.
+
+		Access: Read only
+		Valid values: unsigned integer
+
+What:		/sys/bus/pci/drivers/pcie_mp2_amd/*/hinge_angle
+Date:		August 2026
+Contact:	Basavaraj.Natikar@amd.com
+Description:
+		Operating-mode telemetry reported by the SRA sensor that
+		reports the hinge angle of the device in degrees.
+
+		Access: Read only
+		Valid values: unsigned integer (degrees)
+
+What:		/sys/bus/pci/drivers/pcie_mp2_amd/*/lid_status
+Date:		August 2026
+Contact:	Basavaraj.Natikar@amd.com
+Description:
+		Operating-mode telemetry reported by the SRA sensor that
+		indicates whether the device lid is open or closed.
+
+		Access: Read only
+		Valid values: unsigned integer
+
+What:		/sys/bus/pci/drivers/pcie_mp2_amd/*/device_mode
+Date:		August 2026
+Contact:	Basavaraj.Natikar@amd.com
+Description:
+		Operating-mode telemetry reported by the SRA sensor that
+		reports the platform/device mode.
+
+		Access: Read only
+		Valid values: unsigned integer

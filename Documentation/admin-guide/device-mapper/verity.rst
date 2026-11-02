@@ -163,6 +163,11 @@ root_hash_sig_key_desc <key_description>
     also gain new certificates at run time if they are signed by a certificate
     already in the secondary trusted keyring.
 
+    Whether a signature is required for every dm-verity device is controlled by
+    the dm_verity.require_signatures parameter which defaults to off. Setting
+    DM_VERITY_VERIFY_ROOTHASH_SIG_FORCE makes it default to on in which case it
+    can no longer be turned off.
+
 try_verify_in_tasklet
     If verity hashes are in cache and the IO size does not exceed the limit,
     verify data blocks in bottom half instead of workqueue. This option can

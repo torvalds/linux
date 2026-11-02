@@ -969,7 +969,8 @@ int audio_graph2_link_c2c(struct simple_util_priv *priv,
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct device_node *port0 = lnk;
 	struct device_node *ports __free(device_node) = port_to_ports(port0);
-	struct device_node *port1 __free(device_node) = of_graph_get_next_port(ports, port0);
+	struct device_node *port1 __free(device_node) =
+		of_graph_get_next_port(ports, of_node_get(port0));
 	u32 val = 0;
 	int ret = -EINVAL;
 
@@ -1310,6 +1311,7 @@ int audio_graph2_parse_of(struct simple_util_priv *priv, struct device *dev,
 		goto end;
 
 	card->probe	= graph_util_card_probe;
+	card->remove	= graph_util_card_remove;
 	card->owner	= THIS_MODULE;
 	card->dev	= dev;
 

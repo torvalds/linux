@@ -59,7 +59,7 @@ static void test_feature_msr(u32 msr)
 	 * but initializes the vCPU's revision ID to an arbitrary value.
 	 */
 	if (msr == MSR_IA32_UCODE_REV)
-		reset_value = host_cpu_is_intel ? 0x100000000ULL : 0x01000065;
+		reset_value = host_cpu_is_intel_compatible ? 0x100000000ULL : 0x01000065;
 
 	/*
 	 * For quirked MSRs, KVM's ABI is to initialize the vCPU's value to the

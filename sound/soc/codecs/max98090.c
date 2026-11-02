@@ -2382,6 +2382,29 @@ static int max98090_set_jack(struct snd_soc_component *component,
 #define MAX98090_RATES SNDRV_PCM_RATE_8000_96000
 #define MAX98090_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
+static const u64 max98090_selectable_formats[] = {
+	/*
+	 * Non RIGHT_J formats doesn't have 24bit support.
+	 * priority is RIGHT_J > I2S/LEFT_J/DSP_A
+	 * see
+	 *	max98090_dai_startup()
+	 */
+	/* 1st priority */
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF,
+	/* 2nd priority */
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF,
+};
+
 static const struct snd_soc_dai_ops max98090_dai_ops = {
 	.startup = max98090_dai_startup,
 	.set_sysclk = max98090_dai_set_sysclk,
@@ -2390,6 +2413,8 @@ static const struct snd_soc_dai_ops max98090_dai_ops = {
 	.hw_params = max98090_dai_hw_params,
 	.mute_stream = max98090_dai_mute,
 	.trigger = max98090_dai_trigger,
+	.auto_selectable_formats = max98090_selectable_formats,
+	.num_auto_selectable_formats = ARRAY_SIZE(max98090_selectable_formats),
 	.no_capture_mute = 1,
 };
 
@@ -2422,11 +2447,6 @@ static int max98090_probe(struct snd_soc_component *component)
 	unsigned int micbias;
 
 	dev_dbg(component->dev, "max98090_probe\n");
-
-	max98090->mclk = devm_clk_get(component->dev, "mclk");
-	if (IS_ERR(max98090->mclk))
-		if (PTR_ERR(max98090->mclk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
 
 	max98090->component = component;
 
@@ -2607,6 +2627,11 @@ static int max98090_i2c_probe(struct i2c_client *i2c)
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
 		goto err_enable;
 	}
+
+	max98090->mclk = devm_clk_get(&i2c->dev, "mclk");
+	if (IS_ERR(max98090->mclk))
+		if (PTR_ERR(max98090->mclk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
 
 	ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL,
 		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,

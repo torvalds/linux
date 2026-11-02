@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/sysinfo.h>
 
 #include "common.h"
 
@@ -63,10 +62,21 @@ static void unset_signals(struct common_params *params)
 int
 common_apply_config(struct osnoise_tool *tool, struct common_params *params)
 {
-	int retval, i;
+	int retval, i, tracer_cpus;
 
 	if (!params->sleep_time)
 		params->sleep_time = 1;
+
+	tracer_cpus = osnoise_get_cpu_count();
+	if (tracer_cpus < 0) {
+		err_msg("Failed to get tracer cpu count from osnoise/cpus\n");
+		goto out_err;
+	}
+	if (tracer_cpus != nr_cpus) {
+		err_msg("Kernel reports %d cpus but rtla sees %d\n",
+			tracer_cpus, nr_cpus);
+		goto out_err;
+	}
 
 	retval = osnoise_set_cpus(tool->context, params->cpus ? params->cpus : "all");
 	if (retval) {
@@ -155,7 +165,20 @@ int run_tool(struct tool_ops *ops, int argc, char *argv[])
 	bool stopped;
 	int retval;
 
-	nr_cpus = get_nprocs_conf();
+	nr_cpus = get_possible_cpus();
+	if (nr_cpus == -1) {
+		err_msg("Could not read number of possible cpus\n");
+		goto out_exit;
+	}
+	if (nr_cpus == -2) {
+		err_msg("Could not parse number of possible cpus\n");
+		goto out_exit;
+	}
+	if (nr_cpus == -3) {
+		err_msg("Unsupported non-contiguous or non-zero-based CPU topology\n");
+		goto out_exit;
+	}
+
 	params = ops->parse_args(argc, argv);
 	if (!params)
 		exit(1);
@@ -205,7 +228,7 @@ int run_tool(struct tool_ops *ops, int argc, char *argv[])
 
 	if (params->threshold_actions.present[ACTION_TRACE_OUTPUT] ||
 	    params->end_actions.present[ACTION_TRACE_OUTPUT]) {
-		tool->record = osnoise_init_trace_tool(ops->tracer);
+		tool->record = osnoise_init_trace_tool(params, ops->tracer);
 		if (!tool->record) {
 			err_msg("Failed to enable the trace instance\n");
 			goto out_free;

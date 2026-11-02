@@ -879,7 +879,7 @@ static void dm_txpower_track_cb_therm(struct ieee80211_hw *hw)
 		{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 25, 25}
 	};
 
-	/*Initilization (7 steps in total) */
+	/* Initialization (7 steps in total) */
 	rtlpriv->dm.txpower_trackinginit = true;
 	rtl_dbg(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 		"%s\n", __func__);

@@ -19,7 +19,6 @@ struct aw88399_hda {
 	struct gpio_desc *reset_gpio;
 	struct aw_device *aw_dev;
 	struct aw88399 *core;
-	bool bsts_unreliable;
 
 	const char *acpi_subsystem_id;
 	int index;

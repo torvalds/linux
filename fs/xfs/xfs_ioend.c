@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2016-2025 Christoph Hellwig.
+ * Copyright (c) 2016-2026 Christoph Hellwig.
  * All Rights Reserved.
  */
 #include "xfs_platform.h"
@@ -16,25 +16,184 @@
 #include "xfs_reflink.h"
 #include "xfs_zone_alloc.h"
 #include "xfs_ioend.h"
+#include "xfs_error.h"
+#include "xfs_errortag.h"
+#include <linux/bio-integrity.h>
 
 static void
-xfs_ioend_put_open_zones(
+xfs_dio_bounce_end_io(
+	struct bio		*bio)
+{
+	struct iomap_ioend	*ioend = iomap_ioend_from_bio(bio);
+	int			error = blk_status_to_errno(bio->bi_status);
+	struct bio		*orig_bio = bio->bi_private;
+
+	if ((ioend->io_flags & IOMAP_IOEND_INTEGRITY) && !bio->bi_status)
+		error = iomap_ioend_integrity_verify(ioend);
+	iomap_bounce_read_end_io(ioend, orig_bio, error);
+}
+
+static void
+xfs_bounce_submit_ioend(
 	struct iomap_ioend	*ioend)
 {
-	struct iomap_ioend *tmp;
+	if (ioend->io_flags & IOMAP_IOEND_INTEGRITY)
+		fs_bio_integrity_alloc(&ioend->io_bio);
+	ioend->io_bio.bi_end_io = xfs_dio_bounce_end_io;
+	bio_set_flag(&ioend->io_bio, BIO_COMPLETE_IN_TASK);
+	submit_bio(&ioend->io_bio);
+}
+
+static void
+xfs_end_bio_bounced(
+	struct bio		*bio)
+{
+	/*
+	 * Just complete the original ioends as all verification is done by the
+	 * end_io handlers for the clone bio(s).
+	 */
+	iomap_finish_ioends(iomap_ioend_from_bio(bio),
+			blk_status_to_errno(bio->bi_status));
+}
+
+static void
+xfs_read_bounce_and_resubmit(
+	struct iomap_ioend	*ioend)
+{
+	struct bio		*bio = &ioend->io_bio;
+	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
+	unsigned int		nofs_flag = memalloc_nofs_save();
+
+	trace_xfs_bounce_reread(ip, ioend->io_offset, ioend->io_size);
 
 	/*
-	 * Put the open zone for all ioends merged into this one (if any).
+	 * Free the bio integrity data for the original bio, as we'll allocate
+	 * a new one for each sub-I/O, which could deadlock if we keep the
+	 * integrity data for the original bio around.
 	 */
-	list_for_each_entry(tmp, &ioend->io_list, io_list)
-		xfs_open_zone_put(tmp->io_private);
+	if (bio_integrity(bio))
+		fs_bio_integrity_free(bio);
 
 	/*
-	 * The main ioend might not have an open zone if the submission failed
-	 * before xfs_zone_alloc_and_submit got called.
+	 * Resubmit the bio through the iomap bounce machinery.  The original
+	 * bio itself is not resubmitted to the block layer, but just used to
+	 * track I/O completion of the cloned bios.
 	 */
-	if (ioend->io_private)
-		xfs_open_zone_put(ioend->io_private);
+	bio_prepare_reissue(bio, xfs_inode_buftarg(ip)->bt_bdev);
+	bio->bi_iter = (struct bvec_iter) {
+		.bi_sector	= ioend->io_sector,
+		.bi_size	= ioend->io_size,
+		.bi_offset	= ioend->io_bvec_offset,
+	};
+	bio->bi_end_io = xfs_end_bio_bounced;
+	iomap_bounce_read(ioend, bdev_logical_block_size(bio->bi_bdev),
+			xfs_bounce_submit_ioend);
+	memalloc_nofs_restore(nofs_flag);
+}
+
+static void
+xfs_end_io_read(
+	struct bio		*bio)
+{
+	struct iomap_ioend	*ioend = iomap_ioend_from_bio(bio);
+	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	int			error = blk_status_to_errno(bio->bi_status);
+
+	if (!error && (ioend->io_flags & IOMAP_IOEND_INTEGRITY)) {
+		error = iomap_ioend_integrity_verify(ioend);
+		if ((ioend->io_flags & IOMAP_IOEND_DIRECT) &&
+		    READ_ONCE(mp->m_read_bounce) == XFS_READ_BOUNCE_LAZY) {
+			/*
+			 * We only really need to retry for guard tag errors,
+			 * but right now we can't distinguish them from other
+			 * (i.e, reftag) errors.
+			 */
+			if (error ||
+			    XFS_TEST_ERROR(mp, XFS_ERRTAG_BOUNCE_REREAD)) {
+				xfs_read_bounce_and_resubmit(ioend);
+				return;
+			}
+		}
+	}
+
+	iomap_finish_ioends(ioend, error);
+}
+
+void
+xfs_ioend_submit_read(
+	struct inode		*inode,
+	struct bio		*bio,
+	loff_t			file_offset,
+	u16			ioend_flags)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	struct iomap_ioend	*ioend;
+
+	ioend = iomap_init_ioend(inode, bio, file_offset, ioend_flags);
+	if ((ioend_flags & IOMAP_IOEND_DIRECT) &&
+	    READ_ONCE(mp->m_read_bounce) == XFS_READ_BOUNCE_ALWAYS) {
+		iomap_bounce_read(ioend, bdev_logical_block_size(bio->bi_bdev),
+				xfs_bounce_submit_ioend);
+		return;
+	}
+
+	if (ioend_flags & IOMAP_IOEND_INTEGRITY)
+		fs_bio_integrity_alloc(bio);
+	bio->bi_end_io = xfs_end_io_read;
+	bio_set_flag(bio, BIO_COMPLETE_IN_TASK);
+	submit_bio(bio);
+}
+
+static void
+xfs_end_ioend_write_zoned(
+	struct iomap_ioend	*ioend)
+{
+	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
+	struct xfs_open_zone	*oz = ioend->io_private;
+	struct iomap_ioend	*tmp;
+	int			error = -EIO;
+
+	ASSERT(!(ioend->io_flags & IOMAP_IOEND_SHARED));
+
+	if (xfs_is_shutdown(ip->i_mount))
+		goto done;
+
+	/*
+	 * Zoned writes update the in-core open zone accounting before I/O
+	 * submission.  A failed write leaves that state inconsistent, so shut
+	 * down the filesystem instead of letting later writers wait forever for
+	 * open zone space to become available.
+	 */
+	error = blk_status_to_errno(ioend->io_bio.bi_status);
+	if (unlikely(error)) {
+		xfs_force_shutdown(ip->i_mount, SHUTDOWN_META_IO_ERROR);
+		goto done;
+	}
+
+	error = xfs_zoned_end_io(ip, ioend->io_offset, ioend->io_size,
+			ioend->io_sector, oz, NULLFSBLOCK);
+	if (error)
+		goto done;
+
+	if (!(ioend->io_flags & IOMAP_IOEND_DIRECT) &&
+	    xfs_ioend_is_append(ioend))
+		error = xfs_setfilesize(ip, ioend->io_offset, ioend->io_size);
+done:
+	/*
+	 * Put the open zone references for all ioends merged into this one in
+	 * addition to the main one they were merged into.  If the submission
+	 * failed before xfs_zone_alloc_and_submit got called, there is no open
+	 * zone and at least in theory that could also happen for merged ioends.
+	 */
+	list_for_each_entry(tmp, &ioend->io_list, io_list) {
+		if (tmp->io_private)
+			xfs_open_zone_put(tmp->io_private);
+	}
+	if (oz)
+		xfs_open_zone_put(oz);
+	iomap_finish_ioends(ioend, error);
 }
 
 static void
@@ -43,18 +202,9 @@ xfs_end_ioend_write(
 {
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	bool			is_zoned = xfs_is_zoned_inode(ip);
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
-	unsigned int		nofs_flag;
 	int			error;
-
-	/*
-	 * We can allocate memory here while doing writeback on behalf of
-	 * memory reclaim.  To avoid memory allocation deadlocks set the
-	 * task-wide nofs context for the following operations.
-	 */
-	nofs_flag = memalloc_nofs_save();
 
 	/*
 	 * Just clean up the in-memory structures if the fs has been shut down.
@@ -73,19 +223,7 @@ xfs_end_ioend_write(
 	 */
 	error = blk_status_to_errno(ioend->io_bio.bi_status);
 	if (unlikely(error)) {
-		/*
-		 * Zoned writes update the in-core open zone accounting before
-		 * I/O submission.  A failed write leaves that state
-		 * inconsistent, so shut down the filesystem instead of letting
-		 * later writers wait forever for open zone space to become
-		 * available.
-		 */
-		if (is_zoned) {
-			xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
-			goto done;
-		}
 		if (ioend->io_flags & IOMAP_IOEND_SHARED) {
-			ASSERT(!is_zoned);
 			xfs_reflink_cancel_cow_range(ip, offset, size, true);
 			xfs_bmap_punch_delalloc_range(ip, XFS_DATA_FORK, offset,
 					offset + size, NULL);
@@ -96,10 +234,7 @@ xfs_end_ioend_write(
 	/*
 	 * Success: commit the COW or unwritten blocks if needed.
 	 */
-	if (is_zoned)
-		error = xfs_zoned_end_io(ip, offset, size, ioend->io_sector,
-				ioend->io_private, NULLFSBLOCK);
-	else if (ioend->io_flags & IOMAP_IOEND_SHARED)
+	if (ioend->io_flags & IOMAP_IOEND_SHARED)
 		error = xfs_reflink_end_cow(ip, offset, size);
 	else if (ioend->io_flags & IOMAP_IOEND_UNWRITTEN)
 		error = xfs_iomap_write_unwritten(ip, offset, size, false);
@@ -109,10 +244,7 @@ xfs_end_ioend_write(
 	    xfs_ioend_is_append(ioend))
 		error = xfs_setfilesize(ip, offset, size);
 done:
-	if (is_zoned)
-		xfs_ioend_put_open_zones(ioend);
 	iomap_finish_ioends(ioend, error);
-	memalloc_nofs_restore(nofs_flag);
 }
 
 /*
@@ -137,6 +269,7 @@ xfs_end_io(
 		container_of(work, struct xfs_inode, i_ioend_work);
 	struct iomap_ioend	*ioend;
 	struct list_head	tmp;
+	unsigned int		nofs_flag;
 	unsigned long		flags;
 
 	spin_lock_irqsave(&ip->i_ioend_lock, flags);
@@ -144,17 +277,24 @@ xfs_end_io(
 	spin_unlock_irqrestore(&ip->i_ioend_lock, flags);
 
 	iomap_sort_ioends(&tmp);
+
+	/*
+	 * We can allocate memory here while doing writeback on behalf of
+	 * memory reclaim.  To avoid memory allocation deadlocks set the
+	 * task-wide nofs context for the following operations.
+	 */
+	nofs_flag = memalloc_nofs_save();
 	while ((ioend = list_first_entry_or_null(&tmp, struct iomap_ioend,
 			io_list))) {
 		list_del_init(&ioend->io_list);
 		iomap_ioend_try_merge(ioend, &tmp);
-		if (bio_op(&ioend->io_bio) == REQ_OP_READ)
-			iomap_finish_ioends(ioend,
-				blk_status_to_errno(ioend->io_bio.bi_status));
+		if (xfs_is_zoned_inode(ip))
+			xfs_end_ioend_write_zoned(ioend);
 		else
 			xfs_end_ioend_write(ioend);
 		cond_resched();
 	}
+	memalloc_nofs_restore(nofs_flag);
 }
 
 void

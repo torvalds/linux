@@ -39,6 +39,7 @@
 
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/seq_buf.h>
 #include <linux/slab.h>
 #include <linux/comedi.h>
 #include <linux/comedi/comedilib.h>
@@ -170,10 +171,11 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_bond_private *devpriv = dev->private;
 	DECLARE_BITMAP(devs_opened, COMEDI_NUM_BOARD_MINORS);
+	struct seq_buf s;
 	int i;
 
 	memset(&devs_opened, 0, sizeof(devs_opened));
-	devpriv->name[0] = 0;
+	seq_buf_init(&s, devpriv->name, sizeof(devpriv->name));
 	/*
 	 * Loop through all comedi devices specified on the command-line,
 	 * building our device list.
@@ -250,15 +252,9 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 			}
 			devpriv->devs = devs;
 			devpriv->devs[devpriv->ndevs++] = bdev;
-			{
-				/* Append dev:subdev to devpriv->name */
-				char buf[20];
 
-				snprintf(buf, sizeof(buf), "%u:%u ",
-					 bdev->minor, bdev->subdev);
-				strlcat(devpriv->name, buf,
-					sizeof(devpriv->name));
-			}
+			/* Append dev:subdev to devpriv->name */
+			seq_buf_printf(&s, "%u:%u ", bdev->minor, bdev->subdev);
 		}
 	}
 
@@ -266,6 +262,8 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 		dev_err(dev->class_dev, "No channels found!\n");
 		return -EINVAL;
 	}
+
+	seq_buf_str(&s);
 
 	return 0;
 }

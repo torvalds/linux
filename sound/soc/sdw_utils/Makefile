@@ -10,5 +10,7 @@ snd-soc-sdw-utils-y := soc_sdw_utils.o soc_sdw_dmic.o soc_sdw_rt_dmic.o \
 		       soc_sdw_cs_amp.o					\
 		       soc_sdw_es9356.o					\
 		       soc_sdw_maxim.o \
-		       soc_sdw_ti_amp.o
+		       soc_sdw_ti_amp.o \
+		       soc_sdw_senary_sdca.o soc_sdw_senary_sdca_jack_common.o \
+		       soc_sdw_senary_amp.o soc_sdw_senary_dmic.o
 obj-$(CONFIG_SND_SOC_SDW_UTILS) += snd-soc-sdw-utils.o

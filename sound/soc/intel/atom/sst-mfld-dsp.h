@@ -189,7 +189,7 @@ struct ipc_dsp_hdr {
 union ipc_header_high {
 	struct {
 		u32  msg_id:8;	    /* Message ID - Max 256 Message Types */
-		u32  task_id:4;	    /* Task ID associated with this comand */
+		u32  task_id:4;	    /* Task ID associated with this command */
 		u32  drv_id:4;    /* Identifier for the driver to track*/
 		u32  rsvd1:8;	    /* Reserved */
 		u32  result:4;	    /* Reserved */

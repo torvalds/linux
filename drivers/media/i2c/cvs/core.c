@@ -21,7 +21,6 @@
 #include <linux/workqueue.h>
 
 #include <media/ipu-bridge.h>
-#include <media/ipu6-pci-table.h>
 
 #include "icvs.h"
 
@@ -70,6 +69,13 @@ static const struct icvs_device_quirk cvs_quirk_table[] = {
 			  ICVS_NO_CAPS |
 			  ICVS_NO_FW_UPDATE
 	},	/* Lattice NX33 */
+	{ 0x2ac1, 0x20d1, ICVS_NO_MIPI_CONFIG |
+			  ICVS_NO_CAPS |
+			  ICVS_NO_FW_UPDATE
+	},	/*
+		 * The Lattice device was found on a Dell laptop
+		 * XPS 14 (Dell 14 Premium) DA14250
+		 */
 	{ 0x06CB, 0x0701, ICVS_SKIP_FW_RESET |
 			  ICVS_HOST_SENSOR_PWR_CTRL |
 			  ICVS_HOST_PRIV_CTRL |
@@ -656,14 +662,12 @@ static int cvs_configure_dev_caps(struct icvs *ctx)
  */
 static int cvs_core_probe(struct device *dev, struct i2c_client *i2c)
 {
-	struct pci_dev *ipu = NULL;
+	struct pci_dev *ipu;
 	struct icvs *ctx;
 	int ret;
 
 	/* Locate IPU device */
-	for (unsigned int i = 0; !ipu && ipu6_pci_tbl[i].vendor; i++)
-		ipu = pci_get_device(ipu6_pci_tbl[i].vendor,
-				     ipu6_pci_tbl[i].device, NULL);
+	ipu = ipu_bridge_get_ipu6();
 	for (unsigned int i = 0; !ipu && icvs_ipu7_tbl[i].vendor; i++)
 		ipu = pci_get_device(icvs_ipu7_tbl[i].vendor,
 				     icvs_ipu7_tbl[i].device, NULL);
@@ -725,8 +729,6 @@ static int cvs_core_probe(struct device *dev, struct i2c_client *i2c)
 	}
 
 	if (ctx->res == ICVS_FULLCAP) {
-		struct gpio_desc *wake;
-
 		ctx->rst = devm_gpiod_get(dev, "rst", GPIOD_OUT_HIGH);
 		if (IS_ERR(ctx->rst)) {
 			ret = dev_err_probe(dev, PTR_ERR(ctx->rst),
@@ -734,14 +736,12 @@ static int cvs_core_probe(struct device *dev, struct i2c_client *i2c)
 			goto err_put_ipu;
 		}
 
-		wake = devm_gpiod_get(dev, "wake", GPIOD_IN);
-		if (IS_ERR(wake)) {
-			ret = dev_err_probe(dev, PTR_ERR(wake),
-					    "failed to get wake GPIO\n");
-			goto err_put_ipu;
-		}
-
-		ctx->irq = gpiod_to_irq(wake);
+		/*
+		 * Do not request the line: another device's _CRS may list
+		 * the same pin, and its driver would then fail with -EBUSY.
+		 */
+		ctx->irq = acpi_dev_gpio_irq_get_by(ACPI_COMPANION(dev),
+						    "wake", 0);
 		if (ctx->irq < 0) {
 			ret = dev_err_probe(dev, ctx->irq,
 					    "failed to get wake IRQ\n");

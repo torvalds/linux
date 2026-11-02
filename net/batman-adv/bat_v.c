@@ -514,40 +514,40 @@ err_ifinfo1:
 /**
  * batadv_v_neigh_is_sob() - check whether two B.A.T.M.A.N. V neighbours have
  *  a similar or better throughput
- * @neigh1: first neighbour to compare
- * @if_outgoing1: outgoing interface to use for @neigh1
- * @neigh2: second neighbour to compare
- * @if_outgoing2: outgoing interface to use for @neigh2
+ * @candidate: the first neighbor object of the comparison
+ * @if_outgoing_cand: outgoing interface for the @candidate neighbor
+ * @reference: the second neighbor object of the comparison
+ * @if_outgoing_ref: outgoing interface for the @reference neighbor
  *
- * Return: true if the throughput of @neigh2 is at least 3/4 of the
- *  @neigh1 throughput
+ * Return: true if the throughput of @candidate is more than 3/4 of the
+ *  @reference throughput
  */
-static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *neigh1,
-				  struct batadv_hard_iface *if_outgoing1,
-				  struct batadv_neigh_node *neigh2,
-				  struct batadv_hard_iface *if_outgoing2)
+static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *candidate,
+				  struct batadv_hard_iface *if_outgoing_cand,
+				  struct batadv_neigh_node *reference,
+				  struct batadv_hard_iface *if_outgoing_ref)
 {
-	struct batadv_neigh_ifinfo *ifinfo1;
-	struct batadv_neigh_ifinfo *ifinfo2;
+	struct batadv_neigh_ifinfo *ifinfo_cand;
+	struct batadv_neigh_ifinfo *ifinfo_ref;
 	bool ret = false;
 	u32 threshold;
 
-	ifinfo1 = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
-	if (!ifinfo1)
+	ifinfo_cand = batadv_neigh_ifinfo_get(candidate, if_outgoing_cand);
+	if (!ifinfo_cand)
 		goto err_ifinfo1;
 
-	ifinfo2 = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
-	if (!ifinfo2)
+	ifinfo_ref = batadv_neigh_ifinfo_get(reference, if_outgoing_ref);
+	if (!ifinfo_ref)
 		goto err_ifinfo2;
 
-	threshold = ifinfo1->bat_v.throughput / 4;
-	threshold = ifinfo1->bat_v.throughput - threshold;
+	threshold = ifinfo_ref->bat_v.throughput / 4;
+	threshold = ifinfo_ref->bat_v.throughput - threshold;
 
-	ret = ifinfo2->bat_v.throughput > threshold;
+	ret = ifinfo_cand->bat_v.throughput > threshold;
 
-	batadv_neigh_ifinfo_put(ifinfo2);
+	batadv_neigh_ifinfo_put(ifinfo_ref);
 err_ifinfo2:
-	batadv_neigh_ifinfo_put(ifinfo1);
+	batadv_neigh_ifinfo_put(ifinfo_cand);
 err_ifinfo1:
 	return ret;
 }

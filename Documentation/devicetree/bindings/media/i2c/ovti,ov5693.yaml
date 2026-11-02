@@ -82,6 +82,8 @@ properties:
         unevaluatedProperties: false
 
         properties:
+          clock-noncontinuous: true
+
           link-frequencies: true
 
           data-lanes:
@@ -103,6 +105,7 @@ examples:
   - |
     #include <dt-bindings/clock/px30-cru.h>
     #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/media/video-interface-devices.h>
     #include <dt-bindings/pinctrl/rockchip.h>
 
     i2c {
@@ -126,7 +129,7 @@ examples:
             dovdd-supply = <&vcc_2v8>;
 
             rotation = <90>;
-            orientation = <0>;
+            orientation = <MEDIA_ORIENTATION_FRONT>;
 
             port {
                 ucam_out: endpoint {

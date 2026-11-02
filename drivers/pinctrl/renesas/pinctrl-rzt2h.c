@@ -94,8 +94,8 @@ struct rzt2h_pinctrl {
 	void __iomem			*base0, *base1;
 	struct device			*dev;
 	struct gpio_chip		gpio_chip;
-	struct pinctrl_gpio_range	gpio_range;
 	DECLARE_BITMAP(used_irqs, RZT2H_INTERRUPTS_NUM);
+	u8				saved_pm[RZT2H_INTERRUPTS_NUM];
 	raw_spinlock_t			lock; /* lock read/write registers */
 	struct mutex			mutex; /* serialize adding groups and functions */
 	bool				safety_port_enabled;
@@ -170,6 +170,43 @@ static int rzt2h_validate_pin(struct rzt2h_pinctrl *pctrl, unsigned int offset)
 	return (pincfg & BIT(pin)) ? 0 : -EINVAL;
 }
 
+static bool rzt2h_pin_mode_is_peripheral(struct rzt2h_pinctrl *pctrl, u8 port, u8 bit)
+{
+	return rzt2h_pinctrl_readb(pctrl, port, PMC(port)) & BIT(bit);
+}
+
+static u8 rzt2h_pin_read_pfc(struct rzt2h_pinctrl *pctrl, u8 port, u8 pin)
+{
+	u64 reg64 = rzt2h_pinctrl_readq(pctrl, port, PFC(port));
+
+	return field_get(PFC_PIN_MASK(pin), reg64);
+}
+
+static bool rzt2h_pin_read_input(struct rzt2h_pinctrl *pctrl, u8 port, u8 bit)
+{
+	return rzt2h_pinctrl_readb(pctrl, port, PIN(port)) & BIT(bit);
+}
+
+static u8 rzt2h_pin_read_pm(struct rzt2h_pinctrl *pctrl, u8 port, u8 pin)
+{
+	u16 reg = rzt2h_pinctrl_readw(pctrl, port, PM(port));
+
+	return field_get(PM_PIN_MASK(pin), reg);
+}
+
+static void rzt2h_pin_write_pm(struct rzt2h_pinctrl *pctrl, u8 port, u8 pin,
+			       unsigned int pm)
+{
+	u16 reg;
+
+	guard(raw_spinlock_irqsave)(&pctrl->lock);
+
+	reg = rzt2h_pinctrl_readw(pctrl, port, PM(port));
+	reg &= ~PM_PIN_MASK(pin);
+	reg |= pm << (pin * 2);
+	rzt2h_pinctrl_writew(pctrl, port, reg, PM(port));
+}
+
 static void rzt2h_pinctrl_set_gpio_en(struct rzt2h_pinctrl *pctrl,
 				      u8 port, u8 pin, bool en)
 {
@@ -193,7 +230,7 @@ static void rzt2h_pinctrl_set_pfc_mode(struct rzt2h_pinctrl *pctrl,
 
 	reg64 = rzt2h_pinctrl_readq(pctrl, port, PFC(port));
 	/* Check if pin is already configured to the desired function */
-	if ((rzt2h_pinctrl_readb(pctrl, port, PMC(port)) & BIT(pin)) &&
+	if (rzt2h_pin_mode_is_peripheral(pctrl, port, pin) &&
 	    field_get(PFC_PIN_MASK(pin), reg64) == func)
 		return;
 
@@ -747,15 +784,7 @@ static int rzt2h_gpio_request(struct gpio_chip *chip, unsigned int offset)
 static void rzt2h_gpio_set_direction(struct rzt2h_pinctrl *pctrl, u32 port,
 				     u8 bit, bool output)
 {
-	u16 reg;
-
-	guard(raw_spinlock_irqsave)(&pctrl->lock);
-
-	reg = rzt2h_pinctrl_readw(pctrl, port, PM(port));
-	reg &= ~PM_PIN_MASK(bit);
-
-	reg |= (output ? PM_OUTPUT : PM_INPUT) << (bit * 2);
-	rzt2h_pinctrl_writew(pctrl, port, reg, PM(port));
+	rzt2h_pin_write_pm(pctrl, port, bit, output ? PM_OUTPUT : PM_INPUT);
 }
 
 static int rzt2h_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
@@ -763,9 +792,8 @@ static int rzt2h_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	struct rzt2h_pinctrl *pctrl = gpiochip_get_data(chip);
 	u8 port = RZT2H_PIN_ID_TO_PORT(offset);
 	u8 bit = RZT2H_PIN_ID_TO_PIN(offset);
-	u64 reg64;
-	u16 reg;
 	int ret;
+	u8 pm;
 
 	ret = rzt2h_validate_pin(pctrl, offset);
 	if (ret)
@@ -773,7 +801,7 @@ static int rzt2h_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 
 	guard(raw_spinlock_irqsave)(&pctrl->lock);
 
-	if (rzt2h_pinctrl_readb(pctrl, port, PMC(port)) & BIT(bit)) {
+	if (rzt2h_pin_mode_is_peripheral(pctrl, port, bit)) {
 		/*
 		 * When a GPIO is being requested as an IRQ, the pinctrl
 		 * framework expects to be able to read the GPIO's direction.
@@ -783,19 +811,16 @@ static int rzt2h_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 		 * called to enable the IRQ function.
 		 * Default to input direction for IRQ function.
 		 */
-		reg64 = rzt2h_pinctrl_readq(pctrl, port, PFC(port));
-		reg64 = (reg64 >> (bit * 8)) & PFC_MASK;
-		if (reg64 == PFC_FUNC_INTERRUPT)
+		if (rzt2h_pin_read_pfc(pctrl, port, bit) == PFC_FUNC_INTERRUPT)
 			return GPIO_LINE_DIRECTION_IN;
 
 		return -EINVAL;
 	}
 
-	reg = rzt2h_pinctrl_readw(pctrl, port, PM(port));
-	reg = (reg >> (bit * 2)) & PM_MASK;
-	if (reg & PM_OUTPUT)
+	pm = rzt2h_pin_read_pm(pctrl, port, bit);
+	if (pm & PM_OUTPUT)
 		return GPIO_LINE_DIRECTION_OUT;
-	if (reg & PM_INPUT)
+	if (pm & PM_INPUT)
 		return GPIO_LINE_DIRECTION_IN;
 
 	return -EINVAL;
@@ -825,13 +850,15 @@ static int rzt2h_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	struct rzt2h_pinctrl *pctrl = gpiochip_get_data(chip);
 	u8 port = RZT2H_PIN_ID_TO_PORT(offset);
 	u8 bit = RZT2H_PIN_ID_TO_PIN(offset);
-	u16 reg;
+	u8 pm;
 
-	reg = rzt2h_pinctrl_readw(pctrl, port, PM(port));
-	reg = (reg >> (bit * 2)) & PM_MASK;
-	if (reg & PM_INPUT)
-		return !!(rzt2h_pinctrl_readb(pctrl, port, PIN(port)) & BIT(bit));
-	if (reg & PM_OUTPUT)
+	if (rzt2h_pin_mode_is_peripheral(pctrl, port, bit))
+		return rzt2h_pin_read_input(pctrl, port, bit);
+
+	pm = rzt2h_pin_read_pm(pctrl, port, bit);
+	if (pm & PM_INPUT)
+		return rzt2h_pin_read_input(pctrl, port, bit);
+	if (pm & PM_OUTPUT)
 		return !!(rzt2h_pinctrl_readb(pctrl, port, P(port)) & BIT(bit));
 
 	return -EINVAL;
@@ -1000,6 +1027,66 @@ static int rzt2h_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 	return 0;
 }
 
+static int rzt2h_gpio_irq_request_resources(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct rzt2h_pinctrl *pctrl = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	u8 port = RZT2H_PIN_ID_TO_PORT(hwirq);
+	u8 pin = RZT2H_PIN_ID_TO_PIN(hwirq);
+	u8 parent_irq, irq_idx;
+	int ret;
+
+	parent_irq = rzt2h_gpio_irq_map[hwirq];
+	if (parent_irq < RZT2H_INTERRUPTS_START)
+		return -EINVAL;
+
+	irq_idx = parent_irq - RZT2H_INTERRUPTS_START;
+	if (test_and_set_bit(irq_idx, pctrl->used_irqs))
+		return -EBUSY;
+
+	/*
+	 * rzt2h_pinctrl_set_pfc_mode() sets PM to Hi-Z before switching to the
+	 * interrupt function, losing the previous PM value.
+	 * Save it so it can be restored when the IRQ is freed.
+	 */
+	pctrl->saved_pm[irq_idx] = rzt2h_pin_read_pm(pctrl, port, pin);
+
+	rzt2h_pinctrl_set_pfc_mode(pctrl, port, pin, PFC_FUNC_INTERRUPT);
+
+	ret = gpiochip_lock_as_irq(gc, hwirq);
+	if (ret) {
+		clear_bit(irq_idx, pctrl->used_irqs);
+		rzt2h_pin_write_pm(pctrl, port, pin, pctrl->saved_pm[irq_idx]);
+		rzt2h_pinctrl_set_gpio_en(pctrl, port, pin, true);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void rzt2h_gpio_irq_release_resources(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct rzt2h_pinctrl *pctrl = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	u8 port = RZT2H_PIN_ID_TO_PORT(hwirq);
+	u8 pin = RZT2H_PIN_ID_TO_PIN(hwirq);
+	u8 parent_irq, irq_idx;
+
+	parent_irq = rzt2h_gpio_irq_map[hwirq];
+	if (parent_irq < RZT2H_INTERRUPTS_START)
+		return;
+
+	irq_idx = parent_irq - RZT2H_INTERRUPTS_START;
+	if (test_and_clear_bit(irq_idx, pctrl->used_irqs)) {
+		rzt2h_pin_write_pm(pctrl, port, pin, pctrl->saved_pm[irq_idx]);
+		rzt2h_pinctrl_set_gpio_en(pctrl, port, pin, true);
+	}
+
+	gpiochip_unlock_as_irq(gc, hwirq);
+}
+
 static const struct irq_chip rzt2h_gpio_irqchip = {
 	.name = "rzt2h-gpio",
 	.irq_disable = rzt2h_gpio_irq_disable,
@@ -1009,9 +1096,10 @@ static const struct irq_chip rzt2h_gpio_irqchip = {
 	.irq_set_type = irq_chip_set_type_parent,
 	.irq_set_wake = rzt2h_gpio_irq_set_wake,
 	.irq_eoi = irq_chip_eoi_parent,
+	.irq_request_resources = rzt2h_gpio_irq_request_resources,
+	.irq_release_resources = rzt2h_gpio_irq_release_resources,
 	.irq_set_affinity = irq_chip_set_affinity_parent,
 	.flags = IRQCHIP_IMMUTABLE,
-	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int rzt2h_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
@@ -1020,41 +1108,15 @@ static int rzt2h_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 					    unsigned int *parent,
 					    unsigned int *parent_type)
 {
-	struct rzt2h_pinctrl *pctrl = gpiochip_get_data(gc);
-	u8 port = RZT2H_PIN_ID_TO_PORT(child);
-	u8 pin = RZT2H_PIN_ID_TO_PIN(child);
-	u8 parent_irq;
+	u8 parent_irq = rzt2h_gpio_irq_map[child];
 
-	parent_irq = rzt2h_gpio_irq_map[child];
 	if (parent_irq < RZT2H_INTERRUPTS_START)
 		return -EINVAL;
-
-	if (test_and_set_bit(parent_irq - RZT2H_INTERRUPTS_START,
-			     pctrl->used_irqs))
-		return -EBUSY;
-
-	rzt2h_pinctrl_set_pfc_mode(pctrl, port, pin, PFC_FUNC_INTERRUPT);
 
 	*parent = parent_irq;
 	*parent_type = child_type;
 
 	return 0;
-}
-
-static void rzt2h_gpio_irq_domain_free(struct irq_domain *domain, unsigned int virq,
-				       unsigned int nr_irqs)
-{
-	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct rzt2h_pinctrl *pctrl = container_of(gc, struct rzt2h_pinctrl, gpio_chip);
-	irq_hw_number_t hwirq = irqd_to_hwirq(d);
-	u8 port = RZT2H_PIN_ID_TO_PORT(hwirq);
-	u8 pin = RZT2H_PIN_ID_TO_PIN(hwirq);
-
-	if (test_and_clear_bit(hwirq - RZT2H_INTERRUPTS_START, pctrl->used_irqs))
-		rzt2h_pinctrl_set_gpio_en(pctrl, port, pin, false);
-
-	irq_domain_free_irqs_common(domain, virq, nr_irqs);
 }
 
 static void rzt2h_gpio_init_irq_valid_mask(struct gpio_chip *gc,
@@ -1072,7 +1134,6 @@ static void rzt2h_gpio_init_irq_valid_mask(struct gpio_chip *gc,
 
 static int rzt2h_gpio_register(struct rzt2h_pinctrl *pctrl)
 {
-	struct pinctrl_gpio_range *range = &pctrl->gpio_range;
 	struct gpio_chip *chip = &pctrl->gpio_chip;
 	struct device_node *np = pctrl->dev->of_node;
 	struct irq_domain *parent_domain;
@@ -1113,6 +1174,7 @@ static int rzt2h_gpio_register(struct rzt2h_pinctrl *pctrl)
 	chip->direction_output = rzt2h_gpio_direction_output;
 	chip->get = rzt2h_gpio_get;
 	chip->set = rzt2h_gpio_set;
+	chip->set_config = gpiochip_generic_config;
 	chip->label = dev_name(dev);
 
 	if (of_property_present(np, "interrupt-controller")) {
@@ -1122,16 +1184,8 @@ static int rzt2h_gpio_register(struct rzt2h_pinctrl *pctrl)
 		girq->parent_domain = parent_domain;
 		girq->child_to_parent_hwirq = rzt2h_gpio_child_to_parent_hwirq;
 		girq->populate_parent_alloc_arg = gpiochip_populate_parent_fwspec_twocell;
-		girq->child_irq_domain_ops.free = rzt2h_gpio_irq_domain_free;
 		girq->init_valid_mask = rzt2h_gpio_init_irq_valid_mask;
 	}
-
-	range->id = 0;
-	range->pin_base = 0;
-	range->base = 0;
-	range->npins = chip->ngpio;
-	range->name = chip->label;
-	range->gc = chip;
 
 	ret = devm_gpiochip_add_data(dev, chip, pctrl);
 	if (ret)

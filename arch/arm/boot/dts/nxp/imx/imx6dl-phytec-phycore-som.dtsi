@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2021 PHYTEC Messtechnik GmbH
+ * Author: Yunus Bas <y.bas@phytec.de>
+ */
+
+#include "imx6qdl-phytec-phycore-som.dtsi"
+
+&cpu0 {
+	operating-points =
+		/* kHz    uV */
+		<996000 1275000>,
+		<792000 1175000>,
+		<396000 1150000>;
+};
+
+&cpu1 {
+	operating-points =
+		/* kHz    uV */
+		<996000 1275000>,
+		<792000 1175000>,
+		<396000 1150000>;
+};

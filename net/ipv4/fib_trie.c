@@ -1433,7 +1433,8 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 
 	n = get_child_rcu(pn, cindex);
 	if (!n) {
-		trace_fib_table_lookup(tb->tb_id, flp, NULL, -EAGAIN);
+		trace_fib_table_lookup(tb->tb_id, flp, NULL, -EAGAIN,
+				       tb->tb_net);
 		return -EAGAIN;
 	}
 
@@ -1520,7 +1521,8 @@ backtrace:
 				 */
 				if (IS_TRIE(pn)) {
 					trace_fib_table_lookup(tb->tb_id, flp,
-							       NULL, -EAGAIN);
+							       NULL, -EAGAIN,
+							       tb->tb_net);
 					return -EAGAIN;
 				}
 #ifdef CONFIG_IP_FIB_TRIE_STATS
@@ -1567,7 +1569,8 @@ out_reject:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
-			trace_fib_table_lookup(tb->tb_id, flp, NULL, err);
+			trace_fib_table_lookup(tb->tb_id, flp, NULL, err,
+					       tb->tb_net);
 			return err;
 		}
 		if (fi->fib_flags & RTNH_F_DEAD)
@@ -1608,7 +1611,8 @@ set_result:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
-			trace_fib_table_lookup(tb->tb_id, flp, nhc, err);
+			trace_fib_table_lookup(tb->tb_id, flp, nhc, err,
+					       tb->tb_net);
 
 			return err;
 		}
@@ -1879,7 +1883,7 @@ struct fib_table *fib_trie_unmerge(struct fib_table *oldtb)
 	if (oldtb->tb_data == oldtb->__data)
 		return oldtb;
 
-	local_tb = fib_trie_table(RT_TABLE_LOCAL, NULL);
+	local_tb = fib_trie_table(oldtb->tb_net, RT_TABLE_LOCAL, NULL);
 	if (!local_tb)
 		return NULL;
 
@@ -2376,7 +2380,8 @@ void __init fib_trie_init(void)
 					   0, SLAB_PANIC | SLAB_ACCOUNT, NULL);
 }
 
-struct fib_table *fib_trie_table(u32 id, struct fib_table *alias)
+struct fib_table *fib_trie_table(struct net *net, u32 id,
+				 struct fib_table *alias)
 {
 	struct fib_table *tb;
 	struct trie *t;
@@ -2389,6 +2394,7 @@ struct fib_table *fib_trie_table(u32 id, struct fib_table *alias)
 	if (!tb)
 		return NULL;
 
+	tb->tb_net = net;
 	tb->tb_id = id;
 	tb->tb_num_default = 0;
 	tb->tb_data = (alias ? alias->__data : tb->__data);

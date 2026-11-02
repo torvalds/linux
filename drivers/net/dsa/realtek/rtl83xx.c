@@ -2,6 +2,7 @@
 
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/of_mdio.h>
 #include <linux/if_bridge.h>
 #include <linux/etherdevice.h>
@@ -61,6 +62,22 @@ static int rtl83xx_user_mdio_write(struct mii_bus *bus, int addr, int regnum,
 	return priv->ops->phy_write(priv, addr, regnum, val);
 }
 
+static int rtl83xx_user_mdio_read_c45(struct mii_bus *bus, int addr, int devad,
+				      int regnum)
+{
+	struct realtek_priv *priv = bus->priv;
+
+	return priv->ops->phy_read_c45(priv, addr, devad, regnum);
+}
+
+static int rtl83xx_user_mdio_write_c45(struct mii_bus *bus, int addr, int devad,
+				       int regnum, u16 val)
+{
+	struct realtek_priv *priv = bus->priv;
+
+	return priv->ops->phy_write_c45(priv, addr, devad, regnum, val);
+}
+
 /**
  * rtl83xx_setup_user_mdio() - register the user mii bus driver
  * @ds: DSA switch associated with this user_mii_bus
@@ -94,6 +111,10 @@ int rtl83xx_setup_user_mdio(struct dsa_switch *ds)
 	bus->name = "Realtek user MII";
 	bus->read = rtl83xx_user_mdio_read;
 	bus->write = rtl83xx_user_mdio_write;
+	if (priv->ops->phy_read_c45)
+		bus->read_c45 = rtl83xx_user_mdio_read_c45;
+	if (priv->ops->phy_write_c45)
+		bus->write_c45 = rtl83xx_user_mdio_write_c45;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s:user_mii", dev_name(priv->dev));
 	bus->parent = priv->dev;
 
@@ -195,17 +216,24 @@ rtl83xx_probe(struct device *dev,
 	priv->leds_disabled = of_property_read_bool(dev->of_node,
 						    "realtek,disable-leds");
 
-	/* TODO: if power is software controlled, set up any regulators here */
+	/* Enable the supplies before the reset line is requested and driven,
+	 * so the chip is powered before its pins are driven.
+	 */
+	if (var->num_supplies) {
+		ret = devm_regulator_bulk_get_enable(dev, var->num_supplies,
+						     var->supplies);
+		if (ret)
+			return dev_err_ptr_probe(dev, ret, "failed to enable supplies\n");
+	}
+
 	priv->reset_ctl = devm_reset_control_get_optional(dev, NULL);
 	if (IS_ERR(priv->reset_ctl))
 		return dev_err_cast_probe(dev, priv->reset_ctl,
 					  "failed to get reset control\n");
 
 	priv->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->reset)) {
-		dev_err(dev, "failed to get RESET GPIO\n");
-		return ERR_CAST(priv->reset);
-	}
+	if (IS_ERR(priv->reset))
+		return dev_err_cast_probe(dev, priv->reset, "failed to get RESET GPIO\n");
 
 	dev_set_drvdata(dev, priv);
 
@@ -216,6 +244,11 @@ rtl83xx_probe(struct device *dev,
 		rtl83xx_reset_deassert(priv);
 		msleep(REALTEK_HW_START_DELAY);
 		dev_dbg(dev, "deasserted RESET\n");
+	} else if (var->num_supplies) {
+		/* Powered but no reset line: still wait for the chip to boot
+		 * before the first register access.
+		 */
+		msleep(REALTEK_HW_START_DELAY);
 	}
 
 	return priv;

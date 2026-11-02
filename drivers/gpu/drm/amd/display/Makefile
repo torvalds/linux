@@ -42,6 +42,7 @@ subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/dwb
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/hpo
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/mmhubbub
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/mpc
+subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/rmcm
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/opp
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/pg
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/soc_and_ip_translator

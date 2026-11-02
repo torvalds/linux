@@ -4,6 +4,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/capability.h>
 #include <linux/filelock.h>
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
@@ -477,6 +478,15 @@ out:
 }
 EXPORT_SYMBOL_GPL(dlm_posix_get);
 
+static int dev_open(struct inode *inode, struct file *file)
+{
+	/* Userspace plock daemon is a privileged cluster component. */
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	return 0;
+}
+
 /* a read copies out one plock request from the send list */
 static ssize_t dev_read(struct file *file, char __user *u, size_t count,
 			loff_t *ppos)
@@ -598,6 +608,7 @@ static __poll_t dev_poll(struct file *file, poll_table *wait)
 }
 
 static const struct file_operations dev_fops = {
+	.open    = dev_open,
 	.read    = dev_read,
 	.write   = dev_write,
 	.poll    = dev_poll,
@@ -608,7 +619,8 @@ static const struct file_operations dev_fops = {
 static struct miscdevice plock_dev_misc = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = DLM_PLOCK_MISC_NAME,
-	.fops = &dev_fops
+	.fops = &dev_fops,
+	.mode = 0600,
 };
 
 int dlm_plock_init(void)

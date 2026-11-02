@@ -64,7 +64,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 		return 0;
 	}
 
-	skb = skb_unshare(skb, GFP_ATOMIC);
+	skb = skb_unclone_full(skb, GFP_ATOMIC);
 	if (!skb)
 		return 0;
 

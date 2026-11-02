@@ -524,8 +524,8 @@ EH will know to handle it later. Then it calls low level libata driver's
 :c:func:`error_handler` callback.
 
 When the :c:func:`error_handler` callback is invoked it stops BMDMA and
-completes the qc. Note that as we're currently in EH, we cannot call
-scsi_done. As described in SCSI EH doc, a recovered scmd should be
+completes the qc. Note that as we're currently in EH, scsi_done() has
+no effect. As described in SCSI EH doc, a recovered scmd should be
 either retried with :c:func:`scsi_queue_insert` or finished with
 :c:func:`scsi_finish_command`. Here, we override ``qc->scsidone`` with
 :c:func:`scsi_finish_command` and calls :c:func:`ata_qc_complete`.

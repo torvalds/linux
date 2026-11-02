@@ -688,7 +688,14 @@ static int usbhid_open(struct hid_device *hid)
 
 	set_bit(HID_OPENED, &usbhid->iofl);
 
-	if (hid->quirks & HID_QUIRK_ALWAYS_POLL) {
+	/*
+	 * ALWAYS_POLL devices are already polled from usbhid_start(), and a
+	 * device with no input reports has nothing to send on the interrupt
+	 * IN endpoint. In some cases polling is harmful: on the ASUS ROG
+	 * N-Key keyboards it makes the sibling interface drop keypresses.
+	 */
+	if ((hid->quirks & HID_QUIRK_ALWAYS_POLL) ||
+	    list_empty(&hid->report_enum[HID_INPUT_REPORT].report_list)) {
 		res = 0;
 		goto Done;
 	}

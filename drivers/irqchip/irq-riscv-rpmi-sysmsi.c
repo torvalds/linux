@@ -313,8 +313,8 @@ static const struct of_device_id rpmi_sysmsi_match[] = {
 };
 
 static const struct acpi_device_id acpi_rpmi_sysmsi_match[] = {
-	{ "RSCV0006" },
-	{}
+	{ .id = "RSCV0006" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, acpi_rpmi_sysmsi_match);
 

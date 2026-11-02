@@ -3335,19 +3335,15 @@ static int usbf_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 	ret = devm_request_irq(dev, irq, usbf_epc_irq, 0, "usbf-epc", udc);
-	if (ret) {
-		dev_err(dev, "cannot request irq %d err %d\n", irq, ret);
+	if (ret)
 		return ret;
-	}
 
 	irq = platform_get_irq(pdev, 1);
 	if (irq < 0)
 		return irq;
 	ret = devm_request_irq(dev, irq, usbf_ahb_epc_irq, 0, "usbf-ahb-epc", udc);
-	if (ret) {
-		dev_err(dev, "cannot request irq %d err %d\n", irq, ret);
+	if (ret)
 		return ret;
-	}
 
 	usbf_reg_bitset(udc, USBF_REG_AHBMCTR, USBF_SYS_WBURST_TYPE);
 

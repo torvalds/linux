@@ -864,7 +864,7 @@ The drivers which act upon the ``dsa_db`` argument in ``port_fdb_add``,
 DSA associates each offloaded bridge and each offloaded LAG with a one-based ID
 (``struct dsa_bridge :: num``, ``struct dsa_lag :: id``) for the purposes of
 refcounting addresses on shared ports. Drivers may piggyback on DSA's numbering
-scheme (the ID is readable through ``db->bridge.num`` and ``db->lag.id`` or may
+scheme (the ID is readable through ``db->bridge.num`` and ``db->lag.id``) or may
 implement their own.
 
 Only the drivers which declare support for FDB isolation are notified of FDB

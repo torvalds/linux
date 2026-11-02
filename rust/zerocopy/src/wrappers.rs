@@ -8,10 +8,10 @@
 // This file may not be copied, modified, or distributed except according to
 // those terms.
 
-use core::{fmt, hash::Hash};
+use core::{borrow::Borrow, fmt, hash::Hash};
 
 use super::*;
-use crate::pointer::{invariant::Valid, SizeEq, TransmuteFrom};
+use crate::pointer::{invariant::Safe, SizeEq, TransmuteFrom};
 
 /// A type with no alignment requirement.
 ///
@@ -140,10 +140,10 @@ impl_known_layout!(T => Unalign<T>);
 //   Unaligned`.
 // - `Unalign<T>` has the same bit validity as `T`, and so it is `FromZeros`,
 //   `FromBytes`, or `IntoBytes` exactly when `T` is as well.
-// - `Immutable`: `Unalign<T>` has the same fields as `T`, so it permits
-//   interior mutation exactly when `T` does.
+// - `Immutable`: `Unalign<T>` has the same fields as `T`, so it permits interior
+//   mutation exactly when `T` does.
 // - `TryFromBytes`: `Unalign<T>` has the same the same bit validity as `T`, so
-//   `T::is_bit_valid` is a sound implementation of `is_bit_valid`.
+//   `T::is_safe` is a sound implementation of `is_safe`.
 //
 #[allow(clippy::multiple_unsafe_ops_per_block)]
 const _: () = unsafe {
@@ -151,7 +151,7 @@ const _: () = unsafe {
     impl_or_verify!(T: Immutable => Immutable for Unalign<T>);
     impl_or_verify!(
         T: TryFromBytes => TryFromBytes for Unalign<T>;
-        |c| T::is_bit_valid(c.transmute::<_, _, BecauseImmutable>())
+        |c| T::is_safe(c.transmute::<_, _, BecauseImmutable>())
     );
     impl_or_verify!(T: FromZeros => FromZeros for Unalign<T>);
     impl_or_verify!(T: FromBytes => FromBytes for Unalign<T>);
@@ -613,7 +613,14 @@ mod read_only_def {
     /// Note that `&mut ReadOnly<T>` still permits mutation – the read-only
     /// property only applies to shared references.
     ///
+    /// `ReadOnly<T>` implements [`Copy`] and [`Clone`] when `T: Copy`. Cloning
+    /// copies the value without calling `T::clone`. Trait implementations that
+    /// expose or operate on a shared reference to `T` require `T: Immutable`.
+    /// Constructing a wrapper or accessing its contents through [`AsMut`]
+    /// does not require `T: Immutable`.
+    ///
     /// [`Immutable`]: crate::Immutable
+    #[derive(Copy)]
     #[repr(transparent)]
     pub struct ReadOnly<T: ?Sized> {
         // INVARIANT: `inner` is never mutated through a `&ReadOnly<T>`
@@ -665,7 +672,7 @@ const _: () = unsafe {
 // SAFETY:
 // - `ReadOnly<T>` has the same alignment as `T`, and so it is `Unaligned`
 //   exactly when `T` is as well.
-// - `ReadOnly<T>` has the same bit validity as `T`, and so this `is_bit_valid`
+// - `ReadOnly<T>` has the same bit validity as `T`, and so this `is_safe`
 //   implementation is correct, and thus the `TryFromBytes` impl is sound.
 // - `ReadOnly<T>` has the same bit validity as `T`, and so it is `FromZeros`,
 //   `FromBytes`, and `IntoBytes` exactly when `T` is as well.
@@ -673,7 +680,7 @@ const _: () = unsafe {
     unsafe_impl!(T: ?Sized + Unaligned => Unaligned for ReadOnly<T>);
     unsafe_impl!(
         T: ?Sized + TryFromBytes => TryFromBytes for ReadOnly<T>;
-        |c| T::is_bit_valid(c.cast::<_, <ReadOnly<T> as SizeEq<ReadOnly<ReadOnly<T>>>>::CastFrom, _>())
+        |c| T::is_safe(c.cast::<_, <ReadOnly<T> as SizeEq<ReadOnly<ReadOnly<T>>>>::CastFrom, _>())
     );
     unsafe_impl!(T: ?Sized + FromZeros => FromZeros for ReadOnly<T>);
     unsafe_impl!(T: ?Sized + FromBytes => FromBytes for ReadOnly<T>);
@@ -709,11 +716,34 @@ const _: () = {
 
 // SAFETY: `ReadOnly<T>` is a `#[repr(transparent)]` wrapper around `T`, and so
 // it has the same bit validity as `T`.
-unsafe impl<T: ?Sized> TransmuteFrom<T, Valid, Valid> for ReadOnly<T> {}
+unsafe impl<T: ?Sized> TransmuteFrom<T, Safe, Safe> for ReadOnly<T> {}
 
 // SAFETY: `ReadOnly<T>` is a `#[repr(transparent)]` wrapper around `T`, and so
 // it has the same bit validity as `T`.
-unsafe impl<T: ?Sized> TransmuteFrom<ReadOnly<T>, Valid, Valid> for T {}
+unsafe impl<T: ?Sized> TransmuteFrom<ReadOnly<T>, Safe, Safe> for T {}
+
+impl<T: Default> Default for ReadOnly<T> {
+    #[inline(always)]
+    fn default() -> Self {
+        Self::new(Default::default())
+    }
+}
+
+// Copying avoids calling `T::clone`, which could mutate through a shared
+// reference to `T` and violate `ReadOnly`'s invariant.
+impl<T: Copy> Clone for ReadOnly<T> {
+    #[inline(always)]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> From<T> for ReadOnly<T> {
+    #[inline(always)]
+    fn from(t: T) -> Self {
+        Self::new(t)
+    }
+}
 
 impl<'a, T: ?Sized + Immutable> From<&'a T> for &'a ReadOnly<T> {
     #[inline(always)]
@@ -743,15 +773,74 @@ impl<T: ?Sized + Immutable> DerefMut for ReadOnly<T> {
     }
 }
 
-impl<T: ?Sized + Immutable + Debug> Debug for ReadOnly<T> {
+impl<T: ?Sized + Immutable> AsRef<T> for ReadOnly<T> {
     #[inline(always)]
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.deref().fmt(f)
+    fn as_ref(&self) -> &T {
+        self.deref()
     }
 }
 
+impl<T: ?Sized + Immutable> Borrow<T> for ReadOnly<T> {
+    #[inline(always)]
+    fn borrow(&self) -> &T {
+        self.deref()
+    }
+}
+
+impl<T: ?Sized> AsMut<T> for ReadOnly<T> {
+    #[inline(always)]
+    fn as_mut(&mut self) -> &mut T {
+        ReadOnly::as_mut(self)
+    }
+}
+
+// Delegate shared access through `Deref`, which requires `T: Immutable` and
+// thus prevents interior mutation of the wrapped value by these trait methods.
+impl<T: ?Sized + Immutable + PartialEq> PartialEq for ReadOnly<T> {
+    #[inline(always)]
+    fn eq(&self, other: &Self) -> bool {
+        self.deref().eq(other.deref())
+    }
+}
+
+impl<T: ?Sized + Immutable + Eq> Eq for ReadOnly<T> {}
+
+impl<T: ?Sized + Immutable + PartialOrd> PartialOrd for ReadOnly<T> {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.deref().partial_cmp(other.deref())
+    }
+}
+
+impl<T: ?Sized + Immutable + Ord> Ord for ReadOnly<T> {
+    #[inline(always)]
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.deref().cmp(other.deref())
+    }
+}
+
+impl<T: ?Sized + Immutable + Hash> Hash for ReadOnly<T> {
+    #[inline(always)]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.deref().hash(state);
+    }
+}
+
+macro_rules! impl_read_only_fmt {
+    ($($trait:ident),* $(,)?) => {$(
+        impl<T: ?Sized + Immutable + fmt::$trait> fmt::$trait for ReadOnly<T> {
+            #[inline(always)]
+            fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+                fmt::$trait::fmt(self.deref(), f)
+            }
+        }
+    )*};
+}
+
+impl_read_only_fmt!(Debug, Display, Binary, Octal, LowerHex, UpperHex, LowerExp, UpperExp);
+
 // SAFETY: See safety comment on `ProjectToTag`.
-unsafe impl<T: HasTag + ?Sized> HasTag for ReadOnly<T> {
+unsafe impl<T: HasTag<Client> + ?Sized, Client> HasTag<Client> for ReadOnly<T> {
     #[allow(clippy::missing_inline_in_public_items)]
     fn only_derive_is_allowed_to_implement_this_trait()
     where
@@ -759,30 +848,33 @@ unsafe impl<T: HasTag + ?Sized> HasTag for ReadOnly<T> {
     {
     }
 
-    type Tag = T::Tag;
+    type Tag = <T as HasTag<Client>>::Tag;
 
     // SAFETY: `<T as SizeEq<ReadOnly<T>>>::CastFrom` is a no-op projection that
-    // produces a pointer with the same referent. By invariant, for any `Ptr<'_,
-    // T, I>` it is sound to use `T::ProjectToTag` to project to a `Ptr<'_,
-    // T::Tag, I>`. Since `ReadOnly<T>` has the same layout and validity as `T`,
-    // the same is true of projecting from a `Ptr<'_, ReadOnly<T>, I>`.
+    // produces a pointer with the same referent. By invariant, for any
+    // `Ptr<'_, T, I>` it is sound to use
+    // `<T as HasTag<Client>>::ProjectToTag` to project to a
+    // shared `Ptr<'_, <T as HasTag<Client>>::Tag,
+    // (_, I::Alignment, I::Validity)>`. Since `ReadOnly<T>` has the same
+    // layout and validity as `T`, the same is true of projecting from a
+    // `Ptr<'_, ReadOnly<T>, I>`.
     type ProjectToTag = crate::pointer::cast::TransitiveProject<
         T,
         <T as SizeEq<ReadOnly<T>>>::CastFrom,
-        T::ProjectToTag,
+        <T as HasTag<Client>>::ProjectToTag,
     >;
 }
 
 // SAFETY: `ReadOnly<T>` is a `#[repr(transparent)]` wrapper around `T`, and so
 // has the same fields at the same offsets. Thus, it satisfies the safety
-// invariants of `HasField<Field, VARIANT_ID, FIELD_ID>` for field `f` exactly
-// when `T` does, as guaranteed by the `T: HasField` bound:
-// - If `VARIANT_ID` is `STRUCT_VARIANT_ID` or `UNION_VARIANT_ID`, then `T` has
-//   the layout of a struct or union type. Since `ReadOnly<T>` is a transparent
-//   wrapper around `T`, it does too. Otherwise, if `VARIANT_ID` is an enum
-//   variant index, then `T` has the layout of an enum type, and `ReadOnly<T>`
-//   does too.
-// - By `T: HasField<_, _, FIELD_ID>`:
+// invariants of `HasField<Client, Field, VARIANT_ID, FIELD_ID>` for field `f`
+// exactly when `T` does, as guaranteed by the `T: HasField` bound:
+// - If `VARIANT_ID` is `STRUCT_VARIANT_ID`, `UNION_VARIANT_ID`, or
+//   `REPR_C_UNION_VARIANT_ID`, then `T` has the layout of a struct, non-C union,
+//   or C union type respectively. Since `ReadOnly<T>` is a transparent wrapper
+//   around `T`, it does too. Otherwise, `VARIANT_ID` is the identifier ID of an
+//   enum variant; `T` has the layout of an enum type, and `ReadOnly<T>` does too.
+// - By `T: HasField<_, _, _, FIELD_ID>`:
 //   - `T` has a field `f` with name `n` such that
 //     `FIELD_ID = zerocopy::ident_id!(n)` or at index `i` such that
 //     `FIELD_ID = zerocopy::ident_id!(i)`.
@@ -794,10 +886,10 @@ unsafe impl<T: HasTag + ?Sized> HasTag for ReadOnly<T> {
 // refers to a non-strict subset of the bytes of `slf`'s referent, and has the
 // same provenance as `slf` – because all intermediate operations satisfy those
 // same conditions.
-unsafe impl<T, Field, const VARIANT_ID: i128, const FIELD_ID: i128>
-    HasField<Field, VARIANT_ID, FIELD_ID> for ReadOnly<T>
+unsafe impl<T, Client, Field, const VARIANT_ID: i128, const FIELD_ID: i128>
+    HasField<Client, Field, VARIANT_ID, FIELD_ID> for ReadOnly<T>
 where
-    T: HasField<Field, VARIANT_ID, FIELD_ID> + ?Sized,
+    T: HasField<Client, Field, VARIANT_ID, FIELD_ID> + ?Sized,
 {
     #[allow(clippy::missing_inline_in_public_items)]
     fn only_derive_is_allowed_to_implement_this_trait()
@@ -811,7 +903,7 @@ where
     #[inline(always)]
     fn project(slf: PtrInner<'_, Self>) -> *mut ReadOnly<T::Type> {
         slf.project::<_, <T as SizeEq<ReadOnly<T>>>::CastFrom>()
-            .project::<_, crate::pointer::cast::Projection<Field, VARIANT_ID, FIELD_ID>>()
+            .project::<_, crate::pointer::cast::Projection<Client, Field, VARIANT_ID, FIELD_ID>>()
             .project::<_, <ReadOnly<T::Type> as SizeEq<T::Type>>::CastFrom>()
             .as_non_null()
             .as_ptr()
@@ -822,10 +914,10 @@ where
 // has the same fields at the same offsets. `is_projectable` simply delegates to
 // `T::is_projectable`, which is sound because a `Ptr<'_, ReadOnly<T>, I>` will
 // be projectable exactly when a `Ptr<'_, T, I>` referent is.
-unsafe impl<T, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128>
-    ProjectField<Field, I, VARIANT_ID, FIELD_ID> for ReadOnly<T>
+unsafe impl<T, Client, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128>
+    ProjectField<Client, Field, I, VARIANT_ID, FIELD_ID> for ReadOnly<T>
 where
-    T: ProjectField<Field, I, VARIANT_ID, FIELD_ID> + ?Sized,
+    T: ProjectField<Client, Field, I, VARIANT_ID, FIELD_ID> + ?Sized,
     I: invariant::Invariants,
 {
     #[allow(clippy::missing_inline_in_public_items)]
@@ -835,13 +927,15 @@ where
     {
     }
 
-    type Invariants = T::Invariants;
+    type Invariants = <T as ProjectField<Client, Field, I, VARIANT_ID, FIELD_ID>>::Invariants;
 
-    type Error = T::Error;
+    type Error = <T as ProjectField<Client, Field, I, VARIANT_ID, FIELD_ID>>::Error;
 
     #[inline(always)]
-    fn is_projectable<'a>(ptr: Ptr<'a, Self::Tag, I>) -> Result<(), Self::Error> {
-        T::is_projectable(ptr)
+    fn is_projectable<'a>(
+        ptr: Ptr<'a, <Self as HasTag<Client>>::Tag, (invariant::Shared, I::Alignment, I::Validity)>,
+    ) -> Result<(), Self::Error> {
+        <T as ProjectField<Client, Field, I, VARIANT_ID, FIELD_ID>>::is_projectable(ptr)
     }
 }
 
@@ -851,6 +945,96 @@ mod tests {
 
     use super::*;
     use crate::util::testutil::*;
+
+    #[test]
+    #[allow(clippy::clone_on_copy, clippy::non_canonical_clone_impl)]
+    fn test_read_only_copy_clone() {
+        // This type deliberately does not implement `Immutable`. Copying the
+        // wrapper must not require it or invoke the inner `Clone` impl.
+        #[derive(Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        struct PanickingClone(u16);
+
+        impl Clone for PanickingClone {
+            fn clone(&self) -> Self {
+                panic!("ReadOnly must not call the inner Clone implementation")
+            }
+        }
+
+        static_assertions::assert_not_impl_any!(
+            ReadOnly<PanickingClone>: Debug, PartialEq, Eq, PartialOrd, Ord,
+            Hash, AsRef<PanickingClone>, Borrow<PanickingClone>
+        );
+        static_assertions::assert_not_impl_any!(
+            ReadOnly<Cell<u8>>: Copy, Clone, Deref, AsRef<Cell<u8>>, Borrow<Cell<u8>>
+        );
+
+        let value = ReadOnly::new(PanickingClone(42));
+        let copy = value;
+        let clone = value.clone();
+        assert_eq!(ReadOnly::into_inner(copy).0, 42);
+        assert_eq!(ReadOnly::into_inner(clone).0, 42);
+    }
+
+    #[test]
+    fn test_read_only_mutable_access() {
+        // Construction and exclusive access also support interior mutability.
+        let mut value = ReadOnly::<Cell<u8>>::default();
+        let inner: &mut Cell<u8> = value.as_mut();
+        inner.set(42);
+        assert_eq!(ReadOnly::into_inner(value).get(), 42);
+
+        let value = ReadOnly::from(Cell::new(7));
+        assert_eq!(ReadOnly::into_inner(value).get(), 7);
+    }
+
+    #[test]
+    fn test_read_only_borrowed_lookup() {
+        // Borrowed lookups require equality, hashing, and ordering to agree
+        // between the wrapper and the inner value.
+        let mut hash_map = std::collections::HashMap::new();
+        hash_map.insert(ReadOnly::new(42u16), true);
+        assert_eq!(hash_map.get(&42u16), Some(&true));
+        assert_eq!(hash_map.get(&43u16), None);
+
+        let mut tree = std::collections::BTreeMap::new();
+        tree.insert(ReadOnly::new(42u16), true);
+        assert_eq!(tree.get(&42u16), Some(&true));
+        assert_eq!(tree.get(&43u16), None);
+
+        // Preserve partial orders, including incomparable values.
+        let nan = ReadOnly::new(f32::NAN);
+        assert_eq!(nan.partial_cmp(&nan), None);
+        assert_ne!(nan, nan);
+    }
+
+    #[test]
+    fn test_read_only_unsized() {
+        let bytes = [1u8, 2];
+        let value: &ReadOnly<[u8]> = (&bytes[..]).into();
+        let as_ref: &[u8] = value.as_ref();
+        let borrowed: &[u8] = value.borrow();
+        assert_eq!(as_ref, bytes);
+        assert_eq!(borrowed, bytes);
+        assert_eq!(value, value);
+        assert_eq!(value.cmp(value), Ordering::Equal);
+
+        let text: &ReadOnly<str> = "hello".into();
+        assert_eq!(format!("{:.3}", text), "hel");
+    }
+
+    #[test]
+    fn test_read_only_formatting() {
+        let value = ReadOnly::new(42u16);
+        // Check that formatting flags are forwarded as well as the value.
+        assert_eq!(format!("{:04?}", value), "0042");
+        assert_eq!(format!("{:04}", value), "0042");
+        assert_eq!(format!("{:#010b}", value), "0b00101010");
+        assert_eq!(format!("{:#06o}", value), "0o0052");
+        assert_eq!(format!("{:#06x}", value), "0x002a");
+        assert_eq!(format!("{:#06X}", value), "0x002A");
+        assert_eq!(format!("{:.2e}", value), "4.20e1");
+        assert_eq!(format!("{:.2E}", value), "4.20E1");
+    }
 
     #[test]
     fn test_unalign() {

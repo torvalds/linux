@@ -28,8 +28,8 @@ use core::{marker::PhantomData, mem, num::Wrapping};
 
 use crate::{
     pointer::{
-        cast::CastSized,
-        invariant::{Aligned, Initialized, Valid},
+        cast::CastSizedExact,
+        invariant::{Aligned, Initialized, Safe},
         BecauseImmutable,
     },
     FromBytes, Immutable, IntoBytes, KnownLayout, Ptr, ReadOnly, TryFromBytes, ValidityError,
@@ -518,9 +518,9 @@ pub const fn hash_name(name: &str) -> i128 {
 ///
 /// `try_transmute` may either produce a post-monomorphization error or a panic
 /// if `Dst` is bigger than `Src`. Otherwise, `try_transmute` panics under the
-/// same circumstances as [`is_bit_valid`].
+/// same circumstances as [`is_safe`].
 ///
-/// [`is_bit_valid`]: TryFromBytes::is_bit_valid
+/// [`is_safe`]: TryFromBytes::is_safe
 #[inline(always)]
 pub fn try_transmute<Src, Dst>(src: Src) -> Result<Dst, ValidityError<Src, Dst>>
 where
@@ -529,30 +529,64 @@ where
 {
     static_assert!(Src, Dst => mem::size_of::<Dst>() == mem::size_of::<Src>());
 
-    let mu_src = mem::MaybeUninit::new(src);
-    // SAFETY: `MaybeUninit` has no validity requirements.
-    let mu_dst: mem::MaybeUninit<ReadOnly<Dst>> =
-        unsafe { crate::util::transmute_unchecked(mu_src) };
-
-    let ptr = Ptr::from_ref(&mu_dst);
-
-    // SAFETY: Since `Src: IntoBytes`, and since `size_of::<Src>() ==
-    // size_of::<Dst>()` by the preceding assertion, all of `mu_dst`'s bytes are
-    // initialized. `MaybeUninit` has no validity requirements, so even if
-    // `ptr` is used to mutate its referent (which it actually can't be - it's
-    // a shared `ReadOnly` pointer), that won't violate its referent's validity.
-    let ptr = unsafe { ptr.assume_validity::<Initialized>() };
-    if Dst::is_bit_valid(ptr.cast::<_, CastSized, _>()) {
-        // SAFETY: Since `Dst::is_bit_valid`, we know that `ptr`'s referent is
-        // bit-valid for `Dst`. `ptr` points to `mu_dst`, and no intervening
-        // operations have mutated it, so it is a bit-valid `Dst`.
-        Ok(ReadOnly::into_inner(unsafe { mu_dst.assume_init() }))
+    let src = mem::ManuallyDrop::new(ReadOnly::new(src));
+    let mut ptr =
+        Ptr::from_ref(&*src).transmute_with::<ReadOnly<Dst>, Initialized, CastSizedExact, _>();
+    if Dst::is_safe(ptr.reborrow_shared()) {
+        // SAFETY: `read_unaligned` requires that `ptr` be valid for reads and
+        // point to a properly initialized `ReadOnly<Dst>` [1]. `ptr` was
+        // derived from a live reference to `src`; `CastSizedExact` preserves
+        // that reference's address, provenance, and exact byte extent. Thus,
+        // the entire range remains live and valid for reads. The reference is
+        // non-null even when `ReadOnly<Dst>` is zero-sized, and the cast
+        // preserves that address, satisfying [1]'s explicit ZST requirement.
+        //
+        // `Src: IntoBytes` and the `ReadOnly<Src>` bridge let `transmute_with`
+        // establish that every byte in that exact range is initialized.
+        // `Dst::is_safe` then established that the same bytes are bit-valid for
+        // `Dst`, and thus for `ReadOnly<Dst>`. The candidate was a shared
+        // `ReadOnly` pointer, so it could not mutate the bytes; no operation
+        // occurs between validation and this read which could do so. Alignment
+        // is not an additional precondition because [1] expressly permits
+        // unaligned pointers.
+        //
+        // `read_unaligned` leaves the source memory unchanged and makes a
+        // bitwise copy [1]. The source is wrapped in `ManuallyDrop`, which
+        // inhibits its destructor [2]. After this read, neither `src` nor
+        // `ptr` is used to access the inner value, and the wrapper's eventual
+        // drop does not drop it. Thus, only the returned `Dst` is subsequently
+        // used or dropped; there is no duplicate ownership use.
+        //
+        // [1] Per https://doc.rust-lang.org/1.56.0/std/ptr/fn.read_unaligned.html:
+        //
+        //     Reads the value from `src` without moving it. This leaves the
+        //     memory in `src` unchanged.
+        //
+        //     Unlike `read`, `read_unaligned` works with unaligned pointers.
+        //
+        //     Behavior is undefined if any of the following conditions are
+        //     violated:
+        //
+        //     * `src` must be valid for reads.
+        //
+        //     * `src` must point to a properly initialized value of type `T`.
+        //
+        //     Like `read`, `read_unaligned` creates a bitwise copy of `T`,
+        //     regardless of whether `T` is `Copy`. If `T` is not `Copy`, using
+        //     both the returned value and the value at `*src` can violate
+        //     memory safety.
+        //
+        //     Note that even if `T` has size `0`, the pointer must be non-null.
+        //
+        // [2] Per https://doc.rust-lang.org/1.56.0/std/mem/struct.ManuallyDrop.html:
+        //
+        //     A wrapper to inhibit compiler from automatically calling `T`'s
+        //     destructor.
+        let dst = unsafe { core::ptr::read_unaligned(ptr.as_inner().as_ptr()) };
+        Ok(ReadOnly::into_inner(dst))
     } else {
-        // SAFETY: `MaybeUninit` has no validity requirements.
-        let mu_src: mem::MaybeUninit<Src> = unsafe { crate::util::transmute_unchecked(mu_dst) };
-        // SAFETY: `mu_dst`/`mu_src` was constructed from `src` and never
-        // modified, so it is still bit-valid.
-        Err(ValidityError::new(unsafe { mu_src.assume_init() }))
+        let src = ReadOnly::into_inner(mem::ManuallyDrop::into_inner(src));
+        Err(ValidityError::new(src))
     }
 }
 
@@ -599,7 +633,7 @@ where
         let res = ptr.try_with(#[inline(always)] |ptr| {
             let ptr = ptr.recall_validity::<Initialized, _>();
             let ptr = ptr.cast::<_, crate::layout::CastFrom<Dst>, _>();
-            ptr.try_into_valid()
+            ptr.try_into_safe()
         });
         match res {
             Ok(ptr) => {
@@ -662,7 +696,7 @@ where
             ptr.try_with_unchecked(#[inline(always)] |ptr| {
                 let ptr = ptr.recall_validity::<Initialized, (_, (_, _))>();
                 let ptr = ptr.cast::<_, crate::layout::CastFrom<Dst>, _>();
-                ptr.try_into_valid()
+                ptr.try_into_safe()
             })
         };
         match res {
@@ -878,7 +912,7 @@ where
         let ptr = Ptr::from_ref(self.0)
             .recall_validity::<Initialized, _>()
             .transmute_with::<Dst, Initialized, crate::layout::CastFrom<Dst>, (crate::pointer::BecauseMutationCompatible, _)>()
-            .recall_validity::<Valid, _>();
+            .recall_validity::<Safe, _>();
 
         static_assert!(Src: ?Sized + KnownLayout, Dst: ?Sized + KnownLayout => {
             Src::LAYOUT.align.get() >= Dst::LAYOUT.align.get()
@@ -911,7 +945,7 @@ where
         let ptr = Ptr::from_mut(self.0)
             .recall_validity::<Initialized, (_, (_, _))>()
             .transmute_with::<Dst, Initialized, crate::layout::CastFrom<Dst>, _>()
-            .recall_validity::<Valid, (_, (_, _))>();
+            .recall_validity::<Safe, (_, (_, _))>();
 
         static_assert!(Src: ?Sized + KnownLayout, Dst: ?Sized + KnownLayout => {
             Src::LAYOUT.align.get() >= Dst::LAYOUT.align.get()
@@ -944,6 +978,22 @@ pub mod core_reexport {
     pub mod mem {
         pub use core::mem::*;
     }
+}
+
+/// Projects `Self` to itself.
+///
+/// This is used by macros to have the compiler verify that two syntactically
+/// similar types actually resolve to the same type. The blanket implementation
+/// ensures that no other implementation can project a type to anything other
+/// than itself.
+#[doc(hidden)]
+pub trait Identity {
+    /// `Self`.
+    type Type: ?Sized;
+}
+
+impl<T: ?Sized> Identity for T {
+    type Type = T;
 }
 
 #[cfg(test)]

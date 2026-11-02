@@ -116,7 +116,7 @@ examples:
         regulator-max-microvolt = <1114000>;
         regulator-name = "vdd_logic";
 
-                /* Voltage Duty-Cycle */
+        /* Voltage Duty-Cycle */
         voltage-table = <1114000 0>,
             <1095000 10>,
             <1076000 20>,

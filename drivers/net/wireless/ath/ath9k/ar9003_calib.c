@@ -968,10 +968,7 @@ static void ar9003_hw_tx_iq_cal_outlier_detection(struct ath_hw *ah,
 		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x1);
 
 	if (caldata) {
-		if (is_reusable)
-			set_bit(TXIQCAL_DONE, &caldata->cal_flags);
-		else
-			clear_bit(TXIQCAL_DONE, &caldata->cal_flags);
+		assign_bit(TXIQCAL_DONE, &caldata->cal_flags, is_reusable);
 	}
 
 	return;

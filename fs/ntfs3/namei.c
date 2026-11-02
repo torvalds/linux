@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 /*
  * fill_name_de - Format NTFS_DE in @buf.
@@ -56,7 +57,7 @@ int fill_name_de(struct ntfs_sb_info *sbi, void *buf, const struct qstr *name,
 	real_size = data_size + sizeof(struct NTFS_DE);
 	aligned_size = ALIGN(data_size, 8) + sizeof(struct NTFS_DE);
 	if (aligned_size > real_size)
-		memset((char *)buf + real_size, 0, aligned_size - real_size);
+		memset(Add2Ptr(buf, real_size), 0, aligned_size - real_size);
 
 	e->size = cpu_to_le16(aligned_size);
 	e->key_size = cpu_to_le16(data_size);
@@ -76,6 +77,8 @@ static struct dentry *ntfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct cpu_str *uni = kmalloc(PATH_MAX, GFP_KERNEL);
 	struct inode *inode;
 	int err;
+
+	trace_ntfs3_lookup(dir, dentry);
 
 	if (!uni)
 		return ERR_PTR(-ENOMEM);
@@ -111,7 +114,7 @@ static struct dentry *ntfs_lookup(struct inode *dir, struct dentry *dentry,
 /*
  * ntfs_create - inode_operations::create
  */
-static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_create(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode)
 {
 	return ntfs_create_inode(idmap, dir, dentry, NULL, S_IFREG | mode, 0,
@@ -121,7 +124,7 @@ static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
 /*
  * ntfs_mknod - inode_operations::mknod
  */
-static int ntfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	return ntfs_create_inode(idmap, dir, dentry, NULL, mode, rdev, NULL, 0,
@@ -209,7 +212,7 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 /*
  * ntfs_symlink - inode_operations::symlink
  */
-static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
 	u32 size = strlen(symname);
@@ -228,11 +231,11 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 /*
  * ntfs_mkdir - inode_operations::mkdir
  */
-static struct dentry *ntfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *ntfs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				 struct dentry *dentry, umode_t mode)
 {
-	return ERR_PTR(ntfs_create_inode(idmap, dir, dentry, NULL,
-					 mode, 0, NULL, 0, NULL));
+	return ERR_PTR(ntfs_create_inode(idmap, dir, dentry, NULL, mode, 0,
+					 NULL, 0, NULL));
 }
 
 /*
@@ -262,7 +265,7 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 /*
  * ntfs_rename - inode_operations::rename
  */
-static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_rename(const struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, struct inode *new_dir,
 		       struct dentry *new_dentry, u32 flags)
 {
@@ -298,6 +301,8 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 
 	if (unlikely(ntfs3_forced_shutdown(sb)))
 		return -EIO;
+
+	trace_ntfs3_rename(dir, dentry, new_dir, new_dentry);
 
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;

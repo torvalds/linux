@@ -583,9 +583,9 @@ static int mtk_pcie_init_irq_domain(struct mtk_pcie_port *port,
 	int ret;
 
 	/* Setup INTx */
-	pcie_intc_node = of_get_next_child(node, NULL);
+	pcie_intc_node = of_get_child_by_name(node, "interrupt-controller");
 	if (!pcie_intc_node) {
-		dev_err(dev, "no PCIe Intc node found\n");
+		dev_err(dev, "no PCIe INTx interrupt-controller node found\n");
 		return -ENODEV;
 	}
 

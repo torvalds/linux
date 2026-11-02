@@ -43,14 +43,14 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      jack_codec: codec@4b {
-          compatible = "cirrus,cs42l84";
-          reg = <0x4b>;
-          reset-gpios = <&pinctrl_nub 4 GPIO_ACTIVE_LOW>;
-          interrupts-extended = <&pinctrl_ap 180 IRQ_TYPE_LEVEL_LOW>;
-          #sound-dai-cells = <0>;
-      };
+        jack_codec: codec@4b {
+            compatible = "cirrus,cs42l84";
+            reg = <0x4b>;
+            reset-gpios = <&pinctrl_nub 4 GPIO_ACTIVE_LOW>;
+            interrupts-extended = <&pinctrl_ap 180 IRQ_TYPE_LEVEL_LOW>;
+            #sound-dai-cells = <0>;
+        };
     };

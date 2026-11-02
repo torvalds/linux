@@ -5,7 +5,7 @@
  * needs assembly language because is very timing dependent
  * this controller exists only on macintosh 680x0 based
  *
- * Copyright (C) 2004,2008 Laurent Vivier <Laurent@lvivier.info>
+ * Copyright (C) 2004, 2008 Laurent Vivier <Laurent@lvivier.info>
  *
  * based on Alastair Bridgewater SWIM analysis, 2001
  * based on netBSD IWM driver (c) 1997, 1998 Hauke Fath.
@@ -14,135 +14,160 @@
  * 2008-11-05 (lv) - add get_swim_mode
  */
 
-	.equ	write_data,	0x0000
-	.equ	write_mark,	0x0200
-	.equ	write_CRC,	0x0400
-	.equ	write_parameter,0x0600
-	.equ	write_phase,	0x0800
-	.equ	write_setup,	0x0a00
-	.equ	write_mode0,	0x0c00
-	.equ	write_mode1,	0x0e00
-	.equ	read_data,	0x1000
-	.equ	read_mark,	0x1200
-	.equ	read_error,	0x1400
-	.equ	read_parameter,	0x1600
-	.equ	read_phase,	0x1800
-	.equ	read_setup,	0x1a00
-	.equ	read_status,	0x1c00
-	.equ	read_handshake,	0x1e00
+	.equ	.Lwrite_data,		0x0000
+	.equ	.Lwrite_mark,		0x0200
+	.equ	.Lwrite_CRC,		0x0400
+	.equ	.Lwrite_parameter,	0x0600
+	.equ	.Lwrite_phase,		0x0800
+	.equ	.Lwrite_setup,		0x0a00
+	.equ	.Lwrite_mode0,		0x0c00
+	.equ	.Lwrite_mode1,		0x0e00
+	.equ	.Lread_data,		0x1000
+	.equ	.Lread_mark,		0x1200
+	.equ	.Lread_error,		0x1400
+	.equ	.Lread_parameter,	0x1600
+	.equ	.Lread_phase,		0x1800
+	.equ	.Lread_setup,		0x1a00
+	.equ	.Lread_status,		0x1c00
+	.equ	.Lread_handshake,	0x1e00
 
-	.equ	o_side, 0
-	.equ	o_track, 1
-	.equ	o_sector, 2
-	.equ	o_size, 3
-	.equ	o_crc0, 4
-	.equ	o_crc1, 5
+	.equ	.Lo_side,		0
+	.equ	.Lo_track,		1
+	.equ	.Lo_sector,		2
+	.equ	.Lo_size,		3
+	.equ	.Lo_crc0,		4
+	.equ	.Lo_crc1,		5
 
-	.equ	seek_time, 30000
-	.equ	max_retry, 40
-	.equ	sector_size, 512
+	.equ	.Lseek_time,		30000
+	.equ	.Lmax_retry,		40
+	.equ	.Lsector_size,		512
+	.equ	.Lmark_sequence_len,	4
+
+	.equ	.Lmr_clear_fifo,	0x01
+	.equ	.Lmr_action,		0x08
+	.equ	.Lmr_write_action,	0x18
+
+	.equ	.Lhr_crc_error,		0x02
+	.equ	.Lhr_fifo_2bytes,	0x40
+	.equ	.Lhr_fifo_1byte,	0x80
+
+.Lmfm_mark_check:
+	/*
+	 * This subroutine reads and validates a mark byte sequence.
+	 * On entry, %a1 and %d4 shall hold the location and length (resp.)
+	 * of the mark byte array.
+	 * %a2 and %a3 shall hold the locations of the handshake and mark
+	 * registers.
+	 * Returns zero in %d1 for success.
+	 */
+
+	moveq	#-1, %d1
+	subq	#1, %d4
+	movew	#.Lseek_time, %d2
+
+5:	tstb	%a2@
+	dbmi	%d2, 5b
+	bpl	6f
+
+	moveb	%a3@, %d3
+	cmpb	%a1@+, %d3
+	dbne	%d4, 5b
+	bne	6f
+
+	moveq	#0, %d1
+6:	rts
 
 	.global swim_read_sector_header
 swim_read_sector_header:
 	link	%a6, #0
-	moveml	%d1-%d5/%a0-%a4,%sp@-
+	moveml	%d1-%d5/%a0-%a5,%sp@-
 	movel	%a6@(0x0c), %a4
-	bsr	mfm_read_addrmark
-	moveml	%sp@+, %d1-%d5/%a0-%a4
+	moveq	#-1, %d0
+	bsr	.Lmfm_read_header
+	moveml	%sp@+, %d1-%d5/%a0-%a5
 	unlk	%a6
 	rts
 
-sector_address_mark:
+.Lsector_address_mark:
 	.byte	0xa1, 0xa1, 0xa1, 0xfe
-sector_data_mark:
+.Lsector_data_mark:
 	.byte	0xa1, 0xa1, 0xa1, 0xfb
 
-mfm_read_addrmark:
+.Lmfm_read_header:
 	movel	%a6@(0x08), %a3
-	lea	%a3@(read_handshake), %a2
-	lea	%a3@(read_mark), %a3
-	moveq	#-1, %d0
-	movew	#seek_time, %d2
+	lea	%a3@(.Lread_handshake), %a2
+	lea	%a3@(.Lread_data), %a5
+	lea	%a3@(.Lread_mark), %a3
 
-wait_header_init:
-	tstb	%a3@(read_error - read_mark)
-	moveb	#0x18, %a3@(write_mode0 - read_mark)
-	moveb	#0x01, %a3@(write_mode1 - read_mark)
-	moveb	#0x01, %a3@(write_mode0 - read_mark)
-	tstb	%a3@(read_error - read_mark)
-	moveb	#0x08, %a3@(write_mode1 - read_mark)
+	moveb	#.Lmr_write_action, %a3@(.Lwrite_mode0 - .Lread_mark)
+	moveb	#.Lmr_clear_fifo, %a3@(.Lwrite_mode1 - .Lread_mark)
+	moveb	#.Lmr_clear_fifo, %a3@(.Lwrite_mode0 - .Lread_mark)
+	tstb	%a3@(.Lread_error - .Lread_mark)
+	moveb	#.Lmr_action, %a3@(.Lwrite_mode1 - .Lread_mark)
 
-	lea	sector_address_mark, %a0
-	moveq	#3, %d1
+	lea	.Lsector_address_mark, %a1
+	moveq	#.Lmark_sequence_len, %d4
+	bsr	.Lmfm_mark_check
+	tstl	%d1
+	bne	.Lsignal_nonyb
 
-wait_addr_mark_byte:
+	/* read header */
 
+	moveq	#.Lmax_retry, %d2
+.Lamark0:
 	tstb	%a2@
-	dbmi	%d2, wait_addr_mark_byte
-	bpl	header_exit
+	dbmi	%d2, .Lamark0
+	bpl	.Lsignal_nonyb
 
-	moveb	%a3@, %d3
-	cmpb	%a0@+, %d3
-	dbne	%d1, wait_addr_mark_byte
-	bne	wait_header_init
+	moveb	%a5@, %a4@(.Lo_track)
 
-	moveq	#max_retry, %d2
+	moveq	#.Lmax_retry, %d2
+.Lamark1:
+	tstb	%a2@
+	dbmi	%d2, .Lamark1
+	bpl	.Lsignal_nonyb
 
-amark0:	tstb	%a2@
-	dbmi	%d2, amark0
-	bpl	signal_nonyb
+	moveb	%a5@, %a4@(.Lo_side)
 
-	moveb	%a3@, %a4@(o_track)
+	moveq	#.Lmax_retry, %d2
+.Lamark2:
+	tstb	%a2@
+	dbmi	%d2, .Lamark2
+	bpl	.Lsignal_nonyb
 
-	moveq	#max_retry, %d2
+	moveb	%a5@, %a4@(.Lo_sector)
 
-amark1:	tstb	%a2@
-	dbmi	%d2, amark1
-	bpl	signal_nonyb
+	moveq	#.Lmax_retry, %d2
+.Lamark3:
+	tstb	%a2@
+	dbmi	%d2, .Lamark3
+	bpl	.Lsignal_nonyb
 
-	moveb	%a3@, %a4@(o_side)
+	moveb	%a5@, %a4@(.Lo_size)
 
-	moveq	#max_retry, %d2
+	moveq	#.Lmax_retry, %d2
+.Lcrc0:
+	tstb	%a2@
+	dbmi	%d2, .Lcrc0
+	bpl	.Lsignal_nonyb
 
-amark2:	tstb	%a2@
-	dbmi	%d2, amark2
-	bpl	signal_nonyb
+	moveb	%a5@, %a4@(.Lo_crc0)
 
-	moveb	%a3@, %a4@(o_sector)
+	moveq	#.Lmax_retry, %d2
+.Lcrc1:
+	tstb	%a2@
+	dbmi	%d2, .Lcrc1
+	bpl	.Lsignal_nonyb
 
-	moveq	#max_retry, %d2
+	moveb	%a5@, %a4@(.Lo_crc1)
 
-amark3:	tstb	%a2@
-	dbmi	%d2, amark3
-	bpl	signal_nonyb
+	moveb	%a2@, %d5
+	andb	#.Lhr_crc_error, %d5
+	bne	.Lsignal_nonyb
 
-	moveb	%a3@, %a4@(o_size)
-
-	moveq	#max_retry, %d2
-
-crc0:	tstb	%a2@
-	dbmi	%d2, crc0
-	bpl	signal_nonyb
-
-	moveb	%a3@, %a4@(o_crc0)
-
-	moveq	#max_retry, %d2
-
-crc1:	tstb	%a2@
-	dbmi	%d2, crc1
-	bpl	signal_nonyb
-
-	moveb	%a3@, %a4@(o_crc1)
-
-	tstb	%a3@(read_error - read_mark)
-
-header_exit:
 	moveq	#0, %d0
-	moveb	#0x18, %a3@(write_mode0 - read_mark)
-	rts
-signal_nonyb:
-	moveq	#-1, %d0
-	moveb	#0x18, %a3@(write_mode0 - read_mark)
+.Lsignal_nonyb:
+	moveb	#.Lmr_write_action, %a3@(.Lwrite_mode0 - .Lread_mark)
 	rts
 
 	.global swim_read_sector_data
@@ -150,94 +175,85 @@ swim_read_sector_data:
 	link	%a6, #0
 	moveml	%d1-%d5/%a0-%a5,%sp@-
 	movel	%a6@(0x0c), %a4
-	bsr	mfm_read_data
+	moveq	#-1, %d0
+	bsr	.Lmfm_read_data
 	moveml	%sp@+, %d1-%d5/%a0-%a5
 	unlk	%a6
 	rts
 
-mfm_read_data:
+.Lmfm_read_data:
 	movel	%a6@(0x08), %a3
-	lea	%a3@(read_handshake), %a2
-	lea	%a3@(read_data), %a5
-	lea	%a3@(read_mark), %a3
-	movew	#seek_time, %d2
+	lea	%a3@(.Lread_handshake), %a2
+	lea	%a3@(.Lread_data), %a5
+	lea	%a3@(.Lread_mark), %a3
 
-wait_data_init:
-	tstb	%a3@(read_error - read_mark)
-	moveb	#0x18, %a3@(write_mode0 - read_mark)
-	moveb	#0x01, %a3@(write_mode1 - read_mark)
-	moveb	#0x01, %a3@(write_mode0 - read_mark)
-	tstb	%a3@(read_error - read_mark)
-	moveb	#0x08, %a3@(write_mode1 - read_mark)
+	moveb	#.Lmr_write_action, %a3@(.Lwrite_mode0 - .Lread_mark)
+	moveb	#.Lmr_clear_fifo, %a3@(.Lwrite_mode1 - .Lread_mark)
+	moveb	#.Lmr_clear_fifo, %a3@(.Lwrite_mode0 - .Lread_mark)
+	tstb	%a3@(.Lread_error - .Lread_mark)
+	moveb	#.Lmr_action, %a3@(.Lwrite_mode1 - .Lread_mark)
 
-	lea	sector_data_mark, %a0
-	moveq	#3, %d1
-
-	/* wait data address mark */
-
-wait_data_mark_byte:
-
-	tstb	%a2@
-	dbmi	%d2, wait_data_mark_byte
-	bpl	data_exit
-
-	moveb	%a3@, %d3
-	cmpb	%a0@+, %d3
-	dbne	%d1, wait_data_mark_byte
-	bne	wait_data_init
+	lea	.Lsector_data_mark, %a1
+	moveq	#.Lmark_sequence_len, %d4
+	bsr	.Lmfm_mark_check
+	tstl	%d1
+	bne	.Ldata_exit
 
 	/* read data */
 
-	tstb	%a3@(read_error - read_mark)
-
-	movel	#sector_size-1, %d4		/* sector size */
-read_new_data:
-	movew	#max_retry, %d2
-read_data_loop:
+	movel	#.Lsector_size - 1, %d4		/* sector size */
+	movew	#.Lmax_retry, %d2
+.Lread_data_loop:
 	moveb	%a2@, %d5
-	andb	#0xc0, %d5
-	dbne	%d2, read_data_loop
-	beq	data_exit
-	moveb	%a5@, %a4@+
-	andb	#0x40, %d5
-	dbne	%d4, read_new_data
-	beq	exit_loop
-	moveb	%a5@, %a4@+
-	dbra	%d4, read_new_data
-exit_loop:
+	andb	#(.Lhr_fifo_1byte + .Lhr_fifo_2bytes), %d5
+	dbne	%d2, .Lread_data_loop
+	beq	.Ldata_exit
+
+	moveq	#.Lmax_retry, %d2
+	moveb	%a5@, %d3
+	bsr	.Lmaybe_store
+	dbra	%d4, 1f
+	bra	.Ldata_crc0
+1:	andb	#.Lhr_fifo_2bytes, %d5
+	beq	.Lread_data_loop
+	moveb	%a5@, %d3
+	bsr	.Lmaybe_store
+	dbra	%d4, .Lread_data_loop
 
 	/* read CRC */
 
-	movew	#max_retry, %d2
-data_crc0:
-
+	movew	#.Lmax_retry, %d2
+.Ldata_crc0:
 	tstb	%a2@
-	dbmi	%d2, data_crc0
-	bpl	data_exit
+	dbmi	%d2, .Ldata_crc0
+	bpl	.Ldata_exit
 
-	moveb	%a3@, %d5
+	moveb	%a5@, %d5
 
-	moveq	#max_retry, %d2
-
-data_crc1:
-
+	moveq	#.Lmax_retry, %d2
+.Ldata_crc1:
 	tstb	%a2@
-	dbmi	%d2, data_crc1
-	bpl	data_exit
+	dbmi	%d2, .Ldata_crc1
+	bpl	.Ldata_exit
 
-	moveb	%a3@, %d5
+	moveb	%a5@, %d5
 
-	tstb	%a3@(read_error - read_mark)
-
-	moveb	#0x18, %a3@(write_mode0 - read_mark)
+	moveb	%a2@, %d5
+	andb	#.Lhr_crc_error, %d5
+	bne	.Ldata_exit
 
 	/* return number of bytes read */
 
-	movel	#sector_size, %d0
+	movel	#.Lsector_size, %d0
 	addw	#1, %d4
 	subl	%d4, %d0
+
+.Ldata_exit:
+	moveb	#.Lmr_write_action, %a3@(.Lwrite_mode0 - .Lread_mark)
 	rts
-data_exit:
-	moveb	#0x18, %a3@(write_mode0 - read_mark)
-	moveq	#-1, %d0
-	rts
+
+.Lmaybe_store:
+	tstl	%a4
+	beq	9f
+	moveb	%d3, %a4@+
+9:	rts

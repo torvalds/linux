@@ -53,26 +53,26 @@ examples:
         #size-cells = <0>;
 
         pmic@69 {
-          compatible = "mps,mp5416";
-          reg = <0x69>;
+            compatible = "mps,mp5416";
+            reg = <0x69>;
 
-          regulators {
+            regulators {
 
-            buck1 {
-             regulator-name = "buck1";
-             regulator-min-microvolt = <600000>;
-             regulator-max-microvolt = <2187500>;
-             regulator-min-microamp = <3800000>;
-             regulator-max-microamp = <6800000>;
-             regulator-boot-on;
+                buck1 {
+                    regulator-name = "buck1";
+                    regulator-min-microvolt = <600000>;
+                    regulator-max-microvolt = <2187500>;
+                    regulator-min-microamp = <3800000>;
+                    regulator-max-microamp = <6800000>;
+                    regulator-boot-on;
+                };
+
+                ldo2 {
+                    regulator-name = "ldo2";
+                    regulator-min-microvolt = <800000>;
+                    regulator-max-microvolt = <3975000>;
+                };
             };
-
-            ldo2 {
-             regulator-name = "ldo2";
-             regulator-min-microvolt = <800000>;
-             regulator-max-microvolt = <3975000>;
-            };
-         };
-       };
-     };
+        };
+    };
 ...

@@ -5,7 +5,7 @@
  *
  * Copyright 2005-2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2006	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2020-2021, 2023-2024 Intel Corporation
+ * Copyright (C) 2020-2021, 2023-2024, 2026 Intel Corporation
  */
 
 #include <linux/device.h>
@@ -52,16 +52,16 @@ static ssize_t addresses_show(struct device *dev,
 			      char *buf)
 {
 	struct wiphy *wiphy = &dev_to_rdev(dev)->wiphy;
-	char *start = buf;
-	int i;
+	int i, len = 0;
 
 	if (!wiphy->addresses)
-		return sprintf(buf, "%pM\n", wiphy->perm_addr);
+		return sysfs_emit(buf, "%pM\n", wiphy->perm_addr);
 
 	for (i = 0; i < wiphy->n_addresses; i++)
-		buf += sprintf(buf, "%pM\n", wiphy->addresses[i].addr);
+		len += sysfs_emit_at(buf, len, "%pM\n",
+				     wiphy->addresses[i].addr);
 
-	return buf - start;
+	return len;
 }
 static DEVICE_ATTR_RO(addresses);
 

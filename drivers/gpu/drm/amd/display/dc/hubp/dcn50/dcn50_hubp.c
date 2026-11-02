@@ -22,7 +22,8 @@
 bool hubp50_program_surface_flip_and_addr(
 	struct hubp *hubp,
 	const struct dc_plane_address *address,
-	bool flip_immediate)
+	bool flip_immediate,
+	bool dcc)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
@@ -55,8 +56,10 @@ bool hubp50_program_surface_flip_and_addr(
 		if (address->grph.addr.quad_part == 0)
 			break;
 
-		REG_UPDATE(DCSURF_SURFACE_CONTROL,
-				PRIMARY_SURFACE_TMZ, address->tmz_surface);
+		REG_UPDATE_3(DCSURF_SURFACE_CONTROL,
+				PRIMARY_SURFACE_TMZ, address->tmz_surface,
+				PRIMARY_SURFACE_DCC_EN, dcc,
+				SECONDARY_SURFACE_DCC_EN, dcc);
 
 		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH, 0,
 				PRIMARY_SURFACE_ADDRESS_HIGH,
@@ -71,9 +74,11 @@ bool hubp50_program_surface_flip_and_addr(
 				|| address->video_progressive.chroma_addr.quad_part == 0)
 			break;
 
-		REG_UPDATE_2(DCSURF_SURFACE_CONTROL,
+		REG_UPDATE_4(DCSURF_SURFACE_CONTROL,
 				PRIMARY_SURFACE_TMZ, address->tmz_surface,
-				PRIMARY_SURFACE_TMZ_C, address->tmz_surface);
+				PRIMARY_SURFACE_TMZ_C, address->tmz_surface,
+				PRIMARY_SURFACE_DCC_EN, dcc,
+				SECONDARY_SURFACE_DCC_EN, dcc);
 
 		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C, 0,
 				PRIMARY_SURFACE_ADDRESS_HIGH_C,
@@ -96,11 +101,13 @@ bool hubp50_program_surface_flip_and_addr(
 			|| address->grph_stereo.right_addr.quad_part == 0)
 			break;
 
-		REG_UPDATE_4(DCSURF_SURFACE_CONTROL,
+		REG_UPDATE_6(DCSURF_SURFACE_CONTROL,
 				PRIMARY_SURFACE_TMZ, address->tmz_surface,
 				PRIMARY_SURFACE_TMZ_C, address->tmz_surface,
 				SECONDARY_SURFACE_TMZ, address->tmz_surface,
-				SECONDARY_SURFACE_TMZ_C, address->tmz_surface);
+				SECONDARY_SURFACE_TMZ_C, address->tmz_surface,
+				PRIMARY_SURFACE_DCC_EN, dcc,
+				SECONDARY_SURFACE_DCC_EN, dcc);
 
 		REG_SET(DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH_C, 0,
 				SECONDARY_SURFACE_ADDRESS_HIGH_C,
@@ -139,9 +146,11 @@ bool hubp50_program_surface_flip_and_addr(
 				|| address->rgbea.alpha_addr.quad_part == 0)
 			break;
 
-		REG_UPDATE_2(DCSURF_SURFACE_CONTROL,
+		REG_UPDATE_4(DCSURF_SURFACE_CONTROL,
 				PRIMARY_SURFACE_TMZ, address->tmz_surface,
-				PRIMARY_SURFACE_TMZ_C, address->tmz_surface);
+				PRIMARY_SURFACE_TMZ_C, address->tmz_surface,
+				PRIMARY_SURFACE_DCC_EN, dcc,
+				SECONDARY_SURFACE_DCC_EN, dcc);
 
 		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C, 0,
 				PRIMARY_SURFACE_ADDRESS_HIGH_C,
@@ -457,7 +466,6 @@ void hubp50_program_surface_config(
 	(void)compat_level;
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
-	hubp401_dcc_control(hubp, dcc);
 	hubp50_program_tiling(hubp2, tiling_info, format);
 	hubp401_program_size(hubp, format, plane_size, dcc);
 	hubp2_program_rotation(hubp, rotation, horizontal_mirror);

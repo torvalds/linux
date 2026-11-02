@@ -987,6 +987,8 @@ struct iwl_scan_probe_params_v4 {
 #define SCAN_MAX_NUM_CHANS_V3 67
 #define SCAN_MAX_NUM_CHANS_V4 68
 
+#define SCAN_MAX_NUM_NOTIF_RESULTS 112
+
 /**
  * struct iwl_scan_channel_params_v4 - channel params
  * @flags: channel flags &enum iwl_scan_channel_flags
@@ -1232,7 +1234,8 @@ struct iwl_umac_scan_complete {
 } __packed; /* SCAN_COMPLETE_NTF_UMAC_API_S_VER_1 */
 
 #define SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V1 5
-#define SCAN_OFFLOAD_MATCHING_CHANNELS_LEN    7
+#define SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V2 7
+#define SCAN_OFFLOAD_MATCHING_CHANNELS_LEN    16
 
 /**
  * struct iwl_scan_offload_profile_match_v1 - match information
@@ -1279,10 +1282,30 @@ struct iwl_scan_offload_profiles_query_v1 {
 } __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
 
 /**
+ * struct iwl_scan_offload_profile_match_v2 - match information
+ * @bssid: matched bssid
+ * @reserved: reserved
+ * @channel: channel where the match occurred
+ * @energy: energy
+ * @matching_feature: feature matches
+ * @matching_channels: bitmap of channels that matched, referencing
+ *	the channels passed in the scan offload request.
+ */
+struct iwl_scan_offload_profile_match_v2 {
+	u8 bssid[ETH_ALEN];
+	__le16 reserved;
+	u8 channel;
+	u8 energy;
+	u8 matching_feature;
+	u8 matching_channels[SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V2];
+} __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_2 */
+
+/**
  * struct iwl_scan_offload_profile_match - match information
  * @bssid: matched bssid
  * @reserved: reserved
  * @channel: channel where the match occurred
+ * @band: band where the match occurred
  * @energy: energy
  * @matching_feature: feature matches
  * @matching_channels: bitmap of channels that matched, referencing
@@ -1292,10 +1315,11 @@ struct iwl_scan_offload_profile_match {
 	u8 bssid[ETH_ALEN];
 	__le16 reserved;
 	u8 channel;
+	u8 band;
 	u8 energy;
 	u8 matching_feature;
 	u8 matching_channels[SCAN_OFFLOAD_MATCHING_CHANNELS_LEN];
-} __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_2 */
+} __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_3 */
 
 /**
  * struct iwl_scan_offload_match_info - match results information
@@ -1320,12 +1344,13 @@ struct iwl_scan_offload_match_info {
 	u8 self_recovery;
 	__le16 reserved;
 	struct iwl_scan_offload_profile_match matches[IWL_SCAN_MAX_PROFILES_V2];
-} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_3 and
+} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_5 and
 	     * SCAN_OFFLOAD_MATCH_INFO_NOTIFICATION_S_VER_1
 	     */
 
 /**
- * struct iwl_umac_scan_iter_complete_notif - notifies end of scanning iteration
+ * struct iwl_umac_scan_iter_complete_notif_v2 - notifies end of scanning
+ *	iteration
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @scanned_channels: number of channels scanned and number of valid elements in
  *	results array
@@ -1336,7 +1361,7 @@ struct iwl_scan_offload_match_info {
  *	in &struct iwl_scan_req_umac.
  * @results: array of scan results, length in @scanned_channels
  */
-struct iwl_umac_scan_iter_complete_notif {
+struct iwl_umac_scan_iter_complete_notif_v2 {
 	__le32 uid;
 	u8 scanned_channels;
 	u8 status;
@@ -1345,6 +1370,39 @@ struct iwl_umac_scan_iter_complete_notif {
 	__le64 start_tsf;
 	struct iwl_scan_results_notif results[];
 } __packed; /* SCAN_ITER_COMPLETE_NTF_UMAC_API_S_VER_2 */
+
+/**
+ * struct iwl_umac_scan_iter_complete_notif - notifies end of scanning
+ *	iteration
+ * @uid: scan id, &enum iwl_umac_scan_uid_offsets
+ * @scanned_channels: number of channels scanned and number of valid elements in
+ *	results array
+ * @status: one of SCAN_COMP_STATUS_*
+ * @bt_status: BT on/off status
+ * @last_channel: last channel that was scanned
+ * @start_tsf: TSF timer in usecs of the scan start time for the mac specified
+ *	in &struct iwl_scan_req_umac.
+ * @results: array of scan results, only @scanned_channels of them are valid
+ * @ebs_status: EBS completion status, &enum iwl_scan_ebs_status
+ * @reserved: reserved for alignment
+ * @ebs_channel_status: only valid when @ebs_status is %IWL_SCAN_EBS_SUCCESS.
+ *	Bitmap of the 5 GHz channels on which EBS found energy:
+ *	bit i in [0..27]:  channel = 36 + 4 * i   (channels 36 - 144)
+ *	bit i in [28..35]: channel = 37 + 4 * i   (channels 149 - 177)
+ *	bit 36: channel 181 (reserved, not currently covered by EBS)
+ */
+struct iwl_umac_scan_iter_complete_notif {
+	__le32 uid;
+	u8 scanned_channels;
+	u8 status;
+	u8 bt_status;
+	u8 last_channel;
+	__le64 start_tsf;
+	struct iwl_scan_results_notif results[SCAN_MAX_NUM_NOTIF_RESULTS];
+	u8 ebs_status;
+	u8 reserved[3];
+	__le64 ebs_channel_status;
+} __packed; /* SCAN_ITER_COMPLETE_NTF_UMAC_API_S_VER_3 */
 
 /**
  * struct iwl_umac_scan_channel_survey_notif - data for survey

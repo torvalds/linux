@@ -440,7 +440,7 @@ static void ds1305_work(struct work_struct *work)
 	int		status;
 
 	/* lock to protect ds1305->ctrl */
-	rtc_lock(ds1305->rtc);
+	guard(rtc_ops)(ds1305->rtc);
 
 	/* Disable the IRQ, and clear its status ... for now, we "know"
 	 * that if more than one alarm is active, they're in sync.
@@ -457,8 +457,6 @@ static void ds1305_work(struct work_struct *work)
 			NULL, 0);
 	if (status < 0)
 		dev_dbg(&spi->dev, "clear irq --> %d\n", status);
-
-	rtc_unlock(ds1305->rtc);
 
 	if (!test_bit(FLAG_EXITING, &ds1305->flags))
 		enable_irq(spi->irq);

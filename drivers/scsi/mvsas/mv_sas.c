@@ -1055,6 +1055,7 @@ out_done:
 }
 
 static void mvs_port_notify_formed(struct asd_sas_phy *sas_phy, int lock)
+	__context_unsafe(/*conditional locking*/)
 {
 	struct sas_ha_struct *sas_ha = sas_phy->ha;
 	struct mvs_info *mvi = NULL; int i = 0, hi;
@@ -1153,6 +1154,7 @@ static void mvs_free_dev(struct mvs_device *mvi_dev)
 }
 
 static int mvs_dev_found_notify(struct domain_device *dev, int lock)
+	__context_unsafe(/*conditional locking*/)
 {
 	unsigned long flags = 0;
 	int res = 0;
@@ -1517,6 +1519,7 @@ static int mvs_slot_err(struct mvs_info *mvi, struct sas_task *task,
 }
 
 int mvs_slot_complete(struct mvs_info *mvi, u32 rx_desc, u32 flags)
+	__must_hold(&mvi->lock)
 {
 	u32 slot_idx = rx_desc & RXQ_SLOT_MASK;
 	struct mvs_slot_info *slot = &mvi->slot_info[slot_idx];
@@ -1644,6 +1647,7 @@ out:
 
 void mvs_do_release_task(struct mvs_info *mvi,
 		int phy_no, struct domain_device *dev)
+	__must_hold(&mvi->lock)
 {
 	u32 slot_idx;
 	struct mvs_phy *phy;
@@ -1677,6 +1681,7 @@ void mvs_do_release_task(struct mvs_info *mvi,
 
 void mvs_release_task(struct mvs_info *mvi,
 		      struct domain_device *dev)
+	__must_hold(&mvi->lock)
 {
 	int i, phyno[WIDE_PORT_MAX_PHY], num;
 	num = mvs_find_dev_phyno(dev, phyno);
@@ -1769,6 +1774,7 @@ static void mvs_sig_time_out(struct timer_list *t)
 }
 
 void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
+	__must_hold(&mvi->lock)
 {
 	u32 tmp;
 	struct mvs_phy *phy = &mvi->phy[phy_no];
@@ -1862,6 +1868,7 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 }
 
 int mvs_int_rx(struct mvs_info *mvi, bool self_clear)
+	__must_hold(&mvi->lock)
 {
 	u32 rx_prod_idx, rx_desc;
 	bool attn = false;

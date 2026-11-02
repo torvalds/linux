@@ -87,7 +87,7 @@ time=0
 start=$(date +%s)
 
 while [ $time -lt $duration ] ; do
-	$*
+	"$@"
 	rc=$?
 	[ $rc -eq 0 ] || break
 	time=$(($(date +%s) - $start))

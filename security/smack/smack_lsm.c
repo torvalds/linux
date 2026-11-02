@@ -1089,14 +1089,15 @@ instant_inode:
 
 /**
  * smack_inode_link - Smack check on link
+ * @idmap: idmap of the mount
  * @old_dentry: the existing object
  * @dir: unused
  * @new_dentry: the new object
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_link(struct dentry *old_dentry, struct inode *dir,
-			    struct dentry *new_dentry)
+static int smack_inode_link(const struct mnt_idmap *idmap, struct dentry *old_dentry,
+			    struct inode *dir, struct dentry *new_dentry)
 {
 	struct smack_known *isp;
 	struct smk_audit_info ad;
@@ -1226,6 +1227,7 @@ static int smack_inode_rename(struct inode *old_inode,
 
 /**
  * smack_inode_permission - Smack version of permission()
+ * @idmap: idmap of the mount
  * @inode: the inode in question
  * @mask: the access requested
  *
@@ -1233,7 +1235,8 @@ static int smack_inode_rename(struct inode *old_inode,
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_permission(struct inode *inode, int mask)
+static int smack_inode_permission(const struct mnt_idmap *idmap, struct inode *inode,
+				  int mask)
 {
 	struct superblock_smack *sbsp = smack_superblock(inode->i_sb);
 	struct smk_audit_info ad;
@@ -1270,7 +1273,7 @@ static int smack_inode_permission(struct inode *inode, int mask)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int smack_inode_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 			       struct iattr *iattr)
 {
 	struct smk_audit_info ad;
@@ -1348,7 +1351,7 @@ static int smack_inode_xattr_skipcap(const char *name)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_setxattr(struct mnt_idmap *idmap,
+static int smack_inode_setxattr(const struct mnt_idmap *idmap,
 				struct dentry *dentry, const char *name,
 				const void *value, size_t size, int flags)
 {
@@ -1482,7 +1485,7 @@ static int smack_inode_getxattr(struct dentry *dentry, const char *name)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_removexattr(struct mnt_idmap *idmap,
+static int smack_inode_removexattr(const struct mnt_idmap *idmap,
 				   struct dentry *dentry, const char *name)
 {
 	struct inode_smack *isp;
@@ -1543,7 +1546,7 @@ static int smack_inode_removexattr(struct mnt_idmap *idmap,
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_set_acl(struct mnt_idmap *idmap,
+static int smack_inode_set_acl(const struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *acl_name,
 			       struct posix_acl *kacl)
 {
@@ -1566,7 +1569,7 @@ static int smack_inode_set_acl(struct mnt_idmap *idmap,
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_get_acl(struct mnt_idmap *idmap,
+static int smack_inode_get_acl(const struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *acl_name)
 {
 	struct smk_audit_info ad;
@@ -1588,7 +1591,7 @@ static int smack_inode_get_acl(struct mnt_idmap *idmap,
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_remove_acl(struct mnt_idmap *idmap,
+static int smack_inode_remove_acl(const struct mnt_idmap *idmap,
 				  struct dentry *dentry, const char *acl_name)
 {
 	struct smk_audit_info ad;
@@ -1612,7 +1615,7 @@ static int smack_inode_remove_acl(struct mnt_idmap *idmap,
  *
  * Returns the size of the attribute or an error code
  */
-static int smack_inode_getsecurity(struct mnt_idmap *idmap,
+static int smack_inode_getsecurity(const struct mnt_idmap *idmap,
 				   struct inode *inode, const char *name,
 				   void **buffer, bool alloc)
 {

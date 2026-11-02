@@ -434,7 +434,7 @@ EXPORT_SYMBOL_GPL(vmci_datagram_create_handle_priv);
  * @out_handle: vmci_handle that is populated as a result of this function.
  *
  * Creates a host context datagram endpoint and returns a handle to
- * it.  Same as vmci_datagram_create_handle_priv without the priviledge
+ * it.  Same as vmci_datagram_create_handle_priv without the privilege
  * flags argument.
  */
 int vmci_datagram_create_handle(u32 resource_id,

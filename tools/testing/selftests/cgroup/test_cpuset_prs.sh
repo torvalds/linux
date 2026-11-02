@@ -67,6 +67,30 @@ then
 	echo Y > /sys/kernel/debug/sched/verbose
 fi
 
+cleanup()
+{
+	online_cpus
+	cd $CGROUP2
+	rmdir A1/A2/A3 A1/A2 A1 B1 test/A1 test/B1 test > /dev/null 2>&1
+	rmdir rtest/p1/c11 rtest/p1/c12 rtest/p2/c21 \
+	      rtest/p2/c22 rtest/p1 rtest/p2 rtest > /dev/null 2>&1
+	[[ -n "$SCHED_DEBUG" ]] &&
+		echo "$SCHED_DEBUG" > /sys/kernel/debug/sched/verbose
+}
+
+online_cpus()
+{
+	[[ -n "$OFFLINE_CPUS" ]] && {
+		for C in $OFFLINE_CPUS
+		do
+			write_cpu_online ${C}=1
+		done
+	}
+}
+
+# Clean up the cgroupfs directory if the test is aborted.
+trap cleanup 0 2 3 6
+
 cd $CGROUP2
 echo +cpuset > cgroup.subtree_control
 
@@ -85,38 +109,83 @@ echo "" > test/cpuset.cpus
 [[ $RESULT -eq 0 ]] && skip_test "Child cgroups are using cpuset!"
 
 #
-# If isolated CPUs have been reserved at boot time (as shown in
-# cpuset.cpus.isolated), these isolated CPUs should be outside of CPUs 0-8
-# that will be used by this script for testing purpose. If not, some of
-# the tests may fail incorrectly. Wait a bit and retry again just in case
-# these isolated CPUs are leftover from previous run and have just been
-# cleaned up earlier in this script.
+# If nohz_full CPUs have been reserved at boot time, they should not include
+# CPUs 0-7 as that may fail some of the test cases. On the other hand if the
+# set of nohz_full CPUs includes all the CPUs except 0-7 in a single range
+# <first>-<last>, we can run a special set of housekeeping CPUs exhaustion
+# tests to see if the cpuset code will reject them.
 #
-# These pre-isolated CPUs should stay in an isolated state throughout the
+FIRST_NOHZ_FULL_CPU=
+LAST_NOHZ_FULL_CPU=
+RUN_NOHZ_FULL_TESTS=
+NOHZ_FULL_CPUS=
+[[ -f /sys/devices/system/cpu/nohz_full ]] &&
+	NOHZ_FULL_CPUS=$(cat /sys/devices/system/cpu/nohz_full)
+LAST_PRESENT_CPU=$(cat /sys/devices/system/cpu/present | sed -e "s/.*[,-]//")
+[[ -n "$NOHZ_FULL_CPUS" ]] && {
+	FIRST_NOHZ_FULL_CPU=$(echo $NOHZ_FULL_CPUS | sed -e "s/[,-].*//")
+	LAST_NOHZ_FULL_CPU=$(echo $NOHZ_FULL_CPUS | sed -e "s/,.*//;s/.*[-]//")
+	echo "Boot nohz_full CPUs: $NOHZ_FULL_CPUS"
+}
+[[ -n "$FIRST_NOHZ_FULL_CPU" && "$FIRST_NOHZ_FULL_CPU" -le 7 ]] &&
+	skip_test "Boot NOHZ_FULL CPUs overlap CPUs to be tested!"
+
+[[ -n "$FIRST_NOHZ_FULL_CPU" && "$FIRST_NOHZ_FULL_CPU" = 8 &&
+   "$LAST_NOHZ_FULL_CPU" = $LAST_PRESENT_CPU ]] && RUN_NOHZ_FULL_TESTS=1
+
+#
+# If isolated CPUs have been reserved at boot time (as shown in
+# /sys/devices/system/cpu/isolated), these isolated CPUs should be outside of
+# CPUs 0-8 that will be used by this script for testing purpose. If not, some
+# of the tests may fail incorrectly.
+#
+# The current set of isolated CPUs (as shown in cpuset.cpus.isolated) should
+# be the same as the boot value. If not, wait a bit and retry again just in
+# case these isolated CPUs are leftover from previous run and have just been
+# cleaned up earlier in this script. If they still don't match, we report an
+# warning and skip the test.
+#
+# These boot isolated CPUs should stay in an isolated state throughout the
 # testing process for now.
 #
-BOOT_ISOLCPUS=$(cat $CGROUP2/cpuset.cpus.isolated)
-[[ -n "$BOOT_ISOLCPUS" ]] && {
-	sleep 0.5
-	BOOT_ISOLCPUS=$(cat $CGROUP2/cpuset.cpus.isolated)
-}
-if [[ -n "$BOOT_ISOLCPUS" ]]
-then
-	[[ $(echo $BOOT_ISOLCPUS | sed -e "s/[,-].*//") -le 8 ]] &&
-		skip_test "Pre-isolated CPUs ($BOOT_ISOLCPUS) overlap CPUs to be tested"
-	echo "Pre-isolated CPUs: $BOOT_ISOLCPUS"
-fi
+BOOT_ISOLCPUS=$(cat /sys/devices/system/cpu/isolated)
+CURRENT_ISOLCPUS=$(cat $CGROUP2/cpuset.cpus.isolated)
+FIRST_ISOLCPUS=
+TEST_ISOLCPUS=
 
-cleanup()
-{
-	online_cpus
-	cd $CGROUP2
-	rmdir A1/A2/A3 A1/A2 A1 B1 test/A1 test/B1 test > /dev/null 2>&1
-	rmdir rtest/p1/c11 rtest/p1/c12 rtest/p2/c21 \
-	      rtest/p2/c22 rtest/p1 rtest/p2 rtest > /dev/null 2>&1
-	[[ -n "$SCHED_DEBUG" ]] &&
-		echo "$SCHED_DEBUG" > /sys/kernel/debug/sched/verbose
+[[ -n "$BOOT_ISOLCPUS" ]] && {
+	FIRST_ISOLCPUS=$(echo $BOOT_ISOLCPUS | sed -e "s/[,-].*//")
+	echo "Boot isolated CPUs: $BOOT_ISOLCPUS"
+	[[ $FIRST_ISOLCPUS -le 8 ]] &&
+		skip_test "Boot isolated CPUs overlap CPUs to be tested"
 }
+
+[[ "$BOOT_ISOLCPUS" != "$CURRENT_ISOLCPUS" ]] && {
+	sleep 0.5
+	CURRENT_ISOLCPUS=$(cat $CGROUP2/cpuset.cpus.isolated)
+	[[ "$BOOT_ISOLCPUS" != "$CURRENT_ISOLCPUS" ]] &&
+		skip_test "Current isolated CPUs ($CURRENT_ISOLCPUS) don't match boot isolated CPUs!"
+}
+
+#
+# This test assumes that all the relevant CPUs being tested are online.
+# If some of them are offline, some of the tests may fail. So we are going to
+# skip running this test script if some of the required CPUs may be offline.
+# The required CPUs include CPUs 0-7 and the first boot time isolated CPU if
+# present. However the check below is not exhaustive and can be a false
+# positive, but users should not run this test if some CPUs are offline.
+#
+ONLINE_CPUS=$(cat /sys/devices/system/cpu/online | sed -e "s/,.*//")
+ONLINE_FIRST=$(echo $ONLINE_CPUS | sed -e "s/-.*//")
+ONLINE_LAST=$(echo $ONLINE_CPUS | sed -e "s/.*-//")
+if [[ -n "$FIRST_ISOLCPUS" ]]
+then
+	LAST_REQUIRED_CPU=$FIRST_ISOLCPUS
+else
+	LAST_REQUIRED_CPU=7
+fi
+[[ $ONLINE_FIRST != 0 || $ONLINE_LAST -lt $LAST_REQUIRED_CPU ]] &&
+	skip_test "Some of the required CPUs are offline or not present!"
 
 # Pause in ms
 pause()
@@ -202,7 +271,7 @@ test_add_proc()
 #
 # ECPUs    - effective CPUs of cpusets
 # Pstate   - partition root state
-# ISOLCPUS - isolated CPUs (<icpus>[,<icpus2>])
+# ISOLCPUS - isolated CPUs (<icpus>[,<icpus2>] or .)
 #
 # Note that if there are 2 fields in ISOLCPUS, the first one is for
 # sched-debug matching which includes offline CPUs and single-CPU partitions
@@ -278,6 +347,7 @@ TEST_MATRIX=(
 	"   C0-3    C1-3  C2-3    C4    X2-3   X2-3  X2-3:P2 P2:C4-5 0 A3:2-3|B1:4-5 A3:P2|B1:P2 2-5"
 	"  C4:X0-3  X1-3  X2-3     .      .      P2     .      .     0 A1:4|A2:1-3|A3:1-3 A2:P2 1-3"
 	"  C4:X0-3  X1-3  X2-3     .      .      .      P2     .     0 A1:4|A2:4|A3:2-3 A3:P2 2-3"
+	"   CX1-6  C1-4:P1  .    C4-5     .    C1-3     .      .     0 A1:4-6|A2:1-3|B1:4-5 A2:P1"
 
 	# Nested remote/local partition tests
 	"   C0-3    C1-3  C2-3   C4-5   X2-3  X2-3:P1   P2     P1    0 A1:0-1|A2:|A3:2-3|B1:4-5 \
@@ -288,16 +358,19 @@ TEST_MATRIX=(
 								       A1:P0|A2:P1|A3:P0|B1:P1"
 	"   C0-3    C1-3   C3     C4    X2-3  X2-3:P1   P2     P1    0 A1:0-1|A2:2|A3:3|B1:4 \
 								       A1:P0|A2:P1|A3:P2|B1:P1 2-4|3"
-	"   C0-4    C1-4  C2-4     .    X2-4  X2-4:P2  X4:P1    .    0 A1:0-1|A2:2-3|A3:4 \
-								       A1:P0|A2:P2|A3:P1 2-4|2-3"
-	"   C0-4    C1-4  C2-4     .    X2-4  X2-4:P2 X3-4:P1   .    0 A1:0-1|A2:2|A3:3-4 \
-								       A1:P0|A2:P2|A3:P1 2"
-	" C0-4:X2-4 C1-4:X2-4:P2 C2-4:X4:P1 \
-				   .      .      X5      .      .    0 A1:0-4|A2:1-4|A3:2-4 \
-								       A1:P0|A2:P-2|A3:P-1 ."
-	" C0-4:X2-4 C1-4:X2-4:P2 C2-4:X4:P1 \
-				   .      .      .      X1      .    0 A1:0-1|A2:2-4|A3:2-4 \
-								       A1:P0|A2:P2|A3:P-1 2-4"
+	"  C1-6:P1 C3-6:P1 C5-6:P1 .      .      P2      .      .    0 A1:1-2|A2:3-6|A3:5-6 \
+								       A1:P1|A2:P2|A3:P-1 3-6"
+	"  C1-6:P2 C3-6:P2 C3-4:P2 .      .     C5-6     .      .    0 A1:1-4|A2:5-6|A3:5-6 \
+								       A1:P2|A2:P2|A3:P-2 1-6"
+	" C1-4:X2-4 C2-4:X3-4:P1 C3-4:X4:P2 \
+				   .      .      X5      .      .    0 A1:1-4|A2:2-4|A3:3-4 \
+								       A1:P0|A2:P-1|A3:P-2 ."
+	" C1-5:X3-5:P2 C3-5:X4-5:P2 C4-5:X5:P2 \
+				   .    X1-4     .       .      .    0 A1:1-3|A2:4|A3:4 \
+								       A1:P2|A2:P2|A3:P-2 1-4"
+	" C1-4:X2-4 C1-4:X3-4:P1 C3-4:X4:P2 \
+				   .      .      .      X1      .    0 A1:1-2|A2:3-4|A3:3-4 \
+								       A1:P0|A2:P1|A3:P-2 ."
 	" CX1-3:P1 CX1-3  CX1-3    .      .      .      P1      .    0 A1:1-3|A2:1-3|A3:1-3 \
 								       A1:P1|A2:P0|A3:P-1"
 
@@ -331,8 +404,8 @@ TEST_MATRIX=(
 	" C0-3:X1-3:P2 C1-3:X2-3:P2 C2-3:X3:P2 \
 				   .      .    C4:X     .      .     0 A1:1-3|A2:1-3|A3:2-3|XA2:|XA3: A1:P2|A2:P-2|A3:P-2 1-3"
 	# Local partition CPU change tests
-	" C0-5:P2  C4-5:P1  .      .      .    C3-5     .      .     0 A1:0-2|A2:3-5 A1:P2|A2:P1 0-2"
-	" C0-5:P2  C4-5:P1  .      .    C1-5     .      .      .     0 A1:1-3|A2:4-5 A1:P2|A2:P1 1-3"
+	" C0-5:P1  C4-5:P2  .      .      .    C3-5     .      .     0 A1:0-2|A2:3-5 A1:P1|A2:P2 3-5"
+	" C0-5:P1  C4-5:P2  .      .    C1-5     .      .      .     0 A1:1-3|A2:4-5 A1:P1|A2:P2 4-5"
 
 	# cpus_allowed/exclusive_cpus update tests
 	" C0-3:X2-3 C1-3:X2-3 C2-3:X2-3 \
@@ -360,6 +433,10 @@ TEST_MATRIX=(
 	# cpuset.cpus is allowed, but those extra CPUs are ignored.
 	"  C2-3:P1   C3:P1  .      .      .     C2-4    .      .     0 A1:|A2:2-3 A1:P1|A2:P1"
 
+	# A child cannot recover until its exclusive CPUs are available again.
+	" CX1-4:P1 CX3-4:P1 .     .     X1-2     .      .      .     0 A1:1-2|A2:1-2|XA2: A1:P1|A2:P-1"
+	" CX1-4:P1 CX3-4:P1 .     .  X1-2:X1-4   .      .      .     0 A1:1-2|A2:3-4|XA2:3-4 A1:P1|A2:P1"
+
 	# Taking away all CPUs from parent or itself if there are tasks
 	# will make the partition invalid.
 	"  C2-3:P1   C3:P1  .      .      T     C2-3    .      .     0 A1:2-3|A2:2-3 A1:P1|A2:P-1"
@@ -384,6 +461,9 @@ TEST_MATRIX=(
 
 	# Enabling partition with child cpusets is allowed
 	"   C0-1    C1      .    C2-3    P1      .      .      .     0 A1:0-1|A2:1 A1:P1"
+
+	# Tasks below a new partition belong to it, not to its parent.
+	" C1-2:P1 C1-2 C1-2:T    .      .      P1     .      .     0 A1:|A2:1-2|A3:1-2 A1:P1|A2:P1"
 
 	# A partition root with non-partition root parent is invalid| but it
 	# can be made valid if its parent becomes a partition root too.
@@ -430,6 +510,28 @@ TEST_MATRIX=(
 	# cpuset.cpus can become empty with task in it as it inherits parent's effective CPUs
 	"   C1-3    C2      .      .       .    T:C     .      .     0 A1:1-3|A2:1-3"
 
+	# Creation of root partition under an isolated partition is not allowed
+	"  C1-3:P2  C2      .      .       .     P1     .      .     0 A1:1-3|A2:2 A1:P2|A2:P-1 1-3"
+	"  C1-3:P2  C2      .      .       .     P2     .      .     0 A1:1,3|A2:2 A1:P2|A2:P2  1-3"
+	"  C1-3:P2 C2:P2    .      .       .     P1     .      .     0 A1:1-3|A2:2 A1:P2|A2:P-1 1-3"
+	"  C1-3:P2 C2:P1    .      .       .    C2-3    .      .     0 A1:1-3|A2:2-3 A1:P2|A2:P-1 1-3"
+
+	# A middle isolated parent shrunk below coverage: the released CPUs of
+	# an invalidated child stay isolated as a higher ancestor still covers them.
+	" CX0-4:P2 CX2-4:P2 CX3-4:P2 .     .     X2     .      .     0 A1:0-1,3-4|A2:2|A3:2 \
+								       A1:P2|A2:P2|A3:P-2 0-4"
+
+	# When an isolated partition child with root partition parent is invalidated,
+	# its effective xcpus will be removed from isolated_cpus.
+	" C1-4:P1 C3-4:P2   .      .    T:C3-4   .      .      .     0 A1:3-4|A2:3-4 A1:P1|A2:P-2 ."
+
+	# When a root partition parent with an isolated partition child is shrunk
+	# so that its effective xcpus is no longer a superset of its child effective
+	# xcpus, the invalid isolated CPUs should be removed from cpuset.cpus.isolated.
+	" C1-4:P1 C3-4:P2   .      .    T:C4-6   .      .      .     0 A1:5-6|A2:4 A1:P1|A2:P2 4"
+	" C1-4:P1 C1-2:P2   .      .    T:C4-6   .      .      .     0 A1:4-6|A2:4-6 A1:P1|A2:P-2 ."
+
+	#
 	#  old-A1 old-A2 old-A3 old-B1 new-A1 new-A2 new-A3 new-B1 fail ECPUs Pstate ISOLCPUS
 	#  ------ ------ ------ ------ ------ ------ ------ ------ ---- ----- ------ --------
 	# Failure cases:
@@ -442,6 +544,57 @@ TEST_MATRIX=(
 
 	# cpuset.cpus.exclusive cannot be set to a superset of sibling's cpuset.cpus
 	"   C0-3     .      .    C4-5   X3-5     .      .      .     1 A1:0-3|B1:4-5"
+)
+
+# Test matrix with boot time isolated CPUs present for housekeeping check testing
+ISOLCPUS_TEST_MATRIX=(
+	#  old-A1 old-A2 old-A3 old-B1 new-A1 new-A2 new-A3 new-B1 fail ECPUs Pstate ISOLCPUS
+	#  ------ ------ ------ ------ ------ ------ ------ ------ ---- ----- ------ --------
+	# A local isolated partition containing boot isolated CPU cannot be
+	# switched to root partition.
+	" C1-2,I:P2  .      .      .      P1     .      .      .     0 A1:1-2,I A1:P-1 ."
+
+	# A remote isolated partition containing boot isolated CPU cannot be
+	# switched to root partition.
+	" X1-2,I CX1-2,I:P2 .      .       .    P1      .      .     0 A2:1-2,I A2:P-1 ."
+
+	# A local isolated partition with a boot isolated CPU distributed to a
+	# child isolated partition also cannot be switched to a root partition.
+	" C1-3,I:P2 C1,I:P2 .      .      P1     .      .      .     0 A1:1-3,I|A2:1,I A1:P-1|A2:P-2 ."
+
+	# A remote isolated partition with a boot isolated CPU distributed to a
+	# child isolated partition also cannot be switched to a root partition.
+	" X1-3,I C1-3,I:P2 C1,I:P2 .       .    P1      .      .     0 A2:1-3,I|A3:1,I A2:P-1|A3:P-2 ."
+
+	# The cpumask of a local root partition cannot be changed to include a
+	# boot isolated CPU.
+	" C1-2:P1    .      .      .     C2,I    .      .      .     0 A1:2,I A1:P-1 ."
+
+	# The cpumask of a remote root partition cannot be changed to include a
+	# boot isolated CPU.
+	" CX1-2,I  CX1-2:P1 .      .       .   CX2,I    .      .     0 A1:1-2,I|A2:2,I A2:P-1 ."
+
+	# Passing an boot isolated CPU down to a child root partition will invalidate it
+	" C2-3,I:X2-3 CX2-3,I .    .       .    P1      .      .     0 A1:I|A2:2-3 A2:P1 ."
+	" C2-3,I:X2-3 CX2-3,I:P1 . .     X2-3,I  .      .      .     0 A1:2-3,I|A2:2-3,I A2:P-1 ."
+
+	# An invalidated root partition must stay invalid when cpus grows but
+	# effective xcpus still contains a boot isolated CPU.
+	" CX1,I:P1   .      .      .     C1,2,I  .      .      .     0 A1:1-2,I|XA1:1,I A1:P-1 ."
+
+	# Growing cpus.exclusive must not revive it either
+	" CX1-2,I:X1,I:P1 . .      .     X1,2,I  .      .      .     0 A1:1-2,I|XA1:1-2,I A1:P-1 ."
+)
+
+# Test matrix to be run when boot time nohz_full CPUs cover all CPUs except CPUs 0-7
+NOHZ_FULL_TEST_MATRIX=(
+	#  old-A1 old-A2 old-A3 old-B1 new-A1 new-A2 new-A3 new-B1 fail ECPUs Pstate ISOLCPUS
+	#  ------ ------ ------ ------ ------ ------ ------ ------ ---- ----- ------ --------
+	# Using all the nohz_full HK CPUs 0-7 in isolated partition is not allowed
+	" C0-7       .      .      .      P2     .      .      .     0 A1:0-7 A1:P-2 ."
+	" C2-7:P2    .      .      .     C0-4    .      .      .     0 A1:0-4 A1:P2 0-4"
+	" C1-7:P2 C5-7:P2   .      .       .     .      .    C0:P2   0 A1:1-4|A2:5-7|B1:0
+								       A1:P2|A2:P2|B1:P-2 1-7"
 )
 
 #
@@ -496,8 +649,8 @@ REMOTE_TEST_MATRIX=(
 							 p1:P1|c11:P1|c12:P-1"
 	# Narrowing cpuset.cpus to previously sibling-excluded CPUs should
 	# not return CPUs that were never actually owned.
-	"  C1-4:P1   .   C1-2:P1  C1-3:P2  .       .  \
-	      .      .     .       C3      .       .     p1:4|c11:1-2|c12:3 \
+	"  C1-5:P1   .   C1-2:P1  C1-3:P2  .       .  \
+	      .      .     .       C3      .       .     p1:4-5|c11:1-2|c12:3 \
 							 p1:P1|c11:P1|c12:P2 3"
 	# Expanding cpuset.cpus to include a previously sibling-excluded CPU
 	# after the sibling has become a member should correctly request it.
@@ -542,6 +695,27 @@ write_cpu_online()
 }
 
 #
+# Set the CPUS variable
+#  $1 - the passed in cpu parameter
+#
+# The special "I" CPU if present is being replaced by the first boot CPU
+# and assigned to the "CPUS" variable when the TEST_ISOLCPUS flag is set.
+# If not, the program will exit with an error.
+#
+set_cpus()
+{
+	local cpus=$1
+	if [[ $(expr "$cpus" : ".*I") -gt 0 ]]
+	then
+		[[ -z "$TEST_ISOLCPUS" ]] &&
+			skip_test "Special 'I' CPU added to non-isolcpus testing matrix!"
+		CPUS=$(echo $cpus | sed -e "s/I/$FIRST_ISOLCPUS/")
+	else
+		CPUS=$cpus
+	fi
+}
+
+#
 # Set controller state
 #  $1 - cgroup directory
 #  $2 - state
@@ -575,16 +749,16 @@ set_ctrl_state()
 		}
 		case $CMD in
 		    X*)
-			CPUS=${CMD#?}
+			set_cpus ${CMD#?}
 			COMM="echo $CPUS > $XFILE"
 			eval $COMM $REDIRECT
 			;;
 		    CX*)
-			CPUS=${CMD#??}
+			set_cpus ${CMD#??}
 			COMM="echo $CPUS > $CFILE; echo $CPUS > $XFILE"
 			eval $COMM $REDIRECT
 			;;
-		    C*) CPUS=${CMD#?}
+		    C*) set_cpus ${CMD#?}
 			COMM="echo $CPUS > $CFILE"
 			eval $COMM $REDIRECT
 			;;
@@ -638,16 +812,6 @@ set_ctrl_state_noerr()
 	[[ $? -ne 0 ]] && {
 		echo "ERROR: Failed to set $2 to cgroup $1!"
 		exit 1
-	}
-}
-
-online_cpus()
-{
-	[[ -n "$OFFLINE_CPUS" ]] && {
-		for C in $OFFLINE_CPUS
-		do
-			write_cpu_online ${C}=1
-		done
 	}
 }
 
@@ -978,8 +1142,11 @@ run_state_test()
 	I=0
 	eval CNT="\${#$TEST[@]}"
 
+	# Skip isolcpus specific test matrix if FIRST_ISOLCPUS not defined
+	[[ -n "$TEST_ISOLCPUS" && -z "$FIRST_ISOLCPUS" ]] && return
+
 	reset_cgroup_states
-	console_msg "Running state transition test ..."
+	console_msg "Running state transition test for $TEST ..."
 
 	while [[ $I -lt $CNT ]]
 	do
@@ -998,7 +1165,7 @@ run_state_test()
 		NEW_A3=$7
 		NEW_B1=$8
 		RESULT=$9
-		ECPUS=${10}
+		ECPUS=$(echo ${10} | sed -e "s/I/${FIRST_ISOLCPUS}/g")
 		STATES=${11}
 		ICPUS=${12}
 
@@ -1281,9 +1448,10 @@ test_inotify()
 	echo "" > cpuset.cpus
 }
 
-trap cleanup 0 2 3 6
 run_state_test TEST_MATRIX
 run_remote_state_test REMOTE_TEST_MATRIX
+TEST_ISOLCPUS=1 run_state_test ISOLCPUS_TEST_MATRIX
+[[ -n "$RUN_NOHZ_FULL_TESTS" ]] && run_state_test NOHZ_FULL_TEST_MATRIX
 test_isolated
 test_boot_isolated
 test_inotify

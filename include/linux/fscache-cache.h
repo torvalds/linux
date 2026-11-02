@@ -67,7 +67,7 @@ struct fscache_cache_ops {
 
 	/* Change the size of a data object */
 	void (*resize_cookie)(struct netfs_cache_resources *cres,
-			      loff_t new_size);
+			      uoff_t new_size, bool shrank);
 
 	/* Invalidate an object */
 	bool (*invalidate_cookie)(struct fscache_cookie *cookie);

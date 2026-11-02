@@ -19,6 +19,7 @@ TEST_FILES := \
 # end of TEST_FILES
 
 TEST_INCLUDES := \
+	$(wildcard ../../../net/lib/sh/*.sh) \
 	../../../net/forwarding/bridge_locked_port.sh \
 	../../../net/forwarding/bridge_mdb.sh \
 	../../../net/forwarding/bridge_mld.sh \

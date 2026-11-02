@@ -8,8 +8,9 @@ Visão Geral
 -----------
 
 As plataformas SoC ou subarquiteturas devem seguir todas as regras de
-Documentation/process/maintainer-soc.rst. Este documento, referenciado em
-MAINTAINERS, impõe requisitos adicionais listados abaixo.
+Documentation/translations/pt_BR/process/maintainer-soc.rst. Este
+documento, referenciado em MAINTAINERS, impõe requisitos adicionais
+listados abaixo.
 
 Conformidade Estrita com DT Schema de DTS e dtc
 -----------------------------------------------

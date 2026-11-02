@@ -602,6 +602,7 @@ void fnic_common_fip_cleanup(struct fnic *fnic)
  * and clean up and restart the vlan discovery.
  */
 void fnic_fcoe_process_cvl(struct fnic *fnic, struct fip_header *fiph)
+	__must_hold(&fnic->fnic_lock)
 {
 	struct fnic_iport_s *iport = &fnic->iport;
 	struct fip_cvl *cvl_msg = (struct fip_cvl *)fiph;
@@ -678,6 +679,7 @@ void fnic_fcoe_process_cvl(struct fnic *fnic, struct fip_header *fiph)
  * @frame: Received ethernet frame
  */
 int fdls_fip_recv_frame(struct fnic *fnic, void *frame)
+	__must_hold(&fnic->fnic_lock)
 {
 	struct ethhdr *eth = (struct ethhdr *)frame;
 	struct fip_header *fiph;

@@ -76,7 +76,7 @@ static inline int gcs_check_locked(struct task_struct *task,
 	new_val &= task->thread.gcs_el0_locked;
 
 	if (cur_val != new_val)
-		return -EBUSY;
+		return -EPERM;
 
 	return 0;
 }

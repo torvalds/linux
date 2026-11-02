@@ -128,7 +128,7 @@ static void disable_wakeup(void)
 	ltl_monitor_destroy();
 }
 
-static struct rv_monitor rv_wakeup = {
+static struct rv_monitor rv_this = {
 	.name = "wakeup",
 	.description = "Monitor that real-time tasks are not woken by lower-priority tasks",
 	.enable = enable_wakeup,
@@ -137,12 +137,12 @@ static struct rv_monitor rv_wakeup = {
 
 static int __init register_wakeup(void)
 {
-	return rv_register_monitor(&rv_wakeup, &rv_rtapp);
+	return rv_register_monitor(&rv_this, &rv_rtapp);
 }
 
 static void __exit unregister_wakeup(void)
 {
-	rv_unregister_monitor(&rv_wakeup);
+	rv_unregister_monitor(&rv_this);
 }
 
 module_init(register_wakeup);

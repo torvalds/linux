@@ -28,7 +28,13 @@
 #include "kselftest.h"
 #include "alsa-local.h"
 
-#define TESTS_PER_CONTROL 7
+#define TESTS_PER_CONTROL 8
+
+/* Suffixes of the SNDRV_CTL_NAME_IEC958() names, not exported to userspace */
+#define IEC958_DEFAULT		"Default"
+#define IEC958_CON_MASK		"Con Mask"
+#define IEC958_PRO_MASK		"Pro Mask"
+#define IEC958_MASK		"Mask"
 
 struct card_data {
 	snd_ctl_t *handle;
@@ -46,9 +52,14 @@ struct ctl_data {
 	snd_ctl_elem_id_t *id;
 	snd_ctl_elem_info_t *info;
 	snd_ctl_elem_value_t *def_val;
+	snd_ctl_elem_value_t *snapshot;
+	bool snapshot_valid;
+	bool moved;
 	int elem;
 	int event_missing;
 	int event_spurious;
+	int side_effects;
+	unsigned int ev_mask;
 	struct card_data *card;
 	struct ctl_data *next;
 };
@@ -153,6 +164,10 @@ static void find_controls(void)
 			if (err < 0)
 				ksft_exit_fail_msg("Out of memory\n");
 
+			err = snd_ctl_elem_value_malloc(&ctl_data->snapshot);
+			if (err < 0)
+				ksft_exit_fail_msg("Out of memory\n");
+
 			snd_ctl_elem_list_get_id(card_data->ctls, ctl,
 						 ctl_data->id);
 			snd_ctl_elem_info_set_id(ctl_data->info, ctl_data->id);
@@ -199,6 +214,20 @@ static void find_controls(void)
 	}
 
 	snd_config_delete(config);
+}
+
+/* The control on the same card that an event's numid refers to */
+static struct ctl_data *find_ctl_by_numid(struct card_data *card,
+					  unsigned int numid)
+{
+	struct ctl_data *ctl;
+
+	for (ctl = ctl_list; ctl != NULL; ctl = ctl->next)
+		if (ctl->card == card &&
+		    snd_ctl_elem_info_get_numid(ctl->info) == numid)
+			return ctl;
+
+	return NULL;
 }
 
 /*
@@ -259,8 +288,21 @@ static int wait_for_event(struct ctl_data *ctl, int timeout)
 		mask = snd_ctl_event_elem_get_mask(event);
 		ev_id = snd_ctl_event_elem_get_numid(event);
 		if (ev_id != snd_ctl_elem_info_get_numid(ctl->info)) {
+			struct ctl_data *other = find_ctl_by_numid(ctl->card,
+								   ev_id);
+
+			/*
+			 * Remember that the driver announced this one.
+			 * test_ctl_write_side_effects() uses that to tell a
+			 * deliberate link from a silent register collision.
+			 */
+			if (other)
+				other->ev_mask |= mask;
+
 			ksft_print_msg("Event for unexpected ctl %s\n",
 				       snd_ctl_event_elem_get_name(event));
+			/* The loop condition must not see the other control's mask */
+			mask = 0;
 			continue;
 		}
 
@@ -842,6 +884,251 @@ static bool test_ctl_write_valid_enumerated(struct ctl_data *ctl)
 	return !fail;
 }
 
+/*
+ * Find the read only mask control for an IEC958 value control.  The two
+ * share device, subdevice and index but not always the interface.
+ */
+static struct ctl_data *find_iec958_mask_ctl(struct ctl_data *ctl,
+					     const char *suffix)
+{
+	char name[64];
+	int stem;
+	struct ctl_data *mask;
+
+	stem = strlen(ctl->name) - strlen(IEC958_DEFAULT);
+	if (snprintf(name, sizeof(name), "%.*s%s", stem, ctl->name, suffix) >=
+	    (int)sizeof(name))
+		return NULL;
+
+	for (mask = ctl_list; mask != NULL; mask = mask->next) {
+		if (mask->card != ctl->card)
+			continue;
+		if (snd_ctl_elem_info_get_type(mask->info) !=
+		    SND_CTL_ELEM_TYPE_IEC958)
+			continue;
+		if (snd_ctl_elem_info_is_inactive(mask->info))
+			continue;
+		if (!snd_ctl_elem_info_is_readable(mask->info))
+			continue;
+		if (snd_ctl_elem_id_get_device(mask->id) !=
+		    snd_ctl_elem_id_get_device(ctl->id))
+			continue;
+		if (snd_ctl_elem_id_get_subdevice(mask->id) !=
+		    snd_ctl_elem_id_get_subdevice(ctl->id))
+			continue;
+		if (snd_ctl_elem_id_get_index(mask->id) !=
+		    snd_ctl_elem_id_get_index(ctl->id))
+			continue;
+		if (strcmp(mask->name, name) == 0)
+			return mask;
+	}
+
+	return NULL;
+}
+
+/*
+ * Read the bits the device says it implements.  Bit 0 of the first status
+ * byte picks which mask applies, some devices publish only a plain Mask.
+ */
+static bool read_iec958_mask(struct ctl_data *ctl,
+			     const snd_aes_iec958_t *cur,
+			     snd_aes_iec958_t *mask)
+{
+	int err;
+	struct ctl_data *mask_ctl;
+	snd_ctl_elem_value_t *val;
+
+	if (!strend(ctl->name, IEC958_DEFAULT))
+		return false;
+
+	if (cur->status[0] & IEC958_AES0_PROFESSIONAL)
+		mask_ctl = find_iec958_mask_ctl(ctl, IEC958_PRO_MASK);
+	else
+		mask_ctl = find_iec958_mask_ctl(ctl, IEC958_CON_MASK);
+	if (!mask_ctl)
+		mask_ctl = find_iec958_mask_ctl(ctl, IEC958_MASK);
+	if (!mask_ctl)
+		return false;
+
+	snd_ctl_elem_value_alloca(&val);
+	snd_ctl_elem_value_set_id(val, mask_ctl->id);
+
+	err = snd_ctl_elem_read(mask_ctl->card->handle, val);
+	if (err < 0) {
+		ksft_print_msg("snd_ctl_elem_read() failed for %s: %s\n",
+			       mask_ctl->name, snd_strerror(err));
+		return false;
+	}
+
+	snd_ctl_elem_value_get_iec958(val, mask);
+
+	return true;
+}
+
+/*
+ * Throw away the events from a write we are not checking, one left behind
+ * would make a missing notification look like a notification we got.
+ */
+static int drop_events(struct ctl_data *ctl)
+{
+	int err;
+
+	do {
+		err = wait_for_event(ctl, 0);
+	} while (err > 0);
+
+	return err;
+}
+
+/*
+ * Toggle every bit the device advertises, one at a time.  Each one starts
+ * from the value we read since a driver can look at the rest of the block
+ * when it stores a bit, and bit 0 of the first status byte selects the
+ * layout the others are read in so leave that one alone.
+ */
+static bool test_ctl_write_valid_iec958_mask(struct ctl_data *ctl,
+					     snd_ctl_elem_value_t *orig_val,
+					     const snd_aes_iec958_t *mask)
+{
+	int err, j;
+	unsigned int byte;
+	unsigned char bit;
+	bool fail = false, found = false;
+	snd_aes_iec958_t iec958;
+	snd_ctl_elem_value_t *val;
+	snd_ctl_elem_value_alloca(&val);
+
+	snd_ctl_elem_value_copy(val, orig_val);
+
+	for (byte = 0; byte < sizeof(mask->status); byte++) {
+		for (j = 0; j < 8; j++) {
+			bit = 1 << j;
+
+			if (byte == 0 && bit == IEC958_AES0_PROFESSIONAL)
+				continue;
+			if (!(mask->status[byte] & bit))
+				continue;
+			found = true;
+
+			snd_ctl_elem_value_get_iec958(orig_val, &iec958);
+			iec958.status[byte] ^= bit;
+			snd_ctl_elem_value_set_iec958(val, &iec958);
+
+			err = write_and_verify(ctl, val, NULL);
+			if (err != 0) {
+				ksft_print_msg("%s failed to set advertised status[%u] 0x%02x\n",
+					       ctl->name, byte, bit);
+				fail = true;
+			}
+		}
+	}
+
+	if (!found)
+		ksft_print_msg("%s implements no settable status bits\n",
+			       ctl->name);
+
+	return !fail;
+}
+
+/*
+ * With nothing advertised all we can do is try non audio, and the device
+ * need not implement even that.  Write it once and ignore the result, then
+ * compare against what came back so the value cannot fail, which leaves the
+ * notification counted by event_missing.
+ */
+static bool test_ctl_write_valid_iec958_guess(struct ctl_data *ctl,
+					      snd_ctl_elem_value_t *orig_val)
+{
+	int err;
+	snd_aes_iec958_t iec958;
+	snd_ctl_elem_value_t *val, *read_val, *w_val;
+	snd_ctl_elem_value_alloca(&val);
+	snd_ctl_elem_value_alloca(&read_val);
+	snd_ctl_elem_value_alloca(&w_val);
+
+	snd_ctl_elem_value_get_iec958(orig_val, &iec958);
+	iec958.status[0] ^= IEC958_AES0_NONAUDIO;
+	snd_ctl_elem_value_copy(val, orig_val);
+	snd_ctl_elem_value_set_iec958(val, &iec958);
+
+	/* Writing can modify the value so keep a copy to write from */
+	snd_ctl_elem_value_copy(w_val, val);
+	err = snd_ctl_elem_write(ctl->card->handle, w_val);
+	if (err < 0) {
+		ksft_print_msg("snd_ctl_elem_write() failed: %s\n",
+			       snd_strerror(err));
+		return false;
+	}
+
+	snd_ctl_elem_value_set_id(read_val, ctl->id);
+	err = snd_ctl_elem_read(ctl->card->handle, read_val);
+	if (err < 0) {
+		ksft_print_msg("snd_ctl_elem_read() failed: %s\n",
+			       snd_strerror(err));
+		return false;
+	}
+
+	/* Put it back where we found it, then drop the events from both */
+	snd_ctl_elem_value_copy(w_val, orig_val);
+	err = snd_ctl_elem_write(ctl->card->handle, w_val);
+	if (err < 0) {
+		ksft_print_msg("snd_ctl_elem_write() failed: %s\n",
+			       snd_strerror(err));
+		return false;
+	}
+
+	err = drop_events(ctl);
+	if (err < 0) {
+		ksft_print_msg("drop_events() failed for %s: %d\n",
+			       ctl->name, err);
+		return false;
+	}
+
+	if (snd_ctl_elem_value_compare(val, read_val)) {
+		ksft_print_msg("%s does not implement status[0] 0x%02x\n",
+			       ctl->name, IEC958_AES0_NONAUDIO);
+
+		/* Expect what came back, the notification is still checked */
+		return write_and_verify(ctl, val, read_val) == 0;
+	}
+
+	return write_and_verify(ctl, val, NULL) == 0;
+}
+
+/*
+ * Write the channel status bits and check that userspace is told about it.
+ * Where a mask was found every bit in it has to stick, otherwise we fall
+ * back to one guessed bit the device is free to ignore.
+ */
+static bool test_ctl_write_valid_iec958(struct ctl_data *ctl)
+{
+	int err;
+	snd_aes_iec958_t iec958, mask;
+	snd_ctl_elem_value_t *orig_val;
+	snd_ctl_elem_value_alloca(&orig_val);
+
+	/*
+	 * The bytes past the ones a driver implements are compared too,
+	 * so start from a read rather than building a value here.
+	 */
+	snd_ctl_elem_value_set_id(orig_val, ctl->id);
+	err = snd_ctl_elem_read(ctl->card->handle, orig_val);
+	if (err < 0) {
+		ksft_print_msg("snd_ctl_elem_read() failed: %s\n",
+			       snd_strerror(err));
+		return false;
+	}
+
+	snd_ctl_elem_value_get_iec958(orig_val, &iec958);
+
+	if (!read_iec958_mask(ctl, &iec958, &mask)) {
+		ksft_print_msg("%s falling back to non audio\n", ctl->name);
+		return test_ctl_write_valid_iec958_guess(ctl, orig_val);
+	}
+
+	return test_ctl_write_valid_iec958_mask(ctl, orig_val, &mask);
+}
+
 static void test_ctl_write_valid(struct ctl_data *ctl)
 {
 	bool pass;
@@ -878,6 +1165,10 @@ static void test_ctl_write_valid(struct ctl_data *ctl)
 		pass = test_ctl_write_valid_enumerated(ctl);
 		break;
 
+	case SND_CTL_ELEM_TYPE_IEC958:
+		pass = test_ctl_write_valid_iec958(ctl);
+		break;
+
 	default:
 		/* No tests for this yet */
 		ksft_test_result_skip("write_valid.%s.%d\n",
@@ -890,6 +1181,202 @@ static void test_ctl_write_valid(struct ctl_data *ctl)
 
 	ksft_test_result(pass, "write_valid.%s.%d\n",
 			 ctl->card->card_name, ctl->elem);
+}
+
+/*
+ * Build the smallest or the largest value the control offers.  The smallest
+ * clears the control's register field and the largest sets its top bit, which
+ * is the bit a mask one bit too wide puts in its neighbour.
+ */
+static bool set_limit_value(struct ctl_data *ctl, snd_ctl_elem_value_t *val,
+			    bool max)
+{
+	int i, count = snd_ctl_elem_info_get_count(ctl->info);
+
+	snd_ctl_elem_value_set_id(val, ctl->id);
+
+	switch (snd_ctl_elem_info_get_type(ctl->info)) {
+	case SND_CTL_ELEM_TYPE_BOOLEAN:
+		for (i = 0; i < count; i++)
+			snd_ctl_elem_value_set_boolean(val, i, max);
+		return true;
+
+	case SND_CTL_ELEM_TYPE_INTEGER:
+		for (i = 0; i < count; i++)
+			snd_ctl_elem_value_set_integer(val, i, max ?
+				snd_ctl_elem_info_get_max(ctl->info) :
+				snd_ctl_elem_info_get_min(ctl->info));
+		return true;
+
+	case SND_CTL_ELEM_TYPE_INTEGER64:
+		for (i = 0; i < count; i++)
+			snd_ctl_elem_value_set_integer64(val, i, max ?
+				snd_ctl_elem_info_get_max64(ctl->info) :
+				snd_ctl_elem_info_get_min64(ctl->info));
+		return true;
+
+	case SND_CTL_ELEM_TYPE_ENUMERATED:
+		for (i = 0; i < count; i++)
+			snd_ctl_elem_value_set_enumerated(val, i, max ?
+				snd_ctl_elem_info_get_items(ctl->info) - 1 : 0);
+		return true;
+
+	default:
+		/* Nothing sensible to write for the rest */
+		return false;
+	}
+}
+
+/* Note every control on the card that no longer reads as it did */
+static void find_moved_ctls(struct ctl_data *ctl, snd_ctl_elem_value_t *val)
+{
+	struct ctl_data *other;
+	int err;
+
+	for (other = ctl_list; other != NULL; other = other->next) {
+		if (!other->snapshot_valid)
+			continue;
+
+		/*
+		 * The buffer is shared and compare() looks at all of it, so
+		 * clear what the last control left in the slots this one
+		 * does not use.
+		 */
+		snd_ctl_elem_value_clear(val);
+		snd_ctl_elem_value_set_id(val, other->id);
+		err = snd_ctl_elem_read(ctl->card->handle, val);
+		if (err < 0) {
+			ksft_print_msg("snd_ctl_elem_read() failed for %s: %s\n",
+				       other->name, snd_strerror(err));
+			continue;
+		}
+
+		if (snd_ctl_elem_value_compare(other->snapshot, val))
+			other->moved = true;
+	}
+}
+
+/*
+ * Write one control and look for others on the same card that moved with it.
+ * A driver that links two controls on purpose tells userspace about both, so
+ * only an unannounced change is counted.  That is what a control whose
+ * register mask covers bits belonging to its neighbour looks like from here.
+ */
+static void test_ctl_write_side_effects(struct ctl_data *ctl)
+{
+	struct ctl_data *other;
+	snd_ctl_elem_value_t *min_val, *max_val, *read_val;
+	int err;
+
+	snd_ctl_elem_value_alloca(&min_val);
+	snd_ctl_elem_value_alloca(&max_val);
+	snd_ctl_elem_value_alloca(&read_val);
+
+	/* Without a readable default there is nothing to put back */
+	if (snd_ctl_elem_info_is_inactive(ctl->info) ||
+	    !snd_ctl_elem_info_is_writable(ctl->info) ||
+	    !snd_ctl_elem_info_is_readable(ctl->info) ||
+	    !set_limit_value(ctl, min_val, false) ||
+	    !set_limit_value(ctl, max_val, true)) {
+		ksft_test_result_skip("write_side_effects.%s.%d\n",
+				      ctl->card->card_name, ctl->elem);
+		return;
+	}
+
+	/* Drain first, a stale event would look like the driver announced it */
+	drop_events(ctl);
+
+	/*
+	 * Record what the rest of the card reads as.  A volatile control can
+	 * move on its own so there is nothing to compare it against.
+	 */
+	for (other = ctl_list; other != NULL; other = other->next) {
+		other->snapshot_valid = false;
+		other->moved = false;
+		other->ev_mask = 0;
+
+		if (other == ctl || other->card != ctl->card)
+			continue;
+		if (!snd_ctl_elem_info_is_readable(other->info) ||
+		    snd_ctl_elem_info_is_volatile(other->info))
+			continue;
+
+		snd_ctl_elem_value_clear(other->snapshot);
+		snd_ctl_elem_value_set_id(other->snapshot, other->id);
+		err = snd_ctl_elem_read(ctl->card->handle, other->snapshot);
+		if (err < 0) {
+			ksft_print_msg("snd_ctl_elem_read() failed for %s: %s\n",
+				       other->name, snd_strerror(err));
+			continue;
+		}
+
+		other->snapshot_valid = true;
+	}
+
+	/*
+	 * Compare against the snapshot after each write, before anything is
+	 * put back.  Restoring the control we wrote goes through the same
+	 * mask, so doing it first would hide the change we are looking for.
+	 */
+	err = snd_ctl_elem_write(ctl->card->handle, min_val);
+	if (err >= 0) {
+		drop_events(ctl);
+		find_moved_ctls(ctl, read_val);
+		err = snd_ctl_elem_write(ctl->card->handle, max_val);
+	}
+	if (err < 0) {
+		ksft_print_msg("snd_ctl_elem_write() failed for %s: %s\n",
+			       ctl->name, snd_strerror(err));
+	} else {
+		drop_events(ctl);
+		find_moved_ctls(ctl, read_val);
+	}
+
+	for (other = ctl_list; other != NULL; other = other->next) {
+		if (!other->moved)
+			continue;
+
+		if (other->ev_mask & SND_CTL_EVENT_MASK_VALUE) {
+			ksft_print_msg("Writing %s changed %s, the driver said so\n",
+				       ctl->name, other->name);
+		} else {
+			ksft_print_msg("Writing %s silently changed %s\n",
+				       ctl->name, other->name);
+			ctl->side_effects++;
+		}
+	}
+
+	/*
+	 * The control we wrote goes back first so its mask stops moving the
+	 * rest.  A plain write keeps this out of the event counters, they
+	 * belong to the tests that check them.
+	 */
+	snd_ctl_elem_write(ctl->card->handle, ctl->def_val);
+
+	for (other = ctl_list; other != NULL; other = other->next) {
+		if (!other->snapshot_valid ||
+		    !snd_ctl_elem_info_is_writable(other->info))
+			continue;
+
+		snd_ctl_elem_value_clear(read_val);
+		snd_ctl_elem_value_set_id(read_val, other->id);
+		if (snd_ctl_elem_read(ctl->card->handle, read_val) < 0)
+			continue;
+
+		if (snd_ctl_elem_value_compare(other->snapshot, read_val))
+			snd_ctl_elem_write(ctl->card->handle, other->snapshot);
+	}
+
+	/* Our own restores queue events, the next test must not see them */
+	drop_events(ctl);
+
+	if (err < 0)
+		ksft_test_result_skip("write_side_effects.%s.%d\n",
+				      ctl->card->card_name, ctl->elem);
+	else
+		ksft_test_result(!ctl->side_effects,
+				 "write_side_effects.%s.%d\n",
+				 ctl->card->card_name, ctl->elem);
 }
 
 static bool test_ctl_write_invalid_value(struct ctl_data *ctl,
@@ -1135,6 +1622,7 @@ int main(void)
 		test_ctl_name(ctl);
 		test_ctl_write_default(ctl);
 		test_ctl_write_valid(ctl);
+		test_ctl_write_side_effects(ctl);
 		test_ctl_write_invalid(ctl);
 		test_ctl_event_missing(ctl);
 		test_ctl_event_spurious(ctl);

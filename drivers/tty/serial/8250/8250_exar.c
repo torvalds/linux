@@ -12,6 +12,7 @@
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/math.h>
@@ -231,8 +232,9 @@ struct exar8250_platform {
 	int (*rs485_config)(struct uart_port *port, struct ktermios *termios,
 			    struct serial_rs485 *rs485);
 	const struct serial_rs485 *rs485_supported;
-	int (*register_gpio)(struct pci_dev *pcidev, struct uart_8250_port *port);
-	void (*unregister_gpio)(struct uart_8250_port *port);
+	int (*register_gpio)(struct exar8250 *priv, struct pci_dev *pcidev,
+			     struct uart_8250_port *port);
+	void (*unregister_gpio)(struct exar8250 *priv);
 };
 
 /**
@@ -256,7 +258,8 @@ struct exar8250 {
 	struct exar8250_board	*board;
 	struct eeprom_93cx6	eeprom;
 	void __iomem		*virt;
-	int			line[];
+	struct platform_device	*gpio;
+	struct uart_8250_port	*uport[];
 };
 
 static inline void exar_write_reg(struct exar8250 *priv,
@@ -799,7 +802,7 @@ static int cti_rs485_config_mpio_tristate(struct uart_port *port,
 					struct ktermios *termios,
 					struct serial_rs485 *rs485)
 {
-	struct exar8250 *priv = (struct exar8250 *)port->private_data;
+	struct exar8250 *priv = port->private_data;
 	int ret;
 
 	ret = generic_rs485_config(port, termios, rs485);
@@ -837,7 +840,7 @@ static int cti_port_setup_common(struct exar8250 *priv,
 	if (ret)
 		return ret;
 
-	port->port.private_data = (void *)priv;
+	port->port.private_data = priv;
 	port->port.pm = exar_pm;
 	port->port.shutdown = exar_shutdown;
 
@@ -1167,22 +1170,21 @@ static const struct software_node exar_gpio_node = {
 	.properties = exar_gpio_properties,
 };
 
-static int xr17v35x_register_gpio(struct pci_dev *pcidev, struct uart_8250_port *port)
+static int xr17v35x_register_gpio(struct exar8250 *priv, struct pci_dev *pcidev,
+				  struct uart_8250_port *port)
 {
 	if (pcidev->vendor == PCI_VENDOR_ID_EXAR)
-		port->port.private_data =
-			__xr17v35x_register_gpio(pcidev, &exar_gpio_node);
+		priv->gpio = __xr17v35x_register_gpio(pcidev, &exar_gpio_node);
 
 	return 0;
 }
 
-static void xr17v35x_unregister_gpio(struct uart_8250_port *port)
+static void xr17v35x_unregister_gpio(struct exar8250 *priv)
 {
-	if (!port->port.private_data)
-		return;
-
-	__xr17v35x_unregister_gpio(port->port.private_data);
-	port->port.private_data = NULL;
+	if (priv->gpio) {
+		__xr17v35x_unregister_gpio(priv->gpio);
+		priv->gpio = NULL;
+	}
 }
 
 static int sealevel_rs485_config(struct uart_port *port, struct ktermios *termios,
@@ -1279,8 +1281,9 @@ static const struct software_node iot2040_gpio_node = {
 	.properties = iot2040_gpio_properties,
 };
 
-static int iot2040_register_gpio(struct pci_dev *pcidev,
-			      struct uart_8250_port *port)
+static int iot2040_register_gpio(struct exar8250 *priv,
+				 struct pci_dev *pcidev,
+				 struct uart_8250_port *port)
 {
 	u8 __iomem *p = port->port.membase;
 
@@ -1289,8 +1292,7 @@ static int iot2040_register_gpio(struct pci_dev *pcidev,
 	writeb(IOT2040_UARTS_ENABLE, p + UART_EXAR_MPIOLVL_15_8);
 	writeb(IOT2040_UARTS_GPIO_HI_MODE, p + UART_EXAR_MPIOSEL_15_8);
 
-	port->port.private_data =
-		__xr17v35x_register_gpio(pcidev, &iot2040_gpio_node);
+	priv->gpio = __xr17v35x_register_gpio(pcidev, &iot2040_gpio_node);
 
 	return 0;
 }
@@ -1367,7 +1369,7 @@ pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 		/* Setup Multipurpose Input/Output pins. */
 		setup_gpio(pcidev, p);
 
-		ret = platform->register_gpio(pcidev, port);
+		ret = platform->register_gpio(priv, pcidev, port);
 	}
 
 	return ret;
@@ -1377,9 +1379,8 @@ static void pci_xr17v35x_exit(struct pci_dev *pcidev)
 {
 	const struct exar8250_platform *platform = exar_get_platform();
 	struct exar8250 *priv = pci_get_drvdata(pcidev);
-	struct uart_8250_port *port = serial8250_get_port(priv->line[0]);
 
-	platform->unregister_gpio(port);
+	platform->unregister_gpio(priv);
 }
 
 static inline void exar_misc_clear(struct exar8250 *priv)
@@ -1460,7 +1461,7 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	if (nr_ports == 0)
 		return dev_err_probe(&pcidev->dev, -ENODEV, "failed to get number of ports\n");
 
-	priv = devm_kzalloc(&pcidev->dev, struct_size(priv, line, nr_ports), GFP_KERNEL);
+	priv = devm_kzalloc(&pcidev->dev, struct_size(priv, uport, nr_ports), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1500,9 +1501,9 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		dev_dbg(&pcidev->dev, "Setup PCI port: port %lx, irq %d, type %d\n",
 			uart.port.iobase, uart.port.irq, uart.port.iotype);
 
-		priv->line[i] = serial8250_register_8250_port(&uart);
-		if (priv->line[i] < 0) {
-			dev_err_probe(&pcidev->dev, priv->line[i],
+		priv->uport[i] = serial8250_register_8250_port(&uart);
+		if (IS_ERR(priv->uport[i])) {
+			dev_err_probe(&pcidev->dev, PTR_ERR(priv->uport[i]),
 				"Couldn't register serial port %lx, type %d, irq %d\n",
 				uart.port.iobase, uart.port.iotype, uart.port.irq);
 			break;
@@ -1519,7 +1520,7 @@ static void exar_pci_remove(struct pci_dev *pcidev)
 	unsigned int i;
 
 	for (i = 0; i < priv->nr; i++)
-		serial8250_unregister_port(priv->line[i]);
+		serial8250_unregister_port(priv->uport[i]);
 
 	/* Ensure that every init quirk is properly torn down */
 	if (priv->board->exit)
@@ -1532,8 +1533,7 @@ static int exar_suspend(struct device *dev)
 	unsigned int i;
 
 	for (i = 0; i < priv->nr; i++)
-		if (priv->line[i] >= 0)
-			serial8250_suspend_port(priv->line[i]);
+		serial8250_suspend_port(priv->uport[i]);
 
 	return 0;
 }
@@ -1546,8 +1546,7 @@ static int exar_resume(struct device *dev)
 	exar_misc_clear(priv);
 
 	for (i = 0; i < priv->nr; i++)
-		if (priv->line[i] >= 0)
-			serial8250_resume_port(priv->line[i]);
+		serial8250_resume_port(priv->uport[i]);
 
 	return 0;
 }

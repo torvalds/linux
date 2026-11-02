@@ -46,6 +46,12 @@ properties:
       - items:
           - const: acer,picasso
           - const: nvidia,tegra20
+      - description: Motorola Mot based Device family
+        items:
+          - enum:
+              - motorola,daytona
+              - motorola,olympus
+          - const: nvidia,tegra20
       - items:
           - enum:
               - nvidia,beaver

@@ -107,7 +107,7 @@
  *
  *	Jul.25, 2004	Hiroshi Miura <miura@da-cha.org>
  *		- v0.4  first post version
- *		        add function to retrive SIFR
+ *		        add function to retrieve SIFR
  *
  *	Jul.24, 2004	Hiroshi Miura <miura@da-cha.org>
  *		- v0.3  get proper status of hotkey
@@ -232,6 +232,7 @@ static const struct key_entry panasonic_keymap[] = {
 	{ KE_KEY, 41, { KEY_MACRO9 } },
 	{ KE_KEY, 42, { KEY_MACRO10 } },
 	{ KE_KEY, 43, { KEY_MACRO11 } },
+	{ KE_KEY, 48, { KEY_FN } },
 	{ KE_END, 0 }
 };
 
@@ -861,6 +862,17 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 		if (!sleep_keydown_seen)
 			sparse_keymap_report_event(hotk_input_dev,
 					key, 0x80, false);
+	}
+
+	/*
+	 * Let's Note models report both FN key down and key up
+	 * without the expected 0x80 key up/down bit
+	 */
+	if (key == 48) {
+		updown = 1;
+	} else if (key == 49) {
+		key = 48;
+		updown = 0;
 	}
 
 	/*

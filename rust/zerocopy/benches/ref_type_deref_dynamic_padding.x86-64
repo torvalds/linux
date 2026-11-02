@@ -1,0 +1,29 @@
+bench_ref_type_deref_dynamic_padding:
+	mov rdx, qword ptr [rdi + 16]
+	mov rax, qword ptr [rdi]
+	mov rcx, qword ptr [rdi + 8]
+	mov esi, 1
+	movabs rdi, 3074457345618258599
+	cmp rdx, rdi
+	jae .LBB8_3
+	test al, 3
+	jne .LBB8_2
+	lea rdi, [rdx + 2*rdx]
+	or rdi, 3
+	add rdi, 9
+	cmp rcx, rdi
+	jne .LBB8_3
+	ret
+.LBB8_2:
+	xor esi, esi
+.LBB8_3:
+	sub rsp, 24
+	mov qword ptr [rsp], rsi
+	mov qword ptr [rsp + 8], rax
+	mov qword ptr [rsp + 16], rcx
+	lea rdi, [rip + .Lanon.HASH.7]
+	lea rcx, [rip + .Lanon.HASH.1]
+	lea r8, [rip + .Lanon.HASH.9]
+	mov rdx, rsp
+	mov esi, 58
+	call qword ptr [rip + core::result::unwrap_failed@GOTPCREL]

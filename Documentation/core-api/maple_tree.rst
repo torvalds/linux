@@ -214,11 +214,10 @@ Advanced Allocating Nodes
 -------------------------
 
 Allocations are usually handled internally to the tree, however if allocations
-need to occur before a write occurs then calling mas_expected_entries() will
-allocate the worst-case number of needed nodes to insert the provided number of
-ranges.  This also causes the tree to enter mass insertion mode.  Once
-insertions are complete calling mas_destroy() on the maple state will free the
-unused allocations.
+need to occur before a write occurs then calling mas_preallocate() will
+allocate the nodes needed to store the provided entry.  The entry is then
+stored with mas_store_prealloc().  If the store is abandoned, calling
+mas_destroy() on the maple state will free the unused allocations.
 
 .. _maple-tree-advanced-locks:
 

@@ -141,6 +141,30 @@ properties:
       compatible:
         const: st,stmpe-ts
 
+      st,sample-time:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [ 0, 1, 2, 3, 4, 5, 6 ]
+        deprecated: true
+        description: See top layer st,sample-time.
+
+      st,mod-12b:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [ 0, 1 ]
+        deprecated: true
+        description: See top layer st,mod-12b
+
+      st,ref-sel:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [ 0, 1 ]
+        deprecated: true
+        description: See top layer st,ref-sel
+
+      st,adc-freq:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [ 0, 1, 2, 3 ]
+        deprecated: true
+        description: See top layer st,adc-freq
+
       st,ave-ctrl:
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [ 0, 1, 2, 3 ]
@@ -201,7 +225,6 @@ additionalProperties: false
 required:
   - compatible
   - reg
-  - interrupts
 
 examples:
   - |

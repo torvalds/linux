@@ -527,8 +527,10 @@ static int ti_ads7950_probe(struct spi_device *spi)
 	st->spi = spi;
 
 	info = spi_get_device_match_data(spi);
+	if (!info)
+		return -ENODATA;
 
-	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->name = spi->modalias;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = info->channels;
 	indio_dev->num_channels = info->num_channels;

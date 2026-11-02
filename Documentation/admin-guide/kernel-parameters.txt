@@ -501,13 +501,6 @@ Kernel parameters
 			disable
 			  Disable amd-pstate preferred core.
 
-	amd_dynamic_epp=
-			[X86]
-			disable
-			  Disable amd-pstate dynamic EPP.
-			enable
-			  Enable amd-pstate dynamic EPP.
-
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
 			Format: <a>,<b>
@@ -575,7 +568,8 @@ Kernel parameters
 			Set instructions support
 
 	arm64.nompam	[ARM64] Unconditionally disable Memory Partitioning And
-			Monitoring support
+			Monitoring support. Only for a machine that does not
+			boot without it. See Documentation/arch/arm64/mpam.rst
 
 	arm64.nomte	[ARM64] Unconditionally disable Memory Tagging Extension
 			support
@@ -593,8 +587,6 @@ Kernel parameters
 			Timeout and Wait For Interrupt with Timeout support
 
 	ataflop=	[HW,M68k]
-
-	atarimouse=	[HW,MOUSE] Atari Mouse
 
 	atkbd.extra=	[HW] Enable extra LEDs and keys on IBM RapidAccess,
 			EzKey and similar keyboards
@@ -628,13 +620,6 @@ Kernel parameters
 	audit_backlog_limit= [KNL] Set the audit queue size limit.
 			Format: <int> (must be >=0)
 			Default: 64
-
-	bau=		[X86_UV] Enable the BAU on SGI UV.  The default
-			behavior is to disable the BAU (i.e. bau=0).
-			Format: { "0" | "1" }
-			0 - Disable the BAU.
-			1 - Enable the BAU.
-			unset - Disable the BAU.
 
 	bdev_allow_write_mounted=
 			Format: <bool>
@@ -671,6 +656,22 @@ Kernel parameters
 			and this will cause the kernel to look for it.
 
 			See Documentation/admin-guide/bootconfig.rst
+
+	bpf.keyring_unsealed=
+			[BPF] When set to 1, leave the bpf keyring unsealed
+			after initialization so that userspace can provision
+			keys. Once the keyring is restricted it becomes active
+			and can be used for BPF program signature verification.
+
+			Setting this also means that the bpf keyring is the
+			only non-system keyring a loader may select for the
+			rest of the boot: caller-supplied user/session
+			keyrings are refused with -EPERM, whether or not
+			provisioning actually completed. The system keyrings
+			stay selectable. Leaving it unset keeps the prior
+			behaviour, where a caller-supplied keyring is allowed.
+
+			See Documentation/bpf/signing.rst
 
 	bttv.card=	[HW,V4L] bttv (bt848 + bt878 based grabber cards)
 	bttv.radio=	Most important insmod options are available as
@@ -1590,14 +1591,6 @@ Kernel parameters
 			PCI device even when its classcode is not of the
 			UART class.
 
-	edac_report=	[HW,EDAC] Control how to report EDAC event
-			Format: {"on" | "off" | "force"}
-			on: enable EDAC to report H/W event. May be overridden
-			by other higher priority error reporting module.
-			off: disable H/W event reporting through EDAC.
-			force: enforce the use of EDAC to report H/W event.
-			default: on.
-
 	edd=		[EDD]
 			Format: {"off" | "on" | "skip[mbr]"}
 
@@ -1666,12 +1659,6 @@ Kernel parameters
 			The kernel tries to adjust MTRR layout from continuous
 			to discrete, to make X server driver able to add WB
 			entry later. This parameter enables that.
-
-	enable_timer_pin_1 [X86]
-			Enable PIN 1 of APIC timer
-			Can be useful to work around chipset bugs
-			(in particular on some ATI chipsets).
-			The kernel tries to set a reasonable default.
 
 	enforcing=	[SELINUX] Set initial enforcing status.
 			Format: {"0" | "1"}
@@ -3034,11 +3021,12 @@ Kernel parameters
 			"0" | "off" | "n" - kexec handover is disabled
 			"1" | "on" | "y" - kexec handover is enabled
 
-	kho_scratch=	[KEXEC,EARLY]
+	kho_bootmem=	[KEXEC,EARLY]
 			Format: ll[KMG],mm[KMG],nn[KMG] | nn%
-			Defines the size of the KHO scratch region. The KHO
-			scratch regions are physically contiguous memory
-			ranges that can only be used for non-kernel
+
+			Defines the size of the KHO boot memory region. The
+			KHO boot memory regions are physically contiguous
+			memory ranges that can only be used for non-kernel
 			allocations. That way, even when memory is heavily
 			fragmented with handed over memory, the kexeced
 			kernel will always have enough contiguous ranges to
@@ -3047,10 +3035,10 @@ Kernel parameters
 			It is possible to specify the exact amount of
 			memory in the form of "ll[KMG],mm[KMG],nn[KMG]"
 			where the first parameter defines the size of a low
-			memory scratch area, the second parameter defines
-			the size of a global scratch area and the third
+			memory bootmem area, the second parameter defines
+			the size of a global bootmem area and the third
 			parameter defines the size of additional per-node
-			scratch areas.  The form "nn%" defines scale factor
+			bootmem areas.  The form "nn%" defines scale factor
 			(in percents) of memory that was used during boot.
 
 	kmac=		[MIPS] Korina ethernet MAC address.
@@ -3158,6 +3146,32 @@ Kernel parameters
 
 	kvm.enable_vmware_backdoor=[KVM] Support VMware backdoor PV interface.
 				   Default is false (don't support).
+
+	kvm.gmem_in_place_conversion=
+			[KVM] Controls whether KVM enables in-place conversion
+			support for guest_memfd and tracks the private/shared
+			state of memory per guest_memfd instead of per VM.
+
+			If enabled, KVM enables the KVM_SET_MEMORY_ATTRIBUTES2
+			ioctl on guest_memfd file descriptors and disables the
+			legacy VM-scoped KVM_SET_MEMORY_ATTRIBUTES ioctl for
+			private memory state tracking. Only the
+			KVM_MEMORY_ATTRIBUTE_PRIVATE attribute moves to
+			per-guest_memfd tracking; other attributes remain
+			per-VM.
+
+			This parameter toggles KVM's in-place conversion
+			capability support. Whether a VMM uses separate backends
+			or out-of-place memory management is determined by
+			userspace VMM design.
+
+			Note, this parameter is only available when
+			CONFIG_KVM_PRIVATE_MEMATTR_VM=y. When
+			CONFIG_KVM_PRIVATE_MEMATTR_VM is not set, in-place
+			conversion is enabled (and cannot be disabled) if KVM
+			is built with private memory support.
+
+			Default is N (off).
 
 	kvm.nx_huge_pages=
 			[KVM] Controls the software workaround for the
@@ -3969,8 +3983,8 @@ Kernel parameters
 			like Grub2, otherwise '$' and the following number
 			will be eaten.
 
-	memmap=nn[KMG]!ss[KMG,EARLY]
-			[KNL,X86] Mark specific memory as protected.
+	memmap=nn[KMG]!ss[KMG]
+			[KNL,X86,EARLY] Mark specific memory as protected.
 			Region of memory to be used, from ss to ss+nn.
 			The memory region may be marked as e820 type 12 (0xc)
 			and is NVDIMM or ADR memory.
@@ -4031,7 +4045,7 @@ Kernel parameters
 			poison checking when freeing elements back to the
 			pool. Useful for debugging mempool corruption.
 
-	memtest=	[KNL,X86,ARM,M68K,PPC,RISCV,EARLY] Enable memtest
+	memtest=	[KNL,ALPHA,X86,ARM,M68K,PPC,RISCV,EARLY] Enable memtest
 			Format: <integer>
 			default : 0 <disable>
 			Specifies the number of memtest passes to be
@@ -4075,27 +4089,6 @@ Kernel parameters
 			force_minrev:
 			Enable or disable the microcode minimal revision
 			enforcement for the runtime microcode loader.
-
-	mini2440=	[ARM,HW,KNL]
-			Format:[0..2][b][c][t]
-			Default: "0tb"
-			MINI2440 configuration specification:
-			0 - The attached screen is the 3.5" TFT
-			1 - The attached screen is the 7" TFT
-			2 - The VGA Shield is attached (1024x768)
-			Leaving out the screen size parameter will not load
-			the TFT driver, and the framebuffer will be left
-			unconfigured.
-			b - Enable backlight. The TFT backlight pin will be
-			linked to the kernel VESA blanking code and a GPIO
-			LED. This parameter is not necessary when using the
-			VGA shield.
-			c - Enable the s3c camera interface.
-			t - Reserved for enabling touchscreen support. The
-			touchscreen support is not enabled in the mainstream
-			kernel as of 2.6.30, a preliminary port can be found
-			in the "bleeding edge" mini2440 support kernel at
-			https://repo.or.cz/w/linux-2.6/mini2440.git
 
 	mitigations=
 			[X86,PPC,S390,ARM64,EARLY] Control optional mitigations for
@@ -4281,11 +4274,11 @@ Kernel parameters
 			Enable printing debug information related to MTRR
 			registers at boot time.
 
-	mtrr_chunk_size=nn[KMG,X86,EARLY]
+	mtrr_chunk_size=nn[KMG]		[X86,EARLY]
 			used for mtrr cleanup. It is largest continuous chunk
 			that could hold holes aka. UC entries.
 
-	mtrr_gran_size=nn[KMG,X86,EARLY]
+	mtrr_gran_size=nn[KMG]		[X86,EARLY]
 			Used for mtrr cleanup. It is granularity of mtrr block.
 			Default is 1.
 			Large value could prevent small alignment from
@@ -4598,9 +4591,6 @@ Kernel parameters
 
 	nomce		[X86-32] Disable Machine Check Exception
 
-	nomfgpt		[X86-32] Disable Multi-Function General Purpose
-			Timer usage (for AMD Geode machines).
-
 	nomodeset	Disable kernel modesetting. Most systems' firmware
 			sets up a display mode and provides framebuffer memory
 			for output. With nomodeset, DRM and fbdev drivers will
@@ -4802,6 +4792,16 @@ Kernel parameters
 			Example:
 			nvme.quirks=7710:2267:bogus_nid,^identify_cns-9900:7711:broken_msi
 
+	nvme_tcp.tls_handshake_timeout=
+			[NVME] NVMe/TCP host TLS handshake timeout in seconds.
+			Valid values range from 0 to the smaller of
+			UINT_MAX / 1000 and MAX_JIFFY_OFFSET / HZ. Default: 10
+
+	nvmet_tcp.tls_handshake_timeout=
+			[NVME] NVMe/TCP target TLS handshake timeout in seconds.
+			Valid values range from 0 to the smaller of
+			UINT_MAX / 1000 and MAX_JIFFY_OFFSET / HZ. Default: 10
+
 	ohci1394_dma=early	[HW,EARLY] enable debugging via the ohci1394 driver.
 			See Documentation/core-api/debugging-via-ohci1394.rst for more
 			info.
@@ -4812,11 +4812,6 @@ Kernel parameters
 			of the timeout.  We have interrupts disabled while
 			waiting for the ACK, so if this is set too high
 			interrupts *may* be lost!
-
-	omap_mux=	[OMAP] Override bootloader pin multiplexing.
-			Format: <mux_mode0.mode_name=value>...
-			For example, to override I2C bus2:
-			omap_mux=i2c2_scl.i2c2_scl=0x100,i2c2_sda.i2c2_sda=0x100
 
 	onenand.bdry=	[HW,MTD] Flex-OneNAND Boundary Configuration
 
@@ -5327,8 +5322,6 @@ Kernel parameters
 		nomsi	Do not use MSI for native PCIe PME signaling (this makes
 			all PCIe root ports use INTx for all services).
 
-	pcmv=		[HW,PCMCIA] BadgePAD 4
-
 	pd_ignore_unused
 			[PM]
 			Keep all power-domains already enabled by bootloader on,
@@ -5454,8 +5447,8 @@ Kernel parameters
 			lazy - Scheduler controlled. Similar to full but instead
 			       of preempting the task immediately, the task gets
 			       one HZ tick time to yield itself before the
-			       preemption will be forced. One preemption is when the
-			       task returns to user space.
+			       preemption will be forced. One such preemption
+			       point is when the task returns to user space.
 
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
@@ -5663,9 +5656,12 @@ Kernel parameters
 			there is an ongoing too-long CSD-lock wait.
 
 	rcutree.do_rcu_barrier=	[KNL]
-			Request a call to rcu_barrier().  This is
-			throttled so that userspace tests can safely
-			hammer on the sysfs variable if they so choose.
+			Wait for deferred kfree_rcu() frees and ordinary
+			call_rcu() callbacks queued before this request to
+			complete.  This does not prevent new work from being
+			queued concurrently.  Requests are throttled so that
+			userspace tests can safely hammer on the sysfs
+			variable if they so choose.
 			If triggered before the RCU grace-period machinery
 			is fully active, this will error out with EAGAIN.
 
@@ -6137,6 +6133,13 @@ Kernel parameters
 			stress RCU, they don't participate in the actual
 			test, hence the "fake".
 
+	rcutorture.nmi_calls= [KNL]
+			Enable issuing RCU callbacks from an NMI, on the
+			RCU flavors that support it, to exercise the
+			any-context callback path.  Requires
+			CONFIG_PERF_EVENTS and a hardware PMU; without
+			both, nothing is issued.  Defaults to enabled.
+
 	rcutorture.nocbs_nthreads= [KNL]
 			Set number of RCU callback-offload togglers.
 			Zero (the default) disables toggling.
@@ -6249,7 +6252,7 @@ Kernel parameters
 	rcutorture.stall_only= [KNL]
 			Shut off all rcutorture kthreads other than the
 			RCU CPU stall-warning test kthreads.  The purpose
-			of this is to test production applictions'
+			of this is to test production applications'
 			reactions to CPU stalls, and with minimal
 			additional overhead.  Or you can omit the
 			stall-warning tests as well and get a heavy
@@ -6365,6 +6368,13 @@ Kernel parameters
 			post-boot attempt at an expedited RCU grace
 			period to instead use normal non-expedited
 			grace-period processing.
+
+	rcupdate.rcu_task_collapse_debug= [KNL]
+			Enable debugging prints that record when RCU Tasks
+			and RCU Tasks Trace expand to per-CPU callback
+			queuing and collapse back to CPU-0 queuing.
+			This is default-disabled due to the fact that
+			some workloads can make it quite noisy.
 
 	rcupdate.rcu_task_collapse_lim= [KNL]
 			Set the maximum number of callbacks present
@@ -6590,7 +6600,7 @@ Kernel parameters
 			them.  If <base> is less than 0x10000, the region
 			is assumed to be I/O ports; otherwise it is memory.
 
-	reserve_mem=	[RAM]
+	reserve_mem=	[MM]
 			Format: nn[KMG]:<align>:<label>
 			Reserve physical memory and label it with a name that
 			other subsystems can use to access it. This is typically
@@ -6611,6 +6621,9 @@ Kernel parameters
 			12 megabytes of 4096 alignment for ramoops:
 
 			reserve_mem=12M:4096:oops ramoops.mem_name=oops
+
+			Both the size and the alignment must be multiples of
+			the page size.
 
 	reservetop=	[X86-32,EARLY]
 			Format: nn[KMG]
@@ -6799,6 +6812,18 @@ Kernel parameters
 			Enables or disables "proxy execution" style
 			solution to mutex-based priority inversion.
 			Format: <bool>
+
+	sched_smt_asym_packing= [KNL,SMP]
+			Format: on
+			Force asymmetric packing at the SMT scheduling domain.
+			Idle CPU selection prefers siblings with a higher
+			arch_asym_cpu_priority(). The default implementation
+			prefers lower-numbered logical CPUs, but architecture
+			overrides remain authoritative. Equal priorities do
+			not establish a sibling preference. For example, x86
+			with CONFIG_SCHED_MC_PRIO normally assigns the same
+			core priority to both SMT siblings, so this option
+			does not favor either sibling.
 
 	sched_verbose	[KNL,EARLY] Enables verbose scheduler debug messages.
 
@@ -7733,8 +7758,13 @@ Kernel parameters
 			trace_event=:mod:<module>
 
 			The value before :mod: will only enable specific events
-			that are part of the module. See the above mentioned
-			document for more information.
+			that are part of the module.
+
+			To apply a filter, use the :filter: keyword:
+
+			trace_event=...:filter:<filter>
+
+			See the above mentioned document for more information.
 
 	trace_instance=[instance-info]
 			[FTRACE] Create a ring buffer instance early in boot up.

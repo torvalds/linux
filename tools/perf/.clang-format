@@ -21,3 +21,4 @@ IncludeCategories:
   # Your Project's Other Headers
   - Regex:           '^".*"'
     Priority:        4
+AlignArrayOfStructures: Left

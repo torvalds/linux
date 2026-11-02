@@ -1,17 +1,39 @@
 // SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 
 #include <dt-bindings/clock/nvidia,tegra264.h>
+#include <dt-bindings/gpio/nvidia,tegra264-gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/mailbox/tegra186-hsp.h>
 #include <dt-bindings/memory/nvidia,tegra264.h>
 #include <dt-bindings/power/nvidia,tegra264-bpmp.h>
 #include <dt-bindings/reset/nvidia,tegra264.h>
 
+#include "thermal/nvidia,tegra264-bpmp.h"
+
 / {
 	compatible = "nvidia,tegra264";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
+
+	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &{/bpmp/i2c};
+		i2c6 = &i2c6;
+		i2c7 = &i2c7;
+		i2c8 = &i2c8;
+		i2c9 = &i2c9;
+		i2c10 = &i2c10;
+		i2c11 = &i2c11;
+		i2c12 = &i2c12;
+		i2c14 = &i2c14;
+		i2c15 = &i2c15;
+		i2c16 = &i2c16;
+	};
 
 	reserved-memory {
 		#address-cells = <2>;
@@ -38,6 +60,13 @@
 			compatible = "nvidia,tegra234-misc";
 			reg = <0x0 0x00100000 0x0 0x0f000>,
 			      <0x0 0x0c140000 0x0 0x10000>;
+		};
+
+		fuse@1000000 {
+			compatible = "nvidia,tegra264-efuse";
+			reg = <0x0 0x1000000 0x0 0x20000>;
+			clocks = <&bpmp TEGRA264_CLK_FUSE>;
+			clock-names = "fuse";
 		};
 
 		timer@8000000 {
@@ -122,85 +151,85 @@
 
 		aconnect@9000000 {
 			compatible = "nvidia,tegra264-aconnect",
-					"nvidia,tegra210-aconnect";
+				     "nvidia,tegra210-aconnect";
 			clocks = <&bpmp TEGRA264_CLK_APE>,
-				<&bpmp TEGRA264_CLK_ADSP>;
+				 <&bpmp TEGRA264_CLK_ADSP>;
 			clock-names = "ape", "apb2ape";
 			power-domains = <&bpmp TEGRA264_POWER_DOMAIN_AUD>;
 			status = "disabled";
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges = <0x0 0x9000000 0x0 0x9000000 0x0 0x2000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x9000000 0x0 0x9000000 0x2000000>;
 
 			adma: dma-controller@9440000 {
 				compatible = "nvidia,tegra264-adma";
-				reg = <0x0 0x9440000 0x0 0xb0000>;
+				reg = <0x9440000 0xb0000>;
 				interrupt-parent = <&agic_page0>;
 				interrupts = <GIC_SPI 0x90 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x91 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x92 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x93 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x94 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x95 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x96 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x97 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x98 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x99 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x9a IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x9b IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x9c IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x9d IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x9e IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0x9f IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xa0 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xa1 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xa2 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xa3 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xa4 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xa5 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xa6 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xa7 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xa8 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xa9 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xaa IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xab IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xac IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xad IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xae IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xaf IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xb0 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xb1 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xb2 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xb3 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xb4 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xb5 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xb6 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xb7 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xb8 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xb9 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xba IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xbb IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xbc IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xbd IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xbe IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xbf IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xc0 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xc1 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xc2 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xc3 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xc4 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xc5 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xc6 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xc7 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xc8 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xc9 IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xca IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xcb IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xcc IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xcd IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xce IRQ_TYPE_LEVEL_HIGH>,
-					   <GIC_SPI 0xcf IRQ_TYPE_LEVEL_HIGH>;
+					     <GIC_SPI 0x91 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x92 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x93 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x94 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x95 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x96 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x97 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x98 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x99 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x9a IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x9b IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x9c IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x9d IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x9e IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0x9f IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xa0 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xa1 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xa2 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xa3 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xa4 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xa5 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xa6 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xa7 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xa8 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xa9 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xaa IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xab IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xac IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xad IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xae IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xaf IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xb0 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xb1 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xb2 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xb3 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xb4 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xb5 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xb6 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xb7 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xb8 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xb9 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xba IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xbb IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xbc IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xbd IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xbe IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xbf IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xc0 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xc1 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xc2 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xc3 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xc4 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xc5 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xc6 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xc7 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xc8 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xc9 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xca IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xcb IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xcc IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xcd IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xce IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 0xcf IRQ_TYPE_LEVEL_HIGH>;
 				#dma-cells = <1>;
 				clocks = <&bpmp TEGRA264_CLK_AHUB>;
 				clock-names = "d_audio";
@@ -209,24 +238,24 @@
 
 			tegra_ahub: ahub@9630000 {
 				compatible = "nvidia,tegra264-ahub";
-				reg = <0x0 0x9630000 0x0 0x10000>;
+				reg = <0x9630000 0x10000>;
 				clocks = <&bpmp TEGRA264_CLK_AHUB>;
 				clock-names = "ahub";
 				assigned-clocks = <&bpmp TEGRA264_CLK_AHUB>;
 				assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLAON_APE>;
 				status = "disabled";
 
-				#address-cells = <2>;
-				#size-cells = <2>;
+				#address-cells = <1>;
+				#size-cells = <1>;
 				/* ADMA is under AHUB range, its excluded in the defined range */
-				ranges = <0x0 0x9280000 0x0 0x9280000 0x0 0x1c0000>,
-					<0x0 0x9510000 0x0 0x9510000 0x0 0x370000>;
+				ranges = <0x9280000 0x9280000 0x1c0000>,
+					 <0x9510000 0x9510000 0x370000>;
 
 				tegra_i2s1: i2s@9280000 {
 					compatible = "nvidia,tegra264-i2s";
-					reg = <0x0 0x9280000 0x0 0x10000>;
+					reg = <0x9280000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_I2S1>,
-					       <&bpmp TEGRA264_CLK_I2S1_SCLK_IN>;
+						 <&bpmp TEGRA264_CLK_I2S1_SCLK_IN>;
 					clock-names = "i2s", "sync_input";
 					assigned-clocks = <&bpmp TEGRA264_CLK_I2S1>;
 					assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLA1_OUT1>;
@@ -259,7 +288,7 @@
 
 				tegra_i2s2: i2s@9290000 {
 					compatible = "nvidia,tegra264-i2s";
-					reg = <0x0 0x9290000 0x0 0x10000>;
+					reg = <0x9290000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_I2S2>,
 						 <&bpmp TEGRA264_CLK_I2S2_SCLK_IN>;
 					clock-names = "i2s", "sync_input";
@@ -294,9 +323,9 @@
 
 				tegra_i2s3: i2s@92a0000 {
 					compatible = "nvidia,tegra264-i2s";
-					reg = <0x0 0x92a0000 0x0 0x10000>;
+					reg = <0x92a0000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_I2S3>,
-					       <&bpmp TEGRA264_CLK_I2S3_SCLK_IN>;
+						 <&bpmp TEGRA264_CLK_I2S3_SCLK_IN>;
 					clock-names = "i2s", "sync_input";
 					assigned-clocks = <&bpmp TEGRA264_CLK_I2S3>;
 					assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLA1_OUT1>;
@@ -329,9 +358,9 @@
 
 				tegra_i2s4: i2s@92b0000 {
 					compatible = "nvidia,tegra264-i2s";
-					reg = <0x0 0x92b0000 0x0 0x10000>;
+					reg = <0x92b0000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_I2S4>,
-					       <&bpmp TEGRA264_CLK_I2S4_SCLK_IN>;
+						 <&bpmp TEGRA264_CLK_I2S4_SCLK_IN>;
 					clock-names = "i2s", "sync_input";
 					assigned-clocks = <&bpmp TEGRA264_CLK_I2S4>;
 					assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLA1_OUT1>;
@@ -364,9 +393,9 @@
 
 				tegra_i2s5: i2s@92c0000 {
 					compatible = "nvidia,tegra264-i2s";
-					reg = <0x0 0x92c0000 0x0 0x10000>;
+					reg = <0x92c0000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_I2S5>,
-					       <&bpmp TEGRA264_CLK_I2S5_SCLK_IN>;
+						 <&bpmp TEGRA264_CLK_I2S5_SCLK_IN>;
 					clock-names = "i2s", "sync_input";
 					assigned-clocks = <&bpmp TEGRA264_CLK_I2S5>;
 					assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLA1_OUT1>;
@@ -399,9 +428,9 @@
 
 				tegra_i2s6: i2s@92d0000 {
 					compatible = "nvidia,tegra264-i2s";
-					reg = <0x0 0x92d0000 0x0 0x10000>;
+					reg = <0x92d0000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_I2S6>,
-					       <&bpmp TEGRA264_CLK_I2S6_SCLK_IN>;
+						 <&bpmp TEGRA264_CLK_I2S6_SCLK_IN>;
 					clock-names = "i2s", "sync_input";
 					assigned-clocks = <&bpmp TEGRA264_CLK_I2S6>;
 					assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLA1_OUT1>;
@@ -434,9 +463,9 @@
 
 				tegra_i2s7: i2s@92e0000 {
 					compatible = "nvidia,tegra264-i2s";
-					reg = <0x0 0x92e0000 0x0 0x10000>;
+					reg = <0x92e0000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_I2S7>,
-					       <&bpmp TEGRA264_CLK_I2S7_SCLK_IN>;
+						 <&bpmp TEGRA264_CLK_I2S7_SCLK_IN>;
 					clock-names = "i2s", "sync_input";
 					assigned-clocks = <&bpmp TEGRA264_CLK_I2S7>;
 					assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLA1_OUT1>;
@@ -469,9 +498,9 @@
 
 				tegra_i2s8: i2s@92f0000 {
 					compatible = "nvidia,tegra264-i2s";
-					reg = <0x0 0x92f0000 0x0 0x10000>;
+					reg = <0x92f0000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_I2S8>,
-					       <&bpmp TEGRA264_CLK_I2S8_SCLK_IN>;
+						 <&bpmp TEGRA264_CLK_I2S8_SCLK_IN>;
 					clock-names = "i2s", "sync_input";
 					assigned-clocks = <&bpmp TEGRA264_CLK_I2S8>;
 					assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLA1_OUT1>;
@@ -504,8 +533,8 @@
 
 				tegra_dmic1: dmic@9300000 {
 					compatible = "nvidia,tegra264-dmic",
-							"nvidia,tegra210-dmic";
-					reg = <0x0 0x9300000 0x0 0x10000>;
+						     "nvidia,tegra210-dmic";
+					reg = <0x9300000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_DMIC1>;
 					clock-names = "dmic";
 					assigned-clocks = <&bpmp TEGRA264_CLK_DMIC1>;
@@ -538,8 +567,8 @@
 
 				tegra_dmic2: dmic@9310000 {
 					compatible = "nvidia,tegra264-dmic",
-						   "nvidia,tegra210-dmic";
-					reg = <0x0 0x9310000 0x0 0x10000>;
+						     "nvidia,tegra210-dmic";
+					reg = <0x9310000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_DMIC1>;
 					clock-names = "dmic";
 					assigned-clocks = <&bpmp TEGRA264_CLK_DMIC1>;
@@ -572,8 +601,8 @@
 
 				tegra_dspk1: dspk@9380000 {
 					compatible = "nvidia,tegra264-dspk",
-							"nvidia,tegra186-dspk";
-					reg = <0x0 0x9380000 0x0 0x10000>;
+						     "nvidia,tegra186-dspk";
+					reg = <0x9380000 0x10000>;
 					clocks = <&bpmp TEGRA264_CLK_DSPK1>;
 					clock-names = "dspk";
 					assigned-clocks = <&bpmp TEGRA264_CLK_DSPK1>;
@@ -606,7 +635,7 @@
 
 				tegra_amx1: amx@9510000 {
 					compatible = "nvidia,tegra264-amx";
-					reg = <0x0 0x9510000 0x0 0x10000>;
+					reg = <0x9510000 0x10000>;
 					sound-name-prefix = "AMX1";
 
 					ports {
@@ -657,7 +686,7 @@
 
 				tegra_amx2: amx@9520000 {
 					compatible = "nvidia,tegra264-amx";
-					reg = <0x0 0x9520000 0x0 0x10000>;
+					reg = <0x9520000 0x10000>;
 					sound-name-prefix = "AMX2";
 
 					ports {
@@ -708,7 +737,7 @@
 
 				tegra_amx3: amx@9530000 {
 					compatible = "nvidia,tegra264-amx";
-					reg = <0x0 0x9530000 0x0 0x10000>;
+					reg = <0x9530000 0x10000>;
 					sound-name-prefix = "AMX3";
 
 					ports {
@@ -759,7 +788,7 @@
 
 				tegra_amx4: amx@9540000 {
 					compatible = "nvidia,tegra264-amx";
-					reg = <0x0 0x9540000 0x0 0x10000>;
+					reg = <0x9540000 0x10000>;
 					sound-name-prefix = "AMX4";
 
 					ports {
@@ -810,7 +839,7 @@
 
 				tegra_amx5: amx@9550000 {
 					compatible = "nvidia,tegra264-amx";
-					reg = <0x0 0x9550000 0x0 0x10000>;
+					reg = <0x9550000 0x10000>;
 					sound-name-prefix = "AMX5";
 
 					ports {
@@ -861,7 +890,7 @@
 
 				tegra_amx6: amx@9560000 {
 					compatible = "nvidia,tegra264-amx";
-					reg = <0x0 0x9560000 0x0 0x10000>;
+					reg = <0x9560000 0x10000>;
 					sound-name-prefix = "AMX6";
 
 					ports {
@@ -912,7 +941,7 @@
 
 				tegra_adx1: adx@9590000 {
 					compatible = "nvidia,tegra264-adx";
-					reg = <0x0 0x9590000 0x0 0x10000>;
+					reg = <0x9590000 0x10000>;
 					sound-name-prefix = "ADX1";
 
 					ports {
@@ -963,7 +992,7 @@
 
 				tegra_adx2: adx@95a0000 {
 					compatible = "nvidia,tegra264-adx";
-					reg = <0x0 0x95a0000 0x0 0x10000>;
+					reg = <0x95a0000 0x10000>;
 					sound-name-prefix = "ADX2";
 
 					ports {
@@ -1014,7 +1043,7 @@
 
 				tegra_adx3: adx@95b0000 {
 					compatible = "nvidia,tegra264-adx";
-					reg = <0x0 0x95b0000 0x0 0x10000>;
+					reg = <0x95b0000 0x10000>;
 					sound-name-prefix = "ADX3";
 
 					ports {
@@ -1065,7 +1094,7 @@
 
 				tegra_adx4: adx@95c0000 {
 					compatible = "nvidia,tegra264-adx";
-					reg = <0x0 0x95c0000 0x0 0x10000>;
+					reg = <0x95c0000 0x10000>;
 					sound-name-prefix = "ADX4";
 
 					ports {
@@ -1116,7 +1145,7 @@
 
 				tegra_adx5: adx@95d0000 {
 					compatible = "nvidia,tegra264-adx";
-					reg = <0x0 0x95d0000 0x0 0x10000>;
+					reg = <0x95d0000 0x10000>;
 					sound-name-prefix = "ADX5";
 
 					ports {
@@ -1167,7 +1196,7 @@
 
 				tegra_adx6: adx@95e0000 {
 					compatible = "nvidia,tegra264-adx";
-					reg = <0x0 0x95e0000 0x0 0x10000>;
+					reg = <0x95e0000 0x10000>;
 					sound-name-prefix = "ADX6";
 
 					ports {
@@ -1218,76 +1247,75 @@
 
 				tegra_admaif: admaif@9610000 {
 					compatible = "nvidia,tegra264-admaif";
-					reg = <0x0 0x9610000 0x0 0x10000>;
+					reg = <0x9610000 0x10000>;
 					dmas = <&adma 1>, <&adma 1>,
-					     <&adma 2>, <&adma 2>,
-					     <&adma 3>, <&adma 3>,
-					     <&adma 4>, <&adma 4>,
-					     <&adma 5>, <&adma 5>,
-					     <&adma 6>, <&adma 6>,
-					     <&adma 7>, <&adma 7>,
-					     <&adma 8>, <&adma 8>,
-					     <&adma 9>, <&adma 9>,
-					     <&adma 10>, <&adma 10>,
-					     <&adma 11>, <&adma 11>,
-					     <&adma 12>, <&adma 12>,
-					     <&adma 13>, <&adma 13>,
-					     <&adma 14>, <&adma 14>,
-					     <&adma 15>, <&adma 15>,
-					     <&adma 16>, <&adma 16>,
-					     <&adma 17>, <&adma 17>,
-					     <&adma 18>, <&adma 18>,
-					     <&adma 19>, <&adma 19>,
-					     <&adma 20>, <&adma 20>,
-					     <&adma 21>, <&adma 21>,
-					     <&adma 22>, <&adma 22>,
-					     <&adma 23>, <&adma 23>,
-					     <&adma 24>, <&adma 24>,
-					     <&adma 25>, <&adma 25>,
-					     <&adma 26>, <&adma 26>,
-					     <&adma 27>, <&adma 27>,
-					     <&adma 28>, <&adma 28>,
-					     <&adma 29>, <&adma 29>,
-					     <&adma 30>, <&adma 30>,
-					     <&adma 31>, <&adma 31>,
-					     <&adma 32>, <&adma 32>;
+					       <&adma 2>, <&adma 2>,
+					       <&adma 3>, <&adma 3>,
+					       <&adma 4>, <&adma 4>,
+					       <&adma 5>, <&adma 5>,
+					       <&adma 6>, <&adma 6>,
+					       <&adma 7>, <&adma 7>,
+					       <&adma 8>, <&adma 8>,
+					       <&adma 9>, <&adma 9>,
+					       <&adma 10>, <&adma 10>,
+					       <&adma 11>, <&adma 11>,
+					       <&adma 12>, <&adma 12>,
+					       <&adma 13>, <&adma 13>,
+					       <&adma 14>, <&adma 14>,
+					       <&adma 15>, <&adma 15>,
+					       <&adma 16>, <&adma 16>,
+					       <&adma 17>, <&adma 17>,
+					       <&adma 18>, <&adma 18>,
+					       <&adma 19>, <&adma 19>,
+					       <&adma 20>, <&adma 20>,
+					       <&adma 21>, <&adma 21>,
+					       <&adma 22>, <&adma 22>,
+					       <&adma 23>, <&adma 23>,
+					       <&adma 24>, <&adma 24>,
+					       <&adma 25>, <&adma 25>,
+					       <&adma 26>, <&adma 26>,
+					       <&adma 27>, <&adma 27>,
+					       <&adma 28>, <&adma 28>,
+					       <&adma 29>, <&adma 29>,
+					       <&adma 30>, <&adma 30>,
+					       <&adma 31>, <&adma 31>,
+					       <&adma 32>, <&adma 32>;
 					dma-names = "rx1", "tx1",
-						"rx2", "tx2",
-						"rx3", "tx3",
-						"rx4", "tx4",
-						"rx5", "tx5",
-						"rx6", "tx6",
-						"rx7", "tx7",
-						"rx8", "tx8",
-						"rx9", "tx9",
-						"rx10", "tx10",
-						"rx11", "tx11",
-						"rx12", "tx12",
-						"rx13", "tx13",
-						"rx14", "tx14",
-						"rx15", "tx15",
-						"rx16", "tx16",
-						"rx17", "tx17",
-						"rx18", "tx18",
-						"rx19", "tx19",
-						"rx20", "tx20",
-						"rx21", "tx21",
-						"rx22", "tx22",
-						"rx23", "tx23",
-						"rx24", "tx24",
-						"rx25", "tx25",
-						"rx26", "tx26",
-						"rx27", "tx27",
-						"rx28", "tx28",
-						"rx29", "tx29",
-						"rx30", "tx30",
-						"rx31", "tx31",
-						"rx32", "tx32";
+						    "rx2", "tx2",
+						    "rx3", "tx3",
+						    "rx4", "tx4",
+						    "rx5", "tx5",
+						    "rx6", "tx6",
+						    "rx7", "tx7",
+						    "rx8", "tx8",
+						    "rx9", "tx9",
+						    "rx10", "tx10",
+						    "rx11", "tx11",
+						    "rx12", "tx12",
+						    "rx13", "tx13",
+						    "rx14", "tx14",
+						    "rx15", "tx15",
+						    "rx16", "tx16",
+						    "rx17", "tx17",
+						    "rx18", "tx18",
+						    "rx19", "tx19",
+						    "rx20", "tx20",
+						    "rx21", "tx21",
+						    "rx22", "tx22",
+						    "rx23", "tx23",
+						    "rx24", "tx24",
+						    "rx25", "tx25",
+						    "rx26", "tx26",
+						    "rx27", "tx27",
+						    "rx28", "tx28",
+						    "rx29", "tx29",
+						    "rx30", "tx30",
+						    "rx31", "tx31",
+						    "rx32", "tx32";
 
-					 interconnects =
-						<&mc TEGRA264_MEMORY_CLIENT_APEDMAR &emc>,
-						<&mc TEGRA264_MEMORY_CLIENT_APEDMAW &emc>;
-						interconnect-names = "dma-mem", "write";
+					interconnects = <&mc TEGRA264_MEMORY_CLIENT_APEDMAR &emc>,
+							<&mc TEGRA264_MEMORY_CLIENT_APEDMAW &emc>;
+					interconnect-names = "dma-mem", "write";
 
 					iommus = <&smmu1 TEGRA264_SID_APE>;
 
@@ -1555,8 +1583,8 @@
 
 				tegra_sfc1: sfc@9700000 {
 					compatible = "nvidia,tegra264-sfc",
-							"nvidia,tegra210-sfc";
-					reg = <0x0 0x9700000 0x0 0x10000>;
+						     "nvidia,tegra210-sfc";
+					reg = <0x9700000 0x10000>;
 					sound-name-prefix = "SFC1";
 
 					ports {
@@ -1583,8 +1611,8 @@
 
 				tegra_sfc2: sfc@9710000 {
 					compatible = "nvidia,tegra264-sfc",
-							"nvidia,tegra210-sfc";
-					reg = <0x0 0x9710000 0x0 0x10000>;
+						     "nvidia,tegra210-sfc";
+					reg = <0x9710000 0x10000>;
 					sound-name-prefix = "SFC2";
 
 					ports {
@@ -1611,8 +1639,8 @@
 
 				tegra_sfc3: sfc@9720000 {
 					compatible = "nvidia,tegra264-sfc",
-							"nvidia,tegra210-sfc";
-					reg = <0x0 0x9720000 0x0 0x10000>;
+						     "nvidia,tegra210-sfc";
+					reg = <0x9720000 0x10000>;
 					sound-name-prefix = "SFC3";
 
 					ports {
@@ -1639,8 +1667,8 @@
 
 				tegra_sfc4: sfc@9730000 {
 					compatible = "nvidia,tegra264-sfc",
-							"nvidia,tegra210-sfc";
-					reg = <0x0 0x9730000 0x0 0x10000>;
+						     "nvidia,tegra210-sfc";
+					reg = <0x9730000 0x10000>;
 					sound-name-prefix = "SFC4";
 
 					ports {
@@ -1667,23 +1695,23 @@
 
 				tegra_ope1: processing-engine@9780000 {
 					compatible = "nvidia,tegra264-ope",
-							"nvidia,tegra210-ope";
-					reg = <0x0 0x9780000 0x0 0x10000>;
-					#address-cells = <2>;
-					#size-cells = <2>;
-					ranges = <0x0 0x9780000 0x0 0x9780000 0x0 0x30000>;
+						     "nvidia,tegra210-ope";
+					reg = <0x9780000 0x10000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0x9780000 0x9780000 0x30000>;
 					sound-name-prefix = "OPE1";
 
 					equalizer@9790000 {
 						compatible = "nvidia,tegra264-peq",
-								"nvidia,tegra210-peq";
-						reg = <0x0 0x9790000 0x0 0x10000>;
+							     "nvidia,tegra210-peq";
+						reg = <0x9790000 0x10000>;
 					};
 
 					dynamic-range-compressor@97a0000 {
 						compatible = "nvidia,tegra264-mbdrc",
-								"nvidia,tegra210-mbdrc";
-						reg = <0x0 0x97a0000 0x0 0x10000>;
+							     "nvidia,tegra210-mbdrc";
+						reg = <0x97a0000 0x10000>;
 					};
 
 					ports {
@@ -1694,8 +1722,7 @@
 							reg = <0x0>;
 
 							ope1_cif_in_ep: endpoint {
-								remote-endpoint =
-									<&xbar_ope1_in_ep>;
+								remote-endpoint = <&xbar_ope1_in_ep>;
 							};
 						};
 
@@ -1703,8 +1730,7 @@
 							reg = <0x1>;
 
 							ope1_cif_out_ep: endpoint {
-								remote-endpoint =
-									<&xbar_ope1_out_ep>;
+								remote-endpoint = <&xbar_ope1_out_ep>;
 							};
 						};
 					};
@@ -1712,8 +1738,8 @@
 
 				tegra_mvc1: mvc@9800000 {
 					compatible = "nvidia,tegra264-mvc",
-							"nvidia,tegra210-mvc";
-					reg = <0x0 0x9800000 0x0 0x10000>;
+						     "nvidia,tegra210-mvc";
+					reg = <0x9800000 0x10000>;
 					sound-name-prefix = "MVC1";
 
 					ports {
@@ -1740,8 +1766,8 @@
 
 				tegra_mvc2: mvc@9810000 {
 					compatible = "nvidia,tegra264-mvc",
-							"nvidia,tegra210-mvc";
-					reg = <0x0 0x9810000 0x0 0x10000>;
+						     "nvidia,tegra210-mvc";
+					reg = <0x9810000 0x10000>;
 					sound-name-prefix = "MVC2";
 
 					ports {
@@ -1768,8 +1794,8 @@
 
 				tegra_amixer: amixer@9820000 {
 					compatible = "nvidia,tegra264-amixer",
-							"nvidia,tegra210-amixer";
-					reg = <0x0 0x9820000 0x0 0x10000>;
+						     "nvidia,tegra210-amixer";
+					reg = <0x9820000 0x10000>;
 					sound-name-prefix = "MIXER1";
 
 					ports {
@@ -1900,7 +1926,7 @@
 
 				tegra_asrc: asrc@9850000 {
 					compatible = "nvidia,tegra264-asrc";
-					reg = <0x0 0x9850000 0x0 0x10000>;
+					reg = <0x9850000 0x10000>;
 					sound-name-prefix = "ASRC1";
 
 					ports {
@@ -1911,8 +1937,7 @@
 							reg = <0x0>;
 
 							asrc_in1_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_in1_ep>;
+								remote-endpoint = <&xbar_asrc_in1_ep>;
 							};
 						};
 
@@ -1920,8 +1945,7 @@
 							reg = <0x1>;
 
 							asrc_in2_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_in2_ep>;
+								remote-endpoint = <&xbar_asrc_in2_ep>;
 							};
 						};
 
@@ -1929,8 +1953,7 @@
 							reg = <0x2>;
 
 							asrc_in3_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_in3_ep>;
+								remote-endpoint = <&xbar_asrc_in3_ep>;
 							};
 						};
 
@@ -1938,8 +1961,7 @@
 							reg = <0x3>;
 
 							asrc_in4_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_in4_ep>;
+								remote-endpoint = <&xbar_asrc_in4_ep>;
 							};
 						};
 
@@ -1947,8 +1969,7 @@
 							reg = <0x4>;
 
 							asrc_in5_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_in5_ep>;
+								remote-endpoint = <&xbar_asrc_in5_ep>;
 							};
 						};
 
@@ -1956,8 +1977,7 @@
 							reg = <0x5>;
 
 							asrc_in6_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_in6_ep>;
+								remote-endpoint = <&xbar_asrc_in6_ep>;
 							};
 						};
 
@@ -1965,8 +1985,7 @@
 							reg = <0x6>;
 
 							asrc_in7_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_in7_ep>;
+								remote-endpoint = <&xbar_asrc_in7_ep>;
 							};
 						};
 
@@ -1974,8 +1993,7 @@
 							reg = <0x7>;
 
 							asrc_out1_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_out1_ep>;
+								remote-endpoint = <&xbar_asrc_out1_ep>;
 							};
 						};
 
@@ -1983,8 +2001,7 @@
 							reg = <0x8>;
 
 							asrc_out2_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_out2_ep>;
+								remote-endpoint = <&xbar_asrc_out2_ep>;
 							};
 						};
 
@@ -1992,8 +2009,7 @@
 							reg = <0x9>;
 
 							asrc_out3_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_out3_ep>;
+								remote-endpoint = <&xbar_asrc_out3_ep>;
 							};
 						};
 
@@ -2001,8 +2017,7 @@
 							reg = <0xa>;
 
 							asrc_out4_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_out4_ep>;
+								remote-endpoint = <&xbar_asrc_out4_ep>;
 							};
 						};
 
@@ -2010,8 +2025,7 @@
 							reg = <0xb>;
 
 							asrc_out5_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_out5_ep>;
+								remote-endpoint = <&xbar_asrc_out5_ep>;
 							};
 						};
 
@@ -2019,8 +2033,7 @@
 							reg = <0xc>;
 
 							asrc_out6_ep: endpoint {
-								remote-endpoint =
-									<&xbar_asrc_out6_ep>;
+								remote-endpoint = <&xbar_asrc_out6_ep>;
 							};
 						};
 					};
@@ -3194,13 +3207,12 @@
 
 			agic_page0: interrupt-controller@9960000 {
 				compatible = "nvidia,tegra264-agic",
-						"nvidia,tegra210-agic";
+					     "nvidia,tegra210-agic";
 				#interrupt-cells = <3>;
 				interrupt-controller;
-				reg = <0x0 0x9961000 0x0 0x1000>,
-					<0x0 0x9962000 0x0 0x1000>;
-				interrupts = <GIC_SPI 0x230
-					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+				reg = <0x9961000 0x1000>,
+				      <0x9962000 0x1000>;
+				interrupts = <GIC_SPI 0x230 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 				clocks = <&bpmp TEGRA264_CLK_ADSP>;
 				clock-names = "clk";
 				status = "disabled";
@@ -3208,13 +3220,12 @@
 
 			agic_page1: interrupt-controller@9970000 {
 				compatible = "nvidia,tegra264-agic",
-					   "nvidia,tegra210-agic";
+					     "nvidia,tegra210-agic";
 				#interrupt-cells = <3>;
 				interrupt-controller;
-				reg = <0x0 0x9971000 0x0 0x1000>,
-					<0x0 0x9972000 0x0 0x1000>;
-				interrupts = <GIC_SPI 0x231
-					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+				reg = <0x9971000 0x1000>,
+				      <0x9972000 0x1000>;
+				interrupts = <GIC_SPI 0x231 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 				clocks = <&bpmp TEGRA264_CLK_ADSP>;
 				clock-names = "clk";
 				status = "disabled";
@@ -3222,13 +3233,12 @@
 
 			agic_page2: interrupt-controller@9980000 {
 				compatible = "nvidia,tegra264-agic",
-						"nvidia,tegra210-agic";
+					     "nvidia,tegra210-agic";
 				#interrupt-cells = <3>;
 				interrupt-controller;
-				reg = <0x0 0x9981000 0x0 0x1000>,
-					<0x0 0x9982000 0x0 0x1000>;
-				interrupts = <GIC_SPI 0x232
-					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+				reg = <0x9981000 0x1000>,
+				      <0x9982000 0x1000>;
+				interrupts = <GIC_SPI 0x232 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 				clocks = <&bpmp TEGRA264_CLK_ADSP>;
 				clock-names = "clk";
 				status = "disabled";
@@ -3236,13 +3246,12 @@
 
 			agic_page3: interrupt-controller@9990000 {
 				compatible = "nvidia,tegra264-agic",
-						"nvidia,tegra210-agic";
+					     "nvidia,tegra210-agic";
 				#interrupt-cells = <3>;
 				interrupt-controller;
-				reg = <0x0 0x9991000 0x0 0x1000>,
-					<0x0 0x9992000 0x0 0x1000>;
-				interrupts = <GIC_SPI 0x233
-					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+				reg = <0x9991000 0x1000>,
+				      <0x9992000 0x1000>;
+				interrupts = <GIC_SPI 0x233 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 				clocks = <&bpmp TEGRA264_CLK_ADSP>;
 				clock-names = "clk";
 				status = "disabled";
@@ -3250,13 +3259,12 @@
 
 			agic_page4: interrupt-controller@99a0000 {
 				compatible = "nvidia,tegra264-agic",
-						"nvidia,tegra210-agic";
+					     "nvidia,tegra210-agic";
 				#interrupt-cells = <3>;
 				interrupt-controller;
-				reg = <0x0 0x99a1000 0x0 0x1000>,
-					<0x0 0x99a2000 0x0 0x1000>;
-				interrupts = <GIC_SPI 0x234
-					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+				reg = <0x99a1000 0x1000>,
+				      <0x99a2000 0x1000>;
+				interrupts = <GIC_SPI 0x234 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 				clocks = <&bpmp TEGRA264_CLK_ADSP>;
 				clock-names = "clk";
 				status = "disabled";
@@ -3264,13 +3272,12 @@
 
 			agic_page5: interrupt-controller@99b0000 {
 				compatible = "nvidia,tegra264-agic",
-						"nvidia,tegra210-agic";
+					     "nvidia,tegra210-agic";
 				#interrupt-cells = <3>;
 				interrupt-controller;
-				reg = <0x0 0x99b1000 0x0 0x1000>,
-					<0x0 0x99b2000 0x0 0x1000>;
-				interrupts = <GIC_SPI 0x235
-					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+				reg = <0x99b1000 0x1000>,
+				      <0x99b2000 0x1000>;
+				interrupts = <GIC_SPI 0x235 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 				clocks = <&bpmp TEGRA264_CLK_ADSP>;
 				clock-names = "clk";
 				status = "disabled";
@@ -3330,6 +3337,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x0 0x0c600000 0x0 0x10000>;
 			interrupts = <GIC_SPI 532 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_AON_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLAON>;
@@ -3345,6 +3354,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x0 0x0c610000 0x0 0x10000>;
 			interrupts = <GIC_SPI 533 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_AON_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLAON>;
@@ -3642,6 +3653,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c410000 0x0 0x10000>;
 			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3657,6 +3670,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c420000 0x0 0x10000>;
 			interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3672,6 +3687,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c430000 0x0 0x10000>;
 			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3680,6 +3697,40 @@
 			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLP_OUT0>;
 			resets = <&bpmp TEGRA264_RESET_I2C16>;
 			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		mmc@c570000 {
+			compatible = "nvidia,tegra264-sdhci", "nvidia,tegra194-sdhci";
+			reg = <0x00 0x0c570000 0x0 0x10000>;
+			interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA264_CLK_SDMMC1>,
+				 <&bpmp TEGRA264_CLK_SDMMC_LEGACY_TM>;
+			clock-names = "sdhci", "tmclk";
+			assigned-clocks = <&bpmp TEGRA264_CLK_SDMMC1>,
+					  <&bpmp TEGRA264_CLK_PLLC4_MUXED>;
+			assigned-clock-parents = <&bpmp TEGRA264_CLK_PLLC4_MUXED>,
+						 <&bpmp TEGRA264_CLK_PLLC4_OUT0>;
+			resets = <&bpmp TEGRA264_RESET_SDMMC1>;
+			reset-names = "sdhci";
+			interconnects = <&mc TEGRA264_MEMORY_CLIENT_SDMMC0R &emc>,
+					<&mc TEGRA264_MEMORY_CLIENT_SDMMC0W &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu2 TEGRA264_SID_SDMMC0>;
+			nvidia,pad-autocal-pull-up-offset-3v3-timeout = <0x07>;
+			nvidia,pad-autocal-pull-down-offset-3v3-timeout = <0x07>;
+			nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x06>;
+			nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x07>;
+			nvidia,pad-autocal-pull-up-offset-sdr104 = <0x00>;
+			nvidia,pad-autocal-pull-down-offset-sdr104 = <0x00>;
+			nvidia,default-tap = <0x6>;
+			nvidia,default-trim = <0x0>;
+			sd-uhs-sdr12;
+			sd-uhs-sdr25;
+			sd-uhs-sdr50;
+			sd-uhs-sdr104;
+			mmc-hs200-1_8v;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -3747,6 +3798,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c630000 0x0 0x10000>;
 			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3762,6 +3815,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c640000 0x0 0x10000>;
 			interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3777,6 +3832,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c650000 0x0 0x10000>;
 			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3792,6 +3849,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c670000 0x0 0x10000>;
 			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3807,6 +3866,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c680000 0x0 0x10000>;
 			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3822,6 +3883,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c690000 0x0 0x10000>;
 			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3837,6 +3900,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c6a0000 0x0 0x10000>;
 			interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3852,6 +3917,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c6b0000 0x0 0x10000>;
 			interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3867,6 +3934,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c6c0000 0x0 0x10000>;
 			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -3882,6 +3951,8 @@
 			compatible = "nvidia,tegra264-i2c";
 			reg = <0x00 0x0c6d0000 0x0 0x10000>;
 			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA264_CLK_TOP_I2C>,
 				 <&bpmp TEGRA264_CLK_PLLP_OUT0>;
@@ -4683,6 +4754,33 @@
 			<&bpmp TEGRA264_CLK_PLLA1_OUT1>;
 
 		status = "disabled";
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA264_THERMAL_ZONE_CPU_MAX>;
+			status = "disabled";
+		};
+
+		gpu-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA264_THERMAL_ZONE_GPU_MAX>;
+			status = "disabled";
+		};
+
+		soc012-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA264_THERMAL_ZONE_SOC_012_MAX>;
+			status = "disabled";
+		};
+
+		soc345-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA264_THERMAL_ZONE_SOC_345_MAX>;
+			status = "disabled";
+		};
+
+		tj-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA264_THERMAL_ZONE_TJ_MAX>;
+			status = "disabled";
+		};
 	};
 
 	timer {

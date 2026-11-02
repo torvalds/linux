@@ -34,7 +34,7 @@
 
 /**
  * prober_user() - Probe user read access
- * @sr:		Space regster.
+ * @sr:		Space register.
  * @va:		Virtual address.
  *
  * Return: Non-zero if address is accessible.

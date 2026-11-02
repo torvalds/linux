@@ -46,18 +46,25 @@ mechanism will perform actions to forcibly cool down the processor. Alarm
 may be raised, if the temperature grows enough (more than TjMax) to trigger
 the Out-Of-Spec bit. The following table summarizes the exported sysfs files:
 
-All sysfs entries are named with their core_id (represented here by 'X').
+Per-core sysfs entries are numbered core_id + 2 (represented here by 'X').
+The package entries, if available, are always temp1_*.
 
 ================= ========================================================
 tempX_input	  Core temperature (in millidegrees Celsius).
+		  Reading fails with -ENODATA while the CPU reports the
+		  temperature as invalid. Some CPUs do this when the
+		  temperature is too low to be measured.
 tempX_max	  Maximum recommended operating temperature (Tcontrol).
 		  All cooling devices should be turned on.
 tempX_crit	  Maximum junction temperature (in millidegrees Celsius).
 tempX_crit_alarm  Set when Out-of-spec bit is set, never clears.
 		  Correct CPU operation is no longer guaranteed.
-tempX_label	  Contains string "Core X", where X is processor
-		  number. For Package temp, this will be "Package id Y",
-		  where Y is the package number.
+tempX_label	  Contains string "Core N", where N is the core_id
+		  (X - 2), as shown in
+		  /sys/devices/system/cpu/cpu*/topology/core_id. This
+		  is not the logical CPU number, and core_id values
+		  may be sparse. For Package temp, this will be
+		  "Package id Y", where Y is the package number.
 ================= ========================================================
 
 On modern CPUs (Nehalem and newer), TjMax is read from the

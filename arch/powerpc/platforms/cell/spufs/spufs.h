@@ -232,13 +232,9 @@ extern const struct spufs_tree_descr spufs_dir_debug_contents[];
 
 /* system call implementation */
 extern struct spufs_calls spufs_calls;
-struct coredump_params;
 long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *status);
 long spufs_create(const struct path *nd, struct dentry *dentry, unsigned int flags,
 			umode_t mode, struct file *filp);
-/* ELF coredump callbacks for writing SPU ELF notes */
-extern int spufs_coredump_extra_notes_size(void);
-extern int spufs_coredump_extra_notes_write(struct coredump_params *cprm);
 
 extern const struct file_operations spufs_context_fops;
 
@@ -334,14 +330,6 @@ void spufs_wbox_callback(struct spu *spu);
 void spufs_stop_callback(struct spu *spu, int irq);
 void spufs_mfc_callback(struct spu *spu);
 void spufs_dma_callback(struct spu *spu, int type);
-
-struct spufs_coredump_reader {
-	char *name;
-	ssize_t (*dump)(struct spu_context *ctx, struct coredump_params *cprm);
-	u64 (*get)(struct spu_context *ctx);
-	size_t size;
-};
-extern const struct spufs_coredump_reader spufs_coredump_read[];
 
 extern int spu_init_csa(struct spu_state *csa);
 extern void spu_fini_csa(struct spu_state *csa);

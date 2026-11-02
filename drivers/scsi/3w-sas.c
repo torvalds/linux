@@ -108,9 +108,9 @@ static ssize_t twl_sysfs_aen_read(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	spin_lock_irqsave(tw_dev->host->host_lock, flags);
+	spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 	ret = memory_read_from_buffer(outbuf, count, &offset, tw_dev->event_queue[0], sizeof(TW_Event) * TW_Q_LENGTH);
-	spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+	spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 
 	return ret;
 } /* End twl_sysfs_aen_read() */
@@ -139,9 +139,9 @@ static ssize_t twl_sysfs_compat_info(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	spin_lock_irqsave(tw_dev->host->host_lock, flags);
+	spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 	ret = memory_read_from_buffer(outbuf, count, &offset, &tw_dev->tw_compat_info, sizeof(TW_Compatibility_Info));
-	spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+	spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 
 	return ret;
 } /* End twl_sysfs_compat_info() */
@@ -165,7 +165,7 @@ static ssize_t twl_show_stats(struct device *dev,
 	unsigned long flags = 0;
 	ssize_t len;
 
-	spin_lock_irqsave(tw_dev->host->host_lock, flags);
+	spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 	len = sysfs_emit(buf, "3w-sas Driver version: %s\n"
 			 "Current commands posted:   %4d\n"
 			 "Max commands posted:       %4d\n"
@@ -184,7 +184,7 @@ static ssize_t twl_show_stats(struct device *dev,
 			 tw_dev->max_sector_count,
 			 tw_dev->num_resets,
 			 tw_dev->aen_count);
-	spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+	spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 	return len;
 } /* End twl_show_stats() */
 
@@ -763,7 +763,7 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	/* See which ioctl we are doing */
 	switch (cmd) {
 	case TW_IOCTL_FIRMWARE_PASS_THROUGH:
-		spin_lock_irqsave(tw_dev->host->host_lock, flags);
+		spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 		twl_get_request_id(tw_dev, &request_id);
 
 		/* Flag internal command */
@@ -781,7 +781,7 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 		/* Now post the command packet to the controller */
 		twl_post_command_packet(tw_dev, request_id);
-		spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+		spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 
 		timeout = TW_IOCTL_CHRDEV_TIMEOUT*HZ;
 
@@ -803,11 +803,11 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 		memcpy(&(tw_ioctl->firmware_command), tw_dev->command_packet_virt[request_id], sizeof(TW_Command_Full));
 
 		/* Now complete the io */
-		spin_lock_irqsave(tw_dev->host->host_lock, flags);
+		spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 		tw_dev->posted_request_count--;
 		tw_dev->state[request_id] = TW_S_COMPLETED;
 		twl_free_request_id(tw_dev, request_id);
-		spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+		spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 		break;
 	default:
 		retval = -ENOTTY;
@@ -1125,7 +1125,7 @@ static irqreturn_t twl_interrupt(int irq, void *dev_instance)
 	struct scsi_cmnd *cmd;
 	TW_Command_Full *full_command_packet;
 
-	spin_lock(tw_dev->host->host_lock);
+	spin_lock(&tw_dev->host->host_lock);
 
 	/* Read host interrupt status */
 	reg = readl(TWL_HISTAT_REG_ADDR(tw_dev));
@@ -1229,7 +1229,7 @@ static irqreturn_t twl_interrupt(int irq, void *dev_instance)
 	}
 
 twl_interrupt_bail:
-	spin_unlock(tw_dev->host->host_lock);
+	spin_unlock(&tw_dev->host->host_lock);
 	return IRQ_RETVAL(handled);
 } /* End twl_interrupt() */
 
@@ -1360,7 +1360,7 @@ static int twl_reset_device_extension(TW_Device_Extension *tw_dev, int ioctl_res
 	TWL_MASK_INTERRUPTS(tw_dev);
 	TWL_CLEAR_DB_INTERRUPT(tw_dev);
 
-	spin_lock_irqsave(tw_dev->host->host_lock, flags);
+	spin_lock_irqsave(&tw_dev->host->host_lock, flags);
 
 	/* Abort all requests that are in progress */
 	for (i = 0; i < TW_Q_LENGTH; i++) {
@@ -1386,7 +1386,7 @@ static int twl_reset_device_extension(TW_Device_Extension *tw_dev, int ioctl_res
 	tw_dev->free_tail = TW_Q_START;
 	tw_dev->posted_request_count = 0;
 
-	spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
+	spin_unlock_irqrestore(&tw_dev->host->host_lock, flags);
 
 	if (twl_reset_sequence(tw_dev, 1))
 		goto out;

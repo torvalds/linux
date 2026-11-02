@@ -13,7 +13,6 @@ use kernel::{
     error::to_result,
     num::casts::u16_as_usize,
     prelude::*,
-    transmute::AsBytes,
     types::Opaque,
     ThisModule,
 };
@@ -21,6 +20,11 @@ use kernel::{
 use core::{
     mem::ManuallyDrop,
     ptr::NonNull, //
+};
+
+use zerocopy::{
+    Immutable,
+    IntoBytes, //
 };
 
 /// The default netlink message size.
@@ -85,7 +89,7 @@ impl GenlMsg {
     #[inline]
     fn put<T>(&mut self, attrtype: c_int, value: &T) -> Result
     where
-        T: ?Sized + AsBytes,
+        T: ?Sized + IntoBytes + Immutable,
     {
         // `nla_len` is a 16-bit field that encodes the total attribute length
         // (header + payload). Subtracting the header size from `u16::MAX` gives

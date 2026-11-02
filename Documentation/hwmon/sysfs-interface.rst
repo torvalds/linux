@@ -47,7 +47,7 @@ There is only one value per file, unlike the older /proc specification.
 The common scheme for files naming is: <type><number>_<item>. Usual
 types for sensor chips are "in" (voltage), "temp" (temperature) and
 "fan" (fan). Usual items are "input" (measured value), "max" (high
-threshold, "min" (low threshold). Numbering usually starts from 1,
+threshold), "min" (low threshold). Numbering usually starts from 1,
 except for voltages which start from 0 (because most data sheets use
 this). A number is always used for elements that can be present more
 than once, even if there is a single element of the given type on the
@@ -121,11 +121,17 @@ Voltages
 `in[0-*]_lcrit`
 		Voltage critical min value.
 
+`in[0-*]_lemergency`
+		Voltage emergency min value.
+
 `in[0-*]_max`
 		Voltage max value.
 
 `in[0-*]_crit`
 		Voltage critical max value.
+
+`in[0-*]_emergency`
+		Voltage emergency max value.
 
 `in[0-*]_input`
 		Voltage input value.
@@ -332,6 +338,9 @@ Currents
 `curr[1-*]_crit`
 		Current critical high value.
 
+`curr[1-*]_emergency`
+		Current emergency high value.
+
 `curr[1-*]_input`
 		Current input value.
 
@@ -527,12 +536,15 @@ implementation.
 +-------------------------------+-----------------------+
 | **`in[0-*]_min_alarm`,	| Limit alarm		|
 | `in[0-*]_max_alarm`,		|			|
+| `in[0-*]_lemergency_alarm`,	|			|
 | `in[0-*]_lcrit_alarm`,	|   - 0: no alarm	|
 | `in[0-*]_crit_alarm`,		|   - 1: alarm		|
+| `in[0-*]_emergency_alarm`,	|			|
 | `curr[1-*]_min_alarm`,	|			|
 | `curr[1-*]_max_alarm`,	| RO			|
 | `curr[1-*]_lcrit_alarm`,	|			|
 | `curr[1-*]_crit_alarm`,	|			|
+| `curr[1-*]_emergency_alarm`,	|			|
 | `power[1-*]_cap_alarm`,	|			|
 | `power[1-*]_max_alarm`,	|			|
 | `power[1-*]_crit_alarm`,	|			|

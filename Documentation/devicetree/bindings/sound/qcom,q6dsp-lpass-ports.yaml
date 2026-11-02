@@ -108,10 +108,15 @@ patternProperties:
           properties:
             reg:
               contains:
-                # TDM DAI ID range from PRIMARY_TDM_RX_0 - QUINARY_TDM_TX_7
+                # TDM DAI ID range from PRIMARY_TDM_RX_0 - QUINARY_TDM_TX_7 and
+                # AIF_TDM_RX_0 - AIF_TDM_TX_12
                 items:
-                  minimum: 24
-                  maximum: 103
+                  oneOf:
+                    - minimum: 24
+                      maximum: 103
+                    - minimum: 179
+                      maximum: 204
+
         then:
           required:
             - qcom,tdm-sync-mode
@@ -127,7 +132,8 @@ patternProperties:
               contains:
                 # MI2S DAI ID range PRIMARY_MI2S_RX - QUATERNARY_MI2S_TX and
                 # QUINARY_MI2S_RX - QUINARY_MI2S_TX and
-                # LPI_MI2S_RX_0 - LPI_MI2S_TX_6
+                # LPI_MI2S_RX_0 - LPI_MI2S_TX_6 and
+                # AIF_MI2S_RX_0 - AIF_MI2S_TX_12
                 items:
                   oneOf:
                     - minimum: 16
@@ -136,6 +142,8 @@ patternProperties:
                       maximum: 128
                     - minimum: 137
                       maximum: 152
+                    - minimum: 153
+                      maximum: 178
         then:
           required:
             - qcom,sd-lines

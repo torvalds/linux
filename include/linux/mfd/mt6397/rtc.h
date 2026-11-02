@@ -49,6 +49,13 @@
 
 #define RTC_AL_SEC             0x0018
 
+/* The high byte of four of the alarms is spare, always-on storage */
+#define RTC_AL_HOU             0x001c
+#define RTC_AL_DOM             0x001e
+#define RTC_AL_DOW             0x0020
+#define RTC_AL_MTH             0x0022
+#define RTC_SPARE_MASK         GENMASK(15, 8)
+
 #define RTC_AL_SEC_MASK        0x003f
 #define RTC_AL_MIN_MASK        0x003f
 #define RTC_AL_HOU_MASK        0x001f

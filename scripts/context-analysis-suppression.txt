@@ -32,3 +32,4 @@ src:*include/linux/seqlock*.h=emit
 src:*include/linux/spinlock*.h=emit
 src:*include/linux/srcu*.h=emit
 src:*include/linux/ww_mutex.h=emit
+src:*include/net/bluetooth/*=emit

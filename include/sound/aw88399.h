@@ -449,6 +449,11 @@
 #define AW88399_NOISE_GATE_EN_MASK	\
 	(~(((1<<AW88399_NOISE_GATE_EN_BITS_LEN)-1) << AW88399_NOISE_GATE_EN_START_BIT))
 
+#define AW88399_EPS_EN_START_BIT	(2)
+#define AW88399_EPS_EN_BITS_LEN		(1)
+#define AW88399_EPS_EN_MASK		\
+	(~(((1 << AW88399_EPS_EN_BITS_LEN) - 1) << AW88399_EPS_EN_START_BIT))
+
 #define AW88399_WDT_CNT_START_BIT	(0)
 #define AW88399_WDT_CNT_BITS_LEN	(8)
 #define AW88399_WDT_CNT_MASK		\
@@ -598,7 +603,6 @@ struct aw88399 {
 	unsigned int crc_init_val;
 	unsigned int vcalb_init_val;
 	unsigned int dither_st;
-	bool bsts_unreliable;
 	bool fw_needs_reload;
 };
 
@@ -613,7 +617,7 @@ void aw88399_dev_set_channel(struct aw88399 *aw88399, int channel);
 void aw88399_hw_reset(struct aw88399 *aw88399);
 int aw88399_init(struct aw88399 *aw88399, struct i2c_client *i2c, struct regmap *regmap);
 extern const struct regmap_config aw88399_remap_config;
-int aw88399_request_firmware_file(struct aw88399 *aw88399);
+int aw88399_request_firmware_file(struct aw88399 *aw88399, const char *fw_name);
 void aw88399_start(struct aw88399 *aw88399, bool sync_start);
 void aw88399_startup_work(struct work_struct *work);
 int aw88399_stop(struct aw_device *aw_dev);

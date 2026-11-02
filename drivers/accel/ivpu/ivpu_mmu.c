@@ -220,9 +220,6 @@
 #define IVPU_MMU_STE_1_S1DSS		GENMASK_ULL(1, 0)
 #define IVPU_MMU_STE_1_S1DSS_TERMINATE	0x0
 
-#define IVPU_MMU_REG_TIMEOUT_US		(10 * USEC_PER_MSEC)
-#define IVPU_MMU_QUEUE_TIMEOUT_US	(100 * USEC_PER_MSEC)
-
 #define IVPU_MMU_GERROR_ERR_MASK ((REG_FLD(IVPU_MMU_REG_GERROR, CMDQ)) | \
 				  (REG_FLD(IVPU_MMU_REG_GERROR, EVTQ_ABT)) | \
 				  (REG_FLD(IVPU_MMU_REG_GERROR, PRIQ_ABT)) | \
@@ -438,14 +435,14 @@ static int ivpu_mmu_reg_write_cr0(struct ivpu_device *vdev, u32 val)
 {
 	REGV_WR32(IVPU_MMU_REG_CR0, val);
 
-	return REGV_POLL_FLD(IVPU_MMU_REG_CR0ACK, VAL, val, IVPU_MMU_REG_TIMEOUT_US);
+	return REGV_POLL_FLD(IVPU_MMU_REG_CR0ACK, VAL, val, vdev->timeout.mmu_reg);
 }
 
 static int ivpu_mmu_reg_write_irq_ctrl(struct ivpu_device *vdev, u32 val)
 {
 	REGV_WR32(IVPU_MMU_REG_IRQ_CTRL, val);
 
-	return REGV_POLL_FLD(IVPU_MMU_REG_IRQ_CTRLACK, VAL, val, IVPU_MMU_REG_TIMEOUT_US);
+	return REGV_POLL_FLD(IVPU_MMU_REG_IRQ_CTRLACK, VAL, val, vdev->timeout.mmu_reg);
 }
 
 static int ivpu_mmu_irqs_setup(struct ivpu_device *vdev)
@@ -465,8 +462,7 @@ static int ivpu_mmu_cmdq_wait_for_cons(struct ivpu_device *vdev)
 	struct ivpu_mmu_queue *cmdq = &vdev->mmu->cmdq;
 	int ret;
 
-	ret = REGV_POLL_FLD(IVPU_MMU_REG_CMDQ_CONS, VAL, cmdq->prod,
-			    IVPU_MMU_QUEUE_TIMEOUT_US);
+	ret = REGV_POLL_FLD(IVPU_MMU_REG_CMDQ_CONS, VAL, cmdq->prod, vdev->timeout.mmu_queue);
 	if (ret)
 		return ret;
 
@@ -880,7 +876,7 @@ static int ivpu_mmu_evtq_set(struct ivpu_device *vdev, bool enable)
 		val = REG_CLR_FLD(IVPU_MMU_REG_CR0, EVTQEN, val);
 	REGV_WR32(IVPU_MMU_REG_CR0, val);
 
-	return REGV_POLL_FLD(IVPU_MMU_REG_CR0ACK, VAL, val, IVPU_MMU_REG_TIMEOUT_US);
+	return REGV_POLL_FLD(IVPU_MMU_REG_CR0ACK, VAL, val, vdev->timeout.mmu_reg);
 }
 
 static int ivpu_mmu_evtq_enable(struct ivpu_device *vdev)

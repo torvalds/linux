@@ -367,8 +367,8 @@ static unsigned int spl_calculate_sharpness_level_adj(struct spl_fixed31_32 rati
 	sharpness_level_down_adj = 0;
 	lookup_ptr = sharpness_level_adj;
 	while (j < NUM_SHARPNESS_ADJ_LEVELS) {
-		ratio_level = SPL_NAMESPACE(spl_fixpt_from_fraction(lookup_ptr->ratio_numer,
-			lookup_ptr->ratio_denom));
+		ratio_level = spl_fixpt_from_fraction(lookup_ptr->ratio_numer,
+			lookup_ptr->ratio_denom);
 		if (ratio.value >= ratio_level.value) {
 			sharpness_level_down_adj = lookup_ptr->level_down_adj;
 			break;
@@ -462,7 +462,7 @@ void SPL_NAMESPACE(spl_build_isharp_1dlut_from_reference_curve(
 	unsigned int sharpnessX1000 = spl_calculate_sharpness_level(ratio,
 			sharpness.sharpness_level, setup,
 			sharpness.sharpness_range, scale_to_sharpness_policy);
-	sharp_level = SPL_NAMESPACE(spl_fixpt_from_fraction(sharpnessX1000, 1000));
+	sharp_level = spl_fixpt_from_fraction(sharpnessX1000, 1000);
 
 	/*
 	 * Check if pregen 1dlut table is already precalculated
@@ -487,11 +487,11 @@ void SPL_NAMESPACE(spl_build_isharp_1dlut_from_reference_curve(
 	memset(byte_ptr_1dlut_dst, 0, size_1dlut);
 	for (j = 0; j < size_1dlut; j++) {
 		sharp_base = spl_fixpt_from_int((int)*byte_ptr_1dlut_src);
-		sharp_calc = SPL_NAMESPACE(spl_fixpt_mul(sharp_base, sharp_level));
+		sharp_calc = spl_fixpt_mul(sharp_base, sharp_level);
 		sharp_calc = spl_fixpt_div(sharp_calc, spl_fixpt_from_int(3));
 		sharp_calc = spl_fixpt_min(spl_fixpt_from_int(255), sharp_calc);
 		sharp_calc = spl_fixpt_add(sharp_calc,
-			SPL_NAMESPACE(spl_fixpt_from_fraction(1, 2)));
+			spl_fixpt_from_fraction(1, 2));
 		sharp_calc_int = spl_fixpt_floor(sharp_calc);
 		/* Clamp it at 0x7F so it doesn't wrap */
 		if (sharp_calc_int > 127)

@@ -24,6 +24,7 @@
 #include "aie2_pci.h"
 #include "aie2_solver.h"
 #include "amdxdna_ctx.h"
+#include "amdxdna_error.h"
 #include "amdxdna_gem.h"
 #include "amdxdna_mailbox.h"
 #include "amdxdna_pci_drv.h"
@@ -385,11 +386,21 @@ static int aie2_hw_start(struct amdxdna_dev *xdna)
 	}
 
 	xdna_mailbox_intr_reg = ndev->aie.mgmt_i2x.mb_head_ptr_reg + 4;
+	/*
+	 * At most AMDXDNA_MAX_ASYNC_EVENT_BUFS async event messages plus one
+	 * management command can be unresponded. The async slots stay busy
+	 * until firmware reports an error. Every management command holds
+	 * dev_lock across aie_send_mgmt_msg_wait(), and the response clears
+	 * the slot before that wait returns, so a second ioctl blocks on
+	 * dev_lock rather than observing -ENOBUFS. Async re-registration
+	 * takes the same lock after the RX path has freed its slot.
+	 */
 	ret = xdna_mailbox_start_channel(ndev->aie.mgmt_chann,
 					 &ndev->aie.mgmt_x2i,
 					 &ndev->aie.mgmt_i2x,
 					 xdna_mailbox_intr_reg,
-					 mgmt_mb_irq);
+					 mgmt_mb_irq,
+					 AMDXDNA_MAX_ASYNC_EVENT_BUFS + 1);
 	if (ret) {
 		XDNA_ERR(xdna, "failed to start management mailbox channel");
 		ret = -EINVAL;
@@ -414,7 +425,7 @@ static int aie2_hw_start(struct amdxdna_dev *xdna)
 		goto stop_fw;
 	}
 
-	ret = aie2_error_async_events_alloc(ndev);
+	ret = aie2_error_async_events_alloc(ndev, AMDXDNA_MAX_ASYNC_EVENT_BUFS);
 	if (ret) {
 		XDNA_ERR(xdna, "Allocate async events failed, ret %d", ret);
 		goto stop_fw;
@@ -503,10 +514,16 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	ndev->priv = xdna->dev_info->dev_priv;
 	ndev->aie.xdna = xdna;
 
+	ret = aie2_hwctx_sched_init(ndev);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < ARRAY_SIZE(npu_fw); i++) {
 		fw_full_path = kasprintf(GFP_KERNEL, "%s%s", ndev->priv->fw_path, npu_fw[i]);
-		if (!fw_full_path)
-			return -ENOMEM;
+		if (!fw_full_path) {
+			ret = -ENOMEM;
+			goto free_hwctx_sched;
+		}
 
 		ret = firmware_request_nowarn(&fw, fw_full_path, &pdev->dev);
 		kfree(fw_full_path);
@@ -519,7 +536,7 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	if (ret) {
 		XDNA_ERR(xdna, "failed to request_firmware %s, ret %d",
 			 ndev->priv->fw_path, ret);
-		return ret;
+		goto free_hwctx_sched;
 	}
 
 	ret = pcim_enable_device(pdev);
@@ -623,6 +640,8 @@ stop_hw:
 	aie2_hw_stop(xdna);
 release_fw:
 	release_firmware(fw);
+free_hwctx_sched:
+	aie2_hwctx_sched_fini(ndev);
 
 	return ret;
 }
@@ -631,6 +650,7 @@ static void aie2_fini(struct amdxdna_dev *xdna)
 {
 	amdxdna_pm_fini(xdna);
 	aie2_hw_stop(xdna);
+	aie2_hwctx_sched_fini(xdna->dev_handle);
 }
 
 static int aie2_get_aie_status(struct amdxdna_client *client,

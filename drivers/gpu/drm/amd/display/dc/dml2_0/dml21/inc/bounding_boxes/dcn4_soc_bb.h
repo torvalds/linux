@@ -16,13 +16,6 @@ static const struct dml2_soc_qos_parameters dml_dcn4_variant_a_soc_qos_params = 
 			.fclk_derate_percent = 76,
 			.dcfclk_derate_percent = 100,
 		},
-		.system_active_average = {
-			.dram_derate_percent_pixel = 17,
-			.dram_derate_percent_vm = 0,
-			.dram_derate_percent_pixel_and_vm = 0,
-			.fclk_derate_percent = 57,
-			.dcfclk_derate_percent = 75,
-		},
 		.dcn_mall_prefetch_urgent = {
 			.dram_derate_percent_pixel = 40,
 			.dram_derate_percent_vm = 0,
@@ -43,6 +36,17 @@ static const struct dml2_soc_qos_parameters dml_dcn4_variant_a_soc_qos_params = 
 			.dram_derate_percent_pixel_and_vm = 0,
 			.fclk_derate_percent = 83,
 			.dcfclk_derate_percent = 100,
+		},
+	},
+	.derate_table_per_dpm = {
+		.dram_per_dpm_derate_pixel = {
+			{.derate_percent = 17, .clk_upperbound_threshold_khz = 0},
+		},
+		.fclk_per_dpm_derate = {
+			{.derate_percent = 57, .clk_upperbound_threshold_khz = 0},
+		},
+		.dcfclk_per_dpm_derate = {
+			{.derate_percent = 75, .clk_upperbound_threshold_khz = 0},
 		},
 	},
 	.writeback = {
@@ -141,13 +145,6 @@ static const struct dml2_soc_bb dml2_socbb_dcn401 = {
 				.dram_derate_percent_pixel_and_vm = 0,
 				.fclk_derate_percent = 76,
 				.dcfclk_derate_percent = 100,
-			},
-			.system_active_average = {
-				.dram_derate_percent_pixel = 15,
-				.dram_derate_percent_vm = 0,
-				.dram_derate_percent_pixel_and_vm = 0,
-				.fclk_derate_percent = 57,
-				.dcfclk_derate_percent = 75,
 			},
 			.dcn_mall_prefetch_urgent = {
 				.dram_derate_percent_pixel = 40,
@@ -345,7 +342,7 @@ static const struct dml2_ip_capabilities dml2_dcn401_max_ip_caps = {
 	.compressed_buffer_segment_size_in_kbytes = 64,
 	.cursor_buffer_size = 24,
 	.max_flip_time_us = 80,
-	.max_flip_time_lines = 32,
+	.max_flip_time_lines = 34,
 	.hostvm_mode = 0,
 	.subvp_drr_scheduling_margin_us = 100,
 	.subvp_prefetch_end_to_mall_start_us = 15,

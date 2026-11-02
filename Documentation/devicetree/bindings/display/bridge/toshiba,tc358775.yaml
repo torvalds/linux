@@ -161,9 +161,9 @@ examples:
                 dsi0_out: endpoint {
                     remote-endpoint = <&d2l_in_test>;
                 };
-             };
-         };
-     };
+            };
+        };
+    };
 
   - |
     /* For dual-link LVDS display panel */
@@ -227,7 +227,7 @@ examples:
                 dsi0_out_dual: endpoint {
                     remote-endpoint = <&d2l_in_dual>;
                 };
-             };
-         };
-     };
+            };
+        };
+    };
 ...

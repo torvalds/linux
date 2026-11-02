@@ -14,7 +14,16 @@ ssize_t ucs2_strscpy(ucs2_char_t *dst, const ucs2_char_t *src, size_t count);
 int ucs2_strncmp(const ucs2_char_t *a, const ucs2_char_t *b, size_t len);
 
 unsigned long ucs2_utf8size(const ucs2_char_t *src);
+unsigned long
+ucs2_as_utf8_l(u8 *dest, const ucs2_char_t *src, unsigned long limit,
+	       unsigned long maxlength);
+
+static inline
 unsigned long ucs2_as_utf8(u8 *dest, const ucs2_char_t *src,
-			   unsigned long maxlength);
+			   unsigned long maxlength)
+{
+	return ucs2_as_utf8_l(dest, src, ucs2_strnlen(src, maxlength),
+			      maxlength);
+}
 
 #endif /* _LINUX_UCS2_STRING_H_ */

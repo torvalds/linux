@@ -345,7 +345,6 @@ static int sx8654_probe(struct i2c_client *client)
 
 	input->name = "SX8654 I2C Touchscreen";
 	input->id.bustype = BUS_I2C;
-	input->dev.parent = &client->dev;
 	input->open = sx8654_open;
 	input->close = sx8654_close;
 

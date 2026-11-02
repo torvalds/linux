@@ -5,7 +5,7 @@
 #define __RTL92C_PHY_H__
 
 /* MAX_TX_COUNT must always set to 4, otherwise read efuse
- * table secquence will be wrong.
+ * table sequence will be wrong.
  */
 #define		MAX_TX_COUNT				4
 

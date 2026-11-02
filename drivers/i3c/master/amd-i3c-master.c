@@ -806,8 +806,8 @@ static int xi3c_master_send_direct_ccc_cmd(struct xi3c_master *master,
 
 	/* Report actual byte count so the core sees the right length on short reads */
 	if (!ret && ccc->rnw)
-		ccc->dests[0].payload.len = min(xfer->cmds[1].rx_actual,
-						ccc->dests[0].payload.len);
+		ccc->dests[0].payload.actual_len = min(xfer->cmds[1].rx_actual,
+						       ccc->dests[0].payload.len);
 
 	return ret;
 }

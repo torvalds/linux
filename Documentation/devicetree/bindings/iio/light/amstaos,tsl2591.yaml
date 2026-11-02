@@ -45,6 +45,6 @@ examples:
             compatible = "amstaos,tsl2591";
             reg = <0x29>;
             interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
-       };
+        };
     };
 ...

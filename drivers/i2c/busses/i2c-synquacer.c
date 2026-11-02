@@ -622,8 +622,8 @@ MODULE_DEVICE_TABLE(of, synquacer_i2c_dt_ids);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id synquacer_i2c_acpi_ids[] = {
-	{ "SCX0003" },
-	{ /* sentinel */ }
+	{ .id = "SCX0003" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, synquacer_i2c_acpi_ids);
 #endif

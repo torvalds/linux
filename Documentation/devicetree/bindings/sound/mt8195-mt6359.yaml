@@ -156,46 +156,46 @@ examples:
                 "Ext Spk", "Speaker";
 
         mm-dai-link {
-                link-name = "ETDM1_IN_BE";
-                mediatek,clk-provider = "cpu";
+            link-name = "ETDM1_IN_BE";
+            mediatek,clk-provider = "cpu";
         };
 
         hs-playback-dai-link {
-                link-name = "ETDM1_OUT_BE";
-                mediatek,clk-provider = "cpu";
-                codec {
-                        sound-dai = <&headset_codec>;
-                };
+            link-name = "ETDM1_OUT_BE";
+            mediatek,clk-provider = "cpu";
+            codec {
+                sound-dai = <&headset_codec>;
+            };
         };
 
         hs-capture-dai-link {
-                link-name = "ETDM2_IN_BE";
-                mediatek,clk-provider = "cpu";
-                codec {
-                        sound-dai = <&headset_codec>;
-                };
+            link-name = "ETDM2_IN_BE";
+            mediatek,clk-provider = "cpu";
+            codec {
+                sound-dai = <&headset_codec>;
+            };
         };
 
         spk-playback-dai-link {
-                link-name = "ETDM2_OUT_BE";
-                mediatek,clk-provider = "cpu";
-                codec {
-                        sound-dai = <&spk_amplifier>;
-                };
+            link-name = "ETDM2_OUT_BE";
+            mediatek,clk-provider = "cpu";
+            codec {
+                sound-dai = <&spk_amplifier>;
+            };
         };
 
         hdmi-dai-link {
-                link-name = "ETDM3_OUT_BE";
-                codec {
-                        sound-dai = <&hdmi_tx>;
-                };
+            link-name = "ETDM3_OUT_BE";
+            codec {
+                sound-dai = <&hdmi_tx>;
+            };
         };
 
         displayport-dai-link {
-                link-name = "DPTX_BE";
-                codec {
-                        sound-dai = <&dp_tx>;
-                };
+            link-name = "DPTX_BE";
+            codec {
+                sound-dai = <&dp_tx>;
+            };
         };
     };
 

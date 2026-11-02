@@ -20,6 +20,7 @@
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_vblank.h>
+#include <drm/drm_vblank_helper.h>
 
 #include "hibmc_drm_drv.h"
 #include "hibmc_drm_regs.h"
@@ -420,19 +421,6 @@ static void hibmc_crtc_atomic_begin(struct drm_crtc *crtc,
 	/* We can add more initialization as needed. */
 }
 
-static void hibmc_crtc_atomic_flush(struct drm_crtc *crtc,
-				    struct drm_atomic_commit *state)
-
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&crtc->dev->event_lock, flags);
-	if (crtc->state->event)
-		drm_crtc_send_vblank_event(crtc, crtc->state->event);
-	crtc->state->event = NULL;
-	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-}
-
 static int hibmc_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct hibmc_drm_private *priv = to_hibmc_drm_private(crtc->dev);
@@ -491,7 +479,7 @@ static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = drm_crtc_cleanup,
-	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_create_state = drm_atomic_helper_crtc_create_state,
 	.atomic_duplicate_state =  drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.enable_vblank = hibmc_crtc_enable_vblank,
@@ -502,7 +490,7 @@ static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 static const struct drm_crtc_helper_funcs hibmc_crtc_helper_funcs = {
 	.mode_set_nofb	= hibmc_crtc_mode_set_nofb,
 	.atomic_begin	= hibmc_crtc_atomic_begin,
-	.atomic_flush	= hibmc_crtc_atomic_flush,
+	.atomic_flush	= drm_crtc_vblank_atomic_flush,
 	.atomic_enable	= hibmc_crtc_atomic_enable,
 	.atomic_disable	= hibmc_crtc_atomic_disable,
 	.mode_valid = hibmc_crtc_mode_valid,

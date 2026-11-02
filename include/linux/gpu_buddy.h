@@ -43,8 +43,8 @@
 /**
  * GPU_BUDDY_CLEAR_ALLOCATION - Prefer pre-cleared (zeroed) memory
  *
- * Attempt to allocate from the clear tree first. If insufficient clear
- * memory is available, falls back to dirty memory. Useful when the
+ * Attempt to allocate outside dirty-tracked ranges first. If insufficient
+ * clear memory is available, falls back to dirty memory. Useful when the
  * caller needs zeroed memory and wants to avoid GPU clear operations.
  */
 #define GPU_BUDDY_CLEAR_ALLOCATION		BIT(3)
@@ -53,8 +53,8 @@
  * GPU_BUDDY_CLEARED - Mark returned blocks as cleared
  *
  * Used with gpu_buddy_free_list() to indicate that the memory being
- * freed has been cleared (zeroed). The blocks will be placed in the
- * clear tree for future GPU_BUDDY_CLEAR_ALLOCATION requests.
+ * freed has been cleared (zeroed). The blocks will be removed from the
+ * dirty tracker for future GPU_BUDDY_CLEAR_ALLOCATION requests.
  */
 #define GPU_BUDDY_CLEARED			BIT(4)
 
@@ -67,14 +67,16 @@
  */
 #define GPU_BUDDY_TRIM_DISABLE			BIT(5)
 
-enum gpu_buddy_free_tree {
-	GPU_BUDDY_CLEAR_TREE = 0,
-	GPU_BUDDY_DIRTY_TREE,
-	GPU_BUDDY_MAX_FREE_TREES,
+/*
+ * Clear/dirty state of a free block. Ordered so a numerically larger value
+ * is "more clear" (DIRTY < MIXED < CLEAR) which lets subtree_block_state be
+ * maintained as a simple max-augment over the per-order free tree.
+ */
+enum gpu_block_state {
+	GPU_BLOCK_DIRTY = 0,
+	GPU_BLOCK_MIXED = 1,
+	GPU_BLOCK_CLEAR = 2,
 };
-
-#define for_each_free_tree(tree) \
-	for ((tree) = 0; (tree) < GPU_BUDDY_MAX_FREE_TREES; (tree)++)
 
 /**
  * struct gpu_buddy_block - Block within a buddy allocator
@@ -103,6 +105,13 @@ struct gpu_buddy_block {
 #define   GPU_BUDDY_ALLOCATED	   (1 << 10)
 #define   GPU_BUDDY_FREE	   (2 << 10)
 #define   GPU_BUDDY_SPLIT	   (3 << 10)
+/*
+ * GPU_BUDDY_HEADER_CLEAR has two roles:
+ *  - FREE state:      set when the block's full range is cleared (dirty
+ *                     tracker confirmed no overlap).
+ *  - ALLOCATED state: set when the block was served from cleared memory,
+ *                     informing the caller that no GPU clear pass is needed.
+ */
 #define GPU_BUDDY_HEADER_CLEAR  GENMASK_ULL(9, 9)
 /* Free to be used, if needed in the future */
 #define GPU_BUDDY_HEADER_UNUSED GENMASK_ULL(8, 6)
@@ -128,12 +137,43 @@ struct gpu_buddy_block {
 		struct list_head link;
 	};
 /* private: */
-	struct list_head tmp_link;
+	enum gpu_block_state subtree_block_state;
 	unsigned int subtree_max_alignment;
+	struct list_head tmp_link;
+	bool has_clear;
 };
 
 /* Order-zero must be at least SZ_4K */
 #define GPU_BUDDY_MAX_ORDER (63 - 12)
+
+/**
+ * struct gpu_dirty_extent - a contiguous dirty address range
+ *
+ * Tracks a single contiguous address range whose memory content is known
+ * to be dirty.  Extents are non-overlapping and stored in an augmented
+ * red-black tree sorted by @start.  The augmented value @subtree_max_size
+ * allows O(log N) search for an extent of at least a given size.
+ */
+struct gpu_dirty_extent {
+/* private: */
+	struct rb_node	rb;
+	u64		start;
+	u64		end;
+	u64		subtree_max_size;
+};
+
+/**
+ * struct gpu_dirty_tracker - tracks dirty address intervals
+ *
+ * Maintains a set of non-overlapping dirty extents as an augmented
+ * red-black tree.
+ */
+struct gpu_dirty_tracker {
+/* private: */
+	struct rb_root	root;
+	/* Total bytes of dirty memory currently tracked. */
+	u64		total_dirty;
+};
 
 /**
  * struct gpu_buddy - GPU binary buddy allocator
@@ -152,20 +192,21 @@ struct gpu_buddy_block {
  * @chunk_size: Minimum allocation granularity in bytes. Must be at least SZ_4K.
  * @size: Total size of the address space managed by this allocator in bytes.
  * @avail: Total free space currently available for allocation in bytes.
- * @clear_avail: Free space available in the clear tree (zeroed memory) in bytes.
- *               This is a subset of @avail.
  * @lock_dep_map: Annotates gpu_buddy API with a driver provided lock.
  */
 struct gpu_buddy {
 /* private: */
+	/* Tracker of dirty address ranges (decoupled from free_tree). */
+	struct gpu_dirty_tracker dirty;
 	/*
-	 * Array of red-black trees for free block management.
-	 * Indexed as free_trees[clear/dirty][order] where:
-	 * - Index 0 (GPU_BUDDY_CLEAR_TREE): blocks with zeroed content
-	 * - Index 1 (GPU_BUDDY_DIRTY_TREE): blocks with unknown content
-	 * Each tree holds free blocks of the corresponding order.
+	 * One RB-tree per order containing all free blocks (clear and
+	 * dirty alike).  The augment field subtree_block_state (a max over
+	 * the subtree of each block's state) lets clear allocations
+	 * find the right-most fully-clear or mixed block in O(log N).
+	 * Dirty free blocks coexist here but are also indexed by the
+	 * @dirty tracker for fast dirty allocation lookups.
 	 */
-	struct rb_root **free_trees;
+	struct rb_root *free_tree;
 	/*
 	 * Array of root blocks representing the top-level blocks of the
 	 * binary tree(s). Multiple roots exist when the total size is not
@@ -194,7 +235,6 @@ struct gpu_buddy {
 	u64 chunk_size;
 	u64 size;
 	u64 avail;
-	u64 clear_avail;
 #ifdef CONFIG_LOCKDEP
 	struct lockdep_map *lock_dep_map;
 #endif
@@ -226,16 +266,31 @@ struct gpu_buddy {
  *
  * Ensure driver lock is held.
  */
-static inline void gpu_buddy_driver_lock_held(struct gpu_buddy *mm)
+static inline void gpu_buddy_driver_lock_held(const struct gpu_buddy *mm)
 {
 	if (mm->lock_dep_map)
 		lockdep_assert(lock_is_held_type(mm->lock_dep_map, 0));
 }
 #else
-static inline void gpu_buddy_driver_lock_held(struct gpu_buddy *mm)
+static inline void gpu_buddy_driver_lock_held(const struct gpu_buddy *mm)
 {
 }
 #endif
+
+/**
+ * gpu_buddy_clear_avail - free space that is clear (zeroed), in bytes
+ * @mm: gpu buddy allocator
+ *
+ * A subset of @mm->avail. Derived on demand as @mm->avail minus the bytes
+ * the dirty tracker records as dirty, so it is always consistent with the
+ * tracker without a cached field to keep in sync. Zero for a fresh pool,
+ * which is fully dirty.
+ */
+static inline u64 gpu_buddy_clear_avail(const struct gpu_buddy *mm)
+{
+	gpu_buddy_driver_lock_held(mm);
+	return mm->avail - mm->dirty.total_dirty;
+}
 
 static inline u64
 gpu_buddy_block_offset(const struct gpu_buddy_block *block)

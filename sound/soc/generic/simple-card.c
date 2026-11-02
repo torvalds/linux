@@ -92,7 +92,7 @@ static int simple_parse_dai(struct simple_util_priv *priv,
 	dai = snd_soc_get_dai_via_args(&args);
 	if (dai) {
 		ret = -ENOMEM;
-		dlc->dai_name = snd_soc_dai_name_get(dai);
+		dlc->dai_name = snd_soc_dai_name(dai);
 		dlc->dai_args = snd_soc_copy_dai_args(dev, &args);
 		if (!dlc->dai_args)
 			goto end;
@@ -666,6 +666,16 @@ end:
 	return simple_ret(priv, ret);
 }
 
+static int simple_soc_remove(struct snd_soc_card *card)
+{
+	struct simple_util_priv *priv = snd_soc_card_get_drvdata(card);
+
+	simple_util_remove_jack(&priv->hp_jack);
+	simple_util_remove_jack(&priv->mic_jack);
+
+	return 0;
+}
+
 static int simple_parse_of(struct simple_util_priv *priv)
 {
 	struct snd_soc_card *card = simple_priv_to_card(priv);
@@ -754,6 +764,7 @@ static int simple_probe(struct platform_device *pdev)
 	card->owner		= THIS_MODULE;
 	card->dev		= dev;
 	card->probe		= simple_soc_probe;
+	card->remove		= simple_soc_remove;
 	card->driver_name       = "simple-card";
 
 	return simple_parse_of(priv);

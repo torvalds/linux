@@ -36,15 +36,6 @@ enum dc_irq_source to_dal_irq_source_dce110(
 		uint32_t src_id,
 		uint32_t ext_id);
 
-bool dal_irq_service_dummy_set(
-	struct irq_service *irq_service,
-	const struct irq_source_info *info,
-	bool enable);
-
-bool dal_irq_service_dummy_ack(
-	struct irq_service *irq_service,
-	const struct irq_source_info *info);
-
 bool dce110_vblank_set(
 	struct irq_service *irq_service,
 	const struct irq_source_info *info,

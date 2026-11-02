@@ -91,7 +91,7 @@ struct scx_dispatch_q {
 	struct rhash_head	hash_node;
 	struct llist_node	free_node;
 	struct scx_sched	*sched;
-	struct scx_dsq_pcpu __percpu *pcpu;
+	struct scx_dsq_pcpu __percpu *pcpu_user;
 	struct rcu_head		rcu;
 };
 
@@ -104,9 +104,24 @@ enum scx_ent_flags {
 	SCX_TASK_SUB_INIT	= 1 << 4, /* task being initialized for a sub sched */
 	SCX_TASK_IMMED		= 1 << 5, /* task is on local DSQ with %SCX_ENQ_IMMED */
 	SCX_TASK_PROTECTED	= 1 << 6, /* slice and DSQ head position protected */
+	SCX_TASK_RUN_TRACKED	= 1 << 7, /* task is in an ops.running()/stopping() session */
 
 	/*
-	 * Bits 8 to 10 are used to carry task state:
+	 * The kernel owns the slice, currently the rescue grant. While set:
+	 *
+	 * - refill_task_slice_dfl() and expire_task_slice() leave the slice
+	 *   alone.
+	 * - Reenqueue scans skip the task.
+	 * - put_prev_task_scx() keeps a preempted task on the local DSQ.
+	 * - Schedulers may shorten the slice, never extend it.
+	 */
+	SCX_TASK_KERNEL_SLICE	= 1 << 8, /* slice owned by the kernel */
+
+	/*
+	 * The multi-bit fields are packed at the top, below SCX_TASK_CURSOR, so
+	 * that the single-bit flags stay contiguous from bit 0.
+	 *
+	 * Bits 25 to 27 are used to carry task state:
 	 *
 	 * NONE		ops.init_task() not called yet
 	 * INIT_BEGIN	ops.init_task() in flight; see sched_ext_dead()
@@ -115,7 +130,7 @@ enum scx_ent_flags {
 	 * ENABLED	fully initialized and in sched_ext
 	 * DEAD		terminal state set by sched_ext_dead()
 	 */
-	SCX_TASK_STATE_SHIFT	= 8,
+	SCX_TASK_STATE_SHIFT	= 25,
 	SCX_TASK_STATE_BITS	= 3,
 	SCX_TASK_STATE_MASK	= ((1 << SCX_TASK_STATE_BITS) - 1) << SCX_TASK_STATE_SHIFT,
 
@@ -127,7 +142,7 @@ enum scx_ent_flags {
 	SCX_TASK_DEAD		= 5 << SCX_TASK_STATE_SHIFT,
 
 	/*
-	 * Bits 12 to 14 are used to carry reenqueue reason. In addition to
+	 * Bits 28 to 30 are used to carry reenqueue reason. In addition to
 	 * %SCX_ENQ_REENQ flag, ops.enqueue() can also test for
 	 * %SCX_TASK_REENQ_REASON_NONE to distinguish reenqueues.
 	 *
@@ -136,8 +151,9 @@ enum scx_ent_flags {
 	 * IMMED	reenqueued due to failed ENQ_IMMED
 	 * PREEMPTED	preempted while running
 	 * CAP		sub-sched cap miss, see p->scx.reenq_reason_*
+	 * PROXY	proxy state prevented a remote DSQ transfer
 	 */
-	SCX_TASK_REENQ_REASON_SHIFT = 12,
+	SCX_TASK_REENQ_REASON_SHIFT = 28,
 	SCX_TASK_REENQ_REASON_BITS = 3,
 	SCX_TASK_REENQ_REASON_MASK = ((1 << SCX_TASK_REENQ_REASON_BITS) - 1) << SCX_TASK_REENQ_REASON_SHIFT,
 
@@ -146,6 +162,7 @@ enum scx_ent_flags {
 	SCX_TASK_REENQ_IMMED	= 2 << SCX_TASK_REENQ_REASON_SHIFT,
 	SCX_TASK_REENQ_PREEMPTED = 3 << SCX_TASK_REENQ_REASON_SHIFT,
 	SCX_TASK_REENQ_CAP	= 4 << SCX_TASK_REENQ_REASON_SHIFT,
+	SCX_TASK_REENQ_PROXY	= 5 << SCX_TASK_REENQ_REASON_SHIFT,
 
 	/* iteration cursor, not a task */
 	SCX_TASK_CURSOR		= 1 << 31,
@@ -154,6 +171,7 @@ enum scx_ent_flags {
 /* scx_entity.dsq_flags */
 enum scx_ent_dsq_flags {
 	SCX_TASK_DSQ_ON_PRIQ	= 1 << 0, /* task is queued on the priority queue of a dsq */
+	SCX_TASK_DSQ_REENQ	= 1 << 1, /* marked by scx_bpf_dsq_reenq_task() */
 };
 
 enum scx_dsq_lnode_flags {
@@ -197,9 +215,19 @@ struct sched_ext_entity {
 	u64			ddsp_slice;
 	u64			ddsp_vtime;
 	struct scx_dsq_list_node dsq_list;	/* dispatch order */
-	struct rb_node		dsq_priq;	/* p->scx.dsq_vtime order */
 	u32			dsq_seq;
 	u32			dsq_flags;	/* protected by DSQ lock */
+
+	/*
+	 * Used to order tasks when dispatching to the vtime-ordered priority
+	 * queue of a dsq. This is usually set through
+	 * scx_bpf_dsq_insert_vtime() but can also be modified directly by the
+	 * BPF scheduler. Modifying it while a task is queued on a dsq may
+	 * mangle the ordering and is not recommended. Kept next to @dsq_priq
+	 * as rbtree insertion reads both on every visited node.
+	 */
+	u64			dsq_vtime;
+	struct rb_node		dsq_priq;	/* p->scx.dsq_vtime order */
 	u32			flags;		/* protected by rq lock */
 	u32			weight;
 	u32			reenq_cnt;	/* reenqueues since last run */
@@ -226,7 +254,7 @@ struct sched_ext_entity {
 	u64			tid;
 	struct rhash_head	tid_hash_node;	/* see SCX_OPS_TID_TO_TASK */
 
-	/* BPF scheduler modifiable fields */
+	/* BPF scheduler modifiable fields, along with @dsq_vtime above */
 
 	/*
 	 * Runtime budget in nsecs - how long the task may hold its cpu. Owned
@@ -240,15 +268,6 @@ struct sched_ext_entity {
 	 * task ran. Use p->se.sum_exec_runtime instead.
 	 */
 	u64			slice;
-
-	/*
-	 * Used to order tasks when dispatching to the vtime-ordered priority
-	 * queue of a dsq. This is usually set through
-	 * scx_bpf_dsq_insert_vtime() but can also be modified directly by the
-	 * BPF scheduler. Modifying it while a task is queued on a dsq may
-	 * mangle the ordering and is not recommended.
-	 */
-	u64			dsq_vtime;
 
 	/*
 	 * Out-of-band slice request from scx_bpf_task_set_slice() when the
@@ -278,6 +297,14 @@ struct sched_ext_entity {
 	 * ops.init_task() invocation, such as during fork, fails the scheduler.
 	 */
 	bool			disallow;	/* reject switching into SCX */
+
+	/*
+	 * If set, depletion of this task's slice at the scheduler tick requests
+	 * lazy instead of immediate rescheduling. Initialized from
+	 * %SCX_OPS_LAZY_RESCHED immediately before ops.enable() and may be
+	 * modified afterwards with scx_bpf_task_set_lazy_resched().
+	 */
+	bool			lazy_resched;
 
 	/* cold fields */
 #ifdef CONFIG_EXT_GROUP_SCHED
@@ -324,7 +351,7 @@ struct scx_task_group {
 	u64			bw_period_us;
 	u64			bw_quota_us;
 	u64			bw_burst_us;
-	bool			idle;
+	bool			sched_idle;
 #endif
 };
 

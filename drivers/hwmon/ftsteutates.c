@@ -61,6 +61,7 @@ enum WATCHDOG_RESOLUTION {
 
 struct fts_data {
 	struct i2c_client *client;
+	struct device *hwmon_dev;
 	unsigned long last_updated; /* in jiffies */
 	struct watchdog_device wdd;
 	enum WATCHDOG_RESOLUTION resolution;
@@ -240,6 +241,8 @@ static int fts_wd_set_timeout(struct watchdog_device *wdd, unsigned int timeout)
 		resolution = minutes;
 	}
 
+	guard(hwmon_lock)(data->hwmon_dev);
+
 	ret = fts_wd_set_resolution(data, resolution);
 	if (ret < 0)
 		return ret;
@@ -252,6 +255,8 @@ static int fts_wd_start(struct watchdog_device *wdd)
 {
 	struct fts_data *data = watchdog_get_drvdata(wdd);
 
+	guard(hwmon_lock)(data->hwmon_dev);
+
 	return fts_write_byte(data->client, FTS_WATCHDOG_TIME_PRESET,
 			      wdd->timeout / (u8)data->resolution);
 }
@@ -261,6 +266,9 @@ static int fts_wd_stop(struct watchdog_device *wdd)
 	struct fts_data *data;
 
 	data = watchdog_get_drvdata(wdd);
+
+	guard(hwmon_lock)(data->hwmon_dev);
+
 	return fts_write_byte(data->client, FTS_WATCHDOG_TIME_PRESET, 0);
 }
 
@@ -276,11 +284,11 @@ static const struct watchdog_ops fts_wd_ops = {
 	.set_timeout = fts_wd_set_timeout,
 };
 
-static int fts_watchdog_init(struct fts_data *data)
+static int fts_watchdog_read_state(struct fts_data *data)
 {
 	int timeout, ret;
 
-	watchdog_set_drvdata(&data->wdd, data);
+	guard(hwmon_lock)(data->hwmon_dev);
 
 	timeout = fts_read_byte(data->client, FTS_WATCHDOG_TIME_PRESET);
 	if (timeout < 0)
@@ -301,6 +309,19 @@ static int fts_watchdog_init(struct fts_data *data)
 		data->wdd.timeout = timeout * (u8)data->resolution;
 		set_bit(WDOG_HW_RUNNING, &data->wdd.status);
 	}
+
+	return 0;
+}
+
+static int fts_watchdog_init(struct fts_data *data)
+{
+	int ret;
+
+	watchdog_set_drvdata(&data->wdd, data);
+
+	ret = fts_watchdog_read_state(data);
+	if (ret < 0)
+		return ret;
 
 	/* Register our watchdog part */
 	data->wdd.info = &fts_wd_info;
@@ -628,6 +649,9 @@ static int fts_probe(struct i2c_client *client)
 							 &fts_chip_info, NULL);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
+
+	/* The watchdog code takes its lock */
+	data->hwmon_dev = hwmon_dev;
 
 	err = fts_watchdog_init(data);
 	if (err)

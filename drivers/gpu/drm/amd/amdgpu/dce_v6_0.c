@@ -2867,11 +2867,6 @@ static int dce_v6_0_resume(struct amdgpu_ip_block *ip_block)
 	return amdgpu_display_resume_helper(adev);
 }
 
-static bool dce_v6_0_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	return true;
-}
-
 static void dce_v6_0_set_crtc_vblank_interrupt_state(struct amdgpu_device *adev,
 						     int crtc,
 						     enum amdgpu_interrupt_state state)
@@ -3167,7 +3162,6 @@ static const struct amd_ip_funcs dce_v6_0_ip_funcs = {
 	.hw_fini = dce_v6_0_hw_fini,
 	.suspend = dce_v6_0_suspend,
 	.resume = dce_v6_0_resume,
-	.is_idle = dce_v6_0_is_idle,
 	.set_clockgating_state = dce_v6_0_set_clockgating_state,
 	.set_powergating_state = dce_v6_0_set_powergating_state,
 };

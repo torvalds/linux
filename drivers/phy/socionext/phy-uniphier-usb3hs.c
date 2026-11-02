@@ -104,11 +104,12 @@ static int uniphier_u3hsphy_get_nvparam(struct uniphier_u3hsphy_priv *priv,
 	struct nvmem_cell *cell;
 	u8 *buf;
 
-	cell = devm_nvmem_cell_get(priv->dev, name);
+	cell = nvmem_cell_get(priv->dev, name);
 	if (IS_ERR(cell))
 		return PTR_ERR(cell);
 
 	buf = nvmem_cell_read(cell, NULL);
+	nvmem_cell_put(cell);
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 

@@ -892,14 +892,13 @@ static bool cfg80211_allowed_random_address(struct wireless_dev *wdev,
 	return false;
 }
 
-int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
-			  struct wireless_dev *wdev,
-			  struct cfg80211_mgmt_tx_params *params, u64 cookie)
+static int cfg80211_mgmt_tx_check(struct cfg80211_registered_device *rdev,
+				  struct wireless_dev *wdev,
+				  enum nl80211_iftype iftype,
+				  struct cfg80211_mgmt_tx_params *params)
 {
 	const struct ieee80211_mgmt *mgmt;
 	u16 stype;
-
-	lockdep_assert_wiphy(&rdev->wiphy);
 
 	if (!wdev->wiphy->mgmt_stypes)
 		return -EOPNOTSUPP;
@@ -917,14 +916,14 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 
 	stype = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE;
-	if (!(wdev->wiphy->mgmt_stypes[wdev->iftype].tx & BIT(stype >> 4)))
+	if (!(wdev->wiphy->mgmt_stypes[iftype].tx & BIT(stype >> 4)))
 		return -EINVAL;
 
 	if (ieee80211_is_action(mgmt->frame_control) &&
 	    mgmt->u.action.category != WLAN_CATEGORY_PUBLIC) {
 		int err = 0;
 
-		switch (wdev->iftype) {
+		switch (iftype) {
 		case NL80211_IFTYPE_ADHOC:
 			/*
 			 * check for IBSS DA must be done by driver as
@@ -1003,8 +1002,53 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 	    !cfg80211_allowed_random_address(wdev, mgmt))
 		return -EINVAL;
 
+	return 0;
+}
+
+int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
+			  struct wireless_dev *wdev,
+			  struct cfg80211_mgmt_tx_params *params, u64 cookie)
+{
+	int err;
+
+	lockdep_assert_wiphy(&rdev->wiphy);
+
+	err = cfg80211_mgmt_tx_check(rdev, wdev, wdev->iftype, params);
+	if (err)
+		return err;
+
 	/* Transmit the management frame as requested by user space */
 	return rdev_mgmt_tx(rdev, wdev, params, cookie);
+}
+
+int cfg80211_mlme_mgmt_tx_unlocked(struct cfg80211_registered_device *rdev,
+				   struct wireless_dev *wdev,
+				   struct cfg80211_mgmt_tx_params *params,
+				   u64 cookie)
+{
+	/* can change concurrently, so read only once */
+	enum nl80211_iftype iftype = READ_ONCE(wdev->iftype);
+	int err;
+
+	if (!rdev->ops->mgmt_tx_unlocked)
+		return -EAGAIN;
+
+	switch (iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_NAN_DATA:
+		break;
+	default:
+		/* the checks for other interface types need the wiphy mutex */
+		return -EAGAIN;
+	}
+
+	err = cfg80211_mgmt_tx_check(rdev, wdev, iftype, params);
+	if (err)
+		return err;
+
+	return rdev_mgmt_tx_unlocked(rdev, wdev, params, cookie);
 }
 
 bool cfg80211_rx_mgmt_ext(struct wireless_dev *wdev,
@@ -1070,25 +1114,75 @@ void cfg80211_sched_dfs_chan_update(struct cfg80211_registered_device *rdev)
 	queue_delayed_work(cfg80211_wq, &rdev->dfs_update_channels_wk, 0);
 }
 
+struct cfg80211_dfs_chan_expiry {
+	struct ieee80211_channel *chan;
+	unsigned long entered;
+	enum nl80211_dfs_state state;
+	enum nl80211_radar_event event;
+};
+
+static bool cfg80211_dfs_chan_expire(struct cfg80211_registered_device *rdev,
+				     struct cfg80211_dfs_chan_expiry *exp,
+				     struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_channel *c = exp->chan;
+
+	guard(wiphy)(&rdev->wiphy);
+
+	/* the state may have changed while the wiphy wasn't locked */
+	if (c->dfs_state != exp->state || c->dfs_state_entered != exp->entered)
+		return false;
+
+	c->dfs_state = NL80211_DFS_USABLE;
+	c->dfs_state_entered = jiffies;
+
+	cfg80211_chandef_create(chandef, c, NL80211_CHAN_NO_HT);
+
+	nl80211_radar_notify(rdev, chandef, exp->event, NULL, GFP_KERNEL);
+
+	return true;
+}
+
 void cfg80211_dfs_channels_update_work(struct work_struct *work)
 {
 	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct cfg80211_dfs_chan_expiry *expired;
 	struct cfg80211_registered_device *rdev;
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *c;
 	struct wiphy *wiphy;
-	bool check_again = false;
+	bool check_again = false, pre_cac_allowed;
 	unsigned long timeout, next_time = 0;
 	unsigned long time_dfs_update;
 	enum nl80211_radar_event radar_event;
+	unsigned int n_chans = 0, n_expired = 0;
 	int bandid, i;
 
 	rdev = container_of(delayed_work, struct cfg80211_registered_device,
 			    dfs_update_channels_wk);
 	wiphy = &rdev->wiphy;
 
-	rtnl_lock();
+	mutex_lock(&cfg80211_mutex);
+	wiphy_lock(wiphy);
+	for (bandid = 0; bandid < NUM_NL80211_BANDS; bandid++) {
+		if (wiphy->bands[bandid])
+			n_chans += wiphy->bands[bandid]->n_channels;
+	}
+
+	expired = kvcalloc(n_chans, sizeof(*expired), GFP_KERNEL);
+	if (!expired) {
+		/* hmm - retry later */
+		queue_delayed_work(cfg80211_wq,
+				   &rdev->dfs_update_channels_wk,
+				   HZ);
+		wiphy_unlock(wiphy);
+		mutex_unlock(&cfg80211_mutex);
+		return;
+	}
+
+	pre_cac_allowed = regulatory_pre_cac_allowed(wiphy);
+
 	for (bandid = 0; bandid < NUM_NL80211_BANDS; bandid++) {
 		sband = wiphy->bands[bandid];
 		if (!sband)
@@ -1108,8 +1202,7 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 				time_dfs_update = IEEE80211_DFS_MIN_NOP_TIME_MS;
 				radar_event = NL80211_RADAR_NOP_FINISHED;
 			} else {
-				if (regulatory_pre_cac_allowed(wiphy) ||
-				    cfg80211_any_wiphy_oper_chan(wiphy, c))
+				if (pre_cac_allowed)
 					continue;
 
 				time_dfs_update = REG_PRE_CAC_EXPIRY_GRACE_MS;
@@ -1120,19 +1213,11 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 				  msecs_to_jiffies(time_dfs_update);
 
 			if (time_after_eq(jiffies, timeout)) {
-				c->dfs_state = NL80211_DFS_USABLE;
-				c->dfs_state_entered = jiffies;
-
-				cfg80211_chandef_create(&chandef, c,
-							NL80211_CHAN_NO_HT);
-
-				nl80211_radar_notify(rdev, &chandef,
-						     radar_event, NULL,
-						     GFP_ATOMIC);
-
-				regulatory_propagate_dfs_state(wiphy, &chandef,
-							       c->dfs_state,
-							       radar_event);
+				expired[n_expired].chan = c;
+				expired[n_expired].state = c->dfs_state;
+				expired[n_expired].entered = c->dfs_state_entered;
+				expired[n_expired].event = radar_event;
+				n_expired++;
 				continue;
 			}
 
@@ -1143,7 +1228,24 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 			check_again = true;
 		}
 	}
-	rtnl_unlock();
+	wiphy_unlock(wiphy);
+
+	/* these lock the wiphys, so must be done without holding ours */
+	for (i = 0; i < n_expired; i++) {
+		if (expired[i].event == NL80211_RADAR_PRE_CAC_EXPIRED &&
+		    cfg80211_any_wiphy_oper_chan(wiphy, expired[i].chan))
+			continue;
+
+		if (!cfg80211_dfs_chan_expire(rdev, &expired[i], &chandef))
+			continue;
+
+		regulatory_propagate_dfs_state(wiphy, &chandef,
+					       NL80211_DFS_USABLE,
+					       expired[i].event);
+	}
+	mutex_unlock(&cfg80211_mutex);
+
+	kvfree(expired);
 
 	/* reschedule if there are other channels waiting to be cleared again */
 	if (check_again)

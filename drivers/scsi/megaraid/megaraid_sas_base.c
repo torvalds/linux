@@ -2274,11 +2274,11 @@ megasas_check_and_restore_queue_depth(struct megasas_instance *instance)
 	    && atomic_read(&instance->fw_outstanding) <
 	    instance->throttlequeuedepth + 1) {
 
-		spin_lock_irqsave(instance->host->host_lock, flags);
+		spin_lock_irqsave(&instance->host->host_lock, flags);
 		instance->flag &= ~MEGASAS_FW_BUSY;
 
 		instance->host->can_queue = instance->cur_can_queue;
-		spin_unlock_irqrestore(instance->host->host_lock, flags);
+		spin_unlock_irqrestore(&instance->host->host_lock, flags);
 	}
 }
 
@@ -2955,13 +2955,13 @@ static enum scsi_timeout_action megasas_reset_timer(struct scsi_cmnd *scmd)
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
 	if (!(instance->flag & MEGASAS_FW_BUSY)) {
 		/* FW is busy, throttle IO */
-		spin_lock_irqsave(instance->host->host_lock, flags);
+		spin_lock_irqsave(&instance->host->host_lock, flags);
 
 		instance->host->can_queue = instance->throttlequeuedepth;
 		instance->last_time = jiffies;
 		instance->flag |= MEGASAS_FW_BUSY;
 
-		spin_unlock_irqrestore(instance->host->host_lock, flags);
+		spin_unlock_irqrestore(&instance->host->host_lock, flags);
 	}
 	return SCSI_EH_RESET_TIMER;
 }
@@ -3727,7 +3727,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 		if ((opcode == MR_DCMD_LD_MAP_GET_INFO)
 			&& (cmd->frame->dcmd.mbox.b[1] == 1)) {
 			fusion->fast_path_io = 0;
-			spin_lock_irqsave(instance->host->host_lock, flags);
+			spin_lock_irqsave(&instance->host->host_lock, flags);
 			status = cmd->frame->hdr.cmd_status;
 			instance->map_update_cmd = NULL;
 			if (status != MFI_STAT_OK) {
@@ -3737,7 +3737,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 				else {
 					megasas_return_cmd(instance, cmd);
 					spin_unlock_irqrestore(
-						instance->host->host_lock,
+						&instance->host->host_lock,
 						flags);
 					break;
 				}
@@ -3762,7 +3762,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 				megasas_set_ld_removed_by_fw(instance);
 
 			megasas_sync_map_info(instance);
-			spin_unlock_irqrestore(instance->host->host_lock,
+			spin_unlock_irqrestore(&instance->host->host_lock,
 					       flags);
 
 			break;
@@ -3778,7 +3778,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 		if ((opcode == MR_DCMD_SYSTEM_PD_MAP_GET_INFO) &&
 			(cmd->frame->dcmd.mbox.b[0] == 1)) {
 
-			spin_lock_irqsave(instance->host->host_lock, flags);
+			spin_lock_irqsave(&instance->host->host_lock, flags);
 			status = cmd->frame->hdr.cmd_status;
 			instance->jbod_seq_cmd = NULL;
 			megasas_return_cmd(instance, cmd);
@@ -3791,7 +3791,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 			} else
 				instance->use_seqnum_jbod_fp = false;
 
-			spin_unlock_irqrestore(instance->host->host_lock, flags);
+			spin_unlock_irqrestore(&instance->host->host_lock, flags);
 			break;
 		}
 

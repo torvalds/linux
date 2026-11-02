@@ -3,19 +3,20 @@
 #include "dev.h"
 #include "fuse_i.h"
 
-static int fuse_fill_creds(struct fuse_mount *fm, struct fuse_args *args, struct mnt_idmap *idmap)
+static int fuse_fill_creds(struct fuse_mount *fm, struct fuse_args *args,
+			   const struct mnt_idmap *idmap)
 {
 	struct fuse_conn *fc = fm->fc;
 	bool no_idmap = !fm->sb || (fm->sb->s_iflags & SB_I_NOIDMAP);
 	kuid_t fsuid = mapped_fsuid(idmap, fc->user_ns);
 	kgid_t fsgid = mapped_fsgid(idmap, fc->user_ns);
 
+	if (args->nocreds)
+		return 0;
+
 	args->pid = pid_nr_ns(task_pid(current), fc->pid_ns);
 
 	if (args->force) {
-		if (args->nocreds)
-			return 0;
-
 		if (no_idmap) {
 			args->uid = from_kuid_munged(fc->user_ns, current_fsuid());
 			args->gid = from_kgid_munged(fc->user_ns, current_fsgid());
@@ -26,7 +27,6 @@ static int fuse_fill_creds(struct fuse_mount *fm, struct fuse_args *args, struct
 		return 0;
 	}
 
-	WARN_ON(args->nocreds);
 	/*
 	 * Keep the old behavior when idmappings support was not
 	 * declared by a FUSE server.
@@ -49,7 +49,8 @@ static int fuse_fill_creds(struct fuse_mount *fm, struct fuse_args *args, struct
 	return 0;
 }
 
-static int fuse_req_prep(struct fuse_mount *fm, struct fuse_args *args, struct mnt_idmap *idmap)
+static int fuse_req_prep(struct fuse_mount *fm, struct fuse_args *args,
+			 const struct mnt_idmap *idmap)
 {
 	if (!args->force && fm->fc->conn_error)
 		return -ECONNREFUSED;
@@ -57,7 +58,7 @@ static int fuse_req_prep(struct fuse_mount *fm, struct fuse_args *args, struct m
 	return fuse_fill_creds(fm, args, idmap);
 }
 
-ssize_t __fuse_simple_request(struct mnt_idmap *idmap, struct fuse_mount *fm,
+ssize_t __fuse_simple_request(const struct mnt_idmap *idmap, struct fuse_mount *fm,
 			      struct fuse_args *args)
 {
 	struct fuse_conn *fc = fm->fc;

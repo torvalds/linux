@@ -183,5 +183,7 @@ void amdgpu_jpeg_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_pri
 int amdgpu_jpeg_dec_parse_cs(struct amdgpu_cs_parser *parser,
 			     struct amdgpu_job *job,
 			     struct amdgpu_ib *ib);
+bool amdgpu_jpeg_is_shared_inv_eng(struct amdgpu_device *adev, struct amdgpu_ring *ring);
+void amdgpu_jpeg_set_shared_inv_eng(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 
 #endif /*__AMDGPU_JPEG_H__*/

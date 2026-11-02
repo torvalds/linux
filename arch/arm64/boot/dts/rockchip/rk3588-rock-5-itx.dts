@@ -732,7 +732,7 @@
 		};
 
 		pcie30x1_0_perstn_m1_l: pcie30x1-0-perstn-m1-l {
-			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		pcie30x1_1_perstn: pcie30x1-1-perstn {
@@ -879,7 +879,6 @@
 
 &sdmmc {
 	bus-width = <4>;
-	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 	disable-wp;
@@ -895,7 +894,6 @@
 
 /* M.2 E-KEY */
 &sdio {
-	broken-cd;
 	bus-width = <4>;
 	cap-sdio-irq;
 	keep-power-in-suspend;

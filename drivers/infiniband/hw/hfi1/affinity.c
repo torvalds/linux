@@ -386,7 +386,7 @@ static void _dev_comp_vect_mappings_destroy(struct hfi1_devdata *dd)
 
 /*
  * This function creates the table for looking up CPUs for completion vectors.
- * num_comp_vectors needs to have been initilized before calling this function.
+ * num_comp_vectors needs to have been initialized before calling this function.
  */
 static int _dev_comp_vect_mappings_create(struct hfi1_devdata *dd,
 					  struct hfi1_affinity_node *entry)

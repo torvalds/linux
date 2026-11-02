@@ -25,6 +25,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
+#include "xe_log.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
 #include "xe_pci_error.h"
@@ -370,6 +371,7 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.has_display = false,
 	.has_drm_ras = true,
 	.has_gsc_nvm = 1,
+	.has_pt_mirror = 1,
 	.has_heci_gscfi = 1,
 	.max_gt_per_tile = 1,
 	.max_remote_tiles = 1,
@@ -459,6 +461,7 @@ static const struct xe_device_desc nvls_desc = {
 	.has_flat_ccs = 1,
 	.has_pre_prod_wa = 1,
 	.has_sriov = true,
+	.has_pxp = true,
 	.max_gt_per_tile = 2,
 	MULTI_LRC_MASK,
 	.va_bits = 48,
@@ -470,6 +473,7 @@ static const struct xe_device_desc cri_desc = {
 	PLATFORM(CRESCENTISLAND),
 	.dma_mask_size = 52,
 	.has_display = false,
+	.has_device_uid = true,
 	.has_drm_ras = true,
 	.has_flat_ccs = false,
 	.has_gsc_nvm = 1,
@@ -751,7 +755,6 @@ struct xe_probed_info {
  * Probe from the hardware the info required by xe_info_init_early().
  */
 static int xe_probe_info_early(struct xe_device *xe,
-			       const struct xe_device_desc *desc,
 			       struct xe_probed_info *probed_info)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -759,7 +762,7 @@ static int xe_probe_info_early(struct xe_device *xe,
 	probed_info->devid = pdev->device;
 	probed_info->revid = pdev->revision;
 
-	xe_step_platform_get(desc->platform, probed_info->revid, &probed_info->step);
+	xe_step_platform_get(xe->desc->platform, probed_info->revid, &probed_info->step);
 
 	return 0;
 }
@@ -769,10 +772,10 @@ static int xe_probe_info_early(struct xe_device *xe,
  * passed to the driver at probe time from PCI ID table.
  */
 static int xe_info_init_early(struct xe_device *xe,
-			      const struct xe_device_desc *desc,
-			      const struct xe_subplatform_desc *subplatform_desc,
 			      struct xe_probed_info *probed_info)
 {
+	const struct xe_subplatform_desc *subplatform_desc = xe->subplatform_desc;
+	const struct xe_device_desc *desc = xe->desc;
 	int err;
 
 	xe->info.devid = probed_info->devid;
@@ -791,6 +794,7 @@ static int xe_info_init_early(struct xe_device *xe,
 
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.has_cached_pt = desc->has_cached_pt;
+	xe->info.has_device_uid = desc->has_device_uid;
 	xe->info.has_drm_ras = desc->has_drm_ras;
 	xe->info.has_fan_control = desc->has_fan_control;
 	/* runtime fusing may force flat_ccs to disabled later */
@@ -806,6 +810,7 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.has_mert = desc->has_mert;
 	xe->info.has_page_reclaim_hw_assist = desc->has_page_reclaim_hw_assist;
 	xe->info.has_pre_prod_wa = desc->has_pre_prod_wa;
+	xe->info.has_pt_mirror = desc->has_pt_mirror;
 	xe->info.has_pxp = desc->has_pxp;
 	xe->info.has_soc_remapper_sysctrl = desc->has_soc_remapper_sysctrl;
 	xe->info.has_soc_remapper_telem = desc->has_soc_remapper_telem;
@@ -835,14 +840,13 @@ static int xe_info_init_early(struct xe_device *xe,
 }
 
 static void xe_probe_tile_count(struct xe_device *xe,
-				const struct xe_device_desc *desc,
 				struct xe_probed_info *probed_info)
 {
 	struct xe_mmio *mmio;
 	u8 tile_count;
 	u32 mtcfg;
 
-	probed_info->tile_count = 1 + desc->max_remote_tiles;
+	probed_info->tile_count = 1 + xe->desc->max_remote_tiles;
 
 	/*
 	 * Probe for tile count only for platforms that support multiple
@@ -945,9 +949,10 @@ static struct xe_gt *alloc_media_gt(struct xe_tile *tile,
 }
 
 static int xe_probe_ips(struct xe_device *xe,
-			const struct xe_device_desc *desc,
 			struct xe_probed_info *probed_info)
 {
+	const struct xe_device_desc *desc = xe->desc;
+
 	/*
 	 * If this platform supports GMD_ID, we'll detect the proper IP
 	 * descriptor to use from hardware registers.
@@ -988,14 +993,13 @@ static int xe_probe_ips(struct xe_device *xe,
  * Probe from the hardware the info required by xe_info_init().
  */
 static int xe_probe_info(struct xe_device *xe,
-			 const struct xe_device_desc *desc,
 			 struct xe_probed_info *probed_info)
 {
 	int err;
 
-	xe_probe_tile_count(xe, desc, probed_info);
+	xe_probe_tile_count(xe, probed_info);
 
-	err = xe_probe_ips(xe, desc, probed_info);
+	err = xe_probe_ips(xe, probed_info);
 	if (err)
 		return err;
 
@@ -1009,7 +1013,6 @@ static int xe_probe_info(struct xe_device *xe,
  * present in device info.
  */
 static int xe_info_init(struct xe_device *xe,
-			const struct xe_device_desc *desc,
 			struct xe_probed_info *probed_info)
 {
 	const struct xe_ip *graphics_ip;
@@ -1145,16 +1148,11 @@ static void xe_pci_remove(struct pci_dev *pdev)
  * caller. Therefore there is no consequence on those specific callers when
  * function error injection skips the whole function.
  */
+static int __xe_pci_probe(struct pci_dev *pdev, const struct xe_device_desc *desc);
 static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct xe_probed_info probed_info = {};
 	const struct xe_device_desc *desc = (const void *)ent->driver_data;
-	const struct xe_subplatform_desc *subplatform_desc;
-	struct xe_device *xe;
-	void *group;
 	int err;
-
-	subplatform_desc = find_subplatform(desc, pdev->device);
 
 	xe_configfs_check_device(pdev);
 
@@ -1171,13 +1169,33 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	if (id_blocked(pdev->device)) {
-		dev_info(&pdev->dev, "Probe blocked for device [%04x:%04x].\n",
-			 pdev->vendor, pdev->device);
+		xe_log_info(pdev, PROBE, "driver loading blocked for device '%04x'\n",
+			    pdev->device);
 		return -ENODEV;
 	}
 
 	if (xe_display_driver_probe_defer(pdev))
 		return -EPROBE_DEFER;
+
+	err = __xe_pci_probe(pdev, desc);
+	if (err) {
+		xe_log_err_fatal(pdev, PROBE, err, "driver loading failed for device '%04x'\n",
+				 pdev->device);
+		return err;
+	}
+
+	return 0;
+}
+
+static int __xe_pci_probe(struct pci_dev *pdev, const struct xe_device_desc *desc)
+{
+	const struct xe_subplatform_desc *subplatform_desc;
+	struct xe_probed_info probed_info = {};
+	struct xe_device *xe;
+	void *group;
+	int err;
+
+	subplatform_desc = find_subplatform(desc, pdev->device);
 
 	/* Group all devres so xe_pci_error_slot_reset() can release them as a unit. */
 	group = devres_open_group(&pdev->dev, NULL, GFP_KERNEL);
@@ -1192,6 +1210,8 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(xe))
 		return PTR_ERR(xe);
 
+	xe->desc = desc;
+	xe->subplatform_desc = subplatform_desc;
 	xe->devres_group = group;
 
 	pci_set_drvdata(pdev, &xe->drm);
@@ -1200,11 +1220,11 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	err = xe_probe_info_early(xe, desc, &probed_info);
+	err = xe_probe_info_early(xe, &probed_info);
 	if (err)
 		return err;
 
-	err = xe_info_init_early(xe, desc, subplatform_desc, &probed_info);
+	err = xe_info_init_early(xe, &probed_info);
 	if (err)
 		return err;
 
@@ -1223,11 +1243,11 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	err = xe_probe_info(xe, desc, &probed_info);
+	err = xe_probe_info(xe, &probed_info);
 	if (err)
 		return err;
 
-	err = xe_info_init(xe, desc, &probed_info);
+	err = xe_info_init(xe, &probed_info);
 	if (err)
 		return err;
 
@@ -1364,7 +1384,9 @@ static int xe_pci_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct xe_device *xe = pdev_to_xe_device(pdev);
-	int err;
+	unsigned int flags;
+	bool pme_enabled;
+	int err, ret;
 
 	/*
 	 * We hold an additional reference to the runtime PM to keep PF in D0
@@ -1375,9 +1397,36 @@ static int xe_pci_runtime_suspend(struct device *dev)
 	xe_assert(xe, !IS_SRIOV_VF(xe));
 	xe_assert(xe, !pci_num_vf(pdev));
 
+	flags = memalloc_noreclaim_save();
+	pme_enabled = xe->pme.capable && !xe->d3cold.allowed &&
+		      pci_enable_wake(pdev, PCI_D3hot, true) == 0;
+	memalloc_noreclaim_restore(flags);
+
+	xe_pm_update_pme_enabled(xe, pme_enabled);
+
 	err = xe_pm_runtime_suspend(xe);
-	if (err)
+	if (err) {
+		if (pme_enabled) {
+			flags = memalloc_noreclaim_save();
+			pci_enable_wake(pdev, PCI_D3hot, false);
+			memalloc_noreclaim_restore(flags);
+
+			xe_pm_update_pme_enabled(xe, false);
+		}
+
 		return err;
+	}
+
+	err = xe_pm_wait_all_c6(xe);
+	if (err) {
+		drm_dbg(&xe->drm, "Resuming - GT C6 check failed!");
+		ret = xe_pm_runtime_resume(xe);
+		if (ret) {
+			drm_err(&xe->drm, "Resume failed after suspend was canceled");
+			return ret;
+		}
+		return err;
+	}
 
 	pci_save_state(pdev);
 
@@ -1405,6 +1454,8 @@ static int xe_pci_runtime_resume(struct device *dev)
 		return err;
 
 	pci_restore_state(pdev);
+
+	xe_pm_update_pme_enabled(xe, false);
 
 	if (xe->d3cold.allowed) {
 		err = pci_enable_device(pdev);

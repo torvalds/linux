@@ -176,20 +176,23 @@ properties:
               struct:
                 description: Name of the nested struct type.
                 type: string
-            if:
-              properties:
-                type:
-                  const: pad
-            then:
-              required: [ len ]
-            if:
-              properties:
-                type:
-                  const: binary
-            then:
-              oneOf:
-                - required: [ len ]
-                - required: [ struct ]
+            allOf:
+              -
+                if:
+                  properties:
+                    type:
+                      const: pad
+                then:
+                  required: [ len ]
+              -
+                if:
+                  properties:
+                    type:
+                      const: binary
+                then:
+                  oneOf:
+                    - required: [ len ]
+                    - required: [ struct ]
         # End genetlink-legacy
 
   attribute-sets:

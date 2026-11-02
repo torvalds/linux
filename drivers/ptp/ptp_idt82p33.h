@@ -91,6 +91,7 @@ struct idt82p33 {
 	u8			extts_mask;
 	bool			extts_single_shot;
 	struct delayed_work	extts_work;
+	bool			stopping;
 	/* Remember the ptp channel to report extts */
 	struct idt82p33_channel	*event_channel[MAX_PHC_PLL];
 	/* Mutex to protect operations from being interrupted */

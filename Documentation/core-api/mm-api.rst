@@ -8,6 +8,9 @@ User Space Memory Access
 .. kernel-doc:: arch/x86/include/asm/uaccess.h
    :internal:
 
+.. kernel-doc:: include/linux/uaccess.h
+   :internal:
+
 .. kernel-doc:: arch/x86/lib/usercopy_32.c
    :export:
 
@@ -51,6 +54,15 @@ Virtually Contiguous Mappings
 
 .. kernel-doc:: mm/vmalloc.c
    :export:
+
+Kernel Page Table Permissions
+=============================
+
+.. kernel-doc:: include/linux/set_memory.h
+   :doc: Kernel page table permissions
+
+.. kernel-doc:: include/linux/set_memory.h
+   :internal:
 
 File Mapping and Page Cache
 ===========================

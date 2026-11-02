@@ -1,0 +1,3 @@
+bench_ref_type_deref_static_size:
+	mov rax, qword ptr [rdi]
+	ret

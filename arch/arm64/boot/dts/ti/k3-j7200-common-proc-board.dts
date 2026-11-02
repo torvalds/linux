@@ -24,6 +24,7 @@
 		serial5 = &main_uart3;
 		mmc0 = &main_sdhci0;
 		mmc1 = &main_sdhci1;
+		ethernet0 = &cpsw_port1;
 	};
 
 	chosen {

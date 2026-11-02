@@ -270,11 +270,11 @@ static enum scsi_qc_status wd719x_queuecommand(struct Scsi_Host *sh,
 		scb->data_p = 0;
 	}
 
-	spin_lock_irqsave(wd->sh->host_lock, flags);
+	spin_lock_irqsave(&wd->sh->host_lock, flags);
 
 	/* check if the Command register is free */
 	if (wd719x_readb(wd, WD719X_AMR_COMMAND) != WD719X_CMD_READY) {
-		spin_unlock_irqrestore(wd->sh->host_lock, flags);
+		spin_unlock_irqrestore(&wd->sh->host_lock, flags);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
@@ -285,7 +285,7 @@ static enum scsi_qc_status wd719x_queuecommand(struct Scsi_Host *sh,
 	/* send SCB opcode */
 	wd719x_writeb(wd, WD719X_AMR_COMMAND, WD719X_CMD_PROCESS_SCB);
 
-	spin_unlock_irqrestore(wd->sh->host_lock, flags);
+	spin_unlock_irqrestore(&wd->sh->host_lock, flags);
 	return 0;
 
 out_unmap_sense:
@@ -473,12 +473,12 @@ static int wd719x_abort(struct scsi_cmnd *cmd)
 
 	action = WD719X_CMD_ABORT;
 
-	spin_lock_irqsave(wd->sh->host_lock, flags);
+	spin_lock_irqsave(&wd->sh->host_lock, flags);
 	result = wd719x_direct_cmd(wd, action, cmd->device->id,
 				   cmd->device->lun, scsi_cmd_to_rq(cmd)->tag,
 				   scb->phys, 0);
 	wd719x_finish_cmd(scb, DID_ABORT);
-	spin_unlock_irqrestore(wd->sh->host_lock, flags);
+	spin_unlock_irqrestore(&wd->sh->host_lock, flags);
 	if (result)
 		return FAILED;
 
@@ -495,7 +495,7 @@ static int wd719x_reset(struct scsi_cmnd *cmd, u8 opcode, u8 device)
 	dev_info(&wd->pdev->dev, "%s reset requested\n",
 		 (opcode == WD719X_CMD_BUSRESET) ? "bus" : "device");
 
-	spin_lock_irqsave(wd->sh->host_lock, flags);
+	spin_lock_irqsave(&wd->sh->host_lock, flags);
 	result = wd719x_direct_cmd(wd, opcode, device, 0, 0, 0,
 				   WD719X_WAIT_FOR_SCSI_RESET);
 	/* flush all SCBs (or all for a device if dev_reset) */
@@ -504,7 +504,7 @@ static int wd719x_reset(struct scsi_cmnd *cmd, u8 opcode, u8 device)
 		    scb->cmd->device->id == device)
 			wd719x_finish_cmd(scb, DID_RESET);
 	}
-	spin_unlock_irqrestore(wd->sh->host_lock, flags);
+	spin_unlock_irqrestore(&wd->sh->host_lock, flags);
 	if (result)
 		return FAILED;
 
@@ -528,7 +528,7 @@ static int wd719x_host_reset(struct scsi_cmnd *cmd)
 	unsigned long flags;
 
 	dev_info(&wd->pdev->dev, "host reset requested\n");
-	spin_lock_irqsave(wd->sh->host_lock, flags);
+	spin_lock_irqsave(&wd->sh->host_lock, flags);
 	/* stop the RISC */
 	if (wd719x_direct_cmd(wd, WD719X_CMD_SLEEP, 0, 0, 0, 0,
 			      WD719X_WAIT_FOR_RISC))
@@ -539,7 +539,7 @@ static int wd719x_host_reset(struct scsi_cmnd *cmd)
 	/* flush all SCBs */
 	list_for_each_entry_safe(scb, tmp, &wd->active_scbs, list)
 		wd719x_finish_cmd(scb, DID_RESET);
-	spin_unlock_irqrestore(wd->sh->host_lock, flags);
+	spin_unlock_irqrestore(&wd->sh->host_lock, flags);
 
 	/* Try to reinit the RISC */
 	return wd719x_chip_init(wd) == 0 ? SUCCESS : FAILED;
@@ -663,7 +663,7 @@ static irqreturn_t wd719x_interrupt(int irq, void *dev_id)
 	unsigned long flags;
 	u32 SCB_out;
 
-	spin_lock_irqsave(wd->sh->host_lock, flags);
+	spin_lock_irqsave(&wd->sh->host_lock, flags);
 	/* read SCB pointer back from card */
 	SCB_out = wd719x_readl(wd, WD719X_AMR_SCB_OUT);
 	/* read all status info at once */
@@ -671,7 +671,7 @@ static irqreturn_t wd719x_interrupt(int irq, void *dev_id)
 
 	switch (regs.bytes.INT) {
 	case WD719X_INT_NONE:
-		spin_unlock_irqrestore(wd->sh->host_lock, flags);
+		spin_unlock_irqrestore(&wd->sh->host_lock, flags);
 		return IRQ_NONE;
 	case WD719X_INT_LINKNOSTATUS:
 		dev_err(&wd->pdev->dev, "linked command completed with no status\n");
@@ -708,7 +708,7 @@ static irqreturn_t wd719x_interrupt(int irq, void *dev_id)
 	}
 	/* clear interrupt so another can happen */
 	wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_NONE);
-	spin_unlock_irqrestore(wd->sh->host_lock, flags);
+	spin_unlock_irqrestore(&wd->sh->host_lock, flags);
 
 	return IRQ_HANDLED;
 }

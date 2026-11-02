@@ -2889,7 +2889,6 @@ static int lpc32xx_start(struct usb_gadget *gadget,
 	}
 
 	udc->driver = driver;
-	udc->gadget.dev.of_node = udc->dev->of_node;
 	udc->enabled = 1;
 	udc->gadget.is_selfpowered = 1;
 	udc->vbus = 0;
@@ -3080,7 +3079,7 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	/* Allocate memory for the UDCA */
 	udc->udca_v_base = dma_alloc_coherent(&pdev->dev, UDCA_BUFF_SIZE,
 					      &dma_handle,
-					      (GFP_KERNEL | GFP_DMA));
+					      GFP_KERNEL);
 	if (!udc->udca_v_base) {
 		dev_err(udc->dev, "error getting UDCA region\n");
 		retval = -ENOMEM;

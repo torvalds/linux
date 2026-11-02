@@ -20,8 +20,11 @@ static int regmap_ram_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct regmap_ram_data *data = context;
 
-	data->vals[reg] = val;
-	data->written[reg] = true;
+	if (reg < data->base_reg)
+		return -EINVAL;
+
+	data->vals[reg - data->base_reg] = val;
+	data->written[reg - data->base_reg] = true;
 
 	return 0;
 }
@@ -30,8 +33,11 @@ static int regmap_ram_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct regmap_ram_data *data = context;
 
-	*val = data->vals[reg];
-	data->read[reg] = true;
+	if (reg < data->base_reg)
+		return -EINVAL;
+
+	*val = data->vals[reg - data->base_reg];
+	data->read[reg - data->base_reg] = true;
 
 	return 0;
 }
@@ -60,17 +66,25 @@ struct regmap *__regmap_init_ram(struct device *dev,
 				 const char *lock_name)
 {
 	struct regmap *map;
+	unsigned int num_regs;
 
 	if (!config->max_register) {
 		pr_crit("No max_register specified for RAM regmap\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	data->read = kzalloc_objs(bool, config->max_register + 1);
+	if (data->base_reg > config->max_register) {
+		pr_crit("base_reg above max_register for RAM regmap\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	num_regs = config->max_register - data->base_reg + 1;
+
+	data->read = kzalloc_objs(bool, num_regs);
 	if (!data->read)
 		return ERR_PTR(-ENOMEM);
 
-	data->written = kzalloc_objs(bool, config->max_register + 1);
+	data->written = kzalloc_objs(bool, num_regs);
 	if (!data->written) {
 		kfree(data->read);
 		return ERR_PTR(-ENOMEM);

@@ -48,6 +48,10 @@ properties:
       The dai cell indexes reference the following interfaces:
         0: S2 interface
 
+  ports:
+    $ref: audio-graph-port.yaml#/definitions/ports
+    unevaluatedProperties: false
+
 required:
   - compatible
   - reg

@@ -331,6 +331,9 @@ static inline void evlist__set_selected(struct evlist *evlist, struct evsel *evs
 
 struct evlist *evlist__new(void);
 struct evlist *evlist__new_default(const struct target *target, bool sample_callchains);
+struct perf_env;
+bool evlist__can_merge_hybrid(struct evlist *evlist, struct perf_env *env);
+void evlist__merge_hybrid(struct evlist *evlist, struct perf_env *env);
 struct evlist *evlist__new_dummy(void);
 struct evlist *evlist__get(struct evlist *evlist);
 void evlist__put(struct evlist *evlist);

@@ -159,7 +159,7 @@ void __printf(1, 0) acpi_os_vprintf(const char *fmt, va_list args)
 {
 	static char buffer[512];
 
-	vsprintf(buffer, fmt, args);
+	vsnprintf(buffer, sizeof(buffer), fmt, args);
 
 #ifdef ENABLE_DEBUGGER
 	if (acpi_in_debugger) {

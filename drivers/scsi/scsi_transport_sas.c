@@ -225,8 +225,8 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 
 /*
  * Set shost->opt_sectors from the DMA optimal mapping size, but only
- * when dma_opt_mapping_size() is strictly less than dma_max_mapping_size(),
- * indicating a genuine optimization hint from an IOMMU or DMA backend.
+ * when dma_max_opt_mapping_size() is strictly less than
+ * dma_max_mapping_size(), indicating a genuine optimization hint.
  * When the two are equal (e.g. IOMMU disabled / passthrough), no real
  * hint exists, so leave opt_sectors at 0 to avoid bogus optimal_io_size
  * values that break filesystem geometry (e.g. mkfs.xfs stripe alignment).
@@ -234,16 +234,16 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 static void sas_dma_setup_opt_sectors(struct Scsi_Host *shost)
 {
 	struct device *dma_dev = shost->dma_dev;
-	size_t opt = dma_opt_mapping_size(dma_dev);
+	size_t max_opt = dma_max_opt_mapping_size(dma_dev);
 	size_t max = dma_max_mapping_size(dma_dev);
 	unsigned int opt_sectors;
 
-	/* opt >= max means no real hint was provided by the DMA layer */
-	if (opt >= max)
+	/* max_opt >= max means no real hint was provided by the DMA layer */
+	if (max_opt >= max)
 		return;
 
 	/* Clamp to max_sectors to avoid overflow in sector arithmetic */
-	opt_sectors = min_t(unsigned int, opt >> SECTOR_SHIFT,
+	opt_sectors = min_t(unsigned int, max_opt >> SECTOR_SHIFT,
 			    shost->max_sectors);
 
 	/* Guard against zero before rounddown_pow_of_two() */

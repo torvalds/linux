@@ -205,14 +205,9 @@ static int atlantis_clk_gate_endisable(struct clk_hw *hw, int enable)
 {
 	struct atlantis_clk_gate *gate = hw_to_atlantis_clk_gate(hw);
 
-	if (enable)
-		return regmap_set_bits(gate->common.regmap,
-				       gate->config.reg_offset,
-				       gate->config.enable);
-	else
-		return regmap_clear_bits(gate->common.regmap,
-					 gate->config.reg_offset,
-					 gate->config.enable);
+	return regmap_assign_bits(gate->common.regmap,
+				  gate->config.reg_offset,
+				  gate->config.enable, enable);
 }
 
 static int atlantis_clk_gate_enable(struct clk_hw *hw)
@@ -397,22 +392,21 @@ static int atlantis_clk_gate_shared_enable(struct clk_hw *hw)
 
 	scoped_guard(spinlock_irqsave, gate->config.refcount_lock)
 	{
-		need_enable = (*gate->config.share_count)++ == 0;
+		need_enable = (*gate->config.share_count) == 0;
 		if (need_enable) {
 			regmap_set_bits(gate->common.regmap,
 					gate->config.reg_offset,
 					gate->config.enable);
-		}
-	}
 
-	if (need_enable) {
-		if (!regmap_test_bits(gate->common.regmap,
-				      gate->config.reg_offset,
-				      gate->config.enable)) {
-			pr_warn("%s: gate enable %d failed to enable\n",
-				clk_hw_get_name(hw), gate->config.enable);
-			return -EIO;
+			if (!regmap_test_bits(gate->common.regmap,
+					      gate->config.reg_offset,
+					      gate->config.enable)) {
+				pr_warn("%s: gate enable %d failed to enable\n",
+					clk_hw_get_name(hw), gate->config.enable);
+				return -EIO;
+			}
 		}
+		(*gate->config.share_count)++;
 	}
 
 	return 0;
@@ -789,12 +783,13 @@ static int atlantis_prcm_clocks_register(struct device *dev,
 {
 	struct clk_hw_onecell_data *clk_data;
 	int i, ret;
-	size_t num_clks = data->num;
 
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, data->num),
 				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
+
+	clk_data->num = data->num;
 
 	for (i = 0; i < data->num; i++) {
 		struct clk_hw *hw = data->hws[i];
@@ -808,8 +803,6 @@ static int atlantis_prcm_clocks_register(struct device *dev,
 
 		clk_data->hws[common->clkid] = hw;
 	}
-
-	clk_data->num = num_clks;
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_data);
 }

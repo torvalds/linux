@@ -636,7 +636,7 @@ static struct {
 /* setup & interrupt */
 static irqreturn_t intr(int irq, void *dev_id);
 static void reset_ports(struct Scsi_Host *shpnt);
-static void aha152x_error(struct Scsi_Host *shpnt, char *msg);
+static void __noreturn aha152x_error(struct Scsi_Host *shpnt, char *msg);
 static void done(struct Scsi_Host *shpnt, unsigned char status_byte,
 		 unsigned char host_byte);
 
@@ -2441,7 +2441,7 @@ static void is_complete(struct Scsi_Host *shpnt)
 /*
  * Dump the current driver status and panic
  */
-static void aha152x_error(struct Scsi_Host *shpnt, char *msg)
+static void __noreturn aha152x_error(struct Scsi_Host *shpnt, char *msg)
 {
 	shost_printk(KERN_EMERG, shpnt, "%s\n", msg);
 	show_queues(shpnt);

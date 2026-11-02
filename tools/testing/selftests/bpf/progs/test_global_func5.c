@@ -26,7 +26,7 @@ int f3(int val, struct __sk_buff *skb)
 }
 
 SEC("tc")
-__failure __msg("expects pointer to ctx")
+__failure __msg("R2 type=fp expected=ctx")
 int global_func5(struct __sk_buff *skb)
 {
 	return f1(skb) + f2(2, skb) + f3(3, skb);

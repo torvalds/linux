@@ -6,44 +6,53 @@
  * look up and read DSOs and symbol information and display
  * a histogram of results, along various sorting keys.
  */
-#include "builtin.h"
-#include "perf.h"
-
-#include "util/color.h"
-#include <linux/list.h>
-#include "util/cache.h"
-#include <linux/rbtree.h>
-#include "util/symbol.h"
-
-#include "util/debug.h"
-
-#include "util/evlist.h"
-#include "util/evsel.h"
-#include "util/annotate.h"
-#include "util/annotate-data.h"
-#include "util/event.h"
-#include <subcmd/parse-options.h>
-#include "util/parse-events.h"
-#include "util/sort.h"
-#include "util/hist.h"
-#include "util/dso.h"
-#include "util/machine.h"
-#include "util/map.h"
-#include "util/session.h"
-#include "util/tool.h"
-#include "util/data.h"
-#include "arch/common.h"
-#include "util/block-range.h"
-#include "util/map_symbol.h"
-#include "util/branch.h"
-#include "util/util.h"
-#include "ui/progress.h"
+#include <errno.h>
+#include <inttypes.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <dlfcn.h>
-#include <errno.h>
 #include <linux/bitmap.h>
 #include <linux/err.h>
-#include <inttypes.h>
+#include <linux/list.h>
+#include <linux/rbtree.h>
+
+#include <subcmd/parse-options.h>
+
+#include "arch/common.h"
+#include "builtin.h"
+#include "perf.h"
+#include "ui/keysyms.h"
+#include "ui/progress.h"
+#include "ui/ui.h"
+#include "util/annotate-data.h"
+#include "util/annotate.h"
+#include "util/block-range.h"
+#include "util/branch.h"
+#include "util/data.h"
+#include "util/debug.h"
+#include "util/dso.h"
+#include "util/event.h"
+#include "util/evlist.h"
+#include "util/evsel.h"
+#include "util/hist.h"
+#include "util/machine.h"
+#include "util/map.h"
+#include "util/map_symbol.h"
+#include "util/session.h"
+#include "util/sort.h"
+#include "util/symbol.h"
+#include "util/tool.h"
+#include "util/util.h"
+
+#ifndef HAVE_SLANG_SUPPORT
+#undef K_LEFT
+#define K_LEFT  -1000
+#undef K_RIGHT
+#define K_RIGHT -2000
+#endif
 
 struct perf_annotate {
 	struct perf_tool tool;
@@ -52,7 +61,7 @@ struct perf_annotate {
 	bool	   use_tui;
 #endif
 	bool	   use_stdio, use_stdio2;
-#ifdef HAVE_GTK2_SUPPORT
+#ifdef HAVE_GTK4_SUPPORT
 	bool	   use_gtk;
 #endif
 	bool	   skip_missing;
@@ -712,13 +721,15 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_BOOLEAN('q', "quiet", &quiet, "do now show any warnings or messages"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-#ifdef HAVE_GTK2_SUPPORT
+#ifdef HAVE_GTK4_SUPPORT
 	OPT_BOOLEAN(0, "gtk", &annotate.use_gtk, "Use the GTK interface"),
 #endif
 #ifdef HAVE_SLANG_SUPPORT
 	OPT_BOOLEAN(0, "tui", &annotate.use_tui, "Use the TUI interface"),
 #endif
 	OPT_BOOLEAN(0, "stdio", &annotate.use_stdio, "Use the stdio interface"),
+	OPT_BOOLEAN(0, "weights", &symbol_conf.annotate_weight,
+		    "Show or hide weight columns in annotation. Default show if non zero."),
 	OPT_BOOLEAN(0, "stdio2", &annotate.use_stdio2, "Use the stdio interface"),
 	OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
                     "don't load vmlinux even if found"),
@@ -788,6 +799,7 @@ int cmd_annotate(int argc, const char **argv)
 
 	set_option_flag(options, 0, "show-total-period", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 0, "show-nr-samples", PARSE_OPT_EXCLUSIVE);
+	symbol_conf.annotate_weight = true;
 
 	annotation_options__init();
 
@@ -828,7 +840,7 @@ int cmd_annotate(int argc, const char **argv)
 	if (annotate_check_args() < 0)
 		return -EINVAL;
 
-#ifdef HAVE_GTK2_SUPPORT
+#ifdef HAVE_GTK4_SUPPORT
 	if (symbol_conf.show_nr_samples && annotate.use_gtk) {
 		pr_err("--show-nr-samples is not available in --gtk mode at this time\n");
 		return ret;
@@ -873,6 +885,14 @@ int cmd_annotate(int argc, const char **argv)
 	annotate.session = perf_session__new(&data, &annotate.tool);
 	if (IS_ERR(annotate.session))
 		return PTR_ERR(annotate.session);
+	/*
+	 * Hardware tracing (e.g., ARM SPE) may synthesize multiple events per
+	 * instruction. When data type profiling is enabled, default to synthesizing
+	 * at most one event (equivalent to --itrace=i1i) to prevent skewed
+	 * statistics.
+	 */
+	if (annotate.data_type && !itrace_synth_opts.set)
+		itrace_synth_opts.default_single_event_per_ip = true;
 
 	annotate.session->itrace_synth_opts = &itrace_synth_opts;
 
@@ -898,7 +918,7 @@ int cmd_annotate(int argc, const char **argv)
 	else if (annotate.use_tui)
 		use_browser = 1;
 #endif
-#ifdef HAVE_GTK2_SUPPORT
+#ifdef HAVE_GTK4_SUPPORT
 	else if (annotate.use_gtk)
 		use_browser = 2;
 #endif

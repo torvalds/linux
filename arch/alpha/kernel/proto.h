@@ -2,6 +2,7 @@
 #include <linux/interrupt.h>
 #include <linux/screen_info.h>
 #include <linux/io.h>
+#include <asm/ptrace.h>
 
 /* Prototypes of functions used across modules here in this directory.  */
 
@@ -77,6 +78,8 @@ extern struct _alpha_agp_info *titan_agp_info(void);
 extern struct pci_ops tsunami_pci_ops;
 extern void tsunami_init_arch(void);
 extern void tsunami_kill_arch(int);
+extern void tsunami_check_console_data_log(void);
+extern void clipper_machine_check(unsigned long vector, unsigned long la_ptr);
 extern void tsunami_machine_check(unsigned long vector, unsigned long la_ptr);
 extern void tsunami_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
 
@@ -164,16 +167,18 @@ extern void pcibios_claim_one_bus(struct pci_bus *);
 /* ptrace.c */
 extern int ptrace_set_bpt (struct task_struct *child);
 extern int ptrace_cancel_bpt (struct task_struct *child);
-extern void syscall_trace_leave(void);
-extern unsigned long syscall_trace_enter(void);
 
 /* signal.c */
 struct sigcontext;
 extern void do_sigreturn(struct sigcontext __user *);
 struct rt_sigframe;
 extern void do_rt_sigreturn(struct rt_sigframe __user *);
-extern void do_work_pending(struct pt_regs *, unsigned long, unsigned long, unsigned long);
 extern void alpha_schedule_user_work(void);
+extern void do_signal(struct pt_regs *regs, unsigned long r0, unsigned long r19);
+extern void alpha_syscall_exit_to_user_mode(struct pt_regs *regs);
+extern void alpha_exit_to_user_mode(struct pt_regs *regs);
+extern void alpha_finish_syscall_to_user_mode(struct pt_regs *regs, long ret);
+extern unsigned long alpha_syscall_enter_select(struct pt_regs *regs, long syscall);
 
 /* traps.c */
 extern void dik_show_regs(struct pt_regs *regs, unsigned long *r9_15);

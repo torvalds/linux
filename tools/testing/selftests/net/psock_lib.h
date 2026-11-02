@@ -30,7 +30,7 @@ static __maybe_unused void pair_udp_setfilter(int fd)
 	 *  ip proto udp     and
 	 *  skb->len == DATA_LEN and
 	 *  udp[38] == 'a' or udp[38] == 'b'
-	 * It can be generated from the following bpf_asm input:
+	 * It corresponds to the following classic BPF assembly:
 	 *	ldh [12]
 	 *	jne #0x800, drop	; ETH_P_IP
 	 *	ldb [23]

@@ -514,20 +514,20 @@ extern void scsi_sanitize_inquiry_string(unsigned char *s, int len);
  */
 #define SCMD_FAILURE_STAT_ANY	0xff
 /*
- * The following can be set to the scsi_failure sense, asc and ascq fields to
- * match on any sense, ASC, or ASCQ value.
+ * The following can be set to the scsi_failure sense key, asc and ascq fields
+ * to match any sense key, ASC, and ASCQ value.
  */
-#define SCMD_FAILURE_SENSE_ANY	0xff
-#define SCMD_FAILURE_ASC_ANY	0xff
-#define SCMD_FAILURE_ASCQ_ANY	0xff
+#define SCMD_FAILURE_SENSE_KEY_ANY	0xff
+#define SCMD_FAILURE_SENSE_CODE_ANY	0xffff
+#define SCMD_FAILURE_ASC_ANY		0xff
+#define SCMD_FAILURE_ASCQ_ANY		0xff
 /* Always retry a matching failure. */
 #define SCMD_FAILURE_NO_LIMIT	-1
 
 struct scsi_failure {
 	int result;
-	u8 sense;
-	u8 asc;
-	u8 ascq;
+	u8 sense_key;
+	u16 sense_code;
 	/*
 	 * Number of times scsi_execute_cmd will retry the failure. It does
 	 * not count for the total_allowed.
@@ -536,6 +536,16 @@ struct scsi_failure {
 	/* Number of times the failure has been retried. */
 	s8 retries;
 };
+
+static inline u8 scsi_failure_asc(const struct scsi_failure *failure)
+{
+	return scsi_sense_code_asc(failure->sense_code);
+}
+
+static inline u8 scsi_failure_ascq(const struct scsi_failure *failure)
+{
+	return scsi_sense_code_ascq(failure->sense_code);
+}
 
 struct scsi_failures {
 	/*

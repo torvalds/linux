@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Hang Nan <nanx95726@gmail.com>
+
+config SMB_SERVER_KUNIT_TESTS
+	tristate "KUnit tests for SMB3 server helpers" if !KUNIT_ALL_TESTS
+	depends on SMB_SERVER && SMB_KUNIT_TESTS && TMPFS_XATTR
+	default SMB_KUNIT_TESTS
+	help
+	  This builds the KUnit tests for ksmbd server helpers. The tests
+	  exercise internal server functionality and help detect regressions
+	  in server-side behavior. They are intended for kernel developers
+	  and are not suitable for production systems.
+
+	  For more information on KUnit and unit tests in the kernel,
+	  please read Documentation/dev-tools/kunit/index.rst.

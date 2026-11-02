@@ -21,8 +21,6 @@ struct {
 	__type(value, __u64);
 } array_map_8b SEC(".maps");
 
-const char snprintf_u64_fmt[] = "%llu";
-
 SEC("socket")
 __log_level(2)
 __msg("0: (79) r1 = *(u64 *)(r10 -8)        ; use: fp0-8")
@@ -63,8 +61,12 @@ __naked void read_write_join(void)
 SEC("socket")
 __log_level(2)
 __msg("stack use/def subprog#0 must_write_not_same_slot (d0,cs0):")
-__msg("6: (7b) *(u64 *)(r2 +0) = r0{{$}}")
-__msg("Live regs before insn:")
+/*
+ * 'r2 += r1' adds a scalar, so the offset is lost (off_cnt == 0): no def,
+ * but the write conservatively marks the whole frame as may_def.
+ */
+__msg("6: (7b) *(u64 *)(r2 +0) = r0         ; may_def: fp0-8..-{{(512|2048)}}")
+__msg("Program dump")
 __naked void must_write_not_same_slot(void)
 {
 	asm volatile (
@@ -76,6 +78,31 @@ __naked void must_write_not_same_slot(void)
 	"r2 = r10;"
 	"r2 += r1;"
 	"*(u64 *)(r2 + 0) = r0;"
+	"exit;"
+	:: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__log_level(2)
+__msg("stack use/def subprog#0 may_write_two_precise_offsets (d0,cs0):")
+/*
+ * r1 is fp-8 or fp-16, with both offsets tracked precisely (off_cnt == 2).
+ * A write through it cannot set def, but marks both candidate slots as may_def.
+ */
+__msg("6: (7b) *(u64 *)(r1 +0) = r0         ; may_def: fp0-8 fp0-16")
+__naked void may_write_two_precise_offsets(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r1 = r10;"
+	"if r0 > 42 goto 1f;"
+	"r1 += -8;"
+	"goto 2f;"
+"1:"
+	"r1 += -16;"
+"2:"
+	"*(u64 *)(r1 + 0) = r0;"
 	"exit;"
 	:: __imm(bpf_get_prandom_u32)
 	: __clobber_all);
@@ -108,11 +135,11 @@ __naked void must_write_not_same_type(void)
 
 SEC("socket")
 __log_level(2)
-/* Callee writes fp[0]-8: stack_use at call site has slots 0,1 live */
+/* Callee writes fp[0]-8: the def is summarized as may_def at the call site */
 __msg("stack use/def subprog#0 caller_stack_write (d0,cs0):")
-__msg("2: (85) call pc+1{{$}}")
+__msg("2: (85) call pc+1                    ; may_def: fp0-8")
 __msg("stack use/def subprog#1 write_first_param (d1,cs2):")
-__msg("4: (7a) *(u64 *)(r1 +0) = 7          ; def: fp0-8")
+__msg("4: (7a) *(u64 *)(r1 +0) = 7          ; def: fp0-8 may_def: fp0-8")
 __naked void caller_stack_write(void)
 {
 	asm volatile (
@@ -130,6 +157,155 @@ static __used __naked void write_first_param(void)
 	"r0 = 0;"
 	"exit;"
 	::: __clobber_all);
+}
+
+struct cnt8 { long v; };
+
+__noinline int global_noop_arg(struct cnt8 *p)
+{
+	return 0;
+}
+
+SEC("socket")
+__log_level(2)
+/* Call to a global function: the argument is described by its declared type. */
+__msg("stack use/def subprog#0 global_callee_arg (d0,cs0):")
+__msg("3: (85) call pc+{{.*}}; use: fp0-8 def: fp0-8 may_def: fp0-8")
+__naked void global_callee_arg(void)
+{
+	asm volatile (
+	"*(u64 *)(r10 - 8) = 0;"
+	"r1 = r10;"
+	"r1 += -8;"
+	"call global_noop_arg;"
+	"exit;"
+	::: __clobber_all);
+}
+
+__noinline int global_int_arg(int x)
+{
+	return 0;
+}
+
+SEC("socket")
+__success __log_level(2)
+__msg("stack use/def subprog#0 global_noop_int_arg (d0,cs0):")
+__msg_next("  0: (bf) r1 = r10{{$}}")
+__msg_next("  1: (07) r1 += -8{{$}}")
+__msg_next("  2: (1f) r1 -= r10{{$}}")
+__msg_next("  3: (85) call pc+1{{$}}")
+__msg_next("  4: (95) exit")
+__naked void global_noop_int_arg(void)
+{
+	asm volatile (
+	"r1 = r10;"
+	"r1 += -8;"
+	"r1 -= r10;"		/* This is a scalar now. */
+	"call global_int_arg;"	/* And should not be tracked as stack effect. */
+	"exit;"
+	::: __clobber_all);
+}
+
+static char global_dynptr_buf[8];
+
+__noinline int global_noop_dynptr_arg(struct bpf_dynptr *p)
+{
+	return 0;
+}
+
+SEC("socket")
+__success __log_level(2)
+/* A global dynptr argument may read/write only its 16 bytes, with no definite write. */
+__msg("stack use/def subprog#0 global_callee_dynptr_arg (d0,cs0):")
+__msg("  7: (bf) r1 = r10{{$}}")
+__msg_next("  8: (07) r1 += -32{{$}}")
+__msg_next("  9: (85) call pc+1{{ +}}; use: fp0-24 fp0-32 may_def: fp0-24 fp0-32{{$}}")
+__msg_next(" 10: (95) exit{{$}}")
+__naked void global_callee_dynptr_arg(void)
+{
+	asm volatile (
+	"r1 = %[global_dynptr_buf] ll;"
+	"r2 = 8;"
+	"r3 = 0;"
+	"r4 = r10;"
+	"r4 += -32;"
+	"call %[bpf_dynptr_from_mem];"
+	"r1 = r10;"
+	"r1 += -32;"
+	"call global_noop_dynptr_arg;"
+	"exit;"
+	:: __imm_addr(global_dynptr_buf), __imm(bpf_dynptr_from_mem)
+	: __clobber_all);
+}
+
+struct task_struct { int pid; };
+
+__noinline int global_noop_btf_arg(struct task_struct *p __arg_untrusted)
+{
+	return 0;
+}
+
+SEC("socket")
+__success __log_level(2)
+/* Untrusted BTF pointer arguments need no caller stack state. */
+__msg("stack use/def subprog#0 global_callee_btf_arg (d0,cs0):")
+__msg_next("  0: (7a) *(u64 *)(r10 -8) = 0{{.*}}")
+__msg_next("  1: (bf) r1 = r10{{$}}")
+__msg_next("  2: (07) r1 += -8{{$}}")
+__msg_next("  3: (85) call pc+1{{$}}")
+__msg_next("  4: (95) exit{{$}}")
+__naked void global_callee_btf_arg(void)
+{
+	asm volatile (
+	"*(u64 *)(r10 - 8) = 0;"
+	"r1 = r10;"
+	"r1 += -8;"
+	"call global_noop_btf_arg;"
+	"exit;"
+	::: __clobber_all);
+}
+
+/*
+ * Cross-frame imprecise write: imprecise_frame_writer() receives a pointer
+ * into the caller's frame (frame 0) but conditionally replaces it with a
+ * pointer into its own frame (frame 1). At the store the two are joined into
+ * ARG_IMPRECISE (frame is unknown, mask = {0,1}), so the offset is dropped and
+ * the whole of both candidate frames is conservatively marked as may_def.
+ */
+SEC("socket")
+__log_level(2)
+/* The callee's write into the caller frame is summarized at the call site. */
+__msg("stack use/def subprog#0 imprecise_frame_write (d0,cs0):")
+__msg("2: (85) call pc+2                    ; may_def: fp0-8..-{{(512|2048)}}")
+__msg("stack use/def subprog#1 imprecise_frame_writer (d1,cs2):")
+__msg("12: (7b) *(u64 *)(r1 +0) = r2         ; may_def: fp1-8..-{{(512|2048)}} fp0-8..-{{(512|2048)}}")
+__naked void imprecise_frame_write(void)
+{
+	asm volatile (
+	"r1 = r10;"
+	"r1 += -8;"
+	"call imprecise_frame_writer;"
+	"r0 = 0;"
+	"exit;"
+	::: __clobber_all);
+}
+
+static __used __naked void imprecise_frame_writer(void)
+{
+	asm volatile (
+	"r6 = r1;"			/* save arg: pointer into frame 0 */
+	"call %[bpf_get_prandom_u32];"
+	"r1 = r6;"			/* r1 = frame0-8 (arg) */
+	"if r0 == 0 goto 1f;"
+	"r1 = r10;"
+	"r1 += -8;"			/* r1 = frame1-8 (own frame) */
+"1:"
+	"r2 = 0;"
+	"*(u64 *)(r1 + 0) = r2;"	/* join frame0-8 | frame1-8 -> imprecise */
+	"r0 = 0;"
+	"exit;"
+	:: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
 }
 
 SEC("socket")
@@ -246,7 +422,7 @@ static __used __naked void read_first_param2(void)
 SEC("socket")
 __flag(BPF_F_TEST_STATE_FREQ)
 __failure
-__msg("R1 type=scalar expected=map_ptr")
+__msg("Possibly NULL pointer passed to trusted R1")
 __naked void caller_stack_pruning_callback(void)
 {
 	asm volatile (
@@ -320,7 +496,7 @@ struct {
 } map_array SEC(".maps");
 
 SEC("socket")
-__failure __msg("invalid read from stack R2 off=-1024 size=8")
+__failure __msg("invalid read from stack R2 off=-4096 size=8")
 __flag(BPF_F_TEST_STATE_FREQ)
 __naked unsigned long caller_stack_write_tail_call(void)
 {
@@ -331,7 +507,7 @@ __naked unsigned long caller_stack_write_tail_call(void)
         "if r0 != 42 goto 1f;"
         "goto 2f;"
   "1:"
-        "*(u64 *)(r10 - 8) = -1024;"
+        "*(u64 *)(r10 - 8) = -4096;"
   "2:"
         "r1 = r6;"
         "r2 = r10;"
@@ -806,9 +982,9 @@ void __kfunc_btf_root(void)
  */
 SEC("socket")
 __success __log_level(2)
-__msg(" 6: (85) call bpf_iter_num_new{{.*}}          ; def: fp0-24{{$}}")
-__msg(" 9: (85) call bpf_iter_num_next{{.*}}         ; use: fp0-24{{$}}")
-__msg("14: (85) call bpf_iter_num_destroy{{.*}}      ; use: fp0-24{{$}}")
+__msg(" 6: (85) call bpf_iter_num_new{{.*}}          ; def: fp0-24 may_def: fp0-24{{$}}")
+__msg(" 9: (85) call bpf_iter_num_next{{.*}}         ; use: fp0-24 may_def: fp0-24{{$}}")
+__msg("14: (85) call bpf_iter_num_destroy{{.*}}      ; use: fp0-24 may_def: fp0-24{{$}}")
 __naked void kfunc_iter_stack_liveness(void)
 {
 	asm volatile (
@@ -1009,8 +1185,9 @@ __naked void four_byte_read_upper_half(void)
  */
 SEC("socket")
 __log_level(2)
-__msg("0: (7a) *(u64 *)(r10 -8) = 0         ; def: fp0-8")
-__msg("1: (6a) *(u16 *)(r10 -4) = 0{{$}}")
+__msg("0: (7a) *(u64 *)(r10 -8) = 0         ; def: fp0-8 may_def: fp0-8")
+/* 2-byte write only partially covers the upper half: may_def, but no def. */
+__msg("1: (6a) *(u16 *)(r10 -4) = 0         ; may_def: fp0-4h")
 __msg("2: (61) r0 = *(u32 *)(r10 -4)        ; use: fp0-4h")
 __naked void two_byte_write_no_kill(void)
 {
@@ -1357,9 +1534,12 @@ __naked void fp_spill_loses_precision_kills_liveness(void)
  */
 SEC("socket")
 __log_level(2)
-/* fp-8 live at call (callee conditionally writes → slot not killed) */
-__msg("1: (7b) *(u64 *)(r10 -8) = r1        ; def: fp0-8")
-__msg("4: (85) call pc+2{{$}}")
+/*
+ * fp-8 live at call: callee conditionally writes it, so the slot is not killed
+ * (no def), but the conditional write surfaces as may_def at the call site.
+ */
+__msg("1: (7b) *(u64 *)(r10 -8) = r1        ; def: fp0-8 may_def: fp0-8")
+__msg("4: (85) call pc+2                    ; may_def: fp0-8")
 __msg("5: (79) r0 = *(u64 *)(r10 -8)        ; use: fp0-8")
 __naked void conditional_stx_in_subprog(void)
 {
@@ -1464,7 +1644,7 @@ static __used __naked void inner_reader(void)
 SEC("socket")
 __log_level(2)
 /* fp-8 NOT live at call: callee writes before reading (parent_def kills it) */
-__msg("2: .12345.... (85) call pc+")
+__msg("2: .1........ (85) call pc+")
 __naked void callee_must_write_before_read(void)
 {
 	asm volatile (
@@ -1947,15 +2127,15 @@ static __used __naked void fwd_parent_key_to_helper(void)
 
 /*
  * Regression for keeping later helper args after a whole-stack fallback
- * on an earlier local arg.  The first bpf_snprintf() arg is a local
+ * on an earlier local arg.  The bpf_map_update_elem() key is a local
  * frame-derived pointer with offset-imprecise tracking (`fp1 ?`), which
- * conservatively marks the whole local stack live.  The fourth arg still
+ * conservatively marks the whole local stack live.  The value arg still
  * forwards &parent_fp-8 and must contribute nonlocal_use[0]=0:3.
  */
 SEC("socket")
 __log_level(2)
 __success
-__msg("call bpf_snprintf{{.*}}        ; use: fp1-8..-512 fp0-8")
+__msg("call bpf_map_update_elem{{.*}}; use: fp1-8..-{{(512|2048)}} fp0-8")
 __naked void helper_arg_fallback_keeps_scanning(void)
 {
 	asm volatile (
@@ -1963,32 +2143,33 @@ __naked void helper_arg_fallback_keeps_scanning(void)
 	"*(u64 *)(r10 - 8) = r1;"
 	"r1 = r10;"
 	"r1 += -8;"
-	"call helper_snprintf_parent_after_local_fallback;"
+	"call helper_update_parent_after_local_fallback;"
 	"r0 = 0;"
 	"exit;"
 	::: __clobber_all);
 }
 
-static __used __naked void helper_snprintf_parent_after_local_fallback(void)
+static __used __naked void helper_update_parent_after_local_fallback(void)
 {
 	asm volatile (
 	"r6 = r1;"				/* save &parent_fp-8 */
 	"call %[bpf_get_prandom_u32];"
 	"r0 &= 8;"
-	"r1 = r10;"
-	"r1 += -16;"
-	"r1 += r0;"				/* local fp, offset-imprecise */
-	"r2 = 8;"
-	"r3 = %[snprintf_u64_fmt] ll;"
-	"r4 = r6;"				/* later arg: parent fp-8 */
-	"r5 = 8;"
-	"call %[bpf_snprintf];"
+	"*(u64 *)(r10 - 16) = 0;"
+	"*(u64 *)(r10 - 8) = 0;"
+	"r2 = r10;"
+	"r2 += -16;"
+	"r2 += r0;"				/* local fp, offset-imprecise */
+	"r1 = %[array_map_8b] ll;"
+	"r3 = r6;"				/* later arg: parent fp-8 */
+	"r4 = 0;"
+	"call %[bpf_map_update_elem];"
 	"r0 = 0;"
 	"exit;"
 	:
 	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_snprintf),
-	  __imm_addr(snprintf_u64_fmt)
+	  __imm(bpf_map_update_elem),
+	  __imm_addr(array_map_8b)
 	: __clobber_all);
 }
 
@@ -2268,7 +2449,11 @@ static __used __naked void merge_leaf_read(void)
 SEC("socket")
 __log_level(2)
 __success
-__msg("call bpf_loop#181            ; use: fp2-8..-512 fp1-8..-512 fp0-8..-512")
+__msg("stack use/def subprog#0 bpf_loop_two_callbacks (d0,cs0):")
+__msg("5: (85) call pc+{{.*}};{{.*}} may_def: fp0-8..-{{(512|2048)}}{{$}}")
+__msg("8: (85) call pc+{{.*}};{{.*}} may_def: fp0-8..-{{(512|2048)}}{{$}}")
+__msg("call bpf_loop#181            ; use: fp2-8..-{{(512|2048)}} fp1-8..-{{(512|2048)}} fp0-8..-{{(512|2048)}}"
+      " may_def: fp2-8..-{{(512|2048)}} fp1-8..-{{(512|2048)}} fp0-8..-{{(512|2048)}}{{$}}")
 __naked void bpf_loop_two_callbacks(void)
 {
 	asm volatile (
@@ -2386,8 +2571,27 @@ __flag(BPF_F_TEST_STATE_FREQ)
 __msg("subprog#2 write_first_read_second:")
 __msg("17: (7a) *(u64 *)(r1 +0) = 42{{$}}")
 __msg("18: (79) r0 = *(u64 *)(r2 +0) // r1=fp0-8 r2=fp0-16{{$}}")
+/*
+ * The callee's write into the caller frame is summarized as may_def at the
+ * call sites, transitively across both frames (depth 2 -> 1 -> 0). The two
+ * call sites differ because the shared write_first_read_second instance
+ * accumulates the cross-pass union ({fp-8, fp-16}) at different points
+ * relative to each forwarding_rw's summarization.
+ */
+__msg("stack use/def subprog#0 shared_instance_must_write_overwrite (d0,cs0):")
+__msg("7: (85) call pc+7                    ; use: fp0-8 fp0-16 may_def: fp0-8 fp0-16")
+__msg("12: (85) call pc+2                    ; use: fp0-8 may_def: fp0-16")
+__msg("stack use/def subprog#1 forwarding_rw (d1,cs7):")
+__msg("15: (85) call pc+1                    ; use: fp0-8 fp0-16 may_def: fp0-8 fp0-16")
+__msg("stack use/def subprog#1 forwarding_rw (d1,cs12):")
+__msg("15: (85) call pc+1                    ; use: fp0-8 may_def: fp0-16")
 __msg("stack use/def subprog#2 write_first_read_second (d2,cs15):")
-__msg("17: (7a) *(u64 *)(r1 +0) = 42{{$}}")
+/*
+ * Shared across two callsites with swapped args (r1 is fp-8 on one pass,
+ * fp-16 on the other): must_write intersects to empty (no def), may_write
+ * unions to both slots.
+ */
+__msg("17: (7a) *(u64 *)(r1 +0) = 42         ; may_def: fp0-8 fp0-16")
 __msg("18: (79) r0 = *(u64 *)(r2 +0)         ; use: fp0-8 fp0-16")
 __naked void shared_instance_must_write_overwrite(void)
 {
@@ -2425,6 +2629,65 @@ static __used __naked void write_first_read_second(void)
 	asm volatile (
 	"*(u64 *)(r1 + 0) = 42;"
 	"r0 = *(u64 *)(r2 + 0);"
+	"exit;"
+	::: __clobber_all);
+}
+
+/*
+ * merge_instances() must preserve may_write when one pass doesn't touch a frame.
+ * mvs_leaf is reached through a single callsite (mvs_mid) from two outer chains,
+ * so it is one shared (depth,callsite) instance analyzed twice and merged:
+ * - chain A passes r2 = map value, mvs_leaf's doesn't touch stack;
+ * - chain B passes r2 = caller stack slot fp-8.
+ * The merge must keep the stack pass's may_write even though the map pass left
+ * frame 0 untouched.
+ */
+SEC("socket")
+__success
+__log_level(2)
+__msg("stack use/def subprog#2 mvs_leaf (d2,cs19):")
+__msg("21: (7a) *(u64 *)(r2 +0) = 42         ; may_def: fp0-8")
+__naked void merge_preserves_may_write(void)
+{
+	asm volatile (
+	"r1 = 0;"
+	"*(u64 *)(r10 - 24) = r1;"		/* map key */
+	"r1 = %[map] ll;"
+	"r2 = r10;"
+	"r2 += -24;"
+	"call %[bpf_map_lookup_elem];"
+	"if r0 == 0 goto 1f;"
+	/* chain A: r2 = map value (ARG_NONE, not stack) */
+	"r1 = r10;"
+	"r1 += -16;"				/* unused fp anchor */
+	"r2 = r0;"
+	"call mvs_mid;"
+	/* chain B: r2 = caller stack slot fp-8 */
+	"r1 = r10;"
+	"r1 += -16;"
+	"r2 = r10;"
+	"r2 += -8;"
+	"call mvs_mid;"
+"1:"
+	"r0 = 0;"
+	"exit;"
+	: : __imm(bpf_map_lookup_elem), __imm_addr(map)
+	: __clobber_all);
+}
+
+static __used __naked void mvs_mid(void)
+{
+	asm volatile (
+	"call mvs_leaf;"
+	"exit;"
+	::: __clobber_all);
+}
+
+static __used __naked void mvs_leaf(void)
+{
+	asm volatile (
+	"*(u64 *)(r2 + 0) = 42;"
+	"r0 = 0;"
 	"exit;"
 	::: __clobber_all);
 }
@@ -2512,6 +2775,153 @@ __naked void load_acquire_dont_clear_dst(void)
 }
 
 #endif /* CAN_USE_LOAD_ACQ_STORE_REL */
+
+SEC("socket")
+__log_level(2)
+__success
+__msg("lock *(u64 *)(r10 -8) += r1{{.*}}use: fp0-8{{.*}}may_def: fp0-8")
+__msg("r1 = atomic64_fetch_add((u64 *)(r10 -8), r1){{.*}}use: fp0-8{{.*}}may_def: fp0-8")
+__msg("r1 = atomic64_xchg((u64 *)(r10 -8), r1){{.*}}use: fp0-8{{.*}}may_def: fp0-8")
+__msg("r0 = atomic64_cmpxchg((u64 *)(r10 -8), r0, r1){{.*}}use: fp0-8{{.*}}may_def: fp0-8")
+__naked void atomic_rmw(void)
+{
+	asm volatile (
+	"r1 = 0;"
+	"*(u64 *)(r10 - 8) = r1;"
+	".8byte %[atomic_add];"
+	".8byte %[atomic_fetch_add];"
+	".8byte %[atomic_xchg];"
+	"r0 = 0;"
+	".8byte %[atomic_cmpxchg];"
+	"exit;"
+	:
+	: __imm_insn(atomic_add, BPF_ATOMIC_OP(BPF_DW, BPF_ADD, BPF_REG_10, BPF_REG_1, -8)),
+	  __imm_insn(atomic_fetch_add, BPF_ATOMIC_OP(BPF_DW, BPF_ADD | BPF_FETCH, BPF_REG_10, BPF_REG_1, -8)),
+	  __imm_insn(atomic_xchg, BPF_ATOMIC_OP(BPF_DW, BPF_XCHG, BPF_REG_10, BPF_REG_1, -8)),
+	  __imm_insn(atomic_cmpxchg, BPF_ATOMIC_OP(BPF_DW, BPF_CMPXCHG, BPF_REG_10, BPF_REG_1, -8))
+	: __clobber_all);
+}
+
+#ifdef CAN_USE_LOAD_ACQ_STORE_REL
+
+/*
+ * An 8-byte load-acquire from a spill slot restores the spilled register.
+ * The store through the restored pointer is a definite write to fp-8.
+ */
+SEC("socket")
+__log_level(2)
+__success
+__msg("r2 = load_acquire((u64 *)(r10 -16)){{.*}}use: fp0-16")
+__msg("*(u64 *)(r2 +0) = 42{{.*}}def: fp0-8 may_def: fp0-8")
+__naked void load_acquire_fills_spilled_ptr(void)
+{
+	asm volatile (
+	"r1 = r10;"
+	"r1 += -8;"
+	"*(u64 *)(r10 - 16) = r1;"		/* fp-16 = &fp-8 */
+	".8byte %[load_acquire_insn];"		/* r2 = load_acquire(fp-16) */
+	"*(u64 *)(r2 + 0) = 42;"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_insn(load_acquire_insn,
+		     BPF_ATOMIC_OP(BPF_DW, BPF_LOAD_ACQ, BPF_REG_2, BPF_REG_10, -16))
+	: __clobber_all);
+}
+
+/* An 8-byte store-release spills the register, same as a plain store. */
+SEC("socket")
+__log_level(2)
+__success
+__msg("store_release((u64 *)(r10 -16), r1){{.*}}def: fp0-16")
+__msg("*(u64 *)(r2 +0) = 42{{.*}}def: fp0-8 may_def: fp0-8")
+__naked void store_release_spills_ptr(void)
+{
+	asm volatile (
+	"r1 = r10;"
+	"r1 += -8;"
+	".8byte %[store_release_insn];"		/* store_release(fp-16, r1): fp-16 = &fp-8 */
+	"r2 = *(u64 *)(r10 - 16);"
+	"*(u64 *)(r2 + 0) = 42;"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_insn(store_release_insn,
+		     BPF_ATOMIC_OP(BPF_DW, BPF_STORE_REL, BPF_REG_10, BPF_REG_1, -16))
+	: __clobber_all);
+}
+
+#endif /* CAN_USE_LOAD_ACQ_STORE_REL */
+
+/* Stack fills through xchg, fetch_add and cmpxchg instructions. */
+SEC("socket")
+__log_level(2)
+__success
+__msg("r2 = atomic64_xchg((u64 *)(r10 -16), r2){{.*}}use: fp0-16{{.*}}may_def: fp0-16")
+__msg("*(u64 *)(r2 +0) = 42{{.*}}def: fp0-8 may_def: fp0-8")
+__msg("r3 = atomic64_fetch_add((u64 *)(r10 -16), r3){{.*}}use: fp0-16{{.*}}may_def: fp0-16")
+__msg("*(u64 *)(r3 +0) = 42{{.*}}def: fp0-8 may_def: fp0-8")
+__msg("r0 = atomic64_cmpxchg((u64 *)(r10 -16), r0, r4){{.*}}use: fp0-16{{.*}}may_def: fp0-16")
+__msg("*(u64 *)(r0 +0) = 42{{.*}}def: fp0-8 may_def: fp0-8")
+__naked void atomic_rmw_fills_spilled_ptr(void)
+{
+	asm volatile (
+	"r1 = r10;"
+	"r1 += -8;"
+	"*(u64 *)(r10 - 16) = r1;"		/* fp-16 = &fp-8 */
+	"r2 = 0;"
+	".8byte %[atomic_xchg];"		/* r2 = xchg(fp-16, r2) */
+	"*(u64 *)(r2 + 0) = 42;"
+	"*(u64 *)(r10 - 16) = r1;"
+	"r3 = 0;"
+	".8byte %[atomic_fetch_add];"		/* r3 = fetch_add(fp-16, r3) */
+	"*(u64 *)(r3 + 0) = 42;"
+	"*(u64 *)(r10 - 16) = r1;"
+	"r0 = 0;"
+	"r4 = 0;"
+	".8byte %[atomic_cmpxchg];"		/* r0 = cmpxchg(fp-16, r0, r4) */
+	"*(u64 *)(r0 + 0) = 42;"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_insn(atomic_xchg, BPF_ATOMIC_OP(BPF_DW, BPF_XCHG, BPF_REG_10, BPF_REG_2, -16)),
+	  __imm_insn(atomic_fetch_add, BPF_ATOMIC_OP(BPF_DW, BPF_ADD | BPF_FETCH, BPF_REG_10, BPF_REG_3, -16)),
+	  __imm_insn(atomic_cmpxchg, BPF_ATOMIC_OP(BPF_DW, BPF_CMPXCHG, BPF_REG_10, BPF_REG_4, -16))
+	: __clobber_all);
+}
+
+/* xchg returning caller's &fp-8. */
+SEC("socket")
+__log_level(2)
+__success
+__msg("r2 = atomic64_xchg((u64 *)(r1 +0), r2){{.*}}use: fp0-16{{.*}}may_def: fp0-16")
+__msg("*(u64 *)(r2 +0) = 42{{.*}}; may_def: fp0-8")
+__naked void atomic_rmw_fills_parent_spilled_ptr(void)
+{
+	asm volatile (
+	"r1 = r10;"
+	"r1 += -8;"
+	"*(u64 *)(r10 - 16) = r1;"		/* fp-16 = &fp-8 */
+	"r1 = r10;"
+	"r1 += -16;"
+	"call atomic_rmw_fills_parent_spilled_ptr_callee;"
+	"r0 = 0;"
+	"exit;"
+	::: __clobber_all);
+}
+
+static __used __naked void atomic_rmw_fills_parent_spilled_ptr_callee(void)
+{
+	asm volatile (
+	"r2 = 0;"
+	".8byte %[atomic_xchg];"		/* r2 = xchg(r1, r2) == caller's &fp-8 */
+	"*(u64 *)(r2 + 0) = 42;"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_insn(atomic_xchg, BPF_ATOMIC_OP(BPF_DW, BPF_XCHG, BPF_REG_1, BPF_REG_2, 0))
+	: __clobber_all);
+}
 
 SEC("socket")
 __success
@@ -2838,5 +3248,199 @@ static __used __naked void imprecise_dst_spill_join_sub(void)
 	"r0 = 0;"
 	"exit;"
 	:: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/*
+ * A store that does not fully cover a 4-byte half-slot defines nothing, so a
+ * narrow store at the top of the frame must not turn any slot into a "def",
+ * least of all every slot of the frame: the earlier data at fp-8 stays live.
+ */
+SEC("socket")
+__log_level(2)
+__msg("0: (79) r0 = *(u64 *)(r10 -8)        ; use: fp0-8")
+/* narrow stores define nothing, but they may write the half-slot they touch */
+__msg("1: (73) *(u8 *)(r10 -1) = r0         ; may_def: fp0-4h")
+__msg("2: (6b) *(u16 *)(r10 -4) = r0        ; may_def: fp0-4h")
+__msg("3: (79) r0 = *(u64 *)(r10 -8)        ; use: fp0-8")
+__naked void narrow_store_defines_nothing(void)
+{
+	asm volatile (
+	"r0 = *(u64 *)(r10 - 8);"
+	"*(u8 *)(r10 - 1) = r0;"
+	"*(u16 *)(r10 - 4) = r0;"
+	"r0 = *(u64 *)(r10 - 8);"
+	"exit;"
+	::: __clobber_all);
+}
+
+/*
+ * The same callee instance is analyzed twice: the call sites are visited in
+ * postorder, so the second one goes first with a precise pointer 248 bytes
+ * into the main frame, and the first one then passes a pointer of unknown
+ * offset, which reads the whole frame. The precise pass stays within the
+ * first word of the masks on 64-bit, so the whole-frame pass is wider under
+ * every stack budget and merging the second into the first has to widen the
+ * masks while keeping the whole-frame read.
+ */
+SEC("socket")
+__log_level(2)
+__msg("stack use/def subprog#{{[0-9]+}} merge_read_all_callee (d2,cs{{[0-9]+}}):")
+__msg("(79) r0 = *(u64 *)(r1 +0){{.*}}; use: fp0-8..-{{(512|2048)}}")
+__naked void merge_keeps_whole_frame_read(void)
+{
+	asm volatile (
+	"r1 = 0;"
+	"*(u64 *)(r10 - 8) = r1;"
+	"*(u64 *)(r10 - 16) = r1;"
+	"*(u64 *)(r10 - 248) = r1;"
+	"call %[bpf_get_prandom_u32];"
+	"r0 &= 8;"
+	"r1 = r10;"
+	"r1 += -16;"
+	"r1 += r0;"
+	"call merge_read_all_mid;"
+	"r1 = r10;"
+	"r1 += -248;"
+	"call merge_read_all_mid;"
+	"r0 = 0;"
+	"exit;"
+	:: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+static __used __naked void merge_read_all_mid(void)
+{
+	asm volatile (
+	"call merge_read_all_callee;"
+	"exit;"
+	::: __clobber_all);
+}
+
+static __used __naked void merge_read_all_callee(void)
+{
+	asm volatile (
+	"r0 = *(u64 *)(r1 + 0);"
+	"exit;"
+	::: __clobber_all);
+}
+
+/*
+ * A frame pointer spilled below fp-512 is a spill like any other: the fill
+ * restores its identity, and a load through it reads only the slot it names
+ * instead of the whole frame.
+ */
+SEC("socket")
+__log_level(2)
+__load_if_large_stack()
+__msg("(79) r0 = *(u64 *)(r1 +0){{.*}}; use: fp0-8{{$}}")
+__naked void spill_below_512_stays_precise(void)
+{
+	asm volatile (
+	"r1 = 0;"
+	"*(u64 *)(r10 - 8) = r1;"
+	"r1 = r10;"
+	"r1 += -8;"
+	"*(u64 *)(r10 - 520) = r1;"
+	"r1 = *(u64 *)(r10 - 520);"
+	"r0 = *(u64 *)(r1 + 0);"
+	"exit;"
+	::: __clobber_all);
+}
+
+/* Unknown-size outputs still carry a possible write, without a read or kill. */
+SEC("socket")
+__success __log_level(2)
+__msg("call bpf_probe_read_kernel{{.*}}; may_def: fp0-8{{$}}")
+__naked void helper_output_unknown_size(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r0 &= 7;"
+	"r0 += 1;"
+	"r2 = r0;"
+	"r1 = r10;"
+	"r1 += -8;"
+	"r3 = 0;"
+	"call %[bpf_probe_read_kernel];"
+	"r0 = 0;"
+	"exit;"
+	:: __imm(bpf_get_prandom_u32), __imm(bpf_probe_read_kernel)
+	: __clobber_all);
+}
+
+struct {
+	__uint(type, BPF_MAP_TYPE_QUEUE);
+	__uint(max_entries, 1);
+	__type(value, __u64);
+} queue_8b SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_QUEUE);
+	__uint(max_entries, 1);
+	__type(value, __u64[2]);
+} queue_16b SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_BLOOM_FILTER);
+	__uint(max_entries, 16);
+	__type(value, __u64);
+} bloom_8b SEC(".maps");
+
+SEC("socket")
+__success __log_level(2)
+__msg("call bpf_map_pop_elem{{.*}}; def: fp0-16")
+__naked void helper_map_output_known_size(void)
+{
+	asm volatile (
+	"r1 = %[queue_8b] ll;"
+	"r2 = r10;"
+	"r2 += -16;"
+	"call %[bpf_map_pop_elem];"
+	"r0 = 0;"
+	"exit;"
+	:: __imm_addr(queue_8b), __imm(bpf_map_pop_elem)
+	: __clobber_all);
+}
+
+/* The maximum map value size is not a guaranteed output extent. */
+SEC("socket")
+__success __log_level(2)
+__msg("call bpf_map_pop_elem{{.*}}; use: fp0-16 fp0-24 may_def: fp0-16 fp0-24{{$}}")
+__naked void helper_map_output_merged_sizes(void)
+{
+	asm volatile (
+	"*(u64 *)(r10 - 16) = 0;"
+	"*(u64 *)(r10 - 24) = 0;"
+	"call %[bpf_get_prandom_u32];"
+	"r1 = %[queue_8b] ll;"
+	"if r0 == 0 goto 1f;"
+	"r1 = %[queue_16b] ll;"
+"1:"
+	"r2 = r10;"
+	"r2 += -24;"
+	"call %[bpf_map_pop_elem];"
+	"r0 = 0;"
+	"exit;"
+	:: __imm_addr(queue_8b), __imm_addr(queue_16b),
+	   __imm(bpf_get_prandom_u32), __imm(bpf_map_pop_elem)
+	: __clobber_all);
+}
+
+/* Bloom-filter peek treats buffer as an input despite the helper's output annotation. */
+SEC("socket")
+__success __log_level(2)
+__msg("call bpf_map_peek_elem{{.*}}; use: fp0-8{{$}}")
+__naked void helper_bloom_peek_input(void)
+{
+	asm volatile (
+	"*(u64 *)(r10 - 8) = 0;"
+	"r1 = %[bloom_8b] ll;"
+	"r2 = r10;"
+	"r2 += -8;"
+	"call %[bpf_map_peek_elem];"
+	"r0 = 0;"
+	"exit;"
+	:: __imm_addr(bloom_8b), __imm(bpf_map_peek_elem)
 	: __clobber_all);
 }

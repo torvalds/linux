@@ -3525,17 +3525,7 @@ static struct platform_driver gcc_sm6115_driver = {
 	},
 };
 
-static int __init gcc_sm6115_init(void)
-{
-	return platform_driver_register(&gcc_sm6115_driver);
-}
-subsys_initcall(gcc_sm6115_init);
-
-static void __exit gcc_sm6115_exit(void)
-{
-	platform_driver_unregister(&gcc_sm6115_driver);
-}
-module_exit(gcc_sm6115_exit);
+subsys_platform_driver(gcc_sm6115_driver);
 
 MODULE_DESCRIPTION("QTI GCC SM6115 and SM4250 Driver");
 MODULE_LICENSE("GPL v2");

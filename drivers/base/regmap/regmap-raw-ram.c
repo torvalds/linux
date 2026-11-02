@@ -16,14 +16,17 @@
 
 #include "internal.h"
 
-static unsigned int decode_reg(enum regmap_endian endian, const void *reg)
+static unsigned int decode_reg(struct regmap_ram_data *data, const void *reg)
 {
 	const u16 *r = reg;
+	unsigned int decode;
 
-	if (endian == REGMAP_ENDIAN_BIG)
-		return be16_to_cpu(*r);
+	if (data->reg_endian == REGMAP_ENDIAN_BIG)
+		decode = be16_to_cpu(*r);
 	else
-		return le16_to_cpu(*r);
+		decode = le16_to_cpu(*r);
+
+	return decode - data->base_reg;
 }
 
 static int regmap_raw_ram_gather_write(void *context,
@@ -40,7 +43,7 @@ static int regmap_raw_ram_gather_write(void *context,
 	if (val_len % 2)
 		return -EINVAL;
 
-	r = decode_reg(data->reg_endian, reg);
+	r = decode_reg(data, reg);
 	if (data->noinc_reg && data->noinc_reg(data, r)) {
 		memcpy(&our_buf[r], val + val_len - 2, 2);
 		data->written[r] = true;
@@ -74,7 +77,7 @@ static int regmap_raw_ram_read(void *context,
 	if (val_len % 2)
 		return -EINVAL;
 
-	r = decode_reg(data->reg_endian, reg);
+	r = decode_reg(data, reg);
 	if (data->noinc_reg && data->noinc_reg(data, r)) {
 		for (i = 0; i < val_len; i += 2)
 			memcpy(val + i, &our_buf[r], 2);
@@ -114,6 +117,7 @@ struct regmap *__regmap_init_raw_ram(struct device *dev,
 				     const char *lock_name)
 {
 	struct regmap *map;
+	unsigned int regs;
 
 	if (config->reg_bits != 16)
 		return ERR_PTR(-EINVAL);
@@ -123,11 +127,12 @@ struct regmap *__regmap_init_raw_ram(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	data->read = kzalloc_objs(bool, config->max_register + 1);
+	regs = config->max_register - data->base_reg + 1;
+	data->read = kzalloc_objs(bool, regs);
 	if (!data->read)
 		return ERR_PTR(-ENOMEM);
 
-	data->written = kzalloc_objs(bool, config->max_register + 1);
+	data->written = kzalloc_objs(bool, regs);
 	if (!data->written)
 		return ERR_PTR(-ENOMEM);
 

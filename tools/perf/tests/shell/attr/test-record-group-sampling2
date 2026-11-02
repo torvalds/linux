@@ -1,8 +1,9 @@
 [config]
 command = record
-args    = --no-bpf-event -c 10000 -e '{cycles,cache-misses}:S' kill >/dev/null 2>&1
+args    = --no-bpf-event -c 10000 -e '{cycles,default_core/legacy-hardware-config=3/}:S' kill >/dev/null 2>&1
 ret     = 1
 kernel_since = 6.12
+requires = core-pmu
 
 [event-1:base-record]
 fd=1
@@ -36,7 +37,7 @@ write_backward=0
 fd=2
 group_fd=1
 
-# cache-misses
+# cache-misses, explicitly requested with the legacy hardware encoding
 type=0
 config=3
 

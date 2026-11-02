@@ -38,9 +38,9 @@
  * Note that 'x' is the original expression, and 'ux' is the unique variable
  * that contains the value.
  *
- * We use 'ux' for pure type checking, and 'x' for when we need to look at the
- * value (but without evaluating it for side effects!
- * Careful to only ever evaluate it with sizeof() or __builtin_constant_p() etc).
+ * We use 'ux' for both the type and the value checks, so 'x' itself is only
+ * expanded twice: once to initialise 'ux', and once quoted in the error
+ * message.
  *
  * Pointers end up being checked by the normal C type rules at the actual
  * comparison, and these expressions only need to be careful to not cause

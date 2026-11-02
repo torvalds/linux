@@ -196,9 +196,9 @@ static inline int __diag204(unsigned long *subcode, unsigned long size, void *ad
 	union register_pair rp = { .even = *subcode, .odd = size };
 
 	asm_inline volatile(
-		"	diag	%[addr],%[rp],0x204\n"
-		"0:	nopr	%%r7\n"
-		EX_TABLE(0b,0b)
+		"0:	diag	%[addr],%[rp],0x204\n"
+		"1:\n"
+		EX_TABLE_INSN(0b, 1b)
 		: [rp] "+&d" (rp.pair) : [addr] "d" (addr) : "memory");
 	*subcode = rp.even;
 	return rp.odd;
@@ -287,10 +287,10 @@ int diag224(void *ptr)
 
 	diag_stat_inc(DIAG_STAT_X224);
 	asm_inline volatile("\n"
-		"	diag	%[type],%[addr],0x224\n"
-		"0:	lhi	%[rc],0\n"
+		"0:	diag	%[type],%[addr],0x224\n"
+		"	lhi	%[rc],0\n"
 		"1:\n"
-		EX_TABLE(0b,1b)
+		EX_TABLE_INSN(0b, 1b)
 		: [rc] "+d" (rc)
 		, "=m" (*(struct { char buf[PAGE_SIZE]; } *)ptr)
 		: [type] "d" (0), [addr] "d" (addr));

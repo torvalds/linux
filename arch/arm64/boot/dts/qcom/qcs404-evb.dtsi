@@ -101,8 +101,6 @@
 &pcie {
 	status = "okay";
 
-	perst-gpios = <&tlmm 43 GPIO_ACTIVE_LOW>;
-
 	pinctrl-names = "default";
 	pinctrl-0 = <&perst_state>;
 };
@@ -112,6 +110,10 @@
 
 	vdda-vp-supply = <&vreg_l3_1p05>;
 	vdda-vph-supply = <&vreg_l5_1p8>;
+};
+
+&pcie_port0 {
+	reset-gpios = <&tlmm 43 GPIO_ACTIVE_LOW>;
 };
 
 &remoteproc_adsp {

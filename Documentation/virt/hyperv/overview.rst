@@ -114,11 +114,13 @@ a shared page or remove an overlay page after the new kernel is
 using the page for a different purpose, corrupting the new kernel.
 Hyper-V does not provide a single "set everything" operation to
 guest VMs, so Linux code must individually revoke all sharing before
-doing kexec.   See hv_kexec_handler() and hv_crash_handler().  But
-the crash/panic path still has holes in cleanup because some shared
-pages are set using per-CPU synthetic registers and there's no
-mechanism to revoke the shared pages for CPUs other than the CPU
-running the panic path.
+doing kexec.  For a normal kexec reboot, the VMBus driver calls
+hv_kexec_handler() from its syscore shutdown callback, after device
+shutdown and before the architecture-specific machine shutdown.  The
+crash/panic path uses hv_crash_handler(), but still has holes in
+cleanup because some shared pages are set using per-CPU synthetic
+registers and there is no mechanism to revoke the shared pages for
+CPUs other than the CPU running the panic path.
 
 CPU Management
 --------------
@@ -132,11 +134,11 @@ Starting in Windows Server 2022 Hyper-V, the ACPI tables reflect
 only the CPUs actually present in the VM, so Linux does not report
 any hot-add CPUs.
 
-A Linux guest CPU may be taken offline using the normal Linux
-mechanisms, provided no VMBus channel interrupts are assigned to
-the CPU.  See the section on VMBus Interrupts for more details
-on how VMBus channel interrupts can be re-assigned to permit
-taking a CPU offline.
+A Linux guest CPU may be taken offline, and subsequently brought
+back online, using the normal Linux mechanisms. See the "VMBus
+Interrupts" section of Documentation/virt/hyperv/vmbus.rst
+documentation for how VMBus channel interrupts are automatically
+re-assigned if necessary when taking a CPU offline.
 
 32-bit and 64-bit
 -----------------
@@ -157,9 +159,9 @@ when accessing data shared with Hyper-V.
 Versioning
 ----------
 Current Linux kernels operate correctly with older versions of
-Hyper-V back to Windows Server 2012 Hyper-V. Support for running
-on the original Hyper-V release in Windows Server 2008/2008 R2
-has been removed.
+Hyper-V back to Windows Server 2016 Hyper-V and Windows 10. Support for
+running on Windows Server 2012/2012 R2, Windows Server 2008/2008 R2,
+and Windows 8.1 and earlier has been removed.
 
 A Linux guest on Hyper-V outputs in dmesg the version of Hyper-V
 it is running on.  This version is in the form of a Windows build

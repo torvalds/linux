@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/hisilicon,hi6220-stub-clk.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Hisilicon Stub Clock Controller
+
+maintainers:
+  - Wei Xu <xuwei5@hisilicon.com>
+
+description: >
+  Each clock is assigned an identifier and client nodes use this identifier
+  to specify the clock which they consume.
+
+  All these identifiers can be found in:
+    dt-bindings/clock/hi3660-clock.h.
+    dt-bindings/clock/hi6220-clock.h.
+
+properties:
+  compatible:
+    enum:
+      - hisilicon,hi3660-stub-clk
+      - hisilicon,hi6220-stub-clk
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  hisilicon,hi6220-clk-sram:
+    description:
+      syscon managing the SoC internal SRAM; driver needs the SRAM to pass
+      parameters for frequency change.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  mboxes:
+    maxItems: 1
+
+  mbox-names:
+    const: mbox-tx
+
+required:
+  - compatible
+  - '#clock-cells'
+  - mboxes
+
+additionalProperties: false

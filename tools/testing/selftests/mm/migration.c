@@ -5,7 +5,6 @@
  */
 
 #include "kselftest_harness.h"
-#include "hugepage_settings.h"
 
 #include <string.h>
 #include <pthread.h>
@@ -16,11 +15,11 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <time.h>
+
 #include "vm_util.h"
 
 #define TWOMEG		(2<<20)
 #define RUNTIME		(20)
-#define ALIGN(x, a)	(((x) + (a - 1)) & (~((a) - 1)))
 
 HUGETLB_SETUP_DEFAULT_PAGES(1)
 

@@ -44,6 +44,7 @@
 #define PCF85063_REG_CTRL2		0x01
 #define PCF85063_CTRL2_AF		BIT(6)
 #define PCF85063_CTRL2_AIE		BIT(7)
+#define PCF85063_CTRL2_TF		BIT(3)
 
 #define PCF85063_REG_OFFSET		0x02
 #define PCF85063_OFFSET_SIGN_BIT	6	/* 2's complement sign bit */
@@ -62,6 +63,14 @@
 
 #define PCF85063_REG_ALM_S		0x0b
 #define PCF85063_AEN			BIT(7)
+
+#define PCF85063_REG_TIMER_VALUE	0x10
+#define PCF85063_REG_TIMER_MODE		0x11
+#define PCF85063_TIMER_MODE_TI_TP	BIT(0)
+#define PCF85063_TIMER_MODE_TIE		BIT(1)
+#define PCF85063_TIMER_MODE_TE		BIT(2)
+#define PCF85063_TIMER_MODE_TCF_MASK	GENMASK(4, 3)
+#define PCF85063_TIMER_MODE_TCF_1HZ	(2 << 3)
 
 struct pcf85063_config {
 	struct regmap_config regmap;
@@ -188,11 +197,64 @@ static int pcf85063_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return 0;
 }
 
+/*
+ * The chip has no dedicated 1 Hz update interrupt. Drive the countdown timer
+ * at 1 Hz to emulate it, so the RTC core can offload UIE to the hardware
+ * instead of polling. A free-running timer is left untouched to preserve its
+ * phase across the per-second re-arming done by the core.
+ */
+static int pcf85063_set_timer_1hz(struct pcf85063 *pcf85063, bool enable)
+{
+	unsigned int mask = PCF85063_TIMER_MODE_TCF_MASK |
+			    PCF85063_TIMER_MODE_TIE |
+			    PCF85063_TIMER_MODE_TI_TP |
+			    PCF85063_TIMER_MODE_TE;
+	unsigned int mode = 0;
+	unsigned int cur;
+	int ret;
+
+	if (enable)
+		mode = PCF85063_TIMER_MODE_TCF_1HZ | PCF85063_TIMER_MODE_TIE |
+		       PCF85063_TIMER_MODE_TI_TP | PCF85063_TIMER_MODE_TE;
+
+	ret = regmap_read(pcf85063->regmap, PCF85063_REG_TIMER_MODE, &cur);
+	if (ret)
+		return ret;
+
+	if ((cur & mask) == mode)
+		return 0;
+
+	/* Stop the counter before changing its reload value. */
+	ret = regmap_update_bits(pcf85063->regmap, PCF85063_REG_TIMER_MODE,
+				 PCF85063_TIMER_MODE_TE, 0);
+	if (ret)
+		return ret;
+
+	if (enable) {
+		ret = regmap_write(pcf85063->regmap, PCF85063_REG_TIMER_VALUE, 1);
+		if (ret)
+			return ret;
+
+		/* Clear TF but preserve AF */
+		ret = regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL2,
+					 PCF85063_CTRL2_TF | PCF85063_CTRL2_AF, PCF85063_CTRL2_AF);
+		if (ret)
+			return ret;
+	}
+
+	return regmap_update_bits(pcf85063->regmap, PCF85063_REG_TIMER_MODE,
+				  mask, mode);
+}
+
 static int pcf85063_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct pcf85063 *pcf85063 = dev_get_drvdata(dev);
 	u8 buf[5];
 	int ret;
+
+	ret = pcf85063_set_timer_1hz(pcf85063, pcf85063->rtc->uie_rtctimer.enabled);
+	if (ret)
+		return ret;
 
 	buf[0] = bin2bcd(alrm->time.tm_sec);
 	buf[1] = bin2bcd(alrm->time.tm_min);
@@ -200,8 +262,10 @@ static int pcf85063_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	buf[3] = bin2bcd(alrm->time.tm_mday);
 	buf[4] = PCF85063_AEN; /* Do not match on week day */
 
+	/* Preserve TF */
 	ret = regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL2,
-				 PCF85063_CTRL2_AIE | PCF85063_CTRL2_AF, 0);
+				 PCF85063_CTRL2_AIE | PCF85063_CTRL2_AF | PCF85063_CTRL2_TF,
+				 PCF85063_CTRL2_TF);
 	if (ret)
 		return ret;
 
@@ -211,23 +275,33 @@ static int pcf85063_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		return ret;
 
 	return regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL2,
-				  PCF85063_CTRL2_AIE | PCF85063_CTRL2_AF,
-				  alrm->enabled ? PCF85063_CTRL2_AIE | PCF85063_CTRL2_AF : PCF85063_CTRL2_AF);
+				  PCF85063_CTRL2_AIE | PCF85063_CTRL2_AF | PCF85063_CTRL2_TF,
+				  pcf85063->rtc->aie_timer.enabled ?
+				  PCF85063_CTRL2_AIE | PCF85063_CTRL2_AF | PCF85063_CTRL2_TF :
+				  PCF85063_CTRL2_AF | PCF85063_CTRL2_TF);
 }
 
 static int pcf85063_rtc_alarm_irq_enable(struct device *dev,
 					 unsigned int enabled)
 {
 	struct pcf85063 *pcf85063 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pcf85063_set_timer_1hz(pcf85063, pcf85063->rtc->uie_rtctimer.enabled);
+	if (ret)
+		return ret;
 
 	return regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL2,
-				  PCF85063_CTRL2_AIE,
-				  enabled ? PCF85063_CTRL2_AIE : 0);
+				  PCF85063_CTRL2_AIE | PCF85063_CTRL2_TF,
+				  pcf85063->rtc->aie_timer.enabled ?
+				  PCF85063_CTRL2_AIE | PCF85063_CTRL2_TF : PCF85063_CTRL2_TF);
 }
 
 static irqreturn_t pcf85063_rtc_handle_irq(int irq, void *dev_id)
 {
 	struct pcf85063 *pcf85063 = dev_id;
+	unsigned long events = RTC_IRQF;
+	irqreturn_t ret = IRQ_NONE;
 	unsigned int val;
 	int err;
 
@@ -236,14 +310,33 @@ static irqreturn_t pcf85063_rtc_handle_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (val & PCF85063_CTRL2_AF) {
-		rtc_update_irq(pcf85063->rtc, 1, RTC_IRQF | RTC_AF);
-		regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL2,
-				   PCF85063_CTRL2_AIE | PCF85063_CTRL2_AF,
-				   0);
-		return IRQ_HANDLED;
+		events |= RTC_AF;
+		val &= ~PCF85063_CTRL2_AF;
+		ret = IRQ_HANDLED;
+	} else {
+		/* Preserve AF if it comes after the above regmap_read() */
+		val |= PCF85063_CTRL2_AF;
 	}
 
-	return IRQ_NONE;
+	if (val & PCF85063_CTRL2_TF) {
+		events |= RTC_UF;
+		val &= ~PCF85063_CTRL2_TF;
+		ret = IRQ_HANDLED;
+	} else {
+		/*
+		 * While not documented, TF demonstrates the same
+		 * write-1-to-preserve semantics as AF in real HW
+		 */
+		val |= PCF85063_CTRL2_TF;
+	}
+
+	if (ret == IRQ_HANDLED) {
+		regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL2,
+				   PCF85063_CTRL2_AF | PCF85063_CTRL2_TF, val);
+		rtc_update_irq(pcf85063->rtc, 1, events);
+	}
+
+	return ret;
 }
 
 static int pcf85063_read_offset(struct device *dev, long *offset)
@@ -432,7 +525,8 @@ static int pcf85063_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
 		if (clkout_rates[i] == rate)
 			return regmap_update_bits(pcf85063->regmap,
 				PCF85063_REG_CTRL2,
-				PCF85063_REG_CLKO_F_MASK, i);
+				PCF85063_REG_CLKO_F_MASK | PCF85063_CTRL2_AF | PCF85063_CTRL2_TF,
+				i | PCF85063_CTRL2_AF | PCF85063_CTRL2_TF);
 
 	return -EINVAL;
 }
@@ -461,7 +555,8 @@ static int pcf85063_clkout_control(struct clk_hw *hw, bool enable)
 	}
 
 	return regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL2,
-					PCF85063_REG_CLKO_F_MASK, buf);
+				  PCF85063_REG_CLKO_F_MASK | PCF85063_CTRL2_AF | PCF85063_CTRL2_TF,
+				  buf | PCF85063_CTRL2_AF | PCF85063_CTRL2_TF);
 }
 
 static int pcf85063_clkout_prepare(struct clk_hw *hw)
@@ -495,12 +590,13 @@ static const struct clk_ops pcf85063_clkout_ops = {
 	.set_rate = pcf85063_clkout_set_rate,
 };
 
-static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
+static int pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 {
-	struct clk *clk;
+	struct device *dev = pcf85063->rtc->dev.parent;
 	struct clk_init_data init = {};
-	struct device_node *node = pcf85063->rtc->dev.parent->of_node;
+	struct device_node *node = dev->of_node;
 	struct device_node *fixed_clock;
+	int ret;
 
 	fixed_clock = of_get_child_by_name(node, "clock");
 	if (fixed_clock) {
@@ -510,7 +606,7 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 		 * registered automatically when being referenced.
 		 */
 		of_node_put(fixed_clock);
-		return NULL;
+		return 0;
 	}
 
 	init.name = "pcf85063-clkout";
@@ -524,12 +620,12 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 	of_property_read_string(node, "clock-output-names", &init.name);
 
 	/* register the clock */
-	clk = devm_clk_register(&pcf85063->rtc->dev, &pcf85063->clkout_hw);
+	ret = devm_clk_hw_register(dev, &pcf85063->clkout_hw);
+	if (ret)
+		return ret;
 
-	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-
-	return clk;
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
+					   &pcf85063->clkout_hw);
 }
 #endif
 
@@ -607,6 +703,7 @@ static int pcf85063_probe(struct device *dev, struct regmap *regmap, int irq,
 			dev_warn(&pcf85063->rtc->dev,
 				 "unable to request IRQ, alarms disabled\n");
 		} else {
+			set_bit(RTC_FEATURE_UPDATE_INTERRUPT, pcf85063->rtc->features);
 			set_bit(RTC_FEATURE_ALARM, pcf85063->rtc->features);
 			device_init_wakeup(dev, true);
 			err = dev_pm_set_wake_irq(dev, irq);

@@ -36,6 +36,8 @@ struct cs_dsp_test_local {
 	int num_post_stop;
 	int num_watchdog_expired;
 
+	bool fail_post_run;
+
 	struct cs_dsp_coeff_ctl *passed_ctl[16];
 	struct cs_dsp *passed_dsp;
 };
@@ -105,6 +107,9 @@ static int cs_dsp_test_post_run_callback(struct cs_dsp *dsp)
 
 	local->passed_dsp = dsp;
 	local->num_post_run++;
+
+	if (local->fail_post_run)
+		return -EIO;
 
 	return 0;
 }
@@ -196,6 +201,33 @@ static void cs_dsp_test_run_stop_callbacks(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, local->num_post_stop, 2);
 	KUNIT_EXPECT_PTR_EQ(test, local->passed_dsp, priv->dsp);
 	local->passed_dsp = NULL;
+}
+
+static void cs_dsp_test_run_error_clears_running(struct kunit *test)
+{
+	struct cs_dsp_test *priv = test->priv;
+	struct cs_dsp_test_local *local = priv->local;
+	struct firmware *wmfw;
+
+	wmfw = cs_dsp_mock_wmfw_get_firmware(local->wmfw_builder);
+
+	KUNIT_EXPECT_EQ(test,
+			cs_dsp_power_up(priv->dsp, wmfw, "wmfw", NULL, NULL, "misc"),
+			0);
+
+	/*
+	 * By the time the post_run hook runs, the core has been started.  A
+	 * failure there stops and disables the core again, so the DSP must not
+	 * be left looking like it is running.
+	 */
+	local->fail_post_run = true;
+	KUNIT_EXPECT_EQ(test, cs_dsp_run(priv->dsp), -EIO);
+	KUNIT_EXPECT_FALSE(test, priv->dsp->running);
+
+	/* and the next run must be able to start it again */
+	local->fail_post_run = false;
+	KUNIT_EXPECT_EQ(test, cs_dsp_run(priv->dsp), 0);
+	KUNIT_EXPECT_TRUE(test, priv->dsp->running);
 }
 
 static void cs_dsp_test_ctl_v1_callbacks(struct kunit *test)
@@ -609,6 +641,7 @@ KUNIT_ARRAY_PARAM(cs_dsp_no_callbacks,
 
 static struct kunit_case cs_dsp_callbacks_adsp2_wmfwv1_test_cases[] = {
 	KUNIT_CASE_PARAM(cs_dsp_test_run_stop_callbacks, cs_dsp_callbacks_ops_gen_params),
+	KUNIT_CASE_PARAM(cs_dsp_test_run_error_clears_running, cs_dsp_callbacks_ops_gen_params),
 	KUNIT_CASE_PARAM(cs_dsp_test_ctl_v1_callbacks, cs_dsp_callbacks_ops_gen_params),
 	KUNIT_CASE_PARAM(cs_dsp_test_no_callbacks, cs_dsp_no_callbacks_gen_params),
 
@@ -617,6 +650,7 @@ static struct kunit_case cs_dsp_callbacks_adsp2_wmfwv1_test_cases[] = {
 
 static struct kunit_case cs_dsp_callbacks_adsp2_wmfwv2_test_cases[] = {
 	KUNIT_CASE_PARAM(cs_dsp_test_run_stop_callbacks, cs_dsp_callbacks_ops_gen_params),
+	KUNIT_CASE_PARAM(cs_dsp_test_run_error_clears_running, cs_dsp_callbacks_ops_gen_params),
 	KUNIT_CASE_PARAM(cs_dsp_test_ctl_v2_callbacks, cs_dsp_callbacks_ops_gen_params),
 	KUNIT_CASE_PARAM(cs_dsp_test_no_callbacks, cs_dsp_no_callbacks_gen_params),
 
@@ -625,6 +659,7 @@ static struct kunit_case cs_dsp_callbacks_adsp2_wmfwv2_test_cases[] = {
 
 static struct kunit_case cs_dsp_callbacks_halo_test_cases[] = {
 	KUNIT_CASE_PARAM(cs_dsp_test_run_stop_callbacks, cs_dsp_callbacks_ops_gen_params),
+	KUNIT_CASE_PARAM(cs_dsp_test_run_error_clears_running, cs_dsp_callbacks_ops_gen_params),
 	KUNIT_CASE_PARAM(cs_dsp_test_ctl_v2_callbacks, cs_dsp_callbacks_ops_gen_params),
 	KUNIT_CASE_PARAM(cs_dsp_test_no_callbacks, cs_dsp_no_callbacks_gen_params),
 

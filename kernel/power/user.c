@@ -218,6 +218,7 @@ static int snapshot_set_swap_area(struct snapshot_data *data,
 {
 	sector_t offset;
 	dev_t swdev;
+	int new_type;
 
 	if (swsusp_swap_in_use())
 		return -EPERM;
@@ -238,19 +239,11 @@ static int snapshot_set_swap_area(struct snapshot_data *data,
 		offset = swap_area.offset;
 	}
 
-	/*
-	 * Unpin the swap device if a swap area was already
-	 * set by SNAPSHOT_SET_SWAP_AREA.
-	 */
-	unpin_hibernation_swap_type(data->swap);
+	new_type = repin_hibernation_swap_type(data->swap, swdev, offset);
+	if (new_type < 0)
+		return new_type;
 
-	/*
-	 * User space encodes device types as two-byte values,
-	 * so we need to recode them
-	 */
-	data->swap = pin_hibernation_swap_type(swdev, offset);
-	if (data->swap < 0)
-		return swdev ? -ENODEV : -EINVAL;
+	data->swap = new_type;
 	data->dev = swdev;
 	return 0;
 }

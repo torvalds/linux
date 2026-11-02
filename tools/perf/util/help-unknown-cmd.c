@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "cache.h"
-#include "config.h"
-#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <subcmd/help.h>
-#include "../builtin.h"
-#include "levenshtein.h"
+#include <string.h>
+
 #include <linux/zalloc.h>
+#include <poll.h>
+
+#include <subcmd/help.h>
+
+#include "../builtin.h"
+#include "config.h"
+#include "levenshtein.h"
 
 static int autocorrect;
 
@@ -36,10 +39,14 @@ static int add_cmd_list(struct cmdnames *cmds, struct cmdnames *old)
 
 	if (nr > cmds->alloc) {
 		/* Choose bigger one to alloc */
+#define alloc_nr(x) (((x) + 16) * 3 / 2)
+
 		if (alloc_nr(cmds->alloc) < nr)
 			cmds->alloc = nr;
 		else
 			cmds->alloc = alloc_nr(cmds->alloc);
+
+#undef alloc_nr
 		tmp = realloc(cmds->names, cmds->alloc * sizeof(*cmds->names));
 		if (!tmp)
 			return -1;

@@ -166,8 +166,8 @@ extern void fill_inquiry_response(struct us_data *us,
  * The scsi_lock() and scsi_unlock() macros protect the sm_state and the
  * single queue element srb for write access
  */
-#define scsi_unlock(host)	spin_unlock_irq(host->host_lock)
-#define scsi_lock(host)		spin_lock_irq(host->host_lock)
+#define scsi_unlock(host)	spin_unlock_irq(&host->host_lock)
+#define scsi_lock(host)		spin_lock_irq(&host->host_lock)
 
 /* General routines provided by the usb-storage standard core */
 #ifdef CONFIG_PM

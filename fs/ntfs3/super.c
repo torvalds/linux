@@ -78,6 +78,9 @@
 #include "lib/lib.h"
 #endif
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/ntfs3.h>
+
 #ifdef CONFIG_PRINTK
 /*
  * ntfs_printk - Trace warnings/notices/errors.
@@ -280,6 +283,8 @@ enum Opt {
 	Opt_delalloc_bool,
 	Opt_ads,
 	Opt_ads_bool,
+	Opt_ugm,
+	Opt_ugm_bool,
 	Opt_err,
 };
 
@@ -308,6 +313,8 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_bool("delalloc",	Opt_delalloc_bool),
 	fsparam_flag("ads",		Opt_ads),
 	fsparam_bool("ads",		Opt_ads_bool),
+	fsparam_flag("ugm",		Opt_ugm),
+	fsparam_bool("ugm",		Opt_ugm_bool),
 	{}
 };
 // clang-format on
@@ -344,6 +351,17 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 	int opt;
 
 	opt = fs_parse(fc, ntfs_fs_parameters, param, &result);
+
+	if (opt == -ENOPARAM && strcmp(param->key, "source")) {
+		/* Show mini help. */
+		pr_err("ntfs3: unknown option \"%s\". Use uid,gid,umask,"
+		       "dmask,fmask,sys_immutable,discard,force,sparse,"
+		       "nohidden,hide_dot_files,windows_names,showmeta,acl,"
+		       "iocharset,prealloc,nocase,delalloc,ads,ugm",
+		       param->key);
+		return -ENOPARAM;
+	}
+
 	if (opt < 0)
 		return opt;
 
@@ -436,6 +454,12 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		break;
 	case Opt_ads_bool:
 		opts->ads = result.boolean;
+		break;
+	case Opt_ugm:
+		opts->ugm = 1;
+		break;
+	case Opt_ugm_bool:
+		opts->ugm = result.boolean;
 		break;
 	default:
 		/* Should not be here unless we forget add case. */
@@ -991,7 +1015,7 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 {
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	int err;
-	u32 mb, gb, boot_sector_size, sct_per_clst, record_size;
+	u32 mb, gb, boot_sector_size = 0, sct_per_clst, record_size;
 	u64 sectors, clusters, mlcn, mlcn2, mft_pos, mft2_pos, dev_size0;
 	struct NTFS_BOOT *boot;
 	struct buffer_head *bh;
@@ -1231,12 +1255,17 @@ read_boot:
 
 #ifdef CONFIG_NTFS3_64BIT_CLUSTER
 	if (clusters >= (1ull << (64 - cluster_bits)))
-		sbi->maxbytes = -1;
+		sbi->maxbytes = MAX_LFS_FILESIZE;
 	sbi->maxbytes_sparse = MAX_LFS_FILESIZE;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 #else
-	/* Maximum size for sparse file. */
-	sbi->maxbytes_sparse = (1ull << (cluster_bits + 32)) - 1;
+	/* 
+	 * Maximum size for sparse file:
+	 * 16 aligned up clusters should fit in 32 bits.
+	 * xfstest 308 on sparse file.
+	 */
+	sbi->maxbytes_sparse = (1ull << (cluster_bits + 32)) - 1 -
+			       (sbi->cluster_size << NTFS_LZNT_CUNIT);
 	sb->s_maxbytes = 0xFFFFFFFFull << cluster_bits;
 #endif
 
@@ -1259,6 +1288,8 @@ read_boot:
 	}
 
 out:
+	trace_ntfs3_init_from_boot(sb, sector_size, boot_sector_size,
+				   !!boot_block, err);
 	brelse(bh);
 
 	if (err == -EINVAL && !boot_block && dev_size0 > PAGE_SHIFT) {
@@ -1777,12 +1808,16 @@ load_root:
 	}
 
 	ntfs_create_procdir(sb);
+	trace_ntfs3_fill_super(sb, ro, sbi->cluster_size, sbi->record_size,
+			       sbi->index_size, 0);
 
 	return 0;
 
 put_inode_out:
 	iput(inode);
 out:
+	trace_ntfs3_fill_super(sb, ro, sbi->cluster_size, sbi->record_size,
+			       sbi->index_size, err);
 	/* sbi->options == options */
 	if (options) {
 		put_mount_options(sbi->options);
@@ -1915,6 +1950,7 @@ static int ntfs_init_fs_context(struct fs_context *fc)
 	opts->fs_fmask_inv = opts->fs_dmask_inv = ~current_umask();
 	opts->prealloc = 1;
 	opts->ads = 1;
+	opts->ugm = 1;
 
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 	/* Set the default value 'acl' */

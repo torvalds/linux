@@ -49,7 +49,7 @@
 		clock-frequency = <100000000>;
 	};
 
-	pcie0_refclk_gated:  pcie0-refclk-gated {
+	pcie0_refclk_gated: pcie0-refclk-gated {
 		compatible = "gpio-gate-clock";
 		clocks = <&pcie0_refclk>;
 		#clock-cells = <0>;

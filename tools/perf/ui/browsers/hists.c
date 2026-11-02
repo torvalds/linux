@@ -35,6 +35,7 @@
 
 #include "../browsers/hists.h"
 #include "../helpline.h"
+#include "../keysyms.h"
 #include "../util.h"
 #include "../ui.h"
 #include "map.h"
@@ -3579,9 +3580,12 @@ static int perf_evsel_menu__run(struct evsel_menu *menu,
 	const char *title = "Available samples";
 	int delay_secs = hbt ? hbt->refresh : 0;
 	int key;
+	const char *help_text = "ESC: exit, ENTER|->: Browse histograms";
 
-	if (ui_browser__show(&menu->b, title,
-			     "ESC: exit, ENTER|->: Browse histograms") < 0)
+	if (!symbol_conf.hybrid_merge && evlist__can_merge_hybrid(evlist, menu->env))
+		help_text = "ESC: exit, ENTER|->: Browse. Try --hybrid-merge to combine events.";
+
+	if (ui_browser__show(&menu->b, title, help_text) < 0)
 		return -1;
 
 	while (1) {

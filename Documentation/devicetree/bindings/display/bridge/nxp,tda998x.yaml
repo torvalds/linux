@@ -106,7 +106,7 @@ examples:
             video-ports = <0x230145>;
 
             #sound-dai-cells = <1>;
-                         /* DAI-format / AP_ENA reg value */
+            /* DAI-format / AP_ENA reg value */
             audio-ports = <TDA998x_SPDIF 0x04>,
                           <TDA998x_I2S 0x03>;
 

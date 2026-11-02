@@ -161,4 +161,4 @@ out_err:
 	return err;
 }
 
-DEFINE_SUITE("Use a dummy software event to keep tracking", keep_tracking);
+DEFINE_SUITE_NEEDS_MLOCK("Use a dummy software event to keep tracking", keep_tracking);

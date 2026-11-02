@@ -567,7 +567,6 @@ static int wm97xx_register_touch(struct wm97xx *wm)
 			     abs_p[2], 0);
 
 	input_set_drvdata(wm->input_dev, wm);
-	wm->input_dev->dev.parent = wm->dev;
 
 	ret = input_register_device(wm->input_dev);
 	if (ret)

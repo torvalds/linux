@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2026 Marek Vasut
+ */
+
+&lt9211_codec {
+	ports {
+		port@2 {
+			reg = <2>;
+
+			lt9211_out_a: endpoint {
+				remote-endpoint = <&panel_lvds_a>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+
+			lt9211_out_b: endpoint {
+				remote-endpoint = <&panel_lvds_b>;
+			};
+		};
+	};
+};
+
+&panel_lvds_a {
+	remote-endpoint = <&lt9211_out_a>;
+};
+
+&panel_lvds_b {
+	remote-endpoint = <&lt9211_out_b>;
+};

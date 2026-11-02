@@ -16,6 +16,7 @@ bool dml2_cga_create(enum dml2_project_id project_id, struct dml2_clock_granular
 	switch (project_id) {
 	case dml2_project_dcn4x_stage1:
 	case dml2_project_dcn42:
+	case dml2_project_dcn42b:
 	case dml2_project_dcn4x_stage2:
 	case dml2_project_dcn4x_stage2_auto_drr_svp:
 	case dml2_project_dcn4x_utm:

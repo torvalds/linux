@@ -2119,6 +2119,7 @@ static u8 rtw8851b_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_p
 static void rtw8851b_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc_module *md = &rtwdev->btc.mdinfo;
+	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
 
 	md->rfe_type = rtwdev->efuse.rfe_type;
 	md->kt_ver = rtwdev->hal.cv;
@@ -2126,6 +2127,8 @@ static void rtw8851b_btc_set_rfe(struct rtw89_dev *rtwdev)
 	md->bt0_sw_type = BTC_SWITCH_INTERNAL;
 	md->ant.isolation = 10;
 	md->kt_ver_adie = rtwdev->hal.acv;
+
+	memset(dm->ant_xmap, 0, sizeof(dm->ant_xmap));
 
 	if (md->rfe_type == 0)
 		return;
@@ -2145,6 +2148,8 @@ static void rtw8851b_btc_set_rfe(struct rtw89_dev *rtwdev)
 		md->bt0_pos = BTC_BT_BTG;
 		md->wa_type = 1;
 		md->ant.diversity = 0;
+		/* the only BT shares the BTG antenna with WL path A */
+		dm->ant_xmap[BTC_RF_S0][BTC_BT_1ST] = 1;
 	} else { /* ant.num == 2 */
 		md->ant.type = BTC_ANT_DEDICATED;
 		md->bt0_pos = BTC_BT_ALONE;

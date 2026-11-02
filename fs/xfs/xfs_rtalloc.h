@@ -46,10 +46,34 @@ int xfs_rtalloc_reinit_frextents(struct xfs_mount *mp);
 int xfs_growfs_check_rtgeom(const struct xfs_mount *mp, xfs_rfsblock_t dblocks,
 		xfs_rfsblock_t rblocks, xfs_agblock_t rextsize);
 #else
-# define xfs_growfs_rt(mp,in)				(-ENOSYS)
-# define xfs_rtalloc_reinit_frextents(m)		(0)
-# define xfs_rtmount_readsb(mp)				(0)
-# define xfs_rtmount_freesb(mp)				((void)0)
+static inline int
+xfs_growfs_rt(
+	struct xfs_mount	*mp,
+	struct xfs_growfs_rt	*in)
+{
+	return -ENOSYS;
+}
+
+static inline int
+xfs_rtalloc_reinit_frextents(
+	struct xfs_mount	*mp)
+{
+	return 0;
+}
+
+static inline int
+xfs_rtmount_readsb(
+	struct xfs_mount	*mp)
+{
+	return 0;
+}
+
+static inline void
+xfs_rtmount_freesb(
+	struct xfs_mount	*mp)
+{
+}
+
 static inline int		/* error */
 xfs_rtmount_init(
 	xfs_mount_t	*mp)	/* file system mount structure */
@@ -60,8 +84,21 @@ xfs_rtmount_init(
 	xfs_warn(mp, "Not built with CONFIG_XFS_RT");
 	return -ENOSYS;
 }
-# define xfs_rtmount_inodes(m)  (((mp)->m_sb.sb_rblocks == 0)? 0 : (-ENOSYS))
-# define xfs_rtunmount_inodes(m)
+
+static inline int
+xfs_rtmount_inodes(
+	struct xfs_mount	*mp)
+{
+	if (mp->m_sb.sb_rblocks)
+		return -ENOSYS;
+	return 0;
+}
+
+static inline void
+xfs_rtunmount_inodes(
+	struct xfs_mount	*mp)
+{
+}
 
 static inline int
 xfs_growfs_check_rtgeom(const struct xfs_mount *mp,

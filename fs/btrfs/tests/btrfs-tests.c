@@ -247,15 +247,6 @@ void btrfs_init_dummy_transaction(struct btrfs_transaction *trans, struct btrfs_
 	spin_lock_init(&trans->delayed_refs.lock);
 }
 
-void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
-			    struct btrfs_fs_info *fs_info)
-{
-	memset(trans, 0, sizeof(*trans));
-	trans->transid = 1;
-	trans->type = __TRANS_DUMMY;
-	trans->fs_info = fs_info;
-}
-
 int btrfs_run_sanity_tests(void)
 {
 	int ret, i;

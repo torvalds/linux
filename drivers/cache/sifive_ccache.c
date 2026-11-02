@@ -275,7 +275,7 @@ static int sifive_ccache_probe(struct platform_device *pdev)
 
 		rc = devm_request_irq(dev, g_irq[i], ccache_int_handler, 0, "ccache_ecc", NULL);
 		if (rc)
-			return dev_err_probe(dev, rc, "Could not request IRQ %d\n", g_irq[i]);
+			return rc;
 	}
 
 	return 0;

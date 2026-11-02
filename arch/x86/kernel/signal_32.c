@@ -154,11 +154,10 @@ SYSCALL32_DEFINE0(sigreturn)
 
 	prevent_single_step_upon_eretu(regs);
 
-	if (!access_ok(frame, sizeof(*frame)))
-		goto badframe;
-	if (__get_user(set.sig[0], &frame->sc.oldmask)
-	    || __get_user(((__u32 *)&set)[1], &frame->extramask[0]))
-		goto badframe;
+	scoped_user_read_access(frame, badframe) {
+		unsafe_get_user(set.sig[0], &frame->sc.oldmask, badframe);
+		unsafe_get_user(((__u32 *)&set)[1], &frame->extramask[0], badframe);
+	}
 
 	set_current_blocked(&set);
 
@@ -181,10 +180,8 @@ SYSCALL32_DEFINE0(rt_sigreturn)
 
 	frame = (struct rt_sigframe_ia32 __user *)(regs->sp - 4);
 
-	if (!access_ok(frame, sizeof(*frame)))
-		goto badframe;
-	if (__get_user(*(__u64 *)&set, (__u64 __user *)&frame->uc.uc_sigmask))
-		goto badframe;
+	scoped_user_read_access(frame, badframe)
+		unsafe_get_user(*(__u64 *)&set, (__u64 __user *)&frame->uc.uc_sigmask, badframe);
 
 	set_current_blocked(&set);
 

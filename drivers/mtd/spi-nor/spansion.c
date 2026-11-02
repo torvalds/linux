@@ -399,8 +399,9 @@ static int cypress_nor_determine_addr_mode_by_sr1(struct spi_nor *nor,
 					  nor->bouncebuf);
 	bool is3byte, is4byte;
 	int ret;
+	u8 sr;
 
-	ret = spi_nor_read_sr(nor, &nor->bouncebuf[1]);
+	ret = spi_nor_read_sr1(nor, &sr);
 	if (ret)
 		return ret;
 
@@ -408,7 +409,7 @@ static int cypress_nor_determine_addr_mode_by_sr1(struct spi_nor *nor,
 	if (ret)
 		return ret;
 
-	is3byte = (nor->bouncebuf[0] == nor->bouncebuf[1]);
+	is3byte = (nor->bouncebuf[0] == sr);
 
 	op = (struct spi_mem_op)
 		CYPRESS_NOR_RD_ANY_REG_OP(4, SPINOR_REG_CYPRESS_STR1V, 0,
@@ -417,7 +418,7 @@ static int cypress_nor_determine_addr_mode_by_sr1(struct spi_nor *nor,
 	if (ret)
 		return ret;
 
-	is4byte = (nor->bouncebuf[0] == nor->bouncebuf[1]);
+	is4byte = (nor->bouncebuf[0] == sr);
 
 	if (is3byte == is4byte)
 		return -EIO;
@@ -537,7 +538,7 @@ static void cypress_nor_ecc_init(struct spi_nor *nor)
 	 * same ECC data unit without an erase are not allowed.
 	 */
 	nor->params->writesize = 16;
-	nor->flags |= SNOR_F_ECC;
+	nor->params->flags |= SNOR_F_ECC;
 }
 
 static int
@@ -545,7 +546,6 @@ s25fs256t_post_bfpt_fixup(struct spi_nor *nor,
 			  const struct sfdp_parameter_header *bfpt_header,
 			  const struct sfdp_bfpt *bfpt)
 {
-	struct spi_mem_op op;
 	int ret;
 
 	/* Assign 4-byte address mode method that is not determined in BFPT */
@@ -554,19 +554,6 @@ s25fs256t_post_bfpt_fixup(struct spi_nor *nor,
 	ret = cypress_nor_set_addr_mode_nbytes(nor);
 	if (ret)
 		return ret;
-
-	/* Read Architecture Configuration Register (ARCFN) */
-	op = (struct spi_mem_op)
-		CYPRESS_NOR_RD_ANY_REG_OP(nor->params->addr_mode_nbytes,
-					  SPINOR_REG_CYPRESS_ARCFN, 1,
-					  nor->bouncebuf);
-	ret = spi_nor_read_any_reg(nor, &op, nor->reg_proto);
-	if (ret)
-		return ret;
-
-	/* ARCFN value must be 0 if uniform sector is selected  */
-	if (nor->bouncebuf[0])
-		return -ENODEV;
 
 	return 0;
 }
@@ -598,6 +585,22 @@ static int s25fs256t_post_sfdp_fixup(struct spi_nor *nor)
 
 static int s25fs256t_late_init(struct spi_nor *nor)
 {
+	struct spi_mem_op op;
+	int ret;
+
+	/* Read Architecture Configuration Register (ARCFN) */
+	op = (struct spi_mem_op)
+		CYPRESS_NOR_RD_ANY_REG_OP(nor->params->addr_mode_nbytes,
+					  SPINOR_REG_CYPRESS_ARCFN, 1,
+					  nor->bouncebuf);
+	ret = spi_nor_read_any_reg(nor, &op, nor->reg_proto);
+	if (ret)
+		return ret;
+
+	/* ARCFN value must be 0 if uniform sector is selected  */
+	if (nor->bouncebuf[0])
+		return -ENODEV;
+
 	cypress_nor_ecc_init(nor);
 
 	return 0;
@@ -675,7 +678,7 @@ static int s25hx_t_late_init(struct spi_nor *nor)
 	cypress_nor_ecc_init(nor);
 
 	if (params->n_dice > 1)
-		params->die_erase_opcode = SPINOR_OP_CYPRESS_DIE_ERASE;
+		params->opcodes.die_erase = SPINOR_OP_CYPRESS_DIE_ERASE;
 
 	return 0;
 }
@@ -763,7 +766,7 @@ static int s28hx_t_late_init(struct spi_nor *nor)
 	cypress_nor_ecc_init(nor);
 
 	if (params->n_dice > 1)
-		params->die_erase_opcode = SPINOR_OP_CYPRESS_DIE_ERASE;
+		params->opcodes.die_erase = SPINOR_OP_CYPRESS_DIE_ERASE;
 
 	return 0;
 }
@@ -868,13 +871,6 @@ static const struct flash_info spansion_nor_parts[] = {
 		.name = "s25fl256s0",
 		.size = SZ_32M,
 		.sector_size = SZ_256K,
-		.no_sfdp_flags = SPI_NOR_SKIP_SFDP | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
-		.mfr_flags = USE_CLSR,
-	}, {
-		.id = SNOR_ID(0x01, 0x02, 0x19, 0x4d, 0x00, 0x81),
-		.name = "s25fs256s0",
-		.size = SZ_32M,
-		.sector_size = SZ_256K,
 		.no_sfdp_flags = SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
 		.mfr_flags = USE_CLSR,
 	}, {
@@ -904,7 +900,6 @@ static const struct flash_info spansion_nor_parts[] = {
 		.sector_size = SZ_256K,
 		.no_sfdp_flags = SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
 		.mfr_flags = USE_CLSR,
-		.fixups = &s25fs_s_nor_fixups,
 	}, {
 		.id = SNOR_ID(0x01, 0x20, 0x18, 0x03, 0x00),
 		.name = "s25sl12800",
@@ -940,7 +935,6 @@ static const struct flash_info spansion_nor_parts[] = {
 		.size = SZ_16M,
 		.no_sfdp_flags = SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
 		.mfr_flags = USE_CLSR,
-		.fixups = &s25fs_s_nor_fixups,
 	}, {
 		.id = SNOR_ID(0x01, 0x20, 0x18, 0x4d, 0x01),
 		.name = "s25fl129p1",
@@ -977,19 +971,16 @@ static const struct flash_info spansion_nor_parts[] = {
 		.name = "s25fl064l",
 		.size = SZ_8M,
 		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
-		.fixup_flags = SPI_NOR_4B_OPCODES,
 	}, {
 		.id = SNOR_ID(0x01, 0x60, 0x18),
 		.name = "s25fl128l",
 		.size = SZ_16M,
 		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
-		.fixup_flags = SPI_NOR_4B_OPCODES,
 	}, {
 		.id = SNOR_ID(0x01, 0x60, 0x19),
 		.name = "s25fl256l",
 		.size = SZ_32M,
 		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
-		.fixup_flags = SPI_NOR_4B_OPCODES,
 	}, {
 		.id = SNOR_ID(0x04, 0x2c, 0xc2, 0x7f, 0x7f, 0x7f),
 		.name = "cy15x104q",
@@ -1000,76 +991,61 @@ static const struct flash_info spansion_nor_parts[] = {
 		.id = SNOR_ID(0x34, 0x2a, 0x1a, 0x0f, 0x03, 0x90),
 		.name = "s25hl512t",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s25hx_t_fixups
 	}, {
 		.id = SNOR_ID(0x34, 0x2a, 0x1b, 0x0f, 0x03, 0x90),
 		.name = "s25hl01gt",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s25hx_t_fixups
 	}, {
 		.id = SNOR_ID(0x34, 0x2a, 0x1c, 0x0f, 0x00, 0x90),
 		.name = "s25hl02gt",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s25hx_t_fixups
 	}, {
 		.id = SNOR_ID(0x34, 0x2b, 0x19, 0x0f, 0x08, 0x90),
 		.name = "s25fs256t",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s25fs256t_fixups
 	}, {
 		.id = SNOR_ID(0x34, 0x2b, 0x1a, 0x0f, 0x03, 0x90),
 		.name = "s25hs512t",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s25hx_t_fixups
 	}, {
 		.id = SNOR_ID(0x34, 0x2b, 0x1b, 0x0f, 0x03, 0x90),
 		.name = "s25hs01gt",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s25hx_t_fixups
 	}, {
 		.id = SNOR_ID(0x34, 0x2b, 0x1c, 0x0f, 0x00, 0x90),
 		.name = "s25hs02gt",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s25hx_t_fixups
 	}, {
 		/* S28HL256T */
 		.id = SNOR_ID(0x34, 0x5a, 0x19),
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s28hx_t_fixups,
 	}, {
 		.id = SNOR_ID(0x34, 0x5a, 0x1a),
 		.name = "s28hl512t",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s28hx_t_fixups,
 	}, {
 		.id = SNOR_ID(0x34, 0x5a, 0x1b),
 		.name = "s28hl01gt",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s28hx_t_fixups,
 	}, {
 		/* S28HL02GT */
 		.id = SNOR_ID(0x34, 0x5a, 0x1c),
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s28hx_t_fixups,
 	}, {
 		.id = SNOR_ID(0x34, 0x5b, 0x19),
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s28hx_t_fixups,
 	}, {
 		.id = SNOR_ID(0x34, 0x5b, 0x1a),
 		.name = "s28hs512t",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s28hx_t_fixups,
 	}, {
 		.id = SNOR_ID(0x34, 0x5b, 0x1b),
 		.name = "s28hs01gt",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s28hx_t_fixups,
 	}, {
 		.id = SNOR_ID(0x34, 0x5b, 0x1c),
 		.name = "s28hs02gt",
 		.mfr_flags = USE_CLPEF,
-		.fixups = &s28hx_t_fixups,
 	}, {
 		.id = SNOR_ID(0xef, 0x40, 0x13),
 		.name = "s25fl004k",
@@ -1103,13 +1079,14 @@ static const struct flash_info spansion_nor_parts[] = {
 static int spansion_nor_sr_ready_and_clear(struct spi_nor *nor)
 {
 	int ret;
+	u8 sr;
 
-	ret = spi_nor_read_sr(nor, nor->bouncebuf);
+	ret = spi_nor_read_sr1(nor, &sr);
 	if (ret)
 		return ret;
 
-	if (nor->bouncebuf[0] & (SR_E_ERR | SR_P_ERR)) {
-		if (nor->bouncebuf[0] & SR_E_ERR)
+	if (sr & (SR_E_ERR | SR_P_ERR)) {
+		if (sr & SR_E_ERR)
 			dev_err(nor->dev, "Erase Error occurred\n");
 		else
 			dev_err(nor->dev, "Programming Error occurred\n");
@@ -1129,7 +1106,7 @@ static int spansion_nor_sr_ready_and_clear(struct spi_nor *nor)
 		return -EIO;
 	}
 
-	return !(nor->bouncebuf[0] & SR_WIP);
+	return !(sr & SR_WIP);
 }
 
 static int spansion_nor_late_init(struct spi_nor *nor)
@@ -1139,7 +1116,7 @@ static int spansion_nor_late_init(struct spi_nor *nor)
 	u8 mfr_flags = nor->info->mfr_flags;
 
 	if (params->size > SZ_16M) {
-		nor->flags |= SNOR_F_4B_OPCODES;
+		params->flags |= SNOR_F_4B_OPCODES;
 		/* No small sector erase for 4-byte command set */
 		nor->erase_opcode = SPINOR_OP_SE;
 		nor->mtd.erasesize = nor->info->sector_size ?:
@@ -1168,9 +1145,35 @@ static const struct spi_nor_fixups spansion_nor_fixups = {
 	.late_init = spansion_nor_late_init,
 };
 
+static const struct spi_nor_fixup spansion_fixups[] = {
+	{ .fixups = &spansion_nor_fixups },
+	{ .id = SNOR_ID(0x01, 0x02, 0x20, 0x4d, 0x00, 0x81), .fixups = &s25fs_s_nor_fixups },
+	{ .id = SNOR_ID(0x01, 0x02, 0x19, 0x4d, 0x01, 0x81), .fixups = &s25fs_s_nor_fixups },
+	{ .id = SNOR_ID(0x01, 0x20, 0x18, 0x4d, 0x01, 0x81), .fixups = &s25fs_s_nor_fixups },
+	{ .id = SNOR_ID(0x01, 0x60, 0x17), .fixup_flags = SPI_NOR_4B_OPCODES },
+	{ .id = SNOR_ID(0x01, 0x60, 0x18), .fixup_flags = SPI_NOR_4B_OPCODES },
+	{ .id = SNOR_ID(0x01, 0x60, 0x19), .fixup_flags = SPI_NOR_4B_OPCODES },
+	{ .id = SNOR_ID(0x34, 0x2a, 0x1a, 0x0f, 0x03, 0x90), .fixups = &s25hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x2a, 0x1b, 0x0f, 0x03, 0x90), .fixups = &s25hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x2a, 0x1c, 0x0f, 0x00, 0x90), .fixups = &s25hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x2b, 0x19, 0x0f, 0x08, 0x90), .fixups = &s25fs256t_fixups },
+	{ .id = SNOR_ID(0x34, 0x2b, 0x1a, 0x0f, 0x03, 0x90), .fixups = &s25hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x2b, 0x1b, 0x0f, 0x03, 0x90), .fixups = &s25hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x2b, 0x1c, 0x0f, 0x00, 0x90), .fixups = &s25hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x5a, 0x19), .fixups = &s28hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x5a, 0x1a), .fixups = &s28hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x5a, 0x1b), .fixups = &s28hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x5a, 0x1c), .fixups = &s28hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x5b, 0x19), .fixups = &s28hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x5b, 0x1a), .fixups = &s28hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x5b, 0x1b), .fixups = &s28hx_t_fixups },
+	{ .id = SNOR_ID(0x34, 0x5b, 0x1c), .fixups = &s28hx_t_fixups },
+};
+
 const struct spi_nor_manufacturer spi_nor_spansion = {
 	.name = "spansion",
 	.parts = spansion_nor_parts,
 	.nparts = ARRAY_SIZE(spansion_nor_parts),
-	.fixups = &spansion_nor_fixups,
+	.fixups = spansion_fixups,
+	.nfixups = ARRAY_SIZE(spansion_fixups),
 };

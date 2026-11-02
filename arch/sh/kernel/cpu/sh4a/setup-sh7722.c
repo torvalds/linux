@@ -16,7 +16,6 @@
 #include <linux/usb/m66592.h>
 
 #include <asm/clock.h>
-#include <asm/mmzone.h>
 #include <asm/siu.h>
 #include <asm/platform_early.h>
 
@@ -657,10 +656,4 @@ static struct intc_desc intc_desc __initdata = {
 void __init plat_irq_setup(void)
 {
 	register_intc_controller(&intc_desc);
-}
-
-void __init plat_mem_setup(void)
-{
-	/* Register the URAM space as Node 1 */
-	setup_bootmem_node(1, 0x055f0000, 0x05610000);
 }

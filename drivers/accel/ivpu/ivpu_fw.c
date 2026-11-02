@@ -28,15 +28,15 @@
 #define ADDR_TO_L2_CACHE_CFG(addr) ((addr) >> 31)
 
 /* Check if FW API is compatible with the driver */
-#define IVPU_FW_CHECK_API_COMPAT(vdev, fw_hdr, name, min_major) \
-	ivpu_fw_check_api(vdev, fw_hdr, #name, \
+#define IVPU_FW_CHECK_API_COMPAT(vdev, name, min_major) \
+	ivpu_fw_check_api(vdev, #name, \
 			  VPU_##name##_API_VER_INDEX, \
 			  VPU_##name##_API_VER_MAJOR, \
 			  VPU_##name##_API_VER_MINOR, min_major)
 
 /* Check if API version is lower that the given version */
-#define IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, name, major, minor) \
-	ivpu_fw_check_api_ver_lt(vdev, fw_hdr, #name, VPU_##name##_API_VER_INDEX, major, minor)
+#define IVPU_FW_CHECK_API_VER_LT(vdev, name, major, minor) \
+	ivpu_fw_check_api_ver_lt(vdev, #name, VPU_##name##_API_VER_INDEX, major, minor)
 
 #define IVPU_FOCUS_PRESENT_TIMER_MS 1000
 
@@ -93,12 +93,11 @@ static int ivpu_fw_request(struct ivpu_device *vdev)
 }
 
 static int
-ivpu_fw_check_api(struct ivpu_device *vdev, const struct vpu_firmware_header *fw_hdr,
-		  const char *str, int index, u16 expected_major, u16 expected_minor,
-		  u16 min_major)
+ivpu_fw_check_api(struct ivpu_device *vdev, const char *str, int index, u16 expected_major,
+		  u16 expected_minor, u16 min_major)
 {
-	u16 major = (u16)(fw_hdr->api_version[index] >> 16);
-	u16 minor = (u16)(fw_hdr->api_version[index]);
+	u16 major = (u16)(vdev->fw->api_version[index] >> 16);
+	u16 minor = (u16)(vdev->fw->api_version[index]);
 
 	if (major < min_major) {
 		ivpu_err(vdev, "Incompatible FW %s API version: %d.%d, required %d.0 or later\n",
@@ -116,11 +115,10 @@ ivpu_fw_check_api(struct ivpu_device *vdev, const struct vpu_firmware_header *fw
 }
 
 static bool
-ivpu_fw_check_api_ver_lt(struct ivpu_device *vdev, const struct vpu_firmware_header *fw_hdr,
-			 const char *str, int index, u16 major, u16 minor)
+ivpu_fw_check_api_ver_lt(struct ivpu_device *vdev, const char *str, int index, u16 major, u16 minor)
 {
-	u16 fw_major = (u16)(fw_hdr->api_version[index] >> 16);
-	u16 fw_minor = (u16)(fw_hdr->api_version[index]);
+	u16 fw_major = (u16)(vdev->fw->api_version[index] >> 16);
+	u16 fw_minor = (u16)(vdev->fw->api_version[index]);
 
 	if (fw_major < major || (fw_major == major && fw_minor < minor))
 		return true;
@@ -142,7 +140,7 @@ bool ivpu_is_within_range(u64 addr, size_t size, struct ivpu_addr_range *range)
 }
 
 static u32
-ivpu_fw_sched_mode_select(struct ivpu_device *vdev, const struct vpu_firmware_header *fw_hdr)
+ivpu_fw_sched_mode_select(struct ivpu_device *vdev)
 {
 	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_60XX &&
 	    ivpu_sched_mode == VPU_SCHEDULING_MODE_OS) {
@@ -153,7 +151,7 @@ ivpu_fw_sched_mode_select(struct ivpu_device *vdev, const struct vpu_firmware_he
 	if (ivpu_sched_mode != IVPU_SCHED_MODE_AUTO)
 		return ivpu_sched_mode;
 
-	if (IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, JSM, 3, 24))
+	if (IVPU_FW_CHECK_API_VER_LT(vdev, JSM, 3, 24))
 		return VPU_SCHEDULING_MODE_OS;
 
 	return VPU_SCHEDULING_MODE_HW;
@@ -302,9 +300,11 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 
 	ivpu_info(vdev, "Firmware: %s, version: %s\n", fw->name, fw->version);
 
-	if (IVPU_FW_CHECK_API_COMPAT(vdev, fw_hdr, BOOT, 3))
+	memcpy(fw->api_version, fw_hdr->api_version, sizeof(fw->api_version));
+
+	if (IVPU_FW_CHECK_API_COMPAT(vdev, BOOT, 3))
 		return -EINVAL;
-	if (IVPU_FW_CHECK_API_COMPAT(vdev, fw_hdr, JSM, 3))
+	if (IVPU_FW_CHECK_API_COMPAT(vdev, JSM, 3))
 		return -EINVAL;
 
 	fw->boot_params_addr = boot_params_addr;
@@ -324,7 +324,7 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 
 	fw->dvfs_mode = 0;
 
-	fw->sched_mode = ivpu_fw_sched_mode_select(vdev, fw_hdr);
+	fw->sched_mode = ivpu_fw_sched_mode_select(vdev);
 	ivpu_info(vdev, "Scheduler mode: %s\n", fw->sched_mode ? "HW" : "OS");
 
 	ivpu_preemption_config_parse(vdev, fw_hdr);
@@ -364,6 +364,25 @@ static void ivpu_fw_release(struct ivpu_device *vdev)
 }
 
 
+static void ivpu_fw_mem_fini(struct ivpu_device *vdev)
+{
+	struct ivpu_fw_info *fw = vdev->fw;
+
+	ivpu_bo_free(fw->mem_shave_nn);
+	ivpu_bo_free(fw->mem_log_verb);
+	ivpu_bo_free(fw->mem_log_crit);
+	ivpu_bo_free(fw->mem);
+	ivpu_bo_free(fw->mem_fw_ver);
+	ivpu_bo_free(fw->mem_bp);
+
+	fw->mem_shave_nn = NULL;
+	fw->mem_log_verb = NULL;
+	fw->mem_log_crit = NULL;
+	fw->mem = NULL;
+	fw->mem_fw_ver = NULL;
+	fw->mem_bp = NULL;
+}
+
 static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
@@ -382,7 +401,7 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	if (!fw->mem_fw_ver) {
 		ivpu_err(vdev, "Failed to create firmware version memory buffer\n");
 		ret = -ENOMEM;
-		goto err_free_bp;
+		goto err_free;
 	}
 
 	fw->mem = ivpu_bo_create_runtime(vdev, fw->runtime_addr, fw->runtime_size,
@@ -390,14 +409,14 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	if (!fw->mem) {
 		ivpu_err(vdev, "Failed to create firmware runtime memory buffer\n");
 		ret = -ENOMEM;
-		goto err_free_fw_ver;
+		goto err_free;
 	}
 
 	ret = ivpu_mmu_context_set_pages_ro(vdev, &vdev->gctx, fw->read_only_addr,
 					    fw->read_only_size);
 	if (ret) {
 		ivpu_err(vdev, "Failed to set firmware image read-only\n");
-		goto err_free_fw_mem;
+		goto err_free;
 	}
 
 	fw->mem_log_crit = ivpu_bo_create_global(vdev, IVPU_FW_CRITICAL_BUFFER_SIZE,
@@ -405,7 +424,7 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	if (!fw->mem_log_crit) {
 		ivpu_err(vdev, "Failed to create critical log buffer\n");
 		ret = -ENOMEM;
-		goto err_free_fw_mem;
+		goto err_free;
 	}
 
 	if (ivpu_fw_log_level <= IVPU_FW_LOG_INFO)
@@ -418,7 +437,7 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	if (!fw->mem_log_verb) {
 		ivpu_err(vdev, "Failed to create verbose log buffer\n");
 		ret = -ENOMEM;
-		goto err_free_log_crit;
+		goto err_free;
 	}
 
 	if (fw->shave_nn_size) {
@@ -427,45 +446,15 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 		if (!fw->mem_shave_nn) {
 			ivpu_err(vdev, "Failed to create shavenn buffer\n");
 			ret = -ENOMEM;
-			goto err_free_log_verb;
+			goto err_free;
 		}
 	}
 
 	return 0;
 
-err_free_log_verb:
-	ivpu_bo_free(fw->mem_log_verb);
-err_free_log_crit:
-	ivpu_bo_free(fw->mem_log_crit);
-err_free_fw_mem:
-	ivpu_bo_free(fw->mem);
-err_free_fw_ver:
-	ivpu_bo_free(fw->mem_fw_ver);
-err_free_bp:
-	ivpu_bo_free(fw->mem_bp);
+err_free:
+	ivpu_fw_mem_fini(vdev);
 	return ret;
-}
-
-static void ivpu_fw_mem_fini(struct ivpu_device *vdev)
-{
-	struct ivpu_fw_info *fw = vdev->fw;
-
-	if (fw->mem_shave_nn) {
-		ivpu_bo_free(fw->mem_shave_nn);
-		fw->mem_shave_nn = NULL;
-	}
-
-	ivpu_bo_free(fw->mem_log_verb);
-	ivpu_bo_free(fw->mem_log_crit);
-	ivpu_bo_free(fw->mem);
-	ivpu_bo_free(fw->mem_fw_ver);
-	ivpu_bo_free(fw->mem_bp);
-
-	fw->mem_log_verb = NULL;
-	fw->mem_log_crit = NULL;
-	fw->mem = NULL;
-	fw->mem_fw_ver = NULL;
-	fw->mem_bp = NULL;
 }
 
 int ivpu_fw_init(struct ivpu_device *vdev)
@@ -484,8 +473,6 @@ int ivpu_fw_init(struct ivpu_device *vdev)
 	if (ret)
 		goto err_fw_release;
 
-	ivpu_fw_load(vdev);
-
 	return 0;
 
 err_fw_release:
@@ -499,7 +486,7 @@ void ivpu_fw_fini(struct ivpu_device *vdev)
 	ivpu_fw_release(vdev);
 }
 
-void ivpu_fw_load(struct ivpu_device *vdev)
+int ivpu_fw_load(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
 	u64 image_end_offset = fw->image_load_offset + fw->image_size;
@@ -516,6 +503,7 @@ void ivpu_fw_load(struct ivpu_device *vdev)
 	}
 
 	wmb(); /* Flush WC buffers after writing fw->mem */
+	return 0;
 }
 
 static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_params *boot_params)

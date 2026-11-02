@@ -120,9 +120,9 @@ struct clk *mmp_clk_register_apbc(const char *name, const char *parent_name,
 		void __iomem *base, unsigned int delay,
 		unsigned int apbc_flags, spinlock_t *lock)
 {
+	struct clk_init_data init = {};
 	struct clk_apbc *apbc;
 	struct clk *clk;
-	struct clk_init_data init;
 
 	apbc = kzalloc_obj(*apbc);
 	if (!apbc)

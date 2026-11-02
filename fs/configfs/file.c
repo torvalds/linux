@@ -41,8 +41,8 @@ struct configfs_buffer {
 	struct config_item	*item;
 	struct module		*owner;
 	union {
-		struct configfs_attribute	*attr;
-		struct configfs_bin_attribute	*bin_attr;
+		const struct configfs_attribute		*attr;
+		const struct configfs_bin_attribute	*bin_attr;
 	};
 };
 
@@ -291,7 +291,7 @@ static int __configfs_open_file(struct inode *inode, struct file *file, int type
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct configfs_fragment *frag = to_frag(file);
-	struct configfs_attribute *attr;
+	const struct configfs_attribute *attr;
 	struct configfs_buffer *buffer;
 	int error;
 

@@ -55,11 +55,11 @@ static inline int clp_get_ilp(unsigned long *ilp)
 
 	exception = 1;
 	asm_inline volatile (
-		"	.insn	rrf,0xb9a00000,%[mask],%[cmd],8,0\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	.insn	rrf,0xb9a00000,%[mask],%[cmd],8,0\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [mask] "=d" (mask), [exc] "+d" (exception)
 		: [cmd] "a" (1)
 		: CC_CLOBBER);
@@ -78,11 +78,11 @@ static __always_inline int clp_req(void *data, unsigned int lps)
 
 	exception = 1;
 	asm_inline volatile (
-		"	.insn	rrf,0xb9a00000,%[ign],%[req],0,%[lps]\n"
-		"0:	lhi	%[exc],0\n"
+		"0:	.insn	rrf,0xb9a00000,%[ign],%[req],0,%[lps]\n"
+		"	lhi	%[exc],0\n"
 		"1:\n"
 		CC_IPM(cc)
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: CC_OUT(cc, cc), [ign] "=d" (ignored), "+m" (*req), [exc] "+d" (exception)
 		: [req] "a" (req), [lps] "i" (lps)
 		: CC_CLOBBER);

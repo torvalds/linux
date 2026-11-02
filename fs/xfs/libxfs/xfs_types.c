@@ -222,7 +222,6 @@ xfs_verify_icount(
 /* Sanity-checking of dir/attr block offsets. */
 bool
 xfs_verify_dablk(
-	struct xfs_mount	*mp,
 	xfs_fileoff_t		dabno)
 {
 	xfs_dablk_t		max_dablk = -1U;
@@ -233,7 +232,6 @@ xfs_verify_dablk(
 /* Check that a file block offset does not exceed the maximum. */
 bool
 xfs_verify_fileoff(
-	struct xfs_mount	*mp,
 	xfs_fileoff_t		off)
 {
 	return off <= XFS_MAX_FILEOFF;
@@ -242,15 +240,14 @@ xfs_verify_fileoff(
 /* Check that a range of file block offsets do not exceed the maximum. */
 bool
 xfs_verify_fileext(
-	struct xfs_mount	*mp,
 	xfs_fileoff_t		off,
 	xfs_fileoff_t		len)
 {
 	if (off + len <= off)
 		return false;
 
-	if (!xfs_verify_fileoff(mp, off))
+	if (!xfs_verify_fileoff(off))
 		return false;
 
-	return xfs_verify_fileoff(mp, off + len - 1);
+	return xfs_verify_fileoff(off + len - 1);
 }

@@ -117,7 +117,7 @@ static int cbor_object_get_array(u8 *cbor_object, size_t cbor_object_size, u8 **
 	array_len_p = &cbor_object[1];
 
 	switch (cbor_short_size) {
-	case CBOR_SHORT_SIZE_MAX_VALUE: /* short encoding */
+	case 0 ... CBOR_SHORT_SIZE_MAX_VALUE: /* short encoding */
 		array_len = cbor_short_size;
 		break;
 	case CBOR_LONG_SIZE_U8:
@@ -132,6 +132,8 @@ static int cbor_object_get_array(u8 *cbor_object, size_t cbor_object_size, u8 **
 	case CBOR_LONG_SIZE_U64:
 		array_len = be64_to_cpup((__be64 *)array_len_p);
 		break;
+	default:
+		return -EFAULT;
 	}
 
 	if (cbor_object_size < array_offset)
@@ -439,6 +441,8 @@ static int nsm_device_probe(struct virtio_device *vdev)
 
 	mutex_init(&nsm->lock);
 
+	virtio_device_ready(vdev);
+
 	/* Register as hwrng provider */
 	nsm->hwrng = (struct hwrng) {
 		.read = nsm_rng_read,
@@ -471,6 +475,7 @@ static int nsm_device_probe(struct virtio_device *vdev)
 err_misc:
 	hwrng_unregister(&nsm->hwrng);
 err_hwrng:
+	virtio_reset_device(vdev);
 	vdev->config->del_vqs(vdev);
 err_init_vq:
 	return rc;

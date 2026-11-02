@@ -1492,17 +1492,17 @@ static void tegra_dc_destroy(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 }
 
-static void tegra_crtc_reset(struct drm_crtc *crtc)
+static struct drm_crtc_state *tegra_crtc_create_state(struct drm_crtc *crtc)
 {
-	struct tegra_dc_state *state = kzalloc_obj(*state);
+	struct tegra_dc_state *state;
 
-	if (crtc->state)
-		tegra_crtc_atomic_destroy_state(crtc, crtc->state);
+	state = kzalloc_obj(*state);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
 
-	if (state)
-		__drm_atomic_helper_crtc_reset(crtc, &state->base);
-	else
-		__drm_atomic_helper_crtc_reset(crtc, NULL);
+	__drm_atomic_helper_crtc_state_init(&state->base, crtc);
+
+	return &state->base;
 }
 
 static struct drm_crtc_state *
@@ -1911,7 +1911,7 @@ static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = tegra_dc_destroy,
-	.reset = tegra_crtc_reset,
+	.atomic_create_state = tegra_crtc_create_state,
 	.atomic_duplicate_state = tegra_crtc_atomic_duplicate_state,
 	.atomic_destroy_state = tegra_crtc_atomic_destroy_state,
 	.late_register = tegra_dc_late_register,

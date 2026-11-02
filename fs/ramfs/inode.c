@@ -95,7 +95,7 @@ struct inode *ramfs_get_inode(struct super_block *sb,
  */
 /* SMP-safe */
 static int
-ramfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+ramfs_mknod(const struct mnt_idmap *idmap, struct inode *dir,
 	    struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode * inode = ramfs_get_inode(dir->i_sb, dir, mode, dev);
@@ -118,7 +118,7 @@ out:
 	return error;
 }
 
-static struct dentry *ramfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static struct dentry *ramfs_mkdir(const struct mnt_idmap *idmap, struct inode *dir,
 				 struct dentry *dentry, umode_t mode)
 {
 	int retval = ramfs_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
@@ -127,13 +127,13 @@ static struct dentry *ramfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	return ERR_PTR(retval);
 }
 
-static int ramfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int ramfs_create(const struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode)
 {
 	return ramfs_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
 }
 
-static int ramfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int ramfs_symlink(const struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
 	struct inode *inode;
@@ -163,7 +163,7 @@ out:
 	return error;
 }
 
-static int ramfs_tmpfile(struct mnt_idmap *idmap,
+static int ramfs_tmpfile(const struct mnt_idmap *idmap,
 			 struct inode *dir, struct file *file, umode_t mode)
 {
 	struct inode *inode;

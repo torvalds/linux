@@ -380,8 +380,8 @@ static inline int omap_nand_dma_transfer(struct nand_chip *chip,
 {
 	struct omap_nand_info *info = mtd_to_omap(nand_to_mtd(chip));
 	struct dma_async_tx_descriptor *tx;
-	enum dma_data_direction dir = is_write ? DMA_TO_DEVICE :
-							DMA_FROM_DEVICE;
+	enum dma_data_direction dir = is_write ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	struct device *dma_dev = dmaengine_get_dma_device(info->dma);
 	struct scatterlist sg;
 	unsigned long tim, limit;
 	unsigned n;
@@ -392,7 +392,7 @@ static inline int omap_nand_dma_transfer(struct nand_chip *chip,
 		goto out_copy;
 
 	sg_init_one(&sg, addr, len);
-	n = dma_map_sg(info->dma->device->dev, &sg, 1, dir);
+	n = dma_map_sg(dma_dev, &sg, 1, dir);
 	if (n == 0) {
 		dev_err(&info->pdev->dev,
 			"Couldn't DMA map a %d byte buffer\n", len);
@@ -434,11 +434,11 @@ static inline int omap_nand_dma_transfer(struct nand_chip *chip,
 	/* disable and stop the PFPW engine */
 	omap_prefetch_reset(info->gpmc_cs, info);
 
-	dma_unmap_sg(info->dma->device->dev, &sg, 1, dir);
+	dma_unmap_sg(dma_dev, &sg, 1, dir);
 	return 0;
 
 out_copy_unmap:
-	dma_unmap_sg(info->dma->device->dev, &sg, 1, dir);
+	dma_unmap_sg(dma_dev, &sg, 1, dir);
 out_copy:
 	is_write == 0 ? omap_nand_data_in(chip, (void *)addr, len, false)
 		      : omap_nand_data_out(chip, addr, len, false);
@@ -666,9 +666,7 @@ static void gen_true_ecc(u8 *ecc_buf)
  * If there is no error, %0 is returned. If there is an error but it
  * was corrected, %1 is returned. Otherwise, %-1 is returned.
  */
-static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
-			    u8 *ecc_data2,	/* read from register */
-			    u8 *page_data)
+static int omap_compare_ecc(u8 *ecc_data1, u8 *ecc_data2, u8 *page_data)
 {
 	uint	i;
 	u8	tmp0_bit[8], tmp1_bit[8], tmp2_bit[8];

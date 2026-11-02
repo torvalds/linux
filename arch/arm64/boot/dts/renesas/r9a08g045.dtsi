@@ -645,7 +645,7 @@
 			dma-channels = <16>;
 		};
 
-		sdhi0: mmc@11c00000  {
+		sdhi0: mmc@11c00000 {
 			compatible = "renesas,sdhi-r9a08g045", "renesas,rzg2l-sdhi";
 			reg = <0x0 0x11c00000 0 0x10000>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
@@ -655,6 +655,7 @@
 				 <&cpg CPG_MOD R9A08G045_SDHI0_IMCLK2>,
 				 <&cpg CPG_MOD R9A08G045_SDHI0_ACLK>;
 			clock-names = "core", "clkh", "cd", "aclk";
+			max-frequency = <125000000>;
 			resets = <&cpg R9A08G045_SDHI0_IXRST>;
 			power-domains = <&cpg>;
 			status = "disabled";
@@ -670,6 +671,7 @@
 				 <&cpg CPG_MOD R9A08G045_SDHI1_IMCLK2>,
 				 <&cpg CPG_MOD R9A08G045_SDHI1_ACLK>;
 			clock-names = "core", "clkh", "cd", "aclk";
+			max-frequency = <125000000>;
 			resets = <&cpg R9A08G045_SDHI1_IXRST>;
 			power-domains = <&cpg>;
 			status = "disabled";
@@ -685,6 +687,7 @@
 				 <&cpg CPG_MOD R9A08G045_SDHI2_IMCLK2>,
 				 <&cpg CPG_MOD R9A08G045_SDHI2_ACLK>;
 			clock-names = "core", "clkh", "cd", "aclk";
+			max-frequency = <50000000>;
 			resets = <&cpg R9A08G045_SDHI2_IXRST>;
 			power-domains = <&cpg>;
 			status = "disabled";

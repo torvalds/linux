@@ -247,6 +247,7 @@ static const struct timing_generator_funcs dcn314_tg_funcs = {
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.init_odm = optc3_init_odm,
+		.is_odm_enabled = optc3_is_odm_enabled,
 		.set_odm_bypass = optc314_set_odm_bypass,
 		.set_odm_combine = optc314_set_odm_combine,
 		.set_h_timing_div_manual_mode = optc314_set_h_timing_div_manual_mode,

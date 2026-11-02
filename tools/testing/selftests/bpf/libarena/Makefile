@@ -27,10 +27,17 @@ BPFDIR=$(abspath $(LIBARENA)/..)
 INCLUDE_DIR ?= $(BPFDIR)/tools/include
 LIBBPF_INCLUDE ?= $(INCLUDE_DIR)
 
-# Scan src/ and selftests/ to generate the final binaries
-LIBARENA_SOURCES = $(wildcard $(LIBARENA)/src/*.bpf.c) $(wildcard $(LIBARENA)/selftests/*.bpf.c)
-LIBARENA_OBJECTS = $(notdir $(LIBARENA_SOURCES:.bpf.c=.bpf.o))
-LIBARENA_OBJECTS_ASAN = $(notdir $(LIBARENA_SOURCES:.bpf.c=_asan.bpf.o))
+# Build selftests and benchmarks into separate BPF objects and skeletons.
+LIBARENA_CORE_SOURCES = $(wildcard $(LIBARENA)/src/*.bpf.c)
+LIBARENA_TEST_SOURCES = $(wildcard $(LIBARENA)/selftests/*.bpf.c)
+LIBARENA_BENCH_SOURCES = $(wildcard $(LIBARENA)/benchs/*.bpf.c)
+
+LIBARENA_OBJECTS = $(notdir $(LIBARENA_CORE_SOURCES:.bpf.c=.bpf.o) \
+			       $(LIBARENA_TEST_SOURCES:.bpf.c=.bpf.o))
+LIBARENA_OBJECTS_ASAN = $(notdir $(LIBARENA_CORE_SOURCES:.bpf.c=_asan.bpf.o) \
+				    $(LIBARENA_TEST_SOURCES:.bpf.c=_asan.bpf.o))
+LIBARENA_BENCH_OBJECTS = $(notdir $(LIBARENA_CORE_SOURCES:.bpf.c=.bpf.o) \
+				     $(LIBARENA_BENCH_SOURCES:.bpf.c=.bpf.o))
 
 INCLUDES = -I$(LIBARENA)/include -I$(BPFDIR)
 ifneq ($(INCLUDE_DIR),)
@@ -53,16 +60,24 @@ override BPF_CFLAGS += -O2 -g
 override BPF_CFLAGS += -Wno-incompatible-pointer-types-discards-qualifiers
 # Required for suppressing harmless vmlinux.h-related warnings.
 override BPF_CFLAGS += -Wno-missing-declarations
+override BPF_CFLAGS += -fno-strict-aliasing
 override BPF_CFLAGS += $(INCLUDES)
 
 CFLAGS = -O2 -no-pie
 CFLAGS += $(INCLUDES)
 
-vpath %.bpf.c $(LIBARENA)/src $(LIBARENA)/selftests
-vpath %.c $(LIBARENA)/src $(LIBARENA)/selftests
+vpath %.bpf.c $(LIBARENA)/src $(LIBARENA)/selftests $(LIBARENA)/benchs
+vpath %.c $(LIBARENA)/src $(LIBARENA)/selftests $(LIBARENA)/benchs
 
 skeletons: libarena.skel.h libarena_asan.skel.h
 .PHONY: skeletons
+
+benchmarks: libarena_bench.skel.h
+.PHONY: benchmarks
+
+libarena_bench.skel.h: libarena_bench.bpf.o
+	$(call msg,GEN-SKEL,libarena,$@)
+	$(Q)$(BPFTOOL) gen skeleton $< name "libarena_bench" > $@
 
 libarena_asan.skel.h: libarena_asan.bpf.o
 	$(call msg,GEN-SKEL,libarena,$@)
@@ -77,6 +92,10 @@ libarena_asan.bpf.o: $(LIBARENA_OBJECTS_ASAN)
 	$(Q)$(BPFTOOL) gen object $@ $^
 
 libarena.bpf.o: $(LIBARENA_OBJECTS)
+	$(call msg,GEN-OBJ,libarena,$@)
+	$(Q)$(BPFTOOL) gen object $@ $^
+
+libarena_bench.bpf.o: $(LIBARENA_BENCH_OBJECTS)
 	$(call msg,GEN-OBJ,libarena,$@)
 	$(Q)$(BPFTOOL) gen object $@ $^
 

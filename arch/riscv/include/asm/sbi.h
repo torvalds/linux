@@ -7,9 +7,11 @@
 #ifndef _ASM_RISCV_SBI_H
 #define _ASM_RISCV_SBI_H
 
+#include <linux/args.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
 #include <linux/jump_label.h>
+#include <linux/tracepoint-defs.h>
 
 #ifdef CONFIG_RISCV_SBI
 enum sbi_ext_id {
@@ -563,14 +565,81 @@ struct sbiret {
 	long value;
 };
 
+#ifdef CONFIG_TRACEPOINTS
+DECLARE_TRACEPOINT(sbi_call);
+DECLARE_TRACEPOINT(sbi_return);
+extern void do_trace_sbi_call(int ext, int fid);
+extern void do_trace_sbi_return(int ext, long error, long value);
+#else
+static inline void do_trace_sbi_call(int ext, int fid) {};
+static inline void do_trace_sbi_return(int ext, long error, long value) {};
+#endif
+
 void sbi_init(void);
 long __sbi_base_ecall(int fid);
-struct sbiret __sbi_ecall(unsigned long arg0, unsigned long arg1,
-			  unsigned long arg2, unsigned long arg3,
-			  unsigned long arg4, unsigned long arg5,
-			  int fid, int ext);
-#define sbi_ecall(e, f, a0, a1, a2, a3, a4, a5)	\
-		__sbi_ecall(a0, a1, a2, a3, a4, a5, f, e)
+
+#define __sbi_ecall_args2(e, f) \
+	uintptr_t __ta7 = (uintptr_t)(e); \
+	uintptr_t __ta6 = (uintptr_t)(f)
+#define __sbi_ecall_args3(e, f, a0) \
+	__sbi_ecall_args2(e, f); uintptr_t __ta0 = (uintptr_t)(a0)
+#define __sbi_ecall_args4(e, f, a0, a1) \
+	__sbi_ecall_args3(e, f, a0); uintptr_t __ta1 = (uintptr_t)(a1)
+#define __sbi_ecall_args5(e, f, a0, a1, a2) \
+	__sbi_ecall_args4(e, f, a0, a1); uintptr_t __ta2 = (uintptr_t)(a2)
+#define __sbi_ecall_args6(e, f, a0, a1, a2, a3) \
+	__sbi_ecall_args5(e, f, a0, a1, a2); uintptr_t __ta3 = (uintptr_t)(a3)
+#define __sbi_ecall_args7(e, f, a0, a1, a2, a3, a4) \
+	__sbi_ecall_args6(e, f, a0, a1, a2, a3); uintptr_t __ta4 = (uintptr_t)(a4)
+#define __sbi_ecall_args8(e, f, a0, a1, a2, a3, a4, a5) \
+	__sbi_ecall_args7(e, f, a0, a1, a2, a3, a4); uintptr_t __ta5 = (uintptr_t)(a5)
+
+#define __sbi_ecall_regs2 \
+	register uintptr_t __a7 asm ("a7") = __ta7; \
+	register uintptr_t __a6 asm ("a6") = __ta6
+#define __sbi_ecall_regs3  __sbi_ecall_regs2; register uintptr_t __a0 asm ("a0") = __ta0
+#define __sbi_ecall_regs4  __sbi_ecall_regs3; register uintptr_t __a1 asm ("a1") = __ta1
+#define __sbi_ecall_regs5  __sbi_ecall_regs4; register uintptr_t __a2 asm ("a2") = __ta2
+#define __sbi_ecall_regs6  __sbi_ecall_regs5; register uintptr_t __a3 asm ("a3") = __ta3
+#define __sbi_ecall_regs7  __sbi_ecall_regs6; register uintptr_t __a4 asm ("a4") = __ta4
+#define __sbi_ecall_regs8  __sbi_ecall_regs7; register uintptr_t __a5 asm ("a5") = __ta5
+
+#define __sbi_ecall_constraints1                            "r" (__a7)
+#define __sbi_ecall_constraints2  __sbi_ecall_constraints1, "r" (__a6)
+#define __sbi_ecall_constraints3  __sbi_ecall_constraints2, "r" (__a0)
+#define __sbi_ecall_constraints4  __sbi_ecall_constraints3, "r" (__a1)
+#define __sbi_ecall_constraints5  __sbi_ecall_constraints4, "r" (__a2)
+#define __sbi_ecall_constraints6  __sbi_ecall_constraints5, "r" (__a3)
+#define __sbi_ecall_constraints7  __sbi_ecall_constraints6, "r" (__a4)
+#define __sbi_ecall_constraints8  __sbi_ecall_constraints7, "r" (__a5)
+
+#define __sbi_ecall_trace_call() \
+	if (tracepoint_enabled(sbi_call)) \
+		do_trace_sbi_call(__ta7, __ta6)
+
+#define __sbi_ecall_trace_return() \
+	if (tracepoint_enabled(sbi_return)) \
+		do_trace_sbi_return(__ta7, __ret.error, __ret.value)
+
+/*
+ * Clear a1 to avoid leaking unrelated kernel state through tracepoints in case
+ * the register doesn't get overwritten by the ecall nor the arguments.
+ */
+#define sbi_ecall(A...) \
+({ \
+	CONCATENATE(__sbi_ecall_args, COUNT_ARGS(A))(A); \
+	__sbi_ecall_trace_call(); \
+	register uintptr_t __r0 asm ("a0"); \
+	register uintptr_t __r1 asm ("a1") = 0; \
+	CONCATENATE(__sbi_ecall_regs, COUNT_ARGS(A)); \
+	asm volatile ("ecall" \
+			: "=r" (__r0), "=r" (__r1) \
+			: CONCATENATE(__sbi_ecall_constraints, COUNT_ARGS(A)) \
+			: "memory"); \
+	struct sbiret __ret = {.error = __r0, .value = __r1}; \
+	__sbi_ecall_trace_return(); \
+	__ret; \
+})
 
 #ifdef CONFIG_RISCV_SBI_V01
 void sbi_console_putchar(int ch);

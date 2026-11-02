@@ -177,9 +177,12 @@ static int xe_mmio_gem_mmap(struct drm_gem_object *base, struct vm_area_struct *
 	if ((vma->vm_flags & VM_SHARED) == 0)
 		return -EINVAL;
 
+	if (vma->vm_flags & VM_EXEC)
+		return -EINVAL;
+
 	vma->vm_page_prot = pgprot_noncached(vma_get_page_prot(vma));
-	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
-		     VM_DONTCOPY | VM_NORESERVE);
+	vm_flags_mod(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
+		     VM_NORESERVE, VM_MAYEXEC);
 
 	/* Defer actual mapping to the fault handler. */
 	return 0;

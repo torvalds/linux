@@ -19,6 +19,7 @@ TEST_PROGS += test_generic_12.sh
 TEST_PROGS += test_generic_13.sh
 TEST_PROGS += test_generic_16.sh
 TEST_PROGS += test_generic_17.sh
+TEST_PROGS += test_generic_18.sh
 
 TEST_PROGS += test_batch_01.sh
 TEST_PROGS += test_batch_02.sh
@@ -76,13 +77,14 @@ TEST_FILES := settings
 TEST_FILES += test_common.sh
 TEST_FILES += trace
 
-TEST_GEN_PROGS_EXTENDED = kublk metadata_size
-STANDALONE_UTILS := metadata_size.c
+TEST_GEN_PROGS_EXTENDED = kublk metadata_size ublk_cancel_ready
+STANDALONE_UTILS := metadata_size.c ublk_cancel_ready.c
 
 LOCAL_HDRS += $(wildcard *.h)
 include ../lib.mk
 
 $(OUTPUT)/kublk: $(filter-out $(STANDALONE_UTILS),$(wildcard *.c))
+$(OUTPUT)/ublk_cancel_ready: ublk_cancel_ready.c ctrl.c
 
 check:
 	shellcheck -x -f gcc *.sh

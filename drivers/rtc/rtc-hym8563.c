@@ -417,7 +417,7 @@ static irqreturn_t hym8563_irq(int irq, void *dev_id)
 	struct i2c_client *client = hym8563->client;
 	int data, ret;
 
-	rtc_lock(hym8563->rtc);
+	guard(rtc_ops)(hym8563->rtc);
 
 	/* Clear the alarm flag */
 
@@ -425,7 +425,7 @@ static irqreturn_t hym8563_irq(int irq, void *dev_id)
 	if (data < 0) {
 		dev_err(&client->dev, "%s: error reading i2c data %d\n",
 			__func__, data);
-		goto out;
+		return IRQ_HANDLED;
 	}
 
 	data &= ~HYM8563_CTL2_AF;
@@ -436,8 +436,6 @@ static irqreturn_t hym8563_irq(int irq, void *dev_id)
 			__func__, ret);
 	}
 
-out:
-	rtc_unlock(hym8563->rtc);
 	return IRQ_HANDLED;
 }
 

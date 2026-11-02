@@ -248,17 +248,9 @@ static void clear_subscriber_list(struct snd_seq_client *client,
 }
 
 /* delete port data */
-static int port_delete(struct snd_seq_client *client,
-		       struct snd_seq_client_port *port)
+static void port_free(struct snd_seq_client *client,
+		      struct snd_seq_client_port *port)
 {
-	/* set closing flag and wait for all port access are gone */
-	port->closing = 1;
-	/* the port has already been unlinked from the client's port list;
-	 * wait for a grace period so that RCU readers still traversing the
-	 * list can no longer take a new use_lock reference, then drain the
-	 * outstanding references before freeing
-	 */
-	synchronize_rcu();
 	snd_use_lock_sync(&port->use_lock);
 
 	/* clear subscribers info */
@@ -272,6 +264,20 @@ static int port_delete(struct snd_seq_client *client,
 	snd_BUG_ON(port->c_dest.count != 0);
 
 	kfree(port);
+}
+
+static int port_delete(struct snd_seq_client *client,
+		       struct snd_seq_client_port *port)
+{
+	/* set closing flag and wait for all port access are gone */
+	port->closing = 1;
+	/* the port has already been unlinked from the client's port list;
+	 * wait for a grace period so that RCU readers still traversing the
+	 * list can no longer take a new use_lock reference, then drain the
+	 * outstanding references before freeing
+	 */
+	synchronize_rcu();
+	port_free(client, port);
 	return 0;
 }
 
@@ -302,18 +308,25 @@ int snd_seq_delete_port(struct snd_seq_client *client, int port)
 int snd_seq_delete_all_ports(struct snd_seq_client *client)
 {
 	struct snd_seq_client_port *port, *tmp;
+	LIST_HEAD(deleted);
 
-	/* unlink and delete each port; port_delete() waits for an RCU grace
-	 * period before draining the port, so concurrent lockless readers can
-	 * no longer take a new use_lock reference on it
+	/* unlink all ports first and wait for a single RCU grace period
+	 * before draining and freeing them, so concurrent lockless readers
+	 * can no longer take a new use_lock reference on any of them
 	 */
 	guard(mutex)(&client->ports_mutex);
 	list_for_each_entry_safe(port, tmp, &client->ports_list_head, list) {
 		list_del_rcu(&port->list);
 		client->num_ports--;
+		port->closing = 1;
+		list_add_tail(&port->delete_list, &deleted);
 		snd_seq_system_client_ev_port_exit(port->addr.client, port->addr.port);
-		port_delete(client, port);
 	}
+	if (list_empty(&deleted))
+		return 0;
+	synchronize_rcu();
+	list_for_each_entry_safe(port, tmp, &deleted, delete_list)
+		port_free(client, port);
 	return 0;
 }
 

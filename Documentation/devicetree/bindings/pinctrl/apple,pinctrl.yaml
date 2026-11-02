@@ -17,12 +17,14 @@ description: |
 properties:
   compatible:
     oneOf:
+      - const: apple,t8140-pinctrl
       - items:
           - enum:
               - apple,t6020-pinctrl
               - apple,t6030-pinctrl
               - apple,t6031-pinctrl
               - apple,t8122-pinctrl
+              - apple,t8132-pinctrl
           - const: apple,t8103-pinctrl
       - items:
           # Do not add additional SoC to this list.
@@ -50,6 +52,8 @@ properties:
 
   gpio-ranges:
     maxItems: 1
+
+  gpio-reserved-ranges: true
 
   apple,npins:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -89,6 +93,15 @@ patternProperties:
 
 allOf:
   - $ref: pinctrl.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: apple,t8140-pinctrl
+    then:
+      properties:
+        gpio-reserved-ranges: false
 
 required:
   - compatible

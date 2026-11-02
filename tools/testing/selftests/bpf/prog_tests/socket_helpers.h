@@ -470,4 +470,16 @@ static inline const char *socket_kind_to_str(int sock_fd)
 	return "???";
 }
 
+static inline const char *inet_family_str(sa_family_t family)
+{
+	switch (family) {
+	case AF_INET:
+		return "IPv4";
+	case AF_INET6:
+		return "IPv6";
+	default:
+		return "unknown";
+	}
+}
+
 #endif // __SOCKET_HELPERS__

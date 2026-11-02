@@ -90,20 +90,24 @@ TRACE_EVENT(pvr_job_create,
 		      __entry->sync_op_count)
 );
 
-#undef PVR_JOB_TYPE_TO_STR
 #undef PVR_JOB_GET_HWRT_FW_ADDR
 
 TRACE_EVENT(pvr_job_submit_fw,
 	    TP_PROTO(struct pvr_job *job),
 	    TP_ARGS(job),
 	    TP_STRUCT__entry(__field(struct pvr_job *, job)
-			     __field(u32, done_seqno)),
+			     __field(u32, done_seqno)
+			     __field(enum drm_pvr_job_type, job_type)),
 	    TP_fast_assign(__entry->job = job;
-			   __entry->done_seqno = job->done_fence->seqno;),
-	    TP_printk("job=%p done_seqno=%u",
+			   __entry->done_seqno = job->done_fence->seqno;
+			   __entry->job_type = job->type;),
+	    TP_printk("job=%p done_seqno=%u job_type=%s",
 		      __entry->job,
-		      __entry->done_seqno)
+		      __entry->done_seqno,
+		      PVR_JOB_TYPE_TO_STR(__entry->job_type))
 );
+
+#undef PVR_JOB_TYPE_TO_STR
 
 TRACE_EVENT(pvr_job_done,
 	    TP_PROTO(struct pvr_job *job),

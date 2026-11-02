@@ -460,8 +460,6 @@ SPI
   devm_spi_alloc_target()
   devm_spi_optimize_message()
   devm_spi_register_controller()
-  devm_spi_register_host()
-  devm_spi_register_target()
 
 WATCHDOG
   devm_watchdog_register_device()

@@ -360,7 +360,7 @@ SYM53C500_intr(int irq, void *dev_id)
 	struct sym53c500_cmd_priv *scp = scsi_cmd_priv(curSC);
 	int fast_pio = data->fast_pio;
 
-	spin_lock_irqsave(dev->host_lock, flags);
+	spin_lock_irqsave(&dev->host_lock, flags);
 
 	VDEB(printk("SYM53C500_intr called\n"));
 
@@ -494,7 +494,7 @@ SYM53C500_intr(int irq, void *dev_id)
 		break;
 	}
 out:
-	spin_unlock_irqrestore(dev->host_lock, flags);
+	spin_unlock_irqrestore(&dev->host_lock, flags);
 	return IRQ_HANDLED;
 
 idle_out:
@@ -588,9 +588,9 @@ SYM53C500_host_reset(struct scsi_cmnd *SCpnt)
 	int port_base = SCpnt->device->host->io_port;
 
 	DEB(printk("SYM53C500_host_reset called\n"));
-	spin_lock_irq(SCpnt->device->host->host_lock);
+	spin_lock_irq(&SCpnt->device->host->host_lock);
 	SYM53C500_int_host_reset(port_base);
-	spin_unlock_irq(SCpnt->device->host->host_lock);
+	spin_unlock_irq(&SCpnt->device->host->host_lock);
 
 	return SUCCESS;
 }

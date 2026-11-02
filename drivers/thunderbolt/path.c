@@ -398,7 +398,7 @@ static int __tb_path_deactivate_hop(struct tb_port *port, int hop_index,
 		return ret;
 
 	/* Wait until it is drained */
-	timeout = ktime_add_ms(ktime_get(), 500);
+	timeout = ktime_add_ms(ktime_get(), port->pp_timeout_msec);
 	do {
 		ret = tb_port_read(port, &hop, TB_CFG_HOPS, 2 * hop_index, 2);
 		if (ret)

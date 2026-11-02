@@ -5,7 +5,6 @@
 # German Gomez <german.gomez@arm.com>, 2022
 
 shelldir=$(dirname "$0")
-# shellcheck source=lib/perf_has_symbol.sh
 . "${shelldir}"/lib/perf_has_symbol.sh
 
 # skip the test if the hardware doesn't support branch stack sampling

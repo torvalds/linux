@@ -795,22 +795,26 @@ static void dcn5_ms_calculate_num_of_dpp_required(
 		const struct dml2_display_cfg *display_cfg,
 		struct dml2_core_internal_display_mode_lib *mode_lib)
 {
-	unsigned int k;
+	unsigned int k, m;
 	const struct dml2_plane_parameters *plane;
 
 	for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
 		plane = &display_cfg->plane_descriptors[k];
 		mode_lib->ms.MPCCombine[k] = false;
 		mode_lib->ms.NoOfDPP[k] = 1;
+		mode_lib->ms.NoOfOPP[k] = 1;
 		if (mode_lib->ms.ODMMode[k] == dml2_odm_mode_combine_4to1) {
 			mode_lib->ms.MPCCombine[k] = false;
 			mode_lib->ms.NoOfDPP[k] = 4;
+			mode_lib->ms.NoOfOPP[k] = 4;
 		} else if (mode_lib->ms.ODMMode[k] == dml2_odm_mode_combine_3to1) {
 			mode_lib->ms.MPCCombine[k] = false;
 			mode_lib->ms.NoOfDPP[k] = 3;
+			mode_lib->ms.NoOfOPP[k] = 3;
 		} else if (mode_lib->ms.ODMMode[k] == dml2_odm_mode_combine_2to1) {
 			mode_lib->ms.MPCCombine[k] = false;
 			mode_lib->ms.NoOfDPP[k] = 2;
+			mode_lib->ms.NoOfOPP[k] = 2;
 		} else if (plane->overrides.mpcc_combine_factor == 2) {
 			mode_lib->ms.MPCCombine[k] = true;
 			mode_lib->ms.NoOfDPP[k] = 2;
@@ -832,12 +836,27 @@ static void dcn5_ms_calculate_num_of_dpp_required(
 		DML_LOG_VERBOSE("DML::%s: k=%d, NoOfDPP = %d\n", __func__, k,
 				mode_lib->ms.NoOfDPP[k]);
 	}
+
+
+	// TotalNumberOfActiveOPP is the sum of the per stream max NoOfOPP of all planes driving that stream
+	mode_lib->ms.TotalNumberOfActiveOPP = 0;
+	for (k = 0; k < display_cfg->num_streams; ++k) {
+		unsigned int NoOfOppPerStream = 0;
+
+		for (m = 0; m < mode_lib->ms.num_active_planes; ++m) {
+			if (display_cfg->plane_descriptors[m].stream_index == k)
+				NoOfOppPerStream = NoOfOppPerStream < mode_lib->ms.NoOfOPP[m] ? mode_lib->ms.NoOfOPP[m] : NoOfOppPerStream;
+		}
+
+		mode_lib->ms.TotalNumberOfActiveOPP += NoOfOppPerStream;
+	}
 }
 
 static bool dcn5_ms_check_total_available_pipes_support(
 		struct dml2_core_internal_display_mode_lib *mode_lib)
 {
-	return mode_lib->ms.TotalNumberOfActiveDPP <= (unsigned int) mode_lib->ip.max_num_dpp;
+	return mode_lib->ms.TotalNumberOfActiveDPP <= (unsigned int) mode_lib->ip.max_num_dpp
+			&& mode_lib->ms.TotalNumberOfActiveOPP <= (unsigned int) mode_lib->ip.max_num_opp;
 }
 
 static void dcn5_ms_calculate_total_num_of_single_dpp_surfaces(
@@ -973,11 +992,6 @@ static bool dcn5_ms_check_writeback_count_support(
 	for (stream_idx = 0; stream_idx < display_cfg->num_streams; stream_idx++) {
 		totalNumberOfActiveWriteback +=
 				display_cfg->stream_descriptors[stream_idx].writeback.active_writebacks_per_stream;
-
-		/* >1 writeback per stream is currently not supported */
-		if (display_cfg->stream_descriptors[stream_idx].writeback.active_writebacks_per_stream > 1) {
-			writeback_per_stream_supported = false;
-		}
 	}
 
 	return writeback_per_stream_supported &&
@@ -1533,6 +1547,8 @@ static void dcn5_ms_calculate_det_buffer_time_value_urgent_burst_factor_and_urge
 				plane->composition.scaler_info.plane1.v_ratio,
 				mode_lib->ms.BytePerPixelInDETY[k],
 				mode_lib->ms.BytePerPixelInDETC[k],
+				mode_lib->ms.UnboundedRequestEnabled,
+				mode_lib->ms.CompressedBufferSizeInkByte,
 				mode_lib->ms.DETBufferSizeY[k],
 				mode_lib->ms.DETBufferSizeC[k],
 
@@ -2081,6 +2097,8 @@ static void dcn5_ms_calculate_urgent_burst_factor_for_prefetch(
 				mode_lib->ms.VRatioPreC[k],
 				mode_lib->ms.BytePerPixelInDETY[k],
 				mode_lib->ms.BytePerPixelInDETC[k],
+				mode_lib->ms.UnboundedRequestEnabled,
+				mode_lib->ms.CompressedBufferSizeInkByte,
 				mode_lib->ms.DETBufferSizeY[k],
 				mode_lib->ms.DETBufferSizeC[k],
 				/* Output */

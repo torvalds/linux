@@ -72,6 +72,7 @@
 #include <linux/spinlock.h>	/* For spin_lock/spin_unlock/... */
 #include <linux/uaccess.h>	/* For copy_to_user/put_user/... */
 #include <linux/io.h>		/* For inb/outb/... */
+#include <linux/stringify.h>	/* For __stringify */
 
 /* Module and version information */
 #define WATCHDOG_VERSION "1.20"
@@ -203,13 +204,13 @@ static int heartbeat = WATCHDOG_HEARTBEAT;
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. "
 	"(2 <= heartbeat <= 7200 or 0=delay-time from dip-switches, default="
-				__MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
+				__stringify(WATCHDOG_HEARTBEAT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+				__stringify(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Internal functions

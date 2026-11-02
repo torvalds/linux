@@ -257,6 +257,9 @@ static int waterforce_raw_event(struct hid_device *hdev, struct hid_report *repo
 {
 	struct waterforce_data *priv = hid_get_drvdata(hdev);
 
+	if (size <= FIRMWARE_VER_START_OFFSET_2)
+		return 0;
+
 	if (data[0] == get_firmware_ver_cmd[0] && data[1] == get_firmware_ver_cmd[1]) {
 		/* Received a firmware version report */
 		priv->firmware_version =
@@ -268,6 +271,8 @@ static int waterforce_raw_event(struct hid_device *hdev, struct hid_report *repo
 	}
 
 	if (data[0] != get_status_cmd[0] || data[1] != get_status_cmd[1])
+		return 0;
+	if (size <= WATERFORCE_TEMP_SENSOR)
 		return 0;
 
 	priv->temp_input[0] = data[WATERFORCE_TEMP_SENSOR] * 1000;

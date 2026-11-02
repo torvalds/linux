@@ -727,7 +727,7 @@ static int aw88399_codec_probe(struct snd_soc_component *component)
 
 	INIT_DELAYED_WORK(&aw88399->start_work, aw88399_startup_work);
 
-	ret = aw88399_request_firmware_file(aw88399);
+	ret = aw88399_request_firmware_file(aw88399, AW88399_ACF_FILE);
 	if (ret)
 		dev_err(aw88399->aw_pa->dev, "%s failed\n", __func__);
 

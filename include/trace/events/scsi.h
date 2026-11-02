@@ -303,8 +303,8 @@ DECLARE_EVENT_CLASS(scsi_cmd_done_timeout_template,
 		if (cmd->sense_buffer && SCSI_SENSE_VALID(cmd) &&
 		    scsi_command_normalize_sense(cmd, &sshdr)) {
 			__entry->sense_key = sshdr.sense_key;
-			__entry->asc = sshdr.asc;
-			__entry->ascq = sshdr.ascq;
+			__entry->asc = scsi_sense_asc(&sshdr);
+			__entry->ascq = scsi_sense_ascq(&sshdr);
 		} else {
 			__entry->sense_key = 0;
 			__entry->asc = 0;

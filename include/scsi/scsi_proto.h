@@ -12,6 +12,7 @@
 
 #include <linux/build_bug.h>
 #include <linux/types.h>
+#include <scsi/scsi_sense.h>
 
 /*
  *      SCSI opcodes
@@ -217,76 +218,6 @@ enum sam_status {
 };
 
 #define STATUS_MASK         0xfe
-
-/*
- *  SENSE KEYS
- */
-#define NO_SENSE            0x00
-#define RECOVERED_ERROR     0x01
-#define NOT_READY           0x02
-#define MEDIUM_ERROR        0x03
-#define HARDWARE_ERROR      0x04
-#define ILLEGAL_REQUEST     0x05
-#define UNIT_ATTENTION      0x06
-#define DATA_PROTECT        0x07
-#define BLANK_CHECK         0x08
-#define VENDOR_SPECIFIC     0x09
-#define COPY_ABORTED        0x0a
-#define ABORTED_COMMAND     0x0b
-#define VOLUME_OVERFLOW     0x0d
-#define MISCOMPARE          0x0e
-#define COMPLETED	    0x0f
-
-/*
- * Additional Sense Codes (ASC).
- */
-#define NO_ADDITIONAL_SENSE		0x00
-#define OVERLAP_ATOMIC_COMMAND_ASC	0x00
-#define LOGICAL_UNIT_NOT_READY		0x04
-#define LOGICAL_UNIT_COMMUNICATION_FAILURE 0x8
-#define WRITE_ERROR_ASC			0x0c
-#define UNRECOVERED_READ_ERR		0x11
-#define PARAMETER_LIST_LENGTH_ERR	0x1a
-#define MISCOMPARE_VERIFY_ASC		0x1d
-#define INVALID_OPCODE			0x20
-#define LBA_OUT_OF_RANGE		0x21
-#define INVALID_FIELD_IN_CDB		0x24
-#define INVALID_FIELD_IN_PARAM_LIST	0x26
-#define WRITE_PROTECTED			0x27
-#define UA_READY_ASC			0x28
-#define UA_RESET_ASC			0x29
-#define UA_CHANGED_ASC			0x2a
-#define TOO_MANY_IN_PARTITION_ASC	0x3b
-#define TARGET_CHANGED_ASC		0x3f
-#define SAVING_PARAMS_UNSUP		0x39
-#define TRANSPORT_PROBLEM		0x4b
-#define INSUFF_RES_ASC			0x55
-#define LOW_POWER_COND_ON		0x5e
-#define THRESHOLD_EXCEEDED		0x5d
-
-/*
- * Additional Sense Code Qualifiers (ASCQ).
- */
-#define POWER_ON_RESET_ASCQ		0x00
-#define MODE_CHANGED_ASCQ		0x01	/* mode parameters changed */
-#define FILEMARK_DETECTED_ASCQ		0x01
-#define POWER_ON_OCCURRED_ASCQ		0x01
-#define MICROCODE_CHANGED_ASCQ		0x01	/* with TARGET_CHANGED_ASC */
-#define BUS_RESET_ASCQ			0x02	/* scsi bus reset occurred */
-#define EOP_EOM_DETECTED_ASCQ		0x02
-#define INSUFF_RES_ASCQ			0x03
-#define BEGINNING_OF_P_M_DETECTED_ASCQ	0x04
-#define UNALIGNED_WRITE_ASCQ		0x04
-#define EOD_DETECTED_ASCQ		0x05
-#define WRITE_BOUNDARY_ASCQ		0x05
-#define READ_INVDATA_ASCQ		0x06
-#define READ_BOUNDARY_ASCQ		0x07
-#define CAPACITY_CHANGED_ASCQ		0x09
-#define ATTEMPT_ACCESS_GAP		0x09
-#define LUNS_CHANGED_ASCQ		0x0e
-#define INSUFF_ZONE_ASCQ		0x0e
-#define MICROCODE_CHANGED_WO_RESET_ASCQ 0x16
-#define OVERLAP_ATOMIC_COMMAND_ASCQ	0x23
 
 /*
  *  DEVICE TYPES

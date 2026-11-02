@@ -1324,11 +1324,6 @@ static int soc15_common_resume(struct amdgpu_ip_block *ip_block)
 	return soc15_common_hw_init(ip_block);
 }
 
-static bool soc15_common_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	return true;
-}
-
 static void soc15_update_drm_clock_gating(struct amdgpu_device *adev, bool enable)
 {
 	uint32_t def, data;
@@ -1480,7 +1475,6 @@ static const struct amd_ip_funcs soc15_common_ip_funcs = {
 	.hw_fini = soc15_common_hw_fini,
 	.suspend = soc15_common_suspend,
 	.resume = soc15_common_resume,
-	.is_idle = soc15_common_is_idle,
 	.set_clockgating_state = soc15_common_set_clockgating_state,
 	.set_powergating_state = soc15_common_set_powergating_state,
 	.get_clockgating_state= soc15_common_get_clockgating_state,

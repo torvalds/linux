@@ -1,11 +1,10 @@
 #!/bin/bash
-# perf list tests
+# perf list tests (no_mlock)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e
 
 shelldir=$(dirname "$0")
-# shellcheck source=lib/setup_python.sh
 . "${shelldir}"/lib/setup_python.sh
 
 list_output=$(mktemp /tmp/__perf_test.list_output.json.XXXXX)

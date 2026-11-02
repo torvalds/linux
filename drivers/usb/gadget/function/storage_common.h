@@ -70,24 +70,59 @@ do {									\
 #define MAX_COMMAND_SIZE	16
 
 /* SCSI Sense Key/Additional Sense Code/ASC Qualifier values */
-#define SS_NO_SENSE				0
-#define SS_COMMUNICATION_FAILURE		0x040800
-#define SS_INVALID_COMMAND			0x052000
-#define SS_INVALID_FIELD_IN_CDB			0x052400
-#define SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE	0x052100
-#define SS_LOGICAL_UNIT_NOT_SUPPORTED		0x052500
-#define SS_MEDIUM_NOT_PRESENT			0x023a00
-#define SS_MEDIUM_REMOVAL_PREVENTED		0x055302
-#define SS_NOT_READY_TO_READY_TRANSITION	0x062800
-#define SS_RESET_OCCURRED			0x062900
-#define SS_SAVING_PARAMETERS_NOT_SUPPORTED	0x053900
-#define SS_UNRECOVERED_READ_ERROR		0x031100
-#define SS_WRITE_ERROR				0x030c02
-#define SS_WRITE_PROTECTED			0x072700
+static inline u32 usb_sense_kc(u8 sense_key, u16 sense_code)
+{
+	return ((u32)sense_key << 16) | (u32)sense_code;
+}
 
-#define SK(x)		((u8) ((x) >> 16))	/* Sense Key byte, etc. */
-#define ASC(x)		((u8) ((x) >> 8))
-#define ASCQ(x)		((u8) (x))
+static inline u8 usb_sense_key(u32 kc)
+{
+	return kc >> 16;
+}
+
+static inline u16 usb_sense_code(u32 kc)
+{
+	return kc & 0xFFFF;
+}
+
+static inline u8 usb_sense_asc(u32 kc)
+{
+	return scsi_sense_code_asc(usb_sense_code(kc));
+}
+
+static inline u8 usb_sense_ascq(u32 kc)
+{
+	return scsi_sense_code_ascq(usb_sense_code(kc));
+}
+
+#define SS_COMMUNICATION_FAILURE		\
+	usb_sense_kc(HARDWARE_ERROR, LU_COMMUNICATION_FAILURE)
+#define SS_INVALID_COMMAND			\
+	usb_sense_kc(ILLEGAL_REQUEST, INVALID_COMMAND_OP_CODE)
+#define SS_INVALID_FIELD_IN_CDB			\
+	usb_sense_kc(ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB)
+#define SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE	\
+	usb_sense_kc(ILLEGAL_REQUEST, LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE)
+#define SS_LOGICAL_UNIT_NOT_SUPPORTED		\
+	usb_sense_kc(ILLEGAL_REQUEST, LU_NOT_SUPPORTED)
+#define SS_MEDIUM_NOT_PRESENT			\
+	usb_sense_kc(NOT_READY, MEDIUM_NOT_PRESENT)
+#define SS_MEDIUM_REMOVAL_PREVENTED		\
+	usb_sense_kc(ILLEGAL_REQUEST, MEDIUM_REMOVAL_PREVENTED)
+#define SS_NOT_READY_TO_READY_TRANSITION	\
+	usb_sense_kc(UNIT_ATTENTION,		\
+		     NOT_READY_TO_READY_CHANGE_MEDIUM_MAY_HAVE_CHANGED)
+#define SS_RESET_OCCURRED			\
+	usb_sense_kc(UNIT_ATTENTION,		\
+		     POWER_ON_RESET_OR_BUS_DEVICE_RESET_OCCURRED)
+#define SS_SAVING_PARAMETERS_NOT_SUPPORTED	\
+	usb_sense_kc(ILLEGAL_REQUEST, SAVING_PARAMETERS_NOT_SUPPORTED)
+#define SS_UNRECOVERED_READ_ERROR		\
+	usb_sense_kc(MEDIUM_ERROR, UNRECOVERED_READ_ERROR)
+#define SS_WRITE_ERROR				\
+	usb_sense_kc(MEDIUM_ERROR, WRITE_ERROR_AUTO_REALLOCATION_FAILED)
+#define SS_WRITE_PROTECTED			\
+	usb_sense_kc(DATA_PROTECT, WRITE_PROTECTED)
 
 /*
  * Vendor (8 chars), product (16 chars), release (4 hexadecimal digits) and NUL

@@ -225,7 +225,7 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 	
 	if (!host)
 		panic("aha1740.c: Irq from unknown host!\n");
-	spin_lock_irqsave(host->host_lock, flags);
+	spin_lock_irqsave(&host->host_lock, flags);
 	base = host->io_port;
 	number_serviced = 0;
 	edev = HOSTDATA(host)->edev;
@@ -315,7 +315,7 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 		number_serviced++;
 	}
 
-	spin_unlock_irqrestore(host->host_lock, flags);
+	spin_unlock_irqrestore(&host->host_lock, flags);
 	return IRQ_RETVAL(handled);
 }
 
@@ -353,7 +353,7 @@ static enum scsi_qc_status aha1740_queuecommand_lck(struct scsi_cmnd *SCpnt)
 #endif
 
 	/* locate an available ecb */
-	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
+	spin_lock_irqsave(&SCpnt->device->host->host_lock, flags);
 	ecbno = host->last_ecb_used + 1; /* An optimization */
 	if (ecbno >= AHA1740_ECBS)
 		ecbno = 0;
@@ -372,7 +372,7 @@ static enum scsi_qc_status aha1740_queuecommand_lck(struct scsi_cmnd *SCpnt)
 						    doubles as reserved flag */
 
 	host->last_ecb_used = ecbno;    
-	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
+	spin_unlock_irqrestore(&SCpnt->device->host->host_lock, flags);
 
 #ifdef DEBUG
 	printk("Sending command (%d %x)...", ecbno, done);
@@ -465,7 +465,7 @@ static enum scsi_qc_status aha1740_queuecommand_lck(struct scsi_cmnd *SCpnt)
 		unsigned int base = SCpnt->device->host->io_port;
 		DEB(printk("aha1740[%d] critical section\n",ecbno));
 
-		spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
+		spin_lock_irqsave(&SCpnt->device->host->host_lock, flags);
 		for (loopcnt = 0; ; loopcnt++) {
 			if (inb(G2STAT(base)) & G2STAT_MBXOUT) break;
 			if (loopcnt == LOOPCNT_WARN) {
@@ -485,7 +485,7 @@ static enum scsi_qc_status aha1740_queuecommand_lck(struct scsi_cmnd *SCpnt)
 				panic("aha1740.c: attn wait failed!\n");
 		}
 		outb(ATTN_START | (target & 7), ATTN(base)); /* Start it up */
-		spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
+		spin_unlock_irqrestore(&SCpnt->device->host->host_lock, flags);
 		DEB(printk("aha1740[%d] request queued.\n",ecbno));
 	} else
 		printk(KERN_ALERT "aha1740_queuecommand: done can't be NULL\n");

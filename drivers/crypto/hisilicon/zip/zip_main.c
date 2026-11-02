@@ -1400,8 +1400,8 @@ static int zip_pre_store_cap_reg(struct hisi_qm *qm)
 				     i, qm->cap_ver);
 	}
 
-	qm->cap_tables.dev_cap_table = zip_cap;
 	qm->cap_tables.dev_cap_size = size;
+	qm->cap_tables.dev_cap_table = zip_cap;
 
 	return 0;
 }

@@ -290,6 +290,7 @@ __naked void store_release_with_invalid_reg(void)
 
 SEC("socket")
 __description("Clang version < 18, ENABLE_ATOMICS_TESTS not defined, and/or JIT doesn't support store-release, use a dummy test")
+__skip("Clang version < 18, ENABLE_ATOMICS_TESTS not defined, and/or JIT doesn't support store-release")
 __success
 int dummy_test(void)
 {

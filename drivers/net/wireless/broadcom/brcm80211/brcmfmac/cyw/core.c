@@ -370,10 +370,16 @@ static void brcmf_cyw_register_event_handlers(struct brcmf_pub *drvr)
 			    brcmf_notify_mgmt_tx_status);
 }
 
+static int brcmf_cyw_configure_sae_pwe(struct brcmf_if *ifp, u32 sae_pwe)
+{
+	return brcmf_fil_iovar_int_set(ifp, "extsae_pwe", sae_pwe);
+}
+
 const struct brcmf_fwvid_ops brcmf_cyw_ops = {
 	.set_sae_password = brcmf_cyw_set_sae_pwd,
 	.alloc_fweh_info = brcmf_cyw_alloc_fweh_info,
 	.activate_events = brcmf_cyw_activate_events,
 	.get_cfg80211_ops = brcmf_cyw_get_cfg80211_ops,
 	.register_event_handlers = brcmf_cyw_register_event_handlers,
+	.configure_sae_pwe = brcmf_cyw_configure_sae_pwe,
 };

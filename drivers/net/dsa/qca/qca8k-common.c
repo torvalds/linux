@@ -471,10 +471,7 @@ void qca8k_port_set_status(struct qca8k_priv *priv, int port, int enable)
 	if (port > 0 && port < 6)
 		mask |= QCA8K_PORT_STATUS_LINK_AUTO;
 
-	if (enable)
-		regmap_set_bits(priv->regmap, QCA8K_REG_PORT_STATUS(port), mask);
-	else
-		regmap_clear_bits(priv->regmap, QCA8K_REG_PORT_STATUS(port), mask);
+	regmap_assign_bits(priv->regmap, QCA8K_REG_PORT_STATUS(port), mask, enable);
 }
 
 void qca8k_get_strings(struct dsa_switch *ds, int port, u32 stringset,
@@ -562,14 +559,8 @@ static int qca8k_port_configure_learning(struct dsa_switch *ds, int port,
 {
 	struct qca8k_priv *priv = ds->priv;
 
-	if (learning)
-		return regmap_set_bits(priv->regmap,
-				       QCA8K_PORT_LOOKUP_CTRL(port),
-				       QCA8K_PORT_LOOKUP_LEARN);
-	else
-		return regmap_clear_bits(priv->regmap,
-					 QCA8K_PORT_LOOKUP_CTRL(port),
-					 QCA8K_PORT_LOOKUP_LEARN);
+	return regmap_assign_bits(priv->regmap, QCA8K_PORT_LOOKUP_CTRL(port),
+				  QCA8K_PORT_LOOKUP_LEARN, learning);
 }
 
 void qca8k_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)

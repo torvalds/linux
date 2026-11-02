@@ -21,6 +21,22 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+    description: System clock (SCK)
+
+  clock-names:
+    const: sck
+
+  VCC1-supply:
+    description: 5V analog power supply
+
+  VCC2-supply:
+    description: 5V analog power supply
+
+  VDD-supply:
+    description: 3.3V digital power supply
+
   "#sound-dai-cells":
     const: 0
 

@@ -54,11 +54,9 @@ static __always_inline bool riscv_has_vendor_extension_likely(const unsigned lon
 	if (!IS_ENABLED(CONFIG_RISCV_ISA_VENDOR_EXT))
 		return false;
 
-	if (IS_ENABLED(CONFIG_RISCV_ALTERNATIVE))
-		return __riscv_has_extension_likely(vendor,
-						    ext + RISCV_VENDOR_EXT_ALTERNATIVES_BASE);
+	return __riscv_has_extension_likely(vendor,
+					    ext + RISCV_VENDOR_EXT_ALTERNATIVES_BASE);
 
-	return __riscv_isa_vendor_extension_available(VENDOR_EXT_ALL_CPUS, vendor, ext);
 }
 
 static __always_inline bool riscv_has_vendor_extension_unlikely(const unsigned long vendor,
@@ -67,11 +65,9 @@ static __always_inline bool riscv_has_vendor_extension_unlikely(const unsigned l
 	if (!IS_ENABLED(CONFIG_RISCV_ISA_VENDOR_EXT))
 		return false;
 
-	if (IS_ENABLED(CONFIG_RISCV_ALTERNATIVE))
-		return __riscv_has_extension_unlikely(vendor,
-						      ext + RISCV_VENDOR_EXT_ALTERNATIVES_BASE);
+	return __riscv_has_extension_unlikely(vendor,
+					      ext + RISCV_VENDOR_EXT_ALTERNATIVES_BASE);
 
-	return __riscv_isa_vendor_extension_available(VENDOR_EXT_ALL_CPUS, vendor, ext);
 }
 
 static __always_inline bool riscv_cpu_has_vendor_extension_likely(const unsigned long vendor,
@@ -80,8 +76,7 @@ static __always_inline bool riscv_cpu_has_vendor_extension_likely(const unsigned
 	if (!IS_ENABLED(CONFIG_RISCV_ISA_VENDOR_EXT))
 		return false;
 
-	if (IS_ENABLED(CONFIG_RISCV_ALTERNATIVE) &&
-	    __riscv_has_extension_likely(vendor, ext + RISCV_VENDOR_EXT_ALTERNATIVES_BASE))
+	if (__riscv_has_extension_likely(vendor, ext + RISCV_VENDOR_EXT_ALTERNATIVES_BASE))
 		return true;
 
 	return __riscv_isa_vendor_extension_available(cpu, vendor, ext);
@@ -94,8 +89,7 @@ static __always_inline bool riscv_cpu_has_vendor_extension_unlikely(const unsign
 	if (!IS_ENABLED(CONFIG_RISCV_ISA_VENDOR_EXT))
 		return false;
 
-	if (IS_ENABLED(CONFIG_RISCV_ALTERNATIVE) &&
-	    __riscv_has_extension_unlikely(vendor, ext + RISCV_VENDOR_EXT_ALTERNATIVES_BASE))
+	if (__riscv_has_extension_unlikely(vendor, ext + RISCV_VENDOR_EXT_ALTERNATIVES_BASE))
 		return true;
 
 	return __riscv_isa_vendor_extension_available(cpu, vendor, ext);

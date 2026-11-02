@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <sound/compress_driver.h>
 #include <sound/pcm.h>
 #include "sof-priv.h"
 
@@ -444,6 +445,79 @@ snd_sof_pcm_platform_hw_params(struct snd_sof_dev *sdev,
 	if (sof_ops(sdev) && sof_ops(sdev)->pcm_hw_params)
 		return sof_ops(sdev)->pcm_hw_params(sdev, substream, params,
 						    platform_params);
+
+	return 0;
+}
+
+static inline int
+snd_sof_compr_platform_open(struct snd_sof_dev *sdev, struct snd_compr_stream *cstream)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->compr_open)
+		return sof_ops(sdev)->compr_open(sdev, cstream);
+
+	return 0;
+}
+
+/* disconnect pcm substream to a host stream */
+static inline int
+snd_sof_compr_platform_close(struct snd_sof_dev *sdev, struct snd_compr_stream *cstream)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->compr_close)
+		return sof_ops(sdev)->compr_close(sdev, cstream);
+
+	return 0;
+}
+
+/* host stream hw params */
+static inline int
+snd_sof_compr_platform_hw_params(struct snd_sof_dev *sdev,
+				 struct snd_compr_stream *cstream,
+				 struct snd_compr_params *params,
+				 struct snd_sof_platform_stream_params *platform_params)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->compr_hw_params)
+		return sof_ops(sdev)->compr_hw_params(sdev, cstream, params, platform_params);
+
+	return 0;
+}
+
+static inline int
+snd_sof_compr_platform_hw_free(struct snd_sof_dev *sdev,
+			       struct snd_compr_stream *cstream)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->compr_hw_free)
+		return sof_ops(sdev)->compr_hw_free(sdev, cstream);
+
+	return 0;
+}
+
+static inline int
+snd_sof_compr_platform_trigger(struct snd_sof_dev *sdev,
+			       struct snd_compr_stream *cstream, int cmd)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->compr_trigger)
+		return sof_ops(sdev)->compr_trigger(sdev, cstream, cmd);
+
+	return 0;
+}
+
+static inline int
+snd_sof_compr_platform_pointer(struct snd_sof_dev *sdev,
+			       struct snd_compr_stream *cstream,
+			       struct snd_compr_tstamp64 *tstamp)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->compr_pointer)
+		return sof_ops(sdev)->compr_pointer(sdev, cstream, tstamp);
+
+	return 0;
+}
+
+static inline u64
+snd_sof_compr_get_dai_frame_counter(struct snd_sof_dev *sdev,
+				    struct snd_compr_stream *cstream)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->compr_get_dai_frame_counter)
+		return sof_ops(sdev)->compr_get_dai_frame_counter(sdev, cstream);
 
 	return 0;
 }

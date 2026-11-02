@@ -22,8 +22,8 @@ enum vlan_protos {
 struct vlan_group {
 	unsigned int		nr_vlan_devs;
 	struct hlist_node	hlist;	/* linked list */
-	struct net_device **vlan_devices_arrays[VLAN_PROTO_NUM]
-					       [VLAN_GROUP_ARRAY_SPLIT_PARTS];
+	struct net_device __rcu **vlan_devices_arrays[VLAN_PROTO_NUM]
+						     [VLAN_GROUP_ARRAY_SPLIT_PARTS];
 };
 
 struct vlan_info {
@@ -54,15 +54,13 @@ static inline struct net_device *__vlan_group_get_device(struct vlan_group *vg,
 							 unsigned int pidx,
 							 u16 vlan_id)
 {
-	struct net_device **array;
+	struct net_device __rcu **array;
 
-	array = vg->vlan_devices_arrays[pidx]
-				       [vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
+	/* Pairs with smp_store_release() in vlan_group_prealloc_vid() */
+	array = smp_load_acquire(&vg->vlan_devices_arrays[pidx]
+				 [vlan_id / VLAN_GROUP_ARRAY_PART_LEN]);
 
-	/* paired with smp_wmb() in vlan_group_prealloc_vid() */
-	smp_rmb();
-
-	return array ? array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] : NULL;
+	return array ? rcu_dereference_raw(array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN]) : NULL;
 }
 
 static inline struct net_device *vlan_group_get_device(struct vlan_group *vg,
@@ -82,13 +80,13 @@ static inline void vlan_group_set_device(struct vlan_group *vg,
 					 struct net_device *dev)
 {
 	int pidx = vlan_proto_idx(vlan_proto);
-	struct net_device **array;
+	struct net_device __rcu **array;
 
 	if (!vg || pidx < 0)
 		return;
 	array = vg->vlan_devices_arrays[pidx]
 				       [vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
-	array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] = dev;
+	rcu_assign_pointer(array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN], dev);
 }
 
 /* Must be invoked with rcu_read_lock or with RTNL. */
@@ -160,7 +158,7 @@ static inline u32 vlan_get_ingress_priority(struct net_device *dev,
 {
 	struct vlan_dev_priv *vip = vlan_dev_priv(dev);
 
-	return vip->ingress_priority_map[(vlan_tci >> VLAN_PRIO_SHIFT) & 0x7];
+	return READ_ONCE(vip->ingress_priority_map[(vlan_tci >> VLAN_PRIO_SHIFT) & 0x7]);
 }
 
 #ifdef CONFIG_VLAN_8021Q_GVRP

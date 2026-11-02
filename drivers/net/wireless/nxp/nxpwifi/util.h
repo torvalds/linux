@@ -82,6 +82,7 @@ static inline dma_addr_t NXPWIFI_SKB_DMA_ADDR(struct sk_buff *skb)
 }
 
 int nxpwifi_debug_info_to_buffer(struct nxpwifi_private *priv, char *buf,
+				 size_t buf_size,
 				 struct nxpwifi_debug_info *info);
 
 static inline void le16_unaligned_add_cpu(__le16 *var, u16 val)

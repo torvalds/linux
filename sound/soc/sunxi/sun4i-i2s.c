@@ -1106,6 +1106,17 @@ static int sun4i_i2s_dai_startup(struct snd_pcm_substream *sub, struct snd_soc_d
 					    i2s->variant->pcm_formats);
 }
 
+static const u64 sun4i_i2s_selectable_format =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops sun4i_i2s_dai_ops = {
 	.probe		= sun4i_i2s_dai_probe,
 	.startup	= sun4i_i2s_dai_startup,
@@ -1114,6 +1125,8 @@ static const struct snd_soc_dai_ops sun4i_i2s_dai_ops = {
 	.set_sysclk	= sun4i_i2s_set_sysclk,
 	.set_tdm_slot	= sun4i_i2s_set_tdm_slot,
 	.trigger	= sun4i_i2s_trigger,
+	.auto_selectable_formats	= &sun4i_i2s_selectable_format,
+	.num_auto_selectable_formats	= 1,
 };
 
 #define SUN4I_FORMATS_ALL (SNDRV_PCM_FMTBIT_S16_LE | \

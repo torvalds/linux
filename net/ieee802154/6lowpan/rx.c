@@ -294,7 +294,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *wdev,
 	 */
 	if (lowpan_is_frag1(*skb_network_header(skb)) ||
 	    lowpan_is_iphc(*skb_network_header(skb))) {
-		skb = skb_unshare(skb, GFP_ATOMIC);
+		skb = skb_unclone_full(skb, GFP_ATOMIC);
 		if (!skb)
 			goto out;
 	}

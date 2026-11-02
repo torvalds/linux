@@ -51,10 +51,10 @@ future extension.
 
 For each entry in ``waiters`` array, the current value at ``uaddr`` is compared
 to ``val``. If it's different, the syscall undo all the work done so far and
-return ``-EAGAIN``. If all tests and verifications succeeds, syscall waits until
+return ``-EWOULDBLOCK``. If all tests and verifications succeeds, syscall waits until
 one of the following happens:
 
-- The timeout expires, returning ``-ETIMEOUT``.
+- The timeout expires, returning ``-ETIMEDOUT``.
 - A signal was sent to the sleeping task, returning ``-ERESTARTSYS``.
 - Some futex at the list was woken, returning the index of some waked futex.
 

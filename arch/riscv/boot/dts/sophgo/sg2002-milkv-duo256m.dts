@@ -36,17 +36,6 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
-
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		coprocessor_rtos: region@8fe00000 {
-			reg = <0x8fe00000 0x200000>;
-			no-map;
-		};
-	};
 };
 
 &osc {

@@ -166,19 +166,9 @@ static bool brbe_record_is_target_only(u64 brbinf)
 	return brbe_record_valid(brbinf) == BRBINFx_EL1_VALID_TARGET;
 }
 
-static int brbinf_get_in_tx(u64 brbinf)
-{
-	return FIELD_GET(BRBINFx_EL1_T_MASK, brbinf);
-}
-
 static int brbinf_get_mispredict(u64 brbinf)
 {
 	return FIELD_GET(BRBINFx_EL1_MPRED_MASK, brbinf);
-}
-
-static int brbinf_get_lastfailed(u64 brbinf)
-{
-	return FIELD_GET(BRBINFx_EL1_LASTFAILED_MASK, brbinf);
 }
 
 static u16 brbinf_get_cycles(u64 brbinf)
@@ -627,14 +617,6 @@ static bool perf_entry_from_brbe_regset(int index, struct perf_branch_entry *ent
 			entry->mispred = brbinf_get_mispredict(brbinf);
 			entry->predicted = !entry->mispred;
 		}
-
-		/*
-		 * Currently TME feature is neither implemented in any hardware
-		 * nor it is being supported in the kernel. Just warn here once
-		 * if TME related information shows up rather unexpectedly.
-		 */
-		if (brbinf_get_lastfailed(brbinf) || brbinf_get_in_tx(brbinf))
-			pr_warn_once("Unknown transaction states\n");
 	}
 
 	/*

@@ -122,7 +122,7 @@ unsigned long get_max_files(void)
 }
 EXPORT_SYMBOL_GPL(get_max_files);
 
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
+#ifdef CONFIG_SYSCTL
 
 /*
  * Handle nr_files sysctl

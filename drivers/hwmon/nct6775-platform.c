@@ -25,6 +25,7 @@ enum sensor_access { access_direct, access_asuswmi };
 static const char * const nct6775_sio_names[] __initconst = {
 	[nct6106] = "NCT6106D",
 	[nct6116] = "NCT6116D",
+	[nct6126] = "NCT6122D/NCT6126D",
 	[nct6775] = "NCT6775F",
 	[nct6776] = "NCT6776D/F",
 	[nct6779] = "NCT6779D",
@@ -76,6 +77,9 @@ MODULE_PARM_DESC(fan_debounce, "Enable debouncing for fan RPM signal");
 
 #define SIO_NCT6106_ID		0xc450
 #define SIO_NCT6116_ID		0xd280
+#define SIO_NCT6122_ID		0xd2a0
+#define SIO_NCT6126_A_ID	0xd283
+#define SIO_NCT6126_B_ID	0xd284
 #define SIO_NCT6775_ID		0xb470
 #define SIO_NCT6776_ID		0xc330
 #define SIO_NCT6779_ID		0xc560
@@ -565,6 +569,25 @@ nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio
 		pwm3pin = fan3pin && (cr24 & 0x08);
 		pwm4pin = fan4pin;
 		pwm5pin = fan5pin;
+	} else if (data->kind == nct6126) {
+		int cr1a = sio_data->sio_inb(sio_data, 0x1a);
+		int cr1b = sio_data->sio_inb(sio_data, 0x1b);
+		int cr24 = sio_data->sio_inb(sio_data, 0x24);
+		int cr2a = sio_data->sio_inb(sio_data, 0x2a);
+		int cr2b = sio_data->sio_inb(sio_data, 0x2b);
+		int cr2f = sio_data->sio_inb(sio_data, 0x2f);
+
+		fan3pin = !(cr2b & 0x10);
+		fan4pin = (cr2b & 0x80) ||			/* pin 1(2) */
+			(!(cr2f & 0x10) && (cr1a & 0x04));	/* pin 65(66) */
+		fan5pin = (cr2b & 0x80) ||			/* pin 126(127) */
+			(!(cr1b & 0x03) && (cr2a & 0x02));	/* pin 94(96) */
+
+		pwm3pin = fan3pin && (cr24 & 0x08);
+		pwm4pin = fan4pin;
+		pwm5pin = fan5pin;
+
+		fan4min = fan4pin;
 	} else {
 		/*
 		 * NCT6779D, NCT6791D, NCT6792D, NCT6793D, NCT6795D, NCT6796D,
@@ -861,6 +884,7 @@ static int nct6775_platform_probe_init(struct nct6775_data *data)
 		break;
 	case nct6106:
 	case nct6116:
+	case nct6126:
 	case nct6779:
 	case nct6791:
 	case nct6792:
@@ -892,6 +916,7 @@ static int nct6775_platform_probe_init(struct nct6775_data *data)
 		switch (data->kind) {
 		case nct6106:
 		case nct6116:
+		case nct6126:
 			tmp |= 0xe0;
 			break;
 		case nct6775:
@@ -1006,7 +1031,13 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 		sio_data->kind = nct6106;
 		break;
 	case SIO_NCT6116_ID:
-		sio_data->kind = nct6116;
+		if (val == SIO_NCT6126_A_ID || val == SIO_NCT6126_B_ID)
+			sio_data->kind = nct6126;
+		else
+			sio_data->kind = nct6116;
+		break;
+	case SIO_NCT6122_ID:
+		sio_data->kind = nct6126;
 		break;
 	case SIO_NCT6775_ID:
 		sio_data->kind = nct6775;

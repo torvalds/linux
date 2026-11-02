@@ -16,6 +16,8 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_panel.h>
 
+#include "panel-samsung-dsi.h"
+
 struct s6e3ha8 {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
@@ -36,18 +38,6 @@ struct s6e3ha8 *to_s6e3ha8_amb577px01_wqhd(struct drm_panel *panel)
 	return container_of(panel, struct s6e3ha8, panel);
 }
 
-#define s6e3ha8_test_key_on_lvl2(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0xf0, 0x5a, 0x5a)
-#define s6e3ha8_test_key_off_lvl2(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0xf0, 0xa5, 0xa5)
-#define s6e3ha8_test_key_on_lvl3(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0xfc, 0x5a, 0x5a)
-#define s6e3ha8_test_key_off_lvl3(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0xfc, 0xa5, 0xa5)
-#define s6e3ha8_test_key_on_lvl1(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0x9f, 0xa5, 0xa5)
-#define s6e3ha8_test_key_off_lvl1(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0x9f, 0x5a, 0x5a)
 #define s6e3ha8_afc_off(ctx) \
 	mipi_dsi_dcs_write_seq_multi(ctx, 0xe2, 0x00, 0x00)
 
@@ -68,26 +58,26 @@ static int s6e3ha8_amb577px01_wqhd_on(struct s6e3ha8 *priv)
 
 	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
-	s6e3ha8_test_key_on_lvl1(&ctx);
+	samsung_dsi_test_key_on_lvl1(&ctx);
 
-	s6e3ha8_test_key_on_lvl2(&ctx);
+	samsung_dsi_test_key_on_lvl2(&ctx);
 	mipi_dsi_compression_mode_multi(&ctx, true);
-	s6e3ha8_test_key_off_lvl2(&ctx);
+	samsung_dsi_test_key_off_lvl2(&ctx);
 
 	mipi_dsi_dcs_exit_sleep_mode_multi(&ctx);
 	usleep_range(5000, 6000);
 
-	s6e3ha8_test_key_on_lvl2(&ctx);
+	samsung_dsi_test_key_on_lvl2(&ctx);
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xf2, 0x13);
-	s6e3ha8_test_key_off_lvl2(&ctx);
+	samsung_dsi_test_key_off_lvl2(&ctx);
 	usleep_range(10000, 11000);
 
-	s6e3ha8_test_key_on_lvl2(&ctx);
+	samsung_dsi_test_key_on_lvl2(&ctx);
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xf2, 0x13);
-	s6e3ha8_test_key_off_lvl2(&ctx);
+	samsung_dsi_test_key_off_lvl2(&ctx);
 
 	/* OMOK setting 1 (Initial setting) - Scaler Latch Setting Guide */
-	s6e3ha8_test_key_on_lvl2(&ctx);
+	samsung_dsi_test_key_on_lvl2(&ctx);
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xb0, 0x07);
 	/* latch setting 1 : Scaler on/off & address setting & PPS setting -> Image update latch */
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xf2, 0x3c, 0x10);
@@ -98,31 +88,31 @@ static int s6e3ha8_amb577px01_wqhd_on(struct s6e3ha8 *priv)
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0x2a, 0x00, 0x00, 0x05, 0x9f); /* CASET */
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0x2b, 0x00, 0x00, 0x0b, 0x8f); /* PASET */
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xba, 0x01); /* scaler setup : scaler off */
-	s6e3ha8_test_key_off_lvl2(&ctx);
+	samsung_dsi_test_key_off_lvl2(&ctx);
 
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0x35, 0x00); /* TE Vsync ON */
 
-	s6e3ha8_test_key_on_lvl2(&ctx);
+	samsung_dsi_test_key_on_lvl2(&ctx);
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xed, 0x4c); /* ERR_FG */
-	s6e3ha8_test_key_off_lvl2(&ctx);
+	samsung_dsi_test_key_off_lvl2(&ctx);
 
-	s6e3ha8_test_key_on_lvl3(&ctx);
+	samsung_dsi_test_key_on_lvl3(&ctx);
 	/* FFC Setting 897.6Mbps */
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xc5, 0x0d, 0x10, 0xb4, 0x3e, 0x01);
-	s6e3ha8_test_key_off_lvl3(&ctx);
+	samsung_dsi_test_key_off_lvl3(&ctx);
 
-	s6e3ha8_test_key_on_lvl2(&ctx);
+	samsung_dsi_test_key_on_lvl2(&ctx);
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xb9,
 				   0x00, 0xb0, 0x81, 0x09, 0x00, 0x00, 0x00,
 				   0x11, 0x03); /* TSP HSYNC Setting */
-	s6e3ha8_test_key_off_lvl2(&ctx);
+	samsung_dsi_test_key_off_lvl2(&ctx);
 
-	s6e3ha8_test_key_on_lvl2(&ctx);
+	samsung_dsi_test_key_on_lvl2(&ctx);
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xb0, 0x03);
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xf6, 0x43);
-	s6e3ha8_test_key_off_lvl2(&ctx);
+	samsung_dsi_test_key_off_lvl2(&ctx);
 
-	s6e3ha8_test_key_on_lvl2(&ctx);
+	samsung_dsi_test_key_on_lvl2(&ctx);
 	/* Brightness condition set */
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xca,
 				   0x07, 0x00, 0x00, 0x00, 0x80, 0x80, 0x80,
@@ -138,9 +128,9 @@ static int s6e3ha8_amb577px01_wqhd_on(struct s6e3ha8 *priv)
 				   0x10); /* MPS/ELVSS Setting */
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xf4, 0xeb, 0x28); /* VINT */
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0xf7, 0x03); /* Gamma, LTPS(AID) update */
-	s6e3ha8_test_key_off_lvl2(&ctx);
+	samsung_dsi_test_key_off_lvl2(&ctx);
 
-	s6e3ha8_test_key_off_lvl1(&ctx);
+	samsung_dsi_test_key_off_lvl1(&ctx);
 
 	return ctx.accum_err;
 }
@@ -151,9 +141,9 @@ static int s6e3ha8_enable(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = priv->dsi;
 	struct mipi_dsi_multi_context ctx = { .dsi = dsi };
 
-	s6e3ha8_test_key_on_lvl1(&ctx);
+	samsung_dsi_test_key_on_lvl1(&ctx);
 	mipi_dsi_dcs_set_display_on_multi(&ctx);
-	s6e3ha8_test_key_off_lvl1(&ctx);
+	samsung_dsi_test_key_off_lvl1(&ctx);
 
 	return ctx.accum_err;
 }
@@ -164,14 +154,14 @@ static int s6e3ha8_disable(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = priv->dsi;
 	struct mipi_dsi_multi_context ctx = { .dsi = dsi };
 
-	s6e3ha8_test_key_on_lvl1(&ctx);
+	samsung_dsi_test_key_on_lvl1(&ctx);
 	mipi_dsi_dcs_set_display_off_multi(&ctx);
-	s6e3ha8_test_key_off_lvl1(&ctx);
+	samsung_dsi_test_key_off_lvl1(&ctx);
 	mipi_dsi_msleep(&ctx, 20);
 
-	s6e3ha8_test_key_on_lvl2(&ctx);
+	samsung_dsi_test_key_on_lvl2(&ctx);
 	s6e3ha8_afc_off(&ctx);
-	s6e3ha8_test_key_off_lvl2(&ctx);
+	samsung_dsi_test_key_off_lvl2(&ctx);
 
 	mipi_dsi_msleep(&ctx, 160);
 
@@ -200,9 +190,9 @@ static int s6e3ha8_amb577px01_wqhd_prepare(struct drm_panel *panel)
 
 	drm_dsc_pps_payload_pack(&pps, &priv->dsc);
 
-	s6e3ha8_test_key_on_lvl1(&ctx);
+	samsung_dsi_test_key_on_lvl1(&ctx);
 	mipi_dsi_picture_parameter_set_multi(&ctx, &pps);
-	s6e3ha8_test_key_off_lvl1(&ctx);
+	samsung_dsi_test_key_off_lvl1(&ctx);
 
 	mipi_dsi_msleep(&ctx, 28);
 
@@ -283,7 +273,9 @@ static int s6e3ha8_amb577px01_wqhd_probe(struct mipi_dsi_device *dsi)
 
 	priv->panel.prepare_prev_first = true;
 
-	drm_panel_add(&priv->panel);
+	ret = devm_drm_panel_add(dev, &priv->panel);
+	if (ret)
+		return ret;
 
 	/* This panel only supports DSC; unconditionally enable it */
 	dsi->dsc = &priv->dsc;
@@ -299,26 +291,13 @@ static int s6e3ha8_amb577px01_wqhd_probe(struct mipi_dsi_device *dsi)
 	priv->dsc.bits_per_pixel = 8 << 4; /* 4 fractional bits */
 	priv->dsc.block_pred_enable = true;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "Failed to attach to DSI host: %d\n", ret);
-		drm_panel_remove(&priv->panel);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void s6e3ha8_amb577px01_wqhd_remove(struct mipi_dsi_device *dsi)
-{
-	struct s6e3ha8 *priv = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
-
-	drm_panel_remove(&priv->panel);
 }
 
 static const struct of_device_id s6e3ha8_amb577px01_wqhd_of_match[] = {
@@ -329,7 +308,6 @@ MODULE_DEVICE_TABLE(of, s6e3ha8_amb577px01_wqhd_of_match);
 
 static struct mipi_dsi_driver s6e3ha8_amb577px01_wqhd_driver = {
 	.probe = s6e3ha8_amb577px01_wqhd_probe,
-	.remove = s6e3ha8_amb577px01_wqhd_remove,
 	.driver = {
 		.name = "panel-s6e3ha8",
 		.of_match_table = s6e3ha8_amb577px01_wqhd_of_match,

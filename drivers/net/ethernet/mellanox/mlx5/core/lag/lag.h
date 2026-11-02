@@ -85,7 +85,7 @@ struct mlx5_lag {
 	u8			  ports;
 	u8			  buckets;
 	int			  mode_changes_in_progress;
-	u8			  v2p_map[MLX5_MAX_PORTS * MLX5_LAG_MAX_HASH_BUCKETS];
+	u8			  *v2p_map;
 	struct kref               ref;
 	struct xarray             pfs;
 	struct lag_tracker        tracker;

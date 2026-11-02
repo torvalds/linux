@@ -654,7 +654,7 @@ void rtl8821ae_set_fw_keep_alive_cmd(struct ieee80211_hw *hw,
 	rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD, "Enable(%d)\n", func_en);
 
 	SET_8812_H2CCMD_KEEP_ALIVE_ENABLE(keep_alive_info, func_en);
-	/* 1: the period is controled by driver, 0: by Fw default */
+	/* 1: the period is controlled by driver, 0: by Fw default */
 	SET_8812_H2CCMD_KEEP_ALIVE_ACCPEPT_USER_DEFINED(keep_alive_info, 1);
 	SET_8812_H2CCMD_KEEP_ALIVE_PERIOD(keep_alive_info, 10); /* 10 sec */
 

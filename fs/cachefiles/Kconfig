@@ -17,7 +17,7 @@ config CACHEFILES_DEBUG
 	help
 	  This permits debugging to be dynamically enabled in the filesystem
 	  caching on files module.  If this is set, the debugging output may be
-	  enabled by setting bits in /sys/modules/cachefiles/parameter/debug or
+	  enabled by setting bits in /sys/module/cachefiles/parameters/debug or
 	  by including a debugging specifier in /etc/cachefilesd.conf.
 
 config CACHEFILES_ERROR_INJECTION

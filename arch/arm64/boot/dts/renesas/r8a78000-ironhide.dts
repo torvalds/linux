@@ -134,18 +134,18 @@
 			no-map;
 		};
 
-		ecc@1a66660000 {
-			reg = <0x1a 0x66660000 0x0 0x999a0000>;
+		ecc@1acccc0000 {
+			reg = <0x1a 0xcccc0000 0x0 0x33340000>;
 			no-map;
 		};
 
-		ecc@1c66660000 {
-			reg = <0x1c 0x66660000 0x0 0x999a0000>;
+		ecc@1ccccc0000 {
+			reg = <0x1c 0xcccc0000 0x0 0x33340000>;
 			no-map;
 		};
 
-		ecc@1e66660000 {
-			reg = <0x1e 0x66660000 0x0 0x999a0000>;
+		ecc@1ecccc0000 {
+			reg = <0x1e 0xcccc0000 0x0 0x33340000>;
 			no-map;
 		};
 	};

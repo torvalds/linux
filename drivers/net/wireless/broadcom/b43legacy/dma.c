@@ -610,25 +610,25 @@ struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
 	int nr_slots;
 	dma_addr_t dma_test;
 
-	ring = kzalloc_obj(*ring);
+	if (for_tx)
+		nr_slots = B43legacy_TXRING_SLOTS;
+	else
+		nr_slots = B43legacy_RXRING_SLOTS;
+
+	ring = kzalloc_flex(*ring, meta, nr_slots);
 	if (!ring)
 		goto out;
+
+	ring->nr_slots = nr_slots;
 	ring->type = type;
 	ring->dev = dev;
 
-	nr_slots = B43legacy_RXRING_SLOTS;
-	if (for_tx)
-		nr_slots = B43legacy_TXRING_SLOTS;
-
-	ring->meta = kzalloc_objs(struct b43legacy_dmadesc_meta, nr_slots);
-	if (!ring->meta)
-		goto err_kfree_ring;
 	if (for_tx) {
 		ring->txhdr_cache = kcalloc(nr_slots,
 					sizeof(struct b43legacy_txhdr_fw3),
 					GFP_KERNEL);
 		if (!ring->txhdr_cache)
-			goto err_kfree_meta;
+			goto err_kfree_ring;
 
 		/* test for ability to dma to txhdr_cache */
 		dma_test = dma_map_single(dev->dev->dma_dev, ring->txhdr_cache,
@@ -643,7 +643,7 @@ struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
 					sizeof(struct b43legacy_txhdr_fw3),
 					GFP_KERNEL | GFP_DMA);
 			if (!ring->txhdr_cache)
-				goto err_kfree_meta;
+				goto err_kfree_txhdr_cache;
 
 			dma_test = dma_map_single(dev->dev->dma_dev,
 					ring->txhdr_cache,
@@ -660,7 +660,6 @@ struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
 				 DMA_TO_DEVICE);
 	}
 
-	ring->nr_slots = nr_slots;
 	ring->mmio_base = b43legacy_dmacontroller_base(type, controller_index);
 	ring->index = controller_index;
 	if (for_tx) {
@@ -694,8 +693,6 @@ err_free_ringmemory:
 	free_ringmemory(ring);
 err_kfree_txhdr_cache:
 	kfree(ring->txhdr_cache);
-err_kfree_meta:
-	kfree(ring->meta);
 err_kfree_ring:
 	kfree(ring);
 	ring = NULL;
@@ -720,7 +717,6 @@ static void b43legacy_destroy_dmaring(struct b43legacy_dmaring *ring)
 	free_ringmemory(ring);
 
 	kfree(ring->txhdr_cache);
-	kfree(ring->meta);
 	kfree(ring);
 }
 

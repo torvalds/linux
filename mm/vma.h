@@ -28,6 +28,8 @@ struct vma_prepare {
 	struct vm_area_struct *remove2;
 
 	bool skip_vma_uprobe :1;
+	bool file_pgoff_unchanged :1;
+	bool anon_pgoff_unchanged :1;
 };
 
 struct unlink_vma_file_batch {
@@ -255,6 +257,33 @@ static inline pgoff_t vmg_end_pgoff(const struct vma_merge_struct *vmg)
 	return vmg_start_pgoff(vmg) + vmg_pages(vmg);
 }
 
+/**
+ * vma_has_anon_rmap() - does @vma possess an anonymous reverse mapping?
+ * @vma: The VMA to be checked.
+ *
+ * If the VMA is attached, a VMA or mmap lock must be held.
+ *
+ * This state is only possible for CoW mappings, see the comment for
+ * vma_flags_is_cow_mapping() for details.
+ *
+ * Importantly, a VMA which possesses an anonymous rmap may map anonymous
+ * folios.
+ *
+ * This function will not result in a false positive.
+ *
+ * However, if only a read lock is held, it may give a false negative, in which
+ * case it should be re-checked with mm->page_table_lock held.
+ *
+ * Returns: true if @vma has an anonymous reverse mapping, otherwise false.
+ */
+static inline bool vma_has_anon_rmap(const struct vm_area_struct *vma)
+{
+	if (vma_is_attached(vma))
+		vma_assert_stabilised(vma);
+	/* KCSAN gets confused about the optimistic check. Silence it. */
+	return data_race(vma->anon_vma);
+}
+
 static inline void assert_sane_pgoff(struct vm_area_struct *vma, pgoff_t pgoff)
 {
 	/* nommu doesn't set a virtual pgoff for anon VMAs. */
@@ -267,11 +296,8 @@ static inline void assert_sane_pgoff(struct vm_area_struct *vma, pgoff_t pgoff)
 	 */
 	if (!vma_is_anonymous(vma))
 		return;
-	/* MAP_PRIVATE-/dev/zero is anon, non-NULL vm_file, but has file pgoff. */
-	if (vma->vm_file)
-		return;
 	/* If faulted in, could have been remapped. */
-	if (vma->anon_vma)
+	if (vma_has_anon_rmap(vma))
 		return;
 	/* OK this is really an anon VMA - expect virtual page offset. */
 	VM_WARN_ON_ONCE(pgoff != vma->vm_start >> PAGE_SHIFT);
@@ -397,8 +423,10 @@ static inline void compat_set_vma_from_desc(struct vm_area_struct *vma,
 
 	/* Mutable fields. Populated with initial state. */
 	vma_set_pgoff(vma, desc->pgoff);
-	if (desc->vm_file != vma->vm_file)
-		vma_set_file(vma, desc->vm_file);
+	if (desc->vm_file != vma->vm_file) {
+		fput(vma->vm_file);
+		vma->vm_file = desc->vm_file;
+	}
 	vma->flags = desc->vma_flags;
 	vma->vm_page_prot = desc->page_prot;
 
@@ -788,14 +816,19 @@ struct vm_area_struct *vm_area_alloc(struct mm_struct *mm);
 struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig);
 void vm_area_free(struct vm_area_struct *vma);
 
-/* vma_exec.c */
 #ifdef CONFIG_MMU
+int mmap_prepare_validate(const struct vm_area_desc *orig_desc,
+			  const struct vm_area_desc *desc);
+
+int mmap_hook_validate(unsigned long orig_start, unsigned long orig_end,
+		       const vma_flags_t *orig_flags,
+		       const struct vm_area_struct *vma);
+
+/* vma_exec.c */
 int create_init_stack_vma(struct mm_struct *mm, struct vm_area_struct **vmap,
 			  unsigned long *top_mem_p);
 int relocate_vma_down(struct vm_area_struct *vma, unsigned long shift);
-#endif
 
-#ifdef CONFIG_MMU
 /*
  * Denies creating a writable executable mapping or gaining executable permissions.
  *
@@ -843,6 +876,20 @@ static inline bool map_deny_write_exec(const vma_flags_t *old,
 		return true;
 
 	return false;
+}
+#else
+static inline int mmap_prepare_validate(const struct vm_area_desc *orig_desc,
+					const struct vm_area_desc *desc)
+{
+	return 0;
+}
+
+static inline int mmap_hook_validate(unsigned long orig_start,
+				     unsigned long orig_end,
+				     const vma_flags_t *orig_flags,
+				     const struct vm_area_struct *vma)
+{
+	return 0;
 }
 #endif
 

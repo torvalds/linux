@@ -68,20 +68,20 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         adau7118_codec: audio-codec@14 {
-                compatible = "adi,adau7118";
-                reg = <0x14>;
-                #sound-dai-cells = <0>;
-                iovdd-supply = <&supply>;
-                dvdd-supply = <&supply>;
-                adi,pdm-clk-map = <1 1 0 0>;
-                adi,decimation-ratio = <16>;
+            compatible = "adi,adau7118";
+            reg = <0x14>;
+            #sound-dai-cells = <0>;
+            iovdd-supply = <&supply>;
+            dvdd-supply = <&supply>;
+            adi,pdm-clk-map = <1 1 0 0>;
+            adi,decimation-ratio = <16>;
         };
     };
 
     /* example with hw standalone mode */
     adau7118_codec_hw: adau7118-codec-hw {
-            compatible = "adi,adau7118";
-            #sound-dai-cells = <0>;
-            iovdd-supply = <&supply>;
-            dvdd-supply = <&supply>;
+        compatible = "adi,adau7118";
+        #sound-dai-cells = <0>;
+        iovdd-supply = <&supply>;
+        dvdd-supply = <&supply>;
     };

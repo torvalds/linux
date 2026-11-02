@@ -781,6 +781,8 @@ void dcn10_link_encoder_construct(
 	if (enc10->base.ctx->dc->debug.hdmi20_disable) {
 		enc10->base.features.flags.bits.HDMI_6GB_EN = 0;
 	}
+
+	enc10->base.inst = (unsigned int)enc10->base.preferred_engine;
 }
 
 bool dcn10_link_encoder_validate_output_with_stream(
@@ -1166,6 +1168,10 @@ void dcn10_link_encoder_dp_set_phy_pattern(
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 
+	if (!param) {
+		ASSERT_CRITICAL(false);
+		return;
+	}
 	switch (param->dp_phy_pattern) {
 	case DP_TEST_PATTERN_TRAINING_PATTERN1:
 		dcn10_link_encoder_set_dp_phy_pattern_training_pattern(enc, 0);
@@ -1189,8 +1195,7 @@ void dcn10_link_encoder_dp_set_phy_pattern(
 		set_dp_phy_pattern_prbs7(enc10);
 		break;
 	case DP_TEST_PATTERN_80BIT_CUSTOM:
-		if (param)
-			set_dp_phy_pattern_80bit_custom(
+		set_dp_phy_pattern_80bit_custom(
 				enc10, param->custom_pattern);
 		break;
 	case DP_TEST_PATTERN_CP2520_1:
@@ -1203,8 +1208,7 @@ void dcn10_link_encoder_dp_set_phy_pattern(
 		set_dp_phy_pattern_hbr2_compliance_cp2520_2(enc10, 3);
 		break;
 	case DP_TEST_PATTERN_VIDEO_MODE: {
-		if (param)
-			set_dp_phy_pattern_passthrough_mode(
+		set_dp_phy_pattern_passthrough_mode(
 				enc10, param->dp_panel_mode);
 		break;
 	}

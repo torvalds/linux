@@ -3134,7 +3134,7 @@ static int rocker_netevent_event(struct notifier_block *unused,
 
 	switch (event) {
 	case NETEVENT_NEIGH_UPDATE:
-		if (n->tbl != &arp_tbl)
+		if (n->tbl != arp_table(&init_net))
 			return NOTIFY_DONE;
 		dev = n->dev;
 		if (!rocker_port_dev_check(dev))

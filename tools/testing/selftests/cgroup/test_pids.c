@@ -3,8 +3,11 @@
 
 #include <errno.h>
 #include <linux/limits.h>
+#include <poll.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/inotify.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -133,6 +136,75 @@ cleanup:
 
 
 
+/*
+ * This test checks that a fork rejected by pids.max increments pids.events
+ * and notifies pollers of that file, with or without pids_localevents.
+ */
+static int test_pids_events_notify(const char *root)
+{
+	union {
+		struct inotify_event align;
+		char bytes[sizeof(struct inotify_event) + NAME_MAX + 1];
+	} event;
+	int ret = KSFT_FAIL;
+	int inotify_fd = -1;
+	char *cg_pids = NULL, *events_path = NULL;
+	struct pollfd pfd;
+	ssize_t n;
+
+	cg_pids = cg_name(root, "pids_notify_test");
+	if (!cg_pids)
+		goto cleanup;
+
+	if (cg_create(cg_pids))
+		goto cleanup;
+
+	if (cg_write(cg_pids, "pids.max", "1"))
+		goto cleanup;
+
+	events_path = cg_control(cg_pids, "pids.events");
+	if (!events_path)
+		goto cleanup;
+
+	inotify_fd = inotify_init1(IN_CLOEXEC | IN_NONBLOCK);
+	if (inotify_fd < 0)
+		goto cleanup;
+
+	if (inotify_add_watch(inotify_fd, events_path, IN_MODIFY) < 0)
+		goto cleanup;
+
+	if (cg_enter_current(cg_pids))
+		goto cleanup;
+
+	if (cg_run_nowait(cg_pids, run_success, NULL) != -1 || errno != EAGAIN)
+		goto cleanup;
+
+	if (cg_read_key_long(cg_pids, "pids.events", "max ") != 1)
+		goto cleanup;
+
+	pfd.fd = inotify_fd;
+	pfd.events = POLLIN;
+	if (poll(&pfd, 1, 1000) <= 0)
+		goto cleanup;
+
+	n = read(inotify_fd, event.bytes, sizeof(event.bytes));
+	if (n < (ssize_t)sizeof(event.align) || !(event.align.mask & IN_MODIFY))
+		goto cleanup;
+
+	ret = KSFT_PASS;
+
+cleanup:
+	cg_enter_current(root);
+	if (inotify_fd >= 0)
+		close(inotify_fd);
+	if (cg_pids)
+		cg_destroy(cg_pids);
+	free(events_path);
+	free(cg_pids);
+
+	return ret;
+}
+
 #define T(x) { x, #x }
 struct pids_test {
 	int (*fn)(const char *root);
@@ -140,6 +212,7 @@ struct pids_test {
 } tests[] = {
 	T(test_pids_max),
 	T(test_pids_events),
+	T(test_pids_events_notify),
 };
 #undef T
 

@@ -59,16 +59,30 @@ enum scx_consts {
 };
 
 /*
- * Per-cid topology info. For each topology level (core, LLC, node) and shard,
- * records the first cid in the unit and its global index. Global indices are
- * consecutive integers assigned in cid-walk order, so e.g. core_idx ranges over
- * [0, nr_cores_at_init) with no gaps. No-topo cids have core/LLC/node fields
- * set to -1 but always have valid shard assignments.
+ * Per-cid topology info. For each topology level (core, cluster, LLC, node) and
+ * shard, records the first cid in the unit and its global index. Global indices
+ * are consecutive integers assigned in cid-walk order, so e.g. core_idx ranges
+ * over [0, nr_cores_at_init) with no gaps. No-topo cids have core/cluster/LLC/
+ * node fields set to -1 but always have valid shard assignments.
+ *
+ * A cluster is the cache-sharing level between the core and the LLC. Where
+ * this level is absent, each core forms a cluster of its own. Where the cache
+ * level spans the LLC, the whole LLC forms one cluster. Each cluster has a
+ * unique cluster_cid and a dense cluster_idx, and its cids form a contiguous
+ * range.
+ *
+ * Every cid therefore has a cluster, so cluster_cid alone does not say whether
+ * the machine has the level: the first cluster of an LLC starts at the LLC's
+ * own base cid and a core-wide one at the core's.
  *
  * Shards are contiguous CID ranges used as scalable locking/work domains for
  * sub-scheduler operations. By default each LLC becomes one shard, split into
  * smaller shards if the LLC exceeds the target size. No-topo cids are packed
  * into their own max-sized shards.
+ *
+ * Shards are cut on core boundaries only, so a shard doesn't need to contain a
+ * whole cluster: a cluster may straddle two shards. Only core, cluster, LLC
+ * and node are nested, in that order.
  *
  * New fields are appended, never inserted: scx_bpf_cid_topo() copies this
  * struct out sized by the program's own layout, and an older program's copy
@@ -82,6 +96,8 @@ enum scx_consts {
  * @node_idx: global index of that node, in [0, nr_nodes_at_init)
  * @shard_cid: first cid of this cid's shard
  * @shard_idx: global index of that shard, in [0, scx_nr_cid_shards)
+ * @cluster_cid: first cid of this cid's cluster
+ * @cluster_idx: global index of that cluster, in [0, nr_clusters_at_init)
  */
 struct scx_cid_topo {
 	s32 core_cid;
@@ -92,6 +108,8 @@ struct scx_cid_topo {
 	s32 node_idx;
 	s32 shard_cid;
 	s32 shard_idx;
+	s32 cluster_cid;
+	s32 cluster_idx;
 };
 
 enum scx_cid_consts {

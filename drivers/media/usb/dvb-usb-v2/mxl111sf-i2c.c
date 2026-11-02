@@ -755,7 +755,7 @@ exit:
 	buf[0] = USB_WRITE_I2C_CMD;
 	buf[1] = 0x00;
 
-	/* de-initilize I2C BUS */
+	/* de-initialize I2C BUS */
 	buf[5] = USB_END_I2C_CMD;
 	mxl111sf_i2c_send_data(state, 0, buf);
 
@@ -769,7 +769,7 @@ exit:
 	buf[6] = 0x00;
 	buf[7] = 0x00;
 
-	/* de-initilize I2C BUS */
+	/* de-initialize I2C BUS */
 	buf[8] = USB_END_I2C_CMD;
 	mxl111sf_i2c_send_data(state, 0, buf);
 

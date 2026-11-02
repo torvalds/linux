@@ -369,7 +369,7 @@
 	display = <&display>;
 	status = "okay";
 
-	display: disp0 {
+	display: display0 {
 		bits-per-pixel = <32>;
 		bus-width = <24>;
 		status = "okay";

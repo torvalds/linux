@@ -1,22 +1,21 @@
 bench_try_ref_from_bytes_dynamic_size:
-	mov rdx, rsi
-	mov rax, rdi
 	cmp rsi, 4
-	setb cl
-	or cl, al
+	setae al
+	mov ecx, esi
+	or ecx, edi
 	test cl, 1
-	jne .LBB5_4
-	lea rcx, [rdx - 4]
-	mov rsi, rcx
-	and rsi, -2
-	add rsi, 4
-	cmp rdx, rsi
-	jne .LBB5_4
-	cmp word ptr [rax], -16192
-	jne .LBB5_4
-	shr rcx
-	mov rdx, rcx
-	ret
-.LBB5_4:
+	sete cl
+	and cl, al
+	cmp cl, 1
+	je .LBB5_2
 	xor eax, eax
+	ret
+.LBB5_2:
+	lea rdx, [rsi - 4]
+	shr rdx
+	movzx ecx, word ptr [rdi]
+	xor eax, eax
+	cmp ecx, 49344
+	cmovne rdx, rsi
+	cmove rax, rdi
 	ret

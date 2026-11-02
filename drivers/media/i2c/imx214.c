@@ -662,6 +662,7 @@ static const struct v4l2_subdev_core_ops imx214_core_ops = {
 };
 
 static int imx214_set_format(struct v4l2_subdev *sd,
+			     const struct v4l2_subdev_client_info *ci,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *format)
 {
@@ -717,6 +718,7 @@ static int imx214_set_format(struct v4l2_subdev *sd,
 }
 
 static int imx214_get_selection(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
@@ -754,7 +756,7 @@ static int imx214_entity_init_state(struct v4l2_subdev *subdev,
 	fmt.format.width = imx214_modes[0].width;
 	fmt.format.height = imx214_modes[0].height;
 
-	imx214_set_format(subdev, sd_state, &fmt);
+	imx214_set_format(subdev, NULL, sd_state, &fmt);
 
 	return 0;
 }

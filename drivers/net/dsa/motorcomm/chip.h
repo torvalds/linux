@@ -1,0 +1,568 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/*
+ * Copyright (c) 2025 David Yang
+ */
+
+#ifndef __YT921X_H
+#define __YT921X_H
+
+#include <net/dsa.h>
+
+#define YT921X_SMI_SWITCHID_M		GENMASK(3, 2)
+#define  YT921X_SMI_SWITCHID(x)			FIELD_PREP(YT921X_SMI_SWITCHID_M, (x))
+#define YT921X_SMI_AD			BIT(1)
+#define  YT921X_SMI_ADDR			0
+#define  YT921X_SMI_DATA			YT921X_SMI_AD
+#define YT921X_SMI_RW			BIT(0)
+#define  YT921X_SMI_WRITE			0
+#define  YT921X_SMI_READ			YT921X_SMI_RW
+
+#define YT921X_SWITCHID_NUM		4
+
+#define YT921X_RST			0x80000
+#define  YT921X_RST_HW				BIT(31)
+#define  YT921X_RST_SW				BIT(1)
+#define YT921X_FUNC			0x80004
+#define  YT921X_FUNC_METER			BIT(4)
+#define  YT921X_FUNC_ACL			BIT(2)
+#define  YT921X_FUNC_MIB			BIT(1)
+#define YT921X_CHIP_ID			0x80008
+#define  YT921X_CHIP_ID_MAJOR			GENMASK(31, 16)
+#define YT921X_EXT_CPU_PORT		0x8000c
+#define  YT921X_EXT_CPU_PORT_TAG_EN		BIT(15)
+#define  YT921X_EXT_CPU_PORT_PORT_EN		BIT(14)
+#define  YT921X_EXT_CPU_PORT_PORT_M		GENMASK(3, 0)
+#define   YT921X_EXT_CPU_PORT_PORT(x)			FIELD_PREP(YT921X_EXT_CPU_PORT_PORT_M, (x))
+#define YT921X_CPU_TAG_TPID		0x80010
+#define  YT921X_CPU_TAG_TPID_TPID_M		GENMASK(15, 0)
+/* Same as ETH_P_YT921X, but this represents the true HW default, while the
+ * former is a local convention chosen by us.
+ */
+#define   YT921X_CPU_TAG_TPID_TPID_DEFAULT		0x9988
+#define YT921X_PVID_SEL			0x80014
+#define  YT921X_PVID_SEL_SVID_PORTn(port)	BIT(port)
+#define YT921X_SERDES_CTRL		0x80028
+#define  YT921X_SERDES_CTRL_TEST		BIT(6)
+#define  YT921X_SERDES_CTRL_PORTn(port)		BIT((port) - 8)
+#define YT921X_IO_LEVEL			0x80030
+#define  YT9215_IO_LEVEL_NORMAL_M		GENMASK(5, 4)
+#define   YT9215_IO_LEVEL_NORMAL(x)			FIELD_PREP(YT9215_IO_LEVEL_NORMAL_M, (x))
+#define   YT9215_IO_LEVEL_NORMAL_3V3			YT9215_IO_LEVEL_NORMAL(0)
+#define   YT9215_IO_LEVEL_NORMAL_1V8			YT9215_IO_LEVEL_NORMAL(3)
+#define  YT9215_IO_LEVEL_RGMII1_M		GENMASK(3, 2)
+#define   YT9215_IO_LEVEL_RGMII1(x)			FIELD_PREP(YT9215_IO_LEVEL_RGMII1_M, (x))
+#define   YT9215_IO_LEVEL_RGMII1_3V3			YT9215_IO_LEVEL_RGMII1(0)
+#define   YT9215_IO_LEVEL_RGMII1_2V5			YT9215_IO_LEVEL_RGMII1(1)
+#define   YT9215_IO_LEVEL_RGMII1_1V8			YT9215_IO_LEVEL_RGMII1(2)
+#define  YT9215_IO_LEVEL_RGMII0_M		GENMASK(1, 0)
+#define   YT9215_IO_LEVEL_RGMII0(x)			FIELD_PREP(YT9215_IO_LEVEL_RGMII0_M, (x))
+#define   YT9215_IO_LEVEL_RGMII0_3V3			YT9215_IO_LEVEL_RGMII0(0)
+#define   YT9215_IO_LEVEL_RGMII0_2V5			YT9215_IO_LEVEL_RGMII0(1)
+#define   YT9215_IO_LEVEL_RGMII0_1V8			YT9215_IO_LEVEL_RGMII0(2)
+#define  YT9218_IO_LEVEL_RGMII1_M		GENMASK(5, 4)
+#define   YT9218_IO_LEVEL_RGMII1(x)			FIELD_PREP(YT9218_IO_LEVEL_RGMII1_M, (x))
+#define   YT9218_IO_LEVEL_RGMII1_3V3			YT9218_IO_LEVEL_RGMII1(0)
+#define   YT9218_IO_LEVEL_RGMII1_2V5			YT9218_IO_LEVEL_RGMII1(1)
+#define   YT9218_IO_LEVEL_RGMII1_1V8			YT9218_IO_LEVEL_RGMII1(2)
+#define  YT9218_IO_LEVEL_RGMII0_M		GENMASK(3, 2)
+#define   YT9218_IO_LEVEL_RGMII0(x)			FIELD_PREP(YT9218_IO_LEVEL_RGMII0_M, (x))
+#define   YT9218_IO_LEVEL_RGMII0_3V3			YT9218_IO_LEVEL_RGMII0(0)
+#define   YT9218_IO_LEVEL_RGMII0_2V5			YT9218_IO_LEVEL_RGMII0(1)
+#define   YT9218_IO_LEVEL_RGMII0_1V8			YT9218_IO_LEVEL_RGMII0(2)
+#define  YT9218_IO_LEVEL_NORMAL_M		GENMASK(1, 0)
+#define   YT9218_IO_LEVEL_NORMAL(x)			FIELD_PREP(YT9218_IO_LEVEL_NORMAL_M, (x))
+#define   YT9218_IO_LEVEL_NORMAL_3V3			YT9218_IO_LEVEL_NORMAL(0)
+#define   YT9218_IO_LEVEL_NORMAL_1V8			YT9218_IO_LEVEL_NORMAL(3)
+#define YT921X_MAC_ADDR_HI2		0x80080
+#define YT921X_MAC_ADDR_LO4		0x80084
+#define YT921X_SERDESn(port)		(0x8008c + 4 * ((port) - 8))
+#define  YT921X_SERDES_MODE_M			GENMASK(9, 7)
+#define   YT921X_SERDES_MODE(x)				FIELD_PREP(YT921X_SERDES_MODE_M, (x))
+#define   YT921X_SERDES_MODE_SGMII			YT921X_SERDES_MODE(0)
+#define   YT921X_SERDES_MODE_REVSGMII			YT921X_SERDES_MODE(1)
+#define   YT921X_SERDES_MODE_1000BASEX			YT921X_SERDES_MODE(2)
+#define   YT921X_SERDES_MODE_100BASEX			YT921X_SERDES_MODE(3)
+#define   YT921X_SERDES_MODE_2500BASEX			YT921X_SERDES_MODE(4)
+#define  YT921X_SERDES_RX_PAUSE			BIT(6)
+#define  YT921X_SERDES_TX_PAUSE			BIT(5)
+#define  YT921X_SERDES_LINK			BIT(4)  /* force link */
+#define  YT921X_SERDES_DUPLEX_FULL		BIT(3)
+#define  YT921X_SERDES_SPEED_M			GENMASK(2, 0)
+#define   YT921X_SERDES_SPEED(x)			FIELD_PREP(YT921X_SERDES_SPEED_M, (x))
+#define YT921X_PORTn_CTRL(port)		(0x80100 + 4 * (port))  /* Bit 7-0 shared with PORT_STATUS */
+#define  YT921X_PORT_CTRL_PAUSE_AN		BIT(10)
+#define  YT921X_PORT_CTRL_LINK_AN		BIT(9)
+#define  YT921X_PORT_CTRL_HALF_PAUSE		BIT(8)  /* Half-duplex back pressure mode */
+#define YT921X_PORTn_STATUS(port)	(0x80200 + 4 * (port))
+#define  YT921X_PORT_LINK			BIT(8)
+#define  YT921X_PORT_DUPLEX_FULL		BIT(7)
+#define  YT921X_PORT_RX_PAUSE			BIT(6)
+#define  YT921X_PORT_TX_PAUSE			BIT(5)
+#define  YT921X_PORT_RX_MAC_EN			BIT(4)
+#define  YT921X_PORT_TX_MAC_EN			BIT(3)
+#define  YT921X_PORT_SPEED_M			GENMASK(2, 0)
+#define   YT921X_PORT_SPEED(x)				FIELD_PREP(YT921X_PORT_SPEED_M, (x))
+#define YT921X_PON_STRAP_FUNC		0x80320
+#define YT921X_PON_STRAP_VAL		0x80324
+#define YT921X_PON_STRAP_CAP		0x80328
+#define  YT921X_PON_STRAP_EEE			BIT(16)
+#define  YT921X_PON_STRAP_LOOP_DETECT		BIT(7)
+#define YT921X_MDIO_POLLINGn(port)	(0x80364 + 4 * ((port) - 8))
+#define  YT921X_MDIO_POLLING_DUPLEX_FULL	BIT(4)
+#define  YT921X_MDIO_POLLING_LINK		BIT(3)
+#define  YT921X_MDIO_POLLING_SPEED_M		GENMASK(2, 0)
+#define   YT921X_MDIO_POLLING_SPEED(x)			FIELD_PREP(YT921X_MDIO_POLLING_SPEED_M, (x))
+
+enum yt921x_speed {
+	YT921X_SPEED_10,
+	YT921X_SPEED_100,
+	YT921X_SPEED_1000,
+	YT921X_SPEED_10000,
+	YT921X_SPEED_2500,
+	YT921X_SPEED_INVALID
+};
+
+#define YT921X_SENSOR			0x8036c
+#define  YT921X_SENSOR_TEMP			BIT(18)
+#define YT921X_TEMP			0x80374
+#define YT921X_CHIP_MODE		0x80388
+#define  YT921X_CHIP_MODE_MODE			GENMASK(1, 0)
+#define YT921X_XMII_CTRL		0x80394
+#define  YT921X_XMII_CTRL_PORTn(port)		BIT(9 - (port))  /* Yes, it's reversed */
+#define YT921X_XMIIn(port)		(0x80400 + 8 * ((port) - 8))
+#define  YT921X_XMII_MODE_M			GENMASK(31, 29)
+#define   YT921X_XMII_MODE(x)				FIELD_PREP(YT921X_XMII_MODE_M, (x))
+#define   YT921X_XMII_MODE_MII				YT921X_XMII_MODE(0)
+#define   YT921X_XMII_MODE_REVMII			YT921X_XMII_MODE(1)
+#define   YT921X_XMII_MODE_RMII				YT921X_XMII_MODE(2)
+#define   YT921X_XMII_MODE_REVRMII			YT921X_XMII_MODE(3)
+#define   YT921X_XMII_MODE_RGMII			YT921X_XMII_MODE(4)
+#define   YT921X_XMII_MODE_DISABLE			YT921X_XMII_MODE(5)
+#define  YT921X_XMII_LINK			BIT(19)  /* force link */
+#define  YT921X_XMII_EN				BIT(18)
+#define  YT921X_XMII_SOFT_RST			BIT(17)
+#define  YT921X_XMII_RGMII_TX_DELAY_150PS_M	GENMASK(16, 13)
+#define   YT921X_XMII_RGMII_TX_DELAY_150PS(x)		FIELD_PREP(YT921X_XMII_RGMII_TX_DELAY_150PS_M, (x))
+#define  YT921X_XMII_TX_CLK_IN			BIT(11)
+#define  YT921X_XMII_RX_CLK_IN			BIT(10)
+#define  YT921X_XMII_RGMII_TX_DELAY_2NS		BIT(8)
+#define  YT921X_XMII_RGMII_TX_CLK_OUT		BIT(7)
+#define  YT921X_XMII_RGMII_RX_DELAY_150PS_M	GENMASK(6, 3)
+#define   YT921X_XMII_RGMII_RX_DELAY_150PS(x)		FIELD_PREP(YT921X_XMII_RGMII_RX_DELAY_150PS_M, (x))
+#define  YT921X_XMII_RMII_PHY_TX_CLK_OUT	BIT(2)
+#define  YT921X_XMII_REVMII_TX_CLK_OUT		BIT(1)
+#define  YT921X_XMII_REVMII_RX_CLK_OUT		BIT(0)
+
+#define YT921X_MACn_FRAME(port)		(0x81008 + 0x1000 * (port))
+#define  YT921X_MAC_FRAME_SIZE_M		GENMASK(21, 8)
+#define   YT921X_MAC_FRAME_SIZE(x)			FIELD_PREP(YT921X_MAC_FRAME_SIZE_M, (x))
+
+#define YT921X_EEEn_VAL(port)		(0xa0000 + 0x40 * (port))
+#define  YT921X_EEE_VAL_DATA			BIT(1)
+
+#define YT921X_EEE_CTRL			0xb0000
+#define  YT921X_EEE_CTRL_ENn(port)		BIT(port)
+
+#define YT921X_EDATA_CTRL		0xe0000
+#define  YT921X_EDATA_CTRL_ADDR_M		GENMASK(15, 8)
+#define   YT921X_EDATA_CTRL_ADDR(x)			FIELD_PREP(YT921X_EDATA_CTRL_ADDR_M, (x))
+#define  YT921X_EDATA_CTRL_OP_M			GENMASK(3, 0)
+#define   YT921X_EDATA_CTRL_OP(x)			FIELD_PREP(YT921X_EDATA_CTRL_OP_M, (x))
+#define   YT921X_EDATA_CTRL_READ			YT921X_EDATA_CTRL_OP(5)
+#define YT921X_EDATA_DATA		0xe0004
+#define  YT921X_EDATA_DATA_DATA_M			GENMASK(31, 24)
+#define  YT921X_EDATA_DATA_STATUS_M		GENMASK(3, 0)
+#define   YT921X_EDATA_DATA_STATUS(x)			FIELD_PREP(YT921X_EDATA_DATA_STATUS_M, (x))
+#define   YT921X_EDATA_DATA_IDLE			YT921X_EDATA_DATA_STATUS(3)
+#define YT921X_SYS_CLK			0xe0040
+#define  YT921X_SYS_CLK_SEL_M			GENMASK(1, 0)  /* unknown: 167M */
+#define   YT9215_SYS_CLK_125M				0
+#define   YT9218_SYS_CLK_167M				0
+#define   YT921X_SYS_CLK_143M				1
+
+#define YT921X_PORTn_EGR(port)		(0x100000 + 4 * (port))
+#define  YT921X_PORT_EGR_TPID_CTAG_M		GENMASK(5, 4)
+#define   YT921X_PORT_EGR_TPID_CTAG(x)			FIELD_PREP(YT921X_PORT_EGR_TPID_CTAG_M, (x))
+#define  YT921X_PORT_EGR_TPID_STAG_M		GENMASK(3, 2)
+#define   YT921X_PORT_EGR_TPID_STAG(x)			FIELD_PREP(YT921X_PORT_EGR_TPID_STAG_M, (x))
+#define YT921X_TPID_EGRn(x)		(0x100300 + 4 * (x))	/* [0, 3] */
+#define  YT921X_TPID_EGR_TPID_M			GENMASK(15, 0)
+
+#define YT921X_IPM_DSCPn(n)		(0x180000 + 4 * (n))	/* Internal Priority Map */
+#define YT921X_IPM_PCPn(map, dei, pcp)	(0x180100 + 4 * (16 * (map) + 8 * (dei) + (pcp)))
+#define  YT921X_IPM_PRIO_M			GENMASK(4, 2)
+#define   YT921X_IPM_PRIO(x)				FIELD_PREP(YT921X_IPM_PRIO_M, (x))
+#define  YT921X_IPM_COLOR_M			GENMASK(1, 0)
+#define   YT921X_IPM_COLOR(x)				FIELD_PREP(YT921X_IPM_COLOR_M, (x))
+#define   YT921X_IPM_COLOR_GREEN			YT921X_IPM_COLOR(0)
+#define   YT921X_IPM_COLOR_YELLOW			YT921X_IPM_COLOR(1)
+#define   YT921X_IPM_COLOR_RED				YT921X_IPM_COLOR(2)
+#define YT921X_PORTn_QOS(port)		(0x180180 + 4 * (port))
+#define  YT921X_PORT_QOS_CVLAN_PRIO_MAP_ID	BIT(5)
+#define  YT921X_PORT_QOS_SVLAN_PRIO_MAP_ID	BIT(4)
+#define  YT921X_PORT_QOS_PRIO_M			GENMASK(3, 1)
+#define   YT921X_PORT_QOS_PRIO(x)			FIELD_PREP(YT921X_PORT_QOS_PRIO_M, (x))
+#define  YT921X_PORT_QOS_PRIO_EN		BIT(0)
+#define YT921X_PORTn_PRIO_ORD(port)	(0x180200 + 4 * (port))
+#define  YT921X_PORT_PRIO_ORD_APPm_M(m)		GENMASK(3 * (m) + 2, 3 * (m))
+#define   YT921X_PORT_PRIO_ORD_APPm(m, x)		((x) << (3 * (m)))	/* 0: disabled, except PORT_QOS_PRIO */
+
+enum yt921x_app_selector {
+	YT921X_APP_SEL_MAC_SA,
+	YT921X_APP_SEL_MAC_DA,
+	YT921X_APP_SEL_VID,
+	YT921X_APP_SEL_ACL,
+	YT921X_APP_SEL_DSCP,
+	YT921X_APP_SEL_CVLAN_PCP,
+	YT921X_APP_SEL_SVLAN_PCP,
+	/* The physical port, i.e. YT921X_PORT_QOS_PRIO */
+	YT921X_APP_SEL_PORT,
+	YT921X_APP_SEL_NUM
+};
+
+#define YT921X_VLAN_IGR_FILTER		0x180280
+#define  YT921X_VLAN_IGR_FILTER_PORTn_BYPASS_IGMP(port)	BIT((port) + 11)
+#define  YT921X_VLAN_IGR_FILTER_PORTn(port)	BIT(port)
+#define YT921X_PORTn_ISOLATION(port)	(0x180294 + 4 * (port))
+#define  YT921X_PORT_ISOLATION_BLOCKn(port)	BIT(port)
+#define YT921X_STPn(n)			(0x18038c + 4 * (n))
+#define  YT921X_STP_PORTn_M(port)		GENMASK(2 * (port) + 1, 2 * (port))
+#define   YT921X_STP_PORTn(port, x)			((x) << (2 * (port)))
+#define   YT921X_STP_PORTn_DISABLED(port)		YT921X_STP_PORTn(port, 0)
+#define   YT921X_STP_PORTn_LEARNING(port)		YT921X_STP_PORTn(port, 1)
+#define   YT921X_STP_PORTn_BLOCKING(port)		YT921X_STP_PORTn(port, 2)
+#define   YT921X_STP_PORTn_FORWARD(port)		YT921X_STP_PORTn(port, 3)
+#define YT921X_PORTn_LEARN(port)	(0x1803d0 + 4 * (port))
+#define  YT921X_PORT_LEARN_VID_LEARN_MULTI_EN	BIT(22)
+#define  YT921X_PORT_LEARN_VID_LEARN_MODE	BIT(21)
+#define  YT921X_PORT_LEARN_VID_LEARN_EN		BIT(20)
+#define  YT921X_PORT_LEARN_SUSPEND_COPY_EN	BIT(19)
+#define  YT921X_PORT_LEARN_SUSPEND_DROP_EN	BIT(18)
+#define  YT921X_PORT_LEARN_DIS			BIT(17)
+#define  YT921X_PORT_LEARN_LIMIT_EN		BIT(16)
+#define  YT921X_PORT_LEARN_LIMIT_M		GENMASK(15, 8)
+#define   YT921X_PORT_LEARN_LIMIT(x)			FIELD_PREP(YT921X_PORT_LEARN_LIMIT_M, (x))
+#define  YT921X_PORT_LEARN_DROP_ON_EXCEEDED	BIT(2)
+#define  YT921X_PORT_LEARN_MODE_M		GENMASK(1, 0)
+#define   YT921X_PORT_LEARN_MODE(x)			FIELD_PREP(YT921X_PORT_LEARN_MODE_M, (x))
+#define   YT921X_PORT_LEARN_MODE_AUTO			YT921X_PORT_LEARN_MODE(0)
+#define   YT921X_PORT_LEARN_MODE_AUTO_AND_COPY		YT921X_PORT_LEARN_MODE(1)
+#define   YT921X_PORT_LEARN_MODE_CPU_CONTROL		YT921X_PORT_LEARN_MODE(2)
+#define YT921X_AGEING			0x180440
+#define  YT921X_AGEING_INTERVAL_M		GENMASK(15, 0)
+#define YT921X_FDB_IN0			0x180454
+#define YT921X_FDB_IN1			0x180458
+#define YT921X_FDB_IN2			0x18045c
+#define YT921X_FDB_OP			0x180460
+#define  YT921X_FDB_OP_INDEX_M			GENMASK(22, 11)
+#define   YT921X_FDB_OP_INDEX(x)			FIELD_PREP(YT921X_FDB_OP_INDEX_M, (x))
+#define  YT921X_FDB_OP_MODE_INDEX		BIT(10)  /* mac+fid / index */
+#define  YT921X_FDB_OP_FLUSH_MCAST		BIT(9)  /* ucast / mcast */
+#define  YT921X_FDB_OP_FLUSH_M			GENMASK(8, 7)
+#define   YT921X_FDB_OP_FLUSH(x)			FIELD_PREP(YT921X_FDB_OP_FLUSH_M, (x))
+#define   YT921X_FDB_OP_FLUSH_ALL			YT921X_FDB_OP_FLUSH(0)
+#define   YT921X_FDB_OP_FLUSH_PORT			YT921X_FDB_OP_FLUSH(1)
+#define   YT921X_FDB_OP_FLUSH_PORT_VID			YT921X_FDB_OP_FLUSH(2)
+#define   YT921X_FDB_OP_FLUSH_VID			YT921X_FDB_OP_FLUSH(3)
+#define  YT921X_FDB_OP_FLUSH_STATIC		BIT(6)
+#define  YT921X_FDB_OP_NEXT_TYPE_M		GENMASK(5, 4)
+#define   YT921X_FDB_OP_NEXT_TYPE(x)			FIELD_PREP(YT921X_FDB_OP_NEXT_TYPE_M, (x))
+#define   YT921X_FDB_OP_NEXT_TYPE_UCAST_PORT		YT921X_FDB_OP_NEXT_TYPE(0)
+#define   YT921X_FDB_OP_NEXT_TYPE_UCAST_VID		YT921X_FDB_OP_NEXT_TYPE(1)
+#define   YT921X_FDB_OP_NEXT_TYPE_UCAST			YT921X_FDB_OP_NEXT_TYPE(2)
+#define   YT921X_FDB_OP_NEXT_TYPE_MCAST			YT921X_FDB_OP_NEXT_TYPE(3)
+#define  YT921X_FDB_OP_OP_M			GENMASK(3, 1)
+#define   YT921X_FDB_OP_OP(x)				FIELD_PREP(YT921X_FDB_OP_OP_M, (x))
+#define   YT921X_FDB_OP_OP_ADD				YT921X_FDB_OP_OP(0)
+#define   YT921X_FDB_OP_OP_DEL				YT921X_FDB_OP_OP(1)
+#define   YT921X_FDB_OP_OP_GET_ONE			YT921X_FDB_OP_OP(2)
+#define   YT921X_FDB_OP_OP_GET_NEXT			YT921X_FDB_OP_OP(3)
+#define   YT921X_FDB_OP_OP_FLUSH			YT921X_FDB_OP_OP(4)
+#define  YT921X_FDB_OP_START			BIT(0)
+#define YT921X_FDB_RESULT		0x180464
+#define  YT921X_FDB_RESULT_DONE			BIT(15)
+#define  YT921X_FDB_RESULT_NOTFOUND		BIT(14)
+#define  YT921X_FDB_RESULT_OVERWRITED		BIT(13)
+#define  YT921X_FDB_RESULT_INDEX_M		GENMASK(11, 0)
+#define   YT921X_FDB_RESULT_INDEX(x)			FIELD_PREP(YT921X_FDB_RESULT_INDEX_M, (x))
+#define YT921X_FDB_OUT0			0x1804b0
+#define  YT921X_FDB_IO0_ADDR_HI4_M		GENMASK(31, 0)
+#define YT921X_FDB_OUT1			0x1804b4
+#define  YT921X_FDB_IO1_EGR_PRIO_EN		BIT(31)
+#define  YT921X_FDB_IO1_STATUS_M		GENMASK(30, 28)
+#define   YT921X_FDB_IO1_STATUS(x)			FIELD_PREP(YT921X_FDB_IO1_STATUS_M, (x))
+#define   YT921X_FDB_IO1_STATUS_INVALID			YT921X_FDB_IO1_STATUS(0)
+#define   YT921X_FDB_IO1_STATUS_MIN_TIME		YT921X_FDB_IO1_STATUS(1)
+#define   YT921X_FDB_IO1_STATUS_MOVE_AGING_MAX_TIME	YT921X_FDB_IO1_STATUS(3)
+#define   YT921X_FDB_IO1_STATUS_MAX_TIME		YT921X_FDB_IO1_STATUS(5)
+#define   YT921X_FDB_IO1_STATUS_PENDING			YT921X_FDB_IO1_STATUS(6)
+#define   YT921X_FDB_IO1_STATUS_STATIC			YT921X_FDB_IO1_STATUS(7)
+#define  YT921X_FDB_IO1_FID_M			GENMASK(27, 16)  /* filtering ID (VID) */
+#define   YT921X_FDB_IO1_FID(x)				FIELD_PREP(YT921X_FDB_IO1_FID_M, (x))
+#define  YT921X_FDB_IO1_ADDR_LO2_M		GENMASK(15, 0)
+#define YT921X_FDB_OUT2			0x1804b8
+#define  YT921X_FDB_IO2_MOVE_AGING_STATUS_M	GENMASK(31, 30)
+#define  YT921X_FDB_IO2_IGR_DROP		BIT(29)
+#define  YT921X_FDB_IO2_EGR_PORTS_M		GENMASK(28, 18)
+#define   YT921X_FDB_IO2_EGR_PORTS(x)			FIELD_PREP(YT921X_FDB_IO2_EGR_PORTS_M, (x))
+#define  YT921X_FDB_IO2_EGR_DROP		BIT(17)
+#define  YT921X_FDB_IO2_COPY_TO_CPU		BIT(16)
+#define  YT921X_FDB_IO2_IGR_PRIO_EN		BIT(15)
+#define  YT921X_FDB_IO2_PRIO_M			GENMASK(14, 12)
+#define   YT921X_FDB_IO2_PRIO(x)			FIELD_PREP(YT921X_FDB_IO2_PRIO_M, (x))
+#define  YT921X_FDB_IO2_NEW_VID_M		GENMASK(11, 0)
+#define   YT921X_FDB_IO2_NEW_VID(x)			FIELD_PREP(YT921X_FDB_IO2_NEW_VID_M, (x))
+#define YT921X_FILTER_UNK_UCAST		0x180508
+#define YT921X_FILTER_UNK_MCAST		0x18050c
+#define YT921X_FILTER_MCAST		0x180510
+#define YT921X_FILTER_BCAST		0x180514
+#define  YT921X_FILTER_PORTS_M			GENMASK(10, 0)
+#define   YT921X_FILTER_PORTS(x)			FIELD_PREP(YT921X_FILTER_PORTS_M, (x))
+#define  YT921X_FILTER_PORTn(port)		BIT(port)
+#define YT921X_VLAN_EGR_FILTER		0x180598
+#define  YT921X_VLAN_EGR_FILTER_PORTn(port)	BIT(port)
+#define YT921X_LAG_GROUPn(n)		(0x1805a8 + 4 * (n))
+#define  YT921X_LAG_GROUP_PORTS_M		GENMASK(13, 3)
+#define   YT921X_LAG_GROUP_PORTS(x)			FIELD_PREP(YT921X_LAG_GROUP_PORTS_M, (x))
+#define  YT921X_LAG_GROUP_MEMBER_NUM_M		GENMASK(2, 0)
+#define   YT921X_LAG_GROUP_MEMBER_NUM(x)		FIELD_PREP(YT921X_LAG_GROUP_MEMBER_NUM_M, (x))
+#define YT921X_LAG_MEMBERnm(n, m)	(0x1805b0 + 4 * (4 * (n) + (m)))
+#define  YT921X_LAG_MEMBER_PORT_M		GENMASK(3, 0)
+#define   YT921X_LAG_MEMBER_PORT(x)			FIELD_PREP(YT921X_LAG_MEMBER_PORT_M, (x))
+#define YT921X_CPU_COPY			0x180690
+#define  YT921X_CPU_COPY_FORCE_INT_PORT		BIT(2)
+#define  YT921X_CPU_COPY_TO_INT_CPU		BIT(1)
+#define  YT921X_CPU_COPY_TO_EXT_CPU		BIT(0)
+#define YT921X_ACL_PERMIT_UNMATCH	0x1806a0
+#define  YT921X_ACL_PERMIT_UNMATCH_PORTS_M	GENMASK(10, 0)
+#define   YT921X_ACL_PERMIT_UNMATCH_PORTS(x)		FIELD_PREP(YT921X_ACL_PERMIT_UNMATCH_PORTS_M, (x))
+#define  YT921X_ACL_PERMIT_UNMATCH_PORTn(port)	BIT(port)
+#define YT921X_ACT_UNK_UCAST		0x180734
+#define YT921X_ACT_UNK_MCAST		0x180738
+#define  YT921X_ACT_UNK_MCAST_BYPASS_DROP_RMA	BIT(23)
+#define  YT921X_ACT_UNK_MCAST_BYPASS_DROP_IGMP	BIT(22)
+#define  YT921X_ACT_UNK_ACTn_M(port)		GENMASK(2 * (port) + 1, 2 * (port))
+#define   YT921X_ACT_UNK_ACTn(port, x)			((x) << (2 * (port)))
+#define   YT921X_ACT_UNK_ACTn_FORWARD(port)		YT921X_ACT_UNK_ACTn(port, 0)  /* flood */
+#define   YT921X_ACT_UNK_ACTn_TRAP(port)		YT921X_ACT_UNK_ACTn(port, 1)  /* steer to CPU */
+#define   YT921X_ACT_UNK_ACTn_DROP(port)		YT921X_ACT_UNK_ACTn(port, 2)  /* discard */
+/* NEVER use this action; see comments in the tag driver */
+#define   YT921X_ACT_UNK_ACTn_COPY(port)		YT921X_ACT_UNK_ACTn(port, 3)  /* flood and copy */
+#define YT921X_FDB_HW_FLUSH		0x180958
+#define  YT921X_FDB_HW_FLUSH_ON_LINKDOWN	BIT(0)
+
+#define YT921X_VLANn_CTRL(vlan)		(0x188000 + 8 * (vlan))
+#define  YT921X_VLAN_CTRLb_UNTAG_PORTS_M	GENMASK(18, 8)
+#define   YT921X_VLAN_CTRLb_UNTAG_PORTS(x)		FIELD_PREP(YT921X_VLAN_CTRLb_UNTAG_PORTS_M, (x))
+#define  YT921X_VLAN_CTRLb_UNTAG_PORTn(port)	BIT((port) + 8)
+#define  YT921X_VLAN_CTRLb_STP_ID_M		GENMASK(7, 4)
+#define   YT921X_VLAN_CTRLb_STP_ID(x)			FIELD_PREP(YT921X_VLAN_CTRLb_STP_ID_M, (x))
+#define  YT921X_VLAN_CTRLb_SVLAN_EN		BIT(3)
+#define  YT921X_VLAN_CTRLab_FID_M		GENMASK_ULL(34, 23)
+#define   YT921X_VLAN_CTRLab_FID(x)			FIELD_PREP(YT921X_VLAN_CTRLab_FID_M, (x))
+#define  YT921X_VLAN_CTRLa_LEARN_DIS		BIT(22)
+#define  YT921X_VLAN_CTRLa_PRIO_EN		BIT(21)
+#define  YT921X_VLAN_CTRLa_PRIO_M		GENMASK(20, 18)
+#define   YT921X_VLAN_CTRLa_PRIO(x)			FIELD_PREP(YT921X_VLAN_CTRLa_PRIO_M, (x))
+#define  YT921X_VLAN_CTRLa_PORTS_M		GENMASK(17, 7)
+#define   YT921X_VLAN_CTRLa_PORTS(x)			FIELD_PREP(YT921X_VLAN_CTRLa_PORTS_M, (x))
+#define  YT921X_VLAN_CTRLa_PORTn(port)		BIT((port) + 7)
+#define  YT921X_VLAN_CTRLa_BYPASS_1X_AC		BIT(6)
+#define  YT921X_VLAN_CTRLa_METER_EN		BIT(5)
+#define  YT921X_VLAN_CTRLa_METER_ID_M		GENMASK(4, 0)
+
+#define YT921X_TPID_IGRn(x)		(0x210000 + 4 * (x))	/* [0, 3] */
+#define  YT921X_TPID_IGR_TPID_M			GENMASK(15, 0)
+#define YT921X_PORTn_IGR_TPID(port)	(0x210010 + 4 * (port))
+#define  YT921X_PORT_IGR_TPIDn_STAG_M		GENMASK(7, 4)
+#define  YT921X_PORT_IGR_TPIDn_STAG(x)		BIT((x) + 4)
+#define  YT921X_PORT_IGR_TPIDn_CTAG_M		GENMASK(3, 0)
+#define  YT921X_PORT_IGR_TPIDn_CTAG(x)		BIT(x)
+#define YT921X_LAG_HASH			0x210090
+#define  YT921X_LAG_HASH_L4_SPORT		BIT(7)
+#define  YT921X_LAG_HASH_L4_DPORT		BIT(6)
+#define  YT921X_LAG_HASH_IP_PROTO		BIT(5)
+#define  YT921X_LAG_HASH_IP_SRC			BIT(4)
+#define  YT921X_LAG_HASH_IP_DST			BIT(3)
+#define  YT921X_LAG_HASH_MAC_SA			BIT(2)
+#define  YT921X_LAG_HASH_MAC_DA			BIT(1)
+#define  YT921X_LAG_HASH_SRC_PORT		BIT(0)
+
+#define YT921X_PORTn_VLAN_CTRL(port)	(0x230010 + 4 * (port))
+#define  YT921X_PORT_VLAN_CTRL_SVLAN_PRIO_EN	BIT(31)
+#define  YT921X_PORT_VLAN_CTRL_CVLAN_PRIO_EN	BIT(30)
+#define  YT921X_PORT_VLAN_CTRL_SVID_M		GENMASK(29, 18)
+#define   YT921X_PORT_VLAN_CTRL_SVID(x)			FIELD_PREP(YT921X_PORT_VLAN_CTRL_SVID_M, (x))
+#define  YT921X_PORT_VLAN_CTRL_CVID_M		GENMASK(17, 6)
+#define   YT921X_PORT_VLAN_CTRL_CVID(x)			FIELD_PREP(YT921X_PORT_VLAN_CTRL_CVID_M, (x))
+#define  YT921X_PORT_VLAN_CTRL_SVLAN_PRIO_M	GENMASK(5, 3)
+#define  YT921X_PORT_VLAN_CTRL_CVLAN_PRIO_M	GENMASK(2, 0)
+#define YT921X_PORTn_VLAN_CTRL1(port)	(0x230080 + 4 * (port))
+#define  YT921X_PORT_VLAN_CTRL1_VLAN_RANGE_EN	BIT(8)
+#define  YT921X_PORT_VLAN_CTRL1_VLAN_RANGE_PROFILE_ID_M	GENMASK(7, 4)
+#define  YT921X_PORT_VLAN_CTRL1_SVLAN_DROP_TAGGED	BIT(3)
+#define  YT921X_PORT_VLAN_CTRL1_SVLAN_DROP_UNTAGGED	BIT(2)
+#define  YT921X_PORT_VLAN_CTRL1_CVLAN_DROP_TAGGED	BIT(1)
+#define  YT921X_PORT_VLAN_CTRL1_CVLAN_DROP_UNTAGGED	BIT(0)
+
+#define YT921X_EDATA_EXTMODE	0xfb
+#define YT921X_EDATA_LEN	0x100
+
+#define YT921X_FDB_NUM	4096
+
+enum yt921x_fdb_entry_status {
+	YT921X_FDB_ENTRY_STATUS_INVALID = 0,
+	YT921X_FDB_ENTRY_STATUS_MIN_TIME = 1,
+	YT921X_FDB_ENTRY_STATUS_MOVE_AGING_MAX_TIME = 3,
+	YT921X_FDB_ENTRY_STATUS_MAX_TIME = 5,
+	YT921X_FDB_ENTRY_STATUS_PENDING = 6,
+	YT921X_FDB_ENTRY_STATUS_STATIC = 7,
+};
+
+#define YT921X_MSTI_NUM		16
+
+/* Custom meters only, not including dedicated port meters (11) */
+#define YT921X_METER_NUM	64
+
+#define YT921X_LAG_NUM		2
+#define YT921X_LAG_PORT_NUM	4
+
+#define YT921X_PRIO_NUM	8
+
+#define YT9215_MAJOR	0x9002
+#define YT9218_MAJOR	0x9001
+
+/* required for a hard reset */
+#define YT921X_RST_DELAY_US	10000
+
+#define YT921X_FRAME_SIZE_MAX	0x2400  /* 9216 */
+
+#define YT921X_TAG_LEN	8
+
+#define YT921X_ACL_BLK_NUM	48
+#define YT921X_UDF_NUM		16
+
+#define YT921X_LED_GROUP_NUM	3
+#define YT921X_LED_PORT_NUM	10
+
+/* 8 internal + 2 external + 1 mcu */
+#define YT921X_PORT_NUM			11
+
+#define YT921X_NAME	"yt921x"
+
+struct yt921x_port {
+	unsigned char index;
+
+	/* SerDes in use */
+	bool serdes:1;
+	/* Link from in-band status (PHYLINK_PCS_NEG_INBAND) */
+	bool inband:1;
+	/* BR_HAIRPIN_MODE */
+	bool hairpin:1;
+	/* BR_ISOLATED */
+	bool isolated:1;
+
+	unsigned short acl_cnt;
+
+#if IS_ENABLED(CONFIG_NET_DSA_YT921X_LEDS)
+	unsigned char led_duty;
+	unsigned short led_cycle;
+
+	unsigned char led_duty_mask;
+	unsigned char led_cycle_mask;
+
+	struct yt921x_led *leds[YT921X_LED_GROUP_NUM];
+#endif
+
+	struct yt921x_mib *mib;
+	struct phylink_pcs pcs;
+};
+
+#define pcs_to_yt921x_port(_pcs) container_of((_pcs), struct yt921x_port, pcs)
+
+struct yt921x_reg_ops {
+	int (*read)(void *context, u32 reg, u32 *valp);
+	int (*write)(void *context, u32 reg, u32 val);
+};
+
+struct yt921x_info {
+	const char *name;
+	u16 major;
+	/* Unknown, seems to be plain enumeration */
+	u8 mode;
+	u8 extmode;
+	/* Ports with integral GbE PHYs, not including MCU Port 10 */
+	u16 internal_mask;
+	/* Note: xmii_mask and serdes_mask may overlap */
+	u16 xmii_mask;
+	u16 serdes_mask;
+};
+
+static inline u16 yt921x_info_ports_mask(const struct yt921x_info *info)
+{
+	return info->internal_mask | info->xmii_mask | info->serdes_mask;
+}
+
+struct yt921x_priv {
+	struct dsa_switch ds;
+
+	const struct yt921x_info *info;
+	unsigned int meter_slot_ns;
+	unsigned int port_shape_slot_ns;
+	/* cache of dsa_cpu_ports(ds) */
+	u16 cpu_ports_mask;
+	unsigned char cycle_ns;
+
+	/* protect the access to the switch registers */
+	struct mutex reg_lock;
+	const struct yt921x_reg_ops *reg_ops;
+	void *reg_ctx;
+
+	/* mdio master bus */
+	struct mii_bus *mbus_int;
+	struct mii_bus *mbus_ext;
+
+	struct yt921x_port ports[YT921X_PORT_NUM];
+
+	u16 eee_ports_mask;
+
+	DECLARE_BITMAP(meters_map, YT921X_METER_NUM);
+
+	u8 acl_masks[YT921X_ACL_BLK_NUM];
+	struct yt921x_acl_blk *acl_blks[YT921X_ACL_BLK_NUM];
+};
+
+#define dsa_to_yt921x_priv(_ds) container_of_const(_ds, struct yt921x_priv, ds)
+#define yt921x_port_to_priv(pp) \
+	container_of_const((pp), struct yt921x_priv, ports[(pp)->index])
+#define yt921x_priv_to_device(priv) ((priv)->ds.dev)
+
+static inline int ethtool_speed_to_yt921x(int speed)
+{
+	switch (speed) {
+	case SPEED_10:
+		return YT921X_SPEED_10;
+	case SPEED_100:
+		return YT921X_SPEED_100;
+	case SPEED_1000:
+		return YT921X_SPEED_1000;
+	case SPEED_2500:
+		return YT921X_SPEED_2500;
+	case SPEED_10000:
+		return YT921X_SPEED_10000;
+	default:
+		return YT921X_SPEED_INVALID;
+	}
+}
+
+static inline u32 ethaddr_hi4_to_u32(const unsigned char *addr)
+{
+	return (addr[0] << 24) | (addr[1] << 16) | (addr[2] << 8) | addr[3];
+}
+
+static inline u32 ethaddr_lo2_to_u32(const unsigned char *addr)
+{
+	return (addr[4] << 8) | addr[5];
+}
+
+#endif

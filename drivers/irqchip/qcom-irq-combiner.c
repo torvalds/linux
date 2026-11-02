@@ -262,7 +262,7 @@ static int combiner_probe(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id qcom_irq_combiner_ids[] = {
-	{ "QCOM80B1", },
+	{ .id = "QCOM80B1" },
 	{ }
 };
 

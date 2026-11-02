@@ -480,14 +480,13 @@ static int qce_ahash_register(struct qce_device *qce)
 
 	for (i = 0; i < ARRAY_SIZE(ahash_def); i++) {
 		ret = qce_ahash_register_one(&ahash_def[i], qce);
-		if (ret)
-			goto err;
+		if (ret) {
+			qce_ahash_unregister(qce);
+			return ret;
+		}
 	}
 
 	return 0;
-err:
-	qce_ahash_unregister(qce);
-	return ret;
 }
 
 const struct qce_algo_ops ahash_ops = {

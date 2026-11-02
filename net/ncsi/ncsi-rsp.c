@@ -884,10 +884,7 @@ static int ncsi_rsp_handler_gp(struct ncsi_request *nr)
 	spin_lock_irqsave(&nc->lock, flags);
 	bitmap = &ncmf->bitmap;
 	for (i = 0; i < rsp->mac_cnt; i++, pdata += 6) {
-		if (!(enable & (0x1 << i)))
-			clear_bit(i, bitmap);
-		else
-			set_bit(i, bitmap);
+		assign_bit(i, bitmap, enable & (0x1 << i));
 
 		memcpy(&ncmf->addrs[i * ETH_ALEN], pdata, ETH_ALEN);
 	}
@@ -899,10 +896,7 @@ static int ncsi_rsp_handler_gp(struct ncsi_request *nr)
 	bitmap = &ncvf->bitmap;
 	spin_lock_irqsave(&nc->lock, flags);
 	for (i = 0; i < rsp->vlan_cnt; i++, pdata += 2) {
-		if (!(enable & (0x1 << i)))
-			clear_bit(i, bitmap);
-		else
-			set_bit(i, bitmap);
+		assign_bit(i, bitmap, enable & (0x1 << i));
 
 		ncvf->vids[i] = ntohs(*(__be16 *)pdata);
 	}

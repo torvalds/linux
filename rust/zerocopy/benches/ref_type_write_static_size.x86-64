@@ -1,0 +1,6 @@
+bench_ref_type_write_static_size:
+	mov rax, qword ptr [rdi]
+	mov dword ptr [rax], esi
+	shr rsi, 32
+	mov word ptr [rax + 4], si
+	ret

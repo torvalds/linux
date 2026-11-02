@@ -181,8 +181,8 @@ static int fbnic_dbg_tcq_desc_seq_show(struct seq_file *s, void *v)
 static int fbnic_dbg_bdq_desc_seq_show(struct seq_file *s, void *v)
 {
 	struct fbnic_ring *ring = s->private;
+	unsigned int i, desc_count;
 	char hdr[80];
-	int i;
 
 	/* Generate header on first entry */
 	fbnic_dbg_ring_show(s);
@@ -197,7 +197,8 @@ static int fbnic_dbg_bdq_desc_seq_show(struct seq_file *s, void *v)
 		return 0;
 	}
 
-	for (i = 0; i < (ring->size_mask + 1) * FBNIC_BD_FRAG_COUNT; i++) {
+	desc_count = (ring->size_mask + 1) * fbnic_bd_page_count(ring);
+	for (i = 0; i < desc_count; i++) {
 		u64 bd = le64_to_cpu(ring->desc[i]);
 
 		seq_printf(s, "%04x %#04llx %#014llx\n", i,

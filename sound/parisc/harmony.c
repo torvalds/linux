@@ -897,24 +897,24 @@ static int __init
 snd_harmony_probe(struct parisc_device *padev)
 {
 	int err;
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	struct snd_harmony *h;
 
-	err = snd_card_new(&padev->dev, index, id, THIS_MODULE, 0, &card);
+	err = snd_devm_card_new(&padev->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
 	err = snd_harmony_create(card, padev, &h);
 	if (err < 0)
-		goto free_and_ret;
+		return err;
 
 	err = snd_harmony_pcm_init(h);
 	if (err < 0)
-		goto free_and_ret;
+		return err;
 
 	err = snd_harmony_mixer_init(h);
 	if (err < 0)
-		goto free_and_ret;
+		return err;
 
 	strscpy(card->driver, "harmony");
 	strscpy(card->shortname, "Harmony");
@@ -923,27 +923,17 @@ snd_harmony_probe(struct parisc_device *padev)
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto free_and_ret;
+		return err;
 
 	parisc_set_drvdata(padev, card);
+	card = NULL; /* probe succeeded, don't release as error */
 	return 0;
-
-free_and_ret:
-	snd_card_free(card);
-	return err;
-}
-
-static void __exit
-snd_harmony_remove(struct parisc_device *padev)
-{
-	snd_card_free(parisc_get_drvdata(padev));
 }
 
 static struct parisc_driver snd_harmony_driver __refdata = {
 	.name = "harmony",
 	.id_table = snd_harmony_devtable,
 	.probe = snd_harmony_probe,
-	.remove = __exit_p(snd_harmony_remove),
 };
 
 static int __init 

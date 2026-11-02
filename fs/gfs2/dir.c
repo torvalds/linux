@@ -90,10 +90,11 @@ typedef int (*gfs2_dscan_t)(const struct gfs2_dirent *dent,
 int gfs2_dir_get_new_buffer(struct gfs2_inode *ip, u64 block,
 			    struct buffer_head **bhp)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(&ip->i_inode);
 	struct buffer_head *bh;
 
-	bh = gfs2_meta_new(ip->i_gl, block);
-	gfs2_trans_add_meta(ip->i_gl, bh);
+	bh = gfs2_meta_new(gl, block);
+	gfs2_trans_add_meta(gl, bh);
 	gfs2_metatype_set(bh, GFS2_METATYPE_JD, GFS2_FORMAT_JD);
 	gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
 	*bhp = bh;
@@ -103,10 +104,11 @@ int gfs2_dir_get_new_buffer(struct gfs2_inode *ip, u64 block,
 static int gfs2_dir_get_existing_buffer(struct gfs2_inode *ip, u64 block,
 					struct buffer_head **bhp)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(&ip->i_inode);
 	struct buffer_head *bh;
 	int error;
 
-	error = gfs2_meta_read(ip->i_gl, block, DIO_WAIT, 0, &bh);
+	error = gfs2_meta_read(gl, block, DIO_WAIT, 0, &bh);
 	if (error)
 		return error;
 	if (gfs2_metatype_check(GFS2_SB(&ip->i_inode), bh, GFS2_METATYPE_JD)) {
@@ -120,6 +122,7 @@ static int gfs2_dir_get_existing_buffer(struct gfs2_inode *ip, u64 block,
 static int gfs2_dir_write_stuffed(struct gfs2_inode *ip, const char *buf,
 				  unsigned int offset, unsigned int size)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(&ip->i_inode);
 	struct buffer_head *dibh;
 	int error;
 
@@ -127,7 +130,7 @@ static int gfs2_dir_write_stuffed(struct gfs2_inode *ip, const char *buf,
 	if (error)
 		return error;
 
-	gfs2_trans_add_meta(ip->i_gl, dibh);
+	gfs2_trans_add_meta(gl, dibh);
 	memcpy(dibh->b_data + offset + sizeof(struct gfs2_dinode), buf, size);
 	if (ip->i_inode.i_size < offset + size)
 		i_size_write(&ip->i_inode, offset + size);
@@ -153,6 +156,7 @@ static int gfs2_dir_write_stuffed(struct gfs2_inode *ip, const char *buf,
 static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 			       u64 offset, unsigned int size)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(&ip->i_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
 	u64 lblock, dblock;
@@ -208,7 +212,7 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 		if (error)
 			goto fail;
 
-		gfs2_trans_add_meta(ip->i_gl, bh);
+		gfs2_trans_add_meta(gl, bh);
 		memcpy(bh->b_data + o, buf, amount);
 		brelse(bh);
 
@@ -230,7 +234,7 @@ out:
 		i_size_write(&ip->i_inode, offset + copied);
 	inode_set_mtime_to_ts(&ip->i_inode, inode_set_ctime_current(&ip->i_inode));
 
-	gfs2_trans_add_meta(ip->i_gl, dibh);
+	gfs2_trans_add_meta(gl, dibh);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 
@@ -268,6 +272,7 @@ static int gfs2_dir_read_stuffed(struct gfs2_inode *ip, __be64 *buf,
 static int gfs2_dir_read_data(struct gfs2_inode *ip, __be64 *buf,
 			      unsigned int size)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(&ip->i_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	u64 lblock, dblock;
 	u32 extlen = 0;
@@ -299,9 +304,9 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, __be64 *buf,
 			if (error || !dblock)
 				goto fail;
 			BUG_ON(extlen < 1);
-			bh = gfs2_meta_ra(ip->i_gl, dblock, extlen);
+			bh = gfs2_meta_ra(gl, dblock, extlen);
 		} else {
-			error = gfs2_meta_read(ip->i_gl, dblock, DIO_WAIT, 0, &bh);
+			error = gfs2_meta_read(gl, dblock, DIO_WAIT, 0, &bh);
 			if (error)
 				goto fail;
 		}
@@ -672,6 +677,7 @@ static int dirent_next(struct gfs2_inode *dip, struct buffer_head *bh,
 static void dirent_del(struct gfs2_inode *dip, struct buffer_head *bh,
 		       struct gfs2_dirent *prev, struct gfs2_dirent *cur)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(&dip->i_inode);
 	u16 cur_rec_len, prev_rec_len;
 
 	if (gfs2_dirent_sentinel(cur)) {
@@ -679,7 +685,7 @@ static void dirent_del(struct gfs2_inode *dip, struct buffer_head *bh,
 		return;
 	}
 
-	gfs2_trans_add_meta(dip->i_gl, bh);
+	gfs2_trans_add_meta(gl, bh);
 
 	/* If there is no prev entry, this is the first entry in the block.
 	   The de_rec_len is already as big as it needs to be.  Just zero
@@ -712,13 +718,13 @@ static struct gfs2_dirent *do_init_dirent(struct inode *inode,
 					  struct buffer_head *bh,
 					  unsigned offset)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_glock *gl = gfs2_inode_glock(inode);
 	struct gfs2_dirent *ndent;
 	unsigned totlen;
 
 	totlen = be16_to_cpu(dent->de_rec_len);
 	BUG_ON(offset + name->len > totlen);
-	gfs2_trans_add_meta(ip->i_gl, bh);
+	gfs2_trans_add_meta(gl, bh);
 	ndent = (struct gfs2_dirent *)((char *)dent + offset);
 	dent->de_rec_len = cpu_to_be16(offset);
 	gfs2_qstr2dirent(name, totlen - offset, ndent);
@@ -759,10 +765,13 @@ static struct gfs2_dirent *gfs2_dirent_split_alloc(struct inode *inode,
 static int get_leaf(struct gfs2_inode *dip, u64 leaf_no,
 		    struct buffer_head **bhp)
 {
+	struct inode *inode = &dip->i_inode;
+	struct gfs2_glock *gl = gfs2_inode_glock(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	int error;
 
-	error = gfs2_meta_read(dip->i_gl, leaf_no, DIO_WAIT, 0, bhp);
-	if (!error && gfs2_metatype_check(GFS2_SB(&dip->i_inode), *bhp, GFS2_METATYPE_LF)) {
+	error = gfs2_meta_read(gl, leaf_no, DIO_WAIT, 0, bhp);
+	if (!error && gfs2_metatype_check(sdp, *bhp, GFS2_METATYPE_LF)) {
 		/* pr_info("block num=%llu\n", leaf_no); */
 		error = -EIO;
 	}
@@ -863,6 +872,7 @@ got_dent:
 
 static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh, u16 depth)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(inode);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	unsigned int n = 1;
 	u64 bn;
@@ -875,12 +885,12 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 	error = gfs2_alloc_blocks(ip, &bn, &n, 0);
 	if (error)
 		return NULL;
-	bh = gfs2_meta_new(ip->i_gl, bn);
+	bh = gfs2_meta_new(gl, bn);
 	if (!bh)
 		return NULL;
 
 	gfs2_trans_remove_revoke(GFS2_SB(inode), bn, 1);
-	gfs2_trans_add_meta(ip->i_gl, bh);
+	gfs2_trans_add_meta(gl, bh);
 	gfs2_metatype_set(bh, GFS2_METATYPE_LF, GFS2_FORMAT_LF);
 	leaf = (struct gfs2_leaf *)bh->b_data;
 	leaf->lf_depth = cpu_to_be16(depth);
@@ -907,6 +917,7 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 
 static int dir_make_exhash(struct inode *inode)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(inode);
 	struct gfs2_inode *dip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_dirent *dent;
@@ -968,7 +979,7 @@ static int dir_make_exhash(struct inode *inode)
 	/*  We're done with the new leaf block, now setup the new
 	    hash table.  */
 
-	gfs2_trans_add_meta(dip->i_gl, dibh);
+	gfs2_trans_add_meta(gl, dibh);
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
 	lp = (__be64 *)(dibh->b_data + sizeof(struct gfs2_dinode));
@@ -998,6 +1009,7 @@ static int dir_make_exhash(struct inode *inode)
 
 static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(inode);
 	struct gfs2_inode *dip = GFS2_I(inode);
 	struct buffer_head *nbh, *obh, *dibh;
 	struct gfs2_leaf *nleaf, *oleaf;
@@ -1025,7 +1037,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 		return 1; /* can't split */
 	}
 
-	gfs2_trans_add_meta(dip->i_gl, obh);
+	gfs2_trans_add_meta(gl, obh);
 
 	nleaf = new_leaf(inode, &nbh, be16_to_cpu(oleaf->lf_depth) + 1);
 	if (!nleaf) {
@@ -1118,7 +1130,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 
 	error = gfs2_meta_inode_buffer(dip, &dibh);
 	if (!gfs2_assert_withdraw(GFS2_SB(&dip->i_inode), !error)) {
-		gfs2_trans_add_meta(dip->i_gl, dibh);
+		gfs2_trans_add_meta(gl, dibh);
 		gfs2_add_inode_blocks(&dip->i_inode, 1);
 		gfs2_dinode_out(dip, dibh->b_data);
 		brelse(dibh);
@@ -1480,8 +1492,8 @@ out:
 static void gfs2_dir_readahead(struct inode *inode, unsigned hsize, u32 index,
 			       struct file_ra_state *f_ra)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(inode);
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_glock *gl = ip->i_gl;
 	struct buffer_head *bh;
 	u64 blocknr = 0, last;
 	unsigned count;
@@ -1722,6 +1734,7 @@ out:
 static int dir_new_leaf(struct inode *inode, const struct qstr *name)
 {
 	struct buffer_head *bh, *obh;
+	struct gfs2_glock *gl = gfs2_inode_glock(inode);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_leaf *leaf, *oleaf;
 	u32 dist = 1;
@@ -1745,7 +1758,7 @@ static int dir_new_leaf(struct inode *inode, const struct qstr *name)
 			return error;
 	} while(1);
 
-	gfs2_trans_add_meta(ip->i_gl, obh);
+	gfs2_trans_add_meta(gl, obh);
 
 	leaf = new_leaf(inode, &bh, be16_to_cpu(oleaf->lf_depth));
 	if (!leaf) {
@@ -1760,7 +1773,7 @@ static int dir_new_leaf(struct inode *inode, const struct qstr *name)
 	error = gfs2_meta_inode_buffer(ip, &bh);
 	if (error)
 		return error;
-	gfs2_trans_add_meta(ip->i_gl, bh);
+	gfs2_trans_add_meta(gl, bh);
 	gfs2_add_inode_blocks(&ip->i_inode, 1);
 	gfs2_dinode_out(ip, bh->b_data);
 	brelse(bh);
@@ -1935,6 +1948,7 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct dentry *dentry)
 int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 		   const struct gfs2_inode *nip, unsigned int new_type)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(&dip->i_inode);
 	struct buffer_head *bh;
 	struct gfs2_dirent *dent;
 
@@ -1946,7 +1960,7 @@ int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 	if (IS_ERR(dent))
 		return PTR_ERR(dent);
 
-	gfs2_trans_add_meta(dip->i_gl, bh);
+	gfs2_trans_add_meta(gl, bh);
 	gfs2_inum_out(nip, dent);
 	dent->de_type = cpu_to_be16(new_type);
 	brelse(bh);
@@ -1972,6 +1986,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 			u64 leaf_no, struct buffer_head *leaf_bh,
 			int last_dealloc)
 {
+	struct gfs2_glock *gl = gfs2_inode_glock(&dip->i_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_leaf *tmp_leaf;
 	struct gfs2_rgrp_list rlist;
@@ -2066,7 +2081,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 	if (error)
 		goto out_end_trans;
 
-	gfs2_trans_add_meta(dip->i_gl, dibh);
+	gfs2_trans_add_meta(gl, dibh);
 	/* On the last dealloc, make this a regular file in case we crash.
 	   (We don't want to free these blocks a second time.)  */
 	if (last_dealloc)

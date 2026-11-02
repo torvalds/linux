@@ -2576,11 +2576,16 @@ static void snd_dbri_free(struct snd_dbri *dbri)
 				  (void *)dbri->dma, dbri->dma_dvma);
 }
 
+static void dbri_card_free(struct snd_card *card)
+{
+	snd_dbri_free(card->private_data);
+}
+
 static int dbri_probe(struct platform_device *op)
 {
 	struct snd_dbri *dbri;
 	struct resource *rp;
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	static int dev;
 	int irq;
 	int err;
@@ -2598,8 +2603,8 @@ static int dbri_probe(struct platform_device *op)
 		return -ENODEV;
 	}
 
-	err = snd_card_new(&op->dev, index[dev], id[dev], THIS_MODULE,
-			   sizeof(struct snd_dbri), &card);
+	err = snd_devm_card_new(&op->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_dbri), &card);
 	if (err < 0)
 		return err;
 
@@ -2609,21 +2614,20 @@ static int dbri_probe(struct platform_device *op)
 	sprintf(card->longname, "%s at 0x%02lx:0x%016llx, irq %d",
 		card->shortname,
 		rp->flags & 0xffL, (unsigned long long)rp->start, irq);
+	card->private_free = dbri_card_free;
 
 	err = snd_dbri_create(card, op, irq, dev);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	dbri = card->private_data;
 	err = snd_dbri_pcm(card);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	err = snd_dbri_mixer(card);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	/* /proc file handling */
 	snd_dbri_proc(card);
@@ -2631,27 +2635,15 @@ static int dbri_probe(struct platform_device *op)
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	printk(KERN_INFO "audio%d at %p (irq %d) is DBRI(%c)+CS4215(%d)\n",
 	       dev, dbri->regs,
 	       dbri->irq, op->dev.of_node->name[9], dbri->mm.version);
 	dev++;
 
+	card = NULL; /* probe succeeded, don't release as error */
 	return 0;
-
-_err:
-	snd_dbri_free(dbri);
-	snd_card_free(card);
-	return err;
-}
-
-static void dbri_remove(struct platform_device *op)
-{
-	struct snd_card *card = dev_get_drvdata(&op->dev);
-
-	snd_dbri_free(card->private_data);
-	snd_card_free(card);
 }
 
 static const struct of_device_id dbri_match[] = {
@@ -2672,7 +2664,6 @@ static struct platform_driver dbri_sbus_driver = {
 		.of_match_table = dbri_match,
 	},
 	.probe		= dbri_probe,
-	.remove		= dbri_remove,
 };
 
 module_platform_driver(dbri_sbus_driver);

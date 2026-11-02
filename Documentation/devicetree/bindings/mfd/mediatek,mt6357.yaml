@@ -62,6 +62,13 @@ properties:
     description:
       List of MT6357 BUCKs and LDOs regulators.
 
+  adc:
+    type: object
+    $ref: /schemas/iio/adc/mediatek,mt6359-auxadc.yaml#
+    unevaluatedProperties: false
+    description:
+      MT6357 auxiliary ADC.
+
   rtc:
     type: object
     $ref: /schemas/rtc/rtc.yaml#

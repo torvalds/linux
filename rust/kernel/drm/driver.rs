@@ -12,7 +12,10 @@ use crate::{
     prelude::*,
     sync::aref::ARef, //
 };
-use core::ptr::NonNull;
+use core::{
+    marker::PhantomPinned,
+    ptr::NonNull, //
+};
 
 /// Driver use the GEM memory manager. This should be set for all modern drivers.
 pub(crate) const FEAT_GEM: u32 = bindings::drm_driver_feature_DRIVER_GEM;
@@ -143,9 +146,15 @@ pub trait Driver {
 /// The registration type of a `drm::Device`.
 ///
 /// Once the `Registration` structure is dropped, the device is unregistered.
+#[pin_data(PinnedDrop)]
 pub struct Registration<'a, T: Driver> {
     drm: ARef<drm::Device<T>>,
-    _reg_data: Pin<KBox<T::RegistrationData<'a>>>,
+    #[pin]
+    data: T::RegistrationData<'a>,
+    /// Even if `T::RegistrationData` is `Unpin`, the registration must not be moved because a
+    /// pointer to `data` is stored in the DRM device.
+    #[pin]
+    _pin: PhantomPinned,
 }
 
 impl<'a, T: Driver> Registration<'a, T> {
@@ -159,39 +168,40 @@ impl<'a, T: Driver> Registration<'a, T> {
     pub unsafe fn new<E>(
         dev: &'a device::Device<device::Bound>,
         drm: drm::UnregisteredDevice<T>,
-        reg_data: impl PinInit<T::RegistrationData<'a>, E>,
-        flags: usize,
-    ) -> Result<Self>
+        data: impl PinInit<T::RegistrationData<'a>, E>,
+    ) -> impl PinInit<Self, Error>
     where
         Error: From<E>,
     {
-        let parent = drm.as_ref();
-        if parent.as_ref().as_raw() != dev.as_raw() {
-            return Err(EINVAL);
-        }
+        try_pin_init!(Self {
+            _: {
+                let parent = drm.as_ref();
+                if parent.as_ref().as_raw() != dev.as_raw() {
+                    return Err(EINVAL);
+                }
+            },
 
-        let reg_data: Pin<KBox<T::RegistrationData<'a>>> = KBox::pin_init(reg_data, GFP_KERNEL)?;
-
-        // Store the registration data pointer in the device before registration, so that it is
-        // visible once ioctls can be called.
-        let ptr: NonNull<T::RegistrationData<'static>> =
-            NonNull::from(Pin::get_ref(reg_data.as_ref())).cast();
-
-        // SAFETY: No concurrent access; the device is not yet registered.
-        unsafe { *drm.registration_data.get() = ptr };
-
-        // SAFETY: `drm` is a valid, initialized but not yet registered DRM device.
-        let ret = unsafe { bindings::drm_dev_register(drm.as_raw(), flags) };
-        if let Err(e) = to_result(ret) {
-            // SAFETY: `drm_dev_register()` synchronizes SRCU on failure, so no concurrent
-            // access to `registration_data` is possible at this point.
-            unsafe { *drm.registration_data.get() = NonNull::dangling() };
-            return Err(e);
-        }
-
-        Ok(Self {
+            data <- data,
             drm: (&*drm).into(),
-            _reg_data: reg_data,
+            _pin: PhantomPinned,
+
+            _: {
+                // Store the registration data pointer in the device before registration, so
+                // that it is visible once ioctls can be called.
+                let ptr: NonNull<T::RegistrationData<'static>> =
+                    NonNull::from(data.as_ref().get_ref()).cast();
+
+                // SAFETY: No concurrent access; the device is not yet registered.
+                unsafe { *drm.registration_data.get() = ptr };
+
+                // SAFETY: `drm` is a valid, initialized but not yet registered DRM device.
+                let ret = unsafe { bindings::drm_dev_register(drm.as_raw(), 0) };
+                to_result(ret).inspect_err(|_| {
+                    // SAFETY: `drm_dev_register()` synchronizes SRCU on failure, so no
+                    // concurrent access to `registration_data` is possible at this point.
+                    unsafe { *drm.registration_data.get() = NonNull::dangling() };
+                })?;
+            },
         })
     }
 
@@ -208,8 +218,9 @@ unsafe impl<T: Driver> Sync for Registration<'_, T> {}
 // SAFETY: Registration with and unregistration from the DRM subsystem can happen from any thread.
 unsafe impl<T: Driver> Send for Registration<'_, T> {}
 
-impl<T: Driver> Drop for Registration<'_, T> {
-    fn drop(&mut self) {
+#[pinned_drop]
+impl<T: Driver> PinnedDrop for Registration<'_, T> {
+    fn drop(self: Pin<&mut Self>) {
         // Use `drm_dev_unplug` rather than `drm_dev_unregister` to ensure that existing
         // `drm_dev_enter()` critical sections complete before unregistration proceeds. This
         // is required for the safety of `RegistrationGuard`, which relies on the SRCU barrier in

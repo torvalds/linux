@@ -17,3 +17,9 @@ extern void __remlu(void);
 extern void __divqu(void);
 extern void __remqu(void);
 extern unsigned long __udiv_qrnnd(unsigned long *, unsigned long, unsigned long , unsigned long);
+
+#ifdef CONFIG_ARCH_SUPPORTS_INT128
+extern __int128_t __ashlti3(__int128_t a, int shift);
+extern __int128_t __ashrti3(__int128_t a, int shift);
+extern __int128_t __lshrti3(__int128_t a, int shift);
+#endif

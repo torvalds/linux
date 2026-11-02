@@ -1,6 +1,4 @@
 /*
- * drivers/input/serio/gscps2.c
- *
  * Copyright (c) 2004-2006 Helge Deller <deller@gmx.de>
  * Copyright (c) 2002 Laurent Canet <canetl@esiee.fr>
  * Copyright (c) 2002 Thibaut Varene <varenet@parisc-linux.org>
@@ -28,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/property.h>
+#include <linux/rcupdate.h>
 #include <linux/serio.h>
 
 #include <asm/irq.h>
@@ -37,15 +36,9 @@ MODULE_AUTHOR("Laurent Canet <canetl@esiee.fr>, Thibaut Varene <varenet@parisc-l
 MODULE_DESCRIPTION("HP GSC PS2 port driver");
 MODULE_LICENSE("GPL");
 
-#define PFX "gscps2.c: "
-
 /*
  * Driver constants
  */
-
-/* various constants */
-#define ENABLE			1
-#define DISABLE			0
 
 #define GSC_DINO_OFFSET		0x0800	/* offset for DINO controller versus LASI one */
 
@@ -77,23 +70,21 @@ MODULE_LICENSE("GPL");
 #define GSC_ID_KEYBOARD		0	/* device ID values */
 #define GSC_ID_MOUSE		1
 
-#ifndef CONFIG_SERIO_GSCPS2_RDI_KEYCODES
-# define CONFLICT(x, y) x
-#else
-# define CONFLICT(x, y) y
-#endif
+#define RDI_CONFLICT(x, y) \
+	((x) * !IS_ENABLED(CONFIG_SERIO_GSCPS2_RDI_KEYCODES) + \
+	 (y) * IS_ENABLED(CONFIG_SERIO_GSCPS2_RDI_KEYCODES))
 
 /*
  * Sadly RDI (Tadpole) decided to ship a different keyboard layout
  * than HP for their PS/2 laptop keyboard which leads to conflicting
  * keycodes between a normal HP PS/2 keyboard and a RDI PrecisionBook.
- *                       HP:            RDI:
+ *                           HP:                RDI:
  */
-#define C_07	CONFLICT(KEY_F12,	KEY_F1)
-#define C_11	CONFLICT(KEY_LEFTALT,	KEY_LEFTCTRL)
-#define C_14	CONFLICT(KEY_LEFTCTRL,	KEY_CAPSLOCK)
-#define C_58	CONFLICT(KEY_CAPSLOCK,	KEY_RIGHTCTRL)
-#define C_61	CONFLICT(KEY_102ND,	KEY_LEFT)
+#define C_07	RDI_CONFLICT(KEY_F12,		KEY_F1)
+#define C_11	RDI_CONFLICT(KEY_LEFTALT,	KEY_LEFTCTRL)
+#define C_14	RDI_CONFLICT(KEY_LEFTCTRL,	KEY_CAPSLOCK)
+#define C_58	RDI_CONFLICT(KEY_CAPSLOCK,	KEY_RIGHTCTRL)
+#define C_61	RDI_CONFLICT(KEY_102ND,		KEY_LEFT)
 
 /*
  * Special keycode value recognized by atkbd (ATKBD_KEY_NULL) to silently
@@ -188,8 +179,6 @@ static const struct software_node gscps2_keyboard_node = {
 	.properties = gscps2_props,
 };
 
-static irqreturn_t gscps2_interrupt(int irq, void *dev);
-
 #define BUFFER_SIZE 0x0f
 
 /* GSC PS/2 port device struct */
@@ -197,33 +186,35 @@ struct gscps2port {
 	struct list_head node;
 	struct parisc_device *padev;
 	struct serio *port;
-	spinlock_t lock;
+	spinlock_t lock; /* serializes HW access */
 	char __iomem *addr;
 	u8 act, append; /* position in buffer[] */
 	struct {
 		u8 data;
 		u8 str;
-	} buffer[BUFFER_SIZE+1];
+	} buffer[BUFFER_SIZE + 1];
 	int id;
 };
+
+static DEFINE_SPINLOCK(ps2port_list_lock);
+static LIST_HEAD(ps2port_list);
 
 /*
  * Various HW level routines
  */
 
-#define gscps2_readb_input(x)		readb((x)+GSC_RCVDATA)
-#define gscps2_readb_control(x)		readb((x)+GSC_CONTROL)
-#define gscps2_readb_status(x)		readb((x)+GSC_STATUS)
-#define gscps2_writeb_control(x, y)	writeb((x), (y)+GSC_CONTROL)
-
+#define gscps2_readb_input(x)		readb((x) + GSC_RCVDATA)
+#define gscps2_readb_control(x)		readb((x) + GSC_CONTROL)
+#define gscps2_readb_status(x)		readb((x) + GSC_STATUS)
+#define gscps2_writeb_control(x, y)	writeb((x), (y) + GSC_CONTROL)
 
 /*
  * wait_TBE() - wait for Transmit Buffer Empty
  */
-
 static int wait_TBE(char __iomem *addr)
 {
 	int timeout = 25000; /* device is expected to react within 250 msec */
+
 	while (gscps2_readb_status(addr) & GSC_STAT_TBNE) {
 		if (!--timeout)
 			return 0;	/* This should not happen */
@@ -232,16 +223,117 @@ static int wait_TBE(char __iomem *addr)
 	return 1;
 }
 
-
 /*
  * gscps2_flush() - flush the receive buffer
  */
-
 static void gscps2_flush(struct gscps2port *ps2port)
 {
+	lockdep_assert_held(&ps2port->lock);
+
 	while (gscps2_readb_status(ps2port->addr) & GSC_STAT_RBNE)
 		gscps2_readb_input(ps2port->addr);
-	ps2port->act = ps2port->append = 0;
+	ps2port->act = 0;
+	ps2port->append = 0;
+}
+
+static bool gscps2_read_data(struct gscps2port *ps2port)
+{
+	bool read_any = false;
+	u8 status;
+
+	guard(spinlock_irqsave)(&ps2port->lock);
+
+	do {
+		status = gscps2_readb_status(ps2port->addr);
+		if (!(status & GSC_STAT_RBNE))
+			break;
+
+		read_any = true;
+		ps2port->buffer[ps2port->append].str = status;
+		ps2port->buffer[ps2port->append].data =
+				gscps2_readb_input(ps2port->addr);
+		ps2port->append = (ps2port->append + 1) & BUFFER_SIZE;
+	} while (true);
+
+	return read_any;
+}
+
+static bool gscps2_report_data(struct gscps2port *ps2port)
+{
+	unsigned int rxflags;
+	u8 data, status;
+
+	while (true) {
+		/*
+		 * Did new data arrived while we read existing data ?
+		 * If yes, exit now and let the new irq handler start
+		 * over again.
+		 */
+		if (gscps2_readb_status(ps2port->addr) & GSC_STAT_CMPINTR)
+			return true;
+
+		scoped_guard(spinlock_irqsave, &ps2port->lock) {
+			if (ps2port->act == ps2port->append)
+				return false;
+
+			status = ps2port->buffer[ps2port->act].str;
+			data   = ps2port->buffer[ps2port->act].data;
+			ps2port->act = (ps2port->act + 1) & BUFFER_SIZE;
+		}
+
+		rxflags = ((status & GSC_STAT_TERR) ? SERIO_TIMEOUT : 0) |
+			  ((status & GSC_STAT_PERR) ? SERIO_PARITY  : 0);
+
+		serio_interrupt(ps2port->port, data, rxflags);
+	}
+}
+
+static DEFINE_SPINLOCK(gscps2_interrupt_lock);
+
+/**
+ * gscps2_interrupt() - Interruption service routine
+ * @irq: interrupt number which triggered (unused)
+ * @dev: device pointer (unused)
+ *
+ * This function reads received PS/2 bytes and processes them on
+ * all interfaces.
+ * The problematic part here is, that the keyboard and mouse PS/2 port
+ * share the same interrupt and it's not possible to send data if any
+ * one of them holds input data. To solve this problem we try to receive
+ * the data as fast as possible and handle the reporting to the upper layer
+ * later.
+ */
+static irqreturn_t gscps2_interrupt(int irq, void *dev)
+{
+	struct gscps2port *ps2port;
+	bool handled = false;
+	bool more_data;
+
+	ACQUIRE(spinlock_irqsave_try, lock)(&gscps2_interrupt_lock);
+	if (ACQUIRE_ERR(spinlock_irqsave_try, &lock))
+		return IRQ_NONE;
+
+	guard(rcu)();
+
+	do {
+		more_data = false;
+
+		list_for_each_entry_rcu(ps2port, &ps2port_list, node) {
+			if (gscps2_read_data(ps2port))
+				handled = true;
+		}
+
+		/* all data was read from the ports - now report the data to upper layer */
+		list_for_each_entry_rcu(ps2port, &ps2port_list, node) {
+			if (gscps2_report_data(ps2port)) {
+				/* More data ready - restart loop to read new data */
+				more_data = true;
+				break;
+			}
+		}
+	} while (more_data);
+
+	return IRQ_RETVAL(handled);
 }
 
 /*
@@ -249,38 +341,28 @@ static void gscps2_flush(struct gscps2port *ps2port)
  *
  * returns 1 on success, 0 on error
  */
-
 static inline int gscps2_writeb_output(struct gscps2port *ps2port, u8 data)
 {
 	char __iomem *addr = ps2port->addr;
 
 	if (!wait_TBE(addr)) {
-		printk(KERN_DEBUG PFX "timeout - could not write byte %#x\n", data);
+		dev_dbg(&ps2port->padev->dev, "timeout - could not write byte %#x\n", data);
 		return 0;
 	}
 
 	while (gscps2_readb_status(addr) & GSC_STAT_RBNE)
-		/* wait */;
+		cpu_relax();
 
 	scoped_guard(spinlock_irqsave, &ps2port->lock)
-		writeb(data, addr+GSC_XMTDATA);
-
-	/* this is ugly, but due to timing of the port it seems to be necessary. */
-	mdelay(6);
-
-	/* make sure any received data is returned as fast as possible */
-	/* this is important e.g. when we set the LEDs on the keyboard */
-	gscps2_interrupt(0, NULL);
+		writeb(data, addr + GSC_XMTDATA);
 
 	return 1;
 }
 
-
 /*
  * gscps2_enable() - enables or disables the port
  */
-
-static void gscps2_enable(struct gscps2port *ps2port, int enable)
+static void gscps2_enable(struct gscps2port *ps2port, bool enable)
 {
 	u8 data;
 
@@ -296,13 +378,13 @@ static void gscps2_enable(struct gscps2port *ps2port, int enable)
 	}
 
 	wait_TBE(ps2port->addr);
-	gscps2_flush(ps2port);
+	scoped_guard(spinlock_irqsave, &ps2port->lock)
+		gscps2_flush(ps2port);
 }
 
 /*
  * gscps2_reset() - resets the PS/2 port
  */
-
 static void gscps2_reset(struct gscps2port *ps2port)
 {
 	/* reset the interface */
@@ -312,97 +394,15 @@ static void gscps2_reset(struct gscps2port *ps2port)
 	gscps2_flush(ps2port);
 }
 
-static LIST_HEAD(ps2port_list);
-
-static void gscps2_read_data(struct gscps2port *ps2port)
-{
-	u8 status;
-
-	do {
-		status = gscps2_readb_status(ps2port->addr);
-		if (!(status & GSC_STAT_RBNE))
-			break;
-
-		ps2port->buffer[ps2port->append].str = status;
-		ps2port->buffer[ps2port->append].data =
-				gscps2_readb_input(ps2port->addr);
-		ps2port->append = (ps2port->append + 1) & BUFFER_SIZE;
-	} while (true);
-}
-
-static bool gscps2_report_data(struct gscps2port *ps2port)
-{
-	unsigned int rxflags;
-	u8 data, status;
-
-	while (ps2port->act != ps2port->append) {
-		/*
-		 * Did new data arrived while we read existing data ?
-		 * If yes, exit now and let the new irq handler start
-		 * over again.
-		 */
-		if (gscps2_readb_status(ps2port->addr) & GSC_STAT_CMPINTR)
-			return true;
-
-		status = ps2port->buffer[ps2port->act].str;
-		data   = ps2port->buffer[ps2port->act].data;
-
-		ps2port->act = (ps2port->act + 1) & BUFFER_SIZE;
-		rxflags = ((status & GSC_STAT_TERR) ? SERIO_TIMEOUT : 0 ) |
-			  ((status & GSC_STAT_PERR) ? SERIO_PARITY  : 0 );
-
-		serio_interrupt(ps2port->port, data, rxflags);
-	}
-
-	return false;
-}
-
-/**
- * gscps2_interrupt() - Interruption service routine
- * @irq: interrupt number which triggered (unused)
- * @dev: device pointer (unused)
- *
- * This function reads received PS/2 bytes and processes them on
- * all interfaces.
- * The problematic part here is, that the keyboard and mouse PS/2 port
- * share the same interrupt and it's not possible to send data if any
- * one of them holds input data. To solve this problem we try to receive
- * the data as fast as possible and handle the reporting to the upper layer
- * later.
- */
-
-static irqreturn_t gscps2_interrupt(int irq, void *dev)
-{
-	struct gscps2port *ps2port;
-
-	list_for_each_entry(ps2port, &ps2port_list, node) {
-		guard(spinlock_irqsave)(&ps2port->lock);
-
-		gscps2_read_data(ps2port);
-	} /* list_for_each_entry */
-
-	/* all data was read from the ports - now report the data to upper layer */
-	list_for_each_entry(ps2port, &ps2port_list, node) {
-		if (gscps2_report_data(ps2port)) {
-			/* More data ready - break early to restart interrupt */
-			break;
-		}
-	}
-
-	return IRQ_HANDLED;
-}
-
-
 /*
  * gscps2_write() - send a byte out through the aux interface.
  */
-
 static int gscps2_write(struct serio *port, unsigned char data)
 {
 	struct gscps2port *ps2port = port->port_data;
 
 	if (!gscps2_writeb_output(ps2port, data)) {
-		printk(KERN_DEBUG PFX "sending byte %#x failed.\n", data);
+		dev_dbg(&ps2port->padev->dev, "sending byte %#x failed.\n", data);
 		return -1;
 	}
 	return 0;
@@ -412,15 +412,17 @@ static int gscps2_write(struct serio *port, unsigned char data)
  * gscps2_open() is called when a port is opened by the higher layer.
  * It resets and enables the port.
  */
-
 static int gscps2_open(struct serio *port)
 {
 	struct gscps2port *ps2port = port->port_data;
 
 	gscps2_reset(ps2port);
 
+	scoped_guard(spinlock_irqsave, &ps2port_list_lock)
+		list_add_tail_rcu(&ps2port->node, &ps2port_list);
+
 	/* enable it */
-	gscps2_enable(ps2port, ENABLE);
+	gscps2_enable(ps2port, true);
 
 	gscps2_interrupt(0, NULL);
 
@@ -430,11 +432,16 @@ static int gscps2_open(struct serio *port)
 /*
  * gscps2_close() disables the port
  */
-
 static void gscps2_close(struct serio *port)
 {
 	struct gscps2port *ps2port = port->port_data;
-	gscps2_enable(ps2port, DISABLE);
+
+	gscps2_enable(ps2port, false);
+
+	scoped_guard(spinlock_irqsave, &ps2port_list_lock)
+		list_del_rcu(&ps2port->node);
+
+	synchronize_rcu();
 }
 
 /**
@@ -443,7 +450,6 @@ static void gscps2_close(struct serio *port)
  *
  * @return: success/error report
  */
-
 static int __init gscps2_probe(struct parisc_device *dev)
 {
 	struct gscps2port *ps2port;
@@ -469,6 +475,7 @@ static int __init gscps2_probe(struct parisc_device *dev)
 
 	ps2port->port = serio;
 	ps2port->padev = dev;
+	INIT_LIST_HEAD(&ps2port->node);
 	ps2port->addr = ioremap(hpa, GSC_STATUS + 4);
 	if (!ps2port->addr) {
 		ret = -ENOMEM;
@@ -494,8 +501,8 @@ static int __init gscps2_probe(struct parisc_device *dev)
 		goto fail_miserably;
 
 	if (ps2port->id != GSC_ID_KEYBOARD && ps2port->id != GSC_ID_MOUSE) {
-		printk(KERN_WARNING PFX "Unsupported PS/2 port at 0x%08lx (id=%d) ignored\n",
-				hpa, ps2port->id);
+		dev_warn(&dev->dev, "Unsupported PS/2 port at 0x%08lx (id=%d) ignored\n",
+			 hpa, ps2port->id);
 		ret = -ENODEV;
 		goto fail;
 	}
@@ -524,8 +531,6 @@ static int __init gscps2_probe(struct parisc_device *dev)
 
 	serio_register_port(ps2port->port);
 
-	list_add_tail(&ps2port->node, &ps2port_list);
-
 	return 0;
 
 fail:
@@ -552,7 +557,6 @@ fail_nomem:
  *
  * @return: success/error report
  */
-
 static void __exit gscps2_remove(struct parisc_device *dev)
 {
 	struct gscps2port *ps2port = dev_get_drvdata(&dev->dev);
@@ -562,16 +566,14 @@ static void __exit gscps2_remove(struct parisc_device *dev)
 
 	serio_unregister_port(ps2port->port);
 	free_irq(dev->irq, ps2port);
-	gscps2_flush(ps2port);
-	list_del(&ps2port->node);
+	scoped_guard(spinlock_irqsave, &ps2port->lock)
+		gscps2_flush(ps2port);
 	iounmap(ps2port->addr);
 #if 0
 	release_mem_region(dev->hpa, GSC_STATUS + 4);
 #endif
-	dev_set_drvdata(&dev->dev, NULL);
 	kfree(ps2port);
 }
-
 
 static const struct parisc_device_id gscps2_device_tbl[] __initconst = {
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00084 }, /* LASI PS/2 */
@@ -609,7 +611,6 @@ static void __exit gscps2_exit(void)
 	unregister_parisc_driver(&parisc_ps2_driver);
 	software_node_unregister(&gscps2_keyboard_node);
 }
-
 
 module_init(gscps2_init);
 module_exit(gscps2_exit);

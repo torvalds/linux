@@ -18,7 +18,7 @@ essas atribuições.
 A equipe de desenvolvedores do kernel Linux tem a capacidade de atribuir CVEs
 para possíveis problemas de segurança do kernel Linux. Essa atribuição é
 independente do processo normal de relato de bugs de segurança do kernel
-Linux, descrito em :ref:`securitybugs`.
+Linux, descrito em :ref:`pt_BR_securitybugs`.
 
 Uma lista de todos os CVEs atribuídos ao kernel Linux pode ser encontrada nos
 arquivos da lista de discussão linux-cve, como visto em
@@ -51,7 +51,7 @@ ele é SOMENTE para atribuição de CVEs a correções que já estejam em árvor
 kernel lançadas. Se você acredita ter encontrado um problema de segurança
 ainda
 não corrigido, por favor siga o processo normal de relato de bugs de segurança do kernel
-Linux, descrito em :ref:`securitybugs`.
+Linux, descrito em :ref:`pt_BR_securitybugs`.
 
 Nenhum CVE será atribuído automaticamente para problemas de segurança ainda
 não corrigidos no kernel Linux; a atribuição só acontecerá automaticamente

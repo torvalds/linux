@@ -191,6 +191,8 @@ EXPORT_SYMBOL(int_to_scsilun);
 bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
 			  struct scsi_sense_hdr *sshdr)
 {
+	u8 asc = 0, ascq = 0;
+
 	memset(sshdr, 0, sizeof(struct scsi_sense_hdr));
 
 	if (!sense_buffer || !sb_len)
@@ -208,9 +210,9 @@ bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
 		if (sb_len > 1)
 			sshdr->sense_key = (sense_buffer[1] & 0xf);
 		if (sb_len > 2)
-			sshdr->asc = sense_buffer[2];
+			asc = sense_buffer[2];
 		if (sb_len > 3)
-			sshdr->ascq = sense_buffer[3];
+			ascq = sense_buffer[3];
 		if (sb_len > 7)
 			sshdr->additional_length = sense_buffer[7];
 	} else {
@@ -222,11 +224,13 @@ bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
 		if (sb_len > 7) {
 			sb_len = min(sb_len, sense_buffer[7] + 8);
 			if (sb_len > 12)
-				sshdr->asc = sense_buffer[12];
+				asc = sense_buffer[12];
 			if (sb_len > 13)
-				sshdr->ascq = sense_buffer[13];
+				ascq = sense_buffer[13];
 		}
 	}
+
+	sshdr->sense_code = scsi_sense_code(asc, ascq);
 
 	return true;
 }
@@ -272,17 +276,19 @@ const u8 * scsi_sense_desc_find(const u8 * sense_buffer, int sb_len,
 EXPORT_SYMBOL(scsi_sense_desc_find);
 
 /**
- * scsi_build_sense_buffer - build sense data in a buffer
+ * scsi_set_sense_buffer - build sense data in a buffer
  * @desc:	Sense format (non-zero == descriptor format,
  *              0 == fixed format)
  * @buf:	Where to build sense data
  * @key:	Sense key
- * @asc:	Additional sense code
- * @ascq:	Additional sense code qualifier
+ * @code:	Additional sense code and sense code qualifier
  *
  **/
-void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq)
+void scsi_set_sense_buffer(int desc, u8 *buf, u8 key, u16 code)
 {
+	u8 asc = scsi_sense_code_asc(code);
+	u8 ascq = scsi_sense_code_ascq(code);
+
 	if (desc) {
 		buf[0] = 0x72;	/* descriptor, current */
 		buf[1] = key;
@@ -297,7 +303,7 @@ void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq)
 		buf[13] = ascq;
 	}
 }
-EXPORT_SYMBOL(scsi_build_sense_buffer);
+EXPORT_SYMBOL(scsi_set_sense_buffer);
 
 /**
  * scsi_set_sense_information - set the information field in a

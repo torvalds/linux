@@ -58,7 +58,7 @@ int mismatch_map(struct pt_regs *args)
 }
 
 SEC("perf_event")
-__failure __msg("R2 doesn't point to a map value")
+__failure __msg("R2 type=fp expected=map_value")
 int no_map_task_work(struct pt_regs *args)
 {
 	struct task_struct *task;

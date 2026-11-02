@@ -106,9 +106,9 @@ impl<C: CommandToGsp> SplitState<C> {
 
         if command.size() > MAX_CMD_SIZE {
             let mut command_payload =
-                KVVec::<u8>::from_elem(0u8, payload_len.min(Self::MAX_FIRST_PAYLOAD), GFP_KERNEL)?;
+                KVVec::zeroed(payload_len.min(Self::MAX_FIRST_PAYLOAD), GFP_KERNEL)?;
             let mut continuation_payload =
-                KVVec::<u8>::from_elem(0u8, payload_len - command_payload.len(), GFP_KERNEL)?;
+                KVVec::zeroed(payload_len - command_payload.len(), GFP_KERNEL)?;
             let mut sbuffer = SBufferIter::new_writer([
                 command_payload.as_mut_slice(),
                 continuation_payload.as_mut_slice(),
@@ -235,7 +235,7 @@ mod tests {
 
     fn read_payload(cmd: impl CommandToGsp) -> Result<KVVec<u8>> {
         let len = cmd.variable_payload_len();
-        let mut buf = KVVec::from_elem(0u8, len, GFP_KERNEL)?;
+        let mut buf = KVVec::zeroed(len, GFP_KERNEL)?;
         let mut sbuf = SBufferIter::new_writer([buf.as_mut_slice(), &mut []]);
         cmd.init_variable_payload(&mut sbuf)?;
         drop(sbuf);

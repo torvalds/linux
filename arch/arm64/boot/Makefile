@@ -26,7 +26,7 @@ $(obj)/Image.bz2: $(obj)/Image FORCE
 	$(call if_changed,bzip2)
 
 $(obj)/Image.gz: $(obj)/Image FORCE
-	$(call if_changed,gzip)
+	+$(call if_changed,gzip)
 
 $(obj)/Image.lz4: $(obj)/Image FORCE
 	$(call if_changed,lz4)

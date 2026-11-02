@@ -31,6 +31,7 @@ void gfx_v9_4_2_init_golden_registers(struct amdgpu_device *adev,
 void gfx_v9_4_2_init_sq(struct amdgpu_device *adev);
 void gfx_v9_4_2_set_power_brake_sequence(struct amdgpu_device *adev);
 int gfx_v9_4_2_do_edc_gpr_workarounds(struct amdgpu_device *adev);
+void gfx_v9_fault_cleaner(struct amdgpu_device *adev);
 
 extern struct amdgpu_gfx_ras gfx_v9_4_2_ras;
 

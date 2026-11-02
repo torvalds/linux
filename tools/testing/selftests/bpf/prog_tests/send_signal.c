@@ -261,6 +261,110 @@ static void test_send_signal_nmi(bool signal_thread, bool remote)
 	test_send_signal_common(&attr, signal_thread, remote);
 }
 
+static void test_send_signal_kworker(void)
+{
+	struct test_send_signal_kern *skel;
+	int pipe_c2p[2], pipe_p2c[2];
+	struct sigaction sa = {};
+	char buf[256];
+	int err = -1;
+	pid_t pid;
+
+	if (!ASSERT_OK(pipe(pipe_c2p), "pipe_c2p"))
+		return;
+
+	if (!ASSERT_OK(pipe(pipe_p2c), "pipe_p2c")) {
+		close(pipe_c2p[0]);
+		close(pipe_c2p[1]);
+		return;
+	}
+
+	pid = fork();
+	if (!ASSERT_GE(pid, 0, "fork")) {
+		close(pipe_c2p[0]);
+		close(pipe_c2p[1]);
+		close(pipe_p2c[0]);
+		close(pipe_p2c[1]);
+		return;
+	}
+
+	if (pid == 0) {
+		/* install signal handler and notify parent */
+		sa.sa_sigaction = sigusr1_siginfo_handler;
+		sa.sa_flags = SA_RESTART | SA_SIGINFO;
+		ASSERT_NEQ(sigaction(SIGUSR1, &sa, NULL), -1, "sigaction");
+
+		close(pipe_c2p[0]); /* close read */
+		close(pipe_p2c[1]); /* close write */
+
+		/* notify parent signal handler is installed */
+		ASSERT_EQ(write(pipe_c2p[1], buf, 1), 1, "pipe_write");
+
+		/* make sure parent enabled bpf program to send_signal */
+		ASSERT_EQ(read(pipe_p2c[0], buf, 1), 1, "pipe_read");
+
+		/*
+		 * The signal is sent from workqueue context, so nothing has
+		 * to be triggered from here.
+		 */
+		while (!sigusr1_received)
+			sleep(1);
+
+		buf[0] = sigusr1_received;
+
+		ASSERT_EQ(sigusr1_received, 8, "sigusr1_received");
+		ASSERT_EQ(write(pipe_c2p[1], buf, 1), 1, "pipe_write");
+
+		close(pipe_c2p[1]);
+		close(pipe_p2c[0]);
+		exit(0);
+	}
+
+	close(pipe_c2p[1]); /* close write */
+	close(pipe_p2c[0]); /* close read */
+
+	skel = test_send_signal_kern__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
+		goto skel_open_load_failure;
+
+	/* wait until child signal handler installed */
+	ASSERT_EQ(read(pipe_c2p[0], buf, 1), 1, "pipe_read");
+
+	/* pid == 0 keeps the other programs of this skeleton inactive */
+	skel->bss->kworker_test = 1;
+	skel->bss->pid = 0;
+	skel->bss->sig = SIGUSR1;
+	skel->bss->target_pid = pid;
+
+	err = test_send_signal_kern__attach(skel);
+	if (!ASSERT_OK(err, "skel_attach")) {
+		err = -1;
+		goto destroy_skel;
+	}
+
+	/* notify child that bpf program can send_signal now */
+	ASSERT_EQ(write(pipe_p2c[1], buf, 1), 1, "pipe_write");
+
+	/* wait for result, workqueues run on their own */
+	err = read_with_timeout(pipe_c2p[0], buf, 1, 10 * 1000 * 1000);
+	if (!ASSERT_GT(err, 0, "reading pipe"))
+		goto destroy_skel;
+
+	ASSERT_EQ(buf[0], 8, "incorrect result");
+
+destroy_skel:
+	test_send_signal_kern__destroy(skel);
+skel_open_load_failure:
+	close(pipe_c2p[0]);
+	close(pipe_p2c[1]);
+	/*
+	 * Child is either about to exit cleanly or stuck in case of errors.
+	 * Nudge it to exit.
+	 */
+	kill(pid, SIGKILL);
+	wait(NULL);
+}
+
 void test_send_signal(void)
 {
 	if (test__start_subtest("send_signal_tracepoint"))
@@ -289,4 +393,6 @@ void test_send_signal(void)
 		test_send_signal_perf(true, true);
 	if (test__start_subtest("send_signal_nmi_thread_remote"))
 		test_send_signal_nmi(true, true);
+	if (test__start_subtest("send_signal_kworker"))
+		test_send_signal_kworker();
 }

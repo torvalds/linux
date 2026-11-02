@@ -72,6 +72,7 @@ void bio_integrity_alloc_buf(struct bio *bio, gfp_t gfp, bool zero_buffer)
 	unsigned int len = bio_integrity_bytes(bi, bio_sectors(bio));
 	void *buf;
 
+	WARN_ON_ONCE(len > BLK_INTEGRITY_MAX_SIZE);
 	buf = kmalloc(len, gfp | __GFP_NOWARN | (zero_buffer ? __GFP_ZERO : 0));
 	if (unlikely(!buf)) {
 		struct page *page;

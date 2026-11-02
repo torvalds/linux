@@ -66,8 +66,7 @@ static void aiodma_compr_irq(struct uniphier_aio_sub *sub)
 
 static irqreturn_t aiodma_irq(int irq, void *p)
 {
-	struct platform_device *pdev = p;
-	struct uniphier_aio_chip *chip = platform_get_drvdata(pdev);
+	struct uniphier_aio_chip *chip = p;
 	irqreturn_t ret = IRQ_NONE;
 	int i, j;
 
@@ -263,7 +262,7 @@ int uniphier_aiodma_soc_register_platform(struct platform_device *pdev)
 		return irq;
 
 	ret = devm_request_irq(dev, irq, aiodma_irq,
-			       IRQF_SHARED, dev_name(dev), pdev);
+			       IRQF_SHARED, dev_name(dev), chip);
 	if (ret)
 		return ret;
 

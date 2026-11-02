@@ -156,6 +156,7 @@ struct ta_ras_init_flags {
 	uint8_t nps_mode;
 	uint32_t active_umc_mask;
 	uint8_t vram_type;
+	uint32_t ext_umc_mask;
 };
 
 struct ta_ras_mca_addr {

@@ -93,7 +93,7 @@ typedef struct _NEGOTIATE_MESSAGE {
 struct ntlmssp_version {
 	__u8	ProductMajorVersion;
 	__u8	ProductMinorVersion;
-	__le16	ProductBuild; /* we send the cifs.ko module version here */
+	__le16	ProductBuild; /* we send the kernel sublevel here */
 	__u8	Reserved[3];
 	__u8	NTLMRevisionCurrent; /* currently 0x0F */
 } __packed;
@@ -146,13 +146,10 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 			     struct cifs_ses *ses);
 int build_ntlmssp_negotiate_blob(unsigned char **pbuffer, u16 *buflen,
 				 struct cifs_ses *ses,
-				 struct TCP_Server_Info *server,
-				 const struct nls_table *nls_cp);
+				 struct TCP_Server_Info *server);
 int build_ntlmssp_smb3_negotiate_blob(unsigned char **pbuffer, u16 *buflen,
 				      struct cifs_ses *ses,
-				      struct TCP_Server_Info *server,
-				      const struct nls_table *nls_cp);
+				      struct TCP_Server_Info *server);
 int build_ntlmssp_auth_blob(unsigned char **pbuffer, u16 *buflen,
 			    struct cifs_ses *ses,
-			    struct TCP_Server_Info *server,
-			    const struct nls_table *nls_cp);
+			    struct TCP_Server_Info *server);

@@ -138,7 +138,7 @@ the place to start.  That file tends to not always be up to date, though,
 and not all subsystems are represented there.  The person listed in the
 MAINTAINERS file may, in fact, not be the person who is actually acting in
 that role currently.  So, when there is doubt about who to contact, a
-useful trick is to use git (and "git log" in particular) to see who is
+useful trick is to use Git (and "git log" in particular) to see who is
 currently active within the subsystem of interest.  Look at who is writing
 patches, and who, if anybody, is attaching Signed-off-by lines to those
 patches.  Those are the people who will be best placed to help with a new

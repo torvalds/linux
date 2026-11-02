@@ -32,7 +32,7 @@ properties:
     maxItems: 1
 
   clocks:
-    minItems: 34
+    minItems: 33
     items:
       - description: audio infra sys clock
       - description: top audio mux 1
@@ -74,7 +74,7 @@ properties:
       - description: audio APLL root pd
 
   clock-names:
-    minItems: 34
+    minItems: 33
     items:
       - const: infra_sys_audio_clk
       - const: top_audio_mux1_sel
@@ -132,8 +132,10 @@ allOf:
     then:
       properties:
         clocks:
-          maxItems: 34
+          minItems: 33
+          maxItems: 33
         clock-names:
-          maxItems: 34
+          minItems: 33
+          maxItems: 33
 
 additionalProperties: false

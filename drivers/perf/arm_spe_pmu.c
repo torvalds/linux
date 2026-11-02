@@ -172,9 +172,9 @@ static ssize_t arm_spe_pmu_cap_show_hex(struct device *dev,
 	return sysfs_emit(buf, "0x%llx\n", arm_spe_pmu_cap_get(spe_pmu, cap));
 }
 
-#define SPE_EXT_ATTR_ENTRY(_name, _func, _var)				\
-	&((struct dev_ext_attribute[]) {				\
-		{ __ATTR(_name, S_IRUGO, _func, NULL), (void *)_var }	\
+#define SPE_EXT_ATTR_ENTRY(_name, _func, _var)					\
+	&((struct dev_ext_attribute[]) {					\
+		{ __DEVICE_ATTR(_name, S_IRUGO, _func, NULL), (void *)_var }	\
 	})[0].attr.attr
 
 #define SPE_CAP_EXT_ATTR_ENTRY(_name, _var)				\
@@ -889,6 +889,8 @@ static void arm_spe_pmu_start(struct perf_event *event, int flags)
 		arm_spe_pmu_stop(event, 0);
 		return;
 	}
+
+	perf_event_itrace_started(event);
 
 	reg = arm_spe_event_to_pmsfcr(event);
 	write_sysreg_s(reg, SYS_PMSFCR_EL1);

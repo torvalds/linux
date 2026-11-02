@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Polling/bitbanging SPI host controller controller driver utilities
+ * Polling/bitbanging SPI host controller driver utilities
  */
 
 #include <linux/spinlock.h>

@@ -9,7 +9,6 @@
 
 #undef DEBUG
 
-#include <linux/coredump.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 #include <linux/export.h>
@@ -130,14 +129,6 @@ out:
 	return ret;
 }
 
-static ssize_t spufs_dump_emit(struct coredump_params *cprm, void *buf,
-		size_t size)
-{
-	if (!dump_emit(cprm, buf, size))
-		return -EIO;
-	return size;
-}
-
 #define DEFINE_SPUFS_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)	\
 static int __fops ## _open(struct inode *inode, struct file *file)	\
 {									\
@@ -178,12 +169,6 @@ spufs_mem_release(struct inode *inode, struct file *file)
 		ctx->local_store = NULL;
 	mutex_unlock(&ctx->mapping_lock);
 	return 0;
-}
-
-static ssize_t
-spufs_mem_dump(struct spu_context *ctx, struct coredump_params *cprm)
-{
-	return spufs_dump_emit(cprm, ctx->ops->get_ls(ctx), LS_SIZE);
 }
 
 static ssize_t
@@ -467,13 +452,6 @@ spufs_regs_open(struct inode *inode, struct file *file)
 }
 
 static ssize_t
-spufs_regs_dump(struct spu_context *ctx, struct coredump_params *cprm)
-{
-	return spufs_dump_emit(cprm, ctx->csa.lscsa->gprs,
-			       sizeof(ctx->csa.lscsa->gprs));
-}
-
-static ssize_t
 spufs_regs_read(struct file *file, char __user *buffer,
 		size_t size, loff_t *pos)
 {
@@ -522,13 +500,6 @@ static const struct file_operations spufs_regs_fops = {
 	.write   = spufs_regs_write,
 	.llseek  = generic_file_llseek,
 };
-
-static ssize_t
-spufs_fpcr_dump(struct spu_context *ctx, struct coredump_params *cprm)
-{
-	return spufs_dump_emit(cprm, &ctx->csa.lscsa->fpcr,
-			       sizeof(ctx->csa.lscsa->fpcr));
-}
 
 static ssize_t
 spufs_fpcr_read(struct file *file, char __user * buffer,
@@ -953,15 +924,6 @@ spufs_signal1_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t spufs_signal1_dump(struct spu_context *ctx,
-		struct coredump_params *cprm)
-{
-	if (!ctx->csa.spu_chnlcnt_RW[3])
-		return 0;
-	return spufs_dump_emit(cprm, &ctx->csa.spu_chnldata_RW[3],
-			       sizeof(ctx->csa.spu_chnldata_RW[3]));
-}
-
 static ssize_t __spufs_signal1_read(struct spu_context *ctx, char __user *buf,
 			size_t len)
 {
@@ -1084,15 +1046,6 @@ spufs_signal2_release(struct inode *inode, struct file *file)
 		ctx->signal2 = NULL;
 	mutex_unlock(&ctx->mapping_lock);
 	return 0;
-}
-
-static ssize_t spufs_signal2_dump(struct spu_context *ctx,
-		struct coredump_params *cprm)
-{
-	if (!ctx->csa.spu_chnlcnt_RW[4])
-		return 0;
-	return spufs_dump_emit(cprm, &ctx->csa.spu_chnldata_RW[4],
-			       sizeof(ctx->csa.spu_chnldata_RW[4]));
 }
 
 static ssize_t __spufs_signal2_read(struct spu_context *ctx, char __user *buf,
@@ -1924,15 +1877,6 @@ static const struct file_operations spufs_caps_fops = {
 	.release	= single_release,
 };
 
-static ssize_t spufs_mbox_info_dump(struct spu_context *ctx,
-		struct coredump_params *cprm)
-{
-	if (!(ctx->csa.prob.mb_stat_R & 0x0000ff))
-		return 0;
-	return spufs_dump_emit(cprm, &ctx->csa.prob.pu_mb_R,
-			       sizeof(ctx->csa.prob.pu_mb_R));
-}
-
 static ssize_t spufs_mbox_info_read(struct file *file, char __user *buf,
 				   size_t len, loff_t *pos)
 {
@@ -1961,15 +1905,6 @@ static const struct file_operations spufs_mbox_info_fops = {
 	.read = spufs_mbox_info_read,
 	.llseek  = generic_file_llseek,
 };
-
-static ssize_t spufs_ibox_info_dump(struct spu_context *ctx,
-		struct coredump_params *cprm)
-{
-	if (!(ctx->csa.prob.mb_stat_R & 0xff0000))
-		return 0;
-	return spufs_dump_emit(cprm, &ctx->csa.priv2.puint_mb_R,
-			       sizeof(ctx->csa.priv2.puint_mb_R));
-}
 
 static ssize_t spufs_ibox_info_read(struct file *file, char __user *buf,
 				   size_t len, loff_t *pos)
@@ -2003,13 +1938,6 @@ static const struct file_operations spufs_ibox_info_fops = {
 static size_t spufs_wbox_info_cnt(struct spu_context *ctx)
 {
 	return (4 - ((ctx->csa.prob.mb_stat_R & 0x00ff00) >> 8)) * sizeof(u32);
-}
-
-static ssize_t spufs_wbox_info_dump(struct spu_context *ctx,
-		struct coredump_params *cprm)
-{
-	return spufs_dump_emit(cprm, &ctx->csa.spu_mailbox_data,
-			spufs_wbox_info_cnt(ctx));
 }
 
 static ssize_t spufs_wbox_info_read(struct file *file, char __user *buf,
@@ -2059,15 +1987,6 @@ static void spufs_get_dma_info(struct spu_context *ctx,
 	}
 }
 
-static ssize_t spufs_dma_info_dump(struct spu_context *ctx,
-		struct coredump_params *cprm)
-{
-	struct spu_dma_info info;
-
-	spufs_get_dma_info(ctx, &info);
-	return spufs_dump_emit(cprm, &info, sizeof(info));
-}
-
 static ssize_t spufs_dma_info_read(struct file *file, char __user *buf,
 			      size_t len, loff_t *pos)
 {
@@ -2110,15 +2029,6 @@ static void spufs_get_proxydma_info(struct spu_context *ctx,
 		qp->mfc_cq_data2_RW = puqp->mfc_cq_data2_RW;
 		qp->mfc_cq_data3_RW = puqp->mfc_cq_data3_RW;
 	}
-}
-
-static ssize_t spufs_proxydma_info_dump(struct spu_context *ctx,
-		struct coredump_params *cprm)
-{
-	struct spu_proxydma_info info;
-
-	spufs_get_proxydma_info(ctx, &info);
-	return spufs_dump_emit(cprm, &info, sizeof(info));
 }
 
 static ssize_t spufs_proxydma_info_read(struct file *file, char __user *buf,
@@ -2579,28 +2489,4 @@ const struct spufs_tree_descr spufs_dir_nosched_contents[] = {
 const struct spufs_tree_descr spufs_dir_debug_contents[] = {
 	{ ".ctx", &spufs_ctx_fops, 0444, },
 	{},
-};
-
-const struct spufs_coredump_reader spufs_coredump_read[] = {
-	{ "regs", spufs_regs_dump, NULL, sizeof(struct spu_reg128[128])},
-	{ "fpcr", spufs_fpcr_dump, NULL, sizeof(struct spu_reg128) },
-	{ "lslr", NULL, spufs_lslr_get, 19 },
-	{ "decr", NULL, spufs_decr_get, 19 },
-	{ "decr_status", NULL, spufs_decr_status_get, 19 },
-	{ "mem", spufs_mem_dump, NULL, LS_SIZE, },
-	{ "signal1", spufs_signal1_dump, NULL, sizeof(u32) },
-	{ "signal1_type", NULL, spufs_signal1_type_get, 19 },
-	{ "signal2", spufs_signal2_dump, NULL, sizeof(u32) },
-	{ "signal2_type", NULL, spufs_signal2_type_get, 19 },
-	{ "event_mask", NULL, spufs_event_mask_get, 19 },
-	{ "event_status", NULL, spufs_event_status_get, 19 },
-	{ "mbox_info", spufs_mbox_info_dump, NULL, sizeof(u32) },
-	{ "ibox_info", spufs_ibox_info_dump, NULL, sizeof(u32) },
-	{ "wbox_info", spufs_wbox_info_dump, NULL, 4 * sizeof(u32)},
-	{ "dma_info", spufs_dma_info_dump, NULL, sizeof(struct spu_dma_info)},
-	{ "proxydma_info", spufs_proxydma_info_dump,
-			   NULL, sizeof(struct spu_proxydma_info)},
-	{ "object-id", NULL, spufs_object_id_get, 19 },
-	{ "npc", NULL, spufs_npc_get, 19 },
-	{ NULL },
 };

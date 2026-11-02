@@ -14,6 +14,21 @@
  */
 #define IO_CQ_WAKE_INIT		(-1)
 
+/*
+ * Start a wait cycle of the current task. The add that uses up ->cq_wait_nr
+ * may be one that queued its entry long ago and only now gets to look at the
+ * count. As nobody else wakes us after that, it has to find us sleeping, hence
+ * the task state must be visible before the count is. The barrier pairs with
+ * the xchg() in mpscq_push(), see io_req_local_work_add().
+ */
+static inline void io_cq_wait_arm(struct io_ring_ctx *ctx, int nr_wait)
+{
+	__set_current_state(TASK_INTERRUPTIBLE);
+	atomic_set_release(&ctx->cq_wait_nr, nr_wait);
+	/* order the above against looking at the work list */
+	smp_mb();
+}
+
 struct ext_arg {
 	size_t argsz;
 	struct timespec64 ts;

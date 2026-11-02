@@ -363,6 +363,8 @@ static int dw_spi_jhb100_init(struct platform_device *pdev,
 
 	dw_spi_jhb100_mask_intr(&dwsmmio->dws, 0xff);
 
+	dw_spi_dma_setup_generic(&dwsmmio->dws);
+
 	return 0;
 }
 

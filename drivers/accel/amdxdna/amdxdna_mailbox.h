@@ -88,6 +88,10 @@ struct mailbox_channel *xdna_mailbox_alloc_channel(struct mailbox *mb);
  * @i2x: firmware to host mailbox resources
  * @xdna_mailbox_intr_reg: register addr of MSI-X interrupt
  * @mb_irq: Linux IRQ number associated with mailbox MSI-X interrupt vector index
+ * @n_msg: number of message slots to pre-allocate; must be non-zero for
+ *         the PCI transport (the platform transport ignores this argument).
+ *         Each slot is rb_size bytes. The caller must ensure at most n_msg
+ *         messages are in flight at any time.
  *
  * Return: If success, return a handle of mailbox channel. Otherwise, return NULL.
  */
@@ -96,7 +100,7 @@ xdna_mailbox_start_channel(struct mailbox_channel *mb_chann,
 			   const struct xdna_mailbox_chann_res *x2i,
 			   const struct xdna_mailbox_chann_res *i2x,
 			   u32 xdna_mailbox_intr_reg,
-			   int mb_irq);
+			   int mb_irq, u32 n_msg);
 
 /*
  * xdna_mailbox_free_channel() -- free mailbox channel
@@ -117,11 +121,10 @@ void xdna_mailbox_stop_channel(struct mailbox_channel *mailbox_chann);
  *
  * @mailbox_chann: Mailbox channel handle
  * @msg: message struct for message information
- * @tx_timeout: the timeout value for sending the message in ms.
  *
  * Return: If success return 0, otherwise, return error code
  */
 int xdna_mailbox_send_msg(struct mailbox_channel *mailbox_chann,
-			  const struct xdna_mailbox_msg *msg, u64 tx_timeout);
+			  const struct xdna_mailbox_msg *msg);
 
 #endif /* _AIE_MAILBOX_ */

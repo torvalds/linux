@@ -42,10 +42,10 @@ examples:
         compatible = "invensense,ics43432";
 
         port {
-          endpoint {
-            remote-endpoint = <&i2s1_endpoint>;
-            dai-format = "i2s";
-          };
+            endpoint {
+                remote-endpoint = <&i2s1_endpoint>;
+                dai-format = "i2s";
+            };
         };
 
     };

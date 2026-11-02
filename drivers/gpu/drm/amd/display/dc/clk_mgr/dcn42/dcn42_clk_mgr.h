@@ -44,6 +44,11 @@ struct dcn42_ss_info_table {
 struct clk_mgr_dcn42 {
 	struct clk_mgr_internal base;
 	struct dcn42_smu_watermark_set smu_wm_set;
+	/* Max dispclk/dppclk (kHz) that can run on a bypass source with the PLL
+	 * powered down. Communicated to DMUB for Z8-Retention clock lowering.
+	 * SMU does not expose this, so it is a fixed per-ASIC value set at construct.
+	 */
+	uint32_t max_bypass_clk_khz;
 };
 
 bool dcn42_are_clock_states_equal(struct dc_clocks *a,

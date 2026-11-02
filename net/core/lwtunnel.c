@@ -231,7 +231,7 @@ int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate,
 {
 	const struct lwtunnel_encap_ops *ops;
 	struct nlattr *nest;
-	int ret;
+	int ret = 0;
 
 	if (!lwtstate)
 		return 0;
@@ -240,30 +240,31 @@ int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate,
 	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, encap_attr);
-	if (!nest)
-		return -EMSGSIZE;
-
-	ret = -EOPNOTSUPP;
 	rcu_read_lock();
-	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
-	if (likely(ops && ops->fill_encap))
-		ret = ops->fill_encap(skb, lwtstate);
-	rcu_read_unlock();
 
-	if (ret)
-		goto nla_put_failure;
-	nla_nest_end(skb, nest);
+	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
+	if (unlikely(!ops || !ops->fill_encap))
+		goto unlock_out;
+
 	ret = nla_put_u16(skb, encap_type_attr, lwtstate->type);
 	if (ret)
-		goto nla_put_failure;
+		goto unlock_out;
 
-	return 0;
+	nest = nla_nest_start_noflag(skb, encap_attr);
+	if (!nest) {
+		ret = -EMSGSIZE;
+		goto unlock_out;
+	}
 
-nla_put_failure:
-	nla_nest_cancel(skb, nest);
+	ret = ops->fill_encap(skb, lwtstate);
+	if (ret)
+		nla_nest_cancel(skb, nest);
+	else
+		nla_nest_end(skb, nest);
 
-	return (ret == -EOPNOTSUPP ? 0 : ret);
+unlock_out:
+	rcu_read_unlock();
+	return ret;
 }
 EXPORT_SYMBOL_GPL(lwtunnel_fill_encap);
 

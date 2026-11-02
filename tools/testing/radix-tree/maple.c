@@ -36022,9 +36022,11 @@ static noinline void __init check_erase_rebalance(struct maple_tree *mt)
 
 static noinline void __init check_mtree_dup(struct maple_tree *mt)
 {
-	DEFINE_MTREE(new);
+	struct maple_tree new;
 	int i, j, ret, count = 0;
 	unsigned int rand_seed = 17, rand;
+
+	mt_init(&new);
 
 	/* store a value at [0, 0] */
 	mt_init_flags(mt, 0);
@@ -36319,7 +36321,9 @@ static inline int check_vma_modification(struct maple_tree *mt)
 void farmer_tests(void)
 {
 	struct maple_node *node;
-	DEFINE_MTREE(tree);
+	struct maple_tree tree;
+
+	mt_init(&tree);
 
 	mt_dump(&tree, mt_dump_dec);
 
@@ -36432,8 +36436,10 @@ static unsigned long get_last_index(struct ma_state *mas)
 static void test_spanning_store_regression(void)
 {
 	unsigned long from = 0, to = 0;
-	DEFINE_MTREE(tree);
+	struct maple_tree tree;
 	MA_STATE(mas, &tree, 0, 0);
+
+	mt_init(&tree);
 
 	/*
 	 * Build a 3-level tree. We require a parent node below the root node

@@ -106,6 +106,7 @@
 #include "sys/reboot.h"
 #include "sys/resource.h"
 #include "sys/select.h"
+#include "sys/sendfile.h"
 #include "sys/stat.h"
 #include "sys/syscall.h"
 #include "sys/sysmacros.h"

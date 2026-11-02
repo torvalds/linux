@@ -33,6 +33,7 @@ bool dml2_mcg_create(enum dml2_project_id project_id, struct dml2_mcg_instance *
 		result = true;
 		break;
 	case dml2_project_dcn42:
+	case dml2_project_dcn42b:
 		out->build_min_clock_table = &mcg_dcn42_build_min_clock_table;
 		result = true;
 		break;

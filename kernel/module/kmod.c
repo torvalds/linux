@@ -28,6 +28,7 @@
 #include <linux/ptrace.h>
 #include <linux/async.h>
 #include <linux/uaccess.h>
+#include <linux/umh.h>
 
 #include <trace/events/module.h>
 #include "internal.h"
@@ -81,7 +82,7 @@ static int call_modprobe(char *orig_module_name, int wait)
 	char *module_name;
 	int ret;
 
-	char **argv = kmalloc(sizeof(char *[5]), GFP_KERNEL);
+	char **argv = kmalloc_array(5, sizeof(*argv), GFP_KERNEL);
 	if (!argv)
 		goto out;
 

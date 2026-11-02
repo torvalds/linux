@@ -256,7 +256,7 @@ txd_to_tegra_dma_desc(struct dma_async_tx_descriptor *td)
 
 static inline struct device *tdc2dev(struct tegra_dma_channel *tdc)
 {
-	return &tdc->dma_chan.dev->device;
+	return dmaengine_chan_dev(&tdc->dma_chan);
 }
 
 static dma_cookie_t tegra_dma_tx_submit(struct dma_async_tx_descriptor *tx);

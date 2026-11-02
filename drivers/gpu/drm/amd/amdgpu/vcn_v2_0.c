@@ -25,6 +25,7 @@
 #include <drm/drm_drv.h>
 
 #include "amdgpu.h"
+#include "amdgpu_ip.h"
 #include "amdgpu_vcn.h"
 #include "soc15.h"
 #include "soc15d.h"
@@ -2102,7 +2103,6 @@ static const struct amd_ip_funcs vcn_v2_0_ip_funcs = {
 	.hw_fini = vcn_v2_0_hw_fini,
 	.suspend = vcn_v2_0_suspend,
 	.resume = vcn_v2_0_resume,
-	.is_idle = vcn_v2_0_is_idle,
 	.wait_for_idle = vcn_v2_0_wait_for_idle,
 	.set_clockgating_state = vcn_v2_0_set_clockgating_state,
 	.set_powergating_state = vcn_set_powergating_state,

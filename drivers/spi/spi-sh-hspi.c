@@ -211,18 +211,10 @@ static int hspi_transfer_one_message(struct spi_controller *ctlr,
 
 static int hspi_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct spi_controller *ctlr;
 	struct hspi_priv *hspi;
 	struct clk *clk;
 	int ret;
-
-	/* get base addr */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "invalid resource\n");
-		return -EINVAL;
-	}
 
 	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*hspi));
 	if (!ctlr)
@@ -241,10 +233,9 @@ static int hspi_probe(struct platform_device *pdev)
 	hspi->ctlr	= ctlr;
 	hspi->dev	= &pdev->dev;
 	hspi->clk	= clk;
-	hspi->addr	= devm_ioremap(hspi->dev,
-				       res->start, resource_size(res));
-	if (!hspi->addr) {
-		ret = -ENOMEM;
+	hspi->addr = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(hspi->addr)) {
+		ret = PTR_ERR(hspi->addr);
 		goto error1;
 	}
 

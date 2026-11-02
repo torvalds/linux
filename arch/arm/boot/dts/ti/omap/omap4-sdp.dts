@@ -531,6 +531,8 @@
 };
 
 &keypad {
+	status = "okay";
+
 	keypad,num-rows = <8>;
 	keypad,num-columns = <8>;
 	linux,keymap = <0x00000012	/* KEY_E */

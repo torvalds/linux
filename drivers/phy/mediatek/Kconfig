@@ -13,6 +13,18 @@ config PHY_MTK_PCIE
 	  callback for PCIe GEN3 port, it supports software efuse
 	  initialization.
 
+config PHY_MTK_PCIE_SPHY
+	tristate "MediaTek PCIe S-PHY Driver"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on OF
+	select GENERIC_PHY
+	help
+	  Enable this to add support for MediaTek PCIe S-PHYs used with the
+	  PCI-Express Gen4 controllers as found in MT6991, MT8196 and others.
+
+	  To compile this driver as module, say 'M' here: the module will be
+	  called phy-mtk-pcie-sphy.
+
 config PHY_MTK_XFI_TPHY
 	tristate "MediaTek 10GE SerDes XFI T-PHY driver"
 	depends on ARCH_MEDIATEK || COMPILE_TEST

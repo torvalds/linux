@@ -12,7 +12,7 @@ compress-$(CONFIG_KERNEL_XZ)   = xzkern
 compress-$(CONFIG_KERNEL_LZ4)  = lz4
 
 $(obj)/zImage:  $(obj)/Image FORCE
-	$(call if_changed,$(compress-y))
+	+$(call if_changed,$(compress-y))
 	@echo '  Kernel: $@ is ready'
 
 UIMAGE_ARCH		= sandbox

@@ -550,7 +550,7 @@ xrep_adoption_move(
 	if (!xfs_inode_has_attr_fork(sc->ip) && xfs_has_parent(sc->mp)) {
 		int sf_size = xrep_adoption_attr_sizeof(adopt);
 
-		error = xfs_bmap_add_attrfork(sc->tp, sc->ip, sf_size, true);
+		error = xfs_bmap_add_attrfork(sc->tp, sc->ip, sf_size);
 		if (error)
 			return error;
 	}

@@ -124,7 +124,7 @@ snd_emux_open_seq_oss(struct snd_seq_oss_arg *arg, void *closure)
 	arg->private_data = p;
 	arg->addr.client = p->chset.client;
 	arg->addr.port = p->chset.port;
-	p->oss_arg = arg;
+	WRITE_ONCE(p->oss_arg, arg);
 
 	reset_port_mode(p, arg->seq_mode);
 
@@ -141,16 +141,24 @@ snd_emux_open_seq_oss(struct snd_seq_oss_arg *arg, void *closure)
 static void
 reset_port_mode(struct snd_emux_port *port, int midi_mode)
 {
+	struct snd_seq_oss_arg *arg;
+
+	/* OSS events can arrive before the open path has set oss_arg. */
+	arg = READ_ONCE(port->oss_arg);
+
 	if (midi_mode) {
 		port->port_mode = SNDRV_EMUX_PORT_MODE_OSS_MIDI;
 		port->drum_flags = DEFAULT_DRUM_FLAGS;
 		port->volume_atten = 0;
-		port->oss_arg->event_passing = SNDRV_SEQ_OSS_PROCESS_KEYPRESS;
+		if (arg)
+			arg->event_passing =
+				SNDRV_SEQ_OSS_PROCESS_KEYPRESS;
 	} else {
 		port->port_mode = SNDRV_EMUX_PORT_MODE_OSS_SYNTH;
 		port->drum_flags = 0;
 		port->volume_atten = 32;
-		port->oss_arg->event_passing = SNDRV_SEQ_OSS_PROCESS_EVENTS;
+		if (arg)
+			arg->event_passing = SNDRV_SEQ_OSS_PROCESS_EVENTS;
 	}
 }
 

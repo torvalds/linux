@@ -27,7 +27,7 @@ prid_t		xfs_get_initial_prid(struct xfs_inode *dp);
  * idmap to NULL.  To create a tree root, set pip to NULL.
  */
 struct xfs_icreate_args {
-	struct mnt_idmap	*idmap;
+	const struct mnt_idmap	*idmap;
 	struct xfs_inode	*pip;	/* parent inode or null */
 	dev_t			rdev;
 	umode_t			mode;

@@ -7,6 +7,8 @@
 #include <linux/dma-fence-chain.h>
 #include <linux/jiffies.h>
 
+#include <drm/drm_timeout.h>
+
 #include "gt/intel_engine.h"
 #include "gt/intel_rps.h"
 
@@ -184,25 +186,12 @@ i915_gem_object_wait(struct drm_i915_gem_object *obj,
 	return !timeout ? -ETIME : 0;
 }
 
-static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
-{
-	/* nsecs_to_jiffies64() does not guard against overflow */
-	if ((NSEC_PER_SEC % HZ) != 0 &&
-	    div_u64(n, NSEC_PER_SEC) >= MAX_JIFFY_OFFSET / HZ)
-		return MAX_JIFFY_OFFSET;
-
-	return min_t(u64, MAX_JIFFY_OFFSET, nsecs_to_jiffies64(n) + 1);
-}
-
 static unsigned long to_wait_timeout(s64 timeout_ns)
 {
 	if (timeout_ns < 0)
 		return MAX_SCHEDULE_TIMEOUT;
 
-	if (timeout_ns == 0)
-		return 0;
-
-	return nsecs_to_jiffies_timeout(timeout_ns);
+	return drm_timeout_rel_to_jiffies(timeout_ns);
 }
 
 /**

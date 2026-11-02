@@ -158,7 +158,7 @@ definitions:
       -
         name: entry
   -
-    type: enum
+    type: flags
     name: resource-scope
     entries:
       -
@@ -174,6 +174,18 @@ definitions:
         value: 1
       -
         name: fw-activate
+  -
+    type: enum
+    name: reload-limit
+    entries:
+      -
+        name: unspec
+        doc: no constraints
+      -
+        name: no-reset
+        doc: >-
+          No reset allowed, no down time allowed, no link flap and no
+          configuration is lost.
   -
     type: enum
     name: param-cmode
@@ -775,7 +787,7 @@ attribute-sets:
       -
         name: reload-limits
         type: bitfield32
-        enum: reload-action
+        enum: reload-limit
         enum-as-flags: true
       -
         name: dev-stats
@@ -793,6 +805,7 @@ attribute-sets:
       -
         name: reload-stats-limit
         type: u8
+        enum: reload-limit
       -
         name: reload-stats-value
         type: u32
@@ -845,13 +858,14 @@ attribute-sets:
         name: linecard-supported-types
         type: nest
         nested-attributes: dl-linecard-supported-types
-
-      # TODO: fill in the attributes in between
-
+      -
+        name: nested-devlink
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-nested-devlink
       -
         name: selftests
         type: nest
-        value: 176
         nested-attributes: dl-selftest-id
       -
         name: rate-tx-priority
@@ -889,7 +903,6 @@ attribute-sets:
         name: resource-scope-mask
         type: u32
         enum: resource-scope
-        enum-as-flags: true
         doc: |
           Bitmask selecting which resource classes to include in a
           resource-dump response. Bit 0 (dev) selects device-level
@@ -898,7 +911,7 @@ attribute-sets:
       -
         name: parent-dev
         type: nest
-        nested-attributes: dl-parent-dev
+        nested-attributes: dl-nested-devlink
         doc: |
           Identifies the devlink instance which owns the parent rate node.
           Used with rate-set and rate-new to parent a rate object to a node on
@@ -978,6 +991,49 @@ attribute-sets:
         type: bitfield32
         enum: port-fn-attr-cap
         enum-as-flags: true
+      -
+        name: devlink
+        type: nest
+        nested-attributes: dl-nested-devlink
+        doc: Handle of the peer devlink instance instantiated for this function.
+      -
+        name: max-io-eqs
+        type: u32
+
+  -
+    name: dl-port-function-set
+    subset-of: dl-port-function
+    doc: |
+      Port function attributes that can be configured; opstate and the
+      devlink handle are read-only.
+    attributes:
+      -
+        name: hw-addr
+      -
+        name: state
+      -
+        name: caps
+      -
+        name: max-io-eqs
+
+  -
+    name: dl-port-set
+    subset-of: devlink
+    doc: Attributes accepted by the port-set request.
+    attributes:
+      -
+        name: bus-name
+      -
+        name: dev-name
+      -
+        name: index
+      -
+        name: port-index
+      -
+        name: port-type
+      -
+        name: port-function
+        nested-attributes: dl-port-function-set
 
   -
     name: dl-dpipe-tables
@@ -1008,6 +1064,8 @@ attribute-sets:
         name: dpipe-table-resource-id
       -
         name: dpipe-table-resource-units
+      -
+        name: pad
 
   -
     name: dl-dpipe-table-matches
@@ -1042,6 +1100,8 @@ attribute-sets:
         name: dpipe-entry-action-values
       -
         name: dpipe-entry-counter
+      -
+        name: pad
 
   -
     name: dl-dpipe-entry-match-values
@@ -1180,6 +1240,8 @@ attribute-sets:
         name: resource-unit
       -
         name: resource-occ
+      -
+        name: pad
 
   -
     name: dl-resource-list
@@ -1207,6 +1269,7 @@ attribute-sets:
     attributes:
       -
         name: region-snapshot
+        multi-attr: true
 
   -
     name: dl-region-snapshot
@@ -1221,6 +1284,7 @@ attribute-sets:
     attributes:
       -
         name: region-chunk
+        multi-attr: true
 
   -
     name: dl-region-chunk
@@ -1230,6 +1294,8 @@ attribute-sets:
         name: region-chunk-data
       -
         name: region-chunk-addr
+      -
+        name: pad
 
   -
     name: dl-fmsg
@@ -1270,6 +1336,8 @@ attribute-sets:
         name: health-reporter-auto-dump
       -
         name: health-reporter-burst-period
+      -
+        name: pad
 
   -
     name: dl-attr-stats
@@ -1284,6 +1352,10 @@ attribute-sets:
       -
         name: stats-rx-dropped
         type: u64
+      -
+        name: pad
+        type: pad
+        value: 61
 
   -
     name: dl-trap-metadata
@@ -1303,6 +1375,7 @@ attribute-sets:
     attributes:
       -
         name: linecard-type
+        multi-attr: true
 
   -
     name: dl-selftest-id
@@ -1330,6 +1403,10 @@ attribute-sets:
   -
     name: dl-parent-dev
     subset-of: devlink
+    doc: |
+      Devlink handle accepted as the parent-dev input; the netns id the
+      kernel reports back is not accepted, the parent is always resolved
+      in the caller's netns.
     attributes:
       -
         name: bus-name
@@ -1337,6 +1414,50 @@ attribute-sets:
         name: dev-name
       -
         name: index
+
+  -
+    name: dl-rate-set
+    subset-of: devlink
+    doc: Attributes accepted by the rate-set and rate-new requests.
+    attributes:
+      -
+        name: bus-name
+      -
+        name: dev-name
+      -
+        name: index
+      -
+        name: port-index
+      -
+        name: rate-node-name
+      -
+        name: rate-tx-share
+      -
+        name: rate-tx-max
+      -
+        name: rate-tx-priority
+      -
+        name: rate-tx-weight
+      -
+        name: rate-parent-node-name
+      -
+        name: rate-tc-bws
+      -
+        name: parent-dev
+        nested-attributes: dl-parent-dev
+
+  -
+    name: dl-nested-devlink
+    subset-of: devlink
+    attributes:
+      -
+        name: bus-name
+      -
+        name: dev-name
+      -
+        name: index
+      -
+        name: netns-id
 
 operations:
   enum-model: directional
@@ -1363,6 +1484,7 @@ operations:
             - index
             - reload-failed
             - dev-stats
+            - nested-devlink
       dump:
         reply: *get-reply
 
@@ -1388,13 +1510,12 @@ operations:
         request:
           attributes: *dev-id-attrs
         reply:
-          value: 3  # due to a bug, port dump returns DEVLINK_CMD_NEW
           attributes: *port-id-attrs
 
     -
       name: port-set
       doc: Set devlink port instances.
-      attribute-set: devlink
+      attribute-set: dl-port-set
       dont-validate: [strict]
       flags: [admin-perm]
       do:
@@ -1901,7 +2022,7 @@ operations:
         post: devlink-nl-post-doit
         request:
           value: 42
-          attributes: &region-id-attrs
+          attributes:
             - bus-name
             - dev-name
             - index
@@ -1909,7 +2030,15 @@ operations:
             - region-name
         reply: &region-get-reply
           value: 42
-          attributes: *region-id-attrs
+          attributes:
+            - bus-name
+            - dev-name
+            - index
+            - port-index
+            - region-name
+            - region-size
+            - region-max-snapshots
+            - region-snapshots
       dump:
         request:
           attributes: *dev-id-attrs
@@ -1975,6 +2104,7 @@ operations:
             - index
             - port-index
             - region-name
+            - region-chunks
 
     -
       name: port-param-get
@@ -2305,7 +2435,7 @@ operations:
     -
       name: rate-set
       doc: Set rate instances.
-      attribute-set: devlink
+      attribute-set: dl-rate-set
       dont-validate: [strict]
       flags: [admin-perm]
       do:
@@ -2316,6 +2446,7 @@ operations:
             - bus-name
             - dev-name
             - index
+            - port-index
             - rate-node-name
             - rate-tx-share
             - rate-tx-max
@@ -2328,7 +2459,7 @@ operations:
     -
       name: rate-new
       doc: Create rate instances.
-      attribute-set: devlink
+      attribute-set: dl-rate-set
       dont-validate: [strict]
       flags: [admin-perm]
       do:
@@ -2374,14 +2505,22 @@ operations:
         post: devlink-nl-post-doit
         request:
           value: 78
-          attributes: &linecard-id-attrs
+          attributes:
             - bus-name
             - dev-name
             - index
             - linecard-index
         reply: &linecard-get-reply
           value: 80
-          attributes: *linecard-id-attrs
+          attributes:
+            - bus-name
+            - dev-name
+            - index
+            - linecard-index
+            - linecard-state
+            - linecard-type
+            - linecard-supported-types
+            - nested-devlink
       dump:
         request:
           attributes: *dev-id-attrs

@@ -53,7 +53,7 @@ Now lets restrict that IRQ to CPU(4-7).
 	--- hell ping statistics ---
 	2779 packets transmitted, 2777 packets received, 0% packet loss
 	round-trip min/avg/max = 0.1/0.5/585.4 ms
-	[root@moon 44]# cat /proc/interrupts |  'CPU\|44:'
+	[root@moon 44]# cat /proc/interrupts | grep 'CPU\|44:'
 		CPU0       CPU1       CPU2       CPU3      CPU4       CPU5        CPU6       CPU7
 	44:       1068       1785       1785       1783      1784       1069        1070       1069   IO-APIC-level  eth1
 

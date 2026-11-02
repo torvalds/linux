@@ -40,12 +40,18 @@ static inline bool str_has_prefix(const char *str, const char *prefix)
 }
 
 extern bool config_debug;
+extern int nr_cpus;
+
 void debug_msg(const char *fmt, ...);
 void err_msg(const char *fmt, ...);
 void fatal(const char *fmt, ...);
 
 long parse_seconds_duration(char *val);
 void get_duration(time_t start_time, char *output, int output_size);
+
+int cpu_list_iterate(const char *cpu_list, int (*callback)(int, void *), void *data);
+int get_max_cpu_from_list(const char *cpu_list);
+int get_possible_cpus(void);
 
 long long get_llong_from_str(char *start);
 

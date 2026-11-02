@@ -13,7 +13,7 @@
 
 #include "mvm.h"
 #include "sta.h"
-#include "iwl-io.h"
+#include "iwl-trans.h"
 #include "debugfs.h"
 #include "iwl-modparams.h"
 #include "iwl-drv.h"
@@ -151,72 +151,6 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
-}
-
-static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos)
-{
-	struct iwl_mvm *mvm = file->private_data;
-	const struct fw_img *img;
-	unsigned int ofs, len;
-	size_t ret;
-	u8 *ptr;
-
-	if (!iwl_mvm_firmware_running(mvm))
-		return -EINVAL;
-
-	/* default is to dump the entire data segment */
-	img = &mvm->fw->img[mvm->fwrt.cur_fw_img];
-	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
-	len = img->sec[IWL_UCODE_SECTION_DATA].len;
-
-	if (mvm->dbgfs_sram_len) {
-		ofs = mvm->dbgfs_sram_offset;
-		len = mvm->dbgfs_sram_len;
-	}
-
-	ptr = kzalloc(len, GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
-	iwl_trans_read_mem_bytes(mvm->trans, ofs, ptr, len);
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, ptr, len);
-
-	kfree(ptr);
-
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_sram_write(struct iwl_mvm *mvm, char *buf,
-				    size_t count, loff_t *ppos)
-{
-	const struct fw_img *img;
-	u32 offset, len;
-	u32 img_offset, img_len;
-
-	if (!iwl_mvm_firmware_running(mvm))
-		return -EINVAL;
-
-	img = &mvm->fw->img[mvm->fwrt.cur_fw_img];
-	img_offset = img->sec[IWL_UCODE_SECTION_DATA].offset;
-	img_len = img->sec[IWL_UCODE_SECTION_DATA].len;
-
-	if (sscanf(buf, "%x,%x", &offset, &len) == 2) {
-		if ((offset & 0x3) || (len & 0x3))
-			return -EINVAL;
-
-		if (offset + len > img_offset + img_len)
-			return -EINVAL;
-
-		mvm->dbgfs_sram_offset = offset;
-		mvm->dbgfs_sram_len = len;
-	} else {
-		mvm->dbgfs_sram_offset = 0;
-		mvm->dbgfs_sram_len = 0;
-	}
-
-	return count;
 }
 
 static ssize_t iwl_dbgfs_set_nic_temperature_read(struct file *file,
@@ -591,16 +525,24 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 	if (ret < 0)
 		return ret;
 
+	if (iwl_rx_packet_payload_len(hcmd.resp_pkt) != sizeof(*rsp)) {
+		iwl_free_resp(&hcmd);
+		return -EIO;
+	}
+
 	buff = kzalloc(bufsz, GFP_KERNEL);
-	if (!buff)
+	if (!buff) {
+		iwl_free_resp(&hcmd);
 		return -ENOMEM;
+	}
 	pos = buff;
 	endpos = pos + bufsz;
 
 	rsp = (void *)hcmd.resp_pkt->data;
 
 	pos += scnprintf(pos, endpos - pos, "TAS Conclusion:\n");
-	for (i = 0; i < rsp->in_dual_radio + 1; i++) {
+	for (i = 0; i < min_t(int, rsp->in_dual_radio + 1,
+			      ARRAY_SIZE(rsp->tas_status_mac)); i++) {
 		if (rsp->tas_status_mac[i].dynamic_status &
 		    BIT(TAS_DYNA_ACTIVE)) {
 			pos += scnprintf(pos, endpos - pos, "\tON for ");
@@ -655,7 +597,8 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 			 "\tDo TAS Support Dual Radio?: %s\n",
 			 rsp->in_dual_radio ? "TRUE" : "FALSE");
 
-	for (i = 0; i < rsp->in_dual_radio + 1; i++) {
+	for (i = 0; i < min_t(int, rsp->in_dual_radio + 1,
+			      ARRAY_SIZE(rsp->tas_status_mac)); i++) {
 		if (rsp->tas_status_mac[i].static_status == 0) {
 			pos += scnprintf(pos, endpos - pos,
 					 "Static status: disabled\n");
@@ -1159,7 +1102,7 @@ static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 	if (count == 6 && !strcmp(buf, "nolog\n"))
 		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
 
-	iwl_force_nmi(mvm->trans);
+	iwl_trans_force_nmi(mvm->trans);
 
 	return count;
 }
@@ -1209,53 +1152,6 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 	}
 
 	return count;
-}
-
-static ssize_t iwl_dbgfs_indirection_tbl_write(struct iwl_mvm *mvm,
-					       char *buf, size_t count,
-					       loff_t *ppos)
-{
-	struct iwl_rss_config_cmd cmd = {
-		.flags = cpu_to_le32(IWL_RSS_ENABLE),
-		.hash_mask = IWL_RSS_HASH_TYPE_IPV4_TCP |
-			     IWL_RSS_HASH_TYPE_IPV4_UDP |
-			     IWL_RSS_HASH_TYPE_IPV4_PAYLOAD |
-			     IWL_RSS_HASH_TYPE_IPV6_TCP |
-			     IWL_RSS_HASH_TYPE_IPV6_UDP |
-			     IWL_RSS_HASH_TYPE_IPV6_PAYLOAD,
-	};
-	int ret, i, num_repeats, nbytes = count / 2;
-
-	ret = hex2bin(cmd.indirection_table, buf, nbytes);
-	if (ret)
-		return ret;
-
-	/*
-	 * The input is the redirection table, partial or full.
-	 * Repeat the pattern if needed.
-	 * For example, input of 01020F will be repeated 42 times,
-	 * indirecting RSS hash results to queues 1, 2, 15 (skipping
-	 * queues 3 - 14).
-	 */
-	num_repeats = ARRAY_SIZE(cmd.indirection_table) / nbytes;
-	for (i = 1; i < num_repeats; i++)
-		memcpy(&cmd.indirection_table[i * nbytes],
-		       cmd.indirection_table, nbytes);
-	/* handle cut in the middle pattern for the last places */
-	memcpy(&cmd.indirection_table[i * nbytes], cmd.indirection_table,
-	       ARRAY_SIZE(cmd.indirection_table) % nbytes);
-
-	netdev_rss_key_fill(cmd.secret_key, sizeof(cmd.secret_key));
-
-	mutex_lock(&mvm->mutex);
-	if (iwl_mvm_firmware_running(mvm))
-		ret = iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0,
-					   sizeof(cmd), &cmd);
-	else
-		ret = 0;
-	mutex_unlock(&mvm->mutex);
-
-	return ret ?: count;
 }
 
 static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
@@ -1652,7 +1548,7 @@ iwl_dbgfs_prph_reg_read(struct file *file,
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Reg 0x%x: (0x%x)\n",
 		mvm->dbgfs_prph_reg_addr,
-		iwl_read_prph(mvm->trans, mvm->dbgfs_prph_reg_addr));
+		iwl_trans_read_prph(mvm->trans, mvm->dbgfs_prph_reg_addr));
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -1673,7 +1569,7 @@ iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
 	if (args != 2)
 		return -EINVAL;
 
-	iwl_write_prph(mvm->trans, mvm->dbgfs_prph_reg_addr, value);
+	iwl_trans_write_prph(mvm->trans, mvm->dbgfs_prph_reg_addr, value);
 
 out:
 	return count;
@@ -1916,7 +1812,6 @@ MVM_DEBUGFS_WRITE_FILE_OPS(start_ctdp, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(force_ctkill, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush, 16);
 MVM_DEBUGFS_WRITE_FILE_OPS(send_echo_cmd, 8);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram, 64);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(set_nic_temperature, 64);
 MVM_DEBUGFS_READ_FILE_OPS(nic_temp);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
@@ -1933,8 +1828,6 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_clear, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(dbg_time_point, 64);
-MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
-			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_beacon_ie, 512);
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_beacon_ie_restore, 512);
@@ -2114,7 +2007,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	spin_lock_init(&mvm->drv_stats_lock);
 
 	MVM_DEBUGFS_ADD_FILE(tx_flush, mvm->debugfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(set_nic_temperature, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(nic_temp, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(ctdp_budget, mvm->debugfs_dir, 0400);
@@ -2134,7 +2026,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_clear, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(dbg_time_point, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_beacon_ie, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_beacon_ie_restore, mvm->debugfs_dir, 0200);

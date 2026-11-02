@@ -501,6 +501,14 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 	if (req_struct_size > len + 1)
 		return 1;
 
+	if (command == SMB2_SESSION_SETUP_HE &&
+	    (work->next_smb2_rcv_hdr_off || next_cmd)) {
+		struct smb2_sess_setup_req *req = (void *)hdr;
+
+		if (req->Flags & SMB2_SESSION_REQ_FLAG_BINDING)
+			return 1;
+	}
+
 	if (smb2_calc_size(hdr, &clc_len))
 		return 1;
 

@@ -6,7 +6,6 @@
 #include "proc_util.h"
 
 #include <libvfio.h>
-#include <linux/sizes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -101,7 +100,6 @@ static int vfio_setup_msi(struct vfio_pci_device *device)
 	allocator = iova_allocator_init(device->iommu);
 
 	region = &device->driver.region;
-	region->size = SZ_2M;
 	region->iova = iova_allocator_alloc(allocator, region->size);
 	region->vaddr = kvm_mmap(region->size, prot, flags, -1);
 	TEST_ASSERT(region->vaddr != MAP_FAILED, "mmap() failed\n");

@@ -103,6 +103,8 @@ void dcn5_calculate_urgent_burst_factor(
 		double VRatioC,
 		double BytePerPixelInDETY,
 		double BytePerPixelInDETC,
+		bool UnboundedRequestEnabled,
+		unsigned int CompressedBufferSizeInkByte,
 		unsigned int DETBufferSizeY,
 		unsigned int DETBufferSizeC,
 		// Output
@@ -423,4 +425,25 @@ void dcn5_get_per_dwb_params(const struct dml2_display_cfg *display_cfg,
 		int stream_index,
 		int dwb_index);
 
+void dcn5_calculate_v_update_and_dynamic_metadata_parameters(
+		unsigned int MaxInterDCNTileRepeaters,
+		double Dppclk,
+		double Dispclk,
+		double DCFClkDeepSleep,
+		double PixelClock,
+		unsigned int HTotal,
+		unsigned int VBlank,
+		unsigned int DynamicMetadataTransmittedBytes,
+		unsigned int DynamicMetadataLinesBeforeActiveRequired,
+		unsigned int InterlaceEnable,
+		bool ProgressiveToInterlaceUnitInOPP,
+
+		// Output
+		double *TSetup,
+		double *Tdmbf,
+		double *Tdmec,
+		double *Tdmsks,
+		unsigned int *VUpdateOffsetPix,
+		unsigned int *VUpdateWidthPix,
+		unsigned int *VReadyOffsetPix);
 #endif /* __DML2_CORE_DCN5_CALCS_DCHUB_H__ */

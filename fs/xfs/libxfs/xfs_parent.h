@@ -72,7 +72,6 @@ xfs_parent_start(
 /* Finish a parent pointer update by freeing the context object. */
 static inline void
 xfs_parent_finish(
-	struct xfs_mount	*mp,
 	struct xfs_parent_args	*ppargs)
 {
 	if (ppargs)

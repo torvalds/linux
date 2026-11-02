@@ -170,7 +170,7 @@ struct tegra210_clk_emc_provider {
 	struct module *owner;
 	struct device *dev;
 
-	struct tegra210_clk_emc_config *configs;
+	struct tegra210_clk_emc_config *configs __counted_by_ptr(num_configs);
 	unsigned int num_configs;
 
 	int (*set_rate)(struct device *dev,

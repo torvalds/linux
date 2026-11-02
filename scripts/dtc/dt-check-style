@@ -5,12 +5,14 @@
 # .dts/.dtsi/.dtso source files. Enforces rules from
 # Documentation/devicetree/bindings/dts-coding-style.rst.
 #
-# Two modes:
+# Three modes:
 #   --mode=relaxed (default)
 #     Only rules that produce zero warnings on the current tree.
 #     Suitable for dt_binding_check.
 #   --mode=strict
-#     All rules. Required for new submissions.
+#     Most of the rules. Required for new submissions.
+#   --mode=stricter
+#     All rules, including ones having false positives.
 #
 # Two input types (auto-detected by file extension):
 #   *.yaml             -- DT binding; check each example block
@@ -42,7 +44,6 @@ class LineType(Enum):
     NODE_OPEN = auto()       # something { (with optional label/name/addr)
     NODE_CLOSE = auto()      # };
     PROPERTY = auto()        # name = value; or name;
-    CONTINUATION = auto()    # continuation of a multi-line property
 
 
 re_cpp_directive = re.compile(
@@ -77,24 +78,30 @@ def is_preprocessor(stripped):
 
 
 class DtsLine:
-    __slots__ = ('lineno', 'raw', 'linetype', 'indent_str', 'stripped',
-                 'prop_name', 'continuations',
-                 'node_name', 'node_addr', 'label', 'ref_name', 'depth',
+    __slots__ = ('lineno', 'raw', 'code', 'linetype', 'indent_str', 'stripped', 'is_root',
+                 'prop_name', 'continuation', 'continuations',
+                 'node_name', 'node_addr', 'label', 'ref_name', 'parent', 'depth',
                  'closures')
 
-    def __init__(self, lineno, raw, linetype, depth, indent_str, stripped):
+    def __init__(self, lineno, raw, linetype, depth, indent_str, stripped,
+                 continuation = False, is_root = False):
         self.lineno = lineno      # 1-based within the block
-        self.raw = raw
+        self.raw = raw            # Entire raw line
         self.linetype = linetype
         self.indent_str = indent_str  # leading whitespace as-is
         self.depth = depth
-        self.stripped = stripped
+        self.stripped = stripped      # Code without indentation
+        # Only the code, skipping trailing comments and space between code and trailing comment
+        self.code = _strip_strings_and_comments(stripped).rstrip()
+        self.is_root = is_root
         self.prop_name = None
+        self.continuation = continuation    # Continuation of a multi-line property
         self.continuations = []
         self.node_name = None
         self.node_addr = None
         self.label = None
         self.ref_name = None
+        self.parent = None        # DtsLine of parent node
         self.closures = 1         # count of '}' on a NODE_CLOSE line
 
 
@@ -169,7 +176,7 @@ def classify_lines(text):
             continue
 
         if not stripped:
-            dl = DtsLine(i, raw, LineType.BLANK, depth, '', '')
+            dl = DtsLine(i, raw, LineType.BLANK, depth, '', '', continuation=not prev_complete)
             out.append(dl)
             continue
 
@@ -178,7 +185,7 @@ def classify_lines(text):
                      else LineType.COMMENT_BODY)
             if ltype == LineType.COMMENT_END:
                 in_block_comment = False
-            dl = DtsLine(i, raw, ltype, depth, indent_str, stripped)
+            dl = DtsLine(i, raw, ltype, depth, indent_str, stripped, continuation=not prev_complete)
             out.append(dl)
             continue
 
@@ -201,16 +208,8 @@ def classify_lines(text):
         # structural classification entirely.
         if not code:
             ltype = LineType.COMMENT_START if opens_block else LineType.COMMENT
-            dl = DtsLine(i, raw, ltype, depth, indent_str, stripped)
+            dl = DtsLine(i, raw, ltype, depth, indent_str, stripped, continuation=not prev_complete)
             out.append(dl)
-            continue
-
-        if not prev_complete:
-            dl = DtsLine(i, raw, LineType.CONTINUATION, depth, indent_str, code)
-            out.append(dl)
-            prev_complete = (code.endswith(';') or
-                             code.endswith('{') or
-                             code.endswith('};'))
             continue
 
         # NODE_CLOSE: the canonical form is "}" or "};" alone. A line
@@ -228,7 +227,10 @@ def classify_lines(text):
             continue
 
         if code.endswith('{'):
-            dl = DtsLine(i, raw, LineType.NODE_OPEN, depth, indent_str, code)
+            is_root = False
+            if re.search(r'&{/}\s*{', code) or re.search(r'^/\s*\{$', code):
+                is_root = True
+            dl = DtsLine(i, raw, LineType.NODE_OPEN, depth, indent_str, code, is_root=is_root)
             parse_node_header(dl)
             out.append(dl)
             depth += 1
@@ -236,7 +238,8 @@ def classify_lines(text):
             continue
 
         # Property (or first line of a multi-line property).
-        dl = DtsLine(i, raw, LineType.PROPERTY, depth, indent_str, code)
+        dl = DtsLine(i, raw, LineType.PROPERTY, depth, indent_str, code,
+                     continuation=not prev_complete)
         parse_property_name(dl)
         out.append(dl)
         prev_complete = code.endswith(';')
@@ -245,7 +248,7 @@ def classify_lines(text):
     last_prop = None
     grouped = []
     for dl in out:
-        if dl.linetype == LineType.CONTINUATION and last_prop is not None:
+        if dl.continuation and last_prop is not None:
             last_prop.continuations.append(dl)
             continue
         if dl.linetype == LineType.PROPERTY:
@@ -272,7 +275,7 @@ def parse_node_header(dl):
 
 
 def parse_property_name(dl):
-    m = re.match(r'^([a-zA-Z0-9#][a-zA-Z0-9,._+#-]*)\s*[=;]', dl.stripped)
+    m = re.match(r'^([a-zA-Z0-9#][a-zA-Z0-9,._+?#-]*)\s*[=;]', dl.stripped)
     if m:
         dl.prop_name = m.group(1)
 
@@ -309,13 +312,13 @@ def collect_labels_and_refs(text):
 
 class Ctx:
     """Context passed to each rule check. Carries the parsed lines,
-    raw text, mode and kind."""
+    raw text, mode and file_type."""
 
-    def __init__(self, lines, text, mode, kind):
+    def __init__(self, lines, text, mode, file_type):
         self.lines = lines
         self.text = text
-        self.mode = mode               # 'relaxed' or 'strict'
-        if kind in DTS_FAMILY:
+        self.mode = mode               # 'relaxed', 'strict' or 'stricter'
+        if file_type in DTS_FAMILY:
             self.file_type = 'dts'
         else:
             self.file_type = 'yaml'
@@ -327,7 +330,7 @@ class Rule:
     def __init__(self, name, mode, description, check,
                  applies_to=('yaml', 'dts', 'dtsi', 'dtso')):
         self.name = name
-        self.mode = mode               # 'relaxed' or 'strict'
+        self.mode = mode    # 'relaxed', 'strict' or 'stricter'
         self.description = description
         self.check = check
         self.applies_to = applies_to   # input types this rule covers
@@ -335,52 +338,8 @@ class Rule:
 
 # --- individual rule check functions --------------------------------------
 
-def check_trailing_whitespace(ctx):
-    for dl in ctx.lines:
-        if dl.raw != dl.raw.rstrip():
-            yield (dl.lineno, 'trailing whitespace')
 
-
-def check_tab_in_yaml_example(ctx):
-    """Reject literal tabs in DTS lines when input is YAML.
-
-    For YAML examples, indent and content must use spaces. Tabs inside
-    a #define value are tolerated (those are CPP macros, not DTS).
-    For .dts files, this rule does not apply -- tabs are required.
-    """
-    if ctx.file_type != 'yaml':
-        return
-    for dl in ctx.lines:
-        if dl.linetype == LineType.PREPROCESSOR:
-            continue
-        if dl.linetype == LineType.BLANK:
-            continue
-        if '\t' in dl.raw:
-            yield (dl.lineno, 'tab character not allowed in DTS example')
-
-
-def check_mixed_indent_chars(ctx):
-    """Indent must be all-tabs, except for aligning indentation (comments
-    or continued lines)."""
-    for dl in ctx.lines:
-        if not dl.indent_str:
-            continue
-        if dl.linetype == LineType.PREPROCESSOR:
-            continue
-        if re.search(r' \t', dl.indent_str):
-            yield (dl.lineno, 'mixed tabs and spaces in indent')
-        if dl.indent_str.count(' ') > 7:
-            yield (dl.lineno, 'too many space characters in indent (more than 7)')
-        for cont in dl.continuations:
-            if not cont.indent_str:
-                continue
-            if cont.linetype == LineType.PREPROCESSOR:
-                continue
-            if re.search(r' \t', cont.indent_str):
-                yield (cont.lineno, 'mixed tabs and spaces in indent')
-
-
-def detect_indent_unit(ctx):
+def _detect_indent_unit(ctx):
     """Find the indent unit used at depth 1 in this block.
 
     Returns tuple of string (one of: '  ' (2 spaces), '    ' (4 spaces),
@@ -406,105 +365,17 @@ def detect_indent_unit(ctx):
     return (None, None)
 
 
-def check_indent_unit_relaxed(ctx):
-    """YAML examples: 2 or 4 spaces. Never tabs or other widths."""
-    (unit, lineno) = detect_indent_unit(ctx)
-    if unit is None:
-        return
-    if unit not in ('  ', '    '):
-        yield (lineno, 'indent unit must be 2 or 4 spaces, got %r' % unit)
-
-
-def check_indent_unit_dts(ctx):
-    """DTS files: 1 tab per level. Always required."""
-    (unit, lineno) = detect_indent_unit(ctx)
-    if unit is None:
-        return
-    if unit != '\t':
-        yield (lineno, 'indent unit must be 1 tab in DTS, got %r' % unit)
-
-
-def check_indent_unit_strict(ctx):
-    """YAML: must be exactly 4 spaces. DTS: 1 tab (same as relaxed)."""
-    (unit, lineno) = detect_indent_unit(ctx)
-    if unit is None:
-        return
-    if ctx.file_type == 'yaml':
-        if unit != '    ':
-            yield (lineno, 'indent unit must be 4 spaces in strict mode, '
-                   'got %r' % unit)
-
-
-def check_indent_consistent(ctx):
-    """All indented lines must be a multiple of the detected unit."""
-    (unit, lineno) = detect_indent_unit(ctx)
-    if unit is None:
-        return
-    if ctx.file_type == 'yaml':
-        if unit not in ('  ', '    '):
-            return  # let check_indent_unit_* report this
-    else:
-        if unit != '\t':
-            return
-
-    for dl in ctx.lines:
-        if dl.linetype in (LineType.BLANK, LineType.PREPROCESSOR):
-            continue
-        if dl.linetype == LineType.CONTINUATION:
-            continue   # continuations align to <, not to indent unit
-        if dl.linetype in (LineType.COMMENT_BODY, LineType.COMMENT_END):
-            continue
-        if not dl.indent_str:
-            continue
-        # The indent must be 'unit' repeated dl.depth times, exactly.
-        # NODE_CLOSE lines have depth equal to the post-decrement value,
-        # which matches the indent expected.
-        expected = unit * dl.depth
-        if dl.indent_str != expected:
-            yield (dl.lineno,
-                   'indent mismatch (expected depth %d * %r)' %
-                   (dl.depth, unit))
-
-
-def check_blank_lines(ctx):
-    """No two consecutive blank lines, no leading/trailing blank lines
-    in any node body."""
-    lines = ctx.lines
-    # Consecutive blanks
-    for i in range(1, len(lines)):
-        if lines[i].linetype == LineType.BLANK and \
-                lines[i - 1].linetype == LineType.BLANK:
-            yield (lines[i].lineno, 'consecutive blank lines')
-    # Blank right after { or right before }
-    for i, dl in enumerate(lines):
-        if dl.linetype != LineType.BLANK:
-            continue
-        prev = lines[i - 1] if i > 0 else None
-        nxt = lines[i + 1] if i + 1 < len(lines) else None
-        if prev is not None and prev.linetype == LineType.NODE_OPEN:
-            yield (dl.lineno, 'blank line at start of node body')
-        if nxt is not None and nxt.linetype == LineType.NODE_CLOSE:
-            yield (dl.lineno, 'blank line at end of node body')
-
-
-def _walk_bodies(lines):
-    """Yield lists of immediate-child NODE_OPEN lines for each node body
-    in the input. Skips ref-nodes (&label) since those don't have an
-    intrinsic ordering."""
-    body_stack = [[]]
-    for dl in lines:
-        if dl.linetype == LineType.NODE_OPEN:
-            body_stack[-1].append(dl)
-            body_stack.append([])
-            continue
-        if dl.linetype == LineType.NODE_CLOSE:
-            if len(body_stack) <= 1:
-                # Unbalanced; ignore to avoid crashing on malformed input
-                continue
-            yield body_stack.pop()
-            continue
-    while body_stack:
-        yield body_stack.pop()
+def _display_col(text):
+    """Visual column width of text, with tabs expanded to the next
+    8-column stop, matching how printf and most editors render a
+    line and the kernel-wide line length convention."""
+    col = 0
+    for ch in text:
+        if ch == '\t':
+            col = (col // 8 + 1) * 8
+        else:
+            col += 1
+    return col
 
 
 def _natural_sort_key(s):
@@ -519,13 +390,87 @@ def _natural_sort_key(s):
     return tuple(parts)
 
 
+def _strip_strings_and_comments(text):
+    """Remove string literals and /* */ + // comments from a single
+    line, replacing them with empty strings. Used so syntactic checks
+    (whitespace, hex case, etc.) don't false-positive on contents of
+    quoted strings or comments. An unclosed /* on the line is treated
+    as a comment running to end of line."""
+    text = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
+    text = re.sub(r'/\*.*?\*/', '', text)
+    text = re.sub(r'/\*.*$', '', text)
+    text = re.sub(r'//.*$', '', text)
+    return text
+
+
+def _walk_bodies(lines):
+    """Yield lists of immediate-child NODE_OPEN lines for each node body
+    in the input. Skips ref-nodes (&label) since those don't have an
+    intrinsic ordering."""
+    # Array of stacked nodes (parent/child)
+    body_stack = [[]]
+    # Current stack of nodes, purely to track parent relationship for each node
+    node_stack = []
+    parent_dl = None
+    for dl in lines:
+        if dl.linetype == LineType.NODE_OPEN:
+            dl.parent = parent_dl
+            node_stack.append(dl)
+            body_stack[-1].append(dl)
+            body_stack.append([])
+            parent_dl = dl
+            continue
+        if dl.linetype == LineType.NODE_CLOSE:
+            if len(body_stack) <= 1:
+                # Unbalanced; ignore to avoid crashing on malformed input
+                continue
+            parent_dl = node_stack.pop().parent
+            yield body_stack.pop()
+            continue
+    while body_stack:
+        yield body_stack.pop()
+
+
+def check_blank_lines(ctx):
+    """No two consecutive blank lines, no leading/trailing blank lines
+    in any node body."""
+    lines = ctx.lines
+    # Consecutive blanks
+    for i in range(1, len(lines)):
+        if lines[i].linetype == LineType.BLANK and \
+                lines[i - 1].linetype == LineType.BLANK:
+            yield (lines[i].lineno, 'consecutive blank lines')
+        prev_is_blank = lines[i].linetype == LineType.BLANK
+        for cont in lines[i].continuations:
+            if cont.linetype == LineType.BLANK and prev_is_blank:
+                yield (cont.lineno, 'consecutive blank lines')
+            prev_is_blank = cont.linetype == LineType.BLANK
+
+    # Blank right after { or right before }
+    for i, dl in enumerate(lines):
+        if dl.linetype != LineType.BLANK:
+            continue
+        prev = lines[i - 1] if i > 0 else None
+        nxt = lines[i + 1] if i + 1 < len(lines) else None
+        if prev is not None and prev.linetype == LineType.NODE_OPEN:
+            yield (dl.lineno, 'blank line at start of node body')
+        if nxt is not None and nxt.linetype == LineType.NODE_CLOSE:
+            yield (dl.lineno, 'blank line at end of node body')
+
+
 def check_child_address_order(ctx):
     """Addressed siblings (foo@N) must appear in ascending address
-    order within their parent node body."""
+    order within their parent node body.
+    Exception: Top-level in DTS follows name order, regardless of unit address
+    in memory@N and soc@N nodes
+    """
     for children in _walk_bodies(ctx.lines):
         addressed = []
         for c in children:
             if c.node_addr is None:
+                continue
+            if c.parent and c.parent.is_root:
+                # Top-level does not use unit address sorting usually
                 continue
             try:
                 parts = tuple(int(p, 16) for p in c.node_addr.split(','))
@@ -544,12 +489,16 @@ def check_child_name_order(ctx):
     """Unaddressed siblings must appear in natural-sort order by node
     name within their parent node body. Addressed children are scoped
     by check_child_address_order; reference nodes (&label { ... }) and
-    the root node are skipped."""
+    the root node are skipped.
+    However root node has children with and without unit address, and
+    sorting should be only by name."""
     for children in _walk_bodies(ctx.lines):
         unaddressed = []
         for c in children:
             if c.node_addr is not None:
-                continue
+                # Skip nodes with unit address, except when sorting top-level
+                if not c.parent or not c.parent.is_root:
+                    continue
             if c.node_name in (None, '/'):
                 continue
             if c.ref_name is not None:
@@ -562,41 +511,245 @@ def check_child_name_order(ctx):
                        'child node %r out of name order' % dl.node_name)
 
 
-def _property_bucket(name):
-    """Return the canonical bucket index for a property:
-       0 device_type
+def check_continuation_alignment(ctx):
+    """A multi-line property's continuation lines must align their
+    first non-whitespace character to the display column of:
+    1. the first '<' or '"' after the '=' in the leading line, if continuation is with '<' or '"'
+    2. the first value, if the continuation is still the same phandle.
+    Display columns are used so tab-indented .dts files (where a continuation
+    aligns with tabs plus spaces) are compared correctly."""
+    for dl in ctx.lines:
+        if dl.linetype != LineType.PROPERTY:
+            continue
+        if not dl.continuations:
+            continue
+        eq = dl.raw.find('=')
+        if eq < 0:
+            continue
+        # First '<' or '"' after '=', but ignore comments and strip trailing
+        # whitespace (e.g. remaining after removing the comment)
+        rest = _strip_strings_and_comments(dl.raw[eq + 1:]).rstrip()
+        m = re.search(r'\s*([<"])', rest)
+        if not m:
+            continue
+        dl_value_complete = rest.endswith('",') or rest.endswith('>,')
+        target_col = _display_col(_strip_strings_and_comments(dl.raw[:eq + 1 + m.start(1)]))
+        for cont in dl.continuations:
+            if cont.linetype == LineType.BLANK:
+                continue
+            target_offset = 0
+            err_msg_explanation = 'to < or "'
+            if not dl_value_complete:
+                target_offset = 1
+                err_msg_explanation = 'to the value under <'
+            if _display_col(cont.indent_str) != target_col + target_offset:
+                yield (cont.lineno,
+                       'continuation should align to column %d '
+                       '(%s)' % (target_col + target_offset + 1, err_msg_explanation))
+            # Align to the value within <> or "" of continuation (so the previous line)
+            if len(cont.code):
+                dl_value_complete = cont.code.endswith('",') or cont.code.endswith('>,')
+
+
+def _check_hex_case(dl):
+    if dl.linetype in (LineType.BLANK, LineType.COMMENT,
+                        LineType.COMMENT_START, LineType.COMMENT_BODY,
+                        LineType.COMMENT_END, LineType.PREPROCESSOR):
+        return
+    for m in re.finditer(r'\b0[xX][0-9a-fA-F]+\b', dl.code):
+        lit = m.group(0)
+        if any(c.isupper() for c in lit[2:]) or lit[1] == 'X':
+            yield (dl.lineno,
+                    'hex literal %r must be lowercase' % lit)
+
+
+def check_hex_case(ctx):
+    """Hex literals (0xN) must use lowercase digits and prefix."""
+    for dl in ctx.lines:
+        yield from _check_hex_case(dl)
+        for cont in dl.continuations:
+            yield from _check_hex_case(cont)
+
+
+def check_indent_consistent(ctx):
+    """All indented lines must be a multiple of the detected unit."""
+    (unit, lineno) = _detect_indent_unit(ctx)
+    if unit is None:
+        return
+    if ctx.file_type == 'yaml':
+        if unit not in ('  ', '    '):
+            return  # let check_indent_unit_* report this
+    else:
+        if unit != '\t':
+            return
+
+    for dl in ctx.lines:
+        if dl.continuation:
+            continue   # continuations align to <, not to indent unit
+        if dl.linetype in (LineType.BLANK, LineType.PREPROCESSOR):
+            continue
+        if dl.linetype in (LineType.COMMENT_BODY, LineType.COMMENT_END):
+            continue
+        if not dl.indent_str:
+            continue
+        # The indent must be 'unit' repeated dl.depth times, exactly.
+        # NODE_CLOSE lines have depth equal to the post-decrement value,
+        # which matches the indent expected.
+        expected = unit * dl.depth
+        if dl.indent_str != expected:
+            yield (dl.lineno,
+                   'indent mismatch (expected depth %d * %r)' %
+                   (dl.depth, unit))
+
+
+def check_indent_unit_dts(ctx):
+    """DTS files: 1 tab per level. Always required."""
+    (unit, lineno) = _detect_indent_unit(ctx)
+    if unit is None:
+        return
+    if unit != '\t':
+        yield (lineno, 'indent unit must be 1 tab in DTS, got %r' % unit)
+
+
+def check_indent_unit_relaxed(ctx):
+    """YAML examples: 2 or 4 spaces. Never tabs or other widths."""
+    (unit, lineno) = _detect_indent_unit(ctx)
+    if unit is None:
+        return
+    if unit not in ('  ', '    '):
+        yield (lineno, 'indent unit must be 2 or 4 spaces, got %r' % unit)
+
+
+def check_indent_unit_strict(ctx):
+    """YAML: must be exactly 4 spaces. DTS: 1 tab (same as relaxed)."""
+    (unit, lineno) = _detect_indent_unit(ctx)
+    if unit is None:
+        return
+    if ctx.file_type == 'yaml':
+        if unit != '    ':
+            yield (lineno, 'indent unit must be 4 spaces in strict mode, '
+                   'got %r' % unit)
+
+
+def _check_line_length(dl):
+    if dl.linetype == LineType.BLANK:
+        return
+    cols = _display_col(dl.raw)
+    if cols > 80:
+        yield (dl.lineno,
+                'line exceeds 80 columns (%d)' % cols)
+
+
+def check_line_length(ctx):
+    """Lines must not exceed 80 columns; tabs count as 8 (see
+    _display_col)."""
+    for dl in ctx.lines:
+        yield from _check_line_length(dl)
+        for cont in dl.continuations:
+            yield from _check_line_length(cont)
+
+
+def _check_mixed_indent_chars(dl):
+    if not dl.indent_str:
+        return
+    if dl.linetype == LineType.PREPROCESSOR:
+        return
+    if re.search(r' \t', dl.indent_str):
+        yield (dl.lineno, 'mixed tabs and spaces in indent')
+    if dl.indent_str.count(' ') > 7:
+        yield (dl.lineno, 'too many space characters in indent (more than 7)')
+
+
+def check_mixed_indent_chars(ctx):
+    """Indent must be all-tabs, except for aligning indentation (comments
+    or continued lines)."""
+    for dl in ctx.lines:
+        yield from _check_mixed_indent_chars(dl)
+        for cont in dl.continuations:
+            yield from _check_mixed_indent_chars(cont)
+
+
+def check_node_close_alone(ctx):
+    """The closing '};' of a node must be on its own line. The
+    classifier accepts a canonical "}" or "};" as NODE_CLOSE; a line
+    that is all closures (e.g. "}; };") is still NODE_CLOSE for depth
+    tracking but is flagged here via dl.closures. Any other line that
+    still contains '};' (in code, not in strings or comments) is
+    mixing a node close with something else."""
+    for dl in ctx.lines:
+        if dl.linetype == LineType.NODE_CLOSE:
+            if dl.closures > 1:
+                yield (dl.lineno,
+                       'closing brace must be on its own line')
+            continue
+        if dl.linetype in (LineType.BLANK, LineType.COMMENT,
+                           LineType.COMMENT_START, LineType.COMMENT_BODY,
+                           LineType.COMMENT_END, LineType.PREPROCESSOR):
+            continue
+        if '};' in dl.code:
+            yield (dl.lineno,
+                   'closing brace must be on its own line')
+
+
+def check_node_name(ctx):
+    """Only recommended characters are used in node names."""
+    for dl in ctx.lines:
+        if not dl.node_name in (None, '/'):
+            if not re.match(r'[0-9a-z][0-9a-z-]*(?<!-)$', dl.node_name):
+                yield (dl.lineno, f'node name "{dl.node_name}" is using discouraged style')
+
+
+def check_property_name(ctx):
+    """Only recommended characters are used in property names."""
+    for dl in ctx.lines:
+        if dl.prop_name:
+            exceptions = ['cpu_off', 'cpu_on', 'cpu_suspend',
+                          'device_type', 'dr_mode',
+                          'mmc-hs200-1_2v', 'mmc-hs200-1_8v', 'mmc-hs400-1_2v', 'mmc-hs400-1_8v',
+                          'opp-avg-kBps', 'opp-peak-kBps', 'phy_type']
+
+            if re.match(r'\#([0-9a-z][0-9a-z-]*(?<!-),)?[a-z-]+-cells$', dl.prop_name):
+                continue
+            if dl.prop_name in exceptions:
+                continue
+            if not re.match(r'([0-9a-z][0-9a-z-]*(?<!-),)?[0-9a-z][0-9a-z-]*(?<!-)$', dl.prop_name):
+                yield (dl.lineno, f'property name "{dl.prop_name}" is using discouraged style')
+
+
+def _property_bucket(name, is_root=False):
+    """Return the canonical bucket (group) index for a property:
+       0 device_type ('model' in the root node)
        1 compatible
-       2 reg / reg-names
+       2 reg, reg-names
        3 ranges
        4 standard properties (no vendor comma in #-stripped name)
        5 vendor-specific properties
        6 status
-    Plus a sub-key inside the bucket for fixed slots (device_type, compatible,
-    reg, reg-names, ranges, status). 'standard' and 'vendor' return None for
-    the sub-key, signalling that the within-bucket key is computed by
-    the pairing rules."""
+    Properties sharing a bucket compare equal: their relative order
+    within the group is not checked, only the pairing rules below
+    apply."""
     stripped = name.lstrip('#')
-    if name == 'device_type':
-        return (0, 0)
+    if is_root:
+        if name == 'model':
+            return 0
+    elif name == 'device_type':
+        return 0
     if name == 'compatible':
-        return (1, 0)
-    if name == 'reg':
-        return (2, 0)
-    if name == 'reg-names':
-        return (2, 1)
+        return 1
+    if name in ('reg', 'reg-names'):
+        return 2
     if name == 'ranges':
-        return (3, 0)
+        return 3
     if name == 'status':
-        return (6, 0)
-    return (5 if ',' in stripped else 4, None)
+        return 6
+    return 5 if ',' in stripped else 4
 
 
 # Declarative pairing rules: each is a callable
 #   (name, all_names) -> anchor_name_or_None
-# If a rule returns an anchor, the property sorts immediately after the
+# If a rule returns an anchor, the property must be placed after the
 # anchor. Rules are tried in order; the first match wins. If none
-# matches, the within-bucket key falls back to natural sort by the
-# #-stripped name.
+# matches, the property can be placed anywhere within its bucket.
 
 def _pair_pinctrl_names(name, all_names):
     """pinctrl-names follows the highest pinctrl-N in the same node."""
@@ -611,8 +764,7 @@ def _pair_pinctrl_names(name, all_names):
 def _pair_x_names(name, all_names):
     """Generic <x>-names follows its owning property. The owner is
     usually plural (clocks/clock-names, dmas/dma-names,
-    resets/reset-names) but occasionally singular (reg/reg-names is
-    handled by the fixed slot above; this rule catches anything else)."""
+    resets/reset-names) but occasionally singular (reg/reg-names)."""
     if not name.endswith('-names'):
         return None
     base = name[:-len('-names')]
@@ -627,30 +779,27 @@ def _pair_x_names(name, all_names):
 PAIRING_RULES = (_pair_pinctrl_names, _pair_x_names)
 
 
-def _property_sort_key(name, all_names):
-    """Sort key for a property among its node-body siblings.
-
-    Format: (bucket, within_key, tiebreak). 'within_key' for
-    standard/vendor buckets follows pairing rules: a property paired
-    with anchor X sorts as if it were X with a higher tiebreak."""
-    bucket, fixed_sub = _property_bucket(name)
-    if fixed_sub is not None:
-        return (bucket, (), fixed_sub)
-
+def _property_anchor(name, all_names):
+    """Return the property this one must be placed after, or None."""
     for rule in PAIRING_RULES:
         anchor = rule(name, all_names)
         if anchor is not None:
-            return (bucket, _natural_sort_key(anchor.lstrip('#')), 1)
-
-    return (bucket, _natural_sort_key(name.lstrip('#')), 0)
+            return anchor
+    return None
 
 
 def check_property_order(ctx):
-    """Properties within a node body must appear in canonical order:
-    compatible, reg(/reg-names), ranges, then the standard group, then
-    the vendor-specific group, then status. Inside the standard and
-    vendor groups, pairing rules apply (e.g. <x>-names follows <x>);
-    everything else falls back to natural sort by the #-stripped name."""
+    """Properties within a node body must be grouped in canonical
+    order: device_type ('model' for the root node), compatible,
+    reg(/reg-names), ranges, then the standard group, then the
+    vendor-specific group, then status.
+
+    The order of properties within one group is free, e.g. it does not
+    matter whether '#address-cells' comes before or after 'clocks'.
+    Paired properties still keep their relative order: <x>-names
+    follows <x> (clocks/clock-names, reg/reg-names, ...), pinctrl-names
+    follows the pinctrl-N states and #size-cells follows
+    #address-cells."""
     lines = ctx.lines
     for i, dl in enumerate(lines):
         if dl.linetype != LineType.NODE_OPEN:
@@ -668,29 +817,62 @@ def check_property_order(ctx):
         if len(props) < 2:
             continue
         all_names = [p.prop_name for p in props]
-        keyed = [(p, _property_sort_key(p.prop_name, all_names))
-                 for p in props]
-        for k in range(1, len(keyed)):
-            if keyed[k][1] < keyed[k - 1][1]:
-                p = keyed[k][0]
-                prev = keyed[k - 1][0]
-                yield (p.lineno,
-                       'property %r out of canonical order '
-                       '(should sort before %r)' %
-                       (p.prop_name, prev.prop_name))
+        buckets = [_property_bucket(p.prop_name, dl.is_root) for p in props]
+        findings = []
+        # Group (bucket) order
+        for k in range(1, len(props)):
+            if buckets[k] < buckets[k - 1]:
+                findings.append((props[k].lineno,
+                                 'property %r out of canonical order '
+                                 '(should sort before %r)' %
+                                 (props[k].prop_name,
+                                  props[k - 1].prop_name)))
+        # Pairing within a group: the anchor must come first
+        seen = set()
+        for p in props:
+            anchor = _property_anchor(p.prop_name, all_names)
+            if anchor is not None and anchor not in seen:
+                findings.append((p.lineno,
+                                 'property %r must be placed after %r' %
+                                 (p.prop_name, anchor)))
+            seen.add(p.prop_name)
+        yield from sorted(findings)
 
 
-def _strip_strings_and_comments(text):
-    """Remove string literals and /* */ + // comments from a single
-    line, replacing them with empty strings. Used so syntactic checks
-    (whitespace, hex case, etc.) don't false-positive on contents of
-    quoted strings or comments. An unclosed /* on the line is treated
-    as a comment running to end of line."""
-    text = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
-    text = re.sub(r'/\*.*?\*/', '', text)
-    text = re.sub(r'/\*.*$', '', text)
-    text = re.sub(r'//.*$', '', text)
-    return text
+def _check_redundant_whitespace(dl):
+    if dl.linetype in (LineType.COMMENT, LineType.COMMENT_BODY,
+                        LineType.COMMENT_END, LineType.COMMENT_START,
+                        LineType.PREPROCESSOR):
+        return
+    if re.search(r'(\s\s+|\t)\{', dl.code):
+        yield (dl.lineno, 'extra whitespace before {')
+    if re.search(r':(\s\s+|\t)', dl.code):
+        yield (dl.lineno, 'extra whitespace after :')
+    if re.search(r'\s+;', dl.code):
+        yield (dl.lineno, 'extra whitespace before ;')
+
+
+def check_redundant_whitespace(ctx):
+    """No whitespace between brackets or other code elements.
+    See also check_value_whitespace() for more checks."""
+    for dl in ctx.lines:
+        yield from _check_redundant_whitespace(dl)
+        for cont in dl.continuations:
+            yield from _check_redundant_whitespace(cont)
+
+
+def check_redundant_whitespace_strict(ctx):
+    """No whitespace between brackets or other code elements.
+    See also check_value_whitespace() for more checks."""
+    for dl in ctx.lines:
+        if dl.linetype in (LineType.COMMENT, LineType.COMMENT_BODY,
+                           LineType.COMMENT_END, LineType.COMMENT_START,
+                           LineType.PREPROCESSOR):
+            continue
+        if re.search(r'(\s\s+|\t)=', dl.code):
+            yield (dl.lineno, 'extra whitespace before =')
+        if re.search(r'=(\s\s+|\t)', dl.code):
+            yield (dl.lineno, 'extra whitespace after =')
 
 
 def check_required_blank_lines(ctx):
@@ -710,6 +892,8 @@ def check_required_blank_lines(ctx):
             if d.linetype == LineType.NODE_CLOSE and \
                     d.depth == body_depth - 1 and depth_inside == 0:
                 break
+            if d.continuation:
+                continue
             # Track depth inside nested children so we only look at
             # immediate-body items.
             if d.linetype == LineType.NODE_OPEN and \
@@ -728,8 +912,6 @@ def check_required_blank_lines(ctx):
             if d.linetype in (LineType.COMMENT, LineType.COMMENT_START,
                               LineType.COMMENT_BODY, LineType.COMMENT_END,
                               LineType.PREPROCESSOR):
-                continue
-            if d.linetype == LineType.CONTINUATION:
                 continue
 
             needs_blank = False
@@ -752,19 +934,58 @@ def check_required_blank_lines(ctx):
             between_blanks = 0
 
 
-def check_hex_case(ctx):
-    """Hex literals (0xN) must use lowercase digits and prefix."""
+def check_tab_in_yaml_example(ctx):
+    """Reject literal tabs in DTS lines when input is YAML.
+
+    For YAML examples, indent and content must use spaces. Tabs inside
+    a #define value are tolerated (those are CPP macros, not DTS).
+    For .dts files, this rule does not apply -- tabs are required.
+    """
+    if ctx.file_type != 'yaml':
+        return
     for dl in ctx.lines:
-        if dl.linetype in (LineType.BLANK, LineType.COMMENT,
-                           LineType.COMMENT_START, LineType.COMMENT_BODY,
-                           LineType.COMMENT_END, LineType.PREPROCESSOR):
+        if dl.linetype == LineType.PREPROCESSOR:
             continue
-        text = _strip_strings_and_comments(dl.raw)
-        for m in re.finditer(r'\b0[xX][0-9a-fA-F]+\b', text):
-            lit = m.group(0)
-            if any(c.isupper() for c in lit[2:]) or lit[1] == 'X':
-                yield (dl.lineno,
-                       'hex literal %r must be lowercase' % lit)
+        if dl.linetype == LineType.BLANK:
+            continue
+        if '\t' in dl.raw:
+            yield (dl.lineno, 'tab character not allowed in DTS example')
+        for cont in dl.continuations:
+            if '\t' in cont.raw:
+                yield (cont.lineno, 'tab character not allowed in DTS example')
+
+
+def _check_trailing_whitespace(dl):
+    if dl.raw != dl.raw.rstrip():
+        yield (dl.lineno, 'trailing whitespace')
+
+
+def check_trailing_whitespace(ctx):
+    for dl in ctx.lines:
+        yield from _check_trailing_whitespace(dl)
+        for cont in dl.continuations:
+            yield from _check_trailing_whitespace(cont)
+
+
+def check_unclosed_block_comment(ctx):
+    """Every /* must have a matching */ in the same block. Catches both
+    a comment opened on its own line (COMMENT_START) and a tail comment
+    opened on a PROPERTY or other code line (where in_block_comment is
+    set by _split_code so the next line becomes COMMENT_BODY without a
+    preceding COMMENT_START)."""
+    open_lineno = None
+    for dl in ctx.lines:
+        if dl.linetype == LineType.COMMENT_START:
+            open_lineno = dl.lineno
+        elif dl.linetype == LineType.COMMENT_END:
+            open_lineno = None
+        elif dl.linetype == LineType.COMMENT_BODY and open_lineno is None:
+            # Block was opened by a /* tail on a code line; report at
+            # the first orphan body line since the originating line is
+            # already classified as something else.
+            open_lineno = dl.lineno
+    if open_lineno is not None:
+        yield (open_lineno, 'unclosed /* block comment')
 
 
 def check_unit_address_format(ctx):
@@ -798,6 +1019,17 @@ def check_unit_address_format(ctx):
                 break
 
 
+def check_unused_labels(ctx):
+    """Labels defined but never referenced are clutter."""
+    defined, referenced = collect_labels_and_refs(ctx.text)
+    for label in sorted(defined - referenced):
+        # Find the line where this label is defined for line-number
+        # reporting.
+        m = re.search(r'(?m)^.*\b' + re.escape(label) + r'\s*:', ctx.text)
+        lineno = ctx.text[:m.start()].count('\n') + 1 if m else 1
+        yield (lineno, 'label %r defined but never &-referenced' % label)
+
+
 def check_value_whitespace(ctx):
     """A <...> cell list must have no whitespace directly after '<'
     or directly before '>'. Continuation lines are joined onto the
@@ -808,9 +1040,9 @@ def check_value_whitespace(ctx):
     for dl in ctx.lines:
         if dl.linetype != LineType.PROPERTY:
             continue
-        segs = [_strip_strings_and_comments(dl.raw).strip()]
+        segs = [dl.code.strip()]
         for cont in dl.continuations:
-            segs.append(_strip_strings_and_comments(cont.stripped).strip())
+            segs.append(cont.code.strip())
         text = ''
         for s in segs:
             if not s:
@@ -826,131 +1058,13 @@ def check_value_whitespace(ctx):
                 break
 
 
-def check_node_close_alone(ctx):
-    """The closing '};' of a node must be on its own line. The
-    classifier accepts a canonical "}" or "};" as NODE_CLOSE; a line
-    that is all closures (e.g. "}; };") is still NODE_CLOSE for depth
-    tracking but is flagged here via dl.closures. Any other line that
-    still contains '};' (in code, not in strings or comments) is
-    mixing a node close with something else."""
-    for dl in ctx.lines:
-        if dl.linetype == LineType.NODE_CLOSE:
-            if dl.closures > 1:
-                yield (dl.lineno,
-                       'closing brace must be on its own line')
-            continue
-        if dl.linetype in (LineType.BLANK, LineType.COMMENT,
-                           LineType.COMMENT_START, LineType.COMMENT_BODY,
-                           LineType.COMMENT_END, LineType.PREPROCESSOR):
-            continue
-        text = _strip_strings_and_comments(dl.raw)
-        if '};' in text:
-            yield (dl.lineno,
-                   'closing brace must be on its own line')
-
-
-def _display_col(text):
-    """Visual column width of text, with tabs expanded to the next
-    8-column stop, matching how printf and most editors render a
-    line and the kernel-wide line length convention."""
-    col = 0
-    for ch in text:
-        if ch == '\t':
-            col = (col // 8 + 1) * 8
-        else:
-            col += 1
-    return col
-
-
-def check_line_length(ctx):
-    """Lines must not exceed 80 columns; tabs count as 8 (see
-    _display_col)."""
-    for dl in ctx.lines:
-        if dl.linetype == LineType.BLANK:
-            continue
-        cols = _display_col(dl.raw)
-        if cols > 80:
-            yield (dl.lineno,
-                   'line exceeds 80 columns (%d)' % cols)
-
-
-def check_continuation_alignment(ctx):
-    """A multi-line property's continuation lines must align their
-    first non-whitespace character to the display column of the first
-    '<' or '"' after the '=' in the leading line. Display columns are
-    used so tab-indented .dts files (where a continuation aligns with
-    tabs plus spaces) are compared correctly."""
-    for dl in ctx.lines:
-        if dl.linetype != LineType.PROPERTY:
-            continue
-        if not dl.continuations:
-            continue
-        eq = dl.raw.find('=')
-        if eq < 0:
-            continue
-        # First '<' or '"' after '='
-        rest = dl.raw[eq + 1:]
-        m = re.search(r'[<"]', rest)
-        if not m:
-            continue
-        target_col = _display_col(dl.raw[:eq + 1 + m.start()])
-        for cont in dl.continuations:
-            if _display_col(cont.indent_str) != target_col:
-                yield (cont.lineno,
-                       'continuation should align to column %d '
-                       '(under "<" or \\")' % (target_col + 1))
-
-
-def check_unclosed_block_comment(ctx):
-    """Every /* must have a matching */ in the same block. Catches both
-    a comment opened on its own line (COMMENT_START) and a tail comment
-    opened on a PROPERTY or other code line (where in_block_comment is
-    set by _split_code so the next line becomes COMMENT_BODY without a
-    preceding COMMENT_START)."""
-    open_lineno = None
-    for dl in ctx.lines:
-        if dl.linetype == LineType.COMMENT_START:
-            open_lineno = dl.lineno
-        elif dl.linetype == LineType.COMMENT_END:
-            open_lineno = None
-        elif dl.linetype == LineType.COMMENT_BODY and open_lineno is None:
-            # Block was opened by a /* tail on a code line; report at
-            # the first orphan body line since the originating line is
-            # already classified as something else.
-            open_lineno = dl.lineno
-    if open_lineno is not None:
-        yield (open_lineno, 'unclosed /* block comment')
-
-
-def check_unused_labels(ctx):
-    """Labels defined but never referenced are clutter."""
-    defined, referenced = collect_labels_and_refs(ctx.text)
-    for label in sorted(defined - referenced):
-        # Find the line where this label is defined for line-number
-        # reporting.
-        m = re.search(r'(?m)^.*\b' + re.escape(label) + r'\s*:', ctx.text)
-        lineno = ctx.text[:m.start()].count('\n') + 1 if m else 1
-        yield (lineno, 'label %r defined but never &-referenced' % label)
-
-
 # --- registry --------------------------------------------------------------
 
 RULES = [
     # 'relaxed' is the default; rules in this group must produce zero
     # output on a clean kernel tree (post the small prep-cleanup
     # commit at the head of this series).
-    Rule('trailing-whitespace', 'relaxed',
-         'no trailing whitespace on any line',
-         check_trailing_whitespace),
-    Rule('tab-in-yaml', 'relaxed',
-         'YAML (also DTS examples) may not contain tab characters',
-         check_tab_in_yaml_example, applies_to=('yaml',)),
-    Rule('mixed-indent-chars', 'relaxed',
-         'indent must not mix tabs and spaces',
-         check_mixed_indent_chars, applies_to=('dts', 'dtsi', 'dtso')),
-    Rule('unclosed-block-comment', 'relaxed',
-         'every /* block comment must close with */',
-         check_unclosed_block_comment),
+    # Rules are sorted here by group (relaxed, strict, stricter) and name
 
     # DTS files always use tabs; this is not negotiable per kernel
     # coding style (.dts files are real source). Relaxed mode.
@@ -958,19 +1072,26 @@ RULES = [
          'DTS files: 1 tab per nesting level',
          check_indent_unit_dts,
          applies_to=('dts', 'dtsi', 'dtso')),
+    Rule('mixed-indent-chars', 'relaxed',
+         'indent must not mix tabs and spaces',
+         check_mixed_indent_chars, applies_to=('dts', 'dtsi', 'dtso')),
+    # See also check_redundant_whitespace_strict() and check_value_whitespace()
+    Rule('redundant-whitespace', 'relaxed',
+         'no redundant whitespace within code',
+         check_redundant_whitespace),
+    Rule('tab-in-yaml', 'relaxed',
+         'YAML (also DTS examples) may not contain tab characters',
+         check_tab_in_yaml_example, applies_to=('yaml',)),
+    Rule('trailing-whitespace', 'relaxed',
+         'no trailing whitespace on any line',
+         check_trailing_whitespace),
+    Rule('unclosed-block-comment', 'relaxed',
+         'every /* block comment must close with */',
+         check_unclosed_block_comment),
 
     # 'strict' rules are opt-in (e.g. for new submissions via
     # checkpatch.pl in a follow-up series). They flag many existing
     # files and can be promoted to relaxed once those are cleaned up.
-    Rule('indent-unit', 'strict',
-         'YAML: 2 or 4 spaces per level',
-         check_indent_unit_relaxed, applies_to=('yaml',)),
-    Rule('indent-unit-strict', 'strict',
-         'YAML: must be 4 spaces per level',
-         check_indent_unit_strict, applies_to=('yaml',)),
-    Rule('indent-consistent', 'strict',
-         'every line indented at depth * unit',
-         check_indent_consistent),
     Rule('blank-lines', 'strict',
          'no consecutive blanks; no blanks at node body edges',
          check_blank_lines),
@@ -980,45 +1101,72 @@ RULES = [
     Rule('child-name-order', 'strict',
          'unaddressed siblings must be in natural-sort name order',
          check_child_name_order),
-    Rule('property-order', 'strict',
-         'canonical bucket + pairing + natural-sort order of properties',
-         check_property_order),
-    Rule('required-blank-lines', 'strict',
-         'blank line before child nodes and before "status"',
-         check_required_blank_lines),
+    Rule('continuation-alignment', 'strict',
+         'multi-line property continuations align under <, " or the value under <',
+         check_continuation_alignment),
     Rule('hex-case', 'strict',
          'hex literals must be lowercase',
          check_hex_case),
-    Rule('unit-address-format', 'strict',
-         'unit addresses must be lowercase hex without leading zeros',
-         check_unit_address_format),
-    Rule('value-whitespace', 'strict',
-         'no whitespace directly inside <...> brackets',
-         check_value_whitespace),
+    Rule('indent-consistent', 'strict',
+         'every line indented at depth * unit',
+         check_indent_consistent),
+    Rule('indent-unit', 'strict',
+         'YAML: 2 or 4 spaces per level',
+         check_indent_unit_relaxed, applies_to=('yaml',)),
+    Rule('indent-unit-strict', 'strict',
+         'YAML: must be 4 spaces per level',
+         check_indent_unit_strict, applies_to=('yaml',)),
+    Rule('line-length', 'strict',
+         'lines must not exceed 80 columns',
+         check_line_length, applies_to=('yaml',)),
+    Rule('line-length-dts', 'stricter',
+         'lines must not exceed 80 columns',
+         check_line_length, applies_to=('dts', 'dtsi', 'dtso')),
     Rule('node-close-alone', 'strict',
          'closing brace must be on its own line',
          check_node_close_alone),
-    Rule('line-length', 'strict',
-         'lines must not exceed 80 columns',
-         check_line_length),
-    Rule('continuation-alignment', 'strict',
-         'multi-line property continuations align under "<" or "\\""',
-         check_continuation_alignment),
+    Rule('node-name', 'strict',
+         'node names use only recommended characters (see DTS Coding Style)',
+         check_node_name),
+    Rule('property-name', 'strict',
+         'property names use only recommended characters (see DTS Coding Style)',
+         check_property_name),
+    Rule('property-order', 'strict',
+         'canonical group + pairing order of properties (order within '
+         'a group is not checked)',
+         check_property_order),
+    # See also check_redundant_whitespace() and check_value_whitespace()
+    Rule('redundant-whitespace-strict', 'strict',
+         'no redundant whitespace within code',
+         check_redundant_whitespace_strict),
+    Rule('required-blank-lines', 'strict',
+         'blank line before child nodes and before "status"',
+         check_required_blank_lines),
+    Rule('unit-address-format', 'strict',
+         'unit addresses must be lowercase hex without leading zeros',
+         check_unit_address_format),
     Rule('unused-labels', 'strict',
          'every label must be &-referenced in the same example/file '
          '(skipped for .dtsi/.dtso since labels there are exported)',
-         check_unused_labels, applies_to=('yaml', 'dts')),
+         check_unused_labels, applies_to=('yaml',)),
+    Rule('unused-labels-dts', 'stricter',
+         'every label must be &-referenced in the same example/file '
+         '(skipped for .dtsi/.dtso since labels there are exported)',
+         check_unused_labels, applies_to=('dts',)),
+    Rule('value-whitespace', 'strict',
+         'no whitespace directly inside <...> brackets',
+         check_value_whitespace),
 ]
 
 
-def select_rules(mode, input_kind):
+def select_rules(mode, file_type):
     """Return rules that apply to the given mode and input type."""
-    rank = {'relaxed': 0, 'strict': 1}
+    rank = {'relaxed': 0, 'strict': 1, 'stricter': 2}
     out = []
     for r in RULES:
         if rank[r.mode] > rank[mode]:
             continue
-        if input_kind not in r.applies_to:
+        if file_type not in r.applies_to:
             continue
         out.append(r)
     return out
@@ -1028,12 +1176,12 @@ def select_rules(mode, input_kind):
 # Block runner
 # ---------------------------------------------------------------------------
 
-def check_block(text, mode, input_type):
+def check_block(text, mode, file_type):
     """Run all selected rules on a single block of DTS text. Returns a
     list of (lineno, rule_name, message) tuples."""
     lines = classify_lines(text)
-    ctx = Ctx(lines, text, mode, input_type)
-    rules = select_rules(mode, input_type)
+    ctx = Ctx(lines, text, mode, file_type)
+    rules = select_rules(mode, file_type)
     findings = []
     for r in rules:
         for lineno, msg in r.check(ctx):
@@ -1090,7 +1238,7 @@ def iter_dts_file(filepath):
 # Top-level processing
 # ---------------------------------------------------------------------------
 
-def input_kind(filepath):
+def get_file_type(filepath):
     p = filepath.lower()
     if p.endswith('.yaml') or p.endswith('.yml'):
         return 'yaml'
@@ -1110,17 +1258,17 @@ DTS_FAMILY = ('dts', 'dtsi', 'dtso')
 def collect_findings(filepath, mode):
     """Return a (lines, count) pair for filepath. lines is a list of
     formatted output strings; count is the number of findings."""
-    kind = input_kind(filepath)
-    if kind == 'yaml':
+    file_type = get_file_type(filepath)
+    if file_type == 'yaml':
         iterator = iter_yaml_examples(filepath)
-    elif kind in DTS_FAMILY:
+    elif file_type in DTS_FAMILY:
         iterator = iter_dts_file(filepath)
     else:
         return (['%s: unknown file type, skipping' % filepath], 0)
 
     out = []
     for text, base, idx in iterator:
-        for lineno, rule, msg in check_block(text, mode, kind):
+        for lineno, rule, msg in check_block(text, mode, file_type):
             abs_line = base + lineno - 1
             ex_tag = '' if idx is None else ' example %d' % idx
             out.append('%s:%d:%s [%s] %s' %
@@ -1141,7 +1289,7 @@ def main():
         description='Check DTS coding style on YAML examples and '
         '.dts/.dtsi/.dtso files.',
         fromfile_prefix_chars='@')
-    ap.add_argument('--mode', choices=('relaxed', 'strict'),
+    ap.add_argument('--mode', choices=('relaxed', 'strict', 'stricter'),
                     default='relaxed',
                     help='which rule set to apply (default: relaxed)')
     ap.add_argument('-j', '--jobs', type=int, default=0,

@@ -324,6 +324,9 @@ struct devlink_port *devlink_port_get_from_attrs(struct devlink *devlink,
 
 /* Reload */
 bool devlink_reload_actions_valid(const struct devlink_ops *ops);
+void devlink_reload_netns_change(struct devlink *devlink,
+				 struct net *curr_net,
+				 struct net *dest_net);
 int devlink_reload(struct devlink *devlink, struct net *dest_net,
 		   enum devlink_reload_action action,
 		   enum devlink_reload_limit limit,

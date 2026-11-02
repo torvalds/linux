@@ -36,8 +36,8 @@
 #include "link_enc_cfg.h"
 
 #if defined(CONFIG_DRM_AMD_DC_FP)
-#include "dml2_0/dml2_wrapper.h"
-#include "dml2_0/dml2_internal_types.h"
+#include "dml2_wrapper/dml2_wrapper.h"
+#include "dml2_wrapper/dml2_internal_types.h"
 #endif
 
 #define DC_LOGGER \
@@ -466,8 +466,6 @@ enum dc_status dc_state_remove_stream(
 		dm_error("Context doesn't have stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
-
-	dc_stream_release_3dlut_for_stream(dc, stream);
 
 	dc_stream_release(state->streams[i]);
 	state->stream_count--;

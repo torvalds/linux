@@ -169,7 +169,7 @@ xfs_xattr_flags_to_op(
 
 static int
 xfs_xattr_set(const struct xattr_handler *handler,
-	      struct mnt_idmap *idmap, struct dentry *unused,
+	      const struct mnt_idmap *idmap, struct dentry *unused,
 	      struct inode *inode, const char *name, const void *value,
 	      size_t size, int flags)
 {

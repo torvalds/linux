@@ -55,8 +55,8 @@ __emit_aux_table_inv(u32 *cmd, const struct xe_reg reg, u32 adj_offset)
 		 MI_LRI_MMIO_REMAP_EN;
 	*cmd++ = reg.addr + adj_offset;
 	*cmd++ = AUX_INV;
-	*cmd++ = MI_SEMAPHORE_WAIT_TOKEN | MI_SEMAPHORE_REGISTER_POLL |
-		 MI_SEMAPHORE_POLL | MI_SEMAPHORE_SAD_EQ_SDD;
+	*cmd++ = MI_SEMAPHORE_WAIT | MI_SEMW_REGISTER_POLL |
+		 MI_SEMW_POLL | MI_SEMW_COMPARE(SAD_EQ_SDD);
 	*cmd++ = 0;
 	*cmd++ = reg.addr + adj_offset;
 	*cmd++ = 0;
@@ -143,9 +143,8 @@ static int emit_bb_start(u64 batch_addr, u32 ppgtt_flag, u32 *dw, int i)
 
 static int emit_flush_invalidate(u32 addr, u32 val, u32 flush_flags, u32 *dw, int i)
 {
-	dw[i++] = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW |
-		  MI_FLUSH_IMM_DW | (flush_flags & MI_INVALIDATE_TLB) ?: 0;
-
+	dw[i++] = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_IMM_DW |
+		  (flush_flags & MI_INVALIDATE_TLB);
 	dw[i++] = addr | MI_FLUSH_DW_USE_GTT;
 	dw[i++] = 0;
 	dw[i++] = val;
@@ -505,6 +504,74 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
 
+static int emit_ulls_preamble(struct xe_lrc *lrc, u32 *dw, int i, u32 seqno)
+{
+	u32 addr = xe_lrc_ulls_semaphore_ggtt_addr(lrc, seqno);
+
+	return emit_store_imm_ggtt(addr, LRC_MIGRATION_ULLS_SEMAPHORE_CLEAR,
+				   dw, i);
+}
+
+/*
+ * Advance the ring tail from within the ring, so submitting the next ULLS job
+ * needs nothing from the CPU beyond signalling the semaphore. All ULLS jobs
+ * occupy exactly ULLS_JOB_SIZE_BYTES, so the tail the next job ends at is two
+ * job slots on from where this job started, even though that job has not been
+ * emitted yet. Both LRC and MMIO ring tail advanced in step.
+ */
+static int emit_ulls_ring_tail(struct xe_gt *gt, struct xe_lrc *lrc, u32 *dw,
+			       int i, u32 head)
+{
+	u32 next_tail = (head + 2 * ULLS_JOB_SIZE_BYTES) & (lrc->ring.size - 1);
+
+	xe_gt_assert(gt, IS_ALIGNED(next_tail, 8));
+
+	i = emit_store_imm_ggtt(xe_lrc_ring_tail_ggtt_addr(lrc), next_tail,
+				dw, i);
+
+	dw[i++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(1) |
+		MI_LRI_LRM_CS_MMIO;
+	dw[i++] = RING_TAIL(0).addr;
+	dw[i++] = next_tail;
+
+	return i;
+}
+
+/*
+ * Park the engine on the next job's semaphore, then publish its tail.
+ *
+ * The tail must not be published before the wait. The command streamer
+ * fetches ring contents up to the tail while parked, so it would fetch the
+ * next job's slot while it still holds MI_NOOPs and execute those once
+ * released, rather than the job the CPU writes there later. Publishing after
+ * the wait keeps the slot beyond the tail until the job is in place.
+ */
+static int emit_ulls_postamble(struct xe_gt *gt, struct xe_lrc *lrc, u32 *dw,
+			       int i, u32 seqno, u32 head)
+{
+	dw[i++] = MI_SEMAPHORE_WAIT |
+		MI_SEMW_GGTT |
+		MI_SEMW_POLL |
+		MI_SEMW_COMPARE(SAD_EQ_SDD);
+	dw[i++] = LRC_MIGRATION_ULLS_SEMAPHORE_SIGNAL;
+	dw[i++] = xe_lrc_ulls_semaphore_ggtt_addr(lrc, seqno + 1);
+	dw[i++] = 0;
+	dw[i++] = 0;
+
+	return emit_ulls_ring_tail(gt, lrc, dw, i, head);
+}
+
+/* Pad out to the fixed ULLS job size */
+static int emit_ulls_pad(struct xe_gt *gt, u32 *dw, int i)
+{
+	xe_gt_assert(gt, i <= ULLS_JOB_SIZE_DW);
+
+	while (i < ULLS_JOB_SIZE_DW)
+		dw[i++] = MI_NOOP;
+
+	return i;
+}
+
 static void emit_migration_job_gen12(struct xe_sched_job *job,
 				     struct xe_lrc *lrc, u32 *head,
 				     u32 seqno)
@@ -518,9 +585,15 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 
 	xe_gt_assert(gt, !job->ring_ops_force_reset);
 
+	if (xe_sched_job_is_ulls(job))
+		i = emit_ulls_preamble(lrc, dw, i, seqno);
+
 	i = emit_copy_timestamp(xe, lrc, dw, i);
 
 	i = emit_store_imm_ggtt(saddr, seqno, dw, i);
+
+	if (!xe_sched_job_ulls_has_batch(job))
+		goto seqno_write;
 
 	dw[i++] = MI_ARB_ON_OFF | MI_ARB_DISABLE; /* Enabled again below */
 
@@ -532,11 +605,18 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 
 	i = emit_bb_start(job->ptrs[1].batch_addr, BIT(8), dw, i);
 
+seqno_write:
 	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno,
 				job->migrate_flush_flags,
 				dw, i);
 
 	i = emit_user_interrupt(dw, i);
+
+	if (xe_sched_job_ulls_parks(job))
+		i = emit_ulls_postamble(gt, lrc, dw, i, seqno, *head);
+
+	if (xe_sched_job_is_ulls(job))
+		i = emit_ulls_pad(gt, dw, i);
 
 	xe_gt_assert(job->q->gt, i <= MAX_JOB_SIZE_DW);
 

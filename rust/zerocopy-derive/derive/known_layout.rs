@@ -81,7 +81,7 @@ fn derive_known_layout_for_repr_c_struct<'a>(
 
             #[inline(always)]
             fn pointer_to_metadata(ptr: *mut Self) -> <Self as #zerocopy_crate::KnownLayout>::PointerMetadata {
-                <#trailing_field_ty>::pointer_to_metadata(ptr as *mut _)
+                <#trailing_field_ty as #zerocopy_crate::KnownLayout>::pointer_to_metadata(ptr as *mut _)
             }
         }
     };
@@ -144,6 +144,7 @@ fn derive_known_layout_for_repr_c_struct<'a>(
         // Define the collection of type-level field handles.
         let field_defs = field_indices.iter().zip(fields).map(|(idx, (vis, _, _))| {
             quote! {
+                #[allow(missing_debug_implementations)]
                 #vis struct #idx;
             }
         });
@@ -200,6 +201,7 @@ fn derive_known_layout_for_repr_c_struct<'a>(
             // `#ty`, not `__ZerocopyKnownLayoutMaybeUninit` (see #2116).
             #repr
             #[doc(hidden)]
+            #[allow(missing_debug_implementations)]
             #vis struct __ZerocopyKnownLayoutMaybeUninit<#params> (
                 #(#core::mem::MaybeUninit<
                     <#ident #ty_generics as

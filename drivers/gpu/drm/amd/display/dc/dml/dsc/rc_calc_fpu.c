@@ -26,7 +26,6 @@
 #include "rc_calc_fpu.h"
 
 #include "qp_tables.h"
-#include "amdgpu_dm/dc_fpu.h"
 
 #define table_hash(mode, bpc, max_min) ((mode << 16) | (bpc << 8) | max_min)
 
@@ -46,7 +45,7 @@ static int median3(int a, int b, int c)
 	if (b > c)
 		swap(b, c);
 	if (a > b)
-		swap(b, c);
+		swap(a, b);
 
 	return b;
 }

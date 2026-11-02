@@ -241,6 +241,15 @@
 #define MCF_IRQ_RTC		(MCFINT2_VECBASE + MCFINT2_RTC)
 
 /*
+ *  Random Number Generator (RNG) Module.
+ *  Note: Only present in MCF54418, not in MCF54410/54415/54417
+ */
+#define MCF_RNG_BASE		0xfc0c4000
+#define MCF_RNG_SIZE		0x1c
+#define MCFINT2_RNG		28
+#define MCF_IRQ_RNG		(MCFINT2_VECBASE + MCFINT2_RNG)
+
+/*
  *  GPIO Module.
  */
 #define MCFGPIO_PODR_A		0xec094000
@@ -374,5 +383,12 @@
 #define MCF_IRQ_IFL1		(MCFINT1_VECBASE + MCFINT1_FLEXCAN1_IFL)
 #define MCF_IRQ_BOFF1		(MCFINT1_VECBASE + MCFINT1_FLEXCAN1_BOFF)
 #define MCF_IRQ_ERR1		(MCFINT1_VECBASE + MCFINT1_FLEXCAN1_ERR)
+
+/*
+ * PWM module
+ */
+#define MCFPWM_BASE		0xec088000
+#define MCFPWM_SIZE		0x150
+#define MCFPWM_SUB_SIZE		0x50
 
 #endif /* m5441xsim_h */

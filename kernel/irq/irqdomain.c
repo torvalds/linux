@@ -344,6 +344,7 @@ static struct irq_domain *__irq_domain_instantiate(const struct irq_domain_info 
 		err = irq_domain_alloc_generic_chips(domain, info->dgc_info);
 		if (err)
 			goto err_domain_free;
+		domain->flags |= IRQ_DOMAIN_FLAG_DESTROY_GC;
 	}
 
 	if (info->init) {

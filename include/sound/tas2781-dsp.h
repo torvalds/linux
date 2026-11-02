@@ -56,6 +56,10 @@ enum tasdevice_dsp_dev_idx {
 	TASDEVICE_DSP_TAS_2781_QUAD,
 	TASDEVICE_DSP_TAS_5825_MONO,
 	TASDEVICE_DSP_TAS_5825_DUAL,
+	TASDEVICE_DSP_TAS_2573_MONO,
+	TASDEVICE_DSP_TAS_2573_DUAL,
+	TASDEVICE_DSP_TAS_2573_21,
+	TASDEVICE_DSP_TAS_2573_QUAD,
 	TASDEVICE_DSP_TAS_MAX_DEVICE
 };
 
@@ -142,6 +146,7 @@ struct tasdevice_fw {
 	struct tasdevice_calibration *calibrations;
 	struct fct_param_address fct_par_addr;
 	struct device *dev;
+	int calibration_config_id;
 };
 
 enum tasdevice_fw_state {
@@ -206,6 +211,14 @@ struct tasdevice_rca {
 	 * capture.
 	 */
 	int capture_profile_id;
+	/*
+	 * Primarily designed for speaker calibration scenarios with special
+	 * requirements. For regular use cases, when the default value -1 is
+	 * set, calibration will directly reuse the current playback
+	 * configuration; non-negative values can be customized for special
+	 * calibration demands.
+	 */
+	int calibration_profile_id;
 	/*
 	 * Since version 0x105, the keyword 'init' was introduced into the
 	 * profile, which is used for chip initialization, particularly to

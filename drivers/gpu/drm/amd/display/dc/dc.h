@@ -37,19 +37,21 @@
 #include "link_service_types.h"
 #include "grph_object_ctrl_defs.h"
 #include <inc/hw/opp.h>
+#include <inc/hw/rmcm.h>
 
 #include "hwss/hw_sequencer.h"
 #include "inc/compressor.h"
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#include "dml2_0/dml2_wrapper.h"
+#include "dml2_wrapper/dml2_wrapper.h"
 
 #include "dmub/inc/dmub_cmd.h"
 
 #include "dml/dml1_frl_cap_chk.h"
 
 #include "sspl/dc_spl_types.h"
+#include "inc/dc_core_interface.h"
 
 struct abm_save_restore;
 
@@ -66,7 +68,7 @@ struct dcn_dsc_reg_state;
 struct dcn_optc_reg_state;
 struct dcn_dccg_reg_state;
 
-#define DC_VER "3.2.392"
+#define DC_VER "3.2.401"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -111,10 +113,10 @@ struct frl_cap_chk_params_fixed31_32 {
 	int      lanes;
 	struct fixed31_32   f_pixel_clock_nominal;   /* Pixel Clock rate (Hz)  */
 	struct fixed31_32   r_bit_nominal;           /* FRL bitrate (bps) */
-	int      audio_packet_type;
+	unsigned int audio_packet_type;
 	struct fixed31_32   f_audio;                 /* Audio rate (Hz) */
-	int      h_active;                /* Active pixels per line */
-	int      h_blank;                 /* Blanking pixels per line */
+	uint32_t h_active;                /* Active pixels per line */
+	uint32_t h_blank;                 /* Blanking pixels per line */
 	int      bpc;                     /* Bits per component */
 	int      vic;                     /* Video Identification Code */
 
@@ -432,6 +434,7 @@ struct dc_caps {
 	uint8_t num_of_dpias_per_host_router;
 	/* limit of the ODM only, could be limited by other factors (like pipe count)*/
 	uint8_t max_odm_combine_factor;
+	bool utm_support;
 };
 
 struct dc_bug_wa {
@@ -583,6 +586,7 @@ struct dc_config {
 	bool forced_clocks;
 	union allow_lttpr_non_transparent_mode allow_lttpr_non_transparent_mode;
 	bool multi_mon_pp_mclk_switch;
+	bool lsdma_peak_bw_contention_support;
 	bool disable_dmcu;
 	bool allow_4to1MPC;
 	bool enable_windowed_mpo_odm;
@@ -652,6 +656,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_VABC = 21,
 	VISUAL_CONFIRM_DCC = 22,
 	VISUAL_CONFIRM_BOOSTED_REFRESH_RATE = 23,
+	VISUAL_CONFIRM_DM_PASSTHROUGH = 26,
 	VISUAL_CONFIRM_EXPLICIT = 0x80000000,
 };
 
@@ -1037,6 +1042,8 @@ struct dc_virtual_addr_space_config {
 struct dc_bounding_box_overrides {
 	unsigned int sr_exit_time_ns;
 	unsigned int sr_enter_plus_exit_time_ns;
+	unsigned int sr_lp_exit_time_ns;
+	unsigned int sr_lp_enter_plus_exit_time_ns;
 	unsigned int sr_exit_z8_time_ns;
 	unsigned int sr_enter_plus_exit_z8_time_ns;
 	unsigned int urgent_latency_ns;
@@ -1284,8 +1291,11 @@ struct dc_debug_options {
 	bool dml21_force_pstate_method;
 	uint32_t dml21_force_pstate_method_values[MAX_PIPES];
 	uint32_t dml21_disable_pstate_method_mask;
+	bool force_optional_uclk_pstate_support;
 	union fw_assisted_mclk_switch_version fams_version;
 	union dmub_fams2_global_feature_config fams2_config;
+	bool fams2_imm_restore_drr;
+	bool skip_hdmi_rr_enable;
 	unsigned int force_cositing;
 	unsigned int disable_spl;
 	unsigned int force_easf;
@@ -1307,6 +1317,7 @@ struct dc_debug_options {
 	unsigned int auxless_alpm_lfps_t1t2_us;
 	short auxless_alpm_lfps_t1t2_offset_us;
 	bool disable_stutter_for_wm_program;
+	unsigned int urgent_watermark_override;
 	bool enable_block_sequence_programming;
 	uint32_t custom_psp_footer_size;
 	bool disable_deferred_minimal_transitions;
@@ -1319,8 +1330,11 @@ struct dc_debug_options {
 	bool enable_replay_esd_recovery;
 	uint8_t iommu_mismatch_temp_wka;
 	bool disable_dynamic_expansion_for_test_pattern;
+	bool psr_phy_force_phy_power_down_up_level_2;
 	uint32_t dml21_custom_derate_num_dpms;
 	uint32_t dml21_custom_derate_at_dpm[DML2_MAX_NUM_DPM_LVL];
+	bool override_utm_client_qc_profile;
+	uint8_t utm_client_qc_profiles[4];
 };
 
 
@@ -1380,6 +1394,7 @@ struct dc_init_data {
 	uint32_t *nbio_reg_offsets;
 	uint32_t *clk_reg_offsets;
 	void *bb_from_dmub;
+	enum dc2_selection dc2_selection;
 };
 
 struct dc_callback_init {
@@ -1505,11 +1520,6 @@ struct lut_mem_mapping {
 		uint16_t linear_rgb[(33*33*33*4/128+1)*128];
 	};
 	uint16_t size;
-};
-
-struct dc_rmcm_3dlut {
-	bool isInUse;
-	const struct dc_stream_state *stream;
 };
 
 struct dc_3dlut {
@@ -2088,32 +2098,6 @@ struct dc_scaling_info {
 	struct scaling_taps scaling_quality;
 };
 
-struct dc_fast_update {
-	const struct dc_flip_addrs *flip_addr;
-	const struct dc_gamma *gamma;
-	const struct colorspace_transform *gamut_remap_matrix;
-	const struct dc_csc_transform *input_csc_color_matrix;
-	const struct fixed31_32 *coeff_reduction_factor;
-	struct dc_transfer_func *out_transfer_func;
-	struct dc_csc_transform *output_csc_transform;
-	const struct dc_csc_transform *cursor_csc_color_matrix;
-	struct cm_hist_control *cm_hist_control;
-	/* stream-level fast updates */
-	const struct colorspace_transform *gamut_remap;
-	const struct dc_cursor_attributes *cursor_attributes;
-	const struct dc_cursor_position *cursor_position;
-	const struct periodic_interrupt_config *periodic_interrupt;
-	const enum dc_dither_option *dither_option;
-	struct dc_info_packet *vrr_infopacket;
-	struct dc_info_packet *vsc_infopacket;
-	struct dc_info_packet *vsp_infopacket;
-	struct dc_info_packet *hfvsif_infopacket;
-	struct dc_info_packet *vtem_infopacket;
-	struct dc_info_packet *adaptive_sync_infopacket;
-	struct dc_info_packet *avi_infopacket;
-	struct dc_info_packet *hdr_static_metadata;
-};
-
 struct dc_surface_update {
 	struct dc_plane_state *surface;
 
@@ -2221,6 +2205,7 @@ struct dc_probe_latencies {
 /**
  * struct dc_probe_status - results for a probe.
  * @valid: true if a measurement was latched.
+ * @measuring: true if the hardware counter is currently running.
  * @type: type of the probe that produced this result.
  * @u.bandwidth_mbps:         peak BW in Mbps (DC_PROBE_PEAK_MEM_BW).
  * @u.latency:                min/max/avg memory latency in ns (DC_PROBE_MEM_LATENCY),
@@ -2230,6 +2215,7 @@ struct dc_probe_latencies {
  */
 struct dc_probe_status {
 	bool                       valid;
+	bool                       measuring;
 	enum dc_probe_type         type;
 	union {
 		uint32_t bandwidth_mbps;
@@ -2417,11 +2403,6 @@ bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
 void get_audio_check(struct audio_info *aud_modes,
 	struct audio_check *aud_chk);
 
-bool fast_nonaddr_updates_exist(struct dc_fast_update *fast_update, int surface_count);
-void populate_fast_updates(struct dc_fast_update *fast_update,
-		struct dc_surface_update *srf_updates,
-		int surface_count,
-		struct dc_stream_update *stream_update);
 /*
  * Set up streams and links associated to drive sinks
  * The streams parameter is an absolute set of all active streams.
@@ -2889,6 +2870,9 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 		struct dc_link_training_overrides *lt_overrides,
 		struct dc_link *link,
 		bool skip_immediate_retrain);
+
+/* Configure the sink-specific policy for future DP link training. */
+void dc_link_set_skip_link_bw_clear(struct dc_link *link, bool skip);
 
 /* return - true if FEC is supported with connected DP RX, false otherwise */
 bool dc_link_is_fec_supported(const struct dc_link *link);
@@ -3895,5 +3879,12 @@ bool dc_get_qos_info(struct dc *dc, struct dc_qos_info *info);
 unsigned int dc_override_memory_bandwidth_request(
 		struct dc *dc,
 		unsigned int bw_mbps);
+
+/**
+ * Panel Polarity Control
+ */
+void dc_link_set_panel_polarity_enable(struct dc_link *link, bool enable);
+void dc_link_panel_polarity_reset(struct dc_link *link);
+bool dc_link_get_panel_polarity(struct dc_link *link, int32_t *polarity);
 
 #endif /* DC_INTERFACE_H_ */

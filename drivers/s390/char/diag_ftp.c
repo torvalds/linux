@@ -106,11 +106,11 @@ static int diag_ftp_2c4(struct diag_ftp_ldfpl *fpl,
 
 	diag_stat_inc(DIAG_STAT_X2C4);
 	asm_inline volatile(
-		"	diag	%[addr],%[cmd],0x2c4\n"
-		"0:	j	2f\n"
+		"0:	diag	%[addr],%[cmd],0x2c4\n"
+		"	j	2f\n"
 		"1:	la	%[rc],%[err]\n"
 		"2:\n"
-		EX_TABLE(0b, 1b)
+		EX_TABLE_INSN(0b, 1b)
 		: [rc] "=d" (rc), "+m" (*fpl)
 		: [cmd] "0" (cmd), [addr] "d" (virt_to_phys(fpl)),
 		  [err] "i" (DIAG_FTP_RET_EPERM)

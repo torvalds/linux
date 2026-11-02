@@ -1004,7 +1004,6 @@
 };
 
 &pmgr_mini {
-
 	ps_debug_gated: power-controller@0 {
 		compatible = "apple,t8122-pmgr-pwrstate", "apple,t8103-pmgr-pwrstate";
 		reg = <0x0 4>;

@@ -263,7 +263,7 @@ macro_rules! bounded_enum {
             ) -> kernel::error::Result<Self> {
                 match value.get() {
                     $(
-                        $value => Ok($enum_type::$variant),
+                        value if value == $value => Ok($enum_type::$variant),
                     )*
                     _ => Err(kernel::error::code::EINVAL),
                 }

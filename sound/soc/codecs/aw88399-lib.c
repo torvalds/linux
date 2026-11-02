@@ -167,9 +167,8 @@ int aw_dev_check_syspll(struct aw_device *aw_dev)
 }
 EXPORT_SYMBOL_GPL(aw_dev_check_syspll);
 
-static int aw_dev_check_sysst(struct aw88399 *aw88399)
+static int aw_dev_check_sysst(struct aw_device *aw_dev)
 {
-	struct aw_device *aw_dev = aw88399->aw_pa;
 	unsigned int check_val;
 	unsigned int reg_val;
 	int ret, i;
@@ -184,11 +183,16 @@ static int aw_dev_check_sysst(struct aw88399 *aw88399)
 		check_val = AW88399_BIT_SYSST_SWS_CHECK;
 
 	/*
-	 * On some hardware the BSTS (boost-finished) status bit does not
-	 * reliably assert even when audio output is working normally.
-	 * Allow per-instance bypass when flagged by the side-codec driver.
+	 * When an external power supply (EPS) is used to feed the amplifier
+	 * (EN_HVBAT bit in BSTCTRL10 set), the boost converter is bypassed,
+	 * and BSTS (boost finished) will never assert. Skip the BSTS check in
+	 * this case, matching the vendor driver's behavior.
 	 */
-	if (aw88399->bsts_unreliable)
+	ret = regmap_read(aw_dev->regmap, AW88399_BSTCTRL10_REG, &reg_val);
+	if (ret)
+		return ret;
+
+	if (reg_val & (~AW88399_EPS_EN_MASK))
 		check_val &= ~AW88399_BSTS_FINISHED_VALUE;
 
 	for (i = 0; i < AW88399_DEV_SYSST_CHECK_MAX; i++) {
@@ -719,7 +723,7 @@ static int aw88399_dev_start(struct aw88399 *aw88399)
 	usleep_range(AW88399_1000_US, AW88399_1000_US + 50);
 
 	/* check i2s status */
-	ret = aw_dev_check_sysst(aw88399);
+	ret = aw_dev_check_sysst(aw_dev);
 	if (ret) {
 		dev_err(aw_dev->dev, "sysst check failed");
 		goto sysst_check_fail;
@@ -1280,21 +1284,21 @@ static int aw88399_dev_init(struct aw88399 *aw88399, struct aw_container *aw_cfg
 	return 0;
 }
 
-int aw88399_request_firmware_file(struct aw88399 *aw88399)
+int aw88399_request_firmware_file(struct aw88399 *aw88399, const char *fw_name)
 {
 	const struct firmware *cont __free(firmware) = NULL;
 	int ret;
 
 	aw88399->aw_pa->fw_status = AW88399_DEV_FW_FAILED;
 
-	ret = request_firmware(&cont, AW88399_ACF_FILE, aw88399->aw_pa->dev);
+	ret = request_firmware(&cont, fw_name, aw88399->aw_pa->dev);
 	if (ret) {
-		dev_err(aw88399->aw_pa->dev, "request [%s] failed!", AW88399_ACF_FILE);
+		dev_err(aw88399->aw_pa->dev, "request [%s] failed!\n", fw_name);
 		return ret;
 	}
 
 	dev_dbg(aw88399->aw_pa->dev, "loaded %s - size: %zu\n",
-			AW88399_ACF_FILE, cont ? cont->size : 0);
+			fw_name, cont ? cont->size : 0);
 
 	aw88399->aw_cfg = devm_kzalloc(aw88399->aw_pa->dev,
 			struct_size(aw88399->aw_cfg, data, cont->size), GFP_KERNEL);
@@ -1306,7 +1310,7 @@ int aw88399_request_firmware_file(struct aw88399 *aw88399)
 
 	ret = aw88395_dev_load_acf_check(aw88399->aw_pa, aw88399->aw_cfg);
 	if (ret) {
-		dev_err(aw88399->aw_pa->dev, "load [%s] failed!", AW88399_ACF_FILE);
+		dev_err(aw88399->aw_pa->dev, "load [%s] failed!\n", fw_name);
 		return ret;
 	}
 

@@ -173,6 +173,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/time64.h>
@@ -353,6 +354,7 @@ enum {
 	I_LCOEF_WBPS,
 	I_LCOEF_WSEQIOPS,
 	I_LCOEF_WRANDIOPS,
+	I_LCOEF_FLUSHIOPS,
 	NR_I_LCOEFS,
 };
 
@@ -363,6 +365,7 @@ enum {
 	LCOEF_WPAGE,
 	LCOEF_WSEQIO,
 	LCOEF_WRANDIO,
+	LCOEF_FLUSH,
 	NR_LCOEFS,
 };
 
@@ -472,8 +475,8 @@ struct ioc_gq {
 	 *
 	 * When an idle cgroup becomes active its `active` goes from 0 to
 	 * `weight`.  `inuse` is the surplus adjusted active weight.
-	 * `active` and `inuse` are used to calculate `hweight_active` and
-	 * `hweight_inuse`.
+	 * `active` and `inuse` determine the hierarchical weights cached in
+	 * `hweight_cache`.
 	 *
 	 * `last_inuse` remembers `inuse` while an iocg is idle to persist
 	 * surplus adjustments.
@@ -520,7 +523,9 @@ struct ioc_gq {
 	u64				child_active_sum;
 	u64				child_inuse_sum;
 	u64				child_adjusted_sum;
-	int				hweight_gen;
+	/* Generation in bits 63:32; active - 1 and inuse - 1 in 31:16/15:0. */
+	atomic64_t			hweight_cache;
+	/* Donation workspace, protected by ioc->lock. */
 	u32				hweight_active;
 	u32				hweight_inuse;
 	u32				hweight_donating;
@@ -727,6 +732,54 @@ static void iocg_commit_bio(struct ioc_gq *iocg, struct bio *bio,
 	put_cpu_ptr(gcs);
 }
 
+/*
+ * The hierarchical weights are in [1, WEIGHT_ONE] and the generation is a
+ * 32-bit counter.  Pack generation and both weights into one 64-bit value so
+ * that a reader or a refresher always observes a complete snapshot:
+ *
+ *   bits 63:32  generation
+ *   bits 31:16  hweight_active - 1
+ *   bits 15:0   hweight_inuse - 1
+ */
+#define HWEIGHT_GEN_MASK	GENMASK_ULL(63, 32)
+#define HWEIGHT_ACTIVE_MASK	GENMASK_ULL(31, 16)
+#define HWEIGHT_INUSE_MASK	GENMASK_ULL(15, 0)
+
+static inline u64 hweight_cache_pack(u32 gen, u32 active, u32 inuse)
+{
+	return FIELD_PREP(HWEIGHT_GEN_MASK, gen) |
+	       FIELD_PREP(HWEIGHT_ACTIVE_MASK, active - 1) |
+	       FIELD_PREP(HWEIGHT_INUSE_MASK, inuse - 1);
+}
+
+static inline void hweight_cache_unpack(u64 cache, u32 *genp, u32 *activep,
+					u32 *inusep)
+{
+	if (genp)
+		*genp = FIELD_GET(HWEIGHT_GEN_MASK, cache);
+	if (activep)
+		*activep = FIELD_GET(HWEIGHT_ACTIVE_MASK, cache) + 1;
+	if (inusep)
+		*inusep = FIELD_GET(HWEIGHT_INUSE_MASK, cache) + 1;
+}
+
+/* Decode the published weights without refreshing the cache. */
+static inline void iocg_hweight_cache(struct ioc_gq *iocg, u32 *activep,
+				      u32 *inusep)
+{
+	hweight_cache_unpack(atomic64_read(&iocg->hweight_cache), NULL,
+			     activep, inusep);
+}
+
+/* Decode the cached inuse weight; only used by tracepoints. */
+static inline u32 iocg_hweight_cache_inuse(struct ioc_gq *iocg)
+{
+	u32 inuse;
+
+	iocg_hweight_cache(iocg, NULL, &inuse);
+	return inuse;
+}
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/iocost.h>
 
@@ -883,6 +936,9 @@ static void ioc_refresh_lcoefs(struct ioc *ioc)
 		    &c[LCOEF_RPAGE], &c[LCOEF_RSEQIO], &c[LCOEF_RRANDIO]);
 	calc_lcoefs(u[I_LCOEF_WBPS], u[I_LCOEF_WSEQIOPS], u[I_LCOEF_WRANDIOPS],
 		    &c[LCOEF_WPAGE], &c[LCOEF_WSEQIO], &c[LCOEF_WRANDIO]);
+
+	c[LCOEF_FLUSH] = u[I_LCOEF_FLUSHIOPS] ?
+		DIV64_U64_ROUND_UP(VTIME_PER_SEC, u[I_LCOEF_FLUSHIOPS]) : 0;
 }
 
 /*
@@ -1154,12 +1210,15 @@ static void current_hweight(struct ioc_gq *iocg, u32 *hw_activep, u32 *hw_inusep
 {
 	struct ioc *ioc = iocg->ioc;
 	int lvl;
-	u32 hwa, hwi;
-	int ioc_gen;
+	u32 hwa, hwi, ioc_gen, cache_gen;
+	u64 cache;
 
-	/* hot path - if uptodate, use cached */
-	ioc_gen = atomic_read(&ioc->hweight_gen);
-	if (ioc_gen == iocg->hweight_gen)
+	ioc_gen = (u32)atomic_read(&ioc->hweight_gen);
+
+	/* hot path - if uptodate, use the cached snapshot */
+	cache = atomic64_read(&iocg->hweight_cache);
+	hweight_cache_unpack(cache, &cache_gen, &hwa, &hwi);
+	if (cache_gen == ioc_gen)
 		goto out;
 
 	/*
@@ -1194,14 +1253,20 @@ static void current_hweight(struct ioc_gq *iocg, u32 *hw_activep, u32 *hw_inusep
 		hwi = div64_u64((u64)hwi * inuse, inuse_sum);
 	}
 
-	iocg->hweight_active = max_t(u32, hwa, 1);
-	iocg->hweight_inuse = max_t(u32, hwi, 1);
-	iocg->hweight_gen = ioc_gen;
+	hwa = max_t(u32, hwa, 1);
+	hwi = max_t(u32, hwi, 1);
+	/*
+	 * Publish the generation and both weights as one atomic snapshot.
+	 * A concurrent refresher may overwrite this with its own snapshot,
+	 * but the generation travels with the weights so the next reader
+	 * detects the mismatch and refreshes again.
+	 */
+	atomic64_set(&iocg->hweight_cache, hweight_cache_pack(ioc_gen, hwa, hwi));
 out:
 	if (hw_activep)
-		*hw_activep = iocg->hweight_active;
+		*hw_activep = hwa;
 	if (hw_inusep)
-		*hw_inusep = iocg->hweight_inuse;
+		*hw_inusep = hwi;
 }
 
 /*
@@ -1249,7 +1314,8 @@ static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
 	u64 __maybe_unused last_period, cur_period;
-	u64 vtime, vtarget;
+	u64 vtime, vtarget, cache;
+	u32 active, inuse;
 	int i;
 
 	/*
@@ -1299,11 +1365,16 @@ static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 	vtime = vtarget;
 
 	/*
-	 * Activate, propagate weight and start period timer if not
-	 * running.  Reset hweight_gen to avoid accidental match from
-	 * wrapping.
+	 * Activate, propagate weight and start period timer if not running.
+	 * Invalidate the cached generation to avoid an accidental match from
+	 * wrapping.  Keep the last published weights so that the activation
+	 * tracepoint can report them; the next current_hweight() recomputes.
 	 */
-	iocg->hweight_gen = atomic_read(&ioc->hweight_gen) - 1;
+	cache = atomic64_read(&iocg->hweight_cache);
+	hweight_cache_unpack(cache, NULL, &active, &inuse);
+	atomic64_set(&iocg->hweight_cache,
+		     hweight_cache_pack((u32)(atomic_read(&ioc->hweight_gen) - 1),
+					active, inuse));
 	list_add(&iocg->active_list, &ioc->active_iocgs);
 
 	propagate_weights(iocg, iocg->weight,
@@ -1956,6 +2027,7 @@ static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
 			pr_cont(": active=%u donating=%u after=%u\n",
 				iocg->hweight_active, iocg->hweight_donating,
 				iocg->hweight_after_donation);
+			goto out;
 		}
 	}
 
@@ -2048,12 +2120,13 @@ static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
 
 		TRACE_IOCG_PATH(inuse_transfer, iocg, now,
 				iocg->inuse, inuse,
-				iocg->hweight_inuse,
+				iocg_hweight_cache_inuse(iocg),
 				iocg->hweight_after_donation);
 
 		__propagate_weights(iocg, iocg->active, inuse, true, now);
 	}
 
+out:
 	/* walk list should be dissolved after use */
 	list_for_each_entry_safe(iocg, tiocg, &inner_walk, walk_list)
 		list_del_init(&iocg->walk_list);
@@ -2360,7 +2433,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 				 */
 				TRACE_IOCG_PATH(inuse_shortage, iocg, &now,
 						iocg->inuse, iocg->active,
-						iocg->hweight_inuse, new_hwi);
+						old_hwi, new_hwi);
 
 				__propagate_weights(iocg, iocg->active,
 						    iocg->active, true, &now);
@@ -2533,7 +2606,16 @@ static void calc_vtime_cost_builtin(struct bio *bio, struct ioc_gq *iocg,
 	u64 seek_pages = 0;
 	u64 cost = 0;
 
-	/* Can't calculate cost for empty bio */
+	/*
+	 * FUA on a device without native support becomes a post-flush;
+	 * charge it like PREFLUSH from the flush coefficient.
+	 */
+	if (bio->bi_opf & REQ_PREFLUSH)
+		cost += ioc->params.lcoefs[LCOEF_FLUSH];
+	if ((bio->bi_opf & REQ_FUA) && !bdev_fua(bio->bi_bdev))
+		cost += ioc->params.lcoefs[LCOEF_FLUSH];
+
+	/* Can't calculate data cost for empty bio */
 	if (!bio->bi_iter.bi_size)
 		goto out;
 
@@ -2543,6 +2625,7 @@ static void calc_vtime_cost_builtin(struct bio *bio, struct ioc_gq *iocg,
 		coef_randio	= ioc->params.lcoefs[LCOEF_RRANDIO];
 		coef_page	= ioc->params.lcoefs[LCOEF_RPAGE];
 		break;
+	case REQ_OP_ZONE_APPEND:
 	case REQ_OP_WRITE:
 		coef_seqio	= ioc->params.lcoefs[LCOEF_WSEQIO];
 		coef_randio	= ioc->params.lcoefs[LCOEF_WRANDIO];
@@ -2586,6 +2669,7 @@ static void calc_size_vtime_cost_builtin(struct request *rq, struct ioc *ioc,
 	case REQ_OP_READ:
 		*costp = pages * ioc->params.lcoefs[LCOEF_RPAGE];
 		break;
+	case REQ_OP_ZONE_APPEND:
 	case REQ_OP_WRITE:
 		*costp = pages * ioc->params.lcoefs[LCOEF_WPAGE];
 		break;
@@ -2708,7 +2792,9 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	if (!iocg_activate(iocg, &now))
 		return;
 
-	iocg->cursor = bio_end_sector(bio);
+	/* dataless bios have no meaningful position for seq/rand detection */
+	if (bio->bi_iter.bi_size)
+		iocg->cursor = bio_end_sector(bio);
 	vtime = atomic64_read(&iocg->vtime);
 	cost = adjust_inuse_and_calc_cost(iocg, vtime, abs_cost, &now);
 
@@ -2725,10 +2811,11 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 
 	/*
 	 * We're over budget. This can be handled in two ways. IOs which may
-	 * cause priority inversions are punted to @ioc->aux_iocg and charged as
-	 * debt. Otherwise, the issuer is blocked on @iocg->waitq. Debt handling
-	 * requires @ioc->lock, waitq handling @iocg->waitq.lock. Determine
-	 * whether debt handling is needed and acquire locks accordingly.
+	 * cause priority inversions are issued regardless and charged against
+	 * @iocg->abs_vdebt as debt. Otherwise, the issuer is blocked on
+	 * @iocg->waitq. Debt handling requires @ioc->lock, waitq handling
+	 * @iocg->waitq.lock. Determine whether debt handling is needed and
+	 * acquire locks accordingly.
 	 */
 	use_debt = bio_issue_as_root_blkg(bio) || fatal_signal_pending(current);
 	ioc_locked = use_debt || READ_ONCE(iocg->abs_vdebt);
@@ -2854,6 +2941,7 @@ static void ioc_rqos_done(struct rq_qos *rqos, struct request *rq)
 		pidx = QOS_RLAT;
 		rw = READ;
 		break;
+	case REQ_OP_ZONE_APPEND:
 	case REQ_OP_WRITE:
 		pidx = QOS_WLAT;
 		rw = WRITE;
@@ -2900,7 +2988,8 @@ static void ioc_rqos_exit(struct rq_qos *rqos)
 
 	timer_shutdown_sync(&ioc->timer);
 	free_percpu(ioc->pcpu_stat);
-	kfree(ioc);
+	/* blkcg_print_blkgs() gets here from a pd with only RCU held */
+	kfree_rcu_mightsleep(ioc);
 }
 
 static const struct rq_qos_ops ioc_rqos_ops = {
@@ -2917,11 +3006,12 @@ static int blk_iocost_init(struct gendisk *disk)
 	struct ioc *ioc;
 	int i, cpu, ret;
 
-	ioc = kzalloc_obj(*ioc);
+	/* The caller holds rq_qos_mutex, which is taken with the queue frozen */
+	ioc = kzalloc_obj(*ioc, GFP_NOIO);
 	if (!ioc)
 		return -ENOMEM;
 
-	ioc->pcpu_stat = alloc_percpu(struct ioc_pcpu_stat);
+	ioc->pcpu_stat = alloc_percpu_gfp(struct ioc_pcpu_stat, GFP_NOIO);
 	if (!ioc->pcpu_stat) {
 		kfree(ioc);
 		return -ENOMEM;
@@ -3032,6 +3122,9 @@ static void ioc_pd_init(struct blkg_policy_data *pd)
 	INIT_LIST_HEAD(&iocg->active_list);
 	INIT_LIST_HEAD(&iocg->walk_list);
 	INIT_LIST_HEAD(&iocg->surplus_list);
+	atomic64_set(&iocg->hweight_cache,
+		     hweight_cache_pack((u32)(atomic_read(&ioc->hweight_gen) - 1),
+					WEIGHT_ONE, WEIGHT_ONE));
 	iocg->hweight_active = WEIGHT_ONE;
 	iocg->hweight_inuse = WEIGHT_ONE;
 
@@ -3440,10 +3533,12 @@ static u64 ioc_cost_model_prfill(struct seq_file *sf,
 	spin_lock_irq(&ioc->lock);
 	seq_printf(sf, "%s ctrl=%s model=linear "
 		   "rbps=%llu rseqiops=%llu rrandiops=%llu "
-		   "wbps=%llu wseqiops=%llu wrandiops=%llu\n",
+		   "wbps=%llu wseqiops=%llu wrandiops=%llu "
+		   "flushiops=%llu\n",
 		   dname, ioc->user_cost_model ? "user" : "auto",
 		   u[I_LCOEF_RBPS], u[I_LCOEF_RSEQIOPS], u[I_LCOEF_RRANDIOPS],
-		   u[I_LCOEF_WBPS], u[I_LCOEF_WSEQIOPS], u[I_LCOEF_WRANDIOPS]);
+		   u[I_LCOEF_WBPS], u[I_LCOEF_WSEQIOPS], u[I_LCOEF_WRANDIOPS],
+		   u[I_LCOEF_FLUSHIOPS]);
 	spin_unlock_irq(&ioc->lock);
 	return 0;
 }
@@ -3470,6 +3565,7 @@ static const match_table_t i_lcoef_tokens = {
 	{ I_LCOEF_WBPS,		"wbps=%u"	},
 	{ I_LCOEF_WSEQIOPS,	"wseqiops=%u"	},
 	{ I_LCOEF_WRANDIOPS,	"wrandiops=%u"	},
+	{ I_LCOEF_FLUSHIOPS,	"flushiops=%u"	},
 	{ NR_I_LCOEFS,		NULL		},
 };
 

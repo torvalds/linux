@@ -196,7 +196,7 @@
 			non-removable;
 			no-sdio;
 			no-sd;
-			vmmc-supply = <&db8500_vsmps2_reg>;
+			vmmc-supply = <&buck_vio18>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc2_a_1_default>;
 			pinctrl-1 = <&mc2_a_1_sleep>;

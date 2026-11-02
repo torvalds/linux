@@ -6,9 +6,11 @@
 // Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 //
 
+#include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 #include <sound/soc-link.h>
+#include "soc-internal.h"
 
 #define soc_dai_ret(dai, ret) _soc_dai_ret(dai, __func__, ret)
 static inline int _soc_dai_ret(const struct snd_soc_dai *dai,
@@ -17,6 +19,42 @@ static inline int _soc_dai_ret(const struct snd_soc_dai *dai,
 	return snd_soc_ret(dai->dev, ret,
 			   "at %s() on %s\n", func, dai->name);
 }
+
+struct snd_soc_component *snd_soc_dai_to_component(const struct snd_soc_dai *dai)
+{
+	return dai->component;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_to_component);
+
+struct snd_soc_dai_driver *snd_soc_dai_to_driver(const struct snd_soc_dai *dai)
+{
+	return dai->driver;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_to_driver);
+
+void snd_soc_dai_set_priv(struct snd_soc_dai *dai, void *priv)
+{
+	dai->priv = priv;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_set_priv);
+
+void *snd_soc_dai_to_priv(struct snd_soc_dai *dai)
+{
+	return dai->priv;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_to_priv);
+
+struct snd_soc_dai *snd_soc_dai_from_list(struct list_head *list)
+{
+	return list_entry(list, struct snd_soc_dai, list);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_from_list);
+
+struct list_head *snd_soc_dai_to_list(struct snd_soc_dai *dai)
+{
+	return &dai->list;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_to_list);
 
 /*
  * We might want to check substream by using list.
@@ -669,8 +707,7 @@ bool snd_soc_dai_stream_valid(const struct snd_soc_dai *dai, int dir)
 	return stream->channels_min;
 }
 
-void snd_soc_dai_action(struct snd_soc_dai *dai,
-			int stream, int action)
+void snd_soc_dai_active_update(struct snd_soc_dai *dai, int stream, int action)
 {
 	/* see snd_soc_dai_stream_active() */
 	dai->stream[stream].active	+= action;
@@ -678,7 +715,6 @@ void snd_soc_dai_action(struct snd_soc_dai *dai,
 	/* see snd_soc_component_active() */
 	dai->component->active		+= action;
 }
-EXPORT_SYMBOL_GPL(snd_soc_dai_action);
 
 int snd_soc_dai_active(const struct snd_soc_dai *dai)
 {
@@ -686,7 +722,7 @@ int snd_soc_dai_active(const struct snd_soc_dai *dai)
 
 	active = 0;
 	for_each_pcm_streams(stream)
-		active += dai->stream[stream].active;
+		active += snd_soc_dai_stream_active(dai, stream);
 
 	return active;
 }
@@ -989,3 +1025,377 @@ int snd_soc_dai_compr_get_metadata(struct snd_soc_dai *dai,
 	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_compr_get_metadata);
+
+/**
+ * snd_soc_dai_add_controls - add an array of controls to a DAI.
+ * Convenience function to add a list of controls.
+ *
+ * @dai: DAI to add controls to
+ * @controls: array of controls to add
+ * @num_controls: number of elements in the array
+ *
+ * Return 0 for success, else error.
+ */
+int snd_soc_dai_add_controls(struct snd_soc_dai *dai,
+			     const struct snd_kcontrol_new *controls, int num_controls)
+{
+	struct snd_card *card = dai->component->card->snd_card;
+
+	return snd_soc_add_controls(card, dai->dev, controls, num_controls, NULL, dai);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_add_controls);
+
+int snd_soc_dai_matches_args(const struct snd_soc_dai *dai,
+			     const struct of_phandle_args *args2)
+{
+	const struct of_phandle_args *args1 = dai->driver->dai_args;
+
+	if (!args1 || !args2)
+		return 0;
+
+	if (args1->np != args2->np)
+		return 0;
+
+	for (int i = 0; i < args1->args_count; i++)
+		if (args1->args[i] != args2->args[i])
+			return 0;
+
+	return 1;
+}
+
+int snd_soc_dai_matches_dlc(struct snd_soc_dai *dai,
+			    const struct snd_soc_dai_link_component *dlc)
+{
+	if (!dlc)
+		return 0;
+
+	if (dlc->dai_args)
+		return snd_soc_dai_matches_args(dai, dlc->dai_args);
+
+	if (!dlc->dai_name)
+		return 1;
+
+	/* see snd_soc_dai_name() */
+
+	if (dai->driver->name &&
+	    strcmp(dlc->dai_name, dai->driver->name) == 0)
+		return 1;
+
+	if (strcmp(dlc->dai_name, dai->name) == 0)
+		return 1;
+
+	if (dai->component->name &&
+	    strcmp(dlc->dai_name, dai->component->name) == 0)
+		return 1;
+
+	return 0;
+}
+
+const char *snd_soc_dai_name(const struct snd_soc_dai *dai)
+{
+	/* see snd_soc_dai_matches_dlc() */
+	if (dai->driver->name)
+		return dai->driver->name;
+
+	if (dai->name)
+		return dai->name;
+
+	if (dai->component->name)
+		return dai->component->name;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_name);
+
+int snd_soc_dai_id(const struct snd_soc_dai *dai)
+{
+	return dai->id;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_id);
+
+const struct snd_soc_pcm_stream *
+snd_soc_dai_pcm_stream_get_i(const struct snd_soc_dai *dai, int stream)
+{
+	return (stream == SNDRV_PCM_STREAM_PLAYBACK) ?
+		&dai->driver->playback : &dai->driver->capture;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_pcm_stream_get_i);
+
+struct snd_soc_dapm_widget *snd_soc_dai_stream_widget_get(struct snd_soc_dai *dai, int stream)
+{
+	return dai->stream[stream].widget;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_stream_widget_get);
+
+void snd_soc_dai_stream_widget_set(struct snd_soc_dai *dai, int stream, struct snd_soc_dapm_widget *widget)
+{
+	dai->stream[stream].widget = widget;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_stream_widget_set);
+
+void *snd_soc_dai_stream_dma_data_get_i(const struct snd_soc_dai *dai, int stream)
+{
+	return dai->stream[stream].dma_data;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_stream_dma_data_get_i);
+
+void snd_soc_dai_stream_dma_data_set_i(struct snd_soc_dai *dai, int stream, void *data)
+{
+	dai->stream[stream].dma_data = data;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_stream_dma_data_set_i);
+
+unsigned int snd_soc_dai_stream_tdm_mask_get(const struct snd_soc_dai *dai, int stream)
+{
+	return dai->stream[stream].tdm_mask;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_stream_tdm_mask_get);
+
+void snd_soc_dai_stream_tdm_mask_set(struct snd_soc_dai *dai, int stream, unsigned int tdm_mask)
+{
+	dai->stream[stream].tdm_mask = tdm_mask;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_stream_tdm_mask_set);
+
+unsigned int snd_soc_dai_stream_active(const struct snd_soc_dai *dai, int stream)
+{
+	/* see snd_soc_dai_active_update() for setup */
+	return dai->stream[stream].active;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_stream_active);
+
+/**
+ * snd_soc_dai_set_stream() - Configures a DAI for stream operation
+ * @dai: DAI
+ * @stream: STREAM (opaque structure depending on DAI type)
+ * @direction: Stream direction(Playback/Capture)
+ * Some subsystems, such as SoundWire, don't have a notion of direction and we reuse
+ * the ASoC stream direction to configure sink/source ports.
+ * Playback maps to source ports and Capture for sink ports.
+ *
+ * This should be invoked with NULL to clear the stream set previously.
+ * Returns 0 on success, a negative error code otherwise.
+ */
+int snd_soc_dai_set_stream(struct snd_soc_dai *dai, void *stream, int direction)
+{
+	if (dai->driver->ops->set_stream)
+		return dai->driver->ops->set_stream(dai, stream, direction);
+	else
+		return -ENOTSUPP;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_set_stream);
+
+/**
+ * snd_soc_dai_get_stream() - Retrieves stream from DAI
+ * @dai: DAI
+ * @direction: Stream direction(Playback/Capture)
+ *
+ * This routine only retrieves that was previously configured
+ * with snd_soc_dai_get_stream()
+ *
+ * Returns pointer to stream or an ERR_PTR value, e.g.
+ * ERR_PTR(-ENOTSUPP) if callback is not supported;
+ */
+void *snd_soc_dai_get_stream(struct snd_soc_dai *dai, int direction)
+{
+	if (dai->driver->ops->get_stream)
+		return dai->driver->ops->get_stream(dai, direction);
+	else
+		return ERR_PTR(-ENOTSUPP);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_get_stream);
+
+void snd_soc_dai_unregister(struct snd_soc_dai *dai)
+{
+	lockdep_assert_held(&client_mutex);
+
+	dev_dbg(dai->dev, "ASoC: Unregistered DAI '%s'\n", dai->name);
+	list_del(&dai->list);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_unregister);
+
+/**
+ * snd_soc_dai_register - Register a DAI dynamically & create its widgets
+ *
+ * @component: The component the DAIs are registered for
+ * @dai_drv: DAI driver to use for the DAI
+ * @legacy_dai_naming: if %true, use legacy single-name format;
+ * 	if %false, use multiple-name format;
+ *
+ * Topology can use this API to register DAIs when probing a component.
+ * These DAIs's widgets will be freed in the card cleanup and the DAIs
+ * will be freed in the component cleanup.
+ */
+struct snd_soc_dai *snd_soc_dai_register(struct snd_soc_component *component,
+					 struct snd_soc_dai_driver *dai_drv,
+					 bool legacy_dai_naming)
+{
+	struct device *dev = component->dev;
+	struct snd_soc_dai *dai;
+
+	lockdep_assert_held(&client_mutex);
+
+	dai = devm_kzalloc(dev, sizeof(*dai), GFP_KERNEL);
+	if (dai == NULL)
+		return NULL;
+
+	/*
+	 * Back in the old days when we still had component-less DAIs,
+	 * instead of having a static name, component-less DAIs would
+	 * inherit the name of the parent device so it is possible to
+	 * register multiple instances of the DAI. We still need to keep
+	 * the same naming style even though those DAIs are not
+	 * component-less anymore.
+	 */
+	if (legacy_dai_naming &&
+	    (dai_drv->id == 0 || dai_drv->name == NULL)) {
+		dai->name = snd_soc_fmt_single_name(dev, &dai->id);
+	} else {
+		dai->name = snd_soc_fmt_multiple_name(dev, dai_drv);
+		if (dai_drv->id)
+			dai->id = dai_drv->id;
+		else
+			dai->id = component->num_dai;
+	}
+	if (!dai->name)
+		return NULL;
+
+	dai->component = component;
+	dai->dev = dev;
+	dai->driver = dai_drv;
+
+	/* see for_each_component_dais */
+	list_add_tail(&dai->list, &component->dai_list);
+	component->num_dai++;
+
+	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
+	return dai;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_register);
+
+unsigned int snd_soc_dai_get_symmetric_rate(struct snd_soc_dai *dai)
+{
+	return dai->symmetric_rate;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_get_symmetric_rate);
+
+unsigned int snd_soc_dai_get_symmetric_channels(struct snd_soc_dai *dai)
+{
+	return dai->symmetric_channels;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_get_symmetric_channels);
+
+unsigned int snd_soc_dai_get_symmetric_sample_bits(struct snd_soc_dai *dai)
+{
+	return dai->symmetric_sample_bits;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_get_symmetric_sample_bits);
+
+void snd_soc_dai_symmetric_set_params(struct snd_soc_dai *dai,
+				      struct snd_pcm_hw_params *params)
+{
+	if (params) {
+		dai->symmetric_rate	   = params_rate(params);
+		dai->symmetric_channels	   = params_channels(params);
+		dai->symmetric_sample_bits = snd_pcm_format_physical_width(params_format(params));
+	} else {
+		dai->symmetric_rate	   = 0;
+		dai->symmetric_channels	   = 0;
+		dai->symmetric_sample_bits = 0;
+	}
+}
+
+int snd_soc_dai_symmetric_apply(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	int ret;
+
+	if (!snd_soc_dai_active(dai))
+		return 0;
+
+#define __symmetric_apply(name, NAME)							\
+	if (dai->symmetric_##name &&							\
+	    (dai->driver->symmetric_##name || rtd->dai_link->symmetric_##name)) {	\
+		dev_dbg(dai->dev, "ASoC: Symmetry forces %s to %d\n",			\
+			#name, dai->symmetric_##name);					\
+											\
+		ret = snd_pcm_hw_constraint_single(substream->runtime,			\
+						   SNDRV_PCM_HW_PARAM_##NAME,		\
+						   dai->symmetric_##name);		\
+		if (ret < 0)								\
+			return snd_soc_ret(dai->dev, ret,				\
+					   "Unable to apply %s constraint\n", #name);	\
+	}
+
+	__symmetric_apply(rate,		RATE);
+	__symmetric_apply(channels,	CHANNELS);
+	__symmetric_apply(sample_bits,	SAMPLE_BITS);
+
+	return 0;
+}
+
+int snd_soc_dai_symmetric_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai d;
+	struct snd_soc_dai *dai;
+	struct snd_soc_dai *cpu_dai;
+	unsigned int symmetry, i;
+
+	d.name = __func__;
+	snd_soc_dai_symmetric_set_params(&d, params);
+
+#define __symmetric_params(xxx)						\
+	symmetry = rtd->dai_link->symmetric_##xxx;			\
+	for_each_rtd_dais(rtd, i, dai)					\
+		symmetry |= dai->driver->symmetric_##xxx;		\
+									\
+	if (symmetry)							\
+		for_each_rtd_cpu_dais(rtd, i, cpu_dai)			\
+			if (!snd_soc_dai_is_dummy(cpu_dai) &&		\
+			    cpu_dai->symmetric_##xxx &&			\
+			    cpu_dai->symmetric_##xxx != d.symmetric_##xxx) \
+				return snd_soc_ret(rtd->dev, -EINVAL,	\
+						   "unmatched %s symmetry: %s:%d - %s:%d\n", \
+						   #xxx, cpu_dai->name, cpu_dai->symmetric_##xxx, \
+						   d.name, d.symmetric_##xxx);
+
+	/* reject unmatched parameters when applying symmetry */
+	__symmetric_params(rate);
+	__symmetric_params(channels);
+	__symmetric_params(sample_bits);
+
+	return 0;
+}
+
+void snd_soc_dai_symmetric_update(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai_link *link = rtd->dai_link;
+	struct snd_soc_dai *dai;
+	unsigned int symmetry, i;
+
+	symmetry = link->symmetric_rate		||
+		   link->symmetric_channels	||
+		   link->symmetric_sample_bits;
+
+	for_each_rtd_dais(rtd, i, dai)
+		symmetry = symmetry				||
+			   dai->driver->symmetric_rate		||
+			   dai->driver->symmetric_channels	||
+			   dai->driver->symmetric_sample_bits;
+
+	if (symmetry)
+		substream->runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
+}
+
+struct clk *snd_soc_dai_get_bclk(struct snd_soc_dai *dai)
+{
+	return dai->bclk;
+}
+
+unsigned int snd_soc_dai_get_bclk_ratio(struct snd_soc_dai *dai)
+{
+	return dai->bclk_ratio;
+}

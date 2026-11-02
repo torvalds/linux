@@ -766,7 +766,7 @@ static void dm_insert_exception(struct dm_exception_table *eh,
 				struct dm_exception *new_e)
 {
 	struct hlist_head *l;
-	struct dm_exception *e = NULL;
+	struct dm_exception *e = NULL, *prev = NULL;
 
 	l = &eh->table[exception_hash(eh, new_e->old_chunk)].head;
 
@@ -798,21 +798,23 @@ static void dm_insert_exception(struct dm_exception_table *eh,
 
 		if (new_e->old_chunk < e->old_chunk)
 			break;
+
+		prev = e;
 	}
 
 out:
-	if (!e) {
+	if (e && new_e->old_chunk < e->old_chunk) {
+		/* Add before an existing exception */
+		hlist_add_before(&new_e->hash_list, &e->hash_list);
+	} else if (prev) {
+		/* Add to l's tail: prev is the last exception in this slot */
+		hlist_add_behind(&new_e->hash_list, &prev->hash_list);
+	} else {
 		/*
 		 * Either the table doesn't support consecutive chunks or slot
 		 * l is empty.
 		 */
 		hlist_add_head(&new_e->hash_list, l);
-	} else if (new_e->old_chunk < e->old_chunk) {
-		/* Add before an existing exception */
-		hlist_add_before(&new_e->hash_list, &e->hash_list);
-	} else {
-		/* Add to l's tail: e is the last exception in this slot */
-		hlist_add_behind(&new_e->hash_list, &e->hash_list);
 	}
 }
 

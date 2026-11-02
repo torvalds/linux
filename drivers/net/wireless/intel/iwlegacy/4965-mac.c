@@ -4520,120 +4520,6 @@ il4965_irq_tasklet(struct tasklet_struct *t)
 #endif
 }
 
-/*****************************************************************************
- *
- * sysfs attributes
- *
- *****************************************************************************/
-
-#ifdef CONFIG_IWLEGACY_DEBUG
-
-/*
- * The following adds a new attribute to the sysfs representation
- * of this device driver (i.e. a new file in /sys/class/net/wlan0/device/)
- * used for controlling the debug level.
- *
- * See the level definitions in iwl for details.
- *
- * The debug_level being managed using sysfs below is a per device debug
- * level that is used instead of the global debug level if it (the per
- * device debug level) is set.
- */
-static ssize_t
-il4965_show_debug_level(struct device *d, struct device_attribute *attr,
-			char *buf)
-{
-	struct il_priv *il = dev_get_drvdata(d);
-	return sprintf(buf, "0x%08X\n", il_get_debug_level(il));
-}
-
-static ssize_t
-il4965_store_debug_level(struct device *d, struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-	struct il_priv *il = dev_get_drvdata(d);
-	unsigned long val;
-	int ret;
-
-	ret = kstrtoul(buf, 0, &val);
-	if (ret)
-		IL_ERR("%s is not in hex or decimal form.\n", buf);
-	else
-		il->debug_level = val;
-
-	return strnlen(buf, count);
-}
-
-static DEVICE_ATTR(debug_level, 0644, il4965_show_debug_level,
-		   il4965_store_debug_level);
-
-#endif /* CONFIG_IWLEGACY_DEBUG */
-
-static ssize_t
-il4965_show_temperature(struct device *d, struct device_attribute *attr,
-			char *buf)
-{
-	struct il_priv *il = dev_get_drvdata(d);
-
-	if (!il_is_alive(il))
-		return -EAGAIN;
-
-	return sprintf(buf, "%d\n", il->temperature);
-}
-
-static DEVICE_ATTR(temperature, 0444, il4965_show_temperature, NULL);
-
-static ssize_t
-il4965_show_tx_power(struct device *d, struct device_attribute *attr, char *buf)
-{
-	struct il_priv *il = dev_get_drvdata(d);
-
-	if (!il_is_ready_rf(il))
-		return sprintf(buf, "off\n");
-	else
-		return sprintf(buf, "%d\n", il->tx_power_user_lmt);
-}
-
-static ssize_t
-il4965_store_tx_power(struct device *d, struct device_attribute *attr,
-		      const char *buf, size_t count)
-{
-	struct il_priv *il = dev_get_drvdata(d);
-	unsigned long val;
-	int ret;
-
-	ret = kstrtoul(buf, 10, &val);
-	if (ret)
-		IL_INFO("%s is not in decimal form.\n", buf);
-	else {
-		mutex_lock(&il->mutex);
-		ret = il_set_tx_power(il, val, false);
-		mutex_unlock(&il->mutex);
-		if (ret)
-			IL_ERR("failed setting tx power (0x%08x).\n", ret);
-		else
-			ret = count;
-	}
-	return ret;
-}
-
-static DEVICE_ATTR(tx_power, 0644, il4965_show_tx_power,
-		   il4965_store_tx_power);
-
-static struct attribute *il_sysfs_entries[] = {
-	&dev_attr_temperature.attr,
-	&dev_attr_tx_power.attr,
-#ifdef CONFIG_IWLEGACY_DEBUG
-	&dev_attr_debug_level.attr,
-#endif
-	NULL
-};
-
-static const struct attribute_group il_attribute_group = {
-	.name = NULL,		/* put in device directory */
-	.attrs = il_sysfs_entries,
-};
-
 /******************************************************************************
  *
  * uCode download functions
@@ -4967,12 +4853,6 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 		goto out_unbind;
 
 	il_dbgfs_register(il, DRV_NAME);
-
-	err = sysfs_create_group(&il->pci_dev->dev.kobj, &il_attribute_group);
-	if (err) {
-		IL_ERR("failed to create sysfs device attributes\n");
-		goto out_unbind;
-	}
 
 	/* We have our copies now, allow OS release its copies */
 	release_firmware(ucode_raw);
@@ -6699,7 +6579,6 @@ il4965_pci_remove(struct pci_dev *pdev)
 	D_INFO("*** UNLOAD DRIVER ***\n");
 
 	il_dbgfs_unregister(il);
-	sysfs_remove_group(&pdev->dev.kobj, &il_attribute_group);
 
 	/* ieee80211_unregister_hw call wil cause il_mac_stop to
 	 * be called and il4965_down since we are removing the device

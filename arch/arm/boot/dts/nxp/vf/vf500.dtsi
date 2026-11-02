@@ -18,6 +18,12 @@
 		a5_cpu: cpu@0 {
 			compatible = "arm,cortex-a5";
 			device_type = "cpu";
+			d-cache-line-size = <32>;
+			d-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			i-cache-line-size = <32>;
+			i-cache-sets = <512>;
+			i-cache-size = <0x8000>;
 			reg = <0x0>;
 		};
 	};

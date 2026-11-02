@@ -94,20 +94,20 @@ examples:
         audio-routing = "I2S ENCODER I2S IN", "I2S FIFO Playback";
 
         dai-link-0 {
-               sound-dai = <&i2s_fifo>;
+            sound-dai = <&i2s_fifo>;
         };
 
         dai-link-1 {
-                sound-dai = <&i2s_encoder>;
-                dai-format = "i2s";
-                mclk-fs = <256>;
+            sound-dai = <&i2s_encoder>;
+            dai-format = "i2s";
+            mclk-fs = <256>;
 
-                codec-0 {
-                        sound-dai = <&codec0>;
-                };
+            codec-0 {
+                sound-dai = <&codec0>;
+            };
 
-                codec-1 {
-                        sound-dai = <&codec1>;
-                };
+            codec-1 {
+                sound-dai = <&codec1>;
+            };
         };
     };

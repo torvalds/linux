@@ -7,6 +7,8 @@
 #ifndef __iwl_fw_api_mac_cfg_h__
 #define __iwl_fw_api_mac_cfg_h__
 
+#include <linux/ieee80211-p2p.h>
+
 #include "mac.h"
 #include "phy-ctxt.h"
 
@@ -663,7 +665,13 @@ struct iwl_npca_params {
  * @puncture_mask: puncture mask for EHT (removed in VER_3)
  * @frame_time_rts_th: HE duration RTS threshold, in units of 32us
  * @flags: a combination from &enum iwl_link_ctx_flags
- * @flags_mask: what of %flags have changed. Also &enum iwl_link_ctx_flags
+ * @flags_mask: what of %flags have changed. Also &enum iwl_link_ctx_flags.
+ *	Removed in _VER_6, reused as @reserved4 / @max_bssid_indicator
+ *	in _VER_9.
+ * @reserved4: reserved
+ * @max_bssid_indicator: N where 2**N is the max number of BSSIDs the physical
+ *	AP can support (multi-BSS or EMCCA set). 0 disables the feature.
+ *	Since _VER_9.
  * Below fields are for multi-bssid:
  * @ref_bssid_addr: reference BSSID used by the AP
  * @reserved_for_ref_bssid_addr: reserved
@@ -704,17 +712,23 @@ struct iwl_link_config_cmd {
 	/* MAC_QOS_PARAM_API_S_VER_1 */
 	__le32 qos_flags;
 	struct iwl_ac_qos ac[AC_NUM + 1];
-	u8 htc_trig_based_pkt_ext;
-	u8 rand_alloc_ecwmin;
-	u8 rand_alloc_ecwmax;
+	u8 htc_trig_based_pkt_ext; /* removed in _VER_9 */
+	u8 rand_alloc_ecwmin;      /* removed in _VER_9 */
+	u8 rand_alloc_ecwmax;      /* removed in _VER_9 */
 	u8 ndp_fdbk_buff_th_exp;
 	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
 	__le32 bi;
 	__le32 dtim_interval;
 	__le16 puncture_mask; /* removed in _VER_3 */
-	__le16 frame_time_rts_th;
+	__le16 frame_time_rts_th; /* removed in _VER_9 */
 	__le32 flags;
-	__le32 flags_mask; /* removed in _VER_6 */
+	union {
+		__le32 flags_mask; /* removed in _VER_6 */
+		struct {
+			u8 reserved4[3];
+			u8 max_bssid_indicator; /* since _VER_9 */
+		};
+	};
 	/* The below fields are for multi-bssid */
 	u8 ref_bssid_addr[6];
 	__le16 reserved_for_ref_bssid_addr;
@@ -728,7 +742,9 @@ struct iwl_link_config_cmd {
 	struct iwl_ac_qos prio_edca_params; /* since _VER_7 */
 	__le32 reserved3[4];
 } __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4,
-	     *				    _VER_5, _VER_6, _VER_7, _VER_8 */
+	     *				    _VER_5, _VER_6, _VER_7, _VER_8,
+	     *				    _VER_9
+	     */
 
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.
@@ -868,8 +884,8 @@ struct iwl_sta_cfg_cmd_v1 {
  * @dps_pad_time: DPS (Dynamic Power Save) padding delay resolution to ensure
  *	proper timing alignment
  * @dps_trans_delay: DPS minimal time that takes the peer to return to low power
- * @mic_prep_pad_delay: MIC prep time padding
- * @mic_compute_pad_delay: MIC compute time padding
+ * @mic_prep_pad_delay: MIC prep time padding (4 us resolution)
+ * @mic_compute_pad_delay: MIC compute time padding (4 us resolution)
  * @reserved: Reserved for alignment
  */
 struct iwl_sta_cfg_cmd_v2 {
@@ -924,8 +940,13 @@ struct iwl_sta_cfg_cmd_v2 {
  * @mimo_protection: indicates whether the sta uses mimo protection or not
  * @ack_enabled: indicates that the AP supports receiving ACK-
  *	enabled AGG, i.e. both BACK and non-BACK frames in a single AGG
- * @trig_rnd_alloc: indicates that trigger based random allocation
- *	is enabled according to UORA element existence
+ * @cip_defer: delay the usage of the unicast control frame protection until
+ *	after association.
+ *	Only supported from command version 4, must be left cleared otherwise.
+ * @epp_robust: indicates that EPP robust individually addressed management
+ *	frame support was negotiated during association.
+ *	Only supported from command version 4, must be left cleared otherwise.
+ * @reserved1: Reserved for alignment
  * @tx_ampdu_spacing: minimum A-MPDU spacing:
  *	4 - 2us density, 5 - 4us density, 6 - 8us density, 7 - 16us density
  * @tx_ampdu_max_size: maximum A-MPDU length: 0 - 8K, 1 - 16K, 2 - 32K,
@@ -942,8 +963,8 @@ struct iwl_sta_cfg_cmd_v2 {
  *	proper timing alignment
  * @dps_trans_delay: DPS minimal time that takes the peer to return to low power
  * @dps_enabled: flag indicating whether or not DPS is enabled
- * @mic_prep_pad_delay: MIC prep time padding
- * @mic_compute_pad_delay: MIC compute time padding
+ * @mic_prep_pad_delay: MIC prep time padding (4 us resolution)
+ * @mic_compute_pad_delay: MIC compute time padding (4 us resolution)
  * @nmi_sta_id: for an NDI peer STA, the NMI peer STA ID it relates to
  * @ndi_local_addr: for an NDI peer STA or NAN multicast data station,
  *	the local NDI interface MAC address
@@ -963,7 +984,9 @@ struct iwl_sta_cfg_cmd {
 	__le32 mimo;
 	__le32 mimo_protection;
 	__le32 ack_enabled;
-	__le32 trig_rnd_alloc;
+	u8 cip_defer;
+	u8 epp_robust;
+	__le16 reserved1;
 	__le32 tx_ampdu_spacing;
 	__le32 tx_ampdu_max_size;
 	__le32 sp_length;
@@ -980,7 +1003,7 @@ struct iwl_sta_cfg_cmd {
 	u8 nmi_sta_id;
 	u8 ndi_local_addr[ETH_ALEN];
 	u8 reserved[2];
-} __packed; /* STA_CMD_API_S_VER_3 */
+} __packed; /* STA_CMD_API_S_VER_3, STA_CMD_API_S_VER_4 */
 
 /**
  * struct iwl_aux_sta_cmd - command for AUX STA configuration

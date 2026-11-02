@@ -7,8 +7,8 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 
-// For dce12_get_dp_ref_freq_khz
-#include "dce100/dce_clk_mgr.h"
+// For dcn10_get_dp_ref_freq_khz
+#include "dcn10/dcn10_clk_mgr.h"
 
 // For dcn20_update_clocks_update_dpp_dto
 #include "dcn20/dcn20_clk_mgr.h"
@@ -214,6 +214,7 @@ void dcn42_update_clocks(struct clk_mgr *clk_mgr_base,
 {
 	union dmub_rb_cmd cmd;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct clk_mgr_dcn42 *clk_mgr_dcn42 = TO_CLK_MGR_DCN42(clk_mgr);
 	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct dc *dc = clk_mgr_base->ctx->dc;
 	bool update_dppclk = false;
@@ -364,6 +365,16 @@ void dcn42_update_clocks(struct clk_mgr *clk_mgr_base,
 		clk_mgr_base->clks.dcfclk_deep_sleep_khz;
 	cmd.notify_clocks.clocks.dispclk_khz = clk_mgr_base->clks.dispclk_khz;
 	cmd.notify_clocks.clocks.dppclk_khz = clk_mgr_base->clks.dppclk_khz;
+	/* Communicate the minimum (DPM0) clocks and bypass ceiling so DMUB does not
+	 * assume hardcoded per-ASIC values (e.g. for Z8-Retention clock lowering).
+	 * DPM0 is the lowest populated DPM level (entries[0]); 0 when the SMU DPM
+	 * table is unavailable, in which case DMUB falls back to its own defaults.
+	 */
+	cmd.notify_clocks.clocks.dpm0_dispclk_khz =
+		clk_mgr_base->bw_params->clk_table.entries[0].dispclk_mhz * 1000;
+	cmd.notify_clocks.clocks.dpm0_dppclk_khz =
+		clk_mgr_base->bw_params->clk_table.entries[0].dppclk_mhz * 1000;
+	cmd.notify_clocks.clocks.max_bypass_clk_khz = clk_mgr_dcn42->max_bypass_clk_khz;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
@@ -381,7 +392,7 @@ void dcn42_notify_cstate_disable(struct clk_mgr *clk_mgr_base, bool disable)
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	bool target_allow = !disable;
 
-	DC_LOGGER_INIT(clk_mgr_base->ctx->logger);
+DC_LOGGER_INIT(clk_mgr_base->ctx->logger);
 
 	/* Idempotent: only send when the cached vote actually changes. */
 	if (clk_mgr_base->clks.cstate_allow == target_allow)
@@ -608,7 +619,7 @@ void dcn42_init_clocks(struct clk_mgr *clk_mgr_base)
 	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct clk_mgr_dcn42 *clk_mgr = TO_CLK_MGR_DCN42(clk_mgr_int);
 
-	DC_LOGGER_INIT(clk_mgr_base->ctx->logger);
+DC_LOGGER_INIT(clk_mgr_base->ctx->logger);
 	(void)dc_logger;
 
 	init_clk_states(clk_mgr_base);
@@ -625,7 +636,7 @@ void dcn42_init_clocks(struct clk_mgr *clk_mgr_base)
 	// to adjust dp_dto reference clock if ssc is enable otherwise to apply dprefclk
 	if (dcn42_is_spll_ssc_enabled(clk_mgr_base))
 		clk_mgr_base->dp_dto_source_clock_in_khz =
-			dce_adjust_dp_ref_freq_for_ss(clk_mgr_int, clk_mgr_base->dprefclk_khz);
+			dcn10_adjust_dp_ref_freq_for_ss(clk_mgr_int, clk_mgr_base->dprefclk_khz);
 	else
 		clk_mgr_base->dp_dto_source_clock_in_khz = clk_mgr_base->dprefclk_khz;
 
@@ -803,7 +814,7 @@ void dcn42_set_low_power_state(struct clk_mgr *clk_mgr_base)
 
 void dcn42_exit_low_power_state(struct clk_mgr *clk_mgr_base)
 {
-	(void)clk_mgr_base;
+(void)clk_mgr_base;
 
 }
 
@@ -912,7 +923,7 @@ int dcn42_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
 	unsigned int disp_divider;
 
 	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, &dispclk_wdivider);
-	disp_divider = dentist_get_divider_from_did(dispclk_wdivider);
+	disp_divider = dcn10_dentist_get_divider_from_did(dispclk_wdivider);
 
 	/* Return DISPCLK freq in Khz */
 	if (disp_divider)
@@ -1074,7 +1085,7 @@ void dcn42_request_dtbclk(struct clk_mgr *clk_mgr_base, bool enable)
 	}
 }
 static struct clk_mgr_funcs dcn42_funcs = {
-	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 	.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
 	.update_clocks = dcn42_update_clocks,
 	.init_clocks = dcn42_init_clocks,
@@ -1091,7 +1102,7 @@ static struct clk_mgr_funcs dcn42_funcs = {
 };
 
 struct clk_mgr_funcs dcn42_fpga_funcs = {
-	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 	.update_clocks = dcn42_update_clocks_fpga,
 	.init_clocks = dcn42_init_clocks_fpga,
 	.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
@@ -1104,6 +1115,7 @@ void dcn42_clk_mgr_construct(
 		struct dccg *dccg)
 {
 	clk_mgr->base.base.ctx = ctx;
+	clk_mgr->base.base.inst = 0;
 	clk_mgr->base.base.funcs = &dcn42_funcs;
 	clk_mgr->base.regs = &clk_mgr_regs_dcn42;
 	clk_mgr->base.clk_mgr_shift = &clk_mgr_shift_dcn42;
@@ -1113,6 +1125,7 @@ void dcn42_clk_mgr_construct(
 
 	clk_mgr->base.dccg = dccg;
 	clk_mgr->base.dfs_bypass_disp_clk = 0;
+	clk_mgr->max_bypass_clk_khz = 0;
 
 	clk_mgr->base.dprefclk_ss_percentage = 0;
 	clk_mgr->base.dprefclk_ss_divider = 1000;
@@ -1153,7 +1166,7 @@ void dcn42_clk_mgr_construct(
 		/* Saved clocks configured at boot for debug purposes */
 		dcn42_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, clk_mgr);
 
-	dce_clock_read_ss_info(&clk_mgr->base);
+	dcn10_clock_read_ss_info(&clk_mgr->base);
 	/*when clk src is from FCH, it could have ss, same clock src as DPREF clk*/
 
 	dcn42_read_ss_info_from_lut(&clk_mgr->base);

@@ -70,21 +70,12 @@ static void hv_signal_on_write(u32 old_write, struct vmbus_channel *channel)
 	}
 }
 
-/* Get the next write location for the specified ring buffer. */
-static inline u32
-hv_get_next_write_location(struct hv_ring_buffer_info *ring_info)
-{
-	u32 next = ring_info->ring_buffer->write_index;
-
-	return next;
-}
-
 /* Set the next write location for the specified ring buffer. */
 static inline void
 hv_set_next_write_location(struct hv_ring_buffer_info *ring_info,
 		     u32 next_write_location)
 {
-	ring_info->ring_buffer->write_index = next_write_location;
+	WRITE_ONCE(ring_info->ring_buffer->write_index, next_write_location);
 }
 
 /* Get the size of the ring buffer. */
@@ -92,13 +83,6 @@ static inline u32
 hv_get_ring_buffersize(const struct hv_ring_buffer_info *ring_info)
 {
 	return ring_info->ring_datasize;
-}
-
-/* Get the read and write indices as u64 of the specified ring buffer. */
-static inline u64
-hv_get_ring_bufferindices(struct hv_ring_buffer_info *ring_info)
-{
-	return (u64)ring_info->ring_buffer->write_index << 32;
 }
 
 /*
@@ -123,35 +107,12 @@ static u32 hv_copyto_ringbuffer(
 	return start_write_offset;
 }
 
-/*
- *
- * hv_get_ringbuffer_availbytes()
- *
- * Get number of bytes available to read and to write to
- * for the specified ring buffer
- */
-static void
-hv_get_ringbuffer_availbytes(const struct hv_ring_buffer_info *rbi,
-			     u32 *read, u32 *write)
-{
-	u32 read_loc, write_loc, dsize;
-
-	/* Capture the read/write indices before they changed */
-	read_loc = READ_ONCE(rbi->ring_buffer->read_index);
-	write_loc = READ_ONCE(rbi->ring_buffer->write_index);
-	dsize = rbi->ring_datasize;
-
-	*write = write_loc >= read_loc ? dsize - (write_loc - read_loc) :
-		read_loc - write_loc;
-	*read = dsize - *write;
-}
-
 /* Get various debug metrics for the specified ring buffer. */
 int hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 				struct hv_ring_buffer_debug_info *debug_info)
 {
-	u32 bytes_avail_towrite;
-	u32 bytes_avail_toread;
+	u32 read_index;
+	u32 write_index;
 
 	mutex_lock(&ring_info->ring_buffer_mutex);
 
@@ -160,13 +121,14 @@ int hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 		return -EINVAL;
 	}
 
-	hv_get_ringbuffer_availbytes(ring_info,
-				     &bytes_avail_toread,
-				     &bytes_avail_towrite);
-	debug_info->bytes_avail_toread = bytes_avail_toread;
-	debug_info->bytes_avail_towrite = bytes_avail_towrite;
-	debug_info->current_read_index = ring_info->ring_buffer->read_index;
-	debug_info->current_write_index = ring_info->ring_buffer->write_index;
+	read_index = READ_ONCE(ring_info->ring_buffer->read_index);
+	write_index = READ_ONCE(ring_info->ring_buffer->write_index);
+	debug_info->bytes_avail_toread =
+		hv_ringbuffer_avail_read(ring_info, read_index, write_index);
+	debug_info->bytes_avail_towrite =
+		hv_ringbuffer_avail_write(ring_info, read_index, write_index);
+	debug_info->current_read_index = read_index;
+	debug_info->current_write_index = write_index;
 	debug_info->current_interrupt_mask
 		= ring_info->ring_buffer->interrupt_mask;
 	mutex_unlock(&ring_info->ring_buffer_mutex);
@@ -281,6 +243,7 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	u32 totalbytes_towrite = sizeof(u64);
 	u32 next_write_location;
 	u32 old_write;
+	u32 read_index;
 	u64 prev_indices;
 	unsigned long flags;
 	struct hv_ring_buffer_info *outring_info = &channel->outbound;
@@ -295,7 +258,19 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 
 	spin_lock_irqsave(&outring_info->ring_lock, flags);
 
-	bytes_avail_towrite = hv_get_bytes_to_write(outring_info);
+	read_index = READ_ONCE(outring_info->ring_buffer->read_index);
+	old_write = READ_ONCE(outring_info->ring_buffer->write_index);
+	if (unlikely(hv_ringbuffer_indices_invalid(outring_info, read_index,
+						   old_write))) {
+		spin_unlock_irqrestore(&outring_info->ring_lock, flags);
+		pr_err_ratelimited("outbound ring indices out of range: relid %u read %u write %u size %u\n",
+				   channel->offermsg.child_relid, read_index,
+				   old_write, outring_info->ring_datasize);
+		return -EIO;
+	}
+
+	bytes_avail_towrite = hv_ringbuffer_avail_write(outring_info, read_index,
+							old_write);
 
 	/*
 	 * If there is only room for the packet, assume it is full.
@@ -317,9 +292,7 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	channel->out_full_flag = false;
 
 	/* Write to the ring buffer */
-	next_write_location = hv_get_next_write_location(outring_info);
-
-	old_write = next_write_location;
+	next_write_location = old_write;
 
 	for (i = 0; i < kv_count; i++) {
 		next_write_location = hv_copyto_ringbuffer(outring_info,
@@ -355,7 +328,7 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 		*trans_id = __trans_id;
 
 	/* Set previous packet start */
-	prev_indices = hv_get_ring_bufferindices(outring_info);
+	prev_indices = (u64)old_write << 32;
 
 	next_write_location = hv_copyto_ringbuffer(outring_info,
 					     next_write_location,
@@ -435,8 +408,9 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
  * This is similar to hv_get_bytes_to_read but with private
  * read index instead.
  */
-static u32 hv_pkt_iter_avail(const struct hv_ring_buffer_info *rbi)
+static u32 hv_pkt_iter_avail(const struct vmbus_channel *channel)
 {
+	const struct hv_ring_buffer_info *rbi = &channel->inbound;
 	u32 priv_read_loc = rbi->priv_read_index;
 	u32 write_loc;
 
@@ -448,11 +422,15 @@ static u32 hv_pkt_iter_avail(const struct hv_ring_buffer_info *rbi)
 	 * stale data.
 	 */
 	write_loc = virt_load_acquire(&rbi->ring_buffer->write_index);
+	if (unlikely(hv_ringbuffer_indices_invalid(rbi, priv_read_loc,
+						   write_loc))) {
+		pr_err_ratelimited("inbound write index out of range: relid %u write %u size %u\n",
+				   channel->offermsg.child_relid, write_loc,
+				   rbi->ring_datasize);
+		return 0;
+	}
 
-	if (write_loc >= priv_read_loc)
-		return write_loc - priv_read_loc;
-	else
-		return (rbi->ring_datasize - priv_read_loc) + write_loc;
+	return hv_ringbuffer_avail_read(rbi, priv_read_loc, write_loc);
 }
 
 /*
@@ -468,7 +446,7 @@ struct vmpacket_descriptor *hv_pkt_iter_first(struct vmbus_channel *channel)
 
 	hv_debug_delay_test(channel, MESSAGE_DELAY);
 
-	bytes_avail = hv_pkt_iter_avail(rbi);
+	bytes_avail = hv_pkt_iter_avail(channel);
 	if (bytes_avail < sizeof(struct vmpacket_descriptor))
 		return NULL;
 	bytes_avail = min(rbi->pkt_buffer_size, bytes_avail);
@@ -572,6 +550,7 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 {
 	struct hv_ring_buffer_info *rbi = &channel->inbound;
 	u32 curr_write_sz, pending_sz, bytes_read, start_read_index;
+	u32 write_index;
 
 	/*
 	 * Make sure all reads are done before we update the read index since
@@ -579,16 +558,8 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	 * is updated.
 	 */
 	virt_rmb();
-	start_read_index = rbi->ring_buffer->read_index;
-	rbi->ring_buffer->read_index = rbi->priv_read_index;
-
-	/*
-	 * Older versions of Hyper-V (before WS2102 and Win8) do not
-	 * implement pending_send_sz and simply poll if the host->guest
-	 * ring buffer is full.  No signaling is needed or expected.
-	 */
-	if (!rbi->ring_buffer->feature_bits.feat_pending_send_sz)
-		return;
+	start_read_index = READ_ONCE(rbi->ring_buffer->read_index);
+	WRITE_ONCE(rbi->ring_buffer->read_index, rbi->priv_read_index);
 
 	/*
 	 * Issue a full memory barrier before making the signaling decision.
@@ -611,11 +582,17 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 		return;
 
 	/*
-	 * Ensure the read of write_index in hv_get_bytes_to_write()
-	 * happens after the read of pending_send_sz.
+	 * Ensure the read of write_index happens after the read of
+	 * pending_send_sz.
 	 */
 	virt_rmb();
-	curr_write_sz = hv_get_bytes_to_write(rbi);
+	write_index = READ_ONCE(rbi->ring_buffer->write_index);
+	if (unlikely(hv_ringbuffer_indices_invalid(rbi, start_read_index,
+						   write_index)))
+		return;
+
+	curr_write_sz = hv_ringbuffer_avail_write(rbi, rbi->priv_read_index,
+						  write_index);
 	bytes_read = hv_pkt_iter_bytes_read(rbi, start_read_index);
 
 	/*
@@ -631,8 +608,7 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	 * Exactly filling the ring buffer is treated as "not enough
 	 * space". The ring buffer always must have at least one byte
 	 * empty so the empty and full conditions are distinguishable.
-	 * hv_get_bytes_to_write() doesn't fully tell the truth in
-	 * this regard.
+	 * curr_write_sz doesn't fully tell the truth in this regard.
 	 *
 	 * So first check if we were in the "enough free space" state
 	 * before we began the iteration. If so, the host was not

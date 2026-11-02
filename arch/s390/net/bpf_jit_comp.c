@@ -723,7 +723,6 @@ bool ex_handler_bpf(const struct exception_table_entry *x, struct pt_regs *regs)
  */
 struct bpf_jit_probe {
 	int prg;	/* JITed instruction offset */
-	int nop_prg;	/* JITed nop offset */
 	int reg;	/* Register to clear on exception */
 	int arena_reg;	/* Register to use for arena addressing */
 };
@@ -731,27 +730,8 @@ struct bpf_jit_probe {
 static void bpf_jit_probe_init(struct bpf_jit_probe *probe)
 {
 	probe->prg = -1;
-	probe->nop_prg = -1;
 	probe->reg = -1;
 	probe->arena_reg = REG_0;
-}
-
-/*
- * Handlers of certain exceptions leave psw.addr pointing to the instruction
- * directly after the failing one. Therefore, create two exception table
- * entries and also add a nop in case two probing instructions come directly
- * after each other.
- */
-static void bpf_jit_probe_emit_nop(struct bpf_jit *jit,
-				   struct bpf_jit_probe *probe)
-{
-	if (probe->prg == -1 || probe->nop_prg != -1)
-		/* The probe is not armed or nop is already emitted. */
-		return;
-
-	probe->nop_prg = jit->prg;
-	/* bcr 0,%0 */
-	_EMIT2(0x0700);
 }
 
 static void bpf_jit_probe_load_pre(struct bpf_jit *jit, struct bpf_insn *insn,
@@ -815,48 +795,45 @@ static int bpf_jit_probe_post(struct bpf_jit *jit, struct bpf_prog *fp,
 			      struct bpf_jit_probe *probe)
 {
 	struct exception_table_entry *ex;
-	int i, prg;
 	s64 delta;
-	u8 *insn;
 
 	if (probe->prg == -1)
 		/* The probe is not armed. */
 		return 0;
-	bpf_jit_probe_emit_nop(jit, probe);
 	if (!fp->aux->extable)
 		/* Do nothing during early JIT passes. */
 		return 0;
-	insn = jit->prg_buf + probe->prg;
-	if (WARN_ON_ONCE(probe->prg + insn_length(*insn) != probe->nop_prg))
-		/* JIT bug - gap between probe and nop instructions. */
+	if (WARN_ON_ONCE(jit->excnt >= fp->aux->num_exentries))
+		/* Verifier bug - not enough entries. */
 		return -1;
-	for (i = 0; i < 2; i++) {
-		if (WARN_ON_ONCE(jit->excnt >= fp->aux->num_exentries))
-			/* Verifier bug - not enough entries. */
-			return -1;
-		ex = &fp->aux->extable[jit->excnt];
-		/* Add extable entries for probe and nop instructions. */
-		prg = i == 0 ? probe->prg : probe->nop_prg;
-		delta = jit->prg_buf + prg - (u8 *)&ex->insn;
-		if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
-			/* JIT bug - code and extable must be close. */
-			return -1;
-		ex->insn = delta;
-		/*
-		 * Land on the current instruction. Note that the extable
-		 * infrastructure ignores the fixup field; it is handled by
-		 * ex_handler_bpf().
-		 */
-		delta = jit->prg_buf + jit->prg - (u8 *)&ex->fixup;
-		if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
-			/* JIT bug - landing pad and extable must be close. */
-			return -1;
-		ex->fixup = delta;
-		ex->type = EX_TYPE_BPF;
-		ex->data = probe->reg;
-		jit->excnt++;
-	}
+	ex = &fp->aux->extable[jit->excnt];
+	delta = jit->prg_buf + probe->prg - (u8 *)&ex->insn;
+	if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
+		/* JIT bug - code and extable must be close. */
+		return -1;
+	ex->insn = delta;
+	/*
+	 * Land on the current instruction. Note that the extable
+	 * infrastructure ignores the fixup field; it is handled by
+	 * ex_handler_bpf().
+	 */
+	delta = jit->prg_buf + jit->prg - (u8 *)&ex->fixup;
+	if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
+		/* JIT bug - landing pad and extable must be close. */
+		return -1;
+	ex->fixup = delta;
+	ex->type = EX_TYPE_BPF;
+	ex->data = probe->reg;
+	jit->excnt++;
 	return 0;
+}
+
+static void emit_shift_count32(struct bpf_jit *jit, u32 src_reg)
+{
+	/* risbg %w1,%src,59,128+63,0 */
+	_EMIT6(0xec000000 | reg(REG_W1, src_reg) << 16 | 59 << 8 | (0x80 | 63), 0x0055);
+	REG_SET_SEEN(REG_W1);
+	REG_SET_SEEN(src_reg);
 }
 
 static int emit_ldx(struct bpf_jit *jit, struct bpf_prog *fp, struct bpf_insn *insn)
@@ -1431,9 +1408,10 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	/*
 	 * BPF_LSH
 	 */
-	case BPF_ALU | BPF_LSH | BPF_X: /* dst = (u32) dst << (u32) src */
-		/* sll %dst,0(%src) */
-		EMIT4_DISP(0x89000000, dst_reg, src_reg, 0);
+	case BPF_ALU | BPF_LSH | BPF_X: /* dst = (u32) dst << ((u32) src & 31) */
+		emit_shift_count32(jit, src_reg);
+		/* sll %dst,0(%w1) */
+		EMIT4_DISP(0x89000000, dst_reg, REG_W1, 0);
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_LSH | BPF_X: /* dst = dst << src */
@@ -1456,9 +1434,10 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	/*
 	 * BPF_RSH
 	 */
-	case BPF_ALU | BPF_RSH | BPF_X: /* dst = (u32) dst >> (u32) src */
-		/* srl %dst,0(%src) */
-		EMIT4_DISP(0x88000000, dst_reg, src_reg, 0);
+	case BPF_ALU | BPF_RSH | BPF_X: /* dst = (u32) dst >> ((u32) src & 31) */
+		emit_shift_count32(jit, src_reg);
+		/* srl %dst,0(%w1) */
+		EMIT4_DISP(0x88000000, dst_reg, REG_W1, 0);
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_RSH | BPF_X: /* dst = dst >> src */
@@ -1481,9 +1460,10 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	/*
 	 * BPF_ARSH
 	 */
-	case BPF_ALU | BPF_ARSH | BPF_X: /* ((s32) dst) >>= src */
-		/* sra %dst,%dst,0(%src) */
-		EMIT4_DISP(0x8a000000, dst_reg, src_reg, 0);
+	case BPF_ALU | BPF_ARSH | BPF_X: /* ((s32) dst) >>= (u32) src & 31 */
+		emit_shift_count32(jit, src_reg);
+		/* sra %dst,0(%w1) */
+		EMIT4_DISP(0x8a000000, dst_reg, REG_W1, 0);
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_ARSH | BPF_X: /* ((s64) dst) >>= src */
@@ -1705,7 +1685,6 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 			EMIT6_DISP_LH(0xe3000000,
 				      is32 ? 0x0058 : 0x0004, REG_W0, REG_0,
 				      load_probe.arena_reg, off);
-			bpf_jit_probe_emit_nop(jit, &load_probe);
 			/* Reuse {ly|lg}'s arena_reg for {csy|csg}. */
 			if (load_probe.prg != -1) {
 				probe.prg = jit->prg;
@@ -1716,7 +1695,6 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 			/* 0: {csy|csg} %w0,%src,off(%arena) */
 			EMIT6_DISP_LH(0xeb000000, is32 ? 0x0014 : 0x0030,
 				      REG_W0, src_reg, probe.arena_reg, off);
-			bpf_jit_probe_emit_nop(jit, &probe);
 			/* brc 4,0b */
 			EMIT4_PCREL_RIC(0xa7040000, 4, loop_start);
 			/* {llgfr|lgr} %src,%w0 */
@@ -2293,10 +2271,11 @@ static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp,
 	else
 		jit->frame_off = 0;
 
-	kern_arena = bpf_arena_get_kern_vm_start(fp->aux->arena);
-	if (kern_arena)
+	if (bpf_prog_uses_arena_insns(fp)) {
+		kern_arena = bpf_arena_get_kern_vm_start(fp->aux->arena);
 		jit->kern_arena = _EMIT_CONST_U64(kern_arena);
-	jit->user_arena = bpf_arena_get_user_vm_start(fp->aux->arena);
+		jit->user_arena = bpf_arena_get_user_vm_start(fp->aux->arena);
+	}
 
 	bpf_jit_prologue(jit, fp);
 	if (bpf_set_addr(jit, 0) < 0)
@@ -2364,9 +2343,6 @@ static struct bpf_binary_header *bpf_jit_alloc(struct bpf_jit *jit,
 			 */
 			fp->aux->num_exentries += 1;
 	}
-	/* We need two entries per insn. */
-	fp->aux->num_exentries *= 2;
-
 	code_size = roundup(jit->size,
 			    __alignof__(struct exception_table_entry));
 	extable_size = fp->aux->num_exentries *

@@ -22,7 +22,14 @@ endif
 
 pahole-flags-$(CONFIG_PAHOLE_HAS_LANG_EXCLUDE)		+= --lang_exclude=rust
 
+btf-inline := $(CONFIG_DEBUG_INFO_BTF_INLINE)
+ifneq ($(btf-inline),)
+btf-inline-feat := inline
+pahole-flags-$(call test-ge, $(pahole-ver), 132) += --btf_features=$(btf-inline-feat)
+endif
+
 export PAHOLE_FLAGS := $(pahole-flags-y)
+export BTF_INLINE := $(btf-inline)
 
 resolve-btfids-flags-y :=
 resolve-btfids-flags-$(CONFIG_WERROR) += --fatal_warnings

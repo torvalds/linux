@@ -130,9 +130,11 @@ void *malloc(size_t len)
 {
 	struct nolibc_heap *heap;
 
-	/* Always allocate memory with size multiple of 4096. */
-	len  = sizeof(*heap) + len;
-	len  = (len + 4095UL) & -4096UL;
+	if (__builtin_expect(__builtin_add_overflow(len, sizeof(*heap), &len), 0)) {
+		SET_ERRNO(ENOMEM);
+		return NULL;
+	}
+
 	heap = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE,
 		    -1, 0);
 	if (__builtin_expect(heap == MAP_FAILED, 0))
@@ -143,7 +145,7 @@ void *malloc(size_t len)
 }
 
 static __attribute__((unused))
-void *calloc(size_t size, size_t nmemb)
+void *calloc(size_t nmemb, size_t size)
 {
 	size_t x;
 
@@ -230,7 +232,7 @@ int _nolibc_u64toa_base(uint64_t in, char *buffer, unsigned int base, uint64_t r
 
 	/* Generate least significant digit first */
 	do {
-#if defined(__SIZEOF_INT128__) && !defined(__mips__) && !defined(__sparc__)
+#if defined(__SIZEOF_INT128__) && !defined(__mips__) && !defined(__sparc__) && !defined(__hppa__)
 		q = ((unsigned __int128)in * recip) >> 64;
 #else
 		uint64_t p = (uint32_t)in * (recip >> 32);

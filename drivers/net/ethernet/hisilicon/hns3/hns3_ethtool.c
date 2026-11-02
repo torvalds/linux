@@ -474,10 +474,7 @@ static void hns3_update_limit_promisc_mode(struct net_device *netdev,
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
 
-	if (enable)
-		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->priv_flags);
-	else
-		clear_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->priv_flags);
+	assign_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->priv_flags, enable);
 
 	hns3_request_update_promisc_mode(handle);
 }
@@ -1210,10 +1207,7 @@ static int hns3_set_tx_push(struct net_device *netdev, u32 tx_push)
 	netdev_dbg(netdev, "Changing tx push from %s to %s\n",
 		   str_on_off(old_state), str_on_off(tx_push));
 
-	if (tx_push)
-		set_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state);
-	else
-		clear_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state);
+	assign_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state, tx_push);
 
 	return 0;
 }

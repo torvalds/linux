@@ -378,7 +378,7 @@ static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 		 */
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(21), 0x82, 0xff);
 		/* 
-		 * This bit sets OPTI931 to automaticaly select FM
+		 * This bit sets OPTI931 to automatically select FM
 		 * or digital input signal.
 		 */
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(26), 0x01, 0x01);

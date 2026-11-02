@@ -371,7 +371,7 @@ static int __init usbip_host_init(void)
 		return -ENOMEM;
 	}
 
-	ret = usb_register_device_driver(&stub_driver, THIS_MODULE);
+	ret = usb_register_device_driver(&stub_driver);
 	if (ret) {
 		pr_err("usb_register failed %d\n", ret);
 		goto err_usb_register;

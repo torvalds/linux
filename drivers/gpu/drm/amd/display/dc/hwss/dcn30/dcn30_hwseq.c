@@ -234,25 +234,23 @@ void dcn30_log_color_state(struct dc *dc,
 }
 
 bool dcn30_set_blend_lut(
-	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
+	struct dpp *dpp, struct dc_plane_state *plane_state)
 {
-	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	bool result = true;
 	const struct pwl_params *blend_lut = NULL;
 
 	if (plane_state->cm.blend_func.type == TF_TYPE_HWPWL)
 		blend_lut = &plane_state->cm.blend_func.pwl;
 	else if (plane_state->cm.blend_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
-		result = cm3_helper_translate_curve_to_hw_format(plane_state->ctx,
+		result = cm3_helper_translate_curve_to_degamma_hw_format(
 				&plane_state->cm.blend_func,
-				&dpp_base->regamma_params,
-				false);
+				&dpp->regamma_params);
 		if (!result)
 			return result;
 
-		blend_lut = &dpp_base->regamma_params;
+		blend_lut = &dpp->regamma_params;
 	}
-	result = dpp_base->funcs->dpp_program_blnd_lut(dpp_base, blend_lut);
+	result = dpp->funcs->dpp_program_blnd_lut(dpp, blend_lut);
 
 	return result;
 }
@@ -314,17 +312,16 @@ static bool dcn30_set_mpc_shaper_3dlut(struct dpp *dpp, struct mpc *mpc,
 	return result;
 }
 
-bool dcn30_set_input_transfer_func(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_plane_state *plane_state)
+bool dcn30_set_input_transfer_func(struct set_input_transfer_func_params *params)
 {
-	struct dce_hwseq *hws = dc->hwseq;
-	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
+	struct dpp *dpp = params->dpp;
+	struct dce_hwseq *hws = params->dc->hwseq;
+	struct dc_plane_state *plane_state = params->plane_state;
 	enum dc_transfer_func_predefined tf;
 	bool result = true;
-	const struct pwl_params *params = NULL;
+	const struct pwl_params *pwl_params = NULL;
 
-	if (dpp_base == NULL || plane_state == NULL)
+	if (dpp == NULL || plane_state == NULL)
 		return false;
 
 	tf = TRANSFER_FUNCTION_UNITY;
@@ -332,25 +329,23 @@ bool dcn30_set_input_transfer_func(struct dc *dc,
 	if (plane_state->in_transfer_func.type == TF_TYPE_PREDEFINED)
 		tf = plane_state->in_transfer_func.tf;
 
-	dpp_base->funcs->dpp_set_pre_degam(dpp_base, tf);
+	dpp->funcs->dpp_set_pre_degam(dpp, tf);
 
 	if (plane_state->in_transfer_func.type == TF_TYPE_HWPWL)
-		params = &plane_state->in_transfer_func.pwl;
+		pwl_params = &plane_state->in_transfer_func.pwl;
 	else if (plane_state->in_transfer_func.type == TF_TYPE_DISTRIBUTED_POINTS &&
-		cm3_helper_translate_curve_to_hw_format(plane_state->ctx,
-							&plane_state->in_transfer_func,
-							&dpp_base->degamma_params, false))
-		params = &dpp_base->degamma_params;
+		cm3_helper_translate_curve_to_degamma_hw_format(&plane_state->in_transfer_func,
+								&dpp->degamma_params))
+		pwl_params = &dpp->degamma_params;
 
-	result = dpp_base->funcs->dpp_program_gamcor_lut(dpp_base, params);
+	result = dpp->funcs->dpp_program_gamcor_lut(dpp, pwl_params);
 
-	if (pipe_ctx->stream_res.opp && pipe_ctx->stream_res.opp->ctx) {
-		if (dpp_base->funcs->dpp_program_blnd_lut)
-			hws->funcs.set_blend_lut(pipe_ctx, plane_state);
-		if (dpp_base->funcs->dpp_program_shaper_lut &&
-				dpp_base->funcs->dpp_program_3dlut)
-			hws->funcs.set_shaper_3dlut(pipe_ctx, plane_state);
-	}
+	if (dpp->funcs->dpp_program_blnd_lut)
+		hws->funcs.set_blend_lut(dpp, plane_state);
+	if (dpp->funcs->dpp_program_shaper_lut &&
+			dpp->funcs->dpp_program_3dlut)
+		hws->funcs.set_shaper_3dlut(dpp, plane_state);
+
 
 	return result;
 }
@@ -966,6 +961,12 @@ enum dc_status dcn30_setup_hdmi_frl_link(
 		frl_phy_clock_source_id,
 		link->frl_link_settings.frl_link_rate);
 	link->phy_state.symclk_state = SYMCLK_ON_TX_ON;
+
+	/* Enable HPO link encoder */
+	link->hpo_frl_link_enc->funcs->setup_link_encoder(
+			link->hpo_frl_link_enc,
+			link->frl_link_settings.frl_num_lanes);
+
 	return status;
 }
 
@@ -1244,9 +1245,9 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		const struct tg_color *solid_color,
 		int width, int height, int offset)
 {
-	(void)dc;
 	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(pipe_ctx->stream_res.opp, test_pattern,
-			color_space, color_depth, solid_color, width, height, offset);
+			color_space, color_depth, solid_color, width, height, offset,
+			dc->debug.disable_dynamic_expansion_for_test_pattern);
 }
 
 void dcn30_prepare_bandwidth(struct dc *dc,

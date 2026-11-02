@@ -48,7 +48,7 @@ ENTRY(tegra_disable_clean_inv_dcache)
 	blne	v7_flush_dcache_louis
 	bleq	v7_flush_dcache_all
 
-	/* Trun off coherency */
+	/* Turn off coherency */
 	exit_smp r4, r5
 
 	ldmfd	sp!, {r0, r4-r5, r7, r9-r11, pc}

@@ -795,7 +795,7 @@ struct journal_s
 	/**
 	 * @j_state_lock: Protect the various scalars in the journal.
 	 */
-	rwlock_t		j_state_lock;
+	rwlock_t		j_state_lock ____cacheline_aligned_in_smp;
 
 	/**
 	 * @j_barrier_count:

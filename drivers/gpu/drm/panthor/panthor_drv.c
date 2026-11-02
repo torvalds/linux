@@ -25,7 +25,6 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_print.h>
 #include <drm/drm_syncobj.h>
-#include <drm/drm_utils.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/panthor_drm.h>
 
@@ -1082,7 +1081,7 @@ static int panthor_ioctl_bo_mmap_offset(struct drm_device *ddev, void *data,
 	struct drm_panthor_bo_mmap_offset *args = data;
 	struct panthor_gem_object *bo;
 	struct drm_gem_object *obj;
-	int ret;
+	int ret = 0;
 
 	if (args->pad)
 		return -EINVAL;
@@ -1096,10 +1095,6 @@ static int panthor_ioctl_bo_mmap_offset(struct drm_device *ddev, void *data,
 		ret = -EPERM;
 		goto out;
 	}
-
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		goto out;
 
 	args->offset = drm_vma_node_offset_addr(&obj->vma_node);
 
@@ -1769,6 +1764,7 @@ static void panthor_debugfs_init(struct drm_minor *minor)
 {
 	panthor_mmu_debugfs_init(minor);
 	panthor_gem_debugfs_init(minor);
+	panthor_sched_debugfs_init(minor);
 }
 #endif
 

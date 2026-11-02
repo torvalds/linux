@@ -12,6 +12,8 @@
  */
 #include <linux/compiler.h>
 #include <linux/zalloc.h>
+#include <linux/kernel.h>
+#include <linux/unaligned.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <getopt.h>
@@ -303,11 +305,13 @@ static ubyte get_special_opcode(struct debug_entry *ent,
 {
 	unsigned int temp;
 	unsigned long delta_addr;
+	int lineno = get_unaligned(&ent->lineno);
+	uint64_t addr = get_unaligned(&ent->addr);
 
 	/*
 	 * delta from line_base
 	 */
-	temp = (ent->lineno - last_line) - default_debug_line_header.line_base;
+	temp = (lineno - last_line) - default_debug_line_header.line_base;
 
 	if (temp >= default_debug_line_header.line_range)
 		return 0;
@@ -315,7 +319,7 @@ static ubyte get_special_opcode(struct debug_entry *ent,
 	/*
 	 * delta of addresses
 	 */
-	delta_addr = (ent->addr - last_vma) / default_debug_line_header.minimum_instruction_length;
+	delta_addr = (addr - last_vma) / default_debug_line_header.minimum_instruction_length;
 
 	/* This is not sufficient to ensure opcode will be in [0-256] but
 	 * sufficient to ensure when summing with the delta lineno we will
@@ -362,6 +366,8 @@ static void emit_lineno_info(struct buffer_ext *be,
 	for (i = 0; i < nr_entry; i++, ent = debug_entry_next(ent)) {
 		int need_copy = 0;
 		ubyte special_opcode;
+		int lineno = get_unaligned(&ent->lineno);
+		uint64_t addr = get_unaligned(&ent->addr);
 
 		/*
 		 * check if filename changed, if so add it
@@ -376,24 +382,24 @@ static void emit_lineno_info(struct buffer_ext *be,
 
 		special_opcode = get_special_opcode(ent, last_line, last_vma);
 		if (special_opcode != 0) {
-			last_line = ent->lineno;
-			last_vma  = ent->addr;
+			last_line = lineno;
+			last_vma  = addr;
 			emit_opcode(be, special_opcode);
 		} else {
 			/*
 			 * lines differ, emit line delta
 			 */
-			if (last_line != ent->lineno) {
-				emit_advance_lineno(be, ent->lineno - last_line);
-				last_line = ent->lineno;
+			if (last_line != lineno) {
+				emit_advance_lineno(be, lineno - last_line);
+				last_line = lineno;
 				need_copy = 1;
 			}
 			/*
 			 * addresses differ, emit address delta
 			 */
-			if (last_vma != ent->addr) {
-				emit_advance_pc(be, ent->addr - last_vma);
-				last_vma = ent->addr;
+			if (last_vma != addr) {
+				emit_advance_pc(be, addr - last_vma);
+				last_vma = addr;
 				need_copy = 1;
 			}
 			/*
@@ -480,7 +486,7 @@ jit_process_debug_info(uint64_t code_addr,
 	int i;
 
 	for (i = 0; i < nr_debug_entries; i++) {
-		ent->addr = ent->addr - code_addr;
+		put_unaligned(get_unaligned(&ent->addr) - code_addr, &ent->addr);
 		ent = debug_entry_next(ent);
 	}
 	add_compilation_unit(di, buffer_ext_size(dl));

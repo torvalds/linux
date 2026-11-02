@@ -87,6 +87,9 @@ static void host1x_debug_show_channel_fifo(struct host1x *host,
 	host1x_debug_output(o, "CMDFIFO_RDATA %08x\n", val);
 
 #if HOST1X_HW <= 6
+	if (!host->hv_regs)
+		return;
+
 	/* Peek pointer values are invalid during SLCG, so disable it */
 	host1x_hypervisor_writel(host, 0x1, HOST1X_HV_ICG_EN_OVERRIDE);
 

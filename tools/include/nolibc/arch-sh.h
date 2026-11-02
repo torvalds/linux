@@ -10,6 +10,8 @@
 #include "compiler.h"
 #include "crt.h"
 
+#include <linux/unistd.h>
+
 /*
  * Syscalls for SuperH:
  *   - registers are 32bit wide
@@ -160,5 +162,21 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __nolibc_no_stack_prote
 	__nolibc_entrypoint_epilogue();
 }
 #endif /* NOLIBC_NO_RUNTIME */
+
+static __attribute__((unused))
+ssize_t _sys_pread(int fd, void *buf, size_t count, off_t offset)
+{
+	return __nolibc_syscall6(__NR_pread64, fd, buf, count, 0,
+				 __NOLIBC_LLARGPART(offset, 0), __NOLIBC_LLARGPART(offset, 1));
+}
+#define _sys_pread _sys_pread
+
+static __attribute__((unused))
+ssize_t _sys_pwrite(int fd, const void *buf, size_t count, off_t offset)
+{
+	return __nolibc_syscall6(__NR_pwrite64, fd, buf, count, 0,
+				 __NOLIBC_LLARGPART(offset, 0), __NOLIBC_LLARGPART(offset, 1));
+}
+#define _sys_pwrite _sys_pwrite
 
 #endif /* _NOLIBC_ARCH_SH_H */

@@ -30,6 +30,9 @@
 #define ATH12K_USERPD_ID_MASK			GENMASK(10, 8)
 #define ATH12K_USERPD_FW_NAME_LEN		35
 
+/* Shared read-only firmware ID, mandated by MultiPD firmware architecture */
+#define ATH12K_AHB_RO_ID			4
+
 enum ath12k_ahb_userpd_id {
 	ATH12K_AHB_USERPD_ID_0 = 1,
 	ATH12K_AHB_USERPD_ID_1,
@@ -46,6 +49,7 @@ struct ath12k_ahb_desc {
 	enum ath12k_hw_rev hw_rev;
 	bool auth_enabled;
 	const struct ath12k_hif_ops *ops;
+	bool supports_multipd;
 };
 
 enum ath12k_ahb_smp2p_msg_id {
@@ -77,6 +81,10 @@ struct ath12k_ahb_rproc_info {
 	u8 num_userpd;
 	bool rootpd_booted_by_driver;
 	struct ath12k_ahb *userpd[ATH12K_MAX_DEVICES];
+	bool shared_fw_loaded;
+	phys_addr_t mem_phys;
+	size_t mem_size;
+	void *mem_region;
 };
 
 struct ath12k_ahb {
@@ -95,6 +103,7 @@ struct ath12k_ahb {
 	const struct ath12k_ahb_device_family_ops *device_family_ops;
 	bool scm_auth_enabled;
 	struct ath12k_ahb_rproc_info *rproc_info;
+	bool supports_multipd;
 };
 
 struct ath12k_ahb_driver {

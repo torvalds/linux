@@ -408,7 +408,7 @@ static struct omap_rtc *omap_rtc_power_off_rtc;
  * generates pmic_pwr_enable control, which can be used to control an external
  * PMIC.
  */
-int omap_rtc_power_off_program(struct device *dev)
+int omap_rtc_power_off_program(void)
 {
 	struct omap_rtc *rtc = omap_rtc_power_off_rtc;
 	struct rtc_time tm;
@@ -481,10 +481,9 @@ EXPORT_SYMBOL(omap_rtc_power_off_program);
  */
 static void omap_rtc_power_off(void)
 {
-	struct rtc_device *rtc = omap_rtc_power_off_rtc->rtc;
 	u32 val;
 
-	omap_rtc_power_off_program(rtc->dev.parent);
+	omap_rtc_power_off_program();
 
 	/* Set PMIC power enable and EXT_WAKEUP in case PB power on is used */
 	omap_rtc_power_off_rtc->type->unlock(omap_rtc_power_off_rtc);

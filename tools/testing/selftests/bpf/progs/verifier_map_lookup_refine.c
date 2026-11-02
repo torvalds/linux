@@ -58,7 +58,7 @@ int mapofmaps_value_as_helper_mem_buf(struct __sk_buff *skb)
 }
 
 SEC("?tc")
-__failure __msg("type=map_ptr_or_null expected=fp")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 int mapofmaps_value_as_helper_fixed_mem(struct __sk_buff *skb)
 {
 	char th[sizeof(struct tcphdr)] = {};

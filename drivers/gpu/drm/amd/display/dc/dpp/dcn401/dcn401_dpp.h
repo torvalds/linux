@@ -725,6 +725,8 @@ void dpp401_set_cursor_position(
 	uint32_t width,
 	uint32_t height);
 
+void dpp401_cursor_refresh_state(struct dpp *dpp_base);
+
 void dpp401_set_optional_cursor_attributes(
 	struct dpp *dpp_base,
 	struct dpp_cursor_attributes *attr);

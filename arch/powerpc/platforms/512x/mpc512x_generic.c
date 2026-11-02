@@ -24,6 +24,7 @@ static const char * const board[] __initconst = {
 	"prt,prtlvt",
 	"fsl,mpc5125ads",
 	"ifm,ac14xx",
+	"ifm,pdm360ng",
 	NULL
 };
 

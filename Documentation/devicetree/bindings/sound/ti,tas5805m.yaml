@@ -45,13 +45,13 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         tas5805m: tas5805m@2c {
-                reg = <0x2c>;
-                compatible = "ti,tas5805m";
+            reg = <0x2c>;
+            compatible = "ti,tas5805m";
 
-                pvdd-supply = <&audiopwr>;
-                pdn-gpios = <&tlmm 160 0>;
+            pvdd-supply = <&audiopwr>;
+            pdn-gpios = <&tlmm 160 0>;
 
-                ti,dsp-config-name = "mono_pbtl_48khz";
+            ti,dsp-config-name = "mono_pbtl_48khz";
         };
     };
 ...

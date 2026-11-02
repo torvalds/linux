@@ -4,6 +4,7 @@
 #define __ES9356_H__
 
 /*ES9356 Implementation-define*/
+#define ES9356_VERSION                          0x2000
 #define ES9356_FLAGS_HP                         0x2003
 #define ES9356_CSM_RESET                        0x2020
 #define ES9356_FUC_RESET                        0x2021
@@ -37,6 +38,7 @@
 #define ES9356_MICBIAS_CTL                      0x2047
 #define ES9356_HPDETECT_CTL                     0x2048
 #define ES9356_MICBIAS_RES                      0x2049
+#define ES9356_SPARE_REGISTER3                  0x204a
 
 /*CLK*/
 #define ES9356_CLK_SEL                          0x2050
@@ -81,6 +83,9 @@
 #define ES9356_DAC_RAMP                         0x2093
 #define ES9356_DAC_VPPSCALE                     0x2094
 #define ES9356_DAC_SWAP                         0x2097
+#define ES9356_DAC_AUTOMUTE                     0x2098
+#define ES9356_DAC_AUTOMUTE_WINSIZE             0x2099
+#define ES9356_DAC_AUTOMUTE_RESULT1             0x209B
 #define ES9356_SPKCMP_VPPSC                     0x20A0
 #define ES9356_CALIBRATION_TIME                 0x20A1
 #define ES9356_CALIBRATION_SETTING              0x20A2

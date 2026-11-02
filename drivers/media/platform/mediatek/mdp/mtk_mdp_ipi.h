@@ -56,7 +56,7 @@ struct mdp_ipi_comm {
  * @ipi_id        : IPI_MDP
  * @ap_inst       : AP mtk_mdp_vpu address
  * @vpu_inst_addr : VPU MDP instance address
- * @status        : VPU exeuction result
+ * @status        : VPU execution result
  */
 struct mdp_ipi_comm_ack {
 	uint32_t msg_id;

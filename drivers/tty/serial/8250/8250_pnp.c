@@ -8,6 +8,7 @@
  *
  *  Ported to the Linux PnP Layer - (C) Adam Belay.
  */
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
@@ -436,7 +437,6 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
 	struct uart_8250_port uart, *port;
 	int ret, flags = dev_id->driver_data;
-	long line;
 
 	if (flags & UNKNOWN_DEV) {
 		ret = serial_pnp_guess_board(dev);
@@ -477,39 +477,38 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 		 uart.port.iobase, (unsigned long long)uart.port.mapbase,
 		 (unsigned long long)uart.port.mapsize, uart.port.irq, uart.port.iotype);
 
-	line = serial8250_register_8250_port(&uart);
-	if (line < 0 || (flags & CIR_PORT))
+	port = serial8250_register_8250_port(&uart);
+	if (IS_ERR(port) || (flags & CIR_PORT))
 		return -ENODEV;
 
-	port = serial8250_get_port(line);
 	if (uart_console(&port->port))
 		dev->capabilities |= PNP_CONSOLE;
 
-	pnp_set_drvdata(dev, (void *)line);
+	pnp_set_drvdata(dev, port);
 	return 0;
 }
 
 static void serial_pnp_remove(struct pnp_dev *dev)
 {
-	long line = (long)pnp_get_drvdata(dev);
+	struct uart_8250_port *uport = pnp_get_drvdata(dev);
 
 	dev->capabilities &= ~PNP_CONSOLE;
-	serial8250_unregister_port(line);
+	serial8250_unregister_port(uport);
 }
 
 static int serial_pnp_suspend(struct device *dev)
 {
-	long line = (long)dev_get_drvdata(dev);
+	struct uart_8250_port *uport = dev_get_drvdata(dev);
 
-	serial8250_suspend_port(line);
+	serial8250_suspend_port(uport);
 	return 0;
 }
 
 static int serial_pnp_resume(struct device *dev)
 {
-	long line = (long)dev_get_drvdata(dev);
+	struct uart_8250_port *uport = dev_get_drvdata(dev);
 
-	serial8250_resume_port(line);
+	serial8250_resume_port(uport);
 	return 0;
 }
 
@@ -526,7 +525,7 @@ static struct pnp_driver serial_pnp_driver = {
 	.id_table	= pnp_dev_table,
 };
 
-int serial8250_pnp_init(void)
+int __init serial8250_pnp_init(void)
 {
 	return pnp_register_driver(&serial_pnp_driver);
 }

@@ -82,6 +82,8 @@ config NET_DSA_MV88E6060
 
 source "drivers/net/dsa/microchip/Kconfig"
 
+source "drivers/net/dsa/motorcomm/Kconfig"
+
 source "drivers/net/dsa/mv88e6xxx/Kconfig"
 
 source "drivers/net/dsa/mxl862xx/Kconfig"
@@ -110,10 +112,13 @@ config NET_DSA_RZN1_A5PSW
 config NET_DSA_KS8995
 	tristate "Micrel KS8995 family 5-ports 10/100 Ethernet switches"
 	depends on SPI
-	select NET_DSA_TAG_NONE
+	select NET_DSA_MICROCHIP_KSZ_COMMON
+	select NET_DSA_MICROCHIP_KSZ_SPI
 	help
-	  This driver supports the Micrel KS8995 family of 10/100 Mbit ethernet
-	  switches, managed over SPI.
+	  This is a transitional option for users who had NET_DSA_KS8995
+	  enabled. It automatically enables the new NET_DSA_MICROCHIP_KSZ_SPI
+	  driver which supersedes it. This option will be removed in a future
+	  kernel release.
 
 config NET_DSA_SMSC_LAN9303
 	tristate
@@ -168,12 +173,4 @@ config NET_DSA_VITESSE_VSC73XX_PLATFORM
 	  This enables support for the Vitesse VSC7385, VSC7388, VSC7395
 	  and VSC7398 SparX integrated ethernet switches, connected over
 	  a CPU-attached address bus and work in memory-mapped I/O mode.
-
-config NET_DSA_YT921X
-	tristate "Motorcomm YT9215 ethernet switch chip support"
-	select NET_DSA_TAG_YT921X
-	select NET_IEEE8021Q_HELPERS if DCB
-	help
-	  This enables support for the Motorcomm YT9215 ethernet switch
-	  chip.
 endmenu

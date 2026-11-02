@@ -44,9 +44,14 @@ static const struct spi_nor_fixups everspin_nor_fixups = {
 	.default_init = everspin_nor_default_init,
 };
 
+static const struct spi_nor_fixup everspin_fixups[] = {
+	{ .fixups = &everspin_nor_fixups },
+};
+
 const struct spi_nor_manufacturer spi_nor_everspin = {
 	.name = "everspin",
 	.parts = everspin_nor_parts,
 	.nparts = ARRAY_SIZE(everspin_nor_parts),
-	.fixups = &everspin_nor_fixups,
+	.fixups = everspin_fixups,
+	.nfixups = ARRAY_SIZE(everspin_fixups),
 };

@@ -48,6 +48,7 @@
 #include <linux/tick.h>
 #include <linux/rcupdate_trace.h>
 #include <linux/nmi.h>
+#include <linux/perf_event.h>
 
 #include "rcu.h"
 
@@ -115,6 +116,7 @@ torture_param(int, leakpointer, 0, "Leak pointer dereferences from readers");
 torture_param(int, n_barrier_cbs, 0, "# of callbacks/kthreads for barrier testing");
 torture_param(int, n_up_down, 32, "# of concurrent up/down hrtimer-based RCU readers");
 torture_param(int, nfakewriters, 4, "Number of RCU fake writer threads");
+torture_param(bool, nmi_calls, true, "Exercise ->call() from NMI on nmi_capable flavors");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
 torture_param(bool, nwriters, 1, "Number of RCU writer threads (0 or 1)");
 torture_param(int, object_debug, 0, "Enable debug-object double call_rcu() testing");
@@ -216,6 +218,8 @@ static long n_rcu_torture_boost_failure;
 static long n_rcu_torture_boosts;
 static atomic_long_t n_rcu_torture_timers;
 static atomic_long_t n_rcu_torture_irqs;
+static atomic_long_t n_rcu_torture_nmi_call;
+static atomic_long_t n_rcu_torture_nmi_cb;
 static long n_barrier_attempts;
 static long n_barrier_successes; /* did rcu_barrier test succeed? */
 static unsigned long n_read_exits;
@@ -433,6 +437,7 @@ struct rcu_torture_ops {
 	bool (*is_task_rcu_boosted)(void);
 	long cbflood_max;
 	int irq_capable;
+	int nmi_capable;
 	int can_boost;
 	int extendables;
 	int slow_gps;
@@ -440,6 +445,7 @@ struct rcu_torture_ops {
 	int debug_objects;
 	int start_poll_irqsoff;
 	int have_up_down;
+	int rdrs_handle_load;
 	const char *name;
 };
 
@@ -648,6 +654,8 @@ static struct rcu_torture_ops rcu_ops = {
 	.extendables		= RCUTORTURE_MAX_EXTEND,
 	.debug_objects		= 1,
 	.start_poll_irqsoff	= 1,
+	.rdrs_handle_load	= !IS_ENABLED(CONFIG_PREEMPT_RCU) || IS_ENABLED(CONFIG_RCU_BOOST),
+	.nmi_capable		= 1,
 	.name			= "rcu"
 };
 
@@ -702,9 +710,20 @@ static struct rcu_torture_ops rcu_busted_ops = {
 DEFINE_STATIC_SRCU(srcu_ctl);
 DEFINE_STATIC_SRCU_FAST(srcu_ctlf);
 DEFINE_STATIC_SRCU_FAST_UPDOWN(srcu_ctlfud);
+DEFINE_STATIC_SRCU_ATOMIC(srcu_ctla);
 static struct srcu_struct srcu_ctld;
 static struct srcu_struct *srcu_ctlp = &srcu_ctl;
 static struct rcu_torture_ops srcud_ops;
+
+// Restrict APIs permitted for atomic SRCU.
+static void srcu_torture_init_forbidden_apis(void)
+{
+	cur_ops->call = NULL;
+	cur_ops->cb_barrier = NULL;
+	cur_ops->deferred_free = NULL;
+	cur_ops->exp_current = NULL;
+	cur_ops->start_gp_poll = NULL;
+}
 
 static void srcu_torture_init(void)
 {
@@ -720,6 +739,11 @@ static void srcu_torture_init(void)
 	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN) {
 		srcu_ctlp = &srcu_ctlfud;
 		VERBOSE_TOROUT_STRING("srcu_torture_init fast-up/down SRCU");
+	}
+	if (reader_flavor & SRCU_READ_FLAVOR_ATOMIC) {
+		srcu_ctlp = &srcu_ctla;
+		VERBOSE_TOROUT_STRING("srcu_torture_init atomic SRCU");
+		srcu_torture_init_forbidden_apis();
 	}
 }
 
@@ -758,6 +782,11 @@ static int srcu_torture_read_lock(void)
 		WARN_ON_ONCE(idx & ~0x1);
 		ret += idx << 3;
 	}
+	if (reader_flavor & SRCU_READ_FLAVOR_ATOMIC) {
+		idx = srcu_read_lock_atomic(srcu_ctlp);
+		WARN_ON_ONCE(idx & ~0x1);
+		ret += idx << 4;
+	}
 	return ret;
 }
 
@@ -777,7 +806,8 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 
 	delay = torture_random(rrsp) %
 		(nrealreaders * 2 * longdelay * uspertick);
-	if (!delay && !in_atomic() && !rcu_preempt_depth() && !irqs_disabled()) {
+	if (!delay && !in_atomic() && !rcu_preempt_depth() && !irqs_disabled() &&
+	    !(reader_flavor & SRCU_READ_FLAVOR_ATOMIC)) {
 		schedule_timeout_interruptible(longdelay);
 		rtrsp->rt_delay_jiffies = longdelay;
 	} else {
@@ -788,6 +818,8 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 static void srcu_torture_read_unlock(int idx)
 {
 	WARN_ON_ONCE((reader_flavor && (idx & ~reader_flavor)) || (!reader_flavor && (idx & ~0x1)));
+	if (reader_flavor & SRCU_READ_FLAVOR_ATOMIC)
+		srcu_read_unlock_atomic(srcu_ctlp, (idx & 0x10) >> 4);
 	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN)
 		srcu_read_unlock_fast_updown(srcu_ctlp,
 					     __srcu_ctr_to_ptr(srcu_ctlp, (idx & 0x8) >> 3));
@@ -867,7 +899,10 @@ static void srcu_torture_deferred_free(struct rcu_torture *rp)
 
 static void srcu_torture_synchronize(void)
 {
-	synchronize_srcu(srcu_ctlp);
+	if (reader_flavor & SRCU_READ_FLAVOR_ATOMIC)
+		synchronize_srcu_atomic(srcu_ctlp);
+	else
+		synchronize_srcu(srcu_ctlp);
 }
 
 static unsigned long srcu_torture_get_gp_state(void)
@@ -903,7 +938,10 @@ static void srcu_torture_stats(void)
 
 static void srcu_torture_synchronize_expedited(void)
 {
-	synchronize_srcu_expedited(srcu_ctlp);
+	if (reader_flavor & SRCU_READ_FLAVOR_ATOMIC)
+		synchronize_srcu_atomic(srcu_ctlp);
+	else
+		synchronize_srcu_expedited(srcu_ctlp);
 }
 
 static void srcu_torture_expedite_current(void)
@@ -942,6 +980,7 @@ static struct rcu_torture_ops srcu_ops = {
 	.debug_objects	= 1,
 	.have_up_down	= IS_ENABLED(CONFIG_TINY_SRCU)
 				? 0 : SRCU_READ_FLAVOR_NORMAL | SRCU_READ_FLAVOR_FAST_UPDOWN,
+	.nmi_capable	= 1,
 	.name		= "srcu"
 };
 
@@ -960,6 +999,10 @@ static void srcud_torture_init(void)
 	} else if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN) {
 		WARN_ON(init_srcu_struct_fast_updown(&srcu_ctld));
 		VERBOSE_TOROUT_STRING("srcud_torture_init fast-up/down SRCU");
+	} else if (reader_flavor & SRCU_READ_FLAVOR_ATOMIC) {
+		WARN_ON(init_srcu_struct_atomic(&srcu_ctld));
+		VERBOSE_TOROUT_STRING("srcud_torture_init atomic SRCU");
+		srcu_torture_init_forbidden_apis();
 	} else {
 		WARN_ON(init_srcu_struct(&srcu_ctld));
 	}
@@ -1005,6 +1048,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.debug_objects	= 1,
 	.have_up_down	= IS_ENABLED(CONFIG_TINY_SRCU)
 				? 0 : SRCU_READ_FLAVOR_NORMAL | SRCU_READ_FLAVOR_FAST_UPDOWN,
+	.nmi_capable	= 1,
 	.name		= "srcud"
 };
 
@@ -1269,6 +1313,7 @@ static struct rcu_torture_ops tasks_tracing_ops = {
 	.cbflood_max	= 50000,
 	.irq_capable	= 1,
 	.slow_gps	= 1,
+	.nmi_capable	= 1,
 	.name		= "tasks-tracing"
 };
 
@@ -1738,7 +1783,7 @@ rcu_torture_writer(void *arg)
 		pr_alert("%s" TORTURE_FLAG " Waited %lu jiffies for boot to complete.\n",
 			 torture_type, jiffies - j);
 
-	if (IS_ENABLED(CONFIG_RCU_LAZY))
+	if (IS_ENABLED(CONFIG_RCU_LAZY) && cur_ops->call)
 		INIT_WORK_ONSTACK(&lazy_work, rcu_torture_writer_work);
 
 	do {
@@ -1933,7 +1978,7 @@ rcu_torture_writer(void *arg)
 				       !rcu_gp_is_normal();
 		}
 		rcu_torture_writer_state = RTWS_STUTTER;
-		if (IS_ENABLED(CONFIG_RCU_LAZY))
+		if (IS_ENABLED(CONFIG_RCU_LAZY) && cur_ops->call)
 			queue_work(system_percpu_wq, &lazy_work);
 		stutter_waited = stutter_wait("rcu_torture_writer");
 		if (stutter_waited &&
@@ -1966,7 +2011,7 @@ rcu_torture_writer(void *arg)
 			 " Dynamic grace-period expediting was disabled.\n",
 			 torture_type);
 
-	if (IS_ENABLED(CONFIG_RCU_LAZY)) {
+	if (IS_ENABLED(CONFIG_RCU_LAZY) && cur_ops->call) {
 		cancel_work_sync(&lazy_work);
 		destroy_work_on_stack(&lazy_work);
 	}
@@ -2534,8 +2579,10 @@ static bool rcu_torture_one_read_start(struct rcu_torture_one_read_state *rtorsp
 	rtorsp->p = rcu_dereference_check(rcu_torture_current,
 					  !cur_ops->readlock_held || cur_ops->readlock_held() ||
 					  (rtorsp->readstate & RCUTORTURE_RDR_UPDOWN));
-	if (rtorsp->p == NULL) {
-		/* Wait for rcu_torture_writer to get underway */
+	if ((!cur_ops->rdrs_handle_load && atomic_read(&rcu_fwd_cb_nodelay)) || rtorsp->p == NULL) {
+		// Wait for rcu_torture_writer to get underway and
+		// (if readers cannot handle heavy loads) for any
+		// forward-progress testing to complete.
 		rcutorture_one_extend(&rtorsp->readstate, 0, trsp, rtorsp->rtrsp);
 		return false;
 	}
@@ -2658,6 +2705,124 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 }
 
 static DEFINE_TORTURE_RANDOM_PERCPU(rcu_torture_timer_rand);
+
+/*
+ * Exercise ->call() from NMI context for flavors that set ->nmi_capable.  A
+ * per-CPU hardware perf counter overflows into an NMI, and its handler submits
+ * a preallocated callback via ->call().  One callback per CPU is in flight at a
+ * time (guarded by an atomic) to avoid allocating in NMI.
+ */
+#ifdef CONFIG_PERF_EVENTS
+static struct perf_event_attr rcu_torture_nmi_attr = {
+	.type		= PERF_TYPE_HARDWARE,
+	.config		= PERF_COUNT_HW_CPU_CYCLES,
+	.size		= sizeof(struct perf_event_attr),
+	.pinned		= 1,
+	.disabled	= 1,
+	/*
+	 * A fixed period rather than .freq: a frequency-based event bumps
+	 * nr_freq_events, which sets TICK_DEP_BIT_PERF_EVENTS and would pin the
+	 * tick for the whole run on NO_HZ_FULL kernels.
+	 */
+	.sample_period	= 20 * 1000 * 1000,
+};
+
+/* One in-flight callback per CPU; ->inuse is released by the callback. */
+struct rcu_torture_nmi_cb {
+	struct rcu_head rh;
+	atomic_t inuse;
+};
+
+static struct perf_event **rcu_torture_nmi_events;
+static int rcu_torture_nmi_hp_state;
+static DEFINE_PER_CPU(struct rcu_torture_nmi_cb, rcu_torture_nmi_cb);
+
+static void rcu_torture_nmi_invoked(struct rcu_head *rhp)
+{
+	struct rcu_torture_nmi_cb *rtncp = container_of(rhp, struct rcu_torture_nmi_cb, rh);
+
+	atomic_long_inc(&n_rcu_torture_nmi_cb);
+	atomic_set(&rtncp->inuse, 0);
+}
+
+static void rcu_torture_nmi_overflow(struct perf_event *event,
+				     struct perf_sample_data *data,
+				     struct pt_regs *regs)
+{
+	struct rcu_torture_nmi_cb *rtncp = this_cpu_ptr(&rcu_torture_nmi_cb);
+
+	if (!in_nmi())
+		return;
+	if (cur_ops->call && !atomic_xchg(&rtncp->inuse, 1)) {
+		atomic_long_inc(&n_rcu_torture_nmi_call);
+		cur_ops->call(&rtncp->rh, rcu_torture_nmi_invoked);
+	}
+}
+
+static int rcu_torture_nmi_online(unsigned int cpu)
+{
+	struct perf_event *event;
+
+	event = perf_event_create_kernel_counter(&rcu_torture_nmi_attr, cpu, NULL,
+						 rcu_torture_nmi_overflow, NULL);
+	if (IS_ERR(event))
+		return 0;
+	rcu_torture_nmi_events[cpu] = event;
+	perf_event_enable(event);
+	return 0;
+}
+
+static int rcu_torture_nmi_offline(unsigned int cpu)
+{
+	struct perf_event *event = rcu_torture_nmi_events[cpu];
+
+	if (event) {
+		rcu_torture_nmi_events[cpu] = NULL;
+		perf_event_disable(event);
+		perf_event_release_kernel(event);
+	}
+	return 0;
+}
+
+/* Drive the counters from hotplug callbacks so coverage survives onoff. */
+static void rcu_torture_nmi_init(void)
+{
+	int ret;
+
+	if (!nmi_calls || !cur_ops->nmi_capable || !cur_ops->call)
+		return;
+	rcu_torture_nmi_events = kcalloc(nr_cpu_ids, sizeof(*rcu_torture_nmi_events),
+					 GFP_KERNEL);
+	if (!rcu_torture_nmi_events)
+		return;
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "rcutorture/nmi:online",
+				rcu_torture_nmi_online, rcu_torture_nmi_offline);
+	if (ret < 0) {
+		kfree(rcu_torture_nmi_events);
+		rcu_torture_nmi_events = NULL;
+		return;
+	}
+	rcu_torture_nmi_hp_state = ret;
+}
+
+static void rcu_torture_nmi_cleanup(void)
+{
+	if (!rcu_torture_nmi_events)
+		return;
+	if (rcu_torture_nmi_hp_state > 0) {
+		cpuhp_remove_state(rcu_torture_nmi_hp_state);
+		rcu_torture_nmi_hp_state = 0;
+	}
+	kfree(rcu_torture_nmi_events);
+	rcu_torture_nmi_events = NULL;
+	if (!atomic_long_read(&n_rcu_torture_nmi_call))
+		pr_alert("%s: nmi_calls set but no ->call() ever issued from NMI, so NMI ->call() went untested (no PMU, or NMIs unavailable here).\n",
+			 __func__);
+}
+#else /* #ifdef CONFIG_PERF_EVENTS */
+static void rcu_torture_nmi_init(void) { }
+static void rcu_torture_nmi_cleanup(void) { }
+#endif /* #else #ifdef CONFIG_PERF_EVENTS */
 
 /*
  * RCU torture reader from timer handler.  Dereferences rcu_torture_current,
@@ -3047,6 +3212,9 @@ rcu_torture_stats_print(void)
 		data_race(n_barrier_attempts),
 		data_race(n_rcu_torture_barrier_error));
 	pr_cont("read-exits: %ld ", data_race(n_read_exits)); // Statistic.
+	pr_cont("nmi-calls: %ld nmi-cbs: %ld ",
+		atomic_long_read(&n_rcu_torture_nmi_call),
+		atomic_long_read(&n_rcu_torture_nmi_cb));
 	pr_cont("nocb-toggles: %ld:%ld ",
 		atomic_long_read(&n_nocb_offload), atomic_long_read(&n_nocb_deoffload));
 	pr_cont("gpwraps: %ld\n", n_gpwraps);
@@ -3195,7 +3363,7 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 "read_exit_delay=%d read_exit_burst=%d "
 		 "reader_flavor=%x "
 		 "nocbs_nthreads=%d nocbs_toggle=%d "
-		 "test_nmis=%d "
+		 "test_nmis=%d nmi_calls=%d "
 		 "preempt_duration=%d preempt_interval=%d n_up_down=%d\n",
 		 torture_type, tag, nrealreaders, nwriters, nrealfakewriters,
 		 stat_interval, verbose, test_no_idle_hz, shuffle_interval,
@@ -3209,7 +3377,7 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 read_exit_delay, read_exit_burst,
 		 reader_flavor,
 		 nocbs_nthreads, nocbs_toggle,
-		 test_nmis,
+		 test_nmis, nmi_calls,
 		 preempt_duration, preempt_interval, n_up_down);
 }
 
@@ -3856,7 +4024,7 @@ static int __init rcu_torture_fwd_prog_init(void)
 	}
 	if (fwd_progress_holdoff <= 0)
 		fwd_progress_holdoff = 1;
-	if (fwd_progress_div <= 0)
+	if (fwd_progress_div < 2)
 		fwd_progress_div = 4;
 	rfp = kzalloc_objs(*rfp, fwd_progress);
 	fwd_prog_tasks = kzalloc_objs(*fwd_prog_tasks, fwd_progress);
@@ -4283,6 +4451,7 @@ rcu_torture_cleanup(void)
 	int i;
 
 	if (torture_cleanup_begin()) {
+		rcu_torture_nmi_cleanup();
 		if (cur_ops->cb_barrier != NULL) {
 			pr_info("%s: Invoking %pS().\n", __func__, cur_ops->cb_barrier);
 			cur_ops->cb_barrier();
@@ -4322,9 +4491,12 @@ rcu_torture_cleanup(void)
 		for (i = 0; i < nrealreaders; i++)
 			torture_stop_kthread(rcu_torture_reader,
 					     reader_tasks[i]);
+		if (irqreader && cur_ops->irq_capable)
+			kick_all_cpus_sync();
 		kfree(reader_tasks);
 		reader_tasks = NULL;
 	}
+	rcu_torture_nmi_cleanup();
 	kfree(rcu_torture_reader_mbchk);
 	rcu_torture_reader_mbchk = NULL;
 
@@ -4354,6 +4526,19 @@ rcu_torture_cleanup(void)
 		pr_info("%s: Invoking %pS().\n", __func__, cur_ops->cb_barrier);
 		cur_ops->cb_barrier();
 	}
+
+	/*
+	 * cb_barrier() above drained every deferred callback, so the count
+	 * issued from NMI must equal the count invoked.
+	 */
+	if (atomic_long_read(&n_rcu_torture_nmi_call) !=
+	    atomic_long_read(&n_rcu_torture_nmi_cb)) {
+		pr_alert("%s: NMI ->call() lost a callback: issued %ld invoked %ld\n",
+			 __func__, atomic_long_read(&n_rcu_torture_nmi_call),
+			 atomic_long_read(&n_rcu_torture_nmi_cb));
+		atomic_inc(&n_rcu_torture_error);
+	}
+
 	if (cur_ops->cleanup != NULL)
 		cur_ops->cleanup();
 
@@ -4477,6 +4662,17 @@ static DECLARE_RWSEM(rwsem7);
 static DECLARE_RWSEM(rwsem8);
 static DECLARE_RWSEM(rwsem9);
 
+static DEFINE_RAW_SPINLOCK(spin0);
+static DEFINE_RAW_SPINLOCK(spin1);
+static DEFINE_RAW_SPINLOCK(spin2);
+static DEFINE_RAW_SPINLOCK(spin3);
+static DEFINE_RAW_SPINLOCK(spin4);
+static DEFINE_RAW_SPINLOCK(spin5);
+static DEFINE_RAW_SPINLOCK(spin6);
+static DEFINE_RAW_SPINLOCK(spin7);
+static DEFINE_RAW_SPINLOCK(spin8);
+static DEFINE_RAW_SPINLOCK(spin9);
+
 DEFINE_STATIC_SRCU(srcu0);
 DEFINE_STATIC_SRCU(srcu1);
 DEFINE_STATIC_SRCU(srcu2);
@@ -4487,6 +4683,19 @@ DEFINE_STATIC_SRCU(srcu6);
 DEFINE_STATIC_SRCU(srcu7);
 DEFINE_STATIC_SRCU(srcu8);
 DEFINE_STATIC_SRCU(srcu9);
+
+DEFINE_STATIC_SRCU_ATOMIC(srcu0_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu1_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu2_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu3_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu4_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu5_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu6_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu7_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu8_atomic);
+DEFINE_STATIC_SRCU_ATOMIC(srcu9_atomic);
+
+DEFINE_STATIC_SRCU_ATOMIC(srcu_irq);
 
 static int srcu_lockdep_next(const char *f, const char *fl, const char *fs, const char *fu, int i,
 			     int cyclelen, int deadlock)
@@ -4500,6 +4709,11 @@ static int srcu_lockdep_next(const char *f, const char *fl, const char *fs, cons
 	else
 		pr_info("%s: %s(%d), %s(%d)\n", f, fl, i, fu, i);
 	return j;
+}
+
+static void srcu_sync_irq(void *unused)
+{
+	synchronize_srcu_atomic(&srcu_irq);
 }
 
 // Test lockdep on SRCU-based deadlock scenarios.
@@ -4517,6 +4731,12 @@ static void rcu_torture_init_srcu_lockdep(void)
 					  &rwsem5, &rwsem6, &rwsem7, &rwsem8, &rwsem9 };
 	struct srcu_struct *srcus[] = { &srcu0, &srcu1, &srcu2, &srcu3, &srcu4,
 					&srcu5, &srcu6, &srcu7, &srcu8, &srcu9 };
+	raw_spinlock_t *spins[] = { &spin0, &spin1, &spin2, &spin3, &spin4,
+				    &spin5, &spin6, &spin7, &spin8, &spin9 };
+	struct srcu_struct *srcus_atomic[] = { &srcu0_atomic, &srcu1_atomic, &srcu2_atomic,
+					       &srcu3_atomic, &srcu4_atomic, &srcu5_atomic,
+					       &srcu6_atomic, &srcu7_atomic, &srcu8_atomic,
+					       &srcu9_atomic };
 	int testtype;
 
 	if (!test_srcu_lockdep)
@@ -4627,11 +4847,83 @@ static void rcu_torture_init_srcu_lockdep(void)
 	}
 #endif // #ifdef CONFIG_TASKS_TRACE_RCU
 
+	if (testtype == 4) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU_ATOMIC %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		if (deadlock && cyclelen == 1)
+			pr_info("%s: Expect hang.\n", __func__);
+		for (i = 0; i < cyclelen; i++) {
+			j = srcu_lockdep_next(__func__, "srcu_read_lock_atomic",
+					      "synchronize_srcu_atomic",
+					      "srcu_read_unlock_atomic", i,
+					      cyclelen, deadlock);
+			idx = srcu_read_lock_atomic(srcus_atomic[i]);
+			if (j >= 0)
+				synchronize_srcu_atomic(srcus_atomic[j]);
+			srcu_read_unlock_atomic(srcus_atomic[i], idx);
+		}
+		return;
+	}
+
+	if (testtype == 5) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU_ATOMIC/raw_spinlock %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		for (i = 0; i < cyclelen; i++) {
+			pr_info("%s: srcu_read_lock_atomic(%d), raw_spin_lock(%d), raw_spin_unlock(%d), srcu_read_unlock_atomic(%d)\n",
+				__func__, i, i, i, i);
+			idx = srcu_read_lock_atomic(srcus_atomic[i]);
+			raw_spin_lock(spins[i]);
+			raw_spin_unlock(spins[i]);
+			srcu_read_unlock_atomic(srcus_atomic[i], idx);
+
+			j = srcu_lockdep_next(__func__, "raw_spin_lock",
+					      "synchronize_srcu_atomic",
+					      "raw_spin_unlock", i, cyclelen,
+					      deadlock);
+			raw_spin_lock(spins[i]);
+			if (j >= 0)
+				synchronize_srcu_atomic(srcus_atomic[j]);
+			raw_spin_unlock(spins[i]);
+		}
+		return;
+	}
+
+	if (testtype == 6) {
+		pr_info("%s: test_srcu_lockdep = %05d: synchronize_srcu_atomic() inside rcu_read_lock() %d-way.\n",
+			__func__, test_srcu_lockdep, cyclelen);
+		for (i = 0; i < cyclelen; i++) {
+			rcu_read_lock();
+			synchronize_srcu_atomic(srcus_atomic[i]);
+			rcu_read_unlock();
+		}
+		return;
+	}
+
+	if (testtype == 7) {
+		int cpu;
+
+		for (i = 0; i < cyclelen; i++) {
+			idx = srcu_read_lock_atomic(&srcu_irq);
+			cpu = cpumask_any_but(cpu_online_mask,
+					      smp_processor_id());
+			if (cpu < nr_cpu_ids) {
+				pr_info("%s: CPU%d sending IPI to CPU%d\n",
+					__func__, smp_processor_id(), cpu);
+				smp_call_function_single(cpu, srcu_sync_irq,
+					NULL, 1);
+			}
+			srcu_read_unlock_atomic(&srcu_irq, idx);
+		}
+		return;
+	}
+
 err_out:
 	pr_info("%s: test_srcu_lockdep = %05d does nothing.\n", __func__, test_srcu_lockdep);
 	pr_info("%s: test_srcu_lockdep = DNNL.\n", __func__);
 	pr_info("%s: D: Deadlock if nonzero.\n", __func__);
-	pr_info("%s: NN: Test number, 0=SRCU, 1=SRCU/mutex, 2=SRCU/rwsem, 3=SRCU/Tasks Trace RCU.\n", __func__);
+	pr_info("%s: NN: Test number, 0=SRCU, 1=SRCU/mutex, 2=SRCU/rwsem, 3=SRCU/Tasks Trace RCU, 4=SRCU_ATOMIC, ",
+		__func__);
+	pr_cont("5=SRCU_ATOMIC/raw_spinlock, 6=synchronize_srcu_atomic inside rcu_read_lock, 7=atomic SRCU cross-CPU IRQ context mismatch.\n");
 	pr_info("%s: L: Cycle length.\n", __func__);
 	if (!IS_ENABLED(CONFIG_TASKS_TRACE_RCU))
 		pr_info("%s: NN=3 disallowed because kernel is built with CONFIG_TASKS_TRACE_RCU=n\n", __func__);
@@ -4786,6 +5078,7 @@ rcu_torture_init(void)
 		firsterr = -ENOMEM;
 		goto unwind;
 	}
+	rcu_torture_nmi_init();
 	for (i = 0; i < nrealreaders; i++) {
 		rcu_torture_reader_mbchk[i].rtc_chkrdr = -1;
 		firsterr = torture_create_kthread(rcu_torture_reader, (void *)i,

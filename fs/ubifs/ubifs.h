@@ -2020,7 +2020,7 @@ int ubifs_calc_dark(const struct ubifs_info *c, int spc);
 
 /* file.c */
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync);
-int ubifs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int ubifs_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr);
 int ubifs_update_time(struct inode *inode, enum fs_update_time type,
 		      unsigned int flags);
@@ -2028,7 +2028,7 @@ int ubifs_update_time(struct inode *inode, enum fs_update_time type,
 /* dir.c */
 struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
 			      umode_t mode, bool is_xattr);
-int ubifs_getattr(struct mnt_idmap *idmap, const struct path *path,
+int ubifs_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask, unsigned int flags);
 int ubifs_check_dir_empty(struct inode *dir);
 
@@ -2083,7 +2083,7 @@ void ubifs_destroy_size_tree(struct ubifs_info *c);
 
 /* ioctl.c */
 int ubifs_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
-int ubifs_fileattr_set(struct mnt_idmap *idmap,
+int ubifs_fileattr_set(const struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct file_kattr *fa);
 long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 void ubifs_set_inode_flags(struct inode *inode);

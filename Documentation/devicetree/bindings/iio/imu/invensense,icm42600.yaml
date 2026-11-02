@@ -26,16 +26,20 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - invensense,icm42600
-      - invensense,icm42602
-      - invensense,icm42605
-      - invensense,icm42607
-      - invensense,icm42607p
-      - invensense,icm42622
-      - invensense,icm42631
-      - invensense,icm42686
-      - invensense,icm42688
+    oneOf:
+      - enum:
+          - invensense,icm42600
+          - invensense,icm42602
+          - invensense,icm42605
+          - invensense,icm42607
+          - invensense,icm42607p
+          - invensense,icm42622
+          - invensense,icm42631
+          - invensense,icm42686
+          - invensense,icm42688
+      - items:
+          - const: invensense,icm42630
+          - const: invensense,icm42631
 
   reg:
     maxItems: 1

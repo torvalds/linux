@@ -27,7 +27,20 @@ enum a2l_style {
 };
 #define MAX_A2L_STYLE (A2L_STYLE_CMD + 1)
 
+enum symbol__weight_mode {
+	WEIGHT_NONE = 0,
+	WEIGHT_WEIGHT,
+	WEIGHT_INSNLAT,
+	WEIGHT_WEIGHT3,
+};
+
+#define for_each_weight(_weight) \
+	for ((_weight) = WEIGHT_WEIGHT; (_weight) <= WEIGHT_WEIGHT3; (_weight)++)
+
 struct symbol_conf {
+	bool		hybrid_merge;
+	/* Was hybrid_merge given on the command line rather than in a config file? */
+	bool		hybrid_merge_set;
 	bool		nanosecs;
 	unsigned short	priv_size;
 	bool		try_vmlinux_path,
@@ -69,7 +82,8 @@ struct symbol_conf {
 			annotate_data_sample,
 			skip_empty,
 			enable_latency,
-			prefer_latency;
+			prefer_latency,
+			annotate_weight;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,

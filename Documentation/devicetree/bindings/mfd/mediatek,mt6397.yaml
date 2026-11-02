@@ -57,6 +57,9 @@ properties:
   "#interrupt-cells":
     const: 2
 
+  "#sound-dai-cells":
+    const: 1
+
   rtc:
     type: object
     $ref: /schemas/rtc/rtc.yaml#
@@ -80,6 +83,15 @@ properties:
               - const: mediatek,mt6358-rtc
 
       start-year: true
+
+      nvmem-layout:
+        $ref: /schemas/nvmem/layouts/nvmem-layout.yaml
+        description:
+          The RTC carries four bytes of storage that neither the clock nor the
+          alarm uses, in the high half of four of the alarm registers, and
+          offers them as a battery-backed nvmem provider. MediaTek's
+          documentation names them RTC_NEW_SPARE0 to RTC_NEW_SPARE3 and gives
+          the first to a fuel gauge.
 
     required:
       - compatible
@@ -155,6 +167,23 @@ properties:
 
       '#clock-cells':
         const: 1
+
+    required:
+      - compatible
+
+  efuse:
+    type: object
+    unevaluatedProperties: false
+    description:
+      The efuse is responsible for storing calibration data, such as thermal
+      sensor calibration.
+
+    properties:
+      compatible:
+        const: mediatek,mt6323-efuse
+
+      nvmem-layout:
+        $ref: /schemas/nvmem/layouts/nvmem-layout.yaml#
 
     required:
       - compatible
@@ -306,6 +335,10 @@ examples:
         interrupts = <150 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-controller;
         #interrupt-cells = <2>;
+
+        efuse {
+          compatible = "mediatek,mt6323-efuse";
+        };
 
         leds {
             compatible = "mediatek,mt6323-led";

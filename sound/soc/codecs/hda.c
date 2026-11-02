@@ -85,12 +85,11 @@ static int hda_codec_register_dais(struct hda_codec *codec, struct snd_soc_compo
 	struct snd_soc_dai_driver *drvs = NULL;
 	struct snd_soc_dapm_context *dapm;
 	struct hda_pcm *pcm;
-	int ret, pcm_count = 0;
+	int ret, pcm_count;
 
-	if (list_empty(&codec->pcm_list_head))
+	pcm_count = list_count_nodes(&codec->pcm_list_head);
+	if (!pcm_count)
 		return -EINVAL;
-	list_for_each_entry(pcm, &codec->pcm_list_head, list)
-		pcm_count++;
 
 	ret = hda_codec_create_dais(codec, pcm_count, &drvs);
 	if (ret < 0)
@@ -218,6 +217,9 @@ static int hda_codec_probe(struct snd_soc_component *component)
 		goto err;
 	}
 
+	/* unsol events are still blocked until registered */
+	codec->core.unsol_disabled = false;
+
 	ret = driver->ops->probe(codec, codec->preset);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "codec init failed: %d\n", ret);
@@ -275,6 +277,10 @@ static void hda_codec_remove(struct snd_soc_component *component)
 
 	/* Don't allow any more runtime suspends */
 	pm_runtime_forbid(&hdev->dev);
+
+	/* stop asynchronous jack handling before freeing driver resources */
+	snd_hdac_device_disable_unsol(hdev);
+	cancel_delayed_work_sync(&codec->jackpoll_work);
 
 	hda_codec_unregister_dais(codec, component);
 

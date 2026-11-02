@@ -36,6 +36,7 @@ static void io_notif_tw_complete(struct io_tw_req tw_req, io_tw_token_t tw)
 		}
 
 		nd = nd->next;
+		ctx->nr_notifs--;
 		io_req_task_complete((struct io_tw_req){notif}, tw);
 	} while (nd);
 }
@@ -119,6 +120,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 
 	if (unlikely(!io_alloc_req(ctx, &notif)))
 		return NULL;
+	ctx->nr_notifs++;
 	notif->ctx = ctx;
 	notif->opcode = IORING_OP_NOP;
 	notif->flags = 0;

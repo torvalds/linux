@@ -77,25 +77,21 @@ static uint32_t get_sdma_rlc_reg_offset(struct amdgpu_device *adev,
 				unsigned int engine_id,
 				unsigned int queue_id)
 {
-	uint32_t sdma_engine_reg_base = 0;
-	uint32_t sdma_rlc_reg_offset;
 	uint32_t dev_inst = GET_INST(SDMA0, engine_id);
+	int xcc_id = adev->sdma.instance[engine_id].xcc_id;
+	int xcc_inst = dev_inst % adev->sdma.num_inst_per_xcc;
+	uint32_t sdma_engine_reg_base;
+	uint32_t sdma_rlc_reg_offset;
 
-	switch (dev_inst % adev->sdma.num_inst_per_xcc) {
-	case 0:
-		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA0,
-				dev_inst / adev->sdma.num_inst_per_xcc,
-				regSDMA0_SDMA_QUEUE0_RB_CNTL) - regSDMA0_SDMA_QUEUE0_RB_CNTL;
-		break;
-	case 1:
-		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA1,
-				dev_inst / adev->sdma.num_inst_per_xcc,
-				regSDMA1_SDMA_QUEUE0_RB_CNTL) - regSDMA0_SDMA_QUEUE0_RB_CNTL;
-		break;
-	default:
-		WARN(1, "Invalid SDMA engine id %d\n", engine_id);
-		break;
-	}
+	/*
+	 * On SDMA v7 (gc_12_x) all SDMA queue registers live in the GC_HWIP
+	 * aperture. The second SDMA per XCC is reached by adding a fixed
+	 * offset (regSDMA1_* - regSDMA0_* == SDMA1_REG_OFFSET
+	 */
+	sdma_engine_reg_base = adev->reg_offset[GC_HWIP][xcc_id][0];
+	if (xcc_inst != 0)
+		sdma_engine_reg_base +=
+			regSDMA1_SDMA_QUEUE0_RB_CNTL - regSDMA0_SDMA_QUEUE0_RB_CNTL;
 
 	sdma_rlc_reg_offset = sdma_engine_reg_base
 		+ queue_id * (regSDMA0_SDMA_QUEUE1_RB_CNTL - regSDMA0_SDMA_QUEUE0_RB_CNTL);
@@ -141,14 +137,24 @@ static int hqd_sdma_dump_v12_1(struct amdgpu_device *adev,
 			     uint32_t engine_id, uint32_t queue_id,
 			     uint32_t (**dump)[2], uint32_t *n_regs)
 {
-	uint32_t sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(adev,
-			engine_id, queue_id);
+	uint32_t sdma_rlc_reg_offset;
 	uint32_t i = 0, reg;
 
 	const uint32_t first_reg = regSDMA0_SDMA_QUEUE0_RB_CNTL;
 	const uint32_t last_reg = regSDMA0_SDMA_QUEUE0_CONTEXT_STATUS;
 #undef HQD_N_REGS
 #define HQD_N_REGS (last_reg - first_reg + 1)
+
+	/*
+	 * dqm_debugfs_hqds() iterates engine_id over
+	 * node_id * get_num_all_sdma_engines()..+get_num_all_sdma_engines().
+	 * On partitioned devices that range can address a logical SDMA engine
+	 * beyond the instances that actually exist on this node; reject it
+	 */
+	if (engine_id >= adev->sdma.num_instances)
+		return -EINVAL;
+
+	sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(adev, engine_id, queue_id);
 
 	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
 	if (*dump == NULL)
@@ -518,6 +524,37 @@ static void kgd_gfx_v12_1_get_cu_occupancy(struct amdgpu_device *adev,
 				adev->gfx.cu_info.max_waves_per_simd;
 }
 
+static void kgd_gfx_v12_1_get_iq_wait_times(struct amdgpu_device *adev,
+					uint32_t *wait_times,
+					uint32_t inst)
+{
+	*wait_times = RREG32_SOC15(GC, GET_INST(GC, inst), regCP_IQ_WAIT_TIME2);
+}
+
+static void kgd_gfx_v12_1_build_dequeue_wait_counts_packet_info(struct amdgpu_device *adev,
+					uint32_t wait_times,
+					uint32_t sch_wave,
+					uint32_t que_sleep,
+					uint32_t *reg_offset,
+					uint32_t *reg_data,
+					uint32_t inst)
+{
+	*reg_data = wait_times;
+
+	if (sch_wave)
+		*reg_data = REG_SET_FIELD(*reg_data,
+				CP_IQ_WAIT_TIME2,
+				SCH_WAVE,
+				sch_wave);
+	if (que_sleep)
+		*reg_data = REG_SET_FIELD(*reg_data,
+				CP_IQ_WAIT_TIME2,
+				QUE_SLEEP,
+				que_sleep);
+
+	*reg_offset = SOC15_REG_OFFSET(GC, GET_INST(GC, inst), regCP_IQ_WAIT_TIME2);
+}
+
 const struct kfd2kgd_calls gfx_v12_1_kfd2kgd = {
 	.init_interrupts = init_interrupts_v12_1,
 	.hqd_dump = hqd_dump_v12_1,
@@ -532,5 +569,8 @@ const struct kfd2kgd_calls gfx_v12_1_kfd2kgd = {
 	.set_address_watch = kgd_gfx_v12_1_set_address_watch,
 	.clear_address_watch = kgd_gfx_v12_1_clear_address_watch,
 	.hqd_sdma_get_doorbell = kgd_gfx_v12_1_hqd_sdma_get_doorbell,
-	.get_cu_occupancy = kgd_gfx_v12_1_get_cu_occupancy
+	.get_cu_occupancy = kgd_gfx_v12_1_get_cu_occupancy,
+	.get_iq_wait_times = kgd_gfx_v12_1_get_iq_wait_times,
+	.build_dequeue_wait_counts_packet_info =
+				kgd_gfx_v12_1_build_dequeue_wait_counts_packet_info,
 };

@@ -10,6 +10,7 @@
 #include <linux/dcache.h>
 #include <linux/stringhash.h>
 #include "hfsplus_fs.h"
+#include "unicode.h"
 
 struct test_mock_string_env {
 	struct hfsplus_unistr str1;
@@ -947,6 +948,223 @@ static void hfsplus_asc2uni_decompose_test(struct kunit *test)
 	free_mock_sb(mock_sb);
 }
 
+/*
+ * Real UTF-8 <-> wchar_t conversion, mirroring what the "utf8" NLS table
+ * actually does (see char2uni()/uni2char() in fs/nls/nls_utf8.c). The
+ * test_char2uni()/test_uni2char() stand-ins above only handle one raw
+ * byte per character, which cannot represent the combining marks (e.g.
+ * U+0301, U+0323) the canonical-reordering tests below need.
+ */
+static int test_char2uni_utf8(const unsigned char *rawstring, int boundlen,
+			      wchar_t *uni)
+{
+	unicode_t u;
+	int n = utf8_to_utf32(rawstring, boundlen, &u);
+
+	if (n < 0 || u > MAX_WCHAR_T) {
+		*uni = 0x3f; /* ? */
+		return -EINVAL;
+	}
+	*uni = (wchar_t)u;
+	return n;
+}
+
+static int test_uni2char_utf8(wchar_t uni, unsigned char *out, int boundlen)
+{
+	int n = utf32_to_utf8(uni, out, boundlen);
+
+	if (n < 0) {
+		*out = '?';
+		return -EINVAL;
+	}
+	return n;
+}
+
+/*
+ * Test that hfsplus_asc2uni() brings combining marks contributed by
+ * different source characters into Unicode canonical (combining-class)
+ * order, instead of just storing them in whatever order they were typed.
+ *
+ * U+0301 (COMBINING ACUTE ACCENT) has combining class 230; U+0323
+ * (COMBINING DOT BELOW) has combining class 220. Since 220 < 230,
+ * canonical order requires the dot-below before the acute. A name
+ * created with them typed in the "wrong" order must still end up stored
+ * in canonical order - this is exactly what macOS's own fsck_hfs
+ * (FixDecomps() in CatalogCheck.c) requires and flags as "Illegal name"
+ * when it isn't true.
+ */
+static void hfsplus_asc2uni_combining_reorder_test(struct kunit *test)
+{
+	struct test_mock_sb *mock_sb;
+	struct hfsplus_unistr ustr;
+	/* "e" + COMBINING ACUTE ACCENT (U+0301) + COMBINING DOT BELOW (U+0323) */
+	static const char wrong_order[] = "e\xcc\x81\xcc\xa3";
+	/* "e" + COMBINING DOT BELOW (U+0323) + COMBINING ACUTE ACCENT (U+0301) */
+	static const char canonical_order[] = "e\xcc\xa3\xcc\x81";
+	/* Two class-230 marks: GRAVE (U+0300) then ACUTE (U+0301) */
+	static const char same_class[] = "e\xcc\x80\xcc\x81";
+	int result;
+
+	mock_sb = setup_mock_sb();
+	KUNIT_ASSERT_NOT_NULL(test, mock_sb);
+
+	mock_sb->nls.char2uni = test_char2uni_utf8;
+
+	/* Typed out of canonical order: must be reordered on storage. */
+	result = hfsplus_asc2uni(&mock_sb->sb, &ustr, HFSPLUS_MAX_STRLEN,
+				 wrong_order, strlen(wrong_order),
+				 HFS_REGULAR_NAME);
+
+	KUNIT_EXPECT_EQ(test, 0, result);
+	KUNIT_EXPECT_EQ(test, 3, be16_to_cpu(ustr.length));
+	KUNIT_EXPECT_EQ(test, 'e', be16_to_cpu(ustr.unicode[0]));
+	KUNIT_EXPECT_EQ(test, 0x0323, be16_to_cpu(ustr.unicode[1]));
+	KUNIT_EXPECT_EQ(test, 0x0301, be16_to_cpu(ustr.unicode[2]));
+
+	/* Already in canonical order: must come out unchanged. */
+	result = hfsplus_asc2uni(&mock_sb->sb, &ustr, HFSPLUS_MAX_STRLEN,
+				 canonical_order, strlen(canonical_order),
+				 HFS_REGULAR_NAME);
+
+	KUNIT_EXPECT_EQ(test, 0, result);
+	KUNIT_EXPECT_EQ(test, 3, be16_to_cpu(ustr.length));
+	KUNIT_EXPECT_EQ(test, 'e', be16_to_cpu(ustr.unicode[0]));
+	KUNIT_EXPECT_EQ(test, 0x0323, be16_to_cpu(ustr.unicode[1]));
+	KUNIT_EXPECT_EQ(test, 0x0301, be16_to_cpu(ustr.unicode[2]));
+
+	/* Two marks of equal combining class must keep their relative
+	 * (input) order - the sort must be stable, not just "sorted".
+	 */
+	result = hfsplus_asc2uni(&mock_sb->sb, &ustr, HFSPLUS_MAX_STRLEN,
+				 same_class, strlen(same_class),
+				 HFS_REGULAR_NAME);
+
+	KUNIT_EXPECT_EQ(test, 0, result);
+	KUNIT_EXPECT_EQ(test, 3, be16_to_cpu(ustr.length));
+	KUNIT_EXPECT_EQ(test, 'e', be16_to_cpu(ustr.unicode[0]));
+	KUNIT_EXPECT_EQ(test, 0x0300, be16_to_cpu(ustr.unicode[1]));
+	KUNIT_EXPECT_EQ(test, 0x0301, be16_to_cpu(ustr.unicode[2]));
+
+	free_mock_sb(mock_sb);
+}
+
+/*
+ * Test that a name written with combining marks in non-canonical order
+ * still reads back as valid, correct UTF-8 once reordered - i.e. that
+ * hfsplus_asc2uni() and hfsplus_uni2asc_str() stay consistent with each
+ * other across the reordering.
+ *
+ * NODECOMPOSE is set so hfsplus_uni2asc_str() doesn't also recompose
+ * "e" + COMBINING DOT BELOW back into the precomposed U+1EB9 ("e"): that
+ * composition behavior is real (and already covered elsewhere), but it
+ * would obscure what this test is actually checking.
+ */
+static void hfsplus_unicode_combining_reorder_roundtrip_test(struct kunit *test)
+{
+	struct test_mock_sb *mock_sb;
+	struct hfsplus_unistr ustr;
+	static const char wrong_order[] = "e\xcc\x81\xcc\xa3";
+	static const char expected[] = "e\xcc\xa3\xcc\x81"; /* canonical order */
+	char buf[32];
+	int len = sizeof(buf);
+	int result;
+
+	mock_sb = setup_mock_sb();
+	KUNIT_ASSERT_NOT_NULL(test, mock_sb);
+
+	set_bit(HFSPLUS_SB_NODECOMPOSE, &mock_sb->sb_info.flags);
+	mock_sb->nls.char2uni = test_char2uni_utf8;
+	mock_sb->nls.uni2char = test_uni2char_utf8;
+
+	result = hfsplus_asc2uni(&mock_sb->sb, &ustr, HFSPLUS_MAX_STRLEN,
+				 wrong_order, strlen(wrong_order),
+				 HFS_REGULAR_NAME);
+	KUNIT_EXPECT_EQ(test, 0, result);
+
+	result = hfsplus_uni2asc_str(&mock_sb->sb, &ustr, buf, &len);
+
+	KUNIT_EXPECT_EQ(test, 0, result);
+	KUNIT_EXPECT_EQ(test, (int)strlen(expected), len);
+	KUNIT_EXPECT_MEMEQ(test, expected, buf, len);
+
+	free_mock_sb(mock_sb);
+}
+
+/*
+ * Test that hfsplus_asc2uni() decomposes a character using the corrected
+ * (post-2002/"Jaguar") canonical decomposition even when Apple Technote
+ * #1150's own decomposition table doesn't have an entry for it.
+ *
+ * U+01F8 (LATIN CAPITAL LETTER N WITH GRAVE) is exactly one of the
+ * characters macOS's own fsck_hfs (FixDecomps() in CatalogCheck.c) has
+ * flagged "Illegal name" for since 2002 when found stored undecomposed.
+ */
+static void hfsplus_asc2uni_legacy_decomp_test(struct kunit *test)
+{
+	struct test_mock_sb *mock_sb;
+	struct hfsplus_unistr ustr;
+	static const char input[] = "\xc7\xb8"; /* U+01F8 */
+	int result;
+
+	mock_sb = setup_mock_sb();
+	KUNIT_ASSERT_NOT_NULL(test, mock_sb);
+
+	mock_sb->nls.char2uni = test_char2uni_utf8;
+
+	result = hfsplus_asc2uni(&mock_sb->sb, &ustr, HFSPLUS_MAX_STRLEN,
+				 input, strlen(input), HFS_REGULAR_NAME);
+
+	KUNIT_EXPECT_EQ(test, 0, result);
+	KUNIT_EXPECT_EQ(test, 2, be16_to_cpu(ustr.length));
+	KUNIT_EXPECT_EQ(test, 'N', be16_to_cpu(ustr.unicode[0]));
+	KUNIT_EXPECT_EQ(test, 0x0300, be16_to_cpu(ustr.unicode[1]));
+
+	free_mock_sb(mock_sb);
+}
+
+/*
+ * Test that hfsplus_asc2uni() corrects two more of fsck_hfs's known
+ * legacy decomposition sequences once combining marks from independently
+ * typed characters end up adjacent:
+ *
+ *  - GREEK SMALL LETTER ALPHA (U+03B1) + COMBINING VERTICAL LINE ABOVE
+ *    (U+030D) must become U+03B1 + COMBINING ACUTE ACCENT (U+0301).
+ *  - BENGALI LETTER BA (U+09AC) + BENGALI SIGN NUKTA (U+09BC) must become
+ *    the single character BENGALI LETTER RA WITH MIDDLE DIAGONAL (U+09B0).
+ */
+static void hfsplus_asc2uni_legacy_seq_fixup_test(struct kunit *test)
+{
+	struct test_mock_sb *mock_sb;
+	struct hfsplus_unistr ustr;
+	static const char greek_input[] = "\xce\xb1\xcc\x8d"; /* U+03B1 U+030D */
+	static const char bengali_input[] = "\xe0\xa6\xac\xe0\xa6\xbc"; /* U+09AC U+09BC */
+	int result;
+
+	mock_sb = setup_mock_sb();
+	KUNIT_ASSERT_NOT_NULL(test, mock_sb);
+
+	mock_sb->nls.char2uni = test_char2uni_utf8;
+
+	result = hfsplus_asc2uni(&mock_sb->sb, &ustr, HFSPLUS_MAX_STRLEN,
+				 greek_input, strlen(greek_input),
+				 HFS_REGULAR_NAME);
+
+	KUNIT_EXPECT_EQ(test, 0, result);
+	KUNIT_EXPECT_EQ(test, 2, be16_to_cpu(ustr.length));
+	KUNIT_EXPECT_EQ(test, 0x03b1, be16_to_cpu(ustr.unicode[0]));
+	KUNIT_EXPECT_EQ(test, 0x0301, be16_to_cpu(ustr.unicode[1]));
+
+	result = hfsplus_asc2uni(&mock_sb->sb, &ustr, HFSPLUS_MAX_STRLEN,
+				 bengali_input, strlen(bengali_input),
+				 HFS_REGULAR_NAME);
+
+	KUNIT_EXPECT_EQ(test, 0, result);
+	KUNIT_EXPECT_EQ(test, 1, be16_to_cpu(ustr.length));
+	KUNIT_EXPECT_EQ(test, 0x09b0, be16_to_cpu(ustr.unicode[0]));
+
+	free_mock_sb(mock_sb);
+}
+
 /* Mock dentry for testing hfsplus_hash_dentry */
 static struct dentry test_dentry;
 
@@ -1227,6 +1445,37 @@ static void hfsplus_hash_dentry_edge_cases_test(struct kunit *test)
 	KUNIT_EXPECT_NE(test, 0, str.hash);
 
 	free_mock_str_env(mock_env);
+	free_mock_sb(mock_sb);
+}
+
+/*
+ * Test that hfsplus_hash_dentry() hashes two names identically when they
+ * differ only in the (non-canonical) typed order of the same combining
+ * marks - both must canonicalize to the same stored form, so they must
+ * hash the same or dcache lookups would spuriously miss.
+ */
+static void hfsplus_hash_dentry_combining_reorder_test(struct kunit *test)
+{
+	struct test_mock_sb *mock_sb;
+	struct qstr str1, str2;
+	int result;
+
+	mock_sb = setup_mock_sb();
+	KUNIT_ASSERT_NOT_NULL(test, mock_sb);
+
+	setup_mock_dentry(&mock_sb->sb);
+	mock_sb->nls.char2uni = test_char2uni_utf8;
+
+	create_qstr(&str1, "e\xcc\x81\xcc\xa3"); /* acute, then dot-below */
+	result = hfsplus_hash_dentry(&test_dentry, &str1);
+	KUNIT_EXPECT_EQ(test, 0, result);
+
+	create_qstr(&str2, "e\xcc\xa3\xcc\x81"); /* dot-below, then acute */
+	result = hfsplus_hash_dentry(&test_dentry, &str2);
+	KUNIT_EXPECT_EQ(test, 0, result);
+
+	KUNIT_EXPECT_EQ(test, str1.hash, str2.hash);
+
 	free_mock_sb(mock_sb);
 }
 
@@ -1552,6 +1801,59 @@ static void hfsplus_compare_dentry_combined_flags_test(struct kunit *test)
 	free_mock_sb(mock_sb);
 }
 
+/*
+ * Test that hfsplus_compare_dentry() treats two names as equal when they
+ * differ only in the (non-canonical) typed order of the same combining
+ * marks, since both refer to the same canonically-ordered catalog entry.
+ */
+static void hfsplus_compare_dentry_combining_reorder_test(struct kunit *test)
+{
+	struct test_mock_sb *mock_sb;
+	struct qstr name;
+	int result;
+
+	mock_sb = setup_mock_sb();
+	KUNIT_ASSERT_NOT_NULL(test, mock_sb);
+
+	setup_mock_dentry(&mock_sb->sb);
+	mock_sb->nls.char2uni = test_char2uni_utf8;
+
+	create_qstr(&name, "e\xcc\xa3\xcc\x81"); /* dot-below, then acute */
+	result = hfsplus_compare_dentry(&test_dentry, 5, "e\xcc\x81\xcc\xa3",
+					&name); /* acute, then dot-below */
+	KUNIT_EXPECT_EQ(test, 0, result);
+
+	free_mock_sb(mock_sb);
+}
+
+/*
+ * Test that a precomposed character using one of fsck_hfs's known legacy
+ * decompositions compares equal to the already-decomposed form of the
+ * same character - i.e. that hfsplus_compare_dentry() applies the same
+ * legacy-decomposition correction as hfsplus_asc2uni() does on storage,
+ * so a lookup finds the entry regardless of which form was typed.
+ */
+static void hfsplus_compare_dentry_legacy_decomp_test(struct kunit *test)
+{
+	struct test_mock_sb *mock_sb;
+	struct qstr name;
+	int result;
+
+	mock_sb = setup_mock_sb();
+	KUNIT_ASSERT_NOT_NULL(test, mock_sb);
+
+	setup_mock_dentry(&mock_sb->sb);
+	mock_sb->nls.char2uni = test_char2uni_utf8;
+
+	/* "N" + COMBINING GRAVE ACCENT (U+0300), already decomposed */
+	create_qstr(&name, "N\xcc\x80");
+	/* U+01F8, precomposed */
+	result = hfsplus_compare_dentry(&test_dentry, 2, "\xc7\xb8", &name);
+	KUNIT_EXPECT_EQ(test, 0, result);
+
+	free_mock_sb(mock_sb);
+}
+
 static struct kunit_case hfsplus_unicode_test_cases[] = {
 	KUNIT_CASE(hfsplus_strcasecmp_test),
 	KUNIT_CASE(hfsplus_strcmp_test),
@@ -1567,12 +1869,17 @@ static struct kunit_case hfsplus_unicode_test_cases[] = {
 	KUNIT_CASE(hfsplus_asc2uni_buffer_limits_test),
 	KUNIT_CASE(hfsplus_asc2uni_edge_cases_test),
 	KUNIT_CASE(hfsplus_asc2uni_decompose_test),
+	KUNIT_CASE(hfsplus_asc2uni_combining_reorder_test),
+	KUNIT_CASE(hfsplus_unicode_combining_reorder_roundtrip_test),
+	KUNIT_CASE(hfsplus_asc2uni_legacy_decomp_test),
+	KUNIT_CASE(hfsplus_asc2uni_legacy_seq_fixup_test),
 	KUNIT_CASE(hfsplus_hash_dentry_basic_test),
 	KUNIT_CASE(hfsplus_hash_dentry_casefold_test),
 	KUNIT_CASE(hfsplus_hash_dentry_special_chars_test),
 	KUNIT_CASE(hfsplus_hash_dentry_decompose_test),
 	KUNIT_CASE(hfsplus_hash_dentry_consistency_test),
 	KUNIT_CASE(hfsplus_hash_dentry_edge_cases_test),
+	KUNIT_CASE(hfsplus_hash_dentry_combining_reorder_test),
 	KUNIT_CASE(hfsplus_compare_dentry_basic_test),
 	KUNIT_CASE(hfsplus_compare_dentry_casefold_test),
 	KUNIT_CASE(hfsplus_compare_dentry_special_chars_test),
@@ -1580,6 +1887,8 @@ static struct kunit_case hfsplus_unicode_test_cases[] = {
 	KUNIT_CASE(hfsplus_compare_dentry_decompose_test),
 	KUNIT_CASE(hfsplus_compare_dentry_edge_cases_test),
 	KUNIT_CASE(hfsplus_compare_dentry_combined_flags_test),
+	KUNIT_CASE(hfsplus_compare_dentry_combining_reorder_test),
+	KUNIT_CASE(hfsplus_compare_dentry_legacy_decomp_test),
 	{}
 };
 

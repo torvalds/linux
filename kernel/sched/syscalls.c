@@ -678,6 +678,8 @@ change:
 	if (prev_class != next_class)
 		queue_flags |= DEQUEUE_CLASS;
 
+	scx_prepare_setscheduler(p, policy);
+
 	scoped_guard (sched_change, p, queue_flags) {
 
 		if (!(attr->sched_flags & SCHED_FLAG_KEEP_PARAMS)) {

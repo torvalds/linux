@@ -144,7 +144,7 @@ int ubifs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return 0;
 }
 
-int ubifs_fileattr_set(struct mnt_idmap *idmap,
+int ubifs_fileattr_set(const struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

@@ -14,6 +14,7 @@ struct fuse_dev;
 struct fuse_args;
 struct fuse_copy_state;
 struct fuse_backing_map;
+struct fuse_backing_create_in;
 struct file;
 struct folio;
 enum fuse_notify_code;
@@ -87,10 +88,12 @@ int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 
 int fuse_backing_open(struct fuse_conn *fc, struct fuse_backing_map *map);
 int fuse_backing_close(struct fuse_conn *fc, int backing_id);
+int fuse_backing_open_64(struct fuse_conn *fc, struct fuse_backing_create_in *map);
+int fuse_backing_close_64(struct fuse_conn *fc, u64 backing_id);
 
 int fuse_copy_one(struct fuse_copy_state *cs, void *val, unsigned size);
 int fuse_copy_folio(struct fuse_copy_state *cs, struct folio **foliop,
-		    unsigned offset, unsigned count, int zeroing);
+		    unsigned offset, unsigned count);
 void fuse_copy_finish(struct fuse_copy_state *cs);
 
 #ifdef CONFIG_FUSE_IO_URING

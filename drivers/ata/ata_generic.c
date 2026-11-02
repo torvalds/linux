@@ -150,6 +150,9 @@ static int is_intel_ider(struct pci_dev *dev)
 	return 1;
 }
 
+/* Forward declaration for the pci_match_id() call in ata_generic_init_one() */
+static const struct pci_device_id ata_generic[];
+
 /**
  *	ata_generic_init_one		-	attach generic IDE
  *	@dev: PCI device found
@@ -171,6 +174,19 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 		.port_ops = &generic_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
+
+	/*
+	 * A device matched through driver_override or through an ID added
+	 * with new_id does not come from our ID table, so pci_match_device()
+	 * hands us a synthetic ID with no driver_data and none of the checks
+	 * below apply. Probing maps BAR0 and BAR1 as the ATA command and
+	 * control blocks and writes to the device control register, so only
+	 * continue for devices which report the IDE class or which we list
+	 * ourselves.
+	 */
+	if (!pci_match_id(ata_generic, dev) &&
+	    (dev->class >> 8) != PCI_CLASS_STORAGE_IDE)
+		return -ENODEV;
 
 	/* Don't use the generic entry unless instructed to do so */
 	if ((id->driver_data & ATA_GEN_CLASS_MATCH) && all_generic_ide == 0)

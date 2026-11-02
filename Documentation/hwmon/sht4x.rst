@@ -15,6 +15,16 @@ Supported Chips:
 
       English: https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/2_Humidity_Sensors/Datasheets/Sensirion_Humidity_Sensors_SHT4x_Datasheet.pdf
 
+  * Sensirion STS4X
+
+    Prefix: 'sts4x'
+
+    Addresses scanned: None
+
+    Datasheet:
+
+      English: https://sensirion.com/resource/datasheet/sts4x
+
 Author: Navin Sankar Velliangiri <navin@linumiz.com>
 
 
@@ -22,9 +32,10 @@ Description
 -----------
 
 This driver implements support for the Sensirion SHT4x chip, a humidity
-and temperature sensor. Temperature is measured in degree celsius, relative
-humidity is expressed as a percentage. In sysfs interface, all values are
-scaled by 1000, i.e. the value for 31.5 degrees celsius is 31500.
+and temperature sensor, and the Sensirion STS4x chip, a temperature sensor.
+Temperature is measured in degree celsius, relative humidity is expressed as a
+percentage (on SHT4x only). In sysfs interface, all values are scaled by 1000,
+i.e. the value for 31.5 degrees celsius is 31500.
 
 Usage Notes
 -----------

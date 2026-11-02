@@ -198,18 +198,9 @@ static int eic7700_dwmac_probe(struct platform_device *pdev)
 	/*
 	 * The MAC silicon unconditionally adds ~2 ns TX delay; prevent
 	 * the PHY from also adding TX delay to avoid doubling it.
-	 *
-	 * DT specifies rgmii-id (TX from MAC silicon, RX from PHY);
-	 * override to rgmii-rxid so the PHY only adds its RX delay.
+	 * The common platform code adjusts the PHY interface accordingly.
 	 */
-	if (data->has_internal_tx_delay) {
-		plat_dat->phy_interface =
-				 phy_fix_phy_mode_for_mac_delays(plat_dat->phy_interface,
-								 true, false);
-		if (plat_dat->phy_interface == PHY_INTERFACE_MODE_NA)
-			return dev_err_probe(&pdev->dev, -EINVAL,
-				"phy interface mode is NA\n");
-	}
+	plat_dat->has_internal_tx_delay = data->has_internal_tx_delay;
 
 	/* Read rx-internal-delay-ps and update rx_clk delay */
 	if (!of_property_read_u32(pdev->dev.of_node,

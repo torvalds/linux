@@ -1172,7 +1172,7 @@ static inline void hlist_move_list(struct hlist_head *old,
 {
 	new->first = old->first;
 	if (new->first)
-		new->first->pprev = &new->first;
+		WRITE_ONCE(new->first->pprev, &new->first);
 	old->first = NULL;
 }
 
@@ -1189,10 +1189,10 @@ static inline void hlist_splice_init(struct hlist_head *from,
 				     struct hlist_head *to)
 {
 	if (to->first)
-		to->first->pprev = &last->next;
+		WRITE_ONCE(to->first->pprev, &last->next);
 	last->next = to->first;
 	to->first = from->first;
-	from->first->pprev = &to->first;
+	WRITE_ONCE(from->first->pprev, &to->first);
 	from->first = NULL;
 }
 

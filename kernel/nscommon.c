@@ -4,6 +4,7 @@
 #include <linux/ns_common.h>
 #include <linux/nstree.h>
 #include <linux/proc_ns.h>
+#include <linux/security.h>
 #include <linux/user_namespace.h>
 #include <linux/vfsdebug.h>
 
@@ -59,6 +60,9 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 
 	refcount_set(&ns->__ns_ref, 1);
 	ns->stashed = NULL;
+#ifdef CONFIG_SECURITY
+	ns->ns_security = NULL;
+#endif
 	ns->ops = ops;
 	ns->ns_id = 0;
 	ns->ns_type = ns_type;
@@ -77,6 +81,14 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 		ret = proc_alloc_inum(&ns->inum);
 	if (ret)
 		return ret;
+
+	ret = security_namespace_init(ns);
+	if (ret) {
+		if (!inum)
+			proc_free_inum(ns->inum);
+		return ret;
+	}
+
 	/*
 	 * Tree ref starts at 0. It's incremented when namespace enters
 	 * active use (installed in nsproxy) and decremented when all
@@ -91,7 +103,10 @@ int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_ope
 
 void __ns_common_free(struct ns_common *ns)
 {
-	proc_free_inum(ns->inum);
+	security_namespace_free(ns);
+
+	if (ns->inum > MNT_NS_INO_SPECIAL_MAX)
+		proc_free_inum(ns->inum);
 }
 
 struct ns_common *__must_check ns_owner(struct ns_common *ns)

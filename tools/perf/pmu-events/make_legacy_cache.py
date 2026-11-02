@@ -61,7 +61,7 @@ hw_cache_result = [
      "misses"),
 ]
 
-events = []
+events: list[dict[str, str]] = []
 def add_event(name: str,
               cache_id: int, cache_op: int, cache_result: int,
               desc: str,
@@ -87,10 +87,10 @@ def add_event(name: str,
         event["Deprecated"] = "1"
     events.append(event)
 
-for (cache_id, names, ops, cache_desc) in hw_cache_id:
-    for name in names:
-        add_event(name,
-                  cache_id,
+for (cid, names, ops, cache_desc) in hw_cache_id:
+    for cname in names:
+        add_event(cname,
+                  cid,
                   0, # PERF_COUNT_HW_CACHE_OP_READ
                   0, # PERF_COUNT_HW_CACHE_RESULT_ACCESS
                   f"{cache_desc} read accesses.",
@@ -100,27 +100,29 @@ for (cache_id, names, ops, cache_desc) in hw_cache_id:
             if op not in ops:
                 continue
             for op_name in op_names:
-                deprecated = (names[0] != name or op_names[1] != op_name)
-                add_event(f"{name}-{op_name}",
-                          cache_id,
+                is_deprecated = (names[0] != cname or op_names[1] != op_name)
+                add_event(f"{cname}-{op_name}",
+                          cid,
                           op,
                           0, # PERF_COUNT_HW_CACHE_RESULT_ACCESS
                           f"{cache_desc} {op_desc} accesses.",
-                          deprecated)
+                          is_deprecated)
 
                 for (result,  result_names, result_desc) in hw_cache_result:
                     for result_name in result_names:
-                        deprecated = ((names[0] != name or op_names[0] != op_name) or
-                                      (result == 0) or (result_names[0] != result_name))
-                        add_event(f"{name}-{op_name}-{result_name}",
-                                  cache_id, op, result,
+                        is_deprecated = ((names[0] != cname or op_names[0] != op_name) or
+                                         (result == 0) or (result_names[0] != result_name))
+                        add_event(f"{cname}-{op_name}-{result_name}",
+                                  cid,
+                                  op,
+                                  result,
                                   f"{cache_desc} {op_desc} {result_desc}.",
-                                  deprecated)
+                                  is_deprecated)
 
         for (result,  result_names, result_desc) in hw_cache_result:
             for result_name in result_names:
-                add_event(f"{name}-{result_name}",
-                          cache_id,
+                add_event(f"{cname}-{result_name}",
+                          cid,
                           0, # PERF_COUNT_HW_CACHE_OP_READ
                           result,
                           f"{cache_desc} read {result_desc}.",

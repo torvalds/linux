@@ -233,5 +233,36 @@ int of_clk_add_hw_provider_kunit(struct kunit *test, struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(of_clk_add_hw_provider_kunit);
 
+KUNIT_DEFINE_ACTION_WRAPPER(of_node_put_wrapper, of_node_put, struct device_node *);
+
+/**
+ * clk_of_find_node_by_name_kunit() - Test managed of_find_node_by_name()
+ * @test: The test context
+ * @from: Parent device node to start searching from, or NULL to search from root
+ * @name: The name string to match against
+ *
+ * Just like of_find_node_by_name(), except the device_node is managed by
+ * the test case and is automatically put after the test case concludes.
+ *
+ * Return: the device_node on success, NULL if not found, or an error pointer on failure.
+ */
+struct device_node *clk_of_find_node_by_name_kunit(struct kunit *test, struct device_node *from,
+						   const char *name)
+{
+	struct device_node *np;
+	int ret;
+
+	np = of_find_node_by_name(from, name);
+	if (!np)
+		return NULL;
+
+	ret = kunit_add_action_or_reset(test, of_node_put_wrapper, np);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return np;
+}
+EXPORT_SYMBOL_GPL(clk_of_find_node_by_name_kunit);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("KUnit helpers for clk providers and consumers");

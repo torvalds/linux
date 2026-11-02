@@ -34,6 +34,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
@@ -86,7 +87,7 @@ struct serial_info {
 	int			manfid;
 	int			prodid;
 	int			c950ctrl;
-	int			line[4];
+	struct uart_8250_port	*uport[4];
 	const struct serial_quirk *quirk;
 };
 
@@ -266,7 +267,7 @@ static void serial_remove(struct pcmcia_device *link)
 	 * Recheck to see if the device is still configured.
 	 */
 	for (i = 0; i < info->ndev; i++)
-		serial8250_unregister_port(info->line[i]);
+		serial8250_unregister_port(info->uport[i]);
 
 	if (!info->slave)
 		pcmcia_disable_device(link);
@@ -278,7 +279,7 @@ static int serial_suspend(struct pcmcia_device *link)
 	int i;
 
 	for (i = 0; i < info->ndev; i++)
-		serial8250_suspend_port(info->line[i]);
+		serial8250_suspend_port(info->uport[i]);
 
 	return 0;
 }
@@ -289,7 +290,7 @@ static int serial_resume(struct pcmcia_device *link)
 	int i;
 
 	for (i = 0; i < info->ndev; i++)
-		serial8250_resume_port(info->line[i]);
+		serial8250_resume_port(info->uport[i]);
 
 	if (info->quirk && info->quirk->wakeup)
 		info->quirk->wakeup(link);
@@ -347,7 +348,6 @@ static int setup_serial(struct pcmcia_device *handle, struct serial_info *info,
 			unsigned int iobase, int irq)
 {
 	struct uart_8250_port uart;
-	int line;
 
 	memset(&uart, 0, sizeof(uart));
 	uart.port.iobase = iobase;
@@ -361,14 +361,13 @@ static int setup_serial(struct pcmcia_device *handle, struct serial_info *info,
 	if (info->quirk && info->quirk->setup)
 		info->quirk->setup(handle, &uart);
 
-	line = serial8250_register_8250_port(&uart);
-	if (line < 0) {
+	info->uport[info->ndev] = serial8250_register_8250_port(&uart);
+	if (IS_ERR(info->uport[info->ndev])) {
 		pr_err("serial_cs: serial8250_register_8250_port() at 0x%04lx, irq %d failed\n",
 							(unsigned long)iobase, irq);
 		return -EINVAL;
 	}
 
-	info->line[info->ndev] = line;
 	info->ndev++;
 
 	return 0;

@@ -10,11 +10,13 @@
  * Author: Mickaël Salaün <mic@digikod.net>
  */
 
+#define _GNU_SOURCE
 #include <asm-generic/unistd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/prctl.h>
 #include <linux/securebits.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/capability.h>
@@ -24,6 +26,7 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 /* Defines AT_EXECVE_CHECK without type conflicts. */
@@ -458,6 +461,86 @@ TEST_F(secbits, restrict_locked_unset)
 	secbits &= ~SECBIT_EXEC_DENY_INTERACTIVE;
 	EXPECT_EQ(EPERM, test_secbits_set(0));
 	CHILD(EXPECT_EQ(EPERM, test_secbits_set(0)));
+}
+
+static const unsigned int exec_bits = SECBIT_EXEC_RESTRICT_FILE |
+				       SECBIT_EXEC_DENY_INTERACTIVE;
+static const unsigned int exec_locks = SECBIT_EXEC_RESTRICT_FILE_LOCKED |
+					SECBIT_EXEC_DENY_INTERACTIVE_LOCKED;
+
+/*
+ * Checks that the exec securebits in @exec survive creating and joining a user
+ * namespace, and that in there they can be changed exactly when they are not
+ * locked.
+ */
+static void test_userns(struct __test_metadata *const _metadata,
+			const unsigned int exec)
+{
+	const int error = (exec & exec_locks) ? EPERM : 0;
+	int ready[2], done[2], userns_fd, status;
+	char path[64], c = 0;
+	pid_t pid;
+
+	/* A user namespace owned by us to join later. */
+	ASSERT_EQ(0, pipe(ready));
+	ASSERT_EQ(0, pipe(done));
+	pid = fork();
+	ASSERT_LE(0, pid);
+	if (pid == 0) {
+		close(ready[0]);
+		close(done[1]);
+		if (unshare(CLONE_NEWUSER))
+			_exit(1);
+		if (write(ready[1], &c, 1) != 1)
+			_exit(1);
+		if (read(done[0], &c, 1) < 0)
+			_exit(1);
+		_exit(0);
+	}
+	close(ready[1]);
+	close(done[0]);
+	if (read(ready[0], &c, 1) != 1) {
+		waitpid(pid, &status, 0);
+		SKIP(return, "Cannot create a user namespace");
+	}
+
+	snprintf(path, sizeof(path), "/proc/%d/ns/user", pid);
+	userns_fd = open(path, O_RDONLY | O_CLOEXEC);
+	ASSERT_LE(0, userns_fd);
+
+	EXPECT_EQ(0, test_secbits_set(prctl(PR_GET_SECUREBITS) | exec));
+
+	/* Creating a user namespace keeps them... */
+	CHILD(EXPECT_EQ(0, unshare(CLONE_NEWUSER));
+	      EXPECT_EQ(exec, prctl(PR_GET_SECUREBITS));
+	      EXPECT_EQ(error, test_secbits_set(exec ^ exec_bits));
+	      EXPECT_EQ(error, test_secbits_set(0)));
+
+	/* ...and so does joining one. */
+	CHILD(EXPECT_EQ(0, setns(userns_fd, CLONE_NEWUSER));
+	      EXPECT_EQ(exec, prctl(PR_GET_SECUREBITS));
+	      EXPECT_EQ(error, test_secbits_set(exec ^ exec_bits));
+	      EXPECT_EQ(error, test_secbits_set(0)));
+
+	close(userns_fd);
+	close(done[1]);
+	EXPECT_EQ(pid, waitpid(pid, &status, 0));
+	close(ready[0]);
+}
+
+TEST_F(secbits, userns_locked)
+{
+	test_userns(_metadata, exec_bits | exec_locks);
+}
+
+TEST_F(secbits, userns_unlocked)
+{
+	test_userns(_metadata, exec_bits);
+}
+
+TEST_F(secbits, userns_lock_only)
+{
+	test_userns(_metadata, exec_locks);
 }
 
 TEST_HARNESS_MAIN

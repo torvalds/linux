@@ -1170,6 +1170,14 @@ static void dmi_check_onboard_devices(const struct dmi_header *dm, void *adap)
 	}
 }
 
+static void i801_register_spd(struct i801_priv *priv)
+{
+	if (priv->original_hstcfg & SMBHSTCFG_SPD_WD)
+		i2c_register_spd_write_disable(&priv->adapter);
+	else
+		i2c_register_spd_write_enable(&priv->adapter);
+}
+
 /* Register optional targets */
 static void i801_probe_optional_targets(struct i801_priv *priv)
 {
@@ -1193,7 +1201,7 @@ static void i801_probe_optional_targets(struct i801_priv *priv)
 #ifdef CONFIG_I2C_I801_MUX
 	if (!priv->mux_pdev)
 #endif
-		i2c_register_spd_write_enable(&priv->adapter);
+		i801_register_spd(priv);
 }
 #else
 static void __init input_apanel_init(void) {}

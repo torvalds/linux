@@ -220,12 +220,18 @@ static int loongson_i2s_dai_probe(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
+static const u64 loongson_i2s_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J;
+
 static const struct snd_soc_dai_ops loongson_i2s_dai_ops = {
 	.probe		= loongson_i2s_dai_probe,
 	.trigger	= loongson_i2s_trigger,
 	.hw_params	= loongson_i2s_hw_params,
 	.set_sysclk	= loongson_i2s_set_dai_sysclk,
 	.set_fmt	= loongson_i2s_set_fmt,
+	.auto_selectable_formats	= &loongson_i2s_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 struct snd_soc_dai_driver loongson_i2s_dai = {

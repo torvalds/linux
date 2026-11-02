@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2021 ARM Limited
  *
- * Attempt to change the SVE vector length in a signal hander, this is not
+ * Attempt to change the SVE vector length in a signal handler, this is not
  * supported and is expected to segfault.
  */
 

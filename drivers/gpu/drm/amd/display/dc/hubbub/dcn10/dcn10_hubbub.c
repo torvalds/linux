@@ -933,6 +933,8 @@ void hubbub1_construct(struct hubbub *hubbub,
 
 	hubbub1->base.ctx = ctx;
 
+	hubbub1->base.inst = 0;
+
 	hubbub1->base.funcs = &hubbub1_funcs;
 
 	hubbub1->regs = hubbub_regs;

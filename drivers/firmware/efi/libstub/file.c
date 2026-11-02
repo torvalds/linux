@@ -29,6 +29,8 @@
  */
 #define EFI_READ_CHUNK_SIZE	SZ_1M
 
+static efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
+
 struct finfo {
 	efi_file_info_t info;
 	efi_char16_t	filename[MAX_FILENAME_SIZE];
@@ -39,7 +41,7 @@ static efi_status_t efi_open_file(efi_file_protocol_t *volume,
 				  efi_file_protocol_t **handle,
 				  unsigned long *file_size)
 {
-	efi_guid_t info_guid = EFI_FILE_INFO_ID;
+	static efi_guid_t info_guid = EFI_FILE_INFO_ID;
 	efi_file_protocol_t *fh;
 	unsigned long info_sz;
 	efi_status_t status;
@@ -74,7 +76,6 @@ static efi_status_t efi_open_file(efi_file_protocol_t *volume,
 static efi_status_t efi_open_volume(efi_loaded_image_t *image,
 				    efi_file_protocol_t **fh)
 {
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
 	efi_simple_file_system_protocol_t *io;
 	efi_status_t status;
 
@@ -128,9 +129,8 @@ static int find_file_option(const efi_char16_t *cmdline, int cmdline_len,
 static efi_status_t efi_open_device_path(efi_file_protocol_t **volume,
 					 struct finfo *fi)
 {
-	efi_guid_t text_to_dp_guid = EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL_GUID;
+	static efi_guid_t text_to_dp_guid = EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL_GUID;
 	static efi_device_path_from_text_protocol_t *text_to_dp = NULL;
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
 	efi_device_path_protocol_t *initrd_dp;
 	efi_simple_file_system_protocol_t *io;
 	struct efi_file_path_dev_path *fpath;

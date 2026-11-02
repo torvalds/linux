@@ -45,7 +45,7 @@ CGROUP COMMANDS
 |     **cgroup_unix_recvmsg** | **cgroup_sysctl** |
 |     **cgroup_getsockopt** | **cgroup_setsockopt** |
 |     **cgroup_inet_sock_release** }
-| *ATTACH_FLAGS* := { **multi** | **override** }
+| *ATTACH_FLAGS* := { [ **multi** | **override** ] [ **preorder** ] }
 
 DESCRIPTION
 ===========
@@ -75,20 +75,27 @@ bpftool cgroup attach *CGROUP* *ATTACH_TYPE* *PROG* [*ATTACH_FLAGS*]
     Attach program *PROG* to the cgroup *CGROUP* with attach type *ATTACH_TYPE*
     and optional *ATTACH_FLAGS*.
 
-    *ATTACH_FLAGS* can be one of: **override** if a sub-cgroup installs some
+    *ATTACH_FLAGS* can include: **override** if a sub-cgroup installs some
     bpf program, the program in this cgroup yields to sub-cgroup program;
     **multi** if a sub-cgroup installs some bpf program, that cgroup program
-    gets run in addition to the program in this cgroup.
+    gets run in addition to the program in this cgroup;
+    **preorder** requests ancestor-to-descendant execution for this program,
+    before non-preorder programs, which execute descendants-to-ancestors
+    across the cgroup hierarchy. Note that **preorder** alone does not enable
+    multi-program attachment; specify **multi** together with **preorder** to
+    attach multiple programs.
 
-    Only one program is allowed to be attached to a cgroup with no attach flags
-    or the **override** flag. Attaching another program will release old
-    program and attach the new one.
+    Only one program is allowed to be attached to a cgroup unless the
+    **multi** flag is specified. Without **multi**, attaching another program
+    replaces the existing program, provided the **override** setting matches.
 
     Multiple programs are allowed to be attached to a cgroup with **multi**.
-    They are executed in FIFO order (those that were attached first, run
-    first).
+    Programs marked with **preorder** are placed before non-preorder programs
+    in the effective program array. Within each ordering class at the same
+    cgroup level, attachment order is preserved.
 
-    Non-default *ATTACH_FLAGS* are supported by kernel version 4.14 and later.
+    **multi** and **override** are supported by kernel version 4.14 and later.
+    **preorder** was introduced upstream in Linux 6.15.
 
     *ATTACH_TYPE* can be one of:
 

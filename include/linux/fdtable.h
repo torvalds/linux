@@ -25,7 +25,7 @@
 
 struct fdtable {
 	unsigned int max_fds;
-	struct file __rcu **fd;      /* current fd array */
+	struct file __rcu **fd __counted_by_ptr(max_fds);      /* current fd array */
 	unsigned long *close_on_exec;
 	unsigned long *open_fds;
 	unsigned long *full_fds_bits;
@@ -100,12 +100,22 @@ static inline bool close_on_exec(unsigned int fd, const struct files_struct *fil
 struct task_struct;
 
 void put_files_struct(struct files_struct *fs);
-int unshare_files(void);
+void switch_files_struct(struct task_struct *tsk, struct files_struct *files);
+int unshare_fd(unsigned long unshare_flags, struct files_struct **new_fdp);
+enum fd_range_flags {
+	/* Leave behind all descriptors outside of the specified range. */
+	FD_RANGE_EXCEPT		= (1U << 0),
+
+	/* Only select descriptors that have close-on-exec set. */
+	FD_RANGE_CLOEXEC_ONLY	= (1U << 1),
+};
+
 struct fd_range {
 	unsigned int from, to;
+	enum fd_range_flags flags;
 };
 struct files_struct *dup_fd(struct files_struct *, struct fd_range *) __latent_entropy;
-void do_close_on_exec(struct files_struct *);
+void close_cloexec_files(struct files_struct *);
 int iterate_fd(struct files_struct *, unsigned,
 		int (*)(const void *, struct file *, unsigned),
 		const void *);

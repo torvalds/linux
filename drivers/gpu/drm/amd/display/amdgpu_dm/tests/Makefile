@@ -1,6 +1,8 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0 OR MIT
 #
 # Makefile for amdgpu_dm KUnit tests.
+#
+# Copyright 2026 Advanced Micro Devices, Inc.
 
 ccflags-y += -I$(src)/..
 ccflags-y += -I$(src)/../..

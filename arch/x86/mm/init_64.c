@@ -970,7 +970,8 @@ int add_pages(int nid, unsigned long start_pfn, unsigned long nr_pages,
 		return -ERANGE;
 
 	ret = __add_pages(nid, start_pfn, nr_pages, params);
-	WARN_ON_ONCE(ret);
+	if (ret)
+		return ret;
 
 	/*
 	 * Special case: add_pages() is called by memremap_pages() for adding device

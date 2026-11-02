@@ -737,7 +737,7 @@
 	pinctrl-0 = <&dmic01_default>;
 	pinctrl-names = "default";
 
-	qcom,dmic-sample-rate = <4800000>;
+	qcom,dmic-sample-rate = <2400000>;
 };
 
 &mdss {
@@ -861,7 +861,6 @@
 };
 
 &pmk8850_rtc {
-	qcom,uefi-rtc-info;
 	qcom,no-alarm;
 };
 

@@ -45,11 +45,7 @@ bool syscall_user_dispatch(struct pt_regs *regs)
 		return false;
 
 	if (likely(sd->selector)) {
-		/*
-		 * access_ok() is performed once, at prctl time, when
-		 * the selector is loaded by userspace.
-		 */
-		if (unlikely(__get_user(state, sd->selector))) {
+		if (unlikely(get_user(state, untagged_addr(sd->selector)))) {
 			force_exit_sig(SIGSEGV);
 			return true;
 		}

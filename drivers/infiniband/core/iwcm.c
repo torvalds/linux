@@ -936,7 +936,7 @@ static void cm_disconnect_handler(struct iwcm_id_private *cm_id_priv,
 /*
  * CM_ID <-- IDLE
  *
- * If in the ESTBLISHED or CLOSING states, the QP will have have been
+ * If in the ESTBLISHED or CLOSING states, the QP will have been
  * moved by the provider to the ERR state. Disassociate the CM_ID from
  * the QP,  move to IDLE, and remove the 'connected' reference.
  *

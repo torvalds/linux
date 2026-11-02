@@ -112,7 +112,7 @@ struct fscache_cookie {
 	struct list_head		proc_link;	/* Link in proc list */
 	struct list_head		commit_link;	/* Link in commit queue */
 	struct work_struct		work;		/* Commit/relinq/withdraw work */
-	loff_t				object_size;	/* Size of the netfs object */
+	uoff_t				object_size;	/* Size of the netfs object */
 	unsigned long			unused_at;	/* Time at which unused (jiffies) */
 	unsigned long			flags;
 #define FSCACHE_COOKIE_RELINQUISHED	0		/* T if cookie has been relinquished */
@@ -147,6 +147,23 @@ struct fscache_cookie {
 	};
 };
 
+enum fscache_extent_type {
+	FSCACHE_EXTENT_DATA,
+	FSCACHE_EXTENT_ZERO,
+} __mode(byte);
+
+/*
+ * Cache occupancy information.
+ */
+struct fscache_occupancy {
+	unsigned long long	query_from;	/* Point to query from */
+	unsigned long long	query_to;	/* Point to query to */
+	unsigned long long	cached_from[2];	/* Point at which cache extents start */
+	unsigned long long	cached_to[2];	/* Point at which cache extents end */
+	unsigned int		granularity;	/* Granularity desired */
+	enum fscache_extent_type cached_type[2];	/* Type of cache extent */
+};
+
 /*
  * slow-path functions for when there is actually caching available, and the
  * netfs does actually have a valid token
@@ -163,22 +180,22 @@ extern struct fscache_cookie *__fscache_acquire_cookie(
 	u8,
 	const void *, size_t,
 	const void *, size_t,
-	loff_t);
+	uoff_t);
 extern void __fscache_use_cookie(struct fscache_cookie *, bool);
-extern void __fscache_unuse_cookie(struct fscache_cookie *, const void *, const loff_t *);
+extern void __fscache_unuse_cookie(struct fscache_cookie *, const void *, const uoff_t *);
 extern void __fscache_relinquish_cookie(struct fscache_cookie *, bool);
-extern void __fscache_resize_cookie(struct fscache_cookie *, loff_t);
-extern void __fscache_invalidate(struct fscache_cookie *, const void *, loff_t, unsigned int);
+void __fscache_resize_cookie(struct fscache_cookie *cookie, uoff_t new_size, bool shrank);
+extern void __fscache_invalidate(struct fscache_cookie *, const void *, uoff_t, unsigned int);
 extern int __fscache_begin_read_operation(struct netfs_cache_resources *, struct fscache_cookie *);
 extern int __fscache_begin_write_operation(struct netfs_cache_resources *, struct fscache_cookie *);
 
 void __fscache_write_to_cache(struct fscache_cookie *cookie,
 			      struct address_space *mapping,
-			      loff_t start, size_t len, loff_t i_size,
+			      uoff_t start, size_t len, uoff_t i_size,
 			      netfs_io_terminated_t term_func,
 			      void *term_func_priv,
 			      bool using_pgpriv2, bool cond);
-extern void __fscache_clear_page_bits(struct address_space *, loff_t, size_t);
+extern void __fscache_clear_page_bits(struct address_space *, uoff_t, size_t);
 
 /**
  * fscache_acquire_volume - Register a volume as desiring caching services
@@ -249,7 +266,7 @@ struct fscache_cookie *fscache_acquire_cookie(struct fscache_volume *volume,
 					      size_t index_key_len,
 					      const void *aux_data,
 					      size_t aux_data_len,
-					      loff_t object_size)
+					      uoff_t object_size)
 {
 	if (!fscache_volume_valid(volume))
 		return NULL;
@@ -286,7 +303,7 @@ static inline void fscache_use_cookie(struct fscache_cookie *cookie,
  */
 static inline void fscache_unuse_cookie(struct fscache_cookie *cookie,
 					const void *aux_data,
-					const loff_t *object_size)
+					const uoff_t *object_size)
 {
 	if (fscache_cookie_valid(cookie))
 		__fscache_unuse_cookie(cookie, aux_data, object_size);
@@ -327,7 +344,7 @@ static inline void *fscache_get_aux(struct fscache_cookie *cookie)
  */
 static inline
 void fscache_update_aux(struct fscache_cookie *cookie,
-			const void *aux_data, const loff_t *object_size)
+			const void *aux_data, const uoff_t *object_size)
 {
 	void *p = fscache_get_aux(cookie);
 
@@ -343,7 +360,7 @@ extern atomic_t fscache_n_updates;
 
 static inline
 void __fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
-			     const loff_t *object_size)
+			     const uoff_t *object_size)
 {
 #ifdef CONFIG_FSCACHE_STATS
 	atomic_inc(&fscache_n_updates);
@@ -369,7 +386,7 @@ void __fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data
  */
 static inline
 void fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
-			   const loff_t *object_size)
+			   const uoff_t *object_size)
 {
 	if (fscache_cookie_enabled(cookie))
 		__fscache_update_cookie(cookie, aux_data, object_size);
@@ -377,8 +394,9 @@ void fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
 
 /**
  * fscache_resize_cookie - Request that a cache object be resized
- * @cookie: The cookie representing the cache object
- * @new_size: The new size of the object (may be NULL)
+ * @cookie: The cookie representing the cache object (may be NULL)
+ * @new_size: The new size of the object
+ * @shrank: True if the file shrank; false if it expanded
  *
  * Request that the size of an object be changed.
  *
@@ -386,10 +404,10 @@ void fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
  * description.
  */
 static inline
-void fscache_resize_cookie(struct fscache_cookie *cookie, loff_t new_size)
+void fscache_resize_cookie(struct fscache_cookie *cookie, uoff_t new_size, bool shrank)
 {
 	if (fscache_cookie_enabled(cookie))
-		__fscache_resize_cookie(cookie, new_size);
+		__fscache_resize_cookie(cookie, new_size, shrank);
 }
 
 /**
@@ -413,7 +431,7 @@ void fscache_resize_cookie(struct fscache_cookie *cookie, loff_t new_size)
  */
 static inline
 void fscache_invalidate(struct fscache_cookie *cookie,
-			const void *aux_data, loff_t size, unsigned int flags)
+			const void *aux_data, uoff_t size, unsigned int flags)
 {
 	if (fscache_cookie_enabled(cookie))
 		__fscache_invalidate(cookie, aux_data, size, flags);
@@ -502,7 +520,7 @@ static inline void fscache_end_operation(struct netfs_cache_resources *cres)
  */
 static inline
 int fscache_read(struct netfs_cache_resources *cres,
-		 loff_t start_pos,
+		 uoff_t start_pos,
 		 struct iov_iter *iter,
 		 enum netfs_read_from_hole read_hole,
 		 netfs_io_terminated_t term_func,
@@ -561,7 +579,7 @@ int fscache_begin_write_operation(struct netfs_cache_resources *cres,
  */
 static inline
 int fscache_write(struct netfs_cache_resources *cres,
-		  loff_t start_pos,
+		  uoff_t start_pos,
 		  struct iov_iter *iter,
 		  netfs_io_terminated_t term_func,
 		  void *term_func_priv)
@@ -581,7 +599,7 @@ int fscache_write(struct netfs_cache_resources *cres,
  * waiting.
  */
 static inline void fscache_clear_page_bits(struct address_space *mapping,
-					   loff_t start, size_t len,
+					   uoff_t start, size_t len,
 					   bool caching)
 {
 	if (caching)
@@ -615,7 +633,7 @@ static inline void fscache_clear_page_bits(struct address_space *mapping,
  */
 static inline void fscache_write_to_cache(struct fscache_cookie *cookie,
 					  struct address_space *mapping,
-					  loff_t start, size_t len, loff_t i_size,
+					  uoff_t start, size_t len, uoff_t i_size,
 					  netfs_io_terminated_t term_func,
 					  void *term_func_priv,
 					  bool using_pgpriv2, bool caching)

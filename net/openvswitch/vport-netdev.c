@@ -9,7 +9,6 @@
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/kernel.h>
-#include <linux/llc.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <linux/openvswitch.h>

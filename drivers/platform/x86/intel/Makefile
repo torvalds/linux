@@ -40,6 +40,7 @@ intel-target-$(CONFIG_INTEL_PUNIT_IPC)		+= punit_ipc.o
 # TPMI drivers
 intel-target-$(CONFIG_INTEL_PLR_TPMI)		+= plr_tpmi.o
 intel-target-$(CONFIG_INTEL_TPMI_POWER_DOMAINS)	+= tpmi_power_domains.o
+intel-target-$(CONFIG_INTEL_TPMI_COMMON)	+= tpmi_common.o
 intel-target-$(CONFIG_INTEL_TPMI)		+= vsec_tpmi.o
 
 # Intel Uncore drivers

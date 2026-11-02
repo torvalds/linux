@@ -23,7 +23,7 @@ static int verify_mte_pointer_validity(char *ptr, int mode)
 {
 	mte_initialize_current_context(mode, (uintptr_t)ptr, BUFFER_SIZE);
 	/* Check the validity of the tagged pointer */
-	memset(ptr, '1', BUFFER_SIZE);
+	memset_safe(ptr, '1', BUFFER_SIZE);
 	mte_wait_after_trig();
 	if (cur_mte_cxt.fault_valid) {
 		ksft_print_msg("Unexpected fault recorded for %p-%p in mode %x\n",
@@ -159,7 +159,7 @@ static int check_none_included_tags(int mem_type, int mode)
 		}
 		mte_initialize_current_context(mode, (uintptr_t)ptr, BUFFER_SIZE);
 		/* Check the write validity of the untagged pointer */
-		memset(ptr, '1', BUFFER_SIZE);
+		memset_safe(ptr, '1', BUFFER_SIZE);
 		mte_wait_after_trig();
 		if (cur_mte_cxt.fault_valid)
 			break;

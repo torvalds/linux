@@ -59,6 +59,9 @@ static void disable_hpo_frl_link_output(struct dc_link *link,
 		enum signal_type signal)
 {
 	(void)link_res;
+	if (link->frl_flags.no_timeout)
+		return;
+
 	if (dc_is_hdmi_frl_signal(signal))
 		link->hpo_frl_link_enc->funcs->disable_link_encoder(link->hpo_frl_link_enc);
 	link->link_enc->funcs->disable_output(link->link_enc, signal);

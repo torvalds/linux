@@ -36,7 +36,6 @@ static inline int nf_osf_ttl(const struct sk_buff *skb,
 	switch (ttl_check) {
 	case NF_OSF_TTL_TRUE:
 		return ip->ttl == f_ttl;
-		break;
 	case NF_OSF_TTL_NOCHECK:
 		return 1;
 	case NF_OSF_TTL_LESS:
@@ -325,7 +324,7 @@ static int nfnl_osf_add_callback(struct sk_buff *skb,
 	    !memchr(f->version, 0, MAXGENRELEN))
 		return -EINVAL;
 
-	kf = kmalloc_obj(struct nf_osf_finger);
+	kf = kmalloc_obj(struct nf_osf_finger, GFP_KERNEL_ACCOUNT);
 	if (!kf)
 		return -ENOMEM;
 

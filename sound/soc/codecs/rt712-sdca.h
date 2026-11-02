@@ -14,6 +14,7 @@
 #include <linux/soundwire/sdw_type.h>
 #include <sound/soc.h>
 #include <linux/workqueue.h>
+#include <linux/gpio/driver.h>
 
 struct  rt712_sdca_priv {
 	struct regmap *regmap;
@@ -45,6 +46,8 @@ struct  rt712_sdca_priv {
 	bool fu05_dapm_mute;
 	bool fu05_mixer_l_mute;
 	bool fu05_mixer_r_mute;
+	struct gpio_chip gpio_chip;
+	struct mutex gc_lock;
 };
 
 struct rt712_dmic_kctrl_priv {
@@ -114,6 +117,9 @@ struct rt712_dmic_kctrl_priv {
 #define RT712_HDA_LEGACY_MUX_CTL0			0x00
 #define RT712_HDA_LEGACY_CONFIG_CTL0			0x06
 #define RT712_HDA_LEGACY_RESET_CTL			0x08
+#define RT712_HDA_GPIO_EN_CTL				0x09
+#define RT712_HDA_GPIO_DIRECTION_CTL			0x0a
+#define RT712_HDA_GPIO_SET_CTL				0x0b
 #define RT712_HDA_LEGACY_GPIO_WAKE_EN_CTL		0x0e
 #define RT712_DMIC_ENT_FLOAT_CTL			0x10
 #define RT712_DMIC_GAIN_ENT_FLOAT_CTL0			0x11

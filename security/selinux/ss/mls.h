@@ -46,9 +46,6 @@ int mls_compute_sid(struct policydb *p, struct context *scontext,
 		    struct context *tcontext, u16 tclass, u32 specified,
 		    struct context *newcontext, bool sock);
 
-int mls_setup_user_range(struct policydb *p, struct context *fromcon,
-			 struct user_datum *user, struct context *usercon);
-
 #ifdef CONFIG_NETLABEL
 void mls_export_netlbl_lvl(struct policydb *p, struct context *context,
 			   struct netlbl_lsm_secattr *secattr);

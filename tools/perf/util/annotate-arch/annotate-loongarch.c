@@ -29,6 +29,9 @@ static int loongarch_call__parse(const struct arch *arch, struct ins_operands *o
 	ops->target.addr = strtoull(c, &endptr, 16);
 
 	name = strchr(endptr, '<');
+	if (name == NULL)
+		goto find_target;
+
 	name++;
 
 	if (arch->objdump.skip_functions_char &&
@@ -46,6 +49,7 @@ static int loongarch_call__parse(const struct arch *arch, struct ins_operands *o
 	if (ops->target.name == NULL)
 		return -1;
 
+find_target:
 	target = (struct addr_map_symbol) {
 		.ms = { .map = map__get(map), },
 		.addr = map__objdump_2mem(map, ops->target.addr),

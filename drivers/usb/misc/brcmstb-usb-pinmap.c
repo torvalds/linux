@@ -299,10 +299,8 @@ static int __init brcmstb_usb_pinmap_probe(struct platform_device *pdev)
 				       brcmstb_usb_pinmap_ovr_isr,
 				       IRQF_TRIGGER_RISING,
 				       pdev->name, pdata);
-		if (err < 0) {
-			dev_err(&pdev->dev, "Error requesting IRQ\n");
+		if (err < 0)
 			return err;
-		}
 	}
 
 	for (x = 0, pin = pdata->in_pins; x < pdata->in_count; x++, pin++) {
@@ -317,11 +315,8 @@ static int __init brcmstb_usb_pinmap_probe(struct platform_device *pdev)
 				       IRQF_SHARED | IRQF_TRIGGER_RISING |
 				       IRQF_TRIGGER_FALLING,
 				       pdev->name, pin);
-		if (err < 0) {
-			dev_err(&pdev->dev, "Error requesting IRQ for %s pin\n",
-				pin->name);
+		if (err < 0)
 			return err;
-		}
 	}
 
 	dev_dbg(&pdev->dev, "Driver probe succeeded\n");

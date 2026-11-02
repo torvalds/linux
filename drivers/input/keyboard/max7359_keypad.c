@@ -198,7 +198,6 @@ static int max7359_probe(struct i2c_client *client)
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->open = max7359_open;
 	input_dev->close = max7359_close;
-	input_dev->dev.parent = &client->dev;
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 	input_dev->keycodesize = sizeof(keypad->keycodes[0]);

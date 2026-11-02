@@ -35,6 +35,24 @@ enum xe_gt_eu_type {
 	XE_GT_EU_TYPE_SIMD16,
 };
 
+/**
+ * enum xe_gpgpu_preempt_level - Per-context GPGPU preemption override mode
+ *
+ * Selects the preemption granularity programmed into CS_CHICKEN1[2:1] for
+ * newly created Xe2+ RCS LRCs.
+ *
+ * @XE_GPGPU_PREEMPT_DEFAULT: Keep platform default preemption granularity.
+ * @XE_GPGPU_PREEMPT_MID_THREAD: Force mid-thread preemption level.
+ * @XE_GPGPU_PREEMPT_THREAD_GROUP: Force thread-group preemption level.
+ * @XE_GPGPU_PREEMPT_COMMAND: Force command-level preemption.
+ */
+enum xe_gpgpu_preempt_level {
+	XE_GPGPU_PREEMPT_DEFAULT = 0,
+	XE_GPGPU_PREEMPT_MID_THREAD,
+	XE_GPGPU_PREEMPT_THREAD_GROUP,
+	XE_GPGPU_PREEMPT_COMMAND,
+};
+
 #define XE_MAX_DSS_FUSE_REGS		4
 #define XE_MAX_DSS_FUSE_BITS		(32 * XE_MAX_DSS_FUSE_REGS)
 #define XE_MAX_EU_FUSE_REGS		1
@@ -156,6 +174,8 @@ struct xe_gt {
 		 * feature.
 		 */
 		u8 has_xe2_blt_instructions:1;
+		/** @info.has_wmtp_disabled: hardware fuse indicates WMTP is disabled */
+		u8 has_wmtp_disabled:1;
 		/**
 		 * @info.num_geometry_xecore_fuse_regs: Number of 32b-bit fuse
 		 * registers the geometry XeCore mask spans.
@@ -223,6 +243,15 @@ struct xe_gt {
 	 * available compute slices are allocated to it.
 	 */
 	u32 ccs_mode;
+
+	/**
+	 * @gpgpu_preemption_level: GPGPU preemption granularity override.
+	 *
+	 * Effective only when FF_SLICE_CS_CHICKEN1[FFSC_PERCTX_PREEMPT_CTRL] is
+	 * enabled via RTP. Affects only LRCs created after the value is
+	 * changed; existing contexts keep their previously programmed value.
+	 */
+	enum xe_gpgpu_preempt_level gpgpu_preemption_level;
 
 	/** @usm: unified shared memory state */
 	struct {

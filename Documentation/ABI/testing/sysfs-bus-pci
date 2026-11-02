@@ -244,10 +244,16 @@ Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
 Description:
 		Reading this attribute will provide the firmware
 		given name (SMBIOS type 41 string or ACPI _DSM string) of
-		the PCI device.	The attribute will be created only
-		if the firmware	has given a name to the PCI device.
-		ACPI _DSM string name will be given priority if the
-		system firmware provides SMBIOS type 41 string also.
+		the PCI device. The attribute will be created only if the
+		firmware naming mechanism is implemented for the device:
+		a SMBIOS type 41 record with a non-empty reference
+		designation, or a Device Name _DSM that returns the name
+		as a string or a buffer. The value read is empty when the
+		firmware implements the _DSM but gives the device no name,
+		which per PCI Firmware r3.3, sec 4.6.7 the firmware reports
+		as a NULL string. ACPI _DSM string name will be given
+		priority if the system firmware provides SMBIOS type 41
+		string also.
 Users:
 		Userspace applications interested in knowing the
 		firmware assigned name of the PCI device.
@@ -486,19 +492,19 @@ Description:
 		These files provide an interface to PCIe Resizable BAR support.
 		A file is created for each BAR resource (N) supported by the
 		PCIe Resizable BAR extended capability of the device.  Reading
-		each file exposes the bitmap of available resource sizes:
+		each file exposes the bitmap of available resource sizes::
 
-		# cat resource1_resize
-		00000000000001c0
+		  # cat resource1_resize
+		  00000000000001c0
 
 		The bitmap represents supported resource sizes for the BAR,
 		where bit0 = 1MB, bit1 = 2MB, bit2 = 4MB, etc.  In the above
 		example the device supports 64MB, 128MB, and 256MB BAR sizes.
 
 		When writing the file, the user provides the bit position of
-		the desired resource size, for example:
+		the desired resource size, for example::
 
-		# echo 7 > resource1_resize
+		  # echo 7 > resource1_resize
 
 		This indicates to set the size value corresponding to bit 7,
 		128MB.  The resulting size is 2 ^ (bit# + 20).  This definition
@@ -600,7 +606,7 @@ Description:
 
 		As all DOE devices must support the DOE discovery feature,
 		if DOE is supported you will at least see the doe_discovery
-		file, with this contents:
+		file, with this contents::
 
 		  # cat doe_features/doe_discovery
 		  0001:00
@@ -608,7 +614,7 @@ Description:
 		If the device supports other features you will see other
 		files as well. For example if CMA/SPDM and secure CMA/SPDM
 		are supported the doe_features directory will look like
-		this:
+		this::
 
 		  # ls doe_features
 		  0001:01        0001:02        doe_discovery

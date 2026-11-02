@@ -50,9 +50,9 @@ examples:
         #size-cells = <0>;
 
         sensor@44 {
-                compatible = "isil,isl29018";
-                reg = <0x44>;
-                interrupts-extended = <&msmgpio 61 IRQ_TYPE_LEVEL_HIGH>;
+            compatible = "isil,isl29018";
+            reg = <0x44>;
+            interrupts-extended = <&msmgpio 61 IRQ_TYPE_LEVEL_HIGH>;
         };
     };
 ...

@@ -65,31 +65,41 @@
 	stringify_in_c(.purgem	extable_reg;)					\
 	stringify_in_c(.previous)
 
-#define EX_TABLE(_fault, _target)					\
+/*
+ * EX_TABLE_INSN usage rules:
+ *
+ * _fault must point to the faulting instruction, never behind it.
+ *
+ * This differs from the former EX_TABLE convention, where usually two entries
+ * were needed. One that pointed to the faulting instruction (for nullifying
+ * exceptions), and a second one that pointed behind the instruction (for
+ * suppressing, completing, and terminating exceptions).
+ */
+#define EX_TABLE_INSN(_fault, _target)					\
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_FIXUP, __stringify(%%r0), __stringify(%%r0), 0)
 
-#define EX_TABLE_AMODE31(_fault, _target)				\
+#define EX_TABLE_INSN_AMODE31(_fault, _target)				\
 	__EX_TABLE(.amode31.ex_table, _fault, _target, EX_TYPE_FIXUP, __stringify(%%r0), __stringify(%%r0), 0)
 
-#define EX_TABLE_UA_FAULT(_fault, _target, _regerr)			\
+#define EX_TABLE_INSN_UA_FAULT(_fault, _target, _regerr)		\
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_FAULT, _regerr, _regerr, 0)
 
-#define EX_TABLE_UA_LOAD_REG(_fault, _target, _regerr, _regzero)	\
+#define EX_TABLE_INSN_UA_LOAD_REG(_fault, _target, _regerr, _regzero)	\
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_LOAD_REG, _regerr, _regzero, 0)
 
-#define EX_TABLE_UA_LOAD_REGPAIR(_fault, _target, _regerr, _regzero)	\
+#define EX_TABLE_INSN_UA_LOAD_REGPAIR(_fault, _target, _regerr, _regzero) \
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_LOAD_REGPAIR, _regerr, _regzero, 0)
 
-#define EX_TABLE_ZEROPAD(_fault, _target, _regdata, _regaddr)		\
+#define EX_TABLE_INSN_ZEROPAD(_fault, _target, _regdata, _regaddr)	\
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_ZEROPAD, _regdata, _regaddr, 0)
 
-#define EX_TABLE_FPC(_fault, _target)					\
+#define EX_TABLE_INSN_FPC(_fault, _target)				\
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_FPC, __stringify(%%r0), __stringify(%%r0), 0)
 
-#define EX_TABLE_UA_MVCOS_TO(_fault, _target)				\
+#define EX_TABLE_INSN_UA_MVCOS_TO(_fault, _target)			\
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_MVCOS_TO, __stringify(%%r0), __stringify(%%r0), 0)
 
-#define EX_TABLE_UA_MVCOS_FROM(_fault, _target)				\
+#define EX_TABLE_INSN_UA_MVCOS_FROM(_fault, _target)			\
 	__EX_TABLE(__ex_table, _fault, _target, EX_TYPE_UA_MVCOS_FROM, __stringify(%%r0), __stringify(%%r0), 0)
 
 #endif /* __ASM_EXTABLE_H */

@@ -326,10 +326,18 @@ static int src4xxx_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 };
 
+static const u64 src4xxx_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF;
+
 static const struct snd_soc_dai_ops src4xxx_dai_ops = {
 	.hw_params	= src4xxx_hw_params,
 	.set_sysclk	= src4xxx_set_mclk_hz,
 	.set_fmt	= src4xxx_set_dai_fmt,
+	.auto_selectable_formats	= &src4xxx_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 #define SRC4XXX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |	SNDRV_PCM_FMTBIT_S32_LE)

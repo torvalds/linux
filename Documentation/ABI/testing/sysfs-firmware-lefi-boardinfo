@@ -12,19 +12,18 @@ Description:
 		requirement and specific for Loongson64, so only add a new
 		boardinfo.c file in arch/mips/loongson64.
 
-		For example:
+		For example::
 
-		[loongson@linux ~]$ cat /sys/firmware/lefi/boardinfo
-		Board Info
-		Manufacturer            : LEMOTE
-		Board Name              : LEMOTE-LS3A4000-7A1000-1w-V01-pc
-		Family                  : LOONGSON3
+		 [loongson@linux ~]$ cat /sys/firmware/lefi/boardinfo
+		 Board Info
+		 Manufacturer            : LEMOTE
+		 Board Name              : LEMOTE-LS3A4000-7A1000-1w-V01-pc
+		 Family                  : LOONGSON3
 
-		BIOS Info
-		Vendor                  : Kunlun
-		Version                 : Kunlun-A1901-V4.1.3-20200414093938
-		ROM Size                : 4 KB
-		Release Date            : 2020-04-14
+		 BIOS Info
+		 Vendor                  : Kunlun
+		 Version                 : Kunlun-A1901-V4.1.3-20200414093938
+		 Release Date            : 2020-04-14
 
 		By the way, using dmidecode command can get the similar info if there
 		exists SMBIOS in firmware, but the fact is that there is no SMBIOS on

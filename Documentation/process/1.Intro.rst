@@ -42,7 +42,7 @@ avoid problems at this important stage.  Developers are cautioned against
 assuming that the job is done when a patch is merged into the mainline.
 
 :ref:`development_advancedtopics` introduces a couple of "advanced" topics:
-managing patches with git and reviewing patches posted by others.
+managing patches with Git and reviewing patches posted by others.
 
 :ref:`development_conclusion` concludes the document with pointers to sources
 for more information on kernel development.

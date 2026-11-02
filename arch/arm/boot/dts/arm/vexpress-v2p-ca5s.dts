@@ -106,7 +106,7 @@
 
 	timer@2c000200 {
 		compatible = "arm,cortex-a5-global-timer",
-		             "arm,cortex-a9-global-timer";
+			     "arm,cortex-a9-global-timer";
 		reg = <0x2c000200 0x20>;
 		interrupts = <1 11 0x304>;
 		clocks = <&cpu_clk>;

@@ -734,12 +734,15 @@ struct iwl_trans_info {
 	u8 num_rxqs;
 };
 
+struct iwl_trans_ops;
+
 /**
  * struct iwl_trans - transport common data
  *
  * @csme_own: true if we couldn't get ownership on the device
  * @op_mode: pointer to the op_mode
  * @mac_cfg: the trans-specific configuration part
+ * @ops: bus-specific transport operations, see &struct iwl_trans_ops
  * @cfg: pointer to the configuration
  * @drv: pointer to iwl_drv
  * @conf: configuration set by the opmode before enter
@@ -773,6 +776,7 @@ struct iwl_trans {
 	bool csme_own;
 	struct iwl_op_mode *op_mode;
 	const struct iwl_mac_cfg *mac_cfg;
+	const struct iwl_trans_ops *ops;
 	const struct iwl_rf_cfg *cfg;
 	struct iwl_drv *drv;
 	struct iwl_trans_config conf;
@@ -910,15 +914,13 @@ int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans, u32 txqs);
 
 int iwl_trans_wait_txq_empty(struct iwl_trans *trans, int queue);
 
-void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val);
-
 void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val);
 
 u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs);
 
-u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs);
+u32 iwl_trans_read_prph_no_grab(struct iwl_trans *trans, u32 ofs);
 
-void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs, u32 val);
+void iwl_trans_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val);
 
 int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
 		       void *buf, int dwords);
@@ -933,10 +935,6 @@ int iwl_trans_read_mem_no_grab(struct iwl_trans *trans, u32 addr,
 
 int iwl_trans_read_config32(struct iwl_trans *trans, u32 ofs,
 			    u32 *val);
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-void iwl_trans_debugfs_cleanup(struct iwl_trans *trans);
-#endif
 
 #define iwl_trans_read_mem_bytes(trans, addr, buf, bufsize)	\
 	({							\
@@ -983,6 +981,66 @@ int iwl_trans_sw_reset(struct iwl_trans *trans);
 void iwl_trans_set_bits_mask(struct iwl_trans *trans, u32 reg,
 			     u32 mask, u32 value);
 
+static inline void iwl_trans_set_bit(struct iwl_trans *trans, u32 reg, u32 mask)
+{
+	iwl_trans_set_bits_mask(trans, reg, mask, mask);
+}
+
+static inline void iwl_trans_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
+{
+	iwl_trans_set_bits_mask(trans, reg, mask, 0);
+}
+
+int iwl_trans_poll_bits_mask(struct iwl_trans *trans, u32 addr,
+			     u32 bits, u32 mask, int timeout);
+static inline int iwl_trans_poll_bits(struct iwl_trans *trans, u32 addr, u32 bits,
+				      int timeout)
+{
+	return iwl_trans_poll_bits_mask(trans, addr, bits, bits, timeout);
+}
+
+void iwl_trans_write_direct32(struct iwl_trans *trans, u32 reg, u32 value);
+
+u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs);
+void iwl_trans_write_prph_delay(struct iwl_trans *trans, u32 ofs,
+				u32 val, u32 delay_ms);
+static inline void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
+{
+	iwl_trans_write_prph_delay(trans, ofs, val, 0);
+}
+
+void iwl_trans_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask);
+void iwl_trans_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
+				  u32 bits, u32 mask);
+void iwl_trans_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask);
+
+/*
+ * UMAC periphery address space changed from 0xA00000 to 0xD00000 starting from
+ * device family AX200. So peripheries used in families above and below AX200
+ * should go through iwl_trans_..._umac_..._prph.
+ */
+static inline u32 iwl_trans_umac_prph(struct iwl_trans *trans, u32 ofs)
+{
+	return ofs + trans->mac_cfg->umac_prph_offset;
+}
+
+static inline u32 iwl_trans_read_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs)
+{
+	return iwl_trans_read_prph_no_grab(trans, ofs +
+					   trans->mac_cfg->umac_prph_offset);
+}
+
+static inline u32 iwl_trans_read_umac_prph(struct iwl_trans *trans, u32 ofs)
+{
+	return iwl_trans_read_prph(trans, ofs + trans->mac_cfg->umac_prph_offset);
+}
+
+static inline void iwl_trans_write_umac_prph(struct iwl_trans *trans, u32 ofs,
+					     u32 val)
+{
+	iwl_trans_write_prph(trans, ofs + trans->mac_cfg->umac_prph_offset, val);
+}
+
 bool iwl_trans_grab_nic_access(struct iwl_trans *trans);
 
 /**
@@ -996,8 +1054,7 @@ bool iwl_trans_grab_nic_access(struct iwl_trans *trans);
  */
 void iwl_trans_resched_with_nic_access(struct iwl_trans *trans);
 
-void __releases(nic_access)
-iwl_trans_release_nic_access(struct iwl_trans *trans);
+void iwl_trans_release_nic_access(struct iwl_trans *trans);
 
 static inline void iwl_trans_schedule_reset(struct iwl_trans *trans,
 					    enum iwl_fw_error_type type)
@@ -1059,8 +1116,7 @@ static inline bool iwl_trans_fw_running(struct iwl_trans *trans)
 
 void iwl_trans_sync_nmi(struct iwl_trans *trans);
 
-void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
-				  u32 sw_err_bit);
+void iwl_trans_force_nmi(struct iwl_trans *trans);
 
 int iwl_trans_load_pnvm(struct iwl_trans *trans,
 			const struct iwl_pnvm_image *pnvm_data,
@@ -1082,8 +1138,6 @@ static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
 		trans->dbg.external_ini_cfg != IWL_INI_CFG_STATE_NOT_LOADED;
 }
 
-void iwl_trans_interrupts(struct iwl_trans *trans, bool enable);
-
 int iwl_trans_activate_nic(struct iwl_trans *trans);
 
 static inline void iwl_trans_finish_sw_reset(struct iwl_trans *trans)
@@ -1096,6 +1150,7 @@ static inline void iwl_trans_finish_sw_reset(struct iwl_trans *trans)
  *****************************************************/
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
+				  const struct iwl_trans_ops *ops,
 				  const struct iwl_mac_cfg *mac_cfg);
 void iwl_trans_free(struct iwl_trans *trans);
 
@@ -1166,8 +1221,149 @@ enum iwl_reset_mode {
 	IWL_RESET_MODE_BACKOFF,
 };
 
-void iwl_trans_pcie_reset(struct iwl_trans *trans, enum iwl_reset_mode mode);
-void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans);
+void iwl_trans_reset(struct iwl_trans *trans, enum iwl_reset_mode mode);
+void iwl_trans_fw_reset_handshake(struct iwl_trans *trans);
+
+/**
+ * struct iwl_trans_ops - bus-specific transport operations
+ *
+ * Function-pointer table filled in by the bus implementation. Unless noted
+ * otherwise, each callback implements the identically named iwl_trans_*()
+ * API, see its documentation.
+ *
+ * @op_mode_enter: the op_mode took ownership of the transport
+ * @start_hw: start the hardware
+ * @op_mode_leave: the op_mode released the transport
+ * @send_cmd: send a host command to the firmware
+ * @alloc_tx_cmd: allocate a device TX command
+ * @free_tx_cmd: free a device TX command
+ * @write32: write a dword to a device register
+ * @read32: read a dword from a device register
+ * @read_prph: read a peripheral register
+ * @write_prph: write a peripheral register
+ * @read_mem: read device memory, taking NIC access
+ * @read_mem_no_grab: read device memory, NIC access already taken
+ * @set_bits_mask: read-modify-write a device register
+ * @poll_bits_mask: poll a device register until the masked bits match
+ * @read_config32: read a dword from the bus configuration space
+ * @grab_nic_access: keep the NIC awake for register access
+ * @release_nic_access: release the NIC access taken by @grab_nic_access
+ * @resched_with_nic_access: reschedule while holding NIC access
+ * @sw_reset: perform a software reset of the device
+ * @reset: reset the device, see &enum iwl_reset_mode
+ * @fw_reset_handshake: do a firmware reset handshake.
+ * @dump_data: collect a firmware error dump
+ * @d3_suspend: prepare the device for D3 (WoWLAN)
+ * @d3_resume: resume the device from D3 (WoWLAN)
+ * @sync_nmi: trigger an NMI and wait for it to be handled
+ * @write_imr_mem: write to the IMR memory region
+ * @fw_alive: Notify trans that the firmware sent the ALIVE notification
+ * @start_fw: download firmware code to the device and and start the firmware
+ * @stop_device: stop the device and the firmware
+ * @tx: transmit an MPDU
+ * @reclaim: free TX MPDUs up to the given sequence number
+ * @txq_disable: disable a TX queue (gen1)
+ * @txq_enable: enable a TX queue (gen1)
+ * @wait_txq_empty: wait for a single TX queue to become empty
+ * @wait_txqs_empty: wait for the given TX queues to become empty
+ * @freeze_txq_timer: freeze/unfreeze the watchdog of the given TX queues
+ * @txq_set_shared_mode: mark a TX queue as shared between TIDs
+ * @set_q_ptrs: set the write pointer of a TX queue
+ * @txq_alloc: allocate a TX queue (gen2)
+ * @txq_free: free a TX queue allocated by @txq_alloc
+ * @rxq_dma_data: get the DMA addresses of an RX queue
+ * @load_pnvm: load the PNVM image
+ * @set_pnvm: tell the firmware to use the loaded PNVM
+ * @load_reduce_power: load the reduced power table
+ * @set_reduce_power: tell the firmware to use the reduced power table
+ * @is_pm_supported: whether bus power management is supported
+ * @is_ltr_enabled: whether LTR is enabled on the bus
+ * @activate_nic: bring the NIC out of low power and make it accessible
+ */
+struct iwl_trans_ops {
+	void (*op_mode_enter)(struct iwl_trans *trans);
+	int (*start_hw)(struct iwl_trans *trans);
+	void (*op_mode_leave)(struct iwl_trans *trans);
+
+	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
+	struct iwl_device_tx_cmd *(*alloc_tx_cmd)(struct iwl_trans *trans);
+	void (*free_tx_cmd)(struct iwl_trans *trans,
+			    struct iwl_device_tx_cmd *dev_cmd);
+
+	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
+	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
+	u32 (*read_prph)(struct iwl_trans *trans, u32 ofs);
+	void (*write_prph)(struct iwl_trans *trans, u32 ofs, u32 val);
+	int (*read_mem)(struct iwl_trans *trans, u32 addr,
+			void *buf, int dwords);
+	int (*read_mem_no_grab)(struct iwl_trans *trans, u32 addr,
+				void *buf, u32 dwords);
+	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg,
+			      u32 mask, u32 value);
+	int (*poll_bits_mask)(struct iwl_trans *trans, u32 addr,
+			      u32 bits, u32 mask, int timeout);
+	int (*read_config32)(struct iwl_trans *trans, u32 ofs, u32 *val);
+	bool (*grab_nic_access)(struct iwl_trans *trans);
+	void (*release_nic_access)(struct iwl_trans *trans);
+	void (*resched_with_nic_access)(struct iwl_trans *trans);
+
+	int (*sw_reset)(struct iwl_trans *trans, bool retake_ownership);
+	void (*reset)(struct iwl_trans *trans, enum iwl_reset_mode mode);
+	void (*fw_reset_handshake)(struct iwl_trans *trans);
+
+	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
+						 u32 dump_mask,
+						 const struct iwl_dump_sanitize_ops *sanitize_ops,
+						 void *sanitize_ctx);
+	int (*d3_suspend)(struct iwl_trans *trans, bool reset);
+	int (*d3_resume)(struct iwl_trans *trans, bool reset);
+
+	void (*sync_nmi)(struct iwl_trans *trans);
+	int (*write_imr_mem)(struct iwl_trans *trans, u32 dst_addr,
+			     u64 src_addr, u32 byte_cnt);
+
+	void (*fw_alive)(struct iwl_trans *trans);
+	int (*start_fw)(struct iwl_trans *trans, const struct iwl_fw *fw,
+			const struct fw_img *img, bool run_in_rfkill);
+	void (*stop_device)(struct iwl_trans *trans);
+
+	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
+		  struct iwl_device_tx_cmd *dev_cmd, int queue);
+	void (*reclaim)(struct iwl_trans *trans, int queue, int ssn,
+			struct sk_buff_head *skbs, bool is_flush);
+	void (*txq_disable)(struct iwl_trans *trans, int queue,
+			    bool configure_scd);
+	bool (*txq_enable)(struct iwl_trans *trans, int queue, u16 ssn,
+			   const struct iwl_trans_txq_scd_cfg *cfg,
+			   unsigned int queue_wdg_timeout);
+	int (*wait_txq_empty)(struct iwl_trans *trans, int queue);
+	int (*wait_txqs_empty)(struct iwl_trans *trans, u32 txqs);
+	void (*freeze_txq_timer)(struct iwl_trans *trans,
+				 unsigned long txqs, bool freeze);
+	void (*txq_set_shared_mode)(struct iwl_trans *trans, u32 txq_id,
+				    bool shared_mode);
+	void (*set_q_ptrs)(struct iwl_trans *trans, int queue, int ptr);
+	int (*txq_alloc)(struct iwl_trans *trans, u32 flags, u32 sta_mask,
+			 u8 tid, int size, unsigned int wdg_timeout);
+	void (*txq_free)(struct iwl_trans *trans, int queue);
+	int (*rxq_dma_data)(struct iwl_trans *trans, int queue,
+			    struct iwl_trans_rxq_dma_data *data);
+
+	int (*load_pnvm)(struct iwl_trans *trans,
+			 const struct iwl_pnvm_image *pnvm_data,
+			 const struct iwl_ucode_capabilities *capa);
+	void (*set_pnvm)(struct iwl_trans *trans,
+			 const struct iwl_ucode_capabilities *capa);
+	int (*load_reduce_power)(struct iwl_trans *trans,
+				 const struct iwl_pnvm_image *payloads,
+				 const struct iwl_ucode_capabilities *capa);
+	void (*set_reduce_power)(struct iwl_trans *trans,
+				 const struct iwl_ucode_capabilities *capa);
+
+	bool (*is_pm_supported)(struct iwl_trans *trans);
+	bool (*is_ltr_enabled)(struct iwl_trans *trans);
+	int (*activate_nic)(struct iwl_trans *trans);
+};
 
 /* Internal helper */
 static inline void iwl_trans_set_info(struct iwl_trans *trans,

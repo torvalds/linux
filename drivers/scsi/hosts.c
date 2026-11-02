@@ -73,7 +73,7 @@ static struct class shost_class = {
  *	transition is illegal.
  **/
 int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
-	__must_hold(shost->host_lock)
+	__must_hold(&shost->host_lock)
 {
 	enum scsi_host_state oldstate = READ_ONCE(shost->shost_state);
 
@@ -168,14 +168,14 @@ void scsi_remove_host(struct Scsi_Host *shost)
 	unsigned long flags;
 
 	mutex_lock(&shost->scan_mutex);
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	if (scsi_host_set_state(shost, SHOST_CANCEL))
 		if (scsi_host_set_state(shost, SHOST_CANCEL_RECOVERY)) {
-			spin_unlock_irqrestore(shost->host_lock, flags);
+			spin_unlock_irqrestore(&shost->host_lock, flags);
 			mutex_unlock(&shost->scan_mutex);
 			return;
 		}
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	scsi_autopm_get_host(shost);
 	flush_workqueue(shost->tmf_work_q);
@@ -193,10 +193,10 @@ void scsi_remove_host(struct Scsi_Host *shost)
 	kref_put(&shost->tagset_refcnt, scsi_mq_free_tags);
 	wait_for_completion(&shost->tagset_freed);
 
-	spin_lock_irqsave(shost->host_lock, flags);
+	spin_lock_irqsave(&shost->host_lock, flags);
 	if (scsi_host_set_state(shost, SHOST_DEL))
 		BUG_ON(scsi_host_set_state(shost, SHOST_DEL_RECOVERY));
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irqrestore(&shost->host_lock, flags);
 
 	transport_unregister_device(&shost->shost_gendev);
 	device_unregister(&shost->shost_dev);
@@ -277,7 +277,7 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	if (error)
 		goto out_disable_runtime_pm;
 
-	scoped_guard(spinlock_irq, shost->host_lock)
+	scoped_guard(spinlock_irq, &shost->host_lock)
 		scsi_host_set_state(shost, SHOST_RUNNING);
 	get_device(shost->shost_gendev.parent);
 
@@ -414,8 +414,7 @@ struct Scsi_Host *scsi_host_alloc(const struct scsi_host_template *sht, int priv
 	if (!shost)
 		return NULL;
 
-	shost->host_lock = &shost->default_lock;
-	scoped_guard(spinlock_init, shost->host_lock)
+	scoped_guard(spinlock_init, &shost->host_lock)
 		shost->shost_state = SHOST_CREATED;
 	INIT_LIST_HEAD(&shost->__devices);
 	INIT_LIST_HEAD(&shost->__targets);

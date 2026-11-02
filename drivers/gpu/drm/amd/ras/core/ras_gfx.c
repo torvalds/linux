@@ -35,6 +35,12 @@ static const struct ras_gfx_ip_func *ras_gfx_get_ip_funcs(
 	case IP_VERSION(9, 4, 4):
 	case IP_VERSION(9, 5, 0):
 		return &gfx_ras_func_v9_0;
+	case IP_VERSION(12, 1, 0):
+		/* TBD */
+		break;
+	case IP_VERSION(13, 0, 1):
+		/* TBD */
+		break;
 	default:
 		RAS_DEV_ERR(ras_core->dev,
 			"GFX ip version(0x%x) is not supported!\n", ip_version);
@@ -49,8 +55,11 @@ int ras_gfx_get_ta_subblock(struct ras_core_context *ras_core,
 {
 	struct ras_gfx *gfx = &ras_core->ras_gfx;
 
-	return gfx->ip_func->get_ta_subblock(ras_core,
+	if (gfx->ip_func && gfx->ip_func->get_ta_subblock)
+		return gfx->ip_func->get_ta_subblock(ras_core,
 					error_type, subblock, ta_subblock);
+
+	return -RAS_CORE_NOT_SUPPORTED;
 }
 
 int ras_gfx_hw_init(struct ras_core_context *ras_core)
@@ -61,7 +70,7 @@ int ras_gfx_hw_init(struct ras_core_context *ras_core)
 
 	gfx->ip_func = ras_gfx_get_ip_funcs(ras_core, gfx->gfx_ip_version);
 
-	return gfx->ip_func ? RAS_CORE_OK : -EINVAL;
+	return 0;
 }
 
 int ras_gfx_hw_fini(struct ras_core_context *ras_core)

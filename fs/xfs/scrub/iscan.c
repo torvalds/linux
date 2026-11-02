@@ -545,7 +545,7 @@ xchk_iscan_finish_batch(
 
 	mutex_lock(&iscan->lock);
 
-	if (iscan->__batch_ino != NULLFSINO) {
+	if (iscan->__batch_ino != NULLFSINO && iscan->__skipped_inomask) {
 		highest_skipped = iscan->__batch_ino +
 					xfs_highbit64(iscan->__skipped_inomask);
 		iscan->__visited_ino = max(iscan->__visited_ino,

@@ -227,7 +227,7 @@ static int camif_register_sensor(struct camif_dev *camif)
 		return 0;
 
 	format.pad = CAMIF_SD_PAD_SINK;
-	v4l2_subdev_call(&camif->subdev, pad, set_fmt, NULL, &format);
+	v4l2_subdev_call(&camif->subdev, pad, set_fmt, NULL, NULL, &format);
 
 	v4l2_info(sd, "Initial format from sensor: %dx%d, %#x\n",
 		  format.format.width, format.format.height,

@@ -54,7 +54,7 @@ examples:
     display-controller@6a000000 {
       compatible = "faraday,tve200";
       reg = <0x6a000000 0x1000>;
-      interrupts = <13 IRQ_TYPE_EDGE_RISING>;
+      interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
       resets = <&syscon GEMINI_RESET_TVC>;
       clocks = <&syscon GEMINI_CLK_GATE_TVC>,
                <&syscon GEMINI_CLK_TVC>;

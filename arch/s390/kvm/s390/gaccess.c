@@ -838,12 +838,11 @@ static int mvcos_key(void *to, const void *from, unsigned long size, u8 dst_key,
 	int exception = PGM_PROTECTION;
 
 	asm_inline volatile(
-		"       lr      %%r0,%[spec]\n"
-		"0:     mvcos   %[to],%[from],%[size]\n"
-		"1:     lhi     %[exc],0\n"
-		"2:\n"
-		EX_TABLE(0b, 2b)
-		EX_TABLE(1b, 2b)
+		"	lr	%%r0,%[spec]\n"
+		"0:	mvcos	%[to],%[from],%[size]\n"
+		"	lhi	%[exc],0\n"
+		"1:\n"
+		EX_TABLE_INSN(0b, 1b)
 		: [size] "+d" (size), [to] "=Q" (*(char *)to), [exc] "+d" (exception)
 		: [spec] "d" (spec.val), [from] "Q" (*(const char *)from)
 		: "memory", "cc", "0");

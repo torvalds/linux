@@ -13,9 +13,6 @@
 
 #include "hisi_uncore_pmu.h"
 
-/* Dynamic CPU hotplug state used by UC PMU */
-static enum cpuhp_state hisi_uc_pmu_online;
-
 /* UC register definition */
 #define HISI_UC_INT_MASK_REG		0x0800
 #define HISI_UC_INT_STS_REG		0x0808
@@ -488,7 +485,7 @@ static int hisi_uc_pmu_dev_probe(struct platform_device *pdev,
 
 static void hisi_uc_pmu_remove_cpuhp_instance(void *hotplug_node)
 {
-	cpuhp_state_remove_instance_nocalls(hisi_uc_pmu_online, hotplug_node);
+	cpuhp_state_remove_instance_nocalls(hisi_uncore_pmu_cpuhp_state, hotplug_node);
 }
 
 static void hisi_uc_pmu_unregister_pmu(void *pmu)
@@ -518,7 +515,7 @@ static int hisi_uc_pmu_probe(struct platform_device *pdev)
 	if (!name)
 		return -ENOMEM;
 
-	ret = cpuhp_state_add_instance(hisi_uc_pmu_online, &uc_pmu->node);
+	ret = cpuhp_state_add_instance(hisi_uncore_pmu_cpuhp_state, &uc_pmu->node);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Error registering hotplug\n");
 
@@ -559,34 +556,7 @@ static struct platform_driver hisi_uc_pmu_driver = {
 	.probe = hisi_uc_pmu_probe,
 };
 
-static int __init hisi_uc_pmu_module_init(void)
-{
-	int ret;
-
-	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
-				      "perf/hisi/uc:online",
-				      hisi_uncore_pmu_online_cpu,
-				      hisi_uncore_pmu_offline_cpu);
-	if (ret < 0) {
-		pr_err("UC PMU: Error setup hotplug, ret = %d\n", ret);
-		return ret;
-	}
-	hisi_uc_pmu_online = ret;
-
-	ret = platform_driver_register(&hisi_uc_pmu_driver);
-	if (ret)
-		cpuhp_remove_multi_state(hisi_uc_pmu_online);
-
-	return ret;
-}
-module_init(hisi_uc_pmu_module_init);
-
-static void __exit hisi_uc_pmu_module_exit(void)
-{
-	platform_driver_unregister(&hisi_uc_pmu_driver);
-	cpuhp_remove_multi_state(hisi_uc_pmu_online);
-}
-module_exit(hisi_uc_pmu_module_exit);
+module_platform_driver(hisi_uc_pmu_driver);
 
 MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC UC uncore PMU driver");

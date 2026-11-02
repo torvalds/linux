@@ -141,6 +141,9 @@ struct host1x {
 	struct reset_control_bulk_data resets[2];
 	unsigned int nresets;
 
+	unsigned int syncpt_base, syncpt_end;
+	unsigned int channel_base, channel_end;
+
 	struct iommu_group *group;
 	struct iommu_domain *domain;
 	struct iova_domain iova;

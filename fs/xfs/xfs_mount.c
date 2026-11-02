@@ -446,6 +446,8 @@ int
 xfs_mount_reset_sbqflags(
 	struct xfs_mount	*mp)
 {
+	int			error;
+
 	mp->m_qflags = 0;
 
 	/* It is OK to look at sb_qflags in the mount path without m_sb_lock. */
@@ -458,7 +460,12 @@ xfs_mount_reset_sbqflags(
 	if (!xfs_fs_writable(mp, SB_FREEZE_WRITE))
 		return 0;
 
-	return xfs_sync_sb(mp, false);
+	error = xfs_sync_sb(mp, false);
+	if (error)
+		return error;
+
+	xfs_qm_update_secondary_sb(mp);
+	return 0;
 }
 
 static const char *const xfs_free_pool_name[] = {
@@ -674,15 +681,13 @@ static inline xfs_extlen_t xfs_calc_atomic_write_max(struct xfs_mount *mp)
 }
 
 /*
- * If the underlying device advertises atomic write support, limit the size of
- * atomic writes to the greatest power-of-two factor of the group size so
- * that every atomic write unit aligns with the start of every group.  This is
- * required so that the allocations for an atomic write will always be
- * aligned compatibly with the alignment requirements of the storage.
+ * The largest out of place write is the number of blocks that user files can
+ * allocate from any group.
  *
- * If the device doesn't advertise atomic writes, then there are no alignment
- * restrictions and the largest out-of-place write we can do ourselves is the
- * number of blocks that user files can allocate from any group.
+ * This is a software limit, so it deliberately does not take the alignment
+ * requirements of the storage into account. An atomic write that cannot be
+ * handed to the device as a single naturally aligned REQ_ATOMIC bio is
+ * completed through the COW fork instead, which has no such requirement.
  */
 static xfs_extlen_t
 xfs_calc_group_awu_max(
@@ -690,13 +695,28 @@ xfs_calc_group_awu_max(
 	enum xfs_group_type	type)
 {
 	struct xfs_groups	*g = &mp->m_groups[type];
-	struct xfs_buftarg	*btp = xfs_group_type_buftarg(mp, type);
 
 	if (g->blocks == 0)
 		return 0;
-	if (btp && btp->bt_awu_min > 0)
-		return max_pow_of_two_factor(g->blocks);
 	return rounddown_pow_of_two(g->blocks);
+}
+
+/*
+ * Compute the largest atomic write unit for which the allocator can guarantee
+ * naturally aligned extents in this group type.
+ *
+ * Hardware atomic writes have to be naturally aligned on disk.
+ */
+xfs_extlen_t
+xfs_calc_group_awu_align_max(
+	struct xfs_mount	*mp,
+	enum xfs_group_type	type)
+{
+	struct xfs_groups	*g = &mp->m_groups[type];
+
+	if (g->blocks == 0)
+		return 0;
+	return max_pow_of_two_factor(g->blocks);
 }
 
 /* Compute the maximum atomic write unit size for each section. */

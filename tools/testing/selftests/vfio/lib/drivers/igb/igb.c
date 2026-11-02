@@ -576,6 +576,7 @@ static void igb_send_msi(struct vfio_pci_device *device)
 
 const struct vfio_pci_driver_ops igb_ops = {
 	.name = "igb",
+	.region_size = sizeof(struct igb),
 	.probe = igb_probe,
 	.init = igb_init,
 	.remove = igb_remove,

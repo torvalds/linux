@@ -49,9 +49,60 @@ struct iwl_mld_tlc_sta_capa {
 	const struct ieee80211_sta_uhr_cap *own_uhr_cap;
 };
 
+static bool iwl_mld_eht_ldpc_support(const struct ieee80211_sta_he_cap *he_cap,
+				     const struct ieee80211_sta_eht_cap *eht_cap,
+				     bool from_ap)
+{
+	u8 nss;
+
+	/* higher bandwidth implies LDPC */
+	if (he_cap->he_cap_elem.phy_cap_info[0] &
+	    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G)
+		return true;
+	if (he_cap->he_cap_elem.phy_cap_info[0] &
+	    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G)
+		return true;
+	if (he_cap->he_cap_elem.phy_cap_info[0] &
+	    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G)
+		return true;
+	if (eht_cap->eht_cap_elem.phy_cap_info[0] &
+	    IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ)
+		return true;
+
+	/* MCS 10-14 imply LDPC support, we only check 10-13 here */
+	if (!from_ap) {
+		const struct ieee80211_eht_mcs_nss_supp_20mhz_only *mcs_nss;
+
+		mcs_nss = &eht_cap->eht_mcs_nss_supp.only_20mhz;
+
+		if (mcs_nss->rx_tx_mcs11_max_nss ||
+		    mcs_nss->rx_tx_mcs13_max_nss)
+			return true;
+
+		nss = mcs_nss->rx_tx_mcs7_max_nss;
+	} else {
+		const struct ieee80211_eht_mcs_nss_supp_bw *mcs_nss;
+
+		mcs_nss = &eht_cap->eht_mcs_nss_supp.bw._80;
+
+		if (mcs_nss->rx_tx_mcs11_max_nss ||
+		    mcs_nss->rx_tx_mcs13_max_nss)
+			return true;
+
+		nss = mcs_nss->rx_tx_mcs9_max_nss;
+	}
+
+	/* NSS > 4 implies LDPC support */
+	return u8_get_bits(nss, IEEE80211_EHT_MCS_NSS_RX) > 4 ||
+	       u8_get_bits(nss, IEEE80211_EHT_MCS_NSS_TX) > 4;
+}
+
 static __le16
 iwl_mld_get_tlc_cmd_flags(struct iwl_mld *mld,
-			  struct iwl_mld_tlc_sta_capa *capa)
+			  struct ieee80211_vif *vif,
+			  struct iwl_mld_tlc_sta_capa *capa,
+			  enum iwl_tlc_mng_cfg_mode mode,
+			  enum iwl_tlc_mng_cfg_cw max_bw)
 {
 	const struct ieee80211_sta_ht_cap *ht_cap = capa->ht_cap;
 	const struct ieee80211_sta_vht_cap *vht_cap = capa->vht_cap;
@@ -61,63 +112,78 @@ iwl_mld_get_tlc_cmd_flags(struct iwl_mld *mld,
 	const struct ieee80211_sta_he_cap *own_he_cap = capa->own_he_cap;
 	const struct ieee80211_sta_eht_cap *own_eht_cap = capa->own_eht_cap;
 	const struct ieee80211_sta_uhr_cap *own_uhr_cap = capa->own_uhr_cap;
-	bool has_vht = vht_cap && vht_cap->vht_supported;
+	bool stbc_possible = mld->cfg->ht_params.stbc &&
+			     hweight8(iwl_mld_get_valid_tx_ant(mld)) > 1;
 	u16 flags = 0;
 
-	/* STBC flags */
-	if (mld->cfg->ht_params.stbc &&
-	    (hweight8(iwl_mld_get_valid_tx_ant(mld)) > 1)) {
-		if (he_cap && he_cap->has_he &&
+	switch (mode) {
+	case IWL_TLC_MNG_MODE_NON_HT:
+		break;
+	case IWL_TLC_MNG_MODE_HT:
+		if (WARN_ON(!ht_cap || !ht_cap->ht_supported))
+			return 0;
+		if (stbc_possible &&
+		    ht_cap->cap & IEEE80211_HT_CAP_RX_STBC)
+			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+		if (mld->cfg->ht_params.ldpc &&
+		    ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING)
+			flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
+		break;
+	case IWL_TLC_MNG_MODE_VHT:
+		if (WARN_ON(!vht_cap || !vht_cap->vht_supported))
+			return 0;
+		if (stbc_possible &&
+		    vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
+			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+		if (mld->cfg->ht_params.ldpc &&
+		    vht_cap->cap & IEEE80211_VHT_CAP_RXLDPC)
+			flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
+		break;
+	case IWL_TLC_MNG_MODE_HE:
+		if (WARN_ON(!he_cap || !he_cap->has_he || !own_he_cap))
+			return 0;
+		if (stbc_possible &&
 		    he_cap->he_cap_elem.phy_cap_info[2] &
-				IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ)
+				IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ &&
+		    (max_bw <= IWL_TLC_MNG_CH_WIDTH_80MHZ ||
+		     he_cap->he_cap_elem.phy_cap_info[7] &
+				IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ))
 			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
-		else if (vht_cap &&
-			 vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
-			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
-		else if (ht_cap && ht_cap->cap & IEEE80211_HT_CAP_RX_STBC)
-			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+		if (he_cap->he_cap_elem.phy_cap_info[1] &
+				IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD &&
+		    own_he_cap->he_cap_elem.phy_cap_info[1] &
+				IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD)
+			flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
+		if (he_cap->he_cap_elem.phy_cap_info[3] &
+				IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK &&
+		    own_he_cap->he_cap_elem.phy_cap_info[3] &
+				IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK)
+			flags |= IWL_TLC_MNG_CFG_FLAGS_HE_DCM_NSS_1_MSK;
+		break;
+	case IWL_TLC_MNG_MODE_UHR:
+		if (WARN_ON(!uhr_cap || !uhr_cap->has_uhr || !own_uhr_cap))
+			return 0;
+		if (uhr_cap->phy.cap & cpu_to_le32(IEEE80211_UHR_PHY_CAP_ELR_RX) &&
+		    own_uhr_cap->phy.cap & cpu_to_le32(IEEE80211_UHR_PHY_CAP_ELR_TX))
+			flags |= IWL_TLC_MNG_CFG_FLAGS_UHR_ELR_1_5_MBPS_MSK |
+				 IWL_TLC_MNG_CFG_FLAGS_UHR_ELR_3_MBPS_MSK;
+		/* uses most config from EHT */
+		fallthrough;
+	case IWL_TLC_MNG_MODE_EHT:
+		if (WARN_ON(!own_he_cap || !he_cap || !he_cap->has_he ||
+			    !own_eht_cap || !eht_cap || !eht_cap->has_eht))
+			return 0;
+		if (own_eht_cap->eht_cap_elem.phy_cap_info[5] &
+				IEEE80211_EHT_PHY_CAP5_SUPP_EXTRA_EHT_LTF &&
+		    eht_cap->eht_cap_elem.phy_cap_info[5] &
+				IEEE80211_EHT_PHY_CAP5_SUPP_EXTRA_EHT_LTF)
+			flags |= IWL_TLC_MNG_CFG_FLAGS_EHT_EXTRA_LTF_MSK;
+		/* no STBC in EHT */
+		if (iwl_mld_eht_ldpc_support(he_cap, eht_cap,
+					     vif->type == NL80211_IFTYPE_STATION))
+			flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
+		break;
 	}
-
-	/* LDPC */
-	if (mld->cfg->ht_params.ldpc &&
-	    ((ht_cap && ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING) ||
-	     (has_vht && (vht_cap->cap & IEEE80211_VHT_CAP_RXLDPC))))
-		flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
-
-	if (he_cap && he_cap->has_he &&
-	    (he_cap->he_cap_elem.phy_cap_info[1] &
-			IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
-		flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
-
-	if (own_he_cap &&
-	    !(own_he_cap->he_cap_elem.phy_cap_info[1] &
-			IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
-		flags &= ~IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
-
-	/* DCM */
-	if (he_cap && he_cap->has_he &&
-	    (he_cap->he_cap_elem.phy_cap_info[3] &
-	     IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK &&
-	     own_he_cap &&
-	     own_he_cap->he_cap_elem.phy_cap_info[3] &
-			IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK))
-		flags |= IWL_TLC_MNG_CFG_FLAGS_HE_DCM_NSS_1_MSK;
-
-	/* Extra EHT LTF */
-	if (own_eht_cap &&
-	    own_eht_cap->eht_cap_elem.phy_cap_info[5] &
-			IEEE80211_EHT_PHY_CAP5_SUPP_EXTRA_EHT_LTF &&
-	    eht_cap && eht_cap->has_eht &&
-	    eht_cap->eht_cap_elem.phy_cap_info[5] &
-			IEEE80211_EHT_PHY_CAP5_SUPP_EXTRA_EHT_LTF) {
-		flags |= IWL_TLC_MNG_CFG_FLAGS_EHT_EXTRA_LTF_MSK;
-	}
-
-	if (uhr_cap && uhr_cap->has_uhr && own_uhr_cap &&
-	    uhr_cap->phy.cap & cpu_to_le32(IEEE80211_UHR_PHY_CAP_ELR_RX) &&
-	    own_uhr_cap->phy.cap & cpu_to_le32(IEEE80211_UHR_PHY_CAP_ELR_TX))
-		flags |= IWL_TLC_MNG_CFG_FLAGS_UHR_ELR_1_5_MBPS_MSK |
-			 IWL_TLC_MNG_CFG_FLAGS_UHR_ELR_3_MBPS_MSK;
 
 	return cpu_to_le16(flags);
 }
@@ -478,7 +544,6 @@ static void iwl_mld_send_tlc_cmd(struct iwl_mld *mld,
 		.max_ch_width = mld_sta->sta_state > IEEE80211_STA_ASSOC ?
 			iwl_mld_fw_bw_from_sta_bw(capa->bandwidth) :
 			IWL_TLC_MNG_CH_WIDTH_20MHZ,
-		.flags = iwl_mld_get_tlc_cmd_flags(mld, capa),
 		.chains = iwl_mld_get_fw_chains(mld),
 		.sgi_ch_width_supp = iwl_mld_get_fw_sgi(capa),
 		.max_mpdu_len = cpu_to_le16(capa->max_amsdu_len),
@@ -493,6 +558,8 @@ static void iwl_mld_send_tlc_cmd(struct iwl_mld *mld,
 	cmd.phy_id = cpu_to_le32(phy_id);
 
 	iwl_mld_fill_supp_rates(mld, vif, capa, &cmd);
+	cmd.flags = iwl_mld_get_tlc_cmd_flags(mld, vif, capa, cmd.mode,
+					      cmd.max_ch_width);
 
 	if (cmd_ver == 6) {
 		cmd_ptr = &cmd;
@@ -824,8 +891,13 @@ iwl_mld_get_amsdu_size_of_tid(struct iwl_mld *mld,
 
 	txf = iwl_mld_mac80211_ac_to_fw_tx_fifo(ac);
 
-	/* Only one link: take the lmac according to the band */
-	if (hweight16(sta->valid_links) <= 1) {
+	/*
+	 * Only one link: take the lmac according to the band
+	 * In NAN, we don't have a link_conf.
+	 * TODO: once we have a TLC object, we can know better the band.
+	 */
+	if (hweight16(sta->valid_links) <= 1 &&
+	    vif->type != NL80211_IFTYPE_NAN_DATA) {
 		enum nl80211_band band;
 		struct ieee80211_bss_conf *link =
 			wiphy_dereference(mld->wiphy,

@@ -56,32 +56,32 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
+		homepage-key {
+			gpios = <&gpa0 3 GPIO_ACTIVE_LOW>;
+			label = "homepage key";
+			debounce-interval = <10>;
+			linux,code = <KEY_MENU>;
+		};
+
 		power-key {
 			gpios = <&gpa2 7 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_POWER>;
 			label = "power key";
 			debounce-interval = <10>;
+			linux,code = <KEY_POWER>;
 		};
 
 		volume-up-key {
 			gpios = <&gpa2 0 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
 			label = "volume-up key";
 			debounce-interval = <10>;
+			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		volume-down-key {
 			gpios = <&gpa2 1 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEDOWN>;
 			label = "volume-down key";
 			debounce-interval = <10>;
-		};
-
-		homepage-key {
-			gpios = <&gpa0 3 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_MENU>;
-			label = "homepage key";
-			debounce-interval = <10>;
+			linux,code = <KEY_VOLUMEDOWN>;
 		};
 	};
 
@@ -103,18 +103,18 @@
 		};
 	};
 
-	vph_pwr_regulator: regulator-vph-pwr {
-		compatible = "regulator-fixed";
-		regulator-name = "VPH_PWR";
-		regulator-min-microvolt = <4200000>;
-		regulator-max-microvolt = <4200000>;
-	};
-
 	irda_regulator: regulator-irda {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpr3 3 GPIO_ACTIVE_HIGH>;
 		regulator-name = "irda_regulator";
+	};
+
+	vph_pwr_regulator: regulator-vph-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "VPH_PWR";
+		regulator-min-microvolt = <4200000>;
+		regulator-max-microvolt = <4200000>;
 	};
 
 	sound {
@@ -358,11 +358,12 @@
 &dsi {
 	vddcore-supply = <&ldo6_reg>;
 	vddio-supply = <&ldo7_reg>;
+	pinctrl-0 = <&te_irq>;
+	pinctrl-names = "default";
+
 	samsung,burst-clock-frequency = <512000000>;
 	samsung,esc-clock-frequency = <16000000>;
 	samsung,pll-clock-frequency = <24000000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&te_irq>;
 
 	status = "okay";
 };
@@ -410,11 +411,11 @@
 
 	pmic@66 {
 		compatible = "samsung,s2mps13-pmic";
+		reg = <0x66>;
 		interrupt-parent = <&gpa0>;
 		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
-		reg = <0x66>;
-		samsung,s2mps11-wrstbi-ground;
 		wakeup-source;
+		samsung,s2mps11-wrstbi-ground;
 
 		s2mps13_osc: clocks {
 			compatible = "samsung,s2mps13-clk";
@@ -859,8 +860,8 @@
 	status = "okay";
 
 	bridge@39 {
-		reg = <0x39>;
 		compatible = "sil,sii8620";
+		reg = <0x39>;
 		cvcc10-supply = <&ldo36_reg>;
 		iovcc18-supply = <&ldo34_reg>;
 		interrupt-parent = <&gpf0>;
@@ -897,9 +898,9 @@
 
 	pmic@66 {
 		compatible = "maxim,max77843";
+		reg = <0x66>;
 		interrupt-parent = <&gpa1>;
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
-		reg = <0x66>;
 
 		muic: extcon {
 			compatible = "maxim,max77843-muic";
@@ -997,18 +998,19 @@
 	cap-mmc-highspeed;
 	non-removable;
 	card-detect-delay = <200>;
+	fifo-depth = <0x80>;
+	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_qrdy &sd0_bus1 &sd0_bus4
+		     &sd0_bus8 &sd0_rdqs>;
+	pinctrl-names = "default";
+	bus-width = <8>;
+	assigned-clocks = <&cmu_top CLK_SCLK_MMC0_FSYS>;
+	assigned-clock-rates = <800000000>;
+
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;
 	samsung,dw-mshc-ddr-timing = <0 2>;
 	samsung,dw-mshc-hs400-timing = <0 3>;
 	samsung,read-strobe-delay = <90>;
-	fifo-depth = <0x80>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_qrdy &sd0_bus1 &sd0_bus4
-		     &sd0_bus8 &sd0_rdqs>;
-	bus-width = <8>;
-	assigned-clocks = <&cmu_top CLK_SCLK_MMC0_FSYS>;
-	assigned-clock-rates = <800000000>;
 
 	status = "okay";
 };
@@ -1018,20 +1020,21 @@
 	disable-wp;
 	cd-gpios = <&gpa2 4 GPIO_ACTIVE_LOW>;
 	card-detect-delay = <200>;
+	fifo-depth = <0x80>;
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus1 &sd2_bus4>;
+	pinctrl-names = "default";
+	bus-width = <4>;
+
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;
 	samsung,dw-mshc-ddr-timing = <0 2>;
-	fifo-depth = <0x80>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus1 &sd2_bus4>;
-	bus-width = <4>;
 
 	status = "okay";
 };
 
 &pcie {
-	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_bus &pcie_wlanen>;
+	pinctrl-names = "default";
 	vdd10-supply = <&ldo6_reg>;
 	vdd18-supply = <&ldo7_reg>;
 	assigned-clocks = <&cmu_fsys CLK_MOUT_SCLK_PCIE_100_USER>,
@@ -1064,14 +1067,14 @@
 
 	events {
 		ppmu_event0_d1_general: ppmu-event0-d1-general {
-		       event-name = "ppmu-event0-d1-general";
-	       };
+			event-name = "ppmu-event0-d1-general";
+		};
 	};
 };
 
 &pinctrl_alive {
-	pinctrl-names = "default";
 	pinctrl-0 = <&initial_alive>;
+	pinctrl-names = "default";
 
 	initial_alive: initial-state {
 		PIN_IN(gpa0-0, DOWN, FAST_SR1);
@@ -1154,8 +1157,8 @@
 };
 
 &pinctrl_cpif {
-	pinctrl-names = "default";
 	pinctrl-0 = <&initial_cpif>;
+	pinctrl-names = "default";
 
 	initial_cpif: initial-state {
 		PIN_IN(gpv6-0, DOWN, FAST_SR1);
@@ -1164,8 +1167,8 @@
 };
 
 &pinctrl_ese {
-	pinctrl-names = "default";
 	pinctrl-0 = <&initial_ese>;
+	pinctrl-names = "default";
 
 	pcie_wlanen: pcie-wlanen-pins {
 		samsung,pins = "gpj2-0";
@@ -1181,8 +1184,8 @@
 };
 
 &pinctrl_fsys {
-	pinctrl-names = "default";
 	pinctrl-0 = <&initial_fsys>;
+	pinctrl-names = "default";
 
 	initial_fsys: initial-state {
 		PIN_IN(gpr3-0, NONE, FAST_SR1);
@@ -1194,8 +1197,8 @@
 };
 
 &pinctrl_imem {
-	pinctrl-names = "default";
 	pinctrl-0 = <&initial_imem>;
+	pinctrl-names = "default";
 
 	initial_imem: initial-state {
 		PIN_IN(gpf0-0, UP, FAST_SR1);
@@ -1210,8 +1213,8 @@
 };
 
 &pinctrl_nfc {
-	pinctrl-names = "default";
 	pinctrl-0 = <&initial_nfc>;
+	pinctrl-names = "default";
 
 	initial_nfc: initial-state {
 		PIN_IN(gpj0-2, DOWN, FAST_SR1);
@@ -1219,8 +1222,8 @@
 };
 
 &pinctrl_peric {
-	pinctrl-names = "default";
 	pinctrl-0 = <&initial_peric>;
+	pinctrl-names = "default";
 
 	initial_peric: initial-state {
 		PIN_IN(gpv7-0, DOWN, FAST_SR1);
@@ -1274,8 +1277,8 @@
 };
 
 &pinctrl_touch {
-	pinctrl-names = "default";
 	pinctrl-0 = <&initial_touch>;
+	pinctrl-names = "default";
 
 	initial_touch: initial-state {
 		PIN_IN(gpj1-2, DOWN, FAST_SR1);

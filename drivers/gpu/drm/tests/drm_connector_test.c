@@ -669,7 +669,7 @@ static void drm_test_connector_hdmi_init_valid(struct kunit *test)
 	struct drm_connector_init_priv *priv = test->priv;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -689,7 +689,7 @@ static void drm_test_connector_hdmi_init_null_ddc(struct kunit *test)
 	struct drm_connector_init_priv *priv = test->priv;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -709,7 +709,7 @@ static void drm_test_connector_hdmi_init_null_vendor(struct kunit *test)
 	struct drm_connector_init_priv *priv = test->priv;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       NULL, "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -729,7 +729,7 @@ static void drm_test_connector_hdmi_init_null_product(struct kunit *test)
 	struct drm_connector_init_priv *priv = test->priv;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", NULL,
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -755,7 +755,7 @@ static void drm_test_connector_hdmi_init_product_valid(struct kunit *test)
 
 	KUNIT_ASSERT_LT(test, strlen(product_name), DRM_CONNECTOR_HDMI_PRODUCT_LEN);
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", product_name,
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -788,7 +788,7 @@ static void drm_test_connector_hdmi_init_product_length_exact(struct kunit *test
 
 	KUNIT_ASSERT_EQ(test, strlen(product_name), DRM_CONNECTOR_HDMI_PRODUCT_LEN);
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", product_name,
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -815,7 +815,7 @@ static void drm_test_connector_hdmi_init_product_length_too_long(struct kunit *t
 
 	KUNIT_ASSERT_GT(test, strlen(product_name), DRM_CONNECTOR_HDMI_PRODUCT_LEN);
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", product_name,
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -841,7 +841,7 @@ static void drm_test_connector_hdmi_init_vendor_valid(struct kunit *test)
 
 	KUNIT_ASSERT_LT(test, strlen(vendor_name), DRM_CONNECTOR_HDMI_VENDOR_LEN);
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       vendor_name, "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -873,7 +873,7 @@ static void drm_test_connector_hdmi_init_vendor_length_exact(struct kunit *test)
 
 	KUNIT_ASSERT_EQ(test, strlen(vendor_name), DRM_CONNECTOR_HDMI_VENDOR_LEN);
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       vendor_name, "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -900,7 +900,7 @@ static void drm_test_connector_hdmi_init_vendor_length_too_long(struct kunit *te
 
 	KUNIT_ASSERT_GT(test, strlen(vendor_name), DRM_CONNECTOR_HDMI_VENDOR_LEN);
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       vendor_name, "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -920,7 +920,7 @@ static void drm_test_connector_hdmi_init_bpc_invalid(struct kunit *test)
 	struct drm_connector_init_priv *priv = test->priv;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -940,7 +940,7 @@ static void drm_test_connector_hdmi_init_bpc_null(struct kunit *test)
 	struct drm_connector_init_priv *priv = test->priv;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -965,7 +965,7 @@ static void drm_test_connector_hdmi_init_bpc_8(struct kunit *test)
 	uint64_t val;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -1006,7 +1006,7 @@ static void drm_test_connector_hdmi_init_bpc_10(struct kunit *test)
 	uint64_t val;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -1047,7 +1047,7 @@ static void drm_test_connector_hdmi_init_bpc_12(struct kunit *test)
 	uint64_t val;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -1083,7 +1083,7 @@ static void drm_test_connector_hdmi_init_formats_empty(struct kunit *test)
 	struct drm_connector_init_priv *priv = test->priv;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -1103,7 +1103,7 @@ static void drm_test_connector_hdmi_init_formats_no_rgb(struct kunit *test)
 	struct drm_connector_init_priv *priv = test->priv;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -1161,7 +1161,7 @@ static void drm_test_connector_hdmi_init_formats_yuv420_allowed(struct kunit *te
 	params = test->param_value;
 	priv->connector.ycbcr_420_allowed = params->yuv420_allowed;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -1182,7 +1182,7 @@ static void drm_test_connector_hdmi_init_type_valid(struct kunit *test)
 	unsigned int connector_type = *(unsigned int *)test->param_value;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -1217,7 +1217,7 @@ static void drm_test_connector_hdmi_init_type_invalid(struct kunit *test)
 	unsigned int connector_type = *(unsigned int *)test->param_value;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, &priv->connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, &priv->connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,
@@ -1494,7 +1494,7 @@ static void drm_test_drm_connector_attach_broadcast_rgb_property_hdmi_connector(
 	struct drm_property *prop;
 	int ret;
 
-	ret = drmm_connector_hdmi_init(&priv->drm, connector,
+	ret = drmm_connector_hdmi_ini2(&priv->drm, connector,
 				       "Vendor", "Product",
 				       &dummy_funcs,
 				       &dummy_hdmi_funcs,

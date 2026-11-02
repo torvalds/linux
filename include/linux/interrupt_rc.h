@@ -11,6 +11,7 @@
  * make it easier to include without hitting circular header dependencies.
  */
 
+#include <linux/debug_locks.h>
 #include <linux/irqflags.h>
 #include <linux/preempt.h>
 #include <linux/processor.h>
@@ -65,6 +66,13 @@ static inline void local_interrupt_disable(void)
 	local_irq_save(flags);
 	new_count = hardirq_disable_enter();
 
+	/* Is hardirq disable count overflow soon? */
+	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT) &&
+	    DEBUG_LOCKS_WARN_ON(((new_count & HARDIRQ_DISABLE_MASK) +
+				 (10 << HARDIRQ_DISABLE_SHIFT)) >=
+				HARDIRQ_DISABLE_MASK))
+		return;
+
 	if ((new_count & HARDIRQ_DISABLE_MASK) == HARDIRQ_DISABLE_OFFSET)
 		_local_interrupt_save_state(flags);
 }
@@ -72,6 +80,11 @@ static inline void local_interrupt_disable(void)
 static inline void local_interrupt_enable(void)
 {
 	int new_count;
+
+	/* Unpaired local_interrupt_enable()? Warn and abort. */
+	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT) &&
+	    DEBUG_LOCKS_WARN_ON((preempt_count() & HARDIRQ_DISABLE_MASK) == 0))
+		return;
 
 	new_count = hardirq_disable_exit();
 

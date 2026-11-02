@@ -5,24 +5,33 @@
 #include <linux/threads.h>
 #include <linux/irq.h>
 
-typedef struct {
-	unsigned int __softirq_pending;
-	unsigned int timer_irqs_event;
-	unsigned int broadcast_irqs_event;
-	unsigned int timer_irqs_others;
-	unsigned int pmu_irqs;
-	unsigned int mce_exceptions;
-	unsigned int spurious_irqs;
-	unsigned int sreset_irqs;
+enum irq_stat_counts {
+	IRQ_COUNT_LOC_TIMER,
+	IRQ_COUNT_BCT_TIMER,
+	IRQ_COUNT_OTHER_TIMER,
+	IRQ_COUNT_SPURIOUS,
+	IRQ_COUNT_PMI,
+	IRQ_COUNT_MCE,
+	IRQ_COUNT_NMI_SRESET,
 #ifdef CONFIG_PPC_WATCHDOG
-	unsigned int soft_nmi_irqs;
+	IRQ_COUNT_WATCHDOG,
 #endif
 #ifdef CONFIG_PPC_DOORBELL
-	unsigned int doorbell_irqs;
+	IRQ_COUNT_DOORBELL,
 #endif
+	IRQ_COUNT_MAX,
+};
+
+typedef struct {
+	unsigned int counts[IRQ_COUNT_MAX];
 } ____cacheline_aligned irq_cpustat_t;
 
 DECLARE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
+DECLARE_PER_CPU(unsigned int, __softirq_pending);
+#define local_softirq_pending_ref       __softirq_pending
+
+#define inc_irq_stat(index)	__this_cpu_inc(irq_stat.counts[IRQ_COUNT_##index])
+void inc_irq_stat_and_enable(enum irq_stat_counts which);
 
 #define __ARCH_IRQ_STAT
 #define __ARCH_IRQ_EXIT_IRQS_DISABLED

@@ -84,6 +84,85 @@ char _license[] SEC("license") = "GPL";
 int monitored_pid = 0;
 int mprotect_count = 0;
 int bprm_count = 0;
+__u32 inode_identity_idmap_seen = 0;
+__u32 inode_idmapped_mount_seen = 0;
+
+enum {
+	INODE_IDMAP_CREATE	= 1U << 0,
+	INODE_IDMAP_LINK	= 1U << 1,
+	INODE_IDMAP_SYMLINK	= 1U << 2,
+	INODE_IDMAP_MKDIR	= 1U << 3,
+	INODE_IDMAP_MKNOD	= 1U << 4,
+	INODE_IDMAP_PERMISSION	= 1U << 5,
+};
+
+static __always_inline bool is_monitored_idmap(struct mnt_idmap *idmap)
+{
+	__u32 pid = bpf_get_current_pid_tgid() >> 32;
+
+	return monitored_pid == pid && idmap;
+}
+
+static __always_inline bool is_identity_idmap(struct mnt_idmap *idmap)
+{
+	return idmap->uid_map.nr_extents == 0 &&
+	       idmap->gid_map.nr_extents == 0;
+}
+
+static __always_inline int record_inode_idmap(struct mnt_idmap *idmap,
+					      __u32 hook, int ret)
+{
+	if (ret || !is_monitored_idmap(idmap))
+		return ret;
+	if (is_identity_idmap(idmap))
+		inode_identity_idmap_seen |= hook;
+	else
+		inode_idmapped_mount_seen |= hook;
+	return 0;
+}
+
+SEC("lsm/inode_create")
+int BPF_PROG(test_inode_create, struct mnt_idmap *idmap, struct inode *dir,
+	     struct dentry *dentry, umode_t mode, int ret)
+{
+	return record_inode_idmap(idmap, INODE_IDMAP_CREATE, ret);
+}
+
+SEC("lsm/inode_link")
+int BPF_PROG(test_inode_link, struct mnt_idmap *idmap,
+	     struct dentry *old_dentry, struct inode *dir,
+	     struct dentry *new_dentry, int ret)
+{
+	return record_inode_idmap(idmap, INODE_IDMAP_LINK, ret);
+}
+
+SEC("lsm/inode_symlink")
+int BPF_PROG(test_inode_symlink, struct mnt_idmap *idmap, struct inode *dir,
+	     struct dentry *dentry, const char *old_name, int ret)
+{
+	return record_inode_idmap(idmap, INODE_IDMAP_SYMLINK, ret);
+}
+
+SEC("lsm/inode_mkdir")
+int BPF_PROG(test_inode_mkdir, struct mnt_idmap *idmap, struct inode *dir,
+	     struct dentry *dentry, umode_t mode, int ret)
+{
+	return record_inode_idmap(idmap, INODE_IDMAP_MKDIR, ret);
+}
+
+SEC("lsm/inode_mknod")
+int BPF_PROG(test_inode_mknod, struct mnt_idmap *idmap, struct inode *dir,
+	     struct dentry *dentry, umode_t mode, dev_t dev, int ret)
+{
+	return record_inode_idmap(idmap, INODE_IDMAP_MKNOD, ret);
+}
+
+SEC("lsm/inode_permission")
+int BPF_PROG(test_inode_permission, struct mnt_idmap *idmap,
+	     struct inode *inode, int mask, int ret)
+{
+	return record_inode_idmap(idmap, INODE_IDMAP_PERMISSION, ret);
+}
 
 SEC("lsm/file_mprotect")
 int BPF_PROG(test_int_hook, struct vm_area_struct *vma,
@@ -113,6 +192,7 @@ int BPF_PROG(test_void_hook, struct linux_binprm *bprm)
 {
 	__u32 pid = bpf_get_current_pid_tgid() >> 32;
 	struct inner_map *inner_map;
+	struct mm_struct *mm;
 	char args[64];
 	__u32 key = 0;
 	__u64 *value;
@@ -121,7 +201,9 @@ int BPF_PROG(test_void_hook, struct linux_binprm *bprm)
 		bprm_count++;
 
 	bpf_copy_from_user(args, sizeof(args), (void *)bprm->vma->vm_mm->arg_start);
-	bpf_copy_from_user(args, sizeof(args), (void *)bprm->mm->arg_start);
+	mm = bprm->mm;
+	if (mm)
+		bpf_copy_from_user(args, sizeof(args), (void *)mm->arg_start);
 
 	value = bpf_map_lookup_elem(&array, &key);
 	if (value)

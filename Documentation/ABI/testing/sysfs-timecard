@@ -11,6 +11,35 @@ Contact:	Jonathan Lemon <jonathan.lemon@gmail.com>
 Description:	This directory contains the attributes of the Nth timecard
 		registered.
 
+What:		/sys/class/timecard/ocpN/cpld_status
+Date:		July 2026
+Contact:	Sagi Maimon <maimon.sagi@gmail.com>
+Description:	(RO, root only) The flags set in the status register of the
+		TAP CPLD, space separated, or an empty line when none is
+		set.  Only present on ADVA x1 TAP boards (PCI ID
+		0xad5a:0x0410).
+
+		==========  ================================================
+		done        the configuration flash holds a valid image and
+			    it is active
+		busy        an internal operation is in progress
+		failed      the last ISC operation failed
+		==========  ================================================
+
+		For example "busy" while an operation runs, or "busy failed"
+		if a failure is latched while another one is in progress.
+
+		A read arbitrates for the shared I2C bus and reprograms the
+		on-card mux, so it is restricted to root.  The Lattice device
+		ID of the CPLD is read by the driver shortly after probe,
+		and again after a successful CPLD update, and reported from
+		that cached value as the fixed "cpld.id" version by
+		devlink dev info.
+
+		New CPLD firmware is programmed with devlink dev flash,
+		selecting the "fw.cpld" component; see
+		Documentation/networking/devlink/ptp_ocp.rst.
+
 What:		/sys/class/timecard/ocpN/available_clock_sources
 Date:		September 2021
 Contact:	Jonathan Lemon <jonathan.lemon@gmail.com>
@@ -156,9 +185,11 @@ Description:	(RW) Used to start the signal generator, and summarize
 
 		    period [duty [phase [polarity]]]
 
-		echo 500000000 > signal       # 1/2 second period
-		echo 1000000 40 100 > signal
-		echo 0 > signal               # turn off generator
+		::
+
+		  echo 500000000 > signal       # 1/2 second period
+		  echo 1000000 40 100 > signal
+		  echo 0 > signal               # turn off generator
 
 		Period and phase are specified in nanoseconds.  Duty cycle is
 		a percentage from 1-99.  Polarity is 1 or 0.

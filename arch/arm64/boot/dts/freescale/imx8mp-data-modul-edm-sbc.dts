@@ -30,11 +30,8 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_panel_backlight>;
 		brightness-levels = <0 1 10 20 30 40 50 60 70 75 80 90 100>;
 		default-brightness-level = <7>;
-		enable-gpios = <&gpio3 0 GPIO_ACTIVE_HIGH>;
 		pwms = <&pwm1 0 5000000 0>;
 		/* Disabled by default, unless display board plugged in. */
 		status = "disabled";
@@ -86,9 +83,6 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-name = "PANEL_VCC";
-		/* GPIO flags are ignored, enable-active-high applies. */
-		gpio = <&gpio3 6 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
 		/* Disabled by default, unless display board plugged in. */
 		status = "disabled";
 	};
@@ -116,7 +110,7 @@
 		enable-active-high;
 		off-on-delay-us = <12000>;
 		startup-delay-us = <100>;
-		vin-supply = <&buck4>;
+		vin-supply = <&buck4_reg>;
 	};
 
 	sound {
@@ -152,19 +146,19 @@
 };
 
 &A53_0 {
-	cpu-supply = <&buck2>;
+	cpu-supply = <&buck2_reg>;
 };
 
 &A53_1 {
-	cpu-supply = <&buck2>;
+	cpu-supply = <&buck2_reg>;
 };
 
 &A53_2 {
-	cpu-supply = <&buck2>;
+	cpu-supply = <&buck2_reg>;
 };
 
 &A53_3 {
-	cpu-supply = <&buck2>;
+	cpu-supply = <&buck2_reg>;
 };
 
 &ecspi1 {
@@ -405,8 +399,8 @@
 		reg = <0x0a>;
 		#sound-dai-cells = <0>;
 		clocks = <&clk_pwm4>;
-		VDDA-supply = <&buck4>;
-		VDDIO-supply = <&buck4>;
+		VDDA-supply = <&buck4_reg>;
+		VDDIO-supply = <&buck4_reg>;
 	};
 
 	usb-hub@2c {
@@ -427,14 +421,142 @@
 	eeprom900: eeprom@50 {	/* board rev.900 */
 		compatible = "atmel,24c32";
 		reg = <0x50>;
+		label = "dmo-board-info";
 		pagesize = <32>;
+		wp-gpios = <&gpio3 14 GPIO_ACTIVE_LOW>;
 		status = "disabled";
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			company-name@24 {
+				reg = <0x24 0xd>;
+			};
+
+			product-name@32 {
+				reg = <0x32 0x18>;
+			};
+
+			board-revision@4b {
+				reg = <0x4b 0x3>;
+			};
+
+			serial-number@4f {
+				reg = <0x4f 0x8>;
+			};
+
+			manufacturing-date@70 {
+				reg = <0x70 0xa>;
+			};
+
+			test-date@7b {
+				reg = <0x7b 0xa>;
+			};
+
+			product-number@86 {
+				reg = <0x86 0x8>;
+			};
+
+			board-variant@9a {
+				reg = <0x9a 0x9>;
+			};
+
+			company-acronym@a4 {
+				reg = <0xa4 0x3>;
+			};
+
+			eeprom900mac: mac-address@b0 {
+				reg = <0xb0 0x6>;
+			};
+
+			board-id@100 {
+				reg = <0x100 0x4>;
+			};
+
+			wifi-id@120 {
+				reg = <0x120 0x4>;
+			};
+
+			board-lvds-id@140 {
+				reg = <0x140 0x4>;
+			};
+
+			camera-id@160 {
+				reg = <0x160 0x4>;
+			};
+		};
 	};
 
 	eeprom902: eeprom@51 {	/* board rev.902 */
 		compatible = "atmel,24c32";
 		reg = <0x51>;
+		label = "dmo-board-info";
 		pagesize = <32>;
+		wp-gpios = <&gpio3 14 GPIO_ACTIVE_LOW>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			company-name@24 {
+				reg = <0x24 0xd>;
+			};
+
+			product-name@32 {
+				reg = <0x32 0x18>;
+			};
+
+			board-revision@4b {
+				reg = <0x4b 0x3>;
+			};
+
+			serial-number@4f {
+				reg = <0x4f 0x8>;
+			};
+
+			manufacturing-date@70 {
+				reg = <0x70 0xa>;
+			};
+
+			test-date@7b {
+				reg = <0x7b 0xa>;
+			};
+
+			product-number@86 {
+				reg = <0x86 0x8>;
+			};
+
+			board-variant@9a {
+				reg = <0x9a 0x9>;
+			};
+
+			company-acronym@a4 {
+				reg = <0xa4 0x3>;
+			};
+
+			eeprom902mac: mac-address@b0 {
+				reg = <0xb0 0x6>;
+			};
+
+			board-id@100 {
+				reg = <0x100 0x4>;
+			};
+
+			wifi-id@120 {
+				reg = <0x120 0x4>;
+			};
+
+			board-lvds-id@140 {
+				reg = <0x140 0x4>;
+			};
+
+			camera-id@160 {
+				reg = <0x160 0x4>;
+			};
+		};
 	};
 
 	rtc: rtc@68 {
@@ -454,7 +576,9 @@
 	};
 };
 
-&i2c2 {
+i2c_display: &i2c2 { };
+
+i2c_feature: &i2c2 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
@@ -527,7 +651,7 @@
 		 * MIMX8ML8CVNKZAB
 		 */
 		regulators {
-			buck1: BUCK1 {	/* VDD_SOC (dual-phase with BUCK3) */
+			buck1_reg: BUCK1 {	/* VDD_SOC (dual-phase with BUCK3) */
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-ramp-delay = <3125>;
@@ -535,7 +659,7 @@
 				regulator-boot-on;
 			};
 
-			buck2: BUCK2 {	/* VDD_ARM */
+			buck2_reg: BUCK2 {	/* VDD_ARM */
 				nxp,dvs-run-voltage = <950000>;
 				nxp,dvs-standby-voltage = <850000>;
 				regulator-min-microvolt = <850000>;
@@ -545,47 +669,47 @@
 				regulator-boot-on;
 			};
 
-			buck4: BUCK4 {	/* VDD_3V3 */
+			buck4_reg: BUCK4 {	/* VDD_3V3 */
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
-			buck5: BUCK5 {	/* VDD_1V8 */
+			buck5_reg: BUCK5 {	/* VDD_1V8 */
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
-			buck6: BUCK6 {	/* NVCC_DRAM_1V1 */
+			buck6_reg: BUCK6 {	/* NVCC_DRAM_1V1 */
 				regulator-min-microvolt = <1100000>;
 				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
-			ldo1: LDO1 {	/* NVCC_SNVS_1V8 */
+			ldo1_reg: LDO1 {	/* NVCC_SNVS_1V8 */
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
-			ldo3: LDO3 {	/* VDDA_1V8 */
+			ldo3_reg: LDO3 {	/* VDDA_1V8 */
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
-			ldo4: LDO4 {	/* PMIC_LDO4 */
+			ldo4_reg: LDO4 {	/* PMIC_LDO4 */
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
-			ldo5: LDO5 {	/* NVCC_SD2 */
+			ldo5_reg: LDO5 {	/* NVCC_SD2 */
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 			};
@@ -650,7 +774,7 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_gpio>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
-	vqmmc-supply = <&ldo5>;
+	vqmmc-supply = <&ldo5_reg>;
 	bus-width = <4>;
 	status = "okay";
 };
@@ -661,8 +785,8 @@
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
-	vmmc-supply = <&buck4>;
-	vqmmc-supply = <&buck5>;
+	vmmc-supply = <&buck4_reg>;
+	vqmmc-supply = <&buck5_reg>;
 	bus-width = <8>;
 	no-sd;
 	no-sdio;

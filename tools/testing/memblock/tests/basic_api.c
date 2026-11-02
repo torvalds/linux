@@ -1730,7 +1730,7 @@ static int memblock_free_simple_check(void)
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
-	memblock_free((void *)r1.base, r1.size);
+	memblock_phys_free(r1.base, r1.size);
 
 	ASSERT_EQ(rgn->base, r2.base);
 	ASSERT_EQ(rgn->size, r2.size);
@@ -1778,7 +1778,7 @@ static int memblock_free_absent_check(void)
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
-	memblock_free((void *)r2.base, r2.size);
+	memblock_phys_free(r2.base, r2.size);
 
 	ASSERT_EQ(rgn->base, r1.base);
 	ASSERT_EQ(rgn->size, r1.size);
@@ -1832,7 +1832,7 @@ static int memblock_free_overlap_top_check(void)
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
-	memblock_free((void *)r2.base, r2.size);
+	memblock_phys_free(r2.base, r2.size);
 
 	ASSERT_EQ(rgn->base, r2.base + r2.size);
 	ASSERT_EQ(rgn->size, total_size);
@@ -1881,7 +1881,7 @@ static int memblock_free_overlap_bottom_check(void)
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
-	memblock_free((void *)r2.base, r2.size);
+	memblock_phys_free(r2.base, r2.size);
 
 	ASSERT_EQ(rgn->base, r1.base);
 	ASSERT_EQ(rgn->size, total_size);
@@ -1938,7 +1938,7 @@ static int memblock_free_within_check(void)
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
-	memblock_free((void *)r2.base, r2.size);
+	memblock_phys_free(r2.base, r2.size);
 
 	ASSERT_EQ(rgn1->base, r1.base);
 	ASSERT_EQ(rgn1->size, r1_size);
@@ -1976,7 +1976,7 @@ static int memblock_free_only_region_check(void)
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
-	memblock_free((void *)r1.base, r1.size);
+	memblock_phys_free(r1.base, r1.size);
 
 	ASSERT_EQ(rgn->base, 0);
 	ASSERT_EQ(rgn->size, 0);
@@ -2003,7 +2003,7 @@ static int memblock_free_only_region_check(void)
  * Expect the total size of reserved memory to be updated and the counter to
  * not be updated.
  */
-static int memblock_free_near_max_check(void)
+static int memblock_phys_free_near_max_check(void)
 {
 	struct memblock_region *rgn;
 	phys_addr_t total_size;
@@ -2026,7 +2026,7 @@ static int memblock_free_near_max_check(void)
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
-	memblock_free((void *)r2.base, r2.size);
+	memblock_phys_free(r2.base, r2.size);
 
 	ASSERT_EQ(rgn->base, r1.base);
 	ASSERT_EQ(rgn->size, total_size);
@@ -2086,7 +2086,7 @@ static int memblock_free_overlap_two_check(void)
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
-	memblock_free((void *)r3.base, r3.size);
+	memblock_phys_free(r3.base, r3.size);
 
 	ASSERT_EQ(rgn1->base, r1.base);
 	ASSERT_EQ(rgn1->size, new_r1_size);
@@ -2114,7 +2114,7 @@ static int memblock_free_checks(void)
 	memblock_free_overlap_bottom_check();
 	memblock_free_within_check();
 	memblock_free_only_region_check();
-	memblock_free_near_max_check();
+	memblock_phys_free_near_max_check();
 	memblock_free_overlap_two_check();
 
 	prefix_pop();

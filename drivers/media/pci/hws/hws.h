@@ -33,8 +33,8 @@ struct hws_pix_state {
 	u32 sizeimage;		/* full frame */
 	enum v4l2_field field;	/* V4L2_FIELD_NONE or INTERLACED */
 	enum v4l2_colorspace colorspace;	/* e.g., REC709 */
-	enum v4l2_ycbcr_encoding ycbcr_enc;	/* V4L2_YCBCR_ENC_DEFAULT */
-	enum v4l2_quantization quantization;	/* V4L2_QUANTIZATION_LIM_RANGE */
+	enum v4l2_ycbcr_encoding ycbcr_enc;	/* V4L2_YCBCR_ENC_601 */
+	enum v4l2_quantization quantization;	/* V4L2_QUANTIZATION_FULL_RANGE */
 	enum v4l2_xfer_func xfer_func;	/* V4L2_XFER_FUNC_DEFAULT */
 	bool interlaced;	/* cached hardware state */
 	u32 half_size;		/* hardware half-frame size */

@@ -20,10 +20,10 @@
 efi_status_t efi_get_memory_map(struct efi_boot_memmap **map,
 				bool install_cfg_tbl)
 {
+	static efi_guid_t tbl_guid = LINUX_EFI_BOOT_MEMMAP_GUID;
 	struct efi_boot_memmap tmp, *m __free(efi_pool) = NULL;
 	int memtype = install_cfg_tbl ? EFI_ACPI_RECLAIM_MEMORY
 				      : EFI_LOADER_DATA;
-	efi_guid_t tbl_guid = LINUX_EFI_BOOT_MEMMAP_GUID;
 	efi_status_t status;
 	unsigned long size;
 

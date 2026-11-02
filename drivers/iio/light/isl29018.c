@@ -10,6 +10,7 @@
 
 #include <linux/i2c.h>
 #include <linux/err.h>
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
@@ -339,9 +340,11 @@ static ssize_t proximity_on_chip_ambient_infrared_suppression_store
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 	int val;
+	int ret;
 
-	if (kstrtoint(buf, 10, &val))
-		return -EINVAL;
+	ret = kstrtoint(buf, 10, &val);
+	if (ret)
+		return ret;
 	if (!(val == 0 || val == 1))
 		return -EINVAL;
 

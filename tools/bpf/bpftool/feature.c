@@ -394,9 +394,6 @@ static void probe_kernel_image_config(const char *define_prefix)
 		/* xt_bpf module for passing BPF programs to netfilter  */
 		{ "CONFIG_NETFILTER_XT_MATCH_BPF", },
 
-		/* test_bpf module for BPF tests */
-		{ "CONFIG_TEST_BPF", },
-
 		/* Misc configs useful in BPF C programs */
 		/* jiffies <-> sec conversion for bpf_jiffies64() helper */
 		{ "CONFIG_HZ", true, }

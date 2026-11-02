@@ -69,7 +69,7 @@ static void run_vcpu(struct kvm_vcpu *vcpu)
 			TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&
 					uc.args[1] == stage + 1,
 					"Stage %d: Unexpected register values vmexit, got %lx",
-					stage + 1, (ulong)uc.args[1]);
+					stage + 1, (unsigned long)uc.args[1]);
 			test_set_bsp_busy(vcpu, "while running vm");
 			break;
 		case UCALL_DONE:

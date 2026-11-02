@@ -286,7 +286,7 @@ int genwqe_flash_readback_fails(struct genwqe_dev *cd)
  * @cd: GenWQE device information
  *
  * Note: From a design perspective it turned out to be a bad idea to
- * use codes here to specifiy the frequency/speed values. An old
+ * use codes here to specify the frequency/speed values. An old
  * driver cannot understand new codes and is therefore always a
  * problem. Better is to measure out the value or put the
  * speed/frequency directly into a register which is always a valid
@@ -904,7 +904,7 @@ static int genwqe_reload_bistream(struct genwqe_dev *cd)
  *
  * Condition for the health-thread to trigger:
  *   a) when a kthread_stop() request comes in or
- *   b) a critical GFIR occured
+ *   b) a critical GFIR occurred
  *
  * Informational GFIRs are checked and potentially printed in
  * GENWQE_HEALTH_CHECK_INTERVAL seconds.
@@ -1210,10 +1210,10 @@ static int genwqe_probe(struct pci_dev *pci_dev,
 }
 
 /**
- * genwqe_remove() - Called when device is removed (hot-plugable)
+ * genwqe_remove() - Called when device is removed (hot-pluggable)
  * @pci_dev:	PCI device information struct
  *
- * Or when driver is unloaded respecitively when unbind is done.
+ * Or when driver is unloaded respectively when unbind is done.
  */
 static void genwqe_remove(struct pci_dev *pci_dev)
 {

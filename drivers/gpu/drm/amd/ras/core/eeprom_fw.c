@@ -23,500 +23,246 @@
  */
 
 #include "ras.h"
+#include "ras_mp1.h"
+#include "eeprom_fw.h"
+#define MAX_EEPROM_ERR_RECORD_NUM 1024
 
-#define RAS_SMU_MESSAGE_TIMEOUT_MS 1000 /* 1s */
-
-void ras_fw_init_feature_flags(struct ras_core_context *ras_core)
+static int fw_eeprom_reset_ras_table(struct ras_core_context *ras_core)
 {
-	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
-	const struct ras_mp1_sys_func *sys_func = mp1->sys_func;
-	uint64_t flags = 0ULL;
-
-	if (!sys_func || !sys_func->mp1_get_ras_enabled_mask)
-		return;
-
-	if (!sys_func->mp1_get_ras_enabled_mask(ras_core, &flags))
-		ras_core->ras_fw_features = flags;
-}
-
-bool ras_fw_eeprom_supported(struct ras_core_context *ras_core)
-{
-	return !!(ras_core->ras_fw_features & RAS_CORE_FW_FEATURE_BIT__RAS_EEPROM);
-}
-
-int ras_fw_get_table_version(struct ras_core_context *ras_core,
-				     uint32_t *table_version)
-{
-	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
-	const struct ras_mp1_sys_func *sys_func = mp1->sys_func;
-
-	return sys_func->mp1_send_eeprom_msg(ras_core,
-				RAS_SMU_GetRASTableVersion, 0, table_version);
-}
-
-int ras_fw_get_badpage_count(struct ras_core_context *ras_core,
-				     uint32_t *count, uint32_t timeout)
-{
-	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
-	const struct ras_mp1_sys_func *sys_func = mp1->sys_func;
-	uint64_t end, now;
-	int ret = 0;
-
-	now = (uint64_t)ktime_to_ms(ktime_get());
-	end = now + timeout;
-
-	do {
-		ret = sys_func->mp1_send_eeprom_msg(ras_core,
-			RAS_SMU_GetBadPageCount, 0, count);
-		/* eeprom is not ready */
-		if (ret != -EBUSY)
-			return ret;
-
-		usleep_range(10000, 15000);
-		now = (uint64_t)ktime_to_ms(ktime_get());
-	} while (now < end);
-
-	RAS_DEV_ERR(ras_core->dev,
-			"smu get bad page count timeout!\n");
-	return ret;
-}
-
-int ras_fw_get_badpage_mca_addr(struct ras_core_context *ras_core,
-					uint16_t index, uint64_t *mca_addr)
-{
-	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
-	const struct ras_mp1_sys_func *sys_func = mp1->sys_func;
-	uint32_t temp_arg, temp_addr_lo, temp_addr_high;
-	int ret;
-
-	temp_arg = index | (1 << 16);
-	ret = sys_func->mp1_send_eeprom_msg(ras_core,
-			RAS_SMU_GetBadPageMcaAddr, temp_arg, &temp_addr_lo);
-	if (ret)
-		return ret;
-
-	temp_arg = index | (2 << 16);
-	ret = sys_func->mp1_send_eeprom_msg(ras_core,
-			RAS_SMU_GetBadPageMcaAddr, temp_arg, &temp_addr_high);
-
-	if (!ret)
-		*mca_addr = (uint64_t)temp_addr_high << 32 | temp_addr_lo;
-
-	return ret;
-}
-
-int ras_fw_set_timestamp(struct ras_core_context *ras_core,
-				 uint64_t timestamp)
-{
-	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
-	const struct ras_mp1_sys_func *sys_func = mp1->sys_func;
-
-	return sys_func->mp1_send_eeprom_msg(ras_core,
-			RAS_SMU_SetTimestamp, (uint32_t)timestamp, 0);
-}
-
-int ras_fw_get_timestamp(struct ras_core_context *ras_core,
-				 uint16_t index, uint64_t *timestamp)
-{
-	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
-	const struct ras_mp1_sys_func *sys_func = mp1->sys_func;
-	uint32_t temp = 0;
-	int ret;
-
-	ret = sys_func->mp1_send_eeprom_msg(ras_core,
-			RAS_SMU_GetTimestamp, index, &temp);
-	if (!ret)
-		*timestamp = temp;
-
-	return ret;
-}
-
-int ras_fw_get_badpage_ipid(struct ras_core_context *ras_core,
-				    uint16_t index, uint64_t *ipid)
-{
-	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
-	const struct ras_mp1_sys_func *sys_func = mp1->sys_func;
-	uint32_t temp_arg, temp_ipid_lo, temp_ipid_high;
-	int ret;
-
-	temp_arg = index | (1 << 16);
-	ret = sys_func->mp1_send_eeprom_msg(ras_core,
-			RAS_SMU_GetBadPageIpid, temp_arg, &temp_ipid_lo);
-	if (ret)
-		return ret;
-
-	temp_arg = index | (2 << 16);
-	ret = sys_func->mp1_send_eeprom_msg(ras_core,
-			RAS_SMU_GetBadPageIpid, temp_arg, &temp_ipid_high);
-	if (!ret)
-		*ipid = (uint64_t)temp_ipid_high << 32 | temp_ipid_lo;
-
-	return ret;
-}
-
-int ras_fw_erase_ras_table(struct ras_core_context *ras_core,
-				   uint32_t *result)
-{
-	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
-	const struct ras_mp1_sys_func *sys_func = mp1->sys_func;
-
-	return sys_func->mp1_send_eeprom_msg(ras_core,
-			RAS_SMU_EraseRasTable, 0, result);
-}
-
-int ras_fw_eeprom_reset_table(struct ras_core_context *ras_core)
-{
-	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
+	struct fw_eeprom_control *ctl = ras_core->eeprom_mgr.ras_eeprom;
 	u32 erase_res = 0;
 	int res;
 
-	mutex_lock(&control->ras_tbl_mutex);
-
-	res = ras_fw_erase_ras_table(ras_core, &erase_res);
+	mutex_lock(&ctl->record_lock);
+	res = ras_mp1_reset_ras_table(ras_core, &erase_res);
 	if (res || erase_res) {
-		RAS_DEV_WARN(ras_core->dev, "RAS EEPROM reset failed, res:%d result:%d",
-									res, erase_res);
+		RAS_DEV_WARN(ras_core->dev,
+			"RAS EEPROM reset failed, res:%d result:%d\n", res, erase_res);
 		if (!res)
 			res = -EIO;
+		goto out;
 	}
 
-	control->ras_num_recs = 0;
-	control->bad_channel_bitmap = 0;
-	ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_PAGE_NUM,
-		&control->ras_num_recs);
-	ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_CHANNEL_BITMAP,
-		&control->bad_channel_bitmap);
-	control->update_channel_flag = false;
+	ctl->record_count = 0;
+	memset(ctl->records, 0,
+		sizeof(*ctl->records) * MAX_EEPROM_ERR_RECORD_NUM);
 
-	mutex_unlock(&control->ras_tbl_mutex);
+	ctl->ras_table_format_version = 0;
+	ctl->eeprom_status = 0;
+	ctl->rma_status = 0;
+	ctl->bad_channel_bitmap = 0;
 
+out:
+	mutex_unlock(&ctl->record_lock);
 	return res;
 }
 
-bool ras_fw_eeprom_check_safety_watermark(struct ras_core_context *ras_core)
+static int fw_eeprom_sync_data(struct ras_core_context *ras_core,
+		struct fw_eeprom_control *ctl)
 {
-	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
-	bool ret = false;
-	int bad_page_count;
+	struct eeprom_err_record err_rec = {0};
+	u32 fw_err_rec_num;
+	u32 idx;
+	int ret = 0;
 
-	if (!control->record_threshold_config)
-		return false;
+	mutex_lock(&ctl->record_lock);
+	ret = ras_mp1_get_record_count(ras_core, &fw_err_rec_num);
+	if (ret)
+		goto out;
 
-	bad_page_count = ras_umc_get_badpage_count(ras_core);
-
-	if (bad_page_count > control->record_threshold_count)
-		RAS_DEV_WARN(ras_core->dev, "RAS records:%d exceed threshold:%d",
-			bad_page_count, control->record_threshold_count);
-
-	if ((control->record_threshold_config == WARN_NONSTOP_OVER_THRESHOLD) ||
-		(control->record_threshold_config == NONSTOP_OVER_THRESHOLD)) {
-		RAS_DEV_WARN(ras_core->dev,
-			"Please consult AMD Service Action Guide (SAG) for appropriate service procedures.\n");
-		ret = false;
-	} else {
-		ras_core->is_rma = true;
-		RAS_DEV_WARN(ras_core->dev,
-			"Please consider adjusting the customized threshold.\n");
-		ret = true;
+	if (!fw_err_rec_num || fw_err_rec_num == ctl->record_count) {
+		goto out;
+	} else if (fw_err_rec_num < ctl->record_count) {
+		RAS_DEV_ERR(ras_core->dev, "EEPROM ECC error count mismatch!\n");
+		ret = -EFAULT;
+		goto out;
+	} else if (fw_err_rec_num > MAX_EEPROM_ERR_RECORD_NUM) {
+		RAS_DEV_ERR(ras_core->dev,
+			"Invalid EEPROM error count:0x%x\n", fw_err_rec_num);
+		ret = -EOVERFLOW;
+		goto out;
 	}
 
-	return ret;
-}
-
-int ras_fw_eeprom_append(struct ras_core_context *ras_core,
-			   struct eeprom_umc_record *record, const u32 num)
-{
-	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
-	int threshold_config = control->record_threshold_config;
-	int i, bad_page_count;
-
-	mutex_lock(&control->ras_tbl_mutex);
-
-	for (i = 0; i < num; i++) {
-		/* update bad channel bitmap */
-		if ((record[i].mem_channel < BITS_PER_TYPE(control->bad_channel_bitmap)) &&
-			!(control->bad_channel_bitmap & (1 << record[i].mem_channel))) {
-			control->bad_channel_bitmap |= 1 << record[i].mem_channel;
-			control->update_channel_flag = true;
-		}
-	}
-	control->ras_num_recs += num;
-
-	bad_page_count = ras_umc_get_badpage_count(ras_core);
-
-	if (threshold_config != 0 &&
-		bad_page_count > control->record_threshold_count) {
-		RAS_DEV_WARN(ras_core->dev,
-			"Saved bad pages %d reaches threshold value %d\n",
-			bad_page_count, control->record_threshold_count);
-
-		if ((threshold_config != WARN_NONSTOP_OVER_THRESHOLD) &&
-			(threshold_config != NONSTOP_OVER_THRESHOLD))
-			ras_core->is_rma = true;
-
-		/* ignore the -ENOTSUPP return value */
-		ras_core_event_notify(ras_core, RAS_EVENT_ID__DEVICE_RMA, NULL);
-	}
-
-	mutex_unlock(&control->ras_tbl_mutex);
-	return 0;
-}
-
-int ras_fw_eeprom_read_idx(struct ras_core_context *ras_core,
-			 struct eeprom_umc_record *record_umc,
-			 struct ras_bank_ecc *ras_ecc,
-			 u32 rec_idx, const u32 num)
-{
-	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
-	int i, ret, end_idx;
-	u64 mca, ipid, ts;
-	u32 cu, mem_channel, mcumc_id;
-
-	if (!ras_core->ras_umc.ip_func ||
-	    !ras_core->ras_umc.ip_func->mca_ipid_parse)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&control->ras_tbl_mutex);
-
-	end_idx = rec_idx + num;
-	for (i = rec_idx; i < end_idx; i++) {
-		ret = ras_fw_get_badpage_mca_addr(ras_core, i, &mca);
+	for (idx = ctl->record_count;
+			idx < fw_err_rec_num; idx++, ctl->record_count = idx) {
+		ret = ras_mp1_get_record(ras_core, idx, &err_rec);
 		if (ret)
 			goto out;
 
-		ret = ras_fw_get_badpage_ipid(ras_core, i, &ipid);
-		if (ret)
-			goto out;
-
-		ret = ras_fw_get_timestamp(ras_core, i, &ts);
-		if (ret)
-			goto out;
-
-		if (record_umc) {
-			record_umc[i - rec_idx].address = mca;
-			/* retired_page (pa) is unused now */
-			record_umc[i - rec_idx].retired_row_pfn = 0x1ULL;
-			record_umc[i - rec_idx].ts = ts;
-			record_umc[i - rec_idx].err_type = RAS_EEPROM_ERR_NON_RECOVERABLE;
-
-			ras_core->ras_umc.ip_func->mca_ipid_parse(ras_core, ipid,
-				&cu, &mem_channel, &mcumc_id, NULL);
-			record_umc[i - rec_idx].cu = (u8)cu;
-			record_umc[i - rec_idx].mem_channel = (u8)mem_channel;
-			record_umc[i - rec_idx].mcumc_id = (u8)mcumc_id;
-
-			/* update bad channel bitmap */
-			if ((record_umc[i - rec_idx].mem_channel < BITS_PER_TYPE(control->bad_channel_bitmap)) &&
-				!(control->bad_channel_bitmap & (1 << record_umc[i - rec_idx].mem_channel))) {
-				control->bad_channel_bitmap |= 1 << record_umc[i - rec_idx].mem_channel;
-				control->update_channel_flag = true;
-			}
-		}
-
-		if (ras_ecc) {
-			ras_ecc[i - rec_idx].addr = mca;
-			ras_ecc[i - rec_idx].ipid = ipid;
-			ras_ecc[i - rec_idx].ts = ts;
-		}
-
+		memcpy(&ctl->records[idx], &err_rec, sizeof(*ctl->records));
 	}
 
 out:
-	mutex_unlock(&control->ras_tbl_mutex);
+	mutex_unlock(&ctl->record_lock);
 	return ret;
 }
 
-uint32_t ras_fw_eeprom_get_record_count(struct ras_core_context *ras_core)
+static int fw_eeprom_get_record_count(struct ras_core_context *ras_core)
 {
-	if (!ras_core)
-		return 0;
+	struct fw_eeprom_control *ctl;
 
-	return ras_core->ras_fw_eeprom.ras_num_recs;
+	if (!ras_core->eeprom_mgr.ras_eeprom)
+		return -EINVAL;
+
+	ctl = ras_core->eeprom_mgr.ras_eeprom;
+
+	if (!ras_core_gpu_in_reset(ras_core))
+		fw_eeprom_sync_data(ras_core, ctl);
+
+	return ctl->record_count;
 }
 
-int ras_fw_eeprom_update_record(struct ras_core_context *ras_core,
-				struct ras_bank_ecc *ras_ecc)
+static int fw_eeprom_get_record(struct ras_core_context *ras_core,
+		u32 idx, struct eeprom_umc_record *rec)
 {
-	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
-	int ret, retry = 20;
-	u32 recs_num_new = control->ras_num_recs;
+	struct fw_eeprom_control *ctl;
+	struct ras_bank_ecc bank = {0};
 
-	do {
-		/* 1000ms timeout is long enough, smu_get_badpage_count won't
-		 * return -EBUSY before timeout.
-		 */
-		ret = ras_fw_get_badpage_count(ras_core,
-			&recs_num_new, RAS_SMU_MESSAGE_TIMEOUT_MS);
-		if (!ret &&
-		    (recs_num_new == control->ras_num_recs)) {
-			/* record number update in PMFW needs some time,
-			 * smu_get_badpage_count may return immediately without
-			 * count update, sleep for a while and retry again.
-			 */
-			msleep(50);
-			retry--;
-		} else {
+	if (!ras_core->eeprom_mgr.ras_eeprom)
+		return -EINVAL;
+
+	ctl = ras_core->eeprom_mgr.ras_eeprom;
+
+	if (!rec || idx >= ctl->record_count)
+		return -EINVAL;
+
+	bank.timestamp = ctl->records[idx].timestamp;
+	bank.status = 0;
+	bank.ipid = ctl->records[idx].ipid;
+	bank.addr = ctl->records[idx].mca_addr;
+	bank.nps = ras_core_get_curr_nps_mode(ras_core);
+
+	return ras_umc_bank_to_umc_record(ras_core, &bank, rec);
+}
+
+static int fw_eeprom_sw_init(struct ras_core_context *ras_core,
+			struct ras_eeprom_param *param)
+{
+	struct ras_eeprom_mgr *mgr = &ras_core->eeprom_mgr;
+	struct fw_eeprom_control *ctl;
+	int ret = 0;
+
+	if (!param)
+		return -EINVAL;
+
+	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
+	if (!ctl)
+		return -ENOMEM;
+
+	ctl->eeprom_ip_version = param->eeprom_ip_version;
+	ctl->records = kzalloc(sizeof(*ctl->records) * MAX_EEPROM_ERR_RECORD_NUM, GFP_KERNEL);
+	if (!ctl->records) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ctl->max_record_count = MAX_EEPROM_ERR_RECORD_NUM;
+	mutex_init(&ctl->record_lock);
+
+	mgr->ras_eeprom = ctl;
+
+	return 0;
+
+out:
+	kfree(ctl);
+	return ret;
+}
+
+static int fw_eeprom_sw_fini(struct ras_core_context *ras_core)
+{
+	struct fw_eeprom_control *ctl;
+
+	if (!ras_core->eeprom_mgr.ras_eeprom)
+		return -EINVAL;
+
+	ctl = ras_core->eeprom_mgr.ras_eeprom;
+
+	kfree(ctl->records);
+	mutex_destroy(&ctl->record_lock);
+
+	kfree(ctl);
+	ras_core->eeprom_mgr.ras_eeprom = NULL;
+
+	return 0;
+}
+
+static int fw_eeprom_hw_init(struct ras_core_context *ras_core,
+			struct ras_eeprom_param *param)
+{
+	struct fw_eeprom_control *ctl;
+
+	if (!ras_core->eeprom_mgr.ras_eeprom)
+		return -EINVAL;
+
+	ctl = ras_core->eeprom_mgr.ras_eeprom;
+
+	ras_mp1_get_table_version(ras_core, &ctl->ras_table_format_version);
+
+	return 0;
+}
+
+static int fw_eeprom_hw_fini(struct ras_core_context *ras_core)
+{
+	return 0;
+}
+
+static int fw_eeprom_get_records(struct ras_core_context *ras_core, u32 start,
+		struct eeprom_umc_record *record, u32 num)
+{
+	struct fw_eeprom_control *ctl = ras_core->eeprom_mgr.ras_eeprom;
+	int i, ret = 0;
+
+	mutex_lock(&ctl->record_lock);
+	for (i = 0; i < num; i++) {
+		ret = fw_eeprom_get_record(ras_core, start + i, &record[i]);
+		if (ret)
 			break;
-		}
-	} while (retry);
-
-	if (ret)
-		return ret;
-
-	if (recs_num_new > control->ras_num_recs)
-		ret = ras_fw_eeprom_read_idx(ras_core, 0,
-					ras_ecc, control->ras_num_recs, 1);
-	else
-		ret = -EINVAL;
+	}
+	mutex_unlock(&ctl->record_lock);
 
 	return ret;
 }
 
-static int __check_ras_fw_table_status(struct ras_core_context *ras_core)
+static int fw_eeprom_get_eeprom_info(struct ras_core_context *ras_core,
+		struct ras_eeprom_info *eeprom_info, bool fast_mode)
 {
-	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
-	uint64_t local_time;
-	int res;
+	struct fw_eeprom_control *ctl = ras_core->eeprom_mgr.ras_eeprom;
 
-	mutex_init(&control->ras_tbl_mutex);
-
-	res = ras_fw_get_table_version(ras_core, &(control->version));
-	if (res)
-		return res;
-
-	res = ras_fw_get_badpage_count(ras_core, &(control->ras_num_recs), 100);
-	if (res)
-		return res;
-
-	local_time = (uint64_t)ktime_get_real_seconds();
-	res = ras_fw_set_timestamp(ras_core, local_time);
-	if (res)
-		return res;
-
-	control->ras_max_record_count = 4000;
-
-
-	if (control->ras_num_recs > control->ras_max_record_count) {
-		RAS_DEV_ERR(ras_core->dev,
-			"RAS header invalid, records in header: %u max allowed :%u",
-			control->ras_num_recs, control->ras_max_record_count);
+	if (!eeprom_info)
 		return -EINVAL;
+
+	eeprom_info->record_count = ctl->record_count;
+	eeprom_info->max_record_count = ctl->max_record_count;
+	eeprom_info->bad_channel_bitmap = ctl->bad_channel_bitmap;
+
+	if (!fast_mode) {
+		if (!ctl->ras_table_format_version)
+			ras_mp1_get_table_version(ras_core,
+				&ctl->ras_table_format_version);
+
+		eeprom_info->rma_status = ras_mp1_rma_detected(ras_core);
+		ctl->rma_status = eeprom_info->rma_status;
+	} else {
+		eeprom_info->rma_status = ctl->rma_status;
 	}
 
-	return 0;
-}
+	eeprom_info->record_format_version = ctl->ras_table_format_version;
 
-int ras_fw_eeprom_hw_init(struct ras_core_context *ras_core)
-{
-	struct ras_fw_eeprom_control *control;
-	struct ras_eeprom_config *eeprom_cfg;
-	struct ras_mp1 *mp1;
-	const struct ras_mp1_sys_func *sys_func;
-
-	if (!ras_core)
-		return -EINVAL;
-
-	mp1 = &ras_core->ras_mp1;
-	sys_func = mp1->sys_func;
-
-	if (!sys_func || !sys_func->mp1_send_eeprom_msg)
-		return -EINVAL;
-
-	ras_core->is_rma = false;
-
-	control = &ras_core->ras_fw_eeprom;
-
-	memset(control, 0, sizeof(*control));
-
-	eeprom_cfg = &ras_core->config->eeprom_cfg;
-	control->record_threshold_config =
-		eeprom_cfg->eeprom_record_threshold_config;
-
-	control->record_threshold_count = 4000;
-	if (eeprom_cfg->eeprom_record_threshold_count <
-		control->record_threshold_count)
-		control->record_threshold_count =
-			eeprom_cfg->eeprom_record_threshold_count;
-
-	control->update_channel_flag = false;
-
-	return __check_ras_fw_table_status(ras_core);
-}
-
-int ras_fw_eeprom_hw_fini(struct ras_core_context *ras_core)
-{
-	struct ras_fw_eeprom_control *control;
-
-	if (!ras_core)
-		return -EINVAL;
-
-	control = &ras_core->ras_fw_eeprom;
-	mutex_destroy(&control->ras_tbl_mutex);
+	if (eeprom_info->rma_status)
+		eeprom_info->eeprom_status = RAS_EEPROM_LOCKED;
+	else
+		eeprom_info->eeprom_status = RAS_EEPROM_OK;
 
 	return 0;
 }
 
-int ras_fw_eeprom_check_storage_status(struct ras_core_context *ras_core)
-{
-	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
-	int bad_page_count;
-
-	bad_page_count = ras_umc_get_badpage_count(ras_core);
-
-	if ((control->record_threshold_count < bad_page_count) &&
-	    (control->record_threshold_config != 0)) {
-		RAS_DEV_ERR(ras_core->dev, "RAS records:%d exceed threshold:%d",
-				bad_page_count, control->record_threshold_count);
-		if ((control->record_threshold_config == WARN_NONSTOP_OVER_THRESHOLD) ||
-			(control->record_threshold_config == NONSTOP_OVER_THRESHOLD)) {
-			RAS_DEV_WARN(ras_core->dev,
-			"Please consult AMD Service Action Guide (SAG) for appropriate service procedures\n");
-		} else {
-			ras_core->is_rma = true;
-			RAS_DEV_ERR(ras_core->dev,
-			"User defined threshold is set, runtime service will be halt when threshold is reached\n");
-		}
-		return 0;
-	}
-
-	RAS_DEV_INFO(ras_core->dev,
-			"Found existing EEPROM table with %d records\n",
-			bad_page_count);
-	/* Warn if we are at 90% of the threshold or above
-	 */
-	if (10 * bad_page_count >= 9 * control->record_threshold_count)
-		RAS_DEV_WARN(ras_core->dev,
-			"RAS records:%u exceeds 90%% of threshold:%d\n",
-			bad_page_count,
-			control->record_threshold_count);
-
-	return 0;
-}
-
-enum ras_gpu_health_status
-	ras_fw_eeprom_check_gpu_status(struct ras_core_context *ras_core)
-{
-	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
-
-	if (!control->record_threshold_config)
-		return RAS_GPU_HEALTH_NONE;
-
-	if (ras_core->is_rma)
-		return RAS_GPU_RETIRED__ECC_REACH_THRESHOLD;
-
-	return RAS_GPU_HEALTH_USABLE;
-}
-
-void ras_fw_eeprom_sync_info(struct ras_core_context *ras_core)
-{
-	struct ras_fw_eeprom_control *control;
-
-	if (!ras_core)
-		return;
-
-	control = &ras_core->ras_fw_eeprom;
-	ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_PAGE_NUM,
-		&control->ras_num_recs);
-	ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_CHANNEL_BITMAP,
-		&control->bad_channel_bitmap);
-}
+struct ras_eeprom_ops ras_fw_eeprom_ops = {
+	.sw_init = fw_eeprom_sw_init,
+	.sw_fini = fw_eeprom_sw_fini,
+	.hw_init = fw_eeprom_hw_init,
+	.hw_fini = fw_eeprom_hw_fini,
+	.reset_table = fw_eeprom_reset_ras_table,
+	.get_records = fw_eeprom_get_records,
+	.get_record_count = fw_eeprom_get_record_count,
+	.get_eeprom_info = fw_eeprom_get_eeprom_info,
+};

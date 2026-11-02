@@ -773,6 +773,10 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	fbn->ppq_size = FBNIC_PPQ_SIZE_DEFAULT;
 	fbn->rcq_size = FBNIC_RCQ_SIZE_DEFAULT;
 
+	netdev->cfg->rings.rx_pending = fbn->rcq_size;
+	netdev->cfg->rings.rx_mini_pending = fbn->hpq_size;
+	netdev->cfg->rings.rx_jumbo_pending = fbn->ppq_size;
+
 	fbn->tx_usecs = FBNIC_TX_USECS_DEFAULT;
 	fbn->rx_usecs = FBNIC_RX_USECS_DEFAULT;
 	fbn->rx_max_frames = FBNIC_RX_FRAMES_DEFAULT;

@@ -72,13 +72,13 @@ static int check_mte_memory(char *ptr, int size, int mode,
 		ptr = mte_insert_atag(ptr);
 
 	mte_initialize_current_context(mode, (uintptr_t)ptr, size);
-	memset(ptr, '1', size);
+	memset_safe(ptr, '1', size);
 	mte_wait_after_trig();
 	if (cur_mte_cxt.fault_valid == true)
 		return KSFT_FAIL;
 
 	mte_initialize_current_context(mode, (uintptr_t)ptr, -UNDERFLOW);
-	memset(ptr - UNDERFLOW, '2', UNDERFLOW);
+	memset_safe(ptr - UNDERFLOW, '2', UNDERFLOW);
 	mte_wait_after_trig();
 	if (cur_mte_cxt.fault_valid == false && tag_check == TAG_CHECK_ON)
 		return KSFT_FAIL;
@@ -86,7 +86,7 @@ static int check_mte_memory(char *ptr, int size, int mode,
 		return KSFT_FAIL;
 
 	mte_initialize_current_context(mode, (uintptr_t)ptr, size + OVERFLOW);
-	memset(ptr + size, '3', OVERFLOW);
+	memset_safe(ptr + size, '3', OVERFLOW);
 	mte_wait_after_trig();
 	if (cur_mte_cxt.fault_valid == false && tag_check == TAG_CHECK_ON)
 		return KSFT_FAIL;
@@ -95,13 +95,13 @@ static int check_mte_memory(char *ptr, int size, int mode,
 
 	if (tag_op == TAG_OP_STONLY) {
 		mte_initialize_current_context(mode, (uintptr_t)ptr, -UNDERFLOW);
-		memcpy(buf, ptr - UNDERFLOW, MT_GRANULE_SIZE);
+		memcpy_safe(buf, ptr - UNDERFLOW, MT_GRANULE_SIZE);
 		mte_wait_after_trig();
 		if (cur_mte_cxt.fault_valid == true)
 			return KSFT_FAIL;
 
 		mte_initialize_current_context(mode, (uintptr_t)ptr, size + OVERFLOW);
-		memcpy(buf, ptr + size, MT_GRANULE_SIZE);
+		memcpy_safe(buf, ptr + size, MT_GRANULE_SIZE);
 		mte_wait_after_trig();
 		if (cur_mte_cxt.fault_valid == true)
 			return KSFT_FAIL;

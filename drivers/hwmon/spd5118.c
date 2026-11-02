@@ -16,6 +16,7 @@
 
 #include <linux/bitops.h>
 #include <linux/bits.h>
+#include <linux/dev_printk.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/i3c/device.h>
@@ -637,44 +638,54 @@ static int spd5118_i2c_init(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
+	/* Early check to avoid obviously unsupported I2C devices */
 	regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
-	if (regval < 0 || (regval && regval != 0x5118))
+	if (regval < 0)
+		return regval;
+
+	/*
+	 * Some SPD5118 devices report 0x0 when page 0 is not selected,
+	 * so we only fail here if the register value is not 0x0 or 0x5118.
+	 */
+	if (regval && regval != 0x5118)
 		return -ENODEV;
 
 	/*
-	 * If the device type registers return 0, it is possible that the chip
-	 * has a non-zero page selected and takes the specification literally,
+	 * We must select page 0 to ensure that we can reliably read the volatile
+	 * registers on chips that take the specification literally,
 	 * i.e. disables access to volatile registers besides the page register
 	 * if the page is not 0. The Renesas/ITD SPD5118 Hub Controller is known
-	 * to show this behavior. Try to identify such chips.
+	 * to show this behavior.
+	 *
+	 * We must also perform an unconditional register write to detect if
+	 * the i2c controller blocks write accesses to the SPD device. Some Intel
+	 * controllers might be configured by the BIOS to do this.
 	 */
-	if (!regval) {
-		/* Vendor ID registers must also be 0 */
-		regval = i2c_smbus_read_word_data(client, SPD5118_REG_VENDOR);
-		if (regval)
-			return -ENODEV;
+	mode = i2c_smbus_read_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE);
+	if (mode < 0)
+		return mode;
 
-		/* The selected page in MR11 must not be 0 */
-		mode = i2c_smbus_read_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE);
-		if (mode < 0 || (mode & ~SPD5118_LEGACY_MODE_MASK) ||
-		    !(mode & SPD5118_LEGACY_PAGE_MASK))
-			return -ENODEV;
+	/* 16-bit addressing is not supported */
+	if (mode & SPD5118_LEGACY_MODE_ADDR) {
+		dev_notice(&client->dev,
+			   "Unable to access device due to 16-bit addressing being enabled\n");
+		return -ENODEV;
+	}
 
-		err = i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE,
-						mode & SPD5118_LEGACY_MODE_ADDR);
-		if (err)
-			return -ENODEV;
+	err = i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE,
+					mode & ~SPD5118_LEGACY_PAGE_MASK);
+	if (err < 0)
+		return err;
 
-		/*
-		 * If the device type registers are still bad after selecting
-		 * page 0, this is not a SPD5118 device. Restore original
-		 * legacy mode register value and abort.
-		 */
-		regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
-		if (regval != 0x5118) {
-			i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE, mode);
-			return -ENODEV;
-		}
+	/* We only need to access SPD5118_REG_TYPE again if regval was 0x0 */
+	if (regval == 0x5118)
+		return 0;
+
+	regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
+	if (regval != 0x5118) {
+		/* Restore original register content */
+		i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE, mode);
+		return -ENODEV;
 	}
 
 	/* We are reasonably sure that this is really a SPD5118 hub controller */

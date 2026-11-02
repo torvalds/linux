@@ -27,6 +27,10 @@ bool __init cmdline_has_extra_options(void);
 #define BOOTCONFIG_ALIGN	(1 << BOOTCONFIG_ALIGN_SHIFT)
 #define BOOTCONFIG_ALIGN_MASK	(BOOTCONFIG_ALIGN - 1)
 
+/* Bootconfig footer is [size][csum][BOOTCONFIG_MAGIC]. */
+#define BOOTCONFIG_FOOTER_SIZE	\
+	(sizeof(uint32_t) * 2 + BOOTCONFIG_MAGIC_LEN)
+
 /**
  * xbc_calc_checksum() - Calculate checksum of bootconfig
  * @data: Bootconfig data.
@@ -266,7 +270,15 @@ int __init xbc_node_compose_key_after(struct xbc_node *root,
 			struct xbc_node *node, char *buf, size_t size);
 
 /* Render key/value pairs under @root as a flat cmdline string */
-int __init xbc_snprint_cmdline(char *buf, size_t size, struct xbc_node *root);
+typedef bool (*xbc_cmdline_filter_fn)(struct xbc_node *node, const char *key, void *data);
+
+int __init xbc_snprint_cmdline_filter(char *buf, size_t size, struct xbc_node *root,
+				      xbc_cmdline_filter_fn filter, void *data);
+
+static inline int __init xbc_snprint_cmdline(char *buf, size_t size, struct xbc_node *root)
+{
+	return xbc_snprint_cmdline_filter(buf, size, root, NULL, NULL);
+}
 
 /**
  * xbc_node_compose_key() - Compose full key string of the XBC node
@@ -291,12 +303,7 @@ int __init xbc_init(const char *buf, size_t size, const char **emsg, int *epos);
 int __init xbc_get_info(int *node_size, size_t *data_size);
 
 /* XBC cleanup data structures */
-void __init _xbc_exit(bool early);
-
-static __always_inline void xbc_exit(void)
-{
-	_xbc_exit(false);
-}
+void __init xbc_exit(void);
 
 /* XBC embedded bootconfig data in kernel */
 #ifdef CONFIG_BOOT_CONFIG_EMBED

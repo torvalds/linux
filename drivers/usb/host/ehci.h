@@ -123,6 +123,19 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_caps __iomem *caps;
 	struct ehci_regs __iomem *regs;
 	struct ehci_dbg_port __iomem *debug;
+#ifdef CONFIG_USB_EHCI_DEVIANT_PORT_STATUS_REG
+	u32 __iomem		*port_status;
+#endif
+#ifdef CONFIG_USB_EHCI_PORT_SPEED_HOOK
+	unsigned int		(*get_port_speed)(struct ehci_hcd *ehci,
+						  unsigned int port);
+#endif
+#ifdef CONFIG_USB_EHCI_PORT_RESET_HOOKS
+	int			(*pre_port_reset)(struct ehci_hcd *ehci,
+						  unsigned int port);
+	int			(*post_port_reset)(struct ehci_hcd *ehci,
+						   unsigned int port);
+#endif
 
 	__u32			hcs_params;	/* cached register copy */
 	spinlock_t		lock;
@@ -222,6 +235,9 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		spurious_oc:1;
 	unsigned		is_aspeed:1;
 	unsigned		zx_wakeup_clear_needed:1;
+	unsigned		no_configured_flag:1;
+	unsigned		no_tdi_mode:1;
+	unsigned		no_fsls_isoc:1;
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)
@@ -275,6 +291,19 @@ static inline struct usb_hcd *ehci_to_hcd(struct ehci_hcd *ehci)
 /*-------------------------------------------------------------------------*/
 
 #include <linux/usb/ehci_def.h>
+
+/*-------------------------------------------------------------------------*/
+
+static inline u32 __iomem *ehci_portsc(struct ehci_hcd *ehci,
+				       unsigned int port)
+{
+#ifdef CONFIG_USB_EHCI_DEVIANT_PORT_STATUS_REG
+	if (ehci->port_status)
+		return ehci->port_status + port;
+#endif
+
+	return &ehci->regs->port_status[port];
+}
 
 /*-------------------------------------------------------------------------*/
 
@@ -651,38 +680,12 @@ struct ehci_tt {
 
 #ifdef CONFIG_USB_EHCI_ROOT_HUB_TT
 
-/*
- * Some EHCI controllers have a Transaction Translator built into the
- * root hub. This is a non-standard feature.  Each controller will need
- * to add code to the following inline functions, and call them as
- * needed (mostly in root hub code).
- */
-
 #define	ehci_is_TDI(e)			(ehci_to_hcd(e)->has_tt)
-
-/* Returns the speed of a device attached to a port on the root hub. */
-static inline unsigned int
-ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
-{
-	if (ehci_is_TDI(ehci)) {
-		switch ((portsc >> (ehci->has_hostpc ? 25 : 26)) & 3) {
-		case 0:
-			return 0;
-		case 1:
-			return USB_PORT_STAT_LOW_SPEED;
-		case 2:
-		default:
-			return USB_PORT_STAT_HIGH_SPEED;
-		}
-	}
-	return USB_PORT_STAT_HIGH_SPEED;
-}
 
 #else
 
 #define	ehci_is_TDI(e)			(0)
 
-#define	ehci_port_speed(ehci, portsc)	USB_PORT_STAT_HIGH_SPEED
 #endif
 
 /*-------------------------------------------------------------------------*/

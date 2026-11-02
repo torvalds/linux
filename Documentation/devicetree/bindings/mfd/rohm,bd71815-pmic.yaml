@@ -15,6 +15,9 @@ description: |
   for LED and a 500 mA single-cell linear charger. Also included is a Coulomb
   counter, a real-time clock (RTC), and a 32.768 kHz clock gate and two GPOs.
 
+allOf:
+  - $ref: rohm,pmic-pins.yaml#
+
 properties:
   compatible:
     const: rohm,bd71815
@@ -44,11 +47,7 @@ properties:
   clock-output-names:
     const: bd71815-32k-out
 
-  rohm,clkout-open-drain:
-    description: clk32kout mode. Set to 1 for "open-drain" or 0 for "cmos".
-    $ref: /schemas/types.yaml#/definitions/uint32
-    minimum: 0
-    maximum: 1
+  rohm,clkout-open-drain: true
 
   rohm,charger-sense-resistor-micro-ohms:
     minimum: 10000

@@ -173,10 +173,10 @@ the error set to EINTR.
 It is also possible that there's a race between processing the
 original request and its INTERRUPT request.  There are two possibilities:
 
-  1. The INTERRUPT request is processed before the original request is
+  1) The INTERRUPT request is processed before the original request is
      processed
 
-  2. The INTERRUPT request is processed after the original request has
+  2) The INTERRUPT request is processed after the original request has
      been answered
 
 If the filesystem cannot find the original request, it should wait for
@@ -239,9 +239,9 @@ How are requirements fulfilled?
 
  A) The mount owner could gain elevated privileges by either:
 
-    1. creating a filesystem containing a device file, then opening this device
+    1) creating a filesystem containing a device file, then opening this device
 
-    2. creating a filesystem containing a suid or sgid application, then executing this application
+    2) creating a filesystem containing a suid or sgid application, then executing this application
 
     The solution is not to allow opening device files and ignore
     setuid and setgid bits when executing programs.  To ensure this

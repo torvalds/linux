@@ -657,7 +657,7 @@ bool ovl_path_is_whiteout(struct ovl_fs *ofs, const struct path *path)
 struct file *ovl_path_open(const struct path *path, int flags)
 {
 	struct inode *inode = d_inode(path->dentry);
-	struct mnt_idmap *real_idmap = mnt_idmap(path->mnt);
+	const struct mnt_idmap *real_idmap = mnt_idmap(path->mnt);
 	int err, acc_mode;
 
 	if (flags & ~(O_ACCMODE | O_LARGEFILE))
@@ -1496,7 +1496,7 @@ void ovl_copyattr(struct inode *inode)
 {
 	struct path realpath;
 	struct inode *realinode;
-	struct mnt_idmap *real_idmap;
+	const struct mnt_idmap *real_idmap;
 	vfsuid_t vfsuid;
 	vfsgid_t vfsgid;
 

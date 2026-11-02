@@ -44,6 +44,8 @@ enum dmub_notification_type;
  *
  * This function should be called exactly once - during DM initialization.
  *
+ * @adev: AMDGPU device.
+ *
  * Returns:
  *	0 - success
  *	non-zero - error
@@ -54,6 +56,8 @@ int amdgpu_dm_irq_init(struct amdgpu_device *adev);
  * amdgpu_dm_irq_fini - deallocate internal structures of 'amdgpu_dm_irq'.
  *
  * This function should be called exactly once - during DM destruction.
+ *
+ * @adev: AMDGPU device.
  *
  */
 void amdgpu_dm_irq_fini(struct amdgpu_device *adev);
@@ -82,6 +86,7 @@ void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
  *	by amdgpu_dm_irq_register_interrupt().
  *
  * @adev: AMD DRM device.
+ * @irq_source: IRQ source to unregister.
  * @ih_index: irq handler index which was returned by
  *	amdgpu_dm_irq_register_interrupt
  */
@@ -126,12 +131,16 @@ void amdgpu_dm_hpd_fini(struct amdgpu_device *adev);
 /**
  * amdgpu_dm_irq_suspend - disable ASIC interrupt during suspend.
  *
+ * @adev: AMDGPU device.
+ *
  */
 void amdgpu_dm_irq_suspend(struct amdgpu_device *adev);
 
 /**
  * amdgpu_dm_irq_resume_early - enable HPDRX ASIC interrupts during resume.
  * amdgpu_dm_irq_resume - enable ASIC interrupt during resume.
+ *
+ * @adev: AMDGPU device.
  *
  */
 void amdgpu_dm_irq_resume_early(struct amdgpu_device *adev);

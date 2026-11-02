@@ -527,7 +527,7 @@ out_unlock:
 }
 
 static int orangefs_xattr_set_default(const struct xattr_handler *handler,
-				      struct mnt_idmap *idmap,
+				      const struct mnt_idmap *idmap,
 				      struct dentry *unused,
 				      struct inode *inode,
 				      const char *name,

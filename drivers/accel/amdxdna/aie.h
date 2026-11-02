@@ -117,4 +117,8 @@ void aie_smu_fini(struct smu_device *smu);
 int aie_smu_set_clocks(struct smu_device *smu, u32 *npuclk, u32 *hclk);
 int aie_smu_set_dpm(struct smu_device *smu, u32 dpm_level);
 
+void amdxdna_io_stats_job_start(struct amdxdna_client *client);
+void amdxdna_io_stats_job_done(struct amdxdna_client *client);
+u64 amdxdna_io_stats_busy_time_ns(struct amdxdna_client *client);
+
 #endif /* _AIE_H_ */

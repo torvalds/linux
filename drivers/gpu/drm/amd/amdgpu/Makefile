@@ -91,7 +91,8 @@ amdgpu-y += \
 	nbio_v7_2.o hdp_v4_0.o hdp_v5_0.o aldebaran_reg_init.o aldebaran.o soc21.o soc24.o \
 	sienna_cichlid.o smu_v13_0_10.o nbio_v4_3.o hdp_v6_0.o nbio_v7_7.o hdp_v5_2.o lsdma_v6_0.o \
 	nbio_v7_9.o aqua_vanjaram.o nbio_v7_11.o lsdma_v7_0.o hdp_v7_0.o nbif_v6_3_1.o \
-	cyan_skillfish_reg_init.o soc_v1_0.o lsdma_v7_1.o nbio_v6_3_2.o
+	cyan_skillfish_reg_init.o soc_v1_0.o lsdma_v7_1.o nbio_v6_3_2.o nbio_v7_11_5.o \
+	nbif_v7_10.o hdp_v8_0.o lsdma_v8_0.o
 
 # add DF block
 amdgpu-y += \
@@ -110,7 +111,7 @@ amdgpu-y += \
 	mmhub_v1_7.o gfxhub_v3_0.o mmhub_v3_0.o mmhub_v3_0_2.o gmc_v11_0.o \
 	mmhub_v3_0_1.o gfxhub_v3_0_3.o gfxhub_v1_2.o mmhub_v1_8.o mmhub_v3_3.o \
 	gfxhub_v11_5_0.o mmhub_v4_1_0.o gfxhub_v12_0.o gmc_v12_0.o \
-	mmhub_v4_2_0.o gfxhub_v12_1.o gmc_v12_1.o
+	mmhub_v4_2_0.o gfxhub_v12_1.o gmc_v12_1.o mmhub_v5_0.o
 
 # add UMC block
 amdgpu-y += \
@@ -128,7 +129,8 @@ amdgpu-y += \
 	navi10_ih.o \
 	ih_v6_0.o \
 	ih_v6_1.o \
-	ih_v7_0.o
+	ih_v7_0.o \
+	ih_v8_0.o
 
 # add PSP block
 amdgpu-y += \
@@ -142,6 +144,7 @@ amdgpu-y += \
 	psp_v13_0_4.o \
 	psp_v14_0.o \
 	psp_v15_0.o \
+	psp_v15_0_3.o \
 	psp_v15_0_8.o
 
 # add DCE block
@@ -236,7 +239,8 @@ amdgpu-y += \
 amdgpu-y += \
 	amdgpu_vpe.o \
 	vpe_v6_1.o \
-	vpe_v2_0.o
+	vpe_v2_0.o \
+	vpe_v3_0.o
 
 # add UMSCH block
 amdgpu-y += \
@@ -262,6 +266,7 @@ amdgpu-y += \
 	smuio_v13_0_6.o \
 	smuio_v14_0_2.o \
 	smuio_v15_0_0.o \
+	smuio_v15_0_3.o \
 	smuio_v15_0_8.o
 
 # add reset block
@@ -277,6 +282,9 @@ amdgpu-y += amdgpu_amdkfd.o
 
 # add gfx usermode queue
 amdgpu-y += amdgpu_userq.o
+
+# add UALink manager support
+amdgpu-y += amdgpu_ualink.o ualink_v1_0.o
 
 ifneq ($(CONFIG_HSA_AMD),)
 AMDKFD_PATH := ../amdkfd
@@ -318,7 +326,6 @@ include $(FULL_AMD_PATH)/acp/Makefile
 amdgpu-y += $(AMD_ACP_FILES)
 endif
 
-amdgpu-$(CONFIG_COMPAT) += amdgpu_ioc32.o
 amdgpu-$(CONFIG_VGA_SWITCHEROO) += amdgpu_atpx_handler.o
 amdgpu-$(CONFIG_ACPI) += amdgpu_acpi.o
 amdgpu-$(CONFIG_HMM_MIRROR) += amdgpu_hmm.o

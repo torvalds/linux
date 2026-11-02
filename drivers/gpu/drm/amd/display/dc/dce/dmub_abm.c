@@ -280,6 +280,7 @@ static void dmub_abm_construct(
 	base->ctx = ctx;
 	base->funcs = &abm_funcs;
 	base->dmcu_is_running = false;
+	base->inst = 0;
 
 	abm_dce->regs = regs;
 	abm_dce->abm_shift = abm_shift;

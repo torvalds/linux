@@ -58,15 +58,17 @@ pub fn info(args: fmt::Arguments<'_>) {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! kunit_assert {
-    ($name:literal, $file:literal, $diff:expr, $condition:expr $(,)?) => {
+    ($name:literal, $condition:expr $(,)?) => {
         'out: {
             // Do nothing if the condition is `true`.
             if $condition {
                 break 'out;
             }
 
-            static FILE: &'static $crate::str::CStr = $file;
-            static LINE: i32 = ::core::line!() as i32 - $diff;
+            // Use `file!()` instead of `::core::file!()` here so it can be overridden.
+            static FILE: &'static $crate::str::CStr = $crate::c_str!(file!());
+            // Use `line!()` instead of `::core::line!()` here so it can be overridden.
+            static LINE: i32 = line!() as i32;
             static CONDITION: &'static $crate::str::CStr = $crate::c_str!(stringify!($condition));
 
             // SAFETY: FFI call without safety requirements.
@@ -164,10 +166,10 @@ macro_rules! kunit_assert {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! kunit_assert_eq {
-    ($name:literal, $file:literal, $diff:expr, $left:expr, $right:expr $(,)?) => {{
+    ($name:literal, $left:expr, $right:expr $(,)?) => {{
         // For the moment, we just forward to the expression assert because, for binary asserts,
         // KUnit supports only a few types (e.g. integers).
-        $crate::kunit_assert!($name, $file, $diff, $left == $right);
+        $crate::kunit_assert!($name, $left == $right);
     }};
 }
 

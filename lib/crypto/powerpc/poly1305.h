@@ -10,8 +10,10 @@
 #include <linux/kernel.h>
 #include <linux/unaligned.h>
 
-asmlinkage void poly1305_p10le_4blocks(struct poly1305_block_state *state, const u8 *m, u32 mlen);
-asmlinkage void poly1305_64s(struct poly1305_block_state *state, const u8 *m, u32 mlen, int highbit);
+asmlinkage void poly1305_p10le_4blocks(struct poly1305_block_state *state,
+				       const u8 *m, size_t mlen);
+asmlinkage void poly1305_64s(struct poly1305_block_state *state, const u8 *m,
+			     size_t mlen, int highbit);
 asmlinkage void poly1305_emit_64(const struct poly1305_state *state, const u32 nonce[4], u8 digest[POLY1305_DIGEST_SIZE]);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_p10);
@@ -40,7 +42,7 @@ static void poly1305_block_init(struct poly1305_block_state *dctx,
 }
 
 static void poly1305_blocks(struct poly1305_block_state *state, const u8 *src,
-			    unsigned int len, u32 padbit)
+			    size_t len, u32 padbit)
 {
 	if (!static_key_enabled(&have_p10))
 		return poly1305_blocks_generic(state, src, len, padbit);

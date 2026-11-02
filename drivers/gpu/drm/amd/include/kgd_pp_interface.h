@@ -172,7 +172,23 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT,
 	AMDGPU_PP_SENSOR_UBB_POWER,
 	AMDGPU_PP_SENSOR_UBB_POWER_LIMIT,
+	AMDGPU_PP_SENSOR_NPMSTATUS,
 };
+
+/*
+ * NPM sysfs capability bitmap: two bits per field, R then W.
+ * 00 = unsupported, 01 = read-only, 1x = writable (or RW).
+ */
+enum amdgpu_npm_cap_field {
+	AMDGPU_NPM_CAP_CUR_NODE_POWER_LIMIT,
+	AMDGPU_NPM_CAP_NODE_POWER,
+	AMDGPU_NPM_CAP_GLOBAL_PPT_RESID,
+	AMDGPU_NPM_CAP_MAX_NODE_POWER_LIMIT,
+	AMDGPU_NPM_CAP_NPM_STATUS,
+};
+
+#define AMDGPU_NPM_CAP_R(field)	BIT_ULL((field) * 2)
+#define AMDGPU_NPM_CAP_W(field)	BIT_ULL((field) * 2 + 1)
 
 enum amd_pp_task {
 	AMD_PP_TASK_DISPLAY_CONFIG_CHANGE,
@@ -433,6 +449,8 @@ struct amd_pm_funcs {
 	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
 	int (*emit_clock_levels)(void *handle, enum pp_clock_type type, char *buf, int *offset);
 	int (*force_performance_level)(void *handle, enum amd_dpm_forced_level level);
+	int (*reapply_performance_level)(void *handle,
+					 enum amd_dpm_forced_level level);
 	int (*get_sclk_od)(void *handle);
 	int (*set_sclk_od)(void *handle, uint32_t value);
 	int (*get_mclk_od)(void *handle);
@@ -513,6 +531,8 @@ struct amd_pm_funcs {
 	ssize_t (*get_gpu_metrics)(void *handle, void **table);
 	ssize_t (*get_temp_metrics)(void *handle, enum smu_temp_metric_type type, void *table);
 	bool (*temp_metrics_is_supported)(void *handle, enum smu_temp_metric_type type);
+	u64 (*get_npm_cap)(void *handle);
+	int (*set_npm_limit)(void *handle, uint32_t limit);
 	ssize_t (*get_xcp_metrics)(void *handle, int xcp_id, void *table);
 	ssize_t (*get_pm_metrics)(void *handle, void *pmmetrics, size_t size);
 	int (*set_watermarks_for_clock_ranges)(void *handle,

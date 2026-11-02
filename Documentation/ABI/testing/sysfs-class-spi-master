@@ -17,7 +17,8 @@ Description:	(WO) Instantiate a new SPI device on bus B, where B
 		with delete_device; platform and DT devices are not
 		affected.
 
-		Example:
+		Example::
+
 		# echo spidev 0 > /sys/class/spi_master/spi0/new_device
 		# echo spidev 0 10000000 > /sys/class/spi_master/spi0/new_device
 		# echo spidev 0 10000000 3 > /sys/class/spi_master/spi0/new_device
@@ -30,5 +31,6 @@ Description:	(WO) Remove a SPI device previously created via
 		new_device. Takes a single parameter: the chip select
 		number of the device to remove.
 
-		Example:
+		Example::
+
 		# echo 0 > /sys/class/spi_master/spi0/delete_device

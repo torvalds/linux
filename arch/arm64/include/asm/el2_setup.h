@@ -61,7 +61,7 @@
 	b.ne	.LnVHE_\@	// Otherwise, we know that nVHE works.
 
 .LnE2H0_\@:
-	orr	x0, x0, #HCR_E2H
+	orr	x0, x0, #HCR_EL2_E2H
 	msr_hcr_el2 x0
 .LnVHE_\@:
 .endm
@@ -102,7 +102,7 @@
 /* Check if running in host at EL2 mode, i.e., (h)VHE. Jump to fail if not. */
 .macro __check_hvhe fail, tmp
 	mrs	\tmp, hcr_el2
-	and	\tmp, \tmp, #HCR_E2H
+	and	\tmp, \tmp, #HCR_EL2_E2H
 	cbz	\tmp, \fail
 .endm
 

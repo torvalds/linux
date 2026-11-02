@@ -510,7 +510,7 @@ static const struct soc_device_attribute k3_mdio_socinfo[] = {
 	{ .family = "J7200", .data = &am65_mdio_soc_data },
 	{ .family = "J721E", .data = &am65_mdio_soc_data },
 	{ .family = "J721S2", .data = &am65_mdio_soc_data },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 #if IS_ENABLED(CONFIG_OF)
@@ -521,7 +521,7 @@ static const struct davinci_mdio_of_param of_cpsw_mdio_data = {
 static const struct of_device_id davinci_mdio_of_mtable[] = {
 	{ .compatible = "ti,davinci_mdio", },
 	{ .compatible = "ti,cpsw-mdio", .data = &of_cpsw_mdio_data},
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, davinci_mdio_of_mtable);
 #endif

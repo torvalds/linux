@@ -330,7 +330,6 @@ static int da9034_touch_probe(struct platform_device *pdev)
 	input_dev->name		= pdev->name;
 	input_dev->open		= da9034_touch_open;
 	input_dev->close	= da9034_touch_close;
-	input_dev->dev.parent	= &pdev->dev;
 
 	__set_bit(EV_ABS, input_dev->evbit);
 	__set_bit(ABS_X, input_dev->absbit);

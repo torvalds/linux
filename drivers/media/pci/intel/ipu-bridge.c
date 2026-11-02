@@ -8,6 +8,7 @@
 #include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/mei_cl_bus.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
@@ -15,6 +16,7 @@
 #include <linux/workqueue.h>
 
 #include <media/ipu-bridge.h>
+#include <media/ipu6-pci-table.h>
 #include <media/v4l2-fwnode.h>
 
 #define ADEV_DEV(adev) ACPI_PTR(&((adev)->dev))
@@ -48,6 +50,14 @@
  *
  * Please keep the list sorted by ACPI HID.
  */
+/* IPU6 variants whose CSI-2 receiver needs the ov5693 clock lane gated */
+static const u16 ipu6_ov5693_ncont_clk[] = {
+	PCI_DEVICE_ID_INTEL_IPU6,		/* Tiger Lake */
+	PCI_DEVICE_ID_INTEL_IPU6EP_ADLP,	/* Alder Lake-P */
+	PCI_DEVICE_ID_INTEL_IPU6EP_ADLN,	/* Alder Lake-N */
+	0
+};
+
 static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	/* Himax HM1092 */
 	IPU_SENSOR_CONFIG("HIMX1092", 2, 180000000, 180480000),
@@ -60,11 +70,16 @@ static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	/* GalaxyCore GC0310 */
 	IPU_SENSOR_CONFIG("INT0310", 1, 55692000),
 	/* Omnivision OV5693 */
+	IPU_SENSOR_CONFIG_MATCH_FL("INT33BE", ipu6_ov5693_ncont_clk,
+				   IPU_BR_FL_CSI2_CLK_NONCONTINUOUS,
+				   1, 419200000),
 	IPU_SENSOR_CONFIG("INT33BE", 1, 419200000),
 	/* Onsemi MT9M114 */
 	IPU_SENSOR_CONFIG("INT33F0", 1, 384000000),
 	/* Omnivision OV2740 */
 	IPU_SENSOR_CONFIG("INT3474", 1, 180000000),
+	/* Omnivision OV8858 */
+	IPU_SENSOR_CONFIG("INT3477", 1, 360000000),
 	/* Omnivision OV5670 */
 	IPU_SENSOR_CONFIG("INT3479", 1, 422400000),
 	/* Omnivision OV8865 */
@@ -75,19 +90,22 @@ static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	IPU_SENSOR_CONFIG("INT3537", 1, 437000000),
 	/* Lontium lt6911uxe */
 	IPU_SENSOR_CONFIG("INTC10C5", 0),
-	/* Omnivision OV01A10 / OV01A1S */
+	/* Omnivision OV01A10 / OV01A1B / OV01A1S */
 	IPU_SENSOR_CONFIG("OVTI01A0", 1, 400000000),
+	IPU_SENSOR_CONFIG("OVTI01AB", 1, 400000000),
 	IPU_SENSOR_CONFIG("OVTI01AS", 1, 400000000),
 	/* Omnivision OV02C10 */
 	IPU_SENSOR_CONFIG("OVTI02C1", 1, 400000000),
 	/* Omnivision OV02E10 */
 	IPU_SENSOR_CONFIG("OVTI02E1", 1, 360000000),
 	/* Omnivision ov05c10 */
-	IPU_SENSOR_CONFIG("OVTI05C1", 1, 480000000),
+	IPU_SENSOR_CONFIG("OVTI05C1", 2, 480000000, 900000000),
 	/* Omnivision OV08A10 */
 	IPU_SENSOR_CONFIG("OVTI08A1", 1, 500000000),
 	/* Omnivision OV08x40 */
 	IPU_SENSOR_CONFIG("OVTI08F4", 3, 400000000, 749000000, 800000000),
+	/* Omnivision OV13858 */
+	IPU_SENSOR_CONFIG("OVTID858", 2, 540000000, 270000000),
 	/* Omnivision OV13B10 */
 	IPU_SENSOR_CONFIG("OVTI13B1", 1, 560000000),
 	IPU_SENSOR_CONFIG("OVTIDB10", 1, 560000000),
@@ -95,12 +113,19 @@ static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	IPU_SENSOR_CONFIG("OVTI2680", 1, 331200000),
 	/* Omnivision OV5675 */
 	IPU_SENSOR_CONFIG("OVTI5675", 1, 450000000),
+	/* Omnivision OV5693 */
+	IPU_SENSOR_CONFIG_MATCH_FL("OVTI5693", ipu6_ov5693_ncont_clk,
+				   IPU_BR_FL_CSI2_CLK_NONCONTINUOUS,
+				   1, 419200000),
+	IPU_SENSOR_CONFIG("OVTI5693", 1, 419200000),
 	/* Omnivision OV8856 */
 	IPU_SENSOR_CONFIG("OVTI8856", 3, 180000000, 360000000, 720000000),
 	/* Sony IMX471 */
 	IPU_SENSOR_CONFIG("SONY471A", 1, 200000000),
 	/* Sony IMX471 (found on Lenovo X1 Carbon G14) */
 	IPU_SENSOR_CONFIG("TBE20A0", 1, 200000000),
+	/* STMicroelectronics VD55G1 (found on Lenovo X1 Carbon G14) */
+	IPU_SENSOR_CONFIG("TBE20A1", 1, 402000000),
 	/* Toshiba T4KA3 */
 	IPU_SENSOR_CONFIG("XMCC0003", 1, 321468000),
 };
@@ -127,6 +152,13 @@ static const struct dmi_system_id upside_down_sensor_dmi_ids[] = {
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "XPS 14 (Dell 14 Premium) DA14250"),
+		},
+		.driver_data = "OVTI02C1",
+	},
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "XPS 14 9440"),
 		},
 		.driver_data = "OVTI02C1",
@@ -142,6 +174,20 @@ static const struct dmi_system_id upside_down_sensor_dmi_ids[] = {
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "XPS 16 (Dell 16 Premium) DA16250"),
+		},
+		.driver_data = "OVTI02C1",
+	},
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Dell Pro 14 Premium PA14260"),
+		},
+		.driver_data = "OVTI08F4",
+	},
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Dell 14 Premium DA14250"),
 		},
 		.driver_data = "OVTI02C1",
 	},
@@ -185,12 +231,52 @@ static const struct dmi_system_id upside_down_sensor_dmi_ids[] = {
 		.driver_data = "SONY471A",
 	},
 	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME,
+					"Surface Pro for Business 11th Edition with Intel"),
+		},
+		.driver_data = "OVTID858",
+	},
+	{
 		/* Samsung Galaxy Book5 Pro 360 */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "960QHA"),
 		},
 		.driver_data = "OVTI02E1",
+	},
+	{
+		/* Samsung Galaxy Book3 Ultra */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "960XFH"),
+		},
+		.driver_data = "OVTI02C1",
+	},
+	{
+		/* Samsung Galaxy Book3 Pro */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "960XFG"),
+		},
+		.driver_data = "OVTI02C1",
+	},
+	{
+		/* Microsoft Surface Pro 9, front sensor */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Surface Pro 9"),
+		},
+		.driver_data = "OVTI5693",
+	},
+	{
+		/* Microsoft Surface Pro 9, rear sensor */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Surface Pro 9"),
+		},
+		.driver_data = "OVTID858",
 	},
 	{} /* Terminating entry */
 };
@@ -203,6 +289,7 @@ static const struct ipu_property_names prop_names = {
 	.data_lanes = "data-lanes",
 	.remote_endpoint = "remote-endpoint",
 	.link_frequencies = "link-frequencies",
+	.clock_noncontinuous = "clock-noncontinuous",
 };
 
 static const char * const ipu_vcm_types[] = {
@@ -326,8 +413,8 @@ static int ipu_bridge_check_ivsc_dev(struct ipu_sensor *sensor,
 	if (adev) {
 		csi_dev = ipu_bridge_get_ivsc_csi_dev(adev);
 		if (!csi_dev) {
-			acpi_dev_put(adev);
 			dev_err(ADEV_DEV(adev), "Failed to find MEI or CVS CSI dev\n");
+			acpi_dev_put(adev);
 			return -ENODEV;
 		}
 
@@ -436,6 +523,7 @@ static enum v4l2_fwnode_orientation ipu_bridge_parse_orientation(struct acpi_dev
 
 int ipu_bridge_parse_ssdb(struct acpi_device *adev, struct ipu_sensor *sensor)
 {
+	acpi_handle handle = acpi_device_handle(ACPI_PTR(adev));
 	struct ipu_sensor_ssdb ssdb = {};
 	int ret;
 
@@ -459,8 +547,15 @@ int ipu_bridge_parse_ssdb(struct acpi_device *adev, struct ipu_sensor *sensor)
 	sensor->rotation = ipu_bridge_parse_rotation(adev, &ssdb);
 	sensor->orientation = ipu_bridge_parse_orientation(adev);
 
-	if (ssdb.vcmtype)
+	acpi_handle_debug(handle,
+			  "CSI-2 port %u, lanes %u, mclkspeed %u, rotation %u (SSDB %u), orientation %u\n",
+			  sensor->link, sensor->lanes, sensor->mclkspeed,
+			  sensor->rotation, ssdb.degree, sensor->orientation);
+
+	if (ssdb.vcmtype) {
 		sensor->vcm_type = ipu_vcm_types[ssdb.vcmtype - 1];
+		acpi_handle_debug(handle, "VCM %s\n", sensor->vcm_type);
+	}
 
 	return 0;
 }
@@ -473,6 +568,7 @@ static void ipu_bridge_create_fwnode_properties(
 {
 	struct ipu_property_names *names = &sensor->prop_names;
 	struct software_node *nodes = sensor->swnodes;
+	unsigned int i = 0;
 
 	sensor->prop_names = prop_names;
 
@@ -530,21 +626,25 @@ static void ipu_bridge_create_fwnode_properties(
 			PROPERTY_ENTRY_REF_ARRAY("lens-focus", sensor->vcm_ref);
 	}
 
-	sensor->ep_properties[0] = PROPERTY_ENTRY_U32(
-					sensor->prop_names.bus_type,
-					V4L2_FWNODE_BUS_TYPE_CSI2_DPHY);
-	sensor->ep_properties[1] = PROPERTY_ENTRY_U32_ARRAY_LEN(
-					sensor->prop_names.data_lanes,
-					bridge->data_lanes, sensor->lanes);
-	sensor->ep_properties[2] = PROPERTY_ENTRY_REF_ARRAY(
-					sensor->prop_names.remote_endpoint,
-					sensor->local_ref);
+	sensor->ep_properties[IPU_BRIDGE_NEXT_PROPERTY(i, EP_BUS_TYPE)] =
+		PROPERTY_ENTRY_U32(names->bus_type,
+				   V4L2_FWNODE_BUS_TYPE_CSI2_DPHY);
+	sensor->ep_properties[IPU_BRIDGE_NEXT_PROPERTY(i, EP_DATA_LANES)] =
+		PROPERTY_ENTRY_U32_ARRAY_LEN(names->data_lanes,
+					     bridge->data_lanes, sensor->lanes);
+	sensor->ep_properties[IPU_BRIDGE_NEXT_PROPERTY(i, EP_REMOTE_EP)] =
+		PROPERTY_ENTRY_REF_ARRAY(names->remote_endpoint,
+					 sensor->local_ref);
 
 	if (cfg->nr_link_freqs > 0)
-		sensor->ep_properties[3] = PROPERTY_ENTRY_U64_ARRAY_LEN(
-			sensor->prop_names.link_frequencies,
-			cfg->link_freqs,
-			cfg->nr_link_freqs);
+		sensor->ep_properties[IPU_BRIDGE_NEXT_PROPERTY(i, EP_LINK_FREQUENCIES)] =
+			PROPERTY_ENTRY_U64_ARRAY_LEN(names->link_frequencies,
+						     cfg->link_freqs,
+						     cfg->nr_link_freqs);
+
+	if (cfg->flags & IPU_BR_FL_CSI2_CLK_NONCONTINUOUS)
+		sensor->ep_properties[IPU_BRIDGE_NEXT_PROPERTY(i, EP_CLOCK_NONCONTINUOUS)] =
+			PROPERTY_ENTRY_BOOL(names->clock_noncontinuous);
 
 	sensor->ipu_properties[0] = PROPERTY_ENTRY_U32_ARRAY_LEN(
 					sensor->prop_names.data_lanes,
@@ -856,8 +956,8 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 		if (ret)
 			goto err_free_swnodes;
 
-		dev_info(bridge->dev, "Found supported sensor %s\n",
-			 acpi_dev_name(adev));
+		dev_info(bridge->dev, "Found supported sensor %s (%pfw)\n",
+			 acpi_dev_name(adev), primary);
 
 		bridge->n_sensors++;
 	}
@@ -874,8 +974,28 @@ err_put_adev:
 	return ret;
 }
 
+/*
+ * Whether a sensor config applies to the IPU this bridge sits on. A config
+ * listing PCI product IDs only applies to those IPUs.
+ */
+static bool ipu_bridge_config_matches(const struct ipu_sensor_config *cfg,
+				      struct ipu_bridge *bridge)
+{
+	const u16 *id;
+
+	if (!cfg->pci_ids)
+		return true;
+
+	for (id = cfg->pci_ids; *id; id++)
+		if (*id == bridge->pci_id)
+			return true;
+
+	return false;
+}
+
 static int ipu_bridge_connect_sensors(struct ipu_bridge *bridge)
 {
+	const char *done_hid = NULL;
 	unsigned int i;
 	int ret;
 
@@ -883,9 +1003,22 @@ static int ipu_bridge_connect_sensors(struct ipu_bridge *bridge)
 		const struct ipu_sensor_config *cfg =
 			&ipu_supported_sensors[i];
 
+		/*
+		 * Entries for one HID are adjacent, IPU-specific ones first,
+		 * so the generic entry is skipped once a specific one has
+		 * matched and the sensor is not connected twice.
+		 */
+		if (done_hid && !strcmp(cfg->hid, done_hid))
+			continue;
+
+		if (!ipu_bridge_config_matches(cfg, bridge))
+			continue;
+
 		ret = ipu_bridge_connect_sensor(cfg, bridge);
 		if (ret)
 			goto err_unregister_sensors;
+
+		done_hid = cfg->hid;
 	}
 
 	return 0;
@@ -942,6 +1075,18 @@ static int ipu_bridge_check_fwnode_graph(struct fwnode_handle *fwnode)
 	return ipu_bridge_check_fwnode_graph(fwnode->secondary);
 }
 
+struct pci_dev *ipu_bridge_get_ipu6(void)
+{
+	struct pci_dev *ipu = NULL;
+
+	for (unsigned int i = 0; !ipu && ipu6_pci_tbl[i].vendor; i++)
+		ipu = pci_get_device(ipu6_pci_tbl[i].vendor,
+				     ipu6_pci_tbl[i].device, NULL);
+
+	return ipu;
+}
+EXPORT_SYMBOL_NS_GPL(ipu_bridge_get_ipu6, "INTEL_IPU_BRIDGE");
+
 static DEFINE_MUTEX(ipu_bridge_mutex);
 
 int ipu_bridge_init(struct device *dev,
@@ -969,6 +1114,7 @@ int ipu_bridge_init(struct device *dev,
 		sizeof(bridge->ipu_node_name));
 	bridge->ipu_hid_node.name = bridge->ipu_node_name;
 	bridge->dev = dev;
+	bridge->pci_id = dev_is_pci(dev) ? to_pci_dev(dev)->device : 0;
 	bridge->parse_sensor_fwnode = parse_sensor_fwnode;
 
 	ret = software_node_register(&bridge->ipu_hid_node);

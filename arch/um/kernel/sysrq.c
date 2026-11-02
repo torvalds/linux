@@ -18,7 +18,7 @@ static void _print_addr(void *data, unsigned long address, int reliable)
 {
 	const char *loglvl = data;
 
-	printk("%s [<%08lx>] %s%pS\n", loglvl, address, reliable ? "" : "? ",
+	printk("%s [<%08lx>] %s%pB\n", loglvl, address, reliable ? "" : "? ",
 		(void *)address);
 }
 

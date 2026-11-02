@@ -16,8 +16,10 @@ struct ksmbd_work;
 struct ksmbd_share_config {
 	char			*name;
 	char			*path;
+	char			*real_path;
 
 	unsigned int		path_sz;
+	unsigned int		real_path_sz;
 	unsigned int		flags;
 	struct list_head	veto_list;
 
@@ -43,7 +45,7 @@ static inline umode_t
 share_config_create_mode(struct ksmbd_share_config *share,
 			 umode_t posix_mode)
 {
-	umode_t mode = (posix_mode ?: (umode_t)-1) & share->create_mask;
+	umode_t mode = posix_mode & share->create_mask;
 
 	return mode | share->force_create_mode;
 }
@@ -52,7 +54,7 @@ static inline umode_t
 share_config_directory_mode(struct ksmbd_share_config *share,
 			    umode_t posix_mode)
 {
-	umode_t mode = (posix_mode ?: (umode_t)-1) & share->directory_mask;
+	umode_t mode = posix_mode & share->directory_mask;
 
 	return mode | share->force_directory_mode;
 }

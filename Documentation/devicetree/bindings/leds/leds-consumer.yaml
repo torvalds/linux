@@ -53,15 +53,15 @@ examples:
     };
 
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      v4l2_node: camera@36 {
-        reg = <0x36>;
+        v4l2_node: camera@36 {
+            reg = <0x36>;
 
-        leds = <&privacy_led>;
-        led-names = "privacy";
-      };
+            leds = <&privacy_led>;
+            led-names = "privacy";
+        };
     };
 
 ...

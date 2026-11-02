@@ -94,6 +94,7 @@ struct vfio_dma {
 	bool			lock_cap;	/* capable(CAP_IPC_LOCK) */
 	bool			vaddr_invalid;
 	bool			has_rsvd;	/* has 1 or more rsvd pfns */
+	bool			has_non_rsvd;	/* has 1 or more !rsvd pfns */
 	struct task_struct	*task;
 	struct rb_root		pfn_list;	/* Ex-user pinned pfn list */
 	unsigned long		*bitmap;
@@ -791,6 +792,7 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
 
 out:
 	dma->has_rsvd |= rsvd;
+	dma->has_non_rsvd |= !rsvd;
 	ret = vfio_lock_acct(dma, lock_acct, false);
 
 unpin_out:
@@ -821,11 +823,13 @@ static long vfio_unpin_pages_remote(struct vfio_dma *dma, dma_addr_t iova,
 	long unlocked = 0, locked = vpfn_pages(dma, iova, npage);
 
 	if (dma->has_rsvd) {
-		unsigned long i;
+		if (dma->has_non_rsvd) {
+			unsigned long i;
 
-		for (i = 0; i < npage; i++)
-			if (put_pfn(pfn++, dma->prot))
-				unlocked++;
+			for (i = 0; i < npage; i++)
+				if (put_pfn(pfn++, dma->prot))
+					unlocked++;
+		}
 	} else {
 		put_valid_unreserved_pfns(pfn, npage, dma->prot);
 		unlocked = npage;

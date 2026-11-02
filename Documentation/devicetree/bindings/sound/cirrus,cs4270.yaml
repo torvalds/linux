@@ -49,11 +49,11 @@ unevaluatedProperties: false
 examples:
   - |
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      codec@48 {
-          compatible = "cirrus,cs4270";
-          reg = <0x48>;
-      };
+        codec@48 {
+            compatible = "cirrus,cs4270";
+            reg = <0x48>;
+        };
     };

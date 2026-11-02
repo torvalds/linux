@@ -1279,11 +1279,11 @@ amdgpu_ras_debugfs_table_read_uniras(struct amdgpu_device *adev,
 		return 0;
 
 	/* pmfw manages eeprom data by itself */
-	if (ras_fw_eeprom_supported(ras_core))
+	if (ras_eeprom_mgr_fw_record_enabled(ras_core))
 		return 0;
 
-	control = &ras_core->ras_eeprom;
-	num_recs = ras_eeprom_get_record_count(ras_core);
+	control = ras_core->eeprom_mgr.ras_eeprom;
+	num_recs = ras_eeprom_mgr_get_record_count(ras_core);
 
 	bufsz = strlen(tbl_hdr_str) + tbl_hdr_fmt_size +
 		strlen(rec_hdr_str) + (size_t)rec_hdr_fmt_size * num_recs + 1;
@@ -1299,7 +1299,7 @@ amdgpu_ras_debugfs_table_read_uniras(struct amdgpu_device *adev,
 			goto out;
 		}
 
-		res = ras_eeprom_read(ras_core, records, num_recs);
+		res = ras_eeprom_mgr_get_records(ras_core, 0, records, num_recs);
 		if (res)
 			goto out;
 	}

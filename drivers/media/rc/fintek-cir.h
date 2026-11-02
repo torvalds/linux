@@ -40,11 +40,9 @@ static int debug;
 			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__)
 
 
-#define TX_BUF_LEN 256
 #define RX_BUF_LEN 32
 
 struct fintek_dev {
-	struct pnp_dev *pdev;
 	struct rc_dev *rdev;
 
 	spinlock_t fintek_lock;
@@ -52,14 +50,6 @@ struct fintek_dev {
 	/* for rx */
 	u8 buf[RX_BUF_LEN];
 	unsigned int pkts;
-
-	struct {
-		spinlock_t lock;
-		u8 buf[TX_BUF_LEN];
-		unsigned int buf_count;
-		unsigned int cur_buf_num;
-		wait_queue_head_t queue;
-	} tx;
 
 	/* Config register index/data port pair */
 	u32 cr_ip;
@@ -73,16 +63,7 @@ struct fintek_dev {
 	/* hardware id */
 	u8 chip_major;
 	u8 chip_minor;
-	u16 chip_vendor;
 	u8 logical_dev_cir;
-
-	/* hardware features */
-	bool hw_learning_capable;
-	bool hw_tx_capable;
-
-	/* rx settings */
-	bool learning_enabled;
-	bool carrier_detect_enabled;
 
 	enum {
 		CMD_HEADER = 0,
@@ -92,9 +73,6 @@ struct fintek_dev {
 	} parser_state;
 
 	u8 cmd, rem;
-
-	/* carrier period = 1 / frequency */
-	u32 carrier;
 };
 
 /* buffer packet constants, largely identical to mceusb.c */

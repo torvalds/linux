@@ -212,7 +212,7 @@ const struct file_operations udf_file_operations = {
 	.setlease		= generic_setlease,
 };
 
-static int udf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int udf_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);

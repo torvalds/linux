@@ -406,8 +406,9 @@ static int ieee802154_header_create(struct sk_buff *skb,
 	return hlen;
 }
 
-static const struct wpan_dev_header_ops ieee802154_header_ops = {
-	.create		= ieee802154_header_create,
+static const struct wpan_dev_ops ieee802154_ops = {
+	.header_create	= ieee802154_header_create,
+	.ioctl		= mac802154_wpan_ioctl,
 };
 
 /* This header create functionality assumes a 8 byte array for
@@ -497,7 +498,6 @@ static const struct net_device_ops mac802154_wpan_ops = {
 	.ndo_open		= mac802154_wpan_open,
 	.ndo_stop		= mac802154_slave_close,
 	.ndo_start_xmit		= ieee802154_subif_start_xmit,
-	.ndo_do_ioctl		= mac802154_wpan_ioctl,
 	.ndo_set_mac_address	= mac802154_wpan_mac_addr,
 };
 
@@ -521,7 +521,7 @@ static void ieee802154_if_setup(struct net_device *dev)
 
 	/* Let hard_header_len set to IEEE802154_MIN_HEADER_LEN. AF_PACKET
 	 * will not send frames without any payload, but ack frames
-	 * has no payload, so substract one that we can send a 3 bytes
+	 * has no payload, so subtract one that we can send a 3 bytes
 	 * frame. The xmit callback assumes at least a hard header where two
 	 * bytes fc and sequence field are set.
 	 */
@@ -583,7 +583,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		sdata->dev->netdev_ops = &mac802154_wpan_ops;
 		sdata->dev->ml_priv = &mac802154_mlme_wpan;
 		sdata->iface_default_filtering = IEEE802154_FILTERING_4_FRAME_FIELDS;
-		wpan_dev->header_ops = &ieee802154_header_ops;
+		wpan_dev->ops = &ieee802154_ops;
 
 		mutex_init(&sdata->sec_mtx);
 

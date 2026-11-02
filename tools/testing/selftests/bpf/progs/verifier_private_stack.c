@@ -377,6 +377,7 @@ int private_stack_max_depth(void)
 
 SEC("kprobe")
 __description("private stack is not supported, use a dummy test")
+__skip("private stack is not supported")
 __success
 int dummy_test(void)
 {

@@ -104,7 +104,6 @@ static int adp5520_keys_probe(struct platform_device *pdev)
 
 	input->name = pdev->name;
 	input->phys = "adp5520-keys/input0";
-	input->dev.parent = &pdev->dev;
 
 	input->id.bustype = BUS_I2C;
 	input->id.vendor = 0x0001;

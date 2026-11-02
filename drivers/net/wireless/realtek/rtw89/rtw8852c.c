@@ -2609,6 +2609,7 @@ static u8 rtw8852c_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_p
 static void rtw8852c_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc_module *md = &rtwdev->btc.mdinfo;
+	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
 
 	md->rfe_type = rtwdev->efuse.rfe_type;
 	md->kt_ver = rtwdev->hal.cv;
@@ -2623,12 +2624,16 @@ static void rtw8852c_btc_set_rfe(struct rtw89_dev *rtwdev)
 	md->ant.diversity = 0;
 	md->ant.isolation = 10;
 
+	memset(dm->ant_xmap, 0, sizeof(dm->ant_xmap));
+
 	if (md->ant.num == 3) {
 		md->ant.type = BTC_ANT_DEDICATED;
 		md->bt0_pos = BTC_BT_ALONE;
 	} else {
 		md->ant.type = BTC_ANT_SHARED;
 		md->bt0_pos = BTC_BT_BTG;
+		/* the only BT shares the BTG antenna with WL path B */
+		dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 1;
 	}
 	rtwdev->btc.btg_pos = md->ant.btg_pos;
 	rtwdev->btc.ant_type = md->ant.type;
@@ -2699,6 +2704,8 @@ static void rtw8852c_btc_init_cfg(struct rtw89_dev *rtwdev)
 		.direction = RTW89_MAC_AX_COEX_INNER,
 	};
 
+	rtw89_io_pack(rtwdev);
+
 	/* PTA init  */
 	rtw89_mac_coex_init_v1(rtwdev, &coex_params);
 
@@ -2733,6 +2740,8 @@ static void rtw8852c_btc_init_cfg(struct rtw89_dev *rtwdev)
 	rtw89_write32_set(rtwdev,
 			  R_AX_BT_CNT_CFG, B_AX_BT_CNT_EN |
 			  B_AX_BT_CNT_RST_V1);
+
+	rtw89_io_unpack(rtwdev);
 }
 
 static
@@ -2888,6 +2897,8 @@ void rtw8852c_btc_update_bt_cnt(struct rtw89_dev *rtwdev)
 static
 void rtw8852c_btc_wl_s1_standby(struct rtw89_dev *rtwdev, bool state)
 {
+	rtw89_io_pack(rtwdev);
+
 	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x80000);
 	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x1);
 	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD1, RFREG_MASK, 0x620);
@@ -2901,6 +2912,8 @@ void rtw8852c_btc_wl_s1_standby(struct rtw89_dev *rtwdev, bool state)
 			       RFREG_MASK, 0x208);
 
 	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x0);
+
+	rtw89_io_unpack(rtwdev);
 }
 
 static void rtw8852c_set_wl_lna2(struct rtw89_dev *rtwdev, u8 level)
@@ -2909,6 +2922,8 @@ static void rtw8852c_set_wl_lna2(struct rtw89_dev *rtwdev, u8 level)
 	 * level=1 Fix LNA2=5: TIA 1/0= (LNA2,TIAN6) = (5,0)/(5,1) = 18dB/12dB
 	 * To improve BT ACI in co-rx
 	 */
+
+	rtw89_io_pack(rtwdev);
 
 	switch (level) {
 	case 0: /* default */
@@ -2936,6 +2951,8 @@ static void rtw8852c_set_wl_lna2(struct rtw89_dev *rtwdev, u8 level)
 		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x0);
 		break;
 	}
+
+	rtw89_io_unpack(rtwdev);
 }
 
 static void rtw8852c_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)

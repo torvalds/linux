@@ -88,6 +88,7 @@ struct rtpse_mcu_ctrl {
 int rtpse_mcu_register(struct rtpse_mcu_ctrl *pse);
 
 extern const struct rtpse_mcu_match_data rtpse_mcu_gen1_data;
+extern const struct rtpse_mcu_match_data rtpse_mcu_gen1_i2c_data;
 extern const struct rtpse_mcu_match_data rtpse_mcu_gen2_data;
 extern const struct rtpse_mcu_match_data rtpse_mcu_gen2_i2c_data;
 

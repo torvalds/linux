@@ -35,10 +35,10 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         regulator@60 {
-          compatible = "silergy,sy8824c";
-          regulator-min-microvolt = <800000>;
-          regulator-max-microvolt = <1150000>;
-          reg = <0x60>;
+            compatible = "silergy,sy8824c";
+            regulator-min-microvolt = <800000>;
+            regulator-max-microvolt = <1150000>;
+            reg = <0x60>;
         };
     };
 

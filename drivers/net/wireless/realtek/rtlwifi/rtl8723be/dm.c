@@ -742,7 +742,7 @@ static void rtl8723be_dm_txpower_tracking_callback_thermalmeter(
 		5, 6, 6, 6, 6, 7, 7, 7, 8, 8,  9,
 		9, 10, 10, 11, 12, 13, 14, 15};
 
-	/*Initilization ( 7 steps in total )*/
+	/* Initialization ( 7 steps in total ) */
 	rtlpriv->dm.txpower_trackinginit = true;
 	rtl_dbg(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 		"%s\n", __func__);

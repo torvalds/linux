@@ -170,8 +170,15 @@ int sof_acp7x_ops_init(struct snd_sof_dev *sdev)
 			acp_sof_post_fw_run_delay = obj->integer.value;
 	}
 
-	if (acp_sof_signed_firmware_image)
-		sof_acp7x_ops.load_firmware = acp_sof_load_signed_firmware;
+	if (acp_sof_signed_firmware_image) {
+		/*
+		 * This driver handles only ACP7.B/7.F which both use the ASP
+		 * carveout firmware load path. Assign unconditionally rather
+		 * than rechecking the revision so the correct loader is always
+		 * selected when signed firmware is enabled.
+		 */
+		sof_acp7x_ops.load_firmware = acp7x_load_firmware_carveout;
+	}
 
 	if (acp_sof_post_fw_run_delay)
 		sof_acp7x_ops.post_fw_run = sof_acp7x_post_fw_run_delay;

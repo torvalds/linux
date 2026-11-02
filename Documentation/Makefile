@@ -74,6 +74,10 @@ htmldocs-redirects: $(srctree)/Documentation/.renames.txt
 refcheckdocs:
 	$(Q)cd $(srctree); tools/docs/documentation-file-ref-check
 
+testdocs:
+	$(Q)PYTHONPYCACHEPREFIX="$(PYTHONPYCACHEPREFIX)" \
+		$(PYTHON3) $(srctree)/tools/unittests/run.py
+
 cleandocs:
 	$(Q)rm -rf $(BUILDDIR)
 
@@ -95,6 +99,7 @@ dochelp:
 	@echo  '                    (will connect to external hosts)'
 	@echo  '  refcheckdocs    - check for references to non-existing files under'
 	@echo  '                    Documentation'
+	@echo  '  testdocs        - run the unit tests of the documentation tools'
 	@echo  '  cleandocs       - clean all generated files'
 	@echo
 	@echo  '  make SPHINXDIRS="s1 s2" [target] Generate only docs of folder s1, s2'

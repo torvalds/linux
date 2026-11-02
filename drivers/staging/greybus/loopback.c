@@ -562,8 +562,7 @@ static int gb_loopback_async_sink(struct gb_loopback *gb, u32 len)
 	return retval;
 }
 
-static int gb_loopback_async_transfer_complete(
-				struct gb_loopback_async_operation *op_async)
+static int gb_loopback_async_transfer_complete(struct gb_loopback_async_operation *op_async)
 {
 	struct gb_loopback *gb;
 	struct gb_operation *operation;
@@ -653,7 +652,8 @@ static int gb_loopback_request_handler(struct gb_operation *operation)
 		}
 
 		if (!gb_operation_response_alloc(operation,
-				len + sizeof(*response), GFP_KERNEL)) {
+						 len + sizeof(*response),
+						 GFP_KERNEL)) {
 			dev_err(dev, "error allocating response\n");
 			return -ENOMEM;
 		}

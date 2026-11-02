@@ -29,7 +29,7 @@ config RISCV
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL if MMU
 	select ARCH_HAS_DEBUG_VM_PGTABLE
-	select ARCH_HAS_DEBUG_WX
+	select ARCH_HAS_CHECK_WX
 	select ARCH_HAS_DELAY_TIMER
 	select ARCH_HAS_ELF_CORE_EFLAGS if BINFMT_ELF && ELF_CORE
 	select ARCH_HAS_FAST_MULTIPLIER
@@ -72,7 +72,6 @@ config RISCV
 	select ARCH_SUPPORTS_LTO_CLANG_THIN
 	select ARCH_SUPPORTS_MSEAL_SYSTEM_MAPPINGS if 64BIT && MMU
 	select ARCH_SUPPORTS_PAGE_TABLE_CHECK if MMU
-	select ARCH_SUPPORTS_PER_VMA_LOCK if MMU
 	select ARCH_HAS_PTE_PROTNONE if MMU
 	select ARCH_SUPPORTS_RT
 	select ARCH_SUPPORTS_SHADOW_CALL_STACK if HAVE_SHADOW_CALL_STACK
@@ -195,7 +194,6 @@ config RISCV
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_POSIX_CPU_TIMERS_TASK_WORK
-	select HAVE_PREEMPT_DYNAMIC_KEY
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RETHOOK
 	select HAVE_RSEQ
@@ -209,7 +207,6 @@ config RISCV
 	select IRQ_FORCED_THREADING
 	select KASAN_VMALLOC if KASAN
 	select LOCK_MM_AND_FIND_VMA
-	select MMU_GATHER_RCU_TABLE_FREE if SMP && MMU
 	select MODULES_USE_ELF_RELA if MODULES
 	select OF
 	select OF_EARLY_FLATTREE
@@ -218,7 +215,7 @@ config RISCV
 	select PCI_ECAM if (ACPI && PCI)
 	select PCI_MSI if PCI
 	select RELOCATABLE if !MMU && !PHYS_RAM_BASE_FIXED
-	select RISCV_ALTERNATIVE
+	select RISCV_ALTERNATIVE_EARLY if 64BIT
 	select RISCV_APLIC
 	select RISCV_IMSIC
 	select RISCV_INTC
@@ -540,17 +537,8 @@ config RISCV_COMBO_SPINLOCKS
 
 endchoice
 
-config RISCV_ALTERNATIVE
-	bool
-	help
-	  This Kconfig allows the kernel to automatically patch the
-	  erratum or cpufeature required by the execution platform at run
-	  time. The code patching overhead is minimal, as it's only done
-	  once at boot and once on each module load.
-
 config RISCV_ALTERNATIVE_EARLY
 	bool
-	depends on RISCV_ALTERNATIVE
 	help
 	  Allows early patching of the kernel for special errata
 
@@ -579,7 +567,6 @@ config RISCV_ISA_SUPM
 config RISCV_ISA_SVNAPOT
 	bool "Svnapot extension support for supervisor mode NAPOT pages"
 	depends on 64BIT && MMU
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	  Enable support for the Svnapot ISA-extension when it is detected
@@ -613,10 +600,33 @@ config RISCV_ISA_SSQOSID
 	  cache partitioning scheme and use the MCID to track how much
 	  cache a process, or a group of processes, is using.
 
+config RISCV_ISA_SV48
+	bool "Page-Based 48-bit Virtual-Memory System"
+	depends on 64BIT
+	default y
+	help
+	  Add support for the Page-Based 48-bit Virtual-Memory System.
+
+	  Enable this option for systems for which a 39-bit virtual address
+	  space is insufficient. But if 39-bit is enough, disabling this
+	  option will result in smaller kernel size and slighly better
+	  performance.
+
+config RISCV_ISA_SV57
+	bool "Page-Based 57-bit Virtual-Memory System"
+	depends on 64BIT
+	default y
+	help
+	  Add support for the Page-Based 57-bit Virtual-Memory System.
+
+	  Enable this option for systems for which a 48-bit virtual address
+	  space is insufficient. But if 48-bit is enough, disabling this
+	  option will result in smaller kernel size and slighly better
+	  performance.
+
 config RISCV_ISA_SVPBMT
 	bool "Svpbmt extension support for supervisor mode page-based memory types"
 	depends on 64BIT && MMU
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	   Add support for the Svpbmt ISA-extension (Supervisor-mode:
@@ -686,7 +696,6 @@ config RISCV_ISA_V_PREEMPTIVE
 
 config RISCV_ISA_ZAWRS
 	bool "Zawrs extension support for more efficient busy waiting"
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	  The Zawrs extension defines instructions to be used in polling loops
@@ -705,7 +714,6 @@ config TOOLCHAIN_HAS_ZABHA
 config RISCV_ISA_ZABHA
 	bool "Zabha extension support for atomic byte/halfword operations"
 	depends on TOOLCHAIN_HAS_ZABHA
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	  Enable the use of the Zabha ISA-extension to implement kernel
@@ -722,7 +730,6 @@ config TOOLCHAIN_HAS_ZACAS
 
 config RISCV_ISA_ZACAS
 	bool "Zacas extension support for atomic CAS"
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	  Enable the use of the Zacas ISA-extension to implement kernel atomic
@@ -767,7 +774,6 @@ config RISCV_ISA_ZBA
 
 config RISCV_ISA_ZBB
 	bool "Zbb extension support for bit manipulation instructions"
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	   Add support for enabling optimisations in the kernel when the
@@ -792,7 +798,6 @@ config RISCV_ISA_ZBC
 	bool "Zbc extension support for carry-less multiplication instructions"
 	depends on TOOLCHAIN_HAS_ZBC
 	depends on MMU
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	   Adds support to dynamically detect the presence of the Zbc
@@ -814,7 +819,6 @@ config TOOLCHAIN_HAS_ZBKB
 config RISCV_ISA_ZBKB
 	bool "Zbkb extension support for bit manipulation instructions"
 	depends on TOOLCHAIN_HAS_ZBKB
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	   Adds support to dynamically detect the presence of the ZBKB
@@ -828,7 +832,6 @@ config RISCV_ISA_ZBKB
 config RISCV_ISA_ZICBOM
 	bool "Zicbom extension support for non-coherent DMA operation"
 	depends on MMU
-	depends on RISCV_ALTERNATIVE
 	default y
 	select RISCV_DMA_NONCOHERENT
 	select DMA_DIRECT_REMAP
@@ -844,7 +847,6 @@ config RISCV_ISA_ZICBOM
 
 config RISCV_ISA_ZICBOZ
 	bool "Zicboz extension support for faster zeroing of memory"
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	   Enable the use of the Zicboz extension (cbo.zero instruction)
@@ -857,7 +859,6 @@ config RISCV_ISA_ZICBOZ
 config RISCV_ISA_ZICBOP
 	bool "Zicbop extension support for cache block prefetch"
 	depends on MMU
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	  Adds support to dynamically detect the presence of the ZICBOP
@@ -872,7 +873,6 @@ config RISCV_ISA_ZICBOP
 config RISCV_ISA_SVRSW60T59B
 	bool "Svrsw60t59b extension support for using PTE bits 60 and 59"
 	depends on MMU && 64BIT
-	depends on RISCV_ALTERNATIVE
 	default y
 	help
 	  Adds support to dynamically detect the presence of the Svrsw60t59b
@@ -1134,6 +1134,9 @@ config ARCH_DEFAULT_CRASH_DUMP
 config ARCH_HAS_GENERIC_CRASHKERNEL_RESERVATION
 	def_bool CRASH_RESERVE
 
+config ARCH_SUPPORTS_CRASH_HOTPLUG
+	def_bool y
+
 config COMPAT
 	bool "Kernel support for 32-bit U-mode"
 	default 64BIT
@@ -1205,7 +1208,6 @@ config RISCV_USER_CFI
 	bool "riscv userspace control flow integrity"
 	depends on 64BIT && MMU && \
 		$(cc-option,-mabi=lp64 -march=rv64ima_zicfiss_zicfilp -fcf-protection=full)
-	depends on RISCV_ALTERNATIVE
 	select RISCV_SBI
 	select ARCH_HAS_USER_SHADOW_STACK
 	select ARCH_USES_HIGH_VMA_FLAGS

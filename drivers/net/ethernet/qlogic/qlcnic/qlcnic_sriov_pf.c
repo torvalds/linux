@@ -773,10 +773,8 @@ static int qlcnic_sriov_pf_channel_cfg_cmd(struct qlcnic_bc_trans *trans,
 
 	cmd->rsp.arg[0] |= (1 << 25);
 
-	if (trans->req_hdr->cmd_op == QLCNIC_BC_CMD_CHANNEL_INIT)
-		set_bit(QLC_BC_VF_STATE, &vf->state);
-	else
-		clear_bit(QLC_BC_VF_STATE, &vf->state);
+	assign_bit(QLC_BC_VF_STATE, &vf->state,
+		   trans->req_hdr->cmd_op == QLCNIC_BC_CMD_CHANNEL_INIT);
 
 	return err;
 

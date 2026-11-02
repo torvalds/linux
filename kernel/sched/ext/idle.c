@@ -153,7 +153,18 @@ static s32 pick_idle_cpu_from_online_nodes(const struct cpumask *cpus_allowed, i
 	nodemask_t *unvisited;
 	s32 cpu = -EBUSY;
 
-	preempt_disable();
+	/*
+	 * @per_cpu_unvisited is per-CPU scratch and the idle kfuncs can be
+	 * called from IRQ-enabled contexts, so mask IRQs to keep a nested
+	 * invocation from clobbering the mask an outer invocation is still
+	 * iterating.
+	 *
+	 * NMI nesting is not handled: there is no legitimate reason to call
+	 * pick_idle from NMI and doing so poses no crash risk, so such a
+	 * caller is on its own.
+	 */
+	guard(irqsave)();
+
 	unvisited = this_cpu_ptr(&per_cpu_unvisited);
 
 	/*
@@ -183,7 +194,6 @@ static s32 pick_idle_cpu_from_online_nodes(const struct cpumask *cpus_allowed, i
 		if (cpu >= 0)
 			break;
 	}
-	preempt_enable();
 
 	return cpu;
 }

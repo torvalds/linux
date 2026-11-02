@@ -336,13 +336,13 @@ static int xgmac_mdio_set_mdc_freq(struct mii_bus *bus)
 
 	priv->enet_clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->enet_clk)) {
-		dev_err(dev, "Input clock unknown, not changing MDC frequency");
+		dev_err(dev, "Input clock unknown, not changing MDC frequency\n");
 		return PTR_ERR(priv->enet_clk);
 	}
 
 	div = ((clk_get_rate(priv->enet_clk) / priv->mdc_freq) - 1) / 2;
 	if (div < 5 || div > 0x1ff) {
-		dev_err(dev, "Requested MDC frequency is out of range, ignoring");
+		dev_err(dev, "Requested MDC frequency is out of range, ignoring\n");
 		return -EINVAL;
 	}
 

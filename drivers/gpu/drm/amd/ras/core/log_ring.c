@@ -32,16 +32,6 @@
 
 #define BATCH_IDX_TO_TREE_IDX(batch_idx, sn) (((batch_idx) << 8) | (sn))
 
-static const uint64_t ras_rma_aca_reg[ACA_REG_MAX_COUNT] = {
-	[ACA_REG_IDX__CTL]    = 0x1,
-	[ACA_REG_IDX__STATUS] = 0xB000000000000137,
-	[ACA_REG_IDX__ADDR]   = 0x0,
-	[ACA_REG_IDX__MISC0]  = 0x0,
-	[ACA_REG_IDX__CONFG] = 0x1ff00000002,
-	[ACA_REG_IDX__IPID]   = 0x9600000000,
-	[ACA_REG_IDX__SYND]   = 0x0,
-};
-
 static uint64_t ras_log_ring_get_logged_ecc_count(struct ras_core_context *ras_core)
 {
 	struct ras_log_ring *log_ring = &ras_core->ras_log_ring;
@@ -212,7 +202,7 @@ struct ras_log_batch_tag *ras_log_ring_create_batch_tag(struct ras_core_context 
 	spin_unlock_irqrestore(&log_ring->spin_lock, flags);
 
 	batch_tag->sub_seqno = 0;
-	batch_tag->timestamp = ras_core_get_utc_second_timestamp(ras_core);
+	batch_tag->timestamp = ktime_get_real_ns();
 	return batch_tag;
 }
 
@@ -222,14 +212,20 @@ void ras_log_ring_destroy_batch_tag(struct ras_core_context *ras_core,
 	kfree(batch_tag);
 }
 
-void ras_log_ring_add_log_event(struct ras_core_context *ras_core,
-		enum ras_log_event event, void *data, struct ras_log_batch_tag *batch_tag)
+int ras_log_ring_add_log_event(struct ras_core_context *ras_core,
+		enum ras_log_event event,
+		void *data, uint32_t size, struct ras_log_batch_tag *batch_tag)
 {
 	struct ras_log_ring *log_ring = &ras_core->ras_log_ring;
-	struct device_system_info dev_info = {0};
 	struct ras_log_info *log;
-	uint64_t socket_id;
+	struct aca_bank_reg *rma_bank;
 	void *obj;
+
+	if (size > sizeof(union ras_log_body)) {
+		RAS_DEV_ERR(ras_core->dev,
+			"Log event(0x%x) data size exceeded buffer!\n", event);
+		return -EINVAL;
+	}
 
 	obj = mempool_alloc_preallocated(log_ring->ras_log_mempool);
 	if (!obj ||
@@ -241,28 +237,34 @@ void ras_log_ring_add_log_event(struct ras_core_context *ras_core,
 
 	if (!obj) {
 		RAS_DEV_ERR(ras_core->dev, "ERROR: Failed to alloc ras log buffer!\n");
-		return;
+		return -ENOMEM;
 	}
 
 	log = (struct ras_log_info *)obj;
 
 	memset(log, 0, sizeof(*log));
 	log->timestamp =
-		batch_tag ? batch_tag->timestamp : ras_core_get_utc_second_timestamp(ras_core);
+		batch_tag ? batch_tag->timestamp : ktime_get_real_ns();
 	log->event = event;
 
-	if (data)
-		memcpy(&log->aca_reg, data, sizeof(log->aca_reg));
-
-	if (event == RAS_LOG_EVENT_RMA) {
-		memcpy(&log->aca_reg, ras_rma_aca_reg, sizeof(log->aca_reg));
-		ras_core_get_device_system_info(ras_core, &dev_info);
-		socket_id = dev_info.socket_id;
-		log->aca_reg.regs[ACA_REG_IDX__IPID] |= ((socket_id / 4) & 0x01);
-		log->aca_reg.regs[ACA_REG_IDX__IPID] |= (((socket_id % 4) & 0x3) << 44);
+	if (data && size && size <= sizeof(log->body)) {
+		memcpy(&log->body, data, size);
+		log->size = size;
 	}
 
-	ras_log_ring_add_data(ras_core, log, batch_tag);
+	if ((event == RAS_LOG_EVENT_RMA) && !data && !size) {
+		rma_bank = kzalloc_obj(*rma_bank);
+		if (rma_bank && !ras_aca_fill_rma_bank(ras_core, rma_bank)) {
+			memcpy(log->body.aca_reg.regs,
+				rma_bank->regs, sizeof(log->body.aca_reg.regs));
+			log->size = sizeof(log->body.aca_reg);
+		} else {
+			RAS_DEV_WARN(ras_core->dev, "Failed to fill rma bank info!\n");
+		}
+		kfree(rma_bank);
+	}
+
+	return ras_log_ring_add_data(ras_core, log, batch_tag);
 }
 
 static int ras_log_ring_lookup_data(struct ras_core_context *ras_core,

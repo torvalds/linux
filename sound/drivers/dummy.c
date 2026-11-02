@@ -1063,11 +1063,13 @@ static int snd_dummy_probe(struct platform_device *devptr)
 			break;
 		}
 	}
+
+	if (pcm_substreams[dev] < 1)
+		pcm_substreams[dev] = 1;
+	if (pcm_substreams[dev] > MAX_PCM_SUBSTREAMS)
+		pcm_substreams[dev] = MAX_PCM_SUBSTREAMS;
+
 	for (idx = 0; idx < MAX_PCM_DEVICES && idx < pcm_devs[dev]; idx++) {
-		if (pcm_substreams[dev] < 1)
-			pcm_substreams[dev] = 1;
-		if (pcm_substreams[dev] > MAX_PCM_SUBSTREAMS)
-			pcm_substreams[dev] = MAX_PCM_SUBSTREAMS;
 		err = snd_card_dummy_pcm(dummy, idx, pcm_substreams[dev]);
 		if (err < 0)
 			return err;

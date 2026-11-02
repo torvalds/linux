@@ -13,21 +13,8 @@
 # If you really need to reference something from prom_init.o add
 # it to the list below:
 
-has_renamed_memintrinsics()
-{
-	grep -q "^CONFIG_KASAN=y$" "${KCONFIG_CONFIG}" && \
-		! grep -q "^CONFIG_CC_HAS_KASAN_MEMINTRINSIC_PREFIX=y" "${KCONFIG_CONFIG}"
-}
-
-if has_renamed_memintrinsics
-then
-	MEM_FUNCS="__memcpy __memset"
-else
-	MEM_FUNCS="memcpy memset"
-fi
-
 WHITELIST="add_reloc_offset __bss_start __bss_stop copy_and_flush
-_end enter_prom $MEM_FUNCS reloc_offset __secondary_hold
+_end enter_prom memcpy memset reloc_offset __secondary_hold
 __secondary_hold_acknowledge __secondary_hold_spinloop __start
 logo_linux_clut224 btext_prepare_BAT
 reloc_got2 kernstart_addr memstart_addr linux_banner _stext

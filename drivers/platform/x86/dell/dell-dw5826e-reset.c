@@ -6,8 +6,10 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
 #include <linux/bits.h>
 #include <linux/device.h>
+#include <linux/gfp_types.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
@@ -15,15 +17,23 @@
 
 #define PALC_DSM_FN_TRIGGER_PLDR    1
 
+static const u64 palc_dsm_revs[] = { 1, 0 };
+
 static guid_t palc_dsm_guid =
 	GUID_INIT(0x5a1a4bba, 0x8006, 0x487e, 0xbe, 0x0a, 0xac, 0xf5, 0xd8, 0xfd, 0xfe, 0x59);
 
+struct palc_data {
+	u64 dsm_rev;
+};
+
 static int trigger_palc_pldr(struct device *dev, acpi_handle handle)
 {
+	struct palc_data *data = dev_get_drvdata(dev);
 	union acpi_object *obj;
 	int ret = 0;
 
-	obj = acpi_evaluate_dsm(handle, &palc_dsm_guid, 1, PALC_DSM_FN_TRIGGER_PLDR, NULL);
+	obj = acpi_evaluate_dsm(handle, &palc_dsm_guid, data->dsm_rev,
+				PALC_DSM_FN_TRIGGER_PLDR, NULL);
 	if (!obj) {
 		dev_err(dev, "Failed to evaluate _DSM\n");
 		return -EIO;
@@ -60,16 +70,28 @@ ATTRIBUTE_GROUPS(palc);
 
 static int palc_probe(struct platform_device *pdev)
 {
+	struct palc_data *data;
 	acpi_handle handle;
+	unsigned int i;
 
 	handle = ACPI_HANDLE(&pdev->dev);
 	if (!handle)
 		return -ENODEV;
 
-	if (!acpi_check_dsm(handle, &palc_dsm_guid, 1, BIT(PALC_DSM_FN_TRIGGER_PLDR)))
-		return -ENODEV;
+	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
-	return 0;
+	for (i = 0; i < ARRAY_SIZE(palc_dsm_revs); i++) {
+		if (acpi_check_dsm(handle, &palc_dsm_guid, palc_dsm_revs[i],
+				   BIT(PALC_DSM_FN_TRIGGER_PLDR))) {
+			data->dsm_rev = palc_dsm_revs[i];
+			platform_set_drvdata(pdev, data);
+			return 0;
+		}
+	}
+
+	return -ENODEV;
 }
 
 static const struct acpi_device_id palc_acpi_ids[] = {

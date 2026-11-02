@@ -195,44 +195,44 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      codec: da7219@1a {
-          compatible = "dlg,da7219";
-          reg = <0x1a>;
+        codec: audio-codec@1a {
+            compatible = "dlg,da7219";
+            reg = <0x1a>;
 
-          interrupt-parent = <&gpio6>;
-          interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+            interrupt-parent = <&gpio6>;
+            interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 
-          VDD-supply = <&vdd_reg>;
-          VDDMIC-supply = <&vddmic_reg>;
-          VDDIO-supply = <&vddio_reg>;
+            VDD-supply = <&vdd_reg>;
+            VDDMIC-supply = <&vddmic_reg>;
+            VDDIO-supply = <&vddio_reg>;
 
-          #clock-cells = <1>;
-          clock-output-names = "da7219-dai-wclk", "da7219-dai-bclk";
+            #clock-cells = <1>;
+            clock-output-names = "da7219-dai-wclk", "da7219-dai-bclk";
 
-          clocks = <&clks 201>;
-          clock-names = "mclk";
+            clocks = <&clks 201>;
+            clock-names = "mclk";
 
-          dlg,micbias-lvl = <2600>;
-          dlg,mic-amp-in-sel = "diff";
+            dlg,micbias-lvl = <2600>;
+            dlg,mic-amp-in-sel = "diff";
 
-          da7219_aad {
-              dlg,btn-cfg = <50>;
-              dlg,mic-det-thr = <500>;
-              dlg,jack-ins-deb = <20>;
-              dlg,jack-ins-det-pty = "low";
-              dlg,jack-det-rate = "32_64";
-              dlg,jack-rem-deb = <1>;
+            da7219_aad {
+                dlg,btn-cfg = <50>;
+                dlg,mic-det-thr = <500>;
+                dlg,jack-ins-deb = <20>;
+                dlg,jack-ins-det-pty = "low";
+                dlg,jack-det-rate = "32_64";
+                dlg,jack-rem-deb = <1>;
 
-              dlg,a-d-btn-thr = <0xa>;
-              dlg,d-b-btn-thr = <0x16>;
-              dlg,b-c-btn-thr = <0x21>;
-              dlg,c-mic-btn-thr = <0x3E>;
+                dlg,a-d-btn-thr = <0xa>;
+                dlg,d-b-btn-thr = <0x16>;
+                dlg,b-c-btn-thr = <0x21>;
+                dlg,c-mic-btn-thr = <0x3E>;
 
-              dlg,btn-avg = <4>;
-              dlg,adc-1bit-rpt = <1>;
-          };
-      };
+                dlg,btn-avg = <4>;
+                dlg,adc-1bit-rpt = <1>;
+            };
+        };
     };

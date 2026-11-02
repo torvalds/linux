@@ -33,9 +33,10 @@ properties:
   interrupt-controller: true
 
   "#interrupt-cells":
-    const: 1
+    enum: [1, 2]
     description:
-      The first cell is the IRQ number.
+      The first cell is the IRQ number. The optional second cell is the IRQ
+      trigger type.
 
   regulators:
     $ref: /schemas/regulator/mt6360-regulator.yaml#

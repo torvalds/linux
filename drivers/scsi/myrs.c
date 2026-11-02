@@ -816,7 +816,7 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 	struct Scsi_Host *shost = cs->host;
 	struct scsi_device *sdev;
 	struct scsi_sense_hdr sshdr = {0};
-	unsigned char sense_info[4];
+	unsigned char asc, sense_info[4];
 	unsigned char cmd_specific[4];
 
 	if (ev->ev_code == 0x1C) {
@@ -829,9 +829,11 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 			memcpy(cmd_specific, &ev->sense_data[7], 4);
 		}
 	}
+	asc = scsi_sense_asc(&sshdr);
 	if (sshdr.sense_key == VENDOR_SPECIFIC &&
-	    (sshdr.asc == 0x80 || sshdr.asc == 0x81))
-		ev->ev_code = ((sshdr.asc - 0x80) << 8 | sshdr.ascq);
+	    (asc == 0x80 || asc == 0x81))
+		ev->ev_code = scsi_sense_code(asc - 0x80,
+					      scsi_sense_ascq(&sshdr));
 	while (true) {
 		ev_code = myrs_ev_list[ev_idx].ev_code;
 		if (ev_code == ev->ev_code || ev_code == 0)
@@ -891,8 +893,9 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 	case 'S':
 		if (sshdr.sense_key == NO_SENSE ||
 		    (sshdr.sense_key == NOT_READY &&
-		     sshdr.asc == 0x04 && (sshdr.ascq == 0x01 ||
-					    sshdr.ascq == 0x02)))
+		     (sshdr.sense_code == LU_IS_IN_PROCESS_OF_BECOMING_READY ||
+		      sshdr.sense_code ==
+		      LU_NOT_READY_INITIALIZING_COMMAND_REQUIRED)))
 			break;
 		shost_printk(KERN_INFO, shost,
 			     "event %d: Physical Device %d:%d %s\n",
@@ -900,7 +903,8 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 		shost_printk(KERN_INFO, shost,
 			     "Physical Device %d:%d Sense Key = %X, ASC = %02X, ASCQ = %02X\n",
 			     ev->channel, ev->target,
-			     sshdr.sense_key, sshdr.asc, sshdr.ascq);
+			     sshdr.sense_key, scsi_sense_asc(&sshdr),
+			     scsi_sense_ascq(&sshdr));
 		shost_printk(KERN_INFO, shost,
 			     "Physical Device %d:%d Sense Information = %02X%02X%02X%02X %02X%02X%02X%02X\n",
 			     ev->channel, ev->target,
@@ -1603,7 +1607,8 @@ static enum scsi_qc_status myrs_queuecommand(struct Scsi_Host *shost,
 
 	switch (scmd->cmnd[0]) {
 	case REPORT_LUNS:
-		scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x20, 0x0);
+		scsi_set_sense(scmd, 0, ILLEGAL_REQUEST,
+			       INVALID_COMMAND_OP_CODE);
 		scsi_done(scmd);
 		return 0;
 	case MODE_SENSE:
@@ -1612,8 +1617,8 @@ static enum scsi_qc_status myrs_queuecommand(struct Scsi_Host *shost,
 
 			if ((scmd->cmnd[2] & 0x3F) != 0x3F &&
 			    (scmd->cmnd[2] & 0x3F) != 0x08) {
-				/* Illegal request, invalid field in CDB */
-				scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x24, 0);
+				scsi_set_sense(scmd, 0, ILLEGAL_REQUEST,
+					       INVALID_FIELD_IN_CDB);
 			} else {
 				myrs_mode_sense(cs, scmd, ldev_info);
 				scmd->result = (DID_OK << 16);

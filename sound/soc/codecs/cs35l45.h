@@ -35,7 +35,10 @@
 #define CS35L45_PWRMGT_STS			0x0000290C
 #define CS35L45_REFCLK_INPUT			0x00002C04
 #define CS35L45_GLOBAL_SAMPLE_RATE		0x00002C0C
+#define CS35L45_SYNC_TX_RX_ENABLES		0x00003400
+#define CS35L45_SYNC_SW_TX_ID			0x00003408
 #define CS35L45_BOOST_CCM_CFG			0x00003808
+#define CS35L45_BOOST_LPMODE_CFG		0x00003810
 #define CS35L45_BOOST_DCM_CFG			0x0000380C
 #define CS35L45_BOOST_OV_CFG			0x0000382C
 #define CS35L45_ASP_ENABLES1			0x00004800
@@ -172,6 +175,8 @@
 #define CS35L45_BST_EN_MASK			GENMASK(5, 4)
 #define CS35L45_RCV_EN_SHIFT			2
 #define CS35L45_RCV_EN_MASK			BIT(2)
+#define CS35L45_NFR_EN_SHIFT			1
+#define CS35L45_NFR_EN_MASK			BIT(1)
 #define CS35L45_AMP_EN_SHIFT			0
 #define CS35L45_AMP_EN_MASK			BIT(0)
 
@@ -183,6 +188,8 @@
 #define CS35L45_ASP_EN_SHIFT			27
 #define CS35L45_AMP_DRE_EN_SHIFT		20
 #define CS35L45_AMP_DRE_EN_MASK		BIT(20)
+#define CS35L45_SYNC_EN_SHIFT			8
+#define CS35L45_SYNC_EN_MASK			BIT(8)
 #define CS35L45_MEM_RDY_SHIFT			1
 #define CS35L45_MEM_RDY_MASK			BIT(1)
 
@@ -219,6 +226,25 @@
 #define CS35L45_96P0_KHZ			0x04
 #define CS35L45_44P100_KHZ			0x0B
 #define CS35L45_88P200_KHZ			0x0C
+
+/* SYNC_TX_RX_ENABLES */
+#define CS35L45_SYNC_LSW_RX_EN_SHIFT		19
+#define CS35L45_SYNC_LSW_RX_EN_MASK		BIT(19)
+#define CS35L45_SYNC_LSW_TX_EN_SHIFT		18
+#define CS35L45_SYNC_LSW_TX_EN_MASK		BIT(18)
+#define CS35L45_SYNC_SW_RX_EN_SHIFT		17
+#define CS35L45_SYNC_SW_RX_EN_MASK		BIT(17)
+#define CS35L45_SYNC_SW_TX_EN_SHIFT		16
+#define CS35L45_SYNC_SW_TX_EN_MASK		BIT(16)
+
+/* SYNC_SW_TX_ID */
+#define CS35L45_SYNC_LSW_TXID_SHIFT		8
+#define CS35L45_SYNC_LSW_TXID_MASK		GENMASK(10, 8)
+#define CS35L45_SYNC_SW_TXID_SHIFT		0
+#define CS35L45_SYNC_SW_TXID_MASK		GENMASK(2, 0)
+
+/* BOOST_LPMODE_CFG */
+#define CS35L45_BST_LPMODE_SEL			GENMASK(1, 0)
 
 /* ASP_ENABLES_1 */
 #define CS35L45_ASP_RX2_EN_SHIFT		17
@@ -283,6 +309,20 @@
 #define CS35L45_HVLV_MODE_SHIFT		0
 #define CS35L45_HVLV_MODE_MASK			GENMASK(1, 0)
 
+/* LDPM_CONFIG */
+#define CS35L45_LDPM_GP1_BOOST_SEL		BIT(15)
+#define CS35L45_LDPM_GP1_AMP_SEL		BIT(14)
+#define CS35L45_LDPM_GP1_DELAY_SHIFT		11
+#define CS35L45_LDPM_GP1_DELAY_MASK		GENMASK(13, 11)
+#define CS35L45_LDPM_GP1_PCM_THLD_SHIFT	8
+#define CS35L45_LDPM_GP1_PCM_THLD_MASK		GENMASK(10, 8)
+#define CS35L45_LDPM_GP2_IMON_SEL		BIT(7)
+#define CS35L45_LDPM_GP2_VMON_SEL		BIT(6)
+#define CS35L45_LDPM_GP2_DELAY_SHIFT		3
+#define CS35L45_LDPM_GP2_DELAY_MASK		GENMASK(5, 3)
+#define CS35L45_LDPM_GP2_PCM_THLD_SHIFT	0
+#define CS35L45_LDPM_GP2_PCM_THLD_MASK		GENMASK(2, 0)
+
 /* AMP_PCM_CONTROL */
 #define CS35L45_AMP_VOL_PCM_SHIFT		0
 #define CS35L45_AMP_VOL_PCM_WIDTH		11
@@ -320,6 +360,7 @@
 #define CS35L45_GPIO_CTRL_MASK			GENMASK(22, 20)
 #define CS35L45_GPIO_INVERT_SHIFT		19
 #define CS35L45_GPIO_INVERT_MASK		BIT(19)
+#define CS35L45_GP1_CTRL_MDSYNC		0x2
 
 /* CS35L45_IRQ1_EINT_1 */
 #define CS35L45_BST_UVP_ERR_SHIFT		7
@@ -427,6 +468,12 @@ enum amp_mode {
 	AMP_MODE_RCV  = 1,
 };
 
+enum ldpm_groups {
+	LDPM_GROUP1 = 1,
+	LDPM_GROUP2 = 2,
+	NUM_LDPM_GROUP,
+};
+
 #define CS35L45_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
 			 SNDRV_PCM_FMTBIT_S24_3LE| \
 			 SNDRV_PCM_FMTBIT_S24_LE)
@@ -435,6 +482,8 @@ enum amp_mode {
 		       SNDRV_PCM_RATE_48000 | \
 		       SNDRV_PCM_RATE_88200 | \
 		       SNDRV_PCM_RATE_96000)
+
+#define CS35L45_LDPM_PROP_NAME_MAX	37
 
 /*
  * IRQs
@@ -493,6 +542,8 @@ struct cs35l45_private {
 	struct regulator *vdd_a;
 	bool initialized;
 	bool sysclk_set;
+	bool sync_en;
+	bool sync_pin_set;
 	u8 slot_width;
 	u8 slot_count;
 	int amplifier_mode;
@@ -508,6 +559,8 @@ extern const struct regmap_config cs35l45_i2c_regmap;
 extern const struct regmap_config cs35l45_spi_regmap;
 int cs35l45_apply_patch(struct cs35l45_private *cs35l45);
 int cs35l45_get_clk_freq_id(unsigned int freq);
+int cs35l45_get_ldpm_pcm_thld(int pcm_thld_db);
+int cs35l45_get_ldpm_delay(u32 delay_ms);
 int cs35l45_probe(struct cs35l45_private *cs35l45);
 void cs35l45_remove(struct cs35l45_private *cs35l45);
 

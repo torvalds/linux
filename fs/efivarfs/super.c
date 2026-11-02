@@ -74,6 +74,8 @@ static int efivarfs_show_options(struct seq_file *m, struct dentry *root)
 	if (!gid_eq(opts->gid, GLOBAL_ROOT_GID))
 		seq_printf(m, ",gid=%u",
 				from_kgid_munged(&init_user_ns, opts->gid));
+	if (opts->nostatfs)
+		seq_puts(m, ",nostatfs");
 	return 0;
 }
 
@@ -82,13 +84,18 @@ static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	const u32 attr = EFI_VARIABLE_NON_VOLATILE |
 			 EFI_VARIABLE_BOOTSERVICE_ACCESS |
 			 EFI_VARIABLE_RUNTIME_ACCESS;
+	struct efivarfs_fs_info *sfi = dentry->d_sb->s_fs_info;
 	u64 storage_space, remaining_space, max_variable_size;
 	u64 id = huge_encode_dev(dentry->d_sb->s_dev);
 	efi_status_t status;
 
-	/* Some UEFI firmware does not implement QueryVariableInfo() */
+	/*
+	 * With nostatfs, or on firmware that does not implement
+	 * QueryVariableInfo(), report zero used/available.
+	 */
 	storage_space = remaining_space = 0;
-	if (efi_rt_services_supported(EFI_RT_SUPPORTED_QUERY_VARIABLE_INFO)) {
+	if (!sfi->mount_opts.nostatfs &&
+	    efi_rt_services_supported(EFI_RT_SUPPORTED_QUERY_VARIABLE_INFO)) {
 		static DEFINE_RATELIMIT_STATE(_rs, 2 * HZ, 5);
 		static u64 storage, remaining;
 		static DEFINE_SPINLOCK(lock);
@@ -323,12 +330,13 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 }
 
 enum {
-	Opt_uid, Opt_gid,
+	Opt_uid, Opt_gid, Opt_statfs,
 };
 
 static const struct fs_parameter_spec efivarfs_parameters[] = {
 	fsparam_uid("uid", Opt_uid),
 	fsparam_gid("gid", Opt_gid),
+	fsparam_flag_no("statfs", Opt_statfs),
 	{},
 };
 
@@ -349,6 +357,9 @@ static int efivarfs_parse_param(struct fs_context *fc, struct fs_parameter *para
 		break;
 	case Opt_gid:
 		opts->gid = result.gid;
+		break;
+	case Opt_statfs:
+		opts->nostatfs = result.negated;
 		break;
 	default:
 		return -EINVAL;
@@ -402,10 +413,16 @@ static int efivarfs_get_tree(struct fs_context *fc)
 
 static int efivarfs_reconfigure(struct fs_context *fc)
 {
+	struct efivarfs_fs_info *sfi = fc->root->d_sb->s_fs_info;
+	struct efivarfs_fs_info *new_sfi = fc->s_fs_info;
+
 	if (!efivar_supports_writes() && !(fc->sb_flags & SB_RDONLY)) {
 		pr_err("Firmware does not support SetVariableRT. Can not remount with rw\n");
 		return -EINVAL;
 	}
+
+	/* statfs()/show_options() read nostatfs locklessly; benign race. */
+	data_race(sfi->mount_opts.nostatfs = new_sfi->mount_opts.nostatfs);
 
 	return 0;
 }
@@ -524,8 +541,17 @@ static int efivarfs_init_fs_context(struct fs_context *fc)
 	if (!sfi)
 		return -ENOMEM;
 
-	sfi->mount_opts.uid = GLOBAL_ROOT_UID;
-	sfi->mount_opts.gid = GLOBAL_ROOT_GID;
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+		/* nostatfs is writable via remount; keep it if not respecified. */
+		struct efivarfs_fs_info *old = fc->root->d_sb->s_fs_info;
+
+		sfi->mount_opts.nostatfs = old->mount_opts.nostatfs;
+	} else {
+		sfi->mount_opts.uid = GLOBAL_ROOT_UID;
+		sfi->mount_opts.gid = GLOBAL_ROOT_GID;
+		/* QueryVariableInfo() stalls the CPU; default nostatfs on PREEMPT_RT. */
+		sfi->mount_opts.nostatfs = IS_ENABLED(CONFIG_PREEMPT_RT);
+	}
 
 	fc->s_fs_info = sfi;
 	fc->ops = &efivarfs_context_ops;

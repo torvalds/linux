@@ -220,8 +220,8 @@ static struct platform_device * __init acpi_mpam_parse_msc(struct acpi_mpam_msc_
 	struct platform_device *pdev __free(platform_device_put) =
 		platform_device_alloc("mpam_msc", tbl_msc->identifier);
 	int next_res = 0, next_prop = 0, err;
-	/* pcc, nrdy, affinity and a sentinel */
-	struct property_entry props[4] = { 0 };
+	/* pcc, msc-id, nrdy, affinity and a sentinel */
+	struct property_entry props[5] = { 0 };
 	/* mmio, 2xirq, no sentinel. */
 	struct resource res[3] = { 0 };
 	struct acpi_device *companion;
@@ -256,6 +256,8 @@ static struct platform_device * __init acpi_mpam_parse_msc(struct acpi_mpam_msc_
 	} else if (iface == MPAM_IFACE_PCC) {
 		props[next_prop++] = PROPERTY_ENTRY_U32("pcc-channel",
 							tbl_msc->base_address);
+		props[next_prop++] = PROPERTY_ENTRY_U32("mpam-fb-msc-id",
+							tbl_msc->identifier);
 	}
 
 	acpi_mpam_parse_irqs(pdev, tbl_msc, res, &next_res);

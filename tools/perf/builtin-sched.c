@@ -4137,7 +4137,7 @@ static int disable_sched_schedstat(void)
 }
 
 /* perf.data or any other output file name used by stats subcommand (only). */
-const char *output_name;
+static const char *output_name;
 
 static int perf_sched__schedstat_record(struct perf_sched *sched,
 					int argc, const char **argv)
@@ -4281,18 +4281,18 @@ struct schedstat_cpu {
 };
 
 static struct list_head cpu_head = LIST_HEAD_INIT(cpu_head);
-static struct schedstat_cpu *cpu_second_pass;
-static struct schedstat_domain *domain_second_pass;
+static struct list_head *cpu_second_pass;
+static struct list_head *domain_second_pass;
+static u64 schedstat_timestamp;
 static bool after_workload_flag;
 static bool verbose_field;
 
 static void free_schedstat(struct list_head *head);
 
-static void store_schedstat_cpu_diff(struct schedstat_cpu *after_workload)
+static void store_schedstat_cpu_diff(struct perf_record_schedstat_cpu *before,
+				    struct perf_record_schedstat_cpu *after)
 {
-	struct perf_record_schedstat_cpu *before = cpu_second_pass->cpu_data;
-	struct perf_record_schedstat_cpu *after = after_workload->cpu_data;
-	__u16 version = after_workload->cpu_data->version;
+	__u16 version = after->version;
 
 #define CPU_FIELD(_type, _name, _desc, _format, _is_pct, _pct_of, _ver)	\
 	(before->_ver._name = after->_ver._name - before->_ver._name)
@@ -4308,11 +4308,10 @@ static void store_schedstat_cpu_diff(struct schedstat_cpu *after_workload)
 #undef CPU_FIELD
 }
 
-static void store_schedstat_domain_diff(struct schedstat_domain *after_workload)
+static void store_schedstat_domain_diff(struct perf_record_schedstat_domain *before,
+				       struct perf_record_schedstat_domain *after)
 {
-	struct perf_record_schedstat_domain *before = domain_second_pass->domain_data;
-	struct perf_record_schedstat_domain *after = after_workload->domain_data;
-	__u16 version = after_workload->domain_data->version;
+	__u16 version = after->version;
 
 #define DOMAIN_FIELD(_type, _name, _desc, _format, _is_jiffies, _ver)	\
 	(before->_ver._name = after->_ver._name - before->_ver._name)
@@ -4814,12 +4813,35 @@ static int show_schedstat_data(struct list_head *head1, struct cpu_domain_map **
  * other after completion of the workload. The above linked list stores the diff of the cpu and
  * domain statistics.
  */
+static int schedstat_snapshot_error(void)
+{
+	pr_err("Incompatible or incomplete schedstat snapshots\n");
+	return -EINVAL;
+}
+
+static bool schedstat_domains_complete(void)
+{
+	struct schedstat_cpu *cpu;
+
+	if (!domain_second_pass)
+		return true;
+	cpu = list_entry(cpu_second_pass, struct schedstat_cpu, cpu_list);
+	return domain_second_pass == &cpu->domain_head;
+}
+
+static int schedstat_snapshots_complete(void)
+{
+	if (!after_workload_flag || !cpu_second_pass ||
+	    cpu_second_pass->next != &cpu_head || !schedstat_domains_complete())
+		return schedstat_snapshot_error();
+	return 0;
+}
+
 static int perf_sched__process_schedstat(const struct perf_tool *tool __maybe_unused,
 					 struct perf_session *session __maybe_unused,
 					 union perf_event *event)
 {
 	struct perf_cpu this_cpu;
-	static __u32 initial_cpu;
 
 	switch (event->header.type) {
 	case PERF_RECORD_SCHEDSTAT_CPU:
@@ -4836,63 +4858,91 @@ static int perf_sched__process_schedstat(const struct perf_tool *tool __maybe_un
 		return 0;
 
 	if (event->header.type == PERF_RECORD_SCHEDSTAT_CPU) {
-		struct schedstat_cpu *temp = zalloc(sizeof(*temp));
+		struct perf_record_schedstat_cpu *data = &event->schedstat_cpu;
+		struct schedstat_cpu *cpu;
 
-		if (!temp)
-			return -ENOMEM;
-
-		temp->cpu_data = zalloc(sizeof(*temp->cpu_data));
-		if (!temp->cpu_data)
-			return -ENOMEM;
-
-		memcpy(temp->cpu_data, &event->schedstat_cpu, sizeof(*temp->cpu_data));
-
-		if (!list_empty(&cpu_head) && temp->cpu_data->cpu == initial_cpu)
-			after_workload_flag = true;
-
-		if (!after_workload_flag) {
-			if (list_empty(&cpu_head))
-				initial_cpu = temp->cpu_data->cpu;
-
-			list_add_tail(&temp->cpu_list, &cpu_head);
-			INIT_LIST_HEAD(&temp->domain_head);
-		} else {
-			if (temp->cpu_data->cpu == initial_cpu) {
-				cpu_second_pass = list_first_entry(&cpu_head, struct schedstat_cpu,
-								   cpu_list);
-				cpu_second_pass->cpu_data->timestamp =
-					temp->cpu_data->timestamp - cpu_second_pass->cpu_data->timestamp;
-			} else {
-				cpu_second_pass = list_next_entry(cpu_second_pass, cpu_list);
+		if (list_empty(&cpu_head)) {
+			after_workload_flag = false;
+			cpu_second_pass = &cpu_head;
+			domain_second_pass = NULL;
+			schedstat_timestamp = data->timestamp;
+		} else if (!after_workload_flag) {
+			cpu = list_last_entry(&cpu_head, struct schedstat_cpu, cpu_list);
+			/* Snapshots share a timestamp and list CPUs in increasing order. */
+			if (data->timestamp != schedstat_timestamp ||
+			    data->cpu <= cpu->cpu_data->cpu) {
+				after_workload_flag = true;
+				schedstat_timestamp = data->timestamp;
 			}
-			domain_second_pass = list_first_entry(&cpu_second_pass->domain_head,
-							      struct schedstat_domain, domain_list);
-			store_schedstat_cpu_diff(temp);
-			free(temp->cpu_data);
-			free(temp);
 		}
-	} else if (event->header.type == PERF_RECORD_SCHEDSTAT_DOMAIN) {
-		struct schedstat_cpu *cpu_tail;
-		struct schedstat_domain *temp = zalloc(sizeof(*temp));
 
-		if (!temp)
-			return -ENOMEM;
-
-		temp->domain_data = zalloc(sizeof(*temp->domain_data));
-		if (!temp->domain_data)
-			return -ENOMEM;
-
-		memcpy(temp->domain_data, &event->schedstat_domain, sizeof(*temp->domain_data));
-
-		if (!after_workload_flag) {
-			cpu_tail = list_last_entry(&cpu_head, struct schedstat_cpu, cpu_list);
-			list_add_tail(&temp->domain_list, &cpu_tail->domain_head);
-		} else {
-			store_schedstat_domain_diff(temp);
-			domain_second_pass = list_next_entry(domain_second_pass, domain_list);
-			free(temp->domain_data);
-			free(temp);
+		if (after_workload_flag) {
+			if (data->timestamp != schedstat_timestamp || !schedstat_domains_complete())
+				return schedstat_snapshot_error();
+			cpu_second_pass = cpu_second_pass->next;
+			if (cpu_second_pass == &cpu_head)
+				return schedstat_snapshot_error();
+			cpu = list_entry(cpu_second_pass, struct schedstat_cpu, cpu_list);
+			if (data->cpu != cpu->cpu_data->cpu ||
+			    data->version != cpu->cpu_data->version ||
+			    data->timestamp < cpu->cpu_data->timestamp)
+				return schedstat_snapshot_error();
+			cpu->cpu_data->timestamp = data->timestamp - cpu->cpu_data->timestamp;
+			store_schedstat_cpu_diff(cpu->cpu_data, data);
+			domain_second_pass = cpu->domain_head.next;
+			return 0;
 		}
+
+		cpu = zalloc(sizeof(*cpu));
+		if (!cpu)
+			return -ENOMEM;
+		cpu->cpu_data = memdup(data, sizeof(*data));
+		if (!cpu->cpu_data) {
+			free(cpu);
+			return -ENOMEM;
+		}
+		INIT_LIST_HEAD(&cpu->domain_head);
+		list_add_tail(&cpu->cpu_list, &cpu_head);
+	} else {
+		struct perf_record_schedstat_domain *data = &event->schedstat_domain;
+		struct schedstat_domain *domain;
+		struct schedstat_cpu *cpu;
+
+		if (list_empty(&cpu_head) || data->timestamp != schedstat_timestamp)
+			return schedstat_snapshot_error();
+		if (after_workload_flag) {
+			cpu = list_entry(cpu_second_pass, struct schedstat_cpu, cpu_list);
+			if (domain_second_pass == &cpu->domain_head)
+				return schedstat_snapshot_error();
+			domain = list_entry(domain_second_pass, struct schedstat_domain,
+					    domain_list);
+			if (data->cpu != domain->domain_data->cpu ||
+			    data->domain != domain->domain_data->domain ||
+			    data->version != domain->domain_data->version)
+				return schedstat_snapshot_error();
+			store_schedstat_domain_diff(domain->domain_data, data);
+			domain_second_pass = domain_second_pass->next;
+			return 0;
+		}
+
+		cpu = list_last_entry(&cpu_head, struct schedstat_cpu, cpu_list);
+		if (data->cpu != cpu->cpu_data->cpu || data->version != cpu->cpu_data->version)
+			return schedstat_snapshot_error();
+		if (!list_empty(&cpu->domain_head)) {
+			domain = list_last_entry(&cpu->domain_head, struct schedstat_domain,
+						 domain_list);
+			if (data->domain <= domain->domain_data->domain)
+				return schedstat_snapshot_error();
+		}
+		domain = zalloc(sizeof(*domain));
+		if (!domain)
+			return -ENOMEM;
+		domain->domain_data = memdup(data, sizeof(*data));
+		if (!domain->domain_data) {
+			free(domain);
+			return -ENOMEM;
+		}
+		list_add_tail(&domain->domain_list, &cpu->domain_head);
 	}
 
 	return 0;
@@ -4947,6 +4997,8 @@ static int perf_sched__schedstat_report(struct perf_sched *sched)
 	user_requested_cpus = evlist__core(session->evlist)->user_requested_cpus;
 
 	err = perf_session__process_events(session);
+	if (!err)
+		err = schedstat_snapshots_complete();
 
 	if (!err) {
 		setup_pager();
@@ -4976,7 +5028,7 @@ static int perf_sched__schedstat_diff(struct perf_sched *sched,
 	struct list_head cpu_head_ses0, cpu_head_ses1;
 	struct perf_session *session[2];
 	struct perf_data data[2] = {0};
-	int ret = 0, err = 0;
+	int ret = 0;
 	static const char *defaults[] = {
 		"perf.data.old",
 		"perf.data",
@@ -5009,8 +5061,10 @@ static int perf_sched__schedstat_diff(struct perf_sched *sched,
 		goto out_delete_ses0;
 	}
 
-	err = perf_session__process_events(session[0]);
-	if (err) {
+	ret = perf_session__process_events(session[0]);
+	if (!ret)
+		ret = schedstat_snapshots_complete();
+	if (ret) {
 		free_schedstat(&cpu_head);
 		goto out_delete_ses0;
 	}
@@ -5028,8 +5082,10 @@ static int perf_sched__schedstat_diff(struct perf_sched *sched,
 		goto out_delete_ses1;
 	}
 
-	err = perf_session__process_events(session[1]);
-	if (err) {
+	ret = perf_session__process_events(session[1]);
+	if (!ret)
+		ret = schedstat_snapshots_complete();
+	if (ret) {
 		free_schedstat(&cpu_head);
 		goto out_delete_ses1;
 	}
@@ -5152,6 +5208,9 @@ static int perf_sched__schedstat_live(struct perf_sched *sched,
 					       user_requested_cpus);
 	if (err)
 		goto out;
+	err = schedstat_snapshots_complete();
+	if (err)
+		goto out;
 
 	setup_pager();
 
@@ -5182,8 +5241,7 @@ static bool schedstat_events_exposed(void)
 	 * Select "sched:sched_stat_wait" event to check
 	 * whether schedstat tracepoints are exposed.
 	 */
-	return IS_ERR(trace_event__tp_format("sched", "sched_stat_wait")) ?
-		false : true;
+	return trace_event__tp_format("sched", "sched_stat_wait");
 }
 
 static int __cmd_record(int argc, const char **argv)
@@ -5240,7 +5298,7 @@ static int __cmd_record(int argc, const char **argv)
 
 	rec_argv[i++] = strdup("-e");
 	waking_event = trace_event__tp_format("sched", "sched_waking");
-	if (!IS_ERR(waking_event))
+	if (waking_event)
 		rec_argv[i++] = strdup("sched:sched_waking");
 	else
 		rec_argv[i++] = strdup("sched:sched_wakeup");

@@ -292,7 +292,7 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	switch (pnfs_mark_matching_lsegs_return(lo, &free_me_list,
 				&args->cbl_range,
 				be32_to_cpu(args->cbl_stateid.seqid),
-				args->cbl_layoutchanged)) {
+				args->cbl_layoutchanged, NULL)) {
 	case 0:
 	case -EBUSY:
 		/* There are layout segments that need to be returned */
@@ -391,7 +391,26 @@ __be32 nfs4_callback_devicenotify(void *argp, void *resp,
 			if (!ld)
 				continue;
 		}
-		nfs4_delete_deviceid(ld, cps->clp, &dev->cbd_dev_id);
+		/*
+		 * Bump the epoch before touching the cache so a
+		 * GETDEVICEINFO already in flight can detect that it
+		 * predates the notification.  A referenced DELETE may be
+		 * racing revocation, so defer it to the state manager --
+		 * this thread cannot issue fore-channel RPCs.
+		 */
+		nfs4_deviceid_bump_change_epoch(cps->clp);
+		if (dev->cbd_notify_type == NOTIFY_DEVICEID4_CHANGE) {
+			nfs4_delete_deviceid(ld, cps->clp, &dev->cbd_dev_id);
+			pnfs_layout_reresolve_deviceid_byclid(cps->clp, ld,
+							&dev->cbd_dev_id,
+							dev->cbd_immediate);
+		} else if (pnfs_layout_deviceid_referenced_byclid(cps->clp,
+						ld, &dev->cbd_dev_id)) {
+			pnfs_deviceid_delete_mark(cps->clp, ld,
+						  &dev->cbd_dev_id);
+		} else {
+			nfs4_delete_deviceid(ld, cps->clp, &dev->cbd_dev_id);
+		}
 	}
 	pnfs_put_layoutdriver(ld);
 out:

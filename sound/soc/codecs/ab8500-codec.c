@@ -299,7 +299,6 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AUD", 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC1", 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC2", 0, 0),
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-DMIC", 0, 0),
 
 	/* Power */
 	SND_SOC_DAPM_SUPPLY("Audio Power",
@@ -324,7 +323,6 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("AD_OUT1", NULL, 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AD_OUT2", NULL, 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AD_OUT3", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AD_OUT4", NULL, 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AD_OUT57", NULL, 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AD_OUT68", NULL, 0, SND_SOC_NOPM, 0, 0),
 
@@ -584,36 +582,6 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("AD5768 Enable", AB8500_ADPATHENA,
 			    AB8500_ADPATHENA_ENAD5768, 0, NULL, 0),
 
-	/* Digital Microphone path */
-
-	SND_SOC_DAPM_INPUT("DMic 1"),
-	SND_SOC_DAPM_INPUT("DMic 2"),
-	SND_SOC_DAPM_INPUT("DMic 3"),
-	SND_SOC_DAPM_INPUT("DMic 4"),
-	SND_SOC_DAPM_INPUT("DMic 5"),
-	SND_SOC_DAPM_INPUT("DMic 6"),
-
-	SND_SOC_DAPM_MIXER("DMIC1",
-			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC1, 0,
-			NULL, 0),
-	SND_SOC_DAPM_MIXER("DMIC2",
-			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC2, 0,
-			NULL, 0),
-	SND_SOC_DAPM_MIXER("DMIC3",
-			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC3, 0,
-			NULL, 0),
-	SND_SOC_DAPM_MIXER("DMIC4",
-			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC4, 0,
-			NULL, 0),
-	SND_SOC_DAPM_MIXER("DMIC5",
-			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC5, 0,
-			NULL, 0),
-	SND_SOC_DAPM_MIXER("DMIC6",
-			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC6, 0,
-			NULL, 0),
-	SND_SOC_DAPM_MIXER("AD4 Channel Volume",
-			SND_SOC_NOPM, 0, 0,
-			NULL, 0),
 	/* Acoustical Noise Cancellation path */
 
 	SND_SOC_DAPM_MUX("ANC Source",
@@ -644,6 +612,40 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 			SND_SOC_NOPM, 0, 0,
 			NULL, 0),
 	SND_SOC_DAPM_MIXER("STFIR2 Volume",
+			SND_SOC_NOPM, 0, 0,
+			NULL, 0),
+};
+
+static const struct snd_soc_dapm_widget ab8500_dmic_dapm_widgets[] = {
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-DMIC", 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AD_OUT4", NULL, 0, SND_SOC_NOPM, 0, 0),
+
+	SND_SOC_DAPM_INPUT("DMic 1"),
+	SND_SOC_DAPM_INPUT("DMic 2"),
+	SND_SOC_DAPM_INPUT("DMic 3"),
+	SND_SOC_DAPM_INPUT("DMic 4"),
+	SND_SOC_DAPM_INPUT("DMic 5"),
+	SND_SOC_DAPM_INPUT("DMic 6"),
+
+	SND_SOC_DAPM_MIXER("DMIC1",
+			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC1, 0,
+			NULL, 0),
+	SND_SOC_DAPM_MIXER("DMIC2",
+			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC2, 0,
+			NULL, 0),
+	SND_SOC_DAPM_MIXER("DMIC3",
+			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC3, 0,
+			NULL, 0),
+	SND_SOC_DAPM_MIXER("DMIC4",
+			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC4, 0,
+			NULL, 0),
+	SND_SOC_DAPM_MIXER("DMIC5",
+			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC5, 0,
+			NULL, 0),
+	SND_SOC_DAPM_MIXER("DMIC6",
+			AB8500_DIGMICCONF, AB8500_DIGMICCONF_ENDMIC6, 0,
+			NULL, 0),
+	SND_SOC_DAPM_MIXER("AD4 Channel Volume",
 			SND_SOC_NOPM, 0, 0,
 			NULL, 0),
 };
@@ -853,35 +855,6 @@ static const struct snd_soc_dapm_route ab8500_dapm_routes[] = {
 	{"AD_OUT68", NULL, "Main Supply"},
 	{"AD_OUT68", NULL, "AD6 Channel Volume"},
 
-	/* Digital Microphone path */
-
-	{"DMic 1", NULL, "V-DMIC"},
-	{"DMic 2", NULL, "V-DMIC"},
-	{"DMic 3", NULL, "V-DMIC"},
-	{"DMic 4", NULL, "V-DMIC"},
-	{"DMic 5", NULL, "V-DMIC"},
-	{"DMic 6", NULL, "V-DMIC"},
-
-	{"DMIC1", NULL, "DMic 1"},
-	{"DMIC2", NULL, "DMic 2"},
-	{"DMIC3", NULL, "DMic 3"},
-	{"DMIC4", NULL, "DMic 4"},
-	{"DMIC5", NULL, "DMic 5"},
-	{"DMIC6", NULL, "DMic 6"},
-
-	{"AD1 Source Select", "DMic 1", "DMIC1"},
-	{"AD2 Source Select", "DMic 2", "DMIC2"},
-	{"AD3 Source Select", "DMic 3", "DMIC3"},
-	{"AD5 Source Select", "DMic 5", "DMIC5"},
-	{"AD6 Source Select", "DMic 6", "DMIC6"},
-
-	{"AD4 Channel Volume", NULL, "DMIC4"},
-	{"AD4 Channel Volume", NULL, "AD34 Enable"},
-
-	{"ab8500_0c", NULL, "AD_OUT4"},
-	{"AD_OUT4", NULL, "Main Supply"},
-	{"AD_OUT4", NULL, "AD4 Channel Volume"},
-
 	/* LineIn Bypass path */
 
 	{"LINL to HSL Volume", NULL, "LINL Enable"},
@@ -911,7 +884,6 @@ static const struct snd_soc_dapm_route ab8500_dapm_routes[] = {
 	{"Sidetone Left Source", "Headset Left", "DA_IN1"},
 	{"Sidetone Right Source", "LineIn Right", "AD2 Channel Volume"},
 	{"Sidetone Right Source", "Mic 1", "AD3 Channel Volume"},
-	{"Sidetone Right Source", "DMic 4", "AD4 Channel Volume"},
 	{"Sidetone Right Source", "Headset Right", "DA_IN2"},
 
 	{"STFIR1 Control", NULL, "Sidetone Left Source"},
@@ -922,6 +894,37 @@ static const struct snd_soc_dapm_route ab8500_dapm_routes[] = {
 
 	{"DA1 Enable", NULL, "STFIR1 Volume"},
 	{"DA2 Enable", NULL, "STFIR2 Volume"},
+};
+
+static const struct snd_soc_dapm_route ab8500_dmic_dapm_routes[] = {
+	{"DMic 1", NULL, "V-DMIC"},
+	{"DMic 2", NULL, "V-DMIC"},
+	{"DMic 3", NULL, "V-DMIC"},
+	{"DMic 4", NULL, "V-DMIC"},
+	{"DMic 5", NULL, "V-DMIC"},
+	{"DMic 6", NULL, "V-DMIC"},
+
+	{"DMIC1", NULL, "DMic 1"},
+	{"DMIC2", NULL, "DMic 2"},
+	{"DMIC3", NULL, "DMic 3"},
+	{"DMIC4", NULL, "DMic 4"},
+	{"DMIC5", NULL, "DMic 5"},
+	{"DMIC6", NULL, "DMic 6"},
+
+	{"AD1 Source Select", "DMic 1", "DMIC1"},
+	{"AD2 Source Select", "DMic 2", "DMIC2"},
+	{"AD3 Source Select", "DMic 3", "DMIC3"},
+	{"AD5 Source Select", "DMic 5", "DMIC5"},
+	{"AD6 Source Select", "DMic 6", "DMIC6"},
+
+	{"AD4 Channel Volume", NULL, "DMIC4"},
+	{"AD4 Channel Volume", NULL, "AD34 Enable"},
+
+	{"ab8500_0c", NULL, "AD_OUT4"},
+	{"AD_OUT4", NULL, "Main Supply"},
+	{"AD_OUT4", NULL, "AD4 Channel Volume"},
+
+	{"Sidetone Right Source", "DMic 4", "AD4 Channel Volume"},
 };
 
 static const struct snd_soc_dapm_route ab8500_dapm_routes_mic1a_vamicx[] = {
@@ -1950,9 +1953,22 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static const u64 ab8500_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_GATED	|
+	SND_SOC_POSSIBLE_DAIFMT_CONT	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops ab8500_codec_ops = {
 	.set_fmt = ab8500_codec_set_dai_fmt,
 	.set_tdm_slot = ab8500_codec_set_dai_tdm_slot,
+	.auto_selectable_formats = &ab8500_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver ab8500_codec_dai[] = {
@@ -2043,12 +2059,29 @@ static int ab8500_codec_probe(struct snd_soc_component *component)
 {
 	struct device *dev = component->dev;
 	struct device_node *np = dev->of_node;
+	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
 	struct ab8500_codec_platform_data codec_pdata;
+	struct snd_soc_dapm_context *dapm;
 	int status;
 
 	dev_dbg(dev, "%s: Enter.\n", __func__);
 
 	ab8500_codec_of_probe(dev, np, &codec_pdata);
+
+	if (is_ab8500(ab8500)) {
+		dapm = snd_soc_component_to_dapm(component);
+		status = snd_soc_dapm_new_controls(dapm,
+						   ab8500_dmic_dapm_widgets,
+						   ARRAY_SIZE(ab8500_dmic_dapm_widgets));
+		if (status)
+			return status;
+
+		status = snd_soc_dapm_add_routes(dapm,
+						 ab8500_dmic_dapm_routes,
+						 ARRAY_SIZE(ab8500_dmic_dapm_routes));
+		if (status)
+			return status;
+	}
 
 	status = ab8500_audio_init_audioblock(component);
 	if (status < 0) {

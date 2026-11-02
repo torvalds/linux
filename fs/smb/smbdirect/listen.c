@@ -10,6 +10,78 @@
 static int smbdirect_listen_rdma_event_handler(struct rdma_cm_id *id,
 					       struct rdma_cm_event *event);
 
+/*
+ * This is called by a socket that failed while it
+ * is still on the pending or ready list of its
+ * listener, typically at the end of
+ * smbdirect_socket_cleanup_work(), when the
+ * disconnect was already started.
+ *
+ * It moves itself to the orphaned list and
+ * lets smbdirect_listen_purge_orphaned_work()
+ * release it. Otherwise it would stay on the
+ * pending or ready list until the listener is
+ * destroyed and fill up the backlog, so that
+ * no new connections would be accepted.
+ *
+ * It's fine to call this more than once.
+ */
+void smbdirect_listen_orphan_socket(struct smbdirect_socket *sc)
+{
+	struct smbdirect_socket *lsc;
+	unsigned long flags;
+
+	/*
+	 * The memory of the listener is freed via
+	 * kfree_rcu(), so it's safe to dereference it
+	 * under rcu_read_lock(), even if sc->accept.listener
+	 * is cleared and the listener is released concurrently.
+	 */
+	rcu_read_lock();
+	lsc = READ_ONCE(sc->accept.listener);
+	if (!lsc) {
+		rcu_read_unlock();
+		return;
+	}
+
+	spin_lock_irqsave(&lsc->listen.lock, flags);
+	if (sc->accept.listener == lsc) {
+		list_move_tail(&sc->accept.list, &lsc->listen.orphaned);
+		queue_work(lsc->workqueues.cleanup, &lsc->listen.purge_orphaned_work);
+	}
+	spin_unlock_irqrestore(&lsc->listen.lock, flags);
+	rcu_read_unlock();
+}
+
+static void smbdirect_listen_purge_orphaned_work(struct work_struct *work)
+{
+	struct smbdirect_socket *lsc =
+		container_of(work, struct smbdirect_socket, listen.purge_orphaned_work);
+	struct smbdirect_socket *psc, *tsc;
+	LIST_HEAD(orphaned_list);
+	unsigned long flags;
+
+	/*
+	 * Clearing accept.listener under listen.lock
+	 * makes us responsible for releasing them.
+	 */
+	spin_lock_irqsave(&lsc->listen.lock, flags);
+	list_splice_tail_init(&lsc->listen.orphaned, &orphaned_list);
+	list_for_each_entry(psc, &orphaned_list, accept.list)
+		WRITE_ONCE(psc->accept.listener, NULL);
+	spin_unlock_irqrestore(&lsc->listen.lock, flags);
+
+	/*
+	 * We don't hold the listener's rdma_lock_handler()
+	 * lock here, see smbdirect_socket_destroy()
+	 * for why that's important.
+	 */
+	list_for_each_entry_safe(psc, tsc, &orphaned_list, accept.list) {
+		list_del_init(&psc->accept.list);
+		smbdirect_socket_release(psc);
+	}
+}
+
 int smbdirect_socket_listen(struct smbdirect_socket *sc, int backlog)
 {
 	int ret;
@@ -46,6 +118,9 @@ int smbdirect_socket_listen(struct smbdirect_socket *sc, int backlog)
 	rdma_lock_handler(sc->rdma.cm_id);
 	sc->rdma.cm_id->event_handler = smbdirect_listen_rdma_event_handler;
 	rdma_unlock_handler(sc->rdma.cm_id);
+
+	INIT_WORK(&sc->listen.purge_orphaned_work,
+		  smbdirect_listen_purge_orphaned_work);
 
 	ret = rdma_listen(sc->rdma.cm_id, backlog);
 	if (ret) {
@@ -214,6 +289,7 @@ static int smbdirect_listen_connect_request(struct smbdirect_socket *lsc,
 	size_t backlog = max_t(size_t, 1, lsc->listen.backlog);
 	size_t psockets;
 	size_t rsockets;
+	size_t osockets;
 	int ret;
 
 	if (!smbdirect_frwr_is_supported(&new_id->device->attrs)) {
@@ -254,14 +330,21 @@ static int smbdirect_listen_connect_request(struct smbdirect_socket *lsc,
 	spin_lock_irqsave(&lsc->listen.lock, flags);
 	psockets = list_count_nodes(&lsc->listen.pending);
 	rsockets = list_count_nodes(&lsc->listen.ready);
+	/*
+	 * Orphaned sockets still count against
+	 * the backlog until they are released by
+	 * smbdirect_listen_purge_orphaned_work().
+	 */
+	osockets = list_count_nodes(&lsc->listen.orphaned);
 	spin_unlock_irqrestore(&lsc->listen.lock, flags);
 
 	if (psockets > backlog ||
 	    rsockets > backlog ||
-	    (psockets + rsockets) > backlog) {
+	    osockets > backlog ||
+	    (psockets + rsockets + osockets) > backlog) {
 		smbdirect_log_rdma_event(lsc, SMBDIRECT_LOG_ERR,
-			"Backlog[%d][%zu] full pending[%zu] ready[%zu]\n",
-			lsc->listen.backlog, backlog, psockets, rsockets);
+			"Backlog[%d][%zu] full pending[%zu] ready[%zu] orphaned[%zu]\n",
+			lsc->listen.backlog, backlog, psockets, rsockets, osockets);
 		return -EBUSY;
 	}
 
@@ -279,22 +362,54 @@ static int smbdirect_listen_connect_request(struct smbdirect_socket *lsc,
 	if (ret)
 		goto set_settings_failed;
 
+	/*
+	 * Publish nsc on the pending list with accept.listener set before
+	 * smbdirect_accept_connect_request() calls rdma_accept(). Once the
+	 * connection can establish, smbdirect_accept_negotiate_recv_work()
+	 * may run and it must observe accept.listener, otherwise nsc would
+	 * be left stranded on the pending list forever.
+	 *
+	 * The listener's handler_mutex is held while we're called, so
+	 * smbdirect_socket_destroy() of the listener can't reach nsc on the
+	 * pending list before we're done.
+	 *
+	 * From here nsc is published on the pending list: on failure of
+	 * smbdirect_accept_connect_request() below we schedule nsc's teardown,
+	 * which orphans nsc off the listener so
+	 * smbdirect_listen_purge_orphaned_work() -> smbdirect_socket_release()
+	 * releases it.
+	 */
 	spin_lock_irqsave(&lsc->listen.lock, flags);
 	list_add_tail(&nsc->accept.list, &lsc->listen.pending);
-	nsc->accept.listener = lsc;
+	WRITE_ONCE(nsc->accept.listener, lsc);
 	spin_unlock_irqrestore(&lsc->listen.lock, flags);
 
 	ret = smbdirect_accept_connect_request(nsc, &event->param.conn);
-	if (ret)
-		goto accept_connect_failed;
+	if (ret) {
+		/*
+		 * The rdma_cm core holds both the listener's and nsc's
+		 * id_priv->handler_mutex across this CONNECT_REQUEST handler,
+		 * so neither can go away under us here and nsc cannot receive
+		 * any rdma event: it is safe to hand nsc to its teardown.
+		 *
+		 * That teardown must be deferred though: nsc->rdma.cm_id
+		 * (= new_id) has its handler_mutex held by us, so it cannot be
+		 * destroyed synchronously from here.
+		 * smbdirect_socket_schedule_cleanup() only queues work;
+		 * smbdirect_socket_cleanup_work() then orphans nsc off the
+		 * listener and smbdirect_listen_purge_orphaned_work() releases
+		 * it, destroying nsc's cm_id with rdma_destroy_id().
+		 */
+		smbdirect_socket_schedule_cleanup(nsc, ret);
+	}
 
+	/*
+	 * Always return 0 so the rdma_cm core keeps new_id: nsc owns it now.
+	 * On success it stays connected; on failure its deferred teardown
+	 * above destroys it.
+	 */
 	return 0;
 
-accept_connect_failed:
-	spin_lock_irqsave(&lsc->listen.lock, flags);
-	list_del_init(&nsc->accept.list);
-	nsc->accept.listener = NULL;
-	spin_unlock_irqrestore(&lsc->listen.lock, flags);
 set_settings_failed:
 set_params_failed:
 	/*

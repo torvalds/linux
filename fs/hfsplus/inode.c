@@ -305,7 +305,7 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hfsplus_setattr(struct mnt_idmap *idmap,
+static int hfsplus_setattr(const struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -335,7 +335,7 @@ static int hfsplus_setattr(struct mnt_idmap *idmap,
 	return 0;
 }
 
-int hfsplus_getattr(struct mnt_idmap *idmap, const struct path *path,
+int hfsplus_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		    struct kstat *stat, u32 request_mask,
 		    unsigned int query_flags)
 {
@@ -797,7 +797,7 @@ int hfsplus_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	return 0;
 }
 
-int hfsplus_fileattr_set(struct mnt_idmap *idmap,
+int hfsplus_fileattr_set(const struct mnt_idmap *idmap,
 			 struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

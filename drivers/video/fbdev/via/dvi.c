@@ -399,7 +399,7 @@ void viafb_dvi_enable(void)
 			tmds_register_write(0x88, 0x3b);
 		else
 			/*clear CR91[5] to direct on display period
-			   in the secondary diplay path */
+			   in the secondary display path */
 			via_write_reg_mask(VIACR, 0x91, 0x00, 0x20);
 		break;
 
@@ -407,12 +407,12 @@ void viafb_dvi_enable(void)
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
 			viafb_write_reg_mask(CR93, VIACR, 0x21, BIT0 + BIT5);
 
-		/*fix dvi cann't be enabled with MB VT5718C4 - Al Zhang */
+		/* fix dvi can't be enabled with MB VT5718C4 - Al Zhang */
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
 			tmds_register_write(0x88, 0x3b);
 		else
 			/*clear CR91[5] to direct on display period
-			  in the secondary diplay path */
+			  in the secondary display path */
 			via_write_reg_mask(VIACR, 0x91, 0x00, 0x20);
 
 		/*fix DVI cannot enable on EPIA-M board */

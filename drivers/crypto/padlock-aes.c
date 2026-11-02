@@ -109,7 +109,7 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
 	const __le32 *key = (const __le32 *)in_key;
-	struct crypto_aes_ctx gen_aes;
+	struct crypto_aes_ctx gen_aes __cleanup(aes_zeroize_ctx);
 	int cpu;
 
 	if (key_len % 8)
@@ -137,20 +137,18 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	ctx->cword.decrypt.ksize = ctx->cword.encrypt.ksize;
 
 	/* Don't generate extended keys if the hardware can do it. */
-	if (aes_hw_extkey_available(key_len))
-		goto ok;
+	if (!aes_hw_extkey_available(key_len)) {
+		ctx->D = ctx->d_data;
+		ctx->cword.encrypt.keygen = 1;
+		ctx->cword.decrypt.keygen = 1;
 
-	ctx->D = ctx->d_data;
-	ctx->cword.encrypt.keygen = 1;
-	ctx->cword.decrypt.keygen = 1;
+		if (aes_expandkey(&gen_aes, in_key, key_len))
+			return -EINVAL;
 
-	if (aes_expandkey(&gen_aes, in_key, key_len))
-		return -EINVAL;
+		memcpy(ctx->E, gen_aes.key_enc, AES_MAX_KEYLENGTH);
+		memcpy(ctx->D, gen_aes.key_dec, AES_MAX_KEYLENGTH);
+	}
 
-	memcpy(ctx->E, gen_aes.key_enc, AES_MAX_KEYLENGTH);
-	memcpy(ctx->D, gen_aes.key_dec, AES_MAX_KEYLENGTH);
-
-ok:
 	for_each_online_cpu(cpu)
 		if (&ctx->cword.encrypt == per_cpu(paes_last_cword, cpu) ||
 		    &ctx->cword.decrypt == per_cpu(paes_last_cword, cpu))

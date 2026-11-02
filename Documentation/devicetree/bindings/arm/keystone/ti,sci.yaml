@@ -48,7 +48,7 @@ properties:
     const: debug_messages
 
   reg:
-    minItems: 1
+    maxItems: 1
 
   mbox-names:
     description: |
@@ -59,7 +59,7 @@ properties:
       - const: tx
 
   mboxes:
-    minItems: 2
+    maxItems: 2
 
   ti,host-id:
     $ref: /schemas/types.yaml#/definitions/uint32

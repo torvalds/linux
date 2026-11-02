@@ -457,7 +457,7 @@ static int genregs_set(struct task_struct *target,
 		const unsigned long  __user *u = ubuf;
 		while (count >= sizeof(*u) && !ret) {
 			unsigned long word;
-			ret = __get_user(word, u++);
+			ret = get_user(word, u++);
 			if (ret)
 				break;
 			ret = putreg(target, pos, word);
@@ -1050,7 +1050,7 @@ static int genregs32_set(struct task_struct *target,
 		const compat_ulong_t __user *u = ubuf;
 		while (count >= sizeof(*u) && !ret) {
 			compat_ulong_t word;
-			ret = __get_user(word, u++);
+			ret = get_user(word, u++);
 			if (ret)
 				break;
 			ret = putreg32(target, pos, word);

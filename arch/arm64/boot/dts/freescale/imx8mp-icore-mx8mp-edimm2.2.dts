@@ -101,7 +101,7 @@
 &usdhc2 {
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
-	pinctrl-names = "default" ;
+	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	status = "okay";

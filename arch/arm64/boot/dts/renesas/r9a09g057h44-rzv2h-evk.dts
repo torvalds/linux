@@ -461,20 +461,20 @@
 	};
 
 	sdhi1_pins: sd1 {
-		sd1_dat_cmd {
+		sd1-dat-cmd {
 			pins = "SD1DAT0", "SD1DAT1", "SD1DAT2", "SD1DAT3", "SD1CMD";
 			input-enable;
 			renesas,output-impedance = <3>;
 			slew-rate = <0>;
 		};
 
-		sd1_clk {
+		sd1-clk {
 			pins = "SD1CLK";
 			renesas,output-impedance = <3>;
 			slew-rate = <0>;
 		};
 
-		sd1_cd {
+		sd1-cd {
 			pinmux = <RZV2H_PORT_PINMUX(9, 4, 14)>; /* SD1_CD */
 		};
 	};

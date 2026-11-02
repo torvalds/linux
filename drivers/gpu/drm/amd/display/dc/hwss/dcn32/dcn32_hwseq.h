@@ -47,12 +47,12 @@ void dcn32_cab_for_ss_control(struct dc *dc, bool enable);
 
 void dcn32_commit_subvp_config(struct dc *dc, struct dc_state *context);
 
-bool dcn32_set_mcm_luts(struct pipe_ctx *pipe_ctx,
-				const struct dc_plane_state *plane_state);
+bool dcn32_set_mcm_luts(struct dc *dc, struct dpp *dpp, struct hubp *hubp,
+				struct hubp *primary_hubp, struct mpc *mpc, int mpcc_id,
+				struct dc_stream_state *stream,
+				struct dc_plane_state *plane_state);
 
-bool dcn32_set_input_transfer_func(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_plane_state *plane_state);
+bool dcn32_set_input_transfer_func(struct set_input_transfer_func_params *params);
 
 bool dcn32_set_mpc_shaper_3dlut(struct dpp *dpp_base, struct mpc *mpc,
 	int mpcc_id, const struct dc_stream_state *stream);
@@ -82,7 +82,7 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 		struct pipe_ctx *top_pipe_to_program,
 		bool subvp_prev_use);
 
-void dcn32_subvp_pipe_control_lock_fast(union block_sequence_params *params);
+bool dcn32_is_subvp_hw_lock_supported(const struct dc *dc);
 
 void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings);

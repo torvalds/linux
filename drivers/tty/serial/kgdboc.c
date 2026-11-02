@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Based on the same principle as kgdboe using the NETPOLL api, this
- * driver uses a console polling api to implement a gdb serial inteface
+ * driver uses a console polling api to implement a gdb serial interface
  * which is multiplexed on a console port.
  *
  * Maintainer: Jason Wessel <jason.wessel@windriver.com>

@@ -269,6 +269,22 @@ properties:
       have to be placed on board. When omitted, the PHYs default will be left as
       is.
 
+  marvell,reg-init:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    deprecated: true
+    description:
+      Register initialization tuples for Marvell PHYs.
+    items:
+      items:
+        - description: register page
+          maximum: 0xffff
+        - description: register number
+          maximum: 31
+        - description: mask of bits to preserve
+          maximum: 0xffff
+        - description: value to apply
+          maximum: 0xffff
+
   leds:
     type: object
 

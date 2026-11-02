@@ -1036,32 +1036,67 @@ static inline u64 nf_tables_alloc_handle(struct nft_table *table)
 	return ++table->hgenerator;
 }
 
-static const struct nft_chain_type *chain_type[NFPROTO_NUMPROTO][NFT_CHAIN_T_MAX];
+static const struct nft_chain_type __rcu *chain_type[NFPROTO_NUMPROTO][NFT_CHAIN_T_MAX];
 
 static const struct nft_chain_type *
-__nft_chain_type_get(u8 family, enum nft_chain_types type)
+__nft_chain_type_peek(u8 family, enum nft_chain_types type)
 {
 	if (family >= NFPROTO_NUMPROTO ||
 	    type >= NFT_CHAIN_T_MAX)
 		return NULL;
 
-	return chain_type[family][type];
+	return rcu_dereference_check(chain_type[family][type],
+				     lockdep_nfnl_is_held(NFNL_SUBSYS_NFTABLES));
 }
 
+/**
+ * nft_chain_type_get - look up a chain type by family and id
+ * @family: netlink family
+ * @type:   chain type (enum nft_chain_types)
+ *
+ * Return: chain type with a held module ref, or NULL.
+ */
+static const struct nft_chain_type *
+nft_chain_type_get(u8 family, enum nft_chain_types type)
+{
+	const struct nft_chain_type *t;
+
+	rcu_read_lock();
+	t = __nft_chain_type_peek(family, type);
+
+	if (t && !try_module_get(t->owner))
+		t = NULL;
+
+	rcu_read_unlock();
+	return t;
+}
+
+/**
+ * __nf_tables_chain_type_lookup - look up a chain type by name
+ * @nla:    nlattr containing the chain-type name
+ * @family: netlink family
+ *
+ * Return: matching chain type with a held module ref, or NULL.
+ */
 static const struct nft_chain_type *
 __nf_tables_chain_type_lookup(const struct nlattr *nla, u8 family)
 {
-	const struct nft_chain_type *type;
+	const struct nft_chain_type *type = NULL, *t;
 	int i;
 
+	rcu_read_lock();
 	for (i = 0; i < NFT_CHAIN_T_MAX; i++) {
-		type = __nft_chain_type_get(family, i);
-		if (!type)
+		t = __nft_chain_type_peek(family, i);
+		if (!t)
 			continue;
-		if (!nla_strcmp(nla, type->name))
-			return type;
+
+		if (!nla_strcmp(nla, t->name) && try_module_get(t->owner)) {
+			type = t;
+			break;
+		}
 	}
-	return NULL;
+	rcu_read_unlock();
+	return type;
 }
 
 struct nft_module_request {
@@ -1837,11 +1872,11 @@ static void nf_tables_table_destroy(struct nft_table *table)
 void nft_register_chain_type(const struct nft_chain_type *ctype)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	if (WARN_ON(__nft_chain_type_get(ctype->family, ctype->type))) {
+	if (WARN_ON(__nft_chain_type_peek(ctype->family, ctype->type))) {
 		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 		return;
 	}
-	chain_type[ctype->family][ctype->type] = ctype;
+	rcu_assign_pointer(chain_type[ctype->family][ctype->type], ctype);
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 }
 EXPORT_SYMBOL_GPL(nft_register_chain_type);
@@ -1849,7 +1884,7 @@ EXPORT_SYMBOL_GPL(nft_register_chain_type);
 void nft_unregister_chain_type(const struct nft_chain_type *ctype)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	chain_type[ctype->family][ctype->type] = NULL;
+	RCU_INIT_POINTER(chain_type[ctype->family][ctype->type], NULL);
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 }
 EXPORT_SYMBOL_GPL(nft_unregister_chain_type);
@@ -2581,10 +2616,6 @@ static int nft_chain_parse_hook(struct net *net,
 		hook->num = ntohl(nla_get_be32(ha[NFTA_HOOK_HOOKNUM]));
 		hook->priority = ntohl(nla_get_be32(ha[NFTA_HOOK_PRIORITY]));
 
-		type = __nft_chain_type_get(family, NFT_CHAIN_T_DEFAULT);
-		if (!type)
-			return -EOPNOTSUPP;
-
 		if (nla[NFTA_CHAIN_TYPE]) {
 			type = nf_tables_chain_type_lookup(net, nla[NFTA_CHAIN_TYPE],
 							   family, true);
@@ -2592,13 +2623,19 @@ static int nft_chain_parse_hook(struct net *net,
 				NL_SET_BAD_ATTR(extack, nla[NFTA_CHAIN_TYPE]);
 				return PTR_ERR(type);
 			}
+		} else {
+			type = nft_chain_type_get(family, NFT_CHAIN_T_DEFAULT);
+			if (!type)
+				return -EOPNOTSUPP;
 		}
+
+		err = -EOPNOTSUPP;
 		if (hook->num >= NFT_MAX_HOOKS || !(type->hook_mask & (1 << hook->num)))
-			return -EOPNOTSUPP;
+			goto out_put_type;
 
 		if (type->type == NFT_CHAIN_T_NAT &&
 		    hook->priority <= NF_IP_PRI_CONNTRACK)
-			return -EOPNOTSUPP;
+			goto out_put_type;
 	} else {
 		if (ha[NFTA_HOOK_HOOKNUM]) {
 			hook->num = ntohl(nla_get_be32(ha[NFTA_HOOK_HOOKNUM]));
@@ -2620,13 +2657,8 @@ static int nft_chain_parse_hook(struct net *net,
 			}
 		} else {
 			type = basechain->type;
+			__module_get(type->owner);
 		}
-	}
-
-	if (!try_module_get(type->owner)) {
-		if (nla[NFTA_CHAIN_TYPE])
-			NL_SET_BAD_ATTR(extack, nla[NFTA_CHAIN_TYPE]);
-		return -ENOENT;
 	}
 
 	hook->type = type;
@@ -2634,16 +2666,18 @@ static int nft_chain_parse_hook(struct net *net,
 	INIT_LIST_HEAD(&hook->list);
 	if (nft_base_chain_netdev(family, hook->num)) {
 		err = nft_chain_parse_netdev(net, ha, &hook->list, extack, flags);
-		if (err < 0) {
-			module_put(type->owner);
-			return err;
-		}
+		if (err < 0)
+			goto out_put_type;
 	} else if (ha[NFTA_HOOK_DEV] || ha[NFTA_HOOK_DEVS]) {
-		module_put(type->owner);
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+		goto out_put_type;
 	}
 
 	return 0;
+
+out_put_type:
+	module_put(type->owner);
+	return err;
 }
 
 static void nft_chain_release_hook(struct nft_chain_hook *hook)

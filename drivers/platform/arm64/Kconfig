@@ -33,6 +33,22 @@ config EC_ACER_ASPIRE1
 	  laptop where this information is not properly exposed via the
 	  standard ACPI devices.
 
+config EC_ASUS_GLYMUR
+	tristate "ASUS Zenbook A16 (Qualcomm) Embedded Controller driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on I2C
+	depends on HWMON
+	depends on INPUT
+	depends on PM
+	depends on THERMAL || THERMAL=n
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  Say M or Y here to enable the EC driver for the Qualcomm Snapdragon-
+	  based ASUS Zenbook A16 (UX3607OA) and similar machines. It provides
+	  temperature sensors readout, fan monitoring, keyboard and EC event
+	  reporting.
+
 config EC_HUAWEI_GAOKUN
 	tristate "Huawei Matebook E Go Embedded Controller driver"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -89,6 +105,30 @@ config EC_LENOVO_THINKPAD_T14S
 	  devices.
 
 	  Say M or Y here to include this support.
+
+config EC_LENOVO_YOGA_SLIM7X_GEN11
+	tristate "Lenovo Yoga Slim 7x Gen 11 Embedded Controller driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on I2C
+	depends on INPUT
+	depends on HWMON
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  Say Y here to enable the EC driver for the (Snapdragon X2 Elite,
+	  glymur-based) Lenovo Yoga Slim 7x Gen 11 laptop. The EC provides
+	  thermistors and CPU fan speed as hwmon channels, the keyboard
+	  backlight as an LED, Fn-lock as a sysfs attribute, and the mic-mute
+	  and airplane-mode keys.
+
+	  This is the Gen 11 (glymur) machine specifically. Its EC is a Compal
+	  design at i2c address 0x70 and speaks a different protocol from the
+	  Qualcomm reference EC that the reference designs place at 0x76, so
+	  EC_QCOM_HAMOA does not drive it - and conversely this driver does not
+	  cover the X1E-based Yoga Slim 7x Gen 9.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called lenovo-yoga-slim7x-gen11-ec.
 
 config EC_QCOM_HAMOA
 	tristate "Embedded Controller driver for Qualcomm Hamoa/Glymur reference devices"

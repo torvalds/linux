@@ -1527,7 +1527,6 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_request_wake);
  */
 int zynqmp_pm_start_rpu(const u32 node, const u64 bootaddr)
 {
-	enum rpu_boot_mem bootmem;
 	int ret;
 
 	/*
@@ -1536,10 +1535,17 @@ int zynqmp_pm_start_rpu(const u32 node, const u64 bootaddr)
 	 * starts at the base-address and subsequent vectors are on 4-byte
 	 * boundaries.
 	 *
+	 * The Cortex-R5 cores can boot from TCM and OCM memories.
 	 * Exception vectors can start either from 0x0000_0000 (LOVEC) or
 	 * from 0xFFFF_0000 (HIVEC) which is mapped in the OCM (On-Chip Memory)
 	 *
 	 * Usually firmware will put Exception vectors at LOVEC.
+	 *
+	 * The Cortex-R52 cores can boot from DDR and TCM.
+	 * That means vector table can be at address 0x0 or at any DDR address
+	 * that is in the 32-bit address range. Note that booting from DDR
+	 * address 0x0 is not supported and the user must always assume that if
+	 * 0x0 address is passed, then it will be TCM boot.
 	 *
 	 * It is not recommend that you change the exception vector.
 	 * Changing the EVP to HIVEC will result in increased interrupt latency
@@ -1547,11 +1553,37 @@ int zynqmp_pm_start_rpu(const u32 node, const u64 bootaddr)
 	 * is non-secured, then the Cortex-R5F processor cannot access the
 	 * HIVEC exception vectors in the OCM.
 	 */
-	bootmem = (bootaddr >= 0xFFFC0000) ?
-		   PM_RPU_BOOTMEM_HIVEC : PM_RPU_BOOTMEM_LOVEC;
+	if (upper_32_bits(bootaddr)) {
+		pr_err("invalid bootaddr = 0x%llx\n", bootaddr);
+		return -EINVAL;
+	}
 
-	pr_debug("RPU boot addr 0x%llx from %s.", bootaddr,
-		 bootmem == PM_RPU_BOOTMEM_HIVEC ? "OCM" : "TCM");
+	/*
+	 * New platforms can boot from DDR and require the DDR address
+	 * to be configured explicitly. If the correct version of the
+	 * IOCTL_RPU_BOOT_ADDR_CONFIG ioctl is not supported, do not
+	 * treat it as a failure. If a DDR address is passed on other
+	 * platforms, the PM request wake EEMI call will still fail and
+	 * the RPU won't boot.
+	 */
+	ret = zynqmp_pm_is_function_supported(PM_IOCTL,
+					      IOCTL_RPU_BOOT_ADDR_CONFIG);
+	if (!ret) {
+		/* config ddr boot address */
+		ret = zynqmp_pm_invoke_fn(PM_IOCTL, NULL, 3,
+					  node,
+					  IOCTL_RPU_BOOT_ADDR_CONFIG,
+					  bootaddr);
+		if (ret < 0) {
+			pr_err("failed to set RPU Boot address 0x%llx\n",
+			       bootaddr);
+			return ret;
+		}
+	} else if (ret != -EOPNOTSUPP && ret != -ENODATA) {
+		pr_err("ioctl rpu boot addr config ver check failed %d\n",
+		       ret);
+		return ret;
+	}
 
 	/* Request node before starting RPU core if new version of API is supported */
 	if (zynqmp_pm_feature(PM_REQUEST_NODE) > PM_API_VERSION_1) {
@@ -1565,7 +1597,7 @@ int zynqmp_pm_start_rpu(const u32 node, const u64 bootaddr)
 	}
 
 	ret = zynqmp_pm_request_wake(node, true,
-				     bootmem, ZYNQMP_PM_REQUEST_ACK_NO);
+				     bootaddr, ZYNQMP_PM_REQUEST_ACK_NO);
 	if (ret)
 		pr_err("failed to start RPU = 0x%x\n", node);
 	return ret;

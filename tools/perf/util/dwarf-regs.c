@@ -114,7 +114,7 @@ int get_dwarf_regnum(const char *name, unsigned int machine, unsigned int flags)
 		reg = _get_dwarf_regnum(arm_regstr_tbl, name);
 		break;
 	case EM_AARCH64:
-		reg = _get_dwarf_regnum(aarch64_regstr_tbl, name);
+		reg = __get_dwarf_regnum_arm64(name);
 		break;
 	case EM_CSKY:
 		reg = __get_csky_regnum(name, flags);
@@ -158,6 +158,10 @@ static int get_libdw_frame_nregs(unsigned int machine, unsigned int flags __mayb
 {
 	switch (machine) {
 	case EM_X86_64:
+		/*
+		 * Since libdw doesn't support SIMD and APX eGPR register yet,
+		 * still keep nregs to 17.
+		 */
 		return 17;
 	case EM_386:
 		return 9;
@@ -187,13 +191,14 @@ static int get_libdw_frame_nregs(unsigned int machine, unsigned int flags __mayb
 }
 
 int get_dwarf_regnum_for_perf_regnum(int perf_regnum, unsigned int machine,
-				     unsigned int flags, bool only_libdw_supported)
+				     unsigned int flags,
+				     bool only_libdw_supported, int abi)
 {
 	int reg;
 
 	switch (machine) {
 	case EM_X86_64:
-		reg = __get_dwarf_regnum_for_perf_regnum_x86_64(perf_regnum);
+		reg = __get_dwarf_regnum_for_perf_regnum_x86_64(perf_regnum, abi);
 		break;
 	case EM_386:
 		reg = __get_dwarf_regnum_for_perf_regnum_i386(perf_regnum);

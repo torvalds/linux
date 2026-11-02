@@ -6,7 +6,6 @@
 
 shelldir=$(dirname "$0")
 
-# shellcheck source=lib/perf_has_symbol.sh
 . "${shelldir}"/lib/perf_has_symbol.sh
 
 skip_if_no_mem_event() {
@@ -65,15 +64,17 @@ if (($is_amd >= 1)); then
 	# --ldlat on AMD:
 	# o Zen4 and earlier uarch does not support ldlat
 	# o Even on supported platforms, it's disabled (--ldlat=0) by default.
+	# o Kernels with the swfilt term add it even when ldlat is not
+	#   supported, so only check ldlat when the term is present.
 	ldlat=${BASH_REMATCH[1]}
-	if [[ -n $ldlat ]]; then
+	if [[ $ldlat == *ldlat=* ]]; then
 		if ! [[ "$ldlat" =~ ldlat=0 ]]; then
 			echo "ERROR: ldlat not initialized to 0?"
 			exit 1
 		fi
 
 		mem_events="$(perf mem record -v --ldlat=150 -e list 2>&1)"
-		if ! [[ "$mem_events" =~ ^mem-ldst.*ibs_op/ldlat=150/.*available ]]; then
+		if ! [[ "$mem_events" =~ ^mem-ldst.*ibs_op/ldlat=150[,/].*available ]]; then
 			echo "ERROR: --ldlat not honored?"
 			exit 1
 		fi

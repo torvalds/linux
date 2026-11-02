@@ -478,6 +478,19 @@ The size of the cacheline in bytes. Format:
 
 	unsigned int cln_size;
 
+	HEADER_MEMORY_RANGES = 35,
+
+List of memory ranges. The format of the data is as below.
+
+u32 nr_memory_ranges;
+struct memory_range {
+	u64 base;
+	u64 length;
+	int node;
+	u8 local_region_id;
+	u8 remote_region_id;
+}; [nr_memory_ranges]
+
 	other bits are reserved and should be ignored for now
 	HEADER_FEAT_BITS	= 256,
 

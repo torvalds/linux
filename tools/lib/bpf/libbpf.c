@@ -497,6 +497,8 @@ struct bpf_program {
 	bool autoload;
 	bool autoattach;
 	bool sym_global;
+	/* the program or a function that it calls has callx */
+	bool has_callx;
 	bool mark_btf_static;
 	enum bpf_prog_type type;
 	enum bpf_attach_type expected_attach_type;
@@ -544,6 +546,7 @@ struct bpf_struct_ops {
 #define PERCPU_SEC ".percpu"
 #define BSS_SEC ".bss"
 #define RODATA_SEC ".rodata"
+#define DATA_REL_RO_SEC ".data.rel.ro"
 #define KCONFIG_SEC ".kconfig"
 #define KSYMS_SEC ".ksyms"
 #define STRUCT_OPS_SEC ".struct_ops"
@@ -601,6 +604,9 @@ struct bpf_map {
 	bool autoattach;
 	__u64 map_extra;
 	struct bpf_program *excl_prog;
+	/* pointers to functions in the data of an internal map, see obj->func_ptrs */
+	struct func_ptr *func_ptrs;
+	size_t func_ptr_cnt;
 };
 
 enum extern_type {
@@ -751,6 +757,8 @@ struct bpf_object {
 	bool btf_modules_loaded;
 	size_t btf_module_cnt;
 	size_t btf_module_cap;
+	char **btf_module_allowlist;
+	ssize_t btf_module_allowlist_cnt;
 
 	/* optional log settings passed to BPF_BTF_LOAD and BPF_PROG_LOAD commands */
 	char *log_buf;
@@ -759,7 +767,13 @@ struct bpf_object {
 
 	int *fd_array;
 	size_t fd_array_cap;
-	size_t fd_array_cnt;
+	/*
+	 * Slots handed out so far, slot 0 included. A kfunc insn names a module
+	 * BTF slot through its offset, slot 0 stands for vmlinux BTF and stays
+	 * empty, so the array goes to the kernel without a count, unless
+	 * bpf_object__bind_arena() puts the arena of the object there.
+	 */
+	size_t fd_array_used;
 
 	struct usdt_manager *usdt_man;
 
@@ -777,6 +791,29 @@ struct bpf_object {
 		int fd;
 	} *jumptable_maps;
 	size_t jumptable_map_cnt;
+
+	/*
+	 * Pointers to functions found in read-only data sections: tables of
+	 * functions, structures of operations, vtables. Sorted by section
+	 * and offset.
+	 */
+	struct func_ptr {
+		int sec_idx;		/* ELF section that contains the pointer */
+		size_t sec_off;		/* offset of the pointer in the section */
+		size_t text_off;	/* offset of the function in .text section */
+	} *func_ptrs;
+	size_t func_ptr_cnt;
+
+	/*
+	 * Read-only data with pointers to functions is different for every
+	 * program that uses it, because so are the offsets of the functions.
+	 */
+	struct {
+		struct bpf_program *prog;
+		int map_idx;
+		int fd;
+	} *func_ptr_maps;
+	size_t func_ptr_map_cnt;
 
 	struct kern_feature_cache *feat_cache;
 	char *token_path;
@@ -841,6 +878,16 @@ static bool is_call_insn(const struct bpf_insn *insn)
 static bool insn_is_pseudo_func(struct bpf_insn *insn)
 {
 	return is_ldimm64_insn(insn) && insn->src_reg == BPF_PSEUDO_FUNC;
+}
+
+static bool prog_has_callx(const struct bpf_program *prog)
+{
+	size_t i;
+
+	for (i = 0; i < prog->insns_cnt; i++)
+		if (prog->insns[i].code == (BPF_JMP | BPF_CALL | BPF_X))
+			return true;
+	return false;
 }
 
 static int
@@ -1223,6 +1270,12 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 		const char *mname;
 
 		mname = btf__name_by_offset(btf, member->name_off);
+		if (btf_member_bitfield_size(type, i)) {
+			pr_warn("struct_ops init_kern %s: local bitfield %s is not supported\n",
+				map->name, mname);
+			return -ENOTSUP;
+		}
+
 		moff = member->offset / 8;
 		mdata = data + moff;
 		msize = btf__resolve_size(btf, member->type);
@@ -1259,8 +1312,7 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 		}
 
 		kern_member_idx = kern_member - btf_members(kern_type);
-		if (btf_member_bitfield_size(type, i) ||
-		    btf_member_bitfield_size(kern_type, kern_member_idx)) {
+		if (btf_member_bitfield_size(kern_type, kern_member_idx)) {
 			pr_warn("struct_ops init_kern %s: bitfield %s is not supported\n",
 				map->name, mname);
 			return -ENOTSUP;
@@ -2478,6 +2530,9 @@ static const char *__btf_kind_str(__u16 kind)
 	case BTF_KIND_DECL_TAG: return "decl_tag";
 	case BTF_KIND_TYPE_TAG: return "type_tag";
 	case BTF_KIND_ENUM64: return "enum64";
+	case BTF_KIND_LOC_PARAM: return "loc_param";
+	case BTF_KIND_LOC_PROTO: return "loc_proto";
+	case BTF_KIND_LOCSEC: return "locsec";
 	default: return "unknown";
 	}
 }
@@ -3018,20 +3073,8 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 }
 
 static int init_arena_map_data(struct bpf_object *obj, struct bpf_map *map,
-			       const char *sec_name, int sec_idx,
 			       void *data, size_t data_sz)
 {
-	const long page_sz = sysconf(_SC_PAGE_SIZE);
-	const size_t data_alloc_sz = roundup(data_sz, page_sz);
-	size_t mmap_sz;
-
-	mmap_sz = bpf_map_mmap_sz(map);
-	if (data_alloc_sz > mmap_sz) {
-		pr_warn("elf: sec '%s': declared ARENA map size (%zu) is too small to hold global __arena variables of size %zu\n",
-			sec_name, mmap_sz, data_sz);
-		return -E2BIG;
-	}
-
 	obj->arena_data = malloc(data_sz);
 	if (!obj->arena_data)
 		return -ENOMEM;
@@ -3107,8 +3150,7 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
 		obj->arena_map_idx = i;
 
 		if (obj->efile.arena_data) {
-			err = init_arena_map_data(obj, map, ARENA_SEC, obj->efile.arena_data_shndx,
-						  obj->efile.arena_data->d_buf,
+			err = init_arena_map_data(obj, map, obj->efile.arena_data->d_buf,
 						  obj->efile.arena_data->d_size);
 			if (err)
 				return err;
@@ -4030,6 +4072,17 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				err = bpf_object__add_programs(obj, data, name, idx);
 				if (err)
 					return err;
+			} else if (strcmp(name, DATA_REL_RO_SEC) == 0 ||
+				   str_has_pfx(name, DATA_REL_RO_SEC ".")) {
+				/*
+				 * Constants with pointers in them, e.g. vtables,
+				 * that position independent code keeps here to
+				 * have them relocated. There is nothing that
+				 * writes to it after that.
+				 */
+				sec_desc->sec_type = SEC_RODATA;
+				sec_desc->shdr = sh;
+				sec_desc->data = data;
 			} else if (strcmp(name, DATA_SEC) == 0 ||
 				   str_has_pfx(name, DATA_SEC ".")) {
 				sec_desc->sec_type = SEC_DATA;
@@ -4074,8 +4127,16 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			    targ_sec_idx >= obj->efile.sec_cnt)
 				return -LIBBPF_ERRNO__FORMAT;
 
-			/* Only do relo for section with exec instructions */
+			/*
+			 * Only do relo for section with exec instructions,
+			 * struct_ops, maps, and read-only data that might
+			 * have pointers to functions.
+			 */
 			if (!section_have_execinstr(obj, targ_sec_idx) &&
+			    strcmp(name, ".rel" RODATA_SEC) &&
+			    !str_has_pfx(name, ".rel" RODATA_SEC ".") &&
+			    strcmp(name, ".rel" DATA_REL_RO_SEC) &&
+			    !str_has_pfx(name, ".rel" DATA_REL_RO_SEC ".") &&
 			    strcmp(name, ".rel" STRUCT_OPS_SEC) &&
 			    strcmp(name, ".rel" STRUCT_OPS_LINK_SEC) &&
 			    strcmp(name, ".rel?" STRUCT_OPS_SEC) &&
@@ -5851,6 +5912,21 @@ int bpf_core_add_cands(struct bpf_core_cand *local_cand,
 	return 0;
 }
 
+static bool is_btf_mod_allowed(const struct bpf_object *obj, const char *name)
+{
+	ssize_t i;
+
+	if (obj->btf_module_allowlist_cnt < 0)
+		return true;
+
+	for (i = 0; i < obj->btf_module_allowlist_cnt; i++) {
+		if (strcmp(obj->btf_module_allowlist[i], name) == 0)
+			return true;
+	}
+
+	return false;
+}
+
 static int load_module_btfs(struct bpf_object *obj)
 {
 	struct bpf_btf_info info;
@@ -5871,6 +5947,9 @@ static int load_module_btfs(struct bpf_object *obj)
 
 	/* kernel too old to support module BTFs */
 	if (!kernel_supports(obj, FEAT_MODULE_BTF))
+		return 0;
+
+	if (obj->btf_module_allowlist_cnt == 0)
 		return 0;
 
 	while (true) {
@@ -5915,6 +5994,11 @@ static int load_module_btfs(struct bpf_object *obj)
 			continue;
 		}
 
+		if (!is_btf_mod_allowed(obj, name)) {
+			close(fd);
+			continue;
+		}
+
 		btf = btf_get_from_fd(fd, obj->btf_vmlinux);
 		err = libbpf_get_error(btf);
 		if (err) {
@@ -5939,6 +6023,9 @@ static int load_module_btfs(struct bpf_object *obj)
 			break;
 		}
 		obj->btf_module_cnt++;
+
+		if (obj->btf_module_allowlist_cnt == obj->btf_module_cnt)
+			break;
 	}
 
 	if (err) {
@@ -6174,8 +6261,11 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 		pr_debug("sec '%s': found %u CO-RE relocations\n", sec_name, sec->num_info);
 
 		for_each_btf_ext_rec(seg, sec, i, rec) {
-			if (rec->insn_off % BPF_INSN_SZ)
-				return -EINVAL;
+			if (rec->insn_off % BPF_INSN_SZ) {
+				err = -EINVAL;
+				goto out;
+			}
+
 			insn_idx = rec->insn_off / BPF_INSN_SZ;
 			prog = find_prog_by_sec_insn(obj, sec_idx, insn_idx);
 			if (!prog) {
@@ -6202,8 +6292,10 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 			 * relocated, so it's enough to just subtract in-section offset
 			 */
 			insn_idx = insn_idx - prog->sec_insn_off;
-			if (insn_idx >= prog->insns_cnt)
-				return -EINVAL;
+			if (insn_idx >= prog->insns_cnt) {
+				err = -EINVAL;
+				goto out;
+			}
 			insn = &prog->insns[insn_idx];
 
 			if (is_ldimm64_insn(insn) && (size_t)insn_idx + 1 >= prog->insns_cnt) {
@@ -6458,6 +6550,161 @@ err_close:
 	return err;
 }
 
+/*
+ * The kernel recognizes a pointer to a function in a frozen read-only map by
+ * its value: the offset in bytes of the function in the program. It makes
+ * callx work for tables of functions, structures of operations and vtables,
+ * where pointers are mixed with other data. Functions have different offsets
+ * in different programs, so create a copy of the map for the program.
+ * The kernel replaces the offsets with the addresses of the functions when it
+ * loads the program, which has to be the only user of the map.
+ */
+static int create_func_ptr_map(struct bpf_object *obj, struct bpf_program *prog, int map_idx)
+{
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_RDONLY_PROG);
+	struct bpf_map *map = &obj->maps[map_idx];
+	__u32 value_size = map->def.value_size;
+	size_t i, j, cnt, sec_insn_off;
+	struct func_ptr *ptrs;
+	int map_fd, err, zero = 0;
+	__u64 val;
+	void *data, *tmp;
+
+	for (i = 0; i < obj->func_ptr_map_cnt; i++)
+		if (obj->func_ptr_maps[i].prog == prog &&
+		    obj->func_ptr_maps[i].map_idx == map_idx)
+			return obj->func_ptr_maps[i].fd;
+
+	/* the map is not created yet, what it's going to have is in mmaped */
+	if (!map->mmaped)
+		return -EINVAL;
+
+	data = malloc(value_size);
+	if (!data)
+		return -ENOMEM;
+	memcpy(data, map->mmaped, value_size);
+
+	ptrs = map->func_ptrs;
+	cnt = map->func_ptr_cnt;
+	for (i = 0; i < cnt; i++) {
+		if (ptrs[i].sec_off + sizeof(val) > value_size) {
+			err = -LIBBPF_ERRNO__FORMAT;
+			goto err_free;
+		}
+		/*
+		 * Static functions were appended by bpf_object__append_func_ptrs_code().
+		 * A global function is in the program only if the code refers to it.
+		 */
+		sec_insn_off = ptrs[i].text_off / BPF_INSN_SZ;
+		for (j = 0; j < prog->subprog_cnt; j++)
+			if (prog->subprogs[j].sec_insn_off == sec_insn_off)
+				break;
+		if (j == prog->subprog_cnt) {
+			pr_debug("prog '%s': map '%s': no function for the pointer at offset %zu, it's NULL\n",
+				 prog->name, map->name, ptrs[i].sec_off);
+			val = 0;
+		} else {
+			val = (__u64)prog->subprogs[j].sub_insn_off * BPF_INSN_SZ;
+		}
+		/* light skeleton can be generated for a target of another endianness */
+		if (!is_native_endianness(obj))
+			val = bswap_64(val);
+		memcpy(data + ptrs[i].sec_off, &val, sizeof(val));
+	}
+
+	/*
+	 * The kernel takes any aligned 64-bit value that is equal to the offset
+	 * of a function for a pointer. Tell when it's going to get it wrong.
+	 */
+	for (i = 0, j = 0; i + sizeof(val) <= value_size; i += sizeof(val)) {
+		__u32 k;
+
+		while (j < cnt && ptrs[j].sec_off < i)
+			j++;
+		if (j < cnt && ptrs[j].sec_off == i)
+			continue;
+		memcpy(&val, data + i, sizeof(val));
+		if (!is_native_endianness(obj))
+			val = bswap_64(val);
+		if (!val || val % BPF_INSN_SZ)
+			continue;
+		for (k = 0; k < prog->subprog_cnt; k++) {
+			if ((__u64)prog->subprogs[k].sub_insn_off * BPF_INSN_SZ != val)
+				continue;
+			pr_warn("prog '%s': map '%s': value %llu at offset %zu is the offset of a function, the kernel will treat it as a pointer to it\n",
+				prog->name, map->name, (unsigned long long)val, i);
+			break;
+		}
+	}
+
+	if (obj->gen_loader) {
+		__u32 *ptr_offs = calloc(cnt, sizeof(*ptr_offs));
+		__u64 *ptr_vals = calloc(cnt, sizeof(*ptr_vals));
+
+		if (!ptr_offs || !ptr_vals) {
+			free(ptr_offs);
+			free(ptr_vals);
+			err = -ENOMEM;
+			goto err_free;
+		}
+		for (i = 0; i < cnt; i++) {
+			ptr_offs[i] = ptrs[i].sec_off;
+			memcpy(&ptr_vals[i], data + ptrs[i].sec_off, sizeof(val));
+			if (!is_native_endianness(obj))
+				ptr_vals[i] = bswap_64(ptr_vals[i]);
+		}
+		/* it's an index in fd_array of the loader, not an fd */
+		map_fd = bpf_gen__func_ptr_map_create(obj->gen_loader, map->name, map_idx, data,
+						      value_size, ptr_offs, ptr_vals, cnt);
+		free(ptr_offs);
+		free(ptr_vals);
+		goto done;
+	}
+
+	opts.token_fd = obj->token_fd;
+	if (obj->token_fd)
+		opts.map_flags |= BPF_F_TOKEN_FD;
+
+	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, map->name, sizeof(int), value_size, 1, &opts);
+	if (map_fd < 0) {
+		err = map_fd;
+		goto err_free;
+	}
+
+	err = bpf_map_update_elem(map_fd, &zero, data, 0);
+	if (!err)
+		err = bpf_map_freeze(map_fd);
+	if (err) {
+		err = -errno;
+		goto err_close;
+	}
+done:
+
+	tmp = libbpf_reallocarray(obj->func_ptr_maps, obj->func_ptr_map_cnt + 1,
+				  sizeof(*obj->func_ptr_maps));
+	if (!tmp) {
+		err = -ENOMEM;
+		goto err_close;
+	}
+	obj->func_ptr_maps = tmp;
+	obj->func_ptr_maps[obj->func_ptr_map_cnt].prog = prog;
+	obj->func_ptr_maps[obj->func_ptr_map_cnt].map_idx = map_idx;
+	obj->func_ptr_maps[obj->func_ptr_map_cnt].fd = map_fd;
+	obj->func_ptr_map_cnt++;
+
+	pr_debug("prog '%s': created a copy of map '%s' with %zu pointers to functions\n",
+		 prog->name, map->name, cnt);
+	free(data);
+	return map_fd;
+
+err_close:
+	if (!obj->gen_loader)
+		close(map_fd);
+err_free:
+	free(data);
+	return err;
+}
+
 /* Relocate data references within program code:
  *  - map references;
  *  - global variable references;
@@ -6495,7 +6742,20 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 			if (relo->map_idx == obj->arena_map_idx)
 				insn[1].imm += obj->arena_data_off;
 
-			if (obj->gen_loader) {
+			if (map->autocreate && map->func_ptr_cnt && prog->has_callx) {
+				int map_fd;
+
+				/* the program gets its own map with pointers to its functions */
+				map_fd = create_func_ptr_map(obj, prog, relo->map_idx);
+				if (map_fd < 0) {
+					pr_warn("prog '%s': relo #%d: can't create a copy of map '%s' with pointers to functions\n",
+						prog->name, i, map->name);
+					return map_fd;
+				}
+				insn[0].src_reg = obj->gen_loader ? BPF_PSEUDO_MAP_IDX_VALUE :
+								    BPF_PSEUDO_MAP_VALUE;
+				insn[0].imm = map_fd;
+			} else if (obj->gen_loader) {
 				insn[0].src_reg = BPF_PSEUDO_MAP_IDX_VALUE;
 				insn[0].imm = relo->map_idx;
 			} else if (map->autocreate) {
@@ -6931,6 +7191,75 @@ bpf_object__reloc_code(struct bpf_object *obj, struct bpf_program *main_prog,
 	return 0;
 }
 
+/* Append to the main program all functions that the data of the map points to */
+static int
+bpf_object__append_func_ptrs_code(struct bpf_object *obj, struct bpf_program *main_prog,
+				  const struct bpf_map *map)
+{
+	struct bpf_program *subprog;
+	size_t i, cnt, sec_insn_off;
+	struct func_ptr *ptrs;
+	int err;
+
+	ptrs = map->func_ptrs;
+	cnt = map->func_ptr_cnt;
+	for (i = 0; i < cnt; i++) {
+		sec_insn_off = ptrs[i].text_off / BPF_INSN_SZ;
+		subprog = find_prog_by_sec_insn(obj, obj->efile.text_shndx, sec_insn_off);
+		if (!subprog || subprog->sec_insn_off != sec_insn_off) {
+			pr_warn("prog '%s': map '%s': no function at .text+%zu for the pointer at offset %zu\n",
+				main_prog->name, map->name, ptrs[i].text_off, ptrs[i].sec_off);
+			return -LIBBPF_ERRNO__RELOC;
+		}
+
+		/*
+		 * callx can't call global functions. Don't add one to the
+		 * program only because the data points to it.
+		 */
+		if (subprog->sym_global)
+			continue;
+
+		/* see the comment in bpf_object__reloc_code() */
+		if (subprog->sub_insn_off == 0) {
+			err = bpf_object__append_subprog_code(obj, main_prog, subprog);
+			if (err)
+				return err;
+			err = bpf_object__reloc_code(obj, main_prog, subprog);
+			if (err)
+				return err;
+		}
+	}
+	return 0;
+}
+
+/*
+ * The program that has callx might call any function that the data it refers
+ * to points to. Append them. Programs that don't have callx can't call them
+ * and the kernel doesn't look for pointers to functions in their data.
+ */
+static int
+bpf_object__append_func_ptrs(struct bpf_object *obj, struct bpf_program *prog)
+{
+	size_t i;
+	int err;
+
+	prog->has_callx = prog_has_callx(prog);
+	if (!prog->has_callx)
+		return 0;
+
+	/* relocations of the functions that are appended are appended too */
+	for (i = 0; i < prog->nr_reloc; i++) {
+		struct reloc_desc *relo = &prog->reloc_desc[i];
+
+		if (relo->type != RELO_DATA || !obj->maps[relo->map_idx].func_ptr_cnt)
+			continue;
+		err = bpf_object__append_func_ptrs_code(obj, prog, &obj->maps[relo->map_idx]);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 /*
  * Relocate sub-program calls.
  *
@@ -7033,7 +7362,7 @@ bpf_object__relocate_calls(struct bpf_object *obj, struct bpf_program *prog)
 	if (err)
 		return err;
 
-	return 0;
+	return bpf_object__append_func_ptrs(obj, prog);
 }
 
 static void
@@ -7496,12 +7825,20 @@ static int bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_pat
 		bpf_object__sort_relos(obj);
 	}
 
-	/* place globals at the end of the arena (if supported) */
-	if (obj->arena_map_idx >= 0 && kernel_supports(obj, FEAT_LDIMM64_FULL_RANGE_OFF)) {
+	if (obj->arena_map_idx >= 0) {
 		struct bpf_map *arena_map = &obj->maps[obj->arena_map_idx];
+		size_t data_sz = roundup(obj->arena_data_sz, sysconf(_SC_PAGE_SIZE));
+		size_t mmap_sz = bpf_map_mmap_sz(arena_map);
 
-		obj->arena_data_off = bpf_map_mmap_sz(arena_map) -
-				      roundup(obj->arena_data_sz, sysconf(_SC_PAGE_SIZE));
+		if (data_sz > mmap_sz) {
+			pr_warn("map '%s': declared ARENA map size (%zu) is too small to hold global __arena variables of size %zu\n",
+				arena_map->name, mmap_sz, obj->arena_data_sz);
+			return -E2BIG;
+		}
+
+		/* place globals at the end of the arena (if supported) */
+		if (kernel_supports(obj, FEAT_LDIMM64_FULL_RANGE_OFF))
+			obj->arena_data_off = mmap_sz - data_sz;
 	}
 
 	/* Before relocating calls pre-process relocations and mark
@@ -7736,6 +8073,98 @@ static int bpf_object__collect_map_relos(struct bpf_object *obj,
 	return 0;
 }
 
+/*
+ * Collect pointers to functions in a read-only data section. They are
+ * R_BPF_64_ABS64 relocations against .text section, where the offset of
+ * a static function in the section is stored in place. Relocations in data
+ * sections were ignored before pointers to functions were supported. Those
+ * that are something else, e.g. pointers to data, still are.
+ */
+static int bpf_object__collect_rodata_relos(struct bpf_object *obj,
+					    Elf64_Shdr *shdr, Elf_Data *data)
+{
+	size_t sec_idx = shdr->sh_info, sym_idx;
+	int i, nrels = shdr->sh_size / shdr->sh_entsize;
+	const char *relo_sec_name;
+	struct func_ptr *ptrs;
+	Elf_Data *scn_data;
+	Elf64_Sym *sym;
+	Elf64_Rel *rel;
+	__u64 addend;
+
+	relo_sec_name = elf_sec_str(obj, shdr->sh_name) ?: "<?>";
+	scn_data = obj->efile.secs[sec_idx].data;
+	if (!scn_data)
+		return -LIBBPF_ERRNO__FORMAT;
+
+	for (i = 0; i < nrels; i++) {
+		rel = elf_rel_by_idx(data, i);
+		if (!rel) {
+			pr_warn("sec '%s': failed to get relo #%d\n", relo_sec_name, i);
+			return -LIBBPF_ERRNO__FORMAT;
+		}
+
+		sym_idx = ELF64_R_SYM(rel->r_info);
+		sym = elf_sym_by_idx(obj, sym_idx);
+		if (!sym) {
+			pr_warn("sec '%s': symbol #%zu not found for relo #%d\n",
+				relo_sec_name, sym_idx, i);
+			return -LIBBPF_ERRNO__FORMAT;
+		}
+
+		if (ELF64_R_TYPE(rel->r_info) != R_BPF_64_ABS64 ||
+		    !sym_is_subprog(sym, obj->efile.text_shndx)) {
+			pr_debug("sec '%s': relo #%d: not a pointer to a function, skipping...\n",
+				 relo_sec_name, i);
+			continue;
+		}
+
+		/* the kernel finds aligned pointers only */
+		if (rel->r_offset % sizeof(__u64) || rel->r_offset >= scn_data->d_size ||
+		    scn_data->d_size - rel->r_offset < sizeof(__u64)) {
+			pr_debug("sec '%s': relo #%d: unsupported offset 0x%zx, skipping...\n",
+				 relo_sec_name, i, (size_t)rel->r_offset);
+			continue;
+		}
+
+		memcpy(&addend, scn_data->d_buf + rel->r_offset, sizeof(addend));
+		if (!is_native_endianness(obj))
+			addend = bswap_64(addend);
+		if ((sym->st_value + addend) % BPF_INSN_SZ) {
+			pr_debug("sec '%s': relo #%d: bad pointer to a function at offset %zu+%llu, skipping...\n",
+				 relo_sec_name, i, (size_t)sym->st_value,
+				 (unsigned long long)addend);
+			continue;
+		}
+
+		ptrs = libbpf_reallocarray(obj->func_ptrs, obj->func_ptr_cnt + 1, sizeof(*ptrs));
+		if (!ptrs)
+			return -ENOMEM;
+		obj->func_ptrs = ptrs;
+
+		ptrs[obj->func_ptr_cnt].sec_idx = sec_idx;
+		ptrs[obj->func_ptr_cnt].sec_off = rel->r_offset;
+		ptrs[obj->func_ptr_cnt].text_off = sym->st_value + addend;
+		obj->func_ptr_cnt++;
+
+		pr_debug("sec '%s': relo #%d: pointer at offset %zu to a function at .text+%zu\n",
+			 relo_sec_name, i, (size_t)rel->r_offset, (size_t)(sym->st_value + addend));
+	}
+	return 0;
+}
+
+static int cmp_func_ptrs(const void *_a, const void *_b)
+{
+	const struct func_ptr *a = _a;
+	const struct func_ptr *b = _b;
+
+	if (a->sec_idx != b->sec_idx)
+		return a->sec_idx < b->sec_idx ? -1 : 1;
+	if (a->sec_off != b->sec_off)
+		return a->sec_off < b->sec_off ? -1 : 1;
+	return 0;
+}
+
 static int bpf_object__collect_relos(struct bpf_object *obj)
 {
 	int i, err;
@@ -7758,7 +8187,9 @@ static int bpf_object__collect_relos(struct bpf_object *obj)
 			return -LIBBPF_ERRNO__INTERNAL;
 		}
 
-		if (obj->efile.secs[idx].sec_type == SEC_ST_OPS)
+		if (obj->efile.secs[idx].sec_type == SEC_RODATA)
+			err = bpf_object__collect_rodata_relos(obj, shdr, data);
+		else if (obj->efile.secs[idx].sec_type == SEC_ST_OPS)
 			err = bpf_object__collect_st_ops_relos(obj, shdr, data);
 		else if (idx == obj->efile.btf_maps_shndx)
 			err = bpf_object__collect_map_relos(obj, shdr, data);
@@ -7766,6 +8197,25 @@ static int bpf_object__collect_relos(struct bpf_object *obj)
 			err = bpf_object__collect_prog_relos(obj, shdr, data);
 		if (err)
 			return err;
+	}
+
+	/* sort by section, so that pointers in the data of a map are next to each other */
+	if (obj->func_ptr_cnt)
+		qsort(obj->func_ptrs, obj->func_ptr_cnt, sizeof(*obj->func_ptrs), cmp_func_ptrs);
+
+	for (i = 0; i < obj->nr_maps; i++) {
+		struct bpf_map *map = &obj->maps[i];
+		size_t j;
+
+		if (map->libbpf_type != LIBBPF_MAP_RODATA)
+			continue;
+		for (j = 0; j < obj->func_ptr_cnt; j++) {
+			if (obj->func_ptrs[j].sec_idx != map->sec_idx)
+				continue;
+			if (!map->func_ptr_cnt)
+				map->func_ptrs = &obj->func_ptrs[j];
+			map->func_ptr_cnt++;
+		}
 	}
 
 	bpf_object__sort_relos(obj);
@@ -7886,6 +8336,19 @@ static int tracing_multi_mod_fd(struct bpf_program *prog, int *btf_obj_fd)
 	return 0;
 }
 
+static int libbpf_setup_prog_flags(struct bpf_program *prog, long cookie)
+{
+	enum sec_def_flags def = cookie;
+
+	if (def & SEC_SLEEPABLE)
+		prog->prog_flags |= BPF_F_SLEEPABLE;
+
+	if (def & SEC_XDP_FRAGS)
+		prog->prog_flags |= BPF_F_XDP_HAS_FRAGS;
+
+	return 0;
+}
+
 /* this is called as prog->sec_def->prog_prepare_load_fn for libbpf-supported sec_defs */
 static int libbpf_prepare_prog_load(struct bpf_program *prog,
 				    struct bpf_prog_load_opts *opts, long cookie)
@@ -7895,12 +8358,6 @@ static int libbpf_prepare_prog_load(struct bpf_program *prog,
 	/* old kernels might not support specifying expected_attach_type */
 	if ((def & SEC_EXP_ATTACH_OPT) && !kernel_supports(prog->obj, FEAT_EXP_ATTACH_TYPE))
 		opts->expected_attach_type = 0;
-
-	if (def & SEC_SLEEPABLE)
-		opts->prog_flags |= BPF_F_SLEEPABLE;
-
-	if (prog->type == BPF_PROG_TYPE_XDP && (def & SEC_XDP_FRAGS))
-		opts->prog_flags |= BPF_F_XDP_HAS_FRAGS;
 
 	/* special check for usdt to use uprobe_multi link */
 	if ((def & SEC_USDT) && kernel_supports(prog->obj, FEAT_UPROBE_MULTI_LINK)) {
@@ -7966,6 +8423,56 @@ static int libbpf_prepare_prog_load(struct bpf_program *prog,
 
 static void fixup_verifier_log(struct bpf_program *prog, char *buf, size_t buf_sz);
 
+/*
+ * Bind the arena of the object to the program about to be loaded. A program
+ * has an arena only when an insn refers to the map, but the kernel can hand
+ * it arena pointers all the same, as struct_ops arguments, through tagged
+ * struct members or as kfunc return values, and the verifier rejects those
+ * when the program has no arena to place them in. A continuous fd_array
+ * binds every map in it, the arena takes slot 0, which is free: a kfunc insn
+ * with offset 0 names vmlinux BTF rather than a slot.
+ */
+static int bpf_object__bind_arena(struct bpf_object *obj, struct bpf_program *prog,
+				  struct bpf_prog_load_opts *load_attr)
+{
+	struct bpf_map *map;
+	int err;
+
+	if (obj->gen_loader || obj->arena_map_idx < 0 || !kernel_supports(obj, FEAT_FD_ARRAY_CNT))
+		return 0;
+	map = &obj->maps[obj->arena_map_idx];
+	/*
+	 * Nothing to bind when the arena is not created, or no longer is after
+	 * a failed load, when it is exclusive to another program, and nothing
+	 * for an offloaded program, which the kernel does not let near an
+	 * arena.
+	 */
+	if (!map->autocreate || map->fd < 0 || (map->excl_prog && map->excl_prog != prog) ||
+	    load_attr->prog_ifindex)
+		return 0;
+	/*
+	 * An arena exclusive to the program itself needs a kernel that checks
+	 * the map against the digest of the final program. Earlier kernels
+	 * compared a map bound through the fd_array against a digest they had
+	 * not computed yet and refused the load; there the program binds its
+	 * arena through its insns, as before.
+	 */
+	if (map->excl_prog && !kernel_supports(obj, FEAT_EXCL_MAP_FD_ARRAY_CNT))
+		return 0;
+
+	if (!obj->fd_array_used) {
+		err = libbpf_ensure_mem((void **)&obj->fd_array, &obj->fd_array_cap, sizeof(int), 1);
+		if (err)
+			return err;
+		obj->fd_array_used = 1;
+	}
+	obj->fd_array[0] = map->fd;
+	load_attr->fd_array = obj->fd_array;
+	/* with slot 0 filled every slot handed out is valid, so the array can go with a count */
+	load_attr->fd_array_cnt = obj->fd_array_used;
+	return 0;
+}
+
 static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog,
 				struct bpf_insn *insns, int insns_cnt,
 				const char *license, __u32 kern_version, int *prog_fd)
@@ -8026,6 +8533,9 @@ static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog
 	load_attr.log_level = log_level;
 	load_attr.prog_flags = prog->prog_flags;
 	load_attr.fd_array = obj->fd_array;
+	err = bpf_object__bind_arena(obj, prog, &load_attr);
+	if (err)
+		return err;
 
 	load_attr.token_fd = obj->token_fd;
 	if (obj->token_fd)
@@ -8481,6 +8991,8 @@ static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf,
 					  const struct bpf_object_open_opts *opts)
 {
 	const char *kconfig, *btf_tmp_path, *token_path;
+	size_t mod_allow_cnt, i, j;
+	const char **mod_allow;
 	struct bpf_object *obj;
 	int err;
 	char *log_buf;
@@ -8525,6 +9037,22 @@ static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf,
 	if (token_path && strlen(token_path) >= PATH_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
 
+	mod_allow = OPTS_GET(opts, btf_module_allowlist, NULL);
+	mod_allow_cnt = OPTS_GET(opts, btf_module_allowlist_cnt, 0);
+
+	if (mod_allow_cnt > SSIZE_MAX || (!mod_allow && mod_allow_cnt > 0))
+		return ERR_PTR(-EINVAL);
+
+	for (i = 0; i < mod_allow_cnt; i++) {
+		if (!mod_allow[i] || !mod_allow[i][0])
+			return ERR_PTR(-EINVAL);
+
+		for (j = 0; j < i; j++) {
+			if (strcmp(mod_allow[i], mod_allow[j]) == 0)
+				return ERR_PTR(-EINVAL);
+		}
+	}
+
 	obj = bpf_object__new(path, obj_buf, obj_buf_sz, obj_name);
 	if (IS_ERR(obj))
 		return obj;
@@ -8560,6 +9088,24 @@ static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf,
 		if (!obj->kconfig) {
 			err = -ENOMEM;
 			goto out;
+		}
+	}
+
+	obj->btf_module_allowlist_cnt = mod_allow ? mod_allow_cnt : -1;
+	if (mod_allow_cnt > 0) {
+		obj->btf_module_allowlist =
+			calloc(mod_allow_cnt, sizeof(*obj->btf_module_allowlist));
+		if (!obj->btf_module_allowlist) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		for (i = 0; i < mod_allow_cnt; i++) {
+			obj->btf_module_allowlist[i] = strdup(mod_allow[i]);
+			if (!obj->btf_module_allowlist[i]) {
+				err = -ENOMEM;
+				goto out;
+			}
 		}
 	}
 
@@ -8844,22 +9390,22 @@ static int bpf_object__resolve_ksym_func_btf_id(struct bpf_object *obj,
 	/* set index for module BTF fd in fd_array, if unset */
 	if (mod_btf && !mod_btf->fd_array_idx) {
 		/* insn->off is s16 */
-		if (obj->fd_array_cnt == INT16_MAX) {
+		if (obj->fd_array_used == INT16_MAX) {
 			pr_warn("extern (func ksym) '%s': module BTF fd index %d too big to fit in bpf_insn offset\n",
 				ext->name, mod_btf->fd_array_idx);
 			return -E2BIG;
 		}
 		/* Cannot use index 0 for module BTF fd */
-		if (!obj->fd_array_cnt)
-			obj->fd_array_cnt = 1;
+		if (!obj->fd_array_used)
+			obj->fd_array_used = 1;
 
 		ret = libbpf_ensure_mem((void **)&obj->fd_array, &obj->fd_array_cap, sizeof(int),
-					obj->fd_array_cnt + 1);
+					obj->fd_array_used + 1);
 		if (ret)
 			return ret;
-		mod_btf->fd_array_idx = obj->fd_array_cnt;
+		mod_btf->fd_array_idx = obj->fd_array_used;
 		/* we assume module BTF FD is always >0 */
-		obj->fd_array[obj->fd_array_cnt++] = mod_btf->fd;
+		obj->fd_array[obj->fd_array_used++] = mod_btf->fd;
 	}
 
 	ext->is_set = true;
@@ -9089,8 +9635,10 @@ static void bpf_object_cleanup_btf(struct bpf_object *obj)
 
 static void bpf_object_post_load_cleanup(struct bpf_object *obj)
 {
-	/* clean up fd_array */
+	/* clean up fd_array, and the slots handed out with it */
 	zfree(&obj->fd_array);
+	obj->fd_array_cap = 0;
+	obj->fd_array_used = 0;
 
 	/* clean up BTF */
 	bpf_object_cleanup_btf(obj);
@@ -9144,7 +9692,27 @@ static int bpf_object_load(struct bpf_object *obj, int extra_log_level, const ch
 	 * permit cross-endian creation of "light skeleton".
 	 */
 	if (obj->gen_loader) {
-		bpf_gen__init(obj->gen_loader, extra_log_level, obj->nr_programs, obj->nr_maps);
+		int nr_func_ptr_maps = 0, nr_progs = 0, i;
+		bool text_has_callx = false;
+
+		/*
+		 * Every program that has callx may get a copy of every map with
+		 * pointers to functions. Which functions a program calls is not
+		 * known yet. Any of them may call the ones that have callx.
+		 */
+		for (i = 0; i < obj->nr_maps; i++)
+			if (obj->maps[i].autocreate && obj->maps[i].func_ptr_cnt)
+				nr_func_ptr_maps++;
+		for (i = 0; i < obj->nr_programs; i++)
+			if (prog_is_subprog(obj, &obj->programs[i]) &&
+			    prog_has_callx(&obj->programs[i]))
+				text_has_callx = true;
+		for (i = 0; i < obj->nr_programs; i++)
+			if (obj->programs[i].autoload && !prog_is_subprog(obj, &obj->programs[i]) &&
+			    (text_has_callx || prog_has_callx(&obj->programs[i])))
+				nr_progs++;
+		bpf_gen__init(obj->gen_loader, obj->log_level | extra_log_level,
+			      obj->nr_programs, obj->nr_maps, nr_func_ptr_maps * nr_progs);
 	} else if (!is_native_endianness(obj)) {
 		pr_warn("object '%s': loading non-native endianness is unsupported\n", obj->name);
 		return libbpf_err(-LIBBPF_ERRNO__ENDIAN);
@@ -9684,6 +10252,18 @@ void bpf_object__close(struct bpf_object *obj)
 		close(obj->jumptable_maps[i].fd);
 	zfree(&obj->jumptable_maps);
 
+	for (i = 0; i < obj->func_ptr_map_cnt; i++)
+		if (!obj->gen_loader)
+			close(obj->func_ptr_maps[i].fd);
+	zfree(&obj->func_ptr_maps);
+	zfree(&obj->func_ptrs);
+
+	if (obj->btf_module_allowlist) {
+		for (i = 0; i < obj->btf_module_allowlist_cnt; i++)
+			zfree(&obj->btf_module_allowlist[i]);
+		zfree(&obj->btf_module_allowlist);
+	}
+
 	free(obj);
 }
 
@@ -9938,6 +10518,16 @@ int bpf_program__set_flags(struct bpf_program *prog, __u32 flags)
 	return 0;
 }
 
+int bpf_program__add_flags(struct bpf_program *prog, __u32 flags)
+{
+	return bpf_program__set_flags(prog, prog->prog_flags | flags);
+}
+
+int bpf_program__clear_flags(struct bpf_program *prog, __u32 flags)
+{
+	return bpf_program__set_flags(prog, prog->prog_flags & ~flags);
+}
+
 __u32 bpf_program__log_level(const struct bpf_program *prog)
 {
 	return prog->log_level;
@@ -9960,9 +10550,9 @@ const char *bpf_program__log_buf(const struct bpf_program *prog, size_t *log_siz
 
 int bpf_program__set_log_buf(struct bpf_program *prog, char *log_buf, size_t log_size)
 {
-	if (log_size && !log_buf)
+	if (!!log_buf != !!log_size)
 		return libbpf_err(-EINVAL);
-	if (prog->log_size > UINT_MAX)
+	if (log_size > UINT_MAX)
 		return libbpf_err(-EINVAL);
 	if (prog->obj->state >= OBJ_LOADED)
 		return libbpf_err(-EBUSY);
@@ -10023,7 +10613,13 @@ int bpf_program__clone(struct bpf_program *prog, const struct bpf_prog_load_opts
 	attr.prog_ifindex = OPTS_GET(opts, prog_ifindex, 0) ?: prog->prog_ifindex;
 	attr.kern_version = OPTS_GET(opts, kern_version, 0) ?: obj->kern_version;
 	attr.fd_array = OPTS_GET(opts, fd_array, NULL) ?: obj->fd_array;
-	attr.fd_array_cnt = OPTS_GET(opts, fd_array_cnt, 0) ?: obj->fd_array_cnt;
+	attr.fd_array_cnt = OPTS_GET(opts, fd_array_cnt, 0);
+	/* the arena of the object goes with the program, as in bpf_object__load() */
+	if (!OPTS_GET(opts, fd_array, NULL) && !OPTS_GET(opts, fd_array_cnt, 0)) {
+		err = bpf_object__bind_arena(obj, prog, &attr);
+		if (err)
+			return libbpf_err(err);
+	}
 	attr.token_fd = OPTS_GET(opts, token_fd, 0) ?: obj->token_fd;
 	if (attr.token_fd)
 		attr.prog_flags |= BPF_F_TOKEN_FD;
@@ -10106,6 +10702,7 @@ int bpf_program__clone(struct bpf_program *prog, const struct bpf_prog_load_opts
 	.prog_type = BPF_PROG_TYPE_##ptype,				    \
 	.expected_attach_type = atype,					    \
 	.cookie = (long)(flags),					    \
+	.prog_setup_fn = libbpf_setup_prog_flags,			    \
 	.prog_prepare_load_fn = libbpf_prepare_prog_load,		    \
 	__VA_ARGS__							    \
 }
@@ -11745,7 +12342,7 @@ static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
 				errstr(bit));
 			return bit;
 		}
-		attr.config |= 1 << bit;
+		attr.config |= 1ULL << bit;
 	}
 	attr.size = attr_sz;
 	attr.type = type;
@@ -14151,6 +14748,70 @@ struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map)
 	}
 
 	fd = bpf_link_create(map->fd, 0, BPF_STRUCT_OPS, NULL);
+	if (fd < 0) {
+		free(link);
+		return libbpf_err_ptr(fd);
+	}
+
+	link->link.fd = fd;
+	link->map_fd = map->fd;
+
+	return &link->link;
+}
+
+struct bpf_link *bpf_map__attach_cgroup_opts(const struct bpf_map *map, int cgroup_fd,
+					     const struct bpf_cgroup_opts *opts)
+{
+	LIBBPF_OPTS(bpf_link_create_opts, link_create_opts);
+	struct bpf_link_struct_ops *link;
+	__u32 relative_id, zero = 0;
+	int err, fd, relative_fd;
+
+	if (!OPTS_VALID(opts, bpf_cgroup_opts))
+		return libbpf_err_ptr(-EINVAL);
+
+	if (!bpf_map__is_struct_ops(map)) {
+		pr_warn("map '%s': can't attach non-struct_ops map\n", map->name);
+		return libbpf_err_ptr(-EINVAL);
+	}
+
+	if (map->fd < 0) {
+		pr_warn("map '%s': can't attach BPF map without FD (was it created?)\n", map->name);
+		return libbpf_err_ptr(-EINVAL);
+	}
+
+	if (!(map->def.map_flags & BPF_F_LINK)) {
+		pr_warn("map '%s': can't attach to cgroup without BPF_F_LINK\n", map->name);
+		return libbpf_err_ptr(-EINVAL);
+	}
+
+	relative_id = OPTS_GET(opts, relative_id, 0);
+	relative_fd = OPTS_GET(opts, relative_fd, 0);
+
+	if (relative_fd && relative_id) {
+		pr_warn("map '%s': relative_fd and relative_id cannot be set at the same time\n",
+			map->name);
+		return libbpf_err_ptr(-EINVAL);
+	}
+
+	link_create_opts.cgroup.expected_revision = OPTS_GET(opts, expected_revision, 0);
+	link_create_opts.cgroup.relative_fd = relative_fd;
+	link_create_opts.cgroup.relative_id = relative_id;
+	link_create_opts.flags = OPTS_GET(opts, flags, 0);
+
+	link = calloc(1, sizeof(*link));
+	if (!link)
+		return libbpf_err_ptr(-ENOMEM);
+
+	err = bpf_map_update_elem(map->fd, &zero, map->st_ops->kern_vdata, 0);
+	if (err && err != -EBUSY) {
+		free(link);
+		return libbpf_err_ptr(err);
+	}
+
+	link->link.detach = bpf_link__detach_struct_ops;
+
+	fd = bpf_link_create(map->fd, cgroup_fd, BPF_STRUCT_OPS, &link_create_opts);
 	if (fd < 0) {
 		free(link);
 		return libbpf_err_ptr(fd);

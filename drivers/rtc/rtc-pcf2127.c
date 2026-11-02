@@ -972,7 +972,7 @@ static ssize_t timestamp_show(struct device *dev,
 		if (ret)
 			return ret;
 	}
-	return sprintf(buf, "%llu\n", (unsigned long long)ts);
+	return sysfs_emit(buf, "%llu\n", (unsigned long long)ts);
 }
 
 static ssize_t timestamp0_show(struct device *dev,

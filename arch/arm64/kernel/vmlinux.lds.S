@@ -15,7 +15,7 @@
 
 #ifdef CONFIG_NVHE_EL2_TRACING
 #define HYPERVISOR_EVENT_IDS 					\
-	. = ALIGN(PAGE_SIZE);					\
+	. = ALIGN(SZ_8);					\
 	__hyp_event_ids_start = .;				\
 	*(HYP_SECTION_NAME(.event_ids))				\
 	__hyp_event_ids_end = .;
@@ -213,6 +213,14 @@ SECTIONS
 	RO_DATA(PAGE_SIZE)
 
 	HYPERVISOR_RODATA_SECTIONS
+
+#ifdef CONFIG_NVHE_EL2_TRACING
+	.rodata.hyp_string_fmts : {
+		__hyp_string_fmts_start = .;
+		*(_hyp_string_fmts)
+		__hyp_string_fmts_end = .;
+	}
+#endif
 
 	.got : { *(.got) }
 	/*

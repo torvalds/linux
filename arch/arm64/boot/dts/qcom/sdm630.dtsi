@@ -1195,7 +1195,7 @@
 				 <&gcc GCC_BIMC_GFX_CLK>,
 				 <&gcc GCC_GPU_BIMC_GFX_CLK>;
 			clock-names = "iface",
-			              "mem",
+				      "mem",
 				      "mem_iface";
 			#global-interrupts = <2>;
 			#iommu-cells = <1>;
@@ -1423,26 +1423,26 @@
 			status = "disabled";
 
 			sdhc2_opp_table: opp-table {
-				 compatible = "operating-points-v2";
+				compatible = "operating-points-v2";
 
-				 opp-50000000 {
+				opp-50000000 {
 					opp-hz = /bits/ 64 <50000000>;
 					required-opps = <&rpmpd_opp_low_svs>;
 					opp-peak-kBps = <200000 140000>;
 					opp-avg-kBps = <130718 133320>;
-				 };
-				 opp-100000000 {
+				};
+				opp-100000000 {
 					opp-hz = /bits/ 64 <100000000>;
 					required-opps = <&rpmpd_opp_svs>;
 					opp-peak-kBps = <250000 160000>;
 					opp-avg-kBps = <196078 150000>;
-				 };
-				 opp-200000000 {
+				};
+				opp-200000000 {
 					opp-hz = /bits/ 64 <200000000>;
 					required-opps = <&rpmpd_opp_nom>;
 					opp-peak-kBps = <4096000 4096000>;
 					opp-avg-kBps = <1338562 1338562>;
-				 };
+				};
 			};
 		};
 

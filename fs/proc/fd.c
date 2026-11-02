@@ -82,7 +82,7 @@ static int seq_fdinfo_open(struct inode *inode, struct file *file)
  * that the current task has PTRACE_MODE_READ in addition to the normal
  * POSIX-like checks.
  */
-static int proc_fdinfo_permission(struct mnt_idmap *idmap, struct inode *inode,
+static int proc_fdinfo_permission(const struct mnt_idmap *idmap, struct inode *inode,
 				  int mask)
 {
 	bool allowed = false;
@@ -323,7 +323,7 @@ static struct dentry *proc_lookupfd(struct inode *dir, struct dentry *dentry,
  * /proc/pid/fd needs a special permission handler so that a process can still
  * access /proc/self/fd after it has executed a setuid().
  */
-int proc_fd_permission(struct mnt_idmap *idmap,
+int proc_fd_permission(const struct mnt_idmap *idmap,
 		       struct inode *inode, int mask)
 {
 	struct task_struct *p;
@@ -342,7 +342,7 @@ int proc_fd_permission(struct mnt_idmap *idmap,
 	return rv;
 }
 
-static int proc_fd_getattr(struct mnt_idmap *idmap,
+static int proc_fd_getattr(const struct mnt_idmap *idmap,
 			const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int query_flags)
 {

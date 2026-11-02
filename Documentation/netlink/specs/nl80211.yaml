@@ -97,7 +97,7 @@ definitions:
       - unexpected-frame
       - probe-client
       - register-beacons
-      - unexpected-4-addr-frame
+      - unexpected-4addr-frame
       - set-noack-map
       - ch-switch-notify
       - start-p2p-device
@@ -202,7 +202,7 @@ definitions:
       - tdls-channel-switch
       - scan-random-mac-addr
       - sched-scan-random-mac-addr
-      - no-random-mac-addr
+      - nd-random-mac-addr
   -
     name: channel-type
     type: enum

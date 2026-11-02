@@ -33,6 +33,11 @@
 #define MALL_INFO_TABLE_ID              0x4C4C414D
 #define NPS_INFO_TABLE_ID 0x0053504E
 
+/* = ('I' << 16u | 'R' << 8u | 'M') */
+#define MEM_RSV_TABLE_SIGNATURE          0x0049524D
+#define MEM_RSV_TABLE_VERSION            0x01
+#define MAX_MEM_REGION_NUM               16
+
 typedef enum {
 	IP_DISCOVERY = 0,
 	GC,
@@ -40,7 +45,8 @@ typedef enum {
 	VCN_INFO,
 	MALL_INFO,
 	NPS_INFO,
-	TOTAL_TABLES = 6
+	MEM_RESERVED_INFO,
+	TOTAL_TABLES = 7
 } table;
 
 #pragma pack(1)
@@ -272,6 +278,48 @@ struct gc_info_v1_2 {
 };
 
 struct gc_info_v1_3 {
+	struct gpu_info_header header;
+	uint32_t gc_num_se;
+	uint32_t gc_num_wgp0_per_sa;
+	uint32_t gc_num_wgp1_per_sa;
+	uint32_t gc_num_rb_per_se;
+	uint32_t gc_num_gl2c;
+	uint32_t gc_num_gprs;
+	uint32_t gc_num_max_gs_thds;
+	uint32_t gc_gs_table_depth;
+	uint32_t gc_gsprim_buff_depth;
+	uint32_t gc_parameter_cache_depth;
+	uint32_t gc_double_offchip_lds_buffer;
+	uint32_t gc_wave_size;
+	uint32_t gc_max_waves_per_simd;
+	uint32_t gc_max_scratch_slots_per_cu;
+	uint32_t gc_lds_size;
+	uint32_t gc_num_sc_per_se;
+	uint32_t gc_num_sa_per_se;
+	uint32_t gc_num_packer_per_sc;
+	uint32_t gc_num_gl2a;
+	uint32_t gc_num_tcp_per_sa;
+	uint32_t gc_num_sdp_interface;
+	uint32_t gc_num_tcps;
+	uint32_t gc_num_tcp_per_wpg;
+	uint32_t gc_tcp_l1_size;
+	uint32_t gc_num_sqc_per_wgp;
+	uint32_t gc_l1_instruction_cache_size_per_sqc;
+	uint32_t gc_l1_data_cache_size_per_sqc;
+	uint32_t gc_gl1c_per_sa;
+	uint32_t gc_gl1c_size_per_instance;
+	uint32_t gc_gl2c_per_gpu;
+	uint32_t gc_tcp_size_per_cu;
+	uint32_t gc_tcp_cache_line_size;
+	uint32_t gc_instruction_cache_size_per_sqc;
+	uint32_t gc_instruction_cache_line_size;
+	uint32_t gc_scalar_data_cache_size_per_sqc;
+	uint32_t gc_scalar_data_cache_line_size;
+	uint32_t gc_tcc_size;
+	uint32_t gc_tcc_cache_line_size;
+};
+
+struct gc_info_v1_4 {
     struct gpu_info_header header;
     uint32_t gc_num_se;
     uint32_t gc_num_wgp0_per_sa;
@@ -303,14 +351,61 @@ struct gc_info_v1_3 {
     uint32_t gc_gl1c_per_sa;
     uint32_t gc_gl1c_size_per_instance;
     uint32_t gc_gl2c_per_gpu;
-    uint32_t gc_tcp_size_per_cu;
-    uint32_t gc_tcp_cache_line_size;
-    uint32_t gc_instruction_cache_size_per_sqc;
-    uint32_t gc_instruction_cache_line_size;
-    uint32_t gc_scalar_data_cache_size_per_sqc;
-    uint32_t gc_scalar_data_cache_line_size;
-    uint32_t gc_tcc_size;
-    uint32_t gc_tcc_cache_line_size;
+    uint32_t gc_num_rwgp0_per_sa;
+    uint32_t gc_num_rwgp0_per_sa1;
+    uint32_t gc_num_rwgp1_per_sa;
+    uint32_t gc_num_rwgp1_per_sa1;
+    uint32_t gc_num_twgp0_per_sa;
+    uint32_t gc_num_twgp0_per_sa1;
+    uint32_t gc_num_twgp1_per_sa;
+    uint32_t gc_num_twgp1_per_sa1;
+};
+
+struct gc_info_v1_5 {
+	struct gpu_info_header header;
+	uint32_t gc_num_se;
+	uint32_t gc_num_wgp0_per_sa;
+	uint32_t gc_num_wgp1_per_sa;
+	uint32_t gc_num_rb_per_se;
+	uint32_t gc_num_gl2c;
+	uint32_t gc_num_gprs;
+	uint32_t gc_num_max_gs_thds;
+	uint32_t gc_gs_table_depth;
+	uint32_t gc_gsprim_buff_depth;
+	uint32_t gc_parameter_cache_depth;
+	uint32_t gc_double_offchip_lds_buffer;
+	uint32_t gc_wave_size;
+	uint32_t gc_max_waves_per_simd;
+	uint32_t gc_max_scratch_slots_per_cu;
+	uint32_t gc_lds_size;
+	uint32_t gc_num_sc_per_se;
+	uint32_t gc_num_sa_per_se;
+	uint32_t gc_num_packer_per_sc;
+	uint32_t gc_num_gl2a;
+	uint32_t gc_num_tcp_per_sa;
+	uint32_t gc_num_sdp_interface;
+	uint32_t gc_num_tcps;
+	uint32_t gc_num_tcp_per_wpg;
+	uint32_t gc_tcp_l1_size;
+	uint32_t gc_num_sqc_per_wgp;
+	uint32_t gc_l1_instruction_cache_size_per_sqc;
+	uint32_t gc_l1_data_cache_size_per_sqc;
+	uint32_t gc_gl1c_per_sa;
+	uint32_t gc_gl1c_size_per_instance;
+	uint32_t gc_gl2c_per_gpu;
+	uint32_t gc_tcp_size_per_cu;
+	uint32_t gc_tcp_cache_line_size;
+	uint32_t gc_instruction_cache_size_per_sqc;
+	uint32_t gc_instruction_cache_line_size;
+	uint32_t gc_scalar_data_cache_size_per_sqc;
+	uint32_t gc_scalar_data_cache_line_size;
+	uint32_t gc_tcc_size;
+	uint32_t gc_tcc_cache_line_size;
+	uint32_t gc_num_wgp0_per_sa1;
+	uint32_t gc_num_wgp1_per_sa1;
+	uint32_t gc_max_num_residency_ways;
+	uint32_t gc_cache_ways_size_in_bytes;
+	uint32_t gc_reserved;
 };
 
 struct gc_info_v2_0 {
@@ -456,6 +551,52 @@ struct nps_info_v1_0 {
 	struct nps_instance_info_v1_0
 		instance_info[NPS_INFO_TABLE_MAX_NUM_INSTANCES];
 };
+
+typedef enum {
+	NO_RESERVED_REGION_ID		= 0,
+	/* reserved for UEFI GOP/DMUB FW */
+	PRE_OS_DISP_FW_REGION_ID	= 1,
+	/* UMF reserved region for master die MPASP */
+	MASTER_DIE_UMF_REGION_ID	= 2,
+	/* DCC meta data */
+	DCC_META_DATA_REGION_ID		= 3,
+	/* GPUVM page fault region */
+	VM_PAGE_FAULT_REGION_ID		= 4,
+	/* G7 Alternate Pstate Aperture 1 */
+	G7_PSTATE_APERTURE1_ID		= 5,
+	/* G7 Alternate Pstate Aperture 2 */
+	G7_PSTATE_APERTURE2_ID		= 6,
+	/* G7 Alternate Pstate Mirror Region */
+	G7_PSTATE_MIRROR_REGION_ID	= 7,
+	/* G7 Pstate Training Data */
+	G7_TRAINING_DATA_REGION_ID	= 8,
+	/* Specific purpose memory region */
+	SPECIFIC_PURPOSE_REGION_ID	= 9,
+	MEM_RESERVED_REGION_NUM,
+} MEM_RESERVED_REGION_ID;
+
+typedef struct mem_reserved_info_header {
+	/* Table Signature */
+	uint32_t signature;
+	/* Table Version */
+	uint32_t version;
+	uint32_t size;
+} mem_reserved_info_header;
+
+typedef struct mem_reserved_info {
+	/* enum of MEM_RESERVED_REGION_ID */
+	uint32_t reserved_region_id;
+	/* Memory Reserved Region Size */
+	uint64_t reserved_region_size;
+	/* Memory Reserved Region Start Address */
+	uint64_t reserved_region_start;
+} mem_reserved_info;
+
+typedef struct mem_reserved_info_table_v1_0 {
+	mem_reserved_info_header header;
+	uint32_t list_num;
+	mem_reserved_info list[MAX_MEM_REGION_NUM];
+} mem_reserved_info_table_v1_0;
 
 #pragma pack()
 

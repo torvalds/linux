@@ -141,6 +141,8 @@ struct amdgpu_bo_vm;
 #define AMDGPU_PDE_PTE_FLAG(adev)	\
 	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PDE_PTE_GFX12 : AMDGPU_PDE_PTE)
 
+/* Flag combination to set no-retry on GFX 12 */
+#define AMDGPU_VM_NORETRY_FLAGS_GFX12	(AMDGPU_PTE_SYSTEM | AMDGPU_PTE_SNOOPED)
 /* How to program VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
 #define AMDGPU_VM_FAULT_STOP_FIRST	1
@@ -262,80 +264,6 @@ struct amdgpu_task_info {
 	struct kref	refcount;
 };
 
-/**
- * struct amdgpu_vm_update_params
- *
- * Encapsulate some VM table update parameters to reduce
- * the number of function parameters
- *
- */
-struct amdgpu_vm_update_params {
-
-	/**
-	 * @adev: amdgpu device we do this update for
-	 */
-	struct amdgpu_device *adev;
-
-	/**
-	 * @vm: optional amdgpu_vm we do this update for
-	 */
-	struct amdgpu_vm *vm;
-
-	/**
-	 * @immediate: if changes should be made immediately
-	 */
-	bool immediate;
-
-	/**
-	 * @unlocked: true if the root BO is not locked
-	 */
-	bool unlocked;
-
-	/**
-	 * @pages_addr:
-	 *
-	 * DMA addresses to use for mapping
-	 */
-	dma_addr_t *pages_addr;
-
-	/**
-	 * @job: job to used for hw submission
-	 */
-	struct amdgpu_job *job;
-
-	/**
-	 * @num_dw_left: number of dw left for the IB
-	 */
-	unsigned int num_dw_left;
-
-	/**
-	 * @needs_flush: true whenever we need to invalidate the TLB
-	 */
-	bool needs_flush;
-
-	/**
-	 * @override_pte: true for memory that is not uncached and gmc override function is
-	 * implemented to allow MTYPE to be overridden for NUMA local memory.
-	 */
-	bool override_pte;
-
-	/**
-	 * @tlb_flush_waitlist: temporary storage for BOs until tlb_flush
-	 */
-	struct list_head tlb_flush_waitlist;
-};
-
-struct amdgpu_vm_update_funcs {
-	int (*map_table)(struct amdgpu_bo_vm *bo);
-	int (*prepare)(struct amdgpu_vm_update_params *p,
-		       struct amdgpu_sync *sync, u64 k_job_id);
-	int (*update)(struct amdgpu_vm_update_params *p,
-		      struct amdgpu_bo_vm *bo, uint64_t pe, uint64_t addr,
-		      unsigned count, uint32_t incr, uint64_t flags);
-	int (*commit)(struct amdgpu_vm_update_params *p,
-		      struct dma_fence **fence);
-};
-
 struct amdgpu_vm_fault_info {
 	/* fault address */
 	uint64_t	addr;
@@ -361,7 +289,6 @@ struct amdgpu_vm {
 	 */
 	struct mutex		eviction_lock;
 	bool			evicting;
-	unsigned int		saved_flags;
 
 	/* Memory statistics for this vm, protected by stats_lock */
 	spinlock_t		stats_lock;
@@ -441,6 +368,8 @@ struct amdgpu_vm {
 	struct ttm_lru_bulk_move lru_bulk_move;
 	/* Flag to indicate if VM is used for compute */
 	bool			is_compute_context;
+	/* Flag to indicate that page tables are for NPA mappings */
+	bool			is_npa;
 	/* Flag to indicate if VM needs a TLB fence (KFD or KGD) */
 	bool			need_tlb_fence;
 
@@ -453,7 +382,7 @@ struct amdgpu_vm {
 
 struct amdgpu_vm_manager {
 	/* Handling of VMIDs */
-	struct amdgpu_vmid_mgr			id_mgr[AMDGPU_MAX_VMHUBS];
+	struct amdgpu_kq_vmid_mgr		id_mgr[AMDGPU_MAX_VMHUBS];
 	unsigned int				first_kfd_vmid;
 	bool					concurrent_flush;
 
@@ -482,7 +411,12 @@ struct amdgpu_vm_manager {
 	int					vm_update_mode;
 
 	/* Global registration of recent page fault information */
-	struct amdgpu_vm_fault_info	fault_info;
+	struct amdgpu_vm_fault_info		fault_info;
+	unsigned int				npa_vmid;
+
+	/* VMID masks for GFXHUB and MMHUB */
+	uint32_t				vmid_uq_mask_gfxhub;
+	uint32_t				vmid_uq_mask_mmhub;
 };
 
 struct amdgpu_bo_va_mapping;
@@ -500,6 +434,7 @@ void amdgpu_vm_manager_fini(struct amdgpu_device *adev);
 long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout);
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm, int32_t xcp_id);
 int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm);
+int amdgpu_vm_make_npa(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 int amdgpu_vm_lock_pd(struct amdgpu_vm *vm, struct drm_exec *exec,
 		      unsigned int num_fences);
@@ -600,22 +535,6 @@ void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
 void amdgpu_vm_get_memory(struct amdgpu_vm *vm,
 			  struct amdgpu_mem_stats stats[__AMDGPU_PL_NUM]);
 
-int amdgpu_vm_pt_clear(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-		       struct amdgpu_bo_vm *vmbo, bool immediate);
-int amdgpu_vm_pt_create(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			int level, bool immediate, struct amdgpu_bo_vm **vmbo,
-			int32_t xcp_id);
-void amdgpu_vm_pt_free_root(struct amdgpu_device *adev, struct amdgpu_vm *vm);
-
-int amdgpu_vm_pde_update(struct amdgpu_vm_update_params *params,
-			 struct amdgpu_vm_bo_base *entry);
-int amdgpu_vm_ptes_update(struct amdgpu_vm_update_params *params,
-			  uint64_t start, uint64_t end,
-			  uint64_t dst, uint64_t flags);
-void amdgpu_vm_pt_free_work(struct work_struct *work);
-void amdgpu_vm_pt_free_list(struct amdgpu_device *adev,
-			    struct amdgpu_vm_update_params *params);
-
 #if defined(CONFIG_DEBUG_FS)
 void amdgpu_debugfs_vm_bo_info(struct amdgpu_vm *vm, struct seq_file *m);
 #endif
@@ -649,32 +568,6 @@ static inline uint64_t amdgpu_vm_tlb_seq(struct amdgpu_vm *vm)
 	spin_unlock_irqrestore(lock, flags);
 
 	return atomic64_read(&vm->tlb_seq);
-}
-
-/*
- * vm eviction_lock can be taken in MMU notifiers. Make sure no reclaim-FS
- * happens while holding this lock anywhere to prevent deadlocks when
- * an MMU notifier runs in reclaim-FS context.
- */
-static inline void amdgpu_vm_eviction_lock(struct amdgpu_vm *vm)
-{
-	mutex_lock(&vm->eviction_lock);
-	vm->saved_flags = memalloc_noreclaim_save();
-}
-
-static inline bool amdgpu_vm_eviction_trylock(struct amdgpu_vm *vm)
-{
-	if (mutex_trylock(&vm->eviction_lock)) {
-		vm->saved_flags = memalloc_noreclaim_save();
-		return true;
-	}
-	return false;
-}
-
-static inline void amdgpu_vm_eviction_unlock(struct amdgpu_vm *vm)
-{
-	memalloc_noreclaim_restore(vm->saved_flags);
-	mutex_unlock(&vm->eviction_lock);
 }
 
 void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,

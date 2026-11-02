@@ -13,6 +13,7 @@
 #include <linux/moduleparam.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 #define DRIVER_NAME "s32g-swt"
@@ -42,12 +43,12 @@ struct s32g_wdt_device {
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+		 __stringify(WATCHDOG_NOWAYOUT) ")");
 
 static unsigned int timeout_param = S32G_WDT_DEFAULT_TIMEOUT;
 module_param(timeout_param, uint, 0);
 MODULE_PARM_DESC(timeout_param, "Watchdog timeout in seconds (default="
-		 __MODULE_STRING(S32G_WDT_DEFAULT_TIMEOUT) ")");
+		 __stringify(S32G_WDT_DEFAULT_TIMEOUT) ")");
 
 static bool early_enable;
 module_param(early_enable, bool, 0);

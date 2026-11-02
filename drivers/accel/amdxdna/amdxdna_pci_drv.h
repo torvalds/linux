@@ -143,6 +143,13 @@ struct amdxdna_device_id {
 	const struct amdxdna_dev_info *dev_info;
 };
 
+struct amdxdna_io_stats {
+	spinlock_t			lock; /* protect io stats */
+	int				job_depth;
+	u64				start_time;
+	u64				busy_time;
+};
+
 /*
  * struct amdxdna_client - amdxdna client
  * A per fd data structure for managing context and other user process stuffs.
@@ -169,6 +176,8 @@ struct amdxdna_client {
 	size_t				heap_usage;
 	size_t				total_bo_usage;
 	size_t				total_int_bo_usage;
+
+	struct amdxdna_io_stats		io_stats;
 };
 
 #define amdxdna_for_each_hwctx(client, hwctx_id, entry)		\

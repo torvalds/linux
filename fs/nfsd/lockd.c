@@ -9,7 +9,9 @@
 
 #include <linux/file.h>
 #include <linux/lockd/bind.h>
+#include <linux/nfs_fh.h>
 #include "nfsd.h"
+#include "nfserr.h"
 #include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_LOCKD
@@ -33,8 +35,7 @@ static int nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f,
 	int		access;
 	struct svc_fh	fh;
 
-	/* must initialize before using! but maxsize doesn't matter */
-	fh_init(&fh,0);
+	fh_init(&fh, NFSD_FHSIZE_UNSPEC);
 	fh.fh_handle.fh_size = f->size;
 	memcpy(&fh.fh_handle.fh_raw, f->data, f->size);
 	fh.fh_export = NULL;

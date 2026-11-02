@@ -263,7 +263,7 @@ static void da9030_charger_check_state(struct da9030_charger *charger)
 		} else if (charger->adc.vbat_res >
 			   charger->thresholds.vbat_low) {
 			/* we are charging and passed LOW_THRESH,
-			   so upate DA9030 VBAT threshold
+			   so update DA9030 VBAT threshold
 			 */
 			da903x_write(charger->master, DA9030_VBATMON,
 				     charger->thresholds.vbat_low);

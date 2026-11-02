@@ -41,8 +41,8 @@ examples:
         #size-cells = <0>;
 
         light-sensor@29 {
-                compatible = "amstaos,tsl2581";
-                reg = <0x29>;
+            compatible = "amstaos,tsl2581";
+            reg = <0x29>;
         };
     };
 ...

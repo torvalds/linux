@@ -27,7 +27,7 @@ struct ringbuf_regs {
 	unsigned wraddr;
 	unsigned baseaddr;
 	unsigned endaddr;
-	unsigned fmark;   /* freemark for play, fullmark for caputure */
+	unsigned fmark;   /* freemark for play, fullmark for capture */
 	unsigned period_bytes;
 	unsigned buf_size;
 };

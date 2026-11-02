@@ -23,7 +23,7 @@
 #define CI(c, p) { ci->c = PVR_##p(pvr); }
 
 #define err_printk(x) \
-	pr_err("ERROR: Microblaze " x "-different for PVR and DTS\n");
+	pr_err("ERROR: Microblaze " x "-different for PVR and DTS\n")
 
 void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
 {

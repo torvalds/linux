@@ -62,6 +62,8 @@ properties:
             # Aosong temperature & humidity sensors with I2C interface
           - aosong,aht10
           - aosong,aht20
+          - aosong,am2315
+          - aosong,am2320
           - aosong,dht20
             # Arduino microcontroller interface over SPI on UnoQ board
           - arduino,unoq-mcu
@@ -69,6 +71,8 @@ properties:
           - asteralabs,pt5161l
             # ATECC508A - i2c h/w elliptic curve crypto module
           - atmel,atecc508a
+            # ATECC608A - i2c h/w elliptic curve crypto module
+          - atmel,atecc608a
             # ATECC608B - i2c h/w elliptic curve crypto module
           - atmel,atecc608b
             # ATSHA204 - i2c h/w symmetric crypto module
@@ -77,8 +81,6 @@ properties:
           - atmel,atsha204a
             # BPA-RS600: Power Supply
           - blutek,bpa-rs600
-            # CM32181: Ambient Light Sensor
-          - capella,cm32181
             # CM3232: Ambient Light Sensor
           - capella,cm3232
             # CM3323: Ambient Light Sensor
@@ -174,6 +176,7 @@ properties:
             # Infineon Multi-phase Digital VR Controller xdpe1a2g7b
           - infineon,xdpe1a2g5b
           - infineon,xdpe1a2g7b
+          - infineon,xdpe1a2g7c
             # Injoinic IP5108 2.0A Power Bank IC with I2C
           - injoinic,ip5108
             # Injoinic IP5109 2.1A Power Bank IC with I2C
@@ -186,7 +189,7 @@ properties:
           - injoinic,ip5306
             # Inspur Power System power supply unit version 1
           - inspur,ipsps1
-            # Intel common redudant power supply crps185
+            # Intel common redundant power supply crps185
           - intel,crps185
             # Intersil ISL29028 Ambient Light and Proximity Sensor
           - isil,isl29028
@@ -368,16 +371,10 @@ properties:
           - mps,mpq82d00
             # Murata D1U74T-W power supply unit
           - murata,d1u74t
-            # Temperature sensor with integrated fan control
-          - national,lm63
-            # Temperature sensor with integrated fan control
-          - national,lm64
             # Temperature sensor
           - national,lm95235
             # Temperature sensor
           - national,lm95245
-            # Temperature sensor with integrated fan control
-          - national,lm96163
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
           - national,lm80
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
@@ -400,8 +397,6 @@ properties:
           - onnn,adt7462
             # 48-Lane, 12-Port PCI Express Gen 2 (5.0 GT/s) Switch
           - plx,pex8648
-            # Pulsedlight LIDAR range-finding sensor
-          - pulsedlight,lidar-lite-v2
             # Renesas HS3001 Temperature and Relative Humidity Sensors
           - renesas,hs3001
             # Renesas ISL29501 time-of-flight sensor
@@ -414,6 +409,8 @@ properties:
           - samsung,24ad0xd1
             # Samsung Exynos SoC SATA PHY I2C device
           - samsung,exynos-sataphy-i2c
+            # SDMC 1024bit EEPROM + 128bit OTP memory for key
+          - sdmc,dm2016
             # Semtech sx1301 baseband processor
           - semtech,sx1301
             # Sensirion multi-pixel gas sensor with I2C interface
@@ -427,6 +424,8 @@ properties:
           - sensirion,sht21
           - sensirion,sht25
           - sensirion,sht4x
+            # Sensirion temperature sensor with I2C interface
+          - sensirion,sts40
             # Sensortek 3 axis accelerometer
           - sensortek,stk8312
             # Sensortek 3 axis accelerometer
@@ -504,16 +503,18 @@ properties:
           - ti,lm74
             # Temperature sensor with integrated fan control
           - ti,lm96000
-            # Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface
-          - ti,tmp103
             # Thermometer with SPI interface
           - ti,tmp121
           - ti,tmp122
           - ti,tmp125
             # TI DC-DC converter on PMBus
           - ti,tps40400
+            # TI Dual channel DCAP+ multiphase controller TPS53622
+          - ti,tps53622
             # TI DCAP+ multiphase controller
           - ti,tps53647
+            # TI Dual channel DCAP+ multiphase controller TPS53659
+          - ti,tps53659
             # TI DCAP+ multiphase controller
           - ti,tps53667
             # TI Dual channel DCAP+ multiphase controller TPS53676 with AVSBus
@@ -526,6 +527,8 @@ properties:
           - ti,tps53685
             # TI Dual channel DCAP+ multiphase controller TPS53688
           - ti,tps53688
+            # TI Dual channel DCAP+ multiphase controller TPS536C7
+          - ti,tps536c7
             # TI DC-DC converters on PMBus
           - ti,tps544b20
           - ti,tps544b25

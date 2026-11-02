@@ -357,7 +357,6 @@ static int drv2667_probe(struct i2c_client *client)
 	}
 
 	haptics->input_dev->name = "drv2667:haptics";
-	haptics->input_dev->dev.parent = client->dev.parent;
 	haptics->input_dev->close = drv2667_close;
 	input_set_drvdata(haptics->input_dev, haptics);
 	input_set_capability(haptics->input_dev, EV_FF, FF_RUMBLE);

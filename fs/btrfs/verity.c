@@ -286,21 +286,17 @@ static int write_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
  * @dest:       Buffer to read into. This parameter has slightly tricky
  *              semantics.  If it is NULL, the function will not do any copying
  *              and will just return the size of all the items up to len bytes.
- *              If dest_page is passed, then the function will kmap_local the
- *              page and ignore dest, but it must still be non-NULL to avoid the
- *              counting-only behavior.
  * @len:        length in bytes to read
- * @dest_folio: copy into this folio instead of the dest buffer
  *
  * Helper function to read items from the btree.  This returns the number of
  * bytes read or < 0 for errors.  We can return short reads if the items don't
  * exist on disk or aren't big enough to fill the desired length.  Supports
- * reading into a provided buffer (dest) or into the page cache
+ * reading into a provided buffer (dest).
  *
  * Returns number of bytes read or a negative error code on failure.
  */
 static int read_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
-			  char *dest, u64 len, struct folio *dest_folio)
+			  char *dest, u64 len)
 {
 	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_root *root = inode->root;
@@ -320,7 +316,11 @@ static int read_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 	if (!path)
 		return -ENOMEM;
 
-	if (dest_folio)
+	/*
+	 * Merkle items can be large and split across multiple items, so enable
+	 * readahead for such cases.
+	 */
+	if (key_type == BTRFS_VERITY_MERKLE_ITEM_KEY)
 		path->reada = READA_FORWARD;
 
 	key.objectid = btrfs_ino(inode);
@@ -364,7 +364,7 @@ static int read_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 				break;
 		}
 
-		/* desc = NULL to just sum all the item lengths */
+		/* dest == NULL to just sum all the item lengths */
 		if (!dest)
 			copy_end = item_end;
 		else
@@ -377,16 +377,10 @@ static int read_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 		copy_offset = offset - key.offset;
 
 		if (dest) {
-			if (dest_folio)
-				kaddr = kmap_local_folio(dest_folio, 0);
-
 			data = btrfs_item_ptr(leaf, path->slots[0], void);
 			read_extent_buffer(leaf, kaddr + dest_offset,
 					   (unsigned long)data + copy_offset,
 					   copy_bytes);
-
-			if (dest_folio)
-				kunmap_local(kaddr);
 		}
 
 		offset += copy_bytes;
@@ -489,8 +483,6 @@ static int rollback_verity(struct btrfs_inode *inode)
 			inode->vfs_inode.i_ino);
 		goto out;
 	}
-	inode->ro_flags &= ~BTRFS_INODE_RO_VERITY;
-	btrfs_sync_inode_flags_to_i_flags(inode);
 	ret = btrfs_update_inode(trans, inode);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
@@ -555,16 +547,19 @@ static int finish_verity(struct btrfs_inode *inode, const void *desc,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 	inode->ro_flags |= BTRFS_INODE_RO_VERITY;
-	btrfs_sync_inode_flags_to_i_flags(inode);
 	ret = btrfs_update_inode(trans, inode);
 	if (ret)
 		goto end_trans;
 	ret = del_orphan(trans, inode);
 	if (ret)
 		goto end_trans;
+	/* Now that rollback is no longer possible, set S_VERITY. */
+	btrfs_sync_inode_flags_to_i_flags(inode);
 	clear_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags);
 	btrfs_set_fs_compat_ro(root->fs_info, VERITY);
 end_trans:
+	if (ret)
+		inode->ro_flags &= ~BTRFS_INODE_RO_VERITY;
 	btrfs_end_transaction(trans);
 	return ret;
 
@@ -677,7 +672,7 @@ int btrfs_get_verity_descriptor(struct inode *inode, void *buf, size_t buf_size)
 
 	memset(&item, 0, sizeof(item));
 	ret = read_key_bytes(BTRFS_I(inode), BTRFS_VERITY_DESC_ITEM_KEY, 0,
-			     (char *)&item, sizeof(item), NULL);
+			     (char *)&item, sizeof(item));
 	if (ret < 0)
 		return ret;
 
@@ -694,7 +689,7 @@ int btrfs_get_verity_descriptor(struct inode *inode, void *buf, size_t buf_size)
 		return -ERANGE;
 
 	ret = read_key_bytes(BTRFS_I(inode), BTRFS_VERITY_DESC_ITEM_KEY, 1,
-			     buf, buf_size, NULL);
+			     buf, buf_size);
 	if (ret < 0)
 		return ret;
 	if (ret != true_size)
@@ -720,6 +715,7 @@ static struct page *btrfs_read_merkle_tree_page(struct inode *inode,
 	struct folio *folio;
 	u64 off = (u64)index << PAGE_SHIFT;
 	loff_t merkle_pos = merkle_file_pos(inode);
+	void *kaddr;
 	int ret;
 
 	if (merkle_pos < 0)
@@ -763,6 +759,7 @@ again:
 	}
 
 read_folio:
+	kaddr = kmap_local_folio(folio, 0);
 	/*
 	 * Merkle item keys are indexed from byte 0 in the merkle tree.
 	 * They have the form:
@@ -770,7 +767,8 @@ read_folio:
 	 * [ inode objectid, BTRFS_MERKLE_ITEM_KEY, offset in bytes ]
 	 */
 	ret = read_key_bytes(BTRFS_I(inode), BTRFS_VERITY_MERKLE_ITEM_KEY, off,
-			     folio_address(folio), PAGE_SIZE, folio);
+			     kaddr, PAGE_SIZE);
+	kunmap_local(kaddr);
 	if (ret < 0) {
 		folio_unlock(folio);
 		folio_put(folio);
@@ -793,11 +791,15 @@ out:
  * @buf:	Merkle tree block to write
  * @pos:	the position of the block in the Merkle tree (in bytes)
  * @size:	the Merkle tree block size (in bytes)
+ * @zero_digest:	the hash of the all-zeroes block
+ * @digest_size:	size of zero_digest, in bytes
  *
  * Returns 0 on success or negative error code on failure
  */
 static int btrfs_write_merkle_tree_block(struct file *file, const void *buf,
-					 u64 pos, unsigned int size)
+					 u64 pos, unsigned int size,
+					 const u8 *zero_digest,
+					 unsigned int digest_size)
 {
 	struct inode *inode = file_inode(file);
 	loff_t merkle_pos = merkle_file_pos(inode);

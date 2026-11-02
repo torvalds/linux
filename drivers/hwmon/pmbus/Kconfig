@@ -393,6 +393,25 @@ config SENSORS_MAX20751
 	  This driver can also be built as a module. If so, the module will
 	  be called max20751.
 
+config SENSORS_MAX20826
+	tristate "Analog Devices MAX20826 and similar devices"
+	help
+	  If you say yes here you get hardware monitoring support for Analog
+	  Devices MAX20826 and similar devices.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max20826.
+
+config SENSORS_MAX20826_REGULATOR
+	bool "Regulator support for Analog Devices MAX20826 and similar devices"
+	depends on SENSORS_MAX20826 && REGULATOR
+	help
+	  If you say yes here you get regulator support for Analog Devices
+	  MAX20826 and similar sensors.
+
+	  This enables the MAX20826 to be used as a regulator device,
+	  providing voltage control through the regulator framework.
+
 config SENSORS_MAX20830
 	tristate "Analog Devices MAX20830 and compatibles"
 	help
@@ -435,8 +454,8 @@ config SENSORS_MAX34440
 	help
 	  If you say yes here you get hardware monitoring support for Maxim
 	  MAX34440, MAX34441, MAX34446, MAX34451, MAX34452, MAX34460, and
-	  MAX34461. Other compatible devices are ADPM12160, ADPM12200, and
-	  ADPM12250.
+	  MAX34461. Other compatible devices are ADPM12160, ADPM12200,
+	  ADPM12250, and ADPM12300.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max34440.
@@ -763,6 +782,15 @@ config SENSORS_TDA38640_REGULATOR
 	  If you say yes here you get regulator support for Infineon
 	  TDA38640 as regulator.
 
+config SENSORS_TDA38740
+	tristate "Infineon TDA38725/TDA38740"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  TDA38725 and TDA38740.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tda38740.
+
 config SENSORS_TPS25990
 	tristate "TI TPS25990"
 	help
@@ -790,10 +818,11 @@ config SENSORS_TPS40422
 	  be called tps40422.
 
 config SENSORS_TPS53679
-	tristate "TI TPS53647, TPS53667, TPS53676, TPS53679, TPS53681, TPS53688"
+	tristate "TI TPS536xx family"
 	help
 	  If you say yes here you get hardware monitoring support for TI
-	  TPS53647, TPS53667, TPS53676, TPS53679, TPS53681, and TPS53688.
+	  TPS53622, TPS53647, TPS53659, TPS53667, TPS53676, TPS53679, TPS53681,
+	  TPS53685, TPS53688, and TPS536C7.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called tps53679.
@@ -867,7 +896,7 @@ config SENSORS_XDPE1A2G7B
 	tristate "Infineon XDPE1A2G7B"
 	help
 	  If you say yes here you get hardware monitoring support for Infineon
-	  XDPE1A2G5B and XDPE1A2G7B.
+	  XDPE1A2G5B,XDPE1A2G7B and XDPE1A2G7C.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called xdpe1a2g7b.
@@ -877,7 +906,7 @@ config SENSORS_XDPE1A2G7B_REGULATOR
 	depends on SENSORS_XDPE1A2G7B && REGULATOR
 	help
 	  If you say yes here you get regulator support for Infineon
-	  XDPE1A2G5B and XDPE1A2G7B multi-phase digital controllers.
+	  XDPE1A2G5B,XDPE1A2G7B and XDPE1A2G7C multi-phase digital controllers.
 
 	  This enables the controllers to be used as regulator devices,
 	  providing voltage control through the regulator framework.

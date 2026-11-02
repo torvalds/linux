@@ -6,7 +6,6 @@ set -e
 set -o pipefail
 
 shelldir=$(dirname "$0")
-# shellcheck source=lib/perf_has_symbol.sh
 . "${shelldir}"/lib/perf_has_symbol.sh
 
 sym="noploop"

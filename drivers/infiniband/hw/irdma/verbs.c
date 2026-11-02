@@ -1576,9 +1576,17 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			issue_modify_qp = 1;
 			iwqp->suspend_pending = true;
 			break;
+		case IB_QPS_RESET:
+			/*
+			 * A QP that was never moved to INIT has nothing to
+			 * flush, so skip the hardware modify. Moving it to
+			 * ERROR would make the following INIT fail.
+			 */
+			if (iwqp->iwarp_state == IRDMA_QP_STATE_INVALID)
+				break;
+			fallthrough;
 		case IB_QPS_SQE:
 		case IB_QPS_ERR:
-		case IB_QPS_RESET:
 			if (iwqp->iwarp_state == IRDMA_QP_STATE_ERROR) {
 				iwqp->ibqp_state = attr->qp_state;
 				spin_unlock_irqrestore(&iwqp->lock, flags);
@@ -2910,42 +2918,6 @@ static bool irdma_check_mem_contiguous(u64 *arr, u32 npages, u32 pg_size)
 }
 
 /**
- * irdma_check_mr_contiguous - check if MR is physically contiguous
- * @palloc: pbl allocation struct
- * @pg_size: page size
- */
-static bool irdma_check_mr_contiguous(struct irdma_pble_alloc *palloc,
-				      u32 pg_size)
-{
-	struct irdma_pble_level2 *lvl2 = &palloc->level2;
-	struct irdma_pble_info *leaf = lvl2->leaf;
-	u64 *arr = NULL;
-	u64 *start_addr = NULL;
-	int i;
-	bool ret;
-
-	if (palloc->level == PBLE_LEVEL_1) {
-		arr = palloc->level1.addr;
-		ret = irdma_check_mem_contiguous(arr, palloc->total_cnt,
-						 pg_size);
-		return ret;
-	}
-
-	start_addr = leaf->addr;
-
-	for (i = 0; i < lvl2->leaf_cnt; i++, leaf++) {
-		arr = leaf->addr;
-		if ((*start_addr + ((u64)i * pg_size * PBLE_PER_PAGE)) != *arr)
-			return false;
-		ret = irdma_check_mem_contiguous(arr, leaf->cnt, pg_size);
-		if (!ret)
-			return false;
-	}
-
-	return true;
-}
-
-/**
  * irdma_setup_pbles - copy user pg address to pble's
  * @rf: RDMA PCI function
  * @iwmr: mr pointer for this memory registration
@@ -2980,9 +2952,6 @@ static int irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
 	}
 
 	irdma_copy_user_pgaddrs(iwmr, pbl, pbl_len, level);
-
-	if (lvl)
-		iwmr->pgaddrmem[0] = *pbl;
 
 	return 0;
 }
@@ -3405,24 +3374,33 @@ static int irdma_reg_user_mr_type_mem(struct irdma_mr *iwmr, int access,
 {
 	struct irdma_device *iwdev = to_iwdev(iwmr->ibmr.device);
 	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
+	struct ib_umem *region = iwmr->region;
 	u32 stag = 0;
-	u8 lvl;
 	int err;
 
-	lvl = iwmr->page_cnt != 1 ? PBLE_LEVEL_1 | PBLE_LEVEL_2 : PBLE_LEVEL_0;
 	iwmr->access = access;
 
-	err = irdma_setup_pbles(iwdev->rf, iwmr, lvl);
-	if (err)
-		return err;
-
-	if (lvl) {
-		err = irdma_check_mr_contiguous(&iwpbl->pble_alloc,
+	if (ib_umem_is_contiguous(region)) {
+		/* HW needs a valid page size even without PBLEs, so use 4K. It
+		 * behaves like a PBLE-backed region where the PBA must be page
+		 * aligned. HW takes the page offset from the lower 12 VA bits.
+		 */
+		iwmr->page_size = SZ_4K;
+		iwmr->pgaddrmem[0] = ALIGN_DOWN(ib_umem_start_dma_addr(region),
 						iwmr->page_size);
-		if (err) {
-			irdma_free_pble(iwdev->rf->pble_rsrc, &iwpbl->pble_alloc);
-			iwpbl->pbl_allocated = false;
-		}
+	} else {
+		iwmr->page_size = ib_umem_find_best_pgsz(region,
+				iwdev->rf->sc_dev.hw_attrs.page_size_cap,
+				iwmr->ibmr.iova);
+		if (unlikely(!iwmr->page_size))
+			return -EOPNOTSUPP;
+
+		iwmr->page_cnt = ib_umem_num_dma_blocks(region,
+							iwmr->page_size);
+		err = irdma_setup_pbles(iwdev->rf, iwmr,
+					PBLE_LEVEL_1 | PBLE_LEVEL_2);
+		if (err)
+			return err;
 	}
 
 	if (create_stag) {
@@ -3458,10 +3436,8 @@ static struct irdma_mr *irdma_alloc_iwmr(struct ib_umem *region,
 					 struct ib_pd *pd, u64 virt,
 					 enum irdma_memreg_type reg_type)
 {
-	struct irdma_device *iwdev = to_iwdev(pd->device);
 	struct irdma_pbl *iwpbl;
 	struct irdma_mr *iwmr;
-	unsigned long pgsz_bitmap;
 
 	iwmr = kzalloc_obj(*iwmr);
 	if (!iwmr)
@@ -3475,18 +3451,21 @@ static struct irdma_mr *irdma_alloc_iwmr(struct ib_umem *region,
 	iwmr->ibmr.device = pd->device;
 	iwmr->ibmr.iova = virt;
 	iwmr->type = reg_type;
+	iwmr->len = region->length;
+	iwpbl->user_base = virt;
 
-	pgsz_bitmap = (reg_type == IRDMA_MEMREG_TYPE_MEM) ?
-		iwdev->rf->sc_dev.hw_attrs.page_size_cap : SZ_4K;
+	/* Page size and count are calculated in irdma_reg_user_mr_type_mem()
+	 * for MEM type MRs.
+	 */
+	if (reg_type == IRDMA_MEMREG_TYPE_MEM)
+		return iwmr;
 
-	iwmr->page_size = ib_umem_find_best_pgsz(region, pgsz_bitmap, virt);
+	iwmr->page_size = ib_umem_find_best_pgsz(region, SZ_4K, virt);
 	if (unlikely(!iwmr->page_size)) {
 		kfree(iwmr);
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	iwmr->len = region->length;
-	iwpbl->user_base = virt;
 	iwmr->page_cnt = ib_umem_num_dma_blocks(region, iwmr->page_size);
 
 	return iwmr;
@@ -3825,7 +3804,6 @@ static int irdma_hwdereg_mr(struct ib_mr *ib_mr)
 static int irdma_rereg_mr_trans(struct irdma_mr *iwmr, u64 start, u64 len,
 				u64 virt)
 {
-	struct irdma_device *iwdev = to_iwdev(iwmr->ibmr.device);
 	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
 	struct ib_pd *pd = iwmr->ibmr.pd;
 	struct ib_umem *region;
@@ -3838,17 +3816,8 @@ static int irdma_rereg_mr_trans(struct irdma_mr *iwmr, u64 start, u64 len,
 	iwmr->region = region;
 	iwmr->ibmr.iova = virt;
 	iwmr->ibmr.pd = pd;
-	iwmr->page_size = ib_umem_find_best_pgsz(region,
-				iwdev->rf->sc_dev.hw_attrs.page_size_cap,
-				virt);
-	if (unlikely(!iwmr->page_size)) {
-		err = -EOPNOTSUPP;
-		goto err;
-	}
-
 	iwmr->len = region->length;
 	iwpbl->user_base = virt;
-	iwmr->page_cnt = ib_umem_num_dma_blocks(region, iwmr->page_size);
 
 	err = irdma_reg_user_mr_type_mem(iwmr, iwmr->access, false);
 	if (err)
@@ -4276,16 +4245,27 @@ static int irdma_post_send(struct ib_qp *ibqp,
 			stag_info.stag_idx = reg_wr(ib_wr)->key >> 8;
 			stag_info.page_size = reg_wr(ib_wr)->mr->page_size;
 			stag_info.wr_id = ib_wr->wr_id;
-			stag_info.addr_type = IRDMA_ADDR_TYPE_VA_BASED;
-			stag_info.va = (void *)(uintptr_t)iwmr->ibmr.iova;
+			stag_info.va = iwmr->ibmr.iova;
 			stag_info.total_len = iwmr->ibmr.length;
-			stag_info.reg_addr_pa = *palloc->level1.addr;
-			stag_info.first_pm_pbl_index = palloc->level1.idx;
 			stag_info.local_fence = true;
-			if (iwmr->npages > IRDMA_MIN_PAGES_PER_FMR)
-				stag_info.chunk_size = 1;
-			err = irdma_sc_mr_fast_register(&iwqp->sc_qp, &stag_info,
-							true);
+			if (iwmr->npages > IRDMA_MIN_PAGES_PER_FMR) {
+				if (palloc->level == PBLE_LEVEL_1) {
+					stag_info.first_pm_pbl_index =
+						palloc->level1.idx;
+					stag_info.chunk_size = 1;
+				} else {
+					stag_info.first_pm_pbl_index =
+						palloc->level2.root.idx;
+					stag_info.chunk_size = 3;
+				}
+			} else {
+				stag_info.reg_addr_pa =
+					(palloc->level == PBLE_LEVEL_1) ?
+					*palloc->level1.addr :
+					*palloc->level2.leaf->addr;
+			}
+			err = irdma_sc_mr_fast_register(&iwqp->sc_qp,
+							&stag_info);
 			break;
 		}
 		default:

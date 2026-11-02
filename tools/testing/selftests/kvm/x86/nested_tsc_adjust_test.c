@@ -86,17 +86,17 @@ static void l1_guest_code(void *data)
 		struct vmx_pages *vmx_pages = data;
 		u32 control;
 
-		GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
-		GUEST_ASSERT(load_vmcs(vmx_pages));
+		prepare_for_vmx_operation(vmx_pages);
+		load_vmcs(vmx_pages);
 
 		prepare_vmcs(vmx_pages, l2_guest_code);
-		control = vmreadz(CPU_BASED_VM_EXEC_CONTROL);
+		control = vmread(CPU_BASED_VM_EXEC_CONTROL);
 		control |= CPU_BASED_USE_MSR_BITMAPS | CPU_BASED_USE_TSC_OFFSETTING;
 		vmwrite(CPU_BASED_VM_EXEC_CONTROL, control);
 		vmwrite(TSC_OFFSET, TSC_OFFSET_VALUE);
 
-		GUEST_ASSERT(!vmlaunch());
-		GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+		vmlaunch();
+		GUEST_ASSERT(vmread(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
 	} else {
 		struct svm_test_data *svm = data;
 

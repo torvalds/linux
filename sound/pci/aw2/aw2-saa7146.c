@@ -147,7 +147,7 @@ void snd_aw2_saa7146_pcm_init_playback(struct snd_aw2_saa7146 *chip,
 	unsigned long dw_page, dw_limit;
 
 	/* Configure DMA for substream
-	   Configuration informations: ALSA has allocated continuous memory
+	   Configuration information: ALSA has allocated continuous memory
 	   pages. So we don't need to use MMU of saa7146.
 	 */
 
@@ -204,7 +204,7 @@ void snd_aw2_saa7146_pcm_init_capture(struct snd_aw2_saa7146 *chip,
 	unsigned long dw_page, dw_limit;
 
 	/* Configure DMA for substream
-	   Configuration informations: ALSA has allocated continuous memory
+	   Configuration information: ALSA has allocated continuous memory
 	   pages. So we don't need to use MMU of saa7146.
 	 */
 

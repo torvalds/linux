@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. _pt_BR_development_process_main:
+
 Guia para o Processo de Desenvolvimento do Kernel
 =================================================
 

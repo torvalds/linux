@@ -168,8 +168,8 @@
 		compatible = "gpio-fan";
 		pinctrl-0 = <&pmx_fan_low &pmx_fan_high &pmx_fan_lock>;
 		pinctrl-names = "default";
-		gpios = <&gpio0 19 GPIO_ACTIVE_LOW
-		         &gpio0 18 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio0 19 GPIO_ACTIVE_LOW>,
+			<&gpio0 18 GPIO_ACTIVE_LOW>;
 		gpio-fan,speed-map =
 				<0    3>,
 				<1500 2>,

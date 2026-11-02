@@ -145,6 +145,7 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 	enum dma_slave_buswidth bus_width;
 	int period, period_cnt, sg_num = 2;
 	dma_addr_t src_addr, dst_addr;
+	struct dma_chan *chan;
 	unsigned long flags;
 	int ret, j;
 
@@ -153,12 +154,12 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	dma->chan = dma_request_slave_channel(dev,
-					      dma_params->chan_name[channel]);
-	if (!dma->chan) {
+	chan = dma_request_chan(dev, dma_params->chan_name[channel]);
+	if (IS_ERR(chan)) {
 		dev_err(dev, "failed to request dma channel\n");
 		return -ENODEV;
 	}
+	dma->chan = chan;
 
 	sgt = sg = kzalloc_objs(*sg, sg_num);
 	if (!sg) {

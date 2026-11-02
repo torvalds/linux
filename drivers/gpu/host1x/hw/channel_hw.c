@@ -13,6 +13,7 @@
 #include <trace/events/host1x.h>
 
 #include "../channel.h"
+#include "../context.h"
 #include "../dev.h"
 #include "../intr.h"
 #include "../job.h"
@@ -89,7 +90,7 @@ static void submit_setclass(struct host1x_job *job, u32 next_class)
 	 * firmware stream ID.
 	 */
 	if (job->memory_context)
-		stream_id = job->memory_context->stream_id;
+		stream_id = job->memory_context->hw->stream_id;
 	else
 		stream_id = job->engine_fallback_streamid;
 

@@ -10,6 +10,7 @@
 #include "fbnic.h"
 #include "fbnic_fw.h"
 #include "fbnic_tlv.h"
+#include "fbnic_txrx.h"
 
 #define FBNIC_SN_STR_LEN	24
 
@@ -648,6 +649,7 @@ struct fbnic_dev *fbnic_devlink_alloc(struct pci_dev *pdev)
 	fbd->mps = pcie_get_mps(pdev);
 	fbd->readrq = pcie_get_readrq(pdev);
 	fbd->relaxed_ord = pcie_relaxed_ordering_enabled(pdev);
+	fbd->rx_cqe_nsecs = FBNIC_RX_CQE_NSECS_DEFAULT;
 
 	fbd->mac_addr_boundary = FBNIC_RPC_TCAM_MACDA_DEFAULT_BOUNDARY;
 

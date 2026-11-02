@@ -128,7 +128,7 @@
 	status = "okay";
 
 	pmic: dialog@48 {
-		compatible = "dlg,da9053-aa", "dlg,da9052";
+		compatible = "dlg,da9053-aa";
 		reg = <0x48>;
 		interrupt-parent = <&gpio7>;
 		interrupts = <11 IRQ_TYPE_LEVEL_LOW>; /* low-level active IRQ at GPIO7_11 */

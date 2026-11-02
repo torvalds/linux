@@ -44,7 +44,7 @@
 
 struct mlx5e_flow_steering {
 	struct work_struct		set_rx_mode_work;
-	bool				state_destroy;
+	bool				rx_mode_active;
 	bool				vlan_strip_disable;
 	struct mlx5_core_dev		*mdev;
 	struct mlx5_flow_namespace      *ns;
@@ -560,7 +560,7 @@ static void mlx5e_del_vlan_rules(struct mlx5e_flow_steering *fs)
 	for_each_set_bit(i, fs->vlan->active_svlans, VLAN_N_VID)
 		mlx5e_fs_del_vlan_rule(fs, MLX5E_VLAN_RULE_TYPE_MATCH_STAG_VID, i);
 
-	WARN_ON_ONCE(fs->state_destroy);
+	WARN_ON_ONCE(fs->rx_mode_active);
 
 	mlx5e_remove_vlan_trap(fs);
 
@@ -743,7 +743,7 @@ static void mlx5e_handle_netdev_addr(struct mlx5e_flow_steering *fs,
 	mlx5e_for_each_hash_node(hn, tmp, fs->l2.netdev_mc, i)
 		hn->action = MLX5E_ACTION_DEL;
 
-	if (fs->state_destroy)
+	if (fs->rx_mode_active)
 		mlx5e_sync_netdev_addr(fs, netdev, uc, mc);
 
 	mlx5e_apply_netdev_addr(fs);
@@ -840,7 +840,7 @@ void mlx5e_fs_set_rx_mode_work(struct mlx5e_flow_steering *fs,
 		goto update_vport_context;
 	}
 
-	bool rx_mode_enable  = fs->state_destroy;
+	bool rx_mode_enable    = fs->rx_mode_active;
 	bool promisc_enabled   = rx_mode_enable && (netdev->flags & IFF_PROMISC);
 	bool allmulti_enabled  = rx_mode_enable && (netdev->flags & IFF_ALLMULTI);
 	bool broadcast_enabled = rx_mode_enable;
@@ -1479,7 +1479,7 @@ static void mlx5e_fs_debugfs_init(struct mlx5e_flow_steering *fs,
 
 struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 					  struct mlx5_core_dev *mdev,
-					  bool state_destroy,
+					  bool rx_mode_active,
 					  struct dentry *dfs_root)
 {
 	struct mlx5e_flow_steering *fs;
@@ -1490,7 +1490,7 @@ struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 		goto err;
 
 	fs->mdev = mdev;
-	fs->state_destroy = state_destroy;
+	fs->rx_mode_active = rx_mode_active;
 	if (mlx5e_profile_feature_cap(profile, FS_VLAN)) {
 		err = mlx5e_fs_vlan_alloc(fs);
 		if (err)
@@ -1606,9 +1606,10 @@ void mlx5e_fs_set_accel_tcp(struct mlx5e_flow_steering *fs, struct mlx5e_accel_f
 }
 #endif
 
-void mlx5e_fs_set_state_destroy(struct mlx5e_flow_steering *fs, bool state_destroy)
+void mlx5e_fs_set_rx_mode_active(struct mlx5e_flow_steering *fs,
+				 bool rx_mode_active)
 {
-	fs->state_destroy = state_destroy;
+	fs->rx_mode_active = rx_mode_active;
 }
 
 void mlx5e_fs_set_vlan_strip_disable(struct mlx5e_flow_steering *fs,

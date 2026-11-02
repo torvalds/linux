@@ -1,0 +1,14 @@
+# mode=strict
+bad/yaml-property-name.yaml:30: example 0 [property-name] property name "property#foo" is using discouraged style
+bad/yaml-property-name.yaml:31: example 0 [property-name] property name "property+foo" is using discouraged style
+bad/yaml-property-name.yaml:33: example 0 [property-name] property name "property-foo-" is using discouraged style
+bad/yaml-property-name.yaml:34: example 0 [property-name] property name "property.foo" is using discouraged style
+bad/yaml-property-name.yaml:35: example 0 [property-name] property name "property?foo" is using discouraged style
+bad/yaml-property-name.yaml:36: example 0 [property-name] property name "property_foo" is using discouraged style
+bad/yaml-property-name.yaml:38: example 0 [property-name] property name "vendor,property#foo" is using discouraged style
+bad/yaml-property-name.yaml:39: example 0 [property-name] property name "vendor,property+foo" is using discouraged style
+bad/yaml-property-name.yaml:40: example 0 [property-name] property name "vendor,property,foo" is using discouraged style
+bad/yaml-property-name.yaml:42: example 0 [property-name] property name "vendor,property-foo-" is using discouraged style
+bad/yaml-property-name.yaml:43: example 0 [property-name] property name "vendor,property.foo" is using discouraged style
+bad/yaml-property-name.yaml:44: example 0 [property-name] property name "vendor,property?foo" is using discouraged style
+bad/yaml-property-name.yaml:45: example 0 [property-name] property name "vendor,property_foo" is using discouraged style

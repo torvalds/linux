@@ -272,7 +272,7 @@
 	status = "okay";
 };
 
-&uart3  {
+&uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
 	assigned-clocks = <&clks IMX7D_UART3_ROOT_SRC>;

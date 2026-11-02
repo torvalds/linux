@@ -119,26 +119,26 @@ examples:
                  <&mmcc VIDEO_MAXI_CLK>;
         clock-names = "core", "iface", "bus", "mbus";
         power-domains = <&mmcc VENUS_GDSC>;
-        iommus =  <&venus_smmu 0x00>,
-                  <&venus_smmu 0x01>,
-                  <&venus_smmu 0x0a>,
-                  <&venus_smmu 0x07>,
-                  <&venus_smmu 0x0e>,
-                  <&venus_smmu 0x0f>,
-                  <&venus_smmu 0x08>,
-                  <&venus_smmu 0x09>,
-                  <&venus_smmu 0x0b>,
-                  <&venus_smmu 0x0c>,
-                  <&venus_smmu 0x0d>,
-                  <&venus_smmu 0x10>,
-                  <&venus_smmu 0x11>,
-                  <&venus_smmu 0x21>,
-                  <&venus_smmu 0x28>,
-                  <&venus_smmu 0x29>,
-                  <&venus_smmu 0x2b>,
-                  <&venus_smmu 0x2c>,
-                  <&venus_smmu 0x2d>,
-                  <&venus_smmu 0x31>;
+        iommus = <&venus_smmu 0x00>,
+                 <&venus_smmu 0x01>,
+                 <&venus_smmu 0x0a>,
+                 <&venus_smmu 0x07>,
+                 <&venus_smmu 0x0e>,
+                 <&venus_smmu 0x0f>,
+                 <&venus_smmu 0x08>,
+                 <&venus_smmu 0x09>,
+                 <&venus_smmu 0x0b>,
+                 <&venus_smmu 0x0c>,
+                 <&venus_smmu 0x0d>,
+                 <&venus_smmu 0x10>,
+                 <&venus_smmu 0x11>,
+                 <&venus_smmu 0x21>,
+                 <&venus_smmu 0x28>,
+                 <&venus_smmu 0x29>,
+                 <&venus_smmu 0x2b>,
+                 <&venus_smmu 0x2c>,
+                 <&venus_smmu 0x2d>,
+                 <&venus_smmu 0x31>;
         memory-region = <&venus_mem>;
 
         video-decoder {

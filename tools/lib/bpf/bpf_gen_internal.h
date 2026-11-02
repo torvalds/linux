@@ -51,9 +51,17 @@ struct bpf_gen {
 	__u32 nr_ksyms;
 	int fd_array;
 	int nr_fd_array;
+	/*
+	 * Maps with pointers to functions, that programs get their own copies
+	 * of, take slots in fd_array after nr_obj_maps maps of the object.
+	 */
+	__u32 nr_obj_maps;
+	__u32 nr_func_ptr_maps;
+	__u32 max_func_ptr_maps;
 };
 
-void bpf_gen__init(struct bpf_gen *gen, int log_level, int nr_progs, int nr_maps);
+void bpf_gen__init(struct bpf_gen *gen, int log_level, int nr_progs, int nr_maps,
+		   int max_func_ptr_maps);
 int bpf_gen__finish(struct bpf_gen *gen, int nr_progs, int nr_maps);
 void bpf_gen__free(struct bpf_gen *gen);
 void bpf_gen__load_btf(struct bpf_gen *gen, const void *raw_data, __u32 raw_size);
@@ -68,6 +76,9 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 void bpf_gen__map_update_elem(struct bpf_gen *gen, int map_idx, void *value, __u32 value_size,
 			      __u64 flags);
 void bpf_gen__map_freeze(struct bpf_gen *gen, int map_idx);
+int bpf_gen__func_ptr_map_create(struct bpf_gen *gen, const char *map_name, int obj_map_idx,
+				 void *value, __u32 value_size, const __u32 *ptr_offs,
+				 const __u64 *ptr_vals, int ptr_cnt);
 void bpf_gen__record_attach_target(struct bpf_gen *gen, const char *name, enum bpf_attach_type type);
 void bpf_gen__record_extern(struct bpf_gen *gen, const char *name, bool is_weak,
 			    bool is_typeless, bool is_ld64, int kind, int insn_idx);

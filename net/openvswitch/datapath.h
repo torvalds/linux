@@ -23,7 +23,7 @@
 
 #define DP_MAX_PORTS                USHRT_MAX
 #define DP_VPORT_HASH_BUCKETS       1024
-#define DP_MASKS_REBALANCE_INTERVAL 4000
+#define DP_MASKS_REBALANCE_INTERVAL msecs_to_jiffies(4000)
 
 /**
  * struct dp_stats_percpu - per-cpu packet processing statistics for a given

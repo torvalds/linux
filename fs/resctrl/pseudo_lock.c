@@ -750,17 +750,10 @@ static ssize_t pseudo_lock_measure_trigger(struct file *file,
 					   size_t count, loff_t *ppos)
 {
 	struct rdtgroup *rdtgrp = file->private_data;
-	size_t buf_size;
-	char buf[32];
 	int ret;
 	int sel;
 
-	buf_size = min(count, (sizeof(buf) - 1));
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-	ret = kstrtoint(buf, 10, &sel);
+	ret = kstrtoint_from_user(user_buf, count, 10, &sel);
 	if (ret == 0) {
 		if (sel != 1 && sel != 2 && sel != 3)
 			return -EINVAL;

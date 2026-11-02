@@ -326,6 +326,11 @@ static int jz4740_i2s_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const u64 jz4740_i2s_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF;
+
 static const struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
 	.probe = jz4740_i2s_dai_probe,
 	.startup = jz4740_i2s_startup,
@@ -333,6 +338,8 @@ static const struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
 	.trigger = jz4740_i2s_trigger,
 	.hw_params = jz4740_i2s_hw_params,
 	.set_fmt = jz4740_i2s_set_fmt,
+	.auto_selectable_formats = &jz4740_i2s_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 #define JZ4740_I2S_FMTS (SNDRV_PCM_FMTBIT_S8 | \

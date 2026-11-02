@@ -190,7 +190,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	return 0;
 }
 
-int jffs2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int jffs2_setattr(const struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);

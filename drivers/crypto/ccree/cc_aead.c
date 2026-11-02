@@ -226,8 +226,8 @@ static void cc_aead_complete(struct device *dev, void *cc_req, int err)
 		goto done;
 
 	if (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) {
-		if (memcmp(areq_ctx->mac_buf, areq_ctx->icv_virt_addr,
-			   ctx->authsize) != 0) {
+		if (crypto_memneq(areq_ctx->mac_buf, areq_ctx->icv_virt_addr,
+				  ctx->authsize)) {
 			dev_dbg(dev, "Payload authentication failure, (auth-size=%d, cipher=%d)\n",
 				ctx->authsize, ctx->cipher_mode);
 			/* In case of payload authentication failure, MUST NOT

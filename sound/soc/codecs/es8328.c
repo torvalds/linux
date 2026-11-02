@@ -727,12 +727,19 @@ static int es8328_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static const u64 es8328_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J;
+
 static const struct snd_soc_dai_ops es8328_dai_ops = {
 	.startup	= es8328_startup,
 	.hw_params	= es8328_hw_params,
 	.mute_stream	= es8328_mute,
 	.set_sysclk	= es8328_set_sysclk,
 	.set_fmt	= es8328_set_dai_fmt,
+	.auto_selectable_formats	= &es8328_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 	.no_capture_mute = 1,
 };
 
@@ -822,14 +829,6 @@ static int es8328_component_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	/* Setup clocks */
-	es8328->clk = devm_clk_get(component->dev, NULL);
-	if (IS_ERR(es8328->clk)) {
-		dev_err(component->dev, "codec clock missing or invalid\n");
-		ret = PTR_ERR(es8328->clk);
-		goto clk_fail;
-	}
-
 	ret = clk_prepare_enable(es8328->clk);
 	if (ret) {
 		dev_err(component->dev, "unable to prepare codec clk\n");
@@ -898,6 +897,11 @@ int es8328_probe(struct device *dev, struct regmap *regmap)
 		return -ENOMEM;
 
 	es8328->regmap = regmap;
+
+	es8328->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(es8328->clk))
+		return dev_err_probe(dev, PTR_ERR(es8328->clk),
+				     "codec clock missing or invalid\n");
 
 	for (i = 0; i < ARRAY_SIZE(es8328->supplies); i++)
 		es8328->supplies[i].supply = supply_names[i];

@@ -255,11 +255,7 @@ impl Node {
     }
 
     #[inline(never)]
-    pub(crate) fn full_debug_print(
-        &self,
-        m: &SeqFile,
-        owner_inner: &mut ProcessInner,
-    ) -> Result<()> {
+    pub(crate) fn full_debug_print(&self, m: &SeqFile, owner_inner: &mut ProcessInner) -> Result {
         let inner = self.inner.access_mut(owner_inner);
         seq_print!(
             m,
@@ -405,7 +401,7 @@ impl Node {
             !is_dead && !state.has_count
         } else {
             if state.count < count {
-                pr_err!("Failure: refcount underflow!");
+                pr_err_ratelimited!("Failure: refcount underflow!\n");
                 return None;
             }
             state.count -= count;
@@ -693,7 +689,7 @@ impl Node {
             .freeze_list
             .retain(|proc| !core::ptr::eq::<Process>(&**proc, p));
         if len == inner.freeze_list.len() {
-            pr_warn!(
+            pr_warn_ratelimited!(
                 "Could not remove freeze listener for {}\n",
                 p.pid_in_current_ns()
             );
@@ -759,7 +755,7 @@ impl DeliverToRead for Node {
     }
 
     #[inline(never)]
-    fn debug_print(&self, m: &SeqFile, prefix: &str, _tprefix: &str) -> Result<()> {
+    fn debug_print(&self, m: &SeqFile, prefix: &str, _tprefix: &str) -> Result {
         seq_print!(
             m,
             "{}node work {}: u{:016x} c{:016x}\n",
@@ -1154,7 +1150,7 @@ impl DeliverToRead for NodeDeath {
     }
 
     #[inline(never)]
-    fn debug_print(&self, m: &SeqFile, prefix: &str, _tprefix: &str) -> Result<()> {
+    fn debug_print(&self, m: &SeqFile, prefix: &str, _tprefix: &str) -> Result {
         let inner = self.inner.lock();
 
         let dead_binder = inner.dead && !inner.notification_done;

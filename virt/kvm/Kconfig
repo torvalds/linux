@@ -40,9 +40,6 @@ config NEED_KVM_DIRTY_RING_WITH_BITMAP
 	bool
 	depends on HAVE_KVM_DIRTY_RING
 
-config KVM_MMIO
-       bool
-
 config KVM_ASYNC_PF
        bool
 
@@ -50,19 +47,10 @@ config KVM_ASYNC_PF
 config KVM_ASYNC_PF_SYNC
        bool
 
-config HAVE_KVM_MSI
-       bool
-
-config HAVE_KVM_READONLY_MEM
-       bool
-
 config HAVE_KVM_CPU_RELAX_INTERCEPT
        bool
 
 config KVM_VFIO
-       bool
-
-config HAVE_KVM_INVALID_WAKEUPS
        bool
 
 config KVM_GENERIC_DIRTYLOG_READ_PROTECT
@@ -79,12 +67,6 @@ config HAVE_KVM_IRQ_BYPASS
        tristate
        select IRQ_BYPASS_MANAGER
 
-config HAVE_KVM_VCPU_RUN_PID_CHANGE
-       bool
-
-config HAVE_KVM_NO_POLL
-       bool
-
 config VIRT_XFER_TO_GUEST_WORK
        bool
 
@@ -98,9 +80,6 @@ config KVM_ELIDE_TLB_FLUSH_IF_YOUNG
        bool
 
 config KVM_MMU_LOCKLESS_AGING
-       bool
-
-config KVM_GENERIC_MEMORY_ATTRIBUTES
        bool
 
 config KVM_GUEST_MEMFD
@@ -122,3 +101,6 @@ config HAVE_KVM_ARCH_GMEM_INVALIDATE
 config HAVE_KVM_ARCH_GMEM_POPULATE
        bool
        depends on KVM_GUEST_MEMFD
+
+config KVM_VM_MEMORY_ATTRIBUTES
+       bool

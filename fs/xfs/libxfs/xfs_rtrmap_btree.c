@@ -20,6 +20,7 @@
 #include "xfs_btree_staging.h"
 #include "xfs_metafile.h"
 #include "xfs_rmap.h"
+#include "xfs_rmap_btree.h"
 #include "xfs_rtrmap_btree.h"
 #include "xfs_trace.h"
 #include "xfs_cksum.h"
@@ -113,129 +114,12 @@ xfs_rtrmapbt_get_dmaxrecs(
 	return xfs_rtrmapbt_droot_maxrecs(cur->bc_ino.forksize, level == 0);
 }
 
-/*
- * Convert the ondisk record's offset field into the ondisk key's offset field.
- * Fork and bmbt are significant parts of the rmap record key, but written
- * status is merely a record attribute.
- */
-static inline __be64 ondisk_rec_offset_to_key(const union xfs_btree_rec *rec)
-{
-	return rec->rmap.rm_offset & ~cpu_to_be64(XFS_RMAP_OFF_UNWRITTEN);
-}
-
-STATIC void
-xfs_rtrmapbt_init_key_from_rec(
-	union xfs_btree_key		*key,
-	const union xfs_btree_rec	*rec)
-{
-	key->rmap.rm_startblock = rec->rmap.rm_startblock;
-	key->rmap.rm_owner = rec->rmap.rm_owner;
-	key->rmap.rm_offset = ondisk_rec_offset_to_key(rec);
-}
-
-STATIC void
-xfs_rtrmapbt_init_high_key_from_rec(
-	union xfs_btree_key		*key,
-	const union xfs_btree_rec	*rec)
-{
-	uint64_t			off;
-	int				adj;
-
-	adj = be32_to_cpu(rec->rmap.rm_blockcount) - 1;
-
-	key->rmap.rm_startblock = rec->rmap.rm_startblock;
-	be32_add_cpu(&key->rmap.rm_startblock, adj);
-	key->rmap.rm_owner = rec->rmap.rm_owner;
-	key->rmap.rm_offset = ondisk_rec_offset_to_key(rec);
-	if (XFS_RMAP_NON_INODE_OWNER(be64_to_cpu(rec->rmap.rm_owner)) ||
-	    XFS_RMAP_IS_BMBT_BLOCK(be64_to_cpu(rec->rmap.rm_offset)))
-		return;
-	off = be64_to_cpu(key->rmap.rm_offset);
-	off = (XFS_RMAP_OFF(off) + adj) | (off & ~XFS_RMAP_OFF_MASK);
-	key->rmap.rm_offset = cpu_to_be64(off);
-}
-
-STATIC void
-xfs_rtrmapbt_init_rec_from_cur(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_rec	*rec)
-{
-	rec->rmap.rm_startblock = cpu_to_be32(cur->bc_rec.r.rm_startblock);
-	rec->rmap.rm_blockcount = cpu_to_be32(cur->bc_rec.r.rm_blockcount);
-	rec->rmap.rm_owner = cpu_to_be64(cur->bc_rec.r.rm_owner);
-	rec->rmap.rm_offset = cpu_to_be64(
-			xfs_rmap_irec_offset_pack(&cur->bc_rec.r));
-}
-
 STATIC void
 xfs_rtrmapbt_init_ptr_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr)
 {
 	ptr->l = 0;
-}
-
-/*
- * Mask the appropriate parts of the ondisk key field for a key comparison.
- * Fork and bmbt are significant parts of the rmap record key, but written
- * status is merely a record attribute.
- */
-static inline uint64_t offset_keymask(uint64_t offset)
-{
-	return offset & ~XFS_RMAP_OFF_UNWRITTEN;
-}
-
-STATIC int
-xfs_rtrmapbt_cmp_key_with_cur(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_key	*key)
-{
-	struct xfs_rmap_irec		*rec = &cur->bc_rec.r;
-	const struct xfs_rmap_key	*kp = &key->rmap;
-
-	return cmp_int(be32_to_cpu(kp->rm_startblock), rec->rm_startblock) ?:
-	       cmp_int(be64_to_cpu(kp->rm_owner), rec->rm_owner) ?:
-	       cmp_int(offset_keymask(be64_to_cpu(kp->rm_offset)),
-		       offset_keymask(xfs_rmap_irec_offset_pack(rec)));
-}
-
-STATIC int
-xfs_rtrmapbt_cmp_two_keys(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2,
-	const union xfs_btree_key	*mask)
-{
-	const struct xfs_rmap_key	*kp1 = &k1->rmap;
-	const struct xfs_rmap_key	*kp2 = &k2->rmap;
-	int				d;
-
-	/* Doesn't make sense to mask off the physical space part */
-	ASSERT(!mask || mask->rmap.rm_startblock);
-
-	d = cmp_int(be32_to_cpu(kp1->rm_startblock),
-		    be32_to_cpu(kp2->rm_startblock));
-	if (d)
-		return d;
-
-	if (!mask || mask->rmap.rm_owner) {
-		d = cmp_int(be64_to_cpu(kp1->rm_owner),
-			    be64_to_cpu(kp2->rm_owner));
-		if (d)
-			return d;
-	}
-
-	if (!mask || mask->rmap.rm_offset) {
-		/* Doesn't make sense to allow offset but not owner */
-		ASSERT(!mask || mask->rmap.rm_owner);
-
-		d = cmp_int(offset_keymask(be64_to_cpu(kp1->rm_offset)),
-			    offset_keymask(be64_to_cpu(kp2->rm_offset)));
-		if (d)
-			return d;
-	}
-
-	return 0;
 }
 
 static xfs_failaddr_t
@@ -304,86 +188,6 @@ const struct xfs_buf_ops xfs_rtrmapbt_buf_ops = {
 	.verify_struct		= xfs_rtrmapbt_verify,
 };
 
-STATIC int
-xfs_rtrmapbt_keys_inorder(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
-{
-	uint32_t			x;
-	uint32_t			y;
-	uint64_t			a;
-	uint64_t			b;
-
-	x = be32_to_cpu(k1->rmap.rm_startblock);
-	y = be32_to_cpu(k2->rmap.rm_startblock);
-	if (x < y)
-		return 1;
-	else if (x > y)
-		return 0;
-	a = be64_to_cpu(k1->rmap.rm_owner);
-	b = be64_to_cpu(k2->rmap.rm_owner);
-	if (a < b)
-		return 1;
-	else if (a > b)
-		return 0;
-	a = offset_keymask(be64_to_cpu(k1->rmap.rm_offset));
-	b = offset_keymask(be64_to_cpu(k2->rmap.rm_offset));
-	if (a <= b)
-		return 1;
-	return 0;
-}
-
-STATIC int
-xfs_rtrmapbt_recs_inorder(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_rec	*r1,
-	const union xfs_btree_rec	*r2)
-{
-	uint32_t			x;
-	uint32_t			y;
-	uint64_t			a;
-	uint64_t			b;
-
-	x = be32_to_cpu(r1->rmap.rm_startblock);
-	y = be32_to_cpu(r2->rmap.rm_startblock);
-	if (x < y)
-		return 1;
-	else if (x > y)
-		return 0;
-	a = be64_to_cpu(r1->rmap.rm_owner);
-	b = be64_to_cpu(r2->rmap.rm_owner);
-	if (a < b)
-		return 1;
-	else if (a > b)
-		return 0;
-	a = offset_keymask(be64_to_cpu(r1->rmap.rm_offset));
-	b = offset_keymask(be64_to_cpu(r2->rmap.rm_offset));
-	if (a <= b)
-		return 1;
-	return 0;
-}
-
-STATIC enum xbtree_key_contig
-xfs_rtrmapbt_keys_contiguous(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_key	*key1,
-	const union xfs_btree_key	*key2,
-	const union xfs_btree_key	*mask)
-{
-	ASSERT(!mask || mask->rmap.rm_startblock);
-
-	/*
-	 * We only support checking contiguity of the physical space component.
-	 * If any callers ever need more specificity than that, they'll have to
-	 * implement it here.
-	 */
-	ASSERT(!mask || (!mask->rmap.rm_owner && !mask->rmap.rm_offset));
-
-	return xbtree_key_contig(be32_to_cpu(key1->rmap.rm_startblock),
-				 be32_to_cpu(key2->rmap.rm_startblock));
-}
-
 static inline void
 xfs_rtrmapbt_move_ptrs(
 	struct xfs_mount	*mp,
@@ -412,7 +216,7 @@ xfs_rtrmapbt_broot_realloc(
 	unsigned int		old_size = ifp->if_broot_bytes;
 	const unsigned int	level = cur->bc_nlevels - 1;
 
-	new_size = xfs_rtrmap_broot_space_calc(mp, level, new_numrecs);
+	new_size = xfs_rtrmap_broot_space_calc(level, new_numrecs);
 
 	/* Handle the nop case quietly. */
 	if (new_size == old_size)
@@ -486,16 +290,16 @@ const struct xfs_btree_ops xfs_rtrmapbt_ops = {
 	.get_minrecs		= xfs_rtrmapbt_get_minrecs,
 	.get_maxrecs		= xfs_rtrmapbt_get_maxrecs,
 	.get_dmaxrecs		= xfs_rtrmapbt_get_dmaxrecs,
-	.init_key_from_rec	= xfs_rtrmapbt_init_key_from_rec,
-	.init_high_key_from_rec	= xfs_rtrmapbt_init_high_key_from_rec,
-	.init_rec_from_cur	= xfs_rtrmapbt_init_rec_from_cur,
+	.init_key_from_rec	= xfs_rmapbt_init_key_from_rec,
+	.init_high_key_from_rec	= xfs_rmapbt_init_high_key_from_rec,
+	.init_rec_from_cur	= xfs_rmapbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_rtrmapbt_init_ptr_from_cur,
-	.cmp_key_with_cur	= xfs_rtrmapbt_cmp_key_with_cur,
+	.cmp_key_with_cur	= xfs_rmapbt_cmp_key_with_cur,
 	.buf_ops		= &xfs_rtrmapbt_buf_ops,
-	.cmp_two_keys		= xfs_rtrmapbt_cmp_two_keys,
-	.keys_inorder		= xfs_rtrmapbt_keys_inorder,
-	.recs_inorder		= xfs_rtrmapbt_recs_inorder,
-	.keys_contiguous	= xfs_rtrmapbt_keys_contiguous,
+	.cmp_two_keys		= xfs_rmapbt_cmp_two_keys,
+	.keys_inorder		= xfs_rmapbt_keys_inorder,
+	.recs_inorder		= xfs_rmapbt_recs_inorder,
+	.keys_contiguous	= xfs_rmapbt_keys_contiguous,
 	.broot_realloc		= xfs_rtrmapbt_broot_realloc,
 };
 
@@ -595,16 +399,16 @@ const struct xfs_btree_ops xfs_rtrmapbt_mem_ops = {
 	.free_block		= xfbtree_free_block,
 	.get_minrecs		= xfbtree_get_minrecs,
 	.get_maxrecs		= xfbtree_get_maxrecs,
-	.init_key_from_rec	= xfs_rtrmapbt_init_key_from_rec,
-	.init_high_key_from_rec	= xfs_rtrmapbt_init_high_key_from_rec,
-	.init_rec_from_cur	= xfs_rtrmapbt_init_rec_from_cur,
+	.init_key_from_rec	= xfs_rmapbt_init_key_from_rec,
+	.init_high_key_from_rec	= xfs_rmapbt_init_high_key_from_rec,
+	.init_rec_from_cur	= xfs_rmapbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfbtree_init_ptr_from_cur,
-	.cmp_key_with_cur	= xfs_rtrmapbt_cmp_key_with_cur,
+	.cmp_key_with_cur	= xfs_rmapbt_cmp_key_with_cur,
 	.buf_ops		= &xfs_rtrmapbt_mem_buf_ops,
-	.cmp_two_keys		= xfs_rtrmapbt_cmp_two_keys,
-	.keys_inorder		= xfs_rtrmapbt_keys_inorder,
-	.recs_inorder		= xfs_rtrmapbt_recs_inorder,
-	.keys_contiguous	= xfs_rtrmapbt_keys_contiguous,
+	.cmp_two_keys		= xfs_rmapbt_cmp_two_keys,
+	.keys_inorder		= xfs_rmapbt_keys_inorder,
+	.recs_inorder		= xfs_rmapbt_recs_inorder,
+	.keys_contiguous	= xfs_rmapbt_keys_contiguous,
 };
 
 /* Create a cursor for an in-memory btree. */
@@ -895,7 +699,7 @@ xfs_iformat_rtrmap(
 	}
 
 	broot = xfs_broot_alloc(xfs_ifork_ptr(ip, XFS_DATA_FORK),
-			xfs_rtrmap_broot_space_calc(mp, level, numrecs));
+			xfs_rtrmap_broot_space_calc(level, numrecs));
 	if (broot)
 		xfs_rtrmapbt_from_disk(ip, dfp, dsize, broot);
 	return 0;
@@ -980,7 +784,7 @@ xfs_rtrmapbt_create(
 	ASSERT(ifp->if_bytes == 0);
 
 	/* Initialize the empty incore btree root. */
-	broot = xfs_broot_realloc(ifp, xfs_rtrmap_broot_space_calc(mp, 0, 0));
+	broot = xfs_broot_realloc(ifp, xfs_rtrmap_broot_space_calc(0, 0));
 	if (broot)
 		xfs_btree_init_block(mp, broot, &xfs_rtrmapbt_ops, 0, 0,
 				I_INO(ip));

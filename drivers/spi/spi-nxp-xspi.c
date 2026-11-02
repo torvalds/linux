@@ -841,23 +841,23 @@ static int nxp_xspi_ahb_dma_read(struct nxp_xspi *xspi,
 {
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *chan = xspi->dma_rx;
+	struct device *dma_dev = dmaengine_get_dma_device(chan);
 	unsigned long timeout;
 	dma_addr_t src_addr, dst_addr;
 	int ret = 0;
 
-	dst_addr = dma_map_single(chan->device->dev,
-				  op->data.buf.in, op->data.nbytes,
+	dst_addr = dma_map_single(dma_dev, op->data.buf.in, op->data.nbytes,
 				  DMA_FROM_DEVICE);
-	if (dma_mapping_error(chan->device->dev, dst_addr)) {
+	if (dma_mapping_error(dma_dev, dst_addr)) {
 		dev_err(xspi->dev, "failed to map DMA dst buffer\n");
 		return -ENOMEM;
 	}
 
-	src_addr = dma_map_resource(chan->device->dev,
+	src_addr = dma_map_resource(dma_dev,
 				    (phys_addr_t)xspi->memmap_phy + op->addr.val,
 				    op->data.nbytes,
 				    DMA_TO_DEVICE, 0);
-	if (dma_mapping_error(chan->device->dev, src_addr)) {
+	if (dma_mapping_error(dma_dev, src_addr)) {
 		dev_err(xspi->dev, "failed to map DMA src resource\n");
 		ret = -ENOMEM;
 		goto err_unmap_dst;
@@ -886,12 +886,10 @@ static int nxp_xspi_ahb_dma_read(struct nxp_xspi *xspi,
 	}
 
 err_unmap_src:
-	dma_unmap_resource(chan->device->dev, src_addr,
-		op->data.nbytes, DMA_TO_DEVICE, 0);
+	dma_unmap_resource(dma_dev, src_addr, op->data.nbytes, DMA_TO_DEVICE, 0);
 
 err_unmap_dst:
-	dma_unmap_single(chan->device->dev, dst_addr,
-			 op->data.nbytes, DMA_FROM_DEVICE);
+	dma_unmap_single(dma_dev, dst_addr, op->data.nbytes, DMA_FROM_DEVICE);
 
 	return ret;
 }

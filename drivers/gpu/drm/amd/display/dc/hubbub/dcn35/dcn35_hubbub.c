@@ -31,6 +31,7 @@
 #include "dcn35_hubbub.h"
 #include "dm_services.h"
 #include "reg_helper.h"
+#include "dc_dmub_srv.h"
 
 
 #define CTX \
@@ -530,12 +531,7 @@ void hubbub35_init(struct hubbub *hubbub)
 	hubbub35_set_fgcg(hubbub2,
 			  hubbub->ctx->dc->debug.enable_fine_grain_clock_gating
 				  .bits.dchubbub);
-	/*
-	ignore the "df_pre_cstate_req" from the SDP port control.
-	only the DCN will determine when to connect the SDP port
-	*/
-	REG_UPDATE(DCHUBBUB_SDPIF_CFG0,
-			SDPIF_PORT_CONTROL, 1);
+
 	/*Set SDP's max outstanding request
 	When set to 1: Max outstanding is 512
 	When set to 0: Max outstanding is 256
@@ -580,7 +576,13 @@ void dcn35_dchvm_init(struct hubbub *hubbub)
 
 		//Reflect the power status of DCHUBBUB
 		REG_UPDATE(DCHVM_RIOMMU_CTRL0, HOSTVM_POWERSTATUS, 1);
+		udelay(5);
+	}
 
+	// generically re-allow the DCHVM<->rIOMMU SDP port to disconnect after powerstatus=1
+	dc_dmub_srv_hubbub_set_riommu_pctrl(hubbub->ctx, 0x20);
+
+	if (riommu_active) {
 		//Start rIOMMU prefetching
 		REG_UPDATE(DCHVM_RIOMMU_CTRL0, HOSTVM_PREFETCH_REQ, 1);
 
@@ -653,6 +655,8 @@ void hubbub35_construct(struct dcn20_hubbub *hubbub2,
 	int config_return_buffer_size_kb)
 {
 	hubbub2->base.ctx = ctx;
+
+	hubbub2->base.inst = 0;
 	hubbub2->base.funcs = &hubbub35_funcs;
 	hubbub2->regs = hubbub_regs;
 	hubbub2->shifts = hubbub_shift;

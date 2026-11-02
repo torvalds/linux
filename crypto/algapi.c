@@ -424,7 +424,6 @@ static void crypto_free_alg(struct crypto_alg *alg)
 	unsigned int algsize = alg->cra_type->algsize;
 	u8 *p = (u8 *)alg - algsize;
 
-	crypto_destroy_alg(alg);
 	kfree(p);
 }
 
@@ -494,9 +493,31 @@ void crypto_unregister_alg(struct crypto_alg *alg)
 	LIST_HEAD(list);
 
 	down_write(&crypto_alg_sem);
+	if (alg->cra_flags & CRYPTO_ALG_DUP_FIRST) {
+		struct crypto_alg *q, *r = NULL;
+
+		list_for_each_entry(q, &crypto_alg_list, cra_list) {
+			if (crypto_is_larval(q))
+				continue;
+			if (strcmp(q->cra_driver_name, alg->cra_driver_name))
+				continue;
+			r = q;
+			break;
+		}
+
+		if (!r) {
+			up_write(&crypto_alg_sem);
+			ret = -ENOENT;
+			goto not_found;
+		}
+
+		alg = r;
+	}
+
 	ret = crypto_remove_alg(alg, &list);
 	up_write(&crypto_alg_sem);
 
+not_found:
 	if (WARN(ret, "Algorithm %s is not registered", alg->cra_driver_name))
 		return;
 

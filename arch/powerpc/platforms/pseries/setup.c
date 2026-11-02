@@ -876,9 +876,9 @@ static void __init pSeries_setup_arch(void)
 			static_branch_enable(&shared_processor);
 			pv_spinlocks_init();
 #ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
-			static_key_slow_inc(&paravirt_steal_enabled);
+			static_branch_inc(&paravirt_steal_enabled);
 			if (steal_acc)
-				static_key_slow_inc(&paravirt_steal_rq_enabled);
+				static_branch_inc(&paravirt_steal_rq_enabled);
 #endif
 		}
 

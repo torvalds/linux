@@ -84,15 +84,15 @@ examples:
                  <&topckgen CLK_TOP_I2S2_M_SEL>,
                  <&topckgen CLK_TOP_I2S3_M_SEL>,
                  <&topckgen CLK_TOP_I2S3_B_SEL>;
-         clock-names = "infra_sys_audio_clk",
-                       "top_pdn_audio",
-                       "top_pdn_aud_intbus",
-                       "bck0",
-                       "bck1",
-                       "i2s0_m",
-                       "i2s1_m",
-                       "i2s2_m",
-                       "i2s3_m",
-                       "i2s3_b";
-          memory-region = <&afe_dma_mem>;
+        clock-names = "infra_sys_audio_clk",
+                      "top_pdn_audio",
+                      "top_pdn_aud_intbus",
+                      "bck0",
+                      "bck1",
+                      "i2s0_m",
+                      "i2s1_m",
+                      "i2s2_m",
+                      "i2s3_m",
+                      "i2s3_b";
+        memory-region = <&afe_dma_mem>;
     };

@@ -100,6 +100,7 @@ directive               : big_endian_directive
                         | pages_directive
                         | public_directive
                         | skip_directive
+                        | aggregate_directive
 
 big_endian_directive    : "big_endian"
 exclude_directive       : "exclude"
@@ -107,6 +108,7 @@ header_directive        : "header"
 pages_directive         : "pages"
 public_directive        : "public"
 skip_directive          : "skip"
+aggregate_directive     : "aggregate"
 
 //
 // XDR language primitives

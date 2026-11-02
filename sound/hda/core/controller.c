@@ -396,6 +396,25 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_get_response);
 
+/**
+ * snd_hdac_bus_reset_response_counter - reset the pending response count
+ * @bus: HD-audio core bus
+ * @addr: codec address
+ *
+ * Drop the number of commands that are still waiting for a response from
+ * the given codec address.  This is called when a verb is known to be dead,
+ * e.g. after a response timeout, so that a lost response won't leave the
+ * counter non-zero forever and block all later verbs to the same codec.
+ */
+void snd_hdac_bus_reset_response_counter(struct hdac_bus *bus, unsigned int addr)
+{
+	if (addr >= HDA_MAX_CODECS)
+		return;
+
+	guard(spinlock_irq)(&bus->reg_lock);
+	bus->rirb.cmds[addr] = 0;
+}
+
 #define HDAC_MAX_CAPS 10
 /**
  * snd_hdac_bus_parse_capabilities - parse capability structure
@@ -781,9 +800,6 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_free_stream_pages);
  */
 void snd_hdac_bus_link_power(struct hdac_device *codec, bool enable)
 {
-	if (enable)
-		set_bit(codec->addr, &codec->bus->codec_powered);
-	else
-		clear_bit(codec->addr, &codec->bus->codec_powered);
+	assign_bit(codec->addr, &codec->bus->codec_powered, enable);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_link_power);

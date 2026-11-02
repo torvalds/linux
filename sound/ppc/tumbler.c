@@ -1134,7 +1134,7 @@ static long tumbler_find_device(const char *device, const char *platform,
 		gp->active_val = 0x4;
 		gp->inactive_val = 0x5;
 		/* Here are some crude hacks to extract the GPIO polarity and
-		 * open collector informations out of the do-platform script
+		 * open collector information out of the do-platform script
 		 * as we don't yet have an interpreter for these things
 		 */
 		if (platform)

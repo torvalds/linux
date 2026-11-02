@@ -22,6 +22,15 @@ struct aes_gcm_key {
 };
 
 /**
+ * aes_gcm_zeroize_key() - Zeroize an aes_gcm_key structure
+ * @key: The aes_gcm_key to zeroize
+ */
+static inline void aes_gcm_zeroize_key(struct aes_gcm_key *key)
+{
+	memzero_explicit(key, sizeof(*key));
+}
+
+/**
  * struct aes_gcm_ctx - Context for incrementally en/decrypting a message
  */
 struct aes_gcm_ctx {
@@ -59,6 +68,15 @@ struct aes_gcm_ctx {
 };
 
 /**
+ * aes_gcm_zeroize_ctx() - Zeroize an aes_gcm_ctx structure
+ * @ctx: The aes_gcm_ctx to zeroize
+ */
+static inline void aes_gcm_zeroize_ctx(struct aes_gcm_ctx *ctx)
+{
+	memzero_explicit(ctx, sizeof(*ctx));
+}
+
+/**
  * aes_gcm_preparekey() - Prepare a key for AES-GCM encryption and decryption
  * @key: (output) The key structure to initialize
  * @in_key: The raw AES-GCM key
@@ -66,8 +84,8 @@ struct aes_gcm_ctx {
  * @authtag_len: Length of the authentication tag in bytes:
  *		 4, 8, 12, 13, 14, 15, or 16.  16 is recommended.
  *
- * Users should use memzero_explicit() to zeroize the key struct at the end of
- * its lifetime.  (But if this function fails, zeroization is unnecessary.)
+ * Users should use aes_gcm_zeroize_key() to zeroize the key struct at the end
+ * of its lifetime.  (But if this function fails, zeroization is unnecessary.)
  *
  * Context: Any context.
  * Return:

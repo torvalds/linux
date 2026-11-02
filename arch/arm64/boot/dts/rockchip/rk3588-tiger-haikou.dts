@@ -155,6 +155,10 @@
 	};
 };
 
+&can0 {
+	status = "okay";
+};
+
 &combphy2_psu {
 	status = "okay";
 };

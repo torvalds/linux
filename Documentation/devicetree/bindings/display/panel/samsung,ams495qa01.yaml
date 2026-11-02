@@ -51,7 +51,7 @@ examples:
 
             port {
                 mipi_in_panel: endpoint {
-                  remote-endpoint = <&mipi_out_panel>;
+                    remote-endpoint = <&mipi_out_panel>;
                 };
             };
         };

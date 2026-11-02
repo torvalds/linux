@@ -6,19 +6,6 @@
 
 #include "devl_internal.h"
 
-#define DEVLINK_PORT_FN_CAPS_VALID_MASK \
-	(_BITUL(__DEVLINK_PORT_FN_ATTR_CAPS_MAX) - 1)
-
-static const struct nla_policy devlink_function_nl_policy[DEVLINK_PORT_FUNCTION_ATTR_MAX + 1] = {
-	[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR] = { .type = NLA_BINARY },
-	[DEVLINK_PORT_FN_ATTR_STATE] =
-		NLA_POLICY_RANGE(NLA_U8, DEVLINK_PORT_FN_STATE_INACTIVE,
-				 DEVLINK_PORT_FN_STATE_ACTIVE),
-	[DEVLINK_PORT_FN_ATTR_CAPS] =
-		NLA_POLICY_BITFIELD32(DEVLINK_PORT_FN_CAPS_VALID_MASK),
-	[DEVLINK_PORT_FN_ATTR_MAX_IO_EQS] = { .type = NLA_U32 },
-};
-
 #define ASSERT_DEVLINK_PORT_REGISTERED(devlink_port)				\
 	WARN_ON_ONCE(!(devlink_port)->registered)
 #define ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port)			\
@@ -782,11 +769,11 @@ static int devlink_port_function_set(struct devlink_port *port,
 				     const struct nlattr *attr,
 				     struct netlink_ext_ack *extack)
 {
-	struct nlattr *tb[DEVLINK_PORT_FUNCTION_ATTR_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(devlink_dl_port_function_set_nl_policy)];
 	int err;
 
-	err = nla_parse_nested(tb, DEVLINK_PORT_FUNCTION_ATTR_MAX, attr,
-			       devlink_function_nl_policy, extack);
+	err = nla_parse_nested(tb, ARRAY_SIZE(tb) - 1, attr,
+			       devlink_dl_port_function_set_nl_policy, extack);
 	if (err < 0) {
 		NL_SET_ERR_MSG(extack, "Fail to parse port function attributes");
 		return err;

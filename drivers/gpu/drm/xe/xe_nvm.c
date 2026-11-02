@@ -28,6 +28,7 @@
 static const struct intel_dg_nvm_region regions[INTEL_DG_NVM_REGIONS] = {
 	[0] = { .name = "DESCRIPTOR", },
 	[2] = { .name = "GSC", },
+	[5] = { .name = "SYSCTL", },
 	[9] = { .name = "PADDING", },
 	[11] = { .name = "OptionROM", },
 	[12] = { .name = "DAM", },

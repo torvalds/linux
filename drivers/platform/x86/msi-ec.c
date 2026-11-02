@@ -122,6 +122,7 @@ static const char * const ALLOWED_FW_1[] __initconst = {
 	"17F2EMS1.104",
 	"17F2EMS1.106",
 	"17F2EMS1.107",
+	"16U8EMS2.100", // MSI GL65 Leopard 9SCXK
 	NULL
 };
 
@@ -825,6 +826,7 @@ static struct msi_ec_conf CONF9 __initdata = {
 static const char * const ALLOWED_FW_10[] __initconst = {
 	"1582EMS1.107", // GF66 11UC
 	"1583EMS1.109", // Pulse GL66 12UEK
+	"1585EMS1.115", // Katana 15 B13VFK
 	NULL
 };
 
@@ -1132,6 +1134,7 @@ static struct msi_ec_conf CONF13 __initdata = {
 };
 
 static const char * const ALLOWED_FW_14[] __initconst = {
+	"1571EMS1.106", // Creator Z16 A11UE
 	"1824EMS1.108", // Raider 18 HX AI A2XWJG (MS-1824)
 	"182LIMS1.108", // Vector A18 HX A9WHG
 	"182LIMS1.111", // MSI Raider A18 HX A9WJG / Vector A18 HX A9WHG
@@ -1278,6 +1281,15 @@ static ssize_t charge_control_threshold_show(u8 offset,
 	result = ec_read(conf.charge_control.address, &rdata);
 	if (result < 0)
 		return result;
+
+	/*
+	 * The EC may hold an out-of-range value (e.g. 0x80) when no charge
+	 * limit has been set. Report the maximum threshold instead of a
+	 * meaningless (possibly negative) percentage.
+	 */
+	if (rdata < conf.charge_control.range_min ||
+	    rdata > conf.charge_control.range_max)
+		rdata = conf.charge_control.range_max;
 
 	return sysfs_emit(buf, "%i\n", rdata - offset);
 }

@@ -462,6 +462,42 @@ intel_plane_colorop_replace_blob(struct intel_plane_state *plane_state,
 	return false;
 }
 
+static u32
+fixedmatrix_colorop_to_encoding(enum drm_colorop_fixed_matrix_type fm_type)
+{
+	switch (fm_type) {
+	case DRM_COLOROP_FM_YCBCR709_FULL_RGB:
+	case DRM_COLOROP_FM_YCBCR709_LIMITED_RGB:
+		return DRM_COLOR_YCBCR_BT709;
+
+	case DRM_COLOROP_FM_YCBCR2020_NC_FULL_RGB:
+	case DRM_COLOROP_FM_YCBCR2020_NC_LIMITED_RGB:
+		return DRM_COLOR_YCBCR_BT2020;
+
+	case DRM_COLOROP_FM_YCBCR601_FULL_RGB:
+	case DRM_COLOROP_FM_YCBCR601_LIMITED_RGB:
+	default:
+		return DRM_COLOR_YCBCR_BT601;
+	}
+}
+
+static u32
+fixedmatrix_colorop_to_range(enum drm_colorop_fixed_matrix_type fm_type)
+{
+	switch (fm_type) {
+	case DRM_COLOROP_FM_YCBCR601_FULL_RGB:
+	case DRM_COLOROP_FM_YCBCR709_FULL_RGB:
+	case DRM_COLOROP_FM_YCBCR2020_NC_FULL_RGB:
+		return DRM_COLOR_YCBCR_FULL_RANGE;
+
+	case DRM_COLOROP_FM_YCBCR601_LIMITED_RGB:
+	case DRM_COLOROP_FM_YCBCR709_LIMITED_RGB:
+	case DRM_COLOROP_FM_YCBCR2020_NC_LIMITED_RGB:
+	default:
+		return DRM_COLOR_YCBCR_LIMITED_RANGE;
+	}
+}
+
 static void
 intel_plane_color_copy_uapi_to_hw_state(struct intel_atomic_state *state,
 					struct intel_plane_state *plane_state,
@@ -474,6 +510,7 @@ intel_plane_color_copy_uapi_to_hw_state(struct intel_atomic_state *state,
 	struct drm_property_blob *blob;
 	struct intel_crtc_state *new_crtc_state = state ?
 		intel_atomic_get_new_crtc_state(state, crtc) : NULL;
+	enum drm_colorop_fixed_matrix_type fm_type;
 	bool changed = false;
 	int i = 0;
 
@@ -485,11 +522,23 @@ intel_plane_color_copy_uapi_to_hw_state(struct intel_atomic_state *state,
 	while (iter_colorop) {
 		for_each_new_colorop_in_state(&state->base, colorop, new_colorop_state, i) {
 			if (new_colorop_state->colorop == iter_colorop) {
-				blob = new_colorop_state->bypass ? NULL : new_colorop_state->data;
 				intel_colorop = to_intel_colorop(colorop);
-				changed |= intel_plane_colorop_replace_blob(plane_state,
+				if (intel_colorop->id == INTEL_PLANE_CB_CSC_FF) {
+					fm_type = new_colorop_state->fixed_matrix_type;
+
+					plane_state->hw.csc_ff_enable =
+						!new_colorop_state->bypass;
+					plane_state->hw.color_encoding =
+						fixedmatrix_colorop_to_encoding(fm_type);
+					plane_state->hw.color_range =
+						fixedmatrix_colorop_to_range(fm_type);
+				} else {
+					blob = new_colorop_state->bypass ?
+						NULL : new_colorop_state->data;
+					changed |= intel_plane_colorop_replace_blob(plane_state,
 									    intel_colorop,
 									    blob);
+				}
 			}
 		}
 		iter_colorop = iter_colorop->next;

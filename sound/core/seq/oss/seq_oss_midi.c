@@ -211,6 +211,11 @@ snd_seq_oss_midi_check_exit_port(int client, int port)
 	mdev = find_slot(client, port);
 	if (mdev) {
 		scoped_guard(spinlock_irqsave, &register_lock) {
+			/* Only one callback may release the device. */
+			if (midi_devs[mdev->seq_device] != mdev) {
+				snd_use_lock_free(&mdev->use_lock);
+				return 0;
+			}
 			midi_devs[mdev->seq_device] = NULL;
 		}
 		snd_use_lock_free(&mdev->use_lock);

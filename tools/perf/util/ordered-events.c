@@ -237,14 +237,16 @@ static int do_flush(struct ordered_events *oe, bool show_progress)
 		ui_progress__init(&prog, oe->nr_events, "Processing time ordered events...");
 
 	list_for_each_entry_safe(iter, tmp, head, list) {
-		if (session_done())
-			return 0;
+		if (session_done()) {
+			ret = 0;
+			goto out_progress;
+		}
 
 		if (iter->timestamp > limit)
 			break;
 		ret = oe->deliver(oe, iter);
 		if (ret < 0)
-			return ret;
+			goto out_progress;
 
 		ordered_events__delete(oe, iter);
 		oe->last_flush = iter->timestamp;
@@ -258,10 +260,16 @@ static int do_flush(struct ordered_events *oe, bool show_progress)
 	else if (last_ts <= limit)
 		oe->last = list_entry(head->prev, struct ordered_event, list);
 
+	ret = 0;
+out_progress:
+	/*
+	 * Always pair ui_progress__init() with ui_progress__finish(), the
+	 * stdio backend tracks the phases on a stack.
+	 */
 	if (show_progress)
 		ui_progress__finish();
 
-	return 0;
+	return ret;
 }
 
 static int __ordered_events__flush(struct ordered_events *oe, enum oe_flush how,

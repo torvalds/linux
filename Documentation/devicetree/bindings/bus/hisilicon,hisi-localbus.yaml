@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/bus/hisilicon,hisi-localbus.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HiSilicon local bus
+
+maintainers:
+  - Wei Xu <xuwei5@hisilicon.com>
+
+allOf:
+  - $ref: /schemas/simple-bus.yaml#
+
+properties:
+  compatible:
+    items:
+      - const: hisilicon,hisi-localbus
+      - const: simple-bus
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        local-bus@80380000 {
+            compatible = "hisilicon,hisi-localbus", "simple-bus";
+            reg = <0x0 0x80380000 0x0 0x10000>;
+            #address-cells = <2>;
+            #size-cells = <1>;
+            ranges = <0 0 0x0 0x90000000 0x08000000>,
+                     <1 0 0x0 0x98000000 0x08000000>;
+        };
+    };

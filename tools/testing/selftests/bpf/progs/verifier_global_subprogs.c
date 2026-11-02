@@ -195,7 +195,7 @@ int arg_tag_nonnull_ptr_good(void *ctx)
 
 SEC("?raw_tp")
 __failure __log_level(2)
-__msg("R1 is expected to be non-NULL")
+__msg("Possibly NULL pointer passed to trusted R1")
 int arg_tag_nonnull_ptr_null_bad(void *ctx)
 {
 	int y = 74;
@@ -534,6 +534,37 @@ int return_from_void_global(struct __sk_buff *skb)
 	);
 
 	return 0;
+}
+
+int global_calls_loop(int x);
+
+static __noinline int static_calls_global(int x)
+{
+	return global_calls_loop(x);
+}
+
+static __noinline int loop_cb_calls_static(u32 i, void *ctx)
+{
+	return static_calls_global(i);
+}
+
+__noinline int global_calls_loop(int x)
+{
+	bpf_loop(1, loop_cb_calls_static, NULL, 0);
+	return 0;
+}
+
+/*
+ * loop_cb_calls_static() -> static_calls_global() -> global_calls_loop() ->
+ * bpf_loop() -> loop_cb_calls_static() is an unbounded recursion that the
+ * main verification pass can't see, because it doesn't follow calls of global
+ * functions. None of the functions use stack.
+ */
+SEC("?raw_tp")
+__failure __msg("recursive call from global_calls_loop() to loop_cb_calls_static()")
+int recursion_via_global_func_and_callback(const void *ctx)
+{
+	return loop_cb_calls_static(0, NULL);
 }
 
 char _license[] SEC("license") = "GPL";

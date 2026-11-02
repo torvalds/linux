@@ -493,12 +493,18 @@ static int ak4642_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static const u64 ak4642_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J;
+
 static const struct snd_soc_dai_ops ak4642_dai_ops = {
 	.startup	= ak4642_dai_startup,
 	.shutdown	= ak4642_dai_shutdown,
 	.set_sysclk	= ak4642_dai_set_sysclk,
 	.set_fmt	= ak4642_dai_set_fmt,
 	.hw_params	= ak4642_dai_hw_params,
+	.auto_selectable_formats	= &ak4642_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver ak4642_dai = {
@@ -533,8 +539,7 @@ static int ak4642_resume(struct snd_soc_component *component)
 	struct regmap *regmap = dev_get_regmap(component->dev, NULL);
 
 	regcache_cache_only(regmap, false);
-	regcache_sync(regmap);
-	return 0;
+	return regcache_sync(regmap);
 }
 static int ak4642_probe(struct snd_soc_component *component)
 {
@@ -607,14 +612,13 @@ static struct clk *ak4642_of_parse_mcko(struct device *dev)
 	struct device_node *np = dev->of_node;
 	struct clk *clk;
 	const char *clk_name = np->name;
-	const char *parent_clk_name = NULL;
+	const char *parent_clk_name;
 	u32 rate;
 
 	if (of_property_read_u32(np, "clock-frequency", &rate))
 		return NULL;
 
-	if (of_property_read_bool(np, "clocks"))
-		parent_clk_name = of_clk_get_parent_name(np, 0);
+	parent_clk_name = of_clk_get_parent_name(np, 0);
 
 	of_property_read_string(np, "clock-output-names", &clk_name);
 

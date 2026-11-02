@@ -231,6 +231,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 	const char *iosc_name = "rtc-int-osc";
 	const char *clkout_name = "osc32k-out";
 	const char *parents[2];
+	struct resource res;
 	u32 reg;
 
 	rtc = kzalloc_obj(*rtc);
@@ -267,9 +268,6 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 	}
 	writel(reg, rtc->base + SUN6I_LOSC_CTRL);
 
-	/* Yes, I know, this is ugly. */
-	sun6i_rtc = rtc;
-
 	of_property_read_string_index(node, "clock-output-names", 2,
 				      &iosc_name);
 
@@ -280,7 +278,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 								300000000);
 	if (IS_ERR(rtc->int_osc)) {
 		pr_crit("Couldn't register the internal oscillator\n");
-		goto err;
+		goto err_unmap;
 	}
 
 	parents[0] = clk_hw_get_name(rtc->int_osc);
@@ -309,7 +307,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 					  &rtc->lock);
 	if (IS_ERR(rtc->ext_losc)) {
 		pr_crit("Couldn't register the LOSC external gate\n");
-		goto err_register;
+		goto err_losc;
 	}
 
 	clk_data->num = 3;
@@ -317,12 +315,22 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 	clk_data->hws[1] = __clk_get_hw(rtc->ext_losc);
 	clk_data->hws[2] = rtc->int_osc;
 	of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+
+	/* Yes, I know, this is ugly. */
+	sun6i_rtc = rtc;
 	return;
 
+err_losc:
+	clk_unregister(rtc->losc);
 err_register:
 	clk_hw_unregister_fixed_rate(rtc->int_osc);
+err_unmap:
+	iounmap(rtc->base);
+	of_address_to_resource(node, 0, &res);
+	release_mem_region(res.start, resource_size(&res));
 err:
 	kfree(clk_data);
+	kfree(rtc);
 }
 
 static const struct sun6i_rtc_clk_data sun6i_a31_rtc_data = {
@@ -348,6 +356,10 @@ static void __init sun8i_a23_rtc_clk_init(struct device_node *node)
 	sun6i_rtc_clk_init(node, &sun8i_a23_rtc_data);
 }
 CLK_OF_DECLARE_DRIVER(sun8i_a23_rtc_clk, "allwinner,sun8i-a23-rtc",
+		      sun8i_a23_rtc_clk_init);
+
+/* The B288 RTC clocks are the same as the A23's */
+CLK_OF_DECLARE_DRIVER(sun8i_b288_rtc_clk, "allwinner,sun8i-b288-rtc",
 		      sun8i_a23_rtc_clk_init);
 
 static const struct sun6i_rtc_clk_data sun8i_h3_rtc_data = {
@@ -859,6 +871,7 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 static const struct of_device_id sun6i_rtc_dt_ids[] = {
 	{ .compatible = "allwinner,sun6i-a31-rtc" },
 	{ .compatible = "allwinner,sun8i-a23-rtc" },
+	{ .compatible = "allwinner,sun8i-b288-rtc" },
 	{ .compatible = "allwinner,sun8i-h3-rtc" },
 	{ .compatible = "allwinner,sun8i-r40-rtc" },
 	{ .compatible = "allwinner,sun8i-v3-rtc" },

@@ -211,14 +211,14 @@
 			};
 
 			/* IR_3V3 */
-			ldo1_reg: LDO1  {
+			ldo1_reg: LDO1 {
 				regulator-name = "LDO1";
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
 			/* Core1_3V3 */
-			ldo2_reg: LDO2  {
+			ldo2_reg: LDO2 {
 				regulator-name = "LDO2";
 				regulator-always-on;
 				regulator-boot-on;
@@ -231,7 +231,7 @@
 			};
 
 			/* Core5_1V2 */
-			ldo3_reg: LDO3  {
+			ldo3_reg: LDO3 {
 				regulator-name = "LDO3";
 				regulator-always-on;
 				regulator-boot-on;
@@ -282,7 +282,7 @@
 				regulator-boot-on;
 			};
 
-			ldortc1_reg: LDORTC1  {
+			ldortc1_reg: LDORTC1 {
 				regulator-name = "LDORTC1";
 				regulator-always-on;
 				regulator-boot-on;

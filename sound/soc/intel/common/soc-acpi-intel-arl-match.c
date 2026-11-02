@@ -70,6 +70,23 @@ static const struct snd_soc_acpi_endpoint jack_amp_g1_dmic_endpoints[] = {
 	},
 };
 
+static const struct snd_soc_acpi_endpoint jack_dmic_endpoints[] = {
+	/* Jack Endpoint */
+	{
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	/* DMIC Endpoint */
+	{
+		.num = 1,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
 static const struct snd_soc_acpi_adr_device cs35l56_2_lr_adr[] = {
 	{
 		.adr = 0x00023001FA355601ull,
@@ -301,6 +318,35 @@ static const struct snd_soc_acpi_adr_device rt1320_2_single_adr[] = {
 	}
 };
 
+/*
+ * MSI Raider 16 Max HX B2WI (MS-2651): RT713 (jack/dmic, "VB" SDCA variant)
+ * on link 0, two RT1320 speaker amps sharing link 2 (unique_id 0 = left,
+ * unique_id 1 = right).
+ */
+static const struct snd_soc_acpi_adr_device rt713_vb_0_adr[] = {
+	{
+		.adr = 0x000030025D071301ull,
+		.num_endpoints = ARRAY_SIZE(jack_dmic_endpoints),
+		.endpoints = jack_dmic_endpoints,
+		.name_prefix = "rt713"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device rt1320_2_lr_adr[] = {
+	{
+		.adr = 0x000230025D132001ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+		.name_prefix = "rt1320-1"
+	},
+	{
+		.adr = 0x000231025D132001ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
+		.name_prefix = "rt1320-2"
+	}
+};
+
 static const struct snd_soc_acpi_link_adr arl_n_mrd_es9356_link1[] = {
 	{
 		.mask = BIT(1),
@@ -454,6 +500,20 @@ static const struct snd_soc_acpi_link_adr arl_rt711_l0_rt1316_l3[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr arl_rt713_vb_l0_rt1320_l2[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt713_vb_0_adr),
+		.adr_d = rt713_vb_0_adr,
+	},
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(rt1320_2_lr_adr),
+		.adr_d = rt1320_2_lr_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr arl_rt722_l0_rt1320_l2[] = {
 	{
 		.mask = BIT(0),
@@ -478,6 +538,15 @@ static const struct snd_soc_acpi_link_adr arl_rt712_l0_rt1320_l3[] = {
 		.mask = BIT(3),
 		.num_adr = ARRAY_SIZE(rt1320_3_group1_adr),
 		.adr_d = rt1320_3_group1_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr arl_rt712_l0[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt712_0_agg_adr),
+		.adr_d = rt712_0_agg_adr,
 	},
 	{}
 };
@@ -531,6 +600,63 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_arl_machines[] = {
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_arl_machines);
 
 /* this table is used when there is no I2S codec present */
+
+/*
+ * Senary SN624x on Arrow Lake: one multi-function device on link 0.
+ * Separate mach entries per part ID (adr_d[] is AND, not OR). Amp endpoint
+ * is aggregated like the generic SOC_SDW_DAI_TYPE_AMP shape from
+ * find_acpi_adr_device().
+ */
+static const struct snd_soc_acpi_endpoint sn624x_endpoints[] = {
+	/* Jack */
+	{
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	/* Amp */
+	{
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 1,
+		.group_id = 1,
+	},
+	/* DMIC */
+	{
+		.num = 2,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
+#define SN624X_ARL_SINGLE_ADR(_sym, _adr)				\
+static const struct snd_soc_acpi_adr_device _sym[] = {			\
+	{								\
+		.adr = (_adr),						\
+		.num_endpoints = ARRAY_SIZE(sn624x_endpoints),		\
+		.endpoints = sn624x_endpoints,				\
+		.name_prefix = "sn624x",				\
+	},								\
+}
+
+#define SN624X_ARL_LINK(_sym, _adr_arr)					\
+static const struct snd_soc_acpi_link_adr _sym[] = {			\
+	{								\
+		.mask = BIT(0),						\
+		.num_adr = ARRAY_SIZE(_adr_arr),			\
+		.adr_d = _adr_arr,					\
+	},								\
+	{}								\
+}
+
+SN624X_ARL_SINGLE_ADR(sn6242_single_adr, 0x0000000496624201ull);
+SN624X_ARL_SINGLE_ADR(sn6244_single_adr, 0x0000000496624401ull);
+
+SN624X_ARL_LINK(arl_link_sn6242, sn6242_single_adr);
+SN624X_ARL_LINK(arl_link_sn6244, sn6244_single_adr);
+
 struct snd_soc_acpi_mach snd_soc_acpi_intel_arl_sdw_machines[] = {
 	{
 		.link_mask = BIT(0) | BIT(2) | BIT(3),
@@ -562,6 +688,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_arl_sdw_machines[] = {
 	},
 	{
 		.link_mask = BIT(0) | BIT(2),
+		.links = arl_rt713_vb_l0_rt1320_l2,
+		.drv_name = "sof_sdw",
+		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
+		.sof_tplg_filename = "sof-arl-dummy.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(0) | BIT(2),
 		.links = arl_rt722_l0_rt1320_l2,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-arl-rt722-l0_rt1320-l2.tplg",
@@ -587,6 +721,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_arl_sdw_machines[] = {
 		.links = arl_cs42l43_l2_cs35l56_l3,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-arl-cs42l43-l2-cs35l56-l3.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(0),
+		.links = arl_rt712_l0,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-arl-dummy.tplg",
 		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
@@ -622,6 +763,20 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_arl_sdw_machines[] = {
 		.links = arl_n_mrd_es9356_link1,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-arl-es9356.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(0),
+		.links = arl_link_sn6242,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-arl-sn624x.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(0),
+		.links = arl_link_sn6244,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-arl-sn624x.tplg",
 		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{},

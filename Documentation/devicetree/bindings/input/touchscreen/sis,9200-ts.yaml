@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/sis,9200-ts.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SiS 9200 Family I2C Touchscreen Controller
+
+maintainers:
+  - Mika Penttilä <mpenttil@redhat.com>
+
+allOf:
+  - $ref: touchscreen.yaml#
+
+properties:
+  compatible:
+    const: sis,9200-ts
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  attn-gpios:
+    maxItems: 1
+    description: GPIO pin used as the attention line
+
+  reset-gpios:
+    maxItems: 1
+    description: GPIO pin used to reset the controller
+
+  wakeup-source: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        touchscreen@5c {
+            compatible = "sis,9200-ts";
+            reg = <0x5c>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&pinctrl_sis>;
+            interrupt-parent = <&gpio3>;
+            interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
+            attn-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
+            reset-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;
+        };
+    };

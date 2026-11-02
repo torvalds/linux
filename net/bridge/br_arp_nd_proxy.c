@@ -40,6 +40,23 @@ void br_recalculate_neigh_suppress_enabled(struct net_bridge *br)
 }
 
 #if IS_ENABLED(CONFIG_INET)
+static bool
+br_is_neigh_suppress_enabled_vid(const struct net_bridge_port *p, u16 vid)
+{
+	const struct net_bridge_vlan *v = NULL;
+
+	if (p && vid && test_bit(BR_NEIGH_VLAN_SUPPRESS_BIT, &p->flags)) {
+		struct net_bridge_vlan_group *vg;
+
+		vg = nbp_vlan_group_rcu(p);
+		v = br_vlan_find(vg, vid);
+		if (!v)
+			return false;
+	}
+
+	return br_is_neigh_suppress_enabled(p, v);
+}
+
 static void br_arp_send(struct net_bridge *br, struct net_bridge_port *p,
 			struct net_device *dev, __be32 dest_ip, __be32 src_ip,
 			const unsigned char *dest_hw,
@@ -159,7 +176,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 		return;
 
 	if (br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED)) {
-		if (br_is_neigh_suppress_enabled(p, vid))
+		if (br_is_neigh_suppress_enabled_vid(p, vid))
 			return;
 		if (is_unicast_ether_addr(eth_hdr(skb)->h_dest) &&
 		    parp->ar_op == htons(ARPOP_REQUEST))
@@ -193,7 +210,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 		return;
 	}
 
-	n = neigh_lookup(&arp_tbl, &tip, vlandev);
+	n = ipv4_neigh_lookup(vlandev, &tip);
 	if (n) {
 		struct net_bridge_fdb_entry *f;
 		u8 ha[ETH_ALEN] __aligned(2);
@@ -206,12 +223,12 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 		neigh_ha_snapshot(ha, n, n->dev);
 		f = br_fdb_find_rcu(br, ha, vid);
 		if (f) {
-			const struct net_bridge_port *dst = READ_ONCE(f->dst);
+			const struct net_bridge_port *dst = br_fdb_dst_port(f);
 			bool replied = false;
 
 			if ((p && test_bit(BR_PROXYARP_BIT, &p->flags)) ||
 			    (dst && test_bit(BR_PROXYARP_WIFI_BIT, &dst->flags)) ||
-			    br_is_neigh_suppress_enabled(dst, vid)) {
+			    br_is_neigh_suppress_enabled_vid(dst, vid)) {
 				if (!vid)
 					br_arp_send(br, p, skb->dev, sip, tip,
 						    sha, ha, sha, 0, 0);
@@ -424,7 +441,7 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 	BR_INPUT_SKB_CB(skb)->proxyarp_replied = 0;
 	BR_INPUT_SKB_CB(skb)->grat_arp = 0;
 
-	if (br_is_neigh_suppress_enabled(p, vid))
+	if (br_is_neigh_suppress_enabled_vid(p, vid))
 		return;
 
 	if (is_unicast_ether_addr(eth_hdr(skb)->h_dest) &&
@@ -470,7 +487,7 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 		return;
 	}
 
-	n = neigh_lookup(&nd_tbl, &msg->target, vlandev);
+	n = ipv6_neigh_lookup(vlandev, &msg->target);
 	if (n) {
 		struct net_bridge_fdb_entry *f;
 		u8 ha[ETH_ALEN] __aligned(2);
@@ -483,10 +500,10 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 		neigh_ha_snapshot(ha, n, n->dev);
 		f = br_fdb_find_rcu(br, ha, vid);
 		if (f) {
-			const struct net_bridge_port *dst = READ_ONCE(f->dst);
+			const struct net_bridge_port *dst = br_fdb_dst_port(f);
 			bool replied = false;
 
-			if (br_is_neigh_suppress_enabled(dst, vid)) {
+			if (br_is_neigh_suppress_enabled_vid(dst, vid)) {
 				if (vid != 0)
 					br_nd_send(br, p, skb, n, ha,
 						   skb->vlan_proto,
@@ -509,33 +526,25 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 }
 #endif
 
-bool br_is_neigh_suppress_enabled(const struct net_bridge_port *p, u16 vid)
+bool br_is_neigh_suppress_enabled(const struct net_bridge_port *p,
+				  const struct net_bridge_vlan *v)
 {
 	if (!p)
 		return false;
 
-	if (vid && test_bit(BR_NEIGH_VLAN_SUPPRESS_BIT, &p->flags)) {
-		struct net_bridge_vlan_group *vg = nbp_vlan_group_rcu(p);
-		struct net_bridge_vlan *v;
+	if (v && test_bit(BR_NEIGH_VLAN_SUPPRESS_BIT, &p->flags))
+		return !!(READ_ONCE(v->priv_flags) &
+			  BR_VLFLAG_NEIGH_SUPPRESS_ENABLED);
 
-		v = br_vlan_find(vg, vid);
-		if (!v)
-			return false;
-		return !!(v->priv_flags & BR_VLFLAG_NEIGH_SUPPRESS_ENABLED);
-	}
 	return test_bit(BR_NEIGH_SUPPRESS_BIT, &p->flags);
 }
 
-bool br_is_neigh_forward_grat_enabled(const struct net_bridge_port *p, u16 vid)
+bool br_is_neigh_forward_grat_enabled(const struct net_bridge_port *p,
+				      const struct net_bridge_vlan *v)
 {
-	if (vid && test_bit(BR_NEIGH_VLAN_SUPPRESS_BIT, &p->flags)) {
-		struct net_bridge_vlan_group *vg = nbp_vlan_group_rcu(p);
-		struct net_bridge_vlan *v;
+	if (v && test_bit(BR_NEIGH_VLAN_SUPPRESS_BIT, &p->flags))
+		return !!(READ_ONCE(v->priv_flags) &
+			  BR_VLFLAG_NEIGH_FORWARD_GRAT_ENABLED);
 
-		v = br_vlan_find(vg, vid);
-		if (!v)
-			return false;
-		return !!(v->priv_flags & BR_VLFLAG_NEIGH_FORWARD_GRAT_ENABLED);
-	}
 	return test_bit(BR_NEIGH_FORWARD_GRAT_BIT, &p->flags);
 }

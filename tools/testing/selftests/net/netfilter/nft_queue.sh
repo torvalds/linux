@@ -92,7 +92,7 @@ load_ruleset() {
 ip netns exec "$nsrouter" nft -f /dev/stdin <<EOF
 table $family $name {
 	chain nfq {
-		ip protocol icmp queue bypass
+		icmp type { "echo-request", "echo-reply" } queue bypass
 		icmpv6 type { "echo-request", "echo-reply" } queue num 1 bypass
 	}
 	chain pre {
@@ -861,6 +861,113 @@ test_queue_bridge()
 	test_queue 20 "bridge"
 }
 
+hook_drop_delivered()
+{
+	ip netns exec "$ns1" nft list counter inet nfqscope delivered |
+		sed -n 's/.*packets \([0-9]*\) .*/\1/p'
+}
+
+hook_drop_queued()
+{
+	ip netns exec "$ns1" awk '$1 == 1 { print $3 }' /proc/self/net/netfilter/nfnetlink_queue
+}
+
+hook_drop_all_queued()
+{
+	[ "$(hook_drop_queued)" = "$1" ]
+}
+
+# hook_drop_case <keep|drop> <description> <nft command...>
+#
+# 1. The inet output chain sends udp packets to port 12345 to queue 1,
+#    the inet input chain counts them once they are accepted.
+# 2. nf_queue -H reads the packets but sends no verdict until it gets
+#    SIGUSR1, so the 20 packets sent stay in the kernel queue.
+# 3. The nft command removes a base chain while they are queued.  The
+#    queue length in /proc right after it tells if the kernel dropped
+#    them: still 20, or 0.
+# 4. SIGUSR1 releases nf_queue.  If the kernel kept the packets they are
+#    accepted now and reach the input counter.  If it dropped them the
+#    first verdict fails with ENOENT and nothing is counted.
+hook_drop_case()
+{
+	local expect="$1"
+	local desc="$2"
+	local packets=20
+	local delivered queued result
+	shift 2
+
+ip netns exec "$ns1" nft -f /dev/stdin <<EOF
+flush ruleset
+table inet nfqscope {
+	chain output {
+		type filter hook output priority 0; policy accept;
+		udp dport 12345 queue num 1
+	}
+	chain input {
+		type filter hook input priority 0; policy accept;
+		udp dport 12345 counter name delivered
+	}
+	chain output2 {
+		type filter hook output priority 100; policy accept;
+	}
+	counter delivered {}
+}
+table ip6 unrelated {
+	chain prerouting {
+		type filter hook prerouting priority 0; policy accept;
+	}
+}
+EOF
+	ip netns exec "$ns1" ./nf_queue -c -q 1 -H -t "$timeout" > "$TMPFILE1" 2>&1 &
+	local nfqpid=$!
+
+	busywait "$BUSYWAIT_TIMEOUT" nf_queue_wait "$ns1" 1
+
+	ip netns exec "$ns1" bash -c \
+		"for i in \$(seq $packets); do echo x > /dev/udp/127.0.0.1/12345; done"
+
+	busywait "$BUSYWAIT_TIMEOUT" hook_drop_all_queued "$packets"
+
+	ip netns exec "$ns1" nft "$@"
+	queued=$(hook_drop_queued)
+
+	kill -USR1 "$nfqpid"
+	wait "$nfqpid"
+	delivered=$(hook_drop_delivered)
+
+	if [ "$queued" = "$packets" ] && [ "$delivered" = "$packets" ] &&
+	   grep -q "^$packets packets total" "$TMPFILE1"; then
+		result="keep"
+	elif [ "$queued" = "0" ] && [ "$delivered" = "0" ]; then
+		result="drop"
+	else
+		result="inconsistent"
+	fi
+
+	if [ "$result" = "$expect" ]; then
+		echo "PASS: $desc: queued packets $result"
+	else
+		echo "FAIL: $desc: queued packets $result, expected $expect" 1>&2
+		echo "      $queued of $packets queued after the change, $delivered delivered" 1>&2
+		ret=1
+	fi
+}
+
+test_hook_drop_scope()
+{
+	# the hook array of another hook point changes, queued packets stay
+	hook_drop_case keep "base chain removed at another hook point" \
+		delete chain ip6 unrelated prerouting
+
+	# the hook array of the queueing hook point changes, the position of
+	# the queued packets in it is stale, they are dropped
+	hook_drop_case drop "base chain removed at the queueing hook point" \
+		delete chain inet nfqscope output2
+
+	ip netns exec "$ns1" nft flush ruleset
+}
+
 ip netns exec "$nsrouter" sysctl net.ipv6.conf.all.forwarding=1 > /dev/null
 ip netns exec "$nsrouter" sysctl net.ipv4.conf.veth0.forwarding=1 > /dev/null
 ip netns exec "$nsrouter" sysctl net.ipv4.conf.veth1.forwarding=1 > /dev/null
@@ -909,6 +1016,7 @@ test_queue_stress
 # should be last, adds vrf device in ns1 and changes routes
 test_icmp_vrf
 test_queue_removal
+test_hook_drop_scope
 
 # turns router into a bridge
 test_queue_bridge

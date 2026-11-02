@@ -165,38 +165,38 @@ examples:
                 "Speakers", "Speaker";
 
         spk-playback-dai-link {
-                link-name = "I2S3";
-                dai-format = "i2s";
-                mediatek,clk-provider = "cpu";
-                codec {
-                        sound-dai = <&rt1015p>;
-                };
+            link-name = "I2S3";
+            dai-format = "i2s";
+            mediatek,clk-provider = "cpu";
+            codec {
+                sound-dai = <&rt1015p>;
+            };
         };
 
         hs-playback-dai-link {
-                link-name = "I2S8";
-                dai-format = "i2s";
-                mediatek,clk-provider = "cpu";
-                codec {
-                        sound-dai = <&rt5682 0>;
-                };
+            link-name = "I2S8";
+            dai-format = "i2s";
+            mediatek,clk-provider = "cpu";
+            codec {
+                sound-dai = <&rt5682 0>;
+            };
         };
 
         hs-capture-dai-link {
-                link-name = "I2S9";
-                dai-format = "i2s";
-                mediatek,clk-provider = "cpu";
-                codec {
-                        sound-dai = <&rt5682 0>;
-                };
+            link-name = "I2S9";
+            dai-format = "i2s";
+            mediatek,clk-provider = "cpu";
+            codec {
+                sound-dai = <&rt5682 0>;
+            };
         };
 
         displayport-dai-link {
-                link-name = "TDM";
-                dai-format = "dsp_a";
-                codec {
-                        sound-dai = <&anx_bridge_dp>;
-                };
+            link-name = "TDM";
+            dai-format = "dsp_a";
+            codec {
+                sound-dai = <&anx_bridge_dp>;
+            };
         };
     };
 

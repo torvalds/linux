@@ -213,10 +213,10 @@ static void logicvc_crtc_disable_vblank(struct drm_crtc *drm_crtc)
 }
 
 static const struct drm_crtc_funcs logicvc_crtc_funcs = {
-	.reset			= drm_atomic_helper_crtc_reset,
 	.destroy		= drm_crtc_cleanup,
 	.set_config		= drm_atomic_helper_set_config,
 	.page_flip		= drm_atomic_helper_page_flip,
+	.atomic_create_state	= drm_atomic_helper_crtc_create_state,
 	.atomic_duplicate_state	= drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_crtc_destroy_state,
 	.enable_vblank		= logicvc_crtc_enable_vblank,

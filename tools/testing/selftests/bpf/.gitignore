@@ -17,7 +17,6 @@ test_verifier_log
 feature
 urandom_read
 test_sockmap
-test_lirc_mode2_user
 flow_dissector_load
 test_tcpnotify_user
 test_libbpf

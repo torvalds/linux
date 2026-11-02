@@ -607,9 +607,9 @@ ONLINE section for notifications on online and offline operation::
    if (ret)
         return ret;
    ....
-   cpuhp_remove_instance(state, &inst1->node);
+   cpuhp_state_remove_instance(state, &inst1->node);
    ....
-   cpuhp_remove_instance(state, &inst2->node);
+   cpuhp_state_remove_instance(state, &inst2->node);
    ....
    cpuhp_remove_multi_state(state);
 

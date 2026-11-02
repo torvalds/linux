@@ -350,7 +350,7 @@ struct srpt_nexus {
  * struct srpt_port_attrib - attributes for SRPT port
  * @srp_max_rdma_size: Maximum size of SRP RDMA transfers for new connections.
  * @srp_max_rsp_size: Maximum size of SRP response messages in bytes.
- * @srp_sq_size: Shared receive queue (SRQ) size.
+ * @srp_sq_size: Send queue size.
  * @use_srq: Whether or not to use SRQ.
  */
 struct srpt_port_attrib {

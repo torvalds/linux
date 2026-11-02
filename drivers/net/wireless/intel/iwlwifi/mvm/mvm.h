@@ -42,7 +42,7 @@
 #define IWL_MVM_MAX_ADDRESSES		5
 /* RSSI offset for WkP */
 #define IWL_RSSI_OFFSET 50
-#define IWL_MVM_MISSED_BEACONS_SINCE_RX_THOLD 4
+#define IWL_MVM_MISSED_BEACONS_SINCE_RX_THOLD 6
 #define IWL_MVM_MISSED_BEACONS_THRESHOLD 8
 #define IWL_MVM_MISSED_BEACONS_THRESHOLD_LONG 19
 
@@ -1053,7 +1053,6 @@ struct iwl_mvm {
 	 */
 	struct dentry *debugfs_dir;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	u32 dbgfs_sram_offset, dbgfs_sram_len;
 	u32 dbgfs_prph_reg_addr;
 	bool disable_power_off;
 	bool disable_power_off_d3;

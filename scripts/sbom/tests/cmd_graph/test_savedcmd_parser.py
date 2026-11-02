@@ -338,7 +338,7 @@ class TestSavedCmdParser(unittest.TestCase):
 
     # gen_initramfs.sh command tests
     def test_gen_initramfs(self):
-        cmd = "sh ../usr/gen_initramfs.sh -o usr/initramfs_data.cpio -l usr/.initramfs_data.cpio.d    ../usr/default_cpio_list"
+        cmd = "sh ../scripts/gen_initramfs.sh -o usr/initramfs_data.cpio -l usr/.initramfs_data.cpio.d    ../usr/default_cpio_list"
         expected = "../usr/default_cpio_list"
         self._assert_parsing(cmd, expected)
 

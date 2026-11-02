@@ -40,9 +40,6 @@ void load_mmu(void);
 unsigned long calc_highpages(void);
 unsigned long __init bootmem_init(unsigned long *pages_avail);
 
-#define pte_ERROR(e)   __builtin_trap()
-#define pmd_ERROR(e)   __builtin_trap()
-#define pgd_ERROR(e)   __builtin_trap()
 
 #define PTRS_PER_PTE    	64
 #define PTRS_PER_PMD    	64

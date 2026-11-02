@@ -618,7 +618,7 @@ static int funcs_utils(struct device *dev, struct pinfunction *funcs,
 
 		if (of_property_read_string(np, "function", &fn_name)) {
 			/* some groups may not have function, it's OK */
-			dev_dbg(dev, "Group %s: not function binded!\n",
+			dev_dbg(dev, "Group %s: not function bound!\n",
 				(char *)prop->value);
 			continue;
 		}

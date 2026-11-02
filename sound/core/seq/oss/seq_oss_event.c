@@ -425,6 +425,9 @@ snd_seq_oss_event_input(struct snd_seq_event *ev, int direct, void *private_data
 	struct seq_oss_devinfo *dp = (struct seq_oss_devinfo *)private_data;
 	union evrec *rec;
 
+	if (!dp || !smp_load_acquire(&dp->initialized))
+		return 0; /* ignored */
+
 	if (ev->type != SNDRV_SEQ_EVENT_ECHO)
 		return snd_seq_oss_midi_input(ev, direct, private_data);
 
@@ -433,8 +436,12 @@ snd_seq_oss_event_input(struct snd_seq_event *ev, int direct, void *private_data
 
 	rec = (union evrec*)&ev->data;
 	if (rec->s.code == SEQ_SYNCTIMER) {
+		struct seq_oss_writeq *writeq = READ_ONCE(dp->writeq);
+
+		if (!writeq)
+			return 0;
 		/* sync echo back */
-		snd_seq_oss_writeq_wakeup(dp->writeq, rec->t.time);
+		snd_seq_oss_writeq_wakeup(writeq, rec->t.time);
 		
 	} else {
 		/* echo back event */

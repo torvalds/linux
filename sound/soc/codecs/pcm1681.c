@@ -12,6 +12,9 @@
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
+#include <linux/clk.h>
+#include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -36,6 +39,12 @@
 #define PCM1681_DEEMPH_CONTROL	0x0a	/* De-emphasis control */
 #define PCM1681_ZERO_DETECT_STATUS	0x0e	/* Zero detect status reg */
 
+/*
+ * The DAC requires 65536 system clock cycles after the clock is supplied to
+ * complete its internal reset sequence before it is ready to be used.
+ */
+#define PCM1681_SCK_SETTLE_CYCLES	65536
+
 static const struct reg_default pcm1681_reg_defaults[] = {
 	{ 0x01,	0xff },
 	{ 0x02,	0xff },
@@ -45,7 +54,7 @@ static const struct reg_default pcm1681_reg_defaults[] = {
 	{ 0x06,	0xff },
 	{ 0x07,	0x00 },
 	{ 0x08,	0x00 },
-	{ 0x09,	0x06 },
+	{ 0x09,	0x05 },
 	{ 0x0A,	0x00 },
 	{ 0x0B,	0xff },
 	{ 0x0C,	0x0f },
@@ -67,6 +76,12 @@ static bool pcm1681_writeable_reg(struct device *dev, unsigned int reg)
 		(reg != PCM1681_ZERO_DETECT_STATUS);
 }
 
+static bool pcm1681_volatile_reg(struct device *dev, unsigned int reg)
+{
+	/* Status is updated by the hardware and must never be cached */
+	return reg == PCM1681_ZERO_DETECT_STATUS;
+}
+
 struct pcm1681_private {
 	struct regmap *regmap;
 	unsigned int format;
@@ -74,7 +89,23 @@ struct pcm1681_private {
 	unsigned int deemph;
 	/* Current rate for deemphasis control */
 	unsigned int rate;
+	struct clk *sck;
 };
+
+/* Wait for the DAC to come out of its internal reset after sck is enabled */
+static void pcm1681_sck_settle(struct pcm1681_private *priv)
+{
+	unsigned long rate = clk_get_rate(priv->sck);
+
+	/*
+	 * sck is optional, so there may be no clock to wait on, and its rate
+	 * is not always discoverable. Only wait when the cycle count can be
+	 * converted into a delay.
+	 */
+	if (rate)
+		fsleep(DIV_ROUND_UP_ULL(PCM1681_SCK_SETTLE_CYCLES *
+					(u64)USEC_PER_SEC, rate));
+}
 
 static const int pcm1681_deemph[] = { 44100, 48000, 32000 };
 
@@ -187,6 +218,9 @@ static int pcm1681_hw_params(struct snd_pcm_substream *substream,
 	case SND_SOC_DAIFMT_LEFT_J:
 		val = 0x05;
 		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		val = 0x06;
+		break;
 	default:
 		dev_err(component->dev, "Invalid DAI format\n");
 		return -EINVAL;
@@ -202,7 +236,8 @@ static int pcm1681_hw_params(struct snd_pcm_substream *substream,
 static const u64 pcm1681_selectable_formats =
 	SND_SOC_POSSIBLE_DAIFMT_I2S	|
 	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
-	SND_SOC_POSSIBLE_DAIFMT_LEFT_J;
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J |
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A;
 
 static const struct snd_soc_dai_ops pcm1681_dai_ops = {
 	.set_fmt	= pcm1681_set_dai_fmt,
@@ -282,6 +317,8 @@ static const struct regmap_config pcm1681_regmap = {
 	.num_reg_defaults	= ARRAY_SIZE(pcm1681_reg_defaults),
 	.writeable_reg		= pcm1681_writeable_reg,
 	.readable_reg		= pcm1681_accessible_reg,
+	.volatile_reg		= pcm1681_volatile_reg,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 static const struct snd_soc_component_driver soc_component_dev_pcm1681 = {
@@ -291,7 +328,6 @@ static const struct snd_soc_component_driver soc_component_dev_pcm1681 = {
 	.num_dapm_widgets	= ARRAY_SIZE(pcm1681_dapm_widgets),
 	.dapm_routes		= pcm1681_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(pcm1681_dapm_routes),
-	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
 };
@@ -302,36 +338,141 @@ static const struct i2c_device_id pcm1681_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pcm1681_i2c_id);
 
+static const char * const pcm1681_supply_names[] = {
+	"VCC1", "VCC2", "VDD",
+};
+
 static int pcm1681_i2c_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	int ret;
 	struct pcm1681_private *priv;
 
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	ret = devm_regulator_bulk_get_enable(dev,
+					     ARRAY_SIZE(pcm1681_supply_names),
+					     pcm1681_supply_names);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to enable supplies\n");
+
+	priv->sck = devm_clk_get_optional(dev, "sck");
+	if (IS_ERR(priv->sck))
+		return dev_err_probe(dev, PTR_ERR(priv->sck),
+				     "Failed to get sck\n");
 
 	priv->regmap = devm_regmap_init_i2c(client, &pcm1681_regmap);
 	if (IS_ERR(priv->regmap)) {
 		ret = PTR_ERR(priv->regmap);
-		dev_err(&client->dev, "Failed to create regmap: %d\n", ret);
+		dev_err(dev, "Failed to create regmap: %d\n", ret);
 		return ret;
 	}
 
+	/* Must be set before runtime PM is enabled, the callbacks use it */
 	i2c_set_clientdata(client, priv);
 
-	return devm_snd_soc_register_component(&client->dev,
-		&soc_component_dev_pcm1681,
-		&pcm1681_dai, 1);
+	ret = clk_prepare_enable(priv->sck);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enable sck\n");
+
+	pcm1681_sck_settle(priv);
+
+	/* The clock is on, so hand the now-active device over to runtime PM */
+	pm_runtime_set_autosuspend_delay(dev, 100);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_idle(dev);
+
+	ret = devm_snd_soc_register_component(dev,
+					      &soc_component_dev_pcm1681,
+					      &pcm1681_dai, 1);
+	if (ret) {
+		dev_err(dev, "Failed to register component: %d\n", ret);
+		goto err_pm;
+	}
+
+	return 0;
+
+err_pm:
+	pm_runtime_dont_use_autosuspend(dev);
+	pm_runtime_disable(dev);
+	if (!pm_runtime_status_suspended(dev))
+		clk_disable_unprepare(priv->sck);
+	pm_runtime_set_suspended(dev);
+
+	return ret;
 }
+
+static void pcm1681_i2c_remove(struct i2c_client *client)
+{
+	struct pcm1681_private *priv = i2c_get_clientdata(client);
+	struct device *dev = &client->dev;
+
+	pm_runtime_dont_use_autosuspend(dev);
+	pm_runtime_disable(dev);
+	/* Runtime PM may already have gated the clock */
+	if (!pm_runtime_status_suspended(dev))
+		clk_disable_unprepare(priv->sck);
+	pm_runtime_set_suspended(dev);
+}
+
+static int pcm1681_runtime_suspend(struct device *dev)
+{
+	struct pcm1681_private *priv = dev_get_drvdata(dev);
+
+	/*
+	 * Registers lose their contents once the clock is gated, so serve
+	 * further access from the cache and replay it on resume.
+	 */
+	regcache_cache_only(priv->regmap, true);
+	regcache_mark_dirty(priv->regmap);
+
+	clk_disable_unprepare(priv->sck);
+
+	return 0;
+}
+
+static int pcm1681_runtime_resume(struct device *dev)
+{
+	struct pcm1681_private *priv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(priv->sck);
+	if (ret) {
+		dev_err(dev, "Failed to enable sck: %d\n", ret);
+		return ret;
+	}
+
+	pcm1681_sck_settle(priv);
+
+	regcache_cache_only(priv->regmap, false);
+	ret = regcache_sync(priv->regmap);
+	if (ret) {
+		dev_err(dev, "Failed to sync regcache: %d\n", ret);
+		regcache_cache_only(priv->regmap, true);
+		clk_disable_unprepare(priv->sck);
+		return ret;
+	}
+
+	return 0;
+}
+
+static DEFINE_RUNTIME_DEV_PM_OPS(pcm1681_pm_ops, pcm1681_runtime_suspend,
+				 pcm1681_runtime_resume, NULL);
 
 static struct i2c_driver pcm1681_i2c_driver = {
 	.driver = {
 		.name	= "pcm1681",
 		.of_match_table = of_match_ptr(pcm1681_dt_ids),
+		.pm	= pm_ptr(&pcm1681_pm_ops),
 	},
 	.id_table	= pcm1681_i2c_id,
 	.probe		= pcm1681_i2c_probe,
+	.remove		= pcm1681_i2c_remove,
 };
 
 module_i2c_driver(pcm1681_i2c_driver);

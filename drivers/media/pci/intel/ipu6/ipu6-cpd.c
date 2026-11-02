@@ -16,6 +16,7 @@
 #include "ipu6-bus.h"
 #include "ipu6-cpd.h"
 #include "ipu6-dma.h"
+#include "ipu7-mmu-hw.h"
 
 /* 15 entries + header*/
 #define MAX_PKG_DIR_ENT_CNT		16
@@ -61,6 +62,20 @@ static inline const struct ipu6_cpd_ent *ipu6_cpd_get_entry(const void *cpd,
 #define ipu6_cpd_get_manifest(cpd) ipu6_cpd_get_entry(cpd, MANIFEST_IDX)
 #define ipu6_cpd_get_metadata(cpd) ipu6_cpd_get_entry(cpd, METADATA_IDX)
 #define ipu6_cpd_get_moduledata(cpd) ipu6_cpd_get_entry(cpd, MODULEDATA_IDX)
+
+#define IPU7_CPD_BINARY_START_IDX	1U
+#define IPU7_CPD_METADATA_START_IDX	2U
+#define IPU7_CPD_BINARY_NUM		2U /* ISYS + PSYS */
+#define IPU7_CPD_METADATA_ATTR		0xa
+#define IPU7_CPD_METADATA_IPL		0x1c
+/*
+ * Entries include:
+ * 1 manifest entry.
+ * 1 metadata entry for each sub system(ISYS and PSYS).
+ * 1 binary entry for each sub system(ISYS and PSYS).
+ */
+#define IPU7_CPD_ENTRY_NUM	(IPU7_CPD_BINARY_NUM * 2U + 1U)
+#define IPU7_MAX_MANIFEST_SIZE	(SZ_4K * sizeof(u32))
 
 static const struct ipu6_cpd_metadata_cmpnt_hdr *
 ipu6_cpd_metadata_get_cmpnt(struct ipu6_device *isp, const void *metadata,
@@ -220,8 +235,9 @@ EXPORT_SYMBOL_NS_GPL(ipu6_cpd_create_pkg_dir, "INTEL_IPU6");
 
 void ipu6_cpd_free_pkg_dir(struct ipu6_bus_device *adev)
 {
-	ipu6_dma_free(adev, adev->pkg_dir_size, adev->pkg_dir,
-		      adev->pkg_dir_dma_addr, 0);
+	if (adev->pkg_dir)
+		ipu6_dma_free(adev, adev->pkg_dir_size, adev->pkg_dir,
+			      adev->pkg_dir_dma_addr, 0);
 }
 EXPORT_SYMBOL_NS_GPL(ipu6_cpd_free_pkg_dir, "INTEL_IPU6");
 
@@ -266,7 +282,6 @@ static int ipu6_cpd_validate_moduledata(struct ipu6_device *isp,
 					u32 moduledata_size)
 {
 	const struct ipu6_cpd_module_data_hdr *mod_hdr = moduledata;
-	int ret;
 
 	/* Ensure moduledata hdr is within moduledata */
 	if (moduledata_size < sizeof(*mod_hdr) ||
@@ -276,15 +291,9 @@ static int ipu6_cpd_validate_moduledata(struct ipu6_device *isp,
 	}
 
 	dev_dbg(&isp->pdev->dev, "FW version: %x\n", mod_hdr->fw_pkg_date);
-	ret = ipu6_cpd_validate_cpd(isp, moduledata + mod_hdr->hdr_len,
-				    moduledata_size - mod_hdr->hdr_len,
-				    moduledata_size);
-	if (ret) {
-		dev_err(&isp->pdev->dev, "Invalid CPD in moduledata\n");
-		return ret;
-	}
-
-	return 0;
+	return ipu6_cpd_validate_cpd(isp, moduledata + mod_hdr->hdr_len,
+				     moduledata_size - mod_hdr->hdr_len,
+				     moduledata_size);
 }
 
 static int ipu6_cpd_validate_metadata(struct ipu6_device *isp,
@@ -316,19 +325,128 @@ static int ipu6_cpd_validate_metadata(struct ipu6_device *isp,
 	return 0;
 }
 
+static struct ipu7_cpd_metadata *ipu7_cpd_get_metadata(const void *cpd, int idx)
+{
+	const struct ipu6_cpd_ent *cpd_ent =
+		ipu6_cpd_get_entry(cpd, IPU7_CPD_METADATA_START_IDX + idx * 2);
+
+	return (struct ipu7_cpd_metadata *)((u8 *)cpd + cpd_ent->offset);
+}
+
+static int ipu7_cpd_validate_metadata(struct ipu6_device *isp,
+				      const void *cpd, int idx)
+{
+	const struct ipu6_cpd_ent *cpd_ent =
+		ipu6_cpd_get_entry(cpd, IPU7_CPD_METADATA_START_IDX + idx * 2);
+	const struct ipu6_cpd_ent *bin_ent =
+		ipu6_cpd_get_entry(cpd, IPU7_CPD_BINARY_START_IDX + idx * 2);
+	const struct ipu7_cpd_metadata *metadata =
+		ipu7_cpd_get_metadata(cpd, idx);
+	struct device *dev = &isp->pdev->dev;
+	u32 offset;
+
+	/* Sanity check for metadata size */
+	if (cpd_ent->len != sizeof(struct ipu7_cpd_metadata)) {
+		dev_err(dev, "Invalid metadata size\n");
+		return -EINVAL;
+	}
+
+	/* Validate type and length of metadata sections */
+	if (metadata->attr.hdr.type != IPU7_CPD_METADATA_ATTR) {
+		dev_err(dev, "Invalid metadata attr type (%d)\n",
+			metadata->attr.hdr.type);
+		return -EINVAL;
+	}
+	if (metadata->attr.hdr.len != sizeof(struct ipu7_cpd_metadata_attr)) {
+		dev_err(dev, "Invalid metadata attr size (%d)\n",
+			metadata->attr.hdr.len);
+		return -EINVAL;
+	}
+	if (metadata->ipl.hdr.type != IPU7_CPD_METADATA_IPL) {
+		dev_err(dev, "Invalid metadata ipl type (%d)\n",
+			metadata->ipl.hdr.type);
+		return -EINVAL;
+	}
+	if (metadata->ipl.hdr.len != sizeof(struct ipu7_cpd_metadata_ipl)) {
+		dev_err(dev, "Invalid metadata ipl size (%d)\n",
+			metadata->ipl.hdr.len);
+		return -EINVAL;
+	}
+
+	offset = metadata->ipl.param[0];
+	if (offset > IPU7_FW_CODE_REGION_SIZE ||
+	    bin_ent->len > IPU7_FW_CODE_REGION_SIZE - offset) {
+		dev_err(dev, "Incorrect binary size %u and offset %u\n",
+			bin_ent->len, offset);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __ipu7_validate_cpd_file(struct ipu6_device *isp, const void *cpd_file,
+				    unsigned long cpd_file_size)
+{
+	const struct ipu6_cpd_ent *ent;
+	const struct ipu7_cpd_hdr *hdr = cpd_file;
+	unsigned int i;
+
+	ent = ipu6_cpd_get_manifest(cpd_file);
+	if (ent->len > IPU7_MAX_MANIFEST_SIZE) {
+		dev_err(&isp->pdev->dev, "Invalid CPD manifest size\n");
+		return -EINVAL;
+	}
+	/* Sanity check for CPD entry header */
+	if (hdr->ent_cnt != IPU7_CPD_ENTRY_NUM) {
+		dev_err(&isp->pdev->dev, "Invalid CPD entry number %d\n",
+			hdr->ent_cnt);
+		return -EINVAL;
+	}
+
+	/* Validate metadata */
+	for (i = 0; i < IPU7_CPD_BINARY_NUM; i++) {
+		int ret = ipu7_cpd_validate_metadata(isp, cpd_file, i);
+
+		if (ret) {
+			dev_err(&isp->pdev->dev, "Invalid metadata(%d)\n", i);
+			return ret;
+		}
+	}
+	return 0;
+}
+
+static int __ipu6_validate_cpd_file(struct ipu6_device *isp, const void *cpd_file,
+				    unsigned long cpd_file_size)
+{
+	const struct ipu6_cpd_ent *ent;
+	int ret;
+
+	ent = ipu6_cpd_get_manifest(cpd_file);
+	if (ent->len > MAX_MANIFEST_SIZE) {
+		dev_err(&isp->pdev->dev, "Invalid CPD manifest size\n");
+		return -EINVAL;
+	}
+
+	ent = ipu6_cpd_get_metadata(cpd_file);
+	ret = ipu6_cpd_validate_metadata(isp, cpd_file + ent->offset, ent->len);
+	if (ret)
+		return ret;
+
+	ent = ipu6_cpd_get_moduledata(cpd_file);
+	return ipu6_cpd_validate_moduledata(isp, cpd_file + ent->offset,
+					    ent->len);
+}
+
 int ipu6_cpd_validate_cpd_file(struct ipu6_device *isp, const void *cpd_file,
 			       unsigned long cpd_file_size)
 {
 	const struct ipu6_cpd_hdr *hdr = cpd_file;
-	const struct ipu6_cpd_ent *ent;
 	int ret;
 
 	ret = ipu6_cpd_validate_cpd(isp, cpd_file, cpd_file_size,
 				    cpd_file_size);
-	if (ret) {
-		dev_err(&isp->pdev->dev, "Invalid CPD in file\n");
+	if (ret)
 		return ret;
-	}
 
 	/* Check for CPD file marker */
 	if (hdr->hdr_mark != CPD_HDR_MARK) {
@@ -336,27 +454,34 @@ int ipu6_cpd_validate_cpd_file(struct ipu6_device *isp, const void *cpd_file,
 		return -EINVAL;
 	}
 
-	/* Sanity check for manifest size */
-	ent = ipu6_cpd_get_manifest(cpd_file);
-	if (ent->len > MAX_MANIFEST_SIZE) {
-		dev_err(&isp->pdev->dev, "Invalid CPD manifest size\n");
-		return -EINVAL;
-	}
+	if (IS_IPU7(isp) || IS_IPU8(isp))
+		return __ipu7_validate_cpd_file(isp, cpd_file, cpd_file_size);
 
-	/* Validate metadata */
-	ent = ipu6_cpd_get_metadata(cpd_file);
-	ret = ipu6_cpd_validate_metadata(isp, cpd_file + ent->offset, ent->len);
-	if (ret) {
-		dev_err(&isp->pdev->dev, "Invalid CPD metadata\n");
-		return ret;
-	}
-
-	/* Validate moduledata */
-	ent = ipu6_cpd_get_moduledata(cpd_file);
-	ret = ipu6_cpd_validate_moduledata(isp, cpd_file + ent->offset,
-					   ent->len);
-	if (ret)
-		dev_err(&isp->pdev->dev, "Invalid CPD moduledata\n");
-
-	return ret;
+	return __ipu6_validate_cpd_file(isp, cpd_file, cpd_file_size);
 }
+
+int ipu6_ipu7_cpd_copy_binary(const void *cpd, const char *name, void *dst,
+			      u32 *entry)
+{
+	unsigned int i;
+
+	for (i = 0; i < IPU7_CPD_BINARY_NUM; i++) {
+		const struct ipu7_cpd_metadata *metadata;
+		u8 idx = IPU7_CPD_BINARY_START_IDX + i * 2U;
+		const struct ipu6_cpd_ent *ent =
+			ipu6_cpd_get_entry(cpd, idx);
+
+		if (strncmp(ent->name, name, sizeof(ent->name)))
+			continue;
+
+		metadata = ipu7_cpd_get_metadata(cpd, i);
+		memcpy(dst + metadata->ipl.param[0], cpd + ent->offset,
+		       ent->len);
+		*entry = metadata->ipl.param[2];
+
+		return 0;
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_NS_GPL(ipu6_ipu7_cpd_copy_binary, "INTEL_IPU6");

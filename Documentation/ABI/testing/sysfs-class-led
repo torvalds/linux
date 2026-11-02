@@ -28,7 +28,9 @@ Description:
 		Writing 0 to this file clears active trigger.
 
 		Writing non-zero to this file while trigger is active changes the
-		top brightness trigger is going to use.
+		top brightness trigger is going to use, unless the current
+		trigger is offloaded to hardware (in which case writing any
+		value will deactivate the trigger).
 
 
 
@@ -77,6 +79,30 @@ Description:
 		Writing "default" sets the trigger to the LED's default trigger
 		(which would often be configured in the device tree for the
 		hardware).
+
+What:		/sys/class/leds/<led>/trigger_may_offload_to_hw
+Date:		September 2026
+KernelVersion:	7.4
+Contact:	linux-leds@vger.kernel.org
+Description:
+		Names and states of triggers that may be offloaded to hardware.
+		Such triggers are also called "hardware control trigger" in some
+		context.
+
+		Only exists when the LED supports trigger offload.
+
+		Reading this file returns a list of triggers that are capable to
+		be offloaded. The optional brackets around the trigger name
+		indicate the state of the current trigger:
+
+		- `foo_trigger`: the trigger is not selected, or selected but
+		  falls back to software blink for some reasons, e.g.,
+		  incompatible trigger parameters.
+		- `[foo_trigger]`: the trigger is selected and offloaded to
+		  hardware.
+
+		The "netdev" trigger also provides a custom attribute to
+		indicate its state, see `/sys/class/leds/<led>/offloaded`.
 
 What:		/sys/class/leds/<led>/inverted
 Date:		January 2011

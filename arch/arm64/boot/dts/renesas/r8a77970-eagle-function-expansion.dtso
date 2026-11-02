@@ -112,7 +112,7 @@
 		reg = <0x70 0x71 0x72 0x73 0x74 0x75
 		       0x60 0x61 0x62 0x63 0x64 0x65>;
 		reg-names = "main", "dpll", "cp", "hdmi", "edid", "repeater",
-			    "infoframe", "cbus", "cec", "sdp", "txa", "txb" ;
+			    "infoframe", "cbus", "cec", "sdp", "txa", "txb";
 		interrupts-extended = <&gpio3 3 IRQ_TYPE_LEVEL_LOW>,
 				      <&gpio3 4 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-names = "intrq1", "intrq2";

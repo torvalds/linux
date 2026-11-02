@@ -2584,6 +2584,7 @@
         "EventName": "UNC_M2M_IMC_WRITES.CH0_FROM_TGR",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x500",
         "Unit": "M2M"
     },
     {
@@ -2613,6 +2614,7 @@
         "EventName": "UNC_M2M_IMC_WRITES.CH0_NI",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x600",
         "Unit": "M2M"
     },
     {
@@ -2622,6 +2624,7 @@
         "EventName": "UNC_M2M_IMC_WRITES.CH0_NI_MISS",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x2000",
         "Unit": "M2M"
     },
     {
@@ -2692,6 +2695,7 @@
         "EventName": "UNC_M2M_IMC_WRITES.CH1_FROM_TGR",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x900",
         "Unit": "M2M"
     },
     {
@@ -2721,6 +2725,7 @@
         "EventName": "UNC_M2M_IMC_WRITES.CH1_NI",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0xa00",
         "Unit": "M2M"
     },
     {
@@ -2730,6 +2735,7 @@
         "EventName": "UNC_M2M_IMC_WRITES.CH1_NI_MISS",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0xc00",
         "Unit": "M2M"
     },
     {
@@ -2790,6 +2796,7 @@
         "EventName": "UNC_M2M_IMC_WRITES.FROM_TGR",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x1d00",
         "Unit": "M2M"
     },
     {
@@ -2819,6 +2826,7 @@
         "EventName": "UNC_M2M_IMC_WRITES.NI",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x1e00",
         "Unit": "M2M"
     },
     {
@@ -2828,6 +2836,7 @@
         "EventName": "UNC_M2M_IMC_WRITES.NI_MISS",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x1c00",
         "Unit": "M2M"
     },
     {
@@ -3113,6 +3122,7 @@
         "EventName": "UNC_M2M_PREFCAM_DEALLOCS.CH2_HITA0_INVAL",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x100",
         "Unit": "M2M"
     },
     {
@@ -3122,6 +3132,7 @@
         "EventName": "UNC_M2M_PREFCAM_DEALLOCS.CH2_HITA1_INVAL",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x200",
         "Unit": "M2M"
     },
     {
@@ -3131,6 +3142,7 @@
         "EventName": "UNC_M2M_PREFCAM_DEALLOCS.CH2_MISS_INVAL",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x400",
         "Unit": "M2M"
     },
     {
@@ -3140,6 +3152,7 @@
         "EventName": "UNC_M2M_PREFCAM_DEALLOCS.CH2_RSP_PDRESET",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x800",
         "Unit": "M2M"
     },
     {
@@ -3375,6 +3388,7 @@
         "EventName": "UNC_M2M_PREFCAM_DROP_REASONS_CH0.RPQ_PROXY",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x100",
         "Unit": "M2M"
     },
     {
@@ -3394,6 +3408,7 @@
         "EventName": "UNC_M2M_PREFCAM_DROP_REASONS_CH0.UPI_THRESH",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x400",
         "Unit": "M2M"
     },
     {
@@ -3413,6 +3428,7 @@
         "EventName": "UNC_M2M_PREFCAM_DROP_REASONS_CH0.XPT_THRESH",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x200",
         "Unit": "M2M"
     },
     {
@@ -3482,6 +3498,7 @@
         "EventName": "UNC_M2M_PREFCAM_DROP_REASONS_CH1.RPQ_PROXY",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x100",
         "Unit": "M2M"
     },
     {
@@ -3501,6 +3518,7 @@
         "EventName": "UNC_M2M_PREFCAM_DROP_REASONS_CH1.UPI_THRESH",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x400",
         "Unit": "M2M"
     },
     {
@@ -3520,6 +3538,7 @@
         "EventName": "UNC_M2M_PREFCAM_DROP_REASONS_CH1.XPT_THRESH",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x200",
         "Unit": "M2M"
     },
     {
@@ -3589,6 +3608,7 @@
         "EventName": "UNC_M2M_PREFCAM_DROP_REASONS_CH2.RPQ_PROXY",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x100",
         "Unit": "M2M"
     },
     {
@@ -3608,6 +3628,7 @@
         "EventName": "UNC_M2M_PREFCAM_DROP_REASONS_CH2.UPI_THRESH",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x400",
         "Unit": "M2M"
     },
     {
@@ -3627,6 +3648,7 @@
         "EventName": "UNC_M2M_PREFCAM_DROP_REASONS_CH2.XPT_THRESH",
         "Experimental": "1",
         "PerPkg": "1",
+        "UMask": "0x200",
         "Unit": "M2M"
     },
     {

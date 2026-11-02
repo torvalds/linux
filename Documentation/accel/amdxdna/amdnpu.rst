@@ -289,6 +289,7 @@ Example of the output showing the implemented key value pairs:
         drm-driver:	amdxdna_accel_driver
         drm-client-id:	3219
         drm-pdev:	0000:c5:00.1
+        drm-engine-npu: 14003870 ns
         amdxdna_accel_driver-heap-alloc:	60 KiB
         amdxdna_accel_driver-internal-alloc:	67588 KiB
         amdxdna_accel_driver-external-alloc:	0

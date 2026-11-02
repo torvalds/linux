@@ -94,7 +94,7 @@ static int duration_set(const char *arg, const struct kernel_param *kp)
 	}
 
 	mutex_lock(&powerclamp_lock);
-	duration = clamp(new_duration, 6ul, 25ul) * 1000;
+	duration = new_duration * 1000;
 	mutex_unlock(&powerclamp_lock);
 exit:
 
@@ -103,13 +103,9 @@ exit:
 
 static int duration_get(char *buf, const struct kernel_param *kp)
 {
-	int ret;
+	guard(mutex)(&powerclamp_lock);
 
-	mutex_lock(&powerclamp_lock);
-	ret = sysfs_emit(buf, "%d\n", duration / 1000);
-	mutex_unlock(&powerclamp_lock);
-
-	return ret;
+	return sysfs_emit(buf, "%u\n", duration / 1000);
 }
 
 static const struct kernel_param_ops duration_ops = {
@@ -143,12 +139,9 @@ copy_mask:
 }
 
 /* Return true if the cpumask and idle percent combination is invalid */
-static bool check_invalid(cpumask_var_t mask, u8 idle)
+static bool check_invalid(const struct cpumask *mask, u8 idle)
 {
-	if (cpumask_equal(cpu_present_mask, mask) && idle > MAX_ALL_CPU_IDLE)
-		return true;
-
-	return false;
+	return cpumask_equal(cpu_present_mask, mask) && idle > MAX_ALL_CPU_IDLE;
 }
 
 static int cpumask_set(const char *arg, const struct kernel_param *kp)
@@ -214,40 +207,31 @@ MODULE_PARM_DESC(cpumask, "Mask of CPUs to use for idle injection.");
 static int max_idle_set(const char *arg, const struct kernel_param *kp)
 {
 	u8 new_max_idle;
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&powerclamp_lock);
+	guard(mutex)(&powerclamp_lock);
 
 	/* Can't set mask when cooling device is in use */
-	if (powerclamp_data.clamping) {
-		ret = -EAGAIN;
-		goto skip_limit_set;
-	}
+	if (powerclamp_data.clamping)
+		return -EAGAIN;
 
 	ret = kstrtou8(arg, 10, &new_max_idle);
 	if (ret)
-		goto skip_limit_set;
+		return ret;
 
-	if (new_max_idle > MAX_TARGET_RATIO) {
-		ret = -EINVAL;
-		goto skip_limit_set;
-	}
+	if (new_max_idle > MAX_TARGET_RATIO)
+		return -EINVAL;
 
 	if (!cpumask_available(idle_injection_cpu_mask)) {
 		ret = allocate_copy_idle_injection_mask(cpu_present_mask);
 		if (ret)
-			goto skip_limit_set;
+			return ret;
 	}
 
-	if (check_invalid(idle_injection_cpu_mask, new_max_idle)) {
-		ret = -EINVAL;
-		goto skip_limit_set;
-	}
+	if (check_invalid(idle_injection_cpu_mask, new_max_idle))
+		return -EINVAL;
 
 	max_idle = new_max_idle;
-
-skip_limit_set:
-	mutex_unlock(&powerclamp_lock);
 
 	return ret;
 }
@@ -289,9 +273,10 @@ static int window_size_set(const char *arg, const struct kernel_param *kp)
 		pr_err("Out of recommended window size %lu, between 2-10\n",
 			new_window_size);
 		ret = -EINVAL;
+		goto exit_win;
 	}
 
-	window_size = clamp(new_window_size, 2ul, 10ul);
+	window_size = new_window_size;
 	smp_mb();
 
 exit_win:
@@ -536,23 +521,17 @@ static struct idle_inject_device *ii_dev;
  */
 static bool idle_inject_update(void)
 {
-	bool update = false;
-
 	/* We can't sleep in this callback */
 	if (!mutex_trylock(&powerclamp_lock))
 		return true;
 
 	if (!(powerclamp_data.count % powerclamp_data.window_size_now)) {
+		unsigned int runtime;
 
 		should_skip = powerclamp_adjust_controls(powerclamp_data.target_ratio,
 							 powerclamp_data.guard,
 							 powerclamp_data.window_size_now);
-		update = true;
-	}
-
-	if (update) {
-		unsigned int runtime = get_run_time();
-
+		runtime = get_run_time();
 		idle_inject_set_duration(ii_dev, runtime, duration);
 	}
 
@@ -560,10 +539,7 @@ static bool idle_inject_update(void)
 
 	mutex_unlock(&powerclamp_lock);
 
-	if (should_skip)
-		return false;
-
-	return true;
+	return !should_skip;
 }
 
 /* This function starts idle injection by calling idle_inject_start() */

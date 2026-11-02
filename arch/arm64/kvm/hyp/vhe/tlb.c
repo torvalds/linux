@@ -62,7 +62,7 @@ static void enter_vmid_context(struct kvm_s2_mmu *mmu,
 	 */
 	__load_stage2(mmu);
 	val = read_sysreg(hcr_el2);
-	val &= ~HCR_TGE;
+	val &= ~HCR_EL2_TGE;
 	write_sysreg_hcr(val);
 	isb();
 }

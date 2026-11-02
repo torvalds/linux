@@ -361,13 +361,6 @@ iwl_mld_change_link_in_fw(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 			flags |= LINK_FLG_MLPM;
 	}
 
-	cmd.htc_trig_based_pkt_ext = link->htc_trig_based_pkt_ext;
-
-	if (link->uora_exists) {
-		cmd.rand_alloc_ecwmin = link->uora_ocw_range & 0x7;
-		cmd.rand_alloc_ecwmax = (link->uora_ocw_range >> 3) & 0x7;
-	}
-
 	if (iwl_mld_fill_mu_edca(mld, mld_link, cmd.trig_based_txf))
 		flags |= LINK_FLG_MU_EDCA_CW;
 
@@ -375,8 +368,6 @@ iwl_mld_change_link_in_fw(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 
 	if (!link->he_bss_color.enabled)
 		flags |= LINK_FLG_BSS_COLOR_DIS;
-
-	cmd.frame_time_rts_th = cpu_to_le16(link->frame_time_rts_th);
 
 	/* Block 26-tone RU OFDMA transmissions */
 	if (mld_link->he_ru_2mhz_block)
@@ -386,6 +377,11 @@ iwl_mld_change_link_in_fw(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 		ether_addr_copy(cmd.ref_bssid_addr, link->transmitter_bssid);
 		cmd.bssid_index = link->bssid_index;
 	}
+
+	if (iwl_fw_lookup_cmd_ver(mld->fw,
+				  WIDE_ID(MAC_CONF_GROUP, LINK_CONFIG_CMD),
+				  0) >= 9)
+		cmd.max_bssid_indicator = link->bssid_indicator;
 
 	/* The only EHT parameter is puncturing, and starting from PHY cmd
 	 * version 6 - it is sent there. For older versions of the PHY cmd,

@@ -1229,7 +1229,8 @@ xfs_inode_item_format_convert(
 	struct xfs_inode_log_format_32	*in_f32 = buf->iov_base;
 
 	if (buf->iov_len != sizeof(*in_f32)) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, NULL);
+		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW,
+				 -EFSCORRUPTED, NULL);
 		return -EFSCORRUPTED;
 	}
 

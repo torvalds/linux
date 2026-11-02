@@ -1358,6 +1358,17 @@ static int stm32_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 	return stm32_sai_sub_reg_up(sai, STM_SAI_CR1_REGX, cr1_mask, cr1);
 }
 
+static const u64 stm32_sai_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops stm32_sai_pcm_dai_ops = {
 	.probe		= stm32_sai_dai_probe,
 	.set_sysclk	= stm32_sai_set_sysclk,
@@ -1368,6 +1379,8 @@ static const struct snd_soc_dai_ops stm32_sai_pcm_dai_ops = {
 	.trigger	= stm32_sai_trigger,
 	.shutdown	= stm32_sai_shutdown,
 	.pcm_new	= stm32_sai_pcm_new,
+	.auto_selectable_formats	= &stm32_sai_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static const struct snd_soc_dai_ops stm32_sai_pcm_dai_ops2 = {
@@ -1379,6 +1392,8 @@ static const struct snd_soc_dai_ops stm32_sai_pcm_dai_ops2 = {
 	.hw_params	= stm32_sai_hw_params,
 	.trigger	= stm32_sai_trigger,
 	.shutdown	= stm32_sai_shutdown,
+	.auto_selectable_formats	= &stm32_sai_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static int stm32_sai_pcm_process_spdif(struct snd_pcm_substream *substream,

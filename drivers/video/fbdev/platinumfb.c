@@ -167,10 +167,12 @@ static int platinumfb_blank(int blank,  struct fb_info *fb)
 	ctrl = le32_to_cpup(&info->platinum_regs->ctrl.r) | 0x33;
 	if (blank)
 		--blank_mode;
-	if (blank & VESA_VSYNC_SUSPEND)
-		ctrl &= ~3;
-	if (blank & VESA_HSYNC_SUSPEND)
+	if (blank == FB_BLANK_VSYNC_SUSPEND)
+		ctrl &= ~0x03;
+	else if (blank == FB_BLANK_HSYNC_SUSPEND)
 		ctrl &= ~0x30;
+	else if (blank == FB_BLANK_POWERDOWN)
+		ctrl &= ~0x33;
 	out_le32(&info->platinum_regs->ctrl.r, ctrl);
 */
 /* TODO: Figure out how the heck to powerdown this thing! */

@@ -405,7 +405,6 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 
 	input->id.bustype = BUS_I2C;
 	input->name = pdev->name;
-	input->dev.parent = &pdev->dev;
 
 	input->open = tc3589x_keypad_open;
 	input->close = tc3589x_keypad_close;

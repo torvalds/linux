@@ -35,8 +35,7 @@ xchk_setup_agheader(
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_superblock_xref(
-	struct xfs_scrub	*sc,
-	struct xfs_buf		*bp)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agnumber_t		agno = sc->sm->sm_agno;
@@ -48,7 +47,7 @@ xchk_superblock_xref(
 
 	agbno = XFS_SB_BLOCK(mp);
 
-	error = xchk_ag_init_existing(sc, agno, &sc->sa);
+	error = xchk_ag_init_existing(sc, agno);
 	if (!xchk_xref_process_error(sc, agno, agbno, &error))
 		return;
 
@@ -57,8 +56,7 @@ xchk_superblock_xref(
 	xchk_xref_is_only_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_FS);
 	xchk_xref_is_not_shared(sc, agbno, 1);
 	xchk_xref_is_not_cow_staging(sc, agbno, 1);
-
-	/* scrub teardown will take care of sc->sa for us */
+	xchk_ag_free(sc);
 }
 
 /*
@@ -106,15 +104,11 @@ xchk_superblock(
 	struct xfs_dsb		*sb;
 	struct xfs_perag	*pag;
 	size_t			sblen;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agno = sc->sm->sm_agno;
 	uint32_t		v2_ok;
 	__be32			features_mask;
 	int			error;
 	__be16			vernum_mask;
-
-	agno = sc->sm->sm_agno;
-	if (agno == 0)
-		return 0;
 
 	/*
 	 * Grab an active reference to the perag structure.  If we can't get
@@ -124,6 +118,41 @@ xchk_superblock(
 	pag = xfs_perag_get(mp, agno);
 	if (!pag)
 		return -ENOENT;
+
+	if (agno == 0) {
+		/*
+		 * Reread the primary super from disk in case it's become
+		 * corrupted enough since mount time to fail the verifier.
+		 * Crashing now with a bad primary super will prevent remount
+		 * (which might recover the primary super from the log) so we
+		 * want to trigger a repair to write the incore primary
+		 * superblock out to disk ASAP.
+		 *
+		 * Note that we don't check the geometry (like we do for a
+		 * secondary super) because the incore copy is the source of
+		 * truth while the filesystem is mounted.
+		 *
+		 * If the read races with a write, we end up writing the
+		 * primary super unnecessarily, but that's not a big deal.
+		 */
+		error = xfs_buf_read_uncached(sc->mp->m_ddev_targp,
+				XFS_SB_DADDR, BTOBB(mp->m_sb.sb_sectsize), &bp,
+				&xfs_sb_buf_ops);
+		switch (error) {
+		case -EINVAL:	/* also -EWRONGFS */
+		case -ENOSYS:
+		case -EFBIG:
+			error = -EFSCORRUPTED;
+			fallthrough;
+		default:
+			break;
+		}
+		if (!xchk_process_error(sc, agno, XFS_SB_BLOCK(mp), &error))
+			goto out_pag;
+
+		xfs_buf_relse(bp);
+		goto out_xref;
+	}
 
 	error = xfs_sb_read_secondary(mp, sc->tp, agno, &bp);
 	/*
@@ -430,7 +459,8 @@ xchk_superblock(
 	if (memchr_inv((char *)sb + sblen, 0, BBTOB(bp->b_length) - sblen))
 		xchk_block_set_corrupt(sc, bp);
 
-	xchk_superblock_xref(sc, bp);
+out_xref:
+	xchk_superblock_xref(sc);
 out_pag:
 	xfs_perag_put(pag);
 	return error;
@@ -585,7 +615,7 @@ xchk_agf_xref(
 
 	agbno = XFS_AGF_BLOCK(mp);
 
-	xchk_ag_btcur_init(sc, &sc->sa);
+	xchk_ag_btcur_init(sc);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_agf_xref_freeblks(sc);
@@ -618,7 +648,7 @@ xchk_agf(
 	int			level;
 	int			error = 0;
 
-	error = xchk_ag_read_headers(sc, agno, &sc->sa);
+	error = xchk_ag_read_headers(sc, agno);
 	if (!xchk_process_error(sc, agno, XFS_AGF_BLOCK(sc->mp), &error))
 		goto out;
 	xchk_buffer_recheck(sc, sc->sa.agf_bp);
@@ -773,7 +803,7 @@ xchk_agfl_xref(
 
 	agbno = XFS_AGFL_BLOCK(mp);
 
-	xchk_ag_btcur_init(sc, &sc->sa);
+	xchk_ag_btcur_init(sc);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
@@ -801,7 +831,7 @@ xchk_agfl(
 	int			error;
 
 	/* Lock the AGF and AGI so that nobody can touch this AG. */
-	error = xchk_ag_read_headers(sc, agno, &sc->sa);
+	error = xchk_ag_read_headers(sc, agno);
 	if (!xchk_process_error(sc, agno, XFS_AGFL_BLOCK(sc->mp), &error))
 		return error;
 	if (!sc->sa.agf_bp)
@@ -928,7 +958,7 @@ xchk_agi_xref(
 
 	agbno = XFS_AGI_BLOCK(mp);
 
-	xchk_ag_btcur_init(sc, &sc->sa);
+	xchk_ag_btcur_init(sc);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
@@ -1042,7 +1072,7 @@ xchk_agi(
 	int			level;
 	int			error = 0;
 
-	error = xchk_ag_read_headers(sc, agno, &sc->sa);
+	error = xchk_ag_read_headers(sc, agno);
 	if (!xchk_process_error(sc, agno, XFS_AGI_BLOCK(sc->mp), &error))
 		goto out;
 	xchk_buffer_recheck(sc, sc->sa.agi_bp);

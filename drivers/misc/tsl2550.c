@@ -398,8 +398,6 @@ static void tsl2550_remove(struct i2c_client *client)
 	kfree(i2c_get_clientdata(client));
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static int tsl2550_suspend(struct device *dev)
 {
 	return tsl2550_set_power_state(to_i2c_client(dev), 0);
@@ -410,14 +408,7 @@ static int tsl2550_resume(struct device *dev)
 	return tsl2550_set_power_state(to_i2c_client(dev), 1);
 }
 
-static SIMPLE_DEV_PM_OPS(tsl2550_pm_ops, tsl2550_suspend, tsl2550_resume);
-#define TSL2550_PM_OPS (&tsl2550_pm_ops)
-
-#else
-
-#define TSL2550_PM_OPS NULL
-
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(tsl2550_pm_ops, tsl2550_suspend, tsl2550_resume);
 
 static const struct i2c_device_id tsl2550_id[] = {
 	{ .name = "tsl2550" },
@@ -435,7 +426,7 @@ static struct i2c_driver tsl2550_driver = {
 	.driver = {
 		.name	= TSL2550_DRV_NAME,
 		.of_match_table = tsl2550_of_match,
-		.pm	= TSL2550_PM_OPS,
+		.pm	= pm_sleep_ptr(&tsl2550_pm_ops),
 	},
 	.probe = tsl2550_probe,
 	.remove	= tsl2550_remove,

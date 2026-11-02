@@ -422,7 +422,8 @@ Domain`_ references.
   Function reference.
 
 ``@parameter``
-  Name of a function parameter. (No cross-referencing, just formatting.)
+  Name of a function parameter, struct member, union member, or
+  enum value. (No cross-referencing, just formatting.)
 
 ``%CONST``
   Name of a constant. (No cross-referencing, just formatting.)
@@ -563,8 +564,8 @@ identifiers: *[ function/type ...]*
   Include documentation for each *function* and *type* in *source*.
   If no *function* is specified, the documentation for all functions
   and types in the *source* will be included.
-  *type* can be a ``struct``, ``union``, ``enum``, ``typedef`` or ``var``
-  identifier.
+  *type* can be a ``struct``, ``union``, ``enum``, ``typedef``, ``var``,
+  or ``define`` identifier.
 
   Examples::
 

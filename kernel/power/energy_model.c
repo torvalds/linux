@@ -439,7 +439,9 @@ static int em_create_pd(struct device *dev, int nr_states,
 
 		cpumask_copy(em_span_cpus(pd), cpus);
 	} else {
-		pd = kzalloc_obj(*pd);
+		/* Readers expect pd->cpus to exist and remain empty. */
+		pd = kzalloc_flex(*pd, cpus,
+				  BITS_TO_LONGS(large_cpumask_bits));
 		if (!pd)
 			return -ENOMEM;
 	}
@@ -1031,7 +1033,9 @@ int for_each_em_perf_domain(int (*cb)(struct em_perf_domain*, void *),
 	return 0;
 }
 
-struct em_perf_domain *em_perf_domain_get_by_id(int id)
+/* Run @cb on the matching domain with em_pd_list_mutex held. */
+int em_perf_domain_for_id(int id, int (*cb)(struct em_perf_domain *, void *),
+			  void *data)
 {
 	struct em_perf_domain *pd;
 
@@ -1040,9 +1044,9 @@ struct em_perf_domain *em_perf_domain_get_by_id(int id)
 
 	list_for_each_entry(pd, &em_pd_list, node) {
 		if (pd->id == id)
-			return pd;
+			return cb(pd, data);
 	}
 
-	return NULL;
+	return -EINVAL;
 }
 #endif

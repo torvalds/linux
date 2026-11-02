@@ -77,6 +77,8 @@ static bool skb_needs_check(const struct sk_buff *skb, bool tx_path)
  *	@skb: buffer to segment
  *	@features: features for the output path (see dev->features)
  *	@tx_path: whether it is called in TX path
+ *	@max_segs: maximum MSS segments per output GSO skb, 0 means no limit;
+ *		   set only for an unencapsulated TCP skb without a frag_list
  *
  *	This function segments the given skb and returns a list of segments.
  *
@@ -86,7 +88,8 @@ static bool skb_needs_check(const struct sk_buff *skb, bool tx_path)
  *	Segmentation preserves SKB_GSO_CB_OFFSET bytes of previous skb cb.
  */
 struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
-				  netdev_features_t features, bool tx_path)
+				  netdev_features_t features, bool tx_path,
+				  unsigned int max_segs)
 {
 	struct sk_buff *segs;
 
@@ -118,6 +121,7 @@ struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 	SKB_GSO_CB(skb)->mac_offset = skb_headroom(skb);
 	SKB_GSO_CB(skb)->encap_level = 0;
 	SKB_GSO_CB(skb)->recursion_counter = 0;
+	SKB_GSO_CB(skb)->max_segs = min(max_segs, U8_MAX);
 
 	skb_reset_mac_header(skb);
 	skb_reset_mac_len(skb);

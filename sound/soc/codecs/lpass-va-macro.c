@@ -454,7 +454,7 @@ static const struct regmap_config va_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.cache_type = REGCACHE_FLAT,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = va_defaults,
 	.num_reg_defaults = ARRAY_SIZE(va_defaults),
 	.max_register = VA_MAX_OFFSET,
@@ -1414,7 +1414,7 @@ static int va_macro_register_fsgen_output(struct va_macro *va)
 	struct device_node *np = dev->of_node;
 	const char *parent_clk_name;
 	const char *clk_name = "fsgen";
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	if (va->has_npl_clk)

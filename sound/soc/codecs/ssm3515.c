@@ -356,12 +356,22 @@ static int ssm3515_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static const u64 ssm3515_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 static const struct snd_soc_dai_ops ssm3515_dai_ops = {
 	.mute_stream	= ssm3515_mute,
 	.hw_params	= ssm3515_hw_params,
 	.set_fmt	= ssm3515_set_fmt,
 	.set_tdm_slot	= ssm3515_set_tdm_slot,
 	.hw_free	= ssm3515_hw_free,
+	.auto_selectable_formats	= &ssm3515_selectable_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver ssm3515_dai_driver = {

@@ -590,7 +590,7 @@ static void tda1997x_enable_edid(struct v4l2_subdev *sd)
 	v4l2_dbg(1, debug, sd, "%s\n", __func__);
 
 	/* Enable hotplug after 143ms */
-	schedule_delayed_work(&state->delayed_work_enable_hpd, HZ / 7);
+	schedule_delayed_work(&state->delayed_work_enable_hpd, V4L2_SET_EDID_HPD_LOW_JIFFIES);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1798,6 +1798,7 @@ static int tda1997x_get_format(struct v4l2_subdev *sd,
 }
 
 static int tda1997x_set_format(struct v4l2_subdev *sd,
+			       const struct v4l2_subdev_client_info *ci,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *format)
 {

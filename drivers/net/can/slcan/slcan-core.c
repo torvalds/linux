@@ -131,10 +131,7 @@ int slcan_enable_err_rst_on_open(struct net_device *ndev, bool on)
 	if (netif_running(ndev))
 		return -EBUSY;
 
-	if (on)
-		set_bit(CF_ERR_RST, &sl->cmd_flags);
-	else
-		clear_bit(CF_ERR_RST, &sl->cmd_flags);
+	assign_bit(CF_ERR_RST, &sl->cmd_flags, on);
 
 	return 0;
 }

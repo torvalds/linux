@@ -9,10 +9,19 @@
 #define __STUB_DATA_H
 
 #include <linux/compiler_types.h>
+#include <asm/unistd.h>
 #include <as-layout.h>
 #include <sysdep/tls.h>
 #include <sysdep/stub-data.h>
 #include <mm_id.h>
+
+#ifndef __NR_close_range
+# if defined(__alpha__)
+#  define __NR_close_range 546
+# else
+#  define __NR_close_range 436
+# endif
+#endif
 
 #define FUTEX_IN_CHILD 0
 #define FUTEX_IN_KERN 1

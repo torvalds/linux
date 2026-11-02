@@ -18,6 +18,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/err.h>
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
 
@@ -99,14 +100,9 @@ int fsl8250_handle_irq(struct uart_port *port)
 EXPORT_SYMBOL_GPL(fsl8250_handle_irq);
 
 #ifdef CONFIG_ACPI
-struct fsl8250_data {
-	int	line;
-};
-
 static int fsl8250_acpi_probe(struct platform_device *pdev)
 {
-	struct fsl8250_data *data;
-	struct uart_8250_port port8250;
+	struct uart_8250_port *uport, port8250;
 	struct device *dev = &pdev->dev;
 	struct resource *regs;
 
@@ -148,23 +144,19 @@ static int fsl8250_acpi_probe(struct platform_device *pdev)
 	if (!port8250.port.membase)
 		return -ENOMEM;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	uport = serial8250_register_8250_port(&port8250);
+	if (IS_ERR(uport))
+		return PTR_ERR(uport);
 
-	data->line = serial8250_register_8250_port(&port8250);
-	if (data->line < 0)
-		return data->line;
-
-	platform_set_drvdata(pdev, data);
+	platform_set_drvdata(pdev, uport);
 	return 0;
 }
 
 static void fsl8250_acpi_remove(struct platform_device *pdev)
 {
-	struct fsl8250_data *data = platform_get_drvdata(pdev);
+	struct uart_8250_port *uport = platform_get_drvdata(pdev);
 
-	serial8250_unregister_port(data->line);
+	serial8250_unregister_port(uport);
 }
 
 static const struct acpi_device_id fsl_8250_acpi_id[] = {

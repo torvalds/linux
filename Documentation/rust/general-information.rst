@@ -157,5 +157,5 @@ numerical comparisons, one may define a new Kconfig symbol:
 
 .. code-block:: kconfig
 
-	config RUSTC_HAS_SPAN_FILE
-		def_bool RUSTC_VERSION >= 108800
+	config RUSTC_HAS_FILE_AS_C_STR
+		def_bool RUSTC_VERSION >= 109100

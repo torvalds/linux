@@ -9,8 +9,8 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 
-// For dce12_get_dp_ref_freq_khz
-#include "dce100/dce_clk_mgr.h"
+// For dcn10_get_dp_ref_freq_khz
+#include "dcn10/dcn10_clk_mgr.h"
 
 // For dcn20_update_clocks_update_dpp_dto
 #include "dcn20/dcn20_clk_mgr.h"
@@ -34,6 +34,8 @@
 #include "clk/clk_15_0_5_sh_mask.h"
 #include "dcn/dcn_4_2_1_offset.h"
 #include "dcn/dcn_4_2_1_sh_mask.h"
+
+#include <linux/power_supply.h>
 
 #define DCN_BASE__INST0_SEG0                       0x00000012
 #define DCN_BASE__INST0_SEG1                       0x000000C0
@@ -226,7 +228,7 @@ void dcn42b_init_clocks(struct clk_mgr *clk_mgr_base)
 	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct clk_mgr_dcn42 *clk_mgr = TO_CLK_MGR_DCN42B(clk_mgr_int);
 
-	DC_LOGGER_INIT(clk_mgr_base->ctx->logger);
+DC_LOGGER_INIT(clk_mgr_base->ctx->logger);
 	(void)dc_logger;
 
 	init_clk_states(clk_mgr_base);
@@ -234,7 +236,7 @@ void dcn42b_init_clocks(struct clk_mgr *clk_mgr_base)
 	// to adjust dp_dto reference clock if ssc is enable otherwise to apply dprefclk
 	if (dcn42_is_spll_ssc_enabled(clk_mgr_base))
 		clk_mgr_base->dp_dto_source_clock_in_khz =
-			dce_adjust_dp_ref_freq_for_ss(clk_mgr_int, clk_mgr_base->dprefclk_khz);
+			dcn10_adjust_dp_ref_freq_for_ss(clk_mgr_int, clk_mgr_base->dprefclk_khz);
 	else
 		clk_mgr_base->dp_dto_source_clock_in_khz = clk_mgr_base->dprefclk_khz;
 
@@ -389,14 +391,46 @@ uint32_t dcn42b_get_clock_freq_from_clkip(struct clk_mgr *clk_mgr_base, enum clo
 	return (uint32_t)clock_freq_mhz;
 }
 
-/* dcn42b_get_dispclk_from_dentist removed: reuse dcn42_get_dispclk_from_dentist.
- * DENTIST_DISPCLK_CNTL is a DCN register with the same offset on both dcn42 and dcn42b.
+#define DCN42B_MIN_DCFCLK_MHZ 200
+#define DCN42B_MAX_DCFCLK_MHZ 600
+#define DCN42B_AC_MIN_DCFCLK_MHZ 300
+
+/*
+ * dcn42b_update_clocks - DCN42B wrapper around dcn42_update_clocks.
+ *
+ * Establishes the DCN42B force-min-DCFCLK floor consumed by the shared
+ * dcn42_update_clocks(), which applies it to new_clocks->dcfclk_khz:
+ *   - a user override (dc->debug.force_min_dcfclk_mhz)
+ *     wins, sanitized to the [200, 600] MHz supported range;
+ *   - otherwise DCFCLK is floored at 300 MHz on wall power, and left
+ *     unconstrained on battery.
+ * dc->debug is restored afterwards so the override survives AC/DC transitions.
  */
+static void dcn42b_update_clocks(struct clk_mgr *clk_mgr_base,
+			struct dc_state *context,
+			bool safe_to_lower)
+{
+	struct dc *dc = clk_mgr_base->ctx->dc;
+	unsigned int user_force_min_dcfclk_mhz = dc->debug.force_min_dcfclk_mhz;
+
+	if (dc->debug.force_min_dcfclk_mhz > 0) {
+		if (dc->debug.force_min_dcfclk_mhz < DCN42B_MIN_DCFCLK_MHZ)
+			dc->debug.force_min_dcfclk_mhz = DCN42B_MIN_DCFCLK_MHZ;
+		else if (dc->debug.force_min_dcfclk_mhz > DCN42B_MAX_DCFCLK_MHZ)
+			dc->debug.force_min_dcfclk_mhz = DCN42B_MAX_DCFCLK_MHZ;
+	} else if (power_supply_is_system_supplied()) {
+		dc->debug.force_min_dcfclk_mhz = DCN42B_AC_MIN_DCFCLK_MHZ;
+	}
+
+	dcn42_update_clocks(clk_mgr_base, context, safe_to_lower);
+
+	dc->debug.force_min_dcfclk_mhz = user_force_min_dcfclk_mhz;
+}
 
 static struct clk_mgr_funcs dcn42b_funcs = {
-	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dp_ref_clk_frequency = dcn10_get_dp_ref_freq_khz,
 	.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
-	.update_clocks = dcn42_update_clocks,
+	.update_clocks = dcn42b_update_clocks,
 	.init_clocks = dcn42b_init_clocks,
 	.enable_pme_wa = dcn42_enable_pme_wa,
 	.are_clock_states_equal = dcn42_are_clock_states_equal,
@@ -585,6 +619,7 @@ void dcn42b_clk_mgr_construct(
 		struct dccg *dccg)
 {
 	clk_mgr->base.base.ctx = ctx;
+	clk_mgr->base.base.inst = 0;
 	clk_mgr->base.base.funcs = &dcn42b_funcs;
 	clk_mgr->base.regs = &clk_mgr_regs_dcn42b;
 	clk_mgr->base.clk_mgr_shift = &clk_mgr_shift_dcn42b;
@@ -594,6 +629,7 @@ void dcn42b_clk_mgr_construct(
 
 	clk_mgr->base.dccg = dccg;
 	clk_mgr->base.dfs_bypass_disp_clk = 0;
+	clk_mgr->max_bypass_clk_khz = 0;
 
 	clk_mgr->base.dprefclk_ss_percentage = 0;
 	clk_mgr->base.dprefclk_ss_divider = 1000;
@@ -633,7 +669,7 @@ void dcn42b_clk_mgr_construct(
 		/* Saved clocks configured at boot for debug purposes */
 		dcn42b_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, clk_mgr);
 
-	dce_clock_read_ss_info(&clk_mgr->base);
+	dcn10_clock_read_ss_info(&clk_mgr->base);
 	/*when clk src is from FCH, it could have ss, same clock src as DPREF clk*/
 
 	dcn42b_read_ss_info_from_lut(&clk_mgr->base);

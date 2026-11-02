@@ -1435,7 +1435,7 @@ int pipe_resize_ring(struct pipe_inode_info *pipe, unsigned int nr_slots)
 	spin_unlock_irq(&pipe->rd_wait.lock);
 
 	/* This might have made more room for writers */
-	wake_up_interruptible(&pipe->wr_wait);
+	wake_up_interruptible_poll(&pipe->wr_wait, EPOLLOUT | EPOLLWRNORM);
 	return 0;
 }
 

@@ -278,7 +278,7 @@ void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 {
 #ifdef CONFIG_HUGETLB_PAGE
-	if (vma && is_vm_hugetlb_page(vma))
+	if (vma && vma_is_hugetlb(vma))
 		flush_hugetlb_page(vma, vmaddr);
 #endif
 

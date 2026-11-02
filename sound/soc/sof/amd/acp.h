@@ -49,10 +49,14 @@
 #define ACP_PAGE_SIZE				0x1000
 #define ACP_DMA_CH_RUN				0x02
 #define ACP_MAX_DESC_CNT			0x02
+#define ACP_DSP_RUN				0x00
 #define DSP_FW_RUN_ENABLE			0x01
 #define ACP_SHA_RUN				0x01
 #define ACP_SHA_RESET				0x02
 #define ACP_SHA_HEADER				0x01
+/* SHA_IOC_En (bit 2): interrupt-on-completion to ASP; must be set alongside sha_run */
+#define ACP_SHA_IOC_EN				0x04
+#define ACP_SHA_RUN_WITH_IOC			(ACP_SHA_RUN | ACP_SHA_IOC_EN)
 #define ACP_DMA_CH_RST				0x01
 #define ACP_DMA_CH_GRACEFUL_RST_EN		0x10
 #define ACP_ATU_CACHE_INVALID			0x01
@@ -115,6 +119,28 @@
 #define ACP_FIRMWARE_SIGNATURE			0x100
 #define ACP_IMAGE_HEADER_SIZE			ACP_FIRMWARE_SIGNATURE
 #define ACP_IMAGE_HDR_SIZE_FW_SIGNED_OFF	0x14
+#define ACP_ASP_SIGNATURE_LENGTH		512
+
+/*
+ * ACP7.B/7.F carveout: 32 MB region mapped at 2 MB page granularity.
+ * Use AXI2AXIATU_PAGE_SIZE_Mask2MB (value 0x0) for carveout ATU
+ * groups giving 32MB / 2MB = 16 PTEs. 4KB pages would require 8192 PTEs and
+ * is not how the hardware carveout path is configured.
+ */
+#define ACP7X_CARVEOUT_MAX_SIZE			(32 * SZ_1M)
+#define ACP7X_CARVEOUT_PAGE_SIZE		(2 * SZ_1M)
+#define ACP7X_CARVEOUT_PAGE_COUNT		(ACP7X_CARVEOUT_MAX_SIZE / ACP7X_CARVEOUT_PAGE_SIZE)
+/*
+ * PTE high-word flags for ATU entries:
+ *   bit[31]: PAGE_Enable  - entry is valid
+ *   bit[30]: MALL_Enable  - route accesses through carveout (MALL) memory,
+ *            not standard DRAM. Required for ASP to recognise the SHA DMA
+ *            source as within the carveout and grant ACP_SHA_DSP_FW_QUALIFIER.
+ *            (PAGE_Enable | MALL_Enable ATU entry flags)
+ */
+#define ACP_ATU_PTE_PAGE_ENABLE			BIT(31)
+#define ACP_ATU_PTE_MALL_ENABLE			BIT(30)
+#define ACP_ATU_PTE_CARVEOUT_FLAGS		(ACP_ATU_PTE_PAGE_ENABLE | ACP_ATU_PTE_MALL_ENABLE)
 
 #define ACP_ERROR_IRQ_MASK			BIT(29)
 #define ACP_SDW0_IRQ_MASK			BIT(21)
@@ -125,8 +151,40 @@
 #define ACP_SRAM_PAGE_COUNT			128
 #define ACP6X_SDW_MAX_MANAGER_COUNT		2
 #define ACP70_SDW_MAX_MANAGER_COUNT		ACP6X_SDW_MAX_MANAGER_COUNT
+/* ACPI _DSD acp-audio-ep-port values for PDM controller selection */
+#define ACP_DEV_PORT_PDM			4
+#define ACP_DEV_PORT_PDM2			5
+#define SDW_ACPI_ADDR_ACP7X			SDW_ACPI_ADDR_ACP63
+#define ACP7X_SDW_MAX_MANAGER_COUNT		4
+
+/* ACPI child device address for the ACP7x PDM/DMIC device */
+#define ACP7X_DMIC_ADDR				2
 #define ACP_DSP_MSG_SET				1
 #define ACP_DSP_ACK_SET				1
+
+/*
+ * ATU PTE group ACP logical address offsets.
+ * Each group covers 8 MB (0x00800000).  Groups 1-8 are used for PCM
+ * streams; groups 9-16 are extended groups.
+ *
+ *   GRP_N_OFFSET = (N - 1) * 8 MB
+ */
+#define PTE_GRP1_OFFSET		0x00000000
+#define PTE_GRP2_OFFSET		0x00800000
+#define PTE_GRP3_OFFSET		0x01000000
+#define PTE_GRP4_OFFSET		0x01800000
+#define PTE_GRP5_OFFSET		0x02000000
+#define PTE_GRP6_OFFSET		0x02800000
+#define PTE_GRP7_OFFSET		0x03000000
+#define PTE_GRP8_OFFSET		0x03800000
+#define PTE_GRP9_OFFSET		0x04000000
+#define PTE_GRP10_OFFSET	0x04800000
+#define PTE_GRP11_OFFSET	0x05000000
+#define PTE_GRP12_OFFSET	0x05800000
+#define PTE_GRP13_OFFSET	0x06000000
+#define PTE_GRP14_OFFSET	0x06800000
+#define PTE_GRP15_OFFSET	0x07000000
+#define PTE_GRP16_OFFSET	0x07800000
 
 enum clock_source {
 	ACP_CLOCK_96M = 0,
@@ -139,6 +197,29 @@ enum clock_source {
 struct  acp_atu_grp_pte {
 	u32 low;
 	u32 high;
+};
+
+/* ASP mailbox payload for GET_CARVEOUT_ADDR command (0x04) */
+struct asp_get_carveout_payload {
+	u32 cookie;		/* [0x00] Driver: ASP_MBOX_COOKIE */
+	u32 status;		/* [0x04] ASP:    0 = success */
+	u64 carveout_addr;	/* [0x08] ASP:    carveout physical base address */
+	u32 carveout_size;	/* [0x10] ASP:    ACP_MALL_SIZE register value */
+	u32 mall_addr_valid;	/* [0x14] ASP:    ACP_MALL_ADDR_VALID register value */
+	u32 mall_valid;		/* [0x18] ASP:    ACP_MALL_VALID register value */
+};
+
+/*
+ * ASP mailbox payload for VALIDATE_IMAGE command (0x01).
+ * Driver fills src/dest fields; ASP fills carveout_dest_addr and status.
+ */
+struct asp_validate_image_payload {
+	u32 cookie;		/* [0x00] Driver: ASP_MBOX_COOKIE */
+	u32 status;		/* [0x04] ASP:    0 = success */
+	u64 carveout_dest_addr;	/* [0x08] ASP:    physical addr of raw binary in carveout */
+	u64 dest_offset;	/* [0x10] Driver: destination offset within carveout */
+	u64 src_phys_addr;	/* [0x18] Driver: signed FW source physical addr in DDR */
+	u32 fw_image_size;	/* [0x20] Driver: total signed image size in bytes */
 };
 
 union dma_tx_cnt {
@@ -279,8 +360,42 @@ struct acp_dev_data {
 	bool acp70_sdw0_wake_event;
 	/* acp70_sdw1_wake_event flag set to true when wake irq asserted for SW1 instance */
 	bool acp70_sdw1_wake_event;
+	/* per-manager wake event flags; indexed by SoundWire manager instance (0-3) */
+	bool acp7x_sdw_wake_event[ACP7X_SDW_MAX_MANAGER_COUNT];
+	/* PDM controller index selected from ACPI acp-audio-ep-port; passed to machine driver */
+	unsigned int pdm_sel;
+	bool is_sdw_dev;
 	unsigned int pci_rev;
+	u32 subsystem_vendor;
+	u32 subsystem_device;
 	int acp_sof_signed_firmware_image;
+	/* ACP7.F ASP carveout firmware load state */
+	u64  asp_carveout_base;
+	u32  asp_carveout_size;
+	u32  asp_carveout_group_start;  /* first ATU group index for carveout (from ASP) */
+	u32  asp_carveout_group_count;  /* number of consecutive ATU groups for carveout */
+	/*
+	 * Physical address and raw size of each validated DSP code binary
+	 * within the carveout region (returned by ASP VALIDATE_IMAGE).
+	 * Preserved across suspend/resume so that SHA DMA can reload DSP IRAM
+	 * from the carveout without re-authenticating from disk.
+	 */
+	u64  fw_code_carveout_addr;
+	u32  fw_code_raw_size;
+	/* Real CPU physical address of the ASP MPASP mailbox payload page */
+	phys_addr_t asp_mbox_buf_phys;
+	void       *asp_mbox_buf;
+	/*
+	 * SHA DMA completion for the carveout path.
+	 * ACP_SHA_STAT (bit 15 of ACP_EXTERNAL_INTR_STAT) has no dedicated
+	 * mask bit in ACP_EXTERNAL_INTR_CNTL - it is always enabled by default.
+	 * SHA DMA is triggered exclusively during firmware loading, so no
+	 * spurious ACP_SHA_STAT interrupts are expected outside that window.
+	 * acp7x_irq_handler signals sha_dma_complete when ACP_SHA_STAT fires;
+	 * configure_and_run_sha_dma() waits on it before polling
+	 * ACP_SHA_DSP_FW_QUALIFIER to ensure ASP has validated the source.
+	 */
+	struct completion sha_dma_complete;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
@@ -302,6 +417,11 @@ int acp_sof_dsp_run(struct snd_sof_dev *sdev);
 int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev);
 int acp_sof_load_signed_firmware(struct snd_sof_dev *sdev);
 int acp_get_bar_index(struct snd_sof_dev *sdev, u32 type);
+
+/* ACP7.B/7.F ASP carveout firmware load helper functions */
+int acp7x_query_asp_carveout(struct snd_sof_dev *sdev);
+int acp7x_load_firmware_carveout(struct snd_sof_dev *sdev);
+int acp7x_configure_carveout_pte(struct snd_sof_dev *sdev);
 
 /* Block IO callbacks */
 int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_type,

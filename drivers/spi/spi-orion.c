@@ -370,7 +370,16 @@ static inline int orion_spi_wait_till_ready(struct orion_spi *orion_spi)
 		if (readl(spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG)))
 			return 1;
 
+		/*
+		 * This is a polled, byte-at-a-time transfer loop. Each
+		 * iteration busy-waits in a tight udelay() loop, which can
+		 * starve other time-sensitive peripherals (e.g. SATA) of CPU
+		 * time and interfere with them if they run on this SoC.
+		 * Yield to the scheduler between polls so pending IRQs can
+		 * be serviced.
+		 */
 		udelay(1);
+		cond_resched();
 	}
 
 	return -1;

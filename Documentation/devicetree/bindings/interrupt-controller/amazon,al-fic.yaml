@@ -24,6 +24,19 @@ properties:
   interrupts:
     maxItems: 1
 
+  amazon,al-fic-mask:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      Selects which of the controller's severity outputs this group drives,
+      and thus which mask register the driver programs. A group has one cause
+      register and three severity outputs - info, error and fatal - each
+      gated by its own mask register. Each output is aggregated into a
+      separate interrupt tree, and a group belongs to exactly one of them.
+      The error and fatal outputs exist only on controller revisions that
+      implement them; earlier revisions provide the info output only.
+    enum: [info, error, fatal]
+    default: info
+
 required:
   - compatible
   - reg
@@ -39,8 +52,9 @@ examples:
 
     interrupt-controller@fd8a8500 {
         compatible = "amazon,al-fic";
-        reg = <0xfd8a8500 0x1000>;
+        reg = <0xfd8a8500 0x40>;
         interrupt-controller;
         #interrupt-cells = <2>;
         interrupts = <GIC_SPI 0x0 IRQ_TYPE_LEVEL_HIGH>;
+        amazon,al-fic-mask = "error";
     };

@@ -37,6 +37,12 @@ properties:
           - const: img,img-rogue
       - items:
           - enum:
+              - spacemit,k1-gpu
+          - const: img,img-bxe-2-32
+          - const: img,img-rogue
+      - items:
+          - enum:
+              - spacemit,k3-gpu
               - thead,th1520-gpu
           - const: img,img-bxm-4-64
           - const: img,img-rogue
@@ -102,6 +108,8 @@ allOf:
         compatible:
           contains:
             enum:
+              - spacemit,k1-gpu
+              - spacemit,k3-gpu
               - ti,am62-gpu
               - ti,am62p-gpu
               - ti,j721s2-gpu
@@ -162,13 +170,16 @@ allOf:
       properties:
         compatible:
           contains:
-            const: thead,th1520-gpu
+            enum:
+              - spacemit,k1-gpu
+              - spacemit,k3-gpu
+              - thead,th1520-gpu
     then:
       properties:
         power-domains:
           items:
-            - description: The single, unified power domain for the GPU on the
-                TH1520 SoC, integrating all internal IP power domains.
+            - description: The single, unified power domain for the GPU,
+                integrating all internal IP power domains.
         power-domain-names: false
       required:
         - power-domains

@@ -187,11 +187,10 @@ void core_scsi3_ua_release_all(
 
 /*
  * Dequeue a unit attention from the unit attention list. This function
- * returns true if the dequeuing succeeded and if *@key, *@asc and *@ascq have
+ * returns true if the dequeuing succeeded and if *@key and *@code have
  * been set.
  */
-bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
-				       u8 *ascq)
+bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u16 *code)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_dev_entry *deve;
@@ -214,8 +213,7 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 	if (!deve) {
 		rcu_read_unlock();
 		*key = ILLEGAL_REQUEST;
-		*asc = 0x25; /* LOGICAL UNIT NOT SUPPORTED */
-		*ascq = 0;
+		*code = LU_NOT_SUPPORTED;
 		return true;
 	}
 	*key = UNIT_ATTENTION;
@@ -232,8 +230,7 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 		 * clearing it.
 		 */
 		if (!dev_ua_intlck_clear) {
-			*asc = ua->ua_asc;
-			*ascq = ua->ua_ascq;
+			*code = scsi_sense_code(ua->ua_asc, ua->ua_ascq);
 			break;
 		}
 		/*
@@ -242,8 +239,7 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 		 * (head of the list) in the outgoing CHECK_CONDITION + sense.
 		 */
 		if (head) {
-			*asc = ua->ua_asc;
-			*ascq = ua->ua_ascq;
+			*code = scsi_sense_code(ua->ua_asc, ua->ua_ascq);
 			head = 0;
 		}
 		list_del(&ua->ua_nacl_list);
@@ -258,15 +254,13 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 		nacl->se_tpg->se_tpg_tfo->fabric_name,
 		dev_ua_intlck_clear ? "Releasing" : "Reporting",
 		dev->dev_attrib.emulate_ua_intlck_ctrl,
-		cmd->orig_fe_lun, cmd->t_task_cdb[0], *asc, *ascq);
+		cmd->orig_fe_lun, cmd->t_task_cdb[0],
+		scsi_sense_code_asc(*code), scsi_sense_code_ascq(*code));
 
 	return head == 0;
 }
 
-int core_scsi3_ua_clear_for_request_sense(
-	struct se_cmd *cmd,
-	u8 *asc,
-	u8 *ascq)
+int core_scsi3_ua_clear_for_request_sense(struct se_cmd *cmd, u16 *code)
 {
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
@@ -304,8 +298,7 @@ int core_scsi3_ua_clear_for_request_sense(
 	spin_lock(&deve->ua_lock);
 	list_for_each_entry_safe(ua, ua_p, &deve->ua_list, ua_nacl_list) {
 		if (head) {
-			*asc = ua->ua_asc;
-			*ascq = ua->ua_ascq;
+			*code = scsi_sense_code(ua->ua_asc, ua->ua_ascq);
 			head = 0;
 		}
 		list_del(&ua->ua_nacl_list);
@@ -317,7 +310,8 @@ int core_scsi3_ua_clear_for_request_sense(
 	pr_debug("[%s]: Released UNIT ATTENTION condition, mapped"
 		" LUN: %llu, got REQUEST_SENSE reported ASC: 0x%02x,"
 		" ASCQ: 0x%02x\n", nacl->se_tpg->se_tpg_tfo->fabric_name,
-		cmd->orig_fe_lun, *asc, *ascq);
+		cmd->orig_fe_lun, scsi_sense_code_asc(*code),
+		scsi_sense_code_ascq(*code));
 
 	return (head) ? -EPERM : 0;
 }

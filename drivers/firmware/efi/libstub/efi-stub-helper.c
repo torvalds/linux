@@ -12,6 +12,7 @@
 #include <linux/efi.h>
 #include <linux/kernel.h>
 #include <linux/overflow.h>
+#include <linux/ucs2_string.h>
 #include <asm/efi.h>
 #include <asm/setup.h>
 
@@ -248,6 +249,7 @@ static efi_status_t efi_measure_tagged_event(unsigned long load_addr,
 					     unsigned long load_size,
 					     enum efistub_event_type event)
 {
+	static efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
 	union {
 		efi_status_t
 		(__efiapi *hash_log_extend_event)(void *, u64, efi_physical_addr_t,
@@ -257,7 +259,6 @@ static efi_status_t efi_measure_tagged_event(unsigned long load_addr,
 	struct efistub_measured_event *evt __free(efi_pool) = NULL;
 	int size = struct_size(evt, tagged_event.tagged_event_data,
 			       events[event].event_data_len);
-	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
 	efi_tcg2_protocol_t *tcg2 = NULL;
 	union efistub_event ev;
 	efi_status_t status;
@@ -276,7 +277,7 @@ static efi_status_t efi_measure_tagged_event(unsigned long load_addr,
 		method.hash_log_extend_event =
 			(void *)efi_table_attr(tcg2, hash_log_extend_event);
 	} else {
-		efi_guid_t cc_guid = EFI_CC_MEASUREMENT_PROTOCOL_GUID;
+		static efi_guid_t cc_guid = EFI_CC_MEASUREMENT_PROTOCOL_GUID;
 		efi_cc_protocol_t *cc = NULL;
 
 		efi_bs_call(locate_protocol, &cc_guid, NULL, (void **)&cc);
@@ -334,81 +335,56 @@ char *efi_convert_cmdline(efi_loaded_image_t *image)
 {
 	const efi_char16_t *options = efi_table_attr(image, load_options);
 	u32 options_size = efi_table_attr(image, load_options_size);
-	int options_bytes = 0, safe_options_bytes = 0;  /* UTF-8 bytes */
-	unsigned long cmdline_addr = 0;
-	const efi_char16_t *s2;
-	bool in_quote = false;
+	unsigned long options_chars = 0;
+	unsigned long cmdline_bytes;
 	efi_status_t status;
-	u32 options_chars;
+	char *cmdline_addr;
 
 	if (options_size > 0)
 		efi_measure_tagged_event((unsigned long)options, options_size,
 					 EFISTUB_EVT_LOAD_OPTIONS);
 
 	efi_apply_loadoptions_quirk((const void **)&options, &options_size);
-	options_chars = options_size / sizeof(efi_char16_t);
+	if (options)
+		options_chars = ucs2_strnlen(options,
+					     options_size / sizeof(efi_char16_t));
 
-	if (options) {
-		s2 = options;
-		while (options_bytes < COMMAND_LINE_SIZE && options_chars--) {
-			efi_char16_t c = *s2++;
+	/* Each UCS-2 char takes up at most 3 UTF-8 bytes */
+	cmdline_bytes = min(3 * options_chars, COMMAND_LINE_SIZE - 1) + 3;
 
-			if (c < 0x80) {
-				if (c == L'\0' || c == L'\n')
-					break;
-				if (c == L'"')
-					in_quote = !in_quote;
-				else if (!in_quote && isspace((char)c))
-					safe_options_bytes = options_bytes;
-
-				options_bytes++;
-				continue;
-			}
-
-			/*
-			 * Get the number of UTF-8 bytes corresponding to a
-			 * UTF-16 character.
-			 * The first part handles everything in the BMP.
-			 */
-			options_bytes += 2 + (c >= 0x800);
-			/*
-			 * Add one more byte for valid surrogate pairs. Invalid
-			 * surrogates will be replaced with 0xfffd and take up
-			 * only 3 bytes.
-			 */
-			if ((c & 0xfc00) == 0xd800) {
-				/*
-				 * If the very last word is a high surrogate,
-				 * we must ignore it since we can't access the
-				 * low surrogate.
-				 */
-				if (!options_chars) {
-					options_bytes -= 3;
-				} else if ((*s2 & 0xfc00) == 0xdc00) {
-					options_bytes++;
-					options_chars--;
-					s2++;
-				}
-			}
-		}
-		if (options_bytes >= COMMAND_LINE_SIZE) {
-			options_bytes = safe_options_bytes;
-			efi_err("Command line is too long: truncated to %d bytes\n",
-				options_bytes);
-		}
-	}
-
-	options_bytes++;	/* NUL termination */
-
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, options_bytes,
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, cmdline_bytes,
 			     (void **)&cmdline_addr);
 	if (status != EFI_SUCCESS)
 		return NULL;
 
-	snprintf((char *)cmdline_addr, options_bytes, "%.*ls",
-		 options_bytes - 1, options);
+	if (ucs2_as_utf8_l(cmdline_addr, options, options_chars,
+			   cmdline_bytes) >= COMMAND_LINE_SIZE) {
+		/*
+		 * The output fills up the entire buffer, and may have been
+		 * truncated. Work backwards through the buffer to find a safe
+		 * truncation point (i.e., a blank character not inside a
+		 * quoted string).
+		 */
+		int safe_pos[2] = {};
+		int in_quote = 0;
 
-	return (char *)cmdline_addr;
+		for (int i = COMMAND_LINE_SIZE - 1; i >= 0; i--) {
+			char c = cmdline_addr[i];
+
+			if (!c)
+				return cmdline_addr;
+			else if (c == '"')
+				in_quote ^= 1;
+			else if (!safe_pos[in_quote] && isspace(c))
+				safe_pos[in_quote] = i;
+		}
+
+		efi_err("Command line is too long: truncated to %d bytes\n",
+			safe_pos[in_quote]);
+		cmdline_addr[safe_pos[in_quote]] = '\0';
+	}
+
+	return cmdline_addr;
 }
 
 /**
@@ -552,7 +528,7 @@ static
 efi_status_t efi_load_initrd_dev_path(struct linux_efi_initrd *initrd,
 				      unsigned long max)
 {
-	efi_guid_t lf2_proto_guid = EFI_LOAD_FILE2_PROTOCOL_GUID;
+	static efi_guid_t lf2_proto_guid = EFI_LOAD_FILE2_PROTOCOL_GUID;
 	efi_device_path_protocol_t *dp;
 	efi_load_file2_protocol_t *lf2;
 	efi_handle_t handle;
@@ -614,7 +590,7 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 			     unsigned long hard_limit,
 			     const struct linux_efi_initrd **out)
 {
-	efi_guid_t tbl_guid = LINUX_EFI_INITRD_MEDIA_GUID;
+	static efi_guid_t tbl_guid = LINUX_EFI_INITRD_MEDIA_GUID;
 	efi_status_t status = EFI_SUCCESS;
 	struct linux_efi_initrd initrd, *tbl;
 
@@ -725,7 +701,7 @@ efi_status_t efi_wait_for_key(unsigned long usec, efi_input_key_t *key)
 void efi_remap_image(unsigned long image_base, unsigned alloc_size,
 		     unsigned long code_size)
 {
-	efi_guid_t guid = EFI_MEMORY_ATTRIBUTE_PROTOCOL_GUID;
+	static efi_guid_t guid = EFI_MEMORY_ATTRIBUTE_PROTOCOL_GUID;
 	efi_memory_attribute_protocol_t *memattr;
 	efi_status_t status;
 	u64 attr;

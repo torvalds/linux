@@ -115,8 +115,7 @@ void xfs_exchmaps_upgrade_extent_counts(struct xfs_trans *tp,
 int xfs_exchmaps_finish_one(struct xfs_trans *tp,
 		struct xfs_exchmaps_intent *xmi);
 
-int xfs_exchmaps_check_forks(struct xfs_mount *mp,
-		const struct xfs_exchmaps_req *req);
+int xfs_exchmaps_check_forks(const struct xfs_exchmaps_req *req);
 
 void xfs_exchange_mappings(struct xfs_trans *tp,
 		const struct xfs_exchmaps_req *req);

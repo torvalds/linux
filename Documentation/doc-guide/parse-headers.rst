@@ -8,26 +8,27 @@ between the code and the documentation. Adding cross-references for
 userspace API files has an additional advantage: Sphinx will generate warnings
 if a symbol is not found at the documentation. That helps to keep the
 uAPI documentation in sync with the Kernel changes.
-The :ref:`parse_headers.py <parse_headers>` provides a way to generate such
-cross-references. It has to be called via Makefile, while building the
-documentation. Please see ``Documentation/userspace-api/media/Makefile`` for an example
-about how to use it inside the Kernel tree.
+The :ref:`parse-headers.py <parse_headers>` provides a way to generate such
+cross-references. During the documentation build, the same parser is used by
+the ``kernel-include`` directive with the ``:generate-cross-refs:`` option.
+Please see ``Documentation/userspace-api/media/cec/cec-header.rst`` for an
+example about how to use it inside the Kernel tree.
 
 .. _parse_headers:
 
-tools/docs/parse_headers.py
+tools/docs/parse-headers.py
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 NAME
 ****
 
-parse_headers.py - parse a C file, in order to identify functions, structs,
+parse-headers.py - parse a C file, in order to identify functions, structs,
 enums and defines and create cross-references to a Sphinx book.
 
 USAGE
 *****
 
-parse-headers.py [-h] [-d] [-t] ``FILE_IN`` ``FILE_OUT`` ``FILE_RULES``
+parse-headers.py [-h] [-d] [-t] ``FILE_IN`` ``FILE_OUT`` [``FILE_RULES``]
 
 SYNOPSIS
 ********

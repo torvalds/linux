@@ -3532,7 +3532,7 @@ static inline bool rdma_cap_ib_cm(const struct ib_device *device, u32 port_num)
  * @port_num: Port number to check
  *
  * Similar to above, but specific to iWARP connections which have a different
- * managment protocol than InfiniBand.
+ * management protocol than InfiniBand.
  *
  * Return: true if the port supports an iWARP CM (this does not guarantee that
  * a CM is actually running however).
@@ -3577,7 +3577,7 @@ static inline bool rdma_cap_ib_sa(const struct ib_device *device, u32 port_num)
  * to this group.  And it should leave the group only after all queue pairs
  * attached to the group have been detached.
  *
- * Return: true if the port must undertake the additional adminstrative
+ * Return: true if the port must undertake the additional administrative
  * overhead of registering/unregistering with the SM and tracking of the
  * total number of queue pairs attached to the multicast group.
  */

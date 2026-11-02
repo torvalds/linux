@@ -72,24 +72,6 @@ static inline int epilogue_offset(const struct jit_ctx *ctx)
 	return (to - from);
 }
 
-/* Zero-extend 32 bits into 64 bits */
-static inline void emit_zext_32(struct jit_ctx *ctx, enum loongarch_gpr reg, bool is32)
-{
-	if (!is32)
-		return;
-
-	emit_insn(ctx, lu32id, reg, 0);
-}
-
-/* Signed-extend 32 bits into 64 bits */
-static inline void emit_sext_32(struct jit_ctx *ctx, enum loongarch_gpr reg, bool is32)
-{
-	if (!is32)
-		return;
-
-	emit_insn(ctx, addiw, reg, reg, 0);
-}
-
 /* Emit proper extension according to ABI requirements.
  * Note that it requires a value of size `size` already resides in register `reg`.
  */
@@ -137,7 +119,7 @@ static inline void move_addr(struct jit_ctx *ctx, enum loongarch_gpr rd, u64 add
 	emit_insn(ctx, lu52id, rd, rd, imm_63_52);
 }
 
-static inline void move_imm(struct jit_ctx *ctx, enum loongarch_gpr rd, long imm, bool is32)
+static inline void move_imm(struct jit_ctx *ctx, enum loongarch_gpr rd, long imm)
 {
 	long imm_11_0, imm_31_12, imm_51_32, imm_63_52, imm_51_0, imm_51_31;
 
@@ -150,7 +132,7 @@ static inline void move_imm(struct jit_ctx *ctx, enum loongarch_gpr rd, long imm
 	/* addiw rd, $zero, imm_11_0 */
 	if (is_signed_imm12(imm)) {
 		emit_insn(ctx, addiw, rd, LOONGARCH_GPR_ZERO, imm);
-		goto zext;
+		return;
 	}
 
 	/* ori rd, $zero, imm_11_0 */
@@ -195,9 +177,6 @@ static inline void move_imm(struct jit_ctx *ctx, enum loongarch_gpr rd, long imm
 		if (!is_signed_imm52(imm))
 			emit_insn(ctx, lu52id, rd, rd, imm_63_52);
 	}
-
-zext:
-	emit_zext_32(ctx, rd, is32);
 }
 
 static inline void move_reg(struct jit_ctx *ctx, enum loongarch_gpr rd,

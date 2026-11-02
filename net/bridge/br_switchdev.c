@@ -129,7 +129,7 @@ static void br_switchdev_fdb_populate(struct net_bridge *br,
 				      const struct net_bridge_fdb_entry *fdb,
 				      const void *ctx)
 {
-	const struct net_bridge_port *p = READ_ONCE(fdb->dst);
+	const struct net_bridge_port *p = br_fdb_dst_port(fdb);
 
 	item->addr = fdb->key.addr.addr;
 	item->vid = fdb->key.vlan_id;

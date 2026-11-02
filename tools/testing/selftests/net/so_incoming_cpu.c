@@ -81,10 +81,11 @@ static int nr_client_per_server, nr_server, nr_client;
 
 FIXTURE_SETUP(so_incoming_cpu)
 {
-	setup_netns(_metadata);
-
 	nr_server = get_nprocs();
-	ASSERT_LE(2, nr_server);
+	if (nr_server < 2)
+		SKIP(return, "requires at least two CPUs");
+
+	setup_netns(_metadata);
 
 	if (NR_CLIENT_PER_SERVER_DEFAULT * nr_server < NR_PORT)
 		nr_client_per_server = NR_CLIENT_PER_SERVER_DEFAULT;

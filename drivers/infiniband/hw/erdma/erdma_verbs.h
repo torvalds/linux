@@ -111,18 +111,70 @@ struct erdma_mtt {
 	struct erdma_mtt *low_level;
 };
 
+enum erdma_mem_type {
+	ERDMA_NO_MEM = 0,
+	ERDMA_UMEM = 1,
+	ERDMA_KMEM = 2,
+};
+
+struct erdma_buf_list {
+	void *buf;
+	dma_addr_t dma_addr;
+};
+
+struct erdma_kmem {
+	struct erdma_buf_list *buf_list;
+};
+
+enum erdma_mem_flags {
+	ERDMA_MEM_FLAG_MR_BUF = (1 << 0),
+	ERDMA_MEM_FLAG_CQ_BUF = (1 << 1),
+};
+
+struct erdma_mem_init_attr {
+	enum erdma_mem_type type;
+	u64 start;
+	u64 virt;
+	u64 len;
+	unsigned long req_page_size;
+	int access;
+	u32 flags;
+};
+
 struct erdma_mem {
-	struct ib_umem *umem;
-	struct erdma_mtt *mtt;
+	enum erdma_mem_type type;
+	union {
+		struct ib_umem *umem;
+		struct erdma_kmem kmem;
+	};
 
 	u32 page_size;
 	u32 page_offset;
 	u32 page_cnt;
 	u32 mtt_nents;
 
+	struct erdma_mtt *mtt;
+
 	u64 va;
 	u64 len;
 };
+
+static inline void *erdma_kmem_get_entry(struct erdma_mem *mem, u32 idx,
+					 u32 depth, u32 shift)
+{
+	u32 offset = (idx & (depth - 1)) << shift;
+
+	return (u8 *)mem->kmem.buf_list[offset >> PAGE_SHIFT].buf +
+	       offset_in_page(offset);
+}
+
+static inline void erdma_kmem_clear(struct erdma_mem *mem)
+{
+	u32 i;
+
+	for (i = 0; i < mem->page_cnt; i++)
+		memset(mem->kmem.buf_list[i].buf, 0, PAGE_SIZE);
+}
 
 struct erdma_mr {
 	struct ib_mr ibmr;
@@ -183,11 +235,8 @@ struct erdma_kqp {
 	void __iomem *hw_sq_db;
 	void __iomem *hw_rq_db;
 
-	void *sq_buf;
-	dma_addr_t sq_buf_dma_addr;
-
-	void *rq_buf;
-	dma_addr_t rq_buf_dma_addr;
+	struct erdma_mem sq_mem;
+	struct erdma_mem rq_mem;
 
 	void *sq_dbrec;
 	void *rq_dbrec;
@@ -320,8 +369,7 @@ struct erdma_qp {
 };
 
 struct erdma_kcq_info {
-	void *qbuf;
-	dma_addr_t qbuf_dma_addr;
+	struct erdma_mem qbuf_mem;
 	u32 ci;
 	u32 cmdsn;
 	u32 notify_cnt;

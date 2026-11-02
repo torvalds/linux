@@ -28,8 +28,8 @@ static const efi_char16_t efi_MemoryOverWriteRequest_name[] =
  */
 void efi_enable_reset_attack_mitigation(void)
 {
+	static efi_guid_t var_guid = MEMORY_ONLY_RESET_CONTROL_GUID;
 	u8 val = 1;
-	efi_guid_t var_guid = MEMORY_ONLY_RESET_CONTROL_GUID;
 	efi_status_t status;
 	unsigned long datasize = 0;
 
@@ -52,7 +52,7 @@ static void efi_retrieve_tcg2_eventlog(int version, efi_physical_addr_t log_loca
 				       efi_bool_t truncated,
 				       struct efi_tcg2_final_events_table *final_events_table)
 {
-	efi_guid_t linux_eventlog_guid = LINUX_EFI_TPM_EVENT_LOG_GUID;
+	static efi_guid_t linux_eventlog_guid = LINUX_EFI_TPM_EVENT_LOG_GUID;
 	efi_status_t status;
 	struct linux_efi_tpm_eventlog *log_tbl = NULL;
 	unsigned long first_entry_addr, last_entry_addr;
@@ -150,9 +150,9 @@ err_free:
 
 void efi_retrieve_eventlog(void)
 {
+	static efi_guid_t tpm2_guid = EFI_TCG2_PROTOCOL_GUID;
 	struct efi_tcg2_final_events_table *final_events_table = NULL;
 	efi_physical_addr_t log_location = 0, log_last_entry = 0;
-	efi_guid_t tpm2_guid = EFI_TCG2_PROTOCOL_GUID;
 	int version = EFI_TCG2_EVENT_LOG_FORMAT_TCG_2;
 	efi_tcg2_protocol_t *tpm2 = NULL;
 	efi_bool_t truncated;
@@ -173,7 +173,7 @@ void efi_retrieve_eventlog(void)
 				get_efi_config_table(EFI_TCG2_FINAL_EVENTS_TABLE_GUID);
 		}
 	} else {
-		efi_guid_t cc_guid = EFI_CC_MEASUREMENT_PROTOCOL_GUID;
+		static efi_guid_t cc_guid = EFI_CC_MEASUREMENT_PROTOCOL_GUID;
 		efi_cc_protocol_t *cc = NULL;
 
 		status = efi_bs_call(locate_protocol, &cc_guid, NULL, (void **)&cc);

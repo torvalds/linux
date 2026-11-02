@@ -136,7 +136,7 @@ a connection with NX co-processor engine:
 	follows::
 
 		#define VAS_MAGIC 'v'
-		#define VAS_TX_WIN_OPEN _IOW(VAS_MAGIC, 1,
+		#define VAS_TX_WIN_OPEN _IOW(VAS_MAGIC, 0x20,
 						struct vas_tx_win_open_attr)
 
 		struct vas_tx_win_open_attr attr;
@@ -265,7 +265,7 @@ Simple example
 		{
 			int rc, fd;
 			void *addr;
-			struct vas_setup_attr txattr;
+			struct vas_tx_win_open_attr txattr;
 
 			fd = open("/dev/crypto/nx-gzip", O_RDWR);
 			if (fd < 0) {

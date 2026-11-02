@@ -98,7 +98,7 @@ do {									\
 
 #define nacl_sync_hfence(__e)						\
 	sbi_ecall(SBI_EXT_NACL, SBI_EXT_NACL_SYNC_HFENCE,		\
-		  (__e), 0, 0, 0, 0, 0)
+		  (__e))
 
 #define nacl_hfence_mkconfig(__type, __order, __vmid, __asid)		\
 ({									\
@@ -198,7 +198,7 @@ do {									\
 
 #define nacl_sync_csr(__csr)						\
 	sbi_ecall(SBI_EXT_NACL, SBI_EXT_NACL_SYNC_CSR,			\
-		  (__csr), 0, 0, 0, 0, 0)
+		  (__csr))
 
 /*
  * Each ncsr_xyz() macro defined below has it's own static-branch so every

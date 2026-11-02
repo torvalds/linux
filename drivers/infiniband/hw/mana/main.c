@@ -247,6 +247,9 @@ int mana_ib_alloc_ucontext(struct ib_ucontext *ibcontext,
 
 	ucontext->doorbell = doorbell_page;
 	ucmd_resp.comp_mask = MANA_IB_UCNTX_ALLOC_PDN_SUPPORT;
+	ucmd_resp.comp_mask |= MANA_IB_UCNTX_RC_EXT_SUPPORT;
+	if (mdev->adapter_caps.feature_flags & MANA_IB_FEATURE_RC_QP_SQ_POW2_SUPPORT)
+		ucmd_resp.comp_mask |= MANA_IB_UCNTX_RC_SQ_POW2_SUPPORT;
 	ret = ib_respond_udata(udata, ucmd_resp);
 	if (ret)
 		return ret;
@@ -292,7 +295,7 @@ int mana_ib_create_kernel_queue(struct mana_ib_dev *mdev, u32 size, enum gdma_qu
 }
 
 int mana_ib_create_queue(struct mana_ib_dev *mdev, u64 addr, u32 size,
-			 struct mana_ib_queue *queue)
+			 struct mana_ib_queue *queue, bool is_cq)
 {
 	struct ib_umem *umem;
 	int err;
@@ -301,7 +304,12 @@ int mana_ib_create_queue(struct mana_ib_dev *mdev, u64 addr, u32 size,
 	queue->id = INVALID_QUEUE_ID;
 	queue->gdma_region = GDMA_INVALID_DMA_REGION;
 
-	umem = ib_umem_get_va(&mdev->ib_dev, addr, size, IB_ACCESS_LOCAL_WRITE);
+	if (is_cq)
+		umem = ib_umem_get_cq_buf_or_va(&mdev->ib_dev, NULL, addr,
+						size, IB_ACCESS_LOCAL_WRITE);
+	else
+		umem = ib_umem_get_va(&mdev->ib_dev, addr, size,
+				      IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(umem)) {
 		ibdev_dbg(&mdev->ib_dev, "Failed to get umem, %pe\n", umem);
 		return PTR_ERR(umem);
@@ -592,7 +600,11 @@ int mana_ib_get_port_immutable(struct ib_device *ibdev, u32 port_num,
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 
 	if (mana_ib_is_rnic(dev)) {
-		if (port_num == 1) {
+		bool port_supports_cm = (port_num == 1 ||
+			(dev->adapter_caps.feature_flags &
+			 MANA_IB_FEATURE_MULTI_PORT_GSI_SUPPORT));
+
+		if (port_supports_cm) {
 			immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
 			immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 		} else {
@@ -670,10 +682,14 @@ int mana_ib_query_port(struct ib_device *ibdev, u32 port,
 	ib_get_eth_speed(ibdev, port, &props->active_speed, &props->active_width);
 	props->pkey_tbl_len = 1;
 	if (mana_ib_is_rnic(dev)) {
+		bool port_supports_cm = (port == 1 ||
+			(dev->adapter_caps.feature_flags &
+			 MANA_IB_FEATURE_MULTI_PORT_GSI_SUPPORT));
+
 		props->gid_tbl_len = 16;
 		props->ip_gids = true;
 		props->max_msg_sz = SZ_16M;
-		if (port == 1)
+		if (port_supports_cm)
 			props->port_cap_flags = IB_PORT_CM_SUP;
 	}
 
@@ -1059,6 +1075,9 @@ int mana_ib_gd_create_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp,
 	req.max_recv_sge = attr->cap.max_recv_sge;
 	req.flags = flags;
 
+	if (flags & MANA_RC_FLAG_FIXED_SIZE_WQE)
+		req.wqe_size_in_bu = qp->rc_qp.wqe_size_in_bu;
+
 	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
 	if (err)
 		return err;
@@ -1134,6 +1153,7 @@ int mana_ib_gd_create_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp,
 	struct gdma_context *gc = mdev_to_gc(mdev);
 	struct mana_rnic_create_udqp_resp resp = {};
 	struct mana_rnic_create_udqp_req req = {};
+	struct net_device *ndev;
 	int err, i;
 
 	mana_gd_init_req_hdr(&req.hdr, MANA_IB_CREATE_UD_QP, sizeof(req), sizeof(resp));
@@ -1150,6 +1170,21 @@ int mana_ib_gd_create_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp,
 	req.max_send_sge = attr->cap.max_send_sge;
 	req.max_recv_sge = attr->cap.max_recv_sge;
 	req.qp_type = type;
+
+	/* For GSI QPs, pass the vNIC MAC so the SoC can associate the QP with
+	 * the correct port, transition to INIT, and allocate a per-port QPN.
+	 * MAC must be in reversed byte order.
+	 */
+	if (type == IB_QPT_GSI &&
+	    (mdev->adapter_caps.feature_flags & MANA_IB_FEATURE_MULTI_PORT_GSI_SUPPORT)) {
+		ndev = mana_ib_get_netdev(&mdev->ib_dev, attr->port_num);
+		if (ndev) {
+			copy_in_reverse(req.mac, ndev->dev_addr, ETH_ALEN);
+			req.flags = MANA_UD_QP_FLAG_CREATE_IN_INIT;
+			req.hdr.req.msg_version = GDMA_MESSAGE_V2;
+		}
+	}
+
 	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
 	if (err)
 		return err;

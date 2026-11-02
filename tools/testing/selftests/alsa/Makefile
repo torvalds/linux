@@ -16,7 +16,7 @@ LDLIBS+=-lpthread
 
 OVERRIDE_TARGETS = 1
 
-TEST_GEN_PROGS := mixer-test pcm-test test-pcmtest-driver utimer-test
+TEST_GEN_PROGS := aloop-test mixer-test pcm-test test-pcmtest-driver utimer-test
 
 TEST_GEN_PROGS_EXTENDED := libatest.so global-timer
 

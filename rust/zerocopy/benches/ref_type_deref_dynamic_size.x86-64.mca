@@ -1,0 +1,87 @@
+Iterations:        100
+Instructions:      2400
+Total Cycles:      1647
+Total uOps:        2700
+
+Dispatch Width:    4
+uOps Per Cycle:    1.64
+IPC:               1.46
+Block RThroughput: 6.8
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      5     0.50    *                   mov	rdx, qword ptr [rdi + 16]
+ 1      5     0.50    *                   mov	rax, qword ptr [rdi]
+ 1      5     0.50    *                   mov	rcx, qword ptr [rdi + 8]
+ 1      1     0.33                        mov	esi, 1
+ 1      1     0.33                        movabs	rdi, 4611686018427387902
+ 1      1     0.33                        cmp	rdx, rdi
+ 1      1     1.00                        jae	.LBB8_3
+ 1      1     0.33                        test	al, 1
+ 1      1     1.00                        jne	.LBB8_2
+ 1      1     0.50                        lea	rdi, [2*rdx + 4]
+ 1      1     0.33                        cmp	rcx, rdi
+ 1      1     1.00                        jne	.LBB8_3
+ 1      1     1.00                  U     ret
+ 1      0     0.25                        xor	esi, esi
+ 1      1     0.33                        sub	rsp, 24
+ 1      1     1.00           *            mov	qword ptr [rsp], rsi
+ 1      1     1.00           *            mov	qword ptr [rsp + 8], rax
+ 1      1     1.00           *            mov	qword ptr [rsp + 16], rcx
+ 1      1     0.50                        lea	rdi, [rip + .Lanon.HASH.7]
+ 1      1     0.50                        lea	rcx, [rip + .Lanon.HASH.1]
+ 1      1     0.50                        lea	r8, [rip + .Lanon.HASH.9]
+ 1      1     0.33                        mov	rdx, rsp
+ 1      1     0.33                        mov	esi, 58
+ 4      7     1.00    *                   call	qword ptr [rip + core::result::unwrap_failed@GOTPCREL]
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     5.15   5.74   4.00   6.11   3.98   4.02   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -      -      -      -      -     0.71   0.29   mov	rdx, qword ptr [rdi + 16]
+ -      -      -      -      -      -     0.72   0.28   mov	rax, qword ptr [rdi]
+ -      -      -      -      -      -     0.29   0.71   mov	rcx, qword ptr [rdi + 8]
+ -      -     0.83   0.16    -     0.01    -      -     mov	esi, 1
+ -      -     0.16   0.84    -      -      -      -     movabs	rdi, 4611686018427387902
+ -      -     0.80   0.04    -     0.16    -      -     cmp	rdx, rdi
+ -      -      -      -      -     1.00    -      -     jae	.LBB8_3
+ -      -     0.13   0.74    -     0.13    -      -     test	al, 1
+ -      -      -      -      -     1.00    -      -     jne	.LBB8_2
+ -      -     0.10   0.90    -      -      -      -     lea	rdi, [2*rdx + 4]
+ -      -     0.09   0.91    -      -      -      -     cmp	rcx, rdi
+ -      -      -      -      -     1.00    -      -     jne	.LBB8_3
+ -      -      -      -      -     1.00    -      -     ret
+ -      -      -      -      -      -      -      -     xor	esi, esi
+ -      -     0.29   0.13    -     0.58    -      -     sub	rsp, 24
+ -      -      -      -     1.00    -     0.72   0.28   mov	qword ptr [rsp], rsi
+ -      -      -      -     1.00    -     0.28   0.72   mov	qword ptr [rsp + 8], rax
+ -      -      -      -     1.00    -     0.72   0.28   mov	qword ptr [rsp + 16], rcx
+ -      -     0.76   0.24    -      -      -      -     lea	rdi, [rip + .Lanon.HASH.7]
+ -      -     0.82   0.18    -      -      -      -     lea	rcx, [rip + .Lanon.HASH.1]
+ -      -     0.92   0.08    -      -      -      -     lea	r8, [rip + .Lanon.HASH.9]
+ -      -     0.09   0.68    -     0.23    -      -     mov	rdx, rsp
+ -      -     0.16   0.84    -      -      -      -     mov	esi, 58
+ -      -      -      -     1.00   1.00   0.54   1.46   call	qword ptr [rip + core::result::unwrap_failed@GOTPCREL]

@@ -16,7 +16,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.26";
+static const char *version_str = "v1.27";
 
 static const int supported_api_ver = 3;
 static struct isst_if_platform_info isst_platform_info;
@@ -1545,7 +1545,7 @@ display_result:
 		struct isst_pkg_ctdp_level_info ctdp_level;
 
 		/* Wait for updated base frequencies */
-		usleep(2000);
+		usleep(10000);
 
 		/* Adjusting uncore freq */
 		if (!is_dmr_plus_platform())

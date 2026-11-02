@@ -31,6 +31,7 @@
 
 #define IWL_SAR_ENABLE_MSK		BIT(0)
 #define IWL_REDUCE_POWER_FLAGS_POS	1
+#define IWL_BIOS_REVISION_UNSET		0xFF
 
 /* PPAG gain value bounds in 1/8 dBm */
 #define IWL_PPAG_MIN_LB	-16
@@ -46,6 +47,22 @@
 #define IWL_WTAS_ENABLE_IEC_MSK		BIT(2)
 #define IWL_WTAS_CANADA_UHB_MSK		BIT(15)
 #define IWL_WTAS_USA_UHB_MSK		BIT(16)
+
+/**
+ * enum iwl_uefi_cnv_guid_status - lock status of the connectivity
+ * UEFI tables
+ * @UEFI_CNV_GUID_UNLOCKED: the tables are unlocked
+ * @UEFI_CNV_GUID_LOCKED: the tables are locked
+ * @UEFI_CNV_GUID_TEST_MODE: the tables are locked in test mode
+ * @UEFI_CNV_GUID_UNKNOWN: the lock status could not be determined.
+ *	This value is a driver internal, not a possible BIOS reported one
+ */
+enum iwl_uefi_cnv_guid_status {
+	UEFI_CNV_GUID_UNLOCKED = 0,
+	UEFI_CNV_GUID_LOCKED = 1,
+	UEFI_CNV_GUID_TEST_MODE = 2,
+	UEFI_CNV_GUID_UNKNOWN = 3,
+};
 
 struct iwl_tas_selection_data {
 	u8 override_tas_iec:1,
@@ -193,7 +210,9 @@ int iwl_sar_geo_fill_table(struct iwl_fw_runtime *fwrt,
 
 int iwl_sar_fill_profile(struct iwl_fw_runtime *fwrt,
 			 __le16 *per_chain, u32 n_tables, u32 n_subbands,
-			 int prof_a, int prof_b);
+			 int prof_a, int prof_b,
+			 const struct iwl_sar_profile *profiles,
+			 bool is_standalone);
 
 bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt);
 
@@ -206,6 +225,10 @@ iwl_parse_tas_selection(const u32 tas_selection, const u8 tbl_rev);
 int iwl_bios_get_wrds_table(struct iwl_fw_runtime *fwrt);
 
 int iwl_bios_get_ewrd_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_bios_get_wsss_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_bios_get_ewss_table(struct iwl_fw_runtime *fwrt);
 
 int iwl_bios_get_wgds_table(struct iwl_fw_runtime *fwrt);
 
@@ -242,6 +265,7 @@ bool iwl_puncturing_is_allowed_in_bios(u32 puncturing, u16 mcc);
 
 int iwl_bios_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value);
 int iwl_bios_get_phy_filters(struct iwl_fw_runtime *fwrt);
+void iwl_bios_get_guid_lock_status(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_bios_setup_step(struct iwl_trans *trans,
 				       struct iwl_fw_runtime *fwrt)

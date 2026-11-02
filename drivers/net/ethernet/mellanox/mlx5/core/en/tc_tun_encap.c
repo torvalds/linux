@@ -393,19 +393,9 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 	struct mlx5e_encap_entry *e = NULL;
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_fc *counter;
-	struct neigh_table *tbl;
 	bool neigh_used = false;
 	struct neighbour *n;
 	u64 lastuse;
-
-	if (m_neigh->family == AF_INET)
-		tbl = &arp_tbl;
-#if IS_ENABLED(CONFIG_IPV6)
-	else if (m_neigh->family == AF_INET6)
-		tbl = &nd_tbl;
-#endif
-	else
-		return;
 
 	/* mlx5e_get_next_valid_encap() releases previous encap before returning
 	 * next one.
@@ -447,12 +437,19 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 	trace_mlx5e_tc_update_neigh_used_value(nhe, neigh_used);
 
 	if (neigh_used) {
+		struct net_device *dev = READ_ONCE(nhe->neigh_dev);
+
 		nhe->reported_lastuse = jiffies;
 
 		/* find the relevant neigh according to the cached device and
 		 * dst ip pair
 		 */
-		n = neigh_lookup(tbl, &m_neigh->dst_ip, READ_ONCE(nhe->neigh_dev));
+#if IS_ENABLED(CONFIG_IPV6)
+		if (m_neigh->family != AF_INET)
+			n = ipv6_neigh_lookup(dev, &m_neigh->dst_ip);
+		else
+#endif
+			n = ipv4_neigh_lookup(dev, &m_neigh->dst_ip);
 		if (!n)
 			return;
 

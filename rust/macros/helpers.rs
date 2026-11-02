@@ -38,22 +38,6 @@ impl AsciiLitStr {
     }
 }
 
-pub(crate) fn file() -> String {
-    #[cfg(not(CONFIG_RUSTC_HAS_SPAN_FILE))]
-    {
-        proc_macro::Span::call_site()
-            .source_file()
-            .path()
-            .to_string_lossy()
-            .into_owned()
-    }
-
-    #[cfg(CONFIG_RUSTC_HAS_SPAN_FILE)]
-    {
-        proc_macro::Span::call_site().file()
-    }
-}
-
 /// Obtain all `#[cfg]` attributes.
 pub(crate) fn gather_cfg_attrs(attr: &[Attribute]) -> impl Iterator<Item = &Attribute> + '_ {
     attr.iter().filter(|a| a.path().is_ident("cfg"))

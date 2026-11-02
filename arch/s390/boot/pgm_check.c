@@ -3,9 +3,11 @@
 #include <linux/stdarg.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
+#include <asm/pgmcheck-defs.h>
 #include <asm/stacktrace.h>
 #include <asm/boot_data.h>
 #include <asm/lowcore.h>
+#include <asm/processor.h>
 #include <asm/setup.h>
 #include <asm/sclp.h>
 #include <asm/uv.h>
@@ -40,12 +42,22 @@ static inline unsigned long extable_insn(const struct exception_table_entry *x)
 	return (unsigned long)&x->insn + x->insn;
 }
 
+static unsigned long boot_get_trap_ip(struct pt_regs *regs)
+{
+	static const unsigned long nullified[2] = { PGM_CHECKS_NULLIFIED };
+
+	if (test_bit(regs->int_code & PGM_INT_CODE_MASK, nullified))
+		return regs->psw.addr;
+	return __rewind_psw(regs->psw, regs->int_code >> 16);
+}
+
 static bool ex_handler(struct pt_regs *regs)
 {
 	const struct exception_table_entry *ex;
+	unsigned long ip = boot_get_trap_ip(regs);
 
 	for (ex = __start___ex_table; ex < __stop___ex_table; ex++) {
-		if (extable_insn(ex) != regs->psw.addr)
+		if (extable_insn(ex) != ip)
 			continue;
 		if (ex->type != EX_TYPE_FIXUP)
 			return false;

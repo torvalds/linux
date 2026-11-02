@@ -160,15 +160,15 @@ void cs46xx_dsp_remove_scb (struct snd_cs46xx *chip, struct dsp_scb_descriptor *
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	/* check integrety */
+	/* check integrity */
 	if (snd_BUG_ON(scb->index < 0 ||
 		       scb->index >= ins->nscb ||
 		       (ins->scbs + scb->index) != scb))
 		return;
 
 #if 0
-	/* can't remove a SCB with childs before 
-	   removing childs first  */
+	/* can't remove a SCB with children before
+	   removing children first  */
 	if (snd_BUG_ON(scb->sub_list_ptr != ins->the_null_scb ||
 		       scb->next_scb_ptr != ins->the_null_scb))
 		goto _end;
@@ -1656,7 +1656,7 @@ int  cs46xx_dsp_disable_spdif_out (struct snd_cs46xx *chip)
 		return -EBUSY;
 	}
 
-	/* check integrety */
+	/* check integrity */
 	if (snd_BUG_ON(!ins->asynch_tx_scb))
 		return -EINVAL;
 	if (snd_BUG_ON(!ins->spdif_pcm_input_scb))

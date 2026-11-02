@@ -38,6 +38,7 @@
  */
 #define GP_ERROR_CODE_AMD ((SS_VECTOR * 8) | ERROR_CODE_IDT_FLAG)
 #define GP_ERROR_CODE_INTEL ((SS_VECTOR * 8) | ERROR_CODE_IDT_FLAG | ERROR_CODE_EXT_FLAG)
+#define GP_ERROR_CODE_ZHAOXIN ((SS_VECTOR * 8) | ERROR_CODE_IDT_FLAG)
 
 /*
  * Intel and AMD both shove '0' into the error code on #DF, regardless of what
@@ -110,43 +111,47 @@ static void l1_svm_code(struct svm_test_data *svm)
 
 static void vmx_run_l2(void *l2_code, int vector, u32 error_code)
 {
-	GUEST_ASSERT(!vmwrite(GUEST_RIP, (u64)l2_code));
+	vmwrite(GUEST_RIP, (u64)l2_code);
 
-	GUEST_ASSERT_EQ(vector == SS_VECTOR ? vmlaunch() : vmresume(), 0);
+	if (vector == SS_VECTOR)
+		vmlaunch();
+	else
+		vmresume();
 
 	if (vector == FAKE_TRIPLE_FAULT_VECTOR)
 		return;
 
-	GUEST_ASSERT_EQ(vmreadz(VM_EXIT_REASON), EXIT_REASON_EXCEPTION_NMI);
-	GUEST_ASSERT_EQ((vmreadz(VM_EXIT_INTR_INFO) & 0xff), vector);
-	GUEST_ASSERT_EQ(vmreadz(VM_EXIT_INTR_ERROR_CODE), error_code);
-	GUEST_ASSERT(!vmreadz(GUEST_INTERRUPTIBILITY_INFO));
+	GUEST_ASSERT_EQ(vmread(VM_EXIT_REASON), EXIT_REASON_EXCEPTION_NMI);
+	GUEST_ASSERT_EQ((vmread(VM_EXIT_INTR_INFO) & 0xff), vector);
+	GUEST_ASSERT_EQ(vmread(VM_EXIT_INTR_ERROR_CODE), error_code);
+	GUEST_ASSERT(!vmread(GUEST_INTERRUPTIBILITY_INFO));
 }
 
 static void l1_vmx_code(struct vmx_pages *vmx)
 {
-	GUEST_ASSERT_EQ(prepare_for_vmx_operation(vmx), true);
+	prepare_for_vmx_operation(vmx);
 
-	GUEST_ASSERT_EQ(load_vmcs(vmx), true);
+	load_vmcs(vmx);
 
 	prepare_vmcs(vmx, NULL);
-	GUEST_ASSERT_EQ(vmwrite(GUEST_IDTR_LIMIT, 0), 0);
+	vmwrite(GUEST_IDTR_LIMIT, 0);
 
 	/*
 	 * VMX disallows injecting an exception with error_code[31:16] != 0,
 	 * and hardware will never generate a VM-Exit with bits 31:16 set.
 	 * KVM should likewise truncate the "bad" userspace value.
 	 */
-	GUEST_ASSERT_EQ(vmwrite(EXCEPTION_BITMAP, INTERCEPT_SS_GP_DF), 0);
+	vmwrite(EXCEPTION_BITMAP, INTERCEPT_SS_GP_DF);
 	vmx_run_l2(l2_ss_pending_test, SS_VECTOR, (u16)SS_ERROR_CODE);
-	vmx_run_l2(l2_ss_injected_gp_test, GP_VECTOR, GP_ERROR_CODE_INTEL);
+	vmx_run_l2(l2_ss_injected_gp_test, GP_VECTOR,
+		   host_cpu_is_zhaoxin ? GP_ERROR_CODE_ZHAOXIN : GP_ERROR_CODE_INTEL);
 
-	GUEST_ASSERT_EQ(vmwrite(EXCEPTION_BITMAP, INTERCEPT_SS_DF), 0);
+	vmwrite(EXCEPTION_BITMAP, INTERCEPT_SS_DF);
 	vmx_run_l2(l2_ss_injected_df_test, DF_VECTOR, DF_ERROR_CODE);
 
-	GUEST_ASSERT_EQ(vmwrite(EXCEPTION_BITMAP, INTERCEPT_SS), 0);
+	vmwrite(EXCEPTION_BITMAP, INTERCEPT_SS);
 	vmx_run_l2(l2_ss_injected_tf_test, FAKE_TRIPLE_FAULT_VECTOR, 0);
-	GUEST_ASSERT_EQ(vmreadz(VM_EXIT_REASON), EXIT_REASON_TRIPLE_FAULT);
+	GUEST_ASSERT_EQ(vmread(VM_EXIT_REASON), EXIT_REASON_TRIPLE_FAULT);
 
 	GUEST_DONE();
 }

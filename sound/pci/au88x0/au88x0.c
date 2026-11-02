@@ -192,10 +192,10 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci)
 
 // constructor -- see "Constructor" sub-section
 static int
-__snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
+snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
-	struct snd_card *card;
+	struct snd_card *card __free(snd_card_free) = NULL;
 	vortex_t *chip;
 	int err;
 
@@ -303,16 +303,11 @@ __snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return err;
 	// (7)
 	pci_set_drvdata(pci, card);
+	card = NULL; /* probe succeeded, don't release as error */
 	dev++;
 	vortex_connect_default(chip, 1);
 	vortex_enable_int(chip);
 	return 0;
-}
-
-static int
-snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
-{
-	return snd_card_free_on_error(&pci->dev, __snd_vortex_probe(pci, pci_id));
 }
 
 // pci_driver definition

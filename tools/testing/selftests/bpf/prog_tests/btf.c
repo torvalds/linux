@@ -424,7 +424,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid type",
 },
 {
-	.descr = "global data test #8, invalid var size",
+	.descr = "global data test #8, var is smaller than its type",
 	.raw_types = {
 		/* int */
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
@@ -457,8 +457,6 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 0,
 	.value_type_id = 7,
 	.max_entries = 1,
-	.btf_load_err = true,
-	.err_str = "Invalid size",
 },
 {
 	.descr = "global data test #9, invalid var size",
@@ -498,7 +496,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid size",
 },
 {
-	.descr = "global data test #10, invalid var size",
+	.descr = "global data test #10, section is smaller than map value",
 	.raw_types = {
 		/* int */
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
@@ -531,8 +529,7 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 0,
 	.value_type_id = 7,
 	.max_entries = 1,
-	.btf_load_err = true,
-	.err_str = "Invalid size",
+	.map_create_err = true,
 },
 {
 	.descr = "global data test #11, multiple section members",
@@ -1987,14 +1984,14 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "typedef (invalid name, invalid identifier)",
+	.descr = "typedef (invalid name, not printable)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_TYPEDEF_ENC(NAME_TBD, 1),			/* [2] */
 		BTF_END_RAW,
 	},
-	.str_sec = "\0__!int",
-	.str_sec_size = sizeof("\0__!int"),
+	.str_sec = "\0__\7int",
+	.str_sec_size = sizeof("\0__\7int"),
 	.map_type = BPF_MAP_TYPE_ARRAY,
 	.map_name = "typedef_check_btf",
 	.key_size = sizeof(int),
@@ -2112,15 +2109,15 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "fwd type (invalid name, invalid identifier)",
+	.descr = "fwd type (invalid name, not printable)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
 		BTF_TYPE_ENC(NAME_TBD,
 			     BTF_INFO_ENC(BTF_KIND_FWD, 0, 0), 0),	/* [2] */
 		BTF_END_RAW,
 	},
-	.str_sec = "\0__!skb",
-	.str_sec_size = sizeof("\0__!skb"),
+	.str_sec = "\0__\7skb",
+	.str_sec_size = sizeof("\0__\7skb"),
 	.map_type = BPF_MAP_TYPE_ARRAY,
 	.map_name = "fwd_type_check_btf",
 	.key_size = sizeof(int),
@@ -2175,7 +2172,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "struct type (invalid name, invalid identifier)",
+	.descr = "struct type (invalid name, not printable)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
 		BTF_TYPE_ENC(NAME_TBD,
@@ -2183,8 +2180,8 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_MEMBER_ENC(NAME_TBD, 1, 0),
 		BTF_END_RAW,
 	},
-	.str_sec = "\0A!\0B",
-	.str_sec_size = sizeof("\0A!\0B"),
+	.str_sec = "\0A\7\0B",
+	.str_sec_size = sizeof("\0A\7\0B"),
 	.map_type = BPF_MAP_TYPE_ARRAY,
 	.map_name = "struct_type_check_btf",
 	.key_size = sizeof(int),
@@ -2217,7 +2214,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "struct member (invalid name, invalid identifier)",
+	.descr = "struct member (invalid name, not printable)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
 		BTF_TYPE_ENC(NAME_TBD,
@@ -2225,8 +2222,8 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_MEMBER_ENC(NAME_TBD, 1, 0),
 		BTF_END_RAW,
 	},
-	.str_sec = "\0A\0B*",
-	.str_sec_size = sizeof("\0A\0B*"),
+	.str_sec = "\0A\0B\7",
+	.str_sec_size = sizeof("\0A\0B\7"),
 	.map_type = BPF_MAP_TYPE_ARRAY,
 	.map_name = "struct_type_check_btf",
 	.key_size = sizeof(int),
@@ -2260,7 +2257,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "enum type (invalid name, invalid identifier)",
+	.descr = "enum type (invalid name, not printable)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
 		BTF_TYPE_ENC(NAME_TBD,
@@ -2269,8 +2266,8 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_ENUM_ENC(NAME_TBD, 0),
 		BTF_END_RAW,
 	},
-	.str_sec = "\0A!\0B",
-	.str_sec_size = sizeof("\0A!\0B"),
+	.str_sec = "\0A\7\0B",
+	.str_sec_size = sizeof("\0A\7\0B"),
 	.map_type = BPF_MAP_TYPE_ARRAY,
 	.map_name = "enum_type_check_btf",
 	.key_size = sizeof(int),
@@ -2306,7 +2303,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "enum member (invalid name, invalid identifier)",
+	.descr = "enum member (invalid name, not printable)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
 		BTF_TYPE_ENC(0,
@@ -2315,8 +2312,8 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_ENUM_ENC(NAME_TBD, 0),
 		BTF_END_RAW,
 	},
-	.str_sec = "\0A!",
-	.str_sec_size = sizeof("\0A!"),
+	.str_sec = "\0A\7",
+	.str_sec_size = sizeof("\0A\7"),
 	.map_type = BPF_MAP_TYPE_ARRAY,
 	.map_name = "enum_type_check_btf",
 	.key_size = sizeof(int),
@@ -2625,14 +2622,14 @@ static struct btf_raw_test raw_tests[] = {
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
-		/* void (*)(int a, unsigned int !!!) */
+		/* void (*)(int a, unsigned int \7) */
 		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
 			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
 			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
 		BTF_END_RAW,
 	},
-	.str_sec = "\0a\0!!!",
-	.str_sec_size = sizeof("\0a\0!!!"),
+	.str_sec = "\0a\0\7",
+	.str_sec_size = sizeof("\0a\0\7"),
 	.map_type = BPF_MAP_TYPE_ARRAY,
 	.map_name = "func_proto_type_check_btf",
 	.key_size = sizeof(int),
@@ -2775,12 +2772,12 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
 			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
 			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
-		/* void !!!(int a, unsigned int b) */
+		/* void \7(int a, unsigned int b) */
 		BTF_FUNC_ENC(NAME_TBD, 3),			/* [4] */
 		BTF_END_RAW,
 	},
-	.str_sec = "\0a\0b\0!!!",
-	.str_sec_size = sizeof("\0a\0b\0!!!"),
+	.str_sec = "\0a\0b\0\7",
+	.str_sec_size = sizeof("\0a\0b\0\7"),
 	.map_type = BPF_MAP_TYPE_ARRAY,
 	.map_name = "func_type_check_btf",
 	.key_size = sizeof(int),
@@ -2793,7 +2790,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "func (Some arg has no name)",
+	.descr = "func (Some arg of global func has no name)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
@@ -2802,7 +2799,8 @@ static struct btf_raw_test raw_tests[] = {
 			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
 			BTF_FUNC_PROTO_ARG_ENC(0, 2),
 		/* void func(int a, unsigned int) */
-		BTF_FUNC_ENC(NAME_TBD, 3),			/* [4] */
+		BTF_TYPE_ENC(NAME_TBD,				/* [4] */
+			     BTF_INFO_ENC(BTF_KIND_FUNC, 0, BTF_FUNC_GLOBAL), 3),
 		BTF_END_RAW,
 	},
 	.str_sec = "\0a\0func",
@@ -2816,6 +2814,57 @@ static struct btf_raw_test raw_tests[] = {
 	.max_entries = 4,
 	.btf_load_err = true,
 	.err_str = "Invalid arg#2",
+},
+
+{
+	.descr = "func (Some arg of static func has no name)",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* unsigned int */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int a, unsigned int) */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0, 2),
+		/* static void func(int a, unsigned int) */
+		BTF_FUNC_ENC(NAME_TBD, 3),			/* [4] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a\0func",
+	.str_sec_size = sizeof("\0a\0func"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "func (vararg of global func has no name)",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* void (*)(int a, ...) */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [2] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0, 0),
+		/* void func(int a, ...) */
+		BTF_TYPE_ENC(NAME_TBD,				/* [3] */
+			     BTF_INFO_ENC(BTF_KIND_FUNC, 0, BTF_FUNC_GLOBAL), 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a\0func",
+	.str_sec_size = sizeof("\0a\0func"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
 },
 
 {
@@ -3585,15 +3634,28 @@ static struct btf_raw_test raw_tests[] = {
 	.btf_load_err = true,
 },
 {
-	.descr = "type name '?foo' is not ok",
+	.descr = "type name '?foo' is ok",
 	.raw_types = {
 		/* union ?foo; */
 		BTF_TYPE_ENC(1, BTF_INFO_ENC(BTF_KIND_FWD, 1, 0), 0), /* [1] */
 		BTF_END_RAW,
 	},
 	BTF_STR_SEC("\0?foo"),
-	.err_str = "Invalid name",
-	.btf_load_err = true,
+},
+{
+	.descr = "names of Rust types and functions are ok",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_NTH(1), 0, 0, 32, 4),	/* [1] */
+		BTF_STRUCT_ENC(NAME_NTH(2), 1, 4),		/* [2] */
+		BTF_MEMBER_ENC(NAME_NTH(3), 1, 0),
+		BTF_FWD_ENC(NAME_NTH(4), 0),			/* [3] */
+		BTF_TYPEDEF_ENC(NAME_NTH(5), 2),		/* [4] */
+		BTF_FUNC_PROTO_ENC(0, 1),			/* [5] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_NTH(6), 1),
+		BTF_FUNC_ENC(NAME_NTH(7), 5),			/* [6] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0u32\0Option<&str>\0__0\0*const str\0{impl#9}<[u8; 4]>\0self\0fmt<str>"),
 },
 
 {
@@ -7060,6 +7122,132 @@ static struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0int\0long int"),
+	},
+},
+{
+	.descr = "dedup: array element comparison",
+	.input = {
+		.raw_types = {
+			/* signed int */
+			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 4), /* [1] */
+			/* unsigned int */
+			BTF_TYPE_INT_ENC(NAME_NTH(2), 0, 0, 32, 4),		/* [2] */
+			/* signed int[1] */
+			BTF_TYPE_ARRAY_ENC(1, 1, 1),				/* [3] */
+			/* duplicate signed int[1] */
+			BTF_TYPE_ARRAY_ENC(1, 1, 1),				/* [4] */
+			/* unsigned int[1] */
+			BTF_TYPE_ARRAY_ENC(2, 2, 1),				/* [5] */
+			/* struct s { signed int a[1]; signed int b[1]; } */
+			BTF_STRUCT_ENC(NAME_NTH(3), 2, 8),			/* [6] */
+			BTF_MEMBER_ENC(NAME_NTH(4), 3, 0),
+			BTF_MEMBER_ENC(NAME_NTH(5), 3, 32),
+			/* struct s { signed int a[1]; unsigned int b[1]; } */
+			BTF_STRUCT_ENC(NAME_NTH(3), 2, 8),			/* [7] */
+			BTF_MEMBER_ENC(NAME_NTH(4), 4, 0),
+			BTF_MEMBER_ENC(NAME_NTH(5), 5, 32),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0int\0unsigned int\0s\0a\0b"),
+	},
+	.expect = {
+		.raw_types = {
+			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 4), /* [1] */
+			BTF_TYPE_INT_ENC(NAME_NTH(2), 0, 0, 32, 4),		/* [2] */
+			BTF_TYPE_ARRAY_ENC(1, 1, 1),				/* [3] */
+			BTF_TYPE_ARRAY_ENC(2, 2, 1),				/* [4] */
+			BTF_STRUCT_ENC(NAME_NTH(3), 2, 8),			/* [5] */
+			BTF_MEMBER_ENC(NAME_NTH(4), 3, 0),
+			BTF_MEMBER_ENC(NAME_NTH(5), 3, 32),
+			BTF_STRUCT_ENC(NAME_NTH(3), 2, 8),			/* [6] */
+			BTF_MEMBER_ENC(NAME_NTH(4), 3, 0),
+			BTF_MEMBER_ENC(NAME_NTH(5), 4, 32),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0int\0unsigned int\0s\0a\0b"),
+	},
+},
+{
+	.descr = "dedup: array element comparison with same index type",
+	.input = {
+		.raw_types = {
+			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 4), /* [1] */
+			BTF_TYPE_INT_ENC(NAME_NTH(2), 0, 0, 32, 4),		/* [2] */
+			BTF_TYPE_ARRAY_ENC(1, 1, 1),				/* [3] */
+			BTF_TYPE_ARRAY_ENC(1, 1, 1),				/* [4] */
+			BTF_TYPE_ARRAY_ENC(2, 1, 1),				/* [5] */
+			/* struct s { int a[1]; int b[1]; } */
+			BTF_STRUCT_ENC(NAME_NTH(3), 2, 8),			/* [6] */
+			BTF_MEMBER_ENC(NAME_NTH(4), 3, 0),
+			BTF_MEMBER_ENC(NAME_NTH(5), 3, 32),
+			/* struct s { int a[1]; unsigned int b[1]; } */
+			BTF_STRUCT_ENC(NAME_NTH(3), 2, 8),			/* [7] */
+			BTF_MEMBER_ENC(NAME_NTH(4), 4, 0),
+			BTF_MEMBER_ENC(NAME_NTH(5), 5, 32),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0int\0unsigned int\0s\0a\0b"),
+	},
+	.expect = {
+		.raw_types = {
+			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 4), /* [1] */
+			BTF_TYPE_INT_ENC(NAME_NTH(2), 0, 0, 32, 4),		/* [2] */
+			BTF_TYPE_ARRAY_ENC(1, 1, 1),				/* [3] */
+			BTF_TYPE_ARRAY_ENC(2, 1, 1),				/* [4] */
+			BTF_STRUCT_ENC(NAME_NTH(3), 2, 8),			/* [5] */
+			BTF_MEMBER_ENC(NAME_NTH(4), 3, 0),
+			BTF_MEMBER_ENC(NAME_NTH(5), 3, 32),
+			BTF_STRUCT_ENC(NAME_NTH(3), 2, 8),			/* [6] */
+			BTF_MEMBER_ENC(NAME_NTH(4), 3, 0),
+			BTF_MEMBER_ENC(NAME_NTH(5), 4, 32),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0int\0unsigned int\0s\0a\0b"),
+	},
+},
+{
+	.descr = "dedup: identical array element comparison",
+	.input = {
+		.raw_types = {
+			/* int */
+			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 4), /* [1] */
+			/* struct container { struct elem first[1]; struct elem second[1]; } */
+			BTF_STRUCT_ENC(NAME_NTH(2), 2, 8),			/* [2] */
+			BTF_MEMBER_ENC(NAME_NTH(3), 3, 0),
+			BTF_MEMBER_ENC(NAME_NTH(4), 3, 32),
+			/* struct elem[1] */
+			BTF_TYPE_ARRAY_ENC(4, 1, 1),				/* [3] */
+			/* struct elem { int x; } */
+			BTF_STRUCT_ENC(NAME_NTH(5), 1, 4),			/* [4] */
+			BTF_MEMBER_ENC(NAME_NTH(6), 1, 0),
+			/* duplicate struct container */
+			BTF_STRUCT_ENC(NAME_NTH(2), 2, 8),			/* [5] */
+			BTF_MEMBER_ENC(NAME_NTH(3), 6, 0),
+			BTF_MEMBER_ENC(NAME_NTH(4), 7, 32),
+			/* duplicate struct elem[1] */
+			BTF_TYPE_ARRAY_ENC(8, 1, 1),				/* [6] */
+			BTF_TYPE_ARRAY_ENC(9, 1, 1),				/* [7] */
+			/* duplicate struct elem */
+			BTF_STRUCT_ENC(NAME_NTH(5), 1, 4),			/* [8] */
+			BTF_MEMBER_ENC(NAME_NTH(6), 1, 0),
+			BTF_STRUCT_ENC(NAME_NTH(5), 1, 4),			/* [9] */
+			BTF_MEMBER_ENC(NAME_NTH(6), 1, 0),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0int\0container\0first\0second\0elem\0x"),
+	},
+	.expect = {
+		.raw_types = {
+			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 4), /* [1] */
+			BTF_STRUCT_ENC(NAME_NTH(2), 2, 8),			/* [2] */
+			BTF_MEMBER_ENC(NAME_NTH(3), 3, 0),
+			BTF_MEMBER_ENC(NAME_NTH(4), 3, 32),
+			BTF_TYPE_ARRAY_ENC(4, 1, 1),				/* [3] */
+			BTF_STRUCT_ENC(NAME_NTH(5), 1, 4),			/* [4] */
+			BTF_MEMBER_ENC(NAME_NTH(6), 1, 0),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0int\0container\0first\0second\0elem\0x"),
 	},
 },
 {

@@ -9,14 +9,6 @@
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
-void ieee80211_s1g_sta_rate_init(struct sta_info *sta)
-{
-	/* avoid indicating legacy bitrates for S1G STAs */
-	sta->deflink.tx_stats.last_rate.flags |= IEEE80211_TX_RC_S1G_MCS;
-	sta->deflink.rx_stats.last_rate =
-			STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_S1G);
-}
-
 bool ieee80211_s1g_is_twt_setup(struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;

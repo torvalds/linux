@@ -1361,6 +1361,9 @@ il_dbgfs_register(struct il_priv *il, const char *name)
 		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
 				 &il->disable_chain_noise_cal);
 	DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf, &il->disable_tx_power_cal);
+#ifdef CONFIG_IWLEGACY_DEBUG
+	debugfs_create_x32("debug_level", 0600, dir_debug, &il->debug_level);
+#endif
 }
 EXPORT_SYMBOL(il_dbgfs_register);
 

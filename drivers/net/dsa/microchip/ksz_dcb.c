@@ -20,10 +20,12 @@
 #define KSZ8_PORT_DIFFSERV_ENABLE		BIT(6)
 #define KSZ8_PORT_802_1P_ENABLE			BIT(5)
 #define KSZ8_PORT_BASED_PRIO_M			GENMASK(4, 3)
+#define KSZ8995XA_PORT_BASED_PRIO		BIT(4)
 
 #define KSZ8463_REG_TOS_DSCP_CTRL		0x16
 #define KSZ88X3_REG_TOS_DSCP_CTRL		0x60
 #define KSZ8765_REG_TOS_DSCP_CTRL		0x90
+#define KSZ8995XA_REG_TOS_DSCP_CTRL_7		0x67
 
 #define KSZ9477_REG_SW_MAC_TOS_CTRL		0x033e
 #define KSZ9477_SW_TOS_DSCP_REMAP		BIT(0)
@@ -98,8 +100,11 @@ static void ksz_get_default_port_prio_reg(struct ksz_device *dev, int *reg,
 {
 	if (is_ksz8(dev)) {
 		*reg = KSZ8_REG_PORT_1_CTRL_0;
-		*mask = KSZ8_PORT_BASED_PRIO_M;
-		*shift = __bf_shf(KSZ8_PORT_BASED_PRIO_M);
+		if (ksz_is_ksz8995xa(dev))
+			*mask = KSZ8995XA_PORT_BASED_PRIO;
+		else
+			*mask = KSZ8_PORT_BASED_PRIO_M;
+		*shift = __bf_shf(*mask);
 		if (ksz_is_ksz8463(dev))
 			*reg = KSZ8463_REG_PORT_1_CTRL_0;
 	} else {
@@ -112,31 +117,45 @@ static void ksz_get_default_port_prio_reg(struct ksz_device *dev, int *reg,
 /**
  * ksz_get_dscp_prio_reg - Retrieves the DSCP-to-priority-mapping register
  * @dev: Pointer to the KSZ switch device structure
+ * @dscp: DSCP value for which to retrieve the register
  * @reg: Pointer to the register address to be set
- * @per_reg: Pointer to the number of DSCP values per register
  * @mask: Pointer to the mask to be set
+ * @shift: Pointer to the bit shift to be set
  *
- * This function retrieves the DSCP to priority mapping register, the number of
- * DSCP values per register, and the mask to be set.
+ * This function retrieves the register, mask and shift for a DSCP to priority
+ * mapping entry.
  */
-static void ksz_get_dscp_prio_reg(struct ksz_device *dev, int *reg,
-				  int *per_reg, u8 *mask)
+static void ksz_get_dscp_prio_reg(struct ksz_device *dev, u8 dscp, int *reg,
+				  u8 *mask, int *shift)
 {
+	int per_reg;
+
+	if (ksz_is_ksz8995xa(dev)) {
+		/* KSZ8995XA stores DSCP groups in descending register order. */
+		*reg = KSZ8995XA_REG_TOS_DSCP_CTRL_7 - dscp / 8;
+		*mask = BIT(0);
+		*shift = dscp % 8;
+		return;
+	}
+
 	if (ksz_is_ksz87xx(dev) || ksz_is_8895_family(dev)) {
 		*reg = KSZ8765_REG_TOS_DSCP_CTRL;
-		*per_reg = 4;
+		per_reg = 4;
 		*mask = GENMASK(1, 0);
 	} else if (ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev)) {
 		*reg = KSZ88X3_REG_TOS_DSCP_CTRL;
-		*per_reg = 4;
+		per_reg = 4;
 		*mask = GENMASK(1, 0);
 		if (ksz_is_ksz8463(dev))
 			*reg = KSZ8463_REG_TOS_DSCP_CTRL;
 	} else {
 		*reg = KSZ9477_REG_DIFFSERV_PRIO_MAP;
-		*per_reg = 2;
+		per_reg = 2;
 		*mask = GENMASK(2, 0);
 	}
+
+	*reg += dscp / per_reg;
+	*shift = (dscp % per_reg) * (8 / per_reg);
 }
 
 /**
@@ -236,10 +255,10 @@ int ksz_port_set_default_prio(struct dsa_switch *ds, int port, u8 prio)
 int ksz_port_get_dscp_prio(struct dsa_switch *ds, int port, u8 dscp)
 {
 	struct ksz_device *dev = ds->priv;
-	int reg, per_reg, ret, shift;
+	int reg, ret, shift;
 	u8 data, mask;
 
-	ksz_get_dscp_prio_reg(dev, &reg, &per_reg, &mask);
+	ksz_get_dscp_prio_reg(dev, dscp, &reg, &mask, &shift);
 
 	/* If DSCP remapping is disabled, DSCP bits 3-5 are used as Internal
 	 * Priority Map (IPM)
@@ -260,12 +279,9 @@ int ksz_port_get_dscp_prio(struct dsa_switch *ds, int port, u8 dscp)
 	/* In case DSCP remapping is enabled, we need to write the DSCP to
 	 * priority mapping table.
 	 */
-	reg += dscp / per_reg;
 	ret = ksz_read8(dev, reg, &data);
 	if (ret)
 		return ret;
-
-	shift = (dscp % per_reg) * (8 / per_reg);
 
 	return (data >> shift) & mask;
 }
@@ -283,15 +299,12 @@ int ksz_port_get_dscp_prio(struct dsa_switch *ds, int port, u8 dscp)
  */
 static int ksz_set_global_dscp_entry(struct ksz_device *dev, u8 dscp, u8 ipm)
 {
-	int reg, per_reg, shift;
+	int reg, shift;
 	u8 mask;
 
-	ksz_get_dscp_prio_reg(dev, &reg, &per_reg, &mask);
+	ksz_get_dscp_prio_reg(dev, dscp, &reg, &mask, &shift);
 
-	shift = (dscp % per_reg) * (8 / per_reg);
-
-	return ksz_rmw8(dev, reg + (dscp / per_reg), mask << shift,
-			ipm << shift);
+	return ksz_rmw8(dev, reg, mask << shift, ipm << shift);
 }
 
 /**
@@ -441,6 +454,9 @@ static void ksz_apptrust_error(struct ksz_device *dev)
  * 2. IEEE_8021QAZ_APP_SEL_DSCP - Differentiated Services Code Point selector
  *   (lowest priority)
  *
+ * KSZ8995XA instead ORs the classification results, so it supports only
+ * one trusted selector at a time.
+ *
  * Return: 0 on success, or a negative error code on failure
  */
 static int ksz_port_set_apptrust_validate(struct ksz_device *dev, int port,
@@ -448,6 +464,12 @@ static int ksz_port_set_apptrust_validate(struct ksz_device *dev, int port,
 {
 	int i, j, found;
 	int j_prev = 0;
+
+	if (ksz_is_ksz8995xa(dev) && nsel > 1) {
+		dev_err(dev->dev,
+			"KSZ8995XA supports only one apptrust selector at a time\n");
+		return -EOPNOTSUPP;
+	}
 
 	/* Iterate through the requested selectors */
 	for (i = 0; i < nsel; i++) {
@@ -551,6 +573,10 @@ int ksz_port_get_apptrust(struct dsa_switch *ds, int port, u8 *sel, int *nsel)
 	ret = ksz_pread8(dev, port, reg, &data);
 	if (ret)
 		return ret;
+
+	/* XA's combined classification cannot be reported as a trust order. */
+	if (ksz_is_ksz8995xa(dev) && (data & mask) == mask)
+		return -EOPNOTSUPP;
 
 	*nsel = 0;
 	for (i = 0; i < ARRAY_SIZE(ksz_supported_apptrust); i++) {

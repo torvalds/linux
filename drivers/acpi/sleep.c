@@ -548,7 +548,6 @@ static void acpi_pm_end(void)
 	acpi_sleep_tts_switch(acpi_target_sleep_state);
 }
 #else /* !CONFIG_ACPI_SLEEP */
-#define sleep_no_lps0	(1)
 #define acpi_target_sleep_state	ACPI_STATE_S0
 #define acpi_sleep_default_s3	(1)
 static inline void acpi_sleep_dmi_check(void) {}

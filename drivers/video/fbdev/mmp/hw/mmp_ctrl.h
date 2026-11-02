@@ -1404,7 +1404,7 @@ struct mmphw_ctrl {
 	int status;
 	struct mutex access_ok;
 
-	/*pathes*/
+	/* paths */
 	int path_num;
 	struct mmphw_path_plat path_plats[] __counted_by(path_num);
 };
@@ -1434,7 +1434,7 @@ static inline void __iomem *ctrl_regs(struct mmp_path *path)
 	return path_to_ctrl(path)->reg_base;
 }
 
-/* path regs, for regs symmetrical for both pathes */
+/* path regs, for regs symmetrical for both paths */
 static inline struct lcd_regs *path_regs(struct mmp_path *path)
 {
 	if (path->id == PATH_PN)

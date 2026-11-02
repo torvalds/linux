@@ -1748,7 +1748,7 @@ static int vip_s_fmt_vid_cap(struct file *file, void *priv,
 
 	sfmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sfmt.pad = 0;
-	ret = v4l2_subdev_call(port->subdev, pad, set_fmt, NULL, &sfmt);
+	ret = v4l2_subdev_call(port->subdev, pad, set_fmt, NULL, NULL, &sfmt);
 	if (ret) {
 		v4l2_dbg(1, debug, &dev->v4l2_dev, "set_fmt failed in subdev\n");
 		return ret;
@@ -2620,7 +2620,7 @@ static int vip_init_port(struct vip_port *port)
 		mbus_fmt->code = fmt->code;
 		sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		sd_fmt.pad = 0;
-		ret = v4l2_subdev_call(port->subdev, pad, set_fmt,
+		ret = v4l2_subdev_call(port->subdev, pad, set_fmt, NULL,
 				       NULL, &sd_fmt);
 		if (ret)
 			v4l2_dbg(1, debug, &dev->v4l2_dev, "init_port set_fmt failed in subdev: (%d)\n",

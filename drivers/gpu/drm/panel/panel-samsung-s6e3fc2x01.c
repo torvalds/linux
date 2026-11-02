@@ -20,6 +20,8 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 
+#include "panel-samsung-dsi.h"
+
 #define MCS_ELVSS_ON            0xb1
 
 struct samsung_s6e3fc2x01 {
@@ -41,19 +43,6 @@ struct samsung_s6e3fc2x01 *to_samsung_s6e3fc2x01(struct drm_panel *panel)
 	return container_of(panel, struct samsung_s6e3fc2x01, panel);
 }
 
-#define s6e3fc2x01_test_key_on_lvl1(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0x9f, 0xa5, 0xa5)
-#define s6e3fc2x01_test_key_off_lvl1(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0x9f, 0x5a, 0x5a)
-#define s6e3fc2x01_test_key_on_lvl2(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0xf0, 0x5a, 0x5a)
-#define s6e3fc2x01_test_key_off_lvl2(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0xf0, 0xa5, 0xa5)
-#define s6e3fc2x01_test_key_on_lvl3(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0xfc, 0x5a, 0x5a)
-#define s6e3fc2x01_test_key_off_lvl3(ctx) \
-	mipi_dsi_dcs_write_seq_multi(ctx, 0xfc, 0xa5, 0xa5)
-
 static void s6e3fc2x01_reset(struct samsung_s6e3fc2x01 *ctx)
 {
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
@@ -66,7 +55,7 @@ static int s6e3fc2x01_on(struct samsung_s6e3fc2x01 *ctx)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 
-	s6e3fc2x01_test_key_on_lvl1(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl1(&dsi_ctx);
 
 	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
 
@@ -75,64 +64,64 @@ static int s6e3fc2x01_on(struct samsung_s6e3fc2x01 *ctx)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xff, 0x0a);
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 11000);
 
-	s6e3fc2x01_test_key_off_lvl1(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl1(&dsi_ctx);
 
-	s6e3fc2x01_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x01);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xcd, 0x01);
-	s6e3fc2x01_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 
 	mipi_dsi_usleep_range(&dsi_ctx, 15000, 16000);
 
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xff, 0x0f);
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 11000);
 
-	s6e3fc2x01_test_key_on_lvl1(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl1(&dsi_ctx);
 	mipi_dsi_dcs_set_tear_on_multi(&dsi_ctx, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
-	s6e3fc2x01_test_key_off_lvl1(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl1(&dsi_ctx);
 
-	s6e3fc2x01_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xeb, 0x17,
 					       0x41, 0x92,
 					       0x0e, 0x10,
 					       0x82, 0x5a);
-	s6e3fc2x01_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 
 	/* Column & Page Address Setting */
 	mipi_dsi_dcs_set_column_address_multi(&dsi_ctx, 0x0000, 0x0437);
 	mipi_dsi_dcs_set_page_address_multi(&dsi_ctx, 0x0000, 0x0923);
 
 	/* Horizontal & Vertical sync Setting */
-	s6e3fc2x01_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x09);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe8, 0x10, 0x30);
-	s6e3fc2x01_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 
-	s6e3fc2x01_test_key_on_lvl3(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl3(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x01);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe3, 0x88);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x07);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xed, 0x67);
-	s6e3fc2x01_test_key_off_lvl3(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl3(&dsi_ctx);
 
-	s6e3fc2x01_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x07);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb7, 0x01);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x08);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb7, 0x12);
-	s6e3fc2x01_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MIPI_DCS_WRITE_CONTROL_DISPLAY, 0x20);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MIPI_DCS_WRITE_POWER_SAVE, 0x00);
 	mipi_dsi_usleep_range(&dsi_ctx, 1000, 2000);
 
-	s6e3fc2x01_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MCS_ELVSS_ON, 0x00, 0x01);
-	s6e3fc2x01_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 
-	s6e3fc2x01_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb3, 0x00, 0xc1);
-	s6e3fc2x01_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xff, 0x78);
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 11000);
@@ -140,14 +129,14 @@ static int s6e3fc2x01_on(struct samsung_s6e3fc2x01 *ctx)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x81, 0x90);
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 11000);
 
-	s6e3fc2x01_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x02);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MCS_ELVSS_ON, 0xc6, 0x00, 0x00,
 				     0x21, 0xed, 0x02, 0x08, 0x06, 0xc1, 0x27,
 				     0xfc, 0xdc, 0xe4, 0x00, 0xd9, 0xe6, 0xe7,
 				     0x00, 0xfc, 0xff, 0xea);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MCS_ELVSS_ON, 0x00, 0x00);
-	s6e3fc2x01_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 11000);
 
@@ -159,9 +148,9 @@ static int s6e3fc2x01_enable(struct drm_panel *panel)
 	struct samsung_s6e3fc2x01 *ctx = to_samsung_s6e3fc2x01(panel);
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 
-	s6e3fc2x01_test_key_on_lvl1(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl1(&dsi_ctx);
 	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
-	s6e3fc2x01_test_key_off_lvl1(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl1(&dsi_ctx);
 
 	return dsi_ctx.accum_err;
 }
@@ -170,27 +159,27 @@ static int s6e3fc2x01_off(struct samsung_s6e3fc2x01 *ctx)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 
-	s6e3fc2x01_test_key_on_lvl1(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl1(&dsi_ctx);
 
 	mipi_dsi_dcs_set_display_off_multi(&dsi_ctx);
 
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 11000);
 
-	s6e3fc2x01_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_usleep_range(&dsi_ctx, 16000, 17000);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x50);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb9, 0x82);
-	s6e3fc2x01_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 	mipi_dsi_usleep_range(&dsi_ctx, 16000, 17000);
 
 	mipi_dsi_dcs_enter_sleep_mode_multi(&dsi_ctx);
 
-	s6e3fc2x01_test_key_off_lvl1(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl1(&dsi_ctx);
 
-	s6e3fc2x01_test_key_on_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_on_lvl2(&dsi_ctx);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x05);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf4, 0x01);
-	s6e3fc2x01_test_key_off_lvl2(&dsi_ctx);
+	samsung_dsi_test_key_off_lvl2(&dsi_ctx);
 	mipi_dsi_msleep(&dsi_ctx, 160);
 
 	return dsi_ctx.accum_err;
@@ -340,28 +329,17 @@ static int s6e3fc2x01_probe(struct mipi_dsi_device *dsi)
 		return dev_err_probe(dev, PTR_ERR(ctx->panel.backlight),
 				     "Failed to create backlight\n");
 
-	drm_panel_add(&ctx->panel);
+	ret = devm_drm_panel_add(dev, &ctx->panel);
+	if (ret)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "Failed to attach to DSI host: %d\n", ret);
-		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void s6e3fc2x01_remove(struct mipi_dsi_device *dsi)
-{
-	struct samsung_s6e3fc2x01 *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
-
-	drm_panel_remove(&ctx->panel);
 }
 
 static const struct of_device_id s6e3fc2x01_of_match[] = {
@@ -372,7 +350,6 @@ MODULE_DEVICE_TABLE(of, s6e3fc2x01_of_match);
 
 static struct mipi_dsi_driver s6e3fc2x01_driver = {
 	.probe = s6e3fc2x01_probe,
-	.remove = s6e3fc2x01_remove,
 	.driver = {
 		.name = "panel-samsung-s6e3fc2x01",
 		.of_match_table = s6e3fc2x01_of_match,

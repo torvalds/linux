@@ -132,10 +132,9 @@ config PREEMPTION
 
 config PREEMPT_DYNAMIC
 	bool "Preemption behaviour defined on boot"
-	depends on HAVE_PREEMPT_DYNAMIC
-	select JUMP_LABEL if HAVE_PREEMPT_DYNAMIC_KEY
+	depends on ARCH_HAS_PREEMPT_LAZY
 	select PREEMPT_BUILD
-	default y if HAVE_PREEMPT_DYNAMIC_CALL
+	default y
 	help
 	  This option allows to define the preemption model on the kernel
 	  command line parameter and thus override the default preemption
@@ -145,9 +144,7 @@ config PREEMPT_DYNAMIC
 	  provide a pre-built kernel binary to reduce the number of kernel
 	  flavors they offer while still offering different usecases.
 
-	  The runtime overhead is negligible with HAVE_STATIC_CALL_INLINE enabled
-	  but if runtime patching is not available for the specific architecture
-	  then the potential overhead should be considered.
+	  The runtime overhead is negligible.
 
 	  Interesting if you want the same pre-built kernel should be used for
 	  both Server and Desktop workloads.
@@ -197,3 +194,7 @@ config SCHED_CLASS_EXT
 	  For more information:
 	    Documentation/scheduler/sched-ext.rst
 	    https://github.com/sched-ext/scx
+
+config PREFERRED_CPU
+	bool
+	depends on SMP && PARAVIRT

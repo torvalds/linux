@@ -17,8 +17,11 @@
 #include "xe_device.h"
 #include "xe_force_wake.h"
 #include "xe_gt_mcr.h"
+#include "xe_map.h"
+#include "xe_migrate.h"
 #include "xe_mmio.h"
 #include "xe_sriov.h"
+#include "xe_tile.h"
 #include "xe_tile_sriov_vf.h"
 #include "xe_ttm_vram_mgr.h"
 #include "xe_vram.h"
@@ -54,9 +57,6 @@ static int determine_lmem_bar_size(struct xe_device *xe, struct xe_vram_region *
 
 	/* XXX: Need to change when xe link code is ready */
 	lmem_bar->dpa_base = 0;
-
-	/* set up a map to the total memory area. */
-	lmem_bar->mapping = devm_ioremap_wc(&pdev->dev, lmem_bar->io_start, lmem_bar->io_size);
 
 	return 0;
 }
@@ -196,7 +196,7 @@ static void vram_fini(void *arg)
 	struct xe_tile *tile;
 	int id;
 
-	xe->mem.vram->mapping = NULL;
+	xe_assert(xe, !xe->mem.vram->mapping);
 
 	for_each_tile(tile, xe, id) {
 		tile->mem.vram->mapping = NULL;
@@ -257,8 +257,15 @@ static int vram_region_init(struct xe_device *xe, struct xe_vram_region *vram,
 		return -ENODEV;
 	}
 
+	if (vram != xe->mem.vram) {
+		struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+
+		vram->mapping = devm_ioremap_wc(&pdev->dev, vram->io_start, vram->io_size);
+		if (!vram->mapping)
+			return -ENOMEM;
+	}
+
 	vram->dpa_base = lmem_bar->dpa_base + offset;
-	vram->mapping = lmem_bar->mapping + offset;
 	vram->usable_size = usable_size;
 
 	print_vram_region_info(xe, vram);
@@ -403,3 +410,241 @@ resource_size_t xe_vram_region_actual_physical_size(const struct xe_vram_region 
 	return vram ? vram->actual_physical_size : 0;
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_vram_region_actual_physical_size);
+
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_MEM)
+static void memtest_bo_cleanup(void *arg)
+{
+	struct xe_device *xe = arg;
+
+	xe_vram_free_memtest_bos(xe);
+}
+
+int xe_vram_reserve_memtest_bo(struct xe_device *xe)
+{
+	struct xe_tile *tile;
+	u8 id;
+
+	if (IS_SRIOV_VF(xe))
+		return 0;
+
+	for_each_tile(tile, xe, id) {
+		u64 vram_size;
+
+		if (!tile->mem.vram)
+			continue;
+
+		if (tile->mem.vram->io_size < tile->mem.vram->usable_size) {
+			drm_info(&xe->drm,
+				 "Tile %d: Small-BAR system detected, skipping VRAM memtest\n",
+				 id);
+			continue;
+		}
+
+		vram_size = tile->mem.vram->usable_size;
+
+		tile->mem.memtest_bo = xe_bo_create_pin_map_at_novm(xe, tile, SZ_64K,
+								    vram_size - SZ_64K,
+								    ttm_bo_type_kernel,
+								    XE_BO_FLAG_VRAM_IF_DGFX(tile),
+								    0, false);
+		if (IS_ERR(tile->mem.memtest_bo)) {
+			drm_warn(&xe->drm, "Tile %d: Failed to reserve memtest BO\n", id);
+			tile->mem.memtest_bo = NULL;
+			continue;
+		}
+
+		drm_info(&xe->drm, "Tile %d: Reserved memtest BO at offset 0x%llx\n",
+			 id, vram_size - SZ_64K);
+	}
+
+	return devm_add_action_or_reset(xe->drm.dev, memtest_bo_cleanup, xe);
+}
+
+void xe_vram_free_memtest_bos(struct xe_device *xe)
+{
+	struct xe_tile *tile;
+	u8 id;
+
+	for_each_tile(tile, xe, id) {
+		if (tile->mem.memtest_bo) {
+			xe_bo_unpin_map_no_vm(tile->mem.memtest_bo);
+			tile->mem.memtest_bo = NULL;
+		}
+	}
+}
+
+int xe_vram_memtest(struct xe_device *xe)
+{
+	struct xe_tile *tile;
+	u8 id;
+	int err = 0;
+
+	if (IS_SRIOV_VF(xe))
+		return 0;
+
+	for_each_tile(tile, xe, id) {
+		struct xe_bo *last_page_bo = tile->mem.memtest_bo;
+		struct dma_fence *fence;
+		bool overlap = false;
+		int i;
+		u8 val;
+
+		if (!last_page_bo || !tile->migrate)
+			continue;
+
+		drm_info(&xe->drm, "Tile %d: Running VRAM memtest...\n", id);
+
+		/* CPU write and readback first and last byte of the last page */
+		xe_map_wr(xe, &last_page_bo->vmap, 0, u8, 0xA5);
+		xe_map_wr(xe, &last_page_bo->vmap, SZ_64K - 1, u8, 0x5A);
+
+		val = xe_map_rd(xe, &last_page_bo->vmap, 0, u8);
+		if (drm_WARN(&xe->drm, val != 0xA5,
+			     "Tile %d: CPU memtest failed at offset 0 (expected 0xA5, got 0x%02x)\n",
+			     id, val)) {
+			err = -EIO;
+			goto unpin;
+		}
+
+		val = xe_map_rd(xe, &last_page_bo->vmap, SZ_64K - 1, u8);
+		if (drm_WARN(&xe->drm, val != 0x5A,
+			     "Tile %d: CPU memtest failed at offset 65535 (expected 0x5A, got 0x%02x)\n",
+			     id, val)) {
+			err = -EIO;
+			goto unpin;
+		}
+
+		/* Non-CCS access via GPU on the last page */
+		xe_bo_lock(last_page_bo, false);
+		fence = xe_migrate_clear(tile->migrate, last_page_bo,
+					 last_page_bo->ttm.resource,
+					 XE_MIGRATE_CLEAR_FLAG_BO_DATA);
+		xe_bo_unlock(last_page_bo);
+
+		if (!IS_ERR(fence)) {
+			dma_fence_wait(fence, false);
+			dma_fence_put(fence);
+		} else {
+			err = PTR_ERR(fence);
+			goto unpin;
+		}
+
+		val = xe_map_rd(xe, &last_page_bo->vmap, 0, u8);
+		if (drm_WARN(&xe->drm, val != 0x00,
+			     "Tile %d: GPU memtest clear failed at offset 0 (expected 0x00, got 0x%02x)\n",
+			     id, val)) {
+			err = -EIO;
+			goto unpin;
+		}
+
+		/*
+		 * Check for CCS overlap on the root tile.
+		 *
+		 * TODO: maybe extend if we ever get multi-tile + CCS. Pay
+		 * special attention to the l2 flush below. Currently that is
+		 * hard coded to the root tile.
+		 */
+		if (!id && xe_device_has_flat_ccs(xe) &&
+		    GRAPHICS_VERx100(xe) >= 2000) {
+			struct xe_bo *scratch_bo_before;
+			struct xe_bo *scratch_bo_after;
+
+			scratch_bo_before = xe_bo_create_pin_map_novm(xe, tile, SZ_64K,
+								      ttm_bo_type_kernel,
+								      XE_BO_FLAG_VRAM_IF_DGFX(tile),
+								      false);
+			if (IS_ERR(scratch_bo_before)) {
+				err = PTR_ERR(scratch_bo_before);
+				goto unpin;
+			}
+
+			scratch_bo_after = xe_bo_create_pin_map_novm(xe, tile, SZ_64K,
+								     ttm_bo_type_kernel,
+								     XE_BO_FLAG_VRAM_IF_DGFX(tile),
+								     false);
+			if (IS_ERR(scratch_bo_after)) {
+				xe_bo_unpin_map_no_vm(scratch_bo_before);
+				err = PTR_ERR(scratch_bo_after);
+				goto unpin;
+			}
+
+			/* Save original CCS metadata for PA 0 + */
+			err = xe_migrate_debug_ccs_overlap(tile->migrate, scratch_bo_before, false);
+			if (err) {
+				xe_bo_unpin_map_no_vm(scratch_bo_before);
+				xe_bo_unpin_map_no_vm(scratch_bo_after);
+				goto unpin;
+			}
+
+			/*
+			 * Fill last page. If there is CCS overlap in the last
+			 * page this will snag the raw CCS storage.
+			 */
+			xe_map_memset(xe, &last_page_bo->vmap, 0, 0x5A, SZ_64K);
+			xe_device_wmb(xe);
+
+			/*
+			 * Global invalidation. Some BMG SKUs will cache the BAR
+			 * writes in the GPU side VRAM cache. Make sure above
+			 * writes are fully flushed out to VRAM, so this is
+			 * hopefully more well behaved with the CCS unit, if
+			 * there is indeed CCS overlap with normal VRAM. Since
+			 * there is a separate CCS cache, the CCS unit might not
+			 * respect the GPU VRAM cache for CCS accesses, so opt
+			 * for being super careful here.
+			 */
+			xe_device_l2_flush(xe, true);
+
+			/* Use GPU to clear CCS state for PA 0 */
+			xe_map_memset(xe, &scratch_bo_after->vmap, 0, 0x00, SZ_64K);
+			err = xe_migrate_debug_ccs_overlap(tile->migrate, scratch_bo_after, true);
+			if (err) {
+				xe_bo_unpin_map_no_vm(scratch_bo_before);
+				xe_bo_unpin_map_no_vm(scratch_bo_after);
+				goto unpin;
+			}
+			/*
+			 * Global invalidation. Ensure CCS caches really are
+			 * nuked and the raw CCS data is visible in VRAM, for
+			 * the below access.
+			 */
+			xe_device_l2_flush(xe, true);
+
+			/* Check if last_page_bo was corrupted by the GPU CCS clear */
+			for (i = 0; i < SZ_64K; i += 8) {
+				u64 payload = xe_map_rd(xe, &last_page_bo->vmap, i, u64);
+
+				if (payload != 0x5A5A5A5A5A5A5A5AULL) {
+					overlap = true;
+					break;
+				}
+			}
+
+			/* Restore original CCS metadata for PA 0 + */
+			err = xe_migrate_debug_ccs_overlap(tile->migrate, scratch_bo_before, true);
+			if (err)
+				drm_warn(&xe->drm, "Failed to restore CCS metadata\n");
+
+			xe_bo_unpin_map_no_vm(scratch_bo_before);
+			xe_bo_unpin_map_no_vm(scratch_bo_after);
+		}
+
+		if (drm_WARN(&xe->drm, overlap,
+			     "Tile %d: VRAM bounds overlap CCS region! VRAM sizing is incorrect.\n",
+			     id)) {
+			err = -EINVAL;
+			goto unpin;
+		}
+
+		drm_info(&xe->drm, "Tile %d: VRAM memtest completed.\n", id);
+
+unpin:
+		if (err)
+			break;
+	}
+
+	xe_vram_free_memtest_bos(xe);
+
+	return err;
+}
+#endif

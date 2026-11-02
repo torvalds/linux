@@ -211,7 +211,7 @@ struct mtk_vpu {
 	struct vpu_regs reg;
 	struct vpu_run run;
 	struct vpu_wdt wdt;
-	struct vpu_ipi_desc ipi_desc[IPI_MAX];
+	struct vpu_ipi_desc ipi_desc[IPI_VPU_MAX];
 	struct share_obj __iomem *recv_buf;
 	struct share_obj __iomem *send_buf;
 	struct device *dev;
@@ -221,7 +221,7 @@ struct mtk_vpu {
 	struct mutex vpu_mutex; /* for protecting vpu data data structure */
 	u32 wdt_refcnt;
 	wait_queue_head_t ack_wq;
-	bool ipi_id_ack[IPI_MAX];
+	bool ipi_id_ack[IPI_VPU_MAX];
 };
 
 static inline void vpu_cfg_writel(struct mtk_vpu *vpu, u32 val, u32 offset)
@@ -296,7 +296,7 @@ int vpu_ipi_register(struct platform_device *pdev,
 		return -EPROBE_DEFER;
 	}
 
-	if (id < IPI_MAX && handler) {
+	if (id < IPI_VPU_MAX && handler) {
 		ipi_desc = vpu->ipi_desc;
 		ipi_desc[id].name = name;
 		ipi_desc[id].handler = handler;
@@ -319,7 +319,7 @@ int vpu_ipi_send(struct platform_device *pdev,
 	unsigned long timeout;
 	int ret = 0;
 
-	if (id <= IPI_VPU_INIT || id >= IPI_MAX ||
+	if (id <= IPI_VPU_INIT || id >= IPI_VPU_MAX ||
 	    len > sizeof(send_obj->share_buf) || !buf) {
 		dev_err(vpu->dev, "failed to send ipi message\n");
 		return -EINVAL;
@@ -748,7 +748,7 @@ static void vpu_ipi_handler(struct mtk_vpu *vpu)
 	s32 id = readl(&rcv_obj->id);
 
 	memcpy_fromio(data, rcv_obj->share_buf, sizeof(data));
-	if (id < IPI_MAX && ipi_desc[id].handler) {
+	if (id < IPI_VPU_MAX && ipi_desc[id].handler) {
 		ipi_desc[id].handler(data, readl(&rcv_obj->len),
 				     ipi_desc[id].priv);
 		if (id > IPI_VPU_INIT) {
@@ -934,7 +934,7 @@ remove_debugfs:
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove(vpu_debugfs);
 #endif
-	memset(vpu->ipi_desc, 0, sizeof(struct vpu_ipi_desc) * IPI_MAX);
+	memset(vpu->ipi_desc, 0, sizeof(struct vpu_ipi_desc) * IPI_VPU_MAX);
 vpu_mutex_destroy:
 	mutex_destroy(&vpu->vpu_mutex);
 disable_vpu_clk:
@@ -962,10 +962,12 @@ static void mtk_vpu_remove(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove(vpu_debugfs);
 #endif
+	devm_free_irq(&pdev->dev, vpu->reg.irq, vpu);
 	if (vpu->wdt.wq)
 		destroy_workqueue(vpu->wdt.wq);
 	vpu_free_ext_mem(vpu, P_FW);
 	vpu_free_ext_mem(vpu, D_FW);
+	of_reserved_mem_device_release(&pdev->dev);
 	mutex_destroy(&vpu->vpu_mutex);
 	clk_unprepare(vpu->clk);
 }

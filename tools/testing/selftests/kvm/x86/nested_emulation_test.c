@@ -66,15 +66,15 @@ static void guest_code(void *test_data)
 					   BIT_ULL(INTERCEPT_HLT);
 		vmcb->control.intercept_exceptions = 0;
 	} else {
-		GUEST_ASSERT(prepare_for_vmx_operation(test_data));
-		GUEST_ASSERT(load_vmcs(test_data));
+		prepare_for_vmx_operation(test_data);
+		load_vmcs(test_data);
 
 		prepare_vmcs(test_data, NULL);
-		GUEST_ASSERT(!vmwrite(GUEST_IDTR_LIMIT, 0));
-		GUEST_ASSERT(!vmwrite(GUEST_RIP, (u64)l2_guest_code));
-		GUEST_ASSERT(!vmwrite(EXCEPTION_BITMAP, 0));
+		vmwrite(GUEST_IDTR_LIMIT, 0);
+		vmwrite(GUEST_RIP, (u64)l2_guest_code);
+		vmwrite(EXCEPTION_BITMAP, 0);
 
-		vmwrite(CPU_BASED_VM_EXEC_CONTROL, vmreadz(CPU_BASED_VM_EXEC_CONTROL) |
+		vmwrite(CPU_BASED_VM_EXEC_CONTROL, vmread(CPU_BASED_VM_EXEC_CONTROL) |
 						   CPU_BASED_PAUSE_EXITING |
 						   CPU_BASED_HLT_EXITING);
 	}
@@ -102,10 +102,13 @@ static void guest_code(void *test_data)
 			exit_insn_len = vmcb->control.next_rip - vmcb->save.rip;
 			GUEST_ASSERT_EQ(vmcb->save.rip, (u64)l2_instruction);
 		} else {
-			GUEST_ASSERT_EQ(i ? vmresume() : vmlaunch(), 0);
-			exit_reason = vmreadz(VM_EXIT_REASON);
-			exit_insn_len = vmreadz(VM_EXIT_INSTRUCTION_LEN);
-			GUEST_ASSERT_EQ(vmreadz(GUEST_RIP), (u64)l2_instruction);
+			if (!i)
+				vmlaunch();
+			else
+				vmresume();
+			exit_reason = vmread(VM_EXIT_REASON);
+			exit_insn_len = vmread(VM_EXIT_INSTRUCTION_LEN);
+			GUEST_ASSERT_EQ(vmread(GUEST_RIP), (u64)l2_instruction);
 		}
 
 		__GUEST_ASSERT(exit_reason == insn->exit_reason[f],

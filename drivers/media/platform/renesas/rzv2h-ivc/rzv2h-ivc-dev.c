@@ -202,7 +202,9 @@ static int rzv2h_ivc_probe(struct platform_device *pdev)
 
 	pm_runtime_set_autosuspend_delay(dev, 2000);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_enable(dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret)
+		return ret;
 
 	ivc->irqnum = platform_get_irq(pdev, 0);
 	if (ivc->irqnum < 0)
@@ -210,14 +212,9 @@ static int rzv2h_ivc_probe(struct platform_device *pdev)
 
 	ret = rzv2h_ivc_initialise_subdevice(ivc);
 	if (ret)
-		goto err_disable_pm_runtime;
+		return ret;
 
 	return 0;
-
-err_disable_pm_runtime:
-	pm_runtime_disable(dev);
-
-	return ret;
 }
 
 static void rzv2h_ivc_remove(struct platform_device *pdev)

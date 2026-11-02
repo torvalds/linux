@@ -430,6 +430,10 @@ int fbnic_tlv_attr_parse_array(struct fbnic_tlv_msg *attr, int len,
 		u16 attr_len;
 		int err;
 
+		attr_len = FBNIC_TLV_MSG_SIZE(le16_to_cpu(attr->hdr.len));
+		if (!attr_len || attr_len > len)
+			return -EINVAL;
+
 		if (tlv_attr_id != attr_id)
 			return -EINVAL;
 
@@ -443,7 +447,6 @@ int fbnic_tlv_attr_parse_array(struct fbnic_tlv_msg *attr, int len,
 
 		results[i++] = attr;
 
-		attr_len = FBNIC_TLV_MSG_SIZE(le16_to_cpu(attr->hdr.len));
 		len -= attr_len;
 		attr += attr_len;
 	}
@@ -476,11 +479,16 @@ int fbnic_tlv_attr_parse(struct fbnic_tlv_msg *attr, int len,
 
 	/* Work through list of attributes, parsing them as necessary */
 	while (len > 0) {
-		int err = fbnic_tlv_attr_validate(attr, tlv_index);
 		u16 attr_id = attr->hdr.type;
 		u16 attr_len;
+		int err;
+
+		attr_len = FBNIC_TLV_MSG_SIZE(le16_to_cpu(attr->hdr.len));
+		if (!attr_len || attr_len > len)
+			return -EINVAL;
 
 		/* Stop parsing on full error */
+		err = fbnic_tlv_attr_validate(attr, tlv_index);
 		if (err < 0)
 			return err;
 
@@ -493,7 +501,6 @@ int fbnic_tlv_attr_parse(struct fbnic_tlv_msg *attr, int len,
 			results[attr_id] = attr;
 		}
 
-		attr_len = FBNIC_TLV_MSG_SIZE(le16_to_cpu(attr->hdr.len));
 		len -= attr_len;
 		attr += attr_len;
 	}

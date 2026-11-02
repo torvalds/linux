@@ -553,6 +553,7 @@ struct pg_cntl *pg_cntl35_create(
 	base = &pg_cntl_dcn->base;
 	base->ctx = ctx;
 	base->funcs = &pg_cntl35_funcs;
+	base->inst = 0;
 
 	pg_cntl_dcn->regs = regs;
 	pg_cntl_dcn->pg_cntl_shift = pg_cntl_shift;

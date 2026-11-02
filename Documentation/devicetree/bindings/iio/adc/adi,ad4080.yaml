@@ -41,6 +41,7 @@ properties:
       - adi,ad4880
       - adi,ad4883
       - adi,ad4884
+      - adi,ad4885
 
   reg:
     minItems: 1
@@ -105,6 +106,7 @@ allOf:
               - adi,ad4880
               - adi,ad4883
               - adi,ad4884
+              - adi,ad4885
     then:
       properties:
         reg:
@@ -127,15 +129,15 @@ examples:
         #size-cells = <0>;
 
         adc@0 {
-          compatible = "adi,ad4080";
-          reg = <0>;
-          spi-max-frequency = <10000000>;
-          vdd33-supply = <&vdd33>;
-          vddldo-supply = <&vddldo>;
-          vrefin-supply = <&vrefin>;
-          clocks = <&cnv>;
-          clock-names = "cnv";
-          io-backends = <&iio_backend>;
+            compatible = "adi,ad4080";
+            reg = <0>;
+            spi-max-frequency = <10000000>;
+            vdd33-supply = <&vdd33>;
+            vddldo-supply = <&vddldo>;
+            vrefin-supply = <&vrefin>;
+            clocks = <&cnv>;
+            clock-names = "cnv";
+            io-backends = <&iio_backend>;
         };
     };
   - |
@@ -144,15 +146,15 @@ examples:
         #size-cells = <0>;
 
         adc@0 {
-          compatible = "adi,ad4880";
-          reg = <0>, <1>;
-          spi-max-frequency = <10000000>;
-          vdd33-supply = <&vdd33>;
-          vddldo-supply = <&vddldo>;
-          vrefin-supply = <&vrefin>;
-          clocks = <&cnv>;
-          clock-names = "cnv";
-          io-backends = <&iio_backend_cha>, <&iio_backend_chb>;
+            compatible = "adi,ad4880";
+            reg = <0>, <1>;
+            spi-max-frequency = <10000000>;
+            vdd33-supply = <&vdd33>;
+            vddldo-supply = <&vddldo>;
+            vrefin-supply = <&vrefin>;
+            clocks = <&cnv>;
+            clock-names = "cnv";
+            io-backends = <&iio_backend_cha>, <&iio_backend_chb>;
         };
     };
 ...

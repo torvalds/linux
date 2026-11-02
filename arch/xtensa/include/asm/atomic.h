@@ -37,21 +37,8 @@
  * where no register reference will cause an overflow.
  */
 
-/**
- * atomic_read - read atomic variable
- * @v: pointer of type atomic_t
- *
- * Atomically reads the value of @v.
- */
 #define arch_atomic_read(v)		READ_ONCE((v)->counter)
 
-/**
- * atomic_set - set atomic variable
- * @v: pointer of type atomic_t
- * @i: required value
- *
- * Atomically sets the value of @v to @i.
- */
 #define arch_atomic_set(v,i)		WRITE_ONCE((v)->counter, (i))
 
 #if XCHAL_HAVE_EXCLUSIVE

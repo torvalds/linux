@@ -134,7 +134,7 @@
 &lcdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lcdif>;
-	status = "okay";
+	status = "disabled";
 };
 
 &uart1 {

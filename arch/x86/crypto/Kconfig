@@ -3,21 +3,29 @@
 menu "Accelerated Cryptographic Algorithms for CPU (x86)"
 
 config CRYPTO_AES_NI_INTEL
-	tristate "Ciphers: AES, modes: ECB, CBC, CTS, CTR, XCTR, XTS, GCM (AES-NI/VAES)"
+	tristate "Ciphers: AES, modes: GCM (AES-NI/VAES)"
+	depends on 64BIT
 	select CRYPTO_AEAD
 	select CRYPTO_LIB_AES
 	select CRYPTO_LIB_GF128MUL
 	select CRYPTO_SKCIPHER
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_XTS
 	help
 	  AEAD cipher: AES with GCM
-	  Length-preserving ciphers: AES with ECB, CBC, CTS, CTR, XCTR, XTS
 
-	  Architecture: x86 (32-bit and 64-bit) using:
+	  Architecture: x86_64 using:
 	  - AES-NI (AES new instructions)
 	  - VAES (Vector AES)
 
-	  Some algorithm implementations are supported only in 64-bit builds,
-	  and some have additional prerequisites such as AVX2 or AVX512.
+	  The module controlled by this option (aesni-intel.ko) no longer
+	  directly provides the accelerated ECB, CBC, CBC-CTS, CTR, XCTR, and
+	  XTS code.  Those are now provided by CRYPTO_AES (aes.ko) when the
+	  corresponding mode option (CRYPTO_XTS, CRYPTO_CBC, etc.) is enabled.
+
+	  To ensure dm-crypt continues to work in kconfigs with only this option
+	  set, this option selects CRYPTO_AES, CRYPTO_CBC, and CRYPTO_XTS.
 
 config CRYPTO_BLOWFISH_X86_64
 	tristate "Ciphers: Blowfish, modes: ECB, CBC"

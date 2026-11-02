@@ -1,11 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024, 2026 Intel Corporation
  */
 #ifndef __iwl_mld_tx_h__
 #define __iwl_mld_tx_h__
 
-#include "mld.h"
+#include <linux/atomic.h>
+#include <net/mac80211.h>
+
+struct iwl_mld;
+struct iwl_rx_packet;
 
 #define IWL_MLD_INVALID_QUEUE		0xFFFF
 #define IWL_MLD_INVALID_DROP_TX		0xFFFE
@@ -73,5 +77,38 @@ u8 iwl_mld_get_lowest_rate(struct iwl_mld *mld,
 
 void iwl_mld_tx_skb(struct iwl_mld *mld, struct sk_buff *skb,
 		    struct ieee80211_txq *txq);
+
+/**
+ * struct iwl_mld_tx_gp2 - gp2 timestamping state for TX commands
+ *
+ * Reading gp2 directly in the TX path is too costly. Instead, TX lazily
+ * schedules @wk to refresh gp2 in process context and adds @delta_us to the
+ * host clock to timestamp queued frames.
+ *
+ * A zero @valid_until leaves frames unstamped, including on older firmware
+ * without TX_CMD v12. A deadline that wraps to zero is published as one.
+ * Failed refreshes clear @valid_until, leaving @delta_us for old readers, and
+ * schedule a retry with %IWL_MLD_TX_GP2_RETRY_PERIOD rounded for timer
+ * coalescing, even without further TX traffic. Old readers may retry sooner.
+ *
+ * @delta_us: gp2 minus host time, in microseconds, modulo 2^32;
+ *	valid while @valid_until is nonzero and has not expired
+ * @valid_until: jiffies deadline for the offset, or zero when disabled
+ * @wk: worker that refreshes the offset and retries failures
+ */
+struct iwl_mld_tx_gp2 {
+	atomic_t delta_us;
+	atomic_long_t valid_until;
+	struct wiphy_delayed_work wk;
+};
+
+void iwl_mld_tx_gp2_init(struct iwl_mld *mld);
+void iwl_mld_tx_gp2_start(struct iwl_mld *mld);
+void iwl_mld_tx_gp2_stop(struct iwl_mld *mld);
+
+#if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
+u32 iwl_mld_tx_gp2_from_est(u32 delta_us, unsigned long valid_until,
+			    u32 host_us, unsigned long now, bool *refresh);
+#endif
 
 #endif /* __iwl_mld_tx_h__ */

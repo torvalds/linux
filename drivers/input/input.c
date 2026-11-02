@@ -391,7 +391,7 @@ void input_handle_event(struct input_dev *dev,
 void input_event(struct input_dev *dev,
 		 unsigned int type, unsigned int code, int value)
 {
-	if (is_event_supported(type, dev->evbit, EV_MAX)) {
+	if (type == EV_SYN || is_event_supported(type, dev->evbit, EV_MAX)) {
 		guard(spinlock_irqsave)(&dev->event_lock);
 		input_handle_event(dev, type, code, value);
 	}
@@ -415,7 +415,7 @@ void input_inject_event(struct input_handle *handle,
 	struct input_dev *dev = handle->dev;
 	struct input_handle *grab;
 
-	if (is_event_supported(type, dev->evbit, EV_MAX)) {
+	if (type == EV_SYN || is_event_supported(type, dev->evbit, EV_MAX)) {
 		guard(spinlock_irqsave)(&dev->event_lock);
 		guard(rcu)();
 
@@ -2396,6 +2396,14 @@ int input_register_device(struct input_dev *dev)
 	}
 
 	if (dev->devres_managed) {
+		if (!dev->dev.parent ||
+		    !devres_find(dev->dev.parent, devm_input_device_release,
+				 devm_input_device_match, dev)) {
+			dev_err(&dev->dev,
+				"Parent of managed input device was overridden, refusing to register\n");
+			return -EINVAL;
+		}
+
 		devres = devres_alloc(devm_input_device_unregister,
 				      sizeof(*devres), GFP_KERNEL);
 		if (!devres)

@@ -42,25 +42,25 @@
 		pinctrl-0 = <&key_voldown>, <&key_volup>, <&key_power>;
 		pinctrl-names = "default";
 
+		button-power {
+			label = "KEY_POWER";
+			gpios = <&gpa10 1 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+			linux,code = <KEY_POWER>;
+		};
+
 		button-vol-down {
 			label = "KEY_VOLUMEDOWN";
-			linux,code = <KEY_VOLUMEDOWN>;
 			gpios = <&gpa7 3 GPIO_ACTIVE_LOW>;
 			wakeup-source;
+			linux,code = <KEY_VOLUMEDOWN>;
 		};
 
 		button-vol-up {
 			label = "KEY_VOLUMEUP";
-			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&gpa8 1 GPIO_ACTIVE_LOW>;
 			wakeup-source;
-		};
-
-		button-power {
-			label = "KEY_POWER";
-			linux,code = <KEY_POWER>;
-			gpios = <&gpa10 1 GPIO_ACTIVE_LOW>;
-			wakeup-source;
+			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
 
@@ -109,8 +109,8 @@
 	pmic-1 {
 		compatible = "samsung,s2mpg10-pmic";
 		interrupts-extended = <&gpa0 6 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;
+		pinctrl-names = "default";
 		system-power-controller;
 		wakeup-source;
 
@@ -429,8 +429,8 @@
 	pmic-2 {
 		compatible = "samsung,s2mpg11-pmic";
 		interrupts-extended = <&gpa0 7 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
 		pinctrl-0 = <&sub_pmic_int>;
+		pinctrl-names = "default";
 		wakeup-source;
 
 		vinl1s-supply = <&s2mpg10_buck8m>;
@@ -527,15 +527,6 @@
 				regulator-always-on;
 			};
 
-			buckd {
-				regulator-name = "vcc_ufs";
-				regulator-min-microvolt = <2400000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-ramp-delay = <6250>;
-				regulator-always-on;
-				samsung,ext-control = <S2MPG11_EXTCTRL_UFS_EN>;
-			};
-
 			s2mpg11_bucka: bucka {
 				/* lots, IO */
 				regulator-name = "bucka";
@@ -549,6 +540,15 @@
 				regulator-name = "buckboost";
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3600000>;
+			};
+
+			buckd {
+				regulator-name = "vcc_ufs";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-ramp-delay = <6250>;
+				regulator-always-on;
+				samsung,ext-control = <S2MPG11_EXTCTRL_UFS_EN>;
 			};
 
 			ldo1s {
@@ -646,12 +646,13 @@
 	status = "okay";
 	/* TODO: add the devices once drivers exist */
 
-	usb-typec@25 {
+	maxtcpci: usb-typec@25 {
 		compatible = "maxim,max77759-tcpci", "maxim,max33359";
 		reg = <0x25>;
 		interrupts-extended = <&gpa8 2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-0 = <&typec_int>;
 		pinctrl-names = "default";
+		vbus-supply = <&chgin_otg_reg>;
 
 		connector {
 			compatible = "usb-c-connector";
@@ -738,9 +739,10 @@
 		interrupts-extended = <&gpa9 3 IRQ_TYPE_LEVEL_LOW>;
 
 		shunt-resistor-micro-ohms = <5000>;
+		power-supplies = <&max77759_pmic>;
 	};
 
-	pmic@66 {
+	max77759_pmic: pmic@66 {
 		compatible = "maxim,max77759";
 		reg = <0x66>;
 
@@ -750,6 +752,11 @@
 
 		interrupt-controller;
 		#interrupt-cells = <2>;
+		power-supplies = <&maxtcpci>;
+
+		chgin_otg_reg: chgin-otg-regulator {
+			regulator-name = "chgin-otg";
+		};
 
 		gpio {
 			compatible = "maxim,max77759-gpio";

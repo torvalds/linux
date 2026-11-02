@@ -1,12 +1,12 @@
 Iterations:        100
-Instructions:      2000
-Total Cycles:      608
-Total uOps:        2000
+Instructions:      900
+Total Cycles:      305
+Total uOps:        1000
 
 Dispatch Width:    4
-uOps Per Cycle:    3.29
-IPC:               3.29
-Block RThroughput: 5.0
+uOps Per Cycle:    3.28
+IPC:               2.95
+Block RThroughput: 3.0
 
 
 Instruction Info:
@@ -18,25 +18,14 @@ Instruction Info:
 [6]: HasSideEffects (U)
 
 [1]    [2]    [3]    [4]    [5]    [6]    Instructions:
- 1      1     0.33                        mov	ax, -16191
+ 1      1     0.33                        mov	eax, 49345
  1      1     0.33                        cmp	rsi, 6
- 1      1     1.00                        jne	.LBB5_1
- 1      5     0.50    *                   mov	ecx, dword ptr [rdi]
- 1      1     0.33                        movzx	edx, cx
- 1      1     0.33                        cmp	edx, 49344
- 1      1     1.00                        jne	.LBB5_4
- 1      5     0.50    *                   movzx	eax, word ptr [rdi + 4]
- 1      1     0.50                        shl	rax, 32
- 1      1     0.33                        or	rcx, rax
- 1      1     0.50                        shr	rcx, 16
- 1      1     0.33                        mov	ax, -16192
- 1      1     0.50                        shl	rcx, 16
- 1      1     0.33                        movzx	eax, ax
- 1      1     0.33                        or	rax, rcx
- 1      1     1.00                  U     ret
- 1      1     0.50                        shl	rcx, 16
- 1      1     0.33                        movzx	eax, ax
- 1      1     0.33                        or	rax, rcx
+ 1      1     1.00                        jne	.LBB5_3
+ 2      6     0.50    *                   cmp	word ptr [rdi], -16192
+ 1      1     1.00                        jne	.LBB5_3
+ 1      5     0.50    *                   mov	eax, dword ptr [rdi + 2]
+ 1      1     0.50                        shl	rax, 16
+ 1      1     0.33                        or	rax, 49344
  1      1     1.00                  U     ret
 
 
@@ -53,27 +42,16 @@ Resources:
 
 Resource pressure per iteration:
 [0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
- -      -     5.99   5.99    -     6.02   1.00   1.00   
+ -      -     2.50   2.49    -     3.01   1.00   1.00   
 
 Resource pressure by instruction:
 [0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
- -      -      -     0.99    -     0.01    -      -     mov	ax, -16191
- -      -      -     0.01    -     0.99    -      -     cmp	rsi, 6
- -      -      -      -      -     1.00    -      -     jne	.LBB5_1
- -      -      -      -      -      -      -     1.00   mov	ecx, dword ptr [rdi]
- -      -     0.98    -      -     0.02    -      -     movzx	edx, cx
- -      -     0.99   0.01    -      -      -      -     cmp	edx, 49344
- -      -      -      -      -     1.00    -      -     jne	.LBB5_4
- -      -      -      -      -      -     1.00    -     movzx	eax, word ptr [rdi + 4]
- -      -     0.01    -      -     0.99    -      -     shl	rax, 32
- -      -     0.02   0.98    -      -      -      -     or	rcx, rax
- -      -     1.00    -      -      -      -      -     shr	rcx, 16
- -      -     0.99   0.01    -      -      -      -     mov	ax, -16192
- -      -     1.00    -      -      -      -      -     shl	rcx, 16
- -      -      -     1.00    -      -      -      -     movzx	eax, ax
- -      -      -     1.00    -      -      -      -     or	rax, rcx
- -      -      -      -      -     1.00    -      -     ret
- -      -     1.00    -      -      -      -      -     shl	rcx, 16
- -      -      -     1.00    -      -      -      -     movzx	eax, ax
- -      -      -     0.99    -     0.01    -      -     or	rax, rcx
+ -      -     0.50   0.49    -     0.01    -      -     mov	eax, 49345
+ -      -     0.49   0.51    -      -      -      -     cmp	rsi, 6
+ -      -      -      -      -     1.00    -      -     jne	.LBB5_3
+ -      -     0.47   0.53    -      -     0.43   0.57   cmp	word ptr [rdi], -16192
+ -      -      -      -      -     1.00    -      -     jne	.LBB5_3
+ -      -      -      -      -      -     0.57   0.43   mov	eax, dword ptr [rdi + 2]
+ -      -     1.00    -      -      -      -      -     shl	rax, 16
+ -      -     0.04   0.96    -      -      -      -     or	rax, 49344
  -      -      -      -      -     1.00    -      -     ret

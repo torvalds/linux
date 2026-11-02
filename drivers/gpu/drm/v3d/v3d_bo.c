@@ -19,6 +19,7 @@
 #include <linux/vmalloc.h>
 
 #include <drm/drm_print.h>
+#include <drm/drm_timeout.h>
 
 #include "v3d_drv.h"
 #include "uapi/drm/v3d_drm.h"
@@ -281,7 +282,7 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 	ktime_t start = ktime_get();
 	u64 delta_ns;
 	unsigned long timeout_jiffies =
-		nsecs_to_jiffies_timeout(args->timeout_ns);
+		drm_timeout_rel_to_jiffies(args->timeout_ns);
 
 	if (args->pad != 0)
 		return -EINVAL;

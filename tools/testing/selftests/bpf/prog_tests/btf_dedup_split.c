@@ -554,6 +554,120 @@ cleanup:
 	btf__free(vmlinux_btf);
 }
 
+static void test_split_loc(void)
+{
+	struct btf *btf1, *btf2;
+	int err;
+
+	btf1 = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf1, "empty_main_btf"))
+		return;
+
+	btf__set_pointer_size(btf1, 8); /* enforce 64-bit arch */
+
+
+	btf__add_int(btf1, "long", 8, BTF_INT_SIGNED);  /* [1] long */
+	btf__add_ptr(btf1, 1);                          /* [2] ptr to long */
+	btf__add_func_proto(btf1, 1);			/* [3] long (*)(long, long *); */
+	btf__add_func_param(btf1, "p1", 1);
+	btf__add_func_param(btf1, "p2", 2);
+	btf__add_func(btf1, "foo", BTF_FUNC_STATIC, 3);	/* [4] long foo(long, long *); */
+	btf__add_loc_param(btf1, 8, BTF_LOC_PARAM_CONST);
+	btf__add_loc_param_value(btf1, 3735928559);
+	btf__add_loc_param_value(btf1, 4277009102);	/* [5] loc value */
+	btf__add_loc_param(btf1, 8, BTF_LOC_PARAM_REG);	/* [6] loc reg 1 */
+	btf__add_loc_param_value(btf1, 1);
+	btf__add_loc_proto(btf1);			/* [7] loc proto */
+	btf__add_loc_proto_param(btf1, 5);		/*  param value */
+	btf__add_loc_proto_param(btf1, 6);		/*  param reg 1 */
+
+	VALIDATE_RAW_BTF(
+		btf1,
+		"[1] INT 'long' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1",
+		"[3] FUNC_PROTO '(anon)' ret_type_id=1 vlen=2\n"
+		"\t'p1' type_id=1\n"
+		"\t'p2' type_id=2",
+		"[4] FUNC 'foo' type_id=3 linkage=static",
+		"[5] LOC_PARAM '(anon)' size=8 flags=0x2 vlen=2\n"
+		"\tvalue=3735928559\n"
+		"\tvalue=4277009102",
+		"[6] LOC_PARAM '(anon)' size=8 flags=0x8 vlen=1\n"
+		"\tvalue=1",
+		"[7] LOC_PROTO '(anon)' vlen=2\n"
+		"\ttype_id=5\n"
+		"\ttype_id=6");
+
+	btf2 = btf__new_empty_split(btf1);
+	if (!ASSERT_OK_PTR(btf2, "empty_split_btf"))
+		goto cleanup;
+	btf__add_loc_param(btf2, 8, BTF_LOC_PARAM_REG);
+	btf__add_loc_param_value(btf2, 1);		/* [8] loc reg 1 */
+	btf__add_loc_proto(btf2);			/* [9] loc proto */
+	btf__add_loc_proto_param(btf2, 5);		/* param value */
+	btf__add_loc_proto_param(btf2, 8);		/* param reg 1 */
+	btf__add_locsec(btf2, "inline.text");		/* [10] locsec "inline.text" */
+	/* add duplicate locsec */
+	btf__add_locsec_loc(btf2, 4, 9, 128);
+	btf__add_locsec(btf2, "inline.text");		/* [11] locsec "inline.text" */
+	btf__add_locsec_loc(btf2, 4, 9, 128);
+
+	VALIDATE_RAW_BTF(
+		btf2,
+		"[1] INT 'long' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1",
+		"[3] FUNC_PROTO '(anon)' ret_type_id=1 vlen=2\n"
+		"\t'p1' type_id=1\n"
+		"\t'p2' type_id=2",
+		"[4] FUNC 'foo' type_id=3 linkage=static",
+		"[5] LOC_PARAM '(anon)' size=8 flags=0x2 vlen=2\n"
+		"\tvalue=3735928559\n"
+		"\tvalue=4277009102",
+		"[6] LOC_PARAM '(anon)' size=8 flags=0x8 vlen=1\n"
+		"\tvalue=1",
+		"[7] LOC_PROTO '(anon)' vlen=2\n"
+		"\ttype_id=5\n"
+		"\ttype_id=6",
+		"[8] LOC_PARAM '(anon)' size=8 flags=0x8 vlen=1\n"
+		"\tvalue=1",
+		"[9] LOC_PROTO '(anon)' vlen=2\n"
+		"\ttype_id=5\n"
+		"\ttype_id=8",
+		"[10] LOCSEC 'inline.text' vlen=1\n"
+		"\tfunc_type_id=4 loc_proto_type_id=9 offset=128",
+		"[11] LOCSEC 'inline.text' vlen=1\n"
+		"\tfunc_type_id=4 loc_proto_type_id=9 offset=128");
+
+	err = btf__dedup(btf2, NULL);
+	if (!ASSERT_OK(err, "btf_dedup"))
+		goto cleanup;
+
+	VALIDATE_RAW_BTF(
+		btf2,
+		"[1] INT 'long' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1",
+		"[3] FUNC_PROTO '(anon)' ret_type_id=1 vlen=2\n"
+		"\t'p1' type_id=1\n"
+		"\t'p2' type_id=2",
+		"[4] FUNC 'foo' type_id=3 linkage=static",
+		"[5] LOC_PARAM '(anon)' size=8 flags=0x2 vlen=2\n"
+		"\tvalue=3735928559\n"
+		"\tvalue=4277009102",
+		"[6] LOC_PARAM '(anon)' size=8 flags=0x8 vlen=1\n"
+		"\tvalue=1",
+		"[7] LOC_PROTO '(anon)' vlen=2\n"
+		"\ttype_id=5\n"
+		"\ttype_id=6",
+		"[8] LOCSEC 'inline.text' vlen=1\n"
+		"\tfunc_type_id=4 loc_proto_type_id=7 offset=128",
+		"[9] LOCSEC 'inline.text' vlen=1\n"
+		"\tfunc_type_id=4 loc_proto_type_id=7 offset=128");
+
+cleanup:
+	btf__free(btf2);
+	btf__free(btf1);
+}
+
 void test_btf_dedup_split()
 {
 	if (test__start_subtest("split_simple"))
@@ -566,4 +680,6 @@ void test_btf_dedup_split()
 		test_split_dup_struct_in_cu();
 	if (test__start_subtest("split_module"))
 		test_split_module();
+	if (test__start_subtest("split_loc"))
+		test_split_loc();
 }

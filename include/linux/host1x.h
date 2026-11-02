@@ -237,6 +237,8 @@ void host1x_syncpt_release_vblank_reservation(struct host1x_client *client,
 struct dma_fence *host1x_fence_create(struct host1x_syncpt *sp, u32 threshold,
 				      bool timeout);
 void host1x_fence_cancel(struct dma_fence *fence);
+int host1x_fence_extract(struct dma_fence *fence, struct host1x **host1x,
+			 u32 *id, u32 *threshold);
 
 /*
  * host1x channel
@@ -465,13 +467,26 @@ int host1x_client_resume(struct host1x_client *client);
 struct host1x_memory_context {
 	struct host1x *host;
 
-	refcount_t ref;
-	struct pid *owner;
+	struct device *dev; /* Owning engine */
+	struct pid *pid;
 
-	struct device_dma_parameters dma_parms;
-	struct device dev;
-	u64 dma_mask;
-	u32 stream_id;
+	refcount_t ref;
+	bool static_alloc;
+
+	struct host1x_hw_memory_context *hw;
+	struct list_head entry; /* Entry in hw_memory_context's list */
+	struct list_head mappings; /* List of mappings */
+};
+
+struct host1x_context_mapping {
+	struct host1x *host;
+
+	struct host1x_bo_mapping *mapping;
+
+	struct host1x_bo *bo;
+	enum dma_data_direction direction;
+
+	struct list_head entry;
 };
 
 #ifdef CONFIG_IOMMU_API
@@ -480,6 +495,12 @@ struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
 							  struct pid *pid);
 void host1x_memory_context_get(struct host1x_memory_context *cd);
 void host1x_memory_context_put(struct host1x_memory_context *cd);
+int host1x_memory_context_active(struct host1x_memory_context *cd);
+void host1x_memory_context_inactive(struct host1x_memory_context *cd);
+struct host1x_context_mapping *host1x_memory_context_map(struct host1x_memory_context *ctx,
+							 struct host1x_bo *bo,
+							 enum dma_data_direction direction);
+void host1x_memory_context_unmap(struct host1x_context_mapping *m);
 #else
 static inline struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
 									struct device *dev,
@@ -493,6 +514,26 @@ static inline void host1x_memory_context_get(struct host1x_memory_context *cd)
 }
 
 static inline void host1x_memory_context_put(struct host1x_memory_context *cd)
+{
+}
+
+static inline int host1x_memory_context_active(struct host1x_memory_context *cd)
+{
+	return -ENODEV;
+}
+
+static inline void host1x_memory_context_inactive(struct host1x_memory_context *cd)
+{
+}
+
+static inline struct host1x_context_mapping *
+host1x_memory_context_map(struct host1x_memory_context *ctx, struct host1x_bo *bo,
+			  enum dma_data_direction direction)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline void host1x_memory_context_unmap(struct host1x_context_mapping *m)
 {
 }
 #endif

@@ -147,15 +147,17 @@ static const struct device_type ulpi_dev_type = {
  * __ulpi_register_driver - register a driver with the ULPI bus
  * @drv: driver being registered
  * @module: ends up being THIS_MODULE
+ * @mod_name: ends up being KBUILD_MODNAME
  *
  * Registers a driver with the ULPI bus.
  */
-int __ulpi_register_driver(struct ulpi_driver *drv, struct module *module)
+int __ulpi_register_driver(struct ulpi_driver *drv, struct module *module, const char *mod_name)
 {
 	if (!drv->probe)
 		return -EINVAL;
 
 	drv->driver.owner = module;
+	drv->driver.mod_name = mod_name;
 	drv->driver.bus = &ulpi_bus;
 
 	return driver_register(&drv->driver);

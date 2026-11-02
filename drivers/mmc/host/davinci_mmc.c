@@ -1249,6 +1249,10 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 	host->use_dma = use_dma;
 	host->mmc_irq = irq;
 	host->sdio_irq = platform_get_irq_optional(pdev, 1);
+	if (host->sdio_irq < 0 && host->sdio_irq != -ENXIO) {
+		ret = host->sdio_irq;
+		goto parse_fail;
+	}
 
 	if (host->use_dma) {
 		ret = davinci_acquire_dma_channels(host);
@@ -1299,7 +1303,7 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 	if (ret)
 		goto mmc_add_host_fail;
 
-	if (host->sdio_irq >= 0) {
+	if (host->sdio_irq > 0) {
 		ret = devm_request_irq(&pdev->dev, host->sdio_irq,
 				       mmc_davinci_sdio_irq, 0,
 				       mmc_hostname(mmc), host);

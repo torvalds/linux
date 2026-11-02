@@ -20,6 +20,8 @@ use syn::{
     MetaList,
 };
 
+use crate::util::{path_is_ident, to_ident_str};
+
 /// The computed representation of a type.
 ///
 /// This is the result of processing all `#[repr(...)]` attributes on a type, if
@@ -524,11 +526,11 @@ impl RawRepr {
         let mut reprs = Vec::new();
         for attr in attrs {
             // Ignore documentation attributes.
-            if attr.path().is_ident("doc") {
+            if path_is_ident(attr.path(), "doc") {
                 continue;
             }
             if let Meta::List(ref meta_list) = attr.meta {
-                if meta_list.path.is_ident("repr") {
+                if path_is_ident(&meta_list.path, "repr") {
                     let parsed: Punctuated<Meta, Comma> =
                         match meta_list.parse_args_with(Punctuated::parse_terminated) {
                             Ok(parsed) => parsed,
@@ -564,6 +566,8 @@ impl RawRepr {
         let ident = path.get_ident().ok_or(UnrecognizedReprError)?;
 
         // Only returns `Ok` for non-zero power-of-two values.
+        // `NonZeroU32::is_power_of_two` is unsupported on our MSRV.
+        #[allow(clippy::needless_nonzero_get)]
         let parse_nzu64 = |list: &MetaList| {
             list.parse_args::<LitInt>()
                 .and_then(|int| int.base10_parse::<NonZeroU32>())
@@ -578,7 +582,8 @@ impl RawRepr {
         };
 
         use RawRepr::*;
-        Ok(match (ident.to_string().as_str(), list) {
+        let ident = to_ident_str(ident);
+        Ok(match (ident.as_str(), list) {
             ("u8", None) => U8,
             ("u16", None) => U16,
             ("u32", None) => U32,
@@ -743,7 +748,40 @@ mod tests {
         use PrimitiveRepr::*;
         let nz = |n: u32| NonZeroU32::new(n).unwrap();
 
+        // Rust treats raw identifiers and their ordinary spellings as the
+        // same representation hints. Exercise every spelling recognized by
+        // `RawRepr::from_meta` so that adding a hint cannot accidentally
+        // reintroduce raw-identifier-sensitive parsing.
+        macro_rules! test_raw_repr {
+            ($ordinary:meta, $raw:meta => $expected:expr) => {{
+                let ordinary: Meta = parse_quote!($ordinary);
+                let raw: Meta = parse_quote!($raw);
+                assert_eq!(RawRepr::from_meta(&ordinary).ok().unwrap(), $expected);
+                assert_eq!(RawRepr::from_meta(&raw).ok().unwrap(), $expected);
+            }};
+        }
+
+        test_raw_repr!(transparent, r#transparent => RawRepr::Transparent);
+        test_raw_repr!(C, r#C => RawRepr::C);
+        test_raw_repr!(Rust, r#Rust => RawRepr::Rust);
+        test_raw_repr!(u8, r#u8 => RawRepr::U8);
+        test_raw_repr!(u16, r#u16 => RawRepr::U16);
+        test_raw_repr!(u32, r#u32 => RawRepr::U32);
+        test_raw_repr!(u64, r#u64 => RawRepr::U64);
+        test_raw_repr!(u128, r#u128 => RawRepr::U128);
+        test_raw_repr!(usize, r#usize => RawRepr::Usize);
+        test_raw_repr!(i8, r#i8 => RawRepr::I8);
+        test_raw_repr!(i16, r#i16 => RawRepr::I16);
+        test_raw_repr!(i32, r#i32 => RawRepr::I32);
+        test_raw_repr!(i64, r#i64 => RawRepr::I64);
+        test_raw_repr!(i128, r#i128 => RawRepr::I128);
+        test_raw_repr!(isize, r#isize => RawRepr::Isize);
+        test_raw_repr!(align(2), r#align(2) => RawRepr::Align(nz(2)));
+        test_raw_repr!(packed, r#packed => RawRepr::Packed);
+        test_raw_repr!(packed(2), r#packed(2) => RawRepr::PackedN(nz(2)));
+
         test!(#[repr(transparent)] => StructUnionRepr::Transparent(s()));
+        test!(#[r#repr(r#transparent)] => StructUnionRepr::Transparent(s()));
         test!(#[repr()] => StructUnionRepr::Compound(Rust.into(), None));
         test!(#[repr(packed)] => StructUnionRepr::Compound(Rust.into(), Some(Packed(nz(1)).into())));
         test!(#[repr(packed(2))] => StructUnionRepr::Compound(Rust.into(), Some(Packed(nz(2)).into())));
@@ -754,6 +792,8 @@ mod tests {
         test!(#[repr(C, packed(2))] => StructUnionRepr::Compound(C.into(), Some(Packed(nz(2)).into())));
         test!(#[repr(C, align(1))] => StructUnionRepr::Compound(C.into(), Some(Align(nz(1)).into())));
         test!(#[repr(C, align(2))] => StructUnionRepr::Compound(C.into(), Some(Align(nz(2)).into())));
+        test!(#[r#repr(r#C, r#align(2))] => StructUnionRepr::Compound(C.into(), Some(Align(nz(2)).into())));
+        test!(#[r#repr(r#C, r#packed(2))] => StructUnionRepr::Compound(C.into(), Some(Packed(nz(2)).into())));
 
         test!(#[repr(transparent)] => EnumRepr::Transparent(s()));
         test!(#[repr()] => EnumRepr::Compound(Rust.into(), None));

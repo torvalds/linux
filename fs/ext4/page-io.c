@@ -22,6 +22,7 @@
 #include <linux/bio.h>
 #include <linux/workqueue.h>
 #include <linux/kernel.h>
+#include <linux/iomap.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/sched/mm.h>
@@ -29,6 +30,8 @@
 #include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
+
+#include <trace/events/ext4.h>
 
 static struct kmem_cache *io_end_cachep;
 static struct kmem_cache *io_end_vec_cachep;
@@ -546,4 +549,202 @@ void ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 			continue;
 		io_submit_add_bh(io, inode, folio, bh);
 	} while ((bh = bh->b_this_page) != head);
+}
+
+/*
+ * If the current writeback range starts beyond the zeroed EOF pending
+ * range that straddles i_disksize, wait for the zeroed data from
+ * ext4_block_zero_eof() to be written out first. Otherwise, extending
+ * i_disksize may expose stale data in the old EOF block.
+ */
+static void ext4_iomap_wb_disksize_pending_wait(struct inode *inode,
+						loff_t pos, size_t size)
+{
+	loff_t disksize = READ_ONCE(EXT4_I(inode)->i_disksize);
+	loff_t pstart, plen;
+
+	/*
+	 * Overwrite I/Os and I/Os covering the EOF block do not need to
+	 * wait: the former do not advance i_disksize past the pending
+	 * boundary, and the latter are the pending I/O itself (cleared in
+	 * the bio completion path).
+	 */
+	if (pos < round_up(disksize, i_blocksize(inode)))
+		return;
+
+	plen = ext4_iomap_get_disksize_pending_range(inode, &pstart);
+	if (!plen || pos < pstart + plen)
+		return;
+
+	trace_ext4_iomap_wb_disksize_pending_wait(inode, pos, size);
+	ext4_iomap_wait_disksize_pending(inode);
+}
+
+static int ext4_iomap_wb_update_disksize(handle_t *handle, struct inode *inode,
+					 loff_t end, bool is_disksize_grow)
+{
+	loff_t new_disksize, i_size;
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	int ret;
+
+	/*
+	 * Races with truncate are avoided by checking i_size under
+	 * i_data_sem.
+	 */
+	down_write(&ei->i_data_sem);
+	i_size = i_size_read(inode);
+
+	/*
+	 * EXT4_STATE_DISKSIZE_GROW_PENDING is cleared when the pending
+	 * I/O completes. However, another thread may have re-set the bit
+	 * between that point and here, meaning i_disksize has already
+	 * been advanced and a new EOF zeroing has been initiated. In that
+	 * case, do not advance i_disksize to i_size; leave it to the
+	 * next pending grow ioend.
+	 */
+	if (is_disksize_grow &&
+	    ext4_test_inode_state(inode, EXT4_STATE_DISKSIZE_GROW_PENDING))
+		is_disksize_grow = false;
+
+	/*
+	 * Update i_disksize to i_size when EXT4_IOMAP_IOEND_DISKSIZE_GROW_IO
+	 * completes. This is safe because we never directly allocate written
+	 * blocks during buffered writes.
+	 *
+	 * This ensures that i_disksize is correctly advanced during
+	 * truncate-up or append fallocate on a block-unaligned file,
+	 * preventing it from remaining stale. The tradeoff is that zeroed
+	 * data may be exposed after crash recovery if dirty data in this
+	 * range is not yet on disk, but stale data will never be exposed.
+	 * This is because the extent is only converted to written state
+	 * after the data has been persisted.
+	 */
+	new_disksize = is_disksize_grow ? i_size : min(end, i_size);
+	if (new_disksize > ei->i_disksize) {
+		trace_ext4_iomap_wb_update_disksize(inode, end, i_size,
+				ei->i_disksize, new_disksize, is_disksize_grow);
+		WRITE_ONCE(ei->i_disksize, new_disksize);
+	}
+	up_write(&ei->i_data_sem);
+	ret = ext4_mark_inode_dirty(handle, inode);
+	if (ret)
+		EXT4_ERROR_INODE_ERR(inode, -ret, "Failed to mark inode dirty");
+
+	return ret;
+}
+
+static void ext4_iomap_finish_ioend(struct iomap_ioend *ioend)
+{
+	struct inode *inode = ioend->io_inode;
+	struct super_block *sb = inode->i_sb;
+	loff_t pos = ioend->io_offset;
+	size_t size = ioend->io_size;
+	loff_t end = pos + size;
+	unsigned long io_mode = (unsigned long)ioend->io_private;
+	bool is_disksize_grow = (io_mode == EXT4_IOMAP_IOEND_DISKSIZE_GROW_IO);
+	handle_t *handle;
+	int credits;
+	int ret, err;
+
+	ret = blk_status_to_errno(ioend->io_bio.bi_status);
+	if (is_disksize_grow)
+		trace_ext4_iomap_wb_disksize_pending_complete(ioend->io_inode,
+				ioend->io_offset, ioend->io_size, ret);
+	if (unlikely(ret)) {
+		if (test_opt(sb, DATA_ERR_ABORT) && !ext4_emergency_state(sb))
+			jbd2_journal_abort(EXT4_SB(sb)->s_journal, ret);
+		goto out;
+	}
+
+	if (!(ioend->io_flags & IOMAP_IOEND_UNWRITTEN) &&
+	    end <= READ_ONCE(EXT4_I(inode)->i_disksize) && !is_disksize_grow)
+		goto out;
+
+	/* Wait for disksize-pending zeroed data to be written out. */
+	ext4_iomap_wb_disksize_pending_wait(inode, pos, size);
+
+	/*
+	 * We may need to convert one extent, update the i_disksize and
+	 * dirty the inode.
+	 */
+	credits = ext4_chunk_trans_blocks(inode,
+			EXT4_MAX_BLOCKS(size, pos, inode->i_blkbits));
+	handle = ext4_journal_start(inode, EXT4_HT_EXT_CONVERT, credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		goto out_err;
+	}
+
+	/* Update on-disk size after I/O is completed. */
+	if (end > READ_ONCE(EXT4_I(inode)->i_disksize) || is_disksize_grow) {
+		ret = ext4_iomap_wb_update_disksize(handle, inode, end,
+						    is_disksize_grow);
+		if (ret)
+			goto out_journal;
+	}
+
+	if (ioend->io_flags & IOMAP_IOEND_UNWRITTEN)
+		ret = ext4_convert_unwritten_extents(handle, inode, pos,
+						     size, NULL);
+
+out_journal:
+	err = ext4_journal_stop(handle);
+	if (!ret)
+		ret = err;
+out_err:
+	if (ret < 0 && !ext4_emergency_state(sb)) {
+		ext4_msg(sb, KERN_EMERG,
+			 "failed to convert unwritten extents to written extents or update inode size -- potential data loss! (inode %llu, error %d)",
+			 inode->i_ino, ret);
+	}
+out:
+	iomap_finish_ioends(ioend, ret);
+}
+
+/*
+ * Work on buffered iomap completed IO, to convert unwritten extents to
+ * mapped extents
+ */
+void ext4_iomap_end_io(struct work_struct *work)
+{
+	struct ext4_inode_info *ei = container_of(work, struct ext4_inode_info,
+						  i_rsv_conversion_work);
+	struct iomap_ioend *ioend;
+	struct list_head ioend_list;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	list_replace_init(&ei->i_rsv_conversion_list, &ioend_list);
+	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+
+	iomap_sort_ioends(&ioend_list);
+	while (!list_empty(&ioend_list)) {
+		ioend = list_entry(ioend_list.next, struct iomap_ioend, io_list);
+		list_del_init(&ioend->io_list);
+		iomap_ioend_try_merge(ioend, &ioend_list);
+		ext4_iomap_finish_ioend(ioend);
+	}
+}
+
+void ext4_iomap_end_bio(struct bio *bio)
+{
+	struct iomap_ioend *ioend = iomap_ioend_from_bio(bio);
+	struct ext4_inode_info *ei = EXT4_I(ioend->io_inode);
+	unsigned long io_mode = (unsigned long)ioend->io_private;
+	unsigned long flags;
+
+	/*
+	 * This is a disksize-pending I/O: clear the disksize-pending
+	 * state set in ext4_block_zero_eof() and wake up all waiters
+	 * that will update the inode i_disksize.
+	 */
+	if (io_mode == EXT4_IOMAP_IOEND_DISKSIZE_GROW_IO)
+		ext4_iomap_clear_disksize_pending(ioend->io_inode);
+
+	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	if (list_empty(&ei->i_rsv_conversion_list))
+		queue_work(EXT4_SB(ioend->io_inode->i_sb)->rsv_conversion_wq,
+			   &ei->i_rsv_conversion_work);
+	list_add_tail(&ioend->io_list, &ei->i_rsv_conversion_list);
+	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 }

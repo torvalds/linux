@@ -191,6 +191,22 @@ allOf:
       properties:
         compatible:
           enum:
+            - qcom,pm6350-rpmh-regulators
+    then:
+      properties:
+        vdd-l2-l5-l7-supply: true
+        vdd-l3-l6-l8-l9-l10-supply: true
+        vdd-l12-l14-supply: true
+        vdd-l15-l19-l22-supply: true
+        vdd-l18-l20-l21-supply: true
+      patternProperties:
+        "^vdd-l([14]|1[1367])-supply$": true
+        "^vdd-s[1-6]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
             - qcom,pm660-rpmh-regulators
     then:
       properties:

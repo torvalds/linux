@@ -326,6 +326,8 @@ static int ad8366_probe(struct spi_device *spi)
 
 	st->spi = spi;
 	st->info = spi_get_device_match_data(spi);
+	if (!st->info)
+		return -ENODATA;
 
 	enable_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(enable_gpio))

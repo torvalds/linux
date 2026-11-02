@@ -357,7 +357,7 @@ Processo de resolução
 ~~~~~~~~~~~~~~~~~~~~~
 
 Às vezes, a coisa mais fácil a fazer é apenas remover tudo, exceto a primeira
-parteda do conflito, deixando o arquivo essencialmente inalterado, e aplicar
+parte do conflito, deixando o arquivo essencialmente inalterado, e aplicar
 as alterações manualmente. Talvez o patch esteja alterando um argumento de
 chamada de função de ``0`` para ``1``, enquanto uma alteração conflitante
 adicionou um parâmetro totalmente novo (e insignificante) ao final da lista de
@@ -403,7 +403,7 @@ de volta (``git mv`` e commitando novamente) e, finalmente, esmagar (squash) o
 resultado usando ``git rebase -i`` (veja o `tutorial de rebase`_) para que ele
 apareça como um único commit quando você terminar.
 
-.. _tutorial de rebase: [https://medium.com/@slamflipstrom/a-beginners-guide-to-squashing-commits-with-git-rebase-8185cf6e62ec](https://medium.com/@slamflipstrom/a-beginners-guide-to-squashing-commits-with-git-rebase-8185cf6e62ec)
+.. _tutorial de rebase: https://medium.com/@slamflipstrom/a-beginners-guide-to-squashing-commits-with-git-rebase-8185cf6e62ec
 
 Pegadinhas
 ----------

@@ -120,7 +120,8 @@ static int vsp1_vspx_rwpf_set_subdev_fmt(struct vsp1_device *vsp1,
 	format.format.field = V4L2_FIELD_NONE;
 	format.format.code = rwpf->fmtinfo->mbus;
 
-	return v4l2_subdev_call(&ent->subdev, pad, set_fmt, NULL, &format);
+	return v4l2_subdev_call(&ent->subdev, pad, set_fmt, NULL, NULL,
+				&format);
 }
 
 /* Configure the RPF->IIF->WPF pipeline for ConfigDMA or RAW image transfer. */

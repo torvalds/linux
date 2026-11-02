@@ -8,8 +8,11 @@
 #include <linux/aer.h>
 #include <linux/array_size.h>
 #include <linux/bitfield.h>
+#include <linux/build_bug.h>
+#include <linux/minmax.h>
 #include <linux/pci.h>
 #include <linux/string.h>
+#include <linux/unaligned.h>
 
 #include "../pci.h"
 
@@ -91,6 +94,91 @@ int pcie_read_tlp_log(struct pci_dev *dev, int where, int where2,
 
 	return 0;
 }
+
+/* The Prefix Log registers hold dw[4..13] in Flit mode. */
+static_assert((PCI_ERR_PREFIX_LOG +
+	       (PCIE_STD_MAX_TLP_HEADERLOG - PCIE_STD_NUM_TLP_HEADERLOG) *
+	       sizeof(u32)) == PCIE_AER_CAP_HW_SIZE);
+
+/**
+ * aer_cap_regs_unpack - Convert a raw AER Capability image to the kernel layout
+ * @regs: Destination, fully initialised
+ * @raw: AER Capability register block in hardware order, little-endian
+ * @raw_len: Bytes readable at @raw
+ *
+ * struct aer_capability_regs is not the hardware layout: struct pcie_tlp_log
+ * spans 60 bytes where the Header Log it stands in for is 16, so a flat copy
+ * misplaces everything behind it. Map the registers one by one instead,
+ * taking the TLP Log layout from the Flit bit as pcie_read_tlp_log() does.
+ *
+ * @raw is not necessarily aligned. Registers past @raw_len are left zero, so
+ * a short image cannot be read past.
+ */
+void aer_cap_regs_unpack(struct aer_capability_regs *regs, const void *raw,
+			 size_t raw_len)
+{
+	unsigned int i, tlp_len;
+	bool flit;
+
+	memset(regs, 0, sizeof(*regs));
+
+	if (raw_len < PCI_ERR_HEADER_LOG)
+		return;
+
+	/* The Extended Capability Header, at offset 0, has no define */
+	regs->header = get_unaligned_le32(raw);
+	regs->uncor_status = get_unaligned_le32(raw + PCI_ERR_UNCOR_STATUS);
+	regs->uncor_mask = get_unaligned_le32(raw + PCI_ERR_UNCOR_MASK);
+	regs->uncor_severity = get_unaligned_le32(raw + PCI_ERR_UNCOR_SEVER);
+	regs->cor_status = get_unaligned_le32(raw + PCI_ERR_COR_STATUS);
+	regs->cor_mask = get_unaligned_le32(raw + PCI_ERR_COR_MASK);
+	regs->cap_control = get_unaligned_le32(raw + PCI_ERR_CAP);
+
+	flit = FIELD_GET(PCI_ERR_CAP_TLP_LOG_FLIT, regs->cap_control);
+	if (flit) {
+		tlp_len = FIELD_GET(PCI_ERR_CAP_TLP_LOG_SIZE, regs->cap_control);
+	} else {
+		/*
+		 * dw[4..7] alias the Prefix Log. Take all four whatever
+		 * eetlp_prefix_max says; pcie_print_tlp_log() stops at the
+		 * first zero one.
+		 */
+		tlp_len = PCIE_STD_NUM_TLP_HEADERLOG + PCIE_STD_MAX_TLP_PREFIXLOG;
+	}
+
+	tlp_len = min(tlp_len, ARRAY_SIZE(regs->header_log.dw));
+
+	for (i = 0; i < tlp_len; i++) {
+		unsigned int off;
+
+		if (i < PCIE_STD_NUM_TLP_HEADERLOG)
+			off = PCI_ERR_HEADER_LOG + i * sizeof(u32);
+		else
+			off = PCI_ERR_PREFIX_LOG +
+			      (i - PCIE_STD_NUM_TLP_HEADERLOG) * sizeof(u32);
+
+		if (off + sizeof(u32) > raw_len)
+			break;
+		regs->header_log.dw[i] = get_unaligned_le32(raw + off);
+	}
+
+	/* @i may be short of tlp_len; non-Flit needs the TLP parsed, so cap at 4 */
+	regs->header_log.header_len = flit ? i : min(i, PCIE_STD_NUM_TLP_HEADERLOG);
+	regs->header_log.flit = flit;
+
+	if (raw_len >= PCI_ERR_ROOT_COMMAND + sizeof(u32))
+		regs->root_command = get_unaligned_le32(raw + PCI_ERR_ROOT_COMMAND);
+	if (raw_len >= PCI_ERR_ROOT_STATUS + sizeof(u32))
+		regs->root_status = get_unaligned_le32(raw + PCI_ERR_ROOT_STATUS);
+	if (raw_len >= PCI_ERR_ROOT_ERR_SRC + sizeof(u32)) {
+		u32 src = get_unaligned_le32(raw + PCI_ERR_ROOT_ERR_SRC);
+
+		/* One register: ERR_COR in 15:0, ERR_FATAL/NONFATAL in 31:16 */
+		regs->cor_err_source = src;
+		regs->uncor_err_source = src >> 16;
+	}
+}
+EXPORT_SYMBOL_GPL(aer_cap_regs_unpack);
 
 #define EE_PREFIX_STR " E-E Prefixes:"
 

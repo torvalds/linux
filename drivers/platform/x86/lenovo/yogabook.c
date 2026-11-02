@@ -120,10 +120,7 @@ static void yogabook_toggle_digitizer_mode(struct yogabook_data *data)
 	if (test_bit(YB_SUSPENDED, &data->flags))
 		return;
 
-	if (test_bit(YB_DIGITIZER_MODE, &data->flags))
-		clear_bit(YB_DIGITIZER_MODE, &data->flags);
-	else
-		set_bit(YB_DIGITIZER_MODE, &data->flags);
+	change_bit(YB_DIGITIZER_MODE, &data->flags);
 
 	/*
 	 * We are called from the ACPI core and the driver [un]binding which is
@@ -136,10 +133,8 @@ static irqreturn_t yogabook_backside_hall_irq(int irq, void *_data)
 {
 	struct yogabook_data *data = _data;
 
-	if (gpiod_get_value(data->backside_hall_gpio))
-		set_bit(YB_TABLET_MODE, &data->flags);
-	else
-		clear_bit(YB_TABLET_MODE, &data->flags);
+	assign_bit(YB_TABLET_MODE, &data->flags,
+		   gpiod_get_value(data->backside_hall_gpio));
 
 	schedule_work(&data->work);
 
@@ -353,13 +348,13 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 		goto error_put_devs;
 	}
 
-	data->kbd_dev = get_device(acpi_get_first_physical_node(data->kbd_adev));
+	data->kbd_dev = acpi_bus_get_primary_device(data->kbd_adev);
 	if (!data->kbd_dev || !data->kbd_dev->driver) {
 		r = -EPROBE_DEFER;
 		goto error_put_devs;
 	}
 
-	data->dig_dev = get_device(acpi_get_first_physical_node(data->dig_adev));
+	data->dig_dev = acpi_bus_get_primary_device(data->dig_adev);
 	if (!data->dig_dev || !data->dig_dev->driver) {
 		r = -EPROBE_DEFER;
 		goto error_put_devs;

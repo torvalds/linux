@@ -9,13 +9,34 @@
  * Copyright:	(C) Torsten Schenk
  */
 
+#include <linux/bitops.h>
+#include <sound/asoundef.h>
+#include <sound/control.h>
+
 #include "pcm.h"
 #include "chip.h"
 #include "comm.h"
 #include "control.h"
 
+/*
+ * Every USB frame is a 4 byte header followed by 32-bit slots, one per
+ * channel: 3 bytes of sample and a marker byte. Analog slots are marked
+ * 0x40. Up to 96 kHz (altsettings 1 and 2) the playback frame carries two
+ * more slots, 6/7, which carry the data for the S/PDIF transmitter in
+ * the FPGA. Their marker byte tells the transmitter how to frame the
+ * sample: 0x10 marks the left subframe and 0x00 the right one; 0x20 marks
+ * the start of the channel status block (left subframe, every 192
+ * frames); 0x04 is the channel status bit of the subframe; 0x01 is the
+ * validity bit, set for non-audio data; 0x08 is the parity bit, which
+ * makes the number of ones in the sample, the validity and channel status
+ * bits and itself even.
+ * At altsetting 3 (176.4/192 kHz) the packets hold the analog slots only.
+ */
 enum {
-	OUT_N_CHANNELS = 6, IN_N_CHANNELS = 4
+	OUT_N_ANALOG = 6, N_SPDIF = 2,
+	OUT_N_CHANNELS = OUT_N_ANALOG + N_SPDIF, IN_N_CHANNELS = 4,
+	SPDIF_OUT_SLOT = OUT_N_ANALOG,
+	SPDIF_BLOCK_FRAMES = 192
 };
 
 /* keep next two synced with
@@ -24,6 +45,15 @@ enum {
 static const int rates_in_packet_size[] = { 228, 228, 420, 420, 404, 404 };
 static const int rates_out_packet_size[] = { 228, 228, 420, 420, 604, 604 };
 static const int rates[] = { 44100, 48000, 88200, 96000, 176400, 192000 };
+static const u8 rates_iec958_fs[] = {
+	IEC958_AES3_CON_FS_44100, IEC958_AES3_CON_FS_48000,
+	IEC958_AES3_CON_FS_88200, IEC958_AES3_CON_FS_96000,
+	IEC958_AES3_CON_FS_176400, IEC958_AES3_CON_FS_192000 };
+/* channel status bits that "IEC958 Playback Default" sets, bytes 0 and 1 */
+static const u8 spdif_ctl_mask[] = {
+	IEC958_AES0_NONAUDIO | IEC958_AES0_CON_NOT_COPYRIGHT |
+		IEC958_AES0_CON_EMPHASIS,
+	IEC958_AES1_CON_CATEGORY | IEC958_AES1_CON_ORIGINAL };
 static const int rates_alsaid[] = {
 	SNDRV_PCM_RATE_44100, SNDRV_PCM_RATE_48000,
 	SNDRV_PCM_RATE_88200, SNDRV_PCM_RATE_96000,
@@ -71,6 +101,7 @@ static int usb6fire_pcm_set_rate(struct pcm_runtime *rt)
 {
 	int ret;
 	struct control_runtime *ctrl_rt = rt->chip->control;
+	bool spdif;
 
 	ctrl_rt->usb_streaming = false;
 	ret = ctrl_rt->update_streaming(ctrl_rt);
@@ -89,8 +120,9 @@ static int usb6fire_pcm_set_rate(struct pcm_runtime *rt)
 		return ret;
 	}
 
-	ret = ctrl_rt->set_channels(ctrl_rt, OUT_N_CHANNELS, IN_N_CHANNELS,
-			false, false);
+	spdif = rt->rate <= CONTROL_RATE_96KHZ;
+	ret = ctrl_rt->set_channels(ctrl_rt, OUT_N_ANALOG, IN_N_CHANNELS,
+			spdif, false);
 	if (ret < 0) {
 		dev_err(&rt->chip->dev->dev,
 			"error initializing channels while setting samplerate %d.\n",
@@ -104,14 +136,106 @@ static int usb6fire_pcm_set_rate(struct pcm_runtime *rt)
 		dev_err(&rt->chip->dev->dev,
 			"error starting streaming while setting samplerate %d.\n",
 			rates[rt->rate]);
+		/* stream_stop() will not run; clear 0x02/0x03 here */
+		ctrl_rt->usb_streaming = false;
+		ctrl_rt->update_streaming(ctrl_rt);
 		return ret;
 	}
 
 	rt->in_n_analog = IN_N_CHANNELS;
-	rt->out_n_analog = OUT_N_CHANNELS;
+	rt->out_n_slots = spdif ? OUT_N_CHANNELS : OUT_N_ANALOG;
 	rt->in_packet_size = rates_in_packet_size[rt->rate];
 	rt->out_packet_size = rates_out_packet_size[rt->rate];
+
+	/*
+	 * consumer channel status, 24 bit samples; bytes 0 and 1 are taken
+	 * from rt->spdif_bits at the start of every block
+	 */
+	memset(rt->spdif_status, 0, sizeof(rt->spdif_status));
+	rt->spdif_status[3] = rates_iec958_fs[rt->rate];
+	rt->spdif_status[4] = IEC958_AES4_CON_MAX_WORDLEN_24 |
+			IEC958_AES4_CON_WORDLEN_24_20;
+	rt->spdif_frame = 0;
 	return 0;
+}
+
+/*
+ * Return the marker byte of one playback slot whose 3 sample bytes are
+ * already in place. The marker is 0x40 for an analog slot and the S/PDIF
+ * framing for a digital slot. With "IEC958 Playback Switch" off, the
+ * function also clears the sample bytes of a digital slot. After the right
+ * subframe, the function advances the channel status position.
+ */
+static u8 usb6fire_pcm_marker(struct pcm_runtime *rt, int slot,
+		u8 *sample)
+{
+	bool right = slot == SPDIF_OUT_SLOT + 1;
+	unsigned int n = rt->spdif_frame;
+	u8 marker = right ? 0x00 : 0x10;
+	u8 status;
+
+	if (slot < SPDIF_OUT_SLOT)
+		return 0x40;
+	if (!right && n == 0) {
+		/* a new block takes the bits of "IEC958 Playback Default" */
+		u32 bits = READ_ONCE(rt->spdif_bits);
+
+		rt->spdif_status[0] = bits & 0xff;
+		rt->spdif_status[1] = bits >> 8;
+		/*
+		 * "IEC958 Playback Switch" off omits the block start flag and
+		 * clears the sample bytes of the digital slots
+		 */
+		rt->spdif_on = READ_ONCE(rt->spdif_switch);
+		if (rt->spdif_on)
+			marker |= 0x20;
+	}
+	if (!rt->spdif_on)
+		memset(sample, 0, 3);
+	status = rt->spdif_status[n >> 3];
+	/* byte 2 holds the channel number: 1 = A (left), 2 = B (right) */
+	if ((n >> 3) == 2)
+		status |= right ? (2 << 4) : (1 << 4);
+	if (status & (1 << (n & 7)))
+		marker |= 0x04;
+	/* V = 1 for non-audio data (AC3, DTS), as the vendor driver does */
+	if (rt->spdif_status[0] & IEC958_AES0_NONAUDIO)
+		marker |= 0x01;
+	/* P makes the number of ones in bits 0-27 (sample, V, U, C, P) even */
+	if (parity8(sample[0] ^ sample[1] ^ sample[2] ^ (marker & 0x07)))
+		marker |= 0x08;
+	if (right)
+		rt->spdif_frame = (n + 1) % SPDIF_BLOCK_FRAMES;
+	return marker;
+}
+
+/* more than OUT_N_ANALOG playback channels need a rate up to 96 kHz */
+static int usb6fire_pcm_rule_channels(struct snd_pcm_hw_params *params,
+		struct snd_pcm_hw_rule *rule)
+{
+	const struct snd_interval *r =
+		hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval t = { .min = 1, .max = OUT_N_ANALOG, .integer = 1 };
+
+	if (r->min <= rates[CONTROL_RATE_96KHZ])
+		return 0;
+	return snd_interval_refine(hw_param_interval(params,
+			SNDRV_PCM_HW_PARAM_CHANNELS), &t);
+}
+
+static int usb6fire_pcm_rule_rate(struct snd_pcm_hw_params *params,
+		struct snd_pcm_hw_rule *rule)
+{
+	const struct snd_interval *c =
+		hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_interval t = {
+		.min = 0, .max = rates[CONTROL_RATE_96KHZ], .integer = 1
+	};
+
+	if (c->min <= OUT_N_ANALOG)
+		return 0;
+	return snd_interval_refine(hw_param_interval(params,
+			SNDRV_PCM_HW_PARAM_RATE), &t);
 }
 
 static struct pcm_substream *usb6fire_pcm_get_substream(
@@ -264,19 +388,21 @@ static void usb6fire_pcm_playback(struct pcm_substream *sub,
 	}
 
 	for (i = 0; i < PCM_N_PACKETS_PER_URB; i++) {
-		/* at least 4 header bytes for valid packet.
-		 * after that: 32 bits per sample for analog channels */
+		/*
+		 * at least 4 header bytes for valid packet.
+		 * after that: 32 bits per slot
+		 */
 		isoc = &urb->instance->iso_frame_desc[i];
 		if (isoc->length > 4)
 			frame_count = (isoc->length - 4)
-					/ (rt->out_n_analog << 2);
+					/ (rt->out_n_slots << 2);
 		else
 			frame_count = 0;
 		dest++; /* skip leading 4 bytes of every frame */
 		for (frame = 0; frame < frame_count; frame++) {
 			memcpy(dest, src, bytes_per_frame);
 			src += alsa_rt->channels;
-			dest += rt->out_n_analog;
+			dest += rt->out_n_slots;
 			sub->dma_off++;
 			sub->period_off++;
 			if (src == src_end) {
@@ -301,6 +427,7 @@ static void usb6fire_pcm_in_urb_handler(struct urb *usb_urb)
 	int channel;
 	int i;
 	u8 *dest;
+	unsigned int spdif_frame;
 
 	if (usb_urb->status || rt->panic || rt->stream_state == STREAM_STOPPING)
 		return;
@@ -344,10 +471,10 @@ static void usb6fire_pcm_in_urb_handler(struct urb *usb_urb)
 					/ (rt->in_n_analog << 2);
 		frames = min_t(unsigned int, frames,
 				       (rt->out_packet_size - 4)
-				       / (rt->out_n_analog << 2));
+				       / (rt->out_n_slots << 2));
 
 		isoc_out->offset = total_length;
-		isoc_out->length = frames * (rt->out_n_analog << 2) + 4;
+		isoc_out->length = frames * (rt->out_n_slots << 2) + 4;
 		isoc_out->status = 0;
 		total_length += isoc_out->length;
 	}
@@ -368,28 +495,38 @@ static void usb6fire_pcm_in_urb_handler(struct urb *usb_urb)
 	if (period_elapsed)
 		snd_pcm_period_elapsed(sub->instance);
 
-	/* setup the 4th byte of each sample (0x40 for analog channels) */
+	/*
+	 * set the 4th byte of each sample (0x40 for analog channels,
+	 * S/PDIF framing for the digital pair)
+	 */
+	spdif_frame = rt->spdif_frame;
 	dest = out_urb->buffer;
 	for (i = 0; i < PCM_N_PACKETS_PER_URB; i++) {
 		isoc_out = &out_urb->instance->iso_frame_desc[i];
 		if (isoc_out->length >= 4) {
 			frame_count = (isoc_out->length - 4)
-					/ (rt->out_n_analog << 2);
+					/ (rt->out_n_slots << 2);
 			*(dest++) = 0xaa;
 			*(dest++) = 0xaa;
 			*(dest++) = frame_count;
 			*(dest++) = 0x00;
 			for (frame = 0; frame < frame_count; frame++)
 				for (channel = 0;
-						channel < rt->out_n_analog;
+						channel < rt->out_n_slots;
 						channel++) {
-					dest += 3; /* skip sample data */
-					*(dest++) = 0x40;
+					dest[3] = usb6fire_pcm_marker(rt,
+							channel, dest);
+					dest += 4;
 				}
 		}
 	}
 
-	usb_submit_urb(out_urb->instance, GFP_ATOMIC);
+	/*
+	 * the frames of an out urb that was not submitted never reach the
+	 * transmitter; the next urb continues the block at the same position
+	 */
+	if (usb_submit_urb(out_urb->instance, GFP_ATOMIC) < 0)
+		rt->spdif_frame = spdif_frame;
 	usb_submit_urb(in_urb->instance, GFP_ATOMIC);
 }
 
@@ -409,6 +546,7 @@ static int usb6fire_pcm_open(struct snd_pcm_substream *alsa_sub)
 	struct pcm_runtime *rt = snd_pcm_substream_chip(alsa_sub);
 	struct pcm_substream *sub = NULL;
 	struct snd_pcm_runtime *alsa_rt = alsa_sub->runtime;
+	int ret;
 
 	if (rt->panic)
 		return -EPIPE;
@@ -420,6 +558,17 @@ static int usb6fire_pcm_open(struct snd_pcm_substream *alsa_sub)
 		if (rt->rate < ARRAY_SIZE(rates))
 			alsa_rt->hw.rates = rates_alsaid[rt->rate];
 		alsa_rt->hw.channels_max = OUT_N_CHANNELS;
+		ret = snd_pcm_hw_rule_add(alsa_rt, 0,
+				SNDRV_PCM_HW_PARAM_CHANNELS,
+				usb6fire_pcm_rule_channels, NULL,
+				SNDRV_PCM_HW_PARAM_RATE, -1);
+		if (ret < 0)
+			return ret;
+		ret = snd_pcm_hw_rule_add(alsa_rt, 0, SNDRV_PCM_HW_PARAM_RATE,
+				usb6fire_pcm_rule_rate, NULL,
+				SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		if (ret < 0)
+			return ret;
 		sub = &rt->playback;
 	} else if (alsa_sub->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		if (rt->rate < ARRAY_SIZE(rates))
@@ -489,7 +638,17 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 				alsa_rt->rate);
 			return -EINVAL;
 		}
-
+	}
+	/* the digital pair is not available at 176.4 and 192 kHz */
+	if (rt->rate > CONTROL_RATE_96KHZ &&
+			alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+			alsa_rt->channels > OUT_N_ANALOG) {
+		dev_err(&rt->chip->dev->dev,
+			"%d channels not available at %d Hz.\n",
+			alsa_rt->channels, rates[rt->rate]);
+		return -EINVAL;
+	}
+	if (rt->stream_state == STREAM_DISABLED) {
 		ret = usb6fire_pcm_set_rate(rt);
 		if (ret)
 			return ret;
@@ -612,6 +771,128 @@ static void usb6fire_pcm_free(struct pcm_runtime *rt)
 	kfree(rt);
 }
 
+static int usb6fire_pcm_spdif_info(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
+	uinfo->count = 1;
+	return 0;
+}
+
+static int usb6fire_pcm_spdif_mask_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	memset(ucontrol->value.iec958.status, 0,
+	       sizeof(ucontrol->value.iec958.status));
+	ucontrol->value.iec958.status[0] = spdif_ctl_mask[0];
+	ucontrol->value.iec958.status[1] = spdif_ctl_mask[1];
+	return 0;
+}
+
+static int usb6fire_pcm_spdif_default_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct pcm_runtime *rt = snd_kcontrol_chip(kcontrol);
+	u32 bits = READ_ONCE(rt->spdif_bits);
+
+	memset(ucontrol->value.iec958.status, 0,
+	       sizeof(ucontrol->value.iec958.status));
+	ucontrol->value.iec958.status[0] = bits & 0xff;
+	ucontrol->value.iec958.status[1] = bits >> 8;
+	return 0;
+}
+
+static int usb6fire_pcm_spdif_default_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct pcm_runtime *rt = snd_kcontrol_chip(kcontrol);
+	u32 bits = (ucontrol->value.iec958.status[0] & spdif_ctl_mask[0]) |
+		(ucontrol->value.iec958.status[1] & spdif_ctl_mask[1]) << 8;
+
+	/* the control core serializes puts; the urb handler uses READ_ONCE */
+	if (rt->spdif_bits == bits)
+		return 0;
+	WRITE_ONCE(rt->spdif_bits, bits);
+	return 1;
+}
+
+static int usb6fire_pcm_spdif_switch_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct pcm_runtime *rt = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = READ_ONCE(rt->spdif_switch);
+	return 0;
+}
+
+static int usb6fire_pcm_spdif_switch_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct pcm_runtime *rt = snd_kcontrol_chip(kcontrol);
+	bool on = ucontrol->value.integer.value[0];
+
+	/* the control core serializes puts; the urb handler uses READ_ONCE */
+	if (rt->spdif_switch == on)
+		return 0;
+	WRITE_ONCE(rt->spdif_switch, on);
+	return 1;
+}
+
+/*
+ * playback channel map: channel n goes to analog output n, which the
+ * manual of the card assigns to FL FR FC LFE RL RR for n = 1..6; a
+ * 1-channel stream is MONO, as in snd_pcm_std_chmaps, and plays on
+ * analog output 1 only; channels 7 and 8 are the S/PDIF pair and have
+ * no position
+ */
+static const struct snd_pcm_chmap_elem usb6fire_pcm_chmaps[] = {
+	{ .channels = 1, .map = { SNDRV_CHMAP_MONO } },
+	{ .channels = 2, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
+	{ .channels = 3, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+				  SNDRV_CHMAP_FC } },
+	{ .channels = 4, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+				  SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE } },
+	{ .channels = 5, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+				  SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE,
+				  SNDRV_CHMAP_RL } },
+	{ .channels = 6, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+				  SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE,
+				  SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
+	{ .channels = 7, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+				  SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE,
+				  SNDRV_CHMAP_RL, SNDRV_CHMAP_RR,
+				  SNDRV_CHMAP_UNKNOWN } },
+	{ .channels = 8, .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+				  SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE,
+				  SNDRV_CHMAP_RL, SNDRV_CHMAP_RR,
+				  SNDRV_CHMAP_UNKNOWN, SNDRV_CHMAP_UNKNOWN } },
+	{ }
+};
+
+static const struct snd_kcontrol_new usb6fire_pcm_spdif_controls[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, DEFAULT),
+		.info = usb6fire_pcm_spdif_info,
+		.get = usb6fire_pcm_spdif_default_get,
+		.put = usb6fire_pcm_spdif_default_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, CON_MASK),
+		.access = SNDRV_CTL_ELEM_ACCESS_READ,
+		.info = usb6fire_pcm_spdif_info,
+		.get = usb6fire_pcm_spdif_mask_get,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, SWITCH),
+		.info = snd_ctl_boolean_mono_info,
+		.get = usb6fire_pcm_spdif_switch_get,
+		.put = usb6fire_pcm_spdif_switch_put,
+	},
+};
+
 int usb6fire_pcm_init(struct sfire_chip *chip)
 {
 	int i;
@@ -630,6 +911,9 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	rt->chip = chip;
 	rt->stream_state = STREAM_DISABLED;
 	rt->rate = ARRAY_SIZE(rates);
+	rt->spdif_switch = true;
+	rt->spdif_bits = IEC958_AES0_CON_NOT_COPYRIGHT |
+			IEC958_AES1_CON_GENERAL << 8;
 	init_waitqueue_head(&rt->stream_wait_queue);
 	mutex_init(&rt->stream_mutex);
 
@@ -665,6 +949,22 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	rt->instance = pcm;
 
 	chip->pcm = rt;
+
+	/* on error, rt and the controls added so far are freed with the card */
+	for (i = 0; i < ARRAY_SIZE(usb6fire_pcm_spdif_controls); i++) {
+		ret = snd_ctl_add(chip->card,
+				snd_ctl_new1(&usb6fire_pcm_spdif_controls[i], rt));
+		if (ret < 0) {
+			dev_err(&chip->dev->dev, "cannot add S/PDIF control.\n");
+			return ret;
+		}
+	}
+	ret = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+			usb6fire_pcm_chmaps, OUT_N_CHANNELS, 0, NULL);
+	if (ret < 0) {
+		dev_err(&chip->dev->dev, "cannot add channel map.\n");
+		return ret;
+	}
 	return 0;
 
  error:

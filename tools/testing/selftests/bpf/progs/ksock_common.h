@@ -16,6 +16,8 @@ int bpf_ksock_connect(struct bpf_ksock *ks, const union bpf_ksock_addr *addr,
 struct bpf_ksock *bpf_ksock_acquire(struct bpf_ksock *ks) __ksym;
 void bpf_ksock_release(struct bpf_ksock *ks) __ksym;
 int bpf_ksock_send(struct bpf_ksock *ks, const void *data, u32 data__sz) __ksym;
+int bpf_ksock_sendto(struct bpf_ksock *ks, const void *data, u32 data__sz,
+		     const union bpf_ksock_addr *addr__nullable, u32 addr__sz) __ksym;
 void bpf_rcu_read_lock(void) __ksym;
 void bpf_rcu_read_unlock(void) __ksym;
 

@@ -50,11 +50,11 @@ static ssize_t nsim_dbg_netdev_ops_read(struct file *filp,
 		p += scnprintf(p, bufsize - (p - buf),
 			       "sa[%i]    spi=0x%08x proto=0x%x salt=0x%08x crypt=%d\n",
 			       i, be32_to_cpu(sap->xs->id.spi),
-			       sap->xs->id.proto, sap->salt, sap->crypt);
+			       sap->xs->id.proto, be32_to_cpu(sap->salt), sap->crypt);
 		p += scnprintf(p, bufsize - (p - buf),
 			       "sa[%i]    key=0x%08x %08x %08x %08x\n",
-			       i, sap->key[0], sap->key[1],
-			       sap->key[2], sap->key[3]);
+			       i, be32_to_cpu(sap->key[0]), be32_to_cpu(sap->key[1]),
+			       be32_to_cpu(sap->key[2]), be32_to_cpu(sap->key[3]));
 	}
 
 	len = simple_read_from_buffer(buffer, count, ppos, buf, p - buf);
@@ -87,7 +87,7 @@ static int nsim_ipsec_find_empty_idx(struct nsim_ipsec *ipsec)
 
 static int nsim_ipsec_parse_proto_keys(struct net_device *dev,
 				       struct xfrm_state *xs,
-				       u32 *mykey, u32 *mysalt)
+				       __be32 *mykey, __be32 *mysalt)
 {
 	const char aes_gcm_name[] = "rfc4106(gcm(aes))";
 	unsigned char *key_data;
@@ -117,7 +117,7 @@ static int nsim_ipsec_parse_proto_keys(struct net_device *dev,
 
 	/* 160 accounts for 16 byte key and 4 byte salt */
 	if (key_len > NSIM_IPSEC_AUTH_BITS) {
-		*mysalt = ((u32 *)key_data)[4];
+		*mysalt = ((__be32 *)key_data)[4];
 	} else if (key_len == NSIM_IPSEC_AUTH_BITS) {
 		*mysalt = 0;
 	} else {

@@ -44,6 +44,14 @@ properties:
   '#gpio-cells':
     const: 2
 
+  clocks:
+    items:
+      - description: phandle and clock specifier for the codec MCLK1 input.
+
+  clock-names:
+    items:
+      - const: mclk1
+
   realtek,pow-ldo2-gpio:
     maxItems: 1
     description: CODEC's POW_LDO2 pin.
@@ -127,6 +135,8 @@ examples:
             interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
             gpio-controller;
             #gpio-cells = <2>;
+            clocks = <&osc>;
+            clock-names = "mclk1";
             realtek,pow-ldo2-gpio = <&gpio 3 GPIO_ACTIVE_HIGH>;
             realtek,reset-gpio = <&gpio 3 GPIO_ACTIVE_LOW>;
             realtek,in1-differential;

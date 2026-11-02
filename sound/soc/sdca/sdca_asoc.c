@@ -1507,7 +1507,7 @@ int sdca_asoc_set_constraints(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
-	dai->priv = constraint;
+	snd_soc_dai_set_priv(dai, constraint);
 
 	return 0;
 }
@@ -1523,7 +1523,7 @@ EXPORT_SYMBOL_NS(sdca_asoc_set_constraints, "SND_SOC_SDCA");
 void sdca_asoc_free_constraints(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
-	struct snd_pcm_hw_constraint_list *constraint = dai->priv;
+	struct snd_pcm_hw_constraint_list *constraint = snd_soc_dai_to_priv(dai);
 
 	kfree(constraint);
 }

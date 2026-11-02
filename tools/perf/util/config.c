@@ -9,28 +9,36 @@
  * Copyright (C) Johannes Schindelin, 2005
  *
  */
-#include <errno.h>
-#include <sys/param.h>
-#include "cache.h"
-#include "callchain.h"
-#include "header.h"
-#include <subcmd/exec-cmd.h>
-#include "util/event.h"  /* proc_map_timeout */
-#include "util/hist.h"  /* perf_hist_config */
-#include "util/stat.h"  /* perf_stat__set_big_num */
-#include "util/evsel.h"  /* evsel__hw_names, evsel__use_bpf_counters */
-#include "srcline.h"
-#include "build-id.h"
-#include "debug.h"
 #include "config.h"
-#include "unwind.h"
-#include <sys/types.h>
-#include <sys/stat.h>
+
+#include <errno.h>
+#include <limits.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
+
+#include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
-#include <linux/ctype.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <subcmd/exec-cmd.h>
+
+#include "build-id.h"
+#include "callchain.h"
+#include "debug.h"
+#include "header.h"
+#include "mutex.h"
+#include "path.h"
+#include "srcline.h"
+#include "unwind.h"
+#include "util/event.h" /* proc_map_timeout */
+#include "util/evsel.h" /* evsel__hw_names, evsel__use_bpf_counters */
+#include "util/hist.h" /* perf_hist_config */
+#include "util/stat.h" /* perf_stat__set_big_num */
 
 #define MAXNAME (256)
 
@@ -364,10 +372,8 @@ static int perf_parse_long(const char *value, long *ret)
 
 static void bad_config(const char *name)
 {
-	if (config_file_name)
-		pr_warning("bad config value for '%s' in %s, ignoring...\n", name, config_file_name);
-	else
-		pr_warning("bad config value for '%s', ignoring...\n", name);
+	/* config_file_name is owned by the parsing thread, under config_mutex. */
+	pr_warning("bad config value for '%s', ignoring...\n", name);
 }
 
 int perf_config_u64(u64 *dest, const char *name, const char *value)
@@ -464,6 +470,16 @@ static int perf_default_core_config(const char *var, const char *value)
 	if (!strcmp(var, "core.addr2line-disable-warn"))
 		symbol_conf.addr2line_disable_warn = perf_config_bool(var, value);
 
+	if (!strcmp(var, "core.hybrid-merge")) {
+		/*
+		 * Note, this is for sampling tools like perf report and top.
+		 * perf stat has its own merging options and the
+		 * stat_config.hybrid_merge of "perf stat --hybrid-merge" is
+		 * deliberately not set here.
+		 */
+		symbol_conf.hybrid_merge = perf_config_bool(var, value);
+	}
+
 	/* Add other config variables here. */
 	return 0;
 }
@@ -533,11 +549,18 @@ int perf_default_config(const char *var, const char *value,
 	return 0;
 }
 
+/* Parsing and rewriting share the static parser state. */
+static DEFINE_MUTEX(config_mutex);
+
+/* Serializes whole perf_config__set_variable() updates. */
+static DEFINE_MUTEX(config_update_mutex);
+
 static int perf_config_from_file(config_fn_t fn, const char *filename, void *data)
 {
 	int ret;
 	FILE *f = fopen(filename, "r");
 
+	mutex_lock(&config_mutex);
 	ret = -1;
 	if (f) {
 		config_file = f;
@@ -548,15 +571,24 @@ static int perf_config_from_file(config_fn_t fn, const char *filename, void *dat
 		fclose(f);
 		config_file_name = NULL;
 	}
+	mutex_unlock(&config_mutex);
 	return ret;
+}
+
+/* system_path() allocates, so it is computed once. */
+static const char *etc_perfconfig;
+
+static void perf_etc_perfconfig__init(void)
+{
+	etc_perfconfig = system_path(ETC_PERFCONFIG);
+	if (!etc_perfconfig)
+		etc_perfconfig = ETC_PERFCONFIG;
 }
 
 const char *perf_etc_perfconfig(void)
 {
-	static const char *system_wide;
-	if (!system_wide)
-		system_wide = system_path(ETC_PERFCONFIG);
-	return system_wide;
+	DO_ONCE(perf_etc_perfconfig__init);
+	return etc_perfconfig;
 }
 
 static int perf_env_bool(const char *k, int def)
@@ -614,19 +646,18 @@ out_free:
 	return NULL;
 }
 
+/* home_perfconfig() allocates and warns, so it is computed once. */
+static const char *home_config;
+
+static void perf_home_perfconfig__init(void)
+{
+	home_config = home_perfconfig();
+}
+
 const char *perf_home_perfconfig(void)
 {
-	static const char *config;
-	static bool failed;
-
-	if (failed || config)
-		return config;
-
-	config = home_perfconfig();
-	if (!config)
-		failed = true;
-
-	return config;
+	DO_ONCE(perf_home_perfconfig__init);
+	return home_config;
 }
 
 static struct perf_config_section *find_section(struct list_head *sections,
@@ -767,8 +798,15 @@ out_free:
 int perf_config_set__collect(struct perf_config_set *set, const char *file_name,
 			     const char *var, const char *value)
 {
+	int ret;
+
+	mutex_lock(&config_mutex);
 	config_file_name = file_name;
-	return collect_config(var, value, set);
+	ret = collect_config(var, value, set);
+	/* Don't leave the static parser state pointing at the caller's buffer. */
+	config_file_name = NULL;
+	mutex_unlock(&config_mutex);
+	return ret;
 }
 
 static int perf_config_set__init(struct perf_config_set *set)
@@ -815,6 +853,10 @@ struct perf_config_set *perf_config_set__load_file(const char *file)
 	return set;
 }
 
+/* Not config_mutex: building the set parses the config files, which takes it. */
+static DEFINE_MUTEX(config_set_mutex);
+
+/* Called with config_set_mutex held. */
 static int perf_config__init(void)
 {
 	if (config_set == NULL)
@@ -855,16 +897,112 @@ out:
 
 int perf_config(config_fn_t fn, void *data)
 {
-	if (config_set == NULL && perf_config__init())
-		return -1;
+	struct perf_config_set *set;
 
-	return perf_config_set(config_set, fn, data);
+	/* Not held across the dispatch: a callback can call perf_config() again. */
+	mutex_lock(&config_set_mutex);
+	if (perf_config__init()) {
+		mutex_unlock(&config_set_mutex);
+		return -1;
+	}
+	set = config_set;
+	mutex_unlock(&config_set_mutex);
+
+	return perf_config_set(set, fn, data);
 }
 
 void perf_config__exit(void)
 {
+	mutex_lock(&config_set_mutex);
 	perf_config_set__delete(config_set);
 	config_set = NULL;
+	mutex_unlock(&config_set_mutex);
+}
+
+int perf_config_set__write(struct perf_config_set *set,
+			   const char *file_name, bool system_config)
+{
+	struct perf_config_section *section = NULL;
+	struct perf_config_item *item = NULL;
+	int ret = 0;
+	FILE *fp;
+
+	mutex_lock(&config_mutex);
+	fp = fopen(file_name, "w");
+	if (!fp) {
+		mutex_unlock(&config_mutex);
+		return -1;
+	}
+
+	if (fprintf(fp, "# this file is auto-generated.\n") < 0)
+		ret = -1;
+
+	/* overwrite configvariables */
+	perf_config_sections__for_each_entry(&set->sections, section) {
+		if (!system_config && section->from_system_config)
+			continue;
+		if (fprintf(fp, "[%s]\n", section->name) < 0)
+			ret = -1;
+
+		perf_config_items__for_each_entry(&section->items, item) {
+			if (!system_config && item->from_system_config)
+				continue;
+			if (item->value &&
+			    fprintf(fp, "\t%s = %s\n", item->name, item->value) < 0)
+				ret = -1;
+		}
+	}
+	if (fclose(fp) != 0)
+		ret = -1;
+	mutex_unlock(&config_mutex);
+
+	return ret;
+}
+
+/*
+ * Set @var=@value in the config file perf is using: ~/.perfconfig or the
+ * file named by PERF_CONFIG.  Same rewrite 'perf config' does, comments
+ * are not preserved.
+ */
+int perf_config__set_variable(const char *var, const char *value)
+{
+	const char *config_filename;
+	bool system_config;
+	struct perf_config_set *set = NULL;
+	int ret = -1;
+
+	mutex_lock(&config_update_mutex);
+
+	/* Static: the parser publishes it as config_file_name. */
+	{
+		static char path[PATH_MAX];
+		char *user_config = mkpath(path, sizeof(path), "%s/.perfconfig", getenv("HOME"));
+
+		config_filename = config_exclusive_filename ?: user_config;
+	}
+
+	/* Rewriting the system wide file keeps its entries, or it is truncated. */
+	system_config = strcmp(config_filename, perf_etc_perfconfig()) == 0;
+
+	set = perf_config_set__new();
+	if (!set)
+		goto out_err;
+
+	if (perf_config_set__collect(set, config_filename, var, value) < 0) {
+		pr_err("Failed to add '%s=%s'\n", var, value);
+		goto out_err;
+	}
+
+	if (perf_config_set__write(set, config_filename, system_config) < 0) {
+		pr_err("Failed to set the configs on %s\n", config_filename);
+		goto out_err;
+	}
+
+	ret = 0;
+out_err:
+	perf_config_set__delete(set);
+	mutex_unlock(&config_update_mutex);
+	return ret;
 }
 
 static void perf_config_item__delete(struct perf_config_item *item)

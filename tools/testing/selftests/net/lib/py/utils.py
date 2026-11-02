@@ -357,6 +357,28 @@ def wait_port_listen(port, proto="tcp", ns=None, host=None, sleep=0.005, deadlin
         time.sleep(sleep)
 
 
+def _ctl_file_write(path, val):
+    with open(path, "w", encoding="utf-8") as fp:
+        fp.write(str(val))
+
+
+def ctl_file_write(path, val):
+    """
+    Write @val to a control file - a sysctl, a sysfs attribute, configfs...
+    and defer() restoring the old value, so needs a defer queue.
+
+    Writing a value which is already set is skipped, there is nothing
+    to restore in that case.
+    """
+    with open(path, "r", encoding="utf-8") as fp:
+        old = fp.read().strip()
+    if old == str(val):
+        return
+
+    _ctl_file_write(path, val)
+    defer(_ctl_file_write, path, old)
+
+
 def wait_file(fname, test_fn, sleep=0.005, deadline=5, encoding='utf-8'):
     """
     Wait for file contents on the local system to satisfy a condition.

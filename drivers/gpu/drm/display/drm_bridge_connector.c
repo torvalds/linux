@@ -18,6 +18,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/display/drm_hdcp_helper.h>
@@ -208,49 +209,6 @@ static void drm_bridge_connector_disable_hpd(struct drm_connector *connector)
  * Bridge Connector Functions
  */
 
-static enum drm_connector_status
-drm_bridge_connector_detect(struct drm_connector *connector, bool force)
-{
-	struct drm_bridge_connector *bridge_connector =
-		to_drm_bridge_connector(connector);
-	struct drm_bridge *detect = bridge_connector->bridge_detect;
-	struct drm_bridge *hdmi = bridge_connector->bridge_hdmi;
-	enum drm_connector_status status;
-
-	if (detect) {
-		status = detect->funcs->detect(detect, connector);
-
-		if (hdmi)
-			drm_atomic_helper_connector_hdmi_hotplug(connector, status);
-
-		drm_bridge_connector_hpd_notify(connector, status);
-	} else {
-		switch (connector->connector_type) {
-		case DRM_MODE_CONNECTOR_DPI:
-		case DRM_MODE_CONNECTOR_LVDS:
-		case DRM_MODE_CONNECTOR_DSI:
-		case DRM_MODE_CONNECTOR_eDP:
-			status = connector_status_connected;
-			break;
-		default:
-			status = connector_status_unknown;
-			break;
-		}
-	}
-
-	return status;
-}
-
-static void drm_bridge_connector_force(struct drm_connector *connector)
-{
-	struct drm_bridge_connector *bridge_connector =
-		to_drm_bridge_connector(connector);
-	struct drm_bridge *hdmi = bridge_connector->bridge_hdmi;
-
-	if (hdmi)
-		drm_atomic_helper_connector_hdmi_force(connector);
-}
-
 static void drm_bridge_connector_debugfs_init(struct drm_connector *connector,
 					      struct dentry *root)
 {
@@ -263,6 +221,9 @@ static void drm_bridge_connector_debugfs_init(struct drm_connector *connector,
 		if (bridge->funcs->debugfs_init)
 			bridge->funcs->debugfs_init(bridge, root);
 	}
+
+	if (bridge_connector->bridge_hdmi)
+		drm_hdmi_connector_debugfs_init(connector, root);
 }
 
 static struct drm_connector_state *
@@ -307,8 +268,6 @@ drm_bridge_connector_color_format(const struct drm_connector_state *conn_state)
 }
 
 static const struct drm_connector_funcs drm_bridge_connector_funcs = {
-	.detect = drm_bridge_connector_detect,
-	.force = drm_bridge_connector_force,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_create_state = drm_bridge_connector_create_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -322,15 +281,64 @@ static const struct drm_connector_funcs drm_bridge_connector_funcs = {
  * Bridge Connector Helper Functions
  */
 
+static int drm_bridge_connector_detect_ctx(struct drm_connector *connector,
+					   struct drm_modeset_acquire_ctx *ctx,
+					   bool force)
+{
+	struct drm_bridge_connector *bridge_connector =
+		to_drm_bridge_connector(connector);
+	struct drm_bridge *detect = bridge_connector->bridge_detect;
+	struct drm_bridge *hdmi = bridge_connector->bridge_hdmi;
+	enum drm_connector_status status;
+	int ret;
+
+	if (detect) {
+		status = detect->funcs->detect(detect, connector);
+
+		if (hdmi) {
+			ret = drm_atomic_helper_connector_hdmi_hotplug(connector, ctx, status);
+			if (ret == -EDEADLK)
+				return ret;
+		}
+
+		drm_bridge_connector_hpd_notify(connector, status);
+	} else {
+		switch (connector->connector_type) {
+		case DRM_MODE_CONNECTOR_DPI:
+		case DRM_MODE_CONNECTOR_LVDS:
+		case DRM_MODE_CONNECTOR_DSI:
+		case DRM_MODE_CONNECTOR_eDP:
+			status = connector_status_connected;
+			break;
+		default:
+			status = connector_status_unknown;
+			break;
+		}
+	}
+
+	return status;
+}
+
+static int drm_bridge_connector_force_ctx(struct drm_connector *connector,
+					  struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_bridge_connector *bridge_connector =
+		to_drm_bridge_connector(connector);
+	struct drm_bridge *hdmi = bridge_connector->bridge_hdmi;
+
+	if (hdmi)
+		return drm_atomic_helper_connector_hdmi_force_ctx(connector, ctx);
+
+	return 0;
+}
+
 static int drm_bridge_connector_get_modes_edid(struct drm_connector *connector,
 					       struct drm_bridge *bridge)
 {
-	enum drm_connector_status status;
 	const struct drm_edid *drm_edid;
 	int n;
 
-	status = drm_bridge_connector_detect(connector, false);
-	if (status != connector_status_connected)
+	if (connector->status != connector_status_connected)
 		goto no_edid;
 
 	drm_edid = drm_bridge_edid_read(bridge, connector);
@@ -415,6 +423,8 @@ static int drm_bridge_connector_atomic_check(struct drm_connector *connector,
 
 static const struct drm_connector_helper_funcs drm_bridge_connector_helper_funcs = {
 	.get_modes = drm_bridge_connector_get_modes,
+	.detect_ctx = drm_bridge_connector_detect_ctx,
+	.force_ctx = drm_bridge_connector_force_ctx,
 	.mode_valid = drm_bridge_connector_mode_valid,
 	.enable_hpd = drm_bridge_connector_enable_hpd,
 	.disable_hpd = drm_bridge_connector_disable_hpd,
@@ -575,6 +585,32 @@ static int drm_bridge_connector_write_spd_infoframe(struct drm_connector *connec
 	return bridge->funcs->hdmi_write_spd_infoframe(bridge, buffer, len);
 }
 
+static int drm_bridge_connector_scrambler_enable(struct drm_connector *connector)
+{
+	struct drm_bridge_connector *bridge_connector =
+		to_drm_bridge_connector(connector);
+	struct drm_bridge *bridge;
+
+	bridge = bridge_connector->bridge_hdmi;
+	if (!bridge)
+		return -EINVAL;
+
+	return bridge->funcs->hdmi_scrambler_enable(bridge);
+}
+
+static int drm_bridge_connector_scrambler_disable(struct drm_connector *connector)
+{
+	struct drm_bridge_connector *bridge_connector =
+		to_drm_bridge_connector(connector);
+	struct drm_bridge *bridge;
+
+	bridge = bridge_connector->bridge_hdmi;
+	if (!bridge)
+		return -EINVAL;
+
+	return bridge->funcs->hdmi_scrambler_disable(bridge);
+}
+
 static const struct drm_edid *
 drm_bridge_connector_read_edid(struct drm_connector *connector)
 {
@@ -590,6 +626,8 @@ drm_bridge_connector_read_edid(struct drm_connector *connector)
 }
 
 static const struct drm_connector_hdmi_funcs drm_bridge_connector_hdmi_funcs = {
+	.supported_formats = BIT(DRM_OUTPUT_COLOR_FORMAT_RGB444),
+	.max_bpc = 8,
 	.tmds_char_rate_valid = drm_bridge_connector_tmds_char_rate_valid,
 	.read_edid = drm_bridge_connector_read_edid,
 	.avi = {
@@ -600,7 +638,7 @@ static const struct drm_connector_hdmi_funcs drm_bridge_connector_hdmi_funcs = {
 		.clear_infoframe = drm_bridge_connector_clear_hdmi_infoframe,
 		.write_infoframe = drm_bridge_connector_write_hdmi_infoframe,
 	},
-	/* audio, hdr_drm and spd are set dynamically during init */
+	/* scrambler, audio, hdr_drm and spd are set dynamically during init */
 };
 
 static const struct drm_connector_infoframe_funcs drm_bridge_connector_hdmi_audio_infoframe = {
@@ -823,8 +861,6 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 	struct drm_connector *connector;
 	struct i2c_adapter *ddc = NULL;
 	struct drm_bridge *panel_bridge __free(drm_bridge_put) = NULL;
-	unsigned int supported_formats = BIT(DRM_OUTPUT_COLOR_FORMAT_RGB444);
-	unsigned int max_bpc = 8;
 	bool support_hdcp = false;
 	int connector_type;
 	int ret;
@@ -906,12 +942,12 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 			     !bridge->funcs->hdmi_clear_spd_infoframe))
 				return ERR_PTR(-EINVAL);
 
-			bridge_connector->bridge_hdmi = drm_bridge_get(bridge);
+			if (bridge->supported_hdmi_ver >= HDMI_VERSION_2_0 &&
+			    (!bridge->funcs->hdmi_scrambler_enable ||
+			     !bridge->funcs->hdmi_scrambler_disable))
+				return ERR_PTR(-EINVAL);
 
-			if (bridge->supported_formats)
-				supported_formats = bridge->supported_formats;
-			if (bridge->max_bpc)
-				max_bpc = bridge->max_bpc;
+			bridge_connector->bridge_hdmi = drm_bridge_get(bridge);
 		}
 
 		if (bridge->ops & DRM_BRIDGE_OP_HDMI_AUDIO) {
@@ -993,10 +1029,30 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 		return ERR_PTR(-EINVAL);
 
 	if (bridge_connector->bridge_hdmi) {
-		if (!connector->ycbcr_420_allowed)
-			supported_formats &= ~BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR420);
-
 		bridge_connector->hdmi_funcs = drm_bridge_connector_hdmi_funcs;
+
+		bridge_connector->hdmi_funcs.vendor = bridge_connector->bridge_hdmi->vendor;
+		bridge_connector->hdmi_funcs.product = bridge_connector->bridge_hdmi->product;
+
+		if (bridge_connector->bridge_hdmi->supported_hdmi_ver)
+			bridge_connector->hdmi_funcs.supported_hdmi_ver =
+				bridge_connector->bridge_hdmi->supported_hdmi_ver;
+
+		if (bridge_connector->bridge_hdmi->supported_formats)
+			bridge_connector->hdmi_funcs.supported_formats =
+				bridge_connector->bridge_hdmi->supported_formats;
+
+		if (!connector->ycbcr_420_allowed)
+			bridge_connector->hdmi_funcs.supported_formats &=
+				~BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR420);
+
+		if (bridge_connector->bridge_hdmi->max_tmds_char_rate)
+			bridge_connector->hdmi_funcs.supported_tmds_char_rate =
+				bridge_connector->bridge_hdmi->max_tmds_char_rate;
+
+		if (bridge_connector->bridge_hdmi->max_bpc)
+			bridge_connector->hdmi_funcs.max_bpc =
+				bridge_connector->bridge_hdmi->max_bpc;
 
 		if (bridge_connector->bridge_hdmi->ops & DRM_BRIDGE_OP_HDMI_AUDIO)
 			bridge_connector->hdmi_funcs.audio =
@@ -1010,14 +1066,17 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 			bridge_connector->hdmi_funcs.spd =
 				drm_bridge_connector_hdmi_spd_infoframe;
 
+		if (bridge_connector->bridge_hdmi->supported_hdmi_ver >= HDMI_VERSION_2_0) {
+			bridge_connector->hdmi_funcs.scrambler_enable =
+				drm_bridge_connector_scrambler_enable;
+			bridge_connector->hdmi_funcs.scrambler_disable =
+				drm_bridge_connector_scrambler_disable;
+		}
+
 		ret = drmm_connector_hdmi_init(drm, connector,
-					       bridge_connector->bridge_hdmi->vendor,
-					       bridge_connector->bridge_hdmi->product,
 					       &drm_bridge_connector_funcs,
 					       &bridge_connector->hdmi_funcs,
-					       connector_type, ddc,
-					       supported_formats,
-					       max_bpc);
+					       connector_type, ddc);
 		if (ret)
 			return ERR_PTR(ret);
 	} else {

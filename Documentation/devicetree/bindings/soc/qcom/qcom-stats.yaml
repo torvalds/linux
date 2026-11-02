@@ -18,15 +18,22 @@ description:
 
 properties:
   compatible:
-    enum:
-      - qcom,rpmh-stats
-      - qcom,sdm845-rpmh-stats
-      - qcom,rpm-stats
-      # For older RPM firmware versions with fixed offset for the sleep stats
-      - qcom,apq8084-rpm-stats
-      - qcom,msm8226-rpm-stats
-      - qcom,msm8916-rpm-stats
-      - qcom,msm8974-rpm-stats
+    oneOf:
+      - enum:
+          - qcom,rpmh-stats
+          - qcom,sdm845-rpmh-stats
+          - qcom,rpm-stats
+          # For older RPM firmware versions with fixed offset for the sleep stats
+          - qcom,apq8084-rpm-stats
+          - qcom,msm8226-rpm-stats
+          - qcom,msm8916-rpm-stats
+          - qcom,msm8974-rpm-stats
+      # SoC-specific compatibles that also read subsystem-level stats,
+      # falling back to "qcom,rpm-stats" for SoC-level stats only
+      - items:
+          - enum:
+              - qcom,shikra-rpm-stats
+          - const: qcom,rpm-stats
 
   reg:
     maxItems: 1

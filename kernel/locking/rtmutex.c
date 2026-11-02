@@ -1644,7 +1644,7 @@ static int __sched rt_mutex_slowlock_block(struct rt_mutex_base *lock,
 			break;
 		}
 
-		if (timeout && !timeout->task) {
+		if (timeout && !hrtimer_sleeper_task_get(timeout)) {
 			ret = -ETIMEDOUT;
 			break;
 		}

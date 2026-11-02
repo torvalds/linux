@@ -24,6 +24,7 @@ static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 }									\
 									\
 static const struct file_operations name## _ops = {			\
+	.owner = THIS_MODULE,						\
 	.read = name## _read,						\
 	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
@@ -42,6 +43,7 @@ static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 }									\
 									\
 static const struct file_operations name## _ops = {			\
+	.owner = THIS_MODULE,						\
 	.read = name## _read,						\
 	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
@@ -113,6 +115,7 @@ static ssize_t ht40allow_map_read(struct file *file,
 }
 
 static const struct file_operations ht40allow_map_ops = {
+	.owner = THIS_MODULE,
 	.read = ht40allow_map_read,
 	.open = simple_open,
 	.llseek = default_llseek,

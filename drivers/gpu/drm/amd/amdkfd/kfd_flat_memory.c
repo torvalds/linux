@@ -396,6 +396,12 @@ int kfd_init_apertures(struct kfd_process *process)
 			continue;
 		}
 
+		/* acquire pairs with the release in kgd2kfd_device_init() */
+		if (!smp_load_acquire(&dev->kfd->init_complete)) {
+			id++;
+			continue;
+		}
+
 		pdd = kfd_create_process_device_data(dev, process);
 		if (!pdd) {
 			dev_err(dev->adev->dev,

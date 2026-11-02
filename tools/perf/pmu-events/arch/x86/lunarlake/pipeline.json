@@ -190,6 +190,7 @@
         "EventName": "BR_INST_RETIRED.COND_TAKEN_FWD",
         "PublicDescription": "Counts taken forward conditional branch instructions retired. Available PDIST counters: 0,1",
         "SampleAfterValue": "400009",
+        "UMask": "0x100",
         "Unit": "cpu_core"
     },
     {
@@ -474,6 +475,7 @@
         "EventName": "BR_MISP_RETIRED.COND_TAKEN_FWD",
         "PublicDescription": "Counts taken forward conditional mispredicted branch instructions retired. Available PDIST counters: 0,1",
         "SampleAfterValue": "400009",
+        "UMask": "0x100",
         "Unit": "cpu_core"
     },
     {

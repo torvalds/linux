@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	foo_bar {
+		compatible = "example,test-node-name";
+	};
+
+	foo,bar {
+		compatible = "example,test-node-name";
+	};
+
+	foo.bar {
+		compatible = "example,test-node-name";
+	};
+
+	foo+bar {
+		compatible = "example,test-node-name";
+	};
+
+	foo-bar- {
+		compatible = "example,test-node-name";
+	};
+
+	soc@0 {
+		compatible = "simple-bus";
+		ranges = <0 0 0 0xc0000000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		foo_bar@1000 {
+			compatible = "example,test-node-name";
+			reg = <0x1000 0x100>;
+		};
+
+		foo,bar@2000 {
+			compatible = "example,test-node-name";
+			reg = <0x2000 0x100>;
+		};
+
+		foo.bar@3000 {
+			compatible = "example,test-node-name";
+			reg = <0x3000 0x100>;
+		};
+
+		foo+bar@4000 {
+			compatible = "example,test-node-name";
+			reg = <0x4000 0x100>;
+		};
+
+		foo-bar-@5000 {
+			compatible = "example,test-node-name";
+			reg = <0x5000 0x100>;
+		};
+	};
+};

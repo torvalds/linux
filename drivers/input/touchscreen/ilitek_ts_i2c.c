@@ -646,8 +646,8 @@ MODULE_DEVICE_TABLE(i2c, ilitek_ts_i2c_id);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ilitekts_acpi_id[] = {
-	{ "ILTK0001", 0 },
-	{ },
+	{ .id = "ILTK0001" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ilitekts_acpi_id);
 #endif

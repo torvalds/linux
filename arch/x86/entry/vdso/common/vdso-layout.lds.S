@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <asm/vdso.h>
-#include <asm/vdso/vsyscall.h>
 #include <vdso/datapage.h>
 
 /*

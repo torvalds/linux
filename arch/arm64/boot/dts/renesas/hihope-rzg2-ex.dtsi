@@ -28,6 +28,8 @@
 		reg = <0>;
 		interrupts-extended = <&gpio2 11 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&gpio2 10 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <15000>;
+		reset-deassert-us = <35000>;
 	};
 };
 
@@ -57,12 +59,12 @@
 			function = "avb";
 		};
 
-		pins_mdio {
+		pins-mdio {
 			groups = "avb_mdio";
 			drive-strength = <24>;
 		};
 
-		pins_mii_tx {
+		pins-mii-tx {
 			pins = "PIN_AVB_TX_CTL", "PIN_AVB_TXC", "PIN_AVB_TD0",
 			       "PIN_AVB_TD1", "PIN_AVB_TD2", "PIN_AVB_TD3";
 			drive-strength = <12>;

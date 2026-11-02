@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/stringify.h>
 #include <linux/watchdog.h>
 
 #define DRIVER_NAME		"advantech_ec_wdt"
@@ -49,7 +50,7 @@ static ktime_t ec_timestamp;
 
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout,
-		 "Default Watchdog timer setting (" __MODULE_STRING(DEFAULT_TIME) "s). The range is from " __MODULE_STRING(MIN_TIME) " to " __MODULE_STRING(MAX_TIME) ".");
+		 "Default Watchdog timer setting (" __stringify(DEFAULT_TIME) "s). The range is from " __stringify(MIN_TIME) " to " __stringify(MAX_TIME) ".");
 
 static void adv_ec_wdt_timing_gate(void)
 {

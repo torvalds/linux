@@ -200,7 +200,7 @@ static int cx20442_write(struct snd_soc_component *component, unsigned int reg,
  * Line discpline related code
  *
  * Any of the callback functions below can be used in two ways:
- * 1) registerd by a machine driver as one of line discipline operations,
+ * 1) registered by a machine driver as one of line discipline operations,
  * 2) called from a machine's provided line discipline callback function
  *    in case when extra machine specific code must be run as well.
  */

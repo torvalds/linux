@@ -8,6 +8,7 @@
 #include <drm/drm_managed.h>
 #include <linux/devcoredump.h>
 #include <linux/device.h>
+#include <linux/device-id/mhi.h>
 #include <linux/kernel.h>
 #include <linux/mhi.h>
 #include <linux/workqueue.h>

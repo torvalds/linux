@@ -5,17 +5,55 @@
 #include <linux/netdevice.h>
 
 /**
+ * struct netdev_ring_config - accepted RX ring depth configuration
+ * @rx_pending:		Size of the regular RX ring.
+ * @rx_mini_pending:	Size of the RX mini ring.
+ * @rx_jumbo_pending:	Size of the RX jumbo ring.
+ *
+ * This stores only persistent configuration values. Capability fields,
+ * such as max ring sizes, are reported by drivers but are not part of the
+ * accepted configuration.
+ *
+ * These values are only used for queue-configuration validation today.
+ * Drivers which normalize ring sizes must update the struct ethtool_ringparam
+ * passed to set_ringparam() with the applied sizes.
+ */
+struct netdev_ring_config {
+	u32	rx_pending;
+	u32	rx_mini_pending;
+	u32	rx_jumbo_pending;
+};
+
+/**
  * struct netdev_config - queue-related configuration for a netdev
  * @hds_thresh:		HDS Threshold value.
  * @hds_config:		HDS value from userspace.
+ * @rings:		Accepted RX ring depths.
+ *
+ * Direct values, such as @hds_thresh and @rings, hold the accepted
+ * configuration and always override callback-provided defaults, including
+ * when zero. Drivers which use @rings for queue rendering must initialize
+ * every RX ring depth before registering the netdev.
  */
 struct netdev_config {
 	u32	hds_thresh;
 	u8	hds_config;
+
+	struct netdev_ring_config rings;
 };
 
+/**
+ * struct netdev_queue_config - rendered configuration for an RX queue
+ * @rx_page_size:	Size of one RX page-pool allocation.
+ * @rx_ring_size:	Configured size of the regular RX ring.
+ * @rx_mini_ring_size:	Configured size of the RX mini ring.
+ * @rx_jumbo_ring_size:	Configured size of the RX jumbo ring.
+ */
 struct netdev_queue_config {
 	u32	rx_page_size;
+	u32	rx_ring_size;
+	u32	rx_mini_ring_size;
+	u32	rx_jumbo_ring_size;
 };
 
 /* See the netdev.yaml spec for definition of each statistic */
@@ -139,16 +177,20 @@ enum {
  * @ndo_queue_get_dma_dev: Get dma device for zero-copy operations to be used
  *			   for this queue. Return NULL on error.
  *
- * @ndo_default_qcfg:	(Optional) Populate queue config struct with defaults.
- *			Queue config structs are passed to this helper before
- *			the user-requested settings are applied.
+ * @ndo_default_qcfg:	(Optional) Populate queue config with defaults. Queue
+ *			config structs are passed to this helper before the
+ *			user-requested settings are applied. Ring depths from
+ *			dev->cfg override these defaults. Drivers which consume
+ *			them must initialize dev->cfg->rings before registering
+ *			the netdev.
  *
  * @ndo_validate_qcfg: (Optional) Check if queue config is supported.
  *			Called when configuration affecting a queue may be
- *			changing, either due to NIC-wide config, or config
- *			scoped to the queue at a specified index.
- *			When NIC-wide config is changed the callback will
- *			be invoked for all queues.
+ *			changing. When NIC-wide config is changed the
+ *			callback will be invoked for the defaults and all
+ *			queue overrides. Drivers which normalize device-wide
+ *			values when applying them must use the same
+ *			normalization during validation.
  *
  * @ndo_queue_create:	Create a new RX queue on a virtual device that will
  *			be paired with a physical device's queue via leasing.

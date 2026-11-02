@@ -2396,12 +2396,8 @@ netdev_tx_t iavf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* hardware can't handle really short frames, hardware padding works
 	 * beyond this point
 	 */
-	if (unlikely(skb->len < IAVF_MIN_TX_LEN)) {
-		if (skb_pad(skb, IAVF_MIN_TX_LEN - skb->len))
-			return NETDEV_TX_OK;
-		skb->len = IAVF_MIN_TX_LEN;
-		skb_set_tail_pointer(skb, IAVF_MIN_TX_LEN);
-	}
+	if (skb_put_padto(skb, IAVF_MIN_TX_LEN))
+		return NETDEV_TX_OK;
 
 	return iavf_xmit_frame_ring(skb, tx_ring);
 }

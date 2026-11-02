@@ -339,7 +339,7 @@ struct sctp_ulpevent *sctp_make_reassembled_event(struct net *net,
 		if (skb_cloned(f_frag)) {
 			/* This is a cloned skb, we can't just modify
 			 * the frag_list.  We need a new skb to do that.
-			 * Instead of calling skb_unshare(), we'll do it
+			 * Instead of calling skb_unclone_full(), we'll do it
 			 * ourselves since we need to delay the free.
 			 */
 			new = skb_copy(f_frag, GFP_ATOMIC);

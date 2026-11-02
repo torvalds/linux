@@ -55,7 +55,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 
 	if (dirty)
 		ib_dma_unmap_sgtable_attrs(dev, &umem->sgt_append.sgt,
-					   DMA_BIDIRECTIONAL, umem->dma_attrs);
+					   umem->dma_dir, umem->dma_attrs);
 
 	for_each_sgtable_sg(&umem->sgt_append.sgt, sg, i) {
 		unpin_user_page_range_dirty_lock(sg_page(sg),
@@ -159,9 +159,15 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 }
 EXPORT_SYMBOL(ib_umem_find_best_pgsz);
 
+static inline enum dma_data_direction ib_access_dma_dir(int access)
+{
+	return ib_access_writable(access) ? DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
+}
+
 static struct ib_umem *__ib_umem_get_va(struct ib_device *device,
 					unsigned long addr, size_t size,
-					int access)
+					int access,
+					enum dma_data_direction dir)
 {
 	struct ib_umem *umem;
 	struct page **page_list;
@@ -202,6 +208,7 @@ static struct ib_umem *__ib_umem_get_va(struct ib_device *device,
 	 */
 	umem->iova = addr;
 	umem->writable   = ib_access_writable(access);
+	umem->dma_dir    = dir;
 	umem->owning_mm = mm = current->mm;
 	umem->dma_attrs = DMA_ATTR_REQUIRE_COHERENT;
 	if (access & IB_ACCESS_RELAXED_ORDERING)
@@ -261,7 +268,7 @@ static struct ib_umem *__ib_umem_get_va(struct ib_device *device,
 	}
 
 	ret = ib_dma_map_sgtable_attrs(device, &umem->sgt_append.sgt,
-				       DMA_BIDIRECTIONAL, umem->dma_attrs);
+				       dir, umem->dma_attrs);
 	if (ret)
 		goto umem_release;
 	goto out;
@@ -279,17 +286,16 @@ umem_kfree:
 	return ret ? ERR_PTR(ret) : umem;
 }
 
-/**
- * ib_umem_get_desc - Pin a umem from a buffer descriptor.
- * @device: IB device.
- * @desc:   buffer descriptor (VA or DMABUF).
- * @access: IB access flags.
+/*
+ * __ib_umem_get_desc_dir - core implementation for ib_umem_get_desc().
  *
- * Return: caller-owned umem on success, ERR_PTR(...) on error.
+ * @dir applies to VA buffers only; dmabuf direction is managed by the
+ * dmabuf subsystem and this argument is ignored for that type.
  */
-struct ib_umem *ib_umem_get_desc(struct ib_device *device,
-				 const struct ib_uverbs_buffer_desc *desc,
-				 int access)
+static struct ib_umem *
+__ib_umem_get_desc_dir(struct ib_device *device,
+		       const struct ib_uverbs_buffer_desc *desc,
+		       int access, enum dma_data_direction dir)
 {
 	struct ib_umem_dmabuf *umem_dmabuf;
 
@@ -310,10 +316,26 @@ struct ib_umem *ib_umem_get_desc(struct ib_device *device,
 		return &umem_dmabuf->umem;
 	case IB_UVERBS_BUFFER_TYPE_VA:
 		return __ib_umem_get_va(device, desc->addr, desc->length,
-					access);
+					access, dir);
 	default:
 		return ERR_PTR(-EINVAL);
 	}
+}
+
+/**
+ * ib_umem_get_desc - Pin a umem from a buffer descriptor.
+ * @device: IB device.
+ * @desc:   buffer descriptor (VA or DMABUF).
+ * @access: IB access flags.
+ *
+ * Return: caller-owned umem on success, ERR_PTR(...) on error.
+ */
+struct ib_umem *ib_umem_get_desc(struct ib_device *device,
+				 const struct ib_uverbs_buffer_desc *desc,
+				 int access)
+{
+	return __ib_umem_get_desc_dir(device, desc, access,
+				      ib_access_dma_dir(access));
 }
 EXPORT_SYMBOL(ib_umem_get_desc);
 
@@ -376,11 +398,12 @@ static int ib_umem_resolve_desc(const struct uverbs_attr_bundle *attrs,
 static struct ib_umem *
 ib_umem_get_desc_check(struct ib_device *device,
 		       const struct ib_uverbs_buffer_desc *desc,
-		       size_t min_size, int access)
+		       size_t min_size, int access,
+		       enum dma_data_direction dir)
 {
 	struct ib_umem *umem;
 
-	umem = ib_umem_get_desc(device, desc, access);
+	umem = __ib_umem_get_desc_dir(device, desc, access, dir);
 	if (IS_ERR(umem))
 		return umem;
 	if (umem->length < min_size) {
@@ -401,7 +424,7 @@ static struct ib_umem *
 ib_umem_get_from_attrs(struct ib_device *device,
 		       const struct uverbs_attr_bundle *attrs,
 		       u16 attr_id, ib_umem_buf_desc_filler_t legacy_filler,
-		       size_t size, int access)
+		       size_t size, int access, enum dma_data_direction dir)
 {
 	struct ib_uverbs_buffer_desc desc = {};
 	int ret;
@@ -411,7 +434,7 @@ ib_umem_get_from_attrs(struct ib_device *device,
 		return NULL;
 	if (ret)
 		return ERR_PTR(ret);
-	return ib_umem_get_desc_check(device, &desc, size, access);
+	return ib_umem_get_desc_check(device, &desc, size, access, dir);
 }
 
 /*
@@ -431,7 +454,8 @@ ib_umem_get_from_attrs_or_va(struct ib_device *device,
 			     const struct uverbs_attr_bundle *attrs,
 			     u16 attr_id,
 			     ib_umem_buf_desc_filler_t legacy_filler,
-			     u64 addr, size_t size, int access)
+			     u64 addr, size_t size, int access,
+			     enum dma_data_direction dir)
 {
 	struct ib_uverbs_buffer_desc desc = {};
 	int ret;
@@ -445,7 +469,7 @@ ib_umem_get_from_attrs_or_va(struct ib_device *device,
 		};
 	else if (ret)
 		return ERR_PTR(ret);
-	return ib_umem_get_desc_check(device, &desc, size, access);
+	return ib_umem_get_desc_check(device, &desc, size, access, dir);
 }
 
 /**
@@ -464,7 +488,7 @@ struct ib_umem *ib_umem_get_attr(struct ib_device *device,
 				 u16 attr_id, size_t size, int access)
 {
 	return ib_umem_get_from_attrs(device, attrs, attr_id, NULL, size,
-				      access);
+				      access, ib_access_dma_dir(access));
 }
 EXPORT_SYMBOL(ib_umem_get_attr);
 
@@ -503,7 +527,8 @@ struct ib_umem *ib_umem_get_attr_or_va(struct ib_device *device,
 				       int access)
 {
 	return ib_umem_get_from_attrs_or_va(device, attrs, attr_id, NULL, addr,
-					    size, access);
+					    size, access,
+					    ib_access_dma_dir(access));
 }
 EXPORT_SYMBOL(ib_umem_get_attr_or_va);
 
@@ -569,6 +594,9 @@ static int uverbs_create_cq_get_buffer_desc(const struct uverbs_attr_bundle *att
  * must arrange its own backing (typically an in-kernel allocation)
  * when no source is available.
  *
+ * The buffer is mapped DMA_FROM_DEVICE: the NIC writes CQEs into it
+ * and the CPU only reads.
+ *
  * Return: caller-owned umem on success; NULL when no source supplied
  * a buffer; ERR_PTR(...) on error.
  */
@@ -579,7 +607,7 @@ struct ib_umem *ib_umem_get_cq_buf(struct ib_device *device,
 	return ib_umem_get_from_attrs(device, attrs,
 				      UVERBS_ATTR_CREATE_CQ_BUF_UMEM,
 				      uverbs_create_cq_get_buffer_desc,
-				      size, access);
+				      size, access, DMA_FROM_DEVICE);
 }
 EXPORT_SYMBOL(ib_umem_get_cq_buf);
 
@@ -595,6 +623,9 @@ EXPORT_SYMBOL(ib_umem_get_cq_buf);
  * Like ib_umem_get_cq_buf(), but pins @addr/@size when neither the
  * UMEM attribute nor the legacy CQ buffer attributes are supplied.
  *
+ * The buffer is mapped DMA_FROM_DEVICE: the NIC writes CQEs into it
+ * and the CPU only reads.
+ *
  * See ib_umem_get_attr_or_va() for the note on @size's dual role and
  * the migration path for drivers that would distinguish a user-supplied
  * length from a driver-computed minimum.
@@ -608,7 +639,7 @@ struct ib_umem *ib_umem_get_cq_buf_or_va(struct ib_device *device,
 	return ib_umem_get_from_attrs_or_va(device, attrs,
 					    UVERBS_ATTR_CREATE_CQ_BUF_UMEM,
 					    uverbs_create_cq_get_buffer_desc,
-					    addr, size, access);
+					    addr, size, access, DMA_FROM_DEVICE);
 }
 EXPORT_SYMBOL(ib_umem_get_cq_buf_or_va);
 

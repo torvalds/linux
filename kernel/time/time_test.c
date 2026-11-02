@@ -87,8 +87,24 @@ static void time64_to_tm_test_date_range(struct kunit *test)
 	}
 }
 
+static void time64_to_tm_test_wide_day_count(struct kunit *test)
+{
+	/* 2^31 days: the first count that does not fit in a 32-bit long. */
+	time64_t timestamp = (1LL << 31) * 86400;
+	struct tm result;
+
+	time64_to_tm(timestamp, 0, &result);
+
+	KUNIT_EXPECT_EQ(test, result.tm_year, 5879680);
+	KUNIT_EXPECT_EQ(test, result.tm_mon, 6);
+	KUNIT_EXPECT_EQ(test, result.tm_mday, 12);
+	KUNIT_EXPECT_EQ(test, result.tm_yday, 193);
+	KUNIT_EXPECT_EQ(test, result.tm_wday, 6);
+}
+
 static struct kunit_case time_test_cases[] = {
 	KUNIT_CASE_SLOW(time64_to_tm_test_date_range),
+	KUNIT_CASE(time64_to_tm_test_wide_day_count),
 	{}
 };
 

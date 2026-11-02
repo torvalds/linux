@@ -96,7 +96,7 @@ struct cs_dsp_alg_region {
 struct cs_dsp_coeff_ctl {
 	struct list_head list;
 	struct cs_dsp *dsp;
-	void *cache;
+	void *cache __counted_by_ptr(len);
 	const char *fw_name;
 	/* Subname is needed to match with firmware */
 	const char *subname;

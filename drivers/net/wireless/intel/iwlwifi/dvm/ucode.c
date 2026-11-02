@@ -3,12 +3,11 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
- * Copyright (C) 2025 Intel Corporation
+ * Copyright (C) 2025-2026 Intel Corporation
  *****************************************************************************/
 
 #include <linux/kernel.h>
 
-#include "iwl-io.h"
 #include "iwl-agn-hw.h"
 #include "iwl-trans.h"
 #include "iwl-fh.h"

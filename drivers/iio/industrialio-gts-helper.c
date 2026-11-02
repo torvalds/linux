@@ -5,7 +5,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/export.h>
 #include <linux/minmax.h>
 #include <linux/module.h>

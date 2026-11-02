@@ -229,7 +229,7 @@ void cpuset1_update_task_spread_flags(struct cpuset *cs,
  * function is called with cpuset_mutex held, cpuset membership stays
  * stable.
  */
-void cpuset1_update_tasks_flags(struct cpuset *cs)
+static void cpuset1_update_tasks_flags(struct cpuset *cs)
 {
 	struct css_task_iter it;
 	struct task_struct *task;
@@ -473,6 +473,51 @@ static u64 cpuset_read_u64(struct cgroup_subsys_state *css, struct cftype *cft)
 	return 0;
 }
 
+/*
+ * cpuset_update_flag - read a 0 or a 1 in a file and update associated flag
+ * bit:		the bit to update (see cpuset_flagbits_t)
+ * cs:		the cpuset to update
+ * turning_on:	whether the flag is being set or cleared
+ *
+ * Call with cpuset_mutex held.
+ */
+static int cpuset_update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
+			      int turning_on)
+{
+	struct cpuset *trialcs;
+	int balance_flag_changed;
+	int spread_page_changed;
+	int err;
+
+	trialcs = dup_or_alloc_cpuset(cs);
+	if (!trialcs)
+		return -ENOMEM;
+
+	assign_bit(bit, &trialcs->flags, turning_on);
+
+	err = validate_change(cs, trialcs);
+	if (err < 0)
+		goto out;
+
+	balance_flag_changed = (is_sched_load_balance(cs) !=
+				is_sched_load_balance(trialcs));
+
+	spread_page_changed = is_spread_page(cs) != is_spread_page(trialcs);
+
+	cpuset_callback_lock_irq();
+	cs->flags = trialcs->flags;
+	cpuset_callback_unlock_irq();
+
+	if (!cpumask_empty(trialcs->cpus_allowed) && balance_flag_changed)
+		rebuild_sched_domains_locked();
+
+	if (spread_page_changed)
+		cpuset1_update_tasks_flags(cs);
+out:
+	free_cpuset(trialcs);
+	return err;
+}
+
 static int cpuset_write_u64(struct cgroup_subsys_state *css, struct cftype *cft,
 			    u64 val)
 {
@@ -579,6 +624,18 @@ void cpuset1_online_css(struct cgroup_subsys_state *css)
 	cpumask_copy(cs->cpus_allowed, parent->cpus_allowed);
 	cpumask_copy(cs->effective_cpus, parent->cpus_allowed);
 	cpuset_callback_unlock_irq();
+}
+
+/*
+ * Legacy-hierarchy handling when a cpuset is taken offline: if it had
+ * sched_load_balance enabled, turn it off so the scheduler domains are
+ * rebuilt.  A no-op on the default hierarchy.
+ */
+void cpuset1_offline_css(struct cpuset *cs)
+{
+	if (!cgroup_subsys_on_dfl(cpuset_cgrp_subsys) &&
+	    is_sched_load_balance(cs))
+		cpuset_update_flag(CS_SCHED_LOAD_BALANCE, cs, 0);
 }
 
 static void

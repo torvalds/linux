@@ -60,12 +60,6 @@ typedef enum {
 	AD_MUX_COLLECTING_DISTRIBUTING	/* mux machine */
 } mux_states_t;
 
-/* tx machine states(43.4.15 in the 802.3ad standard) */
-typedef enum {
-	AD_TX_DUMMY,
-	AD_TRANSMIT		/* tx Machine */
-} tx_states_t;
-
 /* churn machine states(43.4.17 in the 802.3ad standard) */
 typedef enum {
 	 AD_CHURN_MONITOR, /* monitoring for churn */
@@ -231,7 +225,6 @@ typedef struct port {
 	u16 sm_periodic_timer_counter;	/* state machine periodic timer counter */
 	mux_states_t sm_mux_state;	/* state machine mux state */
 	u16 sm_mux_timer_counter;	/* state machine mux timer counter */
-	tx_states_t sm_tx_state;	/* state machine tx state */
 	u16 sm_tx_timer_counter;	/* state machine tx timer counter
 					 * (always on - enter to transmit
 					 *  state 3 time per second)

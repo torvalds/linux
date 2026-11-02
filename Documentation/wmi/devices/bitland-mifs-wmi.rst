@@ -67,7 +67,7 @@ WMI Methods (MICommonInterface)
 
 The ``MICommonInterface`` class (GUID: ``{b60bfb48-3e5b-49e4-a0e9-8cffe1b3434b}``)
 is the primary control interface. It uses a 32-byte buffer for both input
-(``InData``) and output (``OutData``).
+(``InData``) and output (``OutData`` + ``Reserved``).
 
 Method Structure
 ----------------
@@ -77,53 +77,78 @@ The data packet follows a standardized format:
 +----------+------------------------------------------------------------------+
 | Byte     | Description                                                      |
 +==========+==================================================================+
-| 1        | Method Type: Get (0xFA / 250) or Set (0xFB / 251)                |
+| 1 and 2  | Method Type or Return Code                                       |
 +----------+------------------------------------------------------------------+
-| 3        | Command ID (Method Name)                                         |
+| 3 and 4  | Command ID (Method Name)                                         |
 +----------+------------------------------------------------------------------+
-| 4 - 31   | Arguments (for Set) or Return Data (for Get)                     |
+| 5 - 32   | Arguments (for Set) or Return Data (for Get)                     |
 +----------+------------------------------------------------------------------+
 
+Method Types
+------------
+
+The following Method types are understood by the underlying firmware:
+
++--------+---------+
+| Type   | Meaning |
++========+=========+
+| 0xFA00 | Read    |
++--------+---------+
+| 0xFB00 | Write   |
++--------+---------+
+
+Return Codes
+------------
+
+The following Return Codes are know to be returned in response to a WMI method invocation:
+
++--------+--------------------+
+| Code   | Meaning            |
++========+====================+
+| 0x8000 | Success            |
++--------+--------------------+
+| 0xE000 | Invalid Command ID |
++--------+--------------------+
 
 Command IDs
 -----------
 
-The following Command IDs are used in the third byte of the buffer:
+The following Command IDs know to be used on some models:
 
 +----------+-----------------------+------------------------------------------+
 | ID       | Name                  | Values / Description                     |
 +==========+=======================+==========================================+
-| 8        | SystemPerMode         | 0: Balance, 1: Performance, 2: Quiet,    |
+| 0x0800   | SystemPerMode         | 0: Balance, 1: Performance, 2: Quiet,    |
 |          |                       | 3: Full-speed                            |
 +----------+-----------------------+------------------------------------------+
-| 9        | GPUMode               | 0: Hybrid, 1: Discrete, 2: UMA           |
+| 0x0900   | GPUMode               | 0: Hybrid, 1: Discrete, 2: UMA           |
 +----------+-----------------------+------------------------------------------+
-| 10       | KeyboardType          | 0: White, 1: Single RGB, 2: Zone RGB     |
+| 0x0A00   | KeyboardType          | 0: White, 1: Single RGB, 2: Zone RGB     |
 +----------+-----------------------+------------------------------------------+
-| 11       | FnLock                | 0: Off, 1: On                            |
+| 0x0B00   | FnLock                | 0: Off, 1: On                            |
 +----------+-----------------------+------------------------------------------+
-| 12       | TPLock                | 0: Unlock, 1: Lock (Touchpad)            |
+| 0x0C00   | TPLock                | 0: Unlock, 1: Lock (Touchpad)            |
 +----------+-----------------------+------------------------------------------+
-| 13       | CPUGPUSYSFanSpeed     | Returns 12 bytes of fan data:            |
+| 0x0D00   | CPUGPUSYSFanSpeed     | Returns 12 bytes of fan data:            |
 |          |                       | Bytes 4-5: CPU Fan RPM (Little Endian)   |
 |          |                       | Bytes 6-7: GPU Fan RPM (Little Endian)   |
 |          |                       | Bytes 10-11: SYS Fan RPM (Little Endian) |
 +----------+-----------------------+------------------------------------------+
-| 16       | RGBKeyboardMode       | 0: Off, 1: Auto Cyclic, 2: Fixed,        |
+| 0x1000   | RGBKeyboardMode       | 0: Off, 1: Auto Cyclic, 2: Fixed,        |
 |          |                       | 3: Custom                                |
 +----------+-----------------------+------------------------------------------+
-| 17       | RGBKeyboardColor      | Bytes 4, 5, 6: Red, Green, Blue values   |
+| 0x1100   | RGBKeyboardColor      | Bytes 4, 5, 6: Red, Green, Blue values   |
 +----------+-----------------------+------------------------------------------+
-| 18       | RGBKeyboardBrightness | 0-10: Brightness Levels, 128: Auto       |
+| 0x1200   | RGBKeyboardBrightness | 0-10: Brightness Levels, 128: Auto       |
 +----------+-----------------------+------------------------------------------+
-| 19       | SystemAcType          | 1: Type-C, 2: Circular Hole (DC)         |
+| 0x1300   | SystemAcType          | 1: Type-C, 2: Circular Hole (DC)         |
 +----------+-----------------------+------------------------------------------+
-| 20       | MaxFanSpeedSwitch     | Byte 4: Fan Type (0: CPU/GPU, 1: SYS)    |
+| 0x1400   | MaxFanSpeedSwitch     | Byte 4: Fan Type (0: CPU/GPU, 1: SYS)    |
 |          |                       | Byte 5: State (0: Off, 1: On)            |
 +----------+-----------------------+------------------------------------------+
-| 21       | MaxFanSpeed           | Sets manual fan speed duty cycle         |
+| 0x1500   | MaxFanSpeed           | Sets manual fan speed duty cycle         |
 +----------+-----------------------+------------------------------------------+
-| 22       | CPUThermometer        | Returns CPU Temperature                  |
+| 0x1600   | CPUThermometer        | Returns CPU Temperature                  |
 +----------+-----------------------+------------------------------------------+
 
 WMI Events (HID_EVENT20)
@@ -189,7 +214,8 @@ Performance Modes
 Changing the performance mode via Command ID 0x08 (SystemPerMode) affects the
 power limits (PL1/PL2) and fan curves managed by the Embedded Controller (EC).
 Note that the "Full-speed" and "Performance" mode (1, 3) is typically only
-available when the system is connected to a DC power source (not USB-C/PD).
+available when the system is connected to a DC power source (not USB-C/PD on
+model with a dedicated DC connector).
 
 In the driver implementation, switch to performance/full-speed mode without
 DC power connected will throw the EOPNOTSUPP error.

@@ -35,8 +35,8 @@ static SPINAND_OP_VARIANTS(update_cache_variants,
 /*
  * HYF1GQ4UDACAE is a GD5F1GQ4-compatible die, so the OOB layout is taken
  * from gd5fxgq4xa: the on-die ECC parity occupies bytes 8..15 of each
- * 16-byte section, the bad block marker sits in byte 0 and the remaining
- * bytes are exposed as free.
+ * 16-byte section, and the remaining bytes are exposed as free, except the
+ * two bytes that spinand_isbad() reads as the bad block marker.
  */
 static int hyf1gq4_ooblayout_ecc(struct mtd_info *mtd, int section,
 				 struct mtd_oob_region *region)
@@ -60,9 +60,9 @@ static int hyf1gq4_ooblayout_free(struct mtd_info *mtd, int section,
 		region->offset = 16 * section;
 		region->length = 8;
 	} else {
-		/* section 0 has one byte reserved for the bad block marker */
-		region->offset = 1;
-		region->length = 7;
+		/* section 0 has two bytes reserved for the bad block marker */
+		region->offset = 2;
+		region->length = 6;
 	}
 
 	return 0;

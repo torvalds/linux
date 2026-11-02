@@ -5,6 +5,7 @@
 can be compiled for the Linux kernel."""
 
 import logging
+import sys
 
 from argparse import Namespace
 from lark import logger
@@ -126,12 +127,16 @@ def subcmd(args: Namespace) -> int:
         except XdrSemanticError as e:
             handle_semantic_error(e, source, args.filename)
             return 1
-        match args.peer:
-            case "server":
-                generate_server_source(args.filename, ast, args.language)
-            case "client":
-                generate_client_source(args.filename, ast, args.language)
-            case _:
-                print("Code generation for", args.peer, "is not yet supported")
+        try:
+            match args.peer:
+                case "server":
+                    generate_server_source(args.filename, ast, args.language)
+                case "client":
+                    generate_client_source(args.filename, ast, args.language)
+                case _:
+                    print("Code generation for", args.peer, "is not yet supported")
+        except NotImplementedError as e:
+            sys.stderr.write(f"{args.filename}: {e}\n")
+            return 1
 
     return 0

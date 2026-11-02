@@ -282,8 +282,7 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 						VBUS_IRQ_FLAGS, "vbus_detect",
 						nop);
 		if (err)
-			return dev_err_probe(dev, err, "can't request irq %i\n",
-					     gpiod_to_irq(nop->gpiod_vbus));
+			return err;
 
 		nop->phy.otg->state = gpiod_get_value(nop->gpiod_vbus) ?
 			OTG_STATE_B_PERIPHERAL : OTG_STATE_B_IDLE;

@@ -433,6 +433,26 @@ static const struct socfpga_hwmon_board_data agilex_hwmon_board = {
 	.num_volt = ARRAY_SIZE(agilex_hwmon_volt_channels),
 };
 
+/*
+ * Agilex 5 exposes the SDM and three corner temperature sensors. Channel 2
+ * (top-left corner on Agilex) is not present in hardware, so the SDM channel
+ * numbering keeps the gap (0, 1, 3, 4) rather than renumbering.
+ */
+static const struct socfpga_hwmon_channel agilex5_hwmon_temp_channels[] = {
+	{ SOCFPGA_HWMON_CHAN(0, 0), "Main Die SDM" },
+	{ SOCFPGA_HWMON_CHAN(1, 0), "Main Die corner bottom left max" },
+	{ SOCFPGA_HWMON_CHAN(3, 0), "Main Die corner bottom right max" },
+	{ SOCFPGA_HWMON_CHAN(4, 0), "Main Die corner top right max" },
+};
+
+/* Agilex 5 reuses the Agilex voltage SDM page/channel encoding and labels. */
+static const struct socfpga_hwmon_board_data agilex5_hwmon_board = {
+	.temp = agilex5_hwmon_temp_channels,
+	.num_temp = ARRAY_SIZE(agilex5_hwmon_temp_channels),
+	.volt = agilex_hwmon_volt_channels,
+	.num_volt = ARRAY_SIZE(agilex_hwmon_volt_channels),
+};
+
 static const struct socfpga_hwmon_board_data *
 socfpga_hwmon_get_board(struct device *dev)
 {
@@ -443,6 +463,8 @@ socfpga_hwmon_get_board(struct device *dev)
 
 	if (of_device_is_compatible(np, "intel,stratix10-svc"))
 		return &s10_hwmon_board;
+	if (of_device_is_compatible(np, "intel,agilex5-svc"))
+		return &agilex5_hwmon_board;
 	if (of_device_is_compatible(np, "intel,agilex-svc"))
 		return &agilex_hwmon_board;
 

@@ -64,14 +64,10 @@ static int __vsock_deliver_tap_skb(struct sk_buff *skb,
 	struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
 
 	if (nskb) {
-		dev_hold(dev);
-
 		nskb->dev = dev;
 		ret = dev_queue_xmit(nskb);
 		if (unlikely(ret > 0))
 			ret = net_xmit_errno(ret);
-
-		dev_put(dev);
 	}
 
 	return ret;

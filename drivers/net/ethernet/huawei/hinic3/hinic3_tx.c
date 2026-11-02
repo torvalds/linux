@@ -541,12 +541,8 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 	u32 offload;
 	int err;
 
-	if (unlikely(skb->len < MIN_SKB_LEN)) {
-		if (skb_pad(skb, MIN_SKB_LEN - skb->len))
-			goto err_out;
-
-		skb->len = MIN_SKB_LEN;
-	}
+	if (skb_put_padto(skb, MIN_SKB_LEN))
+		goto err_out;
 
 	offload = hinic3_tx_offload(skb, &task, &queue_info, txq);
 	num_sge = skb_shinfo(skb)->nr_frags + 1;

@@ -127,7 +127,7 @@ field to indicate which mode they want to use for a given transfer.
 
 The possible values for this field have the following semantics:
 
-- :c:macro:`SPI_MULTI_BUS_MODE_SINGLE`: Only use the first lane. Other lanes are
+- :c:macro:`SPI_MULTI_LANE_MODE_SINGLE`: Only use the first lane. Other lanes are
     ignored. This means that it is operating just like a conventional SPI
     peripheral. This is the default, so it does not need to be explicitly set.
 
@@ -149,7 +149,7 @@ The possible values for this field have the following semantics:
         ----------   ----------------   ----------
             SDO 0    0-0-0-1-0-0-0-1    SDI 0
 
-- :c:macro:`SPI_MULTI_BUS_MODE_MIRROR`: Send a single data word over all of the
+- :c:macro:`SPI_MULTI_LANE_MODE_MIRROR`: Send a single data word over all of the
     lanes at the same time. This only makes sense for writes and not
     for reads.
 
@@ -160,7 +160,7 @@ The possible values for this field have the following semantics:
         struct spi_transfer xfer = {
             .tx_buf = tx_buf,
             .len = 1,
-            .multi_lane_mode = SPI_MULTI_BUS_MODE_MIRROR,
+            .multi_lane_mode = SPI_MULTI_LANE_MODE_MIRROR,
         };
 
         spi_sync_transfer(spi, &xfer, 1);
@@ -172,7 +172,7 @@ The possible values for this field have the following semantics:
             SDO 0    0-0-0-1-0-0-0-1    SDI 0
             SDO 1    0-0-0-1-0-0-0-1    SDI 1
 
-- :c:macro:`SPI_MULTI_BUS_MODE_STRIPE`: Send or receive two different data words
+- :c:macro:`SPI_MULTI_LANE_MODE_STRIPE`: Send or receive two different data words
     at the same time, one on each lane. This means that the buffer needs to be
     sized to hold data for all lanes. Data is interleaved in the buffer, with
     the first word corresponding to lane 0, the second to lane 1, and so on.
@@ -185,7 +185,7 @@ The possible values for this field have the following semantics:
         struct spi_transfer xfer = {
             .rx_buf = rx_buf,
             .len = 2,
-            .multi_lane_mode = SPI_MULTI_BUS_MODE_STRIPE,
+            .multi_lane_mode = SPI_MULTI_LANE_MODE_STRIPE,
         };
 
         spi_sync_transfer(spi, &xfer, 1);

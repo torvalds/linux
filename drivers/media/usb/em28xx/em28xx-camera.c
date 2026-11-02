@@ -392,7 +392,7 @@ int em28xx_init_camera(struct em28xx *dev)
 		format.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		format.format.width = 640;
 		format.format.height = 480;
-		v4l2_subdev_call(subdev, pad, set_fmt, NULL, &format);
+		v4l2_subdev_call(subdev, pad, set_fmt, NULL, NULL, &format);
 
 		/* NOTE: for UXGA=1600x1200 switch to 12MHz */
 		dev->board.xclk = EM28XX_XCLK_FREQUENCY_24MHZ;

@@ -346,16 +346,19 @@ static ssize_t label_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(label);
 
-static umode_t label_is_visible(struct kobject *kobj,
-				   struct attribute *attr, int n)
+static umode_t coresight_attr_is_visible(struct kobject *kobj,
+					 struct attribute *attr, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
+	struct coresight_device *csdev = to_coresight_device(dev);
 
 	if (attr == &dev_attr_label.attr) {
 		if (fwnode_property_present(dev_fwnode(dev), "label"))
 			return attr->mode;
 		else
 			return 0;
+	} else if (csdev->flags & CORESIGHT_DESC_NO_SYSFS_MODE) {
+		return 0;
 	}
 
 	return attr->mode;
@@ -369,7 +372,7 @@ static struct attribute *coresight_sink_attrs[] = {
 
 static struct attribute_group coresight_sink_group = {
 	.attrs = coresight_sink_attrs,
-	.is_visible = label_is_visible,
+	.is_visible = coresight_attr_is_visible,
 };
 __ATTRIBUTE_GROUPS(coresight_sink);
 
@@ -381,7 +384,7 @@ static struct attribute *coresight_source_attrs[] = {
 
 static struct attribute_group coresight_source_group = {
 	.attrs = coresight_source_attrs,
-	.is_visible = label_is_visible,
+	.is_visible = coresight_attr_is_visible,
 };
 __ATTRIBUTE_GROUPS(coresight_source);
 
@@ -392,7 +395,7 @@ static struct attribute *coresight_link_attrs[] = {
 
 static struct attribute_group coresight_link_group = {
 	.attrs = coresight_link_attrs,
-	.is_visible = label_is_visible,
+	.is_visible = coresight_attr_is_visible,
 };
 __ATTRIBUTE_GROUPS(coresight_link);
 
@@ -403,7 +406,7 @@ static struct attribute *coresight_helper_attrs[] = {
 
 static struct attribute_group coresight_helper_group = {
 	.attrs = coresight_helper_attrs,
-	.is_visible = label_is_visible,
+	.is_visible = coresight_attr_is_visible,
 };
 __ATTRIBUTE_GROUPS(coresight_helper);
 

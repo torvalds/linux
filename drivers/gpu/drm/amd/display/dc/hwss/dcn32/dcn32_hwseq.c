@@ -425,22 +425,10 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 	}
 }
 
-void dcn32_subvp_pipe_control_lock_fast(union block_sequence_params *params)
+bool dcn32_is_subvp_hw_lock_supported(const struct dc *dc)
 {
-	struct dc *dc = params->subvp_pipe_control_lock_fast_params.dc;
-	bool lock = params->subvp_pipe_control_lock_fast_params.lock;
-	bool subvp_immediate_flip = params->subvp_pipe_control_lock_fast_params.subvp_immediate_flip;
-
-	// Don't need to lock for DRR VSYNC flips -- FW will wait for DRR pending update cleared.
-	if (subvp_immediate_flip) {
-		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
-
-		hw_lock_cmd.bits.command_code = DMUB_INBOX0_CMD__HW_LOCK;
-		hw_lock_cmd.bits.hw_lock_client = HW_LOCK_CLIENT_DRIVER;
-		hw_lock_cmd.bits.lock = lock;
-		hw_lock_cmd.bits.should_release = !lock;
-		dmub_hw_lock_mgr_inbox0_cmd(dc->ctx->dmub_srv, hw_lock_cmd);
-	}
+	/* SubVP inbox0 lock has no firmware feature gate on this generation. */
+	return dc && dc->ctx && dc->ctx->dmub_srv && dc->ctx->dmub_srv->dmub;
 }
 
 bool dcn32_set_mpc_shaper_3dlut(struct dpp *dpp, struct mpc *mpc,
@@ -477,14 +465,18 @@ bool dcn32_set_mpc_shaper_3dlut(struct dpp *dpp, struct mpc *mpc,
 	return result;
 }
 
-bool dcn32_set_mcm_luts(
-	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
+bool dcn32_set_mcm_luts(struct dc *dc, struct dpp *dpp, struct hubp *hubp,
+	struct hubp *primary_hubp, struct mpc *mpc, int mpcc_id,
+	struct dc_stream_state *stream,
+	struct dc_plane_state *plane_state)
 {
-	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
-	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
-	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
 	bool rval, result;
 	const struct pwl_params *lut_params = NULL;
+
+	(void)dc;
+	(void)hubp;
+	(void)primary_hubp;
+	(void)stream;
 
 	// 1D LUT
 	if (plane_state->cm.blend_func.type == TF_TYPE_HWPWL)
@@ -492,11 +484,11 @@ bool dcn32_set_mcm_luts(
 	else if (plane_state->cm.blend_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 		result = cm3_helper_translate_curve_to_degamma_hw_format(
 			&plane_state->cm.blend_func,
-			&dpp_base->regamma_params);
+			&dpp->regamma_params);
 		if (!result)
 			return result;
 
-		lut_params = &dpp_base->regamma_params;
+		lut_params = &dpp->regamma_params;
 	}
 	mpc->funcs->program_1dlut(mpc, lut_params, mpcc_id);
 	lut_params = NULL;
@@ -505,12 +497,12 @@ bool dcn32_set_mcm_luts(
 	if (plane_state->cm.shaper_func.type == TF_TYPE_HWPWL)
 		lut_params = &plane_state->cm.shaper_func.pwl;
 	else if (plane_state->cm.shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
-		// TODO: dpp_base replace
+		// TODO: dpp replace
 		rval = cm3_helper_translate_curve_to_hw_format(plane_state->ctx,
 			&plane_state->cm.shaper_func,
-			&dpp_base->shaper_params,
+			&dpp->shaper_params,
 			true);
-		lut_params = rval ? &dpp_base->shaper_params : NULL;
+		lut_params = rval ? &dpp->shaper_params : NULL;
 	}
 
 	mpc->funcs->program_shaper(mpc, lut_params, mpcc_id);
@@ -524,19 +516,35 @@ bool dcn32_set_mcm_luts(
 	return result;
 }
 
-bool dcn32_set_input_transfer_func(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_plane_state *plane_state)
+/*
+ * FP16 / 64bpp 16161616 surfaces store pixel data in linear light. These are
+ * the only source formats that must be de-linearized before scaling in
+ * source/non-linear space; every other format is already non-linear.
+ */
+static bool is_source_pixel_format_linear(enum surface_pixel_format format)
 {
-	struct dce_hwseq *hws = dc->hwseq;
-	struct mpc *mpc = dc->res_pool->mpc;
-	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
+	switch (format) {
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool dcn32_set_input_transfer_func(struct set_input_transfer_func_params *params)
+{
+	struct dce_hwseq *hws = params->dc->hwseq;
+	struct dpp *dpp = params->dpp;
+	struct dc_plane_state *plane_state = params->plane_state;
 
 	enum dc_transfer_func_predefined tf;
 	bool result = true;
-	const struct pwl_params *params = NULL;
+	const struct pwl_params *pwl_params = NULL;
 
-	if (mpc == NULL || plane_state == NULL)
+	if (params->mpc == NULL || plane_state == NULL)
 		return false;
 
 	tf = TRANSFER_FUNCTION_UNITY;
@@ -544,24 +552,39 @@ bool dcn32_set_input_transfer_func(struct dc *dc,
 	if (plane_state->in_transfer_func.type == TF_TYPE_PREDEFINED)
 		tf = plane_state->in_transfer_func.tf;
 
-	if (dpp_base->funcs->dpp_set_pregam_state)
-		dpp_base->funcs->dpp_set_pregam_state(dpp_base, tf, plane_state->scaling_linearity);
+	if (dpp->funcs->dpp_set_pregam_state)
+		dpp->funcs->dpp_set_pregam_state(dpp, tf, plane_state->scaling_linearity,
+				is_source_pixel_format_linear(plane_state->format));
 	else
-		dpp_base->funcs->dpp_set_pre_degam(dpp_base, tf);
+		dpp->funcs->dpp_set_pre_degam(dpp, tf);
 
 	if (plane_state->in_transfer_func.type == TF_TYPE_HWPWL)
-		params = &plane_state->in_transfer_func.pwl;
+		pwl_params = &plane_state->in_transfer_func.pwl;
 	else if (plane_state->in_transfer_func.type == TF_TYPE_DISTRIBUTED_POINTS &&
 		cm3_helper_translate_curve_to_degamma_hw_format(&plane_state->in_transfer_func,
-								&dpp_base->degamma_params))
-		params = &dpp_base->degamma_params;
+								&dpp->degamma_params))
+		pwl_params = &dpp->degamma_params;
 
-	dpp_base->funcs->dpp_program_gamcor_lut(dpp_base, params);
+	dpp->funcs->dpp_program_gamcor_lut(dpp, pwl_params);
 
-	if (pipe_ctx->stream_res.opp &&
-			pipe_ctx->stream_res.opp->ctx &&
-			hws->funcs.set_mcm_luts)
-		result = hws->funcs.set_mcm_luts(pipe_ctx, plane_state);
+	/* MCM and RMCM are mutually exclusive - tear the inactive one out before programming
+	 * the active one, which then owns the shared HUBP 3DLUT fast load.
+	 */
+	if (plane_state->cm.flags.bits.rmcm_enable && hws->funcs.set_rmcm_luts) {
+		if (hws->funcs.disable_mcm_luts)
+			hws->funcs.disable_mcm_luts(params->mpc, params->mpcc_id);
+
+		result = hws->funcs.set_rmcm_luts(params);
+	} else {
+		if (hws->funcs.disable_rmcm_luts)
+			hws->funcs.disable_rmcm_luts(params->dc, params->rmcm,
+					params->hubp, params->mpcc_id);
+
+		if (hws->funcs.set_mcm_luts)
+			result = hws->funcs.set_mcm_luts(params->dc, dpp, params->hubp,
+				params->primary_hubp, params->mpc, params->mpcc_id,
+				params->stream, plane_state);
+	}
 
 	return result;
 }
@@ -1080,17 +1103,25 @@ void dcn32_update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 
 		if (should_use_dto_dscclk)
 			dccg->funcs->set_dto_dscclk(dccg, dsc->inst, dsc_cfg.dc_dsc_cfg.num_slices_h);
-		dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg);
+		if (!dsc->funcs->dsc_prepare_config(dsc, &dsc_cfg, &dsc_optc_cfg)) {
+			ASSERT(false);
+			return;
+		}
+		dsc->funcs->dsc_set_config(dsc);
 		dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
 		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 			struct display_stream_compressor *odm_dsc = odm_pipe->stream_res.dsc;
 
 			ASSERT(odm_dsc);
 			if (!odm_dsc)
-				continue;
+				return;
 			if (should_use_dto_dscclk)
 				dccg->funcs->set_dto_dscclk(dccg, odm_dsc->inst, dsc_cfg.dc_dsc_cfg.num_slices_h);
-			odm_dsc->funcs->dsc_set_config(odm_dsc, &dsc_cfg, &dsc_optc_cfg);
+			if (!odm_dsc->funcs->dsc_prepare_config(odm_dsc, &dsc_cfg, &dsc_optc_cfg)) {
+				ASSERT(false);
+				return;
+			}
+			odm_dsc->funcs->dsc_set_config(odm_dsc);
 			odm_dsc->funcs->dsc_enable(odm_dsc, odm_pipe->stream_res.opp->inst);
 		}
 		optc_dsc_mode = dsc_optc_cfg.is_pixel_format_444 ? OPTC_DSC_ENABLED_444 : OPTC_DSC_ENABLED_NATIVE_SUBSAMPLED;
@@ -1432,8 +1463,11 @@ void dcn32_disable_link_output(struct dc_link *link,
 	else if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->lock_phy(dmcu);
 
-	link_hwss->disable_link_output(link, link_res, signal);
-	link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
+	if (!(signal == SIGNAL_TYPE_EDP &&
+		link->forced_psr_active)) {
+		link_hwss->disable_link_output(link, link_res, signal);
+		link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
+	}
 	/*
 	 * Add the logic to extract BOTH power up and power down sequences
 	 * from enable/disable link output and only call edp panel control
@@ -1716,7 +1750,8 @@ void dcn32_init_blank(
 				&black_color,
 				otg_active_width,
 				otg_active_height,
-				0);
+				0,
+				dc->debug.disable_dynamic_expansion_for_test_pattern);
 
 	if (num_opps == 2) {
 		if (bottom_opp && bottom_opp->funcs->opp_set_disp_pattern_generator) {
@@ -1728,7 +1763,8 @@ void dcn32_init_blank(
 					&black_color,
 					otg_active_width,
 					otg_active_height,
-					0);
+					0,
+					dc->debug.disable_dynamic_expansion_for_test_pattern);
 			hws->funcs.wait_for_blank_complete(bottom_opp);
 		}
 	}
@@ -1862,9 +1898,9 @@ void dcn32_interdependent_update_lock(struct dc *dc,
 			continue;
 
 		if (lock)
-			dc->hwss.pipe_control_lock(dc, pipe, true);
+			hwss_pipe_control_lock(dc, pipe, true);
 		else
-			dc->hwss.pipe_control_lock(dc, pipe, false);
+			hwss_pipe_control_lock(dc, pipe, false);
 	}
 }
 

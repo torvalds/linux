@@ -1837,7 +1837,7 @@ static int fanotify_events_supported(struct fsnotify_group *group,
 	/*
 	 * mount and sb marks are not allowed on kernel internal pseudo fs,
 	 * like pipe_mnt, because that would subscribe to events on all the
-	 * anonynous pipes in the system.
+	 * anonymous pipes in the system.
 	 *
 	 * SB_NOUSER covers all of the internal pseudo fs whose objects are not
 	 * exposed to user's mount namespace, but there are other SB_KERNMOUNT

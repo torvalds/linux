@@ -55,7 +55,7 @@ looked up by the gpiod functions internally) used in the device tree. With above
 
 Internally, the GPIO subsystem prefixes the GPIO suffix ("gpios" or "gpio")
 with the string passed in con_id to get the resulting string
-(``snprintf(... "%s-%s", con_id, gpio_suffixes[]``).
+(``snprintf(... "%s-%s", con_id, gpio_suffixes[])``).
 
 ACPI
 ----

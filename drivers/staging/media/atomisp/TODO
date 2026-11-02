@@ -1,9 +1,10 @@
 TODO
 ====
 
-1. Items which MUST be fixed before the driver can be moved out of staging:
+atomisp
+-------
 
-* Remove/disable private IOCTLs
+1. Items which MUST be fixed before the driver can be moved out of staging:
 
 * Remove/disable custom v4l2-ctrls
 
@@ -11,18 +12,12 @@ TODO
 
 * Remove abuse of priv field in various v4l2 userspace API structs
 
-* Without a 3A library the capture behaviour is not very good. To take a good
-  picture, the exposure/gain needs to be tuned using v4l2-ctl on the sensor
-  subdev. To fix this, support for the atomisp needs to be added to libcamera.
-
-  This MUST be done before moving the driver out of staging so that we can
-  still make changes to e.g. the mediactl topology if necessary for
-  libcamera integration. Since this would be a userspace API break, this
-  means that at least proof-of-concept libcamera integration needs to be
-  ready before moving the driver out of staging.
-
+* Refactor the codebase (random cleanups won't achieve this)
 
 2. Items which SHOULD also be fixed eventually:
+
+* Support ISP parameter passing via parameter buffers (see
+  drivers/media/v4l2-core/v4l2-isp.c).
 
 * The driver is intended to drive the PCI exposed versions of the device.
   It will not detect those devices enumerated via ACPI as a field of the
@@ -33,10 +28,23 @@ TODO
 
 * Ensure that the driver will pass v4l2-compliance tests
 
-* Fix not all v4l2 apps working, e.g. cheese does not work
+sensor drivers
+--------------
 
-* The atomisp code still has a lot of cruft which needs cleaning up
+* Use v4l2-cci for register access
 
+* Implement enable_streams and disable_streams pad ops (use s_stream
+  compat helper)
+
+* Implement Runtime PM support (see e.g. ov8856 driver)
+
+* Use sub-device state and remove state related fields from device context
+  structs
+
+* Implement modern V4L2 camera sensor controls (see
+  Documentation/userspace-api/media/drivers/camera-sensor.rst) or even
+  Common Raw Sensor Model (which isn't in upsteam yet though; see
+  <URL:https://gitlab.freedesktop.org/linux-media/users/sailus/-/tree/metadata?ref_type=heads>).
 
 Testing
 =======

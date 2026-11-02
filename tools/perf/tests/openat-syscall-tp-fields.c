@@ -160,4 +160,5 @@ static struct test_case tests__syscall_openat_tp_fields[] = {
 struct test_suite suite__syscall_openat_tp_fields = {
 	.desc = "syscalls:sys_enter_openat event fields",
 	.test_cases = tests__syscall_openat_tp_fields,
+	.needs_mlock = true,
 };

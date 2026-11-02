@@ -1,12 +1,12 @@
 Iterations:        100
-Instructions:      1900
+Instructions:      1800
 Total Cycles:      2890
-Total uOps:        2500
+Total uOps:        2400
 
 Dispatch Width:    4
-uOps Per Cycle:    0.87
-IPC:               0.66
-Block RThroughput: 6.3
+uOps Per Cycle:    0.83
+IPC:               0.62
+Block RThroughput: 6.0
 
 
 Instruction Info:
@@ -22,8 +22,7 @@ Instruction Info:
  2      5     1.00           *            push	rbx
  2      5     1.00           *            push	rax
  1      1     0.33                        mov	rbx, rcx
- 1      1     0.50                        lea	r14, [2*rsi + 5]
- 1      1     0.33                        and	r14, -2
+ 1      1     0.50                        lea	r14, [2*rsi + 4]
  1      1     0.33                        cmp	rcx, r14
  1      1     1.00                        jne	.LBB5_2
  1      1     0.33                        mov	rax, rdi
@@ -52,25 +51,24 @@ Resources:
 
 Resource pressure per iteration:
 [0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
- -      -     4.66   4.64   4.00   4.70   4.00   3.00   
+ -      -     4.47   4.01   4.00   4.52   4.00   3.00   
 
 Resource pressure by instruction:
 [0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
  -      -      -      -     1.00    -      -     1.00   push	r14
  -      -      -      -     1.00    -     1.00    -     push	rbx
  -      -      -      -     1.00    -      -     1.00   push	rax
- -      -     0.02   0.97    -     0.01    -      -     mov	rbx, rcx
- -      -     0.97   0.03    -      -      -      -     lea	r14, [2*rsi + 5]
- -      -     0.63   0.35    -     0.02    -      -     and	r14, -2
- -      -     0.31   0.34    -     0.35    -      -     cmp	rcx, r14
+ -      -      -     0.99    -     0.01    -      -     mov	rbx, rcx
+ -      -     0.99   0.01    -      -      -      -     lea	r14, [2*rsi + 4]
+ -      -     0.02   0.95    -     0.03    -      -     cmp	rcx, r14
  -      -      -      -      -     1.00    -      -     jne	.LBB5_2
- -      -     0.33   0.33    -     0.34    -      -     mov	rax, rdi
- -      -     0.36   0.31    -     0.33    -      -     mov	rdi, rdx
- -      -     0.33   0.35    -     0.32    -      -     mov	rsi, rax
- -      -     0.35   0.63    -     0.02    -      -     mov	rdx, rbx
+ -      -     0.48   0.04    -     0.48    -      -     mov	rax, rdi
+ -      -     0.51   0.01    -     0.48    -      -     mov	rdi, rdx
+ -      -     0.01   0.98    -     0.01    -      -     mov	rsi, rax
+ -      -     0.98   0.02    -      -      -      -     mov	rdx, rbx
  -      -      -      -     1.00   1.00   2.00    -     call	qword ptr [rip + memcpy@GOTPCREL]
- -      -     0.65   0.35    -      -      -      -     cmp	rbx, r14
- -      -     0.69    -      -     0.31    -      -     sete	al
+ -      -     0.94   0.03    -     0.03    -      -     cmp	rbx, r14
+ -      -     0.52    -      -     0.48    -      -     sete	al
  -      -     0.02   0.98    -      -      -      -     add	rsp, 8
  -      -      -      -      -      -      -     1.00   pop	rbx
  -      -      -      -      -      -     1.00    -     pop	r14

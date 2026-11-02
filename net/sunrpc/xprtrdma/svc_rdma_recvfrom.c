@@ -925,8 +925,9 @@ static noinline void svc_rdma_read_complete(struct svc_rqst *rqstp,
  *	%-ENOTCONN if posting failed (connection is lost),
  *	%-EIO if rdma_rw initialization failed (DMA mapping, etc).
  *
- * Called in a loop when XPT_DATA is set. XPT_DATA is cleared only
- * when there are no remaining ctxt's to process.
+ * Called in a loop when XPT_DATA is set. XPT_DATA is cleared as
+ * soon as both receive queues are empty, so a consumed ctxt does
+ * not leave a stale bit behind.
  *
  * The next ctxt is removed from the "receive" lists.
  *
@@ -960,6 +961,15 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	ctxt = svc_rdma_next_recv_ctxt(&rdma_xprt->sc_read_complete_q);
 	if (ctxt) {
 		list_del(&ctxt->rc_list);
+		/* Producers add to these queues and set XPT_DATA under
+		 * this lock, so the clear cannot race one. The clear can
+		 * drop the XPT_DATA that svc_rdma_send_ctxt_put() sets
+		 * for sc_send_release_list. svc_xprt_release() drains
+		 * that list before this thread looks for more work.
+		 */
+		if (list_empty(&rdma_xprt->sc_read_complete_q) &&
+		    list_empty(&rdma_xprt->sc_rq_dto_q))
+			clear_bit(XPT_DATA, &xprt->xpt_flags);
 		spin_unlock(&rdma_xprt->sc_rq_dto_lock);
 		svc_xprt_received(xprt);
 		svc_rdma_read_complete(rqstp, ctxt);
@@ -968,8 +978,8 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	ctxt = svc_rdma_next_recv_ctxt(&rdma_xprt->sc_rq_dto_q);
 	if (ctxt)
 		list_del(&ctxt->rc_list);
-	else
-		/* No new incoming requests, terminate the loop */
+	/* sc_read_complete_q was empty above, under this same lock. */
+	if (list_empty(&rdma_xprt->sc_rq_dto_q))
 		clear_bit(XPT_DATA, &xprt->xpt_flags);
 	spin_unlock(&rdma_xprt->sc_rq_dto_lock);
 

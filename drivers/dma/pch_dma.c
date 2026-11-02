@@ -150,11 +150,6 @@ static inline struct pch_dma *to_pd(struct dma_device *ddev)
 	return container_of(ddev, struct pch_dma, dma);
 }
 
-static inline struct device *chan2dev(struct dma_chan *chan)
-{
-	return &chan->dev->device;
-}
-
 static inline
 struct pch_dma_desc *pdc_first_active(struct pch_dma_chan *pd_chan)
 {
@@ -189,7 +184,7 @@ static void pdc_enable_irq(struct dma_chan *chan, int enable)
 
 	dma_writel(pd, CTL2, val);
 
-	dev_dbg(chan2dev(chan), "pdc_enable_irq: chan %d -> %x\n",
+	dev_dbg(dmaengine_chan_dev(chan), "pdc_enable_irq: chan %d -> %x\n",
 		chan->chan_id, val);
 }
 
@@ -237,7 +232,7 @@ static void pdc_set_dir(struct dma_chan *chan)
 		dma_writel(pd, CTL3, val);
 	}
 
-	dev_dbg(chan2dev(chan), "pdc_set_dir: chan %d -> %x\n",
+	dev_dbg(dmaengine_chan_dev(chan), "pdc_set_dir: chan %d -> %x\n",
 		chan->chan_id, val);
 }
 
@@ -271,7 +266,7 @@ static void pdc_set_mode(struct dma_chan *chan, u32 mode)
 		dma_writel(pd, CTL3, val);
 	}
 
-	dev_dbg(chan2dev(chan), "pdc_set_mode: chan %d -> %x\n",
+	dev_dbg(dmaengine_chan_dev(chan), "pdc_set_mode: chan %d -> %x\n",
 		chan->chan_id, val);
 }
 
@@ -314,18 +309,18 @@ static bool pdc_is_idle(struct pch_dma_chan *pd_chan)
 static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 {
 	if (!pdc_is_idle(pd_chan)) {
-		dev_err(chan2dev(&pd_chan->chan),
+		dev_err(dmaengine_chan_dev(&pd_chan->chan),
 			"BUG: Attempt to start non-idle channel\n");
 		return;
 	}
 
-	dev_dbg(chan2dev(&pd_chan->chan), "chan %d -> dev_addr: %x\n",
+	dev_dbg(dmaengine_chan_dev(&pd_chan->chan), "chan %d -> dev_addr: %x\n",
 		pd_chan->chan.chan_id, desc->regs.dev_addr);
-	dev_dbg(chan2dev(&pd_chan->chan), "chan %d -> mem_addr: %x\n",
+	dev_dbg(dmaengine_chan_dev(&pd_chan->chan), "chan %d -> mem_addr: %x\n",
 		pd_chan->chan.chan_id, desc->regs.mem_addr);
-	dev_dbg(chan2dev(&pd_chan->chan), "chan %d -> size: %x\n",
+	dev_dbg(dmaengine_chan_dev(&pd_chan->chan), "chan %d -> size: %x\n",
 		pd_chan->chan.chan_id, desc->regs.size);
-	dev_dbg(chan2dev(&pd_chan->chan), "chan %d -> next: %x\n",
+	dev_dbg(dmaengine_chan_dev(&pd_chan->chan), "chan %d -> next: %x\n",
 		pd_chan->chan.chan_id, desc->regs.next);
 
 	if (list_empty(&desc->tx_list)) {
@@ -382,8 +377,8 @@ static void pdc_handle_error(struct pch_dma_chan *pd_chan)
 	if (!list_empty(&pd_chan->active_list))
 		pdc_dostart(pd_chan, pdc_first_active(pd_chan));
 
-	dev_crit(chan2dev(&pd_chan->chan), "Bad descriptor submitted\n");
-	dev_crit(chan2dev(&pd_chan->chan), "descriptor cookie: %d\n",
+	dev_crit(dmaengine_chan_dev(&pd_chan->chan), "Bad descriptor submitted\n");
+	dev_crit(dmaengine_chan_dev(&pd_chan->chan), "descriptor cookie: %d\n",
 		 bad_desc->txd.cookie);
 
 	pdc_chain_complete(pd_chan, bad_desc);
@@ -450,10 +445,10 @@ static struct pch_dma_desc *pdc_desc_get(struct pch_dma_chan *pd_chan)
 			ret = desc;
 			break;
 		}
-		dev_dbg(chan2dev(&pd_chan->chan), "desc %p not ACKed\n", desc);
+		dev_dbg(dmaengine_chan_dev(&pd_chan->chan), "desc %p not ACKed\n", desc);
 	}
 	spin_unlock(&pd_chan->lock);
-	dev_dbg(chan2dev(&pd_chan->chan), "scanned %d descriptors\n", i);
+	dev_dbg(dmaengine_chan_dev(&pd_chan->chan), "scanned %d descriptors\n", i);
 
 	if (!ret) {
 		ret = pdc_alloc_desc(&pd_chan->chan, GFP_ATOMIC);
@@ -462,7 +457,7 @@ static struct pch_dma_desc *pdc_desc_get(struct pch_dma_chan *pd_chan)
 			pd_chan->descs_allocated++;
 			spin_unlock(&pd_chan->lock);
 		} else {
-			dev_err(chan2dev(&pd_chan->chan),
+			dev_err(dmaengine_chan_dev(&pd_chan->chan),
 				"failed to alloc desc\n");
 		}
 	}
@@ -489,7 +484,7 @@ static int pd_alloc_chan_resources(struct dma_chan *chan)
 	int i;
 
 	if (!pdc_is_idle(pd_chan)) {
-		dev_dbg(chan2dev(chan), "DMA channel not idle ?\n");
+		dev_dbg(dmaengine_chan_dev(chan), "DMA channel not idle ?\n");
 		return -EIO;
 	}
 
@@ -500,7 +495,7 @@ static int pd_alloc_chan_resources(struct dma_chan *chan)
 		desc = pdc_alloc_desc(chan, GFP_KERNEL);
 
 		if (!desc) {
-			dev_warn(chan2dev(chan),
+			dev_warn(dmaengine_chan_dev(chan),
 				"Only allocated %d initial descriptors\n", i);
 			break;
 		}
@@ -573,7 +568,7 @@ static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 	int i;
 
 	if (unlikely(!sg_len)) {
-		dev_info(chan2dev(chan), "prep_slave_sg: length is zero!\n");
+		dev_info(dmaengine_chan_dev(chan), "prep_slave_sg: length is zero!\n");
 		return NULL;
 	}
 
@@ -639,7 +634,7 @@ static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 	return &first->txd;
 
 err_desc_get:
-	dev_err(chan2dev(chan), "failed to get desc or wrong parameters\n");
+	dev_err(dmaengine_chan_dev(chan), "failed to get desc or wrong parameters\n");
 	pdc_desc_put(pd_chan, first);
 	return NULL;
 }
@@ -671,7 +666,7 @@ static void pdc_tasklet(struct tasklet_struct *t)
 	unsigned long flags;
 
 	if (!pdc_is_idle(pd_chan)) {
-		dev_err(chan2dev(&pd_chan->chan),
+		dev_err(dmaengine_chan_dev(&pd_chan->chan),
 			"BUG: handle non-idle channel in tasklet\n");
 		return;
 	}

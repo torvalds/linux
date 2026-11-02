@@ -79,7 +79,7 @@ static int fscache_begin_operation(struct netfs_cache_resources *cres,
 	cres->ops		= NULL;
 	cres->cache_priv	= cookie;
 	cres->cache_priv2	= NULL;
-	cres->debug_id		= cookie->debug_id;
+	cres->cookie_id		= cookie->debug_id;
 	cres->inval_counter	= cookie->inval_counter;
 
 	if (!fscache_begin_cookie_access(cookie, why)) {
@@ -162,7 +162,7 @@ EXPORT_SYMBOL(__fscache_begin_write_operation);
 struct fscache_write_request {
 	struct netfs_cache_resources cache_resources;
 	struct address_space	*mapping;
-	loff_t			start;
+	uoff_t			start;
 	size_t			len;
 	bool			set_bits;
 	bool			using_pgpriv2;
@@ -171,7 +171,7 @@ struct fscache_write_request {
 };
 
 void __fscache_clear_page_bits(struct address_space *mapping,
-			       loff_t start, size_t len)
+			       uoff_t start, size_t len)
 {
 	pgoff_t first = start / PAGE_SIZE;
 	pgoff_t last = (start + len - 1) / PAGE_SIZE;
@@ -208,7 +208,7 @@ static void fscache_wreq_done(void *priv, ssize_t transferred_or_error)
 
 void __fscache_write_to_cache(struct fscache_cookie *cookie,
 			      struct address_space *mapping,
-			      loff_t start, size_t len, loff_t i_size,
+			      uoff_t start, size_t len, uoff_t i_size,
 			      netfs_io_terminated_t term_func,
 			      void *term_func_priv,
 			      bool using_pgpriv2, bool cond)
@@ -267,7 +267,7 @@ EXPORT_SYMBOL(__fscache_write_to_cache);
 /*
  * Change the size of a backing object.
  */
-void __fscache_resize_cookie(struct fscache_cookie *cookie, loff_t new_size)
+void __fscache_resize_cookie(struct fscache_cookie *cookie, uoff_t new_size, bool shrank)
 {
 	struct netfs_cache_resources cres;
 
@@ -281,7 +281,7 @@ void __fscache_resize_cookie(struct fscache_cookie *cookie, loff_t new_size)
 		 * netfs's inode lock so that we're serialised with respect to
 		 * writes.
 		 */
-		cookie->volume->cache->ops->resize_cookie(&cres, new_size);
+		cookie->volume->cache->ops->resize_cookie(&cres, new_size, shrank);
 		fscache_end_operation(&cres);
 	} else {
 		fscache_stat(&fscache_n_resizes_null);

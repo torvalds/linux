@@ -275,7 +275,6 @@ dce60_program_front_end_for_pipe(
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
 	unsigned int i;
-	struct dce_hwseq *hws = dc->hwseq;
 
 	DC_LOGGER_INIT();
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
@@ -335,7 +334,7 @@ dce60_program_front_end_for_pipe(
 	if (pipe_ctx->plane_state->update_bits.full_update ||
 			pipe_ctx->plane_state->update_bits.in_transfer_func_change ||
 			pipe_ctx->plane_state->update_bits.gamma_change)
-		hws->funcs.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
+		hwss_set_input_transfer_func(dc, pipe_ctx);
 
 	if (pipe_ctx->plane_state->update_bits.full_update)
 		hwss_set_output_transfer_func(dc, pipe_ctx);
@@ -424,8 +423,9 @@ void dce60_hw_sequencer_construct(struct dc *dc)
 
 	dc->hwseq->funcs.enable_display_power_gating = dce100_enable_display_power_gating;
 	dc->hwss.apply_ctx_for_surface = dce60_apply_ctx_for_surface;
-	dc->hwss.cursor_lock = dce60_pipe_control_lock;
-	dc->hwss.pipe_control_lock = dce60_pipe_control_lock;
+	dc->hwss.cursor_lock = hwss_pipe_control_lock;
+	dc->hwss.build_pipe_control_lock_sequence = dce_build_pipe_control_lock_sequence;
+	dc->hwss.tg_lock = dce60_tg_lock;
 	dc->hwss.prepare_bandwidth = dce100_prepare_bandwidth;
 	dc->hwss.optimize_bandwidth = dce100_optimize_bandwidth;
 	dc->hwss.clear_surface_dcc_and_tiling = dce100_reset_surface_dcc_and_tiling;

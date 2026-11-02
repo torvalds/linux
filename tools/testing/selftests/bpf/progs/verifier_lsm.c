@@ -212,4 +212,17 @@ __naked int retval_load_resets_bounds(void *ctx)
 	::: __clobber_all);
 }
 
+SEC("lsm/file_mprotect")
+__description("lsm ctx is read-only")
+__failure __msg("invalid bpf_context access")
+__naked int reject_ctx_write(void *ctx)
+{
+	asm volatile (
+	"r6 = 0;"
+	"*(u64 *)(r1 + 0) = r6;"
+	"r0 = 0;"
+	"exit;"
+	::: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

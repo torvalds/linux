@@ -148,13 +148,13 @@ amdgpu_userq_fence_driver_process(struct amdgpu_userq_fence_driver *fence_drv)
 	LIST_HEAD(to_be_signaled);
 	struct dma_fence *fence;
 	unsigned long flags;
-	u64 rptr;
+	u64 fence_val;
 
 	spin_lock_irqsave(&fence_drv->fence_list_lock, flags);
-	rptr = amdgpu_userq_fence_read(fence_drv);
+	fence_val = amdgpu_userq_fence_read(fence_drv);
 
 	list_for_each_entry(userq_fence, &fence_drv->fences, link) {
-		if (rptr < userq_fence->base.seqno)
+		if (fence_val < userq_fence->base.seqno)
 			break;
 	}
 
@@ -314,12 +314,12 @@ static bool amdgpu_userq_fence_signaled(struct dma_fence *f)
 {
 	struct amdgpu_userq_fence *fence = to_amdgpu_userq_fence(f);
 	struct amdgpu_userq_fence_driver *fence_drv = fence->fence_drv;
-	u64 rptr, wptr;
+	u64 fence_val, wptr;
 
-	rptr = amdgpu_userq_fence_read(fence_drv);
+	fence_val = amdgpu_userq_fence_read(fence_drv);
 	wptr = fence->base.seqno;
 
-	if (rptr >= wptr)
+	if (fence_val >= wptr)
 		return true;
 
 	return false;
@@ -359,7 +359,7 @@ static const struct dma_fence_ops amdgpu_userq_fence_ops = {
  *
  * Read the wptr value from userq's MQD. The userq signal IOCTL
  * creates a dma_fence for the shared buffers that expects the
- * RPTR value written to seq64 memory >= WPTR.
+ * fence_val written to seq64 fence address >= WPTR.
  *
  * Returns wptr value on success, error on failure.
  */
@@ -370,7 +370,7 @@ static int amdgpu_userq_fence_read_wptr(struct amdgpu_device *adev,
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;
 	struct drm_exec exec;
-	u64 addr, *ptr;
+	u64 addr, offset, *ptr;
 	int ret;
 
 	addr = queue->userq_prop->wptr_gpu_addr;
@@ -383,8 +383,8 @@ static int amdgpu_userq_fence_read_wptr(struct amdgpu_device *adev,
 		if (unlikely(ret))
 			goto lock_error;
 
-		mapping = amdgpu_vm_bo_lookup_mapping(queue->vm, addr >> PAGE_SHIFT);
-		if (!mapping) {
+		mapping = amdgpu_vm_bo_lookup_mapping(queue->vm, addr);
+		if (!mapping || !mapping->bo_va->base.bo) {
 			ret = -EINVAL;
 			goto lock_error;
 		}
@@ -402,7 +402,10 @@ static int amdgpu_userq_fence_read_wptr(struct amdgpu_device *adev,
 		goto lock_error;
 	}
 
-	*wptr = le64_to_cpu(*ptr);
+	/* The WPTR can be anywhere within the BO's VA mapping. */
+	offset = addr - (mapping->start << AMDGPU_GPU_PAGE_SHIFT);
+	offset += mapping->offset;
+	*wptr = le64_to_cpu(ptr[offset / sizeof(*ptr)]);
 
 	amdgpu_bo_kunmap(bo);
 	drm_exec_fini(&exec);
@@ -464,9 +467,13 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 
 	struct drm_gem_object **gobj_write, **gobj_read;
 	u32 *syncobj_handles, num_syncobj_handles;
+	u64 *syncobj_points;
 	struct amdgpu_usermode_queue *queue;
 	struct amdgpu_userq_fence *fence;
-	struct drm_syncobj **syncobj;
+	struct {
+		struct drm_syncobj *syncobj;
+		struct dma_fence_chain *chain;
+	} *syncobj;
 	struct drm_exec exec;
 	void __user *ptr;
 	int r, i, entry;
@@ -486,18 +493,39 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(syncobj_handles))
 		return PTR_ERR(syncobj_handles);
 
+	if (args->syncobj_points) {
+		ptr = u64_to_user_ptr(args->syncobj_points);
+		syncobj_points = memdup_array_user(ptr, num_syncobj_handles,
+					    sizeof(u64));
+		if (IS_ERR(syncobj_points)) {
+			r = PTR_ERR(syncobj_points);
+			goto free_syncobj_handles;
+		}
+	} else {
+		syncobj_points = NULL;
+	}
+
 	syncobj = kmalloc_array(num_syncobj_handles, sizeof(*syncobj),
 				GFP_KERNEL);
 	if (!syncobj) {
 		r = -ENOMEM;
-		goto free_syncobj_handles;
+		goto free_syncobj_points;
 	}
 
 	for (entry = 0; entry < num_syncobj_handles; entry++) {
-		syncobj[entry] = drm_syncobj_find(filp, syncobj_handles[entry]);
-		if (!syncobj[entry]) {
+		syncobj[entry].chain = NULL;
+		syncobj[entry].syncobj = drm_syncobj_find(filp, syncobj_handles[entry]);
+		if (!syncobj[entry].syncobj) {
 			r = -ENOENT;
 			goto free_syncobj;
+		}
+		if (syncobj_points && syncobj_points[entry]) {
+			syncobj[entry].chain = dma_fence_chain_alloc();
+			if (!syncobj[entry].chain) {
+				drm_syncobj_put(syncobj[entry].syncobj);
+				r = -ENOMEM;
+				goto free_syncobj;
+			}
 		}
 	}
 
@@ -567,8 +595,15 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 		dma_resv_add_fence(gobj_write[i]->resv, &fence->base,
 				   DMA_RESV_USAGE_WRITE);
 
-	for (i = 0; i < num_syncobj_handles; i++)
-		drm_syncobj_replace_fence(syncobj[i], &fence->base);
+	for (i = 0; i < num_syncobj_handles; i++) {
+		if (syncobj[i].chain) {
+			drm_syncobj_add_point(syncobj[i].syncobj, syncobj[i].chain,
+					   &fence->base, syncobj_points[i]);
+			syncobj[i].chain = NULL;
+		} else {
+			drm_syncobj_replace_fence(syncobj[i].syncobj, &fence->base);
+		}
+	}
 
 exec_fini:
 	/* drop the reference acquired in fence creation function */
@@ -586,9 +621,13 @@ put_gobj_read:
 		drm_gem_object_put(gobj_read[i]);
 	kvfree(gobj_read);
 free_syncobj:
-	while (entry-- > 0)
-		drm_syncobj_put(syncobj[entry]);
+	while (entry-- > 0) {
+		drm_syncobj_put(syncobj[entry].syncobj);
+		dma_fence_chain_free(syncobj[entry].chain);
+	}
 	kfree(syncobj);
+free_syncobj_points:
+	kfree(syncobj_points);
 free_syncobj_handles:
 	kfree(syncobj_handles);
 

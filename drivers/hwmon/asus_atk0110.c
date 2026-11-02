@@ -141,8 +141,8 @@ typedef ssize_t (*sysfs_show_func)(struct device *dev,
 			struct device_attribute *attr, char *buf);
 
 static const struct acpi_device_id atk_ids[] = {
-	{ATK_HID, 0},
-	{"", 0},
+	{ .id = ATK_HID },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, atk_ids);
 

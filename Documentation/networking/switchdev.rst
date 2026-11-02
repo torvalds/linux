@@ -401,14 +401,15 @@ The FIB entry's nexthop list contains the nexthop tuple (gateway, dev), but for
 the switch device to forward the packet with the correct dst mac address, the
 nexthop gateways must be resolved to the neighbor's mac address.  Neighbor mac
 address discovery comes via the ARP (or ND) process and is available via the
-arp_tbl neighbor table.  To resolve the routes nexthop gateways, the driver
-should trigger the kernel's neighbor resolution process.  See the rocker
+arp_table(net) neighbor table.  To resolve the routes nexthop gateways, the
+driver should trigger the kernel's neighbor resolution process.  See the rocker
 driver's rocker_port_ipv4_resolve() for an example.
 
-The driver can monitor for updates to arp_tbl using the netevent notifier
+The driver can monitor for updates to arp_table(net) using the netevent notifier
 NETEVENT_NEIGH_UPDATE.  The device can be programmed with resolved nexthops
-for the routes as arp_tbl updates.  The driver implements ndo_neigh_destroy
-to know when arp_tbl neighbor entries are purged from the port.
+for the routes as arp_table(net) updates.  The driver implements
+ndo_neigh_destroy to know when arp_table(net) neighbor entries are purged from
+the port.
 
 Device driver expected behavior
 -------------------------------

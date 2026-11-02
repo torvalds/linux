@@ -24,20 +24,43 @@ bool cg_test_v1_named;
 /* Returns read len on success, or -errno on failure. */
 ssize_t read_text(const char *path, char *buf, size_t max_len)
 {
-	ssize_t len;
+	size_t total = 0;
+	ssize_t len, ret;
 	int fd;
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
 		return -errno;
 
-	len = read(fd, buf, max_len - 1);
+	/*
+	 * A single read() is not enough.  procfs and sysfs are backed by
+	 * seq_file, and seq_read_iter() copies out at most one internal
+	 * buffer (PAGE_SIZE) per call, leaving the rest for the next read().
+	 * Reading only once therefore silently drops everything past the
+	 * first page, no matter how big the caller's buffer is.
+	 *
+	 * Loop until the buffer is full or EOF.  A full buffer still means
+	 * the file may be longer than max_len, but that is now limited by
+	 * the caller's buffer rather than by a page of seq_file output.
+	 */
+	while (total < max_len - 1) {
+		len = read(fd, buf + total, max_len - 1 - total);
+		if (len < 0) {
+			if (errno == EINTR)
+				continue;
+			ret = -errno;
+			goto out;
+		}
+		if (!len)
+			break;
+		total += len;
+	}
 
-	if (len >= 0)
-		buf[len] = 0;
-
+	buf[total] = 0;
+	ret = total;
+out:
 	close(fd);
-	return len < 0 ? -errno : len;
+	return ret;
 }
 
 /* Returns written len on success, or -errno on failure. */
@@ -279,6 +302,16 @@ static int cg_find_root(char *root, size_t len, const char *controller,
 		options = strtok(NULL, delim);
 		strtok(NULL, delim);
 		strtok(NULL, delim);
+
+		/*
+		 * A mount entry is "device mountpoint type options freq
+		 * passno".  A field can only be missing if the last entry was
+		 * cut short by the buffer being too small for the file, and
+		 * there is no complete entry left to look at.
+		 */
+		if (!mount || !type || !options)
+			break;
+
 		if (strcmp(type, "cgroup") == 0) {
 			if (!controller || !strstr(options, controller))
 				continue;
@@ -626,18 +659,25 @@ int clone_into_cgroup_run_wait(const char *cgroup)
 
 static int __prepare_for_wait(const char *cgroup, const char *filename)
 {
-	int fd, ret = -1;
+	char *path;
+	int fd, ret;
+
+	path = cg_control(cgroup, filename);
+	if (!path)
+		return -1;
 
 	fd = inotify_init1(0);
 	if (fd == -1)
-		return fd;
+		goto out;
 
-	ret = inotify_add_watch(fd, cg_control(cgroup, filename), IN_MODIFY);
+	ret = inotify_add_watch(fd, path, IN_MODIFY);
 	if (ret == -1) {
 		close(fd);
 		fd = -1;
 	}
 
+out:
+	free(path);
 	return fd;
 }
 

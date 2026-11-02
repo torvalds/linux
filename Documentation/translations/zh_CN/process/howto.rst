@@ -142,7 +142,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     有助于内核开发的外部文档列表。如果你在内核自带的文档中没有找到你想找
     的内容，可以查看这些文档。
 
-  :ref:`Documentation/process/applying-patches.rst <applying_patches>`
+  :doc:`Documentation/translations/zh_CN/process/applying-patches.rst <applying-patches>`
     关于补丁是什么以及如何将它打在不同内核开发分支上的好介绍
 
 内核还拥有大量从代码自动生成或者从 ReStructuredText(ReST) 标记生成的文档，

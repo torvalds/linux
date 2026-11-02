@@ -48,13 +48,13 @@ static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
 
 static void rmnet_map_send_ack(struct sk_buff *skb,
 			       unsigned char type,
-			       struct rmnet_port *port)
+			       u32 data_format)
 {
 	struct rmnet_map_header *map_header = (void *)skb->data;
 	struct rmnet_map_control_command *cmd;
 	struct net_device *dev = skb->dev;
 
-	if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4)
+	if (data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4)
 		skb_trim(skb,
 			 skb->len - sizeof(struct rmnet_map_dl_csum_trailer));
 
@@ -72,7 +72,8 @@ static void rmnet_map_send_ack(struct sk_buff *skb,
 /* Process MAP command frame and send N/ACK message as appropriate. Message cmd
  * name is decoded here and appropriate handler is called.
  */
-void rmnet_map_command(struct sk_buff *skb, struct rmnet_port *port)
+void rmnet_map_command(struct sk_buff *skb, struct rmnet_port *port,
+		       u32 data_format)
 {
 	struct rmnet_map_header *map_header = (void *)skb->data;
 	struct rmnet_map_control_command *cmd;
@@ -98,5 +99,5 @@ void rmnet_map_command(struct sk_buff *skb, struct rmnet_port *port)
 		break;
 	}
 	if (rc == RMNET_MAP_COMMAND_ACK)
-		rmnet_map_send_ack(skb, rc, port);
+		rmnet_map_send_ack(skb, rc, data_format);
 }

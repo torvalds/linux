@@ -265,8 +265,7 @@ static struct aead_alg crypto_aegis128_aesni_alg = {
 static int __init crypto_aegis128_aesni_module_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_XMM4_1) ||
-	    !boot_cpu_has(X86_FEATURE_AES) ||
-	    !cpu_has_xfeatures(XFEATURE_MASK_SSE, NULL))
+	    !boot_cpu_has(X86_FEATURE_AES))
 		return -ENODEV;
 
 	return crypto_register_aead(&crypto_aegis128_aesni_alg);

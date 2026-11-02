@@ -322,9 +322,22 @@ static int parse_symbols(const char *fname)
 		return -1;
 	}
 
-	while (fscanf(fp, "%16s %16s %c %*s\n", addr_str, size_str, &type) == 3) {
+	while (fscanf(fp, "%16s %16s %c%*[^\n]", addr_str, size_str, &type) == 3) {
 		uint64_t addr;
 		uint64_t size;
+
+		/*
+		 * nm outputs size-less entries with a missing 2nd value, which
+		 * means fscanf() just misread its fields.
+		 *
+		 * These don't matter as a call site cannot be in an empty
+		 * function, so just skip them.
+		 *
+		 * nm pads address and size to the same width, so if their
+		 * widths differ, this is a misread.
+		 */
+		if (strlen(size_str) != strlen(addr_str))
+			continue;
 
 		/* Only care about functions */
 		if (type != 't' && type != 'T' && type != 'W')

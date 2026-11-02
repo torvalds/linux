@@ -1646,6 +1646,38 @@ radeon_atom_encoder_dpms_avivo(struct drm_encoder *encoder, int mode)
 	}
 }
 
+/*
+ * Apple's EFI enables the internal eDP panel power sequencer
+ * (LVTMA_PWRSEQ_CNTL) exactly once, at cold boot, and its minimal ATOM tables
+ * never touch it afterwards.  Any GPU re-initialisation - S3 resume or a GPU
+ * reset - clears PWRSEQ_EN, so the panel comes back dark on the DCE3.2 iMacs
+ * (iMac10,1 / iMac11,2, RV730).  Re-assert PWRSEQ_EN when we find it cleared;
+ * the hardware then runs the DIGON->DE->VARY_BL->BLON power-on sequence itself.
+ * DCE3.2 places the register 0x18 above the R600 offset.
+ *
+ * This is restricted to Apple DCE3.2 parts: the register lives at a different
+ * offset on DCE4+ (which Apple also shipped, e.g. the 2011 MacBook Pro), and
+ * non-Apple boards program the sequencer from their own firmware.  The
+ * read-modify-write only fires when the sequencer is actually disabled, so a
+ * lit panel is never disturbed.
+ *
+ * https://gitlab.freedesktop.org/drm/amd/-/issues/5719
+ */
+static void radeon_atom_apple_edp_pwrseq_restore(struct radeon_device *rdev)
+{
+	u32 pwrseq_cntl = R600_LVTMA_PWRSEQ_CNTL + 0x18;
+
+	if (rdev->pdev->subsystem_vendor != PCI_VENDOR_ID_APPLE)
+		return;
+	if (!ASIC_IS_DCE32(rdev) || ASIC_IS_DCE4(rdev))
+		return;
+
+	if (!(RREG32(pwrseq_cntl) & AVIVO_LVTMA_PWRSEQ_EN))
+		WREG32(pwrseq_cntl, AVIVO_LVTMA_PWRSEQ_EN |
+				    AVIVO_LVTMA_SYNCEN_OVRD |
+				    AVIVO_LVTMA_DIGON);
+}
+
 static void
 radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 {
@@ -1711,6 +1743,10 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 				atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_ON, 0);
 		}
 		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+			/* restore the panel power sequencer on Apple eDP iMacs
+			 * that lose it across resume/reset (see helper above)
+			 */
+			radeon_atom_apple_edp_pwrseq_restore(rdev);
 			if (rdev->mode_info.bl_encoder)
 				atombios_set_backlight_level(radeon_encoder, dig->backlight_level);
 			else

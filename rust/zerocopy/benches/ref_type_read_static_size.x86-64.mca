@@ -1,0 +1,51 @@
+Iterations:        100
+Instructions:      600
+Total Cycles:      169
+Total uOps:        600
+
+Dispatch Width:    4
+uOps Per Cycle:    3.55
+IPC:               3.55
+Block RThroughput: 1.5
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      5     0.50    *                   mov	rax, qword ptr [rdi]
+ 1      5     0.50    *                   mov	ecx, dword ptr [rax]
+ 1      5     0.50    *                   movzx	eax, word ptr [rax + 4]
+ 1      1     0.50                        shl	rax, 32
+ 1      1     0.33                        or	rax, rcx
+ 1      1     1.00                  U     ret
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     0.91   0.90    -     1.19   1.50   1.50   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -      -      -      -      -     0.50   0.50   mov	rax, qword ptr [rdi]
+ -      -      -      -      -      -     0.31   0.69   mov	ecx, dword ptr [rax]
+ -      -      -      -      -      -     0.69   0.31   movzx	eax, word ptr [rax + 4]
+ -      -     0.91    -      -     0.09    -      -     shl	rax, 32
+ -      -      -     0.90    -     0.10    -      -     or	rax, rcx
+ -      -      -      -      -     1.00    -      -     ret

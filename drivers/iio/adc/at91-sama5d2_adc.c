@@ -2016,6 +2016,8 @@ static void at91_adc_dma_init(struct at91_adc_state *st)
 	unsigned int pages = DIV_ROUND_UP(AT91_HWFIFO_MAX_SIZE *
 					  sample_size * 2, PAGE_SIZE);
 
+	struct device *dma_dev;
+
 	if (st->dma_st.dma_chan)
 		return;
 
@@ -2026,7 +2028,8 @@ static void at91_adc_dma_init(struct at91_adc_state *st)
 		goto dma_exit;
 	}
 
-	st->dma_st.rx_buf = dma_alloc_coherent(st->dma_st.dma_chan->device->dev,
+	dma_dev = dmaengine_get_dma_device(st->dma_st.dma_chan);
+	st->dma_st.rx_buf = dma_alloc_coherent(dma_dev,
 					       pages * PAGE_SIZE,
 					       &st->dma_st.rx_dma_buf,
 					       GFP_KERNEL);
@@ -2054,7 +2057,7 @@ static void at91_adc_dma_init(struct at91_adc_state *st)
 	return;
 
 dma_free_area:
-	dma_free_coherent(st->dma_st.dma_chan->device->dev, pages * PAGE_SIZE,
+	dma_free_coherent(dma_dev, pages * PAGE_SIZE,
 			  st->dma_st.rx_buf, st->dma_st.rx_dma_buf);
 dma_chan_disable:
 	dma_release_channel(st->dma_st.dma_chan);
@@ -2078,7 +2081,7 @@ static void at91_adc_dma_disable(struct at91_adc_state *st)
 	/* wait for all transactions to be terminated first*/
 	dmaengine_terminate_sync(st->dma_st.dma_chan);
 
-	dma_free_coherent(st->dma_st.dma_chan->device->dev, pages * PAGE_SIZE,
+	dma_free_coherent(dmaengine_get_dma_device(st->dma_st.dma_chan), pages * PAGE_SIZE,
 			  st->dma_st.rx_buf, st->dma_st.rx_dma_buf);
 	dma_release_channel(st->dma_st.dma_chan);
 	st->dma_st.dma_chan = NULL;
@@ -2487,6 +2490,7 @@ static void at91_adc_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(st->dev);
 	pm_runtime_set_suspended(st->dev);
+	pm_runtime_dont_use_autosuspend(st->dev);
 	clk_disable_unprepare(st->per_clk);
 
 	regulator_disable(st->vref);

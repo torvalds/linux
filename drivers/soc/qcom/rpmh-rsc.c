@@ -842,7 +842,7 @@ exit:
 }
 
 /**
- * rpmh_rsc_cpu_pm_callback() - Check if any of the AMCs are busy.
+ * rpmh_rsc_cpu_pm_callback() - CPU PM notifier to flush sleep/wake TCS data.
  * @nfb:    Pointer to the notifier block in struct rsc_drv.
  * @action: CPU_PM_ENTER, CPU_PM_ENTER_FAILED, or CPU_PM_EXIT.
  * @v:      Unused
@@ -923,7 +923,7 @@ static int rpmh_rsc_cpu_pm_callback(struct notifier_block *nfb,
 }
 
 /**
- * rpmh_rsc_pd_callback() - Check if any of the AMCs are busy.
+ * rpmh_rsc_pd_callback() - PM domain callback to flush sleep/wake TCS data.
  * @nfb:    Pointer to the genpd notifier block in struct rsc_drv.
  * @action: GENPD_NOTIFY_PRE_OFF, GENPD_NOTIFY_OFF, GENPD_NOTIFY_PRE_ON or GENPD_NOTIFY_ON.
  * @v:      Unused

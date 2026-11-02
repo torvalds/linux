@@ -75,12 +75,16 @@ static int keyscan_start(struct st_keyscan *keypad)
 
 	writel(KEYSCAN_CONFIG_ENABLE, keypad->base + KEYSCAN_CONFIG_OFF);
 
+	enable_irq(keypad->irq);
+
 	return 0;
 }
 
 static void keyscan_stop(struct st_keyscan *keypad)
 {
 	writel(0, keypad->base + KEYSCAN_CONFIG_OFF);
+
+	disable_irq(keypad->irq);
 
 	clk_disable(keypad->clk);
 }
@@ -145,7 +149,6 @@ static int keyscan_probe(struct platform_device *pdev)
 
 	input_dev->name = pdev->name;
 	input_dev->phys = "keyscan-keys/input0";
-	input_dev->dev.parent = &pdev->dev;
 	input_dev->open = keyscan_open;
 	input_dev->close = keyscan_close;
 
@@ -173,29 +176,18 @@ static int keyscan_probe(struct platform_device *pdev)
 		return PTR_ERR(keypad_data->base);
 
 	keypad_data->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(keypad_data->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
-		return PTR_ERR(keypad_data->clk);
-	}
-
-	error = clk_enable(keypad_data->clk);
-	if (error) {
-		dev_err(&pdev->dev, "failed to enable clock\n");
-		return error;
-	}
-
-	keyscan_stop(keypad_data);
+	if (IS_ERR(keypad_data->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(keypad_data->clk),
+				     "cannot get clock\n");
 
 	keypad_data->irq = platform_get_irq(pdev, 0);
 	if (keypad_data->irq < 0)
-		return -EINVAL;
+		return keypad_data->irq;
 
-	error = devm_request_irq(&pdev->dev, keypad_data->irq, keyscan_isr, 0,
-				 pdev->name, keypad_data);
-	if (error) {
-		dev_err(&pdev->dev, "failed to request IRQ\n");
+	error = devm_request_irq(&pdev->dev, keypad_data->irq, keyscan_isr,
+				 IRQF_NO_AUTOEN, pdev->name, keypad_data);
+	if (error)
 		return error;
-	}
 
 	error = input_register_device(input_dev);
 	if (error) {

@@ -51,6 +51,9 @@ static const struct reg_default cs35l45_defaults[] = {
 	{ CS35L45_WKI2C_CTL,			0x00000030 },
 	{ CS35L45_REFCLK_INPUT,			0x00000510 },
 	{ CS35L45_GLOBAL_SAMPLE_RATE,		0x00000003 },
+	{ CS35L45_SYNC_TX_RX_ENABLES,		0x00000200 },
+	{ CS35L45_SYNC_SW_TX_ID,		0x00000000 },
+	{ CS35L45_BOOST_LPMODE_CFG,		0x00000002 },
 	{ CS35L45_ASP_ENABLES1,			0x00000000 },
 	{ CS35L45_ASP_CONTROL1,			0x00000028 },
 	{ CS35L45_ASP_CONTROL2,			0x18180200 },
@@ -74,6 +77,7 @@ static const struct reg_default cs35l45_defaults[] = {
 	{ CS35L45_DSP1RX6_INPUT,		0x00000028 },
 	{ CS35L45_DSP1RX7_INPUT,		0x0000003A },
 	{ CS35L45_DSP1RX8_INPUT,		0x00000028 },
+	{ CS35L45_LDPM_CONFIG,			0x00003636 },
 	{ CS35L45_AMP_PCM_CONTROL,		0x00100000 },
 	{ CS35L45_AMP_GAIN,			0x00002300 },
 	{ CS35L45_IRQ1_CFG,			0x00000000 },
@@ -134,6 +138,9 @@ static bool cs35l45_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L45_PWRMGT_STS:
 	case CS35L45_REFCLK_INPUT:
 	case CS35L45_GLOBAL_SAMPLE_RATE:
+	case CS35L45_SYNC_TX_RX_ENABLES:
+	case CS35L45_SYNC_SW_TX_ID:
+	case CS35L45_BOOST_LPMODE_CFG:
 	case CS35L45_ASP_ENABLES1:
 	case CS35L45_ASP_CONTROL1:
 	case CS35L45_ASP_CONTROL2:
@@ -158,6 +165,7 @@ static bool cs35l45_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L45_DSP1RX7_INPUT:
 	case CS35L45_DSP1RX8_INPUT:
 	case CS35L45_HVLV_CONFIG:
+	case CS35L45_LDPM_CONFIG:
 	case CS35L45_AMP_PCM_CONTROL:
 	case CS35L45_AMP_GAIN:
 	case CS35L45_AMP_PCM_HPF_TST:
@@ -330,3 +338,57 @@ int cs35l45_get_clk_freq_id(unsigned int freq)
 	return -EINVAL;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l45_get_clk_freq_id, "SND_SOC_CS35L45");
+
+static const struct {
+	u8 cfg_id;
+	s32 pcm_thld_db;
+} cs35l45_ldpm_pcm_thld[] = {
+	{ 0x0, -66 },
+	{ 0x1, -72 },
+	{ 0x2, -78 },
+	{ 0x3, -84 },
+	{ 0x4, -90 },
+	{ 0x5, -96 },
+	{ 0x6, -102 },
+	{ 0x7, -2147483648 },
+};
+
+int cs35l45_get_ldpm_pcm_thld(s32 pcm_thld_db)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cs35l45_ldpm_pcm_thld); i++) {
+		if (cs35l45_ldpm_pcm_thld[i].pcm_thld_db == pcm_thld_db)
+			return cs35l45_ldpm_pcm_thld[i].cfg_id;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_NS_GPL(cs35l45_get_ldpm_pcm_thld, "SND_SOC_CS35L45");
+
+static const struct {
+	u8 cfg_id;
+	u32 delay_ms;
+} cs35l45_ldpm_delay[] = {
+	{ 0x0, 5 },
+	{ 0x1, 10 },
+	{ 0x2, 25 },
+	{ 0x3, 50 },
+	{ 0x4, 100 },
+	{ 0x5, 250 },
+	{ 0x6, 500 },
+	{ 0x7, 1000 },
+};
+
+int cs35l45_get_ldpm_delay(u32 delay_ms)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cs35l45_ldpm_delay); i++) {
+		if (cs35l45_ldpm_delay[i].delay_ms == delay_ms)
+			return cs35l45_ldpm_delay[i].cfg_id;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_NS_GPL(cs35l45_get_ldpm_delay, "SND_SOC_CS35L45");

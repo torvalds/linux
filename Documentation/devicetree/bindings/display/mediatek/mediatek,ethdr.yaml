@@ -158,51 +158,51 @@ examples:
         #size-cells = <2>;
 
         hdr-engine@1c114000 {
-                compatible = "mediatek,mt8195-disp-ethdr";
-                reg = <0 0x1c114000 0 0x1000>,
-                      <0 0x1c115000 0 0x1000>,
-                      <0 0x1c117000 0 0x1000>,
-                      <0 0x1c119000 0 0x1000>,
-                      <0 0x1c11a000 0 0x1000>,
-                      <0 0x1c11b000 0 0x1000>,
-                      <0 0x1c11c000 0 0x1000>;
-                reg-names = "mixer", "vdo_fe0", "vdo_fe1", "gfx_fe0", "gfx_fe1",
-                            "vdo_be", "adl_ds";
-                mediatek,gce-client-reg = <&gce0 SUBSYS_1c11XXXX 0x4000 0x1000>,
-                                          <&gce0 SUBSYS_1c11XXXX 0x5000 0x1000>,
-                                          <&gce0 SUBSYS_1c11XXXX 0x7000 0x1000>,
-                                          <&gce0 SUBSYS_1c11XXXX 0x9000 0x1000>,
-                                          <&gce0 SUBSYS_1c11XXXX 0xa000 0x1000>,
-                                          <&gce0 SUBSYS_1c11XXXX 0xb000 0x1000>,
-                                          <&gce0 SUBSYS_1c11XXXX 0xc000 0x1000>;
-                clocks = <&vdosys1 CLK_VDO1_DISP_MIXER>,
-                         <&vdosys1 CLK_VDO1_HDR_VDO_FE0>,
-                         <&vdosys1 CLK_VDO1_HDR_VDO_FE1>,
-                         <&vdosys1 CLK_VDO1_HDR_GFX_FE0>,
-                         <&vdosys1 CLK_VDO1_HDR_GFX_FE1>,
-                         <&vdosys1 CLK_VDO1_HDR_VDO_BE>,
-                         <&vdosys1 CLK_VDO1_26M_SLOW>,
-                         <&vdosys1 CLK_VDO1_HDR_VDO_FE0_DL_ASYNC>,
-                         <&vdosys1 CLK_VDO1_HDR_VDO_FE1_DL_ASYNC>,
-                         <&vdosys1 CLK_VDO1_HDR_GFX_FE0_DL_ASYNC>,
-                         <&vdosys1 CLK_VDO1_HDR_GFX_FE1_DL_ASYNC>,
-                         <&vdosys1 CLK_VDO1_HDR_VDO_BE_DL_ASYNC>,
-                         <&topckgen CLK_TOP_ETHDR>;
-                clock-names = "mixer", "vdo_fe0", "vdo_fe1", "gfx_fe0", "gfx_fe1",
-                              "vdo_be", "adl_ds", "vdo_fe0_async", "vdo_fe1_async",
-                              "gfx_fe0_async", "gfx_fe1_async","vdo_be_async",
-                              "ethdr_top";
-                power-domains = <&spm MT8195_POWER_DOMAIN_VDOSYS1>;
-                iommus = <&iommu_vpp M4U_PORT_L3_HDR_DS>,
-                         <&iommu_vpp M4U_PORT_L3_HDR_ADL>;
-                interrupts = <GIC_SPI 517 IRQ_TYPE_LEVEL_HIGH 0>; /* disp mixer */
-                resets = <&vdosys1 MT8195_VDOSYS1_SW1_RST_B_HDR_VDO_FE0_DL_ASYNC>,
-                         <&vdosys1 MT8195_VDOSYS1_SW1_RST_B_HDR_VDO_FE1_DL_ASYNC>,
-                         <&vdosys1 MT8195_VDOSYS1_SW1_RST_B_HDR_GFX_FE0_DL_ASYNC>,
-                         <&vdosys1 MT8195_VDOSYS1_SW1_RST_B_HDR_GFX_FE1_DL_ASYNC>,
-                         <&vdosys1 MT8195_VDOSYS1_SW1_RST_B_HDR_VDO_BE_DL_ASYNC>;
-                reset-names = "vdo_fe0_async", "vdo_fe1_async", "gfx_fe0_async",
-                              "gfx_fe1_async", "vdo_be_async";
+            compatible = "mediatek,mt8195-disp-ethdr";
+            reg = <0 0x1c114000 0 0x1000>,
+                  <0 0x1c115000 0 0x1000>,
+                  <0 0x1c117000 0 0x1000>,
+                  <0 0x1c119000 0 0x1000>,
+                  <0 0x1c11a000 0 0x1000>,
+                  <0 0x1c11b000 0 0x1000>,
+                  <0 0x1c11c000 0 0x1000>;
+            reg-names = "mixer", "vdo_fe0", "vdo_fe1", "gfx_fe0", "gfx_fe1",
+                        "vdo_be", "adl_ds";
+            mediatek,gce-client-reg = <&gce0 SUBSYS_1c11XXXX 0x4000 0x1000>,
+                                      <&gce0 SUBSYS_1c11XXXX 0x5000 0x1000>,
+                                      <&gce0 SUBSYS_1c11XXXX 0x7000 0x1000>,
+                                      <&gce0 SUBSYS_1c11XXXX 0x9000 0x1000>,
+                                      <&gce0 SUBSYS_1c11XXXX 0xa000 0x1000>,
+                                      <&gce0 SUBSYS_1c11XXXX 0xb000 0x1000>,
+                                      <&gce0 SUBSYS_1c11XXXX 0xc000 0x1000>;
+            clocks = <&vdosys1 CLK_VDO1_DISP_MIXER>,
+                     <&vdosys1 CLK_VDO1_HDR_VDO_FE0>,
+                     <&vdosys1 CLK_VDO1_HDR_VDO_FE1>,
+                     <&vdosys1 CLK_VDO1_HDR_GFX_FE0>,
+                     <&vdosys1 CLK_VDO1_HDR_GFX_FE1>,
+                     <&vdosys1 CLK_VDO1_HDR_VDO_BE>,
+                     <&vdosys1 CLK_VDO1_26M_SLOW>,
+                     <&vdosys1 CLK_VDO1_HDR_VDO_FE0_DL_ASYNC>,
+                     <&vdosys1 CLK_VDO1_HDR_VDO_FE1_DL_ASYNC>,
+                     <&vdosys1 CLK_VDO1_HDR_GFX_FE0_DL_ASYNC>,
+                     <&vdosys1 CLK_VDO1_HDR_GFX_FE1_DL_ASYNC>,
+                     <&vdosys1 CLK_VDO1_HDR_VDO_BE_DL_ASYNC>,
+                     <&topckgen CLK_TOP_ETHDR>;
+            clock-names = "mixer", "vdo_fe0", "vdo_fe1", "gfx_fe0", "gfx_fe1",
+                          "vdo_be", "adl_ds", "vdo_fe0_async", "vdo_fe1_async",
+                          "gfx_fe0_async", "gfx_fe1_async","vdo_be_async",
+                          "ethdr_top";
+            power-domains = <&spm MT8195_POWER_DOMAIN_VDOSYS1>;
+            iommus = <&iommu_vpp M4U_PORT_L3_HDR_DS>,
+                     <&iommu_vpp M4U_PORT_L3_HDR_ADL>;
+            interrupts = <GIC_SPI 517 IRQ_TYPE_LEVEL_HIGH 0>; /* disp mixer */
+            resets = <&vdosys1 MT8195_VDOSYS1_SW1_RST_B_HDR_VDO_FE0_DL_ASYNC>,
+                     <&vdosys1 MT8195_VDOSYS1_SW1_RST_B_HDR_VDO_FE1_DL_ASYNC>,
+                     <&vdosys1 MT8195_VDOSYS1_SW1_RST_B_HDR_GFX_FE0_DL_ASYNC>,
+                     <&vdosys1 MT8195_VDOSYS1_SW1_RST_B_HDR_GFX_FE1_DL_ASYNC>,
+                     <&vdosys1 MT8195_VDOSYS1_SW1_RST_B_HDR_VDO_BE_DL_ASYNC>;
+            reset-names = "vdo_fe0_async", "vdo_fe1_async", "gfx_fe0_async",
+                          "gfx_fe1_async", "vdo_be_async";
         };
     };
 ...

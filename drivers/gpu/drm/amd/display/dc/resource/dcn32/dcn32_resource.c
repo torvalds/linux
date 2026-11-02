@@ -97,7 +97,7 @@
 #include "dc_state_priv.h"
 #include "dc_fpu.h"
 
-#include "dml2_0/dml2_wrapper.h"
+#include "dml2_wrapper/dml2_wrapper.h"
 
 #if !defined(DC_RUN_WITH_PREEMPTION_ENABLED)
 #define DC_RUN_WITH_PREEMPTION_ENABLED(code) code

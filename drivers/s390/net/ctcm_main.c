@@ -211,20 +211,20 @@ static void channel_remove(struct channel *ch)
 	while (*c) {
 		if (*c == ch) {
 			*c = ch->next;
-			fsm_deltimer(&ch->timer);
 			if (IS_MPC(ch))
-				fsm_deltimer(&ch->sweep_timer);
+				timer_shutdown_sync(&ch->sweep_timer.tl);
+			timer_shutdown_sync(&ch->timer.tl);
+			if (IS_MPC(ch)) {
+				tasklet_kill(&ch->ch_tasklet);
+				tasklet_kill(&ch->ch_disc_tasklet);
+				kfree(ch->discontact_th);
+			}
 
 			kfree_fsm(ch->fsm);
 			clear_normalized_cda(&ch->ccw[4]);
 			if (ch->trans_skb != NULL) {
 				clear_normalized_cda(&ch->ccw[1]);
 				dev_kfree_skb_any(ch->trans_skb);
-			}
-			if (IS_MPC(ch)) {
-				tasklet_kill(&ch->ch_tasklet);
-				tasklet_kill(&ch->ch_disc_tasklet);
-				kfree(ch->discontact_th);
 			}
 			kfree(ch->ccw);
 			kfree(ch->irb);

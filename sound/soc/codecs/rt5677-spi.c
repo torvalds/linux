@@ -58,6 +58,8 @@
 
 static struct spi_device *g_spi;
 static DEFINE_MUTEX(spi_mutex);
+/* Serializes access to the DSP context against the exported hotword callback */
+static DEFINE_MUTEX(dsp_lock);
 
 struct rt5677_dsp {
 	struct device *dev;
@@ -380,8 +382,7 @@ static int rt5677_spi_pcm_probe(struct snd_soc_component *component)
 {
 	struct rt5677_dsp *rt5677_dsp;
 
-	rt5677_dsp = devm_kzalloc(component->dev, sizeof(*rt5677_dsp),
-			GFP_KERNEL);
+	rt5677_dsp = kzalloc_obj(*rt5677_dsp);
 	if (!rt5677_dsp)
 		return -ENOMEM;
 	rt5677_dsp->dev = &g_spi->dev;
@@ -392,9 +393,23 @@ static int rt5677_spi_pcm_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+static void rt5677_spi_pcm_remove(struct snd_soc_component *component)
+{
+	struct rt5677_dsp *rt5677_dsp =
+			snd_soc_component_get_drvdata(component);
+
+	scoped_guard(mutex, &dsp_lock)
+		snd_soc_component_set_drvdata(component, NULL);
+
+	cancel_delayed_work_sync(&rt5677_dsp->copy_work);
+	mutex_destroy(&rt5677_dsp->dma_lock);
+	kfree(rt5677_dsp);
+}
+
 static const struct snd_soc_component_driver rt5677_spi_dai_component = {
 	.name			= DRV_NAME,
 	.probe			= rt5677_spi_pcm_probe,
+	.remove			= rt5677_spi_pcm_remove,
 	.open			= rt5677_spi_pcm_open,
 	.close			= rt5677_spi_pcm_close,
 	.hw_params		= rt5677_spi_hw_params,
@@ -578,6 +593,8 @@ void rt5677_spi_hotword_detected(void)
 
 	if (!g_spi)
 		return;
+
+	guard(mutex)(&dsp_lock);
 
 	rt5677_dsp = dev_get_drvdata(&g_spi->dev);
 	if (!rt5677_dsp) {

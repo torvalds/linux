@@ -2407,6 +2407,12 @@ quirk_flags
           the requested rate.  A device advertising a single rate is otherwise
           never sent the request at all, and some require it before streaming
           will start.
+        * bit 33: ``swap_rates``
+          The clock source applies a requested rate to the other base-rate
+          family, i.e. asking for 44100 makes the device run at 48000 and vice
+          versa (same for 88200 <-> 96000 and 176400 <-> 192000).  The driver
+          sends the partner rate in SET_CUR so the device ends up running at the
+          requested one.
 
 This module supports multiple devices, autoprobe and hotplugging.
 

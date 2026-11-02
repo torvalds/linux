@@ -36,3 +36,16 @@ error: recursive dependency detected!
 	symbol G depends on G
 For a resolution refer to Documentation/kbuild/kconfig-language.rst
 subsection "Kconfig recursive dependency limitations"
+
+error: recursive dependency detected!
+	symbol H1 depends on H2
+	symbol H2 range value contains H3
+	symbol H3 range value contains H1
+For a resolution refer to Documentation/kbuild/kconfig-language.rst
+subsection "Kconfig recursive dependency limitations"
+
+error: recursive dependency detected!
+	symbol I1 range value contains I2
+	symbol I2 range value contains I1
+For a resolution refer to Documentation/kbuild/kconfig-language.rst
+subsection "Kconfig recursive dependency limitations"

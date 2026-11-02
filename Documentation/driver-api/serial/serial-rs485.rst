@@ -50,7 +50,10 @@ RS485 Serial Communications
    matching to the current configuration.
 
 .. kernel-doc:: include/uapi/linux/serial.h
-   :identifiers: serial_rs485 uart_get_rs485_mode
+   :identifiers: serial_rs485
+
+.. kernel-doc:: drivers/tty/serial/serial_core.c
+   :identifiers: uart_get_rs485_mode
 
 4. Usage from user-level
 ========================

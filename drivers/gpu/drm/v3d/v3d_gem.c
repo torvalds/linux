@@ -324,9 +324,6 @@ v3d_gem_init(struct drm_device *dev)
 	ret = drmm_mutex_init(dev, &v3d->bo_lock);
 	if (ret)
 		goto err_stats;
-	ret = drmm_mutex_init(dev, &v3d->reset_lock);
-	if (ret)
-		goto err_stats;
 	ret = drmm_mutex_init(dev, &v3d->sched_lock);
 	if (ret)
 		goto err_stats;

@@ -997,23 +997,20 @@ static void rcar_du_crtc_cleanup(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 }
 
-static void rcar_du_crtc_reset(struct drm_crtc *crtc)
+static struct drm_crtc_state *rcar_du_crtc_create_state(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc_state *state;
 
-	if (crtc->state) {
-		rcar_du_crtc_atomic_destroy_state(crtc, crtc->state);
-		crtc->state = NULL;
-	}
-
 	state = kzalloc_obj(*state);
 	if (state == NULL)
-		return;
+		return ERR_PTR(-ENOMEM);
 
 	state->crc.source = VSP1_DU_CRC_NONE;
 	state->crc.index = 0;
 
-	__drm_atomic_helper_crtc_reset(crtc, &state->state);
+	__drm_atomic_helper_crtc_state_init(&state->state, crtc);
+
+	return &state->state;
 }
 
 static int rcar_du_crtc_enable_vblank(struct drm_crtc *crtc)
@@ -1155,7 +1152,7 @@ unlock:
 }
 
 static const struct drm_crtc_funcs crtc_funcs_gen2 = {
-	.reset = rcar_du_crtc_reset,
+	.atomic_create_state = rcar_du_crtc_create_state,
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
@@ -1166,7 +1163,7 @@ static const struct drm_crtc_funcs crtc_funcs_gen2 = {
 };
 
 static const struct drm_crtc_funcs crtc_funcs_gen3 = {
-	.reset = rcar_du_crtc_reset,
+	.atomic_create_state = rcar_du_crtc_create_state,
 	.destroy = rcar_du_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,

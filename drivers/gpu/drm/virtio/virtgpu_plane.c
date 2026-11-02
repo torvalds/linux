@@ -31,12 +31,14 @@
 #include <linux/virtio_dma_buf.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_panic.h>
+#include <drm/drm_panic_helper.h>
 #include <drm/drm_print.h>
 
 #include "virtgpu_drv.h"
 
 static const uint32_t virtio_gpu_formats[] = {
 	DRM_FORMAT_HOST_XRGB8888,
+	DRM_FORMAT_HOST_ARGB8888,
 };
 
 static const uint32_t virtio_gpu_cursor_formats[] = {
@@ -92,9 +94,10 @@ drm_plane_state *virtio_gpu_plane_duplicate_state(struct drm_plane *plane)
 static const struct drm_plane_funcs virtio_gpu_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
-	.reset			= drm_atomic_helper_plane_reset,
+	.atomic_create_state = drm_atomic_helper_plane_create_state,
 	.atomic_duplicate_state = virtio_gpu_plane_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
+	DRM_PANIC_PLANE_FUNCS,
 };
 
 static int virtio_gpu_plane_atomic_check(struct drm_plane *plane,
@@ -104,6 +107,7 @@ static int virtio_gpu_plane_atomic_check(struct drm_plane *plane,
 										 plane);
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
 										 plane);
+	struct virtio_gpu_object *bo;
 	bool is_cursor = plane->type == DRM_PLANE_TYPE_CURSOR;
 	struct drm_crtc_state *crtc_state;
 	int ret;
@@ -114,10 +118,13 @@ static int virtio_gpu_plane_atomic_check(struct drm_plane *plane,
 	/*
 	 * Ignore damage clips if the framebuffer attached to the plane's state
 	 * has changed since the last plane update (page-flip). In this case, a
-	 * full plane update should happen because uploads are done per-buffer.
+	 * full plane update should happen for dumb buffers because uploads are
+	 * done per-buffer. Rendered resources are already coherent on the host,
+	 * so preserve userspace's accumulated per-buffer damage for those.
 	 */
-	if (old_plane_state->fb != new_plane_state->fb)
-		new_plane_state->ignore_damage_clips = true;
+	bo = gem_to_virtio_gpu_obj(new_plane_state->fb->obj[0]);
+	new_plane_state->ignore_damage_clips =
+		old_plane_state->fb != new_plane_state->fb && bo->dumb;
 
 	crtc_state = drm_atomic_get_crtc_state(state,
 					       new_plane_state->crtc);

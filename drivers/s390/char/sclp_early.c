@@ -96,6 +96,7 @@ static void __init sclp_early_facilities_detect(void)
 		sclp.has_ib = cpue->ib;
 		sclp.has_cei = cpue->cei;
 		sclp.has_skey = cpue->skey;
+		sclp.has_aef = cpue->aef;
 		break;
 	}
 
@@ -138,7 +139,6 @@ int __init sclp_early_get_core_info(struct sclp_core_info *info)
 	if (!sccb)
 		return -ENOMEM;
 
-	memset(sccb, 0, length);
 	sccb->header.length = length;
 	sccb->header.control_mask[2] = 0x80;
 	if (sclp_early_cmd(SCLP_CMDW_READ_CPU_INFO, sccb)) {

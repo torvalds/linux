@@ -11,7 +11,7 @@
 
 #define BPFTOOL_DEFAULT_PATH		"tools/sbin/bpftool"
 
-static int detect_bpftool_path(char *buffer, size_t size)
+int detect_bpftool_path(char *buffer, size_t size)
 {
 	char tmp[PATH_MAX];
 	const char *env_path;
@@ -53,6 +53,7 @@ static int run_command(char *args, char *output_buf, size_t output_max_len)
 	static char bpftool_path[PATH_MAX] = {};
 	bool suppress_output = !(output_buf && output_max_len);
 	char command[BPFTOOL_FULL_CMD_MAX_LEN];
+	size_t n;
 	FILE *f;
 	int ret;
 
@@ -68,8 +69,10 @@ static int run_command(char *args, char *output_buf, size_t output_max_len)
 	if (!f)
 		return 1;
 
-	if (!suppress_output)
-		fread(output_buf, 1, output_max_len, f);
+	if (!suppress_output) {
+		n = fread(output_buf, 1, output_max_len - 1, f);
+		output_buf[n] = '\0';
+	}
 	ret = pclose(f);
 
 	return ret;

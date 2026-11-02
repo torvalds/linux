@@ -37,9 +37,11 @@
 #include "vcn_v5_0_0.h"
 #include "vcn_v5_0_1.h"
 #include "vcn_v5_0_2.h"
+#include "mmsch_v5_0.h"
 
 #include <drm/drm_drv.h>
 
+static int vcn_v5_0_2_start_sriov(struct amdgpu_device *adev);
 static void vcn_v5_0_2_set_unified_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v5_0_2_set_irq_funcs(struct amdgpu_device *adev);
 static int vcn_v5_0_2_set_pg_state(struct amdgpu_vcn_inst *vinst,
@@ -112,6 +114,11 @@ static int vcn_v5_0_2_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
+	r = amdgpu_irq_add_id(adev, SOC_V1_0_IH_CLIENTID_VCN1,
+		VCN_5_0__SRCID__UVD_ENC_GENERAL_PURPOSE, &adev->vcn.inst->irq);
+	if (r)
+		return r;
+
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 		vcn_inst = GET_INST(VCN, i);
 
@@ -127,12 +134,16 @@ static int vcn_v5_0_2_sw_init(struct amdgpu_ip_block *ip_block)
 
 		ring = &adev->vcn.inst[i].ring_enc[0];
 		ring->use_doorbell = true;
-
-		ring->doorbell_index =
-			(adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 32 * vcn_inst;
+		if (amdgpu_sriov_vf(adev)) {
+			ring->doorbell_index =
+				(adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 32 * vcn_inst;
+		} else {
+			ring->doorbell_index =
+				(adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 11 * vcn_inst;
+		}
 
 		ring->vm_hub = AMDGPU_MMHUB0(adev->vcn.inst[i].aid_id);
-		sprintf(ring->name, "vcn_unified_%d", adev->vcn.inst[i].aid_id);
+		sprintf(ring->name, "vcn_unified_%d", i);
 
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
 					AMDGPU_RING_PRIO_DEFAULT, &adev->vcn.inst[i].sched_score);
@@ -142,9 +153,16 @@ static int vcn_v5_0_2_sw_init(struct amdgpu_ip_block *ip_block)
 		vcn_v5_0_2_fw_shared_init(adev, i);
 	}
 
+	if (amdgpu_sriov_vf(adev)) {
+		r = amdgpu_virt_alloc_mm_table(adev);
+		if (r)
+			return r;
+	}
+
 	/* TODO: Add queue reset mask when FW fully supports it */
 	adev->vcn.supported_reset =
 		amdgpu_get_soft_full_reset_mask(&adev->vcn.inst[0].ring_enc[0]);
+	/* SRIOV VF does not support per queue reset, please wrap with if(!amdgpu_sriov_vf()) check */
 
 	return amdgpu_vcn_sysfs_reset_mask_init(adev);
 }
@@ -172,6 +190,9 @@ static int vcn_v5_0_2_sw_fini(struct amdgpu_ip_block *ip_block)
 
 		drm_dev_exit(idx);
 	}
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_free_mm_table(adev);
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 		r = amdgpu_vcn_suspend(adev, i);
@@ -203,29 +224,41 @@ static int vcn_v5_0_2_hw_init(struct amdgpu_ip_block *ip_block)
 	int i, r, vcn_inst;
 	uint32_t tmp;
 
-	if (RREG32_SOC15(VCN, GET_INST(VCN, 0), regVCN_RRMT_CNTL) & 0x200)
-		adev->vcn.caps |= AMDGPU_VCN_CAPS(RRMT_ENABLED);
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		vcn_inst = GET_INST(VCN, i);
-		ring = &adev->vcn.inst[i].ring_enc[0];
-
-		/* Remove Video Tiles antihang mechanism */
-		tmp = RREG32_SOC15(VCN, vcn_inst, regUVD_POWER_STATUS);
-		tmp &= (~UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
-		WREG32_SOC15(VCN, vcn_inst, regUVD_POWER_STATUS, tmp);
-
-		if (ring->use_doorbell)
-			adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
-				((adev->doorbell_index.vcn.vcn_ring0_1 << 1) +
-				 11 * vcn_inst),
-				adev->vcn.inst[i].aid_id);
-
-		/* Re-init fw_shared, if required */
-		vcn_v5_0_2_fw_shared_init(adev, i);
-
-		r = amdgpu_ring_test_helper(ring);
+	if (amdgpu_sriov_vf(adev)) {
+		r = vcn_v5_0_2_start_sriov(adev);
 		if (r)
 			return r;
+
+		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+			ring = &adev->vcn.inst[i].ring_enc[0];
+			ring->wptr = 0;
+			ring->wptr_old = 0;
+			vcn_v5_0_2_unified_ring_set_wptr(ring);
+			ring->sched.ready = true;
+		}
+	} else {
+		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+			vcn_inst = GET_INST(VCN, i);
+			ring = &adev->vcn.inst[i].ring_enc[0];
+
+			/* Remove Video Tiles antihang mechanism */
+			tmp = RREG32_SOC15(VCN, vcn_inst, regUVD_POWER_STATUS);
+			tmp &= (~UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
+			WREG32_SOC15(VCN, vcn_inst, regUVD_POWER_STATUS, tmp);
+
+			if (ring->use_doorbell)
+				adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+					((adev->doorbell_index.vcn.vcn_ring0_1 << 1) +
+					 11 * vcn_inst),
+					vcn_inst);
+
+			/* Re-init fw_shared, if required */
+			vcn_v5_0_2_fw_shared_init(adev, i);
+
+			r = amdgpu_ring_test_helper(ring);
+			if (r)
+				return r;
+		}
 	}
 
 	return 0;
@@ -587,7 +620,7 @@ static int vcn_v5_0_2_start_dpg_mode(struct amdgpu_vcn_inst *vinst,
 			(uint32_t *)adev->vcn.inst[inst_idx].dpg_sram_cpu_addr;
 		/* Use dummy register 0xDEADBEEF passing AID selection to PSP FW */
 		WREG32_SOC24_DPG_MODE(inst_idx, 0xDEADBEEF,
-				adev->vcn.inst[inst_idx].aid_id, 0, true);
+				vcn_inst, 0, true);
 	}
 
 	/* enable VCPU clock */
@@ -668,6 +701,198 @@ static int vcn_v5_0_2_start_dpg_mode(struct amdgpu_vcn_inst *vinst,
 		VCN_RB1_DB_CTRL__EN_MASK);
 	/* Read DB_CTRL to flush the write DB_CTRL command. */
 	RREG32_SOC15(VCN, vcn_inst, regVCN_RB1_DB_CTRL);
+
+	return 0;
+}
+
+
+/**
+ * vcn_v5_0_2_start_sriov - VCN start under SRIOV env
+ */
+
+static int vcn_v5_0_2_start_sriov(struct amdgpu_device *adev)
+{
+	int i, vcn_inst;
+	struct amdgpu_ring *ring_enc;
+	uint64_t cache_addr;
+	uint64_t rb_enc_addr;
+	uint64_t ctx_addr;
+	uint32_t param, resp, expected;
+	uint32_t offset, cache_size;
+	uint32_t tmp, timeout;
+
+	struct amdgpu_mm_table *table = &adev->virt.mm_table;
+	uint32_t *table_loc;
+	uint32_t table_size;
+	uint32_t size, size_dw;
+	uint32_t init_status;
+
+	struct mmsch_v5_0_cmd_direct_write
+		direct_wt = { {0} };
+	struct mmsch_v5_0_cmd_direct_read_modify_write
+		direct_rd_mod_wt = { {0} };
+	struct mmsch_v5_0_cmd_end end = { {0} };
+	struct mmsch_v5_0_init_header header;
+
+	struct amdgpu_vcn5_fw_shared *fw_shared;
+	struct amdgpu_fw_shared_rb_setup *rb_setup;
+
+	direct_wt.cmd_header.command_type =
+		MMSCH_COMMAND__DIRECT_REG_WRITE;
+	direct_rd_mod_wt.cmd_header.command_type =
+		MMSCH_COMMAND__DIRECT_REG_READ_MODIFY_WRITE;
+	end.cmd_header.command_type = MMSCH_COMMAND__END;
+
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+		vcn_inst = GET_INST(VCN, i);
+
+		vcn_v5_0_2_fw_shared_init(adev, vcn_inst);
+
+		memset(&header, 0, sizeof(struct mmsch_v5_0_init_header));
+		header.version = MMSCH_VERSION;
+		header.total_size = sizeof(struct mmsch_v5_0_init_header) >> 2;
+
+		table_loc = (uint32_t *)table->cpu_addr;
+		table_loc += header.total_size;
+
+		table_size = 0;
+
+		MMSCH_V5_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCN, 0, regUVD_STATUS),
+			~UVD_STATUS__UVD_BUSY, UVD_STATUS__UVD_BUSY);
+
+		cache_size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.inst[i].fw->size + 4);
+
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+			MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+				regUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
+				adev->firmware.ucode[AMDGPU_UCODE_ID_VCN + i].tmr_mc_addr_lo);
+
+			MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+				regUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
+				adev->firmware.ucode[AMDGPU_UCODE_ID_VCN + i].tmr_mc_addr_hi);
+
+			offset = 0;
+			MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+				regUVD_VCPU_CACHE_OFFSET0), 0);
+		} else {
+			MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+				regUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
+				lower_32_bits(adev->vcn.inst[i].gpu_addr));
+			MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+				regUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
+				upper_32_bits(adev->vcn.inst[i].gpu_addr));
+		offset = cache_size;
+			MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+				regUVD_VCPU_CACHE_OFFSET0),
+				AMDGPU_UVD_FIRMWARE_OFFSET >> 3);
+		}
+
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_VCPU_CACHE_SIZE0),
+			cache_size);
+
+		cache_addr = adev->vcn.inst[vcn_inst].gpu_addr + offset;
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_LMI_VCPU_CACHE1_64BIT_BAR_LOW), lower_32_bits(cache_addr));
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_LMI_VCPU_CACHE1_64BIT_BAR_HIGH), upper_32_bits(cache_addr));
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_VCPU_CACHE_OFFSET1), 0);
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_VCPU_CACHE_SIZE1), AMDGPU_VCN_STACK_SIZE);
+
+		cache_addr = adev->vcn.inst[vcn_inst].gpu_addr + offset +
+			AMDGPU_VCN_STACK_SIZE;
+
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_LMI_VCPU_CACHE2_64BIT_BAR_LOW), lower_32_bits(cache_addr));
+
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+		regUVD_LMI_VCPU_CACHE2_64BIT_BAR_HIGH), upper_32_bits(cache_addr));
+
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_VCPU_CACHE_OFFSET2), 0);
+
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_VCPU_CACHE_SIZE2), AMDGPU_VCN_CONTEXT_SIZE);
+
+		fw_shared = adev->vcn.inst[vcn_inst].fw_shared.cpu_addr;
+		rb_setup = &fw_shared->rb_setup;
+
+		ring_enc = &adev->vcn.inst[vcn_inst].ring_enc[0];
+		ring_enc->wptr = 0;
+		rb_enc_addr = ring_enc->gpu_addr;
+
+		rb_setup->is_rb_enabled_flags |= RB_ENABLED;
+		rb_setup->rb_addr_lo = lower_32_bits(rb_enc_addr);
+		rb_setup->rb_addr_hi = upper_32_bits(rb_enc_addr);
+		rb_setup->rb_size = ring_enc->ring_size / 4;
+		fw_shared->present_flag_0 |= cpu_to_le32(AMDGPU_VCN_VF_RB_SETUP_FLAG);
+
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_LMI_VCPU_NC0_64BIT_BAR_LOW),
+			lower_32_bits(adev->vcn.inst[vcn_inst].fw_shared.gpu_addr));
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_LMI_VCPU_NC0_64BIT_BAR_HIGH),
+			upper_32_bits(adev->vcn.inst[vcn_inst].fw_shared.gpu_addr));
+		MMSCH_V5_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, 0,
+			regUVD_VCPU_NONCACHE_SIZE0),
+			AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn4_fw_shared)));
+		MMSCH_V5_0_INSERT_END();
+
+		header.vcn0.init_status = 0;
+		header.vcn0.table_offset = header.total_size;
+		header.vcn0.table_size = table_size;
+		header.total_size += table_size;
+
+		/* Send init table to mmsch */
+		size = sizeof(struct mmsch_v5_0_init_header);
+		table_loc = (uint32_t *)table->cpu_addr;
+		memcpy((void *)table_loc, &header, size);
+
+		ctx_addr = table->gpu_addr;
+		WREG32_SOC15(VCN, vcn_inst, regMMSCH_VF_CTX_ADDR_LO, lower_32_bits(ctx_addr));
+		WREG32_SOC15(VCN, vcn_inst, regMMSCH_VF_CTX_ADDR_HI, upper_32_bits(ctx_addr));
+
+		tmp = RREG32_SOC15(VCN, vcn_inst, regMMSCH_VF_VMID);
+		tmp &= ~MMSCH_VF_VMID__VF_CTX_VMID_MASK;
+		tmp |= (0 << MMSCH_VF_VMID__VF_CTX_VMID__SHIFT);
+		WREG32_SOC15(VCN, vcn_inst, regMMSCH_VF_VMID, tmp);
+
+		size = header.total_size;
+		WREG32_SOC15(VCN, vcn_inst, regMMSCH_VF_CTX_SIZE, size);
+
+		WREG32_SOC15(VCN, vcn_inst, regMMSCH_VF_MAILBOX_RESP, 0);
+
+		param = 0x00000001;
+		WREG32_SOC15(VCN, vcn_inst, regMMSCH_VF_MAILBOX_HOST, param);
+		tmp = 0;
+		timeout = amdgpu_emu_mode ? 1000000 : 1000;
+		resp = 0;
+		expected = MMSCH_VF_MAILBOX_RESP__OK;
+		while (resp != expected) {
+			resp = RREG32_SOC15(VCN, vcn_inst, regMMSCH_VF_MAILBOX_RESP);
+			if (resp != 0)
+				break;
+
+			udelay(10);
+			tmp = tmp + 10;
+			if (tmp >= timeout) {
+				DRM_ERROR("failed to init MMSCH. TIME-OUT after %d usec"\
+					" waiting for regMMSCH_VF_MAILBOX_RESP "\
+					"(expected=0x%08x, readback=0x%08x)\n",
+					tmp, expected, resp);
+				return -EBUSY;
+			}
+		}
+
+		init_status = ((struct mmsch_v5_0_init_header *)(table_loc))->vcn0.init_status;
+		if (resp != expected && resp != MMSCH_VF_MAILBOX_RESP__INCOMPLETE
+					&& init_status != MMSCH_VF_ENGINE_STATUS__PASS) {
+			DRM_ERROR("MMSCH init status is incorrect! readback=0x%08x, header init "\
+				"status for VCN%x: 0x%x\n", resp, vcn_inst, init_status);
+		}
+	}
 
 	return 0;
 }
@@ -1041,24 +1266,6 @@ static void vcn_v5_0_2_set_unified_ring_funcs(struct amdgpu_device *adev)
 }
 
 /**
- * vcn_v5_0_2_is_idle - check VCN block is idle
- *
- * @ip_block: Pointer to the amdgpu_ip_block structure
- *
- * Check whether VCN block is idle
- */
-static bool vcn_v5_0_2_is_idle(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-	int i, ret = 1;
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i)
-		ret &= (RREG32_SOC15(VCN, GET_INST(VCN, i), regUVD_STATUS) == UVD_STATUS__IDLE);
-
-	return ret;
-}
-
-/**
  * vcn_v5_0_2_wait_for_idle - wait for VCN block idle
  *
  * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
@@ -1113,7 +1320,17 @@ static int vcn_v5_0_2_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 static int vcn_v5_0_2_set_pg_state(struct amdgpu_vcn_inst *vinst,
 				   enum amd_powergating_state state)
 {
+	struct amdgpu_device *adev = vinst->adev;
 	int ret = 0;
+
+	/* for SRIOV, guest should not control VCN Power-gating
+	 * MMSCH FW should control Power-gating and clock-gating
+	 * guest should avoid touching CGC and PG
+	 */
+	if (amdgpu_sriov_vf(adev)) {
+		vinst->cur_state = AMD_PG_STATE_UNGATE;
+		return 0;
+	}
 
 	if (state == vinst->cur_state)
 		return 0;
@@ -1141,26 +1358,55 @@ static int vcn_v5_0_2_set_pg_state(struct amdgpu_vcn_inst *vinst,
 static int vcn_v5_0_2_process_interrupt(struct amdgpu_device *adev, struct amdgpu_irq_src *source,
 	struct amdgpu_iv_entry *entry)
 {
-	uint32_t i, inst;
-
-	i = node_id_to_phys_map[entry->node_id];
+	uint32_t mid, cid;
+	int i, inst;
 
 	DRM_DEV_DEBUG(adev->dev, "IH: VCN TRAP\n");
 
-	for (inst = 0; inst < adev->vcn.num_vcn_inst; ++inst)
-		if (adev->vcn.inst[inst].aid_id == i)
+	switch (entry->client_id) {
+	case SOC_V1_0_IH_CLIENTID_VCN:
+		cid = 0;
+		break;
+	case SOC_V1_0_IH_CLIENTID_VCN1:
+		cid = 1;
+		break;
+	default:
+		dev_WARN_ONCE(adev->dev, 1,
+				"Interrupt received for unknown VCN client_id %d",
+				entry->client_id);
+		return 0;
+	}
+
+	switch (entry->node_id) {
+	case 0:
+		mid = 0;
+		break;
+	case 8:
+		mid = 1;
+		break;
+	default:
+		dev_WARN_ONCE(adev->dev, 1,
+				"Interrupt received for unknown VCN node_id %d",
+				entry->node_id);
+		return 0;
+	}
+
+	inst = mid * adev->vcn.num_inst_per_aid + cid;
+
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++)
+		if (GET_INST(VCN, i) == inst)
 			break;
 
-	if (inst >= adev->vcn.num_vcn_inst) {
+	if (i >= adev->vcn.num_vcn_inst) {
 		dev_WARN_ONCE(adev->dev, 1,
 				"Interrupt received for unknown VCN instance %d",
-				entry->node_id);
+				inst);
 		return 0;
 	}
 
 	switch (entry->src_id) {
 	case VCN_5_0__SRCID__UVD_ENC_GENERAL_PURPOSE:
-		amdgpu_fence_process(&adev->vcn.inst[inst].ring_enc[0]);
+		amdgpu_fence_process(&adev->vcn.inst[i].ring_enc[0]);
 		break;
 	default:
 		DRM_DEV_ERROR(adev->dev, "Unhandled interrupt: %d %d\n",
@@ -1201,7 +1447,6 @@ static const struct amd_ip_funcs vcn_v5_0_2_ip_funcs = {
 	.hw_fini = vcn_v5_0_2_hw_fini,
 	.suspend = vcn_v5_0_2_suspend,
 	.resume = vcn_v5_0_2_resume,
-	.is_idle = vcn_v5_0_2_is_idle,
 	.wait_for_idle = vcn_v5_0_2_wait_for_idle,
 	.soft_reset = NULL,
 	.set_clockgating_state = vcn_v5_0_2_set_clockgating_state,

@@ -276,16 +276,12 @@ unsigned long arch_align_stack(unsigned long sp)
 }
 #endif
 
-unsigned long __get_wchan(struct task_struct *p)
+static unsigned long ___get_wchan(struct task_struct *p)
 {
 	unsigned long stack_page, sp, ip;
 	bool seen_sched = 0;
 
 	stack_page = (unsigned long) task_stack_page(p);
-	/* Bail if the process has no kernel stack for some reason */
-	if (stack_page == 0)
-		return 0;
-
 	sp = p->thread.switch_buf->JB_SP;
 	/*
 	 * Bail if the stack pointer is below the bottom of the kernel
@@ -306,4 +302,21 @@ unsigned long __get_wchan(struct task_struct *p)
 	}
 
 	return 0;
+
+}
+
+unsigned long __get_wchan(struct task_struct *p)
+{
+	unsigned long ret;
+
+	/* Bail if the process has no kernel stack for some reason */
+	if (!try_get_task_stack(p))
+		return 0;
+
+	ret = ___get_wchan(p);
+
+	put_task_stack(p);
+
+	return ret;
+
 }

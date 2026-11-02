@@ -75,11 +75,11 @@ examples:
         #size-cells = <0>;
 
         dai@10 {
-           reg = <PRIMARY_MI2S_RX>;
-           clocks = <&q6prmcc LPASS_CLK_ID_PRI_MI2S_IBIT
-                              LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
-                    <&q6prmcc LPASS_CLK_ID_MCLK_1
-                              LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
-           clock-names = "bclk", "mclk";
+            reg = <PRIMARY_MI2S_RX>;
+            clocks = <&q6prmcc LPASS_CLK_ID_PRI_MI2S_IBIT
+                               LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+                     <&q6prmcc LPASS_CLK_ID_MCLK_1
+                               LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+            clock-names = "bclk", "mclk";
         };
     };

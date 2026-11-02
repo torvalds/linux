@@ -93,7 +93,7 @@ static int __init cpu_final_simd(void)
 	return 0;
 }
 
-arch_initcall(cpu_final_simd);
+pure_initcall(cpu_final_simd);
 
 static inline void set_elf_platform(int cpu, const char *plat)
 {
@@ -182,6 +182,10 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		c->options |= LOONGARCH_CPU_LAM_BH;
 		elf_hwcap |= HWCAP_LOONGARCH_LAM_BH;
 	}
+	if (config & CPUCFG2_LAMCAS) {
+		c->options |= LOONGARCH_CPU_LAMCAS;
+		elf_hwcap |= HWCAP_LOONGARCH_LAMCAS;
+	}
 	if (config & CPUCFG2_SCQ) {
 		c->options |= LOONGARCH_CPU_SCQ;
 		elf_hwcap |= HWCAP_LOONGARCH_SCQ;
@@ -209,6 +213,10 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 	if (config & CPUCFG2_CRYPTO) {
 		c->options |= LOONGARCH_CPU_CRYPTO;
 		elf_hwcap |= HWCAP_LOONGARCH_CRYPTO;
+	}
+	if (config & CPUCFG2_DIV32) {
+		c->options |= LOONGARCH_CPU_DIV32;
+		elf_hwcap |= HWCAP_LOONGARCH_DIV32;
 	}
 	if (config & CPUCFG2_PTW) {
 		c->options |= LOONGARCH_CPU_PTW;
@@ -240,6 +248,10 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 	config = read_cpucfg(LOONGARCH_CPUCFG6);
 	if (config & CPUCFG6_PMP)
 		c->options |= LOONGARCH_CPU_PMP;
+
+	config = read_cpucfg(LOONGARCH_CPUCFG8);
+	if (config & CPUCFG8_S2TGID)
+		c->options |= LOONGARCH_CPU_GUESTID;
 
 	config = csr_read32(LOONGARCH_CSR_ASID);
 	config = (config & CSR_ASID_BIT) >> CSR_ASID_BIT_SHIFT;

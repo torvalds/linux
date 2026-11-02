@@ -687,7 +687,6 @@ xfs_inobt_irec_to_allocmask(
  */
 int
 xfs_inobt_rec_check_count(
-	struct xfs_mount		*mp,
 	struct xfs_inobt_rec_incore	*rec)
 {
 	int				inocount = 0;

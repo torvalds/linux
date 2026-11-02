@@ -296,6 +296,7 @@ enum transaction_flags {
 	TF_ACCEPT_FDS	= 0x10,	/* allow replies with file descriptors */
 	TF_CLEAR_BUF	= 0x20,	/* clear buffer on txn complete */
 	TF_UPDATE_TXN	= 0x40,	/* update the outdated pending async txn */
+	TF_DEFER_COMPLETE = 0x80,	/* defer transaction complete to userspace */
 };
 
 struct binder_transaction_data {

@@ -12,8 +12,9 @@ maintainers:
 description:
   This binding specifies what properties must be available in the device tree
   representation of an Open PIC compliant interrupt controller.  This binding is
-  based on the binding defined for Open PIC in [1] and is a superset of that
-  binding.
+  based on the binding defined for Open PIC in the Devicetree Specification
+  (available from https://www.devicetree.org/specifications/) and is a superset
+  of that binding.
 
 properties:
   compatible:
@@ -24,7 +25,7 @@ properties:
       - const: chrp,open-pic
 
   device_type:
-    const: open-pci
+    const: open-pic
     deprecated: true
 
   reg:

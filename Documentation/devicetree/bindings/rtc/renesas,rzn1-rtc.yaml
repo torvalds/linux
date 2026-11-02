@@ -14,14 +14,16 @@ properties:
     oneOf:
       - items:
           - enum:
-              - renesas,r9a06g032-rtc
-          - const: renesas,rzn1-rtc
+              - renesas,r9a06g032-rtc # RZ/N1D
+          - const: renesas,rzn1-rtc   # RZ/N1
 
-      - const: renesas,r9a09g077-rtc
+      - const: renesas,r9a09g077-rtc  # RZ/T2H
 
       - items:
-          - const: renesas,r9a09g087-rtc
-          - const: renesas,r9a09g077-rtc
+          - const: renesas,r9a09g087-rtc  # RZ/N2H
+          - const: renesas,r9a09g077-rtc  # RZ/T2H
+
+      - const: renesas,r8a78000-rtc   # R-Car X5H
 
   reg:
     maxItems: 1
@@ -49,11 +51,12 @@ properties:
   power-domains:
     maxItems: 1
 
+  resets:
+    maxItems: 1
+
 required:
   - compatible
   - reg
-  - interrupts
-  - interrupt-names
   - clocks
   - clock-names
   - power-domains
@@ -66,6 +69,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - renesas,r8a78000-rtc
               - renesas,r9a09g077-rtc
               - renesas,r9a09g087-rtc
     then:
@@ -74,6 +78,24 @@ allOf:
           minItems: 2
         clock-names:
           minItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r8a78000-rtc
+    then:
+      properties:
+        interrupts: false
+        interrupt-names: false
+      required:
+        - resets
+    else:
+      properties:
+        resets: false
+      required:
+        - interrupts
+        - interrupt-names
 
 unevaluatedProperties: false
 
@@ -91,5 +113,4 @@ examples:
         clocks = <&sysctrl R9A06G032_HCLK_RTC>;
         clock-names = "hclk";
         power-domains = <&sysctrl>;
-        start-year = <2000>;
     };

@@ -1173,13 +1173,11 @@ struct irdma_reg_ns_stag_info {
 struct irdma_fast_reg_stag_info {
 	u64 wr_id;
 	u64 reg_addr_pa;
-	u64 fbo;
-	void *va;
+	u64 va;
 	u64 total_len;
 	u32 page_size;
 	u32 chunk_size;
 	u32 first_pm_pbl_index;
-	enum irdma_addressing_type addr_type;
 	irdma_stag_index stag_idx;
 	u16 access_rights;
 	u32 pd_id;
@@ -1383,8 +1381,7 @@ int irdma_sc_qp_create(struct irdma_sc_qp *qp,
 int irdma_sc_qp_destroy(struct irdma_sc_qp *qp, u64 scratch,
 			bool remove_hash_idx, bool ignore_mw_bnd, bool post_sq);
 int irdma_sc_qp_flush_wqes(struct irdma_sc_qp *qp,
-			   struct irdma_qp_flush_info *info, u64 scratch,
-			   bool post_sq);
+			   struct irdma_qp_flush_info *info, u64 scratch);
 int irdma_sc_qp_init(struct irdma_sc_qp *qp, struct irdma_qp_init_info *info);
 int irdma_sc_qp_modify(struct irdma_sc_qp *qp,
 		       struct irdma_modify_qp_info *info, u64 scratch,

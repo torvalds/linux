@@ -43,8 +43,12 @@ static enum scx_test_status run(void *ctx)
 		}
 
 		/* Assumes uei.kind is written last */
-		while (skel->data->uei.kind == EXIT_KIND(SCX_EXIT_NONE))
-			sched_yield();
+		if (!SCX_TIMED_WAIT_UEI(skel, uei, 10000)) {
+			SCX_ERR("Timed out waiting for scheduler to exit");
+			bpf_link__destroy(link);
+			exit__destroy(skel);
+			return SCX_TEST_FAIL;
+		}
 
 		SCX_EQ(skel->data->uei.kind, EXIT_KIND(SCX_EXIT_UNREG_BPF));
 		SCX_EQ(skel->data->uei.exit_code, tc);

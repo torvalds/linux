@@ -884,27 +884,7 @@ static void populate_lsdma_start_end_lines(
 
 static uint8_t element_size_to_bytes_per_pixel(uint8_t element_size)
 {
-	uint8_t bytes_per_pixel = 0;
-
-	switch (element_size) { // 0: 8bpp, 1: 16bpp, 2: 32bpp, 3: 64bpp, 4: 128bpp - Values supported by LSDMA Controller
-	case 0:
-		bytes_per_pixel = 1;
-		break;
-	case 1:
-		bytes_per_pixel = 2;
-		break;
-	case 2:
-		bytes_per_pixel = 4;
-		break;
-	case 3:
-		bytes_per_pixel = 8;
-		break;
-	case 4:
-		bytes_per_pixel = 16;
-		break;
-	}
-
-	return bytes_per_pixel;
+	return element_size < 8 ? (uint8_t)(1U << element_size) : 1;
 }
 
 static void populate_lsdma(

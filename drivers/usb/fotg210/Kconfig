@@ -16,6 +16,11 @@ if USB_FOTG210
 config USB_FOTG210_HCD
 	bool "Faraday FOTG210 USB Host Controller support"
 	depends on USB=y || USB=USB_FOTG210
+	depends on USB_EHCI_HCD=y || USB_EHCI_HCD=USB_FOTG210
+	select USB_EHCI_DEVIANT_PORT_STATUS_REG
+	select USB_EHCI_PORT_RESET_HOOKS
+	select USB_EHCI_PORT_SPEED_HOOK
+	select USB_EHCI_ROOT_HUB_TT
 	help
 	  Faraday FOTG210 is an OTG controller which can be configured as
 	  an USB2.0 host. It is designed to meet USB2.0 EHCI specification

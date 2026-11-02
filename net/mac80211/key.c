@@ -205,6 +205,10 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 			  sta ? sta->sta.addr : bcast_addr, ret);
 
  out_unsupported:
+	/* Control Integrity Protocol can only be done in hardware */
+	if (key->conf.flags & IEEE80211_KEY_FLAG_CIP)
+		return -EINVAL;
+
 	switch (key->conf.cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
@@ -440,11 +444,13 @@ void ieee80211_set_default_beacon_key(struct ieee80211_link_data *link,
 static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 				 struct ieee80211_link_data *link,
 				 struct sta_info *sta,
-				 bool pairwise,
+				 enum ieee80211_key_flags flags,
 				 struct ieee80211_key *old,
 				 struct ieee80211_key *new)
 {
 	struct link_sta_info *link_sta = sta ? &sta->deflink : NULL;
+	bool pairwise = flags & IEEE80211_KEY_FLAG_PAIRWISE;
+	bool cip = flags & IEEE80211_KEY_FLAG_CIP;
 	int link_id;
 	int idx;
 	int ret = 0;
@@ -535,6 +541,8 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 			if (new &&
 			    !(new->conf.flags & IEEE80211_KEY_FLAG_NO_AUTO_TX))
 				_ieee80211_set_tx_key(new, true);
+		} else if (cip) {
+			rcu_assign_pointer(link_sta->cigtk[idx], new);
 		} else {
 			rcu_assign_pointer(link_sta->gtk[idx], new);
 		}
@@ -569,6 +577,8 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 
 		if (is_wep || pairwise)
 			rcu_assign_pointer(sdata->keys[idx], new);
+		else if (cip)
+			rcu_assign_pointer(link->cigtk[idx], new);
 		else
 			rcu_assign_pointer(link->gtk[idx], new);
 
@@ -883,6 +893,10 @@ int ieee80211_key_link(struct ieee80211_key *key,
 			ret = -EOPNOTSUPP;
 			goto out;
 		}
+
+		/* Set CIP flag if enabled for the station */
+		if (sta->sta.cip)
+			key->conf.flags |= IEEE80211_KEY_FLAG_CIP;
 	} else if (sta) {
 		struct link_sta_info *link_sta = &sta->deflink;
 		int link_id = key->conf.link_id;
@@ -896,15 +910,25 @@ int ieee80211_key_link(struct ieee80211_key *key,
 			}
 		}
 
-		old_key = wiphy_dereference(sdata->local->hw.wiphy,
-					    link_sta->gtk[idx]);
+		if (key->conf.flags & IEEE80211_KEY_FLAG_CIP)
+			old_key = wiphy_dereference(sdata->local->hw.wiphy,
+						    link_sta->cigtk[idx]);
+		else
+			old_key = wiphy_dereference(sdata->local->hw.wiphy,
+						    link_sta->gtk[idx]);
 	} else {
-		if (idx < NUM_DEFAULT_KEYS)
+		if (key->conf.flags & IEEE80211_KEY_FLAG_CIP) {
 			old_key = wiphy_dereference(sdata->local->hw.wiphy,
-						    sdata->keys[idx]);
-		if (!old_key)
-			old_key = wiphy_dereference(sdata->local->hw.wiphy,
-						    link->gtk[idx]);
+						    link->cigtk[idx]);
+		} else {
+			if (idx < NUM_DEFAULT_KEYS)
+				old_key = wiphy_dereference(sdata->local->hw.wiphy,
+							    sdata->keys[idx]);
+
+			if (!old_key)
+				old_key = wiphy_dereference(sdata->local->hw.wiphy,
+							    link->gtk[idx]);
+		}
 	}
 
 	/* Non-pairwise keys must also not switch the cipher on rekey */
@@ -938,9 +962,17 @@ int ieee80211_key_link(struct ieee80211_key *key,
 	if (sta && sta->sta.spp_amsdu)
 		key->conf.flags |= IEEE80211_KEY_FLAG_SPP_AMSDU;
 
+	/* A CIP related key must be GCMP-256 (really GMAC-256) */
+	if ((key->conf.flags & IEEE80211_KEY_FLAG_CIP) &&
+	    key->conf.cipher != WLAN_CIPHER_SUITE_GCMP_256) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	increment_tailroom_need_count(sdata);
 
-	ret = ieee80211_key_replace(sdata, link, sta, pairwise, old_key, key);
+	ret = ieee80211_key_replace(sdata, link, sta, key->conf.flags,
+				    old_key, key);
 
 	if (!ret) {
 		ieee80211_debugfs_key_add(key);
@@ -966,8 +998,7 @@ void ieee80211_key_free(struct ieee80211_key *key, bool delay_tailroom)
 	 */
 	if (key->sdata)
 		ieee80211_key_replace(key->sdata, NULL, key->sta,
-				      key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
-				      key, NULL);
+				      key->conf.flags, key, NULL);
 	ieee80211_key_destroy(key, delay_tailroom);
 }
 
@@ -1098,8 +1129,7 @@ static void ieee80211_free_keys_iface(struct ieee80211_sub_if_data *sdata,
 
 	list_for_each_entry_safe(key, tmp, &sdata->key_list, list) {
 		ieee80211_key_replace(key->sdata, NULL, key->sta,
-				      key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
-				      key, NULL);
+				      key->conf.flags, key, NULL);
 		list_add_tail(&key->list, keys);
 	}
 
@@ -1119,8 +1149,7 @@ void ieee80211_remove_link_keys(struct ieee80211_link_data *link,
 		if (key->conf.link_id != link->link_id)
 			continue;
 		ieee80211_key_replace(key->sdata, link, key->sta,
-				      key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
-				      key, NULL);
+				      key->conf.flags, key, NULL);
 		list_add_tail(&key->list, keys);
 	}
 }
@@ -1196,8 +1225,17 @@ void ieee80211_free_sta_keys(struct ieee80211_local *local,
 		if (!key)
 			continue;
 		ieee80211_key_replace(key->sdata, NULL, key->sta,
-				      key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
-				      key, NULL);
+				      key->conf.flags, key, NULL);
+		__ieee80211_key_destroy(key, key->sdata->vif.type ==
+					NL80211_IFTYPE_STATION);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(sta->deflink.cigtk); i++) {
+		key = wiphy_dereference(local->hw.wiphy, sta->deflink.cigtk[i]);
+		if (!key)
+			continue;
+		ieee80211_key_replace(key->sdata, NULL, key->sta,
+				      key->conf.flags, key, NULL);
 		__ieee80211_key_destroy(key, key->sdata->vif.type ==
 					NL80211_IFTYPE_STATION);
 	}
@@ -1207,8 +1245,7 @@ void ieee80211_free_sta_keys(struct ieee80211_local *local,
 		if (!key)
 			continue;
 		ieee80211_key_replace(key->sdata, NULL, key->sta,
-				      key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
-				      key, NULL);
+				      key->conf.flags, key, NULL);
 		__ieee80211_key_destroy(key, key->sdata->vif.type ==
 					NL80211_IFTYPE_STATION);
 	}
@@ -1366,7 +1403,7 @@ EXPORT_SYMBOL_GPL(ieee80211_set_key_rx_seq);
 struct ieee80211_key_conf *
 ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
 			u8 idx, u8 *key_data, u8 key_len,
-			int link_id)
+			int link_id, bool cigtk)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
@@ -1390,10 +1427,20 @@ ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
 		    NUM_DEFAULT_BEACON_KEYS))
 		return ERR_PTR(-EINVAL);
 
-	prev_key = wiphy_dereference(local->hw.wiphy,
-				     link_data->gtk[idx]);
+	if (WARN_ON(cigtk && idx >= NUM_CTRL_KEYS))
+		return ERR_PTR(-EINVAL);
+
+	if (cigtk)
+		prev_key = wiphy_dereference(local->hw.wiphy,
+					     link_data->cigtk[idx]);
+	else
+		prev_key = wiphy_dereference(local->hw.wiphy,
+					     link_data->gtk[idx]);
 	if (!prev_key) {
-		if (idx < NUM_DEFAULT_KEYS) {
+		if (cigtk) {
+			prev_key = wiphy_dereference(local->hw.wiphy,
+						     link_data->cigtk[idx ^ 1]);
+		} else if (idx < NUM_DEFAULT_KEYS) {
 			for (int i = 0; i < NUM_DEFAULT_KEYS; i++) {
 				if (i == idx)
 					continue;
@@ -1423,6 +1470,9 @@ ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
 
 	if (sdata->u.mgd.mfp != IEEE80211_MFP_DISABLED)
 		key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;
+
+	if (prev_key->conf.flags & IEEE80211_KEY_FLAG_CIP)
+		key->conf.flags |= IEEE80211_KEY_FLAG_CIP;
 
 	key->conf.link_id = link_data->link_id;
 

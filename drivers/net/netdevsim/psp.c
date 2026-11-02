@@ -23,7 +23,6 @@ nsim_do_psp(struct sk_buff *skb, struct netdevsim *ns,
 	struct psp_assoc *pas;
 	struct net *net;
 	int psp_len;
-	void **ptr;
 
 	rcu_read_lock();
 	pas = psp_skb_get_assoc_rcu(skb);
@@ -33,12 +32,6 @@ nsim_do_psp(struct sk_buff *skb, struct netdevsim *ns,
 	}
 
 	if (!skb_transport_header_was_set(skb)) {
-		rc = SKB_DROP_REASON_PSP_OUTPUT;
-		goto out_unlock;
-	}
-
-	ptr = psp_assoc_drv_data(pas);
-	if (*ptr != ns) {
 		rc = SKB_DROP_REASON_PSP_OUTPUT;
 		goto out_unlock;
 	}
@@ -149,19 +142,6 @@ nsim_rx_spi_alloc(struct psp_dev *psd, u32 version,
 	return 0;
 }
 
-static int nsim_assoc_add(struct psp_dev *psd, struct psp_assoc *pas,
-			  struct netlink_ext_ack *extack)
-{
-	struct netdevsim *ns = psd->drv_priv;
-	void **ptr = psp_assoc_drv_data(pas);
-
-	/* Copy drv_priv from psd to assoc */
-	*ptr = psd->drv_priv;
-	ns->psp.assoc_cnt++;
-
-	return 0;
-}
-
 static int nsim_key_rotate(struct psp_dev *psd, struct netlink_ext_ack *extack)
 {
 	struct netdevsim *ns = psd->drv_priv;
@@ -175,15 +155,6 @@ static int nsim_key_rotate(struct psp_dev *psd, struct netlink_ext_ack *extack)
 		ns->psp.spi = PSP_SPI_KEY_PHASE;
 
 	return 0;
-}
-
-static void nsim_assoc_del(struct psp_dev *psd, struct psp_assoc *pas)
-{
-	struct netdevsim *ns = psd->drv_priv;
-	void **ptr = psp_assoc_drv_data(pas);
-
-	*ptr = NULL;
-	ns->psp.assoc_cnt--;
 }
 
 static void nsim_get_stats(struct psp_dev *psd, struct psp_dev_stats *stats)
@@ -204,8 +175,6 @@ static void nsim_get_stats(struct psp_dev *psd, struct psp_dev_stats *stats)
 static struct psp_dev_ops nsim_psp_ops = {
 	.set_config	= nsim_psp_set_config,
 	.rx_spi_alloc	= nsim_rx_spi_alloc,
-	.tx_key_add	= nsim_assoc_add,
-	.tx_key_del	= nsim_assoc_del,
 	.key_rotate	= nsim_key_rotate,
 	.get_stats	= nsim_get_stats,
 };
@@ -215,7 +184,6 @@ static struct psp_dev_caps nsim_psp_caps = {
 		    1 << PSP_VERSION_HDR0_AES_GMAC_128 |
 		    1 << PSP_VERSION_HDR0_AES_GCM_256 |
 		    1 << PSP_VERSION_HDR0_AES_GMAC_256,
-	.assoc_drv_spc = sizeof(void *),
 };
 
 static void __nsim_psp_uninit(struct netdevsim *ns, bool teardown)
@@ -230,7 +198,6 @@ static void __nsim_psp_uninit(struct netdevsim *ns, bool teardown)
 		synchronize_rcu();
 		psp_dev_unregister(psd);
 	}
-	WARN_ON(ns->psp.assoc_cnt);
 }
 
 void nsim_psp_uninit(struct netdevsim *ns)

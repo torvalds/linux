@@ -383,11 +383,13 @@ static bool qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 			    vha->vp_idx, entry->vp_index);
 			break;
 		}
-		if (!ha_locked)
+		if (!ha_locked) {
 			spin_lock_irqsave(&host->hw->hardware_lock, flags);
-		qlt_24xx_handle_abts(host, (struct abts_recv_from_24xx *)atio);
-		if (!ha_locked)
+			qlt_24xx_handle_abts(host, (struct abts_recv_from_24xx *)atio);
 			spin_unlock_irqrestore(&host->hw->hardware_lock, flags);
+		} else {
+			qlt_24xx_handle_abts(host, (struct abts_recv_from_24xx *)atio);
+		}
 		break;
 	}
 
@@ -2243,18 +2245,20 @@ void qlt_free_ul_mcmd(struct qla_hw_data *ha, struct qla_tgt_mgmt_cmd *mcmd)
  * ha->hardware_lock supposed to be held on entry. Might drop it, then
  * reacquire
  */
-void qlt_send_resp_ctio(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
-    uint8_t scsi_status, uint8_t sense_key, uint8_t asc, uint8_t ascq)
+static void qlt_send_resp_ctio(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
+    uint8_t scsi_status, uint8_t sense_key, uint16_t sense_code)
 {
 	struct atio_from_isp *atio = &cmd->atio;
 	struct ctio7_to_24xx *ctio;
 	uint16_t temp;
 	struct scsi_qla_host *vha = cmd->vha;
+	uint8_t asc = scsi_sense_code_asc(sense_code);
+	uint8_t ascq = scsi_sense_code_ascq(sense_code);
 
 	ql_dbg(ql_dbg_tgt_dif, vha, 0x3066,
 	    "Sending response CTIO7 (vha=%p, atio=%p, scsi_status=%02x, "
 	    "sense_key=%02x, asc=%02x, ascq=%02x",
-	    vha, atio, scsi_status, sense_key, asc, ascq);
+	       vha, atio, scsi_status, sense_key, asc, ascq);
 
 	ctio = (struct ctio7_to_24xx *)qla2x00_alloc_iocbs(vha, NULL);
 	if (!ctio) {
@@ -2677,44 +2681,47 @@ static void qlt_print_dif_err(struct qla_tgt_prm *prm)
 {
 	struct qla_tgt_cmd *cmd;
 	struct scsi_qla_host *vha;
+	u16 scode;
 
 	/* asc 0x10=dif error */
-	if (prm->sense_buffer && (prm->sense_buffer[12] == 0x10)) {
-		cmd = prm->cmd;
-		vha = cmd->vha;
-		/* ASCQ */
-		switch (prm->sense_buffer[13]) {
-		case 1:
-			ql_dbg(ql_dbg_tgt_dif, vha, 0xe00b,
-			    "BE detected Guard TAG ERR: lba[0x%llx|%lld] len[0x%x] "
-			    "se_cmd=%p tag[%x]",
-			    cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
-			    cmd->atio.u.isp24.exchange_addr);
-			break;
-		case 2:
-			ql_dbg(ql_dbg_tgt_dif, vha, 0xe00c,
-			    "BE detected APP TAG ERR: lba[0x%llx|%lld] len[0x%x] "
-			    "se_cmd=%p tag[%x]",
-			    cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
-			    cmd->atio.u.isp24.exchange_addr);
-			break;
-		case 3:
-			ql_dbg(ql_dbg_tgt_dif, vha, 0xe00f,
-			    "BE detected REF TAG ERR: lba[0x%llx|%lld] len[0x%x] "
-			    "se_cmd=%p tag[%x]",
-			    cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
-			    cmd->atio.u.isp24.exchange_addr);
-			break;
-		default:
-			ql_dbg(ql_dbg_tgt_dif, vha, 0xe010,
-			    "BE detected Dif ERR: lba[%llx|%lld] len[%x] "
-			    "se_cmd=%p tag[%x]",
-			    cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
-			    cmd->atio.u.isp24.exchange_addr);
-			break;
-		}
-		ql_dump_buffer(ql_dbg_tgt_dif, vha, 0xe011, cmd->cdb, 16);
+	if (!prm->sense_buffer ||
+	    prm->sense_buffer[12] != ASC_ID_CRC_OR_ECC_ERROR)
+		return;
+
+	cmd = prm->cmd;
+	vha = cmd->vha;
+	scode = scsi_sense_code(prm->sense_buffer[12], prm->sense_buffer[13]);
+	switch (scode) {
+	case LOGICAL_BLOCK_GUARD_CHECK_FAILED:
+		ql_dbg(ql_dbg_tgt_dif, vha, 0xe00b,
+		       "BE detected Guard TAG ERR: lba[0x%llx|%lld] len[0x%x] "
+		       "se_cmd=%p tag[%x]",
+		       cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
+		       cmd->atio.u.isp24.exchange_addr);
+		break;
+	case LOGICAL_BLOCK_APPLICATION_TAG_CHECK_FAILED:
+		ql_dbg(ql_dbg_tgt_dif, vha, 0xe00c,
+		       "BE detected APP TAG ERR: lba[0x%llx|%lld] len[0x%x] "
+		       "se_cmd=%p tag[%x]",
+		       cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
+		       cmd->atio.u.isp24.exchange_addr);
+		break;
+	case LOGICAL_BLOCK_REFERENCE_TAG_CHECK_FAILED:
+		ql_dbg(ql_dbg_tgt_dif, vha, 0xe00f,
+		       "BE detected REF TAG ERR: lba[0x%llx|%lld] len[0x%x] "
+		       "se_cmd=%p tag[%x]",
+		       cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
+		       cmd->atio.u.isp24.exchange_addr);
+		break;
+	default:
+		ql_dbg(ql_dbg_tgt_dif, vha, 0xe010,
+		       "BE detected Dif ERR: lba[%llx|%lld] len[%x] "
+		       "se_cmd=%p tag[%x]",
+		       cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
+		       cmd->atio.u.isp24.exchange_addr);
+		break;
 	}
+	ql_dump_buffer(ql_dbg_tgt_dif, vha, 0xe011, cmd->cdb, 16);
 }
 
 /*
@@ -3467,7 +3474,8 @@ qlt_handle_dif_error(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
 	uint8_t		*ap = &sts->actual_dif[0];
 	uint8_t		*ep = &sts->expected_dif[0];
 	uint64_t	lba = cmd->se_cmd.t_task_lba;
-	uint8_t scsi_status, sense_key, asc, ascq;
+	uint8_t scsi_status, sense_key;
+	uint16_t sense_code = 0;
 	struct scsi_qla_host *vha = cmd->vha;
 
 	cmd->trc_flags |= TRC_DIF_ERR;
@@ -3483,7 +3491,7 @@ qlt_handle_dif_error(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
 	ql_dbg(ql_dbg_tgt_dif, vha, 0xf075,
 	    "%s: aborted %d state %d\n", __func__, cmd->aborted, cmd->state);
 
-	scsi_status = sense_key = asc = ascq = 0;
+	scsi_status = sense_key = 0;
 
 	/* check appl tag */
 	if (cmd->e_app_tag != cmd->a_app_tag) {
@@ -3497,8 +3505,7 @@ qlt_handle_dif_error(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
 		cmd->dif_err_code = DIF_ERR_APP;
 		scsi_status = SAM_STAT_CHECK_CONDITION;
 		sense_key = ABORTED_COMMAND;
-		asc = 0x10;
-		ascq = 0x2;
+		sense_code = LOGICAL_BLOCK_APPLICATION_TAG_CHECK_FAILED;
 	}
 
 	/* check ref tag */
@@ -3513,8 +3520,7 @@ qlt_handle_dif_error(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
 		cmd->dif_err_code = DIF_ERR_REF;
 		scsi_status = SAM_STAT_CHECK_CONDITION;
 		sense_key = ABORTED_COMMAND;
-		asc = 0x10;
-		ascq = 0x3;
+		sense_code = LOGICAL_BLOCK_REFERENCE_TAG_CHECK_FAILED;
 		goto out;
 	}
 
@@ -3530,8 +3536,7 @@ qlt_handle_dif_error(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
 		cmd->dif_err_code = DIF_ERR_GRD;
 		scsi_status = SAM_STAT_CHECK_CONDITION;
 		sense_key = ABORTED_COMMAND;
-		asc = 0x10;
-		ascq = 0x1;
+		sense_code = LOGICAL_BLOCK_GUARD_CHECK_FAILED;
 	}
 out:
 	switch (cmd->state) {
@@ -3547,8 +3552,8 @@ out:
 			break;
 		}
 
-		qlt_send_resp_ctio(qpair, cmd, scsi_status, sense_key, asc,
-		    ascq);
+		qlt_send_resp_ctio(qpair, cmd, scsi_status, sense_key,
+				   sense_code);
 		/* assume scsi status gets out on the wire.
 		 * Will not wait for completion.
 		 */
@@ -3772,6 +3777,7 @@ static int __qlt_send_term_exchange(struct qla_qpair *qpair,
  */
 void qlt_send_term_exchange(struct qla_qpair *qpair,
 	struct qla_tgt_cmd *cmd, struct atio_from_isp *atio, int ha_locked)
+	__context_unsafe(/*conditional locking*/)
 {
 	struct scsi_qla_host *vha;
 	unsigned long flags = 0;
@@ -6725,11 +6731,13 @@ qlt_chk_qfull_thresh_hold(struct scsi_qla_host *vha, struct qla_qpair *qpair,
 	if (ha->tgt.num_pend_cmds < Q_FULL_THRESH_HOLD(ha))
 		return 0;
 
-	if (!ha_locked)
+	if (!ha_locked) {
 		spin_lock_irqsave(&ha->hardware_lock, flags);
-	qlt_send_busy(qpair, atio, qla_sam_status);
-	if (!ha_locked)
+		qlt_send_busy(qpair, atio, qla_sam_status);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	} else {
+		qlt_send_busy(qpair, atio, qla_sam_status);
+	}
 
 	return 1;
 }
@@ -6738,6 +6746,7 @@ qlt_chk_qfull_thresh_hold(struct scsi_qla_host *vha, struct qla_qpair *qpair,
 /* called via callback from qla2xxx */
 static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 	struct atio_from_isp *atio, uint8_t ha_locked)
+	__context_unsafe(/*conditional locking*/)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
@@ -6764,12 +6773,13 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 			    "qla_target(%d): ATIO_TYPE7 "
 			    "received with UNKNOWN exchange address, "
 			    "sending QUEUE_FULL\n", vha->vp_idx);
-			if (!ha_locked)
+			if (!ha_locked) {
 				spin_lock_irqsave(&ha->hardware_lock, flags);
-			qlt_send_busy(ha->base_qpair, atio, qla_sam_status);
-			if (!ha_locked)
-				spin_unlock_irqrestore(&ha->hardware_lock,
-				    flags);
+				qlt_send_busy(ha->base_qpair, atio, qla_sam_status);
+				spin_unlock_irqrestore(&ha->hardware_lock, flags);
+			} else {
+				qlt_send_busy(ha->base_qpair, atio, qla_sam_status);
+			}
 			break;
 		}
 

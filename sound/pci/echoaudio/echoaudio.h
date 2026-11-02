@@ -394,8 +394,8 @@ struct echoaudio {
 
 	u16 digital_modes;		/* Bitmask of supported modes
 					 * (see ECHOCAPS_HAS_DIGITAL_MODE_*) */
-	u16 input_clock_types;		/* Suppoted input clock types */
-	u16 output_clock_types;		/* Suppoted output clock types -
+	u16 input_clock_types;		/* Supported input clock types */
+	u16 output_clock_types;		/* Supported output clock types -
 					 * Layla20 only */
 	u16 device_id, subdevice_id;
 	u16 *dsp_code;			/* Current DSP code loaded,

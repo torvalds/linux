@@ -1515,7 +1515,7 @@ wd33c93_host_reset(struct scsi_cmnd * SCpnt)
 	int i;
 
 	instance = SCpnt->device->host;
-	spin_lock_irq(instance->host_lock);
+	spin_lock_irq(&instance->host_lock);
 	hostdata = (struct WD33C93_hostdata *) instance->hostdata;
 
 	printk("scsi%d: reset. ", instance->host_no);
@@ -1541,7 +1541,7 @@ wd33c93_host_reset(struct scsi_cmnd * SCpnt)
 	reset_wd33c93(instance);
 	SCpnt->result = DID_RESET << 16;
 	enable_irq(instance->irq);
-	spin_unlock_irq(instance->host_lock);
+	spin_unlock_irq(&instance->host_lock);
 	return SUCCESS;
 }
 

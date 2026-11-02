@@ -424,7 +424,7 @@ struct sdw_intel_hw_ops {
 	int (*start_bus)(struct sdw_intel *sdw);
 	int (*start_bus_after_reset)(struct sdw_intel *sdw);
 	int (*start_bus_after_clock_stop)(struct sdw_intel *sdw);
-	int (*stop_bus)(struct sdw_intel *sdw, bool clock_stop);
+	int (*stop_bus)(struct sdw_intel *sdw, bool clock_stop, bool wake_enable);
 
 	int (*link_power_up)(struct sdw_intel *sdw);
 	int (*link_power_down)(struct sdw_intel *sdw);

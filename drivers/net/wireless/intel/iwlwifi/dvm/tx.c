@@ -3,14 +3,13 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright (C) 2019 Intel Corporation
- * Copyright (C) 2023, 2025 Intel Corporation
+ * Copyright (C) 2023, 2025-2026 Intel Corporation
  *****************************************************************************/
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
-#include "iwl-io.h"
 #include "iwl-trans.h"
 #include "iwl-agn-hw.h"
 #include "dev.h"

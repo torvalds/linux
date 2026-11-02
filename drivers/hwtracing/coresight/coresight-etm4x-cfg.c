@@ -47,7 +47,7 @@ static int etm4_cfg_map_reg_offset(struct etmv4_drvdata *drvdata,
 				   struct cscfg_regval_csdev *reg_csdev, u32 offset)
 {
 	int err = -EINVAL, idx;
-	struct etmv4_config *drvcfg = &drvdata->config;
+	struct etmv4_config *drvcfg = &drvdata->curr_config;
 	u32 off_mask;
 
 	if (((offset >= TRCEVENTCTL0R) && (offset <= TRCVIPCSSCTLR)) ||
@@ -86,7 +86,6 @@ static int etm4_cfg_map_reg_offset(struct etmv4_drvdata *drvdata,
 		off_mask =  (offset & GENMASK(11, 5));
 		do {
 			CHECKREGIDX(TRCSSCCRn(0), ss_ctrl, idx, off_mask);
-			CHECKREGIDX(TRCSSCSRn(0), ss_status, idx, off_mask);
 			CHECKREGIDX(TRCSSPCICRn(0), ss_pe_cmp, idx, off_mask);
 		} while (0);
 	} else if ((offset >= TRCCIDCVRn(0)) && (offset <= TRCVMIDCVRn(7))) {
@@ -154,11 +153,14 @@ static int etm4_cfg_load_feature(struct coresight_device *csdev,
 	int i = 0, err = 0;
 
 	/*
-	 * essential we set the device spinlock - this is used in the generic
-	 * programming routines when copying values into the drvdata structures
-	 * via the pointers setup in etm4_cfg_map_reg_offset().
+	 * drvdata structure of etm4 for configfs is curr_config and
+	 * this curr_config is protected with csdev->mode by restricting
+	 * access to curr_config after mode changed to PERF or SYSFS.
+	 *
+	 * Therefore, it doesn't need to protected with etmv4_drvdata->spinlock
+	 * to feature applying and set the NULL.
 	 */
-	feat_csdev->drv_spinlock = &drvdata->spinlock;
+	feat_csdev->drv_spinlock = NULL;
 
 	/* process the register descriptions */
 	for (i = 0; i < feat_csdev->nr_regs && !err; i++) {

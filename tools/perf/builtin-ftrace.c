@@ -6,23 +6,23 @@
  * Copyright (c) 2020  Changbin Du <changbin.du@gmail.com>, significant enhancement.
  */
 
-#include "builtin.h"
-
+#include <ctype.h>
 #include <errno.h>
-#include <unistd.h>
-#include <signal.h>
-#include <stdlib.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <math.h>
 #include <poll.h>
-#include <ctype.h>
+#include <semaphore.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <linux/capability.h>
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
 #include <sys/stat.h>
 
+#include "builtin.h"
 #include "debug.h"
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
@@ -45,6 +45,7 @@
 
 static volatile sig_atomic_t workload_exec_errno;
 static volatile sig_atomic_t done;
+static sem_t sig_sem;
 
 static struct stats latency_stats;  /* for tracepoints */
 
@@ -53,6 +54,7 @@ static char tracing_instance[PATH_MAX];	/* Trace instance directory */
 static void sig_handler(int sig __maybe_unused)
 {
 	done = true;
+	sem_post(&sig_sem);
 }
 
 /*
@@ -68,6 +70,7 @@ static void ftrace__workload_exec_failed_signal(int signo __maybe_unused,
 {
 	workload_exec_errno = info->si_value.sival_int;
 	done = true;
+	sem_post(&sig_sem);
 }
 
 static bool check_ftrace_capable(void)
@@ -1146,6 +1149,11 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 
 	line[0] = '\0';
 	while (!done) {
+		if (ftrace->target.use_bpf) {
+			sem_wait(&sig_sem);
+			break;
+		}
+
 		if (poll(&pollfd, 1, -1) < 0)
 			break;
 
@@ -1852,6 +1860,8 @@ int cmd_ftrace(int argc, const char **argv)
 	INIT_LIST_HEAD(&ftrace.nograph_funcs);
 	INIT_LIST_HEAD(&ftrace.event_pair);
 
+	sem_init(&sig_sem, 0, 0);
+
 	signal(SIGINT, sig_handler);
 	signal(SIGUSR1, sig_handler);
 	signal(SIGCHLD, sig_handler);
@@ -2015,5 +2025,11 @@ out_delete_filters:
 	delete_filter_func(&ftrace.nograph_funcs);
 	delete_filter_func(&ftrace.event_pair);
 
+	signal(SIGINT, SIG_DFL);
+	signal(SIGUSR1, SIG_DFL);
+	signal(SIGCHLD, SIG_DFL);
+	signal(SIGPIPE, SIG_DFL);
+
+	sem_destroy(&sig_sem);
 	return ret;
 }

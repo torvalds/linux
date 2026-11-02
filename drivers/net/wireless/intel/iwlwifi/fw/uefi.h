@@ -13,7 +13,10 @@
 #define IWL_UEFI_STEP_NAME		L"UefiCnvCommonSTEP"
 #define IWL_UEFI_UATS_NAME		L"CnvUefiWlanUATS"
 #define IWL_UEFI_WRDS_NAME		L"UefiCnvWlanWRDS"
+#define IWL_UEFI_GLUI_NAME		L"UefiCnvCommonGLUI"
 #define IWL_UEFI_EWRD_NAME		L"UefiCnvWlanEWRD"
+#define IWL_UEFI_WSSS_NAME		L"UefiCnvWlanWSSS"
+#define IWL_UEFI_EWSS_NAME		L"UefiCnvWlanEWSS"
 #define IWL_UEFI_WGDS_NAME		L"UefiCnvWlanWGDS"
 #define IWL_UEFI_PPAG_NAME		L"UefiCnvWlanPPAG"
 #define IWL_UEFI_WTAS_NAME		L"UefiCnvWlanWTAS"
@@ -40,6 +43,7 @@
 #define IWL_UEFI_DSM_REVISION		4
 #define IWL_UEFI_PUNCTURING_REVISION	0
 #define IWL_UEFI_DSBR_REVISION		1
+#define IWL_UEFI_GLUI_REVISION		0
 
 struct pnvm_sku_package {
 	u8 rev;
@@ -52,6 +56,11 @@ struct pnvm_sku_package {
 struct uefi_cnv_wlan_sgom_data {
 	u8 revision;
 	u8 offset_map[IWL_SGOM_MAP_SIZE - 1];
+} __packed;
+
+struct uefi_cnv_var_glui {
+	u8 revision;
+	u8 guid_lock_status;
 } __packed;
 
 struct uefi_cnv_wlan_uats_data {
@@ -330,6 +339,8 @@ int iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
 				 u32 tlv_len, struct iwl_pnvm_image *pnvm_data);
 int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt);
+int iwl_uefi_get_wsss_table(struct iwl_fw_runtime *fwrt);
+int iwl_uefi_get_ewss_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
@@ -349,6 +360,7 @@ void iwl_uefi_get_uneb_table(struct iwl_trans *trans,
 int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value);
 int iwl_uefi_get_phy_filters(struct iwl_fw_runtime *fwrt);
+void iwl_uefi_get_guid_lock_status(struct iwl_fw_runtime *fwrt);
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
@@ -387,6 +399,16 @@ static inline int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 }
 
 static inline int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_uefi_get_wsss_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_uefi_get_ewss_table(struct iwl_fw_runtime *fwrt)
 {
 	return -ENOENT;
 }
@@ -465,6 +487,10 @@ int iwl_uefi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
 static inline int iwl_uefi_get_phy_filters(struct iwl_fw_runtime *fwrt)
 {
 	return -ENOENT;
+}
+
+static inline void iwl_uefi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
+{
 }
 #endif /* CONFIG_EFI */
 #endif /* __iwl_fw_uefi__ */

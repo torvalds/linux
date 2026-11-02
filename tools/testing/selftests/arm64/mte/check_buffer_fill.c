@@ -41,7 +41,7 @@ static int check_buffer_by_byte(int mem_type, int mode)
 		mte_initialize_current_context(mode, (uintptr_t)ptr, sizes[i]);
 		/* Set some value in tagged memory */
 		for (j = 0; j < sizes[i]; j++)
-			ptr[j] = '1';
+			memset_safe(&ptr[j], '1', 1);
 		mte_wait_after_trig();
 		err = cur_mte_cxt.fault_valid;
 		/* Check the buffer whether it is filled. */
@@ -82,7 +82,7 @@ static int check_buffer_underflow_by_byte(int mem_type, int mode,
 		/* Set some value in tagged memory and make the buffer underflow */
 		for (j = sizes[i] - 1; (j >= -underflow_range) &&
 				       (!cur_mte_cxt.fault_valid); j--) {
-			ptr[j] = '1';
+			memset_safe(&ptr[j], '1', 1);
 			last_index = j;
 		}
 		mte_wait_after_trig();
@@ -180,7 +180,7 @@ static int check_buffer_overflow_by_byte(int mem_type, int mode,
 		/* Set some value in tagged memory and make the buffer underflow */
 		for (j = 0, last_index = 0 ; (j < (sizes[i] + overflow_range)) &&
 					     (cur_mte_cxt.fault_valid == false); j++) {
-			ptr[j] = '1';
+			memset_safe(&ptr[j], '1', 1);
 			last_index = j;
 		}
 		mte_wait_after_trig();
@@ -308,8 +308,8 @@ static int check_buffer_by_block_iterate(int mem_type, int mode, size_t size)
 		result = KSFT_PASS;
 		mte_initialize_current_context(mode, (uintptr_t)dst, size);
 		/* Set some value in memory and copy*/
-		memset((void *)src, (int)'1', size);
-		memcpy((void *)dst, (void *)src, size);
+		memset_safe((void *)src, (int)'1', size);
+		memcpy_safe((void *)dst, (void *)src, size);
 		mte_wait_after_trig();
 		if (cur_mte_cxt.fault_valid) {
 			result = KSFT_FAIL;

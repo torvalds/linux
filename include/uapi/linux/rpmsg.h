@@ -24,32 +24,35 @@ struct rpmsg_endpoint_info {
 };
 
 /**
- * Instantiate a new rmpsg char device endpoint.
+ * RPMSG_CREATE_EPT_IOCTL - Instantiate a new rmpsg char device endpoint.
  */
 #define RPMSG_CREATE_EPT_IOCTL	_IOW(0xb5, 0x1, struct rpmsg_endpoint_info)
 
 /**
- * Destroy a rpmsg char device endpoint created by the RPMSG_CREATE_EPT_IOCTL.
+ * RPMSG_DESTROY_EPT_IOCTL - Destroy a rpmsg char device endpoint created
+ * by the RPMSG_CREATE_EPT_IOCTL.
  */
 #define RPMSG_DESTROY_EPT_IOCTL	_IO(0xb5, 0x2)
 
 /**
- * Instantiate a new local rpmsg service device.
+ * RPMSG_CREATE_DEV_IOCTL - Instantiate a new local rpmsg service device.
  */
 #define RPMSG_CREATE_DEV_IOCTL	_IOW(0xb5, 0x3, struct rpmsg_endpoint_info)
 
 /**
- * Release a local rpmsg device.
+ * RPMSG_RELEASE_DEV_IOCTL - Release a local rpmsg device.
  */
 #define RPMSG_RELEASE_DEV_IOCTL	_IOW(0xb5, 0x4, struct rpmsg_endpoint_info)
 
 /**
- * Get the flow control state of the remote rpmsg char device.
+ * RPMSG_GET_OUTGOING_FLOWCONTROL - Get the flow control state of the
+ * remote rpmsg char device.
  */
 #define RPMSG_GET_OUTGOING_FLOWCONTROL _IOR(0xb5, 0x5, int)
 
 /**
- * Set the flow control state of the local rpmsg char device.
+ * RPMSG_SET_INCOMING_FLOWCONTROL - Set the flow control state of the
+ * local rpmsg char device.
  */
 #define RPMSG_SET_INCOMING_FLOWCONTROL _IOR(0xb5, 0x6, int)
 
