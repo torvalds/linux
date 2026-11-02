@@ -381,7 +381,7 @@ static unsigned int mt6363_regulator_get_mode(struct regulator_dev *rdev)
 
 static int mt6363_buck_unlock(struct regmap *map, bool unlock)
 {
-	u16 buf = unlock ? MT6363_BUCK_TOP_UNLOCK_VALUE : 0;
+	__le16 buf = cpu_to_le16(unlock ? MT6363_BUCK_TOP_UNLOCK_VALUE : 0);
 
 	return regmap_bulk_write(map, MT6363_BUCK_TOP_KEY_PROT_LO, &buf, sizeof(buf));
 }
@@ -482,7 +482,8 @@ static int mt6363_regulator_set_load(struct regulator_dev *rdev, int load_uA)
 
 static int mt6363_vemc_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 {
-	const u16 tma_unlock_key = MT6363_TMA_UNLOCK_VALUE;
+	const __le16 tma_unlock_key = cpu_to_le16(MT6363_TMA_UNLOCK_VALUE);
+	const __le16 tma_lock_key = cpu_to_le16(0);
 	const struct regulator_desc *rdesc = rdev->desc;
 	struct regmap *regmap = rdev->regmap;
 	unsigned int range, val;
@@ -539,8 +540,8 @@ static int mt6363_vemc_set_voltage_sel(struct regulator_dev *rdev, unsigned int 
 
 lock_tma:
 	/* Unconditionally re-lock TMA */
-	val = 0;
-	regmap_bulk_write(rdev->regmap, MT6363_TOP_TMA_KEY_L, &val, 2);
+	regmap_bulk_write(rdev->regmap, MT6363_TOP_TMA_KEY_L,
+			  &tma_lock_key, sizeof(tma_lock_key));
 
 	return ret;
 }
@@ -811,7 +812,7 @@ static struct regmap *mt6363_spmi_register_regmap(struct device *dev)
 {
 	struct regmap_config mt6363_regmap_config = {
 		.reg_bits = 16,
-		.val_bits = 16,
+		.val_bits = 8,
 		.max_register = 0x1f90,
 		.fast_io = true,
 	};
