@@ -1943,11 +1943,15 @@ static __used __naked void grandchild_deref(void)
 	::: __clobber_all);
 }
 
+/*
+ * The callee gets a pointer to the frame that holds the spills. It can store a pointer
+ * that is not FP-derived over them: after the call each of them is "fp-N or not FP-derived".
+ */
 SEC("socket")
 __log_level(2)
 __success
-__msg("14: (79) r1 = *(u64 *)(r10 -8) // r6=fp0-8 r7=fp1-16 fp-8=fp1-16 fp-16=fp0-8")
-__msg("15: (79) r0 = *(u64 *)(r1 +0) // r1=fp1-16 r6=fp0-8 r7=fp1-16 fp-8=fp1-16 fp-16=fp0-8")
+__msg("14: (79) r1 = *(u64 *)(r10 -8) // r6=fp0-8 r7=fp1-16 fp-8=fp1-16|fp1+0 fp-16=fp0-8|fp0+0")
+__msg("15: (79) r0 = *(u64 *)(r1 +0) // r1=fp1-16|fp1+0 r6=fp0-8 r7=fp1-16 fp-8=fp1-16|fp1+0")
 __msg("stack use/def subprog#1 mid_two_fp_threshold (d1,cs2):")
 __msg("14: (79) r1 = *(u64 *)(r10 -8)        ; use: fp1-8")
 __msg("15: (79) r0 = *(u64 *)(r1 +0)         ; use: fp1-16")
@@ -1992,8 +1996,8 @@ static __used __naked void inner_nop_fptest(void)
 SEC("socket")
 __log_level(2)
 __success
-__msg("13: (79) r1 = *(u64 *)(r10 -8) // r6=fp0-8 r7=fp1-16 fp-8=fp1-16 fp-16=fp0-8")
-__msg("14: (79) r0 = *(u64 *)(r1 +0) // r1=fp1-16 r6=fp0-8 r7=fp1-16 fp-8=fp1-16 fp-16=fp0-8")
+__msg("13: (79) r1 = *(u64 *)(r10 -8) // r6=fp0-8 r7=fp1-16 fp-8=fp1-16|fp1+0 fp-16=fp0-8|fp0+0")
+__msg("14: (79) r0 = *(u64 *)(r1 +0) // r1=fp1-16|fp1+0 r6=fp0-8 r7=fp1-16 fp-8=fp1-16|fp1+0")
 __msg("stack use/def subprog#1 mid_one_fp_threshold (d1,cs2):")
 __msg("13: (79) r1 = *(u64 *)(r10 -8)        ; use: fp1-8")
 __msg("14: (79) r0 = *(u64 *)(r1 +0)         ; use: fp1-16")
