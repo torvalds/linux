@@ -2583,6 +2583,7 @@ __naked void stack_or_non_stack_write(void)
 	"exit;"								\
 	:								\
 	: __imm(bpf_map_lookup_elem),					\
+	  __imm(bpf_loop),						\
 	  __imm_addr(array_map_8b)					\
 	: __clobber_all)
 
@@ -2645,6 +2646,108 @@ __naked void join_of_r10_and_map_value_hidden_store(void)
 	"r1 += -8;"
 	"*(u64 *)(r10 - 16) = r1;"
 	"*(u64 *)(r7 - 16) = r9;"
+	"r8 = *(u64 *)(r10 - 16);"
+	LOOP_WITH_STORE_THROUGH_R8);
+}
+
+/* ctx[1] = ctx[0]. ctx is the second param, as in a callback of bpf_loop(). */
+static __used __naked void copy_first_to_second(void)
+{
+	asm volatile (
+	"r1 = *(u64 *)(r2 + 0);"
+	"*(u64 *)(r2 + 8) = r1;"
+	"r0 = 0;"
+	"exit;"
+	::: __clobber_all);
+}
+
+/*
+ * fp-16 holds &fp[-8]. The callee gets &fp[-24] and stores a pointer to map value to fp-16.
+ * The store through the filled pointer is not a certain write to fp-8: fp-8 is live before it.
+ */
+SEC("socket")
+__success __retval(0) __log_level(2)
+__msg("r1 = *(u64 *)(r10 -16) // fp-16=fp0-8|fp0+0")
+__msg("*(u64 *)(r1 +0) = 42{{ +}}; may_def: fp0-8")
+__naked void callee_overwrites_spilled_fp(void)
+{
+	WITH_MAP_VALUE(
+	"r1 = r10;"
+	"r1 += -8;"
+	"*(u64 *)(r10 - 16) = r1;"
+	"*(u64 *)(r10 - 24) = r0;"
+	"r2 = r10;"
+	"r2 += -24;"
+	"call copy_first_to_second;"
+	"r1 = *(u64 *)(r10 - 16);"
+	"*(u64 *)(r1 + 0) = 42;"
+	"r0 = *(u64 *)(r10 - 8);");
+}
+
+/* The same, but fp-16 holds a copy of r10, and the callee stores map value + 8 over it. */
+SEC("socket")
+__success __retval(0)
+__naked void callee_overwrites_spilled_r10(void)
+{
+	WITH_MAP_VALUE(
+	"*(u64 *)(r10 - 16) = r10;"
+	"r0 += 8;"
+	"*(u64 *)(r10 - 24) = r0;"
+	"r2 = r10;"
+	"r2 += -24;"
+	"call copy_first_to_second;"
+	"r1 = *(u64 *)(r10 - 16);"
+	"*(u64 *)(r1 - 8) = 42;"
+	"r0 = *(u64 *)(r10 - 8);");
+}
+
+/* The same, but the callee is a callback. */
+SEC("socket")
+__success __retval(0)
+__load_if_JITed()
+__naked void callback_overwrites_spilled_fp(void)
+{
+	WITH_MAP_VALUE(
+	"r1 = r10;"
+	"r1 += -8;"
+	"*(u64 *)(r10 - 16) = r1;"
+	"*(u64 *)(r10 - 24) = r0;"
+	"r1 = 1;"
+	"r2 = copy_first_to_second ll;"
+	"r3 = r10;"
+	"r3 += -24;"
+	"r4 = 0;"
+	"call %[bpf_loop];"
+	"r1 = *(u64 *)(r10 - 16);"
+	"*(u64 *)(r1 + 0) = 42;"
+	"r0 = *(u64 *)(r10 - 8);");
+}
+
+/*
+ * fp-16 holds &fp[-8], fp-24 holds &fp[-16], and the callee stores a pointer to map value to fp-24.
+ * fp-16 is still known after the call, and the store through r7 is not a certain write to it:
+ * r8 is &fp[-8], and the store through r8 changes the counter of the loop.
+ */
+SEC("socket")
+__failure __msg("invalid access to map value, value_size=8 off=4096 size=1")
+__naked void callee_overwrites_spilled_fp_hidden_store(void)
+{
+	WITH_MAP_VALUE(
+	"r9 = r0;"
+	"r1 = r10;"
+	"r1 += -8;"
+	"*(u64 *)(r10 - 16) = r1;"
+	"r1 += -8;"
+	"*(u64 *)(r10 - 24) = r1;"
+	"*(u64 *)(r10 - 32) = r9;"
+	"r2 = r10;"
+	"r2 += -32;"
+	"call copy_first_to_second;"
+	/* the fill keeps fp-16 live over the call */
+	"r1 = *(u64 *)(r10 - 16);"
+	"*(u64 *)(r10 - 16) = r1;"
+	"r7 = *(u64 *)(r10 - 24);"
+	"*(u64 *)(r7 + 0) = r9;"
 	"r8 = *(u64 *)(r10 - 16);"
 	LOOP_WITH_STORE_THROUGH_R8);
 }
