@@ -1010,6 +1010,13 @@ static bool dynptr_write_changes_pkt_data(enum bpf_dynptr_type type)
 	return type == BPF_DYNPTR_TYPE_SKB || type == BPF_DYNPTR_TYPE_SKB_META;
 }
 
+/* The data of the other types is contiguous: bpf_dynptr_slice() does not use the buffer. */
+static bool dynptr_slice_may_be_buffer(enum bpf_dynptr_type type)
+{
+	return type != BPF_DYNPTR_TYPE_LOCAL && type != BPF_DYNPTR_TYPE_RINGBUF &&
+	       type != BPF_DYNPTR_TYPE_SKB_META;
+}
+
 static bool is_dynptr_type_expected(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 				    enum bpf_arg_type arg_type)
 {
@@ -4558,6 +4565,31 @@ static int check_stack_read(struct bpf_verifier_env *env,
 	return err;
 }
 
+/*
+ * An access through a slice that may be the buffer on the stack, see bpf_reg_state::buf, is
+ * not seen as an access to the stack. That's fine as long as nothing is tracked in the buffer.
+ * The output of helpers and kfuncs is not tracked. Here an insn stores to [min_off, max_off)
+ * of frame @frameno, a dynptr, an iterator or irq flags are made there, or the frame is gone.
+ */
+static void invalidate_stack_slices(struct bpf_verifier_env *env, u32 frameno,
+				    int min_off, int max_off)
+{
+	struct bpf_func_state *state;
+	struct bpf_reg_state *reg;
+
+	if (!env->seen_stack_slice)
+		return;
+
+	bpf_for_each_reg_in_vstate(env->cur_state, state, reg, ({
+		if (base_type(reg->type) != PTR_TO_MEM || !reg->buf.size ||
+		    reg->buf.frameno != frameno || reg->buf.off >= max_off ||
+		    reg->buf.off + (int)reg->buf.size <= min_off)
+			continue;
+		bpf_diag_record_scrub(env, reg, BPF_DIAG_MOD_SLICE_BUF);
+		mark_reg_invalid(env, reg);
+	}));
+}
+
 /* check_stack_write dispatches to check_stack_write_fixed_off or
  * check_stack_write_var_off.
  *
@@ -4572,6 +4604,8 @@ static int check_stack_write(struct bpf_verifier_env *env,
 			     int value_regno, int insn_idx)
 {
 	struct bpf_func_state *state = bpf_func(env, reg);
+	int min_off = reg_smin(reg) + off;
+	int max_off = reg_smax(reg) + off + size;
 	int err;
 
 	if (tnum_is_const(reg->var_off)) {
@@ -4586,6 +4620,8 @@ static int check_stack_write(struct bpf_verifier_env *env,
 						reg, off, size,
 						value_regno, insn_idx);
 	}
+	/* After the write is modelled: the insn may store a slice to its own buffer. */
+	invalidate_stack_slices(env, state->frameno, min_off, max_off);
 	return err;
 }
 
@@ -10466,15 +10502,18 @@ static int mark_raw_stack(struct bpf_verifier_env *env, struct bpf_call_arg_meta
 	 */
 	for (slot = 0; slot < MAX_BPF_FUNC_ARGS; slot++) {
 		struct bpf_reg_state *reg;
-		argno_t argno = argno_from_arg(slot + 1);
 
 		if (!meta->arg_raw_mem.size[slot])
 			continue;
 		reg = get_func_arg_reg(caller, cur_regs(env), slot);
 
+		/*
+		 * check_stack_range_initialized() checked the range, its offset is a constant.
+		 * Not check_stack_write(): unknown bytes in its buffer leave a dynptr slice valid.
+		 */
 		for (i = 0; i < meta->arg_raw_mem.size[slot]; i++) {
-			err = check_mem_access(env, insn_idx, reg, argno, i, BPF_B,
-					       BPF_WRITE, -1, false, false);
+			err = check_stack_write_fixed_off(env, bpf_func(env, reg),
+							  reg->var_off.value + i, 1, -1, insn_idx);
 			if (err)
 				return err;
 		}
@@ -12176,6 +12215,7 @@ static int prepare_func_exit(struct bpf_verifier_env *env, int *insn_idx)
 					     callee->allocated_stack / BPF_REG_SIZE - 1);
 	if (err)
 		return err;
+	invalidate_stack_slices(env, callee->frameno, INT_MIN, 0);
 
 	/* for callbacks like bpf_loop or bpf_for_each_map_elem go back to callsite,
 	 * there function call logic would reschedule callback visit. If iteration
@@ -15411,6 +15451,9 @@ static int check_special_kfunc(struct bpf_verifier_env *env, struct bpf_call_arg
 			return -EFAULT;
 		}
 		regs[BPF_REG_0].parent_id = meta->dynptr.id;
+		regs[BPF_REG_0].buf = meta->slice_buf;
+		if (meta->slice_buf.size)
+			env->seen_stack_slice = true;
 	} else {
 		return 0;
 	}
@@ -15666,6 +15709,22 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		insn_aux->insert_off = regs[BPF_REG_2].var_off.value;
 		insn_aux->kptr_struct_meta = btf_find_struct_meta(meta.arg_btf, meta.arg_btf_id);
 		ref_convert_owning_non_owning(env, id);
+	}
+
+	if ((is_kfunc_call(&meta, special_kfunc_list[KF_bpf_dynptr_slice]) ||
+	     is_kfunc_call(&meta, special_kfunc_list[KF_bpf_dynptr_slice_rdwr])) &&
+	    dynptr_slice_may_be_buffer(meta.dynptr.type)) {
+		struct bpf_reg_state *buf = &regs[BPF_REG_3];
+
+		if (buf->type == PTR_TO_STACK) {
+			meta.slice_buf.frameno = buf->frameno;
+			meta.slice_buf.off = reg_smin(buf);
+			meta.slice_buf.size = reg_smax(buf) - reg_smin(buf) +
+					      meta.arg_constant.value;
+		} else if (base_type(buf->type) == PTR_TO_MEM) {
+			/* a slice is the buffer of the next one */
+			meta.slice_buf = buf->buf;
+		}
 	}
 
 	if (meta.func_id == special_kfunc_list[KF_bpf_throw]) {
