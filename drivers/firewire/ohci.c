@@ -1593,12 +1593,13 @@ static void handle_at_local_packets(struct at_local *local, struct fw_ohci *ohci
 			void (*handle_at_local_packet)(struct fw_ohci *, struct fw_packet *))
 {
 	struct fw_packet *packet;
+	unsigned long flags;
 
-	spin_lock(&local->lock);
+	spin_lock_irqsave(&local->lock, flags);
 
 	while ((packet = list_first_entry_or_null(&local->list, typeof(*packet), link_for_local))) {
 		list_del_init(&packet->link_for_local);
-		spin_unlock(&local->lock);
+		spin_unlock_irqrestore(&local->lock, flags);
 
 		if (unlikely(packet->ack != 0)) {
 			// This case is active when the call of at_context_queue_packet() returns
@@ -1608,10 +1609,10 @@ static void handle_at_local_packets(struct at_local *local, struct fw_ohci *ohci
 			handle_at_local_packet(ohci, packet);
 		}
 
-		spin_lock(&local->lock);
+		spin_lock_irqsave(&local->lock, flags);
 	}
 
-	spin_unlock(&local->lock);
+	spin_unlock_irqrestore(&local->lock, flags);
 }
 
 static void at_request_local_work(struct work_struct *work)
