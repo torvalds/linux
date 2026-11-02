@@ -1285,9 +1285,10 @@ static int ufx_realloc_framebuffer(struct ufx_data *dev, struct fb_info *info)
 
 	if (PAGE_ALIGN(new_len) > old_len) {
 		/*
-		 * Alloc system memory for virtual framebuffer
+		 * Alloc system memory for virtual framebuffer.  smem_len is
+		 * rounded up to a page, so allocate that much as well.
 		 */
-		new_fb = vmalloc(new_len);
+		new_fb = vmalloc(PAGE_ALIGN(new_len));
 		if (!new_fb)
 			return -ENOMEM;
 
