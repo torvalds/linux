@@ -2565,6 +2565,86 @@ __naked void stack_or_non_stack_write(void)
 	: __clobber_all);
 }
 
+/* @insns start with fp-8 = 0 and r0 = pointer to map value */
+#define WITH_MAP_VALUE(insns)						\
+	asm volatile (							\
+	"*(u64 *)(r10 - 8) = 0;"					\
+	"r1 = %[array_map_8b] ll;"					\
+	"r2 = r10;"							\
+	"r2 += -8;"							\
+	"call %[bpf_map_lookup_elem];"					\
+	"if r0 == 0 goto 9f;"						\
+	insns								\
+"9:"									\
+	"exit;"								\
+	:								\
+	: __imm(bpf_map_lookup_elem),					\
+	  __imm_addr(array_map_8b)					\
+	: __clobber_all)
+
+/*
+ * r1 and r2 are r10 or a pointer to map value, joined in both orders. The stores through them
+ * are not certain writes to fp-8 and fp-16: both slots are live before the stores.
+ */
+SEC("socket")
+__success __log_level(2)
+__msg("r1: fp0+0 + _ => fp0 ?")
+__msg("r2: _ + fp0+0 => fp0 ?")
+__naked void join_of_r10_and_map_value(void)
+{
+	WITH_MAP_VALUE(
+	"*(u64 *)(r10 - 16) = 0;"
+	"r1 = r10;"
+	"r2 = r0;"
+	"r2 += 16;"
+	"r3 = *(u64 *)(r0 + 0);"
+	"if r3 == 0 goto 1f;"
+	"r1 = r0;"
+	"r1 += 8;"
+	"r2 = r10;"
+"1:"
+	"*(u64 *)(r1 - 8) = 42;"
+	"*(u64 *)(r2 - 16) = 42;"
+	"r0 = *(u64 *)(r10 - 8);"
+	"r1 = *(u64 *)(r10 - 16);");
+}
+
+/* The counter in fp-8 is the offset in the map value r9. The store through r8 can change it. */
+#define LOOP_WITH_STORE_THROUGH_R8					\
+"8:"									\
+	"r1 = *(u64 *)(r10 - 8);"					\
+	"r2 = r9;"							\
+	"r2 += r1;"							\
+	"r0 = *(u8 *)(r2 + 0);"						\
+	"r1 += 1;"							\
+	"*(u64 *)(r10 - 8) = r1;"					\
+	"*(u64 *)(r8 + 0) = 4096;"					\
+	"if r1 < 8 goto 8b;"
+
+/*
+ * r7 is r10 or a pointer to map value. The store through r7 is not a certain write to fp-16:
+ * fp-16 can still hold &fp[-8], and then the store through r8 changes the counter of the loop.
+ */
+SEC("socket")
+__failure __msg("invalid access to map value, value_size=8 off=4096 size=1")
+__naked void join_of_r10_and_map_value_hidden_store(void)
+{
+	WITH_MAP_VALUE(
+	"r9 = r0;"
+	"r7 = r10;"
+	"r1 = *(u64 *)(r9 + 0);"
+	"if r1 == 0 goto 1f;"
+	"r7 = r9;"
+	"r7 += 16;"
+"1:"
+	"r1 = r10;"
+	"r1 += -8;"
+	"*(u64 *)(r10 - 16) = r1;"
+	"*(u64 *)(r7 - 16) = r9;"
+	"r8 = *(u64 *)(r10 - 16);"
+	LOOP_WITH_STORE_THROUGH_R8);
+}
+
 SEC("socket")
 __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
