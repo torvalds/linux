@@ -912,6 +912,11 @@ void ice_xsk_clean_rx_ring(struct ice_rx_ring *rx_ring)
 	if (xdp_rxq_info_is_reg(&rx_ring->xdp_rxq))
 		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 
+	if (rx_ring->xsk) {
+		xsk_buff_free(&rx_ring->xsk->base);
+		rx_ring->xsk = NULL;
+	}
+
 	while (ntc != ntu) {
 		struct xdp_buff *xdp = *ice_xdp_buf(rx_ring, ntc);
 
