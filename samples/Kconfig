@@ -71,7 +71,7 @@ config SAMPLE_KOBJECT
 
 config SAMPLE_KPROBES
 	tristate "Build kprobes examples -- loadable modules only"
-	depends on KPROBES && m
+	depends on KPROBES && EVENT_TRACING && m
 	help
 	  This build several kprobes example modules.
 

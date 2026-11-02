@@ -14,9 +14,8 @@
  * Documentation/trace/kprobes.rst
  *
  * Build and insert the kernel module as done in the kprobe example.
- * You will see the trace data in /var/log/messages and on the console
- * whenever the probed function returns. (Some messages may be suppressed
- * if syslogd is configured to eliminate duplicate messages.)
+ * You will see the trace data in /sys/kernel/tracing/trace
+ * whenever the probed function returns.
  */
 
 #include <linux/kernel.h>
@@ -24,6 +23,7 @@
 #include <linux/kprobes.h>
 #include <linux/ktime.h>
 #include <linux/sched.h>
+#include <linux/trace_printk.h>
 
 static char func_name[KSYM_NAME_LEN] = "kernel_clone";
 module_param_string(func, func_name, KSYM_NAME_LEN, 0644);
@@ -63,8 +63,8 @@ static int ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	now = ktime_get();
 	delta = ktime_to_ns(ktime_sub(now, data->entry_stamp));
-	pr_info("%s returned %lu and took %lld ns to execute\n",
-			func_name, retval, (long long)delta);
+	trace_printk("%s returned %lu and took %lld ns to execute\n",
+		     func_name, retval, (long long)delta);
 	return 0;
 }
 NOKPROBE_SYMBOL(ret_handler);
