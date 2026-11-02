@@ -850,6 +850,7 @@ static void ip_vs_proc_conn(struct netns_ipvs *ipvs, struct ip_vs_conn_param *pa
 			    unsigned long timeout, __u32 fwmark,
 			    struct ip_vs_sync_conn_options *opt)
 {
+	struct ip_vs_conn *cp_new = NULL;
 	struct ip_vs_dest *dest;
 	struct ip_vs_conn *cp;
 
@@ -891,9 +892,6 @@ static void ip_vs_proc_conn(struct netns_ipvs *ipvs, struct ip_vs_conn_param *pa
 		flags &= IP_VS_CONN_F_BACKUP_UPD_MASK;
 		flags |= cp->flags & ~IP_VS_CONN_F_BACKUP_UPD_MASK;
 		cp->flags = flags;
-		spin_unlock_bh(&cp->lock);
-		if (!dest)
-			ip_vs_try_bind_dest(cp);
 	} else {
 		/*
 		 * Find the appropriate destination for the connection.
@@ -920,6 +918,8 @@ static void ip_vs_proc_conn(struct netns_ipvs *ipvs, struct ip_vs_conn_param *pa
 		}
 		if (!(flags & IP_VS_CONN_F_TEMPLATE))
 			kfree(param->pe_data);
+		cp_new = cp;
+		spin_lock_bh(&cp->lock);
 	}
 
 	if (opt) {
@@ -951,6 +951,9 @@ static void ip_vs_proc_conn(struct netns_ipvs *ipvs, struct ip_vs_conn_param *pa
 		else
 			cp->timeout = (3*60*HZ);
 	}
+	spin_unlock_bh(&cp->lock);
+	if (!dest && !cp_new)
+		ip_vs_try_bind_dest(cp);
 	ip_vs_conn_put(cp);
 }
 
