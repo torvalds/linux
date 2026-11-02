@@ -618,8 +618,11 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring,
 
 		if (!first) {
 			first = xdp;
-		} else if (likely(size) && !xsk_buff_add_frag(first, xdp)) {
+		} else if (unlikely(!size)) {
+			xsk_buff_free(xdp);
+		} else if (!xsk_buff_add_frag(first, xdp)) {
 			xsk_buff_free(first);
+			xsk_buff_free(xdp);
 			first = NULL;
 		}
 
