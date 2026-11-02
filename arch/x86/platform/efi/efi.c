@@ -432,6 +432,32 @@ static int __init efi_systab_init(unsigned long phys)
 	return 0;
 }
 
+/*
+ * kexec passes the firmware's config table array on to the next kernel as-is,
+ * but some of the tables it describes must be disregarded when booting via
+ * kexec, which is indicated by the presence of a SETUP_EFI setup_data entry:
+ *
+ * - The INITRD table is installed by the EFI stub to describe the initrd that
+ *   it loaded. Both the table and the initrd are allocated from EFI loader
+ *   data, which is released to the page allocator once the kernel is up and
+ *   running, and so the table is stale by the time kexec boots the next kernel.
+ *
+ * - The Memory Attributes table may reside in EFI boot services data, which is
+ *   released to the page allocator as well. Even if it is still intact, the
+ *   sanity check in efi_memattr_init() may fail spuriously, given that only
+ *   the runtime regions of the EFI memory map are passed on via kexec. Applying
+ *   the permissions it describes is not critical, so just ignore it.
+ */
+bool __init x86_efi_config_table_is_usable(const efi_guid_t *guid,
+					   unsigned long table)
+{
+	if (!efi_setup)
+		return true;
+
+	return efi_guidcmp(*guid, LINUX_EFI_INITRD_MEDIA_GUID) &&
+	       efi_guidcmp(*guid, EFI_MEMORY_ATTRIBUTES_TABLE_GUID);
+}
+
 static int __init efi_config_init(const efi_config_table_type_t *arch_tables)
 {
 	void *config_tables;
