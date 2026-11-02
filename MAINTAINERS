@@ -4484,6 +4484,7 @@ AUXILIARY BUS DRIVER
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Danilo Krummrich <dakr@kernel.org>
+M:	Johan Hovold <johan@kernel.org>
 R:	Dave Ertman <david.m.ertman@intel.com>
 R:	Ira Weiny <iweiny@kernel.org>
 R:	Leon Romanovsky <leon@kernel.org>
