@@ -7,6 +7,7 @@
 #include <linux/irq_work.h>
 #include "linux/filter.h"
 #include <linux/llist.h>
+#include <linux/mman.h>
 #include <linux/btf_ids.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
@@ -630,7 +631,7 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 {
 	struct bpf_map *map = filp->private_data;
 	struct bpf_arena *arena = container_of(map, struct bpf_arena, map);
-	long ret;
+	unsigned long ret;
 
 	if (pgoff)
 		return -EINVAL;
@@ -647,7 +648,13 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 			return -EINVAL;
 	}
 
-	ret = mm_get_unmapped_area(filp, addr, len * 2, 0, flags);
+	/*
+	 * Without MAP_FIXED the mm finds a free range. Ask for twice the
+	 * length, so that there is room for round_up(). With MAP_FIXED the mm
+	 * does no search, and the caller wants this address. Thus the range
+	 * cannot move.
+	 */
+	ret = mm_get_unmapped_area(filp, addr, flags & MAP_FIXED ? len : len * 2, 0, flags);
 	if (IS_ERR_VALUE(ret))
 		return ret;
 	if (!ret)
@@ -655,6 +662,8 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 		return -EINVAL;
 	if ((ret >> 32) == ((ret + len - 1) >> 32))
 		return ret;
+	if (flags & MAP_FIXED)
+		return -EINVAL;
 	return round_up(ret, SZ_4G);
 }
 
