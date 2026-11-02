@@ -4,6 +4,9 @@
  * stmmac EST(802.3 Qbv) handling
  */
 
+#ifndef __STMMAC_EST_H__
+#define __STMMAC_EST_H__
+
 #define EST_GMAC4_OFFSET		0x00000c50
 #define EST_XGMAC_OFFSET		0x00001050
 
@@ -65,3 +68,8 @@
 #define EST_GCL_DATA			0x00000034
 
 extern const struct stmmac_est_ops dwmac510_est_ops;
+
+int __stmmac_setup_est(struct stmmac_priv *priv);
+int stmmac_setup_est(struct stmmac_priv *priv);
+
+#endif /* __STMMAC_EST_H__ */
