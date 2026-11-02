@@ -1922,7 +1922,7 @@ static inline void ip_vs_dest_put_and_free(struct ip_vs_dest *dest)
 		kfree(dest);
 }
 
-void ip_vs_dest_update_overload(struct ip_vs_dest *dest, bool overload);
+void ip_vs_dest_update_overload(struct ip_vs_dest *dest);
 
 /* Check if dest is in overloaded state */
 static inline bool ip_vs_dest_is_overloaded(const struct ip_vs_dest *dest)

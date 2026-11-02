@@ -1168,7 +1168,7 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 			atomic_inc(&dest->activeconns);
 		tc = atomic_inc_return(&dest->totalconns);
 		if (tc >= READ_ONCE(dest->u_threshold_val))
-			ip_vs_dest_update_overload(dest, true);
+			ip_vs_dest_update_overload(dest);
 	} else {
 		/* It is a persistent connection/template, so increase
 		   the persistent connection counter */
@@ -1261,7 +1261,7 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 			atomic_dec(&dest->activeconns);
 		tc = atomic_fetch_dec(&dest->totalconns);
 		if (tc <= READ_ONCE(dest->l_threshold_val))
-			ip_vs_dest_update_overload(dest, false);
+			ip_vs_dest_update_overload(dest);
 	} else {
 		/* It is a persistent connection/template, so decrease
 		   the persistent connection counter */
