@@ -1841,8 +1841,11 @@ bool dce110_get_hpd_state(struct link_encoder *enc)
 
 bool dce110_program_hpd_filter(struct link_encoder *enc, int delay_on_connect_in_ms, int delay_on_disconnect_in_ms)
 {
+	if (!enc->hpd_gpio)
+		return false;
+
 	/* Setup HPD filtering */
-	if (enc->hpd_gpio && dal_gpio_lock_pin(enc->hpd_gpio) == GPIO_RESULT_OK) {
+	if (dal_gpio_lock_pin(enc->hpd_gpio) == GPIO_RESULT_OK) {
 		struct gpio_hpd_config config;
 
 		config.delay_on_connect = delay_on_connect_in_ms;
