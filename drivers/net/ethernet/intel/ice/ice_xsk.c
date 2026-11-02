@@ -493,6 +493,11 @@ static int ice_xmit_xdp_tx_zc(struct xdp_buff *xdp,
 	tx_desc->cmd_type_offset_bsz |=
 		cpu_to_le64(ICE_TX_DESC_CMD_EOP << ICE_TXD_QW1_CMD_S);
 
+	/* Each frag is now freed via its own Tx buffer. Completing the head
+	 * must not release what is on the pool's frag list at that time.
+	 */
+	xdp_buff_clear_frags_flag(head);
+
 	return ICE_XDP_TX;
 
 busy:
@@ -592,6 +597,7 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring,
 		struct sk_buff *skb;
 		u16 stat_err_bits;
 		u16 vlan_tci;
+		u32 xdp_len;
 
 		rx_desc = ICE_RX_DESC(rx_ring, ntc);
 
@@ -634,6 +640,7 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring,
 
 		((struct libeth_xdp_buff *)first)->desc = rx_desc;
 
+		xdp_len = xdp_get_buff_len(first);
 		xdp_res = ice_run_xdp_zc(rx_ring, first, xdp_prog, xdp_ring,
 					 xsk_pool);
 		if (likely(xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR))) {
@@ -648,7 +655,7 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring,
 			goto construct_skb;
 		}
 
-		total_rx_bytes += xdp_get_buff_len(first);
+		total_rx_bytes += xdp_len;
 		total_rx_packets++;
 
 		first = NULL;
