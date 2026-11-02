@@ -9029,10 +9029,8 @@ static int nl80211_dump_station(struct sk_buff *skb,
 				/* this fails if the wdev is being removed */
 				wdev = __nl80211_lock_held_wdev(rdev, netns,
 								wdev);
-				if (IS_ERR(wdev)) {
-					err = PTR_ERR(wdev);
-					goto out_err;
-				}
+				if (IS_ERR(wdev))
+					return PTR_ERR(wdev);
 
 				/* try again locked now */
 				locked = true;
