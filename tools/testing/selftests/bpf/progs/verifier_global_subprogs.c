@@ -538,14 +538,15 @@ int return_from_void_global(struct __sk_buff *skb)
 
 int global_calls_loop(int x);
 
-static __noinline int static_calls_global(int x)
+static __noinline void static_calls_global(int x)
 {
-	return global_calls_loop(x);
+	global_calls_loop(x);
 }
 
 static __noinline int loop_cb_calls_static(u32 i, void *ctx)
 {
-	return static_calls_global(i);
+	static_calls_global(i);
+	return 0;
 }
 
 __noinline int global_calls_loop(int x)
