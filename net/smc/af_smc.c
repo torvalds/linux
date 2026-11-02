@@ -980,7 +980,7 @@ static int smc_connect_fallback(struct smc_sock *smc, int reason_code)
 	smc_copy_sock_settings_to_clc(smc);
 	smc->connect_nonblock = 0;
 	if (smc->sk.sk_state == SMC_INIT)
-		smc->sk.sk_state = SMC_ACTIVE;
+		smp_store_release(&smc->sk.sk_state, SMC_ACTIVE);
 	return 0;
 }
 
@@ -1385,7 +1385,7 @@ static int smc_connect_rdma(struct smc_sock *smc,
 	smc_copy_sock_settings_to_clc(smc);
 	smc->connect_nonblock = 0;
 	if (smc->sk.sk_state == SMC_INIT)
-		smc->sk.sk_state = SMC_ACTIVE;
+		smp_store_release(&smc->sk.sk_state, SMC_ACTIVE);
 
 	return 0;
 connect_abort:
@@ -1488,7 +1488,7 @@ static int smc_connect_ism(struct smc_sock *smc,
 	smc_copy_sock_settings_to_clc(smc);
 	smc->connect_nonblock = 0;
 	if (smc->sk.sk_state == SMC_INIT)
-		smc->sk.sk_state = SMC_ACTIVE;
+		smp_store_release(&smc->sk.sk_state, SMC_ACTIVE);
 
 	return 0;
 connect_abort:
@@ -1957,7 +1957,7 @@ static void smc_listen_out_connected(struct smc_sock *new_smc)
 	struct sock *newsmcsk = &new_smc->sk;
 
 	if (newsmcsk->sk_state == SMC_INIT)
-		newsmcsk->sk_state = SMC_ACTIVE;
+		smp_store_release(&newsmcsk->sk_state, SMC_ACTIVE);
 
 	smc_listen_out(new_smc);
 }
@@ -1971,7 +1971,7 @@ static void smc_listen_out_err(struct smc_sock *new_smc)
 	this_cpu_inc(net->smc.smc_stats->srv_hshake_err_cnt);
 	if (newsmcsk->sk_state == SMC_INIT)
 		sock_put(&new_smc->sk); /* passive closing */
-	newsmcsk->sk_state = SMC_CLOSED;
+	smp_store_release(&newsmcsk->sk_state, SMC_CLOSED);
 
 	smc_listen_out(new_smc);
 }
