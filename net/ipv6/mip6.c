@@ -211,9 +211,16 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
 
 	if (likely(opt->dsthao)) {
 		offset = ipv6_find_tlv(skb, opt->dsthao, IPV6_TLV_HAO);
-		if (likely(offset >= 0))
+		if (likely(offset >= 0)) {
 			hao = (struct ipv6_destopt_hao *)
 					(skb_network_header(skb) + offset);
+			/*
+			 * The header can have moved or changed after
+			 * ipv6_dest_hao() checked the length.
+			 */
+			if (hao->length != 16)
+				hao = NULL;
+		}
 	}
 
 	stamp = skb_get_ktime(skb);
