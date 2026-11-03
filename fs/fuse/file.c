@@ -1580,6 +1580,11 @@ static ssize_t fuse_cache_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		written = direct_write_fallback(iocb, from, written,
 				fuse_perform_write(iocb, from));
 	} else if (writeback) {
+		loff_t old_size = i_size_read(inode);
+
+		if (iocb->ki_pos > old_size)
+			truncate_pagecache_range(inode, old_size, iocb->ki_pos - 1);
+
 		/*
 		 * Use iomap so that we can do granular uptodate reads
 		 * and granular dirty tracking for large folios.
