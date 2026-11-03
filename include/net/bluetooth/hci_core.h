@@ -680,6 +680,45 @@ enum conn_reasons {
 	CONN_REASON_ISO_CONNECT,
 };
 
+enum {
+	HCI_CONN_AUTH_PEND,
+	HCI_CONN_ENCRYPT_PEND,
+	HCI_CONN_RSWITCH_PEND,
+	HCI_CONN_MODE_CHANGE_PEND,
+	HCI_CONN_SCO_SETUP_PEND,
+	HCI_CONN_MGMT_CONNECTED,
+	HCI_CONN_SSP_ENABLED,
+	HCI_CONN_SC_ENABLED,
+	HCI_CONN_AES_CCM,
+	HCI_CONN_POWER_SAVE,
+	HCI_CONN_FLUSH_KEY,
+	HCI_CONN_ENCRYPT,
+	HCI_CONN_AUTH,
+	HCI_CONN_SECURE,
+	HCI_CONN_FIPS,
+	HCI_CONN_STK_ENCRYPT,
+	HCI_CONN_AUTH_INITIATOR,
+	HCI_CONN_DROP,
+	HCI_CONN_CANCEL,
+	HCI_CONN_PARAM_REMOVAL_PEND,
+	HCI_CONN_NEW_LINK_KEY,
+	HCI_CONN_SCANNING,
+	HCI_CONN_AUTH_FAILURE,
+	HCI_CONN_PER_ADV,
+	HCI_CONN_BIG_CREATED,
+	HCI_CONN_CREATE,
+	HCI_CONN_CREATE_CIS,
+	HCI_CONN_CREATE_BIG_SYNC,
+	HCI_CONN_BIG_SYNC,
+	HCI_CONN_BIG_SYNC_FAILED,
+	HCI_CONN_CREATE_PA_SYNC,
+	HCI_CONN_PA_SYNC,
+	HCI_CONN_PA_SYNC_FAILED,
+	HCI_CONN_ENC_KEY_SIZE_PEND,
+
+	__HCI_CONN_NUM_FLAGS,
+};
+
 struct hci_conn {
 	struct list_head list;
 
@@ -750,7 +789,7 @@ struct hci_conn {
 	__u8		num_bis;
 	__u8		bis[HCI_MAX_ISO_BIS];
 
-	unsigned long	flags;
+	DECLARE_BITMAP(flags, __HCI_CONN_NUM_FLAGS);
 
 	enum conn_reasons conn_reason;
 	__u8		abort_reason;
@@ -980,55 +1019,18 @@ u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 			     bool name_known);
 void hci_inquiry_cache_flush(struct hci_dev *hdev);
 
-/* ----- HCI Connections ----- */
-enum {
-	HCI_CONN_AUTH_PEND,
-	HCI_CONN_ENCRYPT_PEND,
-	HCI_CONN_RSWITCH_PEND,
-	HCI_CONN_MODE_CHANGE_PEND,
-	HCI_CONN_SCO_SETUP_PEND,
-	HCI_CONN_MGMT_CONNECTED,
-	HCI_CONN_SSP_ENABLED,
-	HCI_CONN_SC_ENABLED,
-	HCI_CONN_AES_CCM,
-	HCI_CONN_POWER_SAVE,
-	HCI_CONN_FLUSH_KEY,
-	HCI_CONN_ENCRYPT,
-	HCI_CONN_AUTH,
-	HCI_CONN_SECURE,
-	HCI_CONN_FIPS,
-	HCI_CONN_STK_ENCRYPT,
-	HCI_CONN_AUTH_INITIATOR,
-	HCI_CONN_DROP,
-	HCI_CONN_CANCEL,
-	HCI_CONN_PARAM_REMOVAL_PEND,
-	HCI_CONN_NEW_LINK_KEY,
-	HCI_CONN_SCANNING,
-	HCI_CONN_AUTH_FAILURE,
-	HCI_CONN_PER_ADV,
-	HCI_CONN_BIG_CREATED,
-	HCI_CONN_CREATE,
-	HCI_CONN_CREATE_CIS,
-	HCI_CONN_CREATE_BIG_SYNC,
-	HCI_CONN_BIG_SYNC,
-	HCI_CONN_BIG_SYNC_FAILED,
-	HCI_CONN_CREATE_PA_SYNC,
-	HCI_CONN_PA_SYNC,
-	HCI_CONN_PA_SYNC_FAILED,
-};
-
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
 	return hci_dev_test_flag(hdev, HCI_SSP_ENABLED) &&
-	       test_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
+	       test_bit(HCI_CONN_SSP_ENABLED, conn->flags);
 }
 
 static inline bool hci_conn_sc_enabled(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
 	return hci_dev_test_flag(hdev, HCI_SC_ENABLED) &&
-	       test_bit(HCI_CONN_SC_ENABLED, &conn->flags);
+	       test_bit(HCI_CONN_SC_ENABLED, conn->flags);
 }
 
 static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
@@ -1219,7 +1221,7 @@ hci_conn_hash_lookup_create_pa_sync(struct hci_dev *hdev)
 		if (c->type != PA_LINK)
 			continue;
 
-		if (!test_bit(HCI_CONN_CREATE_PA_SYNC, &c->flags))
+		if (!test_bit(HCI_CONN_CREATE_PA_SYNC, c->flags))
 			continue;
 
 		rcu_read_unlock();
@@ -1245,7 +1247,7 @@ hci_conn_hash_lookup_per_adv_bis(struct hci_dev *hdev,
 
 	list_for_each_entry_rcu(c, &h->list, list) {
 		if (bacmp(&c->dst, ba) || c->type != BIS_LINK ||
-		    !test_bit(HCI_CONN_PER_ADV, &c->flags))
+		    !test_bit(HCI_CONN_PER_ADV, c->flags))
 			continue;
 
 		if (c->iso_qos.bcast.big == big &&
@@ -1502,7 +1504,7 @@ hci_conn_hash_lookup_pa_sync_big_handle(struct hci_dev *hdev, __u8 big)
 
 	list_for_each_entry_rcu(c, &h->list, list) {
 		if (c->type != BIS_LINK ||
-		    !test_bit(HCI_CONN_PA_SYNC, &c->flags))
+		    !test_bit(HCI_CONN_PA_SYNC, c->flags))
 			continue;
 
 		if (c->iso_qos.bcast.big == big) {
@@ -1580,7 +1582,7 @@ static inline void hci_conn_hash_list_flag(struct hci_dev *hdev,
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(c, &h->list, list) {
-		if (c->type == type && test_bit(flag, &c->flags))
+		if (c->type == type && test_bit(flag, c->flags))
 			func(c, data);
 	}
 
@@ -1598,7 +1600,7 @@ static inline struct hci_conn *hci_lookup_le_connect(struct hci_dev *hdev)
 
 	list_for_each_entry_rcu(c, &h->list, list) {
 		if (c->type == LE_LINK && c->state == BT_CONNECT &&
-		    !test_bit(HCI_CONN_SCANNING, &c->flags)) {
+		    !test_bit(HCI_CONN_SCANNING, c->flags)) {
 			rcu_read_unlock();
 			return c;
 		}
@@ -1619,7 +1621,7 @@ static inline bool hci_is_le_conn_scanning(struct hci_dev *hdev)
 
 	list_for_each_entry_rcu(c, &h->list, list) {
 		if (c->type == LE_LINK && c->state == BT_CONNECT &&
-		    test_bit(HCI_CONN_SCANNING, &c->flags)) {
+		    test_bit(HCI_CONN_SCANNING, c->flags)) {
 			rcu_read_unlock();
 			return true;
 		}
@@ -2239,10 +2241,10 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 	struct hci_cb *cb;
 	__u8 encrypt;
 
-	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
+	if (test_bit(HCI_CONN_ENCRYPT_PEND, conn->flags))
 		return;
 
-	encrypt = test_bit(HCI_CONN_ENCRYPT, &conn->flags) ? 0x01 : 0x00;
+	encrypt = test_bit(HCI_CONN_ENCRYPT, conn->flags) ? 0x01 : 0x00;
 
 	mutex_lock(&hci_cb_list_lock);
 	list_for_each_entry(cb, &hci_cb_list, list) {
@@ -2271,9 +2273,9 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status)
 		return;
 	}
 
-	if (!test_bit(HCI_CONN_ENCRYPT, &conn->flags))
+	if (!test_bit(HCI_CONN_ENCRYPT, conn->flags))
 		encrypt = 0x00;
-	else if (test_bit(HCI_CONN_AES_CCM, &conn->flags))
+	else if (test_bit(HCI_CONN_AES_CCM, conn->flags))
 		encrypt = 0x02;
 	else
 		encrypt = 0x01;
@@ -2426,6 +2428,8 @@ void hci_send_sco(struct hci_conn *conn, struct sk_buff *skb);
 void hci_send_iso(struct hci_conn *conn, struct sk_buff *skb);
 
 void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode);
+void *hci_sent_cmd_data_len(struct hci_dev *hdev, __u16 opcode,
+			    size_t *len);
 void *hci_recv_event_data(struct hci_dev *hdev, __u8 event);
 
 u32 hci_conn_get_phy(struct hci_conn *conn);
