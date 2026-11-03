@@ -3009,10 +3009,6 @@ xfs_btree_split_worker(
 						struct xfs_btree_split_args, work);
 	unsigned int		nofs_flags;
 
-	/*
-	 * Don't use xfs_trans_set_context() here: it would overwrite the
-	 * caller's saved NOFS state in tp->t_pflags. Use a local scope.
-	 */
 	nofs_flags = memalloc_nofs_save();
 
 	args->result = __xfs_btree_split(args->cur, args->level, args->ptrp,
