@@ -125,9 +125,12 @@ void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
 /* see the comment in erofs_fc_fill_super() */
 static bool erofs_is_stacked_file(struct file *file)
 {
-	struct super_block *sb = file_inode(file)->i_sb;
+	struct inode *inode = file_inode(file);
+	struct super_block *sb = inode->i_sb;
 
-	return (sb->s_op == &erofs_sops && !sb->s_bdev) || sb->s_stack_depth;
+	return (sb->s_op == &erofs_sops && !sb->s_bdev) || sb->s_stack_depth ||
+	       (IS_ENABLED(CONFIG_EROFS_FS_PAGE_CACHE_SHARE) &&
+		inode->i_fop == &erofs_ishare_fops);
 }
 
 static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
@@ -713,6 +716,9 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		 * EROFS is the only fs supporting file-backed mounts for now.
 		 * It MUST change if another fs plans to support them, which
 		 * may also require adjusting FILESYSTEM_MAX_STACK_DEPTH.
+		 * Files shared by inode_share may be read through a
+		 * file-backed EROFS in the same domain, so treat them as
+		 * stacked too.
 		 */
 		if (erofs_is_stacked_file(sbi->dif0.file)) {
 			erofs_err(sb, "file-backed mounts cannot be applied to stacked fses");
