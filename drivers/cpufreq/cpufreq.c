@@ -576,6 +576,8 @@ static int policy_set_boost(struct cpufreq_policy *policy, bool enable)
 {
 	int ret;
 
+	lockdep_assert_held_write(&policy->rwsem);
+
 	if (policy->boost_enabled == enable)
 		return 0;
 
@@ -1629,6 +1631,8 @@ static int cpufreq_online(unsigned int cpu)
 	 */
 	if (cpufreq_driver->set_boost && policy->boost_supported &&
 	    (new_policy || !cpufreq_boost_enabled())) {
+		guard(cpufreq_policy_write)(policy);
+
 		ret = policy_set_boost(policy, cpufreq_boost_enabled());
 		if (ret) {
 			/* If the set_boost fails, the online operation is not affected */
@@ -2829,6 +2833,8 @@ static int cpufreq_boost_trigger_state(int state)
 	for_each_active_policy(policy) {
 		if (!policy->boost_supported)
 			continue;
+
+		guard(cpufreq_policy_write)(policy);
 
 		ret = policy_set_boost(policy, state);
 		if (unlikely(ret))
