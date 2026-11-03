@@ -1480,8 +1480,10 @@ static int hp_wmi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 
 	if ((type == hwmon_temp && attr == hwmon_temp_alarm) ||
 	    (type == hwmon_fan  && attr == hwmon_fan_alarm)) {
+		mutex_lock(&state->lock);
 		*out_val = info->alarm ? 1 : 0;
 		info->alarm = false;
+		mutex_unlock(&state->lock);
 
 		return 0;
 	}
