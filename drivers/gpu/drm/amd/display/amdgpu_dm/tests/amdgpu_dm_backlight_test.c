@@ -1125,10 +1125,10 @@ static void dm_test_custom_brightness_exact_match(struct kunit *test)
 
 	/*
 	 * Exact match: lum=50, brightness_scaled=128
-	 * result = scale_fw_to_input(min, max, DIV_ROUND_CLOSEST(50*128, 101))
-	 *        = scale_fw_to_input(0, 65535, DIV_ROUND_CLOSEST(6400, 101))
-	 *        = scale_fw_to_input(0, 65535, 63)
-	 *        = 0 + DIV_ROUND_CLOSEST(63 * 65535, 255) = 16191 (approx)
+	 * result = scale_fw_to_input(max, DIV_ROUND_CLOSEST(50*128, 101))
+	 *        = scale_fw_to_input(65535, DIV_ROUND_CLOSEST(6400, 101))
+	 *        = scale_fw_to_input(65535, 63)
+	 *        = DIV_ROUND_CLOSEST(63 * 65535, 255) = 16191 (approx)
 	 */
 	KUNIT_EXPECT_TRUE(test, brightness != 32896);
 	KUNIT_EXPECT_TRUE(test, brightness < 32896);
@@ -1171,9 +1171,9 @@ static void dm_test_custom_brightness_below_first(struct kunit *test)
 
 	/*
 	 * Below first data point: lum = DIV_ROUND_CLOSEST(40 * 50, 100) = 20
-	 * Then: scale_fw_to_input(0, 65535, DIV_ROUND_CLOSEST(20 * 50, 101))
-	 *      = scale_fw_to_input(0, 65535, DIV_ROUND_CLOSEST(1000, 101))
-	 *      = scale_fw_to_input(0, 65535, 10)
+	 * Then: scale_fw_to_input(65535, DIV_ROUND_CLOSEST(20 * 50, 101))
+	 *      = scale_fw_to_input(65535, DIV_ROUND_CLOSEST(1000, 101))
+	 *      = scale_fw_to_input(65535, 10)
 	 * The output should be significantly less than input.
 	 */
 	KUNIT_EXPECT_TRUE(test, brightness < 12850);

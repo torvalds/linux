@@ -122,10 +122,10 @@ static inline u32 scale_input_to_fw(int max, u64 input)
 	return DIV_ROUND_CLOSEST_ULL(input * AMDGPU_MAX_BL_LEVEL, max);
 }
 
-/* Rescale from [0..AMDGPU_MAX_BL_LEVEL] to [min..max] */
-static inline u32 scale_fw_to_input(int min, int max, u64 input)
+/* Rescale from [0..AMDGPU_MAX_BL_LEVEL] to [0..max] */
+static inline u32 scale_fw_to_input(int max, u64 input)
 {
-	return min + DIV_ROUND_CLOSEST_ULL(input * (max - min), AMDGPU_MAX_BL_LEVEL);
+	return DIV_ROUND_CLOSEST_ULL(input * max, AMDGPU_MAX_BL_LEVEL);
 }
 
 static u32 backlight_signal_to_luminance(const struct amdgpu_dm_backlight_caps *caps,
@@ -251,8 +251,7 @@ void convert_custom_brightness(const struct amdgpu_dm_backlight_caps *caps,
 						    (brightness - lower_signal),
 						    upper_signal - lower_signal);
 scale:
-	*user_brightness = scale_fw_to_input(min, max,
-					     DIV_ROUND_CLOSEST(lum * brightness, 101));
+	*user_brightness = scale_fw_to_input(max, DIV_ROUND_CLOSEST(lum * brightness, 101));
 }
 
 EXPORT_IF_KUNIT(convert_custom_brightness);
