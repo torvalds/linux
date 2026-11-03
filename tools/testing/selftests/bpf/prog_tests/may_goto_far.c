@@ -34,8 +34,10 @@ static struct bpf_insn *fill(struct bpf_insn *insn, int cnt, int reg)
  * The prog returns 0 when may_goto jumps to its target and 2 when
  * it lands in one of 'r0 = r8' areas. There are no constants between
  * may_goto and its target to keep the distance when constants are blinded.
+ *
+ * With 'subprog' all of that is a subprog.
  */
-static void test_far(int off)
+static void test_far(int off, bool subprog)
 {
 	LIBBPF_OPTS(bpf_prog_load_opts, opts, .prog_flags = BPF_F_SLEEPABLE);
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
@@ -50,6 +52,10 @@ static void test_far(int off)
 		return;
 
 	insn = insns;
+	if (subprog) {
+		*insn++ = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, BPF_PSEUDO_CALL, 0, 1);
+		*insn++ = BPF_EXIT_INSN();
+	}
 	*insn++ = BPF_EMIT_CALL(BPF_FUNC_ktime_get_ns);
 	*insn++ = BPF_MOV64_REG(BPF_REG_6, BPF_REG_0);
 	*insn++ = BPF_ALU64_IMM(BPF_RSH, BPF_REG_6, 63);
@@ -82,11 +88,19 @@ static void test_far(int off)
 void test_may_goto_far(void)
 {
 	if (test__start_subtest("32762"))
-		test_far(32762);
+		test_far(32762, false);
 	if (test__start_subtest("32767"))
-		test_far(32767);
+		test_far(32767, false);
 	if (test__start_subtest("-32767"))
-		test_far(-32767);
+		test_far(-32767, false);
 	if (test__start_subtest("-32768"))
-		test_far(-32768);
+		test_far(-32768, false);
+	if (test__start_subtest("subprog 1"))
+		test_far(1, true);
+	if (test__start_subtest("subprog 32767"))
+		test_far(32767, true);
+	if (test__start_subtest("subprog -6"))
+		test_far(-6, true);
+	if (test__start_subtest("subprog -32768"))
+		test_far(-32768, true);
 }

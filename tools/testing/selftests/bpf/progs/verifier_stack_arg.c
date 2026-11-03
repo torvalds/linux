@@ -552,6 +552,121 @@ __naked void stack_arg_may_goto_in_caller(void)
 	);
 }
 
+/* arg6 is an offset into the value of map_hash_8b. 0-7 are in bounds. */
+__naked __noinline __used
+static long arg6_is_map_value_off(long a, long b, long c, long d, long e, long off)
+{
+	asm volatile (
+		"r6 = *(u64 *)(r11 + 8);"
+		"r1 = 0;"
+		"*(u64 *)(r10 - 8) = r1;"
+		"r2 = r10;"
+		"r2 += -8;"
+		"r1 = %[map_hash_8b] ll;"
+		"call %[bpf_map_lookup_elem];"
+		"if r0 == 0 goto l0_%=;"
+		"r0 += r6;"
+		"r0 = *(u8 *)(r0 + 0);"
+	"l0_%=:"
+		"exit;"
+		:
+		: __imm(bpf_map_lookup_elem),
+		  __imm_addr(map_hash_8b)
+		: __clobber_all
+	);
+}
+
+SEC("tc")
+__description("stack_arg: a pruned state propagates precision of arg6")
+__failure __msg("invalid access to map value")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void stack_arg_precision_pruned_state(void)
+{
+	asm volatile (
+		"call %[bpf_get_prandom_u32];"
+		"if r0 != 0 goto l0_%=;"
+		/* Path 1: arg6 = 0. It makes arg6 precise at l3. */
+		"*(u64 *)(r11 - 8) = 0;"
+		"goto l3_%=;"
+	"l0_%=:"
+		"if r0 == 1 goto l1_%=;"
+		/* Path 2: arg6 = r6 = 0. Pruned at l3. It has to make r6 precise at l2. */
+		"r6 = 0;"
+		"goto l2_%=;"
+	"l1_%=:"
+		/* Path 3: arg6 = r6 = 8. Out of bounds. */
+		"r6 = 8;"
+	"l2_%=:"
+		"*(u64 *)(r11 - 8) = r6;"
+	"l3_%=:"
+		"r1 = 0;"
+		"r2 = 0;"
+		"r3 = 0;"
+		"r4 = 0;"
+		"r5 = 0;"
+		"call arg6_is_map_value_off;"
+		"exit;"
+		:: __imm(bpf_get_prandom_u32)
+		: __clobber_all
+	);
+}
+
+/* The same, but backtracking of r1 sees a store through r1 and marks all scalars precise. */
+__naked __noinline __used
+static long arg6_is_map_value_off_fallback(long a, long b, long c, long d, long e, long off)
+{
+	asm volatile (
+		"r6 = *(u64 *)(r11 + 8);"
+		"r1 = 0;"
+		"*(u64 *)(r10 - 8) = r1;"
+		"r2 = r10;"
+		"r2 += -8;"
+		"r1 = %[map_hash_8b] ll;"
+		"call %[bpf_map_lookup_elem];"
+		"if r0 == 0 goto l0_%=;"
+		"r1 = r0;"
+		"*(u8 *)(r1 + 0) = 0;"
+		"r1 -= r0;"
+		"r1 &= 0;"
+		"r1 += r6;"
+		"r0 += r1;"
+		"r0 = *(u8 *)(r0 + 0);"
+	"l0_%=:"
+		"exit;"
+		:
+		: __imm(bpf_map_lookup_elem),
+		  __imm_addr(map_hash_8b)
+		: __clobber_all
+	);
+}
+
+SEC("tc")
+__description("stack_arg: forcing all scalars precise covers arg6")
+__failure __msg("invalid access to map value")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void stack_arg_precision_fallback(void)
+{
+	asm volatile (
+		"call %[bpf_get_prandom_u32];"
+		"if r0 != 0 goto l0_%=;"
+		"*(u64 *)(r11 - 8) = 0;"
+		"goto l1_%=;"
+	"l0_%=:"
+		/* Out of bounds. Must not be pruned at l1. */
+		"*(u64 *)(r11 - 8) = 8;"
+	"l1_%=:"
+		"r1 = 0;"
+		"r2 = 0;"
+		"r3 = 0;"
+		"r4 = 0;"
+		"r5 = 0;"
+		"call arg6_is_map_value_off_fallback;"
+		"exit;"
+		:: __imm(bpf_get_prandom_u32)
+		: __clobber_all
+	);
+}
+
 #else
 
 SEC("socket")

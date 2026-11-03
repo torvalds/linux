@@ -1277,6 +1277,270 @@ int skb_invalid_data_slice4(struct __sk_buff *skb)
 	return SK_PASS;
 }
 
+/*
+ * bpf_dynptr_slice() and bpf_dynptr_slice_rdwr() return the buffer when the data
+ * is not contiguous. For the verifier an access through the slice is not an access
+ * to the stack. Thus the buffer must not hold data that the verifier tracks: a
+ * store to the buffer invalidates the slice. fp-32: the dynptr, r7: the slice.
+ */
+#define SLICE_BUF_DYNPTR(new)				\
+	"r2 = 0;"					\
+	"r3 = r10;"					\
+	"r3 += -32;"					\
+	"call %[" #new "];"
+
+/* r3 is the buffer */
+#define SLICE_BUF_CALL(size)				\
+	"r1 = r10;"					\
+	"r1 += -32;"					\
+	"r2 = 0;"					\
+	"r4 = " #size ";"				\
+	"call %[slice];"
+
+#define SLICE_BUF_CHECK					\
+	"if r0 == 0 goto 9f;"				\
+	"r7 = r0;"
+
+#define SLICE_BUF_AT(off, size)				\
+	"r3 = r10;"					\
+	"r3 += -" #off ";"				\
+	SLICE_BUF_CALL(size)				\
+	SLICE_BUF_CHECK
+
+#define SLICE_BUF(off, size) SLICE_BUF_DYNPTR(bpf_dynptr_from_skb) SLICE_BUF_AT(off, size)
+
+struct file {};
+extern int bpf_dynptr_from_file(struct file *, __u32, struct bpf_dynptr *) __weak __ksym;
+
+/* clang makes no BTF for a kfunc that only asm calls */
+void __kfunc_btf_root(void)
+{
+	bpf_dynptr_from_file(0, 0, 0);
+}
+
+/* Each prog ends with a load through the slice */
+#define SLICE_BUF_PROG(sec, kfunc, name, expect, ...)	\
+SEC(sec)						\
+expect							\
+__naked int name(void)					\
+{							\
+	asm volatile (__VA_ARGS__			\
+	"r0 = *(u8 *)(r7 + 0);"				\
+"9:"							\
+	"r0 = 0;"					\
+	"exit;"						\
+	:						\
+	: __imm(bpf_dynptr_from_file),			\
+	  __imm(bpf_dynptr_from_skb),			\
+	  __imm(bpf_dynptr_from_skb_meta),		\
+	  __imm(bpf_dynptr_from_xdp),			\
+	  __imm(bpf_get_prandom_u32),			\
+	  __imm(bpf_probe_read_kernel),			\
+	  __imm_const(slice, kfunc)			\
+	: __clobber_all);				\
+}
+#define SLICE_BUF_TEST(...) SLICE_BUF_PROG("?tc", bpf_dynptr_slice_rdwr, __VA_ARGS__)
+
+/* Not in the line of SLICE_BUF_TEST(): the log of the verifier has a copy of that line */
+#define SLICE_BUF_INVALID __failure __msg("R7 invalid mem access 'scalar'")
+#define SLICE_BUF_POINTER __failure __msg("invalid size of register spill")
+
+SLICE_BUF_TEST(slice_buf_first_byte, SLICE_BUF_INVALID,
+	SLICE_BUF(12, 4)
+	"*(u8 *)(r10 - 12) = 0;")
+
+SLICE_BUF_TEST(slice_buf_last_byte, SLICE_BUF_INVALID,
+	SLICE_BUF(12, 4)
+	"*(u8 *)(r10 - 9) = 0;")
+
+/* the store is at fp-16 or at fp-8 */
+SLICE_BUF_TEST(slice_buf_store_var_off, SLICE_BUF_INVALID,
+	SLICE_BUF(8, 8)
+	"call %[bpf_get_prandom_u32];"
+	"r0 &= 8;"
+	"r1 = r10;"
+	"r1 += -16;"
+	"r1 += r0;"
+	"*(u64 *)(r1 + 0) = 0;")
+
+/* the buffer is at fp-16 or at fp-8 */
+SLICE_BUF_TEST(slice_buf_var_off, SLICE_BUF_INVALID,
+	SLICE_BUF_DYNPTR(bpf_dynptr_from_skb)
+	"call %[bpf_get_prandom_u32];"
+	"r0 &= 8;"
+	"r3 = r10;"
+	"r3 += -16;"
+	"r3 += r0;"
+	SLICE_BUF_CALL(8)
+	SLICE_BUF_CHECK
+	"*(u64 *)(r10 - 8) = 0;")
+
+/* the slice is a pointer when it is stored to its buffer, and invalid after that */
+SLICE_BUF_TEST(slice_buf_narrow_spill, SLICE_BUF_POINTER,
+	SLICE_BUF(8, 8)
+	"*(u32 *)(r10 - 8) = r7;")
+
+/* the write to the buffer is the spill of the slice, not yet checked for NULL */
+SLICE_BUF_TEST(slice_buf_spilled_or_null, SLICE_BUF_INVALID,
+	SLICE_BUF_DYNPTR(bpf_dynptr_from_skb)
+	"r3 = r10;"
+	"r3 += -8;"
+	SLICE_BUF_CALL(8)
+	"*(u64 *)(r10 - 8) = r0;"
+	"r0 = *(u64 *)(r10 - 8);"
+	SLICE_BUF_CHECK)
+
+/* a slice that may be the buffer is the buffer of the next slice */
+SLICE_BUF_TEST(slice_buf_is_a_slice, SLICE_BUF_INVALID,
+	SLICE_BUF(8, 8)
+	"r3 = r7;"
+	SLICE_BUF_CALL(8)
+	SLICE_BUF_CHECK
+	"*(u64 *)(r10 - 8) = 0;")
+
+/* The paths differ only in the buffer. The safe one is first, the other must not be pruned. */
+SLICE_BUF_TEST(slice_buf_pruning, SLICE_BUF_INVALID __flag(BPF_F_TEST_STATE_FREQ),
+	SLICE_BUF_DYNPTR(bpf_dynptr_from_skb)
+	"call %[bpf_get_prandom_u32];"
+	"if r0 == 0 goto 1f;"
+	SLICE_BUF_AT(16, 8)
+	"goto 2f;"
+"1:"
+	SLICE_BUF_AT(8, 8)
+"2:"
+	"*(u64 *)(r10 - 8) = 0;")
+
+#define SLICE_BUF_FUNC(name, ...)			\
+static __used __naked void name(void)			\
+{							\
+	asm volatile (__VA_ARGS__			\
+	"exit;"						\
+	:						\
+	: __imm(bpf_dynptr_slice)			\
+	: __clobber_all);				\
+}
+
+/* r1 is the dynptr of the caller. The buffer of the read-only slice is gone after the return. */
+SLICE_BUF_FUNC(slice_buf_in_callee,
+	"r2 = 0;"
+	"r3 = r10;"
+	"r3 += -8;"
+	"r4 = 8;"
+	"call %[bpf_dynptr_slice];")
+
+SLICE_BUF_TEST(slice_buf_frame_returned, SLICE_BUF_INVALID,
+	SLICE_BUF_DYNPTR(bpf_dynptr_from_skb)
+	"r1 = r10;"
+	"r1 += -32;"
+	"call slice_buf_in_callee;"
+	SLICE_BUF_CHECK)
+
+/* stores to fp-12 of this frame and to r1, a pointer to the stack of the caller */
+SLICE_BUF_FUNC(slice_buf_stores,
+	"*(u32 *)(r10 - 12) = 0;"
+	"*(u32 *)(r1 + 0) = 0;"
+	"r0 = 0;")
+
+SLICE_BUF_TEST(slice_buf_written_by_callee, SLICE_BUF_INVALID,
+	SLICE_BUF(12, 4)
+	"r1 = r10;"
+	"r1 += -12;"
+	"call slice_buf_stores;")
+
+/* r1 is the dynptr and r2 the buffer, both in the frame of the caller */
+SLICE_BUF_FUNC(slice_buf_of_caller,
+	"r3 = r2;"
+	"r2 = 0;"
+	"r4 = 4;"
+	"call %[bpf_dynptr_slice];")
+
+/* stores next to the buffer or to another frame, a return, calls that fill the buffer */
+SLICE_BUF_TEST(slice_buf_stays_valid, __success,
+	SLICE_BUF(12, 4)
+	"r8 = r7;"
+	"*(u8 *)(r10 - 13) = 0;"
+	"*(u8 *)(r10 - 8) = 0;"
+	"r1 = r10;"
+	"r1 += -16;"
+	"call slice_buf_stores;"
+	"r1 = r10;"
+	"r1 += -12;"
+	"r2 = 4;"
+	"r3 = 0;"
+	"call %[bpf_probe_read_kernel];"
+	"r1 = r10;"
+	"r1 += -32;"
+	"r2 = r10;"
+	"r2 += -12;"
+	"call slice_buf_of_caller;"
+	SLICE_BUF_CHECK
+	"*(u8 *)(r8 + 0) = 0;")
+
+/* the slice of a file dynptr is read-only, and it is always the buffer */
+SLICE_BUF_PROG("?lsm.s/file_open", bpf_dynptr_slice, slice_buf_file, SLICE_BUF_INVALID,
+	"r1 = *(u64 *)(r1 + 0);"
+	SLICE_BUF_DYNPTR(bpf_dynptr_from_file)
+	SLICE_BUF_AT(8, 8)
+	"*(u64 *)(r10 - 8) = 0;")
+
+SLICE_BUF_PROG("?xdp", bpf_dynptr_slice_rdwr, slice_buf_xdp, SLICE_BUF_INVALID,
+	SLICE_BUF_DYNPTR(bpf_dynptr_from_xdp)
+	SLICE_BUF_AT(8, 8)
+	"*(u64 *)(r10 - 8) = 0;")
+
+/* the metadata is contiguous: the slice is never the buffer */
+SLICE_BUF_TEST(slice_buf_skb_meta, __success,
+	SLICE_BUF_DYNPTR(bpf_dynptr_from_skb_meta)
+	SLICE_BUF_AT(8, 8)
+	"*(u64 *)(r10 - 8) = 0;")
+
+extern void bpf_local_irq_save(unsigned long *) __weak __ksym;
+
+/* a dynptr, an iterator or irq flags are made in the buffer */
+#define SLICE_BUF_SPECIAL(name, type, make)				\
+SEC("?tc")								\
+__failure __msg("invalid mem access 'scalar'")				\
+int name(struct __sk_buff *skb)						\
+{									\
+	struct bpf_dynptr ptr;						\
+	type buf;							\
+	__u8 *p;							\
+									\
+	bpf_dynptr_from_skb(skb, 0, &ptr);				\
+	p = bpf_dynptr_slice_rdwr(&ptr, 0, &buf, sizeof(buf));		\
+	if (!p)								\
+		return 0;						\
+	make;								\
+	return *p;							\
+}
+
+SLICE_BUF_SPECIAL(slice_buf_dynptr, struct bpf_dynptr, bpf_dynptr_from_skb(skb, 0, &buf))
+SLICE_BUF_SPECIAL(slice_buf_iter, struct bpf_iter_num, bpf_iter_num_new(&buf, 0, 1))
+SLICE_BUF_SPECIAL(slice_buf_irq_flag, unsigned long, bpf_local_irq_save(&buf))
+
+/* The type of a dynptr argument of a global function is not known: the slice may be the buffer. */
+__noinline int slice_buf_global(struct bpf_dynptr *ptr)
+{
+	__u64 buf;
+	__u8 *p;
+
+	p = bpf_dynptr_slice_rdwr(ptr, 0, &buf, sizeof(buf));
+	if (!p)
+		return 0;
+	*(volatile __u64 *)&buf = 0;
+	return *p;
+}
+
+SEC("?tc")
+__failure __msg("invalid mem access 'scalar'")
+int slice_buf_dynptr_arg(struct __sk_buff *skb)
+{
+	struct bpf_dynptr ptr;
+
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+	return slice_buf_global(&ptr);
+}
+
 /* Read-only skb data slice is invalidated on write to skb metadata */
 SEC("?tc")
 __failure __msg("invalid mem access 'scalar'")

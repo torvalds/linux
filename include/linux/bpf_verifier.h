@@ -50,6 +50,13 @@ enum bpf_iter_state {
 	BPF_ITER_STATE_DRAINED,
 };
 
+/* Bytes [off, off + size) of the stack of frame frameno. Nothing when size is 0. */
+struct bpf_stack_range {
+	u32 frameno;
+	s32 off;
+	u32 size;
+};
+
 struct bpf_reg_state {
 	/* Ordering of fields matters.  See states_equal() */
 	enum bpf_reg_type type;
@@ -83,6 +90,12 @@ struct bpf_reg_state {
 
 		struct { /* for PTR_TO_MEM | PTR_TO_MEM_OR_NULL */
 			u32 mem_size;
+			/*
+			 * bpf_dynptr_slice() and bpf_dynptr_slice_rdwr() return the
+			 * buffer when the data is not contiguous: the register may
+			 * point to this part of the stack.
+			 */
+			struct bpf_stack_range buf;
 		};
 
 		/* For dynptr stack slots */
@@ -923,14 +936,6 @@ struct bpf_func_ptr {
 /* the subprog that a bpf_func_ptr pointed to was removed as dead code */
 #define BPF_FUNC_PTR_DELETED ((u32)-1)
 
-struct bpf_subprog_arg_info {
-	enum bpf_arg_type arg_type;
-	union {
-		u32 mem_size;
-		u32 btf_id;
-	};
-};
-
 enum priv_stack_mode {
 	PRIV_STACK_UNKNOWN,
 	NO_PRIV_STACK,
@@ -964,6 +969,10 @@ struct bpf_subprog_info {
 	bool is_cb: 1;
 	bool is_async_cb: 1;
 	bool is_exception_cb: 1;
+	/* bpf_loop() or bpf_for_each_map_elem() call it in a loop */
+	bool is_loop_cb: 1;
+	/* BPF code, another helper or a kfunc call it */
+	bool is_called: 1;
 	bool args_cached: 1;
 	/* true if the return value is passed in the R0:R2 register pair */
 	bool ret_reg_pair: 1;
@@ -1099,6 +1108,8 @@ struct bpf_verifier_env {
 	bool bypass_spec_v1;
 	bool bypass_spec_v4;
 	bool seen_direct_write;
+	/* a register may point to the stack and is not PTR_TO_STACK, see bpf_reg_state::buf */
+	bool seen_stack_slice;
 	/* a global function is verified for BPF_FUNC_CTX_NO_RCU_LOCK */
 	bool no_rcu_read_lock;
 	bool seen_exception;
@@ -1823,6 +1834,8 @@ struct bpf_call_arg_meta {
 	struct arg_constant_desc arg_constant;
 	/* The type of the dynptr that the kfunc writes through */
 	enum bpf_dynptr_type dynptr_write_type;
+	/* The buffer of bpf_dynptr_slice() or bpf_dynptr_slice_rdwr() */
+	struct bpf_stack_range slice_buf;
 
 	/* arg_{btf,btf_id,owning_ref} are used by kfunc-specific handling,
 	 * generally to pass info about user-defined local kptr types to later
@@ -1900,6 +1913,7 @@ bpf_global_subprog_stack_access_bytes(struct bpf_verifier_env *env,
 int bpf_compute_subprog_arg_access(struct bpf_verifier_env *env);
 bool bpf_same_memory_origin(const struct bpf_reg_state *reg_a,
 			    const struct bpf_reg_state *reg_b);
+void bpf_trim_pkt_range(struct bpf_reg_state *reg, s64 smax);
 int bpf_set_reg_range(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 		      struct cnum64 r64, struct cnum32 r32, u16 base, u16 step);
 bool bpf_reg_union_compatible(const struct bpf_reg_state *a, const struct bpf_reg_state *b);

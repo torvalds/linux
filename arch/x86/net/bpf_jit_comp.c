@@ -2626,8 +2626,13 @@ static int do_jit(struct bpf_verifier_env *env, struct bpf_prog *bpf_prog, int *
 	 * Arg 6 goes into r9 register, not on stack.
 	 */
 	outgoing_rsp = out_stack_arg_cnt > 1 ? (out_stack_arg_cnt - 1) * 8 : 0;
+	/*
+	 * bpf_throw() sees rsp of this frame as it is at a call. The callee-saved
+	 * regs are above the outgoing args, or above r9, which is pushed around
+	 * every call when the stack is private.
+	 */
 	if (bpf_prog->aux->exception_boundary)
-		bpf_prog->aux->stack_arg_sp_adjust = outgoing_rsp;
+		bpf_prog->aux->stack_arg_sp_adjust = outgoing_rsp + (priv_frame_ptr ? 8 : 0);
 	emit_sub_rsp(&prog, outgoing_rsp);
 
 	if (arena_vm_start)
@@ -3435,18 +3440,6 @@ populate_extable:
 				ip += err;
 				ip += emit_kfunc_arg_moves(fm, outgoing_arg_base -
 							   outgoing_rsp, &prog);
-			}
-			if (func == (u8 *)arch_bpf_timed_may_goto) {
-				u32 fp = priv_frame_ptr ? X86_REG_R9 : BPF_REG_FP;
-
-				/*
-				 * AX has the offset of count and timestamp
-				 * in the stack. Turn it into a pointer.
-				 * add r10, rbp or add r10, r9
-				 */
-				maybe_emit_mod(&prog, BPF_REG_AX, fp, true);
-				EMIT2(0x01, add_2reg(0xC0, BPF_REG_AX, fp));
-				ip += 3;
 			}
 			if (priv_frame_ptr) {
 				push_r9(&prog);
