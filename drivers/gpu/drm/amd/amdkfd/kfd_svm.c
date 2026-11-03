@@ -1008,7 +1008,7 @@ svm_range_split_array(void *ppnew, void *ppold, size_t size,
 		kvfree(new);
 		return -ENOMEM;
 	}
-	kvfree(pold);
+	/* The caller frees pold once all arrays of the range are split */
 	*(void **)ppold = old;
 	*(void **)ppnew = new;
 
@@ -1019,19 +1019,36 @@ static int
 svm_range_split_pages(struct svm_range *new, struct svm_range *old,
 		      uint64_t start, uint64_t last)
 {
+	dma_addr_t *old_dma[MAX_GPU_INSTANCE];
 	uint64_t npages = last - start + 1;
 	bool has_dma_addr = false;
 	int i, r;
 
+	/*
+	 * Split the arrays of all GPUs before replacing any of them, the old
+	 * range must stay intact if one fails.
+	 */
 	for (i = 0; i < MAX_GPU_INSTANCE; i++) {
+		old_dma[i] = old->dma_addr[i];
 		if (old->dma_addr[i])
 			has_dma_addr = true;
-		r = svm_range_split_array(&new->dma_addr[i], &old->dma_addr[i],
+		r = svm_range_split_array(&new->dma_addr[i], &old_dma[i],
 					  sizeof(*old->dma_addr[i]), old->start,
 					  npages, new->start, new->npages,
 					  old->actual_loc ? &new->vram_pages : NULL);
-		if (r)
+		if (r) {
+			/* new->dma_addr[] goes with the new range */
+			while (i--)
+				if (old_dma[i] != old->dma_addr[i])
+					kvfree(old_dma[i]);
 			return r;
+		}
+	}
+	for (i = 0; i < MAX_GPU_INSTANCE; i++) {
+		if (old_dma[i] == old->dma_addr[i])
+			continue;
+		kvfree(old->dma_addr[i]);
+		old->dma_addr[i] = old_dma[i];
 	}
 	if (old->actual_loc) {
 		/*
