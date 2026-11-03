@@ -4521,6 +4521,7 @@ static int ata_mselect_control_ata_feature(struct ata_queued_cmd *qc,
 		if (dev->flags & ATA_DFLAG_NCQ_PRIO_ENABLED) {
 			ata_dev_err(dev,
 				"NCQ priority must be disabled to enable CDL\n");
+			*fp = 4;
 			return -EINVAL;
 		}
 		ata_dev_dbg(dev, "Enabling CDL\n");
