@@ -279,6 +279,7 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 	struct sk_buff *reply;
 	struct ipv6hdr *pip6;
 	int na_olen = 8; /* opt hdr + ETH_ALEN for target */
+	int headroom;
 	int ns_olen;
 	u8 *daddr;
 	bool dad;
@@ -288,7 +289,8 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 	if (!dev)
 		return;
 
-	len = LL_RESERVED_SPACE(dev) + sizeof(struct ipv6hdr) +
+	headroom = LL_RESERVED_SPACE(dev);
+	len = headroom + sizeof(struct ipv6hdr) +
 		sizeof(*na) + na_olen + dev->needed_tailroom;
 
 	reply = alloc_skb(len, GFP_ATOMIC);
@@ -297,7 +299,7 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 
 	reply->protocol = htons(ETH_P_IPV6);
 	reply->dev = dev;
-	skb_reserve(reply, LL_RESERVED_SPACE(dev));
+	skb_reserve(reply, headroom);
 	skb_push(reply, sizeof(struct ethhdr));
 	skb_set_mac_header(reply, 0);
 
