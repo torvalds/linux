@@ -1892,11 +1892,12 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 
 		svm_range_lock(prange);
 
-		/* Free backing memory of hmm_range if it was initialized
-		 * Override return value to TRY AGAIN only if prior returns
-		 * were successful
+		/*
+		 * Retry if the pages were invalidated after they were taken.
+		 * Only check that when taking them succeeded: a range can exist
+		 * without a notifier, e.g. when allocating its PFN array failed.
 		 */
-		if (range && !amdgpu_hmm_range_valid(range) && !r) {
+		if (!r && !amdgpu_hmm_range_valid(range)) {
 			pr_debug("hmm update the range, need validate again\n");
 			r = -EAGAIN;
 		}
