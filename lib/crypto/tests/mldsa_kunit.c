@@ -372,6 +372,14 @@ static void test_mldsa_use_hint(struct kunit *test)
 	}
 }
 
+static void test_mldsa_invalid_alg(struct kunit *test)
+{
+	KUNIT_ASSERT_EQ(test, -EINVAL,
+			mldsa_verify(MLDSA44 - 1, NULL, 0, NULL, 0, NULL, 0));
+	KUNIT_ASSERT_EQ(test, -EINVAL,
+			mldsa_verify(MLDSA87 + 1, NULL, 0, NULL, 0, NULL, 0));
+}
+
 static void benchmark_mldsa(struct kunit *test,
 			    const struct mldsa_testvector *tv)
 {
@@ -414,6 +422,7 @@ static struct kunit_case mldsa_kunit_cases[] = {
 	KUNIT_CASE(test_mldsa65),
 	KUNIT_CASE(test_mldsa87),
 	KUNIT_CASE(test_mldsa_use_hint),
+	KUNIT_CASE(test_mldsa_invalid_alg),
 	KUNIT_CASE(benchmark_mldsa44),
 	KUNIT_CASE(benchmark_mldsa65),
 	KUNIT_CASE(benchmark_mldsa87),
