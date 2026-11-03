@@ -69,4 +69,7 @@ struct kstat {
 /* file attribute values */
 #define STATX_ATTR_CHANGE_MONOTONIC	0x8000000000000000ULL /* version monotonically increases */
 
+/* mask of STATX_ATTR_* bits that is private to the kernel */
+#define STATX_ATTR_INTERNAL_MASK	(STATX_ATTR_CHANGE_MONOTONIC)
+
 #endif
