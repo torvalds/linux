@@ -193,6 +193,7 @@ static void virtio_fs_ktype_release(struct kobject *kobj)
 {
 	struct virtio_fs *vfs = container_of(kobj, struct virtio_fs, kobj);
 
+	kfree(vfs->tag);
 	kfree(vfs->mq_map);
 	kfree(vfs->vqs);
 	kfree(vfs);
@@ -489,7 +490,11 @@ static void virtio_fs_free_devs(struct virtio_fs *fs)
 	}
 }
 
-/* Read filesystem name from virtio config into fs->tag (must kfree()). */
+/*
+ * Read filesystem name from virtio config into fs->tag.  Freed by
+ * virtio_fs_ktype_release() so that it stays valid for as long as the
+ * virtio_fs object itself, which may outlive the virtio device.
+ */
 static int virtio_fs_read_tag(struct virtio_device *vdev, struct virtio_fs *fs)
 {
 	char tag_buf[sizeof_field(struct virtio_fs_config, tag)];
@@ -505,7 +510,7 @@ static int virtio_fs_read_tag(struct virtio_device *vdev, struct virtio_fs *fs)
 		end = &tag_buf[sizeof(tag_buf)];
 
 	len = end - tag_buf;
-	fs->tag = devm_kmalloc(&vdev->dev, len + 1, GFP_KERNEL);
+	fs->tag = kmalloc(len + 1, GFP_KERNEL);
 	if (!fs->tag)
 		return -ENOMEM;
 	memcpy(fs->tag, tag_buf, len);
