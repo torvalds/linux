@@ -2143,14 +2143,26 @@ static struct configfs_attribute *uvcg_frame_attrs2[] = {
 	NULL,
 };
 
+static void uvcg_frame_release(struct config_item *item)
+{
+	struct uvcg_frame *frm = to_uvcg_frame(item);
+
+	kfree(frm->dw_frame_interval);
+	kfree(frm);
+}
+
+static const struct configfs_item_operations uvcg_frame_item_ops = {
+	.release	= uvcg_frame_release,
+};
+
 static const struct config_item_type uvcg_frame_type1 = {
-	.ct_item_ops	= &uvcg_config_item_ops,
+	.ct_item_ops	= &uvcg_frame_item_ops,
 	.ct_attrs	= uvcg_frame_attrs1,
 	.ct_owner	= THIS_MODULE,
 };
 
 static const struct config_item_type uvcg_frame_type2 = {
-	.ct_item_ops    = &uvcg_config_item_ops,
+	.ct_item_ops    = &uvcg_frame_item_ops,
 	.ct_attrs       = uvcg_frame_attrs2,
 	.ct_owner       = THIS_MODULE,
 };
