@@ -75,6 +75,13 @@ bool page_is_unmovable(struct zone *zone, struct page *page,
 	}
 
 	/*
+	 * Slab pages are frozen: do not take their reference count of zero
+	 * for that of a free page.
+	 */
+	if (PageSlab(page))
+		return true;
+
+	/*
 	 * We can't use page_count without pin a page
 	 * because another CPU can free compound page.
 	 * This check already skips compound tails of THP
