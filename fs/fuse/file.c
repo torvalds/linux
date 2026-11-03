@@ -845,8 +845,19 @@ static void fuse_read_update_size(struct inode *inode, loff_t size,
 	spin_unlock(&fi->lock);
 }
 
-static void fuse_short_read(struct inode *inode, u64 attr_ver, size_t num_read,
-			    struct fuse_args_pages *ap)
+/*
+ * Position of the first byte covered by the folios in @ap.
+ *
+ * The first folio may be read partially, so the descriptor offset is part of
+ * the position.
+ */
+static loff_t fuse_folios_pos(struct fuse_args_pages *ap)
+{
+	return folio_pos(ap->folios[0]) + ap->descs[0].offset;
+}
+
+static void fuse_short_read(struct inode *inode, struct fuse_io_args *ia,
+			    size_t num_read)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
@@ -856,8 +867,13 @@ static void fuse_short_read(struct inode *inode, u64 attr_ver, size_t num_read,
 	 * reached the client fs yet.  So the hole is not present there.
 	 */
 	if (!fc->writeback_cache) {
-		loff_t pos = folio_pos(ap->folios[0]) + num_read;
-		fuse_read_update_size(inode, pos, attr_ver);
+		/*
+		 * Derive EOF from the offset the request was sent with, which
+		 * is not necessarily the start of the first folio.
+		 */
+		loff_t pos = ia->read.in.offset + num_read;
+
+		fuse_read_update_size(inode, pos, ia->read.attr_ver);
 	}
 }
 
@@ -866,7 +882,6 @@ static int fuse_do_readfolio(struct file *file, struct folio *folio,
 {
 	struct inode *inode = folio->mapping->host;
 	struct fuse_mount *fm = get_fuse_mount(inode);
-	loff_t pos = folio_pos(folio) + off;
 	struct fuse_folio_desc desc = {
 		.offset = off,
 		.length = len,
@@ -878,10 +893,10 @@ static int fuse_do_readfolio(struct file *file, struct folio *folio,
 		.ap.folios = &folio,
 		.ap.descs = &desc,
 	};
+	loff_t pos = fuse_folios_pos(&ia.ap);
 	ssize_t res;
-	u64 attr_ver;
 
-	attr_ver = fuse_get_attr_version(fm->fc);
+	ia.read.attr_ver = fuse_get_attr_version(fm->fc);
 
 	/*
 	 * Don't overflow end offset.
@@ -906,7 +921,7 @@ static int fuse_do_readfolio(struct file *file, struct folio *folio,
 	 * Short read means EOF.  If file size is larger, truncate it
 	 */
 	if (res < len)
-		fuse_short_read(inode, attr_ver, res, &ia.ap);
+		fuse_short_read(inode, &ia, res);
 
 	return 0;
 }
@@ -1069,7 +1084,7 @@ static void fuse_readpages_end(struct fuse_args *args, int err)
 	 * Short read means EOF. If file size is larger, truncate it
 	 */
 	if (!err && num_read < count)
-		fuse_short_read(inode, ia->read.attr_ver, num_read, ap);
+		fuse_short_read(inode, ia, num_read);
 
 	fuse_invalidate_atime(inode);
 
@@ -1090,7 +1105,7 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file,
 	struct fuse_file *ff = file->private_data;
 	struct fuse_mount *fm = ff->fm;
 	struct fuse_args_pages *ap = &ia->ap;
-	loff_t pos = folio_pos(ap->folios[0]);
+	loff_t pos = fuse_folios_pos(ap);
 	ssize_t res;
 	int err;
 
