@@ -416,7 +416,8 @@ static inline int find_proper_scale(int expn, int N)
 
 #define NUM_BIN 23
 
-static bool create_pa_curve(u32 *data_L, u32 *data_U, u32 *pa_table, u16 *gain)
+static noinline_for_stack bool
+create_pa_curve(u32 *data_L, u32 *data_U, u32 *pa_table, u16 *gain)
 {
 	unsigned int thresh_accum_cnt;
 	int x_est[NUM_BIN + 1], Y[NUM_BIN + 1], theta[NUM_BIN + 1];
@@ -817,9 +818,10 @@ void ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain)
 }
 EXPORT_SYMBOL(ar9003_paprd_setup_gain_table);
 
-static bool ar9003_paprd_retrain_pa_in(struct ath_hw *ah,
-				       struct ath9k_hw_cal_data *caldata,
-				       int chain)
+static noinline_for_stack bool
+ar9003_paprd_retrain_pa_in(struct ath_hw *ah,
+			   struct ath9k_hw_cal_data *caldata,
+			   int chain)
 {
 	u32 *pa_in = caldata->pa_table[chain];
 	int capdiv_offset, quick_drop_offset;
