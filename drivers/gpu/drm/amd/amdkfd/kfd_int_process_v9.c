@@ -370,7 +370,7 @@ static void gfx_9_clean_fault(uint16_t pasid)
 	if (!pdd)
 		return;
 
-	/* To Clean the GFX on the faulting device	 */
+	/* To clean the GFX fault state on the faulting device */
 	dqm = pdd->dev->dqm;
 	dqm->ops.clean_process_queues_cpsch(dqm, &pdd->qpd);
 

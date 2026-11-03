@@ -695,6 +695,11 @@ struct qcm_process_device {
 	bool is_debug;
 	unsigned int evicted; /* eviction counter, 0=active */
 
+	/* Set after fault clean runs; never cleared.
+	 * Prevents redundant cleaning from pipelined interrupt workers.
+	 */
+	bool fault_cleaned;
+
 	/* This flag tells if we should reset all wavefronts on
 	 * process termination
 	 */
