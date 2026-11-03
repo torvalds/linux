@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * This file contians vfs address (mmap) ops for 9P2000.
+ * This file contains vfs address (mmap) ops for 9P2000.
  *
  *  Copyright (C) 2005 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
@@ -99,6 +99,7 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
 	char *target;
 	unsigned long long pos = subreq->start + subreq->transferred;
 	int total = 0, err, len, n;
+	size_t to_read = iov_iter_count(&subreq->io_iter);
 
 	if (S_ISLNK(rreq->inode->i_mode)) {
 		/* p9_client_readlink() must not be called for legacy protocols
@@ -130,6 +131,8 @@ fill_subreq:
 	    subreq->rreq->origin != NETFS_DIO_READ)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 	if (pos + total >= i_size_read(rreq->inode))
+		__set_bit(NETFS_SREQ_HIT_EOF, &subreq->flags);
+	if (!err && !total && to_read)
 		__set_bit(NETFS_SREQ_HIT_EOF, &subreq->flags);
 	if (!err && total) {
 		subreq->transferred += total;
@@ -165,13 +168,16 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 			goto no_fid;
 		p9_fid_get(fid);
 	} else if (S_ISLNK(rreq->inode->i_mode)) {
+		/* racing unlink/rename can make this fail with -ENOENT;
+		 * that's expected, not a kernel bug, so don't WARN
+		 */
 		dentry = d_find_any_alias(rreq->inode);
 		if (!dentry)
 			goto no_fid;
 		fid = v9fs_fid_lookup(dentry);
 		dput(dentry);
 		if (IS_ERR(fid))
-			goto no_fid;
+			return PTR_ERR(fid);
 	} else {
 		fid = v9fs_fid_find_inode(rreq->inode, writing, INVALID_UID, true);
 		if (!fid)

@@ -28,6 +28,9 @@
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
+#if IS_ENABLED(CONFIG_NET_9P_VSOCK)
+#include <uapi/linux/vm_sockets.h>
+#endif
 
 #include <linux/syscalls.h> /* killme */
 
@@ -36,6 +39,9 @@
 
 static struct p9_trans_module p9_tcp_trans;
 static struct p9_trans_module p9_fd_trans;
+#if IS_ENABLED(CONFIG_NET_9P_VSOCK)
+static struct p9_trans_module p9_vsock_trans;
+#endif
 
 enum {
 	Rworksched = 1,		/* read work scheduled or running */
@@ -714,6 +720,12 @@ static int p9_fd_show_options(struct seq_file *m, struct p9_client *clnt)
 		if (clnt->trans_opts.fd.wfd != ~0)
 			seq_printf(m, ",wfd=%u", clnt->trans_opts.fd.wfd);
 	}
+#if IS_ENABLED(CONFIG_NET_9P_VSOCK)
+	else if (clnt->trans_mod == &p9_vsock_trans) {
+		if (clnt->trans_opts.vsock.port != P9_FD_PORT)
+			seq_printf(m, ",port=%u", clnt->trans_opts.vsock.port);
+	}
+#endif
 	return 0;
 }
 
@@ -875,7 +887,7 @@ p9_fd_create_tcp(struct p9_client *client, struct fs_context *fc)
 	const char *addr = fc->source;
 	struct v9fs_context *ctx = fc->fs_private;
 	int err;
-	char port_str[6];
+	char port_str[11];
 	struct socket *csocket;
 	struct sockaddr_storage stor = { 0 };
 	struct p9_fd_opts opts;
@@ -887,8 +899,8 @@ p9_fd_create_tcp(struct p9_client *client, struct fs_context *fc)
 		return -EINVAL;
 
 	sprintf(port_str, "%u", opts.port);
-	err = inet_pton_with_scope(current->nsproxy->net_ns, AF_UNSPEC, addr,
-				   port_str, &stor);
+	err = inet_pton_with_scope(fc->net_ns, AF_UNSPEC, addr, port_str,
+				   &stor);
 	if (err < 0)
 		return err;
 
@@ -896,8 +908,8 @@ p9_fd_create_tcp(struct p9_client *client, struct fs_context *fc)
 
 	client->trans_opts.tcp.port = opts.port;
 	client->trans_opts.tcp.privport = opts.privport;
-	err = __sock_create(current->nsproxy->net_ns, stor.ss_family,
-			    SOCK_STREAM, IPPROTO_TCP, &csocket, 1);
+	err = __sock_create(fc->net_ns, stor.ss_family, SOCK_STREAM,
+			    IPPROTO_TCP, &csocket, 1);
 	if (err) {
 		pr_err("%s (%d): problem creating socket\n",
 		       __func__, task_pid_nr(current));
@@ -946,8 +958,7 @@ p9_fd_create_unix(struct p9_client *client, struct fs_context *fc)
 		       __func__, task_pid_nr(current), addr);
 		return -ENAMETOOLONG;
 	}
-	err = __sock_create(current->nsproxy->net_ns, PF_UNIX,
-			    SOCK_STREAM, 0, &csocket, 1);
+	err = __sock_create(fc->net_ns, PF_UNIX, SOCK_STREAM, 0, &csocket, 1);
 	if (err < 0) {
 		pr_err("%s (%d): problem creating socket\n",
 		       __func__, task_pid_nr(current));
@@ -965,6 +976,67 @@ p9_fd_create_unix(struct p9_client *client, struct fs_context *fc)
 
 	return p9_socket_open(client, csocket);
 }
+
+#if IS_ENABLED(CONFIG_NET_9P_VSOCK)
+static int
+p9_fd_create_vsock(struct p9_client *client, struct fs_context *fc)
+{
+	const char *addr = fc->source;
+	struct v9fs_context *ctx = fc->fs_private;
+	int err;
+	struct socket *csocket;
+	struct sockaddr_vm addr_vm = { 0 };
+	struct p9_fd_opts opts;
+	unsigned int cid;
+
+	/* opts are already parsed in context */
+	opts = ctx->fd_opts;
+
+	if (opts.privport) {
+		// TODO: implement vsock privileged port binding
+		pr_err("%s (%d): privport currently not implemented for vsock\n",
+		       __func__, task_pid_nr(current));
+		return -EOPNOTSUPP;
+	}
+
+	if (!addr)
+		return -EINVAL;
+
+	err = kstrtouint(addr, 10, &cid);
+	if (err < 0) {
+		pr_err("%s (%d): invalid CID: %s\n",
+		       __func__, task_pid_nr(current), addr);
+		return err;
+	}
+
+	csocket = NULL;
+
+	client->trans_opts.vsock.port = opts.port;
+	err = __sock_create(fc->net_ns, AF_VSOCK,
+			    SOCK_STREAM, 0, &csocket, 1);
+	if (err) {
+		pr_err("%s (%d): problem creating socket\n",
+		       __func__, task_pid_nr(current));
+		return err;
+	}
+
+	addr_vm.svm_family = AF_VSOCK;
+	addr_vm.svm_port = opts.port;
+	addr_vm.svm_cid = cid;
+
+	err = READ_ONCE(csocket->ops)->connect(csocket,
+					       (struct sockaddr_unsized *)&addr_vm,
+					       sizeof(addr_vm), 0);
+	if (err < 0) {
+		pr_err("%s (%d): problem connecting socket to %s:%u\n",
+		       __func__, task_pid_nr(current), addr, opts.port);
+		sock_release(csocket);
+		return err;
+	}
+
+	return p9_socket_open(client, csocket);
+}
+#endif /* CONFIG_NET_9P_VSOCK */
 
 static int
 p9_fd_create(struct p9_client *client, struct fs_context *fc)
@@ -1036,6 +1108,23 @@ static struct p9_trans_module p9_fd_trans = {
 };
 MODULE_ALIAS_9P("fd");
 
+#if IS_ENABLED(CONFIG_NET_9P_VSOCK)
+static struct p9_trans_module p9_vsock_trans = {
+	.name = "vsock",
+	.maxsize = MAX_SOCK_BUF,
+	.def = false,
+	.supports_vmalloc = true,
+	.create = p9_fd_create_vsock,
+	.close = p9_fd_close,
+	.request = p9_fd_request,
+	.cancel = p9_fd_cancel,
+	.cancelled = p9_fd_cancelled,
+	.show_options = p9_fd_show_options,
+	.owner = THIS_MODULE,
+};
+MODULE_ALIAS_9P("vsock");
+#endif
+
 /**
  * p9_poll_workfn - poll worker thread
  * @work: work queue
@@ -1073,6 +1162,9 @@ static int __init p9_trans_fd_init(void)
 	v9fs_register_trans(&p9_tcp_trans);
 	v9fs_register_trans(&p9_unix_trans);
 	v9fs_register_trans(&p9_fd_trans);
+#if IS_ENABLED(CONFIG_NET_9P_VSOCK)
+	v9fs_register_trans(&p9_vsock_trans);
+#endif
 
 	return 0;
 }
@@ -1083,6 +1175,9 @@ static void __exit p9_trans_fd_exit(void)
 	v9fs_unregister_trans(&p9_tcp_trans);
 	v9fs_unregister_trans(&p9_unix_trans);
 	v9fs_unregister_trans(&p9_fd_trans);
+#if IS_ENABLED(CONFIG_NET_9P_VSOCK)
+	v9fs_unregister_trans(&p9_vsock_trans);
+#endif
 }
 
 module_init(p9_trans_fd_init);
