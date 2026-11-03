@@ -72,19 +72,21 @@ static int cxl_switch_port_probe(struct cxl_port *port)
 	return 0;
 }
 
-static int cxl_ras_unmask(struct cxl_port *port)
+static int cxl_endpoint_ras_unmask(struct cxl_port *endpoint)
 {
+	struct cxl_memdev *cxlmd = to_cxl_memdev(endpoint->uport_dev);
+	struct device *parent = cxlmd->dev.parent;
 	struct pci_dev *pdev;
 	void __iomem *addr;
 	u32 orig_val, val, mask;
 	u16 cap;
 	int rc;
 
-	if (!dev_is_pci(port->uport_dev))
+	if (!dev_is_pci(parent))
 		return 0;
-	pdev = to_pci_dev(port->uport_dev);
+	pdev = to_pci_dev(parent);
 
-	if (!port->regs.ras) {
+	if (!endpoint->regs.ras) {
 		pci_dbg(pdev, "No RAS registers.\n");
 		return 0;
 	}
@@ -98,7 +100,7 @@ static int cxl_ras_unmask(struct cxl_port *port)
 		return rc;
 
 	if (cap & PCI_EXP_DEVCTL_URRE) {
-		addr = port->regs.ras + CXL_RAS_UNCORRECTABLE_MASK_OFFSET;
+		addr = endpoint->regs.ras + CXL_RAS_UNCORRECTABLE_MASK_OFFSET;
 		orig_val = readl(addr);
 
 		mask = CXL_RAS_UNCORRECTABLE_MASK_MASK |
@@ -110,7 +112,7 @@ static int cxl_ras_unmask(struct cxl_port *port)
 	}
 
 	if (cap & PCI_EXP_DEVCTL_CERE) {
-		addr = port->regs.ras + CXL_RAS_CORRECTABLE_MASK_OFFSET;
+		addr = endpoint->regs.ras + CXL_RAS_CORRECTABLE_MASK_OFFSET;
 		orig_val = readl(addr);
 		val = orig_val & ~CXL_RAS_CORRECTABLE_MASK_MASK;
 		writel(val, addr);
@@ -152,7 +154,7 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 		devm_cxl_dport_rch_ras_setup(dport);
 
 	devm_cxl_port_ras_setup(port);
-	if (cxl_ras_unmask(port))
+	if (cxl_endpoint_ras_unmask(port))
 		dev_dbg(&port->dev, "failed to unmask RAS interrupts\n");
 
 	/*
