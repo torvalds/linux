@@ -595,7 +595,7 @@ xfs_ioctl_setattr_xflags(
 	 * Make the stable writes flag match that of the device the inode
 	 * resides on when flipping the RT flag.
 	 */
-	if (rtflag != XFS_IS_REALTIME_INODE(ip) && S_ISREG(VFS_I(ip)->i_mode))
+	if (S_ISREG(VFS_I(ip)->i_mode))
 		xfs_update_stable_writes(ip);
 
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
