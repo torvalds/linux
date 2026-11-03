@@ -71,7 +71,6 @@ struct nvmet_rdma_rsp {
 
 	struct nvmet_req	req;
 
-	bool			allocated;
 	u8			n_rdma;
 	u32			flags;
 	u32			invalidate_rkey;
