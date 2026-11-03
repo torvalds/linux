@@ -4643,19 +4643,11 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	}
 
 	/*
-	 * Supported subpages: all subpages and ATA feature sub-page f2h of
-	 * the control page.
+	 * The only supported subpage is the ATA feature sub-page f2h of the
+	 * control page.
 	 */
 	if (spg) {
 		switch (spg) {
-		case ALL_SUB_MPAGES:
-			/* All subpages is not supported for the control page */
-			if (pg == CONTROL_MPAGE) {
-				fp = (p[0] & 0x40) ? 1 : 0;
-				fp += hdr_len + bd_len;
-				goto invalid_param;
-			}
-			break;
 		case ATA_FEATURE_SUB_MPAGE:
 			if (qc->dev->flags & ATA_DFLAG_CDL &&
 			    pg == CONTROL_MPAGE)
