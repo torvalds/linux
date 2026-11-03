@@ -356,6 +356,13 @@ static const struct dmi_system_id steelseries_msi_rgb_dmi_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "MS-182L"),
 		},
 	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International Co., Ltd."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Raider A18 HX A7VHG"),
+			DMI_MATCH(DMI_BOARD_NAME, "MS-182K"),
+		},
+	},
 	{ }
 };
 
