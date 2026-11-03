@@ -376,10 +376,10 @@ static int __ublk_batch_queue_prep_io_cmds(struct ublk_thread *t, struct ublk_qu
 		if (ublk_queue_use_auto_zc(q))
 			elem->buf_index = ublk_batch_io_buf_idx(t, q, i);
 		else if (!ublk_queue_no_buf(q))
-			elem->buf_addr = (__u64)io->buf_addr;
+			elem->buf_addr = (__u64)(uintptr_t)io->buf_addr;
 	}
 
-	sqe->addr = (__u64)buf;
+	sqe->addr = (__u64)(uintptr_t)buf;
 	sqe->len = t->commit_buf_elem_size * nr_elem;
 
 	ublk_init_batch_cmd(t, q->q_id, sqe, UBLK_U_IO_PREP_IO_CMDS,
@@ -473,7 +473,7 @@ static void __ublk_batch_commit_io_cmds(struct ublk_thread *t,
 
 	ublk_io_alloc_sqes(t, &sqe, 1);
 	buf_idx = cb->buf_idx;
-	sqe->addr = (__u64)cb->elem;
+	sqe->addr = (__u64)(uintptr_t)cb->elem;
 	sqe->len = nr_elem * t->commit_buf_elem_size;
 
 	/* commit isn't per-queue command */
