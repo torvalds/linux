@@ -3661,12 +3661,12 @@ static struct acpi_platform_list plat_info[] __initdata = {
 static bool __init intel_pstate_platform_pwr_mgmt_exists(void)
 {
 	const struct x86_cpu_id *id;
-	u64 misc_pwr;
+	u64 misc_pwr = 0;
 	int idx;
 
 	id = x86_match_cpu(intel_pstate_cpu_oob_ids);
 	if (id) {
-		rdmsrq(MSR_MISC_PWR_MGMT, misc_pwr);
+		rdmsrq_safe(MSR_MISC_PWR_MGMT, &misc_pwr);
 		if (misc_pwr & BITMASK_OOB) {
 			pr_debug("Bit 8 or 18 in the MISC_PWR_MGMT MSR set\n");
 			pr_debug("P states are controlled in Out of Band mode by the firmware/hardware\n");
