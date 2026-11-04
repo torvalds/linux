@@ -4434,7 +4434,7 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case HID_GENERIC:
-		if (wacom_wac->shared) {
+		if (wacom_wac->shared && wacom_wac->has_mute_touch_switch) {
 			/*
 			 * The setup of touch switch capability can only be done
 			 * here for those devices, such as Cintiq Pro 13 and 16,
@@ -4445,11 +4445,12 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 			 * stylus first or touch first. This path covers the touch
 			 * input first case.
 			 */
-			if (wacom_wac->has_mute_touch_switch &&
-			    wacom_wac->shared->touch_input) {
-				input_set_capability(wacom_wac->shared->touch_input,
-				    EV_SW, SW_MUTE_DEVICE);
-			}
+                        struct input_dev *touch_input;
+
+                        guard(rcu)();
+                        touch_input = rcu_dereference(wacom_wac->shared->touch_input);
+			if (touch_input)
+				input_set_capability(touch_input, EV_SW, SW_MUTE_DEVICE);
 		}
 		break;
 
