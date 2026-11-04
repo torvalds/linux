@@ -653,15 +653,18 @@ EXPORT_SYMBOL(drm_connector_hdmi_disable_scrambling);
 int drm_connector_hdmi_sync_scdc(struct drm_connector *connector, bool plugged,
 				 struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_connector_hdmi *hdmi = &connector->hdmi;
-	struct drm_device *dev = connector->dev;
+	struct drm_connector_hdmi *hdmi;
 	struct drm_connector_state *conn_state;
+	struct drm_device *dev;
 	struct drm_crtc *crtc;
 	u8 config;
 	int ret;
 
 	if (!connector || !plugged || !ctx)
 		return 0;
+
+	hdmi = &connector->hdmi;
+	dev = connector->dev;
 
 	/*
 	 * This is normally part of .detect_ctx() call path, which already holds
