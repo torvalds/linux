@@ -160,12 +160,6 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 				  inet6_iif(skb), inet6_sdif(skb)))
 			continue;
 
-		if (atomic_read(&sk->sk_rmem_alloc) >=
-		    READ_ONCE(sk->sk_rcvbuf)) {
-			sk_drops_inc(sk);
-			continue;
-		}
-
 		delivered = true;
 		switch (nexthdr) {
 		case IPPROTO_ICMPV6:
@@ -197,8 +191,15 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 		if (filtered < 0)
 			break;
 		if (filtered == 0) {
-			struct sk_buff *clone = skb_clone(skb, GFP_ATOMIC);
+			struct sk_buff *clone;
 
+			if (atomic_read(&sk->sk_rmem_alloc) >=
+			    READ_ONCE(sk->sk_rcvbuf)) {
+				sk_drops_inc(sk);
+				continue;
+			}
+
+			clone = skb_clone(skb, GFP_ATOMIC);
 			/* Not releasing hash table! */
 			if (clone)
 				rawv6_rcv(sk, clone);
