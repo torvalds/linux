@@ -2620,7 +2620,7 @@ cifs_find_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx,
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 		spin_lock(&tcon->tc_lock);
-		if (!match_tcon(tcon, ctx)) {
+		if (!match_tcon(tcon, ctx) || cifs_tcon_dying(tcon)) {
 			spin_unlock(&tcon->tc_lock);
 			continue;
 		}
@@ -2715,8 +2715,11 @@ void cifs_wake_ses_waiters(struct cifs_ses *ses)
 
 static void drop_mnt_ref(struct cifs_tcon *tcon)
 {
-	guard(spinlock)(&tcon->tc_lock);
-	tcon->mnt_refs--;
+	scoped_guard(spinlock, &tcon->tc_lock) {
+		if (--tcon->mnt_refs)
+			return;
+	}
+	cifs_wake_ses_waiters(tcon->ses);
 }
 
 static void put_mnt_tcon(struct cifs_tcon *tcon, enum smb3_tcon_ref_trace trace)
