@@ -1122,9 +1122,6 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	if (nvme_is_fabrics(cmd))
 		return nvmet_parse_fabrics_io_cmd(req);
 
-	if (unlikely(!nvmet_check_auth_status(req)))
-		return NVME_SC_AUTH_REQUIRED | NVME_STATUS_DNR;
-
 	ret = nvmet_check_ctrl_status(req);
 	if (unlikely(ret))
 		return ret;
