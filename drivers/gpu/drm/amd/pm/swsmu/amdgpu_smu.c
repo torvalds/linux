@@ -2505,33 +2505,7 @@ static int
 smu_reapply_power_state_dynamic(struct smu_context *smu,
 				enum amd_dpm_forced_level level)
 {
-	struct smu_dpm_context *smu_dpm_ctx = &smu->smu_dpm;
-	int ret;
-
-	ret = smu_apply_clocks_adjust_rules(smu);
-	if (ret) {
-		dev_err(smu->adev->dev, "Failed to apply clocks adjust rules!");
-		return ret;
-	}
-
-	ret = smu_asic_set_performance_level(smu, level);
-	if (ret) {
-		if (ret == -EOPNOTSUPP)
-			dev_info(smu->adev->dev, "set performance level %d not supported",
-				 level);
-		else
-			dev_err(smu->adev->dev, "Failed to set performance level %d",
-				level);
-		return ret;
-	}
-
-	smu_dpm_ctx->dpm_level = level;
-
-	if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL ||
-	    smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)
-		return 0;
-
-	return smu_bump_power_profile_mode(smu, NULL, 0);
+	return smu_adjust_power_state_dynamic(smu, level, true, true);
 }
 
 static int smu_handle_task(struct smu_context *smu,
@@ -2696,20 +2670,19 @@ smu_reapply_performance_level(void *handle,
 	if (!smu->is_apu && !smu_dpm_ctx->dpm_context)
 		return -EINVAL;
 
+	if (smu_dpm_ctx->dpm_level != level)
+		return -EINVAL;
+
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		smu_enter_umd_pstate(smu);
 		break;
 	default:
-		return -EINVAL;
+		break;
 	}
-
-	if (smu_dpm_ctx->dpm_level != level)
-		return -EINVAL;
-
-	smu_enter_umd_pstate(smu);
 
 	return smu_reapply_power_state_dynamic(smu, level);
 }

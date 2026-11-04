@@ -1083,14 +1083,16 @@ static void amdgpu_dpm_exit_umd_state(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_dpm_reapply_umd_profile - Restore the active UMD profile
+ * amdgpu_dpm_reapply_performance_level - Restore the retained DPM level
  * @adev: amdgpu device
  *
  * Resume and reset retain the selected DPM level in software, but the
- * underlying GFX and PMFW state is lost. Reapply a retained UMD profile
- * after the common resume path has restored its default CG and PG state.
+ * underlying GFX and PMFW state is lost. Reapply the retained level after
+ * the common resume path has restored its default CG and PG state. UMD
+ * profile levels also restore their GFX state, other levels only replay
+ * the level itself.
  */
-int amdgpu_dpm_reapply_umd_profile(struct amdgpu_device *adev)
+int amdgpu_dpm_reapply_performance_level(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	enum amd_dpm_forced_level level;
@@ -1120,7 +1122,18 @@ int amdgpu_dpm_reapply_umd_profile(struct amdgpu_device *adev)
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		break;
+	case AMD_DPM_FORCED_LEVEL_AUTO:
+		/* PMFW comes back in auto, as it does at probe. */
+		ret = 0;
+		goto unlock;
 	default:
+		/* No UMD pstate state to restore, only the level itself. */
+		ret = pp_funcs->reapply_performance_level(adev->powerplay.pp_handle,
+							     level);
+		if (ret)
+			dev_warn(adev->dev,
+				 "Failed to restore performance level %d: %d\n",
+				 level, ret);
 		ret = 0;
 		goto unlock;
 	}
