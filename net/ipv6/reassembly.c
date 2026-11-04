@@ -275,15 +275,18 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
 	if (unlikely(ecn == 0xff))
 		goto out_fail;
 
-	reasm_data = inet_frag_reasm_prepare(&fq->q, skb, prev_tail);
-	if (!reasm_data)
-		goto out_oom;
-
-	payload_len = -skb_network_offset(skb) -
+	/* Check the size on the first fragment, which will become the head:
+	 * inet_frag_reasm_finish() must follow inet_frag_reasm_prepare().
+	 */
+	payload_len = -skb_network_offset(skb_rb_first(&fq->q.rb_fragments)) -
 		       sizeof(struct ipv6hdr) + fq->q.len -
 		       sizeof(struct frag_hdr);
 	if (payload_len > IPV6_MAXPLEN)
 		goto out_oversize;
+
+	reasm_data = inet_frag_reasm_prepare(&fq->q, skb, prev_tail);
+	if (!reasm_data)
+		goto out_oom;
 
 	/* We have to remove fragment header from datagram and to relocate
 	 * header in order to calculate ICV correctly. */
