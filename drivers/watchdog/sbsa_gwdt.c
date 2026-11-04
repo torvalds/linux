@@ -72,12 +72,16 @@
 #define SBSA_GWDT_WCS_WS0	BIT(1)
 #define SBSA_GWDT_WCS_WS1	BIT(2)
 
-#define SBSA_GWDT_VERSION_MASK  GENMASK(3, 0)
-#define SBSA_GWDT_VERSION_SHIFT 16
+#define SBSA_GWDT_VERSION_MASK		GENMASK(3, 0)
+#define SBSA_GWDT_VERSION_SHIFT		16
 
-#define SBSA_GWDT_IMPL_MASK	GENMASK(11, 0)
-#define SBSA_GWDT_IMPL_SHIFT	0
-#define SBSA_GWDT_IMPL_MEDIATEK	0x426
+#define SBSA_GWDT_REVISION_MASK		GENMASK(3, 0)
+#define SBSA_GWDT_REVISION_SHIFT	12
+#define SBSA_GWDT_REV_RACE_WA		0x0
+
+#define SBSA_GWDT_IMPL_MASK			GENMASK(11, 0)
+#define SBSA_GWDT_IMPL_SHIFT		0
+#define SBSA_GWDT_IMPL_MEDIATEK		0x426
 
 /**
  * struct sbsa_gwdt - Internal representation of the SBSA GWDT
@@ -239,15 +243,17 @@ static int sbsa_gwdt_keepalive(struct watchdog_device *wdd)
 static void sbsa_gwdt_get_version(struct watchdog_device *wdd)
 {
 	struct sbsa_gwdt *gwdt = watchdog_get_drvdata(wdd);
-	int iidr, ver, impl;
+	int iidr, ver, rev, impl;
 
 	iidr = readl(gwdt->control_base + SBSA_GWDT_W_IIDR);
 	ver = (iidr >> SBSA_GWDT_VERSION_SHIFT) & SBSA_GWDT_VERSION_MASK;
+	rev = (iidr >> SBSA_GWDT_REVISION_SHIFT) & SBSA_GWDT_REVISION_MASK;
 	impl = (iidr >> SBSA_GWDT_IMPL_SHIFT) & SBSA_GWDT_IMPL_MASK;
 
 	gwdt->version = ver;
 	gwdt->need_ws0_race_workaround =
-		!action && (impl == SBSA_GWDT_IMPL_MEDIATEK);
+		!action && (impl == SBSA_GWDT_IMPL_MEDIATEK) &&
+		(rev == SBSA_GWDT_REV_RACE_WA);
 }
 
 static int sbsa_gwdt_start(struct watchdog_device *wdd)
