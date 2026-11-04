@@ -1124,6 +1124,38 @@ exit:
 	return ret;
 }
 
+int kfd_criu_resume_queues(struct kfd_process *p)
+{
+	int ret, i;
+	u64 total_cwsr_size;
+
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_process_device *pdd = p->pdds[i];
+		struct kfd_topology_device *topo_dev;
+		struct queue *q;
+
+		topo_dev = kfd_topology_device_by_id(pdd->dev->id);
+
+		list_for_each_entry(q, &pdd->qpd.queues_list, list) {
+			total_cwsr_size = q->properties.ctx_save_restore_area_size +
+					  topo_dev->node_props.debug_memory_size;
+			if (check_mul_overflow(total_cwsr_size,
+					       NUM_XCC(pdd->dev->xcc_mask),
+					       &total_cwsr_size))
+				return -EINVAL;
+			total_cwsr_size = ALIGN(total_cwsr_size, PAGE_SIZE);
+
+			ret = kfd_queue_buffer_svm_get(pdd, q->properties.ctx_save_restore_area_address,
+						       total_cwsr_size);
+			if (ret)
+				return ret;
+		}
+
+	}
+
+	return 0;
+}
+
 int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,
 				  unsigned int qid,
 				  uint32_t *mqd_size,

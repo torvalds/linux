@@ -2861,6 +2861,8 @@ static int criu_resume(struct file *filep,
 		goto exit;
 	}
 
+	kfd_criu_resume_queues(target);
+
 	ret =  amdgpu_amdkfd_criu_resume(target->kgd_process_info);
 	if (ret)
 		pr_err("amdgpu_amdkfd_criu_resume failed for %i\n", args->pid);
