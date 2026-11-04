@@ -881,7 +881,8 @@ static ssize_t ublk_batch_copy_io_tags(struct ublk_batch_fetch_cmd *fcmd,
  * by cgroup.
  */
 static unsigned int unprivileged_ublks_max = 64;
-static unsigned int unprivileged_ublks_added; /* protected by ublk_ctl_mutex */
+/* checked and incremented under ublk_ctl_mutex, decremented without it */
+static atomic_t unprivileged_ublks_added = ATOMIC_INIT(0);
 
 static struct miscdevice ublk_misc;
 
@@ -4486,7 +4487,7 @@ static int ublk_add_chdev(struct ublk_device *ub)
 		goto fail;
 
 	if (ub->dev_info.flags & UBLK_F_UNPRIVILEGED_DEV)
-		unprivileged_ublks_added++;
+		atomic_inc(&unprivileged_ublks_added);
 	return 0;
  fail:
 	put_device(dev);
@@ -4518,15 +4519,9 @@ static int ublk_add_tag_set(struct ublk_device *ub)
 
 static void ublk_remove(struct ublk_device *ub)
 {
-	bool unprivileged;
-
 	ublk_stop_dev(ub);
 	cdev_device_del(&ub->cdev, &ub->cdev_dev);
-	unprivileged = ub->dev_info.flags & UBLK_F_UNPRIVILEGED_DEV;
 	ublk_put_device(ub);
-
-	if (unprivileged)
-		unprivileged_ublks_added--;
 }
 
 static struct ublk_device *ublk_get_device_from_id(int idx)
@@ -4916,7 +4911,7 @@ static int ublk_ctrl_add_dev(const struct ublksrv_ctrl_cmd *header)
 
 	ret = -EACCES;
 	if ((info.flags & UBLK_F_UNPRIVILEGED_DEV) &&
-	    unprivileged_ublks_added >= unprivileged_ublks_max)
+	    atomic_read(&unprivileged_ublks_added) >= unprivileged_ublks_max)
 		goto out_unlock;
 
 	ret = -ENOMEM;
@@ -5042,23 +5037,23 @@ static int ublk_ctrl_del_dev(struct ublk_device **p_ub, bool wait)
 {
 	struct ublk_device *ub = *p_ub;
 	int idx = ub->ub_number;
-	int ret;
-
-	ret = mutex_lock_killable(&ublk_ctl_mutex);
-	if (ret)
-		return ret;
-
-	if (!test_bit(UB_STATE_DELETED, &ub->state)) {
-		ublk_remove(ub);
-		set_bit(UB_STATE_DELETED, &ub->state);
-	}
-
-	mutex_unlock(&ublk_ctl_mutex);
+	bool unprivileged = ub->dev_info.flags & UBLK_F_UNPRIVILEGED_DEV;
 
 	/*
-	 * Drop the reference outside ublk_ctl_mutex: if it is the last one,
-	 * the release frees the tag set, which waits for an SRCU grace period,
-	 * and holding the mutex would serialize concurrent deletions on it.
+	 * Don't take ublk_ctl_mutex: stopping the device may wait for the
+	 * filesystem on its disk indefinitely, and ADD_DEV and DEL_DEV of all
+	 * other ublk devices would wait for that too. ADD_DEV is done with the
+	 * device, it is found by its id only then.
+	 */
+	if (!test_and_set_bit(UB_STATE_DELETED, &ub->state)) {
+		ublk_remove(ub);
+		if (unprivileged)
+			atomic_dec(&unprivileged_ublks_added);
+	}
+
+	/*
+	 * If this is the last reference, the release frees the tag set, which
+	 * waits for an SRCU grace period.
 	 */
 	*p_ub = NULL;
 	ublk_put_device(ub);
