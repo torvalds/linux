@@ -701,15 +701,16 @@ static int copy_args_to_argbuf(struct fuse_req *req, gfp_t gfp)
 	unsigned int offset = 0;
 	unsigned int num_in;
 	unsigned int num_out;
-	unsigned int len;
+	unsigned int in_len;
+	unsigned int out_len;
 	unsigned int i;
 
 	num_in = args->in_numargs - args->in_pages;
 	num_out = args->out_numargs - args->out_pages;
-	len = fuse_len_args(num_in, (struct fuse_arg *) args->in_args) +
-	      fuse_len_args(num_out, args->out_args);
+	in_len = fuse_len_args(num_in, (struct fuse_arg *) args->in_args);
+	out_len = fuse_len_args(num_out, args->out_args);
 
-	req->argbuf = kmalloc(len, gfp);
+	req->argbuf = kmalloc(in_len + out_len, gfp);
 	if (!req->argbuf)
 		return -ENOMEM;
 
@@ -719,6 +720,14 @@ static int copy_args_to_argbuf(struct fuse_req *req, gfp_t gfp)
 		       args->in_args[i].size);
 		offset += args->in_args[i].size;
 	}
+
+	/*
+	 * The server is not required to fill the reply region and the length
+	 * it reports in the used ring cannot confirm that it did.  Zero the
+	 * region so that an unwritten reply yields zeroes rather than stale
+	 * heap contents.
+	 */
+	memset(req->argbuf + in_len, 0, out_len);
 
 	return 0;
 }
