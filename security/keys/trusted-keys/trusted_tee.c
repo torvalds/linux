@@ -307,7 +307,8 @@ static struct tee_client_driver trusted_key_driver = {
 	.remove		= trusted_key_remove,
 	.id_table	= trusted_key_id_table,
 	.driver		= {
-		.name		= DRIVER_NAME,
+		.name			= DRIVER_NAME,
+		.suppress_bind_attrs	= true,
 	},
 };
 
