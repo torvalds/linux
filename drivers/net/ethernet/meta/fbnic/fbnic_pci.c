@@ -181,10 +181,15 @@ static int fbnic_fw_config_after_crash(struct fbnic_dev *fbd)
 		return -1;
 	}
 
+	/* The rx mode work rewrites the same shadow under the instance lock
+	 * alone, and this runs from the service task under RTNL only.
+	 */
+	netdev_lock(fbd->netdev);
 	fbnic_rpc_reset_valid_entries(fbd);
 	netif_addr_lock_bh(fbd->netdev);
 	__fbnic_set_rx_mode(fbd, &fbd->netdev->uc, &fbd->netdev->mc);
 	netif_addr_unlock_bh(fbd->netdev);
+	netdev_unlock(fbd->netdev);
 
 	return 0;
 }
