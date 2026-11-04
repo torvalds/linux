@@ -653,7 +653,6 @@ EXPORT_SYMBOL(drm_connector_hdmi_disable_scrambling);
 int drm_connector_hdmi_sync_scdc(struct drm_connector *connector, bool plugged,
 				 struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_connector_hdmi *hdmi;
 	struct drm_connector_state *conn_state;
 	struct drm_device *dev;
 	struct drm_crtc *crtc;
@@ -663,7 +662,6 @@ int drm_connector_hdmi_sync_scdc(struct drm_connector *connector, bool plugged,
 	if (!connector || !plugged || !ctx)
 		return 0;
 
-	hdmi = &connector->hdmi;
 	dev = connector->dev;
 
 	/*
@@ -677,12 +675,19 @@ int drm_connector_hdmi_sync_scdc(struct drm_connector *connector, bool plugged,
 
 	/* TODO: Also handle HDMI 2.1 FRL link training */
 
-	if (!drm_connector_hdmi_scrambler_supported(connector) ||
-	    !READ_ONCE(hdmi->scrambler_enabled))
-		return 0;
-
 	conn_state = connector->state;
 	if (!conn_state)
+		return 0;
+
+	/*
+	 * Rely on the committed connector state rather than on the current
+	 * scrambler status: a source driver may force scrambler_enabled at
+	 * init to get a disable at boot (e.g. vc4), and that value would
+	 * remain stale until the first disable actually happens, leading to
+	 * a spurious CRTC reset whenever the active mode needs no scrambling.
+	 */
+	if (!drm_connector_hdmi_scrambler_supported(connector) ||
+	    !conn_state->hdmi.scrambler_needed)
 		return 0;
 
 	crtc = conn_state->crtc;
