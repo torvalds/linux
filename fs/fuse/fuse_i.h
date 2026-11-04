@@ -418,6 +418,7 @@ struct fuse_fs_context {
 	bool destroy:1;
 	bool no_control:1;
 	bool no_force_umount:1;
+	bool no_req_timeout:1;
 	bool legacy_opts_show:1;
 	bool syncfs_capable:1;
 	enum fuse_vdax_mode vdax_mode;
@@ -697,6 +698,15 @@ struct fuse_conn {
 
 	/** @no_force_umount: Do not allow MNT_FORCE umount */
 	unsigned int no_force_umount:1;
+
+	/**
+	 * @no_req_timeout: Do not enforce a request timeout
+	 *
+	 * Set by transports that cannot revoke a request once it has been
+	 * handed to the server, since the timeout is implemented by aborting
+	 * the connection.
+	 */
+	unsigned int no_req_timeout:1;
 
 	/** @auto_submounts: Auto-mount submounts announced by the server */
 	unsigned int auto_submounts:1;
