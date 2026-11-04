@@ -682,7 +682,7 @@ nfsd_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		.na_iattr	= attr,
 	};
 	struct svc_export *exp;
-	struct dentry *dchild;
+	struct dentry *dchild, *dmnt;
 	struct inode *inode;
 	int type, mode;
 	__be32 status;
@@ -705,20 +705,26 @@ nfsd_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		status = nfserrno(PTR_ERR(dchild));
 		goto out_drop_write;
 	}
-	/*
-	 * If name exists we need to check for mountpoints
-	 */
 	exp = exp_get(fhp->fh_export);
+	/*
+	 * If name exists we need to check for mountpoints. Cross on a
+	 * separate reference: end_creating() unlocks the parent of the
+	 * dentry it is given, and only dchild has the locked directory
+	 * as its parent.
+	 */
+	dmnt = dget(dchild);
 	if (d_is_reg(dchild) &&
 	    unlikely(nfsd_mountpoint(dchild, exp))) {
-		status = nfsd_cross_mnt(rqstp, &dchild, &exp);
+		status = nfsd_cross_mnt(rqstp, &dmnt, &exp);
 		if (status != nfs_ok) {
+			dput(dmnt);
 			exp_put(exp);
 			goto out;
 		}
 	}
 
-	status = fh_compose(resfhp, exp, dchild, fhp);
+	status = fh_compose(resfhp, exp, dmnt, fhp);
+	dput(dmnt);
 	exp_put(exp);
 	if (!status && d_really_is_negative(dchild))
 		status = nfserr_noent;
