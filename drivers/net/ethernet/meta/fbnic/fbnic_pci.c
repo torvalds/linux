@@ -234,18 +234,25 @@ static void fbnic_service_task(struct work_struct *work)
 
 	fbnic_fw_check_heartbeat(fbd);
 
-	fbnic_health_check(fbd);
-
-	fbnic_bmc_rpc_check(fbd);
-
 	if (netif_carrier_ok(fbd->netdev)) {
 		netdev_lock(fbd->netdev);
 		fbnic_napi_depletion_check(fbd->netdev);
 		netdev_unlock(fbd->netdev);
 	}
 
-	if (netif_running(netdev))
+	/* fbnic_service_task_stop() does not wait for a pass that is already
+	 * blocked on RTNL, so one can run after ndo_stop. Leave host state
+	 * alone in that case, and do not re-arm; __fbnic_open() reclaims and
+	 * rebuilds it. The PM path calls ndo_stop with the device detached but
+	 * still running; fbnic_up() starts the task again on resume.
+	 */
+	if (netif_running(netdev) && netif_device_present(netdev)) {
+		fbnic_health_check(fbd);
+
+		fbnic_bmc_rpc_check(fbd);
+
 		schedule_delayed_work(&fbd->service_task, HZ);
+	}
 
 	rtnl_unlock();
 }
@@ -458,6 +465,12 @@ static int fbnic_pm_suspend(struct device *dev)
 	netdev_unlock(netdev);
 	rtnl_unlock();
 
+	/* ndo_stop could not wait for a pass already blocked on RTNL. That
+	 * pass no longer re-arms, but wait for it to finish before the
+	 * mailbox, IRQs and MMIO go away.
+	 */
+	cancel_delayed_work_sync(&fbd->service_task);
+
 null_uc_addr:
 	fbnic_fw_log_disable(fbd);
 
@@ -558,19 +571,26 @@ static void __fbnic_pm_attach(struct device *dev)
 	struct net_device *netdev = fbd->netdev;
 	struct fbnic_net *fbn;
 
-	rtnl_lock();
-	fbnic_reset_hw_stats(fbd);
-	rtnl_unlock();
-
 	if (fbnic_init_failure(fbd))
 		return;
 
 	fbn = netdev_priv(netdev);
 
+	/* Hold RTNL until the device is attached, so the service task pass
+	 * fbnic_up() schedules cannot run until it will see it present.
+	 */
+	rtnl_lock();
+	netdev_lock(netdev);
+
+	fbnic_reset_hw_stats(fbd);
+
 	if (netif_running(netdev))
 		fbnic_up(fbn);
 
 	netif_device_attach(netdev);
+
+	netdev_unlock(netdev);
+	rtnl_unlock();
 }
 
 static int __maybe_unused fbnic_pm_resume(struct device *dev)
