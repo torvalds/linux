@@ -100,6 +100,16 @@ xpass $BOOTCONF -a $TEMPCONF $INITRD
 printf "badnode\n" >> $TEMPCONF
 xfail $BOOTCONF -a $TEMPCONF $INITRD
 
+echo "Max key depth check"
+
+printf 'a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p = "value"\n' > $TEMPCONF
+xpass $BOOTCONF -a $TEMPCONF $INITRD
+$BOOTCONF -l $INITRD > $OUTFILE
+xpass cmp $TEMPCONF $OUTFILE
+
+printf 'a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q = "value"\n' > $TEMPCONF
+xfail $BOOTCONF -a $TEMPCONF $INITRD
+
 echo "Max filesize check"
 
 # Max size is 32767 (including terminal byte)
