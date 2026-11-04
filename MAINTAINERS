@@ -24811,7 +24811,7 @@ F:	drivers/iommu/s390-iommu.c
 
 S390 IUCV NETWORK LAYER
 M:	Alexandra Winter <wintera@linux.ibm.com>
-M:	Thorsten Winkler <twinkler@linux.ibm.com>
+M:	Hidayath Khan <hidayath@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 L:	netdev@vger.kernel.org
 S:	Supported
