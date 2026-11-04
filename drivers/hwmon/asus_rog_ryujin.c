@@ -207,16 +207,23 @@ static int rog_ryujin_execute_cmd(struct rog_ryujin_data *priv, const u8 *cmd, i
 	/* Send command for getting data */
 	ret = rog_ryujin_write_expanded(priv, cmd, cmd_length);
 	if (ret < 0)
-		return ret;
+		goto out_complete;
 
 	ret = wait_for_completion_interruptible_timeout(status_completion,
 							msecs_to_jiffies(STATUS_VALIDITY));
 	if (ret == 0)
-		return -ETIMEDOUT;
-	else if (ret < 0)
-		return ret;
+		ret = -ETIMEDOUT;
+	if (ret < 0)
+		goto out_complete;
 
 	return 0;
+
+out_complete:
+	spin_lock_irqsave(&priv->status_report_request_lock, flags);
+	if (!completion_done(status_completion))
+		complete_all(status_completion);
+	spin_unlock_irqrestore(&priv->status_report_request_lock, flags);
+	return ret;
 }
 
 static int rog_ryujin_get_status(struct rog_ryujin_data *priv)
@@ -629,6 +636,18 @@ static int rog_ryujin_probe(struct hid_device *hdev, const struct hid_device_id 
 	init_completion(&priv->controller_duty_received);
 	init_completion(&priv->cooler_duty_set);
 	init_completion(&priv->controller_duty_set);
+
+	/*
+	 * Start completions in the completed state so rog_ryujin_raw_event()
+	 * only sees !completion_done() while rog_ryujin_execute_cmd() is
+	 * awaiting a response.
+	 */
+	complete_all(&priv->cooler_status_received);
+	complete_all(&priv->controller_status_received);
+	complete_all(&priv->cooler_duty_received);
+	complete_all(&priv->controller_duty_received);
+	complete_all(&priv->cooler_duty_set);
+	complete_all(&priv->controller_duty_set);
 
 	priv->hwmon_dev = hwmon_device_register_with_info(&hdev->dev, "rog_ryujin",
 							  priv, &rog_ryujin_chip_info, NULL);
