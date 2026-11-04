@@ -815,8 +815,7 @@ static bool dcn60_fetch_dal_init_table(struct clk_mgr_internal *clk_mgr)
 	//dcn60_populate_dc_mode_limit(&bw_params->dc_mode_limit, init_table);
 
 	bw_params->num_channels = init_table->MemoryConfig.NumUmcChannels;
-	bw_params->dram_channel_width_bytes =
-			clk_mgr->base.ctx->dc_bios->vram_info.dram_channel_width_bytes;
+	bw_params->dram_channel_width_bytes = init_table->MemoryConfig.DramChannelWidthBytes;
 
 	dcn60_populate_utm_qos_model(clk_mgr, &bw_params->utm_qos_model, init_table);
 
