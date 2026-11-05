@@ -3094,6 +3094,9 @@ extern int ext4_init_inode_table(struct super_block *sb,
 void ext4_end_bitmap_read(struct bio *bio);
 
 /* fast_commit.c */
+int ext4_fc_get_buf(journal_t *journal, struct buffer_head **bh);
+void ext4_fc_submit_bh(struct super_block *sb, bool is_tail);
+int ext4_fc_issue_flush(struct block_device *bdev);
 int ext4_fc_info_show(struct seq_file *seq, void *v);
 void ext4_fc_init(struct super_block *sb, journal_t *journal);
 void ext4_fc_init_inode(struct inode *inode);
@@ -3120,6 +3123,38 @@ void ext4_fc_destroy_dentry_cache(void);
 int ext4_fc_record_regions(struct super_block *sb, int ino,
 			   ext4_lblk_t lblk, ext4_fsblk_t pblk,
 			   int len, int replay);
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+void ext4_fc_set_snap_err_test(int *snap_err, int err);
+bool ext4_fc_disabled_test(struct super_block *sb);
+bool ext4_fc_eligible_test(struct super_block *sb);
+void ext4_fc_snap_stats_update_max_test(atomic64_t *stat, u64 value);
+void ext4_fc_wake_inode_state_test(struct inode *inode, int bit);
+u8 *ext4_fc_reserve_space_test(struct super_block *sb, int len, u32 *crc);
+int ext4_fc_write_tail_test(struct super_block *sb, u32 crc);
+bool ext4_fc_add_tlv_test(struct super_block *sb, u16 tag, u16 len, u8 *val,
+			  u32 *crc);
+int ext4_fc_write_inode_test(struct inode *inode, u32 *crc);
+int ext4_fc_write_inode_data_test(struct inode *inode, u32 *crc);
+void ext4_fc_free_inode_snap_test(struct inode *inode);
+int ext4_fc_snapshot_inode_test(struct inode *inode,
+				unsigned int nr_ranges_total,
+				unsigned int *nr_rangesp, int *snap_err);
+unsigned int ext4_fc_count_snapshot_inodes_test(struct super_block *sb);
+int ext4_fc_alloc_snapshot_inodes_test(struct super_block *sb,
+				       struct inode ***inodesp,
+				       unsigned int *nr_inodesp);
+int ext4_fc_snapshot_inodes_test(journal_t *journal, struct inode **inodes,
+				 unsigned int inodes_size,
+				 unsigned int *nr_inodesp,
+				 unsigned int *nr_rangesp, int *snap_err);
+void ext4_fc_update_stats_test(struct super_block *sb, int status,
+			       u64 commit_time, int nblks, tid_t commit_tid);
+void ext4_fc_cleanup_test(journal_t *journal, int full, tid_t tid);
+int ext4_fc_record_modified_inode_test(struct super_block *sb, int ino);
+bool ext4_fc_value_len_isvalid_test(struct ext4_sb_info *sbi, int tag, int len);
+int ext4_fc_replay_test(journal_t *journal, struct buffer_head *bh,
+			enum passtype pass, int off, tid_t expected_tid);
+#endif
 
 /* mballoc.c */
 extern const struct seq_operations ext4_mb_seq_groups_ops;

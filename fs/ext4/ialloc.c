@@ -827,6 +827,8 @@ int ext4_mark_inode_used(struct super_block *sb, int ino)
 	int bit;
 	int err;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mark_inode_used, sb, ino);
+
 	if (ino < EXT4_FIRST_INO(sb) || ino > max_ino)
 		return -EFSCORRUPTED;
 
@@ -1701,4 +1703,5 @@ out:
 
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
 EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_new_inode);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mark_inode_used);
 #endif

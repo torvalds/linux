@@ -14,6 +14,7 @@
 
 #include <linux/lockdep.h>
 #include <linux/wait_bit.h>
+#include <kunit/static_stub.h>
 /*
  * Ext4 Fast Commits
  * -----------------
@@ -661,10 +662,24 @@ void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t star
 	trace_ext4_fc_track_range(handle, inode, start, end, ret);
 }
 
-static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
+int ext4_fc_get_buf(journal_t *journal, struct buffer_head **bh)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_fc_get_buf, journal, bh);
+	return jbd2_fc_get_buf(journal, bh);
+}
+
+int ext4_fc_issue_flush(struct block_device *bdev)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_fc_issue_flush, bdev);
+	return blkdev_issue_flush(bdev);
+}
+
+void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
 {
 	blk_opf_t write_flags = JBD2_JOURNAL_REQ_FLAGS;
 	struct buffer_head *bh = EXT4_SB(sb)->s_fc_bh;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_fc_submit_bh, sb, is_tail);
 
 	/* Add REQ_FUA | REQ_PREFLUSH only its tail */
 	if (test_opt(sb, BARRIER) && is_tail)
@@ -707,7 +722,7 @@ static u8 *ext4_fc_reserve_space(struct super_block *sb, int len, u32 *crc)
 		return NULL;
 
 	if (!sbi->s_fc_bh) {
-		ret = jbd2_fc_get_buf(EXT4_SB(sb)->s_journal, &bh);
+		ret = ext4_fc_get_buf(EXT4_SB(sb)->s_journal, &bh);
 		if (ret)
 			return NULL;
 		sbi->s_fc_bh = bh;
@@ -737,7 +752,7 @@ static u8 *ext4_fc_reserve_space(struct super_block *sb, int len, u32 *crc)
 
 	ext4_fc_submit_bh(sb, false);
 
-	ret = jbd2_fc_get_buf(EXT4_SB(sb)->s_journal, &bh);
+	ret = ext4_fc_get_buf(EXT4_SB(sb)->s_journal, &bh);
 	if (ret)
 		return NULL;
 	sbi->s_fc_bh = bh;
@@ -1427,7 +1442,7 @@ static int ext4_fc_perform_commit(journal_t *journal, tid_t commit_tid)
 	 */
 	if (journal->j_fs_dev != journal->j_dev &&
 	    journal->j_flags & JBD2_BARRIER) {
-		ret = blkdev_issue_flush(journal->j_fs_dev);
+		ret = ext4_fc_issue_flush(journal->j_fs_dev);
 		if (ret)
 			return ret;
 	}
@@ -2026,7 +2041,7 @@ out_brelse:
 out:
 	iput(inode);
 	if (!ret)
-		blkdev_issue_flush(sb->s_bdev);
+		ext4_fc_issue_flush(sb->s_bdev);
 
 	return ret;
 }
@@ -2789,3 +2804,158 @@ void ext4_fc_destroy_dentry_cache(void)
 	kmem_cache_destroy(ext4_fc_range_cachep);
 	kmem_cache_destroy(ext4_fc_dentry_cachep);
 }
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+void ext4_fc_set_snap_err_test(int *snap_err, int err)
+{
+	ext4_fc_set_snap_err(snap_err, err);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_set_snap_err_test);
+
+bool ext4_fc_disabled_test(struct super_block *sb)
+{
+	return ext4_fc_disabled(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_disabled_test);
+
+bool ext4_fc_eligible_test(struct super_block *sb)
+{
+	return ext4_fc_eligible(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_eligible_test);
+
+void ext4_fc_snap_stats_update_max_test(atomic64_t *stat, u64 value)
+{
+	ext4_fc_snap_stats_update_max(stat, value);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_snap_stats_update_max_test);
+
+void ext4_fc_wake_inode_state_test(struct inode *inode, int bit)
+{
+	ext4_fc_wake_inode_state(inode, bit);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_wake_inode_state_test);
+
+u8 *ext4_fc_reserve_space_test(struct super_block *sb, int len, u32 *crc)
+{
+	return ext4_fc_reserve_space(sb, len, crc);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_reserve_space_test);
+
+int ext4_fc_write_tail_test(struct super_block *sb, u32 crc)
+{
+	return ext4_fc_write_tail(sb, crc);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_write_tail_test);
+
+bool ext4_fc_add_tlv_test(struct super_block *sb, u16 tag, u16 len, u8 *val,
+			  u32 *crc)
+{
+	return ext4_fc_add_tlv(sb, tag, len, val, crc);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_add_tlv_test);
+
+int ext4_fc_write_inode_test(struct inode *inode, u32 *crc)
+{
+	return ext4_fc_write_inode(inode, crc);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_write_inode_test);
+
+int ext4_fc_write_inode_data_test(struct inode *inode, u32 *crc)
+{
+	return ext4_fc_write_inode_data(inode, crc);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_write_inode_data_test);
+
+void ext4_fc_free_inode_snap_test(struct inode *inode)
+{
+	ext4_fc_free_inode_snap(inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_free_inode_snap_test);
+
+int ext4_fc_snapshot_inode_test(struct inode *inode,
+				unsigned int nr_ranges_total,
+				unsigned int *nr_rangesp, int *snap_err)
+{
+	return ext4_fc_snapshot_inode(inode, nr_ranges_total, nr_rangesp,
+				      snap_err);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_snapshot_inode_test);
+
+unsigned int ext4_fc_count_snapshot_inodes_test(struct super_block *sb)
+{
+	return ext4_fc_count_snapshot_inodes(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_count_snapshot_inodes_test);
+
+int ext4_fc_alloc_snapshot_inodes_test(struct super_block *sb,
+				       struct inode ***inodesp,
+				       unsigned int *nr_inodesp)
+{
+	return ext4_fc_alloc_snapshot_inodes(sb, inodesp, nr_inodesp);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_alloc_snapshot_inodes_test);
+
+int ext4_fc_snapshot_inodes_test(journal_t *journal, struct inode **inodes,
+				 unsigned int inodes_size,
+				 unsigned int *nr_inodesp,
+				 unsigned int *nr_rangesp, int *snap_err)
+{
+	return ext4_fc_snapshot_inodes(journal, inodes, inodes_size,
+				       nr_inodesp, nr_rangesp, snap_err);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_snapshot_inodes_test);
+
+void ext4_fc_update_stats_test(struct super_block *sb, int status,
+			       u64 commit_time, int nblks, tid_t commit_tid)
+{
+	ext4_fc_update_stats(sb, status, commit_time, nblks, commit_tid);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_update_stats_test);
+
+void ext4_fc_cleanup_test(journal_t *journal, int full, tid_t tid)
+{
+	ext4_fc_cleanup(journal, full, tid);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_cleanup_test);
+
+int ext4_fc_record_modified_inode_test(struct super_block *sb, int ino)
+{
+	return ext4_fc_record_modified_inode(sb, ino);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_record_modified_inode_test);
+
+bool ext4_fc_value_len_isvalid_test(struct ext4_sb_info *sbi, int tag, int len)
+{
+	return ext4_fc_value_len_isvalid(sbi, tag, len);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_value_len_isvalid_test);
+
+int ext4_fc_replay_test(journal_t *journal, struct buffer_head *bh,
+			enum passtype pass, int off, tid_t expected_tid)
+{
+	return ext4_fc_replay(journal, bh, pass, off, expected_tid);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_replay_test);
+
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_get_buf);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_submit_bh);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_issue_flush);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_init_inode);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_del);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_mark_ineligible);
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_fc_track_unlink);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_track_unlink);
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_fc_track_link);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_track_link);
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_fc_track_create);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_track_create);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_track_inode);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_track_range);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_commit);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_record_regions);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_replay_check_excluded);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_replay_cleanup);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_init);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_info_show);
+#endif

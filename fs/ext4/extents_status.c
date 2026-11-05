@@ -1099,6 +1099,9 @@ int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 	struct rb_node *node;
 	int found = 0;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_es_lookup_extent, inode, lblk,
+				   next_lblk, es, pseq);
+
 	if (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 		return 0;
 

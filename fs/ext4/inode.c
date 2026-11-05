@@ -5959,6 +5959,8 @@ int ext4_get_inode_loc_noio(struct inode *inode, struct ext4_iloc *iloc)
 	int inodes_per_block, inode_offset;
 	unsigned long ino = inode->i_ino;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_get_inode_loc_noio, inode, iloc);
+
 	iloc->bh = NULL;
 	if (ino < EXT4_ROOT_INO ||
 	    ino > le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count))
@@ -6000,6 +6002,8 @@ int ext4_get_inode_loc_noio(struct inode *inode, struct ext4_iloc *iloc)
 int ext4_get_fc_inode_loc(struct super_block *sb, unsigned long ino,
 			  struct ext4_iloc *iloc)
 {
+	KUNIT_STATIC_STUB_REDIRECT(ext4_get_fc_inode_loc, sb, ino, iloc);
+
 	return __ext4_get_inode_loc(sb, ino, NULL, iloc, NULL);
 }
 
@@ -8023,6 +8027,8 @@ out:
 }
 
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_inode_loc_noio);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_fc_inode_loc);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_get_block_prep);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_update_reserve_space);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_release_space);

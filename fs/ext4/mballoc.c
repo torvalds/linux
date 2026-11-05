@@ -4269,6 +4269,8 @@ void ext4_mb_mark_bb(struct super_block *sb, ext4_fsblk_t block,
 	int err = 0;
 	unsigned int clen, thisgrp_len;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mb_mark_bb, sb, block, len, state);
+
 	while (len > 0) {
 		ext4_get_group_no_and_offset(sb, block, &group, &blkoff);
 
@@ -7439,7 +7441,6 @@ EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_group_number);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_release);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_block_bitmap_nowait);
 EXPORT_SYMBOL_FOR_EXT4_TEST(mb_set_bits);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_init_inode);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_mark_context);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_new_blocks);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_blocks);
