@@ -381,6 +381,8 @@ static int __init cma_fixed_reserve(phys_addr_t base, phys_addr_t size)
 		return -EBUSY;
 	}
 
+	accept_memory(base, size);
+
 	return 0;
 }
 
@@ -677,6 +679,8 @@ int __init cma_declare_contiguous_multi(phys_addr_t total_size,
 			failed = mlp;
 			break;
 		}
+
+		accept_memory(mlp->base, size);
 
 		pr_debug("created region %d: %016llx - %016llx\n",
 		    nr, (u64)mlp->base, (u64)mlp->base + size);
