@@ -1002,9 +1002,10 @@ static void unoptimize_kprobe(struct kprobe *p, bool force)
 				 * for cooling down (or freeing if unused).
 				 */
 				force_unoptimize_kprobe(op);
+				/* Disarm probes if marked disabled and not gone */
+				if (kprobe_disabled(&op->kp) && !kprobe_gone(&op->kp))
+					arch_disarm_kprobe(&op->kp);
 				if (kprobe_unused(&op->kp)) {
-					if (!kprobe_gone(&op->kp))
-						arch_disarm_kprobe(&op->kp);
 					hlist_del_init_rcu(&op->kp.hlist);
 					list_move(&op->list, &cur->freeing_list);
 				} else {
