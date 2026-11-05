@@ -3427,7 +3427,7 @@ int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 			goto suppress_allocation;
 	}
 
-	if (!allocated)
+	if (sk->sk_bypass_prot_mem)
 		return 1;
 
 	/* Under limit. */
@@ -3508,7 +3508,7 @@ suppress_allocation:
 
 	trace_sock_exceed_buf_limit(sk, prot, allocated, kind);
 
-	if (allocated)
+	if (!sk->sk_bypass_prot_mem)
 		sk_memory_allocated_sub(sk, amt);
 
 	if (charged)
