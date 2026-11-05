@@ -122,6 +122,12 @@ alternative_if ARM64_HAS_S1POE
 	mrs	x2, REG_POR_EL0
 	str	x2, [x0, #120]
 alternative_else_nop_endif
+alternative_if ARM64_HAS_GCS
+	mrs	x2, REG_GCSPR_EL0
+	str	x2, [x0, #128]
+	mrs	x2, REG_GCSCRE0_EL1
+	str	x2, [x0, #136]
+alternative_else_nop_endif
 	ret
 SYM_FUNC_END(cpu_do_suspend)
 
@@ -167,6 +173,12 @@ alternative_else_nop_endif
 alternative_if ARM64_HAS_S1POE
 	ldr	x2, [x0, #120]
 	msr	REG_POR_EL0, x2
+alternative_else_nop_endif
+alternative_if ARM64_HAS_GCS
+	ldr	x2, [x0, #128]
+	msr	REG_GCSPR_EL0, x2
+	ldr	x2, [x0, #136]
+	msr	REG_GCSCRE0_EL1, x2
 alternative_else_nop_endif
 
 	msr	sctlr_el1, x12
