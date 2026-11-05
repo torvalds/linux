@@ -418,6 +418,9 @@ void ext4_da_update_reserve_space(struct inode *inode,
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_da_update_reserve_space,
+				   inode, used, quota_claim);
+
 	spin_lock(&ei->i_block_reservation_lock);
 	trace_ext4_da_update_reserve_space(inode, used, quota_claim);
 	if (unlikely(used > ei->i_reserved_data_blocks)) {
@@ -1785,6 +1788,8 @@ void ext4_da_release_space(struct inode *inode, int to_free)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_da_release_space, inode, to_free);
 
 	if (!to_free)
 		return;		/* Nothing to release, exit */
@@ -7994,3 +7999,8 @@ out:
 	sb_end_pagefault(inode->i_sb);
 	return ret;
 }
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_update_reserve_space);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_release_space);
+#endif

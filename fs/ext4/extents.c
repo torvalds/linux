@@ -6526,13 +6526,7 @@ EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_split_convert_extents_test);
 
 EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_ext_dirty);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_zeroout);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_register_shrinker);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_unregister_shrinker);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_destroy_stats);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_map_create_blocks);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_init_tree);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_lookup_extent);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_insert_extent);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_insert_extent);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_find_extent);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_issue_zeroout);
