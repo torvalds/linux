@@ -8889,7 +8889,6 @@ X:	drivers/gpu/drm/amd/
 X:	drivers/gpu/drm/etnaviv/
 X:	drivers/gpu/drm/exynos/
 X:	drivers/gpu/drm/i915/
-X:	drivers/gpu/drm/kmb/
 X:	drivers/gpu/drm/mediatek/
 X:	drivers/gpu/drm/msm/
 X:	drivers/gpu/drm/nova/
