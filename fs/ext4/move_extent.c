@@ -667,3 +667,8 @@ out:
 	unlock_two_nondirectories(orig_inode, donor_inode);
 	return ret;
 }
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_double_down_write_data_sem);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_double_up_write_data_sem);
+#endif

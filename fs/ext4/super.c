@@ -1170,6 +1170,7 @@ void ext4_update_dynamic_rev(struct super_block *sb)
 	 * can leave it up to e2fsck to clean up any inconsistencies there.
 	 */
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_update_dynamic_rev);
 
 static inline struct inode *orphan_list_entry(struct list_head *l)
 {

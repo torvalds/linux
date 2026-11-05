@@ -547,6 +547,13 @@ static void ext4_cache_extents(struct inode *inode,
 	}
 }
 
+struct buffer_head *ext4_ext_getblk(struct inode *inode, ext4_fsblk_t pblk,
+				    gfp_t gfp_flags)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_ext_getblk, inode, pblk, gfp_flags);
+	return sb_getblk_gfp(inode->i_sb, pblk, gfp_flags);
+}
+
 static struct buffer_head *
 __read_extent_tree_block(const char *function, unsigned int line,
 			 struct inode *inode, struct ext4_extent_idx *idx,
@@ -561,7 +568,7 @@ __read_extent_tree_block(const char *function, unsigned int line,
 		gfp_flags |= __GFP_NOFAIL;
 
 	pblk = ext4_idx_pblock(idx);
-	bh = sb_getblk_gfp(inode->i_sb, pblk, gfp_flags);
+	bh = ext4_ext_getblk(inode, pblk, gfp_flags);
 	if (unlikely(!bh))
 		return ERR_PTR(-ENOMEM);
 
@@ -1133,7 +1140,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		err = -EFSCORRUPTED;
 		goto cleanup;
 	}
-	bh = sb_getblk_gfp(inode->i_sb, newblock, __GFP_MOVABLE | GFP_NOFS);
+	bh = ext4_ext_getblk(inode, newblock, __GFP_MOVABLE | GFP_NOFS);
 	if (unlikely(!bh)) {
 		err = -ENOMEM;
 		goto cleanup;
@@ -1212,7 +1219,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	while (k--) {
 		oldblock = newblock;
 		newblock = ablocks[--a];
-		bh = sb_getblk(inode->i_sb, newblock);
+		bh = ext4_ext_getblk(inode, newblock, __GFP_MOVABLE | GFP_NOFS);
 		if (unlikely(!bh)) {
 			err = -ENOMEM;
 			goto cleanup;
@@ -1341,7 +1348,7 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 	if (newblock == 0)
 		return err;
 
-	bh = sb_getblk_gfp(inode->i_sb, newblock, __GFP_MOVABLE | GFP_NOFS);
+	bh = ext4_ext_getblk(inode, newblock, __GFP_MOVABLE | GFP_NOFS);
 	if (unlikely(!bh))
 		return -ENOMEM;
 	lock_buffer(bh);
@@ -6524,11 +6531,79 @@ struct ext4_ext_path *ext4_split_convert_extents_test(handle_t *handle,
 }
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_split_convert_extents_test);
 
+int ext4_ext_check_test(struct inode *inode, struct ext4_extent_header *eh,
+			int depth, ext4_fsblk_t pblk, ext4_lblk_t lblk)
+{
+	return __ext4_ext_check(__func__, __LINE__, inode, eh, depth, pblk,
+				lblk);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_check_test);
+
+void ext4_extent_block_csum_set_test(struct inode *inode,
+				     struct ext4_extent_header *eh)
+{
+	ext4_extent_block_csum_set(inode, eh);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_extent_block_csum_set_test);
+
+int ext4_can_extents_be_merged_test(struct inode *inode,
+				    struct ext4_extent *ex1,
+				    struct ext4_extent *ex2)
+{
+	return ext4_can_extents_be_merged(inode, ex1, ex2);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_can_extents_be_merged_test);
+
+int ext4_ext_search_left_test(struct inode *inode, struct ext4_ext_path *path,
+			      ext4_lblk_t *logical, ext4_fsblk_t *phys)
+{
+	return ext4_ext_search_left(inode, path, logical, phys);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_search_left_test);
+
+int ext4_ext_search_right_test(struct inode *inode, struct ext4_ext_path *path,
+			       ext4_lblk_t *logical, ext4_fsblk_t *phys,
+			       struct ext4_extent *ret_ex, int flags)
+{
+	return ext4_ext_search_right(inode, path, logical, phys, ret_ex, flags);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_search_right_test);
+
+ext4_lblk_t ext4_ext_next_leaf_block_test(struct ext4_ext_path *path)
+{
+	return ext4_ext_next_leaf_block(path);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_next_leaf_block_test);
+
+int ext4_ext_shift_extents_test(struct inode *inode, handle_t *handle,
+				ext4_lblk_t start, ext4_lblk_t shift,
+				enum SHIFT_DIRECTION direction)
+{
+	return ext4_ext_shift_extents(inode, handle, start, shift, direction);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_shift_extents_test);
+
 EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_ext_dirty);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_getblk);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_zeroout);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_map_create_blocks);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_insert_extent);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_find_extent);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_issue_zeroout);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_map_query_blocks);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_ext_path);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_tree_init);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_check_inode);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_precache);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_next_allocated_block);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_calc_credits_for_single_extent);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_index_trans_blocks);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_remove_space);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_truncate);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_map_blocks);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_swap_extents);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_clu_mapped);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_replay_update_ex);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_replay_shrink_inode);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_replay_set_iblocks);
 #endif

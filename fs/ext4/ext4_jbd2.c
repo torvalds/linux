@@ -4,6 +4,7 @@
  */
 
 #include "ext4_jbd2.h"
+#include <kunit/static_stub.h>
 
 #include <trace/events/ext4.h>
 
@@ -383,6 +384,9 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 {
 	int err = 0;
 
+	KUNIT_STATIC_STUB_REDIRECT(__ext4_handle_dirty_metadata, where, line,
+				   handle, inode, bh);
+
 	might_sleep();
 
 	set_buffer_meta(bh);
@@ -435,3 +439,7 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 	}
 	return err;
 }
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_handle_dirty_metadata);
+#endif

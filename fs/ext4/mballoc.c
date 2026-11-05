@@ -6239,6 +6239,8 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	int retries = 0;
 	u64 seq;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mb_new_blocks, handle, ar, errp);
+
 	might_sleep();
 	sb = ar->inode->i_sb;
 	sbi = EXT4_SB(sb);
@@ -6696,6 +6698,9 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	struct super_block *sb = inode->i_sb;
 	unsigned int overflow;
 	struct ext4_sb_info *sbi;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_free_blocks, handle, inode, bh, block,
+				   count, flags);
 
 	sbi = EXT4_SB(sb);
 
@@ -7281,4 +7286,6 @@ EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_block_bitmap_nowait);
 EXPORT_SYMBOL_FOR_EXT4_TEST(mb_set_bits);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_init_inode);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_mark_context);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_new_blocks);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_blocks);
 #endif
