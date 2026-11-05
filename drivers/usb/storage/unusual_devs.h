@@ -1168,6 +1168,25 @@ UNUSUAL_DEV( 0x07cf, 0x1167, 0x0100, 0x0100,
 		"EX-N1 DigitalCamera",
 		USB_SC_8070, USB_PR_DEVICE, NULL, 0),
 
+/*
+ * CASIO calculators using UMS for "USB Key" mode always
+ * reports non-zero residue when the transfer length is larger
+ * than 4096 bytes.
+ *
+ * Reported by Thomas Touhey <thomas@touhey.fr>
+ * and augmented by 0v0katai <0v0katai@gmail.com>
+ */
+UNUSUAL_DEV( 0x07cf, 0x6102, 0x0100, 0x0100,
+	     "Casio",
+	     "fx-CP400",
+	     USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+	     US_FL_IGNORE_RESIDUE ),
+UNUSUAL_DEV( 0x07cf, 0x6103, 0x0100, 0x0100,
+	     "Casio",
+	     "fx-CG50",
+	     USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+	     US_FL_IGNORE_RESIDUE ),
+
 /* Submitted by Hartmut Wahl <hwahl@hwahl.de>*/
 UNUSUAL_DEV( 0x0839, 0x000a, 0x0001, 0x0001,
 		"Samsung",
