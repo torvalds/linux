@@ -48,3 +48,7 @@ const struct xattr_handler ext4_xattr_user_handler = {
 	.get	= ext4_xattr_user_get,
 	.set	= ext4_xattr_user_set,
 };
+
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_xattr_user_handler);
+#endif

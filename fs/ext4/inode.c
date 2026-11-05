@@ -796,6 +796,8 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	memcpy(&orig_map, map, sizeof(*map));
 #endif
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_map_blocks, handle, inode, map, flags);
+
 	map->m_flags = 0;
 	ext_debug(inode, "flag 0x%x, max_blocks %u, logical block %lu\n",
 		  flags, map->m_len, (unsigned long) map->m_lblk);
@@ -996,6 +998,7 @@ out:
 
 	return ret ? ret : retval;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_map_blocks);
 
 /*
  * Update EXT4_MAP_FLAGS in bh->b_state. For buffer heads attached to pages
@@ -1121,6 +1124,9 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	bool nowait = map_flags & EXT4_GET_BLOCKS_CACHED_NOWAIT;
 	int err;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_getblk, handle, inode, block,
+				   map_flags);
+
 	ASSERT((EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 		    || handle != NULL || create == 0);
 	ASSERT(create == 0 || !nowait);
@@ -1183,6 +1189,7 @@ errout:
 	brelse(bh);
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_getblk);
 
 struct buffer_head *ext4_bread(handle_t *handle, struct inode *inode,
 			       ext4_lblk_t block, int map_flags)
@@ -5922,6 +5929,8 @@ int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc)
 	ext4_fsblk_t err_blk = 0;
 	int ret;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_get_inode_loc, inode, iloc);
+
 	ret = __ext4_get_inode_loc(inode->i_sb, inode->i_ino, inode, iloc,
 					&err_blk);
 
@@ -5931,6 +5940,7 @@ int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc)
 
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_inode_loc);
 
 /*
  * ext4_get_inode_loc_noio() is a best-effort variant of ext4_get_inode_loc().
@@ -6287,6 +6297,8 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 	uid_t i_uid;
 	gid_t i_gid;
 	projid_t i_projid;
+
+	KUNIT_STATIC_STUB_REDIRECT(__ext4_iget, sb, ino, flags, function, line);
 
 	if ((!(flags & EXT4_IGET_SPECIAL) && is_special_ino(sb, ino)) ||
 	    (ino < EXT4_ROOT_INO) ||
@@ -6663,6 +6675,7 @@ bad_inode:
 	iget_failed(inode);
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_iget);
 
 static void __ext4_update_other_inode_time(struct super_block *sb,
 					   unsigned long orig_ino,
@@ -7455,6 +7468,8 @@ int ext4_mark_iloc_dirty(handle_t *handle,
 	struct super_block *sb = inode->i_sb;
 	int err = 0;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mark_iloc_dirty, handle, inode, iloc);
+
 	err = ext4_emergency_state(sb);
 	if (unlikely(err)) {
 		put_bh(iloc->bh);
@@ -7488,6 +7503,7 @@ int ext4_mark_iloc_dirty(handle_t *handle,
 	}
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mark_iloc_dirty);
 
 /*
  * On success, We end up with an outstanding reference count against
@@ -8007,5 +8023,4 @@ out:
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_update_reserve_space);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_release_space);
 EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_mark_inode_dirty);
-EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_map_blocks);
 #endif

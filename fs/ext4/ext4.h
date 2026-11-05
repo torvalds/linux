@@ -4160,6 +4160,8 @@ extern int ext4_block_write_begin(handle_t *handle, struct folio *folio,
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
 #define EXPORT_SYMBOL_FOR_EXT4_TEST(sym) \
 	EXPORT_SYMBOL_FOR_MODULES(sym, "ext4-test")
+#else
+#define EXPORT_SYMBOL_FOR_EXT4_TEST(sym)
 #endif
 #endif	/* __KERNEL__ */
 
