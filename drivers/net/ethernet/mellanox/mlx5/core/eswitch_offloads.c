@@ -4365,7 +4365,7 @@ static int esw_inline_mode_to_devlink(u8 mlx5_mode, u8 *mode)
 	return 0;
 }
 
-int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev)
+int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev, bool check_users)
 {
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	int err;
@@ -4373,8 +4373,11 @@ int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev)
 	if (!mlx5_esw_allowed(esw))
 		return 0;
 
-	/* Take TC into account */
-	err = mlx5_esw_try_lock(esw);
+	/* Temporary reservations may reuse tables while TC users exist. */
+	if (check_users)
+		err = mlx5_esw_try_lock(esw);
+	else
+		err = mlx5_esw_lock(esw);
 	if (err < 0)
 		return err;
 
