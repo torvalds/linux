@@ -2863,12 +2863,16 @@ int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state)
 }
 EXPORT_SYMBOL_GPL(cpufreq_boost_set_sw);
 
+static DEFINE_MUTEX(cpufreq_boost_mutex);
+
 static int cpufreq_boost_trigger_state(int state)
 {
 	struct cpufreq_policy *policy;
 	unsigned long flags;
 	bool boost_enabled;
 	int ret = -EOPNOTSUPP;
+
+	guard(mutex)(&cpufreq_boost_mutex);
 
 	/*
 	 * Don't compare 'cpufreq_driver->boost_enabled' with 'state' here to
