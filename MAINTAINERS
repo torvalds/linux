@@ -8944,6 +8944,7 @@ F:	drivers/gpu/drm/atmel-hlcdc/
 
 DRM DRIVERS FOR BRIDGE CHIPS
 M:	Neil Armstrong <neil.armstrong@linaro.org>
+M:	Dmitry Baryshkov <lumag@kernel.org>
 M:	Robert Foss <rfoss@kernel.org>
 R:	Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
 R:	Jernej Skrabec <jernej.skrabec@gmail.com>
