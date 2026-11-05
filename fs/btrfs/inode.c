@@ -120,8 +120,7 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback);
 
 static noinline int run_delalloc_cow(struct btrfs_inode *inode,
 				     struct folio *locked_folio, u64 start,
-				     u64 end, struct writeback_control *wbc,
-				     bool pages_dirty);
+				     u64 end, struct writeback_control *wbc);
 
 static int data_reloc_print_warning_inode(u64 inum, u64 offset, u64 num_bytes,
 					  u64 root, void *warn_ctx)
@@ -776,33 +775,29 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
 		btrfs_add_inode_defrag(inode, small_write);
 }
 
-static int extent_range_clear_dirty_for_io(struct btrfs_inode *inode, u64 start, u64 end)
+static void extent_range_check_write_protected(struct btrfs_inode *inode, u64 start, u64 end)
 {
 	pgoff_t index = start >> PAGE_SHIFT;
 	const pgoff_t end_index = end >> PAGE_SHIFT;
 	struct folio *folio;
-	int ret = 0;
+
+	if (!IS_ENABLED(CONFIG_BTRFS_DEBUG))
+		return;
 
 	while (index <= end_index) {
 		folio = filemap_get_folio(inode->vfs_inode.i_mapping, index);
+		/* Compression should have all involved folios still locked. */
 		if (IS_ERR(folio)) {
-			if (!ret)
-				ret = PTR_ERR(folio);
+			DEBUG_WARN(
+"missing a folio inside the compression range, index %lu start %llu end %llu",
+				   index, start, end);
 			index++;
 			continue;
 		}
-		/*
-		 * We are about to compress the folio, so it must not be mmap
-		 * writeable or we could corrupt the data as we attempt to
-		 * compress it.
-		 */
 		btrfs_check_folio_write_protected(folio);
-		btrfs_folio_clamp_clear_dirty(inode->root->fs_info, folio, start,
-					      end + 1 - start);
 		index = folio_next_index(folio);
 		folio_put(folio);
 	}
-	return ret;
 }
 
 static struct folio *compressed_bio_last_folio(struct compressed_bio *cb)
@@ -889,16 +884,7 @@ static void compress_file_range(struct btrfs_work *work)
 
 	inode_should_defrag(inode, start, end, end - start + 1, SZ_16K);
 
-	ret = extent_range_clear_dirty_for_io(inode, start, end);
-
-	/*
-	 * All the folios should have been locked thus no failure.
-	 *
-	 * And even if some folios are missing, btrfs_compress_bio()
-	 * would handle them correctly, so here just do an ASSERT() check for
-	 * early logic errors.
-	 */
-	ASSERT(ret == 0);
+	extent_range_check_write_protected(inode, start, end);
 
 	/*
 	 * We need to save i_size before now because it could change in between
@@ -1014,8 +1000,7 @@ static void submit_uncompressed_range(struct btrfs_inode *inode,
 	};
 
 	wbc_attach_fdatawrite_inode(&wbc, &inode->vfs_inode);
-	ret = run_delalloc_cow(inode, locked_folio, start, end,
-			       &wbc, false);
+	ret = run_delalloc_cow(inode, locked_folio, start, end, &wbc);
 	wbc_detach_inode(&wbc);
 	if (ret < 0) {
 		if (locked_folio)
@@ -1660,8 +1645,7 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
  */
 static noinline int run_delalloc_cow(struct btrfs_inode *inode,
 				     struct folio *locked_folio, u64 start,
-				     u64 end, struct writeback_control *wbc,
-				     bool pages_dirty)
+				     u64 end, struct writeback_control *wbc)
 {
 	u64 done_offset = end;
 	int ret;
@@ -1672,7 +1656,7 @@ static noinline int run_delalloc_cow(struct btrfs_inode *inode,
 		if (ret)
 			return ret;
 		extent_write_locked_range(&inode->vfs_inode, locked_folio,
-					  start, done_offset, wbc, pages_dirty);
+					  start, done_offset, wbc);
 		start = done_offset + 1;
 	}
 
@@ -2454,7 +2438,7 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct folio *locked_fol
 		return 1;
 
 	if (zoned)
-		return run_delalloc_cow(inode, locked_folio, start, end, wbc, true);
+		return run_delalloc_cow(inode, locked_folio, start, end, wbc);
 	else
 		return cow_file_range(inode, locked_folio, start, end, NULL, 0);
 }
