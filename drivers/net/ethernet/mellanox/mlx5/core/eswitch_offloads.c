@@ -2457,8 +2457,8 @@ void mlx5_esw_reps_unblock(struct mlx5_eswitch *esw)
 
 static void esw_mode_change(struct mlx5_eswitch *esw, u16 mode)
 {
+	mlx5_devcom_comp_assert_locked(esw->dev->priv.hca_devcom_comp);
 	mlx5_esw_reps_unblock(esw);
-	mlx5_devcom_comp_lock(esw->dev->priv.hca_devcom_comp);
 	if (esw->dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_IB_ADEV ||
 	    mlx5_core_mp_enabled(esw->dev)) {
 		esw->mode = mode;
@@ -2471,7 +2471,6 @@ static void esw_mode_change(struct mlx5_eswitch *esw, u16 mode)
 	esw->dev->priv.flags &= ~MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
 out:
 	mlx5_rescan_drivers_locked(esw->dev);
-	mlx5_devcom_comp_unlock(esw->dev->priv.hca_devcom_comp);
 	mlx5_esw_reps_block(esw);
 }
 
@@ -4508,10 +4507,11 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		return 0;
 
 	mlx5_lag_disable_change(esw->dev);
+	mlx5_devcom_comp_lock(esw->dev->priv.hca_devcom_comp);
 	err = mlx5_esw_try_lock(esw);
 	if (err < 0) {
 		NL_SET_ERR_MSG_MOD(extack, "Can't change mode, E-Switch is busy");
-		goto enable_lag;
+		goto unlock_hca;
 	}
 	cur_mlx5_mode = err;
 	err = 0;
@@ -4574,7 +4574,8 @@ skip:
 	esw->eswitch_operation_in_progress = false;
 unlock:
 	mlx5_esw_unlock(esw);
-enable_lag:
+unlock_hca:
+	mlx5_devcom_comp_unlock(esw->dev->priv.hca_devcom_comp);
 	mlx5_lag_enable_change(esw->dev);
 	/* Shared FDB activation is creating LAG which is changing reps. */
 	if (!err)
