@@ -1034,7 +1034,8 @@ static int printer_func_setup(struct usb_function *f,
 				value = 0;
 				break;
 			}
-			value = strlen(*dev->pnp_string);
+			value = min_t(int, strlen(*dev->pnp_string),
+				      USB_COMP_EP0_BUFSIZ - 2);
 			buf[0] = (value >> 8) & 0xFF;
 			buf[1] = value & 0xFF;
 			memcpy(buf + 2, *dev->pnp_string, value);
