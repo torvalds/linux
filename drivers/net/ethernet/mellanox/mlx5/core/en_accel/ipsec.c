@@ -812,7 +812,10 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 
 	if (x->props.mode == XFRM_MODE_TUNNEL &&
 	    x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
-		allow_tunnel_mode = mlx5e_ipsec_fs_tunnel_allowed(sa_entry);
+		err = mlx5e_ipsec_fs_tunnel_allowed(sa_entry);
+		if (err < 0)
+			goto unblock_mode;
+		allow_tunnel_mode = err;
 		if (!allow_tunnel_mode) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Packet offload tunnel mode is disabled due to encap settings");

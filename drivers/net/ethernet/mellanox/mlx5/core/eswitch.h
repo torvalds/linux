@@ -967,7 +967,7 @@ void mlx5_eswitch_unload_reps(struct mlx5_eswitch *esw);
 bool mlx5_eswitch_is_peer(struct mlx5_eswitch *esw,
 			  struct mlx5_eswitch *peer_esw);
 
-bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev, bool from_fdb);
+int mlx5_eswitch_block_encap(struct mlx5_core_dev *dev, bool from_fdb);
 void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev);
 
 int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev);
@@ -1071,10 +1071,10 @@ mlx5_eswitch_reload_ib_reps(struct mlx5_eswitch *esw)
 static inline void
 mlx5_eswitch_unload_reps(struct mlx5_eswitch *esw) {}
 
-static inline bool
+static inline int
 mlx5_eswitch_block_encap(struct mlx5_core_dev *dev, bool from_fdb)
 {
-	return true;
+	return 1;
 }
 
 static inline void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev)
