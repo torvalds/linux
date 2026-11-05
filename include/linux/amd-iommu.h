@@ -76,15 +76,4 @@ static inline int amd_iommu_snp_disable(void) { return 0; }
 static inline bool amd_iommu_sev_tio_supported(void) { return false; }
 #endif
 
-#ifdef CONFIG_AMD_IOMMU
-int amd_iommu_enable_perfopt(struct pci_dev *pdev);
-void amd_iommu_disable_perfopt(struct pci_dev *pdev);
-#else
-static inline int amd_iommu_enable_perfopt(struct pci_dev *pdev)
-{
-	return 0;
-}
-static inline void amd_iommu_disable_perfopt(struct pci_dev *pdev) { }
-#endif
-
 #endif /* _ASM_X86_AMD_IOMMU_H */

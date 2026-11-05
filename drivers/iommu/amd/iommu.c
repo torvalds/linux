@@ -11,6 +11,7 @@
 #include <linux/ratelimit.h>
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 #include <linux/pci-ats.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
@@ -2368,7 +2369,7 @@ static int attach_device(struct device *dev,
 	if (ret)
 		goto out;
 
-	if (dev_data->perfopt)
+	if (dev_data->perfopt && pdom_is_in_pt_mode(domain))
 		goto skip_caps;
 
 	/* Setup GCR3 table */
@@ -2510,192 +2511,6 @@ static int iommu_init_device_caps(struct iommu_dev_data *dev_data,
 	return 0;
 }
 
-/* Program the per-IOMMU PerfOpt enable bit. Caller must hold iommu->lock. */
-static int __perfopt_write(struct amd_iommu *iommu, bool enable)
-{
-	u32 old, val, readback;
-
-	if (!(readq(iommu->mmio_base + MMIO_EXT_FEATURES) & FEATURE_PERF_OPT))
-		return enable ? -ENODEV : 0;
-
-	old = readl(iommu->mmio_base + MMIO_PERF_OPT_OFFSET);
-	if (old == U32_MAX)
-		return -EIO;
-
-	val = enable ? old | PERF_OPT_EN : old & ~PERF_OPT_EN;
-	if (val != old)
-		writel(val, iommu->mmio_base + MMIO_PERF_OPT_OFFSET);
-	readback = readl(iommu->mmio_base + MMIO_PERF_OPT_OFFSET);
-	if (readback == U32_MAX ||
-	    (readback & PERF_OPT_EN) != (val & PERF_OPT_EN))
-		return -EIO;
-	return 0;
-}
-
-/*
- * PERF_OPT_EN is a single bit shared by every device behind @iommu, so it is
- * reference counted: armed on the first requesting device, cleared on the last.
- */
-static int perfopt_get(struct amd_iommu *iommu)
-{
-	unsigned long flags;
-	int ret = 0;
-
-	if (!iommu->mmio_base)
-		return 0;
-
-	raw_spin_lock_irqsave(&iommu->lock, flags);
-	if (iommu->perfopt_refcount == 0) {
-		ret = __perfopt_write(iommu, true);
-		if (ret)
-			goto out;
-	}
-	iommu->perfopt_refcount++;
-out:
-	raw_spin_unlock_irqrestore(&iommu->lock, flags);
-	return ret;
-}
-
-static int perfopt_put(struct amd_iommu *iommu)
-{
-	unsigned long flags;
-	int ret = 0;
-
-	if (!iommu->mmio_base)
-		return 0;
-
-	raw_spin_lock_irqsave(&iommu->lock, flags);
-	if (iommu->perfopt_refcount > 0 && --iommu->perfopt_refcount == 0)
-		ret = __perfopt_write(iommu, false);
-	raw_spin_unlock_irqrestore(&iommu->lock, flags);
-	return ret;
-}
-
-/*
- * Force PERF_OPT_EN off without touching the refcount (used on init, shutdown,
- * and suspend). The count is preserved so amd_iommu_perfopt_restore() can
- * re-arm on resume.
- */
-int amd_iommu_perfopt_clear(struct amd_iommu *iommu)
-{
-	unsigned long flags;
-	int ret;
-
-	if (!iommu->mmio_base)
-		return 0;
-
-	raw_spin_lock_irqsave(&iommu->lock, flags);
-	ret = __perfopt_write(iommu, false);
-	raw_spin_unlock_irqrestore(&iommu->lock, flags);
-	return ret;
-}
-
-/*
- * Re-assert PERF_OPT_EN from the refcount after the hardware was reprogrammed on
- * resume, so devices armed before suspend keep the optimization without each
- * consumer driver re-arming.
- */
-int amd_iommu_perfopt_restore(struct amd_iommu *iommu)
-{
-	unsigned long flags;
-	int ret;
-
-	if (!iommu->mmio_base)
-		return 0;
-
-	raw_spin_lock_irqsave(&iommu->lock, flags);
-	ret = __perfopt_write(iommu, iommu->perfopt_refcount > 0);
-	raw_spin_unlock_irqrestore(&iommu->lock, flags);
-	return ret;
-}
-
-int amd_iommu_enable_perfopt(struct pci_dev *pdev)
-{
-	struct iommu_dev_data *dev_data = dev_iommu_priv_get(&pdev->dev);
-	struct amd_iommu *iommu = rlookup_amd_iommu(&pdev->dev);
-	struct protection_domain *domain;
-	int ret;
-
-	if (!iommu || !dev_data)
-		return -ENODEV;
-
-	if (!(iommu->features & FEATURE_PERF_OPT))
-		return -ENODEV;
-
-	domain = dev_data->domain;
-	if (!domain)
-		return -ENODEV;
-
-	/* Already armed for this device (e.g. re-entry on resume). */
-	if (dev_data->perfopt)
-		return 0;
-
-	/*
-	 * The bit is only architecturally valid while the device is untranslated:
-	 * identity domain with ATS/PRI/PASID off. The identity domain is
-	 * SVA-capable so attach_device() enabled ATS/PRI/PASID and built a GCR3
-	 * table. Re-home the device onto the same identity domain with
-	 * perfopt set, so the attach_device() skip_caps path leaves
-	 * ATS/PRI/PASID off and no GCR3 table. This follows the detach/attach
-	 * pattern used by amd_iommu_attach_device().
-	 *
-	 * Locking: this and amd_iommu_disable_perfopt() run only from the
-	 * consumer driver's bind/unbind path. group->mutex is not exposed to
-	 * drivers, but a device bound to its native driver cannot have its domain
-	 * changed concurrently by the core (VFIO ownership is mutually exclusive;
-	 * sysfs domain changes require an unused group), so the detach/attach pair
-	 * is serialized without it.
-	 */
-	dev_data->perfopt = true;
-	detach_device(&pdev->dev);
-	ret = attach_device(&pdev->dev, domain);
-	if (ret)
-		goto err_restore;
-
-	ret = perfopt_get(iommu);
-	if (ret)
-		goto err_rearm;
-
-	dev_info_once(&pdev->dev, "PerfOpt armed on IOMMU%d\n", iommu->index);
-	return 0;
-
-err_rearm:
-	detach_device(&pdev->dev);
-err_restore:
-	dev_data->perfopt = false;
-	if (attach_device(&pdev->dev, domain))
-		pci_err(pdev, "failed to restore state after PerfOpt setup; device left detached\n");
-	dev_err_once(&pdev->dev, "PerfOpt failed to arm on IOMMU%d (%d)\n",
-		     iommu->index, ret);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(amd_iommu_enable_perfopt);
-
-void amd_iommu_disable_perfopt(struct pci_dev *pdev)
-{
-	struct iommu_dev_data *dev_data = dev_iommu_priv_get(&pdev->dev);
-	struct amd_iommu *iommu = rlookup_amd_iommu(&pdev->dev);
-	struct protection_domain *domain;
-
-	if (!iommu || !dev_data || !dev_data->perfopt || !dev_data->domain)
-		return;
-
-	if (WARN_ON(perfopt_put(iommu)))
-		pci_err(pdev, "failed to clear PerfOpt\n");
-
-	/*
-	 * Restore ATS/PRI/PASID (and thus SVA) by re-homing the device onto its
-	 * identity domain with the flag cleared, so a later bind without PerfOpt
-	 * sees a normally-capable device. See the locking note in
-	 * amd_iommu_enable_perfopt().
-	 */
-	domain = dev_data->domain;
-	dev_data->perfopt = false;
-	detach_device(&pdev->dev);
-	if (attach_device(&pdev->dev, domain))
-		pci_err(pdev, "failed to restore caps after PerfOpt disable\n");
-}
-EXPORT_SYMBOL_GPL(amd_iommu_disable_perfopt);
 static struct iommu_device *amd_iommu_probe_device(struct device *dev)
 {
 	struct iommu_device *iommu_dev;
@@ -2739,14 +2554,6 @@ static struct iommu_device *amd_iommu_probe_device(struct device *dev)
 static void amd_iommu_release_device(struct device *dev)
 {
 	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
-	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
-
-	if (dev_data->perfopt) {
-		if (WARN_ON(perfopt_put(iommu)))
-			dev_err(dev, "IOMMU%d: failed to clear PerfOpt on release\n",
-				iommu->index);
-		dev_data->perfopt = false;
-	}
 
 	WARN_ON(dev_data->domain);
 
@@ -3116,24 +2923,32 @@ void amd_iommu_domain_free(struct iommu_domain *dom)
 	kfree(domain);
 }
 
+/* Each IOMMU has at most one PerfOpt-eligible GPU. */
+static int set_device_perfopt(struct iommu_dev_data *dev_data, bool enable)
+{
+	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
+
+	if (!dev_data->perfopt)
+		return 0;
+
+	guard(raw_spinlock_irqsave)(&iommu->lock);
+	if (iommu->perfopt_enabled == enable)
+		return 0;
+
+	return amd_iommu_perfopt_set(iommu, enable);
+}
+
 static int blocked_domain_attach_device(struct iommu_domain *domain,
 					struct device *dev,
 					struct iommu_domain *old)
 {
 	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
-	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
+	int ret;
 
-	/*
-	 * blocked_domain is also the .release_domain, so this is the normal
-	 * teardown path: drop the reference and clear the flag here too, and
-	 * don't fail teardown if the WARN-guarded write doesn't stick.
-	 */
-	if (dev_data->perfopt) {
-		if (WARN_ON(perfopt_put(iommu)))
-			dev_err(dev, "IOMMU%d: failed to clear PerfOpt for blocked domain\n",
-				iommu->index);
-		dev_data->perfopt = false;
-	}
+	/* Clearing the DTE cannot block DMA while PerfOpt bypasses it. */
+	ret = set_device_perfopt(dev_data, false);
+	if (ret)
+		return ret;
 
 	if (dev_data->domain)
 		detach_device(dev);
@@ -3167,6 +2982,9 @@ static struct protection_domain identity_domain;
 static int amd_iommu_identity_attach(struct iommu_domain *dom, struct device *dev,
 				     struct iommu_domain *old)
 {
+	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
+	int ret;
+
 	/*
 	 * Don't allow attaching a device to the identity domain if SNP is
 	 * enabled and SNP Mode0 support is not present.
@@ -3174,7 +2992,13 @@ static int amd_iommu_identity_attach(struct iommu_domain *dom, struct device *de
 	if (amd_iommu_snp_en && !amd_iommu_snp_mode0_sup)
 		return -EINVAL;
 
-	return amd_iommu_attach_device(dom, dev, old);
+	ret = amd_iommu_attach_device(dom, dev, old);
+	if (ret)
+		return ret;
+
+	/* PerfOpt is optional; the identity attachment is already complete. */
+	set_device_perfopt(dev_data, true);
+	return 0;
 }
 
 static const struct iommu_domain_ops identity_domain_ops = {
@@ -3202,9 +3026,6 @@ static int amd_iommu_attach_device(struct iommu_domain *dom, struct device *dev,
 	struct amd_iommu *iommu = get_amd_iommu_from_dev(dev);
 	int ret;
 
-	if (dev_data->perfopt && !pdom_is_in_pt_mode(domain))
-		return -EBUSY;
-
 	/*
 	 * Skip attach device to domain if new domain is same as
 	 * devices current domain
@@ -3220,6 +3041,12 @@ static int amd_iommu_attach_device(struct iommu_domain *dom, struct device *dev,
 	 */
 	if (dom->dirty_ops && !amd_iommu_hd_support(iommu))
 		return -EINVAL;
+
+	if (!pdom_is_in_pt_mode(domain)) {
+		ret = set_device_perfopt(dev_data, false);
+		if (ret)
+			return ret;
+	}
 
 	if (dev_data->domain)
 		detach_device(dev);
@@ -3414,6 +3241,9 @@ static int amd_iommu_def_domain_type(struct device *dev)
 		 */
 		if (cc_platform_has(CC_ATTR_MEM_ENCRYPT))
 			return 0;
+
+		dev_data->perfopt = get_amd_iommu_from_dev_data(dev_data)->features &
+				    FEATURE_PERF_OPT;
 
 		return IOMMU_DOMAIN_IDENTITY;
 	}
