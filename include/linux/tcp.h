@@ -366,6 +366,7 @@ struct tcp_sock {
 	u32	rcv_rtt_last_tsecr;
 	u32	delivered_ecn_bytes[3];
 	u16	pkts_acked_ewma;/* Pkts acked EWMA for AccECN cep heuristic */
+	u32	rcv_collapse_credit; /* memory queued since last collapse */
 	struct {
 		u32	rtt_us;
 		u32	seq;
