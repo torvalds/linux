@@ -76,8 +76,6 @@ static inline int rvu_pcifunc_pf_mask(struct pci_dev *pdev)
 
 #define RVU_AFPF           25
 
-#ifdef CONFIG_DEBUG_FS
-
 struct dump_ctx {
 	int	lf;
 	int	id;
@@ -112,7 +110,6 @@ struct rvu_debugfs {
 	int npa_qsize_id;
 	int nix_qsize_id;
 };
-#endif
 
 struct rvu_work {
 	struct	work_struct work;
@@ -649,9 +646,7 @@ struct rvu {
 	int			mcs_blk_cnt;
 	int			cpt_pf_num;
 
-#ifdef CONFIG_DEBUG_FS
 	struct rvu_debugfs	rvu_dbg;
-#endif
 	struct rvu_devlink	*rvu_dl;
 
 	/* RVU switch implementation over NPC with DMAC rules */
