@@ -1370,7 +1370,7 @@ static int tb_xdomain_get_uuid(struct tb_xdomain *xd)
 			return -EAGAIN;
 		}
 		dev_dbg(&xd->dev, "failed to read remote UUID\n");
-		return ret;
+		return ret != -EAGAIN ? ret : -ETIMEDOUT;
 	}
 
 	dev_dbg(&xd->dev, "got remote UUID %pUb\n", &uuid);
@@ -1425,7 +1425,7 @@ static int tb_xdomain_get_link_status(struct tb_xdomain *xd)
 			return -EAGAIN;
 		}
 		dev_dbg(&xd->dev, "failed to receive remote link status\n");
-		return ret;
+		return ret != -EAGAIN ? ret : -ETIMEDOUT;
 	}
 
 	dev_dbg(&xd->dev, "remote link supports width %#x speed %#x\n", slw, sls);
@@ -1472,7 +1472,7 @@ static int tb_xdomain_link_state_change(struct tb_xdomain *xd,
 			return -EAGAIN;
 		}
 		dev_err(&xd->dev, "failed request link state change, aborting\n");
-		return ret;
+		return ret != -EAGAIN ? ret : -ETIMEDOUT;
 	}
 
 	dev_dbg(&xd->dev, "received link state change response\n");
@@ -1564,7 +1564,7 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 		dev_err(&xd->dev, "failed read XDomain properties from %pUb\n",
 			xd->remote_uuid);
 
-		return ret;
+		return ret != -EAGAIN ? ret : -ETIMEDOUT;
 	}
 
 	mutex_lock(&xd->lock);
