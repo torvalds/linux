@@ -15803,12 +15803,9 @@ int sched_group_set_idle(struct task_group *tg, long idle)
 	if (idle < 0 || idle > 1)
 		return -EINVAL;
 
-	mutex_lock(&shares_mutex);
-
-	if (tg->idle == idle) {
-		mutex_unlock(&shares_mutex);
+	guard(mutex)(&shares_mutex);
+	if (tg->idle == idle)
 		return 0;
-	}
 
 	tg->idle = idle;
 
@@ -15818,13 +15815,12 @@ int sched_group_set_idle(struct task_group *tg, long idle)
 		struct cfs_rq *grp_cfs_rq = tg_cfs_rq(tg, i);
 		bool was_idle = cfs_rq_is_idle(grp_cfs_rq);
 		long idle_task_delta;
-		struct rq_flags rf;
 
-		rq_lock_irqsave(rq, &rf);
+		guard(rq_lock_irqsave)(rq);
 
 		grp_cfs_rq->idle = idle;
 		if (WARN_ON_ONCE(was_idle == cfs_rq_is_idle(grp_cfs_rq)))
-			goto next_cpu;
+			continue;
 
 		idle_task_delta = grp_cfs_rq->h_nr_queued -
 				  grp_cfs_rq->h_nr_idle;
@@ -15843,9 +15839,6 @@ int sched_group_set_idle(struct task_group *tg, long idle)
 			if (cfs_rq_is_idle(cfs_rq))
 				break;
 		}
-
-next_cpu:
-		rq_unlock_irqrestore(rq, &rf);
 	}
 
 	/* Idle groups have minimum weight. */
@@ -15854,7 +15847,6 @@ next_cpu:
 	else
 		__sched_group_set_shares(tg, NICE_0_LOAD);
 
-	mutex_unlock(&shares_mutex);
 	return 0;
 }
 
