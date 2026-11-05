@@ -993,7 +993,7 @@ static int acp6x_probe(struct platform_device *pdev)
 	if (!ACPI_FAILURE(ret)) {
 		wov_en = dmic_status;
 		if (!wov_en)
-			return -ENODEV;
+			goto check_dmi_entry;
 	} else {
 		/* Incase of ACPI method read failure then jump to check_dmi_entry */
 		goto check_dmi_entry;
