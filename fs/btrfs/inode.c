@@ -10147,6 +10147,16 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 		ret = PTR_ERR(ordered);
 		goto out_free_reserved;
 	}
+	/*
+	 * A fast fsync can't deal with encoded writes because it neither
+	 * dirties folios nor it waits for ordered extent completion (or finish
+	 * its IO only) before unlocking the inode.
+	 * The consequence is that it results in a race that can make the fast
+	 * fsync log file extent items with the incorrect csum items,
+	 * as the data may not reach disks, or the csum is not properly
+	 * generated yet.
+	 */
+	btrfs_set_inode_full_sync(inode);
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 
 	if (start + encoded->len > inode->vfs_inode.i_size)
