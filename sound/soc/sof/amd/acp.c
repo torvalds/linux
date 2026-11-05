@@ -1220,6 +1220,27 @@ static int amd_sof_sdw_exit(struct snd_sof_dev *sdev)
 }
 #endif
 
+/*
+ * The PSP validates the signed DSP firmware, so it must be signed with the
+ * scheme the platform firmware uses: images for the alternative scheme are
+ * named with an "_l" suffix before the extension, the default ones have none.
+ */
+static int amd_sof_acp_get_fw_suffix(struct snd_sof_dev *sdev, const char **suffix)
+{
+	u32 val;
+	int ret;
+
+	ret = amd_smn_read(0, MP0_C2PMSG_63_REG, &val);
+	if (ret) {
+		dev_err(sdev->dev, "PSP firmware signing type read failed (err %d)\n", ret);
+		return ret;
+	}
+
+	*suffix = (val & MP0_C2PMSG_63_FW_SIGN_ALT) ? "_l" : "";
+
+	return 0;
+}
+
 int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 {
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
@@ -1455,8 +1476,14 @@ skip_soundwire:
 	sdev->debug_box.size = BOX_SIZE_1024;
 
 	if (adata->acp_sof_signed_firmware_image) {
+		const char *fw_suffix;
+
+		ret = amd_sof_acp_get_fw_suffix(sdev, &fw_suffix);
+		if (ret)
+			goto free_ipc_irq;
+
 		adata->fw_code_bin = devm_kasprintf(sdev->dev, GFP_KERNEL,
-						    "sof-%s-code.bin", chip->name);
+						    "sof-%s-code%s.bin", chip->name, fw_suffix);
 		if (!adata->fw_code_bin) {
 			ret = -ENOMEM;
 			goto free_ipc_irq;
