@@ -37,6 +37,7 @@ int ext4_fname_setup_filename(struct inode *dir, const struct qstr *iname,
 
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fname_setup_filename);
 
 int ext4_fname_prepare_lookup(struct inode *dir, struct dentry *dentry,
 			      struct ext4_filename *fname)
@@ -55,6 +56,7 @@ int ext4_fname_prepare_lookup(struct inode *dir, struct dentry *dentry,
 		ext4_fname_free_filename(fname);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fname_prepare_lookup);
 
 void ext4_fname_free_filename(struct ext4_filename *fname)
 {
@@ -69,6 +71,7 @@ void ext4_fname_free_filename(struct ext4_filename *fname)
 
 	ext4_fname_free_ci_filename(fname);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fname_free_filename);
 
 static bool uuid_is_zero(__u8 u[16])
 {
@@ -255,3 +258,4 @@ const struct fscrypt_operations ext4_cryptops = {
 	.empty_dir		= ext4_empty_dir,
 	.has_stable_inodes	= ext4_has_stable_inodes,
 };
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_cryptops);

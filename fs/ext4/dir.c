@@ -126,6 +126,7 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 
 	return 1;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_check_dir_entry);
 
 static int ext4_readdir(struct file *file, struct dir_context *ctx)
 {
@@ -475,6 +476,7 @@ void ext4_htree_free_dir_info(struct dir_private_info *p)
 	free_rb_tree_fname(&p->root);
 	kfree(p);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_htree_free_dir_info);
 
 /*
  * Given a directory entry, enter it into the fname rb tree.
@@ -535,6 +537,7 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 	rb_insert_color(&new_fn->rb_hash, &info->root);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_htree_store_dirent);
 
 
 
@@ -683,6 +686,7 @@ int ext4_check_all_de(struct inode *dir, struct buffer_head *bh, void *buf,
 
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_check_all_de);
 
 static int ext4_dir_open(struct inode *inode, struct file *file)
 {

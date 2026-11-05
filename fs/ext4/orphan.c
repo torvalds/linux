@@ -5,6 +5,7 @@
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/string_choices.h>
+#include <kunit/static_stub.h>
 
 #include "ext4.h"
 #include "ext4_jbd2.h"
@@ -107,6 +108,8 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	int err = 0, rc;
 	bool dirty = false;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_orphan_add, handle, inode);
+
 	if (!sbi->s_journal || is_bad_inode(inode))
 		return 0;
 
@@ -187,6 +190,7 @@ out:
 	ext4_std_error(sb, err);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_orphan_add);
 
 static int ext4_orphan_file_del(handle_t *handle, struct inode *inode)
 {
@@ -231,6 +235,8 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 	__u32 ino_next;
 	struct ext4_iloc iloc;
 	int err = 0;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_orphan_del, handle, inode);
 
 	if (!sbi->s_journal && !(sbi->s_mount_state & EXT4_ORPHAN_FS))
 		return 0;
@@ -308,6 +314,7 @@ out_brelse:
 	brelse(iloc.bh);
 	goto out_err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_orphan_del);
 
 #ifdef CONFIG_QUOTA
 static int ext4_quota_on_mount(struct super_block *sb, int type)
