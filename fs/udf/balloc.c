@@ -525,30 +525,22 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 
 	while (first_block != eloc.logicalBlockNum) {
 		ret = udf_next_aext(table, &epos, &eloc, &elen, &etype, 1);
-		if (ret < 0)
+		if (ret <= 0)
 			goto err_out;
-		if (ret == 0)
-			break;
 		udf_debug("eloc=%u, elen=%u, first_block=%u\n",
 			  eloc.logicalBlockNum, elen, first_block);
 	}
 
-	if (ret > 0 && first_block == eloc.logicalBlockNum) {
-		epos.offset -= adsize;
+	epos.offset -= adsize;
 
-		alloc_count = (elen >> sb->s_blocksize_bits);
-		if (alloc_count > block_count) {
-			alloc_count = block_count;
-			eloc.logicalBlockNum += alloc_count;
-			elen -= (alloc_count << sb->s_blocksize_bits);
-			udf_write_aext(table, &epos, &eloc,
-					(etype << 30) | elen, 1);
-		} else
-			udf_delete_aext(table, epos, &freed);
-	} else {
-		alloc_count = 0;
-	}
-
+	alloc_count = (elen >> sb->s_blocksize_bits);
+	if (alloc_count > block_count) {
+		alloc_count = block_count;
+		eloc.logicalBlockNum += alloc_count;
+		elen -= (alloc_count << sb->s_blocksize_bits);
+		udf_write_aext(table, &epos, &eloc, (etype << 30) | elen, 1);
+	} else
+		udf_delete_aext(table, epos, &freed);
 err_out:
 	brelse(epos.bh);
 
