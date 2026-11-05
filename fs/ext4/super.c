@@ -196,6 +196,9 @@ static inline void __ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
 void ext4_read_bh_nowait(struct buffer_head *bh, blk_opf_t op_flags,
 			 bio_end_io_t end_io, bool simu_fail)
 {
+	KUNIT_STATIC_STUB_REDIRECT(ext4_read_bh_nowait, bh, op_flags,
+				   end_io, simu_fail);
+
 	BUG_ON(!buffer_locked(bh));
 
 	if (ext4_buffer_uptodate(bh)) {
@@ -204,6 +207,7 @@ void ext4_read_bh_nowait(struct buffer_head *bh, blk_opf_t op_flags,
 	}
 	__ext4_read_bh(bh, op_flags, end_io, simu_fail);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_bh_nowait);
 
 int ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
 		 bio_end_io_t end_io, bool simu_fail)
@@ -225,6 +229,8 @@ int ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
 
 int ext4_read_bh_lock(struct buffer_head *bh, blk_opf_t op_flags, bool wait)
 {
+	KUNIT_STATIC_STUB_REDIRECT(ext4_read_bh_lock, bh, op_flags, wait);
+
 	lock_buffer(bh);
 	if (!wait) {
 		ext4_read_bh_nowait(bh, op_flags, NULL, false);
@@ -232,6 +238,7 @@ int ext4_read_bh_lock(struct buffer_head *bh, blk_opf_t op_flags, bool wait)
 	}
 	return ext4_read_bh(bh, op_flags, NULL, false);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_bh_lock);
 
 /*
  * This works like __bread_gfp() except it uses ERR_PTR for error
@@ -293,8 +300,11 @@ struct buffer_head *ext4_sb_bread_nofail(struct super_block *sb,
 
 void ext4_sb_breadahead_unmovable(struct super_block *sb, sector_t block)
 {
-	struct buffer_head *bh = bdev_getblk(sb->s_bdev, block,
-			sb->s_blocksize, GFP_NOWAIT);
+	struct buffer_head *bh;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_sb_breadahead_unmovable, sb, block);
+
+	bh = bdev_getblk(sb->s_bdev, block, sb->s_blocksize, GFP_NOWAIT);
 
 	if (likely(bh)) {
 		if (trylock_buffer(bh))
@@ -302,6 +312,7 @@ void ext4_sb_breadahead_unmovable(struct super_block *sb, sector_t block)
 		brelse(bh);
 	}
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sb_breadahead_unmovable);
 
 static int ext4_verify_csum_type(struct super_block *sb,
 				 struct ext4_super_block *es)
@@ -413,6 +424,7 @@ void ext4_inode_bitmap_set(struct super_block *sb,
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		bg->bg_inode_bitmap_hi = cpu_to_le32(blk >> 32);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_bitmap_set);
 
 void ext4_inode_table_set(struct super_block *sb,
 			  struct ext4_group_desc *bg, ext4_fsblk_t blk)
@@ -421,6 +433,7 @@ void ext4_inode_table_set(struct super_block *sb,
 	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
 		bg->bg_inode_table_hi = cpu_to_le32(blk >> 32);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_table_set);
 
 void ext4_free_group_clusters_set(struct super_block *sb,
 				  struct ext4_group_desc *bg, __u32 count)
@@ -1611,6 +1624,7 @@ void ext4_clear_inode(struct inode *inode)
 	}
 	fscrypt_put_encryption_info(inode);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_clear_inode);
 
 static struct inode *ext4_nfs_get_inode(struct super_block *sb,
 					u64 ino, u32 generation)

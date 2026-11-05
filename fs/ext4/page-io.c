@@ -301,6 +301,7 @@ void ext4_end_io_rsv_work(struct work_struct *work)
 						  i_rsv_conversion_work);
 	ext4_do_flush_completed_IO(&ei->vfs_inode, &ei->i_rsv_conversion_list);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_end_io_rsv_work);
 
 ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 {

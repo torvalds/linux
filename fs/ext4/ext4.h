@@ -3291,6 +3291,35 @@ extern void ext4_da_update_reserve_space(struct inode *inode,
 extern int ext4_issue_zeroout(handle_t *handle, struct inode *inode,
 			      ext4_lblk_t lblk, ext4_fsblk_t pblk,
 			      ext4_lblk_t len);
+struct buffer_head *ext4_sb_getblk(struct super_block *sb, ext4_fsblk_t block);
+struct buffer_head *ext4_sb_find_get_block(struct super_block *sb,
+					   ext4_fsblk_t block);
+struct buffer_head *ext4_sb_getblk_unmovable(struct super_block *sb,
+					     ext4_fsblk_t block);
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_inode_csum_verify_test(struct inode *inode, struct ext4_inode *raw,
+				struct ext4_inode_info *ei);
+int ext4_inode_blocks_set_test(struct ext4_inode *raw_inode,
+			       struct ext4_inode_info *ei);
+blkcnt_t ext4_inode_blocks_test(struct ext4_inode *raw_inode,
+				struct ext4_inode_info *ei);
+int ext4_fill_raw_inode_test(struct inode *inode,
+			     struct ext4_inode *raw_inode);
+int ext4_expand_extra_isize_test(struct inode *inode,
+				 unsigned int new_extra_isize,
+				 struct ext4_iloc *iloc,
+				 handle_t *handle, int *no_expand);
+int ext4_try_to_expand_extra_isize_test(struct inode *inode,
+					unsigned int new_extra_isize,
+					struct ext4_iloc *iloc,
+					handle_t *handle);
+int ext4_da_reserve_space_test(struct inode *inode, int nr_resv);
+int ext4_clu_alloc_state_test(struct inode *inode, ext4_lblk_t lblk);
+int ext4_insert_delayed_blocks_test(struct inode *inode, ext4_lblk_t lblk,
+				    ext4_lblk_t len);
+int ext4_da_map_blocks_test(struct inode *inode, struct ext4_map_blocks *map);
+int ext4_nonda_switch_test(struct super_block *sb);
+#endif
 
 static inline bool is_special_ino(struct super_block *sb, unsigned long ino)
 {

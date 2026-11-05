@@ -250,6 +250,8 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	int fatal = 0, err, count, cleared;
 	struct ext4_group_info *grp;
 
+	KUNIT_STATIC_STUB_REDIRECT(ext4_free_inode, handle, inode);
+
 	if (!sb) {
 		printk(KERN_ERR "EXT4-fs: %s:%d: inode on "
 		       "nonexistent device\n", __func__, __LINE__);
@@ -363,6 +365,7 @@ error_return:
 	brelse(bitmap_bh);
 	ext4_std_error(sb, fatal);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_inode);
 
 struct orlov_stats {
 	__u64 free_clusters;

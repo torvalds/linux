@@ -126,6 +126,7 @@ void ext4_inode_csum_set(struct inode *inode, struct ext4_inode *raw,
 	    EXT4_FITS_IN_INODE(raw, ei, i_checksum_hi))
 		raw->i_checksum_hi = cpu_to_le16(csum >> 16);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_csum_set);
 
 /*
  * Clear the disksize-grow-pending state and wake up all waiters.
@@ -228,6 +229,7 @@ int ext4_inode_is_fast_symlink(struct inode *inode)
 	return S_ISLNK(inode->i_mode) && inode->i_size &&
 	       (inode->i_size < EXT4_N_BLOCKS * 4);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_is_fast_symlink);
 
 /*
  * Called at the last iput() if i_nlink is zero.
@@ -400,6 +402,7 @@ no_delete:
 		ext4_fc_mark_ineligible(inode->i_sb, EXT4_FC_REASON_NOMEM, NULL);
 	ext4_clear_inode(inode);	/* We must guarantee clearing of inode... */
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_evict_inode);
 
 #ifdef CONFIG_QUOTA
 qsize_t *ext4_get_reserved_space(struct inode *inode)
@@ -1082,6 +1085,7 @@ int ext4_get_block(struct inode *inode, sector_t iblock,
 	return _ext4_get_block(inode, iblock, bh,
 			       create ? EXT4_GET_BLOCKS_CREATE : 0);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_block);
 
 /*
  * Get block function used when preparing for buffered write if we require
@@ -1108,9 +1112,33 @@ int ext4_get_block_unwritten(struct inode *inode, sector_t iblock,
 
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_block_unwritten);
 
 /* Maximum number of blocks we map for direct IO at once. */
 #define DIO_MAX_BLOCKS 4096
+
+struct buffer_head *ext4_sb_getblk(struct super_block *sb, ext4_fsblk_t block)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_sb_getblk, sb, block);
+	return sb_getblk(sb, block);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sb_getblk);
+
+struct buffer_head *ext4_sb_find_get_block(struct super_block *sb,
+					   ext4_fsblk_t block)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_sb_find_get_block, sb, block);
+	return sb_find_get_block(sb, block);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sb_find_get_block);
+
+struct buffer_head *ext4_sb_getblk_unmovable(struct super_block *sb,
+					     ext4_fsblk_t block)
+{
+	KUNIT_STATIC_STUB_REDIRECT(ext4_sb_getblk_unmovable, sb, block);
+	return getblk_unmovable(sb->s_bdev, block, sb->s_blocksize);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sb_getblk_unmovable);
 
 /*
  * `handle' can be NULL if create is zero
@@ -1141,15 +1169,14 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 		return ERR_PTR(err);
 
 	if (nowait)
-		return sb_find_get_block(inode->i_sb, map.m_pblk);
+		return ext4_sb_find_get_block(inode->i_sb, map.m_pblk);
 
 	/*
 	 * Since bh could introduce extra ref count such as referred by
 	 * journal_head etc. Try to avoid using __GFP_MOVABLE here
 	 * as it may fail the migration when journal_head remains.
 	 */
-	bh = getblk_unmovable(inode->i_sb->s_bdev, map.m_pblk,
-				inode->i_sb->s_blocksize);
+	bh = ext4_sb_getblk_unmovable(inode->i_sb, map.m_pblk);
 
 	if (unlikely(!bh))
 		return ERR_PTR(-ENOMEM);
@@ -1210,6 +1237,7 @@ struct buffer_head *ext4_bread(handle_t *handle, struct inode *inode,
 	}
 	return bh;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_bread);
 
 /* Read a contiguous batch of blocks. */
 int ext4_bread_batch(struct inode *inode, ext4_lblk_t block, int bh_count,
@@ -1253,6 +1281,7 @@ out_brelse:
 	}
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_bread_batch);
 
 int ext4_walk_page_buffers(handle_t *handle, struct inode *inode,
 			   struct buffer_head *head,
@@ -1284,6 +1313,7 @@ int ext4_walk_page_buffers(handle_t *handle, struct inode *inode,
 	}
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_walk_page_buffers);
 
 /*
  * Helper for handling dirtying of journalled data. We also mark the folio as
@@ -4058,12 +4088,14 @@ out:
 
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_iomap_begin);
 
 static DEFINE_IOMAP_ITER_NEXT(ext4_iomap_next, ext4_iomap_begin);
 
 const struct iomap_ops ext4_iomap_ops = {
 	.iomap_next		= ext4_iomap_next,
 };
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_iomap_ops);
 
 static int ext4_iomap_begin_report(struct inode *inode, loff_t offset,
 				   loff_t length, unsigned int flags,
@@ -4121,6 +4153,7 @@ static DEFINE_IOMAP_ITER_NEXT(ext4_iomap_next_report, ext4_iomap_begin_report);
 const struct iomap_ops ext4_iomap_report_ops = {
 	.iomap_next = ext4_iomap_next_report,
 };
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_iomap_report_ops);
 
 static int ext4_iomap_map_blocks(struct inode *inode, loff_t offset,
 				 loff_t length, struct ext4_map_blocks *map,
@@ -4719,6 +4752,7 @@ void ext4_set_aops(struct inode *inode)
 	else
 		inode->i_mapping->a_ops = &ext4_aops;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_set_aops);
 
 /*
  * Here we can't skip an unwritten buffer even though it usually reads zero
@@ -5125,6 +5159,7 @@ int ext4_block_zero_eof(struct inode *inode, loff_t from, loff_t end)
 	trace_ext4_block_zero_eof(inode, from, length, did_zero, zero_written);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_block_zero_eof);
 
 /*
  * Zero out the unaligned head and tail of the [lstart, lstart+length)
@@ -5185,6 +5220,7 @@ int ext4_zero_partial_blocks(struct inode *inode, loff_t lstart, loff_t length,
 	}
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_zero_partial_blocks);
 
 int ext4_can_truncate(struct inode *inode)
 {
@@ -5196,6 +5232,7 @@ int ext4_can_truncate(struct inode *inode)
 		return !ext4_inode_is_fast_symlink(inode);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_can_truncate);
 
 /*
  * We have to make sure i_disksize gets properly updated before we truncate
@@ -5241,6 +5278,7 @@ int ext4_update_disksize_before_punch(struct inode *inode, loff_t offset,
 
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_update_disksize_before_punch);
 
 static inline void ext4_truncate_folio(struct inode *inode,
 				       loff_t start, loff_t end)
@@ -5303,6 +5341,7 @@ truncate_pagecache:
 	truncate_pagecache_range(inode, start, end - 1);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_truncate_page_cache_block_range);
 
 static void ext4_wait_dax_page(struct inode *inode)
 {
@@ -5318,6 +5357,7 @@ int ext4_break_layouts(struct inode *inode)
 
 	return dax_break_layout_inode(inode, ext4_wait_dax_page);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_break_layouts);
 
 /*
  * ext4_punch_hole: punches a hole in a file by releasing the blocks
@@ -5445,6 +5485,7 @@ out_handle:
 	ext4_journal_stop(handle);
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_punch_hole);
 
 int ext4_inode_attach_jinode(struct inode *inode)
 {
@@ -5475,6 +5516,7 @@ int ext4_inode_attach_jinode(struct inode *inode)
 		jbd2_free_inode(jinode);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_attach_jinode);
 
 /*
  * ext4_truncate()
@@ -5609,6 +5651,7 @@ out_trace:
 	trace_ext4_truncate_exit(inode);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_truncate);
 
 static inline u64 ext4_inode_peek_iversion(const struct inode *inode)
 {
@@ -5800,7 +5843,7 @@ static int __ext4_get_inode_loc(struct super_block *sb, unsigned long ino,
 	}
 	block += (inode_offset / inodes_per_block);
 
-	bh = sb_getblk(sb, block);
+	bh = ext4_sb_getblk(sb, block);
 	if (unlikely(!bh))
 		return -ENOMEM;
 	if (ext4_buffer_uptodate(bh))
@@ -5829,7 +5872,8 @@ static int __ext4_get_inode_loc(struct super_block *sb, unsigned long ino,
 		 * is locked, and blocking here would folio_lock() against a
 		 * block_read_full_folio() that locks bh the other way round.
 		 */
-		bitmap_bh = sb_find_get_block(sb, ext4_inode_bitmap(sb, gdp));
+		bitmap_bh = ext4_sb_find_get_block(sb,
+						   ext4_inode_bitmap(sb, gdp));
 		if (unlikely(!bitmap_bh))
 			goto make_io;
 
@@ -5986,7 +6030,7 @@ int ext4_get_inode_loc_noio(struct inode *inode, struct ext4_iloc *iloc)
 	}
 	block += inode_offset / inodes_per_block;
 
-	bh = sb_find_get_block(sb, block);
+	bh = ext4_sb_find_get_block(sb, block);
 	if (!bh)
 		return -EAGAIN;
 	if (!ext4_buffer_uptodate(bh)) {
@@ -6065,6 +6109,7 @@ void ext4_set_inode_flags(struct inode *inode, bool init)
 			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC|S_DAX|
 			S_ENCRYPTED|S_CASEFOLD|S_VERITY);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_set_inode_flags);
 
 static blkcnt_t ext4_inode_blocks(struct ext4_inode *raw_inode,
 				  struct ext4_inode_info *ei)
@@ -6121,6 +6166,7 @@ int ext4_get_projid(struct inode *inode, kprojid_t *projid)
 	*projid = EXT4_I(inode)->i_projid;
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_projid);
 
 /*
  * ext4 has self-managed i_version for ea inodes, it stores the lower 32bit of
@@ -6273,6 +6319,7 @@ void ext4_set_inode_mapping_order(struct inode *inode)
 
 	mapping_set_folio_order_range(inode->i_mapping, min_order, max_order);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_set_inode_mapping_order);
 
 static int ext4_iget_match(struct inode *inode, u64 ino, void *data)
 {
@@ -6887,6 +6934,7 @@ int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return ext4_fc_commit(EXT4_SB(inode->i_sb)->s_journal,
 						EXT4_I(inode)->i_sync_tid);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_write_inode);
 
 int ext4_sync_inode_metadata(struct inode *inode, struct writeback_control *wbc)
 {
@@ -6917,6 +6965,7 @@ out:
 	brelse(iloc.bh);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_sync_inode_metadata);
 
 /*
  * In data=journal mode ext4_journalled_invalidate_folio() may fail to invalidate
@@ -7267,6 +7316,7 @@ err_out:
 		error = rc;
 	return error;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_setattr);
 
 u32 ext4_dio_alignment(struct inode *inode)
 {
@@ -7280,6 +7330,7 @@ u32 ext4_dio_alignment(struct inode *inode)
 		return i_blocksize(inode);
 	return 1; /* use the iomap defaults */
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dio_alignment);
 
 int ext4_getattr(const struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int query_flags)
@@ -7347,6 +7398,7 @@ int ext4_getattr(const struct mnt_idmap *idmap, const struct path *path,
 	generic_fillattr(idmap, request_mask, inode, stat);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_getattr);
 
 int ext4_file_getattr(const struct mnt_idmap *idmap,
 		      const struct path *path, struct kstat *stat,
@@ -7381,6 +7433,7 @@ int ext4_file_getattr(const struct mnt_idmap *idmap,
 	stat->blocks += delalloc_blocks << (inode->i_sb->s_blocksize_bits - 9);
 	return 0;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_file_getattr);
 
 static int ext4_index_trans_blocks(struct inode *inode, int lblocks,
 				   int pextents)
@@ -7433,6 +7486,7 @@ int ext4_meta_trans_blocks(struct inode *inode, int lblocks, int pextents,
 
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_meta_trans_blocks);
 
 /*
  * Calculate the journal credits for modifying the number of blocks
@@ -7450,6 +7504,7 @@ int ext4_chunk_trans_extent(struct inode *inode, int nrblocks)
 		ret += nrblocks;
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_chunk_trans_extent);
 
 /*
  * Calculate the journal credits for a chunk of data modification.
@@ -7464,6 +7519,7 @@ int ext4_chunk_trans_blocks(struct inode *inode, int nrblocks)
 {
 	return ext4_meta_trans_blocks(inode, nrblocks, 1, 1);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_chunk_trans_blocks);
 
 /*
  * The caller must have previously called ext4_reserve_inode_write().
@@ -7541,6 +7597,7 @@ ext4_reserve_inode_write(handle_t *handle, struct inode *inode,
 	ext4_std_error(inode->i_sb, err);
 	return err;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_reserve_inode_write);
 
 static int __ext4_expand_extra_isize(struct inode *inode,
 				     unsigned int new_extra_isize,
@@ -7698,6 +7755,7 @@ out_unlock:
 	ext4_journal_stop(handle);
 	return error;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_expand_extra_isize);
 
 /*
  * What we do here is to mark the in-core inode as clean with respect to inode
@@ -7764,6 +7822,7 @@ void ext4_dirty_inode(struct inode *inode, int flags)
 	ext4_mark_inode_dirty(handle, inode);
 	ext4_journal_stop(handle);
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_dirty_inode);
 
 int ext4_change_inode_journal_flag(struct inode *inode, int val)
 {
@@ -8025,8 +8084,87 @@ out:
 	sb_end_pagefault(inode->i_sb);
 	return ret;
 }
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_page_mkwrite);
 
 #if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_inode_csum_verify_test(struct inode *inode, struct ext4_inode *raw,
+				struct ext4_inode_info *ei)
+{
+	return ext4_inode_csum_verify(inode, raw, ei);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_csum_verify_test);
+
+int ext4_inode_blocks_set_test(struct ext4_inode *raw_inode,
+			       struct ext4_inode_info *ei)
+{
+	return ext4_inode_blocks_set(raw_inode, ei);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_blocks_set_test);
+
+blkcnt_t ext4_inode_blocks_test(struct ext4_inode *raw_inode,
+				struct ext4_inode_info *ei)
+{
+	return ext4_inode_blocks(raw_inode, ei);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_inode_blocks_test);
+
+int ext4_fill_raw_inode_test(struct inode *inode, struct ext4_inode *raw_inode)
+{
+	return ext4_fill_raw_inode(inode, raw_inode);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fill_raw_inode_test);
+
+int ext4_expand_extra_isize_test(struct inode *inode,
+				 unsigned int new_extra_isize,
+				 struct ext4_iloc *iloc,
+				 handle_t *handle, int *no_expand)
+{
+	return __ext4_expand_extra_isize(inode, new_extra_isize, iloc,
+					 handle, no_expand);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_expand_extra_isize_test);
+
+int ext4_try_to_expand_extra_isize_test(struct inode *inode,
+					unsigned int new_extra_isize,
+					struct ext4_iloc *iloc,
+					handle_t *handle)
+{
+	return ext4_try_to_expand_extra_isize(inode, new_extra_isize,
+					      *iloc, handle);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_try_to_expand_extra_isize_test);
+
+int ext4_da_reserve_space_test(struct inode *inode, int nr_resv)
+{
+	return ext4_da_reserve_space(inode, nr_resv);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_reserve_space_test);
+
+int ext4_clu_alloc_state_test(struct inode *inode, ext4_lblk_t lblk)
+{
+	return ext4_clu_alloc_state(inode, lblk);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_clu_alloc_state_test);
+
+int ext4_insert_delayed_blocks_test(struct inode *inode, ext4_lblk_t lblk,
+				    ext4_lblk_t len)
+{
+	return ext4_insert_delayed_blocks(inode, lblk, len);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_insert_delayed_blocks_test);
+
+int ext4_da_map_blocks_test(struct inode *inode, struct ext4_map_blocks *map)
+{
+	return ext4_da_map_blocks(inode, map);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_map_blocks_test);
+
+int ext4_nonda_switch_test(struct super_block *sb)
+{
+	return ext4_nonda_switch(sb);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_nonda_switch_test);
+
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_inode_loc_noio);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_fc_inode_loc);
 EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_da_get_block_prep);
